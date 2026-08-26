@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-model · 嵌套路径</title>
+        <script src="/autostore/template.js"></script>
+        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 嵌套路径双向绑定：x-model 支持 state.user.address.city 这样的多层路径 -->
+        <div class="demo-app section">
+            <div class="field">
+                <label class="label">城市：</label>
+                <div class="control">
+                    <input class="input" x-model="user.address.city" />
+                </div>
+            </div>
+            <div class="field">
+                <label class="label">街道：</label>
+                <div class="control">
+                    <input class="input" x-model="user.address.street" />
+                </div>
+            </div>
+            <p class="help">
+                地址：<strong x-text="user.address.city"></strong> ·
+                <strong x-text="user.address.street"></strong>
+            </p>
+        </div>
+
+        <script>
+            const { AutoTemplateEngine } = AutoTemplateSpaces;
+            const engine = new AutoTemplateEngine(document.querySelector(".demo-app"), {
+                user: { address: { city: "北京", street: "长安街" } },
+            });
+        </script>
+    </body>
+</html>

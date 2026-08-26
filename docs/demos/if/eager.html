@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-if · eager 条件渲染</title>
+        <script src="/autostore/template.js"></script>
+        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- eager：true 编译子树，false 移除子树并销毁 watcher -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button is-primary" @click="toggle">{{ show ? "隐藏" : "显示" }}详情</button>
+            </div>
+            <div x-if="show">
+                <div class="card"><div class="card-content">这是详情内容。隐藏时整段子树会从 DOM 移除、watcher 销毁。</div></div>
+            </div>
+        </div>
+
+        <script>
+            const { AutoTemplateEngine } = AutoTemplateSpaces;
+            const engine = new AutoTemplateEngine(
+                document.querySelector(".demo-app"),
+                { show: false },
+                {
+                    actions: {
+                        toggle: () => {
+                            engine.state.show = !engine.state.show;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

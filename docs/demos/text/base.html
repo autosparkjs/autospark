@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-text 文本插值</title>
+        <!-- template.js 自包含 core；bulma.min.css 提供 Bulma 组件样式 -->
+        <script src="/autostore/template.js"></script>
+        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- x-text 把状态值绑定到元素的 textContent -->
+        <div class="demo-app section">
+            <div class="block">你好，<span class="has-text-primary has-text-weight-semibold" x-text="user.name"></span>！</div>
+            <!-- 文本节点中也可直接用 {{ }} 插值（与 x-text 等价的响应式文本绑定） -->
+            <div class="block">商品：{{ order.name }}，单价 {{ order.price }} 元，数量 {{ order.count }}</div>
+            <!-- x-text 也支持任意表达式 -->
+            <div class="block">合计：<strong class="has-text-primary has-text-weight-semibold" x-text="order.price * order.count"></strong> 元</div>
+            <div class="buttons">
+                <button class="button is-primary" @click="rename">点我改名并加购</button>
+            </div>
+        </div>
+
+        <script>
+            const { AutoTemplateEngine } = AutoTemplateSpaces;
+            // 第二参传裸状态对象，引擎自动建立 store；第三参 actions 注册动作
+            const engine = new AutoTemplateEngine(
+                document.querySelector(".demo-app"),
+                {
+                    user: { name: "张三" },
+                    order: { name: "AutoStore 手册", price: 18, count: 3 },
+                },
+                {
+                    actions: {
+                        rename: () => {
+                            engine.state.user.name = "李四";
+                            engine.state.order.count += 1;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

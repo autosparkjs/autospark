@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-data · 指定挂载位置（mount）</title>
+        <script src="/autostore/template.js"></script>
+        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- mount：把 x-data 的数据挂到全局状态树的任意位置。
+             声明子树内 {{count}} 直读；任意位置 {{ui.panel.count}} 全树可读；
+             this.count / engine.data() 直接写挂载容器（细粒度响应式）。 -->
+        <div class="demo-app section">
+            <!-- 块 A：mount:'ui.panel' —— 数据挂到 state.ui.panel（中间路径 ui 自动创建） -->
+            <div class="card" x-data="{ count: 0, tip: '点我 +1' }" x-data-options="{mount:'ui.panel'}">
+                <div class="card-content">
+                    <div class="heading has-text-grey">块 A · 声明处（mount:'ui.panel'）—— 子树内直读</div>
+                    <div class="block">
+                        直读 count = <b class="has-text-primary has-text-weight-semibold">{{count}}</b>｜
+                        tip = <b class="has-text-primary has-text-weight-semibold">{{tip}}</b>
+                    </div>
+                    <div class="buttons">
+                        <button class="button is-primary is-small" @click="bump">+1（this.count++）</button>
+                        <button class="button is-small is-light" @click="bumpOuter">改外部共享段 ui.lang</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 B：独立子树（未声明 x-data）—— 经全局路径 {{ui.panel.count}} 读到挂载数据 -->
+            <div class="card">
+                <div class="card-content">
+                    <div class="heading has-text-grey">块 B · 独立子树 —— 全路径 {{ui.panel.count}} 可读</div>
+                    <div class="block">
+                        ui.panel.count = <b class="has-text-primary has-text-weight-semibold">{{ui.panel.count}}</b>｜
+                        ui.panel.tip = <b class="has-text-primary has-text-weight-semibold">{{ui.panel.tip}}</b>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 C：mount 与既有数据 merge —— ui.lang 保留（容器是他家共享容器，旧键不动） -->
+            <div class="card" x-data="{ local: '我是默认私有域' }">
+                <div class="card-content">
+                    <div class="heading has-text-grey">块 C · 另一个 x-data（默认私有域）</div>
+                    <div class="block">
+                        私有 local = <b class="has-text-primary has-text-weight-semibold">{{local}}</b>｜
+                        读挂载容器：ui.panel.count = <b class="has-text-primary has-text-weight-semibold">{{ui.panel.count}}</b>｜
+                        读共享旧键：ui.lang = <b class="has-text-primary has-text-weight-semibold">{{ui.lang}}</b>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 D：x-if 控制mount 块的生死 —— 每次挂载/销毁拍下 ui 树快照，回收过程一目了然 -->
+            <div class="card" x-data="{ snapshots: [] }">
+                <div class="card-content">
+                    <div class="heading has-text-grey">块 D · 生命周期回收演示（勾选=挂载，取消=销毁回收）</div>
+                    <div class="block">
+                        <label class="checkbox">
+                            <input type="checkbox" x-model="showPanel" @change="snapshot" />
+                            挂载 mount 块（x-if 子树内 x-data mount:'ui.panel'）
+                        </label>
+                    </div>
+                    <div class="block">
+                        <span class="tag">ui 树实时值</span>
+                        <code class="ml-2" x-text="uiText()"></code>
+                    </div>
+                    <div class="block">
+                        <span class="tag">事件快照（新→旧）</span>
+                        <div class="mt-2" x-for="snap of snapshots" style="display:flex; flex-direction:column; gap:4px">
+                            <div class="is-size-7">
+                                <span class="tag" :class="snap.mounted ? 'is-success' : 'is-danger'" x-text="snap.mounted ? '挂载' : '销毁'"></span>
+                                <code x-text="snap.tree"></code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 D 的 x-if 子树：mount 数据随 x-if 销毁而回收 -->
+            <template x-if="showPanel">
+                <div class="notification is-primary is-light" x-data="{ fresh: 'mount 数据已挂入' }" x-data-options="{mount:'ui.panel'}">
+                    {{fresh}} —— 我挂在 ui.panel；上方取消勾选即销毁我 → ui.panel 键删空 → 容器连同 ui 向上回收
+                </div>
+            </template>
+        </div>
+
+        <script>
+            const { AutoTemplateEngine } = AutoTemplateSpaces;
+            const engine = new AutoTemplateEngine(
+                document.querySelector(".demo-app"),
+                // ui.lang 预置：演示「挂载容器是共享容器，他人旧键保留」；
+                // 块 A/x-if 子树只写 count/tip/fresh，销毁回收后 ui 恢复只剩 lang
+                { showPanel: false, ui: { lang: "zh-CN" } },
+                {
+                    actions: {
+                        // path 模式下 this.data.count 直接写挂载容器（store.state.ui.panel.count），
+                        // 路径订阅自动驱动块 A/B/C 同步更新——与默认私有域的 this.data 体验完全一致
+                        bump: function () {
+                            this.data.count = this.data.count + 1;
+                        },
+                        // 挂载容器是共享容器：写同容器的其他键（ui.lang）同样全树生效
+                        bumpOuter: function () {
+                            engine.state.ui.lang = engine.state.ui.lang === "zh-CN" ? "en-US" : "zh-CN";
+                        },
+                        // ui 树实时文本：容器被回收后 ui 可能只剩 lang 或整体消失，动态渲染
+                        uiText: function () {
+                            return JSON.stringify(engine.state.ui ?? "(已整体回收)");
+                        },
+                        // 快照：勾选（挂载）后 UI 已挂入，读到的树含 panel；取消（销毁）后读到的树已回收
+                        snapshot: function () {
+                            const mounted = !!engine.state.showPanel;
+                            const tree = JSON.stringify(engine.state.ui ?? {});
+                            this.data.snapshots = [{ mounted, tree }, ...this.data.snapshots].slice(0, 6);
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

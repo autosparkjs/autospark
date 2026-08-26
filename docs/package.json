@@ -1,0 +1,43 @@
+{
+  "name": "autostore-docs",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vitepress dev",
+    "build": "vitepress build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@autostorejs/devtools": "workspace:*",
+    "@autostorejs/react": "workspace:*",
+    "@autostorejs/syncer": "workspace:*",
+    "autostore": "workspace:*",
+    "x-react-components": "workspace:*",
+    "@lite-tree/icons": "^1.0.6",
+    "@lite-tree/vue": "^1.1.4",
+    "@shikijs/twoslash": "^4.0.2",
+    "@shoelace-style/shoelace": "^2.20.1",
+    "flex-tools": "^1.4.9",
+    "flexstyled": "^2.1.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "twoslash": "^0.3.6",
+    "vitepress": "^1.6.4",
+    "vue": "^3.5.14"
+  },
+  "devDependencies": {
+    "@shikijs/vitepress-twoslash": "^4.0.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/parser": "^8.57.2",
+    "code-inspector-plugin": "^1.4.5",
+    "typescript": "^6.0.2",
+    "vitepress-demo-plugin": "^1.4.7"
+  }
+}

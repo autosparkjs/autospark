@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-bind · 普通属性</title>
+        <script src="/autostore/template.js"></script>
+        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- :href / :title / :src / :alt 绑定普通属性 -->
+        <div class="demo-app section">
+            <div class="block">
+                <a :href="link.url" :title="link.tip">{{ link.text }}</a>
+            </div>
+            <div class="block">
+                <img :src="img.src" :alt="img.alt" style="width: 64px; vertical-align: middle" />
+                <span class="has-text-grey">{{ img.alt }}</span>
+            </div>
+            <div class="buttons">
+                <button class="button is-primary" @click="swap">切换内容</button>
+            </div>
+        </div>
+
+        <script>
+            const { AutoTemplateEngine } = AutoTemplateSpaces;
+            const link1 = {
+                url: "https://github.com/zhangfisher/autostore",
+                text: "AutoStore",
+                tip: "打开仓库",
+            };
+            const link2 = {
+                url: "https://vitepress.dev",
+                text: "VitePress",
+                tip: "打开文档",
+            };
+            const img1 = {
+                src: "https://api.dicebear.com/7.x/identicon/svg?seed=A",
+                alt: "头像 A",
+            };
+            const img2 = {
+                src: "https://api.dicebear.com/7.x/identicon/svg?seed=B",
+                alt: "头像 B",
+            };
+            // 初值须为 false：首次点击即切到 link2；若为 true，首次会重复赋 link1（无变化）
+            let flag = false;
+            const engine = new AutoTemplateEngine(
+                document.querySelector(".demo-app"),
+                {
+                    link: link1,
+                    img: img1,
+                },
+                {
+                    actions: {
+                        swap: () => {
+                            engine.state.link = flag ? link1 : link2;
+                            engine.state.img = flag ? img1 : img2;
+                            flag = !flag;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

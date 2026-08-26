@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-bind · style 绑定</title>
+        <script src="/autostore/template.js"></script>
+        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- :style 对象（驼峰 key）或字符串，随状态切换 -->
+        <div class="demo-app section">
+            <div class="block" :style="msg.warn ? msg.warnStyle : msg.normalStyle">{{ msg.text }}</div>
+            <div class="buttons">
+                <button class="button is-primary" @click="toggle">切换样式（正常 / 警告）</button>
+            </div>
+        </div>
+
+        <script>
+            const { AutoTemplateEngine } = AutoTemplateSpaces;
+            const engine = new AutoTemplateEngine(
+                document.querySelector(".demo-app"),
+                {
+                    msg: {
+                        text: "这条消息的样式是响应式的",
+                        // 布尔旗标驱动样式切换：避免对「从 store 读出的对象」做 === 比较
+                        // （读出的对象是 Proxy，与原始引用永不相等，详见 CONTEXT.md「响应式对象身份」）
+                        warn: false,
+                        normalStyle: { color: "#42b883", fontSize: "16px" },
+                        warnStyle: { color: "#e07000", fontWeight: "bold", fontSize: "18px" },
+                    },
+                },
+                {
+                    actions: {
+                        toggle: () => {
+                            engine.state.msg.warn = !engine.state.msg.warn;
+                            engine.state.msg.text = engine.state.msg.warn
+                                ? "警告样式"
+                                : "正常样式";
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

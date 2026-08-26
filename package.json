@@ -1,0 +1,20 @@
+{
+  "name": "autospark-packages",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@changesets/cli": "^3.0.1",
+    "@types/bun": "^1.4.0",
+    "oxfmt": "^0.65.0",
+    "oxlint": "^1.80.0",
+    "turbo": "^2.10.12",
+    "vitepress": "^1.6.4"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  },
+  "packageManager": "bun@1.4.0",
+  "lint-staged": {
+    "*": "oxfmt --no-error-on-unmatched-pattern"
+  }
+}

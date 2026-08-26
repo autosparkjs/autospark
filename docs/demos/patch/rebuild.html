@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>动态模板 · patch 子树重建</title>
+        <script src="/autostore/template.js"></script>
+        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- #box 是 x-scope 哨兵 scope，可被 engine.patch 定位 -->
+        <div class="demo-app section">
+            <div class="block">
+                当前 content：<span class="has-text-primary has-text-weight-semibold" x-text="content"></span>
+            </div>
+            <div id="box" class="card" x-scope>
+                <div class="card-content"><p x-text="content"></p></div>
+            </div>
+            <div class="buttons">
+                <button class="button is-primary" @click="rebuild">重建 #box 子树</button>
+                <button class="button is-primary" @click="changeMsg">只改 content（不重建）</button>
+            </div>
+        </div>
+
+        <script>
+            const { AutoTemplateEngine } = AutoTemplateSpaces;
+            const engine = new AutoTemplateEngine(
+                document.querySelector(".demo-app"),
+                { content: "初始内容", count: 0 },
+                {
+                    actions: {
+                        // patch：就地改 #box 模板子树，返回 undefined → 子树重建
+                        rebuild: () => {
+                            engine.patch("#box", (el) => {
+                                engine.state.count += 1;
+                                el.innerHTML =
+                                    `<p x-text="content"></p>` +
+                                    `<p class="has-text-grey">（子树第 ${engine.state.count} 次重建）</p>`;
+                            });
+                        },
+                        // 普通响应式：只改值，#box 内外的 x-text 自动刷新，不重建结构
+                        changeMsg: () => {
+                            engine.state.content = "更新于 #" + engine.state.count;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

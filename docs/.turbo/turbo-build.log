@@ -1,0 +1,14 @@
+
+> autostore-docs@1.0.0 build E:\Work\Code\autostore\docs
+> vitepress build
+
+
+  [32m[1mvitepress[22m v1.6.3[39m
+
+- building client + server bundles...
+[1m[33m[plugin:vite:resolve][39m[22m [33m[plugin vite:resolve] Module "path" has been externalized for browser compatibility, imported by "E:/Work/Code/autostore/node_modules/.pnpm/vitepress-demo-plugin@1.4.7_a6b23a238424460c22cc4e39a525d444/node_modules/vitepress-demo-plugin/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[1m[33m[plugin:vite:resolve][39m[22m [33m[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "E:/Work/Code/autostore/node_modules/.pnpm/vitepress-demo-plugin@1.4.7_a6b23a238424460c22cc4e39a525d444/node_modules/vitepress-demo-plugin/dist/index.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[32m✓[0m building client + server bundles...
+- rendering pages...
+[32m✓[0m rendering pages...
+build complete in 40.85s.

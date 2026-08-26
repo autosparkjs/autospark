@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-text · 响应式自动更新</title>
+        <script src="/autostore/template.js"></script>
+        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 改 state，所有订阅该状态的 x-text 自动刷新 -->
+        <div class="demo-app section">
+            <div class="block">当前计数：<strong class="has-text-primary is-size-4 has-text-weight-bold" x-text="count"></strong></div>
+            <div class="buttons">
+                <button class="button is-primary" @click="inc">+1</button>
+                <button class="button is-primary" @click="burst">连赋 3 次（合并为 1 次更新）</button>
+            </div>
+        </div>
+
+        <script>
+            const { AutoTemplateEngine } = AutoTemplateSpaces;
+            const engine = new AutoTemplateEngine(
+                document.querySelector(".demo-app"),
+                { count: 0 },
+                {
+                    actions: {
+                        inc: () => {
+                            engine.state.count++;
+                        },
+                        burst: () => {
+                            // 同一 tick 内多次赋值，调度器合并为一次 patch，最终只渲染 "3"
+                            engine.state.count++;
+                            engine.state.count++;
+                            engine.state.count++;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>
