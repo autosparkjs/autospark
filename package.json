@@ -8,7 +8,8 @@
     "oxfmt": "^0.65.0",
     "oxlint": "^1.80.0",
     "turbo": "^2.10.12",
-    "vitepress": "^1.6.4"
+    "vitepress": "^1.6.4",
+    "vue": "^3.5.41"
   },
   "peerDependencies": {
     "typescript": "^7"
