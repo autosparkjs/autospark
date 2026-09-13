@@ -1,8 +1,12 @@
-import { AutoTemplateDirectiveBase } from "../base";
+import { AutoSparkDirectiveBase } from "../base";
 import { toJson } from "really-relaxed-json";
+import { deepMerge } from "flex-tools/object/deepMerge";
 import { SCOPES_KEY } from "../../engine";
 import { getVal, splitPath } from "autostore";
-import type { AutoTemplateScope } from "../../scope";
+import type { AutoSparkScope } from "../../scope";
+import { AsyncSourceRunner } from "../async-source";
+import { detectDataForm, isAsyncDataValue, mapResponse } from "./async-source";
+import type { DataScriptStash } from "../../compile/dataScript";
 
 /**
  * 挂载模式（由 mount/global 选项规范化得出，ADR-0029）：
@@ -102,7 +106,7 @@ type ResolvedMount = {
  * **优先级 = 200**（最高，> x-for 100）：保证 `created()` 最先执行，在兄弟指令 `watch()` 缓存
  * `_scopeView` 之前把数据注入 data / store，使首渲即读到正确数据。
  */
-export class DataDirective extends AutoTemplateDirectiveBase {
+export class DataDirective extends AutoSparkDirectiveBase {
     static override readonly priority = 200;
     static override readonly singleton = true;
 
@@ -253,7 +257,7 @@ export class DataDirective extends AutoTemplateDirectiveBase {
             ensureScopeData(this.engine, scope);
             return scopeDataSegments(scope);
         }
-        let target: AutoTemplateScope | null = scope;
+        let target: AutoSparkScope | null = scope;
         if (this.stepBase === "parent") {
             // 默认：每级 .. 走一个直接父 scope；越顶落根
             for (let i = 0; i < ups; i++) {
@@ -271,7 +275,7 @@ export class DataDirective extends AutoTemplateDirectiveBase {
         // 目标容器可能是挂载容器（path 模式的 _data 不在 _scopes 下）——此时返回目标 scope 自身的
         // mountSegments（其 DataDirective 实例上已解析）。
         for (let i = 0; i < ups; i++) {
-            let p: AutoTemplateScope | null = target?.parent ?? null;
+            let p: AutoSparkScope | null = target?.parent ?? null;
             while (p && !p._data) p = p.parent;
             if (!p) return []; // 本级已无数据祖先 → 落根
             target = p;
@@ -281,28 +285,294 @@ export class DataDirective extends AutoTemplateDirectiveBase {
     }
 
     override created() {
-        // 编译期首次注入：解析 x-data 属性值，按挂载模式写入对应容器。
+        // 编译期首次注入：x-data 属性值 + 数据脚本预扫产物（ADR-0032）合成后按挂载模式写入。
         // 仅 created 一次，不保留 x-data 属性、不监听 setAttribute——运行时更新请用 engine.data(el, data)。
-        this.applyData(String(this.value ?? ""));
+        const stash = this.engine.compiler.consumeDataScriptStash(this.binding);
+        const raw = String(this.value ?? "");
+        // 值形态三分发（ADR-0033 决策 1）：url / action 走异步管道，literal 走既有同步管道
+        if (isAsyncDataValue(raw)) {
+            this.createdAsync(raw, stash);
+            return;
+        }
+        if (stash) {
+            // options 裁决（ADR-0032 决策 6）：父元素 x-data-options 为权威，同写则脚本 options 被忽略并 warn
+            if (stash.options && Object.keys(stash.options).length > 0) {
+                if (this.options && Object.keys(this.options).length > 0) {
+                    this.engine.logger.warn(
+                        `x-data: 数据脚本的 options 被 x-data-options 遮蔽（父元素为权威），已忽略（ADR-0032 决策 6）`,
+                    );
+                } else {
+                    this.options = stash.options;
+                }
+            }
+            // 数据合成（决策 5）：多个脚本已在预扫按文档序深合并为 stash.data；x-data 值最后
+            // 合并、优先级最高（脚本装大对象基底、属性写微调覆盖）。末尾恒追加空对象 {} 隔离
+            // deepMerge 对最后一个实参的 $merge/$ignoreUndefined 指令键探测（用户数据撞名不被吞）
+            this.applyData(raw.trim() === "" ? stash.data : deepMerge(stash.data, this.parse(raw), {}));
+        } else {
+            this.applyData(this.parse(raw));
+        }
     }
 
     /**
-     * 解析值并按挂载模式注入。local/path 模式写 scope 数据容器（私有域或挂载容器）、
+     * 按（已解析的）数据对象注入。local/path 模式写 scope 数据容器（私有域或挂载容器）、
      * root 模式写根键，订阅者由响应式通知自动更新，无需 refresh（首渲亦由各指令 compile 完成）。
+     * 解析移至 created（数据脚本合成需要「先各自 parse、后合并」，ADR-0032 决策 5）。
      */
-    private applyData(raw: string) {
-        const data = this.parse(raw);
+    private applyData(data: Record<string, any>) {
         const mode = this.resolveMode();
+        this.modeCache = mode;
         if (mode === "root") {
             this.applyRoot(data);
+            this._activateObservers(this.engine.store.state as Record<string, any>, data);
             return;
         }
-        if (mode === "path") {
-            this.applyToContainer(data);
-            return;
-        }
-        // local：容器 merge（与既有 applyLocal 行为一致）
+        // local：容器 merge（与既有 applyLocal 行为一致）；path：挂载容器 merge
         this.applyToContainer(data);
+        this._activateObservers(this.binding._data!, data);
+    }
+
+    /**
+     * 数据脚本 builder 的首读激活（ADR-0032 决策 2）。
+     *
+     * AutoStore 对 `computed()` / `configurable()` / `watch()` builder 的就地激活发生在
+     * 响应式代理的 **GET 陷阱**（首次读取持有 builder 的键时创建 observer 并回写）。
+     * computed/configurable 天然被绑定首渲读到；watch 是纯副作用声明、无人读取——须在
+     * 注入后强制首读激活。仅当数据含函数值（builder 均为函数形态）时触发，纯 JSON 路径
+     * 零行为变化。只激活**顶层**键：嵌套 builder 由绑定读取自然激活（watch 请声明在顶层）。
+     *
+     * 注：激活回写会使容器键值偏离 attachedKeys 登记的 builder 末值，root/path 模式的
+     * destroy CAS 因此不删 builder 键（残留语义与「运行时键视为用户接管」一致，可接受）。
+     */
+    private _activateObservers(container: Record<string, any>, data: Record<string, any>): void {
+        let hasFn = false;
+        for (const v of Object.values(data)) {
+            if (typeof v === "function") {
+                hasFn = true;
+                break;
+            }
+        }
+        if (!hasFn) return;
+        for (const k of Object.keys(data)) void container[k];
+    }
+
+    // ── 异步数据源（ADR-0033：url / action 形态）────────────────────────────
+
+    /** 异步形态（url / action）；null = literal（既有同步管道）。x-html 双异步互斥查询消费（ADR-0035） */
+    private asyncForm: "url" | "action" | null = null;
+    /** 挂载模式缓存（applyData 首次解析后供 setMeta / synthesizeLoading 复用，避免 resolveMode 重复 warn） */
+    private modeCache: MountMode | null = null;
+    /** 共享取数执行器（ADR-0035 决策 5：形态判定/插值重取/竞态/abort 内聚于此，本指令只消费回调） */
+    private runner: AsyncSourceRunner | null = null;
+    /** 首次成功落地图数据——x-fallback 显示条件 = 非就绪 && !hasArrivedData（重取保旧值，Q11） */
+    private hasArrivedData = false;
+    /** destroy 后拒收一切在途结果 */
+    private destroyed = false;
+    /** x-fallback 特例子节点模板（template.children 中带 x-fallback 的元素，文档序） */
+    private fallbackTpls: HTMLElement[] | null = null;
+    /** 已挂载的 fallback 实体（激活期存在） */
+    private fallbackLive: { els: HTMLElement[]; scopes: AutoSparkScope[] } | null = null;
+    /** fallback 激活期被 detach 保活的正常子树（就绪后按原序复原） */
+    private stashedNodes: ChildNode[] | null = null;
+
+    /** 是否异步形态（url / action）——同元素双异步的反馈互斥查询（HtmlDirective 消费，ADR-0035 决策 6） */
+    isAsyncSource(): boolean {
+        return this.asyncForm !== null;
+    }
+
+    /**
+     * 异步形态初始化（ADR-0033）：数据脚本为同步基底先落容器（applyData({}) 同时完成
+     * 挂载解析与容器/attachedKeys 建立）→ 元状态就位 → 采集 x-fallback → 合成 x-loading
+     * （互斥默认）→ 首次取数 + 依赖 watch → scheduler 延迟首次 fallback 同步（编译完成后
+     * 子树就位，detach 才有意义）。
+     */
+    private createdAsync(raw: string, stash: DataScriptStash | undefined): void {
+        this.asyncForm = detectDataForm(raw) === "url" ? "url" : "action";
+        if (stash) {
+            // 数据脚本 options 沿用 ADR-0032 决策 6 裁决：父元素 x-data-options 权威
+            if (
+                stash.options &&
+                Object.keys(stash.options).length > 0 &&
+                !(this.options && Object.keys(this.options).length > 0)
+            ) {
+                this.options = { ...this.options, ...stash.options };
+            }
+            this.applyData(stash.data);
+        } else {
+            this.applyData({});
+        }
+        this.setMeta(true, undefined);
+        this.collectFallback();
+        this.synthesizeLoading();
+        this.runner = new AsyncSourceRunner(this.binding, (k) => this.getOption(k), {
+            responseParser: (res) => res.json(),
+            onLoading: () => this.setMeta(true, undefined),
+            onResult: (result) => this.arrive(result),
+            onError: (err) => this.fail(err),
+        });
+        this.runner.start(raw);
+        this.engine.scheduler.schedule(() => this.syncFallback());
+    }
+
+    /** 到达映射（决策 2）：mapResponse 对象-only + path 提取；失败与加载失败同级姿态 */
+    private arrive(result: unknown): void {
+        const mapped = mapResponse(result, this.getOption("path"));
+        if (!mapped.ok) {
+            this.fail(mapped.error);
+            return;
+        }
+        this.hasArrivedData = true;
+        this.setMeta(false, undefined);
+        this.applyFetched(mapped.data);
+        this.engine.scheduler.schedule(() => this.syncFallback());
+    }
+
+    /** 加载失败：warn 日志 + $error 落地 + fallback 同步（非就绪态认领） */
+    private fail(err: Error): void {
+        this.engine.logger.warn(`x-data: ${err.message}`);
+        this.setMeta(false, err);
+        this.engine.scheduler.schedule(() => this.syncFallback());
+    }
+
+    /**
+     * 异步数据落域：与 applyData 同构的挂载分派，差异仅在容器写入——**deepMerge 后到覆盖**
+     * （数据脚本/旧值为基底，远程是权威数据，ADR-0033 决策 7），而非 Object.assign 浅覆盖。
+     */
+    private applyFetched(data: Record<string, any>): void {
+        const mode = this.resolveMode();
+        this.modeCache = mode;
+        if (mode === "root") {
+            this.applyRoot(data);
+            this._activateObservers(this.engine.store.state as Record<string, any>, data);
+            return;
+        }
+        // 响应键遮蔽预警（local/path 模式，ADR-0033 边界）：响应键与全局状态根键同名时，
+        // 聚合视图（data 层优先）将遮蔽全局键——url 插值 / action 实参的重求值读到域内旧值，
+        // 依赖驱动的重取会静默失效（如接口回显 page/size 撞上全局分页控制键）。提醒改名或让接口不回显。
+        const rootState = this.engine.store.state as Record<string, any>;
+        for (const k of Object.keys(data)) {
+            if (k !== "$loading" && k !== "$error" && Object.prototype.hasOwnProperty.call(rootState, k)) {
+                this.engine.logger.warn(
+                    `x-data: 响应键 "${k}" 与全局状态同名，落域后将遮蔽全局键（聚合视图 data 层优先）——插值/实参可能读到响应旧值、依赖重取可能失效。建议控制键改名，或让接口不回显该键`,
+                );
+            }
+        }
+        const scope = this.binding;
+        if (this.mountSegments) {
+            if (!scope._data) scope._data = this.acquireMountContainer();
+            if (!this.attachedKeys) this.attachedKeys = new Map();
+            for (const [k, v] of Object.entries(data)) this.attachedKeys.set(k, v);
+        } else if (!scope._data) {
+            scope._data = this.ensureLocalContainer();
+        }
+        deepMerge(scope._data!, data, {});
+        this._activateObservers(scope._data!, data);
+    }
+
+    /** 元状态键目标容器：root → store 根；local/path → scope._data（applyData 已建容器） */
+    private metaTarget(): Record<string, any> {
+        return this.modeCache === "root"
+            ? (this.engine.store.state as Record<string, any>)
+            : (this.binding._data ?? (this.engine.store.state as Record<string, any>));
+    }
+
+    /**
+     * 元状态写入（决策 3）：`$loading` / `$error`（Error 实例）经响应式代理落地（通知订阅者）；
+     * 新一轮请求发起时清 $error；元键与数据键同责回收（attachedKeys 登记，destroy CAS 删）。
+     * 仅异步形态调用——literal/数据脚本形态不注入（不制造「同步加载态」假象，Q14-4）。
+     */
+    private setMeta(loading: boolean, error: Error | undefined): void {
+        const target = this.metaTarget();
+        target.$loading = loading;
+        if (error === undefined) {
+            if (target.$error !== undefined) target.$error = undefined;
+        } else {
+            target.$error = error;
+        }
+        if (this.attachedKeys) {
+            this.attachedKeys.set("$loading", loading);
+            this.attachedKeys.set("$error", target.$error);
+        }
+    }
+
+    /** 采集 x-fallback 特例子节点（template 直接子级，文档序；walk 到达前采集完毕） */
+    private collectFallback(): void {
+        const tpl = this.template;
+        if (!tpl) return;
+        for (const child of tpl.children) {
+            if (child instanceof HTMLElement && child.hasAttribute("x-fallback")) {
+                (this.fallbackTpls ??= []).push(child);
+            }
+        }
+    }
+
+    /**
+     * x-loading 覆盖层合成（决策 4）：给渲染元素注入 `x-loading="<元键全局路径>"` 属性
+     * （Runtime 指令属性保留在结果 DOM，dispatcher 自然拾取；LoadingConfig 经
+     * `x-loading-options` 直传）。互斥默认：有 x-fallback 且未显式声明 loading → 不合成
+     * （避免「fallback 替换内容 + overlay 盖宿主」双重加载指示）；`loading:false` 恒关。
+     */
+    private synthesizeLoading(): void {
+        const loadingOpt = this.getOption("loading");
+        if (loadingOpt === false) return;
+        if (this.fallbackTpls && loadingOpt === undefined) return;
+        const path =
+            this.modeCache === "root"
+                ? "$loading"
+                : this.mountSegments
+                  ? [...this.mountSegments, "$loading"].join(".")
+                  : `${SCOPES_KEY}.${this.binding.id}.$loading`;
+        this.el?.setAttribute("x-loading", path);
+        if (loadingOpt && typeof loadingOpt === "object") {
+            this.el?.setAttribute("x-loading-options", JSON.stringify(loadingOpt));
+        }
+    }
+
+    /**
+     * fallback 状态同步（scheduler 微任务驱动）：显示条件 = 非就绪（$loading 或 $error）
+     * **且域内尚无数据**——首载显示；重取保旧值、不闪断（Q11）。激活 = 正常子树整体
+     * detach 保活（watcher 照常更新 detached 节点，复原即终态）+ 逐模板挂载编译后的
+     * fallback；就绪 = 销毁 fallback scope + 按原序复原子树。
+     */
+    private syncFallback(): void {
+        if (this.destroyed || !this.fallbackTpls) return;
+        const target = this.metaTarget();
+        const notReady = target.$loading === true || target.$error !== undefined;
+        const active = notReady && !this.hasArrivedData;
+        if (active === !!this.fallbackLive) return;
+        if (active) this.activateFallback();
+        else this.deactivateFallback();
+    }
+
+    private activateFallback(): void {
+        const host = this.el;
+        if (!host) return;
+        const stash = document.createDocumentFragment();
+        while (host.firstChild) stash.appendChild(host.firstChild);
+        this.stashedNodes = Array.from(stash.childNodes);
+        this.fallbackLive = { els: [], scopes: [] };
+        for (const tpl of this.fallbackTpls!) {
+            // compileChild 以 template 为只读输入（根浅克隆 + 剥指令属性），fallback 内容
+            // 可引用 $loading/$error（scope 链：fallback scope → 宿主 scope → 域）
+            const { el, scope } = this.engine.compiler.compileChild(tpl, this.binding, {});
+            this.binding.addChild(scope);
+            host.appendChild(el);
+            this.fallbackLive.els.push(el);
+            this.fallbackLive.scopes.push(scope);
+        }
+    }
+
+    private deactivateFallback(): void {
+        const live = this.fallbackLive;
+        if (!live) return;
+        this.fallbackLive = null;
+        for (const s of live.scopes) s.destroy();
+        for (const e of live.els) e.remove();
+        const host = this.el;
+        if (host && this.stashedNodes) {
+            for (const n of this.stashedNodes) host.appendChild(n);
+        }
+        this.stashedNodes = null;
     }
 
     /**
@@ -416,6 +686,12 @@ export class DataDirective extends AutoTemplateDirectiveBase {
     }
 
     override destroy() {
+        // 异步形态清理（ADR-0033 决策 7）：中止进行中 fetch、序号失效（action 在途结果不落地）。
+        // stashedNodes/fallback 随宿主元素一起消亡，无需复原。
+        if (this.asyncForm) {
+            this.destroyed = true;
+            this.runner?.destroy();
+        }
         const state = this.engine.store.state as Record<string, any>;
         if (this.mountSegments) {
             // path 模式：键级 CAS 删除 + 容器删空则连同路径上变空的中间容器向上回收
@@ -469,7 +745,7 @@ export class DataDirective extends AutoTemplateDirectiveBase {
  * 供相对挂载 `./` / `..`（parent 基准）命中「无 `_data` 的 scope」时调用——含 x-for item scope
  * （数据随 item 生死）。**不写任何数据键**，仅建容器；数据键由 applyToContainer merge。
  */
-function ensureScopeData(engine: { store: { state: any } }, scope: AutoTemplateScope): void {
+function ensureScopeData(engine: { store: { state: any } }, scope: AutoSparkScope): void {
     if (scope._data) return;
     const scopes = engine.store.state[SCOPES_KEY] as Record<string, any>;
     if (!scopes[scope.id]) scopes[scope.id] = {};
@@ -485,7 +761,7 @@ function ensureScopeData(engine: { store: { state: any } }, scope: AutoTemplateS
  * 供 nearest 上溯命中「path 模式祖先」时取其真实容器路径（parent 基准走 ensureScopeData，
  * 必为私有域，不经此函数）。
  */
-function scopeContainerSegments(scope: AutoTemplateScope): string[] {
+function scopeContainerSegments(scope: AutoSparkScope): string[] {
     for (const d of scope.directives) {
         if (d instanceof DataDirective && d.isPathMode()) {
             return d.getMountSegments();
@@ -497,6 +773,6 @@ function scopeContainerSegments(scope: AutoTemplateScope): string[] {
 /**
  * 取私有域路径段（`./` 与 parent 基准 `..` 的默认落点，容器必为 `_scopes[id]`）。
  */
-function scopeDataSegments(scope: AutoTemplateScope): string[] {
+function scopeDataSegments(scope: AutoSparkScope): string[] {
     return [SCOPES_KEY, String(scope.id)];
 }

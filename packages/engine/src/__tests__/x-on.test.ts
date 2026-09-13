@@ -392,10 +392,10 @@ describe("x-on destroy 解绑", () => {
     });
 });
 
-describe('x-on <script type="actions"> 局部 action', () => {
+describe('x-on <script type="autospark/actions"> 局部 action', () => {
     test("局部 action 经 scope 链查找到并执行", () => {
         const { root, store } = mount(
-            `<div x-data="{}"><button @click="localFn()">+</button><script type="actions">{ 
+            `<div x-data="{}"><button @click="localFn()">+</button><script type="autospark/actions">{ 
                 localFn(){ this.store.state.count++ } 
             }</script></div>`,
             { count: 0 },
@@ -406,7 +406,7 @@ describe('x-on <script type="actions"> 局部 action', () => {
 
     test("局部 action 覆盖同名全局 action", () => {
         const { root, store, engine } = mount(
-            `<div x-data="{}"><button @click="who()">x</button><script type="actions">{ who(){ this.store.state.who = "local" } }</script></div>`,
+            `<div x-data="{}"><button @click="who()">x</button><script type="autospark/actions">{ who(){ this.store.state.who = "local" } }</script></div>`,
             { who: "none", count: 0 },
         );
         engine.actions.who = function (this: any) {
@@ -423,9 +423,9 @@ describe('x-on <script type="actions"> 局部 action', () => {
         expect(s!.textContent).toContain("var a");
     });
 
-    test('<script type="actions"> 提取后从 DOM 移除', () => {
+    test('<script type="autospark/actions"> 提取后从 DOM 移除', () => {
         const { root } = mount(
-            `<div x-data="{}"><button @click="f()">x</button><script type="actions">{ f(){} }</script></div>`,
+            `<div x-data="{}"><button @click="f()">x</button><script type="autospark/actions">{ f(){} }</script></div>`,
             {},
         );
         expect(root.querySelector("script")).toBeNull();
@@ -435,10 +435,10 @@ describe('x-on <script type="actions"> 局部 action', () => {
 /**
  * x-on 结合 x-data（含嵌套）。
  *
- * AutoTemplateActionContext 语义：
+ * AutoSparkActionContext 语义：
  * - `this.data`：scope.getContext() 聚合视图 —— localData + data + 全局 state，
  *   **可读可写**：写 x-data 字段透传到响应式 data（store.state._scopes[id]）触发更新。
- * - `this.scope`：AutoTemplateScope 实例 —— 经 getData() 沿链拿最近 x-data 域（data 引用）。
+ * - `this.scope`：AutoSparkScope 实例 —— 经 getData() 沿链拿最近 x-data 域（data 引用）。
  *
  * action 读写 x-data 均可经 `this.data.<字段>`；嵌套场景沿 parent 链自动定位最近 x-data 块。
  */
@@ -471,7 +471,7 @@ describe("x-on 结合 x-data（含嵌套）", () => {
         expect(received).toEqual({ local: 1, global: 2 });
     });
 
-    test("this.scope 为 AutoTemplateScope 实例，getData() 沿链取 data", () => {
+    test("this.scope 为 AutoSparkScope 实例，getData() 沿链取 data", () => {
         let captured: any;
         const { root, engine } = mount(
             `<div x-data="{count:0}"><button @click="probe">?</button></div>`,
@@ -593,9 +593,9 @@ describe("x-on 结合 x-data（含嵌套）", () => {
         expect(root.querySelector("span")!.textContent).toBe("6");
     });
 
-    test('局部 <script type="actions"> action 经 getData() 写 x-data', async () => {
+    test('局部 <script type="autospark/actions"> action 经 getData() 写 x-data', async () => {
         const { root } = mount(
-            `<div x-data="{count:0}"><button @click="incr">+</button><span x-text="count"></span><script type="actions">{ incr(){ this.scope.getData().count++ } }</script></div>`,
+            `<div x-data="{count:0}"><button @click="incr">+</button><span x-text="count"></span><script type="autospark/actions">{ incr(){ this.scope.getData().count++ } }</script></div>`,
             {},
         );
         root.querySelector("button")!.click();

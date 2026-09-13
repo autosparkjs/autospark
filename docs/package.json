@@ -13,7 +13,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "autostore": "latest",
     "@lite-tree/icons": "^1.0.6",
     "@lite-tree/vue": "^1.1.4",
     "flex-tools": "^1.4.9",
@@ -22,6 +21,7 @@
     "vue": "^3.5.14"
   },
   "devDependencies": {
+    "@shikijs/vitepress-twoslash": "^2.5.0",
     "code-inspector-plugin": "^1.4.5",
     "typescript": "^6.0.2",
     "vitepress-demo-plugin": "^1.4.7"

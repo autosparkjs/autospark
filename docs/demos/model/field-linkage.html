@@ -4,9 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-model · 字段联动（dhcp 开关控制 IP 输入）</title>
-        <script src="/autostore/autostore.js"></script>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
             .result {
                 background: #f5f5f5;
@@ -55,15 +54,14 @@
         </div>
 
         <script>
-            const { AutoStore, configurable, computed, ConfigManager } = AutoStoreSpaces;
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
+            const { AutoStore, configurable, computed, ConfigManager } = AutoSparkSpaces;
 
             const cm = new ConfigManager(
                 { load: async () => ({}), save: async () => {} },
                 { autoload: false },
             );
 
-            new AutoTemplateEngine(
+            new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 {
                     dhcp: true,

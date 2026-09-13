@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-html · 远程异步 HTML 源 · url 最小示例</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 远程异步 HTML 源（ADR-0035）· url 最小示例：x-html 值以 / 开头即 fetch text 注入。
+             {lang} 单括号插值 → 依赖变化自动重取（重取期间旧内容保留，不闪断）；
+             x-fallback 静态认领：首载占位、失败也认领（切到不存在的语言演示 404）。
+             ?delay=800 由文档站 demo 中间件支持（模拟网络延迟）。 -->
+        <div class="demo-app section">
+            <div class="card">
+                <div class="card-content">
+                    <div class="heading has-text-grey">
+                        远程 HTML 片段（url 形态 + 插值重取 + fallback）
+                    </div>
+                    <div class="block" x-html="/autospark/api/card-{lang}.html?delay=800">
+                        <!-- x-fallback：异步 x-html 宿主的特例子节点——不编译（{{}} 显示原文） -->
+                        <div class="notification is-warning is-light" x-fallback>
+                            ⏳ 正在加载 card-{lang}.html …
+                        </div>
+                    </div>
+                    <div class="buttons">
+                        <button class="button is-primary is-small" @click="setLang('zh')">中文片段</button>
+                        <button class="button is-primary is-small" @click="setLang('en')">English</button>
+                        <button class="button is-danger is-light is-small" @click="setLang('xx')">
+                            404（失败态，旧内容保留）
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { lang: "zh" },
+                {
+                    actions: {
+                        // 改插值依赖 → url 变化 → 自动重取（旧值保留、fallback 不闪现）
+                        setLang: function (v) {
+                            this.state.lang = v;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

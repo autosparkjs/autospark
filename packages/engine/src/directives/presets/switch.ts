@@ -1,4 +1,4 @@
-import { AutoTemplateDirectiveBase } from "../base";
+import { AutoSparkDirectiveBase } from "../base";
 
 /**
  * 元素类名
@@ -24,6 +24,6 @@ import { AutoTemplateDirectiveBase } from "../base";
  *  
 
  */
-export class SwitchDirective extends AutoTemplateDirectiveBase {
+export class SwitchDirective extends AutoSparkDirectiveBase {
     render() {}
 }

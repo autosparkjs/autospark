@@ -2,7 +2,7 @@
 
 ## 概述
 
-**组件**（`x-component`）是 AutoTemplate Engine 的可复用 UI 单元——把一段 DOM 连同它的**数据、方法、生命周期、作用域样式**打包封装，在模板里声明一次，即可在任意位置反复实例化使用。
+**组件**（`x-component`）是 AutoSpark Engine 的可复用 UI 单元——把一段 DOM 连同它的**数据、方法、生命周期、作用域样式**打包封装，在模板里声明一次，即可在任意位置反复实例化使用。
 
 组件让模板具备「结构复用 + 内聚状态」的能力：每个组件实例拥有独立的响应式数据域、自己的方法、四阶段生命周期，以及默认只命中本实例的作用域样式。与 `x-data` 的局部状态不同，组件是**声明性的供体**——它在编译期被摘除、冻结为快照，消费时（`x-use`）才克隆实例化。
 
@@ -143,7 +143,7 @@
 
 把上面五步合在一起，就是一个完整可用的组件。下面这个 demo 融合了 data、methods、scoped style、mounted 生命周期、props 覆盖：
 
-<demo html="template/component/counter.html"/>
+<demo html="component/counter.html"/>
 
 ```html
 <div x-scope>
@@ -200,14 +200,14 @@
 
 作用域组件支持「就近覆盖」——内层 scope 声明的同名组件会遮蔽外层，这与组件查找的就近原则一致。配合全局组件，可实现「公共全局 + 局部特例」。
 
-<demo html="template/component/scoped.html"/>
+<demo html="component/scoped.html"/>
 
 #### 全局组件
 
 在构造引擎时经 `options.components` 传入的组件，是字符串模板，全引擎复用。当 scope 链上没有同名作用域组件时，`getComponent` 最终兜底到全局组件：
 
 ```javascript
-const engine = new AutoTemplateEngine(el, {}, {
+const engine = new AutoSpark(el, {}, {
     components: {
         badge: `<span class="badge">全局徽章</span>`,
         // 支持 <script setup> 与 <style>，能力与作用域组件等价
@@ -218,7 +218,7 @@ const engine = new AutoTemplateEngine(el, {}, {
 
 全局组件字符串入参首次使用时，按顶级节点数**自动包装**为「恰好一个带 `x-component` 的根元素」（详见下文「声明组件」），并懒预编译缓存。
 
-<demo html="template/component/global.html"/>
+<demo html="component/global.html"/>
 
 ### 声明组件
 
@@ -291,7 +291,7 @@ const engine = new AutoTemplateEngine(el, {}, {
 
 `x-use` 传入的 props 注入组件的**同一个 data 域**，合并顺序是 `data()` 默认先注入、props 后覆盖（外部优先）。后续 props 响应式更新只覆盖声明键，组件内部状态（用户交互改的）不被重置。
 
-<demo html="template/component/use-props.html"/>
+<demo html="component/use-props.html"/>
 
 #### 属性继承
 
@@ -301,7 +301,7 @@ const engine = new AutoTemplateEngine(el, {}, {
 - `style`：合并，冲突键**组件根优先**；
 - 其他属性：宿主已有则保留（不覆盖），否则复制组件根属性。
 
-<demo html="template/component/use-props.html"/>
+<demo html="component/use-props.html"/>
 
 #### 结构指令互斥
 
@@ -349,7 +349,7 @@ const engine = new AutoTemplateEngine(el, {}, {
 
 下面这个 demo 在 `created` 演示读 `this.data` / `this.state`，`mounted` 演示 `this.el`，模板用响应式表达式拼接问候语（点击改全局用户名 → 自动更新）：
 
-<demo html="template/component/context.html"/>
+<demo html="component/context.html"/>
 
 ```html
 <div x-component="hello">
@@ -411,7 +411,7 @@ locals 是组件私有的，**模板表达式读不到**——`<span x-text="tim
 
 下面这个 demo 用 `locals.timer` 跨 `mounted`/`beforeUnmount` 共享定时器句柄：勾选挂载时钟、取消勾选卸载（`beforeUnmount` 清理定时器）。
 
-<demo html="template/component/locals.html"/>
+<demo html="component/locals.html"/>
 
 ```html
 <div x-component="clock">
@@ -447,7 +447,7 @@ locals 是组件私有的，**模板表达式读不到**——`<span x-text="tim
 
 改写规则覆盖：媒体查询（`@media`）内部照常改写、逗号选择器各组分别加、伪类伪元素（`:hover`/`::before`）属性后缀置于其前。
 
-<demo html="template/component/scoped-style.html"/>
+<demo html="component/scoped-style.html"/>
 
 ```html
 <div x-component="card">
@@ -482,7 +482,7 @@ locals 是组件私有的，**模板表达式读不到**——`<span x-text="tim
 
 **工作原理**：编译期扫描 `<style>`，把 `bind(expr)` 替换为 `var(--变量名, unset)` 并记录绑定清单；实例化时对每个绑定订阅表达式，求值结果写入**组件根元素**的 CSS 变量。状态变化 → 变量更新 → 所有引用该变量的样式自动刷新。
 
-<demo html="template/component/style-bind.html"/>
+<demo html="component/style-bind.html"/>
 
 **bind 语法**：
 
@@ -520,7 +520,7 @@ CSS 变量是**字符串**——`bind("count")` 注入 `100` 时，`width: var(-
 
 下面这个 demo 用 `x-if` 切换组件挂载/卸载，把每次钩子触发实时记录到日志面板（`mounted` 启动定时器、`beforeUnmount` 清理）：
 
-<demo html="template/component/lifecycle.html"/>
+<demo html="component/lifecycle.html"/>
 
 ```html
 <div x-component="timed">
@@ -578,7 +578,7 @@ CSS 变量是**字符串**——`bind("count")` 注入 `100` 时，`width: var(-
 </div>
 ```
 
-<demo html="template/component/import.html"/>
+<demo html="component/import.html"/>
 
 #### `.global` 修饰符与批量注册
 
@@ -592,7 +592,7 @@ CSS 变量是**字符串**——`bind("count")` 注入 `100` 时，`width: var(-
 <div x-use="{ name: 'chip', text: '批量注册' }"></div>
 ```
 
-<demo html="template/component/import-global.html"/>
+<demo html="component/import-global.html"/>
 
 #### 健壮性
 
@@ -604,7 +604,7 @@ CSS 变量是**字符串**——`bind("count")` 注入 `100` 时，`width: var(-
 | url 响应式 | url 含表达式特征时经 `watch` 求值，url 变化重新加载 |
 
 ::: tip 远程组件测试文件
-上面两个 demo 加载的真实组件文件在仓库 `docs/public/components/` 下：[`like-button.html`](https://github.com/zhangfisher/autostore/blob/main/docs/public/components/like-button.html)（作用域，含 data/methods/scoped style）、[`widgets.html`](https://github.com/zhangfisher/autostore/blob/main/docs/public/components/widgets.html)（全局，含 stat 与 chip 两个组件）。可下载到自己的静态服务器复用。
+上面两个 demo 加载的真实组件文件在仓库 `docs/public/components/` 下：[`like-button.html`](https://github.com/autosparkjs/autospark/blob/main/docs/public/components/like-button.html)（作用域，含 data/methods/scoped style）、[`widgets.html`](https://github.com/autosparkjs/autospark/blob/main/docs/public/components/widgets.html)（全局，含 stat 与 chip 两个组件）。可下载到自己的静态服务器复用。
 :::
 
 ### 组件间通讯
@@ -700,7 +700,7 @@ engine.on('favorite', (e) => {
 
 下面这个 demo 用购物车场景一次性演示三种方式：商品组件（props 下传 + 改全局 state）、合计组件（订阅全局 state 联动）、收藏侧栏（监听事件总线）。
 
-<demo html="template/component/communication.html"/>
+<demo html="component/communication.html"/>
 
 ::: tip 事件总线跨作用域
 `engine` 的事件总线是**引擎级**的——任意作用域、任意组件、甚至页面脚本都能 `emit`/`on`。事件名自由约定（引擎不预定义名册），建议用带命名空间的写法（如 `cart/add`、`user/login`）避免冲突。

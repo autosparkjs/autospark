@@ -16,7 +16,7 @@
 
 ## 快速入门
 
-<demo html="template/slot/static.html"/>
+<demo html="slot/static.html"/>
 
 ```html
 <div x-slot>
@@ -30,7 +30,7 @@
 
 无值的 `x-slot` 把宿主内容**冻结**：编译期深克隆模板子节点、剥除全部指令属性（`x-*` / `@` / `:`）、不编译。engine 永不覆写，开发者用 DOM API 全权管理。
 
-<demo html="template/slot/static.html"/>
+<demo html="slot/static.html"/>
 
 ```html
 <div class="card" x-slot>
@@ -47,7 +47,7 @@ static 内容里的 `x-*` 指令、双花括号插值**一律不编译、不生�
 
 ### remote 模式：远程子引擎
 
-有值的 `x-slot="urlExpr"` 把表达式经 `scope.watch` 求值得 **url**（响应式），fetch 该 url 的 HTML，在宿主上建一个**完全独立**的 `AutoTemplateEngine`（自带空 store，fetched HTML 用自身 `x-data` 自治）：
+有值的 `x-slot="urlExpr"` 把表达式经 `scope.watch` 求值得 **url**（响应式），fetch 该 url 的 HTML，在宿主上建一个**完全独立**的 `AutoSpark`（自带空 store，fetched HTML 用自身 `x-data` 自治）：
 
 ```html
 <div x-slot="state.postUrl"></div>

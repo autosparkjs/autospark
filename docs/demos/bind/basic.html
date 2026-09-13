@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-bind · 普通属性</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
@@ -24,7 +24,6 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
             const link1 = {
                 url: "https://github.com/zhangfisher/autostore",
                 text: "AutoStore",
@@ -45,7 +44,7 @@
             };
             // 初值须为 false：首次点击即切到 link2；若为 true，首次会重复赋 link1（无变化）
             let flag = false;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 {
                     link: link1,

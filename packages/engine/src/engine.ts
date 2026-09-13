@@ -1,13 +1,14 @@
-import type { AutoTemplateEngineEvents, AutoTemplateEngineOptions } from "./types";
+import type { AutoSparkEvents, AutoSparkOptions } from "./types";
 import type { ComponentDef } from "./directives/component-def";
 import { DirectiveManager } from "./directives/manager";
-import { AutoTemplateCompiler } from "./compile/compiler";
+import { AutoSparkCompiler } from "./compile/compiler";
 import { AutoStore, FastEvent, isAutoStore } from "autostore";
-import type { AutoTemplateScope } from "./scope";
+import type { AutoSparkScope } from "./scope";
 import { UpdateScheduler } from "./scheduler";
 import { RuntimeObserverDispatcher } from "./directives/runtime/dispatcher";
 import { parseHtmlFragment } from "./utils/transformElement";
-import { buildAction } from "./utils/buildAction";
+import { ActionManager } from "./actions/manager";
+import type { ActionDesc } from "./actions/types";
 import { recompileSubtree } from "./utils/recompileSubtree";
 import { buildComponentDef } from "./compile/collect";
 import { fetchHtml } from "./utils/fetchHtml";
@@ -40,15 +41,15 @@ export const SCOPES_KEY = "_scopes";
  *
  * ```typescript
  * const store = new AutoStore({ user: { name: "zhang" } });
- * const app = new AutoTemplateEngine(document.getElementById("app")!, store);
+ * const app = new AutoSpark(document.getElementById("app")!, store);
  * // 改 state 即自动更新 DOM
  * store.state.user.name = "li";
  * app.destroy();
  * ```
  */
-export class AutoTemplateEngine<
+export class AutoSpark<
     State extends Record<string, any> = Record<string, any>,
-> extends FastEvent.FastLiteEvent<AutoTemplateEngineEvents> {
+> extends FastEvent.FastLiteEvent<AutoSparkEvents> {
     /** 挂载容器（编译产物替换其子节点，容器本身保留） */
     readonly el: HTMLElement;
     /** 响应式数据源：外部传入的 AutoStore 实例（借用）或裸状态自建的 store（拥有，见 _ownsStore）。ADR-0009 */
@@ -61,19 +62,21 @@ export class AutoTemplateEngine<
      * 故以 getter 重写，返回合并类型（协变兼容基类 FastLiteEventOptions）。
      * 构造完成前 _fullOptions 未就绪时回退 super.options，规避基类构造期虚分派读到 undefined。
      */
-    override get options(): AutoTemplateEngineOptions<State> {
-        return super.options as AutoTemplateEngineOptions<State>;
+    override get options(): AutoSparkOptions<State> {
+        return super.options as AutoSparkOptions<State>;
     }
-    readonly compiler: AutoTemplateCompiler;
+    readonly compiler: AutoSparkCompiler;
     readonly directives: DirectiveManager;
     /** 微任务更新调度器（同 tick 多次变更合并为一次 patch） */
     readonly scheduler: UpdateScheduler;
     /** runtime 指令共享 observer 分发器（ADR-0003 决策 7）：单一 MutationObserver + 事件广播 */
     readonly dispatcher: RuntimeObserverDispatcher;
+    /** action 管理单元：全局表注册/包装 + `<script type="autospark/actions">` 模板提取（src/actions/manager.ts） */
+    readonly actionsManager: ActionManager;
     /** 原始模板（深克隆根元素，保留指令属性作为编译只读输入） */
     readonly template: HTMLElement;
     /** 每个渲染元素对应的 Scope（销毁时遍历清理其 watcher） */
-    readonly scopes = new Map<WeakRef<Node>, AutoTemplateScope>();
+    readonly scopes = new Map<WeakRef<Node>, AutoSparkScope>();
     /**
      * 整个 engine 响应式数据驱动的核心：直接暴露 `store.state`（响应式根状态）。
      * 作为 scope 聚合视图（getContext）的根 fallback、模板表达式求值的最终数据源。
@@ -94,7 +97,7 @@ export class AutoTemplateEngine<
     constructor(
         el: HTMLElement,
         store: AutoStore<State> | State,
-        options?: Partial<AutoTemplateEngineOptions<State>>,
+        options?: Partial<AutoSparkOptions<State>>,
     ) {
         super({ autostart: true, debug: false, actions: {}, ...options });
         if (!(el instanceof HTMLElement)) {
@@ -112,23 +115,16 @@ export class AutoTemplateEngine<
         }
         // 注入框架保留键 _scopes（x-data 私有响应式域容器）；1 engine 1 store 约定下由 engine 负责
         this._ensureScopesState();
-        // 注册时自动包装：构造时传入的 options.actions 一次性包装
-        // （运行时 `engine.actions[name] = fn` 经 actions Proxy 的 set trap 包装、
-        // `<script type="actions">` 经 compiler 包装，三入口统一走 buildAction）
-        const _initActions = this.options.actions!;
-        for (const _k of Object.keys(_initActions)) {
-            if (typeof _initActions[_k] === "function") {
-                _initActions[_k] = buildAction(
-                    (type, payload) => this.emit(type as any, payload),
-                    _k,
-                    _initActions[_k] as any,
-                ) as any;
-            }
-        }
+        // action 管理单元就位并扫描全局表：构造时传入的 options.actions 一次性规范化包装
+        // （运行时 `engine.actions[name] = decl` 经 actions Proxy 的 set trap 规范化包装、
+        // `<script type="autospark/actions">` 经 compiler 调 extractScript 规范化包装，
+        // 三入口统一走 _normalize → buildAction，值恒为 ActionDesc 描述符，ADR-0036）
+        this.actionsManager = new ActionManager(this);
+        this.actionsManager.registerGlobals();
         this.template = el.cloneNode(true) as HTMLElement;
 
         this.scheduler = new UpdateScheduler(this);
-        this.compiler = new AutoTemplateCompiler(this);
+        this.compiler = new AutoSparkCompiler(this);
         this.directives = new DirectiveManager(this);
         this.dispatcher = new RuntimeObserverDispatcher(this);
         if (this.options.autostart) {
@@ -145,40 +141,26 @@ export class AutoTemplateEngine<
         this.emit("engine/ready", { el: this.el }, true);
     }
 
-    get logger() {
+    // 显式注解：logger 的推断类型源自 autostore 传递依赖 flex-tools，声明发射不可移植（TS2742）；
+    // 经 AutoStore 索引访问类型把引用面收敛到 autostore 本身。
+    get logger(): AutoStore<any>["logger"] {
         return this.store.logger;
     }
 
     /**
      * 全局事件 action 表（来自 options.actions），作为 scope.getAction 查找链的终点。
      *
-     * 返回 Proxy：**赋值即自动包装**——`engine.actions.save = fn` 时 fn 经 buildAction 包装
-     * （获得 `actions/<name>/*` 生命周期广播）后写入底层 options.actions；读取、遍历、getAction
-     * 均透明（get 默认转发底层）。故 action 注册即追踪，无需手动包装。
+     * 值恒为 **ActionDesc 描述符**（ADR-0036：三入口写入时全量规范化，name 注入 + handle 包装），
+     * 命令式直调取 `.handle(...)`。返回 Proxy：**赋值即自动规范化包装**——`engine.actions.save = decl`
+     * （函数简写或对象写法）经规范化（获得 `actions/<name>/*` 生命周期广播）后写入底层
+     * options.actions；读取、遍历、getAction 均透明（get 默认转发底层）。故 action 注册即追踪，
+     * 无需手动包装。实现委托 actionsManager（src/actions/manager.ts）。
      */
-    get actions(): Record<string, (...args: any[]) => any> {
-        if (this._actionsProxy) return this._actionsProxy;
-        const target = this.options.actions!;
-        this._actionsProxy = new Proxy(target, {
-            set: (t, key: string, value: any) => {
-                t[key] =
-                    typeof value === "function"
-                        ? (buildAction(
-                              (type, payload) => this.emit(type as any, payload),
-                              key,
-                              value,
-                          ) as any)
-                        : value;
-                return true;
-            },
-        });
-        return this._actionsProxy;
+    get actions(): Record<string, ActionDesc> {
+        return this.actionsManager.proxy;
     }
 
     private _createStore() {}
-
-    /** actions 代理（set 时自动 buildAction 包装，懒构造） */
-    private _actionsProxy: Record<string, (...args: any[]) => any> | null = null;
     /**
      * 全局组件懒预编译缓存（ADR-0022 承接 ADR-0021 决策 11）：key=组件名，value=预编译根元素
      * （已自动包装、含 `x-component`、未编译、保留指令属性、**不注入 x-scope**）。首次 `getComponent`
@@ -212,10 +194,10 @@ export class AutoTemplateEngine<
     /** 正在 fetch 的 url 集合（循环 import 检测，ADR-0022 决策六-4） */
     private _importingUrls = new Set<string>();
 
-    // buildAction 已提炼至 utils/buildAction.ts（ADR-0010，双通道广播）；三入口——构造函数
-    // options.actions 扫描、actions Proxy 的 set trap、compiler 提取 `<script type="actions">`
-    // ——均经该 utils 函数包装（emit 经 `(t,p)=>this.emit(t as any,p)` 适配）。engine 不再暴露
-    // 公有 buildAction API（原为内部实现细节被误暴露）。
+    // action 管理单元已提炼至 src/actions/（manager.ts + buildAction.ts，承接 ADR-0010 的
+    // utils 提炼）；三入口——构造函数 options.actions 扫描、actions Proxy 的 set trap、
+    // compiler 提取 `<script type="autospark/actions">`——均经 ActionManager 统一包装。
+    // engine 不再暴露公有 buildAction API（原为内部实现细节被误暴露）。
 
     /**
      * 确保 store.state[SCOPES_KEY] 存在（x-data 私有响应式域容器）。
@@ -509,7 +491,7 @@ export class AutoTemplateEngine<
      * （Runtime 指令无 binding，需经 el 反查）。Compile/Hybrid 指令直接用 `this.binding`。
      * 亦用于 `engine.getComponent` 的全局组件兜底（`scope.getComponent` 到顶委托 `engine._resolveGlobalComponent`）。
      */
-    findScopeByEl(el: HTMLElement): AutoTemplateScope | undefined {
+    findScopeByEl(el: HTMLElement): AutoSparkScope | undefined {
         for (const scope of this.scopes.values()) {
             if (scope.el === el) return scope;
         }
@@ -560,7 +542,7 @@ export class AutoTemplateEngine<
      */
     async importComponentsFromUrl(
         url: string,
-        ownerScope: AutoTemplateScope | null,
+        ownerScope: AutoSparkScope | null,
         global: boolean,
     ): Promise<string[]> {
         // 循环 import 检测（决策六-4）
@@ -630,7 +612,7 @@ export class AutoTemplateEngine<
      * @param templateNodes 替换 T 的新模板节点（来自 parseHtmlFragment 或 updater 返回的 Node）
      */
     private _replaceSelf(
-        scope: AutoTemplateScope,
+        scope: AutoSparkScope,
         T: HTMLElement,
         el: HTMLElement,
         templateNodes: Node[],
@@ -658,7 +640,7 @@ export class AutoTemplateEngine<
      *
      * dispatcher 检测 el remove → runtime 指令 unmounted（自动）。
      */
-    private _deleteSelf(scope: AutoTemplateScope, T: HTMLElement, el: HTMLElement) {
+    private _deleteSelf(scope: AutoSparkScope, T: HTMLElement, el: HTMLElement) {
         scope.destroy();
         T.remove();
         el.remove();

@@ -405,7 +405,7 @@ describe("x-loading data 注入与 attrChanged patch（决策 12）", () => {
         const { root, store } = mount(
             `<div x-scope>
                 <div x-component="loading"><span class="msg" x-text="message"></span></div>
-                <div id="host" x-loading="{ visible: 'loading', message: '加载中' }">内容</div>
+                <div id="host" x-loading="{ value: 'loading', message: '加载中' }">内容</div>
             </div>`,
             { loading: true },
         );
@@ -417,7 +417,7 @@ describe("x-loading data 注入与 attrChanged patch（决策 12）", () => {
 
     test("决策12-c：全局 loading 组件经 getComponent 兜底命中 + data 注入", async () => {
         const { root } = mount(
-            `<div id="host" x-loading="{ visible: 'loading', message: '全局加载' }">内容</div>`,
+            `<div id="host" x-loading="{ value: 'loading', message: '全局加载' }">内容</div>`,
             { loading: true },
             {
                 components: {
@@ -439,7 +439,7 @@ describe("x-loading data 注入与 attrChanged patch（决策 12）", () => {
 
     test("决策12-b：组件根即 overlay 壳，注入壳样式（定位/背景）", async () => {
         const { root } = mount(
-            `<div id="host" x-loading="{ visible: 'loading', bgColor: 'red', opacity: 0.5 }">内容</div>`,
+            `<div id="host" x-loading="{ value: 'loading', bgColor: 'red', opacity: 0.5 }">内容</div>`,
             { loading: true },
         );
         await nextTick();
@@ -538,6 +538,31 @@ describe("x-component <script setup> / <style> 提取（ADR-0022 决策四）", 
         // 组件仍存在，但无 setup（求值失败丢弃）
         expect(def.setup).toBeUndefined();
         expect(def.hooks).toBeUndefined();
+    });
+
+    test('旧写法 type="setup"：warn + 不求值（ADR-0031 对称迁移策略）', () => {
+        const warns: string[] = [];
+        const origWarn = console.warn;
+        console.warn = (...args: any[]) => {
+            warns.push(String(args[0] ?? ""));
+        };
+        try {
+            const { engine, root } = mount(
+                `<div x-scope>
+                <div x-component="legacy">
+                    <script type="setup">{ data(){ return { a: 1 } } }</script>
+                </div>
+            </div>`,
+                {},
+            );
+            const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
+            const def = engine.getComponentDef(scope.getComponent("legacy")!)!;
+            // 旧写法不再识别为 setup 脚本：不求值（与 actions 旧写法「warn + 不执行」对称）
+            expect(def.setup).toBeUndefined();
+        } finally {
+            console.warn = origWarn;
+        }
+        expect(warns.some((w) => w.includes("已更名为"))).toBe(true);
     });
 
     test("无 script setup/style 的组件：def.setup/hooks/styles 均为 undefined", () => {

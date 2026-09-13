@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-data · 指定挂载位置（mount）</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
@@ -86,8 +86,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 // ui.lang 预置：演示「挂载容器是共享容器，他人旧键保留」；
                 // 块 A/x-if 子树只写 count/tip/fresh，销毁回收后 ui 恢复只剩 lang

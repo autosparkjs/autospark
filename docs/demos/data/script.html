@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-data · 数据脚本（autospark/data）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 数据脚本 <script type="autospark/data">：数据声明搬进元素体内容，只作用于直接父元素。
+             大 JSON 免属性转义、可注释可换行；内容是 JS（注入 computed/configurable/watch）；
+             多脚本与 x-data 深合并，x-data 最后合并优先级最高（脚本装基底、属性微调覆盖）。 -->
+        <div class="demo-app section">
+            <!-- 块 A：脚本装大对象基底 + x-data 属性微调覆盖（config.size 被 XL 覆盖）；
+                 computed 计算属性随 base 变化自动重算；configurable 可写回 -->
+            <div class="card" x-data="{ config: { size: 'XL' } }">
+                <script type="autospark/data">
+                {
+                    // 大宗配置：可注释、可换行，不再挤在属性值里
+                    config: {
+                        size: 'M',
+                        tip: '脚本基底',
+                        tags: ['a', 'b']
+                    },
+                    base: 2,
+                    double: computed((s) => s.base * 2),
+                    price: configurable(5, { widget: 'InputNumber', title: '价格' })
+                }
+                </script>
+                <div class="card-content">
+                    <div class="heading has-text-grey">
+                        块 A · 脚本基底 + x-data 微调覆盖 + computed / configurable
+                    </div>
+                    <div class="block">
+                        config.size =
+                        <b class="has-text-primary has-text-weight-semibold">{{config.size}}</b>
+                        （x-data 的 XL 覆盖脚本的 M）｜config.tip =
+                        <b class="has-text-primary has-text-weight-semibold">{{config.tip}}</b>
+                        （脚本独有，合并保留）｜config.tags.length =
+                        <b class="has-text-primary has-text-weight-semibold">{{config.tags.length}}</b>
+                    </div>
+                    <div class="block">
+                        base =
+                        <b class="has-text-primary has-text-weight-semibold">{{base}}</b>
+                       ｜double = computed(base×2) =
+                        <b class="has-text-primary has-text-weight-semibold">{{double}}</b>
+                       ｜price = configurable =
+                        <b class="has-text-primary has-text-weight-semibold">{{price}}</b>
+                    </div>
+                    <div class="buttons">
+                        <button class="button is-primary is-small" @click="bumpBase">
+                            base+1（double 自动重算）
+                        </button>
+                        <button class="button is-small is-light" @click="setPrice">price=9</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 B：多个数据脚本按文档顺序深合并——嵌套对象递归合并，数组整体替换 -->
+            <div class="card">
+                <script type="autospark/data">{ cfg: { theme: 'dark', deep: { a: 1 } }, list: [1, 2] }</script>
+                <script type="autospark/data">{ cfg: { deep: { b: 2 } }, list: [9] }</script>
+                <div class="card-content">
+                    <div class="heading has-text-grey">块 B · 多脚本深合并（文档序，后者覆盖）</div>
+                    <div class="block">
+                        cfg =
+                        <code x-text="JSON.stringify(cfg)"></code>
+                    </div>
+                    <div class="block">
+                        list =
+                        <code x-text="JSON.stringify(list)"></code>
+                        （数组<b>整体替换</b>为 [9]，不做 concat）
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 C：watch 侦听（纯副作用声明）——filter 圈定只响应 count 变化，
+                 侦听体拿到 {path, value} 直接驱动 DOM（无指令参与的响应式副作用） -->
+            <div class="card">
+                <script type="autospark/data">
+                {
+                    count: 0,
+                    tick: watch(
+                        (sc) => { document.getElementById('watch-out').textContent =
+                            `count 变更为 ${sc.value}（path: ${sc.path.join('.')}）`; },
+                        (path) => path.join('.').endsWith('count')
+                    )
+                }
+                </script>
+                <div class="card-content">
+                    <div class="heading has-text-grey">块 C · watch 侦听（副作用声明，filter 圈定路径）</div>
+                    <div class="block">
+                        count =
+                        <b class="has-text-primary has-text-weight-semibold">{{count}}</b>
+                        <button class="button is-primary is-small ml-2" @click="bumpCount">count+1</button>
+                    </div>
+                    <div class="block">
+                        <span class="tag">watch 输出</span>
+                        <code class="ml-2" id="watch-out">（尚未触发）</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 D：嵌套子域——脚本只作用于其直接父元素（不是最近祖先），外层读不到 msg -->
+            <div class="card">
+                <div class="card-content">
+                    <div class="heading has-text-grey">块 D · 嵌套子域（只作用于直接父元素）</div>
+                    <div class="block">
+                        外层 msg =
+                        <b class="has-text-weight-semibold">{{msg}}</b>
+                        （空——脚本不作用于外层）
+                    </div>
+                    <div class="notification is-primary is-light">
+                        <script type="autospark/data">{ msg: '我只属于这个 div' }</script>
+                        内层 msg =
+                        <b class="has-text-weight-semibold">{{msg}}</b>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {}, {
+                actions: {
+                    // this.data = 最近数据域（数据脚本注入的父元素私有域）
+                    bumpBase: function () {
+                        this.data.base = this.data.base + 1;
+                    },
+                    setPrice: function () {
+                        this.data.price = 9;
+                    },
+                    bumpCount: function () {
+                        this.data.count = this.data.count + 1;
+                    },
+                },
+            });
+        </script>
+    </body>
+</html>

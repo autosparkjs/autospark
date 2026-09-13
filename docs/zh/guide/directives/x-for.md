@@ -14,7 +14,7 @@
 
 ## 快速入门
 
-<demo html="template/for/basic.html"/>
+<demo html="for/basic.html"/>
 
 ```html
 <ul x-for="book of books" :key="book.id">
@@ -30,7 +30,7 @@
 
 项模板里用项变量（`book`）访问当前项字段。增删数组元素（`push` / `shift` / `splice` / 整体赋值）自动触发重新渲染：
 
-<demo html="template/for/basic.html"/>
+<demo html="for/basic.html"/>
 
 ```javascript
 engine.state.books.push({ id: 3, title: "新书", author: "新" });
@@ -48,7 +48,7 @@ engine.state.books.shift();
 | `$begin` / `$end` | 是否首项 / 末项                          |
 | `$odd` / `$even`  | 奇数行 / 偶数行（对齐 CSS `:nth-child`） |
 
-<demo html="template/for/derived.html"/>
+<demo html="for/derived.html"/>
 
 ```html
 <ul x-for="item of items">
@@ -60,7 +60,7 @@ engine.state.books.shift();
 
 容器内带 `x-empty` 的子节点在数组为空时渲染一次、非空时拆除。它对**父作用域**求值（无 item / $index）：
 
-<demo html="template/for/empty.html"/>
+<demo html="for/empty.html"/>
 
 ```html
 <ul x-for="item of items">
@@ -81,7 +81,7 @@ engine.state.books.shift();
 
 把 `x-if` 写在**项模板内部**的子元素上，按当前项字段决定该子内容是否渲染。`x-if` 与 `x-for` 分处不同层级、各占自己的子树，互不冲突：
 
-<demo html="template/for/if.html"/>
+<demo html="for/if.html"/>
 
 ```html
 <ul x-for="notice of notices" :key="notice.id">

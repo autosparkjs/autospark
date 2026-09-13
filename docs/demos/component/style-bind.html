@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-component · 响应式样式 bind</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
             /* 全局演示样式（与组件 scoped 样式无关） */
             .demo-card {
@@ -77,10 +77,9 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
             // barWidth / barColor 是全局 state 字段（bind 经聚合视图沿链读取，滑块/按钮改它们触发更新）；
             // label 仅作展示，也可放全局 state。
-            const engine = new AutoTemplateEngine(document.getElementById("app"), {
+            const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {
                 barWidth: 80,
                 barColor: "#ff3860",
                 label: "进度",

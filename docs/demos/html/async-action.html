@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-html · 远程异步 HTML 源 · action 形态</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 远程异步 HTML 源（ADR-0035）· action 形态：值形如 标识符(实参)（必须带调用括号）→
+             经 getAction 链执行，返回 html 字符串注入（须为字符串——非字符串按加载失败处理）。
+             实参是表达式：kind/tick 依赖变化对称重执行（重取保旧值不闪断）。 -->
+        <div class="demo-app section">
+            <div class="card">
+                <div class="card-content">
+                    <div class="heading has-text-grey">action 生成 HTML（本地计算 / 动态片段）</div>
+                    <div class="block" x-html="renderCard(kind, tick)">
+                        <div class="notification is-warning is-light" x-fallback>⏳ 正在生成…</div>
+                    </div>
+                    <div class="buttons">
+                        <button class="button is-primary is-small" @click="nextStyle">换个样式</button>
+                        <button class="button is-primary is-light is-small" @click="reload">重新生成（保旧值）</button>
+                        <button class="button is-danger is-light is-small" @click="failNext">下次失败（保旧值）</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                // kind/tick 均为 action 实参：依赖变化 → 对称重执行
+                { kind: "primary", tick: 0 },
+                {
+                    actions: {
+                        // 数据源 action：按 kind 返回 html 字符串（延迟 900ms 让反馈可感知）；
+                        // kind='fail' 抛错（演示失败态：fallback 认领、旧内容保留）
+                        renderCard: async function (kind, tick) {
+                            await new Promise((r) => setTimeout(r, 900));
+                            if (kind === "fail") throw new Error("生成失败（演示失败态）");
+                            const color = kind === "primary" ? "has-text-primary" : "has-text-info";
+                            return (
+                                '<div class="box has-background-light"><p class="mb-1">' +
+                                '<b class="' + color + '">action 生成的 HTML 片段</b></p>' +
+                                '<p class="mb-0 has-text-grey">第 ' + tick + ' 次生成 · kind = <code>' + kind +
+                                "</code> —— POST / 动态计算 / 多源聚合，只要返回字符串即可注入</p></div>"
+                            );
+                        },
+                        nextStyle: function () {
+                            this.state.kind = this.state.kind === "primary" ? "info" : "primary";
+                        },
+                        reload: function () {
+                            this.state.tick = this.state.tick + 1;
+                        },
+                        failNext: function () {
+                            this.state.kind = "fail";
+                            this.state.tick = this.state.tick + 1;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

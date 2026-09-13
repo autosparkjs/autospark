@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-model · 数据来源：三来源混用</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
             .box-outline {
                 border: 1px dashed #dbdbdb;
@@ -89,8 +89,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            new AutoTemplateEngine(
+            new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 {
                     // 全局正式数据（user 跨组件共享）

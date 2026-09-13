@@ -2,7 +2,7 @@
 
 ## 它和 Alpine.js 有什么区别？
 
-`AutoTemplate Engine` 的指令语法（`x-text` / `x-for` / `@click` / `:class`）灵感来自 [Alpine.js](https://alpinejs.dev/)，理念相近——在 HTML 里完成声明式绑定。关键区别：
+`AutoSpark Engine` 的指令语法（`x-text` / `x-for` / `@click` / `:class`）灵感来自 [Alpine.js](https://alpinejs.dev/)，理念相近——在 HTML 里完成声明式绑定。关键区别：
 
 - **状态层**：Alpine.js 自带轻量响应式；本引擎的状态层是完整的 `AutoStore`，支持计算属性（含异步计算）、状态监听、批量更新、数据校验等。
 - **更新粒度**：本引擎基于 `AutoStore` 的路径订阅做细粒度 patch，而非整组件重渲染。
@@ -10,10 +10,10 @@
 ## 它和 AutoStore / @autostorejs/react 是什么关系？
 
 - **`autostore`（核心库）**：响应式状态层，管「状态怎么变」。
-- **`@autostorejs/template`（本包）**：声明式模板引擎，管「状态变了之后界面怎么更新」，消费 `AutoStore`。
+- **`autospark`（本包）**：声明式模板引擎，管「状态变了之后界面怎么更新」，消费 `AutoStore`。
 - **`@autostorejs/react`**：React 集成，提供 hooks 与 signal 组件。
 
-三者共享同一个 `AutoStore` 状态层。你可以把 `AutoTemplateEngine` 看作 React signal 之外的另一种渲染出口——面向纯 DOM、不依赖 React 的场景。
+三者共享同一个 `AutoStore` 状态层。你可以把 `AutoSpark` 看作 React signal 之外的另一种渲染出口——面向纯 DOM、不依赖 React 的场景。
 
 ## 为什么有些指令没有文档 / 标注「规划中」？
 
@@ -36,14 +36,14 @@
 构造时开启 `debug` 选项，引擎会输出更详细的日志：
 
 ```javascript
-new AutoTemplateEngine(el, state, { debug: true });
+new AutoSpark(el, state, { debug: true });
 ```
 
 也可订阅引擎的[事件总线](../guide/initial.md)（如 `engine/ready`、`scope/created`、`actions/*/pending`）观察内部生命周期。
 
 ## 可以自定义指令吗？
 
-可以。所有内置指令都继承自 `AutoTemplateDirectiveBase`，你可以注册自己的指令类。详见[指令类型](../guide/directive.md)。
+可以。所有内置指令都继承自 `AutoSparkDirectiveBase`，你可以注册自己的指令类。详见[指令类型](../guide/directive.md)。
 
 ## `x-for` 和 `x-if` 可以在同一个元素上使用吗？
 

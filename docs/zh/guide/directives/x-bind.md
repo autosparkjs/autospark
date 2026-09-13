@@ -14,7 +14,7 @@
 
 ## 快速入门
 
-<demo html="template/bind/basic.html"/>
+<demo html="bind/basic.html"/>
 
 ```html
 <a :href="link.url" :title="link.tip">{{ link.text }}</a> <img :src="img.src" :alt="img.alt" />
@@ -28,7 +28,7 @@
 
 `:title` / `:href` / `:src` / `:value` 等普通属性，值经 `String()` 转换后 `setAttribute`。
 
-<demo html="template/bind/basic.html"/>
+<demo html="bind/basic.html"/>
 
 ```html
 <a :href="link.url" :title="link.tip">{{ link.text }}</a>
@@ -38,7 +38,7 @@
 
 `:class` / `x-class` 支持三种写法，按 diff 增量更新（只改变化的 token）：
 
-<demo html="template/bind/class.html"/>
+<demo html="bind/class.html"/>
 
 ```html
 <!-- 对象：键为类名，值为真则启用 -->
@@ -53,7 +53,7 @@
 
 `:style` / `x-style` 支持对象（key 用驼峰）或字符串：
 
-<demo html="template/bind/style.html"/>
+<demo html="bind/style.html"/>
 
 ```html
 <!-- 对象：驼峰 key，合并到 el.style -->
@@ -72,7 +72,7 @@
 
 `:disabled` / `:checked` / `:readonly` 等布尔属性，值为真则 `setAttribute`、为假则 `removeAttribute`：
 
-<demo html="template/bind/boolean.html"/>
+<demo html="bind/boolean.html"/>
 
 ```html
 <button :disabled="saving" @click="save">{{ saving ? "保存中…" : "保存" }}</button>
@@ -87,7 +87,7 @@
 <a href="/users/{{ user.id }}">主页</a> <span class="card {{ user.role }}">标签</span>
 ```
 
-详见[响应式 · 属性插值](../reactive.md#属性插值)。
+详见[状态 · 属性插值](../state.md#属性插值)。
 
 ### 修饰符
 

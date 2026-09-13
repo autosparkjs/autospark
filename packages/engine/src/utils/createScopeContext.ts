@@ -13,7 +13,7 @@
  * - 读（get）：从栈顶向栈底查找，命中第一个拥有该键的作用域（后层覆盖前层）；
  * - 判定（has）：同方向查找，存在即返回 true；
  * - 枚举（ownKeys / getOwnPropertyDescriptor）：聚合所有作用域的自身可枚举键并去重；
- * - 元属性 `$context` / `$store`：见 `AutoTemplateContext` 类型说明。
+ * - 元属性 `$context` / `$store`：见 `AutoSparkContext` 类型说明。
  *
  * 返回的代理是只读的：所有数据键的描述符 `writable` 均为 `false`，且不提供
  * `set` / `deleteProperty` 陷阱——严格模式下对**已有数据键**赋值会抛 TypeError，
@@ -23,7 +23,7 @@
  *
  * @param state 根作用域初始状态（普通对象），内部用于创建 AutoStore
  * @param options 透传给 AutoStore 的选项
- * @returns 只读的 `AutoTemplateContext` 聚合视图
+ * @returns 只读的 `AutoSparkContext` 聚合视图
  */
 
 export type ScopeContextOptions = {

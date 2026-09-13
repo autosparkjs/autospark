@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-html · 远程异步 HTML 源 · .compile 远程模板</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 远程异步 HTML 源（ADR-0035）· .compile 组合：取回的 text 作为子模板编译——
+             内部指令/插值生效、继承宿主作用域、watcher 真实建立（改数据即见响应式更新）。
+             块 B 演示「数据 + 模板双远程」：x-data（异步）与 x-html.compile（异步）同元素，
+             反馈通道归 x-data 独占（fallback 是编译版、可插值读 $loading）。 -->
+        <div class="demo-app section">
+            <!-- 块 A：本地数据 + 远程模板——「换一本书」驱动模板内绑定更新（证明编译生效）。
+                 x-data 上提到 card-content（按钮与内容块的共同父级）：动作内 this.data 命中本层；
+                 x-html 宿主内容会被注入替换，按钮不能放进内容块内 -->
+            <div class="card">
+                <div class="card-content" x-data="{ title: '响应式状态管理', price: 59, stock: 12 }">
+                    <div class="heading has-text-grey">本地数据 + 远程模板（.compile 编译执行）</div>
+                    <div class="block" x-html.compile="/autospark/api/book-tpl.html?delay=800">
+                        <div class="notification is-warning is-light" x-fallback>⏳ 正在加载远程模板…</div>
+                    </div>
+                    <div class="buttons">
+                        <button class="button is-primary is-small" @click="restock">换一本书（模板内绑定随之更新）</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 B：数据 + 模板双远程——x-data 与 x-html.compile 同元素；
+                 fallback 归 x-data 独占（编译版，可插值 $loading）；模板先到先编译，
+                 数据到达后字段级细粒度更新（无需重编译） -->
+            <div class="card">
+                <div class="card-content"
+                    x-data="/autospark/api/books.json?delay=2000"
+                    x-data-options="{path:'data'}"
+                    x-html.compile="/autospark/api/book-list-tpl.html?delay=800">
+                    <div class="notification is-warning is-light" x-fallback>
+                        ⏳ 数据加载中…（$loading = {{ $loading }}，fallback 归 x-data 独占）
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const BOOKS = [
+                { title: "响应式状态管理", price: 59, stock: 12 },
+                { title: "声明式模板引擎", price: 45, stock: 8 },
+                { title: "细粒度更新", price: 68, stock: 3 },
+            ];
+            let idx = 0;
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {},
+                {
+                    actions: {
+                        // 改块 A 的 x-data 私有域（x-data 在 card-content，动作在其子树内 →
+                        // this.data 命中本层）→ 远程模板里的绑定细粒度更新
+                        restock: function () {
+                            const b = this.data;
+                            b.title = b.title === BOOKS[0].title ? BOOKS[1].title : BOOKS[0].title;
+                            b.price = b.price === 59 ? 45 : 59;
+                            b.stock = (b.stock % 15) + 1;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

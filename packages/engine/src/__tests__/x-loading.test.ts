@@ -9,7 +9,7 @@ const overlayOf = (host: Element | null): HTMLElement | null =>
 /** 等待指定毫秒（用于 delay 用例） */
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-describe("x-loading 快速绑定（整值即 visible 表达式）", () => {
+describe("x-loading 快速绑定（整值即 value 表达式）", () => {
     test("true 挂载覆盖层，false 移除，true 重建", async () => {
         const { root, store } = mount(`<div id="h" x-loading="show"></div>`, { show: true });
         const h = root.querySelector("#h")!;
@@ -39,7 +39,7 @@ describe("x-loading 快速绑定（整值即 visible 表达式）", () => {
         }
     });
 
-    test("表达式 visible：a && !b 依赖多状态，切换任一即响应", async () => {
+    test("表达式 value：a && !b 依赖多状态，切换任一即响应", async () => {
         const { root, store } = mount(`<div id="h" x-loading="a && !b"></div>`, {
             a: true,
             b: false,
@@ -154,9 +154,9 @@ describe("x-loading 运行时通道（Runtime 指令 / observer）", () => {
         expect(overlayOf(h)).toBeNull();
     });
 
-    test("命令式 overlay 模式：对象配置无 visible → 属性存在即显示（ADR-0008 决策 8，feedback 依赖）", async () => {
-        // 初始 x-loading 对象配置省略 visible → resolveLiteral("")===true → 静态显示 + 配置渲染。
-        // feedback 的 loading 配置对象（命令式 setAttribute 注入「无 visible 的配置」）复用此契约，故锁定。
+    test("命令式 overlay 模式：对象配置无 value → 属性存在即显示（ADR-0008 决策 8，feedback 依赖）", async () => {
+        // 初始 x-loading 对象配置省略 value → resolveLiteral("")===true → 静态显示 + 配置渲染。
+        // feedback 的 loading 配置对象（命令式 setAttribute 注入「无 value 的配置」）复用此契约，故锁定。
         // 「移除即隐藏」由上条 removeAttribute 测试覆盖（属性删 → unmount → overlay 移除）。
         const { root } = mount(`<div id="h" x-loading="{ message:'保存中', color:'red' }"></div>`, {});
         const h = root.querySelector("#h")!;
@@ -190,9 +190,9 @@ describe("x-loading 运行时通道（Runtime 指令 / observer）", () => {
 });
 
 describe("x-loading 配置绑定（对象语法）", () => {
-    test("visible 字段控制显隐", async () => {
+    test("value 字段控制显隐", async () => {
         const { root, store } = mount(
-            `<div id="h" x-loading="{ visible:'flag' }"></div>`,
+            `<div id="h" x-loading="{ value:'flag' }"></div>`,
             { flag: false },
         );
         const h = root.querySelector("#h")!;
@@ -202,17 +202,35 @@ describe("x-loading 配置绑定（对象语法）", () => {
         expect(overlayOf(h)).not.toBeNull();
     });
 
-    test("缺 visible：默认显示（裸属性≡true 语义延伸到配置缺省）", () => {
+    test("缺 value：默认显示（裸属性≡true 语义延伸到配置缺省）", () => {
         const { root } = mount(`<div id="h" x-loading="{ message:'x' }"></div>`, {});
-        // 未指定 visible ≡ true：默认显示，message 正常渲染
+        // 未指定 value ≡ true：默认显示，message 正常渲染
         const h = root.querySelector("#h")!;
         expect(overlayOf(h)).not.toBeNull();
         expect(h.querySelector(".x-loading-message")?.textContent).toBe("x");
     });
 
+    test("旧键 visible：warn 提示已更名 + 忽略不生效（缺失 value ≡ 裸属性恒显示）", () => {
+        const warns: string[] = [];
+        const origWarn = console.warn;
+        console.warn = (...args: any[]) => {
+            warns.push(String(args[0] ?? ""));
+        };
+        try {
+            const { root } = mount(`<div id="h" x-loading="{ visible:'flag', message:'x' }"></div>`, {
+                flag: false,
+            });
+            // visible 被忽略 → value 缺失 ≡ true → 恒显示（不按 flag 反应）
+            expect(overlayOf(root.querySelector("#h"))).not.toBeNull();
+        } finally {
+            console.warn = origWarn;
+        }
+        expect(warns.some((w) => w.includes("已更名为"))).toBe(true);
+    });
+
     test("color 注入 loader（currentColor 经 style.color）", () => {
         const { root } = mount(
-            `<div id="h" x-loading="{ visible:'l', color:'red' }"></div>`,
+            `<div id="h" x-loading="{ value:'l', color:'red' }"></div>`,
             { l: true },
         );
         const loader = root.querySelector("#h .x-loading-loader") as HTMLElement;
@@ -223,7 +241,7 @@ describe("x-loading 配置绑定（对象语法）", () => {
 
     test("bgColor + opacity 合成为 rgba 背景", () => {
         const { root } = mount(
-            `<div id="h" x-loading="{ visible:'l', bgColor:'white', opacity:0.5 }"></div>`,
+            `<div id="h" x-loading="{ value:'l', bgColor:'white', opacity:0.5 }"></div>`,
             { l: true },
         );
         const ov = overlayOf(root.querySelector("#h"))!;
@@ -236,13 +254,13 @@ describe("x-loading 配置绑定（对象语法）", () => {
         // ADR-0021 决策 12：DEFAULT_BLOCK 的 message 经 x-text="message" 绑定。
         // message 元素恒存在（默认块模板写死），不传时 x-text 写空串（而非移除节点）
         const withMsg = mount(
-            `<div id="h" x-loading="{ visible:'l', message:'正在加载' }"></div>`,
+            `<div id="h" x-loading="{ value:'l', message:'正在加载' }"></div>`,
             { l: true },
         );
         const msg1 = withMsg.root.querySelector("#h .x-loading-message");
         expect(msg1?.textContent).toBe("正在加载");
 
-        const noMsg = mount(`<div id="h" x-loading="{ visible:'l' }"></div>`, { l: true });
+        const noMsg = mount(`<div id="h" x-loading="{ value:'l' }"></div>`, { l: true });
         const msgEl = noMsg.root.querySelector("#h .x-loading-message");
         expect(msgEl).not.toBeNull(); // 元素存在
         expect(msgEl?.textContent).toBe(""); // 但文本为空
@@ -252,7 +270,7 @@ describe("x-loading 配置绑定（对象语法）", () => {
 describe("x-loading selector 目标元素", () => {
     test("selector 命中宿主后代：覆盖层挂到目标而非宿主", () => {
         const { root } = mount(
-            `<div id="h" x-loading="{ visible:'l', selector:'#t' }"><div id="t"></div></div>`,
+            `<div id="h" x-loading="{ value:'l', selector:'#t' }"><div id="t"></div></div>`,
             { l: true },
         );
         const h = root.querySelector("#h")!;
@@ -269,7 +287,7 @@ describe("x-loading selector 目标元素", () => {
         document.body.appendChild(external);
         try {
             const { root, engine } = mount(
-                `<div id="h" x-loading="{ visible:'l', selector:'@#external' }"></div>`,
+                `<div id="h" x-loading="{ value:'l', selector:'@#external' }"></div>`,
                 { l: true },
             );
             // 覆盖层应在全局 #external 上，而非 detached 的 root 内
@@ -283,7 +301,7 @@ describe("x-loading selector 目标元素", () => {
 
     test("selector 未命中：回退到宿主元素显示", () => {
         const { root } = mount(
-            `<div id="h" x-loading="{ visible:'l', selector:'#missing' }"></div>`,
+            `<div id="h" x-loading="{ value:'l', selector:'#missing' }"></div>`,
             { l: true },
         );
         const h = root.querySelector("#h")!;
@@ -294,7 +312,7 @@ describe("x-loading selector 目标元素", () => {
 
     test("selector 非法：回退到宿主元素显示（不抛错）", () => {
         const { root } = mount(
-            `<div id="h" x-loading="{ visible:'l', selector:'!!bad!!' }"></div>`,
+            `<div id="h" x-loading="{ value:'l', selector:'!!bad!!' }"></div>`,
             { l: true },
         );
         const h = root.querySelector("#h")!;
@@ -321,7 +339,7 @@ describe("x-loading 修饰符", () => {
 
 describe("x-loading delay 防闪烁", () => {
     test("delay>0：true 后延迟到期才挂载", async () => {
-        const { root } = mount(`<div id="h" x-loading="{ visible:'l', delay:20 }"></div>`, {
+        const { root } = mount(`<div id="h" x-loading="{ value:'l', delay:20 }"></div>`, {
             l: true,
         });
         const h = root.querySelector("#h")!;
@@ -333,7 +351,7 @@ describe("x-loading delay 防闪烁", () => {
 
     test("延迟窗口内回 false：不挂载（防闪烁）", async () => {
         const { root, store } = mount(
-            `<div id="h" x-loading="{ visible:'l', delay:30 }"></div>`,
+            `<div id="h" x-loading="{ value:'l', delay:30 }"></div>`,
             { l: false },
         );
         const h = root.querySelector("#h")!;

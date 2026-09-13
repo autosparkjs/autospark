@@ -16,7 +16,7 @@
 
 ## 快速入门
 
-<demo html="template/show.html"/>
+<demo html="show.html"/>
 
 ```html
 <button @click="toggle">{{ visible ? "隐藏" : "显示" }}详情</button>
@@ -41,7 +41,7 @@ engine.state.visible = false; // display:none，宿主仍在 DOM、watcher 存�
 engine.state.visible = true; // 还原 display，原元素实例继续
 ```
 
-<demo html="template/show.html"/>
+<demo html="show.html"/>
 
 ### 适合「频繁切换」与「保留 DOM 占位」
 

@@ -1,11 +1,11 @@
-import { AutoTemplateDirectiveBase } from "../base";
-import { isSimpleStatePath, type AutoTemplateScope } from "../../scope";
+import { AutoSparkDirectiveBase } from "../base";
+import { isSimpleStatePath, type AutoSparkScope } from "../../scope";
 import { setVal } from "autostore";
-import type { AutoTemplateActionContext } from "./on/types";
+import type { AutoSparkActionContext } from "./on/types";
 import { createDirectiveOptions } from "../utils/createDirectiveOptions";
 import { resolveEmptyValues } from "../utils/emptyPlaceholder";
 import type { AutoDirectiveInfo } from "../types";
-import type { AutoTemplateEngine } from "../../engine";
+import type { AutoSpark } from "../../engine";
 
 /**
  * 匹配「裸标识符」或「标识符(参数)」，用于 get/set 字符串的 **action 名分派**（复用 x-on 的 ACTION_RE）：
@@ -130,7 +130,7 @@ function toBooleanStrict(v: any): any {
  * - **表达式**：固定形参 `value`(get)/`$value`(set)，`new Function(...,"with(scope){...}")`，
  *   `scope = binding.getContext()`（localData+data+state 聚合视图）。
  * - **action 名**：`ACTION_RE` 分派（`splitIp(1)` 等）。**当前值自动作首参**，括号内为追加参数；
- *   `this` = `AutoTemplateActionContext`（el/data/scope/store/state/engine/$options + value/$value）。
+ *   `this` = `AutoSparkActionContext`（el/data/scope/store/state/engine/$options + value/$value）。
  *
  * ## 绑定值语义
  * - **简单路径**（`order.price`）：无 get/set 时读 `scope.watch(path)`、写 `setVal` 直通（快路径）。
@@ -183,10 +183,10 @@ function toBooleanStrict(v: any): any {
  * @example 组合字段（表达式 + set 反向拆分）
  * <input x-model="user.first + ',' + user.last" x-model-options="{set:'user.first=$value.split(\',\')[0];user.last=$value.split(\',\')[1]'}"/>
  *
- * @example action 复用（set 外置到 <script type="actions">）
+ * @example action 复用（set 外置到 <script type="autospark/actions">）
  * <input x-model="user.ip" x-model-options="{get:'splitIp(0)',set:'joinIp'}"/>
  */
-export class ModelDirective extends AutoTemplateDirectiveBase {
+export class ModelDirective extends AutoSparkDirectiveBase {
     /** Compile 通道：created/compile/destroy（挂 input 事件在 compile——el 已存在即可，无需 observer 通道） */
     /** 与 x-bind/x-on 同级（50），早于 x-text/x-html(0) */
     static override readonly priority = 50;
@@ -265,8 +265,8 @@ export class ModelDirective extends AutoTemplateDirectiveBase {
      * - 显式绑定优先抑制合成（决策 9）；无条件合成 + 三层降级兜底（决策 10）。
      */
     static synthesizeSchemaBindings(
-        engine: AutoTemplateEngine,
-        scope: AutoTemplateScope,
+        engine: AutoSpark,
+        scope: AutoSparkScope,
         el: HTMLElement,
         modelInfo: AutoDirectiveInfo,
     ): void {
@@ -370,9 +370,9 @@ export class ModelDirective extends AutoTemplateDirectiveBase {
      * - 元素已有显式 name 属性 → 跳过（显式优先）。
      */
     private static _injectName(
-        engine: AutoTemplateEngine,
+        engine: AutoSpark,
         el: HTMLElement,
-        scope: AutoTemplateScope,
+        scope: AutoSparkScope,
         modelValue: string,
         schema: any,
     ): void {
@@ -998,10 +998,11 @@ export class ModelDirective extends AutoTemplateDirectiveBase {
         const m = getExpr.trim().match(ACTION_RE);
         const name = m?.[1];
         if (name) {
+            // 值恒为 ActionDesc 描述符（ADR-0036），取 .handle 调用——模板侧行为不变
             const action = this.binding.getAction(name);
-            if (typeof action === "function") {
+            if (action) {
                 const args = this._evalArgs(m?.[2], "value", value, scopeCtx);
-                return action.call(this._makeCtx({ value }), value, ...args);
+                return action.handle.call(this._makeCtx({ value }), value, ...args);
             }
         }
         try {
@@ -1026,10 +1027,11 @@ export class ModelDirective extends AutoTemplateDirectiveBase {
         const m = setExpr.trim().match(ACTION_RE);
         const name = m?.[1];
         if (name) {
+            // 值恒为 ActionDesc 描述符（ADR-0036），取 .handle 调用——模板侧行为不变
             const action = this.binding.getAction(name);
-            if (typeof action === "function") {
+            if (action) {
                 const args = this._evalArgs(m?.[2], "$value", $value, scopeCtx);
-                action.call(this._makeCtx({ $value }), $value, ...args);
+                action.handle.call(this._makeCtx({ $value }), $value, ...args);
                 return;
             }
         }
@@ -1065,10 +1067,10 @@ export class ModelDirective extends AutoTemplateDirectiveBase {
     }
 
     /**
-     * 构造 action 调用上下文：复用 x-on 的 `AutoTemplateActionContext`（el/data/scope/store/state/
+     * 构造 action 调用上下文：复用 x-on 的 `AutoSparkActionContext`（el/data/scope/store/state/
      * engine/$options），附加 get 的 `value` 或 set 的 `$value`。`$event` 无意义（x-model 非事件驱动）。
      */
-    private _makeCtx(extra: { value?: any; $value?: any }): AutoTemplateActionContext & {
+    private _makeCtx(extra: { value?: any; $value?: any }): AutoSparkActionContext & {
         value?: any;
         $value?: any;
     } {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
 import { AutoStore, ConfigManager, configurable } from "autostore";
-import { AutoTemplateEngine } from "../engine";
+import { AutoSpark } from "../engine";
 import { nextTick } from "./helpers";
 
 /**
@@ -50,7 +50,7 @@ function mountWithConfig(
         configManager,
         configKey: opts.configKey,
     } as any);
-    const engine = new AutoTemplateEngine(root, store);
+    const engine = new AutoSpark(root, store);
     return { root, store, engine, configManager };
 }
 
@@ -191,7 +191,7 @@ describe("x-bind @ 配置引用：三层降级", () => {
         const root = document.createElement("div");
         root.innerHTML = `<input :placeholder="order.price@placeholder"/>`;
         const store = new AutoStore({ order: { price: 1 } });
-        expect(() => new AutoTemplateEngine(root, store)).not.toThrow();
+        expect(() => new AutoSpark(root, store)).not.toThrow();
         // 无 configManager → 不动 DOM，input 无 placeholder 属性
         expect(root.querySelector("input")!.hasAttribute("placeholder")).toBe(false);
     });

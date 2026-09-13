@@ -67,7 +67,7 @@
 
 **关键：缺失才回退，不做合并、不做覆盖。** 指令选项里显式写了某个键（哪怕 `false`）就命中、阻断回退；两层都没有返回 `undefined`。
 
-<demo html="template/config/options.html"/>
+<demo html="config/options.html"/>
 
 ```html
 <!-- 1) 仅宿主选项：stock 为空时回退读到 x-options 的 empty -->

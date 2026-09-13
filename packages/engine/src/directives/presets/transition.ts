@@ -1,4 +1,4 @@
-import { AutoTemplateDirectiveBase } from "../base";
+import { AutoSparkDirectiveBase } from "../base";
 
 /**
  * 转场动画指定
@@ -11,6 +11,6 @@ import { AutoTemplateDirectiveBase } from "../base";
  *
  */
 
-export class TransitionDirective extends AutoTemplateDirectiveBase {
+export class TransitionDirective extends AutoSparkDirectiveBase {
     render() {}
 }

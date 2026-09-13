@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>响应式 · 文本与属性插值</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
@@ -20,13 +20,12 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
             const users = [
                 { id: 101, name: "张三", age: 28, role: "admin" },
                 { id: 202, name: "李四", age: 35, role: "guest" },
             ];
             let i = 0;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 { user: { ...users[0] } },
                 {

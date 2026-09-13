@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>动作 · 内置信号动作</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 内置信号动作（yes/no/cancel/close）：handle 为空函数，价值在广播——容器监听 action:<name> 驱动通用交互 -->
+        <div class="demo-app section">
+            <div class="block">对话框状态：<span class="tag is-medium" x-text="dialog">打开</span></div>
+
+            <!-- 对话框容器：声明式监听后代内置动作信号（.resolved 过滤完成阶段），无需手写任何 action -->
+            <div
+                class="card"
+                id="dialog"
+                x-show="dialog === '打开'"
+                @action:yes.resolved="dialog='已提交并关闭'"
+                @action:cancel.resolved="dialog='已取消'"
+                @action:close.resolved="dialog='已关闭（来自 '+$event.detail.result+'）'"
+            >
+                <div class="card-content">
+                    <p class="block">确认提交这份订单？</p>
+                    <div class="buttons">
+                        <button class="button is-primary" @click="yes">确认</button>
+                        <button class="button" @click="cancel">取消</button>
+                        <!-- 透传载荷：close(来源) → 监听方从 $event.detail.result 读到来源 -->
+                        <button class="button is-ghost" @click="close('✕按钮')">✕</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <!-- 表达式兜底：未命中动作时按表达式求值（直接写状态赋值） -->
+                <button class="button" @click="dialog='打开'">重新打开</button>
+            </div>
+        </div>
+
+        <script>
+            // 内置 yes/no/cancel/close 已自动注册：容器经 @action:<name> 声明式消费信号
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { dialog: "打开" },
+            );
+        </script>
+    </body>
+</html>

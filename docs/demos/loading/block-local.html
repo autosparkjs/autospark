@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-loading · 局部 x-block 自定义加载模板</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
             /* panel 给覆盖层提供定位上下文（position:relative） */
             .panel {
@@ -73,11 +73,11 @@
                 <div class="columns">
                     <div
                         class="card panel column"
-                        x-loading="{ visible:'on', message:'正在拉取数据…' }"
+                        x-loading="{ value:'on', message:'正在拉取数据…' }"
                     >
                         <div class="card-content">自定义块（脉冲扩散）+ 注入 message</div>
                     </div>
-                    <div class="card panel column" x-loading="{ visible:'on' }">
+                    <div class="card panel column" x-loading="{ value:'on' }">
                         <div class="card-content">自定义块（脉冲扩散），无 message</div>
                     </div>
                 </div>
@@ -89,8 +89,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 { on: true },
                 {

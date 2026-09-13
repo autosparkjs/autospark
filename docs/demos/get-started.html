@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>快速入门</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
@@ -20,9 +20,8 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
             // 第二参传裸状态，引擎自动建立 store
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 {
                     user: { name: "张三" },

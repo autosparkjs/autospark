@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-data · 异步数据源 · fetch 最小示例</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 异步数据源 · fetch 最小示例：url 直取 + $loading/$error 元状态 + x-fallback 首载占位。
+             ?delay 由文档站 demo 中间件支持（模拟网络延迟）。 -->
+        <div class="demo-app section">
+            <div class="card">
+                <div class="card-content" x-data="/autospark/api/books.json?delay=800" x-data-options="{path:'data'}">
+                    <div class="heading has-text-grey">url 数据源（最小示例）</div>
+                    <div class="block">
+                        <b class="has-text-primary">{{ title }}</b>
+                        —— 共 {{ total }} 本书，来自 <code>x-data="/autospark/api/books.json"</code>
+                    </div>
+                    <div class="block">
+                        <span class="tag" :class="$loading ? 'is-warning' : 'is-success'">$loading = {{ $loading }}</span>
+                        <span class="tag" :class="$error ? 'is-danger' : 'is-light'">$error = {{ $error ? $error.message : '无' }}</span>
+                    </div>
+                    <!-- 首载占位：数据到达后自动移除 -->
+                    <div class="notification is-warning is-light" x-fallback>⏳ 加载中…（$loading = {{ $loading }}）</div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

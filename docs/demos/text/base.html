@@ -5,8 +5,8 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-text 文本插值</title>
         <!-- template.js 自包含 core；bulma.min.css 提供 Bulma 组件样式 -->
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
@@ -23,9 +23,8 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
             // 第二参传裸状态对象，引擎自动建立 store；第三参 actions 注册动作
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 {
                     user: { name: "张三" },

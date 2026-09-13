@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
 import { AutoStore, ConfigManager, configurable } from "autostore";
-import { AutoTemplateEngine } from "../engine";
+import { AutoSpark } from "../engine";
 import { mount, nextTick } from "./helpers";
 
 /**
@@ -79,7 +79,7 @@ describe("x-model 空值回填：schema default", () => {
             { autoload: false, global: false },
         );
         const store = new AutoStore(state, { configManager, configKey: "app" } as any);
-        const engine = new AutoTemplateEngine(root, store);
+        const engine = new AutoSpark(root, store);
         return { root, store, engine, configManager };
     }
 
@@ -167,7 +167,7 @@ describe("x-model 空值回填：select 首项默认", () => {
                 ] as any }) },
                 { configManager, configKey: "app" } as any,
             );
-            const engine = new AutoTemplateEngine(root, store);
+            const engine = new AutoSpark(root, store);
             return { root, configManager };
         })();
         await nextTick();

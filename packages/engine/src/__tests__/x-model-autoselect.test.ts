@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
 import { AutoStore, ConfigManager, computed, configurable } from "autostore";
-import { AutoTemplateEngine } from "../engine";
+import { AutoSpark } from "../engine";
 import { mount, nextTick } from "./helpers";
 
 /**
@@ -78,7 +78,7 @@ describe("x-model autoSelect：单选", () => {
             { car: configurable("TESLA", { autoSelect: false, choices: [{ value: "A", label: "甲" }] as any }) },
             { configManager: cm, configKey: "app" } as any,
         );
-        new AutoTemplateEngine(root, store);
+        new AutoSpark(root, store);
         await nextTick();
         expect(store.state.car).toBe("TESLA"); // schema false 关闭
 
@@ -92,7 +92,7 @@ describe("x-model autoSelect：单选", () => {
             { car: configurable("TESLA", { autoSelect: true, choices: [{ value: "A", label: "甲" }] as any }) },
             { configManager: cm2, configKey: "app" } as any,
         );
-        new AutoTemplateEngine(root2, store2);
+        new AutoSpark(root2, store2);
         await nextTick();
         expect(store2.state.car).toBe("A"); // schema true 开启
     });
@@ -108,7 +108,7 @@ describe("x-model autoSelect：单选", () => {
             { car: configurable("TESLA", { autoSelect: true, choices: [{ value: "A", label: "甲" }] as any }) },
             { configManager: cm, configKey: "app" } as any,
         );
-        new AutoTemplateEngine(root, store);
+        new AutoSpark(root, store);
         await nextTick();
         expect(store.state.car).toBe("TESLA"); // 模板 false 赢
     });
@@ -237,7 +237,7 @@ describe("x-model autoSelect：三级级联全链", () => {
             },
             { configManager: cm, configKey: "" } as any,
         );
-        new AutoTemplateEngine(root, store);
+        new AutoSpark(root, store);
         const selects = root.querySelectorAll("select") as NodeListOf<HTMLSelectElement>;
         await nextTick();
         // 初始：福建·福州·鼓楼区
@@ -287,7 +287,7 @@ describe("x-model autoSelect：三级级联全链", () => {
             },
             { configManager: cm, configKey: "" } as any,
         );
-        new AutoTemplateEngine(root, store);
+        new AutoSpark(root, store);
         const selects = root.querySelectorAll("select") as NodeListOf<HTMLSelectElement>;
         await nextTick();
         selects[0].value = "gd";

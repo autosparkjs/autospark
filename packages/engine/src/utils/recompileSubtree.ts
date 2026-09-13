@@ -1,4 +1,4 @@
-import type { AutoTemplateScope } from "../scope";
+import type { AutoSparkScope } from "../scope";
 
 /**
  * 重编译指定 scope 的子树（以 `scope.template` 当前内容为源）。
@@ -20,7 +20,7 @@ import type { AutoTemplateScope } from "../scope";
  * @param scope 子树根 scope（其 `template` 作编译源、其 `children` 被销毁重建）
  * @param el    `scope.el`，子节点挂载目标（一般传 `scope.el`）
  */
-export function recompileSubtree(scope: AutoTemplateScope, el: HTMLElement): void {
+export function recompileSubtree(scope: AutoSparkScope, el: HTMLElement): void {
     const engine = scope.engine;
     // 1. 销毁旧子 scope（递归 off watcher；destroy 不删 DOM，下面统一清）
     for (const child of scope.children) child.destroy();

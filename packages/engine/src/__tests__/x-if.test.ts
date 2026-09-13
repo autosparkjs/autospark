@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
 import { mount, nextTick } from "./helpers";
-import type { AutoTemplateEngine } from "../engine";
-import type { AutoTemplateScope } from "../scope";
+import type { AutoSpark } from "../engine";
+import type { AutoSparkScope } from "../scope";
 
 /**
  * 从 engine.scopes 反查指定渲染元素对应的 scope。
@@ -13,7 +13,7 @@ import type { AutoTemplateScope } from "../scope";
  * detach 期间宿主 el 离开 DOM，但 scope 由 parent.children 强引用保活、
  * engine.scopes 条目不删（WeakRef.deref 仍返回被测试强引用的 el），故仍可反查。
  */
-function scopeOf(engine: AutoTemplateEngine, el: Element): AutoTemplateScope | undefined {
+function scopeOf(engine: AutoSpark, el: Element): AutoSparkScope | undefined {
     for (const [ref, scope] of engine.scopes) {
         if (ref.deref() === el) return scope;
     }

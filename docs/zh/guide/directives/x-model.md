@@ -15,7 +15,7 @@
 
 ## 快速入门
 
-<demo html="template/model/all-input-types.html" />
+<demo html="model/all-input-types.html" />
 
 `x-model="path"` 的 `path` 支持**状态路径**（`user.name`）或**表达式**（`user.first + ',' + user.last`，含计算属性路径）。输入即写回状态、状态变化同步回输入框，无需手动监听 `input` 事件。上例覆盖了 text / number / email / password / textarea / checkbox / radio / select 的完整用法。
 
@@ -36,7 +36,7 @@ x-model 支持四类控件，读写语义各不相同：
 
 所有 text-like 控件（`text` / `email` / `password` / `url` / `tel` / `search`）统一读写 `el.value`（字符串）：
 
-<demo html="template/model/text-input.html" />
+<demo html="model/text-input.html" />
 
 ```html
 <input type="text" x-model="form.username" />
@@ -50,7 +50,7 @@ x-model 支持四类控件，读写语义各不相同：
 
 `<textarea>` 统一读写 `el.value`，用法与 text input 一致：
 
-<demo html="template/model/textarea.html" />
+<demo html="model/textarea.html" />
 
 ```html
 <textarea x-model="form.bio" placeholder="自我介绍"></textarea>
@@ -60,7 +60,7 @@ x-model 支持四类控件，读写语义各不相同：
 
 `<input type="checkbox">` 读写 `el.checked`（布尔值），而非 `el.value`。
 
-<demo html="template/model/checkbox.html" />
+<demo html="model/checkbox.html" />
 
 ```html
 <input type="checkbox" x-model="form.agree" />
@@ -92,7 +92,7 @@ checkbox 与 `:value` 不冲突——`:value` 设置的是表单提交值，不�
 
 `<input type="radio">` 通过值匹配实现互斥选择——多个同名 radio 共享一个 state 值。
 
-<demo html="template/model/radio.html" />
+<demo html="model/radio.html" />
 
 ```html
 <input type="radio" name="gender" value="male" x-model="form.gender" />
@@ -125,7 +125,7 @@ radio 与 `:value` 不冲突——`:value` 设置的是选项值，不与 `x-mod
 
 `<select>` 的选项子树有三类来源，优先级从高到低：
 
-<demo html="template/model/select.html" />
+<demo html="model/select.html" />
 
 **① 静态 `<option>`（最优先）**——模板手写选项（含手写 `<optgroup>` 分组），引擎不做任何选项管理，两处 `choices` 配置整体忽略：
 
@@ -241,7 +241,7 @@ district: configurable("gl_fz", {
 
 绑定状态落在**空值集**内时，x-model 按本节规则回填控件的**显示值**——与 [x-text 的空值占位](./x-text.md)同构的一套机制（同一 `emptyValues` 词汇与判定语义），但作用于表单控件的显示而非文本渲染。
 
-<demo html="template/model/empty-default.html" />
+<demo html="model/empty-default.html" />
 
 **空值集 `emptyValues`**：默认 `[undefined, null, NaN]`，用户声明是**附加而非覆盖**（relaxed-json 表达不了 `undefined`/`NaN`，覆盖会破坏默认判空）：
 
@@ -305,11 +305,11 @@ a: configurable(undefined, { default: "未填写" }),
 
 不加 `.number` 时，`<input type="number">` 的值是字符串，`price * count` 会变成字符串拼接：
 
-<demo html="template/model/modifiers-number.html" />
+<demo html="model/modifiers-number.html" />
 
 #### `.trim`
 
-<demo html="template/model/modifiers-trim.html" />
+<demo html="model/modifiers-trim.html" />
 
 #### `.boolean`
 
@@ -322,7 +322,7 @@ a: configurable(undefined, { default: "未填写" }),
 | `""`       | `false`                                                          |
 | 其他任意串 | **保留原值**（不转换，镜像 `.number` 的 NaN 回退「不破坏」原则） |
 
-<demo html="template/model/modifiers-boolean.html" />
+<demo html="model/modifiers-boolean.html" />
 
 ```html
 <!-- radio 布尔对：主场景 -->
@@ -341,7 +341,7 @@ radio 的 `value` 是模板静态声明，若不在严格集内（如 `value="ab
 
 #### `.change`
 
-<demo html="template/model/modifiers-change.html" />
+<demo html="model/modifiers-change.html" />
 
 写回管道顺序：`el.value` →（`.trim`）→（`.number` / `.boolean` 按书写序）→ `$value` → set 或直写状态。
 
@@ -349,7 +349,7 @@ radio 的 `value` 是模板静态声明，若不在严格集内（如 `value="ab
 
 `x-model` 支持多层状态路径：
 
-<demo html="template/model/nested.html" />
+<demo html="model/nested.html" />
 
 ```html
 <input x-model="user.address.city" /> <input x-model="user.address.street" />
@@ -369,7 +369,7 @@ radio 的 `value` 是模板静态声明，若不在严格集内（如 `value="ab
 
 表达式组合多个字段显示，编辑后经 **set 反向变换**拆解写回——一个输入框双向驱动多个状态字段：
 
-<demo html="template/model/expr-bind.html" />
+<demo html="model/expr-bind.html" />
 
 ```html
 <!-- 读 = first + ',' + last 组合显示；写 = set action 拆回两个字段 -->
@@ -439,7 +439,7 @@ set 的两种写法（表达式 / action 名）与更多拆分组合场景见下
 
 **一个状态值拆分到多个输入框，编辑后再合并写回。** 典型如 IP 地址：单个 `user.ip` 拆成 4 段输入框，`get` 显示对应八位段、`set` 重组完整 IP 写回。
 
-<demo html="template/model/get-action.html" />
+<demo html="model/get-action.html" />
 
 ```html
 <input x-model="user.ip" x-model-options="{get:'octet(0)',set:'joinOctet(0)'}" />
@@ -463,7 +463,7 @@ actions: {
 
 同样的拆分逻辑也可用**表达式**写法（逻辑简单时）。下面把数字状态格式化成「¥ 金额」显示：
 
-<demo html="template/model/get-expression.html" />
+<demo html="model/get-expression.html" />
 
 ```html
 <input x-model="order.amount" x-model-options="{get:'`¥ ${value}`'}" />
@@ -473,7 +473,7 @@ actions: {
 
 **多个状态字段组合到一个输入框，编辑后拆解写回各字段。** 典型如姓名：`user.first + ',' + user.last` 组合显示，编辑后按逗号拆回 `first` / `last`。
 
-<demo html="template/model/set-action.html" />
+<demo html="model/set-action.html" />
 
 ```html
 <input
@@ -495,13 +495,13 @@ actions: {
 
 组合的写方向也可用**表达式**（`$value` 形参，语句体赋值）。下面把输入直接写到 `dst` 字段：
 
-<demo html="template/model/set-expression.html" />
+<demo html="model/set-expression.html" />
 
 ```html
 <input x-model="src" x-model-options="{set:'dst=$value'}" />
 ```
 
-action 可声明在 `<script type="actions">`（局部）或 `engine.actions`（全局），详见 [action](../action.md)。
+action 可声明在 `<script type="autospark/actions">`（局部）或 `engine.actions`（全局），详见 [action](../action.md)。
 
 ### 只读降级
 
@@ -510,7 +510,7 @@ action 可声明在 `<script type="actions">`（局部）或 `engine.actions`（
 - 输入框手动改值不会写回状态（静默）；
 - `logger.warn` 提示一次（不抛错、不魔法猜左值）。
 
-<demo html="template/model/readonly.html" />
+<demo html="model/readonly.html" />
 
 ```html
 <!-- fullName 是计算属性，无 setter → 只读降级 -->
@@ -525,7 +525,7 @@ action 可声明在 `<script type="actions">`（局部）或 `engine.actions`（
 
 控件写在 `x-data` 容器**内**，绑定即容器的局部字段——表单草稿、临时开关就近存放，不污染全局 store：
 
-<demo html="template/model/source-local.html" />
+<demo html="model/source-local.html" />
 
 ```html
 <div x-data="{ draft: '', urgent: false }">
@@ -539,7 +539,7 @@ action 可声明在 `<script type="actions">`（局部）或 `engine.actions`（
 
 嵌套 `x-data` 时，内层控件绑定的键沿 parent 链**就近继承**——本地未声明的键落到最近声明它的祖先层：
 
-<demo html="template/model/source-ancestor.html" />
+<demo html="model/source-ancestor.html" />
 
 ```html
 <div x-data="{ tenant: 'acme', tag: 'prod' }">
@@ -555,10 +555,10 @@ action 可声明在 `<script type="actions">`（局部）或 `engine.actions`（
 
 不在任何 `x-data` 内（或键名不在局部作用域），绑定落到 **engine 的全局 store**——跨组件共享、需要持久化/联动的正式数据：
 
-<demo html="template/model/source-global.html" />
+<demo html="model/source-global.html" />
 
 ```js
-new AutoTemplateEngine(el, {
+new AutoSpark(el, {
     user: { name: "zhang", email: "a@b.com" }, // 全局状态
 });
 ```
@@ -572,7 +572,7 @@ new AutoTemplateEngine(el, {
 
 一个表单可以**同时**从三个来源取数——全局放正式数据、本地放草稿、祖先放分区共享值，各控件按 scope 链各自就近命中：
 
-<demo html="template/model/data-sources.html" />
+<demo html="model/data-sources.html" />
 
 ```html
 <div x-data="{ draftName: '', remark: '' }">
@@ -622,7 +622,7 @@ new AutoTemplateEngine(el, {
 
 :::
 
-<demo html="template/model/data-bind.html" />
+<demo html="model/data-bind.html" />
 
 ```html
 <div x-data="{ count: 0, label: '计数' }">
@@ -637,7 +637,7 @@ action 内改 `this.data.count` 与 `x-model` 的 `set` 写到同一份局部字
 
 x-data 父子层经 `getContext` 的 parent 链层叠（子覆盖父同名键、未声明键继承）。各级 `x-model` 配 `set` 表达式后，写入按就近命中**只改本层**——子层输入框改子层 user，父层纹丝不动；未覆盖的键（如子层读 `role`）沿链继承父层。
 
-<demo html="template/model/nested-data.html" />
+<demo html="model/nested-data.html" />
 
 ```html
 <div x-data="{ user: '张三', role: 'admin' }">
@@ -673,7 +673,7 @@ AutoStore 的 `configManager` 为每个状态字段维护一份**字段元数据
 
 当使用`x-bind`绑定状态时，`x-bind` 值含 `@` 时，绑定来源从 `store` 状态切到 `configManager` 元数据。`@` 左侧是**配置状态路径**（定位 schema 条目），右侧是**配置属性路径**（schema 的属性，支持多段嵌套）：
 
-<demo html="template/model/config-ref.html" />
+<demo html="model/config-ref.html" />
 
 ```html
 <!-- 绑 schema 的 placeholder 属性 -->
@@ -688,7 +688,7 @@ AutoStore 的 `configManager` 为每个状态字段维护一份**字段元数据
 
 更强大的是——**用户只写一行 `x-model`，引擎自动从 `schema` 合成控件原生属性的隐式绑定**。下面一行 `x-model` 自动获得 `placeholder` / `title` / `name` / `readonly` / `min` / `max` 等，并能经 `enable` 控制禁用：
 
-<demo html="template/model/schema-inject.html" />
+<demo html="model/schema-inject.html" />
 
 ```html
 <input x-model="form.username" />
@@ -735,9 +735,9 @@ schema 中**所有注入白名单属性**（`enable` / `placeholder` / `required
 :::
 
 ```js
-const { configurable, computed } = AutoStoreSpaces;
+const { configurable, computed } = AutoSparkSpaces;
 
-new AutoTemplateEngine(
+new AutoSpark(
     el,
     {
         gateway: configurable("192.168.0.1", {
@@ -780,7 +780,7 @@ new AutoTemplateEngine(
 
 典型场景——IP 配置表单：勾选「DHCP 自动获取」时 IP 输入框应禁用（自动分配无需手填），取消勾选时恢复可编辑：
 
-<demo html="template/model/field-linkage.html" />
+<demo html="model/field-linkage.html" />
 
 ```html
 <input type="checkbox" x-model="dhcp" />
@@ -789,9 +789,9 @@ new AutoTemplateEngine(
 ```
 
 ```js
-const { configurable, computed } = AutoStoreSpaces;
+const { configurable, computed } = AutoSparkSpaces;
 
-new AutoTemplateEngine(
+new AutoSpark(
     el,
     {
         dhcp: true,
@@ -811,7 +811,7 @@ dhcp 翻转 → `enable` 计算属性响应式重算 → 引擎自动注入的 `
 
 选项集本身也能联动——`schema.choices` 为计算属性，引用其他字段动态生成选项。级联可以**任意深度链式**：下一级的 choices 引用上一级的值，上一级变化沿链逐级传导。典型如省市区三级联动：
 
-<demo html="template/model/field-cascade.html" />
+<demo html="model/field-cascade.html" />
 
 ```html
 <select x-model="province">
@@ -830,7 +830,7 @@ dhcp 翻转 → `enable` 计算属性响应式重算 → 引擎自动注入的 `
 const CITIES = {...};
 const DISTRICTS = {...};
 
-new AutoTemplateEngine(
+new AutoSpark(
     el,
     {
         province: "fj",
@@ -853,7 +853,7 @@ new AutoTemplateEngine(
 
 校验约束、提示文案同理——「启用高级模式才必填备注」「根据部署方式启停端口输入」：
 
-<demo html="template/model/field-constraints.html" />
+<demo html="model/field-constraints.html" />
 
 ```js
 {

@@ -1,6 +1,6 @@
-import type { AutoTemplateScope } from "../../scope";
-import type { AutoTemplateEngine } from "../../engine";
-import { DirectiveKind, type AutoTemplateDirectiveBase } from "../base";
+import type { AutoSparkScope } from "../../scope";
+import type { AutoSpark } from "../../engine";
+import { DirectiveKind, type AutoSparkDirectiveBase } from "../base";
 import type { AutoDirectiveInfo } from "../types";
 
 /**
@@ -25,10 +25,10 @@ import type { AutoDirectiveInfo } from "../types";
  * @returns 按优先级排序后的指令实例列表
  */
 export function createDirectives(
-    engine: AutoTemplateEngine,
+    engine: AutoSpark,
     directives: AutoDirectiveInfo[],
-    scope: AutoTemplateScope,
-): AutoTemplateDirectiveBase[] {
+    scope: AutoSparkScope,
+): AutoSparkDirectiveBase[] {
     // x-for 元素上的 :key 是 x-for 的项标识元数据，不应作为 bind:key 指令处理
     // （否则会在容器上误绑 DOM key 属性）。仅在含 x-for 时剔除 bind:key。
     const hasFor = directives.some((d) => d.name === "for");
@@ -36,7 +36,7 @@ export function createDirectives(
         ? directives.filter((d) => !(d.name === "bind" && d.attr === "key"))
         : directives;
     // 解析每个指令对应的类，并处理同名单例去重（取最后声明的）
-    const resolved: Array<{ info: AutoDirectiveInfo; cls: typeof AutoTemplateDirectiveBase }> =
+    const resolved: Array<{ info: AutoDirectiveInfo; cls: typeof AutoSparkDirectiveBase }> =
         [];
     // 单例指令 name -> resolved 中的索引，用于覆盖为最后声明
     const singletonPos = new Map<string, number>();

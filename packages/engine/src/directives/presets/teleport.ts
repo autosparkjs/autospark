@@ -1,4 +1,4 @@
-import { AutoTemplateDirectiveBase } from "../base";
+import { AutoSparkDirectiveBase } from "../base";
 
 /**
  *
@@ -20,6 +20,6 @@ import { AutoTemplateDirectiveBase } from "../base";
  * .. 代表父元素的父元素
  *
  */
-export class TeleportDirective extends AutoTemplateDirectiveBase {
+export class TeleportDirective extends AutoSparkDirectiveBase {
     render() {}
 }

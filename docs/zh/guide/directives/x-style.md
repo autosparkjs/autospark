@@ -13,7 +13,7 @@
 
 ## 快速入门
 
-<demo html="template/bind/style.html"/>
+<demo html="bind/style.html"/>
 
 ```html
 <p :style="msg.style">{{ msg.text }}</p>
@@ -25,7 +25,7 @@
 
 对象经 `Object.assign(el.style, value)` 合并，key 必须是 `CSSStyleDeclaration` 的属性名（**驼峰**）：
 
-<demo html="template/bind/style-object.html"/>
+<demo html="bind/style-object.html"/>
 
 ```html
 <p :style="{ color: '#42b883', fontSize: '16px', backgroundColor: '#f0fff4' }">文本</p>
@@ -39,7 +39,7 @@
 
 字符串作为 `cssText` 整体替换（用连字符没问题）：
 
-<demo html="template/bind/style-string.html"/>
+<demo html="bind/style-string.html"/>
 
 ```html
 <p :style="'color:#42b883;font-size:16px'">文本</p>
@@ -53,7 +53,7 @@
 
 `:style` 的表达式随状态自动求值并 patch——改 `engine.state` 中被引用的路径，内联样式立即更新，无需手动操作 DOM。无论对象里的单个属性、整段字符串，还是在多套样式间用三元选择，都是响应式的：
 
-<demo html="template/bind/style-reactive.html"/>
+<demo html="bind/style-reactive.html"/>
 
 ```html
 <!-- 字号、颜色、加粗均随 state 实时变化 -->
@@ -68,7 +68,7 @@
 
 给 `x-style` 加 `.transition` 修饰符，引擎会在每次写样式时注入一条 CSS `transition` 声明，让内联样式的变化被浏览器**自动过渡动画**——无需手写 `transition` 到样式对象里：
 
-<demo html="template/bind/style-transition.html"/>
+<demo html="bind/style-transition.html"/>
 
 ```html
 <!-- 默认 transition:all 0.3s ease-in，尺寸/颜色变化自动过渡 -->

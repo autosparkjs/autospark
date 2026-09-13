@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-loading · .screen 全屏覆盖</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
             .panel {
                 position: relative;
@@ -22,15 +22,14 @@
             <div class="buttons">
                 <button class="button is-primary" @click="go">{{ page ? '隐藏' : '显示' }}全屏加载</button>
             </div>
-            <div class="card panel" x-loading.screen="{ visible:'page', message:'全屏加载中…' }">
+            <div class="card panel" x-loading.screen="{ value:'page', message:'全屏加载中…' }">
                 <div class="card-content"><code>x-loading.screen</code>：覆盖层以 <code>position:fixed</code> 撑满视口（仍留在宿主子树，不 teleport）。</div>
             </div>
             <div class="block has-text-grey">常用于整页/整应用级加载态（如首屏拉取、路由切换）。</div>
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 { page: false },
                 {

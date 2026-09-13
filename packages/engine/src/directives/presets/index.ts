@@ -11,6 +11,7 @@ export * from "./text";
 export * from "./transition";
 export * from "./tree";
 export * from "./if";
+export * from "./else";
 export * from "./show";
 export * from "./loading";
 export * from "./slot";
@@ -19,10 +20,11 @@ export * from "./component";
 export * from "./use";
 export * from "./import";
 
-import type { AutoTemplateDirectiveBase } from "../base";
+import type { AutoSparkDirectiveBase } from "../base";
 import { TextDirective } from "./text";
 import { HtmlDirective } from "./html";
 import { IfDirective } from "./if";
+import { ElseDirective } from "./else";
 import { ShowDirective } from "./show";
 import { ForDirective } from "./for";
 import { DataDirective } from "./data";
@@ -45,15 +47,18 @@ import { ImportDirective } from "./import";
  * + `import`（ADR-0022：x-import 远程组件加载指令）。
  * `x-class` / `x-style` 经 getDirectives 解析期归一化为 `bind+class` / `bind+style`，无独立指令类。
  * `x-component` 经 compiler 前置 transformer 拦截、永不被实例化，注册仅为合法可发现名位。
+ * `x-else` / `x-else-if` 同为名位（分支链逻辑在 IfDirective，剪枝在 compiler 前置 transformer，ADR-0034）。
  * 
  * 注意：原 `x-patch` 指令已移除，因为 `x-scope` 指令可以完全替代其功能。
  * `x-scope` 同样是零副作用的 no-op 指令，能让纯静态元素建 scope 进入正向桥，
  * 从而被 `engine.patch` 定位。详见 ADR-0021 和 scope.ts 注释。
  */
-export const presetDirectives: Record<string, typeof AutoTemplateDirectiveBase> = {
+export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     text: TextDirective,
     html: HtmlDirective,
     if: IfDirective,
+    "else-if": ElseDirective,
+    else: ElseDirective,
     show: ShowDirective,
     for: ForDirective,
     data: DataDirective,

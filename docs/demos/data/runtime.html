@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-data · 运行时更新 engine.data</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
@@ -23,8 +23,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(document.querySelector(".demo-app"), {}, {
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {}, {
                 actions: {
                     bump: function () {
                         // #block 是挂 DOM 的 scope 元素：engine 构造完成后，

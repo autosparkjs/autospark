@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-component · 组件间通讯</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
             .panel {
                 padding: 16px;
@@ -156,8 +156,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(document.getElementById("app"), {
+            const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {
                 // 全局 state.cart：由各 product 组件在 mounted 时把自身 qty 注册进来
                 //（cart 是各商品数量的「聚合镜像」，初始为空，不硬编码——避免与商品初值脱节）
                 cart: {},

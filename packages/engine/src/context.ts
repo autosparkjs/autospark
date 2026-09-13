@@ -14,7 +14,7 @@ import { AutoStore, type Dict } from "autostore";
  * 扩展运算符等数据遍历。`$context` / `$store` 是框架保留键，调用方应避免
  * 在作用域对象中使用同名字段。
  */
-export type AutoTemplateStackedContext<State extends Dict> = Record<string, any> & {
+export type AutoSparkStackedContext<State extends Dict> = Record<string, any> & {
     /**
      * 原始作用域栈引用（只读、不可枚举的元属性）。
      * 不参与 `Object.keys` / `for...in` / 扩展运算符等数据遍历。
@@ -48,7 +48,7 @@ const STORE_REF = "$store";
  * - 读（get）：从栈顶向栈底查找，命中第一个拥有该键的作用域（后层覆盖前层）；
  * - 判定（has）：同方向查找，存在即返回 true；
  * - 枚举（ownKeys / getOwnPropertyDescriptor）：聚合所有作用域的自身可枚举键并去重；
- * - 元属性 `$context` / `$store`：见 `AutoTemplateContext` 类型说明。
+ * - 元属性 `$context` / `$store`：见 `AutoSparkContext` 类型说明。
  *
  * 返回的代理是只读的：所有数据键的描述符 `writable` 均为 `false`，且不提供
  * `set` / `deleteProperty` 陷阱——严格模式下对**已有数据键**赋值会抛 TypeError，
@@ -58,12 +58,12 @@ const STORE_REF = "$store";
  *
  * @param state 根作用域初始状态（普通对象），内部用于创建 AutoStore
  * @param options 透传给 AutoStore 的选项
- * @returns 只读的 `AutoTemplateContext` 聚合视图
+ * @returns 只读的 `AutoSparkContext` 聚合视图
  */
 
 export function createStackedContext<State extends Dict>(
     store?: AutoStore<State>,
-): AutoTemplateStackedContext<State> {
+): AutoSparkStackedContext<State> {
     const context: Record<string, any>[] = [];
     if (store) {
         context.push({
@@ -102,7 +102,7 @@ export function createStackedContext<State extends Dict>(
         writable: false,
     });
 
-    return new Proxy({} as AutoTemplateStackedContext<State>, {
+    return new Proxy({} as AutoSparkStackedContext<State>, {
         get(_target, key) {
             // 元属性：暴露原始引用
             if (typeof key === "string") {

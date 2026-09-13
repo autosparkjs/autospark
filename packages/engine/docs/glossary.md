@@ -62,13 +62,13 @@
 ### RuntimeDirective 接口
 
 `interface RuntimeDirective { mounted(); unmounted(); attrChanged?(newVal, oldVal) }`。
-`Runtime`/`Hybrid` 指令 `extends AutoTemplateDirectiveBase implements RuntimeDirective`。编译时指令不实现此接口。运行时判别仍以 `static kind` 为准（`implements` 仅编译期契约）。
+`Runtime`/`Hybrid` 指令 `extends AutoSparkDirectiveBase implements RuntimeDirective`。编译时指令不实现此接口。运行时判别仍以 `static kind` 为准（`implements` 仅编译期契约）。
 
-### AutoTemplateDirectiveBase（形状，决策 C）
+### AutoSparkDirectiveBase（形状，决策 C）
 
 单一基类，两类指令共用：
 
-- `binding?: AutoTemplateScope`（改**可选**——runtime 实例无 scope）；
+- `binding?: AutoSparkScope`（改**可选**——runtime 实例无 scope）；
 - `el` 与 `binding.el` **解耦**——runtime 实例由 observer 直接注入 `el`；
 - 静态字段：`kind`（默认 `Compile`）、`priority`、`singleton`、`ownsChildren`、`initialize(engine)`、`dispose(engine)`；
 - 实例钩子：scope 通道 `created`/`compile`/`destroy`；observer 通道 `mounted`/`unmounted`/`attrChanged`（基类皆为空实现，调用总安全）。
@@ -129,11 +129,11 @@
 
 ### actions 域（x-on action 生命周期）
 
-事件总线中承载 **action 生命周期**的域：`actions/<name>/<verb>`——`<name>` = action 函数名（**入路径**），verb = `pending`/`resolved`/`rejected`。由 `utils/buildAction` 在**注册时自动包装**触发——`engine.actions[name]=fn`（actions Proxy 的 set trap）、构造时 `options.actions`（构造函数扫描）、`<script type="actions">`（compiler 提取）三入口均自动包装。**同步/异步 action 统一广播**（ADR-0011）：pending 在执行前、resolved（成功）/rejected（失败）在完成时——同步 action 同 tick 内 pending→resolved（或抛错 pending→rejected），异步经 `then`；同步抛错 broadcast rejected 后 **rethrow**（保持错误传播），async reject 经内部 `then(_, onRejected)` 消费消除 unhandled rejection。payload 亦带 `name`（方便通配订阅者区分）。流信号 plain emit（不 retain）。见 `utils/buildAction` 实现。
+事件总线中承载 **action 生命周期**的域：`actions/<name>/<verb>`——`<name>` = action 函数名（**入路径**），verb = `pending`/`resolved`/`rejected`。由 `src/actions/`（ActionManager）在**注册时自动包装**触发——`engine.actions[name]=fn`（actions Proxy 的 set trap）、构造时 `options.actions`（构造函数扫描）、`<script type="autospark/actions">`（compiler 提取）三入口均自动包装。**同步/异步 action 统一广播**（ADR-0011）：pending 在执行前、resolved（成功）/rejected（失败）在完成时——同步 action 同 tick 内 pending→resolved（或抛错 pending→rejected），异步经 `then`；同步抛错 broadcast rejected 后 **rethrow**（保持错误传播），async reject 经内部 `then(_, onRejected)` 消费消除 unhandled rejection。payload 亦带 `name`（方便通配订阅者区分）。流信号 plain emit（不 retain）。见 `src/actions/buildAction` 实现。
 
 > **ADR-0010 起双发并存**：`buildAction` 在 thenable 分支除 emit 本域总线事件外，**同时** dispatch DOM 冒泡事件 `action:<name>`（`bubbles+composed`，detail **不带 el/scope**——靠 `event.target` 与冒泡路径表达触发元素/作用域），服务**祖先聚合后代 action**（`<form @action:submit>`，经 x-on 监听、phase 修饰符过滤）。总线（全局通配）与 DOM 冒泡（DOM 层级）**正交并存**，见下文「action DOM 冒泡事件」。
 
-> **ADR-0012 局部 action 隔离**：局部 action（`scope.actions`，`<script type="actions">`）**只 DOM 冒泡、不进总线**——总线是全局通道，局部 action 同名进总线会与其他 scope 串扰（消费者无法区分来源）。故总线 `actions/<name>/*` 只承载全局 action（name 唯一、无冲突）；DOM `action:<name>` 承载全部（冒泡隔离作用域）。经 `buildAction` 的 `local` 标志区分（compiler 入口 true、engine 入口 false）。配套 `<script type="actions" global>` 标志可声明全局 action（注入 `engine.actions`、双发），与默认局部区分。见 [ADR-0012](adr/0012-local-action-dom-only.md)。
+> **ADR-0012 局部 action 隔离**：局部 action（`scope.actions`，`<script type="autospark/actions">`）**只 DOM 冒泡、不进总线**——总线是全局通道，局部 action 同名进总线会与其他 scope 串扰（消费者无法区分来源）。故总线 `actions/<name>/*` 只承载全局 action（name 唯一、无冲突）；DOM `action:<name>` 承载全部（冒泡隔离作用域）。经 `buildAction` 的 `local` 标志区分（compiler 入口 true、engine 入口 false）。配套 `<script type="autospark/actions" global>` 标志可声明全局 action（注入 `engine.actions`、双发），与默认局部区分。见 [ADR-0012](adr/0012-local-action-dom-only.md)。
 
 > **task 域已废弃（2026-08-07）**：ADR-0003 原设计的 `task/<source>/<verb>` 统一异步事件抽象未被采用——x-on async action 用 `actions/<name>/*`（per-action 精确订阅，name 入路径），x-slot remote 加载用 x-loading 指令自带覆盖层（不广播事件）。task 域零消费者，已移除。"一处订阅抓所有异步"的跨源诉求当前不存在，若未来出现再评估统一抽象。
 
@@ -248,7 +248,7 @@ remote 模式下 `x-slot="expr"` 的 `expr` 是**反应式表达式**，经 `sco
 
 ### child engine（子引擎）
 
-remote 模式在 x-slot 宿主上创建的**完全独立** `AutoTemplateEngine` 实例：`new AutoTemplateEngine(host, new AutoStore({}))`——自带空 store（fetched HTML 用自身 x-data 自治声明，**不复用父 store**，与父状态零耦合），以宿主为挂载点（fetch 成功后 `host.innerHTML = html` 再构造，宿主身份不变、仅子节点被接管）。挂在指令实例 `this.childEngine`（非 scope 对象——指令 own 自己的资源、SRP）。**随 `scope.destroy()` 销毁**（指令 `destroy()` 调 `childEngine.destroy()` + abort 在途 fetch），零额外接线、无泄漏。见 [ADR-0006](adr/0006-x-slot-directive.md) 决策 4/5。
+remote 模式在 x-slot 宿主上创建的**完全独立** `AutoSpark` 实例：`new AutoSpark(host, new AutoStore({}))`——自带空 store（fetched HTML 用自身 x-data 自治声明，**不复用父 store**，与父状态零耦合），以宿主为挂载点（fetch 成功后 `host.innerHTML = html` 再构造，宿主身份不变、仅子节点被接管）。挂在指令实例 `this.childEngine`（非 scope 对象——指令 own 自己的资源、SRP）。**随 `scope.destroy()` 销毁**（指令 `destroy()` 调 `childEngine.destroy()` + abort 在途 fetch），零额外接线、无泄漏。见 [ADR-0006](adr/0006-x-slot-directive.md) 决策 4/5。
 
 ### slot 盲区（Slot Blind Zone）
 
@@ -262,7 +262,7 @@ remote 模式**原计划**广播 `task/slot/{started,resolved,rejected}` 供全�
 
 ### x-scope（结构占位指令）
 
-纯占位指令——元素上声明 `x-scope` 即令其建立 `AutoTemplateScope`，**即便该元素没有其他指令、没有插值**。注册占位类 `ScopeDirective`（`created`/`compile` 皆空、高优先级）。填补「纯容器 `<div>` 不建 scope」的缺口：让后代 scope 的 parent 链落到此处（而非更远祖先），并为后代 `x-block` 提供**归属锚点**。**不建数据域**——与 [x-data](#x-data)（数据注入）职责正交。冗余声明（元素已有其他指令、本就建 scope）静默无副作用。见 [ADR-0021](adr/0021-x-scope-and-x-block.md) 决策 1。
+纯占位指令——元素上声明 `x-scope` 即令其建立 `AutoSparkScope`，**即便该元素没有其他指令、没有插值**。注册占位类 `ScopeDirective`（`created`/`compile` 皆空、高优先级）。填补「纯容器 `<div>` 不建 scope」的缺口：让后代 scope 的 parent 链落到此处（而非更远祖先），并为后代 `x-block` 提供**归属锚点**。**不建数据域**——与 [x-data](#x-data)（数据注入）职责正交。冗余声明（元素已有其他指令、本就建 scope）静默无副作用。见 [ADR-0021](adr/0021-x-scope-and-x-block.md) 决策 1。
 
 > **为什么不能用「未注册属性」零实现**：`x-scope` 即便不注册也会因属性存在触发 `hasDirectives` 建一次 scope，`createDirectives` 随后跳过——看似零成本。但这让 `x-scope` 成为注册表里不存在的幽灵属性，无法设 priority、不可被静态分析/IDE 识别，未来加任何行为都要回头补类。注册占位类换取合法可发现性与确定性执行时机。
 
@@ -270,7 +270,7 @@ remote 模式**原计划**广播 `task/slot/{started,resolved,rejected}` 供全�
 
 编译期树变换标记，**不是渲染指令**。在带 scope 的祖先（x-scope 或其他）内声明一个命名模板片段，编译时被**从渲染树摘除**（不进结果 DOM、不建 scope、不实例化指令），以**深克隆的 template 元素副本**形态上交给最近祖先 scope 的 `blocks`。无值时取名 `default`。
 
-机制 = compiler 前置 NodeTransformer（与 `<script type="actions">` 提取同构）+ 轻量 `BlockDirective`（`ownsChildren=true` 冻结其内容，防子树被正常 walk 编译）。被拦截元素**根本不进 `compileElement`**，故自然地不建 scope、不实例化任何指令。**x-scope 保持 `ownsChildren=false`**——不越权接管子树，职责单一（SRP）。见 [ADR-0021](adr/0021-x-scope-and-x-block.md) 决策 2。
+机制 = compiler 前置 NodeTransformer（与 `<script type="autospark/actions">` 提取同构）+ 轻量 `BlockDirective`（`ownsChildren=true` 冻结其内容，防子树被正常 walk 编译）。被拦截元素**根本不进 `compileElement`**，故自然地不建 scope、不实例化任何指令。**x-scope 保持 `ownsChildren=false`**——不越权接管子树，职责单一（SRP）。见 [ADR-0021](adr/0021-x-scope-and-x-block.md) 决策 2。
 
 > **与 x-slot 的关键区别**（极易混淆）：x-slot 是 **engine 边界 / 隔离运行**（内部不编译、开发者 DOM API 全权管理，或建 child engine）；x-block 是**存模板待引用**（编译期摘除、冻结副本供消费者取用）。x-slot 的内容**留在渲染树里**（静态快照或 child engine 接管）；x-block 的内容**从渲染树移除**、仅作为 `blocks[name]` 存在。二者正交，可共存于同一模板。
 
@@ -310,7 +310,7 @@ x-block **不绑定具体消费者**，是声明性资源——任意指令按�
 
 ### 命令式 overlay 模式（Imperative Overlay Mode）
 
-x-loading 的一种使用模式：`setAttribute('x-loading', JSON.stringify({message,bgColor,...}))`（对象配置**省略 visible**）→ x-loading 的 `resolveLiteral("")===true` 使其"属性存在即显示、用配置渲染"；`removeAttribute('x-loading')` → 隐藏。该行为原为"裸 `x-loading` ≡ 显示"设计的副作用，被 feedback 的 `loading` 配置对象复用，实现**命令式 overlay 显隐而 x-loading 零改动**。已测试锁定 + 文档化为正式契约（[ADR-0008](adr/0008-x-on-feedback-modifier.md) 决策 8）。区别于 x-loading 的反应式模式（visible 走 store 路径）与字面量模式（`"true"`/`"false"`）。
+x-loading 的一种使用模式：`setAttribute('x-loading', JSON.stringify({message,bgColor,...}))`（对象配置**省略 value**）→ x-loading 的 `resolveLiteral("")===true` 使其"属性存在即显示、用配置渲染"；`removeAttribute('x-loading')` → 隐藏。该行为原为"裸 `x-loading` ≡ 显示"设计的副作用，被 feedback 的 `loading` 配置对象复用，实现**命令式 overlay 显隐而 x-loading 零改动**。已测试锁定 + 文档化为正式契约（[ADR-0008](adr/0008-x-on-feedback-modifier.md) 决策 8）。区别于 x-loading 的反应式模式（value 走 store 路径）与字面量模式（`"true"`/`"false"`）。
 
 ### generation 防陈旧（Stale-Reject Guard）
 
@@ -320,7 +320,7 @@ feedback 状态机的重入竞态防护：单调递增 `gen` 标记每次触发�
 
 ### action: DOM 事件（Action Bubble Event）
 
-action 生命周期的 **DOM 表达**：`action:<name>` CustomEvent，`bubbles:true` + `composed:true`，`detail={name, phase, result?/error?}`，由 `buildAction` 在 thenable 分支 dispatch 自**触发元素**（`AutoTemplateActionContext.el`）。与总线 `actions/<name>/*`（全局广播、吃通配符）**正交并存**——服务**祖先聚合后代 action**：事件冒泡到祖先即等价「action 发生在该祖先作用域内」。经 `x-on` 监听（`<form @action:submit>`），与 `@click` 同构、**零新指令**。**作用域由冒泡路径表达（detail 不带 scope）、触发元素由 `event.target` 表达（detail 不带 el）**——规避 ADR-0008 否决的「payload 带 el」。命令式 `engine.actions[name]()` 直调无触发元素 → 只走总线、不发 DOM 事件（声明式 vs 命令式不对称）。见 [ADR-0010](adr/0010-action-dom-bubble-event.md)。
+action 生命周期的 **DOM 表达**：`action:<name>` CustomEvent，`bubbles:true` + `composed:true`，`detail={name, phase, result?/error?}`，由 `buildAction` 在 thenable 分支 dispatch 自**触发元素**（`AutoSparkActionContext.el`）。与总线 `actions/<name>/*`（全局广播、吃通配符）**正交并存**——服务**祖先聚合后代 action**：事件冒泡到祖先即等价「action 发生在该祖先作用域内」。经 `x-on` 监听（`<form @action:submit>`），与 `@click` 同构、**零新指令**。**作用域由冒泡路径表达（detail 不带 scope）、触发元素由 `event.target` 表达（detail 不带 el）**——规避 ADR-0008 否决的「payload 带 el」。命令式 `engine.actions[name]()` 直调无触发元素 → 只走总线、不发 DOM 事件（声明式 vs 命令式不对称）。见 [ADR-0010](adr/0010-action-dom-bubble-event.md)。
 
 ### phase 修饰符（Phase Modifier）
 
@@ -334,7 +334,7 @@ action 监听的 **DOM 层级模式**：祖先元素经 `@action:<name>` 监听�
 
 ### 数据源（Data Source）
 
-`AutoTemplateEngine` 构造器第二参，二态输入：`AutoStore` 实例（**借用**）或裸状态对象（**种子**，engine 自动 `new AutoStore(state)` 建 store）。形参名仍为 `store`（字段 `engine.store` 是公开契约），类型联合 `AutoStore<State> | State`。判别走 `instanceof AutoStore` 主 + `__AUTO_STORE__` brand 兜重复包；`null`/`undefined`/非对象静默走自建路径兜空 store（不抛错）。见 [ADR-0009](adr/0009-store-or-state-input.md) 决策 1/3/5。
+`AutoSpark` 构造器第二参，二态输入：`AutoStore` 实例（**借用**）或裸状态对象（**种子**，engine 自动 `new AutoStore(state)` 建 store）。形参名仍为 `store`（字段 `engine.store` 是公开契约），类型联合 `AutoStore<State> | State`。判别走 `instanceof AutoStore` 主 + `__AUTO_STORE__` brand 兜重复包；`null`/`undefined`/非对象静默走自建路径兜空 store（不抛错）。见 [ADR-0009](adr/0009-store-or-state-input.md) 决策 1/3/5。
 
 ### 种子状态（Seed State）
 
@@ -352,7 +352,7 @@ engine 对 store 的两种所有权：**借用**（第二参为 AutoStore 实例
 
 ### storeOptions（自建 store 配置）
 
-`AutoTemplateEngineOptions` 上的 `storeOptions?: AutoStoreOptions<State>` 字段，**仅自建路径**（第二参为种子状态）消费：`new AutoStore(state, options?.storeOptions)`。第二参为 AutoStore 实例时被忽略（用户已自配）。为与 `State` 联动，`AutoTemplateEngineOptions` 泛型化为 `<State extends Dict = any>`。见 [ADR-0009](adr/0009-store-or-state-input.md) 决策 4。
+`AutoSparkOptions` 上的 `storeOptions?: AutoStoreOptions<State>` 字段，**仅自建路径**（第二参为种子状态）消费：`new AutoStore(state, options?.storeOptions)`。第二参为 AutoStore 实例时被忽略（用户已自配）。为与 `State` 联动，`AutoSparkOptions` 泛型化为 `<State extends Dict = any>`。见 [ADR-0009](adr/0009-store-or-state-input.md) 决策 4。
 
 ## 表单绑定（x-model）
 
@@ -367,7 +367,7 @@ engine 对 store 的两种所有权：**借用**（第二参为 AutoStore 实例
 - **getter（get）= state→DOM 变换**：状态值 → DOM 显示值（如 `value.split('.')[0]`）。
 - **setter（set）= DOM→state 变换**：DOM 输入值 → 一个或多个状态字段（如 `user.first=$value`）。
 
-经 `x-model-options="{get:'...',set:'...'}"` 声明（**砍快捷属性** x-model-get/x-model-set，守 ADR-0007 的 `-options` 后缀边界）。值形态**字符串 only**：relaxed-json 不支持函数字面量（`{get:(v)=>...}` 降级为字符串后求值错乱、语句块箭头直接解析失败），故**禁箭头函数字面量**。经 x-on 的 `ACTION_RE` 分派：表达式（固定形参 `value`(get)/`$value`(set)，`with(scope)`）/ action 名（当前值自动作首参 + 括号追加参数，`this`=`AutoTemplateActionContext`）。
+经 `x-model-options="{get:'...',set:'...'}"` 声明（**砍快捷属性** x-model-get/x-model-set，守 ADR-0007 的 `-options` 后缀边界）。值形态**字符串 only**：relaxed-json 不支持函数字面量（`{get:(v)=>...}` 降级为字符串后求值错乱、语句块箭头直接解析失败），故**禁箭头函数字面量**。经 x-on 的 `ACTION_RE` 分派：表达式（固定形参 `value`(get)/`$value`(set)，`with(scope)`）/ action 名（当前值自动作首参 + 括号追加参数，`this`=`AutoSparkActionContext`）。
 
 ### 只读降级（Read-only Degradation）
 

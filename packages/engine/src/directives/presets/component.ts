@@ -1,4 +1,4 @@
-import { AutoTemplateDirectiveBase } from "../base";
+import { AutoSparkDirectiveBase } from "../base";
 
 /**
  * x-component：命名组件标记（ADR-0022，承接 ADR-0021 的 x-block 升级）。
@@ -17,4 +17,4 @@ import { AutoTemplateDirectiveBase } from "../base";
  *
  * 这些升级逻辑全部在 compiler 的 `_collectComponent` / x-use 指令中实现，本类仍只是注册名位。
  */
-export class ComponentDirective extends AutoTemplateDirectiveBase {}
+export class ComponentDirective extends AutoSparkDirectiveBase {}

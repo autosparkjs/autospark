@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-component · 快速入门计数器</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <!--
             一个完整的计数器组件，集中演示组件核心能力：
             - data()    ：组件初始状态（count / step）
@@ -86,8 +86,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(document.getElementById("app"), {});
+            const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
         </script>
 
         <style>

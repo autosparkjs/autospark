@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-model · 多级嵌套 x-data 绑定</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
@@ -73,9 +73,8 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
             // 全局 store 留空：user/score 全部由各级 x-data 提供，验证多级局部读写同源。
-            const engine = new AutoTemplateEngine(document.querySelector(".demo-app"), {});
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
         </script>
     </body>
 </html>

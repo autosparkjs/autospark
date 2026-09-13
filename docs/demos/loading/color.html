@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-loading · color loader 旋转色</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
             .panel {
                 position: relative;
@@ -25,16 +25,16 @@
                 <button class="button is-primary" @click="toggle">{{ on ? '隐藏' : '显示' }} loader</button>
             </div>
             <div class="columns">
-                <div class="card panel column" x-loading="{ visible:'on', color:'#42b883' }">
+                <div class="card panel column" x-loading="{ value:'on', color:'#42b883' }">
                     <div class="card-content"><code>color:'#42b883'</code></div>
                 </div>
-                <div class="card panel column" x-loading="{ visible:'on', color:'#e07000' }">
+                <div class="card panel column" x-loading="{ value:'on', color:'#e07000' }">
                     <div class="card-content"><code>color:'#e07000'</code></div>
                 </div>
-                <div class="card panel column" x-loading="{ visible:'on', color:'#3b82f6' }">
+                <div class="card panel column" x-loading="{ value:'on', color:'#3b82f6' }">
                     <div class="card-content"><code>color:'#3b82f6'</code></div>
                 </div>
-                <div class="card panel column" x-loading="{ visible:'on', color:'red' }">
+                <div class="card panel column" x-loading="{ value:'on', color:'red' }">
                     <div class="card-content"><code>color:'red'</code></div>
                 </div>
             </div>
@@ -42,8 +42,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 { on: true },
                 {

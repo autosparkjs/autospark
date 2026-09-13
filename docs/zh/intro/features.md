@@ -1,6 +1,6 @@
 # 特征与优势
 
-`AutoTemplate Engine` 用「最小声明」换取「最大响应」——以最少的 HTML 属性，实现完整的响应式 UI 更新。下面是它的核心特征。
+`AutoSpark Engine` 用「最小声明」换取「最大响应」——以最少的 HTML 属性，实现完整的响应式 UI 更新。下面是它的核心特征。
 
 ## 最小声明语法
 
@@ -57,10 +57,10 @@ engine.state.user.name = "李四";
 ```javascript
 // 方式一：传入 AutoStore 实例（借用，destroy 不销毁它）
 const store = new AutoStore({ ... });
-new AutoTemplateEngine(el, store);
+new AutoSpark(el, store);
 
 // 方式二：传入裸状态（引擎自建 store，destroy 时自动回收）
-new AutoTemplateEngine(el, { user: { name: "张三" } });
+new AutoSpark(el, { user: { name: "张三" } });
 ```
 
 这让引擎既能作为独立页面的渲染层（裸状态自给自足），也能嵌入已有 `AutoStore` 架构（共享同一状态树），集成方式灵活。

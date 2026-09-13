@@ -5,10 +5,9 @@
         <link rel="icon" type="image/svg+xml" href="/vite.svg" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>AutoForm</title>
-        <link rel="stylesheet" href="/autostore/autoform.dark.css" />
-        <link rel="stylesheet" href="/autostore/autoform.light.css" />
-        <script src="/autostore/autostore.js"></script>
-        <script src="/autostore/autoform.js"></script>
+        <link rel="stylesheet" href="/autospark/autoform.css" />
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autoform.js"></script>
     </head>
 
     <body>
@@ -19,7 +18,7 @@
         <script type="module">
             import { area, cars, lazyCars, onLazyLoad, orgTree } from './data.js';
             import { toPadding, parsePadding } from './utils.js';
-            const { AutoStore, configurable, computed } = AutoStoreSpaces;
+            const { AutoStore, configurable, computed } = AutoSparkSpaces;
             const store = new AutoStore(
                 {
                     price: 100,

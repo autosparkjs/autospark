@@ -1,7 +1,8 @@
 // oxlint-disable typescript/no-this-alias
-import type { AutoTemplateEngine } from "./engine";
+import type { AutoSpark } from "./engine";
 import type { ComponentHooks } from "./directives/component-def";
-import { AutoTemplateDirectiveBase } from "./directives/base";
+import type { ActionDesc } from "./actions/types";
+import { AutoSparkDirectiveBase } from "./directives/base";
 import { getVal, type Watcher } from "autostore";
 import { getDirectives, getHostOptions } from "./directives/utils/getDirectives";
 import { createDirectives } from "./directives/utils/createDirectives";
@@ -13,19 +14,31 @@ import { createDirectives } from "./directives/utils/createDirectives";
  */
 const SIMPLE_PATH_RE = /^[\w$]+(?:\.[\w$]+)*$/;
 
+/**
+ * 依赖路径集比较（排序后逐项比对）。collectDependencies 返回路径串数组，收集顺序即读取
+ * 顺序——同一表达式不同分支的读取顺序天然不同，比较前排序以只关注集合差异。
+ */
+function depsEqual(a: unknown, b: unknown): boolean {
+    if (a === b) return true;
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    const sa = [...a].sort();
+    const sb = [...b].sort();
+    return sa.every((p, i) => p === sb[i]);
+}
+
 /** 纯状态路径判定。导出供指令复用（x-for 据此判断 itemsPath 是否纯路径，
  *  决定是否补 `items.*` 项级监听——表达式 itemsPath 已由 watchExpression 覆盖）。 */
 export function isSimpleStatePath(value: string): boolean {
     return SIMPLE_PATH_RE.test(value);
 }
 
-export type AutoTemplateBindingOptions = {
+export type AutoSparkBindingOptions = {
     /** 引用模板元素（编译只读输入，保留指令属性） */
     template: HTMLElement;
     /** 引用实际渲染的元素（已移除指令属性） */
     el: HTMLElement;
     /** 该元素上的指令实例列表 */
-    directives: AutoTemplateDirectiveBase[];
+    directives: AutoSparkDirectiveBase[];
 };
 
 /**
@@ -41,7 +54,7 @@ export type ScopeWatchListener = (payload: { value: any }) => void;
  * A: 一个 DOM 元素上可能挂多个指令，Scope 统一管理它们的生命周期与订阅，
  *    并在元素更新/销毁时集中清理（off watcher、递归销毁子作用域）。
  */
-export class AutoTemplateScope {
+export class AutoSparkScope {
     /** scope 自增 id 计数器：作为 store.state._scopes[id] 的索引键（x-data 私有响应式域，见 DataDirective） */
     private static _seq = 0;
     /** 本 scope 唯一标识；仅 x-data scope 会在 store.state._scopes[id] 创建对应条目，其余 scope 不占位 */
@@ -49,8 +62,8 @@ export class AutoTemplateScope {
     private _template: WeakRef<HTMLElement>;
     /** 引用实际渲染的元素 */
     readonly _el: WeakRef<HTMLElement>;
-    readonly engine: AutoTemplateEngine;
-    directives: AutoTemplateDirectiveBase[] = [];
+    readonly engine: AutoSpark;
+    directives: AutoSparkDirectiveBase[] = [];
     /**
      * 元素级宿主选项（`x-options` 解析产物，ADR-0007）。
      *
@@ -108,11 +121,11 @@ export class AutoTemplateScope {
      *  用途见 refresh()：x-for 复用项 locals 原地更新后，驱动项内绑定重新求值并 patch。 */
     private _updates: Array<() => void> = [];
     /** 子作用域集合（x-if 子树、x-for 各项），destroy 时递归清理 */
-    children = new Set<AutoTemplateScope>();
-    parent: AutoTemplateScope | null = null;
+    children = new Set<AutoSparkScope>();
+    parent: AutoSparkScope | null = null;
 
-    constructor(engine: AutoTemplateEngine, el: HTMLElement, template: HTMLElement) {
-        this.id = ++AutoTemplateScope._seq;
+    constructor(engine: AutoSpark, el: HTMLElement, template: HTMLElement) {
+        this.id = ++AutoSparkScope._seq;
         this._template = new WeakRef(template);
         this._el = new WeakRef(el);
         this.engine = engine;
@@ -137,7 +150,7 @@ export class AutoTemplateScope {
      * 注册子作用域（x-if/x-for 编译子模板时调用）。
      * 建立父子关系，使父作用域 destroy 时能递归清理子树全部 watcher。
      */
-    addChild(child: AutoTemplateScope): AutoTemplateScope {
+    addChild(child: AutoSparkScope): AutoSparkScope {
         child.parent = this;
         this.children.add(child);
         return child;
@@ -154,12 +167,13 @@ export class AutoTemplateScope {
      */
     locals: Record<string, any> | null = null;
     /**
-     * 本作用域局部事件 action（由 `<script type="actions">` 在编译期注入）。
+     * 本作用域局部事件 action（由 `<script type="autospark/actions">` 在编译期注入）。
      *
-     * 与 locals/data 同级参与 getAction 的 parent 链查找（子覆盖父，命中即止）；
+     * 值恒为规范化后的 ActionDesc 描述符（ADR-0036：含 name/title/icon/handle），执行取
+     * `.handle(...)`。与 locals/data 同级参与 getAction 的 parent 链查找（子覆盖父，命中即止）；
      * scope destroy 时随 scope 对象回收，无需手动清理。null 表示本层无局部 action。
      */
-    actions: Record<string, (...args: any[]) => any> | null = null;
+    actions: Record<string, ActionDesc> | null = null;
     /**
      * 组件实例的生命周期钩子（ADR-0022 决策三）。
      *
@@ -280,7 +294,7 @@ export class AutoTemplateScope {
      * 仅在订阅/读取时调用一次（非每次更新），沿 parent 链 O(深度) 扫描，开销可忽略。
      */
     private hasLocalContext(): boolean {
-        let s: AutoTemplateScope | null = this;
+        let s: AutoSparkScope | null = this;
         while (s) {
             if (s.locals || s._data) return true;
             s = s.parent;
@@ -289,13 +303,14 @@ export class AutoTemplateScope {
     }
 
     /**
-     * 沿 parent 链查找事件 action（局部 `<script type="actions">` → 全局 engine.actions）。
+     * 沿 parent 链查找事件 action（局部 `<script type="autospark/actions">` → 全局 engine.actions）。
      *
      * 查找顺序：本 scope.actions → 各祖先 actions → engine.actions（终点）。
      * 子 scope 同名 action 覆盖祖先（命中即止）。供 OnDirective 求值器（Action 优先策略）使用。
+     * 返回 ActionDesc 描述符（ADR-0036），执行取 `.handle(...)`。
      */
-    getAction(name: string): ((...args: any[]) => any) | undefined {
-        let s: AutoTemplateScope | null = this;
+    getAction(name: string): ActionDesc | undefined {
+        let s: AutoSparkScope | null = this;
         while (s) {
             if (s.actions && Object.prototype.hasOwnProperty.call(s.actions, name)) {
                 return s.actions[name];
@@ -308,7 +323,7 @@ export class AutoTemplateScope {
     /**
      * 沿 parent 链查找最近的 x-data 私有响应式域（`data`）。
      *
-     * 供 AutoTemplateActionContext 经 `this.scope.getData()` 使用：action 无论挂在 x-data 元素本身
+     * 供 AutoSparkActionContext 经 `this.scope.getData()` 使用：action 无论挂在 x-data 元素本身
      * 还是其后代，均可拿到"当前所在 x-data 块"的可读可写响应式代理——区别于 `getContext`
      * 返回的只读聚合视图（写已有键会抛 TypeError）。整条链均无 x-data 时返回 null。
      *
@@ -316,7 +331,7 @@ export class AutoTemplateScope {
      * 每次调用沿链 O(深度) 查找，开销可忽略。
      */
     getData(): Record<string, any> | null {
-        let s: AutoTemplateScope | null = this;
+        let s: AutoSparkScope | null = this;
         while (s) {
             if (s._data) return s._data;
             s = s.parent;
@@ -340,7 +355,7 @@ export class AutoTemplateScope {
      * @returns 组件冻结快照 HTMLElement（未编译、保留指令属性），或 undefined（未命中）
      */
     getComponent(name: string): HTMLElement | undefined {
-        let s: AutoTemplateScope | null = this;
+        let s: AutoSparkScope | null = this;
         while (s) {
             if (s.components && Object.prototype.hasOwnProperty.call(s.components, name)) {
                 return s.components[name];
@@ -369,7 +384,7 @@ export class AutoTemplateScope {
      * @returns 命中的 method 函数，或 undefined（本组件边界内无此 method）
      */
     getMethod(name: string): ((...args: any[]) => any) | undefined {
-        let s: AutoTemplateScope | null = this;
+        let s: AutoSparkScope | null = this;
         let first = true;
         while (s) {
             if (s.methods && Object.prototype.hasOwnProperty.call(s.methods, name)) {
@@ -396,8 +411,8 @@ export class AutoTemplateScope {
      * @param name method 名
      * @returns 命中 method 的 scope（其 `.methods[name]` 存在），或 undefined
      */
-    private _findMethodOwner(name: string): AutoTemplateScope | undefined {
-        let s: AutoTemplateScope | null = this;
+    private _findMethodOwner(name: string): AutoSparkScope | undefined {
+        let s: AutoSparkScope | null = this;
         let first = true;
         while (s) {
             if (s.methods && Object.prototype.hasOwnProperty.call(s.methods, name)) {
@@ -612,12 +627,33 @@ export class AutoTemplateScope {
         // 末尾直接返回缓存值——避免再 safeEval() 一次造成的重复求值与重复告警。
         // （flush 时 update 闭包仍每次重新求值，那是必要的。）
         let firstValue: any;
-        const deps = store.collectDependencies(() => {
+        let deps = store.collectDependencies(() => {
             firstValue = safeEval();
         }, "read");
-        const update = () => listener({ value: safeEval() });
+        // 动态依赖重收集：短路（|| / && / ?:）与条件分支使不同分支读不同键，依赖集随实际
+        // 走到的分支漂移（如 `a || b` 在 a 真时初收集只含 a）。若只在首求值收集一次，
+        // 漂移后旧分支键的变化不再通知——典型受害者：`x-if="loaded && items.length"`、
+        // `:disabled="page <= 1 || $loading"`（page 同时是重取触发器时短路键永远收不到回落）。
+        // 故 update 重求值时重新收集，漂移则重订 watcher（Vue effect 同款策略；同一状态同一
+        // 分支的 deps 稳定，重订自然收敛，无循环风险）。
+        let watcher: Watcher = store.watch(deps, () => this.engine.scheduler.schedule(update));
+        const update = () => {
+            let value: any;
+            const nextDeps = store.collectDependencies(() => {
+                value = safeEval();
+            }, "read");
+            listener({ value });
+            if (!depsEqual(deps, nextDeps)) {
+                watcher.off();
+                const idx = this.watchers.indexOf(watcher);
+                if (idx >= 0) this.watchers.splice(idx, 1);
+                deps = nextDeps;
+                watcher = store.watch(deps, () => this.engine.scheduler.schedule(update));
+                this.watchers.push(watcher);
+            }
+        };
         this._updates.push(update);
-        this.watchers.push(store.watch(deps, () => this.engine.scheduler.schedule(update)));
+        this.watchers.push(watcher);
         return firstValue;
     }
 
@@ -714,7 +750,7 @@ export class AutoTemplateScope {
      * 串行执行指令生命周期：先全部 created，再全部 compile。
      * 同一阶段的指令按优先级顺序（已由 `_createDirectives` 排好）。
      */
-    runDirectives(directives: AutoTemplateDirectiveBase[]): void {
+    runDirectives(directives: AutoSparkDirectiveBase[]): void {
         for (const d of directives) {
             if (typeof d.created === "function") d.created();
             this.engine.emit(("directive/" + d.info.name + "/created") as any, {

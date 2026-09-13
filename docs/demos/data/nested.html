@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-data · 多级嵌套作用域</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
@@ -62,8 +62,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(document.querySelector(".demo-app"), {}, {
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {}, {
                 actions: {
                     // 同名 bump：this 指向触发按钮所在的 x-data 层，改的是各自本层的 user。
                     //   - 点「祖父级」按钮：祖父 user 变（张三→张三!），父/子 user 不变（父已覆盖 user）

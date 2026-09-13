@@ -2,7 +2,7 @@
 
 ## 重要说明
 
-`x-patch` 指令已从 AutoStore Template 中移除。该功能已被 `x-scope` 指令完全替代。
+`x-patch` 指令已从 AutoSpark 中移除。该功能已被 `x-scope` 指令完全替代。
 
 ### 移除原因
 

@@ -6,11 +6,21 @@ import { extractStyleBinds, type StyleBind } from "../utils/styleBind";
  * 判定 `<script>` 是否为组件 `<script setup>`（ADR-0022 决策四）。
  *
  * 约定：`<script setup>`（type 属性缺失，靠 `setup` 布尔属性标识，仿 Vue SFC）或
- * `<script type="setup">`。二者择一识别为 setup 脚本；普通 `<script>`（无标识）不在此提取
- * （由 compiler 的 `<script type="actions">` 通道处理或原样保留）。
+ * `<script type="autospark/setup">`（ADR-0031 命名空间化）。二者择一识别为 setup 脚本；
+ * 普通 `<script>`（无标识）不在此提取（由 compiler 的 `<script type="autospark/actions">`
+ * 通道处理或原样保留）。旧写法 `type="setup"` 见 isLegacySetupScript（warn + 剪枝）。
  */
 function isSetupScript(el: HTMLScriptElement): boolean {
-    return el.hasAttribute("setup") || el.type === "setup";
+    return el.hasAttribute("setup") || el.type === "autospark/setup";
+}
+
+/**
+ * 旧写法 `type="setup"`（ADR-0031 更名前）：不再识别为 setup 脚本——warn 提示迁移后
+ * 仍从快照剪枝（不进实例化 DOM、不求值），与 `<script type="actions">` 旧写法的
+ * 「warn + 剪枝不执行」策略对称。
+ */
+function isLegacySetupScript(el: HTMLScriptElement): boolean {
+    return el.type === "setup";
 }
 
 /**
@@ -43,6 +53,10 @@ export function buildComponentDef(
         if (child instanceof HTMLScriptElement && isSetupScript(child)) {
             setupTexts.push(child.textContent?.trim() ?? "");
             hasSetupOrStyle = true;
+        } else if (child instanceof HTMLScriptElement && isLegacySetupScript(child)) {
+            // 旧写法：warn + 剪枝（不求值），与 actions 旧写法策略对称（ADR-0031）
+            warn(`<script type="setup"> 已更名为 <script type="autospark/setup">，该脚本不再求值`);
+            hasSetupOrStyle = true;
         } else if (child instanceof HTMLStyleElement) {
             const raw = child.textContent ?? "";
             // 响应式 bind 提取（ADR-0022 决策四-4.1）：bind(expr) 替换为 var(--name, unset)，
@@ -58,7 +72,8 @@ export function buildComponentDef(
     if (hasSetupOrStyle) {
         for (const child of Array.from(snapshot.children)) {
             if (
-                (child instanceof HTMLScriptElement && isSetupScript(child)) ||
+                (child instanceof HTMLScriptElement &&
+                    (isSetupScript(child) || isLegacySetupScript(child))) ||
                 child instanceof HTMLStyleElement
             ) {
                 child.remove();

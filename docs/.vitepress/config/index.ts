@@ -1,11 +1,13 @@
 import path from "path";
+import fs from "fs";
 import { defineConfig } from "vitepress";
-import { vitepressDemoPlugin } from "vitepress-demo-plugin"; 
+import { vitepressDemoPlugin } from "vitepress-demo-plugin";
+import { context } from "esbuild";
 
 export default defineConfig({
-    base: "/autostore/",
-    title: "AutoStore",
-    description: "响应式数据管理库",
+    base: "/autospark/",
+    title: "AutoSpark",
+    description: "声明式响应式模板引擎",
     themeConfig: {
         outline: {
             label: "目录",
@@ -34,12 +36,12 @@ export default defineConfig({
                     text: "指南",
                     items: [
                         { text: "初始化", link: "/zh/guide/initial" },
-                        { text: "响应式", link: "/zh/guide/reactive" },
+                        { text: "状态", link: "/zh/guide/state" },
                         { text: "动作", link: "/zh/guide/action" },
                         { text: "指令类型", link: "/zh/guide/directive" },
                         { text: "指令配置", link: "/zh/guide/config" },
-                        { text: "动态模板", link: "/zh/guide/patch" },
                         { text: "组件", link: "/zh/guide/component" },
+                        { text: "动态模板", link: "/zh/guide/patch" },
                     ],
                 },
                 {
@@ -70,7 +72,7 @@ export default defineConfig({
                 },
             ],
         },
-        socialLinks: [{ icon: "github", link: "https://github.com/zhangfisher/autostore/" }],
+        socialLinks: [{ icon: "github", link: "https://github.com/autosparkjs/autospark/" }],
     },
     vue: {
         template: {
@@ -93,6 +95,138 @@ export default defineConfig({
         },  
     }, 
     vite: {
+        plugins: [
+            {
+                name: "autospark-engine-dev-source",
+                // 仅开发期生效：demos 经 vitepress-demo-plugin 以 ?raw + srcdoc iframe 内嵌，
+                // 不经过 Vite 转换管线，故无法直接 import engine 源码——由本插件接管产物 URL：
+                // esbuild watch 监听 packages/engine 源码，变更即增量重建并广播整页刷新，
+                // demos（随页面重载的 srcdoc）自动取到新构建，保存即见、无需手动刷新/构建。
+                // 生产构建不受影响（apply: "serve"，仍用 tsup 产物 docs/public/autospark.js）。
+                apply: "serve",
+                configureServer(server: any) {
+                    let cached: string | null = null;
+                    const ctxPromise = context({
+                        entryPoints: [
+                            path.resolve(
+                                __dirname,
+                                "../../../packages/engine/src/index.ts",
+                            ),
+                        ],
+                        bundle: true,
+                        format: "iife",
+                        globalName: "AutoSparkSpaces",
+                        target: "es2022",
+                        sourcemap: "inline",
+                        write: false,
+                        plugins: [
+                            {
+                                name: "autospark-dev-cache",
+                                setup(b: any) {
+                                    b.onEnd((result: any) => {
+                                        cached = result.outputFiles[0].text;
+                                        server.ws.send({ type: "full-reload" });
+                                    });
+                                },
+                            },
+                        ],
+                    }).then(async (ctx: any) => {
+                        await ctx.rebuild(); // 初次构建填充缓存
+                        await ctx.watch(); // 此后监听源码增量重建
+                        return ctx;
+                    });
+                    server.middlewares.use((req: any, res: any, next: any) => {
+                        if (req.url?.split("?")[0] !== "/autospark/autospark.js")
+                            return next();
+                        void ctxPromise.then(() => {
+                            res.setHeader("Content-Type", "application/javascript");
+                            res.end(cached);
+                        });
+                    });
+                },
+            },
+            {
+                name: "autospark-demo-api",
+                // 仅开发期生效：VitePress dev 的 SPA fallback 只放行资产类扩展（.css/.js/图片…），
+                // public 下 demo 用的 .json 数据文件会被回退到 index.html。本中间件把
+                // /autospark/api/* 按文件名（防目录穿越）映射到 public/autospark/api/ 伺服为 JSON。
+                // 生产构建不受影响（apply: "serve"；build 后 public 静态拷贝由部署侧正常伺服）。
+                apply: "serve",
+                configureServer(server: any) {
+                    const API_PREFIX = "/autospark/api/";
+                    server.middlewares.use((req: any, res: any, next: any) => {
+                        const [pathname, query] = (req.url ?? "").split("?");
+                        const url = pathname ?? "";
+                        if (!url.startsWith(API_PREFIX)) return next();
+                        // 仅允许纯文件名（无路径分隔），杜绝目录穿越
+                        const name = url.slice(API_PREFIX.length);
+                        if (!/^[\w.-]+$/.test(name)) return next();
+                        // .html 片段/模板（x-html 异步源 demo）伺服为 text/html，其余按 JSON
+                        res.setHeader(
+                            "Content-Type",
+                            name.endsWith(".html") ? "text/html; charset=utf-8" : "application/json",
+                        );
+                        // orders.json：程序化分页订单（demo 数据源，支持 page/size/delay/fail）
+                        if (name === "orders.json") {
+                            const q = new URLSearchParams(query);
+                            const page = Math.max(1, Number(q.get("page") ?? 1));
+                            const size = Math.min(50, Math.max(1, Number(q.get("size") ?? 10)));
+                            const fail = q.get("fail") === "1";
+                            const delay = Number(q.get("delay") ?? 0);
+                            const send = () => {
+                                if (fail) {
+                                    res.statusCode = 500;
+                                    res.end(JSON.stringify({ message: "模拟服务错误（演示失败态）" }));
+                                    return;
+                                }
+                                const books = [
+                                    "响应式状态管理",
+                                    "声明式模板引擎",
+                                    "细粒度更新",
+                                    "前端架构之道",
+                                    "类型系统入门",
+                                    "状态机实战",
+                                ];
+                                const statuses = ["已支付", "待支付", "已发货", "已完成"];
+                                const total = 86;
+                                const items = [];
+                                for (let i = 0; i < size; i++) {
+                                    const idx = (page - 1) * size + i;
+                                    if (idx >= total) break;
+                                    const qty = (idx % 4) + 1;
+                                    const price = 35 + (idx % 6) * 8;
+                                    items.push({
+                                        id: "SO-" + String(10000 + idx),
+                                        book: books[idx % books.length],
+                                        qty,
+                                        amount: qty * price,
+                                        status: statuses[idx % statuses.length],
+                                    });
+                                }
+                                // 注：不回显 page/size——响应键若与全局状态同名会遮蔽控制键
+                                //（聚合视图 data 层优先），导致依赖驱动的重取静默失效
+                                res.end(JSON.stringify({ code: 0, data: { total, items } }));
+                            };
+                            if (delay > 0 && delay <= 5000) setTimeout(send, delay);
+                            else send();
+                            return;
+                        }
+                        const file = path.join(__dirname, "../../public/autospark/api", name);
+                        if (!fs.existsSync(file)) {
+                            // demo 演示失败态：目录内不存在的文件回 404 JSON（否则 SPA fallback 返回 HTML）
+                            res.statusCode = 404;
+                            res.end(JSON.stringify({ message: `not found: ${name}` }));
+                            return;
+                        }
+                        // ?delay=<ms>：演示加载中状态（上限 5s 防呆）
+                        const delay = Number(new URLSearchParams(query).get("delay") ?? 0);
+                        const send = () => res.end(fs.readFileSync(file));
+                        if (delay > 0 && delay <= 5000) setTimeout(send, delay);
+                        else send();
+                    });
+                },
+            },
+        ],
         build: {
             chunkSizeWarningLimit: 2000, // 将限制提高到 1000KB
         },

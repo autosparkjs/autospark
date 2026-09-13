@@ -4,12 +4,12 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>动作 · action 的 this</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
-        <!-- action 执行时 this = AutoTemplateActionContext：携带 el / $event / data / scope / store / engine / $options -->
+        <!-- action 执行时 this = AutoSparkActionContext：携带 el / $event / data / scope / store / engine / $options -->
         <div class="demo-app section">
             <!-- 全局根状态（engine.state） -->
             <div class="block">全局计数：<span class="has-text-primary has-text-weight-semibold" x-text="count"></span></div>
@@ -27,8 +27,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 { count: 0 },
                 {

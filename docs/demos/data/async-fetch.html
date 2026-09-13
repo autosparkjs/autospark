@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-data · 异步数据源 · 分页订单表格</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 异步数据源 · fetch（ADR-0033）：分页订单表格实战。
+             x-data 值 = 带 page/size 插值的 url——翻页、调整每页条数都自动重取；
+             重取期间旧表格保留（$loading 可见、不闪断）；失败时 $error 展示且旧值不丢；
+             首载（域内无数据）由 x-fallback 占位。?delay/?fail 由文档站 demo 中间件支持。 -->
+        <div class="demo-app section">
+            <div class="card">
+                <div
+                    class="card-content"
+                    x-data="/autospark/api/orders.json?page={page}&amp;size={size}&amp;delay=500&amp;fail={failFlag}"
+                    x-data-options="{path:'data'}"
+                >
+                    <div class="heading has-text-grey">书店订单列表（分页读取）</div>
+                    <div class="block is-flex is-justify-content-space-between is-align-items-center">
+                        <div>
+                            共 <b class="has-text-primary">{{total}}</b> 条 ·
+                            第 <b class="has-text-primary">{{page}}</b> /
+                            {{ Math.ceil(total / size) }} 页 ·
+                            <span class="tag" :class="$loading ? 'is-warning' : 'is-success'"
+                                >$loading = {{ $loading }}</span>
+                            <span class="tag" :class="$error ? 'is-danger' : 'is-light'"
+                                >$error = {{ $error ? $error.message : '无' }}</span>
+                        </div>
+                        <div class="is-flex is-align-items-center">
+                            <span class="mr-2 is-size-7 has-text-grey">每页</span>
+                            <div class="select is-small">
+                                <select x-model="size" @change="resetPage">
+                                    <option value="5">5 条</option>
+                                    <option value="10">10 条</option>
+                                    <option value="20">20 条</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <table class="table is-striped is-hoverable is-fullwidth">
+                        <thead>
+                            <tr>
+                                <th>订单号</th>
+                                <th>书名</th>
+                                <th>数量</th>
+                                <th>金额</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody x-for="o of items">
+                            <tr>
+                                <td><code x-text="o.id"></code></td>
+                                <td x-text="o.book"></td>
+                                <td x-text="o.qty"></td>
+                                <td x-text="'￥' + o.amount"></td>
+                                <td>
+                                    <span
+                                        class="tag is-light"
+                                        :class="'is-' + ({ 已支付: 'primary', 待支付: 'warning', 已发货: 'info', 已完成: 'success' })[o.status]"
+                                        x-text="o.status"
+                                    ></span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="buttons">
+                        <button class="button is-small" :disabled="page <= 1 || $loading" @click="prevPage">
+                            ← 上一页
+                        </button>
+                        <button
+                            class="button is-small"
+                            :disabled="page * size >= total || $loading"
+                            @click="nextPage"
+                        >
+                            下一页 →
+                        </button>
+                        <button class="button is-small is-light" @click="failNext">下次请求失败（保旧值）</button>
+                    </div>
+
+                    <!-- 首载占位：非就绪且域内尚无数据时替换渲染上方整棵子树；翻页重取不闪现 -->
+                    <div class="notification is-warning is-light" x-fallback>
+                        ⏳ 首次加载订单列表…（$loading = {{ $loading }}）
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                // page/size/failFlag 均为 url 插值依赖：变化即自动重取（同 tick 多变化合并为一次请求）
+                // size 用字符串：x-model select 需字符串状态（option value 均为字符串）
+                { page: 1, size: "10", failFlag: 0 },
+                {
+                    actions: {
+                        prevPage: function () {
+                            this.state.failFlag = 0;
+                            this.state.page = Math.max(1, this.state.page - 1);
+                        },
+                        nextPage: function () {
+                            this.state.failFlag = 0;
+                            this.state.page = this.state.page + 1;
+                        },
+                        resetPage: function () {
+                            this.state.failFlag = 0;
+                            this.state.page = 1; // 改每页条数回到第一页
+                        },
+                        failNext: function () {
+                            this.state.failFlag = 1; // 仅 failFlag 变化也触发重取 → 500 → 保旧值 + $error
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

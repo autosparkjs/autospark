@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-model · 数据来源：本地 x-data</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
@@ -39,9 +39,8 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
             // 全局 store 留空：draft/urgent 完全由本层 x-data 提供
-            new AutoTemplateEngine(document.querySelector(".demo-app"), {}, {});
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {}, {});
         </script>
     </body>
 </html>

@@ -1,5 +1,5 @@
-import { AutoTemplateDirectiveBase } from "../base";
-import type { AutoTemplateEngine } from "../../engine";
+import { AutoSparkDirectiveBase } from "../base";
+import type { AutoSpark } from "../../engine";
 import { removeDirectives } from "../utils/removeDirectives";
 import { hasDirectives } from "../utils/hasDirectives";
 import { hasMustache } from "../../compile/mustache";
@@ -15,7 +15,7 @@ import { hasMustache } from "../../compile/mustache";
  *
  * - **remote**（`<div x-slot="expr">`）：expr 经 `scope.watch` 求值得 **url（响应式，支持路径/
  *   表达式 / x-data 局部 / x-for item）**；fetch url → 在宿主上建**完全独立的 child engine**
- *   （`new AutoTemplateEngine(host, {})`，engine 自建空 store、fetched HTML 用自身 x-data 自治）。
+ *   （`new AutoSpark(host, {})`，engine 自建空 store、fetched HTML 用自身 x-data 自治）。
  *   url 变化 → 销毁当前 child engine + 重新 fetch + 重建。
  *
  * **威胁边界**：仅防 T1（反应式刷新不擦内容）；T2（结构重建：x-if toggle / engine.data / patch）
@@ -33,7 +33,7 @@ import { hasMustache } from "../../compile/mustache";
  * @example 远程子引擎（url 响应式，自带独立 store）
  * <div x-slot="postUrl"></div>
  */
-export class SlotDirective extends AutoTemplateDirectiveBase {
+export class SlotDirective extends AutoSparkDirectiveBase {
     /** 结构指令档（介于 if=80 / for=100）；x-slot 不能与 x-for/eager-x-if 同元素（ownership 冲突） */
     static override readonly priority = 90;
     static override readonly singleton = true;
@@ -47,7 +47,7 @@ export class SlotDirective extends AutoTemplateDirectiveBase {
 
     private mode: "static" | "remote" = "static";
     /** remote 模式创建的完全独立子引擎（static 模式恒为 undefined） */
-    private childEngine?: AutoTemplateEngine;
+    private childEngine?: AutoSpark;
     /** 当前在途 fetch 的中止控制器（url 变化 / scope 销毁时 abort，丢弃过期结果） */
     private abortCtrl?: AbortController;
 
@@ -118,12 +118,12 @@ export class SlotDirective extends AutoTemplateDirectiveBase {
             this.el.innerHTML = html;
             // 完全独立 child engine：空状态 {} 由 engine 自建 store，fetched HTML 用自身 x-data 自治声明状态。
             // 经 this.engine.constructor 创建同类实例——避免 import engine 类引入循环依赖
-            // （slot → engine → manager → presets → slot），且子类化 AutoTemplateEngine 时自动跟随。
+            // （slot → engine → manager → presets → slot），且子类化 AutoSpark 时自动跟随。
             const EngineCtor = this.engine.constructor as new (
                 el: HTMLElement,
                 store: any,
                 options?: any,
-            ) => AutoTemplateEngine;
+            ) => AutoSpark;
             this.childEngine = new EngineCtor(this.el, {});
         } catch (e: any) {
             if (myCtrl.signal.aborted) return; // 主动 abort（销毁 / 取代），非真错误

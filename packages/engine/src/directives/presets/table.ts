@@ -1,4 +1,4 @@
-import { AutoTemplateDirectiveBase } from "../base";
+import { AutoSparkDirectiveBase } from "../base";
 
 /**
  *
@@ -13,6 +13,6 @@ import { AutoTemplateDirectiveBase } from "../base";
  * </table>
  *
  */
-export class TableDirective extends AutoTemplateDirectiveBase {
+export class TableDirective extends AutoSparkDirectiveBase {
     render() {}
 }

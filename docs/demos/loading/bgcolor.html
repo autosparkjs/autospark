@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-loading · bgColor 遮罩底色</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
             .panel {
                 position: relative;
@@ -25,13 +25,13 @@
                 <button class="button is-primary" @click="toggle">{{ on ? '隐藏' : '显示' }}覆盖层</button>
             </div>
             <div class="columns">
-                <div class="card panel column" x-loading="{ visible:'on', bgColor:'black' }">
+                <div class="card panel column" x-loading="{ value:'on', bgColor:'black' }">
                     <div class="card-content"><code>bgColor:'black'</code>（默认）</div>
                 </div>
-                <div class="card panel column" x-loading="{ visible:'on', bgColor:'white' }">
+                <div class="card panel column" x-loading="{ value:'on', bgColor:'white' }">
                     <div class="card-content"><code>bgColor:'white'</code></div>
                 </div>
-                <div class="card panel column" x-loading="{ visible:'on', bgColor:'#42b883' }">
+                <div class="card panel column" x-loading="{ value:'on', bgColor:'#42b883' }">
                     <div class="card-content"><code>bgColor:'#42b883'</code></div>
                 </div>
             </div>
@@ -39,8 +39,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 { on: true },
                 {

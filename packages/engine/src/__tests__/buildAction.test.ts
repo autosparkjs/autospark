@@ -9,7 +9,7 @@ import { mount, nextTick } from "./helpers";
  * 三入口均自动用 buildAction 包装：
  *  - 全局 `engine.actions[name] = fn`（actions Proxy 的 set trap）
  *  - 构造时 `options.actions`（engine 构造函数扫描）
- *  - `<script type="actions">`（compiler 提取时包装）
+ *  - `<script type="autospark/actions">`（compiler 提取时包装）
  * 仅 async action（返回 thenable）广播 `actions/<name>/{pending,resolved,rejected}`；同步 action 透明。
  * action 函数名入事件路径，payload 亦带 name → 通配订阅可抓任意 action 开始/成功/失败。
  */
@@ -83,11 +83,11 @@ describe("actions 注册时自动包装（buildAction → actions/<name>/*）", 
         expect(events).toEqual(["ready"]);
     });
 
-    test('<script type="actions"> 局部 action 不进总线、只 DOM 冒泡（ADR-0012 隔离同名串扰）', async () => {
+    test('<script type="autospark/actions"> 局部 action 不进总线、只 DOM 冒泡（ADR-0012 隔离同名串扰）', async () => {
         const busEvents: string[] = [];
         const domEvents: string[] = [];
         const { root, engine } = mount(
-            `<div x-data="{}"><form><button @click="local">x</button></form><script type="actions">{ async local(){ return "L" } }</script></div>`,
+            `<div x-data="{}"><form><button @click="local">x</button></form><script type="autospark/actions">{ async local(){ return "L" } }</script></div>`,
             {},
         );
         engine.on("actions/local/resolved", (m: any) => busEvents.push(m.payload.result));
@@ -102,10 +102,10 @@ describe("actions 注册时自动包装（buildAction → actions/<name>/*）", 
         expect(domEvents).toEqual(["pending", "resolved"]);
     });
 
-    test('<script type="actions" global> 声明全局 action，进总线双发（ADR-0012 global 标志）', async () => {
+    test('<script type="autospark/actions" global> 声明全局 action，进总线双发（ADR-0012 global 标志）', async () => {
         const busEvents: string[] = [];
         const { root, engine } = mount(
-            `<div x-data="{}"><button @click="gsave">x</button><script type="actions" global>{ async gsave(){ return "G" } }</script></div>`,
+            `<div x-data="{}"><button @click="gsave">x</button><script type="autospark/actions" global>{ async gsave(){ return "G" } }</script></div>`,
             {},
         );
         engine.on("actions/gsave/resolved", (m: any) => busEvents.push(m.payload.result));
@@ -115,7 +115,7 @@ describe("actions 注册时自动包装（buildAction → actions/<name>/*）", 
         expect(busEvents).toEqual(["G"]);
     });
 
-    test('<script type="actions"> 内多个 action 均注册并独立触发（局部，只 DOM 冒泡）', async () => {
+    test('<script type="autospark/actions"> 内多个 action 均注册并独立触发（局部，只 DOM 冒泡）', async () => {
         const domA: string[] = [];
         const domB: string[] = [];
         const busEvents: string[] = [];
@@ -125,7 +125,7 @@ describe("actions 注册时自动包装（buildAction → actions/<name>/*）", 
                  <button class="a" @click="doA">a</button>
                  <button class="b" @click="doB">b</button>
                </form>
-               <script type="actions">{ async doA(){ return "A" }, async doB(){ return "B" } }</script>
+               <script type="autospark/actions">{ async doA(){ return "A" }, async doB(){ return "B" } }</script>
              </div>`,
             {},
         );
@@ -148,6 +148,26 @@ describe("actions 注册时自动包装（buildAction → actions/<name>/*）", 
         expect(domB).toEqual(["pending", "resolved"]);
     });
 
+    test('旧写法 <script type="actions">：warn + 剪枝不注册（ADR-0031 更名迁移）', () => {
+        const warns: string[] = [];
+        const origWarn = console.warn;
+        console.warn = (...args: any[]) => {
+            warns.push(String(args[0] ?? ""));
+        };
+        try {
+            const { root, engine } = mount(
+                `<div x-data="{}"><button @click="legacy">x</button><script type="actions">{ legacy(){} }</script></div>`,
+                {},
+            );
+            // 剪枝：script 不进渲染 DOM；未注册：engine.actions 无该名（硬切不执行）
+            expect(root.querySelector("script")).toBeNull();
+            expect(engine.actions.legacy).toBeUndefined();
+        } finally {
+            console.warn = origWarn;
+        }
+        expect(warns.some((w) => w.includes("已更名为"))).toBe(true);
+    });
+
     test("通配 action 通配订阅抓任意 action 开始（payload.name 区分）", async () => {
         const names: string[] = [];
         const { root, engine } = mount(
@@ -163,7 +183,7 @@ describe("actions 注册时自动包装（buildAction → actions/<name>/*）", 
         expect(names).toEqual(["a", "b"]);
     });
 
-    test("经 x-on 触发：this 仍为 AutoTemplateActionContext（buildAction 透传 this/args）", async () => {
+    test("经 x-on 触发：this 仍为 AutoSparkActionContext（buildAction 透传 this/args）", async () => {
         let captured: any;
         const { root, engine } = mount(`<button @click="probe">x</button>`, { count: 7 });
         engine.actions.probe = async function (this: any) {
@@ -184,7 +204,7 @@ describe("actions 注册时自动包装（buildAction → actions/<name>/*）", 
  * buildAction 在 thenable 分支双发：总线 actions/<name>/*（上一 describe 覆盖）+ DOM 冒泡
  * action:<name>（bubbles+composed，detail 不带 el/scope）。祖先经 @action:<name> 监听（复用 x-on），
  * phase 修饰符 .pending/.resolved/.rejected 按 detail.phase 过滤（guard 类型，与 .left/.right 同构）。
- * 命令式直调（this 非 AutoTemplateActionContext）无触发元素 → 只走总线、不冒泡。
+ * 命令式直调（this 非 AutoSparkActionContext）无触发元素 → 只走总线、不冒泡。
  */
 describe("action:<name> DOM 冒泡事件 + phase 修饰符（ADR-0010）", () => {
     test("DOM 冒泡到祖先元素，detail 带 phase（pending→resolved）", async () => {
@@ -230,12 +250,13 @@ describe("action:<name> DOM 冒泡事件 + phase 修饰符（ADR-0010）", () =>
         expect([...engine.state.log]).toEqual(["p", "r"]);
     });
 
-    test("命令式直调不冒泡 DOM 事件（this 非 AutoTemplateActionContext，只走总线）", async () => {
+    test("命令式直调不冒泡 DOM 事件（this 非 AutoSparkActionContext，只走总线）", async () => {
         let domCount = 0;
         const { root, engine } = mount(`<div></div>`, {});
         engine.actions.save = async () => "done";
         root.addEventListener("action:save", () => domCount++);
-        await engine.actions.save();
+        // 值恒为 ActionDesc 描述符，直调取 .handle（ADR-0036）
+        await engine.actions.save.handle();
         expect(domCount).toBe(0);
     });
 });

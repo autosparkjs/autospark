@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
 import { mount, nextTick } from "./helpers";
-import type { AutoTemplateEngine } from "../engine";
+import type { AutoSpark } from "../engine";
 import { SCOPES_KEY } from "../engine";
 
 /**
@@ -10,7 +10,7 @@ import { SCOPES_KEY } from "../engine";
  */
 
 /** 在引擎中找到指定渲染元素对应的 scope 并销毁（精确控制单个实例的销毁顺序） */
-function destroyScopeFor(engine: AutoTemplateEngine, el: Element): void {
+function destroyScopeFor(engine: AutoSpark, el: Element): void {
     for (const scope of engine.scopes.values()) {
         if (scope.el === el) {
             scope.destroy();

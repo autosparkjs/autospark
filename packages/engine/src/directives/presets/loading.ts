@@ -1,7 +1,7 @@
-import { AutoTemplateDirectiveBase, DirectiveKind, type RuntimeDirective } from "../base";
-import type { AutoTemplateEngine } from "../../engine";
+import { AutoSparkDirectiveBase, DirectiveKind, type RuntimeDirective } from "../base";
+import type { AutoSpark } from "../../engine";
 import { SCOPES_KEY } from "../../engine";
-import type { AutoTemplateScope } from "../../scope";
+import type { AutoSparkScope } from "../../scope";
 import { isSimpleStatePath } from "../../scope";
 import { getVal, type Watcher } from "autostore";
 import { rgba } from "../../utils/colors";
@@ -22,15 +22,15 @@ import { parseHtmlFragment } from "../../utils/transformElement";
  *   x-data 局部变量 / x-for item 等 scope 相对表达式。
  *
  * 两态绑定：
- * - **快速绑定** `x-loading="order.isSubmit"` / `x-loading="isLoading"`：整值即 visible 表达式，
- *   其余配置全默认。visible 经 `engine.store` 求值。
- * - **配置绑定** `x-loading="{ visible:'isLoading', message:'正在加载', bgColor:'white',
- *   color:'red', opacity:0.5, delay:300 }"`：字段化配置，visible 必填。
+ * - **快速绑定** `x-loading="order.isSubmit"` / `x-loading="isLoading"`：整值即 value 表达式，
+ *   其余配置全默认。value 经 `engine.store` 求值。
+ * - **配置绑定** `x-loading="{ value:'isLoading', message:'正在加载', bgColor:'white',
+ *   color:'red', opacity:0.5, delay:300 }"`：字段化配置，value 必填。
  *
  * **值类型判定**：`this.value` 去空白后以 `{` 开头 → 配置绑定（really-relaxed-json 解析），
- * 否则 → 快速绑定（整值作 visible 表达式）。
+ * 否则 → 快速绑定（整值作 value 表达式）。
  *
- * **显隐**：visible 求值为 truthy → 挂载覆盖层；falsy → 移除覆盖层 DOM（重建式，非 display 隐藏）。
+ * **显隐**：value 求值为 truthy → 挂载覆盖层；falsy → 移除覆盖层 DOM（重建式，非 display 隐藏）。
  *
  * **修饰符**：`.screen` → 覆盖层 `position:fixed;inset:0` 撑满视口（留在宿主子树，不 teleport）。
  *
@@ -44,10 +44,10 @@ import { parseHtmlFragment } from "../../utils/transformElement";
  * // state.order.isSubmit=true → 挂载覆盖层；=false → 移除
  *
  * @example 配置绑定（白色半透明遮罩 + 红色 loader + 防闪烁）
- * <div x-loading="{ visible:'isLoading', bgColor:'white', color:'red', delay:300 }"></div>
+ * <div x-loading="{ value:'isLoading', bgColor:'white', color:'red', delay:300 }"></div>
  *
  * @example 全屏 loading
- * <div x-loading.screen="{ visible:'pageLoading', message:'加载中…' }"></div>
+ * <div x-loading.screen="{ value:'pageLoading', message:'加载中…' }"></div>
  */
 
 /** 全局样式 <style> 的 id（首次 initialize 时注入一次，常驻不回收） */
@@ -74,10 +74,10 @@ const DEFAULTS = {
     zIndex: 9999,
 } as const;
 
-/** 配置绑定字段（visible 必填，其余可选） */
+/** 配置绑定字段（value 必填，其余可选） */
 interface LoadingConfig {
-    /** visible 表达式（全局路径或表达式），配置绑定下必填，缺失则 warn 不生效 */
-    visible: string;
+    /** value 表达式（全局路径或表达式）；缺失 ≡ 裸属性恒显示（命令式 overlay 契约，ADR-0008） */
+    value: string;
     message?: string;
     bgColor?: string;
     color?: string;
@@ -144,14 +144,14 @@ function injectStyles(): void {
   gap: 10px;
 }
 .${LOADER_CLASS} {
-  width: 50px;
+  width: 36px;
   aspect-ratio: 1;
   border-radius: 50%;
   background:
-    radial-gradient(farthest-side, currentColor 94%, #0000) top/8px 8px no-repeat,
+    radial-gradient(farthest-side, currentColor 94%, #0000) top/4px 4px no-repeat,
     conic-gradient(#0000 30%, currentColor);
-  -webkit-mask: radial-gradient(farthest-side, #0000 calc(100% - 8px), #000 0);
-          mask: radial-gradient(farthest-side, #0000 calc(100% - 8px), #000 0);
+  -webkit-mask: radial-gradient(farthest-side, #0000 calc(100% - 4px), #000 0);
+          mask: radial-gradient(farthest-side, #0000 calc(100% - 4px), #000 0);
   animation: ${SPIN_KEY} 1s infinite linear;
 }
 @keyframes ${SPIN_KEY} {
@@ -166,7 +166,7 @@ function injectStyles(): void {
     stylesInjected = true;
 }
 
-export class LoadingDirective extends AutoTemplateDirectiveBase implements RuntimeDirective {
+export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeDirective {
     /** 运行时指令：走 observer 通道（由 engine 级 RuntimeObserverDispatcher 驱动，见 ADR-0003 决策 7） */
     static override readonly kind = DirectiveKind.Runtime;
 
@@ -177,46 +177,46 @@ export class LoadingDirective extends AutoTemplateDirectiveBase implements Runti
      * 指令不再自建。样式注入须在 dispatcher 初始扫描（触发首次 mounted → mountOverlay）**之前**完成
      * ——FOUC 防御；initializeAll 在 dispatcher.start() 之前调用，顺序保证。幂等（stylesInjected）。
      */
-    static override initialize(_engine: AutoTemplateEngine): void {
+    static override initialize(_engine: AutoSpark): void {
         injectStyles();
     }
 
     /** 当前已挂载的覆盖层（= 编译后的块根；未挂载时为 null）；delay 窗口期内仍为 null */
     private overlay: HTMLElement | null = null;
     /** 已挂载覆盖层对应的块 scope（attrChanged 细粒度 patch 其 data；unmount 时 destroy） */
-    private blockScope: AutoTemplateScope | null = null;
+    private blockScope: AutoSparkScope | null = null;
     /** delay 定时器句柄（延迟挂载未触发时存在） */
     private delayTimer: ReturnType<typeof setTimeout> | null = null;
     /** 解析后的配置（mounted 中赋值，definite assignment） */
     private config!: LoadingConfig;
-    /** visible 当前值的读取函数（路径支路 getVal / 表达式支路 with(state) 求值） */
+    /** value 当前值的读取函数（路径支路 getVal / 表达式支路 with(state) 求值） */
     private _read!: () => any;
 
     /** 元素挂载（dispatcher 检测到 add / 初始扫描）：解析配置 + 字面量/反应式分流 + 首渲 */
     override mounted(): void {
         this.config = this.parseConfig();
         // 字面量模式：裸 x-loading ≡ "true"、显式 "true"/"false" 为特殊布尔值（非状态路径）→ 静态显隐，无订阅
-        const literal = this.resolveLiteral(this.config.visible);
+        const literal = this.resolveLiteral(this.config.value);
         if (literal !== null) {
             this.toggle(literal);
             return;
         }
-        // 反应式模式：visible 为全局 store 路径/表达式
-        this._bindVisible();
+        // 反应式模式：value 为全局 store 路径/表达式
+        this._bindValue();
         this.toggle(!!this._read());
     }
 
     /**
-     * 判定 visible 是否为字面量布尔。
+     * 判定 value 是否为字面量布尔。
      *
-     * - 空（裸 `x-loading` / 未指定 visible）≡ `true`：符合"加了就显示"的直觉；
+     * - 空（裸 `x-loading` / 未指定 value）≡ `true`：符合"加了就显示"的直觉；
      * - `true` / `false`（大小写不敏感）为特殊布尔字面量，**非**状态路径——便于静态快速控制显隐；
      * - 其余返回 null → 走反应式（`engine.store` 全局路径/表达式）。
      *
      * @returns true/false 表示字面量静态显隐；null 表示走反应式订阅
      */
-    private resolveLiteral(visible: string): boolean | null {
-        const v = (visible ?? "").trim();
+    private resolveLiteral(value: string): boolean | null {
+        const v = (value ?? "").trim();
         if (v === "") return true; // 裸属性 / 缺省 ≡ true
         const lv = v.toLowerCase();
         if (lv === "true") return true;
@@ -235,7 +235,7 @@ export class LoadingDirective extends AutoTemplateDirectiveBase implements Runti
      * 解析新 config 后：
      * - **视觉字段**（message/color/bgColor/opacity）→ `Object.assign` 进块 data，块内绑定经
      *   响应式字段级细粒度更新；同时重算壳样式（bg/opacity 既是 data 值、又是 overlay 背景）写回块根；
-     * - **visible** → 重判显隐（show/hide），delay 重置定时器；
+     * - **value** → 重判显隐（show/hide），delay 重置定时器；
      * - **selector** → 变化需移位，重建 overlay（块随之重编译重注入）。
      *
      * 仅当 selector 变化（须移位）或覆盖层尚未挂载时走重建；否则走细粒度 patch，保留已编译块。
@@ -254,25 +254,25 @@ export class LoadingDirective extends AutoTemplateDirectiveBase implements Runti
         this.config = this.parseConfig();
         this._teardown();
         // 字面量模式：裸/true/false 静态显隐，无订阅
-        const literal = this.resolveLiteral(this.config.visible);
+        const literal = this.resolveLiteral(this.config.value);
         if (literal !== null) {
             this.toggle(literal);
             return;
         }
-        this._bindVisible();
+        this._bindValue();
         this.toggle(!!this._read());
     }
 
     /**
-     * 建立 visible 订阅（engine.store 全局，无 scope）。
+     * 建立 value 订阅（engine.store 全局，无 scope）。
      *
      * - 路径支路（isSimpleStatePath）→ `store.watch(path)` 精准订阅，`getVal` 读当前值；
      * - 表达式支路（如 `a && !b`）→ `collectDependencies` 收集读依赖后订阅（仅全局 state，
      *   不支持 scope 局部变量）。回调经 toggle 显隐。
      */
-    private _bindVisible(): void {
+    private _bindValue(): void {
         const store = this.engine.store;
-        const expr = this.config.visible;
+        const expr = this.config.value;
         const onChange = () => this.toggle(!!this._read());
         if (isSimpleStatePath(expr)) {
             this._read = () => getVal(store.state, expr);
@@ -324,24 +324,43 @@ export class LoadingDirective extends AutoTemplateDirectiveBase implements Runti
         }
     }
 
-    /** 解析指令值：对象语法 → 配置绑定；否则 → 快速绑定（整值即 visible） */
+    /**
+     * 解析指令值：对象语法 → 配置绑定；否则 → 快速绑定（整值即 value）。
+     *
+     * 指令选项层（`x-loading-options`，ADR-0007 解析期合并进 `this.options`）承载**视觉字段**
+     * 补充配置（message/color/bgColor/opacity/delay/selector）——异步源指令（x-data/x-html）
+     * 合成的 `loading:{...}` 选项经此接线生效（ADR-0033/0035）。合并方向：属性值**内联声明
+     * 优先**（`x-loading="{value,...}"` 是主语义，`-options` 是补充层，不覆盖主声明）。
+     */
     private parseConfig(): LoadingConfig {
         const raw = String(this.value ?? "").trim();
-        if (raw.startsWith("{")) return this.parseObject(raw);
-        return { visible: raw };
+        const inline: LoadingConfig = raw.startsWith("{") ? this.parseObject(raw) : { value: raw };
+        const opt = this.options;
+        if (!opt || typeof opt !== "object") return inline;
+        for (const key of ["message", "bgColor", "color", "opacity", "delay", "selector"] as const) {
+            const v = (opt as Record<string, any>)[key];
+            if (v !== undefined && (inline as Record<string, any>)[key] === undefined) {
+                (inline as Record<string, any>)[key] = v;
+            }
+        }
+        return inline;
     }
 
-    /** 解析对象配置（really-relaxed-json）；非对象/抛错 → warn + 空 visible */
+    /** 解析对象配置（really-relaxed-json）；非对象/抛错 → warn + 空 value */
     private parseObject(raw: string): LoadingConfig {
         try {
             const parsed: unknown = JSON.parse(toJson(raw));
             if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
                 this.engine.logger.warn(`x-loading: 对象配置必须解析为对象，得到 ${JSON.stringify(parsed)}`);
-                return { visible: "" };
+                return { value: "" };
             }
             const obj = parsed as Record<string, any>;
+            // 旧键 visible 已更名为 value：warn 提示迁移、忽略不生效（缺失 value ≡ 裸属性恒显示）
+            if (obj.visible !== undefined) {
+                this.engine.logger.warn(`x-loading: 配置键 "visible" 已更名为 "value"，该键被忽略`);
+            }
             return {
-                visible: typeof obj.visible === "string" ? obj.visible : "",
+                value: typeof obj.value === "string" ? obj.value : "",
                 message: typeof obj.message === "string" ? obj.message : undefined,
                 bgColor: typeof obj.bgColor === "string" ? obj.bgColor : undefined,
                 color: typeof obj.color === "string" ? obj.color : undefined,
@@ -351,7 +370,7 @@ export class LoadingDirective extends AutoTemplateDirectiveBase implements Runti
             };
         } catch (e: any) {
             this.engine.logger.warn(`x-loading: 对象配置解析失败: ${e?.message ?? e}`);
-            return { visible: "" };
+            return { value: "" };
         }
     }
 
@@ -489,12 +508,12 @@ export class LoadingDirective extends AutoTemplateDirectiveBase implements Runti
     /**
      * 构造注入块 data 的 config 视图（全七字段，决策 12-(c) Q7 全注入）。
      *
-     * `visible` 是表达式串（如 `"order.isSubmit"`）——块内若 x-if="visible" 期待布尔会拿到字符串，
-     * 属已知脚枪（visible 是宿主显隐逻辑，控制 overlay 挂载与否，非块内消费字段），文档已标注。
+     * `value` 是表达式串（如 `"order.isSubmit"`）——块内若 x-if="value" 期待布尔会拿到字符串，
+     * 属已知脚枪（value 是宿主显隐逻辑，控制 overlay 挂载与否，非块内消费字段），文档已标注。
      */
     private _configData(): Record<string, any> {
         return {
-            visible: this.config.visible,
+            value: this.config.value,
             message: this.config.message ?? "",
             bgColor: this.config.bgColor ?? DEFAULTS.bgColor,
             color: this.config.color ?? DEFAULTS.color,

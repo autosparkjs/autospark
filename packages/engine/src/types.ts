@@ -1,4 +1,5 @@
 import type { AutoStore, AutoStoreOptions, Dict, FastEvent } from "autostore";
+import type { ActionDecl } from "./actions/types";
 
 /**
  * AutoStore 任意类型
@@ -93,9 +94,9 @@ export interface DirectiveBinding {
 /**
  * 渲染选项
  *
- * 传递给 AutoTemplate 构造函数的配置选项。
+ * 传递给 AutoSpark 构造函数的配置选项。
  */
-export interface AutoTemplateEngineOptions<State extends Dict = any>
+export interface AutoSparkOptions<State extends Dict = any>
     extends FastEvent.FastLiteEventOptions {
     /**
      * 自建 store 的配置（仅当构造器第二参为裸状态对象时消费，ADR-0009 决策 4）。
@@ -120,22 +121,25 @@ export interface AutoTemplateEngineOptions<State extends Dict = any>
      */
     autostart?: boolean;
     /**
-     * 全局事件 action 函数表。
+     * 全局事件 action 声明表。
      *
-     * `@click="name"` / `@click="name(args)"` 命中时，以 AutoTemplateActionContext 为 this 调用。
-     * 作为 scope.getAction 查找链的终点；模板内 `<script type="actions">` 注入的
-     * 局部 action 优先级更高（沿 scope parent 链先命中）。
+     * 值为声明形态（ADR-0036）：**函数简写**（`toggle(){...}`）或**对象写法**
+     * （`{ title, icon, handle }`，`handle` 必需、其余自由元数据），两种写法可混用；
+     * 构造期统一规范化为 `ActionDesc` 描述符存储（name 以注册键注入）。
+     * `@click="name"` / `@click="name(args)"` 命中时，以 AutoSparkActionContext 为 this
+     * 调用 `desc.handle`。作为 scope.getAction 查找链的终点；模板内
+     * `<script type="autospark/actions">` 注入的局部 action 优先级更高（沿 scope parent 链先命中）。
      *
      * @default {}
      */
-    actions?: Record<string, (...args: any[]) => any>;
+    actions?: Record<string, ActionDecl>;
     /**
      * 自定义 HTML 消毒器（x-html 默认消费，见 ADR-0005 决策 4）。
      *
      * 默认为内置极简 `sanitizeHtml`（剥 `<script>` / `on*` 事件属性 / 危险协议 URL，
      * 非无懈可击——mutation XSS / foreign content 等边角向量不在覆盖范围）。
      * 高安全场景注入 DOMPurify：
-     * `new AutoTemplateEngine(el, store, { sanitizer: DOMPurify.sanitize })`。
+     * `new AutoSpark(el, store, { sanitizer: DOMPurify.sanitize })`。
      * x-html 的 `.raw` 修饰符会整体跳过此 sanitizer（原样写入 innerHTML）。
      *
      * @default 内置极简 sanitizeHtml（utils/sanitize.ts）
@@ -152,14 +156,14 @@ export interface AutoTemplateEngineOptions<State extends Dict = any>
 }
 
 /**
- * AutoTemplateEngine 事件契约（信号面，见 ADR-0003）。
+ * AutoSpark 事件契约（信号面，见 ADR-0003）。
  *
  * 分层命名（`/` 分隔）+ 通配符订阅：消费者可精确订阅，亦可经 `*`/`**` 订阅一批同类。
  * 事件只承载**离散信号**——值留 `store.state`（数据面），控制流留命令调用（控制面）。
  *
  * emit 一律直接调继承自 FastLiteEvent 的 `engine.emit()`（按 type 查监听器，无该 type 订阅≈零成本）。
  */
-export interface AutoTemplateEngineEvents {
+export interface AutoSparkEvents {
     // ── engine/** 引擎生命周期 ──────────────────────────────
     /** 引擎初始化完成（retain：晚订阅者补拿） */
     "engine/ready": { el: HTMLElement };

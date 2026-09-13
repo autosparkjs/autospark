@@ -7,7 +7,7 @@
 ```html
 <div x-scope>
     <div x-component="loading">加载中…</div>
-    <div x-loading="{ visible:'on' }">内容</div>
+    <div x-loading="{ value:'on' }">内容</div>
 </div>
 ```
 
@@ -17,7 +17,7 @@
 
 `x-scope` 让纯容器建 scope，使内部的 `x-component="loading"` 有归属锚点。该组件声明了骨架屏模板——`x-loading` 渲染时自动取用它替换内置旋转 loader。注意：`x-component` 元素本身**不会出现在页面上**。
 
-<demo html="template/component/basic.html"/>
+<demo html="component/basic.html"/>
 
 ## 指南
 

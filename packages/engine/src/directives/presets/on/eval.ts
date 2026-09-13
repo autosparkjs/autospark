@@ -1,6 +1,6 @@
-import type { AutoTemplateEngine } from "../../../engine";
-import type { AutoTemplateScope } from "../../../scope";
-import type { AutoTemplateActionContext } from "./types";
+import type { AutoSpark } from "../../../engine";
+import type { AutoSparkScope } from "../../../scope";
+import type { AutoSparkActionContext } from "./types";
 import { createDirectiveOptions } from "../../utils/createDirectiveOptions";
 
 /**
@@ -16,7 +16,7 @@ const ACTION_RE = /^([A-Za-z_$][\w$]*)\s*(?:\(([\s\S]*)\))?$/;
  * 构造事件业务 handler：**Action 优先 + 表达式兜底**。
  *
  * **关键：Action 查找延迟到事件触发时**（闭包内调 `scope.getAction`）——因 actions 可能在
- * 指令 `created` 之后才注册（`engine.actions` 赋值、`<script type="actions">` 注入均晚于
+ * 指令 `created` 之后才注册（`engine.actions` 赋值、`<script type="autospark/actions">` 注入均晚于
  * 编译）。若在 created 时缓存 action 引用，会查到 undefined 误走表达式。
  *
  * 仅"表达式编译"（`new Function`，expr 不变）与"args 求值器"在 created 时一次性完成。
@@ -27,8 +27,8 @@ const ACTION_RE = /^([A-Za-z_$][\w$]*)\s*(?:\(([\s\S]*)\))?$/;
  */
 export function createEvalHandler(
     expr: string,
-    engine: AutoTemplateEngine,
-    scope: AutoTemplateScope,
+    engine: AutoSpark,
+    scope: AutoSparkScope,
     el: HTMLElement,
     directiveOptions: Record<string, any> | undefined,
     hostOptions: Record<string, any> | null | undefined,
@@ -79,11 +79,12 @@ export function createEvalHandler(
                 }
             }
         }
-        // 2) Action 兜底：每次触发时查 scope.getAction（actions 可能后于 created 注册）
+        // 2) Action 兜底：每次触发时查 scope.getAction（actions 可能后于 created 注册）。
+        //    值恒为 ActionDesc 描述符（ADR-0036），取 .handle 调用——模板侧行为不变
         if (name) {
             const action = scope.getAction(name);
-            if (typeof action === "function") {
-                const ctx: AutoTemplateActionContext = {
+            if (action) {
+                const ctx: AutoSparkActionContext = {
                     el,
                     $event: event,
                     data,
@@ -95,7 +96,7 @@ export function createEvalHandler(
                 };
                 try {
                     const args = argsFn ? argsFn(event, data) : [];
-                    return action.call(ctx, ...args);
+                    return action.handle.call(ctx, ...args);
                 } catch (e: any) {
                     // logger 后 rethrow（ADR-0013）：让 .feedback 等 wrapper 检测同步失败。
                     // 冒泡错误由 OnDirective finalHandler / debounce setTimeout 兜底吞掉（防 uncaught）。

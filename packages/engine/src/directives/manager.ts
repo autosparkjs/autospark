@@ -1,10 +1,10 @@
-import type { AutoTemplateEngine } from "../engine";
-import type { AutoTemplateDirectiveBase } from "./base";
+import type { AutoSpark } from "../engine";
+import type { AutoSparkDirectiveBase } from "./base";
 import { DirectiveKind } from "./base";
 import { presetDirectives } from "./presets";
 
 /** 指令类的构造器类型（typeof 基类），用于访问静态成员 kind/initialize/dispose 等 */
-type DirectiveClass = typeof AutoTemplateDirectiveBase;
+type DirectiveClass = typeof AutoSparkDirectiveBase;
 
 /**
  * 指令注册表
@@ -24,13 +24,13 @@ type DirectiveClass = typeof AutoTemplateDirectiveBase;
  * 幂等性由 `initialized` 集合保证：同一 (类, engine) 仅 initialize 一次。
  */
 export class DirectiveManager extends Map<string, DirectiveClass> {
-    readonly engine: AutoTemplateEngine;
+    readonly engine: AutoSpark;
     /** 已在本 engine 上执行过 initialize 的指令类（幂等保证 + disposeAll 追踪） */
     readonly initialized = new Set<DirectiveClass>();
     /** engine 是否已就绪（构造完成）：就绪后 set 才立即触发 initialize */
     private _ready = false;
 
-    constructor(engine: AutoTemplateEngine<any>) {
+    constructor(engine: AutoSpark<any>) {
         super();
         this.engine = engine;
         // 预设：原样注册，不触发 initialize（engine 尚未构造完成、autostart compile 未跑，

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-data · 异步加载反馈 · x-loading 三种配合</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 异步加载反馈（ADR-0033）：x-loading 覆盖层与 x-fallback 的三种配合关系对照。
+             每块「重新加载」按钮触发重取（tick 实参依赖变化 → 对称重执行），
+             延迟 1.5s——重取期间旧数据保留，加载反馈清晰可见。 -->
+        <div class="demo-app section">
+            <!-- 块 A：无 x-fallback → 默认合成 x-loading 覆盖层（盖在旧内容上，旧值保留） -->
+            <div class="card" x-data="loadData(aTick)">
+                <div class="card-content">
+                    <div class="heading has-text-grey">块 A · 默认合成覆盖层（无 x-fallback）</div>
+                    <div class="block">
+                        数据 = <b class="has-text-primary">{{ value }}</b>
+                        （点「重新加载」，覆盖层盖在旧内容上 1.5 秒）
+                    </div>
+                    <div class="buttons">
+                        <button class="button is-primary is-small" @click="reloadA">重新加载</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 B：x-fallback + loading:{...} 显式并存——首载由 fallback 占位；
+                 重取时 fallback 不闪现（保旧值），覆盖层显式叠加（自定义文案）。
+                 注：x-fallback 须为异步 x-data 宿主的直接子级，故 x-data 声明在 card-content 上 -->
+            <div class="card">
+                <div class="card-content" x-data="loadData(bTick)" x-data-options="{loading:{message:'双通道并存：覆盖层', color:'#ffffff'}}">
+                    <div class="heading has-text-grey">块 B · x-fallback + loading 显式并存</div>
+                    <div class="block">
+                        数据 = <b class="has-text-primary">{{ value }}</b>
+                        （首载 fallback 占位；重取时旧值保留 + 覆盖层叠加）
+                    </div>
+                    <div class="buttons">
+                        <button class="button is-primary is-small" @click="reloadB">重新加载</button>
+                    </div>
+                    <div class="notification is-warning is-light" x-fallback>⏳ 首次加载…（$loading = {{ $loading }}）</div>
+                </div>
+            </div>
+
+            <!-- 块 C：loading:false 恒关——无任何自动视觉指示，只有 $loading 元状态在变 -->
+            <div class="card" x-data="loadData(cTick)" x-data-options="{loading:false}">
+                <div class="card-content">
+                    <div class="heading has-text-grey">块 C · loading:false 恒关（对比）</div>
+                    <div class="block">
+                        数据 = <b class="has-text-primary">{{ value }}</b>
+                        <span class="tag" :class="$loading ? 'is-warning' : 'is-success'">$loading = {{ $loading }}</span>
+                        （无覆盖层无 fallback——元状态仍可用，自行表达）
+                    </div>
+                    <div class="buttons">
+                        <button class="button is-primary is-small" @click="reloadC">重新加载</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                // 三个 tick 独立驱动各自块的重取
+                { aTick: 0, bTick: 0, cTick: 0 },
+                {
+                    actions: {
+                        // 数据源：延迟 1.5s 返回（让加载反馈可感知）
+                        loadData: async function (tick) {
+                            await new Promise((r) => setTimeout(r, 1500));
+                            return { value: "第 " + tick + " 次加载的数据" };
+                        },
+                        reloadA: function () { this.state.aTick = this.state.aTick + 1; },
+                        reloadB: function () { this.state.bTick = this.state.bTick + 1; },
+                        reloadC: function () { this.state.cTick = this.state.cTick + 1; },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

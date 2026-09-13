@@ -1,6 +1,6 @@
 import type { Watcher } from "autostore";
-import type { AutoTemplateScope } from "../scope";
-import type { AutoTemplateEngine } from "../engine";
+import type { AutoSparkScope } from "../scope";
+import type { AutoSpark } from "../engine";
 import type { AutoDirectiveInfo } from "./types";
 
 /**
@@ -28,7 +28,7 @@ export type DirectiveKind = (typeof DirectiveKind)[keyof typeof DirectiveKind];
 /**
  * 运行时指令契约（observer 通道）。
  *
- * `Runtime` / `Hybrid` 指令 `extends AutoTemplateDirectiveBase implements RuntimeDirective`。
+ * `Runtime` / `Hybrid` 指令 `extends AutoSparkDirectiveBase implements RuntimeDirective`。
  * 基类已为三个钩子提供空实现，故调用总安全；此接口仅作编译期契约/文档，运行时判别以
  * `static kind` 为准（`Runtime`/`Hybrid`）。
  */
@@ -68,7 +68,7 @@ export interface RuntimeDirective {
  * 调用一次（不分 kind；晚注册的指令在 `DirectiveManager.set` 时补调）。基类提供 no-op 默认，
  * 指令按需 override——典型用途：runtime 指令建立 per-engine observer、注入全局样式、预编译资源等。
  */
-export class AutoTemplateDirectiveBase {
+export class AutoSparkDirectiveBase {
     /**
      * 指令类别（静态，默认 Compile）：决定走哪条执行通道。
      * 子类按需 `static override kind = DirectiveKind.Runtime | Hybrid`。
@@ -106,7 +106,7 @@ export class AutoTemplateDirectiveBase {
      * **幂等**：同一 (类, engine) 仅调用一次（由 DirectiveManager 的 _initialized 集合保证）。
      * **回收对称**：建立的资源须在 `dispose(engine)` 中释放。
      */
-    static initialize(_engine: AutoTemplateEngine): void {}
+    static initialize(_engine: AutoSpark): void {}
     /**
      * 类级销毁钩子（静态，可选，所有 kind 通用）。
      *
@@ -114,7 +114,7 @@ export class AutoTemplateDirectiveBase {
      * 销毁全部 live 实例、释放类级资源。**不移除**文档级共享资源（如全局 `<style>`——多 engine 共用、
      * 体量可忽略，违背 KISS）。基类 no-op，按需 override。
      */
-    static dispose(_engine: AutoTemplateEngine): void {}
+    static dispose(_engine: AutoSpark): void {}
 
     /** 原始指令信息（完整保留，含 name/attr 等） */
     info: AutoDirectiveInfo;
@@ -123,7 +123,7 @@ export class AutoTemplateDirectiveBase {
     modifiers?: string[];
     options?: Record<string, any>;
     value?: any;
-    engine: AutoTemplateEngine;
+    engine: AutoSpark;
     /**
      * 所属 scope（scope 通道实例必有；observer 通道的 Runtime 实例实际为 undefined，但永不访问）。
      * Hybrid 实例同时具备 binding（走 scope 通道）与 observer 通道。
@@ -132,7 +132,7 @@ export class AutoTemplateDirectiveBase {
      * 永远安全。Runtime 实例由 `initialize` 工厂以 `binding=undefined` 构造（见构造函数断言），但其代码路径
      * 从不访问 binding——故非空类型对实际使用恒真，避免给全部编译时指令加 `!` 断言的噪音。
      */
-    binding: AutoTemplateScope;
+    binding: AutoSparkScope;
     /**
      * 宿主元素。scope 通道实例由构造从 `binding.el` 取得；Runtime 实例由 `initialize` 工厂注入。
      * 与 binding 解耦，两类通道统一通过 `this.el` 访问宿主。
@@ -147,14 +147,14 @@ export class AutoTemplateDirectiveBase {
      * @param info     原始指令信息（来自 getDirectives）；value/attr/modifiers/options 同时提取为便捷字段
      */
     constructor(
-        engine: AutoTemplateEngine,
-        binding: AutoTemplateScope | undefined,
+        engine: AutoSpark,
+        binding: AutoSparkScope | undefined,
         info: AutoDirectiveInfo,
     ) {
         this.engine = engine;
         // Runtime 实例 binding 为 undefined；断言为非空以让 scope 通道指令的 this.binding 访问类型安全
         // （Runtime 代码路径从不访问 binding，不变量恒真）。
-        this.binding = binding as AutoTemplateScope;
+        this.binding = binding as AutoSparkScope;
         this.info = info;
         this.value = info.value;
         this.attr = info.attr;

@@ -1,4 +1,4 @@
-import { AutoTemplateDirectiveBase } from "../../base";
+import { AutoSparkDirectiveBase } from "../../base";
 import { MODIFIERS } from "./modifiers";
 import { createEvalHandler } from "./eval";
 import type {
@@ -16,7 +16,7 @@ import type {
  *
  * `x-on:event` / `@event` 监听任意事件；响应函数统一抽象为 **Action**：
  * - **函数来源（Action 优先 + 表达式兜底）**：`@click="submit"` / `submit(args)` 先沿 scope 链查
- *   actions（局部 `<script type="actions">` → engine.actions），命中以 AutoTemplateActionContext 为 this
+ *   actions（局部 `<script type="autospark/actions">` → engine.actions），命中以 AutoSparkActionContext 为 this
  *   调用；否则退化到 `with(data)` 表达式求值（data 为聚合视图；`alert(1)`/`count++` 等仍可用）。详见 eval.ts。
  *
  * **修饰符管道**（按 descriptor.type 分派，见 modifiers/）：
@@ -27,7 +27,7 @@ import type {
  * **生命周期**：`created` 一次性构造 handler 并 addEventListener（事件是 push 模型，无需
  * scheduler/collectDependencies）；`destroy` 清 wrapper cleanup + removeEventListener。
  */
-export class OnDirective extends AutoTemplateDirectiveBase {
+export class OnDirective extends AutoSparkDirectiveBase {
     static override readonly priority = 50;
     static override readonly singleton = false;
 

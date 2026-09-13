@@ -1,0 +1,12 @@
+{
+    "code": 0,
+    "data": {
+        "title": "AutoSpark 异步数据源",
+        "books": [
+            { "name": "响应式状态管理", "price": 59 },
+            { "name": "声明式模板引擎", "price": 45 },
+            { "name": "细粒度更新", "price": 68 }
+        ],
+        "total": 3
+    }
+}

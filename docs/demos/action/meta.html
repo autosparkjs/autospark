@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>动作 · 对象写法与元数据</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 对象写法：{ title, icon, handle }——handle 必需，title/icon 等元数据随广播携带，handle 内 this.action 可达 -->
+        <div class="demo-app section">
+            <div class="block">
+                状态：<span class="tag is-medium" x-text="status">-</span>
+                <span class="tag is-medium is-primary" x-text="lastTitle">-</span>
+            </div>
+
+            <!-- 局部对象写法：与函数简写可混用，逐条独立判断形态 -->
+            <div class="card" x-data="{}">
+                <div class="card-content">
+                    <script type="autospark/actions">
+                        {
+                            // 函数简写：≡ { handle(v){...} }，一等公民形态
+                            reset() { this.engine.state.status = "已重置"; },
+                            // 对象写法：title/icon 为约定元数据键，其余自由键原样保留
+                            save: {
+                                title: "保存订单",
+                                icon: "content-save",
+                                danger: false,
+                                handle() {
+                                    this.engine.state.status = "已保存";
+                                    // this.action 自引用：读自身元数据
+                                    this.engine.state.lastTitle = this.action.title;
+                                }
+                            }
+                        }
+                    </script>
+                    <div class="buttons">
+                        <button class="button is-primary" @click="save">保存（对象写法）</button>
+                        <button class="button" @click="reset">重置（函数简写）</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { status: "初始", lastTitle: "（无）" },
+                {
+                    actions: {
+                        // 全局动作同样支持对象写法（三入口统一）
+                        exportData: {
+                            title: "导出数据",
+                            icon: "download",
+                            async handle() {
+                                await new Promise((r) => setTimeout(r, 300));
+                                this.engine.state.status = "已导出";
+                            },
+                        },
+                    },
+                },
+            );
+            // 总线 payload 携带完整描述符（ADR-0036）：消费者直接读元数据（如 toast 显示标题）
+            engine.on("actions/*/pending", (m) => {
+                console.log(`[${m.payload.action.title ?? m.payload.name}] 开始执行`);
+            });
+        </script>
+    </body>
+</html>

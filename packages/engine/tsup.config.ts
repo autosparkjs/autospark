@@ -13,14 +13,15 @@ export default defineConfig({
     dts: { resolve: true },
     splitting: true,
     sourcemap: true,
-    // IIFE 全局变量名（与 AutoStoreSpaces / AutoStoreSyncer 同风格）
-    // 暴露：window.AutoTemplateSpaces.AutoTemplateEngine
-    globalName: "AutoTemplateSpaces",
+    // IIFE 全局变量名
+    // 暴露：window.AutoSparkSpaces.AutoSpark，及 autostore 全量转导出成员（如 AutoSparkSpaces.AutoStore）
+    globalName: "AutoSparkSpaces",
     clean: true,
     treeshake: true,
     minify: true,
     // 自包含策略：将 autostore(core) 与 really-relaxed-json 打包进产物，
-    // 使文档站点 demo 仅需引入一个 template.js 即可运行（与 autoform.js 自包含策略一致）。
+    // 使文档站点 demo 仅需引入一个 autospark.js 即可运行（与 autoform.js 自包含策略一致）；
+    // 入口全量转导出 autostore，故 IIFE 全局下 AutoSparkSpaces.* 亦覆盖 AutoStore 完整 API（ADR-0030）。
     noExternal: ["autostore", "really-relaxed-json"],
     onSuccess: async () => {
         const cjsFile = readFileSync("dist/index.cjs");
@@ -36,7 +37,7 @@ export default defineConfig({
         // 复制 IIFE 产物到文档站点公共资源，供 <demo html> 引入
         fs.copyFileSync(
             path.resolve("./dist/index.global.js"),
-            path.resolve("../../docs/public/template.js"),
+            path.resolve("../../docs/public/autospark.js"),
         );
     },
 });

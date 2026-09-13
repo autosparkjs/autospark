@@ -1,4 +1,4 @@
-import type { AutoTemplateScope } from "../scope";
+import type { AutoSparkScope } from "../scope";
 import type { StyleBind } from "../utils/styleBind";
 
 /**
@@ -16,11 +16,11 @@ export type ComponentHookPhase = "created" | "mounted" | "beforeUnmount" | "unmo
 /**
  * 组件实例 methods 执行时的 this 上下文（ADR-0022 决策二-3）。
  *
- * 复用 `AutoTemplateActionContext` 形态——`data` 是 `scope.getContext()` 聚合视图（含组件 data 域，
+ * 复用 `AutoSparkActionContext` 形态——`data` 是 `scope.getContext()` 聚合视图（含组件 data 域，
  * 响应式、可读可写），`state` 是 `engine.store.state`。组件 methods 注入 `scope.actions` 后，
  * 由 x-on 的 action 求值器（`on/eval.ts`）构造此上下文并 `action.call(ctx, ...)` 调用。
  *
- * 本接口与 `AutoTemplateActionContext` 字段一致，单独声明以表达"组件 methods 的 this"语义。
+ * 本接口与 `AutoSparkActionContext` 字段一致，单独声明以表达"组件 methods 的 this"语义。
  */
 export interface ComponentMethodContext {
     /** 触发元素（x-on 的目标元素，组件内任意指令元素） */
@@ -30,7 +30,7 @@ export interface ComponentMethodContext {
     /** 组件聚合数据视图（localData + data(x-use 传入 + data() 返回) + 全局 state），响应式、可写 */
     data: Record<string, any>;
     /** 当前 scope */
-    scope: AutoTemplateScope;
+    scope: AutoSparkScope;
     [key: string]: any;
 }
 

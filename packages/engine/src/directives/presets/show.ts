@@ -1,4 +1,4 @@
-import { AutoTemplateDirectiveBase } from "../base";
+import { AutoSparkDirectiveBase } from "../base";
 
 /**
  * x-show：条件可见性。控制宿主**是否可见**，宿主**永留 DOM**。
@@ -14,7 +14,7 @@ import { AutoTemplateDirectiveBase } from "../base";
  *
  * 不占子树（ownsChildren=false），可与 x-for 同元素共存（x-for 占子树，本指令只切容器 display）。
  */
-export class ShowDirective extends AutoTemplateDirectiveBase {
+export class ShowDirective extends AutoSparkDirectiveBase {
     static override readonly priority = 80;
     static override readonly singleton = true;
 

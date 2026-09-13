@@ -1,4 +1,4 @@
-import { AutoTemplateDirectiveBase } from "../base";
+import { AutoSparkDirectiveBase } from "../base";
 import { createEmptyRenderer } from "../utils/emptyPlaceholder";
 
 /**
@@ -13,7 +13,7 @@ import { createEmptyRenderer } from "../utils/emptyPlaceholder";
  * （`display:none`，恢复时还原原内联 display）；二者并存 `.hide` 优先。空值/隐藏逻辑与 x-html
  * 共享 `createEmptyRenderer`（DRY）。动态 fallback 用主表达式 `x ?? msg`（empty 不响应式）。
  */
-export class TextDirective extends AutoTemplateDirectiveBase {
+export class TextDirective extends AutoSparkDirectiveBase {
     static override readonly priority = 0;
     static override readonly singleton = true;
 

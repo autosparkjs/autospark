@@ -8,7 +8,7 @@
 
 `#box` 是 `x-scope` 哨兵 scope。「重建子树」每次修改 `#box` 模板并触发子树重建（多出一个计数节点）；「只改 content」则走普通响应式，不重建结构。
 
-<demo html="template/patch/rebuild.html"/>
+<demo html="patch/rebuild.html"/>
 
 ## 指南
 

@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-data.global · 合并进全局</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
@@ -41,8 +41,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(document.querySelector(".demo-app"), {}, {
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {}, {
                 actions: {
                     // theme 经 x-data.global 注入全局 store 根键，直接改 engine.state 即可；
                     // 三块订阅了全局 theme 的视图都会同步更新（块 B/C 并非声明子树，照样收到）

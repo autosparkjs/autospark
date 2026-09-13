@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { AutoStore } from "autostore";
-import { AutoTemplateEngine } from "../engine";
+import { AutoSpark } from "../engine";
 import "./setup";
 import { mount, nextTick } from "./helpers";
 
@@ -37,7 +37,7 @@ describe("e2e - destroy 资源清理", () => {
         const store = new AutoStore({ name: "a" });
         const root = document.createElement("div");
         root.innerHTML = `<span x-text="name"></span>`;
-        const app = new AutoTemplateEngine(root, store);
+        const app = new AutoSpark(root, store);
         expect(root).toEqualHTML(`<div>
   <span>a</span>
 </div>`);
@@ -54,14 +54,14 @@ describe("e2e - destroy 资源清理", () => {
 
         const root1 = document.createElement("div");
         root1.innerHTML = `<span x-text="name"></span>`;
-        const app1 = new AutoTemplateEngine(root1, store);
+        const app1 = new AutoSpark(root1, store);
         app1.destroy();
 
         // store 仍存活，第二个引擎正常响应
         store.state.name = "b";
         const root2 = document.createElement("div");
         root2.innerHTML = `<span x-text="name"></span>`;
-        const app2 = new AutoTemplateEngine(root2, store);
+        const app2 = new AutoSpark(root2, store);
         expect(root2).toEqualHTML(`<div>
   <span>b</span>
 </div>`);

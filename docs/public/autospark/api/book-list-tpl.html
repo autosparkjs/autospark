@@ -1,0 +1,8 @@
+<div class="content">
+    <p class="mb-2">
+        <b x-text="title"></b> —— 共 <span class="has-text-primary" x-text="total"></span> 本（数据与模板均来自远程）
+    </p>
+    <ul>
+        <li x-for="b of books"><code x-text="b.name"></code> —— ￥<span x-text="b.price"></span></li>
+    </ul>
+</div>

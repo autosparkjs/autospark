@@ -1,4 +1,4 @@
-import { AutoTemplateDirectiveBase } from "../base";
+import { AutoSparkDirectiveBase } from "../base";
 
 /**
  * 判定 x-import 值是否为**字面量 url**（不经表达式求值，ADR-0022 决策六）。
@@ -38,7 +38,7 @@ function isLiteralUrl(raw: string): boolean {
  * @example 全局组件加载
  * <div x-import.global="/global-components.html"></div>
  */
-export class ImportDirective extends AutoTemplateDirectiveBase {
+export class ImportDirective extends AutoSparkDirectiveBase {
     /** 优先级与 x-use 协同（70）：import 须在编译期尽早发起，但不占子树 */
     static override readonly priority = 75;
     static override readonly singleton = true;

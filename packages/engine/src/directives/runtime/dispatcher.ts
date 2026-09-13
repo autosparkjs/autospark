@@ -14,13 +14,13 @@
  * **已知限制（与旧 loading observer 一致，刻意保留）**：attributeFilter 只含裸属性 `x-<name>`，
  * 故修饰符形式（如 `x-loading.screen`）的运行时**值变化**不触发 attrChanged；其增/删仍生效。
  */
-import type { AutoTemplateEngine } from "../../engine";
-import { DirectiveKind, AutoTemplateDirectiveBase, type RuntimeDirective } from "../base";
+import type { AutoSpark } from "../../engine";
+import { DirectiveKind, AutoSparkDirectiveBase, type RuntimeDirective } from "../base";
 import { getDirectives } from "../utils/getDirectives";
 
 /** runtime 指令注册条目：类引用 + 裸属性名 + 匹配属性变体的正则 */
 interface RuntimeEntry {
-    Cls: typeof AutoTemplateDirectiveBase;
+    Cls: typeof AutoSparkDirectiveBase;
     /** 裸属性名 `x-<name>`，用于 attributeFilter 与 hasAttribute 判定 */
     attr: string;
     /** 匹配 `x-<name>` 及修饰符形式 `x-<name>.<mod>`，`.` 边界避免误匹配 `x-<name>-state` */
@@ -28,11 +28,11 @@ interface RuntimeEntry {
 }
 
 export class RuntimeObserverDispatcher {
-    readonly engine: AutoTemplateEngine<any>;
+    readonly engine: AutoSpark<any>;
     /** name → 注册条目 */
     private registry = new Map<string, RuntimeEntry>();
     /** name → (el → 实例)；一个元素可挂多个 runtime 指令 */
-    private instances = new Map<string, Map<HTMLElement, AutoTemplateDirectiveBase>>();
+    private instances = new Map<string, Map<HTMLElement, AutoSparkDirectiveBase>>();
     private mo: MutationObserver | undefined;
     /**
      * slot 盲区根集合（ADR-0006 决策 8）：x-slot 宿主登记于此。
@@ -41,7 +41,7 @@ export class RuntimeObserverDispatcher {
      */
     private slotRoots = new Set<HTMLElement>();
 
-    constructor(engine: AutoTemplateEngine<any>) {
+    constructor(engine: AutoSpark<any>) {
         this.engine = engine;
     }
 
@@ -63,7 +63,7 @@ export class RuntimeObserverDispatcher {
     }
 
     /** 晚注册的 runtime 指令（DirectiveManager.set 触发）：入 registry → 重建 observer → 重扫该属性 */
-    onDirectiveRegistered(name: string, Cls: typeof AutoTemplateDirectiveBase): void {
+    onDirectiveRegistered(name: string, Cls: typeof AutoSparkDirectiveBase): void {
         if (this.registry.has(name)) return;
         this._register(name, Cls);
         this._buildObserver();
@@ -72,7 +72,7 @@ export class RuntimeObserverDispatcher {
         }
     }
 
-    private _register(name: string, Cls: typeof AutoTemplateDirectiveBase): void {
+    private _register(name: string, Cls: typeof AutoSparkDirectiveBase): void {
         const attr = `x-${name}`;
         this.registry.set(name, { Cls, attr, attrRe: new RegExp(`^x-${name}(\\.|$)`) });
     }

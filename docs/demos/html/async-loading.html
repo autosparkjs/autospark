@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-html · 远程异步 HTML 源 · x-loading 三种配合</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 远程异步 HTML 源（ADR-0035）· 加载反馈对照：x-loading 覆盖层与 x-fallback 的三种配合。
+             每块「重新加载」按钮改写 url 插值（t={tick} query 变化 → 自动重取，延迟 1.5s）——
+             重取期间旧内容保留，加载过程清晰可见。注意：x-html 无 $loading/$error 元键，
+             反馈纯视觉（覆盖层 / fallback），这是与 x-data 异步反馈的关键差异。 -->
+        <div class="demo-app section">
+            <!-- 块 A：无 x-fallback → 默认合成 x-loading 覆盖层（盖在旧内容上，旧值保留） -->
+            <div class="card">
+                <div class="card-content">
+                    <div class="heading has-text-grey">块 A · 默认合成覆盖层（无 x-fallback）</div>
+                    <div class="block" x-html="/autospark/api/card-zh.html?delay=1500&t={aTick}"></div>
+                    <div class="buttons">
+                        <button class="button is-primary is-small" @click="reloadA">重新加载</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 B：x-fallback + loading:{...} 显式并存——首载由 fallback 占位；
+                 重取时 fallback 不闪现（保旧值），覆盖层显式叠加（自定义文案） -->
+            <div class="card">
+                <div class="card-content">
+                    <div class="heading has-text-grey">块 B · x-fallback + loading 显式并存</div>
+                    <div class="block"
+                        x-html="/autospark/api/card-zh.html?delay=1500&t={bTick}"
+                        x-html-options="{loading:{message:'正在重新加载片段…', color:'#ffffff'}}">
+                        <div class="notification is-warning is-light" x-fallback>⏳ 首次加载…</div>
+                    </div>
+                    <div class="buttons">
+                        <button class="button is-primary is-small" @click="reloadB">重新加载</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 C：loading:false 恒关——无覆盖层无 fallback，加载过程无任何自动指示（对比） -->
+            <div class="card">
+                <div class="card-content">
+                    <div class="heading has-text-grey">块 C · loading:false 恒关（对比）</div>
+                    <div class="block"
+                        x-html="/autospark/api/card-zh.html?delay=1500&t={cTick}"
+                        x-html-options="{loading:false}"></div>
+                    <div class="buttons">
+                        <button class="button is-primary is-small" @click="reloadC">重新加载</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                // 三个 tick 独立驱动各自块的 url 变化（t query → 重取）
+                { aTick: 0, bTick: 0, cTick: 0 },
+                {
+                    actions: {
+                        reloadA: function () { this.state.aTick = this.state.aTick + 1; },
+                        reloadB: function () { this.state.bTick = this.state.bTick + 1; },
+                        reloadC: function () { this.state.cTick = this.state.cTick + 1; },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

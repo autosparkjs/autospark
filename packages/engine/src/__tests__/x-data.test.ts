@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
 import { mount, nextTick } from "./helpers";
-import type { AutoTemplateEngine } from "../engine";
+import type { AutoSpark } from "../engine";
 
 /**
  * 在引擎中找到指定渲染元素对应的 scope 并销毁。
  * 用于多实例碰撞测试精确控制单个 x-data.global 实例的销毁顺序（engine.destroy 会无序全销毁）。
  */
-function destroyScopeFor(engine: AutoTemplateEngine, el: Element): void {
+function destroyScopeFor(engine: AutoSpark, el: Element): void {
     for (const scope of engine.scopes.values()) {
         if (scope.el === el) {
             scope.destroy();

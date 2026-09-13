@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-data · 私有响应式域</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
@@ -18,13 +18,12 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 {},
                 {
                     actions: {
-                        // this.data 是 AutoTemplateActionContext 的聚合视图；写 times 经 set 陷阱透传到
+                        // this.data 是 AutoSparkActionContext 的聚合视图；写 times 经 set 陷阱透传到
                         // 本层私有响应式域（store.state._scopes[id].times），触发细粒度更新。
                         bump: function () {
                             this.data.times = this.data.times + 1;

@@ -1,6 +1,6 @@
-import { AutoTemplateDirectiveBase } from "../base";
+import { AutoSparkDirectiveBase } from "../base";
 import type { ComponentDef } from "../component-def";
-import type { AutoTemplateScope } from "../../scope";
+import type { AutoSparkScope } from "../../scope";
 import { releaseComponentStyle } from "../../utils/scopedStyle";
 
 /**
@@ -42,7 +42,7 @@ function isLiteralComponentName(raw: string): boolean {
  * @example 传 props（注入组件 data 域，覆盖 data() 默认）
  * <div x-use="{ label: '外部传入' }"></div>
  */
-export class UseDirective extends AutoTemplateDirectiveBase {
+export class UseDirective extends AutoSparkDirectiveBase {
     /** 介于结构指令（if=80/for=100）之下、普通指令之上，保证 x-use 在兄弟指令前实例化 */
     static override readonly priority = 70;
     static override readonly singleton = true;
@@ -51,7 +51,7 @@ export class UseDirective extends AutoTemplateDirectiveBase {
     private static readonly MAX_DEPTH = 100;
 
     /** 当前实例化的组件实例 scope（destroy 时级联销毁） */
-    private instanceScope: AutoTemplateScope | null = null;
+    private instanceScope: AutoSparkScope | null = null;
     /** 当前实例化的组件名（用于递归深度统计 + props 更新时重新取组件） */
     private componentName: string | null = null;
     /** 当前实例化的组件 def（缓存，props 更新时复用） */
@@ -288,7 +288,7 @@ export class UseDirective extends AutoTemplateDirectiveBase {
      */
     private _recursiveDepth(name: string): number {
         let depth = 0;
-        let s: AutoTemplateScope | null = this.binding.parent;
+        let s: AutoSparkScope | null = this.binding.parent;
         while (s) {
             if (s.isComponent && s.componentName === name) depth++;
             s = s.parent;

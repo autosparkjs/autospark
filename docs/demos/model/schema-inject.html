@@ -4,9 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-model · 字段元数据自动注入</title>
-        <script src="/autostore/autostore.js"></script>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
@@ -43,15 +42,14 @@
         </div>
 
         <script>
-            const { configurable, ConfigManager } = AutoStoreSpaces;
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
+            const { configurable, ConfigManager } = AutoSparkSpaces;
 
             const cm = new ConfigManager(
                 { load: async () => ({}), save: async () => {} },
                 { autoload: false, global: false },
             );
 
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 {
                     form: {

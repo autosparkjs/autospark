@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
 import { AutoStore, ConfigManager, computed, configurable } from "autostore";
-import { AutoTemplateEngine } from "../engine";
+import { AutoSpark } from "../engine";
 import { mount, nextTick } from "./helpers";
 
 /**
@@ -33,7 +33,7 @@ function mountWithConfig(
         configManager,
         configKey: opts.configKey,
     } as any);
-    const engine = new AutoTemplateEngine(root, store);
+    const engine = new AutoSpark(root, store);
     return { root, store, engine, configManager };
 }
 
@@ -415,7 +415,7 @@ function mountWithConfigComputed(html: string, state: any) {
         { autoload: false, global: false },
     );
     const store = new AutoStore(state, { configManager, configKey: "" } as any);
-    const engine = new AutoTemplateEngine(root, store);
+    const engine = new AutoSpark(root, store);
     return { root, store, engine, configManager };
 }
 

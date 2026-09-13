@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-if.keepalive · 分支链每分支独立保活</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- keepalive + 分支链：每个渲染过的分支独立保活，切回时输入等运行态保留 -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button is-primary" @click="toggle">{{ on ? "切到分支" : "回到主内容" }}</button>
+            </div>
+            <div x-if.keepalive="on">
+                <div class="card">
+                    <div class="card-content">
+                        <p>主内容（keepalive：切走保活）</p>
+                        <input class="input" placeholder="在这里输入，切走再切回试试" />
+                    </div>
+                </div>
+                <div x-else class="card">
+                    <div class="card-content">
+                        <p>兜底分支（独立保活）</p>
+                        <input class="input" placeholder="分支里的输入也会被保留" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { on: true },
+                {
+                    actions: {
+                        toggle: () => {
+                            engine.state.on = !engine.state.on;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

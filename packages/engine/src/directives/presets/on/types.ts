@@ -10,7 +10,8 @@
  */
 
 import type { AnyAutoStore } from "autostore";
-import type { AutoTemplateScope } from "../../../scope";
+import type { AutoSparkScope } from "../../../scope";
+import type { ActionDesc } from "../../../actions/types";
 
 /** addEventListener 第 3 参的子集（option 类修饰符可产出的字段） */
 export type EventListenerOptionsSubset = Pick<
@@ -81,7 +82,7 @@ export type ModifierDesc = OptionModifierDesc | GuardModifierDesc | WrapperModif
  * 命中 engine.actions 或 scope 局部 action 时，以本对象为 `this` 调用；
  * `$event` 亦作为表达式求值器的形参注入。
  */
-export interface AutoTemplateActionContext {
+export interface AutoSparkActionContext {
     /** 触发元素 */
     el: HTMLElement;
     /** 原生事件对象 */
@@ -93,10 +94,10 @@ export interface AutoTemplateActionContext {
      */
     data: any;
     /**
-     * 当前 AutoTemplateScope 实例：提供 `data` / `getData()` / `engine` / `parent` 等，
+     * 当前 AutoSparkScope 实例：提供 `data` / `getData()` / `engine` / `parent` 等，
      * 供 action 做深层访问与写入（区别于只读的 `data` 聚合视图）。
      */
-    scope: AutoTemplateScope;
+    scope: AutoSparkScope;
     /** AutoStore 实例 */
     store: AnyAutoStore;
     state: Record<string, any>;
@@ -109,4 +110,14 @@ export interface AutoTemplateActionContext {
      * action 经 `this.$options.xxx` 读取配置；只读，写入静默失败（配置静态）。
      */
     $options: Record<string, any>;
+    /**
+     * **动作自引用**（ADR-0036 决策 4）：指向当前执行的 action 自身的规范化描述符
+     * （ActionDesc 活引用）。handle 内经 `this.action.title` / `this.action.icon` 读写
+     * 元数据（可写但无响应式承诺）、`this.action.name` 读注册名；`this.action.handle(...)`
+     * 递归调用会再次触发完整生命周期广播。
+     *
+     * 由 buildAction 在 handle 调用时就地注入（仅 action 调用路径可达；组件 method /
+     * 表达式路径无此字段；命令式 `.handle(...)` 直调时 this 非 ctx，同样不可达）。
+     */
+    action?: ActionDesc;
 }

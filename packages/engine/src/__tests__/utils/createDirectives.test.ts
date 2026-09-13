@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { AutoStore } from "autostore";
-import { AutoTemplateScope } from "../../scope";
+import { AutoSparkScope } from "../../scope";
 import { createDirectives } from "../../directives/utils/createDirectives";
-import { AutoTemplateDirectiveBase } from "../../directives/base";
+import { AutoSparkDirectiveBase } from "../../directives/base";
 import type { AutoDirectiveInfo } from "../../directives/types";
-import { AutoTemplateEngine } from "../../engine";
+import { AutoSpark } from "../../engine";
 
 /**
  * 测试用指令类
@@ -12,27 +12,27 @@ import { AutoTemplateEngine } from "../../engine";
  * priority/singleton 经静态字段声明（createDirectives 实例化前据此排序/去重）。
  * 指令名通过 `engine.directives.set(name, Cls)` 注册，不依赖 static name。
  */
-class HighPrioSingleton extends AutoTemplateDirectiveBase {
+class HighPrioSingleton extends AutoSparkDirectiveBase {
     static override readonly priority = 100;
 }
-class LowPrioSingleton extends AutoTemplateDirectiveBase {
+class LowPrioSingleton extends AutoSparkDirectiveBase {
     static override readonly priority = 10;
 }
-class MultiInstance extends AutoTemplateDirectiveBase {
+class MultiInstance extends AutoSparkDirectiveBase {
     static override readonly priority = 50;
     static override readonly singleton = false;
 }
-class SamePrioA extends AutoTemplateDirectiveBase {
+class SamePrioA extends AutoSparkDirectiveBase {
     static override readonly priority = 30;
 }
-class SamePrioB extends AutoTemplateDirectiveBase {
+class SamePrioB extends AutoSparkDirectiveBase {
     static override readonly priority = 30;
 }
 
 /** 构造最小可用 engine（不自动编译），并注册测试指令类 */
-function makeEngine(): AutoTemplateEngine<any> {
+function makeEngine(): AutoSpark<any> {
     const store = new AutoStore({ count: 0 });
-    const engine = new AutoTemplateEngine(document.createElement("div"), store, {
+    const engine = new AutoSpark(document.createElement("div"), store, {
         autostart: false,
     });
     engine.directives.set("high", HighPrioSingleton);
@@ -43,8 +43,8 @@ function makeEngine(): AutoTemplateEngine<any> {
     return engine;
 }
 
-function makeBinding(engine: AutoTemplateEngine<any>): AutoTemplateScope {
-    return new AutoTemplateScope(
+function makeBinding(engine: AutoSpark<any>): AutoSparkScope {
+    return new AutoSparkScope(
         engine,
         document.createElement("div"),
         document.createElement("div"),
@@ -53,9 +53,9 @@ function makeBinding(engine: AutoTemplateEngine<any>): AutoTemplateScope {
 
 /** 包装 createDirectives，自动注入测试用 binding */
 function buildDirectives(
-    engine: AutoTemplateEngine<any>,
+    engine: AutoSpark<any>,
     infos: AutoDirectiveInfo[],
-): AutoTemplateDirectiveBase[] {
+): AutoSparkDirectiveBase[] {
     return createDirectives(engine, infos, makeBinding(engine));
 }
 

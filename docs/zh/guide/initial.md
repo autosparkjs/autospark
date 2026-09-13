@@ -2,27 +2,26 @@
 
 ## 概述
 
-`AutoTemplateEngine` 是模板渲染引擎的核心类。使用流程固定为三步：**选中挂载元素 → 传入状态 → 构造引擎**。本章讲清构造器的三个参数、状态句柄、生命周期方法，以及引擎事件总线。
+`AutoSpark` 是模板渲染引擎的核心类。使用流程固定为三步：**选中挂载元素 → 传入状态 → 构造引擎**。本章讲清构造器的三个参数、生命周期方法，以及引擎事件总线。
 
 ## 指南
 
 ### 构造引擎
 
 ```typescript
-new AutoTemplateEngine(el, store | state, options?)
+new AutoSpark(el, store | state, options?)
 ```
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
 | `el` | `HTMLElement` | 挂载根元素，必传。引擎编译模板并把产物挂到该元素下 |
 | 第二参 | `AutoStore \| State` | 数据源：`AutoStore` 实例（借用）或裸状态对象（引擎自建 store） |
-| `options` | `Partial<AutoTemplateEngineOptions>` | 可选配置 |
+| `options` | `Partial<AutoSparkOptions>` | 可选配置 |
 
 ```javascript
-const { AutoTemplateEngine } = AutoTemplateSpaces;
 
 // 传入裸状态：引擎自动建立 store 并拥有它
-const engine = new AutoTemplateEngine(document.getElementById("app"), {
+const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {
     user: { name: "张三" },
 });
 ```
@@ -35,39 +34,26 @@ const engine = new AutoTemplateEngine(document.getElementById("app"), {
 - **传裸状态对象**（自建）：引擎内部 `new AutoStore(state)`。`engine.destroy()` **会**销毁它，回收 computed / 订阅 / Proxy 等资源。
 
 ```javascript
-import { AutoStore } from "autostore";
+import { AutoStore } from "autospark";
 
 // 借用：外部建好的 store
 const store = new AutoStore({ count: 0 });
-const engine = new AutoTemplateEngine(el, store);
+const engine = new AutoSpark(el, store);
 
 // 自建：直接传裸状态
-const engine2 = new AutoTemplateEngine(el, { count: 0 });
+const engine2 = new AutoSpark(el, { count: 0 });
 ```
-
-::: warning 种子状态建后即弃
-传裸状态时，原对象只作**初始种子**——建 store 后它失去响应性。后续读写一律用 `engine.state`（响应式句柄），直接改原种子对象**不会**触发更新。
-:::
 
 #### 配置选项
 
 ```typescript
-interface AutoTemplateEngineOptions {
+interface AutoSparkOptions {
     autostart?: boolean; // 构造后是否立即编译，默认 true
     debug?: boolean; // 调试日志，默认 false
     actions?: Record<string, (...args) => any>; // 全局动作表
     sanitizer?: (html: string) => string; // x-html 的 HTML 消毒器
     storeOptions?: AutoStoreOptions; // 自建 store 时的配置（仅裸状态路径消费）
 }
-```
-
-### 状态句柄
-
-`engine.state` 等价于 `engine.store.state`——响应式状态树的根。**改它就触发更新**：
-
-```javascript
-engine.state.user.name = "李四"; // 订阅了 user.name 的指令自动刷新
-engine.state.order.count += 1;
 ```
 
 ### 生命周期
@@ -80,7 +66,7 @@ engine.state.order.count += 1;
 | `destroy()` | 彻底销毁：清调度队列、销毁所有 scope、断开 observer；自建 store 一并销毁 |
 
 ```javascript
-const engine = new AutoTemplateEngine(el, state, { autostart: false });
+const engine = new AutoSpark(el, state, { autostart: false });
 engine.start(); // 手动启动
 // ...
 engine.stop(); // 暂停（DOM 移除，订阅保留）
@@ -108,4 +94,4 @@ engine.on("actions/*/*", ({ name }) => console.log("任一动作事件", name));
 
 ---
 
-下一步：[响应式](./reactive.md)了解状态如何驱动 DOM。
+下一步：[状态](./state.md)了解状态声明与响应式机制。

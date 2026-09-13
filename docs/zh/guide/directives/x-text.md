@@ -14,7 +14,7 @@
 
 下面的例子展示 `x-text` 最典型的用法：绑定路径、绑定表达式、随状态自动更新。点击按钮改状态，文本立即变化。
 
-<demo html="template/text/base.html"/>
+<demo html="text/base.html"/>
 
 ```html
 <div id="app">
@@ -26,8 +26,7 @@
 </div>
 
 <script>
-    const { AutoTemplateEngine } = AutoTemplateSpaces;
-    const engine = new AutoTemplateEngine(document.getElementById("app"), {
+    const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {
         user: { name: "张三" },
         order: { price: 18, count: 3 },
     });
@@ -42,7 +41,7 @@
 
 除了 `x-text`，还可以在**文本节点**中直接用双花括号插值（花括号内写路径或表达式），效果与 `x-text` 等价——响应式、随状态自动更新。
 
-<demo html="template/text/interpolation.html"/>
+<demo html="text/interpolation.html"/>
 
 ```html
 <!-- 路径插值 -->
@@ -61,19 +60,19 @@
 
 指令值是一个状态路径，引擎会订阅该路径对应的值，支持任意深度。
 
-<demo html="template/text/path.html"/>
+<demo html="text/path.html"/>
 
 ```html
 <span x-text="user.name"></span> <span x-text="user.address.city"></span>
 ```
 
-路径遵循当前 `scope` 的相对路径规则（在 `x-for` 项内、`x-data` 局部作用域内可写相对路径，详见[响应式](../reactive.md)）。
+路径遵循当前 `scope` 的相对路径规则（在 `x-for` 项内、`x-data` 局部作用域内可写相对路径，详见[响应式](../state.md)）。
 
 ### 绑定任意表达式
 
 指令值不限于路径，可以是任意 JavaScript 表达式，引擎自动收集表达式中访问到的所有状态依赖。
 
-<demo html="template/text/expression.html"/>
+<demo html="text/expression.html"/>
 
 ```html
 <!-- 算术 -->
@@ -90,10 +89,10 @@
 
 只要改响应式状态（`engine.state.*`），所有订阅了该状态的 `x-text` 会在下一个微任务里批量刷新。
 
-<demo html="template/text/reactive.html"/>
+<demo html="text/reactive.html"/>
 
 ```javascript
-const engine = new AutoTemplateEngine(el, { count: 0 });
+const engine = new AutoSpark(el, { count: 0 });
 // 同一 tick 内多次赋值，只触发一次 DOM 更新（调度器合并）
 engine.state.count = 1;
 engine.state.count = 2;
@@ -108,10 +107,10 @@ engine.state.count = 3; // 最终渲染 "3"，仅写一次 textContent
 
 `x-text` 默认把 `null` / `undefined` / `NaN` 渲染为空字符串（而非字面 `"null"` / `"undefined"` / `"NaN"`），其余值经 `String()` 转换。`0` / `""` / `false` 默认**不**算空（`0` 显示 `"0"`）。
 
-<demo html="template/text/nullish.html"/>
+<demo html="text/nullish.html"/>
 
 ```javascript
-const engine = new AutoTemplateEngine(el, { user: { nickname: undefined } });
+const engine = new AutoSpark(el, { user: { nickname: undefined } });
 // 渲染为空：<span></span>，而不是 <span>undefined</span>
 engine.state.user.nickname = "老张"; // → <span>老张</span>
 ```
@@ -124,7 +123,7 @@ engine.state.user.nickname = "老张"; // → <span>老张</span>
 
 值为空时默认渲染空串。可通过 `x-text-options` 的 `empty` 指定占位文案，用 `emptyValues` 追加「也算空」的值。
 
-<demo html="template/text/empty.html"/>
+<demo html="text/empty.html"/>
 
 ```html
 <!-- 值为空时显示「暂无数据」 -->
@@ -154,7 +153,7 @@ engine.state.user.nickname = "老张"; // → <span>老张</span>
 
 加上 `.hide` 后，绑定值为空时不再写占位文案，而是把**整个宿主元素** `display: none`（隐藏且不占位）；值恢复非空时还原原来的 `display`（如原来是 `flex` 就恢复 `flex`）。
 
-<demo html="template/text/hide.html"/>
+<demo html="text/hide.html"/>
 
 ```html
 <!-- user.name 为空时，整张卡片消失；有值时显示并还原 display:flex -->
@@ -187,4 +186,4 @@ engine.state.user.nickname = "老张"; // → <span>老张</span>
 - **与 `x-html` 同元素时让步**：同一元素同时声明 `x-text` 与 `x-html` 时，`x-html` 优先，`x-text` 静默不生效（避免二者竞争写入内容）。需要渲染 HTML 片段请用 [x-html](./x-html.md)。
 - **空指令值会被忽略**：`<span x-text="">` 不报错，但也不会绑定任何东西。
 - **`x-text` 会转义内容**：绑定值始终作为纯文本写入 `textContent`，HTML 标签会被转义显示。需要注入 HTML 请用 `x-html`。
-- **原始 HTML 中的插值语法**：在不使用 `x-text` 的元素里，文本节点里的双花括号插值同样会响应式更新，详见[响应式](../reactive.md)。
+- **原始 HTML 中的插值语法**：在不使用 `x-text` 的元素里，文本节点里的双花括号插值同样会响应式更新，详见[响应式](../state.md)。

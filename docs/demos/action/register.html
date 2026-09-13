@@ -4,12 +4,12 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>动作 · 全局与局部注册</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
-        <!-- 全局动作 engine.actions 全模板可见；局部动作 <script type="actions"> 沿 scope 父链优先命中 -->
+        <!-- 全局动作 engine.actions 全模板可见；局部动作 <script type="autospark/actions"> 沿 scope 父链优先命中 -->
         <div class="demo-app section">
             <div class="block">全局消息：<span class="has-text-primary has-text-weight-semibold" x-text="msg"></span></div>
             <!-- 外层按钮：本 scope 无局部 ping → 命中全局 ping -->
@@ -21,7 +21,7 @@
                 <div class="card-content">
                     <div class="block">块内消息：<span class="has-text-primary has-text-weight-semibold" x-text="localMsg"></span></div>
                     <!-- 局部动作：仅本 scope 子树可见，同名覆盖全局 -->
-                    <script type="actions">
+                    <script type="autospark/actions">
                         {
                             ping(who) {
                                 this.data.localMsg = `局部 ping 命中（来自 ${who}）`;
@@ -37,8 +37,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 { msg: "（无）" },
                 {

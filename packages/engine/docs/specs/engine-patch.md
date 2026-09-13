@@ -5,13 +5,13 @@
 
 ## Problem Statement
 
-AutoStore Template 引擎支持**初始化全量编译**与**值层面细粒度更新**(各指令自行订阅 + 微任务合并 patch),但缺少**运行时动态修改模板结构**(插入/删除/替换含指令或插值的片段)的能力。
+AutoSpark 引擎支持**初始化全量编译**与**值层面细粒度更新**(各指令自行订阅 + 微任务合并 patch),但缺少**运行时动态修改模板结构**(插入/删除/替换含指令或插值的片段)的能力。
 
 全量重编译会重建整棵运行树,**丢失未改动子树的运行态**:输入焦点、滚动位置、未提交的表单值、第三方 widget 注入的状态。开发者需要一种方式,在运行时向已渲染的界面动态注入/修改/移除**响应式**模板片段,且只更新受影响的部分——而非整树抖动。
 
 ## Solution
 
-为 `AutoTemplateEngine` 提供 **`engine.patch(selector, updater)`**——一个回调式的**模板增量编译**入口。开发者通过 CSS selector 定位模板中的某个 scope 元素,在 `updater` 回调里就地修改该元素的模板子树;引擎据 `updater` 返回值(四态)增量重建对应子树,**保留其余运行态**。
+为 `AutoSpark` 提供 **`engine.patch(selector, updater)`**——一个回调式的**模板增量编译**入口。开发者通过 CSS selector 定位模板中的某个 scope 元素,在 `updater` 回调里就地修改该元素的模板子树;引擎据 `updater` 返回值(四态)增量重建对应子树,**保留其余运行态**。
 
 `engine.template` 是**唯一事实源**(单向):patch 只经修改模板触发增量同步,**不提供**运行树→模板的反向桥。
 
@@ -65,7 +65,7 @@ AutoStore Template 引擎支持**初始化全量编译**与**值层面细粒度�
 
 - **好测试的标准**:只测 patch 的**外部可观察行为**(运行树 DOM 结果、响应式更新、事件广播、误用守卫),**不测**内部方法(`getScopeByTemplate`/`scopeOwnsChildren`/`compileChildNodes`)的实现细节——它们经 patch 的外部行为完整覆盖。
 - **seam**:**单一 engine 级 seam**。`mount(html, state)` 构造引擎 → `engine.patch(selector, updater)` → `toEqualHTML` 断言运行树;响应式用例配合 `nextTick`;事件用例 `on` + 断言回调。与所有现有指令测试(`x-text`/`x-if`/`x-for`/`x-slot`)同构。零新 seam。
-- **被测面**:`AutoTemplateEngine.patch`(公开 API),经引擎级用例覆盖内部 compiler/scope/dispatcher 协作。
+- **被测面**:`AutoSpark.patch`(公开 API),经引擎级用例覆盖内部 compiler/scope/dispatcher 协作。
 - **prior art**:`x-text.test.ts`(绑定 + 响应式)、`e2e.test.ts`(scheduler/destroy)、`x-slot.test.ts`(结构指令 + 生命周期)、`core-scopes-contract.test.ts`(响应式契约)。复用 helpers 的 `mount`/`nextTick`、setup 的 `toEqualHTML` matcher、format 的归一。
 - **覆盖矩阵**:四态(子树重建 / 替换 Node / 替换字符串单节点 / 替换字符串多节点 / 删除 `null` / 空串 = 删除)+ 边界(纯静态裸元素拒绝、含插值裸元素可 patch、动态区域 `x-for` 拒绝、updater 抛错不重建)+ 哨兵(`x-scope`)+ 响应式(patch 后改 state 更新)+ 兄弟子树运行态保留 + 事件广播。
 

@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-component · 就近覆盖与全局兜底</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
             .panel {
                 position: relative;
@@ -83,12 +83,12 @@
                         <div class="local-dots"><span></span><span></span><span></span></div>
                         <div class="tag-line">局部块（跳动点）</div>
                     </div>
-                    <div class="card panel" x-loading="{ visible:'on' }"><div class="card-content">局部块覆盖</div></div>
+                    <div class="card panel" x-loading="{ value:'on' }"><div class="card-content">局部块覆盖</div></div>
                 </div>
 
                 <!-- ② 此 scope 无局部 loading 块 → 沿链无命中 → 兜底全局块（旋转环） -->
                 <div x-scope class="column">
-                    <div class="card panel" x-loading="{ visible:'on' }"><div class="card-content">全局块兜底</div></div>
+                    <div class="card panel" x-loading="{ value:'on' }"><div class="card-content">全局块兜底</div></div>
                 </div>
             </div>
 
@@ -98,8 +98,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 { on: true },
                 {

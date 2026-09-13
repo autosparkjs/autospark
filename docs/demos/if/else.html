@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-if · 条件分支链 x-else-if / x-else</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 分支链：主表达式假时按文档顺序取首个真的 x-else-if，全假走裸 x-else 兜底 -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button is-primary" @click="set(1)">主内容</button>
+                <button class="button" @click="set(-1)">分支 1</button>
+                <button class="button is-info" @click="set(-2)">分支 2</button>
+                <button class="button is-warning" @click="set(-3)">兜底</button>
+            </div>
+            <div x-if="level >= 0">
+                <div class="card"><div class="card-content">then：level ≥ 0（当前 {{ level }}）</div></div>
+                <div x-else-if="level === -1" class="card"><div class="card-content">分支 1：level === -1</div></div>
+                <div x-else-if="level === -2" class="card"><div class="card-content">分支 2：level === -2</div></div>
+                <div x-else class="card"><div class="card-content">兜底：其余取值（当前 {{ level }}）</div></div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { level: 1 },
+                {
+                    actions: {
+                        set: (n) => {
+                            engine.state.level = n;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

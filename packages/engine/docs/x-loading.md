@@ -16,11 +16,11 @@
 | **opacity（alpha）** | 遮罩底色的不透明度，默认 `0.5`；映射为 bgColor 的 alpha 通道，**非**元素 `style.opacity` |
 | **loader 动画** | 覆盖层中央的旋转圆环（给定 CSS），颜色由 `color` 控制（默认灰 `#888`） |
 | **message** | loader 下方可选文本，默认不渲染；存在时固定白色 |
-| **visible 表达式** | 决定覆盖层显隐的**全局 store** 路径/表达式，truthy 显示、falsy 移除 |
-| **字面量模式** | 裸 `x-loading` / 缺省 visible ≡ `true`；`"true"`/`"false"` 为特殊布尔字面量（非路径）→ 静态显隐、无订阅 |
-| **快速绑定** | 字符串语法 `x-loading="isLoading"`：整个值即 visible 表达式，配置全默认 |
-| **配置绑定** | 对象语法 `x-loading="{visible,message,...}"`：字段化配置 |
-| **防闪烁（delay）** | visible 变 true 后延迟 N ms 才真正显示；延迟窗口内回 false 则不显示 |
+| **value 表达式** | 决定覆盖层显隐的**全局 store** 路径/表达式，truthy 显示、falsy 移除 |
+| **字面量模式** | 裸 `x-loading` / 缺省 value ≡ `true`；`"true"`/`"false"` 为特殊布尔字面量（非路径）→ 静态显隐、无订阅 |
+| **快速绑定** | 字符串语法 `x-loading="isLoading"`：整个值即 value 表达式，配置全默认 |
+| **配置绑定** | 对象语法 `x-loading="{value,message,...}"`：字段化配置 |
+| **防闪烁（delay）** | value 变 true 后延迟 N ms 才真正显示；延迟窗口内回 false 则不显示 |
 | **运行时指令** | `DirectiveKind.Runtime`：编译器致盲（不建 scope），属性保留在结果 DOM，由 observer 通道驱动生命周期 |
 | **observer 通道** | `static initialize` 在 engine.el 上建立的 MutationObserver，检测 `x-loading` 元素的 add/remove/attr-change，分别触发 `mounted`/`unmounted`/`attrChanged` |
 
@@ -34,22 +34,22 @@
 <div x-loading="true"></div>                <!-- 字面量 true：显示 -->
 <div x-loading="false"></div>               <!-- 字面量 false：隐藏 -->
 
-<!-- 快速绑定：值 = visible 表达式（全局 store 路径），全默认配置 -->
+<!-- 快速绑定：值 = value 表达式（全局 store 路径），全默认配置 -->
 <div x-loading="order.isSubmit"></div>
 <div x-loading="isLoading"></div>          <!-- isLoading 须为全局 store 状态 -->
 
-<!-- 配置绑定：对象，visible 可省略（省略 ≡ true） -->
-<div x-loading="{ message:'正在加载', bgColor:'white', color:'red', visible:'isLoading', opacity:0.5, delay:300 }"></div>
+<!-- 配置绑定：对象，value 可省略（省略 ≡ true） -->
+<div x-loading="{ message:'正在加载', bgColor:'white', color:'red', value:'isLoading', opacity:0.5, delay:300 }"></div>
 ```
 
 **值类型判定**（优先级从高到低）：
-1. **字面量布尔**：空值（裸 `x-loading` / 配置缺省 visible）≡ `true`；`"true"` / `"false"`（大小写不敏感）为特殊布尔字面量，**非**状态路径 → 静态显隐、无订阅；
+1. **字面量布尔**：空值（裸 `x-loading` / 配置缺省 value）≡ `true`；`"true"` / `"false"`（大小写不敏感）为特殊布尔字面量，**非**状态路径 → 静态显隐、无订阅；
 2. **配置绑定**：`this.value` trim 后以 `{` 开头 → `really-relaxed-json` 解析对象；
-3. **快速绑定**：其余 → 整值作 visible 表达式（全局路径/表达式）。
+3. **快速绑定**：其余 → 整值作 value 表达式（全局路径/表达式）。
 
-> 直觉：**没说何时显示，就总是显示**。故裸属性、缺省 visible、`"true"` 都显示；`"false"` 隐藏；其余才按状态路径反应式控制。
+> 直觉：**没说何时显示，就总是显示**。故裸属性、缺省 value、`"true"` 都显示；`"false"` 隐藏；其余才按状态路径反应式控制。
 
-> **⚠️ visible 只解析全局 store 路径/表达式**：x-loading 是运行时指令，无 scope 上下文，visible 经
+> **⚠️ value 只解析全局 store 路径/表达式**：x-loading 是运行时指令，无 scope 上下文，value 经
 > `engine.store.watch` 订阅。**不支持** x-data 局部变量、x-for item 等 scope 相对表达式。需要局部
 > 状态控制 loading 时，请将该状态提升到全局 store，或改用编译时指令方案。详见
 > [ADR-0001 §方案 A 反应式降级](./adr/0001-directive-kind-system.md)。
@@ -58,7 +58,7 @@
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `visible` | string | — | **配置绑定必填**；visible 表达式（路径或表达式） |
+| `value` | string | — | **配置绑定必填**；value 表达式（路径或表达式）。缺失 ≡ true（命令式 overlay 契约）；旧键 `visible` 已废弃（warn + 忽略） |
 | `message` | string | `undefined` | 可选文本；不传则不渲染文字层 |
 | `bgColor` | string | `"black"` | 遮罩底色（任意合法 CSS 颜色） |
 | `color` | string | `"#888"` | loader 动画色（任意合法 CSS 颜色） |
@@ -122,7 +122,7 @@ el.removeAttribute('x-loading');               // 删除属性 → 卸载实例�
 
 ### ADR-004：false 移除 DOM，true 重建
 
-**决策** visible=falsy → 覆盖层节点从 DOM 移除；truthy → 重建。符合需求原话「=false 时移除」。loading 通常低频切换，重建开销可接受，DOM 无残留、动画从 0 重启。
+**决策** value=falsy → 覆盖层节点从 DOM 移除；truthy → 重建。符合需求原话「=false 时移除」。loading 通常低频切换，重建开销可接受，DOM 无残留、动画从 0 重启。
 
 ### ADR-005：.screen 用 fixed，不 teleport
 
@@ -138,19 +138,19 @@ el.removeAttribute('x-loading');               // 删除属性 → 卸载实例�
 
 ### ADR-007：delay 防闪烁
 
-**决策** 支持 `delay`（ms，默认 0）。visible=true → `setTimeout(delay)` 后才挂载覆盖层；窗口内 visible 变 false → 取消定时器、不显示。`unmounted`（元素移除 / engine.destroy）时清定时器。
+**决策** 支持 `delay`（ms，默认 0）。value=true → `setTimeout(delay)` 后才挂载覆盖层；窗口内 value 变 false → 取消定时器、不显示。`unmounted`（元素移除 / engine.destroy）时清定时器。
 
 ### ADR-008：裸属性 / true / false 为字面量布尔，非状态路径
 
 **背景** 用户期望 `<div x-loading>` 直接显示（无需绑定状态），且 `x-loading="true"`/`"false"` 能快速静态控制显隐。若把 `true`/`false` 当状态路径，会去 `state.true`/`state.false` 查值（几乎必然 undefined → 不显示），违反直觉。
 
-**决策** visible 解析优先级：① 空值（裸属性 / 配置缺省）≡ `true`；② `"true"`/`"false"`（大小写不敏感）为字面量布尔；③ 其余走反应式全局路径/表达式。字面量模式静态显隐、**无订阅**。
+**决策** value 解析优先级：① 空值（裸属性 / 配置缺省）≡ `true`；② `"true"`/`"false"`（大小写不敏感）为字面量布尔；③ 其余走反应式全局路径/表达式。字面量模式静态显隐、**无订阅**。
 
-**理由** "没说何时显示，就总是显示"符合直觉；保留 `true`/`false` 作特殊值而非路径，避免与极罕见的 `state.true` 键冲突（坏命名，不应鼓励）。配置缺省 visible 也默认显示，与裸属性语义统一。
+**理由** "没说何时显示，就总是显示"符合直觉；保留 `true`/`false` 作特殊值而非路径，避免与极罕见的 `state.true` 键冲突（坏命名，不应鼓励）。配置缺省 value 也默认显示，与裸属性语义统一。
 
 **边界** 若确需监听名为 `true`/`false` 的状态键（不推荐），无法直接绑定——可用表达式包裹（如 `x-loading="!!stateTrue"`）绕过。
 
-**派生：命令式 overlay 模式（feedback 复用）** 上述「空 visible ≡ true」有一处派生用途——对象配置**省略 visible** 时（如外部 `setAttribute('x-loading', JSON.stringify({message:'保存中', bgColor:'#000'}))`），`parseObject` 解析得 `visible:""`，`resolveLiteral("")===true` → **属性存在即显示、用配置渲染**；`removeAttribute('x-loading')` → 隐藏。此「命令式 overlay 模式」被 x-on 的 `.feedback` 修饰符（[ADR-0008](./adr/0008-x-on-feedback-modifier.md)）复用——feedback 在 pending 时 set 配置对象、resolved/rejected 时 remove，实现命令式 overlay 显隐而 **x-loading 零改动**。已测试锁定（`resolveLiteral("")===true`）+ 文档化为正式契约；重构 `resolveLiteral` 时测试会守住该行为。
+**派生：命令式 overlay 模式（feedback 复用）** 上述「空 value ≡ true」有一处派生用途——对象配置**省略 value** 时（如外部 `setAttribute('x-loading', JSON.stringify({message:'保存中', bgColor:'#000'}))`），`parseObject` 解析得 `value:""`，`resolveLiteral("")===true` → **属性存在即显示、用配置渲染**；`removeAttribute('x-loading')` → 隐藏。此「命令式 overlay 模式」被 x-on 的 `.feedback` 修饰符（[ADR-0008](./adr/0008-x-on-feedback-modifier.md)）复用——feedback 在 pending 时 set 配置对象、resolved/rejected 时 remove，实现命令式 overlay 显隐而 **x-loading 零改动**。已测试锁定（`resolveLiteral("")===true`）+ 文档化为正式契约；重构 `resolveLiteral` 时测试会守住该行为。
 
 ### ADR-009：selector 指定覆盖层挂载目标
 

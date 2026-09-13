@@ -1,6 +1,6 @@
 import { AutoStore } from "autostore";
-import { AutoTemplateEngine } from "../engine";
-import type { AutoTemplateEngineOptions } from "../types";
+import { AutoSpark } from "../engine";
+import type { AutoSparkOptions } from "../types";
 
 /**
  * 测试基础设施（纯函数，无副作用；全局 DOM 注册请在各测试文件显式 `import "./setup"`）。
@@ -10,11 +10,11 @@ import type { AutoTemplateEngineOptions } from "../types";
 export const nextTick = () => new Promise<void>((r) => setTimeout(r, 0));
 
 /** 把 HTML 挂到一个 detached 容器并启动引擎（autostart 默认 true） */
-export function mount(html: string, state: any, options?: Partial<AutoTemplateEngineOptions>) {
+export function mount(html: string, state: any, options?: Partial<AutoSparkOptions>) {
     const root = document.createElement("div");
     root.innerHTML = html.trim();
     const store = new AutoStore(state);
-    const engine = new AutoTemplateEngine(root, store, options);
+    const engine = new AutoSpark(root, store, options);
     return { root, store, engine };
 }
 

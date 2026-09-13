@@ -1,4 +1,4 @@
-import { AutoTemplateDirectiveBase } from "../base";
+import { AutoSparkDirectiveBase } from "../base";
 import { normalizeClass } from "../utils/normalizeClass";
 import { getVal, joinPath, splitPath } from "autostore";
 
@@ -109,7 +109,7 @@ const BOOLEAN_ATTRS = new Set([
     "multiple",
 ]);
 
-export class BindDirective extends AutoTemplateDirectiveBase {
+export class BindDirective extends AutoSparkDirectiveBase {
     static override readonly singleton = false;
     static override readonly priority = 50;
 

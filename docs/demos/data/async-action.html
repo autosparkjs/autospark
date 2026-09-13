@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-data · 异步数据源 · action（订单管理）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 异步数据源 · action（ADR-0033）：书店订单管理（与 fetch demo 同款场景）。
+             x-data 值为 action 引用 → getAction 链执行取数（本例在 action 内本地生成订单数据，
+             体现 action「本地计算 / 命令式全能力」的形态优势）；实参（kind/page/tick）是表达式，
+             依赖变化对称重执行；加载反馈（$loading/$error/x-fallback/x-loading）与 fetch 共用。 -->
+        <div class="demo-app section">
+            <!-- 块 A：订单表格——实参依赖驱动：翻页（page）、失败注入（kind）、手动重载（tick） -->
+            <div class="card">
+                <div class="card-content" x-data="loadOrders(orderKind, orderPage, orderTick)">
+                    <div class="heading has-text-grey">书店订单管理（action 取数 · 重取保旧值）</div>
+                    <div class="block is-flex is-justify-content-space-between is-align-items-center">
+                        <div>
+                            共 <b class="has-text-primary">{{total}}</b> 单 ·
+                            第 <b class="has-text-primary">{{orderPage}}</b> / {{ Math.ceil(total / 10) }} 页 ·
+                            <span class="tag" :class="$loading ? 'is-warning' : 'is-success'"
+                                >$loading = {{ $loading }}</span>
+                            <span class="tag" :class="$error ? 'is-danger' : 'is-light'"
+                                >$error = {{ $error ? $error.message : '无' }}</span>
+                        </div>
+                        <div class="buttons">
+                            <button class="button is-primary is-small" @click="reloadOrders">重新加载（保旧值）</button>
+                            <button class="button is-small is-light" @click="failOrders">下次失败</button>
+                        </div>
+                    </div>
+                    <table class="table is-striped is-hoverable is-fullwidth">
+                        <thead>
+                            <tr>
+                                <th>订单号</th>
+                                <th>书名</th>
+                                <th>数量</th>
+                                <th>金额</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody x-for="o of orders">
+                            <tr>
+                                <td><code x-text="o.id"></code></td>
+                                <td x-text="o.book"></td>
+                                <td x-text="o.qty"></td>
+                                <td x-text="'￥' + o.amount"></td>
+                                <td>
+                                    <span
+                                        class="tag is-light"
+                                        :class="'is-' + ({ 已支付: 'primary', 待支付: 'warning', 已发货: 'info', 已完成: 'success' })[o.status]"
+                                        x-text="o.status"
+                                    ></span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="buttons">
+                        <button class="button is-small" :disabled="orderPage <= 1 || $loading" @click="prevOrders">
+                            ← 上一页
+                        </button>
+                        <button class="button is-small" :disabled="orderPage * 10 >= total || $loading" @click="nextOrders">
+                            下一页 →
+                        </button>
+                    </div>
+                    <!-- x-fallback：首载（非就绪且无数据）替换渲染上方整棵子树；重取/翻页保旧值不闪现 -->
+                    <div class="notification is-warning is-light" x-fallback>
+                        ⏳ 首次加载订单…（$loading = {{ $loading }}）
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 B：订单统计摘要——无 x-fallback → 默认合成 x-loading 覆盖层（loading 选项自定义文案） -->
+            <div class="card" x-data="loadSummary" x-data-options="{loading:{message:'统计中…', color:'#ffffff'}}">
+                <div class="card-content">
+                    <div class="heading has-text-grey">订单统计摘要（x-loading 覆盖层默认合成）</div>
+                    <div class="block" x-text="summary"></div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // 订单数据本地生成（与 fetch demo 的 /autospark/api/orders.json 同款确定性数据——
+            // action 形态的数据源可以是本地计算 / POST / 多源聚合，只要返回对象）
+            const BOOKS = ["响应式状态管理", "声明式模板引擎", "细粒度更新", "前端架构之道", "类型系统入门", "状态机实战"];
+            const STATUSES = ["已支付", "待支付", "已发货", "已完成"];
+            function makeOrders(page, size) {
+                const items = [];
+                for (let i = 0; i < size; i++) {
+                    const idx = (page - 1) * size + i;
+                    if (idx >= 86) break;
+                    const qty = (idx % 4) + 1;
+                    const price = 35 + (idx % 6) * 8;
+                    items.push({
+                        id: "SO-" + (10000 + idx),
+                        book: BOOKS[idx % BOOKS.length],
+                        qty,
+                        amount: qty * price,
+                        status: STATUSES[idx % STATUSES.length],
+                    });
+                }
+                return { total: 86, orders: items };
+            }
+
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                // orderKind/orderPage/orderTick 均为 action 实参：依赖变化 → 对称重执行（同 tick 多变化合并一次）
+                { orderKind: "ok", orderPage: 1, orderTick: 0 },
+                {
+                    actions: {
+                        // 数据源 action：延迟 1.2s；kind='fail' 抛错（演示 $error / 保旧值）
+                        loadOrders: async function (kind, page /*, tick*/) {
+                            await new Promise((r) => setTimeout(r, 1200));
+                            if (kind === "fail") throw new Error("服务不可用（演示失败态）");
+                            return makeOrders(page, 10);
+                        },
+                        // 统计摘要：2s 后返回（演示无 fallback 时的 x-loading 覆盖层）
+                        loadSummary: async function () {
+                            await new Promise((r) => setTimeout(r, 2000));
+                            return { summary: "本月累计 86 单 · 客单价 ￥118 · 已完成率 25%（action 本地聚合）" };
+                        },
+                        prevOrders: function () {
+                            this.state.orderKind = "ok";
+                            this.state.orderPage = Math.max(1, this.state.orderPage - 1);
+                        },
+                        nextOrders: function () {
+                            this.state.orderKind = "ok";
+                            this.state.orderPage = this.state.orderPage + 1;
+                        },
+                        reloadOrders: function () {
+                            this.state.orderKind = "ok";
+                            this.state.orderTick = this.state.orderTick + 1; // 实参依赖变化 → 重执行
+                        },
+                        failOrders: function () {
+                            this.state.orderKind = "fail";
+                            this.state.orderTick = this.state.orderTick + 1;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

@@ -2,7 +2,7 @@
  * 模板编译器
  *
  * 基于 transformElement 深度优先重建模板树：对每个含指令的元素，浅克隆（保留
- * 普通属性）、移除指令属性、创建 AutoTemplateScope 并执行其指令生命周期。
+ * 普通属性）、移除指令属性、创建 AutoSparkScope 并执行其指令生命周期。
  *
  * **浅克隆是安全的**：transformElement 命中 transformer 后会用返回的新元素替换原节点，
  * 并继续递归**原节点的子节点**挂到新元素下——因此子树会被完整重建（等价深克隆，
@@ -11,22 +11,27 @@
  * 编译期通过 templateScopeMap 建立 scope 父子关系（向上查找最近指令祖先），
  * 并让子作用域继承父的 localData（供 x-for 注入的 item/index 向下传递到嵌套子元素）。
  */
-import { AutoTemplateScope } from "../scope";
+import { AutoSparkScope } from "../scope";
 import { SCOPES_KEY } from "../engine";
 import { removeDirectives } from "../directives/utils/removeDirectives";
 import { isDirectiveAttr } from "../directives/utils/isDirectiveAttr";
 import { DirectiveKind } from "../directives/base";
 import { ModelDirective } from "../directives/presets/model";
 import type { AutoDirectiveInfo } from "../directives/types";
-import type { AutoTemplateEngine } from "../engine";
+import type { AutoSpark } from "../engine";
 import {
     transformElement,
     type NodeTransformer,
     type OwnsChildrenResult,
 } from "../utils/transformElement";
-import { buildAction } from "../utils/buildAction";
 import { hasDirectives } from "../directives/utils/hasDirectives";
 import { hasMustache, isRawTextElement, parseInterpolation, synthAttrExpr } from "./mustache";
+import { collectDataScripts, isDataScript, type DataScriptStash } from "./dataScript";
+import {
+    getDirectiveAttrValue,
+    isAsyncDataValue,
+    isAsyncHtmlValue,
+} from "../directives/presets/async-source";
 import { buildComponentDef } from "./collect";
 import type { ComponentDef } from "../directives/component-def";
 import { mountComponentScopedAttr, injectComponentStyle } from "../utils/scopedStyle";
@@ -52,21 +57,89 @@ function hasInterpolation(el: HTMLElement): boolean {
     return false;
 }
 
-export class AutoTemplateCompiler {
-    readonly engine: AutoTemplateEngine;
+export class AutoSparkCompiler {
+    readonly engine: AutoSpark;
     /** 编译期：原树模板元素 → scope 映射，用于建立 scope 父子关系与 localData 继承 */
-    private templateScopeMap = new WeakMap<HTMLElement, AutoTemplateScope>();
+    private templateScopeMap = new WeakMap<HTMLElement, AutoSparkScope>();
+    /**
+     * 编译期：scope → 数据脚本预扫产物（ADR-0032）。compileElement 在 scope.compile() 前
+     * 写入，DataDirective.created()（优先级 200，compile 内最先执行）一次性消费后删除——
+     * 每实例编译各写各的，无跨实例共享。
+     */
+    private dataScriptStash = new WeakMap<AutoSparkScope, DataScriptStash>();
 
-    constructor(engine: AutoTemplateEngine<any>) {
+    constructor(engine: AutoSpark<any>) {
         this.engine = engine;
     }
 
     private _getTransformers(): NodeTransformer<HTMLElement>[] {
         return [
-            // 前置：<script type="actions"> 提取为局部 action 后剪枝（普通 script 原样保留）
+            // 前置：<script type="autospark/actions"> 提取为局部 action 后剪枝（普通 script 原样保留）。
+            // 提取/解析/注入收编于 ActionManager；scope 解析留在 compiler（依赖私有 templateScopeMap）
+            [
+                (node: Node) => node instanceof HTMLScriptElement && node.type === "autospark/actions",
+                (script: HTMLElement) =>
+                    this.engine.actionsManager.extractScript(
+                        script as HTMLScriptElement,
+                        this._findNearestScope(script as HTMLScriptElement),
+                    ),
+            ],
+            // 前置：旧写法 <script type="actions">（ADR-0031 更名前）——warn 提示迁移 + 剪枝不执行
             [
                 (node: Node) => node instanceof HTMLScriptElement && node.type === "actions",
-                (script: HTMLElement) => this._extractScriptActions(script as HTMLScriptElement),
+                () => {
+                    this.engine.logger.warn(
+                        `<script type="actions"> 已更名为 <script type="autospark/actions">（ADR-0031），该脚本未注册`,
+                    );
+                    return null;
+                },
+            ],
+            // 前置：<script type="autospark/data"> ——内容已在父元素编译期预扫消费
+            //（compileElement 调 collectDataScripts，ADR-0032），此处仅剪枝（不进渲染 DOM）
+            [
+                (node: Node) => isDataScript(node),
+                () => null,
+            ],
+            // 前置：x-fallback 特例子节点（ADR-0033 决策 4 / ADR-0035 决策 3-4）——直接父元素为
+            // 异步源宿主（异步 x-data，或异步 x-html 且宿主无双异步 x-data——双异步时 fallback
+            // 归 x-data 独占）时已被物种指令采集（collectFallback），剪枝不进渲染 DOM；
+            // 孤立 x-fallback（父无异步源）→ warn + 当普通元素放行（默认浅克隆继续编译）。
+            // 指令属性值读取兼容修饰符变体（x-data.global / x-html.compile，getDirectiveAttrValue）
+            [
+                (node: Node) => node instanceof HTMLElement && node.hasAttribute("x-fallback"),
+                (el: HTMLElement) => {
+                    const parent = el.parentElement;
+                    if (parent) {
+                        const dataVal = getDirectiveAttrValue(parent, "x-data");
+                        // x-data 侧认领（ADR-0033）；双异步时 x-data 优先独占（ADR-0035 决策 6）
+                        if (dataVal !== null && isAsyncDataValue(dataVal)) return null;
+                        // x-html 侧认领（ADR-0035）：仅宿主无异步 x-data 时（fallback 归属唯一）
+                        const htmlVal = getDirectiveAttrValue(parent, "x-html");
+                        if (htmlVal !== null && isAsyncHtmlValue(htmlVal)) return null;
+                    }
+                    this.engine.logger.warn(
+                        `x-fallback: 父元素未声明异步源（异步 x-data / 异步 x-html），按普通元素渲染（ADR-0033/0035）`,
+                    );
+                    return el.cloneNode(false) as HTMLElement;
+                },
+            ],
+            // 前置：x-else-if / x-else 条件分支（ADR-0034）——分支快照由 IfDirective 在宿主 created 期
+            // 主动扫描直接子元素克隆收集（模板只读），本层仅负责**剪枝**：分支是备选模板、
+            // 永不进结果 DOM（eager 的 compileSubtree 与 keepalive 的主 walk 两条子树编译通道统一拦截）。
+            // 父元素无 x-if 属性 → 孤儿分支：warn + 丢弃（同 x-component 孤儿惯例）
+            [
+                (node: Node) =>
+                    node instanceof HTMLElement &&
+                    (node.hasAttribute("x-else-if") || node.hasAttribute("x-else")),
+                (el: HTMLElement) => {
+                    const parent = el.parentElement;
+                    if (!(parent && parent.hasAttribute("x-if"))) {
+                        this.engine.logger.warn(
+                            `x-else-if/x-else: 父元素未声明 x-if，分支被丢弃。分支必须是 x-if 宿主的直接子元素（ADR-0034）`,
+                        );
+                    }
+                    return null;
+                },
             ],
             // 前置：x-component 命名组件——收集冻结快照到最近祖先 scope.components 后剪枝（不进结果 DOM）。
             // 须排在 HTMLElement 通用规则（compileElement）之前，first-match-wins 命中后不再走通用编译，
@@ -120,7 +193,7 @@ export class AutoTemplateCompiler {
         // walk 是 DFS，祖先元素已先 transform，若建了 scope 必已 templateScopeMap.set。
         // 注：实例化父组件时 compileSubtree 编译其快照子树，内层 x-component 经 transformElement
         // 再次命中本收集器，归属到父组件的**实例 scope**——运行期 scope 链天然实现嵌套私有子组件。
-        let owner: AutoTemplateScope | undefined;
+        let owner: AutoSparkScope | undefined;
         let p: HTMLElement | null = componentEl.parentElement;
         while (p) {
             owner = this.templateScopeMap.get(p);
@@ -170,7 +243,7 @@ export class AutoTemplateCompiler {
      *
      * @returns DocumentFragment（段 text node 集合）；x-text / 非 compile 的 x-html 在场返回 null（剪枝）
      */
-    private compileTextNode(node: Text, scope: AutoTemplateScope): DocumentFragment | null {
+    private compileTextNode(node: Text, scope: AutoSparkScope): DocumentFragment | null {
         if (
             scope.directives.some(
                 (d) =>
@@ -210,7 +283,7 @@ export class AutoTemplateCompiler {
      * boolean / 普通）。watcher 经 `scope.watch` 自动入 `scope.watchers`/`_updates`，
      * destroy/refresh 自动，无需手动登记。
      */
-    private _compileAttrInterpolation(el: HTMLElement, scope: AutoTemplateScope): void {
+    private _compileAttrInterpolation(el: HTMLElement, scope: AutoSparkScope): void {
         const targets: Array<{ name: string; value: string }> = [];
         for (let i = 0; i < el.attributes.length; i++) {
             const attr = el.attributes[i];
@@ -249,72 +322,18 @@ export class AutoTemplateCompiler {
      * `ModelDirective.synthesizeSchemaBindings` 静态方法（compiler 只管调用时机）。合成实体是
      * 标准 BindDirective 实例（复用 ADR-0019 全部能力）。无 x-model 的元素直接跳过。
      */
-    private _synthesizeModelSchemaBindings(el: HTMLElement, scope: AutoTemplateScope): void {
+    private _synthesizeModelSchemaBindings(el: HTMLElement, scope: AutoSparkScope): void {
         const modelDirective = scope.directives.find((d) => d instanceof ModelDirective);
         if (!modelDirective) return;
         ModelDirective.synthesizeSchemaBindings(this.engine, scope, el, modelDirective.info);
     }
 
     /**
-     * 提取 `<script type="actions">` 内容为 action 并注册（注入目标由 `global` 标志决定）：
-     * - 默认（无 global）：**局部 action** → 注入最近祖先 scope.actions（buildAction local=true，只 DOM 冒泡）。
-     * - `global` 标志（`<script type="actions" global>`）：**全局 action** → 注入 engine.actions
-     *   （Proxy set trap 自动 buildAction 包装，双发总线+DOM），供任意 scope 经 getAction 终点查到。
-     *
-     * 内容须为对象字面量（如 `{ pay(v){...}, submit(){...} }`），经 new Function 求值得对象。
-     * 求值失败或非对象记日志；局部模式找不到祖先 scope 则忽略。返回 null 表示剪枝——script 不进渲染 DOM。
-     * 普通 `<script>`（无 type 或其他 type）不匹配此 transformer，经 transformElement 默认路径原样保留。
-     */
-    private _extractScriptActions(script: HTMLScriptElement): null {
-        const text = script.textContent?.trim();
-        if (!text) return null;
-        let parsed: Record<string, (...args: any[]) => any>;
-        try {
-            const result = new Function(`return (${text})`)();
-            if (!result || typeof result !== "object") {
-                this.engine.logger.error(`<script type="actions"> 内容须为对象字面量`);
-                return null;
-            }
-            parsed = result;
-        } catch (e: any) {
-            this.engine.logger.error(`<script type="actions"> 解析失败: ${e?.message ?? e}`);
-            return null;
-        }
-        // global 标志（`<script type="actions" global>`）：声明全局 action，注入 engine.actions
-        // （actions Proxy 的 set trap 自动 buildAction 包装，local=false 双发总线+DOM），供任意 scope
-        // 经 getAction 终点查到；不依赖最近祖先 scope，可在模板任意位置声明。
-        if (script.hasAttribute("global")) {
-            for (const [k, fn] of Object.entries(parsed)) {
-                if (typeof fn === "function") this.engine.actions[k] = fn;
-            }
-            return null;
-        }
-        const scope = this._findNearestScope(script);
-        if (scope) {
-            // 默认局部 action：buildAction local=true，只 DOM 冒泡、不进总线（ADR-0012 避免同名串扰）；
-            // 祖先聚合经 DOM action:<name> 冒泡隔离作用域
-            const wrapped: Record<string, (...args: any[]) => any> = {};
-            for (const [k, fn] of Object.entries(parsed)) {
-                wrapped[k] =
-                    typeof fn === "function"
-                        ? buildAction(
-                              (type, payload) => this.engine.emit(type as any, payload),
-                              k,
-                              fn,
-                              true,
-                          )
-                        : fn;
-            }
-            scope.actions = { ...scope.actions, ...wrapped };
-        }
-        return null;
-    }
-
-    /**
      * 沿 parentElement 向上查找最近的已注册 scope（templateScopeMap）。
-     * 与 `_linkParent` 查找逻辑一致，用于把 script action 挂到最近祖先作用域。
+     * 与 `_linkParent` 查找逻辑一致，用于把 script action 挂到最近祖先作用域
+     * （查好后作为入参传给 actionsManager.extractScript，见 _getTransformers）。
      */
-    private _findNearestScope(el: HTMLElement): AutoTemplateScope | undefined {
+    private _findNearestScope(el: HTMLElement): AutoSparkScope | undefined {
         let p: HTMLElement | null = el.parentElement;
         while (p) {
             const scope = this.templateScopeMap.get(p);
@@ -340,7 +359,7 @@ export class AutoTemplateCompiler {
      * 再取 `scope.el` 得运行元素。仅含指令或 `{{}}` 插值的元素（有 scope）能命中；
      * 纯静态裸元素返回 undefined（需挂 `x-scope` 哨兵建 scope）。
      */
-    getScopeByTemplate(templateEl: HTMLElement): AutoTemplateScope | undefined {
+    getScopeByTemplate(templateEl: HTMLElement): AutoSparkScope | undefined {
         return this.templateScopeMap.get(templateEl);
     }
 
@@ -361,7 +380,7 @@ export class AutoTemplateCompiler {
      * 供 `engine.patch` 的动态区域守卫（ADR-0002 决策 5）：patch 目标自身或祖先链上有
      * ownsChildren 指令（x-for / eager x-if / x-slot）即处于动态区域，正向桥不可靠，拒绝。
      */
-    scopeOwnsChildren(scope: AutoTemplateScope): boolean {
+    scopeOwnsChildren(scope: AutoSparkScope): boolean {
         return scope.directives.some((d) => this._ownsChildrenDirective(d));
     }
 
@@ -377,20 +396,35 @@ export class AutoTemplateCompiler {
      * 同元素出现多个结构指令（如 `x-for` + eager `x-if`）会在 `_resolveOwnership` 中抛错。
      */
     compileElement(template: HTMLElement): HTMLElement | OwnsChildrenResult {
-        // 含插值（文本/属性）但无指令的元素也需建 scope（隐式指令，ADR-0004 决策 2）。
-        if (!hasDirectives(template) && !hasInterpolation(template)) {
+        // 数据脚本预扫（ADR-0032）：直接子级 <script type="autospark/data"> 先于指令求值
+        // 收集合成，与 x-data 合成单一数据对象走既有注入管道（desugar：位置无关）
+        const dataStash = collectDataScripts(this.engine, template);
+        // 含插值（文本/属性）但无指令的元素也需建 scope（隐式指令，ADR-0004 决策 2）；
+        // 含数据脚本亦同——父元素等效持有 x-data（即便无任何指令属性，脚本独立成立）
+        if (!hasDirectives(template) && !hasInterpolation(template) && !dataStash) {
             // 必须浅克隆：transformElement 用 live NodeList 遍历原节点子节点并挂到返回的新节点下，
             // 若返回原节点，appendChild 会写回原节点自身、其 childNodes 持续增长，导致 live 遍历无限循环。
             return template.cloneNode(false) as HTMLElement;
         }
         const el = template.cloneNode(false) as HTMLElement;
         removeDirectives(el, "x-", this._runtimeKeepAttr());
-        const scope = new AutoTemplateScope(this.engine, el, template);
+        const scope = new AutoSparkScope(this.engine, el, template);
         this._linkParent(template, scope);
         this.templateScopeMap.set(template, scope);
         this.engine.scopes.set(new WeakRef(el), scope);
         // 冲突检测先于 compile：让 x-for + eager x-if 同元素在跑任何指令生命周期前即失败
         const ownsChildren = this._resolveOwnership(scope);
+        if (dataStash) {
+            if (ownsChildren) {
+                // 结构指令宿主的直接子级是项模板材料（ownsChildren），数据脚本无处挂载——
+                // warn 放弃（脚本稍后仍被剪枝 transformer 移出渲染 DOM，不泄漏）
+                this.engine.logger.warn(
+                    `<script type="autospark/data"> 不能直接声明在结构指令（x-for/eager x-if/x-slot）宿主的直接子级（其子节点是项模板）。请移入项模板内目标元素的直接子级（ADR-0032 决策 7）。`,
+                );
+            } else {
+                this._applyDataScriptStash(scope, dataStash);
+            }
+        }
         scope.compile();
         // 属性插值 desugar（compile 后；合成 bind 独立注册，复用 BindDirective 五路分派）
         this._compileAttrInterpolation(el, scope);
@@ -404,13 +438,43 @@ export class AutoTemplateCompiler {
     }
 
     /**
+     * 把数据脚本预扫产物交给 scope 的 DataDirective 消费（ADR-0032 决策 4）。
+     *
+     * 元素已有 x-data → stash 挂 WeakMap，由 DataDirective.created()（scope.compile 内
+     * 按优先级最先执行）消费合并；无 x-data → 合成空值 DataDirective 入列——「脚本独立成立」
+     * 等效 x-data。入列后按类静态 priority 重排（data=200 恒最先，保证先于兄弟指令注入，
+     * 首渲即可读到数据；重排兼容未来更高优先级的自定义指令）。
+     */
+    private _applyDataScriptStash(scope: AutoSparkScope, stash: DataScriptStash): void {
+        if (!scope.directives.some((d) => d.info.name === "data")) {
+            const DataCls = this.engine.directives.get("data");
+            if (!DataCls) {
+                this.engine.logger.warn(`数据脚本：未注册 data 指令，已忽略`);
+                return;
+            }
+            scope.directives.unshift(new DataCls(this.engine, scope, { name: "data" }));
+            const priority = (d: { info: AutoDirectiveInfo }) =>
+                this.engine.directives.get(d.info.name)?.priority ?? 0;
+            scope.directives.sort((a, b) => priority(b) - priority(a));
+        }
+        this.dataScriptStash.set(scope, stash);
+    }
+
+    /** 消费 scope 的数据脚本预扫产物（DataDirective.created 一次性读取，读后即删） */
+    consumeDataScriptStash(scope: AutoSparkScope): DataScriptStash | undefined {
+        const stash = this.dataScriptStash.get(scope);
+        if (stash) this.dataScriptStash.delete(scope);
+        return stash;
+    }
+
+    /**
      * 判定某 scope 是否被结构指令占有子树（ownsChildren），并检测冲突。
      *
      * 任意指令类的静态 `ownsChildren(info)` 返回 true 即视为占有。同元素出现多个占有者
      * （当前仅 `x-for` + eager `x-if`）语义互斥——前者重复子树、后者条件销毁子树——直接抛错，
      * 提示改用 `x-show`/`x-if.keepalive`（均不占子树）或外层包裹。
      */
-    private _resolveOwnership(scope: AutoTemplateScope): boolean {
+    private _resolveOwnership(scope: AutoSparkScope): boolean {
         const owners = scope.directives.filter((d) => this._ownsChildrenDirective(d));
         if (owners.length > 1) {
             throw new Error(
@@ -452,14 +516,22 @@ export class AutoTemplateCompiler {
      * - **含 `{{}}` 文本节点 → `compileTextNode`**（插值拆分，返回 DocumentFragment 或 null 剪枝）
      * - 其余文本/注释 → `cloneNode(true)`
      *
+     * **x-else-if / x-else 分支标记在此统一剪枝**（ADR-0034）：分支是备选模板，任何子树编译
+     * 通道（eager x-if 的 then / x-for 项 / 分支快照内部的孤儿分支）都不进结果 DOM。若放行走
+     * `transformElement`，分支作为其**根**被前置剪枝 transformer 置 null 会触发单根约束抛
+     * 「根元素被丢弃」（作为非根子孙时剪枝无此问题，keepalive 主 walk 路径即如此）。
+     *
      * **铁律：HTMLElement 必须走 `transformElement`（递归），不可用 `compileElement`**——后者只浅克隆，
      * 会丢失整棵子树与插值（patch 替换自身的关键正确性保证）。
      *
      * @param scope 顶层文本插值节点注册 watcher 所用 scope（其父元素 scope）
      * @returns 编译后节点 / DocumentFragment（多段插值）/ null（剪枝）
      */
-    private compileOneChild(child: Node, scope: AutoTemplateScope | null): Node | null {
+    private compileOneChild(child: Node, scope: AutoSparkScope | null): Node | null {
         if (child instanceof HTMLElement) {
+            // 分支标记：剪枝（与前置 transformer 语义一致；孤儿检测的 warn 在主 walk 路径的
+            // transformer 层发出，此处静默跳过）
+            if (child.hasAttribute("x-else-if") || child.hasAttribute("x-else")) return null;
             return transformElement(child, this._getTransformers());
         }
         if (child.nodeType === Node.TEXT_NODE && hasMustache((child as Text).nodeValue)) {
@@ -479,7 +551,7 @@ export class AutoTemplateCompiler {
      * @param nodes  待编译的模板节点（通常来自 `parseHtmlFragment` 或 updater 返回的 Node）
      * @param scope  顶层文本插值节点的注册 scope（替换后挂父下，用父 scope）
      */
-    compileChildNodes(nodes: Node[], scope: AutoTemplateScope | null): Node[] {
+    compileChildNodes(nodes: Node[], scope: AutoSparkScope | null): Node[] {
         const result: Node[] = [];
         for (const child of nodes) {
             const compiled = this.compileOneChild(child, scope);
@@ -506,7 +578,7 @@ export class AutoTemplateCompiler {
     compileSubtree(
         parentEl: HTMLElement,
         templateEl: HTMLElement,
-        scope: AutoTemplateScope,
+        scope: AutoSparkScope,
     ): ChildNode[] {
         const nodes: ChildNode[] = [];
         for (const child of Array.from(templateEl.childNodes)) {
@@ -554,7 +626,7 @@ export class AutoTemplateCompiler {
      * @param props x-use 传入的 props（覆盖 data() 默认值；undefined 则只注入默认值）
      */
     injectComponentSemantics(
-        scope: AutoTemplateScope,
+        scope: AutoSparkScope,
         def: ComponentDef,
         props?: Record<string, any>,
     ): void {
@@ -624,7 +696,7 @@ export class AutoTemplateCompiler {
      * @param props       x-use 传入的 props（覆盖 data() 默认）
      */
     instantiateComponent(
-        hostScope: AutoTemplateScope,
+        hostScope: AutoSparkScope,
         snapshot: HTMLElement,
         def: ComponentDef | null,
         props?: Record<string, any>,
@@ -674,7 +746,7 @@ export class AutoTemplateCompiler {
      * @param binds  bind 清单（编译期提取、多实例共享只读）
      */
     private _bindStyleVars(
-        scope: AutoTemplateScope,
+        scope: AutoSparkScope,
         rootEl: HTMLElement,
         binds: StyleBind[],
     ): void {
@@ -700,7 +772,7 @@ export class AutoTemplateCompiler {
      * 供 x-loading 等非组件消费者：把 initialData 写入 `store.state._scopes[scope.id]` 并令 scope.data
      * 指向它。块内指令 watch 首次求值即收集到 `_scopes.<id>.<field>` 精准路径。
      */
-    injectInitialData(scope: AutoTemplateScope, initialData: Record<string, any>): void {
+    injectInitialData(scope: AutoSparkScope, initialData: Record<string, any>): void {
         const scopes = (this.engine.store.state as Record<string, any>)[SCOPES_KEY] as Record<
             string,
             any
@@ -713,8 +785,8 @@ export class AutoTemplateCompiler {
 
     compileChild(
         itemTemplate: HTMLElement,
-        parentScope: AutoTemplateScope | null,
-        localData: Record<string, any>,
+        parentScope: AutoSparkScope | null,
+        localData: Record<string, any> | null,
         reuseEl?: HTMLElement,
         /**
          * 编译前注入块根的**响应式** data（仿 DataDirective.applyLocal）。
@@ -736,7 +808,7 @@ export class AutoTemplateCompiler {
          * 无此参（x-for/loading 等非组件场景）则跳过组件语义注入。
          */
         componentDef?: ComponentDef,
-    ): { el: HTMLElement; scope: AutoTemplateScope } {
+    ): { el: HTMLElement; scope: AutoSparkScope } {
         const el = reuseEl ?? (itemTemplate.cloneNode(false) as HTMLElement);
         if (!reuseEl) removeDirectives(el, "x-", this._runtimeKeepAttr());
         // reuseEl：旧 scope 已 destroy，其子树 DOM 残留在 el 上，须清空后重建，否则 compileSubtree
@@ -744,7 +816,7 @@ export class AutoTemplateCompiler {
         if (reuseEl) {
             while (el.firstChild) el.removeChild(el.firstChild);
         }
-        const scope = new AutoTemplateScope(this.engine, el, itemTemplate);
+        const scope = new AutoSparkScope(this.engine, el, itemTemplate);
         scope.locals = localData;
         // 组件语义注入（须早于 scope.compile()——created hook 与各指令 watch 首次求值须读到完整 data/actions）。
         // data 合并顺序 R1=A：componentDef.data() 先注入默认，initialData（x-use props）后覆盖。
@@ -776,7 +848,7 @@ export class AutoTemplateCompiler {
      * 向上查找最近的已注册指令祖先 scope，把 scope 挂为其子，
      * 并继承祖先的 localData（让 item/index 向嵌套子元素传递）。
      */
-    private _linkParent(template: HTMLElement, scope: AutoTemplateScope): void {
+    private _linkParent(template: HTMLElement, scope: AutoSparkScope): void {
         let p: HTMLElement | null = template.parentElement;
         while (p) {
             const parentScope = this.templateScopeMap.get(p);

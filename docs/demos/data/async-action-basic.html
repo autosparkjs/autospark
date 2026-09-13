@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-data · 异步数据源 · action 最小示例</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 异步数据源 · action 最小示例：action 直调取数 + $loading 元状态 + x-fallback 首载占位。
+             action 数据源可以是本地计算 / POST / 聚合——只要返回对象。 -->
+        <div class="demo-app section">
+            <div class="card">
+                <div class="card-content" x-data="loadBook">
+                    <div class="heading has-text-grey">action 数据源（最小示例）</div>
+                    <div class="block">
+                        <b class="has-text-primary">{{ book }}</b>
+                        —— 来自 <code>x-data="loadBook"</code>（延迟 800ms 的本地计算）
+                    </div>
+                    <div class="block">
+                        <span class="tag" :class="$loading ? 'is-warning' : 'is-success'">$loading = {{ $loading }}</span>
+                        <span class="tag" :class="$error ? 'is-danger' : 'is-light'">$error = {{ $error ? $error.message : '无' }}</span>
+                    </div>
+                    <!-- 首载占位：数据到达后自动移除 -->
+                    <div class="notification is-warning is-light" x-fallback>⏳ 加载中…（$loading = {{ $loading }}）</div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {},
+                {
+                    actions: {
+                        // 数据源 action：延迟 800ms 返回对象（resolve 值经与 fetch 相同的映射落域）
+                        loadBook: async function () {
+                            await new Promise((r) => setTimeout(r, 800));
+                            return { book: "《声明式模板引擎》", total: 3 };
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-loading · selector 挂载目标</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
             /* 目标元素需 position:relative，覆盖层才相对它定位 */
             .target {
@@ -29,7 +29,7 @@
                 <button class="button is-primary" @click="onA">在宿主后代 <code>#inner</code> 上显示</button>
             </div>
             <!-- 宿主带 x-loading，但 selector 让覆盖层挂到宿主后代的 #inner -->
-            <div class="card" x-loading="{ visible:'a', selector:'#inner' }">
+            <div class="card" x-loading="{ value:'a', selector:'#inner' }">
                 <div class="card-content">
                     <span>宿主元素（带 <code>x-loading</code>，但覆盖层不挂这里）</span>
                     <div id="inner" class="target">覆盖层挂到这里（宿主后代，<code>selector:'#inner'</code>）</div>
@@ -42,15 +42,14 @@
             </div>
             <!-- 全局目标：与下面的宿主同级，宿主的覆盖层却挂到这个外部元素 -->
             <div id="outside" class="target">全局目标（与宿主同级，<code>selector:'@#outside'</code>）</div>
-            <div class="card" x-loading="{ visible:'b', selector:'@#outside' }" style="margin-top:8px">
+            <div class="card" x-loading="{ value:'b', selector:'@#outside' }" style="margin-top:8px">
                 <div class="card-content">宿主元素（带 <code>x-loading</code>，覆盖层却挂到上面的全局 <code>#outside</code>）。</div>
             </div>
             <div class="block has-text-grey">@ 前缀走 <code>document.querySelector</code>，可把覆盖层挂到宿主之外/全局元素；未命中或非法选择器回退宿主。</div>
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 { a: false, b: false },
                 {

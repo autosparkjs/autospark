@@ -6,25 +6,25 @@
 
 下面是最终成品的样子：
 
-<demo html="template/get-started-todo.html"/>
+<demo html="get-started-todo.html"/>
 
 接下来一步步实现它。
 
 ## 第 1 步：安装与引入
 
-按[安装](./install.md)装好 `@autostorejs/template`。在浏览器里直接用 IIFE 产物最省事——全局挂载在 `AutoTemplateSpaces` 下：
+按[安装](./install.md)装好 `autospark`。在浏览器里直接用 IIFE 产物最省事——全局挂载在 `AutoSparkSpaces` 下：
 
 ```html
-<script src="/path/to/template.js"></script>
+<script src="/path/to/autospark.js"></script>
 <script>
-    const { AutoTemplateEngine } = AutoTemplateSpaces;
+    // 引入后即可经全局 AutoSparkSpaces 使用，如 new AutoSparkSpaces.AutoSpark(...)
 </script>
 ```
 
 项目里用打包工具就走 ESM：
 
 ```javascript
-import { AutoTemplateEngine } from "@autostorejs/template";
+import { AutoSpark } from "autospark";
 ```
 
 ## 第 2 步：准备 HTML 与状态
@@ -38,8 +38,7 @@ TODO 应用的核心是一组任务。先给页面一个挂载点，再给引擎
 </div>
 
 <script>
-    const { AutoTemplateEngine } = AutoTemplateSpaces;
-    const engine = new AutoTemplateEngine(
+    const engine = new AutoSparkSpaces.AutoSpark(
         document.getElementById("app"),
         {
             input: "", // 输入框当前文字
@@ -88,7 +87,7 @@ TODO 应用的核心是一组任务。先给页面一个挂载点，再给引擎
 动作在构造器第三参注册，挂在 `engine.actions` 上。动作函数里 `this.state` 就是全局状态：
 
 ```javascript
-const engine = new AutoTemplateEngine(
+const engine = new AutoSpark(
     document.getElementById("app"),
     { input: "", todos: [/* ... */] },
     {
@@ -194,7 +193,7 @@ actions: {
 底部显示「剩余 N 项未完成」。这是个**派生值**——直接用 AutoStore 的计算属性，状态一变自动重算。
 
 ```javascript
-const engine = new AutoTemplateEngine(
+const engine = new AutoSpark(
     document.getElementById("app"),
     {
         input: "",
@@ -218,7 +217,7 @@ const engine = new AutoTemplateEngine(
 
 把前 7 步拼到一起，就是开头看到的那个 TODO 应用。完整代码：
 
-<demo html="template/get-started-todo.html"/>
+<demo html="get-started-todo.html"/>
 
 ```html
 <div id="app">
@@ -245,8 +244,7 @@ const engine = new AutoTemplateEngine(
 </div>
 
 <script>
-    const { AutoTemplateEngine } = AutoTemplateSpaces;
-    const engine = new AutoTemplateEngine(
+    const engine = new AutoSparkSpaces.AutoSpark(
         document.getElementById("app"),
         {
             input: "",
@@ -281,7 +279,7 @@ const engine = new AutoTemplateEngine(
 
 ## 小结
 
-恭喜，你已经用 `AutoTemplate Engine` 搭出了一个具备增删改、完成态、空状态、实时计数的 TODO 应用。回顾这一路用到的核心能力：
+恭喜，你已经用 `AutoSpark Engine` 搭出了一个具备增删改、完成态、空状态、实时计数的 TODO 应用。回顾这一路用到的核心能力：
 
 | 步骤 | 引入的能力 | 关键指令 / 概念 |
 | --- | --- | --- |
@@ -305,6 +303,6 @@ const engine = new AutoTemplateEngine(
 TODO 应用只是起点。想继续深入：
 
 - **引擎构造与生命周期**：[初始化](../guide/initial.md)
-- **响应式原理与插值**：[响应式](../guide/reactive.md)
+- **状态与插值**：[状态](../guide/state.md)
 - **动作的完整能力**（异步、反馈、祖先聚合）：[动作](../guide/action.md)
 - **逐个吃透指令**：从 [x-bind](../guide/directives/x-bind.md) 开始，侧栏「指令」分组列出了全部。

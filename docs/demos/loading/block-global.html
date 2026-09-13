@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-loading · 全局 blocks 自定义加载模板</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
             .panel {
                 position: relative;
@@ -62,11 +62,11 @@
                 <!-- 这两个宿主都没有局部 x-block，渲染时自动走全局 blocks.loading -->
                 <div
                     class="card panel column"
-                    x-loading="{ visible:'on', message:'同步中…' }"
+                    x-loading="{ value:'on', message:'同步中…' }"
                 >
                     <div class="card-content">全局块（脉冲扩散）+ message</div>
                 </div>
-                <div class="card panel column" x-loading="{ visible:'on' }">
+                <div class="card panel column" x-loading="{ value:'on' }">
                     <div class="card-content">全局块（脉冲扩散），无 message</div>
                 </div>
             </div>
@@ -77,8 +77,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 { on: true },
                 {

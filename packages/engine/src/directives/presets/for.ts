@@ -1,6 +1,7 @@
-import { AutoTemplateDirectiveBase } from "../base";
+import { AutoSparkDirectiveBase } from "../base";
 import type { AutoDirectiveInfo } from "../types";
-import { isSimpleStatePath, type AutoTemplateScope } from "../../scope";
+import { isSimpleStatePath, type AutoSparkScope } from "../../scope";
+import { isDataScript } from "../../compile/dataScript";
 
 /** x-for 单个列表项的运行时实体（v2 key-based 复用） */
 type ForItemEntry = {
@@ -9,7 +10,7 @@ type ForItemEntry = {
     /** 项在当前列表中的位置序号（index 变 → 项内订阅路径含旧 index 失效 → 重建） */
     index: number;
     /** 该项各成员的 scope（复合项 >1，与 nodes 同序） */
-    scopes: AutoTemplateScope[];
+    scopes: AutoSparkScope[];
     /** 该项各成员的渲染节点（与 scopes 同构、同序） */
     nodes: HTMLElement[];
     /** 该项共享的局部作用域（复用时 Object.assign 原地更新，禁止替换引用） */
@@ -89,7 +90,7 @@ type ForItemEntry = {
  * - **x-if 默认 eager（销毁子树）**——`<div x-if="$end">` 为假时移除其子树并销毁 watcher；叶子元素（hr/线，无子树）退化为 `display:none`。
  *   若需"假时仅隐藏、保留子树 watcher"（如隐藏期间继续累积最新值），用 `x-if.keepalive` / `x-show`。
  */
-export class ForDirective extends AutoTemplateDirectiveBase {
+export class ForDirective extends AutoSparkDirectiveBase {
     static override readonly priority = 100;
     static override readonly singleton = true;
     /** x-for 永远占有子树：其子节点是项模板，由本指令逐项克隆编译，通用 walk 不得递归 */
@@ -139,7 +140,7 @@ export class ForDirective extends AutoTemplateDirectiveBase {
     private activeSpecial: string | null = null;
     /** 已挂载 special 的 scope 与 DOM 节点——精确清理用。
      *  ⚠️ 不能 clear 整个 binding.children：它与 item scope 共享同一 Set（compileChild 都 addChild 到 binding）。 */
-    private specialScopes: AutoTemplateScope[] = [];
+    private specialScopes: AutoSparkScope[] = [];
     private specialNodes: HTMLElement[] = [];
     /** 列表项运行时实体索引：key → ForItemEntry。
      *  v2 按 key 复用/增删/重建；无 :key 时 key=index（evalKey 回退）。 */
@@ -192,10 +193,28 @@ export class ForDirective extends AutoTemplateDirectiveBase {
         //  - 命中 SPECIAL_CHILDREN.match（如 x-empty）→ specialTemplates（渲染一次的特例，不随项重复）
         //  - 其余 → itemTemplates（复合项模板，随每项重复）
         // tpl.children 仅含 Element 节点，空白/注释/文本节点天然排除。
+        // 数据脚本（ADR-0032）在 compileElement 已 warn 放弃注入；x-fallback 特例子节点
+        //（ADR-0033）由父元素 DataDirective 采集——项成员根以 cloneNode(false) 直建、绕过
+        // transformer 剪枝，故二者均在此跳过采集（不进渲染 DOM、不随项重复）。
+        // x-else-if / x-else 分支标记（ADR-0034）同理跳过：x-for 容器非 x-if 宿主，其直接子级
+        // 的分支标记是孤儿（父无 x-if）——且项成员编译走 compileChild 不经主 walk 剪枝层，
+        // 不在此拦会被当普通项模板随每项渲染。
         const tpl = this.template;
         if (tpl) {
             for (const child of Array.from(tpl.children)) {
-                if (!(child instanceof HTMLElement)) continue;
+                if (
+                    !(child instanceof HTMLElement) ||
+                    isDataScript(child) ||
+                    child.hasAttribute("x-fallback")
+                ) {
+                    continue;
+                }
+                if (child.hasAttribute("x-else-if") || child.hasAttribute("x-else")) {
+                    this.engine.logger.warn(
+                        `x-for: 容器直接子级不应声明 x-else-if/x-else（分支必须是 x-if 宿主的直接子元素），该分支被丢弃（ADR-0034）`,
+                    );
+                    continue;
+                }
                 const matched = ForDirective.SPECIAL_CHILDREN.find((s) =>
                     child.hasAttribute(s.match),
                 );
@@ -374,7 +393,7 @@ export class ForDirective extends AutoTemplateDirectiveBase {
      *  不插入 DOM、不登记 itemMap、不做重复 key 检测（均由 render 负责）。 */
     private createItem(item: any, index: number, length: number): ForItemEntry {
         const localData = this.buildLocalData(item, index, length);
-        const scopes: AutoTemplateScope[] = [];
+        const scopes: AutoSparkScope[] = [];
         const nodes: HTMLElement[] = [];
         for (const tpl of this.itemTemplates) {
             const { el, scope } = this.engine.compiler.compileChild(tpl, this.binding, localData);
@@ -399,7 +418,7 @@ export class ForDirective extends AutoTemplateDirectiveBase {
         // 用新 localData（新 index）逐成员重新编译，复用 old.nodes 的项根 DOM（reuseEl）。
         // old.nodes 与 itemTemplates 同长（createItem 按模板顺序建 nodes），索引配对安全。
         const localData = this.buildLocalData(item, index, length);
-        const scopes: AutoTemplateScope[] = [];
+        const scopes: AutoSparkScope[] = [];
         for (let i = 0; i < this.itemTemplates.length; i++) {
             const { scope } = this.engine.compiler.compileChild(
                 this.itemTemplates[i]!,

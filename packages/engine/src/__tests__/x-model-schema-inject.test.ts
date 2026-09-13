@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
 import { AutoStore, ConfigManager, configurable } from "autostore";
-import { AutoTemplateEngine } from "../engine";
+import { AutoSpark } from "../engine";
 import { nextTick } from "./helpers";
 
 /**
@@ -39,7 +39,7 @@ function mountWithConfig(
         configManager,
         configKey: opts.configKey,
     } as any);
-    const engine = new AutoTemplateEngine(root, store);
+    const engine = new AutoSpark(root, store);
     return { root, store, engine, configManager };
 }
 
@@ -191,7 +191,7 @@ describe("x-model schema 注入：动态交集与降级", () => {
         const root = document.createElement("div");
         root.innerHTML = `<input x-model="name"/>`;
         const store = new AutoStore({ name: "a" });
-        expect(() => new AutoTemplateEngine(root, store)).not.toThrow();
+        expect(() => new AutoSpark(root, store)).not.toThrow();
         // 无 configManager → 不注入任何属性
         const input = root.querySelector("input")!;
         expect(input.hasAttribute("placeholder")).toBe(false);
@@ -208,7 +208,7 @@ describe("x-model schema 注入：动态交集与降级", () => {
         const root = document.createElement("div");
         root.innerHTML = `<input x-model="name"/>`;
         const store = new AutoStore({ name: "a" }, { configManager: cm, configKey: "app" } as any);
-        expect(() => new AutoTemplateEngine(root, store)).not.toThrow();
+        expect(() => new AutoSpark(root, store)).not.toThrow();
         const input = root.querySelector("input")!;
         // name 是简单路径，编译期静态注入（不依赖 schema）
         expect(input.getAttribute("name")).toBe("name");

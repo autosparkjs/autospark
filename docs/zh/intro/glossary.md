@@ -1,10 +1,10 @@
 # 名词解释
 
-本页解释 AutoTemplate Engine 文档里反复出现的核心术语。读[快速入门](./get-started.md)时遇到不熟悉的词，可随时回到这里查阅；每个词条都附了指向专题文档的链接，需要深入时继续往下走。
+本页解释 AutoSpark Engine 文档里反复出现的核心术语。读[快速入门](./get-started.md)时遇到不熟悉的词，可随时回到这里查阅；每个词条都附了指向专题文档的链接，需要深入时继续往下走。
 
 ## 引擎与状态
 
-**AutoTemplate Engine**（模板引擎）把 [AutoStore](../../store/guide/store/about.md) 的响应式状态绑定到 DOM。你只管在 HTML 上写指令声明「这里显示什么状态」，状态一变，引擎自动更新对应节点。
+**AutoSpark Engine**（模板引擎）把 [AutoStore](https://zhangfisher.github.io/autostore/) 的响应式状态绑定到 DOM。你只管在 HTML 上写指令声明「这里显示什么状态」，状态一变，引擎自动更新对应节点。
 
 ```html
 <div id="app">
@@ -12,9 +12,8 @@
 </div>
 
 <script>
-    const { AutoTemplateEngine } = AutoStoreSpaces;
     // 第二参是状态对象，引擎自动建 store
-    new AutoTemplateEngine(document.getElementById("app"), {
+    new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {
         user: { name: "张三" },
     });
 </script>
@@ -67,7 +66,7 @@
 
 ## 作用域（Scope）
 
-**作用域（Scope）** 是模板引擎的核心组织单元。每个**含指令或 `{{}}` 插值**的元素，编译期都会建一个 `AutoTemplateScope`，它统一管理该元素上所有指令的生命周期与状态订阅。
+**作用域（Scope）** 是模板引擎的核心组织单元。每个**含指令或 `{{}}` 插值**的元素，编译期都会建一个 `AutoSparkScope`，它统一管理该元素上所有指令的生命周期与状态订阅。
 
 一个 scope 持有：
 
@@ -119,7 +118,7 @@ scope 经 `parent` 链组成树，读取局部数据时**就近命中**：
 
 ## 动作（Action）
 
-**动作（Action）** 是 `@*` 事件绑定的处理函数。可以在 `<script type="actions">` 里声明局部动作，或经引擎选项注入全局动作。
+**动作（Action）** 是 `@*` 事件绑定的处理函数。可以在 `<script type="autospark/actions">` 里声明局部动作，或经引擎选项注入全局动作。
 
 ```html
 <div x-data="{ count: 0 }">
@@ -127,7 +126,7 @@ scope 经 `parent` 链组成树，读取局部数据时**就近命中**：
     <button @click="bump">+1</button>
 </div>
 
-<script type="actions">
+<script type="autospark/actions">
     {
         bump() {
             this.data.count++;   // 写本层 x-data 的局部数据
@@ -155,7 +154,7 @@ scope 经 `parent` 链组成树，读取局部数据时**就近命中**：
     <!-- 声明：编译后从 DOM 消失，作为 "loading" 模板供体 -->
     <div x-component="loading"><div class="skeleton"></div></div>
     <!-- 消费：x-loading 取上面的组件替换内置旋转 loader -->
-    <div x-loading="{ visible: 'on' }">内容</div>
+    <div x-loading="{ value: 'on' }">内容</div>
 </div>
 ```
 

@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-component · 生命周期</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
             .log {
                 max-height: 220px;
@@ -107,13 +107,12 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
             // 日志写入全局 state.log，组件钩子内通过 this.state.log 访问
             let seq = 0;
             function log(phase, text) {
                 engine.state.log.push({ phase, text: `#${++seq} ${text}` });
             }
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.getElementById("app"),
                 { show: true, log: [] },
                 {

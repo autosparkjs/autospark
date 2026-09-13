@@ -10,7 +10,7 @@
 
 ## 快速入门
 
-<demo html="template/on/basic.html"/>
+<demo html="on/basic.html"/>
 
 ```html
 <button @click="inc">+1</button>
@@ -18,7 +18,7 @@
 <input @keydown.enter="onEnter($event)" />
 ```
 
-指令值若匹配「裸标识符」或「标识符(参数)」则当**动作**查找（沿 scope 链：局部 `<script type="actions">` → `engine.actions`）；否则当**表达式**求值（如 `count++`、`alert(1)`）。详见[动作](../action.md)。
+指令值若匹配「裸标识符」或「标识符(参数)」则当**动作**查找（沿 scope 链：局部 `<script type="autospark/actions">` → `engine.actions`）；否则当**表达式**求值（如 `count++`、`alert(1)`）。详见[动作](../action.md)。
 
 ## 指南
 
@@ -32,7 +32,7 @@
 <input @input="onInput($event)" />
 ```
 
-<demo html="template/on/basic.html"/>
+<demo html="on/basic.html"/>
 
 ### 修饰符
 
@@ -67,7 +67,7 @@
 
 `.feedback` 为触发元素提供**声明式执行反馈**——动作 pending 时加 `pending` 类、resolved 加 `resolved` 类、rejected 加 `rejected` 类：
 
-<demo html="template/on/feedback.html"/>
+<demo html="on/feedback.html"/>
 
 ```html
 <!-- 裸 .feedback：用默认反馈类 -->

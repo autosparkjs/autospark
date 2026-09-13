@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>x-component · 组件基础</title>
-        <script src="/autostore/template.js"></script>
-        <link rel="stylesheet" href="/autostore/bulma.min.css" />
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
             /* panel 给覆盖层提供定位上下文（position:relative） */
             .panel {
@@ -70,7 +70,7 @@
                 </div>
 
                 <!-- 消费者：x-loading 自动取上面的 loading 块替换内置旋转 loader -->
-                <div class="card panel" x-loading="{ visible:'on' }">
+                <div class="card panel" x-loading="{ value:'on' }">
                     <div class="card-content">数据内容区</div>
                 </div>
             </div>
@@ -81,8 +81,7 @@
         </div>
 
         <script>
-            const { AutoTemplateEngine } = AutoTemplateSpaces;
-            const engine = new AutoTemplateEngine(
+            const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
                 { on: true },
                 {

@@ -1,4 +1,4 @@
-# AutoStore Template
+# AutoSpark
 
 声明式模板渲染引擎：通过宿主元素上的 `x-*` / `@*` / `:*` 属性（指令）把 AutoStore 状态绑定到 DOM。本表固化引擎内部的领域语言，配置体系（指令选项 / 宿主选项）术语于 ADR-0007 引入。
 
@@ -17,6 +17,24 @@ _Avoid_: 参数、子指令
 **指令类别（DirectiveKind）**:
 区分指令归属哪条执行通道的静态字段——`Compile`（编译期变换树、走 scope 通道）/ `Runtime`（编译器致盲、走 observer 通道）/ `Hybrid`（双通道）。详见 ADR-0001。
 _Avoid_: 类型、模式
+
+### 动作层
+
+**动作声明脚本 / Action Script**:
+模板内声明动作的 `<script type="autospark/actions">` 通道（ADR-0031 命名空间化）：内容为对象字面量，编译期提取后节点剪枝（不进渲染 DOM）。默认注入**最近祖先 scope.actions**（局部动作，只 DOM 冒泡）；带 `global` 属性则注入 `engine.actions`（全局动作，总线+DOM 双发）。普通 `<script>`（无该 type）不经此通道、原样保留。
+_Avoid_: 动作脚本（泛化）、内联动作（易与 x-on 内联表达式混淆）、`type="actions"`（裸值旧写法已废弃）
+
+**动作描述符 / ActionDesc**:
+action 的**统一存储与读取形态**：`handle` 是唯一必需保留键（执行体），`name` 由注册键注入；`title` / `icon` 为文档化约定键，其余自由键原样保留（开放元数据）。函数写法是它的**简写形态**（≡ `{ handle: fn }`），两种写法在任何声明入口可混用；`engine.actions[name]` / `getAction` 恒返回本对象，执行取 `.handle(...)`（引擎内部消费者透明解包，模板侧无感）。详见 ADR-0036。
+_Avoid_: action 对象（泛化）、action 配置（它是存储形态不是配置）、元数据对象（handle 也是它的一部分）
+
+**动作自引用 / this.action**:
+action 执行上下文（AutoSparkActionContext）中指向**自身动作描述符**的活引用：元数据（`this.action.title` 等）可读写但无响应式承诺；`this.action.handle(...)` 递归调用会再次触发完整生命周期广播。详见 ADR-0036。
+_Avoid_: `$action`（$ 系是引擎注入特殊物，实体引用无前缀）、`this.meta`（窄化为只见元数据）、动作快照（它是活引用）
+
+**内置动作 / Built-in Actions**:
+引擎自动注册的信号型全局 action（`yes` / `no` / `cancel` / `close`）：handle **透传首参**（`close(1)` → resolved 广播 `result:1`），价值在**广播语义**——祖先监听 `action:close` 等 DOM 冒泡事件（`detail.result` 读信号载荷）即可驱动关闭对话框/确认/取消等通用交互。用户同名声明覆盖内置。详见 ADR-0036 决策 7。
+_Avoid_: 默认动作（泛化）、系统动作（易与 DOM/浏览器原生事件联想）、公共动作（它们是信号不是共享实现）
 
 ### 配置层
 
@@ -54,6 +72,26 @@ _Avoid_: 点分相对路径（`..` 与 `.` 分隔符字符冲突，无法按 spl
 相对挂载的步进基准开关（≡ `nearest:true`）：每级 `..` 从「直接父 scope」改为「最近的持有 `_data` 的祖先 scope」（跳过 x-if/x-for/x-scope 等占位元素）；`./` 仍指自身容器；上溯无数据祖先落根；配绝对路径静默忽略。「跳层」语义只在此显式 opt-in，不是默认——默认步进的确定性优先。
 _Avoid_: 自动跳层（默认语义已被否决，跳层必须显式声明）
 
+**数据脚本 / Data Script**:
+`<script type="autospark/data">`：父元素数据域的 **JS 对象字面量声明源**（x-data 的超集，非字面等效）。只作用于**直接父元素**（与 `autospark/actions` 的最近祖先语义有意分歧——数据是结构性的，归属必须一眼确定）；多个数据脚本与 x-data 经 `deepMerge` 深合并（数组替换、undefined 不覆盖、函数整体覆盖），**x-data 最后合并、优先级最高**；`options` 属性承载 mount/global/nearest（父元素 `x-data-options` 权威，冲突忽略 + warn）；求值注入 `computed`/`configurable`/`watch`，**普通函数值是 computed 简写**（方法归 `autospark/actions` / `<script setup>`；watch 是纯副作用声明，引擎注入后强制首读激活）。编译前预扫合成单一数据对象走既有挂载管道（位置无关、每实例独立数据域、回收同权）。详见 ADR-0032。
+_Avoid_: 脚本数据（泛化）、x-data 脚本（它是声明源不是指令）、JSON 块（内容是 JS 不是 JSON）
+
+**异步数据源 / Async Data Source（x-data）**:
+**异步源家族**的 x-data 物种（家族骨架：url / action 形态判定、编译期首取、插值/实参依赖变化自动重取、请求序号竞态丢弃、destroy 中止——两物种共用同一执行器 `AsyncSourceRunner`）。x-data 侧：值以 `/`、`//`、`http(s)://`、`./`、`../` 开头经 fetch 取数、`标识符(实参?)` 执行 action 取数——结果（须为对象，或经 **path** 提取）后到 merge 进数据域，mount 三形态/回收语义照常（数据只是「晚点到」）；异步形态在数据域注入 `$loading` / `$error` 元状态键（`$error` 为 Error 实例），同步形态（对象 / 数据脚本）不注入。HTML 侧物种见「异步 HTML 源」。详见 ADR-0033 / 0035。
+_Avoid_: 远程数据（泛化，action 形态不经网络）、异步 x-data（形态不是时态）、fetch 数据源（url 只是载体之一）
+
+**异步 HTML 源 / Async HTML Source（x-html）**:
+**异步源家族**的 x-html 物种：url 前缀集判定与 x-data 相同；action 判定**必须带调用括号**（`loadPartial(lang)`）——裸词恒为表达式读状态键（x-html 的值本就是表达式，与 x-data 数据声明身份的关键判定差异）。响应 **text-only**（`res.text()` 直取，无 path；action 返回非字符串按加载失败处理）；产物按 x-html 既有双通道消费——默认模式写 innerHTML（远程内容**维持默认消毒**）、`.compile` 模式作为远程子模板编译。反馈**只走视觉通道**（合成 x-loading 字面量切换 + x-fallback 静态认领），**不注入元状态键**（x-html 无数据域，元键归 x-data 独有）；同元素双异步时反馈通道归 x-data 独占。详见 ADR-0035。
+_Avoid_: 异步模板（.compile 只是消费通道之一）、远程 HTML 数据（产物是内容不是数据）、html 数据源（泛化，撞数据源物种名）
+
+**提取路径 / path（x-data-options）**:
+异步数据源的响应映射选项：`path:'results'` 经 `getVal` 从响应结构下钻提取子对象作为数据结果；提取失败或提取后仍非对象，按加载失败姿态（`$error` + warn，数据不落地）。**区别于 mount**（挂载点是「数据的家」）与既有「状态路径 / 配置状态路径」术语族——path 是**读响应数据的提取路径**（ADR-0029 否决 mount 用此名时，正是为把这个语义留给提取场景）。
+_Avoid_: result（旧提案名已弃）、字段名（不表达路径下钻）、挂载路径（那是 mount 的值）
+
+**异步兜底 / x-fallback**:
+异步源宿主（异步 x-data / 异步 x-html）的**特例子节点**（x-empty 之于 x-for 同构）：**非就绪态的替换渲染**——非就绪（加载中或失败）且**尚无内容**时显示（x-data 判「域内尚无数据」、x-html 判「宿主无已注入内容」；重取保旧值不闪断；要重取期视觉指示，显式声明 `loading` 选项叠覆盖层）。x-data 侧 fallback 经编译（可插值读 `$error`）；x-html 侧走**静态通道**（不编译不可插值，注入内容写入前先移除）。与 x-loading 覆盖层**互斥为默认**（声明 x-fallback 则不合成覆盖层；`loading:{...}` 显式开启则并存、`loading:false` 恒关）；同元素双异步时归 x-data 独占。孤立 x-fallback（父元素无异步源）warn + 当普通元素放行。区别于空值占位（x-text 值级空态文案）、组件兜底（消费者未命中组件回退默认 UI）、空值回填（x-model 显示层回填）——三者均非「异步未就绪」语义。
+_Avoid_: fallback 块（裸词歧义）、加载占位（不认领 error 态，窄化语义）、loading 块（与 x-loading 覆盖层撞义）
+
 ### 内容渲染层
 
 **空值占位（Empty Placeholder）**:
@@ -73,7 +111,7 @@ x-text / x-html 的修饰符，绑定值为空时将宿主元素内联 `display`
 _Avoid_: `.empty`（与 empty 文案配置撞键）、`.ghost`（暗示 visibility:hidden 占位，与 display:none 语义冲突）
 
 **`.compile` 修饰符（x-html）**:
-x-html 的修饰符，将绑定值作为**子模板编译执行**（而非静态 HTML 快照）——反转 x-html"不编译注入内容"的原定位。注入内容写回 `scope.template` 后调 `recompileSubtree`，建 scope/watcher、继承宿主作用域（localData/data 经 `_linkParent` 自动传递），支持嵌套 x-data/x-for/x-if，与正常模板一致。**隐式强制跳过消毒**（sanitize 会剥指令属性致模板失效），安全等级**高于 `.raw`：.raw 的 `<script>` 经 innerHTML 不执行，compile 注入的 `x-on` 会真实绑定执行**——须确保来源可信。每次值变全量销毁旧子树 + 重编译（无 diff）；空值销毁子树 + 清空宿主、忽略 `empty` 文案（结构空状态无文案占位语义），`.hide` 仍生效。详见 ADR-0017。
+x-html 的修饰符，将绑定值作为**子模板编译执行**（而非静态 HTML 快照）——反转 x-html"不编译注入内容"的原定位。注入内容写回 `scope.template` 后调 `recompileSubtree`，建 scope/watcher、继承宿主作用域（localData/data 经 `_linkParent` 自动传递），支持嵌套 x-data/x-for/x-if，与正常模板一致。**隐式强制跳过消毒**（sanitize 会剥指令属性致模板失效），安全等级**高于 `.raw`：.raw 的 `<script>` 经 innerHTML 不执行，compile 注入的 `x-on` 会真实绑定执行**——须确保来源可信。每次值变全量销毁旧子树 + 重编译（无 diff）；空值销毁子树 + 清空宿主、忽略 `empty` 文案（结构空状态无文案占位语义），`.hide` 仍生效。异步源组合：`x-html.compile="url"` 取回**远程模板**编译（重取保旧子树、x-fallback 同样认领，见「异步 HTML 源」）。详见 ADR-0017 / 0035。
 _Avoid_: `.template`（与 engine.template/`<template>` 标签重载）、`.render`（泛化）、`.eval`（求值联想 + 安全负面含义）
 
 **`.transition` 修饰符（x-style）**:
@@ -89,6 +127,10 @@ _Avoid_: 占位符（歧义大，本表保留给空值渲染）、marker、占�
 **条件存在性 / x-if（Conditional Presence）**:
 x-if 控制宿主**是否存在于 DOM 树**。条件为假时**摘除宿主**（detach）并以锚点注释占位——宿主离开 DOM，不再被 `querySelector` / `:nth-child` / 表单提交命中。`.keepalive` 修饰符切两态：eager（默认）假时**销毁子树 scope**、真时重编译子树；`.keepalive` 假时**保活子树与 watcher**、真时原宿主 reattach（状态保留）。eager 占子树（ownsChildren）故与 x-for 同元素冲突；`.keepalive` 不占子树，可与 x-for 共存。
 _Avoid_: 显示/隐藏（那是 x-show 的可见性语义）、条件渲染（泛化词）
+
+**条件分支链 / x-else-if（Conditional Branch Chain）**:
+x-if 宿主**直接子元素**中带 `x-else-if="expr"`（带值分支）/ 裸 `x-else`（兜底）构成的多路条件链：主表达式假时按文档顺序求值、**首个真者胜**；全假有兜底走兜底、无兜底皆不渲染（仅锚点占位）。分支编译期克隆为冻结快照（模板只读）、永不进 then 子树（compiler 剪枝）；命中分支作为**独立元素插到锚点位置**（宿主原位）完整编译执行——**渲染层级是宿主的兄弟、书写层级在宿主内**（一跳差异）。eager 切换销毁重建；keepalive **每分支独立保活**（切回状态保留）。分支根禁结构指令（ownsChildren 类，warn + 跳过）；孤儿分支（父非 x-if 宿主，含 x-for 容器直接子级）warn + 丢弃。详见 ADR-0034。
+_Avoid_: 兄弟节点式（那是 Vue v-else 的形态，本引擎为子节点式自包含单元）、elseif 指令（名为 x-else-if，一名一义）、任意深度归属（仅直接子元素）
 
 **条件可见性 / x-show（Conditional Visibility，独立指令）**:
 控制宿主**是否可见**，宿主**永留 DOM**。条件为假时 `display:none`（仍占 `:nth-child` 位、仍被表单提交、`querySelector` 仍命中），子树与 watcher 全保留、最轻量。**独立指令，不再是 `x-if.keep` 的别名**（别名关系已废弃，见下）。不占子树，可与 x-for 共存。
@@ -159,11 +201,11 @@ _Avoid_: 分组字段（那是 group 的值，不是机制）、optgroup（那�
 ### 结构占位与组件层
 
 **结构占位 / x-scope（Structural Placeholder）**:
-纯占位指令，元素上声明 `x-scope` 即令该元素建立 `AutoTemplateScope`——即便它没有其他指令、没有插值。目的是在「无其他指令的纯容器 `<div>`」上插入一个 scope 锚点，让后代 scope 的 parent 链落到此处（而非更远的祖先），并为其后代 `x-component` 提供归属。注册占位类 `ScopeDirective`（`created`/`compile` 皆空，高优先级）；冗余声明（元素已有其他指令、本就建 scope）静默无副作用。**不建数据域**——与 x-data 的数据注入职责正交。
+纯占位指令，元素上声明 `x-scope` 即令该元素建立 `AutoSparkScope`——即便它没有其他指令、没有插值。目的是在「无其他指令的纯容器 `<div>`」上插入一个 scope 锚点，让后代 scope 的 parent 链落到此处（而非更远的祖先），并为其后代 `x-component` 提供归属。注册占位类 `ScopeDirective`（`created`/`compile` 皆空，高优先级）；冗余声明（元素已有其他指令、本就建 scope）静默无副作用。**不建数据域**——与 x-data 的数据注入职责正交。
 _Avoid_: 作用域容器（泛化）、命名空间（语义不符）、占位符（本表保留给空值渲染，歧义大）
 
 **组件 / x-component（Component）**:
-编译期树变换标记，**不是渲染指令**。在 x-scope（或任意带 scope 的祖先）内声明一个命名组件片段，编译时被**从渲染树摘除**（不进结果 DOM、不建 scope、不实例化指令），以**深克隆的 template 元素副本**形态上交给最近祖先 scope 的 `components`。无值时取名 `default`。组件上同元素的其他指令（如 `x-component="error" x-text="msg"`）随组件整体冻结，待消费者渲染该组件时才编译执行。**组件根 scope 由消费编译路径（`compiler.compileChild`）内禀保证**——消费者无条件 `new AutoTemplateScope`，与根上是否有 `x-scope` 属性无关；`_collectComponent` 不再给快照根注入任何属性（原"注入 x-scope"已作废，ADR-0022（承接 ADR-0021）决策 7 修订）。详见 ADR-0022（承接 ADR-0021）。
+编译期树变换标记，**不是渲染指令**。在 x-scope（或任意带 scope 的祖先）内声明一个命名组件片段，编译时被**从渲染树摘除**（不进结果 DOM、不建 scope、不实例化指令），以**深克隆的 template 元素副本**形态上交给最近祖先 scope 的 `components`。无值时取名 `default`。组件上同元素的其他指令（如 `x-component="error" x-text="msg"`）随组件整体冻结，待消费者渲染该组件时才编译执行。**组件根 scope 由消费编译路径（`compiler.compileChild`）内禀保证**——消费者无条件 `new AutoSparkScope`，与根上是否有 `x-scope` 属性无关；`_collectComponent` 不再给快照根注入任何属性（原"注入 x-scope"已作废，ADR-0022（承接 ADR-0021）决策 7 修订）。详见 ADR-0022（承接 ADR-0021）。
 _Avoid_: 片段（泛化）、插槽（那是 x-slot，正交）、命名空间组件
 
 **组件归属（Component Ownership）**:
@@ -183,7 +225,7 @@ _Avoid_: 组件解析、组件匹配（查找是按 scope 链就近+全局兜底
 _Avoid_: 降级渲染
 
 **全局组件（Global Component）**:
-经引擎构造选项 `AutoTemplateEngineOptions.components`（`Record<string, string>`）声明的、**全引擎复用**的命名组件，字符串入参。是 scope 链查找的**终点兜底**（`getComponent` 到顶后查此）。与局部组件（x-component 声明、入参为 DOM）相对——二者经同一条 `getComponent` 链统一取用，消费者无需区分来源。懒预编译（见「组件预编译」），**构造期配置语义、运行时突变不失效缓存**（与 `actions`/`sanitizer` 等 options 同纪律）。详见 ADR-0022（承接 ADR-0021）决策 9。
+经引擎构造选项 `AutoSparkOptions.components`（`Record<string, string>`）声明的、**全引擎复用**的命名组件，字符串入参。是 scope 链查找的**终点兜底**（`getComponent` 到顶后查此）。与局部组件（x-component 声明、入参为 DOM）相对——二者经同一条 `getComponent` 链统一取用，消费者无需区分来源。懒预编译（见「组件预编译」），**构造期配置语义、运行时突变不失效缓存**（与 `actions`/`sanitizer` 等 options 同纪律）。详见 ADR-0022（承接 ADR-0021）决策 9。
 _Avoid_: 全局模板（泛化）、注册组件（无注册表，引擎不维护名册）
 
 **组件预编译（Component Precompile）**:
@@ -231,8 +273,8 @@ _Avoid_: 元数据绑定（泛化）
 _Avoid_: 片段（泛化）、插槽（那是 x-slot，正交）、命名空间组件
 
 **`<script setup>`**:
-组件的数据/方法/生命周期声明，对象字面量经 new Function 求值（信任代码），多个按段（data/methods/hooks）分类合并。data() 返回值注入组件 data 域，methods 注入 scope.actions，hooks 挂 scope.hooks。
-_Avoid_: 组件脚本（泛化）、setup 函数（Vue 术语，机制不同）
+组件的数据/方法/生命周期声明，识别 `<script setup>` 布尔属性或 `<script type="autospark/setup">`（ADR-0031 命名空间化）二者择一。对象字面量经 new Function 求值（信任代码），多个按段（data/methods/hooks）分类合并。data() 返回值注入组件 data 域，methods 注入 scope.methods（组件边界查找，ADR-0022 决策二-3 修订后不再进 scope.actions），hooks 挂 scope.hooks。
+_Avoid_: 组件脚本（泛化）、setup 函数（Vue 术语，机制不同）、`type="setup"`（裸值旧写法已废弃）
 
 **scope.hooks**:
 组件实例的四阶段生命周期钩子（created/mounted/beforeUnmount/unmounted），砍掉 activated/deactivated（引擎无实例缓存层）、beforeUpdate/updated（细粒度无组件整体重渲染）。每个 hook 用 ComponentMethodContext 作 this（data/state/scope）。
@@ -275,3 +317,15 @@ _Avoid_: （不再使用）
 **x-block / blocks / getBlock 全套术语**:
 已废弃，升级为 x-component / components / getComponent（ADR-0022）。default 块唯一性抛错语义亦废止，改为 warn + 后者覆盖。
 _Avoid_: （不再使用）
+
+**AutoTemplate / AutoStore Template（旧品牌名）**:
+已废弃。项目品牌更名为 **AutoSpark**（ADR-0030）：npm 包名 `autospark`、代码标识符前缀 `AutoSpark*`、IIFE 全局变量 `AutoSparkSpaces`。历史 ADR 正文中的旧名保留原词，作为决策当时的记录；活文档（本表、specs、docs/zh）一律用新名。
+_Avoid_: AutoTemplate Engine、AutoStore Template（均系更名前旧称）
+
+**`type="actions"` / `type="setup"`（script type 裸值写法）**:
+已废弃，升级为 `autospark/actions` / `autospark/setup`（ADR-0031 命名空间化，规避裸 type 值与他库/标准扩展撞车）。旧写法编译期 warn + 剪枝不执行——actions 脚本未注册、setup 脚本不再求值，失效可发现。`<script setup>` 布尔属性形态不受影响。
+_Avoid_: type="actions"、type="setup"（改用 autospark/ 前缀写法）
+
+**`visible`（x-loading 配置键）**:
+已废弃，更名为 `value`（与指令值统一：快速绑定整值即 value 表达式）。旧键编译期 warn + 忽略不生效——缺失 value ≡ 裸属性恒显示，失效可发现。历史 ADR（0008/0021）正文保留旧称。
+_Avoid_: visible（x-loading 配置对象内改用 value；x-show 等指令的 visible 状态字段名不受影响）

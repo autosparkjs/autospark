@@ -1,10 +1,10 @@
-import { AutoTemplateDirectiveBase } from "../base";
+import { AutoSparkDirectiveBase } from "../base";
 
 /**
  * x-scope：结构占位指令（ADR-0021）。
  *
  * **零副作用 no-op Compile 指令**——唯一作用是让「无其他指令、无 `{{}}` 插值」的纯容器元素
- * 在编译期建 `AutoTemplateScope`（`compileElement` 对 `hasDirectives(t) || hasInterpolation(t)`
+ * 在编译期建 `AutoSparkScope`（`compileElement` 对 `hasDirectives(t) || hasInterpolation(t)`
  * 为真者建 scope）。填补纯容器不建 scope 的缺口，达成两件事：
  *
  * 1. **为后代 x-block 提供归属锚点**——x-block 收集时向上找最近 scope 挂 `blocks`，若无 x-scope
@@ -24,6 +24,6 @@ import { AutoTemplateDirectiveBase } from "../base";
  * 优先级 = 200（与 x-data 同级，最高档）：保证 x-scope 锚点 scope 在兄弟指令前建立，使同元素
  * 其他指令能正确经 `_linkParent` 找到此 scope 作父。
  */
-export class ScopeDirective extends AutoTemplateDirectiveBase {
+export class ScopeDirective extends AutoSparkDirectiveBase {
     static override readonly priority = 200;
 }

@@ -2,13 +2,13 @@
 title: 模板
 ---
 
-# AutoTemplate Engine
+# AutoSpark Engine
 
 ::: warning 核心定位
-AutoTemplate Engine **不是静态模板引擎**，而是与 Vue、React、Alpine.js 同属一类的**响应式前端应用框架**——它同样可以用来构建响应式、可交互、动态的前端应用程序。
+AutoSpark Engine **不是静态模板引擎**，而是与 Vue、React、Alpine.js 同属一类的**响应式前端应用框架**——它同样可以用来构建响应式、可交互、动态的前端应用程序。
 :::
 
-与它们的不同只在于实现路径：它以原生 HTML 为模板，在元素上书写 `x-*` 指令，把 [AutoStore](../store/guide/store/about.md) 的响应式状态绑定到 DOM。状态一变，界面自动更新。事件处理、表单双向绑定、条件渲染、列表渲染、组件化、转场动画、动态 patch……构建现代前端应用所需的能力，它都具备。
+与它们的不同只在于实现路径：它以原生 HTML 为模板，在元素上书写 `x-*` 指令，把 [AutoStore](https://zhangfisher.github.io/autostore/) 的响应式状态绑定到 DOM。状态一变，界面自动更新。事件处理、表单双向绑定、条件渲染、列表渲染、组件化、转场动画、动态 patch……构建现代前端应用所需的能力，它都具备。
 
 不要被「模板引擎」的名字误导——它消费的是完整的 `AutoStore`（计算属性、异步计算、状态监听、批量更新），用「最小声明语法」换取「细粒度响应式更新」。你完全可以像写一个 Vue/React 应用那样，用它从零搭建一个全功能的交互式前端应用。
 
@@ -20,8 +20,7 @@ AutoTemplate Engine **不是静态模板引擎**，而是与 Vue、React、Alpin
 </div>
 
 <script>
-    const { AutoTemplateEngine } = AutoTemplateSpaces;
-    new AutoTemplateEngine(document.getElementById("app"), {
+    new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {
         user: { name: "张三" },
         order: { price: 18, count: 3 },
     });
@@ -60,7 +59,7 @@ AutoTemplate Engine **不是静态模板引擎**，而是与 Vue、React、Alpin
 
 ## 框架对比
 
-| 维度         | AutoTemplate Engine                                     | Alpine.js                 | Vue                          | React                                     |
+| 维度         | AutoSpark Engine                                     | Alpine.js                 | Vue                          | React                                     |
 | ------------ | ------------------------------------------------------- | ------------------------- | ---------------------------- | ----------------------------------------- |
 | **状态层**   | 完整 AutoStore（计算属性 / 异步计算 / 监听 / 批量更新） | 自带轻量响应式            | 自带响应式（ref/reactive）   | 需配合状态库（useState/Redux/Zustand 等） |
 | **更新粒度** | 路径订阅 + 调度合并，精确 patch 单节点                  | 细粒度 effect             | 组件级重渲染（组件树 diff）  | 组件级重渲染（Fiber diff）                |
@@ -70,7 +69,7 @@ AutoTemplate Engine **不是静态模板引擎**，而是与 Vue、React、Alpin
 | **适用规模** | 中后台页面、嵌入式渲染、轻交互                          | 轻交互、渐进增强小部件    | 中大型 SPA、全功能应用       | 大型 SPA、复杂交互应用                    |
 | **生态体积** | 与 AutoStore 协同，定位专注                             | 轻量精简                  | 完整生态（Router/Pinia 等）  | 最庞大的生态                              |
 
-**一句话定位**：Vue / React 是「以组件为核心的全功能框架」，Alpine.js 是「以 HTML 为核心的轻量增强器」，而 AutoTemplate Engine 是「以 AutoStore 状态为核心、运行时编译 HTML 的声明式渲染层」——它把完整的状态管理能力，以最小的语法成本铺到 DOM 上。
+**一句话定位**：Vue / React 是「以组件为核心的全功能框架」，Alpine.js 是「以 HTML 为核心的轻量增强器」，而 AutoSpark Engine 是「以 AutoStore 状态为核心、运行时编译 HTML 的声明式渲染层」——它把完整的状态管理能力，以最小的语法成本铺到 DOM 上。
 
 ## 适用场景
 

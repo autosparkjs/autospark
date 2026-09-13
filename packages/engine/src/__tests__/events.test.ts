@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
 import { AutoStore } from "autostore";
-import { AutoTemplateEngine } from "../engine";
+import { AutoSpark } from "../engine";
 import { mount, nextTick } from "./helpers";
 
 /**
@@ -16,7 +16,7 @@ function mountDeferred(html: string, state: any) {
     const root = document.createElement("div");
     root.innerHTML = html.trim();
     const store = new AutoStore(state);
-    const engine = new AutoTemplateEngine(root, store, { autostart: false });
+    const engine = new AutoSpark(root, store, { autostart: false });
     return { root, store, engine };
 }
 
