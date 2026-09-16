@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-tree · 拖拽调岗</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .org-tree {
+                max-width: 460px;
+                border: 1px solid #dbdbdb;
+                border-radius: 6px;
+                padding: 8px;
+            }
+            .org-tree .x-tree-row {
+                gap: 6px;
+                padding: 4px 6px;
+                border-radius: 4px;
+                cursor: grab;
+            }
+            .org-tree li[data-x-tree-row] {
+                margin: 2px 0;
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- P3 拖拽：draggable 启用（行根可拖）；目标行上 1/4 边缘线 = 移到其前、下 1/4 边缘线 = 移到其后、
+             中段高亮 = 收纳为子（自动展开）；拖入自身子孙被环检测拒绝；数据 splice 写回 + tree:drop 事件 -->
+        <div class="demo-app section">
+            <h1 class="title is-5">组织架构（拖拽调岗）</h1>
+            <p class="subtitle is-6">
+                拖部门行试试：贴目标行<b>上沿</b>移到其前、<b>下沿</b>移到其后、<b>中段</b>收纳为子
+            </p>
+            <div class="org-tree">
+                <ul
+                    x-tree="node of nodes"
+                    x-tree-options="{ draggable: true, defaultExpandLevel: 2 }"
+                    @tree:drop="onDrop($event)"
+                >
+                    <li x-tree-node>
+                        <div class="x-tree-row">
+                            <span x-text="$leaf ? '·' : ($expanded ? '▾' : '▸')"></span>
+                            <span x-text="node.name"></span>
+                            <span class="tag is-light" x-if="!$leaf" x-text="'+' + $children.length"></span>
+                        </div>
+                        <ul x-tree-children style="list-style: none; margin: 0; padding-left: 22px"></ul>
+                    </li>
+                </ul>
+            </div>
+            <p class="help">
+                最近调岗：<code x-text="lastDrop">（拖一个部门试试）</code>
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    lastDrop: "（拖一个部门试试）",
+                    // 两层结构（中心为根）：拖部门跨中心调岗 / 拖中心重排一目了然
+                    nodes: [
+                        {
+                            id: "admin",
+                            name: "行政中心",
+                            children: [
+                                { id: "admin-hr", name: "人力资源部" },
+                                { id: "admin-fin", name: "财务部" },
+                                { id: "admin-ga", name: "行政部" },
+                                { id: "admin-it", name: "信息中心" },
+                            ],
+                        },
+                        {
+                            id: "mkt",
+                            name: "市场中心",
+                            children: [
+                                { id: "mkt-mkt", name: "市场部" },
+                                { id: "mkt-sales", name: "销售部" },
+                                { id: "mkt-cs", name: "客服部" },
+                            ],
+                        },
+                        {
+                            id: "rd",
+                            name: "研发中心",
+                            children: [
+                                { id: "rd-qa", name: "测试部" },
+                                { id: "rd-ops", name: "运维部" },
+                                { id: "rd-pd", name: "产品部" },
+                                { id: "rd-design", name: "设计部" },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    actions: {
+                        // drop detail：{ source, target, position }（source/target 各含 id/node/level）
+                        onDrop: (ev) => {
+                            const d = ev?.detail;
+                            if (!d) return;
+                            const zh = { before: "移到", after: "移到", inside: "收纳进" };
+                            engine.state.lastDrop = `${d.source.node.name} ${zh[d.position]} ${
+                                d.target.node.name
+                            }${d.position === "inside" ? "（已展开）" : d.position === "before" ? " 之前" : " 之后"}`;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

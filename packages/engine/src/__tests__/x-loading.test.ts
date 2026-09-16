@@ -392,3 +392,270 @@ describe("x-loading 反复切换无泄露", () => {
         expect(root.querySelector("#h")).toBeNull();
     });
 });
+
+
+describe("x-loading 动作按钮（ADR-0038）", () => {
+    /** 拦截 console.warn 收集日志（logger.warn 底层走 console.warn） */
+    function captureWarns<T>(fn: () => T): { warns: string[]; result: T } {
+        const warns: string[] = [];
+        const origWarn = console.warn;
+        console.warn = (...args: any[]) => {
+            warns.push(String(args[0] ?? ""));
+        };
+        try {
+            return { warns, result: fn() };
+        } finally {
+            console.warn = origWarn;
+        }
+    }
+
+    test("actions 渲染按钮行：title 取 ActionDesc.title，未注册显示 name 兜底", async () => {
+        const { root } = mount(
+            `<div id="h" x-loading="{ value:'l', actions:['close','retry'] }"></div>`,
+            { l: true },
+            { actions: { retry: { title: "重试", handle: () => {} } } },
+        );
+        // x-for 首渲染经 scheduler microtask flush，须等一拍
+        await nextTick();
+        const btns = root.querySelectorAll("#h .x-loading-action");
+        // close 命中内置（title 关闭）；retry 命中用户注册（title 重试）
+        expect(btns.length).toBe(2);
+        expect(btns[0]!.textContent).toBe("关闭");
+        expect(btns[0]!.getAttribute("data-action")).toBe("close");
+        expect(btns[1]!.textContent).toBe("重试");
+        expect(btns[1]!.getAttribute("data-action")).toBe("retry");
+    });
+
+    test("未注册 action 的 title 兜底为 name 本身", async () => {
+        const { root } = mount(
+            `<div id="h" x-loading="{ value:'l', actions:['refresh'] }"></div>`,
+            { l: true },
+        );
+        await nextTick();
+        const btn = root.querySelector("#h .x-loading-action")!;
+        expect(btn).not.toBeNull();
+        expect(btn.textContent).toBe("refresh");
+    });
+
+    test("无 actions 配置：不渲染任何按钮（常规 loading 不受影响）", async () => {
+        const { root } = mount(`<div id="h" x-loading="l"></div>`, { l: true });
+        await nextTick();
+        expect(root.querySelector("#h .x-loading-action")).toBeNull();
+        // 按钮行容器随 x-for 空数组保留但无子节点（CSS :empty 折叠为零占位）
+        expect(root.querySelector("#h .x-loading-actions")!.children.length).toBe(0);
+    });
+
+    test("x-loading-options 入口声明 actions（inline 缺失才回退）", async () => {
+        const { root } = mount(
+            `<div id="h" x-loading="l" x-loading-options="{actions:['close']}"></div>`,
+            { l: true },
+        );
+        await nextTick();
+        const btn = root.querySelector("#h .x-loading-action")!;
+        expect(btn).not.toBeNull();
+        expect(btn.getAttribute("data-action")).toBe("close");
+    });
+
+    test("actions 非字符串元素 warn 剪枝；非数组整体忽略", async () => {
+        const part = captureWarns(() =>
+            mount(`<div id="h" x-loading="{ value:'l', actions:['ok', 1, null] }"></div>`, {
+                l: true,
+            }),
+        );
+        await nextTick();
+        expect(part.result.root.querySelectorAll("#h .x-loading-action").length).toBe(1);
+        expect(part.warns.some((w) => w.includes("已剪枝"))).toBe(true);
+
+        const bad = captureWarns(() =>
+            mount(`<div id="h" x-loading="{ value:'l', actions:'close' }"></div>`, { l: true }),
+        );
+        await nextTick();
+        expect(bad.result.root.querySelector("#h .x-loading-action")).toBeNull();
+        expect(bad.warns.some((w) => w.includes("须为字符串数组"))).toBe(true);
+    });
+
+    test("点击已注册 action：handle 调用（this.el=按钮）+ 双通道完整广播", async () => {
+        const bus: string[] = [];
+        let seenEl: HTMLElement | null = null;
+        let domCount = 0;
+        const { root, engine } = mount(
+            `<div id="h" x-loading="{ value:'l', actions:['retry'] }"></div>`,
+            { l: true },
+            {
+                actions: {
+                    retry: {
+                        title: "重试",
+                        handle: function (this: any) {
+                            seenEl = this.el;
+                            return 42;
+                        },
+                    },
+                },
+            },
+        );
+        engine.on("actions/retry/pending", () => bus.push("pending"));
+        engine.on("actions/retry/resolved", (m: any) => bus.push(`resolved:${m.payload.result}`));
+        const h = root.querySelector("#h")!;
+        h.addEventListener("action:retry", () => domCount++);
+        await nextTick();
+        root.querySelector("#h .x-loading-action")!.click();
+        // handle 真实执行、this.el 是被点按钮
+        expect(seenEl?.getAttribute("data-action")).toBe("retry");
+        // 总线：pending + resolved(42)；DOM：同名事件各 dispatch 一次（detail.phase 区分）
+        expect(bus).toEqual(["pending", "resolved:42"]);
+        expect(domCount).toBe(2);
+    });
+
+    test("点击未注册 action：合成透传 descriptor，两通道照播", async () => {
+        const bus: string[] = [];
+        let domDetail: any = null;
+        let domCount = 0;
+        const { root, engine } = mount(
+            `<div id="h" x-loading="{ value:'l', actions:['refresh'] }"></div>`,
+            { l: true },
+        );
+        engine.on("actions/refresh/pending", () => bus.push("pending"));
+        engine.on("actions/refresh/resolved", (m: any) => bus.push(`resolved:${m.payload.name}`));
+        root.querySelector("#h")!.addEventListener("action:refresh", (e) => {
+            domCount++;
+            domDetail = (e as CustomEvent).detail;
+        });
+        await nextTick();
+        root.querySelector("#h .x-loading-action")!.click();
+        // 总线照播（合成 descriptor 的广播语义与内置信号型同构）
+        expect(bus).toEqual(["pending", "resolved:refresh"]);
+        // DOM 冒泡照发：pending + resolved 两次，detail 携带 name 与合成 descriptor
+        expect(domCount).toBe(2);
+        expect(domDetail?.name).toBe("refresh");
+        expect(domDetail?.action?.name).toBe("refresh");
+        expect(typeof domDetail?.action?.handle).toBe("function");
+    });
+
+    test("点击抛错的 action：广播 rejected 且仍自动隐藏（不向监听器抛出）", async () => {
+        const bus: string[] = [];
+        const { root, engine } = mount(
+            `<div id="h" x-loading="{ value:'l', actions:['boom'] }"></div>`,
+            { l: true },
+            {
+                actions: {
+                    boom: {
+                        handle: () => {
+                            throw new Error("boom");
+                        },
+                    },
+                },
+            },
+        );
+        engine.on("actions/boom/rejected", () => bus.push("rejected"));
+        const h = root.querySelector("#h")!;
+        await nextTick();
+        expect(() => root.querySelector("#h .x-loading-action")!.click()).not.toThrow();
+        expect(bus).toEqual(["rejected"]);
+        expect(overlayOf(h)).toBeNull();
+    });
+
+    test("默认自动隐藏：先完整广播（监听时覆盖层仍在）再纯 DOM 移除（不写状态）", async () => {
+        let overlayAliveDuringBroadcast = false;
+        const { root, store } = mount(
+            `<div id="h" x-loading="{ value:'l', actions:['close'] }"></div>`,
+            { l: true },
+        );
+        const h = root.querySelector("#h")!;
+        h.addEventListener("action:close", () => {
+            overlayAliveDuringBroadcast = !!h.querySelector(".x-loading-overlay");
+        });
+        await nextTick();
+        root.querySelector("#h .x-loading-action")!.click();
+        // 广播期间覆盖层尚未移除；广播后移除；value 仍为 true（引擎不写状态）
+        expect(overlayAliveDuringBroadcast).toBe(true);
+        expect(overlayOf(h)).toBeNull();
+        expect(store.state.l).toBe(true);
+        // 复苏：value 翻 false → true 后恢复正常驱动
+        store.state.l = false;
+        await nextTick();
+        store.state.l = true;
+        await nextTick();
+        expect(overlayOf(h)).not.toBeNull();
+    });
+
+    test("async action：pending 即隐藏（不等待 resolved），总线 resolved 仍广播", async () => {
+        const bus: string[] = [];
+        const { root, engine } = mount(
+            `<div id="h" x-loading="{ value:'l', actions:['reload'] }"></div>`,
+            { l: true },
+            {
+                actions: {
+                    reload: async () => {
+                        await wait(20);
+                        return "done";
+                    },
+                },
+            },
+        );
+        engine.on("actions/reload/pending", () => bus.push("pending"));
+        engine.on("actions/reload/resolved", () => bus.push("resolved"));
+        const h = root.querySelector("#h")!;
+        await nextTick();
+        root.querySelector("#h .x-loading-action")!.click();
+        expect(bus).toEqual(["pending"]);
+        expect(overlayOf(h)).toBeNull(); // 未等 resolved 已隐藏
+        await wait(40);
+        expect(bus).toEqual(["pending", "resolved"]); // 总线 resolved 照播
+    });
+
+    test("hide:false 续显：ActionDesc 逐按钮关闭自动隐藏", async () => {
+        const { root } = mount(
+            `<div id="h" x-loading="{ value:'l', actions:['retry'] }"></div>`,
+            { l: true },
+            { actions: { retry: { title: "重试", hide: false, handle: () => {} } } },
+        );
+        const h = root.querySelector("#h")!;
+        await nextTick();
+        root.querySelector("#h .x-loading-action")!.click();
+        expect(overlayOf(h)).not.toBeNull(); // hide:false 不隐藏
+    });
+
+    test("未注册名恒隐藏（合成 descriptor 无 hide 配置位）", async () => {
+        const { root } = mount(
+            `<div id="h" x-loading="{ value:'l', actions:['refresh'] }"></div>`,
+            { l: true },
+        );
+        const h = root.querySelector("#h")!;
+        await nextTick();
+        root.querySelector("#h .x-loading-action")!.click();
+        expect(overlayOf(h)).toBeNull();
+    });
+
+    test("自定义 loading 组件：actions 数据注入 + data-action 委托同享（渲染归块作者）", async () => {
+        let domFired = false;
+        const { root } = mount(
+            `<div x-scope>
+                <div x-component="loading">
+                    <div class="my-loading">
+                        <div class="my-title" x-text="message"></div>
+                        <div class="my-actions" x-for="a of actions">
+                            <a class="my-btn" :data-action="a.name" x-text="a.title"></a>
+                        </div>
+                    </div>
+                </div>
+                <div id="h" x-loading="{ value:'l', message:'自定义加载', actions:['close'] }">内容</div>
+            </div>`,
+            { l: true },
+        );
+        const h = root.querySelector("#h")!;
+        await nextTick();
+        // 自定义组件替换默认块：config 数据注入（message/actions 均可见）
+        expect(root.querySelector(".my-title")?.textContent).toBe("自定义加载");
+        const btn = root.querySelector(".my-btn") as HTMLElement;
+        expect(btn).not.toBeNull();
+        expect(btn.textContent).toBe("关闭");
+        expect(btn.getAttribute("data-action")).toBe("close");
+        // 委托对自定义块生效：点击 → action:close 广播 + 默认自动隐藏
+        h.addEventListener("action:close", () => {
+            domFired = true;
+        });
+        btn.click();
+        expect(domFired).toBe(true);
+        expect(root.querySelector(".my-loading")).toBeNull(); // overlay 已随 hide() 移除
+    });
+});

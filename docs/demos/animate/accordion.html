@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>动画 · 手风琴组件</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* 展开动画：高度 0 ↔ auto（grid-template-rows 技巧）。
+               约束：动画宿主恰好一个子元素、子元素高度内容驱动 */
+            .col-enter-active,
+            .col-leave-active {
+                display: grid;
+                grid-template-rows: 1fr;
+                transition: grid-template-rows 0.3s ease, opacity 0.3s ease;
+            }
+            .col-enter-from,
+            .col-leave-to {
+                grid-template-rows: 0fr;
+                opacity: 0;
+            }
+            .col-enter-active > *,
+            .col-leave-active > * {
+                overflow: hidden;
+            }
+
+            /* 手风琴外观（padding 放最内层 .acc-content——不能放在 overflow:hidden 的
+               裁剪层 .acc-clip 上，否则 padding 会垫住 0fr 行、收起收不到 0） */
+            .accordion {
+                max-width: 560px;
+                border: 1px solid #dbdbdb;
+                border-radius: 6px;
+                overflow: hidden;
+            }
+            .acc-item + .acc-item {
+                border-top: 1px solid #dbdbdb;
+            }
+            .acc-head {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.85rem 1rem;
+                cursor: pointer;
+                user-select: none;
+                background: #fafafa;
+            }
+            .acc-head:hover {
+                background: #f0f0f0;
+            }
+            .acc-arrow {
+                transition: transform 0.2s ease;
+                color: #666;
+            }
+            .acc-arrow.on {
+                transform: rotate(90deg);
+            }
+            .acc-content {
+                padding: 0.85rem 1rem;
+                color: #444;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <!-- 手风琴：x-for 渲染条目 + @click 切换展开项 + x-if 自定义展开动画（高度 0 ↔ auto） -->
+            <div class="accordion" x-for="item of items" :key="item.id">
+                <div class="acc-item">
+                    <div class="acc-head" @click="toggle(item.id)">
+                        <span x-text="item.title"></span>
+                        <span class="acc-arrow" :class="open === item.id ? 'acc-arrow on' : 'acc-arrow'">▸</span>
+                    </div>
+                    <!-- 展开体：x-if + col 动画。三层结构：宿主（恰好一个子元素）→ 裁剪层
+                         （overflow:hidden，无 padding）→ 内容层（padding 在此） -->
+                    <div class="acc-body" x-if="open === item.id" x-if-options="{animate:'col'}">
+                        <div class="acc-clip">
+                            <div class="acc-content" x-text="item.content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    open: 1, // 当前展开项 id；null = 全收起
+                    items: [
+                        { id: 1, title: "什么是 AutoSpark？", content: "声明式模板渲染引擎：在宿主元素上书写 x-* 指令属性，把 AutoStore 响应式状态绑定到 DOM——最小声明，最大响应。" },
+                        { id: 2, title: "动画怎么声明？", content: "结构指令（x-if / x-show / x-for / x-switch）的 animate 指令选项：内置 fade / slide 一行即用，自定义动画按六类名约定写 CSS、传名即用。" },
+                        { id: 3, title: "展开动画为什么能平滑推开下方内容？", content: "自定义 col 动画用 grid-template-rows: 0fr ↔ 1fr 过渡，高度在 0 与 auto 之间平滑变化——下方条目被平滑推开/收回，无高度跳动。" },
+                    ],
+                },
+                {
+                    actions: {
+                        // 单开手风琴：点另一项切换展开，再点同一项收起
+                        toggle: (id) => {
+                            engine.state.open = engine.state.open === id ? null : id;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

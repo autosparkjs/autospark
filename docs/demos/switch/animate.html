@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-switch · 进出场动画</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* 平滑方案：grid 同格叠放——新旧分支重叠（cross-fade）而非堆叠。
+               margin 归零：外边距计入行高（选择器带 .demo-app 前缀压过框架边距规则）。
+               overflow hidden：裁剪滑动中越出容器的面板（③ carousel 滑动必需） */
+            .tab-stack { display: grid; overflow: hidden; }
+            .demo-app .tab-stack > * { grid-area: 1/1; margin: 0; }
+
+            /* ③ tabs 左右滑动（坐标衔接）：新页从 +100% 滑入、旧页向 -100% 滑出，不动画 opacity
+               ——同一缓动曲线下任意时刻「旧面板右缘 == 新面板左缘」，两面板如同一整条连续滑动
+               （carousel 效果）；等高面板（min-height）+ 同格叠放保证切换零跳动 */
+            .sx-enter-active,
+            .sx-leave-active {
+                transition: transform 0.3s ease;
+            }
+            .sx-enter-from {
+                transform: translateX(100%);
+            }
+            .sx-leave-to {
+                transform: translateX(-100%);
+            }
+            .tab-panel {
+                min-height: 64px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <!-- ① 默认共演：新旧分支短暂同处文档流，容器高度短暂 = 两者之和（有跳动） -->
+            <div class="buttons">
+                <strong>① 默认（有高度跳动）：</strong>
+                <button class="button is-primary" @click="setA('list')">列表</button>
+                <button class="button" @click="setA('form')">表单</button>
+            </div>
+            <div x-switch="tabA" x-switch-options="{animate:'fade'}">
+                <div x-case="list" class="notification is-primary">📋 列表页内容</div>
+                <div x-case="form" class="notification is-info">📝 表单页内容</div>
+            </div>
+
+            <hr />
+
+            <!-- ② grid 同格叠放：新旧分支同格重叠（cross-fade），等高分支完全无跳动 -->
+            <div class="buttons">
+                <strong>② grid 同格叠放（平滑 cross-fade）：</strong>
+                <button class="button is-primary" @click="setB('list')">列表</button>
+                <button class="button" @click="setB('form')">表单</button>
+            </div>
+            <div class="tab-stack">
+                <div x-switch="tabB" x-switch-options="{animate:'fade'}">
+                    <div x-case="list" class="notification is-primary">📋 列表页内容</div>
+                    <div x-case="form" class="notification is-info">📝 表单页内容</div>
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- ③ tabs：左右滑动（自定义 sx 动画 + 同格叠放 + keepalive 保活 tab 内容） -->
+            <div class="buttons">
+                <strong>③ tabs · 左右滑动：</strong>
+                <button :class="tabC === 'list' ? 'button is-primary' : 'button'" @click="setC('list')">列表</button>
+                <button :class="tabC === 'form' ? 'button is-primary' : 'button'" @click="setC('form')">表单</button>
+                <button :class="tabC === 'stats' ? 'button is-primary' : 'button'" @click="setC('stats')">统计</button>
+            </div>
+            <div class="tab-stack">
+                <div x-switch.keepalive="tabC" x-switch-options="{animate:'sx'}">
+                    <div x-case="list" class="notification is-primary tab-panel">📋 列表页：切换到其他页再切回，内容保活（keepalive）</div>
+                    <div x-case="form" class="notification is-info tab-panel">📝 表单页：新页从右滑入、旧页向左滑出</div>
+                    <div x-case="stats" class="notification is-warning tab-panel">📊 统计页：等高面板 + 同格叠放 = 零跳动</div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { tabA: "list", tabB: "list", tabC: "list" },
+                {
+                    actions: {
+                        setA: (t) => {
+                            engine.state.tabA = t;
+                        },
+                        setB: (t) => {
+                            engine.state.tabB = t;
+                        },
+                        setC: (t) => {
+                            engine.state.tabC = t;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-show · 进出场动画</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- animate 选项：display 切换经动画过渡，离场播完才 display:none。每个示例独立开关 -->
+        <div class="demo-app section">
+            <!-- 示例 ①：内置 fade -->
+            <div class="buttons">
+                <button class="button is-primary" @click="toggleA">① fade：切换显隐</button>
+            </div>
+            <div x-show="onA" x-show-options="{animate:'fade'}" class="notification is-primary">
+                <strong>x-show + fade</strong>：假时先播淡出，播完才置 display:none——宿主永留 DOM 的语义不变。
+            </div>
+
+            <hr />
+
+            <!-- 示例 ②：对象配置（时长 / 缓动覆盖） -->
+            <div class="buttons">
+                <button class="button is-info" @click="toggleB">② slide 600ms：切换显隐</button>
+            </div>
+            <div x-show="onB" x-show-options="{animate:{name:'slide',duration:600,easing:'ease-out'}}" class="notification is-info">
+                <strong>对象配置</strong>：slide，600ms、ease-out。
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { onA: true, onB: true },
+                {
+                    actions: {
+                        toggleA: () => {
+                            engine.state.onA = !engine.state.onA;
+                        },
+                        toggleB: () => {
+                            engine.state.onB = !engine.state.onB;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

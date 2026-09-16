@@ -7,6 +7,9 @@ import { getVal, type Watcher } from "autostore";
 import { rgba } from "../../utils/colors";
 import { toJson } from "really-relaxed-json";
 import { parseHtmlFragment } from "../../utils/transformElement";
+import { buildAction } from "../../actions/buildAction";
+import type { ActionDesc } from "../../actions/types";
+import type { AutoSparkActionContext } from "./on/types";
 
 /**
  * x-loading：在宿主元素上覆盖一个「加载中」层。（**运行时指令**，走 observer 通道）
@@ -34,6 +37,13 @@ import { parseHtmlFragment } from "../../utils/transformElement";
  *
  * **修饰符**：`.screen` → 覆盖层 `position:fixed;inset:0` 撑满视口（留在宿主子树，不 teleport）。
  *
+ * **动作按钮（ADR-0038）**：配置 `actions:['close','retry']` 在 message 下方渲染动作按钮行——
+ * 挂载时经 getAction 链解析 `title`（`ActionDesc.title ?? name`）注入块 data，渲染归块作者
+ * （DEFAULT_BLOCK 以 x-for 渲染）；触发走指令侧 **data-action 点击委托**（块内任意
+ * `data-action="<name>"` 元素）：已注册走真 action，未注册**合成透传 descriptor** 照播双通道
+ * （总线 `actions/<name>/{pending,resolved}` + DOM `action:<name>` 冒泡）；点击后按
+ * `ActionDesc.hide`（默认 true）自动隐藏覆盖层——先完整广播再纯 DOM 移除，不写状态。
+ * *
  * **已知限制**：修饰符形式 `x-loading.screen` 的运行时**值变化**不触发 attrChanged
  * （共享 observer 的 attributeFilter 仅含裸 `x-loading`）；其增/删仍生效。
  *
@@ -62,6 +72,10 @@ const BOX_CLASS = "x-loading-box";
 const LOADER_CLASS = "x-loading-loader";
 /** 可选文本 class */
 const MESSAGE_CLASS = "x-loading-message";
+/** 动作按钮行容器 class（ADR-0038；空清单时 :empty 折叠为零占位） */
+const ACTIONS_CLASS = "x-loading-actions";
+/** 动作按钮 class */
+const ACTION_CLASS = "x-loading-action";
 /** 旋转动画名（独立命名空间，避免与宿主页面 keyframes 冲突） */
 const SPIN_KEY = "x-loading-spin";
 
@@ -90,6 +104,12 @@ interface LoadingConfig {
      * - 选择器未命中或非法 → 回退到宿主元素显示。
      */
     selector?: string;
+    /**
+     * 动作按钮名数组（ADR-0038）：message 下方渲染动作按钮行，经 data-action 委托触发
+     * （已注册走真 action / 未注册合成透传 descriptor，均双通道广播）；点击后按
+     * `ActionDesc.hide`（默认 true）自动隐藏。非字符串元素 warn 剪枝。
+     */
+    actions?: string[];
 }
 
 /** 模块级样式注入标志：进程内只注入一次 */
@@ -107,6 +127,9 @@ const DEFAULT_BLOCK = `<div class="${OVERLAY_CLASS}">
   <div class="${BOX_CLASS}">
     <div class="${LOADER_CLASS}" :style="{color}"></div>
     <div class="${MESSAGE_CLASS}" x-text="message"></div>
+    <div class="${ACTIONS_CLASS}" x-for="a of actions">
+      <button class="${ACTION_CLASS}" type="button" :data-action="a.name" x-text="a.title"></button>
+    </div>
   </div>
 </div>`;
 
@@ -161,6 +184,33 @@ function injectStyles(): void {
   color: #fff;
   font-size: 14px;
   line-height: 1.4;
+}
+.${ACTIONS_CLASS} {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* 无 actions 配置（空数组）时容器折叠为零占位——x-for 容器保留但子节点已被清空 */
+.${ACTIONS_CLASS}:empty {
+  display: none;
+}
+.${ACTION_CLASS} {
+  padding: 4px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.6;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.${ACTION_CLASS}:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+.${ACTION_CLASS}:active {
+  background: rgba(255, 255, 255, 0.1);
 }`;
     document.head.appendChild(style);
     stylesInjected = true;
@@ -191,6 +241,8 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
     private config!: LoadingConfig;
     /** value 当前值的读取函数（路径支路 getVal / 表达式支路 with(state) 求值） */
     private _read!: () => any;
+    /** 未注册名的合成透传 descriptor 缓存（按名复用，ADR-0038 决策 4；随实例生死） */
+    private _synthetics: Map<string, ActionDesc> = new Map();
 
     /** 元素挂载（dispatcher 检测到 add / 初始扫描）：解析配置 + 字面量/反应式分流 + 首渲 */
     override mounted(): void {
@@ -337,7 +389,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
         const inline: LoadingConfig = raw.startsWith("{") ? this.parseObject(raw) : { value: raw };
         const opt = this.options;
         if (!opt || typeof opt !== "object") return inline;
-        for (const key of ["message", "bgColor", "color", "opacity", "delay", "selector"] as const) {
+        for (const key of ["message", "bgColor", "color", "opacity", "delay", "selector", "actions"] as const) {
             const v = (opt as Record<string, any>)[key];
             if (v !== undefined && (inline as Record<string, any>)[key] === undefined) {
                 (inline as Record<string, any>)[key] = v;
@@ -367,6 +419,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
                 opacity: typeof obj.opacity === "number" ? obj.opacity : undefined,
                 delay: typeof obj.delay === "number" ? obj.delay : undefined,
                 selector: typeof obj.selector === "string" ? obj.selector : undefined,
+                actions: this._parseActionNames(obj.actions),
             };
         } catch (e: any) {
             this.engine.logger.warn(`x-loading: 对象配置解析失败: ${e?.message ?? e}`);
@@ -462,6 +515,10 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
 
         target.appendChild(overlay);
         this.overlay = overlay;
+
+        // 动作按钮点击委托（ADR-0038 决策 3）：块内 [data-action] 元素点击触发对应 action。
+        // 监听器挂在 overlay 元素上，随元素生死（hide/teardown 移除元素即回收，无需显式解绑）。
+        overlay.addEventListener("click", (e) => this._onOverlayClick(e, compiled.scope));
     }
 
     /**
@@ -506,10 +563,11 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
     }
 
     /**
-     * 构造注入块 data 的 config 视图（全七字段，决策 12-(c) Q7 全注入）。
+     * 构造注入块 data 的 config 视图（八字段：原七字段 + actions，决策 12-(c) Q7 / ADR-0038 决策 2）。
      *
      * `value` 是表达式串（如 `"order.isSubmit"`）——块内若 x-if="value" 期待布尔会拿到字符串，
      * 属已知脚枪（value 是宿主显隐逻辑，控制 overlay 挂载与否，非块内消费字段），文档已标注。
+     * `actions` 为挂载时解析的动作按钮视图 `[{name, title}]`（见 {@link _actionsData}）。
      */
     private _configData(): Record<string, any> {
         return {
@@ -520,7 +578,98 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
             opacity: this.config.opacity ?? DEFAULTS.opacity,
             delay: this.config.delay ?? DEFAULTS.delay,
             selector: this.config.selector ?? "",
+            actions: this._actionsData(),
         };
+    }
+
+    /**
+     * 解析动作按钮数据视图：`[{name, title}]`（ADR-0038 决策 2）。
+     *
+     * 挂载时经 getAction 链解析 `title = ActionDesc.title ?? name`（内置 close 自带「关闭」，
+     * 后注册的显示 name 兜底——快照语义、不做响应式追踪，attrChanged 重建时重新解析）。
+     * 查找基准与 parentScope 同源（宿主 scope 链；宿主无 scope 时直接查全局表）。
+     */
+    private _actionsData(): Array<{ name: string; title: string }> {
+        const names = this.config.actions ?? [];
+        const scope = this.el ? this.engine.findScopeByEl(this.el) : null;
+        return names.map((name) => ({
+            name,
+            title: (scope?.getAction(name) ?? this.engine.actions[name])?.title ?? name,
+        }));
+    }
+
+    /**
+     * 校验 actions 配置字段：须为字符串数组（ADR-0038 决策 1）。
+     *
+     * 非数组 / 缺失 → undefined（无按钮行）；数组内非（非空）字符串元素 warn 剪枝。
+     */
+    private _parseActionNames(raw: unknown): string[] | undefined {
+        if (raw === undefined || raw === null) return undefined;
+        if (!Array.isArray(raw)) {
+            this.engine.logger.warn(`x-loading: 配置键 "actions" 须为字符串数组，已忽略`);
+            return undefined;
+        }
+        return raw.filter((v) => {
+            const ok = typeof v === "string" && v.trim() !== "";
+            if (!ok) {
+                this.engine.logger.warn(
+                    `x-loading: actions 数组元素须为非空字符串，已剪枝: ${JSON.stringify(v)}`,
+                );
+            }
+            return ok;
+        });
+    }
+
+    /**
+     * 取未注册名的合成透传 descriptor（ADR-0038 决策 4，与 ADR-0036 决策 7 内置信号型同构）：
+     * `{name, title: name, handle: (p) => p}` 经 buildAction 包装（local=false → 总线 + DOM 双发），
+     * 按名缓存复用。让未注册名同样走完整双通道广播——pending+resolved 同 tick、无 rejected。
+     */
+    private _syntheticAction(name: string): ActionDesc {
+        let desc = this._synthetics.get(name);
+        if (!desc) {
+            desc = buildAction((type, payload) => this.engine.emit(type as any, payload), {
+                handle: (payload?: any) => payload,
+                name,
+            });
+            this._synthetics.set(name, desc);
+        }
+        return desc;
+    }
+
+    /**
+     * 覆盖层级 click 委托（ADR-0038 决策 3）：块内任意 `data-action="<name>"` 元素点击即触发。
+     *
+     * 逐次现查（与 x-on「查找延迟到触发时」同哲学）：已注册走真 action（getAction 链——块
+     * scope 的 parent 是宿主 scope，局部/全局 action 均可达），未注册走合成透传 descriptor，
+     * 均以标准 AutoSparkActionContext（el=被点元素）调用 → buildAction 双通道广播。
+     * 随后按 hide 约定键（决策 5，点击时现读 `desc.hide !== false`）自动隐藏（决策 6：
+     * **先完整广播再移除**——监听方同步跑完；async 到 pending 即隐藏不等待 resolved）。
+     */
+    private _onOverlayClick(event: Event, scope: AutoSparkScope): void {
+        const target = (event.target as HTMLElement | null)?.closest?.("[data-action]") as
+            | HTMLElement
+            | null;
+        if (!target || !this.overlay?.contains(target)) return;
+        const name = target.getAttribute("data-action");
+        if (!name) return;
+        const desc = scope.getAction(name) ?? this._syntheticAction(name);
+        const ctx: AutoSparkActionContext = {
+            el: target,
+            $event: event,
+            data: scope.getContext(),
+            scope,
+            store: this.engine.store,
+            state: this.engine.store.state,
+            engine: this.engine,
+            $options: {},
+        };
+        try {
+            desc.handle.call(ctx);
+        } catch {
+            /* buildAction 已广播 rejected 并 rethrow；此处吞防委托监听器 uncaught（对齐 OnDirective finalHandler） */
+        }
+        if (desc.hide !== false) this.hide();
     }
 
     /**

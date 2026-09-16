@@ -75,9 +75,34 @@ engine.state.visible = true; // 还原 display，原元素实例继续
 </ul>
 ```
 
+### 进出场动画
+
+`animate` 指令选项让 display 切换播转场动画——**离场动画播完才置 `display:none`**（动画期间宿主仍可见，永留 DOM 的语义不变）：
+
+<demo html="show/animate.html"/>
+
+```html
+<!-- 内置 fade：淡入淡出 -->
+<div x-show="visible" x-show-options="{animate:'fade'}">...</div>
+
+<!-- 对象配置：slide，600ms、ease-out -->
+<div x-show="visible" x-show-options="{animate:{name:'slide',duration:600,easing:'ease-out'}}">...</div>
+```
+
+行为要点：
+
+- **抢占**：离场动画播到一半条件又翻真，立即恢复显示并播进场（快速连点不会错乱）；
+- **首次渲染静默**：只有状态变化引起的显隐切换才动画。
+
+内置 `fade` / `slide` 开箱即用；分相配置（`enter` / `leave` 各自可配、`false` 单相禁用）、自定义动画（六类名契约）见[动画](../animate.md)。
+
 ## 配置
 
-`x-show` 的指令值是条件表达式（必填）。它没有额外的修饰符或指令选项——切换的就是宿主的内联 `display`。
+`x-show` 的指令值是条件表达式（必填）。下列配置项控制显隐切换的过渡方式。
+
+| 配置项    | 默认值 | 修饰符 | 说明                                                                                                                       |
+| --------- | ------ | ------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `animate` | 无     |        | 进出场动画：字符串（`'fade'` / `'slide'` / 自定义名）/ 对象（name/duration/delay/easing）/ 分相（`enter` / `leave` 各自可配，`false` 单相禁用），见[动画](../animate.md) |
 
 ::: info 关于指令配置体系
 指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../config.md)。

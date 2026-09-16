@@ -57,6 +57,21 @@ function hasInterpolation(el: HTMLElement): boolean {
     return false;
 }
 
+/**
+ * 元素是否声明某指令属性（含修饰符形态）。
+ *
+ * `hasAttribute("x-if")` 对 `x-if.keepalive`（属性名含修饰符后缀）为 false，孤儿分支
+ * 判据若用精确匹配会把 keepalive 宿主的分支误报孤儿——本 helper 匹配 `x-if` 与
+ * `x-if.<modifiers>` 两种形态（ADR-0034 keepalive 误 warn 的修复，ADR-0037 同构沿用）。
+ */
+function hasDirectiveAttr(el: HTMLElement, name: string): boolean {
+    for (let i = 0; i < el.attributes.length; i++) {
+        const attrName = el.attributes[i]!.name;
+        if (attrName === name || attrName.startsWith(`${name}.`)) return true;
+    }
+    return false;
+}
+
 export class AutoSparkCompiler {
     readonly engine: AutoSpark;
     /** 编译期：原树模板元素 → scope 映射，用于建立 scope 父子关系与 localData 继承 */
@@ -126,16 +141,33 @@ export class AutoSparkCompiler {
             // 前置：x-else-if / x-else 条件分支（ADR-0034）——分支快照由 IfDirective 在宿主 created 期
             // 主动扫描直接子元素克隆收集（模板只读），本层仅负责**剪枝**：分支是备选模板、
             // 永不进结果 DOM（eager 的 compileSubtree 与 keepalive 的主 walk 两条子树编译通道统一拦截）。
-            // 父元素无 x-if 属性 → 孤儿分支：warn + 丢弃（同 x-component 孤儿惯例）
+            // 父元素无 x-if 指令属性（含修饰符形态）→ 孤儿分支：warn + 丢弃（同 x-component 孤儿惯例）
             [
                 (node: Node) =>
                     node instanceof HTMLElement &&
                     (node.hasAttribute("x-else-if") || node.hasAttribute("x-else")),
                 (el: HTMLElement) => {
                     const parent = el.parentElement;
-                    if (!(parent && parent.hasAttribute("x-if"))) {
+                    if (!(parent && hasDirectiveAttr(parent, "x-if"))) {
                         this.engine.logger.warn(
                             `x-else-if/x-else: 父元素未声明 x-if，分支被丢弃。分支必须是 x-if 宿主的直接子元素（ADR-0034）`,
+                        );
+                    }
+                    return null;
+                },
+            ],
+            // 前置：x-case / x-default 分支选择（ADR-0037）——与 x-else-if/x-else 同构：快照由
+            // SwitchDirective 在宿主 created 期克隆收集，本层仅负责剪枝（两条子树编译通道统一拦截）。
+            // 父元素无 x-switch 指令属性（含修饰符形态）→ 孤儿分支：warn + 丢弃（含误写在 x-if 宿主内的 x-case）
+            [
+                (node: Node) =>
+                    node instanceof HTMLElement &&
+                    (node.hasAttribute("x-case") || node.hasAttribute("x-default")),
+                (el: HTMLElement) => {
+                    const parent = el.parentElement;
+                    if (!(parent && hasDirectiveAttr(parent, "x-switch"))) {
+                        this.engine.logger.warn(
+                            `x-case/x-default: 父元素未声明 x-switch，分支被丢弃。分支必须是 x-switch 宿主的直接子元素（ADR-0037）`,
                         );
                     }
                     return null;
@@ -378,7 +410,8 @@ export class AutoSparkCompiler {
      * scope 是否被任意结构指令（ownsChildren）占有子树——纯判定，不抛错。
      *
      * 供 `engine.patch` 的动态区域守卫（ADR-0002 决策 5）：patch 目标自身或祖先链上有
-     * ownsChildren 指令（x-for / eager x-if / x-slot）即处于动态区域，正向桥不可靠，拒绝。
+     * ownsChildren 指令（x-for / eager x-if / x-slot / eager x-switch）即处于动态区域，
+     * 正向桥不可靠，拒绝。
      */
     scopeOwnsChildren(scope: AutoSparkScope): boolean {
         return scope.directives.some((d) => this._ownsChildrenDirective(d));
@@ -471,18 +504,20 @@ export class AutoSparkCompiler {
      * 判定某 scope 是否被结构指令占有子树（ownsChildren），并检测冲突。
      *
      * 任意指令类的静态 `ownsChildren(info)` 返回 true 即视为占有。同元素出现多个占有者
-     * （当前仅 `x-for` + eager `x-if`）语义互斥——前者重复子树、后者条件销毁子树——直接抛错，
-     * 提示改用 `x-show`/`x-if.keepalive`（均不占子树）或外层包裹。
+     * （如 `x-for` + eager `x-if`、`x-for` + eager `x-switch`）语义互斥——前者重复子树、
+     * 后者条件销毁/挂卸子树——直接抛错（标题动态列出冲突指令名），提示改用不占子树的
+     * 替代指令（`x-show` / `.keepalive` 变体）或外层包裹。
      */
     private _resolveOwnership(scope: AutoSparkScope): boolean {
         const owners = scope.directives.filter((d) => this._ownsChildrenDirective(d));
         if (owners.length > 1) {
+            const names = owners.map((d) => `x-${d.info.name}`).join(" + ");
             throw new Error(
-                "[x-if/x-for 冲突] x-if 的条件存在性（detach）与 x-for 的列表渲染不能作用于同一元素。\n" +
-                    "若需控制整个列表显隐，请改用（均不占子树，可与 x-for 共存）：\n" +
-                    '  • x-show="<expr>"      （display:none，宿主永留 DOM）\n' +
-                    '  • x-if.keepalive="<expr>"   （detach 宿主，保活子树与 watcher）\n' +
-                    '或用外层包裹：<div x-if="<expr>"><ul x-for="…">…</ul></div>',
+                `[结构指令冲突] ${names} 不能作用于同一元素（均占有子树，语义互斥）。\n` +
+                    "若需组合使用，请改用（均不占子树，可与结构指令共存）：\n" +
+                    '  • x-show="<expr>"        （display:none，宿主永留 DOM）\n' +
+                    '  • 结构指令的 .keepalive 变体（detach 宿主，保活子树与 watcher）\n' +
+                    "或用外层包裹，让两个结构指令各居一层。",
             );
         }
         return owners.length === 1;
@@ -494,8 +529,10 @@ export class AutoSparkCompiler {
      * 这些指令的属性须留在结果 DOM 上（供 static initialize 建立的 MutationObserver 检测、
      * 允许 DOM API 改值/删除），故编译期不剥除。Compile 指令属性照常剥除。
      *
-     * 匹配规则：对每个 Runtime/Hybrid 指令名 `n`，保留 `x-${n}` 与 `x-${n}.*`（含修饰符形式，
-     * 如 `x-loading.screen`）。`.` 边界避免 `x-loading` 误匹配 `x-loading-state`。
+     * 匹配规则：对每个 Runtime/Hybrid 指令名 `n`，保留 `x-${n}`、`x-${n}.*`（含修饰符形式，
+     * 如 `x-loading.screen`）与 `x-${n}-options`（指令选项属性，ADR-0007——dispatcher 经
+     * getDirectives 解析结果 DOM 建 Runtime 实例，选项属性被剥则手写声明失效）。
+     * `.`/`-options` 边界避免 `x-loading` 误匹配 `x-loading-state`。
      * 仅考虑 `x-` 长前缀（Runtime 指令无 `@`/`:` 快捷形式）。
      */
     private _runtimeKeepAttr(): (attrName: string) => boolean {
@@ -506,7 +543,12 @@ export class AutoSparkCompiler {
             }
         }
         return (attrName: string) =>
-            names.some((n) => attrName === `x-${n}` || attrName.startsWith(`x-${n}.`));
+            names.some(
+                (n) =>
+                    attrName === `x-${n}` ||
+                    attrName.startsWith(`x-${n}.`) ||
+                    attrName.startsWith(`x-${n}-options`),
+            );
     }
 
     /**
@@ -516,10 +558,10 @@ export class AutoSparkCompiler {
      * - **含 `{{}}` 文本节点 → `compileTextNode`**（插值拆分，返回 DocumentFragment 或 null 剪枝）
      * - 其余文本/注释 → `cloneNode(true)`
      *
-     * **x-else-if / x-else 分支标记在此统一剪枝**（ADR-0034）：分支是备选模板，任何子树编译
-     * 通道（eager x-if 的 then / x-for 项 / 分支快照内部的孤儿分支）都不进结果 DOM。若放行走
-     * `transformElement`，分支作为其**根**被前置剪枝 transformer 置 null 会触发单根约束抛
-     * 「根元素被丢弃」（作为非根子孙时剪枝无此问题，keepalive 主 walk 路径即如此）。
+     * **x-else-if / x-else（ADR-0034）与 x-case / x-default（ADR-0037）分支标记在此统一剪枝**：
+     * 分支是备选模板，任何子树编译通道（eager x-if 的 then / x-for 项 / 分支快照内部的孤儿分支）
+     * 都不进结果 DOM。若放行走 `transformElement`，分支作为其**根**被前置剪枝 transformer 置 null
+     * 会触发单根约束抛「根元素被丢弃」（作为非根子孙时剪枝无此问题，keepalive 主 walk 路径即如此）。
      *
      * **铁律：HTMLElement 必须走 `transformElement`（递归），不可用 `compileElement`**——后者只浅克隆，
      * 会丢失整棵子树与插值（patch 替换自身的关键正确性保证）。
@@ -529,9 +571,16 @@ export class AutoSparkCompiler {
      */
     private compileOneChild(child: Node, scope: AutoSparkScope | null): Node | null {
         if (child instanceof HTMLElement) {
-            // 分支标记：剪枝（与前置 transformer 语义一致；孤儿检测的 warn 在主 walk 路径的
-            // transformer 层发出，此处静默跳过）
-            if (child.hasAttribute("x-else-if") || child.hasAttribute("x-else")) return null;
+            // 分支标记（x-else-if/x-else 条件链、x-case/x-default 分支选择）：剪枝（与前置
+            // transformer 语义一致；孤儿检测的 warn 在主 walk 路径的 transformer 层发出，此处静默跳过）
+            if (
+                child.hasAttribute("x-else-if") ||
+                child.hasAttribute("x-else") ||
+                child.hasAttribute("x-case") ||
+                child.hasAttribute("x-default")
+            ) {
+                return null;
+            }
             return transformElement(child, this._getTransformers());
         }
         if (child.nodeType === Node.TEXT_NODE && hasMustache((child as Text).nodeValue)) {

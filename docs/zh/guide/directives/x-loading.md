@@ -154,6 +154,41 @@ engine.state.ui.loading = false; // 隐藏
 <div x-loading="{ value:'fast', delay:500 }">内容</div>
 ```
 
+### 动作按钮
+
+`actions` 在 message 下方渲染一排**动作按钮**——加载长期卡住或失败时给用户一个操作出口（关闭、重试等）。按钮点击后经既有 `action:<name>` 双通道广播，宿主及祖先元素监听即可响应，**零新监听语法**：
+
+<demo html="loading/actions.html"/>
+
+```html
+<div
+    x-loading="{ value:'loading', message:'正在拉取数据…', actions:['close','retry'] }"
+    @action:close="loading = false"
+>内容</div>
+```
+
+```javascript
+const engine = new AutoSpark(el, { loading: false }, {
+    actions: {
+        // retry 通常有真实业务体（重新拉取），注册为真动作并带标题；
+        // hide:false 让点击后覆盖层续显（加载还在继续），close 则默认点击即隐藏
+        retry: { title: "重试", hide: false, handle: () => start() },
+    },
+});
+```
+
+要点：
+
+- **按钮文案**取该名字在动作查找链上命中的 `title`（内置 `close` 自带「关闭」），未注册则显示名字本身；
+- **触发**：已注册走真实动作；未注册则**合成信号型动作照常广播**（总线 `actions/<name>/*` + DOM `action:<name>` 冒泡都触发），按钮不会因为没注册而变死键；
+- **监听**：`@action:close`（支持 `.pending` / `.resolved` / `.rejected` 相位修饰符）挂在宿主或任意祖先上；
+- **自动隐藏**：点击按钮后覆盖层默认**自动隐藏**（先完整广播再纯 DOM 移除，不写状态）；在动作描述符上声明 `hide: false` 可逐按钮关闭（典型如 `retry`）；
+- **复苏**：手动隐藏是纯 DOM 移除，若 value 一直为真则保持隐藏；value 翻假再翻真（或改写属性触发重建）后恢复正常驱动。
+
+::: warning 监听位置受 selector 影响
+`action:<name>` 从被点击的按钮沿 DOM 冒泡——监听元素须在覆盖层挂载目标的祖先链上。`selector` 把覆盖层移到别处（如 `@#modal`）时，冒泡祖先随之改变。
+:::
+
 ### 自定义加载模板
 
 默认覆盖层是内置旋转 `loader`。若不满意——想换成脉冲扩散点、进度条、骨架屏，甚至完全自定义布局——无需 fork 指令，用**组件**覆盖即可。`x-loading` 渲染时会先经 `getComponent("loading")` 取组件：取到则用块替换默认 loader，取不到才回退内置。
@@ -212,6 +247,21 @@ const engine = new AutoSpark(el, state, {
 | `value`    | 显隐表达式串（**脚枪**：是字符串，非布尔） | 块内一般不用（显隐由宿主管） |
 | `delay`    | 防闪烁毫秒                                 | 块内一般不用                 |
 | `selector` | 挂载目标选择器                             | 块内一般不用                 |
+| `actions`  | 动作按钮视图 `[{ name, title }]`           | `x-for="a of actions"` 渲染按钮 |
+
+自定义模板同样享受动作按钮的触发契约：块内任意带 `data-action="<动作名>"` 的元素，点击即触发该动作（已注册走真实动作、未注册合成信号照播），点击后按动作的 `hide`（默认隐藏）决定是否收起覆盖层。渲染归你，触发归指令：
+
+```html
+<div x-component="loading">
+    <div class="my-loading">
+        <div class="my-msg" x-text="message"></div>
+        <!-- 用注入的 actions 视图渲染按钮；data-action 标名即可被点击委托识别 -->
+        <div class="my-actions" x-for="a of actions">
+            <a class="my-btn" :data-action="a.name" x-text="a.title"></a>
+        </div>
+    </div>
+</div>
+```
 
 ::: warning 块根即 overlay 壳
 自定义块的**根元素就是 overlay 壳**——`x-loading` 会把定位（`position:absolute`/`fixed`、`inset:0`、flex 居中）和背景（`rgba(bgColor, opacity)`）作为内联样式注入到块根。所以块根通常写一个空 `<div>` 承载壳样式，把实际内容放它的子节点里（见上方示例的 `.loader`）。
@@ -247,6 +297,7 @@ const engine = new AutoSpark(el, state, {
 | `opacity`  | `0.5`        |        | 覆盖层底色透明度（作用于 bgColor 的 alpha）               |
 | `delay`    | `0`          |        | 显示前延时（防闪烁），毫秒                                |
 | `selector` | 宿主元素     |        | 覆盖层挂载目标选择器；`@` 前缀走 `document.querySelector` |
+| `actions`  | 无（不渲染） |        | 动作按钮名数组（如 `['close','retry']`），渲染在 message 下方；点击触发对应动作并广播 `action:<name>`，默认点击后自动隐藏（动作声明 `hide:false` 可逐按钮续显）。详见[动作按钮](#动作按钮) |
 | `.screen`  | 未启用       | ✅     | 全屏覆盖（`position:fixed`）                              |
 
 ::: info 关于指令配置体系
@@ -260,3 +311,5 @@ const engine = new AutoSpark(el, state, {
 - **反应式仅绝对路径**：作为运行时指令，反应式来源只接受 `engine.store.watch` 的绝对路径（运行时新增元素无 scope 上下文）。
 - **定位前提**：覆盖层为 `position:absolute;inset:0`，相对最近的 positioned 祖先定位。宿主（或 `selector` 目标）需 `position:relative` 才能被精确覆盖；否则会回退到视口/最近定位祖先（`.screen` 修饰符除外，它用 `position:fixed`）。
 - **颜色解析限制**：`bgColor`/`color` 支持 hex、`rgb()/rgba()`、`hsl()/hsla()` 及常用颜色名；`oklch`/`color()`/`lab` 等现代语法不可识别，回退默认色。
+- **动作按钮的自动隐藏不写状态**：点击按钮后覆盖层是纯 DOM 移除，引擎不会改写 `value` 状态——消费方应在 `action:<name>` 监听里自行同步状态（如置 `loading = false`），否则 value 保持为真、覆盖层保持隐藏，直到状态翻转或属性改写触发重建。
+- **未注册的动作名恒隐藏**：合成信号型动作没有配置位，点击必然收起覆盖层；想控制点击行为（如 `retry` 续显），就把它注册为真实动作并声明 `hide: false`。

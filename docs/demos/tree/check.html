@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-tree · 复选级联与节点选中</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .org-tree {
+                max-width: 460px;
+                border: 1px solid #dbdbdb;
+                border-radius: 6px;
+                padding: 8px;
+            }
+            .org-tree .x-tree-row {
+                gap: 6px;
+                padding: 4px 6px;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            .org-tree .x-tree-row:hover {
+                background: #f5f5f5;
+            }
+            .org-tree .chk {
+                width: 1.2em;
+                text-align: center;
+                color: #3273dc;
+                cursor: pointer;
+            }
+            .org-tree .name.is-selected {
+                background: #3273dc;
+                color: #fff;
+                border-radius: 4px;
+                padding: 0 6px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- P2 交互：x-tree-check 复选触点（级联 + $indeterminate 半选）+ selectedField 选中（整行 = 选中、
+             箭头收窄为展开）；tree:check / tree:select 事件；勾选状态写入节点数据的 checked 字段 -->
+        <div class="demo-app section">
+            <h1 class="title is-5">组织架构（勾选订阅 + 节点选中）</h1>
+            <p class="subtitle is-6">
+                勾中心整树级联；最近事件：<code x-text="lastEvent">（试试勾选 / 点行选中 / 点箭头展开）</code>
+            </p>
+            <div class="org-tree">
+                <ul
+                    x-tree="node of nodes"
+                    x-tree-options="{ selectedField: 'selected', defaultExpandLevel: 2 }"
+                    @tree:check="onEvent($event)"
+                    @tree:select="onEvent($event)"
+                >
+                    <li x-tree-node>
+                        <div class="x-tree-row">
+                            <span class="chk" x-tree-check x-text="node.checked ? '☑' : ($indeterminate ? '⊟' : '☐')"></span>
+                            <span class="arrow" x-tree-toggle x-text="$leaf ? '·' : ($expanded ? '▾' : '▸')"></span>
+                            <span class="name" :class="{ 'is-selected': node.selected }" x-text="node.name"></span>
+                        </div>
+                        <ul x-tree-children style="list-style: none; margin: 0; padding-left: 4px"></ul>
+                    </li>
+                </ul>
+            </div>
+            <p class="help">
+                已勾选部门（数据 checked 字段）：<code x-text="pickedNames">（无）</code>
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    lastEvent: "（试试勾选 / 点行选中 / 点箭头展开）",
+                    pickedNames: "（无）",
+                    nodes: [
+                        {
+                            id: "company",
+                            name: "AutoSpark 公司",
+                            children: [
+                                {
+                                    id: "admin",
+                                    name: "行政中心",
+                                    children: [
+                                        { id: "admin-ceo", name: "总裁办" },
+                                        { id: "admin-hr", name: "人力资源部" },
+                                        { id: "admin-fin", name: "财务部" },
+                                        { id: "admin-ga", name: "行政部" },
+                                        { id: "admin-legal", name: "法务部" },
+                                        { id: "admin-audit", name: "审计部" },
+                                        { id: "admin-it", name: "信息中心" },
+                                    ],
+                                },
+                                {
+                                    id: "mkt",
+                                    name: "市场中心",
+                                    children: [
+                                        { id: "mkt-mkt", name: "市场部" },
+                                        { id: "mkt-sales", name: "销售部" },
+                                        { id: "mkt-cs", name: "客服部" },
+                                        { id: "mkt-brand", name: "品牌部" },
+                                        { id: "mkt-plan", name: "市场策划部" },
+                                        { id: "mkt-growth", name: "市场营销部" },
+                                    ],
+                                },
+                                {
+                                    id: "rd",
+                                    name: "研发中心",
+                                    children: [
+                                        { id: "rd-mobile", name: "移动研发部" },
+                                        { id: "rd-platform", name: "平台研发部" },
+                                        { id: "rd-qa", name: "测试部" },
+                                        { id: "rd-ops", name: "运维部" },
+                                        { id: "rd-pd", name: "产品部" },
+                                        { id: "rd-design", name: "设计部" },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    actions: {
+                        // 事件 detail：check {id, node, level, checked} / select {id, node, level}
+                        onEvent: (ev) => {
+                            const d = ev?.detail;
+                            if (!d) return;
+                            engine.state.lastEvent =
+                                `${ev.type}：${d.node.name}（level ${d.level}${d.checked != null ? "，" + (d.checked ? "勾选" : "取消") : ""}）`;
+                            // 事件驱动维护已选摘要（勾选状态就在节点数据的 checked 字段上）
+                            const picked = [];
+                            const walk = (nodes) => {
+                                for (const n of nodes) {
+                                    if (!n.children?.length && n.checked) picked.push(n.name);
+                                    if (n.children?.length) walk(n.children);
+                                }
+                            };
+                            walk(engine.state.nodes);
+                            engine.state.pickedNames = picked.length ? picked.join("、") : "（无）";
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

@@ -68,7 +68,7 @@ engine.actions.rename = () => {
 
 ### 动作元数据（对象写法）
 
-除了函数写法，动作还可以声明为**对象**：`handle` 是执行体（唯一必需键），`title` / `icon` 是约定元数据键，其余自由键（如 `danger`、`hotkey`）原样保留。两种写法可在同一声明块混用：
+除了函数写法，动作还可以声明为**对象**：`handle` 是执行体（唯一必需键），`title` / `icon` 是约定元数据键，`hide` 是约定**行为**键（声明「`x-loading` 动作按钮点击后是否隐藏覆盖层」，默认 `true`、显式 `false` 关闭——如 `retry` 想点击后续显；其他场景不解释），其余自由键（如 `danger`、`hotkey`）原样保留。两种写法可在同一声明块混用：
 
 <demo html="action/meta.html"/>
 

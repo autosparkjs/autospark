@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import "../setup";
-import { mount, nextTick } from "../helpers";
+import { mount, nextTick, finishAnim } from "../helpers";
 
 describe("x-for 列表渲染（B 容器语义：直写普通元素）", () => {
     test("初始渲染 + 增项触发重建", async () => {
@@ -986,5 +986,80 @@ describe("x-for 结构变化无 children 泄漏（destroy 自移除父级）", (
         }
         expect(root.querySelectorAll("dt").length).toBe(1);
         expect(binding.children.size).toBe(2);
+    });
+});
+
+describe("x-for 进出场动画（ADR-0039）", () => {
+    // duration 拉长到 5000ms 使动画在断言窗口内稳定「在播」；结束由 finishAnim 手动驱动（确定性）
+    const OPT = `{animate:{name:'fade',duration:5000}}`;
+    const TPL = `<ul x-for="item of items" :key="item.name" x-for-options="${OPT}">
+        <li x-text="item.name"></li>
+        <li x-empty class="e">无数据</li>
+    </ul>`;
+
+    test("首渲整队静默；新项进场挂类、播完清类（决策 6/10）", async () => {
+        const { root, store } = mount(TPL, { items: [{ name: "a" }, { name: "b" }] });
+        await nextTick();
+        // 首渲不动画：全部项无生命周期类
+        for (const li of root.querySelectorAll("ul > li")) {
+            expect(li.classList.contains("fade-enter-active")).toBe(false);
+        }
+        store.state.items = [{ name: "a" }, { name: "b" }, { name: "c" }];
+        await nextTick();
+        const lis = [...root.querySelectorAll("ul > li")];
+        expect(lis[2]!.classList.contains("fade-enter-active")).toBe(true);
+        expect(lis[0]!.classList.contains("fade-enter-active")).toBe(false); // 复用项不重播
+        finishAnim(lis[2]!);
+        expect(lis[2]!.className).toBe("");
+    });
+
+    test("删除项离场：节点暂驻容器播完移除（决策 9/10）", async () => {
+        const { root, store } = mount(TPL, { items: [{ name: "a" }, { name: "b" }, { name: "c" }] });
+        await nextTick();
+        store.state.items = [{ name: "a" }, { name: "c" }]; // b 消失
+        await nextTick();
+        const lis = [...root.querySelectorAll("ul > li")];
+        expect(lis.length).toBe(3); // 离场项暂驻
+        const leaving = lis.find((li) => li.textContent === "b")!;
+        expect(leaving.classList.contains("fade-leave-active")).toBe(true);
+        finishAnim(leaving);
+        expect([...root.querySelectorAll("ul > li")].map((li) => li.textContent)).toEqual(["a", "c"]);
+    });
+
+    test("外来节点不误判重排：删末项后在位项相对序保持（Pass 3 回归保护）", async () => {
+        const { root, store } = mount(TPL, { items: [{ name: "a" }, { name: "b" }, { name: "c" }] });
+        await nextTick();
+        const ul = root.querySelector("ul")!;
+        store.state.items = [{ name: "a" }, { name: "b" }]; // 末项 c 消失
+        await nextTick();
+        // 在位项 a、b 相对序已就位 → 不重排：b 仍在离场项 c 之前（旧 length 比对会把 b 挪到 c 之后）
+        const children = [...ul.children];
+        expect(children[0]!.textContent).toBe("a");
+        expect(children[1]!.textContent).toBe("b");
+        expect(children[2]!.classList.contains("fade-leave-active")).toBe(true);
+        finishAnim(children[2]!);
+        expect([...ul.children].map((li) => li.textContent)).toEqual(["a", "b"]);
+    });
+
+    test("x-empty 挂卸同权进出场（决策 10）", async () => {
+        const { root, store } = mount(TPL, { items: [] });
+        await nextTick();
+        expect(root.querySelector(".e")!.className).toBe("e"); // 首渲静默
+        store.state.items = [{ name: "a" }]; // 空态 → 列表
+        await nextTick();
+        const empty = root.querySelector(".e")!;
+        const item = root.querySelector("ul > li:not(.e)")!;
+        expect(root.contains(empty)).toBe(true); // 离场延迟移除
+        expect(empty.classList.contains("fade-leave-active")).toBe(true);
+        expect(item.classList.contains("fade-enter-active")).toBe(true);
+        finishAnim(empty);
+        finishAnim(item);
+        expect(root.querySelector(".e")).toBeNull();
+        store.state.items = []; // 列表 → 空态
+        await nextTick();
+        const empty2 = root.querySelector(".e")!;
+        expect(empty2.classList.contains("fade-enter-active")).toBe(true);
+        finishAnim(empty2);
+        expect(empty2.className).toBe("e");
     });
 });

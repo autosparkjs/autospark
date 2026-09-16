@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>动画 · 避免高度跳动</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* 配方一：离场绝对定位（包裹层提供定位上下文） */
+            .abs-wrap { position: relative; }
+            .abs-wrap .fade-leave-active { position: absolute; width: 100%; }
+
+            /* 配方二：grid 同格叠放（新旧分支重叠 = cross-fade）。margin 归零：外边距计入行高
+               （选择器带 .demo-app 前缀提升优先级，压过 CSS 框架对兄弟元素的边距规则） */
+            .stack { display: grid; }
+            .demo-app .stack > * { grid-area: 1/1; margin: 0; }
+
+            /* 配方三：手风琴展开/收起（高度 0 ↔ auto）。
+               约束：动画宿主恰好一个子元素、子元素高度内容驱动 */
+            .col-enter-active,
+            .col-leave-active {
+                display: grid;
+                grid-template-rows: 1fr;
+                transition: grid-template-rows 0.3s ease, opacity 0.3s ease;
+            }
+            .col-enter-from,
+            .col-leave-to {
+                grid-template-rows: 0fr;
+                opacity: 0;
+            }
+            .col-enter-active > *,
+            .col-leave-active > * {
+                overflow: hidden;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <!-- 配方一：离场绝对定位——治共演堆叠 -->
+            <div class="buttons">
+                <strong>配方一 · 离场绝对定位：</strong>
+                <button class="button is-primary" @click="set1('short')">矮分支</button>
+                <button class="button is-info" @click="set1('tall')">高分支</button>
+            </div>
+            <div class="abs-wrap">
+                <div x-switch="v1" x-switch-options="{animate:'fade'}">
+                    <div x-case="short" class="notification is-primary">矮分支内容（一行）</div>
+                    <div x-case="tall" class="notification is-info">
+                        高分支内容（多行）<br /><br /><br /><br /><br /><br />底部
+                    </div>
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- 配方二：grid 同格叠放——新旧分支 cross-fade -->
+            <div class="buttons">
+                <strong>配方二 · grid 同格叠放：</strong>
+                <button class="button is-primary" @click="set2('short')">矮分支</button>
+                <button class="button is-info" @click="set2('tall')">高分支</button>
+            </div>
+            <div class="stack">
+                <div x-switch="v2" x-switch-options="{animate:'fade'}">
+                    <div x-case="short" class="notification is-primary">矮分支内容（一行）</div>
+                    <div x-case="tall" class="notification is-info">
+                        高分支内容（多行）<br /><br /><br /><br /><br /><br />底部
+                    </div>
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- 配方三：手风琴——高度 0 ↔ auto 平滑展开/收起（padding 放最内层，不垫 0fr 行） -->
+            <div class="buttons">
+                <strong>配方三 · 手风琴展开/收起：</strong>
+                <button class="button is-primary" @click="toggle3">{{ on3 ? "收起" : "展开" }}</button>
+            </div>
+            <div class="notification is-primary" style="padding: 0">
+                <div x-if="on3" x-if-options="{animate:'col'}">
+                    <div class="col-clip">
+                        <div style="padding: 1.25rem">
+                            手风琴内容——高度由内容决定，展开时平滑推开下方内容，收起时平滑收回。<br /><br /><br />
+                            底部
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="has-text-grey">下方内容（观察被平滑推开 / 收回）</p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { v1: "short", v2: "short", on3: false },
+                {
+                    actions: {
+                        set1: (v) => {
+                            engine.state.v1 = v;
+                        },
+                        set2: (v) => {
+                            engine.state.v2 = v;
+                        },
+                        toggle3: () => {
+                            engine.state.on3 = !engine.state.on3;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

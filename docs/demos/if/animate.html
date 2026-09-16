@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-if · 进出场动画</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- animate 选项：真假切换播进出场动画，离场播完宿主才离开 DOM。每个示例独立开关 -->
+        <div class="demo-app section">
+            <!-- 示例 ①：内置 slide -->
+            <div class="buttons">
+                <button class="button is-primary" @click="toggleA">① slide：切换显隐</button>
+            </div>
+            <div x-if="onA" x-if-options="{animate:'slide'}" class="notification is-primary">
+                <strong>x-if + slide</strong>：真时上滑浮入，假时下滑淡出——离场动画播完，宿主才真正离开 DOM。
+            </div>
+
+            <hr />
+
+            <!-- 示例 ②：分相配置（只动画进场，离场直接消失） -->
+            <div class="buttons">
+                <button class="button is-info" @click="toggleB">② 分相配置：切换显隐</button>
+            </div>
+            <div x-if="onB" x-if-options="{animate:{enter:'fade',leave:false}}" class="notification is-info">
+                <strong>分相配置</strong>：只播进场淡入（enter:'fade'），离场不动画（leave:false）。
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { onA: true, onB: true },
+                {
+                    actions: {
+                        toggleA: () => {
+                            engine.state.onA = !engine.state.onA;
+                        },
+                        toggleB: () => {
+                            engine.state.onB = !engine.state.onB;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

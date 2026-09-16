@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>动画 · 内置 fade / slide</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 一行声明开箱即用：x-if / x-show / x-for / x-switch 同一写法。每个示例独立控制 -->
+        <div class="demo-app section">
+            <!-- x-if + fade：条件存在性，进出淡入淡出（离场播完才移除） -->
+            <div class="buttons">
+                <button class="button is-primary" @click="toggleIf">x-if + fade：切换</button>
+            </div>
+            <div x-if="onIf" x-if-options="{animate:'fade'}" class="notification is-primary">
+                x-if + fade：条件存在性
+            </div>
+
+            <hr />
+
+            <!-- x-show + slide：条件可见性，上滑浮入 / 下滑淡出（播完才 display:none） -->
+            <div class="buttons">
+                <button class="button is-info" @click="toggleShow">x-show + slide：切换</button>
+            </div>
+            <div x-show="onShow" x-show-options="{animate:'slide'}" class="notification is-info">
+                x-show + slide：条件可见性
+            </div>
+
+            <hr />
+
+            <!-- x-for + slide：新项上滑进场、消失项下滑离场（移动不动画） -->
+            <div class="buttons">
+                <button class="button is-primary" @click="addItem">列表增项</button>
+                <button class="button" @click="removeItem">列表删项</button>
+            </div>
+            <div class="notification content" style="transition: none">
+                <p><strong>x-for + slide：列表项进出场</strong></p>
+                <ul x-for="item of items" x-for-options="{animate:'slide'}">
+                    <li x-text="item.name"></li>
+                </ul>
+            </div>
+
+            <hr />
+
+            <!-- x-switch + fade：分支切换新旧共演（fade 离场 + fade 进场同时） -->
+            <div class="buttons">
+                <button class="button is-primary" @click="set('paid')">已支付</button>
+                <button class="button" @click="set('pending')">待支付</button>
+            </div>
+            <div x-switch="order.state" x-switch-options="{animate:'fade'}">
+                <div x-case="paid" class="notification is-success">✅ 已支付</div>
+                <div x-case="pending" class="notification is-warning">⏳ 待支付</div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    onIf: true,
+                    onShow: true,
+                    items: [{ name: "第一项" }, { name: "第二项" }],
+                    order: { state: "pending" },
+                },
+                {
+                    actions: {
+                        toggleIf: () => {
+                            engine.state.onIf = !engine.state.onIf;
+                        },
+                        toggleShow: () => {
+                            engine.state.onShow = !engine.state.onShow;
+                        },
+                        addItem: () => {
+                            engine.state.items.push({ name: `新项 ${engine.state.items.length + 1}` });
+                        },
+                        removeItem: () => {
+                            engine.state.items.pop();
+                        },
+                        set: (s) => {
+                            engine.state.order.state = s;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

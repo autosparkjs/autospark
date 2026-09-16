@@ -2,20 +2,16 @@
 import { AutoSparkDirectiveBase } from "../base";
 import type { AutoDirectiveInfo } from "../types";
 import type { AutoSparkScope } from "../../scope";
+import { BranchHost, type BranchEntry } from "../branch";
 import { getDirectives } from "../utils/getDirectives";
+import { resolveAnimate } from "../../animate";
 
 /**
  * 条件分支（x-else-if / x-else）条目：编译期收集的冻结快照 + 运行态（ADR-0034）。
  */
-interface ElseBranch {
+interface ElseBranch extends BranchEntry {
     /** elseif 条件表达式；null = 裸 x-else 兜底（恒真，链末位） */
     expr: string | null;
-    /** 编译期克隆的分支快照（保留指令属性、未编译；模板只读契约下的冻结副本，可反复克隆渲染） */
-    template: HTMLElement;
-    /** 已渲染的分支根元素（keepalive 保活留存、切回 reattach；eager 切走销毁置 null） */
-    runtime: HTMLElement | null;
-    /** 分支编译出的子 scope（keepalive 留存；eager 切走销毁置 null） */
-    scope: AutoSparkScope | null;
 }
 
 /**
@@ -40,8 +36,9 @@ interface ElseBranch {
  * eager 切换销毁/重建分支（与 then 同权）；keepalive 下**每分支独立保活**（切回状态保留）。
  *
  * **宿主 scope 兼任锚点**：控制 watcher 留 `this.binding`，detach 期间由 `parent.children` 强引用
- * 保活、照常触发——无需独立锚点 scope 类型。锚点注释由本指令持有，作 reattach 的 DOM 书签
- * （`parentNode` 恒为当前父，重插位稳定）。详见 ADR-0016 / ADR-0034。
+ * 保活、照常触发——无需独立锚点 scope 类型。锚点注释与分支挂卸由共享基建 `BranchHost` 持有
+ * （ADR-0037 决策 9，与 x-switch 同构），作 reattach 的 DOM 书签（`parentNode` 恒为当前父，
+ * 重插位稳定）。详见 ADR-0016 / ADR-0034 / ADR-0037。
  *
  * 注意：首次求值须 defer 到 microtask——`created` 在 compileElement 内同步执行，此时宿主
  * 尚未挂进父树（transformElement 的 appendChild 还没发生），detach 需要 parentNode。
@@ -63,14 +60,24 @@ export class IfDirective extends AutoSparkDirectiveBase {
 
     /** eager 模式下本指令编译挂载的子树节点，false 时按此精确移除 */
     private subtreeNodes: ChildNode[] = [];
-    /** 锚点注释：false 时替代宿主留在 DOM，作 reattach 的 DOM 书签（常驻，紧邻宿主前） */
-    private anchorComment: Comment | null = null;
+    /**
+     * 分支链共享基建（ADR-0037 决策 9）：锚点管理 + 分支挂卸（eager/keepalive 两态）。
+     * 本指令保留：then 态（宿主自身展示）、短路 evaluate、主/分支表达式多 watcher。
+     */
+    private host = new BranchHost<ElseBranch>(this, () => this.keepAliveMode);
     /** 条件分支链（编译期收集，文档顺序）；空数组 = 无分支（纯 x-if，行为与既往一致） */
-    private branches: ElseBranch[] = [];
+    private get branches(): ElseBranch[] {
+        return this.host.branches;
+    }
     /** 各 elseif 分支的当前真值缓存（与 branches 下标对齐；裸 else 兜底无条目） */
     private branchValues: boolean[] = [];
     /** 主表达式当前真值缓存 */
     private condValue = false;
+    /**
+     * 首次求值守卫（ADR-0039 决策 6）：首次 show 为初次渲染，静默不动画；
+     * 之后每次 show（状态变化引起）才播进出场。与 x-switch / x-for / x-show 的同款守卫一致。
+     */
+    private firstApply = true;
     /**
      * 当前展示态：-1 = 宿主（then）；>= 0 = 分支下标；null = 空（皆不渲染）或初始。
      * 空态与初始共用 null（卸载路径同路）：空态的重复 show **不早退**——x-for 复用项 refresh
@@ -105,12 +112,9 @@ export class IfDirective extends AutoSparkDirectiveBase {
     }
 
     override destroy() {
-        // 清理锚点注释（宿主的兄弟节点，不会被 el.remove 带走，须显式移除避免残留）
-        this.anchorComment?.remove();
-        this.anchorComment = null;
-        // 当前展示分支的 DOM 在宿主**外**（锚点位、宿主的兄弟），宿主子树销毁/移除不会带走它，
-        // 须显式移除防孤儿节点。scope 侧分支已挂 binding.children，随宿主 scope.destroy 递归销毁。
-        for (const b of this.branches) b.runtime?.remove();
+        // 清理锚点注释与各分支渲染根（DOM 在宿主外，须显式移除；scope 侧随宿主
+        // scope.destroy 递归销毁）——机制见 BranchHost.destroy
+        this.host.destroy();
     }
 
     /**
@@ -138,7 +142,7 @@ export class IfDirective extends AutoSparkDirectiveBase {
             }
             // 分支根含结构指令：分支命中时须作为单根元素插锚点位，「分支根循环/再条件化」语义
             // 混乱 → warn + 跳过该分支（分支照常被剪枝层摘出 then 子树）
-            const structural = getDirectives(child).some((info) => {
+            const structural = getDirectives(child as HTMLElement).some((info) => {
                 const cls = this.engine.directives.get(info.name);
                 return !!cls?.ownsChildren?.(info);
             });
@@ -202,129 +206,102 @@ export class IfDirective extends AutoSparkDirectiveBase {
      *
      * 空态 → then 的切换**尊重宿主现状**（不先摘再按锚插回）：Pass3 可能把宿主摆到了正确位置，
      * reattachHost 对有父者 no-op 即可；先拆会按「重排后已错位的旧锚」插回，反而错位。
+     *
+     * 进出场动画（ADR-0039）：`animate` = 非首次渲染（决策 6）。每次 show 起手先 `cancel` 宿主
+     * 在播动画——若为携带延迟移除的离场则**同步完成**（清子树 + detachHost，决策 7），随后按新
+     * 状态全新挂载（mountThen 重新编译不被在播元素/旧子树污染）。
      */
     private show(target: number | null) {
+        const animate = !this.firstApply;
         if (this.shown === target && target !== null) return;
+        this.firstApply = false;
+        // 抢占在播（离场 → 同步完成延迟移除；进场 → 仅清类）
+        if (this.el) this.engine.animate.cancel(this.el);
         const was = this.shown;
         this.shown = target;
         // 1) 卸载当前
         if (was === -1) {
             // then 展示中 → 完整卸载（eager 销毁子树并摘宿主 / keepalive 仅摘宿主保活子树）
-            this.keepAliveMode ? this.detachHost() : this.unmountThen();
+            this.keepAliveMode ? this.leaveHost(animate) : this.unmountThen(animate);
         } else if (was != null) {
-            this.unmountBranch(was);
+            this.host.unmountBranch(this.branches[was]!, animate);
         } else if (target == null) {
-            // 空态（含初始）且目标仍为空：重放摘除（防御 x-for Pass3 外部插回）
-            this.detachHost();
+            // 空态（含初始）且目标仍为空：重放摘除（防御 x-for Pass3 外部插回；cancel 已完成待决离场，此处幂等）
+            this.host.detachHost();
         } else if (target !== -1) {
             // 空/初始 → 分支：宿主须摘除给分支让位，锚点亦由 detachHost 确立（分支插锚前）
-            this.keepAliveMode ? this.detachHost() : this.unmountThen();
+            this.keepAliveMode ? this.leaveHost(animate) : this.unmountThen(animate);
         }
         // 空/初始 → then（target === -1）：不摘——尊重宿主现状（Pass3 可能已摆到位），reattach 有父 no-op
         // 2) 挂载目标（null 仅卸载，锚点占位）
         if (target === -1) {
-            this.keepAliveMode ? this.reattachHost() : this.mountThen();
+            this.keepAliveMode ? this.enterHost(animate) : this.mountThen(animate);
         } else if (target != null) {
-            this.mountBranch(target);
+            this.host.mountBranch(this.branches[target]!, animate);
         }
     }
 
     /**
-     * 确保锚点注释存在并定位在宿主前（懒创建）。
-     * 宿主此时应在 DOM（ensureAnchor 在 detach 前 / reattach 时调用，el.parentNode 有效）。
+     * keepalive：宿主离场——与 eager 同权播离场动画（ADR-0039 决策 11），detachHost 延迟到播完
+     *（宿主留在 DOM 播动画；scope/watcher 本就保活，无 inert 问题）。
      */
-    private ensureAnchor() {
-        const el = this.el;
-        if (!el || this.anchorComment) return;
-        // 用 parentNode（而非 isConnected）判定挂载状态：测试与部分宿主中 root 可能脱离
-        // document，此时 isConnected 恒 false 会误判。parentNode 非空即代表已在某父节点下。
-        if (!el.parentNode) return;
-        this.anchorComment = document.createComment("x-if");
-        el.parentNode.insertBefore(this.anchorComment, el);
-    }
-
-    /** 摘除宿主：确保锚点（留在原位）后 el.remove()。宿主由本指令 this.el 强引用保活，不 GC。 */
-    private detachHost() {
+    private leaveHost(animate: boolean) {
         const el = this.el;
         if (!el) return;
-        this.ensureAnchor();
-        if (el.parentNode) el.remove();
+        const done = () => this.host.detachHost();
+        const phase = animate ? resolveAnimate(this.getOption("animate")).leave : null;
+        if (!phase || !this.engine.animate.leave(el, phase, done)) done();
     }
 
-    /** 重挂宿主：若 el 已 detach（无父），插回锚点注释前。锚点常驻作书签。 */
-    private reattachHost() {
-        const el = this.el;
-        if (!el) return;
-        this.ensureAnchor();
-        const anchor = this.anchorComment;
-        if (!el.parentNode && anchor?.parentNode) {
-            anchor.parentNode.insertBefore(el, anchor);
+    /** keepalive：宿主进场——重挂（reattach 对有父者 no-op，含刚被 cancel 完成摘除的场景）后播 enter */
+    private enterHost(animate: boolean) {
+        this.host.reattachHost();
+        if (animate && this.el) {
+            this.engine.animate.enter(this.el, resolveAnimate(this.getOption("animate")).enter);
         }
     }
 
-    /** eager：挂载 then——重挂宿主 + 编译子树（仅未挂载时，防重复编译）。分支子元素由 compileOneChild 统一剪枝。 */
-    private mountThen() {
+    // —— 锚点管理（ensureAnchor / detachHost / reattachHost）与分支挂卸（mountBranch /
+    // unmountBranch）已抽至 BranchHost 共享基建（ADR-0037 决策 9），本指令经 this.host 委托 ——
+
+    /**
+     * eager：挂载 then——重挂宿主 + 编译子树（仅未挂载时，防重复编译）+ 播进场动画（ADR-0039）。
+     * 分支子元素由 compileOneChild 统一剪枝。中断场景（离场中被 cancel 同步完成清场）下
+     * subtreeNodes 已清空，走全新编译。
+     */
+    private mountThen(animate: boolean) {
         const el = this.el;
         const tpl = this.template;
         if (!el || !tpl) return;
-        this.reattachHost();
+        this.host.reattachHost();
         if (this.subtreeNodes.length === 0) {
             this.subtreeNodes = this.engine.compiler.compileSubtree(el, tpl, this.binding);
+        }
+        if (animate) {
+            this.engine.animate.enter(el, resolveAnimate(this.getOption("animate")).enter);
         }
     }
 
     /**
      * eager：卸载 then——销毁子 scope（子树 watcher 批量 off）+ 精确移除自身挂载的节点 + 摘宿主。
      * 仅操作自身挂载的 subtreeNodes，子树 scope 经 binding.children 由 scope.destroy 递归清理。
+     *
+     * 进出场动画（ADR-0039 决策 9）：scope **立即销毁**（离场宿主 inert），DOM 移除（子树节点 +
+     * detachHost）延迟到离场动画播完；subtreeNodes 记账同样延迟清空——中断路径经 show 起手的
+     * cancel 同步执行 done（清子树 + 摘宿主）后，mountThen 方能全新编译（防新旧子树共存）。
      */
-    private unmountThen() {
+    private unmountThen(animate: boolean) {
+        const el = this.el;
+        if (!el) return;
         this.destroyChildren();
-        for (const node of this.subtreeNodes) node.remove();
-        this.subtreeNodes = [];
-        this.detachHost();
-    }
-
-    /**
-     * 挂载分支：命中分支作为独立元素插到锚点位置（宿主原位），经 compileChild 编译执行
-     * （复用 x-for 项根机制：浅克隆 + 剥指令属性 + 建 scope 挂 binding 为子 + 继承 locals）。
-     * keepalive 保活留存（b.runtime）直接 reattach（状态保留）；eager 首次/重建均重新编译快照。
-     */
-    private mountBranch(i: number) {
-        const b = this.branches[i]!;
-        const anchor = this.anchorComment;
-        if (!anchor?.parentNode) return; // 宿主无父（root 脱离 document）——防御
-        if (b.runtime) {
-            // keepalive 切回：保活的分支根 reattach（子树与 watcher 未销毁，状态保留）
-            anchor.parentNode.insertBefore(b.runtime, anchor);
-            return;
-        }
-        const { el, scope } = this.engine.compiler.compileChild(
-            b.template,
-            this.binding,
-            // locals 透传 binding 引用（可空）：与 _linkParent 自动继承语义一致——无局部数据
-            // 则保持 null，不建空 Proxy 层、不影响 watch 双轨分流
-            this.binding.locals,
-        );
-        anchor.parentNode.insertBefore(el, anchor);
-        b.runtime = el;
-        b.scope = scope;
-    }
-
-    /**
-     * 卸载分支：keepalive 仅 detach（scope/watcher/引用留存，切回 reattach 状态保留）；
-     * eager 销毁分支 scope（watcher off、从 binding.children 除名）+ 移除 DOM + 置空（下次重建）。
-     */
-    private unmountBranch(i: number) {
-        const b = this.branches[i]!;
-        if (!b.runtime) return;
-        if (this.keepAliveMode) {
-            b.runtime.remove();
-            return;
-        }
-        b.scope?.destroy();
-        b.runtime.remove();
-        b.runtime = null;
-        b.scope = null;
+        const nodes = this.subtreeNodes; // 不清账：done 到点再清（见上）
+        const done = () => {
+            for (const node of nodes) node.remove();
+            this.subtreeNodes = [];
+            this.host.detachHost();
+        };
+        const phase = animate ? resolveAnimate(this.getOption("animate")).leave : null;
+        if (!phase || !this.engine.animate.leave(el, phase, done)) done();
     }
 
     /**

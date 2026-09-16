@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-switch · 多值数组与类型字面量</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- case 值是 relaxed-json 字面量：数字、布尔、多值数组（任一命中）、null、NaN -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button" @click="set(1)">1</button>
+                <button class="button" @click="set(3)">3</button>
+                <button class="button is-info" @click="set(5)">5</button>
+                <button class="button is-warning" @click="set(9)">9</button>
+                <button class="button is-danger" @click="set(0)">0 / NaN 档</button>
+            </div>
+            <div x-switch="level">
+                <!-- 多值数组：level 为 1、2、3 任一即命中 -->
+                <div x-case="[1, 2, 3]" class="notification is-info">入门档（1-3 级）</div>
+                <div x-case="[4, 5]" class="notification is-primary">进阶档（4-5 级）</div>
+                <!-- 数字与 NaN 字面量：SameValueZero 比较（NaN 可匹配） -->
+                <div x-case="9" class="notification is-link">满级（9 级）</div>
+                <div x-case="NaN" class="notification is-danger">数值异常（NaN）</div>
+                <div x-default class="notification">其他：{{ level }}</div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { level: 1 },
+                {
+                    actions: {
+                        set: (n) => {
+                            // 0 按钮演示 NaN：除零产生 NaN，x-case="NaN" 照常命中
+                            engine.state.level = n === 0 ? NaN : n;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

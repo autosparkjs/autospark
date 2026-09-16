@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-switch · keepalive 分支保活</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- .keepalive：每分支独立保活，切回同一元素（输入等运行态保留）；默认 eager 销毁重建 -->
+        <div class="demo-app section">
+            <div class="tabs">
+                <ul>
+                    <li :class="{ 'is-active': tab === 'basic' }"><a @click="tab='basic'">基本信息</a></li>
+                    <li :class="{ 'is-active': tab === 'contact' }"><a @click="tab='contact'">联系方式</a></li>
+                    <li :class="{ 'is-active': tab === 'remark' }"><a @click="tab='remark'">备注</a></li>
+                </ul>
+            </div>
+            <div x-switch.keepalive="tab">
+                <div x-case="basic" class="card"><div class="card-content">
+                    <p class="block">基本信息页签——在输入框打几个字再切走，切回内容保留：</p>
+                    <input class="input" placeholder="姓名" />
+                </div></div>
+                <div x-case="contact" class="card"><div class="card-content">
+                    <p class="block">联系方式页签（同样保活）：</p>
+                    <input class="input" placeholder="邮箱" />
+                </div></div>
+                <div x-default class="card"><div class="card-content">
+                    <p class="block">备注页签（x-default 兜底也可保活）：</p>
+                    <textarea class="textarea" placeholder="备注内容"></textarea>
+                </div></div>
+            </div>
+            <p class="help">对比：去掉 <code>.keepalive</code> 后每次切换销毁重建，输入内容丢失。</p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                tab: "basic",
+            });
+        </script>
+    </body>
+</html>

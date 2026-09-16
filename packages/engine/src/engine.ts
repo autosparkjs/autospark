@@ -10,6 +10,7 @@ import { parseHtmlFragment } from "./utils/transformElement";
 import { ActionManager } from "./actions/manager";
 import type { ActionDesc } from "./actions/types";
 import { recompileSubtree } from "./utils/recompileSubtree";
+import { AutoSparkAnimator } from "./animate";
 import { buildComponentDef } from "./compile/collect";
 import { fetchHtml } from "./utils/fetchHtml";
 
@@ -73,6 +74,12 @@ export class AutoSpark<
     readonly dispatcher: RuntimeObserverDispatcher;
     /** action 管理单元：全局表注册/包装 + `<script type="autospark/actions">` 模板提取（src/actions/manager.ts） */
     readonly actionsManager: ActionManager;
+    /**
+     * 进出场动画服务（ADR-0039）：`animate.enter/leave/cancel`。**内部 API，不对消费者文档化**
+     * （决策 5）——结构指令（x-if/x-show/x-for/x-switch）经挂点调用；后续 x-teleport/x-loading
+     * 等接入免费。内置 fade/slide 样式随构造幂等注入 document.head。
+     */
+    readonly animate: AutoSparkAnimator;
     /** 原始模板（深克隆根元素，保留指令属性作为编译只读输入） */
     readonly template: HTMLElement;
     /** 每个渲染元素对应的 Scope（销毁时遍历清理其 watcher） */
@@ -127,6 +134,8 @@ export class AutoSpark<
         this.compiler = new AutoSparkCompiler(this);
         this.directives = new DirectiveManager(this);
         this.dispatcher = new RuntimeObserverDispatcher(this);
+        // 进出场动画服务（ADR-0039）：样式注入须早于首次状态变化驱动的挂卸
+        this.animate = new AutoSparkAnimator();
         if (this.options.autostart) {
             this.compile();
         }
@@ -416,7 +425,7 @@ export class AutoSpark<
      * - `null` → **删除自身**
      *
      * **动态区域守卫**：patch 目标自身或祖先链含 ownsChildren 结构指令（x-for / eager x-if /
-     * x-slot）→ 拒绝（运行侧结构非同构，正向桥不可靠）。
+     * x-slot / eager x-switch）→ 拒绝（运行侧结构非同构，正向桥不可靠）。
      *
      * updater 抛错则记日志、不重建；patch 后同步 `flushAll`，返回时 DOM 已更新。dispatcher 经
      * MutationObserver 自动处理新/旧节点的 runtime 指令 mount/unmount，patch 不直接操作。
@@ -647,7 +656,7 @@ export class AutoSpark<
     }
 
     /**
-     * 动态区域判定：T 自身或祖先链上有 ownsChildren 结构指令（x-for / eager x-if / x-slot）。
+     * 动态区域判定：T 自身或祖先链上有 ownsChildren 结构指令（x-for / eager x-if / x-slot / eager x-switch）。
      *
      * 这些区域的运行侧结构由指令运行时生成，与模板非同构，正向桥不可靠——patch 落入即拒绝。
      * 沿 templateScopeMap 上溯，O(树深)。
@@ -677,6 +686,8 @@ export class AutoSpark<
         // 断开 runtime 共享 observer + 卸载全部 live 实例（先于 DOM 清理，避免拆 DOM 时空转回调）
         this.dispatcher.dispose();
         this.scheduler.clear();
+        // 取消全部在播动画（离场的延迟移除同步完成——先于 scope/DOM 清理，杜绝销毁后回调触 DOM）
+        this.animate.dispose();
         for (const scope of this.scopes.values()) {
             scope.destroy();
         }

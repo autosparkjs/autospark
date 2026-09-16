@@ -32,6 +32,12 @@ export interface ActionDesc {
     /** 文档化约定键：图标名称 */
     icon?: string;
     /**
+     * 文档化约定键（行为型，ADR-0038）：x-loading 动作按钮点击后是否隐藏所在加载覆盖层，
+     * 默认 `true`（隐藏）、显式 `false` 关闭（如 retry 续显）。由 x-loading 按钮委托在
+     * **点击时现读**；其他场景不解释（开放元数据，引擎核心只认 handle）。
+     */
+    hide?: boolean;
+    /**
      * 自由元数据键（开放元数据，决策 2）：原样保留、引擎不解释。将来扩展
      * `description` / `hotkey` / `disabled` 等键无需改本类型与规范化逻辑。
      */

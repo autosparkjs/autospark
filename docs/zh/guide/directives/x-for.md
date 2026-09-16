@@ -73,6 +73,28 @@ engine.state.books.shift();
 `<ul>` 内用 `<li x-empty>`、`<select>` 内用 `<option x-empty>`、`<tbody>` 内用 `<tr x-empty>`——与项模板同标签，避免浏览器解析期挪动节点。
 :::
 
+### 进出场动画
+
+`animate` 指令选项为列表项提供进出场动画——**新项进场、消失项离场**（离场项播完才移除 DOM），`x-empty` 空状态的挂载/拆除同权播动画：
+
+<demo html="for/animate.html"/>
+
+```html
+<ul x-for="task of tasks" :key="task.id" x-for-options="{animate:'slide'}">
+    <li x-text="task.title"></li>
+    <li x-empty>列表为空（空状态同样播动画）</li>
+</ul>
+```
+
+行为要点：
+
+- **首渲整队静默**：初次渲染 N 项不整队播进场，此后状态变化引起的增删才动画；
+- **项的移动不动画**（无 FLIP）——排序、重排瞬时就位；
+- 复合项（多成员节点）逐成员挂类，同组同时进/出；
+- 离场项播完才移除 DOM，期间作为「外来节点」暂驻容器，不影响其余项的复用与重排。
+
+内置 `fade` / `slide` 开箱即用；对象与分相配置、自定义动画（六类名契约）见[动画](../animate.md)。
+
 ### 与 x-if 组合
 
 `x-for` 与 `x-if` 组合有两种正确写法，按「条件作用对象」选择：
@@ -184,6 +206,7 @@ engine.state.books.shift();
 | 配置项 | 默认值  | 修饰符 | 说明                                               |
 | ------ | ------- | ------ | -------------------------------------------------- |
 | `:key` | `index` |        | 容器上的 `:key="expr"`，项的唯一标识，缺省用 index |
+| `animate` | 无 |      | 项级进出场动画：字符串（`'fade'` / `'slide'` / 自定义名）/ 对象（name/duration/delay/easing）/ 分相（`enter` / `leave` 各自可配，`false` 单相禁用），见[动画](../animate.md) |
 
 ::: info 关于指令配置体系
 指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../config.md)。

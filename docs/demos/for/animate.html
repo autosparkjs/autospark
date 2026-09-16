@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-for · 进出场动画</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- animate 选项：新项进场、消失项离场；x-empty 空状态挂卸同权 -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button is-primary" @click="addItem">增项</button>
+                <button class="button" @click="removeItem">删项</button>
+                <button class="button is-warning" @click="clearAll">清空 / 恢复</button>
+            </div>
+
+            <div class="notification content" style="transition: none">
+                <p><strong>x-for + slide：项级进出场</strong>（移动不动画，排序瞬时就位）</p>
+                <ul x-for="task of tasks" :key="task.id" x-for-options="{animate:'slide'}">
+                    <li x-text="task.title"></li>
+                    <li x-empty class="has-text-grey">列表为空（空状态同样播动画）</li>
+                </ul>
+            </div>
+        </div>
+
+        <script>
+            let seq = 3;
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { tasks: [{ id: 1, title: "第一项" }, { id: 2, title: "第二项" }] },
+                {
+                    actions: {
+                        addItem: () => {
+                            engine.state.tasks.push({ id: ++seq, title: `新任务 ${seq}` });
+                        },
+                        removeItem: () => {
+                            engine.state.tasks.pop();
+                        },
+                        clearAll: () => {
+                            // 整体替换：全列表消失/恢复（同 key 复用，仅真正增删的项播动画）
+                            engine.state.tasks = engine.state.tasks.length ? [] : [{ id: 1, title: "第一项" }, { id: 2, title: "第二项" }];
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

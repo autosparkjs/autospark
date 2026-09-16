@@ -42,6 +42,7 @@ export default defineConfig({
                         { text: "指令配置", link: "/zh/guide/config" },
                         { text: "组件", link: "/zh/guide/component" },
                         { text: "动态模板", link: "/zh/guide/patch" },
+                        { text: "动画", link: "/zh/guide/animate" },
                     ],
                 },
                 {
@@ -62,12 +63,8 @@ export default defineConfig({
                         { text: "x-slot", link: "/zh/guide/directives/x-slot" },
                         { text: "x-model", link: "/zh/guide/directives/x-model" },
                         { text: "x-switch", link: "/zh/guide/directives/x-switch" },
-                        { text: "x-table", link: "/zh/guide/directives/x-table" },
+                        { text: "x-tree", link: "/zh/guide/directives/x-tree" },
                         { text: "x-teleport", link: "/zh/guide/directives/x-teleport" },
-                        {
-                            text: "x-transition",
-                            link: "/zh/guide/directives/x-transition",
-                        },
                     ],
                 },
             ],

@@ -2,6 +2,7 @@ import { AutoSparkDirectiveBase } from "../base";
 import type { AutoDirectiveInfo } from "../types";
 import { isSimpleStatePath, type AutoSparkScope } from "../../scope";
 import { isDataScript } from "../../compile/dataScript";
+import { resolveAnimate } from "../../animate";
 
 /** x-for 单个列表项的运行时实体（v2 key-based 复用） */
 type ForItemEntry = {
@@ -148,6 +149,11 @@ export class ForDirective extends AutoSparkDirectiveBase {
     /** 上次 render 的 items 长度：P2 脏标记——length 未变且 item 引用未变时跳过该项 refresh。
      *  -1 哨兵：首次 render 必 lengthChanged（但首次均走 create 分支，不进复用，无副作用）。 */
     private _lastRenderLength = -1;
+    /**
+     * 首次渲染守卫（ADR-0039 决策 6）：首渲 N 项不整队播进场动画；此后状态变化引起的
+     * 项增删 / special 挂卸才播。与 x-if / x-switch / x-show 的同款守卫一致。
+     */
+    private firstRender = true;
 
     override created() {
         this.parse();
@@ -196,9 +202,9 @@ export class ForDirective extends AutoSparkDirectiveBase {
         // 数据脚本（ADR-0032）在 compileElement 已 warn 放弃注入；x-fallback 特例子节点
         //（ADR-0033）由父元素 DataDirective 采集——项成员根以 cloneNode(false) 直建、绕过
         // transformer 剪枝，故二者均在此跳过采集（不进渲染 DOM、不随项重复）。
-        // x-else-if / x-else 分支标记（ADR-0034）同理跳过：x-for 容器非 x-if 宿主，其直接子级
-        // 的分支标记是孤儿（父无 x-if）——且项成员编译走 compileChild 不经主 walk 剪枝层，
-        // 不在此拦会被当普通项模板随每项渲染。
+        // x-else-if / x-else 分支标记（ADR-0034）与 x-case / x-default 分支标记（ADR-0037）同理
+        // 跳过：x-for 容器非 x-if / x-switch 宿主，其直接子级的分支标记是孤儿——且项成员编译
+        // 走 compileChild 不经主 walk 剪枝层，不在此拦会被当普通项模板随每项渲染。
         const tpl = this.template;
         if (tpl) {
             for (const child of Array.from(tpl.children)) {
@@ -212,6 +218,12 @@ export class ForDirective extends AutoSparkDirectiveBase {
                 if (child.hasAttribute("x-else-if") || child.hasAttribute("x-else")) {
                     this.engine.logger.warn(
                         `x-for: 容器直接子级不应声明 x-else-if/x-else（分支必须是 x-if 宿主的直接子元素），该分支被丢弃（ADR-0034）`,
+                    );
+                    continue;
+                }
+                if (child.hasAttribute("x-case") || child.hasAttribute("x-default")) {
+                    this.engine.logger.warn(
+                        `x-for: 容器直接子级不应声明 x-case/x-default（分支必须是 x-switch 宿主的直接子元素），该分支被丢弃（ADR-0037）`,
                     );
                     continue;
                 }
@@ -256,6 +268,9 @@ export class ForDirective extends AutoSparkDirectiveBase {
         const container = this.el;
         if (!container || (this.itemTemplates.length === 0 && this.specialTemplates.size === 0))
             return;
+        // 首渲静默（ADR-0039 决策 6）：此后项增删 / special 挂卸才播进出场
+        const animate = !this.firstRender;
+        this.firstRender = false;
 
         // === special 决策：取 priority 最高、且有模板、且 when(raw) 为真的描述符 ===
         const raw = this.binding.read(this.itemsPath);
@@ -267,11 +282,11 @@ export class ForDirective extends AutoSparkDirectiveBase {
             // special 激活（如 x-empty：items 必为空数组）→ 挂载空状态、短路，跳过 4-pass diff。
             if (this.activeSpecial !== activeSpecial.name) {
                 if (this.activeSpecial) {
-                    this.destroySpecial(); // empty(S)→empty(T)：拆旧 special（items 已空，无需 clearItems）
+                    this.destroySpecial(animate); // empty(S)→empty(T)：拆旧 special（items 已空，无需 clearItems）
                 } else {
-                    this.clearItems(); // items→empty：拆项
+                    this.clearItems(animate); // items→empty：拆项
                 }
-                this.mountSpecial(activeSpecial);
+                this.mountSpecial(activeSpecial, animate);
                 this.activeSpecial = activeSpecial.name;
             }
             // empty(S)→empty(S)：幂等 no-op（C2，避免 items.* 反复触发重编译空节点）
@@ -281,7 +296,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
 
         // 无 special 激活 → 显示 items。若此前挂着 special（empty→items），先拆除。
         if (this.activeSpecial) {
-            this.destroySpecial();
+            this.destroySpecial(animate);
             this.activeSpecial = null;
         }
 
@@ -295,6 +310,8 @@ export class ForDirective extends AutoSparkDirectiveBase {
         const ordered: ForItemEntry[] = [];
         // 复用项集合，供 Pass 4 refresh
         const reuseEntries: ForItemEntry[] = [];
+        // 新建项集合，供 Pass 3 后播进场动画（节点须已插入容器，ADR-0039 决策 10）
+        const createdEntries: ForItemEntry[] = [];
 
         // === Pass 1：对新 items 逐项决策 reuse / recreate / create ===
         for (let index = 0; index < items.length; index++) {
@@ -327,28 +344,35 @@ export class ForDirective extends AutoSparkDirectiveBase {
                 // (C) 新 key → compileChild 新建 scope+订阅+DOM（首次渲染取最新值）
                 entry = this.createItem(item, index, length);
                 this.itemMap.set(key, entry);
+                createdEntries.push(entry);
             }
             ordered.push(entry);
         }
 
-        // === Pass 2：消失的旧 key → 销毁 ===
+        // === Pass 2：消失的旧 key → 销毁（有离场动画则延迟移除 DOM，ADR-0039 决策 9/10）===
         for (const key of this.itemMap.keys()) {
             if (!seen.has(key)) {
-                this.destroyItem(key);
+                this.destroyItem(key, animate);
             }
         }
 
-        // === Pass 3：DOM 重排（P2：DOM 已就位则跳过，避免无结构变更的全量 insertBefore）===
+        // === Pass 3：DOM 重排（P2：相对序已就位则跳过，避免无结构变更的全量 insertBefore）===
         const flatNodes = ordered.flatMap((e) => e.nodes);
-        let needsReorder = flatNodes.length !== container.children.length;
-        if (!needsReorder) {
-            for (let i = 0; i < flatNodes.length; i++) {
-                if (flatNodes[i] !== container.children[i]) {
-                    needsReorder = true;
-                    break;
-                }
+        // 相对序判定：只对「本列表当前项」的节点比对文档相对顺序，忽略容器内**外来节点**——
+        // 离场动画中的旧项节点仍暂驻容器（延迟移除），旧 length/逐位比对会被其污染，
+        // 在纯复用 render 里误判全量重排（ADR-0039 决策 10）。
+        const nodeSet = new Set<Node>(flatNodes);
+        let pos = 0;
+        let needsReorder = false;
+        for (const child of Array.from(container.children)) {
+            if (!nodeSet.has(child)) continue; // 外来节点（在播离场项等）不参与序比对
+            if (child !== flatNodes[pos]) {
+                needsReorder = true;
+                break;
             }
+            pos++;
         }
+        if (pos < flatNodes.length) needsReorder = true; // 尚有项节点未在容器中（新建项）
         if (needsReorder) {
             // insertBefore(node, anchor) 把 node 放到 anchor 之前；anchor=null 表示插到末尾。
             // 从后向前：末项先落位（anchor=null 到尾部），anchor 推进到本组首节点，
@@ -360,6 +384,16 @@ export class ForDirective extends AutoSparkDirectiveBase {
                     container.insertBefore(nodes[k]!, anchor);
                 }
                 anchor = nodes[0]!;
+            }
+        }
+
+        // === Pass 3.5：新项进场动画（节点已插入容器，ADR-0039 决策 10；复合项逐成员挂类）===
+        if (animate && createdEntries.length > 0) {
+            const phase = resolveAnimate(this.getOption("animate")).enter;
+            if (phase) {
+                for (const entry of createdEntries) {
+                    for (const n of entry.nodes) this.engine.animate.enter(n, phase);
+                }
             }
         }
 
@@ -431,23 +465,38 @@ export class ForDirective extends AutoSparkDirectiveBase {
         return { item, index, scopes, nodes: old.nodes, localData };
     }
 
-    /** 销毁单个列表项：destroy 全部成员 scope（递归清理子树 watcher + 自移除父级 children）+
-     *  remove 全部成员节点 + 从 itemMap 移除。 */
-    private destroyItem(key: unknown): void {
+    /**
+     * 销毁单个列表项：destroy 全部成员 scope（递归清理子树 watcher + 自移除父级 children）+
+     *  remove 全部成员节点 + 从 itemMap 移除。
+     *
+     * 进出场动画（ADR-0039 决策 9/10）：scope **立即销毁**（离场项 inert）、itemMap **立即除名**
+     * （后续 render 视其为不存在）；DOM 移除延迟到离场动画播完——离场节点暂驻容器作「外来节点」，
+     * Pass 3 相对序比对跳过之。同 key 快速删建时新旧节点短暂共处（与 eager 分支同权的共演语义）。
+     */
+    private destroyItem(key: unknown, animate = true): void {
         const entry = this.itemMap.get(key);
         if (!entry) return;
         for (const s of entry.scopes) s.destroy();
-        for (const n of entry.nodes) n.remove();
         this.itemMap.delete(key);
+        const phase = animate ? resolveAnimate(this.getOption("animate")).leave : null;
+        let deferred = false;
+        if (phase) {
+            for (const n of entry.nodes) {
+                deferred = this.engine.animate.leave(n, phase, () => n.remove()) || deferred;
+            }
+        }
+        if (!deferred) {
+            for (const n of entry.nodes) n.remove();
+        }
     }
 
     /**
      * 销毁全部项 scope 并移除其 DOM。
      * render 全量重建前与 destroy 时共用（DRY）：按项分组逐成员清理，保证复合项的每个成员 scope/watcher 都被释放。
      */
-    private clearItems() {
+    private clearItems(animate = true) {
         for (const key of this.itemMap.keys()) {
-            this.destroyItem(key);
+            this.destroyItem(key, animate);
         }
         this.itemMap.clear();
     }
@@ -460,15 +509,18 @@ export class ForDirective extends AutoSparkDirectiveBase {
      * compileChild 内部 removeDirectives 会剥离 x-empty 属性，输出 DOM 无 x-empty 残留。
      * 多个 x-empty 全部渲染、按文档序占位。
      */
-    private mountSpecial(desc: { name: string }) {
+    private mountSpecial(desc: { name: string }, animate = true) {
         const container = this.el;
         const templates = this.specialTemplates.get(desc.name);
         if (!container || !templates) return;
+        const phase = animate ? resolveAnimate(this.getOption("animate")).enter : null;
         for (const tpl of templates) {
             const { el, scope } = this.engine.compiler.compileChild(tpl, this.binding, {});
             container.appendChild(el);
             this.specialNodes.push(el);
             this.specialScopes.push(scope);
+            // 空状态挂载与列表项同权播进场（ADR-0039 决策 10）
+            if (phase) this.engine.animate.enter(el, phase);
         }
     }
 
@@ -477,12 +529,24 @@ export class ForDirective extends AutoSparkDirectiveBase {
      *
      * ⚠️ 不能 clear 整个 binding.children——它与 item scope 共享同一 Set（compileChild 都 addChild 到 binding），
      * 全清会误杀 item。故用显式 specialScopes/specialNodes 数组精确清理（与 if.ts 的 destroyChildren 区别所在）。
+     *
+     * 离场动画（ADR-0039）：scope 立即销毁，节点移除延迟（同 destroyItem 语义）。
      */
-    private destroySpecial() {
+    private destroySpecial(animate = true) {
         for (const s of this.specialScopes) s.destroy();
-        for (const n of this.specialNodes) n.remove();
+        const nodes = this.specialNodes;
         this.specialScopes = [];
         this.specialNodes = [];
+        const phase = animate ? resolveAnimate(this.getOption("animate")).leave : null;
+        let deferred = false;
+        if (phase) {
+            for (const n of nodes) {
+                deferred = this.engine.animate.leave(n, phase, () => n.remove()) || deferred;
+            }
+        }
+        if (!deferred) {
+            for (const n of nodes) n.remove();
+        }
     }
 
     /** 求值 :key（如 item.id）。形参用项变量名，使嵌套场景自定义变量名（cell/row 等）的 :key 也能正确解析 */
@@ -500,7 +564,8 @@ export class ForDirective extends AutoSparkDirectiveBase {
     }
 
     override destroy() {
-        this.clearItems();
-        if (this.activeSpecial) this.destroySpecial();
+        // 销毁清理不播动画（引擎/作用域拆除期，ADR-0039 决策 6 的镜像：非状态变化不动画）
+        this.clearItems(false);
+        if (this.activeSpecial) this.destroySpecial(false);
     }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
-import { mount, nextTick } from "./helpers";
+import { mount, nextTick, finishAnim } from "./helpers";
 import type { AutoSpark } from "../engine";
 import type { AutoSparkScope } from "../scope";
 
@@ -254,7 +254,7 @@ describe("x-for + eager x-if 同元素冲突", () => {
                 `<ul x-for="item of items" :key="item.id" x-if="show"><li x-text="item.name"></li></ul>`,
                 { show: false, items: [] },
             ),
-        ).toThrow(/x-if\/x-for 冲突[\s\S]*x-show[\s\S]*x-if\.keepalive/);
+        ).toThrow(/结构指令冲突[\s\S]*x-for[\s\S]*x-if[\s\S]*x-show[\s\S]*keepalive/);
     });
 
     test("x-for + x-if.keepalive 同元素：不冲突，.keepalive detach 容器、保活项子树", async () => {
@@ -352,5 +352,190 @@ describe("eager x-if 重建后响应式恢复与反复切换无泄露", () => {
         await nextTick();
         expect(binding!.children.size).toBe(0);
         expect(xifEl.querySelectorAll("span").length).toBe(0);
+    });
+});
+
+describe("x-if / x-show 进出场动画（ADR-0039）", () => {
+    // duration 拉长到 5000ms 使动画在断言窗口内稳定「在播」；结束由 finishAnim 手动驱动（确定性）
+    const OPT = `{animate:{name:'fade',duration:5000}}`;
+
+    test("首次渲染静默：初始挂载不播进场（决策 6）", async () => {
+        const { root } = mount(
+            `<div id="t" x-if="on" x-if-options="${OPT}"><span x-text="msg"></span></div>`,
+            { on: true, msg: "a" },
+        );
+        await nextTick();
+        const t = root.querySelector<HTMLElement>("#t")!;
+        expect(t.className).toBe("");
+        expect(t.querySelector("span")!.textContent).toBe("a");
+    });
+
+    test("进场：状态变化挂载播 enter，六类名按相挂摘（决策 2）", async () => {
+        const { root, engine } = mount(
+            `<div id="t" x-if="on" x-if-options="${OPT}"><span>Hi</span></div>`,
+            { on: false },
+        );
+        await nextTick();
+        engine.state.on = true;
+        await nextTick();
+        const t = root.querySelector<HTMLElement>("#t")!;
+        expect(t.classList.contains("fade-enter-active")).toBe(true);
+        expect(t.classList.contains("fade-enter-to")).toBe(true); // from 已同步摘除（reflow 后）
+        expect(t.classList.contains("fade-enter-from")).toBe(false);
+        finishAnim(t);
+        expect(t.classList.contains("fade-enter-active")).toBe(false);
+        expect(t.classList.contains("fade-enter-to")).toBe(false);
+    });
+
+    test("离场：DOM 延迟移除、子树 inert、播完锚点占位（决策 9）", async () => {
+        const { root, engine } = mount(
+            `<div id="t" x-if="on" x-if-options="${OPT}"><span x-text="msg"></span></div>`,
+            { on: true, msg: "a" },
+        );
+        await nextTick();
+        engine.state.on = false;
+        await nextTick();
+        const t = root.querySelector<HTMLElement>("#t")!; // 仍在 root 内（延迟移除）
+        expect(root.contains(t)).toBe(true);
+        expect(t.classList.contains("fade-leave-active")).toBe(true);
+        // 子树 watcher 已销毁（inert）：msg 变更不再影响离场元素
+        engine.state.msg = "changed";
+        await nextTick();
+        expect(t.querySelector("span")!.textContent).toBe("a");
+        finishAnim(t);
+        expect(root.contains(t)).toBe(false);
+        expect(root.innerHTML).toContain("<!--x-if-->");
+    });
+
+    test("抢占：离场中翻真 → 在播取消、全新编译无重复内容（决策 7）", async () => {
+        const { root, engine } = mount(
+            `<div id="t" x-if="on" x-if-options="${OPT}"><span x-text="msg"></span></div>`,
+            { on: true, msg: "a" },
+        );
+        await nextTick();
+        engine.state.on = false;
+        await nextTick();
+        const t = root.querySelector<HTMLElement>("#t")!;
+        expect(t.classList.contains("fade-leave-active")).toBe(true);
+        engine.state.on = true; // 离场播到一半翻真
+        await nextTick();
+        expect(t.classList.contains("fade-leave-active")).toBe(false);
+        expect(t.classList.contains("fade-enter-active")).toBe(true);
+        expect(t.querySelectorAll("span").length).toBe(1); // 无新旧子树共存
+        expect(t.querySelector("span")!.textContent).toBe("a");
+        finishAnim(t);
+        expect(t.className).toBe("");
+    });
+
+    test("keepalive：离场/切回同权播动画（决策 11）", async () => {
+        const { root, engine } = mount(
+            `<div id="t" x-if.keepalive="on" x-if-options="${OPT}" x-text="msg">A</div>`,
+            { on: true, msg: "A" },
+        );
+        await nextTick();
+        engine.state.on = false;
+        await nextTick();
+        const t = root.querySelector<HTMLElement>("#t")!;
+        expect(root.contains(t)).toBe(true); // 离场延迟摘除
+        expect(t.classList.contains("fade-leave-active")).toBe(true);
+        finishAnim(t);
+        expect(root.contains(t)).toBe(false);
+        engine.state.on = true;
+        await nextTick();
+        expect(root.contains(t)).toBe(true); // 同一元素重挂
+        expect(t.classList.contains("fade-enter-active")).toBe(true);
+        finishAnim(t);
+        expect(t.className).toBe("");
+    });
+
+    test("x-show 离场延迟 display:none、进场恢复显示", async () => {
+        const { root, engine } = mount(
+            `<div id="t" x-show="on" x-show-options="${OPT}">T</div>`,
+            { on: true },
+        );
+        await nextTick();
+        engine.state.on = false;
+        await nextTick();
+        const t = root.querySelector<HTMLElement>("#t")!;
+        expect(t.style.display).not.toBe("none"); // 动画期间仍可见
+        expect(t.classList.contains("fade-leave-active")).toBe(true);
+        finishAnim(t);
+        expect(t.style.display).toBe("none"); // 播完才隐藏
+        expect(t.className).toBe("");
+        engine.state.on = true;
+        await nextTick();
+        expect(t.style.display).not.toBe("none");
+        expect(t.classList.contains("fade-enter-active")).toBe(true);
+        finishAnim(t);
+        expect(t.style.display).not.toBe("none");
+        expect(t.className).toBe("");
+    });
+
+    test("x-show 抢占：离场中翻真 → 终态可见且播进场（决策 7）", async () => {
+        const { root, engine } = mount(
+            `<div id="t" x-show="on" x-show-options="${OPT}">T</div>`,
+            { on: true },
+        );
+        await nextTick();
+        engine.state.on = false;
+        await nextTick();
+        const t = root.querySelector<HTMLElement>("#t")!;
+        expect(t.classList.contains("fade-leave-active")).toBe(true);
+        engine.state.on = true;
+        await nextTick();
+        expect(t.classList.contains("fade-leave-active")).toBe(false);
+        expect(t.style.display).not.toBe("none");
+        expect(t.classList.contains("fade-enter-active")).toBe(true);
+        finishAnim(t);
+        expect(t.className).toBe("");
+    });
+
+    test("多属性过渡：收齐全部属性事件才结束，先到者不提前终结", async () => {
+        // 模拟真实浏览器 computed（happy-dom 不可得）：transition-property 两个属性
+        const origGCS = window.getComputedStyle;
+        window.getComputedStyle = (() => ({
+            transitionProperty: "grid-template-rows, opacity",
+            transitionDuration: "5s",
+            transitionDelay: "0s",
+            animationName: "none",
+            animationDuration: "0s",
+            animationDelay: "0s",
+        })) as unknown as typeof window.getComputedStyle;
+        try {
+            const { root, engine } = mount(
+                `<div id="t" x-if="on" x-if-options="${OPT}"><span>A</span></div>`,
+                { on: true },
+            );
+            await nextTick();
+            engine.state.on = false;
+            await nextTick();
+            const t = root.querySelector("#t")!;
+            const fire = (prop: string) => {
+                const e = new Event("transitionend");
+                Object.defineProperty(e, "propertyName", { value: prop });
+                t.dispatchEvent(e);
+            };
+            fire("opacity"); // 先到的属性事件：不得提前终结（元素仍在播）
+            expect(root.contains(t)).toBe(true);
+            expect(t.classList.contains("fade-leave-active")).toBe(true);
+            fire("grid-template-rows"); // 收齐第二个：此刻结束 + 执行延迟移除
+            expect(root.contains(t)).toBe(false);
+            // 无关属性的事件被忽略
+        } finally {
+            window.getComputedStyle = origGCS;
+        }
+    });
+
+    test("engine.destroy：在播离场同步完成、不抛错（dispose 收口）", async () => {
+        const { root, engine } = mount(
+            `<div id="t" x-if="on" x-if-options="${OPT}"><span>A</span></div>`,
+            { on: true },
+        );
+        await nextTick();
+        engine.state.on = false;
+        await nextTick();
+        expect(root.querySelector<HTMLElement>("#t")!.classList.contains("fade-leave-active")).toBe(true);
+        engine.destroy();
+        expect(root.innerHTML).toBe("");
     });
 });

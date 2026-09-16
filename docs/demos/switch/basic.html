@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-switch · 分支选择基础</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 按主表达式的值多路选一：x-case 字面量匹配、x-default 兜底（位置无关） -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button is-primary" @click="set('paid')">已支付</button>
+                <button class="button" @click="set('pending')">待支付</button>
+                <button class="button is-warning" @click="set('refunded')">已退款</button>
+                <button class="button is-danger" @click="set('unknown')">未知状态</button>
+            </div>
+            <!-- 宿主自身不渲染：命中分支作为独立元素插到宿主原位 -->
+            <div x-switch="order.state">
+                <div x-case="paid" class="notification is-primary">✅ 订单已支付，等待发货</div>
+                <div x-case="pending" class="notification is-info">⏳ 待支付（剩余 15 分钟）</div>
+                <div x-case="refunded" class="notification is-warning">↩️ 已退款</div>
+                <div x-default class="notification is-danger">❓ 未知状态：{{ order.state }}</div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { order: { state: "pending" } },
+                {
+                    actions: {
+                        set: (s) => {
+                            engine.state.order.state = s;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

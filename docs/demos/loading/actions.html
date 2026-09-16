@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-loading · actions 动作按钮</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .panel {
+                position: relative;
+                min-height: 120px;
+                display: flex;
+                align-items: center;
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- actions：message 下方渲染动作按钮（ADR-0038）。close 为内置动作（自带「关闭」标题），
+             retry 为下方注册的用户动作（title 重试 + hide:false 点击续显）；
+             点击经 data-action 委托触发对应动作 → action:<name> 双通道广播，
+             祖先元素监听即可响应（@action:close 同步状态；retry 由动作体自身重新拉取） -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button is-primary" @click="start()">拉取数据（2.5s）</button>
+            </div>
+            <div
+                class="card panel"
+                x-loading="{ value:'loading', message:'正在拉取数据…', actions:['close','retry'] }"
+                @action:close="loading = false"
+            >
+                <div class="card-content">
+                    <span x-text="result || '点击「拉取数据」开始；加载期间可点覆盖层上的「重试 / 关闭」按钮'"></span>
+                </div>
+            </div>
+            <div class="block has-text-grey">
+                <code>close</code>：内置动作，点击后覆盖层自动隐藏，宿主监听 <code>@action:close</code> 把
+                <code>loading</code> 置 false 保持状态一致；<code>retry</code>：注册时声明
+                <code>hide:false</code>，点击后覆盖层<strong>不消失</strong>、直接重新拉取。
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { loading: false, result: "" },
+                {
+                    actions: {
+                        // retry：真实业务动作——重新拉取；hide:false 让覆盖层在点击后续显（加载还在继续）
+                        retry: {
+                            title: "重试",
+                            hide: false,
+                            handle: () => start(),
+                        },
+                    },
+                },
+            );
+            function start() {
+                engine.state.loading = true;
+                engine.state.result = "";
+                setTimeout(() => {
+                    engine.state.loading = false;
+                    engine.state.result = "数据拉取完成 ✓";
+                }, 2500);
+            }
+        </script>
+    </body>
+</html>

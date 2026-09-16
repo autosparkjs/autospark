@@ -25,8 +25,16 @@ _Avoid_: 类型、模式
 _Avoid_: 动作脚本（泛化）、内联动作（易与 x-on 内联表达式混淆）、`type="actions"`（裸值旧写法已废弃）
 
 **动作描述符 / ActionDesc**:
-action 的**统一存储与读取形态**：`handle` 是唯一必需保留键（执行体），`name` 由注册键注入；`title` / `icon` 为文档化约定键，其余自由键原样保留（开放元数据）。函数写法是它的**简写形态**（≡ `{ handle: fn }`），两种写法在任何声明入口可混用；`engine.actions[name]` / `getAction` 恒返回本对象，执行取 `.handle(...)`（引擎内部消费者透明解包，模板侧无感）。详见 ADR-0036。
+action 的**统一存储与读取形态**：`handle` 是唯一必需保留键（执行体），`name` 由注册键注入；`title` / `icon`（展示型）与 `hide`（行为型，见「hide 约定键」）为文档化约定键，其余自由键原样保留（开放元数据）。函数写法是它的**简写形态**（≡ `{ handle: fn }`），两种写法在任何声明入口可混用；`engine.actions[name]` / `getAction` 恒返回本对象，执行取 `.handle(...)`（引擎内部消费者透明解包，模板侧无感）。详见 ADR-0036 / 0038。
 _Avoid_: action 对象（泛化）、action 配置（它是存储形态不是配置）、元数据对象（handle 也是它的一部分）
+
+**hide 约定键（ActionDesc）**:
+ActionDesc 的**行为型**文档化约定键（ADR-0038）：声明「触发后是否隐藏所在加载覆盖层」，默认 `true`、显式 `false` 关闭，**逐 action 独立**（close 隐藏、retry 续显可并存）；由 x-loading 按钮委托在**点击时现读**（后注册不失效），其他场景不解释。
+_Avoid_: autoHide / dismiss（英文别名）、hide 选项（它是 action 的键，不是指令配置）
+
+**合成动作描述符 / Synthetic ActionDesc**:
+x-loading 按钮点击遇到**未注册名**时就地合成的透传 descriptor（`{name, title: name, handle: (p) => p}`，与内置信号型同构、指令实例内按名缓存）——让未注册名同样走 buildAction 双通道广播（pending + resolved 同 tick）。逐次点击现查现决，先注册的真 action 优先；仅 x-loading 委托内部生效，不改 x-on「未命中→表达式兜底」。
+_Avoid_: 匿名 action / 虚拟 action / 隐式 action（合成的是形态不是身份）、fallback action（与组件兜底撞义）
 
 **动作自引用 / this.action**:
 action 执行上下文（AutoSparkActionContext）中指向**自身动作描述符**的活引用：元数据（`this.action.title` 等）可读写但无响应式承诺；`this.action.handle(...)` 递归调用会再次触发完整生命周期广播。详见 ADR-0036。
@@ -116,7 +124,7 @@ _Avoid_: `.template`（与 engine.template/`<template>` 标签重载）、`.rend
 
 **`.transition` 修饰符（x-style）**:
 x-style / :style 的修饰符（仅 `attr === 'style'`），每次写样式时注入一条 CSS `transition` 声明，让内联样式的响应式变化被浏览器自动过渡动画，默认 `all 0.3s ease-in`。值取三级优先：用户样式对象自带的 `transition` key（显式）> `getOption('transition')`（`.transition` 注入的 `true`、或 `x-bind-options` 传的字符串）> 默认值。带 `.transition` 时覆盖/关闭须用 `x-bind-options`（指令选项层，早于修饰符合并），`x-options`（宿主层）被修饰符遮蔽、不生效。详见 ADR-0015。
-_Avoid_: `x-transition` 指令（那是挂载/卸载生命周期的**进出场转场动画**，配合 x-if/x-show/x-teleport，是同名正交的另一个概念）、`.smooth`/`.animated`（牺牲与 CSS `transition` 属性的直觉映射）
+_Avoid_: `animate`（那是结构指令的**进出场动画**选项——「元素在进出」，见「动画层」；本修饰符是「值在变」的属性过渡，二者正交）、`.smooth`/`.animated`（牺牲与 CSS `transition` 属性的直觉映射）
 
 ### 显隐控制层
 
@@ -132,9 +140,75 @@ _Avoid_: 显示/隐藏（那是 x-show 的可见性语义）、条件渲染（�
 x-if 宿主**直接子元素**中带 `x-else-if="expr"`（带值分支）/ 裸 `x-else`（兜底）构成的多路条件链：主表达式假时按文档顺序求值、**首个真者胜**；全假有兜底走兜底、无兜底皆不渲染（仅锚点占位）。分支编译期克隆为冻结快照（模板只读）、永不进 then 子树（compiler 剪枝）；命中分支作为**独立元素插到锚点位置**（宿主原位）完整编译执行——**渲染层级是宿主的兄弟、书写层级在宿主内**（一跳差异）。eager 切换销毁重建；keepalive **每分支独立保活**（切回状态保留）。分支根禁结构指令（ownsChildren 类，warn + 跳过）；孤儿分支（父非 x-if 宿主，含 x-for 容器直接子级）warn + 丢弃。详见 ADR-0034。
 _Avoid_: 兄弟节点式（那是 Vue v-else 的形态，本引擎为子节点式自包含单元）、elseif 指令（名为 x-else-if，一名一义）、任意深度归属（仅直接子元素）
 
+**分支选择 / x-switch（Branch Selection）**:
+按**主表达式的值**多路选一渲染：宿主**直接子元素**中 `x-case`（relaxed-json **字面量**，多值数组任一命中）为分支、裸 `x-default` 为兜底。主表达式**求值一次**（单 watcher），与编译期定死的 case 字面量做 **SameValueZero** 比较（NaN 可匹配）；先扫 case 全不中才落 default（**位置无关**，JS switch 心智）。宿主摘除 + 锚点占位，命中分支作为独立元素插宿主原位（与 x-else-if 分支链渲染机制同构，一跳差异同样适用）；eager 切换销毁重建 / `.keepalive` 每分支独立保活。与 x-else-if 的分工：x-if 链答「哪个条件真」（分支各自布尔表达式），x-switch 答「这个值是什么」（一值对多字面量）。详见 ADR-0037。
+_Avoid_: x-else 复用（那是条件链尾标记，剪枝判据与语义均不同）、switch 表达式求值（case 是字面量不是表达式，动态比较归 x-if 链）、短路链（default 位置无关，非文档顺序首个命中）、x-when（未采用的别名）
+
 **条件可见性 / x-show（Conditional Visibility，独立指令）**:
 控制宿主**是否可见**，宿主**永留 DOM**。条件为假时 `display:none`（仍占 `:nth-child` 位、仍被表单提交、`querySelector` 仍命中），子树与 watcher 全保留、最轻量。**独立指令，不再是 `x-if.keep` 的别名**（别名关系已废弃，见下）。不占子树，可与 x-for 共存。
 _Avoid_: x-if.keep 别名/快捷方式（已废弃）、x-if（存在性 vs 可见性，二者正交）
+
+### 动画层
+
+**进出场动画 / animate（Enter/Leave Animation）**:
+结构指令（x-if / x-show / x-for / x-switch）**状态变化引起挂载/卸载时**的转场动画，经指令选项 `animate` 声明（ADR-0007 回退链照常：指令选项 → 宿主选项）。取值三形态：字符串（进出同名，`animate:'fade'`）/ 对象（`{name,duration,delay,easing}`）/ 分相覆盖（见「分相配置」）。首次渲染静默（无 appear）；中断抢占（在播即取消、新动画从头播）；分支切换新旧同场共演。区别于 `:style` 的 `.transition`——那是**值在变**的 CSS 属性过渡，这是**元素在进出**。详见 ADR-0039。
+_Avoid_: x-transition 指令（已否决的载体：引擎无指令间事件总线、感知不到宿主指令挂卸时机，空壳已删）、transition 选项键（与 `.transition` 修饰符撞义）、animation（泛化）
+
+**六类名 / Six-phase Classes**:
+进出场动画的 CSS 契约（Vue 同构）：`{name}-enter-from / -enter-active / -enter-to` 与 leave 三类镜像。进场 = 挂 from+active → 下一帧摘 from 挂 to → 结束全摘；出场镜像。自定义动画 = 用户按此约定写 CSS（**transition 型与 keyframe 型皆可**），传名即用、零注册 API。
+_Avoid_: 二类名 fade-in/fade-out（已否决：keyframes-only 表达力受限）、autospark-* 前缀类名（已否决：与 Vue 词汇断裂）、WAAPI 程序化关键帧（已否决的基底）
+
+**分相配置 / enter & leave**:
+`animate` 的相位覆盖键：`enter` / `leave` 各自独立接受字符串 | 对象 | `false`（单相禁用，如 `{enter:'fade',leave:false}` 只动画进场）。一套词汇贯穿六类名（`enter` ↔ `enter-from`）。
+_Avoid_: in / out（已否决的键名，与类名词汇错位）
+
+**内置动画 / fade & slide & expand（Built-in Animations）**:
+引擎内置的三个开箱即用动画名：fade（opacity 淡入淡出，300ms）、slide（translateY(-12px→0)＋opacity，300ms，离场反向、纵向固定）、expand（**高度型**：JS 测量自然高度 + `height`/`opacity` 同链 inline 过渡，300ms——布局高度参与动画，后续节点平滑跟随，不经六类名契约、无类 CSS）。fade/slide 样式经类级初始化注入，裸类名（`.fade-enter-active`）、用户同名 CSS 可覆盖。x-tree 默认 `expand`；x-for 仅项级进出（移动不动画）。
+_Avoid_: 横向 slide 参数化（v1 纵向固定，横向走自定义动画）、FLIP / 移动动画（x-for 项移动暂不支持，留作后续）、改 slide 为 height 型（全局改既有内置语义，波及所有已用场景）
+
+### 树形渲染层
+
+**树形渲染 / x-tree（Tree Rendering）**:
+嵌套子容器递归渲染树数据：`x-tree="node of nodes"`（`of` 必写，对齐 x-for），DOM 即树（`ul > li > ul > li…`）。容器直接子元素只认 `x-tree-node`（无值布尔标记，值 warn 忽略），其余 warn 丢弃；折叠两态对齐 x-if 家族——默认 eager（销毁子行）/ `.keepalive`（`display:none` 保活）。数据归一化：单根 `{...}` 与多根 `[{...}]` 归一为根数组；id 重复 / 循环引用 warn。节点 key 唯一来源 `idField`（默认 `"id"`，无 id 回退层级路径），`:key` 在宿主上 warn 忽略。空态 `x-empty` 只认真空数组 `[]`。详见 ADR-0040。
+_Avoid_: 扁平连续段（已否决的结构：动画/保活/懒加载挂载全面劣势）、x-tree-node 带值特化（已否决：无场景输入，纯标记）、虚拟滚动（嵌套结构不可行，超大树靠折叠）、format:list / 平铺建树（已移除，ADR-0040 修订三：建树是数据转换职责归数据层，指令只接受嵌套格式）
+
+**子容器 / x-tree-children（Children Container）**:
+节点模板内声明「子节点渲染到这里」的无值标记（取第一个、多余 warn；模板无此标记 → warn + 不递归）。子容器位置天生固定（节点行的一部分），折叠 = `display` 翻转（keepalive 到此为止）或翻转 + 销毁子行 scope（eager）——**不走 x-if 的 detach/锚点机制**（位置固定无需锚点，且 display 翻转保住 CSS 过渡通道）。动画以子容器**整体**接入 Animator（见「进出场动画」），默认 `expand` 高度过渡（后续节点平滑跟随；类名型 transform/opacity 不参与布局，树上后续节点会跳位），折叠离场延迟最终态与 x-show 同构。
+_Avoid_: 子树容器（泛化）、嵌套槽（与 x-slot 撞义——那是隔离快照机制）、递归点（实现视角词，用户词汇是容器）
+
+**节点模板三级优先（Node Template Priority）**:
+x-tree 渲染节点行的模板来源优先级：原地 `<li x-tree-node>`（用户定制）> `tree-node` 组件（scope 链 `getComponent` 就近 + `engine.options.components` 全局兜底）> 引擎内置默认节点模板（缩进 + 箭头 + `nameField` 字段，默认 `"name"`）——与 x-loading 的 DEFAULT_BLOCK 组件覆盖机制同构。「用 x-use 消费整棵树」由通用组件机制承担（用户 `x-component="my-tree"` 包装 x-tree 容器），引擎不内置递归组件。
+_Avoid_: 插槽传模板（引擎无该机制）、内置递归组件（已否决：每节点组件实例开销 + 无工具链模板字符串）、默认模板（泛指——是三级中的最末级，非独立机制）
+
+**展开回退（Expand Fallback）**:
+节点有效展开态的回退规则：`expandField 有值 ? !!值 : (level + 1 < defaultExpandLevel)`——回退**永不落盘**；仅用户 toggle 时刻写 `expandField = !有效值`（惰性写回，引擎写用户数据的唯一例外场景之一）。`defaultExpandLevel = N` 即前 N 层可见（默认 `1` = 根层可见、根不展开），声明 `<1` 按 1 处理；`$level` 0-based（根 = 0）。否决「初始化期写数据」：异步数据下初始化时机不稳且反复污染源数据。toggle 触点：默认整行；模板内 `x-tree-toggle`（标记属性）收窄；声明 `selectedField`（P2）后整行点击自动改为选中、展开仅认 toggle 标记。
+_Avoid_: expend（错拼，意为「花费」）、初始化展开（写盘时机不稳的已否决方案）、expandField 全量落盘（只有 toggle 才写）
+
+**树循环变量（Tree Loop Variables）**:
+x-tree 注入节点模板求值作用域的 `$` 前缀派生变量（对齐 x-for 派生变量惯例，不占用户命名空间）：`$level`（层级，根 0）、`$children`（原始子数据数组）、`$expanded`（**含回退的有效展开态**——不必手写 `node.expand ?? $level<2`）、`$leaf`（无子）、`$index` / `$first` / `$last`（兄弟内序号/首末）、`$parent`（父节点数据引用，根 null）、`$indeterminate`（复选半选派生态，不落盘——UI 态与数据态分离）。
+_Avoid_: $depth（与 $level 撞义）、$hasChildren（用 $leaf 的反义已覆盖）、循环变量（泛指——这是树专属九元组）
+
+**树交互三路分流（check / toggle / select）**:
+x-tree 行点击的容器级委托判定序：① `x-tree-check` 标记元素 → 复选（级联 + `$indeterminate` 派生）；② `x-tree-toggle` 标记元素 → 展开/折叠（未启用选中且无标记时整行触发）；③ 启用选中（配置 `selectedField`，显式声明——它改变整行语义）后整行 → 选中（单选 toggle 清全树 / `multiSelect`）。复选启用靠模板声明 `x-tree-check` 标记（标记即交互声明，同 `x-tree-toggle` 惯例）。
+_Avoid_: 复选开关选项（x-tree-check 标记即开关——多一个选项多一条不一致）、selectedField 默认启用（行为变更必须显式）
+
+**拖拽三态定位（Drop Position）**:
+x-tree 拖拽（`draggable: true`）的落点语义：目标行上 1/4 → `before`（移到其前）、下 1/4 → `after`（移到其后）、中段 → `inside`（收纳为子 + 自动展开）。拖入自身子孙被环检测拒绝；单根数据的根行仅允许 `inside`。数据 splice 写回（同父移动修正索引偏移；收纳叶子目标先建 childrenField 容器）。
+_Avoid_: 拖拽手柄（v1 整行可拖，手柄等真实需求）、FLIP 移动动画（落点即数据重排，watcher 驱动重渲染）
+
+**树事件 / tree:\*（Tree Events）**:
+树交互的 DOM 冒泡广播事件：`tree:expand` / `tree:collapse` / `tree:select` / `tree:check` / `tree:drop`（`tree:load` 留给懒加载），宿主 `dispatchEvent`，`detail` 统一 `{ id, node, level }`（id 取 `idField` 值，无 id 为 undefined；check 另带 `checked`、drop 为 `{source, target, position}` 三段式——source/target 各含 `{id, node, level}`）。命名对齐 action 广播 `action:<name>` 惯例，外界 `@tree:expand="..."` 监听。
+_Avoid_: 展开回调（配置函数形态已弃——事件广播解耦）、tree-expand 连字符（对齐冒号命名空间惯例）
+
+### 加载覆盖层
+
+**动作按钮清单 / actions（x-loading）**:
+x-loading 配置的**动作名数组**（inline 主声明 → `x-loading-options` 回退，与其他配置字段同规则；非字符串元素 warn 剪枝）。挂载时解析为 `[{name, title}]` 注入块 data（`title = ActionDesc.title ?? name`），渲染归块作者、触发归指令（见「data-action 委托」）。详见 ADR-0038。
+_Avoid_: 动作列表（泛化）、buttons（配置的是 action 名不是按钮）、对象形态（已否决——文案定制走 ActionDesc.title）
+
+**data-action 委托（x-loading）**:
+覆盖层根上的点击委托契约：块内任意 `data-action="<name>"` 元素点击 → 经块 scope `getAction` 链逐次现查（已注册走真 action、未注册走「合成动作描述符」），以标准 AutoSparkActionContext（`el`=被点元素）调用 → 双通道广播；随后按「hide 约定键」决定是否自动隐藏覆盖层。自定义 loading 组件零接线同享。详见 ADR-0038。
+_Avoid_: 动作绑定（泛化）、action 属性（与广播事件名 `action:<name>` 撞形）
 
 ### 表单绑定层
 
