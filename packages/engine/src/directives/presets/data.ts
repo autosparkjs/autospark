@@ -1,5 +1,5 @@
 import { AutoSparkDirectiveBase } from "../base";
-import { toJson } from "really-relaxed-json";
+import { relaxedToJson } from "../../utils/relaxedToJson";
 import { deepMerge } from "flex-tools/object/deepMerge";
 import { SCOPES_KEY } from "../../engine";
 import { getVal, splitPath } from "autostore";
@@ -90,7 +90,7 @@ type ResolvedMount = {
  * **不在渲染元素上保留 x-data 属性、不挂 MutationObserver**。运行时更新数据请用 `engine.data(el, data)`，
  * 它直接 `Object.assign` 进数据容器（local/path 模式），路径订阅自动驱动更新，无需 refresh。
  *
- * **值解析**：用 really-relaxed-json（`toJson` → `JSON.parse`），值必须是普通对象 `{...}`；
+ * **值解析**：用 relaxedToJson → `JSON.parse`，值必须是普通对象；
  * 解析失败**静默处理——仅打印日志**，按空对象继续，不中断编译。
  *
  * **嵌套覆盖**：父子元素的 data 经 `getContext` 的 parent 链层叠，子覆盖父同名键。
@@ -585,7 +585,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
         const trimmed = raw.trim();
         if (!trimmed) return {};
         try {
-            const parsed: unknown = JSON.parse(toJson(trimmed));
+            const parsed: unknown = JSON.parse(relaxedToJson(trimmed));
             if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
                 this.engine.logger.warn(
                     `x-data: 值必须解析为对象，实际得到 ${JSON.stringify(parsed)}`,

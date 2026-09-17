@@ -1,5 +1,4 @@
-// oxlint-disable no-unused-expressions
-import { toJson } from "really-relaxed-json";
+// oxlint-disable no-unused-expressionsimport { relaxedToJson } from "../../utils/relaxedToJson";
 import { AutoSparkDirectiveBase } from "../base";
 import type { AutoDirectiveInfo } from "../types";
 import { BranchHost, type BranchEntry } from "../branch";
@@ -184,7 +183,7 @@ export class SwitchDirective extends AutoSparkDirectiveBase {
                 parsed = Number.NaN;
             } else {
                 try {
-                    parsed = JSON.parse(toJson(caseRaw));
+                    parsed = JSON.parse(relaxedToJson(caseRaw));
                 } catch {
                     this.engine.logger.warn(
                         `x-switch: x-case 值 "${caseRaw}" 不是合法的 relaxed-json 字面量，该分支被跳过（ADR-0037）`,

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-tree · 一行渲染（内置默认模板）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .org-tree {
+                border: 1px solid #dbdbdb;
+                border-radius: 6px;
+                padding: 8px;
+            }
+            .org-tree li[data-x-tree-row] {
+                margin: 1px 0;
+            }
+            /* 状态数据面板：实时展示 state.nodes（展开/勾选/选中字段的写回一目了然） */
+            .state-panel {
+                background: #1e2430;
+                color: #a9dc76;
+                border-radius: 6px;
+                padding: 12px;
+                max-height: 480px;
+                overflow: auto;
+                font-size: 12px;
+                line-height: 1.5;
+                white-space: pre-wrap;
+                word-break: break-all;
+            }
+            .state-panel .panel-title {
+                color: #7a88b8;
+                display: block;
+                margin-bottom: 4px;
+                font-size: 11px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- 零模板全家桶：容器内不写任何子元素，全部能力经 x-tree-options 声明——
+             checkedField 声明即启用复选（默认模板自动带三态触点 ☑/⊟/☐ + 级联 + 半选）、
+             selectedField 声明即启用选中（整行点击 = 选中 + 展开/折叠，antd 心智）、
+             draggable 即启用拖拽（三态定位 + 环检测）、expand 高度动画与前 2 层可见全内置 -->
+        <div class="demo-app section">
+            <h1 class="title is-5">组织架构（零模板全家桶）</h1>
+            <p class="subtitle is-6">
+                容器是空的——勾选级联 / 整行点击选中并展开 / 拖拽调岗，全部一个 x-tree
+            </p>
+            <div class="columns">
+                <div class="column is-half">
+                    <div class="org-tree">
+                        <ul
+                            x-tree="node of nodes"
+                            x-tree-options="{ defaultExpandLevel: 2, checkedField: 'checked', selectedField: 'selected', draggable: true }"
+                            @tree:expand="snap($event)"
+                            @tree:collapse="snap($event)"
+                            @tree:check="snap($event)"
+                            @tree:select="snap($event)"
+                            @tree:drop="snap($event)"
+                        ></ul>
+                    </div>
+                    <p class="help">
+                        提示：整行点击 = 选中并展开/折叠；勾「行政中心」整树级联（取消一个部门见半选
+                        ⊟）；拖动行到目标行的上沿/下沿/中段；逐层展开可见 5 层
+                    </p>
+                </div>
+                <div class="column is-half">
+                    <pre class="state-panel" x-text="nodesSnapshot"></pre>
+                    <p class="help">
+                        状态面板：<code>state.nodes</code> 实时快照（经 tree:* 事件刷新）——点击时
+                        <code>expand</code> 惰性写回、勾选时 <code>checked</code> 级联铺开、选中时
+                        <code>selected</code> 置位
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    nodesSnapshot: "",
+                    // 单根作数组首元素 + 5 层嵌套：公司 → 中心 → 部门 → 组 → 小队
+                    nodes: [
+                        {
+                            id: "company",
+                            name: "AutoSpark 公司",
+                            children: [
+                                {
+                                    id: "admin",
+                                    name: "行政中心",
+                                    children: [
+                                        {
+                                            id: "admin-hr",
+                                            name: "人力资源部",
+                                            children: [
+                                                {
+                                                    id: "admin-hr-hire",
+                                                    name: "招聘组",
+                                                    children: [
+                                                        { id: "admin-hr-hire-s1", name: "简历筛选小队" },
+                                                        { id: "admin-hr-hire-s2", name: "面试协调小队" },
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                        { id: "admin-fin", name: "财务部" },
+                                    ],
+                                },
+                                {
+                                    id: "rd",
+                                    name: "研发中心",
+                                    children: [
+                                        {
+                                            id: "rd-fe",
+                                            name: "前端组",
+                                            children: [{ id: "rd-fe-engine", name: "引擎小队" }],
+                                        },
+                                        { id: "rd-qa", name: "测试部" },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    actions: {
+                        // 树事件统一刷新状态面板快照（expand/checked/selected 写回都是「新增属性」，
+                        // 深表达式的依赖收集在首渲时收不到不存在的字段——事件驱动最可靠）
+                        snap: () => {
+                            engine.state.nodesSnapshot = JSON.stringify(engine.state.nodes, null, 2);
+                        },
+                    },
+                },
+            );
+            engine.state.nodesSnapshot = JSON.stringify(engine.state.nodes, null, 2); // 初始快照
+        </script>
+    </body>
+</html>

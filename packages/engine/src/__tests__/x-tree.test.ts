@@ -614,6 +614,101 @@ describe("x-tree 复选与级联（P2，决策 10/13）", () => {
         expect((engine.state as any).nodes[0].indeterminate).toBeUndefined(); // 半选不落盘
     });
 
+    test("零模板 + checkedField 声明：默认模板自动带复选触点（级联可用）", async () => {
+        const { root, engine } = mount(
+            `<ul x-tree="node of nodes" x-tree-options="{ checkedField: 'checked', defaultExpandLevel: 2 }"></ul>`,
+            makeTree(),
+        );
+        await nextTick();
+        const check = root.querySelector("[data-x-tree-check]") as HTMLElement;
+        expect(check).not.toBeNull(); // 默认模板带触点
+        expect(check.textContent).toBe("☐");
+        check.dispatchEvent(new Event("click", { bubbles: true }));
+        await nextTick();
+        const st = engine.state as any;
+        expect(st.nodes[0].checked).toBe(true);
+        expect(st.nodes[0].children[0].checked).toBe(true); // 级联照常
+    });
+
+    test("checkedField 声明但自定义模板无触点：warn 防呆", async () => {
+        const warns = captureWarn(() => {
+            mount(
+                `<ul x-tree="node of nodes" x-tree-options="{ checkedField: 'checked' }">${CUSTOM_TPL}</ul>`,
+                makeTree(),
+            );
+        });
+        expect(warns.some((w) => w.includes("x-tree-check"))).toBe(true);
+    });
+
+    test("零模板 + selectedField：点行 = 选中 + 展开/折叠（默认模板恒整行 toggle，修订七）", async () => {
+        const { root, engine } = mount(
+            `<ul x-tree="node of nodes" x-tree-options="{ selectedField: 'selected', defaultExpandLevel: 2 }"></ul>`,
+            makeTree(),
+        );
+        await nextTick();
+        // 零模板行名是 .x-tree-label（rowNames 的 .name 是自定义模板专用）
+        const names = () => Array.from(root.querySelectorAll(".x-tree-label")).map((n) => n.textContent);
+        expect(names()).toEqual(["A", "A1", "A2", "B"]); // 前 2 层可见
+        // 点 A1 行名 → 选中（叶子无展开可切）
+        const label = [...root.querySelectorAll(".x-tree-label")].find((l) => l.textContent === "A1")!;
+        label.dispatchEvent(new Event("click", { bubbles: true }));
+        await nextTick();
+        expect((engine.state as any).nodes[0].children[0].selected).toBe(true);
+        // 点 A 行名 → 选中 + 折叠（整行 toggle 恒定）
+        root.querySelector(".x-tree-label")!.dispatchEvent(new Event("click", { bubbles: true }));
+        await nextTick();
+        expect((engine.state as any).nodes[0].selected).toBe(true);
+        expect(names()).toEqual(["A", "B"]);
+        // 再点 A 行名 → 展开恢复
+        root.querySelector(".x-tree-label")!.dispatchEvent(new Event("click", { bubbles: true }));
+        await nextTick();
+        expect(names()).toEqual(["A", "A1", "A2", "B"]);
+    });
+
+    test("零模板未启用选中：整行点击展开/折叠（默认模板语义）", async () => {
+        const { root } = mount(
+            `<ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 1 }"></ul>`,
+            makeTree(),
+        );
+        await nextTick();
+        // 默认模板未启用选中 → 箭头槽无 toggle 标记 → 点行名（label）整行触发展开
+        expect(root.querySelector(".x-tree-ico").hasAttribute("data-x-tree-toggle")).toBe(false);
+        const label = root.querySelector(".x-tree-label")!;
+        label.dispatchEvent(new Event("click", { bubbles: true }));
+        await nextTick();
+        const names = () => Array.from(root.querySelectorAll(".x-tree-label")).map((n) => n.textContent);
+        expect(names()).toEqual(["A", "A1", "A2", "B"]); // 点 A 行名展开（B 为同级根行常驻）
+        label.dispatchEvent(new Event("click", { bubbles: true }));
+        await nextTick();
+        expect(names()).toEqual(["A", "B"]); // 再点折叠
+    });
+
+    test("单根对象数据：子层路径直接下钻（toggle/复选/深层展开可用）", async () => {
+        const { root, engine } = mount(
+            `<ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 1 }">${CHECK_TPL}</ul>`,
+            { nodes: { id: "company", name: "公司", children: [
+                { id: "admin", name: "行政中心", children: [{ id: "admin-hr", name: "人力资源部" }] },
+            ] } },
+        );
+        await nextTick();
+        expect(rowNames(root)).toEqual(["公司"]); // 单根归一渲染
+        // 展开公司 → 行政中心可见（单根子层 watcher 挂 nodes.children.*，写回可触发）
+        root.querySelector("[data-x-tree-row]")!.dispatchEvent(new Event("click", { bubbles: true }));
+        await nextTick();
+        expect(rowNames(root)).toEqual(["公司", "行政中心"]);
+        // 行政中心展开（深层：nodes.children.0.children）+ 复选级联
+        const rows = () => Array.from(root.querySelectorAll("[data-x-tree-row]"));
+        rows()[1].dispatchEvent(new Event("click", { bubbles: true }));
+        await nextTick();
+        expect(rowNames(root)).toEqual(["公司", "行政中心", "人力资源部"]);
+        const adminChk = rows()[1].querySelector(".chk") as HTMLElement;
+        adminChk.dispatchEvent(new Event("click", { bubbles: true }));
+        await nextTick();
+        const st = engine.state as any;
+        expect(st.nodes.children[0].checked).toBe(true);
+        expect(st.nodes.children[0].children[0].checked).toBe(true);
+    });
+
     test("cascade:false：勾选不级联（各节点独立）", async () => {
         const { root, engine } = mount(
             `<ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 2, cascade: false }">${CHECK_TPL}</ul>`,

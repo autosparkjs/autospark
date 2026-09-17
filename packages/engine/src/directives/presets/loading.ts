@@ -4,8 +4,7 @@ import { SCOPES_KEY } from "../../engine";
 import type { AutoSparkScope } from "../../scope";
 import { isSimpleStatePath } from "../../scope";
 import { getVal, type Watcher } from "autostore";
-import { rgba } from "../../utils/colors";
-import { toJson } from "really-relaxed-json";
+import { rgba } from "../../utils/colors";import { relaxedToJson } from "../../utils/relaxedToJson";
 import { parseHtmlFragment } from "../../utils/transformElement";
 import { buildAction } from "../../actions/buildAction";
 import type { ActionDesc } from "../../actions/types";
@@ -30,7 +29,7 @@ import type { AutoSparkActionContext } from "./on/types";
  * - **配置绑定** `x-loading="{ value:'isLoading', message:'正在加载', bgColor:'white',
  *   color:'red', opacity:0.5, delay:300 }"`：字段化配置，value 必填。
  *
- * **值类型判定**：`this.value` 去空白后以 `{` 开头 → 配置绑定（really-relaxed-json 解析），
+ * **值类型判定**：`this.value` 去空白后以 `{` 开头 → 配置绑定（relaxedToJson 解析），
  * 否则 → 快速绑定（整值作 value 表达式）。
  *
  * **显隐**：value 求值为 truthy → 挂载覆盖层；falsy → 移除覆盖层 DOM（重建式，非 display 隐藏）。
@@ -398,10 +397,10 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
         return inline;
     }
 
-    /** 解析对象配置（really-relaxed-json）；非对象/抛错 → warn + 空 value */
+    /** 解析对象配置（relaxedToJson）；非对象/抛错 → warn + 空 value */
     private parseObject(raw: string): LoadingConfig {
         try {
-            const parsed: unknown = JSON.parse(toJson(raw));
+            const parsed: unknown = JSON.parse(relaxedToJson(raw));
             if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
                 this.engine.logger.warn(`x-loading: 对象配置必须解析为对象，得到 ${JSON.stringify(parsed)}`);
                 return { value: "" };

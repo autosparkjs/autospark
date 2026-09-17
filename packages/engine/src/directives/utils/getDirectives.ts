@@ -1,4 +1,4 @@
-import { toJson } from "really-relaxed-json";
+import { relaxedToJson } from "../../utils/relaxedToJson";
 import type { AutoDirectiveInfo } from "../types";
 
 /** 事件绑定快捷前缀 */
@@ -36,13 +36,13 @@ function splitHeadAndModifiers(rest: string): { head: string; modifiers: string[
 /**
  * 解析 options 补充参数值
  *
- * 使用 really-relaxed-json 解析宽松 JSON（允许无引号键、尾逗号、注释等），
+ * 使用 relaxedToJson 解析宽松 JSON（允许无引号键、尾逗号等），
  * 解析结果必须是普通对象，否则抛出错误。
  *
  * @param rawValue - 属性原始值，如 `{a:1}` 或 `{ name: "x", count: 3 }`
  */
 function parseOptions(rawValue: string): Record<string, any> {
-    const parsed: unknown = JSON.parse(toJson(rawValue));
+    const parsed: unknown = JSON.parse(relaxedToJson(rawValue));
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
         throw new Error(`指令 options 必须是对象字符串，实际解析得到：${JSON.stringify(parsed)}`);
     }
@@ -97,7 +97,7 @@ function parsePrefixedDirective(rest: string, rawValue: string): AutoDirectiveIn
  * <div x-if.once.y="xxx"></div> //{name:"if",value:"xxx",modifiers:["once","y"]}
  * <div x-if="xxx" x-if-options="{a:1}"></div> // {name:"if",value:"xxx",options:{a:1}}   以-options结性的视为对x-if指令的补充额外的选项参数
  *
- * x-if-options值必须是一个对象字符串，使用really-relaxed-json进行解析
+ * x-if-options值必须是一个对象字符串，使用 relaxedToJson 进行解析
  *
  * 按顺序进行解析并返回结果
  *

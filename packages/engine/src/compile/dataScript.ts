@@ -17,7 +17,7 @@
 import { computed, configurable, watch } from "autostore";
 // 子路径导入（非根入口）：根入口转导出 ./fs 子模块（node 内置 fs/path），浏览器 bundle 会解析失败
 import { deepMerge } from "flex-tools/object";
-import { toJson } from "really-relaxed-json";
+import { relaxedToJson } from "../utils/relaxedToJson";
 import type { AutoSpark } from "../engine";
 
 /** 数据脚本的 type 值（ADR-0031 命名空间家族：autospark/actions、autospark/setup、autospark/data） */
@@ -54,7 +54,7 @@ export function collectDataScripts(
         const optRaw = child.getAttribute("options");
         if (optRaw != null) {
             try {
-                const parsed: unknown = JSON.parse(toJson(optRaw));
+                const parsed: unknown = JSON.parse(relaxedToJson(optRaw));
                 if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
                     engine.logger.error(
                         `<script type="${DATA_SCRIPT_TYPE}"> 的 options 属性须为对象，实际得到 ${JSON.stringify(parsed)}`,

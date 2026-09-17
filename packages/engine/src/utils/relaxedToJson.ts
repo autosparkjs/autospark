@@ -59,8 +59,9 @@ export function relaxedToJson(input: string): string {
             continue;
         }
 
-        // ── 无引号键名检测：标识符 + 白空格 + ':' ──
-        if (isIdentStart(ch)) {
+        // ── 无引号键名/裸值检测 ──
+        // 排除：前一字符是数字/小数点/负号时，e/E 属于科学计数法，不作标识符
+        if (isIdentStart(ch) && !(i > 0 && isDigitOrSign(input[i - 1]!))) {
             let j = i;
             while (j < len && isIdentChar(input[j]!)) j++;
             const ident = input.slice(i, j);
@@ -78,8 +79,12 @@ export function relaxedToJson(input: string): string {
                 continue;
             }
 
-            // 不是键，作为裸值透传（true / false / null / NaN 等）
-            result += ident;
+            // 不是键：JSON 关键字透传，其他裸标识符转字符串
+            if (ident === "true" || ident === "false" || ident === "null") {
+                result += ident;
+            } else {
+                result += '"' + ident + '"';
+            }
             i = j;
             continue;
         }
@@ -115,4 +120,8 @@ function isIdentStart(ch: string): boolean {
 
 function isIdentChar(ch: string): boolean {
     return isIdentStart(ch) || (ch >= "0" && ch <= "9");
+}
+
+function isDigitOrSign(ch: string): boolean {
+    return (ch >= "0" && ch <= "9") || ch === "." || ch === "-" || ch === "+";
 }

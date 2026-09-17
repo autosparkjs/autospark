@@ -189,8 +189,8 @@ x-tree 注入节点模板求值作用域的 `$` 前缀派生变量（对齐 x-fo
 _Avoid_: $depth（与 $level 撞义）、$hasChildren（用 $leaf 的反义已覆盖）、循环变量（泛指——这是树专属九元组）
 
 **树交互三路分流（check / toggle / select）**:
-x-tree 行点击的容器级委托判定序：① `x-tree-check` 标记元素 → 复选（级联 + `$indeterminate` 派生）；② `x-tree-toggle` 标记元素 → 展开/折叠（未启用选中且无标记时整行触发）；③ 启用选中（配置 `selectedField`，显式声明——它改变整行语义）后整行 → 选中（单选 toggle 清全树 / `multiSelect`）。复选启用靠模板声明 `x-tree-check` 标记（标记即交互声明，同 `x-tree-toggle` 惯例）。
-_Avoid_: 复选开关选项（x-tree-check 标记即开关——多一个选项多一条不一致）、selectedField 默认启用（行为变更必须显式）
+x-tree 行点击的容器级委托判定序：① `x-tree-check` 标记元素 → 复选（级联 + `$indeterminate` 派生）；② `x-tree-toggle` 标记元素 → 展开/折叠（未启用选中且无标记时整行触发）；③ 启用选中（配置 `selectedField`，显式声明——它改变整行语义）后整行 → 选中（单选 toggle 清全树 / `multiSelect`）。复选启用**双通道**：自定义模板声明 `x-tree-check` 标记（标记即交互），或零模板场景 `checkedField` 显式声明（选项即标记，默认模板自动带三态触点——与 selectedField 声明哲学对称）。
+_Avoid_: 独立复选开关选项（check:true 之类——启用语义已由「标记 / checkedField 声明」承担，开关是第三条不一致通道）、selectedField 默认启用（行为变更必须显式）
 
 **拖拽三态定位（Drop Position）**:
 x-tree 拖拽（`draggable: true`）的落点语义：目标行上 1/4 → `before`（移到其前）、下 1/4 → `after`（移到其后）、中段 → `inside`（收纳为子 + 自动展开）。拖入自身子孙被环检测拒绝；单根数据的根行仅允许 `inside`。数据 splice 写回（同父移动修正索引偏移；收纳叶子目标先建 childrenField 容器）。

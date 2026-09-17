@@ -104,12 +104,20 @@ class TreeLayerRenderer {
         if (this.level > 0) this.ensureWildcards();
     }
 
-    /** 通配订阅（`.*` / `.*.expandField`）：数据就绪后才能建立 */
+    /** 通配订阅（`.*` / `.*.expandField`）：数据就绪后才能建立。单根数据的根层特判：
+     *  根层行即数据源本身（归一化包装数组在 state 无对应），显隐订阅直接下钻 expandField——
+     *  `nodes.*.expand` 对对象键通配（nodes.id.expand 等）不含根对象自身。 */
     ensureWildcards() {
         const path = this.childrenPath;
         if (this.wildcardsWatched || !path || !this.directive.isSimplePath(path)) return;
         this.wildcardsWatched = true;
         const d = this.directive;
+        if (this.level === 0 && d.singleRoot) {
+            this._track(() =>
+                this.ownerScope.watchPath(`${path}.${d.expandField}`, () => this.syncVisibility()),
+            );
+            return;
+        }
         const restructure = () => (this.level === 0 ? d.rootRender() : this.render());
         this._track(() => this.ownerScope.watchPath(`${path}.*`, restructure));
         // 本层各节点展开字段变化 → 显隐同步（不 diff 行，只切换子容器 + $expanded 刷新）
@@ -289,12 +297,20 @@ class TreeLayerRenderer {
 /** 默认树样式 <style> 的 id（static initialize 幂等注入） */
 const TREE_STYLES_ID = "x-tree-styles";
 
-/** 默认节点模板（三级优先最末级）：箭头 + nameField 字段 + 子容器，data-* 为运行时标记（编译后保留） */
-function defaultNodeTemplate(nameField: string): HTMLElement {
+/** 默认节点模板（三级优先最末级）：箭头 + nameField 字段 + 子容器，data-* 为运行时标记（编译后保留）。
+ *  checkedField 显式声明时附带三态复选触点（零模板场景的复选启用通道——选项即标记，
+ *  与 selectedField 声明哲学对称，ADR-0040 决策 10 修订五） */
+function defaultNodeTemplate(nameField: string, withCheck: boolean): HTMLElement {
+    const check = withCheck
+        ? `<span class="x-tree-ico" data-x-tree-check x-text="node.checked ? '☑' : ($indeterminate ? '⊟' : '☐')"></span>`
+        : "";
+    // 不打 data-x-tree-toggle：默认模板恒整行点击展开/折叠（启用选中时点行 = 选中 + 展开，
+    // antd 心智；收窄到标记是自定义模板 + selectedField 的语义，修订七）
     const frag = parseHtmlFragment(`
 <li class="x-tree-node" data-x-tree-row>
-  <div class="x-tree-row" data-x-tree-toggle>
-    <span class="x-tree-arrow" :class="{'x-tree-arrow--open':$expanded,'x-tree-arrow--leaf':$leaf}"></span>
+  <div class="x-tree-row">
+    <span class="x-tree-ico"><i class="x-tree-arrow" :class="{'x-tree-arrow--open':$expanded,'x-tree-arrow--leaf':$leaf}"></i></span>
+    ${check}
     <span class="x-tree-label" x-text="node.${nameField}"></span>
   </div>
   <ul class="x-tree-children" data-x-tree-children></ul>
@@ -339,10 +355,14 @@ function defaultNodeTemplate(nameField: string): HTMLElement {
  *   eager 离场 inert 全部继承。
  * - **交互（决策 10 + P2/P3 交付）**：click 委托三路分流——① `x-tree-check` 标记元素 →
  *   复选（checkedField 写回 + cascade 级联：向下子孙全勾/全消、向上祖先重算；`$indeterminate`
- *   半选派生不落盘）；② `x-tree-toggle` 标记元素 → 展开/折叠（未启用选中且无标记时整行触发）；
+ *   半选派生不落盘）；② `x-tree-toggle` 标记元素 → 展开/折叠（自定义模板收窄触点）；
  *   ③ 启用选中（配置 `selectedField`）后整行 → 选中（单选 toggle + 清全树 / `multiSelect`）。
- *   拖拽（`draggable: true`）：行根 draggable + HTML5 DnD 委托，三态定位（上/下 1/4 边缘线、
- *   中段收纳）+ 环检测（拖入自身子孙拒绝），数据 splice 写回驱动重渲染。
+ *   内置默认模板恒整行点击展开/折叠（修订七：启用选中时点行 = 选中 + 展开，antd 心智——
+ *   收窄到标记是自定义模板的语义）。复选启用双通道（修订五）：自定义模板声明 `x-tree-check`
+ *   标记（标记即交互）或零模板场景 `checkedField` 显式声明（选项即标记，默认模板自动带三态
+ *   触点——与 selectedField 对称）。拖拽（`draggable: true`）：行根 draggable + HTML5 DnD
+ *   委托，三态定位（上/下 1/4 边缘线、中段收纳）+ 环检测（拖入自身子孙拒绝），数据 splice
+ *   写回驱动重渲染。
  * - **事件（决策 11）**：`tree:expand` / `tree:collapse` / `tree:select`（detail `{id, node, level}`）、
  *   `tree:check`（另带 `checked`）、`tree:drop`（detail `{source, target, position}` 三段式），
  *   均冒泡，命名对齐 action 广播惯例。
@@ -368,14 +388,14 @@ export class TreeDirective extends AutoSparkDirectiveBase {
         style.id = TREE_STYLES_ID;
         style.textContent = `
 .x-tree-node{margin:0}
-.x-tree-row{display:flex;align-items:center;gap:4px;padding:2px 4px}
-.x-tree-row[data-x-tree-toggle]{cursor:pointer;user-select:none}
+.x-tree-row{display:flex;align-items:center;gap:4px;padding:2px 4px;border-radius:4px;cursor:pointer;user-select:none}
+.x-tree-row:hover{background:#f0f0f0}
+.x-tree-ico{display:inline-flex;justify-content:center;align-items:center;width:1.2em;flex:none}
 .x-tree-arrow{display:inline-block;width:0;height:0;border-left:5px solid currentColor;border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .2s;opacity:.6}
 .x-tree-arrow--open{transform:rotate(90deg)}
 .x-tree-arrow--leaf{visibility:hidden}
 .x-tree-label{flex:1}
-ul.x-tree-children{list-style:none;margin:0;padding:0}
-ul.x-tree-children ul.x-tree-children{padding-left:20px}
+ul.x-tree-children{list-style:none;margin:0;padding-left:20px}
 /* 拖拽三态指示（P3）：before/after 上下边缘线、inside 收纳高亮 */
 li[data-x-tree-row].x-tree-drop-before{box-shadow:inset 0 2px 0 #3273dc}
 li[data-x-tree-row].x-tree-drop-after{box-shadow:inset 0 -2px 0 #3273dc}
@@ -397,8 +417,10 @@ li[data-x-tree-row].x-tree-drop-inside{background:#eef3fc;outline:1px dashed #32
     private selectedField: string | null = null;
     /** 多选模式（单选默认：写本行 + 清全树其他选中） */
     private multiSelect = false;
-    /** 复选字段（x-tree-check 标记声明才启用复选交互，字段名可定制） */
+    /** 复选字段（默认 "checked"；显式声明（或模板 x-tree-check 标记）启用复选交互） */
     checkedField = "checked";
+    /** checkedField 是否经选项显式声明（零模板场景的启用信号——默认模板据此带触点） */
+    private checkDeclared = false;
     /** 复选级联（父→子孙全勾/全消、子→祖先重算；false 各节点独立） */
     private cascade = true;
     /** 拖拽启用（行根 draggable + DnD 委托 + 三态定位，决策 10/P3） */
@@ -424,6 +446,8 @@ li[data-x-tree-row].x-tree-drop-inside{background:#eef3fc;outline:1px dashed #32
     private firstCompile = true;
     /** 复选交互启用（模板声明 data-x-tree-check 触点，resolveNodeTemplate 判定） */
     private checkEnabled = false;
+    /** 三级兜底用了内置默认模板（整行 toggle 语义恒定——启用选中时点行 = 选中 + 展开） */
+    private usedDefaultTemplate = false;
     /** 拖拽源行（dragstart 记录、drop/dragend 清除；null = 非拖拽中） */
     private dragEntry: TreeNodeEntry | null = null;
     /** 当前挂三态指示的行（dragover 切换、结束清除） */
@@ -511,9 +535,16 @@ li[data-x-tree-row].x-tree-drop-inside{background:#eef3fc;outline:1px dashed #32
             const v = this.getOption(f);
             if (typeof v === "string" && v.trim() !== "") (this as any)[f] = v.trim();
         }
-        // 选中：selectedField 显式声明才启用（值即字段名）；多选开关独立
+        // 选中：selectedField 显式声明才启用（值即字段名）；多选开关独立。
+        // 复选：checkedField 显式声明即启用（零模板场景由默认模板带触点；自定义模板以
+        //  x-tree-check 标记为准，声明但模板无触点 → warn）——与 selectedField 声明哲学对称
         const sel = this.getOption("selectedField");
         if (typeof sel === "string" && sel.trim() !== "") this.selectedField = sel.trim();
+        const chk = this.getOption("checkedField");
+        if (typeof chk === "string" && chk.trim() !== "") {
+            this.checkedField = chk.trim();
+            this.checkDeclared = true;
+        }
         this.multiSelect = this.getOption("multiSelect") === true;
         this.cascade = this.getOption("cascade") !== false;
         this.draggable = this.getOption("draggable") === true;
@@ -561,17 +592,26 @@ li[data-x-tree-row].x-tree-drop-inside{background:#eef3fc;outline:1px dashed #32
             const custom = this.engine.getComponent(this.el, "tree-node");
             if (custom) snapshot = custom.cloneNode(true) as HTMLElement;
         }
-        // 三级：内置默认（nameField 生成）
-        if (!snapshot) snapshot = defaultNodeTemplate(this.nameField);
+        // 三级：内置默认（nameField 生成；checkedField 显式声明 → 附带三态复选触点）
+        if (!snapshot) {
+            snapshot = defaultNodeTemplate(this.nameField, this.checkDeclared);
+            this.usedDefaultTemplate = true;
+        }
         this.nodeTemplate = this.rewriteMarks(snapshot);
         // 子容器校验：缺 x-tree-children → 不递归（仅渲染一层）
         if (!this.nodeTemplate.querySelector("[data-x-tree-children]")) {
             this.warn("节点模板缺少 x-tree-children 子容器，仅渲染一层（子节点不递归，ADR-0040 决策 2）");
         }
-        // 复选启用判定：模板声明 data-x-tree-check 触点（对齐 x-tree-toggle 的标记即交互）
+        // 复选启用判定：模板声明 data-x-tree-check 触点（自定义模板的启用通道）——
+        // 零模板场景默认模板已按 checkedField 声明附带触点，同一判定覆盖
         this.checkEnabled = this.nodeTemplate.querySelector("[data-x-tree-check]") != null;
-        // 启用选中后展开收窄到 x-tree-toggle：模板无标记将无法展开（决策 10）——warn 提示
-        if (this.selectedField && !this.nodeTemplate.querySelector("[data-x-tree-toggle]")) {
+        // checkedField 已声明但模板无触点（自定义模板漏写标记）→ 复选不可用，warn 防呆
+        if (this.checkDeclared && !this.checkEnabled) {
+            this.warn("checkedField 已声明，但节点模板缺少 x-tree-check 触点——复选不可用");
+        }
+        // 启用选中后展开收窄到 x-tree-toggle：自定义模板无标记将无法展开（决策 10）——warn 提示。
+        // 内置默认模板不 warn（修订七：恒整行点击 = 选中 + 展开，无需标记）
+        if (this.selectedField && !this.usedDefaultTemplate && !this.nodeTemplate.querySelector("[data-x-tree-toggle]")) {
             this.warn("启用选中（selectedField）后整行点击 = 选中，展开收窄到 x-tree-toggle 标记——模板未声明将无法展开");
         }
     }
@@ -606,12 +646,22 @@ li[data-x-tree-row].x-tree-drop-inside{background:#eef3fc;outline:1px dashed #32
         return /^[\w$]+(\.[\w$]+)*$/.test(path.replace(/\s+/g, ""));
     }
 
-    /** 根层数据：归一化（单根→数组）。undefined/null 返回 null（不认领空态） */
+    /** 根层数据：归一化（单根→数组）。undefined/null 返回 null（不认领空态）。
+     *  单根时根数组是**归一化包装**（state 里是对象、无数字键）——子层路径不可经
+     *  `nodes.0` 索引段（不存在），经 nextChildrenPath 的 singleRoot 分支直接下钻 */
     private normalizeRoots(): any[] | null {
         const raw = this.binding.read(this.nodesPath);
         if (raw == null) return null;
-        return Array.isArray(raw) ? raw : [raw];
+        if (Array.isArray(raw)) {
+            this.singleRoot = false;
+            return raw;
+        }
+        this.singleRoot = true;
+        return [raw];
     }
+
+    /** 数据源为单根对象（normalizeRoots 检测更新）——子层路径拼接与根层显隐订阅的特判依据 */
+    singleRoot = false;
 
     /** 某节点的子数据（读 childrenField；根层 parent=null 时返回归一化根数组） */
     childrenOf(parentNode: any): any[] {
@@ -623,9 +673,14 @@ li[data-x-tree-row].x-tree-drop-inside{background:#eef3fc;outline:1px dashed #32
     }
 
     /** 子层的 children 数组 state 路径（逐层拼接含 index——index 变的复用分支已销毁重建，
-     *  路径恒有效；表达式数据源的深层无纯路径可订阅，返回 null 仅结构变化可响应） */
+     *  路径恒有效；单根数据的根层子路径直接下钻 childrenField——归一化包装数组在 state
+     *  中无对应（nodes.0 不存在），不可经索引段；表达式数据源的深层无纯路径可订阅，
+     *  返回 null 仅结构变化可响应） */
     nextChildrenPath(parentPath: string | null, index: number): string | null {
         if (parentPath == null || !this.isSimplePath(parentPath)) return null;
+        if (parentPath === this.nodesPath && this.singleRoot) {
+            return `${parentPath}.${this.childrenField}`;
+        }
         return `${parentPath}.${index}.${this.childrenField}`;
     }
 
@@ -824,9 +879,11 @@ li[data-x-tree-row].x-tree-drop-inside{background:#eef3fc;outline:1px dashed #32
             }
             if (this.selectedField == null) return; // 未启用选中：标记外的行区不触发
         }
-        // ③ 选中：启用后整行（点标记只展开不选中，VSCode 文件树心智）
+        // ③ 选中：启用后整行（自定义模板：点标记只展开不选中，VSCode 文件树心智；
+        //    默认模板恒整行 toggle——点行 = 选中 + 展开/折叠，antd 心智，修订七）
         if (this.selectedField != null) {
             this.selectNode(entry);
+            if (this.usedDefaultTemplate) this.toggleExpand(entry);
             return;
         }
         this.toggleExpand(entry); // 未启用选中且无标记：整行 toggle（P1 行为）

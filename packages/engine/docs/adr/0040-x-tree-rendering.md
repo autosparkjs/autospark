@@ -67,6 +67,12 @@ DOM 即树（`ul > li > ul > li…`）。每节点行内经 `x-tree-children` �
 
 **实现期修订（四，P2/P3 交付 2026-09-16）**：click 委托定型为**三路分流**（check 标记 > toggle 标记 > 整行 select）。补充细节：选中为单选 toggle（再点取消；`multiSelect` 多选独立）；级联是数据层写入（折叠子树同生效），祖先行显式刷新 `$indeterminate`（新增属性不被表达式依赖收集——autostore 边界，同决策 7 通配绕行的因）；拖拽细节——事件名 `tree:drop`（detail 三段式 `{source, target, position}`）、三态阈值 25/50/25、环检测拒绝拖入自身子孙、单根数据根行仅 `inside`、收纳叶子目标先建 childrenField 容器（`childrenOf` 对缺字段返回临时数组，直接 push 丢数据——浏览器实测发现）。
 
+**实现期修订（五，2026-09-17）**：复选启用补**零模板通道**——`checkedField` 显式声明即启用（默认模板自动带三态触点），与 `selectedField` 的「声明即启用」哲学对称；自定义模板仍以 `x-tree-check` 标记为准（声明但模板无触点 warn）。动因：内置默认模板场景无处置写标记，「一行渲染」想要复选只能退回自定义模板——选项即标记补齐契约面。否决独立 `check:true` 开关（与「标记 / 字段声明」并存成第三条不一致通道）。
+
+**实现期修订（六，2026-09-17，零模板全家桶实测）**：三处默认模板缺陷——① 默认模板的 toggle 标记原在整个行 div 上，启用选中后点行内任意处均被 toggle 分支截获、选中不可达——收窄到箭头槽元素（与自定义模板惯例一致）；② 缩进选择器 `ul.x-tree-children ul.x-tree-children` 要求父级同类——第一层子容器挂在宿主（无该类）下永不命中、首级缩进恒 0（自定义模板一直用 inline padding 掩盖）——改为 `ul.x-tree-children` 直接逐级 `padding-left:20px`；③ **单根对象数据的两处路径失联**（normalizeRoots 归一化包装数组在 state 无对应）：子层 watcher 订阅 `nodes.0.children.*` 而 `nodes.0` 不存在（toggle 无效），根层行显隐通配 `nodes.*.expand` 对对象键通配不含根对象自身——singleRoot 标志下子层路径直接下钻 `childrenField`、根层显隐直订 `nodes.expand`。check 与折叠三角等宽（1.2em 槽）且三角在前、check 颜色随文本、行 hover 高亮一并落入默认样式。
+
+**实现期修订（七，2026-09-17）**：修订六①的「收窄到箭头槽」再翻——默认模板**恒整行点击展开/折叠**：未启用选中时整行 toggle（零模板开箱语义）；启用选中时点行 = 选中**并**展开/折叠（antd 心智）。「点标记只展开、点行选中」的 VSCode 收窄语义仅属于**自定义模板**（作者显式声明 `x-tree-toggle` 才收窄）——默认模板无模板作者，行即全部触点。
+
 ### 11. 事件广播
 
 `tree:expand` / `tree:collapse` / `tree:select`（P2）/ `tree:check`（P2）/ `tree:load`（P3），宿主 `dispatchEvent` + 冒泡，`detail` 统一 `{ id, node, level }`（id 取 idField 值，无 id 为 undefined；check 另带 `checked`、load 另带 `children`）。命名对齐 action 广播 `action:<name>` 惯例。

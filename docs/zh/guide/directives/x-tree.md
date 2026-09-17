@@ -20,25 +20,90 @@
 
 <demo html="tree/basic.html"/>
 
+用五步从零搭出上例——数据怎么准备、每个标记做什么、样式怎么控制，逐步展开：
+
+### 第 1 步：准备树数据
+
+x-tree 只接受**嵌套结构**：每个节点是一个对象，子节点放在 `children` 字段（字段名可经 `childrenField` 定制）下递归组织。以组织架构为例：
+
+```javascript
+const state = {
+    nodes: [
+        // 多根：数组里每个对象是一棵根；单根对象 { ... } 也可（自动归一）
+        {
+            id: "admin",                        // idField：节点唯一标识（复用/事件都靠它）
+            name: "行政中心",                    // 显示字段（自定义模板中随便用）
+            children: [                          // 子节点：递归嵌套，层级即嵌套深度
+                { id: "admin-hr", name: "人力资源部" },
+                { id: "admin-fin", name: "财务部" },
+                // 叶子节点连 children 都可以省略——没有子字段就是叶子
+            ],
+        },
+        { id: "mkt", name: "市场中心", children: [ /* … */ ] },
+    ],
+};
+new AutoSparkSpaces.AutoSpark(el, state); // state 即响应式数据源
+```
+
+要点：
+
+- **数据即树**：嵌套深度就是层级，不需要额外的 parentId / level 字段；
+- `id` 建议必写（复用、`tree:*` 事件的 `detail.id`、拖拽都依赖它；缺省回退层级路径）；
+- `expand`（可定制 `expandField`）**初始不用写**——默认展开态由 `defaultExpandLevel` 选项回退，只有用户点击展开/折叠时才写入该字段（惰性写回，详见指南「展开语义」）；
+- 数据可以后到（异步加载）：`nodes` 为 `undefined` 时引擎不认领空态，数据到位自动渲染。
+
+### 第 2 步：一行渲染（内置默认模板）
+
 ```html
 <ul x-tree="node of nodes"></ul>
 ```
 
-一行即得完整可交互的树：内置默认节点模板（缩进 + 展开箭头 + 节点名）渲染、整行点击展开/折叠、expand 高度过渡动画（展开时后续节点平滑跟进而非瞬跳）全部内置。
+`x-tree="node of nodes"`——`of` 左侧自定义节点变量名（模板里用 `node.xxx` 读字段），右侧是状态路径。容器内**不写任何子元素**时，引擎套用内置默认节点模板：缩进 + 展开箭头 + `nameField` 字段名（默认 `"name"`），整行点击展开/折叠，高度过渡动画——零配置开箱即用。
 
-自定义节点行时，在容器内写 `x-tree-node` 模板（**唯一会被递归套用的模板**），并用 `x-tree-children` 标记子节点渲染点：
+### 第 3 步：自定义节点模板（x-tree-node / x-tree-children）
+
+节点行的样式自己控制时，在容器内声明节点模板——**唯一会被递归套用到每一层的模板**：
 
 ```html
 <ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 2 }">
-    <li x-tree-node :class="$expanded && 'is-open'">
-        <span class="arrow" x-tree-toggle x-text="$leaf ? '' : ($expanded ? '▾' : '▸')"></span>
-        <span x-text="node.title"></span>
-        <ul x-tree-children></ul>
+    <li x-tree-node>
+        <span class="arrow" x-tree-toggle x-text="$leaf ? '·' : ($expanded ? '▾' : '▸')"></span>
+        <span class="name" x-text="node.name"></span>
+        <ul x-tree-children></ul>   <!-- 子节点渲染点：缺了它只渲染一层 -->
     </li>
 </ul>
 ```
 
-`x-tree` 宿主的**直接子元素**只认 `x-tree-node`（节点模板）与 `x-empty`（空树状态），其余子元素不会渲染（编译期 warn）。
+- `x-tree-node`（容器**直接子元素**）：声明「这是节点模板」——根层、子层、孙层全部套用这同一个 `<li>`，`node` 在每层指向当前节点；
+- `x-tree-children`（模板内）：标记**子节点渲染到这里**——引擎把下一层行递归渲染进这个元素，DOM 结构即树（`ul > li > ul > li…`）；
+- 宿主的直接子元素只认 `x-tree-node` 与 `x-empty`（空态模板），其余不渲染（编译期提示）。
+
+### 第 4 步：控制缩进与样式
+
+**缩进不需要算**——它由 DOM 嵌套天然承担：每层子容器叠一份水平 padding，层级越深缩进越深。给 `x-tree-children` 元素写 CSS 即可：
+
+```html
+<ul x-tree-children style="list-style: none; margin: 0; padding-left: 22px"></ul>
+```
+
+每层 22px；想全局调整可提取 CSS 变量（`padding-left: var(--tree-indent, 22px)`）。行内样式完全归你的 class/CSS 管，引擎不注入任何行样式；需要按层级差异化（不同层级不同图标/字号）时用循环变量 `$level`：`:class="'lv-' + $level"`。
+
+### 第 5 步：展开触点（x-tree-toggle）
+
+默认**整行点击**展开/折叠；声明 `x-tree-toggle` 后收窄为**仅标记元素**触发——本例点箭头展开、点行名不误触：
+
+```html
+<span class="arrow" x-tree-toggle>▸</span>   <!-- 只有这里触发展开 -->
+```
+
+行内其他 `@click`（如删除按钮）自行 `@click.stop` 阻断冒泡。更进一步的交互——勾选级联（`x-tree-check`）、节点选中（`selectedField`）、拖拽（`draggable`）——见[指南](#指南)各章节与[标记一览](#标记一览)。
+
+### 总结
+
+- **数据**：嵌套 children 递归组织，`id` 唯一、`expand` 不用预写；
+- **模板**：`x-tree-node` 一处声明全层套用，`x-tree-children` 定子层渲染点；
+- **样式**：缩进 = 子容器 CSS `padding-left` 叠加，行样式归自己的 class，`$level` 可做层级差异化；
+- **交互**：`x-tree-toggle` 收窄展开触点，进阶交互见指南。
 
 ## 指南
 
@@ -48,7 +113,7 @@
 
 1. **原地模板**：容器内的 `<li x-tree-node>`（最常用，所见即所得）；
 2. **`tree-node` 组件**：容器内不写 `x-tree-node` 时，引擎沿 scope 链就近查找名为 `tree-node` 的 [x-component](../component.md)（含全局 `components` 兜底）——跨模板复用同一节点模板；
-3. **内置默认模板**：缩进 + 箭头 + `nameField` 字段名——零模板开箱即用。
+3. **内置默认模板**：缩进 + 箭头 + `nameField` 字段名——零模板开箱即用（见下节）。
 
 也可以反过来把整棵树包成组件，任意处 `x-use` 复用：
 
@@ -61,6 +126,49 @@
 <!-- 任意处使用 -->
 <div x-use="my-tree" :props="{ data: nodes }"></div>
 ```
+
+### 一行渲染（内置默认模板）
+
+容器内不写任何子元素，引擎套用内置默认节点模板——每级缩进 20px、展开箭头（随展开旋转）、`nameField` 字段名（默认 `"name"`，可定制），**整行点击展开/折叠**（启用选中后点行 = 选中并展开，antd 心智）、expand 高度动画、前 N 层可见全部内置。**全部交互也能零模板启用**——`checkedField` 声明即启用复选（默认模板自动带三态触点 ☑/⊟/☐）、`selectedField` 声明即启用选中、`draggable` 即启用拖拽：
+
+<demo html="tree/builtin.html"/>
+
+```html
+<!-- 容器是空的：一个 x-tree 即得「勾选级联 + 选中 + 拖拽 + 展开动画」全家桶 -->
+<ul
+    x-tree="node of nodes"
+    x-tree-options="{ defaultExpandLevel: 2, checkedField: 'checked', selectedField: 'selected', draggable: true }"
+></ul>
+```
+
+内置默认模板适合原型、后台管理侧栏等标准场景；行内布局/图标/徽标有定制需求时，写自定义节点模板（下节）。
+
+### 自定义节点模板
+
+在容器内声明 `<li x-tree-node>`——**唯一会被递归套用到每一层的模板**（根层、子层、孙层全用这同一个 `<li>`，`node` 在每层指向当前节点）。模板 = 行内容自由 + 一个子容器标记：
+
+```html
+<ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 2 }">
+    <li x-tree-node>                                   <!-- ① 行根：节点模板声明 -->
+        <div class="x-tree-row" x-tree-toggle>          <!-- ② 行内容：任意元素/任意指令 -->
+            <span x-text="$leaf ? '📄' : ($expanded ? '📂' : '📁')"></span>
+            <span x-text="node.name"></span>
+            <span class="tag" x-if="!$leaf" x-text="$children.length"></span>
+        </div>
+        <ul x-tree-children style="list-style:none;margin:0;padding-left:22px"></ul>
+        <!-- ③ 子容器：子节点渲染点（必须，缺了只渲染一层） -->
+    </li>
+</ul>
+```
+
+模板内可用的一切（这就是「自定义」的全部原料）：
+
+- **节点数据 `node`**：`of` 左侧自定义变量名——`x-text="node.title"`、`:class="{ hot: node.hot }"`、`:title="node.desc"` 等任意字段绑定（含事件 `@click`，注意自行 `.stop` 阻断冒泡）；
+- **循环变量九元组**：`$expanded`（箭头方向）、`$leaf`（叶子不加箭头/图标差异化）、`$children`（计数徽标）、`$level`（层级差异化样式 `:class="'lv-' + $level"`）、`$indeterminate`（复选半选图标）等——完整清单见[循环变量](#循环变量九元组)；
+- **交互触点标记**：`x-tree-toggle`（展开收窄到标记元素）、`x-tree-check`（复选触点）；
+- **缩进与行样式**：完全归你的 CSS——缩进 = 子容器的 `padding-left` 每级叠加（见快速入门第 4 步），行样式写在行内容元素上（引擎只注入默认模板的样式，自定义模板零注入）。
+
+三个注意：宿主直接子元素只认 `x-tree-node` 与 `x-empty`（其余丢弃并提示）；`x-tree-children` 取第一个（多余提示）；模板缺 `x-tree-children` 时只渲染一层（提示）。
 
 ### 展开语义：惰性写回
 
@@ -136,6 +244,7 @@ const state = {
 - **单选**（默认）：点行 toggle 写回 `selectedField` 并清全树其他选中；再点已选行取消；
 - **多选**：`multiSelect: true` 后各行独立 toggle、互不清除；
 - 点 `x-tree-toggle` 标记（如箭头）只展开不选中；模板未声明标记时 warn（将无法展开）；
+- **例外——内置默认模板恒整行点击展开/折叠**：启用选中时点行 = 选中**并**展开/折叠（antd 心智）；收窄到标记是自定义模板的语义；
 - 选中态经数据驱动渲染——`:class` / `:style` 绑 `node.selected` 即高亮，折叠子树的清选在数据层完成。
 
 ### 复选与级联
@@ -157,6 +266,8 @@ const state = {
 - **向上级联**：子勾选变化沿祖先链重算——全部子勾选才置父勾选，部分勾选则父为**半选**；
 - **`$indeterminate` 半选是派生值**（注入循环变量），**永不写入节点数据**——UI 态与数据态分离；
 - `cascade: false` 关闭级联，各节点独立勾选。
+
+上例用文字符号（☑/⊟/☐）演示三态最简形态；demo 实际用的是 **lucide 内联 SVG** 三枚经 `x-show` 切换（动态行不能走 `lucide.createIcons()` 的一次性替换）——生产中任意图标库/自定义 SVG 同法。
 
 ### 拖拽
 
@@ -214,6 +325,33 @@ const state = {
 </ul>
 ```
 
+## 标记一览
+
+x-tree 家族的全部标记（除 `x-tree` 本体外均为**无值标记**——写属性名即可，带值会被忽略并提示）：
+
+| 标记 | 书写位置 | 作用 |
+| --- | --- | --- |
+| `x-tree` | 容器（宿主元素） | 树渲染指令本体：`x-tree="node of nodes"` |
+| `x-tree-node` | 容器**直接子元素** | 节点模板声明（首个生效，多余提示）——引擎对展开路径递归套用此模板 |
+| `x-tree-children` | 节点模板内 | 子节点渲染点（缺省只渲染一层并提示）；多个取首个 |
+| `x-tree-toggle` | 节点模板内 | 展开触点收窄——声明后仅标记元素触发展开/折叠；启用选中（`selectedField`）后**必须声明** |
+| `x-tree-check` | 节点模板内 | 复选触点——声明即启用复选交互与级联（状态写入 `checkedField` 字段） |
+| `x-empty` | 容器**直接子元素** | 空态模板（树数据为真空数组 `[]` 时渲染，对齐 x-for 惯例） |
+
+```html
+<ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 2 }"><!-- ① x-tree 宿主 -->
+    <li x-tree-node><!-- ② 节点模板（直接子元素） -->
+        <span class="arrow" x-tree-toggle>▸</span>   <!-- ③ 展开触点 -->
+        <span class="chk" x-tree-check>☐</span>      <!-- ④ 复选触点 -->
+        <span x-text="node.title"></span>
+        <ul x-tree-children></ul>                     <!-- ⑤ 子节点渲染点 -->
+    </li>
+    <li x-empty>暂无数据</li>                          <!-- ⑥ 空态（直接子元素） -->
+</ul>
+```
+
+各标记的机制详见上方指南各章节（模板优先级 / 交互触点 / 选中 / 复选与级联 / 空态）。
+
 ## 配置
 
 `x-tree-options`（relaxed-json；按[指令选项回退](../directive.md)惯例可回退宿主 `x-options`）：
@@ -229,7 +367,7 @@ const state = {
 | `animate`            | `'expand'`  | 子容器整体进出场动画（同 [animate 选项](../animate.md)三形态；默认 expand 高度过渡，后续节点平滑跟随） |
 | `selectedField`      | 无          | 声明即启用选中（值即字段名）；整行点击 = 选中，展开收窄到 `x-tree-toggle` |
 | `multiSelect`        | `false`     | 多选模式（各行独立 toggle，不清其他选中）                    |
-| `checkedField`       | `"checked"` | 复选状态写入的字段名（复选由模板声明 `x-tree-check` 标记启用） |
+| `checkedField`       | `"checked"` | 复选状态写入的字段名。**显式声明即启用复选**——零模板场景默认模板自动带三态触点；自定义模板以 `x-tree-check` 标记为准（声明但无触点会提示） |
 | `cascade`            | `true`      | 复选级联（父→子孙 / 子→祖先重算）；`false` 各节点独立        |
 | `draggable`          | `false`     | 启用拖拽（三态定位 + 环检测 + 数据 splice 写回）             |
 
