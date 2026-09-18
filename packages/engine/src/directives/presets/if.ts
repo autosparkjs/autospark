@@ -73,6 +73,8 @@ export class IfDirective extends AutoSparkDirectiveBase {
     private branchValues: boolean[] = [];
     /** 主表达式当前真值缓存 */
     private condValue = false;
+    /** 动画配置缓存（DRY：避免每次事件重复 resolveAnimate + getOption） */
+    private _anim = resolveAnimate(undefined);
     /**
      * 首次求值守卫（ADR-0039 决策 6）：首次 show 为初次渲染，静默不动画；
      * 之后每次 show（状态变化引起）才播进出场。与 x-switch / x-for / x-show 的同款守卫一致。
@@ -92,6 +94,7 @@ export class IfDirective extends AutoSparkDirectiveBase {
 
     override created() {
         if (this.value == null) return;
+        this._anim = resolveAnimate(this.getOption("animate"));
         this._collectBranches();
         this.condValue = !!this.binding.watch(this.value, ({ value }) => {
             this.condValue = !!value;
@@ -136,7 +139,7 @@ export class IfDirective extends AutoSparkDirectiveBase {
             const isElseIf = child.hasAttribute("x-else-if");
             if (!isElse && !isElseIf) continue;
             if (isElse && isElseIf) {
-                this.engine.logger.warn(
+                this.warn(
                     `x-if: 同一元素同时声明 x-else 与 x-else-if，按 x-else-if 处理（ADR-0034）`,
                 );
             }
@@ -147,13 +150,13 @@ export class IfDirective extends AutoSparkDirectiveBase {
                 return !!cls?.ownsChildren?.(info);
             });
             if (structural) {
-                this.engine.logger.warn(
+                this.warn(
                     `x-if: 分支根上声明了结构指令（x-for/eager x-if/x-slot 等 ownsChildren 类），该分支被跳过（ADR-0034）`,
                 );
                 continue;
             }
             if (fallbackSeen) {
-                this.engine.logger.warn(
+                this.warn(
                     `x-if: 裸 x-else 之后仍声明分支，其后分支永不匹配（x-else 应为最后一个分支，ADR-0034）`,
                 );
             }
@@ -161,7 +164,7 @@ export class IfDirective extends AutoSparkDirectiveBase {
             if (isElseIf) {
                 expr = (child.getAttribute("x-else-if") ?? "").trim();
                 if (expr === "") {
-                    this.engine.logger.warn(
+                    this.warn(
                         `x-if: x-else-if 缺少条件表达式，按 x-else 兜底处理（ADR-0034）`,
                     );
                     expr = null;
@@ -249,7 +252,7 @@ export class IfDirective extends AutoSparkDirectiveBase {
         const el = this.el;
         if (!el) return;
         const done = () => this.host.detachHost();
-        const phase = animate ? resolveAnimate(this.getOption("animate")).leave : null;
+        const phase = animate ? this._anim.leave : null;
         if (!phase || !this.engine.animate.leave(el, phase, done)) done();
     }
 
@@ -257,7 +260,7 @@ export class IfDirective extends AutoSparkDirectiveBase {
     private enterHost(animate: boolean) {
         this.host.reattachHost();
         if (animate && this.el) {
-            this.engine.animate.enter(this.el, resolveAnimate(this.getOption("animate")).enter);
+            this.engine.animate.enter(this.el, this._anim.enter);
         }
     }
 
@@ -278,7 +281,7 @@ export class IfDirective extends AutoSparkDirectiveBase {
             this.subtreeNodes = this.engine.compiler.compileSubtree(el, tpl, this.binding);
         }
         if (animate) {
-            this.engine.animate.enter(el, resolveAnimate(this.getOption("animate")).enter);
+            this.engine.animate.enter(el, this._anim.enter);
         }
     }
 
@@ -300,7 +303,7 @@ export class IfDirective extends AutoSparkDirectiveBase {
             this.subtreeNodes = [];
             this.host.detachHost();
         };
-        const phase = animate ? resolveAnimate(this.getOption("animate")).leave : null;
+        const phase = animate ? this._anim.leave : null;
         if (!phase || !this.engine.animate.leave(el, phase, done)) done();
     }
 

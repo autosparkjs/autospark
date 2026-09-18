@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-for.paging · :data-paging 状态绑定</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .list-item { padding: 8px 0; border-bottom: 1px solid #eee; }
+            .control-panel { background: #f5f5f5; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <h4 class="title is-4">:data-paging 状态绑定</h4>
+            <p class="mb-4">通过 <code>:data-paging</code> 将分页状态双向绑定到外部对象，支持从外部控制分页。</p>
+
+            <!-- 外部控制面板 -->
+            <div class="control-panel">
+                <h5 class="title is-6">外部控制面板</h5>
+                <div class="field is-grouped">
+                    <div class="control">
+                        <label class="label">页码</label>
+                        <input class="input" type="number" min="1" x-model="paging.page" style="width: 80px">
+                    </div>
+                    <div class="control">
+                        <label class="label">每页条数</label>
+                        <input class="input" type="number" min="1" max="20" x-model="paging.pageSize" style="width: 80px">
+                    </div>
+                    <div class="control">
+                        <label class="label">&nbsp;</label>
+                        <button class="button is-primary" @click="paging.page = 1">重置</button>
+                    </div>
+                </div>
+                <div class="tags has-addons mt-3">
+                    <span class="tag is-dark">loading</span>
+                    <span class="tag" :class="paging.loading ? 'is-warning' : 'is-success'">{{ paging.loading }}</span>
+                </div>
+            </div>
+
+            <!-- 分页列表 -->
+            <div class="content">
+                <ul x-for.paging="item of orders"
+                    :data-paging="paging"
+                    x-for-options="{pageSize:5, loader:'loadOrders'}">
+                    <li class="list-item">
+                        <strong>{{ item.id }}</strong> - {{ item.book }} - ¥{{ item.amount }}
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 翻页按钮 -->
+            <div class="buttons">
+                <button class="button" @click="paging.page = Number(paging.page) - 1" :disabled="paging.page <= 1">
+                    上一页
+                </button>
+                <button class="button" @click="paging.page = Number(paging.page) + 1" :disabled="!paging.hasMore">
+                    下一页
+                </button>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    orders: [],
+                    paging: { page: 1, pageSize: 5 }
+                },
+                {
+                    actions: {
+                        loadOrders: async ({ page, pageSize }) => {
+                            const res = await fetch(`/autospark/api/orders.json?page=${page}&size=${pageSize}`);
+                            const json = await res.json();
+                            const { total, items } = json.data;
+                            return {
+                                data: items,
+                                page,
+                                pageSize,
+                                pageCount: Math.ceil(total / pageSize)
+                            };
+                        }
+                    }
+                }
+            );
+        </script>
+    </body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>虚拟列表 - Overscan 配置</title>
+  <script src="/autospark/autospark.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 20px; }
+    .list-container {
+      height: 300px;
+      overflow: auto;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    .list-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .list-item:nth-child(odd) { background: #f9f9f9; }
+    .item-id { color: #666; font-size: 14px; min-width: 40px; }
+    .item-name { flex: 1; }
+    .controls { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
+    .info { margin-top: 12px; padding: 12px; background: #f0f7ff; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h2>虚拟列表 - Overscan 配置</h2>
+  <p><code>overscan</code> 控制可见区域外额外渲染的项数，值越大滚动越流畅但初始渲染越慢。</p>
+
+  <div id="app">
+    <div class="controls">
+      <label>
+        Overscan: 
+        <select x-model="overscan">
+          <option value="0">0（仅可见区域）</option>
+          <option value="2">2</option>
+          <option value="5" selected>5（默认）</option>
+          <option value="10">10</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="info">
+      <p>当前 overscan: <strong x-text="overscan"></strong></p>
+      <p>提示：修改 overscan 需刷新页面才能生效</p>
+    </div>
+
+    <div class="list-container" 
+         x-for.virtual="item of items" 
+         :key="item.id"
+         x-for-options="{itemHeight:50,overscan:5}">
+      <div class="list-item">
+        <span class="item-id">#{{ item.id }}</span>
+        <span class="item-name">{{ item.name }}</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const items = Array.from({ length: 10000 }, (_, i) => ({
+      id: i + 1,
+      name: `项目 ${i + 1}`
+    }));
+
+    const store = new AutoSparkSpaces.AutoStore({ 
+      items, 
+      overscan: '5'
+    });
+    const engine = new AutoSparkSpaces.AutoSpark(
+      document.getElementById('app'),
+      store
+    );
+  </script>
+</body>
+</html>

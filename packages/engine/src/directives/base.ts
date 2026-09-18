@@ -189,6 +189,16 @@ export class AutoSparkDirectiveBase {
         return undefined;
     }
 
+    /** 指令级 warn 快捷方法（DRY：避免每处写 this.engine.logger.warn） */
+    protected warn(msg: string): void {
+        this.engine.logger.warn(msg);
+    }
+
+    /** 指令级 error 快捷方法（DRY：避免每处写 this.engine.logger.error） */
+    protected error(msg: string): void {
+        this.engine.logger.error(msg);
+    }
+
     // ── scope 通道钩子（Compile / Hybrid）──────────────────────────────
     /** 初始化：建立订阅（watch）的时机 */
     created() {}

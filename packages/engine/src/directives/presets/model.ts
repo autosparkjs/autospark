@@ -442,7 +442,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
             if (this._controlKind === "radio") {
                 const radioValue = (this.el as HTMLInputElement)?.value;
                 if (!radioValue || radioValue === "on") {
-                    this.engine.logger.warn(
+                    this.warn(
                         `x-model: <input type="radio"> 缺少 value 属性（默认 "on"），x-model 不生效。请为 radio 添加 value 属性。`,
                     );
                     return; // 跳过绑定
@@ -483,7 +483,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
             this.writeToDom(this._initialValue);
         } else if (this.el) {
             // state 路径不存在且无回填：不动 DOM（不回填，避免 DOM 污染 state 真相源），仅 warn
-            this.engine.logger.warn(
+            this.warn(
                 `x-model: 绑定 "${this.value}" 初始值为 undefined（路径不存在或求值失败），保持 DOM 原值`,
             );
         }
@@ -602,7 +602,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
         }
 
         // 三源皆空：warn 一次，不生成
-        this.engine.logger.warn(
+        this.warn(
             `x-model: <select x-model="${this.value}"> 无可选项（无静态 <option>、无 choices 配置、schema 无 choices），选项子树不生成`,
         );
     }
@@ -700,7 +700,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
         if (el.multiple) {
             if (display != null && !Array.isArray(display) && !this._selectMismatchWarned) {
                 this._selectMismatchWarned = true;
-                this.engine.logger.warn(
+                this.warn(
                     `x-model: <select multiple> 绑定 "${this.value}" 的状态为非数组（${typeof display}），勾选不生效。multiple 须配 string[] 状态。`,
                 );
             }
@@ -720,7 +720,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
         } else {
             if (typeof display !== "string" && !this._selectMismatchWarned && display !== undefined && display !== null) {
                 this._selectMismatchWarned = true;
-                this.engine.logger.warn(
+                this.warn(
                     `x-model: 单选 <select> 绑定 "${this.value}" 的状态为非字符串（${Array.isArray(display) ? "array" : typeof display}），不勾中任何项。${Array.isArray(display) ? "多选请声明 .multiple 或 schema.multiple。" : "须配 string 状态或用 get 转换。"}`,
                 );
             }
@@ -843,7 +843,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
                     !this._radioBooleanWarned
                 ) {
                     this._radioBooleanWarned = true;
-                    this.engine.logger.warn(
+                    this.warn(
                         `x-model: radio value "${v}" 不在 .boolean 严格集 {"true","false",""} 内，保留原值写回`,
                     );
                 }
@@ -876,7 +876,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
                     // 表达式/computed 无 set → 只读降级
                     if (!this._readonlyWarned) {
                         this._readonlyWarned = true;
-                        this.engine.logger.warn(
+                        this.warn(
                             `x-model: 绑定 "${expr}" 为表达式/computed 且无 set，降级为只读（DOM→state 不回写）`,
                         );
                     }
@@ -1011,7 +1011,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
                 scopeCtx,
             );
         } catch (e: any) {
-            this.engine.logger.warn(`x-model get "${getExpr}" 求值失败: ${e?.message ?? e}`);
+            this.warn(`x-model get "${getExpr}" 求值失败: ${e?.message ?? e}`);
             return value; // 求值失败回退原值
         }
     }
@@ -1038,7 +1038,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
         try {
             compileFn("$value,scope", `with(scope){ ${setExpr} }`)($value, scopeCtx);
         } catch (e: any) {
-            this.engine.logger.warn(`x-model set "${setExpr}" 执行失败: ${e?.message ?? e}`);
+            this.warn(`x-model set "${setExpr}" 执行失败: ${e?.message ?? e}`);
         }
     }
 
@@ -1061,7 +1061,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
                 scopeCtx,
             ) as any[];
         } catch (e: any) {
-            this.engine.logger.warn(`x-model 参数 "${argsSrc}" 求值失败: ${e?.message ?? e}`);
+            this.warn(`x-model 参数 "${argsSrc}" 求值失败: ${e?.message ?? e}`);
             return [];
         }
     }

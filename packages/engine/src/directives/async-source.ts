@@ -28,6 +28,22 @@ export interface AsyncSourceHooks {
     onError: (err: Error) => void;
 }
 
+/**
+ * 创建异步源公共 onError 回调（DRY：data.ts 与 html.ts 的 warn + 调度模式统一）。
+ *
+ * @param warnFn   指令级 warn 方法（基类 protected warn）
+ * @param handler  物种特定的失败处理（设置 $error / 覆盖层状态等）
+ */
+export function createAsyncOnError(
+    warnFn: (msg: string) => void,
+    handler: (err: Error) => void,
+): (err: Error) => void {
+    return (err) => {
+        warnFn(err.message);
+        handler(err);
+    };
+}
+
 export class AsyncSourceRunner {
     /** 请求序号：竞态丢弃过期响应（后发先至的旧响应直接扔，ADR-0033 决策 5） */
     private loaderSeq = 0;

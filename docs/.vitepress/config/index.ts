@@ -42,11 +42,12 @@ export default defineConfig({
                         { text: "指令配置", link: "/zh/guide/config" },
                         { text: "组件", link: "/zh/guide/component" },
                         { text: "动态模板", link: "/zh/guide/patch" },
-                        { text: "动画", link: "/zh/guide/animate" },
+                        { text: "动画", link: "/zh/guide/animate" } 
                     ],
                 },
                 {
                     text: "指令",
+                    collapsed:false,
                     items: [
                         { text: "x-bind", link: "/zh/guide/directives/x-bind" },
                         { text: "x-text", link: "/zh/guide/directives/x-text" },
@@ -57,7 +58,13 @@ export default defineConfig({
                         { text: "x-scope", link: "/zh/guide/directives/x-scope" },
                         { text: "x-if", link: "/zh/guide/directives/x-if" },
                         { text: "x-show", link: "/zh/guide/directives/x-show" },
-                        { text: "x-for", link: "/zh/guide/directives/x-for" },
+                        { text: "x-for", link: "/zh/guide/directives/x-for",
+                            collapsed:true,
+                            items: [
+                                { text: "分页", link: "/zh/guide/directives/x-for-paging" },
+                                { text: "虚拟列表", link: "/zh/guide/directives/x-for-virtual" },
+                            ]
+                        },
                         { text: "x-on", link: "/zh/guide/directives/x-on" },
                         { text: "x-loading", link: "/zh/guide/directives/x-loading" },
                         { text: "x-slot", link: "/zh/guide/directives/x-slot" },

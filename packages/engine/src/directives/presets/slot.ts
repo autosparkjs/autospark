@@ -129,7 +129,7 @@ export class SlotDirective extends AutoSparkDirectiveBase {
             if (myCtrl.signal.aborted) return; // 主动 abort（销毁 / 取代），非真错误
             this.el.removeAttribute("x-loading");
             this._renderError();
-            this.engine.logger.error(`x-slot: 加载远程模板失败 "${urlStr}": ${e?.message ?? e}`);
+            this.error(`x-slot: 加载远程模板失败 "${urlStr}": ${e?.message ?? e}`);
         } finally {
             // 仅当仍是本次控制器时清空（被新 url 取代则不动新控制器）
             if (this.abortCtrl === myCtrl) this.abortCtrl = undefined;
@@ -166,7 +166,7 @@ export class SlotDirective extends AutoSparkDirectiveBase {
             }
         }
         if (found) {
-            this.engine.logger.warn(
+            this.warn(
                 `x-slot: 静态内容不编译，内部指令/{{}} 不生效；若需响应式请用普通元素或 x-slot="url" 远程子引擎`,
             );
         }

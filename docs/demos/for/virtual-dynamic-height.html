@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>虚拟列表 - 动态高度</title>
+  <script src="/autospark/autospark.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 20px; }
+    .list-container {
+      height: 300px;
+      overflow: auto;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    .list-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+    }
+    .list-item:nth-child(odd) { background: #f9f9f9; }
+    .item-id { color: #666; font-size: 14px; }
+    .item-title { font-weight: 600; margin: 4px 0; }
+    .item-desc { color: #666; font-size: 14px; }
+    .info { margin-top: 16px; padding: 12px; background: #fff3cd; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h2>虚拟列表 - 动态高度</h2>
+  <p>容器高度动态变化时，虚拟列表会自动重新计算可见区域。</p>
+
+  <div id="app">
+    <div class="info">
+      <p>调整容器高度：<input type="range" x-model="containerHeight" min="100" max="600" step="50"></p>
+      <p>当前高度：<strong x-text="containerHeight"></strong>px</p>
+    </div>
+
+    <div class="list-container" 
+         x-for.virtual="item of items" 
+         :key="item.id"
+         x-for-options="{itemHeight:60}"
+         :style="'height:' + containerHeight + 'px'">
+      <div class="list-item">
+        <div class="item-id">#{{ item.id }}</div>
+        <div class="item-title">{{ item.title }}</div>
+        <div class="item-desc">{{ item.desc }}</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const items = Array.from({ length: 1000 }, (_, i) => ({
+      id: i + 1,
+      title: `标题 ${i + 1}`,
+      desc: `这是第 ${i + 1} 项的描述信息`
+    }));
+
+    const store = new AutoSparkSpaces.AutoStore({ 
+      items, 
+      containerHeight: 300
+    });
+    const engine = new AutoSparkSpaces.AutoSpark(
+      document.getElementById('app'),
+      store
+    );
+  </script>
+</body>
+</html>

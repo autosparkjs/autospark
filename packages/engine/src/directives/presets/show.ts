@@ -25,9 +25,12 @@ export class ShowDirective extends AutoSparkDirectiveBase {
 
     /** 首次切换守卫（ADR-0039 决策 6）：初始 display 定位不动画，此后状态变化才播 */
     private firstToggle = true;
+    /** 动画配置缓存（DRY：避免每次事件重复 resolveAnimate + getOption） */
+    private _anim = resolveAnimate(undefined);
 
     override created() {
         if (this.value == null) return;
+        this._anim = resolveAnimate(this.getOption("animate"));
         const initial = this.binding.watch(this.value, ({ value }) => {
             this.toggle(!!value);
         });
@@ -48,11 +51,11 @@ export class ShowDirective extends AutoSparkDirectiveBase {
             // 抢占：若离场在播（display 尚未隐藏），其 onDone（置 none）同步完成后再恢复显示
             this.engine.animate.cancel(el);
             el.style.display = "";
-            this.engine.animate.enter(el, resolveAnimate(this.getOption("animate")).enter);
+            this.engine.animate.enter(el, this._anim.enter);
             return;
         }
         // 离场：延迟 display:none——动画期间宿主仍可见（inert 语义不适用：watcher 本就全保留）
-        const ok = this.engine.animate.leave(el, resolveAnimate(this.getOption("animate")).leave, () => {
+        const ok = this.engine.animate.leave(el, this._anim.leave, () => {
             if (this.el) this.el.style.display = "none";
         });
         if (!ok) el.style.display = "none";

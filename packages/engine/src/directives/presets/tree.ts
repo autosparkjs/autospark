@@ -511,7 +511,7 @@ li[data-x-tree-row].x-tree-drop-inside{background:#eef3fc;outline:1px dashed #32
         const raw = String(this.value ?? "").trim();
         const m = raw.match(/^([\w$]+)(?:\s*,\s*([\w$]+))?\s+of\s+(.+)$/);
         if (!m) {
-            this.engine.logger.error(`x-tree: 无效表达式 "${raw}"（应为 "node of nodes" 形态，ADR-0040）`);
+            this.error(`x-tree: 无效表达式 "${raw}"（应为 "node of nodes" 形态，ADR-0040）`);
             return false;
         }
         this.itemName = m[1]!;
@@ -1173,8 +1173,8 @@ li[data-x-tree-row].x-tree-drop-inside{background:#eef3fc;outline:1px dashed #32
         );
     }
 
-    /** warn 统一出口（带指令前缀） */
-    warn(message: string) {
-        this.engine.logger.warn(`x-tree: ${message}（ADR-0040）`);
+    /** warn 统一出口（带指令前缀，覆盖基类 warn） */
+    override warn(message: string) {
+        super.warn(`x-tree: ${message}（ADR-0040）`);
     }
 }

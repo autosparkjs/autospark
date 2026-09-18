@@ -56,7 +56,7 @@ export class ImportDirective extends AutoSparkDirectiveBase {
     override created() {
         const raw = this.value == null ? "" : String(this.value).trim();
         if (raw === "") {
-            this.engine.logger.warn(`x-import: 缺少 url，已跳过。`);
+            this.warn(`x-import: 缺少 url，已跳过。`);
             return;
         }
         // 值解析双轨（同 x-use，ADR-0022 决策六）：
@@ -99,14 +99,14 @@ export class ImportDirective extends AutoSparkDirectiveBase {
             if (expectedName) {
                 const found = this.binding.getComponent(expectedName);
                 if (!found) {
-                    this.engine.logger.warn(
+                    this.warn(
                         `x-import: url "${urlStr}" 加载完成，但未找到 name 属性声明的组件 "${expectedName}"。`,
                     );
                 }
             }
         } catch (e: any) {
             if (myCtrl.signal.aborted) return;
-            this.engine.logger.warn(`x-import: 加载 "${urlStr}" 失败: ${e?.message ?? e}`);
+            this.warn(`x-import: 加载 "${urlStr}" 失败: ${e?.message ?? e}`);
         } finally {
             if (this.abortCtrl === myCtrl) this.abortCtrl = undefined;
         }

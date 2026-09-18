@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-for · 复合项</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            dl { margin-bottom: 1.5rem; }
+            dt { font-weight: 600; color: #363636; }
+            dd { margin-left: 1.5rem; color: #666; margin-bottom: 0.5rem; }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="content">
+                <!-- dl 下 dt/dd 作为一组一起循环 -->
+                <dl x-for="user of users" :key="user.id">
+                    <dt>{{ user.name }}</dt>
+                    <dd>{{ user.email }}</dd>
+                </dl>
+            </div>
+            <div class="buttons">
+                <button class="button is-primary" @click="add">添加用户</button>
+                <button class="button" @click="removeFirst">移除首项</button>
+            </div>
+        </div>
+
+        <script>
+            let nextId = 4;
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    users: [
+                        { id: 1, name: "张三", email: "zhangsan@example.com" },
+                        { id: 2, name: "李四", email: "lisi@example.com" },
+                        { id: 3, name: "王五", email: "wangwu@example.com" },
+                    ],
+                },
+                {
+                    actions: {
+                        add: () => {
+                            engine.state.users.push({
+                                id: nextId,
+                                name: "用户" + nextId,
+                                email: "user" + nextId + "@example.com",
+                            });
+                            nextId++;
+                        },
+                        removeFirst: () => {
+                            engine.state.users.shift();
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

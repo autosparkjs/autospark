@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>虚拟列表 - 基础用法</title>
+  <script src="/autospark/autospark.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 20px; }
+    .list-container {
+      height: 300px;
+      overflow: auto;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    .list-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .list-item:nth-child(odd) { background: #f9f9f9; }
+    .item-id { color: #666; font-size: 14px; min-width: 40px; }
+    .item-name { flex: 1; }
+    .info { margin-top: 16px; padding: 12px; background: #f0f7ff; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h2>虚拟列表 - 基础用法</h2>
+  <p>使用 <code>x-for.virtual</code> 启用虚拟列表，只渲染可见区域的项。</p>
+  
+  <div class="info">
+    <strong>当前可见第一项索引:</strong> <span id="currentIndex">0</span>
+  </div>
+
+  <div id="app">
+    <div class="list-container" 
+         x-for.virtual="item of items" 
+         :key="item.id"
+         x-for-options="{itemHeight:50}">
+      <div class="list-item">
+        <span class="item-id">#{{ item.id }}</span>
+        <span class="item-name">{{ item.name }}</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const items = Array.from({ length: 10000 }, (_, i) => ({
+      id: i + 1,
+      name: `项目 ${i + 1} - 这是一条测试数据`
+    }));
+
+    const store = new AutoSparkSpaces.AutoStore({ items });
+    const engine = new AutoSparkSpaces.AutoSpark(
+      document.getElementById('app'),
+      store
+    );
+  </script>
+</body>
+</html>

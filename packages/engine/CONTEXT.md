@@ -200,6 +200,66 @@ _Avoid_: 拖拽手柄（v1 整行可拖，手柄等真实需求）、FLIP 移动
 树交互的 DOM 冒泡广播事件：`tree:expand` / `tree:collapse` / `tree:select` / `tree:check` / `tree:drop`（`tree:load` 留给懒加载），宿主 `dispatchEvent`，`detail` 统一 `{ id, node, level }`（id 取 `idField` 值，无 id 为 undefined；check 另带 `checked`、drop 为 `{source, target, position}` 三段式——source/target 各含 `{id, node, level}`）。命名对齐 action 广播 `action:<name>` 惯例，外界 `@tree:expand="..."` 监听。
 _Avoid_: 展开回调（配置函数形态已弃——事件广播解耦）、tree-expand 连字符（对齐冒号命名空间惯例）
 
+### 虚拟列表层
+
+**虚拟列表 / Virtual Scrolling（x-for）**:
+x-for 的 `.virtual` 修饰符启用的渲染模式：只渲染可见项 + 缓冲区（overscan），回收池复用离开视口的 DOM 节点，解决大数据集（10000+ 项）的性能瓶颈。语法：`x-for.virtual="item of items"`。滚动容器为 x-for 宿主元素，不限制高度（支持固定高度和自适应高度），通过 ResizeObserver 监听容器尺寸变化重新计算可见范围。详见 ADR-0041。
+_Avoid_: 虚拟滚动（泛化）、虚拟化渲染（virtual scrolling 是标准术语）、infinite scroll（那是无限滚动，不同机制）
+
+**回收池 / Recycling Pool**:
+虚拟列表的核心机制：存放离开视口的 DOM 节点以供复用。池大小自适应（`visibleCount × 2`），无需用户配置。滚动时从池中取节点更新数据，而非销毁重建，避免频繁 DOM 操作的 GC 抖动。
+_Avoid_: 对象池（泛化）、节点池（recycling pool 是虚拟列表标准术语）
+
+**缓冲区 / Overscan**:
+虚拟列表在可见区域外额外渲染的项数，避免快速滚动时出现白屏。默认 `overscan: 5`（可见区域外上下各多渲染 5 项），通过 `x-for-options="{overscan:10}"` 配置。
+_Avoid_: 预渲染区（overscan 是标准术语）、缓冲项（overscan 更精确）
+
+**视口 / Viewport**:
+虚拟列表中「可见区域」的载体，即 x-for 宿主元素。视口尺寸通过 ResizeObserver 动态监测，不假设固定高度。
+_Avoid_: 滚动容器（viewport 更精确，强调「可见区域」语义）
+
+**itemHeight（虚拟列表）**:
+虚拟列表的项高度配置，通过 `x-for-options="{itemHeight:40}"` 声明。可选：未指定时自动取第一项的实际高度作为基准。用户需通过 CSS 保证项等高。
+_Avoid_: 行高（itemHeight 是虚拟列表专属配置，强调「每项高度」）
+
+**滚动位置绑定 / data-index（Virtual Scrolling）**:
+虚拟列表通过 `:data-index` 实现的声明式滚动位置控制：滚动时自动更新绑定的状态变量为第一个可见项索引（读），设置状态变量自动滚动到对应索引（写）。`data-index` 属性始终反射当前索引（即使未绑定状态），便于调试。更新频率与可见项计算同步，rAF 节流（每帧最多一次）。详见 ADR-0041。
+_Avoid_: scrollTo（那是命令式 API，本机制是声明式绑定）、scrollPosition（data-index 是属性名，语义更精确）
+
+**默认滚动条样式（Virtual Scrolling）**:
+虚拟列表容器（`autospark-virtual` 属性）的轻量级滚动条样式：Firefox 用 `scrollbar-width: thin` + `scrollbar-color`，Chrome/Safari 用 `::-webkit-scrollbar` 伪元素。默认细滚动条（6px 宽）、半透明滑块（`rgba(0,0,0,0.3)`）、透明轨道。用户可通过 CSS 覆盖。注入时机：`ForDirective.initialize(engine)` 时一次性注入。详见 ADR-0041。
+_Avoid_: 滚动条主题（那是配置项，本机制是默认样式）、自定义滚动条（泛化）
+
+**itemHeight 边界处理（Virtual Scrolling）**:
+虚拟列表的 `itemHeight` 为 0、负数或非数字时的行为：`logger.warn` + 退化为全量渲染（禁用虚拟列表，回退为普通 x-for）。降级而非崩溃，功能不受影响。详见 ADR-0041。
+_Avoid_: 抛错（降级更友好）、默认值回退（warn 是更好的用户反馈）
+
+**边界数据场景（Virtual Scrolling）**:
+虚拟列表对特殊数据的处理：空列表（items 为空数组）退化不启用回收池，x-empty 生效；单项退化不启用回收池；项高度超出视口时仍按固定行高计算，项可能被裁切（用户通过 CSS 处理）。详见 ADR-0041。
+_Avoid_: 特殊处理（退化是更简单的策略）
+
+**浏览器兼容性（Virtual Scrolling）**:
+虚拟列表支持现代浏览器：Chrome 80+、Firefox 80+、Safari 14+、Edge 80+。ResizeObserver 在现代浏览器广泛支持，无需 polyfill；IE11 已停止支持，不提供 polyfill。详见 ADR-0041。
+_Avoid_: 全浏览器支持（IE11 已停止维护）、polyfill 由用户提供（增加包体积）
+
+### 分页层
+
+**分页模式 / Paging Mode（x-for）**:
+x-for 的 `.paging` 修饰符启用的分页渲染模式：支持客户端分页（全量数组 slice）和服务端分页（loader action 远程加载）。语法：`x-for.paging="item of items"`。通过 `x-for-options="{pageSize:10, loader:'actionName'}"` 配置。详见 ADR-0042。
+_Avoid_: 翻页（泛化）、分页加载（paging mode 是标准术语）
+
+**loader（x-for 分页）**:
+x-for 分页模式的远程数据加载函数，是标准 action。签名：`({ page, pageSize }) => Promise<{ data, page, pageSize, pageCount }>`。`pageCount=0` 表示总页数未知（load-more 模式）。通过 `x-for-options="{loader:'actionName'}"` 声明。
+_Avoid_: 数据加载器（loader 是标准术语）、分页函数
+
+**分页状态绑定 / :data-paging（Paging State Binding）**:
+x-for 分页模式的双向状态绑定：`:data-paging="pagingState"` 将分页状态（page, pageSize, pageCount, hasMore, loading, error, total）同步到绑定对象。用户可从外部修改 `pagingState.page` 触发翻页。
+_Avoid_: 分页对象（paging state binding 是标准术语）
+
+**load-more 模式**:
+x-for 分页模式的特殊形态：`pageCount=0` 时总页数未知，只有"下一页"语义。loader 返回空 data 数组时 `$hasMore=false`，表示没有更多数据。
+_Avoid_: 无限滚动（load-more 是显式触发，不是自动滚动加载）
+
 ### 加载覆盖层
 
 **动作按钮清单 / actions（x-loading）**:

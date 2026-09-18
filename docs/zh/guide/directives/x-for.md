@@ -12,6 +12,10 @@
 
 它基于 `:key` 做 diff 复用——结构变化时尽量复用未变项（保留 DOM、scope、订阅），只增删差异项，避免列表重渲染丢失焦点与输入态。
 
+::: tip 大数据量场景
+如果列表数据量较大（> 1000 项），建议启用**虚拟列表**模式（`x-for.virtual`），只渲染可见区域的项，大幅提升滚动性能。详见[虚拟列表](../x-for.md)指南。
+:::
+
 ## 快速入门
 
 <demo html="for/basic.html"/>
@@ -97,7 +101,7 @@ engine.state.books.shift();
 
 ### 与 x-if 组合
 
-`x-for` 与 `x-if` 组合有两种正确写法，按「条件作用对象」选择：
+`x-for` 与 `x-if` 组合有多种写法，按「条件作用对象」选择：
 
 **① 项内嵌 `x-if`——按每项数据条件渲染（最常用）**
 
@@ -116,30 +120,49 @@ engine.state.books.shift();
 
 `x-if` 订阅 `notice.unread`，字段变化时按细粒度响应式单独触发该项标记的显隐，无需整列表重渲染。
 
-**② 控制整表显隐——用 `x-if.keepalive` / `x-show` / 外层包裹**
+**② 同元素 `x-for` + `x-show`——控制整表显隐**
 
-要按条件决定「整个列表出现/消失」时，`x-if`（默认 eager）与 `x-for` **不能写在同一元素上**（见下方警告）。改用不占子树的条件指令，或把条件渲染提到外层：
+`x-show` 不占子树，可与 `x-for` 写在同一元素上，用 `display:none` 切换列表显隐：
+
+<demo html="for/if-same-element.html"/>
 
 ```html
-<!-- ✅ x-if.keepalive：detach 容器、保活项子树与订阅，true 时原样 reattach -->
-<ul x-for="notice of notices" x-if.keepalive="visible">...</ul>
+<!-- x-show 与 x-for 同元素：切换列表显隐 -->
+<ul x-for="item of items" :key="item.id" x-show="visible">
+    <li>{{ item.title }}</li>
+</ul>
+```
 
-<!-- ✅ x-show：display:none 切显隐，容器永留 DOM -->
-<ul x-for="notice of notices" x-show="visible">...</ul>
+**③ 同元素 `x-for` + `x-if.keepalive`——显隐时保活项子树**
 
-<!-- ✅ 外层包裹：把条件渲染与列表渲染分层，二者各占不同子树 -->
+`x-if.keepalive` 在 `false` 时 detach 容器但保活项子树与订阅，`true` 时原样 reattach：
+
+```html
+<!-- x-if.keepalive 与 x-for 同元素：隐藏时保活，显示时无需重建 -->
+<ul x-for="item of items" :key="item.id" x-if.keepalive="visible">
+    <li>{{ item.title }}</li>
+</ul>
+```
+
+**④ 外层包裹——把条件渲染与列表渲染分层**
+
+```html
 <div x-if="visible">
-    <ul x-for="notice of notices">...</ul>
+    <ul x-for="item of items" :key="item.id">
+        <li>{{ item.title }}</li>
+    </ul>
 </div>
 ```
 
 ::: warning 同元素 `x-for` + `x-if`（eager）会编译期报错
-默认 `x-if` 与 `x-for` 都声明占有子树（`ownsChildren`），语义互斥：前者要按条件销毁/重建子树，后者要把子树当项模板重复渲染。写在同一元素会在编译期抛 `[x-if/x-for 冲突]`。整表显隐用上面三种写法之一，逐项显隐用写法 ①。
+默认 `x-if` 与 `x-for` 都声明占有子树（`ownsChildren`），语义互斥：前者要按条件销毁/重建子树，后者要把子树当项模板重复渲染。写在同一元素会在编译期抛 `[x-if/x-for 冲突]`。同元素组合请用 `x-show` 或 `x-if.keepalive`。
 :::
 
 ### 复合项
 
 容器的多个元素子节点作为**一组**一起循环（如 `<dl>` 下的 dt/dd、卡片的头/体）。`:key` 按「项」计，一个 key 对应一组 DOM 节点。
+
+<demo html="for/composite.html"/>
 
 ```html
 <dl x-for="user of users" :key="user.id">
@@ -148,9 +171,7 @@ engine.state.books.shift();
 </dl>
 ```
 
-### key 复用
-
-#### `:key` 的作用
+### key优化 
 
 `:key` 给每个列表项一个**稳定的唯一标识**，告诉引擎「结构变化前后，哪一项是哪一项」。数组发生增删、重排、整体替换时，引擎据此按 key 匹配，**复用未变项**——保留它的 DOM 节点、scope、订阅与输入态（焦点、半填表单等），只更新内容差异；无法匹配的才销毁或新建。
 
@@ -160,34 +181,6 @@ engine.state.books.shift();
     <li>{{ item.title }}</li>
 </ul>
 ```
-
-#### 原理：4-pass diff 的复用匹配
-
-数组变化触发 render 时，引擎做四趟处理，每项按 key 决策去留：
-
-| 决策 | 触发条件 | 引擎动作 |
-| --- | --- | --- |
-| **复用** | 旧列表中存在**同 key 且 index 不变**的项 | 原地更新项数据（`Object.assign(localData)`），重跑项内绑定——DOM、scope、订阅、焦点全保留 |
-| **重订阅（移动）** | 旧列表存在**同 key 但 index 变**（被移动/前插） | 复用项根 DOM 节点，仅因 index 变化重订阅项内依赖 index 的绑定 |
-| **新建** | 出现旧列表没有的新 key | 克隆项模板、建 scope、建立订阅、挂载 |
-| **销毁** | 旧列表里某个 key 在新列表消失 | 销毁该项 scope（连带子树订阅 off）、移除 DOM |
-
-关键在于 **key 稳定**：只要一项的 key 不变，无论它在数组里挪到哪、前面插了多少项，引擎都能认出「这是同一项」而复用它。`:key` 缺省回退用 **index（位置序号）**——这时 key 等于位置，结构一变身份就跟着错位。
-
-#### 有 `:key` vs 无 `:key`
-
-两种写法在常见数组操作下的差异：
-
-| 场景 | 无 `:key`（用 index） | 有 `:key`（稳定唯一标识） |
-| --- | --- | --- |
-| 末尾增删（`push` / `pop`） | ✅ 零成本复用 | ✅ 零成本复用 |
-| 中间插入 / 删除（`splice` / `unshift`） | ⚠️ 后续所有项 index 错位 → 逐项重订阅（内容虽同，但身份认不出，绑定路径含旧 index） | ✅ 未动项同 key + index 不变 → 原地复用，仅新建/销毁真正变化的项 |
-| 重排 / 排序 / 反转 | ⚠️ 大量项 index 变 → 大面积重订阅 | ✅ 按 key 复用项根 DOM，仅重排顺序 |
-| 整体替换数组（新对象引用） | ⚠️ 逐项按位置匹配 → 内容相同也视为变化 | ✅ 同 key 项照常复用，只 patch内容差异 |
-| 焦点 / 输入态保留 | ❌ 中间增删时，错位项的 DOM 虽在但订阅错乱、易丢失状态 | ✅ 复用项的 DOM 与状态完整保留 |
-| 性能特征 | 末尾操作 O(1)；中间操作可能 O(n) 重订阅 | 各类增删重排均只处理真实变化项 |
-
-#### 为什么应尽量指定 `:key`
 
 用数据自带的唯一且稳定的字段（数据库 id、业务主键）作 `:key`，让引擎在任何结构变化下都按「身份」而非「位置」匹配。代价极小（一次 key 求值），收益是：
 
@@ -199,6 +192,18 @@ engine.state.books.shift();
 **唯一 + 稳定**。优先用数据自带的 `id` / 业务主键。避免用数组 `index`（结构一变即错位，等于无 key），也别用会变的字段（如自增序号、可编辑的标题）——这类 key 变动会让该项被判为「消失 + 新建」，反而触发销毁重建。
 :::
 
+### 分页
+
+`x-for.paging` 为列表提供分页能力：支持**客户端分页**（全量数据已在本地，自动 slice）和**服务端分页**（通过 loader action 远程加载数据追加到 items）。
+
+详见[分页](./x-for-paging.md)。
+
+### 虚拟列表
+
+当列表数据量较大（如上万条）时，全量渲染会导致性能问题。`x-for.virtual` 通过**虚拟列表**技术解决这一问题：只渲染当前可见区域的项，滚动时动态替换内容，大幅提升渲染性能。
+
+详见[虚拟列表](./x-for-virtual.md)。
+
 ## 配置
 
 `x-for` 的指令值形如 `项变量[, index变量] of 数组路径\|表达式`（必填，如 `x-for="item of items"`）。下列配置项控制项标识；带 ✅ 者可用修饰符方式启用。
@@ -207,6 +212,12 @@ engine.state.books.shift();
 | ------ | ------- | ------ | -------------------------------------------------- |
 | `:key` | `index` |        | 容器上的 `:key="expr"`，项的唯一标识，缺省用 index |
 | `animate` | 无 |      | 项级进出场动画：字符串（`'fade'` / `'slide'` / 自定义名）/ 对象（name/duration/delay/easing）/ 分相（`enter` / `leave` 各自可配，`false` 单相禁用），见[动画](../animate.md) |
+| `pageSize` | `10` | ✅ `.paging` | 每页条数，详见[分页](./x-for-paging.md) |
+| `loader` | 无 | | 服务端分页的 loader action 名，详见[分页](./x-for-paging.md) |
+| `autoLoad` | `true` | | 首次是否自动加载第一页，详见[分页](./x-for-paging.md) |
+| `itemHeight` | 自动检测 | ✅ `.virtual` | 列表项固定高度（像素），详见[虚拟列表](./x-for-virtual.md) |
+| `overscan` | `5` | ✅ `.virtual` | 可见区域外额外渲染的项数，详见[虚拟列表](./x-for-virtual.md) |
+| `:data-index` | - | ✅ `.virtual` | 滚动位置绑定的状态路径，详见[虚拟列表](./x-for-virtual.md) |
 
 ::: info 关于指令配置体系
 指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../config.md)。
@@ -219,3 +230,5 @@ engine.state.books.shift();
 - **嵌套遮蔽**：内层 `$index` / 项变量遮蔽外层同名；跨层引用外层序号用自定义 index 名（如 `cell, cidx of ...` 后用 `cidx`）。
 - **派生变量靠 refresh 重算**：`$end` / `$length` 等随数组增删变化，复用项会原地重算并重跑绑定。
 - **表达式数组退粗粒度**：纯路径 `items` 保留字段级细粒度；`items.filter(...)` 等表达式会让字段变更也触发整列表 render。
+- **分页与虚拟列表互斥**：`.paging` 与 `.virtual` 不能同时使用。同时声明时 `.paging` 优先。
+- **虚拟列表性能**：启用 `.virtual` 修饰符后，只渲染可见区域的项。详见[虚拟列表](../x-for.md)指南。

@@ -10,7 +10,9 @@ const gzipPromise = promisify(gzip);
 export default defineConfig({
     entry: ["src/index.ts"],
     format: ["esm", "cjs", "iife"],
-    dts: { resolve: true },
+    // dts 暂时禁用：rollup-plugin-dts@6.1.1 与 TypeScript 7.0.2 不兼容（tsup#1405）
+    // 待 tsup 发布修复版本后恢复；类型声明可单独用 tsc --emitDeclarationOnly 生成
+    dts: false,
     splitting: true,
     sourcemap: true,
     // IIFE 全局变量名
@@ -22,7 +24,7 @@ export default defineConfig({
     // 自包含策略：将 autostore(core) 打包进产物，
     // 使文档站点 demo 仅需引入一个 autospark.js 即可运行（与 autoform.js 自包含策略一致）；
     // 入口全量转导出 autostore，故 IIFE 全局下 AutoSparkSpaces.* 亦覆盖 AutoStore 完整 API（ADR-0030）。
-    noExternal: ["autostore"],
+    noExternal: ["autostore","flex-tools"],
     onSuccess: async () => {
         const cjsFile = readFileSync("dist/index.cjs");
         const esmFile = readFileSync("dist/index.js");

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-for + x-if 同元素组合</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="field">
+                <label class="label">显示模式</label>
+                <div class="buttons">
+                    <button class="button" :class="mode === 'list' && 'is-primary'" @click="mode = 'list'">列表模式</button>
+                    <button class="button" :class="mode === 'empty' && 'is-primary'" @click="mode = 'empty'">空状态</button>
+                </div>
+            </div>
+
+            <!-- x-for + x-show 同元素：display:none 切显隐，容器永留 DOM -->
+            <ul x-for="item of items" :key="item.id" x-show="mode === 'list'">
+                <li>
+                    #{{ item.id }}
+                    <strong class="has-text-primary">{{ item.title }}</strong>
+                </li>
+            </ul>
+
+            <div x-if="mode === 'empty'" class="has-text-grey">
+                列表已隐藏（x-if 控制显隐）
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    items: [
+                        { id: 1, title: "AutoStore" },
+                        { id: 2, title: "FlexState" },
+                        { id: 3, title: "AutoSpark" },
+                    ],
+                    mode: "list",
+                },
+            );
+        </script>
+    </body>
+</html>

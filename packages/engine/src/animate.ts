@@ -102,15 +102,7 @@ function resolvePhase(v: unknown, base: Partial<PhaseAnim>): PhaseAnim | null {
 const HEIGHT_ANIM_NAMES = new Set(["expand"]);
 
 /** 内置动画样式（决策 12）：transition 型、裸类名（可被用户同名 CSS 覆盖）、无命名空间前缀 */
-const BUILTIN_ANIMATE_CSS = `
-/* AutoSpark built-in enter/leave animations (ADR-0039) */
-.fade-enter-active,.fade-leave-active{transition:opacity .3s ease}
-.fade-enter-from,.fade-leave-to{opacity:0}
-.fade-enter-to,.fade-leave-from{opacity:1}
-.slide-enter-active,.slide-leave-active{transition:transform .3s ease,opacity .3s ease}
-.slide-enter-from,.slide-leave-to{opacity:0;transform:translateY(-12px)}
-.slide-enter-to,.slide-leave-from{opacity:1;transform:translateY(0)}
-`;
+const BUILTIN_ANIMATE_CSS = ".fade-enter-active,.fade-leave-active{transition:opacity .3s ease}.fade-enter-from,.fade-leave-to{opacity:0}.fade-enter-to,.fade-leave-from{opacity:1}.slide-enter-active,.slide-leave-active{transition:transform .3s ease,opacity .3s ease}.slide-enter-from,.slide-leave-to{opacity:0;transform:translateY(-12px)}.slide-enter-to,.slide-leave-from{opacity:1;transform:translateY(0)}";
 
 /** 内置样式 `<style>` 元素 id（幂等注入：多 engine 实例共享 document，防重复） */
 const ANIMATE_STYLE_ID = "autospark-animate-styles";

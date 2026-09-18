@@ -1,4 +1,5 @@
-// oxlint-disable no-unused-expressionsimport { relaxedToJson } from "../../utils/relaxedToJson";
+// oxlint-disable no-unused-expressions
+import { relaxedToJson } from "../../utils/relaxedToJson";
 import { AutoSparkDirectiveBase } from "../base";
 import type { AutoDirectiveInfo } from "../types";
 import { BranchHost, type BranchEntry } from "../branch";
@@ -79,7 +80,7 @@ export class SwitchDirective extends AutoSparkDirectiveBase {
 
     override created() {
         if (this.value == null || `${this.value}`.trim() === "") {
-            this.engine.logger.warn(`x-switch: 缺少匹配表达式，不渲染任何分支（ADR-0037）`);
+            this.warn(`x-switch: 缺少匹配表达式，不渲染任何分支（ADR-0037）`);
             return;
         }
         this._collectBranches();
@@ -119,13 +120,13 @@ export class SwitchDirective extends AutoSparkDirectiveBase {
             const isCase = child.hasAttribute("x-case");
             const isDefault = child.hasAttribute("x-default");
             if (!isCase && !isDefault) {
-                this.engine.logger.warn(
+                this.warn(
                     `x-switch: 非分支子元素不会渲染（仅 x-case / x-default 直接子元素生效，ADR-0037）`,
                 );
                 continue;
             }
             if (isCase && isDefault) {
-                this.engine.logger.warn(
+                this.warn(
                     `x-switch: 同一元素同时声明 x-case 与 x-default，按 x-case 处理（ADR-0037）`,
                 );
             }
@@ -136,7 +137,7 @@ export class SwitchDirective extends AutoSparkDirectiveBase {
                 return !!cls?.ownsChildren?.(info);
             });
             if (structural) {
-                this.engine.logger.warn(
+                this.warn(
                     `x-switch: 分支根上声明了结构指令（x-for/eager x-if/x-slot 等 ownsChildren 类），该分支被跳过（ADR-0037）`,
                 );
                 continue;
@@ -148,17 +149,17 @@ export class SwitchDirective extends AutoSparkDirectiveBase {
                     // x-default 带值：值无意义 → warn + 忽略（裸属性形态为准）
                     const defRaw = (child.getAttribute("x-default") ?? "").trim();
                     if (defRaw !== "") {
-                        this.engine.logger.warn(
+                        this.warn(
                             `x-switch: x-default 的值被忽略（兜底分支无匹配值，裸属性形态为准，ADR-0037）`,
                         );
                     }
                 } else {
-                    this.engine.logger.warn(
+                    this.warn(
                         `x-switch: x-case 缺少匹配值，按 x-default 兜底处理（ADR-0037）`,
                     );
                 }
                 if (fallbackSeen) {
-                    this.engine.logger.warn(
+                    this.warn(
                         `x-switch: 重复的兜底分支，首个生效（ADR-0037）`,
                     );
                     continue;
@@ -185,7 +186,7 @@ export class SwitchDirective extends AutoSparkDirectiveBase {
                 try {
                     parsed = JSON.parse(relaxedToJson(caseRaw));
                 } catch {
-                    this.engine.logger.warn(
+                    this.warn(
                         `x-switch: x-case 值 "${caseRaw}" 不是合法的 relaxed-json 字面量，该分支被跳过（ADR-0037）`,
                     );
                     continue;

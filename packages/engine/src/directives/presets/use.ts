@@ -66,14 +66,14 @@ export class UseDirective extends AutoSparkDirectiveBase {
     override created() {
         // 结构指令冲突检测（U3）：同元素含其他 ownsChildren 指令 → warn + 拒绝实例化
         if (this._hasStructuralConflict()) {
-            this.engine.logger.warn(
+            this.warn(
                 `x-use: 宿主元素含其他结构指令（x-if/x-for/x-slot/x-switch/x-tree），与 x-use 实例化互斥，已跳过实例化（ADR-0022 决策五-5）。`,
             );
             return;
         }
         const raw = this.value == null ? "" : String(this.value).trim();
         if (raw === "") {
-            this.engine.logger.warn(`x-use: 缺少组件名，已跳过实例化。`);
+            this.warn(`x-use: 缺少组件名，已跳过实例化。`);
             return;
         }
         // 值解析双轨（ADR-0022 决策五）：
@@ -130,7 +130,7 @@ export class UseDirective extends AutoSparkDirectiveBase {
             }
         }
         if (!name) {
-            this.engine.logger.warn(
+            this.warn(
                 `x-use: 无法解析组件名（值须为字符串或含 name/is/component 字段的对象），已跳过: ${JSON.stringify(value)}`,
             );
             return;
@@ -167,7 +167,7 @@ export class UseDirective extends AutoSparkDirectiveBase {
         }
         // 递归深度保护（T5=A）：沿 parent 链统计同名组件实例化深度
         if (this._recursiveDepth(name) >= UseDirective.MAX_DEPTH) {
-            this.engine.logger.warn(
+            this.warn(
                 `x-use: 组件 "${name}" 递归实例化深度超过上限（${UseDirective.MAX_DEPTH}），已停止（疑似无终止条件递归）。`,
             );
             return;

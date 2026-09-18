@@ -16,7 +16,7 @@
  */
 import { computed, configurable, watch } from "autostore";
 // 子路径导入（非根入口）：根入口转导出 ./fs 子模块（node 内置 fs/path），浏览器 bundle 会解析失败
-import { deepMerge } from "flex-tools/object";
+import { deepMerge } from "flex-tools/object/deepMerge";
 import { relaxedToJson } from "../utils/relaxedToJson";
 import type { AutoSpark } from "../engine";
 

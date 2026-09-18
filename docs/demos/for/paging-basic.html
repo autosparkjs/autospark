@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-for.paging · 客户端分页</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .list-item { padding: 8px 0; border-bottom: 1px solid #eee; }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <h4 class="title is-4">客户端分页</h4>
+            <p class="mb-4">全量数据已在本地，directive 自动按页 slice。点击翻页按钮切换页面。</p>
+
+            <!-- 分页列表 + 翻页按钮放在同一容器内 -->
+            <div class="content">
+                <ul x-for.paging="item of items" :data-paging="paging" x-for-options="{pageSize:5}">
+                    <li class="list-item">
+                        #{{ $index + 1 }} - {{ item.name }}
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 分页信息和按钮在容器外，通过 paging 对象控制 -->
+            <div class="buttons">
+                <button class="button" @click="paging.page = Number(paging.page) - 1" :disabled="paging.page <= 1">
+                    上一页
+                </button>
+                <button class="button" @click="paging.page = Number(paging.page) + 1" :disabled="!paging.hasMore">
+                    下一页
+                </button>
+            </div>
+            <div class="tags has-addons">
+                <span class="tag is-link">当前页</span>
+                <span class="tag is-light">{{ paging.page }}</span>
+                <span class="tag is-info">总页数</span>
+                <span class="tag is-light">{{ paging.pageCount }}</span>
+            </div>
+        </div>
+
+        <script>
+            const items = [];
+            for (let i = 1; i <= 23; i++) {
+                items.push({ id: i, name: `项目 ${i}` });
+            }
+
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    items,
+                    paging: { page: 1, pageSize: 5 }
+                },
+                {}
+            );
+        </script>
+    </body>
+</html>

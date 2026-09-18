@@ -334,7 +334,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
                 try {
                     return getter(store.state);
                 } catch (e: any) {
-                    this.engine.logger.warn(`x-loading: eval "${expr}" failed: ${e?.message ?? e}`);
+                    this.warn(`x-loading: eval "${expr}" failed: ${e?.message ?? e}`);
                     return undefined;
                 }
             };
@@ -402,13 +402,13 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
         try {
             const parsed: unknown = JSON.parse(relaxedToJson(raw));
             if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-                this.engine.logger.warn(`x-loading: 对象配置必须解析为对象，得到 ${JSON.stringify(parsed)}`);
+                this.warn(`x-loading: 对象配置必须解析为对象，得到 ${JSON.stringify(parsed)}`);
                 return { value: "" };
             }
             const obj = parsed as Record<string, any>;
             // 旧键 visible 已更名为 value：warn 提示迁移、忽略不生效（缺失 value ≡ 裸属性恒显示）
             if (obj.visible !== undefined) {
-                this.engine.logger.warn(`x-loading: 配置键 "visible" 已更名为 "value"，该键被忽略`);
+                this.warn(`x-loading: 配置键 "visible" 已更名为 "value"，该键被忽略`);
             }
             return {
                 value: typeof obj.value === "string" ? obj.value : "",
@@ -421,7 +421,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
                 actions: this._parseActionNames(obj.actions),
             };
         } catch (e: any) {
-            this.engine.logger.warn(`x-loading: 对象配置解析失败: ${e?.message ?? e}`);
+            this.warn(`x-loading: 对象配置解析失败: ${e?.message ?? e}`);
             return { value: "" };
         }
     }
@@ -605,13 +605,13 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
     private _parseActionNames(raw: unknown): string[] | undefined {
         if (raw === undefined || raw === null) return undefined;
         if (!Array.isArray(raw)) {
-            this.engine.logger.warn(`x-loading: 配置键 "actions" 须为字符串数组，已忽略`);
+            this.warn(`x-loading: 配置键 "actions" 须为字符串数组，已忽略`);
             return undefined;
         }
         return raw.filter((v) => {
             const ok = typeof v === "string" && v.trim() !== "";
             if (!ok) {
-                this.engine.logger.warn(
+                this.warn(
                     `x-loading: actions 数组元素须为非空字符串，已剪枝: ${JSON.stringify(v)}`,
                 );
             }
@@ -693,7 +693,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
             return found instanceof HTMLElement ? found : host; // 未命中 → 回退宿主
         } catch (e: any) {
             // 非法选择器（querySelector 抛 SyntaxError）→ 回退宿主，避免中断
-            this.engine.logger.warn(`x-loading: 非法 selector "${sel}"，回退到宿主元素: ${e?.message ?? e}`);
+            this.warn(`x-loading: 非法 selector "${sel}"，回退到宿主元素: ${e?.message ?? e}`);
             return host;
         }
     }

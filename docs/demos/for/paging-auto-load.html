@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-for.paging · autoLoad 配置</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .list-item { padding: 8px 0; border-bottom: 1px solid #eee; }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <h4 class="title is-4">autoLoad 配置</h4>
+            <p class="mb-4">设置 <code>autoLoad:false</code> 关闭自动加载，需手动触发首次加载。</p>
+
+            <div class="notification is-warning is-light mb-4">
+                列表初始为空，点击"首次加载"按钮开始加载数据。
+            </div>
+
+            <!-- 分页列表 -->
+            <div class="content">
+                <ul x-for.paging="item of items"
+                    :data-paging="paging"
+                    x-for-options="{pageSize:5, loader:'loadData', autoLoad:false}">
+                    <li class="list-item">
+                        {{ item.name }}
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="buttons">
+                <button class="button is-primary" @click="paging.page = 1">首次加载</button>
+                <button class="button" @click="paging.page = Number(paging.page) - 1" :disabled="paging.page <= 1">
+                    上一页
+                </button>
+                <button class="button" @click="paging.page = Number(paging.page) + 1" :disabled="!paging.hasMore">
+                    下一页
+                </button>
+            </div>
+            <div class="tags has-addons">
+                <span class="tag is-link">当前页</span>
+                <span class="tag is-light">{{ paging.page }}</span>
+                <span class="tag is-info">总页数</span>
+                <span class="tag is-light">{{ paging.pageCount }}</span>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    items: [],
+                    paging: { page: 1, pageSize: 5 }
+                },
+                {
+                    actions: {
+                        loadData: async ({ page, pageSize }) => {
+                            await new Promise(r => setTimeout(r, 300));
+                            const items = [];
+                            const start = (page - 1) * pageSize;
+                            for (let i = 0; i < pageSize && start + i < 20; i++) {
+                                items.push({ id: start + i + 1, name: `项目 ${start + i + 1}` });
+                            }
+                            return {
+                                data: items,
+                                page,
+                                pageSize,
+                                pageCount: Math.ceil(20 / pageSize)
+                            };
+                        }
+                    }
+                }
+            );
+        </script>
+    </body>
+</html>

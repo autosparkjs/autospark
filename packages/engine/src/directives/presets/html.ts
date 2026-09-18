@@ -2,7 +2,7 @@ import { AutoSparkDirectiveBase } from "../base";
 import { sanitizeHtml } from "../../utils/sanitize";
 import { createEmptyRenderer, resolveEmptyValues } from "../utils/emptyPlaceholder";
 import { recompileSubtree } from "../../utils/recompileSubtree";
-import { AsyncSourceRunner } from "../async-source";
+import { AsyncSourceRunner, createAsyncOnError } from "../async-source";
 import { isAsyncHtmlValue } from "./async-source";
 import { DataDirective } from "./data";
 
@@ -128,7 +128,7 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
                 recompileSubtree(this.binding, el);
             } catch (e: any) {
                 // 抛错时 recompileSubtree 已 destroy 旧子树 + 清空 el → el 保持清空（与 engine.patch 姿态一致）
-                this.engine.logger.error(`x-html.compile: 编译注入内容失败: ${e?.message ?? e}`);
+                this.error(`x-html.compile: 编译注入内容失败: ${e?.message ?? e}`);
             }
         };
         const initial = this.binding.watch(this.value, ({ value }) => apply(value));
@@ -173,7 +173,10 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
             responseParser: (res) => res.text(),
             onLoading: () => this._beginLoad(),
             onResult: (value) => this._arrive(value),
-            onError: (err) => this._fail(err),
+            onError: createAsyncOnError(
+                (msg) => this.warn(`x-html: ${msg}`),
+                (err) => { this.loading = false; this.lastError = err; this._setLoadingAttr(false); this.engine.scheduler.schedule(() => this._syncFallback()); },
+            ),
         });
         this.runner.start(raw);
         this.engine.scheduler.schedule(() => this._syncFallback());
@@ -200,7 +203,7 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
         if (this.fallbackTpls && loadingOpt === undefined) return;
         if (hasAsyncData) {
             if (loadingOpt !== undefined) {
-                this.engine.logger.warn(
+                this.warn(
                     `x-html: 同元素双异步（异步 x-data + 异步 x-html），反馈通道归 x-data 独占，loading 选项被忽略（ADR-0035 决策 6）`,
                 );
             }
@@ -243,7 +246,7 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
             try {
                 if (this.el) recompileSubtree(this.binding, this.el);
             } catch (e: any) {
-                this.engine.logger.error(`x-html.compile: 编译远程模板失败: ${e?.message ?? e}`);
+                this.error(`x-html.compile: 编译远程模板失败: ${e?.message ?? e}`);
             }
         } else {
             const sanitize = this.getOption("raw") ? null : this.engine.options.sanitizer ?? sanitizeHtml;
@@ -254,7 +257,7 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
 
     /** 加载失败：warn + 保旧值（不写内容）+ 反馈同步（fallback 认领失败态） */
     private _fail(err: Error): void {
-        this.engine.logger.warn(`x-html: ${err.message}`);
+        this.warn(`x-html: ${err.message}`);
         this.loading = false;
         this.lastError = err;
         this._setLoadingAttr(false);

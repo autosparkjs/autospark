@@ -4,7 +4,7 @@ import { deepMerge } from "flex-tools/object/deepMerge";
 import { SCOPES_KEY } from "../../engine";
 import { getVal, splitPath } from "autostore";
 import type { AutoSparkScope } from "../../scope";
-import { AsyncSourceRunner } from "../async-source";
+import { AsyncSourceRunner, createAsyncOnError } from "../async-source";
 import { detectDataForm, isAsyncDataValue, mapResponse } from "./async-source";
 import type { DataScriptStash } from "../../compile/dataScript";
 
@@ -145,7 +145,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
         if (mountRaw !== undefined) {
             if (typeof mountRaw !== "string") {
                 // 误写形态：.mount 修饰符产生 true / 数字等——warn + 忽略（修饰符无参，ADR-0007）
-                this.engine.logger.warn(
+                this.warn(
                     `x-data: mount 选项须为字符串路径（如 mount:'x.y'），实际得到 ${JSON.stringify(mountRaw)}，已忽略`,
                 );
             } else if (mountRaw.trim() !== "") {
@@ -156,7 +156,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
             }
         }
         if (mount !== null && (globalRaw === true || globalRaw === "true")) {
-            this.engine.logger.warn(
+            this.warn(
                 `x-data: mount("${mount}") 与 global 同写，mount 优先（global 被忽略）`,
             );
         }
@@ -168,7 +168,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
         if (globalRaw === true || globalRaw === "true") return "root";
         if (globalRaw !== undefined && globalRaw !== false && globalRaw !== null) {
             // 旧提案残留：global:'x.y' 带路径写法——warn + 仍按根处理
-            this.engine.logger.warn(
+            this.warn(
                 `x-data: global 选项不支持路径值（${JSON.stringify(globalRaw)}），已按挂载根处理；指定位置请用 mount:'...'`,
             );
             return "root";
@@ -209,12 +209,12 @@ export class DataDirective extends AutoSparkDirectiveBase {
         }
         // 段落校验：非法空段（'x..y' / 尾点）→ 无效
         if (base.some((s) => s === "")) {
-            this.engine.logger.warn(`x-data: mount 路径 "${mount}" 含空段，无效，已降级默认私有域`);
+            this.warn(`x-data: mount 路径 "${mount}" 含空段，无效，已降级默认私有域`);
             return null;
         }
         // _scopes 命名空间：warn + 放行（目标 scope 销毁会整删条目，连带蒸发挂载数据，后果自负）
         if (base[0] === SCOPES_KEY) {
-            this.engine.logger.warn(
+            this.warn(
                 `x-data: mount 路径 "${mount}" 直指引擎保留容器 _scopes，目标 scope 销毁时挂载数据将被连带删除，后果自负`,
             );
         }
@@ -226,7 +226,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
             if (!(seg in cur) || cur[seg] === undefined || cur[seg] === null) break; // 不存在 → 后续由写入时自动创建
             const next = cur[seg];
             if (Array.isArray(next) || typeof next !== "object") {
-                this.engine.logger.warn(
+                this.warn(
                     `x-data: mount 路径 "${mount}" 中途段 "${seg}" 是${Array.isArray(next) ? "数组" : "非对象"}，无法穿透，已降级默认私有域`,
                 );
                 return null;
@@ -298,7 +298,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
             // options 裁决（ADR-0032 决策 6）：父元素 x-data-options 为权威，同写则脚本 options 被忽略并 warn
             if (stash.options && Object.keys(stash.options).length > 0) {
                 if (this.options && Object.keys(this.options).length > 0) {
-                    this.engine.logger.warn(
+                    this.warn(
                         `x-data: 数据脚本的 options 被 x-data-options 遮蔽（父元素为权威），已忽略（ADR-0032 决策 6）`,
                     );
                 } else {
@@ -408,7 +408,10 @@ export class DataDirective extends AutoSparkDirectiveBase {
             responseParser: (res) => res.json(),
             onLoading: () => this.setMeta(true, undefined),
             onResult: (result) => this.arrive(result),
-            onError: (err) => this.fail(err),
+            onError: createAsyncOnError(
+                (msg) => this.warn(`x-data: ${msg}`),
+                (err) => { this.setMeta(false, err); this.engine.scheduler.schedule(() => this.syncFallback()); },
+            ),
         });
         this.runner.start(raw);
         this.engine.scheduler.schedule(() => this.syncFallback());
@@ -429,7 +432,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
 
     /** 加载失败：warn 日志 + $error 落地 + fallback 同步（非就绪态认领） */
     private fail(err: Error): void {
-        this.engine.logger.warn(`x-data: ${err.message}`);
+        this.warn(`x-data: ${err.message}`);
         this.setMeta(false, err);
         this.engine.scheduler.schedule(() => this.syncFallback());
     }
@@ -452,7 +455,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
         const rootState = this.engine.store.state as Record<string, any>;
         for (const k of Object.keys(data)) {
             if (k !== "$loading" && k !== "$error" && Object.prototype.hasOwnProperty.call(rootState, k)) {
-                this.engine.logger.warn(
+                this.warn(
                     `x-data: 响应键 "${k}" 与全局状态同名，落域后将遮蔽全局键（聚合视图 data 层优先）——插值/实参可能读到响应旧值、依赖重取可能失效。建议控制键改名，或让接口不回显该键`,
                 );
             }
@@ -587,14 +590,14 @@ export class DataDirective extends AutoSparkDirectiveBase {
         try {
             const parsed: unknown = JSON.parse(relaxedToJson(trimmed));
             if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-                this.engine.logger.warn(
+                this.warn(
                     `x-data: 值必须解析为对象，实际得到 ${JSON.stringify(parsed)}`,
                 );
                 return {};
             }
             return parsed as Record<string, any>;
         } catch (e: any) {
-            this.engine.logger.warn(`x-data: 解析 "${raw}" 失败: ${e?.message ?? e}`);
+            this.warn(`x-data: 解析 "${raw}" 失败: ${e?.message ?? e}`);
             return {};
         }
     }
@@ -678,7 +681,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
         // 2. 写入/更新
         for (const [k, v] of Object.entries(data)) {
             if (Object.prototype.hasOwnProperty.call(state, k) && !this.attachedKeys.has(k)) {
-                this.engine.logger.warn(`x-data.global: 键 "${k}" 已存在于 store，覆盖写入`);
+                this.warn(`x-data.global: 键 "${k}" 已存在于 store，覆盖写入`);
             }
             state[k] = v; // 新键自动建响应式代理；已有键触发 set notify
             this.attachedKeys.set(k, v);
