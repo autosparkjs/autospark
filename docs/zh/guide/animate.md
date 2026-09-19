@@ -23,23 +23,23 @@
 
 ```html
 <div class="accordion" x-for="item of items" :key="item.id">
-    <div class="acc-item">
-        <div class="acc-head">
-            <span x-text="item.title"></span>
-            <span class="acc-arrow">▸</span>
-        </div>
-        <div class="acc-body"><!-- 展开体，第 2 步实现 --></div>
+  <div class="acc-item">
+    <div class="acc-head">
+      <span x-text="item.title"></span>
+      <span class="acc-arrow">▸</span>
     </div>
+    <div class="acc-body"><!-- 展开体，第 2 步实现 --></div>
+  </div>
 </div>
 ```
 
 ```javascript
 const engine = new AutoSpark(el, {
-    items: [
-        { id: 1, title: "什么是 AutoSpark？", content: "声明式模板渲染引擎……" },
-        { id: 2, title: "动画怎么声明？", content: "结构指令的 animate 选项……" },
-        { id: 3, title: "展开为什么平滑？", content: "grid-template-rows 过渡……" },
-    ],
+  items: [
+    { id: 1, title: "什么是 AutoSpark？", content: "声明式模板渲染引擎……" },
+    { id: 2, title: "动画怎么声明？", content: "结构指令的 animate 选项……" },
+    { id: 3, title: "展开为什么平滑？", content: "grid-template-rows 过渡……" },
+  ],
 });
 ```
 
@@ -51,11 +51,11 @@ const engine = new AutoSpark(el, {
 
 ```html
 <div class="acc-head" @click="toggle(item.id)">
-    <span x-text="item.title"></span>
-    <span class="acc-arrow">▸</span>
+  <span x-text="item.title"></span>
+  <span class="acc-arrow">▸</span>
 </div>
 <div class="acc-body" x-if="open === item.id">
-    <div class="acc-content" x-text="item.content"></div>
+  <div class="acc-content" x-text="item.content"></div>
 </div>
 ```
 
@@ -77,26 +77,28 @@ actions: {
 ```css
 .col-enter-active,
 .col-leave-active {
-    display: grid;
-    grid-template-rows: 1fr;
-    transition: grid-template-rows 0.3s ease, opacity 0.3s ease;
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 0.3s ease,
+    opacity 0.3s ease;
 }
 .col-enter-from,
 .col-leave-to {
-    grid-template-rows: 0fr;
-    opacity: 0;
+  grid-template-rows: 0fr;
+  opacity: 0;
 }
 .col-enter-active > *,
 .col-leave-active > * {
-    overflow: hidden;
+  overflow: hidden;
 }
 ```
 
 ```html
 <div class="acc-body" x-if="open === item.id" x-if-options="{animate:'col'}">
-    <div class="acc-clip">
-        <div class="acc-content" x-text="item.content"></div>
-    </div>
+  <div class="acc-clip">
+    <div class="acc-content" x-text="item.content"></div>
+  </div>
 </div>
 ```
 
@@ -111,8 +113,13 @@ actions: {
 ```
 
 ```css
-.acc-arrow { transition: transform 0.2s ease; display: inline-block; }
-.acc-arrow.on { transform: rotate(90deg); }
+.acc-arrow {
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+.acc-arrow.on {
+  transform: rotate(90deg);
+}
 ```
 
 箭头旋转是纯 CSS `transition`（**值在变**），与进出场动画（**元素在进出**）正交，各走各的通道。
@@ -125,17 +132,17 @@ actions: {
 
 ```html
 <div class="accordion" x-for="item of items" :key="item.id">
-    <div class="acc-item">
-        <div class="acc-head" @click="toggle(item.id)">
-            <span x-text="item.title"></span>
-            <span class="acc-arrow" :class="open === item.id ? 'acc-arrow on' : 'acc-arrow'">▸</span>
-        </div>
-        <div class="acc-body" x-if="open === item.id" x-if-options="{animate:'col'}">
-            <div class="acc-clip">
-                <div class="acc-content" x-text="item.content"></div>
-            </div>
-        </div>
+  <div class="acc-item">
+    <div class="acc-head" @click="toggle(item.id)">
+      <span x-text="item.title"></span>
+      <span class="acc-arrow" :class="open === item.id ? 'acc-arrow on' : 'acc-arrow'">▸</span>
     </div>
+    <div class="acc-body" x-if="open === item.id" x-if-options="{animate:'col'}">
+      <div class="acc-clip">
+        <div class="acc-content" x-text="item.content"></div>
+      </div>
+    </div>
+  </div>
 </div>
 ```
 
@@ -157,17 +164,9 @@ actions: {
 
 `animate` 读取遵循[指令配置](./config.md)的回退链：指令选项 → 宿主选项（`x-options` 中的 `animate` 同样生效）。
 
-## 内置动画
+## 指南
 
-| 名称 | 效果 | 默认时长 |
-| --- | --- | --- |
-| `fade` | 透明度淡入淡出 | 300ms |
-| `slide` | 上滑浮入（translateY -12px → 0 + 淡入），离场反向 | 300ms |
-| `expand` | **高度过渡**（0 ↔ 内容高度 + 淡入）——布局参与动画，后续内容平滑跟随，无高度跳动 | 300ms |
-
-`fade` / `slide` 的样式由引擎自动注入（裸类名 `.fade-enter-active` 等），**可被你的同名 CSS 覆盖**——给 `.slide-enter-active` 写自己的规则即可定制内置动画的时长/缓动。`expand` 经 JS 测量内容高度做 `height` inline 过渡（from/to 是动态值，无法用静态 CSS 类表达），无需类 CSS；[x-tree](./directives/x-tree.md) 默认启用它作为展开/折叠动画。
-
-## 配置形态
+### 配置形态
 
 `animate` 支持三种形态（值为 relaxed-json）：
 
@@ -193,7 +192,7 @@ actions: {
 <div x-if="on" x-if-options="{animate:{enter:'fade',leave:false}}"></div>
 ```
 
-## 自定义动画
+### 自定义动画
 
 自定义动画 = 按约定命名写 CSS 类，传名即用（与 Vue transition 同构的六类名契约）：
 
@@ -201,10 +200,17 @@ actions: {
 
 ```html
 <style>
-    /* 进场：起始态 → 过渡属性 */
-    .zoom-enter-from { opacity: 0; transform: scale(0.8); }
-    .zoom-enter-active { transition: opacity 0.3s, transform 0.3s; }
-    /* keyframe 型也支持：.zoom-enter-active { animation: my-zoom 0.3s; } */
+  /* 进场：起始态 → 过渡属性 */
+  .zoom-enter-from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  .zoom-enter-active {
+    transition:
+      opacity 0.3s,
+      transform 0.3s;
+  }
+  /* keyframe 型也支持：.zoom-enter-active { animation: my-zoom 0.3s; } */
 </style>
 
 <div x-if="on" x-if-options="{animate:'zoom'}">缩放浮入</div>
@@ -212,17 +218,17 @@ actions: {
 
 六类名的挂摘时序：
 
-| 阶段 | 挂载的类 |
-| --- | --- |
+| 阶段       | 挂载的类                                    |
+| ---------- | ------------------------------------------- |
 | 进场起始帧 | `{name}-enter-from` + `{name}-enter-active` |
-| 进场过渡帧 | `{name}-enter-active` + `{name}-enter-to` |
+| 进场过渡帧 | `{name}-enter-active` + `{name}-enter-to`   |
 | 离场起始帧 | `{name}-leave-from` + `{name}-leave-active` |
-| 离场过渡帧 | `{name}-leave-active` + `{name}-leave-to` |
-| 结束 | 全部移除（离场元素此刻真正离开 DOM） |
+| 离场过渡帧 | `{name}-leave-active` + `{name}-leave-to`   |
+| 结束       | 全部移除（离场元素此刻真正离开 DOM）        |
 
 动画结束由 `transitionend` / `animationend` 判定（内置超时兜底），自定义 CSS 无需额外声明。
 
-## 避免高度跳动
+### 避免高度跳动
 
 进出场动画期间的高度跳动有三个来源：
 
@@ -234,7 +240,7 @@ actions: {
 
 <demo html="animate/height.html"/>
 
-### 首选：内置 expand（高度过渡一行即用）
+### 内置 expand
 
 来源 1/2（进场瞬时占位 / 离场延迟移除）最省事的解法是内置 `expand`——引擎测量内容高度做 `height` 0↔auto 过渡，**无需任何 CSS**：
 
@@ -244,57 +250,70 @@ actions: {
 
 与配方三（grid 0fr/1fr）的效果等同，但没有它的三条硬性约束（单子元素 / 内容驱动高度 / padding 分层）——多子元素、任意 padding 都照常工作。[x-tree](./directives/x-tree.md) 的展开/折叠默认即 `expand`。配方三适合坚持纯 CSS 或需要与自定义类动画组合的场景。
 
-### 配方一：离场绝对定位（治共演堆叠）
+### 离场绝对定位
 
 离场元素立即退出文档流（浮在原位淡出），容器即刻落到新内容的高度：
 
 ```css
 /* 包裹层（x-switch 宿主的父级）提供定位上下文 */
-.tab-wrap { position: relative; }
+.tab-wrap {
+  position: relative;
+}
 /* 离场中的分支不再占位 */
-.tab-wrap .fade-leave-active { position: absolute; width: 100%; }
+.tab-wrap .fade-leave-active {
+  position: absolute;
+  width: 100%;
+}
 ```
 
 新旧分支高度相同或相近时完全平滑；高度不同则容器**一次到位**落在新分支的高度，不再出现「旧 + 新」双高。
 
-### 配方二：grid 同格叠放（共演 cross-fade，最平滑）
+### grid 同格叠放
 
 包裹层作 grid、子元素全部叠同一格——新旧分支**重叠**而非堆叠，容器高度始终取两者较高者：
 
 ```css
-.tab-stack { display: grid; }
-.tab-stack > * { grid-area: 1/1; margin: 0; }
+.tab-stack {
+  display: grid;
+}
+.tab-stack > * {
+  grid-area: 1/1;
+  margin: 0;
+}
 ```
 
 新旧分支同时淡入淡出形成真正的 cross-fade，推荐用于 tab / 分支切换（`margin: 0` 归零叠放元素的边距——外边距会计入行高，破坏「取较高者」的预期）。
 
-### 配方三：手风琴展开/收起（高度本身参与动画）
+### 手风琴展开/收起
 
 `grid-template-rows: 0fr ↔ 1fr` 让高度在 0 与 auto 之间平滑过渡（下方内容被平滑推开/收回），经自定义动画声明：
 
 ```css
 .col-enter-active,
 .col-leave-active {
-    display: grid;
-    grid-template-rows: 1fr;
-    transition: grid-template-rows 0.3s ease, opacity 0.3s ease;
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 0.3s ease,
+    opacity 0.3s ease;
 }
 .col-enter-from,
 .col-leave-to {
-    grid-template-rows: 0fr;
-    opacity: 0;
+  grid-template-rows: 0fr;
+  opacity: 0;
 }
 .col-enter-active > *,
 .col-leave-active > * {
-    overflow: hidden;
+  overflow: hidden;
 }
 ```
 
 ```html
 <div x-if="on" x-if-options="{animate:'col'}">
-    <div><!-- 裁剪层：overflow:hidden 由动画类注入，自身不要加 padding -->
-        <div>高度由内容决定的任意内容（padding 加在这一层）</div>
-    </div>
+  <div>
+    <!-- 裁剪层：overflow:hidden 由动画类注入，自身不要加 padding -->
+    <div>高度由内容决定的任意内容（padding 加在这一层）</div>
+  </div>
 </div>
 ```
 
@@ -304,30 +323,33 @@ actions: {
 - 子元素高度须**内容驱动**——显式 `height`（如 `height:140px`）会垫住 `0fr` 行（定高子项的 min-content 贡献使行高无法塌到 0），要定高请改用 `min-height`；
 - **padding 不放在裁剪层（直接子元素）上**——padding 同样计入子元素的盒高贡献，把 `0fr` 行垫在 padding 高度（收起收不到 0，移除瞬间产生跳变）；需要内边距时加一层（宿主 → 裁剪层 → 内容层），padding 放最内层。
 
-#### 组合变体：高度展开 + 视觉滑动
+### 高度展开 + 视觉滑动
 
 内置 `slide` 只动画 `transform` / `opacity`（不参与布局，边界有瞬跳，见本节开头的来源 1/2）。把 `transform` 并入配方三的 transition，**高度展开与上滑浮入同时发生**（`transform` 与 `grid-template-rows` 可共存于同一过渡，已实测）：
 
 ```css
 .scol-enter-active,
 .scol-leave-active {
-    display: grid;
-    grid-template-rows: 1fr;
-    transition: grid-template-rows 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 0.3s ease,
+    transform 0.3s ease,
+    opacity 0.3s ease;
 }
 .scol-enter-from,
 .scol-leave-to {
-    grid-template-rows: 0fr;
-    opacity: 0;
-    transform: translateY(-12px);
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-12px);
 }
 .scol-enter-active > *,
 .scol-leave-active > * {
-    overflow: hidden;
+  overflow: hidden;
 }
 ```
 
-## 行为语义
+### 行为语义
 
 - **首次渲染静默**：引擎初次编译不播动画，只有**状态变化**引起的挂载/卸载才动画（x-for 首渲 N 项不会整队 fade-in）。
 - **抢占**：动画播到一半状态又翻转时，在播动画立即取消（离场的延迟移除同步完成）、按新状态全新处理、新动画从头播——快速连点不会错乱。
@@ -338,10 +360,24 @@ actions: {
 
 ```css
 @media (prefers-reduced-motion: reduce) {
-    .fade-enter-active, .fade-leave-active,
-    .slide-enter-active, .slide-leave-active { transition: none; }
+  .fade-enter-active,
+  .fade-leave-active,
+  .slide-enter-active,
+  .slide-leave-active {
+    transition: none;
+  }
 }
 ```
+
+## 内置动画
+
+| 名称     | 效果                                                                            | 默认时长 |
+| -------- | ------------------------------------------------------------------------------- | -------- |
+| `fade`   | 透明度淡入淡出                                                                  | 300ms    |
+| `slide`  | 上滑浮入（translateY -12px → 0 + 淡入），离场反向                               | 300ms    |
+| `expand` | **高度过渡**（0 ↔ 内容高度 + 淡入）——布局参与动画，后续内容平滑跟随，无高度跳动 | 300ms    |
+
+`fade` / `slide` 的样式由引擎自动注入（裸类名 `.fade-enter-active` 等），**可被你的同名 CSS 覆盖**——给 `.slide-enter-active` 写自己的规则即可定制内置动画的时长/缓动。`expand` 经 JS 测量内容高度做 `height` inline 过渡（from/to 是动态值，无法用静态 CSS 类表达），无需类 CSS；[x-tree](./directives/x-tree.md) 默认启用它作为展开/折叠动画。
 
 ## 注意事项
 

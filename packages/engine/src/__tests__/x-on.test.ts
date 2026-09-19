@@ -88,7 +88,9 @@ describe("x-on 函数来源（Action 优先 + 表达式兜底）", () => {
     test("action 内 this.store.state 写入联动响应式", async () => {
         const { root, engine } = mount(
             `<span x-text="count"></span><button @click="incr">+</button>`,
-            { count: 0 },
+            {
+                count: 0,
+            },
         );
         engine.actions.incr = function () {
             // @ts-ignore
@@ -394,18 +396,18 @@ describe("x-on destroy 解绑", () => {
 
 describe('x-on <script type="autospark/actions"> 局部 action', () => {
     test("局部 action 经 scope 链查找到并执行", () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div x-data="{}"><button @click="localFn()">+</button><script type="autospark/actions">{ 
                 localFn(){ this.store.state.count++ } 
             }</script></div>`,
             { count: 0 },
         );
         root.querySelector("button")!.click();
-        expect(store.state.count).toBe(1);
+        expect(engine.state.count).toBe(1);
     });
 
     test("局部 action 覆盖同名全局 action", () => {
-        const { root, store, engine } = mount(
+        const { root, engine } = mount(
             `<div x-data="{}"><button @click="who()">x</button><script type="autospark/actions">{ who(){ this.store.state.who = "local" } }</script></div>`,
             { who: "none", count: 0 },
         );
@@ -413,7 +415,7 @@ describe('x-on <script type="autospark/actions"> 局部 action', () => {
             this.store.state.who = "global";
         };
         root.querySelector("button")!.click();
-        expect(store.state.who).toBe("local");
+        expect(engine.state.who).toBe("local");
     });
 
     test("普通 <script> 原样保留在渲染 DOM", () => {
@@ -437,7 +439,7 @@ describe('x-on <script type="autospark/actions"> 局部 action', () => {
  *
  * AutoSparkActionContext 语义：
  * - `this.data`：scope.getContext() 聚合视图 —— localData + data + 全局 state，
- *   **可读可写**：写 x-data 字段透传到响应式 data（store.state._scopes[id]）触发更新。
+ *   **可读可写**：写 x-data 字段透传到响应式 data（engine.state.$scopes[id]）触发更新。
  * - `this.scope`：AutoSparkScope 实例 —— 经 getData() 沿链拿最近 x-data 域（data 引用）。
  *
  * action 读写 x-data 均可经 `this.data.<字段>`；嵌套场景沿 parent 链自动定位最近 x-data 块。

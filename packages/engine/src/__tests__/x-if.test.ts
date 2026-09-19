@@ -22,17 +22,17 @@ function scopeOf(engine: AutoSpark, el: Element): AutoSparkScope | undefined {
 
 describe("x-if eager（默认：false 摘宿主 + 锚点注释 + 销毁子树）", () => {
     test("true 编译子树挂载，false 摘宿主并以注释占位", async () => {
-        const { root, store } = mount(`<div id="t" x-if="show">hi</div>`, { show: true });
+        const { root, engine } = mount(`<div id="t" x-if="show">hi</div>`, { show: true });
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div id="t">hi</div>
 </div>`);
-        store.state.show = false;
+        engine.state.show = false;
         await nextTick();
         // 宿主 detach（离开 DOM），原位留锚点注释（toEqualHTML 忽略注释 → 容器空）
         expect(root.querySelector("#t")).toBeNull();
         expect(root).toEqualHTML(`<div></div>`);
-        store.state.show = true;
+        engine.state.show = true;
         await nextTick();
         // 重新显示：reattach 宿主 + 重新编译子树，"hi" 复现
         expect(root).toEqualHTML(`<div>
@@ -41,11 +41,11 @@ describe("x-if eager（默认：false 摘宿主 + 锚点注释 + 销毁子树）
     });
 
     test("初始为 false 时子树从不编译、宿主 detach（懒挂载）", async () => {
-        const { root, store } = mount(`<div id="t" x-if="show">hi</div>`, { show: false });
+        const { root, engine } = mount(`<div id="t" x-if="show">hi</div>`, { show: false });
         await nextTick();
         expect(root.querySelector("#t")).toBeNull();
         expect(root).toEqualHTML(`<div></div>`);
-        store.state.show = true;
+        engine.state.show = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div id="t">hi</div>
@@ -53,7 +53,7 @@ describe("x-if eager（默认：false 摘宿主 + 锚点注释 + 销毁子树）
     });
 
     test("false 销毁子树 watcher：隐藏期间变更不被订阅，重新显示重编译取最新值", async () => {
-        const { root, store } = mount(`<div id="t" x-if="show"><span x-text="msg"></span></div>`, {
+        const { root, engine } = mount(`<div id="t" x-if="show"><span x-text="msg"></span></div>`, {
             show: true,
             msg: "a",
         });
@@ -64,15 +64,15 @@ describe("x-if eager（默认：false 摘宿主 + 锚点注释 + 销毁子树）
   </div>
 </div>`);
         // 隐藏：span 子树移除、x-text watcher 销毁、宿主 detach
-        store.state.show = false;
+        engine.state.show = false;
         await nextTick();
         expect(root.querySelector("#t")).toBeNull();
         // 隐藏期间改 msg：watcher 已销毁，DOM 不变（仍空）
-        store.state.msg = "b";
+        engine.state.msg = "b";
         await nextTick();
         expect(root.querySelector("#t")).toBeNull();
         // 重新显示：重新编译子树，x-text 读取当前最新值 b
-        store.state.show = true;
+        engine.state.show = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div id="t">
@@ -100,29 +100,29 @@ describe("x-if eager（默认：false 摘宿主 + 锚点注释 + 销毁子树）
     });
 
     test("表达式 a && b 依赖多状态，切换任一即响应", async () => {
-        const { root, store } = mount(`<div id="t" x-if="a && b">x</div>`, {
+        const { root, engine } = mount(`<div id="t" x-if="a && b">x</div>`, {
             a: true,
             b: false,
         });
         await nextTick();
         expect(root.querySelector("#t")).toBeNull();
-        store.state.b = true;
+        engine.state.b = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div id="t">x</div>
 </div>`);
-        store.state.a = false;
+        engine.state.a = false;
         await nextTick();
         expect(root.querySelector("#t")).toBeNull();
     });
 
     test("多次显隐切换后状态稳定（每次 true 重编译子树）", async () => {
-        const { root, store } = mount(`<div id="t" x-if="show">x</div>`, { show: true });
+        const { root, engine } = mount(`<div id="t" x-if="show">x</div>`, { show: true });
         await nextTick();
         for (let i = 0; i < 3; i++) {
-            store.state.show = false;
+            engine.state.show = false;
             await nextTick();
-            store.state.show = true;
+            engine.state.show = true;
             await nextTick();
         }
         expect(root).toEqualHTML(`<div>
@@ -148,7 +148,7 @@ describe("x-if + x-text 同元素（宿主 scope 跨 detach 存活）", () => {
     test("eager 摘宿主时 x-text watcher 在宿主 scope 存活，reattach 反映累积最新值", async () => {
         // div 无模板子树（subtreeNodes 空），x-text 写 textContent；eager false 摘宿主但宿主
         // scope 不销毁（仅 destroyChildren 销毁子树 scope），故 x-text watcher 存活并更新 detach 的 el
-        const { root, store } = mount(`<div id="t" x-if="show" x-text="title"></div>`, {
+        const { root, engine } = mount(`<div id="t" x-if="show" x-text="title"></div>`, {
             show: true,
             title: "T1",
         });
@@ -157,16 +157,16 @@ describe("x-if + x-text 同元素（宿主 scope 跨 detach 存活）", () => {
   <div id="t">T1</div>
 </div>`);
         const el = root.querySelector("#t")!;
-        store.state.show = false;
+        engine.state.show = false;
         await nextTick();
         // 宿主 detach，但 x-text watcher 在宿主 scope 存活，更新到 detach 的 el
         expect(root.querySelector("#t")).toBeNull();
         expect(root.contains(el)).toBe(false);
-        store.state.title = "T2";
+        engine.state.title = "T2";
         await nextTick();
         expect(el.textContent).toBe("T2"); // detach 的 el 仍被 x-text 更新
         // 重新显示：reattach 原宿主，反映累积最新值 T2
-        store.state.show = true;
+        engine.state.show = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div id="t">T2</div>
@@ -176,7 +176,7 @@ describe("x-if + x-text 同元素（宿主 scope 跨 detach 存活）", () => {
 
 describe("x-if.keepalive（摘宿主但保活子树与 watcher）", () => {
     test("keepalive：false 摘宿主（注释占位）保活子树，true reattach 原宿主（状态保留）", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div id="t" x-if.keepalive="show"><span x-text="msg"></span></div>`,
             { show: true, msg: "a" },
         );
@@ -187,17 +187,17 @@ describe("x-if.keepalive（摘宿主但保活子树与 watcher）", () => {
   </div>
 </div>`);
         const el = root.querySelector("#t")!;
-        store.state.show = false;
+        engine.state.show = false;
         await nextTick();
         // 宿主 detach，子树 scope/watcher 保活（不销毁，区别于 eager）
         expect(root.querySelector("#t")).toBeNull();
         expect(root.contains(el)).toBe(false);
         // 隐藏期间改 msg：watcher 存活，patch 到 detach 的 el
-        store.state.msg = "b";
+        engine.state.msg = "b";
         await nextTick();
         expect(el.querySelector("span")!.textContent).toBe("b");
         // 重新显示：reattach 原宿主（子树状态保留）
-        store.state.show = true;
+        engine.state.show = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div id="t">
@@ -209,9 +209,12 @@ describe("x-if.keepalive（摘宿主但保活子树与 watcher）", () => {
 
 describe("x-show（独立指令：display:none，宿主永留 DOM）", () => {
     test("x-show 假时 display:none、宿主永留 DOM（区别于 x-if 的 detach）", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div id="t" x-show="show"><span x-text="msg"></span></div>`,
-            { show: true, msg: "a" },
+            {
+                show: true,
+                msg: "a",
+            },
         );
         await nextTick();
         expect(root).toEqualHTML(`<div>
@@ -220,7 +223,7 @@ describe("x-show（独立指令：display:none，宿主永留 DOM）", () => {
   </div>
 </div>`);
         const el = root.querySelector("#t")!;
-        store.state.show = false;
+        engine.state.show = false;
         await nextTick();
         // display:none，宿主永留 DOM（与 x-if 的 detach 相反）
         expect(root.contains(el)).toBe(true);
@@ -230,14 +233,14 @@ describe("x-show（独立指令：display:none，宿主永留 DOM）", () => {
   </div>
 </div>`);
         // 隐藏期间 watcher 存活
-        store.state.msg = "b";
+        engine.state.msg = "b";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div id="t" style="display: none;">
     <span>b</span>
   </div>
 </div>`);
-        store.state.show = true;
+        engine.state.show = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div id="t">
@@ -258,14 +261,14 @@ describe("x-for + eager x-if 同元素冲突", () => {
     });
 
     test("x-for + x-if.keepalive 同元素：不冲突，.keepalive detach 容器、保活项子树", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul id="t" x-for="item of items" :key="item.id" x-if.keepalive="show"><li x-text="item.name"></li></ul>`,
             { show: false, items: [{ id: 1, name: "a" }] },
         );
         await nextTick();
         // x-if.keepalive 不占 ownsChildren，与 x-for 共存；show=false 摘容器（注释占位）
         expect(root.querySelector("#t")).toBeNull();
-        store.state.show = true;
+        engine.state.show = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul id="t">
@@ -275,7 +278,7 @@ describe("x-for + eager x-if 同元素冲突", () => {
     });
 
     test("x-for + x-show 同元素：x-show display:none 控制容器显隐（保留项子树）", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul id="t" x-for="item of items" :key="item.id" x-show="show"><li x-text="item.name"></li></ul>`,
             { show: false, items: [{ id: 1, name: "a" }] },
         );
@@ -286,7 +289,7 @@ describe("x-for + eager x-if 同元素冲突", () => {
     <li>a</li>
   </ul>
 </div>`);
-        store.state.show = true;
+        engine.state.show = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul id="t">
@@ -298,19 +301,19 @@ describe("x-for + eager x-if 同元素冲突", () => {
 
 describe("eager x-if 重建后响应式恢复与反复切换无泄露", () => {
     test("false→true 重建子树后，内部响应式元素恢复订阅并持续响应", async () => {
-        const { root, store } = mount(`<div id="t" x-if="show"><span x-text="msg"></span></div>`, {
+        const { root, engine } = mount(`<div id="t" x-if="show"><span x-text="msg"></span></div>`, {
             show: true,
             msg: "a",
         });
         await nextTick();
         const xifEl = root.querySelector("#t")!;
         // 隐藏：子树（span）移除、x-text watcher 销毁、宿主 detach
-        store.state.show = false;
+        engine.state.show = false;
         await nextTick();
         expect(xifEl.querySelectorAll("span").length).toBe(0);
         expect(root.contains(xifEl)).toBe(false);
         // 重新显示：重新编译子树，span 取当前 msg=a
-        store.state.show = true;
+        engine.state.show = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div id="t">
@@ -318,25 +321,25 @@ describe("eager x-if 重建后响应式恢复与反复切换无泄露", () => {
   </div>
 </div>`);
         // 核心：重建后再次变更 msg —— 新的 x-text watcher 必须存活并响应
-        store.state.msg = "c";
+        engine.state.msg = "c";
         await nextTick();
         expect(root.querySelector("#t span")!.textContent).toBe("c");
     });
 
     test("反复 true↔false 切换：子树 DOM 与子 scope 均不堆积（无泄露）", async () => {
-        const { root, store, engine } = mount(
-            `<div id="t" x-if="show"><span x-text="msg"></span></div>`,
-            { show: true, msg: "a" },
-        );
+        const { root, engine } = mount(`<div id="t" x-if="show"><span x-text="msg"></span></div>`, {
+            show: true,
+            msg: "a",
+        });
         await nextTick();
         const xifEl = root.querySelector("#t")!;
         const binding = scopeOf(engine, xifEl);
         expect(binding).toBeDefined();
         // 反复交替切换 6 轮（每轮 false→true 各 flush 一次）
         for (let i = 0; i < 6; i++) {
-            store.state.show = false;
+            engine.state.show = false;
             await nextTick();
-            store.state.show = true;
+            engine.state.show = true;
             await nextTick();
         }
         // 停在 true：恰好一份子树（subtreeNodes 防二次编译 → 无重复挂载）
@@ -344,11 +347,11 @@ describe("eager x-if 重建后响应式恢复与反复切换无泄露", () => {
         // 子作用域恰好 1 个（span 的 scope）—— size 不增长即子树 watcher 未堆积（无泄露）
         expect(binding!.children.size).toBe(1);
         // 最终态响应式仍正确：重建出的 watcher 活着
-        store.state.msg = "z";
+        engine.state.msg = "z";
         await nextTick();
         expect(xifEl.querySelector("span")!.textContent).toBe("z");
         // 再次隐藏：子作用域应被 destroyChildren 清空（无残留 watcher）、宿主 detach
-        store.state.show = false;
+        engine.state.show = false;
         await nextTick();
         expect(binding!.children.size).toBe(0);
         expect(xifEl.querySelectorAll("span").length).toBe(0);
@@ -449,10 +452,9 @@ describe("x-if / x-show 进出场动画（ADR-0039）", () => {
     });
 
     test("x-show 离场延迟 display:none、进场恢复显示", async () => {
-        const { root, engine } = mount(
-            `<div id="t" x-show="on" x-show-options="${OPT}">T</div>`,
-            { on: true },
-        );
+        const { root, engine } = mount(`<div id="t" x-show="on" x-show-options="${OPT}">T</div>`, {
+            on: true,
+        });
         await nextTick();
         engine.state.on = false;
         await nextTick();
@@ -472,10 +474,9 @@ describe("x-if / x-show 进出场动画（ADR-0039）", () => {
     });
 
     test("x-show 抢占：离场中翻真 → 终态可见且播进场（决策 7）", async () => {
-        const { root, engine } = mount(
-            `<div id="t" x-show="on" x-show-options="${OPT}">T</div>`,
-            { on: true },
-        );
+        const { root, engine } = mount(`<div id="t" x-show="on" x-show-options="${OPT}">T</div>`, {
+            on: true,
+        });
         await nextTick();
         engine.state.on = false;
         await nextTick();
@@ -534,7 +535,9 @@ describe("x-if / x-show 进出场动画（ADR-0039）", () => {
         await nextTick();
         engine.state.on = false;
         await nextTick();
-        expect(root.querySelector<HTMLElement>("#t")!.classList.contains("fade-leave-active")).toBe(true);
+        expect(root.querySelector<HTMLElement>("#t")!.classList.contains("fade-leave-active")).toBe(
+            true,
+        );
         engine.destroy();
         expect(root.innerHTML).toBe("");
     });

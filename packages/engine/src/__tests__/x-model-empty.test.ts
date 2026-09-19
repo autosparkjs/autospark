@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
-import { AutoStore, ConfigManager, configurable } from "autostore";
+import { ConfigManager, configurable } from "autostore";
 import { AutoSpark } from "../engine";
 import { mount, nextTick } from "./helpers";
 
@@ -27,7 +27,9 @@ describe("x-model 空值回填：text-like", () => {
     test("emptyValues 附加：[0] 后 0 也算空", async () => {
         const { root, engine } = mount(
             `<input x-model="n" x-model-options="{emptyValues:[0]}" />`,
-            { n: 0 },
+            {
+                n: 0,
+            },
         );
         expect((root.querySelector("input") as HTMLInputElement).value).toBe("");
         // 1 不在空值集，正常显示
@@ -39,7 +41,9 @@ describe("x-model 空值回填：text-like", () => {
     test("default 模板静态值：空值时回填显示", async () => {
         const { root, engine } = mount(
             `<input x-model="a" x-model-options="{default:'未填写'}" />`,
-            { a: null },
+            {
+                a: null,
+            },
         );
         expect((root.querySelector("input") as HTMLInputElement).value).toBe("未填写");
         // 运行中变空 → 弹回 default（Q4-b 无条件判定）
@@ -78,9 +82,10 @@ describe("x-model 空值回填：schema default", () => {
             { load: async () => ({}), save: async () => {} },
             { autoload: false, global: false },
         );
-        const store = new AutoStore(state, { configManager, configKey: "app" } as any);
-        const engine = new AutoSpark(root, store);
-        return { root, store, engine, configManager };
+        const engine = new AutoSpark(root, state, {
+            storeOptions: { configManager, configKey: "app" } as any,
+        });
+        return { root, engine, configManager };
     }
 
     test("schema.default 作为第二级回填", () => {
@@ -101,7 +106,7 @@ describe("x-model 空值回填：schema default", () => {
 
 describe("x-model 空值回填：select 首项默认", () => {
     test("空值无 default → 勾中首个 option（含 optgroup 内首个），不回写 state", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<select x-model="car" x-model-options="{group:'category',choices:[
                 {value:'A',label:'甲',category:'x'},
                 {value:'B',label:'乙',category:'x'}
@@ -112,7 +117,7 @@ describe("x-model 空值回填：select 首项默认", () => {
         const select = root.querySelector("select") as HTMLSelectElement;
         expect(select.value).toBe("A"); // 首项默认（optgroup 内第一个）
         expect(select.selectedIndex).toBe(0);
-        expect(store.state.car).toBe(undefined); // 不回写 state
+        expect(engine.state.car).toBe(undefined); // 不回写 state
     });
 
     test("default 声明优先于首项规则", async () => {
@@ -161,13 +166,18 @@ describe("x-model 空值回填：select 首项默认", () => {
                 { load: async () => ({}), save: async () => {} },
                 { autoload: false, global: false },
             );
-            const store = new AutoStore(
-                { car: configurable(undefined, { choices: [
-                    { value: "A", label: "甲" }, { value: "B", label: "乙" },
-                ] as any }) },
-                { configManager, configKey: "app" } as any,
+            new AutoSpark(
+                root,
+                {
+                    car: configurable(undefined, {
+                        choices: [
+                            { value: "A", label: "甲" },
+                            { value: "B", label: "乙" },
+                        ] as any,
+                    }),
+                },
+                { storeOptions: { configManager, configKey: "app" } as any },
             );
-            const engine = new AutoSpark(root, store);
             return { root, configManager };
         })();
         await nextTick();
@@ -206,7 +216,9 @@ describe("x-model 空值回填：get 交互与锐边", () => {
     test("判定在 get 之后：get 求值失败回退原空值 → 仍走回填", () => {
         const { root } = mount(
             `<input x-model="n" x-model-options="{get:'value.toUpperCase()'}" />`,
-            { n: null },
+            {
+                n: null,
+            },
         );
         // get(null).toUpperCase() 抛错 → _evalGet 回退原值 null → 命中空值集 → 空串显示
         expect((root.querySelector("input") as HTMLInputElement).value).toBe("");

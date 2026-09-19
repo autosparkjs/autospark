@@ -25,7 +25,7 @@
 
 ### 私有响应域
 
-默认（`x-data="{...}"`）把数据写入元素的**私有响应式域**（`store.state._scopes[scope.id]`）：子树可见、scope 间隔离，字段级细粒度更新。
+默认（`x-data="{...}"`）把数据写入元素的**私有响应式域**（`store.state.$scopes[scope.id]`）：子树可见、scope 间隔离，字段级细粒度更新。
 
 <demo html="data/local.html"/>
 
@@ -218,7 +218,7 @@ url 形态是声明式幂等取数（GET 为主）；action 形态覆盖命令�
 
 | 形态   | 写法                             | 落点                                            |
 | ------ | -------------------------------- | ----------------------------------------------- |
-| 默认   | `x-data="{a:1}"`                 | 私有域 `_scopes.<id>`（子树可见、scope 间隔离） |
+| 默认   | `x-data="{a:1}"`                 | 私有域 `$scopes.<id>`（子树可见、scope 间隔离） |
 | 挂根   | `.global` ≡ `mount:""`           | 根键 `state.a`（不设 `this.data`）              |
 | 挂路径 | `x-data-options="{mount:'x.y'}"` | `state.x.y`（merge 进容器）                     |
 
@@ -249,7 +249,7 @@ url 形态是声明式幂等取数（GET 为主）；action 形态覆盖命令�
 
 | 写法                  | 落点                                            |
 | --------------------- | ----------------------------------------------- |
-| `mount:'./x'`         | 自身容器下建 `x`（默认模式即 `_scopes.<id>.x`） |
+| `mount:'./x'`         | 自身容器下建 `x`（默认模式即 `$scopes.<id>.x`） |
 | `mount:'../shared'`   | **直接父 scope** 容器下（不跳层）               |
 | `mount:'../../deep'`  | 走两级直接父 scope                              |
 | 越顶（`..` 超出链顶） | 落根 `state.<段>`                               |
@@ -259,7 +259,7 @@ url 形态是声明式幂等取数（GET 为主）；action 形态覆盖命令�
 
 ```html
 <div x-data="{ pv: 0 }">
-  <!-- 直接父有 x-data：挂到父容器下 _scopes.<pid>.shared -->
+  <!-- 直接父有 x-data：挂到父容器下 $scopes.<pid>.shared -->
   <div x-data="{ v: 1 }" x-data-options="{mount:'../shared'}">...</div>
 </div>
 ```
@@ -268,7 +268,7 @@ url 形态是声明式幂等取数（GET 为主）；action 形态覆盖命令�
 
 - **中间路径不存在** → 逐级自动创建（`mount:'x.y'` 建出 `x:{y:{...}}`）；
 - **中途断裂**（存在但非对象，如 `state.x=5`）或**任一段是数组** → `warn` + **降级默认私有域**（数据不丢、子树照常读，只是没落到指定路径；绝不覆盖用户数据）；
-- **`mount:'_scopes.3'` 直指他域私有域** → `warn` + **放行**（后果自负：目标 scope 销毁时整删条目，挂载数据被连带蒸发）；
+- **`mount:'$scopes.3'` 直指他域私有域** → `warn` + **放行**（后果自负：目标 scope 销毁时整删条目，挂载数据被连带蒸发）；
 - **优先级**：`mount`（非空串）> `global` > 默认；两者同写 `mount` 胜出并 `warn`；`mount:""` 等价 `.global`；`mount` 值非字符串（误写 `.mount` 修饰符产生 `true`）→ `warn` + 忽略、回默认私有域。
 
 ### 嵌套作用域
@@ -339,6 +339,6 @@ engine.data(document.getElementById("block"), { times: 10 });
 - **值是 JSON 字面量，不是表达式**：`x-data="{a:1+1}"` 不会求值 `1+1`，需直接写 `{a:2}`。运行时计算用动作改 state。
 - **仅编译期注入**：`x-data` 不监听属性变化，运行时更新用 `engine.data(el, data)`。
 - **局部数据隔离**：默认模式下各 scope 的私有域互不影响；要共享就用 `mount`（指定位置）或 `.global`（挂根）。
-- **永不整体替换私有域**：内部按字段 `Object.assign`，不要试图整体替换 `_scopes[id]`。
+- **永不整体替换私有域**：内部按字段 `Object.assign`，不要试图整体替换 `$scopes[id]`。
 - **`.global` 与 `mount` 的分工**：`.global` 只挂根、不设 `this.data`（运行时改全局写 `engine.state.<键>`）；`mount` 挂任意位置、行为与默认模式同构（`this.data` / `engine.data()` 直接作用于挂载容器）。
 - **数据脚本与 x-data 的分工**：大宗数据（大 JSON、computed、configurable、watch）放 `<script type="autospark/data">`；零星覆盖放 x-data 属性（最后合并、优先级最高）。详见上方「数据脚本」小节。

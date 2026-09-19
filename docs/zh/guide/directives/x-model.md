@@ -669,6 +669,10 @@ AutoStore 的 `configManager` 为每个状态字段维护一份**字段元数据
 `AutoStore` 的 `configManager`本身也是一个`AutoStore`实例，其管理的字段元数据（schema）也是响应式的，这意味着当更新字段的元数据时，也要实时重新渲染。
 :::
 
+::: tip 默认即有 configManager
+引擎为每个 store 默认配备一个**内存 configManager**（`configKey=''`，无持久化）——`configurable` 字段自动注册 schema，`@` 手动绑定与自动注入**开箱即用**，无需任何配置。高级场景经 `options.storeOptions.configManager` 显式传入（如接 localStorage / 配置中心）；传 `false` 可完全关闭。**多个 store 共用同一 configManager 时必须显式配互异 `configKey`**，否则 fullKey 撞车。
+:::
+
 #### 手动绑定
 
 当使用`x-bind`绑定状态时，`x-bind` 值含 `@` 时，绑定来源从 `store` 状态切到 `configManager` 元数据。`@` 左侧是**配置状态路径**（定位 schema 条目），右侧是**配置属性路径**（schema 的属性，支持多段嵌套）：

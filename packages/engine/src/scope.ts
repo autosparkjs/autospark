@@ -50,14 +50,46 @@ export type AutoSparkBindingOptions = {
 export type ScopeWatchListener = (payload: { value: any }) => void;
 
 /**
+ * watch 的订阅选项（仅路径支路生效，透传给 `store.watch`，ADR-0043）。
+ *
+ * - `depth`：向后代钻取的深度（autostore 三档语义：0=仅自身重赋值、1=自身+恰好一级后代、
+ *   ≥2=自身+全部后代）。属性展开（`x-bind="obj"` 无参）用它订阅对象内部键的变更。
+ *   表达式支路（collectDependencies 读代理自动收集）无此概念，声明了也不生效。
+ */
+export interface ScopeWatchOptions {
+    depth?: number;
+}
+
+/**
+ * x-for 分页状态的只读快照（ADR-0042 分页状态读取器 `scope.paging`）。
+ * total 为估算值（pageCount×pageSize，尾页不满时高估）。
+ */
+export interface AutoSparkPagingSnapshot {
+    /** 当前页码（1-based） */
+    page: number;
+    /** 每页条数 */
+    pageSize: number;
+    /** 总页数（0=未知，load-more 模式） */
+    pageCount: number;
+    /** 是否还有下一页 */
+    hasMore: boolean;
+    /** 是否正在加载（loader 模式） */
+    loading: boolean;
+    /** 错误信息（loader 模式，无错为 null） */
+    error: string | null;
+    /** 总条数估算值（pageCount×pageSize） */
+    total: number;
+}
+
+/**
  * Q: 为什么要引入 Scope？
  * A: 一个 DOM 元素上可能挂多个指令，Scope 统一管理它们的生命周期与订阅，
  *    并在元素更新/销毁时集中清理（off watcher、递归销毁子作用域）。
  */
 export class AutoSparkScope {
-    /** scope 自增 id 计数器：作为 store.state._scopes[id] 的索引键（x-data 私有响应式域，见 DataDirective） */
+    /** scope 自增 id 计数器：作为 store.state.$scopes[id] 的索引键（x-data 私有响应式域，见 DataDirective） */
     private static _seq = 0;
-    /** 本 scope 唯一标识；仅 x-data scope 会在 store.state._scopes[id] 创建对应条目，其余 scope 不占位 */
+    /** 本 scope 唯一标识；仅 x-data scope 会在 store.state.$scopes[id] 创建对应条目，其余 scope 不占位 */
     readonly id: number;
     private _template: WeakRef<HTMLElement>;
     /** 引用实际渲染的元素 */
@@ -73,13 +105,13 @@ export class AutoSparkScope {
      */
     hostOptions: Record<string, any> | null = null;
     /**
-     * x-data 注入的私有响应式数据域（指向 `store.state._scopes[scope.id]`）。
+     * x-data 注入的私有响应式数据域（指向 `store.state.$scopes[scope.id]`）。
      *
-     * 由 `DataDirective` 在 `created()` 首次注入时令本字段指向 `store.state._scopes[id]`（core 自动
+     * 由 `DataDirective` 在 `created()` 首次注入时令本字段指向 `store.state.$scopes[id]`（core 自动
      * 建响应式代理）。**永不换引用**——`_scopeView` Proxy 闭包绑定该引用；运行时更新只 `Object.assign`
      * 原地改（见 `engine.data`），绝不整体替换。与 `locals` 同级叠加进 `getContext`。
      *
-     * 读写经 store 响应式代理 → `collectDependencies` 收集 `_scopes.<id>.<field>` 精准路径，
+     * 读写经 store 响应式代理 → `collectDependencies` 收集 `$scopes.<id>.<field>` 精准路径，
      * 字段级细粒度更新（**响应式**，无需 refresh——与 locals 的 refresh 驱动不同）。
      *
      * 父子元素的 data 经 parent 链层叠（子覆盖父同名键）；容器 x-data 经 parent 链
@@ -213,6 +245,15 @@ export class AutoSparkScope {
      * 本字段**仅在收集到组件时才创建**，多数 scope 无组件 → null，避免给每个 scope 平白分配空对象（YAGNI）。
      */
     components: Record<string, HTMLElement> | null = null;
+    /**
+     * x-for 分页状态的只读快照（ADR-0042 分页状态读取器）。
+     *
+     * 仅 x-for.paging 的容器 scope 持有：For 指令在分页状态每次变化时整体重建（Object.freeze），
+     * 供 JS/action 读取（如 `engine.findScopeByEl(el).paging!.page`）。不注入 state.$scopes、
+     * 不进聚合视图——模板内读取走 `$*` 分页变量，跨作用域共享走 `:data-paging` 绑定，三通道职责正交。
+     * 多数 scope 无分页 → null（同 components，YAGNI）；随 scope 对象回收，无需手动清理。
+     */
+    paging: AutoSparkPagingSnapshot | null = null;
     /** 缓存的聚合视图（命中优先级：locals > data > parent 链 > engine.state） */
     private _scopeView: any = null;
 
@@ -252,8 +293,7 @@ export class AutoSparkScope {
                 return k in parentView;
             },
             set(_t, k: string | symbol, val: any): boolean {
-                // 写入透传（与 get 同序：locals > data）：命中即写对应容器。
-                // data = store.state._scopes[id] 是响应式代理——写它触发细粒度更新，
+                // 写入透传（与 get 同序：locals > data）：命中即写对应容器。                 // data = store.state.$scopes[id] 是响应式代理——写它触发细粒度更新，
                 // 故 `this.data.<x-data字段> = v` 与 `with(data){ <字段>++ }` 直接生效。
                 // locals 为普通对象（x-for item），写入不响应式；未命中本层则委托父视图沿链。
                 // 视图结构（Proxy target 引用）不变，仅 set 透传底层容器，不破坏缓存复用语义。
@@ -327,7 +367,7 @@ export class AutoSparkScope {
      * 还是其后代，均可拿到"当前所在 x-data 块"的可读可写响应式代理——区别于 `getContext`
      * 返回的只读聚合视图（写已有键会抛 TypeError）。整条链均无 x-data 时返回 null。
      *
-     * data 引用恒定（DataDirective 铁律：永不整体替换 `_scopes[id]`），无需缓存；
+     * data 引用恒定（DataDirective 铁律：永不整体替换 `$scopes[id]`），无需缓存；
      * 每次调用沿链 O(深度) 查找，开销可忽略。
      */
     getData(): Record<string, any> | null {
@@ -566,13 +606,14 @@ export class AutoSparkScope {
      *
      * @returns 当前值（供指令 `compile` 初始渲染）
      */
-    watch(value: string, listener: ScopeWatchListener): any {
+    watch(value: string, listener: ScopeWatchListener, options?: ScopeWatchOptions): any {
         // 有局部数据（自身或祖先的 locals/data）时，变量可能来自局部作用域
         // （如 x-data 的 a、x-for 的 item），不能按 state 路径直接订阅——统一走表达式支路
         // （经 getContext 聚合 locals+data+state 求值）。
         if (!this.hasLocalContext() && isSimpleStatePath(value)) {
-            return this.watchPath(value, listener);
+            return this.watchPath(value, listener, options);
         }
+        // 表达式支路无 depth 概念（读代理按实际读取收集依赖），options 被忽略
         return this.watchExpression(value, listener);
     }
 
@@ -585,13 +626,17 @@ export class AutoSparkScope {
      *
      * 公开供 x-for 等指令订阅通配路径——`scope.watch` 对含 `*` 的路径会误判为表达式走
      * `with` 求值（`with(scope){return items.*}` 语法错），故通配须绕开表达式支路直连此处。
+     *
+     * `options` 透传给 `store.watch`（如 `depth` 后代钻取深度，供属性展开订阅对象内部键变更，ADR-0043）。
      */
-    watchPath(path: string, listener: ScopeWatchListener): any {
+    watchPath(path: string, listener: ScopeWatchListener, options?: ScopeWatchOptions): any {
         const store = this.engine.store;
         const read = () => getVal(store.state, path);
         const update = () => listener({ value: read() });
         this._updates.push(update);
-        this.watchers.push(store.watch(path, () => this.engine.scheduler.schedule(update)));
+        this.watchers.push(
+            store.watch(path, () => this.engine.scheduler.schedule(update), options),
+        );
         return read();
     }
 
@@ -618,8 +663,8 @@ export class AutoSparkScope {
         const safeEval = (): any => {
             try {
                 return getter(scope);
-            } catch (e: any) {
-                this.engine.logger.warn(`scope.watch: eval "${expr}" failed: ${e?.message ?? e}`);
+            } catch  {
+                //this.engine.logger.warn(`scope.watch: eval "${expr}" failed: ${e?.message ?? e}`);
                 return undefined;
             }
         };
@@ -702,8 +747,8 @@ export class AutoSparkScope {
         ) => any;
         try {
             return getter(scope);
-        } catch (e: any) {
-            this.engine.logger.warn(`scope.read: eval "${value}" failed: ${e?.message ?? e}`);
+        } catch  {
+            //this.engine.logger.warn(`scope.read: eval "${value}" failed: ${e?.message ?? e}`);
             return undefined;
         }
     }

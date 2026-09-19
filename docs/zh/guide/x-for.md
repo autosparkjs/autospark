@@ -88,15 +88,14 @@
 ```
 
 ```javascript
-const store = new AutoSpark.AutoStore({
+const engine = new AutoSpark(engineEl, {
   items: [...],
   currentIndex: 0,
   targetIndex: 0
-});
-const engine = new AutoSpark(engineEl, store, {
+}, {
   actions: {
     scrollTo(index) {
-      store.state.currentIndex = Number(index) || 0;
+      engine.state.currentIndex = Number(index) || 0;
     }
   }
 });

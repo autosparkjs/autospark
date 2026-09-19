@@ -1,6 +1,6 @@
 # ADR-0009：构造器第二参接受 `store | state`（自建 store 归 engine 销毁）
 
-- **状态**：Accepted（Round 3，grill-with-docs）｜⏳ 实现待落地（决策已定，业务代码未改）
+- **状态**：Accepted（Round 3，grill-with-docs）｜⏳ 实现待落地（决策已定，业务代码未改）｜**部分被 [ADR-0044](0044-store-ownership-and-default-configmanager.md) 取代（2026-09-19）**：借用轨（决策 1/2 的实例入参）移除、`storeOptions` 改恒消费（决策 4）；决策 3 判别（isAutoStore）保留用于实例入参 throw、决策 5 静默兜空与决策 6（child engine 传 `{}`）不变
 - **日期**：2026-08-08
 - **关联**：[glossary.md](../glossary.md)、[ADR-0006](0006-x-slot-directive.md)（child engine 构造——本 ADR 决策 6 修订其决策 4 / 实现注记）
 

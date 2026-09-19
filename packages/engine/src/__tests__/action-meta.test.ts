@@ -262,7 +262,7 @@ describe("action 元数据化（ADR-0036 ActionDesc）", () => {
         }
     });
 
-    test("内置信号语义：@click=\"close(1)\" 触发，resolved 广播透传载荷 result=1", async () => {
+    test('内置信号语义：@click="close(1)" 触发，resolved 广播透传载荷 result=1', async () => {
         const seen: any[] = [];
         const { root } = mount(
             `<div id="dialog">
@@ -332,8 +332,7 @@ describe("action 元数据化（ADR-0036 ActionDesc）", () => {
             },
         );
         await nextTick();
-        await nextTick();
-        // 数据 merge 进 x-data 私有域（_scopes），x-text 细粒度更新
+        await nextTick();         // 数据 merge 进 x-data 私有域（$scopes），x-text 细粒度更新
         expect(root.querySelector("#d")?.textContent).toContain("AutoSpark");
     });
 });

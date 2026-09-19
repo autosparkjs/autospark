@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-bind · 属性展开</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- x-bind="attrs" 无参形态：整对象展开为 N 个属性（ADR-0043）
+             attrs 含 class 对象（与静态 tag 类合并）、title、data-kind（自定义属性）、label 供插值显示 -->
+        <div class="demo-app section">
+            <div class="block">
+                <span class="tag is-medium" x-bind="attrs">{{ attrs.label }}</span>
+            </div>
+            <div class="buttons">
+                <button class="button is-primary" @click="toggleKind">整组替换（在线/离线）</button>
+                <button class="button" @click="editTitle">改子键 title（depth:2 响应）</button>
+                <button class="button" @click="addKey">新增键 data-n（动态加属性）</button>
+            </div>
+            <div class="block has-text-grey">
+                <p>展开结果（查看元素属性）：<code>title</code> / <code>data-kind</code> / <code>class</code>（与静态 <code>tag</code> 合并）/ 动态 <code>data-n</code></p>
+            </div>
+        </div>
+
+        <script>
+            const online = {
+                label: "在线",
+                title: "当前在线",
+                "data-kind": "online",
+                class: { "is-primary": true },
+            };
+            const offline = {
+                label: "离线",
+                title: "已离线",
+                "data-kind": "offline",
+                class: { "is-danger": true },
+            };
+            let n = 0;
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { attrs: online },
+                {
+                    actions: {
+                        // 整体替换：整组属性重展开
+                        toggleKind: () => {
+                            const isOnline = engine.state.attrs["data-kind"] === "online";
+                            engine.state.attrs = isOnline ? offline : online;
+                        },
+                        // 子键修改：depth:2 订阅直接触发重展开
+                        editTitle: () => {
+                            engine.state.attrs.title = `手动改过 ${++n} 次`;
+                        },
+                        // 新增键：同样触发重展开
+                        addKey: () => {
+                            engine.state.attrs["data-n"] = String(++n);
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

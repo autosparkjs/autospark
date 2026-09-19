@@ -1,4 +1,3 @@
-import { AutoStore } from "autostore";
 import { AutoSpark } from "../engine";
 import type { AutoSparkOptions } from "../types";
 
@@ -16,13 +15,12 @@ export const nextTick = () => new Promise<void>((r) => setTimeout(r, 0));
  */
 export const finishAnim = (el: Element) => el.dispatchEvent(new Event("transitionend"));
 
-/** 把 HTML 挂到一个 detached 容器并启动引擎（autostart 默认 true） */
+/** 把 HTML 挂到一个 detached 容器并启动引擎（autostart 默认 true；state 经 engine 自建 store） */
 export function mount(html: string, state: any, options?: Partial<AutoSparkOptions>) {
     const root = document.createElement("div");
     root.innerHTML = html.trim();
-    const store = new AutoStore(state);
-    const engine = new AutoSpark(root, store, options);
-    return { root, store, engine };
+    const engine = new AutoSpark(root, state, options);
+    return { root, engine };
 }
 
 // formatHTML 单独放 ./format（不 import engine），便于 setup.ts 早期注册 matcher

@@ -66,7 +66,7 @@ oxfmt
 
 ### 关键域约定（改动前必读对应 ADR）
 
-- `store.state._scopes` 是**框架保留键**（x-data 私有响应式域容器）；x-data 只 `Object.assign` 进 `_scopes[id]`，**永不整体替换容器**（ADR-0029 mount 三形态）。
+- `store.state.$scopes` 是**框架保留键**（x-data 私有响应式域容器）；x-data 只 `Object.assign` 进 `$scopes[id]`，**永不整体替换容器**（ADR-0029 mount 三形态）。
 - action 三入口（构造 `options.actions`、`engine.actions` Proxy 赋值、`<script type="autospark/actions">`）统一经 `src/actions/`（ActionManager）包装，自动广播 `actions/<name>/*` 生命周期信号（x-loading 消费）；script type 已命名空间化（ADR-0031，旧写法 warn 剪枝）。
 - 组件（ADR-0022）：`x-component` 编译期剪枝、冻结快照挂最近祖先 `scope.components`；`x-use` 实例化；`getComponent` 沿 scope 链就近查找 + `options.components` 全局兜底。
 - 冲突防护：`engine.patch` 拒绝落入动态区域（x-for / eager x-if / x-slot 祖先链内）。

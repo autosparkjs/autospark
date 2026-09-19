@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
-import { AutoStore, ConfigManager, computed, configurable } from "autostore";
+import { ConfigManager, computed, configurable } from "autostore";
 import { AutoSpark } from "../engine";
 import { mount, nextTick } from "./helpers";
 
@@ -18,23 +18,20 @@ import { mount, nextTick } from "./helpers";
  */
 
 /** 带 configManager 的挂载辅助（schema choices/multiple/注入白名单场景） */
-function mountWithConfig(
-    html: string,
-    state: any,
-    opts: { configKey?: string } = {},
-) {
+function mountWithConfig(html: string, state: any, opts: { configKey?: string } = {}) {
     const root = document.createElement("div");
     root.innerHTML = html.trim();
     const configManager = new ConfigManager(
         { load: async () => ({}), save: async () => {} },
         { autoload: false, global: false },
     );
-    const store = new AutoStore(state, {
-        configManager,
-        configKey: opts.configKey,
-    } as any);
-    const engine = new AutoSpark(root, store);
-    return { root, store, engine, configManager };
+    const engine = new AutoSpark(root, state, {
+        storeOptions: {
+            configManager,
+            configKey: opts.configKey,
+        } as any,
+    });
+    return { root, engine, configManager };
 }
 
 const CARS = [
@@ -71,7 +68,7 @@ describe("x-model select：静态模式（最高优先）", () => {
     });
 
     test("静态模式 DOM→state 写入", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<select x-model="car">
                 <option value="ZEEKR">极氪</option>
                 <option value="NIO">蔚来</option>
@@ -82,7 +79,7 @@ describe("x-model select：静态模式（最高优先）", () => {
         select.value = "ZEEKR";
         select.dispatchEvent(new Event("change", { bubbles: true }));
         await nextTick();
-        expect(store.state.car).toBe("ZEEKR");
+        expect(engine.state.car).toBe("ZEEKR");
     });
 
     test("静态模式：schema.choices 存在也被忽略（不渲染 choices）", () => {
@@ -145,7 +142,7 @@ describe("x-model select：模板 choices（x-model-options）", () => {
     });
 
     test("模板 choices 双向 + 外部改 state 联动", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<select x-model="car" x-model-options="{choices:[{value:'ZEEKR',label:'极氪'},{value:'NIO',label:'蔚来'}]}"></select>`,
             { car: "ZEEKR" },
         );
@@ -153,9 +150,9 @@ describe("x-model select：模板 choices（x-model-options）", () => {
         select.value = "NIO";
         select.dispatchEvent(new Event("change", { bubbles: true }));
         await nextTick();
-        expect(store.state.car).toBe("NIO");
+        expect(engine.state.car).toBe("NIO");
 
-        store.state.car = "ZEEKR";
+        engine.state.car = "ZEEKR";
         await nextTick();
         expect(select.value).toBe("ZEEKR");
     });
@@ -224,7 +221,7 @@ describe("x-model select：multiple 多选", () => {
     });
 
     test("DOM→state 写 string[]", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<select multiple x-model="cars" x-model-options="{choices:[
                 {value:'ZEEKR',label:'极氪'},{value:'NIO',label:'蔚来'}
             ]}"></select>`,
@@ -235,11 +232,11 @@ describe("x-model select：multiple 多选", () => {
         select.options[1]!.selected = true;
         select.dispatchEvent(new Event("change", { bubbles: true }));
         await nextTick();
-        expect(store.state.cars).toEqual(["ZEEKR", "NIO"]);
+        expect(engine.state.cars).toEqual(["ZEEKR", "NIO"]);
     });
 
     test(".multiple 修饰符等价静态属性", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<select x-model.multiple="cars" x-model-options="{choices:[
                 {value:'ZEEKR',label:'极氪'},{value:'NIO',label:'蔚来'}
             ]}"></select>`,
@@ -252,7 +249,7 @@ describe("x-model select：multiple 多选", () => {
         select.options[0]!.selected = true;
         select.dispatchEvent(new Event("change", { bubbles: true }));
         await nextTick();
-        expect(store.state.cars).toEqual(["ZEEKR", "NIO"]);
+        expect(engine.state.cars).toEqual(["ZEEKR", "NIO"]);
     });
 
     test("schema.multiple 注入（无显式声明时生效）", () => {
@@ -264,7 +261,7 @@ describe("x-model select：multiple 多选", () => {
     });
 
     test("多选 + .number 逐项过管道", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<select multiple x-model.number="nums" x-model-options="{choices:[
                 {value:'1',label:'一'},{value:'2',label:'二'}
             ]}"></select>`,
@@ -275,13 +272,13 @@ describe("x-model select：multiple 多选", () => {
         select.options[1]!.selected = true;
         select.dispatchEvent(new Event("change", { bubbles: true }));
         await nextTick();
-        expect(store.state.nums).toEqual([1, 2]); // 数字而非字符串
+        expect(engine.state.nums).toEqual([1, 2]); // 数字而非字符串
     });
 });
 
 describe("x-model select：schema choices 响应式", () => {
     test("schema.choices 渲染 + 变更全量重建 + 选中重放", async () => {
-        const { root, configManager } = mountWithConfig(
+        const { root, engine, configManager } = mountWithConfig(
             `<select x-model="car"></select>`,
             { car: configurable("ZEEKR", { choices: CARS as any }) },
             { configKey: "app" },
@@ -314,21 +311,23 @@ describe("x-model select：schema choices 响应式", () => {
 
     test("重建后 state 值无匹配 → 自动选中首项并回写（ADR-0028 默认开启）；autoSelect:false 退回旧行为", async () => {
         // 默认 autoSelect=true：值不在集 → 选首项 + 回写
-        const { root, store, configManager } = mountWithConfig(
+        const { root, engine, configManager } = mountWithConfig(
             `<select x-model="car"></select>`,
             { car: configurable("ZEEKR", { choices: CARS as any }) },
             { configKey: "app" },
         );
         const select = root.querySelector("select") as HTMLSelectElement;
-        (configManager.state as any)["app.car"].choices = [
-            { value: "TESLA", label: "特斯拉" },
-        ];
+        (configManager.state as any)["app.car"].choices = [{ value: "TESLA", label: "特斯拉" }];
         await nextTick();
         expect(select.value).toBe("TESLA"); // 自动选中首项
-        expect(store.state.car).toBe("TESLA"); // 回写 state（级联链闭合）
+        expect(engine.state.car).toBe("TESLA"); // 回写 state（级联链闭合）
 
         // autoSelect:false：退回旧行为（不勾中、不回写）
-        const { root: r2, store: s2, configManager: cm2 } = mountWithConfig(
+        const {
+            root: r2,
+            engine: e2,
+            configManager: cm2,
+        } = mountWithConfig(
             `<select x-model="car" x-model-options="{autoSelect:false}"></select>`,
             { car: configurable("ZEEKR", { choices: CARS as any }) },
             { configKey: "app" },
@@ -337,13 +336,13 @@ describe("x-model select：schema choices 响应式", () => {
         (cm2.state as any)["app.car"].choices = [{ value: "TESLA", label: "特斯拉" }];
         await nextTick();
         expect(select2.selectedIndex).toBe(-1);
-        expect(s2.state.car).toBe("ZEEKR"); // state 不被修正（旧行为）
+        expect(e2.state.car).toBe("ZEEKR"); // state 不被修正（旧行为）
     });
 });
 
 describe("x-model select：schema 响应式完整性（字段联动）", () => {
     test("choices 为 computed：引用主 store 字段级联重建（province→city 联动）", async () => {
-        const { root, store, configManager } = mountWithConfigComputed(
+        const { root, engine, configManager } = mountWithConfigComputed(
             `<select x-model="city"></select>`,
             {
                 province: "zj",
@@ -369,25 +368,25 @@ describe("x-model select：schema 响应式完整性（字段联动）", () => {
         expect(select.value).toBe("hz");
 
         // 联动：改 province → computed choices 重算 → 选项重建 → 值不在集自动选中首项并回写（ADR-0028）
-        store.state.province = "js";
+        engine.state.province = "js";
         await nextTick();
         expect(select.options.length).toBe(2);
         expect(select.options[0]!.textContent).toBe("南京");
         // city "hz" 不在江苏选项集 → 自动选中首项 "nj" + 回写 state（级联链闭合）
         expect(select.value).toBe("nj");
-        expect(store.state.city).toBe("nj");
+        expect(engine.state.city).toBe("nj");
 
         // 切回 zj → 选项恢复 → "nj" 不在浙江集 → 自动选回 "hz"
-        store.state.province = "zj";
+        engine.state.province = "zj";
         await nextTick();
         expect(select.options[0]!.textContent).toBe("杭州");
         expect(select.value).toBe("hz");
-        expect(store.state.city).toBe("hz");
+        expect(engine.state.city).toBe("hz");
         void configManager;
     });
 
     test("enable 联动：schema.enable 为 computed 控制禁用", async () => {
-        const { root, store } = mountWithConfigComputed(`<select x-model="city"></select>`, {
+        const { root, engine } = mountWithConfigComputed(`<select x-model="city"></select>`, {
             locked: false,
             city: configurable("hz", {
                 enable: computed((scope: any, { ref }: any) => !ref("locked")),
@@ -400,7 +399,7 @@ describe("x-model select：schema 响应式完整性（字段联动）", () => {
         await nextTick();
         const select = root.querySelector("select") as HTMLSelectElement;
         expect(select.disabled).toBe(false);
-        store.state.locked = true;
+        engine.state.locked = true;
         await nextTick();
         expect(select.disabled).toBe(true);
     });
@@ -414,9 +413,10 @@ function mountWithConfigComputed(html: string, state: any) {
         { load: async () => ({}), save: async () => {} },
         { autoload: false, global: false },
     );
-    const store = new AutoStore(state, { configManager, configKey: "" } as any);
-    const engine = new AutoSpark(root, store);
-    return { root, store, engine, configManager };
+    const engine = new AutoSpark(root, state, {
+        storeOptions: { configManager, configKey: "" } as any,
+    });
+    return { root, engine, configManager };
 }
 
 describe("x-model select：边界", () => {
@@ -468,7 +468,7 @@ describe("x-model select：边界", () => {
 
     test("默认事件 change：input 事件不触发写入", async () => {
         // 注：seed 须是选项集内的值——空串 "" 不在集会被 autoSelect 即时回写（ADR-0028）
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<select x-model="car" x-model-options="{choices:[{value:'A',label:'甲'},{value:'B',label:'乙'}]}"></select>`,
             { car: "B" },
         );
@@ -476,11 +476,11 @@ describe("x-model select：边界", () => {
         select.value = "A";
         select.dispatchEvent(new Event("input", { bubbles: true }));
         await nextTick();
-        expect(store.state.car).toBe("B"); // input 不写
+        expect(engine.state.car).toBe("B"); // input 不写
 
         select.dispatchEvent(new Event("change", { bubbles: true }));
         await nextTick();
-        expect(store.state.car).toBe("A"); // change 写
+        expect(engine.state.car).toBe("A"); // change 写
     });
 
     test("state undefined → warn + 不动 DOM（浏览器显示首项锐边）", async () => {

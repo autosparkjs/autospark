@@ -14,7 +14,7 @@ import { mount, nextTick } from "./helpers";
 /** watch 侦听体的全局捕获槽（script 在 new Function 全局作用域求值，无法闭包测试变量） */
 const spy = globalThis as any;
 
-describe("数据脚本 <script type=\"autospark/data\">（ADR-0032）", () => {
+describe('数据脚本 <script type="autospark/data">（ADR-0032）', () => {
     beforeEach(() => {
         spy.__dsWatchLog = undefined;
     });
@@ -370,7 +370,7 @@ describe("数据脚本 <script type=\"autospark/data\">（ADR-0032）", () => {
             {},
         );
         expect(root.querySelector("span")?.textContent).toBe("hi");
-        const scopes = (engine.state as any)._scopes as Record<string, any>;
+        const scopes = (engine.state as any).$scopes as Record<string, any>;
         expect(Object.keys(scopes).length).toBeGreaterThan(0);
         engine.destroy();
         expect(Object.keys(scopes).length).toBe(0);

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
-import { AutoStore, ConfigManager, configurable } from "autostore";
+import { ConfigManager, configurable } from "autostore";
 import { AutoSpark } from "../engine";
 import { nextTick } from "./helpers";
 
@@ -46,12 +46,13 @@ function mountWithConfig(
             },
             { autoload: false, global: false },
         );
-    const store = new AutoStore(state, {
-        configManager,
-        configKey: opts.configKey,
-    } as any);
-    const engine = new AutoSpark(root, store);
-    return { root, store, engine, configManager };
+    const engine = new AutoSpark(root, state, {
+        storeOptions: {
+            configManager,
+            configKey: opts.configKey,
+        } as any,
+    });
+    return { root, engine, configManager };
 }
 
 describe("x-bind @ 配置引用：基础", () => {
@@ -144,12 +145,20 @@ describe("x-bind @ 配置引用：响应式更新", () => {
             { load: async () => ({}), save: async () => {} },
             { autoload: false, global: false },
         );
-        const s1 = mountWithConfig(`<input :placeholder="name@placeholder"/>`, {
-            name: cfg("a", { placeholder: "应用一" }),
-        }, { configKey: "app1", configManager: cm });
-        const s2 = mountWithConfig(`<input :placeholder="name@placeholder"/>`, {
-            name: cfg("b", { placeholder: "应用二" }),
-        }, { configKey: "app2", configManager: cm });
+        const s1 = mountWithConfig(
+            `<input :placeholder="name@placeholder"/>`,
+            {
+                name: cfg("a", { placeholder: "应用一" }),
+            },
+            { configKey: "app1", configManager: cm },
+        );
+        const s2 = mountWithConfig(
+            `<input :placeholder="name@placeholder"/>`,
+            {
+                name: cfg("b", { placeholder: "应用二" }),
+            },
+            { configKey: "app2", configManager: cm },
+        );
         expect(s1.root.querySelector("input")!.getAttribute("placeholder")).toBe("应用一");
         expect(s2.root.querySelector("input")!.getAttribute("placeholder")).toBe("应用二");
     });
@@ -190,8 +199,15 @@ describe("x-bind @ 配置引用：三层降级", () => {
     test("configManager 不存在 → warn + 静默（不动 DOM）", () => {
         const root = document.createElement("div");
         root.innerHTML = `<input :placeholder="order.price@placeholder"/>`;
-        const store = new AutoStore({ order: { price: 1 } });
-        expect(() => new AutoSpark(root, store)).not.toThrow();
+        // ADR-0044 三态之 false：显式关闭 configManager
+        expect(
+            () =>
+                new AutoSpark(
+                    root,
+                    { order: { price: 1 } },
+                    { storeOptions: { configManager: false } },
+                ),
+        ).not.toThrow();
         // 无 configManager → 不动 DOM，input 无 placeholder 属性
         expect(root.querySelector("input")!.hasAttribute("placeholder")).toBe(false);
     });
@@ -305,13 +321,16 @@ describe("x-model 元数据注入：enable 联动复用 .invert（ADR-0025 修�
     });
 
     test("显式 :disabled 优先抑制合成（含 .invert 形态）", async () => {
-        const { root, store } = mountWithConfig(
+        const { root, engine } = mountWithConfig(
             `<input x-model="user.name" :disabled="locked"/>`,
-            { user: { name: cfg("zhang", { enable: false }) }, locked: true },
+            {
+                user: { name: cfg("zhang", { enable: false }) },
+                locked: true,
+            },
         );
         const input = root.querySelector("input")!;
         expect(input.disabled).toBe(true); // 显式绑定生效
-        store.state.locked = false;
+        engine.state.locked = false;
         await nextTick();
         expect(input.disabled).toBe(false); // 显式绑定驱动，schema.enable=false 被抑制
     });

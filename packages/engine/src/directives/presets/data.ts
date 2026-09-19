@@ -11,7 +11,7 @@ import type { DataScriptStash } from "../../compile/dataScript";
 /**
  * 挂载模式（由 mount/global 选项规范化得出，ADR-0029）：
  *
- * - `local`：默认私有域 `_scopes.<id>`（独占容器，destroy 整删条目）；
+ * - `local`：默认私有域 `$scopes.<id>`（独占容器，destroy 整删条目）；
  * - `root`：`.global`（≡ `mount:""`）——合并进根键（共享容器，键级 CAS 回收）；
  * - `path`：`mount:'x.y'`——逐级解析挂载路径，`_data` 指向挂载容器代理（与 local 同构的
  *   行为红利：子树直读 + 全树路径读 + this.data/engine.data 直写），键级 CAS + 删空回收。
@@ -49,9 +49,9 @@ type ResolvedMount = {
  *
  * **统一挂载模型（ADR-0029）——数据总要挂进全局状态树的某个容器，`mount` 选项指定挂在哪**：
  *
- * - **默认**（`x-data="{a:1}"`）：数据写入**私有响应式域** `store.state._scopes[scope.id]`
+ * - **默认**（`x-data="{a:1}"`）：数据写入**私有响应式域** `store.state.$scopes[scope.id]`
  *   （`scope.data` 指向该 store 代理对象）。经 `getContext` 与 localData 同级叠加暴露，
- *   子树可见、scope 间隔离。读写经 store → `collectDependencies` 收集 `_scopes.<id>.<field>` 精准路径，
+ *   子树可见、scope 间隔离。读写经 store → `collectDependencies` 收集 `$scopes.<id>.<field>` 精准路径，
  *   字段级细粒度更新，**无需 refresh**。
  * - **根**（`x-data.global="{a:1}"` ≡ `x-data-options="{mount:''}"`）：数据**合并进全局 AutoStore
  *   根键**（`store.state.a=1`），所有 scope 可见。**不设 `scope._data`、不改变 scope 任何行为**——
@@ -70,7 +70,7 @@ type ResolvedMount = {
  *   - `../x` = 直接父 scope 容器下（**不跳层**）；每多一级 `..` 多走一个 parent；
  *   - **越顶落根**：`..` 上溯超出链顶 → 停在根 `store.state`（与 x-teleport 越界到 body 同构）；
  *   - **无容器则创建**：`./` / `..` 命中的 scope 无 `_data` → 就地创建空私有域
- *     （`_scopes[pid]={}` + 设 `_data` + `invalidateScopeView()`，复用 `engine.data()` 先例），
+ *     （`$scopes[pid]={}` + 设 `_data` + `invalidateScopeView()`，复用 `engine.data()` 先例），
  *     含 x-for item scope（数据随 item 生死）；
  * - `.nearest` 修饰符（≡ `nearest:true`）：改变每级 `..` 的步进单位——从「直接父 scope」变为
  *   「最近的持有 `_data` 的祖先 scope」（跳过占位 scope）；`./x` 仍指自身容器；上溯无数据祖先
@@ -83,7 +83,7 @@ type ResolvedMount = {
  * **无效路径降级**：挂载路径中途断裂（存在但非对象，如 `state.x=5`）或任一段是数组 →
  * `logger.warn` + **降级默认私有域**（数据不丢、子树 `{{a}}` 照常，只是没落到指定路径）。
  * 「自动创建」只对「不存在」生效；「存在但类型不符」是用户数据冲突，绝不覆盖。
- * `mount:'_scopes.3'` 直指他域 = warn + **放行**（后果自负：目标 scope 销毁时整删条目会连带蒸发
+ * `mount:'$scopes.3'` 直指他域 = warn + **放行**（后果自负：目标 scope 销毁时整删条目会连带蒸发
  * 挂载数据，且两条销毁路径互相踩）。
  *
  * **仅编译期注入，不监听运行时变更**：本指令只在 `created` 解析 x-data 属性值并写入数据域——
@@ -99,8 +99,8 @@ type ResolvedMount = {
  * 自动透传进各 item scope。x-for 的 localData（item/$index 等）仍为普通对象、靠 x-for 自身的
  * refresh 驱动——本指令只负责 data 的响应式化。
  *
- * **铁律：永不整体替换 `_scopes[id]`**——`scope.data` 闭包绑定该 store 代理引用，
- * 写入只 `Object.assign` 原地改、`delete` 消失键，绝不 `store.state._scopes[id] = newObj`，
+ * **铁律：永不整体替换 `$scopes[id]`**——`scope.data` 闭包绑定该 store 代理引用，
+ * 写入只 `Object.assign` 原地改、`delete` 消失键，绝不 `store.state.$scopes[id] = newObj`，
  * 否则 data 指向旧代理、新数据写不进。
  *
  * **优先级 = 200**（最高，> x-for 100）：保证 `created()` 最先执行，在兄弟指令 `watch()` 缓存
@@ -183,7 +183,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
      * - 相对（`'./x'` / `'../a/b'`，以 `.` / `..` 开头、段间 `/` 分隔）→ 先解析相对段
      *   （`./` = 自身容器、每级 `..` 上溯、越顶落根、无容器则创建），再把后续 `/` 段拼到容器路径后；
      * - 每段（含拼接结果）做「存在且非对象/数组」断裂校验，断裂 → warn + 返回 null（降级 local）；
-     * - 指向 `_scopes` 命名空间 → warn + 放行（后果自负）。
+     * - 指向 `$scopes` 命名空间 → warn + 放行（后果自负）。
      *
      * @returns 绝对路径段数组（空数组 = 根）；无效返回 null
      */
@@ -211,11 +211,9 @@ export class DataDirective extends AutoSparkDirectiveBase {
         if (base.some((s) => s === "")) {
             this.warn(`x-data: mount 路径 "${mount}" 含空段，无效，已降级默认私有域`);
             return null;
-        }
-        // _scopes 命名空间：warn + 放行（目标 scope 销毁会整删条目，连带蒸发挂载数据，后果自负）
+        }         // $scopes 命名空间：warn + 放行（目标 scope 销毁会整删条目，连带蒸发挂载数据，后果自负）
         if (base[0] === SCOPES_KEY) {
-            this.warn(
-                `x-data: mount 路径 "${mount}" 直指引擎保留容器 _scopes，目标 scope 销毁时挂载数据将被连带删除，后果自负`,
+            this.warn(                 `x-data: mount 路径 "${mount}" 直指引擎保留容器 $scopes，目标 scope 销毁时挂载数据将被连带删除，后果自负`,
             );
         }
         // 断裂校验：沿根下钻，任一段「存在但非对象」或「是数组」→ warn + 降级 local（绝不覆盖用户数据）
@@ -245,7 +243,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
      *   - `nearest` 基准（`.nearest`）：走**最近的持有 `_data` 的祖先 scope**（跳过占位 scope），
      *     上溯途中再无数据祖先 → 落根（返回 `[]`）；
      *   - 越顶（无父可走）→ 落根 `[]`；
-     * - 目标容器是私有域 → 返回 `['_scopes', String(id)]`；落根 → `[]`。
+     * - 目标容器是私有域 → 返回 `['$scopes', String(id)]`；落根 → `[]`。
      */
     private resolveRelativeBase(ups: number): string[] | null {
         const scope = this.binding;
@@ -271,8 +269,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
             ensureScopeData(this.engine, target);
             return scopeDataSegments(target);
         }
-        // nearest：每级 .. 走最近持有 _data 的祖先；上溯无数据祖先 → 落根。
-        // 目标容器可能是挂载容器（path 模式的 _data 不在 _scopes 下）——此时返回目标 scope 自身的
+        // nearest：每级 .. 走最近持有 _data 的祖先；上溯无数据祖先 → 落根。         // 目标容器可能是挂载容器（path 模式的 _data 不在 $scopes 下）——此时返回目标 scope 自身的
         // mountSegments（其 DataDirective 实例上已解析）。
         for (let i = 0; i < ups; i++) {
             let p: AutoSparkScope | null = target?.parent ?? null;
@@ -605,7 +602,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
     /**
      * local / path 模式统一入口：定位（或创建）数据容器，把数据 merge 进去。
      *
-     * - local：容器 = `_scopes[scope.id]`（首次写入时建立 `scope._data` 指向，此后永不换引用）；
+     * - local：容器 = `$scopes[scope.id]`（首次写入时建立 `scope._data` 指向，此后永不换引用）；
      * - path：容器 = 挂载路径逐级下钻（缺失中间段逐级自动创建并登记 createdSegments 供回收），
      *   `scope._data` 指向挂载容器代理。
      *
@@ -626,7 +623,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
         Object.assign(scope._data!, data);
     }
 
-    /** local 模式：取（不存在则建）本 scope 的私有响应式域容器 `_scopes[id]` */
+    /** local 模式：取（不存在则建）本 scope 的私有响应式域容器 `$scopes[id]` */
     private ensureLocalContainer(): Record<string, any> {
         const scopes = (this.engine.store.state as Record<string, any>)[SCOPES_KEY] as Record<
             string,
@@ -734,8 +731,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
             }
             this.attachedKeys.clear();
             return;
-        }
-        // local 模式：回收本 scope 的私有响应式域（_scopes 容器保留，仅清该 [id] 条目）
+        }         // local 模式：回收本 scope 的私有响应式域（$scopes 容器保留，仅清该 [id] 条目）
         const scopes = state[SCOPES_KEY] as Record<string, any> | undefined;
         if (scopes) delete scopes[this.binding.id];
     }
@@ -743,7 +739,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
 
 /**
  * 确保 scope 持有数据容器（「无容器则创建」，ADR-0029 决策 5）：无 `_data` 时为其创建空私有域
- * `_scopes[id]={}` 并失效视图缓存。复用 `engine.data()` 的既有先例（engine.ts 无 data 分支）。
+ * `$scopes[id]={}` 并失效视图缓存。复用 `engine.data()` 的既有先例（engine.ts 无 data 分支）。
  *
  * 供相对挂载 `./` / `..`（parent 基准）命中「无 `_data` 的 scope」时调用——含 x-for item scope
  * （数据随 item 生死）。**不写任何数据键**，仅建容器；数据键由 applyToContainer merge。
@@ -758,8 +754,8 @@ function ensureScopeData(engine: { store: { state: any } }, scope: AutoSparkScop
 }
 
 /**
- * 取 scope 数据容器的绝对路径段：私有域 → `['_scopes', String(id)]`；挂载容器（path 模式的
- * `_data` 不在 `_scopes` 下）→ 取该 scope 上 DataDirective 实例已解析的 mountSegments。
+ * 取 scope 数据容器的绝对路径段：私有域 → `['$scopes', String(id)]`；挂载容器（path 模式的
+ * `_data` 不在 `$scopes` 下）→ 取该 scope 上 DataDirective 实例已解析的 mountSegments。
  *
  * 供 nearest 上溯命中「path 模式祖先」时取其真实容器路径（parent 基准走 ensureScopeData，
  * 必为私有域，不经此函数）。
@@ -774,7 +770,7 @@ function scopeContainerSegments(scope: AutoSparkScope): string[] {
 }
 
 /**
- * 取私有域路径段（`./` 与 parent 基准 `..` 的默认落点，容器必为 `_scopes[id]`）。
+ * 取私有域路径段（`./` 与 parent 基准 `..` 的默认落点，容器必为 `$scopes[id]`）。
  */
 function scopeDataSegments(scope: AutoSparkScope): string[] {
     return [SCOPES_KEY, String(scope.id)];

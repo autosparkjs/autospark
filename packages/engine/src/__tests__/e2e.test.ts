@@ -1,5 +1,4 @@
-import { describe, expect, test } from "bun:test";
-import { AutoStore } from "autostore";
+import { describe, expect, spyOn, test } from "bun:test";
 import { AutoSpark } from "../engine";
 import "./setup";
 import { mount, nextTick } from "./helpers";
@@ -11,7 +10,7 @@ import { mount, nextTick } from "./helpers";
 
 describe("e2e - scheduler 微任务合并", () => {
     test("同 tick 多次变更只 flush 一次", async () => {
-        const { root, store, engine } = mount(`<span x-text="user.name"></span>`, {
+        const { root, engine } = mount(`<span x-text="user.name"></span>`, {
             user: { name: "a" },
         });
         let flushCount = 0;
@@ -20,9 +19,9 @@ describe("e2e - scheduler 微任务合并", () => {
             flushCount++;
             origFlush();
         };
-        store.state.user.name = "b";
-        store.state.user.name = "c";
-        store.state.user.name = "d";
+        engine.state.user.name = "b";
+        engine.state.user.name = "c";
+        engine.state.user.name = "d";
         await nextTick();
         expect(flushCount).toBe(1);
         // 合并 flush 后取累积最新值 d
@@ -34,37 +33,26 @@ describe("e2e - scheduler 微任务合并", () => {
 
 describe("e2e - destroy 资源清理", () => {
     test("destroy 后状态变化不再更新 DOM（watcher 已 off）", async () => {
-        const store = new AutoStore({ name: "a" });
         const root = document.createElement("div");
         root.innerHTML = `<span x-text="name"></span>`;
-        const app = new AutoSpark(root, store);
+        const app = new AutoSpark(root, { name: "a" });
         expect(root).toEqualHTML(`<div>
   <span>a</span>
 </div>`);
 
         app.destroy();
-        store.state.name = "b";
+        app.state.name = "b";
         await nextTick();
         // destroy 经 replaceChildren 移除挂载 DOM 并销毁订阅，状态变化不再回写
         expect(root).toEqualHTML(`<div></div>`);
     });
 
-    test("destroy 不销毁共享 store，另一个引擎仍可响应", async () => {
-        const store = new AutoStore({ name: "a" });
-
-        const root1 = document.createElement("div");
-        root1.innerHTML = `<span x-text="name"></span>`;
-        const app1 = new AutoSpark(root1, store);
-        app1.destroy();
-
-        // store 仍存活，第二个引擎正常响应
-        store.state.name = "b";
-        const root2 = document.createElement("div");
-        root2.innerHTML = `<span x-text="name"></span>`;
-        const app2 = new AutoSpark(root2, store);
-        expect(root2).toEqualHTML(`<div>
-  <span>b</span>
-</div>`);
-        app2.destroy();
+    test("destroy 恒销毁自建 store（ADR-0044：无共享语义）", () => {
+        const root = document.createElement("div");
+        root.innerHTML = `<span x-text="name"></span>`;
+        const app = new AutoSpark(root, { name: "a" });
+        const spy = spyOn(app.store, "destroy");
+        app.destroy();
+        expect(spy).toHaveBeenCalledTimes(1);
     });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
-import { AutoStore, ConfigManager, configurable } from "autostore";
+import { ConfigManager, configurable } from "autostore";
 import { AutoSpark } from "../engine";
 import { nextTick } from "./helpers";
 
@@ -35,12 +35,13 @@ function mountWithConfig(
             { load: async () => ({}), save: async () => {} },
             { autoload: false, global: false },
         );
-    const store = new AutoStore(state, {
-        configManager,
-        configKey: opts.configKey,
-    } as any);
-    const engine = new AutoSpark(root, store);
-    return { root, store, engine, configManager };
+    const engine = new AutoSpark(root, state, {
+        storeOptions: {
+            configManager,
+            configKey: opts.configKey,
+        } as any,
+    });
+    return { root, engine, configManager };
 }
 
 describe("x-model schema 注入：基础属性", () => {
@@ -190,8 +191,10 @@ describe("x-model schema 注入：动态交集与降级", () => {
     test("configManager 不存在 → 整体跳过（静默）", () => {
         const root = document.createElement("div");
         root.innerHTML = `<input x-model="name"/>`;
-        const store = new AutoStore({ name: "a" });
-        expect(() => new AutoSpark(root, store)).not.toThrow();
+        // ADR-0044 三态之 false：显式关闭 configManager
+        expect(
+            () => new AutoSpark(root, { name: "a" }, { storeOptions: { configManager: false } }),
+        ).not.toThrow();
         // 无 configManager → 不注入任何属性
         const input = root.querySelector("input")!;
         expect(input.hasAttribute("placeholder")).toBe(false);
@@ -207,8 +210,16 @@ describe("x-model schema 注入：动态交集与降级", () => {
         );
         const root = document.createElement("div");
         root.innerHTML = `<input x-model="name"/>`;
-        const store = new AutoStore({ name: "a" }, { configManager: cm, configKey: "app" } as any);
-        expect(() => new AutoSpark(root, store)).not.toThrow();
+        expect(
+            () =>
+                new AutoSpark(
+                    root,
+                    { name: "a" },
+                    {
+                        storeOptions: { configManager: cm, configKey: "app" } as any,
+                    },
+                ),
+        ).not.toThrow();
         const input = root.querySelector("input")!;
         // name 是简单路径，编译期静态注入（不依赖 schema）
         expect(input.getAttribute("name")).toBe("name");

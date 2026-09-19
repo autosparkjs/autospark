@@ -83,8 +83,8 @@ actions: {
 engine.data(el, { temp: "临时值" });
 ```
 
-::: warning `_scopes` 为框架保留键
-`x-data` 的局部状态存放在 `state._scopes` 下，业务状态请避开这个键名，也不要整体替换它。
+::: warning `$scopes` 为框架保留键
+`x-data` 的局部状态存放在 `state.$scopes` 下，业务状态请避开这个键名，也不要整体替换它。
 :::
 
 ### 响应式机制

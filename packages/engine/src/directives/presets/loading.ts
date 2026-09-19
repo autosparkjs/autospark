@@ -359,8 +359,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
             clearTimeout(this.delayTimer);
             this.delayTimer = null;
         }
-        if (this.blockScope) {
-            // 销毁块 scope（off 块内 watcher）+ 回收其私有响应式域 _scopes[id]
+        if (this.blockScope) {             // 销毁块 scope（off 块内 watcher）+ 回收其私有响应式域 $scopes[id]
             const id = this.blockScope.id;
             this.blockScope.destroy();
             const scopes = (this.engine.store.state as Record<string, any>)[SCOPES_KEY] as
@@ -481,8 +480,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
      * 构建并挂载覆盖层（= 编译后的组件根）到目标元素（ADR-0022 承接 ADR-0021 决策 12）。
      *
      * 渲染统一走「编译组件」路径：取组件 = `getComponent('loading') ?? DEFAULT_BLOCK`，深克隆 → 经 compileChild
-     * 编译挂载（parentScope 为宿主 scope 使组件继承宿主数据上下文；**config 经 compileChild 第 5 参
-     * initialData 在 compile 前注入 data**，确保组件内 watch 首次求值即收集到 `_scopes.<id>.<field>`
+     * 编译挂载（parentScope 为宿主 scope 使组件继承宿主数据上下文；**config 经 compileChild 第 5 参      * initialData 在 compile 前注入 data**，确保组件内 watch 首次求值即收集到 `$scopes.<id>.<field>`
      * 精准路径，后续 attrChanged 可字段级细粒度更新）→ 注入壳样式到组件根 → 挂到 target。
      */
     private mountOverlay(): void {

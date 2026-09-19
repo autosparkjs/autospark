@@ -4,7 +4,7 @@ import { mount, nextTick, finishAnim } from "../helpers";
 
 describe("x-for 列表渲染（B 容器语义：直写普通元素）", () => {
     test("初始渲染 + 增项触发重建", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items" :key="item.id"><li x-text="item.name"></li></ul>`,
             {
                 items: [
@@ -19,7 +19,7 @@ describe("x-for 列表渲染（B 容器语义：直写普通元素）", () => {
     <li>b</li>
   </ul>
 </div>`);
-        store.state.items.push({ id: 3, name: "c" });
+        engine.state.items.push({ id: 3, name: "c" });
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -31,7 +31,7 @@ describe("x-for 列表渲染（B 容器语义：直写普通元素）", () => {
     });
 
     test("子项表达式绑定 item 并随项数据更新", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items" :key="item.id"><li x-text="item.name + '!'"></li></ul>`,
             { items: [{ id: 1, name: "a" }] },
         );
@@ -40,7 +40,7 @@ describe("x-for 列表渲染（B 容器语义：直写普通元素）", () => {
     <li>a!</li>
   </ul>
 </div>`);
-        store.state.items[0]!.name = "b";
+        engine.state.items[0]!.name = "b";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -50,7 +50,7 @@ describe("x-for 列表渲染（B 容器语义：直写普通元素）", () => {
     });
 
     test("删项后列表同步缩短", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items" :key="item.id"><li x-text="item.name"></li></ul>`,
             {
                 items: [
@@ -59,7 +59,7 @@ describe("x-for 列表渲染（B 容器语义：直写普通元素）", () => {
                 ],
             },
         );
-        store.state.items.pop();
+        engine.state.items.pop();
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -71,7 +71,7 @@ describe("x-for 列表渲染（B 容器语义：直写普通元素）", () => {
 
 describe("x-for 列表项响应式更新（项内容变更即时反映到 DOM）", () => {
     test("多项列表：改中间项内容，仅该项更新、其余项不串动", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items" :key="item.id"><li x-text="item.name"></li></ul>`,
             {
                 items: [
@@ -89,7 +89,7 @@ describe("x-for 列表项响应式更新（项内容变更即时反映到 DOM）
   </ul>
 </div>`);
         // 改中间项内容：仅第 2 项的 DOM 反映新值，首尾项内容不受影响（不串项）
-        store.state.items[1]!.name = "B2";
+        engine.state.items[1]!.name = "B2";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -103,7 +103,7 @@ describe("x-for 列表项响应式更新（项内容变更即时反映到 DOM）
     test("项内含多个响应式绑定元素：各自订阅、随项内容独立更新", async () => {
         // 项模板 <li> 内 <b x-text="item.name"> 与 <span x-text="item.age"> 两个响应式元素，
         // 经 compileSubtree 各自建 scope/订阅；改任一属性，仅对应元素反映新值。
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items" :key="item.id"><li><b x-text="item.name"></b><span x-text="item.age"></span></li></ul>`,
             { items: [{ id: 1, name: "a", age: 10 }] },
         );
@@ -116,7 +116,7 @@ describe("x-for 列表项响应式更新（项内容变更即时反映到 DOM）
   </ul>
 </div>`);
         // 改 age：仅 span 更新，b 保持原值（两绑定各自独立订阅同一项的不同属性）
-        store.state.items[0]!.age = 20;
+        engine.state.items[0]!.age = 20;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -127,7 +127,7 @@ describe("x-for 列表项响应式更新（项内容变更即时反映到 DOM）
   </ul>
 </div>`);
         // 改 name：仅 b 更新，span 保持原值
-        store.state.items[0]!.name = "A2";
+        engine.state.items[0]!.name = "A2";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -142,7 +142,7 @@ describe("x-for 列表项响应式更新（项内容变更即时反映到 DOM）
 
 describe("x-for items 表达式", () => {
     test("items 为 filter 表达式：仅渲染筛选后的项", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items.filter(x => x.active)" :key="item.id"><li x-text="item.name"></li></ul>`,
             {
                 items: [
@@ -159,7 +159,7 @@ describe("x-for items 表达式", () => {
   </ul>
 </div>`);
         // 改某项 active：依赖变化触发重新筛选
-        store.state.items[1]!.active = true;
+        engine.state.items[1]!.active = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -171,7 +171,7 @@ describe("x-for items 表达式", () => {
     });
 
     test("items 为 map 表达式：自定义项变量名", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="name of items.map(x => x.name)" :key="name"><li x-text="name"></li></ul>`,
             {
                 items: [
@@ -187,7 +187,7 @@ describe("x-for items 表达式", () => {
   </ul>
 </div>`);
         // 原数组变更触发重新 map
-        store.state.items.push({ id: 3, name: "c" });
+        engine.state.items.push({ id: 3, name: "c" });
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -199,14 +199,14 @@ describe("x-for items 表达式", () => {
     });
 
     test("filter 表达式初始无匹配项：空容器", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="n of nums.filter(x => x > 5)" :key="n"><li x-text="n"></li></ul>`,
             { nums: [1, 2, 3] },
         );
         expect(root).toEqualHTML(`<div>
   <ul></ul>
 </div>`);
-        store.state.nums.push(8);
+        engine.state.nums.push(8);
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -218,7 +218,7 @@ describe("x-for items 表达式", () => {
 
 describe("x-for 嵌套渲染", () => {
     test("二维矩阵：外层 row / 内层 cell，变量名互不冲突", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="row of matrix" :key="row.id"><li><b x-text="row.title"></b><ol x-for="cell of row.cells" :key="cell.id"><li x-text="cell.v"></li></ol></li></ul>`,
             {
                 matrix: [
@@ -252,7 +252,7 @@ describe("x-for 嵌套渲染", () => {
   </ul>
 </div>`);
         // 内层数据变化：仅内层重建
-        store.state.matrix[0]!.cells.push({ id: "c4", v: "d" });
+        engine.state.matrix[0]!.cells.push({ id: "c4", v: "d" });
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -273,7 +273,7 @@ describe("x-for 嵌套渲染", () => {
   </ul>
 </div>`);
         // 外层数据变化：外层全量重建（内层随之重建）
-        store.state.matrix.push({ id: "r3", title: "R3", cells: [{ id: "c5", v: "e" }] });
+        engine.state.matrix.push({ id: "r3", title: "R3", cells: [{ id: "c5", v: "e" }] });
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -337,7 +337,7 @@ describe("x-for 嵌套作用域链（内层 body 引用外层变量）", () => {
     test("二层嵌套：内层 body 同时引用外层 row 与内层 cell", async () => {
         // 内层 li 属于 compileChild 创建的项作用域，localData={cell,index}（无 _linkParent 继承），
         // `row` 只能经 getContext 的 parent 链回退到外层项作用域解析。
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="row of matrix" :key="row.id"><ol x-for="cell of row.cells" :key="cell.id"><li x-text="row.title + ':' + cell.v"></li></ol></ul>`,
             {
                 matrix: [
@@ -365,7 +365,7 @@ describe("x-for 嵌套作用域链（内层 body 引用外层变量）", () => {
   </ul>
 </div>`);
         // 外层变量变化：经 parent 链解析的读依赖被正确收集，内层 body 同步更新
-        store.state.matrix[0]!.title = "R1x";
+        engine.state.matrix[0]!.title = "R1x";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -379,7 +379,7 @@ describe("x-for 嵌套作用域链（内层 body 引用外层变量）", () => {
   </ul>
 </div>`);
         // 内层变量变化：局部更新
-        store.state.matrix[0]!.cells[1]!.v = "B";
+        engine.state.matrix[0]!.cells[1]!.v = "B";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -473,7 +473,7 @@ describe("x-for 嵌套作用域链（内层 body 引用外层变量）", () => {
 
 describe("x-for 与 x-if 等指令组合", () => {
     test("x-for 子项内嵌 x-if：按项数据条件显隐", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items" :key="item.id"><li x-if="item.show" x-text="item.name"></li></ul>`,
             {
                 items: [
@@ -488,7 +488,7 @@ describe("x-for 与 x-if 等指令组合", () => {
     <li>a</li>
   </ul>
 </div>`);
-        store.state.items[1]!.show = true;
+        engine.state.items[1]!.show = true;
         await nextTick();
         // show:true → b 的 li reattach
         expect(root).toEqualHTML(`<div>
@@ -500,7 +500,7 @@ describe("x-for 与 x-if 等指令组合", () => {
     });
 
     test("x-for 项根 eager x-if 隐藏 + items 增项：复用项 refresh 重新 detach（不误显示）", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items" :key="item.id"><li x-if="item.show" x-text="item.name"></li></ul>`,
             {
                 items: [
@@ -517,7 +517,7 @@ describe("x-for 与 x-if 等指令组合", () => {
 </div>`);
         // 增项 c：触发 render。Pass3 重排会把 a 的 li 插回 container，但 Pass4 refresh
         //（lengthChanged）重跑 a 的 x-if watcher → toggle(false) → 重新 detach，故 a 仍不显示
-        store.state.items.push({ id: 3, name: "c", show: true });
+        engine.state.items.push({ id: 3, name: "c", show: true });
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -528,7 +528,7 @@ describe("x-for 与 x-if 等指令组合", () => {
     });
 
     test("x-for + x-if + x-text 表达式：隐藏期间宿主 scope watcher 仍累积最新值", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items" :key="item.id"><li x-if="item.show" x-text="item.name + '!'"></li></ul>`,
             { items: [{ id: 1, name: "a", show: false }] },
         );
@@ -538,13 +538,13 @@ describe("x-for 与 x-if 等指令组合", () => {
 </div>`);
         // 隐藏期间改 name：x-text watcher 在宿主 li scope 存活（detach 不销毁宿主 scope），
         // 累积更新到 detach 的 li；ul 仍空（li 不在 DOM）
-        store.state.items[0]!.name = "b";
+        engine.state.items[0]!.name = "b";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul></ul>
 </div>`);
         // 显示：reattach li，反映隐藏期间累积的最新值 b!
-        store.state.items[0]!.show = true;
+        engine.state.items[0]!.show = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -554,7 +554,7 @@ describe("x-for 与 x-if 等指令组合", () => {
     });
 
     test("嵌套 x-for + x-if：内层按条件渲染部分 cell", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="row of matrix" :key="row.id"><li><b x-text="row.title"></b><ol x-for="cell of row.cells" :key="cell.id"><li x-if="cell.on" x-text="cell.v"></li></ol></li></ul>`,
             {
                 matrix: [
@@ -582,7 +582,7 @@ describe("x-for 与 x-if 等指令组合", () => {
     </li>
   </ul>
 </div>`);
-        store.state.matrix[0]!.cells[1]!.on = true;
+        engine.state.matrix[0]!.cells[1]!.on = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -601,7 +601,7 @@ describe("x-for 与 x-if 等指令组合", () => {
 
 describe("x-for B 语义新增能力", () => {
     test("无 :key：缺省用 index，增删项正常", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items"><li x-text="item.name"></li></ul>`,
             {
                 items: [{ name: "a" }, { name: "b" }],
@@ -613,7 +613,7 @@ describe("x-for B 语义新增能力", () => {
     <li>b</li>
   </ul>
 </div>`);
-        store.state.items.push({ name: "c" });
+        engine.state.items.push({ name: "c" });
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -622,7 +622,7 @@ describe("x-for B 语义新增能力", () => {
     <li>c</li>
   </ul>
 </div>`);
-        store.state.items.shift();
+        engine.state.items.shift();
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -634,7 +634,7 @@ describe("x-for B 语义新增能力", () => {
 
     test("x-for 与 x-show 同元素：x-show 控制整个容器显隐（保留项子树与 watcher）", async () => {
         // x-for + eager x-if 同元素已禁止（语义冲突）；控制整表显隐用 x-show（= x-if.keepalive）
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items" :key="item.id" x-show="show"><li x-text="item.name"></li></ul>`,
             {
                 show: false,
@@ -651,7 +651,7 @@ describe("x-for B 语义新增能力", () => {
     <li>b</li>
   </ul>
 </div>`);
-        store.state.show = true;
+        engine.state.show = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -662,7 +662,7 @@ describe("x-for B 语义新增能力", () => {
     });
 
     test("容器有多个元素子节点：全部作为复合项一起循环", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items" :key="item.id"><li x-text="item.name"></li><li x-text="'[' + item.name + ']'"></li></ul>`,
             {
                 items: [
@@ -681,7 +681,7 @@ describe("x-for B 语义新增能力", () => {
   </ul>
 </div>`);
         // 增项：新项的两个成员一起追加
-        store.state.items.push({ id: 3, name: "c" });
+        engine.state.items.push({ id: 3, name: "c" });
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -699,7 +699,7 @@ describe("x-for B 语义新增能力", () => {
         // 关键风险点：每个外层迭代用同一 localData 编译多个成员，
         // 其中 <ol x-for> 成员自身是结构指令、起自己的 render。
         // 验证：外层 row.title 与内层 cell.v 均正确，parent 链不串项，内外层增项各自正确重建。
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="row of matrix" :key="row.id"><li x-text="row.title"></li><ol x-for="cell of row.cells" :key="cell.id"><li x-text="cell.v"></li></ol></ul>`,
             {
                 matrix: [
@@ -730,7 +730,7 @@ describe("x-for B 语义新增能力", () => {
   </ul>
 </div>`);
         // 内层增项：仅对应 ol 重建
-        store.state.matrix[0]!.cells.push({ id: "c4", v: "d" });
+        engine.state.matrix[0]!.cells.push({ id: "c4", v: "d" });
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -747,7 +747,7 @@ describe("x-for B 语义新增能力", () => {
   </ul>
 </div>`);
         // 外层增项：新项的 li + ol 一起追加
-        store.state.matrix.push({ id: "r3", title: "R3", cells: [{ id: "c5", v: "e" }] });
+        engine.state.matrix.push({ id: "r3", title: "R3", cells: [{ id: "c5", v: "e" }] });
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -787,7 +787,7 @@ describe("x-for 循环变量注入（$index/$length/$begin/$end/$odd/$even）", 
     });
 
     test("$begin/$end/$length：首末项与总长度，随增删项同步切换", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="n of nums"><li x-text="n + ($begin ? 'B' : '') + ($end ? 'L' : '') + $length"></li></ul>`,
             { nums: ["a", "b", "c"] },
         );
@@ -800,7 +800,7 @@ describe("x-for 循环变量注入（$index/$length/$begin/$end/$odd/$even）", 
   </ul>
 </div>`);
         // 增项：$length→4，末项 L 转移到 d，c 不再是末项
-        store.state.nums.push("d");
+        engine.state.nums.push("d");
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -811,7 +811,7 @@ describe("x-for 循环变量注入（$index/$length/$begin/$end/$odd/$even）", 
   </ul>
 </div>`);
         // 删首项：$begin 转移到原第二项 b
-        store.state.nums.shift();
+        engine.state.nums.shift();
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -823,7 +823,7 @@ describe("x-for 循环变量注入（$index/$length/$begin/$end/$odd/$even）", 
     });
 
     test("$end + x-if：行间分隔线，末行 hr 摘除（hr 为叶子，eager detach）", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="n of nums"><li x-text="n"></li><hr x-if="!$end"/></ul>`,
             { nums: ["a", "b", "c"] },
         );
@@ -838,7 +838,7 @@ describe("x-for 循环变量注入（$index/$length/$begin/$end/$odd/$even）", 
   </ul>
 </div>`);
         // 增项：原末项 c 不再末项 → hr reattach 显示；新末项 d 的 hr 摘除
-        store.state.nums.push("d");
+        engine.state.nums.push("d");
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <ul>
@@ -911,7 +911,7 @@ function scopeOf(engine: any, el: Element): any {
 
 describe("x-for 结构变化无 children 泄漏（destroy 自移除父级）", () => {
     test("push/pop/整体替换/多次累积：binding.children.size 恒等于存活项数", async () => {
-        const { root, store, engine } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items" :key="item.id"><li x-text="item.name"></li></ul>`,
             {
                 items: [
@@ -926,18 +926,18 @@ describe("x-for 结构变化无 children 泄漏（destroy 自移除父级）", (
         expect(binding.children.size).toBe(2);
 
         // push：2→3，旧 2 项重建后其 scope 必须从父级 children 移除（修复前 size 会涨到 5）
-        store.state.items.push({ id: 3, name: "c" });
+        engine.state.items.push({ id: 3, name: "c" });
         await nextTick();
         expect(root.querySelectorAll("li").length).toBe(3);
         expect(binding.children.size).toBe(3);
 
         // pop：3→2
-        store.state.items.pop();
+        engine.state.items.pop();
         await nextTick();
         expect(binding.children.size).toBe(2);
 
         // 整体替换：旧项 scope 全清，新 3 项加入
-        store.state.items = [
+        engine.state.items = [
             { id: 4, name: "x" },
             { id: 5, name: "y" },
             { id: 6, name: "z" },
@@ -947,7 +947,7 @@ describe("x-for 结构变化无 children 泄漏（destroy 自移除父级）", (
 
         // 多次 push 累积：size 必须始终 = 当前项数（修复前会线性增长 3→7→11→…）
         for (let i = 0; i < 5; i++) {
-            store.state.items.push({ id: 100 + i, name: `n${i}` });
+            engine.state.items.push({ id: 100 + i, name: `n${i}` });
             await nextTick();
         }
         expect(root.querySelectorAll("li").length).toBe(8);
@@ -958,7 +958,7 @@ describe("x-for 结构变化无 children 泄漏（destroy 自移除父级）", (
         // 复合项 dt+dd：每个成员各自经 compileChild 建独立 scope 并 addChild 到容器 binding.children，
         // 故 binding.children.size = 项数 × 成员模板数（此处 ×2）。
         // 结构变化重建时，旧项的全部成员 scope 都应从父级脱离（修复前会按"项数×成员数"线性堆积）。
-        const { root, store, engine } = mount(
+        const { root, engine } = mount(
             `<dl x-for="item of items"><dt x-text="item.k"></dt><dd x-text="item.v"></dd></dl>`,
             {
                 items: [
@@ -973,7 +973,7 @@ describe("x-for 结构变化无 children 泄漏（destroy 自移除父级）", (
         // 2 项 × 2 成员（dt+dd）= 4
         expect(binding.children.size).toBe(4);
 
-        store.state.items.push({ k: "c", v: "3" });
+        engine.state.items.push({ k: "c", v: "3" });
         await nextTick();
         expect(root.querySelectorAll("dt").length).toBe(3);
         // 3 项 × 2 成员 = 6
@@ -981,7 +981,7 @@ describe("x-for 结构变化无 children 泄漏（destroy 自移除父级）", (
 
         // 反复整体替换为单项：成员 scope 不堆积，恒为 1×2=2
         for (let i = 0; i < 4; i++) {
-            store.state.items = [{ k: `k${i}`, v: `${i}` }];
+            engine.state.items = [{ k: `k${i}`, v: `${i}` }];
             await nextTick();
         }
         expect(root.querySelectorAll("dt").length).toBe(1);
@@ -998,13 +998,13 @@ describe("x-for 进出场动画（ADR-0039）", () => {
     </ul>`;
 
     test("首渲整队静默；新项进场挂类、播完清类（决策 6/10）", async () => {
-        const { root, store } = mount(TPL, { items: [{ name: "a" }, { name: "b" }] });
+        const { root, engine } = mount(TPL, { items: [{ name: "a" }, { name: "b" }] });
         await nextTick();
         // 首渲不动画：全部项无生命周期类
         for (const li of root.querySelectorAll("ul > li")) {
             expect(li.classList.contains("fade-enter-active")).toBe(false);
         }
-        store.state.items = [{ name: "a" }, { name: "b" }, { name: "c" }];
+        engine.state.items = [{ name: "a" }, { name: "b" }, { name: "c" }];
         await nextTick();
         const lis = [...root.querySelectorAll("ul > li")];
         expect(lis[2]!.classList.contains("fade-enter-active")).toBe(true);
@@ -1014,23 +1014,30 @@ describe("x-for 进出场动画（ADR-0039）", () => {
     });
 
     test("删除项离场：节点暂驻容器播完移除（决策 9/10）", async () => {
-        const { root, store } = mount(TPL, { items: [{ name: "a" }, { name: "b" }, { name: "c" }] });
+        const { root, engine } = mount(TPL, {
+            items: [{ name: "a" }, { name: "b" }, { name: "c" }],
+        });
         await nextTick();
-        store.state.items = [{ name: "a" }, { name: "c" }]; // b 消失
+        engine.state.items = [{ name: "a" }, { name: "c" }]; // b 消失
         await nextTick();
         const lis = [...root.querySelectorAll("ul > li")];
         expect(lis.length).toBe(3); // 离场项暂驻
         const leaving = lis.find((li) => li.textContent === "b")!;
         expect(leaving.classList.contains("fade-leave-active")).toBe(true);
         finishAnim(leaving);
-        expect([...root.querySelectorAll("ul > li")].map((li) => li.textContent)).toEqual(["a", "c"]);
+        expect([...root.querySelectorAll("ul > li")].map((li) => li.textContent)).toEqual([
+            "a",
+            "c",
+        ]);
     });
 
     test("外来节点不误判重排：删末项后在位项相对序保持（Pass 3 回归保护）", async () => {
-        const { root, store } = mount(TPL, { items: [{ name: "a" }, { name: "b" }, { name: "c" }] });
+        const { root, engine } = mount(TPL, {
+            items: [{ name: "a" }, { name: "b" }, { name: "c" }],
+        });
         await nextTick();
         const ul = root.querySelector("ul")!;
-        store.state.items = [{ name: "a" }, { name: "b" }]; // 末项 c 消失
+        engine.state.items = [{ name: "a" }, { name: "b" }]; // 末项 c 消失
         await nextTick();
         // 在位项 a、b 相对序已就位 → 不重排：b 仍在离场项 c 之前（旧 length 比对会把 b 挪到 c 之后）
         const children = [...ul.children];
@@ -1042,10 +1049,10 @@ describe("x-for 进出场动画（ADR-0039）", () => {
     });
 
     test("x-empty 挂卸同权进出场（决策 10）", async () => {
-        const { root, store } = mount(TPL, { items: [] });
+        const { root, engine } = mount(TPL, { items: [] });
         await nextTick();
         expect(root.querySelector(".e")!.className).toBe("e"); // 首渲静默
-        store.state.items = [{ name: "a" }]; // 空态 → 列表
+        engine.state.items = [{ name: "a" }]; // 空态 → 列表
         await nextTick();
         const empty = root.querySelector(".e")!;
         const item = root.querySelector("ul > li:not(.e)")!;
@@ -1055,7 +1062,7 @@ describe("x-for 进出场动画（ADR-0039）", () => {
         finishAnim(empty);
         finishAnim(item);
         expect(root.querySelector(".e")).toBeNull();
-        store.state.items = []; // 列表 → 空态
+        engine.state.items = []; // 列表 → 空态
         await nextTick();
         const empty2 = root.querySelector(".e")!;
         expect(empty2.classList.contains("fade-enter-active")).toBe(true);

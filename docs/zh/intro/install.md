@@ -33,10 +33,11 @@ bun add autospark
 ### ES Module（推荐）
 
 ```javascript
-import { AutoSpark, AutoStore } from "autospark";
+import { AutoSpark } from "autospark";
 
-const store = new AutoStore({ user: { name: "张三" } });
-const engine = new AutoSpark(document.getElementById("app"), store);
+const engine = new AutoSpark(document.getElementById("app"), {
+    user: { name: "张三" },
+});
 ```
 
 ### IIFE（浏览器直接引入）
@@ -53,7 +54,7 @@ const engine = new AutoSpark(document.getElementById("app"), store);
 ```
 
 ::: tip 传入裸状态即可
-构造器第二参既可传 `AutoStore` 实例，也可直接传**裸状态对象**——引擎会自动建立 store。上例 IIFE 形式传的就是裸状态，无需手动 `new AutoStore`。详见[初始化](../guide/initial.md)。
+构造器第二参直接传**裸状态对象**——引擎会自动建立 store（并默认配备 configManager，`@` 配置绑定开箱即用）。无需手动 `new AutoStore`。详见[初始化](../guide/initial.md)。
 :::
 
 ### CommonJS

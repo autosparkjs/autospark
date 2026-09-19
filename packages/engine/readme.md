@@ -1,7 +1,8 @@
-# 创建全局Store
+# 创建引擎（直接传裸状态）
 
 ```ts
-const store = new AutoStore({
+const el= document.querySelector("#app")
+const app  = new AutoSpark(el,{
     order: {
         name: "产品名称",
         price: 18,
@@ -9,11 +10,7 @@ const store = new AutoStore({
         total: (scope) => scope.price * scope.count,
     },
     books: [{ name: "AutoStore" }, { name: "FlexState" }],
-});
-
-
-const el= document.querySelector("#app")
-const app  = new AutoSpark(el,store,{...选项...})
+},{...选项...})
 
 app.start()
 

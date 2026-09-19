@@ -94,30 +94,33 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
         expect(root.querySelector("#h")?.innerHTML).toBe("<i>action 片段</i>");
     });
 
-    test("裸词恒为表达式：x-html=\"content\" 读状态键，不触发 fetch", async () => {
+    test('裸词恒为表达式：x-html="content" 读状态键，不触发 fetch', async () => {
         const calls = mockFetch(() => ({ body: "不应被调用" }));
-        const { root } = mount(`<div id="h" x-html="content"></div>`, { content: "<u>本地内容</u>" });
+        const { root } = mount(`<div id="h" x-html="content"></div>`, {
+            content: "<u>本地内容</u>",
+        });
         await flush();
         expect(calls.length).toBe(0);
         expect(root.querySelector("#h")?.innerHTML).toBe("<u>本地内容</u>");
     });
 
-    test("链式调用保持表达式：x-html=\"s.trim()\" 不判 action", async () => {
-        const { root } = mount(`<div id="h" x-html="s.trim()"></div>`, { s: "  <em>trimmed</em>  " });
+    test('链式调用保持表达式：x-html="s.trim()" 不判 action', async () => {
+        const { root } = mount(`<div id="h" x-html="s.trim()"></div>`, {
+            s: "  <em>trimmed</em>  ",
+        });
         await flush();
         expect(root.querySelector("#h")?.innerHTML).toBe("<em>trimmed</em>");
     });
 
     test("url 插值：{expr} 依赖变化自动重取", async () => {
         const calls = mockFetch((url) => ({ body: `<p>${url}</p>` }));
-        const { root, store } = mount(
-            `<div id="h" x-html="/api/p-{lang}.html"></div>`,
-            { lang: "zh" },
-        );
+        const { root, engine } = mount(`<div id="h" x-html="/api/p-{lang}.html"></div>`, {
+            lang: "zh",
+        });
         await flush();
         expect(calls.length).toBe(1);
         expect(root.querySelector("#h")?.textContent).toBe("/api/p-zh.html");
-        store.state.lang = "en";
+        engine.state.lang = "en";
         await flush();
         expect(calls.length).toBe(2);
         expect(root.querySelector("#h")?.textContent).toBe("/api/p-en.html");
@@ -142,12 +145,12 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
 
     test("空串响应 → 清空宿主（既有同步语义照旧）", async () => {
         mockFetch(() => ({ body: "<b>先到</b>" }));
-        const { root, store } = mount(`<div id="h" x-html="/api/p-{t}.html"></div>`, { t: 1 });
+        const { root, engine } = mount(`<div id="h" x-html="/api/p-{t}.html"></div>`, { t: 1 });
         await flush();
         expect(root.querySelector("#h")?.innerHTML).toBe("<b>先到</b>");
         // 第二次返回空串：重取后清空
         mockFetch(() => ({ body: "" }));
-        store.state.t = 2;
+        engine.state.t = 2;
         await flush();
         expect(root.querySelector("#h")?.innerHTML).toBe("");
     });
@@ -209,7 +212,7 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
     test("重取保旧值：重取期间旧内容保留、fallback 不闪现", async () => {
         const gate = deferred<{ body: string }>();
         mockFetch(() => ({ body: "<b>第一版</b>" }));
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div id="h" x-html="/api/p-{t}.html"><div class="fb" x-fallback>占位</div></div>`,
             { t: 1 },
         );
@@ -219,7 +222,7 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
         // 重取挂起：旧值保留、fallback 不闪现、覆盖层出现（无 fallback 合成互斥——已有成功内容，
         // fallback 已被采集故未合成覆盖层，验证保旧值即可）
         mockFetch(() => gate.promise);
-        store.state.t = 2;
+        engine.state.t = 2;
         await flush();
         expect(root.querySelector("#h")?.innerHTML).toBe("<b>第一版</b>");
         expect(root.querySelector(".fb")).toBeNull();
@@ -288,7 +291,9 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
     // ── .compile 远程模板（决策 4）─────────────────────────────────────
 
     test(".compile：远程模板作为子模板编译，表达式读宿主作用域", async () => {
-        mockFetch(() => ({ body: `<span class="t" x-text="title"></span><span class="n" x-text="count"></span>` }));
+        mockFetch(() => ({
+            body: `<span class="t" x-text="title"></span><span class="n" x-text="count"></span>`,
+        }));
         const { root } = mount(
             `<div id="h" x-data="{ title: '书名', count: 3 }" x-html.compile="/api/tpl.html"></div>`,
             {},
@@ -300,14 +305,13 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
 
     test(".compile：插值重取 → 全量重编译新模板", async () => {
         mockFetch(() => ({ body: `<b class="v1">模板一</b>` }));
-        const { root, store } = mount(
-            `<div id="h" x-html.compile="/api/t-{t}.html"></div>`,
-            { t: 1 },
-        );
+        const { root, engine } = mount(`<div id="h" x-html.compile="/api/t-{t}.html"></div>`, {
+            t: 1,
+        });
         await flush();
         expect(root.querySelector(".v1")?.textContent).toBe("模板一");
         mockFetch(() => ({ body: `<i class="v2">模板二</i>` }));
-        store.state.t = 2;
+        engine.state.t = 2;
         await flush();
         expect(root.querySelector(".v1")).toBeNull();
         expect(root.querySelector(".v2")?.textContent).toBe("模板二");
@@ -374,10 +378,10 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
             n++;
             return n === 1 ? slow.promise : Promise.resolve({ body: "<b>新响应</b>" });
         });
-        const { root, store } = mount(`<div id="h" x-html="/api/p-{t}.html"></div>`, { t: 1 });
+        const { root, engine } = mount(`<div id="h" x-html="/api/p-{t}.html"></div>`, { t: 1 });
         await flush();
         // 首请求挂起时依赖变化 → 新请求先回
-        store.state.t = 2;
+        engine.state.t = 2;
         await flush();
         expect(root.querySelector("#h")?.innerHTML).toBe("<b>新响应</b>");
         slow.resolve({ body: "<b>旧响应</b>" });

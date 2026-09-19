@@ -96,14 +96,18 @@ export interface DirectiveBinding {
  *
  * 传递给 AutoSpark 构造函数的配置选项。
  */
-export interface AutoSparkOptions<State extends Dict = any>
-    extends FastEvent.FastLiteEventOptions {
+export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.FastLiteEventOptions {
     /**
-     * 自建 store 的配置（仅当构造器第二参为裸状态对象时消费，ADR-0009 决策 4）。
+     * 自建 store 的配置：恒消费（第二参只收裸状态，ADR-0044），透传给 `_createStore` 的
+     * `new AutoStore(state, storeOptions)`，两个字段带 engine 侧默认（消费者显式传入优先）：
      *
-     * 第二参为 AutoStore 实例时此选项被忽略（用户已自配 store）。透传给 `new AutoStore(state, storeOptions)`。
+     * - `configManager` 三态：缺省 / `null` = engine 补内存空 `ConfigManager`（纯响应式 schema
+     *   注册表，无持久化）；传 `ConfigManager` 实例 = 消费者自管（engine 不销毁）；`false` = 完全
+     *   关闭（x-bind `@` / x-model 元数据注入走三层降级）。
+     * - `configKey` 缺省补 `''`（fullKey 无前缀，`@` 配置路径与状态路径同形）。
+     *   多个 store 共用同一 configManager 时必须显式配互异 configKey，否则 fullKey 撞车。
      *
-     * @default undefined（AutoStore 默认选项）
+     * @default configManager=engine 内存实例；configKey=''
      */
     storeOptions?: AutoStoreOptions<State>;
     /**

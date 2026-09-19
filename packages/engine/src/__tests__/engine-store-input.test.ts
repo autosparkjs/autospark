@@ -1,17 +1,17 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import "./setup";
-import { AutoStore } from "autostore";
+import { AutoStore, ConfigManager } from "autostore";
 import { AutoSpark } from "../engine";
 import { nextTick } from "./helpers";
 
 /**
- * AutoSpark 第二参「store | state」输入测试（ADR-0009）。
+ * AutoSpark 第二参「裸状态」输入测试（ADR-0044：store 所有权收归 engine）。
  *
- * 通用 mount() helper 仍走实例路径（new AutoStore(state) 再传入），本文件直接构造 engine
- * 以覆盖裸状态路径、销毁分流（_ownsStore）、storeOptions 透传与静默兜空。
+ * 覆盖：自建 store 与首渲、实例入参 throw、storeOptions 恒透传（configManager 三态 /
+ * configKey 默认 ''）、静默兜空、destroy 恒销毁 store 与自建 configManager。
  */
 
-describe("AutoSpark 第二参：store | state（ADR-0009）", () => {
+describe("AutoSpark 第二参：裸状态（ADR-0044）", () => {
     test("裸状态对象：engine 自建 store 并完成首渲", () => {
         const root = document.createElement("div");
         root.innerHTML = `<span x-text="name"></span>`;
@@ -26,23 +26,23 @@ describe("AutoSpark 第二参：store | state（ADR-0009）", () => {
         root.innerHTML = `<span x-text="count"></span>`;
         const engine = new AutoSpark(root, { count: 0 });
         expect(root.querySelector("span")!.textContent).toBe("0");
-        engine.state.count = 42; // 响应式状态句柄（store.state 的 Proxy）
+        engine.state.count = 42; // 响应式状态句柄（engine.state 的 Proxy）
         await nextTick();
         expect(root.querySelector("span")!.textContent).toBe("42");
         engine.destroy();
     });
 
-    test("AutoStore 实例：直接借用同一引用，不重建", () => {
+    test("AutoStore 实例：throw（不再接受借用，ADR-0044）", () => {
         const root = document.createElement("div");
         root.innerHTML = `<span x-text="name"></span>`;
         const store = new AutoStore({ name: "li" });
-        const engine = new AutoSpark(root, store);
-        expect(engine.store).toBe(store);
-        expect(root.querySelector("span")!.textContent).toBe("li");
-        engine.destroy();
+        expect(() => new AutoSpark(root, store as any)).toThrow(
+            /no longer accepts an AutoStore instance/,
+        );
+        store.destroy();
     });
 
-    test("销毁分流：自建 store（裸状态路径）被 engine.destroy() 销毁", () => {
+    test("destroy：恒销毁自建 store（engine 拥有，无借用分流）", () => {
         const root = document.createElement("div");
         root.innerHTML = `<span x-text="name"></span>`;
         const engine = new AutoSpark(root, { name: "zhang" });
@@ -51,41 +51,21 @@ describe("AutoSpark 第二参：store | state（ADR-0009）", () => {
         expect(spy).toHaveBeenCalledTimes(1);
     });
 
-    test("销毁分流：外部 store 不被 engine.destroy() 销毁（借用语义）", () => {
+    test("storeOptions：恒透传给 new AutoStore(state, storeOptions)", () => {
         const root = document.createElement("div");
         root.innerHTML = `<span x-text="name"></span>`;
-        const store = new AutoStore({ name: "li" });
-        const engine = new AutoSpark(root, store);
-        const spy = spyOn(store, "destroy");
-        engine.destroy();
-        expect(spy).not.toHaveBeenCalled();
-        // 外部 store 仍可用（engine 未碰它）
-        expect(store.state.name).toBe("li");
-        store.destroy();
-    });
-
-    test("storeOptions：自建路径透传给 new AutoStore(state, storeOptions)", () => {
-        const root = document.createElement("div");
-        root.innerHTML = `<span x-text="name"></span>`;
-        const engine = new AutoSpark(root, { name: "zhang" }, {
-            storeOptions: { debug: true },
-        });
+        const engine = new AutoSpark(
+            root,
+            { name: "zhang" },
+            {
+                storeOptions: { debug: true },
+            },
+        );
         expect((engine.store as any).options.debug).toBe(true);
         engine.destroy();
     });
 
-    test("storeOptions：实例路径被忽略（store 保持原状）", () => {
-        const root = document.createElement("div");
-        root.innerHTML = `<span x-text="name"></span>`;
-        const store = new AutoStore({ name: "li" }); // 默认 debug=false
-        const engine = new AutoSpark(root, store, {
-            storeOptions: { debug: true },
-        });
-        expect((engine.store as any).options.debug).toBeFalsy();
-        engine.destroy();
-    });
-
-    test("null：静默兜空 store，不抛错（ADR-0009 决策 5）", () => {
+    test("null：静默兜空 store，不抛错（沿用 ADR-0009 决策 5）", () => {
         const root = document.createElement("div");
         root.innerHTML = `<span>static</span>`;
         const engine = new AutoSpark(root, null as any);
@@ -100,5 +80,59 @@ describe("AutoSpark 第二参：store | state（ADR-0009）", () => {
         const engine = new AutoSpark(root, undefined as any);
         expect(engine.store).toBeInstanceOf(AutoStore);
         engine.destroy();
+    });
+});
+
+describe("AutoSpark configManager / configKey 默认（ADR-0044 三态）", () => {
+    test("缺省：engine 补内存空 ConfigManager，configKey 默认空串", () => {
+        const root = document.createElement("div");
+        root.innerHTML = `<span x-text="name"></span>`;
+        const engine = new AutoSpark(root, { name: "zhang" });
+        expect(engine.store.configManager).toBeInstanceOf(ConfigManager);
+        expect(engine.store.configKey).toBe("");
+        engine.destroy();
+    });
+
+    test("显式传入：消费者 configManager / configKey 原样生效且 destroy 不销毁 cm", () => {
+        const root = document.createElement("div");
+        root.innerHTML = `<span x-text="name"></span>`;
+        const cm = new ConfigManager({ load: () => ({}) });
+        const engine = new AutoSpark(
+            root,
+            { name: "zhang" },
+            {
+                storeOptions: { configManager: cm, configKey: "network" },
+            },
+        );
+        expect(engine.store.configManager).toBe(cm);
+        expect(engine.store.configKey).toBe("network");
+        const spy = spyOn(cm, "destroy");
+        engine.destroy();
+        expect(spy).not.toHaveBeenCalled();
+        cm.destroy();
+    });
+
+    test("false：完全关闭 configManager（不建实例，@ 绑定走三层降级）", () => {
+        const root = document.createElement("div");
+        root.innerHTML = `<span x-text="name"></span>`;
+        const engine = new AutoSpark(
+            root,
+            { name: "zhang" },
+            {
+                storeOptions: { configManager: false },
+            },
+        );
+        expect(engine.store.configManager).toBeUndefined();
+        engine.destroy();
+    });
+
+    test("destroy：engine 自建的默认 configManager 随之销毁", () => {
+        const root = document.createElement("div");
+        root.innerHTML = `<span x-text="name"></span>`;
+        const engine = new AutoSpark(root, { name: "zhang" });
+        const cm = engine.store.configManager!;
+        const spy = spyOn(cm, "destroy");
+        engine.destroy();
+        expect(spy).toHaveBeenCalledTimes(1);
     });
 });

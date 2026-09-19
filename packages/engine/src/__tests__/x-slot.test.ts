@@ -11,19 +11,21 @@ describe("x-slot 静态冻结快照", () => {
     });
 
     test("static：内容不响应状态变化（无 watcher，T1 防御）", async () => {
-        const { root, store } = mount(`<div x-slot><span>fixed</span></div>`, { x: 1 });
+        const { root, engine } = mount(`<div x-slot><span>fixed</span></div>`, { x: 1 });
         expect(root.textContent).toContain("fixed");
-        store.state.x = 999;
+        engine.state.x = 999;
         await nextTick();
         expect(root.textContent).toContain("fixed");
     });
 
     test("static：剥除内部指令属性（x-text 不绑定、属性消失、文本保持字面）", async () => {
-        const { root, store } = mount(`<div x-slot><span x-text="t">old</span></div>`, { t: "NEW" });
+        const { root, engine } = mount(`<div x-slot><span x-text="t">old</span></div>`, {
+            t: "NEW",
+        });
         const span = root.querySelector("span")!;
         expect(span.hasAttribute("x-text")).toBe(false); // 属性被剥
         expect(span.textContent).toBe("old"); // 不绑定：保持字面
-        store.state.t = "CHANGED";
+        engine.state.t = "CHANGED";
         await nextTick();
         expect(span.textContent).toBe("old"); // 状态变化仍不影响（根本没订阅）
     });
@@ -35,14 +37,14 @@ describe("x-slot 静态冻结快照", () => {
     });
 
     test("static：DOM API 改动在反应式刷新后保留（engine 不触碰内容）", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div><main x-slot><p>hi</p></main><span x-text="counter"></span></div>`,
             { counter: 0 },
         );
         const p = root.querySelector("p")!;
         p.textContent = "MUTATED";
         p.classList.add("active");
-        store.state.counter = 5; // 触发无关反应式刷新
+        engine.state.counter = 5; // 触发无关反应式刷新
         await nextTick();
         expect(root.querySelector("p")?.textContent).toBe("MUTATED"); // DOM API 改动保留
         expect(root.querySelector("p")?.classList.contains("active")).toBe(true);
@@ -65,7 +67,7 @@ describe("x-slot 远程子引擎", () => {
     /** 按 url → body 映射 mock fetch（未命中 url 返回 404） */
     function mockFetch(map: Record<string, string>) {
         globalThis.fetch = (async (input: any) => {
-            const url = String(typeof input === "string" ? input : input?.url ?? input);
+            const url = String(typeof input === "string" ? input : (input?.url ?? input));
             fetchCalls.push(url);
             const body = map[url];
             if (body === undefined) return { ok: false, status: 404, text: async () => "" } as any;
@@ -86,21 +88,21 @@ describe("x-slot 远程子引擎", () => {
             "/a": `<div x-data="{ name: 'A' }"><span x-text="name"></span></div>`,
             "/b": `<div x-data="{ name: 'B' }"><span x-text="name"></span></div>`,
         });
-        const { root, store } = mount(`<div x-slot="url"></div>`, { url: "/a" });
+        const { root, engine } = mount(`<div x-slot="url"></div>`, { url: "/a" });
         await nextTick();
         expect(root.querySelector("span")?.textContent).toBe("A");
-        store.state.url = "/b";
+        engine.state.url = "/b";
         await nextTick();
         expect(root.querySelector("span")?.textContent).toBe("B");
     });
 
     test("remote：初值空 → 不 fetch、宿主空；赋值后 fetch", async () => {
         mockFetch({ "/late": `<span>LATE</span>` });
-        const { root, store } = mount(`<div x-slot="url"></div>`, { url: "" });
+        const { root, engine } = mount(`<div x-slot="url"></div>`, { url: "" });
         await nextTick();
         expect(fetchCalls.length).toBe(0);
         expect(root.querySelector("span")).toBeNull();
-        store.state.url = "/late";
+        engine.state.url = "/late";
         await nextTick();
         expect(fetchCalls).toContain("/late");
         expect(root.querySelector("span")?.textContent).toBe("LATE");
@@ -134,7 +136,7 @@ describe("x-slot 远程子引擎", () => {
 
     test("teardown：x-if toggle false→true 重新 fetch（child engine 随 scope 销毁，β 不跨 toggle 保内容）", async () => {
         mockFetch({ "/t": `<span>T</span>` });
-        const { root, store } = mount(`<div x-if="show"><div x-slot="url"></div></div>`, {
+        const { root, engine } = mount(`<div x-if="show"><div x-slot="url"></div></div>`, {
             show: true,
             url: "/t",
         });
@@ -142,11 +144,11 @@ describe("x-slot 远程子引擎", () => {
         expect(root.querySelector("span")?.textContent).toBe("T");
         const firstCalls = fetchCalls.length;
 
-        store.state.show = false; // 销毁子树（含 child engine）
+        engine.state.show = false; // 销毁子树（含 child engine）
         await nextTick();
         expect(root.querySelector("span")).toBeNull();
 
-        store.state.show = true; // 重建 → 重新 fetch（β）
+        engine.state.show = true; // 重建 → 重新 fetch（β）
         await nextTick();
         expect(root.querySelector("span")?.textContent).toBe("T");
         expect(fetchCalls.length).toBeGreaterThan(firstCalls); // 确认重新 fetch，非保内容

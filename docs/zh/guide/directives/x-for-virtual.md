@@ -91,16 +91,15 @@
 
 ```javascript
 // 状态定义 + actions
-const store = new AutoSpark.AutoStore({
+const engine = new AutoSpark(engineEl, {
   items: [...],
   currentIndex: 0,
   targetIndex: 0
-});
-const engine = new AutoSpark(engineEl, store, {
+}, {
   actions: {
     // 跳转到指定索引
     scrollTo(index) {
-      store.state.currentIndex = Number(index) || 0;
+      engine.state.currentIndex = Number(index) || 0;
     }
   }
 });

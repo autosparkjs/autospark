@@ -60,25 +60,23 @@
 
   <script>
     let nextId = 1;
-    const store = new AutoSparkSpaces.AutoStore({ 
+    const state = { 
       items: [] 
-    });
+    };
     const engine = new AutoSparkSpaces.AutoSpark(
-      document.getElementById('app'),
-      store
-    );
+      document.getElementById('app'), state);
 
     // 暴露方法给按钮调用
     window.addItem = () => {
-      store.state.items.push({ id: nextId++, name: `项目 ${nextId - 1}` });
+      engine.state.items.push({ id: nextId++, name: `项目 ${nextId - 1}` });
     };
     window.removeItem = () => {
-      if (store.state.items.length > 0) {
-        store.state.items.pop();
+      if (engine.state.items.length > 0) {
+        engine.state.items.pop();
       }
     };
     window.clearAll = () => {
-      store.state.items = [];
+      engine.state.items = [];
     };
   </script>
 </body>

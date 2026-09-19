@@ -33,10 +33,14 @@ function captureWarn(fn: () => void): string[] {
 function makeTree(): any {
     return structuredClone({
         nodes: [
-            { id: "a", name: "A", children: [
-                { id: "a1", name: "A1", children: [] },
-                { id: "a2", name: "A2", children: [] },
-            ] },
+            {
+                id: "a",
+                name: "A",
+                children: [
+                    { id: "a1", name: "A1", children: [] },
+                    { id: "a2", name: "A2", children: [] },
+                ],
+            },
             { id: "b", name: "B", children: [] },
         ],
     });
@@ -56,10 +60,7 @@ function rowNames(root: Element): string[] {
 
 describe("x-tree 结构渲染（决策 1/2/7）", () => {
     test("defaultExpandLevel=1：根层可见、子容器隐藏、DOM 即树", async () => {
-        const { root } = mount(
-            `<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`,
-            makeTree(),
-        );
+        const { root } = mount(`<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`, makeTree());
         await nextTick();
         expect(rowNames(root)).toEqual(["A", "B"]);
         // 子容器存在但 display:none；子行不渲染（eager：折叠即无子行 DOM）
@@ -84,19 +85,30 @@ describe("x-tree 结构渲染（决策 1/2/7）", () => {
     test("三层树 defaultExpandLevel=3：三层全可见（level ≤ N-2 展开）", async () => {
         const { root } = mount(
             `<ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 3 }">${CUSTOM_TPL}</ul>`,
-            { nodes: [{ id: "r", name: "R", children: [
-                { id: "r1", name: "R1", children: [{ id: "r11", name: "R11", children: [] }] },
-            ] }] },
+            {
+                nodes: [
+                    {
+                        id: "r",
+                        name: "R",
+                        children: [
+                            {
+                                id: "r1",
+                                name: "R1",
+                                children: [{ id: "r11", name: "R11", children: [] }],
+                            },
+                        ],
+                    },
+                ],
+            },
         );
         await nextTick();
         expect(rowNames(root)).toEqual(["R", "R1", "R11"]);
     });
 
     test("单根对象归一化为根数组（决策 5）", async () => {
-        const { root } = mount(
-            `<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`,
-            { nodes: { id: "only", name: "ONLY", children: [] } },
-        );
+        const { root } = mount(`<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`, {
+            nodes: { id: "only", name: "ONLY", children: [] },
+        });
         await nextTick();
         expect(rowNames(root)).toEqual(["ONLY"]);
     });
@@ -104,7 +116,16 @@ describe("x-tree 结构渲染（决策 1/2/7）", () => {
     test("expandField 显式值优先于层级回退（决策 7）", async () => {
         const { root } = mount(
             `<ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 2, expandField: 'open' }">${CUSTOM_TPL}</ul>`,
-            { nodes: [{ id: "a", name: "A", open: false, children: [{ id: "a1", name: "A1", children: [] }] }] },
+            {
+                nodes: [
+                    {
+                        id: "a",
+                        name: "A",
+                        open: false,
+                        children: [{ id: "a1", name: "A1", children: [] }],
+                    },
+                ],
+            },
         );
         await nextTick();
         // open:false 显式折叠 → 回退不生效
@@ -171,11 +192,11 @@ describe("x-tree 三级节点模板优先（决策 3）", () => {
     });
 
     test("二级：tree-node 全局组件覆盖内置默认", async () => {
-        const { root } = mount(
-            `<div><ul x-tree="node of nodes"></ul></div>`,
-            makeTree(),
-            { components: { "tree-node": `<li x-tree-node><span class="cpt" x-text="node.name"></span><ul x-tree-children></ul></li>` } },
-        );
+        const { root } = mount(`<div><ul x-tree="node of nodes"></ul></div>`, makeTree(), {
+            components: {
+                "tree-node": `<li x-tree-node><span class="cpt" x-text="node.name"></span><ul x-tree-children></ul></li>`,
+            },
+        });
         await nextTick();
         expect(root.querySelectorAll(".cpt").length).toBe(2);
         expect(root.querySelector(".x-tree-label")).toBeNull(); // 内置默认未用
@@ -184,13 +205,12 @@ describe("x-tree 三级节点模板优先（决策 3）", () => {
 
 describe("x-tree key 复用（决策 6）", () => {
     test("同 key 同 index 复用保 DOM 身份（children push 不重建旧行）", async () => {
-        const { root, engine } = mount(
-            `<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`,
-            { nodes: [
+        const { root, engine } = mount(`<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`, {
+            nodes: [
                 { id: "a", name: "A", children: [] },
                 { id: "b", name: "B", children: [] },
-            ] },
-        );
+            ],
+        });
         await nextTick();
         const rowA = root.querySelector(".name")?.closest("[data-x-tree-row]");
         (engine.state as any).nodes.push({ id: "c", name: "C", children: [] });
@@ -201,13 +221,12 @@ describe("x-tree key 复用（决策 6）", () => {
     });
 
     test("无 id 节点回退层级路径 key（正常渲染）", async () => {
-        const { root } = mount(
-            `<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`,
-            { nodes: [
+        const { root } = mount(`<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`, {
+            nodes: [
                 { name: "X", children: [] },
                 { name: "Y", children: [] },
-            ] },
-        );
+            ],
+        });
         await nextTick();
         expect(rowNames(root)).toEqual(["X", "Y"]);
     });
@@ -226,10 +245,7 @@ describe("x-tree key 复用（决策 6）", () => {
 
 describe("x-tree 折叠两态与动画（决策 8/9）", () => {
     test("eager 默认：toggle 展开 → 渲染子行；再折叠 → 子行销毁", async () => {
-        const { root } = mount(
-            `<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`,
-            makeTree(),
-        );
+        const { root } = mount(`<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`, makeTree());
         await nextTick();
         expect(rowNames(root)).toEqual(["A", "B"]);
         // 展开 A
@@ -237,7 +253,9 @@ describe("x-tree 折叠两态与动画（决策 8/9）", () => {
             new Event("click", { bubbles: true }),
         );
         await nextTick();
-        expect((root.querySelector("[data-x-tree-children]") as HTMLElement).style.display).not.toBe("none");
+        expect(
+            (root.querySelector("[data-x-tree-children]") as HTMLElement).style.display,
+        ).not.toBe("none");
         expect(rowNames(root)).toEqual(["A", "A1", "A2", "B"]);
         // 折叠 A
         (root.querySelectorAll("[data-x-tree-row]")[0] as HTMLElement).dispatchEvent(
@@ -294,10 +312,7 @@ describe("x-tree 折叠两态与动画（决策 8/9）", () => {
     });
 
     test("expand 高度动画为默认：toggle 后子容器 inline 高度过渡（布局参与，不跳位）", async () => {
-        const { root } = mount(
-            `<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`,
-            makeTree(),
-        );
+        const { root } = mount(`<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`, makeTree());
         await nextTick();
         const container = root.querySelector("[data-x-tree-children]") as HTMLElement;
         // happy-dom 无布局（offsetHeight 恒 0）：mock 出自然高度驱动在播态断言
@@ -332,25 +347,34 @@ describe("x-tree 交互触点与事件（决策 10/11）", () => {
         );
         await nextTick();
         // 点行名区域（非 toggle 标记）→ 不切换
-        (root.querySelector(".name") as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
+        (root.querySelector(".name") as HTMLElement).dispatchEvent(
+            new Event("click", { bubbles: true }),
+        );
         await nextTick();
-        expect((root.querySelector("[data-x-tree-children]") as HTMLElement).style.display).toBe("none");
+        expect((root.querySelector("[data-x-tree-children]") as HTMLElement).style.display).toBe(
+            "none",
+        );
         // 点标记 → 切换
-        (root.querySelector(".tw") as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
+        (root.querySelector(".tw") as HTMLElement).dispatchEvent(
+            new Event("click", { bubbles: true }),
+        );
         await nextTick();
-        expect((root.querySelector("[data-x-tree-children]") as HTMLElement).style.display).not.toBe("none");
+        expect(
+            (root.querySelector("[data-x-tree-children]") as HTMLElement).style.display,
+        ).not.toBe("none");
     });
 
     test("tree:expand / tree:collapse 事件广播（detail {id,node,level}）", async () => {
         const events: any[] = [];
-        const { root } = mount(
-            `<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`,
-            makeTree(),
-        );
+        const { root } = mount(`<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`, makeTree());
         // @tree:expand 走 action——简化：直接 addEventListener 冒泡监听
         const host = root.querySelector("ul") ?? root;
-        host.addEventListener("tree:expand", (e) => events.push(["expand", (e as CustomEvent).detail]));
-        host.addEventListener("tree:collapse", (e) => events.push(["collapse", (e as CustomEvent).detail]));
+        host.addEventListener("tree:expand", (e) =>
+            events.push(["expand", (e as CustomEvent).detail]),
+        );
+        host.addEventListener("tree:collapse", (e) =>
+            events.push(["collapse", (e as CustomEvent).detail]),
+        );
         await nextTick();
         (root.querySelectorAll("[data-x-tree-row]")[0] as HTMLElement).dispatchEvent(
             new Event("click", { bubbles: true }),
@@ -403,10 +427,7 @@ describe("x-tree 空态（决策 12）", () => {
 
 describe("x-tree 响应式颗粒度", () => {
     test("行内字段细粒度：node.name 变更直接 patch 不重建行", async () => {
-        const { root, engine } = mount(
-            `<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`,
-            makeTree(),
-        );
+        const { root, engine } = mount(`<ul x-tree="node of nodes">${CUSTOM_TPL}</ul>`, makeTree());
         await nextTick();
         const rowA = root.querySelector(".name")?.closest("[data-x-tree-row]");
         (engine.state as any).nodes[0].name = "A-NEW";
@@ -418,9 +439,21 @@ describe("x-tree 响应式颗粒度", () => {
     test("深层展开：孙节点 expandField 变化经孙层 watcher 驱动显隐", async () => {
         const { root, engine } = mount(
             `<ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 2 }">${CUSTOM_TPL}</ul>`,
-            { nodes: [{ id: "a", name: "A", children: [
-                { id: "a1", name: "A1", children: [{ id: "a11", name: "A11", children: [] }] },
-            ] }] },
+            {
+                nodes: [
+                    {
+                        id: "a",
+                        name: "A",
+                        children: [
+                            {
+                                id: "a1",
+                                name: "A1",
+                                children: [{ id: "a11", name: "A11", children: [] }],
+                            },
+                        ],
+                    },
+                ],
+            },
         );
         await nextTick();
         expect(rowNames(root)).toEqual(["A", "A1"]);
@@ -448,10 +481,7 @@ describe("x-tree 防呆与冲突（决策 2/5/6/12）", () => {
         // x-tree 与 x-for 都是 ownsChildren 结构指令：compiler _resolveOwnership 先行拦截
         //（比 ADR 设想的「warn 放弃 x-for」更严格——既有机制不破例，ADR-0040 决策 12 修订）
         expect(() =>
-            mount(
-                `<ul x-tree="node of nodes" x-for="x of nodes">${CUSTOM_TPL}</ul>`,
-                makeTree(),
-            ),
+            mount(`<ul x-tree="node of nodes" x-for="x of nodes">${CUSTOM_TPL}</ul>`, makeTree()),
         ).toThrow();
     });
 
@@ -499,16 +529,22 @@ describe("x-tree 节点选中（P2，决策 10）", () => {
             `<ul x-tree="node of nodes" x-tree-options="{ selectedField: 'selected', defaultExpandLevel: 2 }">${SELECT_TPL}</ul>`,
             makeTree(),
         );
-        root.querySelector("ul")!.addEventListener("tree:select", (e) => events.push((e as CustomEvent).detail));
+        root.querySelector("ul")!.addEventListener("tree:select", (e) =>
+            events.push((e as CustomEvent).detail),
+        );
         await nextTick();
         const rows = () => Array.from(root.querySelectorAll("[data-x-tree-row]"));
         // 点 A1 行（非 toggle 标记区）→ 选中
-        (rows()[1].querySelector("[data-name]") as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
+        (rows()[1].querySelector("[data-name]") as HTMLElement).dispatchEvent(
+            new Event("click", { bubbles: true }),
+        );
         await nextTick();
         expect((engine.state as any).nodes[0].children[0].selected).toBe(true);
         expect(rows()[1].querySelector("[data-name]")!.className).toContain("sel");
         // 点 A2 行 → 单选清旧（A1 失选、A2 选中）
-        (rows()[2].querySelector("[data-name]") as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
+        (rows()[2].querySelector("[data-name]") as HTMLElement).dispatchEvent(
+            new Event("click", { bubbles: true }),
+        );
         await nextTick();
         expect((engine.state as any).nodes[0].children[0].selected).toBe(false);
         expect((engine.state as any).nodes[0].children[1].selected).toBe(true);
@@ -525,8 +561,12 @@ describe("x-tree 节点选中（P2，决策 10）", () => {
         );
         await nextTick();
         const rows = () => Array.from(root.querySelectorAll("[data-x-tree-row]"));
-        (rows()[1].querySelector("[data-name]") as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
-        (rows()[2].querySelector("[data-name]") as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
+        (rows()[1].querySelector("[data-name]") as HTMLElement).dispatchEvent(
+            new Event("click", { bubbles: true }),
+        );
+        (rows()[2].querySelector("[data-name]") as HTMLElement).dispatchEvent(
+            new Event("click", { bubbles: true }),
+        );
         await nextTick();
         expect((engine.state as any).nodes[0].children[0].selected).toBe(true);
         expect((engine.state as any).nodes[0].children[1].selected).toBe(true);
@@ -538,12 +578,17 @@ describe("x-tree 节点选中（P2，决策 10）", () => {
             makeTree(),
         );
         await nextTick();
-        (root.querySelector(".arrow") as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
+        (root.querySelector(".arrow") as HTMLElement).dispatchEvent(
+            new Event("click", { bubbles: true }),
+        );
         await nextTick();
         // A 行只展开未选中，子层可见
         expect((engine.state as any).nodes[0].selected).toBeUndefined();
         expect(Array.from(root.querySelectorAll("[data-name]")).map((n) => n.textContent)).toEqual([
-            "A", "A1", "A2", "B",
+            "A",
+            "A1",
+            "A2",
+            "B",
         ]);
     });
 
@@ -573,9 +618,13 @@ describe("x-tree 复选与级联（P2，决策 10/13）", () => {
             `<ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 2 }">${CHECK_TPL}</ul>`,
             makeTree(),
         );
-        root.querySelector("ul")!.addEventListener("tree:check", (e) => events.push((e as CustomEvent).detail));
+        root.querySelector("ul")!.addEventListener("tree:check", (e) =>
+            events.push((e as CustomEvent).detail),
+        );
         await nextTick();
-        (root.querySelector(".chk") as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
+        (root.querySelector(".chk") as HTMLElement).dispatchEvent(
+            new Event("click", { bubbles: true }),
+        );
         await nextTick();
         const st = engine.state as any;
         expect(st.nodes[0].checked).toBe(true);
@@ -589,12 +638,18 @@ describe("x-tree 复选与级联（P2，决策 10/13）", () => {
     test("勾子向上级联：全勾置父 checked、部分勾置 $indeterminate（半选不落盘）", async () => {
         const { root, engine } = mount(
             `<ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 2 }">${CHECK_TPL}</ul>`,
-            { nodes: [
-                { id: "a", name: "A", children: [
-                    { id: "a1", name: "A1", checked: true },
-                    { id: "a2", name: "A2" },
-                ] },
-            ] },
+            {
+                nodes: [
+                    {
+                        id: "a",
+                        name: "A",
+                        children: [
+                            { id: "a1", name: "A1", checked: true },
+                            { id: "a2", name: "A2" },
+                        ],
+                    },
+                ],
+            },
         );
         await nextTick();
         const chks = () => Array.from(root.querySelectorAll(".chk")) as HTMLElement[];
@@ -647,10 +702,13 @@ describe("x-tree 复选与级联（P2，决策 10/13）", () => {
         );
         await nextTick();
         // 零模板行名是 .x-tree-label（rowNames 的 .name 是自定义模板专用）
-        const names = () => Array.from(root.querySelectorAll(".x-tree-label")).map((n) => n.textContent);
+        const names = () =>
+            Array.from(root.querySelectorAll(".x-tree-label")).map((n) => n.textContent);
         expect(names()).toEqual(["A", "A1", "A2", "B"]); // 前 2 层可见
         // 点 A1 行名 → 选中（叶子无展开可切）
-        const label = [...root.querySelectorAll(".x-tree-label")].find((l) => l.textContent === "A1")!;
+        const label = [...root.querySelectorAll(".x-tree-label")].find(
+            (l) => l.textContent === "A1",
+        )!;
         label.dispatchEvent(new Event("click", { bubbles: true }));
         await nextTick();
         expect((engine.state as any).nodes[0].children[0].selected).toBe(true);
@@ -676,7 +734,8 @@ describe("x-tree 复选与级联（P2，决策 10/13）", () => {
         const label = root.querySelector(".x-tree-label")!;
         label.dispatchEvent(new Event("click", { bubbles: true }));
         await nextTick();
-        const names = () => Array.from(root.querySelectorAll(".x-tree-label")).map((n) => n.textContent);
+        const names = () =>
+            Array.from(root.querySelectorAll(".x-tree-label")).map((n) => n.textContent);
         expect(names()).toEqual(["A", "A1", "A2", "B"]); // 点 A 行名展开（B 为同级根行常驻）
         label.dispatchEvent(new Event("click", { bubbles: true }));
         await nextTick();
@@ -686,14 +745,26 @@ describe("x-tree 复选与级联（P2，决策 10/13）", () => {
     test("单根对象数据：子层路径直接下钻（toggle/复选/深层展开可用）", async () => {
         const { root, engine } = mount(
             `<ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 1 }">${CHECK_TPL}</ul>`,
-            { nodes: { id: "company", name: "公司", children: [
-                { id: "admin", name: "行政中心", children: [{ id: "admin-hr", name: "人力资源部" }] },
-            ] } },
+            {
+                nodes: {
+                    id: "company",
+                    name: "公司",
+                    children: [
+                        {
+                            id: "admin",
+                            name: "行政中心",
+                            children: [{ id: "admin-hr", name: "人力资源部" }],
+                        },
+                    ],
+                },
+            },
         );
         await nextTick();
         expect(rowNames(root)).toEqual(["公司"]); // 单根归一渲染
         // 展开公司 → 行政中心可见（单根子层 watcher 挂 nodes.children.*，写回可触发）
-        root.querySelector("[data-x-tree-row]")!.dispatchEvent(new Event("click", { bubbles: true }));
+        root.querySelector("[data-x-tree-row]")!.dispatchEvent(
+            new Event("click", { bubbles: true }),
+        );
         await nextTick();
         expect(rowNames(root)).toEqual(["公司", "行政中心"]);
         // 行政中心展开（深层：nodes.children.0.children）+ 复选级联
@@ -715,7 +786,9 @@ describe("x-tree 复选与级联（P2，决策 10/13）", () => {
             makeTree(),
         );
         await nextTick();
-        (root.querySelector(".chk") as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
+        (root.querySelector(".chk") as HTMLElement).dispatchEvent(
+            new Event("click", { bubbles: true }),
+        );
         await nextTick();
         const st = engine.state as any;
         expect(st.nodes[0].checked).toBe(true);
@@ -723,17 +796,18 @@ describe("x-tree 复选与级联（P2，决策 10/13）", () => {
     });
 
     test("折叠子树的级联在数据层生效：勾折叠节点后展开见全勾", async () => {
-        const { root, engine } = mount(
-            `<ul x-tree="node of nodes">${CHECK_TPL}</ul>`,
-            makeTree(),
-        );
+        const { root, engine } = mount(`<ul x-tree="node of nodes">${CHECK_TPL}</ul>`, makeTree());
         await nextTick();
         // 默认 level 1：A 折叠。点 A 的 chk（勾选触点）→ 级联写数据
-        (root.querySelector(".chk") as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
+        (root.querySelector(".chk") as HTMLElement).dispatchEvent(
+            new Event("click", { bubbles: true }),
+        );
         await nextTick();
         expect((engine.state as any).nodes[0].children[0].checked).toBe(true);
         // 点行非 chk 区 → 整行 toggle（未启用选中，P1 行为）→ 展开见勾选已生效
-        (root.querySelector(".name") as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
+        (root.querySelector(".name") as HTMLElement).dispatchEvent(
+            new Event("click", { bubbles: true }),
+        );
         await nextTick();
         expect(rowNames(root)).toEqual(["A", "A1", "A2", "B"]);
         expect((root.querySelectorAll(".chk")[1] as HTMLElement).textContent).toBe("☑");
@@ -755,7 +829,9 @@ describe("x-tree 拖拽（P3，决策 10）", () => {
             `<ul x-tree="node of nodes" x-tree-options="{ draggable: true, defaultExpandLevel: 2 }">${CUSTOM_TPL}</ul>`,
             makeTree(),
         );
-        root.querySelector("ul")!.addEventListener("tree:drop", (e) => events.push((e as CustomEvent).detail));
+        root.querySelector("ul")!.addEventListener("tree:drop", (e) =>
+            events.push((e as CustomEvent).detail),
+        );
         await nextTick();
         const rows = () => Array.from(root.querySelectorAll("[data-x-tree-row]"));
         expect(rows()[0].getAttribute("draggable")).toBe("true"); // 行根可拖
@@ -803,10 +879,12 @@ describe("x-tree 拖拽（P3，决策 10）", () => {
     test("inside 收纳叶子目标：先建 children 容器再写入（数据真实落 state）", async () => {
         const { root, engine } = mount(
             `<ul x-tree="node of nodes" x-tree-options="{ draggable: true, defaultExpandLevel: 2 }">${CUSTOM_TPL}</ul>`,
-            { nodes: [
-                { id: "a", name: "A", children: [{ id: "a1", name: "A1", children: [] }] },
-                { id: "b", name: "B" }, // 叶子：无 children 字段
-            ] },
+            {
+                nodes: [
+                    { id: "a", name: "A", children: [{ id: "a1", name: "A1", children: [] }] },
+                    { id: "b", name: "B" }, // 叶子：无 children 字段
+                ],
+            },
         );
         await nextTick();
         const rows = () => Array.from(root.querySelectorAll("[data-x-tree-row]"));

@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { AutoStore } from "autostore";
 import { AutoSparkScope } from "../../scope";
 import { createDirectives } from "../../directives/utils/createDirectives";
 import { AutoSparkDirectiveBase } from "../../directives/base";
@@ -31,10 +30,13 @@ class SamePrioB extends AutoSparkDirectiveBase {
 
 /** 构造最小可用 engine（不自动编译），并注册测试指令类 */
 function makeEngine(): AutoSpark<any> {
-    const store = new AutoStore({ count: 0 });
-    const engine = new AutoSpark(document.createElement("div"), store, {
-        autostart: false,
-    });
+    const engine = new AutoSpark(
+        document.createElement("div"),
+        { count: 0 },
+        {
+            autostart: false,
+        },
+    );
     engine.directives.set("high", HighPrioSingleton);
     engine.directives.set("low", LowPrioSingleton);
     engine.directives.set("multi", MultiInstance);
@@ -44,11 +46,7 @@ function makeEngine(): AutoSpark<any> {
 }
 
 function makeBinding(engine: AutoSpark<any>): AutoSparkScope {
-    return new AutoSparkScope(
-        engine,
-        document.createElement("div"),
-        document.createElement("div"),
-    );
+    return new AutoSparkScope(engine, document.createElement("div"), document.createElement("div"));
 }
 
 /** 包装 createDirectives，自动注入测试用 binding */

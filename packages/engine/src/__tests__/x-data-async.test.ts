@@ -350,7 +350,7 @@ describe("x-data 异步数据源（ADR-0033）", () => {
         engine.destroy();
         gate.resolve({ body: { v: 1 } });
         await flush();
-        const scopes = (engine.state as any)._scopes as Record<string, any>;
+        const scopes = (engine.state as any).$scopes as Record<string, any>;
         // 私有域条目已回收、迟到数据未落地
         expect(Object.keys(scopes).length).toBe(0);
     });
@@ -382,7 +382,7 @@ describe("x-data 异步数据源（ADR-0033）", () => {
         expect(root.querySelector("span")?.textContent).toBe("第1页");
     });
 
-    test("短路依赖漂移：:disabled=\"page <= 1 || $loading\" 翻页后正确解禁（依赖动态重收集回归）", async () => {
+    test('短路依赖漂移：:disabled="page <= 1 || $loading" 翻页后正确解禁（依赖动态重收集回归）', async () => {
         const gate = deferred<{ body: any }>();
         mockFetch(() => gate.promise);
         const { root, engine } = mount(

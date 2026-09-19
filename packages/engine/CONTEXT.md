@@ -69,7 +69,7 @@ _Avoid_: options 对象、配置快照
 ### 数据声明层
 
 **挂载 / Mount（x-data）**:
-x-data 的统一挂载模型：数据总要挂进全局状态树的某个容器，`mount` 指令选项指定挂在哪。三形态：默认（私有域 `_scopes.<id>`）/ 挂根（`.global` ≡ `mount:""`，只挂根不设 `this.data`、不改 scope 行为）/ 挂路径（`mount:'x.y'` merge 进 `state.x.y`，`_data` 指向挂载容器——子树直读 + 全树路径读 + `this.data`/`engine.data` 直写，与默认模式行为同构）。写入恒为 **merge**（他人旧键保留）；中间路径不存在自动创建、断裂（存在但非对象/数组段）降级默认私有域。destroy 键级 CAS 删除 + 容器删空向上回收 + 运行时键（`engine.data` 追加）残留。详见 ADR-0029。
+x-data 的统一挂载模型：数据总要挂进全局状态树的某个容器，`mount` 指令选项指定挂在哪。三形态：默认（私有域 `$scopes.<id>`）/ 挂根（`.global` ≡ `mount:""`，只挂根不设 `this.data`、不改 scope 行为）/ 挂路径（`mount:'x.y'` merge 进 `state.x.y`，`_data` 指向挂载容器——子树直读 + 全树路径读 + `this.data`/`engine.data` 直写，与默认模式行为同构）。写入恒为 **merge**（他人旧键保留）；中间路径不存在自动创建、断裂（存在但非对象/数组段）降级默认私有域。destroy 键级 CAS 删除 + 容器删空向上回收 + 运行时键（`engine.data` 追加）残留。详见 ADR-0029。
 _Avoid_: global 路径化（global 只挂根，承载路径的旧提案已废弃）、挂载点路径（Mount 是机制名，路径是它的值）
 
 **相对挂载语法（Relative Mount）**:
@@ -245,7 +245,7 @@ _Avoid_: 全浏览器支持（IE11 已停止维护）、polyfill 由用户提供
 ### 分页层
 
 **分页模式 / Paging Mode（x-for）**:
-x-for 的 `.paging` 修饰符启用的分页渲染模式：支持客户端分页（全量数组 slice）和服务端分页（loader action 远程加载）。语法：`x-for.paging="item of items"`。通过 `x-for-options="{pageSize:10, loader:'actionName'}"` 配置。详见 ADR-0042。
+x-for 的 `.paging` 修饰符启用的分页渲染模式：支持客户端分页（全量数组 slice）和服务端分页（loader action 远程加载）；服务端按总页数是否已知分流渲染——`pageCount>0` 翻页渲染当前页，`pageCount=0`（load-more）累积渲染。语法：`x-for.paging="item of items"`。通过 `x-for-options="{pageSize:10, loader:'actionName'}"` 配置。详见 ADR-0042。
 _Avoid_: 翻页（泛化）、分页加载（paging mode 是标准术语）
 
 **loader（x-for 分页）**:
@@ -253,8 +253,12 @@ x-for 分页模式的远程数据加载函数，是标准 action。签名：`({ 
 _Avoid_: 数据加载器（loader 是标准术语）、分页函数
 
 **分页状态绑定 / :data-paging（Paging State Binding）**:
-x-for 分页模式的双向状态绑定：`:data-paging="pagingState"` 将分页状态（page, pageSize, pageCount, hasMore, loading, error, total）同步到绑定对象。用户可从外部修改 `pagingState.page` 触发翻页。
-_Avoid_: 分页对象（paging state binding 是标准术语）
+x-for 分页模式与外部状态对象的双向绑定：`:data-paging="pagingState"` 将分页状态（page, pageSize, pageCount, hasMore, loading, error, total）同步到绑定对象。仅 page、pageSize 接受外部写入（触发翻页），其余 5 个字段只读、外部写入静默忽略；total 为估算值（pageCount×pageSize）。详见 ADR-0042。
+_Avoid_: 分页对象（paging state binding 是标准术语）、单向同步（page/pageSize 可外部写）
+
+**分页状态读取器 / scope.paging（Paging State Reader）**:
+x-for 分页模式下挂载在容器 scope 上的只读视图：返回 7 个分页字段的冻结快照，供 JS/action 读取；不注入状态树（`$scopes`）。项模板内读取走 `$*` 分页变量，跨作用域共享走「分页状态绑定」——三通道职责正交。详见 ADR-0042。
+_Avoid_: 分页状态注入（不进状态树）、分页对象（与 :data-paging 的绑定对象混淆）
 
 **load-more 模式**:
 x-for 分页模式的特殊形态：`pageCount=0` 时总页数未知，只有"下一页"语义。loader 返回空 data 数组时 `$hasMore=false`，表示没有更多数据。
@@ -303,6 +307,10 @@ _Avoid_: schema 属性集（那是 schema 的，白名单是 input 原生属性�
 **`.invert` 修饰符（x-bind，值取反）**:
 x-bind 的修饰符，对求值结果取反（`!value`），状态绑定与 `@` 配置绑定均生效。语义化为 boolean 型属性的反向词汇映射而生（schema `enable` → DOM `disabled`），非布尔属性约定不使用（引擎不强制）。enable 元数据注入即合成 `:disabled.invert="path@enable"`。详见 ADR-0025。
 _Avoid_: 反向绑定（泛化）、not 修饰符（与 JS 词汇混淆）
+
+**属性展开 / Attribute Spread（x-bind 无参）**:
+`x-bind="expr"` **不带属性参数**的形态：值须为对象，整对象摊开成宿主的 N 个属性——有参 `:title` 绑单属性、无参展 whole object（`v-bind="obj"` 心智）。值分派**通用规则**（`true→裸属性`、`false/null/undefined→移除`、`string/number→String()`、`object/array→warn 剔除`）+ **四特判键**（`class`/`style`/`value`/`checked` 复用单属性绑定的五路分派）。响应粒度：裸 state 路径经 `depth:2` 订阅（子键修改/新增/删除/整体替换全触发）、字面量内嵌引用键级响应；局部上下文（x-for item / x-data 局部）内的路径形态仅整体替换触发（表达式支路无 depth 概念）。覆盖顺序：书写序后者赢（展开之后的静态属性恒赢）+ class 合并例外；展开键**永不作为指令编译**（指令屏障：warn + 照写普通属性）。详见 ADR-0043。
+_Avoid_: 属性解构（destructuring 方向相反——它是"收"，spread 是"放"）、`{...expr}` 属性名写法（happy-dom 拆碎属性名、与浏览器解析不一致，已否决的载体）、x-spread（未采用的新指令名）
 
 **enable 反向映射 / enable Inversion**:
 schema 的 `enable`（boolean，true=可用）映射到 input 的 `disabled` 属性时**值取反**（enable=false → disabled）。经绑定层的 `.invert` 修饰符实现（合成 `:disabled.invert="path@enable"`，ADR-0025）——与普通 `@` 绑定同一套依赖收集/订阅/patch，仅求值结果取反。与 Field.tsx 的 enable 语义对齐。
@@ -377,6 +385,24 @@ _Avoid_: 插槽契约（与 x-slot 撞义）、UI 态注册表（引擎不维护
 **组件冻结（Component Frozen Snapshot）**:
 x-component 收集时 `cloneNode(true)` 产出的、独立于 template 事实源的洁净副本。保留指令属性、未编译、可被多消费者重复取用而不相互污染。机制与 x-slot static 模式的「深克隆子节点」同构。
 _Avoid_: 组件克隆（强调的是冻结独立事实，非单纯克隆操作）
+
+### 引擎构造层
+
+**数据源 / Data Source**:
+构造器第二参，**只收裸状态对象**（种子）：engine 在 `private _createStore()` 内自建 store 并拥有。传入 `AutoStore` 实例 → throw（附迁移指引）；`null`/`undefined` 静默兜空 store。详见 ADR-0044。
+_Avoid_: 借用 store、共享 store（ADR-0009 借用轨已被 ADR-0044 移除）
+
+**种子状态 / Seed State**:
+数据源的裸对象形态，仅作**初始种子**——建 store 后其身份失效（对原对象赋值不触发更新），唯响应式状态句柄（`engine.state`）有效，建后应弃。
+_Avoid_: 初始状态、初始数据（"种子"强调一次性播种、建后即弃）
+
+**引擎自建 store / Engine-owned Store**:
+store 恒由 engine 创建并拥有（**创建权换确定性**：configManager / configKey 可控，`@` 配置绑定行为可预测）；`engine.destroy()` 恒销毁之。无借用/共享形态（1 engine 1 store）。详见 ADR-0044。
+_Avoid_: 外部 store、`_ownsStore`（借用/拥有分流的字段已删除）
+
+**默认 configManager / In-memory ConfigManager**:
+`storeOptions.configManager` 为 nullish 时 engine 补的**内存空 source** 实例（纯响应式 schema 注册表，无持久化、engine 间隔离），使 `@` 绑定与 x-model 元数据注入开箱即用；`configKey` 缺省补 `''`（fullKey 无前缀）。多 store 共用同一 cm 须显式互异 configKey。详见 ADR-0044。
+_Avoid_: 全局 configManager（不注册 `globalThis` 默认，隔离是决策）
 
 ### 配置绑定层
 

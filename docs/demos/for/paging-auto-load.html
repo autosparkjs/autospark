@@ -54,7 +54,8 @@
                 document.querySelector(".demo-app"),
                 {
                     items: [],
-                    paging: { page: 1, pageSize: 5 }
+                    // 初值不预设 page：首次点击「首次加载」写入 page=1 是值变化，才能触发 loader
+                    paging: { pageSize: 5 }
                 },
                 {
                     actions: {

@@ -90,7 +90,7 @@ export interface AutoSparkActionContext {
     /**
      * 数据聚合视图（scope.getContext()）：localData + data + 全局 state 拍平的视图。
      * **可读可写**：读 `this.data.xxx` 取所有可见数据；写 x-data 字段经 set 陷阱透传到响应式
-     * data（= store.state._scopes[id]，触发细粒度更新）。localData 为普通对象，写入不响应式。
+     * data（= store.state.$scopes[id]，触发细粒度更新）。localData 为普通对象，写入不响应式。
      */
     data: any;
     /**

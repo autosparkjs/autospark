@@ -12,6 +12,8 @@
 
 `x-class` / `x-style` 是 `x-bind` 的特化别名——解析期归一化为 `bind` + `class` / `style` 参数，没有独立指令类。
 
+不带属性参数的 `x-bind="obj"` 是**属性展开**形态：把整个对象摊开成一组属性，见[下文](#属性展开)。
+
 ## 快速入门
 
 <demo html="bind/basic.html"/>
@@ -89,6 +91,50 @@
 
 详见[状态 · 属性插值](../state.md#属性插值)。
 
+### 属性展开
+
+`x-bind="expr"` **不带属性参数**时进入属性展开（spread）形态：值须为对象（或**对象数组**，多对象合并展开），整个对象摊开成 N 个属性——有参 `:title` 绑一个属性，无参 `x-bind` 绑一整组（`v-bind="obj"` 心智）。
+
+<demo html="bind/spread.html"/>
+
+```html
+<!-- 字面量：静态声明一组属性（字符串值须带引号——表达式求值，非宽松 JSON） -->
+<div x-bind="{ title: tip, disabled: locked, 'data-id': id }"></div>
+<!-- 状态路径：对象整体即属性组，随状态重展开 -->
+<div x-bind="attrs"></div>
+<!-- 数组：多对象合并展开（键冲突后者覆盖前者；falsy 项跳过，非对象项 warn + 剔除） -->
+<div x-bind="[{ title: tip }, cond && { disabled: true }, { 'data-id': id }]"></div>
+```
+
+**值分派**（通用规则 + 四个特判键）：
+
+| 值 | 结果 |
+| --- | --- |
+| `true` | 裸属性（presence 语义，任意键通用——`aria-*`、`data-*`、自定义属性不在布尔白名单也能生效） |
+| `false` / `null` / `undefined` | 移除属性 |
+| `string` / `number` | `String()` 后写入 |
+| `object` / `array` | warn + 剔除（无法表达为属性值） |
+
+四个特判键 `class` / `style` / `value` / `checked` 复用单属性绑定的同一套分派：
+
+```html
+<!-- class 对象：与静态 class 合并（静态 token 永不被碰） -->
+<span class="tag" x-bind="{ class: { 'is-primary': on }, title: tip }">标签</span>
+<!-- style 对象：键级增删 diff；value/checked：property 写入（单向） -->
+<div x-bind="{ style: { color: msg.color } }"></div>
+<input x-bind="{ value: text, checked: picked }" />
+```
+
+**响应粒度**：
+
+- 裸路径 `x-bind="attrs"` 以 `depth:2` 订阅——**子键修改 / 新增键 / 删除键 / 整体替换**全部触发重展开；
+- 字面量 `x-bind="{ title: tip }"` 走键级响应（每个引用独立追踪，与 `:class="{ active: on }"` 同款通路）；
+- 边界：x-for 项内写 `x-bind="item.props"` 时（局部上下文走表达式求值）只有 `item.props` **整体替换**触发，子键修改不触发——要键级响应请改用字面量形态 `x-bind="{ title: item.props.title }"`。
+
+**覆盖顺序**（JS 展开心智）：书写在展开**之后**的同名静态属性由静态赢——`<div x-bind="attrs" b="2">` 中 `b` 恒为静态值；之前的同名静态属性被展开键覆盖。`class` 键例外——走合并语义。
+
+**指令屏障**：展开出的键**永不作为指令编译**。`x-bind="{ 'x-text': 'msg' }"` 只会把 `x-text="msg"` 作为普通属性写上去（字面值、不执行），并给出 warn 提示。
+
 ### 修饰符
 
 #### `.invert`
@@ -130,3 +176,4 @@
 - **class / style 是 diff 更新**：只增删变化的 token / 声明，不会清掉其他来源的类。但静态写在 `class=""` 里的 token 与 `:class` 绑定是两套，避免互相依赖。
 - **对象 style 用驼峰**：见上文警告。
 - **布尔属性的假值**：`false` / `null` / `undefined` 会移除属性，而非设为 `"false"`（规避 HTML 布尔属性坑）。
+- **属性展开的空态与非法值**：无参 `x-bind="expr"` 求值为 `null` / `undefined` 时静默保留旧展开（异步数据未落地不闪断）；整值**数组**为多对象合并展开（falsy 项跳过、非对象项 warn + 剔除）；整值非对象（`true` / 数字 / 字符串）warn 后忽略；`.invert` 对展开无意义（warn + 忽略）。

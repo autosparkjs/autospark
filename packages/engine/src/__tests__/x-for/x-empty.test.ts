@@ -51,7 +51,7 @@ describe("x-for x-empty 空状态子节点", () => {
     });
 
     test("空 → 非空 → 空 往返：DOM 正确切换、scope 无泄漏", async () => {
-        const { root, store, engine } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items">
                <li x-text="item.name"></li>
                <li x-empty>没有数据</li>
@@ -66,7 +66,7 @@ describe("x-for x-empty 空状态子节点", () => {
         expect(ul.children.length).toBe(1);
 
         // → 非空（2 项）：empty 拆除、2 个 item scope
-        store.state.items.push({ name: "a" }, { name: "b" });
+        engine.state.items.push({ name: "a" }, { name: "b" });
         await nextTick();
         expect(binding.children.size).toBe(2);
         expect(ul.children.length).toBe(2);
@@ -78,7 +78,7 @@ describe("x-for x-empty 空状态子节点", () => {
 </div>`);
 
         // → 空：item 拆除、empty 重新挂载、仍 1 个 scope（无累积泄漏）
-        store.state.items = [];
+        engine.state.items = [];
         await nextTick();
         expect(binding.children.size).toBe(1);
         expect(ul.children.length).toBe(1);
@@ -123,11 +123,13 @@ describe("x-for x-empty 空状态子节点", () => {
     });
 
     test("opt-in：无 x-empty 子节点的 x-for，空状态仍为空容器（不污染既有行为）", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul x-for="item of items"><li x-text="item.name"></li></ul>`,
-            { items: [{ name: "a" }] },
+            {
+                items: [{ name: "a" }],
+            },
         );
-        store.state.items = [];
+        engine.state.items = [];
         await nextTick();
         // 无 x-empty 子节点 → 不渲染任何 fallback，容器留空（既有行为不变）
         expect(root).toEqualHTML(`<div>

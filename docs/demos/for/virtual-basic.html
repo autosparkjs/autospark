@@ -52,11 +52,9 @@
       name: `项目 ${i + 1} - 这是一条测试数据`
     }));
 
-    const store = new AutoSparkSpaces.AutoStore({ items });
+    const state = { items };
     const engine = new AutoSparkSpaces.AutoSpark(
-      document.getElementById('app'),
-      store
-    );
+      document.getElementById('app'), state);
   </script>
 </body>
 </html>

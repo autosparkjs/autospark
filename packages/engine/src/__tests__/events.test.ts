@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
-import { AutoStore } from "autostore";
 import { AutoSpark } from "../engine";
 import { mount, nextTick } from "./helpers";
 
@@ -11,13 +10,12 @@ import { mount, nextTick } from "./helpers";
  * engine/ready 为 retain 态信号，晚订阅亦能补拿。
  */
 
-/** 构造 autostart=false 的引擎（不在构造期 compile），返回 {root,store,engine} */
+/** 构造 autostart=false 的引擎（不在构造期 compile），返回 {root,engine} */
 function mountDeferred(html: string, state: any) {
     const root = document.createElement("div");
     root.innerHTML = html.trim();
-    const store = new AutoStore(state);
-    const engine = new AutoSpark(root, store, { autostart: false });
-    return { root, store, engine };
+    const engine = new AutoSpark(root, state, { autostart: false });
+    return { root, engine };
 }
 
 describe("事件总线（信号面）", () => {
@@ -72,12 +70,12 @@ describe("事件总线（信号面）", () => {
     });
 
     test("render/flush：状态变化驱动的 flush 触发前后事件", async () => {
-        const { engine, store } = mountDeferred(`<span x-text="a"></span>`, { a: 1 });
+        const { engine } = mountDeferred(`<span x-text="a"></span>`, { a: 1 });
         engine.compile();
         const seq: string[] = [];
         engine.on("render/flush/before", () => seq.push("before"));
         engine.on("render/flush/after", () => seq.push("after"));
-        store.state.a = 2;
+        engine.state.a = 2;
         await new Promise<void>((r) => setTimeout(r, 0));
         expect(seq).toEqual(["before", "after"]);
     });

@@ -35,7 +35,7 @@ AutoSpark Engine **不是静态模板引擎**，而是与 Vue、React、Alpine.j
 
 3. **文本与属性插值** —— 除 `x-text` 外，文本节点与属性值均可直接用 `{{ }}` 插值（如把状态动态拼进 class / href），文本按段拆分独立订阅，属性插值在编译期归一化为属性绑定，同样自动响应式。
 
-4. **store | state 双向数据源** —— 构造器既可接收现成的 `AutoStore` 实例（借用、共享状态树），也可直接传裸状态对象（引擎自建 store 并接管销毁），既能独立成页，也能嵌入已有架构。
+4. **裸状态数据源** —— 构造器直接传裸状态对象，引擎自建 store 并接管销毁（1 engine 1 store）；store 级配置经 `options.storeOptions` 传入，默认配备内存 configManager，`@` 配置绑定开箱即用。
 
 5. **完整的指令体系** —— 内置 20+ 指令覆盖内容（`x-text`/`x-html`）、结构（`x-if`/`x-for`/`x-tree`）、绑定（`:class`/`:style`/`:disabled`）、事件（`@click`/`@input`）、表单（`x-model`）、显隐（`x-show`）、数据域（`x-data`）、组件（`x-component`/`x-use`）、传送（`x-teleport`）、转场（`x-transition`）、`x-switch`/`x-loading`/`x-slot` 等。
 

@@ -17,7 +17,7 @@ import { AutoSparkDirectiveBase } from "../base";
  * - **x-patch**：让纯静态裸元素成为 `engine.patch` 锚点（动态 patch 可定位）。
  * - **x-scope**：为纯容器提供 scope 锚点（x-block 归属 + scope 链边界）。
  *
- * **不建数据域**（`_scopes[id]`）、不注入 data、不订阅、不渲染——与 [DataDirective](./data.ts)
+ * **不建数据域**（`$scopes[id]`）、不注入 data、不订阅、不渲染——与 [DataDirective](./data.ts)
  * （x-data，数据注入）职责正交。元素已有其他指令（本就建 scope）时，x-scope 冗余但**静默无副作用**
  * （同元素 scope 只建一次，x-scope 不叠加、不报错）。
  *

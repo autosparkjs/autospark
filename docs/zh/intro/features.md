@@ -50,20 +50,16 @@ engine.state.user.name = "李四";
 
 文本插值按段拆分、每段独立订阅；属性插值在编译期归一化为属性绑定，复用同一套绑定分派逻辑——零额外学习成本。
 
-## store | state 双向数据源
+## 裸状态数据源
 
-构造器第二参既可接收一个**现成的 `AutoStore` 实例**（与其他模块共享状态），也可直接传**裸状态对象**（引擎自动建 store 并接管销毁）：
+构造器第二参直接传**裸状态对象**——引擎自动建 store 并接管销毁（1 engine 1 store）：
 
 ```javascript
-// 方式一：传入 AutoStore 实例（借用，destroy 不销毁它）
-const store = new AutoStore({ ... });
-new AutoSpark(el, store);
-
-// 方式二：传入裸状态（引擎自建 store，destroy 时自动回收）
+// 传入裸状态（引擎自建 store，destroy 时自动回收）
 new AutoSpark(el, { user: { name: "张三" } });
 ```
 
-这让引擎既能作为独立页面的渲染层（裸状态自给自足），也能嵌入已有 `AutoStore` 架构（共享同一状态树），集成方式灵活。
+store 配置（computed 声明、configManager 等）经 `options.storeOptions` 传入；引擎默认配备内存 configManager（`configKey=''`），`@` 配置绑定与 x-model 元数据注入开箱即用。
 
 ---
 

@@ -252,6 +252,8 @@ export class ForDirective extends AutoSparkDirectiveBase {
     private _pagingBindingPath: string | null = null;
     /** autoLoad 开关 */
     private _autoLoad = true;
+    /** loader 模式是否已完成过一次加载（autoLoad:false 手动首载：未加载过时同值 page 写入放行触发） */
+    private _hasLoaded = false;
 
     override created() {
         this._anim = resolveAnimate(this.getOption("animate"));
@@ -303,9 +305,9 @@ export class ForDirective extends AutoSparkDirectiveBase {
                         this._pageSize = bindingObj.pageSize;
                     }
                 }
-                // 立即同步，确保 hasMore/pageCount 等派生属性在绑定对象上存在
-                this._syncPagingToBinding();
             }
+            // 立即同步：重建 scope.paging 快照（无绑定也存在）+ 确保绑定对象上派生属性存在
+            this._syncPagingState();
         }
 
         // 检测虚拟列表模式（分页模式下跳过）
@@ -335,12 +337,15 @@ export class ForDirective extends AutoSparkDirectiveBase {
         if (this._paging && this._pagingBindingPath) {
             this.binding.watch(`${this._pagingBindingPath}.page`, (payload) => {
                 let p = Number(payload?.value);
-                if (!Number.isFinite(p) || p < 1 || p === this._page) return;
+                if (!Number.isFinite(p) || p < 1) return;
+                // 恒等早退防回写循环。例外：loader 模式尚未加载过时放行——autoLoad:false 的手动首载
+                // 依赖绑定对象初值不预设 page（undefined→1 是值变化、有信号），写入同值 page 触发首载
+                if (p === this._page && (!this._loaderName || this._hasLoaded)) return;
                 if (this._pageCount > 0 && p > this._pageCount) {
                     // 越界页码钳位到末页：先更新 _page 再回写绑定对象（回写的是钳位值而非旧值）
                     p = this._pageCount;
                     this._page = p;
-                    this._syncPagingToBinding();
+                    this._syncPagingState();
                 } else {
                     this._page = p;
                 }
@@ -824,7 +829,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
                     const newPage = Number(value);
                     if (Number.isFinite(newPage) && newPage >= 1 && newPage !== directive._page) {
                         directive._page = newPage;
-                        directive._syncPagingToBinding();
+                        directive._syncPagingState();
                         if (directive._loaderName) {
                             directive._loadPage(newPage);
                         } else {
@@ -840,7 +845,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
                         directive._pageSize = newPageSize;
                         directive._page = 1;
                         target["$page"] = 1;
-                        directive._syncPagingToBinding();
+                        directive._syncPagingState();
                         if (directive._loaderName) {
                             directive._loadPage(1);
                         } else {
@@ -865,7 +870,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
 
         this._loading = true;
         this._error = null;
-        this._syncPagingToBinding();
+        this._syncPagingState();
         this._forceRefreshPagingVars();
 
         try {
@@ -893,6 +898,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
             this._page = result.page ?? page;
             this._pageSize = result.pageSize ?? this._pageSize;
             this._pageCount = result.pageCount ?? 0;
+            this._hasLoaded = true;
 
             // 追加数据到 items（去重）
             this._appendItems(result.data, this._page);
@@ -901,14 +907,14 @@ export class ForDirective extends AutoSparkDirectiveBase {
             this._hasMore = result.data.length > 0
                 && (this._pageCount === 0 || this._page < this._pageCount);
 
-            this._syncPagingToBinding();
+            this._syncPagingState();
             this.engine.scheduler.schedule(() => this.render());
         } catch (e: any) {
             this._error = e instanceof Error ? e.message : String(e);
-            this._syncPagingToBinding();
+            this._syncPagingState();
         } finally {
             this._loading = false;
-            this._syncPagingToBinding();
+            this._syncPagingState();
             this._forceRefreshPagingVars();
         }
     }
@@ -960,9 +966,20 @@ export class ForDirective extends AutoSparkDirectiveBase {
     }
 
     /**
-     * 将分页状态同步到 :data-paging 绑定对象。
+     * 将分页状态同步到外部：先重建容器 scope 上的 paging 冻结快照（ADR-0042 分页状态读取器，
+     * 有无 :data-paging 绑定均执行），再回写绑定对象（有绑定时）。
      */
-    private _syncPagingToBinding() {
+    private _syncPagingState() {         // 快照冻结、每次变化整体重建（不可变）；挂 scope 实例（不进 state.$scopes），随 scope 生命周期回收
+        this.binding.paging = Object.freeze({
+            page: this._page,
+            pageSize: this._pageSize,
+            pageCount: this._pageCount,
+            hasMore: this._hasMore,
+            loading: this._loading,
+            error: this._error,
+            total: this._pageCount > 0 ? this._pageCount * this._pageSize : 0,
+        });
+
         if (!this._pagingBindingPath) return;
 
         const parts = this._pagingBindingPath.split(".");
@@ -973,7 +990,10 @@ export class ForDirective extends AutoSparkDirectiveBase {
         }
         const obj = target[parts[parts.length - 1]];
         if (obj && typeof obj === "object") {
-            obj.page = this._page;
+            // autoLoad:false 未首载时推迟回写 page：绑定对象初值省略 page 的话，用户首次写
+            // page=1 才是值变化（有信号）——提前回写会把首载写变回同值赋值（autostore 不发信号，手动首载失效）
+            const deferPage = !this._autoLoad && !this._hasLoaded;
+            if (!deferPage) obj.page = this._page;
             obj.pageSize = this._pageSize;
             obj.pageCount = this._pageCount;
             obj.hasMore = this._hasMore;
@@ -1080,9 +1100,17 @@ export class ForDirective extends AutoSparkDirectiveBase {
                 this._page = this._pageCount;
             }
             this._hasMore = this._page < this._pageCount;
-            this._syncPagingToBinding();
+            this._syncPagingState();
 
             return arr.slice(start, end);
+        }
+
+        // 服务端翻页渲染：总页数已知（pageCount>0）为翻页语义，只渲染当前页切片——
+        // 数据仍全量累积在 items（_appendItems 按页偏移写入，(page-1)*pageSize 起的切片即当前页）。
+        // pageCount=0（load-more，总页数未知）保持累积全量渲染（ADR-0042 追加式数据）。
+        if (this._paging && this._loaderName && this._pageCount > 0) {
+            const start = (this._page - 1) * this._pageSize;
+            return arr.slice(start, start + this._pageSize);
         }
 
         return arr;

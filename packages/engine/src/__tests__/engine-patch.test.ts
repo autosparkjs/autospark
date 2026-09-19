@@ -5,7 +5,7 @@ import { mount, nextTick } from "./helpers";
 /**
  * engine.patch 模板增量编译测试（ADR-0002）。
  *
- * 数据统一挂在 store.state（全局），容器用 `x-data="{}"` 作 scope 锚（空私有域）；
+ * 数据统一挂在 engine.state（全局），容器用 `x-data="{}"` 作 scope 锚（空私有域）；
  * `x-patch` 哨兵单独验证。updater 就地改入参（engine.template 的元素），返回值走四态。
  */
 describe("engine.patch - 子树重建（void / 同引用）", () => {
@@ -42,7 +42,7 @@ describe("engine.patch - 子树重建（void / 同引用）", () => {
     });
 
     test("子树重建保留兄弟子树运行态（增量核心价值）", async () => {
-        const { root, store, engine } = mount(
+        const { root, engine } = mount(
             `<div id="app"><div id="ws" x-data="{}"></div><input id="keep" x-bind:title="content"></div>`,
             { content: "hello" },
         );
@@ -53,7 +53,7 @@ describe("engine.patch - 子树重建（void / 同引用）", () => {
         expect(root).toEqualHTML(
             `<div><div id="app"><div id="ws"><p>hello</p></div><input id="keep" title="hello"></div></div>`,
         );
-        store.state.content = "world";
+        engine.state.content = "world";
         await nextTick();
         // 兄弟子树 #keep 与 #ws 内 <p> 都更新（证明 patch 未破坏 #keep 订阅）
         expect(root).toEqualHTML(
@@ -124,10 +124,9 @@ describe("engine.patch - 边界与守卫", () => {
     });
 
     test("含 {{}} 的裸元素（合成 scope）：可 patch", () => {
-        const { root, engine } = mount(
-            `<div id="app"><div id="ws">{{content}}</div></div>`,
-            { content: "hello" },
-        );
+        const { root, engine } = mount(`<div id="app"><div id="ws">{{content}}</div></div>`, {
+            content: "hello",
+        });
         engine.patch("#ws", (ws) => {
             ws.insertAdjacentHTML("beforeend", "<p x-text='content'></p>");
         });
@@ -139,15 +138,18 @@ describe("engine.patch - 边界与守卫", () => {
     test("动态区域 x-for 元素：拒绝，DOM 不变", () => {
         const { root, engine } = mount(
             `<div id="app"><ul x-for="item of items" :key="item.id"><li x-text="item.name"></li></ul></div>`,
-            { items: [{ id: 1, name: "a" }, { id: 2, name: "b" }] },
+            {
+                items: [
+                    { id: 1, name: "a" },
+                    { id: 2, name: "b" },
+                ],
+            },
         );
         // patch x-for 元素自身（ownsChildren）→ 动态区域拒绝；updater 不执行、DOM 保持初始
         engine.patch("ul", (ul) => {
             ul.setAttribute("x-data", "{}");
         });
-        expect(root).toEqualHTML(
-            `<div><div id="app"><ul><li>a</li><li>b</li></ul></div></div>`,
-        );
+        expect(root).toEqualHTML(`<div><div id="app"><ul><li>a</li><li>b</li></ul></div></div>`);
     });
 
     test("updater 抛错：不重建，DOM 不变", () => {
@@ -158,9 +160,7 @@ describe("engine.patch - 边界与守卫", () => {
         engine.patch("#ws", () => {
             throw new Error("oops");
         });
-        expect(root).toEqualHTML(
-            `<div><div id="app"><div id="ws"><p>hello</p></div></div></div>`,
-        );
+        expect(root).toEqualHTML(`<div><div id="app"><div id="ws"><p>hello</p></div></div></div>`);
     });
 });
 
@@ -178,14 +178,14 @@ describe("engine.patch - 结构占位指令 x-scope", () => {
 
 describe("engine.patch - 响应式与事件", () => {
     test("patch 插入的绑定后续 state 变化自动更新", async () => {
-        const { root, store, engine } = mount(`<div id="app"><div id="ws" x-data="{}"></div></div>`, {
+        const { root, engine } = mount(`<div id="app"><div id="ws" x-data="{}"></div></div>`, {
             content: "hello",
         });
         engine.patch("#ws", (ws) => {
             ws.insertAdjacentHTML("beforeend", "<p x-text='content'></p>");
         });
         expect(root).toEqualHTML(`<div><div id="app"><div id="ws"><p>hello</p></div></div></div>`);
-        store.state.content = "world";
+        engine.state.content = "world";
         await nextTick();
         expect(root).toEqualHTML(`<div><div id="app"><div id="ws"><p>world</p></div></div></div>`);
     });

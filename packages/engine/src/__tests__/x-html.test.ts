@@ -4,11 +4,13 @@ import { mount, nextTick } from "./helpers";
 
 describe("x-html 原始 HTML 绑定", () => {
     test("x-html 路径：初始渲染 + 状态变化重写 innerHTML", async () => {
-        const { root, store } = mount(`<div x-html="user.bio"></div>`, { user: { bio: "<b>hi</b>" } });
+        const { root, engine } = mount(`<div x-html="user.bio"></div>`, {
+            user: { bio: "<b>hi</b>" },
+        });
         expect(root).toEqualHTML(`<div>
   <div><b>hi</b></div>
 </div>`);
-        store.state.user.bio = "<i>yo</i>";
+        engine.state.user.bio = "<i>yo</i>";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div><i>yo</i></div>
@@ -16,13 +18,13 @@ describe("x-html 原始 HTML 绑定", () => {
     });
 
     test("x-html 表达式：多依赖自动收集 + 重算", async () => {
-        const { root, store } = mount(`<div x-html="'<b>' + user.first + '</b>'"></div>`, {
+        const { root, engine } = mount(`<div x-html="'<b>' + user.first + '</b>'"></div>`, {
             user: { first: "zhang" },
         });
         expect(root).toEqualHTML(`<div>
   <div><b>zhang</b></div>
 </div>`);
-        store.state.user.first = "san";
+        engine.state.user.first = "san";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div><b>san</b></div>
@@ -60,11 +62,11 @@ describe("x-html 原始 HTML 绑定", () => {
     });
 
     test("null/空值渲染为空内容", async () => {
-        const { root, store } = mount(`<div x-html="html"></div>`, { html: null });
+        const { root, engine } = mount(`<div x-html="html"></div>`, { html: null });
         expect(root).toEqualHTML(`<div>
   <div></div>
 </div>`);
-        store.state.html = "<b>x</b>";
+        engine.state.html = "<b>x</b>";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div><b>x</b></div>
@@ -72,18 +74,21 @@ describe("x-html 原始 HTML 绑定", () => {
     });
 
     test("与 x-text 同元素：x-html 确定性胜出（x-text 静默 no-op）", async () => {
-        const { root, store } = mount(`<div x-text="t" x-html="h"></div>`, { t: "PLAIN", h: "<b>HTML</b>" });
+        const { root, engine } = mount(`<div x-text="t" x-html="h"></div>`, {
+            t: "PLAIN",
+            h: "<b>HTML</b>",
+        });
         expect(root).toEqualHTML(`<div>
   <div><b>HTML</b></div>
 </div>`);
         // x-text 从未订阅：变化 t 不影响输出（确定性）
-        store.state.t = "CHANGED";
+        engine.state.t = "CHANGED";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div><b>HTML</b></div>
 </div>`);
         // x-html 变化仍生效
-        store.state.h = "<i>new</i>";
+        engine.state.h = "<i>new</i>";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div><i>new</i></div>
@@ -93,18 +98,21 @@ describe("x-html 原始 HTML 绑定", () => {
 
 describe("x-html 空值占位与 .hide（ADR-0014）", () => {
     test("empty 占位：空值渲染指定 HTML（过 sanitize，安全标签保留），可随状态切换", async () => {
-        const { root, store } = mount(`<div x-html="h" x-html-options="{empty:'<i>无</i>'}"></div>`, {
-            h: null,
-        });
+        const { root, engine } = mount(
+            `<div x-html="h" x-html-options="{empty:'<i>无</i>'}"></div>`,
+            {
+                h: null,
+            },
+        );
         expect(root).toEqualHTML(`<div>
   <div><i>无</i></div>
 </div>`);
-        store.state.h = "<b>x</b>";
+        engine.state.h = "<b>x</b>";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div><b>x</b></div>
 </div>`);
-        store.state.h = null;
+        engine.state.h = null;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div><i>无</i></div>
@@ -112,9 +120,12 @@ describe("x-html 空值占位与 .hide（ADR-0014）", () => {
     });
 
     test("empty 占位串也过 sanitize：危险属性被剥（决策 3）", async () => {
-        const { root } = mount(`<div x-html="h" x-html-options="{empty:'<img src=x onerror=alert(1)>'}"></div>`, {
-            h: null,
-        });
+        const { root } = mount(
+            `<div x-html="h" x-html-options="{empty:'<img src=x onerror=alert(1)>'}"></div>`,
+            {
+                h: null,
+            },
+        );
         expect(root).toEqualHTML(`<div>
   <div><img src="x"></div>
 </div>`);
@@ -131,11 +142,13 @@ describe("x-html 空值占位与 .hide（ADR-0014）", () => {
     });
 
     test(".hide on x-html：空值隐藏宿主，恢复还原 display", async () => {
-        const { root, store } = mount(`<div style="display:flex" x-html.hide="h"></div>`, { h: null });
+        const { root, engine } = mount(`<div style="display:flex" x-html.hide="h"></div>`, {
+            h: null,
+        });
         const el = root.firstElementChild as HTMLElement;
         expect(el.style.display).toBe("none");
         expect(el.innerHTML).toBe(""); // .hide 优先，不写内容
-        store.state.h = "<b>x</b>";
+        engine.state.h = "<b>x</b>";
         await nextTick();
         expect(el.style.display).toBe("flex");
         expect(el.innerHTML).toBe("<b>x</b>");

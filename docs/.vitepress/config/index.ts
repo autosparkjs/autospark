@@ -42,7 +42,8 @@ export default defineConfig({
                         { text: "指令配置", link: "/zh/guide/config" },
                         { text: "组件", link: "/zh/guide/component" },
                         { text: "动态模板", link: "/zh/guide/patch" },
-                        { text: "动画", link: "/zh/guide/animate" } 
+                        { text: "动画", link: "/zh/guide/animate" }, 
+                        { text: "Scope", link: "/zh/guide/scope" } 
                     ],
                 },
                 {

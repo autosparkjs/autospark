@@ -32,7 +32,7 @@ function captureWarn(fn: () => void): string[] {
 
 describe("x-if 条件分支链：短路求值（Q1/Q3/Q5）", () => {
     test("x-if 真 → then 渲染，分支全部不进 DOM（剪枝）", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div id="h" x-if="on"><span class="then">THEN</span>
                 <div x-else-if="a">A</div>
                 <div x-else-if="b">B</div>
@@ -115,7 +115,7 @@ describe("x-if 条件分支链：短路求值（Q1/Q3/Q5）", () => {
     });
 
     test("任一表达式变化 → 从头重算整链（分支间切换 + 回 then）", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div id="h" x-if="on"><span class="then">THEN</span>
                 <div x-else-if="a" class="br-a">A</div>
                 <div x-else-if="b" class="br-b">B</div>
@@ -125,19 +125,19 @@ describe("x-if 条件分支链：短路求值（Q1/Q3/Q5）", () => {
         await nextTick();
         expect(root.querySelector(".br-a")).not.toBeNull();
         // a 变假 b 变真 → 切到 B
-        store.state.a = false;
-        store.state.b = true;
+        engine.state.a = false;
+        engine.state.b = true;
         await nextTick();
         expect(root.querySelector(".br-a")).toBeNull();
         expect(root.querySelector(".br-b")).not.toBeNull();
         // x-if 变真 → 分支移除、宿主回归 + then 编译
-        store.state.on = true;
+        engine.state.on = true;
         await nextTick();
         expect(root.querySelector(".br-b")).toBeNull();
         expect(root.querySelector("#h")).not.toBeNull();
         expect(root.querySelector(".then")?.textContent).toBe("THEN");
         // 再变假 → 回到 B（b 仍真）
-        store.state.on = false;
+        engine.state.on = false;
         await nextTick();
         expect(root.querySelector(".br-b")).not.toBeNull();
         expect(root.querySelector("#h")).toBeNull();
@@ -146,7 +146,7 @@ describe("x-if 条件分支链：短路求值（Q1/Q3/Q5）", () => {
 
 describe("分支内容编译执行（Q2/Q8）", () => {
     test("分支内插值与指令正常编译、响应式更新", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div id="h" x-if="on">
                 <div x-else-if="a"><span class="msg" x-text="msg"></span>（{{ msg }}）</div>
              </div>`,
@@ -155,7 +155,7 @@ describe("分支内容编译执行（Q2/Q8）", () => {
         await nextTick();
         expect(root.querySelector(".msg")?.textContent).toBe("首版");
         expect(root.textContent).toContain("（首版）");
-        store.state.msg = "更新";
+        engine.state.msg = "更新";
         await nextTick();
         expect(root.querySelector(".msg")?.textContent).toBe("更新");
         expect(root.textContent).toContain("（更新）");
@@ -165,7 +165,7 @@ describe("分支内容编译执行（Q2/Q8）", () => {
         // 注：不以 :class 断言——happy-dom 对 compileChild 路径元素的 classList 存在
         // token/attribute/contains 三态分裂 quirk（真实浏览器按规范同步，无此问题），
         // 改用普通属性绑定（走 setAttribute，无 classList 参与）验证同一能力
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div id="h" x-if="on">
                 <div x-else-if="a" class="br" :title="msg" :data-hot="hot ? 'on' : 'off'" x-text="msg"></div>
              </div>`,
@@ -176,7 +176,7 @@ describe("分支内容编译执行（Q2/Q8）", () => {
         expect(br.textContent).toBe("文案");
         expect(br.getAttribute("title")).toBe("文案");
         expect(br.getAttribute("data-hot")).toBe("off");
-        store.state.hot = true;
+        engine.state.hot = true;
         await nextTick();
         expect(br.getAttribute("data-hot")).toBe("on");
     });
@@ -184,13 +184,18 @@ describe("分支内容编译执行（Q2/Q8）", () => {
     test("分支表达式与 then 同求值上下文（x-for 项内的分支链）", async () => {
         // x-for 是容器语义（宿主即容器、子节点为复合项模板）；分支链按 A 形态写在项内
         // x-if 宿主的直接子级（item.big 在 item 局部变量上下文求值）
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<ul><li x-for="item of items">
                 <span x-if="item.big" class="host">{{ item.label }}-BIG
                     <span x-else class="small">{{ item.label }}-SMALL</span>
                 </span>
             </li></ul>`,
-            { items: [{ label: "x", big: true }, { label: "y", big: false }] },
+            {
+                items: [
+                    { label: "x", big: true },
+                    { label: "y", big: false },
+                ],
+            },
         );
         await nextTick();
         await nextTick(); // x-for 首渲经 scheduler flush，须等两 tick
@@ -199,7 +204,7 @@ describe("分支内容编译执行（Q2/Q8）", () => {
         expect(li.querySelector(".host")?.textContent).toContain("x-BIG");
         expect(li.querySelector(".small")?.textContent).toContain("y-SMALL");
         // 响应式：翻转项1 的 big → 项1 从 then 切到兜底
-        store.state.items[0].big = false;
+        engine.state.items[0].big = false;
         await nextTick();
         const hosts = li.querySelectorAll(".small");
         expect(hosts.length).toBe(2);
@@ -225,7 +230,7 @@ describe("分支内容编译执行（Q2/Q8）", () => {
     });
 
     test("嵌套链就近归属（Q6）：分支内再嵌 x-if + else 链归内层宿主", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div id="h" x-if="outer">
                 <div x-else-if="a" class="br-a">
                     <div x-if="inner" class="in-host"><span class="in-then">INNER-THEN</span>
@@ -240,7 +245,7 @@ describe("分支内容编译执行（Q2/Q8）", () => {
         // 内层 else 是内层 x-if 宿主的直接子元素 → 归内层链（inner 假 → 兜底渲染）
         expect(root.querySelector(".in-else")).not.toBeNull();
         expect(root.querySelector(".in-then")).toBeNull();
-        store.state.inner = true;
+        engine.state.inner = true;
         await nextTick();
         expect(root.querySelector(".in-then")).not.toBeNull();
         expect(root.querySelector(".in-else")).toBeNull();
@@ -267,7 +272,7 @@ describe("分支内容编译执行（Q2/Q8）", () => {
 
 describe("eager / keepalive 两模式（Q4）", () => {
     test("eager（默认）：分支切换销毁重建，状态不保留", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div id="h" x-if="on">
                 <div x-else-if="a" class="br-a"><input class="inp" /></div>
                 <div x-else-if="b" class="br-b">B</div>
@@ -278,12 +283,12 @@ describe("eager / keepalive 两模式（Q4）", () => {
         const inp = root.querySelector(".inp") as HTMLInputElement;
         inp.value = "用户输入";
         // 切到 B 再切回 A：eager 销毁重建，输入丢失
-        store.state.a = false;
-        store.state.b = true;
+        engine.state.a = false;
+        engine.state.b = true;
         await nextTick();
         expect(root.querySelector(".br-b")).not.toBeNull();
-        store.state.a = true;
-        store.state.b = false;
+        engine.state.a = true;
+        engine.state.b = false;
         await nextTick();
         const inp2 = root.querySelector(".inp") as HTMLInputElement;
         expect(inp2).not.toBe(inp); // 新编译的元素
@@ -291,7 +296,7 @@ describe("eager / keepalive 两模式（Q4）", () => {
     });
 
     test("keepalive：每分支独立保活，切回状态保留（Q4）", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div id="h" x-if.keepalive="on">
                 <div x-else-if="a" class="br-a"><input class="inp-a" /></div>
                 <div x-else-if="b" class="br-b"><input class="inp-b" /></div>
@@ -302,22 +307,22 @@ describe("eager / keepalive 两模式（Q4）", () => {
         const inpA = root.querySelector(".inp-a") as HTMLInputElement;
         inpA.value = "A 的输入";
         // 切到 B（A 分支保活 detach）
-        store.state.a = false;
-        store.state.b = true;
+        engine.state.a = false;
+        engine.state.b = true;
         await nextTick();
         expect(root.querySelector(".inp-a")).toBeNull(); // A 已 detach
         const inpB = root.querySelector(".inp-b") as HTMLInputElement;
         inpB.value = "B 的输入";
         // 切回 A：同元素 reattach，输入保留
-        store.state.a = true;
-        store.state.b = false;
+        engine.state.a = true;
+        engine.state.b = false;
         await nextTick();
         const inpA2 = root.querySelector(".inp-a") as HTMLInputElement;
         expect(inpA2).toBe(inpA); // keepalive：同元素身份
         expect(inpA2.value).toBe("A 的输入");
         // 再切 B：B 的输入也保留（每分支独立保活）
-        store.state.a = false;
-        store.state.b = true;
+        engine.state.a = false;
+        engine.state.b = true;
         await nextTick();
         const inpB2 = root.querySelector(".inp-b") as HTMLInputElement;
         expect(inpB2).toBe(inpB);
@@ -325,7 +330,7 @@ describe("eager / keepalive 两模式（Q4）", () => {
     });
 
     test("keepalive：then 分支保活与 else 分支对称（then ↔ 分支往返状态保留）", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div id="h" x-if.keepalive="on"><input class="inp-then" />
                 <div x-else-if="a" class="br-a">A</div>
              </div>`,
@@ -335,14 +340,14 @@ describe("eager / keepalive 两模式（Q4）", () => {
         const inpThen = root.querySelector(".inp-then") as HTMLInputElement;
         inpThen.value = "then 输入";
         // 切到分支 A（宿主 detach 保活）
-        store.state.on = false;
-        store.state.a = true;
+        engine.state.on = false;
+        engine.state.a = true;
         await nextTick();
         expect(root.querySelector(".br-a")).not.toBeNull();
         expect(root.querySelector(".inp-then")).toBeNull();
         // 切回 then：原宿主 reattach，输入保留（既有 keepalive 语义不回归）
-        store.state.on = true;
-        store.state.a = false;
+        engine.state.on = true;
+        engine.state.a = false;
         await nextTick();
         const inpThen2 = root.querySelector(".inp-then") as HTMLInputElement;
         expect(inpThen2).toBe(inpThen);
@@ -386,10 +391,10 @@ describe("防呆与边界（Q7/Q8/Q9）", () => {
 
     test("结构指令 warn 断言（Q8 配套）", () => {
         const warns = captureWarn(() => {
-            mount(
-                `<div x-if="on"><div x-else-if="a" x-for="i in 3">BAD</div></div>`,
-                { on: true, a: false },
-            );
+            mount(`<div x-if="on"><div x-else-if="a" x-for="i in 3">BAD</div></div>`, {
+                on: true,
+                a: false,
+            });
         });
         expect(warns.some((w) => w.includes("结构指令"))).toBe(true);
     });
@@ -433,7 +438,9 @@ describe("防呆与边界（Q7/Q8/Q9）", () => {
         const warns = captureWarn(() => {
             const mounted = mount(
                 `<div x-if="on"><div x-else-if="" class="empty">EMPTY</div></div>`,
-                { on: false },
+                {
+                    on: false,
+                },
             );
             root = mounted.root;
         });
@@ -443,17 +450,16 @@ describe("防呆与边界（Q7/Q8/Q9）", () => {
     });
 
     test("无分支纯 x-if 行为不变（回归锚点）", async () => {
-        const { root, store } = mount(
-            `<div id="h" x-if="on"><span>THEN</span></div>`,
-            { on: true },
-        );
+        const { root, engine } = mount(`<div id="h" x-if="on"><span>THEN</span></div>`, {
+            on: true,
+        });
         await nextTick();
         expect(root.querySelector("#h")).not.toBeNull();
-        store.state.on = false;
+        engine.state.on = false;
         await nextTick();
         expect(root.querySelector("#h")).toBeNull();
         expect(root.firstChild?.nodeType).toBe(Node.COMMENT_NODE);
-        store.state.on = true;
+        engine.state.on = true;
         await nextTick();
         expect(root.querySelector("#h")).not.toBeNull();
     });

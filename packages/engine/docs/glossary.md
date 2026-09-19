@@ -248,7 +248,7 @@ remote 模式下 `x-slot="expr"` 的 `expr` 是**反应式表达式**，经 `sco
 
 ### child engine（子引擎）
 
-remote 模式在 x-slot 宿主上创建的**完全独立** `AutoSpark` 实例：`new AutoSpark(host, new AutoStore({}))`——自带空 store（fetched HTML 用自身 x-data 自治声明，**不复用父 store**，与父状态零耦合），以宿主为挂载点（fetch 成功后 `host.innerHTML = html` 再构造，宿主身份不变、仅子节点被接管）。挂在指令实例 `this.childEngine`（非 scope 对象——指令 own 自己的资源、SRP）。**随 `scope.destroy()` 销毁**（指令 `destroy()` 调 `childEngine.destroy()` + abort 在途 fetch），零额外接线、无泄漏。见 [ADR-0006](adr/0006-x-slot-directive.md) 决策 4/5。
+remote 模式在 x-slot 宿主上创建的**完全独立** `AutoSpark` 实例：`new AutoSpark(host, {})`——传裸状态由 engine 自建空 store（fetched HTML 用自身 x-data 自治声明，**不复用父 store**，与父状态零耦合），以宿主为挂载点（fetch 成功后 `host.innerHTML = html` 再构造，宿主身份不变、仅子节点被接管）。挂在指令实例 `this.childEngine`（非 scope 对象——指令 own 自己的资源、SRP）。**随 `scope.destroy()` 销毁**（指令 `destroy()` 调 `childEngine.destroy()` + abort 在途 fetch，连带销毁其自建 store 与默认 configManager），零额外接线、无泄漏。见 [ADR-0006](adr/0006-x-slot-directive.md) 决策 4/5。
 
 ### slot 盲区（Slot Blind Zone）
 
@@ -334,25 +334,31 @@ action 监听的 **DOM 层级模式**：祖先元素经 `@action:<name>` 监听�
 
 ### 数据源（Data Source）
 
-`AutoSpark` 构造器第二参，二态输入：`AutoStore` 实例（**借用**）或裸状态对象（**种子**，engine 自动 `new AutoStore(state)` 建 store）。形参名仍为 `store`（字段 `engine.store` 是公开契约），类型联合 `AutoStore<State> | State`。判别走 `instanceof AutoStore` 主 + `__AUTO_STORE__` brand 兜重复包；`null`/`undefined`/非对象静默走自建路径兜空 store（不抛错）。见 [ADR-0009](adr/0009-store-or-state-input.md) 决策 1/3/5。
+`AutoSpark` 构造器第二参，**只收裸状态对象**（`state: State`）：engine 在 `private _createStore()` 内自建 store 并拥有（1 engine 1 store）。传入 `AutoStore` 实例（`isAutoStore` 判别，instanceof 主 + `__AUTO_STORE__` brand 兜重复包）→ **throw**（错误信息附迁移指引）；`null`/`undefined`/非对象静默兜空 store（不抛错）。见 [ADR-0044](adr/0044-store-ownership-and-default-configmanager.md) 决策 1/2。
+_Avoid_: 借用 store、共享 store（已废弃语义，见 ADR-0009 被取代部分）
 
 ### 种子状态（Seed State）
 
-数据源的裸对象形态，仅作**初始种子**。建 store 后其身份**失效**——`engine.state`/`engine.store.state`（Proxy，响应式根）与原裸对象**身份不同**，且对原裸对象的直接赋值**绕过 Proxy set trap、不触发更新**。故裸对象建后应丢弃，统一以响应式状态句柄访问/改写。区别于外部传入的 AutoStore 实例（其 `.state` 本就是响应式句柄）。
+数据源的裸对象形态，仅作**初始种子**。建 store 后其身份**失效**——`engine.state`/`engine.store.state`（Proxy，响应式根）与原裸对象**身份不同**，且对原裸对象的直接赋值**绕过 Proxy set trap、不触发更新**。故裸对象建后应丢弃，统一以响应式状态句柄访问/改写。
 _Avoid_: 初始状态、初始数据（"种子"强调一次性播种、建后即弃）
 
 ### 响应式状态句柄（Reactive State Handle）
 
-访问/改写状态的唯一正道：`engine.state` / `engine.store.state`（二者同源，均返回 store 的响应式 Proxy 根）。改写即触发细粒度更新。种子状态经 engine 建 store 后，唯有此句柄是响应式的。见 [ADR-0009](adr/0009-store-or-state-input.md) 决策 1。
+访问/改写状态的唯一正道：`engine.state` / `engine.store.state`（二者同源，均返回 store 的响应式 Proxy 根）。改写即触发细粒度更新。种子状态经 engine 建 store 后，唯有此句柄是响应式的。见 [ADR-0044](adr/0044-store-ownership-and-default-configmanager.md) 决策 1。
 _Avoid_: state 引用、state 对象（"句柄"强调它是访问正道、区别于已失效的种子）
 
-### 自有 store vs 借用 store（Owned vs Borrowed Store）
+### 引擎自建 store（Engine-owned Store）
 
-engine 对 store 的两种所有权：**借用**（第二参为 AutoStore 实例）= 外部共享资源，`engine.destroy()` **绝不**销毁它（保留原"绝不 destroy 外部 store"不变量）；**自有**（第二参为种子状态，engine 自建）= 引擎自有资源，`engine.destroy()` **会**销毁它（回收 computedObjects / 事件订阅 / Proxy 等 core 资源）。引擎以私有 `_ownsStore` 标志区分（不暴露 getter）。谁建谁销毁（RAII）。见 [ADR-0009](adr/0009-store-or-state-input.md) 决策 2。
+store 恒由 engine 在 `_createStore` 内创建并拥有（**创建权换确定性**：configManager / configKey 可控，`@` 配置绑定行为可预测）；`engine.destroy()` 恒销毁之（回收 computedObjects / 事件订阅 / Proxy 等 core 资源）。无借用/共享形态——「一个 store 挂多个 engine」已明确放弃。见 [ADR-0044](adr/0044-store-ownership-and-default-configmanager.md) 决策 1/4。
+_Avoid_: 借用 store、外部 store、共享 store（旧双轨语义，ADR-0009 借用轨已被 ADR-0044 移除）
 
-### storeOptions（自建 store 配置）
+### 默认 configManager（内存 schema 注册表 / In-memory ConfigManager）
 
-`AutoSparkOptions` 上的 `storeOptions?: AutoStoreOptions<State>` 字段，**仅自建路径**（第二参为种子状态）消费：`new AutoStore(state, options?.storeOptions)`。第二参为 AutoStore 实例时被忽略（用户已自配）。为与 `State` 联动，`AutoSparkOptions` 泛型化为 `<State extends Dict = any>`。见 [ADR-0009](adr/0009-store-or-state-input.md) 决策 4。
+`_createStore` 的字段级默认：`storeOptions.configManager` 为 nullish 时补 `new ConfigManager({ load: () => ({}) })`——**内存空 source**，纯响应式 schema 注册表（无持久化、不注册全局、engine 间隔离），使 `@` 配置绑定与 x-model 元数据注入开箱即用。三态：缺省/null = 此默认实例；传 `ConfigManager` = 消费者自管（destroy 不销毁）；`false` = 完全关闭（三层降级）。destroy 时仅销毁 engine 自建的实例（`_ownedConfigManager`，先 store 后 cm）。见 [ADR-0044](adr/0044-store-ownership-and-default-configmanager.md) 决策 3/4。
+
+### storeOptions（store 配置）
+
+`AutoSparkOptions` 上的 `storeOptions?: AutoStoreOptions<State>` 字段，**恒消费**：透传给 `_createStore` 的 `new AutoStore(state, storeOptions)`，两个字段带 engine 侧默认（消费者显式传入优先）——`configManager` 三态见「默认 configManager」；`configKey` 缺省补 `''`（fullKey 无前缀，`@` 配置路径与状态路径同形）。**多 store 共用同一 configManager 须互异 configKey**。为与 `State` 联动，`AutoSparkOptions` 泛型化为 `<State extends Dict = any>`。见 [ADR-0044](adr/0044-store-ownership-and-default-configmanager.md) 决策 3。
 
 ## 表单绑定（x-model）
 
@@ -493,7 +499,7 @@ _Avoid_: 元数据绑定（泛化）
 - ✅ [ADR-0006] x-slot 指令（engine 边界 / 隔离快照 / 远程子引擎）—— _Accepted（Round 5，grill-with-docs）_
 - ✅ [ADR-0007] 指令配置统一（modifier 注入 options + 元素级 host options 回退）—— _Accepted_
 - ✅ [ADR-0008] x-on feedback 修饰符（async action 执行反馈）—— _Accepted（grill-with-docs）_
-- ✅ [ADR-0009] 构造器第二参接受 `store | state`（自建 store 归 engine 销毁）—— _Accepted（Round 3，grill-with-docs）｜实现待落地_
+- ✅ [ADR-0009] 构造器第二参接受 `store | state`（自建 store 归 engine 销毁）—— _Accepted（Round 3，grill-with-docs）｜实现待落地｜**借用轨已被 [ADR-0044](adr/0044-store-ownership-and-default-configmanager.md) 部分取代**_
 - ✅ [ADR-0010] action DOM 冒泡事件 + phase 修饰符（祖先聚合后代 action）—— _Accepted（grill-with-docs）｜实现待落地_
 - ✅ [ADR-0011] 同步 action 统一广播 lifecycle（同步/异步一致）—— _Accepted（grill-with-docs）｜feedback 同步响应待错误流重构_
 - ✅ [ADR-0012] 局部 action 只 DOM 冒泡、不进总线（隔离同名串扰）—— _Accepted（grill-with-docs）｜实现待落地_

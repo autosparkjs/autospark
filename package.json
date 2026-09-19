@@ -3,7 +3,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "docs:dev": "cd docs && bun run dev"
+    "docs:dev": "cd docs && bun run dev",
+    "examples": "cd docs && bun run dev"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.2",

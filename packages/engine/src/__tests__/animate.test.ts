@@ -44,7 +44,9 @@ describe("Animator expand 高度型动画（决策 13）", () => {
         root.appendChild(el);
         mockHeight(el, 80);
         let done = 0;
-        expect(engine.animate.leave(el, { name: "expand", duration: 5000 }, () => done++)).toBe(true);
+        expect(engine.animate.leave(el, { name: "expand", duration: 5000 }, () => done++)).toBe(
+            true,
+        );
         expect(done).toBe(0);
         expect(el.style.height).toBe("0px");
         expect(el.style.opacity).toBe("0");

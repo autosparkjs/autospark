@@ -2,7 +2,8 @@ import type { AutoSparkEvents, AutoSparkOptions } from "./types";
 import type { ComponentDef } from "./directives/component-def";
 import { DirectiveManager } from "./directives/manager";
 import { AutoSparkCompiler } from "./compile/compiler";
-import { AutoStore, FastEvent, isAutoStore } from "autostore";
+import { AutoStore, ConfigManager, FastEvent, isAutoStore } from "autostore";
+import type { AutoStoreOptions } from "autostore";
 import type { AutoSparkScope } from "./scope";
 import { UpdateScheduler } from "./scheduler";
 import { RuntimeObserverDispatcher } from "./directives/runtime/dispatcher";
@@ -19,11 +20,11 @@ import { fetchHtml } from "./utils/fetchHtml";
  *
  * engine 初始化自动注入 store.state[SCOPES_KEY] = {}（不存在时）。每个 x-data scope 的
  * 数据存于 store.state[SCOPES_KEY][scope.id]，借 store 响应式自动更新订阅者
- * （collectDependencies 收集 `_scopes.<id>.<field>` 精准路径，实现字段级细粒度更新）。
+ * （collectDependencies 收集 `$scopes.<id>.<field>` 精准路径，实现字段级细粒度更新）。
  *
- * **保留键**：用户 state 树不得使用 "_scopes" 命名，否则将被 engine 覆盖/冲突。
+ * **保留键**：用户 state 树不得使用 "$scopes" 命名，否则将被 engine 覆盖/冲突。
  */
-export const SCOPES_KEY = "_scopes";
+export const SCOPES_KEY = "$scopes";
 
 /**
  * AutoStore Template 渲染引擎核心类
@@ -41,10 +42,9 @@ export const SCOPES_KEY = "_scopes";
  * ```
  *
  * ```typescript
- * const store = new AutoStore({ user: { name: "zhang" } });
- * const app = new AutoSpark(document.getElementById("app")!, store);
+ * const app = new AutoSpark(document.getElementById("app")!, { user: { name: "zhang" } });
  * // 改 state 即自动更新 DOM
- * store.state.user.name = "li";
+ * app.state.user.name = "li";
  * app.destroy();
  * ```
  */
@@ -53,10 +53,13 @@ export class AutoSpark<
 > extends FastEvent.FastLiteEvent<AutoSparkEvents> {
     /** 挂载容器（编译产物替换其子节点，容器本身保留） */
     readonly el: HTMLElement;
-    /** 响应式数据源：外部传入的 AutoStore 实例（借用）或裸状态自建的 store（拥有，见 _ownsStore）。ADR-0009 */
+    /** 响应式数据源：engine 在 `_createStore` 内自建并拥有（destroy 时销毁）。ADR-0044 */
     readonly store: AutoStore<State>;
-    /** engine 是否拥有 store（裸状态自建路径）。destroy 时仅当拥有才回收 store（ADR-0009 决策 2）。 */
-    private _ownsStore = false;
+    /**
+     * engine 自建的默认 configManager（`_createStore` 补缺省时创建）。
+     * destroy 时仅销毁此实例；消费者经 `storeOptions.configManager` 传入的不动（所有权对称，ADR-0044）。
+     */
+    private _ownedConfigManager: ConfigManager | null = null;
 
     /**
      * 重写基类 accessor：基类 options 是 getter，子类不得用实例属性遮蔽（TS2610），
@@ -96,31 +99,19 @@ export class AutoSpark<
 
     /**
      * @param el       挂载根元素（必须是 HTMLElement）
-     * @param store    响应式数据源：AutoStore 实例（借用，engine 不销毁）或裸状态对象（engine 自动
-     *                 `new AutoStore(state, options.storeOptions)` 并拥有、destroy 时销毁）。ADR-0009
-     * @param options  配置选项（`storeOptions` 仅裸状态路径消费）
-     * @throws {Error} el 非 HTMLElement
+     * @param state    裸状态对象：engine 在 `_createStore` 内自建 AutoStore 并拥有、destroy 时销毁（ADR-0044）。
+     *                 null/undefined 静默兜成空 store（不抛错，沿用 ADR-0009 决策 5）。
+     * @param options  配置选项（`storeOptions` 恒消费，字段级默认见 `_createStore`）
+     * @throws {Error} el 非 HTMLElement；state 为 AutoStore 实例（不再接受借用，ADR-0044）
      */
-    constructor(
-        el: HTMLElement,
-        store: AutoStore<State> | State,
-        options?: Partial<AutoSparkOptions<State>>,
-    ) {
+    constructor(el: HTMLElement, state: State, options?: Partial<AutoSparkOptions<State>>) {
         super({ autostart: true, debug: false, actions: {}, ...options });
         if (!(el instanceof HTMLElement)) {
             throw new Error("Root element must be an HTMLElement");
         }
         this.el = el;
-        // 数据源分流（ADR-0009）：AutoStore 实例直接借用；裸状态自建 store（_ownsStore 标记，destroy 时回收）。
-        // null/undefined/非对象静默走自建路径，core 的 state||{} 兜成空 store（不抛错，ADR-0009 决策 5）。
-        if (isAutoStore(store)) {
-            this.store = store;
-            this._ownsStore = false;
-        } else {
-            this.store = new AutoStore(store as State, options?.storeOptions);
-            this._ownsStore = true;
-        }
-        // 注入框架保留键 _scopes（x-data 私有响应式域容器）；1 engine 1 store 约定下由 engine 负责
+        this.store = this._createStore(state, options);
+        // 注入框架保留键 $scopes（x-data 私有响应式域容器）；1 engine 1 store 约定下由 engine 负责
         this._ensureScopesState();
         // action 管理单元就位并扫描全局表：构造时传入的 options.actions 一次性规范化包装
         // （运行时 `engine.actions[name] = decl` 经 actions Proxy 的 set trap 规范化包装、
@@ -150,6 +141,39 @@ export class AutoSpark<
         this.emit("engine/ready", { el: this.el }, true);
     }
 
+    /**
+     * 自建 store（ADR-0044）：engine 拥有创建权，以换取 configManager / configKey 的确定性——
+     * x-bind `@` 配置绑定（ADR-0019）与 x-model 元数据注入（ADR-0020）依赖二者，外部传入的
+     * store 上它们不可控（可能缺 cm / 落入全局默认 / configKey 已归一为 store.id）。
+     *
+     * - 传入 AutoStore 实例：**throw**（不再接受借用；迁移：改传裸状态 + `storeOptions`）。
+     * - null/undefined：静默兜成空 store（沿用 ADR-0009 决策 5）。
+     * - `storeOptions` 字段级默认（消费者显式传入优先，ADR-0044 三态）：
+     *   - `configManager` 为 nullish → 补 `new ConfigManager({ load: () => ({}) })`（内存空 source，
+     *     纯响应式 schema 注册表，无持久化、不注册全局）；传对象 = 消费者 cm；传 `false` = 完全关闭
+     *     （`@` 绑定走三层降级）。null 视同缺省。
+     *   - `configKey` 为 nullish → 补 `''`（fullKey 无前缀，`@` 左侧配置路径与状态路径同形）。
+     */
+    private _createStore(
+        state: State,
+        options?: Partial<AutoSparkOptions<State>>,
+    ): AutoStore<State> {
+        if (isAutoStore(state)) {
+            throw new Error(
+                "AutoSpark no longer accepts an AutoStore instance. Pass plain state and configure the store via options.storeOptions instead (ADR-0044).",
+            );
+        }
+        const storeOptions: AutoStoreOptions<State> = { ...options?.storeOptions };
+        if (storeOptions.configManager == null) {
+            this._ownedConfigManager = new ConfigManager({ load: () => ({}) });
+            storeOptions.configManager = this._ownedConfigManager;
+        }
+        if (storeOptions.configKey == null) {
+            storeOptions.configKey = "";
+        }
+        return new AutoStore(state as State, storeOptions);
+    }
+
     // 显式注解：logger 的推断类型源自 autostore 传递依赖 flex-tools，声明发射不可移植（TS2742）；
     // 经 AutoStore 索引访问类型把引用面收敛到 autostore 本身。
     get logger(): AutoStore<any>["logger"] {
@@ -169,7 +193,6 @@ export class AutoSpark<
         return this.actionsManager.proxy;
     }
 
-    private _createStore() {}
     /**
      * 全局组件懒预编译缓存（ADR-0022 承接 ADR-0021 决策 11）：key=组件名，value=预编译根元素
      * （已自动包装、含 `x-component`、未编译、保留指令属性、**不注入 x-scope**）。首次 `getComponent`
@@ -213,7 +236,7 @@ export class AutoSpark<
      *
      * 1 engine 1 store 约定下由 engine 负责注入：不存在则建空对象（core 自动建响应式代理），
      * 已存在（用户预设/复用）则沿用。仅赋值一次；后续 x-data scope 向其写入 [id] 条目，
-     * 永不整体替换该容器（DataDirective 同守"只 Object.assign 进 _scopes[id]、不整体替换"铁律）。
+     * 永不整体替换该容器（DataDirective 同守"只 Object.assign 进 $scopes[id]、不整体替换"铁律）。
      */
     private _ensureScopesState() {
         const state = this.store.state as Record<string, any>;
@@ -266,7 +289,7 @@ export class AutoSpark<
     /**
      * 运行时更新/创建数据（替代已废除的 x-data setAttribute 监听）。
      *
-     * `data(el, data)` 合并进 el 对应 scope 的私有响应式域 `_scopes[scope.id]`：
+     * `data(el, data)` 合并进 el 对应 scope 的私有响应式域 `$scopes[scope.id]`：
      * - **scope 已有 data**（模板有 x-data）→ `Object.assign` 合并，路径订阅自动驱动更新
      *   （主路径，不动 DOM、不重订阅）。
      * - **scope 无 data**（el 原无 x-data）→ 新建 data + 失效本 scope 视图 + destroy 子树 +
@@ -675,9 +698,10 @@ export class AutoSpark<
      * 彻底销毁引擎：清空调度队列、销毁所有 scope（off watcher + 删 computed）、
      * 移除挂载 DOM。
      *
-     * **store 销毁纪律（ADR-0009 决策 2）**：仅当 engine 自建 store（第二参为裸状态、`_ownsStore=true`）
-     * 才调 `store.destroy()` 回收其 computedObjects / 事件订阅 / Proxy 等 core 资源；
-     * 外部传入的 store 是共享资源，**绝不销毁**（否则解绑用户在别处挂的订阅、清空其 computed 对象）。
+     * **store 销毁纪律（ADR-0044）**：store 恒为 engine 自建，恒调 `store.destroy()` 回收其
+     * computedObjects / 事件订阅 / Proxy 等 core 资源（内部先向 configManager 注销本 store）；
+     * 随后仅销毁 engine 自建的默认 configManager，消费者经 `storeOptions.configManager`
+     * 传入的不动（所有权对称）。
      */
     destroy(): void {
         this.emit("engine/destroy/before");
@@ -694,9 +718,12 @@ export class AutoSpark<
         this.scopes.clear();
         this.el.replaceChildren();
         this.pending = false;
-        // 仅自建 store（裸状态路径）才销毁；外部 store 是共享资源，绝不销毁（ADR-0009 决策 2）
-        if (this._ownsStore) {
-            this.store.destroy();
+        // store 恒为 engine 自建（ADR-0044）：销毁回收 core 资源；destroy 内部向 configManager 注销本 store
+        this.store.destroy();
+        // 仅销毁 engine 自建的默认 configManager（先 store 后 cm，保证注销次序）；消费者传入的不动
+        if (this._ownedConfigManager) {
+            this._ownedConfigManager.destroy();
+            this._ownedConfigManager = null;
         }
         this.emit("engine/destroy/after");
     }

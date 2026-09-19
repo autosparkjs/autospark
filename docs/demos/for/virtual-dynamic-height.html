@@ -54,14 +54,12 @@
       desc: `这是第 ${i + 1} 项的描述信息`
     }));
 
-    const store = new AutoSparkSpaces.AutoStore({ 
+    const state = { 
       items, 
       containerHeight: 300
-    });
+    };
     const engine = new AutoSparkSpaces.AutoSpark(
-      document.getElementById('app'),
-      store
-    );
+      document.getElementById('app'), state);
   </script>
 </body>
 </html>

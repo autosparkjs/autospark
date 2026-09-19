@@ -13,14 +13,14 @@ function countItemChildren(container: Element): number {
 
 /** 获取容器内项元素（排除垫片元素） */
 function getItemChildren(container: Element): Element[] {
-    return Array.from(container.children).filter(c => !c.hasAttribute("aria-hidden"));
+    return Array.from(container.children).filter((c) => !c.hasAttribute("aria-hidden"));
 }
 
 describe("x-for.virtual 虚拟列表", () => {
     describe("基本功能", () => {
         test("启用虚拟列表模式", async () => {
             const items = Array.from({ length: 100 }, (_, i) => ({ id: i, name: `item-${i}` }));
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto" x-for-options="{itemHeight:40}">
                     <div x-text="item.name" style="height:40px"></div>
                 </div>`,
@@ -35,7 +35,7 @@ describe("x-for.virtual 虚拟列表", () => {
 
         test("只渲染可见项 + overscan", async () => {
             const items = Array.from({ length: 1000 }, (_, i) => ({ id: i, name: `item-${i}` }));
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto" x-for-options="{itemHeight:40, overscan:2}">
                     <div x-text="item.name" style="height:40px"></div>
                 </div>`,
@@ -54,7 +54,7 @@ describe("x-for.virtual 虚拟列表", () => {
 
         test("data-index 属性反映当前第一个可见项索引", async () => {
             const items = Array.from({ length: 100 }, (_, i) => ({ id: i, name: `item-${i}` }));
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto" x-for-options="{itemHeight:40}">
                     <div x-text="item.name" style="height:40px"></div>
                 </div>`,
@@ -71,7 +71,7 @@ describe("x-for.virtual 虚拟列表", () => {
     describe("滚动行为", () => {
         test("滚动后更新 data-index", async () => {
             const items = Array.from({ length: 100 }, (_, i) => ({ id: i, name: `item-${i}` }));
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto" x-for-options="{itemHeight:40}">
                     <div x-text="item.name" style="height:40px"></div>
                 </div>`,
@@ -94,7 +94,7 @@ describe("x-for.virtual 虚拟列表", () => {
 
         test("滚动后只渲染可见项", async () => {
             const items = Array.from({ length: 1000 }, (_, i) => ({ id: i, name: `item-${i}` }));
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto" x-for-options="{itemHeight:40, overscan:2}">
                     <div x-text="item.name" style="height:40px"></div>
                 </div>`,
@@ -121,7 +121,7 @@ describe("x-for.virtual 虚拟列表", () => {
     describe("动态容器高度", () => {
         test("不指定 height 的容器（内容撑开）", async () => {
             const items = Array.from({ length: 100 }, (_, i) => ({ id: i, name: `item-${i}` }));
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="overflow:auto" x-for-options="{itemHeight:40}">
                     <div x-text="item.name" style="height:40px"></div>
                 </div>`,
@@ -141,7 +141,7 @@ describe("x-for.virtual 虚拟列表", () => {
 
         test("height: auto 的容器", async () => {
             const items = Array.from({ length: 100 }, (_, i) => ({ id: i, name: `item-${i}` }));
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="height:auto;overflow:auto" x-for-options="{itemHeight:40}">
                     <div x-text="item.name" style="height:40px"></div>
                 </div>`,
@@ -157,7 +157,7 @@ describe("x-for.virtual 虚拟列表", () => {
 
         test("容器高度变化时重新计算（ResizeObserver）", async () => {
             const items = Array.from({ length: 100 }, (_, i) => ({ id: i, name: `item-${i}` }));
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto" x-for-options="{itemHeight:40}">
                     <div x-text="item.name" style="height:40px"></div>
                 </div>`,
@@ -177,7 +177,7 @@ describe("x-for.virtual 虚拟列表", () => {
 
     describe("边界情况", () => {
         test("空列表：退化，x-empty 生效", async () => {
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto" x-for-options="{itemHeight:40}">
                     <div x-text="item.name" style="height:40px"></div>
                     <div x-empty>没有数据</div>
@@ -193,7 +193,7 @@ describe("x-for.virtual 虚拟列表", () => {
 
         test("单项列表", async () => {
             const items = [{ id: 1, name: "only-one" }];
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto" x-for-options="{itemHeight:40}">
                     <div x-text="item.name" style="height:40px"></div>
                 </div>`,
@@ -209,7 +209,7 @@ describe("x-for.virtual 虚拟列表", () => {
 
         test("itemHeight 无效时 warn + 退化", async () => {
             const items = Array.from({ length: 10 }, (_, i) => ({ id: i, name: `item-${i}` }));
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto" x-for-options="{itemHeight: 0}">
                     <div x-text="item.name" style="height:40px"></div>
                 </div>`,
@@ -227,7 +227,7 @@ describe("x-for.virtual 虚拟列表", () => {
     describe("data-index 双向绑定", () => {
         test("通过 :data-index 绑定状态", async () => {
             const items = Array.from({ length: 100 }, (_, i) => ({ id: i, name: `item-${i}` }));
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" :data-index="currentIndex" style="height:200px;overflow:auto" x-for-options="{itemHeight:40}">
                     <div x-text="item.name" style="height:40px"></div>
                 </div>`,
@@ -237,7 +237,7 @@ describe("x-for.virtual 虚拟列表", () => {
             await nextTick();
 
             // 初始状态
-            expect(store.state.currentIndex).toBe(0);
+            expect(engine.state.currentIndex).toBe(0);
 
             // 滚动后应更新绑定的状态
             const container = root.querySelector("[autospark-virtual]")! as HTMLElement;
@@ -246,7 +246,7 @@ describe("x-for.virtual 虚拟列表", () => {
 
             await nextTick();
 
-            expect(store.state.currentIndex).toBe(10);
+            expect(engine.state.currentIndex).toBe(10);
         });
     });
 
@@ -263,7 +263,7 @@ describe("x-for.virtual 虚拟列表", () => {
     describe("配置选项", () => {
         test("overscan 配置", async () => {
             const items = Array.from({ length: 100 }, (_, i) => ({ id: i, name: `item-${i}` }));
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto" x-for-options="{itemHeight:40, overscan:10}">
                     <div x-text="item.name" style="height:40px"></div>
                 </div>`,
@@ -282,7 +282,7 @@ describe("x-for.virtual 虚拟列表", () => {
             // 注意：happy-dom 环境下 getBoundingClientRect() 返回 0
             // 自动检测会失败并退化为全量渲染
             const items = Array.from({ length: 100 }, (_, i) => ({ id: i, name: `item-${i}` }));
-            const { root, store } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto">
                     <div x-text="item.name" style="height:50px"></div>
                 </div>`,
@@ -304,7 +304,7 @@ describe("x-for.virtual 虚拟列表", () => {
     describe("清理", () => {
         test("销毁时清理资源", async () => {
             const items = Array.from({ length: 100 }, (_, i) => ({ id: i, name: `item-${i}` }));
-            const { root, store, engine } = mount(
+            const { root, engine } = mount(
                 `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto" x-for-options="{itemHeight:40}">
                     <div x-text="item.name" style="height:40px"></div>
                 </div>`,

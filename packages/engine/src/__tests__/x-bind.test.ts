@@ -4,11 +4,11 @@ import { mount, nextTick } from "./helpers";
 
 describe("x-bind:class 类名绑定", () => {
     test("字符串值即类名 + 状态变化更新", async () => {
-        const { root, store } = mount(`<div x-class="variant"></div>`, { variant: "primary" });
+        const { root, engine } = mount(`<div x-class="variant"></div>`, { variant: "primary" });
         expect(root).toEqualHTML(`<div>
   <div class="primary"></div>
 </div>`);
-        store.state.variant = "secondary";
+        engine.state.variant = "secondary";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div class="secondary"></div>
@@ -23,19 +23,22 @@ describe("x-bind:class 类名绑定", () => {
     });
 
     test("对象多条件开关 + 字段级更新", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div x-class="{active:isActive, disabled:isDisabled}"></div>`,
-            { isActive: true, isDisabled: false },
+            {
+                isActive: true,
+                isDisabled: false,
+            },
         );
         expect(root).toEqualHTML(`<div>
   <div class="active"></div>
 </div>`);
-        store.state.isDisabled = true;
+        engine.state.isDisabled = true;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div class="active disabled"></div>
 </div>`);
-        store.state.isActive = false;
+        engine.state.isActive = false;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div class="disabled"></div>
@@ -43,13 +46,13 @@ describe("x-bind:class 类名绑定", () => {
     });
 
     test("三元表达式切换类名", async () => {
-        const { root, store } = mount(`<div x-class="paid ? 'on' : 'off'"></div>`, {
+        const { root, engine } = mount(`<div x-class="paid ? 'on' : 'off'"></div>`, {
             paid: true,
         });
         expect(root).toEqualHTML(`<div>
   <div class="on"></div>
 </div>`);
-        store.state.paid = false;
+        engine.state.paid = false;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div class="off"></div>
@@ -57,14 +60,13 @@ describe("x-bind:class 类名绑定", () => {
     });
 
     test("原生 class 与 x-class 共存：静态类不被覆盖", async () => {
-        const { root, store } = mount(
-            `<div class="btn" x-class="{primary:isPrimary}"></div>`,
-            { isPrimary: true },
-        );
+        const { root, engine } = mount(`<div class="btn" x-class="{primary:isPrimary}"></div>`, {
+            isPrimary: true,
+        });
         expect(root).toEqualHTML(`<div>
   <div class="btn primary"></div>
 </div>`);
-        store.state.isPrimary = false;
+        engine.state.isPrimary = false;
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <div class="btn"></div>
@@ -84,8 +86,54 @@ describe("x-bind:class 类名绑定", () => {
         }
     });
 
+    test("数组语法：字符串/对象混排并集（ADR-0043 数组扩展）", () => {
+        const { root } = mount(`<div x-class="[v, {active: on}, 'tail']"></div>`, {
+            v: "btn primary",
+            on: true,
+        });
+        expect(root).toEqualHTML(`<div>
+  <div class="btn primary active tail"></div>
+</div>`);
+    });
+
+    test("数组语法：falsy 项跳过（条件类惯用法）", async () => {
+        const { root, engine } = mount(`<div x-class="[cond && 'on', 'base']"></div>`, {
+            cond: false,
+        });
+        expect(root).toEqualHTML(`<div>
+  <div class="base"></div>
+</div>`);
+        engine.state.cond = true;
+        await nextTick();
+        expect(root).toEqualHTML(`<div>
+  <div class="base on"></div>
+</div>`);
+    });
+
+    test("数组语法：嵌套数组递归展开", () => {
+        const { root } = mount(`<div x-class="[['a', {b:1}], ['c']]"></div>`, {});
+        expect(root).toEqualHTML(`<div>
+  <div class="a b c"></div>
+</div>`);
+    });
+
+    test("数组语法：对象项字段级响应 + 静态类不被碰", async () => {
+        const { root, engine } = mount(
+            `<div class="btn" x-class="[{primary:isPrimary}, size]"></div>`,
+            { isPrimary: true, size: "lg" },
+        );
+        expect(root).toEqualHTML(`<div>
+  <div class="btn primary lg"></div>
+</div>`);
+        engine.state.isPrimary = false;
+        await nextTick();
+        expect(root).toEqualHTML(`<div>
+  <div class="btn lg"></div>
+</div>`);
+    });
+
     test("同元素多个不同属性绑定共存（singleton=false）", async () => {
-        const { root, store } = mount(`<div :title="t" x-class="c"></div>`, {
+        const { root, engine } = mount(`<div :title="t" x-class="c"></div>`, {
             t: "tip",
             c: "on",
         });
@@ -93,7 +141,7 @@ describe("x-bind:class 类名绑定", () => {
         expect(div.getAttribute("title")).toBe("tip");
         expect(div.className).toBe("on");
         // class 变化不影响 title 绑定（两个 bind 实例各自独立）
-        store.state.c = "off";
+        engine.state.c = "off";
         await nextTick();
         expect(div.className).toBe("off");
         expect(div.getAttribute("title")).toBe("tip");
@@ -102,13 +150,13 @@ describe("x-bind:class 类名绑定", () => {
 
 describe("x-bind 属性绑定", () => {
     test(":title 普通属性 + 状态变化", async () => {
-        const { root, store } = mount(`<span :title="user.name"></span>`, {
+        const { root, engine } = mount(`<span :title="user.name"></span>`, {
             user: { name: "a" },
         });
         expect(root).toEqualHTML(`<div>
   <span title="a"></span>
 </div>`);
-        store.state.user.name = "b";
+        engine.state.user.name = "b";
         await nextTick();
         expect(root).toEqualHTML(`<div>
   <span title="b"></span>
@@ -116,77 +164,76 @@ describe("x-bind 属性绑定", () => {
     });
 
     test(":title 表达式拼接：多个依赖任一变化均触发重新求值", async () => {
-        const { root, store } = mount(
-            `<span :title="user.first + ' ' + user.last"></span>`,
-            { user: { first: "张", last: "三" } },
-        );
+        const { root, engine } = mount(`<span :title="user.first + ' ' + user.last"></span>`, {
+            user: { first: "张", last: "三" },
+        });
         const span = root.querySelector("span")!;
         // 首渲：整表达式经 watchExpression 求值 → "张 三"
         expect(span.getAttribute("title")).toBe("张 三");
         // 改 first：collectDependencies 已收集 user.first 与 user.last 两条依赖，任一变化都重新求值
-        store.state.user.first = "李";
+        engine.state.user.first = "李";
         await nextTick();
         expect(span.getAttribute("title")).toBe("李 三");
         // 改 last：同样触发整表达式重算
-        store.state.user.last = "四";
+        engine.state.user.last = "四";
         await nextTick();
         expect(span.getAttribute("title")).toBe("李 四");
     });
 
     test(":value 走 property 更新输入框当前值", async () => {
-        const { root, store } = mount(`<input :value="text">`, { text: "a" });
+        const { root, engine } = mount(`<input :value="text">`, { text: "a" });
         const input = root.querySelector("input")!;
         expect(input.value).toBe("a");
-        store.state.text = "b";
+        engine.state.text = "b";
         await nextTick();
         expect(input.value).toBe("b");
     });
 
     test(":disabled boolean：true 禁用 / false 解除", async () => {
-        const { root, store } = mount(`<button :disabled="locked">提交</button>`, {
+        const { root, engine } = mount(`<button :disabled="locked">提交</button>`, {
             locked: true,
         });
         const btn = root.querySelector("button")!;
         expect(btn.disabled).toBe(true);
-        store.state.locked = false;
+        engine.state.locked = false;
         await nextTick();
         expect(btn.disabled).toBe(false);
     });
 
     test(".invert 修饰符：值取反（反向词汇映射，ADR-0025）", async () => {
         // editable=true（可编辑）→ disabled 移除；editable=false → disabled 设置
-        const { root, store } = mount(`<button :disabled.invert="editable">提交</button>`, {
+        const { root, engine } = mount(`<button :disabled.invert="editable">提交</button>`, {
             editable: false,
         });
         const btn = root.querySelector("button")!;
         expect(btn.disabled).toBe(true); // !false = true → 禁用
-        store.state.editable = true;
+        engine.state.editable = true;
         await nextTick();
         expect(btn.disabled).toBe(false); // !true = false → 解除
-        store.state.editable = false;
+        engine.state.editable = false;
         await nextTick();
         expect(btn.disabled).toBe(true); // 切回禁用
     });
 
     test(".invert 对普通属性同样取反（布尔语义约定内使用）", async () => {
-        const { root, store } = mount(`<span :hidden.invert="visible"></span>`, {
+        const { root, engine } = mount(`<span :hidden.invert="visible"></span>`, {
             visible: true,
         });
         const span = root.querySelector("span")!;
         expect(span.hasAttribute("hidden")).toBe(false); // !true → 无 hidden
-        store.state.visible = false;
+        engine.state.visible = false;
         await nextTick();
         expect(span.hasAttribute("hidden")).toBe(true); // !false → 有 hidden
     });
 
     test(".invert 经 x-bind-options={invert:true} 等价声明", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<button :disabled="editable" x-bind-options="{invert:true}">提交</button>`,
             { editable: false },
         );
         const btn = root.querySelector("button")!;
         expect(btn.disabled).toBe(true); // 修饰符与指令选项等价（ADR-0007）
-        store.state.editable = true;
+        engine.state.editable = true;
         await nextTick();
         expect(btn.disabled).toBe(false);
     });
@@ -209,47 +256,47 @@ describe("x-bind:class 在 x-for 内（localData 注入）", () => {
 
 describe("x-bind:style 样式绑定", () => {
     test("字符串 cssText 整体替换 + 状态变化", async () => {
-        const { root, store } = mount(`<div x-style="s"></div>`, { s: "color:red" });
+        const { root, engine } = mount(`<div x-style="s"></div>`, { s: "color:red" });
         const div = root.firstElementChild as HTMLElement;
         expect(div.getAttribute("style")).toContain("color");
-        store.state.s = "color:blue";
+        engine.state.s = "color:blue";
         await nextTick();
         expect(div.style.color).toBe("blue");
     });
 
     test("对象写入 + 状态变化", async () => {
-        const { root, store } = mount(`<div x-style="s"></div>`, {
+        const { root, engine } = mount(`<div x-style="s"></div>`, {
             s: { color: "red", fontSize: "12px" },
         });
         const div = root.firstElementChild as HTMLElement;
         expect(div.style.color).toBe("red");
         expect(div.style.fontSize).toBe("12px");
-        store.state.s = { color: "blue", fontSize: "14px" };
+        engine.state.s = { color: "blue", fontSize: "14px" };
         await nextTick();
         expect(div.style.color).toBe("blue");
         expect(div.style.fontSize).toBe("14px");
     });
 
     test("对象来回切换清除上次多余 key（不残留）", async () => {
-        const { root, store } = mount(`<div x-style="s"></div>`, {
+        const { root, engine } = mount(`<div x-style="s"></div>`, {
             s: { color: "red", fontWeight: "bold" },
         });
         const div = root.firstElementChild as HTMLElement;
         expect(div.style.fontWeight).toBe("bold");
         // 切到不含 fontWeight 的对象：bold 必须被清除，不能残留
-        store.state.s = { color: "blue" };
+        engine.state.s = { color: "blue" };
         await nextTick();
         expect(div.style.color).toBe("blue");
         expect(div.style.fontWeight).toBe("");
     });
 
     test("求值为 falsy 移除 style 属性", async () => {
-        const { root, store } = mount(`<div x-style="s"></div>`, {
+        const { root, engine } = mount(`<div x-style="s"></div>`, {
             s: { color: "red" },
         });
         const div = root.firstElementChild as HTMLElement;
         expect(div.style.color).toBe("red");
-        store.state.s = null;
+        engine.state.s = null;
         await nextTick();
         expect(div.hasAttribute("style")).toBe(false);
     });
@@ -308,12 +355,12 @@ describe("x-style.transition 过渡动画注入", () => {
     });
 
     test("transition 在多次响应式 patch 间持续生效", async () => {
-        const { root, store } = mount(`<div x-style.transition="s"></div>`, {
+        const { root, engine } = mount(`<div x-style.transition="s"></div>`, {
             s: { color: "red" },
         });
         const div = root.firstElementChild as HTMLElement;
         expect(div.style.transition).toContain("0.3s");
-        store.state.s = { color: "blue", fontSize: "20px" };
+        engine.state.s = { color: "blue", fontSize: "20px" };
         await nextTick();
         expect(div.style.color).toBe("blue");
         // 切换样式后 transition 仍在（per-patch 注入，非一次性）
@@ -321,28 +368,28 @@ describe("x-style.transition 过渡动画注入", () => {
     });
 
     test("falsy 清空后下一次非空 patch 重新注入 transition", async () => {
-        const { root, store } = mount(`<div x-style.transition="s"></div>`, {
+        const { root, engine } = mount(`<div x-style.transition="s"></div>`, {
             s: { color: "red" },
         });
         const div = root.firstElementChild as HTMLElement;
         expect(div.style.transition).toContain("0.3s");
         // 清空：transition 随 removeAttribute('style') 一并清除
-        store.state.s = null;
+        engine.state.s = null;
         await nextTick();
         expect(div.hasAttribute("style")).toBe(false);
         // 恢复：transition 重新注入
-        store.state.s = { color: "blue" };
+        engine.state.s = { color: "blue" };
         await nextTick();
         expect(div.style.color).toBe("blue");
         expect(div.style.transition).toContain("0.3s");
     });
 
     test("非 style 绑定的 .transition 静默忽略（仅 attr==='style' 生效）", async () => {
-        const { root, store } = mount(`<div :title.transition="t"></div>`, { t: "tip" });
+        const { root, engine } = mount(`<div :title.transition="t"></div>`, { t: "tip" });
         const div = root.firstElementChild as HTMLElement;
         expect(div.getAttribute("title")).toBe("tip");
         expect(div.style.transition).toBe("");
-        store.state.t = "tip2";
+        engine.state.t = "tip2";
         await nextTick();
         expect(div.getAttribute("title")).toBe("tip2");
         expect(div.style.transition).toBe("");

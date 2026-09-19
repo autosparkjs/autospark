@@ -126,7 +126,9 @@ describe("x-model get/set（表达式 + action）", () => {
     test("get 表达式随依赖变化更新", async () => {
         const { root, engine } = mount(
             `<input x-model="count" x-model-options="{get:'value*2'}" />`,
-            { count: 5 },
+            {
+                count: 5,
+            },
         );
         engine.state.count = 10;
         await nextTick();
@@ -136,7 +138,10 @@ describe("x-model get/set（表达式 + action）", () => {
     test("set 表达式：DOM 值写到另一字段（形参 $value）", async () => {
         const { root, engine } = mount(
             `<input x-model="src" x-model-options="{set:'dst=$value'}" />`,
-            { src: "", dst: "" },
+            {
+                src: "",
+                dst: "",
+            },
         );
         const input = root.querySelector("input")!;
         input.value = "hello";
@@ -224,7 +229,9 @@ describe("x-model checkbox 单值布尔", () => {
         const { root } = mount(`<input type="checkbox" x-model="agree" />`, { agree: true });
         expect(root.querySelector("input")!.checked).toBe(true);
 
-        const { root: root2 } = mount(`<input type="checkbox" x-model="agree" />`, { agree: false });
+        const { root: root2 } = mount(`<input type="checkbox" x-model="agree" />`, {
+            agree: false,
+        });
         expect(root2.querySelector("input")!.checked).toBe(false);
     });
 
@@ -346,10 +353,9 @@ describe("x-model checkbox 单值布尔", () => {
     });
 
     test(".trim/.number 修饰符对 checkbox 空转（不报错、不影响）", async () => {
-        const { root, engine } = mount(
-            `<input type="checkbox" x-model.trim.number="agree" />`,
-            { agree: false },
-        );
+        const { root, engine } = mount(`<input type="checkbox" x-model.trim.number="agree" />`, {
+            agree: false,
+        });
         const checkbox = root.querySelector("input") as HTMLInputElement;
         checkbox.checked = true;
         checkbox.dispatchEvent(new Event("input", { bubbles: true }));
@@ -377,24 +383,21 @@ describe("x-model checkbox 冲突检测", () => {
 
 describe("x-model radio 双向绑定", () => {
     test("state→DOM：state 值匹配 radio value → checked", () => {
-        const { root } = mount(
-            `<input type="radio" value="male" x-model="gender" />`,
-            { gender: "male" },
-        );
+        const { root } = mount(`<input type="radio" value="male" x-model="gender" />`, {
+            gender: "male",
+        });
         expect(root.querySelector("input")!.checked).toBe(true);
 
-        const { root: root2 } = mount(
-            `<input type="radio" value="male" x-model="gender" />`,
-            { gender: "female" },
-        );
+        const { root: root2 } = mount(`<input type="radio" value="male" x-model="gender" />`, {
+            gender: "female",
+        });
         expect(root2.querySelector("input")!.checked).toBe(false);
     });
 
     test("DOM→state：勾选写 radio value，取消不写", async () => {
-        const { root, engine } = mount(
-            `<input type="radio" value="male" x-model="gender" />`,
-            { gender: "" },
-        );
+        const { root, engine } = mount(`<input type="radio" value="male" x-model="gender" />`, {
+            gender: "",
+        });
         const radio = root.querySelector("input") as HTMLInputElement;
         expect(radio.checked).toBe(false);
 
@@ -408,7 +411,7 @@ describe("x-model radio 双向绑定", () => {
     test("radio 组互斥：多个同名 radio 共享 state", async () => {
         const { root, engine } = mount(
             `<input type="radio" name="g" value="male" x-model="gender" />` +
-            `<input type="radio" name="g" value="female" x-model="gender" />`,
+                `<input type="radio" name="g" value="female" x-model="gender" />`,
             { gender: "male" },
         );
         const radios = root.querySelectorAll("input") as NodeListOf<HTMLInputElement>;
@@ -425,7 +428,7 @@ describe("x-model radio 双向绑定", () => {
     test("外部改 state → radio 自动更新选中态", async () => {
         const { root, engine } = mount(
             `<input type="radio" name="g" value="male" x-model="gender" />` +
-            `<input type="radio" name="g" value="female" x-model="gender" />`,
+                `<input type="radio" name="g" value="female" x-model="gender" />`,
             { gender: "male" },
         );
         const radios = root.querySelectorAll("input") as NodeListOf<HTMLInputElement>;
@@ -438,10 +441,9 @@ describe("x-model radio 双向绑定", () => {
     });
 
     test("嵌套路径双向", async () => {
-        const { root, engine } = mount(
-            `<input type="radio" value="yes" x-model="user.agree" />`,
-            { user: { agree: "" } },
-        );
+        const { root, engine } = mount(`<input type="radio" value="yes" x-model="user.agree" />`, {
+            user: { agree: "" },
+        });
         const radio = root.querySelector("input") as HTMLInputElement;
         expect(radio.checked).toBe(false);
 
@@ -452,10 +454,9 @@ describe("x-model radio 双向绑定", () => {
     });
 
     test("外部更新 → 防循环不跳过", async () => {
-        const { root, engine } = mount(
-            `<input type="radio" value="a" x-model="choice" />`,
-            { choice: "" },
-        );
+        const { root, engine } = mount(`<input type="radio" value="a" x-model="choice" />`, {
+            choice: "",
+        });
         const radio = root.querySelector("input") as HTMLInputElement;
         expect(radio.checked).toBe(false);
 
@@ -474,10 +475,9 @@ describe("x-model radio 双向绑定", () => {
     });
 
     test(".change 修饰符：监听 change 而非 input", async () => {
-        const { root, engine } = mount(
-            `<input type="radio" value="a" x-model.change="choice" />`,
-            { choice: "" },
-        );
+        const { root, engine } = mount(`<input type="radio" value="a" x-model.change="choice" />`, {
+            choice: "",
+        });
         const radio = root.querySelector("input") as HTMLInputElement;
 
         // input 事件不触发写入
@@ -526,7 +526,7 @@ describe("x-model .boolean 修饰符", () => {
         expect(engine.state.flag).toBe(false); // Boolean("false")===true 是陷阱，严格集修复
     });
 
-    test('text：空串 → false（空=否定）', async () => {
+    test("text：空串 → false（空=否定）", async () => {
         const { root, engine } = mount(`<input x-model.boolean="flag" />`, { flag: true });
         const input = root.querySelector("input") as HTMLInputElement;
         input.value = "";
@@ -549,7 +549,7 @@ describe("x-model .boolean 修饰符", () => {
         expect(engine.state.flag).toBe("0"); // "0" 不在严格集，保留
     });
 
-    test(".trim.boolean：trim 先行（\" true \" → true）", async () => {
+    test('.trim.boolean：trim 先行（" true " → true）', async () => {
         const { root, engine } = mount(`<input x-model.trim.boolean="flag" />`, {
             flag: false,
         });
@@ -585,10 +585,9 @@ describe("x-model .boolean 修饰符", () => {
     });
 
     test("checkbox 空转：.boolean 对恒写布尔的 checkbox 冗余无害", async () => {
-        const { root, engine } = mount(
-            `<input type="checkbox" x-model.boolean="agree" />`,
-            { agree: false },
-        );
+        const { root, engine } = mount(`<input type="checkbox" x-model.boolean="agree" />`, {
+            agree: false,
+        });
         const checkbox = root.querySelector("input") as HTMLInputElement;
         checkbox.checked = true;
         checkbox.dispatchEvent(new Event("input", { bubbles: true }));
@@ -627,10 +626,12 @@ describe("x-model .boolean 修饰符", () => {
         expect((root.querySelector("input") as HTMLInputElement).checked).toBe(true);
     });
 
-    test('radio 值不在严格集：warn 一次 + 保留原值写回', async () => {
+    test("radio 值不在严格集：warn 一次 + 保留原值写回", async () => {
         const { root, engine } = mount(
             `<input type="radio" value="abc" x-model.boolean="choice" />`,
-            { choice: "" },
+            {
+                choice: "",
+            },
         );
         const radio = root.querySelector("input") as HTMLInputElement;
         radio.checked = true;
@@ -641,10 +642,9 @@ describe("x-model .boolean 修饰符", () => {
 
     test("宿主选项回退：x-options={boolean:true} 元素级生效", async () => {
         // 宿主选项挂在 x-model 元素自身（x-options 解析自指令宿主元素，非父容器）
-        const { root, engine } = mount(
-            `<input x-model="flag" x-options="{boolean:true}" />`,
-            { flag: false },
-        );
+        const { root, engine } = mount(`<input x-model="flag" x-options="{boolean:true}" />`, {
+            flag: false,
+        });
         const input = root.querySelector("input") as HTMLInputElement;
         input.value = "true";
         input.dispatchEvent(new InputEvent("input", { bubbles: true }));
@@ -656,20 +656,16 @@ describe("x-model .boolean 修饰符", () => {
 describe("x-model radio value 缺失检测", () => {
     test("radio 无 value 属性 → warn + 跳过绑定", () => {
         // radio 默认 value="on"，应 warn 并跳过
-        const { root, engine } = mount(
-            `<input type="radio" x-model="choice" />`,
-            { choice: "" },
-        );
+        const { root, engine } = mount(`<input type="radio" x-model="choice" />`, { choice: "" });
         const radio = root.querySelector("input") as HTMLInputElement;
         // 跳过绑定后，radio 不受 state 控制
         expect(radio.checked).toBe(false); // 不被设置
     });
 
     test("radio value='on'（HTML 默认）→ 同样 warn + 跳过", () => {
-        const { root } = mount(
-            `<input type="radio" value="on" x-model="choice" />`,
-            { choice: "on" },
-        );
+        const { root } = mount(`<input type="radio" value="on" x-model="choice" />`, {
+            choice: "on",
+        });
         // 跳过绑定，即使 state 值恰好是 "on"
         expect(root.querySelector("input")!.checked).toBe(false);
     });
@@ -678,19 +674,13 @@ describe("x-model radio value 缺失检测", () => {
 describe("x-model radio 冲突检测", () => {
     test(":checked 与 x-model radio 同元素 → 编译期报错", () => {
         expect(() =>
-            mount(
-                `<input type="radio" value="a" x-model="c" :checked="b" />`,
-                { c: "", b: true },
-            ),
+            mount(`<input type="radio" value="a" x-model="c" :checked="b" />`, { c: "", b: true }),
         ).toThrow();
     });
 
     test(":value 与 x-model radio 同元素 → 放行（:value 设选项值）", () => {
         expect(() =>
-            mount(
-                `<input type="radio" x-model="c" :value="'a'" />`,
-                { c: "" },
-            ),
+            mount(`<input type="radio" x-model="c" :value="'a'" />`, { c: "" }),
         ).not.toThrow();
     });
 });

@@ -129,13 +129,13 @@ engine.actions.rename = () => {
 
 ### 读写聚合视图
 
-`this.data` 是 `scope.getContext()` 返回的「拍平」视图：读任意键都沿 scope 父链取最近同名值；写**已存在的 `x-data` 字段**会经 set 陷阱透传到响应式域（`store.state._scopes[id]`），触发字段级细粒度更新：
+`this.data` 是 `scope.getContext()` 返回的「拍平」视图：读任意键都沿 scope 父链取最近同名值；写**已存在的 `x-data` 字段**会经 set 陷阱透传到响应式域（`store.state.$scopes[id]`），触发字段级细粒度更新：
 
 ```javascript
 actions: {
     bump: function () {
         // 读：times 来自所在 x-data 的私有响应式域
-        // 写：透传到 _scopes[id].times → 字段级更新，无需手动 refresh
+        // 写：透传到 $scopes[id].times → 字段级更新，无需手动 refresh
         this.data.times = this.data.times + 1;
     },
 },

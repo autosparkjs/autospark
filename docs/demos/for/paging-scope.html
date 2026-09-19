@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-for.paging · scope.paging 分页状态读取器</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .list-item {
+                padding: 8px 0;
+                border-bottom: 1px solid #eee;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .snapshot {
+                background: #f5f5f5;
+                padding: 12px;
+                border-radius: 8px;
+                font-size: 13px;
+                white-space: pre-wrap;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <h4 class="title is-4">scope.paging 分页状态读取器</h4>
+            <p class="mb-4">
+                不写 <code>:data-paging</code>，分页状态不进状态树：项模板内用 <code>$*</code> 变量控制翻页（首/末行按钮），
+                JS/action 通过容器 scope 上的只读快照 <code>scope.paging</code> 读取。
+            </p>
+
+            <!-- 分页列表（无 :data-paging，store 中没有 paging 状态） -->
+            <div class="content">
+                <ul x-for.paging="item of items" x-for-options="{pageSize:5}">
+                    <li class="list-item">
+                        <span>#{{ $index + 1 }} - {{ item.name }}</span>
+                        <!-- 项模板内 $* 通道：$begin/$end 让按钮只出现在首/末行 -->
+                        <span class="buttons">
+                            <button
+                                x-show="$begin"
+                                class="button is-small"
+                                :disabled="$page <= 1"
+                                @click="$page = $page - 1"
+                            >
+                                « 上一页
+                            </button>
+                            <button x-show="$end" class="button is-small" :disabled="!$hasMore" @click="$page = $page + 1">
+                                下一页 »
+                            </button>
+                        </span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- JS 通道：action 读取容器 scope 上的冻结快照 -->
+            <div class="buttons">
+                <button class="button is-primary" @click="readSnapshot">读取分页快照</button>
+            </div>
+            <div class="snapshot" x-text="snapshot">（点击按钮读取 scope.paging）</div>
+            <p class="is-size-7 has-text-grey mt-2">
+                快照为 <code>Object.freeze</code> 冻结对象，写入会抛错；每次翻页由引擎整体重建。
+            </p>
+        </div>
+
+        <script>
+            const items = [];
+            for (let i = 1; i <= 23; i++) {
+                items.push({ id: i, name: `项目 ${i}` });
+            }
+
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    items,
+                    snapshot: "（点击按钮读取 scope.paging）"
+                },
+                {
+                    actions: {
+                        // scope.paging 是 JS/action 通道：经容器元素定位 scope 后读取冻结快照
+                        readSnapshot: () => {
+                            const scope = engine.findScopeByEl(document.querySelector("ul"));
+                            engine.store.state.snapshot = JSON.stringify(scope.paging);
+                        }
+                    }
+                }
+            );
+        </script>
+    </body>
+</html>

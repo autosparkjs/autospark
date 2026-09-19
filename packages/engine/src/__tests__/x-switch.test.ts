@@ -48,7 +48,7 @@ describe("x-switch 分支选择：字面量匹配（决策 1/3）", () => {
         expect(root.querySelector(".b")?.textContent).toBe("BOOL");
     });
 
-    test("裸词 ≡ 引号串：x-case=\"'a'\" 与 x-case=\"a\" 同值", async () => {
+    test('裸词 ≡ 引号串：x-case="\'a\'" 与 x-case="a" 同值', async () => {
         const { root } = mount(
             `<div x-switch="v">
                 <span x-case="'a'" class="q">QUOTED</span>
@@ -78,7 +78,7 @@ describe("x-switch 分支选择：字面量匹配（决策 1/3）", () => {
         expect(root.querySelector(".hi")).toBeNull();
     });
 
-    test("NaN 特判：x-case=\"NaN\" 命中 NaN 主值（SameValueZero，决策 3）", async () => {
+    test('NaN 特判：x-case="NaN" 命中 NaN 主值（SameValueZero，决策 3）', async () => {
         const { root, engine } = mount(
             `<div x-switch="v">
                 <span x-case="NaN" class="nan">IS_NAN</span>
@@ -265,10 +265,12 @@ describe("x-switch 宿主形态：锚点占位式（决策 2）", () => {
                     <em x-default class="off">OFF</em>
                 </span></li>
              </ul>`,
-            { items: [
-                { id: 1, status: "on" },
-                { id: 2, status: "unknown" },
-            ] },
+            {
+                items: [
+                    { id: 1, status: "on" },
+                    { id: 2, status: "unknown" },
+                ],
+            },
         );
         await nextTick();
         const items = root.querySelectorAll("li");
@@ -322,7 +324,7 @@ describe("x-switch 两态：eager / keepalive（决策 5）", () => {
         expect(inp2.value).toBe("typed");
     });
 
-    test("x-switch-options=\"{keepalive:true}\" 与 .keepalive 修饰符等价（ADR-0007）", async () => {
+    test('x-switch-options="{keepalive:true}" 与 .keepalive 修饰符等价（ADR-0007）', async () => {
         const { root, engine } = mount(
             `<div x-switch="tab" x-switch-options="{keepalive:true}">
                 <div x-case="a" class="pa"><input id="inp" /></div>
@@ -491,10 +493,7 @@ describe("x-switch 防呆（决策 6，编译期 warn + 运行时按既定语义
         const orig = console.warn;
         console.warn = (...args: any[]) => warns.push(String(args[0] ?? ""));
         try {
-            const { root } = mount(
-                `<div><span x-case="a" class="orphan">ORPHAN</span></div>`,
-                {},
-            );
+            const { root } = mount(`<div><span x-case="a" class="orphan">ORPHAN</span></div>`, {});
             await nextTick();
             expect(root.querySelector(".orphan")).toBeNull();
         } finally {

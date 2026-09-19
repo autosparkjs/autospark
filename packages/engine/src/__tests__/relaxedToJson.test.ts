@@ -15,15 +15,15 @@ describe("relaxedToJson", () => {
 
     // ── 尾逗号 ──
     test("尾逗号（对象）", () => {
-        expect(JSON.parse(relaxedToJson('{a: 1, b: 2,}'))).toEqual({ a: 1, b: 2 });
+        expect(JSON.parse(relaxedToJson("{a: 1, b: 2,}"))).toEqual({ a: 1, b: 2 });
     });
 
     test("尾逗号（数组）", () => {
-        expect(JSON.parse(relaxedToJson('[1, 2, 3,]'))).toEqual([1, 2, 3]);
+        expect(JSON.parse(relaxedToJson("[1, 2, 3,]"))).toEqual([1, 2, 3]);
     });
 
     test("多层尾逗号", () => {
-        expect(JSON.parse(relaxedToJson('{a: [1, 2,], b: {x: 1,},}'))).toEqual({
+        expect(JSON.parse(relaxedToJson("{a: [1, 2,], b: {x: 1,},}"))).toEqual({
             a: [1, 2],
             b: { x: 1 },
         });
@@ -48,26 +48,28 @@ describe("relaxedToJson", () => {
 
     // ── 嵌套 ──
     test("嵌套对象", () => {
-        expect(JSON.parse(relaxedToJson('{a: {b: {c: 1}}}'))).toEqual({ a: { b: { c: 1 } } });
+        expect(JSON.parse(relaxedToJson("{a: {b: {c: 1}}}"))).toEqual({ a: { b: { c: 1 } } });
     });
 
     test("嵌套数组", () => {
-        expect(JSON.parse(relaxedToJson('{a: [[1, 2], [3, 4]]}'))).toEqual({ a: [[1, 2], [3, 4]] });
+        expect(JSON.parse(relaxedToJson("{a: [[1, 2], [3, 4]]}"))).toEqual({
+            a: [
+                [1, 2],
+                [3, 4],
+            ],
+        });
     });
 
     test("混合嵌套", () => {
         const input = '{items: [{name: "a", tags: [1, 2]}, {name: "b"}]}';
         expect(JSON.parse(relaxedToJson(input))).toEqual({
-            items: [
-                { name: "a", tags: [1, 2] },
-                { name: "b" },
-            ],
+            items: [{ name: "a", tags: [1, 2] }, { name: "b" }],
         });
     });
 
     // ── 裸值透传 ──
     test("裸值 true/false/null", () => {
-        expect(JSON.parse(relaxedToJson('{a: true, b: false, c: null}'))).toEqual({
+        expect(JSON.parse(relaxedToJson("{a: true, b: false, c: null}"))).toEqual({
             a: true,
             b: false,
             c: null,
@@ -75,7 +77,7 @@ describe("relaxedToJson", () => {
     });
 
     test("数字值", () => {
-        expect(JSON.parse(relaxedToJson('{a: 42, b: -1, c: 3.14, d: 1e5}'))).toEqual({
+        expect(JSON.parse(relaxedToJson("{a: 42, b: -1, c: 3.14, d: 1e5}"))).toEqual({
             a: 42,
             b: -1,
             c: 3.14,

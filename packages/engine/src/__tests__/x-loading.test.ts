@@ -11,23 +11,23 @@ const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 describe("x-loading 快速绑定（整值即 value 表达式）", () => {
     test("true 挂载覆盖层，false 移除，true 重建", async () => {
-        const { root, store } = mount(`<div id="h" x-loading="show"></div>`, { show: true });
+        const { root, engine } = mount(`<div id="h" x-loading="show"></div>`, { show: true });
         const h = root.querySelector("#h")!;
         // 初始 true：覆盖层已挂载
         expect(overlayOf(h)).not.toBeNull();
-        store.state.show = false;
+        engine.state.show = false;
         await nextTick();
         expect(overlayOf(h)).toBeNull();
-        store.state.show = true;
+        engine.state.show = true;
         await nextTick();
         expect(overlayOf(h)).not.toBeNull();
     });
 
     test("初始 false：覆盖层不挂载", async () => {
-        const { root, store } = mount(`<div id="h" x-loading="show"></div>`, { show: false });
+        const { root, engine } = mount(`<div id="h" x-loading="show"></div>`, { show: false });
         const h = root.querySelector("#h")!;
         expect(overlayOf(h)).toBeNull();
-        store.state.show = true;
+        engine.state.show = true;
         await nextTick();
         expect(overlayOf(h)).not.toBeNull();
     });
@@ -40,35 +40,35 @@ describe("x-loading 快速绑定（整值即 value 表达式）", () => {
     });
 
     test("表达式 value：a && !b 依赖多状态，切换任一即响应", async () => {
-        const { root, store } = mount(`<div id="h" x-loading="a && !b"></div>`, {
+        const { root, engine } = mount(`<div id="h" x-loading="a && !b"></div>`, {
             a: true,
             b: false,
         });
         const h = root.querySelector("#h")!;
         // true && !false → true：已挂载
         expect(overlayOf(h)).not.toBeNull();
-        store.state.b = true;
+        engine.state.b = true;
         await nextTick();
         // true && !true → false：移除
         expect(overlayOf(h)).toBeNull();
-        store.state.a = false;
-        store.state.b = false;
+        engine.state.a = false;
+        engine.state.b = false;
         await nextTick();
         // false && !false → false：仍无
         expect(overlayOf(h)).toBeNull();
-        store.state.a = true;
+        engine.state.a = true;
         await nextTick();
         // true && !false → true：重建
         expect(overlayOf(h)).not.toBeNull();
     });
 
     test("路径绑定 store 状态：order.isSubmit", async () => {
-        const { root, store } = mount(`<div id="h" x-loading="order.isSubmit"></div>`, {
+        const { root, engine } = mount(`<div id="h" x-loading="order.isSubmit"></div>`, {
             order: { isSubmit: false },
         });
         const h = root.querySelector("#h")!;
         expect(overlayOf(h)).toBeNull();
-        store.state.order.isSubmit = true;
+        engine.state.order.isSubmit = true;
         await nextTick();
         expect(overlayOf(h)).not.toBeNull();
     });
@@ -98,10 +98,10 @@ describe("x-loading 字面量与缺省（bare / true / false）", () => {
     });
 
     test("字面量不订阅状态：store 变化不影响显隐", async () => {
-        const { root, store } = mount(`<div id="h" x-loading="true"></div>`, { flag: false });
+        const { root, engine } = mount(`<div id="h" x-loading="true"></div>`, { flag: false });
         const h = root.querySelector("#h")!;
         expect(overlayOf(h)).not.toBeNull();
-        store.state.flag = true; // 字面量模式无订阅，不应触发任何变化
+        engine.state.flag = true; // 字面量模式无订阅，不应触发任何变化
         await nextTick();
         expect(overlayOf(h)).not.toBeNull();
     });
@@ -115,7 +115,7 @@ describe("x-loading 运行时通道（Runtime 指令 / observer）", () => {
     });
 
     test("动态插入带 x-loading 的元素：observer 自动挂载", async () => {
-        const { root, store } = mount(`<div></div>`, { l: false });
+        const { root, engine } = mount(`<div></div>`, { l: false });
         // 编译期无 x-loading 元素；运行时用原生 DOM API 插入
         const dynamic = document.createElement("div");
         dynamic.id = "d";
@@ -123,33 +123,33 @@ describe("x-loading 运行时通道（Runtime 指令 / observer）", () => {
         root.querySelector("div")!.appendChild(dynamic);
         await nextTick(); // 等 observer 投递
         expect(overlayOf(root.querySelector("#d"))).toBeNull(); // l=false 不挂载
-        store.state.l = true;
+        engine.state.l = true;
         await nextTick();
         expect(overlayOf(root.querySelector("#d"))).not.toBeNull(); // 响应全局状态
     });
 
     test("setAttribute 改值 → attrChanged 重绑到新表达式", async () => {
-        const { root, store } = mount(`<div id="h" x-loading="a"></div>`, { a: false, b: true });
+        const { root, engine } = mount(`<div id="h" x-loading="a"></div>`, { a: false, b: true });
         const h = root.querySelector("#h")!;
         expect(overlayOf(h)).toBeNull(); // a=false
         // 改绑到 b
         h.setAttribute("x-loading", "b");
         await nextTick();
         expect(overlayOf(h)).not.toBeNull(); // b=true → 挂载
-        store.state.b = false;
+        engine.state.b = false;
         await nextTick();
         expect(overlayOf(h)).toBeNull(); // 现在订阅的是 b
     });
 
     test("removeAttribute 删除属性 → 卸载实例（覆盖层移除）", async () => {
-        const { root, store } = mount(`<div id="h" x-loading="l"></div>`, { l: true });
+        const { root, engine } = mount(`<div id="h" x-loading="l"></div>`, { l: true });
         const h = root.querySelector("#h")!;
         expect(overlayOf(h)).not.toBeNull();
         h.removeAttribute("x-loading");
         await nextTick(); // observer 检测到属性删除 → unmount
         expect(overlayOf(h)).toBeNull();
         // 属性已删，后续状态变化不再影响
-        store.state.l = false;
+        engine.state.l = false;
         await nextTick();
         expect(overlayOf(h)).toBeNull();
     });
@@ -158,7 +158,10 @@ describe("x-loading 运行时通道（Runtime 指令 / observer）", () => {
         // 初始 x-loading 对象配置省略 value → resolveLiteral("")===true → 静态显示 + 配置渲染。
         // feedback 的 loading 配置对象（命令式 setAttribute 注入「无 value 的配置」）复用此契约，故锁定。
         // 「移除即隐藏」由上条 removeAttribute 测试覆盖（属性删 → unmount → overlay 移除）。
-        const { root } = mount(`<div id="h" x-loading="{ message:'保存中', color:'red' }"></div>`, {});
+        const { root } = mount(
+            `<div id="h" x-loading="{ message:'保存中', color:'red' }"></div>`,
+            {},
+        );
         const h = root.querySelector("#h")!;
         const overlay = overlayOf(h);
         expect(overlay).not.toBeNull();
@@ -166,14 +169,14 @@ describe("x-loading 运行时通道（Runtime 指令 / observer）", () => {
     });
 
     test("元素从 DOM 移除 → observer 自动卸载（无泄露）", async () => {
-        const { root, store } = mount(`<div id="h" x-loading="l"></div>`, { l: true });
+        const { root, engine } = mount(`<div id="h" x-loading="l"></div>`, { l: true });
         const h = root.querySelector("#h")!;
         expect(overlayOf(h)).not.toBeNull();
         h.remove(); // 原生移除
         await nextTick();
         // 元素已不在；状态变化不应抛错（实例已 unmounted，watcher 已 off）
         expect(() => {
-            store.state.l = false;
+            engine.state.l = false;
         }).not.toThrow();
     });
 
@@ -191,13 +194,12 @@ describe("x-loading 运行时通道（Runtime 指令 / observer）", () => {
 
 describe("x-loading 配置绑定（对象语法）", () => {
     test("value 字段控制显隐", async () => {
-        const { root, store } = mount(
-            `<div id="h" x-loading="{ value:'flag' }"></div>`,
-            { flag: false },
-        );
+        const { root, engine } = mount(`<div id="h" x-loading="{ value:'flag' }"></div>`, {
+            flag: false,
+        });
         const h = root.querySelector("#h")!;
         expect(overlayOf(h)).toBeNull();
-        store.state.flag = true;
+        engine.state.flag = true;
         await nextTick();
         expect(overlayOf(h)).not.toBeNull();
     });
@@ -217,9 +219,12 @@ describe("x-loading 配置绑定（对象语法）", () => {
             warns.push(String(args[0] ?? ""));
         };
         try {
-            const { root } = mount(`<div id="h" x-loading="{ visible:'flag', message:'x' }"></div>`, {
-                flag: false,
-            });
+            const { root } = mount(
+                `<div id="h" x-loading="{ visible:'flag', message:'x' }"></div>`,
+                {
+                    flag: false,
+                },
+            );
             // visible 被忽略 → value 缺失 ≡ true → 恒显示（不按 flag 反应）
             expect(overlayOf(root.querySelector("#h"))).not.toBeNull();
         } finally {
@@ -229,10 +234,9 @@ describe("x-loading 配置绑定（对象语法）", () => {
     });
 
     test("color 注入 loader（currentColor 经 style.color）", () => {
-        const { root } = mount(
-            `<div id="h" x-loading="{ value:'l', color:'red' }"></div>`,
-            { l: true },
-        );
+        const { root } = mount(`<div id="h" x-loading="{ value:'l', color:'red' }"></div>`, {
+            l: true,
+        });
         const loader = root.querySelector("#h .x-loading-loader") as HTMLElement;
         expect(loader).not.toBeNull();
         // style.color 读值经 happy-dom 规范化；断言非空且含 red 或对应 rgb
@@ -253,10 +257,9 @@ describe("x-loading 配置绑定（对象语法）", () => {
     test("message 渲染文本；不传则 message 元素文本为空", () => {
         // ADR-0021 决策 12：DEFAULT_BLOCK 的 message 经 x-text="message" 绑定。
         // message 元素恒存在（默认块模板写死），不传时 x-text 写空串（而非移除节点）
-        const withMsg = mount(
-            `<div id="h" x-loading="{ value:'l', message:'正在加载' }"></div>`,
-            { l: true },
-        );
+        const withMsg = mount(`<div id="h" x-loading="{ value:'l', message:'正在加载' }"></div>`, {
+            l: true,
+        });
         const msg1 = withMsg.root.querySelector("#h .x-loading-message");
         expect(msg1?.textContent).toBe("正在加载");
 
@@ -302,7 +305,9 @@ describe("x-loading selector 目标元素", () => {
     test("selector 未命中：回退到宿主元素显示", () => {
         const { root } = mount(
             `<div id="h" x-loading="{ value:'l', selector:'#missing' }"></div>`,
-            { l: true },
+            {
+                l: true,
+            },
         );
         const h = root.querySelector("#h")!;
         const ov = h.querySelector(".x-loading-overlay") as HTMLElement;
@@ -311,10 +316,9 @@ describe("x-loading selector 目标元素", () => {
     });
 
     test("selector 非法：回退到宿主元素显示（不抛错）", () => {
-        const { root } = mount(
-            `<div id="h" x-loading="{ value:'l', selector:'!!bad!!' }"></div>`,
-            { l: true },
-        );
+        const { root } = mount(`<div id="h" x-loading="{ value:'l', selector:'!!bad!!' }"></div>`, {
+            l: true,
+        });
         const h = root.querySelector("#h")!;
         const ov = h.querySelector(".x-loading-overlay") as HTMLElement;
         expect(ov).not.toBeNull();
@@ -350,15 +354,14 @@ describe("x-loading delay 防闪烁", () => {
     });
 
     test("延迟窗口内回 false：不挂载（防闪烁）", async () => {
-        const { root, store } = mount(
-            `<div id="h" x-loading="{ value:'l', delay:30 }"></div>`,
-            { l: false },
-        );
+        const { root, engine } = mount(`<div id="h" x-loading="{ value:'l', delay:30 }"></div>`, {
+            l: false,
+        });
         const h = root.querySelector("#h")!;
-        store.state.l = true;
+        engine.state.l = true;
         await nextTick();
         // 未到期，回 false
-        store.state.l = false;
+        engine.state.l = false;
         await nextTick();
         await wait(80);
         expect(overlayOf(h)).toBeNull();
@@ -367,32 +370,31 @@ describe("x-loading delay 防闪烁", () => {
 
 describe("x-loading 反复切换无泄露", () => {
     test("多次 true↔false：覆盖层始终至多 1 个", async () => {
-        const { root, store } = mount(`<div id="h" x-loading="l"></div>`, { l: true });
+        const { root, engine } = mount(`<div id="h" x-loading="l"></div>`, { l: true });
         const h = root.querySelector("#h")!;
         for (let i = 0; i < 5; i++) {
-            store.state.l = false;
+            engine.state.l = false;
             await nextTick();
-            store.state.l = true;
+            engine.state.l = true;
             await nextTick();
         }
         expect(h.querySelectorAll(".x-loading-overlay").length).toBe(1);
     });
 
     test("销毁后覆盖层移除（destroy 清理 DOM）", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div id="outer" x-if="show"><div id="h" x-loading="l"></div></div>`,
             { show: true, l: true },
         );
         const h = root.querySelector("#h")!;
         expect(overlayOf(h)).not.toBeNull();
         // 外层 x-if 隐藏 → 销毁子 scope（含 x-loading）→ destroy 移除覆盖层
-        store.state.show = false;
+        engine.state.show = false;
         await nextTick();
         // #h 被移除（子树销毁）
         expect(root.querySelector("#h")).toBeNull();
     });
 });
-
 
 describe("x-loading 动作按钮（ADR-0038）", () => {
     /** 拦截 console.warn 收集日志（logger.warn 底层走 console.warn） */
@@ -429,7 +431,9 @@ describe("x-loading 动作按钮（ADR-0038）", () => {
     test("未注册 action 的 title 兜底为 name 本身", async () => {
         const { root } = mount(
             `<div id="h" x-loading="{ value:'l', actions:['refresh'] }"></div>`,
-            { l: true },
+            {
+                l: true,
+            },
         );
         await nextTick();
         const btn = root.querySelector("#h .x-loading-action")!;
@@ -556,7 +560,7 @@ describe("x-loading 动作按钮（ADR-0038）", () => {
 
     test("默认自动隐藏：先完整广播（监听时覆盖层仍在）再纯 DOM 移除（不写状态）", async () => {
         let overlayAliveDuringBroadcast = false;
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div id="h" x-loading="{ value:'l', actions:['close'] }"></div>`,
             { l: true },
         );
@@ -569,11 +573,11 @@ describe("x-loading 动作按钮（ADR-0038）", () => {
         // 广播期间覆盖层尚未移除；广播后移除；value 仍为 true（引擎不写状态）
         expect(overlayAliveDuringBroadcast).toBe(true);
         expect(overlayOf(h)).toBeNull();
-        expect(store.state.l).toBe(true);
+        expect(engine.state.l).toBe(true);
         // 复苏：value 翻 false → true 后恢复正常驱动
-        store.state.l = false;
+        engine.state.l = false;
         await nextTick();
-        store.state.l = true;
+        engine.state.l = true;
         await nextTick();
         expect(overlayOf(h)).not.toBeNull();
     });
@@ -618,7 +622,9 @@ describe("x-loading 动作按钮（ADR-0038）", () => {
     test("未注册名恒隐藏（合成 descriptor 无 hide 配置位）", async () => {
         const { root } = mount(
             `<div id="h" x-loading="{ value:'l', actions:['refresh'] }"></div>`,
-            { l: true },
+            {
+                l: true,
+            },
         );
         const h = root.querySelector("#h")!;
         await nextTick();

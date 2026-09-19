@@ -9,13 +9,13 @@
 ### 构造引擎
 
 ```typescript
-new AutoSpark(el, store | state, options?)
+new AutoSpark(el, state, options?)
 ```
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
 | `el` | `HTMLElement` | 挂载根元素，必传。引擎编译模板并把产物挂到该元素下 |
-| 第二参 | `AutoStore \| State` | 数据源：`AutoStore` 实例（借用）或裸状态对象（引擎自建 store） |
+| `state` | `State` | 裸状态对象。引擎自建 store 并拥有它（传入 `AutoStore` 实例会 throw） |
 | `options` | `Partial<AutoSparkOptions>` | 可选配置 |
 
 ```javascript
@@ -26,22 +26,13 @@ const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {
 });
 ```
 
-#### 数据源：store 还是 state？
+#### 数据源：裸状态
 
-第二参有两种形态，决定 store 的所有权：
-
-- **传 `AutoStore` 实例**（借用）：与其他模块共享同一状态树。`engine.destroy()` **不会**销毁它（保留你在别处挂的订阅、computed）。
-- **传裸状态对象**（自建）：引擎内部 `new AutoStore(state)`。`engine.destroy()` **会**销毁它，回收 computed / 订阅 / Proxy 等资源。
+第二参传**裸状态对象**，引擎内部自建 store 并拥有它（1 engine 1 store）：`engine.destroy()` **会**销毁该 store，回收 computed / 订阅 / Proxy 等资源。store 级配置（computed 声明、configManager 等）经 `options.storeOptions` 传入。
 
 ```javascript
-import { AutoStore } from "autospark";
-
-// 借用：外部建好的 store
-const store = new AutoStore({ count: 0 });
-const engine = new AutoSpark(el, store);
-
-// 自建：直接传裸状态
-const engine2 = new AutoSpark(el, { count: 0 });
+// 直接传裸状态
+const engine = new AutoSpark(el, { count: 0 });
 ```
 
 #### 配置选项
@@ -52,7 +43,7 @@ interface AutoSparkOptions {
     debug?: boolean; // 调试日志，默认 false
     actions?: Record<string, (...args) => any>; // 全局动作表
     sanitizer?: (html: string) => string; // x-html 的 HTML 消毒器
-    storeOptions?: AutoStoreOptions; // 自建 store 时的配置（仅裸状态路径消费）
+    storeOptions?: AutoStoreOptions; // store 配置（恒消费；configManager 缺省为引擎内存实例，configKey 缺省 ''）
 }
 ```
 

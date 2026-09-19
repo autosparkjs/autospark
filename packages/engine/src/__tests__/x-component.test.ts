@@ -2,7 +2,11 @@ import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import "./setup";
 import { mount, nextTick } from "./helpers";
 import type { ComponentDef } from "../directives/component-def";
-import { rewriteScopedCss, injectComponentStyle, releaseComponentStyle } from "../utils/scopedStyle";
+import {
+    rewriteScopedCss,
+    injectComponentStyle,
+    releaseComponentStyle,
+} from "../utils/scopedStyle";
 import { exprToVarName, extractStyleBinds } from "../utils/styleBind";
 
 /**
@@ -98,13 +102,13 @@ describe("x-component 收集与摘除", () => {
 
     test("Q8：x-component 同元素其他指令不执行（随组件冻结，当前 DOM 不绑定）", async () => {
         // x-component 上的 x-text 不在当前 scope 执行——组件被摘除，x-text 无宿主
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div x-scope><div x-component="loading" x-text="msg">占位</div></div>`,
             { msg: "X" },
         );
         // 组件已摘除，DOM 里没有该文本
         expect(root.textContent).not.toContain("X");
-        store.state.msg = "CHANGED";
+        engine.state.msg = "CHANGED";
         await nextTick();
         expect(root.textContent).not.toContain("CHANGED"); // x-text 根本没绑定
     });
@@ -133,10 +137,7 @@ describe("x-component 收集与摘除", () => {
 
 describe("default 组件与命名约定（Q9）", () => {
     test("无值 x-component 取名 default", () => {
-        const { engine, root } = mount(
-            `<div x-scope><div x-component>默认组件</div></div>`,
-            {},
-        );
+        const { engine, root } = mount(`<div x-scope><div x-component>默认组件</div></div>`, {});
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         expect(scope.getComponent("default")).toBeDefined();
     });
@@ -219,7 +220,7 @@ describe("组件查找沿 parent 链就近 + 组件兜底（Q1/Q5）", () => {
 
 describe("x-loading 消费 loading 组件", () => {
     test("命中 loading 组件：用组件替换内置 loader", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div x-scope>
                 <div x-component="loading"><span class="custom-loader">自定义加载</span></div>
                 <div id="host" x-loading="loading">内容</div>
@@ -248,7 +249,7 @@ describe("x-loading 消费 loading 组件", () => {
     });
 
     test("组件内指令在消费渲染时编译生效", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div x-scope>
                 <div x-component="loading"><span x-text="msg">占位</span></div>
                 <div id="host" x-loading="loading">内容</div>
@@ -262,13 +263,13 @@ describe("x-loading 消费 loading 组件", () => {
         // 初始渲染（textContent 含 msg 值，与既有 x-text 行为一致）
         expect(span.textContent).toContain("加载中文案");
         // 响应式：msg 变化组件内文本更新（订阅已建立）
-        store.state.msg = "已更新";
+        engine.state.msg = "已更新";
         await nextTick();
         expect(span.textContent).toContain("已更新");
     });
 
     test("x-loading 显隐切换时组件覆盖层正确增删", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div x-scope>
                 <div x-component="loading"><span class="custom">自定义</span></div>
                 <div id="host" x-loading="loading">内容</div>
@@ -278,7 +279,7 @@ describe("x-loading 消费 loading 组件", () => {
         await nextTick();
         const host = root.querySelector("#host")!;
         expect(host.querySelector(".custom")).not.toBeNull(); // 显示时有组件
-        store.state.loading = false;
+        engine.state.loading = false;
         await nextTick();
         expect(host.querySelector(".custom")).toBeNull(); // 隐藏时移除
         expect(host.querySelector(".x-loading-overlay")).toBeNull();
@@ -320,15 +321,23 @@ describe("全局组件（决策 9/10/11）", () => {
     });
 
     test("决策9：链+全局均无该名组件返回 undefined", () => {
-        const { engine, root } = mount(`<div x-scope></div>`, {}, { components: { other: "<div/>" } });
+        const { engine, root } = mount(
+            `<div x-scope></div>`,
+            {},
+            { components: { other: "<div/>" } },
+        );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         expect(scope.getComponent("nope")).toBeUndefined();
     });
 
     test("决策10：单顶级元素无 x-component → 根打本 key 名", () => {
-        const { engine, root } = mount(`<div x-scope></div>`, {}, {
-            components: { t1: `<div class="a">aaa</div>` },
-        });
+        const { engine, root } = mount(
+            `<div x-scope></div>`,
+            {},
+            {
+                components: { t1: `<div class="a">aaa</div>` },
+            },
+        );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         const block = scope.getComponent("t1")!;
         expect(block.className).toBe("a");
@@ -336,18 +345,26 @@ describe("全局组件（决策 9/10/11）", () => {
     });
 
     test("决策10：已含 x-component → 尊重原值不重命名", () => {
-        const { engine, root } = mount(`<div x-scope></div>`, {}, {
-            components: { t1: `<div x-component="foo">aaa</div>` },
-        });
+        const { engine, root } = mount(
+            `<div x-scope></div>`,
+            {},
+            {
+                components: { t1: `<div x-component="foo">aaa</div>` },
+            },
+        );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         const block = scope.getComponent("t1")!;
         expect(block.getAttribute("x-component")).toBe("foo"); // 用户显式声明优先
     });
 
     test("决策10：多顶级节点 → 包一层 div", () => {
-        const { engine, root } = mount(`<div x-scope></div>`, {}, {
-            components: { t1: `<div>a</div><div>b</div>` },
-        });
+        const { engine, root } = mount(
+            `<div x-scope></div>`,
+            {},
+            {
+                components: { t1: `<div>a</div><div>b</div>` },
+            },
+        );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         const block = scope.getComponent("t1")!;
         expect(block.tagName).toBe("DIV");
@@ -356,9 +373,13 @@ describe("全局组件（决策 9/10/11）", () => {
     });
 
     test("决策10：纯文本无元素 → 包成 div", () => {
-        const { engine, root } = mount(`<div x-scope></div>`, {}, {
-            components: { t1: `纯文本组件` },
-        });
+        const { engine, root } = mount(
+            `<div x-scope></div>`,
+            {},
+            {
+                components: { t1: `纯文本组件` },
+            },
+        );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         const block = scope.getComponent("t1")!;
         expect(block.tagName).toBe("DIV");
@@ -367,17 +388,25 @@ describe("全局组件（决策 9/10/11）", () => {
     });
 
     test("决策7修订：全局组件根不注入 x-scope", () => {
-        const { engine, root } = mount(`<div x-scope></div>`, {}, {
-            components: { t1: `<div class="a">x</div>` },
-        });
+        const { engine, root } = mount(
+            `<div x-scope></div>`,
+            {},
+            {
+                components: { t1: `<div class="a">x</div>` },
+            },
+        );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         expect(scope.getComponent("t1")!.hasAttribute("x-scope")).toBe(false);
     });
 
     test("决策11：懒预编译缓存——重复 getComponent 返回同根（deepClone 由消费者负责）", () => {
-        const { engine, root } = mount(`<div x-scope></div>`, {}, {
-            components: { t1: `<div class="a">x</div>` },
-        });
+        const { engine, root } = mount(
+            `<div x-scope></div>`,
+            {},
+            {
+                components: { t1: `<div class="a">x</div>` },
+            },
+        );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         // 两次 getComponent 命中全局组件应返回缓存中的同一根元素（预编译只跑一次）
         // 注意：getComponent 自身不 clone，消费者负责 cloneNode；故两次返回引用相同
@@ -402,7 +431,7 @@ describe("x-loading data 注入与 attrChanged patch（决策 12）", () => {
     test("决策12-c：config 以 data 注入组件（message/color 响应式取用）", async () => {
         // 自定义 loading 组件用 x-text="message" 取注入的 message（注：x-text 与初始文本子节点
         // 共存属既有渲染细节，组件内不写初始占位文本以聚焦 data 注入本身）
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div x-scope>
                 <div x-component="loading"><span class="msg" x-text="message"></span></div>
                 <div id="host" x-loading="{ value: 'loading', message: '加载中' }">内容</div>
@@ -578,11 +607,15 @@ describe("x-component <script setup> / <style> 提取（ADR-0022 决策四）", 
     });
 
     test("全局组件字符串入参含 script setup：懒预编译时建 def", () => {
-        const { engine, root } = mount(`<div x-scope></div>`, {}, {
-            components: {
-                gcard: `<div x-component="gcard"><span>g</span><script setup>{ data(){return{x:5}} }</script></div>`,
+        const { engine, root } = mount(
+            `<div x-scope></div>`,
+            {},
+            {
+                components: {
+                    gcard: `<div x-component="gcard"><span>g</span><script setup>{ data(){return{x:5}} }</script></div>`,
+                },
             },
-        });
+        );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         // getComponent 触发懒预编译（建 def + 快照双缓存）
         const snapshot = scope.getComponent("gcard")!;
@@ -724,7 +757,7 @@ describe("x-component 生命周期钩子 scope.hooks（ADR-0022 决策三）", (
             },
             styles: undefined,
         };
-        const { engine, store } = mount(`<div id="host"></div>`, { globalVal: 1 });
+        const { engine } = mount(`<div id="host"></div>`, { globalVal: 1 });
         const host = engine.el.querySelector("#host") as HTMLElement;
         engine.compiler.compileChild(def.snapshot, null, {}, host, undefined, def);
         expect(captured.hasData).toBe(true);
@@ -928,7 +961,9 @@ describe("x-use 组件实例化（ADR-0022 决策五）", () => {
 
 describe("scoped CSS 改写器（ADR-0022 决策四-4）", () => {
     test("简单选择器末尾加属性后缀", () => {
-        expect(rewriteScopedCss(".foo { color: red; }", 1)).toBe(".foo[data-cmp-1] { color: red; }");
+        expect(rewriteScopedCss(".foo { color: red; }", 1)).toBe(
+            ".foo[data-cmp-1] { color: red; }",
+        );
     });
 
     test("后代选择器仅末尾 compound 加后缀", () => {
@@ -962,7 +997,10 @@ describe("scoped CSS 改写器（ADR-0022 决策四-4）", () => {
     });
 
     test("@keyframes 整体保留不改写", () => {
-        const out = rewriteScopedCss("@keyframes spin { from { transform: rotate(0) } to { transform: rotate(360deg) } }", 1);
+        const out = rewriteScopedCss(
+            "@keyframes spin { from { transform: rotate(0) } to { transform: rotate(360deg) } }",
+            1,
+        );
         // 关键帧内部不被改写（无 data-cmp 属性）
         expect(out).not.toContain("data-cmp-1");
         expect(out).toContain("@keyframes spin");
@@ -1019,7 +1057,7 @@ describe("x-import 远程组件加载（ADR-0022 决策六）", () => {
     });
     function mockFetch(map: Record<string, string>) {
         globalThis.fetch = (async (input: any) => {
-            const url = String(typeof input === "string" ? input : input?.url ?? input);
+            const url = String(typeof input === "string" ? input : (input?.url ?? input));
             const body = map[url];
             if (body === undefined) return { ok: false, status: 404, text: async () => "" } as any;
             return { ok: true, status: 200, text: async () => body } as any;
@@ -1061,8 +1099,7 @@ describe("x-import 远程组件加载（ADR-0022 决策六）", () => {
 
     test("加载含 script setup 的远程组件：语义注入", async () => {
         mockFetch({
-            "/setup.html":
-                `<div x-component="rsetup"><span class="v" x-text="val"></span><script setup>{ data(){return{val:'远程数据'}} }</script></div>`,
+            "/setup.html": `<div x-component="rsetup"><span class="v" x-text="val"></span><script setup>{ data(){return{val:'远程数据'}} }</script></div>`,
         });
         const { root } = mount(
             `<div x-scope>
@@ -1116,8 +1153,7 @@ describe("x-import 远程组件加载（ADR-0022 决策六）", () => {
 
     test("多个组件在一个 HTML 文件中：批量注册", async () => {
         mockFetch({
-            "/multi.html":
-                `<div x-component="a"><span class="a">A</span></div><div x-component="b"><span class="b">B</span></div>`,
+            "/multi.html": `<div x-component="a"><span class="a">A</span></div><div x-component="b"><span class="b">B</span></div>`,
         });
         const { root } = mount(
             `<div x-scope>
@@ -1190,7 +1226,7 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
         expect(rewritten).toContain("var(--");
     });
 
-    test("引号可选：bind(expr) 与 bind(\"expr\") 等价", () => {
+    test('引号可选：bind(expr) 与 bind("expr") 等价', () => {
         const a = extractStyleBinds(`.a { color: bind(theme.color); }`);
         const b = extractStyleBinds(`.a { color: bind("theme.color"); }`);
         expect(a.binds[0]).toEqual(b.binds[0]);
@@ -1207,7 +1243,7 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
     });
 
     test("基础端到端：bind 写入组件根 CSS 变量，随状态变化更新", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div x-scope>
                 <div id="host" x-use="box"></div>
                 <div x-component="box">
@@ -1222,7 +1258,7 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
         // 首值写入组件根元素（宿主化身组件根）的 CSS 变量
         expect(host.style.getPropertyValue("--theme-color")).toBe("red");
         // 状态变化 → 变量更新
-        store.state.theme.color = "blue";
+        engine.state.theme.color = "blue";
         await nextTick();
         expect(host.style.getPropertyValue("--theme-color")).toBe("blue");
     });
@@ -1244,7 +1280,7 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
     });
 
     test("coerce：null/undefined → 不写变量（走 var unset 回退）", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div x-scope>
                 <div id="host" x-use="n"></div>
                 <div x-component="n">
@@ -1258,7 +1294,7 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
         // null → 不写变量
         expect(host.style.getPropertyValue("--theme-color")).toBe("");
         // 变为有效值 → 写入
-        store.state.theme.color = "green";
+        engine.state.theme.color = "green";
         await nextTick();
         expect(host.style.getPropertyValue("--theme-color")).toBe("green");
     });
@@ -1321,7 +1357,7 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
 
     test("卸载：组件销毁后 watcher 已 off（无泄漏）", async () => {
         // 用 x-if 控制组件实例生死：组件在 x-if=true 子树内实例化，x-if=false 时子树 scope 销毁
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div x-scope>
                 <div x-if="show">
                     <div id="host" x-use="box"></div>
@@ -1336,12 +1372,12 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
         let host = root.querySelector("#host") as HTMLElement;
         expect(host.style.getPropertyValue("--theme-color")).toBe("red");
         // 销毁组件实例（x-if=false 摘除子树 + scope.destroy off watcher）
-        store.state.show = false;
+        engine.state.show = false;
         await nextTick();
         // 重新显示 → 新实例，旧 watcher 已 off（若泄漏会重复写或异常）
-        store.state.theme.color = "blue"; // 旧实例已销毁，此变更不应影响已卸载的元素
+        engine.state.theme.color = "blue"; // 旧实例已销毁，此变更不应影响已卸载的元素
         await nextTick();
-        store.state.show = true;
+        engine.state.show = true;
         await nextTick();
         host = root.querySelector("#host") as HTMLElement;
         // 新实例读到最新 theme.color（blue），证明旧 watcher 已 off、新 watcher 独立
@@ -1349,7 +1385,7 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
     });
 
     test("scoped CSS 共存：bind 变量 + [data-cmp-{id}] 属性后缀同时生效", async () => {
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div x-scope>
                 <div id="host" x-use="box"></div>
                 <div x-component="box">
@@ -1645,7 +1681,7 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
 
     test("局部变量 locals 跨生命周期共享（created 设、beforeUnmount 读）", async () => {
         (globalThis as any).__mt_lvlife = null;
-        const { root, store } = mount(
+        const { root, engine } = mount(
             `<div x-scope>
                 <div x-if="show">
                     <div id="host" x-use="c"></div>
@@ -1661,7 +1697,7 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         );
         await nextTick();
         // 销毁组件（x-if=false 触发 beforeUnmount）→ 读到 created 设的 timer
-        store.state.show = false;
+        engine.state.show = false;
         await nextTick();
         expect((globalThis as any).__mt_lvlife).toBe(42);
     });
@@ -1688,6 +1724,3 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         expect((globalThis as any).__mt_pri).toBe("数据");
     });
 });
-
-
-

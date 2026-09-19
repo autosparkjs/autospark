@@ -666,7 +666,7 @@ export class AutoSparkCompiler {
      * 供 x-use 复用宿主 scope 化身组件实例（宿主 scope 本身即组件实例 scope，不另建），以及
      * compileChild 在新建 scope 后调用。注入内容：
      * - `isComponent=true` + `componentName=def.name`；
-     * - `data`：data() 默认值先注入、props 后覆盖（R1=A 合并顺序），写入响应式 `_scopes[id]` 域；
+     * - `data`：data() 默认值先注入、props 后覆盖（R1=A 合并顺序），写入响应式 `$scopes[id]` 域；
      * - `methods`：注入 `scope.actions`（复用 x-on action 查找）；
      * - `hooks`：克隆到 `scope.hooks`（四阶段生命周期，每阶段数组克隆避免多实例共享引用）。
      *
@@ -818,8 +818,8 @@ export class AutoSparkCompiler {
     /**
      * 仅注入响应式 data（无组件语义，ADR-0021 决策 12-c 保留路径）。
      *
-     * 供 x-loading 等非组件消费者：把 initialData 写入 `store.state._scopes[scope.id]` 并令 scope.data
-     * 指向它。块内指令 watch 首次求值即收集到 `_scopes.<id>.<field>` 精准路径。
+     * 供 x-loading 等非组件消费者：把 initialData 写入 `store.state.$scopes[scope.id]` 并令 scope.data
+     * 指向它。块内指令 watch 首次求值即收集到 `$scopes.<id>.<field>` 精准路径。
      */
     injectInitialData(scope: AutoSparkScope, initialData: Record<string, any>): void {
         const scopes = (this.engine.store.state as Record<string, any>)[SCOPES_KEY] as Record<
@@ -841,9 +841,9 @@ export class AutoSparkCompiler {
          * 编译前注入块根的**响应式** data（仿 DataDirective.applyLocal）。
          *
          * 与 localData（普通对象、非响应式）并列：在 `scope.compile()` 之前把数据写入
-         * `store.state._scopes[scope.id]` 并令 `scope.data` 指向它。块内指令 watch 首次求值时，
+         * `store.state.$scopes[scope.id]` 并令 `scope.data` 指向它。块内指令 watch 首次求值时，
          * `getContext` 的 `_scopeView` 缓存即建成含 data 层的 Proxy，`collectDependencies`
-         * 收集到 `_scopes.<id>.<field>` 精准路径——后续 `Object.assign` 进该响应式代理即字段级细粒度更新。
+         * 收集到 `$scopes.<id>.<field>` 精准路径——后续 `Object.assign` 进该响应式代理即字段级细粒度更新。
          *
          * 供 x-loading 等消费者把 config 注入块（ADR-0021 决策 12-c）；x-use 实例化组件时传入 props
          *（决策二-2，作为组件 data 域的覆盖值，后于 componentDef.data() 注入）。无此参则不注入 data。

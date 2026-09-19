@@ -40,7 +40,7 @@
 
             <div class="tags has-addons mt-3">
                 <span class="tag is-link">已加载</span>
-                <span class="tag is-light">{{ paging.total }}</span>
+                <span class="tag is-light">{{ loaded }} 条</span>
             </div>
         </div>
 
@@ -49,7 +49,8 @@
                 document.querySelector(".demo-app"),
                 {
                     orders: [],
-                    paging: { page: 1, pageSize: 5 }
+                    paging: { page: 1, pageSize: 5 },
+                    loaded: 0
                 },
                 {
                     actions: {
@@ -62,6 +63,8 @@
                                 const idx = start + i + 1;
                                 items.push({ id: idx, name: `项目 ${idx}` });
                             }
+                            // 已加载条数（页偏移 + 本页实际条数）：精确计数由业务侧维护
+                            engine.store.state.loaded = start + items.length;
 
                             return {
                                 data: items,

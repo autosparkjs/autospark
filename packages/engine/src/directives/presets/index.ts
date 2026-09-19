@@ -1,4 +1,5 @@
 export * from "./bind";
+export * from "./bind-spread";
 export * from "./data";
 export * from "./on";
 export * from "./for";
