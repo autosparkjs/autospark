@@ -196,7 +196,7 @@ const BASE_RULE =
  */
 const BADGE_RULE =
     `.${ICON_BADGE_CLASS}{display:inline-flex;flex:none;aspect-ratio:1;height:fit-content;border-radius:25%;` +
-    "background:color-mix(in srgb,currentColor 12%,transparent)}";
+    "background:color-mix(in srgb,currentColor 5%,transparent)}";
 
 /** 全量重生成样式表文本：基础规则 + :root 变量（生效默认 sw = 全局配置 ?? 内置）+ 裸名类规则 */
 function buildStyleSheet(): string {

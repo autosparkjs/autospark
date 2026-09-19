@@ -646,7 +646,7 @@ describe("x-icon 修饰选项（badge / pointer）", () => {
         expect(sheet).toContain(
             ".as-icon-badge{display:inline-flex;flex:none;aspect-ratio:1;height:fit-content",
         );
-        expect(sheet).toContain("color-mix(in srgb,currentColor 12%");
+        expect(sheet).toContain("color-mix(in srgb,currentColor 5%");
     });
 
     test("badge 修饰符快捷（x-icon.badge ≡ options）与未声明不包裹", async () => {
@@ -687,12 +687,12 @@ describe("x-icon 修饰选项（badge / pointer）", () => {
         expect(el.style.cursor).toBe("pointer");
     });
 
-    test("badge 默认 padding 0.5em 作用于包裹层（图形恒 size 不放大；显式声明优先，含 0）", async () => {
-        // 未声明 padding + badge → 默认 0.5em 写 wrapper（宿主恒无 padding）
+    test("badge 默认 padding 0.3em 作用于包裹层（图形恒 size 不放大；显式声明优先，含 0）", async () => {
+        // 未声明 padding + badge → 默认 0.3em 写 wrapper（宿主恒无 padding）
         const { root: r1 } = mount(`${iconTpl("b8", "M8")}<span x-icon.badge="b8"></span>`, {});
         await nextTick();
         const icon1 = r1.querySelector(".as-icon")!;
-        expect(icon1.parentElement!.style.padding).toBe("0.5em");
+        expect(icon1.parentElement!.style.padding).toBe("0.3em");
         expect(icon1.style.padding).toBe("");
         // 显式 padding 优先（含 0 —— 板贴图形）
         const { root: r2 } = mount(

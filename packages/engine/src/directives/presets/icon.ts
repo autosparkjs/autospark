@@ -329,8 +329,8 @@ export class IconDirective extends AutoSparkDirectiveBase {
                   ? padding
                   : null;
         // badge 场景的内置默认 padding（板与图形的间距，总占位 = size + 2×padding）：
-        // 四级链均未声明且 badge 开启时补 0.5em——显式 padding 声明（含 0）优先
-        if (paddingCss === null && this._opt("badge") === true) paddingCss = "0.5em";
+        // 四级链均未声明且 badge 开启时补 0.3em——显式 padding 声明（含 0）优先
+        if (paddingCss === null && this._opt("badge") === true) paddingCss = "0.3em";
         // padding 落点：badge 时作用于**包裹层**（图形恒 size——宿主 padding 会同步放大
         // mask 绘制区（contain 于 border box）导致图形缩放）；非 badge 照旧内联宿主
         if (this._opt("badge") === true) {

@@ -74,7 +74,7 @@
 
 | 选项        | 修饰符写法        | 效果                                                                                                    |
 | ----------- | ----------------- | ------------------------------------------------------------------------------------------------------- |
-| `badge`     | `x-icon.badge`    | 图标底板——**比 currentColor 淡的圆角矩形背景**（`currentColor 12%`，随宿主文字色联动）；**默认 `padding: 0.5em`**（板与图形的间距，总占位 = size + 2×padding——显式 `padding` 声明优先，`padding:0` 板贴图形） |
+| `badge`     | `x-icon.badge`    | 图标底板——**比 currentColor 淡的圆角矩形背景**（`currentColor 5%`，随宿主文字色联动）；**默认 `padding: 0.3em` 作用于底板**（板与图形的间距，总占位 = size + 2×padding，图形恒 size 不放大——显式 `padding` 声明优先，`padding:0` 板贴图形） |
 | `pointer`   | `x-icon.pointer`  | 手型光标 `cursor: pointer`（可点击语义）                                                                |
 
 <demo html="icon/decorate.html"/>
