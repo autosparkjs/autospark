@@ -340,6 +340,78 @@ _Avoid_: 默认选中（与 ADR-0027 的 default 回填混淆——那是空值�
 choices 渲染的分组方式：`x-model-options="{group:'字段名'}"` 按项的该字段值聚合到 `<optgroup label>`，无该字段的项渲染为顶层 `<option>`（顺序遍历可与组交错）。仅作用于 choices 路径（两来源均可），静态手写 optgroup 不适用；group 键只在模板侧声明，schema 不承载。详见 ADR-0026。
 _Avoid_: 分组字段（那是 group 的值，不是机制）、optgroup（那是 DOM 产物）
 
+### 表单层
+
+**表单域 / x-form（Form）**:
+仅合法于 `<form>` 元素的**表单行为壳**：submit 拦截 + 校验门 + reset 快照回滚 + 元数据中心化监听（见「中心化监听」）。值三形态：空（行为壳，字段走全局状态）/ 对象字面量（自建 `$scopes` 私有域）/ 状态路径（`$scopes` 祖先链优先全局兜底，建立**路径上下文**供后代 x-field 相对路径拼接）。继承 x-data 全部值形态（url / action / 数据脚本），mount 强制 local。只处理表单逻辑，不处理模板和渲染。详见 ADR-0045。
+_Avoid_: 表单组件（它不渲染 UI）、独立表单 store（已否决——复用 `$scopes` 域，引擎单 store）、x-form 挂任意元素（仅 `<form>`）
+
+**字段域 / x-field（Field）**:
+声明一个表单字段的指令，单指令双形态（按宿主分派）：标准控件（input/textarea/select）上 = **x-model 全部语义** + `$field` 注入（表单内正身，散装控件仍用 x-model）；非控件元素上 = 字段域声明，渲染完全归模板（不 ownsChildren、不自动渲染）。**必须在 x-form 内**（注册消费其中心化监听）。详见 ADR-0045。
+_Avoid_: 字段组件、自动渲染器（已否决——不生成模板）、表单版 x-model（它是超集，双向绑定只是其一面）
+
+**字段上下文 / $field**:
+x-field 注入后代作用域的 **Proxy 对象**：`.value`（字段状态值，读写）、`.error`（校验错误）、`.onInput`/`.onChange`（写方向事件封装）、`.xxx`（任意 configurable 元数据，经元数据覆盖链解析）。响应式三分层：value 靠根 store 依赖收集穿透；error 与动态控制白名单（enable/visible/disabled/readOnly）靠 configManager.watch 桥接 + refresh；其余静态快照。作为 `x-bind` 展开源时暴露控件展开键集。详见 ADR-0045。
+_Avoid_: 字段元数据对象（它含动态值与事件封装，不止元数据）、field props、`$field.input` 属性包（grilling 中间形态，已并入本体）
+
+**控件展开键集 / Control Spread Whitelist**:
+`x-bind="$field"` 展开时 `$field` 暴露的键集（Proxy ownKeys）：`type`（widget 映射）/ `value`（checkbox widget 为 `checked`）/ `name` + 注入白名单属性（enable→disabled 反向，schema 有才出键）+ `onInput`/`onChange` + `choices`（仅 widget=select 且 schema.choices 存在——select 宿主上渲染 `<option>` 子树，静态手写优先）。label/help/widget 原键等非控件元数据**不进键集**。与「注入白名单」（x-model 元数据自动注入的候选集）同族不同集。详见 ADR-0045。
+_Avoid_: 全量展开（非控件元数据不进键集）、spread 白名单（那是渲染安全概念）、choices 不渲染（已修订——原 select 边界被推翻）
+
+**表单上下文 / $form**:
+x-form 注入容器的表单级对象，键集五元：`getState()`（**方法**——无参 `{name:值}`、`getState(true)` `{path:value}`，聚合已注册 x-field 的分散字段）、`valid`、`errors`（`Record<字段路径, 信息>`）、`dirty`（任何字段 ≠ 初始快照）、`reset()`（与 reset 按钮同管道）。详见 ADR-0045。
+_Avoid_: `$form.state`（已否决——字段分散于状态树，无单一 state 对象可指）、表单状态（getState() 才是取值方法）
+
+**字段名 / name（三层解析）**:
+字段的显示名解析链：默认路径末段（`login.username` → `username`）→ `configurable(v,{name})` schema 指定 → `x-field-options="{name}"` 最高。是 `getState()` 无参形态的键与控件 `name` 属性注入的来源；同名冲突 warn + 后者覆盖。
+_Avoid_: 字段路径（那是 `getState(true)` 的键）、字段 key（key 是 configManager 的 fullKey 概念）
+
+**元数据覆盖 / x-field-options**:
+字段级元数据覆盖（ADR-0007 标准形态），优先级链 **x-field-options > configurable schema > 默认值**。覆盖仅作用于 `$field` 读取视图与行为（元数据键、getState 键、name 属性注入），**不写回** configManager 注册的 schema 本体——schema 是状态层资产，指令选项是视图层覆盖。
+_Avoid_: schema 修改（方向反——视图层覆盖，schema 不动）、字段配置（泛化）
+
+**中心化监听 / Centralized Watching**:
+x-form 作为**唯一订阅者**统一监听 configManager 元数据依赖，各 x-field 编译期注册（字段路径 + 消费回调）、变更由 x-form 分发——避免每字段独立建监听。是 x-field 强依赖 x-form 的架构根源。
+_Avoid_: 事件总线（订阅的是响应式依赖，不是事件）、字段监听器（监听集中在表单层不在字段层）
+
+### 图标层
+
+**图标 / Icon（x-icon）**:
+以 CSS mask 呈现的矢量图标渲染指令：宿主元素 `x-icon="名称"`，输出裸名类（`as-icon` + 图标名）+ 尺寸内联。值两形态：**本地名**（纯 CSS ident，查图标注册表）/ **远程形**（`图标集/名`，仅斜杠形——冒号形已废除，见「异步图标源」）；**值两栖**——表达式求值优先，求值空/非法时原值形匹配才回退字面量（裸名不是合法 JS，状态命中优先、字面量为空值兜底）。**颜色主权在宿主**——mask 只取 alpha 通道，data URL 内的 currentColor 解析为黑，实际颜色取宿主 `background-color`（默认 currentColor，随文字色）。值为响应式表达式（切换即换图标）；未命中（未注册或已删除）warn + 渲染**默认图标**（保留尺寸），注册后经变更通知自动补渲染。
+_Avoid_: svg 图标（那是数据形态）、icon 组件（无组件机制参与）、图标字体（那是 font-family 方案）
+
+**默认图标 / Default Icon**:
+图标注册表**未命中**（未注册或已删除）时替换渲染的内置回退图标（保留尺寸、照常 warn）——「缺图不破相」。以内置条目形态驻注册表（名为 `default`，可被用户同名覆盖；其被删除则未命中退回空占位）。
+_Avoid_: 空占位（已否决的未命中姿态——只保尺寸无内容）、fallback 图标（英文别名）、占位图标（与「空值占位」词条撞形）
+
+**图标定义 / x-icon-define（Icon Definition）**:
+`<template x-icon-define="名称">` 声明的**声明性资源**（与 x-component 同构）：编译期前置 collector 拦截，取首个 `<svg>` 子元素上交全局图标注册表后剪枝（不进结果 DOM，指令类仅名位）。同名覆盖 + warn 去重。
+_Avoid_: 图标注册（那是注册表的动作）、图标模板（泛化）、图标声明（与注册表编程入口混淆）、name 属性装名（已否决——名称走指令值，对齐 x-component）
+
+**规范形 SVG / Canonical SVG**:
+图标注册表的存储形态：strip **全部** stroke-width、缺 stroke 才补 currentColor、缺 xmlns 才补声明（作者显式属性不动；**xmlns 是 data URL 图像解析的硬约束**，缺失则 mask 无图隐形）的归一化 SVG。生效 strokeWidth 渲染期注入 root——「宽度不是图标的一部分，是渲染参数」。
+_Avoid_: 原始 SVG（未归一化）、图标数据（泛化）
+
+**URL 工厂 / Icon URL Factory**:
+规范形 SVG + 生效 strokeWidth → `data:image/svg+xml,${encodeURIComponent(svg)}` 的生成器，按 (名称, strokeWidth) 缓存（同组合全页只编码一次）。默认 1.25 经 `:root` 变量 + 裸名类规则下发；非默认实例内联 mask-image 覆盖。
+_Avoid_: base64 编码（已否决：体积 +33% 且 btoa 有 Unicode 陷阱）、图标序列化（泛化）
+
+**图标注册表 / Icon Registry（AutoSpark.icons）**:
+document 级全局共享的 Set 子类（`AutoSpark.icons` 静态暴露，多 engine 共享）：动态增删（`add(name, svg)` 注册 / `delete` 移除，无 remove 别名——严守 Set 契约）、遍历产出**名称字符串**（SVG 数据不外露）。声明入口三通道：模板 `x-icon-define` / 编程 `AutoSpark.icons.add` / 构造 `options.icons` 种子。另承载 `baseUrl` 字段——远程图标协议基址（URL 约定 `baseUrl/<图标集>/<图标名>.svg`，默认 Iconify 公共 API、不限于 Iconify，兼容服务可自托管；远程缓存不进本表）、`options` 字段——**全局图标默认配置**（配置链第三级：指令选项 > 宿主选项 > 本配置 > 内置默认，生效默认 strokeWidth 参与规则烘焙；整体赋值广播重渲染，深修改不广播）、`persist` 开关与 `prefetch` 方法（见「远程图标持久缓存」「图标预取」）。engine destroy 不清理（对齐 document 级共享 style 先例）。图标名受 CSS ident 硬约束（`[A-Za-z0-9_-]`、非数字开头），`as-icon` 为保留名。
+_Avoid_: engine.icons（实例级注册表已否决——document 级样式天然跨 engine）、图标库（泛化）、图标 Map（对外是 Set 形态）
+
+**异步图标源 / Async Icon Source（x-icon）**:
+**异步源家族**的 x-icon 物种：值形如 `mdi/home`（**仅斜杠形**，冒号形已废除；本地图标名受 CSS ident 约束天然不含 `/`，两通道零冲突）→ 经 `AutoSpark.icons.baseUrl` fetch SVG 文本，走规范形 → URL 工厂全管线（sw / 颜色模型与本地物种同构）。产物进**模块级远程缓存 + 持久缓存（见「远程图标持久缓存」）+ in-flight 合并 + 并发限流（4 路，429 退避重试）**（不进图标注册表——遍历 / delete 语义保持用户资产纯净），默认 sw 形态**升格为属性选择器规则**（`.as-icon[data-as-icon="集/名"]`，指令自管样式表即登记表，实例挂 `data-as-icon` 短属性共享一条规则）、非默认 sw 才内联。姿态：加载中空占位、失败 warn + 默认图标、重取保旧图。fetch 竞态 / abort 骨架复用 AsyncSourceRunner（值 watch 与通道判定物种侧自有——runner 的形态判定是 url/action 声明形，不适配表达式值）。详见 ADR-0047 / 0048。
+_Avoid_: Iconify 指令（不是独立指令，是 x-icon 的值形态）、远程图标注册（不进注册表）、在线图标（泛化）
+
+**远程图标持久缓存 / Persistent Icon Cache**:
+远程图标的**跨会话存储层**（挂 localStorage，按源分组）——二次访问零网络请求、同步渲染，观感等同本地图标。键含 baseUrl（换源不串图）；无过期（图标版本不可变）+ 条数上限 LRU 淘汰；模块加载即注水进内存（先于任何渲染）；`AutoSpark.icons.persist` 可关（禁用 / 环境不可用时静默退回内存缓存）。详见 ADR-0048。
+_Avoid_: 图标离线包（那是构建期资产）、HTTP 缓存（那是浏览器层）、会话缓存（那是内存层）
+
+**图标预取 / prefetch（AutoSpark.icons）**:
+`AutoSpark.icons.prefetch(名 | 名单)` 的编程式**提前取回**（走限流、落内存与持久缓存、失败静默）——持久缓存只救二次访问，首次使用的等待只能靠提前量（下一屏 / 悬停目标的闲时预热）。详见 ADR-0048 决策 6。
+_Avoid_: preload（与 x-import 远程组件加载撞义）、预热（泛化）
+
 ### 结构占位与组件层
 
 **结构占位 / x-scope（Structural Placeholder）**:
@@ -401,8 +473,8 @@ store 恒由 engine 创建并拥有（**创建权换确定性**：configManager 
 _Avoid_: 外部 store、`_ownsStore`（借用/拥有分流的字段已删除）
 
 **默认 configManager / In-memory ConfigManager**:
-`storeOptions.configManager` 为 nullish 时 engine 补的**内存空 source** 实例（纯响应式 schema 注册表，无持久化、engine 间隔离），使 `@` 绑定与 x-model 元数据注入开箱即用；`configKey` 缺省补 `''`（fullKey 无前缀）。多 store 共用同一 cm 须显式互异 configKey。详见 ADR-0044。
-_Avoid_: 全局 configManager（不注册 `globalThis` 默认，隔离是决策）
+`storeOptions.configManager` 为 nullish 时 engine 补的**内存空 source** 实例（纯响应式 schema 注册表，无持久化、engine 间隔离），使 `@` 绑定与 x-model 元数据注入开箱即用；`configKey` **恒 `''`**（无条件覆盖——引擎自建 store 的 fullKey 恒无前缀，显式传入的 configKey 不生效）。多 store 共用同一 cm 须在 schema 键上自行避让。详见 ADR-0044。
+_Avoid_: 全局 configManager（不注册 `globalThis` 默认，隔离是决策）、显式 configKey 生效（三态中的该态已废止，恒覆盖为空）
 
 ### 配置绑定层
 

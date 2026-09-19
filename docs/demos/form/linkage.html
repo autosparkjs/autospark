@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-form · 字段联动（ipconfig：enable 禁用 / visible 隐藏）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* switch 开关：模板层自绘（引擎只管值） */
+            .switch {
+                position: relative;
+                display: inline-block;
+                width: 46px;
+                height: 24px;
+            }
+            .switch input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+            .switch .slider {
+                position: absolute;
+                inset: 0;
+                background: #ccc;
+                border-radius: 24px;
+                transition: 0.2s;
+                cursor: pointer;
+            }
+            .switch .slider::before {
+                content: "";
+                position: absolute;
+                width: 18px;
+                height: 18px;
+                left: 3px;
+                top: 3px;
+                background: #fff;
+                border-radius: 50%;
+                transition: 0.2s;
+            }
+            .switch input:checked + .slider {
+                background: #48c78e;
+            }
+            .switch input:checked + .slider::before {
+                transform: translateX(22px);
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- ipconfig 场景：DHCP 开关 → ip/gateway 联动禁用（enable）、mask 联动隐藏（visible）。
+             三个字段共享同一联动条件——元数据联动一处收口（watch 改写 schema），
+             比在三处控件重复写模板表达式更 DRY；联动条件变化时无需逐字段改模板 -->
+        <div class="demo-app section">
+            <form x-form="network">
+                <!-- 联动源：DHCP 开关（自定义 switch 样式，值仍走 x-field 双向绑定） -->
+                <div class="field" x-field="dhcp">
+                    <label class="switch">
+                        <input type="checkbox" x-bind="$field" />
+                        <span class="slider"></span>
+                    </label>
+                    <span style="margin-left: 10px">{{ $field.label }}</span>
+                </div>
+
+                <!-- 联动目标 ①：enable 联动——dhcp 开 → 禁用（disabled 键经 enable 反向展开） -->
+                <div class="field" x-field="ip">
+                    <label class="label">{{ $field.label }}</label>
+                    <div class="control">
+                        <input class="input" x-bind="$field" />
+                    </div>
+                </div>
+
+                <!-- 联动目标 ②：visible 联动——dhcp 开 → 整个字段隐藏（x-if 消费） -->
+                <div class="field" x-field="mask" x-if="$field.visible">
+                    <label class="label">{{ $field.label }}</label>
+                    <div class="control">
+                        <input class="input" x-bind="$field" />
+                    </div>
+                </div>
+
+                <!-- 联动目标 ③：enable 联动（与 ip 同条件） -->
+                <div class="field" x-field="gateway">
+                    <label class="label">{{ $field.label }}</label>
+                    <div class="control">
+                        <input class="input" x-bind="$field" />
+                    </div>
+                </div>
+
+                <p class="help">
+                    getState() = <strong x-text="JSON.stringify($form.getState())"></strong>
+                </p>
+            </form>
+        </div>
+
+        <script>
+            const { configurable } = AutoSparkSpaces;
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                network: {
+                    dhcp: configurable(false, {
+                        label: "自动获取 IP 地址（DHCP）",
+                        widget: "checkbox",
+                    }),
+                    ip: configurable("192.168.1.100", {
+                        label: "IP 地址",
+                        widget: "text",
+                        enable: true,
+                    }),
+                    mask: configurable("255.255.255.0", {
+                        label: "子网掩码",
+                        widget: "text",
+                        visible: true,
+                    }),
+                    gateway: configurable("192.168.1.1", {
+                        label: "默认网关",
+                        widget: "text",
+                        enable: true,
+                    }),
+                },
+            });
+            // 联动收口：一处 store.watch 精准订阅源字段，程序改写全部目标字段的元数据
+            //（经 cm 桥接 → refresh 生效）。注意：autostore 全局 watch(fn) 裸调用不关联
+            // store、不生效——联动监听用 engine.store.watch(路径, 回调) 实例方法。
+            // 正道提醒：勿在 schema 里写 enable: computed(()=>...) 联动全局状态——
+            // 跨 store 陈旧缓存（已知限制，ADR-0045）；模板表达式或本例的程序改写均可
+            const cm = engine.store.configManager;
+            engine.store.watch("network.dhcp", () => {
+                const manual = !engine.store.state.network.dhcp;
+                cm.state["network.ip"].enable = manual;
+                cm.state["network.gateway"].enable = manual;
+                cm.state["network.mask"].visible = manual;
+            });
+        </script>
+    </body>
+</html>

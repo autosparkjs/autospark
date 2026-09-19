@@ -93,7 +93,7 @@ describe("AutoSpark configManager / configKey 默认（ADR-0044 三态）", () =
         engine.destroy();
     });
 
-    test("显式传入：消费者 configManager / configKey 原样生效且 destroy 不销毁 cm", () => {
+    test("显式传入：消费者 configManager 原样生效且 destroy 不销毁 cm；configKey 恒覆盖为空串", () => {
         const root = document.createElement("div");
         root.innerHTML = `<span x-text="name"></span>`;
         const cm = new ConfigManager({ load: () => ({}) });
@@ -105,7 +105,9 @@ describe("AutoSpark configManager / configKey 默认（ADR-0044 三态）", () =
             },
         );
         expect(engine.store.configManager).toBe(cm);
-        expect(engine.store.configKey).toBe("network");
+        // configKey 恒空（无条件覆盖）：引擎自建 store 的 fullKey 恒无前缀（确定性），
+        // 显式传入的 configKey 不生效（ADR-0044 三态之「显式 configKey 生效」已废止）
+        expect(engine.store.configKey).toBe("");
         const spy = spyOn(cm, "destroy");
         engine.destroy();
         expect(spy).not.toHaveBeenCalled();

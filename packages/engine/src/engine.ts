@@ -14,6 +14,7 @@ import { recompileSubtree } from "./utils/recompileSubtree";
 import { AutoSparkAnimator } from "./animate";
 import { buildComponentDef } from "./compile/collect";
 import { fetchHtml } from "./utils/fetchHtml";
+import { iconRegistry, type IconRegistry } from "./icons/registry";
 
 /**
  * 框架保留键：x-data 默认模式的私有响应式数据域在 store.state 下的容器键。
@@ -51,6 +52,15 @@ export const SCOPES_KEY = "$scopes";
 export class AutoSpark<
     State extends Record<string, any> = Record<string, any>,
 > extends FastEvent.FastLiteEvent<AutoSparkEvents> {
+    /**
+     * 全局图标注册表（ADR-0046/0047）：document 级单例，多 engine 共享。
+     * `add(name, svg)` 注册（同名覆盖 + warn 去重）、`delete(name)` 移除（不存在静默 false）、
+     * 遍历产出名称字符串；`baseUrl` 为远程图标协议基址（`baseUrl/<图标集>/<图标名>.svg`，
+     * 默认 Iconify 公共 API，不限于 Iconify——任何兼容服务可自托管）。
+     * 声明入口三通道：模板 `x-icon-define` / 本表编程注册 / 构造 `options.icons` 种子。
+     */
+    static readonly icons: IconRegistry = iconRegistry;
+
     /** 挂载容器（编译产物替换其子节点，容器本身保留） */
     readonly el: HTMLElement;
     /** 响应式数据源：engine 在 `_createStore` 内自建并拥有（destroy 时销毁）。ADR-0044 */
@@ -119,6 +129,11 @@ export class AutoSpark<
         // 三入口统一走 _normalize → buildAction，值恒为 ActionDesc 描述符，ADR-0036）
         this.actionsManager = new ActionManager(this);
         this.actionsManager.registerGlobals();
+        // 图标种子（ADR-0046 决策 3）：构造期并入全局注册表（同名 warn + 覆盖），
+        // 先于编译期模板定义生效（模板同名者后到覆盖）
+        if (options?.icons) {
+            for (const [name, svg] of Object.entries(options.icons)) iconRegistry.add(name, svg);
+        }
         this.template = el.cloneNode(true) as HTMLElement;
 
         this.scheduler = new UpdateScheduler(this);
@@ -168,9 +183,7 @@ export class AutoSpark<
             this._ownedConfigManager = new ConfigManager({ load: () => ({}) });
             storeOptions.configManager = this._ownedConfigManager;
         }
-        if (storeOptions.configKey == null) {
-            storeOptions.configKey = "";
-        }
+        storeOptions.configKey = "";
         return new AutoStore(state as State, storeOptions);
     }
 

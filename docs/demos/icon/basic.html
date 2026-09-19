@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 快速入门</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section" style="max-width: 560px">
+            <h1 class="title is-5">定义与渲染</h1>
+            <p class="subtitle is-6">颜色随文字色、尺寸随字号</p>
+
+            <!-- 图标定义：名称走指令值、SVG 走 template 内容（编译期收集后剪枝，不进渲染 DOM） -->
+            <template x-icon-define="heart">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            </template>
+            <template x-icon-define="star">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11.5 3.8 9 8.8l-5.5.8 4 3.9-1 5.5 5-2.7 5 2.7-1-5.5 4-3.9-5.5-.8Z"/></svg>
+            </template>
+            <template x-icon-define="check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>
+            </template>
+
+            <!-- 颜色主权在宿主文字色：改容器 color，图标即变色 -->
+            <div class="buttons has-addons">
+                <button class="button" @click="color='red'">红色</button>
+                <button class="button" @click="color='blue'">蓝色</button>
+                <button class="button" @click="color='green'">绿色</button>
+            </div>
+
+            <div class="box" :style="{ color: color }">
+                <span x-icon="heart"></span>
+                <span x-icon="star"></span>
+                <span x-icon="check"></span>
+                <span>← 颜色跟随文字</span>
+                <div style="margin-top: 8px">
+                    <span style="font-size: 14px"><span x-icon="check"></span></span>
+                    <span style="font-size: 20px"><span x-icon="check"></span></span>
+                    <span style="font-size: 28px"><span x-icon="check"></span></span>
+                    <span>← 尺寸跟随字号（默认 1em）</span>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                color: "red",
+            });
+        </script>
+    </body>
+</html>

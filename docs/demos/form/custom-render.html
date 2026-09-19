@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-field · 自定义渲染（$field 元数据 + 模板层全权控制样式）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* 字段卡片：样式完全由模板层（页面 CSS）定义，引擎只提供元数据与值 */
+            .fcard {
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                padding: 14px 16px;
+                margin-bottom: 14px;
+            }
+            .fcard.is-error {
+                border-color: #f14668;
+                background: #fff5f7;
+            }
+            .fcard-label {
+                font-weight: 600;
+                display: flex;
+                align-items: baseline;
+                gap: 6px;
+                margin-bottom: 6px;
+            }
+            .fcard-required {
+                color: #f14668;
+                font-size: 0.8em;
+            }
+            .fcard-help {
+                font-size: 0.85em;
+                color: #888;
+                margin-bottom: 8px;
+            }
+            /* 星级评分：非标准控件——普通元素 + $field.value 直写 */
+            .stars span {
+                font-size: 26px;
+                cursor: pointer;
+                color: #d0d0d0;
+                user-select: none;
+            }
+            .stars span.on {
+                color: #f5b301;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <form x-form="survey">
+                <!-- ① 卡片式字段：label/required/help/error 全部读 $field 元数据，
+                     DOM 结构与 class 由模板决定（x-if 控制必填标记、x-class 控制错误态描边） -->
+                <div class="fcard" x-field="nickname" x-class="{ 'is-error': $field.error }">
+                    <div class="fcard-label">
+                        {{ $field.label }}
+                        <em class="fcard-required" x-show="$field.required">必填</em>
+                    </div>
+                    <p class="fcard-help" x-show="$field.help">{{ $field.help }}</p>
+                    <input class="input" x-bind="$field" />
+                    <p class="help is-danger" x-text="$field.error"></p>
+                </div>
+
+                <!-- ② 星级评分：引擎没有的控件类型——普通元素自绘，@click 直写 $field.value，
+                     x-class 按 $field.value 点亮（元数据 label 照常消费） -->
+                <div class="fcard" x-field="score">
+                    <div class="fcard-label">{{ $field.label }}</div>
+                    <div class="stars" x-for="n of [1,2,3,4,5]">
+                        <span x-class="{ on: $field.value >= n }" @click="$field.value = n">★</span>
+                    </div>
+                    <p class="fcard-help">当前分值：<strong x-text="$field.value"></strong></p>
+                </div>
+
+                <!-- ③ 联动显隐：$field.visible 元数据（动态控制白名单，refresh 驱动）控制字段去留 -->
+                <div class="fcard" x-field="reason" x-if="$field.visible">
+                    <div class="fcard-label">低分原因（score &lt; 3 时出现）</div>
+                    <div class="control">
+                        <input class="input" x-bind="$field" />
+                    </div>
+                </div>
+
+                <p class="help">
+                    getState() = <strong x-text="JSON.stringify($form.getState())"></strong>
+                </p>
+            </form>
+        </div>
+
+        <script>
+            const { configurable } = AutoSparkSpaces;
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                survey: {
+                    nickname: configurable("", {
+                        label: "昵称",
+                        help: "3-12 个字符，提交前可随时修改",
+                        required: true,
+                        placeholder: "请输入昵称",
+                        validate: (v) => v.length >= 3 && v.length <= 12,
+                        errorMessage: "昵称须 3-12 个字符",
+                        onInvalid: "pass",
+                    }),
+                    score: configurable(0, {
+                        label: "整体评分",
+                        widget: "number",
+                    }),
+                    reason: configurable("", {
+                        label: "低分原因",
+                        visible: false,
+                    }),
+                },
+            });
+            // 跨字段联动：score < 3 → 程序改写 reason 的 visible 元数据（经 cm 桥接驱动 x-if）。
+            // 监听用 engine.store.watch(路径, 回调) 实例方法（autostore 全局 watch(fn) 裸调用
+            // 不关联 store、不生效）；正道是模板表达式/程序改写，勿在 schema 里写 computed 联动
+            engine.store.watch("survey.score", () => {
+                const cm = engine.store.configManager;
+                cm.state["survey.reason"].visible = engine.store.state.survey.score < 3;
+            });
+        </script>
+    </body>
+</html>

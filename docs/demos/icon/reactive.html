@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 值的两形态</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section" style="max-width: 560px">
+            <h1 class="title is-5">值与通道：响应式切换</h1>
+            <p class="subtitle is-6">值是表达式：本地名 ↔ 远程形随时切换</p>
+
+            <template x-icon-define="heart">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            </template>
+            <template x-icon-define="star">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11.5 3.8 9 8.8l-5.5.8 4 3.9-1 5.5 5-2.7 5 2.7-1-5.5 4-3.9-5.5-.8Z"/></svg>
+            </template>
+
+            <div class="box">
+                <span class="icon-text" style="font-size: 24px">
+                    <!-- 求值结果按形态分流：本地名查注册表，远程形走 Iconify -->
+                    <span x-icon="current"></span>
+                    <span style="font-size: 14px">current = <code x-text="current"></code></span>
+                </span>
+            </div>
+
+            <div class="buttons">
+                <button class="button is-light" @click="current='heart'">heart（本地）</button>
+                <button class="button is-light" @click="current='star'">star（本地）</button>
+                <button class="button is-light" @click="current='mdi-light/arrow-right'">mdi-light/arrow-right（远程）</button>
+                <button class="button is-light" @click="current='mdi-light/arrow-up'">mdi-light/arrow-up（远程）</button>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                current: "heart",
+            });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-form · 路径上下文（x-form="login" + 相对路径）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 方式三：x-form="login" 路径上下文——指向全局已有的 login 状态，
+             后代 x-field 用相对路径（username → login.username，少写前缀）；
+             模板插值不走路径拼接，联动表达式用全路径 login.method -->
+        <div class="demo-app section">
+            <form x-form="login" @submit="doLogin">
+                <div class="field">
+                    <label class="label">登录方式</label>
+                    <div class="control">
+                        <div class="select">
+                            <select x-field="method">
+                                <option value="username">用户名密码</option>
+                                <option value="email-code">邮件验证码</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">用户名（相对路径 username）</label>
+                    <div class="control">
+                        <input class="input" x-field="username" placeholder="请输入用户名" />
+                    </div>
+                </div>
+                <!-- 联动：插值用全路径（路径拼接是 x-field 的机制，模板表达式读全局原样） -->
+                <div class="field" x-if="login.method === 'username'">
+                    <label class="label">密码</label>
+                    <div class="control">
+                        <input class="input" type="password" x-field="password" placeholder="请输入密码" />
+                    </div>
+                </div>
+                <div class="field" x-if="login.method === 'email-code'">
+                    <label class="label">验证码</label>
+                    <div class="control is-flex">
+                        <input class="input mr-2" x-field="emailCode" placeholder="6 位验证码" />
+                        <button type="button" class="button is-light" @click="sendCode">发送验证码</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="checkbox">
+                        <input type="checkbox" x-field="remember" />
+                        记住密码
+                    </label>
+                </div>
+                <div class="buttons">
+                    <button type="submit" class="button is-primary">登 录</button>
+                </div>
+                <p class="notification is-info is-light" x-show="result">
+                    提交数据：<strong x-text="result"></strong>（getState(true) 的键是完整路径）
+                </p>
+            </form>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    login: {
+                        method: "username",
+                        username: "fisher",
+                        password: "",
+                        emailCode: "",
+                        remember: false,
+                    },
+                    result: "",
+                },
+                {
+                    actions: {
+                        doLogin() {
+                            engine.store.state.result = JSON.stringify(
+                                engine.store.state.login,
+                            );
+                        },
+                        sendCode() {
+                            alert("验证码已发送（演示）");
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

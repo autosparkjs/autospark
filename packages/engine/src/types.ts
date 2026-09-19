@@ -157,6 +157,14 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      * 消费者定制其默认 UI（如 `getComponent("loading")`）。详见 ADR-0022。
      */
     components?: Record<string, any>;
+    /**
+     * 图标种子表（ADR-0046 决策 3）：构造期并入全局图标注册表（`AutoSpark.icons`，document 级
+     * 多 engine 共享），同名 warn + 覆盖。值为 `名称 → SVG 字符串`（经规范形归一化存储）。
+     * 声明入口三通道：本表 / 模板 `x-icon-define` / `AutoSpark.icons.add(name, svg)`。
+     *
+     * @default 无种子
+     */
+    icons?: Record<string, string>;
 }
 
 /**

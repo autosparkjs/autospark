@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-form · 声明表单：字面量自建私有域（x-form="{...}"）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 方式二：x-form="{...}" = 对象字面量自建私有域——域内字段直读（不必写全路径），
+             数据只在表单子树可见、随表单销毁回收。登录方式联动 + 记住密码 -->
+        <div class="demo-app section">
+            <form x-form="{ method:'username', username:'', password:'', emailCode:'', remember:false, result:'' }"
+                  @submit="result = JSON.stringify($form.getState())">
+                <div class="field">
+                    <label class="label">登录方式</label>
+                    <div class="control">
+                        <div class="select">
+                            <select x-field="method">
+                                <option value="username">用户名密码</option>
+                                <option value="email-code">邮件验证码</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">用户名</label>
+                    <div class="control">
+                        <input class="input" x-field="username" placeholder="请输入用户名" />
+                    </div>
+                </div>
+                <!-- 联动：域内直读 method（无前缀）驱动字段显隐 -->
+                <div class="field" x-if="method === 'username'">
+                    <label class="label">密码</label>
+                    <div class="control">
+                        <input class="input" type="password" x-field="password" placeholder="请输入密码" />
+                    </div>
+                </div>
+                <div class="field" x-if="method === 'email-code'">
+                    <label class="label">验证码</label>
+                    <div class="control is-flex">
+                        <input class="input mr-2" x-field="emailCode" placeholder="6 位验证码" />
+                        <button type="button" class="button is-light" @click="sendCode">发送验证码</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="checkbox">
+                        <input type="checkbox" x-field="remember" />
+                        记住密码
+                    </label>
+                </div>
+                <div class="buttons">
+                    <button type="submit" class="button is-primary">登 录</button>
+                </div>
+                <p class="help">
+                    域内插值直读：method = <strong x-text="method"></strong>
+                </p>
+                <p class="notification is-info is-light" x-show="result">
+                    提交数据：<strong x-text="result"></strong>
+                </p>
+            </form>
+            <p class="help">表单外读 <code>username</code>/<code>method</code> 为空（私有域隔离）</p>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {}, {
+                actions: {
+                    sendCode() {
+                        alert("验证码已发送（演示）");
+                    },
+                },
+            });
+        </script>
+    </body>
+</html>

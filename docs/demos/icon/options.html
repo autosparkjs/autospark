@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 配置选项</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section" style="max-width: 560px">
+            <h1 class="title is-5">配置选项</h1>
+            <p class="subtitle is-6">strokeWidth / size / color / padding</p>
+
+            <template x-icon-define="heart">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            </template>
+
+            <table class="table is-fullwidth is-striped is-narrow">
+                <thead>
+                    <tr><th>写法</th><th>效果</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>&lt;span x-icon="heart"&gt;</code></td>
+                        <td><span x-icon="heart"></span> 默认（1em / sw 1.25 / 随文字色）</td>
+                    </tr>
+                    <tr>
+                        <td><code>strokeWidth: 2</code></td>
+                        <td><span x-icon="heart" x-icon-options="{ strokeWidth: 2 }"></span> 描边加粗（渲染期注入）</td>
+                    </tr>
+                    <tr>
+                        <td><code>strokeWidth: 1</code></td>
+                        <td><span x-icon="heart" x-icon-options="{ strokeWidth: 1 }"></span> 描边变细</td>
+                    </tr>
+                    <tr>
+                        <td><code>size: 32</code></td>
+                        <td><span x-icon="heart" x-icon-options="{ size: 32 }"></span> 数字 → 32px</td>
+                    </tr>
+                    <tr>
+                        <td><code>size: '2em'</code></td>
+                        <td><span x-icon="heart" x-icon-options="{ size: '2em' }"></span> 字符串直传 CSS</td>
+                    </tr>
+                    <tr>
+                        <td><code>color: '#f03d5e'</code></td>
+                        <td><span x-icon="heart" x-icon-options="{ color: '#f03d5e' }"></span> 内联颜色覆盖文字色</td>
+                    </tr>
+                    <tr>
+                        <td><code>padding: 8</code></td>
+                        <td>
+                            <span x-icon="heart" x-icon-options="{ padding: 8 }" style="outline: 1px dashed #dbdbdb"></span>
+                            内边距 8px（虚线框可见占位外扩）
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>组合</td>
+                        <td>
+                            <span x-icon="heart" x-icon-options="{ size: 28, strokeWidth: 2, color: '#485fc7' }"></span>
+                            size + strokeWidth + color
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

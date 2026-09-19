@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 尺寸</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section" style="max-width: 560px">
+            <h1 class="title is-5">尺寸：默认 1em 随字号</h1>
+            <p class="subtitle is-6">size 选项 / 全局默认 / padding 占位语义</p>
+
+            <template x-icon-define="check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>
+            </template>
+            <template x-icon-define="star">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11.5 3.8 9 8.8l-5.5.8 4 3.9-1 5.5 5-2.7 5 2.7-1-5.5 4-3.9-5.5-.8Z"/></svg>
+            </template>
+
+            <!-- 默认 1em：随宿主字号缩放，与文字混排自然 -->
+            <div class="box">
+                <p style="font-size: 12px"><span x-icon="check"></span> 12px 文字行</p>
+                <p style="font-size: 16px"><span x-icon="check"></span> 16px 文字行</p>
+                <p style="font-size: 22px"><span x-icon="check"></span> 22px 文字行</p>
+                <p style="font-size: 32px"><span x-icon="check"></span> 32px 文字行</p>
+            </div>
+
+            <!-- size 选项：数字 → Npx；字符串直传 CSS；全局默认 AutoSpark.icons.options.size -->
+            <p>
+                <span x-icon="star" x-icon-options="{size:16}"></span>
+                <span x-icon="star" x-icon-options="{size:24}"></span>
+                <span x-icon="star" x-icon-options="{size:32}"></span>
+                <span x-icon="star" x-icon-options="{size:'2em'}"></span>
+                <span style="color: #888">← size: 16 / 24 / 32（数字→px）/ '2em'（直传）</span>
+            </p>
+
+            <!-- 响应式尺寸：默认 1em 模型下，绑宿主字号即绑图标尺寸 -->
+            <div class="buttons has-addons">
+                <button class="button" @click="font=16">小</button>
+                <button class="button" @click="font=28">中</button>
+                <button class="button" @click="font=44">大</button>
+            </div>
+            <div class="box" :style="'font-size:' + font + 'px'">
+                <span x-icon="star"></span>
+                <span style="font-size: 14px">← 宿主 font-size = <code x-text="font"></code>px</span>
+            </div>
+
+            <!-- padding：图形区之外的内边距，总占位 = size + 2×padding（content-box 语义恒定） -->
+            <p>
+                <span x-icon="star" x-icon-options="{size:24}" style="outline: 1px dashed #dbdbdb"></span>
+                <span x-icon="star" x-icon-options="{size:24, padding:8}" style="outline: 1px dashed #dbdbdb"></span>
+                <span style="color: #888">← size:24；右者 padding:8 → 总占位 40×40（虚线框）</span>
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                font: 28,
+            });
+        </script>
+    </body>
+</html>

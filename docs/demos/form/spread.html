@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-bind="$field" · 控件展开键集</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 控件展开：x-bind="$field" 一行拿到标准控件的全部绑定——
+             type（widget 映射）/value/name/白名单属性（schema 有才出键）/
+             enable→disabled 反向/onInput+onChange 事件。
+             label/help 等非控件元数据不进键集，用 {{ $field.xxx }} 自取 -->
+        <div class="demo-app section">
+            <form x-form="user">
+                <!-- ① text 系：widget:email → type=email；placeholder/required 展开 -->
+                <div class="field" x-field="email">
+                    <label class="label">{{ $field.label }}</label>
+                    <div class="control">
+                        <input class="input" x-bind="$field" />
+                    </div>
+                    <p class="help">展开键：type=email · placeholder · required · name</p>
+                </div>
+
+                <!-- ② number 系：min/max 约束 + enable→disabled 反向（点下方按钮切换） -->
+                <div class="field" x-field="age">
+                    <label class="label">{{ $field.label }}（enable = <span x-text="$field.enable"></span>）</label>
+                    <div class="control">
+                        <input class="input" x-bind="$field" />
+                    </div>
+                    <p class="help">展开键：type=number · min=18 · max=100 · disabled（enable 取反）</p>
+                </div>
+
+                <!-- ③ checkbox：checked 键替代 value（布尔勾选语义） -->
+                <div class="field" x-field="agree">
+                    <label class="checkbox">
+                        <input type="checkbox" x-bind="$field" />
+                        {{ $field.label }}
+                    </label>
+                </div>
+
+                <!-- ④ select：value + onChange 展开；choices 不渲染（选项手写，决策 6 边界） -->
+                <div class="field" x-field="city">
+                    <label class="label">{{ $field.label }}（widget=select）</label>
+                    <div class="control">
+                        <select x-bind="$field">
+                            <option value="qz">泉州</option>
+                            <option value="xm">厦门</option>
+                            <option value="fz">福州</option>
+                        </select>
+                    </div>
+                    <p class="help">展开键：value · onChange · name；choices 不进键集（options 手写）</p>
+                </div>
+
+                <p class="help">
+                    getState() = <strong x-text="JSON.stringify($form.getState())"></strong>
+                </p>
+            </form>
+            <div class="buttons">
+                <button class="button is-light" @click="toggleEnable">切换 age.enable（disabled 反向联动）</button>
+            </div>
+        </div>
+
+        <script>
+            const { configurable } = AutoSparkSpaces;
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    user: {
+                        email: configurable("", {
+                            label: "邮箱",
+                            widget: "email",
+                            placeholder: "name@example.com",
+                            required: true,
+                        }),
+                        age: configurable(20, {
+                            label: "年龄",
+                            widget: "number",
+                            min: 18,
+                            max: 100,
+                            enable: true,
+                        }),
+                        agree: configurable(false, {
+                            label: "同意服务条款",
+                            widget: "checkbox",
+                        }),
+                        city: configurable("qz", {
+                            label: "城市",
+                            widget: "select",
+                            // 声明 choices 也不会经 spread 渲染（select 边界：选项手写或用控件形态）
+                            choices: [
+                                { label: "泉州", value: "qz" },
+                                { label: "厦门", value: "xm" },
+                            ],
+                        }),
+                    },
+                },
+                {
+                    actions: {
+                        // 程序改写字面量元数据：经 cm 桥接（form 的 schema watcher）驱动 disabled 响应
+                        toggleEnable() {
+                            const cm = engine.store.configManager;
+                            const schema = cm.state["user.age"];
+                            schema.enable = !schema.enable;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

@@ -185,7 +185,7 @@ describe("x-model 空值回填：select 首项默认", () => {
         expect(select.value).toBe("A"); // 首项默认
 
         // 重建选项（整体替换）→ 重放仍是首项默认
-        (configManager.state as any)["app.car"].choices = [
+        (configManager.state as any)["car"].choices = [
             { value: "X", label: "新甲" },
             { value: "Y", label: "新乙" },
         ];

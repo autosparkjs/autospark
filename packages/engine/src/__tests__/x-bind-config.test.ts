@@ -288,10 +288,10 @@ describe("x-bind .invert + @ 配置绑定", () => {
         );
         const input = root.querySelector("input")!;
         expect(input.disabled).toBe(true); // enable=false → !false=true → 禁用
-        (configManager.state as any)["app.order.price"].enable = true;
+        (configManager.state as any)["order.price"].enable = true;
         await nextTick();
         expect(input.disabled).toBe(false); // enable=true → 可用
-        (configManager.state as any)["app.order.price"].enable = false;
+        (configManager.state as any)["order.price"].enable = false;
         await nextTick();
         expect(input.disabled).toBe(true); // 响应式切回
     });
@@ -315,7 +315,7 @@ describe("x-model 元数据注入：enable 联动复用 .invert（ADR-0025 修�
         );
         const input = root.querySelector("input")!;
         expect(input.disabled).toBe(false); // enable=true → 可用
-        (configManager.state as any)["app.user.name"].enable = false;
+        (configManager.state as any)["user.name"].enable = false;
         await nextTick();
         expect(input.disabled).toBe(true); // 翻转联动
     });

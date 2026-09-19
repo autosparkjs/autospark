@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-form · 标准表单字段（input / textarea / select 快速绑定）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 标准表单字段：input / textarea / select 一律 <控件 x-bind="$field"/> 快速绑定；
+             select 的 schema.choices 自动渲染 option 子树（响应式，变更全量重建） -->
+        <div class="demo-app section">
+            <form x-form="user">
+                <!-- ① input：type/placeholder/required/value/onInput 全部展开 -->
+                <div class="field" x-field="name">
+                    <label class="label">{{ $field.label }}</label>
+                    <div class="control">
+                        <input class="input" x-bind="$field" />
+                    </div>
+                </div>
+
+                <!-- ② textarea：value/onInput/name 展开（无 type 键——标签已定控件） -->
+                <div class="field" x-field="intro">
+                    <label class="label">{{ $field.label }}</label>
+                    <div class="control">
+                        <textarea class="textarea" x-bind="$field"></textarea>
+                    </div>
+                </div>
+
+                <!-- ③ select：choices 自动渲染 option（无需手写），value/onChange 照常展开 -->
+                <div class="field" x-field="city">
+                    <label class="label">{{ $field.label }}</label>
+                    <div class="control">
+                        <div class="select">
+                            <select x-bind="$field"></select>
+                        </div>
+                    </div>
+                    <p class="help">schema.choices 渲染选项；下方按钮程序改写 choices → 响应式重建</p>
+                </div>
+
+                <p class="help">
+                    getState() = <strong x-text="JSON.stringify($form.getState())"></strong>
+                </p>
+            </form>
+            <div class="buttons">
+                <button class="button is-light" @click="swapChoices">程序改写 city.choices（响应式重建选项）</button>
+            </div>
+        </div>
+
+        <script>
+            const { configurable } = AutoSparkSpaces;
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    user: {
+                        name: configurable("", {
+                            label: "姓名",
+                            widget: "text",
+                            placeholder: "请输入姓名",
+                            required: true,
+                        }),
+                        intro: configurable("", {
+                            label: "简介",
+                            widget: "textarea",
+                            placeholder: "一句话介绍自己",
+                        }),
+                        city: configurable("qz", {
+                            label: "城市",
+                            widget: "select",
+                            choices: [
+                                { label: "泉州", value: "qz" },
+                                { label: "厦门", value: "xm" },
+                                { label: "福州", value: "fz" },
+                            ],
+                        }),
+                    },
+                },
+                {
+                    actions: {
+                        // 程序改写 schema.choices（经 cm 响应式代理）→ 桥接 refresh → 选项重建
+                        swapChoices() {
+                            const cm = engine.store.configManager;
+                            cm.state["user.city"].choices = [
+                                { label: "北京", value: "bj" },
+                                { label: "上海", value: "sh" },
+                                { label: "深圳", value: "sz" },
+                            ];
+                            engine.store.state.user.city = "bj";
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

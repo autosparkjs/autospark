@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 颜色</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section" style="max-width: 560px">
+            <h1 class="title is-5">颜色：主权在宿主文字色</h1>
+            <p class="subtitle is-6">mask 只取形状（alpha），颜色 = 宿主 background-color（默认 currentColor）</p>
+
+            <template x-icon-define="heart">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            </template>
+            <template x-icon-define="star">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11.5 3.8 9 8.8l-5.5.8 4 3.9-1 5.5 5-2.7 5 2.7-1-5.5 4-3.9-5.5-.8Z"/></svg>
+            </template>
+            <template x-icon-define="check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>
+            </template>
+            <template x-icon-define="bell">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            </template>
+
+            <!-- 跟随文字色：改 color 即换色，零额外接线 -->
+            <div class="box">
+                <p style="color: #f03d5e">红色文字：<span x-icon="heart"></span> <span x-icon="bell"></span></p>
+                <p style="color: #485fc7">蓝色文字：<span x-icon="star"></span> <span x-icon="check"></span></p>
+                <p style="color: #00875a">绿色文字：<span x-icon="check"></span> <span x-icon="heart"></span></p>
+            </div>
+
+            <!-- 响应式换色：状态驱动容器 color，图标同步跟随 -->
+            <div class="buttons has-addons">
+                <button class="button" @click="color='#f03d5e'">红</button>
+                <button class="button" @click="color='#485fc7'">蓝</button>
+                <button class="button" @click="color='#00875a'">绿</button>
+            </div>
+            <div class="box" :style="'color:' + color + '; font-size: 24px'">
+                <span x-icon="heart"></span>
+                <span x-icon="star"></span>
+                <span x-icon="check"></span>
+                <span style="font-size: 14px">← color = <code x-text="color"></code></span>
+            </div>
+
+            <!-- color 选项：内联覆盖（不随文字色）；全局默认见 AutoSpark.icons.options.color -->
+            <p>
+                <span x-icon="heart" x-icon-options="{color:'#f03d5e'}"></span>
+                <span x-icon="heart" x-icon-options="{color:'#485fc7'}"></span>
+                <span x-icon="heart" x-icon-options="{color:'#00875a'}"></span>
+                <span style="color: #888">← color 选项固定色（无视文字色）</span>
+            </p>
+
+            <!-- 组件场景：bulma 按钮内自动适配主题色 -->
+            <p class="buttons">
+                <button class="button is-primary"><span x-icon="check"></span>&nbsp;保存</button>
+                <button class="button is-danger"><span x-icon="bell"></span>&nbsp;删除</button>
+                <button class="button is-light"><span x-icon="star"></span>&nbsp;收藏</button>
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                color: "#f03d5e",
+            });
+        </script>
+    </body>
+</html>

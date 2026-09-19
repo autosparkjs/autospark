@@ -288,7 +288,7 @@ describe("x-model select：schema choices 响应式", () => {
         expect(select.value).toBe("ZEEKR");
 
         // 增删选项（数组整体替换）→ 全量重建 + 重放选中
-        (configManager.state as any)["app.car"].choices = [
+        (configManager.state as any)["car"].choices = [
             ...CARS,
             { value: "LI AUTO", label: "理想" },
         ];
@@ -304,7 +304,7 @@ describe("x-model select：schema choices 响应式", () => {
             { configKey: "app" },
         );
         const select = root.querySelector("select") as HTMLSelectElement;
-        (configManager.state as any)["app.car"].choices[0].label = "极氪001";
+        (configManager.state as any)["car"].choices[0].label = "极氪001";
         await nextTick();
         expect(select.querySelectorAll("option")[0]!.textContent).toBe("极氪001");
     });
@@ -317,7 +317,7 @@ describe("x-model select：schema choices 响应式", () => {
             { configKey: "app" },
         );
         const select = root.querySelector("select") as HTMLSelectElement;
-        (configManager.state as any)["app.car"].choices = [{ value: "TESLA", label: "特斯拉" }];
+        (configManager.state as any)["car"].choices = [{ value: "TESLA", label: "特斯拉" }];
         await nextTick();
         expect(select.value).toBe("TESLA"); // 自动选中首项
         expect(engine.state.car).toBe("TESLA"); // 回写 state（级联链闭合）
@@ -333,7 +333,7 @@ describe("x-model select：schema choices 响应式", () => {
             { configKey: "app" },
         );
         const select2 = r2.querySelector("select") as HTMLSelectElement;
-        (cm2.state as any)["app.car"].choices = [{ value: "TESLA", label: "特斯拉" }];
+        (cm2.state as any)["car"].choices = [{ value: "TESLA", label: "特斯拉" }];
         await nextTick();
         expect(select2.selectedIndex).toBe(-1);
         expect(e2.state.car).toBe("ZEEKR"); // state 不被修正（旧行为）

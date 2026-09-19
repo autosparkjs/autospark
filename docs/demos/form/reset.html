@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-form · 重置（状态回初始深快照）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 重置：拦截原生 reset + 状态回 applyData 后的初始深快照（原生只重置 DOM 会造成
+             显示与状态分叉）；dirty 复位、错误重算——状态驱动架构下 reset 是状态操作 -->
+        <div class="demo-app section">
+            <form x-form="{ username: 'fisher', age: 20, agree: false }">
+                <div class="field">
+                    <label class="label">用户名</label>
+                    <div class="control">
+                        <input class="input" x-field="username" />
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">年龄</label>
+                    <div class="control">
+                        <input class="input" x-field.number="age" />
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="checkbox">
+                        <input type="checkbox" x-field="agree" />
+                        同意条款
+                    </label>
+                </div>
+                <p class="help">
+                    dirty = <strong x-text="$form.dirty"></strong>；
+                    getState() = <strong x-text="JSON.stringify($form.getState())"></strong>
+                </p>
+                <div class="buttons">
+                    <button type="reset" class="button is-light">重置（回初始快照）</button>
+                </div>
+            </form>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

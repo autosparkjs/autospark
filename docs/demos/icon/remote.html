@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 远程图标（baseUrl/<图标集>/<图标名>.svg 通用协议）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ico-grid {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px 6px;
+                font-size: 22px;
+            }
+            .ico-grid .ico {
+                display: inline-flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 3px;
+                width: 96px;
+                padding: 8px 2px;
+                border-radius: 6px;
+            }
+            .ico-grid .ico:hover {
+                background: #f5f5f5;
+            }
+            .ico-grid .ico i {
+                font-style: normal;
+                font-size: 10px;
+                color: #888;
+                line-height: 1.2;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section" style="max-width: 720px">
+            <h1 class="title is-5">远程图标：mdi-light 图标集</h1>
+            <p class="subtitle is-6">
+                <code>图标集/图标名</code> 免定义直用——按 <code>baseUrl/图标集/图标名.svg</code> 通用协议取图，默认 baseUrl 为
+                <a href="https://iconify.design">Iconify</a> 公共 API（不限于 Iconify，任何兼容服务可自托管）；首次加载后内存缓存，同图标只发一次请求
+            </p>
+
+            <div class="box ico-grid">
+                <span class="ico"><span x-icon="mdi-light/arrange-bring-forward"></span><i>arrange-bring-forward</i></span>
+                <span class="ico"><span x-icon="mdi-light/arrange-bring-to-front"></span><i>arrange-bring-to-front</i></span>
+                <span class="ico"><span x-icon="mdi-light/arrange-send-backward"></span><i>arrange-send-backward</i></span>
+                <span class="ico"><span x-icon="mdi-light/arrange-send-to-back"></span><i>arrange-send-to-back</i></span>
+                <span class="ico"><span x-icon="mdi-light/arrow-down"></span><i>arrow-down</i></span>
+                <span class="ico"><span x-icon="mdi-light/arrow-down-circle"></span><i>arrow-down-circle</i></span>
+                <span class="ico"><span x-icon="mdi-light/arrow-left"></span><i>arrow-left</i></span>
+                <span class="ico"><span x-icon="mdi-light/arrow-left-circle"></span><i>arrow-left-circle</i></span>
+                <span class="ico"><span x-icon="mdi-light/arrow-right"></span><i>arrow-right</i></span>
+                <span class="ico"><span x-icon="mdi-light/arrow-right-circle"></span><i>arrow-right-circle</i></span>
+                <span class="ico"><span x-icon="mdi-light/arrow-up"></span><i>arrow-up</i></span>
+                <span class="ico"><span x-icon="mdi-light/arrow-up-circle"></span><i>arrow-up-circle</i></span>
+                <span class="ico"><span x-icon="mdi-light/bank"></span><i>bank</i></span>
+                <span class="ico"><span x-icon="mdi-light/baseball-diamond"></span><i>baseball-diamond</i></span>
+                <span class="ico"><span x-icon="mdi-light/bell"></span><i>bell</i></span>
+                <span class="ico"><span x-icon="mdi-light/bell-off"></span><i>bell-off</i></span>
+                <span class="ico"><span x-icon="mdi-light/bell-plus"></span><i>bell-plus</i></span>
+                <span class="ico"><span x-icon="mdi-light/bluetooth"></span><i>bluetooth</i></span>
+                <span class="ico"><span x-icon="mdi-light/book"></span><i>book</i></span>
+                <span class="ico"><span x-icon="mdi-light/book-multiple"></span><i>book-multiple</i></span>
+                <span class="ico"><span x-icon="mdi-light/book-plus"></span><i>book-plus</i></span>
+                <span class="ico"><span x-icon="mdi-light/bookmark"></span><i>bookmark</i></span>
+                <span class="ico"><span x-icon="mdi-light/border-all"></span><i>border-all</i></span>
+                <span class="ico"><span x-icon="mdi-light/border-bottom"></span><i>border-bottom</i></span>
+                <span class="ico"><span x-icon="mdi-light/border-horizontal"></span><i>border-horizontal</i></span>
+                <span class="ico"><span x-icon="mdi-light/border-inside"></span><i>border-inside</i></span>
+                <span class="ico"><span x-icon="mdi-light/border-left"></span><i>border-left</i></span>
+                <span class="ico"><span x-icon="mdi-light/border-none"></span><i>border-none</i></span>
+                <span class="ico"><span x-icon="mdi-light/border-outside"></span><i>border-outside</i></span>
+                <span class="ico"><span x-icon="mdi-light/border-right"></span><i>border-right</i></span>
+                <span class="ico"><span x-icon="mdi-light/border-top"></span><i>border-top</i></span>
+                <span class="ico"><span x-icon="mdi-light/border-vertical"></span><i>border-vertical</i></span>
+            </div>
+
+            <hr />
+            <h2 class="title is-6">选项与本地物种同构</h2>
+            <p>
+                <span x-icon="mdi-light/bell" x-icon-options="{ size: 32, color: '#f03d5e' }"></span>
+                <span x-icon="mdi-light/bell" x-icon-options="{ strokeWidth: 2.5 }"></span>
+                <span x-icon="mdi-light/bookmark" style="font-size: 28px; color: #485fc7"></span>
+                <span>← size / strokeWidth / color / 文字色 均生效</span>
+            </p>
+
+            <h2 class="title is-6">其他图标集同样可用</h2>
+            <p style="font-size: 22px">
+                <span x-icon="mdi/home"></span>
+                <span x-icon="ri/account-box-line"></span>
+                <span x-icon="tabler/arrow-right"></span>
+                <span x-icon="lucide/rocket"></span>
+                <span x-icon="ph/planet"></span>
+            </p>
+
+            <p>
+                <!-- 不存在的图标：warn + 默认图标兜底（缺图不破相） -->
+                <span x-icon="mdi-light/nonexistent-icon"></span>
+                <span>← 不存在的图标名：默认图标兜底</span>
+            </p>
+
+            <div class="notification is-light is-size-7">
+                自托管（内网 / 隐私）：<code>AutoSpark.icons.baseUrl = "https://icons.internal"</code>
+            </div>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

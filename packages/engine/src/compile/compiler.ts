@@ -36,6 +36,7 @@ import { buildComponentDef } from "./collect";
 import type { ComponentDef } from "../directives/component-def";
 import { mountComponentScopedAttr, injectComponentStyle } from "../utils/scopedStyle";
 import { coerceStyleValue, type StyleBind } from "../utils/styleBind";
+import { iconRegistry } from "../icons/registry";
 
 /**
  * 元素是否含插值（需建 scope 的判据之一）。
@@ -180,6 +181,13 @@ export class AutoSparkCompiler {
                 (node: Node) => node instanceof HTMLElement && node.hasAttribute("x-component"),
                 (componentEl: HTMLElement) => this._collectComponent(componentEl),
             ],
+            // 前置：x-icon-define 图标定义（ADR-0046）——声明性资源：取首个 <svg> 子元素上交全局
+            // 图标注册表（AutoSpark.icons）后剪枝（不进结果 DOM）。指令类仅为名位（x-component 同构），
+            // 永不被实例化。动态区域（x-for 项模板 / x-html.compile / 组件快照）内重复定义幂等覆盖。
+            [
+                (node: Node) => node instanceof HTMLElement && node.hasAttribute("x-icon-define"),
+                (iconEl: HTMLElement) => this._collectIconDefine(iconEl),
+            ],
             // 文本节点插值：含 {{}} 的文本节点拆分 + 注册。scope 经父元素查 templateScopeMap
             // （父元素在自身 walk 前已建 scope，含插值的 directive-less 元素亦由 hasInterpolation
             // 触发建 scope）。无 scope（raw-text 父等）则原样克隆。见 ADR-0004 决策 1/4。
@@ -256,6 +264,51 @@ export class AutoSparkCompiler {
         this.engine.registerComponentDef(def);
         if (!owner.components) owner.components = {};
         owner.components[name] = def.snapshot;
+        return null;
+    }
+
+    /**
+     * 收集 x-icon-define 图标定义（ADR-0046 决策 1）。
+     *
+     * 编译期前置 transformer 命中 x-icon-define 元素时调用：值 = 图标名（指令值装名，
+     * 对齐 x-component 惯例）、template 内容装 SVG（浏览器原生不渲染 template，零转义容器）。
+     * 取**首个 `<svg>` 子元素**的 outerHTML 上交全局图标注册表（名称校验/规范化/覆盖 warn
+     * 去重收编于 IconRegistry.add），然后返回 `null` 剪枝——定义元素永不进结果 DOM。
+     * 非法名 / 无 svg 子元素 warn + 跳过注册（元素照剪）；svg 之外的多余根节点 warn 但仍取首个 svg。
+     *
+     * @param iconEl 原树中的 x-icon-define 元素（只读编译输入）
+     * @returns 固定 `null`（剪枝）
+     */
+    private _collectIconDefine(iconEl: HTMLElement): null {
+        const name = (iconEl.getAttribute("x-icon-define") ?? "").trim();
+        // template 的子节点在 .content（DocumentFragment）；非 template 宿主退化为元素自身
+        const root: ParentNode =
+            iconEl instanceof HTMLTemplateElement ? iconEl.content : iconEl;
+        let svg: Element | null = null;
+        let extraRoots = 0;
+        for (const child of root.children) {
+            if (child.tagName.toLowerCase() === "svg") {
+                if (!svg) svg = child;
+            } else {
+                extraRoots++;
+            }
+        }
+        if (!name) {
+            this.engine.logger.warn(`x-icon-define: 缺少图标名（值留空），定义被跳过（ADR-0046）`);
+            return null;
+        }
+        if (!svg) {
+            this.engine.logger.warn(
+                `x-icon-define: 图标 "${name}" 未找到 <svg> 子元素，定义被跳过（ADR-0046）`,
+            );
+            return null;
+        }
+        if (extraRoots > 0) {
+            this.engine.logger.warn(
+                `x-icon-define: 图标 "${name}" 的声明含 ${extraRoots} 个 svg 之外的根节点，已忽略（ADR-0046）`,
+            );
+        }
+        iconRegistry.add(name, svg.outerHTML);
         return null;
     }
 

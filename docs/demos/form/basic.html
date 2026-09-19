@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-form · 快速入门（literal 建域 + 控件形态）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 值三形态之 literal：x-form="{...}" 自建私有域；x-field 在标准控件上
+             = x-model 全部语义（双向绑定 + 元数据注入），表单内不必再写 x-model -->
+        <form class="demo-app section" x-form="{username:'fisher',password:''}">
+            <div class="field">
+                <label class="label">用户名</label>
+                <div class="control">
+                    <input class="input" x-field="username" />
+                </div>
+            </div>
+            <div class="field">
+                <label class="label">密码</label>
+                <div class="control">
+                    <input class="input" type="password" x-field="password" />
+                </div>
+            </div>
+            <p class="help">
+                username = <strong x-text="username"></strong>，password = <strong
+                    x-text="password"></strong
+                >（域内字段插值直读）
+            </p>
+            <p class="help">
+                dirty = <strong x-text="$form.dirty"></strong>，
+                valid = <strong x-text="$form.valid"></strong>
+            </p>
+            <div class="buttons">
+                <button type="reset" class="button is-light">重置（回初始快照）</button>
+                <button type="submit" class="button is-primary">注册</button>
+            </div>
+        </form>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            // 演示提交拦截：x-form 默认 preventDefault + 校验门放行 @submit
+            document.querySelector("form").addEventListener("submit", (e) => {
+                alert("提交数据：" + JSON.stringify(engine.state.$scopes && Object.values(engine.state.$scopes)[0]));
+            });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-form · 字段名称（三层解析 + getState 键）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 字段名称 name 三层解析：x-field-options 显式声明 > configurable schema.name > 路径末段。
+             消费点：$form.getState() 的键（无参形态）、控件 name 属性（spread 的 name 键）。
+             同名字段冲突：后者覆盖 + warn -->
+        <div class="demo-app section">
+            <form x-form="user">
+                <!-- ① 未声明 → name = 路径末段 username -->
+                <div class="field" x-field="username">
+                    <label class="label">用户名（未声明 name → 末段）</label>
+                    <div class="control">
+                        <input class="input" x-bind="$field" />
+                    </div>
+                    <p class="help">name 属性 = <strong x-text="$field.name"></strong></p>
+                </div>
+
+                <!-- ② schema.name 声明 → 覆盖默认 -->
+                <div class="field" x-field="email">
+                    <label class="label">邮箱（schema.name = "登录邮箱"）</label>
+                    <div class="control">
+                        <input class="input" x-bind="$field" />
+                    </div>
+                    <p class="help">name 属性 = <strong x-text="$field.name"></strong></p>
+                </div>
+
+                <!-- ③ x-field-options 声明 → 最高优先（覆盖 schema.name） -->
+                <div class="field" x-field="phone" x-field-options="{name:'手机'}">
+                    <label class="label">电话（schema.name = "tel"，x-field-options = "手机"）</label>
+                    <div class="control">
+                        <input class="input" x-bind="$field" />
+                    </div>
+                    <p class="help">name 属性 = <strong x-text="$field.name"></strong></p>
+                </div>
+
+                <p class="help">
+                    getState() = <strong x-text="JSON.stringify($form.getState())"></strong>
+                </p>
+                <p class="help">
+                    getState(true) = <strong x-text="JSON.stringify($form.getState(true))"></strong>
+                </p>
+            </form>
+        </div>
+
+        <script>
+            const { configurable } = AutoSparkSpaces;
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                user: {
+                    username: configurable("fisher", { label: "用户名", widget: "text" }),
+                    email: configurable("", { label: "邮箱", widget: "email", name: "登录邮箱" }),
+                    phone: configurable("", { label: "电话", widget: "tel", name: "tel" }),
+                },
+            });
+        </script>
+    </body>
+</html>

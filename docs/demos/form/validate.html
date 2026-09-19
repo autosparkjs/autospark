@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-form · 校验（写入即校验 + 错误显示）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 写入即校验：autostore 写入路径校验器，schema 声明 onInvalid:'pass' 静默收集进
+             store.errors（不阻断输入）；错误显示归模板——$field.error 逐字段、$form.errors 聚合 -->
+        <div class="demo-app section">
+            <form x-form="reg">
+                <div class="field" x-field="age">
+                    <label class="label">{{ $field.label }}（18-60）</label>
+                    <div class="control">
+                        <input class="input" x-bind="$field" />
+                    </div>
+                    <p class="help is-danger" x-text="$field.error"></p>
+                </div>
+                <div class="field" x-field="email">
+                    <label class="label">{{ $field.label }}</label>
+                    <div class="control">
+                        <input class="input" x-bind="$field" />
+                    </div>
+                    <p class="help is-danger" x-text="$field.error"></p>
+                </div>
+                <p class="help">
+                    valid = <strong x-text="$form.valid"></strong>；
+                    errors = <strong x-text="JSON.stringify($form.errors)"></strong>
+                </p>
+            </form>
+        </div>
+
+        <script>
+            const { configurable } = AutoSparkSpaces;
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                reg: {
+                    age: configurable(20, {
+                        label: "年龄",
+                        widget: "number",
+                        validate: (v) => v >= 18 && v <= 60,
+                        errorMessage: "年龄须在 18-60 之间",
+                        onInvalid: "pass", // 错误静默收集，不阻断输入
+                    }),
+                    email: configurable("", {
+                        label: "邮箱",
+                        widget: "email",
+                        validate: (v) => v === "" || /^[\w.+-]+@[\w-]+\.[\w.]+$/.test(v),
+                        errorMessage: "邮箱格式不正确",
+                        onInvalid: "pass",
+                    }),
+                },
+            });
+        </script>
+    </body>
+</html>

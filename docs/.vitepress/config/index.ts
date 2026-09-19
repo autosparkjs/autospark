@@ -70,6 +70,8 @@ export default defineConfig({
                         { text: "x-loading", link: "/zh/guide/directives/x-loading" },
                         { text: "x-slot", link: "/zh/guide/directives/x-slot" },
                         { text: "x-model", link: "/zh/guide/directives/x-model" },
+                        { text: "x-form", link: "/zh/guide/directives/x-form" },
+                        { text: "x-icon", link: "/zh/guide/directives/x-icon" },
                         { text: "x-switch", link: "/zh/guide/directives/x-switch" },
                         { text: "x-tree", link: "/zh/guide/directives/x-tree" },
                         { text: "x-teleport", link: "/zh/guide/directives/x-teleport" },

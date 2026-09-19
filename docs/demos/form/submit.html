@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-form · 提交（拦截 + 校验门 + 放行 action）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 提交三态：恒拦截原生提交（defaultPrevented，页面不跳转）；validateOnSubmit（默认开）
+             做校验门——有错阻止 @submit action、无错放行；validateOnSubmit:false 直通。
+             字段元数据经 <script type="autospark/data"> 声明（x-form 完整继承数据脚本管道） -->
+        <div class="demo-app section">
+            <!-- 表单 A：默认校验门 -->
+            <form x-form @submit="saveA">
+                <script type="autospark/data">
+                {
+                    name: configurable("", {
+                        label: "用户名",
+                        placeholder: "≥3 字符（校验门开）",
+                        validate: (v) => v.length >= 3,
+                        errorMessage: "用户名至少 3 个字符",
+                        onInvalid: "pass",
+                    })
+                }
+                </script>
+                <div class="field">
+                    <div class="control">
+                        <input class="input" x-field="name" />
+                    </div>
+                </div>
+                <div class="buttons">
+                    <button type="submit" class="button is-primary">提交 A</button>
+                    <span class="tag is-light">放行次数：<strong id="countA">0</strong></span>
+                </div>
+            </form>
+            <hr />
+            <!-- 表单 B：关闭校验门（同样数据、直通） -->
+            <form x-form x-form-options="{validateOnSubmit:false}" @submit="saveB">
+                <script type="autospark/data">
+                {
+                    name: configurable("", {
+                        label: "用户名",
+                        placeholder: "校验门关——直通",
+                        validate: (v) => v.length >= 3,
+                        errorMessage: "用户名至少 3 个字符",
+                        onInvalid: "pass",
+                    })
+                }
+                </script>
+                <div class="field">
+                    <div class="control">
+                        <input class="input" x-field="name" />
+                    </div>
+                </div>
+                <div class="buttons">
+                    <button type="submit" class="button is-light">提交 B</button>
+                    <span class="tag is-light">放行次数：<strong id="countB">0</strong></span>
+                </div>
+            </form>
+            <p class="help">
+                提交均被 preventDefault（action 属性仅作无 JS 降级）；提交逻辑全部在 @submit action 里，引擎不做隐式 fetch
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {},
+                {
+                    actions: {
+                        // 表单 A 走校验门（空值提交被拦，≥3 字符放行）；表单 B 直通恒放行
+                        saveA() {
+                            const el = document.getElementById("countA");
+                            el.textContent = String(Number(el.textContent) + 1);
+                        },
+                        saveB() {
+                            const el = document.getElementById("countB");
+                            el.textContent = String(Number(el.textContent) + 1);
+                        },
+                    },
+                },
+            );
+            void engine;
+        </script>
+    </body>
+</html>

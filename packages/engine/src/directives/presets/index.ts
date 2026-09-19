@@ -1,6 +1,8 @@
 export * from "./bind";
 export * from "./bind-spread";
 export * from "./data";
+export * from "./form";
+export * from "./field";
 export * from "./on";
 export * from "./for";
 export * from "./html";
@@ -17,6 +19,8 @@ export * from "./loading";
 export * from "./slot";
 export * from "./scope";
 export * from "./component";
+export * from "./icon";
+export * from "./icon-define";
 export * from "./use";
 export * from "./import";
 
@@ -40,6 +44,10 @@ import { ScopeDirective } from "./scope";
 import { ComponentDirective } from "./component";
 import { UseDirective } from "./use";
 import { ImportDirective } from "./import";
+import { FormDirective } from "./form";
+import { FieldDirective } from "./field";
+import { IconDirective } from "./icon";
+import { IconDefineDirective } from "./icon-define";
 
 /**
  * 预设指令映射：指令名 → 指令类。
@@ -79,4 +87,8 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     component: ComponentDirective,
     use: UseDirective,
     import: ImportDirective,
+    form: FormDirective,
+    field: FieldDirective,
+    icon: IconDirective,
+    "icon-define": IconDefineDirective,
 };

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 修饰（badge 底板 / pointer 光标 / flex 免疫）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .icons-demo {
+                font-size: 24px;
+                line-height: 2;
+            }
+            /* 窄 flex 容器：多个图标 + 长文字，主轴空间不足——验证 flex:none 不缩不变形 */
+            .flex-strict {
+                display: flex;
+                align-items: stretch; /* 交叉轴拉伸——显式尺寸免疫 */
+                gap: 8px;
+                width: 220px;
+                border: 1px dashed #ccc;
+                padding: 8px;
+                overflow: hidden;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section icons-demo">
+            <!-- badge：比 currentColor 淡的圆角矩形底板（伪元素通道，色随宿主文字色） -->
+            <p>
+                普通：<span x-icon="bell"></span>
+                badge：<span x-icon.badge="bell"></span>
+                badge + padding：<span x-icon.badge="bell" x-icon-options="{padding:6}"></span>
+            </p>
+            <p style="color: #f03d5e">
+                红色跟随：<span x-icon="heart"></span>
+                <span x-icon.badge="heart"></span>
+                <span x-icon.badge="heart" x-icon-options="{padding:6}"></span>
+            </p>
+            <p style="color: #485fc7">
+                蓝色跟随：<span x-icon="star"></span>
+                <span x-icon.badge="star"></span>
+                <span x-icon.badge="star" x-icon-options="{padding:6}"></span>
+            </p>
+
+            <!-- pointer：可点击语义的手型光标（悬停体验） -->
+            <p>
+                pointer：
+                <span x-icon.pointer="close" @click="alert('已关闭（演示）')"></span>
+                <span x-icon.badge.pointer="bell" x-icon-options="{padding:4}"
+                      @click="alert('铃铛（演示）')"></span>
+                （悬停可见手型光标，点击有响应）
+            </p>
+
+            <!-- flex 容器免疫：窄容器 + stretch——图标不缩不变形（flex:none + 显式尺寸三重免疫） -->
+            <div class="flex-strict">
+                <span x-icon="bell"></span>
+                <span x-icon.badge="heart" x-icon-options="{padding:4}"></span>
+                <span x-icon="star"></span>
+                <span>长文字内容挤压主轴空间……</span>
+                <span x-icon="close"></span>
+            </div>
+            <p class="help is-size-6">
+                上方窄 flex 容器（220px + align-items:stretch + 主轴不足）：图标恒 1em 不伸不缩不变形
+            </p>
+        </div>
+
+        <script>
+            const { iconRegistry } = AutoSparkSpaces;
+            // 注册 demo 图标（close/bell/heart/star——未注册则远程通道，这里用本地图标稳定演示）
+            iconRegistry.add(
+                "bell",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+            );
+            iconRegistry.add(
+                "heart",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>',
+            );
+            iconRegistry.add(
+                "star",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1Z"/></svg>',
+            );
+            iconRegistry.add(
+                "close",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+            );
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

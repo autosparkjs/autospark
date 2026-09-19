@@ -71,6 +71,8 @@ export class SpreadBinder {
     private warned = new Set<string>();
     /** 静态接管键：书写在 spread 之后的静态属性名（静态恒赢，本展开永不写、永不移除） */
     private reservedKeys: Set<string>;
+    /** 已挂事件监听器：键 → 当前 listener（替换/消失时移除旧监听，ADR-0045 决策 6） */
+    private listeners = new Map<string, EventListener>();
 
     constructor(directive: BindDirective) {
         this.directive = directive;
@@ -158,6 +160,44 @@ export class SpreadBinder {
             if (SPREAD_SPECIAL_KEYS.has(key)) {
                 patchAttrValue(el, key, v, this.patchState);
                 nextKeys.add(key);
+                // select 的 value patch 在编译产物搬运（replaceChildren）后会丢失选中
+                //（ADR-0026 同款坑，x-model 经推迟重放解决）——microtask 幂等重放
+                if (
+                    key === "value" &&
+                    el instanceof HTMLSelectElement &&
+                    v != null &&
+                    String(v) !== ""
+                ) {
+                    const want = String(v);
+                    queueMicrotask(() => {
+                        if (el.value !== want) el.value = want;
+                    });
+                }
+                continue;
+            }
+            // 事件监听器键（ADR-0045 决策 6）：`onXxx` 命名 + 函数值 → addEventListener
+            // （$field.onInput / $field.onChange 的挂载通道；替换/消失时移除旧监听）
+            if (typeof v === "function" && /^on[a-zA-Z]/.test(key)) {
+                this._setEventListener(el, key, v);
+                nextKeys.add(key);
+                continue;
+            }
+            // choices 特判键（ADR-0045 决策 6 修订）：select 宿主 + 数组值 → option 子树
+            // 全量重建（schema.choices 响应式变更 → form 的 schema watcher → refresh →
+            // re-apply 重渲染；选中态经 value 键的 microtask 重放恢复）。非 select 宿主剔除
+            if (key === "choices" && Array.isArray(v)) {
+                if (el instanceof HTMLSelectElement) {
+                    // 静态 <option> 优先：宿主已有手写选项时忽略两处 choices（与 x-model 三源同序）
+                    if (!this._hasStaticOptions()) {
+                        this._renderSelectChoices(el, v);
+                        nextKeys.add(key);
+                    }
+                    continue;
+                }
+                this._warnOnce(
+                    "choices-non-select",
+                    `x-bind: 展开键 "choices" 的数组值仅在 <select> 宿主上渲染选项，${el.tagName} 上已剔除（ADR-0045）`,
+                );
                 continue;
             }
             // 指令屏障：展开键永不作为指令编译（编译期指令收集早于运行期展开），
@@ -190,6 +230,13 @@ export class SpreadBinder {
         // undefined 会 String 化为 "undefined"（HTML setter 语义），须显式置空 + 移除属性。
         for (const key of this.lastKeys) {
             if (nextKeys.has(key)) continue;
+            const listener = this.listeners.get(key);
+            if (listener) {
+                // 事件监听器键消失：移除监听（ADR-0045 决策 6）
+                el.removeEventListener(key.slice(2).toLowerCase(), listener);
+                this.listeners.delete(key);
+                continue;
+            }
             if (key === "value") {
                 (el as any).value = "";
                 el.removeAttribute("value");
@@ -201,6 +248,58 @@ export class SpreadBinder {
             }
         }
         this.lastKeys = nextKeys;
+    }
+
+    /** 挂载/替换事件监听（`onXxx` 键）：同引用幂等（$field 的事件封装缓存稳定引用，重复 apply 不重挂） */
+    private _setEventListener(el: HTMLElement, key: string, fn: EventListener): void {
+        const type = key.slice(2).toLowerCase();
+        const prev = this.listeners.get(key);
+        if (prev === fn) return; // 同引用：已挂载，幂等
+        if (prev) el.removeEventListener(type, prev);
+        el.addEventListener(type, fn);
+        this.listeners.set(key, fn);
+    }
+
+    /**
+     * 静态选项判定（与 x-model 的三级优先同序，ADR-0026 决策 1）：原始模板（`directive.template`）
+     * 的 select 子级含 `<option>`/`<optgroup>` 即静态——两处 choices 整体忽略（手写优先）。
+     * 须查 template 而非渲染 el：编译期 el 是浅克隆（静态子节点未挂入），且动态渲染的
+     * options 也会出现在 el 上、不能据此误判。
+     */
+    private _hasStaticOptions(): boolean {
+        const tpl = this.directive.template as HTMLSelectElement | undefined;
+        if (!tpl) return false;
+        for (const child of tpl.children) {
+            if (child.tagName === "OPTION" || child.tagName === "OPTGROUP") return true;
+        }
+        return false;
+    }
+
+    /**
+     * choices → option 子树全量重建（无 diff，ADR-0045 决策 6 修订；x-model _renderChoices 精简版）：
+     * 项形态 `{label?, value?, ...}` / 字符串 / 数字（裸值 label=value）；value 缺省不设属性
+     * （HTML 原生回退 textContent 即 value）；label 缺省回退 `String(value)`。选中态由 value 键的
+     * microtask 重放恢复（重建在同轮 apply 的 value patch 之后清掉了选中）。
+     */
+    private _renderSelectChoices(el: HTMLSelectElement, choices: unknown[]): void {
+        while (el.firstChild) el.removeChild(el.firstChild);
+        for (const item of choices) {
+            if (item == null) continue;
+            const option = document.createElement("option");
+            let label: unknown;
+            let value: unknown;
+            if (typeof item === "object") {
+                label = (item as any).label;
+                value = (item as any).value;
+            } else {
+                label = item;
+                value = item;
+            }
+            if (value !== undefined && value !== null) option.value = String(value);
+            option.textContent =
+                label !== undefined && label !== null ? String(label) : String(value ?? "");
+            el.appendChild(option);
+        }
     }
 
     /** warn 去重：同一标记仅首次 */

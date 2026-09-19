@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-field · 元数据驱动（configurable + $field + 控件展开）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 容器形态：x-field 声明字段域，渲染完全归模板——$field 暴露元数据与值，
+             x-bind="$field" 一行展开标准控件的全部绑定属性与事件 -->
+        <form class="demo-app section" x-form>
+            <div x-field="login.username">
+                <label class="label">{{ $field.label }}</label>
+                <div class="control">
+                    <input class="input" x-bind="$field" />
+                </div>
+                <p class="help is-danger" x-text="$field.error"></p>
+            </div>
+            <div x-field="login.age">
+                <label class="label">{{ $field.label }}（{{ $field.widget }}）</label>
+                <div class="control">
+                    <input class="input" x-bind="$field" />
+                </div>
+                <p class="help is-danger" x-text="$field.error"></p>
+            </div>
+            <div x-field="login.agree">
+                <label class="checkbox">
+                    <input type="checkbox" x-bind="$field" />
+                    {{ $field.label }}
+                </label>
+            </div>
+            <p class="help">
+                getState = <strong x-text="JSON.stringify($form.getState())"></strong>
+            </p>
+            <div class="buttons">
+                <button type="submit" class="button is-primary">提交（校验门）</button>
+            </div>
+        </form>
+
+        <script>
+            const { configurable } = AutoSparkSpaces;
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                login: {
+                    username: configurable("", {
+                        label: "用户名",
+                        widget: "text",
+                        placeholder: "请输入用户名",
+                        validate: (v) => v.length >= 3,
+                        errorMessage: "用户名至少 3 个字符",
+                        onInvalid: "pass",
+                    }),
+                    age: configurable(20, {
+                        label: "年龄",
+                        widget: "number",
+                        min: 18,
+                        max: 100,
+                        validate: (v) => v >= 18,
+                        errorMessage: "未成年人不能注册",
+                        onInvalid: "pass",
+                    }),
+                    agree: configurable(false, {
+                        label: "同意服务条款",
+                        widget: "checkbox",
+                    }),
+                },
+            });
+            document.querySelector("form").addEventListener("submit", (e) => {
+                // 校验门未拦截才会走到这里（e.defaultPrevented 恒 true——原生提交被拦截）
+                console.log("submit 放行");
+            });
+        </script>
+    </body>
+</html>

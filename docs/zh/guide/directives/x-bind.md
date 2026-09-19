@@ -108,12 +108,12 @@
 
 **值分派**（通用规则 + 四个特判键）：
 
-| 值 | 结果 |
-| --- | --- |
-| `true` | 裸属性（presence 语义，任意键通用——`aria-*`、`data-*`、自定义属性不在布尔白名单也能生效） |
-| `false` / `null` / `undefined` | 移除属性 |
-| `string` / `number` | `String()` 后写入 |
-| `object` / `array` | warn + 剔除（无法表达为属性值） |
+| 值                             | 结果                                                                                      |
+| ------------------------------ | ----------------------------------------------------------------------------------------- |
+| `true`                         | 裸属性（presence 语义，任意键通用——`aria-*`、`data-*`、自定义属性不在布尔白名单也能生效） |
+| `false` / `null` / `undefined` | 移除属性                                                                                  |
+| `string` / `number`            | `String()` 后写入                                                                         |
+| `object` / `array`             | warn + 剔除（无法表达为属性值）                                                           |
 
 四个特判键 `class` / `style` / `value` / `checked` 复用单属性绑定的同一套分派：
 
@@ -135,9 +135,7 @@
 
 **指令屏障**：展开出的键**永不作为指令编译**。`x-bind="{ 'x-text': 'msg' }"` 只会把 `x-text="msg"` 作为普通属性写上去（字面值、不执行），并给出 warn 提示。
 
-### 修饰符
-
-#### `.invert`
+### 求值结果取反
 
 对求值结果**取反**（`!value`），语义化用于**反向词汇映射**——状态词汇与 DOM 属性词汇语义相反的场景。状态绑定与 `@` 配置绑定均生效：
 
@@ -147,11 +145,11 @@
 <!-- state.editable=false → !false=true → 禁用；editable=true → 解除 -->
 
 <!-- 配置绑定：schema.enable（true=可用）→ disabled，x-model 元数据注入即此形态 -->
-<input :disabled.invert="order.price@enable"/>
+<input :disabled.invert="order.price@enable" />
 <!-- schema.enable=true → 不禁用；enable=false → 禁用 -->
 
 <!-- 等价指令选项（ADR-0007：修饰符即指令选项） -->
-<input :disabled="order.price@enable" x-bind-options="{invert:true}"/>
+<input :disabled="order.price@enable" x-bind-options="{invert:true}" />
 ```
 
 **适用范围**：boolean 型属性（`disabled` / `readonly` / `hidden` / `selected` / `multiple`）。对非布尔属性无意义——任意值 `!` 后恒为布尔（字符串 `"x"` → `true` → `setAttribute(attr,"")`），引擎不禁止，但请遵守约定。
@@ -162,9 +160,9 @@
 
 `x-bind` 的指令值即要绑定的表达式。修饰符 `.invert`（值取反，见上文）；经 `x-bind-options` 声明的配置项：
 
-| 配置项   | 类型   | 说明                                       |
-| -------- | ------ | ------------------------------------------ |
-| `invert` | 布尔   | 同 `.invert` 修饰符：求值结果取反          |
+| 配置项   | 类型 | 说明                              |
+| -------- | ---- | --------------------------------- |
+| `invert` | 布尔 | 同 `.invert` 修饰符：求值结果取反 |
 
 ::: info 关于指令配置体系
 指令选项 / 修饰符 / 宿主选项 / 两层回退的通用机制见[指令配置](../config.md)。

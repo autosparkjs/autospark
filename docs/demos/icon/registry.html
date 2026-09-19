@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 注册表与动态联动</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section" style="max-width: 560px">
+            <h1 class="title is-5">注册表 AutoSpark.icons</h1>
+            <p class="subtitle is-6">编程增删 + 未命中占位 → 注册后自动补渲染</p>
+
+            <template x-icon-define="star">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11.5 3.8 9 8.8l-5.5.8 4 3.9-1 5.5 5-2.7 5 2.7-1-5.5 4-3.9-5.5-.8Z"/></svg>
+            </template>
+
+            <!-- 未注册：渲染默认图标（缺图不破相）；注册后自动变为真图标，删除后回退 -->
+            <div class="box">
+                <span style="font-size: 24px"><span x-icon="late" id="late-icon"></span></span>
+                <span><code>late</code> 当前显示：<code x-text="lateClass"></code></span>
+            </div>
+
+            <div class="field has-addons">
+                <p class="control">
+                    <button class="button is-primary" onclick="addLate()">icons.add("late", svg)</button>
+                </p>
+                <p class="control">
+                    <button class="button is-light" onclick="delLate()">icons.delete("late")</button>
+                </p>
+            </div>
+
+            <hr />
+            <h2 class="title is-6">遍历产出名称字符串</h2>
+            <!-- x-for 容器/项模板分离：宿主（容器）渲染一次，元素子节点为项模板 -->
+            <div class="tags" x-for="name of names" :key="name">
+                <span class="tag is-light" x-text="name"></span>
+            </div>
+        </div>
+
+        <script>
+            const icons = AutoSparkSpaces.AutoSpark.icons;
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                names: [...icons],
+                lateClass: "as-icon default",
+            });
+            function syncNames() {
+                engine.state.names = [...icons];
+                // 注册表变更联动是同步的：add/delete 后类已就位，读 DOM 回填展示
+                engine.state.lateClass =
+                    document.getElementById("late-icon")?.className?.trim() ?? "";
+            }
+            function addLate() {
+                icons.add(
+                    "late",
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><circle cx="12" cy="12" r="4"/></svg>',
+                );
+                syncNames();
+            }
+            function delLate() {
+                icons.delete("late");
+                syncNames();
+            }
+        </script>
+    </body>
+</html>

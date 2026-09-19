@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-form · 声明表单：绑定全局状态（x-form 空）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 方式一：x-form（空）= 行为壳——不建数据，字段经绝对路径引用全局状态。
+             登录方式切换（select）驱动字段联动（模板表达式 x-if），记住密码 checkbox -->
+        <div class="demo-app section">
+            <form x-form @submit="doLogin">
+                <div class="field">
+                    <label class="label">登录方式</label>
+                    <div class="control">
+                        <div class="select">
+                            <select x-field="login.method">
+                                <option value="username">用户名密码</option>
+                                <option value="email-code">邮件验证码</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">用户名</label>
+                    <div class="control">
+                        <input class="input" x-field="login.username" placeholder="请输入用户名" />
+                    </div>
+                </div>
+                <!-- 联动：仅「用户名密码」方式显示密码框（模板表达式，全局状态路径） -->
+                <div class="field" x-if="login.method === 'username'">
+                    <label class="label">密码</label>
+                    <div class="control">
+                        <input class="input" type="password" x-field="login.password" placeholder="请输入密码" />
+                    </div>
+                </div>
+                <!-- 联动：仅「邮件验证码」方式显示验证码框 -->
+                <div class="field" x-if="login.method === 'email-code'">
+                    <label class="label">验证码</label>
+                    <div class="control is-flex">
+                        <input class="input mr-2" x-field="login.emailCode" placeholder="6 位验证码" />
+                        <button type="button" class="button is-light" @click="sendCode">发送验证码</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="checkbox">
+                        <input type="checkbox" x-field="login.remember" />
+                        记住密码
+                    </label>
+                </div>
+                <div class="buttons">
+                    <button type="submit" class="button is-primary">登 录</button>
+                </div>
+            </form>
+            <p class="help">
+                全局状态（表单外同源可见）：login.method = <strong x-text="login.method"></strong>
+            </p>
+            <p class="notification is-info is-light" x-show="result">
+                提交数据：<strong x-text="result"></strong>
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    // 状态在构造入参声明（全局），x-form 一字不建
+                    login: {
+                        method: "username",
+                        username: "fisher",
+                        password: "",
+                        emailCode: "",
+                        remember: false,
+                    },
+                    result: "",
+                },
+                {
+                    actions: {
+                        doLogin() {
+                            engine.store.state.result = JSON.stringify(
+                                engine.store.state.login,
+                            );
+                        },
+                        sendCode() {
+                            alert("验证码已发送（演示）");
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>
