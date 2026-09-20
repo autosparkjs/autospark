@@ -288,6 +288,10 @@ _Avoid_: 格式化器（泛化）、读取函数
 x-model **写入方向**的输入值拆解（如 `user.first=$value`），把 DOM 输入写回一个或多个状态字段。经 `x-model-options="{set:'...'}"` 声明。与 getter 方向相反。
 _Avoid_: 解析器（泛化）、写入函数
 
+**toInput / toState（schema 视图转换）**:
+autostore `AutoStateSchemaBase` 元数据键，x-field 消费：`toInput`（state→输入值）与 `toState`（输入值→state）互为逆变换（如 sex：`1 ↔ "男"`）。声明 toInput 即**接管空值显示**（default 回填与 select 首项兜底退出，空值恒喂给 toInput）；显式 `get` 优先于 toInput（toState 无模板侧竞争者——x-field 的 `set` 恒直写）。写管道序：修饰符 → toState → 写 state（toState 落 `_writeToState` 统一出口入口，autoSelect 回写全过）。仅 schema 来源（函数进不了 relaxed-json）；created 期静态读取，后注册不生效。声明 toInput 后 `$field.value` 即「字段输入值」。详见 ADR-0050。
+_Avoid_: 与 getter/setter 混称（get/set 是模板侧字符串表达式/action，toInput/toState 是 schema 侧函数）、「状态转换」（只转视图通道——form 层快照/getState 恒原始状态值）、视图格式化器（泛化）
+
 **只读降级（Read-only Degradation）**:
 表达式/computed 无 setter 时，x-model 退化为单向 state→DOM（DOM→state 静默），`logger.warn` 一次，不抛错、不魔法猜左值。
 _Avoid_: 只读模式（泛化）
@@ -351,7 +355,7 @@ _Avoid_: 表单组件（它不渲染 UI）、独立表单 store（已否决—�
 _Avoid_: 字段组件、自动渲染器（已否决——不生成模板）、表单版 x-model（它是超集，双向绑定只是其一面）
 
 **字段上下文 / $field**:
-x-field 注入后代作用域的 **Proxy 对象**：`.value`（字段状态值，读写）、`.error`（校验错误）、`.onInput`/`.onChange`（写方向事件封装）、`.xxx`（任意 configurable 元数据，经元数据覆盖链解析）。响应式三分层：value 靠根 store 依赖收集穿透；error 与动态控制白名单（enable/visible/disabled/readOnly）靠 configManager.watch 桥接 + refresh；其余静态快照。作为 `x-bind` 展开源时暴露控件展开键集。详见 ADR-0045。
+x-field 注入后代作用域的 **Proxy 对象**：`.value`（**字段输入值**，读写——schema 声明 toInput/toState 时为转换后的输入值，未声明即状态值，ADR-0050）、`.error`（校验错误）、`.onInput`/`.onChange`（写方向事件封装）、`.xxx`（任意 configurable 元数据，经元数据覆盖链解析）。响应式三分层：value 靠根 store 依赖收集穿透；error 与动态控制白名单（enable/visible/disabled/readOnly）靠 configManager.watch 桥接 + refresh；其余静态快照。作为 `x-bind` 展开源时暴露控件展开键集。详见 ADR-0045、ADR-0050。
 _Avoid_: 字段元数据对象（它含动态值与事件封装，不止元数据）、field props、`$field.input` 属性包（grilling 中间形态，已并入本体）
 
 **控件展开键集 / Control Spread Whitelist**:
@@ -383,6 +387,10 @@ _Avoid_: svg 图标（那是数据形态）、icon 组件（无组件机制参�
 **默认图标 / Default Icon**:
 图标注册表**未命中**（未注册或已删除）时替换渲染的内置回退图标（保留尺寸、照常 warn）——「缺图不破相」。以内置条目形态驻注册表（名为 `default`，可被用户同名覆盖；其被删除则未命中退回空占位）。
 _Avoid_: 空占位（已否决的未命中姿态——只保尺寸无内容）、fallback 图标（英文别名）、占位图标（与「空值占位」词条撞形）
+
+**图标按钮 / Icon Button**:
+`x-icon` 的 `button` 选项（修饰符 `.button`）声明的**纯视觉交互态**：hover / press 动效 + 隐含手型光标。**载体动效**——动效作用于既有视觉载体（非 badge = 图形本身加深/缩放；badge = 底板梯度加深/整体缩放），不新增视觉结构、不改布局占位；与 badge（管「板常驻」）正交。只做视觉可供性，**不承载控件语义**（无 role/tabindex/键盘激活）——点击行为归用户 `@click` 声明。详见 ADR-0049。
+_Avoid_: button 组件（无组件机制参与）、可点击图标（视觉可供性与控件语义分离）、图标控件（语义升级歧义）
 
 **图标定义 / x-icon-define（Icon Definition）**:
 `<template x-icon-define="名称">` 声明的**声明性资源**（与 x-component 同构）：编译期前置 collector 拦截，取首个 `<svg>` 子元素上交全局图标注册表后剪枝（不进结果 DOM，指令类仅名位）。同名覆盖 + warn 去重。

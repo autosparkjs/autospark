@@ -70,16 +70,28 @@
 
 ### 修饰
 
-两个外观修饰选项（均可作修饰符快捷写法，走四级配置链）：
+三个外观修饰选项（均可作修饰符快捷写法，走四级配置链）：
 
 | 选项        | 修饰符写法        | 效果                                                                                                    |
 | ----------- | ----------------- | ------------------------------------------------------------------------------------------------------- |
-| `badge`     | `x-icon.badge`    | 图标底板——**比 currentColor 淡的圆角矩形背景**（`currentColor 5%`，随宿主文字色联动）；**默认 `padding: 0.3em` 作用于底板**（板与图形的间距，总占位 = size + 2×padding，图形恒 size 不放大——显式 `padding` 声明优先，`padding:0` 板贴图形） |
+| `badge`     | `x-icon.badge`    | 图标底板——**比 currentColor 淡的圆角矩形背景**（`currentColor 5%`，随宿主文字色联动）。标量三形态（形态即启用）：`true` 开关（**默认 `padding: 0.3em` 作用于底板**）、`number` / `string` **自定义板 padding**（如 `{badge:'1em'}`，压倒独立 `padding` 选项）；总占位 = size + 2×板 padding，图形恒 size 不放大 |
+| `button`    | `x-icon.button`   | 图标按钮——hover / press 交互动效（**载体动效**，见下节）；**隐含手型光标**（类规则承载，不经内联）       |
 | `pointer`   | `x-icon.pointer`  | 手型光标 `cursor: pointer`（可点击语义）                                                                |
 
 <demo html="icon/decorate.html"/>
 
 `badge` 走**包裹层通道**：宿主的 mask 裁剪整个元素渲染（含伪元素与阴影——伪元素板实测不可见），底板必须由**不受该 mask 影响的独立盒**承载——指令自动为 badge 实例包裹一层 `<span class="as-icon-badge">`（板：圆角 + 淡色背景），图标子元素完整渲染居中其中。板色经 `color-mix` 引用 `currentColor`，改宿主 `color` 即换底板色，与图标色天然同源。注意：包裹层会引入一层 DOM——`.parent > .as-icon` 之类**子选择器**在 badge 场景会断开，请用后代选择器。
+
+### 图标按钮
+
+<demo html="icon/button.html"/>
+
+`button` 声明**纯视觉的图标按钮交互态**：hover / press 动效 + 隐含手型光标。两个设计原则：
+
+- **载体动效**：不新增任何视觉结构、不改布局占位，动效作用于**既有视觉载体**——未开 `badge` 时载体是图形本身（hover 加深 `brightness(.75)` + press 缩放 `scale(.9)`）；开 `badge` 时载体是底板（板色三梯度加深 `5% → hover 10% → press 15%` + press 整体缩放 `scale(.94)`，图形本身不动）。与 `badge`（管「板常驻」）正交：`badge + button` = 常驻板 + 板动效
+- **纯视觉可供性**：不承载控件语义（无 `role` / `tabindex` / 键盘激活）——点击行为归用户 `@click` 声明，需要真按钮时包 `<button>` 元素
+
+实现注记：hover 加深走 `filter: brightness` 作用在 mask 渲染结果上，而非改色——宿主 `background-color` 是图标颜色通道（`color` 选项内联该属性，类规则 hover 打不过内联）。暗色主题（浅色图形）下 brightness 会降低对比，为已知取舍——要主题化反向动效（如变淡）用同名 CSS 覆盖 `.as-icon-button:hover` 规则即可。触发走纯 CSS `:hover` / `:active`（零事件监听，触屏同样生效）；动效参数内置常量。
 
 ### 动态注册联动
 
@@ -162,6 +174,9 @@ AutoSpark.icons.options = { strokeWidth: 1.5, size: 20, color: "#485fc7", paddin
 | `size`        | `number \| string` | `"1em"`        | 宽高（图形区）。数字 → `Npx`，字符串直传 CSS                                                                               |
 | `color`       | `string`           | `currentColor` | 图标颜色（内联 `background-color`，默认随文字色）                                                                          |
 | `padding`     | `number \| string` | —              | 内边距（图形区之外），单位语义同 `size`，总占位 = size + 2×padding                                                         |
+| `badge`       | `boolean \| number \| string` | —   | 图标底板（淡色圆角背景板，包裹层通道）。`true` 开关（板 padding 默认 `0.3em`，显式 `padding` 声明优先）；`number` / `string` 自定义板 padding（数字 → px，值压倒独立 `padding` 选项） |
+| `button`      | `boolean`          | —              | 图标按钮（hover / press 载体动效，隐含手型光标），见「图标按钮」                                                           |
+| `pointer`     | `boolean`          | —              | 手型光标 `cursor: pointer`（可点击语义）                                                                                   |
 
 ## 注意事项
 

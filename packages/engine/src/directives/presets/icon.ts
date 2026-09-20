@@ -4,6 +4,7 @@ import {
     refreshIconStyle,
     ICON_BASE_CLASS,
     ICON_BADGE_CLASS,
+    ICON_BUTTON_CLASS,
     type IconChangeAction,
 } from "../../icons/registry";
 import {
@@ -18,6 +19,9 @@ import {
 
 /** 未命中 warn 按 name 去重（响应式重渲染不刷屏） */
 const missWarned = new Set<string>();
+
+/** badge 无效值 warn 按 String(v) 去重（动态重渲染不刷屏） */
+const badgeWarned = new Set<string>();
 
 /** 远程规则样式表 id（指令自管，与注册表的 autospark-icons 分离——互不耦合脏标记） */
 const REMOTE_STYLE_ID = "autospark-icons-remote";
@@ -179,7 +183,6 @@ export class IconDirective extends AutoSparkDirectiveBase {
         }
         if (!missWarned.has(name)) {
             missWarned.add(name);
-            this.warn(`图标 "${name}" 未注册，渲染默认图标（注册后自动补渲染）`);
         }
         this.missName = name;
         const fallback = iconRegistry.has("default") ? "default" : null;
@@ -218,7 +221,6 @@ export class IconDirective extends AutoSparkDirectiveBase {
                 this.remotePending = false;
                 const fallback = iconRegistry.has("default") ? "default" : null;
                 if (fallback) this.hasVisual = true;
-                this.warn(`远程图标 "${key}" 加载失败: ${(err as Error)?.message ?? err}`);
                 this._applyClasses(fallback);
                 this._clearRemoteAttr();
                 this._applyInlineMask(null);
@@ -299,9 +301,45 @@ export class IconDirective extends AutoSparkDirectiveBase {
     }
 
     /**
+     * badge 选项归一化（标量三形态，**形态即启用**）：boolean true / number 板 padding
+     * （→ px，须 ≥ 0 且有限，否则 warn + 按 true）/ string 板 padding（CSS 值直传，
+     * 空串按布尔 true）。false / null / undefined 未启用；其他类型 warn 剪枝为未启用。
+     * 返回 null = 未启用；pad null = 板 padding 走「显式 padding 选项 > 默认 0.3em」链
+     * （badge 带值时压倒独立 padding 选项——badge 的值就是板 padding 的就近声明）。
+     */
+    private _badge(): { pad: string | null } | null {
+        const v = this._opt("badge");
+        if (v == null || v === false) return null;
+        if (v === true) return { pad: null };
+        if (typeof v === "number") {
+            if (Number.isFinite(v) && v >= 0) return { pad: `${v}px` };
+            this._warnBadge(v, "板 padding 须为非负数字，按默认 padding 渲染");
+            return { pad: null };
+        }
+        if (typeof v === "string") {
+            const pad = v.trim();
+            if (pad === "") return { pad: null };
+            return { pad };
+        }
+        this._warnBadge(v, "仅支持 boolean | number（板 padding px）| string（板 padding 值），已忽略");
+        return null;
+    }
+
+    /** badge 无效值 warn（按 String(v) 去重） */
+    private _warnBadge(v: unknown, why: string): void {
+        const key = String(v);
+        if (!badgeWarned.has(key)) {
+            badgeWarned.add(key);
+            this.warn(`badge 选项 "${key}" 无效：${why}`);
+        }
+    }
+
+    /**
      * 选项静态样式（每次渲染重放，对称写/清——全局配置变更可回收旧值）：
      * size 默认 1em 走基础规则、padding 默认无、color 默认 currentColor，均为显式声明才内联。
-     * 修饰：badge 挂修饰类（规则常驻基础样式表）；pointer 内联 cursor。
+     * 修饰：badge 挂修饰类（规则常驻基础样式表，标量三形态——true / number 板 padding /
+     * string 板 padding）；button 挂修饰类（载体动效，ADR-0049——有板挂 wrapper 作用于板、
+     * 无板挂宿主作用于图形，载体唯一不双挂）；pointer 内联 cursor。
      * 读取走四级配置链（指令 > 宿主 > 全局 > 内置）。
      */
     private _applyStaticStyle(): void {
@@ -328,25 +366,37 @@ export class IconDirective extends AutoSparkDirectiveBase {
                 : typeof padding === "string" && padding.trim() !== ""
                   ? padding
                   : null;
-        // badge 场景的内置默认 padding（板与图形的间距，总占位 = size + 2×padding）：
-        // 四级链均未声明且 badge 开启时补 0.3em——显式 padding 声明（含 0）优先
-        if (paddingCss === null && this._opt("badge") === true) paddingCss = "0.3em";
+        const badge = this._badge();
+        const wantButton = this._opt("button") === true;
+        // badge:true（无内嵌 pad）的内置默认 padding（板与图形的间距，总占位 = size + 2×padding）：
+        // 四级链均未声明时补 0.3em——显式 padding 声明（含 0）优先
+        if (paddingCss === null && badge && badge.pad === null) paddingCss = "0.3em";
         // padding 落点：badge 时作用于**包裹层**（图形恒 size——宿主 padding 会同步放大
-        // mask 绘制区（contain 于 border box）导致图形缩放）；非 badge 照旧内联宿主
-        if (this._opt("badge") === true) {
+        // mask 绘制区（contain 于 border box）导致图形缩放）；非 badge 照旧内联宿主。
+        // badge 带值时其值压倒独立 padding 选项——badge 的值就是板 padding 的就近声明
+        let wrapPad: string | null = null;
+        if (badge) {
+            wrapPad = badge.pad ?? paddingCss;
             el.style.removeProperty("padding");
-            const finalPad = paddingCss;
-            this.engine.scheduler.schedule(() => {
-                if (this.destroyed) return;
-                this._applyBadgeWrap(true);
-                const w = this.el?.parentElement;
-                if (w?.classList.contains(ICON_BADGE_CLASS)) {
-                    if (finalPad) w.style.padding = finalPad;
-                    else w.style.removeProperty("padding");
-                }
-            });
-        } else if (paddingCss) el.style.padding = paddingCss;
-        else el.style.removeProperty("padding");
+        } else {
+            if (paddingCss) el.style.padding = paddingCss;
+            else el.style.removeProperty("padding");
+        }
+        // 包裹层调度（幂等，对称写/清——全局配置变更拆包/重包均收敛）
+        this.engine.scheduler.schedule(() => {
+            if (this.destroyed) return;
+            this._applyBadgeWrap(badge !== null);
+            if (badge === null) return; // 未启用：拆包还原即收敛
+            const w = this.el?.parentElement;
+            if (!w) return;
+            if (wrapPad) w.style.padding = wrapPad;
+            else w.style.removeProperty("padding");
+            // button 载体唯一：有板归板（wrapper 整体动效）
+            w.classList.toggle(ICON_BUTTON_CLASS, wantButton);
+        });
+        // button 载体唯一：有板归板（wrapper 类在回调中挂）、无板归图形——宿主侧同步
+        // 对称写/清（挂载即生效，不经微任务）
+        el.classList.toggle(ICON_BUTTON_CLASS, wantButton && badge === null);
         const color = this._opt("color");
         if (typeof color === "string" && color.trim() !== "") el.style.backgroundColor = color;
         else el.style.removeProperty("background-color");
@@ -356,9 +406,10 @@ export class IconDirective extends AutoSparkDirectiveBase {
     }
 
     /**
-     * badge 包裹层挂/拆（幂等）：`badge:true` 时为宿主包一层同类名 wrapper（wrapper 自身
-     * 做淡色圆角板、图标子元素完整渲染不受板影响）；关闭修饰/未声明时拆包还原。
-     * 拆包用 `replaceWith` 保留宿主位置；wrapper 随子树消亡（x-if detach 等以子树为单位）。
+     * badge 包裹层挂/拆（幂等）：badge 启用时为宿主包一层同类名 wrapper（wrapper 自身
+     * 做淡色圆角板——宿主 mask 裁整个元素渲染，板必须由不受 mask 影响的独立盒承载，
+     * 图标子元素完整渲染不受板影响）；未启用时拆包还原。拆包用 `replaceWith` 保留宿主
+     * 位置；wrapper 随子树消亡（x-if detach 等以子树为单位）。
      */
     private _applyBadgeWrap(want: boolean): void {
         const el = this.el;

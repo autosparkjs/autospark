@@ -3,6 +3,7 @@ import { FormDirective, resolveFieldAbsPath } from "./form";
 import { ModelDirective } from "./model";
 import { getVal, setVal, splitPath } from "autostore";
 import { isSimpleStatePath, type AutoSparkScope } from "../../scope";
+import { TRANSFORM_ABORT, toInputValue, toStateValue } from "../utils/schema-fn";
 import type { AutoDirectiveInfo } from "../types";
 
 /** input 系 widget（可直接作 `<input type>` 的 AutoStoreWidgets 键；textarea/select 是控件标签级映射） */
@@ -54,7 +55,8 @@ function toStateExpr(segments: string[]): string {
  *
  * Proxy 对象注入宿主 scope 的 locals 层（聚合视图第一优先级 + 失效视图缓存）：
  * - `.value`：getter 读 `getVal(state, absPath)`（求值栈内依赖收集**穿透成立**，插值自动响应式）、
- *   setter `setVal` 直写；
+ *   setter `setVal` 直写；**schema 声明 toInput/toState 时即为「字段输入值」**（getter 过 toInput、
+ *   setter 过 toState，ADR-0050——未声明即状态值，读写同构）；
  * - `.error`：form 注册条目的桥接副本（value watcher 回调刷新，refresh 驱动显示）；
  * - `.onInput` / `.onChange`：写方向事件封装（控件感知读值 + 修饰符管道 + setVal，
  *   供容器形态 `x-bind="$field"` 展开挂载；稳定引用缓存避免重复挂卸）；
@@ -83,6 +85,15 @@ export class FieldDirective extends AutoSparkDirectiveBase {
         onInput: null,
         onChange: null,
     };
+    // ── schema 转换函数（ADR-0050）──────────────────────────────────
+
+    /** schema 读转换 toInput（created 期静态缓存；仅 schema 来源——函数进不了 relaxed-json，覆盖链不延伸） */
+    private _toInput: ((v: any) => any) | null = null;
+    /** schema 写转换 toState（同上） */
+    private _toState: ((v: any) => any) | null = null;
+    /** 转换函数失败 warn 去重（per-instance 一次） */
+    private _toInputWarned = false;
+    private _toStateWarned = false;
 
     /**
      * 字段的 configManager schema（ADR-0045 决策 10：schema 是增强非前提——
@@ -113,6 +124,13 @@ export class FieldDirective extends AutoSparkDirectiveBase {
         }
         this.absPath = resolveFieldAbsPath(this.binding, this._resolvePath(raw));
 
+        // schema 转换函数（ADR-0050）：created 期静态读取缓存（后注册/热替换不生效，
+        // 与 synthesizeSchemaBindings「牺牲动态性换静默」取舍一致）；仅 schema 来源——
+        // 函数字面量进不了 relaxed-json（ADR-0018），x-field-options 覆盖链对函数键不延伸
+        const schema = this.schema;
+        this._toInput = typeof schema?.toInput === "function" ? schema.toInput : null;
+        this._toState = typeof schema?.toState === "function" ? schema.toState : null;
+
         // 双形态分派（决策 3）：标准控件宿主 → 组合 ModelDirective（x-model 全部语义）
         const el = this.el;
         if (
@@ -131,6 +149,10 @@ export class FieldDirective extends AutoSparkDirectiveBase {
                     this.binding,
                     info,
                 );
+                // schema 转换函数注入（ADR-0050）：toInput 接管读方向空值显示（显式 get 优先），
+                // toState 落在 model 的 _writeToState 统一出口入口
+                this._model.toInputFn = this._toInput;
+                this._model.toStateFn = this._toState;
                 this._model.created();
             }
         }
@@ -178,7 +200,11 @@ export class FieldDirective extends AutoSparkDirectiveBase {
                 },
                 set(_t, k: string | symbol, v: any): boolean {
                     if (k === "value") {
-                        setVal(field.engine.store.state as any, splitPath(field.absPath), v);
+                        // 写方向过 toState（ADR-0050）；放弃写入（TRANSFORM_ABORT）时静默——warn 已由转换工具发出
+                        const converted = field._applyToState(v);
+                        if (converted !== TRANSFORM_ABORT) {
+                            setVal(field.engine.store.state as any, splitPath(field.absPath), converted);
+                        }
                         return true;
                     }
                     field.warn(`$field: 仅 value 可写（"${String(k)}" 为元数据/派生键，忽略写入）`);
@@ -208,10 +234,13 @@ export class FieldDirective extends AutoSparkDirectiveBase {
         const state = this.engine.store.state as Record<string, any>;
         switch (k) {
             case "value":
-                return getVal(state, this.absPath);
+                // $field.value = 字段输入值（ADR-0050）：toInput 转换（恒喂——空值也喂，
+                // 声明即接管空值显示）；未声明时即状态值
+                return this._applyToInput(getVal(state, this.absPath));
             case "checked":
-                // checkbox 布尔语义（ADR-0023 决策 2 同构：Boolean coerce）
-                return Boolean(getVal(state, this.absPath));
+                // checkbox 布尔语义（ADR-0023 决策 2 同构：Boolean coerce）+ toInput 前置转换
+                //（ADR-0050：与控件形态读方向同构——toInput 产物经 Boolean() 得勾选态）
+                return Boolean(this._applyToInput(getVal(state, this.absPath)));
             case "error":
                 return this.form?.getFieldEntry(this.absPath)?.error;
             case "onInput":
@@ -246,6 +275,29 @@ export class FieldDirective extends AutoSparkDirectiveBase {
             return this.options[k];
         }
         return this.schema?.[k];
+    }
+
+    // ── schema 转换函数应用（ADR-0050）─────────────────────────────
+
+    /** 读方向 toInput 应用：恒喂（空值也喂，接管语义）、数组逐项；未声明原样返回 */
+    private _applyToInput(v: any): any {
+        if (!this._toInput) return v;
+        return toInputValue(this._toInput, v, (m) => this._warnTransform("toInput", m));
+    }
+
+    /** 写方向 toState 应用：数组逐项；任一项失败放弃整次写入（返回 TRANSFORM_ABORT） */
+    private _applyToState(v: any): any {
+        if (!this._toState) return v;
+        return toStateValue(this._toState, v, (m) => this._warnTransform("toState", m));
+    }
+
+    /** 转换函数失败 warn（per-instance 去重一次） */
+    private _warnTransform(kind: "toInput" | "toState", msg: string): void {
+        const warned = kind === "toInput" ? this._toInputWarned : this._toStateWarned;
+        if (warned) return;
+        if (kind === "toInput") this._toInputWarned = true;
+        else this._toStateWarned = true;
+        this.warn(`x-field: "${this.absPath}" 的 schema.${kind} ${msg}`);
     }
 
     /**
@@ -304,8 +356,12 @@ export class FieldDirective extends AutoSparkDirectiveBase {
             } else {
                 v = el.value;
             }
+            // 写管道（ADR-0050）：修饰符（输入规范化）→ toState（业务转换）→ 写 state；
+            // toState 放弃写入（TRANSFORM_ABORT）时静默返回——warn 已由转换工具发出
+            const converted = this._applyToState(this._applyModifiers(v));
+            if (converted === TRANSFORM_ABORT) return;
             try {
-                setVal(this.engine.store.state as any, splitPath(this.absPath), this._applyModifiers(v));
+                setVal(this.engine.store.state as any, splitPath(this.absPath), converted);
             } catch (err: any) {
                 // 校验 throw 模式拒绝写入（ValidateError）：错误已由 autostore 记入 store.errors
                 //（决策 5 桥接可见），中断无益——warn 不打断事件流

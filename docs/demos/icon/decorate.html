@@ -26,11 +26,13 @@
 
     <body>
         <div class="demo-app section icons-demo">
-            <!-- badge：比 currentColor 淡的圆角矩形底板（伪元素通道，色随宿主文字色） -->
+            <!-- badge：比 currentColor 淡的圆角矩形底板（伪元素通道，色随宿主文字色）
+                 三形态：true 默认板 padding 0.3em / number|string 自定义板 padding -->
             <p>
                 普通：<span x-icon="bell"></span>
                 badge：<span x-icon.badge="bell"></span>
                 badge + padding：<span x-icon.badge="bell" x-icon-options="{padding:6}"></span>
+                badge:'1em'：<span x-icon="bell" x-icon-options="{badge:'1em'}"></span>
             </p>
             <p style="color: #f03d5e">
                 红色跟随：<span x-icon="heart"></span>

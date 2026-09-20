@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 图标按钮（button 载体动效）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .icons-demo {
+                font-size: 24px;
+                line-height: 2.4;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section icons-demo">
+            <!-- 载体动效对比：动效作用于既有视觉载体，不新增结构、不改布局占位 -->
+            <p>
+                普通（无动效）：<span x-icon="bell"></span>
+            </p>
+            <p style="color: #f03d5e">
+                button（载体 = 图形：hover 加深 / press 缩放）：
+                <span x-icon.button="heart"></span>
+            </p>
+            <p style="color: #485fc7">
+                badge + button（载体 = 底板：hover/press 板加深、按下整体缩放）：
+                <span x-icon.badge.button="star"></span>
+            </p>
+
+            <!-- button 隐含手型光标；点击行为归 @click 声明（纯视觉动效，无控件语义） -->
+            <p>
+                组合 @click：
+                <span x-icon.badge.button="close"
+                      @click="alert('已关闭（演示）')"></span>
+                <span x-icon.button="bell"
+                      @click="count++"
+                      :title="'点击次数：' + count"></span>
+                （悬停加深 + 手型光标，按下有缩放反馈）
+            </p>
+            <p class="help is-size-6">
+                悬停 / 按下上图标体验动效：button 未开 badge 时动效作用于图形本身（brightness 加深 + scale 缩放）；
+                开 badge 时动效作用于底板（currentColor 5% → hover 10% → press 15% + 整体 scale 0.94），图形不动。
+            </p>
+        </div>
+
+        <script>
+            const { iconRegistry } = AutoSparkSpaces;
+            // 注册 demo 图标（bell/heart/star/close——本地图标稳定演示）
+            iconRegistry.add(
+                "bell",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+            );
+            iconRegistry.add(
+                "heart",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>',
+            );
+            iconRegistry.add(
+                "star",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1Z"/></svg>',
+            );
+            iconRegistry.add(
+                "close",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+            );
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), { count: 0 });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-field · 字段拆分（一个 IP 拆四段输入框）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 字段拆分：server.ip 一个字段拆成 4 段输入框。
+             容器形态 x-field 声明字段域（注册进表单：校验/dirty/reset/getState 全覆盖），
+             段输入框各显示一段（$field.value 响应式读），编辑经 action 重组写回。
+             控件形态是直写绑定、不支持 x-model 的 get/set 变换——拆分走容器 + action -->
+        <div class="demo-app section">
+            <form x-form="server">
+                <div x-field="ip">
+                    <label class="label">IP 地址（4 段共享同一字段）</label>
+                    <div class="field has-addons">
+                        <p class="control">
+                            <input class="input" style="width: 80px"
+                                   :value="String($field.value).split('.')[0]"
+                                   @input="setOctet(0, $event.target.value)" />
+                        </p>
+                        <p class="control"><span class="button is-static">.</span></p>
+                        <p class="control">
+                            <input class="input" style="width: 80px"
+                                   :value="String($field.value).split('.')[1]"
+                                   @input="setOctet(1, $event.target.value)" />
+                        </p>
+                        <p class="control"><span class="button is-static">.</span></p>
+                        <p class="control">
+                            <input class="input" style="width: 80px"
+                                   :value="String($field.value).split('.')[2]"
+                                   @input="setOctet(2, $event.target.value)" />
+                        </p>
+                        <p class="control"><span class="button is-static">.</span></p>
+                        <p class="control">
+                            <input class="input" style="width: 80px"
+                                   :value="String($field.value).split('.')[3]"
+                                   @input="setOctet(3, $event.target.value)" />
+                        </p>
+                    </div>
+                </div>
+                <p class="help">
+                    getState() = <strong x-text="JSON.stringify($form.getState())"></strong>
+                </p>
+                <p class="help">编辑任一段，其余段保持不变，完整 IP 实时同步到状态</p>
+            </form>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { server: { ip: "192.168.1.100" } },
+                {
+                    actions: {
+                        // 把第 index 段替换后重组写回——state 是唯一真相源，各段显示随状态自动重放
+                        setOctet: function (index, v) {
+                            const parts = String(this.state.server.ip).split(".");
+                            parts[index] = v;
+                            this.state.server.ip = parts.join(".");
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

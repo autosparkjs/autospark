@@ -631,7 +631,7 @@ describe("AutoSpark.icons.options 全局默认配置（四级链：指令 > 宿�
     });
 });
 
-describe("x-icon 修饰选项（badge / pointer）", () => {
+describe("x-icon 修饰选项（badge / pointer / button）", () => {
     test("badge：挂载后包裹 as-icon-badge 底板层（宿主 mask 裁伪元素，板必须独立盒承载）", async () => {
         const { root } = mount(
             `${iconTpl("b1", "M1")}<span x-icon="b1" x-icon-options="{badge:true}"></span>`,
@@ -714,5 +714,135 @@ describe("x-icon 修饰选项（badge / pointer）", () => {
 
     test("比例固定：基础规则内置 aspect-ratio:1", () => {
         expect(document.getElementById("autospark-icons")!.textContent).toContain("aspect-ratio:1");
+    });
+
+    test("button：宿主挂 as-icon-button 类（载体动效——hover 加深 + press 缩放，规则常驻样式表）", () => {
+        const { root: r1 } = mount(`${iconTpl("c1", "M1")}<span x-icon.button="c1"></span>`, {});
+        expect(r1.querySelector(".as-icon")!.classList.contains("as-icon-button")).toBe(true);
+        // 未声明不挂（对称写/清）
+        const { root: r2 } = mount(`${iconTpl("c2", "M2")}<span x-icon="c2"></span>`, {});
+        expect(r2.querySelector(".as-icon")!.classList.contains("as-icon-button")).toBe(false);
+        // 宿主规则常驻：filter:brightness 加深（避开 background-color 通道——color 选项
+        // 内联该属性，类规则 hover 打不过内联）+ press 缩放 + pointer 隐含
+        const sheet = document.getElementById("autospark-icons")!.textContent!;
+        expect(sheet).toContain(
+            ".as-icon.as-icon-button{transition:filter .15s ease,transform .15s ease;cursor:pointer}",
+        );
+        expect(sheet).toContain(".as-icon.as-icon-button:hover{filter:brightness(.75)}");
+        expect(sheet).toContain(".as-icon.as-icon-button:active{transform:scale(.9)}");
+    });
+
+    test("button + badge：动效载体是板——wrapper 挂 button 类、宿主不挂（载体唯一防双动效）", async () => {
+        const { root } = mount(`${iconTpl("c3", "M3")}<span x-icon.badge.button="c3"></span>`, {});
+        await nextTick(); // 包裹在挂载后微任务执行
+        const el = root.querySelector(".as-icon")!;
+        expect(el.classList.contains("as-icon-button")).toBe(false);
+        expect(el.parentElement!.classList.contains("as-icon-badge")).toBe(true);
+        expect(el.parentElement!.classList.contains("as-icon-button")).toBe(true);
+        // 板梯度规则：静置 5%（BADGE_RULE）→ hover 10% → active 15% + wrapper 整体缩放
+        const sheet = document.getElementById("autospark-icons")!.textContent!;
+        expect(sheet).toContain(
+            ".as-icon-badge.as-icon-button:hover{background:color-mix(in srgb,currentColor 10%,transparent)}",
+        );
+        expect(sheet).toContain(
+            ".as-icon-badge.as-icon-button:active{background:color-mix(in srgb,currentColor 15%,transparent);transform:scale(.94)}",
+        );
+    });
+
+    test("button 隐含 pointer：类规则承载 cursor 不走内联（pointer 选项保持独立可用）", () => {
+        const { root: r1 } = mount(`${iconTpl("c4", "M4")}<span x-icon.button="c4"></span>`, {});
+        expect(r1.querySelector(".as-icon")!.style.cursor).toBe("");
+        const { root: r2 } = mount(`${iconTpl("c5", "M5")}<span x-icon.pointer="c5"></span>`, {});
+        expect(r2.querySelector(".as-icon")!.style.cursor).toBe("pointer");
+    });
+
+    test("button 走全局配置链（icons.options 整体赋值生效）", () => {
+        const { root } = mount(`${iconTpl("c6", "M6")}<span x-icon="c6"></span>`, {});
+        const el = root.querySelector(".as-icon")!;
+        expect(el.classList.contains("as-icon-button")).toBe(false);
+        // options setter 同步广播 → 重渲染同步挂类（类挂载不经 scheduler，无需 nextTick）
+        iconRegistry.options = { button: true };
+        expect(el.classList.contains("as-icon-button")).toBe(true);
+    });
+
+    test("badge 三形态：true 默认 padding；number → px；string 值直传（形态即启用）", async () => {
+        // number → px 板 padding
+        const { root: r1 } = mount(
+            `${iconTpl("d1", "M1")}<span x-icon="d1" x-icon-options="{badge:6}"></span>`,
+            {},
+        );
+        await nextTick();
+        const w1 = r1.querySelector(".as-icon")!.parentElement!;
+        expect(w1.classList.contains("as-icon-badge")).toBe(true);
+        expect(w1.style.padding).toBe("6px");
+        expect(r1.querySelector(".as-icon")!.style.padding).toBe(""); // 宿主恒无 padding
+        // string → CSS 值直传（如 1em）
+        const { root: r2 } = mount(
+            `${iconTpl("d2", "M2")}<span x-icon="d2" x-icon-options="{badge:'1em'}"></span>`,
+            {},
+        );
+        await nextTick();
+        const w2 = r2.querySelector(".as-icon")!.parentElement!;
+        expect(w2.classList.contains("as-icon-badge")).toBe(true);
+        expect(w2.style.padding).toBe("1em");
+        // true → 默认 0.3em（走「显式 padding 选项 > 默认」链）
+        const { root: r3 } = mount(
+            `${iconTpl("d3", "M3")}<span x-icon="d3" x-icon-options="{badge:true}"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(r3.querySelector(".as-icon")!.parentElement!.style.padding).toBe("0.3em");
+        // 显式 0（板贴图形）合法
+        const { root: r4 } = mount(
+            `${iconTpl("d4", "M4")}<span x-icon="d4" x-icon-options="{badge:0}"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(r4.querySelector(".as-icon")!.parentElement!.style.padding).toBe("0px");
+    });
+
+    test("badge 带值压倒独立 padding 选项（就近声明）；badge:true 时显式 padding 优先于默认", async () => {
+        // {badge:'1em', padding:6} → 板 padding 1em（badge 值是板 padding 的就近声明）
+        const { root: r1 } = mount(
+            `${iconTpl("d5", "M5")}<span x-icon="d5" x-icon-options="{badge:'1em',padding:6}"></span>`,
+            {},
+        );
+        await nextTick();
+        const icon1 = r1.querySelector(".as-icon")!;
+        expect(icon1.parentElement!.style.padding).toBe("1em");
+        expect(icon1.style.padding).toBe(""); // 有板时宿主 padding 恒清
+        // {badge:true, padding:6} → 独立 padding 优先于默认 0.3em（原语义不变）
+        const { root: r2 } = mount(
+            `${iconTpl("d6", "M6")}<span x-icon="d6" x-icon-options="{badge:true,padding:6}"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(r2.querySelector(".as-icon")!.parentElement!.style.padding).toBe("6px");
+    });
+
+    test("badge 无效值降级：负数 warn + 按默认 padding；空串按 true；对象形态剪枝未启用", async () => {
+        // 负数 → 降级为 true（默认 0.3em）
+        const { root: r1 } = mount(
+            `${iconTpl("d7", "M7")}<span x-icon="d7" x-icon-options="{badge:-1}"></span>`,
+            {},
+        );
+        await nextTick();
+        const w1 = r1.querySelector(".as-icon")!.parentElement!;
+        expect(w1.classList.contains("as-icon-badge")).toBe(true);
+        expect(w1.style.padding).toBe("0.3em");
+        // 空串 → 按 true
+        const { root: r2 } = mount(
+            `${iconTpl("d8", "M8")}<span x-icon="d8" x-icon-options="{badge:''}"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(r2.querySelector(".as-icon")!.parentElement!.style.padding).toBe("0.3em");
+        // 对象形态 → warn 剪枝为未启用（不包裹）
+        const { root: r3 } = mount(
+            `${iconTpl("d9", "M9")}<span x-icon="d9" x-icon-options="{badge:{pad:'1em'}}"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(r3.querySelector(".as-icon")!.classList.contains("as-icon-badge")).toBe(false);
     });
 });

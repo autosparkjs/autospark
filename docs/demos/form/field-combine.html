@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-field · 字段组合（姓名两字段合一输入框）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 字段组合：user.first + user.last 合显为一个全名输入框。
+             组合框本身没有单一状态路径、不是字段——它是派生视图（:value 表达式显示，
+             字段值变更自动重放）+ 写回 action（拆解到各字段）；
+             first/last 仍是正经 x-field：校验 / 快照 / getState 照常 -->
+        <div class="demo-app section">
+            <form x-form="user">
+                <div class="field">
+                    <label class="label">名（x-field 控件形态）</label>
+                    <div class="control">
+                        <input class="input" x-field="first" />
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">姓（x-field 控件形态）</label>
+                    <div class="control">
+                        <input class="input" x-field="last" />
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">全名（组合视图：表达式显示 + action 拆回）</label>
+                    <div class="control">
+                        <input class="input" :value="user.first + ' ' + user.last"
+                               @input="splitName($event.target.value)" />
+                    </div>
+                </div>
+                <p class="help">
+                    getState() = <strong x-text="JSON.stringify($form.getState())"></strong>
+                </p>
+            </form>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { user: { first: "san", last: "zhang" } },
+                {
+                    actions: {
+                        // 把「名 姓」按空格拆回两个字段（编辑组合框的写回通道）
+                        splitName: function (v) {
+                            const parts = String(v).split(" ");
+                            this.state.user.first = parts[0] ?? "";
+                            this.state.user.last = parts[1] ?? "";
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

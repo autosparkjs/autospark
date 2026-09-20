@@ -26,7 +26,7 @@
 
 ### 声明表单
 
-`x-form`指令于在`form`元素中创建一个实时响应式表单。
+`x-form` 指令用于在 `form` 元素中创建一个实时响应式表单。
 
 | 值形态           | 语义                                                                                          | 适用                            |
 | ---------------- | --------------------------------------------------------------------------------------------- | ------------------------------- |
@@ -60,11 +60,23 @@ x-form 只能声明在 `<form>` 元素上；表单数据恒挂私有域（`mount
 
 ### 声明字段
 
-`x-field`指令于在`x-form/form`元素内部创建响应式表单字段。
+`x-field` 指令用于在 `x-form` 表单内部创建响应式表单字段。**必须声明在 `x-form` 内**（沿作用域链就近查找所属表单，含表单元素自身），脱离表单则编译期报错、指令失效。
 
-#### 控件形态
+#### 指定字段值
 
-`x-field` 声明在 `input`/`textarea`/`select` 等**标准控件**上时，行为与 `x-model` 完全一致（ControlKind 分派、`.trim`/`.number` 修饰符、[元数据自动注入](./x-model#元数据自动注入)），并额外注入 `$field`：
+值指定字段绑定的**状态路径**，必须为**简单状态路径**（不支持表达式，否则编译期报错、指令失效）。两种写法：
+
+| 写法                 | 语义                                                                                                                    | 典型场景                                |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| 字段名（相对路径）   | 沿祖先链就近解析：字面量私有域（`x-form="{...}"`）解析为域内字段；路径上下文（`x-form="login"`）拼接为 `login.username` | 字段归属表单自身数据（最常用）          |
+| 状态路径（绝对路径） | 按原路径解析，指向全局状态或域内深层位置                                                                                | 纯行为壳表单（`x-form` 空值）的唯一写法 |
+
+- **拼接优先，失败回退**：路径上下文拼接后在作用域链内解析不到时 warn，按原路径重新解析；
+- **解析产物（绝对状态路径）是唯一真相源**：双向绑定、`$field.value` 读写、表单订阅 / 快照 / `getState` 全走它。
+
+#### 用在标准表单控件上（控件形态）
+
+`x-field` 声明在 `input`/`textarea`/`select` 三类**标准控件**上时，行为与 `x-model` 完全一致（ControlKind 分派、`.trim`/`.number` 修饰符、[元数据自动注入](./x-model#元数据自动注入)），并额外注入 `$field`——表单内不必再写 `x-model`：
 
 ```html
 <form x-form="{ age: 18 }">
@@ -75,30 +87,28 @@ x-form 只能声明在 `<form>` 元素上；表单数据恒挂私有域（`mount
 
 <demo html="form/field-control.html" />
 
-#### 容器形态（自定义渲染）
+#### 用在非表单输入控件上（容器形态）
 
-声明在**非控件元素**（如 `<div>`）上时，x-field 只做**字段域声明 + `$field` 注入**——渲染完全归模板。这是元数据驱动表单的主力形态：
+`x-field` 声明在 `div` 等非控件元素上时**只声明字段域**：把 `$field` 注入后代，引擎不渲染任何控件——DOM 结构与样式完全由模板决定。后代经 `<input x-bind="$field" />`（[控件属性展开](#控件属性展开)）或 <span v-pre>`{{ $field.label }}`</span> 消费：
 
 ```html
-<form x-form>
-  <div x-field="login.username">
+<form x-form="{ rating: 0 }">
+  <div x-field="rating" x-field-options="{ label: '满意度' }">
     <label>{{ $field.label }}</label>
     <input x-bind="$field" />
-    <!-- 一行展开全部绑定属性与事件 -->
-    <p class="error" x-text="$field.error"></p>
   </div>
 </form>
 ```
 
-<demo html="form/metadata.html" />
+自绘非标准控件（星级评分、开关等）与元数据驱动的完整玩法见[自定义渲染](#自定义渲染)。
 
-### $field：字段上下文
+### 字段上下文
 
 `$field` 是注入后代作用域的 Proxy 对象，三种读取来源分层响应：
 
-| 键                                                                         | 来源                                 | 响应式                  |
-| -------------------------------------------------------------------------- | ------------------------------------ | ----------------------- |
-| `$field.value`                                                             | 字段状态值（可读可写）               | ✅ 自动（依赖收集穿透） |
+| 键                                                                         | 来源                                                               | 响应式                  |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------- |
+| `$field.value`                                                             | 字段输入值（可读可写——schema 声明 toInput/toState 时为转换值，未声明即状态值） | ✅ 自动（依赖收集穿透） |
 | `$field.error`                                                             | 校验错误（`store.errors` 桥接）      | ✅ refresh 驱动         |
 | `$field.onInput` / `$field.onChange`                                       | 写方向事件封装                       | —（挂载用）             |
 | `$field.enable` / `$field.visible` / `$field.disabled` / `$field.readOnly` | 动态控制白名单（configManager 桥接） | ✅ refresh 驱动         |
@@ -110,7 +120,48 @@ x-form 只能声明在 `<form>` 元素上；表单数据恒挂私有域（`mount
 <div x-field="login.username" x-field-options="{ label: '账号', name: 'user' }"></div>
 ```
 
-### x-bind="$field"：控件展开
+### 视图转换（toInput / toState）
+
+字段的[元数据](#元数据自动注入)提供 `toInput` / `toState` 转换函数时，x-field 自动让其在**全部读写通道**生效（ADR-0050）——典型场景：状态存编码值（`sex: 1`），控件显示文案（`"男"`）：
+
+```ts
+import { configurable } from "autospark";
+
+const state = {
+  user: {
+    sex: configurable(1, {
+      toInput: (v) => (v === 1 ? "男" : v === 0 ? "女" : ""), // state → 输入值
+      toState: (v) => (v === "男" ? 1 : v === "女" ? 0 : v),  // 输入值 → state
+    }),
+  },
+};
+```
+
+```html
+<form x-form>
+  <input x-field="user.sex" />
+  <!-- 显示「男」；输入「女」→ state 存 0 -->
+  <span x-text="$field.value"></span>
+  <!-- 容器形态/插值同样显示「男」（$field.value 即字段输入值） -->
+</form>
+```
+
+**管道位置**：
+
+- 读方向：`state → toInput → 写控件`（空值同样喂给 toInput，空值处理归你的函数）；
+- 写方向：`输入值 → .trim/.number/.boolean 修饰符 → toState → 写 state`（修饰符在前做类型规范化，toState 在后做业务转换）；select 多选**逐项**转换；
+- checkbox 写方向：勾选恒布尔 → toState（是让 state 存 `1/0` 而非 `true/false` 的唯一通道）；读方向 `toInput → Boolean()` 得勾选态（返回值须能被 Boolean 正确转换）。
+
+**规则与边界**：
+
+- **声明 toInput 即接管空值显示**：`undefined/null` 也喂给 toInput，schema 的 `default` 回填不再参与；未声明 toInput 的字段空值回填照旧；
+- **显式 `get` 优先**：`x-field-options="{get:'...'}"` 声明后 toInput 忽略（不叠加）；
+- **radio/select 的 toInput 返回值须与 `option.value`（字符串）匹配**——数字 state 配字符串选项正是它的用武之地；
+- **仅 schema 来源**：函数字面量无法写在 `x-field-options` 的 JSON 里；created 期静态读取，schema 须先于引擎编译注册；
+- **失败不破坏**：转换函数 throw → warn 一次，读方向回退原值、写方向放弃本次写入；
+- **form 层恒原始值**：`$form.getState()` / `dirty` / 快照回滚均用原始状态值，不受转换影响。
+
+### 控件属性展开
 
 `x-bind` 无参形态（[属性展开](./x-bind#属性展开)）以 `$field` 为源时，按**控件白名单键集**展开——一行拿到标准控件的全部绑定：
 
@@ -144,6 +195,67 @@ input / textarea / select 三类标准控件一律 `<控件 x-bind="$field" />` 
 
 <demo html="form/custom-render.html" />
 
+### 字段拆分
+
+**一个字段值拆到多个输入框编辑，写回时重组。** 典型如 IP 地址：`server.ip` 拆成 4 段输入框。
+
+控件形态是**直写绑定**（写方向恒为「输入值直写字段」，不支持 x-model 的 `get`/`set` 变换），拆分场景走**容器形态 + action 双向变换**：容器 `x-field` 声明字段域（注册进表单——校验 / dirty / reset / `getState` 整字段共享），内部若干输入框各显示一段、编辑经 action 重组写回：
+
+<demo html="form/field-split.html" />
+
+```html
+<form x-form="server">
+  <div x-field="ip">
+    <input :value="String($field.value).split('.')[0]" @input="setOctet(0, $event.target.value)" />
+    <input :value="String($field.value).split('.')[1]" @input="setOctet(1, $event.target.value)" />
+    <!-- 第 3、4 段同理 -->
+  </div>
+</form>
+```
+
+```js
+actions: {
+    // 替换第 index 段后重组写回——state 是唯一真相源，各段显示随状态自动重放
+    setOctet: function (index, v) {
+        const parts = String(this.state.server.ip).split(".");
+        parts[index] = v;
+        this.state.server.ip = parts.join(".");
+    },
+}
+```
+
+工作方式：输入 → action 重组写回 `server.ip` → 字段值变更 → 四个 `:value` 表达式重新求值、显示重放——段间互不覆盖；校验针对完整 `ip` 值，reset 一步回滚全部段。
+
+### 字段组合
+
+**多个字段组合到一个输入框，编辑后拆解写回各字段。** 典型如姓名：`user.first` + `user.last` 合显为全名框。组合框没有单一状态路径、**不是字段**——它是**派生视图**（`:value` 表达式显示，字段值变更自动重放）+ 写回 action（拆解到各字段）；被组合的字段仍是正经 `x-field`，校验 / 快照 / `getState()` 照常：
+
+<demo html="form/field-combine.html" />
+
+```html
+<form x-form="user">
+  <input x-field="first" />
+  <input x-field="last" />
+  <!-- 组合显示（路径上下文形态下表达式用完整相对路径）+ 编辑拆回 -->
+  <input :value="user.first + ' ' + user.last" @input="splitName($event.target.value)" />
+</form>
+```
+
+```js
+actions: {
+    // 把「名 姓」按空格拆回两个字段（组合框的写回通道）
+    splitName: function (v) {
+        const parts = String(v).split(" ");
+        this.state.user.first = parts[0] ?? "";
+        this.state.user.last = parts[1] ?? "";
+    },
+}
+```
+
+::: tip 与 x-model 的分工
+散装控件（无表单能力诉求）的拆分 / 组合直接用 x-model 的 get/set 变换——见 [x-model · 字段拆分](./x-model#字段拆分) / [字段组合](./x-model#字段组合)；要字段注册、校验、重置等表单能力就用本节的 `$field` + action。
+:::
+
 ### 字段联动
 
 一个字段的值驱动其他字段的状态，两条正道按场景选：
@@ -154,7 +266,7 @@ input / textarea / select 三类标准控件一律 `<控件 x-bind="$field" />` 
 <demo html="form/linkage.html" />
 
 ::: warning 已知限制（联动正道）
-schema 字段写 `enable: computed(() => state.xxx)` 联动全局状态会得到**陈旧缓存**（autostore 跨 store 失效链断裂）——联动一律走**模板表达式**或**字面量元数据 + watch 程序改写**（上例两种皆是）。
+schema 元数据写 computed 联动在 x-field 下**不可用**——闭包直引（`computed(() => state.xxx)`）因 autostore 跨 store 失效链断裂得**陈旧缓存**；x-model 的 `ref()` 形式在 `$field` / spread 消费路径上同样不解析、不随源字段刷新。联动一律走**模板表达式**或**字面量元数据 + watch 程序改写**（上例两种皆是）；需要 schema computed 联动请用散装 [x-model · 字段联动](./x-model#字段联动)（其合成 `@` 绑定通道支持）。
 :::
 
 ### 字段名称
@@ -209,6 +321,8 @@ x-form 恒拦截原生提交（`preventDefault`——`action` 属性留给无 JS
 
 ## 配置
 
+两套指令选项：表单级 `x-form-options`、字段级 `x-field-options`（宽松 JSON 对象；读取走「指令选项 → 宿主选项 `x-options`」两层回退、缺失才回退，见[指令配置](../config.md)）。
+
 ```html
 <!-- 表单级：validateOnSubmit（默认 true）/ onInvalid（表单级校验默认，字段 schema 覆盖之） -->
 <form x-form x-form-options="{ validateOnSubmit: false, onInvalid: 'pass' }">...</form>
@@ -216,6 +330,45 @@ x-form 恒拦截原生提交（`preventDefault`——`action` 属性留给无 JS
 <!-- 字段级：元数据覆盖（优先于 configurable schema） -->
 <div x-field="login.name" x-field-options="{ label: '覆盖名', name: 'userName' }">...</div>
 ```
+
+### 表单级（x-form-options）
+
+| 配置项             | 默认值   | 说明                                                                                         |
+| ------------------ | -------- | -------------------------------------------------------------------------------------------- |
+| `validateOnSubmit` | `true`   | 提交校验门：逐字段跑 `schema.validate` + 存量错误检查，任一有错即阻止 `@submit`；`false` 直通 |
+| `onInvalid`        | `'pass'` | 表单级校验失败默认行为（`pass`/`throw`/`ignore`/`throw-pass`），补写进未显式声明的字段 schema；字段 schema 显式声明覆盖之 |
+
+url / action 异步取数形态沿用 x-data 的[异步专属选项](./x-data#异步状态反馈)（`path` / `loading` / `method` / `header`）。
+
+::: warning 无效选项
+`mount` / `global`：表单数据恒挂私有域（mount 强制 local），声明即 warn 忽略。
+:::
+
+### 字段级（x-field-options）
+
+**写方向修饰符**（✅，解析期并入指令选项，与 x-model 同款管道 `trim → number → boolean`）：
+
+| 修饰符      | 说明                                               |
+| ----------- | -------------------------------------------------- |
+| `.trim`     | 写回前去首尾空白（仅字符串）                       |
+| `.number`   | 写回前转数字（NaN 回退原值，不破坏输入）           |
+| `.boolean`  | `'true'`/`'false'`/`''` 转布尔（严格集外保留原值） |
+
+**元数据覆盖**（覆盖链最高层 `x-field-options` > `configurable` schema > 默认；只作用于视图读取，**不写回 schema 本体**）：
+
+| 键                                                  | 说明                                                                                        |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `name`                                              | 字段名显式覆盖（`getState()` 键 / 控件 `name` 属性；三层链第一层，同表单冲突后者覆盖 + warn） |
+| `widget`                                            | 控件类型——`$field.type` 的 input 系映射、spread 的 `type`/`value`/`checked` 键选择依据       |
+| `label` / `help` / `tooltip` / `placeholder` / ...  | 任意 configurable 元数据，`$field.<key>` 视图消费（静态快照）                                |
+| `enable` / `visible` / `disabled` / `readOnly`      | 动态控制白名单（refresh 驱动；spread 中 `enable` 反向映射为 `disabled`）                     |
+
+**get / set 变换通道**：`get` 透传内部 x-model 作**显示变换**（`x-field-options="{get:'...'}"`，表达式形参 `value` 或 action 名，同 x-model 的 get / set 变换）；写方向 `set` **由引擎接管**为直写表达式（声明的 set 被覆盖）——写方向变换（拆分 / 组合）用容器形态 + action，见[字段拆分](#字段拆分) / [字段组合](#字段组合)。
+
+两点边界：
+
+- **展开出键只认 schema**：`required` / `pattern` / `minlength` / `maxlength` / `min` / `max` / `step` / `choices` 等约束属性是否展开到控件由 schema 决定（[控件属性展开](#控件属性展开)），`x-field-options` 覆盖不影响出键判定；
+- **校验三件套属 schema**：`validate` / `onInvalid` / `errorMessage` 的校验行为本身走 schema（写入即校验 + 提交门直调 `schema.validate`）；完整元数据键集以 autostore `configurable` 为准。
 
 ::: warning 已知限制
 schema 字段写 `computed` 联动全局状态会得到陈旧缓存（autostore 跨 store 失效链断裂）——联动请写模板表达式（`:disabled="level <= 0"`）或字面量元数据 + 程序改写。详见 ADR-0045「限制与避坑」。

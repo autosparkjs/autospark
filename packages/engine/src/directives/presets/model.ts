@@ -4,6 +4,7 @@ import { setVal } from "autostore";
 import type { AutoSparkActionContext } from "./on/types";
 import { createDirectiveOptions } from "../utils/createDirectiveOptions";
 import { resolveEmptyValues } from "../utils/emptyPlaceholder";
+import { TRANSFORM_ABORT, toInputValue, toStateValue } from "../utils/schema-fn";
 import type { AutoDirectiveInfo } from "../types";
 import type { AutoSpark } from "../../engine";
 
@@ -151,6 +152,19 @@ function toBooleanStrict(v: any): any {
  * 多选（select multiple）数组**逐项**过管道（`["1","2"]`+.number → `[1,2]`，ADR-0026 决策 8）。
  * number/boolean 均为类型终态声明，**按书写序顺序执行**（`Object.keys(options)` 键序=书写序），
  * 同写两个的冲突后果开发者自担（`.boolean.number` 可能得 `1`），不短路、不 warn。
+ *
+ * ## schema 转换钩子（ADR-0050，x-field 专属注入）
+ *
+ * `toInputFn`/`toStateFn` 由 FieldDirective 控件形态组合注入（created 前赋值），来源是
+ * configurable schema 的 `toInput`/`toState` 函数；模板侧不可达——relaxed-json 不支持
+ * 函数字面量（ADR-0018），能力保持 x-field 专属。
+ * - **读**：显式 `get` 优先（同存则 toInput 忽略，不叠加不 warn）；**toInput 声明即接管
+ *   空值显示**——ADR-0027 default 回填与 select 首项兜底退出，空值恒喂给 toInput
+ *   （空值处理权是「声明与否」的开关）；
+ * - **写**：落点 = `_writeToState` 统一出口入口（用户输入 / select autoSelect 回写全过），
+ *   数组（select multiple）逐项转换；
+ * - **失败不破坏**：读方向回退该项原值、写方向放弃本次写入（并回滚 `_selfWriting` 防循环
+ *   标志，不吞下一次外部变更的回写）；warn per-instance 去重一次。
  *
  * ## 防循环
  * 双向绑定的循环风险：onInput 写 state → read 回调写回 DOM。虽然程序设 `el.value` 不触发 input 事件
@@ -419,6 +433,30 @@ export class ModelDirective extends AutoSparkDirectiveBase {
     private _defaultTrueValue: string | undefined = undefined;
     /** DOM→state 回调（箭头函数绑定 this，供 add/removeEventListener 同引用） */
     private readonly onInput = () => this._handleInput();
+
+    // ── schema 转换钩子（ADR-0050，x-field 组合注入）────────────────
+
+    /**
+     * schema 读转换（state→输入值）：FieldDirective 控件形态组合注入（created 前赋值）。
+     * 显式 `get` 优先（同存则 toInput 忽略）；声明即接管空值显示（ADR-0027 空值逻辑退出）。
+     */
+    toInputFn: ((v: any) => any) | null = null;
+    /** schema 写转换（输入值→state）：落点 = `_writeToState` 统一出口入口，数组逐项。 */
+    toStateFn: ((v: any) => any) | null = null;
+    /** toInput 接管标志（writeToDom 现算）：true 时 ADR-0027 空值逻辑（default 回填/select 首项兜底）退出 */
+    private _toInputOwns = false;
+    /** 转换函数失败 warn 去重（per-instance 一次，_readonlyWarned 同款） */
+    private _toInputWarned = false;
+    private _toStateWarned = false;
+
+    /** 转换函数失败 warn（per-instance 去重一次） */
+    private _warnTransform(kind: "toInput" | "toState", msg: string): void {
+        const warned = kind === "toInput" ? this._toInputWarned : this._toStateWarned;
+        if (warned) return;
+        if (kind === "toInput") this._toInputWarned = true;
+        else this._toStateWarned = true;
+        this.warn(`x-model: 绑定 "${this.value}" 的 schema.${kind} ${msg}`);
+    }
 
     // ── scope 通道（读方向：state→DOM）──────────────────────────────
 
@@ -721,7 +759,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
             if (typeof display !== "string" && !this._selectMismatchWarned && display !== undefined && display !== null) {
                 this._selectMismatchWarned = true;
                 this.warn(
-                    `x-model: 单选 <select> 绑定 "${this.value}" 的状态为非字符串（${Array.isArray(display) ? "array" : typeof display}），不勾中任何项。${Array.isArray(display) ? "多选请声明 .multiple 或 schema.multiple。" : "须配 string 状态或用 get 转换。"}`,
+                    `x-model: 单选 <select> 绑定 "${this.value}" 的状态为非字符串（${Array.isArray(display) ? "array" : typeof display}），不勾中任何项。${Array.isArray(display) ? "多选请声明 .multiple 或 schema.multiple。" : "须配 string 状态，或用 get/toInput 转换。"}`,
                 );
             }
             if (typeof display === "string") {
@@ -750,8 +788,9 @@ export class ModelDirective extends AutoSparkDirectiveBase {
                 }
             } else if (display === undefined || display === null) {
                 // 空值回填·首项默认（ADR-0027 决策 5）：无 default 时空值勾中第一个 option
-                //（含 optgroup 内首个）——仅显示层，state 不回写
-                el.value = el.options[0]?.value ?? "";
+                //（含 optgroup 内首个）——仅显示层，state 不回写。
+                // toInput 接管模式退出（ADR-0050：首项兜底同属空值逻辑）——不勾中任何项
+                el.value = this._toInputOwns ? "" : (el.options[0]?.value ?? "");
             } else {
                 // 严格匹配：非字符串（数字/数组等）→ -1（不勾中）
                 el.value = "";
@@ -864,6 +903,17 @@ export class ModelDirective extends AutoSparkDirectiveBase {
      * set 在 fn 内执行——其 `with(scope)`/action 写入经 Proxy 落盘，处于 store.update 上下文故 flags 生效。
      */
     private _writeToState($value: any) {
+        // schema 写转换（ADR-0050）：统一出口入口——用户输入、select autoSelect 回写、
+        // 多选过滤回写全部经过；数组（select multiple）逐项转换
+        if (this.toStateFn) {
+            const converted = toStateValue(this.toStateFn, $value, (m) => this._warnTransform("toState", m));
+            if (converted === TRANSFORM_ABORT) {
+                // 放弃本次写入：回滚防循环标志——否则下一次外部变更的 read 回调被误跳过一次
+                this._selfWriting = false;
+                return;
+            }
+            $value = converted;
+        }
         const expr = String(this.value ?? "");
         const setExpr = this.getOption("set");
         this.engine.store.update(
@@ -915,12 +965,20 @@ export class ModelDirective extends AutoSparkDirectiveBase {
         }
         const getExpr = this.getOption("get");
         let display = stateValue;
+        // 读变换（ADR-0050）：显式 get 优先（同存则 toInput 忽略）；toInput 声明即接管
+        // 空值显示——空值恒喂给 toInput，空值处理权是「声明与否」的开关
+        this._toInputOwns = false;
         if (typeof getExpr === "string" && getExpr.trim() !== "") {
             display = this._evalGet(getExpr, stateValue);
+        } else if (this.toInputFn) {
+            this._toInputOwns = true;
+            display = toInputValue(this.toInputFn, stateValue, (m) => this._warnTransform("toInput", m));
         }
         // 空值回填（ADR-0027 决策 1/3/4）：仅 text-like + select 参与；判定在 get 之后
-        //（get 的产物是显示值）；default 取模板 > schema 两级，缓存判定后的显示值供重放
+        //（get 的产物是显示值）；default 取模板 > schema 两级，缓存判定后的显示值供重放。
+        // toInput 接管模式跳过（ADR-0050：default 回填随声明退出）
         if (
+            !this._toInputOwns &&
             (this._controlKind === "text" || this._controlKind === "select") &&
             this._emptyValues.includes(display)
         ) {
