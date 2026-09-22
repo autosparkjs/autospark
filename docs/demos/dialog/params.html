@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-dialog · 对象形态与 params</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- 对象形态：visible/params 保留键，其余键是 per-实例配置；params 打开时快照注入，模板直接读键 -->
+        <div class="demo-app section">
+            <div x-data="{ currentId: 1, ui: { open: false }, userOf(id) { return { userId: id, name: '用户' + id } } }">
+                <div class="block">
+                    <button class="button is-primary"
+                            x-dialog:user="{visible: 'ui.open', params: 'userOf(currentId)', closeOnMask: false}"
+                            @click="ui.open = true">打开（ui.open = true）</button>
+                    <button class="button" @click="currentId = 1, ui.open = true">查看用户 1</button>
+                    <button class="button" @click="currentId = 42, ui.open = true">查看用户 42</button>
+                </div>
+                <div class="block has-text-grey">
+                    值对象 <code>{visible: 'ui.open', params: 'userOf(currentId)', closeOnMask: false}</code>——
+                    params 为字符串表达式（打开时对消费处 scope 求值快照，模板内直接读键）；
+                    <code>closeOnMask: false</code> 是内联进值对象的 per-实例配置（遮罩点击不关，只剩 ESC 与按钮可关）。
+                    两个入口先改 <code>currentId</code> 再开框（复合动作用<b>逗号表达式</b>——x-on 值是单个表达式，不能用 <code>;</code>）。
+                </div>
+
+                <!-- 覆盖层定义与消费者同 scope；params 每次打开重注入，单例复用同样生效 -->
+                <div x-overlay:user="dialog">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">用户资料</h3>
+                        <p>ID：<b x-text="userId"></b>，姓名：<b x-text="name"></b></p>
+                        <button class="button is-fullwidth" @click="close()">关闭（遮罩点击已禁用）</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

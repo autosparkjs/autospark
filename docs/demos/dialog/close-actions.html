@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-dialog · 请求关闭触点与事件</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+            .log { max-height: 110px; overflow: auto; font-size: 12px; color: #555; background: #f6f8fa; border-radius: 6px; padding: 8px 12px; }
+        </style>
+    </head>
+    <body>
+        <!-- 三触点统一走「请求关闭」：可回写（简单路径）自动回写 false；overlay:close 事件双通道广播 -->
+        <div class="demo-app section">
+            <div x-data="{ ui: { open: false } }">
+                <div class="block">
+                    <button class="button is-primary" x-dialog:pay="ui.open"
+                            @click="ui.open = true">打开支付框</button>
+                </div>
+                <div class="block has-text-grey">
+                    触点：① <kbd>ESC</kbd> ② 点遮罩 ③ 面板内关闭按钮（内置 close 动作）。均自动回写
+                    <code>ui.open = false</code> 并广播 <code>overlay:close</code>（下方日志经引擎总线
+                    <code>engine.on("overlay:close")</code> 记录）。
+                </div>
+                <div class="log block" id="log"><div>（等待关闭事件…）</div></div>
+
+                <div x-overlay:pay="dialog">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">支付</h3>
+                        <button class="button is-fullwidth" @click="close()">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            // 总线通道监听（覆盖层 DOM 在 body 容器内，engine 树内的模板元素收不到 DOM 冒泡——
+            // 模板外 JS 用引擎总线；document.addEventListener("overlay:close") 则是 DOM 通道）
+            engine.on("overlay:close", (m) => {
+                const p = m?.payload ?? m;
+                const log = document.getElementById("log");
+                log.insertAdjacentHTML("beforeend",
+                    `<div>· overlay:close name=${p?.name} 时间=${new Date().toLocaleTimeString()}</div>`);
+            });
+        </script>
+    </body>
+</html>

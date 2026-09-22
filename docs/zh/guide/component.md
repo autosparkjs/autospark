@@ -607,9 +607,89 @@ CSS 变量是**字符串**——`bind("count")` 注入 `100` 时，`width: var(-
 上面两个 demo 加载的真实组件文件在仓库 `docs/public/components/` 下：[`like-button.html`](https://github.com/autosparkjs/autospark/blob/main/docs/public/components/like-button.html)（作用域，含 data/methods/scoped style）、[`widgets.html`](https://github.com/autosparkjs/autospark/blob/main/docs/public/components/widgets.html)（全局，含 stat 与 chip 两个组件）。可下载到自己的静态服务器复用。
 :::
 
+### 数据边界（默认封闭与 `open`）
+
+组件默认是**封闭**的：组件模板内只能读**自身 `data()`/`locals`、`x-use` 传入的 props、全局 state**，读不到组件声明处外层的 x-data 域或局部变量。组件与外部的数据交互应经 **props 显式声明**——这是组件封装性的基础，也让组件在任何上下文中都可移植（行为不随消费位置变化）。
+
+```html
+<!-- ❌ 封闭默认：card 读不到外层的 tip（渲染空） -->
+<div x-data="{ tip: '外部数据' }">
+    <div x-scope>
+        <div x-component="card"><span x-text="tip"></span></div>
+        <div x-use="card"></div>
+    </div>
+</div>
+
+<!-- ✅ 封闭默认下的正确写法：props 显式传入 -->
+<div x-data="{ tip: '外部数据' }">
+    <div x-scope>
+        <div x-component="card"><span x-text="tip"></span></div>
+        <div x-use="{ name: 'card', tip: tip }"></div>
+    </div>
+</div>
+```
+
+封闭的范围边界：
+
+| 通道 | 封闭吗 | 说明 |
+| --- | --- | --- |
+| 祖先 x-data 域 / x-for locals | 🔒 切断 | 读+写一并切断（事件里写外层键也不会穿透） |
+| 全局 state | ✅ 可见 | 全局状态是环境，不是隐式耦合（`this.state`、`@` 配置绑定照常） |
+| `x-on` 调用 action | ✅ 开放 | action 沿链查找是跨组件复用的事件处理器约定，不受边界影响 |
+| methods 查找 | 🔒 本就有界 | 组件 method 边界（`open` 不改变它） |
+| `this.$parent` | ✅ 保留 | 显式向上寻址是子组件作者的主动声明 |
+| `x-data` 相对挂载 `..` | 🔒 边界止步 | 越过组件边界视同越顶落根 |
+
+#### `open`：开放数据边界
+
+开发复杂组件（如树组件内部多个子组件共享数据）时，可由**组件作者**声明 `open` 开放边界：
+
+```html
+<!-- .open 修饰符 -->
+<div x-component.open="tree-node">…</div>
+
+<!-- 等价的指令选项写法 -->
+<div x-component="tree-node" x-component-options="{ open: true }">…</div>
+```
+
+开放后组件继承哪个上下文，由 **scope 基准**决定（`scope` 选项，默认 `'host'`）：
+
+| 基准 | 语义 | 典型场景 |
+| --- | --- | --- |
+| `'host'`（默认） | 继承**消费处**上下文（≈ 旧行为） | 通用组件跟随使用者的数据环境 |
+| `'declarer'` | 继承**声明处**上下文（词法基准） | 组件固定读取它声明位置所能见的域，与消费位置无关 |
+
+```html
+<div x-data="{ who: '声明处' }">
+    <div x-scope>
+        <div x-component="card" x-component-options="{ open: true, scope: 'declarer' }">
+            <span x-text="who"></span>
+        </div>
+        <!-- 消费处的同名 who 被遮蔽也不影响：declarer 基准读声明处 -->
+        <div x-data="{ who: '消费处' }">
+            <div x-use="card"></div>   <!-- 渲染「声明处」 -->
+        </div>
+    </div>
+</div>
+```
+
+#### 基准的消费侧覆盖（`x-use-options`）
+
+实例化时可用 `x-use-options="{ scope: 'host' | 'declarer' }"` 覆盖**已开放组件**的基准（消费处覆盖 > 作者声明 > 默认 `'host'`）。**封闭是作者契约**——消费侧不能打开封闭组件：对未 `open` 的组件声明 `x-use-options.scope` 会 `warn` 并保持封闭。
+
+::: warning 三条失效告警（均 warn 一次 + 忽略）
+- 作者声明了 `scope` 但没有 `open`——基准没有生效条件；
+- 消费侧对封闭组件声明 `x-use-options.scope`；
+- 全局组件（`options.components` 字符串，无声明处）声明 `scope: 'declarer'`——退化为封闭行为。
+:::
+
+::: tip open 不传播
+`open` 是每个组件定义自己的开关：开放组件 A 内部嵌套声明的私有子组件 B 仍是默认封闭。要让 B 共享 A 的上下文，给 B 单独声明 `open`（嵌套声明的 B 其「声明处」就是 A 的实例）。
+:::
+
 ### 组件间通讯
 
-组件实例各自拥有独立的 data 域，默认互不可见。本引擎没有 Vue 那样的 `provide/inject` 或 React 的 Context 专用机制，但靠下面三种**既有的响应式/事件能力**即可覆盖组件间通讯的全部场景。
+组件实例各自拥有独立的 data 域，默认互不可见（数据边界默认封闭，见上节）。本引擎没有 Vue 那样的 `provide/inject` 或 React 的 Context 专用机制，但靠下面三种**既有的响应式/事件能力**即可覆盖组件间通讯的全部场景。
 
 #### 方式一：props 下传（父 → 子）
 
@@ -713,8 +793,10 @@ engine.on('favorite', (e) => {
 | 项 | 位置 | 说明 |
 | --- | --- | --- |
 | `x-component="name"` | 元素属性 | 声明作用域组件，`name` 为组件名（裸属性取名 `default`） |
+| `x-component.open` | 修饰符 | 开放数据边界（≡ `x-component-options="{open:true}"`，详见[数据边界](#数据边界默认封闭与-open)） |
+| `x-component-options` | 元素属性 | 组件选项：`open`（开放边界开关）、`scope`（`'host'\|'declarer'` 基准，须配合 `open`） |
 | `x-scope` | 元素属性 | 为纯容器建 scope 锚点，让内部 `x-component` 有归属（详见 [x-scope](./directives/x-scope.md)） |
-| `options.components` | engine 构造选项 | 声明全局组件，`Record<string, string>`（字符串模板，自动包装） |
+| `options.components` | engine 构造选项 | 声明全局组件，`Record<string, string>`（字符串模板，自动包装；`open`/`scope` 写在字符串根元素上） |
 
 ### `x-use` 配置
 
@@ -724,9 +806,12 @@ engine.on('favorite', (e) => {
 
 <!-- 对象形式：name/is/component 标识组件名，其余键作 props -->
 <div x-use="{ name: 'counter', count: 100, step: 5 }"></div>
+
+<!-- 指令选项：覆盖已开放组件的 scope 基准（对封闭组件无效，warn） -->
+<div x-use="counter" x-use-options="{ scope: 'declarer' }"></div>
 ```
 
-`x-use` 无指令选项、无修饰符，值即组件名或 props 对象。
+除 `x-use-options.scope`（数据边界基准覆盖，见[数据边界](#数据边界默认封闭与-open)）外无其他指令选项与修饰符，值即组件名或 props 对象。
 
 ### `x-import` 配置
 
@@ -753,6 +838,7 @@ engine.on('favorite', (e) => {
 
 ## 注意事项
 
+- **组件数据边界默认封闭**：组件内读不到外层 x-data 域，交互走 props、全局 state 或显式 `open`（详见[数据边界](#数据边界默认封闭与-open)）。从旧行为（组件透视外层数据）迁移：改 props 传入，或给组件声明 `open`。
 - **组件元素不渲染自身**：`x-component` 声明的元素编译期被摘除，不进结果 DOM、不建 scope。它只是「模板供体」，由 `x-use` 克隆实例化。
 - **必须有祖先 scope**：每个 `x-component` 都需要至少一个带 scope 的祖先（`x-scope` 或任意其他建 scope 的指令/插值），否则编译期 `warn` 丢弃。最简单做法是用 `x-scope` 包裹。
 - **组件根天然建 scope**：`x-use` 实例化时消费编译路径内禀保证组件根建 scope，无需在组件根上额外声明 `x-scope`（冗余声明静默无副作用）。
@@ -859,6 +945,16 @@ methods: {
 ### 组件内能再声明私有子组件吗？
 
 可以。在组件 A 的定义里声明组件 B，则 B 是 A 的**私有子组件**——仅 A 的实例（及其实例子树）可见，外层查不到。机制上 `x-use` 实例化 A 时编译其快照子树，内层 B 经收集器归属到 A 的实例 scope，运行期 scope 链天然实现严格私有。
+
+### 组件里读不到外层的 x-data 变量？
+
+组件数据边界**默认封闭**——组件内只能读自身 `data()`/props 与全局 state，这是有意的封装设计（详见[数据边界](#数据边界默认封闭与-open)）。三个出路：
+
+1. **props 显式传入**（推荐）：`<div x-use="{ name: 'card', tip: tip }"></div>`；
+2. 数据放**全局 state**（任意组件可见）；
+3. 确需共享上下文的复杂组件，由组件作者声明 `x-component.open` 开放边界。
+
+若控制台出现「未声明 open…x-use-options.scope 不生效」「基准仅在 open 声明时生效」「无声明处 scope」类 warn，都是边界配置失效提示，按[数据边界](#数据边界默认封闭与-open)一节修正声明即可。
 
 ---
 

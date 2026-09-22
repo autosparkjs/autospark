@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-dialog · 嵌套打开与 ESC 栈</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- 嵌套打开：遮罩 DOM 层叠天然分层；ESC 经 document 级打开栈只关全局栈顶实例 -->
+        <div class="demo-app section">
+            <div x-data="{ ui: { main: false, confirm: false } }">
+                <div class="block">
+                    <button class="button is-primary" x-dialog:main="ui.main"
+                            @click="ui.main = true">打开主对话框</button>
+                </div>
+                <div class="block has-text-grey">
+                    主对话框打开后点「删除」叠出确认框：连按 <kbd>ESC</kbd>——第一次只关<b>最上层</b>确认框、
+                    第二次才关主对话框（document 级打开栈，跨 engine 也不连环关）。
+                </div>
+
+                <div x-overlay:main="dialog">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">主对话框</h3>
+                        <p>项目「示例数据」将被删除。</p>
+                        <div style="display:flex; gap:8px;">
+                            <button class="button is-danger" x-dialog:confirm="ui.confirm"
+                                    @click="ui.confirm = true">删除…（叠出确认框）</button>
+                            <button class="button is-light" @click="close()">关闭主框</button>
+                        </div>
+                    </div>
+                </div>
+                <div x-overlay:confirm="dialog">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">确认删除？</h3>
+                        <p>此操作不可撤销（演示用，不会真删）。</p>
+                        <div style="display:flex; gap:8px;">
+                            <button class="button is-danger" @click="close()">确认</button>
+                            <button class="button is-light" @click="close()">取消</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

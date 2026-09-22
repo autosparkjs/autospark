@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-dialog · singleton 二态</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 300px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- singleton 默认 true：懒实例化 + 隐藏保活（状态保留）；false：每次新实例、关闭即销毁 -->
+        <div class="demo-app section">
+            <div x-data="{ a: false, b: false }">
+                <div class="block">
+                    <b>单例（默认，隐藏保活）</b>
+                    <button class="button is-small is-primary" x-dialog:single="a" @click="a = true">打开</button>
+                </div>
+                <div class="block">
+                    <b>非单例（singleton: false，关闭即销毁）</b>
+                    <button class="button is-small" x-dialog:multi="{visible: 'b', singleton: false}" @click="b = true">打开</button>
+                </div>
+                <div class="block has-text-grey">
+                    两个面板内都有自增计数：单例关闭再开<b>计数保留</b>（scope 保活，close 只隐藏不销毁）；
+                    非单例每次打开<b>从 0 开始</b>（每次全新实例，关闭即销毁）。
+                </div>
+
+                <!-- 覆盖层定义与消费者同 scope（查找沿消费处祖先 scope 链向上）；面板自带局部域 n -->
+                <div x-overlay:single="dialog">
+                    <div class="ov-panel" x-data="{ n: 0 }">
+                        <h3 class="title is-5">单例面板</h3>
+                        <p>计数：<b x-text="n"></b></p>
+                        <button class="button" @click="n++">+1</button>
+                        <button class="button is-light" @click="close()">关闭</button>
+                    </div>
+                </div>
+                <div x-overlay:multi="dialog">
+                    <div class="ov-panel" x-data="{ n: 0 }">
+                        <h3 class="title is-5">非单例面板</h3>
+                        <p>计数：<b x-text="n"></b></p>
+                        <button class="button" @click="n++">+1</button>
+                        <button class="button is-light" @click="close()">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

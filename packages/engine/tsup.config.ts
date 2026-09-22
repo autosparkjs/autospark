@@ -24,7 +24,7 @@ export default defineConfig({
     // 自包含策略：将 autostore(core) 打包进产物，
     // 使文档站点 demo 仅需引入一个 autospark.js 即可运行（与 autoform.js 自包含策略一致）；
     // 入口全量转导出 autostore，故 IIFE 全局下 AutoSparkSpaces.* 亦覆盖 AutoStore 完整 API（ADR-0030）。
-    noExternal: ["autostore","flex-tools"],
+    noExternal: ["autostore","flex-tools","@floating-ui/dom"],
     onSuccess: async () => {
         const cjsFile = readFileSync("dist/index.cjs");
         const esmFile = readFileSync("dist/index.js");

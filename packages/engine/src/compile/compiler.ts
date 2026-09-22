@@ -33,7 +33,8 @@ import {
     isAsyncHtmlValue,
 } from "../directives/presets/async-source";
 import { buildComponentDef } from "./collect";
-import type { ComponentDef } from "../directives/component-def";
+import { parseOverlayAttr, buildOverlayDef } from "../directives/presets/overlay";
+import type { ComponentDataBasis, ComponentDef } from "../directives/component-def";
 import { mountComponentScopedAttr, injectComponentStyle } from "../utils/scopedStyle";
 import { coerceStyleValue, type StyleBind } from "../utils/styleBind";
 import { iconRegistry } from "../icons/registry";
@@ -93,7 +94,8 @@ export class AutoSparkCompiler {
             // 前置：<script type="autospark/actions"> 提取为局部 action 后剪枝（普通 script 原样保留）。
             // 提取/解析/注入收编于 ActionManager；scope 解析留在 compiler（依赖私有 templateScopeMap）
             [
-                (node: Node) => node instanceof HTMLScriptElement && node.type === "autospark/actions",
+                (node: Node) =>
+                    node instanceof HTMLScriptElement && node.type === "autospark/actions",
                 (script: HTMLElement) =>
                     this.engine.actionsManager.extractScript(
                         script as HTMLScriptElement,
@@ -112,10 +114,7 @@ export class AutoSparkCompiler {
             ],
             // 前置：<script type="autospark/data"> ——内容已在父元素编译期预扫消费
             //（compileElement 调 collectDataScripts，ADR-0032），此处仅剪枝（不进渲染 DOM）
-            [
-                (node: Node) => isDataScript(node),
-                () => null,
-            ],
+            [(node: Node) => isDataScript(node), () => null],
             // 前置：x-fallback 特例子节点（ADR-0033 决策 4 / ADR-0035 决策 3-4）——直接父元素为
             // 异步源宿主（异步 x-data，或异步 x-html 且宿主无双异步 x-data——双异步时 fallback
             // 归 x-data 独占）时已被物种指令采集（collectFallback），剪枝不进渲染 DOM；
@@ -177,8 +176,9 @@ export class AutoSparkCompiler {
             // 前置：x-component 命名组件——收集冻结快照到最近祖先 scope.components 后剪枝（不进结果 DOM）。
             // 须排在 HTMLElement 通用规则（compileElement）之前，first-match-wins 命中后不再走通用编译，
             // 故 x-component 元素不建 scope、不实例化其上其他指令（同元素 x-text 等随组件冻结，ADR-0022）。
+            // 修饰符形态（x-component.open 等，ADR-0053）同命中——属性名带 . 段、值仍是组件名。
             [
-                (node: Node) => node instanceof HTMLElement && node.hasAttribute("x-component"),
+                (node: Node) => node instanceof HTMLElement && this._matchComponentAttr(node),
                 (componentEl: HTMLElement) => this._collectComponent(componentEl),
             ],
             // 前置：x-icon-define 图标定义（ADR-0046）——声明性资源：取首个 <svg> 子元素上交全局
@@ -187,6 +187,13 @@ export class AutoSparkCompiler {
             [
                 (node: Node) => node instanceof HTMLElement && node.hasAttribute("x-icon-define"),
                 (iconEl: HTMLElement) => this._collectIconDefine(iconEl),
+            ],
+            // 前置：x-overlay 覆盖层定义（ADR-0052）——声明性资源：深克隆冻结快照组装 OverlayDef
+            // 挂最近祖先 scope.overlays（.global 升 engine 全局表）后剪枝（不进结果 DOM，声明处无闪现）。
+            // 指令类仅为名位（x-component 同构），永不被实例化。缺名称（x-overlay 无冒号 attr）warn + 剪枝。
+            [
+                (node: Node) => node instanceof HTMLElement && parseOverlayAttr(node) !== null,
+                (overlayEl: HTMLElement) => this._collectOverlay(overlayEl),
             ],
             // 文本节点插值：含 {{}} 的文本节点拆分 + 注册。scope 经父元素查 templateScopeMap
             // （父元素在自身 walk 前已建 scope，含插值的 directive-less 元素亦由 hasInterpolation
@@ -209,6 +216,51 @@ export class AutoSparkCompiler {
     }
 
     /**
+     * 元素是否带 x-component 声明属性（含修饰符形态，ADR-0053）。
+     *
+     * 命中形态：`x-component`（正身）与 `x-component.open` 等带 `.` 修饰符段的属性名；
+     * `x-component-options`（指令选项属性）**不是**声明形态——不命中（`x-component-` 前缀
+     * 与 `x-component.` 修饰符前缀是两个不同边界，与 dispatcher 的保留规则同构）。
+     */
+    private _matchComponentAttr(el: HTMLElement): boolean {
+        if (el.hasAttribute("x-component")) return true;
+        for (const attr of Array.from(el.attributes)) {
+            if (attr.name.startsWith("x-component.")) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 解析 x-component 声明属性：组件名（值，无值 `default`）+ 修饰符段（属性名 `.` 后段）。
+     * 未知修饰符 warn + 忽略；`open` 修饰符注入边界开关（ADR-0053）。
+     */
+    private _parseComponentAttr(el: HTMLElement): { name: string; modifierOpen: boolean } {
+        let attrName = "x-component";
+        let rawName = el.getAttribute("x-component");
+        if (rawName == null) {
+            for (const attr of Array.from(el.attributes)) {
+                if (attr.name.startsWith("x-component.")) {
+                    attrName = attr.name;
+                    rawName = attr.value;
+                    break;
+                }
+            }
+        }
+        const segments = attrName.slice("x-component".length).split(".").filter(Boolean);
+        for (const seg of segments) {
+            if (seg !== "open") {
+                this.engine.logger.warn(
+                    `x-component: 未知修饰符 ".${seg}"，已忽略（ADR-0053 仅提供 .open）`,
+                );
+            }
+        }
+        return {
+            name: (rawName ?? "").trim() || "default",
+            modifierOpen: segments.includes("open"),
+        };
+    }
+
+    /**
      * 收集 x-component 命名组件（ADR-0022，承接 ADR-0021）。
      *
      * 编译期前置 transformer 命中 x-component 元素时调用：把该元素**深克隆**为冻结快照，
@@ -228,7 +280,7 @@ export class AutoSparkCompiler {
      * @returns 固定 `null`（剪枝，x-component 永不进结果 DOM）
      */
     private _collectComponent(componentEl: HTMLElement): null {
-        const name = (componentEl.getAttribute("x-component") ?? "").trim() || "default";
+        const { name, modifierOpen } = this._parseComponentAttr(componentEl);
         // 沿原树向上找最近祖先 scope（与 _linkParent 同构：跨中间无 scope 的纯 div）。
         // walk 是 DFS，祖先元素已先 transform，若建了 scope 必已 templateScopeMap.set。
         // 注：实例化父组件时 compileSubtree 编译其快照子树，内层 x-component 经 transformElement
@@ -249,21 +301,77 @@ export class AutoSparkCompiler {
         }
         // default 唯一性放宽（ADR-0022 决策四-4）：同名组件直接归属本 scope → warn + 后者覆盖（不再抛错）。
         // 沿 parent 链的就近覆盖由 getComponent 就近原则处理（不在此校验）。
-        if (
-            owner.components &&
-            Object.prototype.hasOwnProperty.call(owner.components, name)
-        ) {
+        if (owner.components && Object.prototype.hasOwnProperty.call(owner.components, name)) {
             this.engine.logger.warn(
                 `[x-component] 组件 "${name}" 在同一 scope 下重复声明，后者覆盖前者（ADR-0022 决策四-4 放宽 default 唯一性）。`,
             );
         }
         // 组装组件定义：提取 <script setup>/<style>、求值合并 setup、深克隆冻结快照（已剥离 script/style）。
-        const def = buildComponentDef(componentEl, name, (msg) => this.engine.logger.warn(msg));
+        // declarerScope 归属本祖先 scope（ADR-0053 declarer 基准的数据视图挂链目标）；.open 修饰符并入边界声明。
+        const def = buildComponentDef(
+            componentEl,
+            name,
+            (msg) => this.engine.logger.warn(msg),
+            owner,
+            modifierOpen,
+        );
         // scope.components 仍存 HTMLElement 快照（保持 getComponent 的 HTMLElement 契约，x-loading 等消费者不变）；
         // ComponentDef 元数据（setup/hooks/styles）以快照根为 key 注册到 engine，供 x-use 实例化时反查。
         this.engine.registerComponentDef(def);
         if (!owner.components) owner.components = {};
         owner.components[name] = def.snapshot;
+        return null;
+    }
+
+    /**
+     * 收集 x-overlay 覆盖层定义（ADR-0052 决策 5）。
+     *
+     * 编译期前置 transformer 命中 x-overlay 元素时调用：解析 `x-overlay:<名称>[.修饰符…]`
+     * （名称必需，缺失 warn + 剪枝）、深克隆冻结快照组装 OverlayDef（复用 buildComponentDef
+     * 管道，`<script setup>`/`<style>` 已提取），存入**最近祖先 scope** 的 `overlays`——
+     * `.global` 修饰符改升 engine 级全局表（`engine._globalOverlays`，同名 warn + 后者覆盖）。
+     * 返回 `null` 剪枝——覆盖层元素及其子树不进结果 DOM、不建 scope、不被实例化（声明处无闪现）。
+     * 声明元素上同元素的其他指令随快照冻结，待消费时才编译执行（x-component 同构语义）。
+     */
+    private _collectOverlay(overlayEl: HTMLElement): null {
+        const parsed = parseOverlayAttr(overlayEl)!;
+        if (!parsed.name) {
+            this.engine.logger.warn(
+                `x-overlay: 缺少覆盖层名称（须写 x-overlay:<名称>），定义被剪枝丢弃（ADR-0052）`,
+            );
+            return null;
+        }
+        // 沿原树向上找最近祖先 scope（与 _collectComponent 同构）
+        let owner: AutoSparkScope | undefined;
+        let p: HTMLElement | null = overlayEl.parentElement;
+        while (p) {
+            owner = this.templateScopeMap.get(p);
+            if (owner) break;
+            p = p.parentElement;
+        }
+        if (!owner) {
+            this.engine.logger.warn(
+                `x-overlay: 覆盖层 "${parsed.name}" 未找到任何祖先 scope，无法归属。请在祖先元素上声明 x-scope（或任意指令）使其建 scope。`,
+            );
+            return null;
+        }
+        const def = buildOverlayDef(overlayEl, parsed.name, parsed.type, owner, (msg) =>
+            this.engine.logger.warn(msg),
+        );
+        if (parsed.global) {
+            this.engine.registerGlobalOverlay(def);
+        } else {
+            if (
+                owner.overlays &&
+                Object.prototype.hasOwnProperty.call(owner.overlays, parsed.name)
+            ) {
+                this.engine.logger.warn(
+                    `[x-overlay] 覆盖层 "${parsed.name}" 在同一 scope 下重复声明，后者覆盖前者（ADR-0052 决策 3）。`,
+                );
+            }
+            if (!owner.overlays) owner.overlays = {};
+            owner.overlays[parsed.name] = def;
+        }
         return null;
     }
 
@@ -282,8 +390,7 @@ export class AutoSparkCompiler {
     private _collectIconDefine(iconEl: HTMLElement): null {
         const name = (iconEl.getAttribute("x-icon-define") ?? "").trim();
         // template 的子节点在 .content（DocumentFragment）；非 template 宿主退化为元素自身
-        const root: ParentNode =
-            iconEl instanceof HTMLTemplateElement ? iconEl.content : iconEl;
+        const root: ParentNode = iconEl instanceof HTMLTemplateElement ? iconEl.content : iconEl;
         let svg: Element | null = null;
         let extraRoots = 0;
         for (const child of root.children) {
@@ -569,7 +676,7 @@ export class AutoSparkCompiler {
                 `[结构指令冲突] ${names} 不能作用于同一元素（均占有子树，语义互斥）。\n` +
                     "若需组合使用，请改用（均不占子树，可与结构指令共存）：\n" +
                     '  • x-show="<expr>"        （display:none，宿主永留 DOM）\n' +
-                    '  • 结构指令的 .keepalive 变体（detach 宿主，保活子树与 watcher）\n' +
+                    "  • 结构指令的 .keepalive 变体（detach 宿主，保活子树与 watcher）\n" +
                     "或用外层包裹，让两个结构指令各居一层。",
             );
         }
@@ -633,6 +740,19 @@ export class AutoSparkCompiler {
                 child.hasAttribute("x-default")
             ) {
                 return null;
+            }
+            // 声明性资源收集器直接命中本层根（x-component/x-icon-define/x-overlay 声明为组件快照、
+            // x-for 项模板或 patch 节点的**直接子元素**）：transformElement 以其为根时收集器返回 null
+            // 会触发"根元素被丢弃"抛错（收集已完成但中断当次 flush）——此处直接走收集并剪枝，
+            // 与深层嵌套路径（transformElement walk 内层剪枝不抛错）语义一致（ADR-0022 嵌套私有子组件）。
+            if (this._matchComponentAttr(child)) {
+                return this._collectComponent(child);
+            }
+            if (child.hasAttribute("x-icon-define")) {
+                return this._collectIconDefine(child);
+            }
+            if (parseOverlayAttr(child) !== null) {
+                return this._collectOverlay(child);
             }
             return transformElement(child, this._getTransformers());
         }
@@ -796,12 +916,20 @@ export class AutoSparkCompiler {
      * @param snapshot    组件冻结快照根
      * @param def         组件定义（可空：纯快照组件无 setup）
      * @param props       x-use 传入的 props（覆盖 data() 默认）
+     * @param basis       数据基准（ADR-0053，x-use 解析链的结论）。缺省 undefined = 不施加边界语义
+     *                    （现行为，供 overlay 等非 x-use 路径）：
+     *                    - `'closed'`：封闭——hostScope 打数据边界标志，子树数据视图止于
+     *                      自身 data/locals/props + engine.state（getContext/hasLocalContext/相对挂载三处收口）；
+     *                    - `'declarer'`：数据视图挂声明处 scope（def.declarerScope；全局组件无声明
+     *                      scope 或声明 scope 已销毁 → 退化为封闭 + warn 一次）；
+     *                    - `'host'`：消费处上下文（结构 parent 链，= 无边界标志的现行为）。
      */
     instantiateComponent(
         hostScope: AutoSparkScope,
         snapshot: HTMLElement,
         def: ComponentDef | null,
         props?: Record<string, any>,
+        basis?: ComponentDataBasis,
     ): void {
         // 1. 注册快照根到 templateScopeMap：子树编译时 _linkParent 沿 parentElement 找到此映射 → 宿主 scope
         this.templateScopeMap.set(snapshot, hostScope);
@@ -810,6 +938,26 @@ export class AutoSparkCompiler {
             this.injectComponentSemantics(hostScope, def, props);
         } else if (props) {
             this.injectInitialData(hostScope, props);
+        }
+        // 2.1 数据基准施加（ADR-0053）：须早于 compileSubtree（子树 watch 首求值经 getContext
+        // 读到的视图必须已是基准后的视图）。宿主 scope 可能已缓存注入前的 _scopeView，须失效重建。
+        if (basis === "closed") {
+            hostScope.dataBoundary = true;
+            hostScope.invalidateScopeView();
+        } else if (basis === "declarer") {
+            const declarer = def?.declarerScope ?? null;
+            if (!declarer) {
+                // 全局组件（options.components 字符串）无声明 scope：declarer 无意义，退化封闭
+                this._warnDeclarerFallback(def, "无声明处 scope（全局组件）");
+                hostScope.dataBoundary = true;
+            } else if (declarer.destroyed) {
+                // 悬空守卫：声明处 scope 已销毁，降级封闭（不悬挂引用、不读已删数据）
+                this._warnDeclarerFallback(def, "声明处 scope 已销毁");
+                hostScope.dataBoundary = true;
+            } else {
+                hostScope.declarerDataScope = declarer;
+            }
+            hostScope.invalidateScopeView();
         }
         const hostEl = hostScope.el!;
         // 2.5 响应式 <style> bind 订阅（ADR-0022 决策四-4.1）：须在 data 注入（步骤2）后、compileSubtree 前。
@@ -836,6 +984,28 @@ export class AutoSparkCompiler {
     }
 
     /**
+     * declarer 基准退化封闭的 warn 一次记录（ADR-0053）：按组件定义去重（def 多实例共享），
+     * 防循环实例化场景刷屏。WeakSet 随 def 回收。
+     */
+    private _declarerFallbackWarned = new WeakSet<ComponentDef>();
+
+    /**
+     * declarer 基准退化为封闭时的 warn（ADR-0053）：每个组件定义只 warn 一次。
+     *
+     * @param def   组件定义（可空：纯快照组件无 def，此时恒 warn——无去重载体）
+     * @param reason 退化原因（进日志）
+     */
+    private _warnDeclarerFallback(def: ComponentDef | null, reason: string): void {
+        if (def) {
+            if (this._declarerFallbackWarned.has(def)) return;
+            this._declarerFallbackWarned.add(def);
+        }
+        this.engine.logger.warn(
+            `x-use: 组件 "${def?.name ?? "?"}" 的 declarer 基准不可用（${reason}），已退化为封闭行为（ADR-0053）。如需恢复上下文继承请改用 scope:'host'。`,
+        );
+    }
+
+    /**
      * 为组件实例的 `<style>` bind 建立 CSS 变量订阅（ADR-0022 决策四-4.1）。
      *
      * 遍历 `def.styleBinds`，对每个 bind 调 `hostScope.watch(expr)`——watch 返回当前值做首写、
@@ -847,11 +1017,7 @@ export class AutoSparkCompiler {
      * @param rootEl 组件根元素（变量挂载点，每实例独立）
      * @param binds  bind 清单（编译期提取、多实例共享只读）
      */
-    private _bindStyleVars(
-        scope: AutoSparkScope,
-        rootEl: HTMLElement,
-        binds: StyleBind[],
-    ): void {
+    private _bindStyleVars(scope: AutoSparkScope, rootEl: HTMLElement, binds: StyleBind[]): void {
         const apply = (varName: string, value: unknown) => {
             const coerced = coerceStyleValue(value);
             if (coerced == null) {

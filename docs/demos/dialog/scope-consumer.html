@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-dialog · scope 基准（数据视图）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- scope 基准决定覆盖层实例的表达式上下文：declarer（默认）读声明处；consumer 读消费处 -->
+        <div class="demo-app section">
+            <div x-data="{ ui: { openA: false, openB: false }, who: '声明处的数据' }">
+                <div class="block">
+                    <button class="button" x-dialog:demo="ui.openA" @click="ui.openA = true">打开（默认 declarer）</button>
+                </div>
+                <div class="block has-text-grey">
+                    同一个覆盖层定义 <code>x-overlay:demo</code>，两种基准：默认读<b>声明处</b>的
+                    <code>who</code>；<code>scope: 'consumer'</code> 时读<b>消费处</b>的 <code>who</code>。
+                </div>
+
+                <!-- 定义处：who = 声明处的数据 -->
+                <div x-overlay:demo="dialog">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">数据来自</h3>
+                        <p class="title is-4" x-text="who"></p>
+                        <button class="button is-fullwidth" @click="close()">关闭</button>
+                    </div>
+                </div>
+
+                <!-- 消费处：局部 x-data 遮蔽了外层 who，scope: consumer 的实例读它（ui.openB 沿祖先链回退外层） -->
+                <div x-data="{ who: '消费处的数据（局部域）' }">
+                    <div class="block has-text-grey is-size-7">（本区域局部 x-data 声明了同名 who，scope: consumer 读它）</div>
+                    <button class="button" x-dialog:demo="{visible: 'ui.openB', scope: 'consumer'}"
+                            @click="ui.openB = true">打开（scope: consumer）</button>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

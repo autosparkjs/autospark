@@ -1,6 +1,7 @@
 // oxlint-disable typescript/no-this-alias
 import type { AutoSpark } from "./engine";
 import type { ComponentHooks } from "./directives/component-def";
+import type { OverlayDef } from "./overlay/types";
 import type { ActionDesc } from "./actions/types";
 import { AutoSparkDirectiveBase } from "./directives/base";
 import { getVal, type Watcher } from "autostore";
@@ -246,6 +247,16 @@ export class AutoSparkScope {
      */
     components: Record<string, HTMLElement> | null = null;
     /**
+     * x-overlay 收集的覆盖层定义（ADR-0052）。
+     *
+     * compiler 前置 transformer 命中 `x-overlay:<名称>` 元素时，冻结快照组装为 OverlayDef
+     * （复用组件收集管道，`<script setup>`/`<style>` 已提取）存入最近祖先 scope 的本字段；
+     * `.global` 修饰符改升 engine 级全局表（`engine._globalOverlays`）。key 为覆盖层名；
+     * 同名后者覆盖（warn）。查找走 `getOverlay(name)`（沿链就近 → 全局兜底，与 getComponent
+     * 同构）。仅收集到覆盖层时才创建（YAGNI，同 components）。
+     */
+    overlays: Record<string, OverlayDef> | null = null;
+    /**
      * x-for 分页状态的只读快照（ADR-0042 分页状态读取器）。
      *
      * 仅 x-for.paging 的容器 scope 持有：For 指令在分页状态每次变化时整体重建（Object.freeze），
@@ -254,6 +265,25 @@ export class AutoSparkScope {
      * 多数 scope 无分页 → null（同 components，YAGNI）；随 scope 对象回收，无需手动清理。
      */
     paging: AutoSparkPagingSnapshot | null = null;
+    /** 是否已销毁（destroy 幂等守卫；供覆盖层实例等外部资源判定级联死亡，ADR-0052） */
+    destroyed = false;
+    /**
+     * 数据边界标志（ADR-0053 组件数据边界）：true = 本 scope 是**封闭组件实例 scope**。
+     * 数据视图（getContext）与局部数据探测（hasLocalContext）的 parent 链上溯在本 scope
+     * 止步——之上直接回退 `engine.state`（全局态可见，祖先 scope 的局部数据域不可见）。
+     * 本 scope 自身的 locals/_data 仍在边界内（组件自己的数据域）。
+     * 仅 x-use 实例化且解析链结论为封闭时设置（instantiateComponent），overlay 等路径不受影响。
+     */
+    dataBoundary = false;
+    /**
+     * declarer 基准的数据视图挂链目标（ADR-0053）：组件**声明处** scope。
+     * 设置后本 scope 及子树的数据视图转道声明链（getContext 的 parentView 取声明 scope 的
+     * 聚合视图、hasLocalContext 与 x-data 相对挂载同步转道），与结构 parent 链（消费处）解耦。
+     * 声明 scope 销毁后降级为封闭行为（悬空守卫，warn 一次）。与 dataBoundary 互斥设置。
+     */
+    declarerDataScope: AutoSparkScope | null = null;
+    /** declarer 悬空降级的 warn 一次标志（ADR-0053） */
+    private _declarerDangleWarned = false;
     /** 缓存的聚合视图（命中优先级：locals > data > parent 链 > engine.state） */
     private _scopeView: any = null;
 
@@ -267,8 +297,24 @@ export class AutoSparkScope {
      */
     getContext(): Record<string, any> {
         if (this._scopeView) return this._scopeView;
-        // 父级视图：父作用域的聚合视图；无父则退化为根 context
-        const parentView = this.parent ? this.parent.getContext() : this.engine.state;
+        // 父级视图按数据基准三态解析（ADR-0053）：
+        // - declarer 基准：声明处 scope 的聚合视图（悬空降级封闭 → state）；
+        // - 封闭边界：直接回退全局 state（祖先 scope 的局部数据域不可见，全局态可见）；
+        // - 默认/host 基准：结构 parent 链（现行为）。
+        let parentView: Record<string, any>;
+        if (this.declarerDataScope) {
+            const ds = this.declarerDataScope;
+            if (ds.destroyed) {
+                this._warnDeclarerDangle();
+                parentView = this.engine.state;
+            } else {
+                parentView = ds.getContext();
+            }
+        } else if (this.dataBoundary) {
+            parentView = this.engine.state;
+        } else {
+            parentView = this.parent ? this.parent.getContext() : this.engine.state;
+        }
         const local = this.locals;
         const data = this._data;
         if (!local && !data) {
@@ -337,9 +383,31 @@ export class AutoSparkScope {
         let s: AutoSparkScope | null = this;
         while (s) {
             if (s.locals || s._data) return true;
+            if (s.declarerDataScope) {
+                // declarer 基准：数据视图转道声明链继续探测（声明链自身及以上才是可见的局部数据）
+                const ds = s.declarerDataScope;
+                if (ds.destroyed) {
+                    s._warnDeclarerDangle();
+                    return false; // 悬空降级封闭：视图之上仅全局 state，无局部数据
+                }
+                s = ds;
+                continue;
+            }
+            if (s.dataBoundary) return false; // 封闭边界止步（s 自身已查过，之上不可见）
             s = s.parent;
         }
         return false;
+    }
+
+    /**
+     * declarer 悬空降级的 warn（ADR-0053）：本 scope 只 warn 一次，防高频求值刷屏。
+     */
+    private _warnDeclarerDangle(): void {
+        if (this._declarerDangleWarned) return;
+        this._declarerDangleWarned = true;
+        this.engine.logger.warn(
+            `组件 "${this.componentName ?? "?"}"（scope ${this.id}）的 declarer 基准声明处 scope 已销毁，数据视图降级为封闭行为（仅全局 state，ADR-0053）。`,
+        );
     }
 
     /**
@@ -404,6 +472,24 @@ export class AutoSparkScope {
         }
         // 兜底全局组件（懒预编译缓存，见 engine.getComponent 全局解析）
         return this.engine._resolveGlobalComponent(name);
+    }
+
+    /**
+     * 沿 parent 链就近查找覆盖层定义，到顶兜底 engine 全局表（ADR-0052 决策 5）。
+     *
+     * 与 `getComponent` 同构的查找协议：消费者（x-dialog 等）从自身 scope 起向上取首个含该名
+     * overlay 的 scope（就近覆盖），链上无命中兜底 `engine._globalOverlays`（`.global` 声明注入）。
+     * 整条链（含全局）无命中返回 undefined（消费者 warn + 不渲染）。
+     */
+    getOverlay(name: string): OverlayDef | undefined {
+        let s: AutoSparkScope | null = this;
+        while (s) {
+            if (s.overlays && Object.prototype.hasOwnProperty.call(s.overlays, name)) {
+                return s.overlays[name];
+            }
+            s = s.parent;
+        }
+        return this.engine._resolveGlobalOverlay(name);
     }
 
     /**
@@ -546,7 +632,11 @@ export class AutoSparkScope {
                     return true; // 静默忽略（不真写入，也不报错）
                 }
                 // 组件响应式 data 域（_data）已有键 → 写 _data（响应式，Q2 data 优先）。
-                if (typeof k === "string" && scope._data && Object.prototype.hasOwnProperty.call(scope._data, k)) {
+                if (
+                    typeof k === "string" &&
+                    scope._data &&
+                    Object.prototype.hasOwnProperty.call(scope._data, k)
+                ) {
                     scope._data[k] = val;
                     return true;
                 }
@@ -663,7 +753,7 @@ export class AutoSparkScope {
         const safeEval = (): any => {
             try {
                 return getter(scope);
-            } catch  {
+            } catch {
                 //this.engine.logger.warn(`scope.watch: eval "${expr}" failed: ${e?.message ?? e}`);
                 return undefined;
             }
@@ -747,7 +837,7 @@ export class AutoSparkScope {
         ) => any;
         try {
             return getter(scope);
-        } catch  {
+        } catch {
             //this.engine.logger.warn(`scope.read: eval "${value}" failed: ${e?.message ?? e}`);
             return undefined;
         }
@@ -817,6 +907,8 @@ export class AutoSparkScope {
      * 然后 off 自身 watcher，最后触发各指令的 destroy 钩子。
      */
     destroy() {
+        if (this.destroyed) return; // 幂等守卫：二次销毁 no-op（覆盖层实例等外部资源可能重复触发）
+        this.destroyed = true;
         try {
             // 组件实例：beforeUnmount 在 watcher off 之前触发（watcher 仍活，可读最终状态做精确清理）
             this._runHooks("beforeUnmount");
@@ -845,6 +937,7 @@ export class AutoSparkScope {
         } catch (e: any) {
             this.engine.logger.error(e);
         }
-        this.engine.emit("scope/destroyed", { id: this.id });
+        // 携带 scope 引用：供覆盖层实例感知挂链级联死亡（ADR-0052 决策 11 生命周期三合一）
+        this.engine.emit("scope/destroyed", { id: this.id, scope: this });
     }
 }

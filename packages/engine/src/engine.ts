@@ -15,6 +15,9 @@ import { AutoSparkAnimator } from "./animate";
 import { buildComponentDef } from "./compile/collect";
 import { fetchHtml } from "./utils/fetchHtml";
 import { iconRegistry, type IconRegistry } from "./icons/registry";
+import type { OverlayDef } from "./overlay/types";
+import { OverlayHandle } from "./overlay/handle";
+import { removeOverlayContainer } from "./overlay/container";
 
 /**
  * 框架保留键：x-data 默认模式的私有响应式数据域在 store.state 下的容器键。
@@ -230,6 +233,16 @@ export class AutoSpark<
      * `def.parent` / `def.components` 表达，与此表正交。WeakMap：scope 回收后 def 自动释放。
      */
     private _componentDefs = new WeakMap<HTMLElement, ComponentDef>();
+    /**
+     * 全局覆盖层表（ADR-0052 决策 5）：key=覆盖层名，value=OverlayDef。
+     *
+     * compiler `_collectOverlay` 命中带 `.global` 修饰符的 x-overlay 时经 `registerGlobalOverlay`
+     * 注入（同名 warn + 后者覆盖）；`scope.getOverlay` 沿链查找的终点兜底；`engine.getOverlay`
+     * （命令式）**只查本表**（「命令式 = 全局消费」，仅 `.global` 定义命令式可达）。
+     * 声明 scope 销毁时经 `scope/destroyed` 事件（owner 引用比对）自动注销（engine 构造期订阅）；
+     * engine.destroy 清空。
+     */
+    private _globalOverlays = new Map<string, OverlayDef>();
     /**
      * x-import url 缓存（ADR-0022 决策六-3）：key=url，value=解析出的 HTMLElement 根数组
      * （fetched HTML 里的各 `<div x-component>` 顶级元素）。重复引用同一 url 命中缓存，免重复 fetch。
@@ -570,6 +583,55 @@ export class AutoSpark<
     }
 
     /**
+     * 注册全局覆盖层定义（ADR-0052 决策 5）：compiler `_collectOverlay` 命中 `.global` 声明时调用。
+     * 同名 warn + 后者覆盖（对齐组件 default 唯一性放宽先例）。
+     */
+    registerGlobalOverlay(def: OverlayDef): void {
+        if (this._globalOverlays.has(def.name)) {
+            this.logger.warn(
+                `[x-overlay] 全局覆盖层 "${def.name}" 重复声明，后者覆盖前者（ADR-0052 决策 3）`,
+            );
+        }
+        this._globalOverlays.set(def.name, def);
+    }
+
+    /**
+     * 全局覆盖层兜底解析（`scope.getOverlay` 沿链到顶委托；无命中 undefined）。
+     *
+     * **惰性注销**（ADR-0052 决策 5）：命中定义的声明 scope 已销毁（`destroyed` 标志）时，
+     * 就地移除并视为未命中——避免悬空定义被后续消费、declarer 基准挂到死 scope。
+     * 惰性而非事件订阅（零监听占用、engine 构造零接线）；无人查询的残留条目随
+     * engine.destroy 清空，无泄漏。
+     */
+    _resolveGlobalOverlay(name: string): OverlayDef | undefined {
+        const def = this._globalOverlays.get(name);
+        if (def && def.owner.destroyed) {
+            this._globalOverlays.delete(name);
+            return undefined;
+        }
+        return def;
+    }
+
+    /**
+     * 命令式消费入口（ADR-0052 决策 15）：`getOverlay(name, options?)` → 定义句柄。
+     *
+     * **纯全局查找**——只查 `_globalOverlays`，仅 `.global` 声明的定义命令式可达
+     * （「命令式 = 全局消费」）；局部定义的命令式消费待 `scope.getOverlay` 生态（fast-follow）。
+     * 未命中 warn + 返回 undefined。options 为消费者配置级（命令式合并链第三层，
+     * 等价声明式 `x-dialog-options`）；`open(options)` 承载 params/scope 与最顶层配置。
+     */
+    getOverlay(name: string, options?: Record<string, any>): OverlayHandle | undefined {
+        const def = this._globalOverlays.get(name);
+        if (!def) {
+            this.logger.warn(
+                `engine.getOverlay("${name}"): 未找到全局覆盖层定义（仅 .global 声明的定义可命令式消费，ADR-0052 决策 15）`,
+            );
+            return undefined;
+        }
+        return new OverlayHandle(this, def, options ?? null);
+    }
+
+    /**
      * 从远程 url 加载组件定义并注册（ADR-0022 决策六，供 x-import）。
      *
      * - fetch url（经 `fetchHtml`，复用 x-slot fetch 逻辑）→ 解析 HTML 得 `<div x-component>` 顶级元素；
@@ -624,7 +686,13 @@ export class AutoSpark<
         const registered: string[] = [];
         for (const el of elements) {
             const name = (el.getAttribute("x-component") ?? "").trim() || "default";
-            const def = buildComponentDef(el, name, (msg) => this.logger.warn(msg));
+            // declarerScope：作用域注册挂 ownerScope（ADR-0053 declarer 基准）；全局注册无声明 scope → null
+            const def = buildComponentDef(
+                el,
+                name,
+                (msg) => this.logger.warn(msg),
+                global ? null : (ownerScope ?? null),
+            );
             this.registerComponentDef(def);
             if (global) {
                 // 全局：写入 options.components（字符串形态），清全局缓存让其重新懒预编译
@@ -729,6 +797,10 @@ export class AutoSpark<
             scope.destroy();
         }
         this.scopes.clear();
+        // 覆盖层容器整体移除（ADR-0052 决策 13）：实例 scope 已随上方 scope 树级联销毁，
+        // 容器内残留的隐藏单例 DOM 随容器一并回收
+        removeOverlayContainer(this);
+        this._globalOverlays.clear();
         this.el.replaceChildren();
         this.pending = false;
         // store 恒为 engine 自建（ADR-0044）：销毁回收 core 资源；destroy 内部向 configManager 注销本 store

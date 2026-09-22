@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-dialog · 表达式驱动</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- 表达式形态：派生条件驱动（向导场景）；请求关闭仅 UI 收起，不回写状态 -->
+        <div class="demo-app section">
+            <div x-data="{ wizard: { step: 1 } }">
+                <div class="block">
+                    <button class="button" @click="wizard.step = 1">1 填写</button>
+                    <button class="button" @click="wizard.step = 2">2 确认</button>
+                    <button class="button" @click="wizard.step = 3">3 完成</button>
+                    <span class="tag" x-text="'step = ' + wizard.step"></span>
+                </div>
+                <div class="block has-text-grey">
+                    <code>x-dialog:pay="wizard.step === 2"</code>——进入第 2 步自动弹出。按 ESC 或点遮罩只收起界面、
+                    <b>不会改写状态</b>（表达式无路径可回写）；再回到第 2 步会再次弹出。
+                </div>
+
+                <div x-overlay:pay="dialog">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">确认订单</h3>
+                        <p>这是第 2 步的确认弹窗。</p>
+                        <button class="button is-primary" @click="wizard.step = 3">确认并进入第 3 步</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

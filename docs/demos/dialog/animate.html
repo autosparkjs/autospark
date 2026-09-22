@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-dialog · 进出场动画</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+            /* 自定义动画：按六类名契约写 CSS 即插即用（ADR-0039） */
+            .zoom-enter-active, .zoom-leave-active { transition: transform .3s ease, opacity .3s ease; }
+            .zoom-enter-from, .zoom-leave-to { transform: scale(.7); opacity: 0; }
+        </style>
+    </head>
+    <body>
+        <!-- animate 选项复用 ADR-0039 进出场机制：内置 fade/slide 或按六类名契约自定义；false 关闭 -->
+        <div class="demo-app section">
+            <div x-data="{ fade: false, zoom: false, none: false }">
+                <div class="block">
+                    <button class="button" x-dialog:d1="fade" @click="fade = true">默认 fade</button>
+                    <button class="button" x-dialog:d2="{visible: 'zoom', animate: 'zoom'}" @click="zoom = true">自定义 zoom</button>
+                    <button class="button" x-dialog:d3="{visible: 'none', animate: false}" @click="none = true">无动画</button>
+                </div>
+                <div class="block has-text-grey">
+                    <code>animate</code> 取值三形态：字符串（进出同名）/ 对象 <code>{name, duration, delay, easing}</code> /
+                    分相 <code>{enter, leave}</code>；<code>false</code> 关闭。自定义动画 = 按六类名写 CSS 传名即用。
+                </div>
+
+                <!-- 覆盖层定义与消费者同 scope（查找沿消费处祖先 scope 链向上） -->
+                <div x-overlay:d1="dialog">
+                    <div class="ov-panel"><h3 class="title is-5">默认 fade</h3><button class="button" @click="close()">关闭</button></div>
+                </div>
+                <div x-overlay:d2="dialog">
+                    <div class="ov-panel"><h3 class="title is-5">自定义 zoom</h3><button class="button" @click="close()">关闭</button></div>
+                </div>
+                <div x-overlay:d3="dialog">
+                    <div class="ov-panel"><h3 class="title is-5">无动画</h3><button class="button" @click="close()">关闭</button></div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

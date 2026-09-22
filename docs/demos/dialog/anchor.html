@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-dialog · anchor 锚定定位</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 20px; min-width: 260px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- anchor.at 命令式换锚：open(options) 的 anchor 走合并链最顶层；有 at 时贴锚定位（floating-ui），遮罩照常模态 -->
+        <div class="demo-app section">
+            <div class="block" style="display:flex; gap: 8px; flex-wrap: wrap;">
+                <button id="btn-top" class="button" onclick="openTip('top')">从上方按钮弹出（placement: top）</button>
+                <button id="btn-bottom" class="button" onclick="openTip('bottom')">从下方按钮弹出（placement: bottom）</button>
+            </div>
+            <div class="block has-text-grey">
+                <code>anchor.at</code> 两栖：<code>@</code> 前缀全局选择器、无前缀 scope 子树内查、命令式直接传元素（本页）。
+                <code>arrow: true</code> 时引擎自动注入箭头（伪元素实现，模板零约定）。
+                声明处 <code>x-overlay-options</code> 的 anchor 是缺省锚，命令式 <code>open({anchor})</code> 在合并链最顶层覆盖它——换锚即换位置。
+            </div>
+
+            <!-- 全局定义：命令式消费（getOverlay）的唯一来源；x-scope 为声明提供归属 scope -->
+            <div x-scope>
+                <div x-overlay:tip.global="dialog" x-overlay-options="{anchor: {at: '@#btn-top', placement: 'right', arrow: true}}">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">贴锚提示</h3>
+                        <p>本面板贴着触发按钮定位。</p>
+                        <button class="button is-small is-fullwidth" @click="close()">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            // 命令式 open：anchor.at 直接传元素；仅 .global 定义可 getOverlay 达（「命令式 = 全局消费」）
+            function openTip(pos) {
+                engine.getOverlay("tip")?.open({
+                    anchor: { at: document.getElementById("btn-" + pos), placement: pos, arrow: true },
+                });
+            }
+        </script>
+    </body>
+</html>

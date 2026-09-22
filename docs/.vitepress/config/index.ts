@@ -69,6 +69,8 @@ export default defineConfig({
                         { text: "x-on", link: "/zh/guide/directives/x-on" },
                         { text: "x-loading", link: "/zh/guide/directives/x-loading" },
                         { text: "x-slot", link: "/zh/guide/directives/x-slot" },
+                        { text: "x-overlay", link: "/zh/guide/directives/x-overlay" },
+                        { text: "x-dialog", link: "/zh/guide/directives/x-dialog" },
                         { text: "x-model", link: "/zh/guide/directives/x-model" },
                         { text: "x-form", link: "/zh/guide/directives/x-form" },
                         { text: "x-icon", link: "/zh/guide/directives/x-icon" },

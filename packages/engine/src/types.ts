@@ -194,7 +194,7 @@ export interface AutoSparkEvents {
     /** scope 编译完成（全部指令 created+compile 跑完） */
     "scope/compiled": { id: number };
     /** scope 销毁 */
-    "scope/destroyed": { id: number };
+    "scope/destroyed": { id: number; scope: AutoSparkScope };
     /** engine.data() 更新了某 scope 的数据 */
     "scope/data-updated": { id: number; data: Record<string, any> };
 

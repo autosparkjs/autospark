@@ -1,6 +1,13 @@
-import type { ComponentDef, ComponentSetup, ComponentHooks } from "../directives/component-def";
+import type {
+    ComponentDef,
+    ComponentScopeBasis,
+    ComponentSetup,
+    ComponentHooks,
+} from "../directives/component-def";
 import { evalComponentSetup, mergeComponentSetups, extractComponentHooks } from "./setup";
 import { extractStyleBinds, type StyleBind } from "../utils/styleBind";
+import type { AutoSparkScope } from "../scope";
+import { relaxedToJson } from "../utils/relaxedToJson";
 
 /**
  * 判定 `<script>` 是否为组件 `<script setup>`（ADR-0022 决策四）。
@@ -24,6 +31,73 @@ function isLegacySetupScript(el: HTMLScriptElement): boolean {
 }
 
 /**
+ * 解析 `x-component-options` 属性为对象（宽松 JSON，ADR-0007 指令选项形态）。
+ *
+ * 组件元素在编译期前置 transformer 即被剪枝（不走 getDirectives 的通用指令选项解析），
+ * 故在此手动解析。解析失败 warn + 返回 null（与 `<script setup>` 容错纪律一致）。
+ */
+function parseComponentOptions(
+    componentEl: HTMLElement,
+    warn: (msg: string) => void,
+): Record<string, any> | null {
+    const raw = componentEl.getAttribute("x-component-options");
+    if (raw == null || raw.trim() === "") return null;
+    try {
+        const parsed = JSON.parse(relaxedToJson(raw));
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+        warn(`x-component-options: 值须为普通对象，实际 ${JSON.stringify(parsed)}，已忽略`);
+        return null;
+    } catch (e: any) {
+        warn(`x-component-options 解析失败，已忽略: ${e?.message ?? e}`);
+        return null;
+    }
+}
+
+/**
+ * 提取组件数据边界声明（ADR-0053）：`open` 开关 + `scope` 基准。
+ *
+ * - `open`：布尔开关，默认 false（封闭）。`.open` 修饰符（`x-component.open`）是 `open:true` 的糖，
+ *   显式 options 键优先（`{open:false}` 可关掉修饰符）。
+ * - `scope`：`'host' | 'declarer'`，仅 `open` 为真时生效——**scope 声明而无 open → warn + 忽略**
+ *   （基准没有生效条件）；非法值 warn + 忽略。
+ */
+function extractBoundaryOptions(
+    componentEl: HTMLElement,
+    modifierOpen: boolean,
+    warn: (msg: string) => void,
+): { open: boolean; scopeBasis: ComponentScopeBasis | undefined } {
+    const opts = parseComponentOptions(componentEl, warn);
+    const rawOpen = opts?.open;
+    let open: boolean;
+    if (typeof rawOpen === "boolean") {
+        open = rawOpen; // 显式 options 键（含 false）优先于修饰符
+    } else if (rawOpen !== undefined) {
+        warn(`x-component-options.open: 须为布尔值，实际 ${JSON.stringify(rawOpen)}，已忽略`);
+        open = modifierOpen;
+    } else {
+        open = modifierOpen;
+    }
+    let scopeBasis: ComponentScopeBasis | undefined;
+    const rawScope = opts?.scope;
+    if (rawScope !== undefined) {
+        if (rawScope === "host" || rawScope === "declarer") {
+            if (open) {
+                scopeBasis = rawScope;
+            } else {
+                warn(
+                    `x-component-options.scope: 基准仅在 open 声明时生效（组件默认封闭），声明被忽略（ADR-0053）`,
+                );
+            }
+        } else {
+            warn(
+                `x-component-options.scope: 无效值 ${JSON.stringify(rawScope)}（须 'host'|'declarer'），已忽略（ADR-0053）`,
+            );
+        }
+    }
+    return { open, scopeBasis };
+}
+
+/**
  * 从组件元素（含 `<script setup>`/`<style>` 子节点）提取并组装组件定义（ADR-0022 决策二/四）。
  *
  * 核心步骤：
@@ -33,15 +107,19 @@ function isLegacySetupScript(el: HTMLScriptElement): boolean {
  * 4. 合并 setups（data 收集、methods 浅合并、同名 hooks 串行，决策四-1/R3=A）；
  * 5. 组装 ComponentDef（snapshot/setup/hooks/styles）。
  *
- * @param componentEl 原树中的 x-component 元素（读取子节点结构）
- * @param name        组件名
- * @param warn        warn 日志函数
+ * @param componentEl   原树中的 x-component 元素（读取子节点结构）
+ * @param name          组件名
+ * @param warn          warn 日志函数
+ * @param declarerScope 声明处 scope（收集时归属的最近祖先 scope；全局组件无声明 scope 传 null）
+ * @param modifierOpen  `.open` 修饰符（`x-component.open` 属性名形态）注入的 open:true
  * @returns 组件定义（snapshot 已剥离 script/style 子节点）
  */
 export function buildComponentDef(
     componentEl: HTMLElement,
     name: string,
     warn: (msg: string) => void,
+    declarerScope: AutoSparkScope | null = null,
+    modifierOpen = false,
 ): ComponentDef {
     // 1. 原树收集 setup 文本与 style 文本（克隆前读，避免克隆后引用错位）
     const setupTexts: string[] = [];
@@ -96,6 +174,9 @@ export function buildComponentDef(
     // bind 清单（跨 <style> 块全局去重；无 bind 时为 undefined）
     const styleBinds = bindMap.size > 0 ? Array.from(bindMap.values()) : undefined;
 
+    // 数据边界声明（ADR-0053）：open 开关 + scope 基准（含 `.open` 修饰符合并与校验 warn）
+    const { open, scopeBasis } = extractBoundaryOptions(componentEl, modifierOpen, warn);
+
     return {
         name,
         snapshot,
@@ -103,5 +184,8 @@ export function buildComponentDef(
         hooks,
         styles,
         styleBinds,
+        open,
+        scopeBasis,
+        declarerScope,
     };
 }

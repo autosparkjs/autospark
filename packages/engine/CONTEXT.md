@@ -29,7 +29,7 @@ action 的**统一存储与读取形态**：`handle` 是唯一必需保留键（
 _Avoid_: action 对象（泛化）、action 配置（它是存储形态不是配置）、元数据对象（handle 也是它的一部分）
 
 **hide 约定键（ActionDesc）**:
-ActionDesc 的**行为型**文档化约定键（ADR-0038）：声明「触发后是否隐藏所在加载覆盖层」，默认 `true`、显式 `false` 关闭，**逐 action 独立**（close 隐藏、retry 续显可并存）；由 x-loading 按钮委托在**点击时现读**（后注册不失效），其他场景不解释。
+ActionDesc 的**行为型**文档化约定键（ADR-0038）：声明「触发后是否隐藏所在加载遮罩」，默认 `true`、显式 `false` 关闭，**逐 action 独立**（close 隐藏、retry 续显可并存）；由 x-loading 按钮委托在**点击时现读**（后注册不失效），其他场景不解释。
 _Avoid_: autoHide / dismiss（英文别名）、hide 选项（它是 action 的键，不是指令配置）
 
 **合成动作描述符 / Synthetic ActionDesc**:
@@ -66,6 +66,18 @@ _Avoid_: 合并、级联、继承（回退不是合并）
 暴露给 `x-on` action 的只读聚合视图，以 `Option Fallback` 顺序虚拟合并指令选项与宿主选项，读取时按需回退、零拷贝。
 _Avoid_: options 对象、配置快照
 
+**运行时选项覆盖（Runtime Option Override）**:
+指令选项的运行时更新机制：在宿主元素上以覆盖属性 `data-<指令名>-<选项名>`（如 `data-show-animate="fade"`）声明覆盖，经统一分发器在根元素全局监听，变更时把新值写回指令选项（删除属性即还原编译期值，初始值同样生效；值经宽松 JSON 单值解析）。生效时机惰性为默认——新值在下一次消费该选项时可见，需即时的指令自行重放。仅单例指令支持（ADR-0051）；区别于构造期配置纪律（全局组件等 options 的「运行时突变不失效」约定）——覆盖是显式声明的运行时通道，不是构造期突变的追认。详见 ADR-0051。
+_Avoid_: 热更新、动态配置、动态指令配置（不表达「覆盖回退链、删除即还原」语义）
+
+**覆盖属性（Override Attribute）**:
+`data-<指令名>-<选项名>` 形态的 DOM 属性，运行时选项覆盖的载体（如 `data-loading-delay="300"`）。仅在指令显式声明的选项键上被观察与分发；未声明的 `data-*` 属性一律是普通属性、零观察（含 x-for 占用的 `data-index` / `data-paging`）。可被 `:` 绑定语法驱动，实现状态驱动配置。
+_Avoid_: data 配置（泛化）、data 选项（它是属性载体，不是指令选项本体）
+
+**选项策略（Option Policy）**:
+指令类对单个选项键声明的运行时处置档位：`runtime`（可覆盖，进 `runtimeOptions`）/ `warn`（真·编译期选项，覆盖属性变更仅告警指回 `x-{name}-options`）/ `restart`（v2 预留：触发指令实例重启、子树按自持模板重建）。三分法的判据是选项的**消费时机**（现读 / 快照-运行时 / 真编译期），不是声明位置。详见 ADR-0051 决策 7。
+_Avoid_: 选项类型（与 DirectiveKind 撞词）、编译/运行时二分（三分法，二分已否决）
+
 ### 数据声明层
 
 **挂载 / Mount（x-data）**:
@@ -97,8 +109,8 @@ _Avoid_: 异步模板（.compile 只是消费通道之一）、远程 HTML 数�
 _Avoid_: result（旧提案名已弃）、字段名（不表达路径下钻）、挂载路径（那是 mount 的值）
 
 **异步兜底 / x-fallback**:
-异步源宿主（异步 x-data / 异步 x-html）的**特例子节点**（x-empty 之于 x-for 同构）：**非就绪态的替换渲染**——非就绪（加载中或失败）且**尚无内容**时显示（x-data 判「域内尚无数据」、x-html 判「宿主无已注入内容」；重取保旧值不闪断；要重取期视觉指示，显式声明 `loading` 选项叠覆盖层）。x-data 侧 fallback 经编译（可插值读 `$error`）；x-html 侧走**静态通道**（不编译不可插值，注入内容写入前先移除）。与 x-loading 覆盖层**互斥为默认**（声明 x-fallback 则不合成覆盖层；`loading:{...}` 显式开启则并存、`loading:false` 恒关）；同元素双异步时归 x-data 独占。孤立 x-fallback（父元素无异步源）warn + 当普通元素放行。区别于空值占位（x-text 值级空态文案）、组件兜底（消费者未命中组件回退默认 UI）、空值回填（x-model 显示层回填）——三者均非「异步未就绪」语义。
-_Avoid_: fallback 块（裸词歧义）、加载占位（不认领 error 态，窄化语义）、loading 块（与 x-loading 覆盖层撞义）
+异步源宿主（异步 x-data / 异步 x-html）的**特例子节点**（x-empty 之于 x-for 同构）：**非就绪态的替换渲染**——非就绪（加载中或失败）且**尚无内容**时显示（x-data 判「域内尚无数据」、x-html 判「宿主无已注入内容」；重取保旧值不闪断；要重取期视觉指示，显式声明 `loading` 选项叠加载遮罩）。x-data 侧 fallback 经编译（可插值读 `$error`）；x-html 侧走**静态通道**（不编译不可插值，注入内容写入前先移除）。与 x-loading 加载遮罩**互斥为默认**（声明 x-fallback 则不合成遮罩；`loading:{...}` 显式开启则并存、`loading:false` 恒关）；同元素双异步时归 x-data 独占。孤立 x-fallback（父元素无异步源）warn + 当普通元素放行。区别于空值占位（x-text 值级空态文案）、组件兜底（消费者未命中组件回退默认 UI）、空值回填（x-model 显示层回填）——三者均非「异步未就绪」语义。
+_Avoid_: fallback 块（裸词歧义）、加载占位（不认领 error 态，窄化语义）、loading 块（与 x-loading 加载遮罩撞义）
 
 ### 内容渲染层
 
@@ -264,14 +276,50 @@ _Avoid_: 分页状态注入（不进状态树）、分页对象（与 :data-pagi
 x-for 分页模式的特殊形态：`pageCount=0` 时总页数未知，只有"下一页"语义。loader 返回空 data 数组时 `$hasMore=false`，表示没有更多数据。
 _Avoid_: 无限滚动（load-more 是显式触发，不是自动滚动加载）
 
-### 加载覆盖层
+### 覆盖层（Overlay）
+
+**覆盖层定义（Overlay Definition）**:
+`x-overlay:<名称>` 声明的弹层模板资源（dialog / drawer / popup / popover 家族的声明侧）：编译期剪枝缓存为冻结快照、挂最近祖先 scope（`.global` 升 engine 级），不进结果 DOM（声明处无闪现）。值是**类型认领**标记（消费者类型不匹配 warn 仍渲染；无值 = 通用），同名定义后者覆盖。声明元素上其他指令随快照冻结、消费时才编译——模板具完整组件能力（`<script setup>`/`<style>` 生效）。存储与查找沿 scope 链就近 + engine 全局兜底（与组件查找同构）。详见 ADR-0052。
+_Avoid_: 覆盖物（口语变体）、弹层模板（泛化）、overlay 组件（无 x-component 参与）、内联弹层（定义不在消费处渲染）
+
+**覆盖层实例（Overlay Instance）**:
+覆盖层定义被消费者打开渲染出的**活体**：独立 scope + watcher 子树，渲染进 body 下本 engine 的覆盖层容器。表达式上下文 / 挂链 / 生命周期由 **scope 基准**三合一决定（`scope: 'consumer' | 'declarer'`，默认 declarer——declarer 实例随声明处 scope 近永续，consumer 实例随消费者 scope 生死）。singleton 定义单例复用（关闭隐藏保活、重注入 params），非单例每次新实例可并存、关闭即销毁；层叠 = DOM 追加顺序。
+_Avoid_: overlay 对象、弹层实例（泛化）、对话框实例（那是 x-dialog 消费者视角的产物）
+
+**覆盖层消费者（Overlay Consumer）**:
+把覆盖层定义实例化并驱动其生命周期的指令族（x-dialog / x-drawer / x-popup / x-popover，v1 仅 x-dialog）：**纯状态驱动**——宿主是纯声明点（无隐式点击），visible 绑定（简单路径可回写 / 表达式 / 字面量三形态）真值即开；params 打开时快照注入实例数据域顶层（覆盖同名）。per-实例配置经值对象内联（visible/params 保留键、其余键入配置链），配置四级深度合并：`内置默认 < x-overlay-options < x-dialog-options < 值对象内联`。
+_Avoid_: 触发器（宿主无隐式点击）、弹出指令（泛化）、调用方（action 语境词汇）
+
+**请求关闭（Request Close）**:
+覆盖层关闭动作（ESC / 点遮罩 / close action）的统一语义——关闭是「请求」不是命令：visible 可回写（简单路径）则回写 `false`（状态是唯一真相源）；不可回写（表达式/字面量）仅 UI 关闭 + `overlay:close` 广播由用户善后。已知边界：表达式形态关闭后依赖变化重求值仍真会**重开**。子树内 close action 由消费者在实例根上委托监听（overlay DOM 在 body 下，engine 树收不到冒泡）。
+_Avoid_: 强制关闭（它是请求语义）、自动回写（仅简单路径可回写）、关闭回调（事件广播解耦，非配置函数）
+
+**覆盖层定义句柄（Overlay Handle）**:
+`engine.getOverlay(name, options?)` 返回的**定义编程视图**（命令式消费入口）：`open(options?)` 打开、`close()` 关闭该定义当前全部打开实例。仅 `.global` 声明的定义命令式可达（「命令式 = 全局消费」）；options 是消费者配置级（与 x-dialog-options 同级），命令式合并链比声明式少一级。
+_Avoid_: overlay 对象（泛化）、定义引用（「句柄」对齐 handle 惯例）、组件句柄（与 x-component 撞义）
+
+**覆盖层实例句柄（Overlay Instance Handle）**:
+定义句柄 `open(options?)` 返回的**单个实例编程视图**：`close()` 精确关闭、`el` / `name` / `scope` 读取——非单例多实例并存时唯一能精确关闭单个实例的通道。`options.scope`（元素）声明数据视图基准（缺省 engine 根全局视图），与声明式 scope 键同概念两表达面（声明式给基准名、命令式给基准载体）；命令式实例与声明式实例**同权同池**（共享单例池；单例重复 open 幂等——同句柄 + 重注入 params + 不重播动画）。
+_Avoid_: anchor（那是定位锚点，数据视图是 scope）、实例对象（泛化）
+
+**打开栈（Open Stack）**:
+document 级共享的**打开实例顺序栈**（所有 engine 的实例同栈同权，声明式与命令式同权入栈）：ESC 经此只关**全局栈顶**实例（多 engine 并存也不连环关）；遮罩点击不依赖它——DOM 层叠天然让点击命中最上层。
+_Avoid_: 层级栈（z-index 显式层级管理是另一件事）、单 engine 栈（跨 engine 全局协调正是决策核心）
+
+**定位锚点（Anchor）**:
+`anchor` 配置指定的**显示定位参考**（与 scope 正交：scope 管数据视图、anchor 管位置）：`anchor.at` 两栖——字符串选择器（`@` 前缀全局 / 无前缀 scope 子树内查，打开时现查，未命中 warn 退屏幕居中）或元素引用（命令式）。dialog 恒模态——anchor 只改位置不改模态性（有 anchor 遮罩照常渲染）；定位计算经 floating-ui（placement / offset / shift / flip，flip 与滚动重定位默认开），箭头由引擎自动注入载体 + 伪元素默认视觉（8×8 旋转 45°，模板零约定）。
+_Avoid_: 锚点 el（键名是 at）、scope 锚点（scope 是数据视图，二者正交）、popup 专属（dialog 有 anchor 时同样锚定定位）
+
+### 加载遮罩（Loading Mask）
+
+> 旧称「加载覆盖层」已让位更名——「覆盖层」词汇整体归属 x-overlay 弹层家族（正式词条见上方「覆盖层」章节，历史沿革见「已废弃」词条）。
 
 **动作按钮清单 / actions（x-loading）**:
 x-loading 配置的**动作名数组**（inline 主声明 → `x-loading-options` 回退，与其他配置字段同规则；非字符串元素 warn 剪枝）。挂载时解析为 `[{name, title}]` 注入块 data（`title = ActionDesc.title ?? name`），渲染归块作者、触发归指令（见「data-action 委托」）。详见 ADR-0038。
 _Avoid_: 动作列表（泛化）、buttons（配置的是 action 名不是按钮）、对象形态（已否决——文案定制走 ActionDesc.title）
 
 **data-action 委托（x-loading）**:
-覆盖层根上的点击委托契约：块内任意 `data-action="<name>"` 元素点击 → 经块 scope `getAction` 链逐次现查（已注册走真 action、未注册走「合成动作描述符」），以标准 AutoSparkActionContext（`el`=被点元素）调用 → 双通道广播；随后按「hide 约定键」决定是否自动隐藏覆盖层。自定义 loading 组件零接线同享。详见 ADR-0038。
+遮罩根上的点击委托契约：块内任意 `data-action="<name>"` 元素点击 → 经块 scope `getAction` 链逐次现查（已注册走真 action、未注册走「合成动作描述符」），以标准 AutoSparkActionContext（`el`=被点元素）调用 → 双通道广播；随后按「hide 约定键」决定是否自动隐藏遮罩。自定义 loading 组件零接线同享。详见 ADR-0038。
 _Avoid_: 动作绑定（泛化）、action 属性（与广播事件名 `action:<name>` 撞形）
 
 ### 表单绑定层
@@ -536,6 +584,18 @@ _Avoid_: 组件渲染（泛化）、组件挂载（Vue 术语）
 fetch 远程 HTML 加载组件定义（可含 1-N 个 x-component）。`.global` 修饰符注册全局组件，否则作用域组件（挂最近祖先 `scope.components`）。url 缓存 + 循环 import 检测。
 _Avoid_: 组件异步加载（泛化）、组件懒加载（语义不符）
 
+**组件数据边界（Component Data Boundary）**:
+x-use 实例化的组件默认**封闭**数据边界：组件内表达式只能读自身 data()/locals、x-use props 与全局 state，祖先 scope 的局部数据域（x-data 域、x-for locals）不可见，读+写一并切断。收口三处：`getContext` 聚合视图、`hasLocalContext` 探测、x-data 相对挂载上溯（越过边界视同越顶落根）。边界只封**数据视图**——action 沿链查找、getComponent 定义查找、`this.$parent` 显式寻址照常；与 methods 组件边界（方法查找止步，ADR-0022 决策二-3）正交并存。模板片段渲染（x-loading 遮罩 / x-empty / tree-node 行模板等无组件语义注入的原地 UI 替换）不受边界管辖。详见 ADR-0053。
+_Avoid_: 沙箱、数据隔离（那是 scoped CSS 的领域）、穿透（指 method 查找越界，另一通道）、作用域隔离（泛化）
+
+**开放边界（open）**:
+`x-component` 的**声明侧**布尔开关（`.open` 修饰符 ≡ `x-component-options="{open:true}"`）：开放该组件的数据边界。默认封闭是**作者契约**——消费侧（x-use-options）只能覆盖已开放组件的基准，不能打开封闭组件。**open 不传播**：开放组件内嵌套声明的私有子组件仍默认封闭（各组件定义独立持有）。
+_Avoid_: public / expose（对外词汇不一致）、透明模式（不表达「声明侧契约 + 不可被消费侧打开」语义）
+
+**scope 基准（Scope Basis）**:
+开放状态下的上下文继承基准，组件与覆盖层家族通用（组件用 `host` 指消费处，overlay 沿用 `consumer`——同一概念两表达面）。组件两值：`'host'`（默认，消费处上下文 ≈ 封闭化之前的既有行为）| `'declarer'`（声明处上下文，词法基准——嵌套私有子组件的声明处是外层组件的实例 scope）。解析链：`x-use-options.scope`（消费覆盖，仅已开放组件生效）> `x-component-options.scope`（作者默认，须配合 open）> `'host'`。三类退化（均 warn 一次）：作者侧 scope 无 open、消费侧 scope 落封闭组件、全局组件声明 declarer（无声明 scope）；declarer 声明 scope 销毁后悬空降级封闭。
+_Avoid_: 数据源（那是异步源家族术语）、上下文基准（中英混杂）、基准点
+
 **组件查找（Component Lookup）**:
 `getComponent` 沿 scope 链就近 + 全局兜底，与原 getBlock 同构。default 唯一性放宽（同名 warn+覆盖）。
 _Avoid_: 组件解析、组件匹配（查找是按 scope 链就近+全局兜底，非内容匹配）
@@ -569,3 +629,7 @@ _Avoid_: type="actions"、type="setup"（改用 autospark/ 前缀写法）
 **`visible`（x-loading 配置键）**:
 已废弃，更名为 `value`（与指令值统一：快速绑定整值即 value 表达式）。旧键编译期 warn + 忽略不生效——缺失 value ≡ 裸属性恒显示，失效可发现。历史 ADR（0008/0021）正文保留旧称。
 _Avoid_: visible（x-loading 配置对象内改用 value；x-show 等指令的 visible 状态字段名不受影响）
+
+**加载覆盖层（x-loading 旧称）**:
+已废弃，更名为**加载遮罩（Loading Mask）**——「覆盖层」词汇整体让渡给 x-overlay 弹层家族（覆盖层定义 / 覆盖层实例），x-loading 在宿主上方的覆盖指示层改称遮罩，语义不变。历史 ADR（0008/0021/0038 等）正文保留旧称，作为决策当时的记录。
+_Avoid_: 覆盖层（裸词现指 x-overlay 家族）、loading 层、浮层

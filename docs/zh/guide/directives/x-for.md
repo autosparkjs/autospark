@@ -204,6 +204,67 @@ engine.state.books.shift();
 
 详见[虚拟列表](./x-for-virtual.md)。
 
+### 性能优化
+
+列表大到千级以上时，开销集中在两头：**结构变化时的 DOM 重建**与**状态的深层代理**。重点就两件事——一是用 `:key`，二是用 autostore 新增的 `shallow` 函数包装列表数组。
+
+#### 一、用 `:key`：按身份复用，只重建真正变动的项
+
+`:key` 给每个列表项一个**稳定的唯一标识**，数组增删、重排、整体替换时引擎按 key 匹配新旧项——未变项的 DOM、scope、订阅**零成本复用**，只增删差异项；缺省 key（index）在中间增删时会让项与数据错位、大面积销毁重建，大列表下这是最主要的隐性开销：
+
+```html
+<!-- 数据自带的唯一 id 作 key：唯一 + 稳定 -->
+<ul x-for="item of items" :key="item.id">
+    <li>{{ item.title }}</li>
+</ul>
+```
+
+代价极小（一次 key 求值），收益是正确性（项不随位置错位）、性能（重排与中间增删只动真正变动的项）与状态保留（焦点、半填表单、动画中途态随项保留）。key 的选择与反例详见上方 [key优化](#key优化)。
+
+#### 二、用 `shallow`：仅做浅层代理，不做深层嵌套代理
+
+AutoStore 缺省对整棵状态树做**深层代理**——递归代理数组的每个成员、成员内的每个嵌套对象。上万项的大列表初始化时要逐层建立代理，初始化耗时与内存开销随嵌套深度放大。`shallow`（autostore 新增的函数，经 autospark 全量转导出，`import { shallow } from "autospark"` 即可用）把一个对象或数组标记为**仅做浅层代理**：进入状态树后只代理浅层，不再嵌套式向下代理，这对大型数组或对象在性能敏感场景下很有用：
+
+```javascript
+import { AutoSpark, shallow } from "autospark";
+
+const engine = new AutoSpark(el, {
+    // 数组 + 成员各一层浅代理，孙级及以下读出即原始引用
+    todos: shallow(bigTodos, 1),
+});
+```
+
+`shallow(obj, deep)` 的 `deep` 有两档（缺省 `0`），响应行为不同：
+
+| 写法               | 代理层数           | 响应行为                                                   |
+| ------------------ | ------------------ | ---------------------------------------------------------- |
+| `shallow(list)`    | 仅数组本身一层     | `push` / `splice` / 索引整体替换等结构操作照常响应；**元素读出即原始引用**——直改元素内部字段不触发更新（需 `list[i] = {...}` 整体替换该项） |
+| `shallow(list, 1)` | 数组一层 + 成员一层 | 成员字段读写仍响应（如 `todo.done = !todo.done` 触发该项 `:class` 细粒度更新），成员内函数照常成为计算属性；**孙级及以下读出即原始引用**（成员首次经代理读取时惰性纳管） |
+
+按列表的需求选档：
+
+- 项字段需要细粒度响应（输入绑定、单项状态切换）→ `shallow(list, 1)`；
+- 只需要整体增删、内容整体替换 → `shallow(list)` 最省；
+- 项内还有需要**深层响应**的嵌套结构 → 浅代理下深层修改不触发更新，此时保持默认深层代理。
+
+配合 `:key` 的完整示例（可灌入 1000 条体验大列表的初始化与操作）：
+
+<demo html="for/shallow-todo.html"/>
+
+```html
+<!-- :key 稳定复用 + shallow 浅层代理：前者省 DOM 重建，后者省代理开销 -->
+<ul x-for="todo of todos" :key="todo.id">
+    <li :class="todo.done ? 'done' : ''">{{ todo.text }}</li>
+</ul>
+```
+
+```javascript
+// 列表数组在进入状态前用 shallow 包装（demo 中为 AutoSparkSpaces.shallow）
+{
+    todos: shallow(todos, 1),
+}
+```
+
 ## 配置
 
 `x-for` 的指令值形如 `项变量[, index变量] of 数组路径\|表达式`（必填，如 `x-for="item of items"`）。下列配置项控制项标识；带 ✅ 者可用修饰符方式启用。

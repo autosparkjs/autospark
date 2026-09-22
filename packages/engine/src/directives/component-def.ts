@@ -2,6 +2,23 @@ import type { AutoSparkScope } from "../scope";
 import type { StyleBind } from "../utils/styleBind";
 
 /**
+ * 组件数据边界的 scope 基准（ADR-0053）。
+ *
+ * `open` 开放边界后，实例数据视图继承哪个上下文：
+ * - `'host'`：**消费处**上下文（实例 scope 的结构 parent 链，≈ 封闭化之前的既有行为）；
+ * - `'declarer'`：**声明处**上下文（词法基准——组件读它声明处所能见的域，与消费处无关）。
+ */
+export type ComponentScopeBasis = "host" | "declarer";
+
+/**
+ * 组件实例的数据基准（ADR-0053）：x-use 实例化时经解析链得出的最终形态。
+ *
+ * - `'closed'`：封闭（默认）——实例只见自身 data/locals/props + 全局 state；
+ * - `'host'` / `'declarer'`：开放，按基准继承上下文。
+ */
+export type ComponentDataBasis = "closed" | ComponentScopeBasis;
+
+/**
  * 组件定义的生命周期钩子集合（ADR-0022 决策三）。
  *
  * 四阶段钩子，实例化时从 `<script setup>` 求值结果中按名收集为数组，串行调用（try-catch 容错，
@@ -100,4 +117,22 @@ export interface ComponentDef {
      * CSS 变量（每实例独立）；null/undefined 不写、走 `var(--name, unset)` 回退。无 bind 时为 undefined。
      */
     styleBinds: StyleBind[] | undefined;
+    /**
+     * 数据边界开关（ADR-0053）：true = 开放数据边界（实例上下文按 `scopeBasis` 继承）。
+     * 缺省 = **封闭**——实例只见自身 data()/locals、x-use props 与全局 state。
+     * 声明侧专属契约：`x-component.open` 修饰符或 `x-component-options="{open:true}"`；
+     * 消费侧（x-use-options）只能覆盖已开放组件的基准，不能打开封闭组件。
+     */
+    open?: boolean;
+    /**
+     * 开放状态下的 scope 基准（ADR-0053）：`'host'`（默认，消费处上下文）| `'declarer'`（声明处上下文）。
+     * 仅 `open` 为 true 时有意义；解析期已校验合法值，`scope` 声明而无 `open` 时 warn + 忽略（保持 undefined）。
+     */
+    scopeBasis?: ComponentScopeBasis;
+    /**
+     * 声明处 scope（ADR-0053 declarer 基准的数据视图挂链目标）：收集时归属的最近祖先 scope。
+     * 全局组件（options.components 字符串，无声明 scope）为 null/缺省——declarer 基准首次实例化时
+     * 退化为封闭行为 + warn。嵌套私有组件的声明 scope 是外层组件的**实例 scope**（运行期 scope 链）。
+     */
+    declarerScope?: AutoSparkScope | null;
 }

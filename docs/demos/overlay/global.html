@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-overlay · .global 全局定义</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- .global 升 engine 级：任何 scope 链上的消费者可达；且命令式 engine.getOverlay 只消费 .global 定义 -->
+        <div class="demo-app section">
+            <!-- 顶层容器建 scope：声明要求祖先元素建 scope；顶层消费者与全局定义同域 -->
+            <div x-data="{ ui: { showConfirm: false } }">
+                <div class="block has-text-grey">
+                    顶部声明的 <code>.global</code> 定义，深层嵌套的消费者（无论声明位置）沿 scope 链到顶都能兜底命中。
+                </div>
+                <div class="block">
+                    <button class="button is-info" x-dialog:confirm="ui.showConfirm"
+                            @click="ui.showConfirm = true">顶层消费者打开</button>
+                </div>
+
+                <!-- 全局定义（声明处祖先 scope 由本容器提供） -->
+                <div x-overlay:confirm.global="dialog">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">确认操作</h3>
+                        <p>这是一个全局覆盖层，任何位置的 x-dialog 都能消费。</p>
+                        <button class="button is-fullwidth" @click="close()">关闭</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 深层嵌套的消费者：中间隔多层无指令元素，scope 链到顶兜底命中 -->
+            <div><div><div x-data="{ ui: { showConfirm: false } }">
+                <div><div>
+                    <button class="button" x-dialog:confirm="ui.showConfirm"
+                            @click="ui.showConfirm = true">另一个消费者</button>
+                </div></div>
+            </div></div></div>
+        </div>
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            // 命令式消费：仅 .global 定义可达（「命令式 = 全局消费」）
+            window.openImperative = function () {
+                const overlay = engine.getOverlay("confirm");
+                if (overlay) overlay.open({ params: { msg: "命令式打开" } });
+            };
+        </script>
+        <div class="section"><button class="button is-warning" onclick="openImperative()">命令式 engine.getOverlay 打开</button></div>
+    </body>
+</html>

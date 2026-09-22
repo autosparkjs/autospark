@@ -40,6 +40,16 @@ export class RuntimeObserverDispatcher {
      * 负责，父 dispatcher 对其**致盲**——避免父/子双 dispatcher 抢管同一节点、重复 mount。
      */
     private slotRoots = new Set<HTMLElement>();
+    /**
+     * 额外观察根集合（ADR-0052 决策 14）：覆盖层实例外壳登记于此——实例 DOM 渲染到
+     * `document.body` 容器（engine.el 子树之外），不纳入观察则子树内 Runtime 指令
+     * （x-loading 等）的 mounted/unmounted/attrChanged 全部失明。
+     *
+     * 与 `slotRoots` 盲区机制对称：盲区把子树**排除**出观察（child engine 管辖），
+     * 观察根把外部子树**纳入**观察。实现上对每个额外根单独 `mo.observe(el, 同款 options)`
+     * （同一 observer 可观察多根）；登记时对根做一次初始扫描（元素可能已挂载）。
+     */
+    private extraRoots = new Set<HTMLElement>();
 
     constructor(engine: AutoSpark<any>) {
         this.engine = engine;
@@ -91,6 +101,38 @@ export class RuntimeObserverDispatcher {
     }
 
     /**
+     * 登记额外观察根（覆盖层实例挂载时调用，ADR-0052 决策 14）：纳入 observer 观察 + 初始扫描。
+     * 实例销毁时须**先摘 DOM**（observer 收到 removedNodes → unmount 子树 Runtime 指令）
+     * 再 {@link removeExtraRoot}——顺序反了会跳过 unmount。
+     */
+    addExtraRoot(el: HTMLElement): void {
+        if (this.extraRoots.has(el)) return;
+        this.extraRoots.add(el);
+        if (this.mo) {
+            this.mo.observe(el, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: [...this.registry.values()].map((r) => r.attr),
+                attributeOldValue: true,
+            });
+            // 初始扫描：登记时元素可能已在文档（覆盖层模板内静态 runtime 指令）
+            for (const [e, names] of this.collectEls(el)) {
+                for (const name of names) this.mount(e, name);
+            }
+        }
+        // mo 尚未 start（engine 构造期）：_buildObserver 会统一 observe 全部额外根
+    }
+
+    /** 注销额外观察根（覆盖层实例销毁时调用；须在摘 DOM 之后）。 */
+    removeExtraRoot(el: HTMLElement): void {
+        if (!this.extraRoots.delete(el)) return;
+        // MutationObserver 无单根 unobserve 的可靠类型面（TS lib 缺失）：重建 observer
+        //（disconnect + 重observe engine.el 与剩余额外根），语义等价
+        if (this.mo) this._buildObserver();
+    }
+
+    /**
      * 元素是否落在任一 slot 盲区的**严格后代**子树内（不含盲区根本身）。
      * 无盲区时短路返回 false（热路径零开销）。用于 collectEls / _handle 过滤掉 child engine 管辖的子树。
      *
@@ -114,13 +156,18 @@ export class RuntimeObserverDispatcher {
         }
         const attributeFilter = [...this.registry.values()].map((r) => r.attr);
         this.mo = new MutationObserver((muts) => this._handle(muts));
-        this.mo.observe(this.engine.el, {
+        const options = {
             childList: true,
             subtree: true,
             attributes: true,
             attributeFilter,
             attributeOldValue: true,
-        });
+        };
+        this.mo.observe(this.engine.el, options);
+        // 额外观察根（覆盖层实例，ADR-0052 决策 14）随重建一并纳入
+        for (const root of this.extraRoots) {
+            this.mo.observe(root, options);
+        }
     }
 
     /**
@@ -231,6 +278,7 @@ export class RuntimeObserverDispatcher {
     dispose(): void {
         this.mo?.disconnect();
         this.mo = undefined;
+        this.extraRoots.clear();
         for (const byEl of this.instances.values()) {
             for (const inst of byEl.values()) {
                 try {

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-overlay · 声明与消费</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- x-overlay 声明在编译期被剪枝缓存，声明处不闪现；x-dialog 状态驱动消费 -->
+        <div class="demo-app section">
+            <div class="block">
+                <button class="button is-primary" x-dialog:login="ui.loginVisible"
+                        @click="ui.loginVisible = true">打开登录框</button>
+                <span class="tag" x-text="'ui.loginVisible = ' + ui.loginVisible"></span>
+            </div>
+
+            <div x-data="{ ui: { loginVisible: false } }">
+                <!-- 覆盖层定义：声明处（可读此处 scope 的数据与方法） -->
+                <div x-overlay:login="dialog">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">登录 {{appTitle}}</h3>
+                        <div class="field"><input class="input" placeholder="用户名" /></div>
+                        <div class="field"><input class="input" type="password" placeholder="密码" /></div>
+                        <button class="button is-fullwidth" @click="close()">关闭（close action）</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), { appTitle: "AutoSpark" });
+        </script>
+    </body>
+</html>

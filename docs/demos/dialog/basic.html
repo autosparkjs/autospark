@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-dialog · 状态驱动</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- 纯状态驱动：宿主是声明点，打开靠改状态；关闭触点（ESC/遮罩/close action）自动回写 false -->
+        <div class="demo-app section">
+            <div x-data="{ ui: { visible: false } }">
+                <div class="block">
+                    <button class="button is-primary" x-dialog:hello="ui.visible"
+                            @click="ui.visible = true">打开（ui.visible = true）</button>
+                    <button class="button" @click="ui.visible = true">另一个入口，同一个状态</button>
+                    <span class="tag" x-text="'visible = ' + ui.visible"></span>
+                </div>
+                <div class="block has-text-grey">
+                    打开后：按 <kbd>ESC</kbd>、点击遮罩、或点面板内关闭按钮——三者都会自动把
+                    <code>ui.visible</code> 回写为 <code>false</code>（简单路径可回写，状态是唯一真相源）。
+                </div>
+
+                <!-- 覆盖层定义：模板可直接读声明处 scope 的数据 -->
+                <div x-overlay:hello="dialog">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">你好</h3>
+                        <p>试着按 ESC、点遮罩或下方按钮关闭。</p>
+                        <button class="button is-fullwidth" @click="close()">关闭（close action）</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

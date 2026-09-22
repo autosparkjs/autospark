@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>x-for · shallow 浅响应大列表（TODO）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+
+  <body>
+    <!-- 性能优化示例：
+             1. :key="todo.id" —— 稳定唯一 key，结构变化按身份复用未变项（保留 DOM/scope/订阅），只增删差异项；
+             2. shallow(todos, 1) —— 列表数组仅做浅层代理（数组一层 + 成员一层），不做嵌套式深层代理，
+                大列表初始化省去逐层代理开销；成员字段（done）读写仍响应，孙级以下读出即原始引用。 -->
+    <div class="demo-app section" style="max-width: 520px; margin: 0 auto">
+      <h1 class="title is-4 has-text-centered">TODO（shallow 浅响应列表）</h1>
+
+      <!-- 输入 + 添加 -->
+      <div class="field has-addons">
+        <div class="control is-expanded">
+          <input class="input" x-model="input" placeholder="要做点什么？" @keydown.enter="add" />
+        </div>
+        <div class="control">
+          <button class="button is-primary" @click="add">添加</button>
+        </div>
+      </div>
+
+      <!-- 列表：shallow 包装的 todos，:key 用 id 稳定复用 -->
+      <ul class="block" x-for="todo of todos" :key="todo.id">
+        <li
+          class="todo-item is-flex is-align-items-center is-justify-content-space-between px-2 py-2"
+        >
+          <span
+            @click="toggle(todo.id)"
+            class="todo-label is-flex is-align-items-center"
+            style="gap: 0.5rem"
+            :class="todo.done ? 'has-text-grey' : ''"
+            :style="todo.done ? 'text-decoration: line-through' : ''"
+          >
+            {{ todo.text }}
+          </span>
+          <button class="todo-delete delete is-small" @click="remove(todo.id)"></button>
+        </li>
+        <li x-empty class="has-text-grey has-text-centered py-3">列表为空，添加一条吧～</li>
+      </ul>
+
+      <div class="block has-text-grey is-size-7">
+        共 {{ todos.length }} 项，剩余 {{ remaining }} 项未完成
+      </div>
+
+      <div class="buttons">
+        <button class="button is-light" @click="bulk">灌入 1000 条（体验大列表）</button>
+        <button class="button is-warning is-light" @click="clear">清空</button>
+      </div>
+    </div>
+
+    <script>
+      let nextId = 3;
+      const engine = new AutoSparkSpaces.AutoSpark(
+        document.querySelector(".demo-app"),
+        {
+          input: "",
+          // shallow(todos, 1)：数组一层 + 成员一层浅代理，不做深层嵌套代理。
+          // deep=1 使成员字段（done）读写仍产生响应事件；仅需整体增删时可省略第二参（deep=0，
+          // 元素读出即原始引用，字段变更需整体替换列表项才响应）。
+          todos: AutoSparkSpaces.shallow(
+            [
+              { id: 1, text: "阅读 x-for 性能优化指南", done: false },
+              { id: 2, text: "用 shallow 包装大列表", done: true },
+            ],
+            1,
+          ),
+          // computed 统计：shallow 下照常响应结构变化与成员字段变化
+          remaining: (scope) => scope.todos.filter((t) => !t.done).length,
+        },
+        {
+          actions: {
+            add() {
+              const text = this.state.input.trim();
+              if (!text) return;
+              this.state.todos.push({ id: nextId++, text, done: false });
+              this.state.input = "";
+            },
+            toggle(id) {
+              const todo = this.state.todos.find((t) => t.id === id);
+              // deep=1：成员字段写入经成员层代理，触发该项 :class/:style 细粒度更新
+              if (todo) todo.done = !todo.done;
+            },
+            remove(id) {
+              const i = this.state.todos.findIndex((t) => t.id === id);
+              if (i >= 0) this.state.todos.splice(i, 1);
+            },
+            bulk() {
+              // 大列表灌入：shallow 只代理数组与成员一层，初始化开销远低于深层代理
+              for (let i = 0; i < 1000; i++) {
+                this.state.todos.push({
+                  id: nextId++,
+                  text: "批量任务 " + (i + 1),
+                  done: false,
+                });
+              }
+            },
+            clear() {
+              this.state.todos = [];
+            },
+          },
+        },
+      );
+    </script>
+
+    <style>
+      .todo-item {
+        cursor: pointer;
+        border-radius: 6px;
+        transition: background-color 0.15s ease;
+      }
+      .todo-item:hover {
+        background-color: #f5f5f5;
+      }
+      .todo-delete {
+        opacity: 0.35;
+        transition: opacity 0.15s ease;
+      }
+      .todo-item:hover .todo-delete {
+        opacity: 1;
+      }
+    </style>
+  </body>
+</html>

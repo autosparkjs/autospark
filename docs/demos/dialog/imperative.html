@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-dialog · 命令式 API</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- engine.getOverlay(name, options?) → 定义句柄；open(options?) → 实例句柄（close/el/name/scope） -->
+        <div class="demo-app section">
+            <div class="block">
+                <button class="button is-primary" onclick="openByApi()">overlay.open()</button>
+                <button class="button" onclick="closeByApi()">instance.close()</button>
+                <button class="button is-light" onclick="handleClose()">handle.close()（关全部）</button>
+            </div>
+            <div class="block has-text-grey">
+                仅 <code>.global</code> 声明的定义命令式可达（「命令式 = 全局消费」）。
+                <code>open({params, scope, ...配置})</code>：params 注入数据域、scope（元素）提供数据视图基准。
+            </div>
+
+            <!-- 全局定义：命令式消费的唯一来源；x-scope 为声明提供归属 scope（声明要求祖先元素建 scope） -->
+            <div x-scope>
+                <div x-overlay:task.global="dialog">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">任务详情</h3>
+                        <p>任务 ID：<b>{{taskId}}</b>，状态：<b>{{status}}</b></p>
+                        <button class="button is-fullwidth" @click="close()">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            const handle = engine.getOverlay("task", { animate: false });
+            let inst = null;
+
+            function openByApi() {
+                inst = handle.open({
+                    params: { taskId: "T-" + Math.floor(Math.random() * 1000), status: "运行中" },
+                });
+                console.log("实例句柄:", inst.name, inst.el);
+            }
+            function closeByApi() {
+                if (inst) inst.close(); // 精确关这一个实例
+            }
+            function handleClose() {
+                handle.close(); // 关该定义当前「全部」打开实例（逐个走「请求关闭」）
+            }
+        </script>
+    </body>
+</html>

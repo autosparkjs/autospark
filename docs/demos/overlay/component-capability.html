@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-overlay · 完整组件能力</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- 覆盖层模板具完整组件能力：<script setup> 的 data/methods/生命周期 + <style> scoped CSS -->
+        <div class="demo-app section">
+            <button class="button is-primary" x-dialog:counter="ui.show"
+                    @click="ui.show = true">打开计数器</button>
+            <span class="tag" x-text="'单例复用：关闭再开，计数保留'"></span>
+
+            <div x-data="{ ui: { show: false } }">
+                <div x-overlay:counter="dialog">
+                    <style>
+                        .cnt-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 280px; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+                        .cnt-panel .num { font-size: 2rem; font-weight: 700; color: hsl(171, 100%, 29%); }
+                    </style>
+                    <script setup>
+                        {
+                            data() { return { count: 0 }; },
+                            methods: {
+                                inc() { this.data.count++; },
+                            },
+                            mounted() { console.log("覆盖层实例 mounted"); },
+                        }
+                    </script>
+                    <div class="cnt-panel">
+                        <h3 class="title is-5">计数器</h3>
+                        <div class="num" x-text="count"></div>
+                        <button class="button" @click="inc()">+1</button>
+                        <button class="button is-light" @click="close()">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

@@ -1,5 +1,5 @@
 import { AutoSparkDirectiveBase } from "../base";
-import type { ComponentDef } from "../component-def";
+import type { ComponentDataBasis, ComponentDef } from "../component-def";
 import type { AutoSparkScope } from "../../scope";
 import { releaseComponentStyle } from "../../utils/scopedStyle";
 
@@ -183,9 +183,41 @@ export class UseDirective extends AutoSparkDirectiveBase {
         this.instanceScope = this.binding; // 宿主 scope 即组件实例 scope
         // 属性继承（T4=B）：组件快照根属性并入宿主（须早于实例化，宿主属性就位后编译子树）
         this._mergeComponentRootAttrs(snapshot);
-        // 实例化：注册快照 + 注入语义 + 编译子树 + 触发 hooks（封装在 compiler.instantiateComponent）
-        this.engine.compiler.instantiateComponent(this.binding, snapshot, def, props);
+        // 数据基准解析（ADR-0053）：x-use-options.scope（消费覆盖）> def.scopeBasis（作者声明）> 默认
+        const basis = this._resolveDataBasis(def);
+        // 实例化：注册快照 + 注入语义 + 施加数据基准 + 编译子树 + 触发 hooks（封装在 compiler.instantiateComponent）
+        this.engine.compiler.instantiateComponent(this.binding, snapshot, def, props, basis);
         // scoped CSS 注入（ADR-0022 决策四-4）：阶段 5 实现
+    }
+
+    /**
+     * 解析数据基准（ADR-0053 组件数据边界）。
+     *
+     * 解析链：`x-use-options.scope`（消费覆盖）→ `def.scopeBasis`（作者声明，含 `.open` 修饰符
+     * 经 buildComponentDef 校验）→ 默认。规则：
+     * - **封闭是作者契约**：组件未开放（`def.open !== true`）时消费侧 scope 声明 warn + 忽略，
+     *   组件保持封闭——消费侧只能覆盖已开放组件的基准，不能打开封闭组件；
+     * - 无效基准值 warn + 回退 `'host'`；
+     * - `def` 为 null（纯快照组件，无 open 声明通道）视为封闭。
+     */
+    private _resolveDataBasis(def: ComponentDef | null): ComponentDataBasis {
+        const useScope = this.getOption("scope");
+        const open = def?.open === true;
+        if (useScope !== undefined) {
+            if (open) {
+                if (useScope === "host" || useScope === "declarer") return useScope;
+                this.warn(
+                    `x-use: 无效 scope 基准 ${JSON.stringify(useScope)}（须 'host'|'declarer'），已回退 'host'（ADR-0053）`,
+                );
+                return "host";
+            }
+            this.warn(
+                `x-use: 组件 "${this.componentName}" 未声明 open（默认封闭），x-use-options.scope 不生效（ADR-0053）`,
+            );
+            return "closed";
+        }
+        if (!open) return "closed";
+        return def!.scopeBasis ?? "host"; // open 未指基准 → 默认消费处上下文（≈ 既有透明行为）
     }
 
     /**
@@ -201,8 +233,9 @@ export class UseDirective extends AutoSparkDirectiveBase {
         for (const attr of Array.from(snapshot.attributes)) {
             if (!attr) continue;
             const name = attr.name;
-            // 跳过 x-component 标记属性（不进实例化 DOM）
-            if (name === "x-component") continue;
+            // 跳过 x-component 声明族属性（正身 / 修饰符形态 / 指令选项，均不进实例化 DOM）
+            if (name === "x-component" || name === "x-component-options") continue;
+            if (name.startsWith("x-component.")) continue;
             if (name === "class") {
                 const hostClass = host.getAttribute("class") ?? "";
                 const merged = (hostClass + " " + attr.value).trim();
@@ -324,6 +357,10 @@ export class UseDirective extends AutoSparkDirectiveBase {
         scope.isComponent = false;
         scope.componentName = null;
         scope.actions = null;
+        // 重置数据基准（ADR-0053）：组件名切换后新组件可能不同基准，旧标志与视图缓存一并失效
+        scope.dataBoundary = false;
+        scope.declarerDataScope = null;
+        scope.invalidateScopeView();
         this.instanceScope = null;
         this.instanceDef = null;
     }

@@ -14,7 +14,7 @@
  *   （relaxed-json）承载 mount/global/nearest，多个脚本同键后者覆盖；
  * - **错误姿态**：求值失败/非对象 → `logger.error` + 该脚本视为 `{}` 继续编译（与 actions 同款）。
  */
-import { computed, configurable, watch } from "autostore";
+import { computed, configurable  } from "autostore";
 // 子路径导入（非根入口）：根入口转导出 ./fs 子模块（node 内置 fs/path），浏览器 bundle 会解析失败
 import { deepMerge } from "flex-tools/object/deepMerge";
 import { relaxedToJson } from "../utils/relaxedToJson";
@@ -76,9 +76,8 @@ export function collectDataScripts(
             const result = new Function(
                 "computed",
                 "configurable",
-                "watch",
                 `return (${text})`,
-            )(computed, configurable, watch);
+            )(computed, configurable);
             if (result === null || typeof result !== "object" || Array.isArray(result)) {
                 engine.logger.error(
                     `<script type="${DATA_SCRIPT_TYPE}"> 内容须为对象字面量，实际得到 ${typeof result}`,

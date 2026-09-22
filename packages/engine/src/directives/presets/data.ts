@@ -156,9 +156,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
             }
         }
         if (mount !== null && (globalRaw === true || globalRaw === "true")) {
-            this.warn(
-                `x-data: mount("${mount}") 与 global 同写，mount 优先（global 被忽略）`,
-            );
+            this.warn(`x-data: mount("${mount}") 与 global 同写，mount 优先（global 被忽略）`);
         }
         if (mount !== null) {
             this.mountSegments = this.resolveMountPath(mount);
@@ -211,9 +209,10 @@ export class DataDirective extends AutoSparkDirectiveBase {
         if (base.some((s) => s === "")) {
             this.warn(`x-data: mount 路径 "${mount}" 含空段，无效，已降级默认私有域`);
             return null;
-        }         // $scopes 命名空间：warn + 放行（目标 scope 销毁会整删条目，连带蒸发挂载数据，后果自负）
+        } // $scopes 命名空间：warn + 放行（目标 scope 销毁会整删条目，连带蒸发挂载数据，后果自负）
         if (base[0] === SCOPES_KEY) {
-            this.warn(                 `x-data: mount 路径 "${mount}" 直指引擎保留容器 $scopes，目标 scope 销毁时挂载数据将被连带删除，后果自负`,
+            this.warn(
+                `x-data: mount 路径 "${mount}" 直指引擎保留容器 $scopes，目标 scope 销毁时挂载数据将被连带删除，后果自负`,
             );
         }
         // 断裂校验：沿根下钻，任一段「存在但非对象」或「是数组」→ warn + 降级 local（绝不覆盖用户数据）
@@ -255,13 +254,25 @@ export class DataDirective extends AutoSparkDirectiveBase {
             ensureScopeData(this.engine, scope);
             return scopeDataSegments(scope);
         }
+        // 数据上溯的单步推进（ADR-0053 边界收口）：declarer 基准转道声明链；封闭边界 scope
+        // 再向外即越界（落根）——边界 scope 自身及其数据域仍在界内，可为挂载容器。
+        // 悬空（声明 scope 已销毁）等同越顶；warn 由后续 getContext/hasLocalContext 的同一
+        // 判定路径统一发出（warn 一次），此处仅静默止步。
+        const dataParent = (s: AutoSparkScope): AutoSparkScope | null => {
+            if (s.declarerDataScope) {
+                const ds = s.declarerDataScope;
+                return ds.destroyed ? null : ds;
+            }
+            if (s.dataBoundary) return null; // 已在边界 scope，向外 = 越界落根
+            return s.parent;
+        };
         let target: AutoSparkScope | null = scope;
         if (this.stepBase === "parent") {
-            // 默认：每级 .. 走一个直接父 scope；越顶落根
-            for (let i = 0; i < ups; i++) {
-                target = target?.parent ?? null;
+            // 默认：每级 .. 走一个数据父 scope；越顶落根、越界（封闭边界）同样落根
+            for (let i = 0; i < ups && target; i++) {
+                target = dataParent(target);
             }
-            if (!target) return []; // 越顶 = 根
+            if (!target) return []; // 越顶/越界 = 根
             // 无容器则创建（含 x-for item scope：数据随 item 生死）
             if (target.directives.some((d) => d instanceof DataDirective && d.isPathMode())) {
                 return scopeContainerSegments(target);
@@ -269,12 +280,13 @@ export class DataDirective extends AutoSparkDirectiveBase {
             ensureScopeData(this.engine, target);
             return scopeDataSegments(target);
         }
-        // nearest：每级 .. 走最近持有 _data 的祖先；上溯无数据祖先 → 落根。         // 目标容器可能是挂载容器（path 模式的 _data 不在 $scopes 下）——此时返回目标 scope 自身的
+        // nearest：每级 .. 走最近持有 _data 的数据祖先；上溯无数据祖先 → 落根。
+        // 目标容器可能是挂载容器（path 模式的 _data 不在 $scopes 下）——此时返回目标 scope 自身的
         // mountSegments（其 DataDirective 实例上已解析）。
         for (let i = 0; i < ups; i++) {
-            let p: AutoSparkScope | null = target?.parent ?? null;
-            while (p && !p._data) p = p.parent;
-            if (!p) return []; // 本级已无数据祖先 → 落根
+            let p: AutoSparkScope | null = target ? dataParent(target) : null;
+            while (p && !p._data) p = dataParent(p);
+            if (!p) return []; // 本级已无数据祖先（含封闭边界止步/悬空降级）→ 落根
             target = p;
         }
         if (!target) return [];
@@ -305,7 +317,9 @@ export class DataDirective extends AutoSparkDirectiveBase {
             // 数据合成（决策 5）：多个脚本已在预扫按文档序深合并为 stash.data；x-data 值最后
             // 合并、优先级最高（脚本装大对象基底、属性写微调覆盖）。末尾恒追加空对象 {} 隔离
             // deepMerge 对最后一个实参的 $merge/$ignoreUndefined 指令键探测（用户数据撞名不被吞）
-            this.applyData(raw.trim() === "" ? stash.data : deepMerge(stash.data, this.parse(raw), {}));
+            this.applyData(
+                raw.trim() === "" ? stash.data : deepMerge(stash.data, this.parse(raw), {}),
+            );
         } else {
             this.applyData(this.parse(raw));
         }
@@ -407,7 +421,10 @@ export class DataDirective extends AutoSparkDirectiveBase {
             onResult: (result) => this.arrive(result),
             onError: createAsyncOnError(
                 (msg) => this.warn(`x-data: ${msg}`),
-                (err) => { this.setMeta(false, err); this.engine.scheduler.schedule(() => this.syncFallback()); },
+                (err) => {
+                    this.setMeta(false, err);
+                    this.engine.scheduler.schedule(() => this.syncFallback());
+                },
             ),
         });
         this.runner.start(raw);
@@ -451,7 +468,11 @@ export class DataDirective extends AutoSparkDirectiveBase {
         // 依赖驱动的重取会静默失效（如接口回显 page/size 撞上全局分页控制键）。提醒改名或让接口不回显。
         const rootState = this.engine.store.state as Record<string, any>;
         for (const k of Object.keys(data)) {
-            if (k !== "$loading" && k !== "$error" && Object.prototype.hasOwnProperty.call(rootState, k)) {
+            if (
+                k !== "$loading" &&
+                k !== "$error" &&
+                Object.prototype.hasOwnProperty.call(rootState, k)
+            ) {
                 this.warn(
                     `x-data: 响应键 "${k}" 与全局状态同名，落域后将遮蔽全局键（聚合视图 data 层优先）——插值/实参可能读到响应旧值、依赖重取可能失效。建议控制键改名，或让接口不回显该键`,
                 );
@@ -587,9 +608,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
         try {
             const parsed: unknown = JSON.parse(relaxedToJson(trimmed));
             if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-                this.warn(
-                    `x-data: 值必须解析为对象，实际得到 ${JSON.stringify(parsed)}`,
-                );
+                this.warn(`x-data: 值必须解析为对象，实际得到 ${JSON.stringify(parsed)}`);
                 return {};
             }
             return parsed as Record<string, any>;
@@ -731,7 +750,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
             }
             this.attachedKeys.clear();
             return;
-        }         // local 模式：回收本 scope 的私有响应式域（$scopes 容器保留，仅清该 [id] 条目）
+        } // local 模式：回收本 scope 的私有响应式域（$scopes 容器保留，仅清该 [id] 条目）
         const scopes = state[SCOPES_KEY] as Record<string, any> | undefined;
         if (scopes) delete scopes[this.binding.id];
     }

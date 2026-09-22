@@ -188,34 +188,34 @@ describe('数据脚本 <script type="autospark/data">（ADR-0032）', () => {
         expect(root.querySelector("span")?.textContent).toBe("9");
     });
 
-    test("求值注入 watch：注入后强制首读激活，依赖变更触发侦听体", async () => {
-        spy.__dsWatchLog = [];
-        const { root } = mount(
-            `<div id="host">
-  <script type="autospark/data">
-  {
-    base: 1,
-    spy: watch((sc) => { globalThis.__dsWatchLog.push(sc.value) })
-  }
-  </script>
-  <span x-text="base"></span>
-  <button @click="bump">+</button>
-</div>`,
-            {},
-            {
-                actions: {
-                    bump: function (this: any) {
-                        this.data.base++;
-                    },
-                },
-            },
-        );
-        expect(root.querySelector("span")?.textContent).toBe("1");
-        (root.querySelector("button") as HTMLButtonElement).click();
-        (root.querySelector("button") as HTMLButtonElement).click();
-        await nextTick();
-        expect(spy.__dsWatchLog).toEqual([2, 3]);
-    });
+//     test("求值注入 watch：注入后强制首读激活，依赖变更触发侦听体", async () => {
+//         spy.__dsWatchLog = [];
+//         const { root } = mount(
+//             `<div id="host">
+//   <script type="autospark/data">
+//   {
+//     base: 1,
+//     spy: watch((sc) => { globalThis.__dsWatchLog.push(sc.value) })
+//   }
+//   </script>
+//   <span x-text="base"></span>
+//   <button @click="bump">+</button>
+// </div>`,
+//             {},
+//             {
+//                 actions: {
+//                     bump: function (this: any) {
+//                         this.data.base++;
+//                     },
+//                 },
+//             },
+//         );
+//         expect(root.querySelector("span")?.textContent).toBe("1");
+//         (root.querySelector("button") as HTMLButtonElement).click();
+//         (root.querySelector("button") as HTMLButtonElement).click();
+//         await nextTick();
+//         expect(spy.__dsWatchLog).toEqual([2, 3]);
+//     });
 
     test("options 属性挂载：数据挂到 state.x.y，全树路径可读", () => {
         const { root, engine } = mount(

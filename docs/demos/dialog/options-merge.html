@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-dialog · 配置四级深度合并</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- 配置链：内置默认 < x-overlay-options（声明处） < x-dialog-options（消费处） < 值对象内联，相邻层深度合并 -->
+        <div class="demo-app section">
+            <div x-data="{ ui: { open: false } }">
+                <div class="block">
+                    <button class="button is-primary"
+                            x-dialog:cfg="{visible: 'ui.open', closeOnMask: true}"
+                            @click="ui.open = true">打开</button>
+                </div>
+                <div class="block has-text-grey">
+                    声明处 <code>x-overlay-options="{closeOnMask: false, animate: false}"</code>；
+                    消费处值对象内联 <code>closeOnMask: true</code> 覆盖其一、其余保留——最终生效：
+                    遮罩<b>可点关</b>（内联覆盖），无动画（声明处保留）。
+                </div>
+
+                <div x-overlay:cfg="dialog" x-overlay-options="{closeOnMask: false, animate: false}">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">合并演示</h3>
+                        <p>点遮罩可关（值对象覆盖）；切换无动画（声明处 animate: false 生效）。</p>
+                        <button class="button is-fullwidth" @click="close()">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>
