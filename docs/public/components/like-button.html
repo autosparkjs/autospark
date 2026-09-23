@@ -1,16 +1,16 @@
 <!--
     远程组件测试文件（被 x-import 加载）。
-    一个文件可含 1-N 个 x-component，此处定义 like-button：
+    一个文件可含 1-N 个 x-define，此处定义 like-button：
     带完整的 data / methods / scoped style，演示远程组件与本地组件能力完全等价。
 -->
-<div x-component="like-button">
+<div x-define="like-button">
     <button class="like-btn" x-on:click="toggle" :class="{ liked: liked }">
         <span class="heart">{{ liked ? '❤️' : '🤍' }}</span>
         <span class="cnt" x-text="count"></span>
     </button>
     <script setup>
         {
-            data() {
+            state() {
                 return { liked: false, count: 0 };
             },
             methods: {

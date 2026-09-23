@@ -52,7 +52,7 @@
 
 ```html
 <!-- 组件：公告内容（须声明在消费者 scope 链上） -->
-<div x-component="notice">
+<div x-define="notice">
     <div class="ov-panel">📢 系统维护通知…</div>
 </div>
 
@@ -62,7 +62,7 @@
 
 ### 对象形态与 props
 
-值是对象字面量（宽松 JSON）时，`visible` 是驱动保留键、`closeOnMask` / `animate` / `at` / `scope` 是配置保留键（进合并链最顶层），**其余键全部作 props** 注入组件 data 域（覆盖 `data()` 默认，与 `x-use` 同约定）：
+值是对象字面量（宽松 JSON）时，`visible` 是驱动保留键、`closeOnMask` / `animate` / `at` / `scope` 是配置保留键（进合并链最顶层），**其余键全部作 props** 注入组件 data 域（覆盖 `state()` 默认，与 `x-component` 同约定）：
 
 <demo html="dialog/props.html"/>
 
@@ -246,10 +246,10 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 
 ```html
 <!-- 主对话框组件内再消费一个确认框组件，叠出嵌套 -->
-<div x-component="main">
+<div x-define="main">
     <button x-dialog:confirm="confirming" @click="confirming = true">删除…</button>
 </div>
-<div x-component="confirm">…</div>
+<div x-define="confirm">…</div>
 ```
 
 ### 进出场动画

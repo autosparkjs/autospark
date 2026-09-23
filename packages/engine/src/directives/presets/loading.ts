@@ -523,7 +523,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
      * 解析 loading 块快照：自定义块优先（宿主 scope 链 + 全局兜底），未命中回退 DEFAULT_BLOCK。
      *
      * DEFAULT_BLOCK 是字符串模板，每次解析为新的根元素（无缓存需求——仅作兜底，自定义组件才走
-     * engine 全局缓存）。返回的快照形态与自定义组件一致（含 x-component、未编译、保留指令属性）。
+     * engine 全局缓存）。返回的快照形态与自定义组件一致（含 x-define、未编译、保留指令属性）。
      */
     private _resolveLoadingComponent(): HTMLElement {
         if (this.el) {

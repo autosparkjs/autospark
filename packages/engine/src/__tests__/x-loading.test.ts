@@ -636,7 +636,7 @@ describe("x-loading 动作按钮（ADR-0038）", () => {
         let domFired = false;
         const { root } = mount(
             `<div x-scope>
-                <div x-component="loading">
+                <div x-define="loading">
                     <div class="my-loading">
                         <div class="my-title" x-text="message"></div>
                         <div class="my-actions" x-for="a of actions">

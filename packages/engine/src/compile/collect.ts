@@ -31,7 +31,7 @@ function isLegacySetupScript(el: HTMLScriptElement): boolean {
 }
 
 /**
- * 解析 `x-component-options` 属性为对象（宽松 JSON，ADR-0007 指令选项形态）。
+ * 解析 `x-define-options` 属性为对象（宽松 JSON，ADR-0007 指令选项形态；属性名 ADR-0054）。
  *
  * 组件元素在编译期前置 transformer 即被剪枝（不走 getDirectives 的通用指令选项解析），
  * 故在此手动解析。解析失败 warn + 返回 null（与 `<script setup>` 容错纪律一致）。
@@ -40,15 +40,15 @@ function parseComponentOptions(
     componentEl: HTMLElement,
     warn: (msg: string) => void,
 ): Record<string, any> | null {
-    const raw = componentEl.getAttribute("x-component-options");
+    const raw = componentEl.getAttribute("x-define-options");
     if (raw == null || raw.trim() === "") return null;
     try {
         const parsed = JSON.parse(relaxedToJson(raw));
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
-        warn(`x-component-options: 值须为普通对象，实际 ${JSON.stringify(parsed)}，已忽略`);
+        warn(`x-define-options: 值须为普通对象，实际 ${JSON.stringify(parsed)}，已忽略`);
         return null;
     } catch (e: any) {
-        warn(`x-component-options 解析失败，已忽略: ${e?.message ?? e}`);
+        warn(`x-define-options 解析失败，已忽略: ${e?.message ?? e}`);
         return null;
     }
 }
@@ -56,7 +56,7 @@ function parseComponentOptions(
 /**
  * 提取组件数据边界声明（ADR-0053）：`open` 开关 + `scope` 基准。
  *
- * - `open`：布尔开关，默认 false（封闭）。`.open` 修饰符（`x-component.open`）是 `open:true` 的糖，
+ * - `open`：布尔开关，默认 false（封闭）。`.open` 修饰符（`x-define.open`）是 `open:true` 的糖，
  *   显式 options 键优先（`{open:false}` 可关掉修饰符）。
  * - `scope`：`'host' | 'declarer'`，仅 `open` 为真时生效——**scope 声明而无 open → warn + 忽略**
  *   （基准没有生效条件）；非法值 warn + 忽略。
@@ -72,7 +72,7 @@ function extractBoundaryOptions(
     if (typeof rawOpen === "boolean") {
         open = rawOpen; // 显式 options 键（含 false）优先于修饰符
     } else if (rawOpen !== undefined) {
-        warn(`x-component-options.open: 须为布尔值，实际 ${JSON.stringify(rawOpen)}，已忽略`);
+        warn(`x-define-options.open: 须为布尔值，实际 ${JSON.stringify(rawOpen)}，已忽略`);
         open = modifierOpen;
     } else {
         open = modifierOpen;
@@ -85,12 +85,12 @@ function extractBoundaryOptions(
                 scopeBasis = rawScope;
             } else {
                 warn(
-                    `x-component-options.scope: 基准仅在 open 声明时生效（组件默认封闭），声明被忽略（ADR-0053）`,
+                    `x-define-options.scope: 基准仅在 open 声明时生效（组件默认封闭），声明被忽略（ADR-0053）`,
                 );
             }
         } else {
             warn(
-                `x-component-options.scope: 无效值 ${JSON.stringify(rawScope)}（须 'host'|'declarer'），已忽略（ADR-0053）`,
+                `x-define-options.scope: 无效值 ${JSON.stringify(rawScope)}（须 'host'|'declarer'），已忽略（ADR-0053）`,
             );
         }
     }
@@ -107,11 +107,11 @@ function extractBoundaryOptions(
  * 4. 合并 setups（data 收集、methods 浅合并、同名 hooks 串行，决策四-1/R3=A）；
  * 5. 组装 ComponentDef（snapshot/setup/hooks/styles）。
  *
- * @param componentEl   原树中的 x-component 元素（读取子节点结构）
+ * @param componentEl   原树中的 x-define 元素（读取子节点结构）
  * @param name          组件名
  * @param warn          warn 日志函数
  * @param declarerScope 声明处 scope（收集时归属的最近祖先 scope；全局组件无声明 scope 传 null）
- * @param modifierOpen  `.open` 修饰符（`x-component.open` 属性名形态）注入的 open:true
+ * @param modifierOpen  `.open` 修饰符（`x-define.open` 属性名形态）注入的 open:true
  * @returns 组件定义（snapshot 已剥离 script/style 子节点）
  */
 export function buildComponentDef(
@@ -165,8 +165,8 @@ export function buildComponentDef(
         const parsed = evalComponentSetup(text, name, warn);
         if (parsed) setups.push(parsed);
     }
-    // 4. 合并
-    const setup: ComponentSetup | undefined = mergeComponentSetups(setups);
+    // 4. 合并（旧段名 data()/locals 在此 warn + 剪枝，ADR-0055）
+    const setup: ComponentSetup | undefined = mergeComponentSetups(setups, warn);
     const hooks: ComponentHooks | undefined = extractComponentHooks(setup);
 
     // 5. style 文本（已提取 bind 后的改写文本；空数组收敛为 undefined）

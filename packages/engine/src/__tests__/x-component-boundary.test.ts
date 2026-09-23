@@ -3,9 +3,9 @@ import { mount, nextTick } from "./helpers";
 import "./setup";
 
 /**
- * 组件数据边界（ADR-0053）：x-use 实例化的组件默认**封闭**——实例只见自身
- * data()/locals、x-use props 与全局 state；`x-component.open` 开放边界，
- * `scope`（'host'|'declarer'）指定继承基准，`x-use-options.scope` 消费侧覆盖。
+ * 组件数据边界（ADR-0053）：x-component 实例化的组件默认**封闭**——实例只见自身
+ * state()/data、x-component props 与全局 state；`x-define.open` 开放边界，
+ * `scope`（'host'|'declarer'）指定继承基准，`x-component-options.scope` 消费侧覆盖。
  */
 
 let warns: string[] = [];
@@ -32,8 +32,8 @@ describe("组件数据边界（ADR-0053）", () => {
         const { root } = mount(
             `<div x-data="{ tip: '外部数据' }">
                 <div x-scope>
-                    <div x-component="card"><span x-text="tip"></span></div>
-                    <div id="h" x-use="card"></div>
+                    <div x-define="card"><span x-text="tip"></span></div>
+                    <div id="h" x-component:card></div>
                 </div>
              </div>`,
             {},
@@ -49,8 +49,8 @@ describe("组件数据边界（ADR-0053）", () => {
         const { root } = mount(
             `<div x-data="{ user: '外层' }">
                 <div x-scope>
-                    <div x-component="card"><span x-text="appName"></span></div>
-                    <div id="h" x-use="card"></div>
+                    <div x-define="card"><span x-text="appName"></span></div>
+                    <div id="h" x-component:card></div>
                 </div>
              </div>`,
             { appName: "全局应用" },
@@ -62,8 +62,8 @@ describe("组件数据边界（ADR-0053）", () => {
     test("默认封闭：props 正常注入", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div x-component="card"><span x-text="label"></span></div>
-                <div id="h" x-use="{ name: 'card', label: '传入' }"></div>
+                <div x-define="card"><span x-text="label"></span></div>
+                <div id="h" x-component:card="{label: '传入' }"></div>
              </div>`,
             {},
         );
@@ -75,8 +75,8 @@ describe("组件数据边界（ADR-0053）", () => {
         const { root, engine } = mount(
             `<div x-data="{ count: 1 }">
                 <div x-scope>
-                    <div x-component="card"><button id="b" x-on:click="count = 100">+</button></div>
-                    <div id="h" x-use="card"></div>
+                    <div x-define="card"><button id="b" x-on:click="count = 100">+</button></div>
+                    <div id="h" x-component:card></div>
                 </div>
              </div>`,
             {},
@@ -93,12 +93,12 @@ describe("组件数据边界（ADR-0053）", () => {
         expect((engine.store.state as any).count).toBeUndefined();
     });
 
-    test("x-component.open（修饰符）：默认基准 host，恢复读宿主上下文", async () => {
+    test("x-define.open（修饰符）：默认基准 host，恢复读宿主上下文", async () => {
         const { root } = mount(
             `<div x-data="{ tip: '宿主数据' }">
                 <div x-scope>
-                    <div x-component.open="card"><span x-text="tip"></span></div>
-                    <div id="h" x-use="card"></div>
+                    <div x-define.open="card"><span x-text="tip"></span></div>
+                    <div id="h" x-component:card></div>
                 </div>
              </div>`,
             {},
@@ -107,12 +107,12 @@ describe("组件数据边界（ADR-0053）", () => {
         expect(root.querySelector<HTMLSpanElement>("#h span")!.textContent).toBe("宿主数据");
     });
 
-    test("x-component-options={open:true} 与 .open 修饰符等价", async () => {
+    test("x-define-options={open:true} 与 .open 修饰符等价", async () => {
         const { root } = mount(
             `<div x-data="{ tip: '宿主数据' }">
                 <div x-scope>
-                    <div x-component="card" x-component-options="{ open: true }"><span x-text="tip"></span></div>
-                    <div id="h" x-use="card"></div>
+                    <div x-define="card" x-define-options="{ open: true }"><span x-text="tip"></span></div>
+                    <div id="h" x-component:card></div>
                 </div>
              </div>`,
             {},
@@ -125,9 +125,9 @@ describe("组件数据边界（ADR-0053）", () => {
         const { root } = mount(
             `<div x-data="{ who: '声明处' }">
                 <div x-scope>
-                    <div x-component="card" x-component-options="{ open: true, scope: 'declarer' }"><span x-text="who"></span></div>
+                    <div x-define="card" x-define-options="{ open: true, scope: 'declarer' }"><span x-text="who"></span></div>
                     <div x-data="{ who: '消费处' }">
-                        <div id="h" x-use="card"></div>
+                        <div id="h" x-component:card></div>
                     </div>
                 </div>
              </div>`,
@@ -142,9 +142,9 @@ describe("组件数据边界（ADR-0053）", () => {
         const { root } = mount(
             `<div x-data="{ who: '声明处' }">
                 <div x-scope>
-                    <div x-component="card" x-component-options="{ open: true, scope: 'host' }"><span x-text="who"></span></div>
+                    <div x-define="card" x-define-options="{ open: true, scope: 'host' }"><span x-text="who"></span></div>
                     <div x-data="{ who: '消费处' }">
-                        <div id="h" x-use="card"></div>
+                        <div id="h" x-component:card></div>
                     </div>
                 </div>
              </div>`,
@@ -154,14 +154,14 @@ describe("组件数据边界（ADR-0053）", () => {
         expect(root.querySelector<HTMLSpanElement>("#h span")!.textContent).toBe("消费处");
     });
 
-    test("x-use-options.scope 消费侧覆盖已开放组件的基准（无 warn）", async () => {
+    test("x-component-options.scope 消费侧覆盖已开放组件的基准（无 warn）", async () => {
         captureWarn();
         const { root } = mount(
             `<div x-data="{ who: '声明处' }">
                 <div x-scope>
-                    <div x-component="card" x-component-options="{ open: true }"><span x-text="who"></span></div>
+                    <div x-define="card" x-define-options="{ open: true }"><span x-text="who"></span></div>
                     <div x-data="{ who: '消费处' }">
-                        <div id="h" x-use="card" x-use-options="{ scope: 'declarer' }"></div>
+                        <div id="h" x-component:card x-component-options="{ scope: 'declarer' }"></div>
                     </div>
                 </div>
              </div>`,
@@ -178,14 +178,14 @@ describe("组件数据边界（ADR-0053）", () => {
         const { root } = mount(
             `<div x-data="{ tip: '消费处数据' }">
                 <div x-scope>
-                    <div x-component="card"><span x-text="tip"></span></div>
-                    <div id="h" x-use="card" x-use-options="{ scope: 'host' }"></div>
+                    <div x-define="card"><span x-text="tip"></span></div>
+                    <div id="h" x-component:card x-component-options="{ scope: 'host' }"></div>
                 </div>
              </div>`,
             {},
         );
         await nextTick();
-        expect(warnHits("x-use-options.scope 不生效")).toBe(true);
+        expect(warnHits("x-component-options.scope 不生效")).toBe(true);
         expect(root.querySelector<HTMLSpanElement>("#h span")!.textContent!.trim()).toBe("");
     });
 
@@ -194,8 +194,8 @@ describe("组件数据边界（ADR-0053）", () => {
         const { root } = mount(
             `<div x-data="{ tip: '外部' }">
                 <div x-scope>
-                    <div x-component="card" x-component-options="{ scope: 'host' }"><span x-text="tip"></span></div>
-                    <div id="h" x-use="card"></div>
+                    <div x-define="card" x-define-options="{ scope: 'host' }"><span x-text="tip"></span></div>
+                    <div id="h" x-component:card></div>
                 </div>
              </div>`,
             {},
@@ -210,8 +210,8 @@ describe("组件数据边界（ADR-0053）", () => {
         const { root } = mount(
             `<div x-data="{ tip: '外部' }">
                 <div x-scope>
-                    <div x-component="card" x-component-options="{ open: true, scope: 'anywhere' }"><span x-text="tip"></span></div>
-                    <div id="h" x-use="card"></div>
+                    <div x-define="card" x-define-options="{ open: true, scope: 'anywhere' }"><span x-text="tip"></span></div>
+                    <div id="h" x-component:card></div>
                 </div>
              </div>`,
             {},
@@ -226,13 +226,13 @@ describe("组件数据边界（ADR-0053）", () => {
         const { root } = mount(
             `<div x-data="{ tip: '外部' }">
                 <div x-scope>
-                    <div id="h" x-use="gcard"></div>
+                    <div id="h" x-component:gcard></div>
                 </div>
              </div>`,
             {},
             {
                 components: {
-                    gcard: `<div x-component="gcard" x-component-options="{ open: true, scope: 'declarer' }"><span x-text="tip"></span></div>`,
+                    gcard: `<div x-define="gcard" x-define-options="{ open: true, scope: 'declarer' }"><span x-text="tip"></span></div>`,
                 },
             },
         );
@@ -246,12 +246,12 @@ describe("组件数据边界（ADR-0053）", () => {
         const { root } = mount(
             `<div x-data="{ inner: 'A外部' }">
                 <div x-scope>
-                    <div x-component="outer" x-component-options="{ open: true }">
+                    <div x-define="outer" x-define-options="{ open: true }">
                         <span class="o1" x-text="inner"></span>
-                        <div x-component="pinner"><span class="p1" x-text="inner"></span></div>
-                        <div id="pi" x-use="pinner"></div>
+                        <div x-define="pinner"><span class="p1" x-text="inner"></span></div>
+                        <div id="pi" x-component:pinner></div>
                     </div>
-                    <div id="h" x-use="outer"></div>
+                    <div id="h" x-component:outer></div>
                 </div>
              </div>`,
             {},
@@ -268,12 +268,12 @@ describe("组件数据边界（ADR-0053）", () => {
     test("嵌套私有子组件 open 后可读外层组件实例的数据域", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div x-component="outer">
-                    <div x-component="pinner" x-component-options="{ open: true }"><span class="p1" x-text="inner"></span></div>
-                    <div id="pi" x-use="pinner"></div>
-                    <script setup>{ data(){ return { inner: 'A数据' } } }</script>
+                <div x-define="outer">
+                    <div x-define="pinner" x-define-options="{ open: true }"><span class="p1" x-text="inner"></span></div>
+                    <div id="pi" x-component:pinner></div>
+                    <script setup>{ state(){ return { inner: 'A数据' } } }</script>
                 </div>
-                <div id="h" x-use="outer"></div>
+                <div id="h" x-component:outer></div>
              </div>`,
             {},
         );
@@ -286,10 +286,10 @@ describe("组件数据边界（ADR-0053）", () => {
         const { root, engine } = mount(
             `<div x-data="{ outerFlag: true }">
                 <div x-scope>
-                    <div x-component="card">
+                    <div x-define="card">
                         <div x-data="{ injected: 'x' }" x-data-options="{ mount: '../..' }"></div>
                     </div>
-                    <div id="h" x-use="card"></div>
+                    <div id="h" x-component:card></div>
                 </div>
              </div>`,
             {},
@@ -311,8 +311,8 @@ describe("组件数据边界（ADR-0053）", () => {
                 <script type="autospark/actions">
                     { go(){ globalThis.__act_hit = true } }
                 </script>
-                <div x-component="card"><button id="b" x-on:click="go">go</button></div>
-                <div id="h" x-use="card"></div>
+                <div x-define="card"><button id="b" x-on:click="go">go</button></div>
+                <div id="h" x-component:card></div>
              </div>`,
             {},
         );
@@ -326,16 +326,16 @@ describe("组件数据边界（ADR-0053）", () => {
         (globalThis as any).__mb = "";
         const { root } = mount(
             `<div x-scope>
-                <div x-component="parent" x-component-options="{ open: true }">
+                <div x-define="parent" x-define-options="{ open: true }">
                     <div>
-                        <div x-component="child">
+                        <div x-define="child">
                             <button class="cb" x-on:click="onlyInParent">go</button>
                         </div>
-                        <div id="ch" x-use="child"></div>
+                        <div id="ch" x-component:child></div>
                     </div>
                     <script setup>{ methods:{ onlyInParent(){ globalThis.__mb = "parent" } } }</script>
                 </div>
-                <div id="h" x-use="parent"></div>
+                <div id="h" x-component:parent></div>
              </div>`,
             {},
         );
@@ -344,28 +344,5 @@ describe("组件数据边界（ADR-0053）", () => {
         await nextTick();
         // 子组件 method 边界照常生效：调不到父组件 method（未命中，表达式兜底为空操作）
         expect((globalThis as any).__mb).toBe("");
-    });
-
-    test("x-use 值变化切换组件：基准随新组件重置（open → 封闭）", async () => {
-        const { root, engine } = mount(
-            `<div x-data="{ tip: '外部' }">
-                <div x-scope>
-                    <div x-component="a" x-component-options="{ open: true }"><span class="v" x-text="tip"></span></div>
-                    <div x-component="b"><span class="v" x-text="tip"></span></div>
-                    <div id="h" x-use="{ name: compName }"></div>
-                </div>
-             </div>`,
-            { compName: "a" },
-        );
-        await nextTick();
-        expect(root.querySelector<HTMLSpanElement>(".v")!.textContent).toBe("外部");
-        // 切到封闭组件 b：tip 不可见
-        (engine.store.state as any).$scopes; // 触碰域容器（确保响应式已建）
-        const state = engine.store.state as any;
-        // compName 经 state 驱动：直接改根状态（compName 不在任何 x-data 域内）
-        state.compName = "b";
-        await nextTick();
-        await nextTick();
-        expect(root.querySelector<HTMLSpanElement>(".v")!.textContent!.trim()).toBe("");
     });
 });

@@ -37,7 +37,7 @@ export function isDataScript(node: Node): node is HTMLScriptElement {
 /**
  * 预扫元素的**直接子级**数据脚本并合成。
  *
- * 每元素编译调用一次、随实例新鲜求值——x-for / x-use 复用同一模板时各实例拿到独立数据对象，
+ * 每元素编译调用一次、随实例新鲜求值——x-for / x-component 复用同一模板时各实例拿到独立数据对象，
  * 嵌套对象不跨实例共享引用（x-data 属性值每次 parse 的等价保障）。
  *
  * @returns 合成产物；无数据脚本（且无 options 声明）返回 null

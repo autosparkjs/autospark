@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>x-component · 生命周期</title>
+        <title>x-define · 生命周期</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
@@ -47,11 +47,11 @@
         -->
         <div id="app" x-scope>
             <!-- 组件声明：四阶段钩子各记一条日志 -->
-            <div x-component="timed">
+            <div x-define="timed">
                 <div class="timer">组件实例存活中 · <span x-text="tick"></span></div>
                 <script type="autospark/setup">
                     {
-                        data() {
+                        state() {
                             return { tick: 0, timer: null };
                         },
                         created() {
@@ -95,7 +95,7 @@
             <!-- x-if 控制组件挂载/卸载：true 实例化（触发 created/mounted），false 销毁（beforeUnmount/unmounted） -->
             <div class="panel">
                 <div x-if="show">
-                    <div x-use="timed"></div>
+                    <div x-component:timed></div>
                 </div>
                 <div x-show="!show" class="placeholder">组件已卸载</div>
             </div>

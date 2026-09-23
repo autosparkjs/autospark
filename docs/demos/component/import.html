@@ -3,15 +3,15 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>x-component · 远程加载（作用域）</title>
+        <title>x-define · 远程加载（作用域）</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
     <body>
         <!--
-            x-import 从远程 url 加载组件定义（fetched HTML 内可含 1-N 个 x-component）：
+            x-import 从远程 url 加载组件定义（fetched HTML 内可含 1-N 个 x-define）：
             - 默认（无修饰符）：注册为作用域组件，挂最近祖先 scope，仅本作用域可见；
-            - 组件未就绪时 x-use 显示 loading 占位，加载完成后自动重实例化（异步占位 R6=B）；
+            - 组件未就绪时 x-component 显示 loading 占位，加载完成后自动重实例化（异步占位 R6=B）；
             - url 缓存：重复 import 同一 url 只 fetch 一次；
             - 循环 import 检测；fetch 失败 warn 不崩溃。
             组件文件见 /autospark/components/like-button.html（含 data/methods/scoped style）。
@@ -20,10 +20,10 @@
             <!-- 加载远程组件：作用域注册，仅本 x-scope 子树可见 -->
             <div x-import="/autospark/components/like-button.html"></div>
 
-            <!-- 实例化：组件加载完成前 x-use 显示 loading 占位，就绪后自动渲染 -->
+            <!-- 实例化：组件加载完成前 x-component 显示 loading 占位，就绪后自动渲染 -->
             <div class="panel">
                 <div class="label">远程作用域组件 like-button（加载完成后可点击）</div>
-                <div x-use="like-button"></div>
+                <div x-component:like-button></div>
             </div>
         </div>
 

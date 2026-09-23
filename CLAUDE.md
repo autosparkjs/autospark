@@ -68,12 +68,12 @@ oxfmt
 
 - `store.state.$scopes` 是**框架保留键**（x-data 私有响应式域容器）；x-data 只 `Object.assign` 进 `$scopes[id]`，**永不整体替换容器**（ADR-0029 mount 三形态）。
 - action 三入口（构造 `options.actions`、`engine.actions` Proxy 赋值、`<script type="autospark/actions">`）统一经 `src/actions/`（ActionManager）包装，自动广播 `actions/<name>/*` 生命周期信号（x-loading 消费）；script type 已命名空间化（ADR-0031，旧写法 warn 剪枝）。
-- 组件（ADR-0022）：`x-component` 编译期剪枝、冻结快照挂最近祖先 `scope.components`；`x-use` 实例化；`getComponent` 沿 scope 链就近查找 + `options.components` 全局兜底。
+- 组件（ADR-0022/0054）：`x-define` 编译期剪枝、冻结快照挂最近祖先 `scope.components`；`x-component:名称` 实例化（属性参数承载组件名、值专职 props，单向注入组件 data 域）；`getComponent` 沿 scope 链就近查找 + `options.components` 全局兜底。
 - 冲突防护：`engine.patch` 拒绝落入动态区域（x-for / eager x-if / x-slot 祖先链内）。
 
 ## 决策文档（改机制前先读）
 
-- `packages/engine/docs/adr/` — ADR 0001~0039，源码注释大量以「ADR-XXXX 决策 N」形式回链。
-- `packages/engine/CONTEXT.md` — 领域语言表（含每个术语的 Avoid 列表与已废弃词条，如 x-block → x-component、`.keep` → `.keepalive`）。
+- `packages/engine/docs/adr/` — ADR 0001~0054，源码注释大量以「ADR-XXXX 决策 N」形式回链。
+- `packages/engine/CONTEXT.md` — 领域语言表（含每个术语的 Avoid 列表与已废弃词条，如 x-block → x-component → x-define、x-use → x-component、`.keep` → `.keepalive`）。
 - `packages/engine/docs/specs/` — 关键机制规格（engine-patch / 插值 / x-html / x-on action）。
 - `packages/engine/CLAUDE.md` 为模块级简版导航，工程约定以本文件为准。

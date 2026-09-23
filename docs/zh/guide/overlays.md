@@ -2,11 +2,11 @@
 
 ## 概述
 
-**覆盖物**是「**任意组件被渲染到 `document.body` 容器的消费方式**」——它不是一种独立的模板声明，而是组件的一种**消费形态**：内容就是普通组件（`x-component` 声明 / `options.components` 全局注册 / `x-import` 远程加载），由消费者指令状态驱动地实例化渲染到 body 下的覆盖物容器中。
+**覆盖物**是「**任意组件被渲染到 `document.body` 容器的消费方式**」——它不是一种独立的模板声明，而是组件的一种**消费形态**：内容就是普通组件（`x-define` 声明 / `options.components` 全局注册 / `x-import` 远程加载），由消费者指令状态驱动地实例化渲染到 body 下的覆盖物容器中。
 
 ```html
 <!-- 内容：一个普通组件（完整组件能力：script setup / scoped CSS / hooks） -->
-<div x-component="login">
+<div x-define="login">
     <h3>{{title}}</h3>
     <button @click="close()">关闭</button>
 </div>
@@ -15,7 +15,7 @@
 <button x-dialog:login="ui.loginVisible" @click="ui.loginVisible = true">登录</button>
 ```
 
-同一套组件，被 [x-use](./component.md#x-use-实例化组件) 消费是**原地化身**（宿主元素变成组件根），被覆盖物消费者消费就是**渲染到 body 容器**——弹层类 UI（对话框 / 抽屉 / 气泡）因此获得独立于文档流的层叠上下文，且声明处无闪现（`x-component` 声明在编译期剪枝，与组件语义一致）。
+同一套组件，被 [x-component](./component.md#x-component-实例化组件) 消费是**原地化身**（宿主元素变成组件根），被覆盖物消费者消费就是**渲染到 body 容器**——弹层类 UI（对话框 / 抽屉 / 气泡）因此获得独立于文档流的层叠上下文，且声明处无闪现（`x-define` 声明在编译期剪枝，与组件语义一致）。
 
 ## 快速入门
 
@@ -29,7 +29,7 @@
 
 | 要素 | 载体 | 说明 |
 | --- | --- | --- |
-| **内容** | 任意组件 | `x-component` 声明（编译期剪枝缓存）/ `options.components` 全局注册 / `x-import` 加载——无专用声明语法 |
+| **内容** | 任意组件 | `x-define` 声明（编译期剪枝缓存）/ `options.components` 全局注册 / `x-import` 加载——无专用声明语法 |
 | **消费者** | 形态指令族 | `x-dialog`（模态，v1）等——决定外壳形态与打开驱动，见[消费者家族](#消费者家族) |
 | **实例** | OverlayInstance | 打开渲染出的活体：独立 scope + watcher 子树，渲染进 body 下本 engine 的容器（`.autospark-overlays`） |
 
@@ -43,7 +43,7 @@
 
 ```html
 <!-- 全局注册的组件：任何 scope 链上的消费者都能消费 -->
-<div x-component="confirm">…</div>
+<div x-define="confirm">…</div>
 <button x-dialog:confirm="ui.showConfirm"></button>
 ```
 
@@ -51,7 +51,7 @@
 
 ### props 统一：非保留键全部注入组件 data 域
 
-消费处值对象 / 命令式 options 中，**保留键封闭清单之外的全部键作 props** 注入组件 data 域（覆盖 `data()` 默认）——与 `x-use` 传 props 的约定一致：
+消费处值对象 / 命令式 options 中，**保留键封闭清单之外的全部键作 props** 注入组件 data 域（覆盖 `state()` 默认）——与 `x-component` 传 props 的约定一致：
 
 保留键封闭清单：`visible`（驱动键）+ `closeOnMask` / `animate` / `at` / `scope`（配置键）。组件 props 应避免使用这些名字（撞名风险由封闭清单文档化）。
 

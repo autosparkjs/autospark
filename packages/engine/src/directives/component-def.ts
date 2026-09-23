@@ -11,7 +11,7 @@ import type { StyleBind } from "../utils/styleBind";
 export type ComponentScopeBasis = "host" | "declarer";
 
 /**
- * 组件实例的数据基准（ADR-0053）：x-use 实例化时经解析链得出的最终形态。
+ * 组件实例的数据基准（ADR-0053）：x-component 实例化时经解析链得出的最终形态。
  *
  * - `'closed'`：封闭（默认）——实例只见自身 data/locals/props + 全局 state；
  * - `'host'` / `'declarer'`：开放，按基准继承上下文。
@@ -44,7 +44,7 @@ export interface ComponentMethodContext {
     el: HTMLElement;
     /** 原生事件（仅 x-on 场景有值） */
     $event?: Event;
-    /** 组件聚合数据视图（localData + data(x-use 传入 + data() 返回) + 全局 state），响应式、可写 */
+    /** 组件聚合数据视图（localData + data(x-component props + data() 返回) + 全局 state），响应式、可写 */
     data: Record<string, any>;
     /** 当前 scope */
     scope: AutoSparkScope;
@@ -52,26 +52,32 @@ export interface ComponentMethodContext {
 }
 
 /**
- * `<script setup>` 对象字面量求值后的标准形态（ADR-0022 决策四-1/2）。
+ * `<script setup>` 对象字面量求值后的标准形态（ADR-0022 决策四-1/2；段名 ADR-0055 翻转）。
  *
  * 由 `new Function('return ' + scriptText)()` 求值得到。多个 `<script setup>` 按段分类合并
- * （`data` 收集所有函数、实例化时依次调用合并返回值；`methods` 浅合并；同名 hooks 串行）。
+ * （`state` 收集所有函数、实例化时依次调用合并返回值；`methods` 浅合并；`data` 浅合并；同名 hooks 串行）。
  *
- * - `data`：返回组件初始状态的函数（注入 scope.data 响应式域，**先于** x-use 传入值，后者覆盖）。
- * - `methods`：组件方法对象，注入 `scope.actions`（复用 x-on action 查找，this=ComponentMethodContext）。
+ * - `state`：返回组件初始**响应式状态**的函数（注入 scope._data 响应式域，**先于** x-component props，后者覆盖）。
+ * - `methods`：组件方法对象，注入 `scope.methods`（this=ComponentMethodContext）。
+ * - `data`：组件实例的**非响应式私有数据**（静态对象，注入 `scope._locals`）。
  * - `created`/`mounted`/`beforeUnmount`/`unmounted`：四阶段生命周期钩子函数。
  */
 export interface ComponentSetup {
-    data?: () => Record<string, any>;
+    /**
+     * 组件响应式状态工厂（ADR-0055 更名自 data()）：返回值注入 `scope._data` 响应式域
+     * （模板表达式可见、改动驱动更新），**先于** x-component props 注入、后者同名覆盖。
+     */
+    state?: () => Record<string, any>;
     methods?: Record<string, (...args: any[]) => any>;
     /**
-     * 组件实例的非响应式局部变量（ADR-0022 决策二-3 (10)）。
+     * 组件实例的非响应式私有数据（ADR-0055 更名自 locals）。
      *
-     * 注入 `scope._locals`（普通对象、**不进聚合视图**）——模板表达式 `{{x}}` 读不到，仅经 Proxy this
-     * 的 `this.<key>` 访问（method/data/framework key 优先级高于 _locals）。典型用途：定时器句柄、
-     * 缓存、防抖标记等实例内部状态。多 `<script setup>` 的 locals **浅合并**。
+     * **静态对象**（非函数），注入 `scope._locals`（普通对象、**不进聚合视图**）——模板表达式
+     * `{{x}}` 读不到，仅经 Proxy this 的 `this.<key>` 访问（method/state/framework key 优先级高于
+     * _locals）。典型用途：定时器句柄、缓存、防抖标记等实例内部数据。多 `<script setup>` 的
+     * data 段**浅合并**。
      */
-    locals?: Record<string, any>;
+    data?: Record<string, any>;
     created?: () => void;
     mounted?: () => void;
     beforeUnmount?: () => void;
@@ -86,19 +92,19 @@ export type ComponentHooks = Record<ComponentHookPhase, Array<() => void>>;
 /**
  * 组件定义（ADR-0022 决策二-1）。
  *
- * compiler 前置 transformer 命中 x-component 元素时，提取其 `<script setup>` / `<style>` 子节点、
+ * compiler 前置 transformer 命中 x-define 元素时，提取其 `<script setup>` / `<style>` 子节点、
  * 求值合并 setup、深克隆剩余 DOM 为冻结快照，组装成本对象。
  *
  * `getComponent(name)` 返回 HTMLElement 快照（保持 x-loading 等消费者契约不变）；ComponentDef 的额外
- * 元数据（setup/hooks/styles）经 engine 的 `_componentDefs`（WeakMap，以快照根为 key）反查，供 x-use
+ * 元数据（setup/hooks/styles）经 engine 的 `_componentDefs`（WeakMap，以快照根为 key）反查，供 x-component
  * 实例化时取用。
  *
- * **嵌套私有子组件无需定义链**：x-use 实例化父组件 A 时 `compileSubtree` 编译 A 快照子树，内层
- * `x-component="B"` 经 transformElement 再次命中收集器，B 归属到 **A 的实例 scope**
+ * **嵌套私有子组件无需定义链**：x-component 实例化父组件 A 时 `compileSubtree` 编译 A 快照子树，内层
+ * `x-define="B"` 经 transformElement 再次命中收集器，B 归属到 **A 的实例 scope**
  * （`A实例scope.components`）——运行期 scope 链天然实现严格私有（U5=A），不需定义 scope 链。
  */
 export interface ComponentDef {
-    /** 组件名（无值 x-component 取 "default"） */
+    /** 组件名（无值 x-define 取 "default"） */
     name: string;
     /** 冻结快照根元素（深克隆、保留指令属性、**已移除** `<script setup>`/`<style>` 子节点、未编译） */
     snapshot: HTMLElement;
@@ -119,9 +125,9 @@ export interface ComponentDef {
     styleBinds: StyleBind[] | undefined;
     /**
      * 数据边界开关（ADR-0053）：true = 开放数据边界（实例上下文按 `scopeBasis` 继承）。
-     * 缺省 = **封闭**——实例只见自身 data()/locals、x-use props 与全局 state。
-     * 声明侧专属契约：`x-component.open` 修饰符或 `x-component-options="{open:true}"`；
-     * 消费侧（x-use-options）只能覆盖已开放组件的基准，不能打开封闭组件。
+     * 缺省 = **封闭**——实例只见自身 data()/locals、x-component props 与全局 state。
+     * 声明侧专属契约：`x-define.open` 修饰符或 `x-define-options="{open:true}"`；
+     * 消费侧（x-component-options）只能覆盖已开放组件的基准，不能打开封闭组件。
      */
     open?: boolean;
     /**

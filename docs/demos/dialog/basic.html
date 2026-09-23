@@ -11,7 +11,7 @@
     </head>
     <body>
         <!-- 纯状态驱动：宿主是声明点，打开靠改状态；关闭触点（ESC/遮罩/close action）自动回写 false。
-             覆盖物内容 = 普通组件（x-component 声明，编译期剪枝不闪现） -->
+             覆盖物内容 = 普通组件（x-define 声明，编译期剪枝不闪现） -->
         <div class="demo-app section">
             <div x-data="{ ui: { visible: false } }">
                 <div class="block">
@@ -26,7 +26,7 @@
                 </div>
 
                 <!-- 覆盖物内容：一个普通组件（每次打开渲染新实例，关闭动画播完即销毁） -->
-                <div x-component="hello">
+                <div x-define="hello">
                     <div class="ov-panel">
                         <h3 class="title is-5">你好</h3>
                         <p>试着按 ESC、点遮罩或下方按钮关闭。</p>

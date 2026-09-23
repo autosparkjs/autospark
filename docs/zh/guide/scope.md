@@ -70,11 +70,11 @@ Scope 在编译期由编译器（`AutoSparkCompiler`）创建。当编译器深�
 | `parent` | `AutoSparkScope \| null` | 父作用域（根 scope 为 null） |
 | `children` | `Set<AutoSparkScope>` | 子作用域集合 |
 | `directives` | `AutoSparkDirectiveBase[]` | 该元素上的指令实例列表（按优先级降序） |
-| `locals` | `Record<string, any> \| null` | x-for 注入的局部数据（item/index 等） |
+| `data` | `Record<string, any> \| null` | x-for 注入的局部数据（item/index 等） |
 | `_data` | `Record<string, any> \| null` | x-data 注入的私有响应式数据域 |
 | `hostOptions` | `Record<string, any> \| null` | 元素级宿主选项（`x-options` 解析产物） |
 | `watchers` | `Watcher[]` | 本 scope 持有的所有 watcher（destroy 时统一 off） |
-| `components` | `Record<string, HTMLElement> \| null` | x-component 收集的命名组件快照 |
+| `components` | `Record<string, HTMLElement> \| null` | x-define 收集的命名组件快照 |
 | `actions` | `Record<string, ActionDesc> \| null` | 局部 action（`<script type="autospark/actions">`） |
 | `methods` | `Record<string, Function> \| null` | 组件实例的内部方法（仅组件 scope） |
 | `hooks` | `ComponentHooks \| null` | 组件实例的生命周期钩子（仅组件 scope） |
@@ -121,7 +121,7 @@ parent 链被以下机制沿链查找：
 </div>
 ```
 
-写入 `getContext()` 返回的视图时，set 陷阱会按**同序**透传到对应容器：命中 `locals` 写 locals（非响应式），命中 `_data` 写响应式域（触发字段级更新），未命中则委托父视图沿链处理。
+写入 `getContext()` 返回的视图时，set 陷阱会按**同序**透传到对应容器：命中 `data` 写 locals（非响应式），命中 `_data` 写响应式域（触发字段级更新），未命中则委托父视图沿链处理。
 
 ### 双轨 watch
 
@@ -167,13 +167,13 @@ scope.watch("item.name", listener)
 <div x-scope>
   <!-- 这个 div 本来不会建 scope（无指令无插值） -->
   <!-- 声明 x-scope 后，它成为 scope 锚点 -->
-  <x-component name="loading">...</x-component>
-  <!-- x-component 可以归属到这个 scope -->
+  <x-define name="loading">...</x-define>
+  <!-- x-define 可以归属到这个 scope -->
 </div>
 ```
 
 典型用途：
-- 为 `x-component` 提供归属锚点（组件向上找最近 scope 挂载）
+- 为 `x-define` 提供归属锚点（组件向上找最近 scope 挂载）
 - 截断后代 scope 链（确定 parent 边界，防止 localData 继承链越过预期）
 
 ### Scope 销毁

@@ -3,18 +3,18 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>x-component · 组件基础</title>
+        <title>x-define · 组件基础</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
     <body>
         <!--
-            x-scope 让纯容器建 scope，使内部 x-component 有归属锚点。
-            组件 counter 声明了 data/methods/生命周期，x-use 实例化它。
+            x-scope 让纯容器建 scope，使内部 x-define 有归属锚点。
+            组件 counter 声明了 data/methods/生命周期，x-component 实例化它。
         -->
         <div id="app" x-scope>
             <!-- 组件声明（编译后从 DOM 消失，仅作供体） -->
-            <div x-component="counter">
+            <div x-define="counter">
                 <div class="counter-box">
                     <button class="button is-small" x-on:click="dec">-</button>
                     <span class="count" x-text="count"></span>
@@ -22,7 +22,7 @@
                 </div>
                 <script type="autospark/setup">
                     {
-                        data() {
+                        state() {
                             return { count: 0 };
                         },
                         methods: {
@@ -58,12 +58,12 @@
 
             <!-- 实例化组件（mounted 钩子把 count 初始化为 5） -->
             <div class="panel">
-                <div x-use="counter"></div>
+                <div x-component:counter></div>
             </div>
 
-            <!-- 传 props：count 覆盖 data() 默认（这里 mounted 后仍为 5，props 仅在 data() 阶段覆盖） -->
+            <!-- 传 props：count 覆盖 state() 默认（这里 mounted 后仍为 5，props 仅在 state() 阶段覆盖） -->
             <div class="panel">
-                <div x-use="{ name: 'counter' }"></div>
+                <div x-component:counter></div>
             </div>
         </div>
 

@@ -80,7 +80,7 @@
 
       <!-- 覆盖物内容：普通组件声明；x-scope 提供归属 scope，命令式 getOverlay 以该元素起链查找 -->
       <div x-scope id="tip-root">
-        <div x-component="tip">
+        <div x-define="tip">
           <div class="ov-panel">
             <h3 class="title is-5">贴锚提示</h3>
             <p>本面板贴着触发按钮定位。</p>
@@ -91,7 +91,7 @@
 
       <!--
         九宫格：12 个 placement 取值全演示（纯声明式 x-dialog）。
-        12 个消费点共享同一组件 x-component="placement-tip"，各自值对象差异化：
+        12 个消费点共享同一组件 x-define="placement-tip"，各自值对象差异化：
         visible（独立状态位，简单路径可回写）+ placement（props，注入面板显示）+ at（保留配置键，
         selector 用 / 全局选择器引用中央锚点）。模态遮罩天然保证同一时刻只有一个面板打开。
       -->
@@ -212,9 +212,9 @@
         </div>
 
         <!-- placement 演示用小面板：placement 名经 props 注入（值对象非保留键全作 props） -->
-        <div x-component="placement-tip">
+        <div x-define="placement-tip">
           <script type="autospark/setup">
-            { data() { return { placement: "bottom" } } }
+            { state() { return { placement: "bottom" } } }
           </script>
           <div class="ov-panel ov-panel-sm">
             placement: <b x-text="placement"></b>

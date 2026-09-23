@@ -28,7 +28,7 @@ export interface OverlayInstanceOptions {
  * 覆盖物实例（ADR-0052 修订版）：覆盖物被消费者打开渲染出的**活体**。
  *
  * 内容 = 任意组件：`snapshot`（组件冻结快照）经 `instantiateDetachedComponent` 管道编译——
- * data()/props、methods、四阶段 hooks、scoped CSS、styleBinds、数据基准全生效（x-use 管道兄弟路径）。
+ * data()/props、methods、四阶段 hooks、scoped CSS、styleBinds、数据基准全生效（x-component 管道兄弟路径）。
  *
  * 结构两态（修订共识 4）：
  * - `mask: true`（dialog 模态形态）：遮罩外壳根（`autospark-dialog-mask`，实例 el）> 面板
@@ -244,7 +244,7 @@ export class OverlayInstance {
         this._panel = panel;
 
         // 2. 编译组件（instantiateDetachedComponent 管道：data() 默认 → props 覆盖、methods、
-        //    四阶段 hooks、scoped CSS、styleBinds、数据基准全生效——x-use 兄弟路径）
+        //    四阶段 hooks、scoped CSS、styleBinds、数据基准全生效——x-component 兄弟路径）
         const clone = this.snapshot.cloneNode(true) as HTMLElement;
         const compiled = this.engine.compiler.instantiateDetachedComponent(
             clone,

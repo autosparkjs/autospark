@@ -86,7 +86,7 @@
 
 ### 谁会建 scope
 
-并非每个元素都建 scope。**含指令、含 <span v-pre>`{{}}`</span> 插值**的元素才建。一个光秃秃的 `<div>`（只作结构包裹）不建 scope。这正是 [x-scope](../guide/directives/x-scope.md) 指令的用途：让纯容器也建 scope，为后代 `x-component` 提供归属锚点、为作用域链插入边界。
+并非每个元素都建 scope。**含指令、含 <span v-pre>`{{}}`</span> 插值**的元素才建。一个光秃秃的 `<div>`（只作结构包裹）不建 scope。这正是 [x-scope](../guide/directives/x-scope.md) 指令的用途：让纯容器也建 scope，为后代 `x-define` 提供归属锚点、为作用域链插入边界。
 
 ### 作用域链与就近查找
 
@@ -145,20 +145,20 @@ scope 经 `parent` 链组成树，读取局部数据时**就近命中**：
 
 ## 组件（Component）
 
-**组件（`x-component`）** 是一种声明性模板资源——它本身不渲染，编译期被「深克隆为快照」后从渲染树摘除，作为**供体**交给最近祖先 scope 保管。
+**组件（`x-define`）** 是一种声明性模板资源——它本身不渲染，编译期被「深克隆为快照」后从渲染树摘除，作为**供体**交给最近祖先 scope 保管。
 
 消费者指令（如 `x-loading`）需要一个 UI 态（加载中、空、错误）时，经 `getComponent(名字)` 沿 scope 链取组件，克隆 + 编译后替换内置默认 UI。于是同一套状态，可以用任意自定义 HTML 表达它的各种「非内容态」。
 
 ```html
 <div x-scope>
     <!-- 声明：编译后从 DOM 消失，作为 "loading" 模板供体 -->
-    <div x-component="loading"><div class="skeleton"></div></div>
+    <div x-define="loading"><div class="skeleton"></div></div>
     <!-- 消费：x-loading 取上面的组件替换内置旋转 loader -->
     <div x-loading="{ value: 'on' }">内容</div>
 </div>
 ```
 
-这里 `x-scope` 是关键：`x-component` 要挂到最近祖先 scope，但纯容器不建 scope——`x-scope` 让这个 `<div>` 成为 scope 锚点，组件才有归属。组件查找支持「局部覆盖、外层兜底」：内层 scope 的同名组件遮蔽外层，到顶兜底引擎全局组件（`options.components`）。
+这里 `x-scope` 是关键：`x-define` 要挂到最近祖先 scope，但纯容器不建 scope——`x-scope` 让这个 `<div>` 成为 scope 锚点，组件才有归属。组件查找支持「局部覆盖、外层兜底」：内层 scope 的同名组件遮蔽外层，到顶兜底引擎全局组件（`options.components`）。
 
 ::: info 想深入了解
 组件的声明摘除、就近覆盖、全局组件兜底、消费者协议见[组件](../guide/component.md)。

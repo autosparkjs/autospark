@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>x-component · 就近覆盖与全局兜底</title>
+        <title>x-define · 就近覆盖与全局兜底</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
@@ -79,7 +79,7 @@
             <div class="columns">
                 <!-- ① 外层 x-scope 有局部 loading 块（跳动点）→ 就近覆盖全局 -->
                 <div x-scope class="column">
-                    <div x-component="loading">
+                    <div x-define="loading">
                         <div class="local-dots"><span></span><span></span><span></span></div>
                         <div class="tag-line">局部块（跳动点）</div>
                     </div>

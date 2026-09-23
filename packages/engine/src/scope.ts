@@ -141,7 +141,7 @@ export class AutoSparkScope {
     /**
      * 组件实例的非响应式局部变量（ADR-0022 决策二-3 (10)）。
      *
-     * 由 `<script setup>` 的 `locals` 段经 `injectComponentSemantics` 注入。**普通对象、不进聚合视图**
+     * 由 `<script setup>` 的 `data` 段经 `injectComponentSemantics` 注入（ADR-0055 更名自 locals 段）。**普通对象、不进聚合视图**
      *（getContext 不含 _locals）——模板表达式读不到，仅经 Proxy this 的 `this.<key>` 访问
      *（method/data/framework key 优先级高于 _locals）。典型用途：定时器句柄、缓存、防抖标记。
      * 非组件实例 scope 为 null。
@@ -209,7 +209,7 @@ export class AutoSparkScope {
     /**
      * 组件实例的生命周期钩子（ADR-0022 决策三）。
      *
-     * 仅组件实例 scope 持有（x-use 实例化时从 ComponentDef.hooks 克隆而来）；普通 scope 为 null。
+     * 仅组件实例 scope 持有（x-component 实例化时从 ComponentDef.hooks 克隆而来）；普通 scope 为 null。
      * 四阶段：created（compile 前）/ mounted（compile 后）/ beforeUnmount（destroy 开头，watcher 仍活）/
      * unmounted（destroy 结尾）。由 compileChild 实例化流程与 scope.destroy 分别触发（`_runHooks`）。
      * 每个 phase 是函数数组（多个 `<script setup>` 同名 hook 串行合并），单个失败 try-catch 不阻断其余。
@@ -218,7 +218,7 @@ export class AutoSparkScope {
     /**
      * 是否为组件实例 scope（ADR-0022 决策二）。
      *
-     * 组件本质上是一个特殊 scope——由 x-use 实例化时（compileChild 传入 componentDef）置 true。
+     * 组件本质上是一个特殊 scope——由 x-component 实例化时（compileChild 传入 componentDef）置 true。
      * 区别于普通 scope（x-for 项 / x-if 子树 / x-data 块等）：组件实例持有 data（合并 data() + props）、
      * methods（scope.actions）、hooks（四阶段生命周期）。供内部判定与调试观察。普通 scope 恒 false。
      */
@@ -227,15 +227,15 @@ export class AutoSparkScope {
      * 组件实例化的组件名（ADR-0022 决策五-递归保护）。
      *
      * 仅组件实例 scope 有值（compileChild 传 componentDef 时取 def.name）；普通 scope 为 null。
-     * 供 x-use 的递归深度统计：沿 parent 链统计同名组件实例化深度，防无限递归（T5=A）。
+     * 供 x-component 的递归深度统计：沿 parent 链统计同名组件实例化深度，防无限递归（T5=A）。
      */
     componentName: string | null = null;
     /**
-     * x-component 收集的命名组件冻结快照（ADR-0022，承接 ADR-0021）。
+     * x-define 收集的命名组件冻结快照（ADR-0022 承接 ADR-0021；指令名 ADR-0054）。
      *
-     * compiler 前置 transformer 命中 `x-component` 元素时，将其**深克隆副本**（保留指令属性、未编译；
+     * compiler 前置 transformer 命中 `x-define` 元素时，将其**深克隆副本**（保留指令属性、未编译；
      * `<script setup>`/`<style>` 已在收集期提取并移除）按名存入**最近祖先 scope** 的本字段，
-     * 并把原元素从渲染树摘除。key 为组件名（无值 `x-component` 取 `default`）；value 为冻结快照 HTMLElement。
+     * 并把原元素从渲染树摘除。key 为组件名（无值 `x-define` 取 `default`）；value 为冻结快照 HTMLElement。
      *
      * **`default` 唯一性已放宽**（ADR-0022 决策四-4）：同名组件直接归属同一 scope 时 warn + 后者覆盖
      * （不再抛错）；沿 parent 链允许就近覆盖（内层遮蔽外层）。其他组件名自由、可多 scope 同名。
@@ -261,7 +261,7 @@ export class AutoSparkScope {
      * 数据视图（getContext）与局部数据探测（hasLocalContext）的 parent 链上溯在本 scope
      * 止步——之上直接回退 `engine.state`（全局态可见，祖先 scope 的局部数据域不可见）。
      * 本 scope 自身的 locals/_data 仍在边界内（组件自己的数据域）。
-     * 仅 x-use 实例化且解析链结论为封闭时设置（instantiateComponent），overlay 等路径不受影响。
+     * 仅 x-component 实例化且解析链结论为封闭时设置（instantiateComponent），overlay 等路径不受影响。
      */
     dataBoundary = false;
     /**
@@ -846,7 +846,7 @@ export class AutoSparkScope {
                 fn.call(ctx);
             } catch (e: any) {
                 this.engine.logger.error(
-                    `x-component hook "${phase}" 执行失败: ${e?.message ?? e}`,
+                    `组件 hook "${phase}" 执行失败: ${e?.message ?? e}`,
                 );
             }
         }

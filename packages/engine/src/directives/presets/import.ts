@@ -18,7 +18,7 @@ function isLiteralUrl(raw: string): boolean {
 /**
  * x-import：远程组件加载指令（ADR-0022 决策六）。
  *
- * fetch 远程 url 加载组件定义（fetched HTML 内可含 1-N 个 `<div x-component>`），注册到当前 engine：
+ * fetch 远程 url 加载组件定义（fetched HTML 内可含 1-N 个 `<div x-define>`），注册到当前 engine：
  *
  * - **作用域组件**（默认 `<div x-import="url">`）：注册到最近祖先 scope.components，仅本作用域可见；
  * - **全局组件**（`.global` 修饰符 `<div x-import.global="url">`）：注册到 engine.options.components，
@@ -26,7 +26,7 @@ function isLiteralUrl(raw: string): boolean {
  *
  * url 支持**响应式**（经 `scope.watch` 求值，支持路径/表达式/x-data 局部）；url 变化 → 重新加载。
  * 加载经 `engine.importComponentsFromUrl`（url 缓存 + 循环 import 检测 + `<script setup>`/`<style>` 提取），
- * 注册后广播 `component/registered`，供 pending 的 x-use 重新实例化（异步占位 R6=B）。
+ * 注册后广播 `component/registered`，供 pending 的 x-component 重新实例化（异步占位 R6=B）。
  *
  * **声明性指令**：x-import 本身不渲染（无 DOM 输出），仅副作用（加载注册）。`name` 属性可选——
  * 若声明则加载完成后校验该名组件已注册（未注册 warn）。
@@ -39,7 +39,7 @@ function isLiteralUrl(raw: string): boolean {
  * <div x-import.global="/global-components.html"></div>
  */
 export class ImportDirective extends AutoSparkDirectiveBase {
-    /** 优先级与 x-use 协同（70）：import 须在编译期尽早发起，但不占子树 */
+    /** 优先级与 x-component 协同（70）：import 须在编译期尽早发起，但不占子树 */
     static override readonly priority = 75;
     static override readonly singleton = true;
 
@@ -59,7 +59,7 @@ export class ImportDirective extends AutoSparkDirectiveBase {
             this.warn(`x-import: 缺少 url，已跳过。`);
             return;
         }
-        // 值解析双轨（同 x-use，ADR-0022 决策六）：
+        // 值解析双轨（ADR-0022 决策六）：
         // - 字面量 url（如 `/cmp.html`、`./a.html`、`http://x/c.html`）→ 直接加载，不经表达式求值
         //   （避免 `/cmp.html` 被当正则字面量、`http://...` 被当注释）；
         // - 含表达式特征（空白、花括号、状态变量等）→ watch 求值得 url（响应式）。
@@ -87,7 +87,7 @@ export class ImportDirective extends AutoSparkDirectiveBase {
         const myCtrl = (this.abortCtrl = new AbortController());
         this.currentUrl = urlStr;
         try {
-            // 作用域组件注册到最近祖先 scope（this.binding.parent），使同层兄弟 x-use 可见；
+            // 作用域组件注册到最近祖先 scope（this.binding.parent），使同层兄弟 x-component 可见；
             // 全局组件忽略 ownerScope（注册到 engine.options.components）。
             await this.engine.importComponentsFromUrl(
                 urlStr,

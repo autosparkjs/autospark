@@ -1,6 +1,6 @@
 import type { AutoSparkScope } from "../../scope";
 import type { ComponentDataBasis, ComponentDef } from "../component-def";
-import { UseDirective } from "./use";
+import { ComponentDirective } from "./component";
 import { OverlayInstance } from "../../overlay/instance";
 import { resolveOverlayConfig } from "../../overlay/handle";
 import type { OverlayConfig } from "../../overlay/types";
@@ -9,24 +9,24 @@ import type { OverlayConfig } from "../../overlay/types";
  * OverlayDirective：覆盖物消费侧**公共抽象基座**（ADR-0052 修订版——组件化统一，共识 2/3）。
  *
  * 覆盖物不再是独立声明指令，而是「**任意组件被渲染到 body 容器的消费方式**」：内容 = 任意组件
- * （`x-component` 声明 / `options.components` 全局注册 / `x-import` 加载），组件名走消费 attr
+ * （`x-define` 声明 / `options.components` 全局注册 / `x-import` 加载），组件名走消费 attr
  * （`x-dialog:login` 的 `login`）。本类**不注册 `presetDirectives`**（模板无 `x-overlay` 语法，
  * 旧声明指令与 `.global` 修饰符、engine 全局表已删——共识 1）。
  *
- * 继承 `UseDirective` 组件实例化全套能力（`getComponent` 查找、def 反查、递归深度防护、
- * `_waitForComponent` 等待 x-import、props 注入组件 data 域），仅覆盖三处（共识 3）：
+ * 继承 `ComponentDirective`（ADR-0054 更名自 UseDirective）组件实例化全套能力（`getComponent` 查找、
+ * def 反查、递归深度防护、`_waitForComponent` 等待 x-import、props 注入组件 data 域），仅覆盖三处（共识 3）：
  *
- * 1. **值语义**：组件名来自 attr（x-use 的值是组件名）；值为 visible 驱动（子类解析，见 DialogDirective）；
- * 2. **实例化时机**：visible 真值触发 `_open()`（x-use 为编译期一次）；
- * 3. **目的地**：body 容器新实例（`OverlayInstance`，x-use 为宿主原地化身）——跳过
- *    `_mergeHostAttrs` 属性继承。
+ * 1. **值语义**：组件名来自 attr（与 x-component 同一载体约定）；值为 visible 驱动（子类解析，见 DialogDirective）；
+ * 2. **实例化时机**：visible 真值触发 `_open()`（x-component 为编译期一次）；
+ * 3. **目的地**：body 容器新实例（`OverlayInstance`，x-component 为宿主原地化身）——跳过
+ *    `_mergeComponentRootAttrs` 属性继承。
  *
  * 配置三级链（共识 6）：`内置默认（基座） < x-dialog-options < 值对象内联保留配置键`；
  * props 统一（共识 7）：值对象/命令式 options 的非保留键全部作 props 注入组件 data 域。
  * scope 基准（共识 8）：`'declarer'`（默认，挂声明处 scope=定义闭包）| `'host'`（消费处）；
  * 废弃值 `'consumer'` 映射 `'host'` + warn。
  */
-export abstract class OverlayDirective extends UseDirective {
+export abstract class OverlayDirective extends ComponentDirective {
     /** 覆盖物组件名 = 消费 attr 名（x-dialog:login 的 login） */
     protected get overlayName(): string {
         return this.attr ?? "";
@@ -56,8 +56,8 @@ export abstract class OverlayDirective extends UseDirective {
     }
 
     /**
-     * 目的地覆盖（共识 3-3）：body 容器新实例（x-use 为宿主原地化身）——跳过 `_mergeHostAttrs`。
-     * 共享 x-use 的查找（`_findComponentDef`）、递归防护（`_recursiveDepth`）、等待
+     * 目的地覆盖（共识 3-3）：body 容器新实例（x-component 为宿主原地化身）——跳过 `_mergeComponentRootAttrs`。
+     * 共享 x-component 的查找（`_findComponentDef`）、递归防护（`_recursiveDepth`）、等待
      * （`_waitForComponent`，组件经 x-import 就绪后自动重试）。
      */
     protected override _instantiate(name: string, props: Record<string, any> | undefined): void {
@@ -70,10 +70,10 @@ export abstract class OverlayDirective extends UseDirective {
             this._waitForComponent(name, props);
             return;
         }
-        // 递归深度防护（T5=A，与 x-use 共享）
-        if (this._recursiveDepth(name) >= UseDirective.MAX_DEPTH) {
+        // 递归深度防护（T5=A，与 x-component 共享）
+        if (this._recursiveDepth(name) >= ComponentDirective.MAX_DEPTH) {
             this.warn(
-                `x-dialog:${this.attr}: 组件 "${name}" 递归实例化深度超过上限（${UseDirective.MAX_DEPTH}），已停止（疑似无终止条件递归）。`,
+                `x-dialog:${this.attr}: 组件 "${name}" 递归实例化深度超过上限（${ComponentDirective.MAX_DEPTH}），已停止（疑似无终止条件递归）。`,
             );
             return;
         }
@@ -107,7 +107,7 @@ export abstract class OverlayDirective extends UseDirective {
      * `'host'` + warn。
      *
      * 挂链即基准（决策 11 三合一）：表达式上下文 / 数据视图 / 生命周期级联统一由 parentScope 表达，
-     * 无需 x-use 的 basis 施加（那是宿主化身场景——scope 留在消费处、数据视图跳声明处的解耦机制）。
+     * 无需 x-component 的 basis 施加（那是宿主化身场景——scope 留在消费处、数据视图跳声明处的解耦机制）。
      */
     private _resolveParentScope(
         config: OverlayConfig,

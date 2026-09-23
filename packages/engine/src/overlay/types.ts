@@ -5,7 +5,7 @@ import type { OverlayInstance } from "./instance";
  *
  * 家族词汇：**覆盖物**（任意组件被渲染到 body 容器的消费方式）/ **覆盖物实例**（消费渲染产物 →
  * OverlayInstance）/ **覆盖物消费者**（x-dialog 等指令 + 命令式 OverlayHandle）。
- * 覆盖物**内容**就是普通组件（x-component 声明 / options.components 全局注册 / x-import 加载）——
+ * 覆盖物**内容**就是普通组件（x-define 声明 / options.components 全局注册 / x-import 加载）——
  * 无独立声明指令（旧 x-overlay 声明语法已删，ADR-0052 修订共识 1）。
  */
 
@@ -93,7 +93,7 @@ export const OVERLAY_DEFAULTS: OverlayConfig = {
 /**
  * 消费者保留键封闭清单（ADR-0052 修订共识 7）：声明式值对象 / 命令式 options 中命中本清单
  * 的键**不作 props**——`visible` 是驱动键（命令式中无意义，warn 忽略），其余进配置合并链；
- * 清单之外的键**全部作 props** 注入组件 data 域（x-use 约定，覆盖 data() 默认）。撞保留键的
+ * 清单之外的键**全部作 props** 注入组件 data 域（x-component 约定，覆盖 data() 默认）。撞保留键的
  * 风险由本封闭清单文档化（组件 props 避免使用这些名字）。`scope` 为已废弃旧键（值兜底解析）。
  */
 export const OVERLAY_RESERVED_KEYS: ReadonlySet<string> = new Set([

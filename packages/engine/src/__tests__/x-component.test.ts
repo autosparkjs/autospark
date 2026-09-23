@@ -10,7 +10,7 @@ import {
 import { exprToVarName, extractStyleBinds } from "../utils/styleBind";
 
 /**
- * x-scope（结构占位）+ x-component（命名模板组件供体）+ 全局组件测试。
+ * x-scope（结构占位）+ x-define（命名模板组件供体）+ 全局组件测试。
  *
  * 覆盖 ADR-0021 全部决策（含决策 7 修订、9 全局组件、10 自动包装、11 懒预编译）：
  * - Q2 x-scope 注册占位类建 scope
@@ -27,18 +27,18 @@ import { exprToVarName, extractStyleBinds } from "../utils/styleBind";
  */
 
 describe("x-scope 结构占位", () => {
-    test("Q2：纯容器声明 x-scope 即建 scope（后代 x-component 有归属）", () => {
-        // x-scope 让无指令的 div 建 scope，使内部 x-component 能归属、被摘除
-        const { root } = mount(`<div x-scope><div x-component="loading">L</div></div>`, {});
-        // x-component 被摘除（不进结果 DOM），x-scope 属性也被剥除
-        expect(root.querySelector("[x-component]")).toBeNull();
+    test("Q2：纯容器声明 x-scope 即建 scope（后代 x-define 有归属）", () => {
+        // x-scope 让无指令的 div 建 scope，使内部 x-define 能归属、被摘除
+        const { root } = mount(`<div x-scope><div x-define="loading">L</div></div>`, {});
+        // x-define 被摘除（不进结果 DOM），x-scope 属性也被剥除
+        expect(root.querySelector("[x-define]")).toBeNull();
         expect(root.querySelector("[x-scope]")).toBeNull();
         // x-scope 容器本身保留（仅属性被剥）
         expect(root.querySelector("div")).not.toBeNull();
     });
 
     test("Q2：无 x-scope 时纯容器不建 scope（对照）", () => {
-        // 纯 div 无指令无插值 → 不建 scope → 内部无 x-component 时原样渲染子树
+        // 纯 div 无指令无插值 → 不建 scope → 内部无 x-define 时原样渲染子树
         const { root } = mount(`<div><span>keep</span></div>`, {});
         expect(root.querySelector("span")?.textContent).toBe("keep");
     });
@@ -52,19 +52,19 @@ describe("x-scope 结构占位", () => {
     });
 });
 
-describe("x-component 收集与摘除", () => {
-    test("Q7：x-component 从渲染树摘除（不进结果 DOM）", () => {
+describe("x-define 收集与摘除", () => {
+    test("Q7：x-define 从渲染树摘除（不进结果 DOM）", () => {
         const { root } = mount(
-            `<div x-scope><div x-component="loading">加载中</div><span>可见</span></div>`,
+            `<div x-scope><div x-define="loading">加载中</div><span>可见</span></div>`,
             {},
         );
-        expect(root.querySelector("[x-component]")).toBeNull(); // 组件摘除
+        expect(root.querySelector("[x-define]")).toBeNull(); // 组件摘除
         expect(root.querySelector("span")?.textContent).toBe("可见"); // 兄弟正常
     });
 
     test("Q6：组件以深克隆副本存入 scope.components（保留指令属性）", () => {
         const { engine, root } = mount(
-            `<div x-scope><div x-component="loading" x-text="msg">占位</div></div>`,
+            `<div x-scope><div x-define="loading" x-text="msg">占位</div></div>`,
             { msg: "加载中文案" },
         );
         // 宿主 div 建了 scope（x-scope），其 components.loading 应含深克隆副本
@@ -74,14 +74,14 @@ describe("x-component 收集与摘除", () => {
         const block = scope!.getComponent("loading");
         expect(block).toBeDefined();
         // 副本保留指令属性（未编译）；根**不**注入 x-scope（决策 7 修订：scope 由消费编译路径内禀保证）
-        expect(block!.hasAttribute("x-component")).toBe(true);
+        expect(block!.hasAttribute("x-define")).toBe(true);
         expect(block!.hasAttribute("x-text")).toBe(true);
         expect(block!.hasAttribute("x-scope")).toBe(false); // 决策 7 修订：不再注入
     });
 
     test("决策7修订：组件根不注入 x-scope（scope 由 compileChild 内禀保证）", () => {
         const { engine, root } = mount(
-            `<div x-scope><div x-component="plain">无指令组件根</div></div>`,
+            `<div x-scope><div x-define="plain">无指令组件根</div></div>`,
             {},
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
@@ -91,7 +91,7 @@ describe("x-component 收集与摘除", () => {
 
     test("决策7修订：组件根已有 x-scope 时保留用户声明（不剥除）", () => {
         const { engine, root } = mount(
-            `<div x-scope><div x-component="b" x-scope>已声明</div></div>`,
+            `<div x-scope><div x-define="b" x-scope>已声明</div></div>`,
             {},
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
@@ -100,10 +100,10 @@ describe("x-component 收集与摘除", () => {
         expect(block.hasAttribute("x-scope")).toBe(true);
     });
 
-    test("Q8：x-component 同元素其他指令不执行（随组件冻结，当前 DOM 不绑定）", async () => {
-        // x-component 上的 x-text 不在当前 scope 执行——组件被摘除，x-text 无宿主
+    test("Q8：x-define 同元素其他指令不执行（随组件冻结，当前 DOM 不绑定）", async () => {
+        // x-define 上的 x-text 不在当前 scope 执行——组件被摘除，x-text 无宿主
         const { root, engine } = mount(
-            `<div x-scope><div x-component="loading" x-text="msg">占位</div></div>`,
+            `<div x-scope><div x-define="loading" x-text="msg">占位</div></div>`,
             { msg: "X" },
         );
         // 组件已摘除，DOM 里没有该文本
@@ -115,20 +115,20 @@ describe("x-component 收集与摘除", () => {
 
     test("Q3：组件归属任意深度（跨中间纯 div）", () => {
         const { engine, root } = mount(
-            `<div x-scope><div class="wrap"><div class="inner"><div x-component="deep">深</div></div></div></div>`,
+            `<div x-scope><div class="wrap"><div class="inner"><div x-define="deep">深</div></div></div></div>`,
             {},
         );
-        // 中间两层纯 div 不建 scope，x-component 仍归属最近的 x-scope 祖先
+        // 中间两层纯 div 不建 scope，x-define 仍归属最近的 x-scope 祖先
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         expect(scope.getComponent("deep")).toBeDefined();
         // 组件从渲染树摘除（连同包裹层保留，但组件本身不在）
-        expect(root.querySelector("[x-component]")).toBeNull();
+        expect(root.querySelector("[x-define]")).toBeNull();
     });
 
     test("无祖先 scope 时组件编译期 warn 丢弃", () => {
-        // x-component 无任何祖先 scope（根 div 无指令）→ warn + 丢弃，不进 components、不抛错
-        const { root, engine } = mount(`<div><div x-component="orphan">孤儿</div></div>`, {});
-        expect(root.querySelector("[x-component]")).toBeNull(); // 仍摘除（不进 DOM）
+        // x-define 无任何祖先 scope（根 div 无指令）→ warn + 丢弃，不进 components、不抛错
+        const { root, engine } = mount(`<div><div x-define="orphan">孤儿</div></div>`, {});
+        expect(root.querySelector("[x-define]")).toBeNull(); // 仍摘除（不进 DOM）
         // 根 div 无 scope，无 components
         const rootDiv = root.querySelector("div") as HTMLElement;
         expect(engine.findScopeByEl(rootDiv)).toBeUndefined();
@@ -136,8 +136,8 @@ describe("x-component 收集与摘除", () => {
 });
 
 describe("default 组件与命名约定（Q9）", () => {
-    test("无值 x-component 取名 default", () => {
-        const { engine, root } = mount(`<div x-scope><div x-component>默认组件</div></div>`, {});
+    test("无值 x-define 取名 default", () => {
+        const { engine, root } = mount(`<div x-scope><div x-define>默认组件</div></div>`, {});
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         expect(scope.getComponent("default")).toBeDefined();
     });
@@ -145,7 +145,7 @@ describe("default 组件与命名约定（Q9）", () => {
     test("同一 scope 同名 default 放宽：warn + 后者覆盖（ADR-0022 决策四-4）", () => {
         // ADR-0021 原抛错语义已废止；ADR-0022 决策四-4 放宽为 warn + 后者覆盖。
         const { engine, root } = mount(
-            `<div x-scope><div x-component>第一个</div><div x-component>第二个</div></div>`,
+            `<div x-scope><div x-define>第一个</div><div x-define>第二个</div></div>`,
             {},
         );
         // 不抛错；同名直接归属后者覆盖前者
@@ -156,7 +156,7 @@ describe("default 组件与命名约定（Q9）", () => {
     test("沿 parent 链允许 default 覆盖（内层遮蔽外层）", () => {
         // 外层 x-scope 有 default；内层 x-scope（x-data 触发）也有 default——就近覆盖
         const { engine, root } = mount(
-            `<div x-scope><div x-component>外层默认</div><div x-data="{a:1}"><div x-component>内层默认</div></div></div>`,
+            `<div x-scope><div x-define>外层默认</div><div x-data="{a:1}"><div x-define>内层默认</div></div></div>`,
             {},
         );
         // 内层 x-data scope 的 default 是"内层默认"
@@ -175,7 +175,7 @@ describe("default 组件与命名约定（Q9）", () => {
 
     test("自由命名：多个不同名组件共存于同一 scope", () => {
         const { engine, root } = mount(
-            `<div x-scope><div x-component="loading">L</div><div x-component="error">E</div><div x-component="empty">空</div></div>`,
+            `<div x-scope><div x-define="loading">L</div><div x-define="error">E</div><div x-define="empty">空</div></div>`,
             {},
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
@@ -189,7 +189,7 @@ describe("组件查找沿 parent 链就近 + 组件兜底（Q1/Q5）", () => {
     test("Q5：消费者沿 parent 链向上就近找组件", () => {
         // 外层 x-scope 声明 loading 组件；内层 x-data scope 经 getComponent 向上命中
         const { engine, root } = mount(
-            `<div x-scope><div x-component="loading">外层组件</div><div x-data="{a:1}"><span>内层</span></div></div>`,
+            `<div x-scope><div x-define="loading">外层组件</div><div x-data="{a:1}"><span>内层</span></div></div>`,
             {},
         );
         const innerEl = root.querySelector("span")!;
@@ -222,7 +222,7 @@ describe("x-loading 消费 loading 组件", () => {
     test("命中 loading 组件：用组件替换内置 loader", async () => {
         const { root, engine } = mount(
             `<div x-scope>
-                <div x-component="loading"><span class="custom-loader">自定义加载</span></div>
+                <div x-define="loading"><span class="custom-loader">自定义加载</span></div>
                 <div id="host" x-loading="loading">内容</div>
             </div>`,
             { loading: true },
@@ -251,7 +251,7 @@ describe("x-loading 消费 loading 组件", () => {
     test("组件内指令在消费渲染时编译生效", async () => {
         const { root, engine } = mount(
             `<div x-scope>
-                <div x-component="loading"><span x-text="msg">占位</span></div>
+                <div x-define="loading"><span x-text="msg">占位</span></div>
                 <div id="host" x-loading="loading">内容</div>
             </div>`,
             { loading: true, msg: "加载中文案" },
@@ -271,7 +271,7 @@ describe("x-loading 消费 loading 组件", () => {
     test("x-loading 显隐切换时组件覆盖层正确增删", async () => {
         const { root, engine } = mount(
             `<div x-scope>
-                <div x-component="loading"><span class="custom">自定义</span></div>
+                <div x-define="loading"><span class="custom">自定义</span></div>
                 <div id="host" x-loading="loading">内容</div>
             </div>`,
             { loading: true },
@@ -300,15 +300,15 @@ describe("全局组件（决策 9/10/11）", () => {
         // 单顶级元素自动包装：根自身即原 div（class=global-load、文本=全局）
         expect(block!.className).toBe("global-load");
         expect(block!.textContent).toBe("全局");
-        // 全局组件根经自动包装打了 x-component="loading"
-        expect(block!.hasAttribute("x-component")).toBe(true);
-        expect(block!.getAttribute("x-component")).toBe("loading");
+        // 全局组件根经自动包装打了 x-define="loading"
+        expect(block!.hasAttribute("x-define")).toBe(true);
+        expect(block!.getAttribute("x-define")).toBe("loading");
     });
 
     test("决策9：局部组件沿链遮蔽全局同名组件（就近原则）", () => {
         const { engine, root } = mount(
             `<div x-scope>
-                <div x-component="loading"><span class="local">局部</span></div>
+                <div x-define="loading"><span class="local">局部</span></div>
             </div>`,
             {},
             { components: { loading: `<div class="global">全局</div>` } },
@@ -330,7 +330,7 @@ describe("全局组件（决策 9/10/11）", () => {
         expect(scope.getComponent("nope")).toBeUndefined();
     });
 
-    test("决策10：单顶级元素无 x-component → 根打本 key 名", () => {
+    test("决策10：单顶级元素无 x-define → 根打本 key 名", () => {
         const { engine, root } = mount(
             `<div x-scope></div>`,
             {},
@@ -341,20 +341,20 @@ describe("全局组件（决策 9/10/11）", () => {
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         const block = scope.getComponent("t1")!;
         expect(block.className).toBe("a");
-        expect(block.getAttribute("x-component")).toBe("t1");
+        expect(block.getAttribute("x-define")).toBe("t1");
     });
 
-    test("决策10：已含 x-component → 尊重原值不重命名", () => {
+    test("决策10：已含 x-define → 尊重原值不重命名", () => {
         const { engine, root } = mount(
             `<div x-scope></div>`,
             {},
             {
-                components: { t1: `<div x-component="foo">aaa</div>` },
+                components: { t1: `<div x-define="foo">aaa</div>` },
             },
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         const block = scope.getComponent("t1")!;
-        expect(block.getAttribute("x-component")).toBe("foo"); // 用户显式声明优先
+        expect(block.getAttribute("x-define")).toBe("foo"); // 用户显式声明优先
     });
 
     test("决策10：多顶级节点 → 包一层 div", () => {
@@ -368,7 +368,7 @@ describe("全局组件（决策 9/10/11）", () => {
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         const block = scope.getComponent("t1")!;
         expect(block.tagName).toBe("DIV");
-        expect(block.getAttribute("x-component")).toBe("t1");
+        expect(block.getAttribute("x-define")).toBe("t1");
         expect(block.querySelectorAll("div").length).toBe(2); // 两个原节点作子树
     });
 
@@ -383,7 +383,7 @@ describe("全局组件（决策 9/10/11）", () => {
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         const block = scope.getComponent("t1")!;
         expect(block.tagName).toBe("DIV");
-        expect(block.getAttribute("x-component")).toBe("t1");
+        expect(block.getAttribute("x-define")).toBe("t1");
         expect(block.textContent).toBe("纯文本组件");
     });
 
@@ -433,7 +433,7 @@ describe("x-loading data 注入与 attrChanged patch（决策 12）", () => {
         // 共存属既有渲染细节，组件内不写初始占位文本以聚焦 data 注入本身）
         const { root, engine } = mount(
             `<div x-scope>
-                <div x-component="loading"><span class="msg" x-text="message"></span></div>
+                <div x-define="loading"><span class="msg" x-text="message"></span></div>
                 <div id="host" x-loading="{ value: 'loading', message: '加载中' }">内容</div>
             </div>`,
             { loading: true },
@@ -483,20 +483,20 @@ describe("x-loading data 注入与 attrChanged patch（决策 12）", () => {
     });
 });
 
-describe("x-component <script setup> / <style> 提取（ADR-0022 决策四）", () => {
+describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () => {
     test("script setup 与 style 从快照移除（不进结果 DOM）", () => {
         const { root } = mount(
             `<div x-scope>
-                <div x-component="card">
+                <div x-define="card">
                     <span class="body">内容</span>
-                    <script setup>{ data(){ return { a: 1 } } }</script>
+                    <script setup>{ state(){ return { a: 1 } } }</script>
                     <style>.body{color:red}</style>
                 </div>
             </div>`,
             {},
         );
-        // x-component 整体被摘除（含其 script/style），不进结果 DOM
-        expect(root.querySelector("[x-component]")).toBeNull();
+        // x-define 整体被摘除（含其 script/style），不进结果 DOM
+        expect(root.querySelector("[x-define]")).toBeNull();
         expect(root.querySelector("script")).toBeNull();
         expect(root.querySelector("style")).toBeNull();
     });
@@ -504,10 +504,10 @@ describe("x-component <script setup> / <style> 提取（ADR-0022 决策四）", 
     test("script setup 求值为 def（setup/hooks/styles 建立）", () => {
         const { engine, root } = mount(
             `<div x-scope>
-                <div x-component="card">
+                <div x-define="card">
                     <span class="body">内容</span>
                     <script setup>{
-                        data(){ return { count: 0 } },
+                        state(){ return { count: 0 } },
                         methods:{ inc(){ this.data.count++ } },
                         mounted(){ },
                         unmounted(){ }
@@ -523,21 +523,21 @@ describe("x-component <script setup> / <style> 提取（ADR-0022 决策四）", 
         // def 元数据正确
         expect(def).toBeDefined();
         expect(def.name).toBe("card");
-        expect(typeof def.setup?.data).toBe("function");
+        expect(typeof def.setup?.state).toBe("function");
         expect(def.setup?.methods?.inc).toBeInstanceOf(Function);
         expect(def.hooks?.mounted.length).toBe(1);
         expect(def.hooks?.unmounted.length).toBe(1);
         expect(def.styles).toEqual([".body{color:red}"]);
-        // data() 返回值正确
-        expect(def.setup?.data?.()).toEqual({ count: 0 });
+        // state() 返回值正确
+        expect(def.setup?.state?.()).toEqual({ count: 0 });
     });
 
     test("多个 script setup 按段分类合并（R3=A）", () => {
         const { engine, root } = mount(
             `<div x-scope>
-                <div x-component="multi">
-                    <script setup>{ data(){ return { a: 1 } } }</script>
-                    <script setup>{ data(){ return { b: 2 } }, methods:{ f(){} } }</script>
+                <div x-define="multi">
+                    <script setup>{ state(){ return { a: 1 } } }</script>
+                    <script setup>{ state(){ return { b: 2 } }, methods:{ f(){} } }</script>
                     <script setup>{ mounted(){} }</script>
                 </div>
             </div>`,
@@ -546,7 +546,7 @@ describe("x-component <script setup> / <style> 提取（ADR-0022 决策四）", 
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         const def = engine.getComponentDef(scope.getComponent("multi")!)!;
         // 多个 data 合并：a 与 b 都在
-        expect(def.setup?.data?.()).toEqual({ a: 1, b: 2 });
+        expect(def.setup?.state?.()).toEqual({ a: 1, b: 2 });
         expect(def.setup?.methods?.f).toBeInstanceOf(Function);
         // mounted 来自第三个 setup
         expect(def.hooks?.mounted.length).toBe(1);
@@ -555,7 +555,7 @@ describe("x-component <script setup> / <style> 提取（ADR-0022 决策四）", 
     test("script setup 求值失败：warn 丢弃，不阻断组件（决策四-3 容错）", () => {
         const { engine, root } = mount(
             `<div x-scope>
-                <div x-component="bad">
+                <div x-define="bad">
                     <span>内容</span>
                     <script setup>{ 这是一个语法错误 !!! }</script>
                 </div>
@@ -578,8 +578,8 @@ describe("x-component <script setup> / <style> 提取（ADR-0022 决策四）", 
         try {
             const { engine, root } = mount(
                 `<div x-scope>
-                <div x-component="legacy">
-                    <script type="setup">{ data(){ return { a: 1 } } }</script>
+                <div x-define="legacy">
+                    <script type="setup">{ state(){ return { a: 1 } } }</script>
                 </div>
             </div>`,
                 {},
@@ -596,7 +596,7 @@ describe("x-component <script setup> / <style> 提取（ADR-0022 决策四）", 
 
     test("无 script setup/style 的组件：def.setup/hooks/styles 均为 undefined", () => {
         const { engine, root } = mount(
-            `<div x-scope><div x-component="plain"><span>纯</span></div></div>`,
+            `<div x-scope><div x-define="plain"><span>纯</span></div></div>`,
             {},
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
@@ -612,43 +612,43 @@ describe("x-component <script setup> / <style> 提取（ADR-0022 决策四）", 
             {},
             {
                 components: {
-                    gcard: `<div x-component="gcard"><span>g</span><script setup>{ data(){return{x:5}} }</script></div>`,
+                    gcard: `<div x-define="gcard"><span>g</span><script setup>{ state(){return{x:5}} }</script></div>`,
                 },
             },
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         // getComponent 触发懒预编译（建 def + 快照双缓存）
         const snapshot = scope.getComponent("gcard")!;
-        expect(snapshot.hasAttribute("x-component")).toBe(true);
+        expect(snapshot.hasAttribute("x-define")).toBe(true);
         // 快照已剥离 script（不进实例化 DOM）
         expect(snapshot.querySelector("script")).toBeNull();
         // 全局 def 缓存建立
         const def = engine.getGlobalComponentDef("gcard")!;
-        expect(def.setup?.data?.()).toEqual({ x: 5 });
+        expect(def.setup?.state?.()).toEqual({ x: 5 });
     });
 
-    test("全局组件 x-use 实例化：setup.data 注入 + props 覆盖（regression: use.ts def 查找须兼顾全局）", async () => {
+    test("全局组件 x-component 实例化：setup.state 注入 + props 覆盖（regression: use.ts def 查找须兼顾全局）", async () => {
         // 回归覆盖：use.ts._instantiate 的 def 查找经 getComponentDef(snapshot)（WeakMap，仅作用域组件），
         // 全局组件 def 在 _globalComponentDefCache（按 name）——须 fallback getGlobalComponentDef，
         // 否则全局组件 setup 丢失、data 不注入（曾导致全局组件 card 不渲染绑定值）。
         const { root } = mount(
             `<div x-scope>
-                <div id="h" x-use="{ name: 'gcard', x: 100 }"></div>
+                <div id="h" x-component:gcard="{x: 100 }"></div>
             </div>`,
             {},
             {
                 components: {
-                    gcard: `<span class="gx" x-text="x"></span><script setup>{ data(){return{x:5}} }</script>`,
+                    gcard: `<span class="gx" x-text="x"></span><script setup>{ state(){return{x:5}} }</script>`,
                 },
             },
         );
         await nextTick();
-        // data() 默认 x=5 被 props x=100 覆盖，且经 def 注入生效（def 查找修复后）
+        // state() 默认 x=5 被 props x=100 覆盖，且经 def 注入生效（def 查找修复后）
         expect(root.querySelector(".gx")?.textContent).toBe("100");
     });
 });
 
-describe("x-component 生命周期钩子 scope.hooks（ADR-0022 决策三）", () => {
+describe("x-define 生命周期钩子 scope.hooks（ADR-0022 决策三）", () => {
     /** 构造一个最小 ComponentDef（含 data/methods/四阶段钩子记录调用顺序） */
     function makeDefWithHooks(log: string[]): ComponentDef {
         const hooks = {
@@ -661,7 +661,7 @@ describe("x-component 生命周期钩子 scope.hooks（ADR-0022 决策三）", (
             name: "hookcmp",
             snapshot: document.createElement("div"),
             setup: {
-                data: () => ({ count: 10 }),
+                state: () => ({ count: 10 }),
                 methods: { inc() {} },
             },
             hooks,
@@ -687,7 +687,7 @@ describe("x-component 生命周期钩子 scope.hooks（ADR-0022 决策三）", (
         // created → mounted 在 compile 内顺序触发
         expect(scope.isComponent).toBe(true);
         expect(log).toEqual(["created", "mounted"]);
-        // data 注入：data() 默认值 10
+        // 状态注入：state() 默认值 10
         expect(scope._data?.count).toBe(10);
         // methods 注入 scope.methods（ADR-0022 决策二-3 修订：不再进 scope.actions）
         expect(typeof scope.methods?.inc).toBe("function");
@@ -700,13 +700,13 @@ describe("x-component 生命周期钩子 scope.hooks（ADR-0022 决策三）", (
         expect(log).toEqual(["beforeUnmount", "unmounted"]);
     });
 
-    test("data 合并顺序 R1=A：data() 默认先注入，props 后覆盖", () => {
+    test("状态合并顺序 R1=A：state() 默认先注入，props 后覆盖", () => {
         const { engine } = mount(`<div id="host"></div>`, {});
         const host = engine.el.querySelector("#host") as HTMLElement;
         const def: ComponentDef = {
             name: "merge",
             snapshot: document.createElement("div"),
-            setup: { data: () => ({ a: 1, b: 2 }) },
+            setup: { state: () => ({ a: 1, b: 2 }) },
             hooks: undefined,
             styles: undefined,
         };
@@ -739,7 +739,7 @@ describe("x-component 生命周期钩子 scope.hooks（ADR-0022 决策三）", (
         const def: ComponentDef = {
             name: "ctx",
             snapshot: document.createElement("div"),
-            setup: { data: () => ({ v: 7 }) },
+            setup: { state: () => ({ v: 7 }) },
             hooks: {
                 created: [],
                 mounted: [
@@ -801,12 +801,12 @@ describe("x-component 生命周期钩子 scope.hooks（ADR-0022 决策三）", (
     });
 });
 
-describe("x-use 组件实例化（ADR-0022 决策五）", () => {
+describe("x-component 组件实例化（ADR-0022 决策五）", () => {
     test("基础实例化：组件内容渲染到宿主", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="greeting"></div>
-                <div x-component="greeting"><span class="hi">你好</span></div>
+                <div id="host" x-component:greeting></div>
+                <div x-define="greeting"><span class="hi">你好</span></div>
              </div>`,
             {},
         );
@@ -816,13 +816,13 @@ describe("x-use 组件实例化（ADR-0022 决策五）", () => {
         expect(host.querySelector(".hi")?.textContent).toBe("你好");
     });
 
-    test("组件 data() 注入 + 模板绑定响应式", async () => {
+    test("组件 state() 注入 + 模板绑定响应式", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="counter"></div>
-                <div x-component="counter">
+                <div id="host" x-component:counter></div>
+                <div x-define="counter">
                     <span class="count" x-text="count"></span>
-                    <script setup>{ data(){ return { count: 42 } } }</script>
+                    <script setup>{ state(){ return { count: 42 } } }</script>
                 </div>
              </div>`,
             {},
@@ -832,31 +832,31 @@ describe("x-use 组件实例化（ADR-0022 决策五）", () => {
         expect(root.querySelector(".count")?.textContent).toBe("42");
     });
 
-    test("props 覆盖 data() 默认值（R1=A 合并顺序）", async () => {
+    test("props 覆盖 state() 默认值（R1=A 合并顺序）", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="{ name: 'counter', count: 100 }"></div>
-                <div x-component="counter">
+                <div id="host" x-component:counter="{count: 100 }"></div>
+                <div x-define="counter">
                     <span class="count" x-text="count"></span>
-                    <script setup>{ data(){ return { count: 0, label: '默认' } } }</script>
+                    <script setup>{ state(){ return { count: 0, label: '默认' } } }</script>
                 </div>
              </div>`,
             {},
         );
         await nextTick();
-        // props.count=100 覆盖 data() 默认 0
+        // props.count=100 覆盖 state() 默认 0
         expect(root.querySelector(".count")?.textContent).toBe("100");
     });
 
     test("methods 注入：x-on 调用组件方法", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="btn"></div>
-                <div x-component="btn">
+                <div id="host" x-component:btn></div>
+                <div x-define="btn">
                     <button class="b" x-on:click="inc">+</button>
                     <span class="n" x-text="count"></span>
                     <script setup>{
-                        data(){ return { count: 0 } },
+                        state(){ return { count: 0 } },
                         methods:{ inc(){ this.data.count++ } }
                     }</script>
                 </div>
@@ -873,7 +873,7 @@ describe("x-use 组件实例化（ADR-0022 决策五）", () => {
 
     test("全局组件实例化（options.components）", async () => {
         const { root } = mount(
-            `<div x-scope><div id="host" x-use="globalcmp"></div></div>`,
+            `<div x-scope><div id="host" x-component:globalcmp></div></div>`,
             {},
             {
                 components: {
@@ -888,8 +888,8 @@ describe("x-use 组件实例化（ADR-0022 决策五）", () => {
     test("属性继承：class 合并拼接（T4=B）", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div id="host" class="host-cls" x-use="card"></div>
-                <div x-component="card" class="card-cls"><span>c</span></div>
+                <div id="host" class="host-cls" x-component:card></div>
+                <div x-define="card" class="card-cls"><span>c</span></div>
              </div>`,
             {},
         );
@@ -901,7 +901,7 @@ describe("x-use 组件实例化（ADR-0022 决策五）", () => {
     });
 
     test("组件未注册：warn 不崩溃", async () => {
-        const { root } = mount(`<div x-scope><div id="host" x-use="nonexistent"></div></div>`, {});
+        const { root } = mount(`<div x-scope><div id="host" x-component:nonexistent></div></div>`, {});
         await nextTick();
         // 宿主保留，无崩溃
         expect(root.querySelector("#host")).not.toBeNull();
@@ -910,43 +910,43 @@ describe("x-use 组件实例化（ADR-0022 决策五）", () => {
     test("与结构指令冲突：warn + 拒绝实例化（U3）", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div x-for="i in 3" x-use="x"><span>{{i}}</span></div>
-                <div x-component="x"><span>cmp</span></div>
+                <div x-for="i in 3" x-component:x><span>{{i}}</span></div>
+                <div x-define="x"><span>cmp</span></div>
             </div>`,
             {},
         );
         await nextTick();
-        // x-use + x-for 冲突，x-use 跳过；x-for 正常渲染（不崩溃即可，root 仍在）
+        // x-component + x-for 冲突，x-component 跳过；x-for 正常渲染（不崩溃即可，root 仍在）
         expect(root).not.toBeNull();
     });
 
     test("组件内嵌套使用组件：嵌套实例化", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="outer"></div>
-                <div x-component="outer">
+                <div id="host" x-component:outer></div>
+                <div x-define="outer">
                     <div class="outer-body">
                         <span x-text="msg"></span>
-                        <div x-use="inner"></div>
+                        <div x-component:inner></div>
                     </div>
                 </div>
-                <div x-component="inner"><span class="inner-span">内部</span></div>
+                <div x-define="inner"><span class="inner-span">内部</span></div>
              </div>`,
             { msg: "外层" },
         );
         await nextTick();
-        // outer 实例化，内部 x-use="inner" 也实例化
+        // outer 实例化，内部 x-component:inner 也实例化
         expect(root.querySelector(".inner-span")?.textContent).toBe("内部");
     });
 
     test("生命周期 hooks 触发（mounted）", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="hooked"></div>
-                <div x-component="hooked">
+                <div id="host" x-component:hooked></div>
+                <div x-define="hooked">
                     <span class="h" x-text="v"></span>
                     <script setup>{
-                        data(){ return { v: '初始' } },
+                        state(){ return { v: '初始' } },
                         mounted(){ this.data.v = '已挂载' }
                     }</script>
                 </div>
@@ -1009,8 +1009,8 @@ describe("scoped CSS 改写器（ADR-0022 决策四-4）", () => {
     test("组件实例化注入 scoped 样式 + 打属性", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="styled"></div>
-                <div x-component="styled">
+                <div id="host" x-component:styled></div>
+                <div x-define="styled">
                     <span class="t">文本</span>
                     <style>.t { color: blue }</style>
                 </div>
@@ -1064,31 +1064,31 @@ describe("x-import 远程组件加载（ADR-0022 决策六）", () => {
         }) as any;
     }
 
-    test("作用域加载：fetch HTML → 注册为作用域组件，x-use 实例化", async () => {
+    test("作用域加载：fetch HTML → 注册为作用域组件，x-component 实例化", async () => {
         mockFetch({
-            "/cmp.html": `<div x-component="remotec"><span class="r">远程组件</span></div>`,
+            "/cmp.html": `<div x-define="remotec"><span class="r">远程组件</span></div>`,
         });
         const { root } = mount(
             `<div x-scope>
                 <div x-import="/cmp.html"></div>
-                <div id="host" x-use="remotec"></div>
+                <div id="host" x-component:remotec></div>
              </div>`,
             {},
         );
         await nextTick();
         await nextTick();
-        // 异步加载完成后，x-use 实例化远程组件
+        // 异步加载完成后，x-component 实例化远程组件
         expect(root.querySelector(".r")?.textContent).toBe("远程组件");
     });
 
     test("全局加载（.global）：注册为全局组件，跨 scope 可用", async () => {
         mockFetch({
-            "/g.html": `<div x-component="gremote"><span class="gr">全局远程</span></div>`,
+            "/g.html": `<div x-define="gremote"><span class="gr">全局远程</span></div>`,
         });
         const { root } = mount(
             `<div x-scope>
                 <div x-import.global="/g.html"></div>
-                <div id="h1" x-use="gremote"></div>
+                <div id="h1" x-component:gremote></div>
              </div>`,
             {},
         );
@@ -1099,12 +1099,12 @@ describe("x-import 远程组件加载（ADR-0022 决策六）", () => {
 
     test("加载含 script setup 的远程组件：语义注入", async () => {
         mockFetch({
-            "/setup.html": `<div x-component="rsetup"><span class="v" x-text="val"></span><script setup>{ data(){return{val:'远程数据'}} }</script></div>`,
+            "/setup.html": `<div x-define="rsetup"><span class="v" x-text="val"></span><script setup>{ state(){return{val:'远程数据'}} }</script></div>`,
         });
         const { root } = mount(
             `<div x-scope>
                 <div x-import="/setup.html"></div>
-                <div id="host" x-use="rsetup"></div>
+                <div id="host" x-component:rsetup></div>
              </div>`,
             {},
         );
@@ -1113,12 +1113,12 @@ describe("x-import 远程组件加载（ADR-0022 决策六）", () => {
         expect(root.querySelector(".v")?.textContent).toBe("远程数据");
     });
 
-    test("fetch 失败：warn 不崩溃，x-use 保持 loading 占位", async () => {
+    test("fetch 失败：warn 不崩溃，x-component 保持 loading 占位", async () => {
         mockFetch({}); // 所有 url 404
         const { root } = mount(
             `<div x-scope>
                 <div x-import="/bad.html"></div>
-                <div id="host" x-use="badcmp"></div>
+                <div id="host" x-component:badcmp></div>
              </div>`,
             {},
         );
@@ -1135,7 +1135,7 @@ describe("x-import 远程组件加载（ADR-0022 决策六）", () => {
             return {
                 ok: true,
                 status: 200,
-                text: async () => `<div x-component="cached"><span>缓存</span></div>`,
+                text: async () => `<div x-define="cached"><span>缓存</span></div>`,
             } as any;
         }) as any;
         mount(
@@ -1153,13 +1153,13 @@ describe("x-import 远程组件加载（ADR-0022 决策六）", () => {
 
     test("多个组件在一个 HTML 文件中：批量注册", async () => {
         mockFetch({
-            "/multi.html": `<div x-component="a"><span class="a">A</span></div><div x-component="b"><span class="b">B</span></div>`,
+            "/multi.html": `<div x-define="a"><span class="a">A</span></div><div x-define="b"><span class="b">B</span></div>`,
         });
         const { root } = mount(
             `<div x-scope>
                 <div x-import="/multi.html"></div>
-                <div id="h1" x-use="a"></div>
-                <div id="h2" x-use="b"></div>
+                <div id="h1" x-component:a></div>
+                <div id="h2" x-component:b></div>
              </div>`,
             {},
         );
@@ -1177,7 +1177,7 @@ describe("x-import 远程组件加载（ADR-0022 决策六）", () => {
  * 实例隔离、coerce（数字/布尔/对象/null/undefined）、求值失败、坏写法、卸载、scoped CSS 共存、
  * @media / @keyframes 边界。
  */
-describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () => {
+describe("x-define <style> 响应式 bind()（ADR-0022 决策四-4.1）", () => {
     test("变量名派生：纯路径 → --{路径}（.→-，原样保留驼峰）", () => {
         expect(exprToVarName("order.style")).toBe("--order-style");
         // 路径段原样保留（驼峰不小写化，决策四-4.1-(2) 仅 .→-、*→_）
@@ -1245,8 +1245,8 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
     test("基础端到端：bind 写入组件根 CSS 变量，随状态变化更新", async () => {
         const { root, engine } = mount(
             `<div x-scope>
-                <div id="host" x-use="box"></div>
-                <div x-component="box">
+                <div id="host" x-component:box></div>
+                <div x-define="box">
                     <span class="c">x</span>
                     <style>.c { color: bind("theme.color"); }</style>
                 </div>
@@ -1266,8 +1266,8 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
     test("coerce：数字 → 字符串；布尔 → 'true'", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="n"></div>
-                <div x-component="n">
+                <div id="host" x-component:n></div>
+                <div x-define="n">
                     <style>.x { width: bind("num"); opacity: bind("flag"); }</style>
                 </div>
              </div>`,
@@ -1282,8 +1282,8 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
     test("coerce：null/undefined → 不写变量（走 var unset 回退）", async () => {
         const { root, engine } = mount(
             `<div x-scope>
-                <div id="host" x-use="n"></div>
-                <div x-component="n">
+                <div id="host" x-component:n></div>
+                <div x-define="n">
                     <style>.x { color: bind("theme.color"); }</style>
                 </div>
              </div>`,
@@ -1302,11 +1302,11 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
     test("实例隔离：同名组件两实例各自变量值独立", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div id="h1" x-use="{ name: 'box', color: 'red' }"></div>
-                <div id="h2" x-use="{ name: 'box', color: 'blue' }"></div>
-                <div x-component="box">
+                <div id="h1" x-component:box="{color: 'red' }"></div>
+                <div id="h2" x-component:box="{color: 'blue' }"></div>
+                <div x-define="box">
                     <style>.x { color: bind("color"); }</style>
-                    <script setup>{ data(){ return { color: 'black' } } }</script>
+                    <script setup>{ state(){ return { color: 'black' } } }</script>
                 </div>
              </div>`,
             {},
@@ -1314,7 +1314,7 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
         await nextTick();
         const h1 = root.querySelector("#h1") as HTMLElement;
         const h2 = root.querySelector("#h2") as HTMLElement;
-        // props.color 覆盖 data() 默认，各实例独立变量值
+        // props.color 覆盖 state() 默认，各实例独立变量值
         expect(h1.style.getPropertyValue("--color")).toBe("red");
         expect(h2.style.getPropertyValue("--color")).toBe("blue");
     });
@@ -1323,8 +1323,8 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
         // bind 引用不存在的深层路径（中间为 undefined，访问 .deep 抛错）→ watchExpression warn
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="n"></div>
-                <div x-component="n">
+                <div id="host" x-component:n></div>
+                <div x-define="n">
                     <style>.x { color: bind("missing.deep.path"); }</style>
                 </div>
              </div>`,
@@ -1360,9 +1360,9 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
         const { root, engine } = mount(
             `<div x-scope>
                 <div x-if="show">
-                    <div id="host" x-use="box"></div>
+                    <div id="host" x-component:box></div>
                 </div>
-                <div x-component="box">
+                <div x-define="box">
                     <style>.x { color: bind("theme.color"); }</style>
                 </div>
              </div>`,
@@ -1387,8 +1387,8 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
     test("scoped CSS 共存：bind 变量 + [data-cmp-{id}] 属性后缀同时生效", async () => {
         const { root, engine } = mount(
             `<div x-scope>
-                <div id="host" x-use="box"></div>
-                <div x-component="box">
+                <div id="host" x-component:box></div>
+                <div x-define="box">
                     <span class="c">x</span>
                     <style>
                         .c { color: bind("theme.color"); background: fixed; }
@@ -1435,15 +1435,15 @@ describe("x-component <style> 响应式 bind()（ADR-0022 决策四-4.1）", () 
  * data/state/engine/scope/el/method名/watch/read/getComponent/$parent；method 名直调互调；
  * 组件边界（不穿透父组件）；$parent 链式；框架引用键禁覆盖；$event 改形参。
  */
-describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () => {
+describe("x-define methods Proxy this（ADR-0022 决策二-3 修订）", () => {
     test("method 内 this.data 是聚合视图，读写响应式", async () => {
         const { root, engine } = mount(
             `<div x-scope>
-                <div id="host" x-use="c"></div>
-                <div x-component="c">
+                <div id="host" x-component:c></div>
+                <div x-define="c">
                     <span class="n" x-text="count"></span>
                     <script setup>{
-                        data(){ return { count: 0 } },
+                        state(){ return { count: 0 } },
                         methods:{ inc(){ this.data.count++ } }
                     }</script>
                 </div>
@@ -1462,8 +1462,8 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         (globalThis as any).__mt_called = "";
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="c"></div>
-                <div x-component="c">
+                <div id="host" x-component:c></div>
+                <div x-define="c">
                     <button class="b" x-on:click="go">go</button>
                     <script setup>{
                         methods:{
@@ -1485,10 +1485,10 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         (globalThis as any).__mt_parent = false;
         const { root } = mount(
             `<div x-scope>
-                <div id="phost" x-use="parent"></div>
-                <div x-component="parent">
-                    <div id="chost" x-use="child"></div>
-                    <div x-component="child">
+                <div id="phost" x-component:parent></div>
+                <div x-define="parent">
+                    <div id="chost" x-component:child></div>
+                    <div x-define="child">
                         <button class="cb" x-on:click="parentOnly">调父方法</button>
                         <script setup>{ methods:{ childGo(){} } }</script>
                     </div>
@@ -1507,11 +1507,11 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         (globalThis as any).__mt_deep = "";
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="c"></div>
-                <div x-component="c">
+                <div id="host" x-component:c></div>
+                <div x-define="c">
                     <ul><li x-for="x in items"><button class="ib" x-on:click="bump">+</button></li></ul>
                     <script setup>{
-                        data(){ return { items: [1] } },
+                        state(){ return { items: [1] } },
                         methods:{ bump(){ globalThis.__mt_deep = "hit" } }
                     }</script>
                 </div>
@@ -1532,20 +1532,20 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         (globalThis as any).__mt_got = null;
         const { root } = mount(
             `<div x-scope>
-                <div id="phost" x-use="parent"></div>
-                <div x-component="parent">
-                    <div id="chost" x-use="child"></div>
-                    <div x-component="child">
+                <div id="phost" x-component:parent></div>
+                <div x-define="parent">
+                    <div id="chost" x-component:child></div>
+                    <div x-define="child">
                         <button class="cb" x-on:click="readParent">读父</button>
                         <script setup>{
-                            data(){ return {} },
+                            state(){ return {} },
                             methods:{
                                 readParent(){ globalThis.__mt_got = this.$parent.pdata() }
                             }
                         }</script>
                     </div>
                     <script setup>{
-                        data(){ return { pval: 99 } },
+                        state(){ return { pval: 99 } },
                         methods:{ pdata(){ return this.data.pval } }
                     }</script>
                 </div>
@@ -1562,8 +1562,8 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         (globalThis as any).__mt_top = "unset";
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="c"></div>
-                <div x-component="c">
+                <div id="host" x-component:c></div>
+                <div x-define="c">
                     <button class="b" x-on:click="probe">p</button>
                     <script setup>{ methods:{ probe(){ globalThis.__mt_top = this.$parent } } }</script>
                 </div>
@@ -1579,8 +1579,8 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         let warned = "";
         const { root, engine } = mount(
             `<div x-scope>
-                <div id="host" x-use="c"></div>
-                <div x-component="c">
+                <div id="host" x-component:c></div>
+                <div x-define="c">
                     <button class="b" x-on:click="mut">m</button>
                     <script setup>{ methods:{ mut(){ this.data = { x: 1 } } } }</script>
                 </div>
@@ -1602,8 +1602,8 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         (globalThis as any).__mt_this = "unset";
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="c"></div>
-                <div x-component="c">
+                <div id="host" x-component:c></div>
+                <div x-define="c">
                     <button class="b" x-on:click="grab($event)">g</button>
                     <script setup>{ methods:{ grab($event){ globalThis.__mt_param = $event?.type; globalThis.__mt_this = this.$event } } }</script>
                 </div>
@@ -1621,8 +1621,8 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         (globalThis as any).__mt_method = null;
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="c"></div>
-                <div x-component="c">
+                <div id="host" x-component:c></div>
+                <div x-define="c">
                     <button class="b" x-on:click="cap">c</button>
                     <script setup>{
                         mounted(){ globalThis.__mt_hook = this },
@@ -1639,15 +1639,15 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         expect((globalThis as any).__mt_hook).toBe((globalThis as any).__mt_method); // 同一 Proxy 对象
     });
 
-    test("局部变量 locals：this.b 读写非响应式", async () => {
+    test("组件数据 data：this.b 读写非响应式", async () => {
         (globalThis as any).__mt_lv = "init";
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="c"></div>
-                <div x-component="c">
+                <div id="host" x-component:c></div>
+                <div x-define="c">
                     <button class="b" x-on:click="bump">b</button>
                     <script setup>{
-                        locals:{ counter: 0 },
+                        data:{ counter: 0 },
                         methods:{ bump(){ this.counter++; globalThis.__mt_lv = this.counter } }
                     }</script>
                 </div>
@@ -1662,13 +1662,13 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         expect((globalThis as any).__mt_lv).toBe(2);
     });
 
-    test("局部变量 locals 不进聚合视图（模板读不到）", async () => {
+    test("组件数据 data 不进聚合视图（模板读不到）", async () => {
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="c"></div>
-                <div x-component="c">
+                <div id="host" x-component:c></div>
+                <div x-define="c">
                     <span class="lv" x-text="secret">占位</span>
-                    <script setup>{ locals:{ secret: "隐秘" }, data(){ return { count: 0 } } }</script>
+                    <script setup>{ data:{ secret: "隐秘" }, state(){ return { count: 0 } } }</script>
                 </div>
              </div>`,
             {},
@@ -1679,14 +1679,14 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         expect(root.querySelector(".lv")?.textContent).not.toBe("隐秘");
     });
 
-    test("局部变量 locals 跨生命周期共享（created 设、beforeUnmount 读）", async () => {
+    test("组件数据 data 跨生命周期共享（created 设、beforeUnmount 读）", async () => {
         (globalThis as any).__mt_lvlife = null;
         const { root, engine } = mount(
             `<div x-scope>
                 <div x-if="show">
-                    <div id="host" x-use="c"></div>
+                    <div id="host" x-component:c></div>
                 </div>
-                <div x-component="c">
+                <div x-define="c">
                     <script setup>{
                         created(){ this.timer = 42 },
                         beforeUnmount(){ globalThis.__mt_lvlife = this.timer }
@@ -1706,12 +1706,12 @@ describe("x-component methods Proxy this（ADR-0022 决策二-3 修订）", () =
         (globalThis as any).__mt_pri = null;
         const { root } = mount(
             `<div x-scope>
-                <div id="host" x-use="c"></div>
-                <div x-component="c">
+                <div id="host" x-component:c></div>
+                <div x-define="c">
                     <button class="b" x-on:click="probe">p</button>
                     <script setup>{
-                        locals:{ name: "局部" },
-                        data(){ return { name: "数据" } },
+                        data:{ name: "局部" },
+                        state(){ return { name: "数据" } },
                         methods:{ probe(){ globalThis.__mt_pri = this.name } }
                     }</script>
                 </div>

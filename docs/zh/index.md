@@ -37,9 +37,9 @@ AutoSpark Engine **不是静态模板引擎**，而是与 Vue、React、Alpine.j
 
 4. **裸状态数据源** —— 构造器直接传裸状态对象，引擎自建 store 并接管销毁（1 engine 1 store）；store 级配置经 `options.storeOptions` 传入，默认配备内存 configManager，`@` 配置绑定开箱即用。
 
-5. **完整的指令体系** —— 内置 20+ 指令覆盖内容（`x-text`/`x-html`）、结构（`x-if`/`x-for`/`x-tree`）、绑定（`:class`/`:style`/`:disabled`）、事件（`@click`/`@input`）、表单（`x-model`）、显隐（`x-show`）、数据域（`x-data`）、组件（`x-component`/`x-use`）、传送（`x-teleport`）、转场（`x-transition`）、`x-switch`/`x-loading`/`x-slot` 等。
+5. **完整的指令体系** —— 内置 20+ 指令覆盖内容（`x-text`/`x-html`）、结构（`x-if`/`x-for`/`x-tree`）、绑定（`:class`/`:style`/`:disabled`）、事件（`@click`/`@input`）、表单（`x-model`）、显隐（`x-show`）、数据域（`x-data`）、组件（`x-define`/`x-component`）、传送（`x-teleport`）、转场（`x-transition`）、`x-switch`/`x-loading`/`x-slot` 等。
 
-6. **组件化能力** —— 通过 `x-component` 声明命名组件、`x-use` 实例化，支持 `<script setup>`（data / methods / 四阶段生命周期钩子）与 `<style>` 作用域样式，运行期 scope 链天然实现组件私有化，无需额外定义链。
+6. **组件化能力** —— 通过 `x-define` 声明命名组件、`x-component` 实例化，支持 `<script setup>`（data / methods / 四阶段生命周期钩子）与 `<style>` 作用域样式，运行期 scope 链天然实现组件私有化，无需额外定义链。
 
 7. **动作（Action）系统** —— `@click="save(args)"` 命中全局或局部 action，同步 action 直接调用，异步 action 自动广播 `pending`/`resolved`/`rejected` 生命周期信号，配合 `x-loading` 即可零胶水实现全局 loading / 错误提示。
 
@@ -64,7 +64,7 @@ AutoSpark Engine **不是静态模板引擎**，而是与 Vue、React、Alpine.j
 | **状态层**   | 完整 AutoStore（计算属性 / 异步计算 / 监听 / 批量更新） | 自带轻量响应式            | 自带响应式（ref/reactive）   | 需配合状态库（useState/Redux/Zustand 等） |
 | **更新粒度** | 路径订阅 + 调度合并，精确 patch 单节点                  | 细粒度 effect             | 组件级重渲染（组件树 diff）  | 组件级重渲染（Fiber diff）                |
 | **模板形态** | 原生 HTML + `x-*` 指令，运行时编译                      | 原生 HTML + `x-*` 指令    | SFC（.vue 编译）或 HTML 模板 | JSX（编译为 createElement）               |
-| **组件化**   | `x-component`/`x-use` + `<script setup>`                | `x-data` 局部组件，偏轻量 | 单文件组件，体系完整         | 函数/类组件，生态最强                     |
+| **组件化**   | `x-define`/`x-component` + `<script setup>`                | `x-data` 局部组件，偏轻量 | 单文件组件，体系完整         | 函数/类组件，生态最强                     |
 | **构建依赖** | 零，浏览器原生 API 运行时编译                           | 零/可选构建               | 需 vue-loader 编译 SFC       | 需打包器编译 JSX                          |
 | **适用规模** | 中后台页面、嵌入式渲染、轻交互                          | 轻交互、渐进增强小部件    | 中大型 SPA、全功能应用       | 大型 SPA、复杂交互应用                    |
 | **生态体积** | 与 AutoStore 协同，定位专注                             | 轻量精简                  | 完整生态（Router/Pinia 等）  | 最庞大的生态                              |

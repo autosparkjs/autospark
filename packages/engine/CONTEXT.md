@@ -189,7 +189,7 @@ _Avoid_: 扁平连续段（已否决的结构：动画/保活/懒加载挂载全
 _Avoid_: 子树容器（泛化）、嵌套槽（与 x-slot 撞义——那是隔离快照机制）、递归点（实现视角词，用户词汇是容器）
 
 **节点模板三级优先（Node Template Priority）**:
-x-tree 渲染节点行的模板来源优先级：原地 `<li x-tree-node>`（用户定制）> `tree-node` 组件（scope 链 `getComponent` 就近 + `engine.options.components` 全局兜底）> 引擎内置默认节点模板（缩进 + 箭头 + `nameField` 字段，默认 `"name"`）——与 x-loading 的 DEFAULT_BLOCK 组件覆盖机制同构。「用 x-use 消费整棵树」由通用组件机制承担（用户 `x-component="my-tree"` 包装 x-tree 容器），引擎不内置递归组件。
+x-tree 渲染节点行的模板来源优先级：原地 `<li x-tree-node>`（用户定制）> `tree-node` 组件（scope 链 `getComponent` 就近 + `engine.options.components` 全局兜底）> 引擎内置默认节点模板（缩进 + 箭头 + `nameField` 字段，默认 `"name"`）——与 x-loading 的 DEFAULT_BLOCK 组件覆盖机制同构。「实例化消费整棵树」由通用组件机制承担（用户 `x-define="my-tree"` 包装 x-tree 容器），引擎不内置递归组件。
 _Avoid_: 插槽传模板（引擎无该机制）、内置递归组件（已否决：每节点组件实例开销 + 无工具链模板字符串）、默认模板（泛指——是三级中的最末级，非独立机制）
 
 **展开回退（Expand Fallback）**:
@@ -279,7 +279,7 @@ _Avoid_: 无限滚动（load-more 是显式触发，不是自动滚动加载）
 ### 覆盖物（Overlay）
 
 **覆盖物（Overlay）**:
-任意组件被渲染到 `document.body` 容器的**消费方式**——内容就是普通组件（`x-component` 声明 / `options.components` 全局注册 / `x-import` 加载），**无独立声明指令**（旧 `x-overlay` 声明语法已删）。消费者指令（x-dialog 等）按组件名沿 scope 链就近 + 全局兜底查找（镜像 `getComponent` 协议），状态驱动地实例化渲染到 body 下本 engine 的覆盖物容器。详见 ADR-0052（修订版：组件化统一）。
+任意组件被渲染到 `document.body` 容器的**消费方式**——内容就是普通组件（`x-define` 声明 / `options.components` 全局注册 / `x-import` 加载），**无独立声明指令**（旧 `x-overlay` 声明语法已删）。消费者指令（x-dialog 等）按组件名沿 scope 链就近 + 全局兜底查找（镜像 `getComponent` 协议），状态驱动地实例化渲染到 body 下本 engine 的覆盖物容器。详见 ADR-0052（修订版：组件化统一）。
 _Avoid_: 覆盖层（旧称，随声明指令一起废弃）、弹层模板（泛化）、overlay 组件（无 x-component 参与）、内联弹层
 
 **覆盖物实例（Overlay Instance）**:
@@ -287,7 +287,7 @@ _Avoid_: 覆盖层（旧称，随声明指令一起废弃）、弹层模板（�
 _Avoid_: overlay 对象、弹层实例（泛化）、对话框实例（那是 x-dialog 消费者视角的产物）、单例（机制未引入）
 
 **覆盖物消费者（Overlay Consumer）**:
-把覆盖物组件实例化并驱动其生命周期的指令族（x-dialog / x-drawer / x-popup / x-popover，v1 仅 x-dialog）：同一 `OverlayDirective` 基座（继承 `UseDirective`）上的**薄子类**，只叠加形态差异（外壳 / 定位 / 关闭行为）。**纯状态驱动**——宿主是纯声明点（无隐式点击），visible 绑定（简单路径可回写 / 表达式 / 字面量 / 对象形态）真值即开；值对象与命令式 options 的**非保留键全部作 props** 注入组件 data 域（保留键封闭清单 = `visible` + `closeOnMask` / `animate` / `at` / `scope`）。配置三级深度合并：`内置默认 < x-dialog-options < 值对象内联`（组件 def 不携带配置）。
+把覆盖物组件实例化并驱动其生命周期的指令族（x-dialog / x-drawer / x-popup / x-popover，v1 仅 x-dialog）：同一 `OverlayDirective` 基座（继承组件实例化基座 `ComponentDirective`，ADR-0054 更名）上的**薄子类**，只叠加形态差异（外壳 / 定位 / 关闭行为）。**纯状态驱动**——宿主是纯声明点（无隐式点击），visible 绑定（简单路径可回写 / 表达式 / 字面量 / 对象形态）真值即开；值对象与命令式 options 的**非保留键全部作 props** 注入组件 data 域（保留键封闭清单 = `visible` + `closeOnMask` / `animate` / `at` / `scope`）。配置三级深度合并：`内置默认 < x-dialog-options < 值对象内联`（组件 def 不携带配置）。
 _Avoid_: 触发器（宿主无隐式点击）、弹出指令（泛化）、调用方（action 语境词汇）
 
 **请求关闭（Request Close）**:
@@ -441,7 +441,7 @@ _Avoid_: 空占位（已否决的未命中姿态——只保尺寸无内容）�
 _Avoid_: button 组件（无组件机制参与）、可点击图标（视觉可供性与控件语义分离）、图标控件（语义升级歧义）
 
 **图标定义 / x-icon-define（Icon Definition）**:
-`<template x-icon-define="名称">` 声明的**声明性资源**（与 x-component 同构）：编译期前置 collector 拦截，取首个 `<svg>` 子元素上交全局图标注册表后剪枝（不进结果 DOM，指令类仅名位）。同名覆盖 + warn 去重。
+`<template x-icon-define="名称">` 声明的**声明性资源**（与 x-define 同构）：编译期前置 collector 拦截，取首个 `<svg>` 子元素上交全局图标注册表后剪枝（不进结果 DOM，指令类仅名位）。同名覆盖 + warn 去重。
 _Avoid_: 图标注册（那是注册表的动作）、图标模板（泛化）、图标声明（与注册表编程入口混淆）、name 属性装名（已否决——名称走指令值，对齐 x-component）
 
 **规范形 SVG / Canonical SVG**:
@@ -471,15 +471,15 @@ _Avoid_: preload（与 x-import 远程组件加载撞义）、预热（泛化）
 ### 结构占位与组件层
 
 **结构占位 / x-scope（Structural Placeholder）**:
-纯占位指令，元素上声明 `x-scope` 即令该元素建立 `AutoSparkScope`——即便它没有其他指令、没有插值。目的是在「无其他指令的纯容器 `<div>`」上插入一个 scope 锚点，让后代 scope 的 parent 链落到此处（而非更远的祖先），并为其后代 `x-component` 提供归属。注册占位类 `ScopeDirective`（`created`/`compile` 皆空，高优先级）；冗余声明（元素已有其他指令、本就建 scope）静默无副作用。**不建数据域**——与 x-data 的数据注入职责正交。
+纯占位指令，元素上声明 `x-scope` 即令该元素建立 `AutoSparkScope`——即便它没有其他指令、没有插值。目的是在「无其他指令的纯容器 `<div>`」上插入一个 scope 锚点，让后代 scope 的 parent 链落到此处（而非更远的祖先），并为其后代 `x-define` 提供归属。注册占位类 `ScopeDirective`（`created`/`compile` 皆空，高优先级）；冗余声明（元素已有其他指令、本就建 scope）静默无副作用。**不建数据域**——与 x-data 的数据注入职责正交。
 _Avoid_: 作用域容器（泛化）、命名空间（语义不符）、占位符（本表保留给空值渲染，歧义大）
 
-**组件 / x-component（Component）**:
-编译期树变换标记，**不是渲染指令**。在 x-scope（或任意带 scope 的祖先）内声明一个命名组件片段，编译时被**从渲染树摘除**（不进结果 DOM、不建 scope、不实例化指令），以**深克隆的 template 元素副本**形态上交给最近祖先 scope 的 `components`。无值时取名 `default`。组件上同元素的其他指令（如 `x-component="error" x-text="msg"`）随组件整体冻结，待消费者渲染该组件时才编译执行。**组件根 scope 由消费编译路径（`compiler.compileChild`）内禀保证**——消费者无条件 `new AutoSparkScope`，与根上是否有 `x-scope` 属性无关；`_collectComponent` 不再给快照根注入任何属性（原"注入 x-scope"已作废，ADR-0022（承接 ADR-0021）决策 7 修订）。详见 ADR-0022（承接 ADR-0021）。
-_Avoid_: 片段（泛化）、插槽（那是 x-slot，正交）、命名空间组件
+**组件定义 / x-define（Component Definition）**:
+编译期树变换标记，**不是渲染指令**。在 x-scope（或任意带 scope 的祖先）内声明一个命名组件片段，**值承载组件名**（无值取 `default`），编译时被**从渲染树摘除**（不进结果 DOM、不建 scope、不实例化指令），以**深克隆的冻结快照**形态上交给最近祖先 scope 的 `components`。组件上同元素的其他指令（如 `x-define="error" x-text="msg"`）随组件整体冻结，待消费者渲染该组件时才编译执行。**组件根 scope 由消费编译路径（`compiler.compileChild`）内禀保证**——消费者无条件 `new AutoSparkScope`，与根上是否有 `x-scope` 属性无关（原"注入 x-scope"已作废）。详见 ADR-0022（承接 ADR-0021）、ADR-0054。
+_Avoid_: 片段（泛化）、插槽（那是 x-slot，正交）、命名空间组件、x-component（该名已让位给实例化指令，见「组件实例化」）
 
 **组件归属（Component Ownership）**:
-一个 x-component 挂到其**最近的祖先 scope**——任意深度（跨中间无 scope 的纯 `<div>`），与 `_linkParent` 向上找最近 scope 的语义同构。嵌套 scope 时归最内层祖先；x-component 向上找不到任何带 scope 的祖先时，编译期 warn 并丢弃（无处归属）。
+一个 x-define 挂到其**最近的祖先 scope**——任意深度（跨中间无 scope 的纯 `<div>`），与 `_linkParent` 向上找最近 scope 的语义同构。嵌套 scope 时归最内层祖先；x-define 向上找不到任何带 scope 的祖先时，编译期 warn 并丢弃（无处归属）。
 _Avoid_: 组件归属深度（实现细节）、组件父（用 scope 统一）
 
 **`default` 组件唯一性（Default Component Uniqueness，已放宽）**:
@@ -495,23 +495,23 @@ _Avoid_: 组件解析、组件匹配（查找是按 scope 链就近+全局兜底
 _Avoid_: 降级渲染
 
 **全局组件（Global Component）**:
-经引擎构造选项 `AutoSparkOptions.components`（`Record<string, string>`）声明的、**全引擎复用**的命名组件，字符串入参。是 scope 链查找的**终点兜底**（`getComponent` 到顶后查此）。与局部组件（x-component 声明、入参为 DOM）相对——二者经同一条 `getComponent` 链统一取用，消费者无需区分来源。懒预编译（见「组件预编译」），**构造期配置语义、运行时突变不失效缓存**（与 `actions`/`sanitizer` 等 options 同纪律）。详见 ADR-0022（承接 ADR-0021）决策 9。
+经引擎构造选项 `AutoSparkOptions.components`（`Record<string, string>`）声明的、**全引擎复用**的命名组件，字符串入参。是 scope 链查找的**终点兜底**（`getComponent` 到顶后查此）。与局部组件（x-define 声明、入参为 DOM）相对——二者经同一条 `getComponent` 链统一取用，消费者无需区分来源。懒预编译（见「组件预编译」），**构造期配置语义、运行时突变不失效缓存**（与 `actions`/`sanitizer` 等 options 同纪律）。详见 ADR-0022（承接 ADR-0021）决策 9。
 _Avoid_: 全局模板（泛化）、注册组件（无注册表，引擎不维护名册）
 
 **组件预编译（Component Precompile）**:
-全局组件字符串入参首次被 `getComponent` 命中时，经 `parseHtmlFragment` 解析 + 自动包装（见「组件自动包装」）为「恰好一个带 `x-component` 的根元素」，存入 engine 私有缓存 Map（key=组件名，value=预编译根），后续命中只 `cloneNode(true)` 不重复解析。**懒编译**——仅首次使用时预编译，未用的全局组件永不解析。预编译产物形态与局部组件 `_collectComponent` 快照一致（未编译、保留指令属性、**不注入 x-scope**），消费者经同一路径渲染。解析失败/空串 → `logger.warn` + 视为未命中。详见 ADR-0022（承接 ADR-0021）决策 11。
+全局组件字符串入参首次被 `getComponent` 命中时，经 `parseHtmlFragment` 解析 + 自动包装（见「组件自动包装」）为「恰好一个带 `x-define` 的根元素」，存入 engine 私有缓存 Map（key=组件名，value=预编译根），后续命中只 `cloneNode(true)` 不重复解析。**懒编译**——仅首次使用时预编译，未用的全局组件永不解析。预编译产物形态与局部组件 `_collectComponent` 快照一致（未编译、保留指令属性、**不注入 x-scope**），消费者经同一路径渲染。解析失败/空串 → `logger.warn` + 视为未命中。详见 ADR-0022（承接 ADR-0021）决策 11。
 _Avoid_: 组件编译（预编译只解析+包装，编译在消费时）、组件缓存（强调的是懒解析+复用，非单纯存储）
 
 **组件自动包装（Component Auto-wrap）**:
-全局组件字符串入参规范化为「恰好一个带 `x-component` 属性的根元素」的规则（仅全局组件字符串入参适用，局部组件入参已是 DOM）：单顶级元素无 `x-component` → 根打本 key 名；已含 `x-component` → 尊重原值不重命名；多顶级节点/元素+文本混排 → 包一层 `<div x-component="name">`；纯文本无元素 → 包成 `<div x-component="name">文本`。包装标签固定 `<div>`（不开放配置）。详见 ADR-0022（承接 ADR-0021）决策 10。
+全局组件字符串入参规范化为「恰好一个带 `x-define` 属性的根元素」的规则（仅全局组件字符串入参适用，局部组件入参已是 DOM）：单顶级元素无 `x-define` → 根打本 key 名；已含 `x-define` → 尊重原值不重命名；多顶级节点/元素+文本混排 → 包一层 `<div x-define="name">`；纯文本无元素 → 包成 `<div x-define="name">文本`。包装标签固定 `<div>`（不开放配置）。详见 ADR-0022（承接 ADR-0021）决策 10。
 _Avoid_: 组件归一化（泛化）、组件封装
 
 **跨指令供体协议（Cross-directive Provider Protocol）**:
-x-component 不绑定具体消费者，是声明性资源——任意指令按约定名从 `scope.components` 取用。组件名**纯自由命名**（各消费指令文档自定其读取名与兜底逻辑），引擎**不预定义 UI 态名册**（如 loading/error/empty），不限制指令开发者发明新消费场景（开放-封闭）。
+x-define 不绑定具体消费者，是声明性资源——任意指令按约定名从 `scope.components` 取用。组件名**纯自由命名**（各消费指令文档自定其读取名与兜底逻辑），引擎**不预定义 UI 态名册**（如 loading/error/empty），不限制指令开发者发明新消费场景（开放-封闭）。
 _Avoid_: 插槽契约（与 x-slot 撞义）、UI 态注册表（引擎不维护名册）
 
 **组件冻结（Component Frozen Snapshot）**:
-x-component 收集时 `cloneNode(true)` 产出的、独立于 template 事实源的洁净副本。保留指令属性、未编译、可被多消费者重复取用而不相互污染。机制与 x-slot static 模式的「深克隆子节点」同构。
+x-define 收集时 `cloneNode(true)` 产出的、独立于 template 事实源的洁净副本。保留指令属性、未编译、可被多消费者重复取用而不相互污染。机制与 x-slot static 模式的「深克隆子节点」同构。
 _Avoid_: 组件克隆（强调的是冻结独立事实，非单纯克隆操作）
 
 ### 引擎构造层
@@ -556,13 +556,11 @@ _Avoid_: 元数据绑定（泛化）
 
 ## 组件层
 
-**组件 / x-component（Component）**:
-承接 x-block 的命名组件供体，升级为带数据/方法/生命周期/CSS 的完整组件（ADR-0022）。编译期树变换标记，剪枝后冻结快照挂最近祖先 `scope.components`；子节点可含 `<script setup>`/`<style>`（收集期提取移除）。消费（x-use）时实例化。
-_Avoid_: 片段（泛化）、插槽（那是 x-slot，正交）、命名空间组件
+> 组件定义正身词条见上方「结构占位与组件层」的「组件定义 / x-define」——本层曾与其重复，ADR-0054 更名时收敛。
 
 **`<script setup>`**:
-组件的数据/方法/生命周期声明，识别 `<script setup>` 布尔属性或 `<script type="autospark/setup">`（ADR-0031 命名空间化）二者择一。对象字面量经 new Function 求值（信任代码），多个按段（data/methods/hooks）分类合并。data() 返回值注入组件 data 域，methods 注入 scope.methods（组件边界查找，ADR-0022 决策二-3 修订后不再进 scope.actions），hooks 挂 scope.hooks。
-_Avoid_: 组件脚本（泛化）、setup 函数（Vue 术语，机制不同）、`type="setup"`（裸值旧写法已废弃）
+组件的状态/数据/方法/生命周期声明，识别 `<script setup>` 布尔属性或 `<script type="autospark/setup">`（ADR-0031 命名空间化）二者择一。对象字面量经 new Function 求值（信任代码），多个按段（state/methods/data/hooks）分类合并。**state()**（ADR-0055 更名自 data()）返回值注入组件响应式状态域（模板可见、修改驱动更新，先于 props 注入）；**data**（ADR-0055 更名自 locals）是**静态对象**——非响应式组件私有数据，仅经 `this.<键>` 访问、模板读不到；methods 注入 scope.methods（组件边界查找，ADR-0022 决策二-3 修订后不再进 scope.actions）；hooks 挂 scope.hooks。旧段名 data()/locals warn + 剪枝（ADR-0031 同款处置）。注意：`this.data` 访问器是**聚合视图**（state+props+全局 state），与 setup 的 data 段是两个层面。
+_Avoid_: 组件脚本（泛化）、setup 函数（Vue 术语，机制不同）、`type="setup"`（裸值旧写法已废弃）、data()（响应式工厂已更名 state()）、locals 段（已更名 data）
 
 **scope.hooks**:
 组件实例的四阶段生命周期钩子（created/mounted/beforeUnmount/unmounted），砍掉 activated/deactivated（引擎无实例缓存层）、beforeUpdate/updated（细粒度无组件整体重渲染）。每个 hook 用 ComponentMethodContext 作 this（data/state/scope）。
@@ -576,29 +574,29 @@ _Avoid_: CSS 隔离（泛化）、CSS Modules（机制不同）
 scoped CSS 之上的值响应式能力。`<style>` 声明值写 `bind(expr)`（引号可选，仅作整个属性值，支持任意表达式），编译期提取为 `ComponentDef.styleBinds` 清单、`bind()` 替换为 `var(--name, unset)`；实例化期对每个 bind 调 `hostScope.watch` 求值并写入**组件根元素**的 CSS 变量（每实例独立，与 data-cmp-{id} 同构隔离）。变量名：纯路径→`--{路径}`（`.`→`-`、`*`→`_`，如 `bind("order.style")`→`--order-style`），表达式→`--h{hash36}`（`h` 保 CSS 合法，首字符非数字）。同表达式复用同一变量（一处 watch、多处 var 共享）。null/undefined 不写变量走 `unset` 回退（fallback 固定不可配，要自定义默认值用 `:style`）。详见 ADR-0022 决策四-4.1。
 _Avoid_: 内联样式绑定（`:style` 指令是元素级，style bind 是组件级样式表）、CSS-in-JS（无运行时对象）
 
-**x-use（组件实例化）**:
-实例化组件的指令。宿主化身组件根（属性继承：class 合并拼接、style 合并冲突键组件根优先、其他不覆盖），props 注入组件 data 域覆盖 data() 默认。组件未就绪（x-import 加载中）显示 loading 占位，就绪后重实例化。
-_Avoid_: 组件渲染（泛化）、组件挂载（Vue 术语）
+**组件实例化 / x-component（Component Instantiation）**:
+在模板中实例化一个已声明组件的指令：**属性参数承载组件名**（`x-component:counter`，编译期静态可知），**值专职 props**（见「props 注入」）。宿主化身组件根（属性继承：class 合并拼接、style 合并冲突键组件根优先、其他不覆盖）。无属性参数（`x-component="xxx"`）warn 缺组件名并跳过实例化。组件名静态、不支持响应式切换（条件切换用外层 x-if）。组件未就绪（x-import 加载中）显示 loading 占位，就绪后重实例化。详见 ADR-0054。
+_Avoid_: x-use（已废弃旧名）、组件渲染（泛化）、组件挂载（Vue 术语）
+
+**props 注入 / Props Injection（x-component）**:
+实例化指令值的语义：对象字面量（成员可引用状态路径）或纯状态路径（对象按键展开，v-bind="obj" 心智）作为 props 集合，注入组件 data 域、后于 data() 默认覆盖。**单向**——外部状态 → 组件，组件内修改不回写外部状态（双向是 x-model 的职责）。更新 = 重求值后 Object.assign **只覆盖出现键**（组件内部状态不被重置；绑定的状态对象删键后旧键残留，不做镜像同步）。响应粒度：字面量按成员路径触发；纯状态路径**深层触发**（递归通配订阅，内部任意键变化可见）。
+_Avoid_: 双向绑定（那是 x-model）、props 同步（不是镜像同步）、组件通信（泛化）
 
 **x-import（远程组件加载）**:
-fetch 远程 HTML 加载组件定义（可含 1-N 个 x-component）。`.global` 修饰符注册全局组件，否则作用域组件（挂最近祖先 `scope.components`）。url 缓存 + 循环 import 检测。
+fetch 远程 HTML 加载组件定义（可含 1-N 个 x-define）。`.global` 修饰符注册全局组件，否则作用域组件（挂最近祖先 `scope.components`）。url 缓存 + 循环 import 检测。
 _Avoid_: 组件异步加载（泛化）、组件懒加载（语义不符）
 
 **组件数据边界（Component Data Boundary）**:
-x-use 实例化的组件默认**封闭**数据边界：组件内表达式只能读自身 data()/locals、x-use props 与全局 state，祖先 scope 的局部数据域（x-data 域、x-for locals）不可见，读+写一并切断。收口三处：`getContext` 聚合视图、`hasLocalContext` 探测、x-data 相对挂载上溯（越过边界视同越顶落根）。边界只封**数据视图**——action 沿链查找、getComponent 定义查找、`this.$parent` 显式寻址照常；与 methods 组件边界（方法查找止步，ADR-0022 决策二-3）正交并存。模板片段渲染（x-loading 遮罩 / x-empty / tree-node 行模板等无组件语义注入的原地 UI 替换）不受边界管辖。详见 ADR-0053。
+组件实例化（x-component）的组件默认**封闭**数据边界：组件内表达式只能读自身 data()/locals、props 与全局 state，祖先 scope 的局部数据域（x-data 域、x-for locals）不可见，读+写一并切断。收口三处：`getContext` 聚合视图、`hasLocalContext` 探测、x-data 相对挂载上溯（越过边界视同越顶落根）。边界只封**数据视图**——action 沿链查找、getComponent 定义查找、`this.$parent` 显式寻址照常；与 methods 组件边界（方法查找止步，ADR-0022 决策二-3）正交并存。模板片段渲染（x-loading 遮罩 / x-empty / tree-node 行模板等无组件语义注入的原地 UI 替换）不受边界管辖。详见 ADR-0053。
 _Avoid_: 沙箱、数据隔离（那是 scoped CSS 的领域）、穿透（指 method 查找越界，另一通道）、作用域隔离（泛化）
 
 **开放边界（open）**:
-`x-component` 的**声明侧**布尔开关（`.open` 修饰符 ≡ `x-component-options="{open:true}"`）：开放该组件的数据边界。默认封闭是**作者契约**——消费侧（x-use-options）只能覆盖已开放组件的基准，不能打开封闭组件。**open 不传播**：开放组件内嵌套声明的私有子组件仍默认封闭（各组件定义独立持有）。
+`x-define` 的**声明侧**布尔开关（`.open` 修饰符 ≡ `x-define-options="{open:true}"`）：开放该组件的数据边界。默认封闭是**作者契约**——消费侧（x-component-options）只能覆盖已开放组件的基准，不能打开封闭组件。**open 不传播**：开放组件内嵌套声明的私有子组件仍默认封闭（各组件定义独立持有）。
 _Avoid_: public / expose（对外词汇不一致）、透明模式（不表达「声明侧契约 + 不可被消费侧打开」语义）
 
 **scope 基准（Scope Basis）**:
-上下文继承基准，组件与覆盖物家族通用，两值统一（ADR-0053 修订：`consumer` 已更名废弃）。组件：`'host'`（默认，消费处上下文 ≈ 封闭化之前的既有行为）| `'declarer'`（声明处上下文，词法基准——嵌套私有子组件的声明处是外层组件的实例 scope）。解析链：`x-use-options.scope`（消费覆盖，仅已开放组件生效）> `x-component-options.scope`（作者默认，须配合 open）> `'host'`。覆盖物：配置键已更名 **`dataContext`**（`scope` 与 x-scope/AutoSparkScope 撞名，旧键 warn 兜底）——`'declarer'`（默认，挂声明处 scope=定义闭包）| `'host'`（挂消费处 scope），挂链即基准（表达式上下文/数据视图/生命周期统一由 parentScope 表达）。三类退化（均 warn 一次）：作者侧 scope 无 open、消费侧 scope 落封闭组件、全局组件声明 declarer（无声明 scope）；declarer 声明 scope 销毁后悬空降级封闭。
+上下文继承基准，组件与覆盖物家族通用，两值统一（ADR-0053 修订：`consumer` 已更名废弃）。组件：`'host'`（默认，消费处上下文 ≈ 封闭化之前的既有行为）| `'declarer'`（声明处上下文，词法基准——嵌套私有子组件的声明处是外层组件的实例 scope）。解析链：`x-component-options.scope`（消费覆盖，仅已开放组件生效）> `x-define-options.scope`（作者默认，须配合 open）> `'host'`。覆盖物：配置键已更名 **`dataContext`**（`scope` 与 x-scope/AutoSparkScope 撞名，旧键 warn 兜底）——`'declarer'`（默认，挂声明处 scope=定义闭包）| `'host'`（挂消费处 scope），挂链即基准（表达式上下文/数据视图/生命周期统一由 parentScope 表达）。三类退化（均 warn 一次）：作者侧 scope 无 open、消费侧 scope 落封闭组件、全局组件声明 declarer（无声明 scope）；declarer 声明 scope 销毁后悬空降级封闭。
 _Avoid_: 数据源（那是异步源家族术语）、上下文基准（中英混杂）、基准点、consumer（已更名废弃）、scope（覆盖物配置键已更名 dataContext）
-
-**组件查找（Component Lookup）**:
-`getComponent` 沿 scope 链就近 + 全局兜底，与原 getBlock 同构。default 唯一性放宽（同名 warn+覆盖）。
-_Avoid_: 组件解析、组件匹配（查找是按 scope 链就近+全局兜底，非内容匹配）
 
 ## 已废弃
 
@@ -637,3 +635,11 @@ _Avoid_: 覆盖层（旧称）、loading 层、浮层
 **x-overlay 声明语法家族（ADR-0052 修订版废弃）**:
 已废弃，升级为「覆盖物 = 任意组件的消费方式」（ADR-0052 组件化统一修订）：`x-overlay:<名称>` 声明语法、`.global` 修饰符、`x-overlay-options` 声明处选项、`engine._globalOverlays` 全局表、`type` 类型认领字段、`params` 消费键、`scope: 'consumer'` 基准值一并删除。新写法：内容直接声明组件（`x-component` / `options.components` / `x-import`），配置只走消费处（`x-dialog-options` / 值对象内联，非保留键作 props），命令式 `engine.getOverlay(el, name, options?)` 镜像 `getComponent` 协议。
 _Avoid_: x-overlay、.global（覆盖物）、x-overlay-options、type 认领值、params 键、scope: 'consumer'
+
+**x-use / x-use-options（组件实例化旧名）**:
+已废弃，升级为 **x-component:名称 / x-component-options**（ADR-0054 更名）。旧写法 `x-use="counter"`（字面量名）改写 `x-component:counter`；`x-use="{name:'counter',count:1}"`（对象内 name/is/component 字段识别组件名）改写 `x-component:counter="{count:1}"`——特殊字段识别已废除，`name` 等键回归普通 prop 名。x-use 彻底移除：注册表不注册、静默失效，无运行时诊断。
+_Avoid_: x-use、x-use-options（改用新写法）
+
+**x-component 值承载名（定义旧写法）**:
+已废弃。`x-component="counter"` 的**定义**语义已更名 `x-define="counter"`（ADR-0054）——`x-component` 一词整体让位给实例化指令（属性参数承载名）。旧写法被读作缺少属性参数的实例化（warn 缺组件名）；值恰为纯标识符时 warn 附言迁移指引（指向 x-define）。
+_Avoid_: x-component="名称"（定义请改 x-define="名称"）

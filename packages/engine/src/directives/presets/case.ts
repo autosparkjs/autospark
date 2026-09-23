@@ -4,7 +4,7 @@ import { AutoSparkDirectiveBase } from "../base";
  * x-case / x-default：分支选择标记（ADR-0037）。
  *
  * **声明性标记，非渲染指令**——不建 scope、不订阅、不渲染、且**永不被实例化**（同 x-else /
- * x-component 的注册名位模式）。分支选择的全部逻辑在 SwitchDirective 与 compiler 剪枝层：
+ * x-define 的注册名位模式）。分支选择的全部逻辑在 SwitchDirective 与 compiler 剪枝层：
  *
  * - **收集**：SwitchDirective.`created` 主动扫描 x-switch 宿主的**直接子元素**，把带 `x-case`
  *   （relaxed-json 字面量，多值数组任一命中）/ 裸 `x-default`（兜底，位置无关）属性者

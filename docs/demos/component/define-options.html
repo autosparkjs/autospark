@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-define-options · 数据边界（open / scope）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!--
+            组件数据边界（ADR-0053）：默认封闭，x-define-options 声明侧开放。
+            - 封闭（默认）：组件模板只能读自身 state()/data、props 与全局 state，
+              外层 x-data 域（tip）不可见 → 渲染为空；
+            - open: true：开放数据边界，实例继承消费处上下文（host 基准）→ tip 可见；
+            - 点按钮改 x-data 私有域的 tip → 只有开放组件实时更新。
+            注：声明挂在 #app 的 x-data scope 下（消费宿主的 scope 链可达——
+            声明必须挂在消费处的祖先 scope 内才可见，就近归属）。
+        -->
+        <div id="app" x-data="{ tip: '外部数据' }">
+            <!-- 组件声明（挂 #app 的 x-data scope，编译后从 DOM 消失） -->
+            <div x-define="sealed-box">
+                <span class="tag">封闭组件读到：</span><strong x-text="tip"></strong>
+            </div>
+            <div x-define="open-box" x-define-options="{ open: true }">
+                <span class="tag is-primary">开放组件读到：</span><strong x-text="tip"></strong>
+            </div>
+
+            <button class="button is-small is-info" x-on:click="tip = tip === '外部数据' ? '切换后的值' : '外部数据'">
+                切换 tip（改 x-data 私有域）
+            </button>
+
+            <!-- 组件 A：默认封闭 → 读不到外层 tip -->
+            <div class="panel">
+                <div class="label">① 默认封闭：读不到外层 x-data 的 tip（渲染为空）</div>
+                <div x-component:sealed-box></div>
+            </div>
+
+            <!-- 组件 B：声明侧 open → 读到消费处上下文的 tip -->
+            <div class="panel">
+                <div class="label">② x-define-options 声明 open（host 基准）：tip 可见、点击按钮实时更新</div>
+                <div x-component:open-box></div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+        </script>
+
+        <style>
+            .panel {
+                padding: 16px;
+                border: 1px solid #dbdbdb;
+                border-radius: 8px;
+                margin: 12px 0;
+            }
+            .label {
+                font-size: 0.8rem;
+                color: #888;
+                margin-bottom: 8px;
+            }
+            strong:empty::after {
+                content: "（空——封闭边界读不到）";
+                color: #aaa;
+                font-weight: normal;
+                font-size: 0.85em;
+            }
+        </style>
+    </body>
+</html>

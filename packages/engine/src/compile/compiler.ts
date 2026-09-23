@@ -140,7 +140,7 @@ export class AutoSparkCompiler {
             // 前置：x-else-if / x-else 条件分支（ADR-0034）——分支快照由 IfDirective 在宿主 created 期
             // 主动扫描直接子元素克隆收集（模板只读），本层仅负责**剪枝**：分支是备选模板、
             // 永不进结果 DOM（eager 的 compileSubtree 与 keepalive 的主 walk 两条子树编译通道统一拦截）。
-            // 父元素无 x-if 指令属性（含修饰符形态）→ 孤儿分支：warn + 丢弃（同 x-component 孤儿惯例）
+            // 父元素无 x-if 指令属性（含修饰符形态）→ 孤儿分支：warn + 丢弃（同 x-define 孤儿惯例）
             [
                 (node: Node) =>
                     node instanceof HTMLElement &&
@@ -172,16 +172,17 @@ export class AutoSparkCompiler {
                     return null;
                 },
             ],
-            // 前置：x-component 命名组件——收集冻结快照到最近祖先 scope.components 后剪枝（不进结果 DOM）。
+            // 前置：x-define 命名组件定义（ADR-0054 更名自 x-component）——收集冻结快照到
+            // 最近祖先 scope.components 后剪枝（不进结果 DOM）。
             // 须排在 HTMLElement 通用规则（compileElement）之前，first-match-wins 命中后不再走通用编译，
-            // 故 x-component 元素不建 scope、不实例化其上其他指令（同元素 x-text 等随组件冻结，ADR-0022）。
-            // 修饰符形态（x-component.open 等，ADR-0053）同命中——属性名带 . 段、值仍是组件名。
+            // 故 x-define 元素不建 scope、不实例化其上其他指令（同元素 x-text 等随组件冻结，ADR-0022）。
+            // 修饰符形态（x-define.open 等，ADR-0053）同命中——属性名带 . 段、值仍是组件名。
             [
                 (node: Node) => node instanceof HTMLElement && this._matchComponentAttr(node),
                 (componentEl: HTMLElement) => this._collectComponent(componentEl),
             ],
             // 前置：x-icon-define 图标定义（ADR-0046）——声明性资源：取首个 <svg> 子元素上交全局
-            // 图标注册表（AutoSpark.icons）后剪枝（不进结果 DOM）。指令类仅为名位（x-component 同构），
+            // 图标注册表（AutoSpark.icons）后剪枝（不进结果 DOM）。指令类仅为名位（x-define 同构），
             // 永不被实例化。动态区域（x-for 项模板 / x-html.compile / 组件快照）内重复定义幂等覆盖。
             [
                 (node: Node) => node instanceof HTMLElement && node.hasAttribute("x-icon-define"),
@@ -208,41 +209,42 @@ export class AutoSparkCompiler {
     }
 
     /**
-     * 元素是否带 x-component 声明属性（含修饰符形态，ADR-0053）。
+     * 元素是否带 x-define 声明属性（含修饰符形态，ADR-0053；指令名 ADR-0054）。
      *
-     * 命中形态：`x-component`（正身）与 `x-component.open` 等带 `.` 修饰符段的属性名；
-     * `x-component-options`（指令选项属性）**不是**声明形态——不命中（`x-component-` 前缀
-     * 与 `x-component.` 修饰符前缀是两个不同边界，与 dispatcher 的保留规则同构）。
+     * 命中形态：`x-define`（正身）与 `x-define.open` 等带 `.` 修饰符段的属性名；
+     * `x-define-options`（指令选项属性）**不是**声明形态——不命中（`x-define-` 前缀
+     * 与 `x-define.` 修饰符前缀是两个不同边界，与 dispatcher 的保留规则同构）。
+     * 实例化指令 `x-component:名称` 亦不命中（属性名整体是 `x-component:xxx`，与上述前缀均不同）。
      */
     private _matchComponentAttr(el: HTMLElement): boolean {
-        if (el.hasAttribute("x-component")) return true;
+        if (el.hasAttribute("x-define")) return true;
         for (const attr of Array.from(el.attributes)) {
-            if (attr.name.startsWith("x-component.")) return true;
+            if (attr.name.startsWith("x-define.")) return true;
         }
         return false;
     }
 
     /**
-     * 解析 x-component 声明属性：组件名（值，无值 `default`）+ 修饰符段（属性名 `.` 后段）。
+     * 解析 x-define 声明属性：组件名（值，无值 `default`）+ 修饰符段（属性名 `.` 后段）。
      * 未知修饰符 warn + 忽略；`open` 修饰符注入边界开关（ADR-0053）。
      */
     private _parseComponentAttr(el: HTMLElement): { name: string; modifierOpen: boolean } {
-        let attrName = "x-component";
-        let rawName = el.getAttribute("x-component");
+        let attrName = "x-define";
+        let rawName = el.getAttribute("x-define");
         if (rawName == null) {
             for (const attr of Array.from(el.attributes)) {
-                if (attr.name.startsWith("x-component.")) {
+                if (attr.name.startsWith("x-define.")) {
                     attrName = attr.name;
                     rawName = attr.value;
                     break;
                 }
             }
         }
-        const segments = attrName.slice("x-component".length).split(".").filter(Boolean);
+        const segments = attrName.slice("x-define".length).split(".").filter(Boolean);
         for (const seg of segments) {
             if (seg !== "open") {
                 this.engine.logger.warn(
-                    `x-component: 未知修饰符 ".${seg}"，已忽略（ADR-0053 仅提供 .open）`,
+                    `x-define: 未知修饰符 ".${seg}"，已忽略（ADR-0053 仅提供 .open）`,
                 );
             }
         }
@@ -253,9 +255,9 @@ export class AutoSparkCompiler {
     }
 
     /**
-     * 收集 x-component 命名组件（ADR-0022，承接 ADR-0021）。
+     * 收集 x-define 命名组件定义（ADR-0022 承接 ADR-0021；指令名 ADR-0054 更名自 x-component）。
      *
-     * 编译期前置 transformer 命中 x-component 元素时调用：把该元素**深克隆**为冻结快照，
+     * 编译期前置 transformer 命中 x-define 元素时调用：把该元素**深克隆**为冻结快照，
      * 按名存入**最近祖先 scope** 的 `components`，然后返回 `null` 剪枝——组件元素及其子树
      * **不进结果 DOM、不建 scope、不实例化指令**。
      *
@@ -265,17 +267,14 @@ export class AutoSparkCompiler {
      * **default 唯一性已放宽**（ADR-0022 决策四-4）：同名组件直接归属同一 scope 时 warn + 后者覆盖
      * （不再抛错）。沿 parent 链的就近覆盖由 getComponent 就近原则处理。
      *
-     * > 注：`<script setup>` / `<style>` 的提取与求值、嵌套私有子组件（定义 scope 链）在后续阶段实现，
-     * > 当前阶段（命名硬切）保持组件行为与原 x-block 一致。
-     *
-     * @param componentEl 原树中的 x-component 元素（只读编译输入，仅读取其属性与结构）
-     * @returns 固定 `null`（剪枝，x-component 永不进结果 DOM）
+     * @param componentEl 原树中的 x-define 元素（只读编译输入，仅读取其属性与结构）
+     * @returns 固定 `null`（剪枝，x-define 永不进结果 DOM）
      */
     private _collectComponent(componentEl: HTMLElement): null {
         const { name, modifierOpen } = this._parseComponentAttr(componentEl);
         // 沿原树向上找最近祖先 scope（与 _linkParent 同构：跨中间无 scope 的纯 div）。
         // walk 是 DFS，祖先元素已先 transform，若建了 scope 必已 templateScopeMap.set。
-        // 注：实例化父组件时 compileSubtree 编译其快照子树，内层 x-component 经 transformElement
+        // 注：实例化父组件时 compileSubtree 编译其快照子树，内层 x-define 经 transformElement
         // 再次命中本收集器，归属到父组件的**实例 scope**——运行期 scope 链天然实现嵌套私有子组件。
         let owner: AutoSparkScope | undefined;
         let p: HTMLElement | null = componentEl.parentElement;
@@ -287,7 +286,7 @@ export class AutoSparkCompiler {
         if (!owner) {
             // 无归属：编译期 warn + 丢弃（不进 components、不进 DOM）。与引擎静默处理冗余/异常属性的风格一致。
             this.engine.logger.warn(
-                `x-component: 组件 "${name}" 未找到任何祖先 scope，无法归属。请在祖先元素上声明 x-scope（或任意指令）使其建 scope。`,
+                `x-define: 组件 "${name}" 未找到任何祖先 scope，无法归属。请在祖先元素上声明 x-scope（或任意指令）使其建 scope。`,
             );
             return null;
         }
@@ -295,7 +294,7 @@ export class AutoSparkCompiler {
         // 沿 parent 链的就近覆盖由 getComponent 就近原则处理（不在此校验）。
         if (owner.components && Object.prototype.hasOwnProperty.call(owner.components, name)) {
             this.engine.logger.warn(
-                `[x-component] 组件 "${name}" 在同一 scope 下重复声明，后者覆盖前者（ADR-0022 决策四-4 放宽 default 唯一性）。`,
+                `[x-define] 组件 "${name}" 在同一 scope 下重复声明，后者覆盖前者（ADR-0022 决策四-4 放宽 default 唯一性）。`,
             );
         }
         // 组装组件定义：提取 <script setup>/<style>、求值合并 setup、深克隆冻结快照（已剥离 script/style）。
@@ -308,7 +307,7 @@ export class AutoSparkCompiler {
             modifierOpen,
         );
         // scope.components 仍存 HTMLElement 快照（保持 getComponent 的 HTMLElement 契约，x-loading 等消费者不变）；
-        // ComponentDef 元数据（setup/hooks/styles）以快照根为 key 注册到 engine，供 x-use 实例化时反查。
+        // ComponentDef 元数据（setup/hooks/styles）以快照根为 key 注册到 engine，供 x-component 实例化时反查。
         this.engine.registerComponentDef(def);
         if (!owner.components) owner.components = {};
         owner.components[name] = def.snapshot;
@@ -319,7 +318,7 @@ export class AutoSparkCompiler {
      * 收集 x-icon-define 图标定义（ADR-0046 决策 1）。
      *
      * 编译期前置 transformer 命中 x-icon-define 元素时调用：值 = 图标名（指令值装名，
-     * 对齐 x-component 惯例）、template 内容装 SVG（浏览器原生不渲染 template，零转义容器）。
+     * 对齐 x-define 惯例）、template 内容装 SVG（浏览器原生不渲染 template，零转义容器）。
      * 取**首个 `<svg>` 子元素**的 outerHTML 上交全局图标注册表（名称校验/规范化/覆盖 warn
      * 去重收编于 IconRegistry.add），然后返回 `null` 剪枝——定义元素永不进结果 DOM。
      * 非法名 / 无 svg 子元素 warn + 跳过注册（元素照剪）；svg 之外的多余根节点 warn 但仍取首个 svg。
@@ -681,7 +680,7 @@ export class AutoSparkCompiler {
             ) {
                 return null;
             }
-            // 声明性资源收集器直接命中本层根（x-component/x-icon-define 声明为组件快照、
+            // 声明性资源收集器直接命中本层根（x-define/x-icon-define 声明为组件快照、
             // x-for 项模板或 patch 节点的**直接子元素**）：transformElement 以其为根时收集器返回 null
             // 会触发"根元素被丢弃"抛错（收集已完成但中断当次 flush）——此处直接走收集并剪枝，
             // 与深层嵌套路径（transformElement walk 内层剪枝不抛错）语义一致（ADR-0022 嵌套私有子组件）。
@@ -773,16 +772,16 @@ export class AutoSparkCompiler {
     /**
      * 注入组件语义到既有 scope（ADR-0022 决策二/三）。
      *
-     * 供 x-use 复用宿主 scope 化身组件实例（宿主 scope 本身即组件实例 scope，不另建），以及
+     * 供 x-component 复用宿主 scope 化身组件实例（宿主 scope 本身即组件实例 scope，不另建），以及
      * compileChild 在新建 scope 后调用。注入内容：
      * - `isComponent=true` + `componentName=def.name`；
      * - `data`：data() 默认值先注入、props 后覆盖（R1=A 合并顺序），写入响应式 `$scopes[id]` 域；
      * - `methods`：注入 `scope.actions`（复用 x-on action 查找）；
      * - `hooks`：克隆到 `scope.hooks`（四阶段生命周期，每阶段数组克隆避免多实例共享引用）。
      *
-     * @param scope 目标 scope（x-use 的宿主 scope，或 compileChild 新建的 scope）
+     * @param scope 目标 scope（x-component 的宿主 scope，或 compileChild 新建的 scope）
      * @param def   组件定义
-     * @param props x-use 传入的 props（覆盖 data() 默认值；undefined 则只注入默认值）
+     * @param props x-component 传入的 props（覆盖 data() 默认值；undefined 则只注入默认值）
      */
     injectComponentSemantics(
         scope: AutoSparkScope,
@@ -795,26 +794,26 @@ export class AutoSparkCompiler {
             string,
             any
         >;
-        const hasComponentData = !!def.setup?.data;
-        if (hasComponentData || props) {
+        const hasComponentState = typeof def.setup?.state === "function";
+        if (hasComponentState || props) {
             if (!scopes[scope.id]) scopes[scope.id] = {};
             const data = scopes[scope.id];
             scope._data = data;
-            // 1) 组件 data() 默认值（先）
-            if (hasComponentData) {
+            // 1) 组件 state() 默认状态（先）
+            if (hasComponentState) {
                 try {
-                    const defaults = def.setup!.data!();
+                    const defaults = def.setup!.state!();
                     if (defaults && typeof defaults === "object") Object.assign(data, defaults);
                 } catch (e: any) {
                     this.engine.logger.warn(
-                        `x-component "${def.name}" data() 执行失败，跳过默认值: ${e?.message ?? e}`,
+                        `x-define "${def.name}" state() 执行失败，跳过默认值: ${e?.message ?? e}`,
                     );
                 }
             }
-            // 2) x-use props（后覆盖同名键，R1=A）
+            // 2) x-component props（后覆盖同名键，R1=A）
             if (props) Object.assign(data, props);
             // 失效 scope 的 _scopeView 缓存：宿主 scope 可能已缓存了 data 注入前的聚合视图
-            // （如 x-use 宿主在 compileElement 阶段构建 _scopeView），注入 data 后须重建，否则
+            // （如 x-component 宿主在 compileElement 阶段构建 _scopeView），注入 data 后须重建，否则
             // 后代 watch 经 getContext 读不到新 data 字段（与 DataDirective.invalidateScopeView 同理）。
             scope.invalidateScopeView();
         }
@@ -823,10 +822,11 @@ export class AutoSparkCompiler {
         if (def.setup?.methods) {
             scope.methods = { ...def.setup.methods };
         }
-        // locals 注入 scope._locals（ADR-0022 决策二-3 (10)：非响应式局部变量，不进聚合视图）。
-        // 经 Proxy this 的 this.<key> 读写（method/data/framework 优先级高于 _locals）。
-        if (def.setup?.locals) {
-            scope._locals = { ...def.setup.locals };
+        // data 段注入 scope._locals（ADR-0022 决策二-3 (10)；段名 ADR-0055 更名自 locals：
+        // 非响应式组件私有数据，不进聚合视图）。经 Proxy this 的 this.<key> 读写
+        //（method/state/framework key 优先级高于 _locals）。
+        if (def.setup?.data) {
+            scope._locals = { ...def.setup.data };
         }
         // hooks 克隆到 scope.hooks（每阶段函数数组克隆，避免多实例共享同一数组引用）
         if (def.hooks) {
@@ -840,7 +840,7 @@ export class AutoSparkCompiler {
     }
 
     /**
-     * 实例化组件到既有 scope（ADR-0022 决策五，供 x-use）。
+     * 实例化组件到既有 scope（ADR-0022 决策五，供 x-component）。
      *
      * 宿主 scope 化身组件实例（T4=B 宿主化身组件根），步骤：
      * 1. 注册组件快照根到 templateScopeMap（映射到宿主 scope），使快照子树编译时 _linkParent 能找到宿主 scope；
@@ -852,9 +852,9 @@ export class AutoSparkCompiler {
      * @param hostScope   宿主 scope（化身组件实例 scope）
      * @param snapshot    组件冻结快照根
      * @param def         组件定义（可空：纯快照组件无 setup）
-     * @param props       x-use 传入的 props（覆盖 data() 默认）
-     * @param basis       数据基准（ADR-0053，x-use 解析链的结论）。缺省 undefined = 不施加边界语义
-     *                    （现行为，供 overlay 等非 x-use 路径）：
+     * @param props       x-component 传入的 props（覆盖 data() 默认）
+     * @param basis       数据基准（ADR-0053，x-component 解析链的结论）。缺省 undefined = 不施加边界语义
+     *                    （现行为，供 overlay 等非 x-component 路径）：
      *                    - `'closed'`：封闭——hostScope 打数据边界标志，子树数据视图止于
      *                      自身 data/locals/props + engine.state（getContext/hasLocalContext/相对挂载三处收口）；
      *                    - `'declarer'`：数据视图挂声明处 scope（def.declarerScope；全局组件无声明
@@ -904,7 +904,7 @@ export class AutoSparkCompiler {
     }
 
     /**
-     * 数据基准施加（ADR-0053）：instantiateComponent（宿主化身，x-use）与
+     * 数据基准施加（ADR-0053）：instantiateComponent（宿主化身，x-component）与
      * instantiateDetachedComponent（独立 scope，overlay 家族）共享。
      *
      * 须早于 compileSubtree（子树 watch 首求值经 getContext 读到的视图必须已是基准后的视图）；
@@ -939,7 +939,7 @@ export class AutoSparkCompiler {
      * 实例化组件到**独立 scope + 独立元素**（非宿主化身，ADR-0052 修订版——组件化统一）。
      *
      * 供 overlay 家族（OverlayDirective / OverlayInstance）：组件快照克隆编译为新 scope 的子树，
-     * 与 instantiateComponent（宿主化身，x-use）共享语义注入（data()/props、methods、hooks）与
+     * 与 instantiateComponent（宿主化身，x-component）共享语义注入（data()/props、methods、hooks）与
      * 数据基准施加管道，另补齐 styleBinds 订阅与 scoped CSS 挂载（compileChild 不含这两步）。
      *
      * @param template    组件冻结快照根的克隆（调用方 cloneNode，每次实例化独立）
@@ -1059,12 +1059,12 @@ export class AutoSparkCompiler {
          * `getContext` 的 `_scopeView` 缓存即建成含 data 层的 Proxy，`collectDependencies`
          * 收集到 `$scopes.<id>.<field>` 精准路径——后续 `Object.assign` 进该响应式代理即字段级细粒度更新。
          *
-         * 供 x-loading 等消费者把 config 注入块（ADR-0021 决策 12-c）；x-use 实例化组件时传入 props
-         *（决策二-2，作为组件 data 域的覆盖值，后于 componentDef.data() 注入）。无此参则不注入 data。
+         * 供 x-loading 等消费者把 config 注入块（ADR-0021 决策 12-c）；x-component 实例化组件时传入 props
+         *（决策二-2，作为组件响应式状态域的覆盖值，后于 componentDef.state() 注入）。无此参则不注入。
          */
         initialData?: Record<string, any>,
         /**
-         * 组件定义（ADR-0022 决策二/三）：x-use 实例化组件时传入，注入组件语义：
+         * 组件定义（ADR-0022 决策二/三）：x-component 实例化组件时传入，注入组件语义：
          * - `data()`：先于 initialData 注入 scope.data（默认值，被 props 覆盖，决策 R1=A 合并顺序）；
          * - `methods`：注入 scope.actions（复用 x-on action 查找，this=ComponentMethodContext）；
          * - `hooks`：克隆到 scope.hooks（四阶段生命周期，compile/destroy 时触发）。
@@ -1074,7 +1074,7 @@ export class AutoSparkCompiler {
         /**
          * 数据基准（ADR-0053，instantiateDetachedComponent 的 overlay 路径传入）：须早于
          * compileSubtree / scope.compile() 施加（子树 watch 首求值读到的视图须已是基准后的视图）。
-         * 缺省 = 不施加边界语义（现行为，x-use 走 instantiateComponent 的宿主化身路径）。
+         * 缺省 = 不施加边界语义（现行为，x-component 走 instantiateComponent 的宿主化身路径）。
          */
         basis?: ComponentDataBasis,
     ): { el: HTMLElement; scope: AutoSparkScope } {
@@ -1088,7 +1088,7 @@ export class AutoSparkCompiler {
         const scope = new AutoSparkScope(this.engine, el, itemTemplate);
         scope.locals = localData;
         // 组件语义注入（须早于 scope.compile()——created hook 与各指令 watch 首次求值须读到完整 data/actions）。
-        // data 合并顺序 R1=A：componentDef.data() 先注入默认，initialData（x-use props）后覆盖。
+        // 状态合并顺序 R1=A：componentDef.state() 先注入默认，initialData（x-component props）后覆盖。
         if (componentDef) {
             this.injectComponentSemantics(scope, componentDef, initialData);
         } else if (initialData) {

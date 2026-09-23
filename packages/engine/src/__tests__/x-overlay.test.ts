@@ -5,7 +5,7 @@ import { mount, nextTick, finishAnim } from "./helpers";
 /**
  * 覆盖物体系测试（ADR-0052 修订版——组件化统一）。
  *
- * 覆盖物内容 = 任意组件（x-component 声明 / options.components 全局 / x-import），消费者
+ * 覆盖物内容 = 任意组件（x-define 声明 / options.components 全局 / x-import），消费者
  * x-dialog 渲染进 document.body 下本 engine 的容器（autospark-overlays），断言走 document 级
  * 选择器；每个用例结束 engine.destroy() 整体回收容器（测试间隔离）。
  */
@@ -26,18 +26,18 @@ afterEach(() => {
 });
 
 describe("消费模型（组件即覆盖物内容）", () => {
-    test("x-component 声明剪枝不闪现；消费打开后渲染进 body 容器，读声明处数据", async () => {
+    test("x-define 声明剪枝不闪现；消费打开后渲染进 body 容器，读声明处数据", async () => {
         const { root, engine } = mountOverlay(
             `<div id="app">
                 <div x-scope>
-                    <div x-component="login"><h3>{{title}}</h3></div>
+                    <div x-define="login"><h3>{{title}}</h3></div>
                     <button id="t" x-dialog:login="ui.loginVisible"></button>
                 </div>
             </div>`,
             { ui: { loginVisible: false }, title: "登录" },
         );
         // 声明被剪枝：组件声明元素不进结果 DOM（无闪现）
-        expect(root.querySelector("[x-component]")).toBeNull();
+        expect(root.querySelector("[x-define]")).toBeNull();
         // 未打开：容器里无实例
         expect(maskOf("login")).toBeNull();
         engine.state.ui.loginVisible = true;
@@ -126,7 +126,7 @@ describe("x-dialog 状态驱动（visible 形态）", () => {
     test("每次打开新实例：关闭即销毁（共识 5 无 singleton），再开全新 DOM", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="login"><span>x</span></div>
+                <div x-define="login"><span>x</span></div>
                 <button x-dialog:login="ui.loginVisible"></button>
             </div></div>`,
             { ui: { loginVisible: false } },
@@ -150,7 +150,7 @@ describe("x-dialog 状态驱动（visible 形态）", () => {
     test("字面量 true：挂载即开（公告类）；false 永不开", () => {
         mountOverlay(
             `<div id="app">
-                <div x-scope><div x-component="notice"><span>公告</span></div><button x-dialog:notice="true"></button></div>
+                <div x-scope><div x-define="notice"><span>公告</span></div><button x-dialog:notice="true"></button></div>
             </div>`,
             {},
         );
@@ -160,7 +160,7 @@ describe("x-dialog 状态驱动（visible 形态）", () => {
     test("表达式形态：请求关闭仅 UI 关闭，状态不回写", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="pay"><span>x</span></div>
+                <div x-define="pay"><span>x</span></div>
                 <button x-dialog:pay="ui.step === 2"></button>
             </div></div>`,
             { ui: { step: 2 } },
@@ -179,7 +179,7 @@ describe("「请求关闭」触点与写回", () => {
     const setup = () =>
         mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="login"><button data-action="close" @click="close()">关</button></div>
+                <div x-define="login"><button data-action="close" @click="close()">关</button></div>
                 <button x-dialog:login="ui.loginVisible"></button>
             </div></div>`,
             { ui: { loginVisible: true } },
@@ -210,7 +210,7 @@ describe("「请求关闭」触点与写回", () => {
     test("closeOnMask: false（值对象内联）遮罩点击不关", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="keep"><span>x</span></div>
+                <div x-define="keep"><span>x</span></div>
                 <button x-dialog:keep="{visible: 'ui.open', closeOnMask: false}"></button>
             </div></div>`,
             { ui: { open: true } },
@@ -233,11 +233,11 @@ describe("「请求关闭」触点与写回", () => {
 });
 
 describe("props 注入（共识 7：非保留键全作 props）", () => {
-    test("值对象非保留键注入组件 data 域，覆盖 data() 默认", async () => {
+    test("值对象非保留键注入组件响应式状态域，覆盖 state() 默认", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="user">
-                    <script setup>{ data() { return { userId: 0, extra: "默认" } } }</script>
+                <div x-define="user">
+                    <script setup>{ state() { return { userId: 0, extra: "默认" } } }</script>
                     <span>{{userId}}-{{extra}}</span>
                 </div>
                 <button x-dialog:user="{visible: 'ui.open', userId: 42}"></button>
@@ -246,14 +246,14 @@ describe("props 注入（共识 7：非保留键全作 props）", () => {
         );
         engine.state.ui.open = true;
         await nextTick();
-        // props 覆盖 data() 默认（userId: 42），未声明的键保留 data() 默认（extra）
+        // props 覆盖 state() 默认（userId: 42），未声明的键保留 state() 默认（extra）
         expect(maskOf("user")!.textContent).toContain("42-默认");
     });
 
     test("visible 驱动键不作 props；params 键已删除（作普通 props 注入）", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="bag"><span>{{params}}</span></div>
+                <div x-define="bag"><span>{{params}}</span></div>
                 <button x-dialog:bag="{visible: 'ui.open', params: '旧键即普通props'}"></button>
             </div></div>`,
             { ui: { open: false } },
@@ -268,8 +268,8 @@ describe("配置三级链（共识 6）", () => {
     test("内置默认 < x-dialog-options < 值对象内联", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="mix"><span>x</span></div>
-                <div x-component="mix2"><span>x</span></div>
+                <div x-define="mix"><span>x</span></div>
+                <div x-define="mix2"><span>x</span></div>
                 <button x-dialog:mix="{visible: 'ui.open', closeOnMask: true}" x-dialog-options="{closeOnMask: false}"></button>
                 <button x-dialog:mix2="ui.open2" x-dialog-options="{closeOnMask: false}"></button>
             </div></div>`,
@@ -295,7 +295,7 @@ describe("配置三级链（共识 6）", () => {
     test("x-dialog-options 独立生效（animate 走消费处选项）", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="an"><span>x</span></div>
+                <div x-define="an"><span>x</span></div>
                 <button x-dialog:an="ui.open" x-dialog-options="{animate: {name: 'fade', duration: 5000}}"></button>
             </div></div>`,
             { ui: { open: false } },
@@ -316,7 +316,7 @@ describe("配置三级链（共识 6）", () => {
 
 describe("命令式 API（engine.getOverlay，共识 10 镜像 getComponent）", () => {
     const html = `<div id="app"><div x-scope id="host">
-        <div x-component="confirm"><span>{{msg}}</span></div>
+        <div x-define="confirm"><span>{{msg}}</span></div>
     </div></div>`;
 
     test("el 起链查找 / 省略 el 仅查全局 / open / close / visible warn", async () => {
@@ -324,7 +324,7 @@ describe("命令式 API（engine.getOverlay，共识 10 镜像 getComponent）",
             components: { global: "<div><span>全局覆盖物</span></div>" },
         });
         const host = root.querySelector("#host")!;
-        // el 起链查找命中局部 x-component 声明
+        // el 起链查找命中局部 x-define 声明
         const handle = engine.getOverlay(host, "confirm", { animate: false })!;
         expect(handle).not.toBeUndefined();
         const inst1 = handle.open({ msg: "确认删除？" });
@@ -394,8 +394,8 @@ describe("嵌套与打开栈", () => {
     test("ESC 只关全局栈顶实例（嵌套打开）", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="a"><span>a</span></div>
-                <div x-component="b"><span>b</span></div>
+                <div x-define="a"><span>a</span></div>
+                <div x-define="b"><span>b</span></div>
                 <button x-dialog:a="ui.a"></button>
                 <button x-dialog:b="ui.b"></button>
             </div></div>`,
@@ -423,7 +423,7 @@ describe("dataContext 数据视图基准（共识 8：declarer 默认 / host / �
     // 组件声明须在消费者的祖先链上（getComponent 协议）；嵌套 x-data：外层 = 声明处、内层 = 消费处
     const html = (options: string) => `<div id="app"><div x-scope>
         <div x-data="{ title: '声明处' }">
-            <div x-component="basis"><span>{{title}}</span></div>
+            <div x-define="basis"><span>{{title}}</span></div>
             <div x-data="{ title: '消费处' }">
                 <button x-dialog:basis="ui.open"${options}></button>
             </div>
@@ -489,7 +489,7 @@ describe("delayClose 自动关闭", () => {
     test("delayClose > 0：打开后延时自动请求关闭（走标准链，回写 visible）", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="notice"><span>通知</span></div>
+                <div x-define="notice"><span>通知</span></div>
                 <button x-dialog:notice="{visible: 'ui.open', delayClose: 50}"></button>
             </div></div>`,
             { ui: { open: true } },
@@ -505,7 +505,7 @@ describe("delayClose 自动关闭", () => {
     test("delayClose 缺省：不自动关闭", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="notice2"><span>x</span></div>
+                <div x-define="notice2"><span>x</span></div>
                 <button x-dialog:notice2="{visible: 'ui.open'}"></button>
             </div></div>`,
             { ui: { open: true } },
@@ -525,7 +525,7 @@ describe("at 锚定定位（ADR-0052 决策 21–24）", () => {
     test("at 未命中 → warn + 退屏幕居中（面板无 fixed 定位、无箭头载体残留）", async () => {
         const { root, engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="tip"><span>x</span></div>
+                <div x-define="tip"><span>x</span></div>
                 <button x-dialog:tip="ui.open" x-dialog-options="{at: '/#no-such-anchor'}"></button>
             </div></div>`,
             { ui: { open: false } },
@@ -551,7 +551,7 @@ describe("at 锚定定位（ADR-0052 决策 21–24）", () => {
     test("placement 未配置：默认 auto（autoPlacement 自动选位并写回最终方向）", async () => {
         const { root, engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="tip"><span>x</span></div>
+                <div x-define="tip"><span>x</span></div>
                 <div id="anchor-el">锚</div>
                 <button x-dialog:tip="ui.open" x-dialog-options="{at: '/#anchor-el'}"></button>
             </div></div>`,
@@ -576,7 +576,7 @@ describe("at 锚定定位（ADR-0052 决策 21–24）", () => {
     test("锚定命中：箭头默认开启 + staticSide 反向偏移（floating-ui 融合协议）+ placement 写回", async () => {
         const { root, engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="tip"><span>x</span></div>
+                <div x-define="tip"><span>x</span></div>
                 <div id="anchor-el">锚</div>
                 <button x-dialog:tip="ui.open" x-dialog-options="{at: {selector: '/#anchor-el', placement: 'top'}}"></button>
                 <button x-dialog:tip="ui.open2" x-dialog-options="{at: {selector: '/#anchor-el', placement: 'top', arrow: false}, border: false}"></button>
@@ -624,7 +624,7 @@ describe("at 锚定定位（ADR-0052 决策 21–24）", () => {
     test("at 字符串简写进链前归一化：值对象换锚只覆盖 selector、继承 x-dialog-options 的 placement", async () => {
         const { root, engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-component="tip"><span>x</span></div>
+                <div x-define="tip"><span>x</span></div>
                 <div id="anchor-el">锚</div>
                 <button
                     x-dialog:tip="{visible: 'ui.open', at: '/#anchor-el'}"

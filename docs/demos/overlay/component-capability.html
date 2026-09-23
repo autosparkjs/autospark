@@ -19,14 +19,14 @@
                     每次打开新实例（关闭即销毁），需要保留的状态请放全局 state 或经 props 重注入。
                 </div>
 
-                <div x-component="counter">
+                <div x-define="counter">
                     <style>
                         .cnt-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 280px; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
                         .cnt-panel .num { font-size: 2rem; font-weight: 700; color: hsl(171, 100%, 29%); }
                     </style>
                     <script type="autospark/setup">
                         {
-                            data() { return { count: 0 }; },
+                            state() { return { count: 0 }; },
                             methods: {
                                 inc() { this.data.count++; },
                             },

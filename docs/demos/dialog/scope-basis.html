@@ -17,13 +17,13 @@
                     <button class="button" x-dialog:demo="ui.openA" @click="ui.openA = true">打开（默认 declarer）</button>
                 </div>
                 <div class="block has-text-grey">
-                    同一个组件 <code>x-component="demo"</code>，两种基准（挂链即基准）：默认 <code>declarer</code>
+                    同一个组件 <code>x-define="demo"</code>，两种基准（挂链即基准）：默认 <code>declarer</code>
                     实例挂<b>声明处</b> scope，读它的 <code>who</code>；<code>dataContext: 'host'</code> 挂<b>消费处</b>
                     scope，读消费处局部域的 <code>who</code>（旧值 <code>'consumer'</code> 已废弃，运行时 warn 并按 host 处理）。
                 </div>
 
                 <!-- 组件声明：归属外层 x-data scope（声明处，who = 声明处的数据） -->
-                <div x-component="demo">
+                <div x-define="demo">
                     <div class="ov-panel">
                         <h3 class="title is-5">数据来自</h3>
                         <p class="title is-4" x-text="who"></p>

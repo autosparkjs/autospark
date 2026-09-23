@@ -3,14 +3,14 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>x-component · 远程加载（全局）</title>
+        <title>x-define · 远程加载（全局）</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
     <body>
         <!--
             x-import.global：把远程 HTML 里的组件注册为全局组件（engine.options.components），
-            全引擎复用。一个文件可含多个 x-component（批量注册）。
+            全引擎复用。一个文件可含多个 x-define（批量注册）。
             组件文件 /autospark/components/widgets.html 含 stat 与 chip 两个组件。
         -->
         <div id="app" x-scope>
@@ -21,17 +21,17 @@
             <div class="panel">
                 <div class="label">全局远程组件 stat（传 props：label/value/tone）</div>
                 <div style="display:flex;gap:12px;flex-wrap:wrap">
-                    <div x-use="{ name: 'stat', label: '收入', value: '12,580', tone: 'up' }"></div>
-                    <div x-use="{ name: 'stat', label: '支出', value: '3,210', tone: 'down' }"></div>
-                    <div x-use="{ name: 'stat', label: '净利', value: '9,370', tone: 'up' }"></div>
+                    <div x-component:stat="{label: '收入', value: '12,580', tone: 'up' }"></div>
+                    <div x-component:stat="{label: '支出', value: '3,210', tone: 'down' }"></div>
+                    <div x-component:stat="{label: '净利', value: '9,370', tone: 'up' }"></div>
                 </div>
             </div>
             <div class="panel">
                 <div class="label">同一文件的另一全局组件 chip</div>
                 <div style="display:flex;gap:8px">
-                    <div x-use="{ name: 'chip', text: '远程' }"></div>
-                    <div x-use="{ name: 'chip', text: '全局' }"></div>
-                    <div x-use="{ name: 'chip', text: '批量注册' }"></div>
+                    <div x-component:chip="{text: '远程' }"></div>
+                    <div x-component:chip="{text: '全局' }"></div>
+                    <div x-component:chip="{text: '批量注册' }"></div>
                 </div>
             </div>
         </div>

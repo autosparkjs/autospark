@@ -328,11 +328,11 @@ describe('数据脚本 <script type="autospark/data">（ADR-0032）', () => {
         expect(root.querySelectorAll(".cell .t")[1]?.textContent).toBe("n");
     });
 
-    test("x-component 快照内脚本：消费实例化时生效（组件私有数据）", async () => {
+    test("x-define 快照内脚本：消费实例化时生效（组件私有数据）", async () => {
         const { root } = mount(
             `<div x-scope>
-  <div id="host" x-use="card"></div>
-  <div x-component="card">
+  <div id="host" x-component:card></div>
+  <div x-define="card">
     <div class="body">
       <script type="autospark/data">{ msg: '组件数据' }</script>
       <span class="m" x-text="msg"></span>

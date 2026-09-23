@@ -199,15 +199,15 @@ const engine = new AutoSpark(el, { loading: false }, {
 
 #### 局部组件
 
-在宿主的任意祖先上声明 `x-scope` 建 scope 锚点，其内用 `x-component="loading"` 声明一个命名组件。该组件在编译期从渲染树摘除、上交给最近祖先 scope 的 `components`，`x-loading` 渲染时沿 scope 链就近取用：
+在宿主的任意祖先上声明 `x-scope` 建 scope 锚点，其内用 `x-define="loading"` 声明一个命名组件。该组件在编译期从渲染树摘除、上交给最近祖先 scope 的 `components`，`x-loading` 渲染时沿 scope 链就近取用：
 
 <demo html="loading/block-local.html"/>
 
 ```html
-<!-- x-scope 建 scope 锚点，让内部 x-component 有归属 -->
+<!-- x-scope 建 scope 锚点，让内部 x-define 有归属 -->
 <div x-scope>
     <!-- 自定义 loading 组件：根即 overlay 壳（x-loading 注入定位/背景样式） -->
-    <div x-component="loading">
+    <div x-define="loading">
         <div class="loader"></div>
         <!-- message 经 x-loading 配置注入块，块内 x-text 响应式取值 -->
         <div class="my-msg" x-text="message"></div>
@@ -227,7 +227,7 @@ const engine = new AutoSpark(el, { loading: false }, {
 ```javascript
 const engine = new AutoSpark(el, state, {
     components: {
-        // 多顶级节点会自动包一层 div 并打 x-component="loading"
+        // 多顶级节点会自动包一层 div 并打 x-define="loading"
         loading: `
             <div class="loader"></div>
             <div class="my-msg" x-text="message"></div>
@@ -254,7 +254,7 @@ const engine = new AutoSpark(el, state, {
 自定义模板同样享受动作按钮的触发契约：块内任意带 `data-action="<动作名>"` 的元素，点击即触发该动作（已注册走真实动作、未注册合成信号照播），点击后按动作的 `hide`（默认隐藏）决定是否收起覆盖层。渲染归你，触发归指令：
 
 ```html
-<div x-component="loading">
+<div x-define="loading">
     <div class="my-loading">
         <div class="my-msg" x-text="message"></div>
         <!-- 用注入的 actions 视图渲染按钮；data-action 标名即可被点击委托识别 -->
@@ -271,19 +271,19 @@ const engine = new AutoSpark(el, state, {
 
 #### 自动包装规则（仅全局组件字符串入参）
 
-全局组件入参是字符串，首次使用时按顶级节点数自动规范化为「恰好一个带 `x-component` 的根元素」：
+全局组件入参是字符串，首次使用时按顶级节点数自动规范化为「恰好一个带 `x-define` 的根元素」：
 
 | 输入                       | 包装结果                             |
 | -------------------------- | ------------------------------------ |
-| 单顶级元素、无 `x-component`   | 根打本 key 名（`x-component="loading"`） |
-| 已含 `x-component`             | 尊重原值不重命名                     |
-| 多顶级节点 / 元素+文本混排 | 包一层 `<div x-component="loading">`     |
-| 纯文本无元素               | 包成 `<div x-component="loading">文本`   |
+| 单顶级元素、无 `x-define`   | 根打本 key 名（`x-define="loading"`） |
+| 已含 `x-define`             | 尊重原值不重命名                     |
+| 多顶级节点 / 元素+文本混排 | 包一层 `<div x-define="loading">`     |
+| 纯文本无元素               | 包成 `<div x-define="loading">文本`   |
 
 局部组件入参已是 DOM 元素，不经包装。块根**总是创建 scope**（由消费编译路径保证），块内表达式有继承起点。
 
 ::: info 局部覆盖全局
-查找顺序是「自身 scope → 各祖先 scope → 全局 `options.components`」。所以在某个 `x-scope` 内声明局部 `x-component="loading"`，只覆盖该子树内的 x-loading，其余仍走全局组件——支持「公共全局样式 + 局部特例」。
+查找顺序是「自身 scope → 各祖先 scope → 全局 `options.components`」。所以在某个 `x-scope` 内声明局部 `x-define="loading"`，只覆盖该子树内的 x-loading，其余仍走全局组件——支持「公共全局样式 + 局部特例」。
 :::
 
 ## 配置

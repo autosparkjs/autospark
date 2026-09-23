@@ -2,7 +2,7 @@
     远程组件测试文件（被 x-import.global 加载，注册为全局组件）。
     一个文件含多个 x-component，演示批量注册全局组件。
 -->
-<div x-component="stat">
+<div x-define="stat">
     <div class="stat" :class="tone">
         <div class="stat-label" x-text="label"></div>
         <div class="stat-value" x-text="value"></div>
@@ -38,7 +38,7 @@
     </style>
 </div>
 
-<div x-component="chip">
+<div x-define="chip">
     <span class="chip" x-text="text"></span>
     <style>
         .chip {

@@ -22,15 +22,15 @@
                             @click="ui.openB = true">查看用户 42</button>
                 </div>
                 <div class="block has-text-grey">
-                    同一个组件 <code>x-component="user"</code>，两个消费点各自传不同 props——
+                    同一个组件 <code>x-define="user"</code>，两个消费点各自传不同 props——
                     值对象 <code>{visible, userId, userName, closeOnMask}</code> 中只有
                     <code>visible</code> / <code>closeOnMask</code> 是保留键（驱动 + 配置），
                     <code>userId</code> / <code>userName</code> 等非保留键<b>全部作 props</b> 注入组件 data 域
-                    （覆盖 data() 默认，与 x-use 同约定）。每次打开都是新实例、props 重新注入。
+                    （覆盖 data() 默认，与 x-component 同约定）。每次打开都是新实例、props 重新注入。
                 </div>
 
-                <div x-component="user">
-                    <script type="autospark/setup">{ data() { return { userId: 0, userName: "未知" } } }</script>
+                <div x-define="user">
+                    <script type="autospark/setup">{ state() { return { userId: 0, userName: "未知" } } }</script>
                     <div class="ov-panel">
                         <h3 class="title is-5">用户资料</h3>
                         <p>ID：<b x-text="userId"></b>，姓名：<b x-text="userName"></b></p>

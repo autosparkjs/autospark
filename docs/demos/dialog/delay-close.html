@@ -63,7 +63,7 @@
         </div>
         <div class="log block" id="log"><div>（等待关闭事件…）</div></div>
 
-        <div x-component="notice">
+        <div x-define="notice">
           <div class="ov-panel">
             <h3 class="title is-5">📢 系统通知</h3>
             <p>本通知将在 3 秒后自动关闭（delayClose: 3000）。</p>
@@ -73,7 +73,7 @@
             <button class="button is-fullwidth" @click="close()">立即关闭</button>
           </div>
         </div>
-        <div x-component="toast">
+        <div x-define="toast">
           <div class="ov-toast">✔ 已保存（轻提示，2 秒自动消失）</div>
         </div>
       </div>

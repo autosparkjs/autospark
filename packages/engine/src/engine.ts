@@ -210,7 +210,7 @@ export class AutoSpark<
 
     /**
      * 全局组件懒预编译缓存（ADR-0022 承接 ADR-0021 决策 11）：key=组件名，value=预编译根元素
-     * （已自动包装、含 `x-component`、未编译、保留指令属性、**不注入 x-scope**）。首次 `getComponent`
+     * （已自动包装、含 `x-define`、未编译、保留指令属性、**不注入 x-scope**）。首次 `getComponent`
      * 命中全局时解析 `options.components[name]` 字符串入参并写入此 Map，后续命中直接 `cloneNode(true)`。
      * 生命周期随 engine（destroy 自动回收）。记录 null 表示该名全局组件解析失败/不存在，已查明
      * 「视为未命中」，避免重复解析尝试。
@@ -220,14 +220,14 @@ export class AutoSpark<
      * 全局组件 def 缓存（ADR-0022 决策二/四）：key=组件名，value=ComponentDef
      * （由 `_resolveGlobalComponent` 懒预编译时建：解析字符串 → 包装根 → 提取 `<script setup>`/`<style>` → 组装 def）。
      * 与 `_globalComponentCache`（HTMLElement 快照）并行——后者服务于 x-loading 等只需 DOM 的消费者，
-     * 本表服务于 x-use 等需要组件元数据（setup/hooks/styles）的消费者。同条目二缓存同源（一次预编译产出）。
+     * 本表服务于 x-component 等需要组件元数据（setup/hooks/styles）的消费者。同条目二缓存同源（一次预编译产出）。
      */
     private _globalComponentDefCache = new Map<string, ComponentDef | null>();
     /**
      * 组件定义表（ADR-0022 决策二-1、决策七）：key=组件冻结快照根元素，value=ComponentDef。
      *
      * compiler `_collectComponent` 命中 x-component 时建 def，以快照根为 key 存入此表。
-     * `getComponent(name)` 返回 HTMLElement 快照（保持 x-loading 等消费者契约不变），x-use 实例化时
+     * `getComponent(name)` 返回 HTMLElement 快照（保持 x-loading 等消费者契约不变），x-component 实例化时
      * 经快照根反查本表取 def（setup/hooks/styles/parent/components）。定义 scope 链（嵌套私有子组件）经
      * `def.parent` / `def.components` 表达，与此表正交。WeakMap：scope 回收后 def 自动释放。
      */
@@ -342,7 +342,7 @@ export class AutoSpark<
     /**
      * 按 el 反查 scope，再沿 parent 链就近查找命名组件，到顶兜底全局组件（ADR-0022 决策五，承接 ADR-0021 决策 5/9）。
      *
-     * 供 **Runtime 指令**（如 x-loading，无 binding/scope）消费 x-component：编译期元素建过 scope
+     * 供 **Runtime 指令**（如 x-loading，无 binding/scope）消费 x-define 声明的组件：编译期元素建过 scope
      * 的才能被反查到（el 经 `engine.scopes` WeakRef 遍历 deref 比对，O(n)、低频可接受）。
      * Compile/Hybrid 消费指令应直接用 `this.binding.getComponent(name)`，避免 O(n) 遍历。
      *
@@ -361,7 +361,7 @@ export class AutoSpark<
      * 全局组件兜底解析（ADR-0022 承接 ADR-0021 决策 9/10/11）：`scope.getComponent` 到顶后委托本方法。
      *
      * 懒预编译：首次访问某全局组件时，把 `options.components[name]` 字符串入参解析为 DOM，按自动包装规则
-     * （决策 10）规范化为「恰好一个带 `x-component` 的根元素」，存入 `_globalComponentCache`；后续命中直接
+     * （决策 10）规范化为「恰好一个带 `x-define` 的根元素」，存入 `_globalComponentCache`；后续命中直接
      * 返回缓存（消费者自管 `cloneNode(true)`）。解析失败/不存在 → 记 null 缓存 + 返回 undefined
      * （视为未命中，由消费者回退默认实现；记 null 避免重复解析尝试）。
      *
@@ -370,7 +370,7 @@ export class AutoSpark<
      * （构造期配置语义，与 actions/sanitizer 等同纪律）。
      *
      * @param name 全局组件名
-     * @returns 预编译根元素（未编译、含 x-component），或 undefined（无此全局组件/解析失败）
+     * @returns 预编译根元素（未编译、含 x-define），或 undefined（无此全局组件/解析失败）
      */
     _resolveGlobalComponent(name: string): HTMLElement | undefined {
         if (this._globalComponentCache.has(name)) {
@@ -401,7 +401,7 @@ export class AutoSpark<
         }
         // 组装组件定义：提取 <script setup>/<style>、求值合并 setup、克隆洁净快照（剥离 script/style）。
         // 全局组件的 def 元数据与快照同源——一次预编译同时产出 _globalComponentCache（快照）与
-        // _globalComponentDefCache（def），供 x-loading（取快照）与 x-use（取 def）分别消费。
+        // _globalComponentDefCache（def），供 x-loading（取快照）与 x-component（取 def）分别消费。
         const def = buildComponentDef(root, name, (msg) => this.logger.warn(msg));
         this._globalComponentCache.set(name, def.snapshot);
         this._globalComponentDefCache.set(name, def);
@@ -409,20 +409,21 @@ export class AutoSpark<
     }
 
     /**
-     * 全局组件自动包装（ADR-0022 承接 ADR-0021 决策 10）：把字符串入参规范化为「恰好一个带 `x-component` 的根元素」。
+     * 全局组件自动包装（ADR-0022 承接 ADR-0021 决策 10；属性名 ADR-0054）：把字符串入参规范化为
+     * 「恰好一个带 `x-define` 的根元素」。
      *
      * 规则（仅全局组件字符串入参适用；局部组件入参已是 DOM）：
      * | 输入形态 | 包装结果 |
      * |---|---|
-     * | 单顶级元素、无 `x-component` | 根打本 key 名（`x-component="name"`） |
-     * | 单顶级元素、**已含** `x-component` | 尊重原值不重命名 |
-     * | 多顶级节点 / 元素+文本混排 | 包一层 `<div x-component="name">` |
-     * | 纯文本无元素 | 包成 `<div x-component="name">文本` |
+     * | 单顶级元素、无 `x-define` | 根打本 key 名（`x-define="name"`） |
+     * | 单顶级元素、**已含** `x-define` | 尊重原值不重命名 |
+     * | 多顶级节点 / 元素+文本混排 | 包一层 `<div x-define="name">` |
+     * | 纯文本无元素 | 包成 `<div x-define="name">文本` |
      *
      * 包装标签固定 `<div>`（YAGNI，不开放配置）。**不注入 x-scope**（决策 7 修订）。
      *
      * @param html  全局组件字符串入参（已 trim 非空）
-     * @param name  全局组件名（单根无 x-component 时用作根标签名）
+     * @param name  全局组件名（单根无 x-define 时用作根标签名）
      * @returns 规范化后的根元素；解析为空返回 null
      */
     private _wrapGlobalComponent(html: string, name: string): HTMLElement | null {
@@ -434,16 +435,16 @@ export class AutoSpark<
             (n) => n.nodeType === Node.TEXT_NODE && (n.nodeValue ?? "").trim() !== "",
         );
         if (elementChildren.length === 1 && !hasTextNode) {
-            // 单顶级元素：已含 x-component 则尊重原值，否则打本 key 名
+            // 单顶级元素：已含 x-define 则尊重原值，否则打本 key 名
             const root = elementChildren[0] as HTMLElement;
-            if (!root.hasAttribute("x-component")) {
-                root.setAttribute("x-component", name);
+            if (!root.hasAttribute("x-define")) {
+                root.setAttribute("x-define", name);
             }
             return root;
         }
         // 多顶级元素 / 元素+文本混排 / 纯文本：包一层 div
         const wrap = document.createElement("div");
-        wrap.setAttribute("x-component", name);
+        wrap.setAttribute("x-define", name);
         wrap.appendChild(frag);
         return wrap;
     }
@@ -534,7 +535,7 @@ export class AutoSpark<
      * engine.scopes 以 WeakRef 为 key，无法直接 get(el)，只能遍历 values 做 deref 比较（O(n)）。
      * 低频 API（engine.data / 块消费编译），O(n) 可接受。
      *
-     * 公开供 Runtime 指令（如 x-loading）消费 x-component 时取得宿主 scope 作组件编译的 parentScope
+     * 公开供 Runtime 指令（如 x-loading）消费组件（x-define 声明）时取得宿主 scope 作组件编译的 parentScope
      * （Runtime 指令无 binding，需经 el 反查）。Compile/Hybrid 指令直接用 `this.binding`。
      * 亦用于 `engine.getComponent` 的全局组件兜底（`scope.getComponent` 到顶委托 `engine._resolveGlobalComponent`）。
      */
@@ -555,7 +556,7 @@ export class AutoSpark<
     /**
      * 经组件冻结快照根反查组件定义（ADR-0022）。
      *
-     * `getComponent(name)` 返回 HTMLElement 快照（保持 x-loading 等消费者契约不变）；x-use 实例化时
+     * `getComponent(name)` 返回 HTMLElement 快照（保持 x-loading 等消费者契约不变）；x-component 实例化时
      * 经快照反查本方法取 def（setup/hooks/styles/parent/components）以注入组件语义。
      * 局部组件经 `_componentDefs`（WeakMap）；全局组件经 `_globalComponentDefCache`。
      */
@@ -565,7 +566,7 @@ export class AutoSpark<
 
     /**
      * 取全局组件定义（ADR-0022 决策二-1）。`_resolveGlobalComponent` 预编译时同步建 def 并缓存。
-     * 供 x-use 实例化全局组件时取 setup/hooks/styles。
+     * 供 x-component 实例化全局组件时取 setup/hooks/styles。
      */
     getGlobalComponentDef(name: string): ComponentDef | undefined {
         return this._globalComponentDefCache.get(name) ?? undefined;
@@ -576,7 +577,7 @@ export class AutoSpark<
      *
      * **镜像 `getComponent` 查找协议**：`el` 起 scope 链就近查找（内层同名组件遮蔽外层）
      * + `options.components` 全局兜底；省略 `el` 仅查全局。覆盖物内容 = 任意组件
-     * （x-component 声明 / 全局注册 / x-import 加载），本方法返回 OverlayHandle 供
+     * （x-define 声明 / 全局注册 / x-import 加载），本方法返回 OverlayHandle 供
      * `open()` / `close()`。未命中 warn + 返回 undefined。
      *
      * @param el      查找锚点起点元素（起 scope 链查找）；省略/null 仅查全局
@@ -606,12 +607,12 @@ export class AutoSpark<
     /**
      * 从远程 url 加载组件定义并注册（ADR-0022 决策六，供 x-import）。
      *
-     * - fetch url（经 `fetchHtml`，复用 x-slot fetch 逻辑）→ 解析 HTML 得 `<div x-component>` 顶级元素；
+     * - fetch url（经 `fetchHtml`，复用 x-slot fetch 逻辑）→ 解析 HTML 得 `<div x-define>` 顶级元素；
      * - 按 url 缓存解析结果（重复引用免重复 fetch）；循环 import 检测（url 在途 → warn + 中断）；
-     * - 各 x-component 元素经 `buildComponentDef` 提取 `<script setup>`/`<style>` + 组装 def；
+     * - 各 x-define 元素经 `buildComponentDef` 提取 `<script setup>`/`<style>` + 组装 def；
      * - 注册：global=true → 全局（`options.components` 懒预编译路径，写入 options + 清缓存让其重解析）；
      *   global=false → 作用域（挂 ownerScope.components）；
-     * - 注册后广播 `component/registered`，供 pending 的 x-use 重新实例化；
+     * - 注册后广播 `component/registered`，供 pending 的 x-component 重新实例化；
      * - 失败 warn + 视为未注册（不阻断其余组件）。
      *
      * @param url        远程组件 HTML url
@@ -650,14 +651,15 @@ export class AutoSpark<
                 return [];
             }
             elements = Array.from(frag.children).filter(
-                (n): n is HTMLElement => n instanceof HTMLElement && n.hasAttribute("x-component"),
+                (n): n is HTMLElement =>
+                    n instanceof HTMLElement && n.hasAttribute("x-define"),
             );
             this._importUrlCache.set(url, elements);
         }
         // 注册各组件
         const registered: string[] = [];
         for (const el of elements) {
-            const name = (el.getAttribute("x-component") ?? "").trim() || "default";
+            const name = (el.getAttribute("x-define") ?? "").trim() || "default";
             // declarerScope：作用域注册挂 ownerScope（ADR-0053 declarer 基准）；全局注册无声明 scope → null
             const def = buildComponentDef(
                 el,
