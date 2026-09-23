@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-dialog · 自动关闭（delayClose）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .ov-panel {
+        background: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        min-width: 320px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+      }
+      .ov-toast {
+        background: rgba(0, 0, 0, 0.82);
+        color: #fff;
+        border-radius: 6px;
+        padding: 10px 18px;
+        min-width: 0;
+        font-size: 13px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+      }
+      .log {
+        max-height: 110px;
+        overflow: auto;
+        font-size: 12px;
+        color: #555;
+        background: #f6f8fa;
+        border-radius: 6px;
+        padding: 8px 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- delayClose（ms）> 0：打开后延时自动「请求关闭」——走标准关闭链（回写 visible + 广播 + 动画） -->
+    <div class="demo-app section" style="padding-top: 120px; padding-bottom: 20px">
+      <div x-data="{ ui: { notice: false, toast: false } }">
+        <div class="block">
+          <button
+            class="button is-primary"
+            x-dialog:notice="{visible: 'ui.notice', delayClose: 3000}"
+            @click="ui.notice = true"
+          >
+            打开通知（3 秒后自动关闭）
+          </button>
+          <button
+            class="button is-dark"
+            x-dialog:toast="{visible: 'ui.toast', delayClose: 2000, border: false}"
+            @click="ui.toast = true"
+          >
+            轻提示（2 秒，border: false）
+          </button>
+          <span class="tag" x-text="'notice = ' + ui.notice"></span>
+          <span class="tag" x-text="'toast = ' + ui.toast"></span>
+        </div>
+        <div class="block has-text-grey">
+          <code>delayClose</code>（毫秒）大于 0 时，打开后延时自动走<b>「请求关闭」</b>——可回写的
+          <code>visible</code> 照常回写 <code>false</code>（上方状态标签实时可见）、
+          <code>overlay:close</code> 照常广播（下方日志）、动画照常播放；手动关闭（ESC / 遮罩 /
+          close 动作）优先于定时器，二者不冲突。
+        </div>
+        <div class="log block" id="log"><div>（等待关闭事件…）</div></div>
+
+        <div x-component="notice">
+          <div class="ov-panel">
+            <h3 class="title is-5">📢 系统通知</h3>
+            <p>本通知将在 3 秒后自动关闭（delayClose: 3000）。</p>
+            <p class="is-size-7 has-text-grey">
+              也可以提前手动关闭：ESC / 点遮罩 / 下方按钮——三者优先于定时器。
+            </p>
+            <button class="button is-fullwidth" @click="close()">立即关闭</button>
+          </div>
+        </div>
+        <div x-component="toast">
+          <div class="ov-toast">✔ 已保存（轻提示，2 秒自动消失）</div>
+        </div>
+      </div>
+    </div>
+    <script>
+      const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+      // 自动关闭与手动关闭都走同一条「请求关闭」链：回写 visible + 广播 overlay:close
+      engine.on("overlay:close", (m) => {
+        const p = m?.payload ?? m;
+        const log = document.getElementById("log");
+        log.insertAdjacentHTML(
+          "beforeend",
+          `<div>· overlay:close name=${p?.name} 时间=${new Date().toLocaleTimeString()}</div>`,
+        );
+      });
+    </script>
+  </body>
+</html>

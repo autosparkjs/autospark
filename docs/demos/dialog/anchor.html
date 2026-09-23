@@ -1,46 +1,250 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <title>x-dialog · anchor 锚定定位</title>
-        <script src="/autospark/autospark.js"></script>
-        <link rel="stylesheet" href="/autospark/bulma.min.css" />
-        <style>
-            .ov-panel { background: #fff; border-radius: 8px; padding: 20px; min-width: 260px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
-        </style>
-    </head>
-    <body>
-        <!-- anchor.at 命令式换锚：open(options) 的 anchor 走合并链最顶层；有 at 时贴锚定位（floating-ui），遮罩照常模态 -->
-        <div class="demo-app section">
-            <div class="block" style="display:flex; gap: 8px; flex-wrap: wrap;">
-                <button id="btn-top" class="button" onclick="openTip('top')">从上方按钮弹出（placement: top）</button>
-                <button id="btn-bottom" class="button" onclick="openTip('bottom')">从下方按钮弹出（placement: bottom）</button>
-            </div>
-            <div class="block has-text-grey">
-                <code>anchor.at</code> 两栖：<code>@</code> 前缀全局选择器、无前缀 scope 子树内查、命令式直接传元素（本页）。
-                <code>arrow: true</code> 时引擎自动注入箭头（伪元素实现，模板零约定）。
-                声明处 <code>x-overlay-options</code> 的 anchor 是缺省锚，命令式 <code>open({anchor})</code> 在合并链最顶层覆盖它——换锚即换位置。
-            </div>
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-dialog · anchor 锚定定位</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .ov-panel {
+        background: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        min-width: 260px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+      }
+      .ov-panel-sm {
+        padding: 10px 14px;
+        min-width: 0;
+        font-size: 12px;
+        line-height: 1.5;
+        text-align: center;
+      }
+      /* 九宫格：全部 placement 取值演示（中央 = 锚点） */
+      .placement-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        max-width: 360px;
+        margin: 0 auto;
+      }
+      .placement-grid .button {
+        font-size: 11px;
+        padding: 0 6px;
+        height: auto;
+        white-space: nowrap;
+      }
+      .anchor-center {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: hsl(171, 100%, 29%);
+        color: #fff;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        min-height: 34px;
+      }
+      .placement-extra {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      .placement-extra .button {
+        font-size: 11px;
+        padding: 0 10px;
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- at 命令式换锚：open(options) 的 at 走合并链最顶层；有 at 时贴锚定位（floating-ui），遮罩照常模态 -->
+    <div class="demo-app section" style="padding-top: 150px; padding-bottom: 20px">
+      <div class="block" style="display: flex; gap: 8px; flex-wrap: wrap">
+        <button id="btn-top" class="button" onclick="openTip('top')">
+          从上方按钮弹出（placement: top）
+        </button>
+        <button id="btn-bottom" class="button" onclick="openTip('bottom')">
+          从下方按钮弹出（placement: bottom）
+        </button>
+      </div>
+      <div class="block has-text-grey">
+        <code>at.selector</code> 相对查询：<code>/</code> 前缀全局选择器（<code>../</code> 父级爬升、<code>^</code> closest）、无前缀 scope
+        子树内查、命令式简写直接传元素（本页）。 锚定模式下箭头<b>默认开启</b>（伪元素实现，模板零约定，
+        <code>arrow: false</code> 显式关闭）。
+        指令选项 <code>x-dialog-options</code> 的 at 是缺省锚（字符串/元素简写 ≡
+        <code>{selector}</code>），命令式 <code>open({at})</code> 在合并链最顶层覆盖它——换锚即换位置。
+      </div>
 
-            <!-- 全局定义：命令式消费（getOverlay）的唯一来源；x-scope 为声明提供归属 scope -->
-            <div x-scope>
-                <div x-overlay:tip.global="dialog" x-overlay-options="{anchor: {at: '@#btn-top', placement: 'right', arrow: true}}">
-                    <div class="ov-panel">
-                        <h3 class="title is-5">贴锚提示</h3>
-                        <p>本面板贴着触发按钮定位。</p>
-                        <button class="button is-small is-fullwidth" @click="close()">关闭</button>
-                    </div>
-                </div>
-            </div>
+      <!-- 覆盖物内容：普通组件声明；x-scope 提供归属 scope，命令式 getOverlay 以该元素起链查找 -->
+      <div x-scope id="tip-root">
+        <div x-component="tip">
+          <div class="ov-panel">
+            <h3 class="title is-5">贴锚提示</h3>
+            <p>本面板贴着触发按钮定位。</p>
+            <button class="button is-small is-fullwidth" @click="close()">关闭</button>
+          </div>
         </div>
-        <script>
-            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
-            // 命令式 open：anchor.at 直接传元素；仅 .global 定义可 getOverlay 达（「命令式 = 全局消费」）
-            function openTip(pos) {
-                engine.getOverlay("tip")?.open({
-                    anchor: { at: document.getElementById("btn-" + pos), placement: pos, arrow: true },
-                });
-            }
-        </script>
-    </body>
+      </div>
+
+      <!--
+        九宫格：12 个 placement 取值全演示（纯声明式 x-dialog）。
+        12 个消费点共享同一组件 x-component="placement-tip"，各自值对象差异化：
+        visible（独立状态位，简单路径可回写）+ placement（props，注入面板显示）+ at（保留配置键，
+        selector 用 / 全局选择器引用中央锚点）。模态遮罩天然保证同一时刻只有一个面板打开。
+      -->
+      <div
+        x-data="{
+          ui: {
+            topStart: false, top: false, topEnd: false,
+            leftStart: false, rightStart: false,
+            bottomStart: false, bottom: false, bottomEnd: false,
+            left: false, leftEnd: false, right: false, rightEnd: false, auto: false, bordered: false
+          }
+        }"
+      >
+        <div class="block">
+          <div class="placement-grid">
+            <button
+              class="button is-light"
+              x-dialog:placement-tip="{visible: 'ui.topStart', placement: 'top-start', at: {selector: '/#anchor-center', placement: 'top-start', flip: false}}"
+              @click="ui.topStart = true"
+            >
+              top-start
+            </button>
+            <button
+              class="button is-light"
+              x-dialog:placement-tip="{visible: 'ui.top', placement: 'top', at: {selector: '/#anchor-center', placement: 'top', flip: false}}"
+              @click="ui.top = true"
+            >
+              top
+            </button>
+            <button
+              class="button is-light"
+              x-dialog:placement-tip="{visible: 'ui.topEnd', placement: 'top-end', at: {selector: '/#anchor-center', placement: 'top-end', flip: false}}"
+              @click="ui.topEnd = true"
+            >
+              top-end
+            </button>
+            <button
+              class="button is-light"
+              x-dialog:placement-tip="{visible: 'ui.leftStart', placement: 'left-start', at: {selector: '/#anchor-center', placement: 'left-start', flip: false}}"
+              @click="ui.leftStart = true"
+            >
+              left-start
+            </button>
+            <div class="anchor-center" id="anchor-center">锚点</div>
+            <button
+              class="button is-light"
+              x-dialog:placement-tip="{visible: 'ui.rightStart', placement: 'right-start', at: {selector: '/#anchor-center', placement: 'right-start', flip: false}}"
+              @click="ui.rightStart = true"
+            >
+              right-start
+            </button>
+            <button
+              class="button is-light"
+              x-dialog:placement-tip="{visible: 'ui.bottomStart', placement: 'bottom-start', at: {selector: '/#anchor-center', placement: 'bottom-start', flip: false}}"
+              @click="ui.bottomStart = true"
+            >
+              bottom-start
+            </button>
+            <button
+              class="button is-light"
+              x-dialog:placement-tip="{visible: 'ui.bottom', placement: 'bottom', at: {selector: '/#anchor-center', placement: 'bottom', flip: false}}"
+              @click="ui.bottom = true"
+            >
+              bottom
+            </button>
+            <button
+              class="button is-light"
+              x-dialog:placement-tip="{visible: 'ui.bottomEnd', placement: 'bottom-end', at: {selector: '/#anchor-center', placement: 'bottom-end', flip: false}}"
+              @click="ui.bottomEnd = true"
+            >
+              bottom-end
+            </button>
+          </div>
+          <div class="placement-extra">
+            <button
+              class="button is-light"
+              x-dialog:placement-tip="{visible: 'ui.left', placement: 'left', at: {selector: '/#anchor-center', placement: 'left', flip: false}}"
+              @click="ui.left = true"
+            >
+              left
+            </button>
+            <button
+              class="button is-light"
+              x-dialog:placement-tip="{visible: 'ui.leftEnd', placement: 'left-end', at: {selector: '/#anchor-center', placement: 'left-end', flip: false}}"
+              @click="ui.leftEnd = true"
+            >
+              left-end
+            </button>
+            <button
+              class="button is-light"
+              x-dialog:placement-tip="{visible: 'ui.right', placement: 'right', at: {selector: '/#anchor-center', placement: 'right', flip: false}}"
+              @click="ui.right = true"
+            >
+              right
+            </button>
+            <button
+              class="button is-light"
+              x-dialog:placement-tip="{visible: 'ui.rightEnd', placement: 'right-end', at: {selector: '/#anchor-center', placement: 'right-end', flip: false}}"
+              @click="ui.rightEnd = true"
+            >
+              right-end
+            </button>
+            <button
+              class="button is-primary is-light"
+              x-dialog:placement-tip="{visible: 'ui.auto', placement: 'auto', at: '/#anchor-center'}"
+              @click="ui.auto = true"
+            >
+              auto（默认）
+            </button>
+            <button
+              class="button is-light"
+              x-dialog:placement-tip="{visible: 'ui.bordered', placement: 'top', border: false, at: {selector: '/#anchor-center', placement: 'top', flip: false}}"
+              @click="ui.bordered = true"
+            >
+              border: false（关闭边框）
+            </button>
+          </div>
+        </div>
+
+        <!-- placement 演示用小面板：placement 名经 props 注入（值对象非保留键全作 props） -->
+        <div x-component="placement-tip">
+          <script type="autospark/setup">
+            { data() { return { placement: "bottom" } } }
+          </script>
+          <div class="ov-panel ov-panel-sm">
+            placement: <b x-text="placement"></b>
+            <div class="has-text-grey is-size-7">ESC / 点遮罩关闭（回写状态位）</div>
+          </div>
+        </div>
+
+        <div class="block has-text-grey is-size-7" style="margin-top: 8px">
+          13 个消费点共享同一组件，值对象差异化 <code>visible</code>（简单路径，关闭自动回写
+          <code>false</code>）/ <code>placement</code>（props）/ <code>at</code>（保留配置键，
+          <code>selector</code> 用 <code>/</code> 全局选择器引用中央锚点；auto 按钮演示
+          <strong>字符串简写</strong> <code>at: '/#anchor-center'</code> ≡ <code>{selector: …}</code>）。
+          模态遮罩保证同时只开一个。
+          <code>placement: 'auto'</code>（**默认值**，省略即 auto）经 autoPlacement 按视口空间自动选位；
+          <code>border</code> 同样默认开启（面板 1px 边框 + 箭头双层变色自动融合，最后一个按钮演示
+          <code>border: false</code> 关闭）；
+          演示中 <code>flip: false</code> 关闭视口翻转（生产默认开启，放不下时自动翻面），
+          以展示每个 placement 的原始语义。
+        </div>
+      </div>
+    </div>
+    <script>
+      const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+      // 命令式 open（顶部换锚演示用）：at 元素简写 ≡ {selector: el}
+      // （el 起链查找命中 x-scope 内的 tip 组件声明；placement 保留在锚配置对象里）
+      function openTip(pos) {
+        engine.getOverlay(document.getElementById("tip-root"), "tip")?.open({
+          at: { selector: document.getElementById("btn-" + pos), placement: pos },
+        });
+      }
+    </script>
+  </body>
 </html>

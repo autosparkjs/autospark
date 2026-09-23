@@ -276,30 +276,30 @@ _Avoid_: 分页状态注入（不进状态树）、分页对象（与 :data-pagi
 x-for 分页模式的特殊形态：`pageCount=0` 时总页数未知，只有"下一页"语义。loader 返回空 data 数组时 `$hasMore=false`，表示没有更多数据。
 _Avoid_: 无限滚动（load-more 是显式触发，不是自动滚动加载）
 
-### 覆盖层（Overlay）
+### 覆盖物（Overlay）
 
-**覆盖层定义（Overlay Definition）**:
-`x-overlay:<名称>` 声明的弹层模板资源（dialog / drawer / popup / popover 家族的声明侧）：编译期剪枝缓存为冻结快照、挂最近祖先 scope（`.global` 升 engine 级），不进结果 DOM（声明处无闪现）。值是**类型认领**标记（消费者类型不匹配 warn 仍渲染；无值 = 通用），同名定义后者覆盖。声明元素上其他指令随快照冻结、消费时才编译——模板具完整组件能力（`<script setup>`/`<style>` 生效）。存储与查找沿 scope 链就近 + engine 全局兜底（与组件查找同构）。详见 ADR-0052。
-_Avoid_: 覆盖物（口语变体）、弹层模板（泛化）、overlay 组件（无 x-component 参与）、内联弹层（定义不在消费处渲染）
+**覆盖物（Overlay）**:
+任意组件被渲染到 `document.body` 容器的**消费方式**——内容就是普通组件（`x-component` 声明 / `options.components` 全局注册 / `x-import` 加载），**无独立声明指令**（旧 `x-overlay` 声明语法已删）。消费者指令（x-dialog 等）按组件名沿 scope 链就近 + 全局兜底查找（镜像 `getComponent` 协议），状态驱动地实例化渲染到 body 下本 engine 的覆盖物容器。详见 ADR-0052（修订版：组件化统一）。
+_Avoid_: 覆盖层（旧称，随声明指令一起废弃）、弹层模板（泛化）、overlay 组件（无 x-component 参与）、内联弹层
 
-**覆盖层实例（Overlay Instance）**:
-覆盖层定义被消费者打开渲染出的**活体**：独立 scope + watcher 子树，渲染进 body 下本 engine 的覆盖层容器。表达式上下文 / 挂链 / 生命周期由 **scope 基准**三合一决定（`scope: 'consumer' | 'declarer'`，默认 declarer——declarer 实例随声明处 scope 近永续，consumer 实例随消费者 scope 生死）。singleton 定义单例复用（关闭隐藏保活、重注入 params），非单例每次新实例可并存、关闭即销毁；层叠 = DOM 追加顺序。
-_Avoid_: overlay 对象、弹层实例（泛化）、对话框实例（那是 x-dialog 消费者视角的产物）
+**覆盖物实例（Overlay Instance）**:
+覆盖物被消费者打开渲染出的**活体**：组件快照经独立 scope + watcher 子树编译（data()/props、methods、hooks、scoped CSS 全生效），渲染进 body 下本 engine 的覆盖物容器。**每次打开新实例**（singleton 未引入）、关闭动画播完即销毁、多实例可并存；层叠 = DOM 追加顺序。挂链即基准（scope 基准三合一：表达式上下文 / 数据视图 / 生命周期统一由 parentScope 表达，默认 `declarer`）。
+_Avoid_: overlay 对象、弹层实例（泛化）、对话框实例（那是 x-dialog 消费者视角的产物）、单例（机制未引入）
 
-**覆盖层消费者（Overlay Consumer）**:
-把覆盖层定义实例化并驱动其生命周期的指令族（x-dialog / x-drawer / x-popup / x-popover，v1 仅 x-dialog）：**纯状态驱动**——宿主是纯声明点（无隐式点击），visible 绑定（简单路径可回写 / 表达式 / 字面量三形态）真值即开；params 打开时快照注入实例数据域顶层（覆盖同名）。per-实例配置经值对象内联（visible/params 保留键、其余键入配置链），配置四级深度合并：`内置默认 < x-overlay-options < x-dialog-options < 值对象内联`。
+**覆盖物消费者（Overlay Consumer）**:
+把覆盖物组件实例化并驱动其生命周期的指令族（x-dialog / x-drawer / x-popup / x-popover，v1 仅 x-dialog）：同一 `OverlayDirective` 基座（继承 `UseDirective`）上的**薄子类**，只叠加形态差异（外壳 / 定位 / 关闭行为）。**纯状态驱动**——宿主是纯声明点（无隐式点击），visible 绑定（简单路径可回写 / 表达式 / 字面量 / 对象形态）真值即开；值对象与命令式 options 的**非保留键全部作 props** 注入组件 data 域（保留键封闭清单 = `visible` + `closeOnMask` / `animate` / `at` / `scope`）。配置三级深度合并：`内置默认 < x-dialog-options < 值对象内联`（组件 def 不携带配置）。
 _Avoid_: 触发器（宿主无隐式点击）、弹出指令（泛化）、调用方（action 语境词汇）
 
 **请求关闭（Request Close）**:
-覆盖层关闭动作（ESC / 点遮罩 / close action）的统一语义——关闭是「请求」不是命令：visible 可回写（简单路径）则回写 `false`（状态是唯一真相源）；不可回写（表达式/字面量）仅 UI 关闭 + `overlay:close` 广播由用户善后。已知边界：表达式形态关闭后依赖变化重求值仍真会**重开**。子树内 close action 由消费者在实例根上委托监听（overlay DOM 在 body 下，engine 树收不到冒泡）。
+覆盖物关闭动作（ESC / 点遮罩 / close action）的统一语义——关闭是「请求」不是命令：visible 可回写（简单路径）则回写 `false`（状态是唯一真相源）；不可回写（表达式/字面量）仅 UI 关闭 + `overlay:close` 广播由用户善后。已知边界：表达式形态关闭后依赖变化重求值仍真会**重开**。子树内 close action 由消费者在实例根上委托监听（覆盖物 DOM 在 body 下，engine 树收不到冒泡）。
 _Avoid_: 强制关闭（它是请求语义）、自动回写（仅简单路径可回写）、关闭回调（事件广播解耦，非配置函数）
 
-**覆盖层定义句柄（Overlay Handle）**:
-`engine.getOverlay(name, options?)` 返回的**定义编程视图**（命令式消费入口）：`open(options?)` 打开、`close()` 关闭该定义当前全部打开实例。仅 `.global` 声明的定义命令式可达（「命令式 = 全局消费」）；options 是消费者配置级（与 x-dialog-options 同级），命令式合并链比声明式少一级。
+**覆盖物定义句柄（Overlay Handle）**:
+`engine.getOverlay(el, name, options?)` 返回的**定义编程视图**（命令式消费入口）：`open(options?)` 打开、`close()` 关闭该覆盖物当前全部打开实例。查找镜像 `getComponent` 协议（`el` 起 scope 链就近 + 全局兜底；省略 `el` 仅查全局）；options 是消费者配置级（与 x-dialog-options 同级）。
 _Avoid_: overlay 对象（泛化）、定义引用（「句柄」对齐 handle 惯例）、组件句柄（与 x-component 撞义）
 
-**覆盖层实例句柄（Overlay Instance Handle）**:
-定义句柄 `open(options?)` 返回的**单个实例编程视图**：`close()` 精确关闭、`el` / `name` / `scope` 读取——非单例多实例并存时唯一能精确关闭单个实例的通道。`options.scope`（元素）声明数据视图基准（缺省 engine 根全局视图），与声明式 scope 键同概念两表达面（声明式给基准名、命令式给基准载体）；命令式实例与声明式实例**同权同池**（共享单例池；单例重复 open 幂等——同句柄 + 重注入 params + 不重播动画）。
+**覆盖物实例句柄（Overlay Instance Handle）**:
+定义句柄 `open(options?)` 返回的**单个实例编程视图**：`close()` 精确关闭、`el` / `name` / `scope` 读取——多实例并存时唯一能精确关闭单个实例的通道。`options.scope`（元素）声明数据视图基准（缺省 rootless 全局视图），与声明式 scope 键同概念两表达面（声明式给基准名、命令式给基准载体）；命令式实例与声明式实例**同权**（同一容器 / 事件双通道 / 配置链 / 打开栈）。
 _Avoid_: anchor（那是定位锚点，数据视图是 scope）、实例对象（泛化）
 
 **打开栈（Open Stack）**:
@@ -307,12 +307,12 @@ document 级共享的**打开实例顺序栈**（所有 engine 的实例同栈�
 _Avoid_: 层级栈（z-index 显式层级管理是另一件事）、单 engine 栈（跨 engine 全局协调正是决策核心）
 
 **定位锚点（Anchor）**:
-`anchor` 配置指定的**显示定位参考**（与 scope 正交：scope 管数据视图、anchor 管位置）：`anchor.at` 两栖——字符串选择器（`@` 前缀全局 / 无前缀 scope 子树内查，打开时现查，未命中 warn 退屏幕居中）或元素引用（命令式）。dialog 恒模态——anchor 只改位置不改模态性（有 anchor 遮罩照常渲染）；定位计算经 floating-ui（placement / offset / shift / flip，flip 与滚动重定位默认开），箭头由引擎自动注入载体 + 伪元素默认视觉（8×8 旋转 45°，模板零约定）。
-_Avoid_: 锚点 el（键名是 at）、scope 锚点（scope 是数据视图，二者正交）、popup 专属（dialog 有 anchor 时同样锚定定位）
+`at` 配置指定的**显示定位参考**（与 scope 正交：scope 管数据视图、at 管位置）。顶层键三态：字符串 / 元素**简写**（≡ `{selector}`，进合并链前归一化——只覆盖 selector、保留上层其余锚成员）或完整锚配置对象；`at.selector` 两栖——字符串选择器（相对查询：`/` 前缀全局 / 无前缀 scope 子树内查 / `../` 父级爬升 / `^` closest，打开时现查，未命中 warn 退屏幕居中）或元素引用。dialog 恒模态——锚定只改位置不改模态性（有 at 遮罩照常渲染）；定位计算经 floating-ui（`placement` 默认 `'auto'` 视口自动选位 [autoPlacement，与 flip 互斥]，显式 12 方向值则固定 + flip 翻转默认开 / offset / shift），**锚定模式下箭头默认开启**（`arrow: false` 显式关闭）：引擎自动注入载体 + 双伪元素默认视觉（带阴影 8×8 菱形 + 无阴影 10×10 菱形朝面板内侧偏移 4px=阴影模糊半径，完全遮蔽嵌入段阴影残留——露出段阴影保留立体感），按 floating-ui 协议沿 staticSide 反向偏移载体尺寸的一半（菱形一半嵌入面板同色融合、一半露出形成小三角），未配置 offset 时默认让位 6px（三角尖点在锚元素边缘上）；`border` 面板 1px 边框为**面板级配置**（默认 true，与锚定无关、无 at 也生效）：外壳模式——面板视觉（背景 `--autospark-overlay-bg` + 边框 `--autospark-overlay-border` + 圆角 `--autospark-overlay-radius`）由 panel 外壳统一承担，同色背景填平圆角微差（四角无缝），箭头双层变色融合（底层变边框色、覆盖层变面板背景色外扩至 12×12——露出段留 ≈1.17px 边框色斜带与面板 border 连续、嵌入段完整遮蔽）；退居中不注入箭头。视觉三层全部收敛在 floating-ui 协议必需的单一载体元素上（伪元素承担分层），**零额外真实 DOM**——面板保持 box-shadow（无 filter 的 containing block 副作用），阴影连续性不靠外层包裹容器。
+_Avoid_: 锚点 el（顶层键是 at、锚选择器是 selector）、scope 锚点（scope 是数据视图，二者正交）、popup 专属（dialog 有 at 时同样锚定定位）
 
 ### 加载遮罩（Loading Mask）
 
-> 旧称「加载覆盖层」已让位更名——「覆盖层」词汇整体归属 x-overlay 弹层家族（正式词条见上方「覆盖层」章节，历史沿革见「已废弃」词条）。
+> 旧称「加载覆盖层」已让位更名——「覆盖物」词汇归属弹层消费家族（正式词条见上方「覆盖物」章节，历史沿革见「已废弃」词条）。
 
 **动作按钮清单 / actions（x-loading）**:
 x-loading 配置的**动作名数组**（inline 主声明 → `x-loading-options` 回退，与其他配置字段同规则；非字符串元素 warn 剪枝）。挂载时解析为 `[{name, title}]` 注入块 data（`title = ActionDesc.title ?? name`），渲染归块作者、触发归指令（见「data-action 委托」）。详见 ADR-0038。
@@ -593,8 +593,8 @@ _Avoid_: 沙箱、数据隔离（那是 scoped CSS 的领域）、穿透（指 m
 _Avoid_: public / expose（对外词汇不一致）、透明模式（不表达「声明侧契约 + 不可被消费侧打开」语义）
 
 **scope 基准（Scope Basis）**:
-开放状态下的上下文继承基准，组件与覆盖层家族通用（组件用 `host` 指消费处，overlay 沿用 `consumer`——同一概念两表达面）。组件两值：`'host'`（默认，消费处上下文 ≈ 封闭化之前的既有行为）| `'declarer'`（声明处上下文，词法基准——嵌套私有子组件的声明处是外层组件的实例 scope）。解析链：`x-use-options.scope`（消费覆盖，仅已开放组件生效）> `x-component-options.scope`（作者默认，须配合 open）> `'host'`。三类退化（均 warn 一次）：作者侧 scope 无 open、消费侧 scope 落封闭组件、全局组件声明 declarer（无声明 scope）；declarer 声明 scope 销毁后悬空降级封闭。
-_Avoid_: 数据源（那是异步源家族术语）、上下文基准（中英混杂）、基准点
+上下文继承基准，组件与覆盖物家族通用，两值统一（ADR-0053 修订：`consumer` 已更名废弃）。组件：`'host'`（默认，消费处上下文 ≈ 封闭化之前的既有行为）| `'declarer'`（声明处上下文，词法基准——嵌套私有子组件的声明处是外层组件的实例 scope）。解析链：`x-use-options.scope`（消费覆盖，仅已开放组件生效）> `x-component-options.scope`（作者默认，须配合 open）> `'host'`。覆盖物：配置键已更名 **`dataContext`**（`scope` 与 x-scope/AutoSparkScope 撞名，旧键 warn 兜底）——`'declarer'`（默认，挂声明处 scope=定义闭包）| `'host'`（挂消费处 scope），挂链即基准（表达式上下文/数据视图/生命周期统一由 parentScope 表达）。三类退化（均 warn 一次）：作者侧 scope 无 open、消费侧 scope 落封闭组件、全局组件声明 declarer（无声明 scope）；declarer 声明 scope 销毁后悬空降级封闭。
+_Avoid_: 数据源（那是异步源家族术语）、上下文基准（中英混杂）、基准点、consumer（已更名废弃）、scope（覆盖物配置键已更名 dataContext）
 
 **组件查找（Component Lookup）**:
 `getComponent` 沿 scope 链就近 + 全局兜底，与原 getBlock 同构。default 唯一性放宽（同名 warn+覆盖）。
@@ -631,5 +631,9 @@ _Avoid_: type="actions"、type="setup"（改用 autospark/ 前缀写法）
 _Avoid_: visible（x-loading 配置对象内改用 value；x-show 等指令的 visible 状态字段名不受影响）
 
 **加载覆盖层（x-loading 旧称）**:
-已废弃，更名为**加载遮罩（Loading Mask）**——「覆盖层」词汇整体让渡给 x-overlay 弹层家族（覆盖层定义 / 覆盖层实例），x-loading 在宿主上方的覆盖指示层改称遮罩，语义不变。历史 ADR（0008/0021/0038 等）正文保留旧称，作为决策当时的记录。
-_Avoid_: 覆盖层（裸词现指 x-overlay 家族）、loading 层、浮层
+已废弃，更名为**加载遮罩（Loading Mask）**——「覆盖物」词汇归属弹层消费家族（覆盖物 / 覆盖物实例 / 覆盖物消费者），x-loading 在宿主上方的覆盖指示层改称遮罩，语义不变。历史 ADR（0008/0021/0038 等）正文保留旧称，作为决策当时的记录。
+_Avoid_: 覆盖层（旧称）、loading 层、浮层
+
+**x-overlay 声明语法家族（ADR-0052 修订版废弃）**:
+已废弃，升级为「覆盖物 = 任意组件的消费方式」（ADR-0052 组件化统一修订）：`x-overlay:<名称>` 声明语法、`.global` 修饰符、`x-overlay-options` 声明处选项、`engine._globalOverlays` 全局表、`type` 类型认领字段、`params` 消费键、`scope: 'consumer'` 基准值一并删除。新写法：内容直接声明组件（`x-component` / `options.components` / `x-import`），配置只走消费处（`x-dialog-options` / 值对象内联，非保留键作 props），命令式 `engine.getOverlay(el, name, options?)` 镜像 `getComponent` 协议。
+_Avoid_: x-overlay、.global（覆盖物）、x-overlay-options、type 认领值、params 键、scope: 'consumer'

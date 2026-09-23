@@ -290,7 +290,7 @@ describe("x-loading selector 目标元素", () => {
         document.body.appendChild(external);
         try {
             const { root, engine } = mount(
-                `<div id="h" x-loading="{ value:'l', selector:'@#external' }"></div>`,
+                `<div id="h" x-loading="{ value:'l', selector:'/#external' }"></div>`,
                 { l: true },
             );
             // 覆盖层应在全局 #external 上，而非 detached 的 root 内

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-dialog · 对象形态与 props</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- 对象形态：visible 是驱动保留键、closeOnMask 等是配置保留键，其余键全部作 props 注入组件 data 域 -->
+        <div class="demo-app section">
+            <div x-data="{ ui: { openA: false, openB: false } }">
+                <div class="block">
+                    <button class="button is-primary"
+                            x-dialog:user="{visible: 'ui.openA', userId: 1, userName: '用户1', closeOnMask: false}"
+                            @click="ui.openA = true">查看用户 1（遮罩点击已禁用）</button>
+                    <button class="button"
+                            x-dialog:user="{visible: 'ui.openB', userId: 42, userName: '用户42'}"
+                            @click="ui.openB = true">查看用户 42</button>
+                </div>
+                <div class="block has-text-grey">
+                    同一个组件 <code>x-component="user"</code>，两个消费点各自传不同 props——
+                    值对象 <code>{visible, userId, userName, closeOnMask}</code> 中只有
+                    <code>visible</code> / <code>closeOnMask</code> 是保留键（驱动 + 配置），
+                    <code>userId</code> / <code>userName</code> 等非保留键<b>全部作 props</b> 注入组件 data 域
+                    （覆盖 data() 默认，与 x-use 同约定）。每次打开都是新实例、props 重新注入。
+                </div>
+
+                <div x-component="user">
+                    <script type="autospark/setup">{ data() { return { userId: 0, userName: "未知" } } }</script>
+                    <div class="ov-panel">
+                        <h3 class="title is-5">用户资料</h3>
+                        <p>ID：<b x-text="userId"></b>，姓名：<b x-text="userName"></b></p>
+                        <button class="button is-fullwidth" @click="close()">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

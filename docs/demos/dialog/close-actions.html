@@ -25,7 +25,7 @@
                 </div>
                 <div class="log block" id="log"><div>（等待关闭事件…）</div></div>
 
-                <div x-overlay:pay="dialog">
+                <div x-component="pay">
                     <div class="ov-panel">
                         <h3 class="title is-5">支付</h3>
                         <button class="button is-fullwidth" @click="close()">关闭</button>
@@ -35,7 +35,7 @@
         </div>
         <script>
             const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
-            // 总线通道监听（覆盖层 DOM 在 body 容器内，engine 树内的模板元素收不到 DOM 冒泡——
+            // 总线通道监听（覆盖物 DOM 在 body 容器内，engine 树内的模板元素收不到 DOM 冒泡——
             // 模板外 JS 用引擎总线；document.addEventListener("overlay:close") 则是 DOM 通道）
             engine.on("overlay:close", (m) => {
                 const p = m?.payload ?? m;

@@ -26,14 +26,13 @@
                     分相 <code>{enter, leave}</code>；<code>false</code> 关闭。自定义动画 = 按六类名写 CSS 传名即用。
                 </div>
 
-                <!-- 覆盖层定义与消费者同 scope（查找沿消费处祖先 scope 链向上） -->
-                <div x-overlay:d1="dialog">
+                <div x-component="d1">
                     <div class="ov-panel"><h3 class="title is-5">默认 fade</h3><button class="button" @click="close()">关闭</button></div>
                 </div>
-                <div x-overlay:d2="dialog">
+                <div x-component="d2">
                     <div class="ov-panel"><h3 class="title is-5">自定义 zoom</h3><button class="button" @click="close()">关闭</button></div>
                 </div>
-                <div x-overlay:d3="dialog">
+                <div x-component="d3">
                     <div class="ov-panel"><h3 class="title is-5">无动画</h3><button class="button" @click="close()">关闭</button></div>
                 </div>
             </div>

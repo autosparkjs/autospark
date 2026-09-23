@@ -41,7 +41,6 @@ import { BindDirective } from "./bind";
 import { OnDirective } from "./on";
 import { LoadingDirective } from "./loading";
 import { SlotDirective } from "./slot";
-import { OverlayDirective } from "./overlay";
 import { DialogDirective } from "./dialog";
 import { ModelDirective } from "./model";
 import { ScopeDirective } from "./scope";
@@ -88,9 +87,8 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     loading: LoadingDirective,
     slot: SlotDirective,
     scope: ScopeDirective,
-    // 覆盖层体系（ADR-0052）：x-overlay 名位（收集在 compiler 前置 transformer，永不实例化）、
-    // x-dialog 消费者（Compile 类，状态驱动）
-    overlay: OverlayDirective,
+    // 覆盖物体系（ADR-0052 修订版）：x-dialog 模态形态消费者（OverlayDirective 基座不注册——
+    // 模板无 x-overlay 语法，覆盖物内容 = 任意组件，消费 attr 名即组件名）
     dialog: DialogDirective,
     component: ComponentDirective,
     use: UseDirective,

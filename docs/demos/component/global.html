@@ -15,7 +15,7 @@
             - 多顶级节点 → 包一层 <div x-component="name">
             - 已含 x-component → 尊重原值
             - 纯文本 → 包成 <div x-component="name">文本
-            全局组件支持 <script setup>（data/methods/hooks）与 <style>，懒预编译缓存。
+            全局组件支持 <script type="autospark/setup">（data/methods/hooks）与 <style>，懒预编译缓存。
         -->
         <div id="app" x-scope>
             <div class="panel">
@@ -34,13 +34,13 @@
                 {},
                 {
                     components: {
-                        // 多顶级节点（title + desc）自动包一层 div，含 <script setup> 与 <style>
+                        // 多顶级节点（title + desc）自动包一层 div，含 <script type="autospark/setup"> 与 <style>
                         card: `
                             <div class="card-wrap">
                                 <div class="card-title" x-text="title"></div>
                                 <div class="card-desc" x-text="desc"></div>
                             </div>
-                            <script setup>{
+                            <script type="autospark/setup">{
                                 data(){ return { title: '默认标题', desc: '默认描述' } }
                             }<\/script>
                             <style>

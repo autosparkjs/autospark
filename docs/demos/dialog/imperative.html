@@ -10,7 +10,7 @@
         </style>
     </head>
     <body>
-        <!-- engine.getOverlay(name, options?) → 定义句柄；open(options?) → 实例句柄（close/el/name/scope） -->
+        <!-- engine.getOverlay(el, name, options?) → 定义句柄；open(options?) → 实例句柄（close/el/name/scope） -->
         <div class="demo-app section">
             <div class="block">
                 <button class="button is-primary" onclick="openByApi()">overlay.open()</button>
@@ -18,29 +18,28 @@
                 <button class="button is-light" onclick="handleClose()">handle.close()（关全部）</button>
             </div>
             <div class="block has-text-grey">
-                仅 <code>.global</code> 声明的定义命令式可达（「命令式 = 全局消费」）。
-                <code>open({params, scope, ...配置})</code>：params 注入数据域、scope（元素）提供数据视图基准。
-            </div>
-
-            <!-- 全局定义：命令式消费的唯一来源；x-scope 为声明提供归属 scope（声明要求祖先元素建 scope） -->
-            <div x-scope>
-                <div x-overlay:task.global="dialog">
-                    <div class="ov-panel">
-                        <h3 class="title is-5">任务详情</h3>
-                        <p>任务 ID：<b>{{taskId}}</b>，状态：<b>{{status}}</b></p>
-                        <button class="button is-fullwidth" @click="close()">关闭</button>
-                    </div>
-                </div>
+                本页组件经 <code>options.components</code> 全局注册，<code>engine.getOverlay(null, name)</code>
+                省略查找锚点、仅查全局。带 <code>el</code> 则起 scope 链就近查找（镜像 <code>getComponent</code> 协议）。
+                <code>open({...})</code> 的非保留键全部作 props 注入组件 data 域。
             </div>
         </div>
         <script>
-            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
-            const handle = engine.getOverlay("task", { animate: false });
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {}, {
+                components: {
+                    task: `<div class="ov-panel">
+                        <h3 class="title is-5">任务详情</h3>
+                        <p>任务 ID：<b>{{taskId}}</b>，状态：<b>{{status}}</b></p>
+                        <button class="button is-fullwidth" @click="close()">关闭</button>
+                    </div>`,
+                },
+            });
+            const handle = engine.getOverlay(null, "task", { animate: false });
             let inst = null;
 
             function openByApi() {
                 inst = handle.open({
-                    params: { taskId: "T-" + Math.floor(Math.random() * 1000), status: "运行中" },
+                    taskId: "T-" + Math.floor(Math.random() * 1000),
+                    status: "运行中",
                 });
                 console.log("实例句柄:", inst.name, inst.el);
             }
@@ -48,7 +47,7 @@
                 if (inst) inst.close(); // 精确关这一个实例
             }
             function handleClose() {
-                handle.close(); // 关该定义当前「全部」打开实例（逐个走「请求关闭」）
+                handle.close(); // 关该覆盖物当前「全部」打开实例（逐个走「请求关闭」）
             }
         </script>
     </body>

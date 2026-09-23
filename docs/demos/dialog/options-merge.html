@@ -2,7 +2,7 @@
 <html lang="zh-CN">
     <head>
         <meta charset="UTF-8" />
-        <title>x-dialog · 配置四级深度合并</title>
+        <title>x-dialog · 配置三级深度合并</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
@@ -10,24 +10,25 @@
         </style>
     </head>
     <body>
-        <!-- 配置链：内置默认 < x-overlay-options（声明处） < x-dialog-options（消费处） < 值对象内联，相邻层深度合并 -->
+        <!-- 配置链（组件 def 不携带配置，全部走消费处）：内置默认 < x-dialog-options < 值对象内联，相邻层深度合并 -->
         <div class="demo-app section">
             <div x-data="{ ui: { open: false } }">
                 <div class="block">
                     <button class="button is-primary"
                             x-dialog:cfg="{visible: 'ui.open', closeOnMask: true}"
+                            x-dialog-options="{animate: false}"
                             @click="ui.open = true">打开</button>
                 </div>
                 <div class="block has-text-grey">
-                    声明处 <code>x-overlay-options="{closeOnMask: false, animate: false}"</code>；
-                    消费处值对象内联 <code>closeOnMask: true</code> 覆盖其一、其余保留——最终生效：
-                    遮罩<b>可点关</b>（内联覆盖），无动画（声明处保留）。
+                    消费处指令选项 <code>x-dialog-options="{animate: false}"</code> 覆盖内置默认（无动画）；
+                    值对象内联 <code>closeOnMask: true</code>（本就等于默认，演示内联层）——最终生效：
+                    切换<b>无动画</b>（指令选项层）、遮罩<b>可点关</b>（内联层）。只写想改的键，其余原样保留。
                 </div>
 
-                <div x-overlay:cfg="dialog" x-overlay-options="{closeOnMask: false, animate: false}">
+                <div x-component="cfg">
                     <div class="ov-panel">
                         <h3 class="title is-5">合并演示</h3>
-                        <p>点遮罩可关（值对象覆盖）；切换无动画（声明处 animate: false 生效）。</p>
+                        <p>点遮罩可关（内联层）；切换无动画（指令选项层 animate: false 生效）。</p>
                         <button class="button is-fullwidth" @click="close()">关闭</button>
                     </div>
                 </div>

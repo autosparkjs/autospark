@@ -41,6 +41,7 @@ export default defineConfig({
                         { text: "指令类型", link: "/zh/guide/directive" },
                         { text: "指令配置", link: "/zh/guide/config" },
                         { text: "组件", link: "/zh/guide/component" },
+                        { text: "覆盖物", link: "/zh/guide/overlays" },
                         { text: "动态模板", link: "/zh/guide/patch" },
                         { text: "动画", link: "/zh/guide/animate" }, 
                         { text: "Scope", link: "/zh/guide/scope" } 
@@ -69,7 +70,6 @@ export default defineConfig({
                         { text: "x-on", link: "/zh/guide/directives/x-on" },
                         { text: "x-loading", link: "/zh/guide/directives/x-loading" },
                         { text: "x-slot", link: "/zh/guide/directives/x-slot" },
-                        { text: "x-overlay", link: "/zh/guide/directives/x-overlay" },
                         { text: "x-dialog", link: "/zh/guide/directives/x-dialog" },
                         { text: "x-model", link: "/zh/guide/directives/x-model" },
                         { text: "x-form", link: "/zh/guide/directives/x-form" },

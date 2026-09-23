@@ -56,17 +56,17 @@
 
 ## 响应式插值
 
-文本里的 `{{ 表达式 }}` 会被求值并替换为文本——和 `x-text` 等价，只是内联在文本中。
+文本里的 <span v-pre>`{{ 表达式 }}`</span> 会被求值并替换为文本——和 `x-text` 等价，只是内联在文本中。
 
 ```html
 <p>你好，{{ user.name }}！共 {{ list.length }} 条。</p>
 ```
 
-`{{ }}` 结果一律按纯文本写入（浏览器自动转义，XSS 安全）。要注入原始 HTML，用 [x-html](../guide/directives/x-html.md)。属性值里也能用 `{{ }}`（如 `class="row {{ type }}"`），它会被合成等价的 `:attr` 绑定。
+<span v-pre>`{{ }}`</span> 结果一律按纯文本写入（浏览器自动转义，XSS 安全）。要注入原始 HTML，用 [x-html](../guide/directives/x-html.md)。属性值里也能用 `{{ }}`（如 <span v-pre>`class="row {{ type }}"`</span>），它会被合成等价的 `:attr` 绑定。
 
 ## 作用域（Scope）
 
-**作用域（Scope）** 是模板引擎的核心组织单元。每个**含指令或 `{{}}` 插值**的元素，编译期都会建一个 `AutoSparkScope`，它统一管理该元素上所有指令的生命周期与状态订阅。
+**作用域（Scope）** 是模板引擎的核心组织单元。每个**含指令或 <span v-pre>`{{}}`</span> 插值**的元素，编译期都会建一个 `AutoSparkScope`，它统一管理该元素上所有指令的生命周期与状态订阅。
 
 一个 scope 持有：
 
@@ -78,7 +78,7 @@
 <!-- 外层 scope（含 x-data） -->
 <div x-data="{ tab: 'home' }">
     <!-- 内层 scope（x-for 每项各建一个 scope），继承父级 tab -->
-    <div x-for="item in list">
+    <div x-for="item of list">
         <span x-text="item.name + '(' + tab + ')'"></span>
     </div>
 </div>
@@ -86,7 +86,7 @@
 
 ### 谁会建 scope
 
-并非每个元素都建 scope。**含指令、含 `{{}}` 插值**的元素才建。一个光秃秃的 `<div>`（只作结构包裹）不建 scope。这正是 [x-scope](../guide/directives/x-scope.md) 指令的用途：让纯容器也建 scope，为后代 `x-component` 提供归属锚点、为作用域链插入边界。
+并非每个元素都建 scope。**含指令、含 <span v-pre>`{{}}`</span> 插值**的元素才建。一个光秃秃的 `<div>`（只作结构包裹）不建 scope。这正是 [x-scope](../guide/directives/x-scope.md) 指令的用途：让纯容器也建 scope，为后代 `x-component` 提供归属锚点、为作用域链插入边界。
 
 ### 作用域链与就近查找
 

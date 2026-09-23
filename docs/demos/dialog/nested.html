@@ -22,7 +22,7 @@
                     第二次才关主对话框（document 级打开栈，跨 engine 也不连环关）。
                 </div>
 
-                <div x-overlay:main="dialog">
+                <div x-component="main">
                     <div class="ov-panel">
                         <h3 class="title is-5">主对话框</h3>
                         <p>项目「示例数据」将被删除。</p>
@@ -33,7 +33,7 @@
                         </div>
                     </div>
                 </div>
-                <div x-overlay:confirm="dialog">
+                <div x-component="confirm">
                     <div class="ov-panel">
                         <h3 class="title is-5">确认删除？</h3>
                         <p>此操作不可撤销（演示用，不会真删）。</p>

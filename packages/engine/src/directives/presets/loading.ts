@@ -5,6 +5,7 @@ import type { AutoSparkScope } from "../../scope";
 import { isSimpleStatePath } from "../../scope";
 import { getVal, type Watcher } from "autostore";
 import { rgba } from "../../utils/colors";import { relaxedToJson } from "../../utils/relaxedToJson";
+import { queryRelElement } from "../../utils/queryRelElement";
 import { parseHtmlFragment } from "../../utils/transformElement";
 import { buildAction } from "../../actions/buildAction";
 import type { ActionDesc } from "../../actions/types";
@@ -98,7 +99,7 @@ interface LoadingConfig {
     delay?: number;
     /**
      * 覆盖层挂载目标选择器（默认挂宿主）：
-     * - 普通值（如 `'#target'`）→ `宿主.querySelector(selector)`，在宿主后代上显示；
+     * - 普通值（如 `'#target'`）→ 相对查询：在宿主后代上显示（支持 `'../'` 父级爬升、`'^'` closest、`'/'` 全局，见 queryRelElement）；
      * - 以 `@` 开头（如 `'@#modal'`）→ `document.querySelector(去掉@的部分)`，在宿主外/全局元素上显示；
      * - 选择器未命中或非法 → 回退到宿主元素显示。
      */
@@ -670,11 +671,10 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
     }
 
     /**
-     * 解析覆盖层挂载目标元素。
+     * 解析覆盖层挂载目标元素（经 {@link queryRelElement} 相对查询）。
      *
      * - 无 selector → 宿主元素 `this.el`；
-     * - selector 以 `@` 开头 → `document.querySelector(去@)`，支持挂到宿主外/全局元素；
-     * - 其余 → `宿主.querySelector(selector)`，挂到宿主后代；
+     * - 其余按相对语法解析：普通选择器在宿主后代上查、`'../'` 父级爬升、`'/'` 全局、`'^'` closest；
      * - 未命中 / 非法选择器 → 回退宿主（命中失败不抛错、记 warn）。
      */
     private resolveTarget(): HTMLElement | null {
@@ -682,17 +682,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
         if (!host) return null;
         const sel = this.config.selector;
         if (!sel) return host;
-        const isGlobal = sel.startsWith("@");
-        const query = isGlobal ? sel.slice(1) : sel;
-        if (!query) return host; // 空 selector（如裸 "@"）→ 宿主
-        try {
-            const root: ParentNode = isGlobal ? document : host;
-            const found = root.querySelector(query);
-            return found instanceof HTMLElement ? found : host; // 未命中 → 回退宿主
-        } catch (e: any) {
-            // 非法选择器（querySelector 抛 SyntaxError）→ 回退宿主，避免中断
-            this.warn(`x-loading: 非法 selector "${sel}"，回退到宿主元素: ${e?.message ?? e}`);
-            return host;
-        }
+        const found = queryRelElement(host, sel);
+        return found instanceof HTMLElement ? found : host; // 未命中 / 非法 → 回退宿主
     }
 }

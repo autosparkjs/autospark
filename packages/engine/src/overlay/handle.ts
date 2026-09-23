@@ -1,34 +1,47 @@
 import { deepMerge } from "flex-tools/object/deepMerge";
+import type { ComponentDef } from "../directives/component-def";
 import type { AutoSpark } from "../engine";
-import type { AutoSparkScope } from "../scope";
-import { OVERLAY_DEFAULTS, type OverlayConfig, type OverlayDef } from "./types";
+import { OVERLAY_DEFAULTS, type OverlayConfig, splitReservedKeys } from "./types";
 import { OverlayInstance } from "./instance";
 import { registerInstance, getInstances } from "./registry";
 
 /**
- * 覆盖层定义句柄（ADR-0052 决策 15）：定义的**编程视图**，命令式消费入口。
+ * 覆盖物定义句柄（ADR-0052 决策 15）：覆盖物的**编程视图**，命令式消费入口。
  *
- * `engine.getOverlay(name, options?)` 工厂产出。仅 `.global` 声明的定义命令式可达
- * （「命令式 = 全局消费」）；`open()` 返回实例句柄（非单例多实例并存时唯一能精确关闭
- * 单个实例的通道）；`close()` 关该定义当前**全部**打开实例。
+ * `engine.getOverlay(el, name, options?)` 工厂产出（镜像 `getComponent` 查找协议——修订共识 10）。
+ * `open()` 返回实例句柄（多实例并存时唯一能精确关闭单个实例的通道）；`close()` 关该覆盖物
+ * 当前**全部**打开实例。
  */
 export class OverlayHandle {
     readonly engine: AutoSpark<any>;
-    readonly def: OverlayDef;
+    /** 覆盖物名（消费 attr 名 / 组件名） */
     readonly name: string;
-    /** getOverlay 传入的消费者配置级（命令式合并链第三层，等价声明式 x-dialog-options） */
+    /** 组件冻结快照根（实例化模板来源；registry 登记键） */
+    readonly snapshot: HTMLElement;
+    /** 组件定义（可 null：纯快照组件无 setup） */
+    readonly def: ComponentDef | null;
+    /** getOverlay 传入的消费者配置级（命令式合并链第二层，等价声明式 x-dialog-options） */
     private _options: Record<string, any>;
 
-    constructor(engine: AutoSpark<any>, def: OverlayDef, options: Record<string, any> | null) {
+    constructor(
+        engine: AutoSpark<any>,
+        name: string,
+        snapshot: HTMLElement,
+        def: ComponentDef | null,
+        options: Record<string, any> | null,
+    ) {
         this.engine = engine;
+        this.name = name;
+        this.snapshot = snapshot;
         this.def = def;
-        this.name = def.name;
         this._options = options ?? {};
     }
 
     /**
-     * 打开（单例幂等，决策 18）：options 的 `scope`（元素，数据视图基准，缺省 → 全局根视图）与
-     * `params` 为保留键，其余键并入配置合并链最顶层；`visible` 键在命令式无意义——出现时 warn 忽略。
+     * 打开：options 的 `scope`（**元素**，数据视图基准，缺省 → rootless 全局视图，ADR-0052 决策 16）
+     * 与 `visible`（命令式无意义，warn 忽略）为特殊键；`closeOnMask`/`animate`/`at` 保留配置键
+     * 进合并链顶层（`at` 支持字符串/元素简写，进链前归一化）；**其余键全部作 props**
+     * 注入组件 data 域（修订共识 7，`params` 键已删除）。
      */
     open(opts?: Record<string, any>): OverlayInstance {
         let openOpts: Record<string, any> | undefined;
@@ -38,68 +51,54 @@ export class OverlayHandle {
                     `engine.getOverlay("${this.name}"): "visible" 键在命令式打开中无意义，已忽略（ADR-0052 决策 17）`,
                 );
             }
-            const { scope: _scope, params: _params, visible: _visible, ...rest } = opts;
-            openOpts = rest;
+            openOpts = opts;
         }
-        const config = resolveOverlayConfig(this.def, this._options, openOpts);
+        const { config: inlineConfig, props } = splitReservedKeys(openOpts);
+        const resolved = resolveOverlayConfig(this.def, this._options, inlineConfig);
         const scopeEl =
             opts?.scope instanceof HTMLElement ? (opts.scope as HTMLElement) : null;
-        const inst = acquireInstance(this.engine, this.def, config, {
+        const inst = new OverlayInstance(this.engine, this.name, this.snapshot, this.def, resolved, {
             parentScope: scopeEl ? this.engine.findScopeByEl(scopeEl) ?? null : null,
             searchRoot: scopeEl,
             scopeEl,
+            // 命令式消费与 x-dialog 同为模态形态（遮罩外壳 + closeOnMask + 居中默认）
+            mask: true,
         });
-        inst.open(opts?.params && typeof opts.params === "object" ? opts.params : undefined);
+        registerInstance(this.snapshot, inst);
+        inst.open(props);
         return inst;
     }
 
-    /** 关闭该定义当前全部打开实例（逐个走「请求关闭」，决策 15） */
+    /** 关闭该覆盖物当前全部打开实例（逐个走「请求关闭」，决策 15） */
     close(): void {
-        for (const inst of getInstances(this.def)) {
+        for (const inst of getInstances(this.snapshot)) {
             inst.requestClose("api");
         }
     }
 }
 
-
 /**
- * 组装覆盖层生效配置（ADR-0052 决策 4/17）：四级深度合并（相邻层 deepMerge：数组替换、
- * undefined 不覆盖、函数整体覆盖）。声明式：内置默认 < x-overlay-options < x-dialog-options <
- * 值对象内联；命令式少一级 x-dialog-options。visible/params 是消费者值对象保留键、非配置，
- * 由调用方在传入前剥离。
+ * 组装覆盖物生效配置（ADR-0052 修订共识 6）：三级深度合并（相邻层 deepMerge：数组替换、
+ * undefined 不覆盖、函数整体覆盖）——`内置默认 < x-dialog-options < 值对象内联保留配置键`；
+ * 命令式少值对象一级。visible/scope(元素) 是消费者特殊键、props 由 `splitReservedKeys` 剥离，
+ * 调用方在传入前分流。
  */
 export function resolveOverlayConfig(
-    def: OverlayDef,
+    _def: ComponentDef | null,
     ...layers: Array<Record<string, any> | null | undefined>
 ): OverlayConfig {
     let merged: Record<string, any> = { ...OVERLAY_DEFAULTS };
-    for (const layer of [def.options, ...layers]) {
+    for (const layer of layers) {
         if (layer && typeof layer === "object") {
-            merged = deepMerge(merged, layer, {}) as Record<string, any>;
+            // at 简写（字符串/元素）进链前归一化为 { selector }——deepMerge 才能局部覆盖：
+            // 换锚只覆盖 selector、保留上层 placement/flip/arrow 等其余锚成员
+            let normalized: Record<string, any> = layer;
+            const at = layer.at;
+            if (at != null && (typeof at === "string" || at instanceof HTMLElement)) {
+                normalized = { ...layer, at: { selector: at } };
+            }
+            merged = deepMerge(merged, normalized, {}) as Record<string, any>;
         }
     }
     return merged as OverlayConfig;
-}
-
-/**
- * 获取（或复用）实例（决策 10/18）：singleton 且单例槽存活 → 复用（替换为最新合并配置——
- * 换锚即换位置）；否则新建（singleton 时占槽 + 登记）。
- */
-export function acquireInstance(
-    engine: AutoSpark<any>,
-    def: OverlayDef,
-    config: OverlayConfig,
-    opts: { parentScope?: AutoSparkScope | null; searchRoot?: HTMLElement | null; scopeEl?: HTMLElement | null },
-): OverlayInstance {
-    if (config.singleton) {
-        const existing = def.singletonInstance;
-        if (existing && !existing.destroyed) {
-            existing.config = config;
-            return existing;
-        }
-    }
-    const inst = new OverlayInstance(engine, def, config, opts);
-    if (config.singleton) def.singletonInstance = inst;
-    registerInstance(def, inst);
-    return inst;
 }

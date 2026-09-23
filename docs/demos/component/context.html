@@ -20,7 +20,7 @@
         <div id="app" x-scope>
             <div x-component="hello">
                 <div class="hello" x-text="greeting + '，' + user.name + '！'"></div>
-                <script setup>
+                <script type="autospark/setup">
                     {
                         data() {
                             return { greeting: "你好" };

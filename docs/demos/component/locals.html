@@ -21,7 +21,7 @@
                     <span class="time" x-text="time"></span>
                     <span class="hint">（locals.timer 驱动，每秒刷新 time）</span>
                 </div>
-                <script setup>
+                <script type="autospark/setup">
                     {
                         data() { return { time: new Date().toLocaleTimeString() } },
                         // locals：非响应式局部变量，跨生命周期共享

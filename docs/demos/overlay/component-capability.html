@@ -2,30 +2,35 @@
 <html lang="zh-CN">
     <head>
         <meta charset="UTF-8" />
-        <title>x-overlay · 完整组件能力</title>
+        <title>覆盖物 · 完整组件能力</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
     <body>
-        <!-- 覆盖层模板具完整组件能力：<script setup> 的 data/methods/生命周期 + <style> scoped CSS -->
+        <!-- 覆盖物内容就是组件：<script type="autospark/setup"> 的 data/methods/生命周期 + <style> scoped CSS 全部生效 -->
         <div class="demo-app section">
-            <button class="button is-primary" x-dialog:counter="ui.show"
-                    @click="ui.show = true">打开计数器</button>
-            <span class="tag" x-text="'单例复用：关闭再开，计数保留'"></span>
-
             <div x-data="{ ui: { show: false } }">
-                <div x-overlay:counter="dialog">
+                <div class="block">
+                    <button class="button is-primary" x-dialog:counter="ui.show"
+                            @click="ui.show = true">打开计数器</button>
+                </div>
+                <div class="block has-text-grey">
+                    消费渲染进 body 容器的是组件实例：data()/methods/hooks、scoped CSS 全生效；
+                    每次打开新实例（关闭即销毁），需要保留的状态请放全局 state 或经 props 重注入。
+                </div>
+
+                <div x-component="counter">
                     <style>
                         .cnt-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 280px; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
                         .cnt-panel .num { font-size: 2rem; font-weight: 700; color: hsl(171, 100%, 29%); }
                     </style>
-                    <script setup>
+                    <script type="autospark/setup">
                         {
                             data() { return { count: 0 }; },
                             methods: {
                                 inc() { this.data.count++; },
                             },
-                            mounted() { console.log("覆盖层实例 mounted"); },
+                            mounted() { console.log("覆盖物组件实例 mounted"); },
                         }
                     </script>
                     <div class="cnt-panel">

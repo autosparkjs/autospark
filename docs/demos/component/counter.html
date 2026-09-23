@@ -24,8 +24,8 @@
                     <span class="count" x-text="count"></span>
                     <button class="button is-small is-primary" x-on:click="inc">+</button>
                 </div>
-                <!-- ② <script setup>：声明 data / methods / 生命周期钩子 -->
-                <script setup>
+                <!-- ② <script type="autospark/setup">：声明 data / methods / 生命周期钩子 -->
+                <script type="autospark/setup">
                     {
                         // data() 返回组件初始状态，注入组件响应式 data 域
                         data() {

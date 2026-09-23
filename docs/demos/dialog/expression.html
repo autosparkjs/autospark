@@ -10,21 +10,24 @@
         </style>
     </head>
     <body>
-        <!-- 表达式形态：派生条件驱动（向导场景）；请求关闭仅 UI 收起，不回写状态 -->
+        <!-- 表达式形态：派生条件驱动（向导场景）。真值即开、假值即关；请求关闭仅 UI 收起、不回写状态 -->
         <div class="demo-app section">
             <div x-data="{ wizard: { step: 1 } }">
                 <div class="block">
                     <button class="button" @click="wizard.step = 1">1 填写</button>
-                    <button class="button" @click="wizard.step = 2">2 确认</button>
+                    <button class="button is-primary" x-dialog:pay="wizard.step === 2"
+                            @click="wizard.step = 2">2 确认（去支付）</button>
                     <button class="button" @click="wizard.step = 3">3 完成</button>
                     <span class="tag" x-text="'step = ' + wizard.step"></span>
                 </div>
                 <div class="block has-text-grey">
-                    <code>x-dialog:pay="wizard.step === 2"</code>——进入第 2 步自动弹出。按 ESC 或点遮罩只收起界面、
-                    <b>不会改写状态</b>（表达式无路径可回写）；再回到第 2 步会再次弹出。
+                    <code>x-dialog:pay="wizard.step === 2"</code>——进入第 2 步自动弹出；面板内「确认」把 step
+                    推到 3，表达式归假<b>自动关闭</b>。表达式无路径可回写：ESC / 点遮罩只收起界面、状态保持
+                    <code>step = 2</code>——此时再点「2 确认」<b>不会重弹</b>（状态未变化不触发）；
+                    先切到其他步、再回第 2 步（假 → 真）才会再次弹出。
                 </div>
 
-                <div x-overlay:pay="dialog">
+                <div x-component="pay">
                     <div class="ov-panel">
                         <h3 class="title is-5">确认订单</h3>
                         <p>这是第 2 步的确认弹窗。</p>

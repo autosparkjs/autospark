@@ -3,10 +3,11 @@ import "./setup";
 import { mount, nextTick, finishAnim } from "./helpers";
 
 /**
- * x-overlay / x-dialog 覆盖层体系测试（ADR-0052）。
+ * 覆盖物体系测试（ADR-0052 修订版——组件化统一）。
  *
- * 覆盖层实例渲染进 document.body 下本 engine 的容器（autospark-overlays），断言走
- * document 级选择器；每个用例结束 engine.destroy() 整体回收容器（测试间隔离）。
+ * 覆盖物内容 = 任意组件（x-component 声明 / options.components 全局 / x-import），消费者
+ * x-dialog 渲染进 document.body 下本 engine 的容器（autospark-overlays），断言走 document 级
+ * 选择器；每个用例结束 engine.destroy() 整体回收容器（测试间隔离）。
  */
 
 const containerOf = (): HTMLElement | null => document.querySelector(".autospark-overlays");
@@ -24,24 +25,24 @@ afterEach(() => {
     while (engines.length) engines.pop()?.destroy();
 });
 
-describe("x-overlay 声明（剪枝与存储）", () => {
-    test("声明被剪枝不进结果 DOM（无闪现），消费打开后渲染进 body 容器", async () => {
+describe("消费模型（组件即覆盖物内容）", () => {
+    test("x-component 声明剪枝不闪现；消费打开后渲染进 body 容器，读声明处数据", async () => {
         const { root, engine } = mountOverlay(
             `<div id="app">
                 <div x-scope>
-                    <div x-overlay:login="dialog"><h3>{{title}}</h3></div>
+                    <div x-component="login"><h3>{{title}}</h3></div>
                     <button id="t" x-dialog:login="ui.loginVisible"></button>
                 </div>
             </div>`,
             { ui: { loginVisible: false }, title: "登录" },
         );
-        // 剪枝：声明元素不进结果 DOM
-        expect(root.querySelector("[x-overlay\\:login]")).toBeNull();
+        // 声明被剪枝：组件声明元素不进结果 DOM（无闪现）
+        expect(root.querySelector("[x-component]")).toBeNull();
         // 未打开：容器里无实例
         expect(maskOf("login")).toBeNull();
         engine.state.ui.loginVisible = true;
         await nextTick();
-        // 打开：body 容器中出现实例，模板渲染且读到声明处 scope 数据（title 来自 state 顶层）
+        // 打开：body 容器中出现实例；declarer 基准（默认）沿挂链读声明处可见的 state.title
         const mask = maskOf("login");
         expect(mask).not.toBeNull();
         expect(containerOf()).not.toBeNull();
@@ -49,32 +50,86 @@ describe("x-overlay 声明（剪枝与存储）", () => {
         expect(mask!.querySelector(".autospark-dialog")!.getAttribute("data-overlay")).toBe("login");
     });
 
-    test("缺名称（x-overlay 无冒号 attr）warn + 剪枝丢弃", () => {
-        const { root, engine } = mountOverlay(
-            `<div id="app"><div x-scope><div x-overlay="">x</div></div></div>`,
-            {},
+    test("全局组件（options.components）可被消费；scope 链就近覆盖全局", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <button x-dialog:g-confirm="ui.open"></button>
+            </div></div>`,
+            { ui: { open: false }, greet: "全局" },
+            { components: { "g-confirm": "<div><span>{{greet}}</span></div>" } },
+        );
+        engine.state.ui.open = true;
+        await nextTick();
+        expect(maskOf("g-confirm")!.textContent).toContain("全局");
+    });
+
+    test("未命中（scope 链与全局均无）warn + 不渲染", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <button x-dialog:missing="ui.open"></button>
+            </div></div>`,
+            { ui: { open: false } },
         );
         const warns: string[] = [];
         const orig = engine.logger.warn.bind(engine.logger);
         engine.logger.warn = (msg: string) => warns.push(msg);
         try {
-            new (engine.compiler.constructor)(engine); // 不触发二次编译，仅验证上方编译期 warn
-        } catch {
-            /* 忽略 */
+            engine.state.ui.open = true;
+            await nextTick();
+        } finally {
+            engine.logger.warn = orig;
         }
-        engine.logger.warn = orig;
-        expect(root.querySelector("[x-overlay]")).toBeNull();
+        expect(maskOf("missing")).toBeNull();
+        expect(warns.some((w) => w.includes("missing"))).toBe(true);
+    });
+
+    test("x-import 延迟就绪：component/registered 后自动打开；等待期间归假则放弃", async () => {
+        const { root, engine } = mountOverlay(
+            `<div id="app"><div x-scope id="host">
+                <button x-dialog:late="ui.open"></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        engine.state.ui.open = true;
+        await nextTick();
+        // 未命中：等待中不渲染
+        expect(maskOf("late")).toBeNull();
+        // 模拟 x-import 就绪：注册组件 + 广播 registered
+        const hostScope = engine.findScopeByEl(root.querySelector("#host")!)!;
+        const compEl = document.createElement("div");
+        compEl.innerHTML = "<span>迟到组件</span>";
+        hostScope.components = { late: compEl };
+        engine.emit("component/registered", { name: "late" });
+        await nextTick();
+        expect(maskOf("late")!.textContent).toContain("迟到组件");
+
+        // 等待期间 visible 已归假 → 就绪后不打开
+        engine.state.ui.open = false;
+        await nextTick();
+        expect(maskOf("late")).toBeNull();
+        hostScope.components = {};
+        engine.state.ui.open = true;
+        await nextTick();
+        expect(maskOf("late")).toBeNull(); // 未命中 → 等待
+        engine.state.ui.open = false;
+        await nextTick();
+        const compEl2 = document.createElement("div");
+        compEl2.innerHTML = "<span>x</span>";
+        hostScope.components = { late: compEl2 };
+        engine.emit("component/registered", { name: "late" });
+        await nextTick();
+        expect(maskOf("late")).toBeNull(); // 已归假，放弃打开
     });
 });
 
-describe("x-dialog 状态驱动（visible 三形态）", () => {
-    test("状态 true 打开 / false 隐藏保活（singleton 默认）/ 再开复用同一 DOM", async () => {
+describe("x-dialog 状态驱动（visible 形态）", () => {
+    test("每次打开新实例：关闭即销毁（共识 5 无 singleton），再开全新 DOM", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-overlay:login="dialog"><span>{{title}}</span></div>
+                <div x-component="login"><span>x</span></div>
                 <button x-dialog:login="ui.loginVisible"></button>
             </div></div>`,
-            { ui: { loginVisible: false }, title: "T" },
+            { ui: { loginVisible: false } },
         );
         engine.state.ui.loginVisible = true;
         await nextTick();
@@ -82,43 +137,20 @@ describe("x-dialog 状态驱动（visible 三形态）", () => {
         expect(mask1.style.display).not.toBe("none");
         engine.state.ui.loginVisible = false;
         await nextTick();
-        // singleton：隐藏保活（DOM 留容器 + display:none）
-        expect(maskOf("login")).toBe(mask1);
-        expect(mask1.style.display).toBe("none");
+        // 关闭即销毁：DOM 从容器移除（非隐藏保活）
+        expect(maskOf("login")).toBeNull();
+        expect(containerOf()!.contains(mask1)).toBe(false);
         engine.state.ui.loginVisible = true;
         await nextTick();
-        // 复用同一实例 DOM（不重建）
-        expect(maskOf("login")).toBe(mask1);
-        expect(mask1.style.display).not.toBe("none");
-    });
-
-    test("singleton:false：每次打开全新实例，关闭即销毁", async () => {
-        const { engine } = mountOverlay(
-            `<div id="app"><div x-scope>
-                <div x-overlay:job="dialog"><span>x</span></div>
-                <button x-dialog:job="{visible: 'ui.open', singleton: false}"></button>
-            </div></div>`,
-            { ui: { open: false } },
-        );
-        engine.state.ui.open = true;
-        await nextTick();
-        const mask1 = maskOf("job")!;
-        engine.state.ui.open = false;
-        await nextTick();
-        // 关闭即销毁：DOM 从容器移除
-        expect(maskOf("job")).toBeNull();
-        expect(containerOf()!.contains(mask1)).toBe(false);
-        engine.state.ui.open = true;
-        await nextTick();
         // 全新实例（不同 DOM 身份）
-        expect(maskOf("job")).not.toBeNull();
-        expect(maskOf("job")).not.toBe(mask1);
+        expect(maskOf("login")).not.toBeNull();
+        expect(maskOf("login")).not.toBe(mask1);
     });
 
     test("字面量 true：挂载即开（公告类）；false 永不开", () => {
         mountOverlay(
             `<div id="app">
-                <div x-scope><div x-overlay:notice="dialog"><span>公告</span></div><button x-dialog:notice="true"></button></div>
+                <div x-scope><div x-component="notice"><span>公告</span></div><button x-dialog:notice="true"></button></div>
             </div>`,
             {},
         );
@@ -128,7 +160,7 @@ describe("x-dialog 状态驱动（visible 三形态）", () => {
     test("表达式形态：请求关闭仅 UI 关闭，状态不回写", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-overlay:pay="dialog"><span>x</span></div>
+                <div x-component="pay"><span>x</span></div>
                 <button x-dialog:pay="ui.step === 2"></button>
             </div></div>`,
             { ui: { step: 2 } },
@@ -138,7 +170,7 @@ describe("x-dialog 状态驱动（visible 三形态）", () => {
         // ESC 请求关闭：UI 关 + 状态不变（无路径可回写）
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
         await nextTick();
-        expect(maskOf("pay")!.style.display).toBe("none");
+        expect(maskOf("pay")).toBeNull(); // 关闭即销毁
         expect(engine.state.ui.step).toBe(2);
     });
 });
@@ -147,7 +179,7 @@ describe("「请求关闭」触点与写回", () => {
     const setup = () =>
         mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-overlay:login="dialog"><button data-action="close" @click="close()">关</button></div>
+                <div x-component="login"><button data-action="close" @click="close()">关</button></div>
                 <button x-dialog:login="ui.loginVisible"></button>
             </div></div>`,
             { ui: { loginVisible: true } },
@@ -159,7 +191,7 @@ describe("「请求关闭」触点与写回", () => {
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
         await nextTick();
         expect(engine.state.ui.loginVisible).toBe(false);
-        expect(maskOf("login")!.style.display).toBe("none");
+        expect(maskOf("login")).toBeNull();
     });
 
     test("点遮罩关闭（closeOnMask 默认 true）→ 回写；面板内点击不关", async () => {
@@ -178,7 +210,7 @@ describe("「请求关闭」触点与写回", () => {
     test("closeOnMask: false（值对象内联）遮罩点击不关", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-overlay:keep="dialog"><span>x</span></div>
+                <div x-component="keep"><span>x</span></div>
                 <button x-dialog:keep="{visible: 'ui.open', closeOnMask: false}"></button>
             </div></div>`,
             { ui: { open: true } },
@@ -187,7 +219,7 @@ describe("「请求关闭」触点与写回", () => {
         maskOf("keep")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         await nextTick();
         expect(engine.state.ui.open).toBe(true);
-        expect(maskOf("keep")!.style.display).not.toBe("none");
+        expect(maskOf("keep")).not.toBeNull();
     });
 
     test("子树内 close() action（内置动作信号）→ 请求关闭 + 回写", async () => {
@@ -196,103 +228,165 @@ describe("「请求关闭」触点与写回", () => {
         btn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         await nextTick();
         expect(engine.state.ui.loginVisible).toBe(false);
-        expect(maskOf("login")!.style.display).toBe("none");
+        expect(maskOf("login")).toBeNull();
     });
 });
 
-describe("params 注入（打开时快照）", () => {
-    test("对象形态 params 注入实例数据域，模板直接读键", async () => {
+describe("props 注入（共识 7：非保留键全作 props）", () => {
+    test("值对象非保留键注入组件 data 域，覆盖 data() 默认", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-overlay:user="dialog"><span>{{userId}}</span></div>
-                <button x-dialog:user="{visible: 'ui.open', params: {userId: 42}}"></button>
+                <div x-component="user">
+                    <script setup>{ data() { return { userId: 0, extra: "默认" } } }</script>
+                    <span>{{userId}}-{{extra}}</span>
+                </div>
+                <button x-dialog:user="{visible: 'ui.open', userId: 42}"></button>
             </div></div>`,
             { ui: { open: false } },
         );
         engine.state.ui.open = true;
         await nextTick();
-        expect(maskOf("user")!.textContent).toContain("42");
+        // props 覆盖 data() 默认（userId: 42），未声明的键保留 data() 默认（extra）
+        expect(maskOf("user")!.textContent).toContain("42-默认");
     });
 
-    test("单例复用重注入：第二次打开的 params 覆盖（表达式形态打开时求值）", async () => {
+    test("visible 驱动键不作 props；params 键已删除（作普通 props 注入）", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-overlay:user="dialog"><span>{{userId}}</span></div>
-                <button x-dialog:user="{visible: 'ui.open', params: 'bag'}"></button>
+                <div x-component="bag"><span>{{params}}</span></div>
+                <button x-dialog:bag="{visible: 'ui.open', params: '旧键即普通props'}"></button>
             </div></div>`,
-            { ui: { open: false }, bag: { userId: 1 } },
+            { ui: { open: false } },
         );
         engine.state.ui.open = true;
         await nextTick();
-        expect(maskOf("user")!.textContent).toContain("1");
-        engine.state.ui.open = false;
-        await nextTick();
-        engine.state.bag.userId = 7;
-        engine.state.ui.open = true;
-        await nextTick();
-        expect(maskOf("user")!.textContent).toContain("7");
+        expect(maskOf("bag")!.textContent).toContain("旧键即普通props");
     });
 });
 
-describe("命令式 API（engine.getOverlay）", () => {
-    const html = `<div id="app"><div x-scope>
-        <div x-overlay:confirm.global="dialog"><span>{{msg}}</span></div>
-        <div x-overlay:local="dialog"><span>x</span></div>
+describe("配置三级链（共识 6）", () => {
+    test("内置默认 < x-dialog-options < 值对象内联", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-component="mix"><span>x</span></div>
+                <div x-component="mix2"><span>x</span></div>
+                <button x-dialog:mix="{visible: 'ui.open', closeOnMask: true}" x-dialog-options="{closeOnMask: false}"></button>
+                <button x-dialog:mix2="ui.open2" x-dialog-options="{closeOnMask: false}"></button>
+            </div></div>`,
+            { ui: { open: false, open2: false } },
+        );
+        // 值对象内联 closeOnMask: true 覆盖 x-dialog-options 的 false → 遮罩点击关闭
+        engine.state.ui.open = true;
+        await nextTick();
+        const mask1 = maskOf("mix")!;
+        mask1.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await nextTick();
+        expect(maskOf("mix")).toBeNull();
+
+        // 内联未写 → x-dialog-options 的 false 覆盖内置默认 true → 遮罩点击不关
+        engine.state.ui.open2 = true;
+        await nextTick();
+        const mask2 = maskOf("mix2")!;
+        mask2.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await nextTick();
+        expect(maskOf("mix2")).not.toBeNull();
+    });
+
+    test("x-dialog-options 独立生效（animate 走消费处选项）", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-component="an"><span>x</span></div>
+                <button x-dialog:an="ui.open" x-dialog-options="{animate: {name: 'fade', duration: 5000}}"></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        engine.state.ui.open = true;
+        await nextTick();
+        const mask = maskOf("an")!;
+        expect(mask.className).toContain("fade-enter-active");
+        finishAnim(mask);
+        engine.state.ui.open = false;
+        await nextTick();
+        // leave 动画在播：DOM 尚未移除（延迟移除语义）
+        expect(containerOf()!.contains(mask)).toBe(true);
+        finishAnim(mask);
+        expect(containerOf()!.contains(mask)).toBe(false);
+    });
+});
+
+describe("命令式 API（engine.getOverlay，共识 10 镜像 getComponent）", () => {
+    const html = `<div id="app"><div x-scope id="host">
+        <div x-component="confirm"><span>{{msg}}</span></div>
     </div></div>`;
 
-    test("open / close / 单例幂等 / 非 .global 定义命令式不可达", async () => {
-        const { engine } = mountOverlay(html, {});
-        // getOverlay 第二参为消费者配置级（animate: false 走合并链顶层，关闭动画保证同步收尾）
-        const handle = engine.getOverlay("confirm", { animate: false })!;
+    test("el 起链查找 / 省略 el 仅查全局 / open / close / visible warn", async () => {
+        const { root, engine } = mountOverlay(html, {}, {
+            components: { global: "<div><span>全局覆盖物</span></div>" },
+        });
+        const host = root.querySelector("#host")!;
+        // el 起链查找命中局部 x-component 声明
+        const handle = engine.getOverlay(host, "confirm", { animate: false })!;
         expect(handle).not.toBeUndefined();
-        const inst1 = handle.open({ params: { msg: "确认删除？" } });
+        const inst1 = handle.open({ msg: "确认删除？" });
         await nextTick();
         expect(maskOf("confirm")!.textContent).toContain("确认删除？");
-        // 单例幂等：同句柄 + 不重播
-        const inst2 = handle.open({ params: { msg: "确认删除？" } });
-        expect(inst2).toBe(inst1);
-        // 关闭（隐藏保活）
         inst1.close();
-        expect(maskOf("confirm")!.style.display).toBe("none");
-        // 非 .global 定义命令式不可达（「命令式 = 全局消费」）
-        expect(engine.getOverlay("local")).toBeUndefined();
-    });
-
-    test("overlay:open / overlay:close 双通道（总线 + 实例根 DOM 冒泡）", async () => {
-        const { engine } = mountOverlay(html, {});
-        const events: string[] = [];
-        engine.on("overlay:open", (m: any) => events.push(`bus:open:${m?.payload?.name ?? m?.name}`));
-        engine.on("overlay:close", (m: any) => events.push(`bus:close:${m?.payload?.name ?? m?.name}`));
-        // DOM 冒泡在 body 上委托挂监听（容器懒创建于 open 时，body 是冒泡必经且始终存在；
-        // open 广播发生在 open() 调用同步栈内，事后挂监听会漏）
-        document.body.addEventListener("overlay:open", ((e: CustomEvent) =>
-            events.push(`dom:open:${e.detail.name}`)) as EventListener);
-        const handle = engine.getOverlay("confirm", { animate: false })!;
-        const inst = handle.open({ params: { msg: "x" } });
-        inst.el!.addEventListener("overlay:close", ((e: CustomEvent) =>
-            events.push(`dom:close:${e.detail.name}`)) as EventListener);
         await nextTick();
-        expect(events).toContain("bus:open:confirm");
-        expect(events).toContain("dom:open:confirm");
-        inst.close();
-        await nextTick();
-        expect(events).toContain("bus:close:confirm");
-        expect(events).toContain("dom:close:confirm");
-    });
+        expect(containerOf()!.contains(inst1.el!)).toBe(false);
 
-    test("未命中 warn + undefined；visible 键在命令式 warn 忽略", async () => {
-        const { engine } = mountOverlay(html, {});
+        // 省略 el：仅查全局（局部定义不可达）
+        expect(engine.getOverlay(null, "confirm")).toBeUndefined();
+        const gHandle = engine.getOverlay(null, "global")!;
+        gHandle.open();
+        await nextTick();
+        expect(maskOf("global")!.textContent).toContain("全局覆盖物");
+
+        // visible 键在命令式 warn 忽略
         const warns: string[] = [];
         const orig = engine.logger.warn.bind(engine.logger);
         engine.logger.warn = (msg: string) => warns.push(msg);
         try {
-            expect(engine.getOverlay("nope")).toBeUndefined();
-            engine.getOverlay("confirm", { animate: false })!.open({ visible: true, params: { msg: "x" } });
+            handle.open({ visible: true });
         } finally {
             engine.logger.warn = orig;
         }
-        expect(warns.some((w) => w.includes("nope"))).toBe(true);
         expect(warns.some((w) => w.includes("visible"))).toBe(true);
+    });
+
+    test("OverlayHandle.close 关该覆盖物当前全部打开实例", async () => {
+        const { root, engine } = mountOverlay(html, {});
+        const host = root.querySelector("#host")!;
+        const handle = engine.getOverlay(host, "confirm")!;
+        const a = handle.open({ msg: "a" });
+        const b = handle.open({ msg: "b" });
+        await nextTick();
+        expect(a).not.toBe(b); // 多实例并存
+        handle.close();
+        await nextTick();
+        expect(containerOf()!.contains(a.el!)).toBe(false);
+        expect(containerOf()!.contains(b.el!)).toBe(false);
+    });
+
+    test("overlay:open / overlay:close 双通道；payload 收窄 {name, instance, scope}", async () => {
+        const { root, engine } = mountOverlay(html, {});
+        const host = root.querySelector("#host")!;
+        const handle = engine.getOverlay(host, "confirm", { animate: false })!;
+        const events: string[] = [];
+        engine.on("overlay:open", (m: any) => {
+            const p = m?.payload ?? m;
+            events.push(`bus:open:${p.name}:type=${p.type === undefined}`);
+        });
+        document.body.addEventListener("overlay:open", ((e: CustomEvent) =>
+            events.push(`dom:open:${e.detail.name}:inst=${!!e.detail.instance}`)) as EventListener);
+        const inst = handle.open({ msg: "x" });
+        inst.el!.addEventListener("overlay:close", ((e: CustomEvent) =>
+            events.push(`dom:close:${e.detail.name}`)) as EventListener);
+        await nextTick();
+        expect(events).toContain("bus:open:confirm:type=true"); // type 键已删除
+        expect(events).toContain("dom:open:confirm:inst=true");
+        inst.close();
+        await nextTick();
+        expect(events).toContain("dom:close:confirm");
     });
 });
 
@@ -300,8 +394,8 @@ describe("嵌套与打开栈", () => {
     test("ESC 只关全局栈顶实例（嵌套打开）", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-overlay:a="dialog"><span>a</span></div>
-                <div x-overlay:b="dialog"><span>b</span></div>
+                <div x-component="a"><span>a</span></div>
+                <div x-component="b"><span>b</span></div>
                 <button x-dialog:a="ui.a"></button>
                 <button x-dialog:b="ui.b"></button>
             </div></div>`,
@@ -311,153 +405,243 @@ describe("嵌套与打开栈", () => {
         await nextTick();
         engine.state.ui.b = true;
         await nextTick();
-        expect(maskOf("a")!.style.display).not.toBe("none");
-        expect(maskOf("b")!.style.display).not.toBe("none");
+        expect(maskOf("a")).not.toBeNull();
+        expect(maskOf("b")).not.toBeNull();
         // 第一次 ESC：只关栈顶 b
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
         await nextTick();
-        expect(maskOf("b")!.style.display).toBe("none");
-        expect(maskOf("a")!.style.display).not.toBe("none");
+        expect(maskOf("b")).toBeNull();
+        expect(maskOf("a")).not.toBeNull();
         // 第二次 ESC：关 a
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
         await nextTick();
-        expect(maskOf("a")!.style.display).toBe("none");
+        expect(maskOf("a")).toBeNull();
     });
 });
 
-describe("配置合并与类型校验", () => {
-    test("四级深度合并：x-overlay-options < x-dialog-options < 值对象内联", async () => {
-        const { engine } = mountOverlay(
-            `<div id="app"><div x-scope>
-                <div x-overlay:mix="dialog" x-overlay-options="{closeOnMask: false, singleton: false}"><span>x</span></div>
-                <button x-dialog:mix="{visible: 'ui.open', closeOnMask: true}"></button>
-            </div></div>`,
-            { ui: { open: false } },
-        );
-        engine.state.ui.open = true;
-        await nextTick();
-        const mask = maskOf("mix")!;
-        // 值对象内联 closeOnMask: true 覆盖声明处 false → 遮罩点击关闭
-        mask.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        await nextTick();
-        // singleton 来自声明处 false（消费处未声明）→ 关闭即销毁
-        expect(maskOf("mix")).toBeNull();
-    });
+describe("dataContext 数据视图基准（共识 8：declarer 默认 / host / 废弃兼容）", () => {
+    // 组件声明须在消费者的祖先链上（getComponent 协议）；嵌套 x-data：外层 = 声明处、内层 = 消费处
+    const html = (options: string) => `<div id="app"><div x-scope>
+        <div x-data="{ title: '声明处' }">
+            <div x-component="basis"><span>{{title}}</span></div>
+            <div x-data="{ title: '消费处' }">
+                <button x-dialog:basis="ui.open"${options}></button>
+            </div>
+        </div>
+    </div></div>`;
 
-    test("类型不匹配 warn 仍渲染；未命中定义 warn 不渲染", async () => {
-        const { engine } = mountOverlay(
-            `<div id="app"><div x-scope>
-                <div x-overlay:drawer-def="drawer"><span>x</span></div>
-                <button x-dialog:drawer-def="ui.open"></button>
-                <button x-dialog:missing="ui.open"></button>
-            </div></div>`,
-            { ui: { open: false } },
-        );
-        const warns: string[] = [];
-        const orig = engine.logger.warn.bind(engine.logger);
-        engine.logger.warn = (msg: string) => warns.push(msg);
-        try {
-            engine.state.ui.open = true;
-            await nextTick();
-        } finally {
-            engine.logger.warn = orig;
-        }
-        expect(warns.some((w) => w.includes("drawer") && w.includes("dialog"))).toBe(true);
-        expect(warns.some((w) => w.includes("missing"))).toBe(true);
-        // 类型不匹配仍渲染
-        expect(maskOf("drawer-def")).not.toBeNull();
-        expect(maskOf("missing")).toBeNull();
-    });
-});
-
-describe("anchor 定位（ADR-0052 决策 21–24）", () => {
-    test("anchor.at 未命中 → warn + 退屏幕居中（面板无 fixed 定位）", async () => {
-        const { engine } = mountOverlay(
-            `<div id="app"><div x-scope>
-                <div x-overlay:tip="dialog" x-overlay-options="{anchor: {at: '@#no-such-anchor'}}"><span>x</span></div>
-                <button x-dialog:tip="ui.open"></button>
-            </div></div>`,
-            { ui: { open: false } },
-        );
-        const warns: string[] = [];
-        const orig = engine.logger.warn.bind(engine.logger);
-        engine.logger.warn = (msg: string) => warns.push(msg);
-        try {
-            engine.state.ui.open = true;
-            await nextTick();
-        } finally {
-            engine.logger.warn = orig;
-        }
-        expect(warns.some((w) => w.includes("anchor.at"))).toBe(true);
-        const panel = maskOf("tip")!.querySelector(".autospark-dialog") as HTMLElement;
-        expect(panel.style.position).not.toBe("fixed");
-    });
-});
-
-describe("生命周期挂链（scope 基准三合一）", () => {
-    test("consumer 基准：消费者随 x-if 销毁 → 打开中的实例级联强拆", async () => {
-        const { root, engine } = mountOverlay(
-            `<div id="app"><div x-scope>
-                <div x-overlay:tmp="dialog"><span>x</span></div>
-                <div x-if="ui.show">
-                    <button x-dialog:tmp="ui.open" x-dialog-options="{scope: 'consumer'}"></button>
-                </div>
-            </div></div>`,
-            { ui: { show: true, open: true } },
-        );
+    test("declarer 默认：实例读声明处数据，消费者销毁仅关闭（实例随声明处 scope）", async () => {
+        const { engine } = mountOverlay(html(""), { ui: { open: true } });
         await nextTick();
-        expect(maskOf("tmp")).not.toBeNull();
-        // 消费者所在 x-if 分支销毁 → 实例 scope 级联 → 实例强拆（DOM 摘除）
-        engine.state.ui.show = false;
-        await nextTick();
-        expect(maskOf("tmp")).toBeNull();
-        expect(engine.state).toBeTruthy();
-        void root;
-    });
-
-    test("declarer 基准（默认）：消费者销毁只关闭实例（单例保活，实例随声明处 scope）", async () => {
-        const { engine } = mountOverlay(
-            `<div id="app"><div x-scope>
-                <div x-overlay:top="dialog"><span>x</span></div>
-                <div x-if="ui.show">
-                    <button x-dialog:top="ui.open"></button>
-                </div>
-            </div></div>`,
-            { ui: { show: true, open: true } },
-        );
-        await nextTick();
-        const mask = maskOf("top")!;
-        expect(mask).not.toBeNull();
-        engine.state.ui.show = false;
-        await nextTick();
-        // 实例仅被关闭（隐藏保活），不销毁——声明处 scope 仍活
-        expect(maskOf("top")).toBe(mask);
-        expect(mask.style.display).toBe("none");
-    });
-});
-
-describe("进出场动画（ADR-0039 复用）", () => {
-    test("配置 fade 长时长：enter 挂类在播、leave 延迟隐藏（finishAnim 推进）", async () => {
-        const { engine } = mountOverlay(
-            `<div id="app"><div x-scope>
-                <div x-overlay:an="dialog"><span>x</span></div>
-                <button x-dialog:an="ui.open" x-dialog-options="{animate: {name: 'fade', duration: 5000}}"></button>
-            </div></div>`,
-            { ui: { open: false } },
-        );
-        engine.state.ui.open = true;
-        await nextTick();
-        const mask = maskOf("an")!;
-        // 长时长配置下 enter 类稳定在播（ADR-0039 六类名契约）
-        expect(mask.className).toContain("fade-enter-active");
-        // 推进进场动画结束
-        finishAnim(mask);
+        expect(maskOf("basis")!.textContent).toContain("声明处");
+        // 关闭再开仍读声明处
         engine.state.ui.open = false;
         await nextTick();
-        // leave 动画在播：DOM 尚未隐藏（延迟移除语义）
-        expect(mask.style.display).not.toBe("none");
-        finishAnim(mask);
-        // 动画完成 → 隐藏保活
-        expect(mask.style.display).toBe("none");
+        engine.state.ui.open = true;
+        await nextTick();
+        expect(maskOf("basis")!.textContent).toContain("声明处");
+    });
+
+    test("host 基准：实例读消费处数据", async () => {
+        const { engine } = mountOverlay(html(` x-dialog-options="{dataContext: 'host'}"`), {
+            ui: { open: true },
+        });
+        await nextTick();
+        expect(maskOf("basis")!.textContent).toContain("消费处");
+    });
+
+    test("废弃值 consumer：warn + 映射 host（读消费处数据）", async () => {
+        const { engine } = mountOverlay(html(` x-dialog-options="{dataContext: 'consumer'}"`), {
+            ui: { open: false },
+        });
+        const warns: string[] = [];
+        const orig = engine.logger.warn.bind(engine.logger);
+        engine.logger.warn = (msg: string) => warns.push(msg);
+        try {
+            engine.state.ui.open = true; // 打开时才解析基准 → warn 在此发生
+            await nextTick();
+        } finally {
+            engine.logger.warn = orig;
+        }
+        expect(warns.some((w) => w.includes("consumer") && w.includes("host"))).toBe(true);
+        expect(maskOf("basis")!.textContent).toContain("消费处");
+    });
+
+    test("废弃键 scope：warn + 兜底按 dataContext 解析", async () => {
+        const { engine } = mountOverlay(html(` x-dialog-options="{scope: 'host'}"`), {
+            ui: { open: false },
+        });
+        const warns: string[] = [];
+        const orig = engine.logger.warn.bind(engine.logger);
+        engine.logger.warn = (msg: string) => warns.push(msg);
+        try {
+            engine.state.ui.open = true;
+            await nextTick();
+        } finally {
+            engine.logger.warn = orig;
+        }
+        expect(warns.some((w) => w.includes("scope") && w.includes("dataContext"))).toBe(true);
+        expect(maskOf("basis")!.textContent).toContain("消费处");
+    });
+});
+
+describe("delayClose 自动关闭", () => {
+    test("delayClose > 0：打开后延时自动请求关闭（走标准链，回写 visible）", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-component="notice"><span>通知</span></div>
+                <button x-dialog:notice="{visible: 'ui.open', delayClose: 50}"></button>
+            </div></div>`,
+            { ui: { open: true } },
+        );
+        await nextTick();
+        expect(maskOf("notice")).not.toBeNull();
+        // 50ms 后自动 requestClose('delay') → 简单路径回写 visible = false → 关闭销毁
+        await new Promise((r) => setTimeout(r, 150));
+        expect(engine.state.ui.open).toBe(false);
+        expect(maskOf("notice")).toBeNull();
+    });
+
+    test("delayClose 缺省：不自动关闭", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-component="notice2"><span>x</span></div>
+                <button x-dialog:notice2="{visible: 'ui.open'}"></button>
+            </div></div>`,
+            { ui: { open: true } },
+        );
+        await nextTick();
+        expect(maskOf("notice2")).not.toBeNull();
+        await new Promise((r) => setTimeout(r, 100));
+        expect(maskOf("notice2")).not.toBeNull();
+    });
+});
+
+describe("at 锚定定位（ADR-0052 决策 21–24）", () => {
+    afterEach(() => {
+        document.getElementById("tmp-anchor-root")?.remove();
+    });
+
+    test("at 未命中 → warn + 退屏幕居中（面板无 fixed 定位、无箭头载体残留）", async () => {
+        const { root, engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-component="tip"><span>x</span></div>
+                <button x-dialog:tip="ui.open" x-dialog-options="{at: '/#no-such-anchor'}"></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        root.id = "tmp-anchor-root";
+        document.body.appendChild(root); // / 全局选择器走 document
+        const warns: string[] = [];
+        const orig = engine.logger.warn.bind(engine.logger);
+        engine.logger.warn = (msg: string) => warns.push(msg);
+        try {
+            engine.state.ui.open = true;
+            await nextTick();
+        } finally {
+            engine.logger.warn = orig;
+        }
+        expect(warns.some((w) => w.includes('"/#no-such-anchor"'))).toBe(true);
+        const panel = maskOf("tip")!.querySelector(".autospark-dialog") as HTMLElement;
+        expect(panel.style.position).not.toBe("fixed");
+        // 退居中不注入箭头载体（避免未定位载体残留孤立菱形）
+        expect(panel.querySelector(":scope > .autospark-overlay-arrow")).toBeNull();
+    });
+
+    test("placement 未配置：默认 auto（autoPlacement 自动选位并写回最终方向）", async () => {
+        const { root, engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-component="tip"><span>x</span></div>
+                <div id="anchor-el">锚</div>
+                <button x-dialog:tip="ui.open" x-dialog-options="{at: '/#anchor-el'}"></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        root.id = "tmp-anchor-root";
+        document.body.appendChild(root);
+        engine.state.ui.open = true;
+        await nextTick();
+        await nextTick();
+        const panel = maskOf("tip")!.querySelector(".autospark-dialog") as HTMLElement;
+        // autoPlacement 经 reset 自主决定 placement，最终值写回面板（候选序首个可容纳方向）
+        const final = panel.getAttribute("data-overlay-placement")!;
+        expect(final).not.toBe("");
+        expect(["top", "bottom", "left", "right", "top-start", "top-end", "bottom-start", "bottom-end", "left-start", "left-end", "right-start", "right-end"]).toContain(final);
+        // staticSide 偏移按最终方向设置（方向→对侧映射：top/bottom→bottom/top，left/right→right/left）
+        const staticSide = { top: "bottom", bottom: "top", left: "right", right: "left" }[final.split("-")[0] as string]!;
+        const arrow = panel.querySelector(":scope > .autospark-overlay-arrow") as HTMLElement;
+        expect(arrow.style[staticSide as any]).not.toBe("");
+    });
+
+    test("锚定命中：箭头默认开启 + staticSide 反向偏移（floating-ui 融合协议）+ placement 写回", async () => {
+        const { root, engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-component="tip"><span>x</span></div>
+                <div id="anchor-el">锚</div>
+                <button x-dialog:tip="ui.open" x-dialog-options="{at: {selector: '/#anchor-el', placement: 'top'}}"></button>
+                <button x-dialog:tip="ui.open2" x-dialog-options="{at: {selector: '/#anchor-el', placement: 'top', arrow: false}, border: false}"></button>
+                <button x-dialog:tip="ui.bordered" x-dialog-options="{at: {selector: '/#anchor-el', placement: 'top'}, border: true}"></button>
+            </div></div>`,
+            { ui: { open: false, open2: false, bordered: false } },
+        );
+        root.id = "tmp-anchor-root";
+        document.body.appendChild(root);
+        // 默认（不写 arrow）：锚定模式箭头开启
+        engine.state.ui.open = true;
+        await nextTick();
+        await nextTick(); // computePosition 的 promise 微任务
+        const panel = maskOf("tip")!.querySelector(".autospark-dialog") as HTMLElement;
+        expect(panel.getAttribute("data-overlay-placement")).toBe("top");
+        // 默认（不写 border）：面板外壳带 1px 边框标记（border 默认 true，外壳模式：背景+边框+圆角）
+        expect(panel.hasAttribute("data-overlay-border")).toBe(true);
+        const arrow = panel.querySelector(":scope > .autospark-overlay-arrow") as HTMLElement;
+        expect(arrow).not.toBeNull();
+        // staticSide 偏移（top → 载体 bottom 负偏移尺寸一半，载体中心落在面板边缘线上）：
+        // happy-dom 无布局（offsetWidth 0）得 "0px"，真实浏览器 8px 载体得 "-4px"——断言已被设置
+        expect(arrow.style.bottom).not.toBe("");
+        // 未配置 offset + 箭头开启 → 默认让位 6px（面板距锚点留出三角尖高度，尖点锚元素边缘而非覆盖其上）
+        expect(panel.style.top).toBe("-6px");
+        // 显式 arrow: false / border: false：不注入载体、无边框标记（实例并存，断言按序取）
+        engine.state.ui.open2 = true;
+        await nextTick();
+        await nextTick();
+        expect(
+            document.querySelectorAll(".autospark-dialog-mask .autospark-overlay-arrow").length,
+        ).toBe(1);
+        const panels2 = document.querySelectorAll('.autospark-dialog-mask [data-overlay="tip"]');
+        expect((panels2[1] as HTMLElement).hasAttribute("data-overlay-border")).toBe(false);
+        // border: true（显式）：面板写 data-overlay-border 标记（箭头双层变色融合由 CSS 契约承担）
+        // —— 三个同名实例并存，bordered 实例最后打开（DOM 追加序在最后）
+        engine.state.ui.bordered = true;
+        await nextTick();
+        await nextTick();
+        const panels = document.querySelectorAll('.autospark-dialog-mask [data-overlay="tip"]');
+        expect((panels[panels.length - 1] as HTMLElement).hasAttribute("data-overlay-border")).toBe(
+            true,
+        );
+    });
+
+    test("at 字符串简写进链前归一化：值对象换锚只覆盖 selector、继承 x-dialog-options 的 placement", async () => {
+        const { root, engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-component="tip"><span>x</span></div>
+                <div id="anchor-el">锚</div>
+                <button
+                    x-dialog:tip="{visible: 'ui.open', at: '/#anchor-el'}"
+                    x-dialog-options="{at: {selector: '/#anchor-el', placement: 'top'}}"
+                ></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        root.id = "tmp-anchor-root";
+        document.body.appendChild(root);
+        engine.state.ui.open = true;
+        await nextTick();
+        await nextTick(); // computePosition 的 promise 微任务
+        // 若简写在合并后才归一化，字符串会整体覆盖对象、placement 丢失 → autoPlacement
+        // 自选方向而非固定 'top'。进链前归一化保证局部覆盖：placement: 'top' 保留。
+        const panel = maskOf("tip")!.querySelector(".autospark-dialog") as HTMLElement;
+        expect(panel.getAttribute("data-overlay-placement")).toBe("top");
+        expect(panel.style.position).toBe("fixed");
     });
 });

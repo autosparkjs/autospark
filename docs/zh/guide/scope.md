@@ -37,7 +37,7 @@ AutoSpark 为**每个需要管理指令的元素**创建一个 `AutoSparkScope` 
 
 - **一个 Scope 对应一个 DOM 元素**（更准确地说，是模板元素）
 - Scope 通过 `WeakRef` 引用实际渲染元素（`scope.el`），不阻止 GC
-- 大多数元素**没有 Scope**——只有含指令（`x-*` / `@*` / `:*`）或 `{{}}` 插值的元素才会创建 Scope
+- 大多数元素**没有 Scope**——只有含指令（`x-*` / `@*` / `:*`）或 <span v-pre>`{{}}`</span> 插值的元素才会创建 Scope
 - 纯静态的 `<div>hello</div>` 不会创建 Scope
 
 ## 理解 Scope

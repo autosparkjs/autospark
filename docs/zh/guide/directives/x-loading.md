@@ -68,10 +68,12 @@ engine.state.ui.loading = false; // 隐藏
 
 ### 挂载目标
 
-默认覆盖层挂在宿主元素上。`selector` 可改挂载目标：
+默认覆盖层挂在宿主元素上。`selector` 可改挂载目标（**相对查询**）：
 
-- 普通值（如 `'#inner'`）→ `宿主.querySelector(selector)`，挂到**宿主后代**；
-- 以 `@` 开头（如 `'@#modal'`）→ `document.querySelector(去@部分)`，挂到**宿主外/全局元素**；
+- 普通值（如 `'#inner'`）→ 挂到**宿主后代**；
+- `../` 父级爬升（如 `'../.target'`，可叠加 `'../../'`）→ 挂到祖先的关联元素；
+- `^` closest（如 `'^.container'`）→ 从宿主向上匹配祖先（`'^../'` 可调整起点）；
+- `/` 全局（如 `'/#modal'`）→ 挂到**宿主外/全局元素**；
 - 选择器未命中或非法 → 回退宿主（不抛错、记 warn）。
 
 <demo html="loading/selector.html"/>
@@ -81,8 +83,8 @@ engine.state.ui.loading = false; // 隐藏
 <div x-loading="{ value:'on', selector:'#inner' }">
     <div id="inner">目标</div>
 </div>
-<!-- @ 前缀：挂到全局元素 -->
-<div x-loading="{ value:'on', selector:'@#modal' }">宿主</div>
+<!-- / 前缀：挂到全局元素 -->
+<div x-loading="{ value:'on', selector:'/#modal' }">宿主</div>
 ```
 
 ### 全屏覆盖
@@ -186,7 +188,7 @@ const engine = new AutoSpark(el, { loading: false }, {
 - **复苏**：手动隐藏是纯 DOM 移除，若 value 一直为真则保持隐藏；value 翻假再翻真（或改写属性触发重建）后恢复正常驱动。
 
 ::: warning 监听位置受 selector 影响
-`action:<name>` 从被点击的按钮沿 DOM 冒泡——监听元素须在覆盖层挂载目标的祖先链上。`selector` 把覆盖层移到别处（如 `@#modal`）时，冒泡祖先随之改变。
+`action:<name>` 从被点击的按钮沿 DOM 冒泡——监听元素须在覆盖层挂载目标的祖先链上。`selector` 把覆盖层移到别处（如 `/#modal`）时，冒泡祖先随之改变。
 :::
 
 ### 自定义加载模板

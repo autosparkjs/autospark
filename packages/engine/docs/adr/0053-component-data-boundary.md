@@ -82,12 +82,12 @@ x-component-options.scope  ← 作者默认（须配合 open）
 
 `x-use` 换组件名重实例化时，旧基准标志与视图缓存一并重置（`_destroyInstance`）。
 
-### 六、与覆盖层家族的关系（机制共享、词汇分家）
+### 六、与覆盖物家族的关系（机制共享、基准统一）
 
-overlay 实例**本就是组件实例化家族的兄弟物种**（同样传 componentDef）。统一为「scope 基准 = 声明处默认 + 消费处覆盖」的家族心智：
+overlay 实例**本就是组件实例化家族的兄弟物种**（同样传 componentDef）。ADR-0052 修订版（组件化统一）将家族基准**完全统一**到本 ADR 的两值：
 
-- overlay 沿用其既有配置通道与默认（`scope: 'consumer' | 'declarer'`，默认 declarer）——**v1 配置与行为完全不动**（其存在理由就是读声明处上下文/params，封闭模式无真实输入，YAGNI）；
-- 词汇分家：组件用 `host`（x-use 宿主惯例），overlay 沿用 `consumer`（ADR-0052 刚落盘，改词纯翻搅），CONTEXT.md 两词条互注等价；
+- 覆盖物 `scope` 配置即 `'declarer' | 'host'`（默认 declarer，定义闭包）——`'consumer'` 更名废弃（warn + 按 host 处理），词汇不再分家；
+- 覆盖物「挂链即基准」：parentScope 直接挂声明处/消费处 scope，表达式上下文 / 数据视图 / 生命周期由挂链统一表达；
 - 机制层共享同一套基准 enforcement（`dataBoundary`/`declarerDataScope` 的三处收口）。
 
 ### 七、兼容与迁移（硬切，无运行时诊断）

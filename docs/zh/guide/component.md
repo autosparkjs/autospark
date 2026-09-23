@@ -309,7 +309,7 @@ const engine = new AutoSpark(el, {}, {
 
 ```html
 <!-- ❌ 冲突：x-use 与 x-for 同元素 -->
-<div x-for="i in 3" x-use="card"></div>
+<div x-for="i of 3" x-use="card"></div>
 
 <!-- ✅ 把结构控制写在外层 -->
 <div x-if="show">
@@ -395,7 +395,7 @@ method 内可直接 `this.otherMethod()` 调用同组件的其他方法——无
 | | `data` | `locals` |
 | --- | --- | --- |
 | 响应式 | ✅ 改了触发更新 | ❌ 改了不更新 |
-| 模板可见 | ✅ `{{x}}` / `x-text="x"` 可读 | ❌ 模板表达式读不到（不进聚合视图） |
+| 模板可见 | ✅ <span v-pre>`{{x}}`</span> / `x-text="x"` 可读 | ❌ 模板表达式读不到（不进聚合视图） |
 | 访问方式 | `this.data.x` 或模板 `x` | 仅 `this.x`（method/钩子内） |
 | 典型用途 | 业务展示数据 | 定时器句柄、缓存、防抖标记 |
 

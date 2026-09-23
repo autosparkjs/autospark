@@ -1,7 +1,6 @@
 // oxlint-disable typescript/no-this-alias
 import type { AutoSpark } from "./engine";
 import type { ComponentHooks } from "./directives/component-def";
-import type { OverlayDef } from "./overlay/types";
 import type { ActionDesc } from "./actions/types";
 import { AutoSparkDirectiveBase } from "./directives/base";
 import { getVal, type Watcher } from "autostore";
@@ -247,16 +246,6 @@ export class AutoSparkScope {
      */
     components: Record<string, HTMLElement> | null = null;
     /**
-     * x-overlay 收集的覆盖层定义（ADR-0052）。
-     *
-     * compiler 前置 transformer 命中 `x-overlay:<名称>` 元素时，冻结快照组装为 OverlayDef
-     * （复用组件收集管道，`<script setup>`/`<style>` 已提取）存入最近祖先 scope 的本字段；
-     * `.global` 修饰符改升 engine 级全局表（`engine._globalOverlays`）。key 为覆盖层名；
-     * 同名后者覆盖（warn）。查找走 `getOverlay(name)`（沿链就近 → 全局兜底，与 getComponent
-     * 同构）。仅收集到覆盖层时才创建（YAGNI，同 components）。
-     */
-    overlays: Record<string, OverlayDef> | null = null;
-    /**
      * x-for 分页状态的只读快照（ADR-0042 分页状态读取器）。
      *
      * 仅 x-for.paging 的容器 scope 持有：For 指令在分页状态每次变化时整体重建（Object.freeze），
@@ -265,7 +254,7 @@ export class AutoSparkScope {
      * 多数 scope 无分页 → null（同 components，YAGNI）；随 scope 对象回收，无需手动清理。
      */
     paging: AutoSparkPagingSnapshot | null = null;
-    /** 是否已销毁（destroy 幂等守卫；供覆盖层实例等外部资源判定级联死亡，ADR-0052） */
+    /** 是否已销毁（destroy 幂等守卫；供覆盖物实例等外部资源判定级联死亡，ADR-0052） */
     destroyed = false;
     /**
      * 数据边界标志（ADR-0053 组件数据边界）：true = 本 scope 是**封闭组件实例 scope**。
@@ -472,24 +461,6 @@ export class AutoSparkScope {
         }
         // 兜底全局组件（懒预编译缓存，见 engine.getComponent 全局解析）
         return this.engine._resolveGlobalComponent(name);
-    }
-
-    /**
-     * 沿 parent 链就近查找覆盖层定义，到顶兜底 engine 全局表（ADR-0052 决策 5）。
-     *
-     * 与 `getComponent` 同构的查找协议：消费者（x-dialog 等）从自身 scope 起向上取首个含该名
-     * overlay 的 scope（就近覆盖），链上无命中兜底 `engine._globalOverlays`（`.global` 声明注入）。
-     * 整条链（含全局）无命中返回 undefined（消费者 warn + 不渲染）。
-     */
-    getOverlay(name: string): OverlayDef | undefined {
-        let s: AutoSparkScope | null = this;
-        while (s) {
-            if (s.overlays && Object.prototype.hasOwnProperty.call(s.overlays, name)) {
-                return s.overlays[name];
-            }
-            s = s.parent;
-        }
-        return this.engine._resolveGlobalOverlay(name);
     }
 
     /**

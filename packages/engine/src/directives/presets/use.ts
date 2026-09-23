@@ -47,8 +47,8 @@ export class UseDirective extends AutoSparkDirectiveBase {
     static override readonly priority = 70;
     static override readonly singleton = true;
 
-    /** 递归实例化深度上限（T5=A，防无限递归） */
-    private static readonly MAX_DEPTH = 100;
+    /** 递归实例化深度上限（T5=A，防无限递归；overlay 基座共享） */
+    protected static readonly MAX_DEPTH = 100;
 
     /** 当前实例化的组件实例 scope（destroy 时级联销毁） */
     private instanceScope: AutoSparkScope | null = null;
@@ -57,9 +57,9 @@ export class UseDirective extends AutoSparkDirectiveBase {
     /** 当前实例化的组件 def（缓存，props 更新时复用） */
     private instanceDef: ComponentDef | null = null;
     /** pending 组件名（异步加载中，组件未就绪；监听 component/registered 后重试实例化，R6=B） */
-    private pendingName: string | null = null;
+    protected pendingName: string | null = null;
     /** pending 期间的 props（组件就绪重试时复用） */
-    private pendingProps: Record<string, any> | undefined;
+    protected pendingProps: Record<string, any> | undefined;
     /** component/registered 监听解绑函数 */
     private registeredUnsub: (() => void) | null = null;
 
@@ -149,6 +149,28 @@ export class UseDirective extends AutoSparkDirectiveBase {
     }
 
     /**
+     * 组件查找 + def 反查（x-use 与 overlay 基座共享）。
+     *
+     * 快照经 `scope.getComponent(name)`（scope 链就近 + 全局兜底）；def 反查：
+     * 作用域组件经 `_componentDefs`（WeakMap，snapshot 为 key）、全局组件经
+     * `_globalComponentDefCache`（按 name）——getComponentDef 对全局 snapshot 返回 undefined，
+     * 须 fallback getGlobalComponentDef，否则全局组件的 setup(data/methods/hooks) 丢失、不注入。
+     *
+     * @returns `{ snapshot, def }`；未命中返回 null（调用方决定等待/警告行为）
+     */
+    protected _findComponentDef(
+        name: string,
+    ): { snapshot: HTMLElement; def: ComponentDef | null } | null {
+        const snapshot = this.binding.getComponent(name);
+        if (!snapshot) return null;
+        const def =
+            this.engine.getComponentDef(snapshot) ??
+            this.engine.getGlobalComponentDef(name) ??
+            null;
+        return { snapshot, def };
+    }
+
+    /**
      * 实例化组件：宿主 scope 化身组件实例 + 编译组件快照子树。
      *
      * 复用宿主 scope（this.binding）作组件实例 scope，避免同一宿主双 scope 冲突（T4=B 宿主化身组件根）：
@@ -157,9 +179,9 @@ export class UseDirective extends AutoSparkDirectiveBase {
      * 3. compileSubtree 编译组件快照子树到宿主（快照内指令建子 scope，watch 时读到注入的 data）；
      * 4. 手动触发 created/mounted hooks（宿主 scope 的 compile() 已早于组件注入跑过，hooks 须补触发）。
      */
-    private _instantiate(name: string, props: Record<string, any> | undefined): void {
-        const snapshot = this.binding.getComponent(name);
-        if (!snapshot) {
+    protected _instantiate(name: string, props: Record<string, any> | undefined): void {
+        const found = this._findComponentDef(name);
+        if (!found) {
             // 组件未注册（可能正在被 x-import 异步加载）：显示 loading 占位 + 监听就绪后重试（R6=B）
             this._showLoadingPlaceholder(name);
             this._waitForComponent(name, props);
@@ -172,21 +194,20 @@ export class UseDirective extends AutoSparkDirectiveBase {
             );
             return;
         }
-        // def 查找：作用域组件经 _componentDefs（WeakMap，snapshot 为 key）；
-        // 全局组件经 _globalComponentDefCache（按 name）——getComponentDef 对全局 snapshot 返回 undefined，
-        // 须 fallback getGlobalComponentDef，否则全局组件的 setup(data/methods/hooks)丢失、不注入。
-        const def =
-            this.engine.getComponentDef(snapshot) ??
-            this.engine.getGlobalComponentDef(name) ??
-            null;
-        this.instanceDef = def;
+        this.instanceDef = found.def;
         this.instanceScope = this.binding; // 宿主 scope 即组件实例 scope
         // 属性继承（T4=B）：组件快照根属性并入宿主（须早于实例化，宿主属性就位后编译子树）
-        this._mergeComponentRootAttrs(snapshot);
+        this._mergeComponentRootAttrs(found.snapshot);
         // 数据基准解析（ADR-0053）：x-use-options.scope（消费覆盖）> def.scopeBasis（作者声明）> 默认
-        const basis = this._resolveDataBasis(def);
+        const basis = this._resolveDataBasis(found.def);
         // 实例化：注册快照 + 注入语义 + 施加数据基准 + 编译子树 + 触发 hooks（封装在 compiler.instantiateComponent）
-        this.engine.compiler.instantiateComponent(this.binding, snapshot, def, props, basis);
+        this.engine.compiler.instantiateComponent(
+            this.binding,
+            found.snapshot,
+            found.def,
+            props,
+            basis,
+        );
         // scoped CSS 注入（ADR-0022 决策四-4）：阶段 5 实现
     }
 
@@ -283,28 +304,36 @@ export class UseDirective extends AutoSparkDirectiveBase {
     }
 
     /**
-     * 监听 component/registered 事件，目标组件就绪后移除占位 + 重新实例化（R6=B 异步占位）。
+     * 监听 component/registered 事件，目标组件就绪后经 {@link _retryPendingComponent} 重试
+     * （R6=B 异步占位）。
      */
-    private _waitForComponent(name: string, props: Record<string, any> | undefined): void {
+    protected _waitForComponent(name: string, props: Record<string, any> | undefined): void {
         this.pendingName = name;
         this.pendingProps = props;
         if (this.registeredUnsub) return; // 已在监听
         const sub = this.engine.on("component/registered", (m: any) => {
             const payload = m?.payload ?? m;
             if (payload?.name === this.pendingName) {
-                const retryName = this.pendingName!;
-                const retryProps = this.pendingProps;
-                this._clearPending();
-                this._hideLoadingPlaceholder();
-                // 组件就绪，重新实例化（首次渲染用最新 props）
-                this._instantiate(retryName, retryProps);
+                this._retryPendingComponent();
             }
         });
         this.registeredUnsub = typeof sub === "function" ? sub : () => sub.off();
     }
 
+    /**
+     * 等待的组件就绪后的重试入口（R6=B）：清 pending + 移除占位 + 重新实例化
+     * （首次渲染用最新 props）。子类可覆盖加前置条件（如 overlay 的 visible 已归假则放弃）。
+     */
+    protected _retryPendingComponent(): void {
+        const retryName = this.pendingName!;
+        const retryProps = this.pendingProps;
+        this._clearPending();
+        this._hideLoadingPlaceholder();
+        this._instantiate(retryName, retryProps);
+    }
+
     /** 清理 pending 状态（组件就绪重试 / 卸载时） */
-    private _clearPending(): void {
+    protected _clearPending(): void {
         this.pendingName = null;
         this.pendingProps = undefined;
         if (this.registeredUnsub) {
@@ -319,7 +348,7 @@ export class UseDirective extends AutoSparkDirectiveBase {
      * 每个 isComponent=true 的祖先 scope 若实例化了同名组件，深度 +1。
      * scope 上记录实例化的组件名（经 scope.componentName，由 compileChild 在 componentDef 在场时设置）。
      */
-    private _recursiveDepth(name: string): number {
+    protected _recursiveDepth(name: string): number {
         let depth = 0;
         let s: AutoSparkScope | null = this.binding.parent;
         while (s) {

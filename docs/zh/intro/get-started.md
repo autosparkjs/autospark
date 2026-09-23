@@ -67,7 +67,7 @@ TODO 应用的核心是一组任务。先给页面一个挂载点，再给引擎
 </ul>
 ```
 
-项模板里用项变量（`todo`）访问当前项的字段。`{{ }}` 是文本插值，和 `x-text` 等价。现在增删 `engine.state.todos`（`push` / `splice` / 整体赋值）列表都会自动刷新。
+项模板里用项变量（`todo`）访问当前项的字段。<span v-pre>`{{ }}`</span> 是文本插值，和 `x-text` 等价。现在增删 `engine.state.todos`（`push` / `splice` / 整体赋值）列表都会自动刷新。
 
 ::: warning x-for 独占容器子树
 带 `x-for` 的元素是**容器**，渲染一次；它的元素子节点才是被重复的项模板。`:key` 写在容器（`<ul>`）上，不是项（`<li>`）上。
@@ -211,7 +211,7 @@ const engine = new AutoSpark(
 </div>
 ```
 
-状态对象里写成**函数**的字段就是同步计算属性。它的 `scope` 形参指向所在容器（这里是根），函数里访问 `scope.todos`，引擎自动追踪依赖——`todos` 任一项的 `done` 变化都让 `remaining` 重算、订阅它的 `{{ remaining }}` 自动刷新。
+状态对象里写成**函数**的字段就是同步计算属性。它的 `scope` 形参指向所在容器（这里是根），函数里访问 `scope.todos`，引擎自动追踪依赖——`todos` 任一项的 `done` 变化都让 `remaining` 重算、订阅它的 <span v-pre>`{{ remaining }}`</span> 自动刷新。
 
 ## 第 8 步：完整成品
 
@@ -285,7 +285,7 @@ const engine = new AutoSpark(
 | --- | --- | --- |
 | 1 | 安装与引入 | IIFE / ESM 两种入口 |
 | 2 | 挂载与状态 | 裸状态建 store、`engine.state` 是更新正道 |
-| 3 | 列表渲染 | `x-for` + `:key` + `{{ }}` 插值 |
+| 3 | 列表渲染 | `x-for` + `:key` + <span v-pre>`{{ }}`</span> 插值 |
 | 4 | 输入与交互 | `x-model` 双向绑定、`@click` 触发动作 |
 | 5 | 状态联动 | `@click` 带参、`:class` 表达式、细粒度更新 |
 | 6 | 增删与空态 | `splice` 数组操作、`x-empty` 空状态 |

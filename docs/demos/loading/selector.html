@@ -41,8 +41,8 @@
                 <button class="button is-primary" @click="onB">在宿主外全局 <code>#outside</code> 上显示</button>
             </div>
             <!-- 全局目标：与下面的宿主同级，宿主的覆盖层却挂到这个外部元素 -->
-            <div id="outside" class="target">全局目标（与宿主同级，<code>selector:'@#outside'</code>）</div>
-            <div class="card" x-loading="{ value:'b', selector:'@#outside' }" style="margin-top:8px">
+            <div id="outside" class="target">全局目标（与宿主同级，<code>selector:'/#outside'</code>）</div>
+            <div class="card" x-loading="{ value:'b', selector:'/#outside' }" style="margin-top:8px">
                 <div class="card-content">宿主元素（带 <code>x-loading</code>，覆盖层却挂到上面的全局 <code>#outside</code>）。</div>
             </div>
             <div class="block has-text-grey">@ 前缀走 <code>document.querySelector</code>，可把覆盖层挂到宿主之外/全局元素；未命中或非法选择器回退宿主。</div>

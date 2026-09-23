@@ -76,7 +76,7 @@
                     <button class="button is-small is-primary" x-on:click="inc">+</button>
                     <button class="button is-small is-warning" x-on:click="favorite">收藏</button>
                 </div>
-                <script setup>
+                <script type="autospark/setup">
                     {
                         data() {
                             // id 由 props 传入；qty 默认 1（组件内部状态，由 +/- 修改）
@@ -108,7 +108,7 @@
             <!-- 组件 cart-total：读全局 state.cart 求和（全局 state 共享） -->
             <div x-component="cart-total">
                 <div class="total">合计：<span x-text="total"></span> 件</div>
-                <script setup>
+                <script type="autospark/setup">
                     {
                         data() {
                             return { total: 0 };

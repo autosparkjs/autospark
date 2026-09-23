@@ -2,7 +2,7 @@
 <html lang="zh-CN">
     <head>
         <meta charset="UTF-8" />
-        <title>x-overlay · 声明与消费</title>
+        <title>覆盖物 · 消费模型</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
@@ -10,7 +10,8 @@
         </style>
     </head>
     <body>
-        <!-- x-overlay 声明在编译期被剪枝缓存，声明处不闪现；x-dialog 状态驱动消费 -->
+        <!-- 覆盖物 = 任意组件被渲染到 body 容器的消费方式：
+             内容是普通组件（x-component 声明，编译期剪枝不闪现），x-dialog 状态驱动消费 -->
         <div class="demo-app section">
             <div class="block">
                 <button class="button is-primary" x-dialog:login="ui.loginVisible"
@@ -18,9 +19,9 @@
                 <span class="tag" x-text="'ui.loginVisible = ' + ui.loginVisible"></span>
             </div>
 
-            <div x-data="{ ui: { loginVisible: false } }">
-                <!-- 覆盖层定义：声明处（可读此处 scope 的数据与方法） -->
-                <div x-overlay:login="dialog">
+            <div x-data="{ ui: { loginVisible: false }, appTitle: 'AutoSpark' }">
+                <!-- 组件声明处：declarer 基准（默认）——组件读此处 scope 的数据与方法 -->
+                <div x-component="login">
                     <div class="ov-panel">
                         <h3 class="title is-5">登录 {{appTitle}}</h3>
                         <div class="field"><input class="input" placeholder="用户名" /></div>
@@ -31,7 +32,7 @@
             </div>
         </div>
         <script>
-            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), { appTitle: "AutoSpark" });
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
         </script>
     </body>
 </html>
