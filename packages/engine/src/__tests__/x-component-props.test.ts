@@ -83,7 +83,7 @@ describe("x-component props 语义（ADR-0054）", () => {
                 <div id="h" x-component:counter="{ count: order.count }"></div>
                 <div x-define="counter">
                     <span class="c" x-text="count"></span>
-                    <script setup>{ state(){ return { count: 0 } } }</script>
+                    <script setup>{ data:{ count: 0 } }</script>
                 </div>
              </div>`,
             { order: { count: 1 } },
@@ -219,7 +219,7 @@ describe("x-component props 语义（ADR-0054）", () => {
         expect(warns.length).toBe(0);
     });
 
-    test("旧 setup 段 data()：warn 指引更名 state()，剪枝不生效（ADR-0055）", async () => {
+    test("data() 工厂形态：合法（每实例调用，注入响应式数据域，ADR-0057）", async () => {
         const { root, warns } = mountCaptureWarn(
             `<div x-scope>
                 <div id="h" x-component:box></div>
@@ -231,23 +231,76 @@ describe("x-component props 语义（ADR-0054）", () => {
             {},
         );
         await nextTick();
-        // 旧 data() 不注入响应式状态域（模板读不到 count）
-        expect(root.querySelector(".c")?.textContent ?? "").toBe("");
-        expect(warns.some((w) => w.includes("data() 已更名为 state()"))).toBe(true);
+        // 工厂返回值注入响应式数据域（模板可读）
+        expect(root.querySelector(".c")?.textContent).toBe("7");
+        expect(warns.length).toBe(0);
     });
 
-    test("旧 setup 段 locals：warn 指引更名 data，剪枝不生效（ADR-0055）", async () => {
+    test("locals 段（程序化私有变量）：合法，注入 _locals 不进聚合视图（ADR-0057）", async () => {
         const { root, warns } = mountCaptureWarn(
             `<div x-scope>
                 <div id="h" x-component:box></div>
                 <div x-define="box">
+                    <span class="s" x-text="secret"></span>
                     <script setup>{ locals:{ secret: "隐秘" } }</script>
                 </div>
              </div>`,
             {},
         );
         await nextTick();
-        // 旧 locals 段不注入 _locals
-        expect(warns.some((w) => w.includes("locals 已更名为 data"))).toBe(true);
+        // locals 进 _locals（不进聚合视图）→ 模板读不到
+        expect(root.querySelector(".s")?.textContent ?? "").not.toBe("隐秘");
+        expect(warns.length).toBe(0);
+    });
+});
+
+/**
+ * 纯字面量 props 与组件内部状态（回归：docs/demo counter.html 场景）。
+ *
+ * 字面量 props（不含状态路径）的依赖收集结果为空集——空 deps 订阅（autostore watch([])
+ * 语义 = 任意状态变化都触发）使 props watcher 被组件内交互写入触发重求值；重求值产生
+ * 键值相同的新字面量对象，若照常 assign 会把交互改过的值打回字面量初值，用户看到
+ * 「按 +/- 无效」。修复后 _updateProps 先做浅值比较，值无变化跳过（ADR-0054 决策三）。
+ */
+describe("纯字面量 props：内部状态不被任意状态变化重置", () => {
+    test("props 实例点击 + 持续生效，无关实例的状态变化不干扰", async () => {
+        const { root } = mount(
+            `<div x-scope>
+                <div x-define="counter">
+                    <span class="c" x-text="count"></span>
+                    <button class="inc" x-on:click="inc">+</button>
+                    <script setup>{
+                        data:{ count: 0, step: 1 },
+                        methods:{ inc(){ this.data.count += this.data.step } },
+                        mounted(){
+                            const init = this.scope.el.getAttribute("data-count");
+                            if (init !== null) this.data.count = Number(init);
+                        }
+                    }</script>
+                </div>
+                <div class="p1"><div x-component:counter data-count="10"></div></div>
+                <div class="p2"><div x-component:counter="{count: 100, step: 5 }"></div></div>
+             </div>`,
+            {},
+        );
+        await nextTick();
+        expect(root.querySelector(".p1 .c")?.textContent).toBe("10"); // mounted 读 data-count
+        expect(root.querySelector(".p2 .c")?.textContent).toBe("100"); // props 注入覆盖
+
+        // 无关实例（无 props 表达式）的内部状态变化：不干扰 props 实例
+        root.querySelector<HTMLButtonElement>(".p1 .inc")!.click();
+        await nextTick();
+        expect(root.querySelector(".p1 .c")?.textContent).toBe("11");
+        expect(root.querySelector(".p2 .c")?.textContent).toBe("100");
+
+        // props 实例点击 +（step=5）：修复前 105 被重置回 100
+        root.querySelector<HTMLButtonElement>(".p2 .inc")!.click();
+        await nextTick();
+        expect(root.querySelector(".p2 .c")?.textContent).toBe("105");
+
+        // 持续生效
+        root.querySelector<HTMLButtonElement>(".p2 .inc")!.click();
+        await nextTick();
+        expect(root.querySelector(".p2 .c")?.textContent).toBe("110");
     });
 });

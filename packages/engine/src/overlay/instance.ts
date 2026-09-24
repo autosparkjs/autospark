@@ -2,6 +2,7 @@ import type { AutoSpark } from "../engine";
 import { SCOPES_KEY } from "../engine";
 import type { AutoSparkScope } from "../scope";
 import type { ComponentDef } from "../directives/component-def";
+import type { SlotContent } from "../utils/slot";
 import { resolveAnimate } from "../animate";
 import { releaseComponentStyle } from "../utils/scopedStyle";
 import { getOverlayContainer, MASK_CLASS, PANEL_CLASS } from "./container";
@@ -14,14 +15,21 @@ import { normalizeAtConfig, type OverlayConfig, type OverlayEventDetail } from "
  * 覆盖物实例选项（消费者解析后传入）。
  */
 export interface OverlayInstanceOptions {
-    /** scope 基准挂链目标（declarer→声明处 scope / host→消费者 scope / null→rootless） */
+    /** 数据视图基准挂链目标（declarer→声明处 scope / host→消费者 scope / null→rootless） */
     parentScope?: AutoSparkScope | null;
-    /** `at.selector` 相对选择器的查询域（消费者宿主 / 命令式 scope 元素） */
+    /** `at.selector` 相对选择器的查询域（消费者宿主 / 命令式 dataContext 元素） */
     searchRoot?: HTMLElement | null;
-    /** 数据视图基准元素（命令式 `options.scope`；声明式为 null——基准由 parentScope 表达） */
-    scopeEl?: HTMLElement | null;
+    /** 数据视图基准元素（命令式 `dataContext` 传元素时；声明式为 null——基准由 parentScope 表达） */
+    dataContextEl?: HTMLElement | null;
     /** 模态遮罩外壳（dialog 形态：遮罩 + flex 居中 + closeOnMask）；缺省裸面板直挂容器 */
     mask?: boolean;
+    /**
+     * 插槽内容 map（ADR-0056）：消费者（x-dialog）在 `_instantiate` 懒收集后传入，
+     * 经 `instantiateDetachedComponent` stash 到实例 scope，出口 SlotDirective 填充。
+     */
+    slotContents?: Map<string, SlotContent> | null;
+    /** 插槽内容调用方视图基准（ADR-0056）：x-dialog 消费者 binding */
+    slotCallerScope?: AutoSparkScope | null;
 }
 
 /**
@@ -60,14 +68,18 @@ export class OverlayInstance {
     readonly def: ComponentDef | null;
     /** 生效配置（三级深度合并产物） */
     config: OverlayConfig;
-    /** 数据视图基准元素（命令式 `options.scope`；声明式为 null——基准由 parentScope 表达） */
-    readonly scopeEl: HTMLElement | null;
+    /** 数据视图基准元素（命令式 `dataContext` 传元素时；声明式为 null——基准由 parentScope 表达） */
+    readonly dataContextEl: HTMLElement | null;
     /** `at.selector` 相对选择器的查询域（消费者宿主 / 命令式 scope 元素） */
     readonly searchRoot: HTMLElement | null;
     /** scope 基准挂链目标（declarer→声明处 scope / host→消费者 scope / null→rootless） */
     readonly parentScope: AutoSparkScope | null;
     /** 模态遮罩外壳（dialog 形态） */
     readonly mask: boolean;
+    /** 插槽内容 map（ADR-0056；透传给 instantiateDetachedComponent） */
+    readonly slotContents: Map<string, SlotContent> | null;
+    /** 插槽内容调用方视图基准（ADR-0056） */
+    readonly slotCallerScope: AutoSparkScope | null;
 
     /** 「请求关闭」回调：消费者注入（visible 可写回时写回 false）；命令式无（决策 19） */
     onCloseRequest: ((inst: OverlayInstance, source: string) => void) | null = null;
@@ -107,8 +119,10 @@ export class OverlayInstance {
         this.config = config;
         this.parentScope = opts.parentScope ?? null;
         this.searchRoot = opts.searchRoot ?? null;
-        this.scopeEl = opts.scopeEl ?? null;
+        this.dataContextEl = opts.dataContextEl ?? null;
         this.mask = opts.mask ?? false;
+        this.slotContents = opts.slotContents ?? null;
+        this.slotCallerScope = opts.slotCallerScope ?? null;
     }
 
     /** 是否可见 */
@@ -244,13 +258,17 @@ export class OverlayInstance {
         this._panel = panel;
 
         // 2. 编译组件（instantiateDetachedComponent 管道：data() 默认 → props 覆盖、methods、
-        //    四阶段 hooks、scoped CSS、styleBinds、数据基准全生效——x-component 兄弟路径）
+        //    四阶段 hooks、scoped CSS、styleBinds、数据基准全生效——x-component 兄弟路径）；
+        //    插槽内容 map 经 configure stash 到实例 scope（ADR-0056 决策十）。
         const clone = this.snapshot.cloneNode(true) as HTMLElement;
         const compiled = this.engine.compiler.instantiateDetachedComponent(
             clone,
             this.parentScope,
             this.def,
             props,
+            undefined,
+            this.slotContents,
+            this.slotCallerScope,
         );
         this.instanceScope = compiled.scope;
         panel.appendChild(compiled.el);
@@ -289,9 +307,7 @@ export class OverlayInstance {
                 arrowHost.className = OVERLAY_ARROW_CLASS;
                 this._panel!.appendChild(arrowHost);
             }
-            applyAnchorPosition(anchorCfg, anchorEl, this._panel!, (fn) =>
-                this._cleanups.push(fn),
-            );
+            applyAnchorPosition(anchorCfg, anchorEl, this._panel!, (fn) => this._cleanups.push(fn));
         } else {
             if (this.config.at != null) {
                 // 提示原始选择器（config.at 已归一化为对象，String 化前取回 selector）
@@ -336,7 +352,7 @@ export class OverlayInstance {
         const detail: OverlayEventDetail = {
             name: this.name,
             instance: this,
-            scope: this.scopeEl ?? undefined,
+            dataContext: this.dataContextEl ?? undefined,
         };
         this.el?.dispatchEvent(new CustomEvent(type, { detail, bubbles: true }));
         (this.engine as any).emit(type, detail);

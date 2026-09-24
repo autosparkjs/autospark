@@ -150,15 +150,15 @@ describe("x-model get/set（表达式 + action）", () => {
         expect(engine.state.dst).toBe("hello");
     });
 
-    test("set action：拆分写入多字段（this.state 访问）", async () => {
+    test("set action：拆分写入多字段（this.globalState 访问）", async () => {
         const { root, engine } = mount(
             `<input x-model="user.first" x-model-options="{set:'setName'}" />`,
             { user: { first: "zhang", last: "" } },
         );
         engine.actions.setName = function (this: any, $value: string) {
             const parts = $value.split(",");
-            this.state.user.first = parts[0];
-            this.state.user.last = parts[1] ?? "";
+            this.globalState.user.first = parts[0];
+            this.globalState.user.last = parts[1] ?? "";
         };
         const input = root.querySelector("input")!;
         input.value = "li,si";

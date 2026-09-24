@@ -58,9 +58,9 @@
                     actions: {
                         // 把第 index 段替换后重组写回——state 是唯一真相源，各段显示随状态自动重放
                         setOctet: function (index, v) {
-                            const parts = String(this.state.server.ip).split(".");
+                            const parts = String(this.globalState.server.ip).split(".");
                             parts[index] = v;
-                            this.state.server.ip = parts.join(".");
+                            this.globalState.server.ip = parts.join(".");
                         },
                     },
                 },

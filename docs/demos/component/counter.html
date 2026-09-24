@@ -8,11 +8,11 @@
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <!--
             一个完整的计数器组件，集中演示组件核心能力：
-            - state()   ：组件初始状态（count / step）
-            - methods   ：组件方法（inc / dec / reset），注入 scope.actions，由 x-on 调用
+            - data      ：组件响应式数据（count / step），改动驱动更新
+            - methods   ：组件方法（inc / dec / reset），由 x-on 调用
             - mounted   ：DOM 编译完成后的生命周期钩子（读宿主 data-count 初始化）
             - <style>   ：作用域样式，仅命中本组件实例元素（仿 Vue <style scoped>）
-            - props     ：x-component 传入的 count 覆盖 state() 默认值（合并顺序：state() 先、props 后）
+            - props     ：x-component 传入的 count 覆盖 data 默认值（合并顺序：data 先、props 后）
         -->
     </head>
     <body>
@@ -27,9 +27,10 @@
                 <!-- ② <script type="autospark/setup">：声明 data / methods / 生命周期钩子 -->
                 <script type="autospark/setup">
                     {
-                        // state() 返回组件初始状态，注入组件响应式状态域
-                        state() {
-                            return { count: 0, step: 1 };
+                        // data：组件响应式数据，注入响应式数据域（改动驱动模板更新）
+                        data: {
+                            count: 0,
+                            step: 1,
                         },
                         // methods 注入 scope.actions，可被 x-on 调用，this.data 即组件数据域
                         methods: {
@@ -72,13 +73,13 @@
                 </style>
             </div>
 
-            <!-- ④ 实例化组件：使用 state() 默认值，mounted 钩子读 data-count=10 初始化 -->
+            <!-- ④ 实例化组件：使用 data 默认值，mounted 钩子读 data-count=10 初始化 -->
             <div class="panel">
                 <div class="label">默认实例（mounted 初始化为 10）</div>
                 <div x-component:counter data-count="10"></div>
             </div>
 
-            <!-- ⑤ 传 props：对象形式，count 覆盖 state() 默认值（合并顺序：state() 先、props 后） -->
+            <!-- ⑤ 传 props：对象形式，count 覆盖 data 默认值（合并顺序：data 先、props 后） -->
             <div class="panel">
                 <div class="label">props 注入（初始 count=100，step=5）</div>
                 <div x-component:counter="{count: 100, step: 5 }"></div>

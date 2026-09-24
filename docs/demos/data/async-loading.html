@@ -72,9 +72,9 @@
                             await new Promise((r) => setTimeout(r, 1500));
                             return { value: "第 " + tick + " 次加载的数据" };
                         },
-                        reloadA: function () { this.state.aTick = this.state.aTick + 1; },
-                        reloadB: function () { this.state.bTick = this.state.bTick + 1; },
-                        reloadC: function () { this.state.cTick = this.state.cTick + 1; },
+                        reloadA: function () { this.globalState.aTick = this.globalState.aTick + 1; },
+                        reloadB: function () { this.globalState.bTick = this.globalState.bTick + 1; },
+                        reloadC: function () { this.globalState.cTick = this.globalState.cTick + 1; },
                     },
                 },
             );

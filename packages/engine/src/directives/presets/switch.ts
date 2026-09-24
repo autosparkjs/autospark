@@ -104,7 +104,7 @@ export class SwitchDirective extends AutoSparkDirectiveBase {
      * 模板只读契约（ADR-0002）——不摘除节点，`cloneNode(true)` 为冻结快照；分支不进结果 DOM
      * 由 compiler 剪枝层保证（两通道统一）。防呆（编译期 warn，运行时按既定语义执行）：
      * - 非分支子元素 → warn（不会渲染，随宿主离开 DOM）；
-     * - 分支根含结构指令（ownsChildren 类：x-for / eager x-if / x-slot）→ warn + 跳过该分支；
+     * - 分支根含结构指令（ownsChildren 类：x-for / eager x-if / x-isolate）→ warn + 跳过该分支；
      * - 同元素 x-case + x-default → warn，按 x-case 处理；
      * - x-case 空值 → warn，按 x-default 兜底处理（对齐 x-else-if 空值惯例）；
      * - 多个兜底（x-default 重复 / 多个空 x-case 降级）→ warn，取第一个；
@@ -138,7 +138,7 @@ export class SwitchDirective extends AutoSparkDirectiveBase {
             });
             if (structural) {
                 this.warn(
-                    `x-switch: 分支根上声明了结构指令（x-for/eager x-if/x-slot 等 ownsChildren 类），该分支被跳过（ADR-0037）`,
+                    `x-switch: 分支根上声明了结构指令（x-for/eager x-if/x-isolate 等 ownsChildren 类），该分支被跳过（ADR-0037）`,
                 );
                 continue;
             }

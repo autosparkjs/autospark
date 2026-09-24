@@ -135,7 +135,7 @@
 
 > **ADR-0012 局部 action 隔离**：局部 action（`scope.actions`，`<script type="autospark/actions">`）**只 DOM 冒泡、不进总线**——总线是全局通道，局部 action 同名进总线会与其他 scope 串扰（消费者无法区分来源）。故总线 `actions/<name>/*` 只承载全局 action（name 唯一、无冲突）；DOM `action:<name>` 承载全部（冒泡隔离作用域）。经 `buildAction` 的 `local` 标志区分（compiler 入口 true、engine 入口 false）。配套 `<script type="autospark/actions" global>` 标志可声明全局 action（注入 `engine.actions`、双发），与默认局部区分。见 [ADR-0012](adr/0012-local-action-dom-only.md)。
 
-> **task 域已废弃（2026-08-07）**：ADR-0003 原设计的 `task/<source>/<verb>` 统一异步事件抽象未被采用——x-on async action 用 `actions/<name>/*`（per-action 精确订阅，name 入路径），x-slot remote 加载用 x-loading 指令自带覆盖层（不广播事件）。task 域零消费者，已移除。"一处订阅抓所有异步"的跨源诉求当前不存在，若未来出现再评估统一抽象。
+> **task 域已废弃（2026-08-07）**：ADR-0003 原设计的 `task/<source>/<verb>` 统一异步事件抽象未被采用——x-on async action 用 `actions/<name>/*`（per-action 精确订阅，name 入路径），x-isolate remote 加载用 x-loading 指令自带覆盖层（不广播事件）。task 域零消费者，已移除。"一处订阅抓所有异步"的跨源诉求当前不存在，若未来出现再评估统一抽象。
 
 ### 通配契约（Wildcard Contract）
 
@@ -221,42 +221,42 @@ engine 级共享 MutationObserver 分发器（`engine.el` 上单一 observer，`
 
 二者皆独占元素内容、同 `priority=0`、不同名单例不去重。采「确定性优先级 + 文档」（非 fail-fast、非任其竞争）：**x-text 在同 scope 含 `html` 指令时 `created()` 直接 no-op**（一行守卫），使 x-html 恒为唯一写入者，与属性声明顺序、`_updates` 数组顺序皆无关——完全确定。区别于属性冲突的编译期报错（ADR-0004 决策 12）。见 [ADR-0005](adr/0005-x-html-directive.md) 决策 6。
 
-## 引擎边界（x-slot）
+## 引擎边界（x-isolate）
 
-### x-slot（engine 边界 / 隔离快照）
+### x-isolate（engine 边界 / 隔离快照）
 
-在模板中划一块**独立于 engine 的隔离 DOM 区域**的指令。当前 engine 编译**到 x-slot 为止、不进入其内部**——static 模式下内容是冻结快照（不编译、不建 scope、不注册 watcher），engine 永不覆写。两种形态由**有无值**切换（二选一、无第三态）：无值 `x-slot` → static；有值 `x-slot="expr"` → remote。是 `ownsChildren` 结构指令（与 x-for/x-if 同机制拦截子节点自动递归），故不能与 `x-for`/eager `x-if` 同元素（`_resolveOwnership` 抛 owners 冲突）。见 [ADR-0006](adr/0006-x-slot-directive.md) 决策 1。
+在模板中划一块**独立于 engine 的隔离 DOM 区域**的指令。当前 engine 编译**到 x-isolate 为止、不进入其内部**——static 模式下内容是冻结快照（不编译、不建 scope、不注册 watcher），engine 永不覆写。两种形态由**有无值**切换（二选一、无第三态）：无值 `x-isolate` → static；有值 `x-isolate="expr"` → remote。是 `ownsChildren` 结构指令（与 x-for/x-if 同机制拦截子节点自动递归），故不能与 `x-for`/eager `x-if` 同元素（`_resolveOwnership` 抛 owners 冲突）。见 [ADR-0006](adr/0006-x-isolate-directive.md) 决策 1。
 
-### 威胁边界 T1/T2/T3（x-slot「保持原样」防什么）
+### 威胁边界 T1/T2/T3（x-isolate「保持原样」防什么）
 
-- **T1 反应式刷新**（scheduler flush → watcher 重求值 → patch）：✅ **挡**——x-slot 内无 watcher、宿主无 x-text/x-html 覆写，frozen+ownsChildren 天然使刷新碰不到内容。**这是 x-slot 核心价值**。
+- **T1 反应式刷新**（scheduler flush → watcher 重求值 → patch）：✅ **挡**——x-isolate 内无 watcher、宿主无 x-text/x-html 覆写，frozen+ownsChildren 天然使刷新碰不到内容。**这是 x-isolate 核心价值**。
 - **T2 结构重建**（x-if toggle / engine.data 子树重建 / engine.patch）：❌ **不挡**——与普通元素一视同仁，宿主销毁则内容/child engine 随销，重建时静态重克隆 / remote 重 fetch。
 - **T3 全量重编译**（engine.compile）：❌ **不挡**——整树 replaceChildren 无幸存。
-  用户「engine 不碰内容」「隔离 DOM 空间」诉求由 T1 满足；T2/T3 是结构重建固有行为。见 [ADR-0006](adr/0006-x-slot-directive.md) 决策 2。
+  用户「engine 不碰内容」「隔离 DOM 空间」诉求由 T1 满足；T2/T3 是结构重建固有行为。见 [ADR-0006](adr/0006-x-isolate-directive.md) 决策 2。
 
 ### 冻结快照（Frozen Snapshot）
 
-static 模式下 x-slot 内容的形态：`compile()` 把 `this.template` 子节点**深克隆**进宿主、**剥除全部 x-\* 指令属性**（产出洁净静态 HTML，与引擎全局惯例一致），**不编译**。内层 `{{}}`/x-text/:bind 一律**静默失效**（非「编译后被冻结」，而是根本不编译）；编译期检测到内层指令/插值记 `logger.warn`（非抛错）。见 [ADR-0006](adr/0006-x-slot-directive.md) 决策 1。
+static 模式下 x-isolate 内容的形态：`compile()` 把 `this.template` 子节点**深克隆**进宿主、**剥除全部 x-\* 指令属性**（产出洁净静态 HTML，与引擎全局惯例一致），**不编译**。内层 `{{}}`/x-text/:bind 一律**静默失效**（非「编译后被冻结」，而是根本不编译）；编译期检测到内层指令/插值记 `logger.warn`（非抛错）。见 [ADR-0006](adr/0006-x-isolate-directive.md) 决策 1。
 
 ### static 模式 / remote 模式
 
-x-slot 的两种工作模式：**static**（无值 `x-slot`）= 冻结快照、无 engine、开发者 DOM API 全权管理；**remote**（有值 `x-slot="expr"`）= 从响应式 url fetch 模板、在其上建完全独立的 [child engine](#child-engine子引擎)。模式由值的有无切换。见 [ADR-0006](adr/0006-x-slot-directive.md) 决策 1/4。
+x-isolate 的两种工作模式：**static**（无值 `x-isolate`）= 冻结快照、无 engine、开发者 DOM API 全权管理；**remote**（有值 `x-isolate="expr"`）= 从响应式 url fetch 模板、在其上建完全独立的 [child engine](#child-engine子引擎)。模式由值的有无切换。见 [ADR-0006](adr/0006-x-isolate-directive.md) 决策 1/4。
 
 ### url 响应式（Reactive URL）
 
-remote 模式下 `x-slot="expr"` 的 `expr` 是**反应式表达式**，经 `scope.watch` 求值（与 x-text/x-html 同构——复用路径/表达式双轨、collectDependencies、scheduler 合并；支持 scope 相对路径、x-data 局部、x-for item）。watch 返回值即 url：假/空 → 无 engine；有效字符串 → fetch + 建 engine；**值变化 → 销毁当前 child engine + 重新 fetch + 重建**。换 `state.apiUrl` 即换子模板，零额外接线。见 [ADR-0006](adr/0006-x-slot-directive.md) 决策 4。
+remote 模式下 `x-isolate="expr"` 的 `expr` 是**反应式表达式**，经 `scope.watch` 求值（与 x-text/x-html 同构——复用路径/表达式双轨、collectDependencies、scheduler 合并；支持 scope 相对路径、x-data 局部、x-for item）。watch 返回值即 url：假/空 → 无 engine；有效字符串 → fetch + 建 engine；**值变化 → 销毁当前 child engine + 重新 fetch + 重建**。换 `state.apiUrl` 即换子模板，零额外接线。见 [ADR-0006](adr/0006-x-isolate-directive.md) 决策 4。
 
 ### child engine（子引擎）
 
-remote 模式在 x-slot 宿主上创建的**完全独立** `AutoSpark` 实例：`new AutoSpark(host, {})`——传裸状态由 engine 自建空 store（fetched HTML 用自身 x-data 自治声明，**不复用父 store**，与父状态零耦合），以宿主为挂载点（fetch 成功后 `host.innerHTML = html` 再构造，宿主身份不变、仅子节点被接管）。挂在指令实例 `this.childEngine`（非 scope 对象——指令 own 自己的资源、SRP）。**随 `scope.destroy()` 销毁**（指令 `destroy()` 调 `childEngine.destroy()` + abort 在途 fetch，连带销毁其自建 store 与默认 configManager），零额外接线、无泄漏。见 [ADR-0006](adr/0006-x-slot-directive.md) 决策 4/5。
+remote 模式在 x-isolate 宿主上创建的**完全独立** `AutoSpark` 实例：`new AutoSpark(host, {})`——传裸状态由 engine 自建空 store（fetched HTML 用自身 x-data 自治声明，**不复用父 store**，与父状态零耦合），以宿主为挂载点（fetch 成功后 `host.innerHTML = html` 再构造，宿主身份不变、仅子节点被接管）。挂在指令实例 `this.childEngine`（非 scope 对象——指令 own 自己的资源、SRP）。**随 `scope.destroy()` 销毁**（指令 `destroy()` 调 `childEngine.destroy()` + abort 在途 fetch，连带销毁其自建 store 与默认 configManager），零额外接线、无泄漏。见 [ADR-0006](adr/0006-x-isolate-directive.md) 决策 4/5。
 
-### slot 盲区（Slot Blind Zone）
+### isolate 盲区（Slot Blind Zone）
 
-隔离父/子双 dispatcher 抢管的机制。父 `RuntimeObserverDispatcher` 以 `subtree:true` 观察 `engine.el`，child engine 写进宿主**子树**的运行时指令属性（如 x-loading）会被父 dispatcher 二次 mount。x-slot `created()` 调 `dispatcher.addSlotRoot(host)` 登记宿主为盲区根；dispatcher 的 `collectEls`/`_handle` 对盲区**严格后代**（`slotRoots.some(r => r !== el && r.contains(el))`）跳过 mount/attr 派发；`destroy()` 注销。**盲区不含宿主自身**——宿主上的 runtime 指令（如 fetch 期间 x-slot 添加的 x-loading）仍归父 dispatcher，仅子树由 child engine 自身 dispatcher 负责。见 [ADR-0006](adr/0006-x-slot-directive.md) 决策 8。
+隔离父/子双 dispatcher 抢管的机制。父 `RuntimeObserverDispatcher` 以 `subtree:true` 观察 `engine.el`，child engine 写进宿主**子树**的运行时指令属性（如 x-loading）会被父 dispatcher 二次 mount。x-isolate `created()` 调 `dispatcher.addIsolateRoot(host)` 登记宿主为盲区根；dispatcher 的 `collectEls`/`_handle` 对盲区**严格后代**（`isolateRoots.some(r => r !== el && r.contains(el))`）跳过 mount/attr 派发；`destroy()` 注销。**盲区不含宿主自身**——宿主上的 runtime 指令（如 fetch 期间 x-isolate 添加的 x-loading）仍归父 dispatcher，仅子树由 child engine 自身 dispatcher 负责。见 [ADR-0006](adr/0006-x-isolate-directive.md) 决策 8。
 
 ### ~~task/slot 事件（已移除）~~
 
-remote 模式**原计划**广播 `task/slot/{started,resolved,rejected}` 供全局加载协调，但 task 域抽象未被采用（见上文「task 域已废弃」）。x-slot remote 加载的加载态改由 **x-loading 指令自带覆盖层**（宿主 `setAttribute("x-loading")` toggle，dispatcher 自动 mount/unmount）表达，错误由占位 + `logger.error` 表达——**不广播任何事件**。
+remote 模式**原计划**广播 `task/slot/{started,resolved,rejected}` 供全局加载协调（当时指令名尚为 x-slot），但 task 域抽象未被采用（见上文「task 域已废弃」）。x-isolate remote 加载的加载态改由 **x-loading 指令自带覆盖层**（宿主 `setAttribute("x-loading")` toggle，dispatcher 自动 mount/unmount）表达，错误由占位 + `logger.error` 表达——**不广播任何事件**。
 
 ## 结构占位与模板块（x-scope / x-block）
 
@@ -272,7 +272,7 @@ remote 模式**原计划**广播 `task/slot/{started,resolved,rejected}` 供全�
 
 机制 = compiler 前置 NodeTransformer（与 `<script type="autospark/actions">` 提取同构）+ 轻量 `BlockDirective`（`ownsChildren=true` 冻结其内容，防子树被正常 walk 编译）。被拦截元素**根本不进 `compileElement`**，故自然地不建 scope、不实例化任何指令。**x-scope 保持 `ownsChildren=false`**——不越权接管子树，职责单一（SRP）。见 [ADR-0021](adr/0021-x-scope-and-x-block.md) 决策 2。
 
-> **与 x-slot 的关键区别**（极易混淆）：x-slot 是 **engine 边界 / 隔离运行**（内部不编译、开发者 DOM API 全权管理，或建 child engine）；x-block 是**存模板待引用**（编译期摘除、冻结副本供消费者取用）。x-slot 的内容**留在渲染树里**（静态快照或 child engine 接管）；x-block 的内容**从渲染树移除**、仅作为 `blocks[name]` 存在。二者正交，可共存于同一模板。
+> **与 x-isolate 的关键区别**（极易混淆）：x-isolate 是 **engine 边界 / 隔离运行**（内部不编译、开发者 DOM API 全权管理，或建 child engine）；x-block 是**存模板待引用**（编译期摘除、冻结副本供消费者取用）。x-isolate 的内容**留在渲染树里**（静态快照或 child engine 接管）；x-block 的内容**从渲染树移除**、仅作为 `blocks[name]` 存在。二者正交，可共存于同一模板。
 
 ### 块归属（Block Ownership）
 
@@ -280,7 +280,7 @@ x-block 挂到其**最近的祖先 scope**——**任意深度**（跨中间无 
 
 ### 块冻结快照（Block Frozen Snapshot）
 
-`scope.blocks[name]` 存的内容形态：`cloneNode(true)` 产出的、保留指令属性、未编译、可被多消费者重复取用而不相互污染的洁净副本。**独立于 `engine.template` 事实源**（ADR-0002 只读约束）。机制与 x-slot static 模式的「深克隆子节点」同构，但区别在：x-slot 快照剥除指令属性（纯静态 HTML）、x-block 快照**保留**指令属性（块被消费渲染时才编译）。见 [ADR-0021](adr/0021-x-scope-and-x-block.md) 决策 3。
+`scope.blocks[name]` 存的内容形态：`cloneNode(true)` 产出的、保留指令属性、未编译、可被多消费者重复取用而不相互污染的洁净副本。**独立于 `engine.template` 事实源**（ADR-0002 只读约束）。机制与 x-isolate static 模式的「深克隆子节点」同构，但区别在：x-isolate 快照剥除指令属性（纯静态 HTML）、x-block 快照**保留**指令属性（块被消费渲染时才编译）。见 [ADR-0021](adr/0021-x-scope-and-x-block.md) 决策 3。
 
 ### 同元素指令随块冻结（Co-frozen Directives）
 
@@ -301,6 +301,23 @@ x-block 挂到其**最近的祖先 scope**——**任意深度**（跨中间无 
 ### 跨指令供体协议（Cross-directive Provider Protocol）
 
 x-block **不绑定具体消费者**，是声明性资源——任意指令按约定名从 `scope.blocks` 取用。块名**纯自由命名**（各消费指令文档自定其读取名与兜底逻辑），引擎**不预定义 UI 态名册**（不硬编码 loading/error/empty），不限制指令开发者发明新消费场景（开放-封闭原则）。消费关系由各指令文档单独约定，引擎只提供存取基础设施。
+
+## 插槽（x-slot）
+
+### x-slot（组件内容投影）
+
+组件模板的声明式内容投影指令（ADR-0056）。**双侧对称**：`x-define` 组件模板内声明**出口**（`x-slot` / `x-slot:name`），`x-component` 宿主子级提供**内容**；实例化时内容按名投影，无内容渲染出口 fallback。出口清单编译期自动推断进 `ComponentDef.slots`（`buildComponentDef` 收集带 `x-slot*` 的元素名）。`kind=Compile`、`singleton=true`、`ownsChildren=true`（出口子树=fallback 手动编译 / 内容侧接管宿主子树收集）。注册键 `slot`（`presets/slot.ts`，`SlotDirective`——与旧名腾出的 `IsolateDirective` 无关）。x-dialog/x-overlay 覆盖物自动继承（`instantiateDetachedComponent` 传 content map）。
+
+### 插槽出口（Outlet）与内容（Content）
+
+- **出口**（定义侧）：标记元素**始终保留为真实包裹层**（出口位置即 DOM 位置），任意深度合法；fallback 在**组件作用域**求值。同名多出口 → 首个胜 + warn。
+- **内容**（调用方侧）：在**调用方作用域链**求值（不受 ADR-0053 组件封闭边界约束）。**仅直接子级分段**：带 `x-slot:*` 的直接子元素切命名段，其余按文档序合并单一默认段（裸子节点=默认内容，无形参）；命名标记存在即提供（空也覆盖）；裸子节点全纯空白=未提供。深层 `x-slot:*` → warn+忽略。无对应出口 → warn+丢弃（不留宿主前缀）。克隆 `cloneNode(true)`（ADR-0002 模板只读）。
+
+### 作用域形参（Slot Params）
+
+作用域插槽数据面：出口 `x-slot:header="{ item: row }"`（组件作用域 watch 求值注入）↔ 内容 `x-slot:header="{ item, index }"`（自定义 `{ 键, 键 }` 解构解析，非 JSON）。形参挂内容作用域 `locals`（进聚合视图）；注入变化 → `Object.assign(locals)` + `scope.refresh()`（x-for 复用先例）。裸子节点=无形参；默认内容要形参须显式 `<div x-slot="{ item }">`。
+
+> **与 x-isolate 区分**：x-isolate 是 engine 边界/隔离快照（内部不编译）；x-slot 是组件内容投影（内容在调用方作用域编译）。旧 x-slot 曾是 isolate 前身名（ADR-0006 更名腾名），2026-09-24 由 ADR-0056 赋予插槽新义。
 
 ## x-on 反馈（feedback）
 
@@ -496,7 +513,7 @@ _Avoid_: 元数据绑定（泛化）
 - ✅ [ADR-0003] 事件总线（信号面）与分层事件契约 —— _Accepted（Round 3）_
 - ✅ [ADR-0004] 响应式文本插值（`{{ }}`）—— _Accepted（Round 1，grill-with-docs）_
 - ✅ [ADR-0005] x-html 指令（默认消毒的原始 HTML 注入）—— _Accepted（Round 1，grill-with-docs）_
-- ✅ [ADR-0006] x-slot 指令（engine 边界 / 隔离快照 / 远程子引擎）—— _Accepted（Round 5，grill-with-docs）_
+- ✅ [ADR-0006] x-isolate 指令（engine 边界 / 隔离快照 / 远程子引擎）—— _Accepted（Round 5，grill-with-docs）_
 - ✅ [ADR-0007] 指令配置统一（modifier 注入 options + 元素级 host options 回退）—— _Accepted_
 - ✅ [ADR-0008] x-on feedback 修饰符（async action 执行反馈）—— _Accepted（grill-with-docs）_
 - ✅ [ADR-0009] 构造器第二参接受 `store | state`（自建 store 归 engine 销毁）—— _Accepted（Round 3，grill-with-docs）｜实现待落地｜**借用轨已被 [ADR-0044](adr/0044-store-ownership-and-default-configmanager.md) 部分取代**_

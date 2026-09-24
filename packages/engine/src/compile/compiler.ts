@@ -33,7 +33,9 @@ import {
     isAsyncHtmlValue,
 } from "../directives/presets/async-source";
 import { buildComponentDef } from "./collect";
+import { resolveComponentData } from "./setup";
 import type { ComponentDataBasis, ComponentDef } from "../directives/component-def";
+import type { SlotContent } from "../utils/slot";
 import { mountComponentScopedAttr, injectComponentStyle } from "../utils/scopedStyle";
 import { coerceStyleValue, type StyleBind } from "../utils/styleBind";
 import { iconRegistry } from "../icons/registry";
@@ -509,7 +511,7 @@ export class AutoSparkCompiler {
      * scope 是否被任意结构指令（ownsChildren）占有子树——纯判定，不抛错。
      *
      * 供 `engine.patch` 的动态区域守卫（ADR-0002 决策 5）：patch 目标自身或祖先链上有
-     * ownsChildren 指令（x-for / eager x-if / x-slot / eager x-switch）即处于动态区域，
+     * ownsChildren 指令（x-for / eager x-if / x-isolate / eager x-switch）即处于动态区域，
      * 正向桥不可靠，拒绝。
      */
     scopeOwnsChildren(scope: AutoSparkScope): boolean {
@@ -551,7 +553,7 @@ export class AutoSparkCompiler {
                 // 结构指令宿主的直接子级是项模板材料（ownsChildren），数据脚本无处挂载——
                 // warn 放弃（脚本稍后仍被剪枝 transformer 移出渲染 DOM，不泄漏）
                 this.engine.logger.warn(
-                    `<script type="autospark/data"> 不能直接声明在结构指令（x-for/eager x-if/x-slot）宿主的直接子级（其子节点是项模板）。请移入项模板内目标元素的直接子级（ADR-0032 决策 7）。`,
+                    `<script type="autospark/data"> 不能直接声明在结构指令（x-for/eager x-if/x-isolate）宿主的直接子级（其子节点是项模板）。请移入项模板内目标元素的直接子级（ADR-0032 决策 7）。`,
                 );
             } else {
                 this._applyDataScriptStash(scope, dataStash);
@@ -610,14 +612,24 @@ export class AutoSparkCompiler {
     private _resolveOwnership(scope: AutoSparkScope): boolean {
         const owners = scope.directives.filter((d) => this._ownsChildrenDirective(d));
         if (owners.length > 1) {
-            const names = owners.map((d) => `x-${d.info.name}`).join(" + ");
-            throw new Error(
-                `[结构指令冲突] ${names} 不能作用于同一元素（均占有子树，语义互斥）。\n` +
-                    "若需组合使用，请改用（均不占子树，可与结构指令共存）：\n" +
-                    '  • x-show="<expr>"        （display:none，宿主永留 DOM）\n' +
-                    "  • 结构指令的 .keepalive 变体（detach 宿主，保活子树与 watcher）\n" +
-                    "或用外层包裹，让两个结构指令各居一层。",
-            );
+            // component 计入所有权信号但**豁免多 owner 抛错**（ADR-0056 实现注记 1）：
+            // 多 owner 抛错早于 scope.compile()（created），component 变 ownsChildren 后与 x-for
+            // 同元素会先触发通用抛错而非 U3 友好 warn。处置：throwers 只计真正互斥的结构指令
+            // （for/if/switch/isolate/slot/tree…），component 保留在 owners（占用子树信号）
+            // 但不参与抛错——U3 检测留在 ComponentDirective.created 的友好 warn 路径。
+            // （x-dialog/x-overlay 已不 ownsChildren，不会出现在 owners 中。）
+            const throwers = owners.filter((d) => d.info.name !== "component");
+            if (throwers.length > 1) {
+                const names = throwers.map((d) => `x-${d.info.name}`).join(" + ");
+                throw new Error(
+                    `[结构指令冲突] ${names} 不能作用于同一元素（均占有子树，语义互斥）。\n` +
+                        "若需组合使用，请改用（均不占子树，可与结构指令共存）：\n" +
+                        '  • x-show="<expr>"        （display:none，宿主永留 DOM）\n' +
+                        "  • 结构指令的 .keepalive 变体（detach 宿主，保活子树与 watcher）\n" +
+                        "或用外层包裹，让两个结构指令各居一层。",
+                );
+            }
+            return true; // component + 单结构指令：占用信号仍为 true（子树由该结构指令接管）
         }
         return owners.length === 1;
     }
@@ -757,6 +769,62 @@ export class AutoSparkCompiler {
     }
 
     /**
+     * 编译插槽内容节点组并挂到出口元素（ADR-0056）。
+     *
+     * - **元素** → `compileChild`（显式 `parentScope` + `localData`，`configure` 置 `isSlotContent`）；
+     * - **含 `{{}}` 文本** → 建轻量内容 scope（`isSlotContent` + 共享 `localData`）后 `compileTextNode`；
+     * - **其余节点**（纯文本/注释等）→ 原样克隆挂载。
+     *
+     * 所有内容 scope 的 `parent` = `parentScope`（调用方基准），销毁经 SlotDirective 持引用回收
+     * （幂等；同时随调用方 children 级联）。
+     *
+     * @param parentScope 调用方基准（x-component=宿主 scope / overlay=x-dialog binding）
+     * @param localData   作用域形参容器（共享引用，出口侧 Object.assign 刷新；无参 null）
+     * @param mountEl     出口元素（内容挂载点）
+     * @returns 内容 scopes（供 SlotDirective.destroy 回收）
+     */
+    compileSlotNodes(
+        nodes: Node[],
+        parentScope: AutoSparkScope,
+        localData: Record<string, any> | null,
+        mountEl: HTMLElement,
+    ): AutoSparkScope[] {
+        const scopes: AutoSparkScope[] = [];
+        for (const node of nodes) {
+            if (node instanceof HTMLElement) {
+                const { el, scope } = this.compileChild(
+                    node,
+                    parentScope,
+                    localData,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    (s) => {
+                        s.isSlotContent = true;
+                    },
+                );
+                scopes.push(scope);
+                mountEl.appendChild(el);
+            } else if (node.nodeType === Node.TEXT_NODE && hasMustache((node as Text).nodeValue)) {
+                // 文本插值：轻量内容 scope（无指令 dummy 模板，避免二次实例化 SlotDirective）
+                const dummy = document.createElement("span");
+                const textScope = new AutoSparkScope(this.engine, dummy, dummy);
+                textScope.locals = localData;
+                textScope.isSlotContent = true;
+                parentScope.addChild(textScope);
+                this.engine.scopes.set(new WeakRef(dummy), textScope);
+                scopes.push(textScope);
+                const frag = this.compileTextNode(node as Text, textScope);
+                if (frag) mountEl.appendChild(frag);
+            } else {
+                mountEl.appendChild(node.cloneNode(true));
+            }
+        }
+        return scopes;
+    }
+
+    /**
      * 供 x-for 编译单个列表项的模板。
      *
      * 手动建根 scope 并注入 localData（item/index），再用 transformElement
@@ -775,13 +843,14 @@ export class AutoSparkCompiler {
      * 供 x-component 复用宿主 scope 化身组件实例（宿主 scope 本身即组件实例 scope，不另建），以及
      * compileChild 在新建 scope 后调用。注入内容：
      * - `isComponent=true` + `componentName=def.name`；
-     * - `data`：data() 默认值先注入、props 后覆盖（R1=A 合并顺序），写入响应式 `$scopes[id]` 域；
+     * - `data`：data 默认值先注入、props 后覆盖（R1=A 合并顺序），写入响应式 `$scopes[id]` 域
+     *   （ADR-0057：data 双形态——工厂每实例调用、字面量深克隆，per-instance）；
      * - `methods`：注入 `scope.actions`（复用 x-on action 查找）；
      * - `hooks`：克隆到 `scope.hooks`（四阶段生命周期，每阶段数组克隆避免多实例共享引用）。
      *
      * @param scope 目标 scope（x-component 的宿主 scope，或 compileChild 新建的 scope）
      * @param def   组件定义
-     * @param props x-component 传入的 props（覆盖 data() 默认值；undefined 则只注入默认值）
+     * @param props x-component 传入的 props（覆盖 data 默认值；undefined 则只注入默认值）
      */
     injectComponentSemantics(
         scope: AutoSparkScope,
@@ -794,19 +863,19 @@ export class AutoSparkCompiler {
             string,
             any
         >;
-        const hasComponentState = typeof def.setup?.state === "function";
-        if (hasComponentState || props) {
+        const hasComponentData = def.setup?.data != null;
+        if (hasComponentData || props) {
             if (!scopes[scope.id]) scopes[scope.id] = {};
             const data = scopes[scope.id];
             scope._data = data;
-            // 1) 组件 state() 默认状态（先）
-            if (hasComponentState) {
+            // 1) 组件 data 默认值（先；工厂调用 / 字面量深克隆，per-instance，ADR-0057）
+            if (hasComponentData) {
                 try {
-                    const defaults = def.setup!.state!();
+                    const defaults = resolveComponentData(def.setup);
                     if (defaults && typeof defaults === "object") Object.assign(data, defaults);
                 } catch (e: any) {
                     this.engine.logger.warn(
-                        `x-define "${def.name}" state() 执行失败，跳过默认值: ${e?.message ?? e}`,
+                        `x-define "${def.name}" data 求值失败，跳过默认值: ${e?.message ?? e}`,
                     );
                 }
             }
@@ -822,11 +891,11 @@ export class AutoSparkCompiler {
         if (def.setup?.methods) {
             scope.methods = { ...def.setup.methods };
         }
-        // data 段注入 scope._locals（ADR-0022 决策二-3 (10)；段名 ADR-0055 更名自 locals：
+        // 顶层私有变量注入 scope._locals（ADR-0057；ADR-0022 决策二-3 (10)：
         // 非响应式组件私有数据，不进聚合视图）。经 Proxy this 的 this.<key> 读写
-        //（method/state/framework key 优先级高于 _locals）。
-        if (def.setup?.data) {
-            scope._locals = { ...def.setup.data };
+        //（method/framework key/_data 优先级高于 _locals）。
+        if (def.setup?.locals) {
+            scope._locals = { ...def.setup.locals };
         }
         // hooks 克隆到 scope.hooks（每阶段函数数组克隆，避免多实例共享同一数组引用）
         if (def.hooks) {
@@ -867,9 +936,24 @@ export class AutoSparkCompiler {
         def: ComponentDef | null,
         props?: Record<string, any>,
         basis?: ComponentDataBasis,
+        /**
+         * 插槽内容 map（ADR-0056）：懒收集于 ComponentDirective._instantiate，stash 到宿主 scope
+         * 供出口 SlotDirective 沿 parent 链查找。null/缺省 = 无内容（出口走 fallback）。
+         */
+        slotContents?: Map<string, SlotContent> | null,
+        /**
+         * 插槽内容的调用方视图基准（ADR-0056）：x-component 传宿主 scope 自身
+         * （isSlotContent 走 getCallerContext，保留 x-for item locals 又跳过组件 _data/边界）。
+         */
+        slotCallerScope?: AutoSparkScope | null,
     ): void {
         // 1. 注册快照根到 templateScopeMap：子树编译时 _linkParent 沿 parentElement 找到此映射 → 宿主 scope
         this.templateScopeMap.set(snapshot, hostScope);
+        // 1.5 插槽内容 stash（须早于 compileSubtree——出口 SlotDirective.created 在子树编译时查找）
+        if (slotContents) {
+            hostScope.slotContents = slotContents;
+            hostScope.slotCallerScope = slotCallerScope ?? hostScope;
+        }
         // 2. 注入组件语义
         if (def) {
             this.injectComponentSemantics(hostScope, def, props);
@@ -955,6 +1039,10 @@ export class AutoSparkCompiler {
         def: ComponentDef | null,
         props?: Record<string, any>,
         basis?: ComponentDataBasis,
+        /** 插槽内容 map（ADR-0056，overlay 路径）——stash 到实例 scope，出口沿 parent 链查找 */
+        slotContents?: Map<string, SlotContent> | null,
+        /** 插槽内容调用方视图基准（ADR-0056）：overlay 传 x-dialog 消费者 binding */
+        slotCallerScope?: AutoSparkScope | null,
     ): { el: HTMLElement; scope: AutoSparkScope } {
         const compiled = this.compileChild(
             template,
@@ -964,6 +1052,12 @@ export class AutoSparkCompiler {
             props,
             def ?? undefined,
             basis,
+            (scope) => {
+                if (slotContents) {
+                    scope.slotContents = slotContents;
+                    scope.slotCallerScope = slotCallerScope ?? parentScope;
+                }
+            },
         );
         // styleBinds 订阅（ADR-0022 决策四-4.1）：data 已注入（compileChild 内），首值写编译根；
         // watcher 进 scope.watchers 随 scope.destroy 自动 off（零额外卸载接线）
@@ -996,7 +1090,7 @@ export class AutoSparkCompiler {
             this._declarerFallbackWarned.add(def);
         }
         this.engine.logger.warn(
-            `组件 "${def?.name ?? "?"}" 的 declarer 基准不可用（${reason}），已退化为封闭行为（ADR-0053）。如需恢复上下文继承请改用 scope:'host'。`,
+            `组件 "${def?.name ?? "?"}" 的 declarer 基准不可用（${reason}），已退化为封闭行为（ADR-0053）。如需恢复上下文继承请改用 dataContext:'host'。`,
         );
     }
 
@@ -1077,6 +1171,13 @@ export class AutoSparkCompiler {
          * 缺省 = 不施加边界语义（现行为，x-component 走 instantiateComponent 的宿主化身路径）。
          */
         basis?: ComponentDataBasis,
+        /**
+         * scope 预配置回调（ADR-0056）：在 scope 创建后、`compileSubtree`/`scope.compile()` 前调用。
+         *
+         * 供插槽内容路径设置 `isSlotContent`/`slotContents`——须在子树 watch 首次求值前就位，
+         * 否则 getContext/hasLocalContext 走错视图分支。
+         */
+        configure?: (scope: AutoSparkScope) => void,
     ): { el: HTMLElement; scope: AutoSparkScope } {
         const el = reuseEl ?? (itemTemplate.cloneNode(false) as HTMLElement);
         if (!reuseEl) removeDirectives(el, "x-", this._runtimeKeepAttr());
@@ -1087,6 +1188,7 @@ export class AutoSparkCompiler {
         }
         const scope = new AutoSparkScope(this.engine, el, itemTemplate);
         scope.locals = localData;
+        configure?.(scope);
         // 组件语义注入（须早于 scope.compile()——created hook 与各指令 watch 首次求值须读到完整 data/actions）。
         // 状态合并顺序 R1=A：componentDef.state() 先注入默认，initialData（x-component props）后覆盖。
         if (componentDef) {

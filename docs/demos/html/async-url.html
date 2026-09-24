@@ -44,7 +44,7 @@
                     actions: {
                         // 改插值依赖 → url 变化 → 自动重取（旧值保留、fallback 不闪现）
                         setLang: function (v) {
-                            this.state.lang = v;
+                            this.globalState.lang = v;
                         },
                     },
                 },

@@ -92,7 +92,7 @@
 **边界**：
 
 - 只作用于**直接父元素**（不是最近祖先）——想给哪层建域，就把脚本放进那层元素的直接子级；
-- 不能直接声明在结构指令（x-for / eager x-if / x-slot）宿主的直接子级（其子节点是项模板）——移入项模板内目标元素的直接子级，每项实例独立数据域；
+- 不能直接声明在结构指令（x-for / eager x-if / x-isolate）宿主的直接子级（其子节点是项模板）——移入项模板内目标元素的直接子级，每项实例独立数据域；
 - 编译后 script 从渲染 DOM 移除；求值失败的脚本按空对象继续（error 日志，不中断）；
 - `watch` 请声明在数据对象**顶层**（激活机制依赖注入后首读）；内容字符串含 `</script>` 时须写 `<\/script>`（HTML 解析限制）。
 
@@ -135,7 +135,7 @@ x-data 的值以 `/`、`//`、`http://`、`https://`、`./`、`../` 开头即 **
 
 值形如 `标识符` 或 `标识符(实参)` 即 **action 形态**——经 getAction 链（局部 `autospark/actions` → 全局 `engine.actions`）查找执行，返回值 / Promise resolve 经与 fetch 相同的映射（对象-only + `path` 提取）落域；加载状态反馈与 x-fallback / x-loading 机制共用（见上节）。
 
-**实参是表达式**（宿主作用域求值），依赖变化**对称重执行**（与 url 插值同一套「依赖收集 → 变化重取」机制）；action 内 `this` 与 x-on 调用时一致（`this.data` / `this.state` 可用）：
+**实参是表达式**（宿主作用域求值），依赖变化**对称重执行**（与 url 插值同一套「依赖收集 → 变化重取」机制）；action 内 `this` 与 x-on 调用时一致（`this.data` / `this.globalState` 可用）：
 
 ```html
 <div x-data="loadBooks(page)">
@@ -331,7 +331,7 @@ engine.data(document.getElementById("block"), { times: 10 });
 优先级：`mount`（非空串）> `global` > 默认私有域。
 
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../config.md)。
+指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive.md#指令配置)。
 :::
 
 ## 注意事项

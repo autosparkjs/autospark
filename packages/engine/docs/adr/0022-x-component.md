@@ -62,7 +62,7 @@ ADR-0021 建立了 x-block 命名模板块机制：编译期树变换收集冻�
 - 组件 `data()` 返回值注入子 scope 的 `data` 域（响应式，指向 `store.state._scopes[id]`）。
 - `x-use="{..}"` 传入值注入**同一个 data 域**。
 - **合并顺序**：`data()` 先注入默认，`x-use` 后覆盖（外部优先）。后续响应式更新只覆盖 x-use 声明的键（`Object.assign(data, 新值)`），组件内部状态（用户交互改的）不被外部重置。
-- **无独立 `this.props`**。`this.data` = 合并了 x-use 传入 + `data()` 的统一响应式域。
+- **无独立 `this.props`**。`this.data` = 合并了 x-use 传入 + `data()` 的统一响应式域。（ADR-0057 修订：新增 `this.props` 访问器——`this.data` 的等价别名，非独立域；响应式段名回归 `data`。）
 
 **理由**：data 域本就响应式（`getContext` set 陷阱透传到响应式代理），props 复用 data 即可，无需新增 `localScope`/`scope.props` 层。KISS。
 
@@ -359,8 +359,13 @@ x-use 属性值经 `scope.watch` 求值得对象，watcher 重求值时 `Object.
 
 #### 5. 与其他指令共存（U3）
 
-- x-use + 任意结构指令（x-if/x-for/x-slot/x-switch/x-tree 等占子树）→ 编译期 warn + 拒绝。
+- x-use + 任意结构指令（x-if/x-for/x-isolate/x-switch/x-tree 等占子树）→ 编译期 warn + 拒绝。
 - x-use + 非结构指令（x-show/x-on/x-bind/x-text/x-class 等）→ 允许，属性复制到组件根生效。
+
+> **修订注（2026-09-24，实证澄清）**：互斥判据 = 指令是否**占用子树**（静态 `ownsChildren(info)`，按注册表动态推导、非指令名清单）。据此精确化：
+> - **x-show 可与 x-component 同元素**（本就属「非结构指令」允许侧，display 切换与实例化正交）；
+> - **`x-if.keepalive` 变体同样可同元素**——keepalive 使 x-if 的 `ownsChildren` 返回 false（仅摘/挂宿主、保活子树与 watcher），语义 = 显隐切换且组件保活（摘除时 unmounted 不触发、状态保留、重挂复活同一实例）；
+> - **eager x-if 及其余占子树结构指令维持禁令**——双重 ownsChildren 的所有权合并（子树编译/销毁权归属、重建语义）是语义重设计，且「外层包裹」已免费提供完全相同的销毁/重建语义。warn 文案附两条替代路径指引（子树内条件挂载 / x-show 或 .keepalive 显隐保活）。
 
 #### 6. 组件根建 scope
 
@@ -376,7 +381,7 @@ compileChild 内禀无条件 `new AutoTemplateScope`，组件根天然建 scope�
 
 #### 2. fetch 复用（Q6=A）
 
-抽取公共 `fetchHtml(url, signal)`（与 x-slot remote 共用 fetch 逻辑），但**不复用** child engine 路径——x-import 解析 fetched HTML 里的 x-component 元素注册到**当前 engine**的组件表（全局或作用域）。
+抽取公共 `fetchHtml(url, signal)`（与 x-isolate remote 共用 fetch 逻辑），但**不复用** child engine 路径——x-import 解析 fetched HTML 里的 x-component 元素注册到**当前 engine**的组件表（全局或作用域）。
 
 #### 3. 缓存（T6）
 
@@ -392,7 +397,7 @@ compileChild 内禀无条件 `new AutoTemplateScope`，组件根天然建 scope�
 
 #### 6. 容错
 
-fetch 失败 / HTTP 非 2xx → `logger.warn` + 该 x-import 组件视为未注册。与 x-slot remote 的 `_renderError` 纪律一致。
+fetch 失败 / HTTP 非 2xx → `logger.warn` + 该 x-import 组件视为未注册。与 x-isolate remote 的 `_renderError` 纪律一致。
 
 ### 七、嵌套声明与递归（U4 / U5 / U6=B）
 

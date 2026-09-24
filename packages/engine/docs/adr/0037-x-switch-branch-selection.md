@@ -33,7 +33,7 @@ grilling 两轮十问定案（第一轮核心语义五问、第二轮边界与�
 宿主**摘除 + 锚点注释占位**，命中分支作为**独立元素插到宿主原位**（兄弟位）——与 x-if 分支链渲染机制完全同构（ADR-0034 决策 4）：
 
 - 复用度最大化：锚点管理 / mountBranch / unmountBranch / eager/keepalive 两态整套基建直接共享（见决策 9）；
-- 与 x-if 同属「条件/分支选择」域，心智一致——「写在宿主内、渲染在宿主外」的一跳差异引擎已有先例（x-if 分支链、x-component 摘除、x-slot 替换）；
+- 与 x-if 同属「条件/分支选择」域，心智一致——「写在宿主内、渲染在宿主外」的一跳差异引擎已有先例（x-if 分支链、x-component 摘除、x-isolate 替换）；
 - 代价同 x-if 分支链：`ul>li` 类容器结构须外层包裹书写（依赖子选择器的 CSS 按宿主父级书写）。
 
 否决 **容器式**（x-for B 容器语义：宿主留存、分支作子级）：`<ul x-switch>` 结构虽自然，但须新造「容器内插分支」机制，x-if 分支链基建大半用不上——复用度是本决策的第一约束。
@@ -63,7 +63,7 @@ tab 切换正是保活高价值场景（表单页签切走再切回、输入不�
 
 - **识别范围**：仅宿主的**直接子元素**中的 `x-case` / `x-default` 是分支；嵌套就近归属（分支内再嵌 x-switch 递归成立）；
 - **非分支子元素**：warn + 忽略（随宿主离开 DOM 天然不可见）；
-- **分支根禁结构指令**（ownsChildren 类：x-for / eager x-if / x-slot）→ warn + 跳过该分支；
+- **分支根禁结构指令**（ownsChildren 类：x-for / eager x-if / x-isolate）→ warn + 跳过该分支；
 - **孤儿分支**（父无 x-switch，含误写在 x-if 宿主内的 x-case）→ warn + 丢弃；三处剪枝点同步扩展（compiler 前置 transformer / `compileOneChild` / `for.ts` 项模板采集）；
 - **x-case 空值** → warn + 按 x-default 兜底处理（对齐「x-else-if 空值按兜底」惯例）；
 - **x-default 带值** → warn + 忽略值（裸属性形态为准）；
@@ -72,7 +72,7 @@ tab 切换正是保活高价值场景（表单页签切走再切回、输入不�
 
 ### 7. 同元素冲突：ownsChildren 对齐 x-if
 
-eager x-switch 占子树（ownsChildren）→ 与 x-for / eager x-if / x-slot 同元素走既有互斥报错；keepalive 不占子树、可与 x-for 共存（对齐 x-if.keepalive）。`use.ts` 结构指令冲突名单中的 x-switch 从预言变事实（ADR-0022 决策五-5 无需改动）。
+eager x-switch 占子树（ownsChildren）→ 与 x-for / eager x-if / x-isolate 同元素走既有互斥报错；keepalive 不占子树、可与 x-for 共存（对齐 x-if.keepalive）。`use.ts` 结构指令冲突名单中的 x-switch 从预言变事实（ADR-0022 决策五-5 无需改动）。
 
 ### 8. 注册与优先级
 

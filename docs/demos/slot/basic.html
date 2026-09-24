@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>x-slot · 快速入门</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <!--
+            插槽双侧最小闭环：
+            - 定义侧：x-define 内用 x-slot（默认出口）/ x-slot:名称（命名出口）声明可替换位置，
+              无出口标记的元素（footer/描述行）是组件固定内容，永不被替换；
+            - 内容侧：x-component 宿主的子节点按名投影——裸子节点进默认出口，
+              <template x-slot:名称> 切命名段（template 本身不渲染，content 展开）；
+            - 未提供内容的出口渲染 fallback（出口子树原样，组件作用域求值）。
+        -->
+  </head>
+  <body>
+    <div id="app" x-scope>
+      <!-- ① 定义侧：卡片模板——两个出口 + 一处固定内容 -->
+      <div x-define="card">
+        <div class="card">
+          <header class="card-head" x-slot:header>
+            <!-- fallback：无对应内容时渲染（{{title}} 在组件作用域求值） -->
+            默认头 · {{title}}
+          </header>
+          <div class="card-body" x-slot>默认正文</div>
+          <footer class="card-foot">© 组件固定页脚</footer>
+        </div>
+        <script type="autospark/setup">
+          {
+              data: { title: "卡片" },
+          }
+        </script>
+      </div>
+
+      <!-- ② 无内容：两处出口都渲染 fallback，固定页脚照常 -->
+      <div class="panel">
+        <div class="label">无内容 → 渲染 fallback</div>
+        <div x-component:card></div>
+      </div>
+
+      <!-- ③ 有内容：裸子节点 → 默认出口；template x-slot:header → 命名出口（覆盖 fallback） -->
+      <div class="panel">
+        <div class="label">提供内容 → 投影覆盖 fallback</div>
+        <div x-component:card>
+          <template x-slot:header>
+            <h3 class="is-size-5">自定义标题</h3>
+          </template>
+          <p>这段裸文本与下面的按钮一起，按文档序合并为<b>默认段</b>，投影进默认出口。</p>
+          <button class="button is-small is-link is-outlined">操作按钮</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+    </script>
+
+    <style>
+      .panel {
+        padding: 16px;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        margin-bottom: 12px;
+      }
+      .label {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 8px;
+      }
+      .card {
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .card-head {
+        padding: 10px 14px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #dbdbdb;
+        font-weight: 600;
+      }
+      .card-body {
+        padding: 14px;
+      }
+      .card-foot {
+        padding: 8px 14px;
+        font-size: 0.75rem;
+        color: #888;
+        border-top: 1px solid #eee;
+      }
+    </style>
+  </body>
+</html>

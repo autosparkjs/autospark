@@ -1,8 +1,8 @@
-# ADR-0053：组件数据边界（默认封闭 + open/scope 基准）
+# ADR-0053：组件数据边界（默认封闭 + open/dataContext 基准）
 
-- **状态**：Accepted（已实施，1264 测试通过）
-- **日期**：2026-09-22
-- **关联**：[ADR-0022](0022-x-component.md)（组件系统，methods 边界的来源）、[ADR-0029](0029-x-data-mount.md)（x-data mount，相对挂载收口）、[ADR-0052](0052-x-overlay-and-x-dialog.md)（overlay scope 基准，本 ADR 将其泛化为家族概念）、[ADR-0007](0007-directive-options-and-modifiers.md)（配置体系，选项/修饰符形态）、[CONTEXT.md](../../CONTEXT.md)（组件数据边界 / 开放边界 / scope 基准三词条）
+- **状态**：Accepted（已实施；2026-09-24 修订：`scope` 键统一更名 `dataContext`，见修订节九；消费侧 `.open` 豁免，见修订节十）
+- **日期**：2026-09-22（修订 2026-09-24）
+- **关联**：[ADR-0022](0022-x-component.md)（组件系统，methods 边界的来源）、[ADR-0029](0029-x-data-mount.md)（x-data mount，相对挂载收口）、[ADR-0052](0052-x-overlay-and-x-dialog.md)（overlay 数据基准，本 ADR 将其泛化为家族概念）、[ADR-0007](0007-directive-options-and-modifiers.md)（配置体系，选项/修饰符形态）、[CONTEXT.md](../../CONTEXT.md)（组件数据边界 / 开放边界 / 数据视图基准三词条）
 - **共识来源**：grilling 五轮决策（边界范围、正交双概念、解析链、通道收口、兼容策略等约 20 个决策点），本文即共识落盘
 
 ## 背景
@@ -23,34 +23,34 @@ ADR-0022 建立组件系统时，组件实例 scope 的 parent 链直通宿主 s
 
 机制判据：边界语义挂在 x-use 实例化调用点（`instantiateComponent` 新增 `basis` 参数，缺省不施加），overlay 路径与 `compileChild` 直调路径天然不受影响。
 
-### 二、正交双概念：open（开关）× scope（基准）
+### 二、正交双概念：open（开关）× dataContext（基准）
 
-grilling 中曾将两者压成单维度（open ≡ declarer），后修正为**正交双概念**——open 回答「是否开放」，scope 回答「开放时继承谁」：
+grilling 中曾将两者压成单维度（open ≡ declarer），后修正为**正交双概念**——open 回答「是否开放」，dataContext 回答「开放时继承谁」：
 
 | 概念 | 载体 | 语义 | 侧 |
 |---|---|---|---|
 | **open** | `x-component.open` 修饰符 ≡ `x-component-options="{open:true}"` | 是否开放边界的开关，默认封闭 | 仅声明侧（作者契约） |
-| **scope** | `x-component-options.scope` / `x-use-options.scope` | `'host'`（消费处上下文，默认）\| `'declarer'`（声明处上下文，词法基准） | 作者默认 + 消费侧覆盖 |
+| **dataContext** | `x-component-options.dataContext` / `x-define-options.dataContext` | `'host'`（消费处上下文，默认）\| `'declarer'`（声明处上下文，词法基准） | 作者默认 + 消费侧覆盖 |
 
 - **host**：继承消费处上下文（实例 scope 的结构 parent 链）——即封闭化之前的既有行为，`open` 无限定词时的默认基准（「把现在这条边界放开」的最小惊讶语义）。
 - **declarer**：继承声明处上下文。嵌套私有子组件的声明 scope 是外层组件的**实例 scope**（运行期 scope 链，ADR-0022 决策七实施修订），故树组件等复杂组件的内部共享数据精确命中。
-- 两者正交组合，无冲突规则（`open:true` + 任意合法 `scope` 均为有效声明）。
+- 两者正交组合，无冲突规则（`open:true` + 任意合法 `dataContext` 均为有效声明）。
 
 ### 三、解析链与校验
 
 ```
-x-use-options.scope        ← 消费处覆盖（仅已开放组件生效）
+x-component-options.dataContext ← 消费处覆盖（仅已开放组件生效）
         ↓ 未声明
-x-component-options.scope  ← 作者默认（须配合 open）
+x-define-options.dataContext    ← 作者默认（须配合 open）
         ↓ 未声明
-'host'                     ← 开放状态的默认基准
+'host'                          ← 开放状态的默认基准
 ```
 
 与引擎「局部覆盖、外层兜底」的查找哲学同构。三条**失效告警**（均 warn 一次 + 忽略）：
 
-1. 作者声明 `scope` 而无 `open`——基准没有生效条件；
-2. 消费侧对**封闭组件**声明 `x-use-options.scope`——封闭是作者契约，消费侧只能换基准、不能打开；
-3. `scope` 值非法（非 `'host' | 'declarer'`，含把修饰符布尔 `true` 误当基准值）——忽略后开放组件回落默认 `'host'`。
+1. 作者声明 `dataContext` 而无 `open`——基准没有生效条件；
+2. 消费侧对**封闭组件**声明 `x-component-options.dataContext`——封闭是作者契约，消费侧只能换基准、不能打开；
+3. `dataContext` 值非法（非 `'host' | 'declarer'`，含把修饰符布尔 `true` 误当基准值）——忽略后开放组件回落默认 `'host'`。
 
 `open` 的显式 options 键优先于 `.open` 修饰符（`{open:false}` 可关掉修饰符）。`x-component` 声明属性支持修饰符形态（`x-component.open`，属性名带 `.` 段、值仍是组件名），收集器同步扩展匹配与解析；未知修饰符 warn + 忽略。
 
@@ -86,7 +86,7 @@ x-component-options.scope  ← 作者默认（须配合 open）
 
 overlay 实例**本就是组件实例化家族的兄弟物种**（同样传 componentDef）。ADR-0052 修订版（组件化统一）将家族基准**完全统一**到本 ADR 的两值：
 
-- 覆盖物 `scope` 配置即 `'declarer' | 'host'`（默认 declarer，定义闭包）——`'consumer'` 更名废弃（warn + 按 host 处理），词汇不再分家；
+- 覆盖物 `dataContext` 配置即 `'declarer' | 'host'`（默认 declarer，定义闭包），词汇不再分家；
 - 覆盖物「挂链即基准」：parentScope 直接挂声明处/消费处 scope，表达式上下文 / 数据视图 / 生命周期由挂链统一表达；
 - 机制层共享同一套基准 enforcement（`dataBoundary`/`declarerDataScope` 的三处收口）。
 
@@ -107,3 +107,29 @@ overlay 实例**本就是组件实例化家族的兄弟物种**（同样传 comp
 ## 废止
 
 - 无。ADR-0022 的组件数据行为（透传）被本 ADR 取代，其 methods 边界（决策二-3）继续有效。
+- 修订九废止：`scope` 配置键家族（`x-define-options.scope` / `x-component-options.scope` / 覆盖物配置与命令式 `open({scope})`）与基准值 `'consumer'`。
+
+## 九、修订（2026-09-24）：`scope` 键统一更名 `dataContext`
+
+**动机**：`scope` 在 engine 中已三重重载——`AutoSparkScope`（生命周期/订阅容器）、`x-scope` 指令、scope 通道（编译期执行通道），配置键再用它制造第四义。ADR-0052 首次为覆盖物更名（`dataContext` + 旧键兜底 warn），本次将组件家族一并收编，实现**三处同名同语义**：`x-define-options.dataContext`（作者声明）、`x-component-options.dataContext`（消费覆盖）、覆盖物 `dataContext`（挂链基准）。
+
+**决策**：
+
+1. **两栖键**（与 `at` 键「字符串/元素」惯例同构）：声明式给基准名（`'declarer' | 'host'`），命令式 `open()` 给基准载体（HTMLElement——`findScopeByEl` 挂链，兼作 `at` 相对查询的 searchRoot）；分派逻辑收敛于共享函数 `resolveDataContext`（overlay/types.ts），声明式缺省 `'declarer'`、命令式缺省 rootless（决策 16 不变）。命令式新增基准名形态（原仅支持元素），`'host'` 挂 `getOverlay` 锚点 el 所属 scope。
+2. **硬切，零兼容**（区别于 ADR-0052 更名时的「兜底 + warn」）：项目处开发阶段（registry 0.0.1、无外部用户），旧键 `scope` 静默失效、无迁移诊断；已删除 overlay 侧既有兜底与 `'consumer'` 映射，`OVERLAY_RESERVED_KEYS` 移除 `"scope"`——**边界固化**：覆盖物侧旧键 `scope` 脱离保留清单后作为普通 props 注入组件 data 域（显性行为，测试断言固化）。
+3. **内部命名同步**：`ComponentDef.scopeBasis` → `dataContext`；类型 `ComponentScopeBasis` → `ComponentDataContext`（`ComponentDataBasis` 保留——「基准/basis」是本 ADR 价值词，不随键名陪葬）；`OverlayEventDetail.scope` → `dataContext`；`OverlayInstance.scopeEl` → `dataContextEl`。
+
+**影响面**：源码 9 文件、测试（boundary 旧键改写 + overlay 废弃兼容用例删除/替换为两栖与 props 固化用例）、文档（component/x-define/x-component/x-dialog/overlays 五篇 + demos 改名 `scope-basis.html` → `data-context-basis.html`）、CONTEXT.md（词条更名「数据视图基准」+ 已废弃区新条目）。1297 测试通过（2 个存量失败为无关调试探针）。
+
+## 十、修订（2026-09-24）：消费侧 `.open` 豁免作者契约
+
+**动机**：「封闭是作者契约，消费侧不能打开封闭组件」在实践中过严——组件作者无法预见所有消费场景，使用者在确知组件模板数据来源安全的场合（自有组件、内部组件库）需要为**单个实例**开启上下文透传，唯一出路是回头改组件声明（对三方组件不可行）。
+
+**决策**：
+
+1. **`x-component` 新增 `.open` 修饰符**（≡ `x-component-options="{open:true}"`，经 ADR-0007 修饰符注入同形）：消费侧显式声明即豁免作者契约，打开封闭组件且不 warn。基准解析链不变：消费 `dataContext` > `def.dataContext`（封闭组件上恒为 undefined，不干扰）> 默认 `'host'`；`.open` + `x-component-options.dataContext` 可组合。
+2. **读取层隔离**：消费 open 只读指令选项层（`options.open`），不走 `getOption` 的宿主 `x-options` 回退——避免宿主上给其他指令声明的 `open` 键意外打开组件。
+3. **波及面收口**：仅 `x-component` 实例化路径生效。覆盖物不受影响——`OverlayDirective` 覆写 `_instantiate` 并经 `resolveDataContext` 两栖分派，不经过 `_resolveDataBasis`，其开放/基准仍由自身 `dataContext` 配置控制（与修订九语义一致）。
+4. **既有告警不变**：消费侧 `dataContext` 落在完全封闭（无任何 open 通道）的组件上仍 warn + 忽略。
+
+**影响面**：`presets/component.ts`（`_resolveDataBasis` 约 15 行）、`x-component-boundary.test.ts`（新增「消费侧 .open」组 5 用例）、文档（component/data、x-component、options + demo consumer-open）。

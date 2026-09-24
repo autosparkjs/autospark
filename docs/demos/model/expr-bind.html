@@ -108,8 +108,8 @@
                         // set action：把「姓,名」输入拆回两个字段
                         setName: function ($value) {
                             const parts = $value.split(",");
-                            this.state.user.first = parts[0] ?? "";
-                            this.state.user.last = parts[1] ?? "";
+                            this.globalState.user.first = parts[0] ?? "";
+                            this.globalState.user.last = parts[1] ?? "";
                         },
                     },
                 },

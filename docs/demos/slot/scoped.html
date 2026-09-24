@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>x-slot · 作用域插槽</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <!--
+            作用域插槽（双向形参约定）：
+            - 出口侧值 = 对象字面量，在**组件作用域** watch 求值注入：
+                <div x-slot:row="{ item: rows[0], index: 0 }">…</div>
+            - 内容侧值 = 解构形参（简单 { 键, 键 }，非 JSON），绑定注入对象：
+                <template x-slot:row="{ item, index }">…</template>
+            - 形参挂内容作用域 locals，出口值变化 → Object.assign + refresh（响应式）；
+            - 出口无对应内容时渲染 fallback（本例 x-text="fallbackText"）。
+            - 组件内按钮改 rows[0]：出口值重求值 → 形参刷新 → 投影内容实时变。
+        -->
+  </head>
+  <body>
+    <div id="app" x-scope>
+      <div x-define="list">
+        <div class="panel">
+          <div class="label">列表项（出口提供 item/index，内容自定义渲染）</div>
+          <div class="row" x-slot:row="{ item: rows[0], index: 0 }" x-text="fallbackText"></div>
+        </div>
+        <div class="controls">
+          <button class="button is-small is-primary" x-on:click="bump">
+            rows[0] = "乙"（改组件状态）
+          </button>
+        </div>
+        <script type="autospark/setup">
+          {
+              data: { rows: ["甲"], fallbackText: "（fallback）" },
+              methods: {
+                  bump() {
+                      this.data.rows[0] = "乙";
+                  },
+              },
+          }
+        </script>
+      </div>
+
+      <!-- 内容侧：解构形参 { item, index }；调用方 label 被形参遮蔽不在此示例 -->
+      <div class="panel">
+        <div class="label">自定义行渲染（点击上方按钮观察形参响应式刷新）</div>
+        <div x-component:list>
+          <template x-slot:row="{ item, index }">
+            <span class="badge">#{{ index }}</span>
+            <b>{{ item }}</b>
+            <span class="hint">（内容在调用方作用域编译）</span>
+          </template>
+        </div>
+      </div>
+
+      <!-- 无内容 → 出口 fallback -->
+      <div class="panel">
+        <div class="label">不提供内容 → 渲染出口 fallback</div>
+        <div x-component:list></div>
+      </div>
+    </div>
+
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+    </script>
+
+    <style>
+      .panel {
+        padding: 16px;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        margin-bottom: 12px;
+      }
+      .label {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 8px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #f5f5f5;
+        border-radius: 6px;
+        min-height: 36px;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: #3273dc;
+        color: #fff;
+        font-size: 0.75rem;
+      }
+      .hint {
+        color: #888;
+        font-size: 0.8rem;
+      }
+      .controls {
+        margin-top: 8px;
+      }
+    </style>
+  </body>
+</html>

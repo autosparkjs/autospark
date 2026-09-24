@@ -18,9 +18,34 @@
 
 ## 指南
 
-### 状态驱动（简单路径）
+### 定义对话框
 
-值是一个状态路径——真值即开、假值即关。因为路径可寻址，所有关闭触点都会**自动回写 `false`**：
+对话框**没有专用的内容定义语法**——任意一个组件都可以作为对话框的内容，因此本文不存在「如何定义对话框内容」的说明：你只需要按[组件](../component/)的方式**声明组件**（`x-define` 作用域声明 / `options.components` 全局注册 / `x-import` 远程加载），再在消费处用 `x-dialog:组件名` 引用它。
+
+```html
+<!-- 内容：就是一个普通组件，没有任何对话框专属标记 -->
+<div x-define="login">
+  <h3>{{title}}</h3>
+  <button @click="close()">关闭</button>
+</div>
+
+<!-- 消费：x-dialog 只是引用组件名 + 状态驱动开关 -->
+<button x-dialog:login="ui.loginVisible" @click="ui.loginVisible = true">登录</button>
+```
+
+组件的完整能力（数据、方法、生命周期、作用域样式、props）对对话框内容一视同仁；按名字查找（scope 链就近 + 全局兜底）等消费语义见[覆盖物](../overlays.md)。
+
+:::warning 提示
+任意组件均可以被`x-dialog`指令显示在对话框中。
+:::
+
+### 弹出对话框
+
+`x-dialog`用于弹出对话框。
+
+#### 状态驱动
+
+`x-dialog`值是一个状态路径——真值即开、假值即关。因为路径可寻址，所有关闭触点都会**自动回写 `false`**：
 
 <demo html="dialog/basic.html"/>
 
@@ -30,9 +55,9 @@
 
 多个按钮、菜单项都可以是打开入口——它们只是改同一个状态，对话框的行为完全由状态决定。
 
-### 表达式驱动（派生条件）
+#### 表达式驱动
 
-值可以是任意表达式（向导步骤、派生条件等场景）。表达式**无路径可回写**——请求关闭只收起 UI、不改写状态，**状态仍是唯一驱动源**：
+`x-dialog`值可以是任意表达式（向导步骤、派生条件等场景）。表达式**无路径可回写**——请求关闭只收起 UI、不改写状态，**状态仍是唯一驱动源**：
 
 <demo html="dialog/expression.html"/>
 
@@ -44,7 +69,7 @@
 
 需要「关闭后不再自动弹出」的精确善后，监听 `overlay:close` 事件（见[请求关闭](#请求关闭esc遮罩close-动作)）把关闭事实写回状态。
 
-### 字面量（挂载即开）
+#### 字面量
 
 `"true"` / `"false"` 是静态字面量（不订阅状态）：`true` 页面加载即开（公告 / 通知类），`false` 永不开启：
 
@@ -53,29 +78,33 @@
 ```html
 <!-- 组件：公告内容（须声明在消费者 scope 链上） -->
 <div x-define="notice">
-    <div class="ov-panel">📢 系统维护通知…</div>
+  <div class="ov-panel">📢 系统维护通知…</div>
 </div>
 
 <!-- 消费者：字面量 true，挂载即开（宿主任意元素） -->
 <div x-dialog:notice="true"></div>
 ```
 
-### 对象形态与 props
+#### 对象形态与 props
 
-值是对象字面量（宽松 JSON）时，`visible` 是驱动保留键、`closeOnMask` / `animate` / `at` / `scope` 是配置保留键（进合并链最顶层），**其余键全部作 props** 注入组件 data 域（覆盖 `state()` 默认，与 `x-component` 同约定）：
+值是对象字面量（宽松 JSON）时，`visible` 是驱动保留键、`closeOnMask` / `animate` / `at` / `dataContext` 是配置保留键（进合并链最顶层），**其余键全部作 props** 注入组件 data 域（覆盖 `data` 默认，与 `x-component` 同约定）：
 
 <demo html="dialog/props.html"/>
 
 ```html
-<button x-dialog:user="{visible: 'ui.open', userId: 42, closeOnMask: false}"
-        @click="ui.open = true">查看</button>
+<button
+  x-dialog:user="{visible: 'ui.open', userId: 42, closeOnMask: false}"
+  @click="ui.open = true"
+>
+  查看
+</button>
 ```
 
 - `visible`：字符串状态路径（相对消费处 scope，可回写）；
 - `userId` 等非保留键：props——组件模板内直接读键（<span v-pre>`{{userId}}`</span>）；
 - `closeOnMask` 等配置键：per-实例配置——同元素多个 `x-dialog` 可各自差异化配置。
 
-### 请求关闭（ESC / 遮罩 / close 动作）
+### 请求关闭
 
 三个内置触点语义统一：**关闭是「请求」不是命令**——可回写（简单路径）则回写 `false`；不可回写（表达式 / 字面量）仅收起 UI。每次请求关闭同时广播 `overlay:close` 事件供善后：
 
@@ -84,22 +113,22 @@
 ```javascript
 // 总线通道（推荐）：覆盖物 DOM 在 body 容器内，engine 树内的模板元素收不到 DOM 冒泡
 engine.on("overlay:close", ({ payload }) => {
-    console.log("已关闭：", payload.name);
+  console.log("已关闭：", payload.name);
 });
 // DOM 通道：document.addEventListener("overlay:close", e => e.detail.name)
 ```
 
 ::: warning DOM 冒泡的物理边界
-覆盖物实例渲染在 `document.body` 下的容器中、**不在 engine 宿主树内**——模板里写 `@overlay:close="…"` 收不到事件。模板外 JS 用引擎总线 `engine.on(...)` 或 `document.addEventListener(...)`（事件 `detail` 为 `{ name, instance, scope }`）。
+覆盖物实例渲染在 `document.body` 下的容器中、**不在 engine 宿主树内**——模板里写 `@overlay:close="…"` 收不到事件。模板外 JS 用引擎总线 `engine.on(...)` 或 `document.addEventListener(...)`（事件 `detail` 为 `{ name, instance, dataContext }`）。
 :::
 
 面板内触发的内置 `close` 动作（`@click="close()"`）由消费者在实例根上委托监听，天然闭环——面板内的确认 / 取消按钮零接线即可关闭。
 
-### 数据视图基准（dataContext）
+### 数据视图
 
-`dataContext` 配置决定实例的表达式上下文、数据视图与生命周期挂链（**挂链即基准**，详见[覆盖物 · scope 基准](../overlays.md#scope-基准声明处默认消费处可选)）：
+`dataContext` 配置决定实例的表达式上下文、数据视图与生命周期挂链（**挂链即基准**，详见[覆盖物 · 数据视图基准](../overlays.md#数据视图基准datacontext声明处默认消费处可选)）：
 
-<demo html="dialog/scope-basis.html"/>
+<demo html="dialog/data-context-basis.html"/>
 
 ```html
 <!-- 默认 declarer：模板读声明处数据；实例随声明处 scope -->
@@ -109,9 +138,9 @@ engine.on("overlay:close", ({ payload }) => {
 <button x-dialog:demo="{visible: 'ui.openB', dataContext: 'host'}"></button>
 ```
 
-`host` 基准下消费者所在区域被销毁（如 `x-if` 分支收起），打开中的实例会随级联自动关闭摘除——不会留下悬空弹层。旧键 `scope` 与旧值 `'consumer'` 均已废弃（warn + 兜底解析）。
+`host` 基准下消费者所在区域被销毁（如 `x-if` 分支收起），打开中的实例会随级联自动关闭摘除——不会留下悬空弹层。旧键 `scope` 与旧值 `'consumer'` 已随更名**硬切移除**（不兜底；旧键 `scope` 现在是普通键，会作为 props 注入组件 data 域）。
 
-### 自动关闭（delayClose）
+### 自动关闭
 
 `delayClose`（毫秒）大于 0 时，打开后延时自动走「请求关闭」——通知 / 公告 / 轻提示类弹层的开箱即用通道。它走标准关闭链：可回写的 visible 照常回写 `false`、`overlay:close` 照常广播、动画照常播放：
 
@@ -124,7 +153,7 @@ engine.on("overlay:close", ({ payload }) => {
 
 `delayClose` 缺省 / `0` 不自动关闭；手动关闭（ESC / 遮罩 / close 动作）优先于定时器，二者不冲突。
 
-### 配置三级链
+### 配置
 
 生效配置按三级优先级**深度合并**（数组替换、`undefined` 不覆盖）：
 
@@ -136,7 +165,9 @@ engine.on("overlay:close", ({ payload }) => {
 
 消费处只写想改的键——组件 def 不携带配置，配置全部走消费处（指令选项 `x-dialog-options` 或值对象内联）。
 
-### at 锚定定位
+### 弹出定位
+
+默认情况下，`x-dialog`可以弹出对话框在屏幕中间，但是可以通过`at`参数来控制对话框在哪里弹出。
 
 `at` 配置让对话框**贴着锚点元素定位**（经 [floating-ui](https://floating-ui.com/) 计算，flip / 滚动重定位默认开启）；`dialog` 恒模态——有 `at` 也照常渲染遮罩，只是位置变了。`at` 三态：**字符串 / 元素简写**（≡ `{ selector: … }`）或完整锚配置对象：
 
@@ -147,7 +178,12 @@ engine.on("overlay:close", ({ payload }) => {
 <button x-dialog:tip="ui.show" x-dialog-options="{at: '/#btn'}">…</button>
 
 <!-- 声明式：对象形态（placement / arrow 等锚成员与 selector 并列） -->
-<button x-dialog:tip="ui.show" x-dialog-options="{at: {selector: '/#btn', placement: 'right', arrow: true}}">…</button>
+<button
+  x-dialog:tip="ui.show"
+  x-dialog-options="{at: {selector: '/#btn', placement: 'right', arrow: true}}"
+>
+  …
+</button>
 ```
 
 ```javascript
@@ -165,24 +201,34 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 
 `selector` 取值两栖——**元素引用**（`selector: btnEl`，多用于命令式）或**相对选择器字符串**（声明式 / 命令式均可，经引擎的相对查询解析，与 `x-loading` 的 `selector` 同语法）。四种形态：
 
-| 写法 | 查询域 | 典型场景 |
-| --- | --- | --- |
-| `'/#cart-badge'`（`/` 前缀） | **`document` 全局** | 锚点与消费者任意分离——跨组件树、页面任意位置 |
-| 无前缀：`'li.active'`、`'#save'` | **消费者宿主元素的子树** | 锚点就在声明容器内部——把 `x-dialog` 声明在包含锚点的容器上 |
-| `'../.trigger'`（`../` 可叠加） | 从宿主沿父级上爬后在**祖先内部**查 | 锚点在宿主的邻近层级 |
-| `'^li.active'`（`^` closest，`^` 后可叠加 `../` 调整起点） | 从宿主向上 **closest** 匹配（含宿主自身） | 锚点是宿主的某个祖先 |
+| 写法                                                       | 查询域                                    | 典型场景                                                   |
+| ---------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------- |
+| `'/#cart-badge'`（`/` 前缀）                               | **`document` 全局**                       | 锚点与消费者任意分离——跨组件树、页面任意位置               |
+| 无前缀：`'li.active'`、`'#save'`                           | **消费者宿主元素的子树**                  | 锚点就在声明容器内部——把 `x-dialog` 声明在包含锚点的容器上 |
+| `'../.trigger'`（`../` 可叠加）                            | 从宿主沿父级上爬后在**祖先内部**查        | 锚点在宿主的邻近层级                                       |
+| `'^li.active'`（`^` closest，`^` 后可叠加 `../` 调整起点） | 从宿主向上 **closest** 匹配（含宿主自身） | 锚点是宿主的某个祖先                                       |
 
 ```html
 <!-- / 前缀：全局查——锚点（购物车角标）与消费者任意分离 -->
-<span x-dialog:cartTip="ui.tip" x-dialog-options="{at: {selector: '/#cart-badge', placement: 'bottom', arrow: true}}"></span>
+<span
+  x-dialog:cartTip="ui.tip"
+  x-dialog-options="{at: {selector: '/#cart-badge', placement: 'bottom', arrow: true}}"
+></span>
 
 <!-- 无前缀：在宿主（声明元素）子树内查——锚点（激活行）是 <ul> 的后代 -->
-<ul x-dialog:rowTip="ui.rowTip" x-dialog-options="{at: {selector: 'li.active', placement: 'right', arrow: true}}">
-    <li class="active">当前行（锚点）</li>
+<ul
+  x-dialog:rowTip="ui.rowTip"
+  x-dialog-options="{at: {selector: 'li.active', placement: 'right', arrow: true}}"
+>
+  <li class="active">当前行（锚点）</li>
 </ul>
 
 <!-- ^ closest：锚点是宿主的祖先容器（高亮整个卡片） -->
-<div class="card" x-dialog:cardTip="ui.tip" x-dialog-options="{at: {selector: '^.card', placement: 'top', arrow: true}}"></div>
+<div
+  class="card"
+  x-dialog:cardTip="ui.tip"
+  x-dialog-options="{at: {selector: '^.card', placement: 'top', arrow: true}}"
+></div>
 ```
 
 行为要点：
@@ -193,7 +239,7 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 - `arrow`：**锚定模式下默认开启**（`arrow: false` 显式关闭）——引擎自动注入箭头载体 + **双伪元素**默认视觉（8×8 旋转 45° 菱形：带阴影层 + 无阴影层沿主轴偏移覆盖嵌入段阴影残留），并按 floating-ui 协议沿 `staticSide` 反向偏移载体尺寸的一半，使菱形一半嵌入面板、一半露出形成小三角，与面板无缝融合；模板零约定，样式可 CSS 覆盖；
 - `offset` 未配置且箭头开启：默认让位 `6px`（菱形露出高度），三角尖恰好**点在锚元素边缘**上而非覆盖锚元素内部；配置了 `offset` 则以配置为准。
 
-### 面板边框（border）
+### 面板边框
 
 `border` 是**面板级配置**（默认 `true`，与锚定无关——无 `at` 时同样生效）：为面板外壳加 **1px 边框 + 背景 + 圆角**（外壳模式——视觉由外壳统一承担，同色背景填平圆角微差，四角无缝），箭头双层自动变色融合——底层菱形变边框色、覆盖层变面板背景色并外扩，露出段留出 ≈1px 边框色斜带与面板 border 连续，嵌入段的边框色与阴影仍被完整遮蔽（无 V 形残留）。颜色与圆角经 CSS 变量定制：`--autospark-overlay-border`（边框色，默认 `rgba(0,0,0,.1)`）、`--autospark-overlay-bg`（面板背景色，默认 `#fff`）、`--autospark-overlay-radius`（圆角，默认 `8px`）。
 
@@ -211,7 +257,7 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 `flip` 默认开启（视口放不下时自动翻面）——生产期望行为；上方 demo 的九宫格中显式 `flip: false` 关闭翻转，以展示每个 placement 的**原始**语义。
 :::
 
-### 命令式 API
+### 命令式弹出
 
 `engine.getOverlay(el, name, options?)` 镜像 `getComponent` 查找协议（`el` 起链就近 + 全局兜底，省略 `el` 仅查全局），返回**定义句柄**；`open()` 返回**实例句柄**：
 
@@ -220,21 +266,21 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 ```javascript
 const handle = engine.getOverlay(el, "task", { animate: false }); // 第三参：消费者配置级
 const inst = handle.open({
-    taskId: "T-1",      // 非保留键 → props 注入组件 data 域
-    scope: someEl,       // 保留键：数据视图基准元素（缺省 = rootless 全局视图）
-    animate: "slide",    // 保留键：最顶层配置
+  taskId: "T-1", // 非保留键 → props 注入组件 data 域
+  dataContext: someEl, // 保留键：两栖基准——传元素（载体）挂其所属 scope；缺省 = rootless 全局视图
+  animate: "slide", // 保留键：最顶层配置
 });
-inst.close();   // 精确关这一个实例
+inst.close(); // 精确关这一个实例
 handle.close(); // 关该覆盖物当前「全部」打开实例
 ```
 
-| API | 返回 | 说明 |
-| --- | --- | --- |
-| `engine.getOverlay(el, name, options?)` | 定义句柄 / `undefined`（未命中 warn） | `el` 起链查找（就近覆盖）+ 全局兜底；省略 `el` 仅查全局 |
-| `handle.open(options?)` | 实例句柄 | `options.visible` 无意义（warn 忽略）；每次 open 新实例 |
-| `inst.close()` | — | 精确关闭（请求关闭语义，广播 `overlay:close`） |
-| `inst.el` / `inst.name` / `inst.scope` | — | 实例外壳根 / 名称 / 数据视图基准元素 |
-| `handle.close()` | — | 关该覆盖物全部打开实例 |
+| API                                            | 返回                                  | 说明                                                    |
+| ---------------------------------------------- | ------------------------------------- | ------------------------------------------------------- |
+| `engine.getOverlay(el, name, options?)`        | 定义句柄 / `undefined`（未命中 warn） | `el` 起链查找（就近覆盖）+ 全局兜底；省略 `el` 仅查全局 |
+| `handle.open(options?)`                        | 实例句柄                              | `options.visible` 无意义（warn 忽略）；每次 open 新实例 |
+| `inst.close()`                                 | —                                     | 精确关闭（请求关闭语义，广播 `overlay:close`）          |
+| `inst.el` / `inst.name` / `inst.dataContextEl` | —                                     | 实例外壳根 / 名称 / 数据视图基准元素（命令式传元素时）  |
+| `handle.close()`                               | —                                     | 关该覆盖物全部打开实例                                  |
 
 命令式实例与声明式实例**同权**：同一容器、同一事件双通道、同一配置链、同一打开栈。
 
@@ -247,7 +293,7 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 ```html
 <!-- 主对话框组件内再消费一个确认框组件，叠出嵌套 -->
 <div x-define="main">
-    <button x-dialog:confirm="confirming" @click="confirming = true">删除…</button>
+  <button x-dialog:confirm="confirming" @click="confirming = true">删除…</button>
 </div>
 <div x-define="confirm">…</div>
 ```
@@ -268,29 +314,29 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 
 三级合并链：`内置默认 < x-dialog-options（消费处） < 值对象内联保留键`。
 
-| 配置项 | 默认值 | 说明 |
-| --- | --- | --- |
-| `visible` | 必填（值对象形态） | 字符串状态路径（相对消费处 scope，可回写）；简单形态下整值即驱动表达式 |
-| `border` | `true` | 面板外壳 1px 边框 + 背景 + 圆角，箭头双层变色自动融合；见[面板边框](#面板边框border) |
-| `closeOnMask` | `true` | 点击遮罩请求关闭 |
-| `animate` | `"fade"` | 进出场动画（字符串 / 对象 / 分相 / `false`） |
-| `dataContext` | `"declarer"` | **数据视图基准**（`declarer` 声明处 / `host` 消费处），挂链即基准；旧键 `scope` 废弃（warn + 兜底解析） |
-| `delayClose` | `0` | 自动关闭延迟（ms）：`> 0` 时打开后延时自动「请求关闭」（可回写的 visible 照常回写）；`0` 不自动关 |
-| `at` | 无（居中） | 贴锚定位（floating-ui）：字符串 / 元素简写（≡ `{selector}`，进链前归一化——只覆盖 selector、保留上层其余锚成员）或完整锚配置对象，成员见下表 |
+| 配置项        | 默认值             | 说明                                                                                                                                        |
+| ------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `visible`     | 必填（值对象形态） | 字符串状态路径（相对消费处 scope，可回写）；简单形态下整值即驱动表达式                                                                      |
+| `border`      | `true`             | 面板外壳 1px 边框 + 背景 + 圆角，箭头双层变色自动融合；见[面板边框](#面板边框border)                                                        |
+| `closeOnMask` | `true`             | 点击遮罩请求关闭                                                                                                                            |
+| `animate`     | `"fade"`           | 进出场动画（字符串 / 对象 / 分相 / `false`）                                                                                                |
+| `dataContext` | `"declarer"`       | **数据视图基准**（`declarer` 声明处 / `host` 消费处），挂链即基准；旧键 `scope` 废弃（warn + 兜底解析）                                     |
+| `delayClose`  | `0`                | 自动关闭延迟（ms）：`> 0` 时打开后延时自动「请求关闭」（可回写的 visible 照常回写）；`0` 不自动关                                           |
+| `at`          | 无（居中）         | 贴锚定位（floating-ui）：字符串 / 元素简写（≡ `{selector}`，进链前归一化——只覆盖 selector、保留上层其余锚成员）或完整锚配置对象，成员见下表 |
 
 **`at` 成员**（声明式经 `x-dialog-options` 或值对象内联 `at` 键配置；命令式经 `open({ at })` 顶层覆盖）：
 
-| 成员 | 默认值 | 说明 |
-| --- | --- | --- |
-| `selector` | 配置 `at` 时必填 | 定位锚（两栖）：`/` 全局选择器（`'/#btn'`）/ 无前缀选择器（消费者 scope 子树内查）/ `../` 父级爬升 / `^` closest / 元素引用——打开时现查，未命中 warn + 退屏幕居中 |
-| `placement` | `"auto"` | `"auto"`：autoPlacement 按视口空间自动选位（默认）；或 12 个方向值（`top|bottom|left|right` × `''|-start|-end`）固定方向 |
-| `offset` | 箭头开启时 `6` | 面板与锚点的间距（透传 floating-ui offset）；箭头开启且未配置时默认让位 6px——三角尖恰好点在锚元素边缘上 |
-| `shift` | 无 | 视口内滑移 padding（透传 floating-ui shift） |
-| `flip` | `true` | 视口翻转（当前方向放不下自动翻面）；`placement: 'auto'` 时不生效（与 autoPlacement 互斥） |
-| `arrow` | `true` | 箭头：载体 + 双伪元素视觉（阴影层 + 融合覆盖层），`false` 关闭 |
+| 成员        | 默认值           | 说明                                                                                                                                                              |
+| ----------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `selector`  | 配置 `at` 时必填 | 定位锚（两栖）：`/` 全局选择器（`'/#btn'`）/ 无前缀选择器（消费者 scope 子树内查）/ `../` 父级爬升 / `^` closest / 元素引用——打开时现查，未命中 warn + 退屏幕居中 |
+| `placement` | `"auto"`         | `"auto"`：autoPlacement 按视口空间自动选位（默认）；或 12 个方向值（`top                                                                                          | bottom | left | right`×`'' | -start | -end`）固定方向 |
+| `offset`    | 箭头开启时 `6`   | 面板与锚点的间距（透传 floating-ui offset）；箭头开启且未配置时默认让位 6px——三角尖恰好点在锚元素边缘上                                                           |
+| `shift`     | 无               | 视口内滑移 padding（透传 floating-ui shift）                                                                                                                      |
+| `flip`      | `true`           | 视口翻转（当前方向放不下自动翻面）；`placement: 'auto'` 时不生效（与 autoPlacement 互斥）                                                                         |
+| `arrow`     | `true`           | 箭头：载体 + 双伪元素视觉（阴影层 + 融合覆盖层），`false` 关闭                                                                                                    |
 
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项见[指令配置](../config.md)。
+指令选项 / 修饰符 / 宿主选项见[指令配置](../directive.md#指令配置)。
 :::
 
 ## 注意事项

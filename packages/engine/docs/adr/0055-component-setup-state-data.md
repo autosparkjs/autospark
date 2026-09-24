@@ -1,6 +1,6 @@
 # ADR-0055：组件 setup 段名词汇翻转（state() 响应式 / data 私有）
 
-- **状态**：Accepted（已实施，1290 测试通过）
+- **状态**：Superseded by [ADR-0057](0057-component-single-reactive-data.md)（2026-09-24 撤销本 ADR 段名决策——data 回归响应式容器名、私有数据改顶层变量、this.state 更名 globalState；回摆是有意的，正文保留为决策当时的记录）
 - **日期**：2026-09-23
 - **关联**：[ADR-0022](0022-x-component.md)（组件系统，本 ADR 更名其决策二-3 的 data/locals 段词汇）、[ADR-0031](0031-script-type-namespace.md)（旧写法 warn + 剪枝的处置惯例）、[ADR-0054](0054-component-define-instantiation-rename.md)（同日组件体系重塑的姊妹决策）、[CONTEXT.md](../../CONTEXT.md)（`<script setup>` 词条）
 - **共识来源**：用户实施期直接拍板（ADR-0054 实施中途追加）

@@ -217,9 +217,9 @@ input / textarea / select 三类标准控件一律 `<控件 x-bind="$field" />` 
 actions: {
     // 替换第 index 段后重组写回——state 是唯一真相源，各段显示随状态自动重放
     setOctet: function (index, v) {
-        const parts = String(this.state.server.ip).split(".");
+        const parts = String(this.globalState.server.ip).split(".");
         parts[index] = v;
-        this.state.server.ip = parts.join(".");
+        this.globalState.server.ip = parts.join(".");
     },
 }
 ```
@@ -246,8 +246,8 @@ actions: {
     // 把「名 姓」按空格拆回两个字段（组合框的写回通道）
     splitName: function (v) {
         const parts = String(v).split(" ");
-        this.state.user.first = parts[0] ?? "";
-        this.state.user.last = parts[1] ?? "";
+        this.globalState.user.first = parts[0] ?? "";
+        this.globalState.user.last = parts[1] ?? "";
     },
 }
 ```
@@ -321,7 +321,7 @@ x-form 恒拦截原生提交（`preventDefault`——`action` 属性留给无 JS
 
 ## 配置
 
-两套指令选项：表单级 `x-form-options`、字段级 `x-field-options`（宽松 JSON 对象；读取走「指令选项 → 宿主选项 `x-options`」两层回退、缺失才回退，见[指令配置](../config.md)）。
+两套指令选项：表单级 `x-form-options`、字段级 `x-field-options`（宽松 JSON 对象；读取走「指令选项 → 宿主选项 `x-options`」两层回退、缺失才回退，见[指令配置](../directive.md#指令配置)）。
 
 ```html
 <!-- 表单级：validateOnSubmit（默认 true）/ onInvalid（表单级校验默认，字段 schema 覆盖之） -->

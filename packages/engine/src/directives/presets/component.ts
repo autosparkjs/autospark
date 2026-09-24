@@ -1,6 +1,7 @@
 import { AutoSparkDirectiveBase } from "../base";
 import type { ComponentDataBasis, ComponentDef } from "../component-def";
 import type { AutoSparkScope } from "../../scope";
+import { collectSlotContent } from "../../utils/slot";
 
 /**
  * 判定值是否为纯标识符 / 连字符段形态（如 `counter`、`my-card`、`UserAvatar`）。
@@ -31,11 +32,14 @@ function isLiteralComponentName(raw: string): boolean {
  * - **宿主化身组件根**（T4=B）：复用宿主节点身份，清空其原内容、编译组件快照子树挂入；
  *   宿主属性继承到组件根（class 合并拼接、style 合并冲突键组件根优先、其他属性不覆盖；
  *   x-define 声明族属性不复制）；
+ * - **子节点收为插槽内容**（ADR-0056）：宿主子节点在 `_instantiate` 懒收集为 content map，
+ *   投影到组件模板的 `x-slot` 出口；无对应出口 warn 丢弃（不再「前缀编译」）。
  * - 组件语义：`compileChild` 传 componentDef，注入 data()/methods/hooks、置 isComponent=true。
  *
- * **结构指令冲突（U3）**：与 ownsChildren 指令（x-if/x-for/x-slot/x-switch/x-tree）同元素
- * → 编译期 warn + 拒绝实例化（宿主原内容保持，不破坏渲染）。本指令自身不声明 ownsChildren，
- * 而是在 created 中检测同 scope 的其他 ownsChildren 指令，避免触发 `_resolveOwnership` 的通用报错。
+ * **结构指令冲突（U3）**：与 ownsChildren 指令（x-if/x-for/x-isolate/x-switch/x-tree）同元素
+ * → 编译期 warn + 拒绝实例化（宿主原内容保持，不破坏渲染）。本指令自身声明 `ownsChildren`（ADR-0056
+ * 子节点收为插槽内容），同元素时 `_resolveOwnership` 豁免通用多 owner 抛错——U3 检测留在 created
+ * 友好 warn 路径，对既有行为无感。
  *
  * **递归保护（T5=A）**：组件模板内 `x-component:自身名` 实例化自身（树形/菜单组件）。沿 scope 链
  * 向上统计同名组件实例化深度，超上限（默认 100）warn + 停止，防无限递归。
@@ -54,6 +58,16 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     /** 介于结构指令（if=80/for=100）之下、普通指令之上，保证组件实例化在兄弟指令前执行 */
     static override readonly priority = 70;
     static override readonly singleton = true;
+    /**
+     * 永远占有子树（ADR-0056 决策八内容侧收集）：宿主子节点是**插槽内容**（模板态），
+     * 由 `_instantiate` 懒收集进 content map、不进通用 walk——避免「前缀编译」bug。
+     * （x-dialog/x-overlay 经 OverlayDirective 覆写为 false，宿主子节点保留，见 ADR-0056 决策十。）
+     *
+     * 与 x-for 等同元素时 `_resolveOwnership` 豁免多 owner 抛错（U3 友好 warn 留在 created）。
+     */
+    static override ownsChildren(): boolean {
+        return true;
+    }
 
     /** 递归实例化深度上限（T5=A，防无限递归；overlay 基座共享） */
     protected static readonly MAX_DEPTH = 100;
@@ -72,10 +86,13 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     private registeredUnsub: (() => void) | null = null;
 
     override created() {
-        // 结构指令冲突检测（U3）：同元素含其他 ownsChildren 指令 → warn + 拒绝实例化
+        // 结构指令冲突检测（U3）：同元素含其他 ownsChildren 指令 → warn + 拒绝实例化。
+        // 注意：x-show 与 .keepalive 变体 ownsChildren=false，不在禁用集合（可同元素共存）；
+        // 判定按 ownsChildren 动态推导（非指令名清单），新增结构指令自动纳入。
         if (this._hasStructuralConflict()) {
             this.warn(
-                `x-component: 宿主元素含其他结构指令（x-if/x-for/x-slot/x-switch/x-tree），与组件实例化互斥，已跳过实例化（ADR-0022 决策五-5）。`,
+                `x-component: 宿主元素含其他结构指令（占子树的 ownsChildren 指令，如 eager x-if/x-for/x-isolate/x-switch/x-tree），与组件实例化互斥，已跳过实例化（ADR-0022 决策五-5）。` +
+                    `替代写法：条件挂载（销毁重建）把本指令写在该结构指令的子树内；仅显隐切换用 x-show 或 x-if.keepalive 同元素（组件保活）。`,
             );
             return;
         }
@@ -101,11 +118,9 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         // 深层订阅；对象字面量 / 局部上下文走表达式支路按实际读取收集依赖（options 被该支路忽略）。
         // 首次实例化 defer 到 microtask：created 在 compileElement 内同步跑，宿主尚未挂进父树
         // （transformElement 的 appendChild 还没发生），实例化需 parentNode/属性继承稳定。
-        const initial = this.binding.watch(
-            rawValue,
-            ({ value }) => this._onValueChange(value),
-            { depth: 2 },
-        );
+        const initial = this.binding.watch(rawValue, ({ value }) => this._onValueChange(value), {
+            depth: 2,
+        });
         this.engine.scheduler.schedule(() => this._onValueChange(initial));
     }
 
@@ -143,8 +158,13 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
                 `x-component: props 值须为对象（字面量或状态对象），已忽略: ${JSON.stringify(value)}`,
             );
         }
-        // 已实例化 → 仅更新 props（覆盖声明键，组件内部状态不被重置）
+        // 已实例化 → 仅更新 props（覆盖声明键，组件内部状态不被重置）。
+        // props 与上次应用值浅等则跳过：静态字面量 props（无状态路径）的表达式支路 watcher
+        // 订阅为空 deps（autostore watch([]) = 任意状态变化触发），每次重求值产生键值相同的
+        // 新对象——若照常 assign 会把组件内部交互状态重置回 props 字面量（counter demo 场景：
+        // 点击 + 后 count=105 被打回 100）。值没变就不是更新（ADR-0054 决策三）。
         if (this.instanceScope && this.instanceDef) {
+            if (this._propsEqual(props, this._appliedProps)) return;
             this._updateProps(props);
             return;
         }
@@ -201,47 +221,64 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         this.instanceScope = this.binding; // 宿主 scope 即组件实例 scope
         // 属性继承（T4=B）：组件快照根属性并入宿主（须早于实例化，宿主属性就位后编译子树）
         this._mergeComponentRootAttrs(found.snapshot);
-        // 数据基准解析（ADR-0053）：x-component-options.scope（消费覆盖）> def.scopeBasis（作者声明）> 默认
+        // 数据基准解析（ADR-0053）：x-component-options.dataContext（消费覆盖）> def.dataContext（作者声明）> 默认
         const basis = this._resolveDataBasis(found.def);
-        // 实例化：注册快照 + 注入语义 + 施加数据基准 + 编译子树 + 触发 hooks（封装在 compiler.instantiateComponent）
+        // 插槽内容懒收集（ADR-0056）：ownsChildren 下子节点留在 template、不进 el——
+        // 此处按出口清单收集为 content map，stash 到宿主 scope 供出口 SlotDirective 查找。
+        // 模板只读：collect 一律 cloneNode，不摘原节点（ADR-0002）。
+        const slotContents = this.template
+            ? collectSlotContent(this.template, found.def?.slots, (m) => this.warn(m))
+            : null;
+        // 防御性清空宿主 runtime 子节点（ownsChildren 下 el 为浅克隆本无子节点；
+        // 覆盖 pending 占位等异常残留，保证投影/fallback 是唯一内容来源）
+        this.el.replaceChildren();
+        // 实例化：注册快照 + stash 内容 + 注入语义 + 施加数据基准 + 编译子树 + 触发 hooks
         this.engine.compiler.instantiateComponent(
             this.binding,
             found.snapshot,
             found.def,
             props,
             basis,
+            slotContents,
+            this.binding, // 内容调用方基准 = 宿主自身（getCallerContext 跳过组件 _data/边界）
         );
+        this._appliedProps = props;
         // scoped CSS 注入（ADR-0022 决策四-4）：阶段 5 实现
     }
 
     /**
-     * 解析数据基准（ADR-0053 组件数据边界）。
+     * 解析数据基准（ADR-0053 组件数据边界；修订一：消费侧 `.open` 豁免）。
      *
-     * 解析链：`x-component-options.scope`（消费覆盖）→ `def.scopeBasis`（作者声明，含 `.open` 修饰符
+     * 解析链：`x-component-options.dataContext`（消费覆盖）→ `def.dataContext`（作者声明，含 `.open` 修饰符
      * 经 buildComponentDef 校验）→ 默认。规则：
-     * - **封闭是作者契约**：组件未开放（`def.open !== true`）时消费侧 scope 声明 warn + 忽略，
-     *   组件保持封闭——消费侧只能覆盖已开放组件的基准，不能打开封闭组件；
+     * - **封闭是作者契约，消费侧 `.open` 是显式豁免**：`.open` 修饰符（≡ `x-component-options="{open:true}"`，
+     *   解析期注入 options.open）可打开封闭组件——显式声明即豁免，不 warn；基准取消费 dataContext >
+     *   def.dataContext（封闭组件上恒为 undefined）> 默认 `'host'`；
+     * - 消费侧 dataContext 声明落在封闭组件（无任何 open 通道）时仍 warn + 忽略，保持封闭；
      * - 无效基准值 warn + 回退 `'host'`；
-     * - `def` 为 null（纯快照组件，无 open 声明通道）视为封闭。
+     * - `def` 为 null（纯快照组件，无声明侧 open 通道）仍可被消费侧 `.open` 打开。
      */
     private _resolveDataBasis(def: ComponentDef | null): ComponentDataBasis {
-        const optionScope = this.getOption("scope");
-        const open = def?.open === true;
-        if (optionScope !== undefined) {
+        const optionCtx = this.getOption("dataContext");
+        // 消费侧 open 只读指令选项层（不经 getOption 的宿主 x-options 回退）——
+        // 避免宿主上给其他指令声明的 open 键意外打开组件（ADR-0007 回退语义的隔离例外）
+        const consumerOpen = this.options?.open === true;
+        const open = def?.open === true || consumerOpen;
+        if (optionCtx !== undefined) {
             if (open) {
-                if (optionScope === "host" || optionScope === "declarer") return optionScope;
+                if (optionCtx === "host" || optionCtx === "declarer") return optionCtx;
                 this.warn(
-                    `x-component: 无效 scope 基准 ${JSON.stringify(optionScope)}（须 'host'|'declarer'），已回退 'host'（ADR-0053）`,
+                    `x-component: 无效数据基准 ${JSON.stringify(optionCtx)}（须 'host'|'declarer'），已回退 'host'（ADR-0053）`,
                 );
                 return "host";
             }
             this.warn(
-                `x-component: 组件 "${this.componentName}" 未声明 open（默认封闭），x-component-options.scope 不生效（ADR-0053）`,
+                `x-component: 组件 "${this.componentName}" 未声明 open（默认封闭），x-component-options.dataContext 不生效（ADR-0053）`,
             );
             return "closed";
         }
         if (!open) return "closed";
-        return def!.scopeBasis ?? "host"; // open 未指基准 → 默认消费处上下文（≈ 既有透明行为）
+        return def?.dataContext ?? "host"; // open 未指基准 → 默认消费处上下文（≈ 既有透明行为）
     }
 
     /**
@@ -281,6 +318,27 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         }
     }
 
+    /** 上次实际应用到组件数据域的 props（浅值比较基准；destroy 时清空） */
+    private _appliedProps: Record<string, any> | undefined;
+
+    /**
+     * props 浅值比较（键集合相同 + 每键 Object.is）。
+     *
+     * **同引用视为不等**：绑定状态对象形态（`x-component:box="order"`）重求值返回的是同一
+     * 响应式引用，其内部键可能已被外部原地修改，必须照常 assign 把最新键值拷入。
+     * 仅不同引用（静态字面量每次重求值产生新对象）才比较键值。
+     */
+    private _propsEqual(
+        a: Record<string, any> | undefined,
+        b: Record<string, any> | undefined,
+    ): boolean {
+        if (a === b) return false; // 同引用 → 内部键可能已变，照常更新
+        if (!a || !b) return false;
+        const ka = Object.keys(a);
+        if (ka.length !== Object.keys(b).length) return false;
+        return ka.every((k) => Object.is(a[k], b[k]));
+    }
+
     /**
      * 更新 props（值重求值后，组件已实例化）。
      *
@@ -290,6 +348,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     private _updateProps(props: Record<string, any> | undefined): void {
         if (!props || !this.instanceScope?.data) return;
         Object.assign(this.instanceScope.data, props);
+        this._appliedProps = props;
     }
 
     /**
@@ -370,5 +429,6 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         this._hideLoadingPlaceholder();
         this.instanceScope = null;
         this.instanceDef = null;
+        this._appliedProps = undefined;
     }
 }

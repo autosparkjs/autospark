@@ -51,7 +51,7 @@
 - **混合指令**：同时走两条通道，既要响应式绑定、又要监听元素生命周期。
 
 ::: info 想深入了解
-指令的完整分类、生命周期与通道见[指令类型](../guide/directive.md)；指令的选项/修饰符体系见[指令配置](../guide/config.md)。
+指令的完整分类、生命周期与通道见[指令类型](../guide/directive.md#指令类型)；指令的选项/修饰符体系见[指令配置](../guide/directive.md#指令配置)。
 :::
 
 ## 响应式插值
@@ -135,7 +135,7 @@ scope 经 `parent` 链组成树，读取局部数据时**就近命中**：
 </script>
 ```
 
-动作内经 `this` 访问上下文：`this.data` 写当前作用域的局部数据，`this.state` 读写全局状态，`this.scope` 拿到当前 scope。动作也沿 scope 链查找——局部同名动作覆盖全局。
+动作内经 `this` 访问上下文：`this.data` 写当前作用域的局部数据，`this.globalState` 读写全局状态，`this.scope` 拿到当前 scope。动作也沿 scope 链查找——局部同名动作覆盖全局。
 
 动作既可以是同步函数，也可以是返回 Promise 的异步函数。异步动作的生命周期（pending/resolved/rejected）能被反馈修饰符（`.feedback`）或祖先聚合（`@action:*`）消费，驱动 loading、提交态等 UI。
 
@@ -161,7 +161,7 @@ scope 经 `parent` 链组成树，读取局部数据时**就近命中**：
 这里 `x-scope` 是关键：`x-define` 要挂到最近祖先 scope，但纯容器不建 scope——`x-scope` 让这个 `<div>` 成为 scope 锚点，组件才有归属。组件查找支持「局部覆盖、外层兜底」：内层 scope 的同名组件遮蔽外层，到顶兜底引擎全局组件（`options.components`）。
 
 ::: info 想深入了解
-组件的声明摘除、就近覆盖、全局组件兜底、消费者协议见[组件](../guide/component.md)。
+组件的声明摘除、就近覆盖、全局组件兜底、消费者协议见[组件](../guide/component/)。
 :::
 
 ## 响应式更新机制

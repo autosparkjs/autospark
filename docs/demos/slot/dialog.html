@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>x-slot · x-dialog 内容投影</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .ov-panel {
+        background: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        min-width: 320px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+      }
+      .proj {
+        padding: 4px 10px;
+        background: #fff7e6;
+        border: 1px dashed #fa8c16;
+        border-radius: 4px;
+      }
+    </style>
+    <!--
+            x-dialog 自动继承插槽（零接线）：
+            - 宿主是触发点——按钮标签等子节点**保留在原位正常渲染**（拷贝语义，不清空）；
+            - 打开时从只读 template **克隆**有对应出口的内容，投影进 body 容器覆盖物；
+            - 组件无出口时**根本不收集**（按钮标签不会被误当默认段、无 warn）。
+        -->
+  </head>
+  <body>
+    <div id="app">
+      <div x-data="{ ui: { open: false } }" class="demo-app section">
+        <!-- ① 组件有默认出口：按钮子节点投影进覆盖物正文，按钮标签自身仍保留 -->
+        <div class="block">
+          <button class="button is-primary" x-dialog:confirm="ui.open" @click="ui.open = true">
+            打开（子节点投影）
+          </button>
+          <span class="is-size-7 has-text-grey ml-2">
+            按钮标签始终可见；打开后同内容投影进对话框正文
+          </span>
+        </div>
+
+        <!-- ② 组件无出口：宿主子节点纯按钮标签，不收集、不 warn -->
+        <div class="block">
+          <button class="button" x-dialog:cfg="ui.open" @click="ui.open = true">
+            打开（无出口组件）
+          </button>
+          <span class="is-size-7 has-text-grey ml-2">
+            无出口 → 不收集，标签恒为「打开（无出口组件）」
+          </span>
+        </div>
+
+        <!-- 有默认出口的组件：正文可被宿主子节点覆盖 -->
+        <div x-define="confirm">
+          <div class="ov-panel">
+            <h3 class="title is-5">确认</h3>
+            <div class="body">
+              <div x-slot>默认正文（无内容时渲染）</div>
+            </div>
+            <button class="button is-fullwidth mt-3" @click="close()">确定</button>
+          </div>
+        </div>
+
+        <!-- 无出口组件：固定面板内容 -->
+        <div x-define="cfg">
+          <div class="ov-panel">
+            <h3 class="title is-5">配置面板</h3>
+            <p>组件未声明任何 x-slot 出口——宿主标签只留在按钮上。</p>
+            <button class="button is-fullwidth mt-3" @click="close()">关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

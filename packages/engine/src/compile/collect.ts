@@ -1,6 +1,6 @@
 import type {
     ComponentDef,
-    ComponentScopeBasis,
+    ComponentDataContext,
     ComponentSetup,
     ComponentHooks,
 } from "../directives/component-def";
@@ -8,6 +8,7 @@ import { evalComponentSetup, mergeComponentSetups, extractComponentHooks } from 
 import { extractStyleBinds, type StyleBind } from "../utils/styleBind";
 import type { AutoSparkScope } from "../scope";
 import { relaxedToJson } from "../utils/relaxedToJson";
+import { getSlotMarker } from "../utils/slot";
 
 /**
  * 判定 `<script>` 是否为组件 `<script setup>`（ADR-0022 决策四）。
@@ -54,18 +55,18 @@ function parseComponentOptions(
 }
 
 /**
- * 提取组件数据边界声明（ADR-0053）：`open` 开关 + `scope` 基准。
+ * 提取组件数据边界声明（ADR-0053）：`open` 开关 + `dataContext` 基准。
  *
  * - `open`：布尔开关，默认 false（封闭）。`.open` 修饰符（`x-define.open`）是 `open:true` 的糖，
  *   显式 options 键优先（`{open:false}` 可关掉修饰符）。
- * - `scope`：`'host' | 'declarer'`，仅 `open` 为真时生效——**scope 声明而无 open → warn + 忽略**
- *   （基准没有生效条件）；非法值 warn + 忽略。
+ * - `dataContext`：`'host' | 'declarer'`，仅 `open` 为真时生效——**dataContext 声明而无 open →
+ *   warn + 忽略**（基准没有生效条件）；非法值 warn + 忽略。
  */
 function extractBoundaryOptions(
     componentEl: HTMLElement,
     modifierOpen: boolean,
     warn: (msg: string) => void,
-): { open: boolean; scopeBasis: ComponentScopeBasis | undefined } {
+): { open: boolean; dataContext: ComponentDataContext | undefined } {
     const opts = parseComponentOptions(componentEl, warn);
     const rawOpen = opts?.open;
     let open: boolean;
@@ -77,24 +78,50 @@ function extractBoundaryOptions(
     } else {
         open = modifierOpen;
     }
-    let scopeBasis: ComponentScopeBasis | undefined;
-    const rawScope = opts?.scope;
-    if (rawScope !== undefined) {
-        if (rawScope === "host" || rawScope === "declarer") {
+    let dataContext: ComponentDataContext | undefined;
+    const rawCtx = opts?.dataContext;
+    if (rawCtx !== undefined) {
+        if (rawCtx === "host" || rawCtx === "declarer") {
             if (open) {
-                scopeBasis = rawScope;
+                dataContext = rawCtx;
             } else {
                 warn(
-                    `x-define-options.scope: 基准仅在 open 声明时生效（组件默认封闭），声明被忽略（ADR-0053）`,
+                    `x-define-options.dataContext: 基准仅在 open 声明时生效（组件默认封闭），声明被忽略（ADR-0053）`,
                 );
             }
         } else {
             warn(
-                `x-define-options.scope: 无效值 ${JSON.stringify(rawScope)}（须 'host'|'declarer'），已忽略（ADR-0053）`,
+                `x-define-options.dataContext: 无效值 ${JSON.stringify(rawCtx)}（须 'host'|'declarer'），已忽略（ADR-0053）`,
             );
         }
     }
-    return { open, scopeBasis };
+    return { open, dataContext };
+}
+
+/**
+ * 扫描快照后代收集插槽出口清单（ADR-0056 决策二）。
+ *
+ * 仅扫后代（`querySelectorAll("*")` 不含根——出口是组件作者的结构声明，写在根上无意义）。
+ * 同名重复出口：首个胜 + warn + 剥除后者的标记属性（防 snapshot 编译期二次实例化 SlotDirective）。
+ *
+ * @returns 出口名列表（含 `"default"`）；无出口返回 undefined
+ */
+function collectOutletSlots(root: HTMLElement, warn: (msg: string) => void): string[] | undefined {
+    const slots: string[] = [];
+    const seen = new Set<string>();
+    for (const el of Array.from(root.querySelectorAll("*"))) {
+        if (!(el instanceof HTMLElement)) continue;
+        const marker = getSlotMarker(el);
+        if (!marker) continue;
+        if (seen.has(marker.name)) {
+            warn(`x-slot: 出口 "${marker.name}" 重复声明，后者已忽略（ADR-0056）`);
+            el.removeAttribute(marker.attrName);
+            continue;
+        }
+        seen.add(marker.name);
+        slots.push(marker.name);
+    }
+    return slots.length > 0 ? slots : undefined;
 }
 
 /**
@@ -174,8 +201,11 @@ export function buildComponentDef(
     // bind 清单（跨 <style> 块全局去重；无 bind 时为 undefined）
     const styleBinds = bindMap.size > 0 ? Array.from(bindMap.values()) : undefined;
 
-    // 数据边界声明（ADR-0053）：open 开关 + scope 基准（含 `.open` 修饰符合并与校验 warn）
-    const { open, scopeBasis } = extractBoundaryOptions(componentEl, modifierOpen, warn);
+    // 数据边界声明（ADR-0053）：open 开关 + dataContext 基准（含 `.open` 修饰符合并与校验 warn）
+    const { open, dataContext } = extractBoundaryOptions(componentEl, modifierOpen, warn);
+
+    // 插槽出口清单（ADR-0056 决策二）：从快照后代自动推断（script/style 已剪枝，出口标记仍在）
+    const slots = collectOutletSlots(snapshot, warn);
 
     return {
         name,
@@ -185,7 +215,8 @@ export function buildComponentDef(
         styles,
         styleBinds,
         open,
-        scopeBasis,
+        dataContext,
         declarerScope,
+        slots,
     };
 }

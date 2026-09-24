@@ -16,12 +16,13 @@ export * from "./else";
 export * from "./case";
 export * from "./show";
 export * from "./loading";
-export * from "./slot";
+export * from "./isolate";
 export * from "./scope";
 export * from "./overlay";
 export * from "./dialog";
 export * from "./component";
 export * from "./define";
+export * from "./slot";
 export * from "./icon";
 export * from "./icon-define";
 export * from "./import";
@@ -40,12 +41,13 @@ import { DataDirective } from "./data";
 import { BindDirective } from "./bind";
 import { OnDirective } from "./on";
 import { LoadingDirective } from "./loading";
-import { SlotDirective } from "./slot";
+import { IsolateDirective } from "./isolate";
 import { DialogDirective } from "./dialog";
 import { ModelDirective } from "./model";
 import { ScopeDirective } from "./scope";
 import { ComponentDirective } from "./component";
 import { DefineDirective } from "./define";
+import { SlotDirective } from "./slot";
 import { ImportDirective } from "./import";
 import { FormDirective } from "./form";
 import { FieldDirective } from "./field";
@@ -55,7 +57,7 @@ import { IconDefineDirective } from "./icon-define";
 /**
  * 预设指令映射：指令名 → 指令类。
  *
- * 显式映射，避免依赖类的 `Function.name`。注册核心闭环指令（text/html/if/show/for/data/bind/on/loading/slot）
+ * 显式映射，避免依赖类的 `Function.name`。注册核心闭环指令（text/html/if/show/for/data/bind/on/loading/isolate）
  * + `scope`（ADR-0022：x-scope 结构占位）
  * + `component`（ADR-0054：x-component:名称 组件实例化指令，更名自 x-use）/ `define`
  * （x-define 组件定义供体，更名自 x-component，承接 ADR-0021/0022）
@@ -64,7 +66,7 @@ import { IconDefineDirective } from "./icon-define";
  * `x-define` 经 compiler 前置 transformer 拦截、永不被实例化，注册仅为合法可发现名位。
  * `x-else` / `x-else-if` 同为名位（分支链逻辑在 IfDirective，剪枝在 compiler 前置 transformer，ADR-0034）；
  * `x-case` / `x-default` 亦为名位（分支选择逻辑在 SwitchDirective，剪枝同走前置 transformer，ADR-0037）。
- * 
+ *
  * 注意：原 `x-patch` 指令已移除，因为 `x-scope` 指令可以完全替代其功能。
  * `x-scope` 同样是零副作用的 no-op 指令，能让纯静态元素建 scope 进入正向桥，
  * 从而被 `engine.patch` 定位。详见 ADR-0021 和 scope.ts 注释。
@@ -86,13 +88,14 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     on: OnDirective,
     model: ModelDirective,
     loading: LoadingDirective,
-    slot: SlotDirective,
+    isolate: IsolateDirective,
     scope: ScopeDirective,
     // 覆盖物体系（ADR-0052 修订版）：x-dialog 模态形态消费者（OverlayDirective 基座不注册——
     // 模板无 x-overlay 语法，覆盖物内容 = 任意组件，消费 attr 名即组件名）
     dialog: DialogDirective,
     component: ComponentDirective,
-    "define": DefineDirective,
+    define: DefineDirective,
+    slot: SlotDirective,
     import: ImportDirective,
     form: FormDirective,
     field: FieldDirective,

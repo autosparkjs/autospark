@@ -54,9 +54,9 @@
                         // set action：DOM 输入值自动作首参 $value，括号内是段索引
                         // 读当前完整 IP，替换第 index 段，重组后写回 state.user.ip
                         joinOctet: function ($value, index) {
-                            const parts = String(this.state.user.ip).split(".");
+                            const parts = String(this.globalState.user.ip).split(".");
                             parts[index] = $value;
-                            this.state.user.ip = parts.join(".");
+                            this.globalState.user.ip = parts.join(".");
                         },
                     },
                 },

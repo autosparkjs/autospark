@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>x-slot · 多出口与内容分段</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <!--
+            内容分段规则：
+            - 仅宿主**直接子级**参与分段：带 x-slot:名称 的直接子元素切命名段，
+              其余（裸文本 / 未标记元素）按文档序合并为**单一默认段**；
+            - 命名段之间的裸子节点不会被切成多段——两段裸 p/span 一起进默认出口；
+            - 深层 x-slot:* 忽略（warn + 按普通内容归入默认段），标记属性被剥除。
+        -->
+  </head>
+  <body>
+    <div id="app" x-scope>
+      <!-- 定义侧：三出口布局（header / body / footer）+ 中间固定内容 -->
+      <div x-define="layout">
+        <div class="layout">
+          <header class="lo-head" x-slot:header>默认头</header>
+          <div class="lo-body" x-slot>默认体</div>
+          <footer class="lo-foot" x-slot:footer>默认脚</footer>
+          <aside class="lo-fixed">无出口标记 = 组件固定内容，永不替换</aside>
+        </div>
+      </div>
+
+      <!-- 命名段切走后，中间裸子节点按文档序合并进默认段 -->
+      <div class="panel">
+        <div class="label">命名段切走 + 裸子节点合并为默认段</div>
+        <div x-component:layout>
+          <template x-slot:header>自定义头</template>
+          <p>裸段一</p>
+          <span>裸段二</span>
+          <template x-slot:footer>自定义脚</template>
+        </div>
+      </div>
+
+      <!-- 深层标记：b 上的 x-slot:header 不构成命名段（仅直接子级），整体按普通内容进默认段 -->
+      <div class="panel">
+        <div class="label">深层 x-slot:header 被忽略（仅直接子级），整体进默认段</div>
+        <div x-component:layout>
+          <template x-slot:header>头生效</template>
+          <div class="wrap">
+            <b x-slot:header>深层标记（不切段）</b>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+    </script>
+
+    <style>
+      .panel {
+        padding: 16px;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        margin-bottom: 12px;
+      }
+      .label {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 8px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .lo-head {
+        grid-column: 1 / -1;
+        padding: 8px 12px;
+        background: #f5f5f5;
+        border-radius: 4px;
+        font-weight: 600;
+      }
+      .lo-body {
+        padding: 10px 12px;
+        border: 1px dashed #dbdbdb;
+        border-radius: 4px;
+        min-height: 48px;
+      }
+      .lo-foot {
+        padding: 8px 12px;
+        background: #efffe5;
+        border-radius: 4px;
+      }
+      .lo-fixed {
+        grid-column: 1 / -1;
+        padding: 6px 12px;
+        font-size: 0.75rem;
+        color: #888;
+        background: #fafafa;
+        border-radius: 4px;
+      }
+      .wrap {
+        padding: 6px;
+        background: #fff7e6;
+        border-radius: 4px;
+        font-size: 0.85rem;
+      }
+    </style>
+  </body>
+</html>

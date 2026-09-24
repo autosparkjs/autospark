@@ -151,7 +151,7 @@ tab 页签正是 keepalive 的高价值场景——表单切走再切回，输�
 - `x-case` 缺值 → 按 `x-default` 兜底处理（warn）；
 - `x-default` 带值 → 值被忽略（warn）；同元素 `x-case` + `x-default` → 按 `x-case` 处理（warn）；
 - case 字面量非法（解析失败）→ 该分支跳过（warn）；
-- 分支根可写普通指令（`:class` / `x-text` / `x-on`…随分支编译执行），但**不能写结构指令**（`x-for` / eager `x-if` / `x-slot`——该分支被跳过，warn）；
+- 分支根可写普通指令（`:class` / `x-text` / `x-on`…随分支编译执行），但**不能写结构指令**（`x-for` / eager `x-if` / `x-isolate`——该分支被跳过，warn）；
 - `x-switch` 缺少匹配表达式 → warn，不渲染任何分支。
 
 ### 与 x-for 的关系
@@ -169,7 +169,7 @@ tab 页签正是 keepalive 的高价值场景——表单切走再切回，输�
 | `animate`    | 无     |        | 分支进出场动画：字符串（`'fade'` / `'slide'` / 自定义名）/ 对象（name/duration/delay/easing）/ 分相（`enter` / `leave` 各自可配，`false` 单相禁用），见[动画](../animate.md) |
 
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../config.md)。
+指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive.md#指令配置)。
 :::
 
 ## 注意事项

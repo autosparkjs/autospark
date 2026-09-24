@@ -2,7 +2,7 @@
 
 - **状态**：Accepted（Round 3，grill-with-docs）｜⏳ 实现待落地（决策已定，业务代码未改）｜**部分被 [ADR-0044](0044-store-ownership-and-default-configmanager.md) 取代（2026-09-19）**：借用轨（决策 1/2 的实例入参）移除、`storeOptions` 改恒消费（决策 4）；决策 3 判别（isAutoStore）保留用于实例入参 throw、决策 5 静默兜空与决策 6（child engine 传 `{}`）不变
 - **日期**：2026-08-08
-- **关联**：[glossary.md](../glossary.md)、[ADR-0006](0006-x-slot-directive.md)（child engine 构造——本 ADR 决策 6 修订其决策 4 / 实现注记）
+- **关联**：[glossary.md](../glossary.md)、[ADR-0006](0006-x-isolate-directive.md)（child engine 构造——本 ADR 决策 6 修订其决策 4 / 实现注记）
 
 ## 背景
 
@@ -54,11 +54,11 @@ const isAutoStore = (x: unknown): x is AutoStore<any> =>
 
 **移除**现有 `if (!store || !(store instanceof AutoStore)) throw`（`engine.ts:91-93`）。`null` / `undefined` / 非对象经决策 3 判别为"非 store" → 走自建路径 → `new AutoStore(state)` → core 的 `state || {}` 兜成 `{}`（空 store）。**静默渲染空状态，不报错**；原始值/函数误传同理交由 core 处理。
 
-### 6. x-slot child engine 顺带简化（修订 ADR-0006 决策 4）
+### 6. x-isolate child engine 顺带简化（修订 ADR-0006 决策 4）
 
-ADR-0006 决策 4 / 实现注记现写 `new AutoTemplateEngine(this.el, new AutoStore({}))`（`slot.ts:128`，`slot.ts:1` 单独 `import { AutoStore }` 仅为这一处）。本决策后简化为 `new AutoTemplateEngine(this.el, {})`：child engine 自建 store 且 `_ownsStore = true`，`childEngine.destroy()` 经决策 2 自动销毁它——既删一处构造 + 一个 import，又使 child store 的 core 资源随 child engine 销毁而回收（child engine 此前 `destroy()` 不碰 store，空 store 残留虽小、但不再有"engine 建却不拥有"特例）。
+ADR-0006 决策 4 / 实现注记现写 `new AutoTemplateEngine(this.el, new AutoStore({}))`（`isolate.ts:128`，`isolate.ts:1` 单独 `import { AutoStore }` 仅为这一处）。本决策后简化为 `new AutoTemplateEngine(this.el, {})`：child engine 自建 store 且 `_ownsStore = true`，`childEngine.destroy()` 经决策 2 自动销毁它——既删一处构造 + 一个 import，又使 child store 的 core 资源随 child engine 销毁而回收（child engine 此前 `destroy()` 不碰 store，空 store 残留虽小、但不再有"engine 建却不拥有"特例）。
 
-**ADR-0006 决策 4 / 实现注记的 `new AutoStore({})` 字样、`slot.ts` 代码、`engine.ts` 注释与 import 一并于实现时同步**（本 ADR 仅记决策，不预改既有 ADR 正文以免与当前代码不符）。
+**ADR-0006 决策 4 / 实现注记的 `new AutoStore({})` 字样、`isolate.ts` 代码、`engine.ts` 注释与 import 一并于实现时同步**（本 ADR 仅记决策，不预改既有 ADR 正文以免与当前代码不符）。
 
 ## 被否决的方案
 

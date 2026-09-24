@@ -34,7 +34,7 @@ AutoSpark 引擎支持**初始化全量编译**与**值层面细粒度更新**(�
 15. 作为模板开发者,我想 patch 不破坏兄弟子树的响应式订阅,以便局部更新不影响其他部分。
 16. 作为模板开发者,我想在 updater 抛错时引擎记录日志且不重建,以便单个错误不破坏引擎状态。
 17. 作为引擎维护者,我想 patch 复用现有的子树重建管线和正向桥,以便实现简洁、行为与 `engine.data` 一致。
-18. 作为引擎维护者,我想 patch 在动态区域(`x-for` / `x-if` / `x-slot` 内)被拒绝,以便避免运行树与模板非同构导致的不可靠行为。
+18. 作为引擎维护者,我想 patch 在动态区域(`x-for` / `x-if` / `x-isolate` 内)被拒绝,以便避免运行树与模板非同构导致的不可靠行为。
 19. 作为引擎维护者,我想 patch 的边界与指令通道划分自洽(只服务 scope 通道,runtime 指令由 dispatcher 自治),以便职责清晰、无遗漏。
 20. 作为引擎维护者,我想 patch 的设计有 ADR 记录(ADR-0002)+ 领域词汇(glossary),以便未来维护者理解决策脉络与术语。
 
@@ -53,7 +53,7 @@ AutoSpark 引擎支持**初始化全量编译**与**值层面细粒度更新**(�
 - **子树重建**:复用现有「destroy 子 scope → 清空 DOM → 重编译子节点 → flushAll」管线(与 `engine.data` 子树重建同构)。
 - **替换自身顺序**(经评审验证):① 模板侧先替换(新节点进入模板树,`_linkParent` 沿新祖先链生效)→ ② destroy 旧 scope → ③ 编译新节点建新 scope → ④ 运行侧替换。
 - **删除自身**:`scope.destroy()` + 模板/运行双侧移除(`null` 与空串共用同一内部路径)。
-- **动态区域守卫**:patch 目标自身或祖先链含 `ownsChildren` 结构指令(`x-for` / eager `x-if` / `x-slot`)→ 拒绝(warn),因运行侧结构由指令运行时生成、与模板非同构、正向桥不可靠。
+- **动态区域守卫**:patch 目标自身或祖先链含 `ownsChildren` 结构指令(`x-for` / eager `x-if` / `x-isolate`)→ 拒绝(warn),因运行侧结构由指令运行时生成、与模板非同构、正向桥不可靠。
 - **ownsChildren 判定提取**:把「某 scope 是否含 ownsChildren 指令」的**纯判定**从冲突检测(多 owner 抛错)中提取为公共方法,动态区域守卫与冲突检测共用同一真相源。
 - **编译节点列表**:提取单节点编译为共享方法——HTMLElement 必须走深度优先 `transformElement` 递归(含文本插值),**不可**走单元素浅编译(否则丢失整棵子树与插值);含 `{{}}` 文本走插值拆分。子树重建与 patch 替换自身共用。
 - **dispatcher 透明**:patch 插入/删除节点时,runtime 指令的 mount/unmount 由 `RuntimeObserverDispatcher`(ADR-0003)的 MutationObserver 自动处理,patch 不直接操作 dispatcher。
@@ -64,9 +64,9 @@ AutoSpark 引擎支持**初始化全量编译**与**值层面细粒度更新**(�
 ## Testing Decisions
 
 - **好测试的标准**:只测 patch 的**外部可观察行为**(运行树 DOM 结果、响应式更新、事件广播、误用守卫),**不测**内部方法(`getScopeByTemplate`/`scopeOwnsChildren`/`compileChildNodes`)的实现细节——它们经 patch 的外部行为完整覆盖。
-- **seam**:**单一 engine 级 seam**。`mount(html, state)` 构造引擎 → `engine.patch(selector, updater)` → `toEqualHTML` 断言运行树;响应式用例配合 `nextTick`;事件用例 `on` + 断言回调。与所有现有指令测试(`x-text`/`x-if`/`x-for`/`x-slot`)同构。零新 seam。
+- **seam**:**单一 engine 级 seam**。`mount(html, state)` 构造引擎 → `engine.patch(selector, updater)` → `toEqualHTML` 断言运行树;响应式用例配合 `nextTick`;事件用例 `on` + 断言回调。与所有现有指令测试(`x-text`/`x-if`/`x-for`/`x-isolate`)同构。零新 seam。
 - **被测面**:`AutoSpark.patch`(公开 API),经引擎级用例覆盖内部 compiler/scope/dispatcher 协作。
-- **prior art**:`x-text.test.ts`(绑定 + 响应式)、`e2e.test.ts`(scheduler/destroy)、`x-slot.test.ts`(结构指令 + 生命周期)、`core-scopes-contract.test.ts`(响应式契约)。复用 helpers 的 `mount`/`nextTick`、setup 的 `toEqualHTML` matcher、format 的归一。
+- **prior art**:`x-text.test.ts`(绑定 + 响应式)、`e2e.test.ts`(scheduler/destroy)、`x-isolate.test.ts`(结构指令 + 生命周期)、`core-scopes-contract.test.ts`(响应式契约)。复用 helpers 的 `mount`/`nextTick`、setup 的 `toEqualHTML` matcher、format 的归一。
 - **覆盖矩阵**:四态(子树重建 / 替换 Node / 替换字符串单节点 / 替换字符串多节点 / 删除 `null` / 空串 = 删除)+ 边界(纯静态裸元素拒绝、含插值裸元素可 patch、动态区域 `x-for` 拒绝、updater 抛错不重建)+ 哨兵(`x-scope`)+ 响应式(patch 后改 state 更新)+ 兄弟子树运行态保留 + 事件广播。
 
 ## Out of Scope
@@ -83,6 +83,6 @@ AutoSpark 引擎支持**初始化全量编译**与**值层面细粒度更新**(�
 ## Further Notes
 
 - 设计经多轮 `/grill-with-docs` 评审定稿,记录于 **ADR-0002**(动态 patch 机制)+ **glossary**(事实源方向 / 正向桥 / 补丁单元 / 动态区域 / `x-scope` 等术语)。
-- 与 **ADR-0001**(指令类别 / 通道划分)、**ADR-0003**(事件总线 / `RuntimeObserverDispatcher`)、**ADR-0004**(响应式插值 / 合成 scope)、**ADR-0006**(`x-slot`,其威胁模型已把 `engine.patch` 列为 T2 结构重建机制之一)协同。
+- 与 **ADR-0001**(指令类别 / 通道划分)、**ADR-0003**(事件总线 / `RuntimeObserverDispatcher`)、**ADR-0004**(响应式插值 / 合成 scope)、**ADR-0006**(`x-isolate`,其威胁模型已把 `engine.patch` 列为 T2 结构重建机制之一)协同。
 - **已实现并验证**:16 个 patch 用例 + 415 全量回归通过;template 包类型检查干净(core 包错误为既有技术债,与本特性无关)。
 - **发布通道状态**:`gh` CLI 未安装、无 token、无 `setup-matt-pocock-skills` 配置,故本 spec 暂存为 repo 文件而非 issue。待 issue tracker 就绪,可据本文件创建 issue 并应用 `ready-for-agent` 标签。

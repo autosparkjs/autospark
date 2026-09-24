@@ -58,7 +58,7 @@ oxfmt
 
 ### 指令体系（src/directives/）
 
-- 基类 `AutoSparkDirectiveBase` 的**静态**字段决定行为：`kind`（`Compile`/`Runtime`/`Hybrid`，ADR-0001）、`priority`（x-for=100 → x-if=80 → bind/on=50 → text/html=0）、`singleton`（同名去重）、`ownsChildren(info)`（结构指令接管子树编译，如 x-for / eager x-if / x-slot）。
+- 基类 `AutoSparkDirectiveBase` 的**静态**字段决定行为：`kind`（`Compile`/`Runtime`/`Hybrid`，ADR-0001）、`priority`（x-for=100 → x-if=80 → bind/on=50 → text/html=0）、`singleton`（同名去重）、`ownsChildren(info)`（结构指令接管子树编译，如 x-for / eager x-if / x-isolate）。
 - **双执行通道**：scope 通道（Compile/Hybrid：编译期 created/compile/destroy，binding 支持相对表达式）与 observer 通道（Runtime/Hybrid：编译器致盲、属性保留在结果 DOM，由共享 `RuntimeObserverDispatcher` 的单一 MutationObserver 触发 mounted/unmounted/attrChanged，仅绝对路径）。Hybrid 双通道职责正交。
 - 类级 `static initialize(engine)` / `static dispose(engine)`：engine 就绪/销毁时对每个注册类调用一次（建 observer、注入全局样式等）。
 - 配置体系（ADR-0007）：修饰符（`.xxx`）在解析期并入**指令选项**（`x-{name}-options`，relaxed-json）；读取走「指令选项 → 宿主选项（`x-options`）」**回退**，缺失才回退、不做合并。
@@ -69,7 +69,7 @@ oxfmt
 - `store.state.$scopes` 是**框架保留键**（x-data 私有响应式域容器）；x-data 只 `Object.assign` 进 `$scopes[id]`，**永不整体替换容器**（ADR-0029 mount 三形态）。
 - action 三入口（构造 `options.actions`、`engine.actions` Proxy 赋值、`<script type="autospark/actions">`）统一经 `src/actions/`（ActionManager）包装，自动广播 `actions/<name>/*` 生命周期信号（x-loading 消费）；script type 已命名空间化（ADR-0031，旧写法 warn 剪枝）。
 - 组件（ADR-0022/0054）：`x-define` 编译期剪枝、冻结快照挂最近祖先 `scope.components`；`x-component:名称` 实例化（属性参数承载组件名、值专职 props，单向注入组件 data 域）；`getComponent` 沿 scope 链就近查找 + `options.components` 全局兜底。
-- 冲突防护：`engine.patch` 拒绝落入动态区域（x-for / eager x-if / x-slot 祖先链内）。
+- 冲突防护：`engine.patch` 拒绝落入动态区域（x-for / eager x-if / x-isolate 祖先链内）。
 
 ## 决策文档（改机制前先读）
 

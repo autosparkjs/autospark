@@ -97,22 +97,22 @@
                 {
                     actions: {
                         add() {
-                            const text = this.state.input.trim();
+                            const text = this.globalState.input.trim();
                             if (!text) return;
-                            const todos = this.state.todos;
+                            const todos = this.globalState.todos;
                             todos.push({
                                 id: Date.now(),
                                 text,
                                 done: false,
                             });
-                            this.state.input = "";
+                            this.globalState.input = "";
                         },
                         toggle(id) {
-                            const todo = this.state.todos.find((t) => t.id === id);
+                            const todo = this.globalState.todos.find((t) => t.id === id);
                             if (todo) todo.done = !todo.done;
                         },
                         remove(id) {
-                            const todos = this.state.todos;
+                            const todos = this.globalState.todos;
                             const i = todos.findIndex((t) => t.id === id);
                             if (i >= 0) todos.splice(i, 1);
                         },

@@ -55,7 +55,7 @@ x-data 的值写进 HTML 属性，注入大型 JSON 是转义地狱、易错。�
 - **动态区统一**：x-for item 模板 / eager x-if 子树 / x-use 组件实例化均经 `compileChild → compileSubtree → transformElement` 复用同一管道，数据脚本就地 desugar，**每实例独立数据域**、随实例生死；
 - **x-component 冻结快照内**数据脚本原样保留（快照未编译），消费实例化时才生效——天然成为组件私有数据声明；
 - **x-for 成员根绕过 transformer 的补丁**：项成员以 `cloneNode(false)` 直建根、不走 transformElement（只有其子节点走），脚本作为直接子级会成为成员根被原样克隆进 DOM——`ForDirective.parse` 采集项模板时**跳过数据脚本**（不进渲染 DOM、不随项重复）；
-- **结构指令宿主的直接子级**（x-for / eager x-if / x-slot 宿主）：compileElement 预扫命中 → `logger.warn` + 放弃注入（其子节点是项模板材料，脚本无处挂载；指引移入项模板内目标元素的直接子级）；
+- **结构指令宿主的直接子级**（x-for / eager x-if / x-isolate 宿主）：compileElement 预扫命中 → `logger.warn` + 放弃注入（其子节点是项模板材料，脚本无处挂载；指引移入项模板内目标元素的直接子级）；
 - **错误姿态**：求值失败 / 非对象 / options 解析失败 → `logger.error` + 该脚本视为 `{}` 继续编译（不中断，与 actions 同款）；
 - **回收同权**：合成数据整体进声明清单（attachedKeys），destroy 键级 CAS 删除，脚本键与 x-data 键同责。注：builder 激活回写会使容器键值偏离登记末值，root/path 模式的 destroy CAS 因此不删 builder 键（残留语义与「运行时键视为用户接管」一致，可接受）。
 

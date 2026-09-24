@@ -100,7 +100,8 @@ export interface AutoSparkActionContext {
     scope: AutoSparkScope;
     /** AutoStore 实例 */
     store: AnyAutoStore;
-    state: Record<string, any>;
+    /** 全局状态（engine.store.state；ADR-0057 更名自 `state`——全局树明确通道） */
+    globalState: Record<string, any>;
     /** 引擎实例 */
     engine: any;
     /**

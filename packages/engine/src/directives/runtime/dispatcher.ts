@@ -35,17 +35,17 @@ export class RuntimeObserverDispatcher {
     private instances = new Map<string, Map<HTMLElement, AutoSparkDirectiveBase>>();
     private mo: MutationObserver | undefined;
     /**
-     * slot 盲区根集合（ADR-0006 决策 8）：x-slot 宿主登记于此。
+     * isolate 盲区根集合（ADR-0006 决策 8）：x-isolate 宿主登记于此。
      * 盲区内子树的 runtime 指令（如 child engine 写入的 x-loading）由 child engine 自身 dispatcher
      * 负责，父 dispatcher 对其**致盲**——避免父/子双 dispatcher 抢管同一节点、重复 mount。
      */
-    private slotRoots = new Set<HTMLElement>();
+    private isolateRoots = new Set<HTMLElement>();
     /**
      * 额外观察根集合（ADR-0052 决策 14）：覆盖层实例外壳登记于此——实例 DOM 渲染到
      * `document.body` 容器（engine.el 子树之外），不纳入观察则子树内 Runtime 指令
      * （x-loading 等）的 mounted/unmounted/attrChanged 全部失明。
      *
-     * 与 `slotRoots` 盲区机制对称：盲区把子树**排除**出观察（child engine 管辖），
+     * 与 `isolateRoots` 盲区机制对称：盲区把子树**排除**出观察（child engine 管辖），
      * 观察根把外部子树**纳入**观察。实现上对每个额外根单独 `mo.observe(el, 同款 options)`
      * （同一 observer 可观察多根）；登记时对根做一次初始扫描（元素可能已挂载）。
      */
@@ -88,16 +88,16 @@ export class RuntimeObserverDispatcher {
     }
 
     /**
-     * 登记 slot 盲区根（x-slot 宿主）。盲区内子树不参与本 dispatcher 的 mount/attr 派发。
-     * 由 SlotDirective.created() 调用；对称地在 destroy() 经 removeSlotRoot 注销。
+     * 登记 isolate 盲区根（x-isolate 宿主）。盲区内子树不参与本 dispatcher 的 mount/attr 派发。
+     * 由 IsolateDirective.created() 调用；对称地在 destroy() 经 removeIsolateRoot 注销。
      */
-    addSlotRoot(el: HTMLElement): void {
-        this.slotRoots.add(el);
+    addIsolateRoot(el: HTMLElement): void {
+        this.isolateRoots.add(el);
     }
 
-    /** 注销 slot 盲区根（SlotDirective.destroy() 调用）。 */
-    removeSlotRoot(el: HTMLElement): void {
-        this.slotRoots.delete(el);
+    /** 注销 isolate 盲区根（IsolateDirective.destroy() 调用）。 */
+    removeIsolateRoot(el: HTMLElement): void {
+        this.isolateRoots.delete(el);
     }
 
     /**
@@ -133,15 +133,15 @@ export class RuntimeObserverDispatcher {
     }
 
     /**
-     * 元素是否落在任一 slot 盲区的**严格后代**子树内（不含盲区根本身）。
+     * 元素是否落在任一 isolate 盲区的**严格后代**子树内（不含盲区根本身）。
      * 无盲区时短路返回 false（热路径零开销）。用于 collectEls / _handle 过滤掉 child engine 管辖的子树。
      *
-     * **不含盲区根本身**：slot 宿主自身的 runtime 指令（如 fetch 期间 x-slot 添加的 `x-loading`）
+     * **不含盲区根本身**：isolate 宿主自身的 runtime 指令（如 fetch 期间 x-isolate 添加的 `x-loading`）
      * 仍归本 dispatcher 管理与 mount；仅其**子树**（child engine 编译产物）致盲，避免双 dispatcher 抢管。
      */
-    private _inSlotRoot(el: HTMLElement): boolean {
-        if (this.slotRoots.size === 0) return false;
-        for (const root of this.slotRoots) {
+    private _inIsolateRoot(el: HTMLElement): boolean {
+        if (this.isolateRoots.size === 0) return false;
+        for (const root of this.isolateRoots) {
             if (root !== el && root.contains(el)) return true;
         }
         return false;
@@ -178,7 +178,7 @@ export class RuntimeObserverDispatcher {
     collectEls(root: HTMLElement): Map<HTMLElement, string[]> {
         const out = new Map<HTMLElement, string[]>();
         const visit = (el: HTMLElement) => {
-            if (this._inSlotRoot(el)) return; // slot 盲区：child engine 管辖，本 dispatcher 致盲
+            if (this._inIsolateRoot(el)) return; // isolate 盲区：child engine 管辖，本 dispatcher 致盲
             const names = new Set<string>();
             for (const attrName of el.getAttributeNames()) {
                 for (const [name, reg] of this.registry) {
@@ -240,17 +240,18 @@ export class RuntimeObserverDispatcher {
             if (mut.type === "childList") {
                 mut.addedNodes.forEach((n) => {
                     if (n instanceof HTMLElement)
-                        for (const [el, names] of this.collectEls(n)) for (const name of names) this.mount(el, name);
+                        for (const [el, names] of this.collectEls(n))
+                            for (const name of names) this.mount(el, name);
                 });
                 mut.removedNodes.forEach((n) => {
                     if (n instanceof HTMLElement)
-                        for (const [el, names] of this.collectEls(n)) for (const name of names) this.unmount(el, name);
+                        for (const [el, names] of this.collectEls(n))
+                            for (const name of names) this.unmount(el, name);
                 });
             } else if (mut.type === "attributes" && mut.attributeName) {
-                
                 const el = mut.target;
                 if (!(el instanceof HTMLElement)) continue;
-                if (this._inSlotRoot(el)) continue; // slot 盲区：属性变化交 child engine dispatcher
+                if (this._inIsolateRoot(el)) continue; // isolate 盲区：属性变化交 child engine dispatcher
                 // 定位该属性所属的 runtime 指令（attrRe 命中即止；属性名唯一归属一个指令）
                 for (const [name, reg] of this.registry) {
                     if (reg.attrRe.test(mut.attributeName)) {

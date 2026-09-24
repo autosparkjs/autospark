@@ -658,7 +658,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
             data: scope.getContext(),
             scope,
             store: this.engine.store,
-            state: this.engine.store.state,
+            globalState: this.engine.store.state,
             engine: this.engine,
             $options: {},
         };

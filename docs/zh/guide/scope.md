@@ -264,7 +264,7 @@ this.binding.getComponent(name)      // 查找组件
 // watch/read/getComponent → scope 同名方法
 {
   inc() { this.data.count++; },
-  reset() { this.state.count = 0; },
+  reset() { this.globalState.count = 0; },
 }
 </script>
 ```

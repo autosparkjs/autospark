@@ -2,7 +2,7 @@
 
 - **状态**：Accepted（已实施，1288 测试通过）
 - **日期**：2026-09-23
-- **关联**：[ADR-0022](0022-x-component.md)（组件系统，本 ADR 更名其决策五的 x-use 词汇与对象字段识别）、[ADR-0052](0052-x-overlay-and-x-dialog.md)（x-dialog:名称 属性参数先例）、[ADR-0053](0053-component-data-boundary.md)（选项属性随更名拆分为 define/options 两族）、[ADR-0031](0031-script-type-namespace.md)（废弃词汇处置惯例参照，本次选择更激进的彻底移除）、[CONTEXT.md](../../CONTEXT.md)（组件定义 / 组件实例化 / props 注入词条 + 两条废弃词条）
+- **关联**：[ADR-0022](0022-x-component.md)（组件系统，本 ADR 更名其决策五的 x-use 词汇与对象字段识别）、[ADR-0052](0052-x-overlay-and-x-dialog.md)（x-dialog:名称 属性参数先例）、[ADR-0053](0053-component-data-boundary.md)（选项属性随更名拆分为 define/options 两族）、[ADR-0031](0031-script-type-namespace.md)（废弃词汇处置惯例参照，本次选择更激进的彻底移除）、[ADR-0057](0057-component-single-reactive-data.md)（数据模型 v2——props 浅值比较协议的后续精化与 data 段更名）、[CONTEXT.md](../../CONTEXT.md)（组件定义 / 组件实例化 / props 注入词条 + 两条废弃词条）
 - **共识来源**：grilling 两轮 + 补充确认（12+ 决策点），本文即共识落盘
 
 ## 背景
@@ -45,8 +45,8 @@ ADR-0022 建立的组件词汇存在三处不对称：
 
 | 新名 | 侧 | 语义 |
 |---|---|---|
-| `x-define-options` / `x-define.open` | 定义侧 | 原 `x-component-options` 的 open/scope 声明（ADR-0053） |
-| `x-component-options` | 消费侧 | 原 `x-use-options` 的 scope 覆盖 |
+| `x-define-options` / `x-define.open` | 定义侧 | 原 `x-component-options` 的 open/dataContext 声明（ADR-0053；键名 `scope` 后经其修订九更名 `dataContext`） |
+| `x-component-options` | 消费侧 | 原 `x-use-options` 的 dataContext 覆盖 |
 
 解析层天然成立：`-options` 后缀分支把 `x-define-options` 归属 `define`，`x-component-options` 归属 `component`（新实例化指令），零解析改动。
 

@@ -84,7 +84,7 @@ TODO 应用的核心是一组任务。先给页面一个挂载点，再给引擎
 </div>
 ```
 
-动作在构造器第三参注册，挂在 `engine.actions` 上。动作函数里 `this.state` 就是全局状态：
+动作在构造器第三参注册，挂在 `engine.actions` 上。动作函数里 `this.globalState` 就是全局状态：
 
 ```javascript
 const engine = new AutoSpark(
@@ -93,14 +93,14 @@ const engine = new AutoSpark(
     {
         actions: {
             add() {
-                const text = this.state.input.trim();
+                const text = this.globalState.input.trim();
                 if (!text) return;
-                this.state.todos.push({
+                this.globalState.todos.push({
                     id: Date.now(),
                     text,
                     done: false,
                 });
-                this.state.input = ""; // 清空输入框，x-model 自动同步回 DOM
+                this.globalState.input = ""; // 清空输入框，x-model 自动同步回 DOM
             },
         },
     },
@@ -114,7 +114,7 @@ const engine = new AutoSpark(
 - 想让回车也能添加？给输入框加 `@keydown.enter="add"`（`.enter` 是按键守卫修饰符）。
 
 ::: tip 动作的 this
-动作里 `this` 是求值上下文：`this.state` 访问全局状态、`this.data` 访问所在 `x-data` 局部字段、`this.$event` 拿原生事件。详见[动作](../guide/action.md)。
+动作里 `this` 是求值上下文：`this.globalState` 访问全局状态、`this.data` 访问所在 `x-data` 局部字段、`this.$event` 拿原生事件。详见[动作](../guide/action.md)。
 :::
 
 ## 第 5 步：用 @click + :class 切换完成态
@@ -141,7 +141,7 @@ const engine = new AutoSpark(
 ```javascript
 actions: {
     toggle(id) {
-        const todo = this.state.todos.find((t) => t.id === id);
+        const todo = this.globalState.todos.find((t) => t.id === id);
         if (todo) todo.done = !todo.done;
     },
     // add 同上
@@ -174,7 +174,7 @@ actions: {
 ```javascript
 actions: {
     remove(id) {
-        const todos = this.state.todos;
+        const todos = this.globalState.todos;
         const i = todos.findIndex((t) => t.id === id);
         if (i >= 0) todos.splice(i, 1);
     },
@@ -257,17 +257,17 @@ const engine = new AutoSpark(
         {
             actions: {
                 add() {
-                    const text = this.state.input.trim();
+                    const text = this.globalState.input.trim();
                     if (!text) return;
-                    this.state.todos.push({ id: Date.now(), text, done: false });
-                    this.state.input = "";
+                    this.globalState.todos.push({ id: Date.now(), text, done: false });
+                    this.globalState.input = "";
                 },
                 toggle(id) {
-                    const todo = this.state.todos.find((t) => t.id === id);
+                    const todo = this.globalState.todos.find((t) => t.id === id);
                     if (todo) todo.done = !todo.done;
                 },
                 remove(id) {
-                    const todos = this.state.todos;
+                    const todos = this.globalState.todos;
                     const i = todos.findIndex((t) => t.id === id);
                     if (i >= 0) todos.splice(i, 1);
                 },

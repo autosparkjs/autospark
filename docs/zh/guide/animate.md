@@ -162,7 +162,7 @@ actions: {
 <div x-show="on" x-show-options="{animate:'slide'}">条件可见性 + 上滑浮入</div>
 ```
 
-`animate` 读取遵循[指令配置](./config.md)的回退链：指令选项 → 宿主选项（`x-options` 中的 `animate` 同样生效）。
+`animate` 读取遵循[指令配置](./directive.md#指令配置)的回退链：指令选项 → 宿主选项（`x-options` 中的 `animate` 同样生效）。
 
 ## 指南
 

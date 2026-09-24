@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-define · 数据边界 open</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!--
+            数据边界（ADR-0053）：组件默认封闭——读不到外层 x-data 域；
+            声明 .open 修饰符（≡ x-define-options="{open:true}"）后开放边界，
+            按默认基准 dataContext:'host' 继承消费处上下文。
+            本 demo：sealed-card 与 open-card 模板相同（都读外层 x-data 的 tip），
+            封闭者渲染空、开放者能读到并响应式更新。
+        -->
+        <div id="app" x-data="{ tip: '外部数据' }">
+            <div x-scope>
+                <!-- 封闭组件（默认）：x-text="tip" 读不到外层 x-data 域，渲染空 -->
+                <div x-define="sealed-card">
+                    <div class="card-box sealed">
+                        tip = <span x-text="tip"></span>
+                        <span class="void">← 空（封闭：读不到外层数据）</span>
+                    </div>
+                </div>
+
+                <!-- 开放组件（.open 修饰符）：继承消费处上下文，能读到外层 tip -->
+                <div x-define.open="open-card">
+                    <div class="card-box opened">
+                        tip = <span x-text="tip"></span>
+                        <span class="void">（.open：继承消费处上下文）</span>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="label">同一模板（读外层 x-data 的 tip），封闭 vs 开放</div>
+                    <div x-component:sealed-card></div>
+                    <div x-component:open-card></div>
+                </div>
+
+                <div class="panel">
+                    <div class="label">改外层 x-data 的 tip → 仅开放组件响应式更新</div>
+                    <button class="button is-small is-primary" @click="tip = '已修改的外部数据'">修改外层 tip</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.getElementById("app"));
+        </script>
+
+        <style>
+            .panel {
+                padding: 16px;
+                border: 1px solid #dbdbdb;
+                border-radius: 8px;
+                margin-bottom: 12px;
+            }
+            .label {
+                font-size: 0.8rem;
+                color: #888;
+                margin-bottom: 8px;
+            }
+            .card-box {
+                padding: 10px 14px;
+                border-radius: 4px;
+                margin-bottom: 8px;
+                font-size: 1.05rem;
+            }
+            .card-box:last-child {
+                margin-bottom: 0;
+            }
+            .sealed {
+                background: #fff5f5;
+                border-left: 3px solid #ff3860;
+            }
+            .opened {
+                background: #f0fdf4;
+                border-left: 3px solid #23d160;
+            }
+            .void {
+                color: #888;
+                font-size: 0.8rem;
+                margin-left: 8px;
+            }
+        </style>
+    </body>
+</html>

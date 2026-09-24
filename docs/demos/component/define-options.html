@@ -3,14 +3,14 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>x-define-options · 数据边界（open / scope）</title>
+        <title>x-define-options · 数据边界（open / dataContext）</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
     <body>
         <!--
             组件数据边界（ADR-0053）：默认封闭，x-define-options 声明侧开放。
-            - 封闭（默认）：组件模板只能读自身 state()/data、props 与全局 state，
+            - 封闭（默认）：组件模板只能读自身 data/私有变量、props 与全局 state，
               外层 x-data 域（tip）不可见 → 渲染为空；
             - open: true：开放数据边界，实例继承消费处上下文（host 基准）→ tip 可见；
             - 点按钮改 x-data 私有域的 tip → 只有开放组件实时更新。

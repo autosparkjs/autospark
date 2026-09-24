@@ -10,7 +10,7 @@ ADR-0007 确立的指令选项体系（修饰符注入 + 指令选项 → 宿主
 
 约束与既定事实：
 
-- 不逐 scope 元素监听（资源），在根元素全局监听再分发——而 `RuntimeObserverDispatcher`（ADR-0003 决策 7）已是 engine 级**单** MutationObserver（attributeFilter 按注册表枚举、初始扫描、childList 跟进动态元素、slot 盲区致盲、属性三态路由），是现成分发骨架。
+- 不逐 scope 元素监听（资源），在根元素全局监听再分发——而 `RuntimeObserverDispatcher`（ADR-0003 决策 7）已是 engine 级**单** MutationObserver（attributeFilter 按注册表枚举、初始扫描、childList 跟进动态元素、isolate 盲区致盲、属性三态路由），是现成分发骨架。
 - `data-*` 属性不被编译剥除（只剥 `x-*`/`@*`/`:*`），且可被 `:` 绑定语法驱动——`:data-show-animate="expr"` 使**状态驱动的配置切换免费获得**。
 - 拷问暴露的核心难题：指令选项按**消费时机**分三档，运行时更新的可行性与成本完全不同；「编译期 option」能否低成本生效需要单独裁决（这正是本 ADR 决策 7 三分法的由来）。
 
@@ -27,9 +27,9 @@ ADR-0007 确立的指令选项体系（修饰符注入 + 指令选项 → 宿主
 - `x-*` 裸属性 → runtime 指令三态路由（现状不变）；
 - `data-<name>-<option>` → 选项覆盖分发（新增）。
 
-attributeFilter 为**全部已声明覆盖属性名的显式并集**（从各指令类的声明清单枚举，如 `data-show-animate`）。slot 盲区致盲、初始扫描、childList 动态元素（x-for 项）、engine 生命周期全部复用——每 engine 单 observer、DOM 插入单次扫描不变。scope 通道实例（Compile 指令）经 engine 级 `WeakMap<el, 实例[]>` 登记（scope 创建指令实例时，凡类声明了覆盖能力即注册）；Runtime 指令（x-loading）复用 dispatcher 既有 instances 表。
+attributeFilter 为**全部已声明覆盖属性名的显式并集**（从各指令类的声明清单枚举，如 `data-show-animate`）。isolate 盲区致盲、初始扫描、childList 动态元素（x-for 项）、engine 生命周期全部复用——每 engine 单 observer、DOM 插入单次扫描不变。scope 通道实例（Compile 指令）经 engine 级 `WeakMap<el, 实例[]>` 登记（scope 创建指令实例时，凡类声明了覆盖能力即注册）；Runtime 指令（x-loading）复用 dispatcher 既有 instances 表。
 
-否决独立 OptionDispatcher + 双 observer：childList 双重扫描、slot 盲区 / 初始扫描 / 生命周期全要重做，而盲区致盲对选项分发**必须**同样生效——并入现有 observer 白得。
+否决独立 OptionDispatcher + 双 observer：childList 双重扫描、isolate 盲区 / 初始扫描 / 生命周期全要重做，而盲区致盲对选项分发**必须**同样生效——并入现有 observer 白得。
 
 ### 3. 声明契约：静态清单答「什么可更新」，实例钩子答「更新了做什么」
 
@@ -122,7 +122,7 @@ destroy 旧实例（unwatch inst.watchers + destroy(el)）
 ## 被否决的方案
 
 - **每 scope 元素自建属性监听**：资源目标否定（需求原点）。
-- **独立 OptionDispatcher + 第二个 observer**：childList 双扫描、slot 盲区/初始扫描/生命周期全重做（见决策 2）。
+- **独立 OptionDispatcher + 第二个 observer**：childList 双扫描、isolate 盲区/初始扫描/生命周期全重做（见决策 2）。
 - **静态 handler 表** `{key: (inst, val) => ...}`：what 与 how 分离（决策 3）。
 - **仅后续变更生效**（忽略初始值）：surprising 语义，初始扫描代码反正要写（决策 4）。
 - **删属性保持最后覆盖值**：覆盖载体语义不可预测，三态对称被破坏（决策 4）。

@@ -9,31 +9,32 @@
     </head>
     <body>
         <!--
-            组件数据 data：组件实例的「非响应式」内部状态。
-            - 与 state() 不同：data 不进响应式聚合视图，改了不触发更新（适合定时器句柄、缓存、防抖标记）；
-            - 经 this.<键> 读写（如 this.timer），跨生命周期共享；
-            - 模板表达式读不到 data（{{timer}} 无效）——它是组件私有的。
-            本 demo：用 data.timer 跨 created/mounted/beforeUnmount 共享定时器句柄。
+            组件数据 data（ADR-0057）：组件实例的响应式数据域。
+            - data 注入响应式域：改 this.data.<键> 驱动模板更新；
+            - setup 顶层变量（如 timer）：非响应式私有变量，经 this.<键> 读写、跨生命周期共享，
+              改了不触发更新（适合定时器句柄、缓存、防抖标记）；
+            - 模板表达式读不到顶层私有变量（{{timer}} 无效）——它是组件私有的。
+            本 demo：data.time 驱动时钟显示，顶层 timer 跨 created/mounted/beforeUnmount 共享定时器句柄。
         -->
         <div id="app" x-scope>
             <div x-define="clock">
                 <div class="clock">
                     <span class="time" x-text="time"></span>
-                    <span class="hint">（data.timer 驱动，每秒刷新 time）</span>
+                    <span class="hint">（data.time 驱动，每秒刷新）</span>
                 </div>
                 <script type="autospark/setup">
                     {
-                        state() { return { time: new Date().toLocaleTimeString() } },
-                        // data：非响应式私有数据，跨生命周期共享
-                        data: { timer: null },
+                        data: { time: new Date().toLocaleTimeString() },
+                        // 顶层私有变量：非响应式、不进模板，跨生命周期共享
+                        timer: null,
                         mounted() {
-                            // 启动定时器，句柄存 data.timer（非响应式，不该触发更新）
+                            // 启动定时器，句柄存顶层私有变量 timer（非响应式，不该触发更新）
                             this.timer = setInterval(() => {
                                 this.data.time = new Date().toLocaleTimeString();
                             }, 1000);
                         },
                         beforeUnmount() {
-                            // 清理：读取 data.timer（watcher 仍活，可读最终状态）
+                            // 清理：读取 timer（watcher 仍活，可读最终状态）
                             clearInterval(this.timer);
                         },
                     }
@@ -60,7 +61,7 @@
             </div>
 
             <div class="panel">
-                <div class="label">data.timer 跨生命周期共享：mounted 启动、beforeUnmount 清理</div>
+                <div class="label">顶层 timer 跨生命周期共享：mounted 启动、beforeUnmount 清理</div>
                 <label class="checkbox">
                     <input type="checkbox" x-model="running" />
                     挂载时钟组件（取消勾选触发 beforeUnmount → clearInterval）
@@ -69,7 +70,7 @@
 
             <div class="panel">
                 <div x-if="running"><div x-component:clock></div></div>
-                <div x-if="!running" class="unmounted">时钟已卸载（data.timer 已清理）</div>
+                <div x-if="!running" class="unmounted">时钟已卸载（timer 已清理）</div>
             </div>
         </div>
 

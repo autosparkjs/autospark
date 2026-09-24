@@ -49,8 +49,8 @@
                         // 把「名 姓」按空格拆回两个字段（编辑组合框的写回通道）
                         splitName: function (v) {
                             const parts = String(v).split(" ");
-                            this.state.user.first = parts[0] ?? "";
-                            this.state.user.last = parts[1] ?? "";
+                            this.globalState.user.first = parts[0] ?? "";
+                            this.globalState.user.last = parts[1] ?? "";
                         },
                     },
                 },

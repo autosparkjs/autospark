@@ -2,6 +2,7 @@
 import type { AutoSpark } from "./engine";
 import type { ComponentHooks } from "./directives/component-def";
 import type { ActionDesc } from "./actions/types";
+import type { SlotContent } from "./utils/slot";
 import { AutoSparkDirectiveBase } from "./directives/base";
 import { getVal, type Watcher } from "autostore";
 import { getDirectives, getHostOptions } from "./directives/utils/getDirectives";
@@ -172,9 +173,9 @@ export class AutoSparkScope {
         return this._template.deref();
     }
     /**
-     * 访问全局状态
+     * 访问全局状态（ADR-0057 更名自 `state`——全局树明确通道，与组件自有 data 域区分）
      */
-    get state() {
+    get globalState() {
         return this.engine.state;
     }
 
@@ -273,8 +274,30 @@ export class AutoSparkScope {
     declarerDataScope: AutoSparkScope | null = null;
     /** declarer 悬空降级的 warn 一次标志（ADR-0053） */
     private _declarerDangleWarned = false;
+    /**
+     * 插槽内容 map（ADR-0056）：组件宿主/实例 scope 持有，出口 SlotDirective 沿 parent 链就近查找。
+     *
+     * 由 component/overlay 的 `_instantiate` 懒收集后 stash；嵌套组件各持独立 map。
+     * null = 本 scope 无插槽内容（继续沿链查找）。
+     */
+    slotContents: Map<string, SlotContent> | null = null;
+    /**
+     * 插槽内容的调用方视图基准（ADR-0056 决策四）：内容 scope 的 `parent` 挂此，
+     * `getContext` 经 `isSlotContent` → `getCallerContext` 取调用方视图。
+     *
+     * x-component = 宿主 scope 自身；overlay = x-dialog 消费者 binding。
+     */
+    slotCallerScope: AutoSparkScope | null = null;
+    /**
+     * 是否为插槽内容 scope（ADR-0056 决策四）：内容在**调用方作用域链**求值，
+     * 不受 ADR-0053 组件封闭边界约束。`getContext` 的 parentView 改走
+     * `parent.getCallerContext()`（跳过组件 `_data`/边界，保留调用方 locals）。
+     */
+    isSlotContent = false;
     /** 缓存的聚合视图（命中优先级：locals > data > parent 链 > engine.state） */
     private _scopeView: any = null;
+    /** 缓存的调用方视图（getCallerContext，组件/边界/declarer 三态；普通 scope 直接复用 getContext） */
+    private _callerView: any = null;
 
     /**
      * 当前作用域上下文：沿 parent 链逐层查找（自身 locals 优先，命中不到查父级，直至根 engine.state）。
@@ -286,12 +309,15 @@ export class AutoSparkScope {
      */
     getContext(): Record<string, any> {
         if (this._scopeView) return this._scopeView;
-        // 父级视图按数据基准三态解析（ADR-0053）：
+        // 父级视图按数据基准解析（ADR-0053 + ADR-0056 插槽内容特例）：
+        // - 插槽内容：调用方视图（parent.getCallerContext，跳过组件 _data/边界）；
         // - declarer 基准：声明处 scope 的聚合视图（悬空降级封闭 → state）；
         // - 封闭边界：直接回退全局 state（祖先 scope 的局部数据域不可见，全局态可见）；
         // - 默认/host 基准：结构 parent 链（现行为）。
         let parentView: Record<string, any>;
-        if (this.declarerDataScope) {
+        if (this.isSlotContent && this.parent) {
+            parentView = this.parent.getCallerContext();
+        } else if (this.declarerDataScope) {
             const ds = this.declarerDataScope;
             if (ds.destroyed) {
                 this._warnDeclarerDangle();
@@ -357,6 +383,51 @@ export class AutoSparkScope {
      */
     invalidateScopeView() {
         this._scopeView = null;
+        this._callerView = null;
+    }
+
+    /**
+     * 调用方视图（ADR-0056 决策四）：插槽内容经 `parent.getCallerContext()` 取此视图。
+     *
+     * - 本 scope 为组件实例 / 封闭边界 / declarer 基准三态：返回 **结构 parent 的聚合视图 +
+     *   自身 `locals` 覆盖**（跳过 `_data` 与边界——调用方不应看到组件数据域，也不受封闭约束）；
+     * - 普通 scope：直接 `getContext()`（调用方视图 = 其正常聚合视图）。
+     *
+     * 结果懒缓存于 `_callerView`（`invalidateScopeView` 一并失效）。
+     */
+    getCallerContext(): Record<string, any> {
+        if (!(this.isComponent || this.dataBoundary || this.declarerDataScope)) {
+            return this.getContext();
+        }
+        if (this._callerView) return this._callerView;
+        const parentView = this.parent ? this.parent.getContext() : this.engine.state;
+        const local = this.locals;
+        if (!local) {
+            this._callerView = parentView;
+            return parentView;
+        }
+        this._callerView = new Proxy(parentView, {
+            get(_t, k: string | symbol) {
+                if (typeof k === "string" && Object.prototype.hasOwnProperty.call(local, k)) {
+                    return local[k];
+                }
+                return (parentView as any)[k];
+            },
+            has(_t, k: string | symbol) {
+                if (typeof k === "string" && Object.prototype.hasOwnProperty.call(local, k)) {
+                    return true;
+                }
+                return k in parentView;
+            },
+            set(_t, k: string | symbol, val: any): boolean {
+                if (typeof k === "string" && Object.prototype.hasOwnProperty.call(local, k)) {
+                    local[k] = val;
+                    return true;
+                }
+                return Reflect.set(parentView, k, val);
+            },
+        });
+        return this._callerView;
     }
 
     /**
@@ -367,10 +438,28 @@ export class AutoSparkScope {
      * 不能直读 `store.state`（否则 data 中的键被绕过、读到 undefined）。
      *
      * 仅在订阅/读取时调用一次（非每次更新），沿 parent 链 O(深度) 扫描，开销可忽略。
+     *
+     * **插槽内容特例（ADR-0056）**：`isSlotContent` scope 自身 locals（形参）查后，
+     * 父级按**调用方视角**（`getCallerContext` 同构）探测——组件 `_data`/封闭边界不计入，
+     * 否则封闭组件下内容的简单路径会误走 `store.state` 直读。
      */
     private hasLocalContext(): boolean {
         let s: AutoSparkScope | null = this;
         while (s) {
+            if (s.isSlotContent) {
+                if (s.locals) return true; // 形参进视图
+                const caller = s.parent;
+                if (!caller) return false;
+                if (caller.isComponent || caller.dataBoundary || caller.declarerDataScope) {
+                    // 调用方三态视图 = 结构 parent + caller.locals（跳过 caller._data/边界）
+                    if (caller.locals) return true;
+                    s = caller.parent;
+                    continue;
+                }
+                // 普通调用方：其完整聚合视图即调用方视图
+                s = caller;
+                continue;
+            }
             if (s.locals || s._data) return true;
             if (s.declarerDataScope) {
                 // declarer 基准：数据视图转道声明链继续探测（声明链自身及以上才是可见的局部数据）
@@ -523,11 +612,12 @@ export class AutoSparkScope {
     }
 
     /**
-     * method/钩子执行时的 this 代理（ADR-0022 决策二-3 修订，策略 C）。
+     * method/钩子执行时的 this 代理（ADR-0022 决策二-3 修订，策略 C；ADR-0057 数据模型 v2）。
      *
      * 懒构造、缓存的 Proxy（每 scope 一个）。Proxy get 陷阱暴露集合（白名单）：
      * - `data` → getContext() 聚合视图（响应式、可读可写）
-     * - `state` → engine.state
+     * - `props` → `data` 的完全等价别名（同一聚合视图引用；props 注入键位于聚合自有层）
+     * - `globalState` → engine.state（全局树明确通道，无聚合遮蔽；更名自 `state`）
      * - `engine` → engine 实例
      * - `scope` → 本 scope 实例
      * - `el` → 组件根元素（scope.el）
@@ -536,7 +626,7 @@ export class AutoSparkScope {
      * - `$parent` → 父组件实例的 Proxy（沿链最近 isComponent 祖先的 getMethodThis()，链式向上；无则 null）
      * - 其余 → scope 原生（bind scope，让用户也能用 scope 其他能力）
      *
-     * set 陷阱：框架引用键（data/state/engine/scope/el）禁止整体覆盖（warn + 忽略）；
+     * set 陷阱：框架引用键（data/props/globalState/engine/scope/el）禁止整体覆盖（warn + 忽略）；
      * 字段写入（`this.data.x = v`）透传到聚合视图。
      *
      * 引擎内部代码用真实 scope（`this` = scope 实例），不经此 Proxy——故 method 名与 scope 原生
@@ -546,14 +636,15 @@ export class AutoSparkScope {
     getMethodThis(): any {
         if (this._methodThis) return this._methodThis;
         const scope = this;
-        const FRAMEWORK_KEYS = new Set(["data", "state", "engine", "scope", "el"]);
+        const FRAMEWORK_KEYS = new Set(["data", "props", "globalState", "engine", "scope", "el"]);
         this._methodThis = new Proxy(scope, {
             get(_t, k: string | symbol) {
                 if (typeof k !== "string") return Reflect.get(scope, k);
                 switch (k) {
                     case "data":
+                    case "props": // ADR-0057：this.data 的完全等价别名（同一聚合视图引用）
                         return scope.getContext();
-                    case "state":
+                    case "globalState": // ADR-0057：全局树明确通道（更名自 state）
                         return scope.engine.state;
                     case "engine":
                         return scope.engine;
@@ -845,9 +936,7 @@ export class AutoSparkScope {
             try {
                 fn.call(ctx);
             } catch (e: any) {
-                this.engine.logger.error(
-                    `组件 hook "${phase}" 执行失败: ${e?.message ?? e}`,
-                );
+                this.engine.logger.error(`组件 hook "${phase}" 执行失败: ${e?.message ?? e}`);
             }
         }
     }

@@ -1,6 +1,6 @@
 # ADR-0052：覆盖物体系（x-overlay → 组件消费统一）与 x-dialog 模态消费者
 
-- **状态**：Accepted（v1 实施后于 2026-09-23 **修订**——组件化统一，共识 v2 十四条落盘并实施；同日 **v2.1 修订**：定位键 `anchor` 更名 `at`、成员 `at` 更名 `selector`、支持字符串/元素简写。现行语义以本文为准，变化见文末[修订记录](#修订记录v22026-09-23组件化统一)）
+- **状态**：Accepted（v1 实施后于 2026-09-23 **修订**——组件化统一，共识 v2 十四条落盘并实施；同日 **v2.1 修订**：定位键 `anchor` 更名 `at`、成员 `at` 更名 `selector`、支持字符串/元素简写；2026-09-24 **v2.2 修订**：数据基准键 `scope` 更名 `dataContext`（两栖），见 ADR-0053 修订节九与文末修订记录。现行语义以本文为准，变化见文末[修订记录](#修订记录v22026-09-23组件化统一)）
 - **日期**：2026-09-22（v1） / 2026-09-23（v2 修订）
 - **关联**：[CONTEXT.md](../../CONTEXT.md)（「覆盖物」章节词条）、[ADR-0001](0001-directive-kind-system.md)（指令类别）、[ADR-0002](0002-dynamic-patch.md)（patch 冲突防护）、[ADR-0007](0007-directive-options-and-modifiers.md)（指令配置体系）、[ADR-0022](0022-x-component.md)（x-component——覆盖物内容即组件，查找/实例化的同构来源）、[ADR-0032](0032-data-script.md)（deepMerge 语义复用）、[ADR-0036](0036-action-descriptor-metadata.md)（内置 close 动作——信号对接）、[ADR-0039](0039-animate-mechanism.md)（animate——进出场复用）、[ADR-0053](0053-component-data-boundary.md)（组件数据边界——覆盖物 scope 基准统一为其家族语义）
 
@@ -240,3 +240,14 @@ v1 实施后经 grilling 复审收敛为组件化统一模型（共识 v2 十四
 | 4 | —— | 旧键 `anchor` **硬删**（同 `@` 前缀先例：未发布不考虑兼容）——移出保留清单，误写沦为 props |
 
 `placement` 默认 `'auto'`（决策 24 前置已定）对简写形态自然成立——简写即「只指定锚点、其余全默认」。
+
+## 修订记录（v2.2，2026-09-24：dataContext 更名）
+
+数据基准键 `scope` 更名 **`dataContext`**（消除与 x-scope/AutoSparkScope 的重载；组件家族 `x-define-options` / `x-component-options` 同步更名，三处同名同语义——决策与动机详见 [ADR-0053 修订节九](0053-component-data-boundary.md)）：
+
+| # | v2.1 决策 | v2.2 现行语义 |
+|---|---|---|
+| 1 | 数据基准保留键 `scope`（`'declarer' \| 'host'`，缺省 `'declarer'`） | 更名 **`dataContext`**，值域不变；**两栖**——声明式给基准名、命令式 `open()` 给基准载体（HTMLElement，`findScopeByEl` 挂链兼作 searchRoot，决策 16） |
+| 2 | 命令式 `open({scope: someEl})`（元素，决策 16） | 更名 `open({dataContext: someEl})`；新增基准名形态（`'host'` 挂 getOverlay 锚点 scope），缺省仍 rootless |
+| 3 | 事件 payload `{ name, instance, scope }`（决策 9 v2 收窄） | `detail.scope` 更名 **`detail.dataContext`**（命令式传元素时为基准元素） |
+| 4 | 旧键 `scope` 兜底 + warn（v2 首次更名的过渡层）、旧值 `'consumer'` 映射 | **一并删除（硬切）**——`OVERLAY_RESERVED_KEYS` 移除 `"scope"`，旧键沦为普通 props 注入组件 data 域（与 at 键 v2.1 硬删先例一致） |

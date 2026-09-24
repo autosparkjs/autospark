@@ -49,14 +49,14 @@
                             );
                         },
                         nextStyle: function () {
-                            this.state.kind = this.state.kind === "primary" ? "info" : "primary";
+                            this.globalState.kind = this.globalState.kind === "primary" ? "info" : "primary";
                         },
                         reload: function () {
-                            this.state.tick = this.state.tick + 1;
+                            this.globalState.tick = this.globalState.tick + 1;
                         },
                         failNext: function () {
-                            this.state.kind = "fail";
-                            this.state.tick = this.state.tick + 1;
+                            this.globalState.kind = "fail";
+                            this.globalState.tick = this.globalState.tick + 1;
                         },
                     },
                 },

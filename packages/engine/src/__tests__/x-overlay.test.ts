@@ -233,11 +233,11 @@ describe("「请求关闭」触点与写回", () => {
 });
 
 describe("props 注入（共识 7：非保留键全作 props）", () => {
-    test("值对象非保留键注入组件响应式状态域，覆盖 state() 默认", async () => {
+    test("值对象非保留键注入组件响应式状态域，覆盖 data 默认", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
                 <div x-define="user">
-                    <script setup>{ state() { return { userId: 0, extra: "默认" } } }</script>
+                    <script setup>{ data: { userId: 0, extra: "默认" } }</script>
                     <span>{{userId}}-{{extra}}</span>
                 </div>
                 <button x-dialog:user="{visible: 'ui.open', userId: 42}"></button>
@@ -246,7 +246,7 @@ describe("props 注入（共识 7：非保留键全作 props）", () => {
         );
         engine.state.ui.open = true;
         await nextTick();
-        // props 覆盖 state() 默认（userId: 42），未声明的键保留 state() 默认（extra）
+        // props 覆盖 data 默认（userId: 42），未声明的键保留 data 默认（extra）
         expect(maskOf("user")!.textContent).toContain("42-默认");
     });
 
@@ -419,7 +419,7 @@ describe("嵌套与打开栈", () => {
     });
 });
 
-describe("dataContext 数据视图基准（共识 8：declarer 默认 / host / 废弃兼容）", () => {
+describe("dataContext 数据视图基准（共识 8：declarer 默认 / host）", () => {
     // 组件声明须在消费者的祖先链上（getComponent 协议）；嵌套 x-data：外层 = 声明处、内层 = 消费处
     const html = (options: string) => `<div id="app"><div x-scope>
         <div x-data="{ title: '声明处' }">
@@ -450,38 +450,42 @@ describe("dataContext 数据视图基准（共识 8：declarer 默认 / host / �
         expect(maskOf("basis")!.textContent).toContain("消费处");
     });
 
-    test("废弃值 consumer：warn + 映射 host（读消费处数据）", async () => {
-        const { engine } = mountOverlay(html(` x-dialog-options="{dataContext: 'consumer'}"`), {
-            ui: { open: false },
-        });
-        const warns: string[] = [];
-        const orig = engine.logger.warn.bind(engine.logger);
-        engine.logger.warn = (msg: string) => warns.push(msg);
-        try {
-            engine.state.ui.open = true; // 打开时才解析基准 → warn 在此发生
-            await nextTick();
-        } finally {
-            engine.logger.warn = orig;
-        }
-        expect(warns.some((w) => w.includes("consumer") && w.includes("host"))).toBe(true);
+    test("命令式 dataContext 传元素：挂元素所属 scope 为基准（两栖载体形态）", async () => {
+        // 声明处 x-data(title=声明处) → 消费处 x-data(title=消费处) → button;
+        // 命令式锚定 button 所属 scope（消费处）→ 等价 'host' 语义
+        const { root, engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-data="{ title: '声明处' }">
+                    <div x-define="basis"><span>{{title}}</span></div>
+                    <div x-data="{ title: '消费处' }">
+                        <button x-dialog:basis="ui.open"></button>
+                    </div>
+                </div>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        const anchorEl = root.querySelector("button")!;
+        const handle = engine.getOverlay(anchorEl, "basis")!;
+        handle.open({ dataContext: anchorEl });
+        await nextTick();
         expect(maskOf("basis")!.textContent).toContain("消费处");
     });
 
-    test("废弃键 scope：warn + 兜底按 dataContext 解析", async () => {
-        const { engine } = mountOverlay(html(` x-dialog-options="{scope: 'host'}"`), {
-            ui: { open: false },
-        });
-        const warns: string[] = [];
-        const orig = engine.logger.warn.bind(engine.logger);
-        engine.logger.warn = (msg: string) => warns.push(msg);
-        try {
-            engine.state.ui.open = true;
-            await nextTick();
-        } finally {
-            engine.logger.warn = orig;
-        }
-        expect(warns.some((w) => w.includes("scope") && w.includes("dataContext"))).toBe(true);
-        expect(maskOf("basis")!.textContent).toContain("消费处");
+    test("旧键 scope 硬切后为普通 props：注入组件 data 域（无基准效果）", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-data="{ title: '声明处' }">
+                    <div x-define="basis"><span>{{title}}/{{scope}}</span></div>
+                    <div x-data="{ title: '消费处' }">
+                        <button x-dialog:basis="{visible: 'ui.open', scope: 'host'}"></button>
+                    </div>
+                </div>
+            </div></div>`,
+            { ui: { open: true } },
+        );
+        await nextTick();
+        // scope:'host' 不再生效（基准仍默认 declarer 读声明处），值脱离保留清单后作为 props 注入 data 域
+        expect(maskOf("basis")!.textContent).toContain("声明处/host");
     });
 });
 

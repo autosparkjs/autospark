@@ -10,11 +10,11 @@
 <div x-component:counter="order"></div>             <!-- 绑定状态对象 -->
 ```
 
-实例化时**宿主化身组件根**：宿主元素保留身份，组件快照子树编译挂入；组件的 `state()` / props 注入宿主 scope 的响应式状态域，`methods` / 钩子 / 作用域样式全部生效。
+实例化时**宿主化身组件根**：宿主元素保留身份，组件快照子树编译挂入；组件的 `data` / props 注入宿主 scope 的响应式数据域，`methods` / 钩子 / 作用域样式全部生效。
 
 ## 快速入门
 
-声明组件 `counter`（`state()` 计数、`methods` 增减、`mounted` 读宿主属性初始化），再以三种方式实例化：无 props、传 props 覆盖默认值、读宿主 `data-count` 属性。
+声明组件 `counter`（`data` 计数、`methods` 增减、`mounted` 读宿主属性初始化），再以三种方式实例化：无 props、传 props 覆盖默认值、读宿主 `data-count` 属性。
 
 <demo html="component/counter.html"/>
 
@@ -33,7 +33,7 @@
 
 ### props：三种形态
 
-值是 props 表达式，注入组件响应式状态域（`state()` 默认先注入、props 后覆盖同名键）：
+值是 props 表达式，注入组件响应式数据域（`data` 默认先注入、props 后覆盖同名键）：
 
 | 写法 | 语义 | 响应粒度 |
 | --- | --- | --- |
@@ -44,7 +44,7 @@
 配套约定：
 
 - **单向数据流**：外部状态 → 组件；组件内修改 props 键**不回写**外部状态（双向绑定是 `x-model` 的职责）；
-- 更新 = 重求值后 `Object.assign` **只覆盖出现的键**——组件内部状态（用户交互改的）不被重置，绑定的状态对象删键后旧键残留（不做镜像同步）；
+- 更新 = 重求值后先与上次应用的 props **浅值比较**：键值完全相同则跳过更新——静态字面量 props 被无关状态变化触发重算时，组件内交互改的同名键**不被打回**字面量初值；有变化才 `Object.assign` **只覆盖出现的键**——组件内部状态（用户交互改的）不被重置，绑定的状态对象删键后旧键残留（不做镜像同步）；
 - props 值必须是对象形态，标量 / 数组会 `warn` 忽略（组件照常实例化，无 props）。
 
 <demo html="component/props.html"/>
@@ -55,7 +55,7 @@
 
 ### 组件内上下文与通信
 
-methods / 钩子内的 `this` 是组件实例 Proxy：`this.data`（聚合视图，响应式可写）、`this.state`（全局 store）、`this.el` / `this.scope` / `this.engine`、`this.$parent`（父组件链）：
+methods / 钩子内的 `this` 是组件实例 Proxy：`this.data`（聚合视图，响应式可写）、`this.props`（其等价别名）、`this.globalState`（全局 store）、`this.el` / `this.scope` / `this.engine`、`this.$parent`（父组件链）：
 
 <demo html="component/context.html"/>
 
@@ -63,18 +63,32 @@ methods / 钩子内的 `this` 是组件实例 Proxy：`this.data`（聚合视图
 
 <demo html="component/communication.html"/>
 
-### 结构指令互斥
+### 与结构指令共存
 
-`x-component` 与结构指令（`x-if` / `x-for` / `x-slot` / `x-switch` / `x-tree`）**不能同元素**——编译期 `warn` 并跳过实例化。要控制组件显隐，把 `x-show` / `x-if` 写在外层包裹元素上：
+判据是**是否占用子树**（`ownsChildren`，按注册表动态推导而非指令名清单）：不占子树的指令与 `x-component` 同元素**天然正交**；占子树的结构指令与组件实例化互斥——双方都要对同一子树行使编译/销毁权。
+
+**✅ 可同元素**（组件实例化照常）：
 
 ```html
-<!-- ❌ 冲突：x-component 与 x-for 同元素 -->
-<div x-for="i of 3" x-component:card></div>
+<!-- x-show：显隐切换，组件实例常驻（display 切换与实例化正交） -->
+<div x-show="visible" x-component:card></div>
 
-<!-- ✅ 把结构控制写在外层 -->
+<!-- x-if.keepalive：显隐切换且组件保活——摘除时 unmounted 不触发、状态保留，重挂复活同一实例 -->
+<div x-if.keepalive="visible" x-component:card></div>
+```
+
+两者的取舍：`x-show` 最轻（纯 display）；`.keepalive` 摘宿主出 DOM（适合列表项等需要彻底移除节点的场景）且同样保活。要**销毁重建**（切换走完整 unmounted/mounted、状态重置）才需要 eager `x-if`——它占子树，须写在外层：
+
+**❌ 互斥**（编译期 `warn` + 跳过实例化，warn 附替代写法指引）：
+
+```html
+<!-- ❌ eager x-if 占子树，与组件互斥——条件挂载（销毁重建）把组件写进子树 -->
 <div x-if="show">
     <div x-component:card></div>
 </div>
+
+<!-- ❌ x-for / x-isolate / x-switch / x-tree 同为占子树结构指令 -->
+<div x-for="i of 3" x-component:card></div>
 ```
 
 ### 异步占位
@@ -89,25 +103,37 @@ methods / 钩子内的 `this` 是组件实例 Proxy：`this.data`（聚合视图
 | --- | --- |
 | `x-component:<名称>` | 属性参数承载组件名（必写；缺参 `warn` 并跳过实例化——值恰为纯标识符时附言迁移指引） |
 | `x-component:<名称>="<props>"` | 值 = props 表达式（对象字面量 / 状态路径；无值 = 无 props） |
+| `x-component:<名称>.open` | 修饰符：**消费侧豁免**——打开封闭组件（≡ `x-component-options="{open:true}"`，显式声明即豁免、不 `warn`，ADR-0053 修订） |
 
 ### 选项（`x-component-options`）
 
 | 键 | 类型 | 说明 |
 | --- | --- | --- |
-| `scope` | `'host'` \| `'declarer'` | 数据基准的**消费侧覆盖**——仅对已 `open` 的组件生效（对封闭组件声明 `warn` 忽略，封闭是作者契约） |
+| `open` | `boolean` | 与 `.open` 修饰符同义的显式写法 |
+| `dataContext` | `'host'` \| `'declarer'` | 数据上下文的**消费侧覆盖**——对已 `open`（声明侧或消费侧 `.open`）的组件生效；对完全封闭（无任何 open 通道）的组件声明 `warn` 忽略 |
 
 ```html
 <!-- 组件侧已声明 open，消费处把基准改为声明处上下文 -->
-<div x-component:card x-component-options="{ scope: 'declarer' }"></div>
+<div x-component:card x-component-options="{ dataContext: 'declarer' }"></div>
+
+<!-- 消费侧 .open 豁免：打开封闭组件（默认 host 基准，读消费处上下文） -->
+<div x-component:card.open></div>
+
+<!-- 组合：打开封闭组件 + 指定声明处基准 -->
+<div x-component:card.open x-component-options="{ dataContext: 'declarer' }"></div>
 ```
 
+::: warning 仅指令选项层生效
+消费侧 `open` 只认 `x-component.open` / `x-component-options`——宿主元素 `x-options` 里给其他指令声明的 `open` 键**不会**回退命中，不会意外打开组件。
+:::
+
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../config.md)。
+指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive.md#指令配置)。
 :::
 
 ## 注意事项
 
 - **旧写法已彻底移除**：`x-use="counter"` / `x-use="{name:'counter',...}"`（ADR-0054 废弃）不再识别——静默失效，请分别改写为 `x-component:counter` / `x-component:counter="{...}"`；
 - **对象内 `name` / `is` / `component` 字段识别已废除**：组件名由属性参数承载，这些键回归普通 prop 名；
-- **props 更新不重置内部状态**：多次更新只覆盖出现过的键；要「镜像同步」请销毁重建（外层 `x-if` 切换）；
-- **完整教程**：声明、`<script setup>` 段、作用域样式见 [x-define](./x-define.md) 与[组件](../component.md)。
+- **props 更新不重置内部状态**：值无变化（浅等）不更新；多次更新只覆盖出现过的键；要「镜像同步」请销毁重建（外层 `x-if` 切换）；
+- **完整教程**：声明、`<script setup>` 段、作用域样式见 [x-define](./x-define.md) 与[组件](../component/)。

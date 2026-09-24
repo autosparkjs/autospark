@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>x-slot · 调用方作用域求值</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <!--
+            作用域语义（核心卖点）：
+            - 插槽**内容**在**调用方作用域链**求值——读调用方 x-data 域与全局 state，
+              **不受组件封闭数据边界（ADR-0053）约束**；
+            - **fallback** 在**组件作用域**求值（{{title}} 读组件 state）；
+            - 对照：组件自身固定内容 <p class="fixed"> 读 title → "组件标题"（组件语境），
+              而投影内容 {{label}}/{{globalMsg}} → "外层·全局"（调用方 + 全局语境）。
+        -->
+  </head>
+  <body>
+    <div id="app">
+      <!-- 全局 state：globalMsg -->
+      <div x-data="{ label: '外层' }" class="demo-app">
+        <div class="panel">
+          <div class="label">调用方 x-data：label = "外层"（全局：globalMsg）</div>
+        </div>
+
+        <!-- 定义侧：fallback 读组件 state.title；固定内容同理 -->
+        <div x-define="card">
+          <div class="card">
+            <div class="slot-body" x-slot>fallback · {{title}}</div>
+            <p class="fixed">组件固定内容 · {{title}}</p>
+          </div>
+          <script type="autospark/setup">
+            {
+                data: { title: "组件标题" },
+            }
+          </script>
+        </div>
+
+        <!-- 内容侧：{{label}} 读调用方 x-data，{{globalMsg}} 读全局 state -->
+        <div class="panel">
+          <div class="label">内容读调用方 + 全局（组件默认封闭也挡不住）</div>
+          <div x-component:card>
+            <p class="content">{{ label }} · {{ globalMsg }}</p>
+          </div>
+        </div>
+
+        <!-- 无内容 → fallback 在组件作用域求值 title -->
+        <div class="panel">
+          <div class="label">无内容 → fallback（组件作用域求值 title）</div>
+          <div x-component:card></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {
+        state: { globalMsg: "全局" },
+      });
+    </script>
+
+    <style>
+      .demo-app {
+        padding: 4px;
+      }
+      .panel {
+        padding: 16px;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        margin-bottom: 12px;
+      }
+      .label {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 8px;
+      }
+      .card {
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .slot-body {
+        padding: 12px 14px;
+        background: #f5f5f5;
+      }
+      .fixed {
+        padding: 8px 14px;
+        margin: 0;
+        font-size: 0.85rem;
+        color: #555;
+        background: #efffe5;
+        border-top: 1px solid #eee;
+      }
+      .content {
+        margin: 0;
+        font-weight: 600;
+        color: #3273dc;
+      }
+    </style>
+  </body>
+</html>

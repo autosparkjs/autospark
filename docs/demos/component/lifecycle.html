@@ -51,27 +51,27 @@
                 <div class="timer">组件实例存活中 · <span x-text="tick"></span></div>
                 <script type="autospark/setup">
                     {
-                        state() {
-                            return { tick: 0, timer: null };
-                        },
+                        data: { tick: 0 },
+                        // 顶层私有变量 timer：非响应式（定时器句柄不驱动更新）
+                        timer: null,
                         created() {
-                            // created：data 已注入、DOM 尚未编译（经 this.state 写全局日志——构造期组件钩子里
+                            // created：data 已注入、DOM 尚未编译（经 this.globalState 写全局日志——构造期组件钩子里
                             // 不能引用页面级 engine 变量：此时 new AutoSpark(...) 尚未返回，处于 TDZ）
-                            this.state.log.push({ phase: "created", text: `#${++seq} created · scope 已建、data 已注入（tick=${this.data.tick}）` });
+                            this.globalState.log.push({ phase: "created", text: `#${++seq} created · scope 已建、data 已注入（tick=${this.data.tick}）` });
                         },
                         mounted() {
                             // mounted：DOM 编译完成，可访问 this.scope.el
-                            this.state.log.push({ phase: "mounted", text: `#${++seq} mounted · DOM 编译完成（${this.scope.el.tagName}）` });
-                            // 启动一个定时器（演示资源持有，卸载时须清理）
-                            this.data.timer = setInterval(() => this.data.tick++, 1000);
+                            this.globalState.log.push({ phase: "mounted", text: `#${++seq} mounted · DOM 编译完成（${this.scope.el.tagName}）` });
+                            // 启动一个定时器（演示资源持有，卸载时须清理）；句柄存顶层私有变量
+                            this.timer = setInterval(() => this.data.tick++, 1000);
                         },
                         beforeUnmount() {
                             // beforeUnmount：watcher 仍活，可读最终状态
-                            this.state.log.push({ phase: "beforeUnmount", text: `#${++seq} beforeUnmount · 清理定时器（最终 tick=${this.data.tick}）` });
-                            clearInterval(this.data.timer);
+                            this.globalState.log.push({ phase: "beforeUnmount", text: `#${++seq} beforeUnmount · 清理定时器（最终 tick=${this.data.tick}）` });
+                            clearInterval(this.timer);
                         },
                         unmounted() {
-                            this.state.log.push({ phase: "unmounted", text: `#${++seq} unmounted · 卸载收尾完成` });
+                            this.globalState.log.push({ phase: "unmounted", text: `#${++seq} unmounted · 卸载收尾完成` });
                         },
                     }
                 </script>
@@ -108,7 +108,7 @@
         </div>
 
         <script>
-            // 组件钩子经 this.state 写全局 state.log（钩子在 new AutoSpark 构造期内同步执行，
+            // 组件钩子经 this.globalState 写全局 state.log（钩子在 new AutoSpark 构造期内同步执行，
             // 不能引用页面级 engine——TDZ）；seq 为页面级计数器（钩子调用时已初始化）
             let seq = 0;
             const engine = new AutoSparkSpaces.AutoSpark(

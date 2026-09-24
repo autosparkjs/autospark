@@ -37,7 +37,7 @@ panel.setAttribute("x-loading", JSON.stringify({ message: "加载中…" }));
 panel.removeAttribute("x-loading");
 ```
 
-这个模式被 `x-on` 的 `.feedback` 修饰符（`loading` 配置）和 `x-slot` remote 加载复用——零额外接线。
+这个模式被 `x-on` 的 `.feedback` 修饰符（`loading` 配置）和 `x-isolate` remote 加载复用——零额外接线。
 
 ### 绑定状态控制
 
@@ -303,13 +303,13 @@ const engine = new AutoSpark(el, state, {
 | `.screen`  | 未启用       | ✅     | 全屏覆盖（`position:fixed`）                              |
 
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../config.md)。
+指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive.md#指令配置)。
 :::
 
 ## 注意事项
 
 - **运行时指令**：`x-loading` 是 runtime 指令——属性保留在渲染 DOM，可经 DOM API（`setAttribute` / `removeAttribute`）命令式控制，也可经状态反应式控制。
-- **与 feedback / x-slot 协同**：`.feedback` 的 `loading` 配置、`x-slot` remote 加载都复用 `x-loading` 覆盖层，无需重复实现加载态。
+- **与 feedback / x-isolate 协同**：`.feedback` 的 `loading` 配置、`x-isolate` remote 加载都复用 `x-loading` 覆盖层，无需重复实现加载态。
 - **反应式仅绝对路径**：作为运行时指令，反应式来源只接受 `engine.store.watch` 的绝对路径（运行时新增元素无 scope 上下文）。
 - **定位前提**：覆盖层为 `position:absolute;inset:0`，相对最近的 positioned 祖先定位。宿主（或 `selector` 目标）需 `position:relative` 才能被精确覆盖；否则会回退到视口/最近定位祖先（`.screen` 修饰符除外，它用 `position:fixed`）。
 - **颜色解析限制**：`bgColor`/`color` 支持 hex、`rgb()/rgba()`、`hsl()/hsla()` 及常用颜色名；`oklch`/`color()`/`lab` 等现代语法不可识别，回退默认色。

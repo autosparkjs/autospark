@@ -123,20 +123,20 @@
                             return { summary: "本月累计 86 单 · 客单价 ￥118 · 已完成率 25%（action 本地聚合）" };
                         },
                         prevOrders: function () {
-                            this.state.orderKind = "ok";
-                            this.state.orderPage = Math.max(1, this.state.orderPage - 1);
+                            this.globalState.orderKind = "ok";
+                            this.globalState.orderPage = Math.max(1, this.globalState.orderPage - 1);
                         },
                         nextOrders: function () {
-                            this.state.orderKind = "ok";
-                            this.state.orderPage = this.state.orderPage + 1;
+                            this.globalState.orderKind = "ok";
+                            this.globalState.orderPage = this.globalState.orderPage + 1;
                         },
                         reloadOrders: function () {
-                            this.state.orderKind = "ok";
-                            this.state.orderTick = this.state.orderTick + 1; // 实参依赖变化 → 重执行
+                            this.globalState.orderKind = "ok";
+                            this.globalState.orderTick = this.globalState.orderTick + 1; // 实参依赖变化 → 重执行
                         },
                         failOrders: function () {
-                            this.state.orderKind = "fail";
-                            this.state.orderTick = this.state.orderTick + 1;
+                            this.globalState.orderKind = "fail";
+                            this.globalState.orderTick = this.globalState.orderTick + 1;
                         },
                     },
                 },

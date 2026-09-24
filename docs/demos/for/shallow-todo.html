@@ -77,24 +77,24 @@
         {
           actions: {
             add() {
-              const text = this.state.input.trim();
+              const text = this.globalState.input.trim();
               if (!text) return;
-              this.state.todos.push({ id: nextId++, text, done: false });
-              this.state.input = "";
+              this.globalState.todos.push({ id: nextId++, text, done: false });
+              this.globalState.input = "";
             },
             toggle(id) {
-              const todo = this.state.todos.find((t) => t.id === id);
+              const todo = this.globalState.todos.find((t) => t.id === id);
               // deep=1：成员字段写入经成员层代理，触发该项 :class/:style 细粒度更新
               if (todo) todo.done = !todo.done;
             },
             remove(id) {
-              const i = this.state.todos.findIndex((t) => t.id === id);
-              if (i >= 0) this.state.todos.splice(i, 1);
+              const i = this.globalState.todos.findIndex((t) => t.id === id);
+              if (i >= 0) this.globalState.todos.splice(i, 1);
             },
             bulk() {
               // 大列表灌入：shallow 只代理数组与成员一层，初始化开销远低于深层代理
               for (let i = 0; i < 1000; i++) {
-                this.state.todos.push({
+                this.globalState.todos.push({
                   id: nextId++,
                   text: "批量任务 " + (i + 1),
                   done: false,
@@ -102,7 +102,7 @@
               }
             },
             clear() {
-              this.state.todos = [];
+              this.globalState.todos = [];
             },
           },
         },

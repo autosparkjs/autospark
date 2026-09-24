@@ -489,7 +489,7 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
             `<div x-scope>
                 <div x-define="card">
                     <span class="body">内容</span>
-                    <script setup>{ state(){ return { a: 1 } } }</script>
+                    <script setup>{ data:{ a: 1 } }</script>
                     <style>.body{color:red}</style>
                 </div>
             </div>`,
@@ -507,7 +507,7 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
                 <div x-define="card">
                     <span class="body">内容</span>
                     <script setup>{
-                        state(){ return { count: 0 } },
+                        data(){ return { count: 0 } },
                         methods:{ inc(){ this.data.count++ } },
                         mounted(){ },
                         unmounted(){ }
@@ -523,21 +523,21 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
         // def 元数据正确
         expect(def).toBeDefined();
         expect(def.name).toBe("card");
-        expect(typeof def.setup?.state).toBe("function");
+        expect(typeof def.setup?.data).toBe("function");
         expect(def.setup?.methods?.inc).toBeInstanceOf(Function);
         expect(def.hooks?.mounted.length).toBe(1);
         expect(def.hooks?.unmounted.length).toBe(1);
         expect(def.styles).toEqual([".body{color:red}"]);
-        // state() 返回值正确
-        expect(def.setup?.state?.()).toEqual({ count: 0 });
+        // data 工厂返回值正确
+        expect((def.setup?.data as () => Record<string, any>)?.()).toEqual({ count: 0 });
     });
 
     test("多个 script setup 按段分类合并（R3=A）", () => {
         const { engine, root } = mount(
             `<div x-scope>
                 <div x-define="multi">
-                    <script setup>{ state(){ return { a: 1 } } }</script>
-                    <script setup>{ state(){ return { b: 2 } }, methods:{ f(){} } }</script>
+                    <script setup>{ data(){ return { a: 1 } } }</script>
+                    <script setup>{ data:{ b: 2 }, methods:{ f(){} } }</script>
                     <script setup>{ mounted(){} }</script>
                 </div>
             </div>`,
@@ -545,8 +545,8 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
         const def = engine.getComponentDef(scope.getComponent("multi")!)!;
-        // 多个 data 合并：a 与 b 都在
-        expect(def.setup?.state?.()).toEqual({ a: 1, b: 2 });
+        // 对象+工厂混声明归一化为工厂：a 与 b 都在（ADR-0057 双形态合并）
+        expect((def.setup?.data as () => Record<string, any>)?.()).toEqual({ a: 1, b: 2 });
         expect(def.setup?.methods?.f).toBeInstanceOf(Function);
         // mounted 来自第三个 setup
         expect(def.hooks?.mounted.length).toBe(1);
@@ -612,7 +612,7 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
             {},
             {
                 components: {
-                    gcard: `<div x-define="gcard"><span>g</span><script setup>{ state(){return{x:5}} }</script></div>`,
+                    gcard: `<div x-define="gcard"><span>g</span><script setup>{ data:{x:5} }</script></div>`,
                 },
             },
         );
@@ -624,10 +624,10 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
         expect(snapshot.querySelector("script")).toBeNull();
         // 全局 def 缓存建立
         const def = engine.getGlobalComponentDef("gcard")!;
-        expect(def.setup?.state?.()).toEqual({ x: 5 });
+        expect(def.setup?.data).toEqual({ x: 5 });
     });
 
-    test("全局组件 x-component 实例化：setup.state 注入 + props 覆盖（regression: use.ts def 查找须兼顾全局）", async () => {
+    test("全局组件 x-component 实例化：setup.data 注入 + props 覆盖（regression: use.ts def 查找须兼顾全局）", async () => {
         // 回归覆盖：use.ts._instantiate 的 def 查找经 getComponentDef(snapshot)（WeakMap，仅作用域组件），
         // 全局组件 def 在 _globalComponentDefCache（按 name）——须 fallback getGlobalComponentDef，
         // 否则全局组件 setup 丢失、data 不注入（曾导致全局组件 card 不渲染绑定值）。
@@ -638,12 +638,12 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
             {},
             {
                 components: {
-                    gcard: `<span class="gx" x-text="x"></span><script setup>{ state(){return{x:5}} }</script>`,
+                    gcard: `<span class="gx" x-text="x"></span><script setup>{ data:{x:5} }</script>`,
                 },
             },
         );
         await nextTick();
-        // state() 默认 x=5 被 props x=100 覆盖，且经 def 注入生效（def 查找修复后）
+        // data 默认 x=5 被 props x=100 覆盖，且经 def 注入生效（def 查找修复后）
         expect(root.querySelector(".gx")?.textContent).toBe("100");
     });
 });
@@ -661,7 +661,7 @@ describe("x-define 生命周期钩子 scope.hooks（ADR-0022 决策三）", () =
             name: "hookcmp",
             snapshot: document.createElement("div"),
             setup: {
-                state: () => ({ count: 10 }),
+                data: () => ({ count: 10 }),
                 methods: { inc() {} },
             },
             hooks,
@@ -687,7 +687,7 @@ describe("x-define 生命周期钩子 scope.hooks（ADR-0022 决策三）", () =
         // created → mounted 在 compile 内顺序触发
         expect(scope.isComponent).toBe(true);
         expect(log).toEqual(["created", "mounted"]);
-        // 状态注入：state() 默认值 10
+        // 状态注入：data 默认值 10
         expect(scope._data?.count).toBe(10);
         // methods 注入 scope.methods（ADR-0022 决策二-3 修订：不再进 scope.actions）
         expect(typeof scope.methods?.inc).toBe("function");
@@ -700,13 +700,13 @@ describe("x-define 生命周期钩子 scope.hooks（ADR-0022 决策三）", () =
         expect(log).toEqual(["beforeUnmount", "unmounted"]);
     });
 
-    test("状态合并顺序 R1=A：state() 默认先注入，props 后覆盖", () => {
+    test("状态合并顺序 R1=A：data 默认先注入，props 后覆盖", () => {
         const { engine } = mount(`<div id="host"></div>`, {});
         const host = engine.el.querySelector("#host") as HTMLElement;
         const def: ComponentDef = {
             name: "merge",
             snapshot: document.createElement("div"),
-            setup: { state: () => ({ a: 1, b: 2 }) },
+            setup: { data: () => ({ a: 1, b: 2 }) },
             hooks: undefined,
             styles: undefined,
         };
@@ -734,12 +734,12 @@ describe("x-define 生命周期钩子 scope.hooks（ADR-0022 决策三）", () =
         scope.destroy();
     });
 
-    test("this 上下文：组件钩子内 this.data/this.state/this.scope 可用", () => {
+    test("this 上下文：组件钩子内 this.data/this.globalState/this.props/this.scope 可用", () => {
         let captured: any = null;
         const def: ComponentDef = {
             name: "ctx",
             snapshot: document.createElement("div"),
-            setup: { state: () => ({ v: 7 }) },
+            setup: { data: () => ({ v: 7 }) },
             hooks: {
                 created: [],
                 mounted: [
@@ -747,7 +747,8 @@ describe("x-define 生命周期钩子 scope.hooks（ADR-0022 决策三）", () =
                         captured = {
                             hasData: !!this.data,
                             dataV: this.data?.v,
-                            hasState: !!this.state,
+                            propsAlias: this.props === this.data,
+                            hasGlobalState: !!this.globalState,
                             hasScope: !!this.scope,
                         };
                     },
@@ -762,7 +763,8 @@ describe("x-define 生命周期钩子 scope.hooks（ADR-0022 决策三）", () =
         engine.compiler.compileChild(def.snapshot, null, {}, host, undefined, def);
         expect(captured.hasData).toBe(true);
         expect(captured.dataV).toBe(7);
-        expect(captured.hasState).toBe(true);
+        expect(captured.propsAlias).toBe(true);
+        expect(captured.hasGlobalState).toBe(true);
         expect(captured.hasScope).toBe(true);
     });
 
@@ -816,35 +818,35 @@ describe("x-component 组件实例化（ADR-0022 决策五）", () => {
         expect(host.querySelector(".hi")?.textContent).toBe("你好");
     });
 
-    test("组件 state() 注入 + 模板绑定响应式", async () => {
+    test("组件 data 注入 + 模板绑定响应式", async () => {
         const { root } = mount(
             `<div x-scope>
                 <div id="host" x-component:counter></div>
                 <div x-define="counter">
                     <span class="count" x-text="count"></span>
-                    <script setup>{ state(){ return { count: 42 } } }</script>
+                    <script setup>{ data:{ count: 42 } }</script>
                 </div>
              </div>`,
             {},
         );
         await nextTick();
-        // data().count 注入组件 data 域，x-text 取到
+        // data.count 注入组件响应式数据域，x-text 取到
         expect(root.querySelector(".count")?.textContent).toBe("42");
     });
 
-    test("props 覆盖 state() 默认值（R1=A 合并顺序）", async () => {
+    test("props 覆盖 data 默认值（R1=A 合并顺序）", async () => {
         const { root } = mount(
             `<div x-scope>
                 <div id="host" x-component:counter="{count: 100 }"></div>
                 <div x-define="counter">
                     <span class="count" x-text="count"></span>
-                    <script setup>{ state(){ return { count: 0, label: '默认' } } }</script>
+                    <script setup>{ data:{ count: 0, label: '默认' } }</script>
                 </div>
              </div>`,
             {},
         );
         await nextTick();
-        // props.count=100 覆盖 state() 默认 0
+        // props.count=100 覆盖 data 默认 0
         expect(root.querySelector(".count")?.textContent).toBe("100");
     });
 
@@ -856,7 +858,7 @@ describe("x-component 组件实例化（ADR-0022 决策五）", () => {
                     <button class="b" x-on:click="inc">+</button>
                     <span class="n" x-text="count"></span>
                     <script setup>{
-                        state(){ return { count: 0 } },
+                        data:{ count: 0 },
                         methods:{ inc(){ this.data.count++ } }
                     }</script>
                 </div>
@@ -920,6 +922,102 @@ describe("x-component 组件实例化（ADR-0022 决策五）", () => {
         expect(root).not.toBeNull();
     });
 
+    test("与 eager x-if 冲突：warn 指引替代路径（U3 文案契约）", async () => {
+        const warns: string[] = [];
+        const origWarn = console.warn;
+        console.warn = (...args: any[]) => {
+            warns.push(String(args[0] ?? ""));
+        };
+        let root: HTMLElement;
+        try {
+            ({ root } = mount(
+                `<div x-scope>
+                    <div x-if="show" x-component:x><span class="raw">裸内容</span></div>
+                    <div x-define="x"><span class="cmp">组件内容</span></div>
+                </div>`,
+                { show: true },
+            ));
+        } finally {
+            console.warn = origWarn;
+        }
+        await nextTick();
+        // warn 指明互斥事实 + 两条替代路径（外层包裹销毁重建 / x-show 或 .keepalive 显隐保活）
+        const hit = warns.find((w) => w.includes("互斥"));
+        expect(hit).toBeTruthy();
+        expect(hit).toContain("keepalive");
+        expect(hit).toContain("x-show");
+        // 组件未实例化（跳过）——模板子树被 eager x-if 当普通内容编译，组件语义缺失
+        expect(root.querySelector(".raw")).not.toBeNull();
+    });
+
+    test("x-show 同元素：显隐切换与组件实例化正交共存", async () => {
+        const { root, engine } = mount(
+            `<div x-scope>
+                <div id="host" x-show="show" x-component:c></div>
+                <div x-define="c">
+                    <span class="n" x-text="n"></span>
+                    <button class="b" x-on:click="inc">+</button>
+                    <script setup>{
+                        data: { n: 0 },
+                        methods: { inc(){ this.data.n++ } }
+                    }</script>
+                </div>
+             </div>`,
+            { show: false },
+        );
+        await nextTick();
+        await nextTick(); // 组件实例化 defer 到 microtask，等两 tick
+        const host = root.querySelector("#host") as HTMLElement;
+        // 初始隐藏：display:none，但组件已实例化（内容在 DOM 中、响应式可写）
+        expect(host.style.display).toBe("none");
+        expect(host.querySelector(".n")?.textContent).toBe("0");
+        // 切换显示：display 恢复，组件功能完好
+        engine.state.show = true;
+        await nextTick();
+        expect(host.style.display).not.toBe("none");
+        host.querySelector<HTMLButtonElement>(".b")!.click();
+        await nextTick();
+        expect(host.querySelector(".n")?.textContent).toBe("1");
+    });
+
+    test("x-if.keepalive 同元素：显隐切换且组件保活（不销毁重建）", async () => {
+        (globalThis as any).__mt_mounted = 0;
+        const { root, engine } = mount(
+            `<div x-scope>
+                <div id="host" x-if.keepalive="show" x-component:c></div>
+                <div x-define="c">
+                    <span class="n" x-text="n"></span>
+                    <button class="b" x-on:click="set">set</button>
+                    <script setup>{
+                        data: { n: 0 },
+                        mounted(){ globalThis.__mt_mounted++ },
+                        methods: { set(){ this.data.n = 42 } }
+                    }</script>
+                </div>
+             </div>`,
+            { show: true },
+        );
+        await nextTick();
+        await nextTick();
+        const host = () => root.querySelector("#host") as HTMLElement;
+        expect(host().querySelector(".n")?.textContent).toBe("0");
+        expect((globalThis as any).__mt_mounted).toBe(1);
+        // 交互改状态
+        host().querySelector<HTMLButtonElement>(".b")!.click();
+        await nextTick();
+        expect(host().querySelector(".n")?.textContent).toBe("42");
+        // show=false：宿主摘除（DOM 消失），但组件保活——unmounted 不触发、状态保留
+        engine.state.show = false;
+        await nextTick();
+        expect(root.querySelector("#host")).toBeNull();
+        expect((globalThis as any).__mt_mounted).toBe(1); // mounted 不重跑
+        // show=true：原宿主 reattach，同一实例复活（状态保留、不重新挂载）
+        engine.state.show = true;
+        await nextTick();
+        expect(host().querySelector(".n")?.textContent).toBe("42");
+        expect((globalThis as any).__mt_mounted).toBe(1);
+    });
+
     test("组件内嵌套使用组件：嵌套实例化", async () => {
         const { root } = mount(
             `<div x-scope>
@@ -946,7 +1044,7 @@ describe("x-component 组件实例化（ADR-0022 决策五）", () => {
                 <div x-define="hooked">
                     <span class="h" x-text="v"></span>
                     <script setup>{
-                        state(){ return { v: '初始' } },
+                        data:{ v: '初始' },
                         mounted(){ this.data.v = '已挂载' }
                     }</script>
                 </div>
@@ -1099,7 +1197,7 @@ describe("x-import 远程组件加载（ADR-0022 决策六）", () => {
 
     test("加载含 script setup 的远程组件：语义注入", async () => {
         mockFetch({
-            "/setup.html": `<div x-define="rsetup"><span class="v" x-text="val"></span><script setup>{ state(){return{val:'远程数据'}} }</script></div>`,
+            "/setup.html": `<div x-define="rsetup"><span class="v" x-text="val"></span><script setup>{ data:{val:'远程数据'} }</script></div>`,
         });
         const { root } = mount(
             `<div x-scope>
@@ -1306,7 +1404,7 @@ describe("x-define <style> 响应式 bind()（ADR-0022 决策四-4.1）", () => 
                 <div id="h2" x-component:box="{color: 'blue' }"></div>
                 <div x-define="box">
                     <style>.x { color: bind("color"); }</style>
-                    <script setup>{ state(){ return { color: 'black' } } }</script>
+                    <script setup>{ data:{ color: 'black' } }</script>
                 </div>
              </div>`,
             {},
@@ -1314,7 +1412,7 @@ describe("x-define <style> 响应式 bind()（ADR-0022 决策四-4.1）", () => 
         await nextTick();
         const h1 = root.querySelector("#h1") as HTMLElement;
         const h2 = root.querySelector("#h2") as HTMLElement;
-        // props.color 覆盖 state() 默认，各实例独立变量值
+        // props.color 覆盖 data 默认，各实例独立变量值（data 字面量 per-instance 深克隆）
         expect(h1.style.getPropertyValue("--color")).toBe("red");
         expect(h2.style.getPropertyValue("--color")).toBe("blue");
     });
@@ -1443,7 +1541,7 @@ describe("x-define methods Proxy this（ADR-0022 决策二-3 修订）", () => {
                 <div x-define="c">
                     <span class="n" x-text="count"></span>
                     <script setup>{
-                        state(){ return { count: 0 } },
+                        data:{ count: 0 },
                         methods:{ inc(){ this.data.count++ } }
                     }</script>
                 </div>
@@ -1511,7 +1609,7 @@ describe("x-define methods Proxy this（ADR-0022 决策二-3 修订）", () => {
                 <div x-define="c">
                     <ul><li x-for="x in items"><button class="ib" x-on:click="bump">+</button></li></ul>
                     <script setup>{
-                        state(){ return { items: [1] } },
+                        data:{ items: [1] },
                         methods:{ bump(){ globalThis.__mt_deep = "hit" } }
                     }</script>
                 </div>
@@ -1538,14 +1636,13 @@ describe("x-define methods Proxy this（ADR-0022 决策二-3 修订）", () => {
                     <div x-define="child">
                         <button class="cb" x-on:click="readParent">读父</button>
                         <script setup>{
-                            state(){ return {} },
                             methods:{
                                 readParent(){ globalThis.__mt_got = this.$parent.pdata() }
                             }
                         }</script>
                     </div>
                     <script setup>{
-                        state(){ return { pval: 99 } },
+                        data:{ pval: 99 },
                         methods:{ pdata(){ return this.data.pval } }
                     }</script>
                 </div>
@@ -1575,26 +1672,31 @@ describe("x-define methods Proxy this（ADR-0022 决策二-3 修订）", () => {
         expect((globalThis as any).__mt_top).toBeNull();
     });
 
-    test("框架引用键禁止整体覆盖（warn + 忽略）", async () => {
-        let warned = "";
+    test("框架引用键禁止整体覆盖（warn + 忽略；data/props/globalState 全覆盖）", async () => {
+        const warns: string[] = [];
         const { root, engine } = mount(
             `<div x-scope>
                 <div id="host" x-component:c></div>
                 <div x-define="c">
                     <button class="b" x-on:click="mut">m</button>
-                    <script setup>{ methods:{ mut(){ this.data = { x: 1 } } } }</script>
+                    <script setup>{ methods:{ mut(){
+                        this.data = { x: 1 };
+                        this.props = { y: 2 };
+                        this.globalState = {};
+                    } } }</script>
                 </div>
              </div>`,
             {},
         );
         const origWarn = engine.logger.warn.bind(engine.logger);
         engine.logger.warn = (msg: string) => {
-            warned = msg;
+            warns.push(msg);
         };
         await nextTick();
         root.querySelector<HTMLButtonElement>(".b")!.click();
         engine.logger.warn = origWarn;
-        expect(warned).toContain("禁止整体覆盖");
+        expect(warns.length).toBe(3);
+        for (const w of warns) expect(w).toContain("禁止整体覆盖");
     });
 
     test("$event 经形参注入（this.$event 不可用）", async () => {
@@ -1639,15 +1741,42 @@ describe("x-define methods Proxy this（ADR-0022 决策二-3 修订）", () => {
         expect((globalThis as any).__mt_hook).toBe((globalThis as any).__mt_method); // 同一 Proxy 对象
     });
 
-    test("组件数据 data：this.b 读写非响应式", async () => {
+    test("组件 data：读写响应式（改动驱动更新，ADR-0057）", async () => {
+        const { root } = mount(
+            `<div x-scope>
+                <div id="host" x-component:c></div>
+                <div x-define="c">
+                    <span class="v" x-text="counter"></span>
+                    <button class="b" x-on:click="bump">b</button>
+                    <script setup>{
+                        data:{ counter: 0 },
+                        methods:{ bump(){ this.data.counter++ } }
+                    }</script>
+                </div>
+             </div>`,
+            {},
+        );
+        await nextTick();
+        const span = () => root.querySelector(".v")!;
+        expect(span().textContent).toBe("0");
+        root.querySelector<HTMLButtonElement>(".b")!.click();
+        await nextTick();
+        expect(span().textContent).toBe("1"); // 响应式：写 this.data 驱动 DOM 更新
+        root.querySelector<HTMLButtonElement>(".b")!.click();
+        await nextTick();
+        expect(span().textContent).toBe("2");
+    });
+
+    test("顶层私有变量：this.<key> 读写非响应式（ADR-0057）", async () => {
         (globalThis as any).__mt_lv = "init";
         const { root } = mount(
             `<div x-scope>
                 <div id="host" x-component:c></div>
                 <div x-define="c">
+                    <span class="v" x-text="counter"></span>
                     <button class="b" x-on:click="bump">b</button>
                     <script setup>{
-                        data:{ counter: 0 },
+                        counter: 0, // 顶层私有变量：非响应式、不进聚合视图
                         methods:{ bump(){ this.counter++; globalThis.__mt_lv = this.counter } }
                     }</script>
                 </div>
@@ -1655,31 +1784,36 @@ describe("x-define methods Proxy this（ADR-0022 决策二-3 修订）", () => {
             {},
         );
         await nextTick();
+        const span = root.querySelector(".v")!;
+        const before = span.textContent; // 私有变量模板读不到，首渲染即为空/占位
         root.querySelector<HTMLButtonElement>(".b")!.click();
-        expect((globalThis as any).__mt_lv).toBe(1); // 局部变量自增生效
-        // 非响应式：再点一次，counter 持续自增（非响应式不影响，仅验证读写）
+        expect((globalThis as any).__mt_lv).toBe(1); // 私有变量自增生效
+        // 非响应式：再点一次，counter 持续自增但 DOM 不更新
         root.querySelector<HTMLButtonElement>(".b")!.click();
         expect((globalThis as any).__mt_lv).toBe(2);
+        expect(span.textContent).toBe(before); // 模板不随私有变量变化
     });
 
-    test("组件数据 data 不进聚合视图（模板读不到）", async () => {
+    test("组件 data 进响应式域（模板可读）；私有变量不进聚合视图（模板读不到）", async () => {
         const { root } = mount(
             `<div x-scope>
                 <div id="host" x-component:c></div>
                 <div x-define="c">
-                    <span class="lv" x-text="secret">占位</span>
-                    <script setup>{ data:{ secret: "隐秘" }, state(){ return { count: 0 } } }</script>
+                    <span class="d" x-text="secret"></span>
+                    <span class="lv" x-text="hidden"></span>
+                    <script setup>{ data:{ secret: "隐秘" }, hidden: "私藏" }</script>
                 </div>
              </div>`,
             {},
         );
         await nextTick();
-        // secret 是 _locals，不进聚合视图 → 模板 x-text 求值失败（secret is not defined），
-        // 不会渲染出 _locals 的值"隐秘"（保留原文本或空，关键是读不到 _locals）。
-        expect(root.querySelector(".lv")?.textContent).not.toBe("隐秘");
+        // secret 是响应式 data → 模板可读
+        expect(root.querySelector(".d")?.textContent).toBe("隐秘");
+        // hidden 是顶层私有变量（_locals，不进聚合视图）→ 模板读不到（保留原文本或空）
+        expect(root.querySelector(".lv")?.textContent).not.toBe("私藏");
     });
 
-    test("组件数据 data 跨生命周期共享（created 设、beforeUnmount 读）", async () => {
+    test("私有变量跨生命周期共享（created 设、beforeUnmount 读）", async () => {
         (globalThis as any).__mt_lvlife = null;
         const { root, engine } = mount(
             `<div x-scope>
@@ -1688,6 +1822,7 @@ describe("x-define methods Proxy this（ADR-0022 决策二-3 修订）", () => {
                 </div>
                 <div x-define="c">
                     <script setup>{
+                        timer: 0, // 顶层私有变量
                         created(){ this.timer = 42 },
                         beforeUnmount(){ globalThis.__mt_lvlife = this.timer }
                     }</script>
@@ -1702,7 +1837,7 @@ describe("x-define methods Proxy this（ADR-0022 决策二-3 修订）", () => {
         expect((globalThis as any).__mt_lvlife).toBe(42);
     });
 
-    test("method/data 优先于 locals（同名遮蔽）", async () => {
+    test("data 优先于顶层私有变量（同名遮蔽）", async () => {
         (globalThis as any).__mt_pri = null;
         const { root } = mount(
             `<div x-scope>
@@ -1710,8 +1845,8 @@ describe("x-define methods Proxy this（ADR-0022 决策二-3 修订）", () => {
                 <div x-define="c">
                     <button class="b" x-on:click="probe">p</button>
                     <script setup>{
-                        data:{ name: "局部" },
-                        state(){ return { name: "数据" } },
+                        name: "私有",
+                        data:{ name: "数据" },
                         methods:{ probe(){ globalThis.__mt_pri = this.name } }
                     }</script>
                 </div>
@@ -1720,7 +1855,117 @@ describe("x-define methods Proxy this（ADR-0022 决策二-3 修订）", () => {
         );
         await nextTick();
         root.querySelector<HTMLButtonElement>(".b")!.click();
-        // data.name 优先于 locals.name → "数据"
+        // 裸键访问 data 域优先于 _locals → "数据"
         expect((globalThis as any).__mt_pri).toBe("数据");
+    });
+
+    test("this.props 是 this.data 的等价别名（同一引用，读写一致，ADR-0057）", async () => {
+        (globalThis as any).__mt_alias = null;
+        const { root, engine } = mount(
+            `<div x-scope>
+                <div id="host" x-component:c="{ label: '外部' }"></div>
+                <div x-define="c">
+                    <button class="b" x-on:click="probe">p</button>
+                    <script setup>{
+                        data:{ n: 0 },
+                        methods:{ probe(){
+                            globalThis.__mt_alias = (this.props === this.data);
+                            this.props.n = 7; // 经别名写 → 同一响应式域
+                        } }
+                    }</script>
+                </div>
+             </div>`,
+            {},
+        );
+        await nextTick();
+        root.querySelector<HTMLButtonElement>(".b")!.click();
+        expect((globalThis as any).__mt_alias).toBe(true); // 同一聚合视图引用
+        const host = root.querySelector("#host")!;
+        const scope = (engine as any).findScopeByEl(host);
+        expect(scope._data.n).toBe(7); // 别名写入落到响应式 data 域
+    });
+
+    test("this.globalState 访问全局树（原 this.state，ADR-0057）", async () => {
+        (globalThis as any).__mt_gs = null;
+        const { root } = mount(
+            `<div x-scope>
+                <div id="host" x-component:c></div>
+                <div x-define="c">
+                    <button class="b" x-on:click="probe">p</button>
+                    <script setup>{
+                        methods:{ probe(){
+                            this.globalState.gsv = 99;
+                            globalThis.__mt_gs = this.globalState.gsv;
+                        } }
+                    }</script>
+                </div>
+             </div>`,
+            {},
+        );
+        await nextTick();
+        root.querySelector<HTMLButtonElement>(".b")!.click();
+        expect((globalThis as any).__mt_gs).toBe(99);
+    });
+
+    test("顶层私有变量与内置上下文键重名：warn + 忽略（内置优先，ADR-0057）", async () => {
+        (globalThis as any).__mt_pri = null;
+        const warns: string[] = [];
+        const origWarn = console.warn;
+        console.warn = (...args: any[]) => {
+            warns.push(String(args[0] ?? ""));
+        };
+        let root: HTMLElement;
+        try {
+            ({ root } = mount(
+                `<div x-scope>
+                    <div id="host" x-component:c></div>
+                    <div x-define="c">
+                        <button class="b" x-on:click="probe">p</button>
+                        <script setup>{
+                            props: "假props",
+                            globalState: "假global",
+                            data:{ ok: 1 },
+                            methods:{ probe(){ globalThis.__mt_pri = [typeof this.props, typeof this.globalState] } }
+                        }</script>
+                    </div>
+                 </div>`,
+                {},
+            ));
+        } finally {
+            console.warn = origWarn;
+        }
+        await nextTick();
+        root.querySelector<HTMLButtonElement>(".b")!.click();
+        expect(warns.filter((w) => w.includes("重名")).length).toBe(2); // 两个重名各 warn 一次
+        // 内置键未被私有变量遮蔽：props 是聚合视图对象、globalState 是全局状态对象
+        expect((globalThis as any).__mt_pri).toEqual(["object", "object"]);
+    });
+
+    test("state() 旧写法：warn + 剪枝不生效（ADR-0057 移除）", async () => {
+        const warns: string[] = [];
+        const origWarn = console.warn;
+        console.warn = (...args: any[]) => {
+            warns.push(String(args[0] ?? ""));
+        };
+        let root: HTMLElement;
+        try {
+            ({ root } = mount(
+                `<div x-scope>
+                    <div id="host" x-component:c></div>
+                    <div x-define="c">
+                        <span class="v" x-text="count">占位</span>
+                        <script setup>{ state(){ return { count: 5 } } }</script>
+                    </div>
+                 </div>`,
+                {},
+            ));
+        } finally {
+            console.warn = origWarn;
+        }
+        await nextTick();
+        expect(warns.some((w) => w.includes("state() 已移除"))).toBe(true);
+        expect(warns.some((w) => w.includes("data / data()"))).toBe(true);
+        // 剪枝不生效：count 未注入，模板读不到
+        expect(root.querySelector(".v")?.textContent).not.toBe("5");
     });
 });

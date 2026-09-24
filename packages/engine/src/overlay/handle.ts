@@ -1,7 +1,13 @@
 import { deepMerge } from "flex-tools/object/deepMerge";
 import type { ComponentDef } from "../directives/component-def";
 import type { AutoSpark } from "../engine";
-import { OVERLAY_DEFAULTS, type OverlayConfig, splitReservedKeys } from "./types";
+import type { AutoSparkScope } from "../scope";
+import {
+    OVERLAY_DEFAULTS,
+    resolveDataContext,
+    type OverlayConfig,
+    splitReservedKeys,
+} from "./types";
 import { OverlayInstance } from "./instance";
 import { registerInstance, getInstances } from "./registry";
 
@@ -22,6 +28,8 @@ export class OverlayHandle {
     readonly def: ComponentDef | null;
     /** getOverlay 传入的消费者配置级（命令式合并链第二层，等价声明式 x-dialog-options） */
     private _options: Record<string, any>;
+    /** 查找锚点 el 所属 scope（`'host'` 基准的挂链目标；getOverlay 无 el 时为 null） */
+    private readonly _anchorScope: AutoSparkScope | null;
 
     constructor(
         engine: AutoSpark<any>,
@@ -29,19 +37,23 @@ export class OverlayHandle {
         snapshot: HTMLElement,
         def: ComponentDef | null,
         options: Record<string, any> | null,
+        anchorScope: AutoSparkScope | null = null,
     ) {
         this.engine = engine;
         this.name = name;
         this.snapshot = snapshot;
         this.def = def;
         this._options = options ?? {};
+        this._anchorScope = anchorScope;
     }
 
     /**
-     * 打开：options 的 `scope`（**元素**，数据视图基准，缺省 → rootless 全局视图，ADR-0052 决策 16）
-     * 与 `visible`（命令式无意义，warn 忽略）为特殊键；`closeOnMask`/`animate`/`at` 保留配置键
-     * 进合并链顶层（`at` 支持字符串/元素简写，进链前归一化）；**其余键全部作 props**
-     * 注入组件 data 域（修订共识 7，`params` 键已删除）。
+     * 打开：options 的 `dataContext`（**两栖数据视图基准**，ADR-0053 修订更名自 `scope`）：
+     * 元素（基准载体）→ `findScopeByEl` 挂链 + 兼作 searchRoot；`'host'`/`'declarer'`（基准名）→
+     * `resolveDataContext` 解析（host 挂 getOverlay 锚点 scope）；缺省 → rootless 全局视图
+     * （ADR-0052 决策 16，命令式缺省）。`visible`（命令式无意义，warn 忽略）为特殊键；
+     * `closeOnMask`/`animate`/`at` 保留配置键进合并链顶层（`at` 支持字符串/元素简写，进链前归一化）；
+     * **其余键全部作 props** 注入组件 data 域（修订共识 7，`params` 键已删除）。
      */
     open(opts?: Record<string, any>): OverlayInstance {
         let openOpts: Record<string, any> | undefined;
@@ -55,10 +67,19 @@ export class OverlayHandle {
         }
         const { config: inlineConfig, props } = splitReservedKeys(openOpts);
         const resolved = resolveOverlayConfig(this.def, this._options, inlineConfig);
-        const scopeEl =
-            opts?.scope instanceof HTMLElement ? (opts.scope as HTMLElement) : null;
+        // 数据视图基准（两栖）：缺省 = rootless（决策 16 命令式缺省）；其余统一经 resolveDataContext 分派
+        const { parentScope, scopeEl } =
+            resolved.dataContext === undefined
+                ? { parentScope: null, scopeEl: null }
+                : resolveDataContext(
+                      resolved.dataContext,
+                      this.def,
+                      this._anchorScope,
+                      this.engine,
+                      (m) => this.engine.logger.warn(`engine.getOverlay("${this.name}"): ${m}`),
+                  );
         const inst = new OverlayInstance(this.engine, this.name, this.snapshot, this.def, resolved, {
-            parentScope: scopeEl ? this.engine.findScopeByEl(scopeEl) ?? null : null,
+            parentScope,
             searchRoot: scopeEl,
             scopeEl,
             // 命令式消费与 x-dialog 同为模态形态（遮罩外壳 + closeOnMask + 居中默认）

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-define · 数据上下文 dataContext</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!--
+            数据上下文 dataContext（ADR-0053，须配合 open）：
+            - 'host'（默认）：继承消费处上下文——通用组件跟随使用者的数据环境；
+            - 'declarer'：继承声明处上下文（词法基准）——与消费位置无关；
+            - 消费侧可经 x-component-options.dataContext 覆盖已开放组件的数据上下文。
+            本 demo：两个组件模板相同（都读 who），仅数据上下文不同；消费处的同名 who 遮蔽为「消费处」，
+            host 实例读到「消费处」、declarer 实例读到「声明处」、消费侧覆盖后的 host 实例也读到「声明处」。
+        -->
+        <div id="app" x-data="{ who: '声明处' }">
+            <div x-scope>
+                <!-- 同一模板，仅 dataContext 基准不同（均须先 open） -->
+                <div x-define="host-card" x-define-options="{ open: true }">
+                    <div class="card-box">who = <span class="val" x-text="who"></span></div>
+                </div>
+                <div x-define="declarer-card" x-define-options="{ open: true, dataContext: 'declarer' }">
+                    <div class="card-box">who = <span class="val" x-text="who"></span></div>
+                </div>
+
+                <!-- 消费处：同名 who 遮蔽为「消费处」 -->
+                <div x-data="{ who: '消费处' }">
+                    <div class="panel">
+                        <div class="label">host 数据上下文（默认）：继承消费处上下文 → 读到「消费处」</div>
+                        <div x-component:host-card></div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="label">declarer 数据上下文：固定读声明处，与消费位置无关 → 读到「声明处」</div>
+                        <div x-component:declarer-card></div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="label">消费侧覆盖：x-component-options 把 host 组件实例覆盖为 declarer 基准 → 也读到「声明处」</div>
+                        <div x-component:host-card x-component-options="{ dataContext: 'declarer' }"></div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="label">改声明处 who → declarer 数据上下文的两个实例响应式更新，host 实例不变</div>
+                    <button class="button is-small is-primary" @click="who = '声明处（已更新）'">修改声明处 who</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.getElementById("app"));
+        </script>
+
+        <style>
+            .panel {
+                padding: 16px;
+                border: 1px solid #dbdbdb;
+                border-radius: 8px;
+                margin-bottom: 12px;
+            }
+            .label {
+                font-size: 0.8rem;
+                color: #888;
+                margin-bottom: 8px;
+            }
+            .card-box {
+                padding: 10px 14px;
+                background: #f5f9ff;
+                border-left: 3px solid #3273dc;
+                border-radius: 4px;
+                font-size: 1.05rem;
+            }
+            .val {
+                font-weight: 700;
+                color: #3273dc;
+            }
+        </style>
+    </body>
+</html>

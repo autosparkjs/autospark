@@ -155,9 +155,9 @@
 | **属性绑定** | `v-bind` / `:` | `x-bind` / `:` | `x-bind` / `:`（支持 `.invert` 修饰符 + `@` 配置绑定） |
 | **HTML 注入** | `v-html` | `x-html` | `x-html`（支持 **`.compile` 远程模板编译**） |
 | **动画/过渡** | ✅ `<Transition>` / `<TransitionGroup>`（内置） | ✅ `x-transition`（内置） | ✅ **六类名契约** + 内置 fade/slide/expand |
-| **组件系统** | ✅ 完整（SFC + Composition API + `<script setup>`） | ❌ 无组件 | ✅ x-component / x-use / x-import / x-slot |
+| **组件系统** | ✅ 完整（SFC + Composition API + `<script setup>`） | ❌ 无组件 | ✅ x-component / x-use / x-import / x-isolate |
 | **Teleport** | ✅ `<Teleport>`（内置） | ❌ | ✅ x-teleport |
-| **插槽** | ✅ `<slot>` / 作用域插槽 | ❌ | ✅ x-slot（静态/动态） |
+| **插槽** | ✅ `<slot>` / 作用域插槽 | ❌ | ✅ `x-slot` / `x-slot:name` + 作用域插槽（ADR-0056；x-isolate 为隔离区域，非插槽） |
 | **异步数据** | ❌ 无内置（需自行 fetch + onMounted） | ❌ 无内置 | ✅ x-data 异步源（URL/action + 竞态处理 + x-fallback） |
 | **动态模板** | ✅ 动态组件 `<component :is>` | ❌ | ✅ `engine.patch()` 运行时局部模板替换 |
 | **树形渲染** | ❌ 无内置 | ❌ 无内置 | ✅ **x-tree**（递归渲染 + 复选 + 拖拽 + 展开折叠） |

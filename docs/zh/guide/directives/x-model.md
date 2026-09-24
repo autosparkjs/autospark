@@ -387,8 +387,8 @@ actions: {
     // set action：把「姓,名」输入拆回两个字段
     setName: function ($value) {
         const parts = $value.split(",");
-        this.state.user.first = parts[0] ?? "";
-        this.state.user.last = parts[1] ?? "";
+        this.globalState.user.first = parts[0] ?? "";
+        this.globalState.user.last = parts[1] ?? "";
     },
 },
 ```
@@ -431,7 +431,7 @@ set 的两种写法（表达式 / action 名）与更多拆分组合场景见下
 两种写法任选其一：
 
 - **表达式**：经 `new Function(...,"with(scope){...}")` 求值。get 固定形参 `value`（当前状态值），set 固定形参 `$value`（DOM 输入值），语句体执行赋值。
-- **action 名**（推荐，逻辑复杂时）：`get`/`set` 只写 action 名。get action 当前状态值**自动作首参**（`value`），set action DOM 输入值**自动作首参**（`$value`），括号内均可追加参数，`this.state` 可访问状态。
+- **action 名**（推荐，逻辑复杂时）：`get`/`set` 只写 action 名。get action 当前状态值**自动作首参**（`value`），set action DOM 输入值**自动作首参**（`$value`），括号内均可追加参数，`this.globalState` 可访问状态。
 
 下面按两个典型场景展开。
 
@@ -454,9 +454,9 @@ actions: {
     octet: (value, index) => String(value).split(".")[index] ?? "",
     // set：读当前完整 IP，替换第 index 段，重组写回
     joinOctet: function ($value, index) {
-        const parts = String(this.state.user.ip).split(".");
+        const parts = String(this.globalState.user.ip).split(".");
         parts[index] = $value;
-        this.state.user.ip = parts.join(".");
+        this.globalState.user.ip = parts.join(".");
     },
 },
 ```
@@ -487,8 +487,8 @@ actions: {
     // set：把「姓,名」拆回两个字段
     setName: function ($value) {
         const parts = $value.split(",");
-        this.state.user.first = parts[0] ?? "";
-        this.state.user.last = parts[1] ?? "";
+        this.globalState.user.first = parts[0] ?? "";
+        this.globalState.user.last = parts[1] ?? "";
     },
 },
 ```
@@ -927,7 +927,7 @@ choices 深读会收集每个选项项的 `label`/`value`/`group` 字段路径�
 修饰符在解析期注入为同名指令选项（如 `.number` ≡ `x-model-options="{number:true}"`），二者等价。
 
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项 / 两层回退的通用机制见[指令配置](../config.md)。
+指令选项 / 修饰符 / 宿主选项 / 两层回退的通用机制见[指令配置](../directive.md#指令配置)。
 :::
 
 ## 注意事项

@@ -131,7 +131,7 @@ function toBooleanStrict(v: any): any {
  * - **表达式**：固定形参 `value`(get)/`$value`(set)，`new Function(...,"with(scope){...}")`，
  *   `scope = binding.getContext()`（localData+data+state 聚合视图）。
  * - **action 名**：`ACTION_RE` 分派（`splitIp(1)` 等）。**当前值自动作首参**，括号内为追加参数；
- *   `this` = `AutoSparkActionContext`（el/data/scope/store/state/engine/$options + value/$value）。
+ *   `this` = `AutoSparkActionContext`（el/data/scope/store/globalState/engine/$options + value/$value）。
  *
  * ## 绑定值语义
  * - **简单路径**（`order.price`）：无 get/set 时读 `scope.watch(path)`、写 `setVal` 直通（快路径）。
@@ -1125,8 +1125,9 @@ export class ModelDirective extends AutoSparkDirectiveBase {
     }
 
     /**
-     * 构造 action 调用上下文：复用 x-on 的 `AutoSparkActionContext`（el/data/scope/store/state/
-     * engine/$options），附加 get 的 `value` 或 set 的 `$value`。`$event` 无意义（x-model 非事件驱动）。
+     * 构造 action 调用上下文：复用 x-on 的 `AutoSparkActionContext`（el/data/scope/store/
+     * globalState/engine/$options），附加 get 的 `value` 或 set 的 `$value`。`$event` 无意义
+     * （x-model 非事件驱动）。
      */
     private _makeCtx(extra: { value?: any; $value?: any }): AutoSparkActionContext & {
         value?: any;
@@ -1139,7 +1140,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
             data: this.binding.getContext(),
             scope: this.binding,
             store: engine.store,
-            state: engine.store.state,
+            globalState: engine.store.state,
             engine,
             $options: createDirectiveOptions(this.options, this.binding.hostOptions),
             ...extra,

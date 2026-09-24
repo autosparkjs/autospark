@@ -101,19 +101,19 @@
                 {
                     actions: {
                         prevPage: function () {
-                            this.state.failFlag = 0;
-                            this.state.page = Math.max(1, this.state.page - 1);
+                            this.globalState.failFlag = 0;
+                            this.globalState.page = Math.max(1, this.globalState.page - 1);
                         },
                         nextPage: function () {
-                            this.state.failFlag = 0;
-                            this.state.page = this.state.page + 1;
+                            this.globalState.failFlag = 0;
+                            this.globalState.page = this.globalState.page + 1;
                         },
                         resetPage: function () {
-                            this.state.failFlag = 0;
-                            this.state.page = 1; // 改每页条数回到第一页
+                            this.globalState.failFlag = 0;
+                            this.globalState.page = 1; // 改每页条数回到第一页
                         },
                         failNext: function () {
-                            this.state.failFlag = 1; // 仅 failFlag 变化也触发重取 → 500 → 保旧值 + $error
+                            this.globalState.failFlag = 1; // 仅 failFlag 变化也触发重取 → 500 → 保旧值 + $error
                         },
                     },
                 },

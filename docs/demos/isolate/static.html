@@ -3,15 +3,15 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>x-slot · static 冻结快照</title>
+        <title>x-isolate · static 冻结快照</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
     <body>
-        <!-- static：x-slot 内指令被剥、不编译；改名只影响普通区域 -->
+        <!-- static：x-isolate 内指令被剥、不编译；改名只影响普通区域 -->
         <div class="demo-app section">
-            <div class="card" x-slot>
+            <div class="card" x-isolate>
                 <div class="card-content">
                     <p>静态快照（engine 永不覆写）：</p>
                     <span x-text="name">（我是初始文本）</span>

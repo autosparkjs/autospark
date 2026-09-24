@@ -464,7 +464,7 @@ export class AutoSpark<
      * - `null` → **删除自身**
      *
      * **动态区域守卫**：patch 目标自身或祖先链含 ownsChildren 结构指令（x-for / eager x-if /
-     * x-slot / eager x-switch）→ 拒绝（运行侧结构非同构，正向桥不可靠）。
+     * x-isolate / eager x-switch）→ 拒绝（运行侧结构非同构，正向桥不可靠）。
      *
      * updater 抛错则记日志、不重建；patch 后同步 `flushAll`，返回时 DOM 已更新。dispatcher 经
      * MutationObserver 自动处理新/旧节点的 runtime 指令 mount/unmount，patch 不直接操作。
@@ -483,7 +483,9 @@ export class AutoSpark<
         }
         const T = hit;
         if (this._isInDynamicRegion(T)) {
-            this.logger.warn(`engine.patch: "${selector}" 处于动态区域（x-for/x-if/x-slot），拒绝`);
+            this.logger.warn(
+                `engine.patch: "${selector}" 处于动态区域（x-for/x-if/x-isolate），拒绝`,
+            );
             return this;
         }
         const scope = this.compiler.getScopeByTemplate(T);
@@ -592,22 +594,21 @@ export class AutoSpark<
         const scope = el ? this.findScopeByEl(el) : undefined;
         const snapshot = scope
             ? scope.getComponent(name)
-            : this._resolveGlobalComponent(name) ?? undefined;
+            : (this._resolveGlobalComponent(name) ?? undefined);
         if (!snapshot) {
             this.logger.warn(
                 `engine.getOverlay("${name}"): 未找到覆盖物组件（${el ? "scope 链与全局" : "全局"}均未命中，ADR-0052 决策 15）`,
             );
             return undefined;
         }
-        const def =
-            this.getComponentDef(snapshot) ?? this.getGlobalComponentDef(name) ?? null;
-        return new OverlayHandle(this, name, snapshot, def, options ?? null);
+        const def = this.getComponentDef(snapshot) ?? this.getGlobalComponentDef(name) ?? null;
+        return new OverlayHandle(this, name, snapshot, def, options ?? null, scope ?? null);
     }
 
     /**
      * 从远程 url 加载组件定义并注册（ADR-0022 决策六，供 x-import）。
      *
-     * - fetch url（经 `fetchHtml`，复用 x-slot fetch 逻辑）→ 解析 HTML 得 `<div x-define>` 顶级元素；
+     * - fetch url（经 `fetchHtml`，复用 x-isolate fetch 逻辑）→ 解析 HTML 得 `<div x-define>` 顶级元素；
      * - 按 url 缓存解析结果（重复引用免重复 fetch）；循环 import 检测（url 在途 → warn + 中断）；
      * - 各 x-define 元素经 `buildComponentDef` 提取 `<script setup>`/`<style>` + 组装 def；
      * - 注册：global=true → 全局（`options.components` 懒预编译路径，写入 options + 清缓存让其重解析）；
@@ -651,8 +652,7 @@ export class AutoSpark<
                 return [];
             }
             elements = Array.from(frag.children).filter(
-                (n): n is HTMLElement =>
-                    n instanceof HTMLElement && n.hasAttribute("x-define"),
+                (n): n is HTMLElement => n instanceof HTMLElement && n.hasAttribute("x-define"),
             );
             this._importUrlCache.set(url, elements);
         }
@@ -734,7 +734,7 @@ export class AutoSpark<
     }
 
     /**
-     * 动态区域判定：T 自身或祖先链上有 ownsChildren 结构指令（x-for / eager x-if / x-slot / eager x-switch）。
+     * 动态区域判定：T 自身或祖先链上有 ownsChildren 结构指令（x-for / eager x-if / x-isolate / eager x-switch）。
      *
      * 这些区域的运行侧结构由指令运行时生成，与模板非同构，正向桥不可靠——patch 落入即拒绝。
      * 沿 templateScopeMap 上溯，O(树深)。

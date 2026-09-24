@@ -17,7 +17,7 @@
 
 ## 为什么有些指令没有文档 / 标注「规划中」？
 
-模板引擎仍在快速迭代。下列指令**已注册并可用**：`x-text` `x-html` `x-if` `x-for` `x-data` `x-bind`（含 `:class` / `:style` / `x-class` / `x-style` 归一化）`x-on` `x-loading` `x-slot` `x-scope`。
+模板引擎仍在快速迭代。下列指令**已注册并可用**：`x-text` `x-html` `x-if` `x-for` `x-data` `x-bind`（含 `:class` / `:style` / `x-class` / `x-style` 归一化）`x-on` `x-loading` `x-isolate` `x-scope`。
 
 另有 `x-model` `x-switch` `x-teleport` `x-transition` `x-tree` 等**规划中**指令，文档以占位形式给出预期 API，待实现后补全。它们当前**尚未注册、不可用**。
 
@@ -43,7 +43,7 @@ new AutoSpark(el, state, { debug: true });
 
 ## 可以自定义指令吗？
 
-可以。所有内置指令都继承自 `AutoSparkDirectiveBase`，你可以注册自己的指令类。详见[指令类型](../guide/directive.md)。
+可以。所有内置指令都继承自 `AutoSparkDirectiveBase`，你可以注册自己的指令类。详见[指令](../guide/directive.md)。
 
 ## `x-for` 和 `x-if` 可以在同一个元素上使用吗？
 

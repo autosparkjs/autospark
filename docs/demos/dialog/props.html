@@ -30,7 +30,7 @@
                 </div>
 
                 <div x-define="user">
-                    <script type="autospark/setup">{ state() { return { userId: 0, userName: "未知" } } }</script>
+                    <script type="autospark/setup">{ data: { userId: 0, userName: "未知" } }</script>
                     <div class="ov-panel">
                         <h3 class="title is-5">用户资料</h3>
                         <p>ID：<b x-text="userId"></b>，姓名：<b x-text="userName"></b></p>

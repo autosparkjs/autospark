@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-component · 消费侧 .open 豁免</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!--
+            消费侧 .open（ADR-0053 修订）：封闭是作者契约，消费侧 .open 是显式豁免——
+            x-component:card.open（≡ x-component-options="{open:true}"）打开封闭组件，
+            不 warn，基准默认 'host'，可与 x-component-options.dataContext 组合。
+            注意：宿主 x-options 里给其他指令声明的 open 键不会回退命中（只认指令选项层）。
+            本 demo：同一个封闭组件实例化两次——普通实例化保持封闭（渲染空），
+            .open 实例豁免契约读到外层 tip 并响应式更新。
+        -->
+        <div id="app" x-data="{ tip: '外部数据' }">
+            <div x-scope>
+                <!-- 封闭组件（声明侧无任何 open 通道） -->
+                <div x-define="sealed-card">
+                    <div class="card-box">tip = <span x-text="tip"></span></div>
+                </div>
+
+                <div class="panel">
+                    <div class="label">普通实例化：封闭是作者契约 → 渲染空</div>
+                    <div x-component:sealed-card></div>
+                </div>
+
+                <div class="panel">
+                    <div class="label">.open 实例化：消费侧显式豁免 → 读到外层 tip</div>
+                    <div x-component:sealed-card.open></div>
+                </div>
+
+                <div class="panel">
+                    <div class="label">改外层 x-data 的 tip → 仅 .open 实例响应式更新</div>
+                    <button class="button is-small is-primary" @click="tip = '已修改的外部数据'">修改外层 tip</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.getElementById("app"));
+        </script>
+
+        <style>
+            .panel {
+                padding: 16px;
+                border: 1px solid #dbdbdb;
+                border-radius: 8px;
+                margin-bottom: 12px;
+            }
+            .label {
+                font-size: 0.8rem;
+                color: #888;
+                margin-bottom: 8px;
+            }
+            .card-box {
+                padding: 10px 14px;
+                background: #f0fdf4;
+                border-left: 3px solid #23d160;
+                border-radius: 4px;
+                font-size: 1.05rem;
+                min-height: 20px;
+            }
+        </style>
+    </body>
+</html>

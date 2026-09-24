@@ -2,7 +2,7 @@
 
 - **状态**：Accepted（决策 7 于 ADR-0022 范畴内就地修订；决策 9–12 为本 ADR 扩展）
 - **日期**：2026-08-12
-- **关联**：[CONTEXT.md](../../CONTEXT.md)、[ADR-0001](0001-directive-kind-system.md)、[ADR-0002](0002-dynamic-patch.md)、[ADR-0006](0006-x-slot-directive.md)
+- **关联**：[CONTEXT.md](../../CONTEXT.md)、[ADR-0001](0001-directive-kind-system.md)、[ADR-0002](0002-dynamic-patch.md)、[ADR-0006](0006-x-isolate-directive.md)
 
 ## 背景
 
@@ -124,7 +124,7 @@ x-loading 从「自建 overlay 壳 + 代码 createElement loader」升级为「�
 | **块查找仅当前 scope**（Q5=A） | 强制 x-block 与消费者同 scope，无法在公共外层声明一次、多处复用。 |
 | **块查找 engine 全局注册**（Q5=C） | 失去作用域隔离，同名 block 冲突难溯源。 |
 | **引擎预定义 UI 态名册（loading/error/empty）**（Q9=B） | 限制指令开发者发明新消费场景，违反 OCP；引擎不应假设 UI 态全集。 |
-| **冗余 x-scope 报错/warn**（Q4=B/C） | 与引擎「冗余属性静默处理」整体风格冲突（x-data 解析失败仅 warn、x-slot 内层指令仅 warn）；冗余 x-scope 无害。 |
+| **冗余 x-scope 报错/warn**（Q4=B/C） | 与引擎「冗余属性静默处理」整体风格冲突（x-data 解析失败仅 warn、x-isolate 内层指令仅 warn）；冗余 x-scope 无害。 |
 | **块根注入 x-scope**（原决策 7，Q9-A 否决） | 冗余——`compileChild` 无条件建 scope，注入不增加保证；污染块模板凭空多一声明性属性。 |
 | **全局块兜底只放 engine.getBlock**（Q1-B） | Compile/Hybrid 消费指令走 `binding.scope.getBlock` 拿不到全局块，破坏消费者协议统一。 |
 | **保留 `lookupBlock` 旧名**（Q4） | `getBlock` 与 `getAction`/`getDataScope` 命名呼应更一致；特性未发布，无兼容包袱，直接改名。 |

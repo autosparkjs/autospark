@@ -90,7 +90,7 @@ export function createEvalHandler(
                     data,
                     scope,
                     store: engine.store,
-                    state: engine.store.state,
+                    globalState: engine.store.state,
                     engine,
                     $options,
                 };

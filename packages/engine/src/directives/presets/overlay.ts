@@ -1,9 +1,10 @@
 import type { AutoSparkScope } from "../../scope";
-import type { ComponentDataBasis, ComponentDef } from "../component-def";
+import type { ComponentDef } from "../component-def";
 import { ComponentDirective } from "./component";
 import { OverlayInstance } from "../../overlay/instance";
 import { resolveOverlayConfig } from "../../overlay/handle";
-import type { OverlayConfig } from "../../overlay/types";
+import { resolveDataContext, type OverlayConfig } from "../../overlay/types";
+import { collectSlotContent } from "../../utils/slot";
 
 /**
  * OverlayDirective：覆盖物消费侧**公共抽象基座**（ADR-0052 修订版——组件化统一，共识 2/3）。
@@ -23,10 +24,19 @@ import type { OverlayConfig } from "../../overlay/types";
  *
  * 配置三级链（共识 6）：`内置默认（基座） < x-dialog-options < 值对象内联保留配置键`；
  * props 统一（共识 7）：值对象/命令式 options 的非保留键全部作 props 注入组件 data 域。
- * scope 基准（共识 8）：`'declarer'`（默认，挂声明处 scope=定义闭包）| `'host'`（消费处）；
- * 废弃值 `'consumer'` 映射 `'host'` + warn。
+ * 数据视图基准 dataContext（共识 8；ADR-0053 修订更名自 `scope`）：`'declarer'`（默认，挂声明处
+ * scope=定义闭包）| `'host'`（消费处）；硬切无旧键兼容（开发阶段，ADR-0053 修订）。
  */
 export abstract class OverlayDirective extends ComponentDirective {
+    /**
+     * 覆盖物宿主是**触发点/声明点**（按钮标签、触发容器），不是组件化身——
+     * 子节点保留在宿主正常渲染（不占有子树）。插槽内容打开时从**只读 template**
+     * 克隆收集投影进 body 容器，不清空宿主（对齐 x-dialog 文档的按钮标签模式）。
+     */
+    static override ownsChildren(): boolean {
+        return false;
+    }
+
     /** 覆盖物组件名 = 消费 attr 名（x-dialog:login 的 login） */
     protected get overlayName(): string {
         return this.attr ?? "";
@@ -34,7 +44,7 @@ export abstract class OverlayDirective extends ComponentDirective {
 
     /** 当前活跃实例（visible 驱动；声明式单驱动点至多一个活跃实例，关闭后残留引用经 destroyed 守卫） */
     protected _overlayInstance: OverlayInstance | null = null;
-    /** 值对象保留配置键子集（closeOnMask/animate/at/scope，合并链最顶层——共识 6/7） */
+    /** 值对象保留配置键子集（closeOnMask/animate/at/dataContext，合并链最顶层——共识 6/7） */
     protected _inlineConfig: Record<string, any> | null = null;
     /** 当前驱动状态（visible 真值；子类 watch 维护——等待的组件就绪后据此决定是否打开） */
     protected _driveOn = false;
@@ -79,10 +89,24 @@ export abstract class OverlayDirective extends ComponentDirective {
         }
         // 配置三级链（共识 6）：内置默认 < x-dialog-options（this.options）< 值对象内联保留键
         const config = resolveOverlayConfig(found.def, this.options ?? null, this._inlineConfig);
+        const { parentScope, scopeEl } = this._resolveParentScope(config, found.def);
+        // 插槽内容懒收集（ADR-0056 决策十）：仅组件声明了出口才收集（避免按钮标签等
+        // 裸子节点被误收为 default 段并 warn 丢弃）；从只读 template 克隆，宿主子节点保留。
+        const slots = found.def?.slots;
+        const slotContents =
+            this.template && slots?.length
+                ? collectSlotContent(this.template, slots, (m) =>
+                      this.warn(`x-dialog:${this.attr}: ${m}`),
+                  )
+                : null;
+        // 宿主不清空：ownsChildren=false 下子节点是宿主自身内容（按钮标签等），照常保留
         const inst = new OverlayInstance(this.engine, name, found.snapshot, found.def, config, {
-            parentScope: this._resolveParentScope(config, found.def),
+            parentScope,
             searchRoot: this.el ?? null,
+            scopeEl,
             mask: this._modalMask,
+            slotContents,
+            slotCallerScope: this.binding,
         });
         this._overlayInstance = inst;
         inst.onCloseRequest = this._makeCloseRequest();
@@ -99,12 +123,11 @@ export abstract class OverlayDirective extends ComponentDirective {
     }
 
     /**
-     * 数据视图基准挂链解析（共识 8；`scope` 键已更名 `dataContext`）：`'declarer'`（默认）挂
-     * **声明处** scope（定义闭包——数据视图沿挂链即声明处上下文；悬空/全局组件无声明 scope →
-     * rootless 防御，仅全局视图 + 级联守卫兜底）；`'host'` 挂**消费处** scope。
-     *
-     * 兼容：旧键 `config.scope`（字符串基准）废弃——兜底解析 + warn；旧值 `'consumer'` 映射
-     * `'host'` + warn。
+     * 数据视图基准挂链解析（共识 8；`scope` 键已更名 `dataContext`，ADR-0053 修订）：缺省按
+     * `'declarer'` 归一后统一经 `resolveDataContext` 两栖分派——`'declarer'`（默认）挂**声明处**
+     * scope（定义闭包——数据视图沿挂链即声明处上下文；悬空/全局组件无声明 scope → rootless 防御，
+     * 仅全局视图 + 级联守卫兜底）；`'host'` 挂**消费处** scope；元素（声明式理论不可达，防御统一）
+     * 按基准载体分派。
      *
      * 挂链即基准（决策 11 三合一）：表达式上下文 / 数据视图 / 生命周期级联统一由 parentScope 表达，
      * 无需 x-component 的 basis 施加（那是宿主化身场景——scope 留在消费处、数据视图跳声明处的解耦机制）。
@@ -112,31 +135,11 @@ export abstract class OverlayDirective extends ComponentDirective {
     private _resolveParentScope(
         config: OverlayConfig,
         def: ComponentDef | null,
-    ): AutoSparkScope | null {
-        let basis: ComponentDataBasis | string | undefined = config.dataContext;
-        if (basis === undefined && config.scope !== undefined) {
-            // 旧键 scope（字符串基准）兜底：warn 更名提示
-            this.warn(
-                `x-dialog:${this.attr}: 配置键 scope 已更名为 dataContext，本次按 dataContext: '${config.scope}' 处理`,
-            );
-            basis = config.scope;
-        }
-        if (basis === "consumer") {
-            this.warn(
-                `x-dialog:${this.attr}: dataContext: 'consumer' 已更名为 'host'（ADR-0053 修订），本次按 'host' 处理`,
-            );
-            basis = "host";
-        }
-        if (basis === "host") return this.binding;
-        if (basis !== undefined && basis !== "declarer") {
-            this.warn(
-                `x-dialog:${this.attr}: 无效 dataContext ${JSON.stringify(basis)}（须 'declarer'|'host'），按默认 'declarer' 处理`,
-            );
-        }
-        // declarer（默认）：挂声明处 scope；悬空守卫（已销毁）与全局组件（无声明 scope）→ rootless
-        const declarer = def?.declarerScope ?? null;
-        if (!declarer || declarer.destroyed) return null;
-        return declarer;
+    ): { parentScope: AutoSparkScope | null; scopeEl: HTMLElement | null } {
+        const ctx = config.dataContext === undefined ? "declarer" : config.dataContext;
+        return resolveDataContext(ctx, def, this.binding, this.engine, (m) =>
+            this.warn(`x-dialog:${this.attr}: ${m}`),
+        );
     }
 
     /**

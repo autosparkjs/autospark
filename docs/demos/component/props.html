@@ -11,11 +11,11 @@
         <!--
             x-component 实例化组件 + props 注入（ADR-0054）：
             - 组件名走属性参数（x-component:greeting），值专职 props；
-            - 无值 = 无 props（用 state() 默认值）；
+            - 无值 = 无 props（用 data 默认值）；
             - 静态字面量：x-component:greeting="{who:'张三'}"；
             - 绑定响应式状态对象：x-component:greeting="form"——对象按键展开为 props，
               状态内部键变化（如输入框改 form.who）实时更新组件（单向：外部 → 组件）；
-            - 合并顺序：state() 默认先注入，props 后覆盖（外部优先）；
+            - 合并顺序：data 默认先注入，props 后覆盖（外部优先）；
             - 属性继承：宿主 class 与组件根 class 拼接。
             组件内部状态（用户交互改的 hits）不被外部 props 重置——props 更新只覆盖出现的键。
         -->
@@ -28,10 +28,8 @@
                 <button class="button is-small" x-on:click="hit">点我 +1</button>
                 <script type="autospark/setup">
                     {
-                        // state() 默认状态：who 与 hits
-                        state() {
-                            return { who: "匿名", hits: 0 };
-                        },
+                        // data 默认数据：who 与 hits
+                        data: { who: "匿名", hits: 0 },
                         methods: {
                             // 内部方法改的是组件内部状态 hits（单向数据流：不回写外部）
                             hit() {
@@ -50,7 +48,7 @@
                 </style>
             </div>
 
-            <!-- ① 无值实例化：用 state() 默认值（who=匿名） -->
+            <!-- ① 无值实例化：用 data 默认值（who=匿名） -->
             <div class="panel">
                 <div class="label">① 无 props 实例化（who 用默认值"匿名"）</div>
                 <div x-component:greeting></div>

@@ -4,8 +4,8 @@ import "./setup";
 
 /**
  * 组件数据边界（ADR-0053）：x-component 实例化的组件默认**封闭**——实例只见自身
- * state()/data、x-component props 与全局 state；`x-define.open` 开放边界，
- * `scope`（'host'|'declarer'）指定继承基准，`x-component-options.scope` 消费侧覆盖。
+ * data（响应式，ADR-0057）/顶层私有变量、x-component props 与全局 state；`x-define.open` 开放边界，
+ * `dataContext`（'host'|'declarer'）指定继承基准，`x-component-options.dataContext` 消费侧覆盖。
  */
 
 let warns: string[] = [];
@@ -121,11 +121,11 @@ describe("组件数据边界（ADR-0053）", () => {
         expect(root.querySelector<HTMLSpanElement>("#h span")!.textContent).toBe("宿主数据");
     });
 
-    test("scope:'declarer'：消费处同名键被遮蔽时读声明处上下文", async () => {
+    test("dataContext:'declarer'：消费处同名键被遮蔽时读声明处上下文", async () => {
         const { root } = mount(
             `<div x-data="{ who: '声明处' }">
                 <div x-scope>
-                    <div x-define="card" x-define-options="{ open: true, scope: 'declarer' }"><span x-text="who"></span></div>
+                    <div x-define="card" x-define-options="{ open: true, dataContext: 'declarer' }"><span x-text="who"></span></div>
                     <div x-data="{ who: '消费处' }">
                         <div id="h" x-component:card></div>
                     </div>
@@ -138,11 +138,11 @@ describe("组件数据边界（ADR-0053）", () => {
         expect(root.querySelector<HTMLSpanElement>("#h span")!.textContent).toBe("声明处");
     });
 
-    test("scope:'host' 显式声明：读消费处上下文", async () => {
+    test("dataContext:'host' 显式声明：读消费处上下文", async () => {
         const { root } = mount(
             `<div x-data="{ who: '声明处' }">
                 <div x-scope>
-                    <div x-define="card" x-define-options="{ open: true, scope: 'host' }"><span x-text="who"></span></div>
+                    <div x-define="card" x-define-options="{ open: true, dataContext: 'host' }"><span x-text="who"></span></div>
                     <div x-data="{ who: '消费处' }">
                         <div id="h" x-component:card></div>
                     </div>
@@ -154,14 +154,14 @@ describe("组件数据边界（ADR-0053）", () => {
         expect(root.querySelector<HTMLSpanElement>("#h span")!.textContent).toBe("消费处");
     });
 
-    test("x-component-options.scope 消费侧覆盖已开放组件的基准（无 warn）", async () => {
+    test("x-component-options.dataContext 消费侧覆盖已开放组件的基准（无 warn）", async () => {
         captureWarn();
         const { root } = mount(
             `<div x-data="{ who: '声明处' }">
                 <div x-scope>
                     <div x-define="card" x-define-options="{ open: true }"><span x-text="who"></span></div>
                     <div x-data="{ who: '消费处' }">
-                        <div id="h" x-component:card x-component-options="{ scope: 'declarer' }"></div>
+                        <div id="h" x-component:card x-component-options="{ dataContext: 'declarer' }"></div>
                     </div>
                 </div>
              </div>`,
@@ -173,28 +173,28 @@ describe("组件数据边界（ADR-0053）", () => {
         expect(warns).toHaveLength(0);
     });
 
-    test("消费侧 scope 落在封闭组件上：warn + 保持封闭", async () => {
+    test("消费侧 dataContext 落在封闭组件上：warn + 保持封闭", async () => {
         captureWarn();
         const { root } = mount(
             `<div x-data="{ tip: '消费处数据' }">
                 <div x-scope>
                     <div x-define="card"><span x-text="tip"></span></div>
-                    <div id="h" x-component:card x-component-options="{ scope: 'host' }"></div>
+                    <div id="h" x-component:card x-component-options="{ dataContext: 'host' }"></div>
                 </div>
              </div>`,
             {},
         );
         await nextTick();
-        expect(warnHits("x-component-options.scope 不生效")).toBe(true);
+        expect(warnHits("x-component-options.dataContext 不生效")).toBe(true);
         expect(root.querySelector<HTMLSpanElement>("#h span")!.textContent!.trim()).toBe("");
     });
 
-    test("作者侧 scope 无 open：warn + 忽略（组件封闭）", async () => {
+    test("作者侧 dataContext 无 open：warn + 忽略（组件封闭）", async () => {
         captureWarn();
         const { root } = mount(
             `<div x-data="{ tip: '外部' }">
                 <div x-scope>
-                    <div x-define="card" x-define-options="{ scope: 'host' }"><span x-text="tip"></span></div>
+                    <div x-define="card" x-define-options="{ dataContext: 'host' }"><span x-text="tip"></span></div>
                     <div id="h" x-component:card></div>
                 </div>
              </div>`,
@@ -205,12 +205,12 @@ describe("组件数据边界（ADR-0053）", () => {
         expect(root.querySelector<HTMLSpanElement>("#h span")!.textContent!.trim()).toBe("");
     });
 
-    test("无效 scope 基准值：warn + 忽略基准（open 仍生效、基准落默认 host）", async () => {
+    test("无效 dataContext 基准值：warn + 忽略基准（open 仍生效、基准落默认 host）", async () => {
         captureWarn();
         const { root } = mount(
             `<div x-data="{ tip: '外部' }">
                 <div x-scope>
-                    <div x-define="card" x-define-options="{ open: true, scope: 'anywhere' }"><span x-text="tip"></span></div>
+                    <div x-define="card" x-define-options="{ open: true, dataContext: 'anywhere' }"><span x-text="tip"></span></div>
                     <div id="h" x-component:card></div>
                 </div>
              </div>`,
@@ -232,7 +232,7 @@ describe("组件数据边界（ADR-0053）", () => {
             {},
             {
                 components: {
-                    gcard: `<div x-define="gcard" x-define-options="{ open: true, scope: 'declarer' }"><span x-text="tip"></span></div>`,
+                    gcard: `<div x-define="gcard" x-define-options="{ open: true, dataContext: 'declarer' }"><span x-text="tip"></span></div>`,
                 },
             },
         );
@@ -271,7 +271,7 @@ describe("组件数据边界（ADR-0053）", () => {
                 <div x-define="outer">
                     <div x-define="pinner" x-define-options="{ open: true }"><span class="p1" x-text="inner"></span></div>
                     <div id="pi" x-component:pinner></div>
-                    <script setup>{ state(){ return { inner: 'A数据' } } }</script>
+                    <script setup>{ data:{ inner: 'A数据' } }</script>
                 </div>
                 <div id="h" x-component:outer></div>
              </div>`,
@@ -344,5 +344,83 @@ describe("组件数据边界（ADR-0053）", () => {
         await nextTick();
         // 子组件 method 边界照常生效：调不到父组件 method（未命中，表达式兜底为空操作）
         expect((globalThis as any).__mb).toBe("");
+    });
+});
+
+describe("消费侧 .open（ADR-0053 修订一：豁免作者契约）", () => {
+    test(".open 修饰符打开封闭组件（默认 host 基准，读消费处上下文）", async () => {
+        const { root } = mount(
+            `<div x-data="{ tip: '外部数据' }">
+                <div x-scope>
+                    <div x-define="card"><span x-text="tip"></span></div>
+                    <div id="h" x-component:card.open></div>
+                </div>
+             </div>`,
+            {},
+        );
+        await nextTick();
+        expect(root.querySelector<HTMLSpanElement>("#h span")!.textContent).toBe("外部数据");
+    });
+
+    test("x-component-options={open:true} 与 .open 修饰符等价", async () => {
+        const { root } = mount(
+            `<div x-data="{ tip: '外部数据' }">
+                <div x-scope>
+                    <div x-define="card"><span x-text="tip"></span></div>
+                    <div id="h" x-component:card x-component-options="{ open: true }"></div>
+                </div>
+             </div>`,
+            {},
+        );
+        await nextTick();
+        expect(root.querySelector<HTMLSpanElement>("#h span")!.textContent).toBe("外部数据");
+    });
+
+    test(".open + x-component-options.dataContext='declarer' 组合：读声明处", async () => {
+        const { root } = mount(
+            `<div x-data="{ who: '声明处' }">
+                <div x-scope>
+                    <div x-define="card"><span x-text="who"></span></div>
+                    <div x-data="{ who: '消费处' }">
+                        <div id="h" x-component:card.open x-component-options="{ dataContext: 'declarer' }"></div>
+                    </div>
+                </div>
+             </div>`,
+            {},
+        );
+        await nextTick();
+        // .open 打开封闭组件后，消费侧 dataContext 正常生效（不再走「未声明 open」warn 分支）
+        expect(root.querySelector<HTMLSpanElement>("#h span")!.textContent).toBe("声明处");
+    });
+
+    test(".open 打开封闭组件不触发任何 warn（显式豁免即静默）", async () => {
+        captureWarn();
+        const { root } = mount(
+            `<div x-data="{ tip: '外部数据' }">
+                <div x-scope>
+                    <div x-define="card"><span x-text="tip"></span></div>
+                    <div id="h" x-component:card.open></div>
+                </div>
+             </div>`,
+            {},
+        );
+        await nextTick();
+        expect(root.querySelector<HTMLSpanElement>("#h span")!.textContent).toBe("外部数据");
+        expect(warns).toHaveLength(0);
+    });
+
+    test("宿主 x-options 的 open 键不回退命中（消费 open 只读指令选项层）", async () => {
+        const { root } = mount(
+            `<div x-data="{ tip: '外部数据' }">
+                <div x-scope x-options="{ open: true }">
+                    <div x-define="card"><span x-text="tip"></span></div>
+                    <div id="h" x-component:card></div>
+                </div>
+             </div>`,
+            {},
+        );
+        await nextTick();
+        // 宿主选项的 open 不打开组件（ADR-0007 回退语义的隔离例外）——保持封闭，渲染空
+        expect(root.querySelector<HTMLSpanElement>("#h span")!.textContent!.trim()).toBe("");
     });
 });

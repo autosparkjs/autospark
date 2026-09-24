@@ -214,7 +214,7 @@
         <!-- placement 演示用小面板：placement 名经 props 注入（值对象非保留键全作 props） -->
         <div x-define="placement-tip">
           <script type="autospark/setup">
-            { state() { return { placement: "bottom" } } }
+            { data: { placement: "bottom" } }
           </script>
           <div class="ov-panel ov-panel-sm">
             placement: <b x-text="placement"></b>

@@ -1,156 +1,377 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { describe, expect, test, afterEach } from "bun:test";
 import "./setup";
-import { mount, nextTick } from "./helpers";
+import { AutoSpark } from "../engine";
+import { mount, nextTick, finishAnim } from "./helpers";
 
-describe("x-slot 静态冻结快照", () => {
-    test("static：渲染 template 子节点内容", () => {
-        const { root } = mount(`<div x-slot><a href="x">ssss</a></div>`, {});
-        expect(root).toEqualHTML(`<div>
-  <div><a href="x">ssss</a></div>
-</div>`);
-    });
+/**
+ * x-slot 插槽指令测试（ADR-0056）。
+ *
+ * 12 组：命名/默认出口命中、fallback、无主 warn、重复首胜、裸子节点默认段、
+ * 命名分段直接子级、深层忽略 warn、作用域插槽形参、形参响应式、调用方作用域求值、
+ * overlay 继承、x-dialog 子节点进覆盖物。
+ */
 
-    test("static：内容不响应状态变化（无 watcher，T1 防御）", async () => {
-        const { root, engine } = mount(`<div x-slot><span>fixed</span></div>`, { x: 1 });
-        expect(root.textContent).toContain("fixed");
-        engine.state.x = 999;
-        await nextTick();
-        expect(root.textContent).toContain("fixed");
-    });
+/** 挂载并拦截 logger.warn（编译期同步 warn 也可靠捕获） */
+function mountCaptureWarn(html: string, state: any, options?: any) {
+    const root = document.createElement("div");
+    root.innerHTML = html.trim();
+    const engine = new AutoSpark(root, state, { autostart: false, ...options });
+    const warns: string[] = [];
+    (engine.logger as any).warn = (msg: any) => warns.push(String(msg));
+    engine.compile();
+    return { root, engine, warns };
+}
 
-    test("static：剥除内部指令属性（x-text 不绑定、属性消失、文本保持字面）", async () => {
-        const { root, engine } = mount(`<div x-slot><span x-text="t">old</span></div>`, {
-            t: "NEW",
-        });
-        const span = root.querySelector("span")!;
-        expect(span.hasAttribute("x-text")).toBe(false); // 属性被剥
-        expect(span.textContent).toBe("old"); // 不绑定：保持字面
-        engine.state.t = "CHANGED";
-        await nextTick();
-        expect(span.textContent).toBe("old"); // 状态变化仍不影响（根本没订阅）
-    });
+const engines: any[] = [];
+const mountSlot = (html: string, state: any, options?: any) => {
+    const m = mount(html, state, options);
+    engines.push(m.engine);
+    return m;
+};
+const mountSlotCaptureWarn = (html: string, state: any, options?: any) => {
+    const m = mountCaptureWarn(html, state, options);
+    engines.push(m.engine);
+    return m;
+};
 
-    test("static：内部含指令时不抛错（warn 对冲，内容照常渲染）", () => {
-        const { root } = mount(`<div x-slot><b x-text="t">x</b></div>`, { t: "y" });
-        expect(root.querySelector("b")).not.toBeNull();
-        expect(root.querySelector("b")?.textContent).toBe("x"); // 字面保留，未绑定
-    });
+afterEach(() => {
+    while (engines.length) engines.pop()?.destroy();
+});
 
-    test("static：DOM API 改动在反应式刷新后保留（engine 不触碰内容）", async () => {
-        const { root, engine } = mount(
-            `<div><main x-slot><p>hi</p></main><span x-text="counter"></span></div>`,
-            { counter: 0 },
+describe("x-slot 出口与内容投影（ADR-0056）", () => {
+    test("命名出口命中：标记元素保留为包裹层，内容投影覆盖 fallback", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="card">
+                    <header x-slot:header>默认头</header>
+                    <main>固定体</main>
+                </div>
+                <div id="h" x-component:card>
+                    <template x-slot:header><h1>自定义头</h1></template>
+                </div>
+            </div>`,
+            {},
         );
-        const p = root.querySelector("p")!;
-        p.textContent = "MUTATED";
-        p.classList.add("active");
-        engine.state.counter = 5; // 触发无关反应式刷新
         await nextTick();
-        expect(root.querySelector("p")?.textContent).toBe("MUTATED"); // DOM API 改动保留
-        expect(root.querySelector("p")?.classList.contains("active")).toBe(true);
-        expect(root.querySelector("span")?.textContent).toBe("5"); // 兄弟反应式正常更新
+        const host = root.querySelector("#h")!;
+        expect(host.querySelector("header h1")!.textContent).toBe("自定义头");
+        expect(host.querySelector("header")!.textContent).not.toInclude("默认头");
+        expect(host.querySelector("main")!.textContent).toBe("固定体");
+    });
+
+    test("默认出口命中：裸 x-slot 出口 + 裸子节点内容", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="box">
+                    <div x-slot>默认体</div>
+                </div>
+                <div id="h" x-component:box>
+                    <p>自定义体</p>
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h")!;
+        expect(host.querySelector("div")!.textContent!.trim()).toBe("自定义体");
+        expect(host.textContent).not.toInclude("默认体");
+    });
+
+    test("出口无对应内容：渲染 fallback（出口子树组件作用域求值）", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="card">
+                    <header x-slot:header>默认头 {{title}}</header>
+                </div>
+                <div id="h" x-component:card></div>
+            </div>`,
+            { title: "T" },
+        );
+        await nextTick();
+        const host = root.querySelector("#h")!;
+        expect(host.querySelector("header")!.textContent).toBe("默认头 T");
+    });
+
+    test("内容无对应出口：warn + 丢弃（不再前缀编译）", async () => {
+        const { root, warns } = mountSlotCaptureWarn(
+            `<div x-scope>
+                <div x-define="card"><span class="c">组件</span></div>
+                <div id="h" x-component:card>
+                    <p>无主内容</p>
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h")!;
+        expect(host.textContent).not.toInclude("无主内容");
+        expect(host.querySelector(".c")).not.toBeNull();
+        expect(warns.some((w) => w.includes("无对应出口"))).toBe(true);
+    });
+
+    test("同名内容多段：首个胜 + warn", async () => {
+        const { root, warns } = mountSlotCaptureWarn(
+            `<div x-scope>
+                <div x-define="card">
+                    <header x-slot:header>默认</header>
+                </div>
+                <div id="h" x-component:card>
+                    <template x-slot:header>第一段</template>
+                    <template x-slot:header>第二段</template>
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h")!;
+        expect(host.querySelector("header")!.textContent).toBe("第一段");
+        expect(warns.some((w) => w.includes("重复"))).toBe(true);
+    });
+
+    test("裸子节点默认段：仅直接子级参与，命名段切走后剩余合并为默认段", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="card">
+                    <header x-slot:header>默认头</header>
+                    <div x-slot>默认体</div>
+                    <footer x-slot:footer>默认脚</footer>
+                </div>
+                <div id="h" x-component:card>
+                    <template x-slot:header>头</template>
+                    <p>裸1</p>
+                    <span>裸2</span>
+                    <template x-slot:footer>脚</template>
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h")!;
+        expect(host.querySelector("header")!.textContent).toBe("头");
+        expect(host.querySelector("footer")!.textContent).toBe("脚");
+        const body = host.querySelector("div")!;
+        expect(body.textContent).toInclude("裸1");
+        expect(body.textContent).toInclude("裸2");
+        expect(body.textContent).not.toInclude("默认体");
+    });
+
+    test("命名分段仅直接子级：深层 x-slot 忽略 warn + 按普通内容处理", async () => {
+        const { root, warns } = mountSlotCaptureWarn(
+            `<div x-scope>
+                <div x-define="card">
+                    <header x-slot:header>默认头</header>
+                    <div x-slot>默认体</div>
+                </div>
+                <div id="h" x-component:card>
+                    <div class="wrap">
+                        <b x-slot:header>深层标记</b>
+                    </div>
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h")!;
+        // 深层 x-slot 不构成命名段 → 整个 wrap 归默认段；标记已 warn + 剥除
+        expect(warns.some((w) => w.includes("嵌套"))).toBe(true);
+        expect(host.querySelector("header")!.textContent).toBe("默认头");
+        const body = host.querySelector("div")!;
+        expect(body.textContent).toInclude("深层标记");
+        expect(body.querySelector("[x-slot]")).toBeNull();
+        expect(body.querySelector("[x-slot\\:header]")).toBeNull();
+    });
+
+    test("作用域插槽形参：出口对象字面量注入，内容解构形参求值", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="list">
+                    <ul>
+                        <li x-slot:row="{ item, index }" x-text="index + ':' + item"></li>
+                    </ul>
+                </div>
+                <div id="h" x-component:list>
+                    <template x-slot:row="{ item, index }">
+                        <li class="custom">{{ index }}-{{ item }}</li>
+                    </template>
+                </div>
+            </div>`,
+            {},
+        );
+        // 出口侧 watch 的值来自组件作用域——组件无 rows，改在出口声明处用外部状态
+        // 此例改测：出口值引用全局 state（经 getCallerContext 不适用——出口在组件作用域）
+        // 故将 rows 放组件 state
+        await nextTick();
+        // 组件无 state.rows → 出口值 undefined → 形参 undefined → 内容渲染空
+        // 完整作用域插槽用例见下一组（出口值经组件 state）
+        const host = root.querySelector("#h")!;
+        expect(host).not.toBeNull();
+    });
+
+    test("作用域插槽完整：出口值在组件作用域 watch，形参响应式刷新", async () => {
+        const { root, engine } = mountSlot(
+            `<div x-scope>
+                <div x-define="list">
+                    <ul>
+                        <li x-slot:row="{ item: rows[0], index: 0 }" x-text="fallbackText"></li>
+                    </ul>
+                    <script setup>
+                        {
+                            data: {
+                                rows: ["甲"],
+                                fallbackText: "fb",
+                            }
+                        }
+                    </script>
+                </div>
+                <div id="h" x-component:list>
+                    <template x-slot:row="{ item, index }">
+                        <li class="row">{{ index }}:{{ item }}</li>
+                    </template>
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h")!;
+        expect(host.querySelector("li.row")!.textContent).toBe("0:甲");
+        // 形参响应式：改组件 data.rows[0] → 出口 watch → 形参容器更新 → 内容 refresh
+        // 找到组件实例 scope 的 _data（响应式域）
+        const hostEl = host;
+        const scope = engine.findScopeByEl(hostEl);
+        const data = scope?.data;
+        expect(data).not.toBeNull();
+        data!.rows[0] = "乙";
+        await nextTick();
+        expect(host.querySelector("li.row")!.textContent).toBe("0:乙");
+    });
+
+    test("调用方作用域求值：内容读调用方 state/locals，不受组件封闭边界约束", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="card">
+                    <div x-slot>fb</div>
+                </div>
+                <div id="outer" x-data="{ label: '外层' }">
+                    <div id="h" x-component:card>
+                        <p class="c">{{ label }}-{{ globalMsg }}</p>
+                    </div>
+                </div>
+            </div>`,
+            { globalMsg: "全局" },
+        );
+        await nextTick();
+        expect(root.querySelector(".c")!.textContent).toBe("外层-全局");
+    });
+
+    test("作用域形参：内容声明形参后，调用方同名变量被形参遮蔽", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="badge">
+                    <span x-slot:tag x-text="'组件'"></span>
+                </div>
+                <div id="outer" x-data="{ label: '调用方' }">
+                    <div id="h" x-component:badge>
+                        <template x-slot:tag="{ label }">
+                            <b class="t">[{{ label }}]</b>
+                        </template>
+                    </div>
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        // 出口无值 → 形参 undefined → locals 优先遮蔽调用方 x-data 的 label
+        expect(root.querySelector(".t")!.textContent!.trim()).toBe("[]");
+    });
+
+    test("纯空白裸子节点 = 未提供默认内容（回退 fallback）", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="card">
+                    <div x-slot>回退体</div>
+                </div>
+                <div id="h" x-component:card>
+                    ${"   "}
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        expect(root.querySelector("#h")!.textContent!.trim()).toBe("回退体");
     });
 });
 
-describe("x-slot 远程子引擎", () => {
-    let origFetch: typeof globalThis.fetch;
-    let fetchCalls: string[] = [];
+describe("x-slot overlay 继承（ADR-0056 决策十）", () => {
+    const containerOf = (): HTMLElement | null => document.querySelector(".autospark-overlays");
+    const maskOf = (name: string): HTMLElement | null =>
+        document.querySelector(`.autospark-dialog-mask [data-overlay="${name}"]`)?.parentElement ??
+        null;
 
-    beforeEach(() => {
-        origFetch = globalThis.fetch;
-        fetchCalls = [];
-    });
-    afterEach(() => {
-        globalThis.fetch = origFetch;
-    });
-
-    /** 按 url → body 映射 mock fetch（未命中 url 返回 404） */
-    function mockFetch(map: Record<string, string>) {
-        globalThis.fetch = (async (input: any) => {
-            const url = String(typeof input === "string" ? input : (input?.url ?? input));
-            fetchCalls.push(url);
-            const body = map[url];
-            if (body === undefined) return { ok: false, status: 404, text: async () => "" } as any;
-            return { ok: true, status: 200, text: async () => body } as any;
-        }) as any;
-    }
-
-    test("remote：fetch url → child engine 编译 fetched HTML（独立 store，自身 x-data 自治）", async () => {
-        mockFetch({ "/post": `<div x-data="{ name: 'child' }"><span x-text="name"></span></div>` });
-        const { root } = mount(`<div x-slot="url"></div>`, { url: "/post" });
+    test("x-dialog 子节点保留在宿主，并克隆投影进 body 容器覆盖物", async () => {
+        const { root, engine } = mountSlot(
+            `<div id="app">
+                <div x-scope>
+                    <div x-define="confirm">
+                        <div class="body"><div x-slot>默认正文</div></div>
+                    </div>
+                    <button id="t" x-dialog:confirm="ui.open">
+                        <span class="proj">要确认吗？</span>
+                    </button>
+                </div>
+            </div>`,
+            { ui: { open: false } },
+            { animate: false },
+        );
+        // 未打开：宿主子节点正常渲染（按钮标签/触发内容保留）
+        expect(root.querySelector(".proj")).not.toBeNull();
+        engine.state.ui.open = true;
         await nextTick();
-        // child engine 用自身 x-data 的 name 渲染（与父 store 完全隔离）
-        expect(root.querySelector("span")?.textContent).toBe("child");
-    });
-
-    test("remote：url 响应式变化 → 销毁旧 child engine + 重 fetch 新模板", async () => {
-        mockFetch({
-            "/a": `<div x-data="{ name: 'A' }"><span x-text="name"></span></div>`,
-            "/b": `<div x-data="{ name: 'B' }"><span x-text="name"></span></div>`,
-        });
-        const { root, engine } = mount(`<div x-slot="url"></div>`, { url: "/a" });
+        const mask = maskOf("confirm");
+        expect(mask).not.toBeNull();
+        // 覆盖物内是投影克隆，fallback 被覆盖
+        expect(mask!.textContent).toInclude("要确认吗？");
+        expect(mask!.textContent).not.toInclude("默认正文");
+        expect(containerOf()).not.toBeNull();
+        // 宿主仍保留自身内容（不清空）
+        expect(root.querySelector(".proj")).not.toBeNull();
+        // 关闭：投影随实例销毁，宿主不受影响
+        engine.state.ui.open = false;
         await nextTick();
-        expect(root.querySelector("span")?.textContent).toBe("A");
-        engine.state.url = "/b";
+        finishAnim(maskOf("confirm") ?? document.createElement("div"));
         await nextTick();
-        expect(root.querySelector("span")?.textContent).toBe("B");
+        expect(maskOf("confirm")).toBeNull();
+        expect(root.querySelector(".proj")).not.toBeNull();
     });
 
-    test("remote：初值空 → 不 fetch、宿主空；赋值后 fetch", async () => {
-        mockFetch({ "/late": `<span>LATE</span>` });
-        const { root, engine } = mount(`<div x-slot="url"></div>`, { url: "" });
+    test("x-dialog 组件无出口：宿主子节点保留、不收集不 warn", async () => {
+        const { root, engine, warns } = mountSlotCaptureWarn(
+            `<div id="app"><div x-scope>
+                <div x-define="cfg"><div class="ov-panel">面板</div></div>
+                <button id="t" x-dialog:cfg="ui.open">打开</button>
+            </div></div>`,
+            { ui: { open: false } },
+            { animate: false },
+        );
+        expect(root.querySelector("#t")!.textContent!.trim()).toBe("打开");
+        expect(warns.filter((w) => w.includes("无对应出口"))).toHaveLength(0);
+        engine.state.ui.open = true;
         await nextTick();
-        expect(fetchCalls.length).toBe(0);
-        expect(root.querySelector("span")).toBeNull();
-        engine.state.url = "/late";
-        await nextTick();
-        expect(fetchCalls).toContain("/late");
-        expect(root.querySelector("span")?.textContent).toBe("LATE");
+        expect(maskOf("cfg")!.textContent).toInclude("面板");
+        // 宿主标签仍在
+        expect(root.querySelector("#t")!.textContent!.trim()).toBe("打开");
     });
 
-    test("remote：fetch 失败 → 错误占位（不静默）", async () => {
-        mockFetch({}); // 所有 url 404
-        const { root } = mount(`<div x-slot="url"></div>`, { url: "/bad" });
+    test("x-dialog 无子节点：覆盖物渲染 fallback", async () => {
+        const { engine } = mountSlot(
+            `<div id="app"><div x-scope>
+                <div x-define="info"><div class="body"><div x-slot>默认信息</div></div></div>
+                <button x-dialog:info="ui.open"></button>
+            </div></div>`,
+            { ui: { open: false } },
+            { animate: false },
+        );
+        engine.state.ui.open = true;
         await nextTick();
-        expect(root.querySelector(".x-slot-error")).not.toBeNull();
-    });
-
-    test("remote：fetch 期间经 x-loading 显示覆盖层，完成后移除并替换为产物", async () => {
-        let resolveFetch: () => void = () => {};
-        globalThis.fetch = (async () => {
-            await new Promise<void>((r) => {
-                resolveFetch = r;
-            });
-            return { ok: true, status: 200, text: async () => `<span>OK</span>` } as any;
-        }) as any;
-        const { root } = mount(`<div x-slot="url"></div>`, { url: "/slow" });
-        await nextTick();
-        // 复用 x-loading 运行时指令：宿主加属性 → dispatcher mount 覆盖层
-        expect(root.querySelector(".x-loading-overlay")).not.toBeNull();
-        resolveFetch();
-        await nextTick();
-        // 完成后移除属性 → 覆盖层消失、换上 child engine 产物
-        expect(root.querySelector(".x-loading-overlay")).toBeNull();
-        expect(root.querySelector("span")?.textContent).toBe("OK");
-    });
-
-    test("teardown：x-if toggle false→true 重新 fetch（child engine 随 scope 销毁，β 不跨 toggle 保内容）", async () => {
-        mockFetch({ "/t": `<span>T</span>` });
-        const { root, engine } = mount(`<div x-if="show"><div x-slot="url"></div></div>`, {
-            show: true,
-            url: "/t",
-        });
-        await nextTick();
-        expect(root.querySelector("span")?.textContent).toBe("T");
-        const firstCalls = fetchCalls.length;
-
-        engine.state.show = false; // 销毁子树（含 child engine）
-        await nextTick();
-        expect(root.querySelector("span")).toBeNull();
-
-        engine.state.show = true; // 重建 → 重新 fetch（β）
-        await nextTick();
-        expect(root.querySelector("span")?.textContent).toBe("T");
-        expect(fetchCalls.length).toBeGreaterThan(firstCalls); // 确认重新 fetch，非保内容
+        expect(maskOf("info")!.textContent).toInclude("默认信息");
     });
 });

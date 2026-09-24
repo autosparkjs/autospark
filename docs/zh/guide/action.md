@@ -121,6 +121,7 @@ engine.actions.rename = () => {
 | `this.$event`   | 原生事件对象（`@click` 的 `MouseEvent`、`@input` 的 `InputEvent` 等） |
 | `this.el`       | 触发元素（= `this.$event.currentTarget`），可就近读写 DOM             |
 | `this.data`     | 数据聚合视图：本层 `localData` + `x-data` 响应域 + 全局 `state` 拍平  |
+| `this.globalState` | 全局 store 状态（`engine.store.state`）——聚合视图同名键近层优先遮蔽，取全局值用它 |
 | `this.scope`    | 当前 `AutoSparkScope` 实例（`getData()` / `engine` / `parent`）       |
 | `this.store`    | `AutoStore` 实例（`watch` / `state` / `collectDependencies` 等）      |
 | `this.engine`   | `AutoSpark` 实例（等价于外部持有的 `engine` 变量）                    |
@@ -141,10 +142,10 @@ actions: {
 },
 ```
 
-::: tip 何时用 this.data、何时用 this.engine.state
+::: tip 何时用 this.data、何时用 this.globalState
 
 - 操作**当前 `x-data` 块**的局部字段 → `this.data.xxx`（写入响应式，推荐）。
-- 操作**全局根状态** → `this.engine.state.xxx`。
+- 操作**全局根状态** → `this.globalState.xxx`（等价 `this.engine.state.xxx`）。
 - 需要拿到当前 `x-data` 块的响应式代理本身（非聚合视图） → `this.scope.getData()`。
   :::
 
@@ -238,4 +239,4 @@ feedback 捕获动作返回的 Promise 精确反馈，连点时用 generation �
 
 ---
 
-动作系统讲完。接下来[指令类型](./directive.md)与[指令配置](./config.md)，或直接进入[指令](./directives/x-bind.md)。
+动作系统讲完。接下来[指令](./directive.md)的[指令类型](./directive.md#指令类型)与[指令配置](./directive.md#指令配置)，或直接进入[指令](./directives/x-bind.md)。

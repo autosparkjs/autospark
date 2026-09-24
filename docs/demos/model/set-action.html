@@ -36,11 +36,11 @@
                 },
                 {
                     actions: {
-                        // set action：DOM 值自动作首参 $value，this.state 可访问状态写回多字段
+                        // set action：DOM 值自动作首参 $value，this.globalState 可访问状态写回多字段
                         setName: function ($value) {
                             const parts = $value.split(",");
-                            this.state.user.first = parts[0] ?? "";
-                            this.state.user.last = parts[1] ?? "";
+                            this.globalState.user.first = parts[0] ?? "";
+                            this.globalState.user.last = parts[1] ?? "";
                         },
                     },
                 },

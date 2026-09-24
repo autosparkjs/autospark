@@ -78,23 +78,23 @@
                 </div>
                 <script type="autospark/setup">
                     {
-                        state() {
+                        data: {
                             // id 由 props 传入；qty 默认 1（组件内部状态，由 +/- 修改）
-                            return { id: 0, qty: 1 };
+                            id: 0, qty: 1
                         },
                         mounted() {
                             // ② 初始化：把自身 qty 注册进全局 state.cart（cart 是各商品数量的聚合镜像）
-                            this.state.cart[this.data.id] = this.data.qty;
+                            this.globalState.cart[this.data.id] = this.data.qty;
                         },
                         methods: {
                             inc() {
                                 this.data.qty++;
                                 // ② 子→全局：把数量写回全局 state.cart（父/兄弟组件经路径订阅感知）
-                                this.state.cart[this.data.id] = this.data.qty;
+                                this.globalState.cart[this.data.id] = this.data.qty;
                             },
                             dec() {
                                 if (this.data.qty > 0) this.data.qty--;
-                                this.state.cart[this.data.id] = this.data.qty;
+                                this.globalState.cart[this.data.id] = this.data.qty;
                             },
                             favorite() {
                                 // ③ 事件总线：emit 自定义事件，无父子关系的监听者收到
@@ -110,21 +110,19 @@
                 <div class="total">合计：<span x-text="total"></span> 件</div>
                 <script type="autospark/setup">
                     {
-                        state() {
-                            return { total: 0 };
-                        },
+                        data: { total: 0 },
                         created() {
                             // 监听全局 state.cart 的子键变化（product 改 cart[id] 触发，重新求和）。
                             // 注意 watch("cart") 只监听整体替换、不监听子键；用 cart.* 监听所有子键。
                             this.engine.store.watch("cart.*", () => {
-                                const cart = this.state.cart;
+                                const cart = this.globalState.cart;
                                 this.data.total = Object.keys(cart).reduce(
                                     (s, k) => s + (cart[k] || 0),
                                     0,
                                 );
                             });
                             // 首次求和
-                            const cart = this.state.cart;
+                            const cart = this.globalState.cart;
                             this.data.total = Object.keys(cart).reduce((s, k) => s + (cart[k] || 0), 0);
                         },
                     }

@@ -9,10 +9,11 @@
     </head>
     <body>
         <!--
-            组件 methods / 生命周期钩子内 this 的三件套：
-            - this.data   组件聚合视图（state() 返回 + x-component props），响应式、可读可写
-            - this.state  全局 store 状态（engine.store.state）
-            - this.scope  当前组件实例 scope（this.scope.el 即组件根元素）
+            组件 methods / 生命周期钩子内 this 的数据三件套（ADR-0057）：
+            - this.data         聚合视图：组件自有 data+props（自有层优先）→ 祖先近层 → 全局 state，响应式、可读可写
+            - this.props        this.data 的等价别名（props 键位于聚合自有层）
+            - this.globalState  全局 store 状态（engine.store.state）——聚合有同名遮蔽，取全局值用它
+            - this.scope        当前组件实例 scope（this.scope.el 即组件根元素）
             本 demo：greeting 来自组件 data，user.name 来自全局 state；
             模板里响应式拼接，故「改全局用户名」后问候语自动更新（created 仅实例化时跑一次，
             但模板表达式订阅了 state.user.name，状态变化驱动重渲染）。
@@ -22,13 +23,11 @@
                 <div class="hello" x-text="greeting + '，' + user.name + '！'"></div>
                 <script type="autospark/setup">
                     {
-                        state() {
-                            return { greeting: "你好" };
-                        },
+                        data: { greeting: "你好" },
                         created() {
                             // created：scope 创建 + data 注入后、编译前。
-                            // 演示 this.data（组件 data）与 this.state（全局 state）可读。
-                            console.log("[created] greeting =", this.data.greeting, "；user =", this.state.user.name);
+                            // 演示 this.data（组件数据）与 this.globalState（全局树明确通道）可读。
+                            console.log("[created] greeting =", this.data.greeting, "；user =", this.globalState.user.name);
                         },
                         mounted() {
                             // mounted：DOM 子树编译完成，this.scope.el 即组件根。

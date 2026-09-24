@@ -37,7 +37,7 @@ AutoSpark Engine **不是静态模板引擎**，而是与 Vue、React、Alpine.j
 
 4. **裸状态数据源** —— 构造器直接传裸状态对象，引擎自建 store 并接管销毁（1 engine 1 store）；store 级配置经 `options.storeOptions` 传入，默认配备内存 configManager，`@` 配置绑定开箱即用。
 
-5. **完整的指令体系** —— 内置 20+ 指令覆盖内容（`x-text`/`x-html`）、结构（`x-if`/`x-for`/`x-tree`）、绑定（`:class`/`:style`/`:disabled`）、事件（`@click`/`@input`）、表单（`x-model`）、显隐（`x-show`）、数据域（`x-data`）、组件（`x-define`/`x-component`）、传送（`x-teleport`）、转场（`x-transition`）、`x-switch`/`x-loading`/`x-slot` 等。
+5. **完整的指令体系** —— 内置 20+ 指令覆盖内容（`x-text`/`x-html`）、结构（`x-if`/`x-for`/`x-tree`）、绑定（`:class`/`:style`/`:disabled`）、事件（`@click`/`@input`）、表单（`x-model`）、显隐（`x-show`）、数据域（`x-data`）、组件（`x-define`/`x-component`）、传送（`x-teleport`）、转场（`x-transition`）、`x-switch`/`x-loading`/`x-isolate` 等。
 
 6. **组件化能力** —— 通过 `x-define` 声明命名组件、`x-component` 实例化，支持 `<script setup>`（data / methods / 四阶段生命周期钩子）与 `<style>` 作用域样式，运行期 scope 链天然实现组件私有化，无需额外定义链。
 

@@ -112,7 +112,7 @@ new AutoSparkSpaces.AutoSpark(el, state); // state 即响应式数据源
 节点行的模板按以下优先级解析，与 [x-loading 的组件覆盖](./x-loading.md)机制同构：
 
 1. **原地模板**：容器内的 `<li x-tree-node>`（最常用，所见即所得）；
-2. **`tree-node` 组件**：容器内不写 `x-tree-node` 时，引擎沿 scope 链就近查找名为 `tree-node` 的 [x-define](../component.md)（含全局 `components` 兜底）——跨模板复用同一节点模板；
+2. **`tree-node` 组件**：容器内不写 `x-tree-node` 时，引擎沿 scope 链就近查找名为 `tree-node` 的 [x-define](../component/develop.md)（含全局 `components` 兜底）——跨模板复用同一节点模板；
 3. **内置默认模板**：缩进 + 箭头 + `nameField` 字段名——零模板开箱即用（见下节）。
 
 也可以反过来把整棵树包成组件，任意处 `x-component` 复用：

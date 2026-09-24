@@ -125,7 +125,7 @@ export class IfDirective extends AutoSparkDirectiveBase {
      *
      * 模板只读契约（ADR-0002）——不摘除节点，`cloneNode(true)` 为冻结快照；分支不进结果 DOM
      * 由 compiler 剪枝层保证（两通道统一）。防呆（编译期 warn，运行时按既定语义执行）：
-     * - 分支根含结构指令（ownsChildren 类：x-for / eager x-if / x-slot）→ warn + 跳过该分支；
+     * - 分支根含结构指令（ownsChildren 类：x-for / eager x-if / x-isolate）→ warn + 跳过该分支；
      * - 裸 x-else 之后仍声明分支 → warn（其后分支永不匹配，短路语义不变）；
      * - 同元素 x-else + x-else-if → warn，按 x-else-if 处理；
      * - x-else-if 空值 → warn，按裸 x-else 兜底处理。
@@ -151,7 +151,7 @@ export class IfDirective extends AutoSparkDirectiveBase {
             });
             if (structural) {
                 this.warn(
-                    `x-if: 分支根上声明了结构指令（x-for/eager x-if/x-slot 等 ownsChildren 类），该分支被跳过（ADR-0034）`,
+                    `x-if: 分支根上声明了结构指令（x-for/eager x-if/x-isolate 等 ownsChildren 类），该分支被跳过（ADR-0034）`,
                 );
                 continue;
             }
