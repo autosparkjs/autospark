@@ -65,7 +65,7 @@ url 变化时销毁当前 child engine、重新 fetch、重建。加载期间自
 `x-isolate` 的指令值决定工作模式：**无值** = static（编译期冻结子树）、`x-isolate="urlExpr"` = remote（表达式求值为 url，由 child engine 接管）。**无独立指令选项与修饰符**。
 
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive.md#指令配置)。
+指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive/config.md)。
 :::
 
 ## 注意事项

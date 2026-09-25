@@ -106,7 +106,7 @@ feedback 捕获动作返回的 Promise 精确反馈，连点时用 generation �
 | guard（`.self` `.ctrl` `.alt` `.shift` `.meta` `.exact` `.enter` `.esc` …） | 未启用                               | ✅     | 组成 AND 链，任一不满足则短路                                                |
 
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive.md#指令配置)。
+指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive/config.md)。
 :::
 
 ## 注意事项

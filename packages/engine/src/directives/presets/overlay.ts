@@ -17,13 +17,18 @@ import { collectSlotContent } from "../../utils/slot";
  * 继承 `ComponentDirective`（ADR-0054 更名自 UseDirective）组件实例化全套能力（`getComponent` 查找、
  * def 反查、递归深度防护、`_waitForComponent` 等待 x-import、props 注入组件 data 域），仅覆盖三处（共识 3）：
  *
- * 1. **值语义**：组件名来自 attr（与 x-component 同一载体约定）；值为 visible 驱动（子类解析，见 DialogDirective）；
+ * 1. **值语义**：组件名来自 attr（与 x-component 同一载体约定）；值专职 visible 布尔控制
+ *    （子类解析，见 DialogDirective；对象形态已删除，ADR-0052 v2.3）；
  * 2. **实例化时机**：visible 真值触发 `_open()`（x-component 为编译期一次）；
  * 3. **目的地**：body 容器新实例（`OverlayInstance`，x-component 为宿主原地化身）——跳过
  *    `_mergeComponentRootAttrs` 属性继承。
  *
- * 配置三级链（共识 6）：`内置默认（基座） < x-dialog-options < 值对象内联保留配置键`；
- * props 统一（共识 7）：值对象/命令式 options 的非保留键全部作 props 注入组件 data 域。
+ * props 通道（ADR-0052 v2.3）：**唯一声明式通道 = 选项成员属性** `x-dialog-options.props`（或定向
+ * `x-dialog-options:<组件名>.props`，ADR-0007 修订）——值为表达式，三形态与 x-component 值同构
+ * （无属性 = 无 props / 对象字面量（成员任意表达式）/ 纯状态路径按需展开），**持续热更新**：值变
+ * 经浅值比较后 `Object.assign` 进活跃实例数据域（组件内部状态不重置）。
+ *
+ * 配置两级链（v2.3）：`内置默认（基座） < x-dialog-options`（值对象内联层随对象形态删除）。
  * 数据视图基准 dataContext（共识 8；ADR-0053 修订更名自 `scope`）：`'declarer'`（默认，挂声明处
  * scope=定义闭包）| `'host'`（消费处）；硬切无旧键兼容（开发阶段，ADR-0053 修订）。
  */
@@ -37,6 +42,14 @@ export abstract class OverlayDirective extends ComponentDirective {
         return false;
     }
 
+    /**
+     * 同名多实例（对齐 OnDirective 先例）：宿主是纯声明点，同元素多覆盖物消费者
+     * （`x-dialog:a` + `x-dialog:b`，不同 attr）各自独立驱动——并存是 ADR-0052 决策 8
+     * 「宿主非触发器」的隐含要求，也是选项定向机制（ADR-0007 修订 `x-dialog-options:a.props`）
+     * 的前提。同名**同 attr** 重复声明不去重（用户错误，双实例驱动同组件）。
+     */
+    static override readonly singleton = false;
+
     /** 覆盖物组件名 = 消费 attr 名（x-dialog:login 的 login） */
     protected get overlayName(): string {
         return this.attr ?? "";
@@ -44,25 +57,95 @@ export abstract class OverlayDirective extends ComponentDirective {
 
     /** 当前活跃实例（visible 驱动；声明式单驱动点至多一个活跃实例，关闭后残留引用经 destroyed 守卫） */
     protected _overlayInstance: OverlayInstance | null = null;
-    /** 值对象保留配置键子集（closeOnMask/animate/at/dataContext，合并链最顶层——共识 6/7） */
-    protected _inlineConfig: Record<string, any> | null = null;
     /** 当前驱动状态（visible 真值；子类 watch 维护——等待的组件就绪后据此决定是否打开） */
     protected _driveOn = false;
+    /** 当前求值 props（选项成员属性 props 的表达式产物；undefined = 无 props） */
+    protected _props: Record<string, any> | undefined;
+    /** 上次热应用到活跃实例的 props（浅值比较基准，复用 ComponentDirective._propsEqual） */
+    private _appliedProps: Record<string, any> | undefined;
 
     /** 模态遮罩外壳（DialogDirective 覆盖 true；基座默认裸面板直挂容器——未来形态定制点） */
     protected get _modalMask(): boolean {
         return false;
     }
 
-    /** 打开（visible 真值路径）：查找 → 防护 → 配置链 → 实例化到 body 容器 */
-    protected _open(props?: Record<string, any>): void {
-        this._instantiate(this.overlayName, props);
+    override created(): void {
+        // 宿主 x-options 的 props 键不被接受（ADR-0007 修订：props 不参与宿主回退——数据走
+        // 指令级通道，元素级配置容器不承载）：warn + 忽略
+        if (this.binding?.hostOptions && "props" in this.binding.hostOptions) {
+            this.warn(
+                `x-dialog:${this.attr}: 宿主 x-options 中的 props 键不被接受（props 走 x-dialog-options.props 指令级通道），已忽略`,
+            );
+        }
+        // props 通道（ADR-0052 v2.3）：先于通用管道单独订阅（纯状态路径形态需 depth:2 深层响应，
+        // 对齐 x-component props 的订阅参数），通用管道跳过 props 键避免同一表达式双 watcher。
+        const propsExpr = this.info.optionExprs?.props;
+        let skip: string[] | undefined;
+        if (propsExpr !== undefined) {
+            skip = ["props"];
+            if (propsExpr.trim() === "") {
+                this.warn(
+                    `x-dialog:${this.attr}: props 成员属性的值为空（须提供表达式：对象字面量或状态路径），已忽略`,
+                );
+            } else {
+                const initial = this.binding.watch(
+                    propsExpr,
+                    ({ value }) => this._onPropsChange(value),
+                    { depth: 2 },
+                );
+                this._onPropsChange(initial);
+            }
+        } else {
+            // 整包内嵌 props（静态字面量子集，v2.3）：无 watch 无热更新，作初始 props——
+            // 成员属性形态（表达式）整键覆盖本形态
+            const staticProps = this.options?.props;
+            if (staticProps !== undefined) this._onPropsChange(staticProps);
+        }
+        // 选项表达式统一管道（ADR-0007 修订）：其余配置成员（closeOnMask/at 等）建订阅——
+        // 应用点 = 每次打开经 resolveOverlayConfig 现读（重开生效，配置不热应用）
+        this._watchOptionExprs(skip);
+    }
+
+    /** 打开（visible 真值路径）：查找 → 防护 → 配置链 → 实例化到 body 容器（props 取当前求值值） */
+    protected _open(): void {
+        this._instantiate(this.overlayName, this._props);
     }
 
     /** 状态归假的关闭路径：直接 UI 关闭（状态已是唯一真相源，不走写回——ADR-0052 决策 7） */
     protected _close(): void {
         const inst = this._overlayInstance;
         if (inst && !inst.destroyed && inst.visible) inst.close();
+    }
+
+    /**
+     * props 值变化（对齐 x-component `_onValueChange` 容错）：对象 → props 集合（v-bind="obj" 心智）；
+     * null/undefined → 无 props（绑定的状态对象尚未就绪，静默）；数组/标量 → warn 忽略。
+     * 活跃实例在场 → 浅值比较后**热应用**（`Object.assign` 进实例数据域，只覆盖出现键、组件内部
+     * 状态不被重置——v2.3 唯一热应用成员）；组件 pending 中 → 更新 pendingProps（就绪重试用最新值）。
+     */
+    private _onPropsChange(value: any): void {
+        let props: Record<string, any> | undefined;
+        if (Array.isArray(value)) {
+            this.warn(
+                `x-dialog:${this.attr}: props 值须为对象（字面量或状态对象），数组已忽略: ${JSON.stringify(value)}`,
+            );
+        } else if (value != null && typeof value === "object") {
+            props = value as Record<string, any>;
+        } else if (value !== undefined && value !== null) {
+            this.warn(
+                `x-dialog:${this.attr}: props 值须为对象（字面量或状态对象），已忽略: ${JSON.stringify(value)}`,
+            );
+        }
+        this._props = props;
+        const inst = this._overlayInstance;
+        if (inst && !inst.destroyed && inst.visible && inst.instanceScope?.data) {
+            if (!this._propsEqual(props, this._appliedProps)) {
+                if (props) Object.assign(inst.instanceScope.data, props);
+                this._appliedProps = props;
+            }
+            return;
+        }
+        if (this.pendingName) this.pendingProps = props;
     }
 
     /**
@@ -87,8 +170,11 @@ export abstract class OverlayDirective extends ComponentDirective {
             );
             return;
         }
-        // 配置三级链（共识 6）：内置默认 < x-dialog-options（this.options）< 值对象内联保留键
-        const config = resolveOverlayConfig(found.def, this.options ?? null, this._inlineConfig);
+        // 配置两级链（v2.3）：内置默认 < x-dialog-options（静态整包层 + 成员表达式层，各自
+        // 归一化后 deepMerge——标量键表达式整键覆盖静态；at 等结构键简写经逐层归一化保留
+        // 上层其余成员，v2.1 简写局部覆盖语义不变）。整包内嵌的 props 键已剥离（数据不走配置链）。
+        const { props: _staticProps, ...optionLayer } = this.options ?? {};
+        const config = resolveOverlayConfig(optionLayer, this._optionExprValues);
         const { parentScope, scopeEl } = this._resolveParentScope(config, found.def);
         // 插槽内容懒收集（ADR-0056 决策十）：仅组件声明了出口才收集（避免按钮标签等
         // 裸子节点被误收为 default 段并 warn 丢弃）；从只读 template 克隆，宿主子节点保留。
@@ -109,6 +195,7 @@ export abstract class OverlayDirective extends ComponentDirective {
             slotCallerScope: this.binding,
         });
         this._overlayInstance = inst;
+        this._appliedProps = props;
         inst.onCloseRequest = this._makeCloseRequest();
         inst.open(props);
     }

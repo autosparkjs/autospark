@@ -142,6 +142,57 @@ export class AutoSparkDirectiveBase {
     watchers: Watcher[] = [];
 
     /**
+     * 选项成员表达式的最新求值值（ADR-0007 修订）：成员名 → 值。
+     * 由 {@link _watchOptionExprs} 维护；{@link getOption} 读取时先于此层命中（先在指令选项层
+     * 内收敛终值——表达式层 > 整包静态层——再对外回退宿主选项）。
+     */
+    protected _optionExprValues: Record<string, any> | null = null;
+
+    /**
+     * 统一建立选项成员表达式的 watch 订阅（ADR-0007 修订：选项定向与成员属性）。
+     *
+     * 消费方（有 optionExprs 的指令）在 `created` 中显式调用——不能在构造期调（同元素 x-data
+     * 等高优先指令尚未跑 created，局部数据域未注入，求值上下文不完整）。表达式为空文本时
+     * warn 跳过（属性存在但无值，按笔误提示）。值变化时更新 `_optionExprValues` 并回调
+     * {@link _onOptionExprChange}（默认空——配置成员不热应用，应用点 = 指令既有消费时机；
+     * 需要热应用的成员（如 overlay 家族的 props）由子类覆盖该钩子）。
+     *
+     * @param skip 需专管订阅而跳过的成员名（如 overlay 基座单独以 depth:2 订阅 props，
+     *             避免同一表达式双 watcher）——跳过的成员不进 `_optionExprValues`
+     */
+    protected _watchOptionExprs(skip?: string[]): void {
+        const exprs = this.info.optionExprs;
+        if (!exprs) return;
+        for (const [key, expr] of Object.entries(exprs)) {
+            if (skip?.includes(key)) continue;
+            const trimmed = expr.trim();
+            if (trimmed === "") {
+                this.warn(`x-${this.info.name}: 选项成员属性 ${key} 的值为空（须提供表达式），已忽略`);
+                continue;
+            }
+            // 字面量分流（对齐 dialog/x-loading resolveLiteral 先例）：true/false/null/数字是
+            // 标识符或数字形态，watch 的精准订阅支路会误当状态键读出 undefined——直接作静态值
+            if (trimmed === "true" || trimmed === "false" || trimmed === "null") {
+                (this._optionExprValues ??= {})[key] =
+                    trimmed === "true" ? true : trimmed === "false" ? false : null;
+                continue;
+            }
+            if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+                (this._optionExprValues ??= {})[key] = Number(trimmed);
+                continue;
+            }
+            const initial = this.binding.watch(expr, ({ value }) => {
+                (this._optionExprValues ??= {})[key] = value;
+                this._onOptionExprChange(key, value);
+            });
+            (this._optionExprValues ??= {})[key] = initial;
+        }
+    }
+
+    /** 选项成员表达式值变化钩子（默认空——配置成员不热应用；热应用成员由子类覆盖） */
+    protected _onOptionExprChange(_key: string, _value: any): void {}
+
+    /**
      * @param engine   引擎实例
      * @param binding  所属 scope（Runtime 实例传 undefined，由调用方随后注入 el）
      * @param info     原始指令信息（来自 getDirectives）；value/attr/modifiers/options 同时提取为便捷字段
@@ -169,16 +220,20 @@ export class AutoSparkDirectiveBase {
     }
 
     /**
-     * 读取指令配置（两层 fallback，ADR-0007）。
+     * 读取指令配置（ADR-0007 回退链 + 修订：表达式层内嵌）。
      *
-     * 查询顺序：指令选项（`this.options`，含解析期注入的 modifier 开关）→ 宿主选项
+     * 查询顺序：选项成员表达式求值值（`_optionExprValues`，最高——整键覆盖静态同名项）→
+     * 指令选项（`this.options`，含解析期注入的 modifier 开关）→ 宿主选项
      * （`this.binding.hostOptions`，即 `x-options`）。显式写值（含 `false`）即命中、阻断回退；
-     * 两层均无返回 undefined。
+     * 三层均无返回 undefined。表达式层与静态层先在指令选项内部收敛出终值，再对外回退。
      *
      * modifier 与指令选项经此方法等价：`.global` 与 `x-{name}-options="{global:true}"` 统一可读。
      * Runtime 指令（无 binding）仅查指令选项（无宿主选项回退）。
      */
     getOption(key: string): any {
+        if (this._optionExprValues && Object.prototype.hasOwnProperty.call(this._optionExprValues, key)) {
+            return this._optionExprValues[key];
+        }
         if (this.options && Object.prototype.hasOwnProperty.call(this.options, key)) {
             return this.options[key];
         }

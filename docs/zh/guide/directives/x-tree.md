@@ -354,7 +354,7 @@ x-tree 家族的全部标记（除 `x-tree` 本体外均为**无值标记**—�
 
 ## 配置
 
-`x-tree-options`（relaxed-json；按[指令选项回退](../directive.md)惯例可回退宿主 `x-options`）：
+`x-tree-options`（relaxed-json；按[指令选项回退](../directive/config.md#两层回退)惯例可回退宿主 `x-options`）：
 
 | 配置项               | 默认值      | 说明                                                         |
 | -------------------- | ----------- | ------------------------------------------------------------ |

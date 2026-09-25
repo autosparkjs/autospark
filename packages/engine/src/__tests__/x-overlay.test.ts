@@ -21,6 +21,19 @@ const mountOverlay = (html: string, state: any, options?: any) => {
     return m;
 };
 
+/** 拦截 console.warn 收集编译期 warn（mount 同步编译，engine 建立后劫持 logger 已晚） */
+function catchCompileWarns(fn: () => void): string[] {
+    const warns: string[] = [];
+    const orig = console.warn;
+    console.warn = (...args: any[]) => warns.push(String(args[0] ?? ""));
+    try {
+        fn();
+    } finally {
+        console.warn = orig;
+    }
+    return warns;
+}
+
 afterEach(() => {
     while (engines.length) engines.pop()?.destroy();
 });
@@ -207,11 +220,11 @@ describe("「请求关闭」触点与写回", () => {
         expect(engine.state.ui.loginVisible).toBe(false);
     });
 
-    test("closeOnMask: false（值对象内联）遮罩点击不关", async () => {
+    test("closeOnMask: false（选项成员属性）遮罩点击不关", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
                 <div x-define="keep"><span>x</span></div>
-                <button x-dialog:keep="{visible: 'ui.open', closeOnMask: false}"></button>
+                <button x-dialog:keep="ui.open" x-dialog-options.close-on-mask="false"></button>
             </div></div>`,
             { ui: { open: true } },
         );
@@ -232,15 +245,15 @@ describe("「请求关闭」触点与写回", () => {
     });
 });
 
-describe("props 注入（共识 7：非保留键全作 props）", () => {
-    test("值对象非保留键注入组件响应式状态域，覆盖 data 默认", async () => {
+describe("props 通道（ADR-0052 v2.3：选项成员属性）", () => {
+    test("对象字面量 props 注入组件响应式状态域，覆盖 data 默认", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
                 <div x-define="user">
                     <script setup>{ data: { userId: 0, extra: "默认" } }</script>
                     <span>{{userId}}-{{extra}}</span>
                 </div>
-                <button x-dialog:user="{visible: 'ui.open', userId: 42}"></button>
+                <button x-dialog:user="ui.open" x-dialog-options.props="{userId: 42}"></button>
             </div></div>`,
             { ui: { open: false } },
         );
@@ -250,32 +263,140 @@ describe("props 注入（共识 7：非保留键全作 props）", () => {
         expect(maskOf("user")!.textContent).toContain("42-默认");
     });
 
-    test("visible 驱动键不作 props；params 键已删除（作普通 props 注入）", async () => {
+    test("props 成员可引用状态路径（表达式求值）+ 打开后持续热更新", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
-                <div x-define="bag"><span>{{params}}</span></div>
-                <button x-dialog:bag="{visible: 'ui.open', params: '旧键即普通props'}"></button>
+                <div x-define="user"><span>{{userId}}</span></div>
+                <button x-dialog:user="ui.open" x-dialog-options.props="{userId: ui.uid}"></button>
             </div></div>`,
-            { ui: { open: false } },
+            { ui: { open: false, uid: 1 } },
         );
         engine.state.ui.open = true;
         await nextTick();
-        expect(maskOf("bag")!.textContent).toContain("旧键即普通props");
+        expect(maskOf("user")!.textContent).toContain("1");
+        // 持续热更新：打开期间状态变化 → Object.assign 进活跃实例数据域（组件内部状态不重置）
+        engine.state.ui.uid = 99;
+        await nextTick();
+        expect(maskOf("user")!.textContent).toContain("99");
+    });
+
+    test("整包内嵌 props（静态字面量子集）注入；成员属性形态整键覆盖它", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="s1"><span>{{userId}}</span></div>
+                <div x-define="s2"><span>{{userId}}</span></div>
+                <button x-dialog:s1="ui.open" x-dialog-options="{props: {userId: 7}, closeOnMask: false}"></button>
+                <button x-dialog:s2="ui.open2" x-dialog-options="{props: {userId: 7}}" x-dialog-options.props="{userId: 9}"></button>
+            </div></div>`,
+            { ui: { open: false, open2: false } },
+        );
+        engine.state.ui.open = true;
+        engine.state.ui.open2 = true;
+        await nextTick();
+        // 整包内嵌 props 生效（静态），且配置键（closeOnMask）照常走配置链不混入 props
+        expect(maskOf("s1")!.textContent).toContain("7");
+        // 成员属性（表达式）整键覆盖整包内嵌的同名键
+        expect(maskOf("s2")!.textContent).toContain("9");
+    });
+
+    test("props 纯状态路径展开（v-bind=obj 心智，深层响应）", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="user"><span>{{name}}/{{age}}</span></div>
+                <button x-dialog:user="ui.open" x-dialog-options.props="ui.payload"></button>
+            </div></div>`,
+            { ui: { open: false, payload: { name: "张三", age: 20 } } },
+        );
+        engine.state.ui.open = true;
+        await nextTick();
+        expect(maskOf("user")!.textContent).toContain("张三/20");
+        // 深层响应：子键变化热更新
+        engine.state.ui.payload.age = 30;
+        await nextTick();
+        expect(maskOf("user")!.textContent).toContain("张三/30");
+    });
+
+    test("props 为空值 warn 忽略；标量/数组 warn 忽略", async () => {
+        const warns = catchCompileWarns(() => {
+            mountOverlay(
+                `<div id="app"><div x-scope>
+                    <div x-define="u1"><span>x</span></div>
+                    <div x-define="u2"><span>x</span></div>
+                    <button x-dialog:u1="ui.open" x-dialog-options.props=""></button>
+                    <button x-dialog:u2="ui.open" x-dialog-options.props="ui.uid"></button>
+                </div></div>`,
+                { ui: { open: true, uid: 42 } },
+            );
+        });
+        await nextTick();
+        // 空值属性（编译期）与标量求值（watch 后）均 warn；指令本身仍正常打开（只是无 props）
+        expect(warns.some((w) => w.includes("props"))).toBe(true);
+        expect(maskOf("u1")).not.toBeNull();
+        expect(maskOf("u2")).not.toBeNull();
+    });
+
+    test("定向成员：同元素多 x-dialog 按组件名精确配对 props", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="a"><span>A:{{tag}}</span></div>
+                <div x-define="b"><span>B:{{tag}}</span></div>
+                <button x-dialog:a="ui.openA" x-dialog:b="ui.openB"
+                    x-dialog-options:a.props="{tag: '甲'}"
+                    x-dialog-options:b.props="{tag: '乙'}"></button>
+            </div></div>`,
+            { ui: { openA: false, openB: false } },
+        );
+        engine.state.ui.openA = true;
+        engine.state.ui.openB = true;
+        await nextTick();
+        expect(maskOf("a")!.textContent).toContain("A:甲");
+        expect(maskOf("b")!.textContent).toContain("B:乙");
+    });
+
+    test("值对象形态硬删：warn + 忽略整个指令（ADR-0052 v2.3）", async () => {
+        const warns = catchCompileWarns(() => {
+            mountOverlay(
+                `<div id="app"><div x-scope>
+                    <div x-define="old"><span>x</span></div>
+                    <button x-dialog:old="{visible: 'ui.open', userId: 42}"></button>
+                </div></div>`,
+                { ui: { open: true } },
+            );
+        });
+        await nextTick();
+        expect(warns.some((w) => w.includes("对象形态已删除"))).toBe(true);
+        expect(maskOf("old")).toBeNull(); // 恒不打开
+    });
+
+    test("props 键不被宿主 x-options 回退（ADR-0007 修订：props 不参与宿主回退）", async () => {
+        // 宿主 x-options 写 props：warn + 忽略——props 只认指令级通道
+        const warns = catchCompileWarns(() => {
+            mountOverlay(
+                `<div id="app"><div x-scope>
+                    <div x-define="p"><span>{{userId}}</span></div>
+                    <button x-dialog:p="ui.open" x-options="{props: {userId: 7}}"></button>
+                </div></div>`,
+                { ui: { open: true } },
+            );
+        });
+        await nextTick();
+        expect(warns.some((w) => w.includes("props"))).toBe(true);
+        expect(maskOf("p")!.textContent).not.toContain("7");
     });
 });
 
-describe("配置三级链（共识 6）", () => {
-    test("内置默认 < x-dialog-options < 值对象内联", async () => {
+describe("配置两级链（ADR-0052 v2.3：内置默认 < x-dialog-options）", () => {
+    test("成员属性整键覆盖整包内嵌同名项", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
                 <div x-define="mix"><span>x</span></div>
                 <div x-define="mix2"><span>x</span></div>
-                <button x-dialog:mix="{visible: 'ui.open', closeOnMask: true}" x-dialog-options="{closeOnMask: false}"></button>
+                <button x-dialog:mix="ui.open" x-dialog-options="{closeOnMask: false}" x-dialog-options.close-on-mask="true"></button>
                 <button x-dialog:mix2="ui.open2" x-dialog-options="{closeOnMask: false}"></button>
             </div></div>`,
             { ui: { open: false, open2: false } },
         );
-        // 值对象内联 closeOnMask: true 覆盖 x-dialog-options 的 false → 遮罩点击关闭
+        // 成员属性 closeOnMask: true 覆盖整包内嵌的 false → 遮罩点击关闭
         engine.state.ui.open = true;
         await nextTick();
         const mask1 = maskOf("mix")!;
@@ -283,13 +404,53 @@ describe("配置三级链（共识 6）", () => {
         await nextTick();
         expect(maskOf("mix")).toBeNull();
 
-        // 内联未写 → x-dialog-options 的 false 覆盖内置默认 true → 遮罩点击不关
+        // 成员未写 → 整包内嵌的 false 覆盖内置默认 true → 遮罩点击不关
         engine.state.ui.open2 = true;
         await nextTick();
         const mask2 = maskOf("mix2")!;
         mask2.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         await nextTick();
         expect(maskOf("mix2")).not.toBeNull();
+    });
+
+    test("定向整包按组件名配对（多 dialog 各自配置）", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="k1"><span>x</span></div>
+                <div x-define="k2"><span>x</span></div>
+                <button x-dialog:k1="ui.o1" x-dialog:k2="ui.o2"
+                    x-dialog-options:k2="{closeOnMask: false}"></button>
+            </div></div>`,
+            { ui: { o1: false, o2: false } },
+        );
+        engine.state.ui.o1 = true;
+        engine.state.ui.o2 = true;
+        await nextTick();
+        // k1 走内置默认（closeOnMask: true）→ 点击关闭
+        maskOf("k1")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await nextTick();
+        expect(maskOf("k1")).toBeNull();
+        // k2 定向整包 closeOnMask: false → 点击不关
+        maskOf("k2")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await nextTick();
+        expect(maskOf("k2")).not.toBeNull();
+    });
+
+    test("配置成员绑定响应式状态：消费时机（打开）现读求值值", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="dyn"><span>x</span></div>
+                <button x-dialog:dyn="ui.open" x-dialog-options.close-on-mask="ui.keepMask"></button>
+            </div></div>`,
+            { ui: { open: false, keepMask: false } },
+        );
+        // 打开前翻转状态：打开时现读 false → 遮罩点击不关（消费时机取最新值）
+        engine.state.ui.keepMask = false;
+        engine.state.ui.open = true;
+        await nextTick();
+        maskOf("dyn")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await nextTick();
+        expect(maskOf("dyn")).not.toBeNull();
     });
 
     test("x-dialog-options 独立生效（animate 走消费处选项）", async () => {
@@ -319,7 +480,7 @@ describe("命令式 API（engine.getOverlay，共识 10 镜像 getComponent）",
         <div x-define="confirm"><span>{{msg}}</span></div>
     </div></div>`;
 
-    test("el 起链查找 / 省略 el 仅查全局 / open / close / visible warn", async () => {
+    test("el 起链查找 / 省略 el 仅查全局 / open({props}) / close / 未知键零防御", async () => {
         const { root, engine } = mountOverlay(html, {}, {
             components: { global: "<div><span>全局覆盖物</span></div>" },
         });
@@ -327,7 +488,7 @@ describe("命令式 API（engine.getOverlay，共识 10 镜像 getComponent）",
         // el 起链查找命中局部 x-define 声明
         const handle = engine.getOverlay(host, "confirm", { animate: false })!;
         expect(handle).not.toBeUndefined();
-        const inst1 = handle.open({ msg: "确认删除？" });
+        const inst1 = handle.open({ props: { msg: "确认删除？" } });
         await nextTick();
         expect(maskOf("confirm")!.textContent).toContain("确认删除？");
         inst1.close();
@@ -341,24 +502,44 @@ describe("命令式 API（engine.getOverlay，共识 10 镜像 getComponent）",
         await nextTick();
         expect(maskOf("global")!.textContent).toContain("全局覆盖物");
 
-        // visible 键在命令式 warn 忽略
+        // 未知键零防御（v2.3）：visible 与旧隐式 props 写法静默沦入配置自由键——零告警、无 props 效果
         const warns: string[] = [];
         const orig = engine.logger.warn.bind(engine.logger);
         engine.logger.warn = (msg: string) => warns.push(msg);
+        let legacyInst: any;
         try {
-            handle.open({ visible: true });
+            legacyInst = handle.open({ visible: true, msg: "旧写法" });
+            await nextTick();
         } finally {
             engine.logger.warn = orig;
         }
-        expect(warns.some((w) => w.includes("visible"))).toBe(true);
+        expect(warns.length).toBe(0);
+        expect(legacyInst.visible).toBe(true); // 打开照常（visible 只是普通自由键）
+        expect(maskOf("confirm")!.textContent).not.toContain("旧写法"); // msg 未作 props
+        legacyInst.close();
+        await nextTick();
+    });
+
+    test("getOverlay options.props 句柄级默认：被 open({props}) 覆盖", async () => {
+        const { root, engine } = mountOverlay(html, {});
+        const host = root.querySelector("#host")!;
+        const handle = engine.getOverlay(host, "confirm", { animate: false, props: { msg: "默认" } })!;
+        handle.open();
+        await nextTick();
+        expect(maskOf("confirm")!.textContent).toContain("默认");
+        handle.close();
+        await nextTick();
+        handle.open({ props: { msg: "覆盖" } });
+        await nextTick();
+        expect(maskOf("confirm")!.textContent).toContain("覆盖");
     });
 
     test("OverlayHandle.close 关该覆盖物当前全部打开实例", async () => {
         const { root, engine } = mountOverlay(html, {});
         const host = root.querySelector("#host")!;
         const handle = engine.getOverlay(host, "confirm")!;
-        const a = handle.open({ msg: "a" });
-        const b = handle.open({ msg: "b" });
+        const a = handle.open({ props: { msg: "a" } });
+        const b = handle.open({ props: { msg: "b" } });
         await nextTick();
         expect(a).not.toBe(b); // 多实例并存
         handle.close();
@@ -378,7 +559,7 @@ describe("命令式 API（engine.getOverlay，共识 10 镜像 getComponent）",
         });
         document.body.addEventListener("overlay:open", ((e: CustomEvent) =>
             events.push(`dom:open:${e.detail.name}:inst=${!!e.detail.instance}`)) as EventListener);
-        const inst = handle.open({ msg: "x" });
+        const inst = handle.open({ props: { msg: "x" } });
         inst.el!.addEventListener("overlay:close", ((e: CustomEvent) =>
             events.push(`dom:close:${e.detail.name}`)) as EventListener);
         await nextTick();
@@ -471,30 +652,30 @@ describe("dataContext 数据视图基准（共识 8：declarer 默认 / host）"
         expect(maskOf("basis")!.textContent).toContain("消费处");
     });
 
-    test("旧键 scope 硬切后为普通 props：注入组件 data 域（无基准效果）", async () => {
+    test("旧键 scope 在 props 通道中即普通 prop：注入组件 data 域（无基准效果）", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
                 <div x-data="{ title: '声明处' }">
                     <div x-define="basis"><span>{{title}}/{{scope}}</span></div>
                     <div x-data="{ title: '消费处' }">
-                        <button x-dialog:basis="{visible: 'ui.open', scope: 'host'}"></button>
+                        <button x-dialog:basis="ui.open" x-dialog-options.props="{scope: 'host'}"></button>
                     </div>
                 </div>
             </div></div>`,
             { ui: { open: true } },
         );
         await nextTick();
-        // scope:'host' 不再生效（基准仍默认 declarer 读声明处），值脱离保留清单后作为 props 注入 data 域
+        // scope:'host' 只是普通 prop（基准仍默认 declarer 读声明处，v2.3 保留键清单已删除）
         expect(maskOf("basis")!.textContent).toContain("声明处/host");
     });
 });
 
 describe("delayClose 自动关闭", () => {
-    test("delayClose > 0：打开后延时自动请求关闭（走标准链，回写 visible）", async () => {
+    test("delayClose > 0（选项成员属性）：打开后延时自动请求关闭（走标准链，回写 visible）", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
                 <div x-define="notice"><span>通知</span></div>
-                <button x-dialog:notice="{visible: 'ui.open', delayClose: 50}"></button>
+                <button x-dialog:notice="ui.open" x-dialog-options.delay-close="50"></button>
             </div></div>`,
             { ui: { open: true } },
         );
@@ -510,7 +691,7 @@ describe("delayClose 自动关闭", () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
                 <div x-define="notice2"><span>x</span></div>
-                <button x-dialog:notice2="{visible: 'ui.open'}"></button>
+                <button x-dialog:notice2="ui.open"></button>
             </div></div>`,
             { ui: { open: true } },
         );
@@ -625,14 +806,15 @@ describe("at 锚定定位（ADR-0052 决策 21–24）", () => {
         );
     });
 
-    test("at 字符串简写进链前归一化：值对象换锚只覆盖 selector、继承 x-dialog-options 的 placement", async () => {
+    test("at 字符串简写进链前归一化：成员属性换锚只覆盖 selector、继承整包内嵌的 placement", async () => {
         const { root, engine } = mountOverlay(
             `<div id="app"><div x-scope>
                 <div x-define="tip"><span>x</span></div>
                 <div id="anchor-el">锚</div>
                 <button
-                    x-dialog:tip="{visible: 'ui.open', at: '/#anchor-el'}"
+                    x-dialog:tip="ui.open"
                     x-dialog-options="{at: {selector: '/#anchor-el', placement: 'top'}}"
+                    x-dialog-options.at="'/#anchor-el'"
                 ></button>
             </div></div>`,
             { ui: { open: false } },
@@ -643,7 +825,7 @@ describe("at 锚定定位（ADR-0052 决策 21–24）", () => {
         await nextTick();
         await nextTick(); // computePosition 的 promise 微任务
         // 若简写在合并后才归一化，字符串会整体覆盖对象、placement 丢失 → autoPlacement
-        // 自选方向而非固定 'top'。进链前归一化保证局部覆盖：placement: 'top' 保留。
+        // 自选方向而非固定 'top'。进链前逐层归一化保证局部覆盖：placement: 'top' 保留。
         const panel = maskOf("tip")!.querySelector(".autospark-dialog") as HTMLElement;
         expect(panel.getAttribute("data-overlay-placement")).toBe("top");
         expect(panel.style.position).toBe("fixed");

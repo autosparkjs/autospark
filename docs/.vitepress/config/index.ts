@@ -38,7 +38,16 @@ export default defineConfig({
             { text: "初始化", link: "/zh/guide/initial" },
             { text: "状态", link: "/zh/guide/state" },
             { text: "动作", link: "/zh/guide/action" },
-            { text: "指令", link: "/zh/guide/directive" },
+            {
+              text: "指令",
+              link: "/zh/guide/directive/",
+              collapsed: true,
+              items: [
+                { text: "关于", link: "/zh/guide/directive/" },
+                { text: "指令配置", link: "/zh/guide/directive/config" },
+                { text: "自定义指令", link: "/zh/guide/directive/custom" },
+              ],
+            },
             {
               text: "组件",
               link: "/zh/guide/component/",
@@ -64,7 +73,7 @@ export default defineConfig({
           ],
         },
         {
-          text: "指令",
+          text: "指令参考",
           collapsed: false,
           items: [
             { text: "x-bind", link: "/zh/guide/directives/x-bind" },

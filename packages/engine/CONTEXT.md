@@ -51,8 +51,16 @@ _Avoid_: 默认动作（泛化）、系统动作（易与 DOM/浏览器原生事
 _Avoid_: 修饰语、flag、参数（修饰符不带值）
 
 **指令选项（Directive Option）**:
-由 `x-{name}-options` 声明的**指令级**配置对象，是该指令的权威配置来源（修饰符在解析期并入其中）。值用宽松 JSON（relaxed-json）解析，须为普通对象。
+由 `x-{name}-options` 声明的**指令级**配置来源，是该指令的权威配置（修饰符在解析期并入其中）。整包形态值用宽松 JSON（relaxed-json）解析，须为普通对象；单个成员可拆散为「选项成员属性」（值为表达式）、可经「选项定向」配到特定参数实例。详见 ADR-0007 及其修订记录。
 _Avoid_: 参数对象、props
+
+**选项成员属性（Option Member Attribute）**:
+`x-<指令名>-options.<选项名>` 形态的独立属性，把单个指令选项**拆散声明**：值为**表达式**（与指令值同一 watch 管道，可绑定响应式状态；顶层字符串字面量须 `"'xxxx'"`），优先级高于整包内嵌同名项（整键覆盖）。camelCase 键以 **kebab-case** 书写（HTML 属性名被 DOM 小写化，`close-on-mask` 归一 `closeOnMask`）。配置成员在指令既有消费时机生效，不热应用（props 是唯一热应用成员）。与「运行时选项覆盖」（ADR-0051 的 `data-*` 覆盖属性）正交：这是编译期声明面，那是运行时变更面。详见 ADR-0007 修订记录。
+_Avoid_: 局部选项（泛化）、单键配置、成员修饰符（它是属性不是 modifier）、camelCase 属性名书写（DOM 小写化约束，须 kebab-case）
+
+**选项定向（Option Targeting）**:
+`x-<指令名>-options:<属性参数>` 前缀：把 options 声明（整包或成员）**定向到同元素同名主指令的特定参数实例**（如 `x-dialog-options:user.props` 定向 attr=user 的 x-dialog）——多同名指令同元素的精确配对通道。消歧：冒号后首段匹配主指令 attr 即定向、否则视为成员；定向找不到主指令静默丢弃。
+_Avoid_: 参数化选项、命名选项（泛化）
 
 **宿主选项（Host Option）**:
 由 `x-options` 声明的**元素级**共享配置对象，挂在宿主元素的 scope 上，供同元素所有指令回退读取。它**不是数据**，不进入表达式数据视图，仅作指令配置。
@@ -287,15 +295,15 @@ _Avoid_: 覆盖层（旧称，随声明指令一起废弃）、弹层模板（�
 _Avoid_: overlay 对象、弹层实例（泛化）、对话框实例（那是 x-dialog 消费者视角的产物）、单例（机制未引入）
 
 **覆盖物消费者（Overlay Consumer）**:
-把覆盖物组件实例化并驱动其生命周期的指令族（x-dialog / x-drawer / x-popup / x-popover，v1 仅 x-dialog）：同一 `OverlayDirective` 基座（继承组件实例化基座 `ComponentDirective`，ADR-0054 更名）上的**薄子类**，只叠加形态差异（外壳 / 定位 / 关闭行为）。**纯状态驱动**——宿主是纯声明点（无隐式点击），visible 绑定（简单路径可回写 / 表达式 / 字面量 / 对象形态）真值即开；值对象与命令式 options 的**非保留键全部作 props** 注入组件 data 域（保留键封闭清单 = `visible` + `closeOnMask` / `animate` / `at` / `dataContext`）。配置三级深度合并：`内置默认 < x-dialog-options < 值对象内联`（组件 def 不携带配置）。
-_Avoid_: 触发器（宿主无隐式点击）、弹出指令（泛化）、调用方（action 语境词汇）
+把覆盖物组件实例化并驱动其生命周期的指令族（x-dialog / x-drawer / x-popup / x-popover，v1 仅 x-dialog）：同一 `OverlayDirective` 基座（继承组件实例化基座 `ComponentDirective`，ADR-0054 更名）上的**薄子类**，只叠加形态差异（外壳 / 定位 / 关闭行为）。**纯状态驱动**——宿主是纯声明点（无隐式点击），值**专职 visible 布尔控制**（简单路径可回写 / 表达式 / 字面量，对象形态已废弃，ADR-0052 v2.3），真值即开；props 经「选项成员属性」`x-dialog-options.props` 注入组件 data 域（表达式求值 + 持续热更新，与 x-component props 同构）。配置两级合并：`内置默认 < x-dialog-options`（可定向到特定组件名实例；组件 def 不携带配置）。
+_Avoid_: 触发器（宿主无隐式点击）、弹出指令（泛化）、调用方（action 语境词汇）、保留键封闭清单（非保留键隐式作 props 的分流已删除，ADR-0052 v2.3）
 
 **请求关闭（Request Close）**:
 覆盖物关闭动作（ESC / 点遮罩 / close action）的统一语义——关闭是「请求」不是命令：visible 可回写（简单路径）则回写 `false`（状态是唯一真相源）；不可回写（表达式/字面量）仅 UI 关闭 + `overlay:close` 广播由用户善后。已知边界：表达式形态关闭后依赖变化重求值仍真会**重开**。子树内 close action 由消费者在实例根上委托监听（覆盖物 DOM 在 body 下，engine 树收不到冒泡）。
 _Avoid_: 强制关闭（它是请求语义）、自动回写（仅简单路径可回写）、关闭回调（事件广播解耦，非配置函数）
 
 **覆盖物定义句柄（Overlay Handle）**:
-`engine.getOverlay(el, name, options?)` 返回的**定义编程视图**（命令式消费入口）：`open(options?)` 打开、`close()` 关闭该覆盖物当前全部打开实例。查找镜像 `getComponent` 协议（`el` 起 scope 链就近 + 全局兜底；省略 `el` 仅查全局）；options 是消费者配置级（与 x-dialog-options 同级）。
+`engine.getOverlay(el, name, options?)` 返回的**定义编程视图**（命令式消费入口）：`open(options?)` 打开、`close()` 关闭该覆盖物当前全部打开实例。查找镜像 `getComponent` 协议（`el` 起 scope 链就近 + 全局兜底；省略 `el` 仅查全局）；options 是消费者配置级（与 x-dialog-options 同级），其 `props` 键为**句柄级默认 props**（被 `open({props})` 覆盖）。命令式 props 为**打开时快照**（无热更新，ADR-0052 v2.3）。
 _Avoid_: overlay 对象（泛化）、定义引用（「句柄」对齐 handle 惯例）、组件句柄（与 x-component 撞义）
 
 **覆盖物实例句柄（Overlay Instance Handle）**:
@@ -515,7 +523,7 @@ x-define 收集时 `cloneNode(true)` 产出的、独立于 template 事实源的
 _Avoid_: 组件克隆（强调的是冻结独立事实，非单纯克隆操作）
 
 **插槽 / x-slot（Slot）**:
-组件模板的声明式内容投影机制（ADR-0056）：`x-define` 在组件模板内声明**出口**（Outlet），`x-component` 在调用方宿主子级提供**内容**（Content），实例化时内容按名投影进对应出口；无内容则渲染出口内的 fallback。出口清单编译期从模板自动推断（`ComponentDef.slots`），命名靠属性参数（`x-slot:header`），裸 `x-slot`=默认出口/默认内容。内容在**调用方作用域链**求值（不受 ADR-0053 组件封闭边界约束），fallback 在**组件作用域**求值。x-dialog/x-overlay 覆盖物自动继承。
+组件模板的声明式内容投影机制（ADR-0056）：`x-define` 在组件模板内声明**出口**（Outlet），`x-component` 在调用方宿主子级提供**内容**（Content），实例化时内容按名投影进对应出口；无内容则渲染出口内的 fallback。出口清单编译期从模板自动推断（`ComponentDef.slots`），命名靠属性参数（`x-slot:header`），裸 `x-slot`=默认出口/默认内容。内容在**调用方作用域链**求值（不受 ADR-0053 组件封闭边界约束），fallback 在**组件作用域**求值。覆盖物消费者家族（x-dialog 等）自动继承。
 _Avoid_: 槽（单字生歧义）、Vue slot 撞名不加说明（本引擎指令为 x-slot）、内容插槽/模板插槽（泛化——就叫插槽）
 
 **插槽出口（Outlet）**:
@@ -657,8 +665,12 @@ _Avoid_: visible（x-loading 配置对象内改用 value；x-show 等指令的 v
 _Avoid_: 覆盖层（旧称）、loading 层、浮层
 
 **x-overlay 声明语法家族（ADR-0052 修订版废弃）**:
-已废弃，升级为「覆盖物 = 任意组件的消费方式」（ADR-0052 组件化统一修订）：`x-overlay:<名称>` 声明语法、`.global` 修饰符、`x-overlay-options` 声明处选项、`engine._globalOverlays` 全局表、`type` 类型认领字段、`params` 消费键、`scope: 'consumer'` 基准值一并删除。新写法：内容直接声明组件（`x-component` / `options.components` / `x-import`），配置只走消费处（`x-dialog-options` / 值对象内联，非保留键作 props），命令式 `engine.getOverlay(el, name, options?)` 镜像 `getComponent` 协议。
+已废弃，升级为「覆盖物 = 任意组件的消费方式」（ADR-0052 组件化统一修订）：`x-overlay:<名称>` 声明语法、`.global` 修饰符、`x-overlay-options` 声明处选项、`engine._globalOverlays` 全局表、`type` 类型认领字段、`params` 消费键、`scope: 'consumer'` 基准值一并删除。新写法：内容直接声明组件（`x-component` / `options.components` / `x-import`），配置只走消费处（`x-dialog-options`，props 走选项成员属性——ADR-0052 v2.3），命令式 `engine.getOverlay(el, name, options?)` 镜像 `getComponent` 协议。
 _Avoid_: x-overlay、.global（覆盖物）、x-overlay-options、type 认领值、params 键、scope: 'consumer'
+
+**x-dialog 值对象形态（visible 混排 props / 配置，ADR-0052 v2.3 废弃）**:
+已废弃，重构为三者正交：值专职 visible（简单路径 / 表达式 / 字面量）、props 走「选项成员属性」`x-dialog-options.props`、配置走 `x-dialog-options`（可定向）。旧写法 `x-dialog:user="{visible: 'ui.flag', userId: 42}"` 值遇 `{` warn + 忽略整个指令；命令式旧隐式写法 `open({userId: 42})`（非保留键自动作 props）**静默失效**（沦入配置自由键，零告警），改用 `open({props: {userId: 42}})`。保留键封闭清单（`visible` + 6 配置键）与 `splitReservedKeys` 隐式分流一并删除。
+_Avoid_: x-dialog:<名>="{...}"、params 键、保留键封闭清单、非保留键作 props
 
 **x-use / x-use-options（组件实例化旧名）**:
 已废弃，升级为 **x-component:名称 / x-component-options**（ADR-0054 更名）。旧写法 `x-use="counter"`（字面量名）改写 `x-component:counter`；`x-use="{name:'counter',count:1}"`（对象内 name/is/component 字段识别组件名）改写 `x-component:counter="{count:1}"`——特殊字段识别已废除，`name` 等键回归普通 prop 名。x-use 彻底移除：注册表不注册、静默失效，无运行时诊断。

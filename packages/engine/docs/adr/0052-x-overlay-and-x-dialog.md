@@ -1,6 +1,6 @@
 # ADR-0052：覆盖物体系（x-overlay → 组件消费统一）与 x-dialog 模态消费者
 
-- **状态**：Accepted（v1 实施后于 2026-09-23 **修订**——组件化统一，共识 v2 十四条落盘并实施；同日 **v2.1 修订**：定位键 `anchor` 更名 `at`、成员 `at` 更名 `selector`、支持字符串/元素简写；2026-09-24 **v2.2 修订**：数据基准键 `scope` 更名 `dataContext`（两栖），见 ADR-0053 修订节九与文末修订记录。现行语义以本文为准，变化见文末[修订记录](#修订记录v22026-09-23组件化统一)）
+- **状态**：Accepted（v1 实施后于 2026-09-23 **修订**——组件化统一，共识 v2 十四条落盘并实施；同日 **v2.1 修订**：定位键 `anchor` 更名 `at`、成员 `at` 更名 `selector`、支持字符串/元素简写；2026-09-24 **v2.2 修订**：数据基准键 `scope` 更名 `dataContext`（两栖），见 ADR-0053 修订节九与文末修订记录；2026-09-25 **v2.3 修订**：值对象形态硬删、props 走选项成员属性（ADR-0007 修订）、命令式 props 显式化。现行语义以本文为准，变化见文末[修订记录](#修订记录v22026-09-23组件化统一)）
 - **日期**：2026-09-22（v1） / 2026-09-23（v2 修订）
 - **关联**：[CONTEXT.md](../../CONTEXT.md)（「覆盖物」章节词条）、[ADR-0001](0001-directive-kind-system.md)（指令类别）、[ADR-0002](0002-dynamic-patch.md)（patch 冲突防护）、[ADR-0007](0007-directive-options-and-modifiers.md)（指令配置体系）、[ADR-0022](0022-x-component.md)（x-component——覆盖物内容即组件，查找/实例化的同构来源）、[ADR-0032](0032-data-script.md)（deepMerge 语义复用）、[ADR-0036](0036-action-descriptor-metadata.md)（内置 close 动作——信号对接）、[ADR-0039](0039-animate-mechanism.md)（animate——进出场复用）、[ADR-0053](0053-component-data-boundary.md)（组件数据边界——覆盖物 scope 基准统一为其家族语义）
 
@@ -251,3 +251,24 @@ v1 实施后经 grilling 复审收敛为组件化统一模型（共识 v2 十四
 | 2 | 命令式 `open({scope: someEl})`（元素，决策 16） | 更名 `open({dataContext: someEl})`；新增基准名形态（`'host'` 挂 getOverlay 锚点 scope），缺省仍 rootless |
 | 3 | 事件 payload `{ name, instance, scope }`（决策 9 v2 收窄） | `detail.scope` 更名 **`detail.dataContext`**（命令式传元素时为基准元素） |
 | 4 | 旧键 `scope` 兜底 + warn（v2 首次更名的过渡层）、旧值 `'consumer'` 映射 | **一并删除（硬切）**——`OVERLAY_RESERVED_KEYS` 移除 `"scope"`，旧键沦为普通 props 注入组件 data 域（与 at 键 v2.1 硬删先例一致） |
+
+## 修订记录（v2.3，2026-09-25：props 通道重构与值形态减法）
+
+x-dialog / overlay 的 props 传递机制重构（grilling 共识）。动机：v2 的对象形态把 **visible 控制**与 **props / 配置**混写在同一个值里（`x-dialog:user="{visible: 'ui.open', userId: 42, closeOnMask: false}"`），混乱且割裂；且其 props 是 created 一次解析的**静态 JSON 快照**，无响应式。v2.3 重构为三者正交分离：**值专职 visible、props 走选项成员属性、配置走 x-dialog-options**。通用语法层（选项定向与成员属性四形态、统一表达式、优先级链）记录于 [ADR-0007 修订记录](0007-directive-options-and-modifiers.md)，本节只记覆盖物侧应用面：
+
+| # | v2.2 决策 | v2.3 现行语义 |
+|---|---|---|
+| 1 | 值四形态（决策 6）：简单路径 / 表达式 / 字面量 / **对象形态** | **对象形态硬删**：值遇 `{` 开头 → warn「对象形态已删除」+ 忽略整个指令（无兼容层，对齐 at / scope 键硬切先例）。值专职 **visible 布尔控制**，其余三形态与空值 warn（恒不开）全部维持 |
+| 2 | props = 值对象非保留键（`splitReservedKeys` 封闭清单分流，静态快照） | **props 唯一声明式通道 = 选项成员属性**：`x-dialog-options.props="{userId: user.id}"`（多 dialog 同元素用定向 `x-dialog-options:user.props`）。值为**表达式**，三形态与 x-component 值同构：无属性 = 无 props / 对象字面量（成员任意表达式）/ 纯状态路径按需展开；属性存在但空值 warn。**持续热更新**：watch → `Object.assign` 进活跃实例 data 域（复用 x-component `_updateProps` 管道，组件内部状态不重置）；整包内嵌的 props 保持 relaxed-json 静态子集，被成员形态整键覆盖 |
+| 3 | 配置三级链（决策 4）：`内置默认 < x-dialog-options < 值对象内联保留键` | **两级链**：`内置默认 < x-dialog-options`（定向形态按组件名精确配对，ADR-0007 修订）。值对象内联层随对象形态消失（无损失——原也是 created 静态解析） |
+| 4 | `visible` 驱动保留键（声明式必填）；命令式 warn 忽略 | **彻底删除、零防御**：配置层 / 命令式出现 `visible` 键不考虑、不告警——静默沦入 `OverlayConfig` 自由键（`[key: string]: any` 开放承诺不变） |
+| 5 | 命令式 `open(options)` 非保留键隐式作 props（保留键封闭清单） | **显式 props 键**：`open({props: {...}, ...配置键})`；`getOverlay(el, name, options)` 的 options 层同认 `props` 键（句柄级默认 props，被 `open` 的 props 覆盖）。未知键（含旧隐式写法 `open({userId: 42})`）静默沦入自由键、零告警——删干净不设防，排错靠自觉。`OVERLAY_RESERVED_KEYS` / `splitReservedKeys` 隐式分流逻辑**删除** |
+| 6 | —— | 命令式 props = **打开时快照**（JS 对象无表达式载体，无 watch 语义）；不加 `setProps` API（YAGNI——声明式热更新管道未来可低成本包装），文档明示快照语义 |
+| 7 | `x-dialog` 同名单例去重（继承 ComponentDirective，按指令名） | **`singleton = false`**（对齐 OnDirective 先例）：宿主是纯声明点，同元素多 `x-dialog`（不同 attr）各自独立驱动——决策 8「宿主非触发器」的隐含要求，也是选项定向配对（ADR-0007 修订 `x-dialog-options:user.props`）的前提；同名**同 attr** 重复声明不去重（用户错误） |
+
+**被否决的方案（本次修订）**：
+
+- **`x-dialog:<名>:props` 冒号子参数**（attr 二段冒号）：为全指令共享的 attr 解析层引入新语法维度；被选项成员属性覆盖（ADR-0007 修订被否决清单，从未实施、零废弃成本）。
+- **双通道等价**（`x-dialog-options.props` 整包 + `:props` 子参数快捷写法）：relaxed-json 的结构性限制（裸标识符转字符串、运算符成员炸 JSON）使整包内嵌永远无法承载完整表达式——两通道不可能等价，「快捷方式」前提不成立。
+- **`x-props` 元素级属性**：响应式 watch 载体悬空（x-options 模式只适静态配置），升格为真指令则概念数更多。
+- **`open({userId})` 未知键 warn**：与「删干净不设防」的硬切立场矛盾（用户明确选择零告警，接受排错靠自觉的代价）。

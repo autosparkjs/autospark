@@ -239,4 +239,4 @@ feedback 捕获动作返回的 Promise 精确反馈，连点时用 generation �
 
 ---
 
-动作系统讲完。接下来[指令](./directive.md)的[指令类型](./directive.md#指令类型)与[指令配置](./directive.md#指令配置)，或直接进入[指令](./directives/x-bind.md)。
+动作系统讲完。接下来[指令](./directive/)的[指令类型](./directive/#指令类型)与[指令配置](./directive/config.md)，或直接进入[单指令参考](./directives/x-bind.md)。

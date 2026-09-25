@@ -331,7 +331,7 @@ engine.data(document.getElementById("block"), { times: 10 });
 优先级：`mount`（非空串）> `global` > 默认私有域。
 
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive.md#指令配置)。
+指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive/config.md)。
 :::
 
 ## 注意事项

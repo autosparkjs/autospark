@@ -4,6 +4,13 @@ export type AutoDirectiveInfo = {
     attr?: string;
     modifiers?: string[];
     options?: Record<string, any>;
+    /**
+     * 选项成员属性（ADR-0007 修订：选项定向与成员属性）：成员名 → 表达式文本。
+     * 由 `x-{name}-options.<成员>` / `x-{name}-options:<参数>.<成员>` 声明，值是**表达式**
+     * （经 binding.watch 求值，可绑定响应式状态），优先级高于 options 内同名键（整键覆盖）。
+     * 消费方经基类 `_watchOptionExprs` 统一建订阅、`getOption` 读取收敛终值。
+     */
+    optionExprs?: Record<string, string>;
 };
 
 /**

@@ -2,10 +2,8 @@ import { setVal } from "autostore";
 import type { AutoSpark } from "../../engine";
 import type { AutoSparkScope } from "../../scope";
 import { isSimpleStatePath } from "../../scope";
-import { relaxedToJson } from "../../utils/relaxedToJson";
 import { MASK_CLASS, PANEL_CLASS } from "../../overlay/container";
 import type { OverlayInstance } from "../../overlay/instance";
-import { splitReservedKeys } from "../../overlay/types";
 import { OverlayDirective } from "./overlay";
 
 /**
@@ -16,15 +14,15 @@ import { OverlayDirective } from "./overlay";
  * `x-drawer` / `x-popup` / `x-popover` 为未来同构薄子类（fast-follow）。
  *
  * **纯状态驱动**（决策 8）：宿主是纯声明点（无隐式点击），visible 绑定真值即开。
- * 值四形态：
+ * 值**专职 visible 布尔控制**（ADR-0052 v2.3——对象形态已硬删，值遇 `{` warn + 忽略整个指令）：
  * - 简单路径 `x-dialog:login="ui.flag"`——watch，可写回（请求关闭回写 false）；
  * - 表达式 `x-dialog:pay="ui.step === 2"`——watch 只读；UI 关闭后依赖变化重求值仍真会重开
  *   （文档明示的已知边界，ADR-0052 决策 7）；
  * - 字面量 `x-dialog:login="true"`——挂载即开（公告类）；"false" 永不开；
- * - 对象形态 `x-dialog:login="{visible: 'ui.flag', closeOnMask: false, title: 'x'}"`
- *   ——relaxed-json；`visible` 为驱动保留键，`closeOnMask`/`animate`/`at`/`scope` 为
- *   配置保留键（合并链最顶层，共识 6），**其余键全部作 props** 注入组件 data 域（共识 7，
- *   `params` 键已删除）。
+ * - 空值——warn「缺少 visible 绑定」恒不开（ADR-0052 决策 6）。
+ *
+ * props 与配置不在值上（v2.3 三者正交）：props 走选项成员属性 `x-dialog-options.props`
+ * （表达式 + 持续热更新，见基座）；配置走 `x-dialog-options`（两级合并链，可定向）。
  *
  * 请求关闭写回（决策 7）：visible 为简单路径时，关闭触点（ESC/遮罩/close action）经落点解析
  * 回写 `false`（locals → x-data 响应式域 → 全局 state 依次落点）。
@@ -144,36 +142,39 @@ export class DialogDirective extends OverlayDirective {
     private _visiblePath: string | null = null;
     /** visible 驱动表达式（非字面量形态） */
     private _visibleExpr: string | null = null;
-    /** 值对象解析出的静态 props（非保留键，共识 7；每次打开注入） */
-    private _props: Record<string, any> | undefined;
 
     override created(): void {
+        // 基座：选项表达式统一管道 + props 通道（ADR-0007 修订 / ADR-0052 v2.3）
+        super.created();
         const raw = String(this.value ?? "").trim();
+        // 对象形态已硬删（ADR-0052 v2.3）：值专职 visible——visible 写指令值、props 写
+        // x-dialog-options.props、配置写 x-dialog-options。warn + 忽略整个指令（失效可发现）。
         if (raw.startsWith("{")) {
-            if (!this._parseObject(raw)) return;
-        } else {
-            this._visibleExpr = raw;
+            this.warn(
+                `x-dialog:${this.attr}: 对象形态已删除（ADR-0052 v2.3）——visible 写指令值、props 写 x-dialog-options.props、配置写 x-dialog-options，指令被忽略`,
+            );
+            return;
         }
+        this._visibleExpr = raw;
         // 字面量分流（对齐 x-loading resolveLiteral：裸属性恒开语义不适用——dialog 无 visible 即非法）
         const literal = this._resolveLiteral(this._visibleExpr);
         if (literal !== null) {
             if (this._visibleExpr === "") {
                 this.warn(
-                    `x-dialog:${this.attr}: 缺少 visible 绑定，恒不打开。请声明状态路径、表达式或对象形态（ADR-0052 决策 6）`,
+                    `x-dialog:${this.attr}: 缺少 visible 绑定，恒不打开。请声明状态路径或表达式（ADR-0052 决策 6）`,
                 );
                 return;
             }
             if (literal) {
                 this._driveOn = true;
-                this._open(this._props);
+                this._open();
             }
             return;
         }
         // 反应式：可见性驱动（相对消费处 scope 求值，ADR-0052 决策 6）
-        this._visiblePath =
-            this._visibleExpr != null && isSimpleStatePath(this._visibleExpr)
-                ? this._visibleExpr
-                : null;
+        this._visiblePath = isSimpleStatePath(this._visibleExpr)
+            ? this._visibleExpr
+            : null;
         const initial = this.binding.watch(this._visibleExpr!, ({ value }) =>
             this._toggle(!!value),
         );
@@ -202,51 +203,10 @@ export class DialogDirective extends OverlayDirective {
     private _toggle(on: boolean): void {
         this._driveOn = on;
         if (on) {
-            this._open(this._props);
+            this._open();
         } else {
             this._close();
         }
-    }
-
-    /**
-     * 对象形态解析（共识 6/7）：`visible` 驱动保留键（字符串状态路径，相对消费处 scope）；
-     * `closeOnMask`/`animate`/`at`/`scope` 配置保留键 → `_inlineConfig`（合并链最顶层）；
-     * **其余键全部作 props**（静态注入，每次打开传入）。解析失败返回 false（指令被忽略）。
-     */
-    private _parseObject(raw: string): boolean {
-        let obj: Record<string, any>;
-        try {
-            const parsed: unknown = JSON.parse(relaxedToJson(raw));
-            if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-                this.warn(`x-dialog:${this.attr}: 对象形态须解析为对象，指令被忽略`);
-                return false;
-            }
-            obj = parsed as Record<string, any>;
-        } catch (e: any) {
-            this.warn(`x-dialog:${this.attr}: 对象形态解析失败: ${e?.message ?? e}`);
-            return false;
-        }
-        // visible：驱动保留键，须为字符串状态路径（相对消费处 scope）
-        if (typeof obj.visible === "string" && obj.visible.trim() !== "") {
-            this._visibleExpr = obj.visible.trim();
-            this._visiblePath = isSimpleStatePath(this._visibleExpr) ? this._visibleExpr : null;
-            if (this._visiblePath === null) {
-                this.warn(
-                    `x-dialog:${this.attr}: 对象形态的 visible 须为简单状态路径字符串（如 "ui.flag"）——非路径表达式不可回写，仅按表达式只读驱动`,
-                );
-            }
-        } else {
-            this.warn(
-                `x-dialog:${this.attr}: 对象形态缺少 visible（字符串状态路径），指令被忽略`,
-            );
-            return false;
-        }
-        // 保留配置键 → 合并链顶层；其余键 → props（封闭清单分流，共识 7）
-        const { visible: _v, ...rest } = obj;
-        const { config, props } = splitReservedKeys(rest);
-        this._inlineConfig = config;
-        this._props = props;
-        return true;
     }
 
     /** 字面量判定：`true`/`false`（大小写不敏感）为静态布尔，其余 null 走反应式 */

@@ -10,19 +10,20 @@
         </style>
     </head>
     <body>
-        <!-- 配置链（组件 def 不携带配置，全部走消费处）：内置默认 < x-dialog-options < 值对象内联，相邻层深度合并 -->
+        <!-- 配置链（组件 def 不携带配置，全部走消费处）：内置默认 < x-dialog-options（整包 / 成员属性），相邻层深度合并 -->
         <div class="demo-app section">
             <div x-data="{ ui: { open: false } }">
                 <div class="block">
                     <button class="button is-primary"
-                            x-dialog:cfg="{visible: 'ui.open', closeOnMask: true}"
+                            x-dialog:cfg="ui.open"
+                            x-dialog-options.close-on-mask="true"
                             x-dialog-options="{animate: false}"
                             @click="ui.open = true">打开</button>
                 </div>
                 <div class="block has-text-grey">
                     消费处指令选项 <code>x-dialog-options="{animate: false}"</code> 覆盖内置默认（无动画）；
-                    值对象内联 <code>closeOnMask: true</code>（本就等于默认，演示内联层）——最终生效：
-                    切换<b>无动画</b>（指令选项层）、遮罩<b>可点关</b>（内联层）。只写想改的键，其余原样保留。
+                    成员属性 <code>x-dialog-options.close-on-mask="true"</code>（整键覆盖整包同名键）——最终生效：
+                    切换<b>无动画</b>（整包层）、遮罩<b>可点关</b>（成员属性层）。只写想改的键，其余原样保留。
                 </div>
 
                 <div x-define="cfg">

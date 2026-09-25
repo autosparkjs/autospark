@@ -109,7 +109,7 @@
 | `.transition` | 未启用 | ✅     | 注入 CSS `transition` 让样式变化自动过渡。`.transition`（无值）注入默认 `all 0.3s ease-in`；`x-bind-options` 传字符串覆盖、`false` 关闭。仅 `attr === 'style'` 生效。详见[过渡动画 `.transition`](#过渡动画-transition) 与 ADR-0015 |
 
 ::: info 关于指令配置体系
-指令选项 `x-{name}-options`、修饰符、宿主选项 `x-options`、两层回退的通用机制见[指令配置](../directive.md#指令配置)。注意 `x-style` 归一化为 `bind`，故 `x-style-options` 静默丢弃、不生效；覆盖 `transition` 须用 `x-bind-options`（详见 ADR-0015）。
+指令选项 `x-{name}-options`、修饰符、宿主选项 `x-options`、两层回退的通用机制见[指令配置](../directive/config.md)。注意 `x-style` 归一化为 `bind`，故 `x-style-options` 静默丢弃、不生效；覆盖 `transition` 须用 `x-bind-options`（详见 ADR-0015）。
 :::
 
 ## 注意事项

@@ -40,14 +40,16 @@ export interface OverlayAnchorConfig {
 }
 
 /**
- * 覆盖物生效配置：三级深度合并后的形态（ADR-0052 修订共识 6）：
+ * 覆盖物生效配置：两级深度合并后的形态（ADR-0052 v2.3——值对象内联层随对象形态删除）：
  *
  * ```
- * 内置默认（基座） < x-dialog-options（消费处指令选项） < 值对象内联（保留配置键）
+ * 内置默认（基座） < x-dialog-options（消费处指令选项，可按组件名定向，ADR-0007 修订）
  * ```
  *
- * 旧「声明处 x-overlay-options」层随声明指令消失（组件 def 不携带 options，无承载物）；
- * 命令式少值对象一级：`内置默认 < getOverlay options < open options`。
+ * 声明式 props 不走本配置（数据，经选项成员属性 `x-dialog-options.props` 的表达式管道注入，
+ * 见 OverlayDirective）；命令式 `内置默认 < getOverlay options < open options`，`props` 键
+ * 在两处均被剥离为 props 通道、不进合并链（v2.3 显式化，旧「非保留键隐式作 props」的
+ * 封闭清单分流已删除）。
  */
 export interface OverlayConfig {
     /**
@@ -96,22 +98,6 @@ export const OVERLAY_DEFAULTS: OverlayConfig = {
 };
 
 /**
- * 消费者保留键封闭清单（ADR-0052 修订共识 7）：声明式值对象 / 命令式 options 中命中本清单
- * 的键**不作 props**——`visible` 是驱动键（命令式中无意义，warn 忽略），其余进配置合并链；
- * 清单之外的键**全部作 props** 注入组件 data 域（x-component 约定，覆盖 data() 默认）。撞保留键的
- * 风险由本封闭清单文档化（组件 props 避免使用这些名字）。
- */
-export const OVERLAY_RESERVED_KEYS: ReadonlySet<string> = new Set([
-    "visible",
-    "border",
-    "closeOnMask",
-    "animate",
-    "at",
-    "dataContext",
-    "delayClose",
-]);
-
-/**
  * `at` 键三态归一（Q2/Q3 共识）：字符串 / 元素简写归一为 `{ selector }`，对象原样返回；
  * null/undefined 返回 null。调用方（resolveOverlayConfig 合并链 / OverlayInstance._show）
  * 统一经此获得纯 `OverlayAnchorConfig` 形态。
@@ -122,34 +108,6 @@ export function normalizeAtConfig(
     if (value == null) return null;
     if (typeof value === "string" || value instanceof HTMLElement) return { selector: value };
     return value;
-}
-
-/**
- * 从消费处值对象/命令式 options 中分流保留键与 props（修订共识 7）。
- *
- * @returns `config` 为命中保留清单的配置键子集（进合并链顶层）；`props` 为其余键（注入组件 data 域）
- */
-export function splitReservedKeys(
-    input: Record<string, any> | null | undefined,
-): { config: Record<string, any> | null; props: Record<string, any> | undefined } {
-    if (!input || typeof input !== "object") return { config: null, props: undefined };
-    const config: Record<string, any> = {};
-    const props: Record<string, any> = {};
-    let hasConfig = false;
-    let hasProps = false;
-    for (const key of Object.keys(input)) {
-        if (OVERLAY_RESERVED_KEYS.has(key)) {
-            config[key] = input[key];
-            hasConfig = true;
-        } else {
-            props[key] = input[key];
-            hasProps = true;
-        }
-    }
-    return {
-        config: hasConfig ? config : null,
-        props: hasProps ? props : undefined,
-    };
 }
 
 /** 事件双通道 payload（修订共识 9 收窄：type 删除）：覆盖物打开/关闭广播 */

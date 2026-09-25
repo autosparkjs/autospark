@@ -321,7 +321,7 @@ x-form 恒拦截原生提交（`preventDefault`——`action` 属性留给无 JS
 
 ## 配置
 
-两套指令选项：表单级 `x-form-options`、字段级 `x-field-options`（宽松 JSON 对象；读取走「指令选项 → 宿主选项 `x-options`」两层回退、缺失才回退，见[指令配置](../directive.md#指令配置)）。
+两套指令选项：表单级 `x-form-options`、字段级 `x-field-options`（宽松 JSON 对象；读取走「指令选项 → 宿主选项 `x-options`」两层回退、缺失才回退，见[指令配置](../directive/config.md)）。
 
 ```html
 <!-- 表单级：validateOnSubmit（默认 true）/ onInvalid（表单级校验默认，字段 schema 覆盖之） -->

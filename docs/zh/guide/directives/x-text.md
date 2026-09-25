@@ -177,7 +177,7 @@ engine.state.user.nickname = "老张"; // → <span>老张</span>
 | `.hide`       | 未启用 | ✅     | 值为空时隐藏宿主元素（`display:none`，恢复时还原原内联 display）；与 `empty` 并存时优先 |
 
 ::: info 关于指令配置体系
-指令选项 `x-{name}-options`、修饰符、宿主选项 `x-options`、两层回退的通用机制见[指令配置](../directive.md#指令配置)。`empty` / `emptyValues` / `.hide` 同样适用于 [x-html](./x-html.md)（x-html 的 `empty` 占位串会过消毒）。
+指令选项 `x-{name}-options`、修饰符、宿主选项 `x-options`、两层回退的通用机制见[指令配置](../directive/config.md)。`empty` / `emptyValues` / `.hide` 同样适用于 [x-html](./x-html.md)（x-html 的 `empty` 占位串会过消毒）。
 :::
 
 ## 注意事项

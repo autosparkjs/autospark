@@ -85,24 +85,74 @@
 <div x-dialog:notice="true"></div>
 ```
 
-#### 对象形态与 props
+#### 空值
 
-值是对象字面量（宽松 JSON）时，`visible` 是驱动保留键、`closeOnMask` / `animate` / `at` / `dataContext` 是配置保留键（进合并链最顶层），**其余键全部作 props** 注入组件 data 域（覆盖 `data` 默认，与 `x-component` 同约定）：
+值缺省（`x-dialog:login` 不写值）时 warn 并恒不打开——对话框必须有 visible 绑定。
+
+### 传递 props（x-dialog-options.props）
+
+`x-dialog` 的值**专职 visible 控制**；props 经**选项成员属性** `x-dialog-options.props` 传递（三者正交：visible 走值、props 走成员属性、配置走 `x-dialog-options`）：
 
 <demo html="dialog/props.html"/>
 
 ```html
+<button x-dialog:user="ui.open" x-dialog-options.props="{userId: 42}" @click="ui.open = true">
+  查看
+</button>
+```
+
+props 值是**表达式**，与 `x-component` 的值同构（v-bind 心智），三形态：
+
+- **对象字面量**：成员可引用状态路径——`x-dialog-options.props="{userId: user.id}"`；
+- **纯状态路径**：对象按键展开——`x-dialog-options.props="currentOrder"`（深层响应）；
+- **未声明**：无 props。
+
+props 是**持续热更新**的：打开期间绑定的状态变化会自动 `Object.assign` 进活跃实例的数据域（组件内部状态不被重置）——与 `x-component` props 行为完全一致。
+
+::: warning 字符串字面量须双层引号
+成员属性的值按**表达式**求值：写字符串字面量要 `x-dialog-options.title="'提示'"`（数字 / 布尔 / 对象字面量不受影响）。
+:::
+
+#### 多对话框定向（x-dialog-options:名称.props）
+
+同一个元素上声明多个 `x-dialog`（消费不同组件）时，用**定向**形态按组件名精确配对：
+
+```html
 <button
-  x-dialog:user="{visible: 'ui.open', userId: 42, closeOnMask: false}"
-  @click="ui.open = true"
+  x-dialog:user="ui.userOpen"
+  x-dialog:order="ui.orderOpen"
+  x-dialog-options:user.props="{userId: 42}"
+  x-dialog-options:order.props="{orderId: 'A-1'}"
 >
   查看
 </button>
 ```
 
-- `visible`：字符串状态路径（相对消费处 scope，可回写）；
-- `userId` 等非保留键：props——组件模板内直接读键（<span v-pre>`{{userId}}`</span>）；
-- `closeOnMask` 等配置键：per-实例配置——同元素多个 `x-dialog` 可各自差异化配置。
+定向语法同样适用于配置整包：`x-dialog-options:user="{closeOnMask: false}"` 只作用于 `user` 那个消费者。消歧规则：冒号后首段匹配同元素某 `x-dialog` 的组件名即定向，否则视为（无定向的）成员名。
+
+#### 配置成员的拆散写法
+
+`x-dialog-options` 的任何配置键都可以拆成独立成员属性（值为表达式，可绑定响应式状态），优先级高于整包内嵌的同名键（整键覆盖）：
+
+```html
+<!-- 整包 -->
+<button x-dialog:tip="ui.open" x-dialog-options="{close-on-mask: false, delay-close: 3000}"></button>
+
+<!-- 等价的成员拆散写法（值为表达式） -->
+<button
+  x-dialog:tip="ui.open"
+  x-dialog-options.close-on-mask="false"
+  x-dialog-options.delay-close="3000"
+></button>
+```
+
+::: warning 成员名用 kebab-case
+HTML 属性名会被 DOM 全量小写化（`closeOnMask` 存取均为 `closeonmask`）——camelCase 键的成员属性须以 **kebab-case** 书写（`close-on-mask`、`delay-close`、`data-context`），引擎自动归一；整包内嵌（属性**值**不被小写化）不受影响，纯小写单词键（`props`、`border`、`animate`、`at`）两种写法均可。
+:::
+
+#### 对象形态已删除
+
+旧写法 `x-dialog:user="{visible: 'ui.open', userId: 42}"`（visible 与 props / 配置混写在值里）**已删除**：值遇 `{` 开头会 warn 并忽略整个指令。迁移：visible 写指令值、props 写 `x-dialog-options.props`、配置写 `x-dialog-options`。
 
 ### 请求关闭
 
@@ -135,10 +185,10 @@ engine.on("overlay:close", ({ payload }) => {
 <button x-dialog:demo="ui.openA"></button>
 
 <!-- host：模板读消费处数据；实例随消费者 scope 生死 -->
-<button x-dialog:demo="{visible: 'ui.openB', dataContext: 'host'}"></button>
+<button x-dialog:demo="ui.openB" x-dialog-options.data-context="'host'"></button>
 ```
 
-`host` 基准下消费者所在区域被销毁（如 `x-if` 分支收起），打开中的实例会随级联自动关闭摘除——不会留下悬空弹层。旧键 `scope` 与旧值 `'consumer'` 已随更名**硬切移除**（不兜底；旧键 `scope` 现在是普通键，会作为 props 注入组件 data 域）。
+`host` 基准下消费者所在区域被销毁（如 `x-if` 分支收起），打开中的实例会随级联自动关闭摘除——不会留下悬空弹层。旧键 `scope` 与旧值 `'consumer'` 已随更名**硬切移除**（不兜底、不告警；旧键 `scope` 现在是普通 props 键）。
 
 ### 自动关闭
 
@@ -147,23 +197,23 @@ engine.on("overlay:close", ({ payload }) => {
 <demo html="dialog/delay-close.html"/>
 
 ```html
-<button x-dialog:notice="{visible: 'ui.show', delayClose: 3000}">3 秒后自动消失</button>
-<button x-dialog:toast="{visible: 'ui.toast', delayClose: 2000, border: false}">轻提示</button>
+<button x-dialog:notice="ui.show" x-dialog-options.delay-close="3000">3 秒后自动消失</button>
+<button x-dialog:toast="ui.toast" x-dialog-options="{delay-close: 2000, border: false}">轻提示</button>
 ```
 
 `delayClose` 缺省 / `0` 不自动关闭；手动关闭（ESC / 遮罩 / close 动作）优先于定时器，二者不冲突。
 
 ### 配置
 
-生效配置按三级优先级**深度合并**（数组替换、`undefined` 不覆盖）：
+生效配置按两级优先级**深度合并**（数组替换、`undefined` 不覆盖）：
 
 ```
-内置默认 < x-dialog-options（消费处） < 值对象内联保留键
+内置默认 < x-dialog-options（消费处，整包 / 成员属性 / 定向形态）
 ```
+
+成员属性（值为表达式，可绑定响应式状态）**整键覆盖**整包内嵌的同名键；同元素多 `x-dialog` 可经定向形态（`x-dialog-options:名称`）精确配对。消费处只写想改的键——组件 def 不携带配置，配置全部走消费处。
 
 <demo html="dialog/options-merge.html"/>
-
-消费处只写想改的键——组件 def 不携带配置，配置全部走消费处（指令选项 `x-dialog-options` 或值对象内联）。
 
 ### 弹出定位
 
@@ -244,7 +294,7 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 `border` 是**面板级配置**（默认 `true`，与锚定无关——无 `at` 时同样生效）：为面板外壳加 **1px 边框 + 背景 + 圆角**（外壳模式——视觉由外壳统一承担，同色背景填平圆角微差，四角无缝），箭头双层自动变色融合——底层菱形变边框色、覆盖层变面板背景色并外扩，露出段留出 ≈1px 边框色斜带与面板 border 连续，嵌入段的边框色与阴影仍被完整遮蔽（无 V 形残留）。颜色与圆角经 CSS 变量定制：`--autospark-overlay-border`（边框色，默认 `rgba(0,0,0,.1)`）、`--autospark-overlay-bg`（面板背景色，默认 `#fff`）、`--autospark-overlay-radius`（圆角，默认 `8px`）。
 
 ```html
-<button x-dialog:tip="{visible: 'ui.show', border: false}" @click="ui.show = true">无边框</button>
+<button x-dialog:tip="ui.show" x-dialog-options.border="false" @click="ui.show = true">无边框</button>
 ```
 
 ::: info 阴影融合的自定义替代路径（drop-shadow）
@@ -264,11 +314,11 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 <demo html="dialog/imperative.html"/>
 
 ```javascript
-const handle = engine.getOverlay(el, "task", { animate: false }); // 第三参：消费者配置级
+const handle = engine.getOverlay(el, "task", { animate: false }); // 第三参：消费者配置级（props 键 = 句柄级默认 props）
 const inst = handle.open({
-  taskId: "T-1", // 非保留键 → props 注入组件 data 域
-  dataContext: someEl, // 保留键：两栖基准——传元素（载体）挂其所属 scope；缺省 = rootless 全局视图
-  animate: "slide", // 保留键：最顶层配置
+  props: { taskId: "T-1" }, // 显式 props 键 → 注入组件 data 域（打开时快照，覆盖句柄级默认）
+  dataContext: someEl, // 两栖基准——传元素（载体）挂其所属 scope；缺省 = rootless 全局视图
+  animate: "slide", // 配置键（最顶层）
 });
 inst.close(); // 精确关这一个实例
 handle.close(); // 关该覆盖物当前「全部」打开实例
@@ -277,12 +327,12 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 | API                                            | 返回                                  | 说明                                                    |
 | ---------------------------------------------- | ------------------------------------- | ------------------------------------------------------- |
 | `engine.getOverlay(el, name, options?)`        | 定义句柄 / `undefined`（未命中 warn） | `el` 起链查找（就近覆盖）+ 全局兜底；省略 `el` 仅查全局 |
-| `handle.open(options?)`                        | 实例句柄                              | `options.visible` 无意义（warn 忽略）；每次 open 新实例 |
+| `handle.open(options?)`                        | 实例句柄                              | `{props, ...配置键}`——props 显式键；每次 open 新实例    |
 | `inst.close()`                                 | —                                     | 精确关闭（请求关闭语义，广播 `overlay:close`）          |
 | `inst.el` / `inst.name` / `inst.dataContextEl` | —                                     | 实例外壳根 / 名称 / 数据视图基准元素（命令式传元素时）  |
 | `handle.close()`                               | —                                     | 关该覆盖物全部打开实例                                  |
 
-命令式实例与声明式实例**同权**：同一容器、同一事件双通道、同一配置链、同一打开栈。
+命令式实例与声明式实例**同权**：同一容器、同一事件双通道、同一配置链、同一打开栈。命令式 props 是**打开时快照**（无声明式的热更新——JS 对象无表达式载体；需要变更请关后重开）。未知键（含旧隐式写法 `open({taskId})` 与 `visible`）静默沦为配置自由键——不告警、无 props 效果，请显式使用 `props` 键。
 
 ### 嵌套与打开栈
 
@@ -305,26 +355,25 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 <demo html="dialog/animate.html"/>
 
 ```html
-<button x-dialog:d2="{visible: 'zoom', animate: 'zoom'}">自定义动画</button>
+<button x-dialog:d2="zoom" x-dialog-options.animate="'zoom'">自定义动画</button>
 ```
 
 关闭动画播放完成后才执行销毁（「播完动画再动 DOM」的标准时序）；动画中重开会抢占（中断在播离场）。
 
 ## 配置
 
-三级合并链：`内置默认 < x-dialog-options（消费处） < 值对象内联保留键`。
+两级合并链：`内置默认 < x-dialog-options（消费处）`。声明形态三种：整包（`x-dialog-options="{...}"`，宽松 JSON）/ 成员属性（`x-dialog-options.键="表达式"`，整键覆盖整包同名键）/ 定向（`x-dialog-options:组件名....`，按消费实例配对）。
 
 | 配置项        | 默认值             | 说明                                                                                                                                        |
 | ------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `visible`     | 必填（值对象形态） | 字符串状态路径（相对消费处 scope，可回写）；简单形态下整值即驱动表达式                                                                      |
 | `border`      | `true`             | 面板外壳 1px 边框 + 背景 + 圆角，箭头双层变色自动融合；见[面板边框](#面板边框border)                                                        |
 | `closeOnMask` | `true`             | 点击遮罩请求关闭                                                                                                                            |
 | `animate`     | `"fade"`           | 进出场动画（字符串 / 对象 / 分相 / `false`）                                                                                                |
-| `dataContext` | `"declarer"`       | **数据视图基准**（`declarer` 声明处 / `host` 消费处），挂链即基准；旧键 `scope` 废弃（warn + 兜底解析）                                     |
+| `dataContext` | `"declarer"`       | **数据视图基准**（`declarer` 声明处 / `host` 消费处），挂链即基准；旧键 `scope` 已硬切（现为普通 props 键）                                |
 | `delayClose`  | `0`                | 自动关闭延迟（ms）：`> 0` 时打开后延时自动「请求关闭」（可回写的 visible 照常回写）；`0` 不自动关                                           |
 | `at`          | 无（居中）         | 贴锚定位（floating-ui）：字符串 / 元素简写（≡ `{selector}`，进链前归一化——只覆盖 selector、保留上层其余锚成员）或完整锚配置对象，成员见下表 |
 
-**`at` 成员**（声明式经 `x-dialog-options` 或值对象内联 `at` 键配置；命令式经 `open({ at })` 顶层覆盖）：
+**`at` 成员**（声明式经 `x-dialog-options` 整包或 `x-dialog-options.at` 成员属性配置；命令式经 `open({ at })` 顶层覆盖）：
 
 | 成员        | 默认值           | 说明                                                                                                                                                              |
 | ----------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -336,12 +385,12 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 | `arrow`     | `true`           | 箭头：载体 + 双伪元素视觉（阴影层 + 融合覆盖层），`false` 关闭                                                                                                    |
 
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项见[指令配置](../directive.md#指令配置)。
+指令选项 / 修饰符 / 宿主选项见[指令配置](../directive/config.md)。
 :::
 
 ## 注意事项
 
-- **宿主是纯声明点**：`x-dialog` 不自动绑定宿主点击——打开请显式 `@click="ui.flag = true"`；宿主可为任意元素，同元素可声明多个 `x-dialog` 消费不同组件（各自由不同状态驱动）。
+- **宿主是纯声明点**：`x-dialog` 不自动绑定宿主点击——打开请显式 `@click="ui.flag = true"`；宿主可为任意元素，同元素可声明多个 `x-dialog` 消费不同组件（各自由不同状态驱动；props / 配置经[定向](#多对话框定向x-dialog-options名称props)按组件名配对）。
 - **每次打开新实例**：关闭动画播完即销毁（组件内部状态不跨开合保留——需要保活状态请放全局 state 或经 props 重注入）；多实例可并存。
 - **表达式形态的重开边界**：关闭只收起 UI，状态仍是唯一驱动源——依赖变化后重求值为真（含多依赖下结果仍真）时会**再次弹出**；状态未变化（同值赋值）不触发重开。需要精确控制请监听 `overlay:close` 自行回写状态。
 - **焦点陷阱与滚动锁定**尚未内置（fast-follow）——对话框打开期间页面滚动未被锁定，键盘 Tab 可移出对话框。

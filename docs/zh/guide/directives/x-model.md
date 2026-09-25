@@ -927,7 +927,7 @@ choices 深读会收集每个选项项的 `label`/`value`/`group` 字段路径�
 修饰符在解析期注入为同名指令选项（如 `.number` ≡ `x-model-options="{number:true}"`），二者等价。
 
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项 / 两层回退的通用机制见[指令配置](../directive.md#指令配置)。
+指令选项 / 修饰符 / 宿主选项 / 两层回退的通用机制见[指令配置](../directive/config.md)。
 :::
 
 ## 注意事项

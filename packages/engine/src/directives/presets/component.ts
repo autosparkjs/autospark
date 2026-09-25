@@ -322,13 +322,13 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     private _appliedProps: Record<string, any> | undefined;
 
     /**
-     * props 浅值比较（键集合相同 + 每键 Object.is）。
+     * props 浅值比较（键集合相同 + 每键 Object.is）。overlay 基座热更新复用（protected）。
      *
      * **同引用视为不等**：绑定状态对象形态（`x-component:box="order"`）重求值返回的是同一
      * 响应式引用，其内部键可能已被外部原地修改，必须照常 assign 把最新键值拷入。
      * 仅不同引用（静态字面量每次重求值产生新对象）才比较键值。
      */
-    private _propsEqual(
+    protected _propsEqual(
         a: Record<string, any> | undefined,
         b: Record<string, any> | undefined,
     ): boolean {

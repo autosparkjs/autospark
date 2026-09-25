@@ -318,4 +318,4 @@ const filtered = scope.read("items.filter(x => x.active)");
 
 ---
 
-下一步：[动作](./action.md)了解事件如何驱动状态变更，或[指令](./directive.md)了解指令类型体系。
+下一步：[动作](./action.md)了解事件如何驱动状态变更，或[指令](./directive/)了解指令类型体系。

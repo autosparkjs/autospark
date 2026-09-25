@@ -281,7 +281,7 @@ const engine = new AutoSpark(el, {
 | `:data-index` | - | ✅ `.virtual` | 滚动位置绑定的状态路径，详见[虚拟列表](./x-for-virtual.md) |
 
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive.md#指令配置)。
+指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive/config.md)。
 :::
 
 ## 注意事项

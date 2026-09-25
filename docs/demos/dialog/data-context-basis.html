@@ -34,7 +34,8 @@
                 <!-- 消费处：局部 x-data 遮蔽了外层 who，dataContext: 'host' 的实例挂它（ui.openB 沿祖先链回退外层） -->
                 <div x-data="{ who: '消费处的数据（局部域）' }">
                     <div class="block has-text-grey is-size-7">（本区域局部 x-data 声明了同名 who，dataContext: 'host' 读它）</div>
-                    <button class="button" x-dialog:demo="{visible: 'ui.openB', dataContext: 'host'}"
+                    <button class="button" x-dialog:demo="ui.openB"
+                            x-dialog-options.data-context="'host'"
                             @click="ui.openB = true">打开（dataContext: 'host'）</button>
                 </div>
             </div>

@@ -1,0 +1,65 @@
+# 指令
+
+## 概述
+
+指令是宿主元素上一个**属性声明的行为单元**。模板引擎识别三种前缀的属性：
+
+| 前缀  | 形态         | 示例                    | 归一化     |
+| ----- | ------------ | ----------------------- | ---------- |
+| `x-*` | 全称指令     | `x-text` `x-if` `x-for` | 原样       |
+| `:*`  | 属性绑定简写 | `:class` `:title`       | `x-bind:*` |
+| `@*`  | 事件绑定简写 | `@click` `@input`       | `x-on:*`   |
+
+::: tip :class / :style 是 x-bind 的特例
+`:class` / `:style` / `x-class` / `x-style` 没有独立指令类——它们在解析期归一化为 `x-bind` + `class` / `style` 参数，复用 `x-bind` 的五路分派。详见[x-bind](../directives/x-bind.md)。
+:::
+
+一条指令声明可同时携带三种配置：**属性参数**、**修饰符**、**指令选项**。[指令配置](./config.md)一文说明这三种配置方式及其读取优先级；各指令文档的「配置」一节只列出该指令具体支持哪些项。
+
+## 指令类型
+
+### 指令名由注册表决定
+
+指令名由预设注册表 `presetDirectives` 的 key 标识（如 `text` / `if` / `for` / `on` / `bind`），**不是**类的 `Function.name`。当前已注册：`text` `html` `if` `else-if` `else` `switch` `case` `default` `show` `for` `tree` `data` `bind` `on` `model` `loading` `isolate` `scope` `dialog` `component` `define` `slot` `import` `form` `field` `icon` `icon-define`。`x-class` / `x-style` 会在解析期归一化为 `x-bind`，不单独注册。
+
+### 一条声明的组成
+
+```html
+<button x-on:click.enter.once="submit"></button>
+<!--       └┬┘ └─┬─┘ └─┬─┘ └─┬─┘ └──┬── -->
+<!--      指令名  参数  修饰符 修饰符  指令值(表达式) -->
+```
+
+- **指令名**：`x-on`
+- **参数**：`click`（指令作用于哪个目标）
+- **修饰符**：`.enter` `.once`（无值开关，注入为指令选项）
+- **指令值**：`submit`（表达式或动作名）
+
+参数、修饰符、指令选项的通用机制见[指令配置](./config.md)。
+
+### 执行通道（用户视角）
+
+指令分两类执行通道，了解这点有助于理解某些边界行为：
+
+- **编译时指令**（`x-if` / `x-for` / `x-text` / `x-bind` 等）：在模板编译期变换结构或绑定，**指令属性会被剥除**，不出现在渲染 DOM 里。它们的响应式来源是 `scope.watch`，支持相对路径、`x-data` 局部变量、`x-for` 项。
+
+- **运行时指令**（`x-loading`）：编译器「致盲」、**属性保留**在渲染 DOM，由 `MutationObserver` 在运行时驱动。响应式来源**只接受绝对路径**（运行时新增的 DOM 元素没有 scope 上下文）。
+
+#### 为什么需要 x-scope 哨兵？
+
+`engine.patch(selector, updater)` 靠「模板元素 → scope」的正向桥定位运行元素。但**纯静态裸元素没有指令、没有插值，不会建 scope**，也就进不了正向桥——`patch` 找不到它。
+
+`x-scope` 就是为这种情况准备的零副作用哨兵指令：它让一个裸元素成为 scope、进入正向桥，从而能被 `patch` 定位，除此之外什么都不做。
+
+```html
+<!-- 这个 div 原本是裸元素，加 x-scope 后即可被 engine.patch('#box', ...) 定位 -->
+<div id="box" x-scope></div>
+```
+
+详见[动态模板](../patch.md)。
+
+## 深入阅读
+
+- [指令配置](./config.md)——属性参数、修饰符、指令选项、宿主选项与两层回退的通用机制
+- [自定义指令](./custom.md)——注册自己的指令类、静态元数据与通道钩子
+- 单指令参考：[x-bind](../directives/x-bind.md)、[x-if](../directives/x-if.md)、[x-for](../directives/x-for.md)、[x-on](../directives/x-on.md)、[x-model](../directives/x-model.md)……完整列表见侧边栏「指令参考」

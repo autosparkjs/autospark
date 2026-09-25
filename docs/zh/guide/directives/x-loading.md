@@ -303,7 +303,7 @@ const engine = new AutoSpark(el, state, {
 | `.screen`  | 未启用       | ✅     | 全屏覆盖（`position:fixed`）                              |
 
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive.md#指令配置)。
+指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive/config.md)。
 :::
 
 ## 注意事项

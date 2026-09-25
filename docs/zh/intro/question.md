@@ -43,7 +43,7 @@ new AutoSpark(el, state, { debug: true });
 
 ## 可以自定义指令吗？
 
-可以。所有内置指令都继承自 `AutoSparkDirectiveBase`，你可以注册自己的指令类。详见[指令](../guide/directive.md)。
+可以。所有内置指令都继承自 `AutoSparkDirectiveBase`，你可以注册自己的指令类。详见[自定义指令](../guide/directive/custom.md)。
 
 ## `x-for` 和 `x-if` 可以在同一个元素上使用吗？
 

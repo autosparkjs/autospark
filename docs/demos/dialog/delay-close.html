@@ -40,14 +40,16 @@
         <div class="block">
           <button
             class="button is-primary"
-            x-dialog:notice="{visible: 'ui.notice', delayClose: 3000}"
+            x-dialog:notice="ui.notice"
+            x-dialog-options.delay-close="3000"
             @click="ui.notice = true"
           >
             打开通知（3 秒后自动关闭）
           </button>
           <button
             class="button is-dark"
-            x-dialog:toast="{visible: 'ui.toast', delayClose: 2000, border: false}"
+            x-dialog:toast="ui.toast"
+            x-dialog-options="{delay-close: 2000, border: false}"
             @click="ui.toast = true"
           >
             轻提示（2 秒，border: false）

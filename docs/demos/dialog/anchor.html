@@ -109,28 +109,32 @@
           <div class="placement-grid">
             <button
               class="button is-light"
-              x-dialog:placement-tip="{visible: 'ui.topStart', placement: 'top-start', at: {selector: '/#anchor-center', placement: 'top-start', flip: false}}"
+              x-dialog:placement-tip="ui.topStart"
+              x-dialog-options="{at: {selector: '/#anchor-center', placement: 'top-start', flip: false}, props: {placement: 'top-start'}}"
               @click="ui.topStart = true"
             >
               top-start
             </button>
             <button
               class="button is-light"
-              x-dialog:placement-tip="{visible: 'ui.top', placement: 'top', at: {selector: '/#anchor-center', placement: 'top', flip: false}}"
+              x-dialog:placement-tip="ui.top"
+              x-dialog-options="{at: {selector: '/#anchor-center', placement: 'top', flip: false}, props: {placement: 'top'}}"
               @click="ui.top = true"
             >
               top
             </button>
             <button
               class="button is-light"
-              x-dialog:placement-tip="{visible: 'ui.topEnd', placement: 'top-end', at: {selector: '/#anchor-center', placement: 'top-end', flip: false}}"
+              x-dialog:placement-tip="ui.topEnd"
+              x-dialog-options="{at: {selector: '/#anchor-center', placement: 'top-end', flip: false}, props: {placement: 'top-end'}}"
               @click="ui.topEnd = true"
             >
               top-end
             </button>
             <button
               class="button is-light"
-              x-dialog:placement-tip="{visible: 'ui.leftStart', placement: 'left-start', at: {selector: '/#anchor-center', placement: 'left-start', flip: false}}"
+              x-dialog:placement-tip="ui.leftStart"
+              x-dialog-options="{at: {selector: '/#anchor-center', placement: 'left-start', flip: false}, props: {placement: 'left-start'}}"
               @click="ui.leftStart = true"
             >
               left-start
@@ -138,28 +142,32 @@
             <div class="anchor-center" id="anchor-center">锚点</div>
             <button
               class="button is-light"
-              x-dialog:placement-tip="{visible: 'ui.rightStart', placement: 'right-start', at: {selector: '/#anchor-center', placement: 'right-start', flip: false}}"
+              x-dialog:placement-tip="ui.rightStart"
+              x-dialog-options="{at: {selector: '/#anchor-center', placement: 'right-start', flip: false}, props: {placement: 'right-start'}}"
               @click="ui.rightStart = true"
             >
               right-start
             </button>
             <button
               class="button is-light"
-              x-dialog:placement-tip="{visible: 'ui.bottomStart', placement: 'bottom-start', at: {selector: '/#anchor-center', placement: 'bottom-start', flip: false}}"
+              x-dialog:placement-tip="ui.bottomStart"
+              x-dialog-options="{at: {selector: '/#anchor-center', placement: 'bottom-start', flip: false}, props: {placement: 'bottom-start'}}"
               @click="ui.bottomStart = true"
             >
               bottom-start
             </button>
             <button
               class="button is-light"
-              x-dialog:placement-tip="{visible: 'ui.bottom', placement: 'bottom', at: {selector: '/#anchor-center', placement: 'bottom', flip: false}}"
+              x-dialog:placement-tip="ui.bottom"
+              x-dialog-options="{at: {selector: '/#anchor-center', placement: 'bottom', flip: false}, props: {placement: 'bottom'}}"
               @click="ui.bottom = true"
             >
               bottom
             </button>
             <button
               class="button is-light"
-              x-dialog:placement-tip="{visible: 'ui.bottomEnd', placement: 'bottom-end', at: {selector: '/#anchor-center', placement: 'bottom-end', flip: false}}"
+              x-dialog:placement-tip="ui.bottomEnd"
+              x-dialog-options="{at: {selector: '/#anchor-center', placement: 'bottom-end', flip: false}, props: {placement: 'bottom-end'}}"
               @click="ui.bottomEnd = true"
             >
               bottom-end
@@ -168,42 +176,48 @@
           <div class="placement-extra">
             <button
               class="button is-light"
-              x-dialog:placement-tip="{visible: 'ui.left', placement: 'left', at: {selector: '/#anchor-center', placement: 'left', flip: false}}"
+              x-dialog:placement-tip="ui.left"
+              x-dialog-options="{at: {selector: '/#anchor-center', placement: 'left', flip: false}, props: {placement: 'left'}}"
               @click="ui.left = true"
             >
               left
             </button>
             <button
               class="button is-light"
-              x-dialog:placement-tip="{visible: 'ui.leftEnd', placement: 'left-end', at: {selector: '/#anchor-center', placement: 'left-end', flip: false}}"
+              x-dialog:placement-tip="ui.leftEnd"
+              x-dialog-options="{at: {selector: '/#anchor-center', placement: 'left-end', flip: false}, props: {placement: 'left-end'}}"
               @click="ui.leftEnd = true"
             >
               left-end
             </button>
             <button
               class="button is-light"
-              x-dialog:placement-tip="{visible: 'ui.right', placement: 'right', at: {selector: '/#anchor-center', placement: 'right', flip: false}}"
+              x-dialog:placement-tip="ui.right"
+              x-dialog-options="{at: {selector: '/#anchor-center', placement: 'right', flip: false}, props: {placement: 'right'}}"
               @click="ui.right = true"
             >
               right
             </button>
             <button
               class="button is-light"
-              x-dialog:placement-tip="{visible: 'ui.rightEnd', placement: 'right-end', at: {selector: '/#anchor-center', placement: 'right-end', flip: false}}"
+              x-dialog:placement-tip="ui.rightEnd"
+              x-dialog-options="{at: {selector: '/#anchor-center', placement: 'right-end', flip: false}, props: {placement: 'right-end'}}"
               @click="ui.rightEnd = true"
             >
               right-end
             </button>
             <button
               class="button is-primary is-light"
-              x-dialog:placement-tip="{visible: 'ui.auto', placement: 'auto', at: '/#anchor-center'}"
+              x-dialog:placement-tip="ui.auto"
+              x-dialog-options="{at: '/#anchor-center', props: {placement: 'auto'}}"
               @click="ui.auto = true"
             >
               auto（默认）
             </button>
             <button
               class="button is-light"
-              x-dialog:placement-tip="{visible: 'ui.bordered', placement: 'top', border: false, at: {selector: '/#anchor-center', placement: 'top', flip: false}}"
+              x-dialog:placement-tip="ui.bordered"
+              x-dialog-options="{at: {selector: '/#anchor-center', placement: 'top', flip: false}, props: {placement: 'top'}, border: false}"
               @click="ui.bordered = true"
             >
               border: false（关闭边框）
@@ -211,7 +225,7 @@
           </div>
         </div>
 
-        <!-- placement 演示用小面板：placement 名经 props 注入（值对象非保留键全作 props） -->
+        <!-- placement 演示用小面板：placement 名经整包内嵌 props 注入（x-dialog-options 的 props 键） -->
         <div x-define="placement-tip">
           <script type="autospark/setup">
             { data: { placement: "bottom" } }

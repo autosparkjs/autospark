@@ -183,7 +183,7 @@ x-html 没有数据域，**不注入** `$loading`/`$error` 元键（那是 x-dat
 | `sanitizer`             | 内置白名单消毒 |        | 自定义消毒器（如 DOMPurify），`.raw` 时整体跳过；经 `engine.options.sanitizer` 配置 |
 
 ::: info 关于指令配置体系
-指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive.md#指令配置)。
+指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive/config.md)。
 :::
 
 ## 注意事项

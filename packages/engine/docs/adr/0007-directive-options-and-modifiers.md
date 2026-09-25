@@ -1,8 +1,8 @@
 # ADR-0007：指令配置统一（modifier 注入 options + 元素级 host options 回退）
 
-- **状态**：Accepted
-- **日期**：2026-08-07
-- **关联**：[CONTEXT.md](../../CONTEXT.md)、[ADR-0001](0001-directive-kind-system.md)
+- **状态**：Accepted（2026-09-25 修订：补充「选项定向与成员属性」通用机制，见文末[修订记录](#修订记录2026-09-25选项定向与成员属性)）
+- **日期**：2026-08-07（初版） / 2026-09-25（修订）
+- **关联**：[CONTEXT.md](../../CONTEXT.md)、[ADR-0001](0001-directive-kind-system.md)、[ADR-0051](0051-runtime-option-override.md)（运行时覆盖——与成员属性正交的两面）、[ADR-0052](0052-x-overlay-and-x-dialog.md)（props 通道——成员属性机制的首个消费者，v2.3）
 
 ## 背景
 
@@ -93,3 +93,34 @@ host options 挂 scope，所有 Compile 指令（含 `OnDirective`，它是 Comp
 - **基类字段**：`info.modifiers` 保留（解析产物、调试用），但基类构造不再提取 `this.modifiers`（或保留为兼容字段、文档标注弃用）；指令统一经 `getOption` / `this.options` 读取。
 - **测试改动**：`getDirectives.test.ts` 补 modifier 注入断言、`x-options` 解析断言；`x-on.test.ts:104` 的 `$modifiers` 断言改为 `$options`；新增 `debounce` 经 `x-on-options` 配置时长的用例；删除 `.debounce.500` 用例（`x-on.test.ts:318`）。
 - **文档**：CONTEXT.md 术语表已随本 ADR 建立；用户文档需补 `x-options` / `x-{name}-options` / 修饰符等价说明，并标注 `.500` 与 `$modifiers` 废弃。
+
+## 修订记录（2026-09-25：选项定向与成员属性）
+
+引入「**局部指定 option**」的通用机制（源于 x-dialog props 传递重构的 grilling 复审，应用面见 [ADR-0052](0052-x-overlay-and-x-dialog.md) v2.3）——`x-<指令名>-options` 家族从单一整包形态扩展为**四形态**，适用于**所有指令**，不限于覆盖物家族：
+
+| 形态 | 例 | 值语义 |
+|---|---|---|
+| 整包（原有） | `x-loading-options="{message: 'x', delay: 100}"` | relaxed-json 静态解析 |
+| 成员属性 | `x-loading-options.delay="100"` | **表达式**（`binding.watch` 求值） |
+| 定向整包 | `x-dialog-options:user="{closeOnMask: false}"` | relaxed-json 静态解析 |
+| 定向成员 | `x-dialog-options:user.props="{userId: user.id}"` | **表达式** |
+
+1. **消歧规则**：冒号后首段若匹配同元素同名主指令的 attr（属性参数）→ **参数定向**，剩余点链为成员；不匹配 → 整段点链为（无定向的）成员。组件名恰与成员名同形的病态碰撞文档化即可（罕见）。
+2. **统一表达式语义**：成员属性值一律按**表达式**求值（与指令值同一条 watch 管道）——「成员可绑定响应式状态」是通用能力；代价是顶层字符串字面量须写成 `"'xxxx'"`（已接受）。数字 / 布尔 / 对象字面量作为表达式自然成立。
+3. **优先级链**：`整包内嵌 < 无定向成员 < 定向成员`，同名项**整键覆盖**（不做 deepMerge——同一数据多来源并存应避免，覆盖最可预测）。无定向形态在多同名指令时挂最后一个（既有 `pendingOptions` 行为不变）；**定向整包替换**该参数实例视角的整包，成员层照常在其上覆盖。
+4. **应用时机**：成员表达式统一建 watch（订阅管道存在）；应用点 = 各指令既有消费时机（dialog 家族每次打开经 `resolveOverlayConfig` 现读——「重开生效」），**无强制配置热应用**；**props 是唯一热应用成员**（覆盖物家族：`Object.assign` 进活跃实例 data 域）。配置热应用 YAGNI，未来按指令需要再加。
+5. **孤儿静默**：定向参数找不到匹配主指令 → 静默丢弃（对齐 `-options` 无主指令先例）。
+6. **props 不参与宿主回退**：`x-options` 写 `props` 键 → warn + 忽略。props 是**数据**，宿主选项是元素级**配置**——数据已有 x-data / 指令值 / 选项成员属性三个正交通道，不需要第四个。
+7. **解析层落点**：`getDirectives` 的 `-options` 后缀分支扩展——**先于 modifier 切分**识别 `:` 与 `.`（成员属性不是 modifier，不得走「modifier → options 注入布尔 true」路径）。
+8. **实现附则**：① 成员名 **kebab-case 书写、解析期归一 camelCase**（HTML 属性名被 DOM 全量小写化，`closeOnMask` 存取均为 `closeonmask`——camelCase 键以 `close-on-mask` 书写，Web 平台惯例、Vue 同款；纯小写单词成员不受影响，整包内嵌是属性值不被小写化亦不受影响）；② 成员表达式中的 `true` / `false` / `null` / 数字字面量**不经 watch 直接作静态值**（它们是标识符/数字形态，精准订阅支路会误当状态键读出 undefined）；③ 定向参数与主指令 attr 同源于属性名（均已被小写化），精确匹配天然成立。
+
+**与「运行时选项覆盖」（ADR-0051）正交**：成员属性是**编译期声明面**（书写时把选项拆散为独立属性、值可绑状态），覆盖属性 `data-<指令名>-<选项名>` 是**运行时变更面**（状态驱动改值、删除即还原）——同一选项键的两个生命周期阶段，互不替代。
+
+**与「选项回退」（决策 3）的关系**：回退链「指令选项 → 宿主选项」以**键**为单位不变；成员属性与整包是指令选项内部的书写形态分层（优先级链见上），先在指令选项层内收敛出终值，再参与对外回退。
+
+### 被否决的方案（本次修订）
+
+- **`x-dialog:<名>:props` 冒号子参数**（attr 二段冒号 `名:参数:子参数`）：为全指令共享的 attr 解析层引入新语法维度，且首个消费者只有覆盖物家族——被「选项成员属性」覆盖（同一能力，收敛在既有 `-options` 体系内，改动面集中）。
+- **`x-props` 元素级属性**（与 `x-options` 成对，词汇漂亮）：响应式载体悬空——`x-options` 能静态解析是因为它不需要 watch；`x-props` 要响应式就得升格为真指令 + scope 槽寄存 + 指令间优先级协调，概念数反而更多。
+- **成员值按「配置 = 字面量 / props = 表达式」分职**：同一语法位因成员名不同而语义不同，认知有坎；统一表达式换取「绑定响应式状态」成为无特例的通用能力。
+- **options.props 子树重序列化求值**：让整包内嵌 props 获得表达式能力的绕圈方案——整包内嵌保持 relaxed-json 静态子集（裸标识符转字符串、含运算符的成员炸 JSON 解析，此为结构性限制），与成员形态的能力差由优先级规则自然消化（成员覆盖整包同名项）。
