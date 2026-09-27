@@ -11,19 +11,13 @@
     <body>
         <div class="demo-app section" style="max-width: 560px">
             <h1 class="title is-5">颜色：主权在宿主文字色</h1>
-            <p class="subtitle is-6">mask 只取形状（alpha），颜色 = 宿主 background-color（默认 currentColor）</p>
+            <p class="subtitle is-6">currentColor 经 CSS 继承直达 symbol 内容——改文字色即换图标色</p>
 
-            <template x-icon-define="heart">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-            </template>
-            <template x-icon-define="star">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11.5 3.8 9 8.8l-5.5.8 4 3.9-1 5.5 5-2.7 5 2.7-1-5.5 4-3.9-5.5-.8Z"/></svg>
-            </template>
-            <template x-icon-define="check">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>
-            </template>
-            <template x-icon-define="bell">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            <template x-icons>
+                <svg id="heart" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                <svg id="star" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11.5 3.8 9 8.8l-5.5.8 4 3.9-1 5.5 5-2.7 5 2.7-1-5.5 4-3.9-5.5-.8Z"/></svg>
+                <svg id="check" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>
+                <svg id="bell" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
             </template>
 
             <!-- 跟随文字色：改 color 即换色，零额外接线 -->

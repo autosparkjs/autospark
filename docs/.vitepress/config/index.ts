@@ -56,6 +56,7 @@ export default defineConfig({
                 { text: "关于", link: "/zh/guide/component/" },
                 { text: "开发组件", link: "/zh/guide/component/develop" },
                 { text: "实例化组件", link: "/zh/guide/component/instantiate" },
+                { text: "查找组件", link: "/zh/guide/component/lookup" },
                 { text: "响应式数据", link: "/zh/guide/component/data" },
                 { text: "组件间通讯", link: "/zh/guide/component/communication" },
                 { text: "生命周期", link: "/zh/guide/component/lifecycle" },

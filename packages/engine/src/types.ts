@@ -158,9 +158,9 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      */
     components?: Record<string, any>;
     /**
-     * 图标种子表（ADR-0046 决策 3）：构造期并入全局图标注册表（`AutoSpark.icons`，document 级
-     * 多 engine 共享），同名 warn + 覆盖。值为 `名称 → SVG 字符串`（经规范形归一化存储）。
-     * 声明入口三通道：本表 / 模板 `x-icon-define` / `AutoSpark.icons.add(name, svg)`。
+     * 图标种子表（ADR-0058 图标域的全局通道）：构造期并入全局图标注册表（`AutoSpark.icons`，
+     * document 级多 engine 共享，注入全局 symbol `as-{name}`），同名静默覆盖。值为
+     * `名称 → SVG 字符串`。声明入口三通道：本表 / 模板 `x-icons.global` / `AutoSpark.icons.add(name, svg)`。
      *
      * @default 无种子
      */

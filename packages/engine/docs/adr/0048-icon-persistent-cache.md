@@ -1,6 +1,6 @@
 # ADR-0048：远程图标持久缓存（localStorage）+ prefetch 预取
 
-- **状态**：Accepted（grill-with-docs，一轮九问全按推荐裁决）
+- **状态**：Accepted（grill-with-docs，一轮九问全按推荐裁决）｜**整体被 [ADR-0058](0058-icon-symbol-and-icon-domain.md) 取代（2026-09-27）**：localStorage 持久层与 `prefetch` 随 per-icon 远程物种一并移除（批量声明天然少量请求，会话内存缓存 + HTTP 缓存兜底）
 - **日期**：2026-09-19
 - **关联**：[ADR-0047](0047-x-icon-async-source.md)（远程物种与四层缓存/限流——本 ADR 在其上叠加持久层）、[ADR-0046](0046-x-icon-directive.md)（渲染管线/规范形）、[CONTEXT.md](../../CONTEXT.md)（「远程图标持久缓存 / 图标预取」词条）
 

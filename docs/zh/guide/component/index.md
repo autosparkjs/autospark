@@ -87,6 +87,7 @@ const engine = new AutoSpark(el, {}, {
 
 - [开发组件](./develop.md)——从零开发一个组件：快速入门五步走，以及 `x-define` 声明细节
 - [实例化组件](./instantiate.md)——`x-component` 用法、props 传递与更新语义
+- [查找组件](./lookup.md)——归属与查找协议：声明位置如何决定可见范围与可用时机
 - [响应式数据](./data.md)——`data` 声明、组件上下文 `this`、顶层私有变量、数据边界
 - [组件间通讯](./communication.md)——props 下传 / 全局 state / 事件总线
 - [生命周期](./lifecycle.md)——四阶段钩子与触发时机

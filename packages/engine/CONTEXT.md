@@ -437,44 +437,48 @@ _Avoid_: 事件总线（订阅的是响应式依赖，不是事件）、字段�
 ### 图标层
 
 **图标 / Icon（x-icon）**:
-以 CSS mask 呈现的矢量图标渲染指令：宿主元素 `x-icon="名称"`，输出裸名类（`as-icon` + 图标名）+ 尺寸内联。值两形态：**本地名**（纯 CSS ident，查图标注册表）/ **远程形**（`图标集/名`，仅斜杠形——冒号形已废除，见「异步图标源」）；**值两栖**——表达式求值优先，求值空/非法时原值形匹配才回退字面量（裸名不是合法 JS，状态命中优先、字面量为空值兜底）。**颜色主权在宿主**——mask 只取 alpha 通道，data URL 内的 currentColor 解析为黑，实际颜色取宿主 `background-color`（默认 currentColor，随文字色）。值为响应式表达式（切换即换图标）；未命中（未注册或已删除）warn + 渲染**默认图标**（保留尺寸），注册后经变更通知自动补渲染。
-_Avoid_: svg 图标（那是数据形态）、icon 组件（无组件机制参与）、图标字体（那是 font-family 方案）
+以 SVG symbol + `<use>` 呈现的矢量图标渲染指令（ADR-0058）：宿主元素 `x-icon="名称"`，注入唯一子节点 `<svg aria-hidden><use href="#as-…"/></svg>`（撑满宿主）。名字解析走「图标域」（scope 链就近 + 全局注册表兜底）；**值两栖**——表达式求值优先，求值空/非法时原值形匹配才回退字面量（裸名不是合法 JS，状态命中优先、字面量为空值兜底），值为响应式表达式（切换即换图标）。**颜色主权在宿主**——currentColor 经 CSS 继承直达 use 内容，`color` 选项内联 `color` 覆盖；`strokeWidth` 经 `--as-icon-sw` 变量下发（见「symbol 归一化」）；`size`/`padding`/`badge`/`button`/`pointer` 为盒模型层选项照旧。未命中（未声明或已删除）warn + 渲染**默认图标**，声明后经变更通知自动补渲染；**待定名**（远程加载中）渲染空占位、不算未命中。旧远程值形 `集/名` 已废除（斜杠形是除法表达式求值 NaN → 空占位，对齐「含点路径不回退字面量」先例）。
+_Avoid_: mask 图标（机制已下线）、background-color 换色（旧颜色模型）、svg 图标（那是数据形态）、icon 组件（无组件机制参与）、图标字体（那是 font-family 方案）
+
+**图标集声明 / x-icons（Icon Set Declaration）**:
+`<template x-icons>` 的批量图标声明（ADR-0058）：内联通道为多个带 `id` 的 `<svg>` 子元素（每个收集为一个 symbol）；值简写 `x-icons="save,home"` 承载远程清单（等效 `x-icons-options.icons`），与内联**可合并**进同一图标域。编译期前置 collector 收集后剪枝（不进结果 DOM，指令类仅名位）；**纯静态**——一次求值，不 watch 不响应式；同一声明源只收集一组 symbol（内容哈希令牌去重 + 引用计数，x-for / 组件克隆不放大、随 scope 销毁回收）。
+_Avoid_: x-icon-define（已硬移除）、图标定义（旧词条名）、图标模板（泛化）、图标声明（与编程入口混淆）
+
+**图标域（Icon Domain）**:
+图标定义的可见范围与查找协议（ADR-0058）：默认归**最近祖先 scope**（后代沿链就近使用，内层遮蔽外层）；`x-icons.global`（≡ `global:true`）归全局；孤立声明（无 scope 祖先）静默归全局。x-icon 解析镜像 `getComponent`：自身 scope 沿 parent 链 → 全局注册表兜底——与组件/action/data 的链式查找范式统一。同名冲突静默覆盖，胜者按编译期声明序（所有权登记，与 fetch 到达序无关）；同一 template 内**远程覆盖内联**（内联加载窗口期先显形）。局部 symbol 随 scope 销毁回收，全局不清理。
+_Avoid_: 图标作用域（与 scope 撞名）、图标命名空间（是查找域不是命名空间）
+
+**symbol 前缀（Symbol Prefix）**:
+sprite 内 symbol id 的命名方案：全局 `as-{name}`、局部 `as-i{声明令牌}-{name}`（声明令牌按声明内容哈希生成——克隆同源（x-for 项 / 组件快照）哈希相同、共享同一组 symbol，是「克隆不放大」与引用计数回收的实现根基）。`<use href>` 按 id **文档全局解析**——「图标域局部」靠前缀 + 查找协议实现，非 DOM 隔离；`as-` 为引擎保留前缀（页面手写 svg id 避让）。图标名受 CSS ident 硬约束（`[A-Za-z0-9_-]`、非数字开头），`as-icon` 为保留名。
+_Avoid_: asv-（未采用）、scopeId 前缀（初稿方案，克隆链无法保持已修订为令牌）、裸名 id（与页面自身 svg id 撞车）
+
+**sprite 载体（Icon Sprite）**:
+document 级唯一的隐藏 `<svg>` 容器（`width=0 height=0 position:absolute aria-hidden`，幂等创建），全部 symbol（全局 + 局部）同住其中、靠前缀区分（ADR-0058）。
+_Avoid_: 图标样式表（mask 时代产物已废）、每处内联 svg（重复体积）
+
+**symbol 归一化（Symbol Normalization）**:
+图标内容的收集期归一化（ADR-0058）：剥离**全部** stroke-width（「宽度不是图标的一部分，是渲染参数」）、缺 stroke 才补 currentColor（作者显式属性不动）；viewBox 提取自 svg 属性（远程侧见「IconifyJSON 远程源」的合成规则）。生效 strokeWidth 经 `.as-icon{stroke-width:var(--as-icon-sw,1.25)}` 基础规则 + 四级链生效值内联变量下发；多笔画异宽图标失去表现力，为已知限制。
+_Avoid_: 规范形 SVG（旧词条——data URL 时代产物，xmlns 补齐管线随 mask 下线）
+
+**IconifyJSON 远程源（Remote Icon Source）**:
+`x-icons` 的远程物种（ADR-0058）：`x-icons-options` 的 `url`（默认 `https://api.iconify.design/material-symbols-light.json?icons={modify-icons}`——清单占位符用 `{modify-icons}`，未声明 modify 退化为原名清单）+ `icons`（逗号清单）+ `modify`（值域 rounded|sharp|outline|outline-rounded|outline-sharp，越界 warn + 忽略）+ `cache`（TTL 持久缓存时长**毫秒**，正数启用、默认 0——fetch 成功落 localStorage、TTL 内跨会话零网络、过期条目读取时即弃；ADR-0058 修订）。url 插值：`{icons}` 原名清单原始直书、`{modify}` 未声明为空串、`{modify-icons}` 未声明退化为 `{icons}`、未知占位符保留原样 + warn。编译期收集即 fetch；会话内存缓存 + in-flight 合并（同 url 一次）+ 可选 TTL 持久层（cache 选项），无限流。**原名注册**——响应键按「后缀名→原名」表回填，symbol 以原名注册（x-icon 不感知 modify）；`not_found` 后缀名按原名失败处理。转换：symbol id = 图标名（不含 prefix）、viewBox 自 JSON 根级默认合成（兜底 0 0 16 16）、rotate/hFlip/vFlip → `<g transform>`、aliases 解引用（循环 warn 丢弃）、body 直塞不补 stroke。
+_Avoid_: 异步图标源（旧词条，per-icon 物种已废）、icon-url（不存在的指令/选项名）、baseUrl（旧协议基址已删）、持久缓存（那是旧词条名——本机制是声明级 TTL 选项）
+
+**待定名（Pending Name）**:
+远程声明收集期登记的「已声明未到达」名字（ADR-0058）：x-icon 遇待定名渲染**空占位**（不闪默认图标），symbol 注入后自动显形（onChange 唤醒兜底浏览器解析差异）；fetch 失败逐名转 warn + 默认图标——「声明了没到」与「根本没声明」两语义分离。
+_Avoid_: 加载占位（与「异步兜底 / x-fallback」撞义）、占位符（歧义大）
+
+**图标注册表 / Icon Registry（AutoSpark.icons）**:
+document 级全局共享的 Set 子类（`AutoSpark.icons` 静态暴露，多 engine 共享）——**图标域的全局兜底层**（ADR-0058）：动态增删（`add(name, svg)` 注册（内部注入 `as-{name}` 全局 symbol）/ `delete` 移除，无 remove 别名——严守 Set 契约）、遍历产出**名称字符串**、`onChange` 变更通知（miss 唤醒依赖）。声明入口三通道：模板 `x-icons.global` / 编程 `AutoSpark.icons.add` / 构造 `options.icons` 种子；**局部图标无编程入口**（模板 x-icons 唯一）。`options` 字段——**全局图标默认配置**（配置链第三级：指令选项 > 宿主选项 > 本配置 > 内置默认，承载 strokeWidth/size 等渲染参数键；整体赋值广播重渲染，深修改不广播）。engine destroy 不清理（对齐 document 级共享先例）。图标名受 CSS ident 硬约束（`[A-Za-z0-9_-]`、非数字开头），`as-icon` 为保留名。
+_Avoid_: engine.icons（实例级注册表已否决——document 级资产天然跨 engine）、baseUrl/persist/prefetch（旧远程协议 API 已删）、图标库（泛化）、图标 Map（对外是 Set 形态）
 
 **默认图标 / Default Icon**:
-图标注册表**未命中**（未注册或已删除）时替换渲染的内置回退图标（保留尺寸、照常 warn）——「缺图不破相」。以内置条目形态驻注册表（名为 `default`，可被用户同名覆盖；其被删除则未命中退回空占位）。
+图标域**未命中**（未声明或已删除）时替换渲染的内置回退图标（保留尺寸、照常 warn）——「缺图不破相」。以内置条目形态驻注册表（名为 `default`，可被用户同名覆盖；其被删除则未命中退回空占位）。**待定名不算未命中**（加载窗口期空占位，见「待定名」）。
 _Avoid_: 空占位（已否决的未命中姿态——只保尺寸无内容）、fallback 图标（英文别名）、占位图标（与「空值占位」词条撞形）
 
 **图标按钮 / Icon Button**:
 `x-icon` 的 `button` 选项（修饰符 `.button`）声明的**纯视觉交互态**：hover / press 动效 + 隐含手型光标。**载体动效**——动效作用于既有视觉载体（非 badge = 图形本身加深/缩放；badge = 底板梯度加深/整体缩放），不新增视觉结构、不改布局占位；与 badge（管「板常驻」）正交。只做视觉可供性，**不承载控件语义**（无 role/tabindex/键盘激活）——点击行为归用户 `@click` 声明。详见 ADR-0049。
 _Avoid_: button 组件（无组件机制参与）、可点击图标（视觉可供性与控件语义分离）、图标控件（语义升级歧义）
-
-**图标定义 / x-icon-define（Icon Definition）**:
-`<template x-icon-define="名称">` 声明的**声明性资源**（与 x-define 同构）：编译期前置 collector 拦截，取首个 `<svg>` 子元素上交全局图标注册表后剪枝（不进结果 DOM，指令类仅名位）。同名覆盖 + warn 去重。
-_Avoid_: 图标注册（那是注册表的动作）、图标模板（泛化）、图标声明（与注册表编程入口混淆）、name 属性装名（已否决——名称走指令值，对齐 x-component）
-
-**规范形 SVG / Canonical SVG**:
-图标注册表的存储形态：strip **全部** stroke-width、缺 stroke 才补 currentColor、缺 xmlns 才补声明（作者显式属性不动；**xmlns 是 data URL 图像解析的硬约束**，缺失则 mask 无图隐形）的归一化 SVG。生效 strokeWidth 渲染期注入 root——「宽度不是图标的一部分，是渲染参数」。
-_Avoid_: 原始 SVG（未归一化）、图标数据（泛化）
-
-**URL 工厂 / Icon URL Factory**:
-规范形 SVG + 生效 strokeWidth → `data:image/svg+xml,${encodeURIComponent(svg)}` 的生成器，按 (名称, strokeWidth) 缓存（同组合全页只编码一次）。默认 1.25 经 `:root` 变量 + 裸名类规则下发；非默认实例内联 mask-image 覆盖。
-_Avoid_: base64 编码（已否决：体积 +33% 且 btoa 有 Unicode 陷阱）、图标序列化（泛化）
-
-**图标注册表 / Icon Registry（AutoSpark.icons）**:
-document 级全局共享的 Set 子类（`AutoSpark.icons` 静态暴露，多 engine 共享）：动态增删（`add(name, svg)` 注册 / `delete` 移除，无 remove 别名——严守 Set 契约）、遍历产出**名称字符串**（SVG 数据不外露）。声明入口三通道：模板 `x-icon-define` / 编程 `AutoSpark.icons.add` / 构造 `options.icons` 种子。另承载 `baseUrl` 字段——远程图标协议基址（URL 约定 `baseUrl/<图标集>/<图标名>.svg`，默认 Iconify 公共 API、不限于 Iconify，兼容服务可自托管；远程缓存不进本表）、`options` 字段——**全局图标默认配置**（配置链第三级：指令选项 > 宿主选项 > 本配置 > 内置默认，生效默认 strokeWidth 参与规则烘焙；整体赋值广播重渲染，深修改不广播）、`persist` 开关与 `prefetch` 方法（见「远程图标持久缓存」「图标预取」）。engine destroy 不清理（对齐 document 级共享 style 先例）。图标名受 CSS ident 硬约束（`[A-Za-z0-9_-]`、非数字开头），`as-icon` 为保留名。
-_Avoid_: engine.icons（实例级注册表已否决——document 级样式天然跨 engine）、图标库（泛化）、图标 Map（对外是 Set 形态）
-
-**异步图标源 / Async Icon Source（x-icon）**:
-**异步源家族**的 x-icon 物种：值形如 `mdi/home`（**仅斜杠形**，冒号形已废除；本地图标名受 CSS ident 约束天然不含 `/`，两通道零冲突）→ 经 `AutoSpark.icons.baseUrl` fetch SVG 文本，走规范形 → URL 工厂全管线（sw / 颜色模型与本地物种同构）。产物进**模块级远程缓存 + 持久缓存（见「远程图标持久缓存」）+ in-flight 合并 + 并发限流（4 路，429 退避重试）**（不进图标注册表——遍历 / delete 语义保持用户资产纯净），默认 sw 形态**升格为属性选择器规则**（`.as-icon[data-as-icon="集/名"]`，指令自管样式表即登记表，实例挂 `data-as-icon` 短属性共享一条规则）、非默认 sw 才内联。姿态：加载中空占位、失败 warn + 默认图标、重取保旧图。fetch 竞态 / abort 骨架复用 AsyncSourceRunner（值 watch 与通道判定物种侧自有——runner 的形态判定是 url/action 声明形，不适配表达式值）。详见 ADR-0047 / 0048。
-_Avoid_: Iconify 指令（不是独立指令，是 x-icon 的值形态）、远程图标注册（不进注册表）、在线图标（泛化）
-
-**远程图标持久缓存 / Persistent Icon Cache**:
-远程图标的**跨会话存储层**（挂 localStorage，按源分组）——二次访问零网络请求、同步渲染，观感等同本地图标。键含 baseUrl（换源不串图）；无过期（图标版本不可变）+ 条数上限 LRU 淘汰；模块加载即注水进内存（先于任何渲染）；`AutoSpark.icons.persist` 可关（禁用 / 环境不可用时静默退回内存缓存）。详见 ADR-0048。
-_Avoid_: 图标离线包（那是构建期资产）、HTTP 缓存（那是浏览器层）、会话缓存（那是内存层）
-
-**图标预取 / prefetch（AutoSpark.icons）**:
-`AutoSpark.icons.prefetch(名 | 名单)` 的编程式**提前取回**（走限流、落内存与持久缓存、失败静默）——持久缓存只救二次访问，首次使用的等待只能靠提前量（下一屏 / 悬停目标的闲时预热）。详见 ADR-0048 决策 6。
-_Avoid_: preload（与 x-import 远程组件加载撞义）、预热（泛化）
 
 ### 结构占位与组件层
 
@@ -487,7 +491,7 @@ _Avoid_: 作用域容器（泛化）、命名空间（语义不符）、占位�
 _Avoid_: 片段（泛化）、插槽出口（那是 x-slot 的出口，不是定义本身；见「插槽出口」）、命名空间组件、x-component（该名已让位给实例化指令，见「组件实例化」）
 
 **组件归属（Component Ownership）**:
-一个 x-define 挂到其**最近的祖先 scope**——任意深度（跨中间无 scope 的纯 `<div>`），与 `_linkParent` 向上找最近 scope 的语义同构。嵌套 scope 时归最内层祖先；x-define 向上找不到任何带 scope 的祖先时，编译期 warn 并丢弃（无处归属）。
+一个 x-define 挂到其**最近的祖先 scope**——任意深度（跨中间无 scope 的纯 `<div>`），与 `_linkParent` 向上找最近 scope 的语义同构。嵌套 scope 时归最内层祖先；**消费宿主自身的 scope 对其子级声明而言亦是最近祖先**（此时声明处与消费处重合，数据视图两基准合一）；x-define 向上找不到任何带 scope 的祖先时，编译期 warn 并丢弃（无处归属）。
 _Avoid_: 组件归属深度（实现细节）、组件父（用 scope 统一）
 
 **`default` 组件唯一性（Default Component Uniqueness，已放宽）**:
@@ -683,3 +687,15 @@ _Avoid_: x-component="名称"（定义请改 x-define="名称"）
 **`scope` 配置键（数据基准旧名）**:
 已废弃，统一更名为 **`dataContext`**（ADR-0053 修订：`x-define-options.scope` / `x-component-options.scope` / 覆盖物配置键与命令式 `open({scope: el})` 一并更名，消除与 x-scope/AutoSparkScope 的第三重重载）。**硬切无兜底**（开发阶段，区别于本表其他条目的 warn 迁移）：旧键静默失效；覆盖物侧旧键 `scope` 脱离保留清单后作为普通 props 注入组件 data 域。值域不变（`'host' | 'declarer'`；覆盖物命令式可传元素）。事件 payload `detail.scope` 同步更名 `detail.dataContext`、实例句柄字段更名 `dataContextEl`。
 _Avoid_: x-define-options.scope、x-component-options.scope、open({scope})、detail.scope（均改用 dataContext；engine scope 语境不受影响）
+
+**x-icon-define（ADR-0058 硬移除）**:
+已废弃。升级为 **x-icons** 批量声明（`<template x-icons>` 内多个带 id 的 `<svg>`；图标定义从全局注册表演进为 scope 局部「图标域」+ `.global` 全局）。注册表不注册、静默失效，无 warn 无迁移（x-use 先例）。
+_Avoid_: x-icon-define（改用 x-icons）
+
+**mask 图标机制家族（ADR-0058 取代）**:
+已废弃。CSS mask 渲染管线整体下线：URL 工厂（data URL 生成与 (名称,sw) 缓存）、`--as-icon-<名>` 变量与裸名类规则、`background-color` 颜色模型（data URL 内 currentColor 解析为黑的间接层）、远程属性选择器规则（`data-as-icon`）一并删除；「规范形 SVG」演进为「symbol 归一化」（stroke-width 全 strip 哲学延续，xmlns/data URL 管线不再需要）。`color` 选项语义迁移：background-color → color。历史 ADR（0046）正文保留旧机制描述，作为决策当时的记录。
+_Avoid_: mask-image、data-as-icon、`--as-icon-<名>` 变量
+
+**异步图标源 / 远程图标持久缓存 / 图标预取（ADR-0047/0048 → ADR-0058 取代）**:
+已废弃。per-icon 远程物种（`x-icon="集/名"` 值形 + `baseUrl/<集>/<名>.svg` 协议）、localStorage 持久缓存、`prefetch` 预取、并发限流整体移除；远程加载统一为 x-icons 声明处批量 IconifyJSON（编译期 fetch + 原名注册 + 会话内存缓存）。旧值形求值 NaN → 空占位（斜杠是除法表达式，复杂形态不回退字面量）。**修订注**：持久缓存后来以「`cache` 选项（声明级 opt-in + TTL）」的受限形态回归（见「IconifyJSON 远程源」），与本词条废弃的无条件持久层（无过期 + LRU + `persist` 全局开关 + 预取）不是同一方案。历史 ADR（0047/0048）正文保留旧协议描述，作为决策当时的记录。
+_Avoid_: `集/名` 值形、baseUrl、persist、prefetch

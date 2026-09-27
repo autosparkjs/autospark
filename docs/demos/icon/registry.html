@@ -13,14 +13,14 @@
             <h1 class="title is-5">注册表 AutoSpark.icons</h1>
             <p class="subtitle is-6">编程增删 + 未命中占位 → 注册后自动补渲染</p>
 
-            <template x-icon-define="star">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11.5 3.8 9 8.8l-5.5.8 4 3.9-1 5.5 5-2.7 5 2.7-1-5.5 4-3.9-5.5-.8Z"/></svg>
+            <template x-icons>
+                <svg id="star" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11.5 3.8 9 8.8l-5.5.8 4 3.9-1 5.5 5-2.7 5 2.7-1-5.5 4-3.9-5.5-.8Z"/></svg>
             </template>
 
             <!-- 未注册：渲染默认图标（缺图不破相）；注册后自动变为真图标，删除后回退 -->
             <div class="box">
                 <span style="font-size: 24px"><span x-icon="late" id="late-icon"></span></span>
-                <span><code>late</code> 当前显示：<code x-text="lateClass"></code></span>
+                <span><code>late</code> 当前引用：<code x-text="lateHref"></code></span>
             </div>
 
             <div class="field has-addons">
@@ -44,13 +44,13 @@
             const icons = AutoSparkSpaces.AutoSpark.icons;
             const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
                 names: [...icons],
-                lateClass: "as-icon default",
+                lateHref: "#as-default",
             });
             function syncNames() {
                 engine.state.names = [...icons];
-                // 注册表变更联动是同步的：add/delete 后类已就位，读 DOM 回填展示
-                engine.state.lateClass =
-                    document.getElementById("late-icon")?.className?.trim() ?? "";
+                // 注册表变更联动是同步的：add/delete 后 use href 已就位，读 DOM 回填展示
+                engine.state.lateHref =
+                    document.querySelector("#late-icon svg use")?.getAttribute("href") ?? "（空占位）";
             }
             function addLate() {
                 icons.add(

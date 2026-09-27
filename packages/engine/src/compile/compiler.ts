@@ -38,7 +38,10 @@ import type { ComponentDataBasis, ComponentDef } from "../directives/component-d
 import type { SlotContent } from "../utils/slot";
 import { mountComponentScopedAttr, injectComponentStyle } from "../utils/scopedStyle";
 import { coerceStyleValue, type StyleBind } from "../utils/styleBind";
-import { iconRegistry } from "../icons/registry";
+import { registerIconDecl } from "../icons/domain";
+import { DEFAULT_REMOTE_URL, MODIFY_VALUES, interpolateUrl } from "../icons/remote";
+import { isValidIconName } from "../icons/registry";
+import { relaxedToJson } from "../utils/relaxedToJson";
 
 /**
  * 元素是否含插值（需建 scope 的判据之一）。
@@ -183,12 +186,13 @@ export class AutoSparkCompiler {
                 (node: Node) => node instanceof HTMLElement && this._matchComponentAttr(node),
                 (componentEl: HTMLElement) => this._collectComponent(componentEl),
             ],
-            // 前置：x-icon-define 图标定义（ADR-0046）——声明性资源：取首个 <svg> 子元素上交全局
-            // 图标注册表（AutoSpark.icons）后剪枝（不进结果 DOM）。指令类仅为名位（x-define 同构），
-            // 永不被实例化。动态区域（x-for 项模板 / x-html.compile / 组件快照）内重复定义幂等覆盖。
+            // 前置：x-icons 图标集声明（ADR-0058）——声明性资源：内联多 <svg id> 收集为 symbol
+            // + 远程 IconifyJSON 清单 kick，归最近祖先 scope（.global / 孤立归全局）后剪枝
+            // （不进结果 DOM）。指令类仅为名位（x-define 同构），永不被实例化。同一声明源
+            // （含 x-for / 组件快照克隆）经内容哈希令牌去重共享 symbol——克隆不放大。
             [
-                (node: Node) => node instanceof HTMLElement && node.hasAttribute("x-icon-define"),
-                (iconEl: HTMLElement) => this._collectIconDefine(iconEl),
+                (node: Node) => node instanceof HTMLElement && this._matchIconsAttr(node),
+                (iconEl: HTMLElement) => this._collectIcons(iconEl),
             ],
             // 文本节点插值：含 {{}} 的文本节点拆分 + 注册。scope 经父元素查 templateScopeMap
             // （父元素在自身 walk 前已建 scope，含插值的 directive-less 元素亦由 hasInterpolation
@@ -317,46 +321,163 @@ export class AutoSparkCompiler {
     }
 
     /**
-     * 收集 x-icon-define 图标定义（ADR-0046 决策 1）。
+     * 元素是否带 x-icons 声明属性（含修饰符形态）。命中形态：`x-icons`（正身）与
+     * `x-icons.global` 等带 `.` 修饰符段的属性名；`x-icons-options`（指令选项属性）
+     * **不是**声明形态——不命中（`x-icons-` 前缀与 `x-icons.` 修饰符前缀是两个不同边界，
+     * 与 _matchComponentAttr 的边界规则同构）。
+     */
+    private _matchIconsAttr(el: HTMLElement): boolean {
+        if (el.hasAttribute("x-icons")) return true;
+        for (const attr of Array.from(el.attributes)) {
+            if (attr.name.startsWith("x-icons.")) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 收集 x-icons 图标集声明（ADR-0058 决策 3/4/5）。
      *
-     * 编译期前置 transformer 命中 x-icon-define 元素时调用：值 = 图标名（指令值装名，
-     * 对齐 x-define 惯例）、template 内容装 SVG（浏览器原生不渲染 template，零转义容器）。
-     * 取**首个 `<svg>` 子元素**的 outerHTML 上交全局图标注册表（名称校验/规范化/覆盖 warn
-     * 去重收编于 IconRegistry.add），然后返回 `null` 剪枝——定义元素永不进结果 DOM。
-     * 非法名 / 无 svg 子元素 warn + 跳过注册（元素照剪）；svg 之外的多余根节点 warn 但仍取首个 svg。
+     * 编译期前置 transformer 命中 x-icons 元素时调用：内联通道为 template 内容的多个带
+     * `id` 的 `<svg>` 子元素（每个 → 一个 symbol）；值简写 `x-icons="save,home"` 承载远程
+     * 清单（等效 `x-icons-options.icons`），与内联**可合并**进同一图标域；`url` / `modify`
+     * 走 `x-icons-options` 整包（relaxed-json 对象；选项成员属性不支持——纯静态声明）。
+     * `.global` ≡ `global:true` 归全局；默认归最近祖先 scope；孤立声明**静默归全局**。
+     * 登记交 `registerIconDecl`（令牌哈希去重 / 声明序所有权 / 待定名 / 远程 kick），
+     * 然后返回 `null` 剪枝——声明元素永不进结果 DOM。
      *
-     * @param iconEl 原树中的 x-icon-define 元素（只读编译输入）
+     * @param iconEl    原树中的 x-icons 元素（只读编译输入）
+     * @param fallbackOwner 直接子级编译通道（compileOneChild）传入的归属 scope——x-for 项
+     *   模板 / patch 节点等**克隆链**的 parentElement 在快照根处断裂，沿链上溯找不到 scope，
+     *   以本参数兜底（= 该通道编译所挂的 scope，语义即「最近祖先 scope」）；深层嵌套经
+     *   templateScopeMap 命中快照根 scope，不走此兜底
      * @returns 固定 `null`（剪枝）
      */
-    private _collectIconDefine(iconEl: HTMLElement): null {
-        const name = (iconEl.getAttribute("x-icon-define") ?? "").trim();
-        // template 的子节点在 .content（DocumentFragment）；非 template 宿主退化为元素自身
-        const root: ParentNode = iconEl instanceof HTMLTemplateElement ? iconEl.content : iconEl;
-        let svg: Element | null = null;
+    private _collectIcons(iconEl: HTMLElement, fallbackOwner?: AutoSparkScope | null): null {
+        const warn = (msg: string): void => {
+            this.engine.logger.warn(`x-icons: ${msg}`);
+        };
+        // 1) 主属性：x-icons / x-icons.<修饰符>（值 = 远程清单简写）
+        let attrName: string | null = null;
+        let rawValue: string | null = null;
+        if (iconEl.hasAttribute("x-icons")) {
+            attrName = "x-icons";
+            rawValue = iconEl.getAttribute("x-icons");
+        } else {
+            for (const attr of Array.from(iconEl.attributes)) {
+                if (attr.name.startsWith("x-icons.")) {
+                    attrName = attr.name;
+                    rawValue = attr.value;
+                    break;
+                }
+            }
+        }
+        if (!attrName) return null;
+        let global = false;
+        for (const seg of attrName.slice("x-icons".length).split(".").filter(Boolean)) {
+            if (seg === "global") global = true;
+            else warn(`未知修饰符 ".${seg}"，已忽略（ADR-0058 仅提供 .global）`);
+        }
+        // 2) options 整包（relaxed-json 对象）；选项成员属性不支持（纯静态声明，ADR-0058 决策 5）
+        let url = DEFAULT_REMOTE_URL;
+        let iconsOpt: string | null = null;
+        let modify: string | undefined;
+        let cache = 0;
+        const optRaw = iconEl.getAttribute("x-icons-options");
+        if (optRaw != null && optRaw.trim() !== "") {
+            let parsed: unknown = null;
+            let badJson = false;
+            try {
+                parsed = JSON.parse(relaxedToJson(optRaw));
+            } catch {
+                badJson = true;
+            }
+            if (badJson) {
+                warn(`x-icons-options 不是合法 relaxed-json，整包忽略`);
+            } else if (typeof parsed === "object" && parsed != null && !Array.isArray(parsed)) {
+                const o = parsed as Record<string, unknown>;
+                if (typeof o.url === "string" && o.url.trim() !== "") url = o.url;
+                if (typeof o.icons === "string") iconsOpt = o.icons;
+                else if (Array.isArray(o.icons)) iconsOpt = o.icons.join(",");
+                if (o.global === true) global = true;
+                if (o.modify != null) modify = String(o.modify);
+                // cache：TTL 持久缓存时长（毫秒，正数才启用；ADR-0058 修订）
+                if (o.cache != null) {
+                    const c = Number(o.cache);
+                    if (Number.isFinite(c) && c > 0) cache = c;
+                    else warn(`cache "${String(o.cache)}" 无效（须为正数毫秒时长），按未启用处理`);
+                }
+            } else {
+                warn(`x-icons-options 值须为对象，整包忽略`);
+            }
+        }
+        for (const attr of Array.from(iconEl.attributes)) {
+            if (attr.name.startsWith("x-icons-options.")) {
+                warn(
+                    `选项成员属性（${attr.name}）不支持——x-icons 为纯静态声明，请使用 x-icons-options 整包或值简写（ADR-0058 决策 5）`,
+                );
+            }
+        }
+        // 3) 远程清单（值简写 > options.icons）+ 名字校验 + modify 值域（越界按未声明处理）
+        const rawList = rawValue != null && rawValue.trim() !== "" ? rawValue : iconsOpt;
+        const remoteNames: string[] = [];
+        if (rawList != null) {
+            for (const part of rawList.split(",")) {
+                const name = part.trim();
+                if (!name) continue;
+                if (isValidIconName(name)) remoteNames.push(name);
+                else warn(`图标名 "${name}" 非法（[A-Za-z0-9_-] 且非数字开头），已剔除`);
+            }
+        }
+        if (modify != null && !(MODIFY_VALUES as readonly string[]).includes(modify)) {
+            warn(
+                `modify "${modify}" 越界（rounded|sharp|outline|outline-rounded|outline-sharp），按未声明处理`,
+            );
+            modify = undefined;
+        }
+        // 4) 内联收集：template 内容的多个带 id 的 <svg>（非 svg 根节点 warn 忽略）
+        const root: ParentNode =
+            iconEl instanceof HTMLTemplateElement ? iconEl.content : iconEl;
+        const inline: Array<{ name: string; svg: string }> = [];
         let extraRoots = 0;
         for (const child of root.children) {
             if (child.tagName.toLowerCase() === "svg") {
-                if (!svg) svg = child;
+                const name = (child.getAttribute("id") ?? "").trim();
+                if (!isValidIconName(name)) {
+                    warn(
+                        `内联 <svg> 的 id "${name}" 非法（[A-Za-z0-9_-] 且非数字开头/保留名），已跳过`,
+                    );
+                    continue;
+                }
+                inline.push({ name, svg: child.outerHTML });
             } else {
                 extraRoots++;
             }
         }
-        if (!name) {
-            this.engine.logger.warn(`x-icon-define: 缺少图标名（值留空），定义被跳过（ADR-0046）`);
+        if (extraRoots > 0) warn(`声明含 ${extraRoots} 个 svg 之外的根节点，已忽略`);
+        if (inline.length === 0 && remoteNames.length === 0) {
+            warn(`声明为空（无内联 svg、无远程清单），已跳过`);
             return null;
         }
-        if (!svg) {
-            this.engine.logger.warn(
-                `x-icon-define: 图标 "${name}" 未找到 <svg> 子元素，定义被跳过（ADR-0046）`,
-            );
-            return null;
+        // 5) 归属：最近祖先 scope（沿原树上溯，与 _collectComponent 同构；克隆链断裂时退
+        //    fallbackOwner）；global / 孤立 → 全局（孤立静默归全局，ADR-0058 决策 4）
+        let owner: AutoSparkScope | undefined;
+        let p: HTMLElement | null = iconEl.parentElement;
+        while (p) {
+            owner = this.templateScopeMap.get(p);
+            if (owner) break;
+            p = p.parentElement;
         }
-        if (extraRoots > 0) {
-            this.engine.logger.warn(
-                `x-icon-define: 图标 "${name}" 的声明含 ${extraRoots} 个 svg 之外的根节点，已忽略（ADR-0046）`,
-            );
-        }
-        iconRegistry.add(name, svg.outerHTML);
+        if (!owner && fallbackOwner) owner = fallbackOwner;
+        registerIconDecl({
+            global: global || !owner,
+            ownerScope: owner ?? null,
+            inline,
+            remoteNames,
+            url: interpolateUrl(url, remoteNames, modify),
+            modify,
+            cache,
+            warn,
+        });
         return null;
     }
 
@@ -692,15 +813,15 @@ export class AutoSparkCompiler {
             ) {
                 return null;
             }
-            // 声明性资源收集器直接命中本层根（x-define/x-icon-define 声明为组件快照、
+            // 声明性资源收集器直接命中本层根（x-define/x-icons 声明为组件快照、
             // x-for 项模板或 patch 节点的**直接子元素**）：transformElement 以其为根时收集器返回 null
             // 会触发"根元素被丢弃"抛错（收集已完成但中断当次 flush）——此处直接走收集并剪枝，
             // 与深层嵌套路径（transformElement walk 内层剪枝不抛错）语义一致（ADR-0022 嵌套私有子组件）。
             if (this._matchComponentAttr(child)) {
                 return this._collectComponent(child);
             }
-            if (child.hasAttribute("x-icon-define")) {
-                return this._collectIconDefine(child);
+            if (this._matchIconsAttr(child)) {
+                return this._collectIcons(child, scope);
             }
             return transformElement(child, this._getTransformers());
         }

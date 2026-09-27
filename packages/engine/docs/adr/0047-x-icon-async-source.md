@@ -1,6 +1,6 @@
 # ADR-0047：x-icon 异步图标源（`baseUrl/<图标集>/<图标名>.svg` 通用远程协议，默认源 Iconify）
 
-- **状态**：Accepted（grill-with-docs，一轮七问）
+- **状态**：Accepted（grill-with-docs，一轮七问）｜**整体被 [ADR-0058](0058-icon-symbol-and-icon-domain.md) 取代（2026-09-27）**：per-icon 远程物种（`集/名` 值形 + `baseUrl/<集>/<名>.svg` 裸 SVG 协议）移除，远程加载统一为 x-icons 声明处批量 IconifyJSON（编译期 fetch + 原名注册 + 待定名空占位）
 - **日期**：2026-09-19
 - **关联**：[ADR-0046](0046-x-icon-directive.md)（x-icon 本地物种：注册表 / 规范形 / URL 工厂 / 渲染管线——本物种全盘继承）、[ADR-0033](0033-x-data-async-source.md) / [ADR-0035](0035-x-html-async-source.md)（异步源家族先例物种）、[ADR-0035](0035-x-html-async-source.md) 决策 5（AsyncSourceRunner 共享执行器，注释预留「第三家异步源即持即用」）、[ADR-0048](0048-icon-persistent-cache.md)（在其缓存层之上叠加 localStorage 持久层与 prefetch）、[CONTEXT.md](../../CONTEXT.md)（「图标层 / 异步图标源」词条）
 

@@ -290,6 +290,23 @@ describe("x-bind:style 样式绑定", () => {
         expect(div.style.fontWeight).toBe("");
     });
 
+    test("对象 key 支持 CSS 自定义属性（-- 前缀经 setProperty 通道——属性赋值在 Chromium 下静默失效）", async () => {
+        const { root, engine } = mount(`<div x-style="s"></div>`, {
+            s: { "--as-icon-sw": "2", color: "red" },
+        });
+        const div = root.firstElementChild as HTMLElement;
+        expect(div.style.getPropertyValue("--as-icon-sw")).toBe("2");
+        expect(div.style.color).toBe("red"); // 普通键照旧走属性赋值通道
+        // 状态变化：变量值更新；对象不再含该 key → removeProperty 清除（不残留）
+        engine.state.s = { "--as-icon-sw": "3" };
+        await nextTick();
+        expect(div.style.getPropertyValue("--as-icon-sw")).toBe("3");
+        engine.state.s = { color: "blue" };
+        await nextTick();
+        expect(div.style.getPropertyValue("--as-icon-sw")).toBe("");
+        expect(div.style.color).toBe("blue");
+    });
+
     test("求值为 falsy 移除 style 属性", async () => {
         const { root, engine } = mount(`<div x-style="s"></div>`, {
             s: { color: "red" },

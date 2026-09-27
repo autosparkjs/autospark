@@ -59,7 +59,7 @@ export class AutoSpark<
      * `add(name, svg)` 注册（同名覆盖 + warn 去重）、`delete(name)` 移除（不存在静默 false）、
      * 遍历产出名称字符串；`baseUrl` 为远程图标协议基址（`baseUrl/<图标集>/<图标名>.svg`，
      * 默认 Iconify 公共 API，不限于 Iconify——任何兼容服务可自托管）。
-     * 声明入口三通道：模板 `x-icon-define` / 本表编程注册 / 构造 `options.icons` 种子。
+     * 声明入口三通道：模板 `x-icons.global`（ADR-0058）/ 本表编程注册 / 构造 `options.icons` 种子。
      */
     static readonly icons: IconRegistry = iconRegistry;
 

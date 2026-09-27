@@ -1,6 +1,6 @@
 # ADR-0046：x-icon / x-icon-define 图标指令（CSS mask 方案 + 全局图标注册表）
 
-- **状态**：Accepted（grill-with-docs，四轮二十二问）
+- **状态**：Accepted（grill-with-docs，四轮二十二问）｜**部分被 [ADR-0058](0058-icon-symbol-and-icon-domain.md) 取代（2026-09-27）**：CSS mask 渲染机制整体下线（决策 4 的 xmlns 补齐、决策 5 URL 工厂、决策 6 样式下发、决策 7 颜色模型与 mask 三件套）；x-icon-define 硬移除（决策 1 的 collector 形态演进为 x-icons 批量声明，图标定义升级为 scope 局部图标域）。注册表三通道（决策 3）、stroke-width 全 strip 哲学（决策 4 核心，演进为 symbol 归一化）、默认图标（决策 8）、变更通知唤醒（决策 9）、名称约束（决策 10）继续有效。
 - **日期**：2026-09-19
 - **关联**：[ADR-0022](0022-x-component.md)（声明性资源 collector 剪枝先例）、[ADR-0007](0007-directive-options-and-modifiers.md)（`x-icon-options` 配置形态）、[ADR-0036](0036-action-descriptor-metadata.md)（ActionDesc.icon 元数据键——未来消费方，不在本 ADR 范围）、[ADR-0047](0047-x-icon-async-source.md)（x-icon 远程物种：Iconify API 异步图标源）、[CONTEXT.md](../../CONTEXT.md)（「图标层」词条）
 

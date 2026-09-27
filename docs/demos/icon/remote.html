@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>x-icon · 远程图标（baseUrl/<图标集>/<图标名>.svg 通用协议）</title>
+        <title>x-icon · 远程图标（x-icons 声明处批量加载 IconifyJSON）</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
@@ -36,73 +36,81 @@
 
     <body>
         <div class="demo-app section" style="max-width: 720px">
-            <h1 class="title is-5">远程图标：mdi-light 图标集</h1>
+            <h1 class="title is-5">远程图标：material-symbols-light 图标集</h1>
             <p class="subtitle is-6">
-                <code>图标集/图标名</code> 免定义直用——按 <code>baseUrl/图标集/图标名.svg</code> 通用协议取图，默认 baseUrl 为
-                <a href="https://iconify.design">Iconify</a> 公共 API（不限于 Iconify，任何兼容服务可自托管）；首次加载后内存缓存，同图标只发一次请求
+                声明处批量加载——值简写承载图标清单，默认 url 为
+                <a href="https://iconify.design">Iconify</a> 公共 API 的 <code>material-symbols-light.json</code>；
+                同 url 只发一次请求，图标以<strong>原名</strong>注册（x-icon 不感知 modify）；
+                本批声明 <code>cache: 86400000</code>（TTL 一天 localStorage 持久缓存，刷新页面零网络）
             </p>
 
+            <!-- 值简写 = 远程清单：fetch IconifyJSON → 转为 symbol（原名注册，加载窗口期空占位、到达自动显形）；
+                 cache: 86400000 → TTL 一天 localStorage 持久缓存（刷新页面零网络，DevTools → 应用 → 本地存储可查） -->
+            <template
+                x-icons="home,search,settings,favorite,close,check,info,warning,person,mail,menu,share"
+                x-icons-options="{cache:86400000}"
+            ></template>
+
             <div class="box ico-grid">
-                <span class="ico"><span x-icon="mdi-light/arrange-bring-forward"></span><i>arrange-bring-forward</i></span>
-                <span class="ico"><span x-icon="mdi-light/arrange-bring-to-front"></span><i>arrange-bring-to-front</i></span>
-                <span class="ico"><span x-icon="mdi-light/arrange-send-backward"></span><i>arrange-send-backward</i></span>
-                <span class="ico"><span x-icon="mdi-light/arrange-send-to-back"></span><i>arrange-send-to-back</i></span>
-                <span class="ico"><span x-icon="mdi-light/arrow-down"></span><i>arrow-down</i></span>
-                <span class="ico"><span x-icon="mdi-light/arrow-down-circle"></span><i>arrow-down-circle</i></span>
-                <span class="ico"><span x-icon="mdi-light/arrow-left"></span><i>arrow-left</i></span>
-                <span class="ico"><span x-icon="mdi-light/arrow-left-circle"></span><i>arrow-left-circle</i></span>
-                <span class="ico"><span x-icon="mdi-light/arrow-right"></span><i>arrow-right</i></span>
-                <span class="ico"><span x-icon="mdi-light/arrow-right-circle"></span><i>arrow-right-circle</i></span>
-                <span class="ico"><span x-icon="mdi-light/arrow-up"></span><i>arrow-up</i></span>
-                <span class="ico"><span x-icon="mdi-light/arrow-up-circle"></span><i>arrow-up-circle</i></span>
-                <span class="ico"><span x-icon="mdi-light/bank"></span><i>bank</i></span>
-                <span class="ico"><span x-icon="mdi-light/baseball-diamond"></span><i>baseball-diamond</i></span>
-                <span class="ico"><span x-icon="mdi-light/bell"></span><i>bell</i></span>
-                <span class="ico"><span x-icon="mdi-light/bell-off"></span><i>bell-off</i></span>
-                <span class="ico"><span x-icon="mdi-light/bell-plus"></span><i>bell-plus</i></span>
-                <span class="ico"><span x-icon="mdi-light/bluetooth"></span><i>bluetooth</i></span>
-                <span class="ico"><span x-icon="mdi-light/book"></span><i>book</i></span>
-                <span class="ico"><span x-icon="mdi-light/book-multiple"></span><i>book-multiple</i></span>
-                <span class="ico"><span x-icon="mdi-light/book-plus"></span><i>book-plus</i></span>
-                <span class="ico"><span x-icon="mdi-light/bookmark"></span><i>bookmark</i></span>
-                <span class="ico"><span x-icon="mdi-light/border-all"></span><i>border-all</i></span>
-                <span class="ico"><span x-icon="mdi-light/border-bottom"></span><i>border-bottom</i></span>
-                <span class="ico"><span x-icon="mdi-light/border-horizontal"></span><i>border-horizontal</i></span>
-                <span class="ico"><span x-icon="mdi-light/border-inside"></span><i>border-inside</i></span>
-                <span class="ico"><span x-icon="mdi-light/border-left"></span><i>border-left</i></span>
-                <span class="ico"><span x-icon="mdi-light/border-none"></span><i>border-none</i></span>
-                <span class="ico"><span x-icon="mdi-light/border-outside"></span><i>border-outside</i></span>
-                <span class="ico"><span x-icon="mdi-light/border-right"></span><i>border-right</i></span>
-                <span class="ico"><span x-icon="mdi-light/border-top"></span><i>border-top</i></span>
-                <span class="ico"><span x-icon="mdi-light/border-vertical"></span><i>border-vertical</i></span>
+                <span class="ico"><span x-icon="home"></span><i>home</i></span>
+                <span class="ico"><span x-icon="search"></span><i>search</i></span>
+                <span class="ico"><span x-icon="settings"></span><i>settings</i></span>
+                <span class="ico"><span x-icon="favorite"></span><i>favorite</i></span>
+                <span class="ico"><span x-icon="close"></span><i>close</i></span>
+                <span class="ico"><span x-icon="check"></span><i>check</i></span>
+                <span class="ico"><span x-icon="info"></span><i>info</i></span>
+                <span class="ico"><span x-icon="warning"></span><i>warning</i></span>
+                <span class="ico"><span x-icon="person"></span><i>person</i></span>
+                <span class="ico"><span x-icon="mail"></span><i>mail</i></span>
+                <span class="ico"><span x-icon="menu"></span><i>menu</i></span>
+                <span class="ico"><span x-icon="share"></span><i>share</i></span>
             </div>
 
             <hr />
-            <h2 class="title is-6">选项与本地物种同构</h2>
-            <p>
-                <span x-icon="mdi-light/bell" x-icon-options="{ size: 32, color: '#f03d5e' }"></span>
-                <span x-icon="mdi-light/bell" x-icon-options="{ strokeWidth: 2.5 }"></span>
-                <span x-icon="mdi-light/bookmark" style="font-size: 28px; color: #485fc7"></span>
-                <span>← size / strokeWidth / color / 文字色 均生效</span>
+            <h2 class="title is-6">modify 变体后缀（url 用后缀名取数、symbol 以原名注册）</h2>
+            <p class="subtitle is-7">
+                <code>x-icons-options="{modify:'rounded'}"</code> → url 按插值 <code>{modify-icons}</code> 取
+                <code>delete-rounded</code> 等，渲染仍写原名 <code>x-icon="delete"</code>
             </p>
-
-            <h2 class="title is-6">其他图标集同样可用</h2>
             <p style="font-size: 22px">
-                <span x-icon="mdi/home"></span>
-                <span x-icon="ri/account-box-line"></span>
-                <span x-icon="tabler/arrow-right"></span>
-                <span x-icon="lucide/rocket"></span>
-                <span x-icon="ph/planet"></span>
+                <template x-icons="delete,edit,add,download,refresh" x-icons-options="{modify:'rounded'}"></template>
+                <span x-icon="delete"></span>
+                <span x-icon="edit"></span>
+                <span x-icon="add"></span>
+                <span x-icon="download"></span>
+                <span x-icon="refresh"></span>
+            </p>
+
+            <h2 class="title is-6">自定义 url（换图标集 / 自托管，占位符插值）</h2>
+            <p class="subtitle is-7">
+                <code>{icons}</code> 原名清单 / <code>{modify}</code> 变体名 / <code>{modify-icons}</code> 后缀清单——指向任何返回 IconifyJSON 的服务即可（内网镜像、自建服务）
+            </p>
+            <p style="font-size: 22px">
+                <template
+                    x-icons="star,bell"
+                    x-icons-options="{url:'https://api.iconify.design/mdi-light.json?icons={icons}'}"
+                ></template>
+                <span x-icon="star"></span>
+                <span x-icon="bell"></span>
+                <span style="font-size: 14px">← mdi-light 图标集（换 url 即换源，与上面互不冲突）</span>
+            </p>
+
+            <h2 class="title is-6">选项照常生效</h2>
+            <p>
+                <span x-icon="home" x-icon-options="{ size: 32, color: '#f03d5e' }"></span>
+                <span x-icon="mail" style="font-size: 28px; color: #485fc7"></span>
+                <span>← size / color / 文字色 均生效（strokeWidth 是描边体系参数，对 fill 型图标集无效）</span>
             </p>
 
             <p>
-                <!-- 不存在的图标：warn + 默认图标兜底（缺图不破相） -->
-                <span x-icon="mdi-light/nonexistent-icon"></span>
+                <!-- 不存在的名字：not_found → warn + 默认图标兜底（缺图不破相） -->
+                <span x-icon="nonexistent-icon"></span>
                 <span>← 不存在的图标名：默认图标兜底</span>
             </p>
 
             <div class="notification is-light is-size-7">
-                自托管（内网 / 隐私）：<code>AutoSpark.icons.baseUrl = "https://icons.internal"</code>
+                声明默认归<strong>最近祖先 scope</strong>（局部图标域，后代就近使用、随 scope 销毁回收）；
+                <code>x-icons.global</code> 归全局（document 级共享，<code>engine.destroy</code> 不清理）
             </div>
         </div>
 

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>查找组件 · 声明位置与消费分离</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!--
+            组件查找的推荐形态：声明与消费分离。
+            - 声明：x-define="login" 写在消费按钮的兄弟位，编译期收集后
+              挂到共同父 scope（#app 的 x-scope）的 components，不进结果 DOM；
+            - 消费：x-dialog:login 按名沿 scope 链查找（本 scope → 父链 → 全局兜底），
+              visible 翻真时实例化渲染到 body 容器——与声明处的 DOM 位置无关。
+            时序：visible 初始为假，点击后才翻真——打开发生在整树编译完成后，
+            此时声明早已收集完毕，稳定命中（若初始即真，声明又写在消费宿主子树内，
+            则会因「父先子后」的编译序扑空）。
+        -->
+        <div id="app" x-scope>
+            <div class="panel">
+                <p class="label">声明与消费分离：点按钮打开 login 弹层（兄弟位声明）</p>
+                <button class="button is-primary" x-dialog:login="ui.loginVisible" @click="ui.loginVisible = true">
+                    登录
+                </button>
+            </div>
+
+            <!-- 声明：兄弟位，挂共同父 scope；编译期摘除，页面上不可见 -->
+            <div x-define="login">
+                <div class="box" style="min-width: 320px">
+                    <h3 class="title is-5">{{ title }}</h3>
+                    <p class="subtitle is-6">组件内容渲染在 body 容器中，与声明处 DOM 位置无关。</p>
+                    <button class="button is-light" @click="close()">关闭</button>
+                </div>
+                <script type="autospark/setup">
+                    {
+                        data: { title: "声明在消费之外（兄弟位）" },
+                    }
+                </script>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {
+                ui: { loginVisible: false },
+            });
+        </script>
+
+        <style>
+            body {
+                padding: 24px;
+            }
+            .panel {
+                max-width: 560px;
+            }
+            .label {
+                margin-bottom: 12px;
+            }
+        </style>
+    </body>
+</html>

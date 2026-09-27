@@ -24,7 +24,7 @@ export * from "./component";
 export * from "./define";
 export * from "./slot";
 export * from "./icon";
-export * from "./icon-define";
+export * from "./icons";
 export * from "./import";
 
 import type { AutoSparkDirectiveBase } from "../base";
@@ -52,7 +52,7 @@ import { ImportDirective } from "./import";
 import { FormDirective } from "./form";
 import { FieldDirective } from "./field";
 import { IconDirective } from "./icon";
-import { IconDefineDirective } from "./icon-define";
+import { IconsDirective } from "./icons";
 
 /**
  * 预设指令映射：指令名 → 指令类。
@@ -100,5 +100,7 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     form: FormDirective,
     field: FieldDirective,
     icon: IconDirective,
-    "icon-define": IconDefineDirective,
+    // x-icons 图标集声明（ADR-0058）：经 compiler 前置 transformer 拦截、永不被实例化，
+    // 注册仅为合法可发现名位（x-define 同构）。旧 `x-icon-define` 已硬移除（不注册、静默失效）。
+    icons: IconsDirective,
 };

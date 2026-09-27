@@ -101,9 +101,23 @@ function patchClass(el: HTMLElement, value: any, state: AttrPatchState): void {
     state.lastAppliedClass = current;
 }
 
+/** CSS 自定义属性键（`--` 前缀）：属性赋值通道在 Chromium 等实现下静默失效，须经 setProperty */
+const isCustomPropKey = (k: string) => k.charCodeAt(0) === 45 && k.charCodeAt(1) === 45;
+
+function writeStyleKey(el: HTMLElement, k: string, v: unknown): void {
+    if (isCustomPropKey(k)) el.style.setProperty(k, v == null ? "" : String(v));
+    else (el.style as any)[k] = v;
+}
+
+function clearStyleKey(el: HTMLElement, k: string): void {
+    if (isCustomPropKey(k)) el.style.removeProperty(k);
+    else (el.style as any)[k] = "";
+}
+
 /**
  * style 分支：字符串 → `cssText` 整体替换；对象 → 按 key 增删 diff（`lastAppliedStyle`
  * 清除「上次有、本次无」的残留 key，避免 `Object.assign` 合并造成的样式泄漏）；falsy → 移除 style 属性。
+ * 对象 key 支持 CSS 自定义属性（`--x` 前缀经 setProperty 通道——属性赋值在 Chromium 下静默失效）。
  *
  * **`.transition` 注入**（仅 style）：每次 patch 内部把有效 `transition` 合并进去——对象模式并入写入对象
  * （用户自带 `transition` key 显式优先），字符串模式前置注入（用户串内已声明的 `transition` 因 CSS
@@ -124,9 +138,9 @@ function patchStyle(el: HTMLElement, value: any, state: AttrPatchState, transiti
                 : value;
         const next = new Set(Object.keys(merged));
         // 清掉上次写过、本次对象里没有的 key，防止残留（如 warn→normal 后 fontWeight 仍停留）
-        for (const k of state.lastAppliedStyle) if (!next.has(k)) (el.style as any)[k] = "";
+        for (const k of state.lastAppliedStyle) if (!next.has(k)) clearStyleKey(el, k);
         // 写本次对象里的 key（驼峰 key 经 CSSStyleDeclaration 的 camelCase 访问器生效）
-        for (const k of next) (el.style as any)[k] = (merged as Record<string, any>)[k];
+        for (const k of next) writeStyleKey(el, k, (merged as Record<string, any>)[k]);
         state.lastAppliedStyle = next;
         return;
     }

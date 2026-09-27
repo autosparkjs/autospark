@@ -7,6 +7,7 @@ import { AutoSparkDirectiveBase } from "./directives/base";
 import { getVal, type Watcher } from "autostore";
 import { getDirectives, getHostOptions } from "./directives/utils/getDirectives";
 import { createDirectives } from "./directives/utils/createDirectives";
+import { releaseScopeIcons, type ScopeIconEntry } from "./icons/domain";
 
 /**
  * 简单状态路径：仅字母/数字/下划线/$ 组成的段，以点分隔。
@@ -246,6 +247,17 @@ export class AutoSparkScope {
      * 本字段**仅在收集到组件时才创建**，多数 scope 无组件 → null，避免给每个 scope 平白分配空对象（YAGNI）。
      */
     components: Record<string, HTMLElement> | null = null;
+    /**
+     * 图标域名字表（ADR-0058）：x-icons 声明收集产物——图标名 → 声明令牌条目。
+     * 后代 x-icon 沿 parent 链就近查找（内层遮蔽外层），到顶兜底全局注册表（与 getComponent
+     * 同构）。多数 scope 无声明 → null（同 components，YAGNI）；销毁时随 iconTokens 回收。
+     */
+    icons: Map<string, ScopeIconEntry> | null = null;
+    /**
+     * 本 scope 收集过的声明令牌集（ADR-0058 决策 4）：destroy 时逐令牌引用计数——归零摘除
+     * 该组局部 symbol（同一声明源被多 scope/克隆共享，克隆不放大）。全局 symbol 不清理。
+     */
+    iconTokens: Set<string> | null = null;
     /**
      * x-for 分页状态的只读快照（ADR-0042 分页状态读取器）。
      *
@@ -980,6 +992,8 @@ export class AutoSparkScope {
                 child.destroy();
             }
             this.children.clear();
+            // 图标域令牌回收（ADR-0058）：引用计数归零摘除局部 symbol（全局 symbol 不清理）
+            releaseScopeIcons(this);
             for (const watcher of this.watchers) {
                 watcher.off();
             }

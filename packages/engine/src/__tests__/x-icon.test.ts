@@ -2,847 +2,726 @@ import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import "./setup";
 import { mount, nextTick } from "./helpers";
 import { AutoSpark } from "../engine";
-import { iconRegistry } from "../icons/registry";
-import { DEFAULT_ICON_STROKE_WIDTH } from "../icons/factory";
 import {
-    persistLookup,
-    persistStore,
-    resetIconPersistenceForTest,
-    reloadIconPersistenceForTest,
-} from "../icons/persist";
+    iconRegistry,
+    GLOBAL_SYMBOL_PREFIX,
+    DEFAULT_ICON_STROKE_WIDTH,
+} from "../icons/registry";
+import { DEFAULT_REMOTE_URL, resetIconCacheForTest } from "../icons/remote";
+import { resetIconDomainForTest } from "../icons/domain";
+import { spriteSymbolIds } from "../icons/symbol";
+import { resolveIconifyIcon, type IconifyJSON } from "../icons/iconify";
 
 /**
- * x-icon / x-icon-define 图标指令测试（ADR-0046 本地物种 / ADR-0047 远程物种）。
+ * x-icon / x-icons 图标指令测试（ADR-0058：symbol 机制 + 图标域 + IconifyJSON 远程源）。
  *
- * 注册表是 document 级全局单例（跨用例残留），每个 describe 前重置并重播内置 default
- * 图标；warn 去重（未命中/同名覆盖）按 name 跨用例累积，故各用例使用互异图标名。
+ * 注册表 / sprite / 图标域令牌表是 document 级全局单例（跨用例残留），每个 describe 前
+ * 重置并重播内置 default 图标；warn 去重（未命中）按 name 跨用例累积，故各用例使用互异图标名。
  */
 
 const DEFAULT_ICON_SVG =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>';
 
-/** 重置全局注册表（保留 default 内置条目的原貌；含全局配置复位） */
+/** 重置全局态：注册表（保留 default 原貌）+ 全局配置 + 图标域令牌表 + sprite 残余 symbol */
 function resetIcons() {
     for (const name of [...iconRegistry]) iconRegistry.delete(name);
+    // 先摘 sprite 再重播 default（重播会重建 sprite 并注入 as-default symbol）
+    document.getElementById("autospark-icon-sprite")?.remove();
     iconRegistry.add("default", DEFAULT_ICON_SVG);
     iconRegistry.options = {};
-    resetIconPersistenceForTest();
+    resetIconDomainForTest();
+    resetIconCacheForTest(); // 远程会话缓存隔离（同 url 跨用例不串响应）
     localStorage.clear();
 }
 
-/** 简单图标模板（marker 用于区分内容） */
-const iconTpl = (name: string, marker: string) =>
-    `<template x-icon-define="${name}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="${marker}"/></svg></template>`;
+/** 内联 svg 声明（marker 用于区分内容） */
+const svg = (id: string, marker: string, rootAttrs = "") =>
+    `<svg id="${id}" viewBox="0 0 24 24" fill="none" stroke="currentColor" ${rootAttrs}><path d="${marker}"/></svg>`;
+/** 纯内联 x-icons 声明模板 */
+const iconsTpl = (svgs: string) => `<template x-icons>${svgs}</template>`;
+/** 取宿主内 use 的 href（无 href 为 null） */
+const useHref = (root: HTMLElement): string | null =>
+    root.querySelector(".as-icon svg use")?.getAttribute("href") ?? null;
+/** 按 href 取 symbol 元素（#id → 元素） */
+const symbolOf = (href: string | null): Element | null =>
+    href ? document.getElementById(href.slice(1)) : null;
+/** sprite 内以 -<名> 结尾的 symbol id（令牌前缀无关的按名筛查） */
+const symbolIdsByName = (name: string): string[] =>
+    spriteSymbolIds().filter((id) => id.endsWith(`-${name}`));
 
 beforeEach(() => resetIcons());
 
-describe("x-icon-define 图标定义（ADR-0046）", () => {
-    test("模板定义注册到全局注册表且定义元素剪枝（不进结果 DOM）", () => {
-        const { root } = mount(`${iconTpl("close", "M1")}<span x-icon="close"></span>`, {});
-        expect(iconRegistry.has("close")).toBe(true);
-        expect(root.querySelector("template")).toBeNull();
-        expect(root.querySelector("span")!.classList.contains("close")).toBe(true);
-    });
-
-    test("同名覆盖：后者胜（URL 缓存随之失效）", () => {
-        mount(
-            `${iconTpl("dup", "OLD")} ${iconTpl("dup", "NEW")}<span x-icon="dup"></span>`,
-            {},
-        );
-        expect(iconRegistry.getSvg("dup")).toContain("NEW");
-        expect(iconRegistry.getSvg("dup")).not.toContain("OLD");
-    });
-
-    test("非法名（非 CSS ident / 保留名）warn + 拒绝注册，元素照剪枝", () => {
+describe("x-icons 内联声明与 symbol 归一化（ADR-0058 决策 1/3/6）", () => {
+    test("多 svg 收集为 symbol + 声明元素剪枝；x-icon 经 use 引用（局部前缀 as-i{令牌}-）", () => {
         const { root } = mount(
-            `<template x-icon-define="2x"><svg/></template><template x-icon-define="as-icon"><svg/></template>`,
+            `<div x-scope>${iconsTpl(svg("close", "M1") + svg("menu", "M2"))}<span x-icon="close"></span></div>`,
             {},
         );
-        expect(iconRegistry.has("2x")).toBe(false);
-        expect(iconRegistry.has("as-icon")).toBe(false);
         expect(root.querySelector("template")).toBeNull();
+        const href = useHref(root);
+        expect(href).toMatch(/^#as-i[a-z0-9]+-close$/);
+        const sym = symbolOf(href);
+        expect(sym).not.toBeNull();
+        expect(sym!.getAttribute("viewBox")).toBe("0 0 24 24");
+        expect(sym!.innerHTML).toContain("M1");
+        expect(sym!.getAttribute("stroke")).toBe("currentColor"); // 根级承载属性上移到 symbol
+        expect(symbolIdsByName("menu").length).toBe(1); // 未消费的声明同样注入
     });
 
-    test("无 svg 子元素 / 无名：warn + 跳过注册", () => {
-        mount(`<template x-icon-define="nosvg"><div>xx</div></template><template x-icon-define=""><svg/></template>`, {});
-        expect(iconRegistry.has("nosvg")).toBe(false);
-        expect(iconRegistry.size).toBe(1); // 仅 default
-    });
-
-    test("规范形：strip 全部 stroke-width + root 缺省补 xmlns/stroke（显式属性不动）", () => {
+    test("归一化：strip 全部 stroke-width；缺 stroke 且 fill=none 才补 currentColor（fill 型不补）", () => {
         mount(
-            `<template x-icon-define="canon"><svg viewBox="0 0 24 24"><path stroke-width="2" d="M1"/><rect stroke-width="1.5" x="1"/></svg></template>`,
+            iconsTpl(
+                `<svg id="swx" viewBox="0 0 24 24" fill="none"><path stroke-width="2" d="M1"/><rect stroke-width="1.5" x="1"/></svg>` +
+                    `<svg id="fillx" viewBox="0 0 16 16"><path d="F"/></svg>` +
+                    `<svg id="keptx" viewBox="0 0 24 24" fill="none" stroke="red"><path stroke-width="2" d="M1"/></svg>`,
+            ),
             {},
         );
-        const svg = iconRegistry.getSvg("canon")!;
-        expect(svg).not.toContain("stroke-width");
-        expect(svg).toContain('stroke="currentColor"');
-        // xmlns 缺省补齐（data URL 按 XML 解析的硬约束——缺失则 mask 无图隐形）
-        expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"');
-        // 作者显式属性不被覆盖
+        const sw = document.getElementById(symbolIdsByName("swx")[0]!)!;
+        expect(sw.getAttribute("stroke")).toBe("currentColor"); // fill=none 缺 stroke 才补
+        expect(sw.querySelector("path")!.getAttribute("stroke-width")).toBeNull();
+        expect(sw.querySelector("rect")!.getAttribute("stroke-width")).toBeNull();
+        const fill = document.getElementById(symbolIdsByName("fillx")[0]!)!;
+        expect(fill.getAttribute("stroke")).toBeNull(); // fill 体系不补 stroke（Iconify 同轨）
+        const kept = document.getElementById(symbolIdsByName("keptx")[0]!)!;
+        expect(kept.getAttribute("stroke")).toBe("red"); // 作者显式属性不动
+        expect(kept.querySelector("path")!.getAttribute("stroke-width")).toBeNull();
+    });
+
+    test("非法名（ident 外/保留名）剔除；非 svg 根节点忽略；空声明跳过", () => {
         mount(
-            `<template x-icon-define="kept"><svg stroke="red" xmlns="http://www.w3.org/2000/svg"><path stroke-width="2" d="M1"/></svg></template>`,
+            `${iconsTpl(
+                `<svg id="2x" viewBox="0 0 1 1"><path d="A"/></svg><svg id="as-icon" viewBox="0 0 1 1"><path d="B"/></svg><div>noise</div>`,
+            )}` + `<template x-icons></template>`,
             {},
         );
-        const kept = iconRegistry.getSvg("kept")!;
-        expect(kept).toContain('stroke="red"');
-        expect((kept.match(/xmlns=/g) ?? []).length).toBe(1); // 已有 xmlns 不重复注入
-        expect(kept).not.toContain("stroke-width");
+        expect(symbolIdsByName("2x").length).toBe(0);
+        expect(symbolIdsByName("as-icon").length).toBe(0);
+        expect(iconRegistry.size).toBe(1); // 仅 default（未污染全局）
     });
 
-    test("样式表下发：:root 变量 + 裸名类规则（默认 sw=1.25）+ 基础规则排版免疫", () => {
-        mount(`${iconTpl("sheet", "M1")}<span x-icon="sheet"></span>`, {});
-        const style = document.getElementById("autospark-icons") as HTMLStyleElement;
-        expect(style).not.toBeNull();
-        // 排版免疫：content-box（免疫全局 border-box reset，padding 语义恒定）+ flex:none（flex 行内不缩）
-        expect(style.textContent).toContain("box-sizing:content-box");
-        expect(style.textContent).toContain("flex:none");
-        expect(style.textContent).toContain(`--as-icon-sheet:url("data:image/svg+xml,`);
-        // data URL 内属性经 encodeURIComponent 编码（stroke-width="1.25" → %3D%221.25%22）
-        expect(style.textContent).toContain(
-            encodeURIComponent(`stroke-width="${DEFAULT_ICON_STROKE_WIDTH}"`),
+    test("选项成员属性不支持（warn + 忽略）；未知修饰符忽略", () => {
+        mount(
+            `<template x-icons.fast="sv" x-icons-options.icons="'sv'">${svg("sv", "M1")}</template>`,
+            {},
         );
-        expect(style.textContent).toContain(".as-icon.sheet{");
-        expect(style.textContent).toContain("mask-image:var(--as-icon-sheet)");
-    });
-
-    test("options.icons 种子：构造期并入全局注册表", () => {
-        mount(`<span x-icon="seed"></span>`, {}, { icons: { seed: "<svg><path d='S'/></svg>" } });
-        expect(iconRegistry.has("seed")).toBe(true);
+        // 内联照常收集（成员属性与未知修饰符均不阻断声明）
+        expect(symbolIdsByName("sv").length).toBe(1);
     });
 });
 
-describe("x-icon 本地渲染（ADR-0046）", () => {
-    test("命中：挂基础类 + 裸名类，无内联 mask（走类规则变量）", () => {
-        const { root } = mount(`${iconTpl("hit", "M1")}<span x-icon="hit"></span>`, {});
-        const el = root.querySelector(".as-icon")!;
-        expect(el.classList.contains("as-icon")).toBe(true);
-        expect(el.classList.contains("hit")).toBe(true);
-        expect(el.style.getPropertyValue("mask-image")).toBe("");
-    });
-
-    test("值响应式：状态切换图标名，类随之交换", async () => {
-        const { root, engine } = mount(
-            `${iconTpl("a", "M1")} ${iconTpl("b", "M2")}<span x-icon="cur"></span>`,
-            { cur: "a" },
+describe("图标域：scope 局部 / 就近遮蔽 / 生命周期（ADR-0058 决策 2/4/12）", () => {
+    test("归最近祖先 scope：后代沿链使用（跨无 scope 的纯 div）", () => {
+        const { root } = mount(
+            `<div x-scope>${iconsTpl(svg("sc", "M1"))}<div><div><span x-icon="sc"></span></div></div></div>`,
+            {},
         );
-        const el = root.querySelector(".as-icon")!;
-        expect(el.classList.contains("a")).toBe(true);
-        engine.state.cur = "b";
+        expect(useHref(root)).toMatch(/-sc$/);
+        expect(symbolOf(useHref(root))!.innerHTML).toContain("M1");
+    });
+
+    test("就近遮蔽：内层 scope 同名覆盖外层（marker 区分）", () => {
+        const { root } = mount(
+            `<div x-scope>${iconsTpl(svg("sh", "OUTER"))}` +
+                `<div x-scope>${iconsTpl(svg("sh", "INNER"))}<span x-icon="sh"></span></div>` +
+                `</div>`,
+            {},
+        );
+        expect(symbolIdsByName("sh").length).toBe(2); // 两组令牌各自注入
+        expect(symbolOf(useHref(root))!.innerHTML).toContain("INNER");
+    });
+
+    test("同 scope 两声明同名：静默覆盖（后者胜，不 warn）", () => {
+        const { root } = mount(
+            `<div x-scope>${iconsTpl(svg("dup", "OLD"))}${iconsTpl(svg("dup", "NEW"))}<span x-icon="dup"></span></div>`,
+            {},
+        );
+        const href = useHref(root)!;
+        expect(symbolOf(href)!.innerHTML).toContain("NEW");
+    });
+
+    test("scope 销毁回收局部 symbol（x-if eager 切走）；registry 全局不受影响", async () => {
+        const { root, engine } = mount(
+            `<div x-scope>${iconsTpl(svg("gone", "M1"))}<span x-icon="gone"></span></div>` +
+                `<div x-if="show"><div x-scope>${iconsTpl(svg("tmp", "M2"))}<span x-icon="tmp"></span></div></div>`,
+            { show: true },
+        );
+        expect(useHref(root)).toMatch(/-gone$/);
+        expect(symbolIdsByName("tmp").length).toBe(1);
+        engine.state.show = false;
         await nextTick();
-        expect(el.classList.contains("b")).toBe(true);
-        expect(el.classList.contains("a")).toBe(false);
+        expect(symbolIdsByName("tmp").length).toBe(0); // x-if 子树 scope 销毁 → 令牌 refs 归零摘除
+        expect(symbolIdsByName("gone").length).toBe(1); // 其他 scope 的声明不受牵连
     });
 
-    test("未命中：渲染 default 图标；后注册经变更通知自动补渲染", async () => {
+    test("engine.destroy 回收局部 symbol；全局注册表与全局 symbol 不清理（document 级资产）", () => {
+        const { engine } = mount(
+            `<div x-scope>${iconsTpl(svg("loc", "M1"))}<span x-icon="loc"></span></div>`,
+            {},
+        );
+        expect(symbolIdsByName("loc").length).toBe(1);
+        engine.destroy();
+        expect(symbolIdsByName("loc").length).toBe(0); // 根 scope 销毁 → 局部回收
+        expect(iconRegistry.has("default")).toBe(true); // 全局注册表不清
+        expect(symbolIdsByName("default").length).toBe(1); // 全局 symbol 不清
+        expect(document.getElementById("autospark-icons")).not.toBeNull(); // 样式表常驻
+    });
+
+    test("x-for 克隆不放大：3 项共享一组 symbol（内容哈希令牌去重）", async () => {
+        const { root, engine } = mount(
+            `<ul x-for="i of [1,2,3]"><li>${iconsTpl(svg("fx", "M1"))}<span x-icon="fx"></span></li></ul>`,
+            {},
+        );
+        await nextTick();
+        expect(symbolIdsByName("fx").length).toBe(1); // 一份声明源 → 一组 symbol
+        const hrefs = [...root.querySelectorAll("li svg use")].map((u) => u.getAttribute("href"));
+        expect(new Set(hrefs).size).toBe(1); // 各项引用同一 symbol
+        engine.destroy();
+        expect(symbolIdsByName("fx").length).toBe(0); // 引用计数归零回收
+    });
+
+    test(".global 归全局：注册表入库 + symbol as-{name} + engine.destroy 不清理", () => {
+        const { root, engine } = mount(
+            `<template x-icons.global>${svg("glob", "M1")}</template><span x-icon="glob"></span>`,
+            {},
+        );
+        expect(iconRegistry.has("glob")).toBe(true);
+        expect(useHref(root)).toBe(`#${GLOBAL_SYMBOL_PREFIX}glob`);
+        engine.destroy();
+        expect(iconRegistry.has("glob")).toBe(true); // document 级资产纪律
+        expect(symbolIdsByName("glob").length).toBe(1);
+    });
+});
+
+describe("x-icon 渲染语义（ADR-0058 决策 1/2/11）", () => {
+    test("值响应式：状态切换图标名，href 随之交换", async () => {
+        const { root, engine } = mount(
+            `${iconsTpl(svg("ra", "M1") + svg("rb", "M2"))}<span x-icon="cur"></span>`,
+            { cur: "ra" },
+        );
+        const href1 = useHref(root)!;
+        expect(href1).toMatch(/-ra$/);
+        engine.state.cur = "rb";
+        await nextTick();
+        expect(useHref(root)).toMatch(/-rb$/);
+        expect(useHref(root)).not.toBe(href1);
+    });
+
+    test("未命中：渲染 default symbol（缺图不破相）；后注册经变更总线唤醒补渲染", async () => {
         const { root } = mount(`<span x-icon="late"></span>`, {});
-        const el = root.querySelector(".as-icon")!;
-        expect(el.classList.contains("default")).toBe(true);
+        expect(useHref(root)).toBe(`#${GLOBAL_SYMBOL_PREFIX}default`);
         iconRegistry.add("late", "<svg><path d='L'/></svg>");
-        expect(el.classList.contains("late")).toBe(true);
-        expect(el.classList.contains("default")).toBe(false);
+        expect(useHref(root)).toBe(`#${GLOBAL_SYMBOL_PREFIX}late`);
     });
 
-    test("删除联动：使用中的图标被 delete → 回退 default", () => {
-        const { root } = mount(`${iconTpl("gone", "M1")}<span x-icon="gone"></span>`, {});
-        const el = root.querySelector(".as-icon")!;
-        expect(el.classList.contains("gone")).toBe(true);
-        expect(iconRegistry.delete("gone")).toBe(true);
-        expect(el.classList.contains("default")).toBe(true);
-        // 不存在的名称静默 false（Set 契约）
-        expect(iconRegistry.delete("gone")).toBe(false);
+    test("删除联动：使用中的全局图标被 delete → 回退 default；不存在的名称静默 false", () => {
+        const { root } = mount(
+            `<template x-icons.global>${svg("del", "M1")}</template><span x-icon="del"></span>`,
+            {},
+        );
+        expect(useHref(root)).toBe("#as-del");
+        expect(iconRegistry.delete("del")).toBe(true);
+        expect(useHref(root)).toBe("#as-default");
+        expect(iconRegistry.delete("del")).toBe(false); // Set 契约
     });
 
-    test("default 可被同名覆盖自定义；删除后未命中退回空占位", () => {
+    test("default 可被同名覆盖；删除后未命中退回空占位（保留基础类与尺寸）", () => {
         iconRegistry.add("default", "<svg><circle cx='1'/></svg>");
         expect(iconRegistry.getSvg("default")).toContain("circle");
         const { root } = mount(`<span x-icon="none-such"></span>`, {});
         const el = root.querySelector(".as-icon")!;
-        expect(el.classList.contains("default")).toBe(true);
+        expect(useHref(root)).toBe("#as-default");
         iconRegistry.delete("default");
-        expect(el.classList.contains("default")).toBe(false);
-        expect(el.classList.contains("as-icon")).toBe(true); // 空占位保留尺寸
+        expect(useHref(root)).toBeNull();
+        expect(el.classList.contains("as-icon")).toBe(true); // 空占位保留载体
     });
 
-    test("非默认 strokeWidth：内联 mask-image 为工厂产物（含注入的宽度）", () => {
-        const { root } = mount(
-            `${iconTpl("sw", "M1")}<span x-icon="sw" x-icon-options="{strokeWidth:2}"></span>`,
-            {},
+    test("空值回退字面量：state 值清空后原值作图标名；含点路径不回退（维持空占位）", async () => {
+        const { root, engine } = mount(
+            `${iconsTpl(svg("bf", "M1"))}<span x-icon="v"></span><span x-icon="a.b"></span>`,
+            { v: "bf", a: { b: null } },
         );
-        const el = root.querySelector(".as-icon")!;
-        const mask = el.style.getPropertyValue("mask-image");
-        // 必须带 url("") 包装——裸 data URL 是非法 CSS 图像值，真实浏览器 CSSOM 静默拒绝
-        expect(mask.startsWith('url("data:image/svg+xml,')).toBe(true);
-        expect(mask).toContain(encodeURIComponent('stroke-width="2"'));
+        expect(useHref(root)).toMatch(/-bf$/);
+        engine.state.v = null;
+        await nextTick();
+        // v=null → 原值 "v" 形匹配回退字面量 → 未声明 → 默认图标
+        expect(useHref(root)).toBe("#as-default");
+        // a.b 求值 null → 原值含点不匹配图标名 → 空占位（无 default 闪现）
+        const use2 = root.querySelectorAll(".as-icon svg use")[1]!;
+        expect(use2.getAttribute("href")).toBeNull();
     });
 
-    test("size / color / padding 选项：数字 → px，字符串直传", () => {
+    test("旧远程形（斜杠）废除：求值 NaN → 空占位（形不匹配不回退字面量，零 fetch）", () => {
+        const { root } = mount(`<span x-icon="mdi/home"></span>`, {});
+        expect(useHref(root)).toBeNull();
+    });
+
+    test("选项：size/padding 数字 → px、字符串直传；color → 内联 color（currentColor 体系）", () => {
         const { root } = mount(
-            `${iconTpl("opt", "M1")}<span x-icon="opt" x-icon-options="{size:24,color:'red',padding:4}"></span>`,
+            `${iconsTpl(svg("opt", "M1"))}<span x-icon="opt" x-icon-options="{size:24,color:'red',padding:4}"></span>`,
             {},
         );
         const el = root.querySelector(".as-icon")!;
         expect(el.style.width).toBe("24px");
         expect(el.style.height).toBe("24px");
         expect(el.style.padding).toBe("4px");
-        expect(el.style.backgroundColor).not.toBe("");
+        expect(el.style.color).toBe("red");
+        expect(el.style.backgroundColor).toBe(""); // 旧 mask 颜色模型不再使用
     });
 
-    test("空值回退字面量：state 值清空后原值作图标名（未注册 → default）", async () => {
-        const { root, engine } = mount(
-            `${iconTpl("blank-fallback", "M1")}<span x-icon="v"></span>`,
-            { v: "blank-fallback" },
+    test("strokeWidth：默认零内联（基础规则 var 兜底）；非默认内联 --as-icon-sw 变量", () => {
+        const { root: r1 } = mount(
+            `${iconsTpl(svg("sw1", "M1"))}<span x-icon="sw1"></span>`,
+            {},
         );
-        const el = root.querySelector(".as-icon")!;
-        expect(el.classList.contains("blank-fallback")).toBe(true);
-        engine.state.v = null;
-        await nextTick();
-        // v=null → 原值 "v" 形匹配回退字面量 → 未注册 → 默认图标（空值字面量兜底心智）
-        expect(el.classList.contains("blank-fallback")).toBe(false);
-        expect(el.classList.contains("default")).toBe(true);
+        expect(r1.querySelector(".as-icon")!.style.getPropertyValue("--as-icon-sw")).toBe("");
+        const { root: r2 } = mount(
+            `${iconsTpl(svg("sw2", "M1"))}<span x-icon="sw2" x-icon-options="{strokeWidth:2}"></span>`,
+            {},
+        );
+        expect(r2.querySelector(".as-icon")!.style.getPropertyValue("--as-icon-sw")).toBe("2");
     });
 
-    test("含点路径空值不回退字面量：维持空占位（无误导向 warn）", async () => {
-        const { root } = mount(`<span x-icon="a.b"></span>`, {
-            a: { b: null },
-        });
-        const el = root.querySelector(".as-icon")!;
-        // a.b 不匹配图标名/远程形 → 空占位而非字面量（不触发未注册 warn / default）
-        expect(el.classList.contains("as-icon")).toBe(true);
-        expect(el.classList.contains("default")).toBe(false);
+    test("基础样式表：--as-icon-sw 变量规则 + >svg 撑满规则 + badge/button 修饰规则常驻", () => {
+        mount(`${iconsTpl(svg("sheet", "M1"))}<span x-icon="sheet"></span>`, {});
+        const sheet = document.getElementById("autospark-icons")!.textContent!;
+        expect(sheet).toContain(
+            `stroke-width:var(--as-icon-sw,${DEFAULT_ICON_STROKE_WIDTH})`,
+        );
+        expect(sheet).toContain(".as-icon>svg{width:100%;height:100%;display:block}");
+        expect(sheet).toContain(".as-icon-badge{display:inline-flex;flex:none;aspect-ratio:1;height:fit-content");
+        expect(sheet).toContain(".as-icon.as-icon-button:hover{filter:brightness(.75)}");
+        expect(sheet).toContain("box-sizing:content-box"); // 排版免疫
+        expect(sheet).toContain("aspect-ratio:1");
     });
 
-    test("engine.destroy 不清理全局注册表与样式表（document 级资产）", () => {
-        const { engine } = mount(`${iconTpl("keep", "M1")}<span x-icon="keep"></span>`, {});
-        engine.destroy();
-        expect(iconRegistry.has("keep")).toBe(true);
-        expect(document.getElementById("autospark-icons")).not.toBeNull();
+    test("options.icons 种子：构造期并入全局注册表", () => {
+        mount(`<span x-icon="seed"></span>`, {}, { icons: { seed: "<svg><path d='S'/></svg>" } });
+        expect(iconRegistry.has("seed")).toBe(true);
+        expect(symbolIdsByName("seed")[0]).toBe("as-seed");
     });
 });
 
-describe("x-icon 远程图标源（ADR-0047，mock fetch）", () => {
-    const realFetch = globalThis.fetch;
-    /** 按请求 URL 分发的可控 deferred */
-    let routes: Record<string, () => Promise<string>> = {};
-    let calls: string[] = [];
+describe("AutoSpark.icons 注册表 API（ADR-0058 决策 7）", () => {
+    test("add 注入全局 symbol / delete 摘除 / 遍历产出名称字符串；旧远程 API 已删", () => {
+        iconRegistry.add("api-a", "<svg><path d='A'/></svg>");
+        iconRegistry.add("api-b", "<svg><path d='B'/></svg>");
+        expect([...iconRegistry].includes("api-a")).toBe(true);
+        expect(symbolIdsByName("api-a")[0]).toBe("as-api-a");
+        expect(iconRegistry.delete("api-a")).toBe(true);
+        expect(symbolIdsByName("api-a").length).toBe(0); // symbol 同步摘除
+        expect([...iconRegistry].includes("api-a")).toBe(false);
+        expect(AutoSpark.icons).toBe(iconRegistry);
+        // baseUrl / persist / prefetch 已随 per-icon 远程物种删除
+        expect((iconRegistry as unknown as Record<string, unknown>).baseUrl).toBeUndefined();
+        expect((iconRegistry as unknown as Record<string, unknown>).prefetch).toBeUndefined();
+    });
 
-    function mockFetch() {
-        globalThis.fetch = ((url: any) => {
+    test("全局默认配置四级链 + 整体赋值广播重渲染", () => {
+        iconRegistry.options = { size: 24, color: "red", strokeWidth: 2 };
+        const { root } = mount(
+            `${iconsTpl(svg("g1", "M1"))}<span x-icon="g1" x-icon-options="{size:12}"></span>`,
+            {},
+        );
+        const el = root.querySelector(".as-icon")!;
+        expect(el.style.width).toBe("12px"); // 指令级胜
+        expect(el.style.color).toBe("red"); // 全局未覆盖键仍生效
+        // 全局 sw=2 即生效默认 → 零内联（基础规则 var 兜底，ADR-0058 决策 6「与生效默认一致零内联」）
+        expect(el.style.getPropertyValue("--as-icon-sw")).toBe("");
+        // 主题切换：整体赋值广播 → 已渲染实例即时更新（新 sw 仍是生效默认 → 维持零内联）
+        iconRegistry.options = { strokeWidth: 3 };
+        expect(el.style.width).toBe("12px"); // 指令级 size 声明不受全局重置影响
+        expect(el.style.color).toBe(""); // 全局级 color 随新配置对称清除
+        expect(el.style.getPropertyValue("--as-icon-sw")).toBe("");
+    });
+});
+
+describe("IconifyJSON 远程源（ADR-0058 决策 8/9/11，mock fetch）", () => {
+    const realFetch = globalThis.fetch;
+    let routes: Record<string, () => Promise<unknown>> = {};
+    let calls: string[] = [];
+    /** 构造 IconifyJSON（根级 24×24 默认） */
+    const makeSet = (
+        icons: Record<string, { body: string; width?: number; rotate?: number; hFlip?: boolean }>,
+        extra: Partial<IconifyJSON> = {},
+    ): IconifyJSON =>
+        ({
+            prefix: "material-symbols-light",
+            width: 24,
+            height: 24,
+            icons: Object.fromEntries(
+                Object.entries(icons).map(([k, v]) => [k, { ...v, body: `<path d="${v.body}"/>` }]),
+            ),
+            ...extra,
+        }) as IconifyJSON;
+
+    beforeEach(() => {
+        routes = {};
+        calls = [];
+        globalThis.fetch = ((url: unknown) => {
             const u = String(url);
             calls.push(u);
             const handler = routes[u];
             if (!handler) return Promise.reject(new Error(`no route for ${u}`));
             return handler().then(
-                (svg) => new Response(svg, { status: 200 }) as any,
-                () => new Response("err", { status: 404 }) as any,
+                (json) => new Response(JSON.stringify(json), { status: 200 }) as any,
+                () => new Response("err", { status: 500 }) as any,
             );
         }) as any;
-    }
-
-    beforeEach(() => {
-        routes = {};
-        calls = [];
-        mockFetch();
     });
     afterEach(() => {
         globalThis.fetch = realFetch;
-        iconRegistry.baseUrl = "https://api.iconify.design";
     });
 
-    test("斜杠形：取回升格为属性选择器规则，实例挂短属性（非内联）；冒号形已废除（落本地通道）", async () => {
-        routes["https://api.iconify.design/mdi/home.svg"] = async () =>
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M1"/></svg>';
-        const { root } = mount(`<span x-icon="mdi/home"></span>`, {});
-        const el = root.querySelector(".as-icon")!;
-        await nextTick();
-        // 默认 sw：规则承载 mask，DOM 不背内联 data URL
-        expect(el.getAttribute("data-as-icon")).toBe("mdi/home");
-        expect(el.style.getPropertyValue("mask-image")).toBe("");
-        const style = document.getElementById("autospark-icons-remote") as HTMLStyleElement;
-        expect(style).not.toBeNull();
-        expect(style.textContent).toContain('.as-icon[data-as-icon="mdi/home"]');
-        const ruleUrl = style.textContent.match(/data-as-icon="mdi\/home"\]\{[^}]*url\("([^"]+)"/)![1]!;
-        expect(decodeURIComponent(ruleUrl)).toContain('stroke-width="1.25"');
-        expect(decodeURIComponent(ruleUrl)).toContain("xmlns=");
-        // 冒号形不再触发远程（值含 / 才走远程通道）：本地未命中 → default，零 fetch
-        const { root: root2 } = mount(`<span x-icon="mdi:home"></span>`, {});
-        await nextTick();
-        expect(calls.length).toBe(1);
-        expect(root2.querySelector("span")!.classList.contains("default")).toBe(true);
-    });
-
-    test("多实例共享一条规则（幂等升格，无重复规则/无内联）；非默认 sw 仍内联", async () => {
-        routes["https://api.iconify.design/mdi/multi.svg"] = async () =>
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2"/></svg>';
+    test("值简写清单 → 默认 url 插值（原名直书）→ 原名注册 + viewBox 根级默认合成", async () => {
+        // route key 是**插值后**的最终 url（默认清单占位符为 {modify-icons}，未声明 modify 退化为原名清单）
+        const finalUrl = DEFAULT_REMOTE_URL.replace("{modify-icons}", "save,home");
+        routes[finalUrl] = async () => makeSet({ save: { body: "SV" }, home: { body: "HO" } });
         const { root } = mount(
-            `<span x-icon="mdi/multi"></span><span x-icon="mdi/multi"></span>` +
-                `<span x-icon="mdi/multi" x-icon-options="{strokeWidth:2}"></span>`,
+            `<template x-icons="save,home"></template><span x-icon="save"></span>`,
+            {},
+        );
+        expect(calls[0]).toBe(
+            "https://api.iconify.design/material-symbols-light.json?icons=save,home",
+        );
+        expect(useHref(root)).toBeNull(); // 加载窗口期：待定空占位（不闪默认图标）
+        await nextTick();
+        const href = useHref(root)!;
+        expect(href).toMatch(/-save$/);
+        const sym = symbolOf(href)!;
+        expect(sym.getAttribute("viewBox")).toBe("0 0 24 24"); // 根级 width/height 默认
+        expect(sym.innerHTML).toContain("SV");
+        expect(sym.getAttribute("stroke")).toBeNull(); // fill 体系不补 stroke
+    });
+
+    test("modify：url 用后缀清单取数、symbol 以原名注册（x-icon 不感知 modify）", async () => {
+        routes["https://m.test/?i=save-rounded&m=rounded"] = async () =>
+            makeSet({ "save-rounded": { body: "R" } });
+        const { root } = mount(
+            `<template x-icons="save" x-icons-options="{url:'https://m.test/?i={modify-icons}&m={modify}',modify:'rounded'}"></template><span x-icon="save"></span>`,
             {},
         );
         await nextTick();
-        const els = [...root.querySelectorAll("span")] as HTMLElement[];
-        expect(els.length).toBe(3);
-        for (const el of els) expect(el.getAttribute("data-as-icon")).toBe("mdi/multi");
-        // 默认 sw 两实例：无内联；非默认 sw 一实例：内联工厂产物（url 包装）
-        expect(els[0]!.style.getPropertyValue("mask-image")).toBe("");
-        expect(els[1]!.style.getPropertyValue("mask-image")).toBe("");
-        expect(els[2]!.style.getPropertyValue("mask-image").startsWith('url("data:image/svg+xml,')).toBe(true);
-        // 幂等升格：规则只出现一次（in-flight 合并 + 样式表登记幂等）
-        const style = document.getElementById("autospark-icons-remote") as HTMLStyleElement;
-        expect(style.textContent.split('data-as-icon="mdi/multi"').length - 1).toBe(1);
+        expect(useHref(root)).toMatch(/-save$/); // 原名注册
+        expect(symbolOf(useHref(root))!.innerHTML).toContain("R");
     });
 
-    test("加载中空占位（首取）；模块级缓存命中后免再取", async () => {
-        let release!: (svg: string) => void;
-        routes["https://api.iconify.design/mdi/star.svg"] = () =>
-            new Promise((r) => (release = r));
-        const { root } = mount(`<span x-icon="mdi/star"></span>`, {});
-        const el = root.querySelector(".as-icon")!;
-        expect(el.classList.contains("as-icon")).toBe(true);
-        expect(el.style.getPropertyValue("mask-image")).toBe("");
-        release("<svg viewBox='0 0 24 24'><path d='S'/></svg>");
-        await nextTick();
-        expect(el.getAttribute("data-as-icon")).toBe("mdi/star");
-        expect(el.style.getPropertyValue("mask-image")).toBe("");
-        // 缓存命中：第二个实例同步渲染（属性 + 共享规则）、零新请求
-        const { root: root2 } = mount(`<span x-icon="mdi/star"></span>`, {});
-        expect(root2.querySelector("span")!.getAttribute("data-as-icon")).toBe("mdi/star");
-        expect(calls.length).toBe(1);
-    });
-
-    test("失败（HTTP 错误）：warn + 回退默认图标", async () => {
-        routes["https://api.iconify.design/mdi/none.svg"] = () =>
-            Promise.reject(new Error("x"));
-        const { root } = mount(`<span x-icon="mdi/none"></span>`, {});
-        await nextTick();
-        expect(root.querySelector("span")!.classList.contains("default")).toBe(true);
-    });
-
-    test("非 SVG 响应按失败处理", async () => {
-        routes["https://api.iconify.design/mdi/bad.svg"] = async () => "not json but no svg";
-        const { root } = mount(`<span x-icon="mdi/bad"></span>`, {});
-        await nextTick();
-        expect(root.querySelector("span")!.classList.contains("default")).toBe(true);
-    });
-
-    test("baseUrl 自托管覆盖（AutoSpark.icons.baseUrl）", async () => {
-        iconRegistry.baseUrl = "https://icons.internal";
-        routes["https://icons.internal/mdi/home.svg"] = async () =>
-            "<svg viewBox='0 0 24 24'><path d='H'/></svg>";
-        const { root } = mount(`<span x-icon="mdi/home2"></span>`, {});
-        await nextTick();
-        expect(calls[0]).toBe("https://icons.internal/mdi/home2.svg");
-    });
-
-    test("远程 → 本地跨通道切换（值响应式，每值重判通道）", async () => {
-        routes["https://api.iconify.design/mdi/x.svg"] = async () =>
-            "<svg viewBox='0 0 24 24'><path d='X'/></svg>";
-        const { root, engine } = mount(
-            `${iconTpl("loc", "M1")}<span x-icon="cur"></span>`,
-            { cur: "mdi/x" },
+    test("未声明 modify：{modify} 空串、{modify-icons} 退化为 {icons}；未知占位符保留原样", async () => {
+        routes["https://d.test/?i=save&m="] = async () => makeSet({ save: { body: "S" } });
+        mount(
+            `<template x-icons="save" x-icons-options="{url:'https://d.test/?i={modify-icons}&m={modify}'}"></template>`,
+            {},
         );
-        const el = root.querySelector(".as-icon")!;
-        await nextTick();
-        expect(el.getAttribute("data-as-icon")).toBe("mdi/x");
-        engine.state.cur = "loc";
-        await nextTick();
-        expect(el.classList.contains("loc")).toBe(true);
-        expect(el.getAttribute("data-as-icon")).toBeNull(); // 摘除远程载体属性
-        expect(el.style.getPropertyValue("mask-image")).toBe(""); // 清内联，走类规则
+        expect(calls[0]).toBe("https://d.test/?i=save&m=");
+        routes["https://u.test/?x={foo}&i={icons}"] = async () => makeSet({ u1: { body: "U" } });
+        mount(
+            `<template x-icons="u1" x-icons-options="{url:'https://u.test/?x={foo}&i={icons}'}"></template>`,
+            {},
+        );
+        expect(calls[1]).toBe("https://u.test/?x={foo}&i=u1");
     });
 
-    test("远程失败后恢复（失败不落缓存，可重试）", async () => {
+    test("modify 越界：warn + 按未声明处理（url 用原名清单）", async () => {
+        routes["https://v.test/set"] = async () => makeSet({ sv: { body: "S" } });
+        const { root } = mount(
+            `<template x-icons="sv" x-icons-options="{url:'https://v.test/set',modify:'fat'}"></template><span x-icon="sv"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(calls[0]).toBe("https://v.test/set");
+        expect(useHref(root)).toMatch(/-sv$/);
+    });
+
+    test("not_found：响应缺键 → warn + 该名按未命中处理（默认图标，失败终态）", async () => {
+        routes["https://n.test/set"] = async () => makeSet({ other: { body: "O" } });
+        const { root } = mount(
+            `<template x-icons="nf" x-icons-options="{url:'https://n.test/set'}"></template><span x-icon="nf"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(useHref(root)).toBe("#as-default");
+    });
+
+    test("fetch 失败（HTTP 错误）：清单逐名按未命中处理；失败不落缓存可重试", async () => {
         let fail = true;
-        routes["https://api.iconify.design/mdi/flaky.svg"] = () =>
-            fail ? Promise.reject(new Error("net")) : Promise.resolve("<svg viewBox='0 0 24 24'><path d='F'/></svg>");
-        const { root } = mount(`<span x-icon="mdi/flaky"></span>`, {});
+        routes["https://f.test/set"] = () =>
+            fail ? Promise.reject(new Error("net")) : Promise.resolve(makeSet({ fl: { body: "F" } }));
+        const { root } = mount(
+            `<template x-icons="fl" x-icons-options="{url:'https://f.test/set'}"></template><span x-icon="fl"></span>`,
+            {},
+        );
         await nextTick();
-        expect(root.querySelector("span")!.classList.contains("default")).toBe(true);
+        expect(useHref(root)).toBe("#as-default");
         fail = false;
-        const { root: root2 } = mount(`<span x-icon="mdi/flaky"></span>`, {});
-        await nextTick();
-        expect(root2.querySelector("span")!.getAttribute("data-as-icon")).toBe("mdi/flaky");
-    });
-
-    test("非法远程形（注入尝试）落回本地通道", () => {
-        const { root } = mount(`<span x-icon="mdi/home?x=1"></span>`, {});
-        // 不匹配 REMOTE_ICON_RE → 本地未命中 → default（无 fetch 发出）
-        expect(calls.length).toBe(0);
-        expect(root.querySelector("span")!.classList.contains("default")).toBe(true);
-    });
-
-    test("429 限流：退避重试（400ms 递增）后成功", async () => {
-        let hits = 0;
-        globalThis.fetch = (async () => {
-            hits++;
-            return new Response(
-                hits <= 2 ? "limited" : "<svg viewBox='0 0 24 24'><path d='R'/></svg>",
-                { status: hits <= 2 ? 429 : 200 },
-            ) as any;
-        }) as any;
-        const { root } = mount(`<span x-icon="mdi/rate429"></span>`, {});
-        await new Promise((r) => setTimeout(r, 1600)); // 覆盖 400+800 退避窗口
-        expect(hits).toBe(3);
-        expect(root.querySelector("span")!.getAttribute("data-as-icon")).toBe("mdi/rate429");
-    });
-
-    test("并发上限：8 图标冷启动同时在途 ≤ 4（限流队列）", async () => {
-        let inFlight = 0;
-        let maxInFlight = 0;
-        let done = 0;
-        globalThis.fetch = (async () => {
-            inFlight++;
-            maxInFlight = Math.max(maxInFlight, inFlight);
-            await new Promise((r) => setTimeout(r, 30));
-            inFlight--;
-            done++;
-            return new Response("<svg viewBox='0 0 24 24'><path d='C'/></svg>", { status: 200 }) as any;
-        }) as any;
-        const marks = Array.from({ length: 8 }, (_, i) => `<span x-icon="mdi/cap${i}"></span>`).join("");
-        mount(marks, {});
-        await new Promise((r) => setTimeout(r, 300));
-        expect(done).toBe(8);
-        expect(maxInFlight).toBeLessThanOrEqual(4);
-    });
-});
-
-describe("AutoSpark.icons 注册表 API（ADR-0046/0047）", () => {
-    test("add(name, svg) / delete / 遍历产出名称字符串；Set 契约", () => {
-        iconRegistry.add("api-a", "<svg><path d='A'/></svg>");
-        iconRegistry.add("api-b", "<svg><path d='B'/></svg>");
-        expect([...iconRegistry].includes("api-a")).toBe(true);
-        expect(iconRegistry.delete("api-a")).toBe(true);
-        expect([...iconRegistry].includes("api-a")).toBe(false);
-        expect(AutoSpark.icons).toBe(iconRegistry);
-        expect(AutoSpark.icons.baseUrl).toBe("https://api.iconify.design");
-    });
-});
-
-describe("远程图标持久缓存（ADR-0048，localStorage）", () => {
-    const realFetch = globalThis.fetch;
-    const BASE = "https://api.iconify.design";
-    let calls: string[] = [];
-    beforeEach(() => {
-        calls = [];
-        globalThis.fetch = ((url: any) => {
-            calls.push(String(url));
-            return Promise.resolve(
-                new Response(
-                    "<svg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='P'/></svg>",
-                    { status: 200 },
-                ),
-            ) as any;
-        }) as any;
-    });
-    afterEach(() => {
-        globalThis.fetch = realFetch;
-        iconRegistry.baseUrl = BASE;
-        iconRegistry.persist = true;
-    });
-    const stored = () => localStorage.getItem("autospark:icons:v1") ?? "";
-    const flushWait = () => new Promise((r) => setTimeout(r, 400)); // 覆盖 300ms 写节流
-
-    test("取回落盘：按源分组结构，节流窗口后写入", async () => {
-        mount(`<span x-icon="mdi/save1"></span>`, {});
-        expect(stored()).toBe(""); // 节流窗口内未落盘
-        await flushWait();
-        const parsed = JSON.parse(stored());
-        expect(parsed[BASE]["mdi/save1"]).toContain("<svg");
-    });
-
-    test("二次访问零网络：预置持久层 → 同步渲染、零 fetch（核心目标）", () => {
-        localStorage.setItem(
-            "autospark:icons:v1",
-            JSON.stringify({
-                "https://api.iconify.design": {
-                    "mdi/hot": "<svg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='H'/></svg>",
-                },
-            }),
-        );
-        reloadIconPersistenceForTest(); // 模拟页面重载后的模块初始化注水
-        const { root } = mount(`<span x-icon="mdi/hot"></span>`, {});
-        const el = root.querySelector(".as-icon")!;
-        expect(el.getAttribute("data-as-icon")).toBe("mdi/hot"); // 同步渲染（持久回退注回内存）
-        expect(el.style.getPropertyValue("mask-image")).toBe(""); // 默认 sw 走升格规则
-        expect(document.getElementById("autospark-icons-remote")!.textContent).toContain(
-            'data-as-icon="mdi/hot"',
-        );
-        expect(calls.length).toBe(0); // 零网络
-    });
-
-    test("persist=false 旁路：不查持久层、不落盘", async () => {
-        localStorage.setItem(
-            "autospark:icons:v1",
-            JSON.stringify({ "https://api.iconify.design": { "mdi/off": "<svg/>" } }),
-        );
-        reloadIconPersistenceForTest();
-        iconRegistry.persist = false; // reload 会复位开关，须在其后设置
-        mount(`<span x-icon="mdi/off"></span>`, {});
-        await nextTick();
-        expect(calls.length).toBe(1); // 不查持久层，直接网络
-        mount(`<span x-icon="mdi/w1"></span>`, {});
-        await flushWait();
-        expect(stored()).not.toContain("mdi/w1"); // 不落盘
-    });
-
-    test("prefetch：提前取回落盘；非远程形态静默忽略", async () => {
-        iconRegistry.prefetch(["mdi/pre1", "mdi/pre2"]);
-        await flushWait();
-        const parsed = JSON.parse(stored());
-        expect(parsed[BASE]["mdi/pre1"]).toContain("<svg");
-        expect(parsed[BASE]["mdi/pre2"]).toContain("<svg");
-        expect(() => iconRegistry.prefetch("close")).not.toThrow();
-        expect(calls.length).toBe(2); // 本地名不发请求
-    });
-
-    test("源隔离：持久层键含 baseUrl，换源不串图（持久层单元级）", () => {
-        persistStore("https://a.internal", "mdi/x", "<svg viewBox='0 0 1 1'><path d='A'/></svg>");
-        expect(persistLookup("https://a.internal", "mdi/x")).toContain("A");
-        expect(persistLookup("https://b.internal", "mdi/x")).toBeUndefined();
-    });
-
-    test("LRU 上限 500：超限淘汰最旧，命中刷新新旧", () => {
-        for (let i = 0; i < 501; i++) persistStore(BASE, `mdi/lru${i}`, "<svg/>");
-        expect(persistLookup(BASE, "mdi/lru0")).toBeUndefined(); // 最旧被淘汰
-        expect(persistLookup(BASE, "mdi/lru500")).toContain("<svg");
-        // 命中刷新：lru1 升到最新后，再写一条淘汰的是 lru2
-        persistLookup(BASE, "mdi/lru1");
-        persistStore(BASE, "mdi/lruNew", "<svg/>");
-        expect(persistLookup(BASE, "mdi/lru2")).toBeUndefined();
-        expect(persistLookup(BASE, "mdi/lru1")).toContain("<svg");
-    });
-
-    test("配额降级：首次写抛错 → 淘汰最旧一半重写成功", async () => {
-        for (let i = 0; i < 10; i++) persistStore(BASE, `mdi/q${i}`, "<svg/>");
-        // happy-dom 的 setItem 实例级覆写与 globalThis.localStorage 直接赋值均不可行
-        // （readonly getter）——经 defineProperty 整体替换全局对象来 mock
-        const backing = new Map<string, string>();
-        const realDesc = Object.getOwnPropertyDescriptor(globalThis, "localStorage")!;
-        let thrown = false;
-        Object.defineProperty(globalThis, "localStorage", {
-            value: {
-                getItem: (k: string) => backing.get(k) ?? null,
-                setItem: (k: string, v: string) => {
-                    if (!thrown) {
-                        thrown = true;
-                        throw new Error("QuotaExceededError");
-                    }
-                    backing.set(k, v);
-                },
-                removeItem: (k: string) => void backing.delete(k),
-                clear: () => backing.clear(),
-                key: () => null,
-                length: 0,
-            },
-            writable: true,
-            configurable: true,
-        });
-        try {
-            persistStore(BASE, "mdi/qnew", "<svg/>");
-            await flushWait();
-        } finally {
-            Object.defineProperty(globalThis, "localStorage", realDesc);
-        }
-        const raw = backing.get("autospark:icons:v1") ?? "";
-        expect(raw).toContain("mdi/qnew");
-        // 11 条淘汰 ceil(11/2)=6 条最旧：q0..q5 出局，q6..q9 + qnew 存留
-        expect(raw).not.toContain("mdi/q0");
-        expect(raw).not.toContain("mdi/q5");
-        expect(raw).toContain("mdi/q6");
-    });
-});
-
-describe("AutoSpark.icons.options 全局默认配置（四级链：指令 > 宿主 > 全局 > 内置）", () => {
-    const realFetch = globalThis.fetch;
-    beforeEach(() => {
-        globalThis.fetch = (async () =>
-            new Response("<svg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='G'/></svg>", {
-                status: 200,
-            })) as any;
-    });
-    afterEach(() => {
-        globalThis.fetch = realFetch;
-    });
-
-    test("全局默认生效：size/padding/color 无指令选项时落到实例", () => {
-        iconRegistry.options = { size: 24, color: "red", padding: 2 };
-        const { root } = mount(`${iconTpl("g1", "M1")}<span x-icon="g1"></span>`, {});
-        const el = root.querySelector(".as-icon")!;
-        expect(el.style.width).toBe("24px");
-        expect(el.style.height).toBe("24px");
-        expect(el.style.padding).toBe("2px");
-        expect(el.style.backgroundColor).toBe("red");
-    });
-
-    test("指令选项覆盖全局（键级覆盖，非整体替换）", () => {
-        iconRegistry.options = { size: 24, color: "red" };
-        const { root } = mount(
-            `${iconTpl("g2", "M1")}<span x-icon="g2" x-icon-options="{size:12}"></span>`,
+        const { root: root2 } = mount(
+            `<template x-icons="fl" x-icons-options="{url:'https://f.test/set'}"></template><span x-icon="fl"></span>`,
             {},
         );
-        const el = root.querySelector(".as-icon")!;
-        expect(el.style.width).toBe("12px"); // 指令级胜
-        expect(el.style.backgroundColor).toBe("red"); // 全局未覆盖键仍生效
+        await nextTick();
+        expect(useHref(root2)).toMatch(/-fl$/); // 同声明重收集 → 重新 fetch → 成功
+        expect(calls.length).toBe(2);
     });
 
-    test("全局 strokeWidth 参与规则烘焙：本地类规则与远程属性规则均按全局 sw，实例零内联", async () => {
-        iconRegistry.options = { strokeWidth: 2 };
-        const { root } = mount(`${iconTpl("g3", "M1")}<span x-icon="g3"></span>`, {});
-        const local = root.querySelector("span")!;
-        expect(local.style.getPropertyValue("mask-image")).toBe("");
-        const sheet = document.getElementById("autospark-icons")!.textContent;
-        expect(sheet).toContain(encodeURIComponent('stroke-width="2"'));
-        // 远程属性规则同烘焙
-        const { root: root2 } = mount(`<span x-icon="mdi/g4"></span>`, {});
-        await nextTick();
-        const remote = root2.querySelector("span")!;
-        expect(remote.getAttribute("data-as-icon")).toBe("mdi/g4");
-        expect(remote.style.getPropertyValue("mask-image")).toBe("");
-        const remoteSheet = document.getElementById("autospark-icons-remote")!.textContent;
-        expect(remoteSheet).toContain(encodeURIComponent('stroke-width="2"'));
-        // 指令级 sw 覆盖才内联
-        const { root: root3 } = mount(
-            `${iconTpl("g5", "M1")}<span x-icon="g5" x-icon-options="{strokeWidth:1}"></span>`,
+    test("待定名唤醒：fetch resolve 后 use href 出现（变更总线按名唤醒）", async () => {
+        let release!: (v: unknown) => void;
+        routes["https://p.test/set"] = () => new Promise((r) => (release = r));
+        const { root } = mount(
+            `<template x-icons="lazy" x-icons-options="{url:'https://p.test/set'}"></template><span x-icon="lazy"></span>`,
             {},
         );
-        expect(root3.querySelector("span")!.style.getPropertyValue("mask-image")).toContain(
-            encodeURIComponent('stroke-width="1"'),
-        );
+        const use = root.querySelector(".as-icon svg use")!;
+        expect(use.getAttribute("href")).toBeNull();
+        release(makeSet({ lazy: { body: "LZ" } }));
+        await nextTick();
+        expect(use.getAttribute("href")).toMatch(/-lazy$/);
     });
 
-    test("整体赋值广播重渲染：已渲染实例即时更新，远程规则按新默认重烘焙", async () => {
-        const { root } = mount(`${iconTpl("g6", "M1")}<span x-icon="g6"></span>`, {});
-        const el = root.querySelector(".as-icon")!;
-        expect(el.style.width).toBe(""); // 内置默认 1em 走基础规则
-        const { root: root2 } = mount(`<span x-icon="mdi/g7"></span>`, {});
-        await nextTick();
-        let remoteSheet = document.getElementById("autospark-icons-remote")!.textContent;
-        expect(remoteSheet).toContain(encodeURIComponent('stroke-width="1.25"'));
-        // 主题切换：整体赋值
-        iconRegistry.options = { size: 32, strokeWidth: 2 };
-        expect(el.style.width).toBe("32px");
-        expect(el.style.getPropertyValue("mask-image")).toBe(""); // 仍走规则（新 sw 已烘焙）
-        expect(document.getElementById("autospark-icons")!.textContent).toContain(
-            encodeURIComponent('stroke-width="2"'),
+    test("同一 template 内联 + 远程同名合并：内联加载窗口期先显形，远程到达覆盖（同 id）", async () => {
+        routes["https://b.test/set"] = async () => makeSet({ both: { body: "REMOTE" } });
+        const { root } = mount(
+            `<template x-icons="both" x-icons-options="{url:'https://b.test/set'}">${svg("both", "INLINE")}</template><span x-icon="both"></span>`,
+            {},
         );
-        remoteSheet = document.getElementById("autospark-icons-remote")!.textContent;
-        expect(remoteSheet).toContain(encodeURIComponent('stroke-width="2"')); // 远程规则重烘焙
-        expect(root2.querySelector("span")!.style.getPropertyValue("mask-image")).toBe("");
+        const href = useHref(root)!;
+        expect(symbolOf(href)!.innerHTML).toContain("INLINE"); // 内联立即可用
+        await nextTick();
+        expect(symbolOf(href)!.innerHTML).toContain("REMOTE"); // 远程覆盖内联（同 id 内容替换）
+        expect(symbolOf(href)!.innerHTML).not.toContain("INLINE");
+        expect(useHref(root)).toBe(href); // href 不变——内容热替换，零重渲染协调
+    });
+
+    test("内联 + 远程同名且远程失败：内联存活（远程失败不杀内联）", async () => {
+        routes["https://c.test/set"] = () => Promise.reject(new Error("x"));
+        const { root } = mount(
+            `<template x-icons="keep" x-icons-options="{url:'https://c.test/set'}">${svg("keep", "INLINE")}</template><span x-icon="keep"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(useHref(root)).toMatch(/-keep$/);
+        expect(symbolOf(useHref(root))!.innerHTML).toContain("INLINE");
+    });
+
+    test("in-flight 合并：同 url 多声明只 fetch 一次", async () => {
+        routes["https://i.test/set"] = async () => makeSet({ i1: { body: "I" }, i2: { body: "J" } });
+        mount(
+            `<div x-scope><template x-icons="i1" x-icons-options="{url:'https://i.test/set'}"></template></div>` +
+                `<div x-scope><template x-icons="i2" x-icons-options="{url:'https://i.test/set'}"></template></div>`,
+            {},
+        );
+        await nextTick();
+        expect(calls.length).toBe(1);
+        expect(symbolIdsByName("i1").length).toBe(1);
+        expect(symbolIdsByName("i2").length).toBe(1);
+    });
+
+    test("全局远程：x-icons.global + 清单 → registry 入库（as-{原名}）；engine.destroy 不清理", async () => {
+        routes["https://g.test/set"] = async () => makeSet({ gsave: { body: "G" } });
+        const { root, engine } = mount(
+            `<template x-icons.global="gsave" x-icons-options="{url:'https://g.test/set'}"></template><span x-icon="gsave"></span>`,
+            {},
+        );
+        expect(iconRegistry.has("gsave")).toBe(false); // 待定未入库
+        await nextTick();
+        expect(iconRegistry.has("gsave")).toBe(true);
+        expect(useHref(root)).toBe("#as-gsave");
+        engine.destroy();
+        expect(iconRegistry.has("gsave")).toBe(true); // 全局资产不清理
+    });
+
+    test("全局所有权（声明序）：后声明者胜，旧声明的迟到响应无注入权（网络时序无关）", async () => {
+        let releaseA!: (v: unknown) => void;
+        routes["https://a.test/set"] = () => new Promise((r) => (releaseA = r));
+        routes["https://b.test/set"] = async () => makeSet({ dup: { body: "NEW" } });
+        mount(
+            `<template x-icons.global="dup" x-icons-options="{url:'https://a.test/set'}"></template>` +
+                `<template x-icons.global="dup" x-icons-options="{url:'https://b.test/set'}"></template>`,
+            {},
+        );
+        await nextTick(); // 后声明（B）先到并注册
+        expect(iconRegistry.getSvg("dup")).toContain("NEW");
+        releaseA(makeSet({ dup: { body: "OLD" } })); // 先声明（A）迟到
+        await nextTick();
+        expect(iconRegistry.getSvg("dup")).toContain("NEW"); // 无注入权，内容不被旧响应翻转
+    });
+
+    test("cache > 0：fetch 成功落 localStorage；跨会话（内存清空）持久层命中零网络", async () => {
+        const url = "https://cache.test/set";
+        routes[url] = async () => makeSet({ cs: { body: "C" } });
+        const decl = `<template x-icons="cs" x-icons-options="{url:'${url}',cache:86400000}"></template><span x-icon="cs"></span>`;
+        mount(decl, {});
+        await nextTick();
+        expect(localStorage.getItem(`autospark:icon-cache:v1:${url}`)).not.toBeNull(); // 落盘
+        resetIconCacheForTest(); // 模拟页面重载：内存缓存清空、localStorage 保留
+        const { root } = mount(decl, {});
+        await nextTick();
+        expect(calls.filter((c) => c === url).length).toBe(1); // 零新请求
+        expect(useHref(root)).toMatch(/-cs$/); // 持久层命中照常注入
+    });
+
+    test("cache TTL 过期：过期条目即弃并重新 fetch", async () => {
+        const url = "https://ttl.test/set";
+        routes[url] = async () => makeSet({ tv: { body: "T" } });
+        const key = `autospark:icon-cache:v1:${url}`;
+        const decl = `<template x-icons="tv" x-icons-options="{url:'${url}',cache:100}"></template><span x-icon="tv"></span>`;
+        mount(decl, {});
+        await nextTick();
+        expect(localStorage.getItem(key)).not.toBeNull();
+        // 改写落盘时刻为已过期（ttl=100ms，t 回拨 1s）
+        const entry = JSON.parse(localStorage.getItem(key)!);
+        entry.t = Date.now() - 1000;
+        localStorage.setItem(key, JSON.stringify(entry));
+        resetIconCacheForTest();
+        const { root } = mount(decl, {});
+        await nextTick();
+        expect(calls.filter((c) => c === url).length).toBe(2); // 过期即弃 → 重新 fetch
+        expect(useHref(root)).toMatch(/-tv$/);
+    });
+
+    test("cache 未声明（默认 0）：不落 localStorage", async () => {
+        const url = "https://noc.test/set";
+        routes[url] = async () => makeSet({ nc: { body: "N" } });
+        mount(
+            `<template x-icons="nc" x-icons-options="{url:'${url}'}"></template><span x-icon="nc"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(localStorage.getItem(`autospark:icon-cache:v1:${url}`)).toBeNull();
+    });
+
+    test("cache 无效值（负数）：warn + 按未启用处理（不落盘、功能不受影响）", async () => {
+        const url = "https://badcache.test/set";
+        routes[url] = async () => makeSet({ bc: { body: "B" } });
+        const { root } = mount(
+            `<template x-icons="bc" x-icons-options="{url:'${url}',cache:-5}"></template><span x-icon="bc"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(localStorage.getItem(`autospark:icon-cache:v1:${url}`)).toBeNull();
+        expect(useHref(root)).toMatch(/-bc$/);
     });
 });
 
-describe("x-icon 修饰选项（badge / pointer / button）", () => {
-    test("badge：挂载后包裹 as-icon-badge 底板层（宿主 mask 裁伪元素，板必须独立盒承载）", async () => {
-        const { root } = mount(
-            `${iconTpl("b1", "M1")}<span x-icon="b1" x-icon-options="{badge:true}"></span>`,
+describe("IconifyJSON 转换规则（resolveIconifyIcon 纯函数，ADR-0058 决策 10）", () => {
+    const set: IconifyJSON = {
+        prefix: "t",
+        width: 24,
+        height: 24,
+        icons: {
+            base: { body: "<path d='B'/>" },
+            big: { body: "<path d='G'/>", width: 48, top: 8 },
+            rot: { body: "<path d='R'/>", rotate: 1 },
+            flip: { body: "<path d='F'/>", hFlip: true },
+        },
+        aliases: {
+            "base-alias": { parent: "base" },
+            "rot-alias": { parent: "rot", rotate: 1 }, // 变换合成：1+1=2
+            "dim-alias": { parent: "big", width: 32 }, // 尺寸就近胜：alias 覆盖 parent
+            cyc1: { parent: "cyc2" } as any,
+            broken: { parent: "no-such" } as any,
+        },
+    };
+    Object.assign(set.aliases!, { cyc2: { parent: "cyc1" } });
+
+    test("基础解析 + 根级默认合成（viewBox 兜底链）", () => {
+        const r = resolveIconifyIcon(set, "base")!;
+        expect(r.viewBox).toBe("0 0 24 24");
+        expect(r.content).toBe("<path d='B'/>"); // 无变换不包裹 g
+    });
+
+    test("图标级尺寸覆盖根级默认", () => {
+        expect(resolveIconifyIcon(set, "big")!.viewBox).toBe("0 8 48 24");
+    });
+
+    test("rotate → g transform（90°×n 围绕中心）", () => {
+        const r = resolveIconifyIcon(set, "rot")!;
+        expect(r.content).toContain("<g transform=");
+        expect(r.content).toContain("rotate(90)");
+        expect(r.content).toContain("translate(12 12)"); // 中心 = 0+24/2
+    });
+
+    test("hFlip → scale(-1 1)", () => {
+        expect(resolveIconifyIcon(set, "flip")!.content).toContain("scale(-1 1)");
+    });
+
+    test("别名：body 取 parent、变换合成（rotate 相加）、尺寸就近胜（alias 覆盖）", () => {
+        expect(resolveIconifyIcon(set, "base-alias")!.content).toContain("d='B'");
+        expect(resolveIconifyIcon(set, "rot-alias")!.content).toContain("rotate(180)");
+        expect(resolveIconifyIcon(set, "dim-alias")!.viewBox).toBe("0 8 32 24");
+    });
+
+    test("未找到 / 循环别名 / parent 断链 → null（not_found 姿态）", () => {
+        expect(resolveIconifyIcon(set, "no-such")).toBeNull();
+        expect(resolveIconifyIcon(set, "cyc1")).toBeNull();
+        expect(resolveIconifyIcon(set, "broken")).toBeNull();
+    });
+});
+
+describe("x-icon 修饰选项（badge / pointer / button，ADR-0049 沿用）", () => {
+    test("badge：挂载后包裹 as-icon-badge 底板层；未声明不包裹", async () => {
+        const { root: r1 } = mount(
+            `${iconsTpl(svg("b1", "M1"))}<span x-icon="b1" x-icon-options="{badge:true}"></span>`,
             {},
         );
         await nextTick(); // 包裹在挂载后微任务执行
-        const el = root.querySelector(".as-icon")!;
-        expect(el.parentElement!.classList.contains("as-icon-badge")).toBe(true);
-        // 板规则常驻基础样式表（wrapper 自身圆角 + 淡色背景 + 排版免疫：
-        // flex:none + aspect-ratio:1 + height:fit-content 防 stretch 拉伸）
-        const sheet = document.getElementById("autospark-icons")!.textContent!;
-        expect(sheet).toContain(
-            ".as-icon-badge{display:inline-flex;flex:none;aspect-ratio:1;height:fit-content",
-        );
-        expect(sheet).toContain("color-mix(in srgb,currentColor 5%");
-    });
-
-    test("badge 修饰符快捷（x-icon.badge ≡ options）与未声明不包裹", async () => {
-        const { root: r1 } = mount(
-            `${iconTpl("b2", "M2")}<span x-icon.badge="b2"></span>`,
-            {},
-        );
-        await nextTick();
         expect(r1.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-badge")).toBe(true);
-        const { root: r2 } = mount(`${iconTpl("b3", "M3")}<span x-icon="b3"></span>`, {});
+        const { root: r2 } = mount(`${iconsTpl(svg("b2", "M2"))}<span x-icon="b2"></span>`, {});
         await nextTick();
         expect(r2.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-badge")).toBe(false);
     });
 
-    test("pointer：内联 cursor:pointer，未声明清除", () => {
-        const { root: r1 } = mount(
-            `${iconTpl("b4", "M4")}<span x-icon="b4" x-icon-options="{pointer:true}"></span>`,
-            {},
-        );
-        expect(r1.querySelector("span")!.style.cursor).toBe("pointer");
+    test("badge 修饰符快捷（x-icon.badge ≡ options）与三形态板 padding", async () => {
+        const { root: r1 } = mount(`${iconsTpl(svg("b3", "M3"))}<span x-icon.badge="b3"></span>`, {});
+        await nextTick();
+        expect(r1.querySelector(".as-icon")!.parentElement!.style.padding).toBe("0.3em"); // true 默认
         const { root: r2 } = mount(
-            `${iconTpl("b5", "M5")}<span x-icon.pointer="b5"></span>`,
+            `${iconsTpl(svg("b4", "M4"))}<span x-icon="b4" x-icon-options="{badge:6}"></span>`,
             {},
         );
-        expect(r2.querySelector("span")!.style.cursor).toBe("pointer");
-        const { root: r3 } = mount(`${iconTpl("b6", "M6")}<span x-icon="b6"></span>`, {});
-        expect(r3.querySelector("span")!.style.cursor).toBe("");
+        await nextTick();
+        expect(r2.querySelector(".as-icon")!.parentElement!.style.padding).toBe("6px"); // number → px
+        const { root: r3 } = mount(
+            `${iconsTpl(svg("b5", "M5"))}<span x-icon="b5" x-icon-options="{badge:'1em'}"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(r3.querySelector(".as-icon")!.parentElement!.style.padding).toBe("1em"); // string 直传
     });
 
-    test("badge/pointer 走全局配置链（icons.options 整体赋值生效）", async () => {
-        const { root } = mount(`${iconTpl("b7", "M7")}<span x-icon="b7"></span>`, {});
-        const el = root.querySelector(".as-icon")!;
+    test("badge 走全局配置链（icons.options 整体赋值生效）", async () => {
+        const { root } = mount(`${iconsTpl(svg("b6", "M6"))}<span x-icon="b6"></span>`, {});
         await nextTick();
-        expect(el.parentElement!.classList.contains("as-icon-badge")).toBe(false);
+        expect(root.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-badge")).toBe(false);
         iconRegistry.options = { badge: true, pointer: true };
         await nextTick();
-        expect(el.parentElement!.classList.contains("as-icon-badge")).toBe(true);
-        expect(el.style.cursor).toBe("pointer");
+        expect(root.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-badge")).toBe(true);
+        expect(root.querySelector(".as-icon")!.style.cursor).toBe("pointer");
     });
 
-    test("badge 默认 padding 0.3em 作用于包裹层（图形恒 size 不放大；显式声明优先，含 0）", async () => {
-        // 未声明 padding + badge → 默认 0.3em 写 wrapper（宿主恒无 padding）
-        const { root: r1 } = mount(`${iconTpl("b8", "M8")}<span x-icon.badge="b8"></span>`, {});
-        await nextTick();
-        const icon1 = r1.querySelector(".as-icon")!;
-        expect(icon1.parentElement!.style.padding).toBe("0.3em");
-        expect(icon1.style.padding).toBe("");
-        // 显式 padding 优先（含 0 —— 板贴图形）
-        const { root: r2 } = mount(
-            `${iconTpl("b9", "M9")}<span x-icon.badge="b9" x-icon-options="{padding:0}"></span>`,
+    test("pointer：内联 cursor:pointer（修饰符与选项双通道）；button 挂 as-icon-button 类", () => {
+        const { root: r1 } = mount(
+            `${iconsTpl(svg("c1", "M1"))}<span x-icon.pointer="c1"></span>`,
             {},
         );
-        await nextTick();
-        expect(r2.querySelector(".as-icon")!.parentElement!.style.padding).toBe("0px");
-        // 无 badge：padding 照旧内联宿主
-        const { root: r3 } = mount(
-            `${iconTpl("b10", "M10")}<span x-icon="b10" x-icon-options="{padding:4}"></span>`,
-            {},
-        );
-        await nextTick();
-        const icon3 = r3.querySelector(".as-icon")!;
-        expect(icon3.style.padding).toBe("4px");
-        expect(icon3.parentElement!.classList.contains("as-icon-badge")).toBe(false);
-    });
-
-    test("比例固定：基础规则内置 aspect-ratio:1", () => {
-        expect(document.getElementById("autospark-icons")!.textContent).toContain("aspect-ratio:1");
-    });
-
-    test("button：宿主挂 as-icon-button 类（载体动效——hover 加深 + press 缩放，规则常驻样式表）", () => {
-        const { root: r1 } = mount(`${iconTpl("c1", "M1")}<span x-icon.button="c1"></span>`, {});
-        expect(r1.querySelector(".as-icon")!.classList.contains("as-icon-button")).toBe(true);
-        // 未声明不挂（对称写/清）
-        const { root: r2 } = mount(`${iconTpl("c2", "M2")}<span x-icon="c2"></span>`, {});
-        expect(r2.querySelector(".as-icon")!.classList.contains("as-icon-button")).toBe(false);
-        // 宿主规则常驻：filter:brightness 加深（避开 background-color 通道——color 选项
-        // 内联该属性，类规则 hover 打不过内联）+ press 缩放 + pointer 隐含
-        const sheet = document.getElementById("autospark-icons")!.textContent!;
-        expect(sheet).toContain(
-            ".as-icon.as-icon-button{transition:filter .15s ease,transform .15s ease;cursor:pointer}",
-        );
-        expect(sheet).toContain(".as-icon.as-icon-button:hover{filter:brightness(.75)}");
-        expect(sheet).toContain(".as-icon.as-icon-button:active{transform:scale(.9)}");
+        expect(r1.querySelector(".as-icon")!.style.cursor).toBe("pointer");
+        const { root: r2 } = mount(`${iconsTpl(svg("c2", "M2"))}<span x-icon.button="c2"></span>`, {});
+        expect(r2.querySelector(".as-icon")!.classList.contains("as-icon-button")).toBe(true);
+        // button 隐含 pointer 由类规则承载（内联通道不写）
+        expect(r2.querySelector(".as-icon")!.style.cursor).toBe("");
     });
 
     test("button + badge：动效载体是板——wrapper 挂 button 类、宿主不挂（载体唯一防双动效）", async () => {
-        const { root } = mount(`${iconTpl("c3", "M3")}<span x-icon.badge.button="c3"></span>`, {});
-        await nextTick(); // 包裹在挂载后微任务执行
+        const { root } = mount(`${iconsTpl(svg("c3", "M3"))}<span x-icon.badge.button="c3"></span>`, {});
+        await nextTick();
         const el = root.querySelector(".as-icon")!;
         expect(el.classList.contains("as-icon-button")).toBe(false);
-        expect(el.parentElement!.classList.contains("as-icon-badge")).toBe(true);
         expect(el.parentElement!.classList.contains("as-icon-button")).toBe(true);
-        // 板梯度规则：静置 5%（BADGE_RULE）→ hover 10% → active 15% + wrapper 整体缩放
-        const sheet = document.getElementById("autospark-icons")!.textContent!;
-        expect(sheet).toContain(
-            ".as-icon-badge.as-icon-button:hover{background:color-mix(in srgb,currentColor 10%,transparent)}",
-        );
-        expect(sheet).toContain(
-            ".as-icon-badge.as-icon-button:active{background:color-mix(in srgb,currentColor 15%,transparent);transform:scale(.94)}",
-        );
     });
 
-    test("button 隐含 pointer：类规则承载 cursor 不走内联（pointer 选项保持独立可用）", () => {
-        const { root: r1 } = mount(`${iconTpl("c4", "M4")}<span x-icon.button="c4"></span>`, {});
-        expect(r1.querySelector(".as-icon")!.style.cursor).toBe("");
-        const { root: r2 } = mount(`${iconTpl("c5", "M5")}<span x-icon.pointer="c5"></span>`, {});
-        expect(r2.querySelector(".as-icon")!.style.cursor).toBe("pointer");
-    });
-
-    test("button 走全局配置链（icons.options 整体赋值生效）", () => {
-        const { root } = mount(`${iconTpl("c6", "M6")}<span x-icon="c6"></span>`, {});
+    test("button 走全局配置链（options setter 同步广播）", () => {
+        const { root } = mount(`${iconsTpl(svg("c4", "M4"))}<span x-icon="c4"></span>`, {});
         const el = root.querySelector(".as-icon")!;
         expect(el.classList.contains("as-icon-button")).toBe(false);
-        // options setter 同步广播 → 重渲染同步挂类（类挂载不经 scheduler，无需 nextTick）
         iconRegistry.options = { button: true };
         expect(el.classList.contains("as-icon-button")).toBe(true);
-    });
-
-    test("badge 三形态：true 默认 padding；number → px；string 值直传（形态即启用）", async () => {
-        // number → px 板 padding
-        const { root: r1 } = mount(
-            `${iconTpl("d1", "M1")}<span x-icon="d1" x-icon-options="{badge:6}"></span>`,
-            {},
-        );
-        await nextTick();
-        const w1 = r1.querySelector(".as-icon")!.parentElement!;
-        expect(w1.classList.contains("as-icon-badge")).toBe(true);
-        expect(w1.style.padding).toBe("6px");
-        expect(r1.querySelector(".as-icon")!.style.padding).toBe(""); // 宿主恒无 padding
-        // string → CSS 值直传（如 1em）
-        const { root: r2 } = mount(
-            `${iconTpl("d2", "M2")}<span x-icon="d2" x-icon-options="{badge:'1em'}"></span>`,
-            {},
-        );
-        await nextTick();
-        const w2 = r2.querySelector(".as-icon")!.parentElement!;
-        expect(w2.classList.contains("as-icon-badge")).toBe(true);
-        expect(w2.style.padding).toBe("1em");
-        // true → 默认 0.3em（走「显式 padding 选项 > 默认」链）
-        const { root: r3 } = mount(
-            `${iconTpl("d3", "M3")}<span x-icon="d3" x-icon-options="{badge:true}"></span>`,
-            {},
-        );
-        await nextTick();
-        expect(r3.querySelector(".as-icon")!.parentElement!.style.padding).toBe("0.3em");
-        // 显式 0（板贴图形）合法
-        const { root: r4 } = mount(
-            `${iconTpl("d4", "M4")}<span x-icon="d4" x-icon-options="{badge:0}"></span>`,
-            {},
-        );
-        await nextTick();
-        expect(r4.querySelector(".as-icon")!.parentElement!.style.padding).toBe("0px");
-    });
-
-    test("badge 带值压倒独立 padding 选项（就近声明）；badge:true 时显式 padding 优先于默认", async () => {
-        // {badge:'1em', padding:6} → 板 padding 1em（badge 值是板 padding 的就近声明）
-        const { root: r1 } = mount(
-            `${iconTpl("d5", "M5")}<span x-icon="d5" x-icon-options="{badge:'1em',padding:6}"></span>`,
-            {},
-        );
-        await nextTick();
-        const icon1 = r1.querySelector(".as-icon")!;
-        expect(icon1.parentElement!.style.padding).toBe("1em");
-        expect(icon1.style.padding).toBe(""); // 有板时宿主 padding 恒清
-        // {badge:true, padding:6} → 独立 padding 优先于默认 0.3em（原语义不变）
-        const { root: r2 } = mount(
-            `${iconTpl("d6", "M6")}<span x-icon="d6" x-icon-options="{badge:true,padding:6}"></span>`,
-            {},
-        );
-        await nextTick();
-        expect(r2.querySelector(".as-icon")!.parentElement!.style.padding).toBe("6px");
-    });
-
-    test("badge 无效值降级：负数 warn + 按默认 padding；空串按 true；对象形态剪枝未启用", async () => {
-        // 负数 → 降级为 true（默认 0.3em）
-        const { root: r1 } = mount(
-            `${iconTpl("d7", "M7")}<span x-icon="d7" x-icon-options="{badge:-1}"></span>`,
-            {},
-        );
-        await nextTick();
-        const w1 = r1.querySelector(".as-icon")!.parentElement!;
-        expect(w1.classList.contains("as-icon-badge")).toBe(true);
-        expect(w1.style.padding).toBe("0.3em");
-        // 空串 → 按 true
-        const { root: r2 } = mount(
-            `${iconTpl("d8", "M8")}<span x-icon="d8" x-icon-options="{badge:''}"></span>`,
-            {},
-        );
-        await nextTick();
-        expect(r2.querySelector(".as-icon")!.parentElement!.style.padding).toBe("0.3em");
-        // 对象形态 → warn 剪枝为未启用（不包裹）
-        const { root: r3 } = mount(
-            `${iconTpl("d9", "M9")}<span x-icon="d9" x-icon-options="{badge:{pad:'1em'}}"></span>`,
-            {},
-        );
-        await nextTick();
-        expect(r3.querySelector(".as-icon")!.classList.contains("as-icon-badge")).toBe(false);
     });
 });

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 描边宽度 strokeWidth</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section" style="max-width: 560px">
+            <h1 class="title is-5">描边宽度 strokeWidth</h1>
+            <p class="subtitle is-6">
+                宽度是渲染参数——收集期剥离全部 stroke-width，经 <code>--as-icon-sw</code> 变量下发
+            </p>
+
+            <template x-icons>
+                <svg id="heart" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                <svg id="bell" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                <svg id="menu" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                <svg id="search" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            </template>
+
+            <!-- range 拖动 → 状态 sw → 容器 style 写 CSS 变量：纯 CSS 通道，零重渲染实时生效 -->
+            <div class="field">
+                <label class="label">
+                    拖动调节：<code>--as-icon-sw</code> = <code x-text="sw"></code>
+                </label>
+                <input type="range" min="0.5" max="4" step="0.25" x-model="sw" style="width: 100%" />
+            </div>
+
+            <div class="box" :style="{'--as-icon-sw': sw}" style="font-size: 28px">
+                <span x-icon="heart"></span>
+                <span x-icon="bell"></span>
+                <span x-icon="menu"></span>
+                <span x-icon="search"></span>
+                <span style="font-size: 14px">← 容器变量级联，跟随拖动实时变化</span>
+            </div>
+
+            <hr />
+            <h2 class="title is-6">指令级覆盖（不随容器变量）</h2>
+            <p style="font-size: 28px">
+                <span x-icon="heart" x-icon-options="{strokeWidth:0.5}"></span>
+                <span x-icon="heart"></span>
+                <span x-icon="heart" x-icon-options="{strokeWidth:4}"></span>
+                <span style="font-size: 14px">← 0.5 / 默认 1.25 / 4：实例内联变量优先于继承</span>
+            </p>
+
+            <div class="notification is-light is-size-7">
+                全局默认：<code>AutoSpark.icons.options = { strokeWidth: 1.5 }</code>（四级配置链，生效默认恒走规则零内联）
+            </div>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                sw: "1.25",
+            });
+        </script>
+    </body>
+</html>
