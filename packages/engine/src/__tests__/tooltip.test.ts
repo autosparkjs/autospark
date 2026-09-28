@@ -269,7 +269,9 @@ describe("值语法与配置（决策 7/8/9）", () => {
         );
         hover(root.querySelector("#t")!);
         const tip = tipOf()!;
-        fireTipEnd(tip); // 收敛 enter 动画类（不参与断言）
+        // enter 的结束检测在切换帧（rAF+宏任务）注册，先等帧再手动收敛动画类
+        await nextTick();
+        fireTipEnd(tip);
         expect(tip.textContent).toContain("左弹");
         expect(tip.className).toBe("autospark-tooltip theme-x");
         await nextTick();

@@ -2,6 +2,7 @@ import type { OverlayInstance } from "./instance";
 import type { AutoSpark } from "../engine";
 import type { AutoSparkScope } from "../scope";
 import type { ComponentDef } from "../directives/component-def";
+import type { ResizeOptions } from "../directives/presets/resize";
 
 /**
  * 覆盖物体系类型（ADR-0052 修订版——组件化统一）。
@@ -94,7 +95,7 @@ export interface OverlayConfig {
     /**
      * 抽屉短轴尺寸（x-drawer 消费，ADR-0063）：左右抽屉的宽 / 上下抽屉的高共用（方向中立）。
      * `number`（px）或 CSS 长度字符串（`'40%'` / `'20rem'`）；缺省回退 CSS 变量
-     * `--autospark-drawer-size`（默认 320px）。引擎打开时 inline 写入面板——inline 优先级
+     * `--autospark-drawer-size`（默认 280px）。引擎打开时 inline 写入面板——inline 优先级
      * 天然高于样式表，配置整键生效、不依赖样式表注入时机。
      */
     size?: number | string;
@@ -106,6 +107,23 @@ export interface OverlayConfig {
      * 内置默认（`dialog-shell` / `popover-shell`）。
      */
     shell?: string;
+    /**
+     * 面板尺寸拖拽调节（x-drawer / x-dialog 消费，ADR-0064）：`true`（方向按形态自动推导 +
+     * 默认约束）| 对象（字段与 x-resize 选项表同构——`handles` 只能在形态合法集内**收窄**，
+     * 越界 warn + 忽略）。写路径走 shell 面板（与普通元素 style 直改分离）；**不写回 store**
+     * （`resize:end` 事件 detail 即数据出口）；尺寸**会话内记忆**（重开沿用、优先于声明
+     * `size` / CSS 尺寸）。形态推导：drawer 贴边内侧单边、dialog 四角（`ne,nw,se,sw`）。
+     */
+    resize?: boolean | ResizeOptions;
+    /**
+     * 折叠把手（x-drawer 消费，ADR-0063 修订）：骑面板活动边线的常驻圆形按钮（默认
+     * `24px`、`1px solid`，视觉继承面板边框/背景配色），点击折叠/展开——**折叠 ≡
+     * visible 归假**（无第三态，面板销毁、重开重建）。把手是覆盖物家族首个**实例外
+     * 常驻交互元素**（面板销毁后存活，折叠后骑屏幕边/锚内侧边露半圆）；生命周期挂
+     * 指令实例。默认 `true`，`false` 显式关闭；仅反应式（简单路径）形态生效——字面量
+     * 形态状态不可写，不建把手。尺寸走 CSS 变量 `--autospark-drawer-toggle-size`。
+     */
+    toggle?: boolean;
     /** 其余自由键原样保留（开放配置，供消费者指令/自定义 UI 消费） */
     [key: string]: any;
 }

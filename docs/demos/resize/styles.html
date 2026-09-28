@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-resize · 手柄样式定制</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .panel {
+        background: #fff;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        padding: 12px 14px;
+        box-sizing: border-box;
+        font-size: 13px;
+        color: #666;
+      }
+      /* CSS 变量定制：颜色 / 边手柄厚度 / 角手柄尺寸 */
+      .themed {
+        --autospark-resize-handle-color: #6366f1;
+        --autospark-resize-handle-thickness: 14px;
+        --autospark-resize-handle-size: 16px;
+      }
+      /* 后代选择器完全接管：手柄常显（默认仅 hover / 聚焦显形） */
+      .themed [data-autospark-resize-handle]::after {
+        background: var(--autospark-resize-handle-color);
+        opacity: 0.85;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 样式定制：CSS 变量调参 / data 属性选择器完全接管 -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block has-text-grey is-size-7">
+          左：默认样式；右：<code>--autospark-resize-handle-*</code> 变量换色加粗 +
+          手柄常显（属性选择器接管 <code>::after</code>）。
+        </div>
+        <div class="columns">
+          <div class="column is-half">
+            <div class="panel" style="width:280px;height:160px" x-resize>默认手柄（hover / 聚焦显形）</div>
+          </div>
+          <div class="column is-half">
+            <div class="panel themed" style="width:280px;height:160px" x-resize>定制手柄（紫色、加厚、常显）</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

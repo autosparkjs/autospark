@@ -1,6 +1,7 @@
 import type { AutoSpark } from "../../engine";
 import { registerShellStyles } from "../../overlay/wrappers";
 import { VisibleOverlayDirective } from "./visible-overlay";
+import type { ResizeDirection } from "./resize";
 
 /**
  * x-dialog：覆盖物消费者的**模态形态**（ADR-0052 修订版，共识 4 薄子类）。
@@ -26,5 +27,10 @@ export class DialogDirective extends VisibleOverlayDirective {
     /** 模态形态（共识 4）：遮罩外壳 + closeOnMask + 居中默认（x-dialog 恒模态，ADR-0062） */
     protected override get _modalMask(): boolean {
         return true;
+    }
+
+    /** resize 形态合法集（ADR-0064）：居中浮层四角——四边拖会改居中锚定语义，角已覆盖主场景 */
+    protected override _resizeAllowedHandles(): ResizeDirection[] | null {
+        return ["ne", "nw", "se", "sw"];
     }
 }

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-resize · 覆盖物集成（drawer / dialog）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .drawer-body {
+        padding: 18px 22px;
+        box-sizing: border-box;
+      }
+      .drawer-body h3 {
+        margin: 0 0 8px;
+      }
+      .drawer-body p {
+        margin: 0 0 14px;
+        color: #666;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 演示：drawer resize: true（默认右抽屉 → 内侧 w 手柄拖宽）+ 会话内尺寸记忆
+         （重开沿用拖出宽度，优先于声明 size 360）+ resize:end 事件出口 -->
+    <div class="demo-app section" style="height: 500px">
+      <div x-data>
+        <div class="block">
+          <button class="button is-primary" @click="ui.drawer = true">打开可调宽抽屉</button>
+          <button class="button" @click="ui.dialog = true">打开可调尺寸 dialog（四角）</button>
+        </div>
+        <div class="block has-text-grey is-size-7">
+          拖抽屉内侧边缘调宽——关闭再打开，尺寸<b>会话内记忆</b>（优先于声明 size: 360）。
+          最后一次调节：
+          <b x-text="ui.last"></b>
+        </div>
+
+        <div x-define="side-panel">
+          <div class="drawer-body">
+            <h3>可调宽抽屉</h3>
+            <p>resize: true + size: 360——拖左缘调宽，minWidth 240 / maxWidth 640。</p>
+            <button class="button is-small" @click="close()">关闭（close action）</button>
+          </div>
+        </div>
+
+        <div x-define="size-dialog">
+          <div class="drawer-body">
+            <h3>可调尺寸对话框</h3>
+            <p>dialog 默认四角（ne/nw/se/sw）拖拽调宽高。</p>
+            <button class="button is-small" @click="close()">关闭</button>
+          </div>
+        </div>
+
+        <button
+          x-drawer:side-panel="ui.drawer"
+          x-drawer-options="{resize: {minWidth: 240, maxWidth: 640}, size: 360}"
+          @resize:end="ui.last = $event.detail.width + 'px'"
+          class="is-hidden"
+        ></button>
+        <button
+          x-dialog:size-dialog="ui.dialog"
+          x-dialog-options="{resize: {minWidth: 260, minHeight: 160}}"
+          class="is-hidden"
+        ></button>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+        ui: { drawer: false, dialog: false, last: "—" },
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-resize · 吸附与等比</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .panel {
+        background: #fff;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        padding: 12px 14px;
+        box-sizing: border-box;
+        font-size: 13px;
+        color: #666;
+      }
+      .panel.is-aspect {
+        background: #f0fdf4;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- snap：px 步进吸附；aspectRatio：宽高比锁定（等比联动从轴） -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block has-text-grey is-size-7">
+          左：<code>snap:40</code>（尺寸只会落在 40 的倍数上）；右：<code>aspectRatio:'4:3'</code>
+          等比锁定（拖任意边/角，宽高同变）。
+        </div>
+        <div class="columns">
+          <div class="column is-half">
+            <div class="panel" style="width:280px;height:160px" x-resize x-resize-options="{snap:40}">snap: 40px 步进吸附</div>
+          </div>
+          <div class="column is-half">
+            <div class="panel is-aspect" style="width:280px;height:160px" x-resize x-resize-options="{aspectRatio:'4:3'}">
+              aspectRatio: '4:3'（比值串——'16:9'、1.618 等任意比值均可）
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

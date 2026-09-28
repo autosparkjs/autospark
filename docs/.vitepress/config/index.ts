@@ -102,6 +102,7 @@ export default defineConfig({
             { text: "x-dialog", link: "/zh/guide/directives/x-dialog" },
             { text: "x-popover", link: "/zh/guide/directives/x-popover" },
             { text: "x-drawer", link: "/zh/guide/directives/x-drawer" },
+            { text: "x-resize", link: "/zh/guide/directives/x-resize" },
             { text: "x-model", link: "/zh/guide/directives/x-model" },
             { text: "x-form", link: "/zh/guide/directives/x-form" },
             { text: "x-icon", link: "/zh/guide/directives/x-icon" },

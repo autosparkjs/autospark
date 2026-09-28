@@ -2,7 +2,7 @@
 
 ## 概述
 
-`x-drawer` 是覆盖物消费者的**贴边抽屉形态**：把**任意组件**渲染成从屏幕四边或某元素边缘滑入滑出的抽屉面板（侧边栏、过滤器、设置面板）。它与 x-dialog 同基座、同 visible 驱动模型（组件即内容 / 查找 / props / 插槽 / scope 基准，见[覆盖物](../overlays.md)与[x-dialog](./x-dialog.md)），形态差异在**定位与视觉**：默认贴屏幕边滑入、`at.selector` 可锚定到任意元素边缘（长轴沿锚边展开），默认动画为方向性滑入滑出（ADR-0063）。
+`x-drawer` 是覆盖物消费者的**贴边抽屉形态**：把**任意组件**渲染成从屏幕四边或某元素边缘滑入滑出的抽屉面板（侧边栏、过滤器、设置面板）。它与 x-dialog 同基座、同 visible 驱动模型（组件即内容 / 查找 / props / 插槽 / scope 基准，见[覆盖物](../overlays.md)与[x-dialog](./x-dialog.md)），形态差异在**定位与视觉**：默认贴屏幕边滑入、`at.selector` 可锚定到任意元素边缘（长轴沿锚边展开），默认动画为方向性滑入滑出（ADR-0063），默认带折叠把手（见「折叠把手」）。
 
 ```html
 <button x-drawer:sidebar="ui.sidebarOpen">菜单</button>
@@ -18,7 +18,7 @@
 
 ### 弹出方向（placement）
 
-`at.placement` 决定抽屉从哪边滑出，只认四个主方向，**默认 `right`**：
+`at.placement` 决定抽屉贴哪边滑入，只认四个主方向，**默认 `right`**：
 
 ```html
 <!-- 默认右侧 -->
@@ -37,14 +37,12 @@
 |---|---|
 | `top` / `bottom` / `left` / `right` | 原样 |
 | `right-start` / `right-end` 等带后缀 | 剥离后缀取主方向（长轴已铺满，对齐后缀无意义） |
-| `'auto'` / 不配置 | `right`（屏幕模式无锚，autoPlacement 无从谈起） |
+| `'auto'` / 不配置 | `right`（两种模式一致——内侧展开模型下无「选位」概念） |
 | 非法值 | `right` |
-
-锚定模式下 `placement: 'auto'` 例外——维持 floating-ui 视口空间自动选位语义（见下文锚定）。
 
 ### 尺寸（size）
 
-短轴尺寸（左右抽屉的宽 / 上下抽屉的高，**方向中立**——同一个 `size` 无论哪个方向都生效）经 `size` 选项控制，**默认 `320px`**；贴边另一轴引擎写死全展开（屏幕模式全屏 / 锚定模式 = 锚边长）：
+短轴尺寸（左右抽屉的宽 / 上下抽屉的高，**方向中立**——同一个 `size` 无论哪个方向都生效）经 `size` 选项控制，**默认 `280px`**；贴边另一轴引擎写死全展开（屏幕模式全屏 / 锚定模式 = 锚边长）：
 
 ```html
 <!-- 数字按 px；字符串支持任意 CSS 长度 -->
@@ -56,7 +54,7 @@
 <button x-drawer:panel="ui.open" x-drawer-options.size="ui.drawerWidth"></button>
 ```
 
-`size` 由引擎打开时 **inline 写入面板**——优先级天然高于样式表，配置必然生效。未配置时 inline 写 `var(--autospark-drawer-size, 320px)`，仍可用 CSS 变量做全站默认：
+`size` 由引擎打开时 **inline 写入面板**——优先级天然高于样式表，配置必然生效。未配置时 inline 写 `var(--autospark-drawer-size, 280px)`，仍可用 CSS 变量做全站默认：
 
 ```css
 /* 全站默认 400px（size 未配置时生效） */
@@ -67,21 +65,22 @@
 
 ### 元素贴边锚定（at.selector）
 
-配置 `at.selector` 后，抽屉不再贴屏幕边，而是贴**锚元素的对应边外侧**滑出，**长轴 = 锚边长**（随锚元素尺寸变化自动重同步）——「局部抽屉」：在侧栏、卡片、布局容器内滑出抽屉面板：
+配置 `at.selector` 后，抽屉不再贴屏幕边，而是贴**锚元素的对应边内侧**覆盖展开（`placement` 指定展开起始边：`right` = 右缘对齐锚右缘、面板从右缘滑入向左移动）；面板**恒在锚内**、不会伸到容器外，**长轴 = 锚边长**（随锚元素尺寸变化自动重同步）——「局部抽屉」：在侧栏、卡片、布局容器内滑入抽屉面板：
 
 <demo html="drawer/anchored.html"/>
 
 ```html
 <div class="layout">
   <aside id="sidebar">…</aside>
-  <button x-drawer:filters="ui.filters" x-drawer-options.at="{selector: '#sidebar', placement: 'right'}">过滤器</button>
+  <!-- placement 四方向：right / left / top / bottom（demo 演示四方向贴锚滑入） -->
+  <button x-drawer:filters="ui.filters" @click="ui.filters = true" x-drawer-options.at="{selector: '/#sidebar', placement: 'right'}">过滤器</button>
 </div>
 ```
 
 - 短轴仍由 `size` / `--autospark-drawer-size` 控制，**不钳制**到锚内（锚比抽屉窄时允许溢出）；
-- **`flip` 默认关**：方向是明确指定，视口空间不足不自动翻到对侧（显式 `at.flip: true` 恢复翻转）；
+- **浮动定位子键静默忽略**：内侧展开模型下 `flip` / `offset` / `shift` 无意义（方向是明确指定）；
 - **无箭头**：抽屉形态无箭头，`at.arrow: true` 无效；
-- `placement: 'auto'` 在锚定模式下维持 floating-ui 自动选位；
+- `placement: 'auto'` 静默归一为默认方向 `right`（内侧展开无「选位」概念）；
 - **`selector` 未命中**：warn 后回退**屏幕贴边**（默认方向）——不是 x-dialog 的「退居中」，居中对抽屉无意义。
 
 `at` 键的相对选择器语法（`../` 父级爬升 / `^` closest / `/` 全局）见 [x-dialog · 弹出定位](./x-dialog.md#弹出定位)。
@@ -94,6 +93,38 @@
 
 ```html
 <button x-drawer:panel="ui.open" x-drawer-options="{mask: false}">无遮罩抽屉</button>
+```
+
+### 拖拽调宽（resize）
+
+`resize` 选项启用面板拖拽调节（复用 [x-resize](./x-resize.md) 核心，ADR-0064）：方向按贴边形态**自动推导**——左/右抽屉的内侧竖边（`placement: left` → `e`，类推）、上/下抽屉的内侧横边；`handles` 只能在合法集内收窄。约束字段与 x-resize 选项同构；尺寸**会话内记忆**（重开沿用拖出宽度、**优先于声明 `size`**）；数据不写回 store，`@resize:end` 事件 detail 即出口（事件派发在指令宿主上）：
+
+<demo html="resize/drawer.html"/>
+
+```html
+<button
+  x-drawer:sidebar="ui.open"
+  x-drawer-options="{resize: {minWidth: 240, maxWidth: 640}, size: 360}"
+  @resize:end="ui.width = $event.detail.width"
+></button>
+```
+
+### 折叠把手（toggle）
+
+抽屉**默认带**一个常驻的圆形折叠把手（`24px`、`1px solid`，视觉继承面板边框/背景配色）：骑在面板**活动边线**上（左右抽屉垂直居中、上下抽屉水平居中，圆心一半在面板内一半在外），点击即折叠/展开。**折叠 ≡ visible 归假**——没有第三态：折叠就是面板滑出销毁（重开内容重建，overlay 家族「每次打开新实例」既有语义），把手是常驻的打开触发器：
+
+<demo html="drawer/toggle.html"/>
+
+- 折叠后把手骑**屏幕边**（屏幕模式）或**锚内侧边**（锚定模式）只露一半（朝外一半被裁）；展开↔折叠时把手沿边线**同步滑移**（与面板同曲线），视觉连续；
+- 箭头指向「下一步动作」：展开态指折叠方向、折叠态翻转指展开方向；
+- 把手生命周期挂**消费者**（每指令一把、多实例独立），宿主销毁 / engine 销毁时摘除——面板销毁后它仍在；
+- `toggle: false` 显式关闭；字面量 / 表达式形态**不建把手**（状态不可写回，点击无意义）；
+- 尺寸/配色可调：CSS 变量 `--autospark-drawer-toggle-size`（默认 `24px`）+ 面板配色变量（`--autospark-overlay-border` / `--autospark-overlay-bg`）；
+- 与 `mask` 正交：模态抽屉的把手折叠走请求关闭（含状态回写），与 ESC / 点遮罩同链。
+
+```html
+<button x-drawer:sidebar="ui.open">默认带把手</button>
+<button x-drawer:sidebar="ui.open" x-drawer-options="{toggle: false}">无把手</button>
 ```
 
 ### 传递 props 与内容（插槽）
@@ -125,7 +156,7 @@
 <button x-drawer:parent="ui.open">一级抽屉</button>
 ```
 
-想要「子抽屉贴着父抽屉边缘滑出」（多级侧边栏画面）：给子 drawer 配 `at.selector` 指向父面板内元素 + 对应方向即可。
+想要「子抽屉贴着父抽屉边缘滑入」（多级侧边栏画面）：给子 drawer 配 `at.selector` 指向父面板内元素 + 对应方向即可。
 
 ### 面板外壳（shell）
 
@@ -133,7 +164,7 @@
 
 ### 进出场动画
 
-默认动画为内置 **`'drawer'`**：遮罩淡入淡出 + 面板按方向滑入滑出（`translate ±100%`），方向自动跟随最终 placement。与家族一致的 `animate` 三形态可改可关：
+默认动画为内置 **`'drawer'`**：遮罩淡入淡出 + 面板位移滑入滑出（`translate ±100%`，主流 drawer 形态语言：面板整体平移、内容不变形、纯合成零 reflow），滑入方向自动跟随最终 placement。与家族一致的 `animate` 三形态可改可关：
 
 ```html
 <button x-drawer:panel="ui.open" x-drawer-options="{animate: 'fade'}">改用淡入淡出</button>
@@ -147,12 +178,14 @@
 | 键 | 默认 | 说明 |
 |---|---|---|
 | `at` | 无（屏幕贴边） | 字符串 / 元素简写 / `{selector, placement, flip, offset, shift}`；`selector` 命中即锚定模式 |
-| `at.placement` | `'right'` | 四主方向；`auto`/后缀/非法值屏幕模式静默归一，锚定模式 `auto` 为自动选位 |
-| `at.flip` | `false` | 锚定模式视口翻转，抽屉默认关（显式 `true` 开启） |
-| `size` | `320px` | 短轴尺寸（方向中立）：number 按 px / CSS 长度字符串；引擎 inline 写入，未配置回退 `--autospark-drawer-size` 变量 |
+| `at.placement` | `'right'` | 四主方向（展开起始边）；`auto`/后缀/非法值一律静默归一为 `right` |
+| `at.flip` | — | 内侧展开模型下静默忽略（保留键位仅向后兼容） |
+| `size` | `280px` | 短轴尺寸（方向中立）：number 按 px / CSS 长度字符串；引擎 inline 写入，未配置回退 `--autospark-drawer-size` 变量 |
+| `resize` | 无（不可调） | 面板拖拽调节：`true` / 选项对象（方向自动推导为贴边内侧单边，`handles` 只能收窄；会话内记忆优先于 `size`；详见[拖拽调宽](#拖拽调宽resize)） |
 | `mask` | `true` | 模态遮罩显隐；`false` = 裸面板贴边（无外点关闭） |
 | `closeOnMask` | `true` | 点遮罩请求关闭（无遮罩时静默无效） |
 | `animate` | `'drawer'` | 进出场动画；显式配置整键尊重 |
+| `toggle` | `true` | 折叠把手：骑活动边线的常驻圆形按钮（折叠 ≡ visible 归假）；`false` 关闭；字面量/表达式形态不建（详见[折叠把手](#折叠把手toggle)） |
 | `shell` | `drawer-shell` | 面板外壳组件名（配置链：成员表达式 > 引擎级 `options.overlay.drawer.shell` > 内置） |
 | `border` | `true` | 面板 1px 边框（外壳承担） |
 | `delayClose` | `0` | 打开后自动关闭延迟（ms） |

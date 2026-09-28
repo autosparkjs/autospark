@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-resize · 快速入门</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .panel {
+        background: #fff;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        padding: 14px 16px;
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 快速入门：零配置——默认 e/s/se 三个自然方向手柄自动可用，拖拽直改 inline 尺寸 -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block has-text-grey is-size-7">
+          拖右缘 / 下缘 / 右下角调节——默认方向 <code>e, s, se</code>（文档流元素的自然方向）。
+        </div>
+        <div class="panel" style="width:320px;height:180px" x-resize>
+          <p class="is-size-7 has-text-grey">无值 = 纯 DOM 交互：拖拽直改 style.width / height。</p>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

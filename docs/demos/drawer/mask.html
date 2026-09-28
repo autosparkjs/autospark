@@ -17,8 +17,8 @@
         <div class="demo-app section">
             <div x-data>
                 <div class="block">
-                    <button class="button is-primary" x-drawer:modal-panel="ui.modal">模态抽屉（默认带遮罩）</button>
-                    <button class="button" x-drawer:bare-panel="ui.bare" x-drawer-options="{mask: false}">无遮罩抽屉（mask: false）</button>
+                    <button class="button is-primary" x-drawer:modal-panel="ui.modal" @click="ui.modal = true">模态抽屉（默认带遮罩）</button>
+                    <button class="button" x-drawer:bare-panel="ui.bare" x-drawer-options="{mask: false}" @click="ui.bare = true">无遮罩抽屉（mask: false）</button>
                 </div>
                 <div class="block has-text-grey">
                     无遮罩抽屉不挡页面交互：点外部不会关闭，请用状态归假 / 面板内关闭按钮 / ESC。

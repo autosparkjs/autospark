@@ -132,10 +132,24 @@ interface AnimRecord {
     inlineBackup: [string, string][];
     /** 事件处理器引用（finish 时移除监听） */
     onEnd: ((e: Event) => void) | null;
+    /** enter 的延迟类切换句柄（finish/cancel 时撤销——防抢占后回调仍执行泄漏 to 类） */
+    frame?: { kind: "raf" | "timeout"; id: number } | null;
 }
 
 /** 超时兜底的固定 buffer（ms）：覆盖 transition 启动帧与计时误差 */
 const TIMEOUT_BUFFER = 50;
+
+/** 下一帧调度（enter 类切换用）：无 rAF 环境（部分测试环境）同步降级 */
+const requestFrame: (cb: () => void) => number =
+    typeof requestAnimationFrame === "function"
+        ? (cb) => requestAnimationFrame(cb)
+        : (cb) => {
+              cb();
+              return 0;
+          };
+const cancelFrame = (handle: number) => {
+    if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(handle);
+};
 
 /**
  * 进出场动画服务（engine 实例级）。指令无关接口：
@@ -204,24 +218,52 @@ export class AutoSparkAnimator {
         const activeCls = `${n}-${kind}-active`;
         const toCls = `${n}-${kind}-to`;
         const inlineBackup = this._applyInline(el, phase);
-        // ① 起始帧：from + active（reflow 前浏览器尚未计算 from 态）
-        el.classList.add(fromCls, activeCls);
-        // ② 强制 reflow：确保 from 态被计算，transition 才会在摘 from 时触发
-        void (el as HTMLElement).offsetWidth;
-        // ③ 目标帧：摘 from 挂 to（transition/animation 由此启动）
-        el.classList.remove(fromCls);
-        el.classList.add(toCls);
-
         const rec: AnimRecord = {
             el,
-            classes: [activeCls, toCls],
+            // from 一并收编：enter 的下一帧切换若被抢占取消，from 仍挂着须随 finish 摘除
+            classes: [fromCls, activeCls, toCls],
             kind,
             onDone,
             timer: null as unknown as ReturnType<typeof setTimeout>,
             inlineBackup,
             onEnd: null,
+            frame: null,
         };
-        this._registerEnd(rec, phase);
+        if (kind === "enter") {
+            // ① 起始帧：from + active + inline 禁过渡。挂类本身产生的「旧值 → from 态」
+            //    样式变化会立即被 active 提供的 transition 捕获（面板 append 后才挂类，
+            //    before-change 是无类态——先播一场反向 unwanted 过渡，随后的目标过渡起点
+            //    被污染、位移归零），from 帧 inline transition:none 压制之。
+            el.classList.add(fromCls, activeCls);
+            const prevTransition = el.style.transition;
+            inlineBackup.push(["transition", prevTransition]);
+            el.style.transition = "none";
+            // ② 目标帧切换须等 from 态真实渲染一帧：新插入元素在插入帧内没有
+            //    before-change style，同帧切换类不启动 transition（瞬现而非滑入）。
+            //    Chromium 会把 rAF 回调内注册的 rAF 追加进同帧队列（双 rAF 不隔帧），
+            //    故第二层用宏任务——事件循环保证它在当前帧渲染之后执行。
+            rec.frame = { kind: "raf", id: requestFrame(() => {
+                rec.frame = { kind: "timeout", id: setTimeout(() => {
+                    rec.frame = null;
+                    // ③ 目标帧：还原 transition（active 的过渡由此帧生效）→ 摘 from 挂 to
+                    el.style.transition = prevTransition;
+                    el.classList.remove(fromCls);
+                    el.classList.add(toCls);
+                    // 结束检测注册在切换帧：挂帧探测会被 inline transition:none 骗成
+                    // 0 时长 → 0ms 兜底瞬间收尾（类刚挂即摘）
+                    this._registerEnd(rec, phase);
+                }, 0) };
+            }) };
+        } else {
+            // leave：元素已在文档且已渲染（有 before-change style），同步 reflow 即启动过渡
+            el.classList.add(fromCls, activeCls);
+            // ② 强制 reflow：确保 from 态被计算，transition 才会在摘 from 时触发
+            void (el as HTMLElement).offsetWidth;
+            el.classList.remove(fromCls);
+            el.classList.add(toCls);
+            this._registerEnd(rec, phase);
+        }
+
         return true;
     }
 
@@ -331,6 +373,11 @@ export class AutoSparkAnimator {
         if (!this.active.has(rec.el)) return;
         this.active.delete(rec.el);
         clearTimeout(rec.timer);
+        if (rec.frame != null) {
+            if (rec.frame.kind === "raf") cancelFrame(rec.frame.id);
+            else clearTimeout(rec.frame.id);
+            rec.frame = null;
+        }
         if (rec.onEnd) {
             rec.el.removeEventListener("transitionend", rec.onEnd);
             rec.el.removeEventListener("animationend", rec.onEnd);

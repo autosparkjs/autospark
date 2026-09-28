@@ -26,8 +26,9 @@ import { OverlayDirective } from "./overlay";
 export abstract class VisibleOverlayDirective extends OverlayDirective {
     // warn 前缀 directiveLabel 继承基座（默认 'x-dialog'）；异名子类（x-drawer 等）覆写字段
 
-    /** 可写回的 visible 状态路径（简单路径形态才有；表达式/字面量 null） */
-    private _visiblePath: string | null = null;
+    /** 可写回的 visible 状态路径（简单路径形态才有；表达式/字面量 null）。
+     *  protected：形态子类消费（x-drawer 折叠把手折叠态点击须写回 true） */
+    protected _visiblePath: string | null = null;
     /** visible 驱动表达式（非字面量形态） */
     private _visibleExpr: string | null = null;
 
@@ -108,7 +109,7 @@ export abstract class VisibleOverlayDirective extends OverlayDirective {
      * visible 写回落点解析：沿 scope 链找首个持有首段键的容器（locals → x-data 响应式域），
      * 逐段深入直写（_data 写即响应式）；全链无局部落点 → `setVal` 写全局 state（x-model 同款快路径）。
      */
-    private _writeVisible(value: boolean): void {
+    protected _writeVisible(value: boolean): void {
         const path = this._visiblePath!;
         const segs = path.split(this.engine.store.delimiter);
         let s: AutoSparkScope | null = this.binding;

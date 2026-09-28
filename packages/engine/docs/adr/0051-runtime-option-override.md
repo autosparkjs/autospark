@@ -33,10 +33,13 @@ attributeFilter 为**全部已声明覆盖属性名的显式并集**（从各指
 
 ### 3. 声明契约：静态清单答「什么可更新」，实例钩子答「更新了做什么」
 
+，
+
 ```ts
 class ShowDirective extends AutoSparkDirectiveBase {
-    static override readonly runtimeOptions = ["animate"];  // 可覆盖键（分发器据此枚举 filter）
-    protected onOptionChanged(key: string, val: any): void { // 基类默认实现：
+    static override readonly runtimeOptions = ["animate"]; // 可覆盖键（分发器据此枚举 filter）
+    protected onOptionChanged(key: string, val: any): void {
+        // 基类默认实现：
         // ① this.options[key] = val（undefined 时 delete）——写回单一数据源
         // ② 子类 override 追加缓存重 resolve（如 this._anim = resolveAnimate(...)）
     }
@@ -65,11 +68,11 @@ class ShowDirective extends AutoSparkDirectiveBase {
 
 选项按消费时机分三档，处置各异：
 
-| 档 | 特征 | 处置 | 成本 |
-|---|---|---|---|
-| 现读型 | 每次使用时 `getOption` 现读 | 进 `runtimeOptions`，零钩子 | 行级 |
-| 快照-运行时型 | created 读一次缓存，运行时消费缓存 | 进 `runtimeOptions` + 钩子重 resolve | 几行/指令 |
-| 真·编译期型 | 编译决策进了模板树/子树结构 | 进 `static compileOnlyOptions: Record<string, 'warn' \| 'restart'>` | 声明级 |
+| 档            | 特征                               | 处置                                                                | 成本      |
+| ------------- | ---------------------------------- | ------------------------------------------------------------------- | --------- |
+| 现读型        | 每次使用时 `getOption` 现读        | 进 `runtimeOptions`，零钩子                                         | 行级      |
+| 快照-运行时型 | created 读一次缓存，运行时消费缓存 | 进 `runtimeOptions` + 钩子重 resolve                                | 几行/指令 |
+| 真·编译期型   | 编译决策进了模板树/子树结构        | 进 `static compileOnlyOptions: Record<string, 'warn' \| 'restart'>` | 声明级    |
 
 - **真·编译期型 v1 全 `'warn'`**：覆盖属性名照常进 attributeFilter，变更仅 **warn 指引**「X 为编译期选项，请用 `x-{name}-options`」——把「写了没反应」变成「写了有解释」，filter 枚举让 warn 也近乎零成本。`'restart'` 为 v2 预留档（决策 11）。
 - 两清单皆**显式枚举**；**未声明键零观察静默**——`data-show-foo`、`data-index`、`data-paging` 等一切未声明 data-* 就是普通属性。命名冲突（含 x-for 已占用并经 `:data-paging` 绑定真实写 DOM 的 `data-paging`/`data-index`）由此自然消解，无需避让清单。
@@ -79,16 +82,16 @@ class ShowDirective extends AutoSparkDirectiveBase {
 
 **`runtimeOptions`（可覆盖）**：
 
-| 指令 | 键 | 生效时机 | 钩子 |
-|---|---|---|---|
-| show / if / switch / for / tree | `animate` | 下次 enter/leave | 重 resolve `_anim` |
-| loading | `message` `bgColor` `color` `opacity` `delay` `selector` `actions` | 即时刷新 overlay | 重 parse config |
-| model | `get` `set` `default` `autoSelect` `trim` `number` `boolean` `group` | 下次对应消费点 | 零钩子 |
-| field | `trim` `number` `boolean` | 下次写入事件 | 零钩子 |
-| icon | `size` `padding` `badge` `button` `color` `pointer` `strokeWidth` | 下次渲染 | 零钩子 |
-| form | `validateOnSubmit` | 下次 submit | 零钩子 |
-| import | `global` | 下次 load | 零钩子 |
-| html / data | `method` `header`（data 另有 `path`） | 下次取数 / arrive | 零钩子 |
+| 指令                            | 键                                                                   | 生效时机          | 钩子               |
+| ------------------------------- | -------------------------------------------------------------------- | ----------------- | ------------------ |
+| show / if / switch / for / tree | `animate`                                                            | 下次 enter/leave  | 重 resolve `_anim` |
+| loading                         | `message` `bgColor` `color` `opacity` `delay` `selector` `actions`   | 即时刷新 overlay  | 重 parse config    |
+| model                           | `get` `set` `default` `autoSelect` `trim` `number` `boolean` `group` | 下次对应消费点    | 零钩子             |
+| field                           | `trim` `number` `boolean`                                            | 下次写入事件      | 零钩子             |
+| icon                            | `size` `padding` `badge` `button` `color` `pointer` `strokeWidth`    | 下次渲染          | 零钩子             |
+| form                            | `validateOnSubmit`                                                   | 下次 submit       | 零钩子             |
+| import                          | `global`                                                             | 下次 load         | 零钩子             |
+| html / data                     | `method` `header`（data 另有 `path`）                                | 下次取数 / arrive | 零钩子             |
 
 **`compileOnlyOptions`（v1 全 warn）**：`if`/`switch` 的 `keepalive`（`static ownsChildren` 编译期静态读取，结构级）、`for` 的 `paging` `virtual` `loader` `autoLoad` `itemHeight` `overscan`（`pageSize` warn 时**指引既有 `:data-paging` 通道**）、`tree` 的 resolveConfig 字段族（`animate` 除外）、`data`/`form` 的 `mount` `global` `nearest`、`html` 的 `compile` `raw` `loading` `empty` `hide` `emptyValues`、`text` 的 `empty` `hide` `emptyValues`、`model` 的 `change` `multiple` `choices` `emptyValues`、`field` 的 `name`。
 

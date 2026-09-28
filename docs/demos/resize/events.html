@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-resize · 事件</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .panel {
+        background: #fff;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        padding: 12px 14px;
+        box-sizing: border-box;
+        font-size: 13px;
+        color: #666;
+      }
+      .log {
+        height: 130px;
+        overflow-y: auto;
+        font-size: 12px;
+        font-family: monospace;
+        background: #1e293b;
+        color: #94a3b8;
+        border-radius: 6px;
+        padding: 8px 10px;
+      }
+      .log b {
+        color: #7dd3fc;
+        font-weight: normal;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 三事件：resize:start / resize:move / resize:end（宿主派发、冒泡；detail 含 width/height/handle） -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="panel block" style="width:280px;height:160px" x-resize @resize:end="log('end', $event.detail)">
+          拖一下——resize:end 事件的 detail 携带最终尺寸与手柄方向。
+        </div>
+        <div class="log" x-html="ui.lines"></div>
+        <script type="autospark/actions">
+          {
+            log(phase, detail) {
+              this.globalState.ui.lines =
+                `<div><b>${phase}</b> ${detail.width} × ${detail.height}（手柄 ${detail.handle}）</div>` +
+                this.globalState.ui.lines;
+            }
+          }
+        </script>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+        ui: { lines: "<div>resize:end 事件日志…</div>" },
+      });
+    </script>
+  </body>
+</html>

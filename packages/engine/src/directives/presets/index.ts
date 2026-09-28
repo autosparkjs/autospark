@@ -29,6 +29,7 @@ export * from "./slot";
 export * from "./icon";
 export * from "./icons";
 export * from "./import";
+export * from "./resize";
 
 import type { AutoSparkDirectiveBase } from "../base";
 import { TextDirective } from "./text";
@@ -59,6 +60,7 @@ import { FormDirective } from "./form";
 import { FieldDirective } from "./field";
 import { IconDirective } from "./icon";
 import { IconsDirective } from "./icons";
+import { ResizeDirective } from "./resize";
 
 /**
  * 预设指令映射：指令名 → 指令类。
@@ -115,4 +117,7 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     // x-icons 图标集声明（ADR-0058）：经 compiler 前置 transformer 拦截、永不被实例化，
     // 注册仅为合法可发现名位（x-define 同构）。旧 `x-icon-define` 已硬移除（不注册、静默失效）。
     icons: IconsDirective,
+    // x-resize 尺寸调节（ADR-0064）：自绘手柄拖拽调宿主尺寸（可选值双向 + resize:* 事件）；
+    // overlay 家族的 resize 选项复用其 ResizeSession 核心（写路径走 shell 面板）
+    resize: ResizeDirective,
 };

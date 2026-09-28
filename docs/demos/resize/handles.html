@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-resize · 调节方向</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .stage {
+        position: relative;
+        height: 320px;
+        border: 1px dashed #dbdbdb;
+        border-radius: 6px;
+        background: #fafafa;
+      }
+      .panel {
+        position: absolute;
+        left: 60px;
+        top: 50px;
+        background: #fff;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        padding: 12px 14px;
+        box-sizing: border-box;
+        font-size: 13px;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 方向：absolute 定位才能完整 8 向（w/n 需位置补偿）；修饰符糖只开右下角 -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block has-text-grey is-size-7">
+          上：八向全开（<code>handles: 'n,s,e,w,ne,nw,se,sw'</code>，宿主
+          <code>position: absolute</code>）；下：修饰符糖只保留右下角。
+        </div>
+        <div class="stage block">
+          <div class="panel" style="width:260px;height:170px" x-resize x-resize-options="{handles:'n,s,e,w,ne,nw,se,sw'}">
+            八向全开——对侧边缘（w/n）拖拽时引擎自动补偿 left/top（对缘不动）。
+          </div>
+        </div>
+        <div class="stage">
+          <div class="panel" style="width:260px;height:170px" x-resize.se>x-resize.se——修饰符即方向。</div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

@@ -75,6 +75,16 @@ export interface OverlayInstanceOptions {
     slotContents?: Map<string, SlotContent> | null;
     /** 插槽内容调用方视图基准（ADR-0056）：x-dialog 消费者 binding */
     slotCallerScope?: AutoSparkScope | null;
+    /**
+     * 面板就绪钩子（ADR-0064）：定位完成后、enter 动画前调用一次（每次打开的实例一次）。
+     * 面板尺寸拖拽调节（resize 选项）的手柄挂载点——消费者在此读 config.resize 建会话，
+     * registerCleanup 注册会话销毁（随实例销毁执行）。
+     */
+    onPanelReady?: ((ctx: {
+        panel: HTMLElement;
+        config: OverlayConfig;
+        registerCleanup: (fn: () => void) => void;
+    }) => void) | null;
 }
 
 /**
@@ -135,6 +145,12 @@ export class OverlayInstance {
     private readonly _shell: OverlayShellDef;
     /** 定位策略覆盖（形态特化钩子，ADR-0063；null = 内置「锚定/退居中」两态） */
     private readonly _positioner: ((ctx: OverlayPositionerContext) => void) | null;
+    /** 面板就绪钩子（ADR-0064 resize 手柄挂载点；null = 无） */
+    private readonly _onPanelReady: ((ctx: {
+        panel: HTMLElement;
+        config: OverlayConfig;
+        registerCleanup: (fn: () => void) => void;
+    }) => void) | null;
     /** 插槽内容 map（ADR-0056；透传给 instantiateDetachedComponent） */
     readonly slotContents: Map<string, SlotContent> | null;
     /** 插槽内容调用方视图基准（ADR-0056） */
@@ -190,6 +206,7 @@ export class OverlayInstance {
         this.slotContents = opts.slotContents ?? null;
         this.slotCallerScope = opts.slotCallerScope ?? null;
         this._positioner = opts.positioner ?? null;
+        this._onPanelReady = opts.onPanelReady ?? null;
     }
 
     /** 是否可见 */
@@ -200,6 +217,11 @@ export class OverlayInstance {
     /** 是否已销毁 */
     get destroyed(): boolean {
         return this._destroyed;
+    }
+
+    /** 面板元素（构建后非空直至销毁；x-drawer 折叠把手读取布局几何用） */
+    get panel(): HTMLElement | null {
+        return this._panel;
     }
 
     /**
@@ -458,6 +480,13 @@ export class OverlayInstance {
         if (phase) this.engine.animate.enter(root, phase);
         pushOpenInstance(this);
         this._broadcast("overlay:open");
+        // 面板就绪（定位后、动画已启动）：resize 手柄挂载点（ADR-0064）——定位完成后面板
+        // 已有几何，手柄注入即得正确命中区；清理随实例销毁
+        this._onPanelReady?.({
+            panel: this._panel!,
+            config: this.config,
+            registerCleanup: (fn) => this._cleanups.push(fn),
+        });
     }
 
     /** 面板退回居中模式（清锚定残留 inline 定位，交由遮罩 flex 布局居中） */

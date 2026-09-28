@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-resize · 尺寸约束</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .panel {
+        background: #fff;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        padding: 12px 14px;
+        box-sizing: border-box;
+        font-size: 13px;
+        color: #666;
+      }
+      /* CSS 声明的约束同样生效（指令选项未声明该轴时回退读取 computed） */
+      .css-constrained {
+        min-height: 120px;
+        max-height: 260px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 约束：指令选项（number px / CSS 长度串）优先；缺省回退宿主 computed min/max -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block has-text-grey is-size-7">
+          上：指令选项 <code>minWidth:200, maxWidth:440</code>；下：约束写在 CSS 里
+          （<code>min-height/max-height</code>），指令零配置即可生效。
+        </div>
+        <div
+          class="panel block" style="width:280px;height:160px"
+          x-resize
+          x-resize-options="{minWidth:200, maxWidth:440}"
+        >
+          宽被钳制在 200–440px（选项声明）。
+        </div>
+        <div class="panel css-constrained" style="width:280px;height:160px" x-resize>
+          高被钳制在 120–260px（CSS 声明——回退链兜底）。
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

@@ -78,3 +78,53 @@ drawer 内再开 drawer：每次打开新实例（ADR-0052 决策 9）DOM 追加
 ## 测试
 
 `src/__tests__/x-drawer.test.ts`：屏幕贴边四方向 inline 与 placement 写回、归一（-start / auto / 非法值静默）、模态默认与 `mask: false`、锚定命中（fixed + 主方向归一预写 + 长轴 = 锚边长 / 短轴交还 CSS 变量）、锚定未命中退贴边（非退居中）、锚定无箭头载体、visible 四形态继承（ESC 回写 / 字面量 / 空值 warn / 表达式）、`'drawer'` 默认动画与显式 animate 整键尊重、嵌套（父子层叠 + ESC 只关栈顶）、自定义 shell 替换与引擎级默认 shell。全量回归 1443 pass（含 x-overlay / x-popover / shell 原有断言原样通过）。
+
+## 修订：锚定内侧展开 + 动画时序缺陷修复（2026-09-28）
+
+实施反馈驱动两项修订（定位语义 + 动画实现），另附 animate 机制的三处时序缺陷修复。
+
+### 一、锚定模式：外侧贴缘 → 锚内侧覆盖展开
+
+**原决策**：锚定命中走 floating-ui（`applyAnchorPosition`），面板贴锚对应边**外侧**，长轴经 `onPositioned` 同步。
+
+**问题**：外侧贴缘在锚旁空间不足时面板伸到容器（锚所在布局区/视口）外；位移型动画（translate ±100%）起点更远，越界更明显。
+
+**修订**：面板终态贴锚**内侧**对应边（`right` = 右缘对齐锚右缘、面板在锚内），面板恒在锚内不越界；入场为主流位移滑入（从对应边滑入，见修订二）。实现上锚定不再经 floating-ui（`flip`/`offset`/`shift`/`arrow` 子键静默忽略、`auto` 归一 `right`——内侧展开无「选位」概念），`_applyAnchorEdge` 手写 inline 定位：贴边侧 inset 固定（终态几何），动画由 transform 位移承担（不参与布局）；重同步由 ResizeObserver（锚）+ resize/scroll（视口）承担，autoUpdate 依赖移除。
+
+### 二、'drawer' 动画：位移滑入保留，enter-to/leave-from 补显式 identity
+
+`DRAWER_SLIDE_TRANSFORMS`（translate ±100%，主流 drawer 形态语言：面板整体平移、内容不变形、纯合成零 reflow）**保留**；「越界」问题由修订一的**内侧终态定位**解决（终态恒在锚内，位移只是入场轨迹——与屏幕模式从屏幕外滑入的惯例一致）。动画侧两个此前隐没的缺陷修复：
+
+- **enter-to / leave-from 补显式 `transform: translateX(0)`**：摘 from 类后 transform 回退 `none`，而 `变换值 ↔ none` 不可插值（瞬间跳变）——显式 identity 才有可插值终点；
+- 曾评估的替代方案均否决：width/height 尺寸展开（`0 ↔ size`）每帧触发 reflow 且内容随宽度逐帧重排（换行/挤压抖动）；`scaleX` 纯合成但压扁内容；`clip-path: inset()` 揭开零重排但与主流 drawer 滑入观感不同。
+
+### 三、animate 类名型 enter 的三处时序缺陷（同批修复）
+
+1. **插入帧无 before-change style**：新插入元素（overlay 挂载即进场）同任务内「挂 from → reflow → 摘 from」不启动 transition。修复：from→to 切换经 rAF + 宏任务（Chromium 会把 rAF 回调内注册的 rAF 追加进同帧队列，双 rAF 也不隔帧；宏任务必在当前帧渲染后执行）。
+2. **挂类本身的 unwanted 过渡**：append 后挂 from+active，「无类态 → from 态」的变化被 active 的 transition 立即捕获（先播反向 unwanted 过渡，目标过渡起点被污染、位移归零）。修复：from 帧 inline `transition: none`（实例根侧）+ drawer-shell 复合选择器 `transition:none!important`（面板侧，transition 不继承、inline 跨不了元素），切换帧还原。
+3. **时长探测被骗**：`_registerEnd` 在挂帧执行，读到 inline `transition:none` → 时长 0 → 0ms 兜底瞬间收尾。修复：enter 的结束检测注册移到切换帧（inline 已还原）。
+
+ AnimRecord 增 `frame` 句柄（raf/timeout 双态，finish/cancel 撤销防 to 类泄漏），`classes` 收编 from（抢占取消时不残留）。
+
+### 测试更新
+
+`x-drawer.test.ts`：默认动画用例拆分（起始帧 from+active / 双 rAF 切换时序，配长 duration 稳定在播）；`tooltip.test.ts`：enter 后收敛须先等切换帧注册结束检测。全量 1447 pass。
+
+## 修订：折叠把手（toggle）——折叠 ≡ visible 归假 + 实例外常驻交互元素（2026-09-28）
+
+### 决策
+
+`toggle` 选项（**默认 `true`**，`false` 显式关闭）为抽屉启用常驻折叠/展开把手：
+
+- **折叠 ≡ visible 归假，无第三态**：点把手即写回状态（展开态点 = 归假滑出销毁；折叠态点 = 归真重开）。否决「独立停靠态（docked）」：docked × open 四象限引入第二真相源，与「visible 是唯一真相源」（ADR-0052 决策 6）冲突，且与「每次打开新实例」的实例生命周期相悖。**代价（已接受）**：折叠再展开后面板内容运行态重置（表单输入、滚动位置不保留）——这是 overlay 家族既有语义，不为本特性破坏。
+- **把手是覆盖物家族首个实例外常驻交互元素**：面板 visible 归假即整树销毁，把手须存活——生命周期挂**指令实例**而非 overlay 实例（每消费者一个、多实例独立层叠），宿主脱离 / scope 死亡 / engine 销毁时摘除（复用 `onScopeDestroyed`）。先例：tooltip 单例浮层（懒建常驻复用），但那是引擎级单例，把手是指令级多例。
+- **几何：圆心恒骑面板活动边线**（半内半外），展开↔折叠 = 把手沿边线**同步滑移**（与面板同曲线 .3s）；折叠后屏幕模式骑屏幕边、锚定模式骑锚内侧边线，朝外一半被裁（天然「只露一半」，零特判）。
+- **视觉**：直径 `24px`、`1px solid`（继承面板边框/背景配色），CSS 变量 `--autospark-drawer-toggle-size` 等开放定制；箭头 CSS 绘制、指向「下一步动作」随 `data-collapsed` 翻转。DOM 契约 `div.autospark-drawer-toggle[data-overlay-placement][data-collapsed]`（placement 同面板契约，箭头基准角按它分派）。
+- **与 `mask` 正交**：不隐式改写用户显式配置的模态行为；点遮罩 / ESC 关闭后把手照常存活。
+
+### 被否决的方案
+
+- **独立停靠态（docked/peek）**：第二真相源 + 实例保活偏离「关闭即销毁」，成本高；内容保活需求由未来组件级 `keepalive` 通道解决更合适。
+- **把手随面板销毁、折叠后重新注入**：折叠后无「边线」参照物，且反复注入/摘除抖动；常驻一把手 + 边线跟随最简。
+- **默认 `false`**：抽屉的「可折叠」是高频诉求（侧栏场景默认预期），默认开启减少一层配置；不要者显式关。
+- **把手内容可替换（slot/图标配置）**：YAGNI，CSS 变量已覆盖尺寸/配色定制。

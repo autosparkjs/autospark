@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-resize · 键盘调节</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .panel {
+        background: #fffaf0;
+        border: 1px solid #f0dbb4;
+        border-radius: 8px;
+        padding: 12px 14px;
+        box-sizing: border-box;
+        font-size: 13px;
+        color: #8a6d3b;
+      }
+      .panel :focus {
+        outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 键盘：Tab 聚焦手柄（focus-visible 高亮），方向键 ±1px、Shift+方向键 ±10px -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block has-text-grey is-size-7">
+          按 <kbd>Tab</kbd> 聚焦手柄（高亮显形），<kbd>←→↑↓</kbd> ±1px、<kbd>Shift</kbd> +
+          方向键 ±10px——与拖拽同钳制管线、同三事件。
+        </div>
+        <div class="panel" style="width:280px;height:160px" x-resize="box">
+          <p>当前尺寸：<b x-text="box.width"></b> × <b x-text="box.height"></b> px</p>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+        box: { width: 280, height: 160 },
+      });
+    </script>
+  </body>
+</html>

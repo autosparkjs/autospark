@@ -64,7 +64,7 @@ describe("屏幕贴边（默认定位）", () => {
         expect(panel.style.right).toBe("0px");
         expect(panel.style.left).toBe("");
         // 短轴 inline 恒写（未配置 size → CSS 变量表达式，不依赖样式表注入时机）
-        expect(panel.style.width).toBe("var(--autospark-drawer-size, 320px)");
+        expect(panel.style.width).toBe("var(--autospark-drawer-size, 280px)");
         expect(panel.getAttribute("data-overlay-placement")).toBe("right");
         // drawer-shell 模板根双类名：继承 dialog 外壳联动样式 + 抽屉形态覆写
         expect(panel.classList.contains("autospark-dialog")).toBe(true);
@@ -173,7 +173,7 @@ describe("元素贴边锚定（at.selector）", () => {
         expect(panel.getAttribute("data-overlay-placement")).toBe("right");
         expect(panel.style.height).toBe("260px");
         // 短轴 inline（未配置 size → CSS 变量表达式）
-        expect(panel.style.width).toBe("var(--autospark-drawer-size, 320px)");
+        expect(panel.style.width).toBe("var(--autospark-drawer-size, 280px)");
     });
 
     test("上下抽屉锚定：长轴 = 锚宽", async () => {
@@ -184,7 +184,7 @@ describe("元素贴边锚定（at.selector）", () => {
         await nextTick();
         const panel = panelOf("panel")!;
         expect(panel.style.width).toBe("480px");
-        expect(panel.style.height).toBe("var(--autospark-drawer-size, 320px)");
+        expect(panel.style.height).toBe("var(--autospark-drawer-size, 280px)");
     });
 
     test("锚定未命中：warn 退屏幕贴边（非退居中）", async () => {
@@ -268,7 +268,7 @@ describe("visible 驱动（VisibleOverlayDirective 继承）", () => {
 });
 
 describe("'drawer' 默认动画", () => {
-    test("默认 animate: 'drawer'——enter 六类名挂实例根（同步序列后为 active+to）", async () => {
+    test("默认 animate: 'drawer'——enter 起始帧 from+active 挂实例根（默认名注入）", async () => {
         const { engine } = mount(
             `<div id="app"><div x-scope>
                 <div x-define="panel"><span>x</span></div>
@@ -278,9 +278,33 @@ describe("'drawer' 默认动画", () => {
         );
         engines.push(engine);
         const mask = maskOf("panel")!;
-        // 类挂实例根（模态形态 = 遮罩根）；'drawer' 动画名来自默认注入
+        // 类挂实例根（模态形态 = 遮罩根）；'drawer' 动画名来自默认注入。
+        // enter 起始帧同步挂 from+active；from→to 切换经双 rAF（新插入元素插入帧内
+        // 切换不产生 transition，from 态须先渲染一帧）——无 duration 的默认形态在
+        // happy-dom（无真实 transition）下由 0ms 兜底立即收尾，故此处只断言起始帧
+        expect(mask.classList.contains("drawer-enter-from")).toBe(true);
         expect(mask.classList.contains("drawer-enter-active")).toBe(true);
+        expect(mask.classList.contains("drawer-enter-to")).toBe(false);
+    });
+
+    test("enter from→to 经双 rAF 切换（from 态先渲染一帧才启动过渡）", async () => {
+        const { engine } = mount(
+            `<div id="app"><div x-scope>
+                <div x-define="panel"><span>x</span></div>
+                <button x-drawer:panel="ui.open" x-drawer-options="{animate: {name: 'drawer', duration: 5000}}"></button>
+            </div></div>`,
+            { ui: { open: true } },
+        );
+        engines.push(engine);
+        const mask = maskOf("panel")!;
+        // 长 duration 使动画在断言窗口内稳定「在播」（helpers 约定）
+        expect(mask.classList.contains("drawer-enter-from")).toBe(true);
+        await new Promise((r) => requestAnimationFrame(() => r()));
+        await new Promise((r) => requestAnimationFrame(() => r()));
+        await new Promise((r) => setTimeout(r, 30)); // happy-dom rAF 定时器偏移兜底
+        expect(mask.classList.contains("drawer-enter-from")).toBe(false);
         expect(mask.classList.contains("drawer-enter-to")).toBe(true);
+        expect(mask.classList.contains("drawer-enter-active")).toBe(true);
     });
 
     test("显式 animate 整键尊重（animate: 'fade' 挂 fade 类；false 无类）", async () => {
@@ -381,7 +405,7 @@ describe("size 选项（短轴尺寸，方向中立）", () => {
         const warns = await catchWarnsAsync(() => {
             mountDrawer(sizeHtml("size: -100"), { ui: { open: true } });
         });
-        expect(panelOf("panel")!.style.width).toBe("var(--autospark-drawer-size, 320px)");
+        expect(panelOf("panel")!.style.width).toBe("var(--autospark-drawer-size, 280px)");
         expect(warns.some((w) => w.includes("x-drawer:panel") && w.includes("size"))).toBe(true);
     });
 });
@@ -414,5 +438,89 @@ describe("shell 集成（ADR-0062）", () => {
             { overlay: { drawer: { shell: "eng-shell" } } },
         );
         expect(panelOf("panel")!.classList.contains("eng-shell")).toBe(true);
+    });
+});
+
+describe("折叠把手（toggle，ADR-0063 修订）", () => {
+    const toggleOf = (i = 0): HTMLElement | null =>
+        document.querySelectorAll(".autospark-drawer-toggle")[i] as HTMLElement ?? null;
+
+    test("默认带把手：类名/属性契约（placement 归一 + 折叠态 data-collapsed），挂覆盖物容器", () => {
+        const { engine } = mountDrawer(
+            `<div id="app"><div x-scope>
+                <div x-define="panel"><span>x</span></div>
+                <button x-drawer:panel="ui.open"></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        // 初始折叠（visible=false）：把手即存在（实例外常驻），折叠态标记在
+        const t = toggleOf();
+        expect(t).not.toBeNull();
+        expect(t!.className).toBe("autospark-drawer-toggle");
+        expect(t!.getAttribute("data-overlay-placement")).toBe("right");
+        expect(t!.hasAttribute("data-collapsed")).toBe(true);
+        expect(containerOf()?.contains(t!)).toBe(true);
+        expect(engine.state.ui.open).toBe(false);
+    });
+
+    test("toggle: false 显式关闭：无把手", () => {
+        mountDrawer(
+            `<div id="app"><div x-scope>
+                <div x-define="panel"><span>x</span></div>
+                <button x-drawer:panel="ui.open" x-drawer-options="{toggle: false}"></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        expect(toggleOf()).toBeNull();
+    });
+
+    test("字面量形态不建把手（状态不可写，点击无意义）", () => {
+        mountDrawer(
+            `<div id="app"><div x-scope>
+                <div x-define="panel"><span>x</span></div>
+                <button x-drawer:panel="true"></button>
+            </div></div>`,
+            {},
+        );
+        expect(toggleOf()).toBeNull();
+    });
+
+    test("折叠态点击把手：写回 true → 面板重开；展开态点击：请求关闭 → 写回 false + 面板销毁", async () => {
+        const { engine } = mountDrawer(
+            `<div id="app"><div x-scope>
+                <div x-define="panel"><span>x</span></div>
+                <button x-drawer:panel="ui.open"></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        // 折叠 → 展开
+        toggleOf()!.click();
+        await nextTick();
+        expect(engine.state.ui.open).toBe(true);
+        expect(panelOf("panel")).not.toBeNull();
+        expect(toggleOf()!.hasAttribute("data-collapsed")).toBe(false);
+        // 展开 → 折叠（请求关闭链：回写 false + leave 后销毁；animate:false 同步销毁）
+        toggleOf()!.click();
+        await nextTick();
+        expect(engine.state.ui.open).toBe(false);
+        expect(panelOf("panel")).toBeNull();
+        expect(toggleOf()!.hasAttribute("data-collapsed")).toBe(true);
+        // 把手仍在（实例外常驻）
+        expect(toggleOf()).not.toBeNull();
+    });
+
+    test("多实例各自独立把手；engine 销毁全部摘除", () => {
+        const m = mountDrawer(
+            `<div id="app"><div x-scope>
+                <div x-define="a"><span>x</span></div>
+                <div x-define="b"><span>y</span></div>
+                <button x-drawer:a="ui.a"></button>
+                <button x-drawer:b="ui.b"></button>
+            </div></div>`,
+            { ui: { a: false, b: false } },
+        );
+        expect(document.querySelectorAll(".autospark-drawer-toggle").length).toBe(2);
+        m.engine.destroy();
+        expect(document.querySelectorAll(".autospark-drawer-toggle").length).toBe(0);
     });
 });

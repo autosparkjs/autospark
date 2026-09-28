@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-resize · 双向绑定</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .panel {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        padding: 12px 14px;
+        box-sizing: border-box;
+        font-size: 13px;
+        color: #3b6ea5;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 可选值双向：拖拽实时写回状态（其他绑定即时联动）；改状态反向驱动面板尺寸 -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block">
+          <span class="tag is-info is-light">
+            拖拽写回：<b x-text="box.width"></b> × <b x-text="box.height"></b> px
+          </span>
+        </div>
+        <div class="block field has-addons" style="max-width: 360px">
+          <p class="control">
+            <input class="input is-small" type="number" x-model="box.width" />
+          </p>
+          <p class="control">
+            <input class="input is-small" type="number" x-model="box.height" />
+          </p>
+          <p class="control">
+            <button
+              class="button is-small"
+              @click="box.width = 280, box.height = 160"
+            >
+              重置 280×160
+            </button>
+          </p>
+        </div>
+        <div class="panel" style="width:280px;height:160px" x-resize="box">
+          拖我——读数实时联动；改输入框（或点重置）——面板尺寸反向同步。
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+        box: { width: 280, height: 160 },
+      });
+    </script>
+  </body>
+</html>

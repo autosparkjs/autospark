@@ -6,20 +6,17 @@
     <script src="/autospark/autospark.js"></script>
     <link rel="stylesheet" href="/autospark/bulma.min.css" />
     <style>
-      .layout {
-        display: flex;
-        gap: 16px;
-        align-items: stretch;
-      }
       .fake-sidebar {
-        width: 100%;
-        height: 300px;
+        /* 四周留白：四个方向都有贴锚滑入空间（上下预留 ≥ 默认短轴 320px） */
+        width: 560px;
+        height: 320px;
+        margin: 0 auto;
+        margin-bottom: 1em;
         border: 1px solid #dbdbdb;
         border-radius: 6px;
         padding: 14px;
         box-sizing: border-box;
         background: #fafafa;
-        margin: 0.5em;
       }
       .drawer-body {
         padding: 16px 20px;
@@ -36,38 +33,65 @@
     </style>
   </head>
   <body>
-    <!-- 元素贴边锚定（at.selector 命中）：抽屉贴锚元素对应边外侧滑出，
+    <!-- 元素贴边锚定（at.selector 命中）：抽屉贴锚元素对应边外侧滑入，
              长轴 = 锚边长（随锚 resize 重同步），短轴仍走 --autospark-drawer-size。
+             placement = 贴锚的边（right/left/top/bottom 四方向演示）；
              锚定 flip 默认关（方向是明确指定）、无箭头；未命中 warn 退屏幕贴边。 -->
     <div class="demo-app section">
       <div x-data>
-        <div class="layout">
-          <aside class="fake-sidebar" id="sidebar">
-            <strong>布局侧栏（锚元素 #sidebar）</strong>
-            <p class="is-size-7 has-text-grey">右侧抽屉将贴本侧栏右缘滑出，高度 = 侧栏高度。</p>
-          </aside>
-        </div>
-        <div class="block">
-          <!-- 消费者指令与 at 配置必须同元素（宿主兼触发点） -->
+        <aside class="fake-sidebar" id="sidebar">
+          <strong>布局侧栏（锚元素 #sidebar）</strong>
+          <p class="is-size-7 has-text-grey">
+            抽屉贴本侧栏对应边滑入：长轴 = 侧栏对应边长，短轴 = 默认尺寸。试试四个方向。
+          </p>
+        </aside>
+        <div class="block buttons">
+          <!-- 四方向共享同一组件 x-define="filters"，各自独立状态位 + at.placement 差异化 -->
           <button
             class="button is-primary"
-            x-drawer:filters="ui.filters"
-            x-drawer-options.at="{selector: '#sidebar', placement: 'right'}"
+            x-drawer:filters="ui.right"
+            x-drawer-options.at="{selector: '/#sidebar', placement: 'right'}"
+            @click="ui.right = true"
           >
-            侧栏右缘滑出过滤器
+            贴右缘滑入（right）
+          </button>
+          <button
+            class="button is-primary"
+            x-drawer:filters="ui.left"
+            x-drawer-options.at="{selector: '/#sidebar', placement: 'left'}"
+            @click="ui.left = true"
+          >
+            贴左缘滑入（left）
+          </button>
+          <button
+            class="button is-primary"
+            x-drawer:filters="ui.top"
+            x-drawer-options.at="{selector: '/#sidebar', placement: 'top'}"
+            @click="ui.top = true"
+          >
+            贴上缘滑入（top）
+          </button>
+          <button
+            class="button is-primary"
+            x-drawer:filters="ui.bottom"
+            x-drawer-options.at="{selector: '/#sidebar', placement: 'bottom'}"
+            @click="ui.bottom = true"
+          >
+            贴下缘滑入（bottom）
           </button>
           <button
             class="button"
             x-drawer:miss="ui.miss"
-            x-drawer-options.at="{selector: '#not-exists'}"
+            x-drawer-options.at="{selector: '/#not-exists'}"
+            @click="ui.miss = true"
           >
             锚未命中示例（warn 退屏幕贴边）
           </button>
         </div>
         <div x-define="filters">
           <div class="drawer-body">
-            <h3>过滤器</h3>
-            <p>贴 #sidebar 右缘，高度沿锚边展开。</p>
+            <h3>贴锚抽屉</h3>
+            <p>贴 #sidebar 对应边滑入，长轴沿锚边展开。</p>
             <button class="button is-small" @click="close()">关闭</button>
           </div>
         </div>
@@ -82,7 +106,7 @@
     </div>
     <script>
       new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
-        ui: { filters: false, miss: false },
+        ui: { right: false, left: false, top: false, bottom: false, miss: false },
       });
     </script>
   </body>

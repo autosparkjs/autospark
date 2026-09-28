@@ -202,6 +202,32 @@ _Avoid_: in / out（已否决的键名，与类名词汇错位）
 引擎内置的三个开箱即用动画名：fade（opacity 淡入淡出，300ms）、slide（translateY(-12px→0)＋opacity，300ms，离场反向、纵向固定）、expand（**高度型**：JS 测量自然高度 + `height`/`opacity` 同链 inline 过渡，300ms——布局高度参与动画，后续节点平滑跟随，不经六类名契约、无类 CSS）。fade/slide 样式经类级初始化注入，裸类名（`.fade-enter-active`）、用户同名 CSS 可覆盖。x-tree 默认 `expand`；x-for 仅项级进出（移动不动画）。
 _Avoid_: 横向 slide 参数化（v1 纵向固定，横向走自定义动画）、FLIP / 移动动画（x-for 项移动暂不支持，留作后续）、改 slide 为 height 型（全局改既有内置语义，波及所有已用场景）
 
+### 尺寸调节层
+
+**尺寸调节 / x-resize（Resize）**:
+宿主元素尺寸的拖拽调节指令（ADR-0064）：**可选值双向**——无值 = 纯 DOM 直改 `style.width/height`；有值（`x-resize="size"`）= 双向绑定，拖拽中实时写回 `{width, height}`（px number，经调度器合并），外部改状态反向同步宿主（过「尺寸钳制」管线、等值短路防循环），语义与 x-model 的双向同源。Compile 类（编译期注入「调节手柄」+ 建绑定），动态启停用 x-if 包宿主表达，不发明值语法。
+_Avoid_: 缩放（那是 transform scale 语义）、可调节（泛化）、resize 绑定（它是交互指令，值是数据通道不是绑定目标）
+
+**调节手柄 / Resize Handle**:
+编译期注入宿主的**真实子元素**（`data-autospark-resize-handle="<方向>"` 契约，不参与子树重编译），可聚焦，方向键 ±1px / Shift+方向键 ±10px 微调（同「尺寸钳制」管线）。视觉经类级 `initialize` 全局注入（幂等），CSS 变量 `--autospark-resize-handle-*` 定制。8 向完整支持需宿主 `absolute/fixed`——文档流元素只保留自然方向（e/s/se），其余方向编译期丢弃 + warn（不自动改 position）。
+_Avoid_: 拖拽手柄（那是 x-tree 拖拽预留的 drag handle 概念）、grip / sizer（英文别名）、resize 控件（它是子元素不是控件）
+
+**方向枚举 / handles**:
+八方向枚举 `n/s/e/w/ne/nw/se/sw`（北=上）。声明走 `handles` 选项（逗号串或数组），修饰符 `x-resize.e.s.se` 解析期并入（ADR-0007）；默认 `e,s,se`（流内自然最大集——流内元素左/上边缘锚定布局位，反向拖拽需补偿 left/top，非自然方向仅对定位元素开放）。
+_Avoid_: 四边四角（口语——边和角统一叫方向）、edges（同上）、方位（泛化）
+
+**尺寸钳制 / Clamp Chain**:
+调节量的统一处理管线：**raw Δ → snap 吸附 → aspectRatio 等比 → min/max 钳制**（钳制恒最后，约束是硬边界）。约束值 `number`（px）| CSS 长度串；来源回退链：指令选项（`minWidth/maxWidth/minHeight/maxHeight`）→ 宿主 computed `min-width/max-width`（CSS 声明的约束天然生效，指令选项显式值优先）。`snap`（px 步进，默认 0 关）、`aspectRatio`（宽/高数值）。
+_Avoid_: 边界限制（泛化）、min/max 选项（它们是四个独立键的统称，不是键名）、CSS 约束优先（方向反——指令选项才是权威层）
+
+**调节事件 / resize:\***:
+resize 手势生命周期的 DOM 冒泡事件（宿主派发）：`resize:start` / `resize:move`（持续） / `resize:end`，`detail = { width, height, handle }`（px number，end 为最终值），外界 `@resize:end="..."` 接。冒号命名空间对齐 `tree:*` / `tooltip:*` / `overlay:*` 惯例（grilling 共识曾为连字符，落盘时对齐家族词汇修正）；覆盖物形态同样派发在**指令宿主**（非 shell），绑定语法不变。
+_Avoid_: resize-start 连字符（家族惯例是冒号命名空间）、裸 resize（与 DOM 原生 window resize 事件撞名）、resizing（英文进行态——move 对齐 tree:expand 的动词本干风格）
+
+**覆盖物尺寸调节 / overlay resize（drawer / dialog）**:
+覆盖物消费者的 `resize` 选项（ADR-0064）：`true`（方向自动推导 + 默认约束）| 对象（字段与 x-resize 选项表同构；`handles` 只能在合法集内**收窄**，越界 warn + 忽略）。方向推导贴合形态几何：drawer 贴边内侧单边（`placement: left` → `e`，类推）、dialog 四角（`ne,nw,se,sw`）。写路径走 **shell 定位体系**（与普通元素 style 直改分离，钳制/手柄/指针核心逻辑复用）；**不写回 store**（「调节事件」detail 即数据出口——overlay 选项语法无绑定位）；尺寸**会话内记忆**（指令实例状态，重开沿用、优先于声明 `size` / CSS 尺寸，engine destroy 才清）。
+_Avoid_: overlay 缩放、可拖拽面板（泛化）、宽度绑定（不写回状态）
+
 ### 树形渲染层
 
 **树形渲染 / x-tree（Tree Rendering）**:
@@ -315,8 +341,12 @@ _Avoid_: overlay 对象、弹层实例（泛化）、对话框实例（那是 x-
 _Avoid_: 触发器（家族默认宿主无隐式交互；悬浮形态例外见「悬浮触发」）、弹出指令（泛化）、调用方（action 语境词汇）、保留键封闭清单（非保留键隐式作 props 的分流已删除，ADR-0052 v2.3）
 
 **贴边抽屉（Drawer）**:
-覆盖物消费者的贴边形态（x-drawer，ADR-0063）：面板从屏幕四边（默认）或锚元素边缘滑入滑出。**双定位模式**——屏幕贴边（无 `at`：fixed 贴视口对应边，贴边轴全屏展开）与**元素贴边锚定**（`at.selector` 命中：贴锚元素对应边**外侧**，**长轴 = 锚边长**随锚 resize 重同步，短轴不钳制到锚内）；经实例定位策略钩子（`positioner`）整体接管内置「锚定/退居中」两态，锚定未命中**回退屏幕贴边**（非家族「退居中」——居中对抽屉无意义）。`at.placement` 四主方向、默认 `right`（屏幕模式 `auto`/`-start/-end`/非法值静默归一；锚定模式 `auto` 维持自动选位）、锚定 `flip` 默认关、无箭头。短轴尺寸走 `size` 选项（number/CSS 长度，方向中立，引擎 inline 写入，ADR-0063 实施期修订），缺省回退 CSS 变量 `--autospark-drawer-size`；默认动画 `'drawer'`（遮罩淡入淡出 + 面板方向性滑动）；内置外壳 `drawer-shell`（直角、无箭头载体）。嵌套零新机制（子消费者声明在父组件模板内，ESC 打开栈只关栈顶）。
+覆盖物消费者的贴边形态（x-drawer，ADR-0063）：面板从屏幕四边（默认）或锚元素边缘滑入滑出。**双定位模式**——屏幕贴边（无 `at`：fixed 贴视口对应边，贴边轴全屏展开）与**元素贴边锚定**（`at.selector` 命中：面板终态贴锚元素对应边**内侧**、恒在锚内不越界，**长轴 = 锚边长**随锚/视口变化重同步）；经实例定位策略钩子（`positioner`）整体接管，锚定未命中**回退屏幕贴边**（非家族「退居中」——居中对抽屉无意义）。`at.placement` 四主方向（展开/滑入起始边）、默认 `right`（`auto`/`-start/-end`/非法值两模式一律静默归一；浮动定位子键 `flip`/`offset`/`shift` 静默忽略）、无箭头。短轴尺寸走 `size` 选项（number/CSS 长度，方向中立，引擎 inline 写入，ADR-0063 实施期修订），缺省回退 CSS 变量 `--autospark-drawer-size`；声明 `resize` 选项启用拖拽调短轴后，会话内记忆值优先于声明 `size` 生效（见「覆盖物尺寸调节」）；默认动画 `'drawer'`（遮罩淡入淡出 + 面板位移滑入滑出，主流 drawer 形态语言）；默认带**折叠把手**（`toggle`，见专条，`toggle: false` 显式关闭）；内置外壳 `drawer-shell`（直角、无箭头载体）。嵌套零新机制（子消费者声明在父组件模板内，ESC 打开栈只关栈顶）。
 _Avoid_: 侧滑菜单（泛化场景词）、局部抽屉（指锚定模式时直说「元素贴边锚定」）、推挤模式（push mode 未实现，勿暗示）
+
+**折叠把手（Drawer Toggle）**:
+贴边抽屉的常驻折叠/展开控制按钮（x-drawer `toggle` 选项，**默认开启**、`false` 显式关闭）：骑在面板**活动边线**上的圆形按钮（直径 `24px`、`1px solid`，视觉继承面板边框/背景，尺寸走 CSS 变量 `--autospark-drawer-toggle-size`），箭头指向「下一步动作」随折叠态翻转。**折叠 ≡ visible 归假**（无第三态）：点把手即写回状态，面板滑出销毁、重开重建（「每次打开新实例」家族语义，内容运行态不保留）；把手是覆盖物家族**首个实例外常驻交互元素**——面板销毁后存活，折叠后骑屏幕边（屏幕模式）或锚内侧边线（锚定模式）露半圆，展开/折叠时沿边线同步滑移（与面板同曲线）。生命周期挂指令实例：多把手各自独立，宿主脱离 / scope 死亡 / engine 销毁时摘除。与 `mask` 正交。
+_Avoid_: 停靠 / dock、折叠态 / collapsed state、peek、最小化 / minimize（均在暗示「折叠是独立第三态」——折叠就是 visible 归假）、收起按钮（泛化，把手的语义是双向控制不只是收）
 _Avoid_: 触发器（家族默认宿主无隐式交互；悬浮形态例外见「悬浮触发」）、弹出指令（泛化）、调用方（action 语境词汇）、保留键封闭清单（非保留键隐式作 props 的分流已删除，ADR-0052 v2.3）
 
 **面板外壳（Shell）**:

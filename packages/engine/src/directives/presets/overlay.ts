@@ -10,6 +10,13 @@ import { resolveOverlayConfig } from "../../overlay/handle";
 import { resolveDataContext, type OverlayConfig } from "../../overlay/types";
 import { collectSlotGroups, collectSlotSegments, type SlotContent } from "../../utils/slot";
 import { BUILTIN_SHELL_NAMES, resolveBuiltinShell } from "../../overlay/wrappers";
+import {
+    ResizeSession,
+    resolveHandles,
+    resolveResizeConstraints,
+    type ResizeDirection,
+    type ResizeOptions,
+} from "./resize";
 
 /**
  * OverlayDirective：覆盖物消费侧**公共抽象基座**（ADR-0052 修订版——组件化统一，共识 2/3）。
@@ -213,6 +220,7 @@ export abstract class OverlayDirective extends ComponentDirective {
             positioner: this._positioner(),
             slotContents,
             slotCallerScope: this.binding,
+            onPanelReady: (ctx) => this._attachResize(ctx),
         });
         this._overlayInstance = inst;
         this._appliedProps = props;
@@ -333,5 +341,95 @@ export abstract class OverlayDirective extends ComponentDirective {
      */
     protected _makeCloseRequest(): ((inst: OverlayInstance, source: string) => void) | null {
         return null;
+    }
+
+    // ── 面板尺寸拖拽调节（resize 选项，ADR-0064 决策八）────────────────
+
+    /**
+     * 会话内尺寸记忆：拖出尺寸存指令实例状态（跨实例保留——每次打开新 OverlayInstance，
+     * 指令实例长存），重开沿用、优先于声明 `size` / CSS 尺寸；engine destroy 随指令实例消亡。
+     */
+    protected _resizeMem: { width: number; height: number } | null = null;
+
+    /**
+     * 形态合法方向集（null = 形态不支持 resize）：子类覆写——drawer 贴边内侧单边
+     * （placement 推导）、dialog 四角（`ne,nw,se,sw`）。`handles` 声明只能在此集内收窄。
+     */
+    protected _resizeAllowedHandles(): ResizeDirection[] | null {
+        return null;
+    }
+
+    /**
+     * resize 尺寸落点（形态差异点）：默认写面板两轴（dialog——居中锚定下宽高直改、
+     * transform/flex 居中自动适应）；drawer 覆写只写短轴（长轴由 inset 对拉/锚定同步管理）。
+     */
+    protected _applyResize(
+        panel: HTMLElement,
+        width: number,
+        height: number,
+        dir: ResizeDirection,
+    ): void {
+        panel.style.width = `${width}px`;
+        panel.style.height = `${height}px`;
+        void dir;
+    }
+
+    /**
+     * 面板就绪钩子（onPanelReady 消费，ADR-0064）：读 `config.resize` 建调节会话并挂手柄——
+     * `true`（形态合法全集 + 默认约束）| 对象（字段与 x-resize 同构；handles 收窄校验，
+     * 越界 warn + 忽略）。钳制/手柄/指针核心复用 ResizeSession，写路径走 shell 面板
+     * （{@link _applyResize}）；`resize:*` 事件派发在**指令宿主**（非面板，绑定语法不变）；
+     * 不写回 store（事件 detail 即出口）；拖出尺寸进会话记忆（{@link _resizeMem}）。
+     * 会话销毁随实例 cleanup（手柄随面板 DOM 消亡，此处保证幂等干净）。
+     */
+    protected _attachResize(ctx: {
+        panel: HTMLElement;
+        config: OverlayConfig;
+        registerCleanup: (fn: () => void) => void;
+    }): void {
+        const cfg = ctx.config.resize;
+        if (cfg == null || cfg === false) return;
+        const warn = (m: string) => this.warn(`${this.directiveLabel}:${this.attr}: ${m}`);
+        const allowed = this._resizeAllowedHandles();
+        if (!allowed) {
+            warn(`resize 选项在该形态不受支持，已忽略（ADR-0064）`);
+            return;
+        }
+        let handles: ResizeDirection[] = allowed;
+        let opts: ResizeOptions | null = null;
+        if (cfg !== true) {
+            if (typeof cfg !== "object") {
+                warn(`resize 须为 true 或选项对象（与 x-resize 选项同构），已忽略: ${JSON.stringify(cfg)}`);
+                return;
+            }
+            opts = cfg as ResizeOptions;
+            if (opts.handles != null) {
+                const declared = resolveHandles(opts, warn);
+                handles = declared.filter((d) => allowed.includes(d));
+                const dropped = declared.filter((d) => !allowed.includes(d));
+                if (dropped.length) {
+                    warn(
+                        `resize.handles 方向 ${dropped.join(",")} 不在形态合法集 ${allowed.join(",")} 内，已忽略（handles 只能收窄，ADR-0064）`,
+                    );
+                }
+            }
+        }
+        if (handles.length === 0) {
+            warn(`resize 手柄集为空，跳过挂载`);
+            return;
+        }
+        const session = new ResizeSession({
+            target: ctx.panel,
+            eventTarget: this.el,
+            handles,
+            constraints: () => resolveResizeConstraints(opts, ctx.panel, warn),
+            apply: (w, h, dir) => this._applyResize(ctx.panel, w, h, dir),
+            onApplied: (w, h) => {
+                this._resizeMem = { width: w, height: h };
+            },
+            warn,
+        });
+        session.attach();
+        ctx.registerCleanup(() => session.destroy());
     }
 }
