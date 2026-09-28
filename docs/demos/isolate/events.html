@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-isolate · 隔离与通信</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 宿主指令归父 engine：@child-ping 在父通道监听；
+             子内 @click 抛 DOM 冒泡事件（子引擎不能直接改父状态）→ 父动作被调用。
+             子内 n 独立于父 pings：两个引擎状态互不可见。 -->
+        <div class="demo-app section">
+            <div class="card" x-isolate @child-ping="onPing">
+                <div class="card-content">
+                    <p class="is-italic has-text-grey">子引擎（独立状态 n）：</p>
+                    <div class="buttons">
+                        <button
+                            class="button is-primary is-small"
+                            @click="n++, $event.target.dispatchEvent(new CustomEvent('child-ping', { bubbles: true }))"
+                        >
+                            子内点击 <span x-text="n"></span> 次（冒泡 child-ping）
+                        </button>
+                    </div>
+                    <p class="has-text-grey is-size-7">子内 n 不共享：父无法读取，也无法写入。</p>
+                </div>
+            </div>
+
+            <div class="block">
+                父 engine 收到 child-ping：
+                <strong class="has-text-primary has-text-weight-semibold" x-text="pings"></strong> 次（父状态，子不可见）
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { pings: 0 },
+                {
+                    actions: {
+                        onPing: () => {
+                            engine.state.pings++;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

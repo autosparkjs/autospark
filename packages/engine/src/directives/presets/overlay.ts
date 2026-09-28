@@ -1,10 +1,15 @@
 import type { AutoSparkScope } from "../../scope";
 import type { ComponentDef } from "../component-def";
 import { ComponentDirective } from "./component";
-import { OverlayInstance } from "../../overlay/instance";
+import {
+    OverlayInstance,
+    type OverlayInstanceOptions,
+    type OverlayShellDef,
+} from "../../overlay/instance";
 import { resolveOverlayConfig } from "../../overlay/handle";
 import { resolveDataContext, type OverlayConfig } from "../../overlay/types";
-import { collectSlotContent } from "../../utils/slot";
+import { collectSlotGroups, collectSlotSegments, type SlotContent } from "../../utils/slot";
+import { BUILTIN_SHELL_NAMES, resolveBuiltinShell } from "../../overlay/wrappers";
 
 /**
  * OverlayDirective：覆盖物消费侧**公共抽象基座**（ADR-0052 修订版——组件化统一，共识 2/3）。
@@ -50,10 +55,25 @@ export abstract class OverlayDirective extends ComponentDirective {
      */
     static override readonly singleton = false;
 
+    /** 覆盖物消费者标记（基类静态字段的唯一覆写点）：供 compiler 内容剪枝与 x-component 冲突检测按类判定 */
+    static override readonly overlayConsumer = true;
+
     /** 覆盖物组件名 = 消费 attr 名（x-dialog:login 的 login） */
     protected get overlayName(): string {
         return this.attr ?? "";
     }
+
+    /**
+     * 覆盖物形态键（ADR-0062）：引擎级默认 shell 的配置键（`options.overlay.{kind}.shell`）。
+     * 基座空串（无引擎级默认键）；子类覆写——DialogDirective `'dialog'`、PopoverDirective `'popover'`。
+     */
+    protected overlayKind = "";
+
+    /**
+     * warn 消息前缀指令名（诊断用）：基座历史即 dialog 语义（'x-dialog'）；子类覆写为自身指令名
+     * （x-popover / x-drawer），继承基座的 warn（未找到组件/props/shell 等）才不打错前缀。
+     */
+    protected directiveLabel = "x-dialog";
 
     /** 当前活跃实例（visible 驱动；声明式单驱动点至多一个活跃实例，关闭后残留引用经 destroyed 守卫） */
     protected _overlayInstance: OverlayInstance | null = null;
@@ -74,7 +94,7 @@ export abstract class OverlayDirective extends ComponentDirective {
         // 指令级通道，元素级配置容器不承载）：warn + 忽略
         if (this.binding?.hostOptions && "props" in this.binding.hostOptions) {
             this.warn(
-                `x-dialog:${this.attr}: 宿主 x-options 中的 props 键不被接受（props 走 x-dialog-options.props 指令级通道），已忽略`,
+                `${this.directiveLabel}:${this.attr}: 宿主 x-options 中的 props 键不被接受（props 走 x-dialog-options.props 指令级通道），已忽略`,
             );
         }
         // props 通道（ADR-0052 v2.3）：先于通用管道单独订阅（纯状态路径形态需 depth:2 深层响应，
@@ -85,7 +105,7 @@ export abstract class OverlayDirective extends ComponentDirective {
             skip = ["props"];
             if (propsExpr.trim() === "") {
                 this.warn(
-                    `x-dialog:${this.attr}: props 成员属性的值为空（须提供表达式：对象字面量或状态路径），已忽略`,
+                    `${this.directiveLabel}:${this.attr}: props 成员属性的值为空（须提供表达式：对象字面量或状态路径），已忽略`,
                 );
             } else {
                 const initial = this.binding.watch(
@@ -127,13 +147,13 @@ export abstract class OverlayDirective extends ComponentDirective {
         let props: Record<string, any> | undefined;
         if (Array.isArray(value)) {
             this.warn(
-                `x-dialog:${this.attr}: props 值须为对象（字面量或状态对象），数组已忽略: ${JSON.stringify(value)}`,
+                `${this.directiveLabel}:${this.attr}: props 值须为对象（字面量或状态对象），数组已忽略: ${JSON.stringify(value)}`,
             );
         } else if (value != null && typeof value === "object") {
             props = value as Record<string, any>;
         } else if (value !== undefined && value !== null) {
             this.warn(
-                `x-dialog:${this.attr}: props 值须为对象（字面量或状态对象），已忽略: ${JSON.stringify(value)}`,
+                `${this.directiveLabel}:${this.attr}: props 值须为对象（字面量或状态对象），已忽略: ${JSON.stringify(value)}`,
             );
         }
         this._props = props;
@@ -158,7 +178,7 @@ export abstract class OverlayDirective extends ComponentDirective {
         if (!found) {
             // 未命中（可能正被 x-import 异步加载）：warn + 等待就绪（visible 仍真则自动打开）
             this.warn(
-                `x-dialog:${this.attr}: 未找到覆盖物组件 "${name}"（scope 链与全局均未命中，等待 x-import 就绪后重试）`,
+                `${this.directiveLabel}:${this.attr}: 未找到覆盖物组件 "${name}"（scope 链与全局均未命中，等待 x-import 就绪后重试）`,
             );
             this._waitForComponent(name, props);
             return;
@@ -166,7 +186,7 @@ export abstract class OverlayDirective extends ComponentDirective {
         // 递归深度防护（T5=A，与 x-component 共享）
         if (this._recursiveDepth(name) >= ComponentDirective.MAX_DEPTH) {
             this.warn(
-                `x-dialog:${this.attr}: 组件 "${name}" 递归实例化深度超过上限（${ComponentDirective.MAX_DEPTH}），已停止（疑似无终止条件递归）。`,
+                `${this.directiveLabel}:${this.attr}: 组件 "${name}" 递归实例化深度超过上限（${ComponentDirective.MAX_DEPTH}），已停止（疑似无终止条件递归）。`,
             );
             return;
         }
@@ -174,23 +194,23 @@ export abstract class OverlayDirective extends ComponentDirective {
         // 归一化后 deepMerge——标量键表达式整键覆盖静态；at 等结构键简写经逐层归一化保留
         // 上层其余成员，v2.1 简写局部覆盖语义不变）。整包内嵌的 props 键已剥离（数据不走配置链）。
         const { props: _staticProps, ...optionLayer } = this.options ?? {};
-        const config = resolveOverlayConfig(optionLayer, this._optionExprValues);
+        const config = this._resolveConfig(optionLayer);
         const { parentScope, scopeEl } = this._resolveParentScope(config, found.def);
-        // 插槽内容懒收集（ADR-0056 决策十）：仅组件声明了出口才收集（避免按钮标签等
-        // 裸子节点被误收为 default 段并 warn 丢弃）；从只读 template 克隆，宿主子节点保留。
+        // 插槽内容懒收集（ADR-0056 决策十修订）：宿主子节点只属于宿主（按钮标签等不参与），
+        // 内容必须显式声明——带 x-slot 标记的直接子级隐式归属唯一消费者，多消费者须用
+        // x-slots="组件名" 归属容器分组；从只读 template 克隆，宿主子节点保留。
         const slots = found.def?.slots;
-        const slotContents =
-            this.template && slots?.length
-                ? collectSlotContent(this.template, slots, (m) =>
-                      this.warn(`x-dialog:${this.attr}: ${m}`),
-                  )
-                : null;
+        const slotContents = this._collectSlotContents(name, slots);
+        // shell 解析（ADR-0062）：面板外壳组件（config.shell > 引擎级默认 > 内置默认）
+        const shell = this._resolveShell(config);
         // 宿主不清空：ownsChildren=false 下子节点是宿主自身内容（按钮标签等），照常保留
         const inst = new OverlayInstance(this.engine, name, found.snapshot, found.def, config, {
             parentScope,
             searchRoot: this.el ?? null,
             scopeEl,
             mask: this._modalMask,
+            shell,
+            positioner: this._positioner(),
             slotContents,
             slotCallerScope: this.binding,
         });
@@ -200,9 +220,87 @@ export abstract class OverlayDirective extends ComponentDirective {
         inst.open(props);
     }
 
+    /**
+     * 配置合并链出口（形态默认注入点）：两级链（`内置默认 < x-{name}-options`）归一后产出
+     * 生效配置。子类覆写以叠加形态默认——如 PopoverDirective 注入默认锚（宿主元素）与
+     * placement 'bottom'（ADR-0060），不必复制 `_instantiate` 全段。
+     */
+    protected _resolveConfig(optionLayer: Record<string, any>): OverlayConfig {
+        return resolveOverlayConfig(optionLayer, this._optionExprValues);
+    }
+
+    /**
+     * 实例定位策略钩子（形态特化，ADR-0063）：默认 undefined——实例走内置「锚定/退居中」
+     * 两态；子类覆写注入形态定位（x-drawer：屏幕贴边默认 + 锚定长轴同步，并接管未命中
+     * 回退措辞「退屏幕贴边」）。
+     */
+    protected _positioner(): OverlayInstanceOptions["positioner"] | undefined {
+        return undefined;
+    }
+
+    /**
+     * shell 解析（ADR-0062）：面板外壳组件按配置链取组件名——`config.shell`（成员表达式
+     * 打开时求值一次）> 引擎级 `options.overlay.{overlayKind}.shell` > 内置默认（私有表，
+     * 不占用户命名空间）。显式名走与内容组件同源的查找协议（scope 链 x-define →
+     * options.components 全局），未命中 warn + 回退内置默认（弹窗照常工作，失效可发现；
+     * 不等待 x-import——shell 是结构骨架，异步回退内置的错误形态比延迟打开更糟，ADR-0062）。
+     */
+    protected _resolveShell(config: OverlayConfig): OverlayShellDef {
+        const kind = this.overlayKind;
+        const engineDefault = kind
+            ? (this.engine.options.overlay as Record<string, { shell?: string }> | undefined)?.[
+                  kind
+              ]?.shell
+            : undefined;
+        const explicit = config.shell ?? engineDefault;
+        const name = explicit == null ? "" : String(explicit).trim();
+        if (name !== "") {
+            const found = this._findComponentDef(name);
+            if (found) return { name, snapshot: found.snapshot, def: found.def };
+            this.warn(
+                `${this.directiveLabel}:${this.attr}: shell "${name}" 未命中（scope 链与全局组件表均无），回退内置默认 shell（若来自 x-import 请先注册再打开）（ADR-0062）`,
+            );
+        }
+        const builtinName = BUILTIN_SHELL_NAMES[kind] ?? BUILTIN_SHELL_NAMES.dialog!;
+        return { name: builtinName, ...resolveBuiltinShell(builtinName) };
+    }
+
+    /**
+     * 收集本消费者的插槽内容（ADR-0056 决策十修订）：先按归属把宿主直接子节点分组
+     * （{@link collectSlotGroups}），再取本名组按出口清单分段。
+     *
+     * @param name  本次实例化的覆盖物组件名（与 overlayName 一致，等待重试路径同名）
+     * @param slots 组件出口清单（undefined = 组件未声明任何出口）
+     */
+    private _collectSlotContents(
+        name: string,
+        slots: string[] | undefined,
+    ): Map<string, SlotContent> | null {
+        if (!this.template) return null;
+        const warn = (m: string) => this.warn(`${this.directiveLabel}:${this.attr}: ${m}`);
+        const groups = collectSlotGroups(this.template, this._overlayConsumers(), warn);
+        const mine = groups.get(name);
+        if (!mine) return null;
+        // Q13-2：内容显式声明了但组件无出口 → 可判定，warn（不再静默短路）
+        if (!slots?.length) {
+            warn(
+                `覆盖物组件 "${name}" 未声明任何 x-slot 出口，已提供的内容无法投影，已丢弃（ADR-0056 决策十修订）`,
+            );
+            return null;
+        }
+        return collectSlotSegments(mine, slots, warn);
+    }
+
+    /** 宿主上全部覆盖物消费者的组件名（同宿主多 x-dialog 的归属校验与隐式归属基准） */
+    private _overlayConsumers(): string[] {
+        return this.binding.directives
+            .filter((d): d is OverlayDirective => d instanceof OverlayDirective)
+            .map((d) => d.overlayName)
+            .filter((n) => n !== "");
+    }
+
     /** 等待的组件就绪重试：visible 已归假（等待期间关闭）则放弃打开 */
-    protected override _retryPendingComponent(): void {
-        if (!this._driveOn) {
+    protected override _retryPendingComponent(): void {        if (!this._driveOn) {
             this._clearPending();
             return;
         }
@@ -225,7 +323,7 @@ export abstract class OverlayDirective extends ComponentDirective {
     ): { parentScope: AutoSparkScope | null; scopeEl: HTMLElement | null } {
         const ctx = config.dataContext === undefined ? "declarer" : config.dataContext;
         return resolveDataContext(ctx, def, this.binding, this.engine, (m) =>
-            this.warn(`x-dialog:${this.attr}: ${m}`),
+            this.warn(`${this.directiveLabel}:${this.attr}: ${m}`),
         );
     }
 

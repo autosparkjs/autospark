@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-popover · 定位</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .pop-panel { background: #fff; border-radius: 8px; padding: 12px 16px; min-width: 180px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+            #anchor-target { border: 2px dashed #b5c4ff; border-radius: 8px; padding: 10px 18px; display: inline-block; }
+        </style>
+    </head>
+    <body>
+        <!-- 默认锚 = 宿主自身、placement 默认 bottom + flip 兜底、箭头默认开启。
+             at 与默认锚做成员级合并：只写 placement 也贴附宿主生效；显式 selector 换锚
+             只改显示位置，不改变触发关系（触发器恒为宿主）。 -->
+        <div class="demo-app section">
+            <div x-data>
+                <div class="block" id="anchor-target">
+                    <strong>锚定目标元素</strong>
+                    <p class="is-size-7 has-text-grey has-margin-bottom-0">下方「换锚」按钮的悬浮面板贴附到这里</p>
+                </div>
+                <div class="block buttons">
+                    <button class="button" x-popover:p1 x-popover-options="{delayShow: 0, at: {placement: 'top'}}">top</button>
+                    <button class="button" x-popover:p2 x-popover-options="{delayShow: 0, at: {placement: 'bottom-start'}}">bottom-start</button>
+                    <button class="button" x-popover:p3 x-popover-options="{delayShow: 0, at: {placement: 'right-start'}}">right-start</button>
+                    <button class="button" x-popover:p4 x-popover-options="{delayShow: 0, at: {placement: 'left-end'}}">left-end</button>
+                    <button class="button is-primary" x-popover:p5 x-popover-options="{delayShow: 0, at: '/#anchor-target'}">换锚（贴附到上方元素）</button>
+                </div>
+                <div class="block has-text-grey">
+                    空间不足自动翻转（flip 默认开）；只写 <code>placement</code> 的部分锚对象同样贴附宿主生效
+                    （selector 缺省回退宿主——成员级合并）。
+                </div>
+
+                <div x-define="p1"><div class="pop-panel">placement: <b>top</b></div></div>
+                <div x-define="p2"><div class="pop-panel">placement: <b>bottom-start</b></div></div>
+                <div x-define="p3"><div class="pop-panel">placement: <b>right-start</b></div></div>
+                <div x-define="p4"><div class="pop-panel">placement: <b>left-end</b></div></div>
+                <div x-define="p5"><div class="pop-panel">锚已换成 <b>#anchor-target</b><br /><span class="is-size-7 has-text-grey">触发仍是下方按钮的悬浮</span></div></div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

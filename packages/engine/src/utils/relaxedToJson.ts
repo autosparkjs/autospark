@@ -119,7 +119,9 @@ function isIdentStart(ch: string): boolean {
 }
 
 function isIdentChar(ch: string): boolean {
-    return isIdentStart(ch) || (ch >= "0" && ch <= "9");
+    // 允许连字符：kebab-case 裸键（`{delay-close: 2000}`，ADR-0007 kebab 选项键）与
+    // 裸值（`foo-bar`）——首字符仍须 isIdentStart（`-5` 负数不入标识符分支）
+    return isIdentStart(ch) || (ch >= "0" && ch <= "9") || ch === "-";
 }
 
 function isDigitOrSign(ch: string): boolean {

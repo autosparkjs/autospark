@@ -1,4 +1,4 @@
-# 类名绑定
+# x-class 类名绑定
 
 ## 概述
 
@@ -21,7 +21,13 @@
 
 ## 指南
 
-### 对象写法
+### 指令值
+
+指令值是**类名表达式**：经 `scope.watch` 求值（支持状态路径、运算、函数调用），结果交给 `normalizeClass` 归一化——字符串按空白拆分为多个类、对象取真值键、数组递归合并、`falsy` 与布尔值一律丢弃。写入时与静态 `class="..."` 共存：diff 只增删自己写入的 token，不碰原生类名。
+
+取值有三种常见形式：
+
+#### 对象写法
 
 键为类名、值为真则启用：
 
@@ -31,7 +37,7 @@
 <span :class="{ val: user.active, 'is-loading': user.busy }">状态</span>
 ```
 
-### 数组写法
+#### 数组写法
 
 合并多个类；`falsy` 项（如 `cond && 'val'`）会被自动跳过：
 
@@ -41,7 +47,7 @@
 <span :class="['card', theme, user.active && 'val']">标签</span>
 ```
 
-### 字符串写法
+#### 字符串写法
 
 直接给类名字符串：
 
@@ -69,12 +75,9 @@
 
 更完整的说明（diff 更新、与静态 class 共存）见 [x-bind · 绑定 class](./x-bind.md)。
 
-## 配置
-
-`x-class` 的指令值即类名表达式，**无独立指令选项与修饰符**。
-
 ## 注意事项
 
 - `x-class` / `:class` / `x-bind:class` 三者**完全等价**，任选其一。
 - `:class` 绑定与静态 `class="..."` 是两套来源，避免互相依赖（diff 只管自己写入的 token）。
+- **无独立指令选项**：`x-class-options` 会在解析期被静默丢弃；bind 家族选项（如 `invert`）请写 `x-bind-options` 或宿主 `x-options`，见[指令配置](../directive/config.md)。
 - 完整能力与边界见 [x-bind](./x-bind.md)。

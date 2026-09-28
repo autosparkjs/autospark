@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-popover · 自定义面板外壳（shell）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* 自定义气泡外壳（结构与样式都归 shell 作者）：
+               箭头元素带契约类名 autospark-overlay-arrow 即由引擎定位（贴面板边缘、指向锚点）；
+               视觉经 CSS 变量联动——根上声明 --autospark-overlay-bg/-border，箭头双伪元素
+               （background: var(--autospark-overlay-bg)）自动换深色，placement 方向偏移照常生效。 */
+            .dark-pop {
+                background: #1f2937;
+                color: #f9fafb;
+                border-radius: 10px;
+                padding: 12px 16px;
+                max-width: 280px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+                --autospark-overlay-bg: #1f2937;
+                --autospark-overlay-border: #1f2937;
+            }
+            .dark-pop .tip-title {
+                color: #5eead4;
+                font-weight: 700;
+                display: block;
+                margin-bottom: 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- shell 机制（ADR-0062）：悬浮行为（共享 hover 域 / 延迟 / 嵌套链）挂在实例与宿主上，
+             与 shell 无关；换 shell 只换面板层形态（深底/圆角/阴影/箭头视觉）。 -->
+        <div class="demo-app section" style="min-height: 220px">
+            <div x-data>
+                <div class="block buttons">
+                    <button class="button" x-popover:tip x-popover-options="{delayShow: 0}">
+                        内置默认（白底 + 箭头）
+                    </button>
+                    <button
+                        class="button is-dark"
+                        x-popover:tip
+                        x-popover-options="{delayShow: 0, shell: 'dark-pop'}"
+                    >
+                        自定义深色气泡（shell 换肤）
+                    </button>
+                    <button
+                        class="button is-dark is-outlined"
+                        x-popover:tip
+                        x-popover-options="{delayShow: 0, shell: 'dark-pop', at: {arrow: false}}"
+                    >
+                        深色气泡 · 无箭头
+                    </button>
+                </div>
+                <div class="block has-text-grey">
+                    三个按钮悬浮打开<strong>同一个内容组件</strong>
+                    <code>tip</code>：第一个走内置默认 <code>popover-shell</code>；后两个指定自定义外壳
+                    <code>dark-pop</code>——深色面板 + 自定义圆角阴影，箭头元素只是带契约类名
+                    <code>autospark-overlay-arrow</code> 的普通 div，视觉经 CSS 变量（
+                    <code>--autospark-overlay-bg / -border</code>）随面板换深色、方向偏移由引擎写回的
+                    <code>data-overlay-placement</code> 驱动；第三个 <code>at.arrow: false</code>
+                    ——引擎移除载体，无箭头、贴附定位照常。
+                </div>
+
+                <!-- 内容组件：普通组件，不感知外壳形态 -->
+                <div x-define="tip">
+                    <strong>x-popover</strong> · 悬浮触发的轻量浮层——鼠标移入宿主显示、
+                    离开「宿主 ∪ 面板」后关闭。
+                </div>
+
+                <!-- 自定义外壳：x-slot 默认出口 = 内容组件渲染点；
+                     箭头 = 契约类名载体（引擎定位），深色视觉经 CSS 变量联动 -->
+                <div x-define="dark-pop" class="dark-pop">
+                    <div class="dark-pop-body"><div x-slot></div></div>
+                    <div class="autospark-overlay-arrow"></div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

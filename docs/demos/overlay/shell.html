@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>覆盖物 · 自定义面板外壳（shell）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      /* 自定义外壳的视觉（结构与样式都归 shell 作者） */
+      .fancy-shell {
+        background: #fff;
+        border-radius: 14px;
+        overflow: hidden;
+        min-width: 320px;
+        box-shadow: 0 18px 50px rgba(20, 60, 90, 0.28);
+      }
+      .fancy-shell .bar {
+        height: 8px;
+        background: linear-gradient(90deg, #0ea5a4, #6366f1);
+      }
+      .fancy-shell .body {
+        padding: 18px 22px 10px;
+      }
+      .fancy-shell .foot {
+        padding: 8px 22px 12px;
+        font-size: 0.75rem;
+        color: #94a3b8;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .fancy-shell .foot .tag {
+        background: #f1f5f9;
+        border-radius: 999px;
+        padding: 2px 10px;
+      }
+      /* 主题色由 config 注入（theme 键 → shell data 域），风格条与页脚标签联动 */
+      .fancy-shell[data-theme="teal"] .bar {
+        background: linear-gradient(90deg, #0ea5a4, #22d3ee);
+      }
+      .fancy-shell[data-theme="amber"] .bar {
+        background: linear-gradient(90deg, #f59e0b, #ef4444);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- shell 机制（ADR-0062）：面板层形态 = 可替换组件。
+             内置默认 shell（dialog-shell）开箱即用；对样式不满意时声明一个带 x-slot 默认
+             出口的组件，用 x-dialog-options.shell 指定即可整体替换面板形态。
+             shell 不含遮罩——遮罩由引擎结构（mask）负责，换 shell 不影响模态行为。 -->
+    <div class="demo-app section" style="height: 420px">
+      <div x-data="{ ui: { plain: false, teal: false, amber: false } }">
+        <div class="block buttons">
+          <button class="button" x-dialog:login="ui.plain" @click="ui.plain = true">
+            内置默认面板
+          </button>
+          <button
+            class="button is-primary"
+            x-dialog:login="ui.teal"
+            @click="ui.teal = true"
+            x-dialog-options="{shell: 'fancy-shell', theme: 'teal'}"
+          >
+            自定义面板（青绿主题）
+          </button>
+          <button
+            class="button is-warning"
+            x-dialog:login="ui.amber"
+            @click="ui.amber = true"
+            x-dialog-options="{shell: 'fancy-shell', theme: 'amber'}"
+          >
+            自定义面板（琥珀主题）
+          </button>
+        </div>
+        <div class="block has-text-grey">
+          三个按钮打开<strong>同一个内容组件</strong> <code>login</code>： 第一个走内置默认
+          shell（<code>dialog-shell</code>）；后两个指定自定义外壳
+          <code>fancy-shell</code>——配置整包注入 shell 数据域，主题键 <code>theme</code> 被 shell
+          模板消费（<code>x-text</code> / 属性绑定均可）。主题在打开时求值，
+          重开生效。遮罩、居中、<code>ESC</code>、关闭写回等模态行为不受 shell 影响。
+        </div>
+
+        <!-- 内容组件：普通组件，不感知外壳形态 -->
+        <div x-define="login" style="padding: 1em">
+          <h3 class="title is-5 has-margin-bottom-2">登录到 AutoSpark</h3>
+          <div class="field"><input class="input" placeholder="用户名" /></div>
+          <div class="field"><input class="input" type="password" placeholder="密码" /></div>
+          <button class="button is-link is-fullwidth" @click="close()">关 闭</button>
+        </div>
+
+        <!-- 自定义外壳：x-slot 默认出口 = 内容组件渲染点；
+                     config 整包（shell/theme/closeOnMask…）注入 shell 数据域可自由消费 -->
+        <div
+          x-define="fancy-shell"
+          class="fancy-shell"
+          :data-theme="theme"
+          style="padding: 1em; border: 2px solid red"
+        >
+          <header class="bar"></header>
+          <div class="body"><div x-slot></div></div>
+          <footer class="foot">
+            <span>fancy-shell · theme</span>
+            <span class="tag" x-text="theme"></span>
+          </footer>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

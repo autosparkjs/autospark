@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-teleport · 数据视图基准 dataContext</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .tp-stage {
+                border: 1px dashed hsl(171, 100%, 41%);
+                border-radius: 6px;
+                padding: 12px;
+                min-height: 88px;
+            }
+            .tp-line {
+                display: block;
+                margin-top: 6px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div x-data="{ who: '声明处数据' }">
+                <div class="box mb-3">
+                    <span class="tag is-dark">声明处域：who = '声明处数据'</span>
+                    <p class="is-size-7 has-text-grey mt-1">
+                        两个传送宿主在此声明——传送后原位仅剩锚点注释，读取结果见下方目标区。
+                    </p>
+                    <!-- 默认 declarer：数据视图保持声明处上下文 -->
+                    <div x-teleport="/#tp-ctx-target">
+                        <span class="tp-line" x-text="'① 默认（declarer）读到 → ' + who"></span>
+                    </div>
+                    <!-- .host：数据视图切到挂载点所属 scope -->
+                    <div x-teleport.host="/#tp-ctx-target">
+                        <span class="tp-line" x-text="'② .host 读到 → ' + who"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 目标区在引擎树内且自带 x-data 域：.host 基准即挂载点所属 scope -->
+            <div id="tp-ctx-target" class="tp-stage" x-data="{ who: '目标处数据' }">
+                <span class="tag is-link">目标区（自带域：who = '目标处数据'）</span>
+            </div>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

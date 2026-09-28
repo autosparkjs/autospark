@@ -1,4 +1,4 @@
-# 文本插值
+# x-text 文本插值
 
 ## 概述
 
@@ -37,9 +37,30 @@
 
 ## 指南
 
-### 文本插值
+### 指令值
 
-除了 `x-text`，还可以在**文本节点**中直接用双花括号插值（花括号内写路径或表达式），效果与 `x-text` 等价——响应式、随状态自动更新。
+指令值是**绑定的表达式**（必填），求值结果经 `String()` 写入宿主 `textContent`。两种书写形态等价、可混用：
+
+#### 状态路径 / 任意表达式（`x-text`）
+
+纯路径走精准订阅，任意表达式（算术 / 拼接 / 三元）自动收集依赖——表达式中访问到的任一状态变化都会重算：
+
+<demo html="text/path.html"/>
+
+<demo html="text/expression.html"/>
+
+```html
+<span x-text="user.name"></span> <span x-text="user.address.city"></span>
+<span x-text="order.price * order.count"></span>
+<span x-text="user.first + ' ' + user.last"></span>
+<span x-text="order.stock > 0 ? '有货' : '缺货'"></span>
+```
+
+路径遵循当前 `scope` 的相对路径规则（在 `x-for` 项内、`x-data` 局部作用域内可写相对路径，详见[响应式](../state.md)）。
+
+#### 文本节点 `{{}}` 插值
+
+**文本节点**里直接用双花括号插值，效果与 `x-text` 等价——响应式、随状态自动更新。双花括号适合**一段文本里穿插多个值**（如「商品 X，单价 Y 元」），`x-text` 适合**整个元素内容**由一个表达式决定。
 
 <demo html="text/interpolation.html"/>
 
@@ -50,40 +71,9 @@
 <p>合计：{{ order.price * order.count }} 元（共 {{ order.count }} 件）</p>
 ```
 
-双花括号适合**一段文本里穿插多个值**（如「商品 X，单价 Y 元」），`x-text` 适合**整个元素内容**由一个表达式决定。两者可在同一模板混用。
-
 ::: warning 同元素 x-text 优先
 同一元素同时声明 `x-text` 与直接文本里的双花括号插值时，`x-text` 胜出、插值文本被剪枝（不渲染）。要让插值生效，该元素就别用 `x-text`。
 :::
-
-### 绑定状态路径
-
-指令值是一个状态路径，引擎会订阅该路径对应的值，支持任意深度。
-
-<demo html="text/path.html"/>
-
-```html
-<span x-text="user.name"></span> <span x-text="user.address.city"></span>
-```
-
-路径遵循当前 `scope` 的相对路径规则（在 `x-for` 项内、`x-data` 局部作用域内可写相对路径，详见[响应式](../state.md)）。
-
-### 绑定任意表达式
-
-指令值不限于路径，可以是任意 JavaScript 表达式，引擎自动收集表达式中访问到的所有状态依赖。
-
-<demo html="text/expression.html"/>
-
-```html
-<!-- 算术 -->
-<span x-text="order.price * order.count"></span>
-<!-- 字符串拼接 -->
-<span x-text="user.first + ' ' + user.last"></span>
-<!-- 三元 -->
-<span x-text="order.stock > 0 ? '有货' : '缺货'"></span>
-```
-
-表达式中访问到的 `price`、`count`、`stock` 等任一状态变化，都会重算并更新。
 
 ### 响应式自动更新
 
@@ -116,10 +106,10 @@ engine.state.user.nickname = "老张"; // → <span>老张</span>
 ```
 
 ::: tip NaN 归空是有意行为
-`NaN` 几乎总是缺失值或计算错误的结果，默认归空比显示 `"NaN"` 更符合预期。需要自定义「哪些值算空」见下文 [空值占位（empty）](#空值占位-empty)。
+`NaN` 几乎总是缺失值或计算错误的结果，默认归空比显示 `"NaN"` 更符合预期。需要自定义「哪些值算空」见下文 [空值占位（empty）](#自定义空值占位)。
 :::
 
-- **自定义空值渲染**
+#### 自定义空值占位
 
 值为空时默认渲染空串。可通过 `x-text-options` 的 `empty` 指定占位文案，用 `emptyValues` 追加「也算空」的值。
 
@@ -149,7 +139,7 @@ engine.state.user.nickname = "老张"; // → <span>老张</span>
 `stock` 为 `null` / `undefined` 时显示 `fallbackMsg`，且 `fallbackMsg` 变化也会刷新。
 :::
 
-- **空值隐藏**
+#### 空值隐藏 `.hide`
 
 加上 `.hide` 后，绑定值为空时不再写占位文案，而是把**整个宿主元素** `display: none`（隐藏且不占位）；值恢复非空时还原原来的 `display`（如原来是 `flex` 就恢复 `flex`）。
 
@@ -166,15 +156,15 @@ engine.state.user.nickname = "老张"; // → <span>老张</span>
 `.hide` 只读写**内联** `style.display`：隐藏前缓存原内联值（如 `flex` 或空串），恢复时原样还原。若 `display` 来自 CSS 类（内联为空），恢复后还原为空串、CSS 类重新接管——不会被固化成内联值。
 :::
 
-## 配置
+## 配置选项
 
-`x-text` 的指令值是绑定的表达式（必填）。下列配置项控制空值行为（指令选项经 `x-text-options` 声明、可经 `x-options` 元素级回退）；带 ✅ 者可用修饰符方式启用。
+`x-text` 的指令值是绑定的表达式（必填）。下列配置项控制空值行为（指令选项经 `x-text-options` 声明、可经 `x-options` 元素级回退）：
 
-| 配置项        | 默认值 | 修饰符 | 说明                                                                                    |
-| ------------- | ------ | ------ | --------------------------------------------------------------------------------------- |
-| `empty`       | `""`   |        | 值为空时渲染的占位内容（静态字面量，不响应式）                                          |
-| `emptyValues` | `[]`   |        | 追加「也算空」的值，如 `[0, ""]`；追加到默认集 `[null, undefined, NaN]`（始终兜底）     |
-| `.hide`       | 未启用 | ✅     | 值为空时隐藏宿主元素（`display:none`，恢复时还原原内联 display）；与 `empty` 并存时优先 |
+| 配置项        | 默认值 | 修饰符   | 说明                                                                                    |
+| ------------- | ------ | -------- | --------------------------------------------------------------------------------------- |
+| `empty`       | `""`   | —        | 值为空时渲染的占位内容（静态字面量，不响应式）                                          |
+| `emptyValues` | `[]`   | —        | 追加「也算空」的值，如 `[0, ""]`；追加到默认集 `[null, undefined, NaN]`（始终兜底）     |
+| `hide`        | `false` | `.hide`  | 值为空时隐藏宿主元素（`display:none`，恢复时还原原内联 display）；与 `empty` 并存时优先 |
 
 ::: info 关于指令配置体系
 指令选项 `x-{name}-options`、修饰符、宿主选项 `x-options`、两层回退的通用机制见[指令配置](../directive/config.md)。`empty` / `emptyValues` / `.hide` 同样适用于 [x-html](./x-html.md)（x-html 的 `empty` 占位串会过消毒）。

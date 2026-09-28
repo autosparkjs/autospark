@@ -13,6 +13,7 @@
  */
 import { AutoSparkScope } from "../scope";
 import { SCOPES_KEY } from "../engine";
+import { convertTooltipTitle } from "../tooltip/types";
 import { removeDirectives } from "../directives/utils/removeDirectives";
 import { isDirectiveAttr } from "../directives/utils/isDirectiveAttr";
 import { DirectiveKind } from "../directives/base";
@@ -35,7 +36,12 @@ import {
 import { buildComponentDef } from "./collect";
 import { resolveComponentData } from "./setup";
 import type { ComponentDataBasis, ComponentDef } from "../directives/component-def";
-import type { SlotContent } from "../utils/slot";
+import {
+    getSlotMarker,
+    getSlotsContainer,
+    stripOwnSlotAttrs,
+    type SlotContent,
+} from "../utils/slot";
 import { mountComponentScopedAttr, injectComponentStyle } from "../utils/scopedStyle";
 import { coerceStyleValue, type StyleBind } from "../utils/styleBind";
 import { registerIconDecl } from "../icons/domain";
@@ -88,13 +94,47 @@ export class AutoSparkCompiler {
      * 每实例编译各写各的，无跨实例共享。
      */
     private dataScriptStash = new WeakMap<AutoSparkScope, DataScriptStash>();
+    /**
+     * 覆盖物消费者指令名集合（惰性，来自注册表中 `overlayConsumer=true` 的指令类）。
+     * 插槽归属剪枝据以判定「元素是否覆盖物宿主」——晚注册指令后首次调用时重建即可，
+     * 集合内容在单次编译内不变。
+     */
+    private _overlayConsumerNames: Set<string> | null = null;
 
     constructor(engine: AutoSpark<any>) {
         this.engine = engine;
     }
 
+    /**
+     * 静态 title → data-tooltip 转换（ADR-0061 决策 4）。
+     *
+     * **双挂点共用**：① 主 walk 前置 transformer（覆盖直接编译通道）；② `compileChild` 块根
+     * clone 行——项根/x-loading 块根/组件根绕过 transformElement（ownsChildren 语义，项根不
+     * 走 compileElement 的既有设计），不经 transformer 链，须在此补转换（同
+     * `_compileAttrInterpolation` 的「项根不走 compileElement 须补」先例）。转换幂等
+     * （无 title 即原样返回），双挂点不冲突。绑定形态 `:title` 的重定向在 BindDirective
+     * （scope 从只读模板收集指令，clone 侧转换拦不住绑定注册）。
+     */
+    private _convertTitleAttrs(el: HTMLElement): HTMLElement {
+        return convertTooltipTitle(el);
+    }
+
     private _getTransformers(): NodeTransformer<HTMLElement>[] {
         return [
+            // 前置：title → data-tooltip 编译期转换（ADR-0061 决策 4）——特性开启时引擎树内所有带
+            // title 的元素转移值并剥除（原生浏览器 tooltip 从根上不可能出现；data-tooltip 优先、
+            // 并存仅剥 title）；绑定形态 :title / x-bind:title 重定向为 :data-tooltip（运行期
+            // 写回不复活原生 tooltip）。挂 transformElement 即覆盖全部子树编译通道（主 walk /
+            // x-for 项 / patch 重建 / keepalive——HTMLElement 必走 transformElement 的编译铁律）。
+            // 模板只读契约：转换作用于 clone。enabled=false（options.tooltip: false）不命中，
+            // title 原样保留（原生行为，全关语义）。
+            [
+                (node: Node) =>
+                    node instanceof HTMLElement &&
+                    this.engine.tooltipManager.enabled &&
+                    node.hasAttribute("title"),
+                (el: HTMLElement) => this._convertTitleAttrs(el),
+            ],
             // 前置：<script type="autospark/actions"> 提取为局部 action 后剪枝（普通 script 原样保留）。
             // 提取/解析/注入收编于 ActionManager；scope 解析留在 compiler（依赖私有 templateScopeMap）
             [
@@ -194,6 +234,16 @@ export class AutoSparkCompiler {
                 (node: Node) => node instanceof HTMLElement && this._matchIconsAttr(node),
                 (iconEl: HTMLElement) => this._collectIcons(iconEl),
             ],
+            // 前置：归属容器 x-slots + 插槽内容标记 x-slot（ADR-0056 决策十修订）——
+            // 仅覆盖物宿主子树内命中；组件模板内的**出口**标记不满足上下文判定，照旧走
+            // 通用编译（SlotDirective 实例化）。归属容器无条件剪枝（Q11：容器不进运行 DOM）；
+            // 内容标记直接子级剪枝（内容留给打开时的收集通道，Q6=A）、深层标记剥属性放行
+            // （决策九忽略——否则 SlotDirective 实例化会把 fallback 渲染进宿主）。
+            // 须排在 x-define/x-icons 之后（同元素误写时组件定义优先）。
+            [
+                (node: Node) => this._matchOverlaySlotNode(node),
+                (el: HTMLElement) => this._pruneOverlaySlotNode(el),
+            ],
             // 文本节点插值：含 {{}} 的文本节点拆分 + 注册。scope 经父元素查 templateScopeMap
             // （父元素在自身 walk 前已建 scope，含插值的 directive-less 元素亦由 hasInterpolation
             // 触发建 scope）。无 scope（raw-text 父等）则原样克隆。见 ADR-0004 决策 1/4。
@@ -212,6 +262,95 @@ export class AutoSparkCompiler {
                 (current: HTMLElement) => this.compileElement(current),
             ],
         ];
+    }
+
+    /**
+     * 覆盖物消费者指令名集合（注册表中 `overlayConsumer=true` 的类名，如 `dialog`）。
+     * 惰性取一次——单次编译内注册表不变。
+     */
+    private _overlayDirectiveNames(): Set<string> {
+        if (!this._overlayConsumerNames) {
+            const names = new Set<string>();
+            for (const [name, cls] of this.engine.directives) {
+                if ((cls as { overlayConsumer?: boolean }).overlayConsumer === true) names.add(name);
+            }
+            this._overlayConsumerNames = names;
+        }
+        return this._overlayConsumerNames;
+    }
+
+    /**
+     * 元素是否为**覆盖物宿主**（带 `x-dialog` 等覆盖物消费者指令属性）。
+     *
+     * 只认指令正身与修饰符 / 属性参数形态（`x-dialog:名.foo` → `dialog`）；
+     * `x-dialog-options` 等选项属性不命中（首段为 `dialog-options`）。
+     */
+    private _isOverlayConsumerHost(el: HTMLElement): boolean {
+        const names = this._overlayDirectiveNames();
+        if (names.size === 0) return false;
+        for (const attr of Array.from(el.attributes)) {
+            if (!attr.name.startsWith("x-")) continue;
+            const head = attr.name.slice(2).split(/[.:]/)[0] ?? "";
+            if (names.has(head)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 从 `from` 向上找最近的覆盖物宿主（插槽内容标记的上下文判定）。
+     *
+     * 遇 `x-define` / `x-component` 即停（组件模板上下文不是宿主内容——组件快照与
+     * 组件实例的祖先链上可能出现组件指令，出口标记不得被误剪）。
+     *
+     * @returns 覆盖物宿主；不在覆盖物宿主子树内返回 null
+     */
+    private _nearestOverlayHost(from: HTMLElement | null): HTMLElement | null {
+        let p: HTMLElement | null = from;
+        while (p) {
+            if (this._isOverlayConsumerHost(p)) return p;
+            if (p.hasAttribute("x-define") || p.hasAttribute("x-component")) return null;
+            p = p.parentElement;
+        }
+        return null;
+    }
+
+    /**
+     * 是否为覆盖物宿主子树内的**插槽内容侧**节点（归属容器 / 内容标记）。
+     *
+     * 组件模板内的出口标记因上下文判定（最近祖先无覆盖物宿主、或遇 `x-define` 边界即停）
+     * 不命中——本方法只管辖内容侧，出口侧照旧走通用编译。
+     *
+     * 纯判定、无副作用（可安全用于 transformer filter）。
+     */
+    private _matchOverlaySlotNode(node: Node): node is HTMLElement {
+        if (!(node instanceof HTMLElement)) return false;
+        if (getSlotsContainer(node)) return true;
+        if (getSlotMarker(node) === null) return false;
+        return this._nearestOverlayHost(node.parentElement) !== null;
+    }
+
+    /**
+     * 覆盖物宿主子树内内容侧节点的编译处置（前置 transformer 与 compileOneChild 共用）。
+     *
+     * - 归属容器 `x-slots` → 无条件剪枝；宿主上无覆盖物消费者 → 错位 warn（Q13-1）；
+     * - 内容标记是宿主直接子级 → 剪枝（收集通道在打开时从只读 template 克隆，Q6=A）；
+     * - 内容标记在更深层 → 决策九忽略：剥标记属性、元素保留为普通内容并照常编译。
+     */
+    private _pruneOverlaySlotNode(el: HTMLElement): Node | null {
+        const container = getSlotsContainer(el);
+        if (container) {
+            if (!this._nearestOverlayHost(el.parentElement)) {
+                this.engine.logger.warn(
+                    `x-slots: 归属容器 "${container.name}" 的宿主上无覆盖物消费者（x-dialog 等），容器已丢弃（ADR-0056 决策十修订）`,
+                );
+            }
+            return null;
+        }
+        const parent = el.parentElement;
+        if (parent && this._isOverlayConsumerHost(parent)) return null;
+        const clone = el.cloneNode(false) as HTMLElement;
+        stripOwnSlotAttrs(clone);
+        return clone;
     }
 
     /**
@@ -733,13 +872,15 @@ export class AutoSparkCompiler {
     private _resolveOwnership(scope: AutoSparkScope): boolean {
         const owners = scope.directives.filter((d) => this._ownsChildrenDirective(d));
         if (owners.length > 1) {
-            // component 计入所有权信号但**豁免多 owner 抛错**（ADR-0056 实现注记 1）：
-            // 多 owner 抛错早于 scope.compile()（created），component 变 ownsChildren 后与 x-for
-            // 同元素会先触发通用抛错而非 U3 友好 warn。处置：throwers 只计真正互斥的结构指令
-            // （for/if/switch/isolate/slot/tree…），component 保留在 owners（占用子树信号）
-            // 但不参与抛错——U3 检测留在 ComponentDirective.created 的友好 warn 路径。
+            // component / teleport 计入所有权信号但**豁免多 owner 抛错**（ADR-0056 实现注记 1 /
+            // ADR-0059 决策六）：多 owner 抛错早于 scope.compile()（created），二者与 x-for
+            // 同元素会先触发通用抛错而非友好 warn。处置：throwers 只计真正互斥的结构指令
+            // （for/if/switch/isolate/slot/tree…），二者保留在 owners（占用子树信号）
+            // 但不参与抛错——自检 warn 留在各自 created 的友好路径（U3 对称让位）。
             // （x-dialog/x-overlay 已不 ownsChildren，不会出现在 owners 中。）
-            const throwers = owners.filter((d) => d.info.name !== "component");
+            const throwers = owners.filter(
+                (d) => d.info.name !== "component" && d.info.name !== "teleport",
+            );
             if (throwers.length > 1) {
                 const names = throwers.map((d) => `x-${d.info.name}`).join(" + ");
                 throw new Error(
@@ -812,6 +953,12 @@ export class AutoSparkCompiler {
                 child.hasAttribute("x-default")
             ) {
                 return null;
+            }
+            // 归属容器 / 覆盖物内容标记：与前置 transformer 同语义（子编译通道的根元素若交
+            // transformElement 处理，返回 null 会触发"根元素被丢弃"抛错——须在此提前剪，
+            // 同 x-else / x-define 的双写点惯例，ADR-0056 决策十修订）
+            if (this._matchOverlaySlotNode(child)) {
+                return this._pruneOverlaySlotNode(child);
             }
             // 声明性资源收集器直接命中本层根（x-define/x-icons 声明为组件快照、
             // x-for 项模板或 patch 节点的**直接子元素**）：transformElement 以其为根时收集器返回 null
@@ -1300,7 +1447,7 @@ export class AutoSparkCompiler {
          */
         configure?: (scope: AutoSparkScope) => void,
     ): { el: HTMLElement; scope: AutoSparkScope } {
-        const el = reuseEl ?? (itemTemplate.cloneNode(false) as HTMLElement);
+        const el = reuseEl ?? this._convertTitleAttrs(itemTemplate.cloneNode(false) as HTMLElement);
         if (!reuseEl) removeDirectives(el, "x-", this._runtimeKeepAttr());
         // reuseEl：旧 scope 已 destroy，其子树 DOM 残留在 el 上，须清空后重建，否则 compileSubtree
         // 的 appendChild 会导致子节点重复。

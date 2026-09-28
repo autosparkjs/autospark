@@ -1,4 +1,4 @@
-# HTML 插值
+# x-html HTML 插值
 
 ## 概述
 
@@ -25,6 +25,20 @@ const engine = new AutoSpark(el, {
 ```
 
 ## 指南
+
+### 指令值
+
+指令值是**HTML 片段表达式**（必填），求值结果默认过消毒后写入宿主 `innerHTML`。值形态三路判定：
+
+| 值形态 | 判定 | 通道 |
+| --- | --- | --- |
+| 表达式 | 默认——路径、拼接、三元等（含裸词 `x-html="content"`） | 既有 `scope.watch` 绑定 |
+| url | `/`、`//`、`http(s)://`、`./`、`../` 开头 | fetch `res.text()`，见[远程 HTML 片段](#远程-html-片段url-形态) |
+| action | `标识符(实参)`——**必须带调用括号** | getAction 链执行，见[动态生成 HTML](#动态生成-htmlaction-形态) |
+
+::: warning 与 x-data 的判定差异
+x-data 的值是**数据声明**（非表达式），裸词即可判 action；x-html 的值**本就是表达式**——裸词 `x-html="content"` 是读状态键的最常见用法，恒为表达式。`renderCard()` 走 action 链是安全的语义升级（模板表达式视图本就不暴露 action 函数，无冲突）；多段/链式调用（`Math.ceil(x)`、`s.trim()`）含 `.` 不匹配，保持表达式。
+:::
 
 ### 默认安全转义
 
@@ -55,7 +69,9 @@ new AutoSpark(el, state, { sanitizer: DOMPurify.sanitize });
 
 ### 静态快照
 
-注入的 HTML 是**静态快照,不是模板**——引擎不会递归编译它。也就是说，注入的 `<span x-text="x">` 不会被当作指令，只作纯 HTML 显示。要让注入内容也响应式，用下面的 `.compile` 修饰符。
+注入的 HTML 是**静态快照，不是模板**——引擎不会递归编译它。注入的 `<span x-text="x">` 不会被当作指令，只作纯 HTML 显示；`{{}}` 也保持原文。要让注入内容也响应式，用 `.compile` 修饰符。
+
+<demo html="html/snapshot.html"/>
 
 ### 作为子模板编译
 
@@ -92,27 +108,9 @@ const engine = new AutoSpark(el, {
 
 **空值**：`tpl` 命中 `emptyValues`（默认 `null`/`undefined`/`NaN`）时销毁子树 + 清空宿主，**忽略 `empty` 占位文案**（结构空状态无文案占位语义）；`.hide` 仍生效（空值隐藏宿主）。
 
-### 远程异步 HTML 源
+### 远程 HTML 片段（url 形态）
 
-`x-html` 的值以 `/`、`//`、`http(s)://`、`./`、`../` 开头，或形如 `标识符(实参)` 时进入**异步形态**——从远程加载 HTML 片段或模板。它与 [x-data 异步数据源](./x-data.md#远程异步数据源) 是**同一家族**的取数机制（同一执行器：插值依赖重取、竞态丢弃、destroy 中止），差异在产物：**text 直取注入**（`res.text()`，无 path/对象映射），而非对象落域。
-
-本节按特性分四个小节介绍：[url 形态](#url-形态-加载远程-html-片段)、[action 形态](#action-形态-动态生成-html)、[远程模板编译](#远程模板编译-compile)、[异步状态反馈](#异步状态反馈-纯视觉通道)。
-
-#### 形态判定
-
-| 值形态 | 判定 | 通道 |
-| --- | --- | --- |
-| url | `/`、`//`、`http(s)://`、`./`、`../` 开头 | fetch `res.text()` |
-| action | `标识符(实参)` ——**必须带调用括号** | getAction 链执行 |
-| 表达式 | 其余（含裸词、链式调用 `s.trim()`） | 既有 `scope.watch` 绑定 |
-
-::: warning 与 x-data 的判定差异
-x-data 的值是**数据声明**（非表达式），裸词即可判 action；x-html 的值**本就是表达式**——裸词 `x-html="content"` 是读状态键的最常见用法，恒为表达式。`renderCard()` 走 action 链是安全的语义升级（模板表达式视图本就不暴露 action 函数，无冲突）；多段/链式调用（`Math.ceil(x)`、`s.trim()`）含 `.` 不匹配，保持表达式。
-:::
-
-#### url 形态：加载远程 HTML 片段
-
-值以 url 前缀开头即 fetch 取回 HTML 字符串，**默认消毒**后写入 `innerHTML`（远程内容比本地更不可信，safe-by-default 更该守；`.raw` 退出消毒照旧）：
+值以 `/`、`//`、`http(s)://`、`./`、`../` 开头即进入**异步形态**——fetch 取回 HTML 字符串，**默认消毒**后写入 `innerHTML`（远程内容比本地更不可信，safe-by-default 更该守；`.raw` 退出消毒照旧）。它与 [x-data 异步数据源](./x-data.md#远程异步数据源) 是**同一家族**的取数机制（同一执行器：插值依赖重取、竞态丢弃、destroy 中止），差异在产物：**text 直取注入**（`res.text()`，无 path/对象映射），而非对象落域：
 
 ```html
 <div x-html="/api/card-{lang}.html">
@@ -126,15 +124,15 @@ x-data 的值是**数据声明**（非表达式），裸词即可判 action；x-
 
 **HTTP 边界**：`method` 选项直传 fetch（默认 GET）、`header` 传额外请求头（静态对象）；`!res.ok` 按加载失败处理（保旧值 + fallback 认领）。请求体不支持——命令式全能力归 action 形态。
 
-#### action 形态：动态生成 HTML
+### 动态生成 HTML（action 形态）
 
-值形如 `renderCard(kind)` ——经 getAction 链执行（局部 `autospark/actions` → 全局 `engine.actions`），返回 **html 字符串**注入；实参是表达式、依赖变化**对称重执行**。action 适合动态生成 / POST 取片段 / 多源聚合：
+值形如 `renderCard(kind)`——经 getAction 链执行（局部 `autospark/actions` → 全局 `engine.actions`），返回 **html 字符串**注入；实参是表达式、依赖变化**对称重执行**。action 适合动态生成 / POST 取片段 / 多源聚合：
 
 <demo html="html/async-action.html"/>
 
 **须返回字符串**：非字符串（对象/数字/null）按加载失败处理（保旧值 + fallback 认领 + warn）——与 x-data「对象-only」姿态对称，不静默注入垃圾内容。
 
-#### 远程模板编译（.compile）
+### 远程模板编译
 
 `x-html.compile="url"` 把取回的 text 作为**子模板编译**（继承宿主作用域、建 watcher、内部指令生效——同步 `.compile` 的既有语义不变，ADR-0017）——「模板放服务端、数据在本地」或「数据模板双远程」都成立：
 
@@ -142,19 +140,13 @@ x-data 的值是**数据声明**（非表达式），裸词即可判 action；x-
 
 **数据 + 模板双远程**：同元素 `x-data`（异步）+ `x-html.compile`（异步）时二者经响应式天然协调——先到者先行渲染，后到者字段级更新（无需重编译）。重取时旧子树保留（保旧值），新模板到达后全量重编译。
 
-#### 异步状态反馈（纯视觉通道）
+### 异步状态反馈
 
 x-html 没有数据域，**不注入** `$loading`/`$error` 元键（那是 x-data 的语义）——反馈只走视觉通道：
 
 - **x-loading 覆盖层**：异步形态默认自动合成（字面量切换式——请求中显示、完成撤除，无需状态键）；
-- **x-fallback**：异步 x-html 宿主的特例子节点（**静态通道**——不编译、<span v-pre>`{{}}`</span> 显示原文）：非就绪（加载中或失败）且宿主尚无注入内容时显示；首载占位、重取保旧值不闪断、失败也认领；
-- 二者**互斥为默认**（声明 x-fallback 则不合成覆盖层），`loading:{...}` 显式并存、`loading:false` 恒关——与 x-data 同款三态。
-
-| 选项      | 默认值 | 说明                                                                 |
-| --------- | ------ | -------------------------------------------------------------------- |
-| `loading` | 自动   | `false` 恒关；`{...}` 直传 x-loading 配置（message/color/delay…）     |
-| `method`  | `GET`  | url 形态直传 fetch                                                   |
-| `header`  | —      | url 形态额外 HTTP 头（静态对象）                                     |
+- **x-fallback**：异步 x-html 宿主的特例子节点（**静态通道**——不编译、`{{}}` 显示原文）：非就绪（加载中或失败）且宿主尚无注入内容时显示；首载占位、重取保旧值不闪断、失败也认领；
+- 二者**互斥为默认**（声明 x-fallback 则不合成覆盖层），`loading:{...}` 显式并存、`loading:false` 恒关——与 x-data 同款三态（配置见[配置选项](#配置选项)）。
 
 <demo html="html/async-loading.html"/>
 
@@ -162,25 +154,29 @@ x-html 没有数据域，**不注入** `$loading`/`$error` 元键（那是 x-dat
 
 - **同元素双异步**（异步 x-data + 异步 x-html）：反馈通道归 **x-data 独占**——fallback 是编译版（可插值 `$error.message`），x-html 不合成覆盖层（显式 `loading` 被忽略并 warn）；
 - 元素销毁时进行中的请求被中止（AbortController），action 在途结果不落地。
-  :::
+:::
 
 ### 空值占位与隐藏
 
 `x-html` 与 `x-text` 共享同一套空值机制（`empty` / `emptyValues` / `.hide`），用法完全一致——区别仅 `empty` 占位串也会过消毒。详见 [x-text · 空值渲染](./x-text.md#空值渲染)。
 
-## 配置
+<demo html="html/empty.html"/>
 
-`x-html` 的指令值是绑定的表达式（必填，作为 HTML 片段写入 `innerHTML`，默认过消毒）。下列配置项控制消毒与空值行为；带 ✅ 者可用修饰符方式启用。
+## 配置选项
 
-| 配置项                  | 默认值         | 修饰符 | 说明                                                                                |
-| ----------------------- | -------------- | ------ | ----------------------------------------------------------------------------------- |
-| `.raw`                  | 未启用         | ✅     | 跳过消毒、原样写入 innerHTML（仅受信内容）                                          |
-| `.compile`              | 未启用         | ✅     | 把绑定值作为子模板编译执行（隐式跳过消毒，危险高于 `.raw`，ADR-0017；配 url 即远程模板） |
-| `loading`               | 自动           |        | 异步形态覆盖层三态：`false` 恒关 / `{...}` 直传 x-loading 配置（ADR-0035）          |
-| `method` / `header`     | `GET` / —      |        | url 形态直传 fetch 的方法与额外请求头                                               |
-| `empty` / `emptyValues` | `""` / `[]`    |        | 空值占位，同 x-text（占位串过消毒）                                                 |
-| `.hide`                 | 未启用         | ✅     | 空值时隐藏宿主，同 x-text                                                           |
-| `sanitizer`             | 内置白名单消毒 |        | 自定义消毒器（如 DOMPurify），`.raw` 时整体跳过；经 `engine.options.sanitizer` 配置 |
+`x-html` 的指令值是绑定的表达式（必填，作为 HTML 片段写入 `innerHTML`，默认过消毒）。下列配置项控制消毒、异步取数与空值行为：
+
+| 配置项        | 默认值          | 修饰符     | 说明                                                                                |
+| ------------- | --------------- | ---------- | ----------------------------------------------------------------------------------- |
+| `raw`         | `false`         | `.raw`     | 跳过消毒、原样写入 innerHTML（仅受信内容）                                          |
+| `compile`     | `false`         | `.compile` | 把绑定值作为子模板编译执行（隐式跳过消毒，危险高于 `.raw`，ADR-0017；配 url 即远程模板） |
+| `loading`     | 自动            | —          | 异步形态覆盖层三态：`false` 恒关 / `{...}` 直传 x-loading 配置（ADR-0035）          |
+| `method`      | `GET`           | —          | url 形态直传 fetch 的方法                                                           |
+| `header`      | —               | —          | url 形态额外 HTTP 头（静态对象）                                                    |
+| `empty`       | `""`            | —          | 空值占位，同 x-text（占位串过消毒）                                                 |
+| `emptyValues` | `[]`            | —          | 追加「也算空」的值，同 x-text                                                       |
+| `hide`        | `false`         | `.hide`    | 空值时隐藏宿主，同 x-text                                                           |
+| `sanitizer`   | 内置白名单消毒  | —          | 自定义消毒器（如 DOMPurify），`.raw` 时整体跳过；经 `engine.options.sanitizer` 配置 |
 
 ::: info 关于指令配置体系
 指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive/config.md)。

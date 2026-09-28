@@ -42,9 +42,11 @@ describe("engine.patch - 子树重建（void / 同引用）", () => {
     });
 
     test("子树重建保留兄弟子树运行态（增量核心价值）", async () => {
+        // tooltip: false——测 patch 增量语义，title 断言与 ADR-0061 的重定向无关
         const { root, engine } = mount(
             `<div id="app"><div id="ws" x-data="{}"></div><input id="keep" x-bind:title="content"></div>`,
             { content: "hello" },
+            { tooltip: false },
         );
         engine.patch("#ws", (ws) => {
             ws.insertAdjacentHTML("beforeend", "<p x-text='content'></p>");

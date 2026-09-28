@@ -85,6 +85,27 @@ export interface OverlayConfig {
      * 保留上层 placement/flip/arrow 等其余锚成员）或完整 {@link OverlayAnchorConfig} 对象。
      */
     at?: string | HTMLElement | OverlayAnchorConfig;
+    /**
+     * 模态遮罩显隐（ADR-0062 官方实例选项的声明式读取面）：遮罩是引擎结构，本键控制显隐。
+     * 缺省 true（模态）。消费面按形态分派：x-dialog 恒模态（本键无效）、x-drawer 可关
+     * （`mask: false` 裸面板贴边，ADR-0063）、命令式 getOverlay/open 同键可配。
+     */
+    mask?: boolean;
+    /**
+     * 抽屉短轴尺寸（x-drawer 消费，ADR-0063）：左右抽屉的宽 / 上下抽屉的高共用（方向中立）。
+     * `number`（px）或 CSS 长度字符串（`'40%'` / `'20rem'`）；缺省回退 CSS 变量
+     * `--autospark-drawer-size`（默认 320px）。引擎打开时 inline 写入面板——inline 优先级
+     * 天然高于样式表，配置整键生效、不依赖样式表注入时机。
+     */
+    size?: number | string;
+    /**
+     * 面板外壳组件名（shell 机制，ADR-0062）：替换面板层形态（边框/圆角/箭头/内容出口）的
+     * 全局组件名（scope 链 x-define / options.components 全局表均可）。**打开时求值一次**
+     * （不热更新）；未命中 warn + 回退内置默认。与 mask 正交——**shell 不含遮罩**（遮罩是
+     * 引擎结构）。配置链：本键 > 宿主 `x-options` > 引擎级 `options.overlay.{kind}.shell` >
+     * 内置默认（`dialog-shell` / `popover-shell`）。
+     */
+    shell?: string;
     /** 其余自由键原样保留（开放配置，供消费者指令/自定义 UI 消费） */
     [key: string]: any;
 }

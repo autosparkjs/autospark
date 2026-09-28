@@ -70,7 +70,8 @@ export default defineConfig({
             { text: "覆盖物", link: "/zh/guide/overlays" },
             { text: "动态模板", link: "/zh/guide/patch" },
             { text: "动画", link: "/zh/guide/animate" },
-            { text: "Scope", link: "/zh/guide/scope" },
+            { text: "工具提示", link: "/zh/guide/tooltip" },
+            { text: "Scope", link: "/zh/guide/scope" }
           ],
         },
         {
@@ -99,6 +100,8 @@ export default defineConfig({
             { text: "x-loading", link: "/zh/guide/directives/x-loading" },
             { text: "x-isolate", link: "/zh/guide/directives/x-isolate" },
             { text: "x-dialog", link: "/zh/guide/directives/x-dialog" },
+            { text: "x-popover", link: "/zh/guide/directives/x-popover" },
+            { text: "x-drawer", link: "/zh/guide/directives/x-drawer" },
             { text: "x-model", link: "/zh/guide/directives/x-model" },
             { text: "x-form", link: "/zh/guide/directives/x-form" },
             { text: "x-icon", link: "/zh/guide/directives/x-icon" },

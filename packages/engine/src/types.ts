@@ -1,5 +1,7 @@
 import type { AutoStore, AutoStoreOptions, Dict, FastEvent } from "autostore";
 import type { ActionDecl } from "./actions/types";
+import type { TooltipOptions } from "./tooltip/types";
+import type { AutoSparkScope } from "./scope";
 
 /**
  * AutoStore 任意类型
@@ -158,6 +160,14 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      */
     components?: Record<string, any>;
     /**
+     * 覆盖物引擎级默认（shell 机制，ADR-0062）：按消费者形态分键的默认 shell 组件名——
+     * 「全站换肤」的单一配置点（逐实例经 `x-dialog-options.shell` / `x-popover-options.shell`
+     * 覆盖；都没配用内置默认 `dialog-shell` / `popover-shell`）。
+     *
+     * @default 无（用内置默认 shell）
+     */
+    overlay?: Partial<Record<"dialog" | "popover" | (string & {}), { shell?: string }>>;
+    /**
      * 图标种子表（ADR-0058 图标域的全局通道）：构造期并入全局图标注册表（`AutoSpark.icons`，
      * document 级多 engine 共享，注入全局 symbol `as-{name}`），同名静默覆盖。值为
      * `名称 → SVG 字符串`。声明入口三通道：本表 / 模板 `x-icons.global` / `AutoSpark.icons.add(name, svg)`。
@@ -165,6 +175,18 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      * @default 无种子
      */
     icons?: Record<string, string>;
+    /**
+     * 全局工具提示（ADR-0061）：`data-tooltip` 属性约定驱动，引擎树内零声明生效
+     * （`title` 编译期自动转换）。三态：
+     *
+     * - 缺省：默认开启 + 内置默认（placement top / arrow / border / slide）；
+     * - `false`：**整体关闭**——`title` 转换、委托监听、命令式 `engine.tooltip` 全关
+     *   （原生 tooltip 行为保留；命令式调用 warn + no-op）；
+     * - 配置对象：全局默认（与元素级保留键同构，元素级 `data-tooltip="{...}"` 覆盖全局）。
+     *
+     * @default 开启 + 内置默认（TooltipOptions 各键见 ADR-0061 决策 8）
+     */
+    tooltip?: false | TooltipOptions;
 }
 
 /**
@@ -197,6 +219,12 @@ export interface AutoSparkEvents {
     "scope/destroyed": { id: number; scope: AutoSparkScope };
     /** engine.data() 更新了某 scope 的数据 */
     "scope/data-updated": { id: number; data: Record<string, any> };
+
+    // ── tooltip:* 工具提示（ADR-0061 决策 17，双通道之总线侧；浮层元素 dispatchEvent 同步广播） ──
+    /** 工具提示显示（payload：el = 触发元素，tip = 浮层单例元素） */
+    "tooltip:show": { el: HTMLElement; tip: HTMLElement };
+    /** 工具提示隐藏（一切隐藏路径均广播：移出/聚焦离场/断连/stop/命令式） */
+    "tooltip:hide": { el: HTMLElement; tip: HTMLElement };
 
     // ── directive/** 指令生命周期（<name> 占位，跨主体通配） ──
     // scope 通道（Compile/Hybrid）：带 scope.id

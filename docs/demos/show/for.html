@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-show · 与 x-for 共存</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- x-show 不占子树、x-for 不排斥外部指令：同元素并用——
+             x-for 管项渲染，x-show 只切整个 ul 的 display，DOM 不重建。 -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button is-primary" @click="listVisible = !listVisible">
+                    切换列表显隐（<span x-text="listVisible ? '当前可见' : '当前隐藏'"></span>）
+                </button>
+            </div>
+
+            <div class="content">
+                <ul x-for="item of items" :key="item.id" x-show="listVisible">
+                    <li>
+                        #{{ item.id }}
+                        <strong class="has-text-primary has-text-weight-semibold">{{ item.name }}</strong>
+                        — {{ item.note }}
+                    </li>
+                </ul>
+            </div>
+
+            <p class="has-text-grey is-size-7">隐藏只是 display:none：列表始终渲染，显隐切换不重建任何节点。</p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    listVisible: true,
+                    items: [
+                        { id: 1, name: "编译树", note: "指令编译期改写模板" },
+                        { id: 2, name: "运行树", note: "微任务合并补丁" },
+                        { id: 3, name: "scope 链", note: "作用域就近查找" },
+                    ],
+                },
+                {},
+            );
+        </script>
+    </body>
+</html>

@@ -7,8 +7,9 @@ import {
     resolveDataContext,
     type OverlayConfig,
 } from "./types";
-import { OverlayInstance } from "./instance";
+import { OverlayInstance, type OverlayShellDef } from "./instance";
 import { registerInstance, getInstances } from "./registry";
+import { BUILTIN_SHELL_NAMES, resolveBuiltinShell } from "./wrappers";
 
 /**
  * 覆盖物定义句柄（ADR-0052 决策 15）：覆盖物的**编程视图**，命令式消费入口。
@@ -82,12 +83,15 @@ export class OverlayHandle {
                       this.engine,
                       (m) => this.engine.logger.warn(`engine.getOverlay("${this.name}"): ${m}`),
                   );
+        // mask（ADR-0062 保留语义）：遮罩是引擎结构，本选项控制显隐——缺省 true（模态，
+        // 与 x-dialog 同构）；mask:false = 裸面板直挂容器
+        const mask = resolved.mask !== false;
         const inst = new OverlayInstance(this.engine, this.name, this.snapshot, this.def, resolved, {
             parentScope,
             searchRoot: scopeEl,
             scopeEl,
-            // 命令式消费与 x-dialog 同为模态形态（遮罩外壳 + closeOnMask + 居中默认）
-            mask: true,
+            mask,
+            shell: resolveCommandShell(this.engine, this._anchorScope, this.name, resolved, mask),
         });
         registerInstance(this.snapshot, inst);
         inst.open(props);
@@ -124,4 +128,35 @@ export function resolveOverlayConfig(
         }
     }
     return merged as OverlayConfig;
+}
+
+/**
+ * 命令式 shell 解析（ADR-0062）：`config.shell`（getOverlay options / open options）>
+ * 内置默认（按 mask 分派——`true` 模态用 `dialog-shell`、`false` 裸面板用 `popover-shell`，
+ * 两者模板同构、名字表达形态语义）。查找协议镜像声明式：锚点 scope 链（x-define）→
+ * 全局组件表（options.components）；未命中 warn + 回退内置默认。
+ */
+function resolveCommandShell(
+    engine: AutoSpark<any>,
+    anchorScope: AutoSparkScope | null,
+    overlayName: string,
+    config: Record<string, any>,
+    mask: boolean,
+): OverlayShellDef {
+    const raw = config.shell;
+    const name = raw == null ? "" : String(raw).trim();
+    if (name !== "") {
+        const snapshot =
+            anchorScope?.getComponent(name) ?? engine._resolveGlobalComponent(name);
+        if (snapshot) {
+            const def =
+                engine.getComponentDef(snapshot) ?? engine.getGlobalComponentDef(name) ?? null;
+            return { name, snapshot, def };
+        }
+        engine.logger.warn(
+            `engine.getOverlay("${overlayName}"): shell "${name}" 未命中（scope 链与全局组件表均无），回退内置默认 shell（ADR-0062）`,
+        );
+    }
+    const builtinName = BUILTIN_SHELL_NAMES[mask ? "dialog" : "popover"]!;
+    return { name: builtinName, ...resolveBuiltinShell(builtinName) };
 }

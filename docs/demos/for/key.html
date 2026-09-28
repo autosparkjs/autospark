@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-for · key优化</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- :key 按 item.id 匹配——重排 / 中间增删时未变项的 DOM、输入态与焦点原地复用 -->
+        <div class="demo-app section">
+            <div class="block">
+                在输入框里打字并保持焦点，然后点「逆序」——输入内容与焦点跟着自己的项走（按身份复用，不按位置错位）：
+            </div>
+            <div class="content">
+                <ul x-for="item of items" :key="item.id">
+                    <li class="is-flex is-align-items-center is-gap-2 mb-2">
+                        <span class="has-text-grey is-size-7" style="width: 3.5em">#{{ $index + 1 }}</span>
+                        <input class="input is-small" type="text" :value="item.title" @input="item.title = $event.target.value" />
+                    </li>
+                </ul>
+            </div>
+            <div class="buttons">
+                <button class="button is-primary" @click="reverse">逆序</button>
+                <button class="button is-light" @click="insertMiddle">中间插入</button>
+                <button class="button is-light" @click="removeMiddle">移除中间</button>
+            </div>
+        </div>
+
+        <script>
+            let nextId = 5;
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    items: [
+                        { id: 1, title: "甲项" },
+                        { id: 2, title: "乙项" },
+                        { id: 3, title: "丙项" },
+                        { id: 4, title: "丁项" },
+                    ],
+                },
+                {
+                    actions: {
+                        reverse: () => {
+                            engine.state.items.reverse();
+                        },
+                        insertMiddle: () => {
+                            const items = engine.state.items;
+                            items.splice(Math.floor(items.length / 2), 0, {
+                                id: nextId,
+                                title: "新项 " + nextId,
+                            });
+                            nextId++;
+                        },
+                        removeMiddle: () => {
+                            const items = engine.state.items;
+                            if (items.length > 1) items.splice(Math.floor(items.length / 2), 1);
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

@@ -27,7 +27,11 @@
 
 ## 指南
 
-### 假时 display:none，宿主永留 DOM
+### 指令值
+
+指令值是**条件表达式**（状态路径 / 运算 / 函数调用均可），经 `scope.watch` 求值后按 `!!` 布尔化；值为空（缺属性 / `null`）时指令不接管显示，元素保持默认可见。
+
+### 显示切换语义
 
 `x-show="expr"` 为假时，宿主元素被置 `style="display:none"`，但**不从 DOM 移除**：
 
@@ -43,11 +47,11 @@ engine.state.visible = true; // 还原 display，原元素实例继续
 
 <demo html="show.html"/>
 
-### 适合「频繁切换」与「保留 DOM 占位」
+### 适用场景
 
 因不重建 DOM、只切内联 `display`，`x-show` 切换成本极低，适合频繁显隐。又因宿主永留 DOM，适合需要保留 `:nth-child` 位、或让 CSS/外部 JS 仍能选中节点的场景。
 
-### 与 x-if / x-if.keepalive 的选择
+### 与 x-if 的选型
 
 三者核心差别：
 
@@ -67,6 +71,8 @@ engine.state.visible = true; // 还原 display，原元素实例继续
 ### 与 x-for 共存
 
 `x-show` 不占子树（ownsChildren=false），可与 `x-for` 同元素共存：`x-for` 独占子树做列表，`x-show` 只切容器的 display。
+
+<demo html="show/for.html"/>
 
 ```html
 <!-- 列表始终渲染，只切整个 <ul> 的可见性 -->
@@ -96,13 +102,13 @@ engine.state.visible = true; // 还原 display，原元素实例继续
 
 内置 `fade` / `slide` 开箱即用；分相配置（`enter` / `leave` 各自可配、`false` 单相禁用）、自定义动画（六类名契约）见[动画](../animate.md)。
 
-## 配置
+## 配置选项
 
 `x-show` 的指令值是条件表达式（必填）。下列配置项控制显隐切换的过渡方式。
 
 | 配置项    | 默认值 | 修饰符 | 说明                                                                                                                       |
 | --------- | ------ | ------ | -------------------------------------------------------------------------------------------------------------------------- |
-| `animate` | 无     |        | 进出场动画：字符串（`'fade'` / `'slide'` / 自定义名）/ 对象（name/duration/delay/easing）/ 分相（`enter` / `leave` 各自可配，`false` 单相禁用），见[动画](../animate.md) |
+| `animate` | 无     | —      | 进出场动画：字符串（`'fade'` / `'slide'` / 自定义名）/ 对象（name/duration/delay/easing）/ 分相（`enter` / `leave` 各自可配，`false` 单相禁用），见[动画](../animate.md) |
 
 ::: info 关于指令配置体系
 指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive/config.md)。

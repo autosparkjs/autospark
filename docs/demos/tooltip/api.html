@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>tooltip · 事件与命令式</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- 双通道事件（总线 + 浮层元素派发）与命令式 API：日志区走原生 DOM（演示重点是引擎 API）。 -->
+        <div class="demo-app section">
+            <div>
+                <div class="block">
+                    <button class="button" data-tooltip="悬停我，看下方事件日志" id="api-target">事件目标</button>
+                    <button class="button is-primary" id="btn-show">命令式显示</button>
+                    <button class="button" id="btn-hide">命令式隐藏</button>
+                    <button class="button is-light" id="btn-clear">清空日志</button>
+                </div>
+                <div class="block">
+                    <div id="tip-logs" class="tags"></div>
+                </div>
+                <div class="block has-text-grey">
+                    一切隐藏路径均广播 <code>tooltip:hide</code>：移出、命令式隐藏、触发元素被移除、engine.stop。
+                </div>
+            </div>
+        </div>
+        <script>
+            const root = document.querySelector(".demo-app");
+            const app = new AutoSparkSpaces.AutoSpark(root, {});
+            const logBox = root.querySelector("#tip-logs");
+            const push = (msg) => {
+                const tag = document.createElement("span");
+                tag.className = "tag is-light";
+                tag.textContent = msg;
+                logBox.prepend(tag);
+                while (logBox.children.length > 8) logBox.lastChild?.remove();
+            };
+            // 双通道之总线侧；浮层元素上同时 dispatchEvent（document.body 可监听）
+            app.on("tooltip:show", ({ el }) => push("show ← " + el.textContent.trim().slice(0, 12)));
+            app.on("tooltip:hide", ({ el }) => push("hide ← " + el.textContent.trim().slice(0, 12)));
+            // 命令式：engine.tooltip.show(el, opts) / hide()——content 键可无 DOM 属性直接注入
+            root.querySelector("#btn-show").addEventListener("click", () => {
+                app.tooltip.show(root.querySelector("#api-target"), {
+                    content: "命令式注入的内容",
+                    placement: "right",
+                });
+            });
+            root.querySelector("#btn-hide").addEventListener("click", () => app.tooltip.hide());
+            root.querySelector("#btn-clear").addEventListener("click", () => (logBox.innerHTML = ""));
+        </script>
+    </body>
+</html>

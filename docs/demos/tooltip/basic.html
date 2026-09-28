@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>tooltip · 基本用法</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- 零声明：任意元素写 data-tooltip（或 title，编译期自动转换）即生效。
+             插值内容响应式——表达式变化后下次悬停生效。 -->
+        <div class="demo-app section">
+            <div x-data="{ count: 3 }">
+                <div class="block">
+                    <button class="button" data-tooltip="提交表单到服务器">提交</button>
+                    <button class="button" title="我写的是 title，编译期自动转换">删除</button>
+                    <button class="button" data-tooltip="加<b>粗</b>与<i>斜体</i>都支持">HTML 内容</button>
+                    <button class="button" data-tooltip="共 {{count}} 条未读" @click="count = count + 1">
+                        插值内容（已点 {{count}} 次）
+                    </button>
+                </div>
+                <div class="block has-text-grey">
+                    悬停任意按钮查看提示；写 <code>title</code> 的按钮结果 DOM 上已是
+                    <code>data-tooltip</code>（可开 DevTools 验证）。点「插值内容」按钮后移开再悬停，提示数字更新。
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

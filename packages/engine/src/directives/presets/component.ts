@@ -96,6 +96,16 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             );
             return;
         }
+        // 混合宿主（ADR-0056 决策十修订）：覆盖物消费者与组件化身对宿主子节点的定位互斥
+        //——前者是「宿主为声明点、子节点留原地」，后者是「宿主为组件化身、子节点归组件」；
+        // 同元素并存会让同一份子树被两套通道各收一次 → warn + 拒绝实例化（x-component 让步）。
+        if (this._hasOverlayConsumerSibling()) {
+            this.warn(
+                `x-component: 宿主元素同时声明了覆盖物消费者（x-dialog 等）——组件化身与覆盖物声明点对宿主子节点的定位互斥，已跳过实例化（ADR-0056 决策十修订）。` +
+                    `替代写法：拆成两个元素（触发器与组件化身分开声明）。`,
+            );
+            return;
+        }
         // 组件名：属性参数承载（x-component:counter，ADR-0054 决策二）。缺参 → warn 跳过实例化；
         // 值恰为纯标识符时附言迁移指引（旧定义写法 x-component="名" 与新实例化同形，指回 x-define）。
         const name = (this.attr ?? "").trim();
@@ -132,10 +142,26 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
      */
     private _hasStructuralConflict(): boolean {
         return this.binding.directives.some((d) => {
-            if (d.info.name === "component") return false;
+            // teleport 同元素不视为冲突（ADR-0059 决策六）：实例化主体优先，x-teleport
+            // 在其自身 created 的自检中检测到本指令（ownsChildren）后对称让位退出
+            if (d.info.name === "component" || d.info.name === "teleport") return false;
             const cls = this.engine.directives.get(d.info.name);
             return !!cls?.ownsChildren?.(d.info);
         });
+    }
+
+    /**
+     * 同元素是否含覆盖物消费者（x-dialog 等，ADR-0056 决策十修订）。
+     *
+     * 经实例构造器的静态 `overlayConsumer` 判定（OverlayDirective 家族唯一覆写点）——
+     * 与 `_hasStructuralConflict` 的按注册表查类同源，但**不 import overlay** 以避循环依赖。
+     */
+    private _hasOverlayConsumerSibling(): boolean {
+        return this.binding.directives.some(
+            (d) =>
+                d !== this &&
+                (d.constructor as { overlayConsumer?: boolean }).overlayConsumer === true,
+        );
     }
 
     /**

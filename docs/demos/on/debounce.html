@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-on · .debounce 防抖</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 左右对照：普通 @input 每键触发；@input.debounce 停顿 500ms 只执行最后一次。
+             debounce 时长走宿主 x-options（修饰符管道不回退，数值只认 options 通道）。 -->
+        <div class="demo-app section">
+            <div class="field">
+                <label class="label">普通 @input（每键触发）：</label>
+                <div class="control">
+                    <input class="input" placeholder="快速输入试试" @input="raw($event)" />
+                </div>
+                <p class="has-text-grey is-size-7">
+                    原始事件：<strong x-text="rawN"></strong> 次 · 最后值：<code x-text="rawLast"></code>
+                </p>
+            </div>
+
+            <div class="field">
+                <label class="label">@input.debounce（停顿 500ms 执行一次）：</label>
+                <div class="control">
+                    <input
+                        class="input"
+                        placeholder="快速输入试试"
+                        @input.debounce="typed($event)"
+                        x-on-options="{ debounce: 500 }"
+                    />
+                </div>
+                <p class="has-text-grey is-size-7">
+                    实际执行：<strong x-text="execN"></strong> 次（连打只记最后一次）· 最后值：<code x-text="execLast"></code>
+                </p>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { rawN: 0, rawLast: "", execN: 0, execLast: "" },
+                {
+                    actions: {
+                        raw: ($event) => {
+                            engine.state.rawN++;
+                            engine.state.rawLast = $event.target.value;
+                        },
+                        typed: ($event) => {
+                            engine.state.execN++;
+                            engine.state.execLast = $event.target.value;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

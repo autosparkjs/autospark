@@ -1,0 +1,11 @@
+<div class="card">
+    <div class="card-content">
+        <p class="is-italic has-text-grey">远程模板 A（isolate-tpl-a.html）：独立子引擎编译。</p>
+        <div x-data="{ hits: 0 }">
+            <button class="button is-primary is-small" @click="hits++">
+                模板 A 内点击 <span x-text="hits"></span> 次
+            </button>
+            <p class="has-text-grey is-size-7 mt-2">子状态 x-data 自持：与宿主 engine、与模板 B 互不可见。</p>
+        </div>
+    </div>
+</div>

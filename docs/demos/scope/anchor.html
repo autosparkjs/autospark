@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-scope · 两大作用（锚点归属）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- x-scope 作用①：为后代 x-define 提供归属锚点。
+             纯容器不建 scope → x-define 无处归属（编译期 warn 丢弃）→ x-component 永远等待。 -->
+        <div class="demo-app section">
+            <div class="card">
+                <div class="card-content">
+                    <p class="label">① 纯容器（无 x-scope）：x-define 无处归属 → warn 丢弃</p>
+                    <div>
+                        <div x-define="badgeA"><span class="tag is-danger">badgeA 内容</span></div>
+                        <div x-component:badgeA></div>
+                    </div>
+                    <p class="has-text-grey is-size-7 mt-2">
+                        组件从未注册：x-component 停留在等待占位，控制台可见「组件无处归属」warn。
+                    </p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-content">
+                    <p class="label">② 加 x-scope：纯容器成为 scope 锚点，x-define 归属成功</p>
+                    <div x-scope>
+                        <div x-define="badgeB"><span class="tag is-success">badgeB 内容（已渲染）</span></div>
+                        <div x-component:badgeB></div>
+                    </div>
+                    <p class="has-text-grey is-size-7 mt-2">
+                        x-scope 同时截断 scope 链：后代 scope 的 parent 到此为止，不再落到更远祖先。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

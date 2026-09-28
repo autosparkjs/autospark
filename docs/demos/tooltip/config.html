@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>tooltip · JSON 配置</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- `{` 开头即配置（宽松 JSON）：content 键载内容，其余保留键配置本元素，覆盖全局默认。 -->
+        <div class="demo-app section">
+            <div x-data="{}">
+                <div class="block">
+                    <button class="button" data-tooltip="{content: '我弹在右边', placement: 'right'}">右侧</button>
+                    <button class="button" data-tooltip="{content: '我弹在左边', placement: 'left'}">左侧</button>
+                    <button class="button" data-tooltip="{content: '我弹在底部', placement: 'bottom'}">底部</button>
+                    <button class="button" data-tooltip="{content: '无箭头无边框', arrow: false, border: false}">极简</button>
+                </div>
+                <div class="block">
+                    <button class="button" data-tooltip="{content: '悬停 500ms 后才出现', showDelay: 500}">延迟 500ms</button>
+                    <button class="button" data-tooltip="{content: '离开 800ms 后才消失', hideDelay: 800}">延迟消失 800ms</button>
+                </div>
+                <div class="block has-text-grey">
+                    视口空间不足时自动翻转（把窗口缩到最小试试「右侧」按钮）。
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

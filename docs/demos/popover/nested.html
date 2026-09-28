@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-popover · 嵌套（hover 链）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .pop-panel { background: #fff; border-radius: 8px; padding: 8px; min-width: 200px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+            .pop-item { display: block; width: 100%; text-align: left; padding: 8px 14px; border: 0; background: none; cursor: pointer; border-radius: 6px; }
+            .pop-item:hover { background: #f0f4ff; }
+        </style>
+    </head>
+    <body>
+        <!-- 嵌套 popover（ADR-0060 hover 链）：子 popover 声明在父面板内。
+             面板都在 body 容器（DOM 兄弟），引擎把后代 popover 的域并入祖先域——
+             指针从父面板移到子面板全程不闪关；ESC 只关栈顶（子级），父级经重估保持。 -->
+        <div class="demo-app section">
+            <div x-data>
+                <div class="block">
+                    <button class="button is-primary" x-popover:menu>多级菜单（悬停我）</button>
+                </div>
+                <div class="block has-text-grey">
+                    逐级悬停展开子菜单；移到子面板上时父级保持打开（hover 链）；
+                    按 <kbd>ESC</kbd> 先关子级，再按关父级。
+                </div>
+
+                <!-- 一级面板：内含二级 popover 宿主（面板间的 hover 链由引擎维护） -->
+                <div x-define="menu">
+                    <div class="pop-panel">
+                        <button class="pop-item" x-popover:submenu x-popover-options="{delayShow: 100, at: {placement: 'right-start'}}">
+                            更多操作 ▸
+                        </button>
+                        <button class="pop-item">重命名</button>
+                        <button class="pop-item">复制链接</button>
+                    </div>
+                </div>
+                <!-- 二级面板：props 注入与插槽等组件能力照常可用 -->
+                <div x-define="submenu">
+                    <div class="pop-panel">
+                        <button class="pop-item">分享到…</button>
+                        <button class="pop-item">导出 PDF</button>
+                        <button class="pop-item">归档</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

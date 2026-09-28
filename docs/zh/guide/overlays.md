@@ -73,17 +73,52 @@
 - **「请求关闭」**：ESC / 遮罩 / close 动作统一走 `requestClose`——消费者可注入写回（visible 简单路径回写 `false`，状态是唯一真相源），不可回写时仅收 UI；
 - **事件双通道**：`overlay:open` / `overlay:close` 在实例根（DOM 冒泡）与引擎总线同时广播，payload 收窄为 `{ name, instance, dataContext }`（`dataContext` 为命令式传元素时的基准元素）；
 - **打开栈**：document 级共享，ESC 只关全局栈顶实例——嵌套打开（确认框叠对话框）只关最上层，多 engine 并存不连环关；
-- **at 锚定定位**：`{selector, placement, offset, shift, flip, arrow}`（字符串 / 元素简写 ≡ `{selector}`）经 floating-ui 贴锚定位（详见 [x-dialog 的 at](./directives/x-dialog.md#at-锚定定位)）;
+- **at 锚定定位**：`{selector, placement, offset, shift, flip, arrow}`（字符串 / 元素简写 ≡ `{selector}`）经 floating-ui 贴锚定位（详见 [x-dialog 的 at](./directives/x-dialog.md#弹出定位)）;
 - **进出场动画**：复用 ADR-0039 animate 机制，默认 `fade`，「播完动画再动 DOM」。
+
+### 面板外壳（shell）：形态可定制
+
+面板层形态（边框 / 圆角 / 背景 / 箭头 / 内容布局）由一个可替换的**外壳组件（shell）**渲染——内置默认（`dialog-shell` / `popover-shell`）开箱即用；与你的 UI 环境不匹配时，声明一个带 `x-slot` 默认出口的组件整体替换即可，**内容组件与全部消费行为不变**：
+
+<demo html="overlay/shell.html"/>
+
+```html
+<!-- 自定义外壳：x-slot 默认出口 = 内容组件渲染点 -->
+<div x-define="fancy-shell" class="fancy-shell" :data-theme="theme">
+    <header class="bar"></header>
+    <div class="body"><div x-slot></div></div>
+</div>
+
+<!-- 消费处指定（配置整包注入 shell 数据域，theme 等自由键 shell 模板可直接消费） -->
+<button x-dialog:login="show" x-dialog-options="{shell: 'fancy-shell', theme: 'teal'}">登录</button>
+```
+
+分工契约：
+
+| 职责 | 归属 | 说明 |
+| --- | --- | --- |
+| **遮罩** | 引擎结构 | `mask` 控制显隐（x-dialog 恒模态、x-popover 恒无）——**shell 不含遮罩**，换 shell 不影响模态行为 |
+| **面板形态** | shell 组件 | 结构 + 样式自由发挥；`x-slot` 默认出口承接内容组件（未声明 → warn + 内容直挂面板根） |
+| **行为** | 引擎 | 定位 / 动画 / ESC / 事件广播 / 打开栈全在实例根，与 shell 无关 |
+| **箭头** | shell 渲染、引擎定位 | 模板放 `.autospark-overlay-arrow` 载体元素（`at.arrow !== false` 且锚定命中时引擎定位它；不放则无箭头） |
+
+配置链：`x-{name}-options.shell`（成员表达式，**打开时求值一次**，不热更新）> 宿主 `x-options` > 引擎级默认 `options.overlay.{dialog|popover}.shell` > 内置默认。shell 组件与内容组件同一查找协议（scope 链 `x-define` / `options.components` 全局 / `x-import` 均可）；显式名未命中 → warn + 回退内置默认。内置名不占用用户命名空间（同名组件互不干扰）。
+
+```javascript
+// 全站换肤：一处配置，所有 x-dialog 换用自家外壳
+new AutoSpark(el, state, { overlay: { dialog: { shell: "my-dialog" } } });
+```
+
+内置默认面板复用契约类名（`.autospark-dialog` / `.autospark-overlay-arrow`）与 CSS 变量（`--autospark-overlay-z / -bg / -border / -radius`）——既有用户样式覆盖不受影响；自定义外壳复用这些类名即继承默认视觉（可覆盖），完全自写类名则完全自由。
 
 ### 消费者家族
 
 | 消费者 | 形态 | 状态 |
 | --- | --- | --- |
 | `x-dialog` | **模态**：遮罩 + 居中面板 + `closeOnMask` | ✅ v1 |
+| `x-popover` | **悬浮**：宿主 mouseenter 触发的贴附浮层 | ✅ 已落地，见 [x-popover](./directives/x-popover.md) |
 | `x-drawer` | 侧滑抽屉 | fast-follow |
 | `x-popup` | 锚定浮层（无遮罩） | fast-follow |
-| `x-popover` | 轻气泡 | fast-follow |
 
 家族成员是同一基座（`OverlayDirective`）上的**薄子类**——只叠加形态差异（外壳、定位、关闭行为），查找 / props / 配置链 / 数据基准 / 事件全部继承。
 

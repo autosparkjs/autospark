@@ -1,4 +1,4 @@
-# 图标
+# x-icon 图标
 
 ## 概述
 
@@ -25,7 +25,11 @@
 
 ## 指南
 
-### 图标集声明（x-icons）
+### 指令值
+
+指令值分两层：`<template x-icons>` 声明图标集（**资源**，纯静态），`x-icon` 的值为图标名表达式（**引用**，响应式）。
+
+#### 图标集声明（x-icons）
 
 | 形态 | 写法 | 说明 |
 | ---- | ---- | ---- |
@@ -35,6 +39,24 @@
 | 合并 | 内联 + 值简写同写 | 两通道合并进同一图标域；同名时**远程覆盖内联**（内联在加载窗口期先显形） |
 
 `x-icons` 是**纯静态声明**——编译期一次求值，不响应式（图标集是声明性资源，对齐 x-define）。选项只支持 `x-icons-options` 整包与值简写（不支持选项成员属性——不引入带值修饰符是 ADR-0007 的既定纪律）。
+
+#### 图标引用（x-icon）
+
+`x-icon` 的值是表达式（响应式切换即换图标），宿主元素不变，指令注入唯一子节点 `<svg aria-hidden><use href="#as-…"/></svg>` 撑满宿主：
+
+<demo html="icon/reactive.html"/>
+
+::: tip 裸图标名的求值语义（值两栖）
+裸图标名不是合法的 JS 表达式——求值为空时回退为**字面量**图标名；含点 / 斜杠等复杂形态不回退，维持空占位。状态命中优先：`state.close` 有值用值。
+:::
+
+渲染三态：
+
+| 状态 | 表现 | 说明 |
+| ---- | ---- | ---- |
+| 就绪 | `<use href="#as-…">` 引用 symbol | 本地内联 / 注册表 / 远程已到达 |
+| 待定 | 空占位（保留尺寸） | 远程清单**已声明未到达**——不闪默认图标，symbol 注入后自动显形 |
+| 未命中 | warn + 默认图标 | 根本没声明（或声明失败）——「缺图不破相」 |
 
 ### 图标域与作用范围
 
@@ -57,24 +79,6 @@
 - **孤立声明**（沿链无任何 scope 祖先）静默归全局——图标是纯资源，无需就近惩罚
 - **生命周期**：局部 symbol 随 scope 销毁回收（x-if 切走 / engine.destroy）；同一声明源（含 x-for / 组件克隆）按内容哈希令牌去重共享 symbol——**克隆不放大**；全局 symbol 不随 engine 销毁清理（document 级资产）
 
-### 值与渲染
-
-`x-icon` 的值是表达式（响应式切换即换图标），宿主元素不变，指令注入唯一子节点 `<svg aria-hidden><use href="#as-…"/></svg>` 撑满宿主：
-
-<demo html="icon/reactive.html"/>
-
-::: tip 裸图标名的求值语义（值两栖）
-裸图标名不是合法的 JS 表达式——求值为空时回退为**字面量**图标名；含点 / 斜杠等复杂形态不回退，维持空占位。状态命中优先：`state.close` 有值用值。
-:::
-
-渲染三态：
-
-| 状态 | 表现 | 说明 |
-| ---- | ---- | ---- |
-| 就绪 | `<use href="#as-…">` 引用 symbol | 本地内联 / 注册表 / 远程已到达 |
-| 待定 | 空占位（保留尺寸） | 远程清单**已声明未到达**——不闪默认图标，symbol 注入后自动显形 |
-| 未命中 | warn + 默认图标 | 根本没声明（或声明失败）——「缺图不破相」 |
-
 ### 图标颜色
 
 图标颜色**主权在宿主元素**：symbol 内容的 `currentColor` 经 CSS 继承直达——`color` 级联到哪、图标就是什么色，与文字混排天然一致，主题组件（按钮/标签）内自动适配：
@@ -92,6 +96,8 @@
 ### 图标尺寸
 
 默认 **`1em` 随宿主字号缩放**——与文字同行混排无需任何配置；要固定尺寸用 `size` 选项（数字 → `Npx`、字符串直传 CSS），响应式尺寸绑宿主 `font-size` 即可（默认 1em 模型）：
+
+<demo html="icon/size.html"/>
 
 - `padding` 是**图形区之外**的内边距：总占位 = size + 2×padding（`box-sizing: content-box` 钉死，免疫页面全局 border-box reset，语义恒定）
 - **flex / grid 容器免疫（无需任何配置）**：基础规则内置 `flex: none`（不伸不缩）+ 恒有显式宽高（交叉轴 stretch 只作用于 auto 尺寸）+ `box-sizing: content-box`
@@ -230,7 +236,7 @@ import { AutoSpark } from "autospark";
 
 AutoSpark.icons.add("close", '<svg viewBox="0 0 24 24"><path d="M6 6l12 12"/></svg>'); // 注册（注入全局 symbol）
 AutoSpark.icons.delete("close"); // 移除（摘除 symbol；不存在静默返回 false）
-AutoSpark.icons.options = { size: 20, strokeWidth: 1.5 }; // 全局默认配置（见「配置」）
+AutoSpark.icons.options = { size: 20, strokeWidth: 1.5 }; // 全局默认配置（见「配置选项」）
 for (const name of AutoSpark.icons) {
   /* 遍历产出名称字符串 */
 }
@@ -249,31 +255,27 @@ for (const name of AutoSpark.icons) {
 - **symbol 归一化**：收集时剥离全部 `stroke-width`（生效宽度经 `--as-icon-sw` 变量下发）；缺 `stroke` 且 `fill="none"` 才补 `currentColor`——fill 型图标零干扰；`<svg>` 无需手写 `xmlns`（symbol 住 DOM，不走 data URL）
 - 图标名约束：CSS ident（`[A-Za-z0-9_-]`、非数字开头），`as-icon` 为保留名；非法名 warn + 剔除
 
-## 配置
-
-### 全局默认：AutoSpark.icons.options
-
-应用级默认配置（document 级全局，多 engine 共享）。**整体赋值**会**即时重渲染已渲染的图标**（主题切换场景）；深修改（`options.size = 48`）不广播，仅影响后续渲染：
-
-```ts
-AutoSpark.icons.options = { strokeWidth: 1.5, size: 20, color: "#485fc7", padding: 2 };
-```
-
-### 配置链（四级）
+## 配置选项
 
 单键读取按 **指令选项（`x-icon-options`）> 宿主选项（`x-options`）> 全局默认（`icons.options`）> 内置默认** 回退——指令级**键级覆盖**全局（声明 `size` 不影响全局 `color` 继续生效）：
 
 <demo html="icon/options.html"/>
 
-| 选项          | 类型               | 内置默认       | 说明                                                                                                        |
-| ------------- | ------------------ | -------------- | ----------------------------------------------------------------------------------------------------------- |
-| `strokeWidth` | `number`           | `1.25`         | 描边宽度（渲染参数，经 `--as-icon-sw` 变量下发）。与生效默认一致零内联，仅指令级覆盖才内联变量；fill 型图标集无效 |
-| `size`        | `number \| string` | `"1em"`        | 宽高（图形区）。数字 → `Npx`，字符串直传 CSS                                                                |
-| `color`       | `string`           | `currentColor` | 图标颜色（内联 `color`，currentColor 继承体系）                                                             |
-| `padding`     | `number \| string` | —              | 内边距（图形区之外），单位语义同 `size`，总占位 = size + 2×padding                                          |
-| `badge`       | `boolean \| number \| string` | —   | 图标底板（淡色圆角背景板，包裹层通道）。`true` 开关（板 padding 默认 `0.3em`，显式 `padding` 声明优先）；`number` / `string` 自定义板 padding（数字 → px，值压倒独立 `padding` 选项） |
-| `button`      | `boolean`          | —              | 图标按钮（hover / press 载体动效，隐含手型光标），见「图标按钮」                                            |
-| `pointer`     | `boolean`          | —              | 手型光标 `cursor: pointer`（可点击语义）                                                                    |
+| 配置项      | 默认值       | 修饰符     | 说明                                                                                                        |
+| ----------- | ------------ | ---------- | ----------------------------------------------------------------------------------------------------------- |
+| `strokeWidth` | `1.25`     | —          | number。描边宽度（渲染参数，经 `--as-icon-sw` 变量下发）。与生效默认一致零内联，仅指令级覆盖才内联变量；fill 型图标集无效 |
+| `size`      | `"1em"`      | —          | number \| string。宽高（图形区）。数字 → `Npx`，字符串直传 CSS                                               |
+| `color`     | `currentColor` | —        | string。图标颜色（内联 `color`，currentColor 继承体系）                                                      |
+| `padding`   | —            | —          | number \| string。内边距（图形区之外），单位语义同 `size`，总占位 = size + 2×padding                          |
+| `badge`     | —            | `.badge`   | boolean \| number \| string。图标底板（淡色圆角背景板，包裹层通道）。`true` 开关（板 padding 默认 `0.3em`，显式 `padding` 声明优先）；`number` / `string` 自定义板 padding（数字 → px，值压倒独立 `padding` 选项） |
+| `button`    | —            | `.button`  | boolean。图标按钮（hover / press 载体动效，隐含手型光标），见「图标按钮」                                     |
+| `pointer`   | —            | `.pointer` | boolean。手型光标 `cursor: pointer`（可点击语义）                                                             |
+
+**全局默认**（应用级默认配置，document 级全局、多 engine 共享）：**整体赋值**会**即时重渲染已渲染的图标**（主题切换场景）；深修改（`options.size = 48`）不广播，仅影响后续渲染：
+
+```ts
+AutoSpark.icons.options = { strokeWidth: 1.5, size: 20, color: "#485fc7", padding: 2 };
+```
 
 ## 注意事项
 

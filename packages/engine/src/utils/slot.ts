@@ -29,17 +29,63 @@ export interface SlotContent {
     /**
      * 内容节点（深克隆、根标记属性已剥、深层嵌套标记已 warn+剥）。
      * 命名段恒单元素；默认段可为多根（裸子节点按文档序合并）。
+     *
+     * `mode: "live"` 时语义变更（ADR-0062 shell 机制）：节点是**引擎已编译的活体组件实例**
+     * （自带活 scope）——出口直挂不克隆、不再编译、不建内容 scope（销毁权责归构造方，
+     * 如 OverlayInstance 对内容/shell 双 scope 的统一回收）。
      */
     nodes: ChildNode[];
     /** 内容侧解构形参键（裸子节点默认段恒 `[]`——无形参） */
     params: string[];
     /** 形参表达式原文（`{ item, index }`；无值 null）——出口侧 watch 注入时按 params 键抽取 */
     paramsExpr: string | null;
+    /**
+     * 段形态（ADR-0062）：`"template"`（缺省）= 模板态克隆（投影时全量编译建 scope）；
+     * `"live"` = 活体组件实例（出口直挂，见 nodes 注记）。收集管道（collectSlotSegments）
+     * 恒产出 template 态；live 段仅由引擎编程式构造（shell 机制）。
+     */
+    mode?: "template" | "live";
 }
 
 /** 属性名是否为插槽标记（裸 / 修饰 / 命名三形态；`x-slot-options` 不命中） */
 function isSlotAttrName(name: string): boolean {
     return name === "x-slot" || name.startsWith("x-slot.") || name.startsWith("x-slot:");
+}
+
+/**
+ * 属性名是否为**归属容器**标记（`x-slots` 正身 / `x-slots.修饰` / `x-slots:参数`）。
+ *
+ * 与 {@link isSlotAttrName} 是两个不同边界：`x-slots` 不以 `x-slot` 整身或 `x-slot.` /
+ * `x-slot:` 前缀开头（多一个 `s`），故不会被误判为插槽标记；反之亦然。
+ */
+export function isSlotsContainerAttrName(name: string): boolean {
+    return name === "x-slots" || name.startsWith("x-slots.") || name.startsWith("x-slots:");
+}
+
+/** 归属容器标记（`x-slots="覆盖物组件名"`）的识别结果 */
+export interface SlotsContainerMarker {
+    /** 命中的原始属性名（剥除时用；含修饰符 / 参数形态） */
+    attrName: string;
+    /** 归属的覆盖物组件名（属性值，静态字符串；空串 = 未提供） */
+    name: string;
+}
+
+/**
+ * 识别元素上的归属容器标记。
+ *
+ * 归属名走**值**（同 `x-define="名"`），不经属性参数——修饰符 / 参数形态只做识别
+ * （防止残留进运行 DOM），不承载语义。
+ *
+ * @returns 标记（属性名 + 归属名）；无标记返回 null
+ */
+export function getSlotsContainer(el: HTMLElement): SlotsContainerMarker | null {
+    if (!(el instanceof HTMLElement)) return null;
+    for (const attr of Array.from(el.attributes)) {
+        if (isSlotsContainerAttrName(attr.name)) {
+            return { attrName: attr.name, name: attr.value.trim() };
+        }
+    }
+    return null;
 }
 
 /**
@@ -88,8 +134,8 @@ export function parseSlotParams(raw: string | null | undefined): string[] | null
     return keys;
 }
 
-/** 剥除元素自身的全部插槽标记属性（内容克隆根 / 出口重复剥除共用） */
-function stripOwnSlotAttrs(el: HTMLElement): void {
+/** 剥除元素自身的全部插槽标记属性（内容克隆根 / 出口重复剥除 / 深层标记放行共用） */
+export function stripOwnSlotAttrs(el: HTMLElement): void {
     const toRemove: string[] = [];
     for (const attr of Array.from(el.attributes)) {
         if (isSlotAttrName(attr.name)) toRemove.push(attr.name);
@@ -168,6 +214,25 @@ export function collectSlotContent(
     slots: string[] | undefined,
     warn: (msg: string) => void,
 ): Map<string, SlotContent> | null {
+    return collectSlotSegments(Array.from(host.childNodes), slots, warn);
+}
+
+/**
+ * 按**给定的直接子节点序列**分段并校验出口清单（{@link collectSlotContent} 的主体）。
+ *
+ * 分段规则与 `collectSlotContent` 完全一致；调用方负责先确定「哪些子节点参与分段」——
+ * 覆盖物路径经 {@link collectSlotGroups} 按归属容器分组后逐组调用（ADR-0056 决策十修订）。
+ *
+ * @param children 参与分段的直接子节点（已在归属容器层面裁剪过）
+ * @param slots    组件出口清单（`ComponentDef.slots`；undefined = 无出口）
+ * @param warn     warn 日志
+ * @returns 名 → 内容段；无任何有效段返回 null
+ */
+export function collectSlotSegments(
+    children: ChildNode[],
+    slots: string[] | undefined,
+    warn: (msg: string) => void,
+): Map<string, SlotContent> | null {
     const named = new Map<string, SlotContent>();
     /** 裸默认段节点（文档序） */
     const bareNodes: ChildNode[] = [];
@@ -177,7 +242,6 @@ export function collectSlotContent(
     let firstBareIndex = -1;
     let markerIndex = -1;
 
-    const children = Array.from(host.childNodes);
     for (let i = 0; i < children.length; i++) {
         const child = children[i]!;
         if (child.nodeType === Node.COMMENT_NODE) continue;
@@ -299,4 +363,116 @@ export function collectSlotContent(
         result.set(name, content);
     }
     return result.size > 0 ? result : null;
+}
+
+/**
+ * 剥除单个后代上的归属容器标记（ADR-0056 决策十修订：归属只认宿主直接子级）。
+ *
+ * 内层 `x-slots` → warn + 剥属性（元素保留为普通内容，其子节点并入外层组）。
+ */
+function stripOneContainer(el: HTMLElement, warn: (msg: string) => void): void {
+    if (!getSlotsContainer(el)) return;
+    warn(`x-slots: 归属容器内部的嵌套 x-slots 已忽略（归属只认宿主直接子级），标记属性已剥除`);
+    stripOwnContainerAttrs(el);
+}
+
+/** 剥除 root 后代上的全部归属容器标记（root 自身不查——由调用方决定） */
+function stripNestedContainers(root: HTMLElement, warn: (msg: string) => void): void {
+    for (const el of Array.from(root.querySelectorAll("*"))) {
+        if (el instanceof HTMLElement) stripOneContainer(el, warn);
+    }
+}
+
+/** 剥除元素自身的全部归属容器标记属性 */
+function stripOwnContainerAttrs(el: HTMLElement): void {
+    const toRemove: string[] = [];
+    for (const attr of Array.from(el.attributes)) {
+        if (isSlotsContainerAttrName(attr.name)) toRemove.push(attr.name);
+    }
+    for (const n of toRemove) el.removeAttribute(n);
+}
+
+/**
+ * 取归属容器的子节点（分段输入）。
+ *
+ * - `<template x-slots>` 走 `.content`（light childNodes 恒空），其余元素走 `.childNodes`；
+ * - 深克隆 + 剥嵌套容器标记——模板只读契约（ADR-0002），不碰原 template；
+ * - **容器自身不进内容**（Q11：归属是元信息，不是内容结构，覆盖物内不留多余包裹层）。
+ */
+function containerChildNodes(el: HTMLElement, warn: (msg: string) => void): ChildNode[] {
+    const source = el instanceof HTMLTemplateElement ? el.content : el;
+    const nodes: ChildNode[] = [];
+    for (const n of Array.from(source.childNodes)) {
+        const clone = n.cloneNode(true);
+        if (clone instanceof HTMLElement) {
+            stripOneContainer(clone, warn); // 容器直接子级再嵌容器
+            stripNestedContainers(clone, warn);
+        }
+        nodes.push(clone);
+    }
+    return nodes;
+}
+
+/**
+ * 把覆盖物宿主的直接子节点按**归属**分组（ADR-0056 决策十修订）。
+ *
+ * 分组规则：
+ * - 带 `x-slots="组件名"` 的直接子元素 → 具名组，容器子节点为该组内容（容器自身不进组）；
+ *   归属名为空 / 与宿主上的消费者不匹配 / 同名重复 → warn + 丢弃。
+ * - 带 `x-slot` 标记但**无容器包裹**的直接子元素 → 隐式组：
+ *   宿主只有一个覆盖物消费者时归属它；多个消费者无法判定 → warn + 丢弃。
+ * - **裸子节点（文本、未标记元素、注释）不参与**——宿主子节点只属于宿主（按钮标签等，
+ *   Q1）；容器**内**的裸子节点才是该组的默认段（写容器即显式归属声明）。
+ *
+ * @param host      覆盖物宿主（只读 template）
+ * @param consumers 宿主上全部覆盖物消费者的组件名（用于隐式归属与校验）
+ * @param warn      warn 日志
+ * @returns 归属名 → 待分段的子节点；无任何组返回空 Map
+ */
+export function collectSlotGroups(
+    host: HTMLElement,
+    consumers: string[],
+    warn: (msg: string) => void,
+): Map<string, ChildNode[]> {
+    const uniq = Array.from(new Set(consumers));
+    const groups = new Map<string, ChildNode[]>();
+    /** 无容器包裹的标记内容 */
+    const implicit: ChildNode[] = [];
+
+    for (const child of Array.from(host.childNodes)) {
+        const container = child instanceof HTMLElement ? getSlotsContainer(child) : null;
+        if (container) {
+            if (container.name === "") {
+                warn(`x-slots: 归属容器缺少覆盖物组件名（应写 x-slots="组件名"），容器内容已丢弃`);
+                continue;
+            }
+            if (groups.has(container.name)) {
+                warn(`x-slots: 归属容器 "${container.name}" 重复，后者已丢弃`);
+                continue;
+            }
+            if (!uniq.includes(container.name)) {
+                warn(
+                    `x-slots: 宿主上无名为 "${container.name}" 的覆盖物消费者（现有：${uniq.join("、") || "无"}），容器内容已丢弃`,
+                );
+                continue;
+            }
+            groups.set(container.name, containerChildNodes(child as HTMLElement, warn));
+            continue;
+        }
+        // 隐式组只收显式标记；裸子节点是宿主自身内容（Q1），静默跳过
+        if (child instanceof HTMLElement && getSlotMarker(child)) implicit.push(child);
+    }
+
+    if (implicit.length > 0) {
+        if (uniq.length === 1) {
+            groups.set(uniq[0]!, implicit);
+        } else if (uniq.length > 1) {
+            warn(
+                `x-slots: 宿主上有 ${uniq.length} 个覆盖物消费者（${uniq.join("、")}），未被归属容器包裹的内容无法判定归属，已丢弃——请用 x-slots="组件名" 分别包裹`,
+            );
+        } else {
+            warn(`x-slots: 宿主上无覆盖物消费者，未被归属容器包裹的内容已丢弃`);
+        }
+    }
+    return groups;
 }

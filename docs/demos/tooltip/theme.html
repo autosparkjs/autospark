@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>tooltip · 视觉定制</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* CSS 变量须定在 :root / body 层——浮层单例挂在 body 容器下，业务容器上的变量继承不到。
+               全局定制（默认暗底白字 → 亮色主题）： */
+            :root {
+                --autospark-tooltip-bg: #fff;
+                --autospark-tooltip-fg: #363636;
+                --autospark-tooltip-border: rgba(0, 0, 0, 0.15);
+                --autospark-tooltip-radius: 2px;
+            }
+            /* className 主题：品牌色提示（单元素级，不受继承链限制） */
+            .autospark-tooltip.brand {
+                background: #485fc7;
+                border-color: #2b4acd;
+                font-weight: 600;
+            }
+            .autospark-tooltip.brand[data-tooltip-border] {
+                border-color: #2b4acd;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="demo-app section">
+            <div x-data="{}">
+                <div class="block">
+                    <button class="button" data-tooltip="整页换了亮色主题（:root 上的 CSS 变量）">亮色主题</button>
+                    <button class="button" data-tooltip="{content: '品牌色提示', className: 'brand'}">className 主题</button>
+                    <button class="button" data-tooltip="{content: '我要更快的动画', animate: {name: 'slide', duration: 400}}">动画 400ms</button>
+                </div>
+                <div class="block has-text-grey">
+                    左按钮：容器上的 <code>--autospark-tooltip-*</code> 变量整体换肤；中按钮：<code>className</code>
+                    键追加主题类，用户 CSS 覆盖内置样式；右按钮：<code>animate</code> 三形态可调（duration/延迟/缓动）。
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

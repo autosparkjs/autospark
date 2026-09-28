@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-form · 视图转换（toInput / toState）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 状态存编码值（sex: 1/0），控件显示文案（男/女）——toInput/toState 在全部读写通道生效 -->
+        <form class="demo-app section" x-form>
+            <div class="field">
+                <label class="label">性别（state 存 1/0，控件显示 男/女）</label>
+                <div class="control">
+                    <div class="select">
+                        <!-- 静态 option 与 toInput 的返回值匹配 -->
+                        <select x-field="user.sex">
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="help">
+                    状态值：<strong x-text="user.sex"></strong>（<span x-text="typeof user.sex"></span>） ·
+                    输入值（$field.value）：<strong x-text="$field.value"></strong>
+                </p>
+            </div>
+            <div class="field">
+                <label class="label">切换看响应</label>
+                <p class="help">选择「女」→ <code>toState</code> 把 state 写成 0；渲染时 <code>toInput</code> 再把 0 显示回「女」。</p>
+            </div>
+        </form>
+
+        <script>
+            const { configurable } = AutoSparkSpaces;
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                user: {
+                    sex: configurable(1, {
+                        toInput: (v) => (v === 1 ? "男" : v === 0 ? "女" : ""), // state → 输入值
+                        toState: (v) => (v === "男" ? 1 : v === "女" ? 0 : v), // 输入值 → state
+                    }),
+                },
+            });
+        </script>
+    </body>
+</html>

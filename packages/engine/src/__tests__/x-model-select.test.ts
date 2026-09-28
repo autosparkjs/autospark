@@ -509,7 +509,7 @@ describe("x-model select：注入白名单与冲突", () => {
             },
         );
         const select = root.querySelector("select")!;
-        expect(select.getAttribute("title")).toBe("车辆");
+        expect(select.getAttribute("data-tooltip")).toBe("车辆"); // title 注入经 ADR-0061 bind 重定向
         expect(select.hasAttribute("required")).toBe(true);
         expect(select.disabled).toBe(true); // enable=false → disabled（.invert）
         expect(select.getAttribute("size")).toBe("3");

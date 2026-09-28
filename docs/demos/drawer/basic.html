@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-drawer · 屏幕贴边四方向</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* 内容自然高、顶格排布（面板其余部分留白——shell 出口 div 不透传高度，
+               内容撑满抽屉需用户样式自行处理） */
+            .drawer-body { padding: 18px 22px; box-sizing: border-box; }
+            .drawer-body h3 { margin: 0 0 8px; }
+            .drawer-body p { margin: 0 0 14px; color: #666; font-size: 13px; }
+        </style>
+    </head>
+    <body>
+        <!-- 屏幕贴边（默认定位）：placement 决定从哪边滑出（默认 right），贴边轴全屏展开，
+             短轴尺寸走 --autospark-drawer-size（默认 320px）。visible 驱动与 x-dialog 同构。 -->
+        <div class="demo-app section">
+            <div x-data>
+                <div class="block">
+                    <button class="button is-primary" @click="ui.right = true">右侧抽屉（默认）</button>
+                    <button class="button" @click="ui.left = true">左侧</button>
+                    <button class="button" @click="ui.top = true">顶部</button>
+                    <button class="button" @click="ui.bottom = true">底部</button>
+                </div>
+                <div class="block has-text-grey">
+                    ESC / 点遮罩 / 面板内关闭按钮都会<b>回写状态</b>（visible 是唯一真相源）。
+                </div>
+
+                <div x-define="right-panel">
+                    <div class="drawer-body">
+                        <h3>右侧抽屉</h3>
+                        <p>placement 默认 right——不配置即右侧，业界惯例。</p>
+                        <button class="button is-small close-btn" @click="close()">关闭（close action）</button>
+                    </div>
+                </div>
+                <div x-define="left-panel">
+                    <div class="drawer-body">
+                        <h3>左侧抽屉</h3>
+                        <p>at.placement = 'left'</p>
+                        <button class="button is-small close-btn" @click="close()">关闭</button>
+                    </div>
+                </div>
+                <div x-define="top-panel">
+                    <div class="drawer-body">
+                        <h3>顶部抽屉</h3>
+                        <p>at.placement = 'top'</p>
+                        <button class="button is-small close-btn" @click="close()">关闭</button>
+                    </div>
+                </div>
+                <div x-define="bottom-panel">
+                    <div class="drawer-body">
+                        <h3>底部抽屉</h3>
+                        <p>at.placement = 'bottom'</p>
+                        <button class="button is-small close-btn" @click="close()">关闭</button>
+                    </div>
+                </div>
+
+                <button x-drawer:right-panel="ui.right" class="is-hidden"></button>
+                <button x-drawer:left-panel="ui.left" x-drawer-options.at="{placement: 'left'}" class="is-hidden"></button>
+                <button x-drawer:top-panel="ui.top" x-drawer-options.at="{placement: 'top'}" class="is-hidden"></button>
+                <button x-drawer:bottom-panel="ui.bottom" x-drawer-options.at="{placement: 'bottom'}" class="is-hidden"></button>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                ui: { right: false, left: false, top: false, bottom: false },
+            });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-drawer · 嵌套</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .drawer-body { padding: 18px 22px; box-sizing: border-box; }
+            .drawer-body h3 { margin: 0 0 8px; }
+            .drawer-body p { margin: 0 0 14px; color: #666; font-size: 13px; }
+        </style>
+    </head>
+    <body>
+        <!-- 嵌套零新机制：子 drawer 消费者声明在父组件模板内、visible 放组件 data 域。
+             每次打开新实例（DOM 追加序层叠在后）、ESC 只关全局栈顶、递归深度防护共享。 -->
+        <div class="demo-app section">
+            <div x-data>
+                <div class="block">
+                    <button class="button is-primary" @click="ui.open = true">打开一级抽屉</button>
+                </div>
+                <div class="block has-text-grey">
+                    连按 <kbd>ESC</kbd>：先关子抽屉、再关父抽屉（打开栈只关栈顶）。
+                </div>
+
+                <div x-define="parent">
+                    <script setup>{ data: { childOpen: false } }</script>
+                    <div class="drawer-body">
+                        <h3>一级抽屉</h3>
+                        <p>子 drawer 声明在父组件模板内，visible 放组件 data 域。</p>
+                        <button class="button is-link" @click="childOpen = true">打开二级抽屉</button>
+                        <button class="button is-small" @click="close()">关闭一级</button>
+                    </div>
+                    <div x-drawer:child="childOpen"></div>
+                </div>
+                <div x-define="child">
+                    <div class="drawer-body">
+                        <h3>二级抽屉</h3>
+                        <p>叠在一级之上（遮罩隔开）。</p>
+                        <button class="button is-small" @click="close()">关闭二级</button>
+                    </div>
+                </div>
+
+                <button x-drawer:parent="ui.open" class="is-hidden"></button>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                ui: { open: false },
+            });
+        </script>
+    </body>
+</html>

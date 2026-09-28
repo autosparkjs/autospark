@@ -107,4 +107,18 @@ describe("relaxedToJson", () => {
             tags: ["a", "b"],
         });
     });
+
+    // ── 连字符标识符（ADR-0007 kebab 选项键）──
+    test("kebab-case 裸键：{delay-close: 2000, border: false}", () => {
+        const input = `{delay-close: 2000, border: false}`;
+        expect(JSON.parse(relaxedToJson(input))).toEqual({ "delay-close": 2000, border: false });
+    });
+
+    test("连字符裸值转字符串", () => {
+        expect(JSON.parse(relaxedToJson(`{mode: fade-in}`))).toEqual({ mode: "fade-in" });
+    });
+
+    test("负数与减号不受连字符规则影响", () => {
+        expect(JSON.parse(relaxedToJson(`{a: -5, b: 1.5e-3}`))).toEqual({ a: -5, b: 1.5e-3 });
+    });
 });

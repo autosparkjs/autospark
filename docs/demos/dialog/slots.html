@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-dialog · 插槽内容归属</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+            .proj { padding: 2px 8px; background: #fff7e6; border: 1px dashed #fa8c16; border-radius: 4px; }
+        </style>
+    </head>
+    <body>
+        <!-- 覆盖物插槽内容归属（ADR-0056 决策十修订）：
+             - 宿主裸子节点（按钮标签）永不收集——标签只属于按钮，打开时覆盖物显示组件 fallback；
+             - 单消费者：x-slot:* 标记直写宿主子级（简写，无需容器）；
+             - 多消费者（同一元素多个 x-dialog）：内容必须各套 x-slots="组件名" 归属容器，
+               容器内裸子节点 = 该覆盖物的默认段；容器/标记编译期剪枝，不进运行 DOM。 -->
+        <div class="demo-app section">
+            <div x-data="{ ui: { openConfirm: false, openSave: false, openCancel: false } }">
+
+                <!-- ① 单消费者简写：内容标记直写宿主子级，按钮标签照常留在按钮上 -->
+                <div class="block">
+                    <button class="button is-primary" x-dialog:confirm="ui.openConfirm"
+                            @click="ui.openConfirm = true">
+                        <span class="proj" x-slot>要删除这份草稿吗？</span>
+                        删除
+                    </button>
+                    <span class="is-size-7 has-text-grey ml-2">
+                        单个 x-dialog 可省容器：标记直写子级；标签「删除」留在按钮，投影进正文的是橙框内容
+                    </span>
+                </div>
+
+                <!-- ② 同一元素声明两个 x-dialog：内容必须各套 x-slots 归属容器 -->
+                <div class="block">
+                    <button class="button is-link is-light"
+                            x-dialog:save="ui.openSave" x-dialog:cancel="ui.openCancel"
+                            @click="ui.openSave = true">
+                        <template x-slots="save"><span class="proj">保存当前草稿？</span></template>
+                        打开（save）
+                    </button>
+                    <button class="button is-danger is-light"
+                            x-dialog:save="ui.openSave" x-dialog:cancel="ui.openCancel"
+                            @click="ui.openCancel = true">
+                        <template x-slots="cancel"><span class="proj">放弃所有修改？</span></template>
+                        打开（cancel）
+                    </button>
+                    <span class="is-size-7 has-text-grey ml-2">
+                        两个按钮各自声明 save + cancel 双消费者——打开谁就只投影谁的 x-slots 容器内容，互不串台
+                    </span>
+                </div>
+
+                <!-- ① 的组件：默认出口可被标记覆盖 -->
+                <div x-define="confirm">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">确认删除</h3>
+                        <div class="body"><div class="proj"><div x-slot>默认正文（未提供内容时渲染）</div></div></div>
+                        <button class="button is-fullwidth mt-3" @click="close()">确定</button>
+                    </div>
+                </div>
+
+                <!-- ② 的两个组件：各有一个默认出口，分别被两个按钮的 x-slots 容器填充 -->
+                <div x-define="save">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">保存</h3>
+                        <div class="body"><div class="proj"><div x-slot>保存默认提示</div></div></div>
+                        <button class="button is-primary is-fullwidth mt-3" @click="close()">保存</button>
+                    </div>
+                </div>
+                <div x-define="cancel">
+                    <div class="ov-panel">
+                        <h3 class="title is-5">放弃修改</h3>
+                        <div class="body"><div class="proj"><div x-slot>放弃默认提示</div></div></div>
+                        <button class="button is-danger is-fullwidth mt-3" @click="close()">放弃</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

@@ -199,9 +199,12 @@ describe("属性插值（desugar-to-x-bind）", () => {
     });
 
     test("整体单段普通属性（路径）：title 透传", async () => {
-        const { root, engine } = mount(`<span title="{{user.name}}">x</span>`, {
-            user: { name: "a" },
-        });
+        // tooltip: false——本用例测插值机制对普通属性的通用透传，与 ADR-0061 的 title 转换无关
+        const { root, engine } = mount(
+            `<span title="{{user.name}}">x</span>`,
+            { user: { name: "a" } },
+            { tooltip: false },
+        );
         expect(root.querySelector("span")!.getAttribute("title")).toBe("a");
         engine.state.user.name = "b";
         await nextTick();

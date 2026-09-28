@@ -1,4 +1,4 @@
-# 列表渲染
+# x-for 列表渲染
 
 ## 概述
 
@@ -13,7 +13,7 @@
 它基于 `:key` 做 diff 复用——结构变化时尽量复用未变项（保留 DOM、scope、订阅），只增删差异项，避免列表重渲染丢失焦点与输入态。
 
 ::: tip 大数据量场景
-如果列表数据量较大（> 1000 项），建议启用**虚拟列表**模式（`x-for.virtual`），只渲染可见区域的项，大幅提升滚动性能。详见[虚拟列表](../x-for.md)指南。
+如果列表数据量较大（> 1000 项），建议启用**虚拟列表**模式（`x-for.virtual`），只渲染可见区域的项，大幅提升滚动性能。详见[虚拟列表](./x-for-virtual.md)。
 :::
 
 ## 快速入门
@@ -30,11 +30,11 @@
 
 ## 指南
 
-### 基础列表与响应式
+### 指令值
 
-项模板里用项变量（`book`）访问当前项字段。增删数组元素（`push` / `shift` / `splice` / 整体赋值）自动触发重新渲染：
+指令值形如 **`<项变量[, index变量]> of <数组路径|表达式>`**（必填）——`of` 左侧声明项变量（模板内用 `book.xxx` 读当前项字段），可选第二变量自定义序号名（缺省 `$index`）；右侧是数组状态路径或表达式。`:key` 声明在**容器**上（不是项模板上），缺省时用 index，语义见[key优化](#key优化)。
 
-<demo html="for/basic.html"/>
+项模板里用项变量访问当前项字段。增删数组元素（`push` / `shift` / `splice` / 整体赋值）自动触发重新渲染：
 
 ```javascript
 engine.state.books.push({ id: 3, title: "新书", author: "新" });
@@ -171,9 +171,11 @@ engine.state.books.shift();
 </dl>
 ```
 
-### key优化 
+### key优化
 
 `:key` 给每个列表项一个**稳定的唯一标识**，告诉引擎「结构变化前后，哪一项是哪一项」。数组发生增删、重排、整体替换时，引擎据此按 key 匹配，**复用未变项**——保留它的 DOM 节点、scope、订阅与输入态（焦点、半填表单等），只更新内容差异；无法匹配的才销毁或新建。
+
+<demo html="for/key.html"/>
 
 ```html
 <!-- 用数据自带的唯一 id 作 key -->
@@ -196,17 +198,23 @@ engine.state.books.shift();
 
 `x-for.paging` 为列表提供分页能力：支持**客户端分页**（全量数据已在本地，自动 slice）和**服务端分页**（通过 loader action 远程加载数据追加到 items）。
 
+<demo html="for/paging-basic.html"/>
+
 详见[分页](./x-for-paging.md)。
 
 ### 虚拟列表
 
 当列表数据量较大（如上万条）时，全量渲染会导致性能问题。`x-for.virtual` 通过**虚拟列表**技术解决这一问题：只渲染当前可见区域的项，滚动时动态替换内容，大幅提升渲染性能。
 
+<demo html="for/virtual-basic.html"/>
+
 详见[虚拟列表](./x-for-virtual.md)。
 
 ### 性能优化
 
 列表大到千级以上时，开销集中在两头：**结构变化时的 DOM 重建**与**状态的深层代理**。重点就两件事——一是用 `:key`，二是用 autostore 新增的 `shallow` 函数包装列表数组。
+
+<demo html="for/shallow-todo.html"/>
 
 #### 一、用 `:key`：按身份复用，只重建真正变动的项
 
@@ -247,9 +255,7 @@ const engine = new AutoSpark(el, {
 - 只需要整体增删、内容整体替换 → `shallow(list)` 最省；
 - 项内还有需要**深层响应**的嵌套结构 → 浅代理下深层修改不触发更新，此时保持默认深层代理。
 
-配合 `:key` 的完整示例（可灌入 1000 条体验大列表的初始化与操作）：
-
-<demo html="for/shallow-todo.html"/>
+配合 `:key` 的完整示例（demo 可灌入 1000 条体验大列表的初始化与操作，见本节顶部）：
 
 ```html
 <!-- :key 稳定复用 + shallow 浅层代理：前者省 DOM 重建，后者省代理开销 -->
@@ -265,20 +271,22 @@ const engine = new AutoSpark(el, {
 }
 ```
 
-## 配置
+## 配置选项
 
-`x-for` 的指令值形如 `项变量[, index变量] of 数组路径\|表达式`（必填，如 `x-for="item of items"`）。下列配置项控制项标识；带 ✅ 者可用修饰符方式启用。
+`x-for` 的指令值形如 `项变量[, index变量] of 数组路径\|表达式`（必填，如 `x-for="item of items"`）。下列配置项控制项标识与模式；**修饰符列**给出启用该组选项的修饰符。
 
-| 配置项 | 默认值  | 修饰符 | 说明                                               |
-| ------ | ------- | ------ | -------------------------------------------------- |
-| `:key` | `index` |        | 容器上的 `:key="expr"`，项的唯一标识，缺省用 index |
-| `animate` | 无 |      | 项级进出场动画：字符串（`'fade'` / `'slide'` / 自定义名）/ 对象（name/duration/delay/easing）/ 分相（`enter` / `leave` 各自可配，`false` 单相禁用），见[动画](../animate.md) |
-| `pageSize` | `10` | ✅ `.paging` | 每页条数，详见[分页](./x-for-paging.md) |
-| `loader` | 无 | | 服务端分页的 loader action 名，详见[分页](./x-for-paging.md) |
-| `autoLoad` | `true` | | 首次是否自动加载第一页，详见[分页](./x-for-paging.md) |
-| `itemHeight` | 自动检测 | ✅ `.virtual` | 列表项固定高度（像素），详见[虚拟列表](./x-for-virtual.md) |
-| `overscan` | `5` | ✅ `.virtual` | 可见区域外额外渲染的项数，详见[虚拟列表](./x-for-virtual.md) |
-| `:data-index` | - | ✅ `.virtual` | 滚动位置绑定的状态路径，详见[虚拟列表](./x-for-virtual.md) |
+| 配置项      | 默认值     | 修饰符    | 说明                                                        |
+| ----------- | ---------- | --------- | ----------------------------------------------------------- |
+| `:key`      | `index`    | —         | 容器上的 `:key="expr"`，项的唯一标识，缺省用 index          |
+| `animate`   | 无         | —         | 项级进出场动画：字符串（`'fade'` / `'slide'` / 自定义名）/ 对象（name/duration/delay/easing）/ 分相（`enter` / `leave` 各自可配，`false` 单相禁用），见[动画](../animate.md) |
+| `paging`    | `false`    | `.paging` | 启用分页模式（与 `.virtual` 互斥，`.paging` 优先），详见[分页](./x-for-paging.md) |
+| `pageSize`  | `10`       | —         | 每页条数（`.paging`），详见[分页](./x-for-paging.md)        |
+| `loader`    | 无         | —         | 服务端分页的 loader action 名（`.paging`），详见[分页](./x-for-paging.md) |
+| `autoLoad`  | `true`     | —         | 首次是否自动加载第一页（`.paging`），详见[分页](./x-for-paging.md) |
+| `virtual`   | `false`    | `.virtual` | 启用虚拟列表模式（与 `.paging` 互斥），详见[虚拟列表](./x-for-virtual.md) |
+| `itemHeight` | 自动检测  | —         | 列表项固定高度（像素）（`.virtual`），详见[虚拟列表](./x-for-virtual.md) |
+| `overscan`  | `5`        | —         | 可见区域外额外渲染的项数（`.virtual`），详见[虚拟列表](./x-for-virtual.md) |
+| `:data-index` | —        | —         | 滚动位置绑定的状态路径（`.virtual`），详见[虚拟列表](./x-for-virtual.md) |
 
 ::: info 关于指令配置体系
 指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive/config.md)。
@@ -292,4 +300,4 @@ const engine = new AutoSpark(el, {
 - **派生变量靠 refresh 重算**：`$end` / `$length` 等随数组增删变化，复用项会原地重算并重跑绑定。
 - **表达式数组退粗粒度**：纯路径 `items` 保留字段级细粒度；`items.filter(...)` 等表达式会让字段变更也触发整列表 render。
 - **分页与虚拟列表互斥**：`.paging` 与 `.virtual` 不能同时使用。同时声明时 `.paging` 优先。
-- **虚拟列表性能**：启用 `.virtual` 修饰符后，只渲染可见区域的项。详见[虚拟列表](../x-for.md)指南。
+- **虚拟列表性能**：启用 `.virtual` 修饰符后，只渲染可见区域的项。详见[虚拟列表](./x-for-virtual.md)。

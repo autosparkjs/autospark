@@ -15,15 +15,19 @@
 
 ## 快速入门
 
-<demo html="model/all-input-types.html" />
+<demo html="model/basic.html" />
 
-`x-model="path"` 的 `path` 支持**状态路径**（`user.name`）或**表达式**（`user.first + ',' + user.last`，含计算属性路径）。输入即写回状态、状态变化同步回输入框，无需手动监听 `input` 事件。上例覆盖了 text / number / email / password / textarea / checkbox / radio / select 的完整用法。
+`x-model="path"` 的 `path` 支持**状态路径**（`user.name`）或**表达式**（`user.first + ',' + user.last`，含计算属性路径）。输入即写回状态（DOM→state），状态变化同步回输入框（state→DOM），无需手动监听 `input` 事件——点「重置」按钮改状态即可验证反向同步。各控件的完整用法见[指令值](#指令值)。
 
 ## 指南
 
-### 控件类型
+### 指令值
 
-x-model 支持四类控件，读写语义各不相同：
+指令值**必填**——一个**状态路径**或**表达式**（多层路径见[嵌套路径](#嵌套路径)，表达式形态与判定规则见[绑定表达式](#绑定表达式)）。
+
+<demo html="model/all-input-types.html" />
+
+上例覆盖了 text / number / email / password / textarea / checkbox / radio / select 的完整用法。x-model 支持四类控件，读写语义各不相同：
 
 | 控件      | 读方向（state→DOM）                 | 写方向（DOM→state）               | 默认事件 |
 | --------- | ----------------------------------- | --------------------------------- | -------- |
@@ -301,19 +305,15 @@ a: configurable(undefined, { default: "未填写" }),
 | `.change`   | `x-model-options="{change:true}"`   | 监听 `change` 事件（失焦触发）而非 `input`（实时；select 已默认） |
 | `.multiple` | `x-model-options="{multiple:true}"` | select 多选（state 为 `string[]`，见 [select](#select)）          |
 
-#### `.number`
-
-不加 `.number` 时，`<input type="number">` 的值是字符串，`price * count` 会变成字符串拼接：
+**`.number`**——不加 `.number` 时，`<input type="number">` 的值是字符串，`price * count` 会变成字符串拼接：
 
 <demo html="model/modifiers-number.html" />
 
-#### `.trim`
+**`.trim`**——写回前去除首尾空格：
 
 <demo html="model/modifiers-trim.html" />
 
-#### `.boolean`
-
-`el.value` 是字符串，`.boolean` 把写回值转为**布尔类型**。仅认三个字符串字面量（**严格集**，大小写敏感）：
+**`.boolean`**——`el.value` 是字符串，把写回值转为**布尔类型**。仅认三个字符串字面量（**严格集**，大小写敏感）：
 
 | 输入       | 写入 state                                                       |
 | ---------- | ---------------------------------------------------------------- |
@@ -339,7 +339,7 @@ a: configurable(undefined, { default: "未填写" }),
 
 radio 的 `value` 是模板静态声明，若不在严格集内（如 `value="abc"`），会 `warn` 一次并保留原值写回（提示模板 bug）；text 输入的未识别串静默保留（用户输入不预设）。
 
-#### `.change`
+**`.change`**——监听 `change` 事件（失焦触发）而非 `input`（实时；select 已默认）：
 
 <demo html="model/modifiers-change.html" />
 
@@ -365,11 +365,13 @@ radio 的 `value` 是模板静态声明，若不在严格集内（如 `value="ab
 | 表达式 + set                | `x-model="user.first + ',' + user.last"` | ✓ 求值显示 | ✓ 经 set 反向变换拆回             |
 | 表达式 / computed（无 set） | `x-model="order.price * order.count"`    | ✓ 求值显示 | ✗ **只读绑定**（降级，warn 一次） |
 
+前两种形态的实测（第一卡片为表达式 + set 的双向绑定，第二卡片为无 set 的只读降级）：
+
+<demo html="model/expr-bind.html" />
+
 #### 双向绑定（表达式 + set）
 
 表达式组合多个字段显示，编辑后经 **set 反向变换**拆解写回——一个输入框双向驱动多个状态字段：
-
-<demo html="model/expr-bind.html" />
 
 ```html
 <!-- 读 = first + ',' + last 组合显示；写 = set action 拆回两个字段 -->
@@ -433,6 +435,22 @@ set 的两种写法（表达式 / action 名）与更多拆分组合场景见下
 - **表达式**：经 `new Function(...,"with(scope){...}")` 求值。get 固定形参 `value`（当前状态值），set 固定形参 `$value`（DOM 输入值），语句体执行赋值。
 - **action 名**（推荐，逻辑复杂时）：`get`/`set` 只写 action 名。get action 当前状态值**自动作首参**（`value`），set action DOM 输入值**自动作首参**（`$value`），括号内均可追加参数，`this.globalState` 可访问状态。
 
+表达式写法的两个最小示例——`get` 把数字状态格式化成「¥ 金额」显示，`set` 把输入直接写到 `dst` 字段：
+
+<demo html="model/get-expression.html" />
+
+```html
+<input x-model="order.amount" x-model-options="{get:'`¥ ${value}`'}" />
+```
+
+<demo html="model/set-expression.html" />
+
+```html
+<input x-model="src" x-model-options="{set:'dst=$value'}" />
+```
+
+action 可声明在 `<script type="autospark/actions">`（局部）或 `engine.actions`（全局），详见 [action](../action.md)。
+
 下面按两个典型场景展开。
 
 ### 字段拆分
@@ -461,14 +479,6 @@ actions: {
 },
 ```
 
-同样的拆分逻辑也可用**表达式**写法（逻辑简单时）。下面把数字状态格式化成「¥ 金额」显示：
-
-<demo html="model/get-expression.html" />
-
-```html
-<input x-model="order.amount" x-model-options="{get:'`¥ ${value}`'}" />
-```
-
 ### 字段组合
 
 **多个状态字段组合到一个输入框，编辑后拆解写回各字段。** 典型如姓名：`user.first + ',' + user.last` 组合显示，编辑后按逗号拆回 `first` / `last`。
@@ -493,16 +503,6 @@ actions: {
 },
 ```
 
-组合的写方向也可用**表达式**（`$value` 形参，语句体赋值）。下面把输入直接写到 `dst` 字段：
-
-<demo html="model/set-expression.html" />
-
-```html
-<input x-model="src" x-model-options="{set:'dst=$value'}" />
-```
-
-action 可声明在 `<script type="autospark/actions">`（局部）或 `engine.actions`（全局），详见 [action](../action.md)。
-
 ### 只读降级
 
 当 `x-model` 绑定的是**表达式或计算属性**且**未提供 set** 时，读方向正常（state→DOM 显示），但写方向不可逆——此时 `x-model` **自动降级为单向只读**：
@@ -520,6 +520,8 @@ action 可声明在 `<script type="autospark/actions">`（局部）或 `engine.a
 ### 绑定数据来源
 
 `x-model="path"` 的取值按 **scope 链就近解析**——同一个模板里，不同控件可以各取所需：本地 `x-data`、祖先 `x-data`、全局状态，甚至三者混用。
+
+<demo html="model/data-sources.html" />
 
 #### 来源一：本地 x-data
 
@@ -572,8 +574,6 @@ new AutoSpark(el, {
 
 一个表单可以**同时**从三个来源取数——全局放正式数据、本地放草稿、祖先放分区共享值，各控件按 scope 链各自就近命中：
 
-<demo html="model/data-sources.html" />
-
 ```html
 <div x-data="{ draftName: '', remark: '' }">
     <!-- 本地：本卡片草稿 -->
@@ -599,6 +599,8 @@ new AutoSpark(el, {
 
 除了支持绑定全局状态外，还支持绑定到最近的`x-data`数据。
 
+<demo html="model/data-bind.html" />
+
 #### 局部响应式绑定
 
 `x-model` 也能双向绑定到 [x-data](./x-data.md) 声明的**局部响应式字段**——把表单的临时状态就近放在一起，不必塞进全局 store。但有一个**读写方向不对称**的坑要先讲清：
@@ -621,8 +623,6 @@ new AutoSpark(el, {
 ```
 
 :::
-
-<demo html="model/data-bind.html" />
 
 ```html
 <div x-data="{ count: 0, label: '计数' }">
@@ -665,6 +665,8 @@ AutoStore 的 `configManager` 为每个状态字段维护一份**字段元数据
 
 联动分两层：**手动绑定**（用 `@` 精确指定绑哪个元数据）与**自动注入**（写一行 `x-model` 引擎按白名单自动合成）。
 
+<demo html="model/config-ref.html" />
+
 :::warning 重点
 `AutoStore` 的 `configManager`本身也是一个`AutoStore`实例，其管理的字段元数据（schema）也是响应式的，这意味着当更新字段的元数据时，也要实时重新渲染。
 :::
@@ -676,8 +678,6 @@ AutoStore 的 `configManager` 为每个状态字段维护一份**字段元数据
 #### 手动绑定
 
 当使用`x-bind`绑定状态时，`x-bind` 值含 `@` 时，绑定来源从 `store` 状态切到 `configManager` 元数据。`@` 左侧是**配置状态路径**（定位 schema 条目），右侧是**配置属性路径**（schema 的属性，支持多段嵌套）：
-
-<demo html="model/config-ref.html" />
 
 ```html
 <!-- 绑 schema 的 placeholder 属性 -->
@@ -717,7 +717,7 @@ AutoStore 的 `configManager` 为每个状态字段维护一份**字段元数据
 
 - **仅注入 schema 实际承载的属性**（动态交集），schema 没配的属性不注入。
 - **显式绑定优先**：用户显式写 `:placeholder="..."` 则该项不自动合成。
-- **`enable` 反向**：自动合成 `:disabled.invert="path@enable"`（[x-bind `.invert` 修饰符](./x-bind.md#invert)），`enable`（true=可用）取反映射到 `disabled`。改 `schema.enable` 会响应式切换 `disabled`。
+- **`enable` 反向**：自动合成 `:disabled.invert="path@enable"`（[x-bind 求值结果取反](./x-bind.md#求值结果取反)），`enable`（true=可用）取反映射到 `disabled`。改 `schema.enable` 会响应式切换 `disabled`。
 - **`name` 默认路径**：schema 无 name 元数据时，`name` 自动取 `x-model` 的状态路径（如 `order.price`），方便表单提交；提供了 name 元数据则用元数据值。
 
 ### 字段联动
@@ -725,6 +725,8 @@ AutoStore 的 `configManager` 为每个状态字段维护一份**字段元数据
 schema 元数据不止能配静态值——它可以是**计算属性**，引用其他字段的状态值。这样「一个字段的值控制另一个字段」这类**字段联动**就声明在 schema 里，模板侧仍然只写一行 `x-model`，无需手写 `:disabled` 表达式或事件监听。
 
 schema 中**所有注入白名单属性**（`enable` / `placeholder` / `required` / `readonly` / `min` / `max` / `choices`……）都支持计算属性形态，联动维度覆盖：**可编辑性**（enable）、**提示文案**（placeholder）、**校验约束**（required/min/max）、**选项集**（choices）。
+
+<demo html="model/field-linkage.html" />
 
 #### 工作原理
 
@@ -783,8 +785,6 @@ new AutoSpark(
 #### 联动一：enable 控制可编辑性
 
 典型场景——IP 配置表单：勾选「DHCP 自动获取」时 IP 输入框应禁用（自动分配无需手填），取消勾选时恢复可编辑：
-
-<demo html="model/field-linkage.html" />
 
 ```html
 <input type="checkbox" x-model="dhcp" />
@@ -905,24 +905,24 @@ new AutoSpark(
 
 choices 深读会收集每个选项项的 `label`/`value`/`group` 字段路径——单项 `label` 变更、增删项、整体替换数组都会触发选项子树重建并重放选中。
 
-## 配置
+## 配置选项
 
 `x-model` 的指令值是双向绑定的状态路径或表达式（必填）。下列配置项经 `x-model-options` 声明：
 
-| 配置项        | 类型   | 说明                                                                                      |
-| ------------- | ------ | ----------------------------------------------------------------------------------------- |
-| `get`         | 字符串 | state→DOM 变换：表达式（形参 `value`）或 action 名（当前值作首参）                        |
-| `set`         | 字符串 | DOM→state 变换：表达式（形参 `$value`）或 action 名（DOM 值作首参）                       |
-| `number`      | 布尔   | 同 `.number` 修饰符                                                                       |
-| `trim`        | 布尔   | 同 `.trim` 修饰符                                                                         |
-| `boolean`     | 布尔   | 同 `.boolean` 修饰符                                                                      |
-| `change`      | 布尔   | 同 `.change` 修饰符                                                                       |
-| `multiple`    | 布尔   | 同 `.multiple` 修饰符（select 多选）                                                      |
-| `choices`     | 数组   | select 选项列表 `{label?,value?,default?}[]`（优先于 schema.choices，静态 option 最优先） |
-| `group`       | 字符串 | select 分组字段名：choices 项按该字段值聚合到 `<optgroup>`                                |
-| `autoSelect`  | 布尔   | 值不在选项集时自动选中 `default:true` 项或首项并回写（默认 `true`，见 [select](#select)） |
-| `emptyValues` | 数组   | 附加空值集（默认 `[undefined,null,NaN]` 之上追加，见[空值与默认值](#空值与默认值)）       |
-| `default`     | 任意   | 空值回填值（模板 > schema.default 两级，静态值 only）                                     |
+| 配置项        | 默认值                 | 修饰符      | 说明                                                                                    |
+| ------------- | ---------------------- | ----------- | --------------------------------------------------------------------------------------- |
+| `get`         | —                      | —           | 字符串：state→DOM 变换——表达式（形参 `value`）或 action 名（当前状态值作首参）           |
+| `set`         | —                      | —           | 字符串：DOM→state 变换——表达式（形参 `$value`）或 action 名（DOM 输入值作首参）          |
+| `number`      | `false`                | `.number`   | 写回前 `Number()` 转换，`NaN` 回退原字符串                                              |
+| `trim`        | `false`                | `.trim`     | 写回前去除首尾空格                                                                      |
+| `boolean`     | `false`                | `.boolean`  | 写回前严格集转布尔（仅 `"true"` / `"false"` / `""`，其余保留原值）                      |
+| `change`      | `false`                | `.change`   | 监听 `change`（失焦触发）而非 `input`（实时；select 已默认）                            |
+| `multiple`    | `false`                | `.multiple` | select 多选（state 为 `string[]`，见 [select](#select)）                                |
+| `choices`     | —                      | —           | select 选项列表 `{label?,value?,default?}[]`（优先于 schema.choices，静态 option 最优先） |
+| `group`       | —                      | —           | select 分组字段名：choices 项按该字段值聚合到 `<optgroup>`                               |
+| `autoSelect`  | `true`                 | —           | 值不在选项集时自动选中 `default:true` 项或首项并回写（见 [select](#select)）             |
+| `emptyValues` | `[undefined,null,NaN]` | —           | 附加空值集（在其之上追加，见[空值与默认值](#空值与默认值)）                             |
+| `default`     | —                      | —           | 空值回填值（模板 > schema.default 两级，静态值 only）                                   |
 
 修饰符在解析期注入为同名指令选项（如 `.number` ≡ `x-model-options="{number:true}"`），二者等价。
 
@@ -944,4 +944,4 @@ choices 深读会收集每个选项项的 `label`/`value`/`group` 字段路径�
 - **安全：get/set 是代码执行点**：表达式经 `new Function` 在当前页面上下文求值（与 x-on/action 同级的既有机制）。**绝不要把用户输入拼进 get/set 表达式**——表达式必须来自开发者编写的模板。编译产物有缓存（同表达式只编译一次），但求值本身不受沙箱保护。若模板来源不可信（如服务端下发、用户提交），须在编译前消毒（sanitize）指令属性。
 - **动态改 `x-model` 属性值不支持**：运行时 `setAttribute("x-model", ...)` 改绑定值不生效（编译期解析，首版有意）。
 - **循环防护是内置的**：无需手动处理，写入经 flags 标识，read 回调自动跳过自身触发的回写。
-- **绑定 x-data 局部字段须配 set 表达式**：简单路径 `x-model="<局部字段>"` 会「读局部、写全局」（写方向经 `setVal` 直写 `store.state` 绕过私有域），导致读写分裂。绑局部字段时务必加 `x-model-options="{set:'<字段>=$value'}"`，详见上文[绑定 x-data 局部数据](#绑定-x-data-局部数据)。
+- **绑定 x-data 局部字段须配 set 表达式**：简单路径 `x-model="<局部字段>"` 会「读局部、写全局」（写方向经 `setVal` 直写 `store.state` 绕过私有域），导致读写分裂。绑局部字段时务必加 `x-model-options="{set:'<字段>=$value'}"`，详见上文[绑定局部数据](#绑定局部数据)。

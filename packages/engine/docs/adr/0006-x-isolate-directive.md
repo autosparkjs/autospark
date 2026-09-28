@@ -1,6 +1,7 @@
 # ADR-0006：x-isolate 指令（engine 边界 / 隔离快照 / 远程子引擎）
 
 - **状态**：Accepted（Round 5，grill-with-docs）｜⚠️ **部分调整（2026-08-07）**：决策 6/7 的 `task/slot/*` 事件已移除，x-isolate remote 加载改用 x-loading 覆盖层表达加载态、不广播事件。见 glossary「task/slot 事件（已移除）」。
+- ⚠️ **部分废止（2026-09-28）**：决策 1（static 冻结快照）与决策 2 的 T1 威胁模型叙述已由 [ADR-0060](0060-x-isolate-v2.md) 废止——无值 `x-isolate` 语义翻转为 **inline 子引擎**（内部模板由完全独立 child engine 编译），static 模式删除。其余决策（remote 生命周期、盲区、teardown 级联、x-loading 复用、错误占位）继续有效。
 - **更名（2026-09-24）**：指令由 `x-slot` 更名为 `x-isolate`（源文件 `slot.ts` → `isolate.ts`、类 `SlotDirective` → `IsolateDirective`、注册键 `slot` → `isolate`、错误占位 `.x-slot-error` → `.x-isolate-error`、dispatcher `slotRoots` → `isolateRoots`）——「slot」易与 Vue 插槽撞义，且 ADR-0040 已明确引擎无插槽机制；`x-isolate` 直指「隔离区域」语义。本文正文已同步为新名，历史事件路径 `task/slot/*` 保留原名（当时设计如此，且未发布）。
 - **续（2026-08-08，[ADR-0009](0009-store-or-state-input.md)）**：child engine 构造由 `new AutoTemplateEngine(host, new AutoStore({}))` 改为 `new AutoTemplateEngine(host, {})`——engine 自建 store（ADR-0009 决策 6）；决策 4 / 实现注记已据此同步。
 - **日期**：2026-08-06

@@ -1,4 +1,4 @@
-# 模态对话框（x-dialog）
+# x-dialog 模态对话框
 
 ## 概述
 
@@ -18,9 +18,9 @@
 
 ## 指南
 
-### 定义对话框
+### 指令值
 
-对话框**没有专用的内容定义语法**——任意一个组件都可以作为对话框的内容，因此本文不存在「如何定义对话框内容」的说明：你只需要按[组件](../component/)的方式**声明组件**（`x-define` 作用域声明 / `options.components` 全局注册 / `x-import` 远程加载），再在消费处用 `x-dialog:组件名` 引用它。
+对话框**没有专用的内容定义语法**——任意一个组件都可以作为对话框的内容（按[组件](../component/)的方式声明 `x-define` / `options.components` / `x-import`，消费处用 `x-dialog:组件名` 引用）。指令值**专职 visible 控制**：真值即开、假值即关（props / 配置与值三者正交，见[传递 props](#传递-propsx-dialog-optionsprops)）：
 
 ```html
 <!-- 内容：就是一个普通组件，没有任何对话框专属标记 -->
@@ -35,13 +35,9 @@
 
 组件的完整能力（数据、方法、生命周期、作用域样式、props）对对话框内容一视同仁；按名字查找（scope 链就近 + 全局兜底）等消费语义见[覆盖物](../overlays.md)。
 
-:::warning 提示
+::: warning 提示
 任意组件均可以被`x-dialog`指令显示在对话框中。
 :::
-
-### 弹出对话框
-
-`x-dialog`用于弹出对话框。
 
 #### 状态驱动
 
@@ -67,7 +63,7 @@
 
 重开只由**状态变化**驱动：依赖变化后表达式由假变真（如 step 切回 2）时弹出新实例；多依赖表达式（如 `a > 0 && b > 0`）中变化不影响结果（重求值仍为真）时同样会再次弹出。反之，UI 关闭后**状态未变化**（如对同一状态同值赋值）不触发任何重开——派生条件场景下「按钮没反应」通常就是状态没有真正变化。
 
-需要「关闭后不再自动弹出」的精确善后，监听 `overlay:close` 事件（见[请求关闭](#请求关闭esc遮罩close-动作)）把关闭事实写回状态。
+需要「关闭后不再自动弹出」的精确善后，监听 `overlay:close` 事件（见[请求关闭](#请求关闭)）把关闭事实写回状态。
 
 #### 字面量
 
@@ -130,13 +126,69 @@ props 是**持续热更新**的：打开期间绑定的状态变化会自动 `Ob
 
 定向语法同样适用于配置整包：`x-dialog-options:user="{closeOnMask: false}"` 只作用于 `user` 那个消费者。消歧规则：冒号后首段匹配同元素某 `x-dialog` 的组件名即定向，否则视为（无定向的）成员名。
 
+### 传入内容（插槽）
+
+对话框组件用**与组件插槽完全相同的** `x-slot` / `x-slot:名` 语法预留可替换位置（出口声明在 `x-define` 组件内，见 [x-slot](./x-slot.md)）。覆盖物宿主侧只有一条关键差别：
+
+> **宿主的裸子节点永不收集**——按钮标签、触发容器内容只属于宿主；要投影的内容必须**显式声明**。
+
+```html
+<!-- 组件作者：声明默认出口 + 命名出口 -->
+<div x-define="confirm">
+  <header x-slot:header>请确认</header>
+  <div class="body"><div x-slot>默认正文</div></div>
+</div>
+
+<!-- 单个 x-dialog：内容标记直接写在宿主子级 -->
+<button x-dialog:confirm="ui.open" @click="ui.open = true">
+  <div x-slot>要删除这份草稿吗？</div>
+  删除
+</button>
+
+<!-- 同一元素多个 x-dialog：内容各套 x-slots="组件名" 归属容器 -->
+<button x-dialog:save="ui.save" x-dialog:cancel="ui.cancel" @click="...">
+  <template x-slots="save">保存当前草稿？</template>
+  <template x-slots="cancel">放弃所有修改？</template>
+  提交
+</button>
+```
+
+规则速查：
+
+| 规则                               | 说明                                                                                        |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| 单消费者可省容器                   | `x-slot:*` 标记直写宿主子级即可                                                             |
+| 多消费者必须各套容器               | `x-slots="组件名"`，容器内裸子节点 = 该覆盖物的默认段；裸标记无法判定归属 → 警告 + 丢弃     |
+| 容器/标记不进运行 DOM              | 编译期剪枝（打开时从模板克隆投影），按钮标签全程不受影响                                    |
+| 容器名须命中宿主上的 `x-dialog:名` | 不匹配 → 警告 + 丢弃                                                                        |
+| 深层标记忽略                       | 归属容器与内容标记只认宿主直接子级；更深层的 `x-slot:*` 剥属性后按普通内容保留              |
+| 不能与 `x-component` 同元素        | 组件化身与弹窗声明点对子节点定位互斥——警告后组件让位（弹窗照常）                            |
+| 作用域插槽形参照常                 | 出口侧 `x-slot:row="{ item: … }"` 传出、内容侧 `x-slot:row="{ item }"` 接收，与组件路径一致 |
+
+不提供任何内容时，对话框显示组件内的 fallback（默认内容）——这是最常见的形态，零配置。
+
+**看什么**（demo 中的三个按钮）：
+
+1. **「删除」按钮（单消费者简写）**——`x-slot` 标记直写按钮子级，按钮标签「删除」留在按钮上；点开后对话框正文是橙框里那份内容（覆盖 fallback）；
+2. **「打开（save）」/「打开（cancel）」按钮（同元素多 x-dialog）**——每个按钮都声明 save + cancel 双消费者，内容各套 `x-slots="组件名"` 容器；打开谁就只投影谁的容器内容，两个对话框互不串台；
+3. **不提供内容**——任何按钮去掉标记后点开，对话框退回组件内写的默认正文。
+
+**试试看**：把第二个按钮里 `<template x-slots="cancel">` 的值改成 `"save"`——容器名与打开的组件不匹配，控制台会出现归属警告，正文退回默认提示。
+
+<demo html="dialog/slots.html"/>
+
+**继续阅读**：插槽出口/内容/形参的完整语法见 [x-slot 插槽指令](./x-slot.md)。
+
 #### 配置成员的拆散写法
 
 `x-dialog-options` 的任何配置键都可以拆成独立成员属性（值为表达式，可绑定响应式状态），优先级高于整包内嵌的同名键（整键覆盖）：
 
 ```html
 <!-- 整包 -->
-<button x-dialog:tip="ui.open" x-dialog-options="{close-on-mask: false, delay-close: 3000}"></button>
+<button
+  x-dialog:tip="ui.open"
+  x-dialog-options="{close-on-mask: false, delay-close: 3000}"
+></button>
 
 <!-- 等价的成员拆散写法（值为表达式） -->
 <button
@@ -149,10 +201,6 @@ props 是**持续热更新**的：打开期间绑定的状态变化会自动 `Ob
 ::: warning 成员名用 kebab-case
 HTML 属性名会被 DOM 全量小写化（`closeOnMask` 存取均为 `closeonmask`）——camelCase 键的成员属性须以 **kebab-case** 书写（`close-on-mask`、`delay-close`、`data-context`），引擎自动归一；整包内嵌（属性**值**不被小写化）不受影响，纯小写单词键（`props`、`border`、`animate`、`at`）两种写法均可。
 :::
-
-#### 对象形态已删除
-
-旧写法 `x-dialog:user="{visible: 'ui.open', userId: 42}"`（visible 与 props / 配置混写在值里）**已删除**：值遇 `{` 开头会 warn 并忽略整个指令。迁移：visible 写指令值、props 写 `x-dialog-options.props`、配置写 `x-dialog-options`。
 
 ### 请求关闭
 
@@ -198,12 +246,14 @@ engine.on("overlay:close", ({ payload }) => {
 
 ```html
 <button x-dialog:notice="ui.show" x-dialog-options.delay-close="3000">3 秒后自动消失</button>
-<button x-dialog:toast="ui.toast" x-dialog-options="{delay-close: 2000, border: false}">轻提示</button>
+<button x-dialog:toast="ui.toast" x-dialog-options="{delay-close: 2000, border: false}">
+  轻提示
+</button>
 ```
 
 `delayClose` 缺省 / `0` 不自动关闭；手动关闭（ESC / 遮罩 / close 动作）优先于定时器，二者不冲突。
 
-### 配置
+### 配置合并链
 
 生效配置按两级优先级**深度合并**（数组替换、`undefined` 不覆盖）：
 
@@ -289,12 +339,14 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 - `arrow`：**锚定模式下默认开启**（`arrow: false` 显式关闭）——引擎自动注入箭头载体 + **双伪元素**默认视觉（8×8 旋转 45° 菱形：带阴影层 + 无阴影层沿主轴偏移覆盖嵌入段阴影残留），并按 floating-ui 协议沿 `staticSide` 反向偏移载体尺寸的一半，使菱形一半嵌入面板、一半露出形成小三角，与面板无缝融合；模板零约定，样式可 CSS 覆盖；
 - `offset` 未配置且箭头开启：默认让位 `6px`（菱形露出高度），三角尖恰好**点在锚元素边缘**上而非覆盖锚元素内部；配置了 `offset` 则以配置为准。
 
-### 面板边框
+### 面板边框（border）
 
 `border` 是**面板级配置**（默认 `true`，与锚定无关——无 `at` 时同样生效）：为面板外壳加 **1px 边框 + 背景 + 圆角**（外壳模式——视觉由外壳统一承担，同色背景填平圆角微差，四角无缝），箭头双层自动变色融合——底层菱形变边框色、覆盖层变面板背景色并外扩，露出段留出 ≈1px 边框色斜带与面板 border 连续，嵌入段的边框色与阴影仍被完整遮蔽（无 V 形残留）。颜色与圆角经 CSS 变量定制：`--autospark-overlay-border`（边框色，默认 `rgba(0,0,0,.1)`）、`--autospark-overlay-bg`（面板背景色，默认 `#fff`）、`--autospark-overlay-radius`（圆角，默认 `8px`）。
 
 ```html
-<button x-dialog:tip="ui.show" x-dialog-options.border="false" @click="ui.show = true">无边框</button>
+<button x-dialog:tip="ui.show" x-dialog-options.border="false" @click="ui.show = true">
+  无边框
+</button>
 ```
 
 ::: info 阴影融合的自定义替代路径（drop-shadow）
@@ -306,6 +358,33 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 ::: warning flip 与演示语义
 `flip` 默认开启（视口放不下时自动翻面）——生产期望行为；上方 demo 的九宫格中显式 `flip: false` 关闭翻转，以展示每个 placement 的**原始**语义。
 :::
+
+### 面板外壳（shell）：自定义面板形态
+
+面板层的结构与视觉（边框 / 圆角 / 背景 / 箭头 / 内容布局）由一个可替换的**外壳组件（shell）**渲染——内置默认 `dialog-shell` 开箱即用；与你的 UI 环境不匹配时，声明一个带 `x-slot` 默认出口的组件，用 `x-dialog-options.shell` 指定即可整体替换，**内容组件与全部模态行为（遮罩 / 居中 / ESC / 关闭写回）不变**：
+
+<demo html="overlay/shell.html"/>
+
+```html
+<!-- 自定义外壳：x-slot 默认出口 = 内容组件渲染点；
+     x-dialog-options 整包注入 shell 数据域，theme 等自由键 shell 模板可直接消费 -->
+<div x-define="fancy-shell" class="fancy-shell" :data-theme="theme">
+  <header class="bar"></header>
+  <div class="body"><div x-slot></div></div>
+</div>
+
+<button x-dialog:login="show" x-dialog-options="{shell: 'fancy-shell', theme: 'teal'}">登录</button>
+```
+
+要点：
+
+- **shell 不含遮罩**——遮罩是引擎结构（模态行为的一部分），换 shell 只换面板层；
+- `shell` 值为组件名，与内容组件同一查找协议（`x-define` / `options.components` 全局 / `x-import` 均可）；**打开时求值一次**（重开生效，不热更新）；未命中 warn + 回退内置默认；
+- 配置链：`x-dialog-options.shell` > 宿主 `x-options` > 引擎级 `options.overlay.dialog.shell`（全站换肤一处配置）> 内置默认；内置名不占用用户命名空间；
+- **箭头**：锚定模式下（`at.arrow !== false` 默认开）引擎会定位 shell 模板里的 `.autospark-overlay-arrow` 载体元素——内置模板自带；自定义外壳想带箭头就放一个该类名的元素，不放则无箭头（定位照常）；
+- 内置默认面板复用契约类名（`.autospark-dialog` / `.autospark-overlay-arrow`）与 CSS 变量（`--autospark-overlay-z / -bg / -border / -radius`）——既有用户样式覆盖不受影响；自定义外壳复用这些类名即继承默认视觉（可覆盖），完全自写类名则完全自由。
+
+x-popover 同机制（内置 `popover-shell`，见 [x-popover](./x-popover.md#面板外壳shell)）；机制全貌见[覆盖物 · 面板外壳](../overlays.md#面板外壳shell形态可定制)。
 
 ### 命令式弹出
 
@@ -360,25 +439,26 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 
 关闭动画播放完成后才执行销毁（「播完动画再动 DOM」的标准时序）；动画中重开会抢占（中断在播离场）。
 
-## 配置
+## 配置选项
 
 两级合并链：`内置默认 < x-dialog-options（消费处）`。声明形态三种：整包（`x-dialog-options="{...}"`，宽松 JSON）/ 成员属性（`x-dialog-options.键="表达式"`，整键覆盖整包同名键）/ 定向（`x-dialog-options:组件名....`，按消费实例配对）。
 
-| 配置项        | 默认值             | 说明                                                                                                                                        |
-| ------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `border`      | `true`             | 面板外壳 1px 边框 + 背景 + 圆角，箭头双层变色自动融合；见[面板边框](#面板边框border)                                                        |
-| `closeOnMask` | `true`             | 点击遮罩请求关闭                                                                                                                            |
-| `animate`     | `"fade"`           | 进出场动画（字符串 / 对象 / 分相 / `false`）                                                                                                |
-| `dataContext` | `"declarer"`       | **数据视图基准**（`declarer` 声明处 / `host` 消费处），挂链即基准；旧键 `scope` 已硬切（现为普通 props 键）                                |
-| `delayClose`  | `0`                | 自动关闭延迟（ms）：`> 0` 时打开后延时自动「请求关闭」（可回写的 visible 照常回写）；`0` 不自动关                                           |
-| `at`          | 无（居中）         | 贴锚定位（floating-ui）：字符串 / 元素简写（≡ `{selector}`，进链前归一化——只覆盖 selector、保留上层其余锚成员）或完整锚配置对象，成员见下表 |
+| 配置项        | 默认值            | 修饰符 | 说明                                                                                                                                        |
+| ------------- | ----------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `border`      | `true`            | —      | 面板外壳 1px 边框 + 背景 + 圆角，箭头双层变色自动融合；见[面板边框（border）](#面板边框border)                                              |
+| `shell`       | `"dialog-shell"`  | —      | 面板外壳组件名（打开时求值一次，未命中回退内置）；见[面板外壳](#面板外壳shell自定义面板形态)                                                |
+| `closeOnMask` | `true`            | —      | 点击遮罩请求关闭                                                                                                                            |
+| `animate`     | `"fade"`          | —      | 进出场动画（字符串 / 对象 / 分相 / `false`）                                                                                                |
+| `dataContext` | `"declarer"`      | —      | **数据视图基准**（`declarer` 声明处 / `host` 消费处），挂链即基准；旧键 `scope` 已硬切（现为普通 props 键）                                 |
+| `delayClose`  | `0`               | —      | 自动关闭延迟（ms）：`> 0` 时打开后延时自动「请求关闭」（可回写的 visible 照常回写）；`0` 不自动关                                           |
+| `at`          | 无（居中）        | —      | 贴锚定位（floating-ui）：字符串 / 元素简写（≡ `{selector}`，进链前归一化——只覆盖 selector、保留上层其余锚成员）或完整锚配置对象，成员见下表 |
 
 **`at` 成员**（声明式经 `x-dialog-options` 整包或 `x-dialog-options.at` 成员属性配置；命令式经 `open({ at })` 顶层覆盖）：
 
 | 成员        | 默认值           | 说明                                                                                                                                                              |
 | ----------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `selector`  | 配置 `at` 时必填 | 定位锚（两栖）：`/` 全局选择器（`'/#btn'`）/ 无前缀选择器（消费者 scope 子树内查）/ `../` 父级爬升 / `^` closest / 元素引用——打开时现查，未命中 warn + 退屏幕居中 |
-| `placement` | `"auto"`         | `"auto"`：autoPlacement 按视口空间自动选位（默认）；或 12 个方向值（`top                                                                                          | bottom | left | right`×`'' | -start | -end`）固定方向 |
+| `placement` | `"auto"`         | `"auto"`：autoPlacement 按视口空间自动选位（默认）；或 12 个方向值（`top / bottom / left / right`×`'' / -start / -end`）固定方向                                   |
 | `offset`    | 箭头开启时 `6`   | 面板与锚点的间距（透传 floating-ui offset）；箭头开启且未配置时默认让位 6px——三角尖恰好点在锚元素边缘上                                                           |
 | `shift`     | 无               | 视口内滑移 padding（透传 floating-ui shift）                                                                                                                      |
 | `flip`      | `true`           | 视口翻转（当前方向放不下自动翻面）；`placement: 'auto'` 时不生效（与 autoPlacement 互斥）                                                                         |

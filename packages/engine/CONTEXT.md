@@ -168,7 +168,23 @@ _Avoid_: x-else 复用（那是条件链尾标记，剪枝判据与语义均不�
 控制宿主**是否可见**，宿主**永留 DOM**。条件为假时 `display:none`（仍占 `:nth-child` 位、仍被表单提交、`querySelector` 仍命中），子树与 watcher 全保留、最轻量。**独立指令，不再是 `x-if.keep` 的别名**（别名关系已废弃，见下）。不占子树，可与 x-for 共存。
 _Avoid_: x-if.keep 别名/快捷方式（已废弃）、x-if（存在性 vs 可见性，二者正交）
 
+### 传送层
+
+**传送 / x-teleport（Teleport）**:
+宿主元素脱离声明位置、挂到指定目标下的**一次性静态**结构指令（ADR-0059）：值为目标选择器字面量（`queryRelElement` 四形态：`/.foo` 全局、`../.foo` 父级爬升、`.foo` 宿主内、`^form` closest）。编译期接管子树（ownsChildren 剪枝），结果树挂载后的微任务解析目标 → 原位锚点注释 → 搬移宿主 → 按数据视图基准编译子树。三类失败（未命中 / 环与自引用 / 目标断连）均 warn + 原地渲染（降级不丢内容）。与 x-dialog 分工：无遮罩/打开栈/实例管理的静态轻量弹层（`/.body` + 外层 x-if），x-dialog 不被取代。
+_Avoid_: 动态传送（值静态不响应式，运行时换挂载点不支持）、传送动画（v1 不接 animate，显隐动画由同元素 x-show 承担）、弹层（那是 overlay 家族词汇）、移动元素（泛化——搬移的是宿主自身，声明位置留锚点注释）
+
+**传送目标（Teleport Target）**:
+`x-teleport` 值解析出的挂载点元素。查询 defer 到结果树挂载后的微任务（编译期查询会命中尚未替换的旧模板树）；目标在 engine 树外时宿主子树经 `addExtraRoot` 登记 observer 视野（overlay 先例）；目标后续被移除则宿主成 detached 孤儿，不追踪不回收（文档声明）。
+_Avoid_: 挂载点（泛化）、to（Vue 词汇）、锚点（锚点注释是原位书签，与目标相反端）
+
+**x-teleport 数据视图基准（dataContext）**:
+数据视图基准家族的 x-teleport 变体（ADR-0059）：`declarer`（默认，声明处上下文——宿主 scope 保持编译期 parent 链，DOM 移走数据视图不动）；`host`（挂载点上下文——搬移后 `findScopeByEl(目标)` 重挂宿主 scope parent 到目标所属 scope，重挂发生在子树编译前，故精准订阅按新链解析）；目标无所属 scope（engine 外直挂）降级 rootless 全局视图。`.host` 修饰符 ≡ `dataContext:'host'`。与组件/覆盖物家族的同名配置语义同源（host=消费位置、declarer=声明位置），轻量解析不依赖 ComponentDef。
+_Avoid_: scope 键（家族旧键已废弃，ADR-0053 修订）
+
 ### 动画层
+
+
 
 **进出场动画 / animate（Enter/Leave Animation）**:
 结构指令（x-if / x-show / x-for / x-switch）**状态变化引起挂载/卸载时**的转场动画，经指令选项 `animate` 声明（ADR-0007 回退链照常：指令选项 → 宿主选项）。取值三形态：字符串（进出同名，`animate:'fade'`）/ 对象（`{name,duration,delay,easing}`）/ 分相覆盖（见「分相配置」）。首次渲染静默（无 appear）；中断抢占（在播即取消、新动画从头播）；分支切换新旧同场共演。区别于 `:style` 的 `.transition`——那是**值在变**的 CSS 属性过渡，这是**元素在进出**。详见 ADR-0039。
@@ -295,8 +311,21 @@ _Avoid_: 覆盖层（旧称，随声明指令一起废弃）、弹层模板（�
 _Avoid_: overlay 对象、弹层实例（泛化）、对话框实例（那是 x-dialog 消费者视角的产物）、单例（机制未引入）
 
 **覆盖物消费者（Overlay Consumer）**:
-把覆盖物组件实例化并驱动其生命周期的指令族（x-dialog / x-drawer / x-popup / x-popover，v1 仅 x-dialog）：同一 `OverlayDirective` 基座（继承组件实例化基座 `ComponentDirective`，ADR-0054 更名）上的**薄子类**，只叠加形态差异（外壳 / 定位 / 关闭行为）。**纯状态驱动**——宿主是纯声明点（无隐式点击），值**专职 visible 布尔控制**（简单路径可回写 / 表达式 / 字面量，对象形态已废弃，ADR-0052 v2.3），真值即开；props 经「选项成员属性」`x-dialog-options.props` 注入组件 data 域（表达式求值 + 持续热更新，与 x-component props 同构）。配置两级合并：`内置默认 < x-dialog-options`（可定向到特定组件名实例；组件 def 不携带配置）。
-_Avoid_: 触发器（宿主无隐式点击）、弹出指令（泛化）、调用方（action 语境词汇）、保留键封闭清单（非保留键隐式作 props 的分流已删除，ADR-0052 v2.3）
+把覆盖物组件实例化并驱动其生命周期的指令族（x-dialog / x-popover / x-drawer 已落地，x-popup 预留）：`OverlayDirective` 基座（继承组件实例化基座 `ComponentDirective`，ADR-0054 更名）上的**薄子类**，只叠加形态差异（外壳 / 定位 / 触发 / 关闭行为）；visible 驱动四形态承载于中间抽象基座 `VisibleOverlayDirective`（dialog 与 drawer 平级继承，ADR-0063）。**纯状态驱动**（家族默认；x-popover 的悬浮触发为唯一显式偏离，见「悬浮触发」）——宿主是纯声明点（无隐式交互），值**专职 visible 布尔控制**（简单路径可回写 / 表达式 / 字面量，对象形态已废弃，ADR-0052 v2.3），真值即开；props 经「选项成员属性」`x-dialog-options.props` 注入组件 data 域（表达式求值 + 持续热更新，与 x-component props 同构）。配置两级合并：`内置默认 < x-dialog-options`（可定向到特定组件名实例；组件 def 不携带配置）。形态与模态**正交**：x-dialog 恒模态，x-drawer 默认模态、`mask: false` 可关（ADR-0062 官方 mask 选项的声明式读取面）。
+_Avoid_: 触发器（家族默认宿主无隐式交互；悬浮形态例外见「悬浮触发」）、弹出指令（泛化）、调用方（action 语境词汇）、保留键封闭清单（非保留键隐式作 props 的分流已删除，ADR-0052 v2.3）
+
+**贴边抽屉（Drawer）**:
+覆盖物消费者的贴边形态（x-drawer，ADR-0063）：面板从屏幕四边（默认）或锚元素边缘滑入滑出。**双定位模式**——屏幕贴边（无 `at`：fixed 贴视口对应边，贴边轴全屏展开）与**元素贴边锚定**（`at.selector` 命中：贴锚元素对应边**外侧**，**长轴 = 锚边长**随锚 resize 重同步，短轴不钳制到锚内）；经实例定位策略钩子（`positioner`）整体接管内置「锚定/退居中」两态，锚定未命中**回退屏幕贴边**（非家族「退居中」——居中对抽屉无意义）。`at.placement` 四主方向、默认 `right`（屏幕模式 `auto`/`-start/-end`/非法值静默归一；锚定模式 `auto` 维持自动选位）、锚定 `flip` 默认关、无箭头。短轴尺寸走 `size` 选项（number/CSS 长度，方向中立，引擎 inline 写入，ADR-0063 实施期修订），缺省回退 CSS 变量 `--autospark-drawer-size`；默认动画 `'drawer'`（遮罩淡入淡出 + 面板方向性滑动）；内置外壳 `drawer-shell`（直角、无箭头载体）。嵌套零新机制（子消费者声明在父组件模板内，ESC 打开栈只关栈顶）。
+_Avoid_: 侧滑菜单（泛化场景词）、局部抽屉（指锚定模式时直说「元素贴边锚定」）、推挤模式（push mode 未实现，勿暗示）
+_Avoid_: 触发器（家族默认宿主无隐式交互；悬浮形态例外见「悬浮触发」）、弹出指令（泛化）、调用方（action 语境词汇）、保留键封闭清单（非保留键隐式作 props 的分流已删除，ADR-0052 v2.3）
+
+**面板外壳（Shell）**:
+覆盖物**面板层形态**的可替换载体——一个声明了默认出口的普通组件，负责面板的边框 / 圆角 / 背景 / 箭头 / 内容布局；内容组件经默认出口进入外壳。**外壳不含遮罩**（遮罩是引擎结构，模态行为的一部分，换外壳不影响遮罩 / 定位 / 动画 / 关闭等行为）；箭头由外壳渲染、引擎定位。内置默认外壳（dialog-shell / popover-shell / drawer-shell）开箱即用、不占用户组件命名空间；自定义外壳与内容组件同一查找协议，未命中回退内置默认。配置链：实例选项 > 宿主选项 > 引擎级默认 > 内置默认。
+_Avoid_: 包装器（wrapper，曾用名，已定名 shell）、皮肤（弱化了结构 + 出口职责）、容器（与覆盖物容器撞名）、mask（遮罩不归外壳）、面板（面板是外壳渲染出的那一层 DOM，外壳是渲染它的组件）
+
+**悬浮触发（Hover Trigger）**:
+x-popover 的触发模型（ADR-0060，家族「纯状态驱动」的唯一显式偏离）：宿主是**悬浮触发器**——`mouseenter`/`mouseleave` 悬浮意图语义（非字面 mouseover）驱动显示；指令值不参与驱动、无 visible 真相源（非空值 warn）。**共享 hover 域**：宿主与面板（body 容器内、DOM 分离）双侧监听视为同一域，宿主↔面板互移不闪关；离开域经 `delayHide`（默认 150ms）宽限关闭、宽限内回域取消；`delayShow`（默认 200ms）为悬浮意图延迟，快速掠过不触发。**hover 链**：嵌套 popover 经 document 级打开中注册表把后代域并入祖先域（指针位于任一后代 popover 上祖先保持），后代关闭后祖先经最后指针坐标 `elementFromPoint` 重估、已出域才关（ESC 关子父不残留）。形态默认：裸面板、锚=宿主自身、`placement` 默认 `'bottom'`（`at` 显式换锚只改位置不换触发关系）。悬浮离开走直接 UI 关闭（无写回目标，不经「请求关闭」）；ESC 照常走打开栈请求关闭。触摸设备 v1 不适配（触屏用 x-dialog）。
+_Avoid_: mouseover 触发（字面 mouseover 冒泡、子元素间移动反复触发，非本语义）、tooltip（悬浮提示只是场景之一，本词条是触发模型）、外点关闭（已否决的关闭触点——离开即关场景下冗余）、混合驱动（悬浮之外再挂 visible 值通道 = 两个真相源，已否决）
 
 **请求关闭（Request Close）**:
 覆盖物关闭动作（ESC / 点遮罩 / close action）的统一语义——关闭是「请求」不是命令：visible 可回写（简单路径）则回写 `false`（状态是唯一真相源）；不可回写（表达式/字面量）仅 UI 关闭 + `overlay:close` 广播由用户善后。已知边界：表达式形态关闭后依赖变化重求值仍真会**重开**。子树内 close action 由消费者在实例根上委托监听（覆盖物 DOM 在 body 下，engine 树收不到冒泡）。
@@ -317,6 +346,16 @@ _Avoid_: 层级栈（z-index 显式层级管理是另一件事）、单 engine �
 **定位锚点（Anchor）**:
 `at` 配置指定的**显示定位参考**（与 scope 正交：scope 管数据视图、at 管位置）。顶层键三态：字符串 / 元素**简写**（≡ `{selector}`，进合并链前归一化——只覆盖 selector、保留上层其余锚成员）或完整锚配置对象；`at.selector` 两栖——字符串选择器（相对查询：`/` 前缀全局 / 无前缀 scope 子树内查 / `../` 父级爬升 / `^` closest，打开时现查，未命中 warn 退屏幕居中）或元素引用。dialog 恒模态——锚定只改位置不改模态性（有 at 遮罩照常渲染）；定位计算经 floating-ui（`placement` 默认 `'auto'` 视口自动选位 [autoPlacement，与 flip 互斥]，显式 12 方向值则固定 + flip 翻转默认开 / offset / shift），**锚定模式下箭头默认开启**（`arrow: false` 显式关闭）：引擎自动注入载体 + 双伪元素默认视觉（带阴影 8×8 菱形 + 无阴影 10×10 菱形朝面板内侧偏移 4px=阴影模糊半径，完全遮蔽嵌入段阴影残留——露出段阴影保留立体感），按 floating-ui 协议沿 staticSide 反向偏移载体尺寸的一半（菱形一半嵌入面板同色融合、一半露出形成小三角），未配置 offset 时默认让位 6px（三角尖点在锚元素边缘上）；`border` 面板 1px 边框为**面板级配置**（默认 true，与锚定无关、无 at 也生效）：外壳模式——面板视觉（背景 `--autospark-overlay-bg` + 边框 `--autospark-overlay-border` + 圆角 `--autospark-overlay-radius`）由 panel 外壳统一承担，同色背景填平圆角微差（四角无缝），箭头双层变色融合（底层变边框色、覆盖层变面板背景色外扩至 12×12——露出段留 ≈1.17px 边框色斜带与面板 border 连续、嵌入段完整遮蔽）；退居中不注入箭头。视觉三层全部收敛在 floating-ui 协议必需的单一载体元素上（伪元素承担分层），**零额外真实 DOM**——面板保持 box-shadow（无 filter 的 containing block 副作用），阴影连续性不靠外层包裹容器。
 _Avoid_: 锚点 el（顶层键是 at、锚选择器是 selector）、dataContext 锚点（dataContext 是数据视图基准，二者正交）、popup 专属（dialog 有 at 时同样锚定定位）
+
+### 工具提示（Tooltip）
+
+**工具提示 / data-tooltip（Tooltip）**:
+`data-tooltip` 属性约定驱动的**全局工具提示**（ADR-0061）——引擎树内任意元素**零声明**生效（引擎级子系统 `TooltipManager`，非指令、非 overlay 消费者）。编译期静态 `title` 自动转换剥除（`title` → `data-tooltip` 值转移，双挂点：主 walk transformer + `compileChild` 项根 clone 行；`:title`/`x-bind:title` 绑定经 `BindDirective.created` 重定向写回 `data-tooltip`——「结果 DOM 无 title」不变量，原生浏览器 tooltip 从根上不可能出现）；手写 `data-tooltip` 委托照常生效（悬停现读属性，转换与消费两机制正交）。值两栖：字符串 = HTML 内容（经 `options.sanitizer` 消毒，x-html 同通道）；`{...}` = relaxed-json 配置（保留键封闭清单：`content`/`placement`/`offset`/`shift`/`flip`/`arrow`/`showDelay`/`hideDelay`/`className`/`maxWidth`/`maxHeight`/`border`/`animate`，未知键 warn）。委托监听 `mouseover`/`mouseout` + `focusin`/`focusout`（键盘可达）挂引擎根 + overlay 容器（body 侧渲染产物一并覆盖）；嵌套引擎按 `data-autospark` 根标识归属过滤防双显。**单例浮层**（每引擎一个共享 tip 元素常驻容器，内容随悬停目标切换）+ `showDelay`/`hideDelay` 延迟防抖（期间重新进入取消；移入浮层内取消隐藏——可交互 tooltip）。定位 floating-ui（`placement` 默认 `'top'` + flip，**不支持 `'auto'`**——小浮层与业界惯例，区别于 overlay 的 auto 默认），箭头默认开（复用 overlay 菱形伪元素视觉协议，载体类名 `autospark-tooltip-arrow`），`border` 默认开（暗底白字，配色 `--autospark-tooltip-bg/-fg/-border` CSS 变量）；最终方向写回 `data-tooltip-placement`。动画默认 `'slide'` **方向自适应**（复用全局 slide 六类名 + `.autospark-tooltip` 限定覆写层按弹出方位换 from 值——flip 改向动画自动跟随，150ms）。事件双通道 `tooltip:show`/`tooltip:hide`（payload `{el, tip}`，一切隐藏路径均广播）；命令式 `engine.tooltip.show(el, opts?)` / `hide()`（opts 与保留键同构单次覆盖，`content` 键优先于属性解析——无 DOM 属性注入内容）。`options.tooltip` 三态：缺省开启 / `false` 全关（title 保留原生、命令式 warn + no-op）/ 配置对象 = 全局默认（元素级覆盖）。详见 ADR-0061。
+_Avoid_: data-tips（grilling 过程中的过渡命名，从未实施）、autospark-tip 类名（现行契约 `autospark-tooltip`）、x-tips 指令（非指令——属性约定驱动，与 observer 通道的 x-* 触发机制冲突）、title 属性（启用引擎后不进结果 DOM——全局转换剥除）、placement 'auto'（tooltip 不支持，小浮层用固定方向 + flip）
+
+**浮层（Tip）**:
+tooltip 的**单例浮层元素**（`autospark-tooltip` 类名契约）——每引擎一个、常驻 `autospark-tooltips` body 容器（首个 tooltip 显示时懒创建、`destroy()` 整体移除，overlays 容器先例），显示 = 填充内容 + 定位 + display，隐藏 = 离场动画后 display:none（不反复摘挂 DOM）。内容随悬停目标切换、上一目标的类名/边框/箭头全量重置。显示期间 rAF 兜底「曾连接 → 断开」跳变（x-for 回收 / patch / DOM 移除无事件可感知，立即隐藏）；`engine.stop()` 同步隐藏。
+_Avoid_: tooltip 实例（无实例化概念——单例复用）、每元素独立浮层（单例是防多显的设计决策）
 
 ### 加载遮罩（Loading Mask）
 
@@ -482,6 +521,14 @@ _Avoid_: button 组件（无组件机制参与）、可点击图标（视觉可�
 
 ### 结构占位与组件层
 
+**隔离边界 / x-isolate（Isolation Boundary）**:
+把宿主声明为一块**独立子引擎（child engine）的根**——内部模板由完全独立的 AutoSpark 实例编译（自有 store、scope 树、调度与指令 observer），与父 engine 状态零耦合、双向不渗。三形态由指令值分派：**inline**（无值，内部 `x-data` 自治）、**种子状态**（值以 `{` 开头，在父作用域求值一次作初值快照、不随父变化、引用传递）、**remote**（其余值为 url 表达式，fetch 模板建子引擎，url 响应式）。子引擎配置经 `x-isolate-options` 全量透传、不自动继承父选项。详见 ADR-0060。
+_Avoid_: 隔离快照 / 冻结快照（static 模式已废止，见「已废弃」）、插槽（易与 Vue 插槽撞义）、组件容器（带 props 的响应式复用是 x-component 的职责，种子状态是一次性初值快照）
+
+**engine 根标识（Engine Root Marker）/ `data-autospark`**:
+engine 构造时打在**根元素**上的标记属性——app 根与 x-isolate 宿主一视同仁。所有**沿真实 DOM 向上爬**的相对查找（`^` closest 上爬、`../` 父级爬升）遇之**止步**：engine 是相对查找的世界边界，不越入相邻 engine 的 DOM；跨边界用 `/` 全局选择器显式声明。scope 链与编译期查找走克隆链/scope 链，天然不跨 engine，与该标识无关。详见 ADR-0060。
+_Avoid_: 根选择器（它是止步标记不是选择器）、挂载标记（泛化）、全局标记（`/` 全局查找不受其约束）
+
 **结构占位 / x-scope（Structural Placeholder）**:
 纯占位指令，元素上声明 `x-scope` 即令该元素建立 `AutoSparkScope`——即便它没有其他指令、没有插值。目的是在「无其他指令的纯容器 `<div>`」上插入一个 scope 锚点，让后代 scope 的 parent 链落到此处（而非更远的祖先），并为其后代 `x-define` 提供归属。注册占位类 `ScopeDirective`（`created`/`compile` 皆空，高优先级）；冗余声明（元素已有其他指令、本就建 scope）静默无副作用。**不建数据域**——与 x-data 的数据注入职责正交。
 _Avoid_: 作用域容器（泛化）、命名空间（语义不符）、占位符（本表保留给空值渲染，歧义大）
@@ -527,16 +574,20 @@ x-define 收集时 `cloneNode(true)` 产出的、独立于 template 事实源的
 _Avoid_: 组件克隆（强调的是冻结独立事实，非单纯克隆操作）
 
 **插槽 / x-slot（Slot）**:
-组件模板的声明式内容投影机制（ADR-0056）：`x-define` 在组件模板内声明**出口**（Outlet），`x-component` 在调用方宿主子级提供**内容**（Content），实例化时内容按名投影进对应出口；无内容则渲染出口内的 fallback。出口清单编译期从模板自动推断（`ComponentDef.slots`），命名靠属性参数（`x-slot:header`），裸 `x-slot`=默认出口/默认内容。内容在**调用方作用域链**求值（不受 ADR-0053 组件封闭边界约束），fallback 在**组件作用域**求值。覆盖物消费者家族（x-dialog 等）自动继承。
-_Avoid_: 槽（单字生歧义）、Vue slot 撞名不加说明（本引擎指令为 x-slot）、内容插槽/模板插槽（泛化——就叫插槽）
+组件模板的声明式内容投影机制（ADR-0056）：`x-define` 在组件模板内声明**出口**（Outlet），`x-component` 在调用方宿主子级提供**内容**（Content），实例化时内容按名投影进对应出口；无内容则渲染出口内的 fallback。出口清单编译期从模板自动推断（`ComponentDef.slots`），命名靠属性参数（`x-slot:header`），裸 `x-slot`=默认出口/默认内容。内容在**调用方作用域链**求值（不受 ADR-0053 组件封闭边界约束），fallback 在**组件作用域**求值。覆盖物消费者家族（x-dialog 等）用同一套出口/内容/形参语法，但宿主侧内容归属规则不同（裸子节点永不参与，须显式声明，见「归属容器」）。
+_Avoid_: 槽（单字生歧义）、Vue slot 撞名不加说明（本引擎指令为 x-slot）、内容插槽/模板插槽（泛化——就叫插槽）、`x-slots`（那是覆盖物宿主的归属容器，不是插槽标记本身——多一个 s，出口名与归属是两个概念）
 
 **插槽出口（Outlet）**:
 组件模板内声明「内容可替换到这里」的 `x-slot` 标记元素（定义侧）。标记元素**始终保留为真实包裹层**（出口位置即 DOM 位置，fallback 有宿主）；任意深度合法；无对应内容时渲染出口子树 fallback（组件作用域求值）。同名多出口 → 首个胜 + warn。
 _Avoid_: 出口点、插槽定义（那是 x-define 的职责，出口只是其中的标记）、slot outlet 英文混用
 
 **插槽内容（Content）**:
-调用方宿主子级提供、投影进组件出口的模板片段（内容侧）。**仅直接子级参与分段**：带 `x-slot:*` 的直接子元素切命名段，其余（含裸文本）按文档序合并单一默认段（=默认出口，无形参）；命名标记元素存在即视为提供（空也覆盖 fallback）；裸子节点全纯空白=未提供。深层 `x-slot:*` → warn+忽略。无对应出口 → warn+丢弃（不留宿主前缀）。内容克隆 `cloneNode(true)`（模板只读契约，ADR-0002），在调用方作用域编译。
-_Avoid_: 插槽体、传入内容（content 是与 outlet 对称的固定词）、默认插槽内容（裸子节点即默认内容，不需定语）
+提供给组件出口的模板片段（内容侧）。**组件路径（x-component）**：宿主子级即声明点——带 `x-slot:*` 的直接子元素切命名段，其余（含裸文本）按文档序合并单一默认段（=默认出口，无形参）；命名标记元素存在即视为提供（空也覆盖 fallback）；裸子节点全纯空白=未提供。**覆盖物路径（x-dialog 等）**：宿主**裸子节点永不参与收集**（宿主子节点只属于宿主，如按钮标签），内容须显式声明——单消费者可将 `x-slot:*` 标记直接写宿主子级，多消费者须用 `x-slots="组件名"` 归属容器包裹（容器内裸子节点才是该覆盖物的默认段）。两路径共用：深层 `x-slot:*` → 忽略（剥属性、元素留作普通内容）；无对应出口 → warn+丢弃（不留宿主前缀）；内容 `cloneNode(true)`（模板只读契约，ADR-0002）后在调用方作用域编译。声明侧的标记与容器**编译期剪枝**，不进运行 DOM。
+_Avoid_: 插槽体、传入内容（content 是与 outlet 对称的固定词）、默认插槽内容（组件路径裸子节点即默认内容，不需定语；覆盖物路径裸子节点根本不参与）、自动继承（旧语义已废弃：覆盖物宿主不再隐式收集裸子节点）
+
+**归属容器 / x-slots（Slots Container）**:
+覆盖物宿主上包裹插槽内容、声明**内容归属哪个覆盖物**的容器元素（ADR-0056 决策十修订）：`x-slots="覆盖物组件名"`，值须命中宿主上的某个 `x-dialog:名称` 消费者。容器内即该覆盖物的内容集（裸子节点=默认段、`x-slot:*`=命名段），单消费者可省容器把标记直写宿主子级、多消费者**必须**各套容器（裸标记无法判定归属 → warn+丢弃）。编译期剪枝：容器与标记子级不进运行 DOM（收集从只读 template 克隆）。与 `x-component` 不得同宿主（化身与声明点对宿主子节点的定位互斥，component 让步跳过实例化）。
+_Avoid_: `x-slot-for`（早期命名，已废弃为 x-slots）、插槽容器（泛化——重点是归属而非包裹）、归属标记（那是属性不是元素）、`x-slot`（多一个 s：`x-slot:名` 恒为出口名段，归属不进它）
 
 **作用域形参（Slot Params）**:
 作用域插槽（scoped slot）的双向数据面：出口侧值承载对象字面量 `x-slot:header="{ item: row }"`（组件作用域经 watch 求值，注入变化→形参容器 `Object.assign` + `scope.refresh()` 刷新）；内容侧值承载**解构形参** `x-slot:header="{ item, index }"`（自定义 `{ 键, 键 }` 解析，非 JSON）。形参挂内容作用域 `locals`（进聚合视图）。裸子节点=默认插槽无形参；默认内容要形参须显式 `<div x-slot="{ item }">`。
@@ -631,6 +682,10 @@ _Avoid_: public / expose（对外词汇不一致）、透明模式（不表达�
 _Avoid_: 数据源（那是异步源家族术语）、上下文基准（中英混杂）、基准点、consumer（已废弃）、scope（配置键语境已统一更名 dataContext；engine scope 语境——AutoSparkScope/x-scope/scope 链——不受影响）
 
 ## 已废弃
+
+**static 冻结快照（x-isolate 旧无值语义，ADR-0060 废弃）**:
+已废弃。x-isolate 无值原为「冻结快照」——剥除指令属性、不编译、内层指令/插值静默失效（仅防反应式刷新擦内容）。现无值语义翻转为 **inline 子引擎**：内部模板由完全独立的 child engine 编译，内层绑定正常生效（见「隔离边界 / x-isolate」）。「engine 永不触碰的第三方 DOM 空间」场景退出 x-isolate 职责。翻转无迁移警告通道（语法相同、语义已变），以文档声明 breaking。详见 ADR-0060。
+_Avoid_: 静态模式、static 模式、冻结快照（均已废止）；「隔离 = 冻结」的旧心智（隔离是引擎边界，不是内容冻结）
 
 **state() 段 / 非响应式 data 段 / this.state（ADR-0057 数据模型 v2 废弃）**:
 已废弃。`<script setup>` 的 `state()`（响应式状态工厂）移除——响应式数据回归 **`data`**（对象字面量或 `data()` 工厂，ADR-0057 显式撤销 ADR-0055 的 data()→state() 更名，回摆是有意的：data 是组件数据的正名，双轨段名是混乱源）；旧非响应式 `data: {}` 段移除——私有数据改用 **setup 顶层变量**（程序化形态 `locals`）；组件/action 上下文 `this.state` 更名 **`this.globalState`**（无遮蔽明确通道）。旧写法 `state()` warn + 剪枝，`this.state` 不再被 Proxy 拦截（落入普通键解析）。

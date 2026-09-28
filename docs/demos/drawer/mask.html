@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-drawer · 遮罩（mask）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .drawer-body { padding: 18px 22px; box-sizing: border-box; }
+            .drawer-body h3 { margin: 0 0 8px; }
+            .drawer-body p { margin: 0 0 14px; color: #666; font-size: 13px; }
+        </style>
+    </head>
+    <body>
+        <!-- 模态默认（遮罩 + closeOnMask + ESC）；mask: false = 裸面板贴边，
+             关闭触点仅 ESC / close action / 状态归假（无外点关闭——dismissable layer 是家族 fast-follow）。 -->
+        <div class="demo-app section">
+            <div x-data>
+                <div class="block">
+                    <button class="button is-primary" x-drawer:modal-panel="ui.modal">模态抽屉（默认带遮罩）</button>
+                    <button class="button" x-drawer:bare-panel="ui.bare" x-drawer-options="{mask: false}">无遮罩抽屉（mask: false）</button>
+                </div>
+                <div class="block has-text-grey">
+                    无遮罩抽屉不挡页面交互：点外部不会关闭，请用状态归假 / 面板内关闭按钮 / ESC。
+                </div>
+
+                <div x-define="modal-panel">
+                    <div class="drawer-body">
+                        <h3>模态抽屉</h3>
+                        <p>遮罩挡住背景交互，点遮罩关闭（closeOnMask 默认 true）。</p>
+                        <button class="button is-small" @click="close()">关闭</button>
+                    </div>
+                </div>
+                <div x-define="bare-panel">
+                    <div class="drawer-body">
+                        <h3>无遮罩抽屉</h3>
+                        <p>页面仍可交互，像停靠面板。试着点击页面其他按钮。</p>
+                        <button class="button is-small" @click="close()">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                ui: { modal: false, bare: false },
+            });
+        </script>
+    </body>
+</html>

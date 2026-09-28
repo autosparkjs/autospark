@@ -1,6 +1,16 @@
-# 分页
+# x-for.paging 分页
+
+## 概述
 
 `x-for.paging` 为列表提供分页能力：支持**客户端分页**（全量数据已在本地，自动 slice）和**服务端分页**（通过 loader action 远程加载数据追加到 items）。
+
+```html
+<ul x-for.paging="item of items" x-for-options="{pageSize:10}">
+  <li>{{ item.name }}</li>
+</ul>
+```
+
+分页状态有三条正交的访问通道：项模板内的 `$page` 等 `$*` 变量、容器 scope 上的 `scope.paging` 只读快照、外部 `:data-paging` 双向绑定对象，详见[指南](#指南)。
 
 ## 快速入门
 
@@ -35,6 +45,10 @@ engine.actions.loadUsers = async ({ page, pageSize }) => {
 
 ## 指南
 
+### 指令值
+
+指令值与基础 `x-for` 相同——**项表达式** `item of items`（支持相对表达式与局部变量）；`.paging` 修饰符启用分页模式（与 `.virtual` 互斥，同时声明时 `.paging` 优先、`.virtual` 被忽略并警告）。分页行为由 `x-for-options` 配置（`pageSize` / `loader` / `autoLoad`，见[配置选项](#配置选项)），分页状态经三条通道读写（下文各节）。
+
 ### 分页变量
 
 分页模式下，项模板内自动注入以下变量：
@@ -49,6 +63,10 @@ engine.actions.loadUsers = async ({ page, pageSize }) => {
 | `$error`     | `string \| null` | 错误信息                           |
 | `$total`     | `number`         | 总条数估算值（pageCount×pageSize，尾页不满时偏大；load-more 模式为 0） |
 
+项模板内直接读写 `$page` 即可翻页（demo 中首/末行按钮的 `« 上一页` / `下一页 »` 即 `$page` 写入）：
+
+<demo html="for/paging-scope.html"/>
+
 ```html
 <ul x-for.paging="item of items" :data-paging="paging" x-for-options="{pageSize:5}">
   <li>
@@ -62,6 +80,8 @@ engine.actions.loadUsers = async ({ page, pageSize }) => {
 ### 翻页操作
 
 通过设置 `$page` 变量自动触发翻页（服务端模式调用 loader，客户端模式重新 slice）。`$page` 只在 `x-for.paging` 容器内部可用，容器外需通过 `:data-paging` 绑定外部对象控制：
+
+<demo html="for/paging-basic.html"/>
 
 ```html
 <div x-data="{ paging: { page: 1, pageSize: 10 } }">
@@ -132,6 +152,8 @@ scope.paging;
 ### 加载页面
 
 服务端分页的 `loader` 是一个标准 action，签名如下：
+
+<demo html="for/paging-server.html"/>
 
 ```typescript
 // 输入参数
@@ -204,13 +226,14 @@ loader 返回空 `data` 数组时，`$hasMore` 自动变为 `false`。
 
 关闭后需手动触发首次加载：向 `:data-paging` 绑定对象写入 `page`。**初值请省略 `page` 字段**——未完成首次加载前引擎不回写 `page`，首次写入 `page=1` 才是值变化、能触发加载；若初值预设 `page:1`，同值写入不产生变更信号，无法触发。
 
-## 配置
+## 配置选项
 
-| 配置项     | 默认值 | 说明                                         |
-| ---------- | ------ | -------------------------------------------- |
-| `pageSize` | `10`   | 每页条数                                     |
-| `loader`   | 无     | 服务端分页的 loader action 名（标准 action） |
-| `autoLoad` | `true` | 首次是否自动加载第一页                       |
+| 配置项     | 默认值 | 修饰符   | 说明                                         |
+| ---------- | ------ | -------- | -------------------------------------------- |
+| `paging`   | `false` | `.paging` | 启用分页模式（与 `.virtual` 互斥，`.paging` 优先） |
+| `pageSize` | `10`   | —        | 每页条数                                     |
+| `loader`   | 无     | —        | 服务端分页的 loader action 名（标准 action） |
+| `autoLoad` | `true` | —        | 首次是否自动加载第一页                       |
 
 ## 注意事项
 
@@ -218,7 +241,4 @@ loader 返回空 `data` 数组时，`$hasMore` 自动变为 `false`。
 - 响应式数组不发射 `length` 路径信号：插值 `items.length` 不会随 `push` / 索引赋值更新，精确计数请在 action 中维护独立状态字段。
 - 外部修改 `:data-paging` 的只读字段（`pageCount` / `hasMore` / `loading` / `error` / `total`）会被静默忽略。
 - `scope.paging` 为冻结快照，写入会抛错；翻页控制请走 `$page`（项模板内）或 `:data-paging`（外部）。
-
-### 互斥
-
-- `.paging` 与 `.virtual` 互斥。同时声明时 `.paging` 优先，`.virtual` 被忽略并输出警告。
+- `.paging` 与 `.virtual` 互斥：同时声明时 `.paging` 优先，`.virtual` 被忽略并输出警告。

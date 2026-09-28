@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>tooltip · 大内容截断</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .long-text {
+                width: 420px;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- 大内容约束：maxWidth/maxHeight 限制浮层尺寸（默认 70vw/70vh），
+             超出部分经 -webkit-line-clamp 截断并显示省略号（…）。 -->
+        <div class="demo-app section">
+            <div x-data="{}">
+                <div class="block long-text">
+                    <button class="button" data-tooltip="AutoSpark 是为 AutoStore 量身打造的声明式模板渲染引擎：在宿主元素上书写 x-* / @* / :* 指令属性，把响应式状态绑定到 DOM（Alpine.js 风格，最小声明 + 细粒度响应式 patch）。核心价值：最小声明，最大响应——用最少的 HTML 属性声明，实现完整的响应式 UI 更新。autostore 已打包进产物并经入口全量转导出，单入口即用。默认约束 70vw / 70vh，超出自动截断。">
+                        长文本（默认 70vw / 70vh 约束）
+                    </button>
+                    <button class="button" data-tooltip="{content: '这一条配置了 maxWidth: 200——浮层最宽 200 像素，长文本会自动换行，超出高度的行被截断并显示省略号。宽度方向先换行、高度方向再截断，两个维度协同工作，任意内联 HTML 内容都适用。', maxWidth: 200}">
+                        maxWidth: 200
+                    </button>
+                    <button class="button" data-tooltip="{content: 'maxHeight: 60——高度硬限制 60 像素的演示。', maxHeight: 60}">
+                        maxHeight: 60
+                    </button>
+                </div>
+                <div class="block has-text-grey">
+                    截断行为：内容先按宽度换行，超出最大高度的行经 line-clamp 截断并显示
+                    <code>…</code>；浮层尺寸也可经 <code>--autospark-tooltip-max-w / -max-h</code>
+                    CSS 变量全局定制。
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

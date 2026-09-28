@@ -1,4 +1,4 @@
-# x-import 远程组件加载指令
+# x-import 远程组件加载
 
 ## 概述
 
@@ -22,21 +22,28 @@
 
 ## 指南
 
-### 值：url 字面量与响应式
+### 指令值
 
-值解析双轨：
+指令值是**目标 url**（必填，空值 `warn` 跳过），双轨解析：
 
-| 值形态 | 行为 |
-| --- | --- |
-| `/cmp.html`、`./a.html`、`http://x/c.html` | **字面量 url** 直接加载（不经表达式求值，避免 `/` 被当除法、`http://` 被当注释） |
-| 含空白 / 花括号 / 状态变量 | 表达式经 `watch` 求值得 url——**url 响应式**，变化自动重载 |
+#### 字面量 url
+
+`/a.html`、`./a.html`、`../a.html`、`http(s)://…`、纯路径等**直接加载**——不经表达式求值，避免 `/` 被当除法、`http://` 被当注释：
+
+```html
+<div x-import="/components/card.html"></div>
+```
+
+#### 表达式：响应式 url
+
+含空白 / 花括号 / 状态变量的值按**表达式**经 `watch` 求值得 url——**url 响应式**，变化自动重载（abort 旧请求、丢弃过期结果）：
 
 ```html
 <!-- 响应式 url：切语言重载对应组件包 -->
 <div x-import="'/components/' + lang + '/card.html'"></div>
 ```
 
-### 作用域 vs 全局
+### 作用域与全局注册
 
 | 形态 | 注册目标 | 可见范围 |
 | --- | --- | --- |
@@ -55,6 +62,8 @@
 2. fetch 完成、组件注册 → 广播 `component/registered`；
 3. pending 的 `x-component` 监听到目标名就绪 → 移除占位、自动重试实例化。
 
+<demo html="component/import.html"/>
+
 ### name 属性校验
 
 `x-import` 元素可声明 `name` 属性作**加载后自检**：加载完成后校验该名组件已注册，未注册 `warn`（诊断「url 拼写对但组件名不对」的错位）。
@@ -70,19 +79,13 @@
 - **循环 import 检测**：A import B、B import A 的环被检测并中断该导入链（`warn`）；
 - 加载中途 url 变化 → abort 旧请求丢弃过期结果。
 
-## 配置
+## 配置选项
 
-### 指令语法
+| 配置项   | 默认值 | 修饰符   | 说明                                                                                                       |
+| -------- | ------ | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `global` | `false` | `.global` | 注册为全局组件（`engine.options.components`），等价 `x-import-options="{global:true}"` 或宿主 `x-options` |
 
-| 形态 | 说明 |
-| --- | --- |
-| `x-import="<url>"` | 值 = url（字面量或表达式）；空值 `warn` 跳过 |
-| `x-import.global="<url>"` | `.global` 修饰符：注册为全局组件 |
-| `name` 属性（HTML 原生属性） | 可选，加载完成后校验该名组件已注册 |
-
-### 选项
-
-无指令选项（`x-import-options` 不存在）。
+`name` 是原生 HTML 属性（非指令选项），见[name 属性校验](#name-属性校验)。
 
 ::: info 关于指令配置体系
 指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive/config.md)。

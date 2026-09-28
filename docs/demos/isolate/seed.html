@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-isolate · 种子状态</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 种子状态：{ theme: theme } 在父作用域求值一次——初值快照，父变化不跟随；
+             子内状态独立：count++ 只影响子引擎。 -->
+        <div class="demo-app section">
+            <div class="card" x-isolate="{ theme: theme, count: start }">
+                <div class="card-content">
+                    <p class="is-italic has-text-grey">子引擎（种子：初值快照）：</p>
+                    <p>
+                        theme = <strong x-text="theme"></strong> ·
+                        count = <strong x-text="count"></strong>
+                    </p>
+                    <button class="button is-primary is-small" @click="count++">子内 count++（独立）</button>
+                    <p class="has-text-grey is-size-7 mt-2">父翻转 theme 后此处不跟随（快照，非响应式传参）。</p>
+                </div>
+            </div>
+
+            <div class="block">
+                父 engine：theme = <span class="has-text-primary has-text-weight-semibold" x-text="theme"></span>
+                <button class="button is-small" @click="flip">父 theme 取反（不影响种子）</button>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { theme: "dark", start: 1 },
+                {
+                    actions: {
+                        flip: () => {
+                            engine.state.theme = engine.state.theme === "dark" ? "light" : "dark";
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

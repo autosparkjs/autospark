@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-teleport · 逃逸溢出裁剪</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .clip-box {
+                overflow: hidden;
+                height: 76px;
+                border: 1px dashed #dbdbdb;
+                border-radius: 6px;
+                padding: 12px;
+            }
+            .tp-stage {
+                margin-top: 16px;
+                border: 1px dashed hsl(171, 100%, 41%);
+                border-radius: 6px;
+                padding: 12px;
+                min-height: 72px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <h6 class="title is-6">
+                虚线裁剪容器（overflow:hidden）：普通显隐的通知被裁掉，传送的通知完整出现在下方目标区
+            </h6>
+            <div class="buttons">
+                <button class="button is-warning is-small" @click="togglePlain">① 切换普通 x-show 通知</button>
+                <button class="button is-info is-small" @click="toggleTp">② 切换 x-teleport 通知</button>
+            </div>
+            <div class="clip-box">
+                <div x-show="plain" class="notification is-warning is-light mb-0">
+                    普通 x-show：宿主留在原位，内容超出容器高度即被 <code>overflow:hidden</code> 裁剪。
+                </div>
+                <!-- 传送到 body 下的目标区，不受本容器裁剪；x-show 同元素显隐与动画照常 -->
+                <div x-teleport="/#tp-basic-stage" x-show="tp" x-show-options="{animate:'fade'}" class="notification is-info mb-0">
+                    <strong>x-teleport + x-show</strong>：宿主已传送到下方目标区——不受
+                    <code>overflow:hidden</code> 影响，显隐与 fade 动画照常工作。
+                </div>
+            </div>
+            <!-- 传送目标：body 直下（引擎树外，经额外观察根保持运行时指令可见） -->
+            <div id="tp-basic-stage" class="tp-stage">
+                <span class="tag is-info">body 直下的传送目标 #tp-basic-stage</span>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { plain: true, tp: true },
+                {
+                    actions: {
+                        togglePlain: () => {
+                            engine.state.plain = !engine.state.plain;
+                        },
+                        toggleTp: () => {
+                            engine.state.tp = !engine.state.tp;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

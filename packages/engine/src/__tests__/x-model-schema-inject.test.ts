@@ -52,11 +52,11 @@ describe("x-model schema 注入：基础属性", () => {
         expect(root.querySelector("input")!.getAttribute("placeholder")).toBe("请输入价格");
     });
 
-    test("title 自动注入", () => {
+    test("title 自动注入（ADR-0061：合成 bind 经重定向落 data-tooltip）", () => {
         const { root } = mountWithConfig(`<input x-model="name"/>`, {
             name: cfg("a", { title: "姓名" }),
         });
-        expect(root.querySelector("input")!.getAttribute("title")).toBe("姓名");
+        expect(root.querySelector("input")!.getAttribute("data-tooltip")).toBe("姓名");
     });
 
     test("required 自动注入（boolean setAttribute）", () => {

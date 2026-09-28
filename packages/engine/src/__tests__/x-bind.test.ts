@@ -133,10 +133,12 @@ describe("x-bind:class 类名绑定", () => {
     });
 
     test("同元素多个不同属性绑定共存（singleton=false）", async () => {
-        const { root, engine } = mount(`<div :title="t" x-class="c"></div>`, {
-            t: "tip",
-            c: "on",
-        });
+        // tooltip: false——测 bind 实例共存机制，与 ADR-0061 的 title 绑定重定向无关
+        const { root, engine } = mount(
+            `<div :title="t" x-class="c"></div>`,
+            { t: "tip", c: "on" },
+            { tooltip: false },
+        );
         const div = root.firstElementChild as HTMLElement;
         expect(div.getAttribute("title")).toBe("tip");
         expect(div.className).toBe("on");
@@ -150,9 +152,12 @@ describe("x-bind:class 类名绑定", () => {
 
 describe("x-bind 属性绑定", () => {
     test(":title 普通属性 + 状态变化", async () => {
-        const { root, engine } = mount(`<span :title="user.name"></span>`, {
-            user: { name: "a" },
-        });
+        // tooltip: false——测 :title 的通用属性行为（ADR-0061 开启时 title 绑定重定向为 data-tooltip）
+        const { root, engine } = mount(
+            `<span :title="user.name"></span>`,
+            { user: { name: "a" } },
+            { tooltip: false },
+        );
         expect(root).toEqualHTML(`<div>
   <span title="a"></span>
 </div>`);
@@ -164,9 +169,12 @@ describe("x-bind 属性绑定", () => {
     });
 
     test(":title 表达式拼接：多个依赖任一变化均触发重新求值", async () => {
-        const { root, engine } = mount(`<span :title="user.first + ' ' + user.last"></span>`, {
-            user: { first: "张", last: "三" },
-        });
+        // tooltip: false——测表达式多依赖重求值机制（ADR-0061 开启时 title 绑定重定向）
+        const { root, engine } = mount(
+            `<span :title="user.first + ' ' + user.last"></span>`,
+            { user: { first: "张", last: "三" } },
+            { tooltip: false },
+        );
         const span = root.querySelector("span")!;
         // 首渲：整表达式经 watchExpression 求值 → "张 三"
         expect(span.getAttribute("title")).toBe("张 三");
@@ -402,7 +410,12 @@ describe("x-style.transition 过渡动画注入", () => {
     });
 
     test("非 style 绑定的 .transition 静默忽略（仅 attr==='style' 生效）", async () => {
-        const { root, engine } = mount(`<div :title.transition="t"></div>`, { t: "tip" });
+        // tooltip: false——测 .transition 修饰符的 attr 门控，与 ADR-0061 的 title 重定向无关
+        const { root, engine } = mount(
+            `<div :title.transition="t"></div>`,
+            { t: "tip" },
+            { tooltip: false },
+        );
         const div = root.firstElementChild as HTMLElement;
         expect(div.getAttribute("title")).toBe("tip");
         expect(div.style.transition).toBe("");

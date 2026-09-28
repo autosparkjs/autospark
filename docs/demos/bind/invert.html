@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-bind · .invert 求值取反</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 状态词汇（editable=可编辑）与 DOM 属性词汇（disabled=禁用）语义相反：
+             :disabled.invert="editable" → disabled = !editable。
+             第二个控件演示等价的指令选项写法 x-bind-options="{invert:true}"。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <label class="checkbox">
+                    <input type="checkbox" x-model="editable" />
+                    editable（允许编辑）
+                </label>
+            </div>
+
+            <div class="buttons">
+                <button class="button is-primary" :disabled.invert="editable">① 修饰符：:disabled.invert="editable"</button>
+            </div>
+
+            <div class="field">
+                <input
+                    class="input"
+                    :disabled="editable"
+                    x-bind-options="{ invert: true }"
+                    placeholder="② 选项：x-bind-options=&#123;invert:true&#125;"
+                />
+            </div>
+
+            <p class="has-text-grey is-size-7">
+                editable = <span x-text="editable"></span> — 编辑开启时两个控件可用；关闭时 disabled =
+                <code>!false = true</code>，控件禁用。
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { editable: false },
+                {},
+            );
+        </script>
+    </body>
+</html>

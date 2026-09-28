@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-isolate · 远程模板</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- remote：url 响应式——每次切换 fetch 新模板 → 销毁旧子引擎 → 重建。
+             ?delay=800 放大加载态（x-loading 遮罩）。 -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button is-primary" @click="loadA">加载模板 A</button>
+                <button class="button is-info" @click="loadB">加载模板 B</button>
+            </div>
+            <div x-isolate="url" style="min-height: 96px"></div>
+            <p class="has-text-grey is-size-7">
+                当前 url：<code x-text="url"></code> — 切换即销毁重建子引擎，加载期间显示 x-loading 遮罩。
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { url: "/autospark/api/isolate-tpl-a.html?delay=800" },
+                {
+                    actions: {
+                        loadA: () => {
+                            engine.state.url = "/autospark/api/isolate-tpl-a.html?delay=800";
+                        },
+                        loadB: () => {
+                            engine.state.url = "/autospark/api/isolate-tpl-b.html?delay=800";
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

@@ -23,12 +23,18 @@ GlobalRegistrator.register();
  */
 expect.extend({
     toEqualHTML(received: unknown, expected: string) {
-        const actual =
-            typeof received === "string"
-                ? received
-                : received instanceof Element
-                  ? received.outerHTML
-                  : String(received ?? "");
+        let actual: string;
+        if (typeof received === "string") {
+            actual = received;
+        } else if (received instanceof Element) {
+            // data-autospark 是 engine 根标识（ADR-0060，运行时打点），不属于模板编译产物——
+            // 结构等价比较前剥除，避免既有 HTML 断言逐一修改。
+            const clone = received.cloneNode(true) as Element;
+            clone.removeAttribute("data-autospark");
+            actual = clone.outerHTML;
+        } else {
+            actual = String(received ?? "");
+        }
         const actualFmt = formatHTML(actual);
         const expectedFmt = formatHTML(expected);
         const pass = actualFmt === expectedFmt;

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-bind · 属性插值自动归一化</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 属性值里的 {{}} 插值在编译期归一化为 :attr 绑定，复用同一套分派：
+             href / title / class 三个属性随状态自动更新。 -->
+        <div class="demo-app section">
+            <div class="content">
+                <p>静态写法（插值在属性值里）：</p>
+                <p>
+                    <a class="link card {{ user.role }}" href="/users/{{ user.id }}/profile" title="用户 {{ user.name }}">
+                        /users/{{ user.id }}/profile
+                    </a>
+                </p>
+                <p>等价于：</p>
+                <pre>:href="'/users/' + user.id + '/profile'"  :title="'用户 ' + user.name"  :class="'link card ' + user.role"</pre>
+            </div>
+
+            <div class="buttons">
+                <button class="button is-primary" @click="next">切换用户（id / name / role）</button>
+            </div>
+
+            <p class="has-text-grey is-size-7">
+                当前：id = <span x-text="user.id"></span> · name = <span x-text="user.name"></span> · role =
+                <span x-text="user.role"></span> — 观察上方链接的 href / class / title 同步刷新。
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { user: { id: 1, name: "张三", role: "admin" } },
+                {
+                    actions: {
+                        next: () => {
+                            const u = engine.state.user;
+                            u.id = u.id + 1;
+                            u.name = u.name === "张三" ? "李四" : "张三";
+                            u.role = u.role === "admin" ? "guest" : "admin";
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

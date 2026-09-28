@@ -33,7 +33,7 @@ function cfg(initial: any, options: Record<string, any>) {
 function mountWithConfig(
     html: string,
     state: any,
-    opts: { configKey?: string; configManager?: ConfigManager } = {},
+    opts: { configKey?: string; configManager?: ConfigManager; tooltip?: false } = {},
 ) {
     const root = document.createElement("div");
     root.innerHTML = html.trim();
@@ -51,6 +51,7 @@ function mountWithConfig(
             configManager,
             configKey: opts.configKey,
         } as any,
+        ...(opts.tooltip === false ? { tooltip: false as const } : {}),
     });
     return { root, engine, configManager };
 }
@@ -74,7 +75,7 @@ describe("x-bind @ 配置引用：基础", () => {
                     profile: { name: cfg("bob", { title: "昵称" }) },
                 },
             },
-            { configKey: "app" },
+            { configKey: "app", tooltip: false },
         );
         expect(root.querySelector("input")!.getAttribute("title")).toBe("昵称");
     });

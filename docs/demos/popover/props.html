@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-popover · props 与插槽</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .pop-card { background: #fff; border-radius: 8px; padding: 16px 20px; width: 260px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+            .pop-card .body { padding: 10px 0; border-top: 1px solid #eee; border-bottom: 1px solid #eee; margin: 8px 0; }
+            .pop-card .footer { color: #888; font-size: 0.8rem; }
+        </style>
+    </head>
+    <body>
+        <!-- props 与内容是两条正交通道：
+             props 走 x-popover-options.props（表达式，持续热更新，注入组件 data 域）；
+             内容走 x-slot 显式声明（宿主裸子节点永不收集——按钮标签只属于宿主）。 -->
+        <div class="demo-app section">
+            <div x-data>
+                <div class="block buttons">
+                    <button class="button is-primary"
+                            x-popover:card
+                            x-popover-options="{delayShow: 0}"
+                            x-popover-options.props="{userName: '张三'}">
+                        <div x-slot>这是<b>投影的自定义正文</b>，来自宿主子级。</div>
+                        <span x-slot:footer><b>自定义页脚：最近活跃 · 3 分钟前</b></span>
+                        悬停：张三（自定义内容）
+                    </button>
+                    <button class="button"
+                            x-popover:card
+                            x-popover-options="{delayShow: 0}"
+                            x-popover-options.props="{userName: '李四'}">悬停：李四（无内容 → fallback）</button>
+                </div>
+                <div class="block has-text-grey">
+                    同一个组件 <code>x-define="card"</code>，两个宿主各传不同 props；
+                    第一个宿主子级声明 <code>x-slot</code>（默认出口）与 <code>x-slot:footer</code>
+                    （命名出口）投影自定义内容——按钮标签「悬停：张三…」全程留在按钮上不受影响；
+                    第二个宿主不提供内容，面板退回组件内写好的 fallback。
+                </div>
+
+                <!-- 组件：数据默认值 + 两个插槽出口（默认 + footer） -->
+                <div x-define="card">
+                    <script type="autospark/setup">{ data: { userName: "未知用户" } }</script>
+                    <div class="pop-card">
+                        <h3 class="title is-6 has-margin-bottom-0">👤 <span x-text="userName"></span></h3>
+                        <div class="body"><div x-slot>（默认正文：该用户很懒，什么都没留下）</div></div>
+                        <div class="footer"><div x-slot:footer>（默认页脚）</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

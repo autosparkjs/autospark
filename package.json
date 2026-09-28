@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "docs:dev": "cd docs && bun run dev",
-    "examples": "cd docs && bun run dev"
+    "examples": "cd docs && bun run dev",
+    "check:docs": "bun scripts/check-doc-structure.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.2",

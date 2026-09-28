@@ -17,6 +17,8 @@ import { fetchHtml } from "./utils/fetchHtml";
 import { iconRegistry, type IconRegistry } from "./icons/registry";
 import { OverlayHandle } from "./overlay/handle";
 import { removeOverlayContainer } from "./overlay/container";
+import { TooltipManager } from "./tooltip/manager";
+import type { TooltipAPI } from "./tooltip/types";
 
 /**
  * 框架保留键：x-data 默认模式的私有响应式数据域在 store.state 下的容器键。
@@ -95,6 +97,8 @@ export class AutoSpark<
      * 等接入免费。内置 fade/slide 样式随构造幂等注入 document.head。
      */
     readonly animate: AutoSparkAnimator;
+    /** 全局工具提示管理单元（ADR-0061）：data-tooltip 约定消费面 + title 编译期转换开关；公共入口经 `tooltip` getter */
+    readonly tooltipManager: TooltipManager;
     /** 原始模板（深克隆根元素，保留指令属性作为编译只读输入） */
     readonly template: HTMLElement;
     /** 每个渲染元素对应的 Scope（销毁时遍历清理其 watcher） */
@@ -137,6 +141,10 @@ export class AutoSpark<
             for (const [name, svg] of Object.entries(options.icons)) iconRegistry.add(name, svg);
         }
         this.template = el.cloneNode(true) as HTMLElement;
+        // engine 根标识（ADR-0060）：真实 DOM 上爬类查找（queryRelElement 的 ^ closest 与 ../ 爬升）
+        // 遇此属性即止步，不越入相邻 engine 的 DOM。所有 engine 共通（app 根与 x-isolate 宿主一视同仁）。
+        // 打点在 template 克隆之后——属性不进模板，不随编译产物浅克隆扩散到结果树其他元素。
+        el.setAttribute("data-autospark", "");
 
         this.scheduler = new UpdateScheduler(this);
         this.compiler = new AutoSparkCompiler(this);
@@ -144,6 +152,9 @@ export class AutoSpark<
         this.dispatcher = new RuntimeObserverDispatcher(this);
         // 进出场动画服务（ADR-0039）：样式注入须早于首次状态变化驱动的挂卸
         this.animate = new AutoSparkAnimator();
+        // 全局工具提示（ADR-0061）：须早于 autostart compile——编译期 title→data-tooltip
+        // 转换依赖 manager 的 enabled 开关；委托监听/样式注入在构造内就位（tooltip: false 时全短路）
+        this.tooltipManager = new TooltipManager(this);
         if (this.options.autostart) {
             this.compile();
         }
@@ -206,6 +217,15 @@ export class AutoSpark<
      */
     get actions(): Record<string, ActionDesc> {
         return this.actionsManager.proxy;
+    }
+
+    /**
+     * 命令式工具提示（ADR-0061 决策 18）：`engine.tooltip.show(el, opts?)` / `hide()`。
+     * 与悬停委托同一显示管道（配置解析/延迟/动画/事件全同构）；`opts` 与元素级保留键
+     * 同构、单次生效。`options.tooltip: false` 时调用 warn + no-op（全关语义，决策 2）。
+     */
+    get tooltip(): TooltipAPI {
+        return this.tooltipManager;
     }
 
     /**
@@ -296,6 +316,8 @@ export class AutoSpark<
      * 停止引擎：移除挂载的 DOM 并标记停止（不销毁订阅，可再次 `start`）。
      */
     stop() {
+        // 显示中的 tooltip 同步隐藏（挂载 DOM 即将整体移除——断连兜底的事件前主动收口，ADR-0061 决策 13）
+        this.tooltipManager.hideImmediate();
         this.el.replaceChildren();
         this.pending = false;
         return this;
@@ -773,7 +795,11 @@ export class AutoSpark<
         this.scopes.clear();
         // 覆盖物容器整体移除（ADR-0052 决策 13）：实例 scope 已随上方 scope 树级联销毁
         removeOverlayContainer(this);
+        // 工具提示收口（ADR-0061）：摘委托监听 + tooltip 容器整体移除 + 清计时器/兜底循环
+        this.tooltipManager.dispose();
         this.el.replaceChildren();
+        // 移除 engine 根标识（ADR-0060，与构造期打点对称）
+        this.el.removeAttribute("data-autospark");
         this.pending = false;
         // store 恒为 engine 自建（ADR-0044）：销毁回收 core 资源；destroy 内部向 configManager 注销本 store
         this.store.destroy();

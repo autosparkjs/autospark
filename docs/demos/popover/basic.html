@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-popover · 悬浮触发</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .pop-panel { background: #fff; border-radius: 8px; padding: 14px 18px; min-width: 220px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- 悬浮触发模型（ADR-0060）：宿主 mouseenter 显示（delayShow 悬浮意图延迟），
+             指针离开「宿主∪面板」共享 hover 域后 delayHide 宽限关闭。指令值不参与驱动。 -->
+        <div class="demo-app section">
+            <div x-data>
+                <div class="block">
+                    <button class="button is-primary" x-popover:tip>默认延迟（悬停我）</button>
+                    <span class="tag">delayShow = 200ms / delayHide = 150ms</span>
+                </div>
+                <div class="block">
+                    <button class="button" x-popover:instant x-popover-options="{delayShow: 0, delayHide: 0}">零延迟（悬停我）</button>
+                    <span class="tag">delayShow = 0 / delayHide = 0</span>
+                </div>
+                <div class="block">
+                    <button class="button is-link" x-popover:left
+                            x-popover-options="{delayShow: 0, at: {placement: 'right-start'}}">右侧弹出（悬停我）</button>
+                    <span class="tag">at.placement = 'right-start'</span>
+                </div>
+                <div class="block has-text-grey">
+                    面板与宿主之间的间隙、以及面板边缘的轻微抖动都不会闪关（共享 hover 域 + delayHide 宽限）；
+                    按 <kbd>ESC</kbd> 也可关闭当前面板。
+                </div>
+
+                <!-- 覆盖物内容 = 普通组件（x-define 声明，编译期剪枝不闪现） -->
+                <div x-define="tip">
+                    <div class="pop-panel">
+                        <strong>默认 200ms 悬浮意图延迟</strong>
+                        <p class="is-size-7 has-text-grey">快速掠过不会误触发。</p>
+                    </div>
+                </div>
+                <div x-define="instant">
+                    <div class="pop-panel">
+                        <strong>零延迟立即显示</strong>
+                        <p class="is-size-7 has-text-grey">离开也立即关闭。</p>
+                    </div>
+                </div>
+                <div x-define="left">
+                    <div class="pop-panel">
+                        <strong>自定义方向</strong>
+                        <p class="is-size-7 has-text-grey">at 配置整体覆盖默认锚方向。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

@@ -20,6 +20,30 @@ export const OVERLAYS_CONTAINER_ATTR = "data-autospark-overlays";
 export const MASK_CLASS = "autospark-dialog-mask";
 export const PANEL_CLASS = "autospark-dialog";
 
+/** 遮罩样式 <style> 的 id（首次懒建容器时注入一次，常驻不回收） */
+const MASK_STYLES_ID = "autospark-mask-styles";
+
+/**
+ * 注入遮罩默认样式（幂等）——**遮罩是引擎结构**（mask 选项控制显隐，不归 shell，ADR-0062）：
+ * fixed 全屏 + flex 居中（锚定模式下面板 position:fixed 脱离 flex 流，不受影响）；
+ * z-index 走 CSS 变量（用户可全局调层）。
+ */
+function injectMaskStyles(): void {
+    if (document.getElementById(MASK_STYLES_ID)) return;
+    const style = document.createElement("style");
+    style.id = MASK_STYLES_ID;
+    style.textContent = `
+.${MASK_CLASS} {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--autospark-overlay-z, 1000);
+}`;
+    document.head.appendChild(style);
+}
+
 /** 取（或懒建）本 engine 的覆盖物容器；SSR 返回 null。 */
 export function getOverlayContainer(engine: AutoSpark<any>): HTMLElement | null {
     if (typeof document === "undefined" || !document.body) return null;
@@ -30,6 +54,10 @@ export function getOverlayContainer(engine: AutoSpark<any>): HTMLElement | null 
         el.setAttribute(OVERLAYS_CONTAINER_ATTR, "");
         document.body.appendChild(el);
         containers.set(engine, el);
+        injectMaskStyles();
+        // 容器纳入 tooltip 委托监听（ADR-0061 决策 15）：dialog 内容在 body 下、引擎根之外，
+        // 不挂监听则其中的 title/data-tooltip 退回原生 tooltip
+        engine.tooltipManager.attachDelegationRoot(el);
     }
     return el;
 }

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-switch · x-default 位置无关</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- x-default 写在最前面照样兜底：先扫 case，全不中才落 default（与 JS switch 一致）。 -->
+        <div class="demo-app section">
+            <div class="content">
+                <div x-switch="state">
+                    <div x-default class="notification is-danger">❓ 兜底（写在最前）：未知 state = "{{ state }}"</div>
+                    <div x-case="a" class="notification is-primary">✅ 命中 A</div>
+                    <div x-case="b" class="notification is-info">✅ 命中 B</div>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button class="button is-primary" @click="state = 'a'">state = 'a'</button>
+                <button class="button is-info" @click="state = 'b'">state = 'b'</button>
+                <button class="button is-danger" @click="state = 'zzz'">state = 'zzz'（落兜底）</button>
+            </div>
+
+            <p class="has-text-grey is-size-7">
+                x-default 虽写在分支最前面，只有当全部 x-case 都不匹配时才会渲染。
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { state: "a" },
+                {},
+            );
+        </script>
+    </body>
+</html>

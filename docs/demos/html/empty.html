@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-html · 空值占位与隐藏</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- x-html 与 x-text 共享空值机制：empty 占位（占位串过消毒）/ emptyValues / .hide。 -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button is-primary" @click="toggle">切换 content（有值 ⇄ null）</button>
+            </div>
+
+            <div class="field">
+                <label class="label">① empty 占位（写入的 HTML 同样过消毒）</label>
+                <div class="box" x-html="content" x-html-options="{ empty: '<em>暂无内容</em>' }"></div>
+            </div>
+
+            <div class="field">
+                <label class="label">② .hide 空值时隐藏宿主（不占位）</label>
+                <div class="box" x-html.hide="content"><p>有值时显示这一段</p></div>
+            </div>
+
+            <p class="has-text-grey is-size-7">
+                content = <code x-text="content === null ? 'null' : content"></code> — 空值时 ① 显示占位文案、② 整块
+                消失；恢复非空时两者都重新显示。
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { content: "<p>有值的富文本片段</p>" },
+                {
+                    actions: {
+                        toggle: () => {
+                            engine.state.content = engine.state.content === null ? "<p>有值的富文本片段</p>" : null;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

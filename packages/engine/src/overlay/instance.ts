@@ -5,11 +5,48 @@ import type { ComponentDef } from "../directives/component-def";
 import type { SlotContent } from "../utils/slot";
 import { resolveAnimate } from "../animate";
 import { releaseComponentStyle } from "../utils/scopedStyle";
-import { getOverlayContainer, MASK_CLASS, PANEL_CLASS } from "./container";
+import { getOverlayContainer, MASK_CLASS } from "./container";
 import { pushOpenInstance, removeOpenInstance } from "./stack";
 import { applyAnchorPosition, resolveAnchorEl, OVERLAY_ARROW_CLASS } from "./anchor";
 import { unregisterInstance } from "./registry";
-import { normalizeAtConfig, type OverlayConfig, type OverlayEventDetail } from "./types";
+import {
+    normalizeAtConfig,
+    type OverlayAnchorConfig,
+    type OverlayConfig,
+    type OverlayEventDetail,
+} from "./types";
+import { BUILTIN_SHELL_NAMES, resolveBuiltinShell } from "./wrappers";
+
+/**
+ * 面板外壳组件定义（shell 机制，ADR-0062）：消费者/命令式解析后传入。
+ * `snapshot`/`def` 为 shell 组件的冻结快照与定义（与内容组件同构）。
+ */
+export interface OverlayShellDef {
+    /** shell 组件名（诊断与 scoped 样式释放键） */
+    name: string;
+    /** shell 组件冻结快照根 */
+    snapshot: HTMLElement;
+    /** shell 组件定义（可 null：纯快照无 setup；slots 出口清单决定内容投影方式） */
+    def: ComponentDef | null;
+}
+
+/**
+ * 定位策略上下文（{@link OverlayInstanceOptions.positioner} 回调入参，ADR-0063）：
+ * 形态特化定位的全部输入——面板、归一 at 配置与解析结果、清理注册与 warn 通道。
+ * 提供者**整体接管**定位（含箭头载体显隐、未命中回退与告警措辞）。
+ */
+export interface OverlayPositionerContext {
+    /** 面板元素（shell 产物根；placement 契约标记宿主、定位目标） */
+    panel: HTMLElement;
+    /** 归一后的 at 配置（null = 未配置 at；selector 命中与否看 anchorEl） */
+    anchor: OverlayAnchorConfig | null;
+    /** at.selector 解析结果（null = 无 at / 未命中） */
+    anchorEl: HTMLElement | null;
+    /** 注册清理回调（autoUpdate cleanup 等，实例销毁时执行） */
+    registerCleanup: (fn: () => void) => void;
+    /** warn 通道（engine logger） */
+    warn: (msg: string) => void;
+}
 
 /**
  * 覆盖物实例选项（消费者解析后传入）。
@@ -23,6 +60,14 @@ export interface OverlayInstanceOptions {
     dataContextEl?: HTMLElement | null;
     /** 模态遮罩外壳（dialog 形态：遮罩 + flex 居中 + closeOnMask）；缺省裸面板直挂容器 */
     mask?: boolean;
+    /** 面板外壳组件（shell 机制，ADR-0062）；缺省 = 内置默认 shell（按 name 推断，兜底 dialog-shell） */
+    shell?: OverlayShellDef | null;
+    /**
+     * 定位策略覆盖（形态特化钩子，ADR-0063 x-drawer 屏幕贴边）：提供时**整体替代**内置
+     * 「锚定 / 退居中」两态逻辑（含箭头载体显隐、未命中回退与告警措辞——形态自管）；
+     * 缺省 = 内置两态（popover/dialog 语义不变）。
+     */
+    positioner?: ((ctx: OverlayPositionerContext) => void) | null;
     /**
      * 插槽内容 map（ADR-0056）：消费者（x-dialog）在 `_instantiate` 懒收集后传入，
      * 经 `instantiateDetachedComponent` stash 到实例 scope，出口 SlotDirective 填充。
@@ -33,18 +78,28 @@ export interface OverlayInstanceOptions {
 }
 
 /**
- * 覆盖物实例（ADR-0052 修订版）：覆盖物被消费者打开渲染出的**活体**。
+ * 覆盖物实例（ADR-0052 修订版 / ADR-0062 shell 机制）：覆盖物被消费者打开渲染出的**活体**。
  *
  * 内容 = 任意组件：`snapshot`（组件冻结快照）经 `instantiateDetachedComponent` 管道编译——
  * data()/props、methods、四阶段 hooks、scoped CSS、styleBinds、数据基准全生效（x-component 管道兄弟路径）。
  *
- * 结构两态（修订共识 4）：
- * - `mask: true`（dialog 模态形态）：遮罩外壳根（`autospark-dialog-mask`，实例 el）> 面板
- *   （`autospark-dialog`，`data-overlay="<名称>"`）> 组件编译产物；
- * - `mask: false`（基座默认）：面板直挂 body 容器（未来 drawer/popup 等形态定制入口）。
+ * 面板 = shell 组件产物（ADR-0062）：面板层形态（边框/圆角/箭头/内容出口）由 shell 组件
+ * 渲染——引擎先编译**内容组件**，再把产物作为 `mode:"live"` 插槽段投影进 shell 默认出口
+ * （活体直挂不克隆不重编译）；`config` 整包注入 shell data 域（初始快照，不热更新）。
+ * shell 未声明默认出口 → warn + 内容直挂 shell 根。**shell 不含遮罩**——遮罩是引擎结构。
+ *
+ * 结构两态（修订共识 4 + ADR-0062）：
+ * - `mask: true`（dialog 模态形态）：遮罩外壳根（`autospark-dialog-mask`，引擎建，实例 el）>
+ *   shell 产物根（面板，`data-overlay="<名称>"`）> 出口 > 内容组件产物；
+ * - `mask: false`（基座默认）：shell 产物根直挂 body 容器（实例 el = 面板）。
+ *
+ * 行为契约挂载分工（ADR-0062）：**实例根**（遮罩或裸面板）挂 animate 类、`action:close`
+ * 委托、遮罩点击监听；**面板**（shell 根）挂 `data-overlay` / `data-overlay-border` /
+ * `data-overlay-placement` 契约标记，是 floating-ui 定位目标与箭头载体宿主（箭头渲染归
+ * shell 模板、显隐与定位归引擎）。
  *
  * 每次打开都是**新实例**（修订共识 5：singleton 机制未引入）——关闭动画播完即销毁
- * （scope 级联回收 + DOM 摘除），多实例可并存、层叠 = DOM 追加顺序。
+ * （双 scope 回收 + DOM 摘除），多实例可并存、层叠 = DOM 追加顺序。
  *
  * 生命周期：
  * - `open(props)`：构建外壳 + 编译组件 → enter 动画 → 入打开栈 → 广播 `overlay:open`；
@@ -76,6 +131,10 @@ export class OverlayInstance {
     readonly parentScope: AutoSparkScope | null;
     /** 模态遮罩外壳（dialog 形态） */
     readonly mask: boolean;
+    /** 面板外壳组件（shell 机制，ADR-0062；缺省 = 内置默认） */
+    private readonly _shell: OverlayShellDef;
+    /** 定位策略覆盖（形态特化钩子，ADR-0063；null = 内置「锚定/退居中」两态） */
+    private readonly _positioner: ((ctx: OverlayPositionerContext) => void) | null;
     /** 插槽内容 map（ADR-0056；透传给 instantiateDetachedComponent） */
     readonly slotContents: Map<string, SlotContent> | null;
     /** 插槽内容调用方视图基准（ADR-0056） */
@@ -86,8 +145,10 @@ export class OverlayInstance {
 
     /** 实例根（mask 形态为遮罩外壳；bare 形态为面板；未构建/已销毁为 null） */
     el: HTMLElement | null = null;
-    /** 实例 scope（组件编译产物；data()/props 注入域） */
+    /** 实例 scope（**内容**组件编译产物；data()/props 注入域——props 热更新目标） */
     instanceScope: AutoSparkScope | null = null;
+    /** shell 实例 scope（config 注入域；rootless 挂链——销毁由本实例统一回收，ADR-0062） */
+    private _shellScope: AutoSparkScope | null = null;
 
     /** 当前是否可见（关闭动画中即 false） */
     private _visible = false;
@@ -95,7 +156,7 @@ export class OverlayInstance {
     private _closing = false;
     /** 已销毁（幂等守卫） */
     private _destroyed = false;
-    /** 面板元素 */
+    /** 面板元素（shell 产物根；data-overlay 契约标记宿主、floating-ui 定位目标） */
     private _panel: HTMLElement | null = null;
     /** anchor autoUpdate 等清理回调 */
     private _cleanups: Array<() => void> = [];
@@ -121,8 +182,14 @@ export class OverlayInstance {
         this.searchRoot = opts.searchRoot ?? null;
         this.dataContextEl = opts.dataContextEl ?? null;
         this.mask = opts.mask ?? false;
+        // shell 缺省兜底内置 dialog-shell（防御路径：声明式/命令式消费面恒显式解析传入）
+        this._shell = opts.shell ?? {
+            name: BUILTIN_SHELL_NAMES.dialog!,
+            ...resolveBuiltinShell(BUILTIN_SHELL_NAMES.dialog!),
+        };
         this.slotContents = opts.slotContents ?? null;
         this.slotCallerScope = opts.slotCallerScope ?? null;
+        this._positioner = opts.positioner ?? null;
     }
 
     /** 是否可见 */
@@ -219,6 +286,18 @@ export class OverlayInstance {
             if (this.def?.name) releaseComponentStyle(this.def.name); // scoped 样式引用对称释放
             this.instanceScope = null;
         }
+        // shell scope 统一回收（ADR-0062）：rootless 挂链无级联来源，destroy 显式销毁 +
+        // 回收私有响应式域 + scoped 样式引用对称释放（自定义 shell 自带 <style> 时触发）
+        if (this._shellScope) {
+            const shellId = this._shellScope.id;
+            this._shellScope.destroy();
+            const scopes = (this.engine.store.state as Record<string, any>)[SCOPES_KEY] as
+                | Record<string, any>
+                | undefined;
+            if (scopes) delete scopes[shellId];
+            if (this._shell.def?.styles?.length) releaseComponentStyle(this._shell.def.name);
+            this._shellScope = null;
+        }
         if (this.el) {
             const root = this.el;
             root.removeEventListener("click", this._onMaskClick);
@@ -238,10 +317,71 @@ export class OverlayInstance {
         const container = getOverlayContainer(this.engine);
         if (!container) return; // SSR / 无 body：跳过挂载
 
-        // 1. 外壳两态（修订共识 4）：mask 形态 = 遮罩根 > 面板（data-overlay 契约）；bare = 面板直挂容器
-        const panel = document.createElement("div");
-        panel.className = PANEL_CLASS;
+        // 1. 编译**内容**组件（instantiateDetachedComponent 管道：data() 默认 → props 覆盖、
+        //    methods、四阶段 hooks、scoped CSS、styleBinds、数据基准全生效——x-component 兄弟
+        //    路径）；插槽内容 map 经 configure stash 到实例 scope（ADR-0056 决策十）。
+        //    先于 shell 编译：内容产物 el 是 shell 默认出口的 live 插槽段（ADR-0062）。
+        const clone = this.snapshot.cloneNode(true) as HTMLElement;
+        const compiled = this.engine.compiler.instantiateDetachedComponent(
+            clone,
+            this.parentScope,
+            this.def,
+            props,
+            undefined,
+            this.slotContents,
+            this.slotCallerScope,
+        );
+        this.instanceScope = compiled.scope;
+
+        // 2. 编译 **shell 组件**（ADR-0062）：config 整包注入 shell data 域（初始快照，Q13——
+        //    打开时一次，不热更新；props 热更新只走内容域）；内容产物以 `mode:"live"` 段投影进
+        //    shell 默认出口（活体直挂不克隆不重编译，销毁权责归本实例统一回收双 scope）。
+        //    shell 未声明默认出口 → warn + 内容直挂 shell 根（弹窗照常工作，失效可发现）。
+        const shell = this._shell;
+        // 出口判定：def.slots 无出口时为 undefined——undefined 或不含 "default" 均视为无默认出口
+        const hasDefaultOutlet = !!shell.def?.slots?.includes("default");
+        let shellSlots: Map<string, SlotContent> | null = null;
+        if (hasDefaultOutlet) {
+            shellSlots = new Map([
+                [
+                    "default",
+                    {
+                        name: "default",
+                        nodes: [compiled.el],
+                        params: [],
+                        paramsExpr: null,
+                        mode: "live",
+                    } satisfies SlotContent,
+                ],
+            ]);
+        } else {
+            this.engine.logger.warn(
+                `x-overlay "${this.name}": shell "${shell.name}" 未声明默认出口（x-slot），内容组件直挂面板根（ADR-0062）`,
+            );
+        }
+        const shellClone = shell.snapshot.cloneNode(true) as HTMLElement;
+        const shellCompiled = this.engine.compiler.instantiateDetachedComponent(
+            shellClone,
+            null, // shell rootless 挂链：形态组件不依赖声明上下文，生命周期归本实例
+            shell.def,
+            this.config as unknown as Record<string, any>,
+            undefined,
+            shellSlots,
+            null,
+        );
+        this._shellScope = shellCompiled.scope;
+        const panel = shellCompiled.el;
+        if (!hasDefaultOutlet) panel.appendChild(compiled.el);
+
+        // 3. 外壳两态（修订共识 4）：mask 形态 = 遮罩根（引擎建）> 面板（data-overlay 契约）；
+        //    bare = 面板（shell 根）直挂容器。行为契约分工：实例根挂 animate/close 委托/遮罩点击；
+        //    面板挂 data-overlay / data-overlay-border / placement 标记（floating-ui 定位目标）。
         panel.setAttribute("data-overlay", this.name);
+        // 面板 1px 边框（config.border，默认 true——无锚定也生效）：`data-overlay-border`
+        // 标记挂面板根，视觉由 shell 样式承担（内置样式：border + 同色背景 + 圆角，箭头双层变色经子选择器联动）。
+        if (this.config.border !== false) {
+            panel.setAttribute("data-overlay-border", "");
+        }
         let root: HTMLElement = panel;
         if (this.mask) {
             root = document.createElement("div");
@@ -257,29 +397,8 @@ export class OverlayInstance {
         this.el = root;
         this._panel = panel;
 
-        // 2. 编译组件（instantiateDetachedComponent 管道：data() 默认 → props 覆盖、methods、
-        //    四阶段 hooks、scoped CSS、styleBinds、数据基准全生效——x-component 兄弟路径）；
-        //    插槽内容 map 经 configure stash 到实例 scope（ADR-0056 决策十）。
-        const clone = this.snapshot.cloneNode(true) as HTMLElement;
-        const compiled = this.engine.compiler.instantiateDetachedComponent(
-            clone,
-            this.parentScope,
-            this.def,
-            props,
-            undefined,
-            this.slotContents,
-            this.slotCallerScope,
-        );
-        this.instanceScope = compiled.scope;
-        panel.appendChild(compiled.el);
-        // 面板 1px 边框（config.border，默认 true——无锚定也生效）：画在 panel 外壳上并配套
-        // 背景 + 圆角（Tippy 外壳模式）——引擎无法预知用户的视觉面板是哪层 div，由外壳统一
-        // 承担背景/边框/圆角，同色背景填平任何圆角微差；箭头双层变色经子选择器联动。
-        if (this.config.border !== false) {
-            panel.setAttribute("data-overlay-border", "");
-        }
-
-        // 3. scope 级联死亡感知：实例 scope 随挂链销毁时强拆自身（决策 11 生命周期三合一）
+        // 4. scope 级联死亡感知：内容 scope 随挂链销毁时强拆自身（决策 11 生命周期三合一）。
+        //    shell scope rootless（无挂链）——由本实例 destroy 统一回收。
         this._unsubScopeDeath = onScopeDestroyed(this.engine, compiled.scope, () => this.destroy());
 
         // 5. 额外观察根 + 挂载容器 + 显示
@@ -288,34 +407,51 @@ export class OverlayInstance {
         this._show();
     }
 
-    /** 显示（构建后）：锚定定位 → enter 动画 → 入栈 → 广播 */
+    /** 显示（构建后）：定位（形态特化钩子或内置两态）→ enter 动画 → 入栈 → 广播 */
     private _show(): void {
         const root = this.el!;
         root.style.display = "";
         this._visible = true;
 
-        // 锚定定位（每次显示现算：配置与锚点可随重开变化；未命中 warn 退居中，决策 22/24）。
-        // config.at 三态（字符串/元素简写 ≡ {selector}）经 normalizeAtConfig 归一。
         this._clearAnchorCleanup();
-        const anchorCfg = normalizeAtConfig(this.config.at);
-        const anchorEl = anchorCfg ? resolveAnchorEl(anchorCfg.selector, this.searchRoot) : null;
-        if (anchorEl && anchorCfg) {
-            // 箭头载体（锚定模式默认开启，`arrow: false` 显式关闭）：注入须先于 applyAnchorPosition
-            // （middleware 经 :scope > 查询载体）；退居中分支不注入——避免未定位载体残留孤立菱形。
-            if (anchorCfg.arrow !== false) {
-                const arrowHost = document.createElement("div");
-                arrowHost.className = OVERLAY_ARROW_CLASS;
-                this._panel!.appendChild(arrowHost);
-            }
-            applyAnchorPosition(anchorCfg, anchorEl, this._panel!, (fn) => this._cleanups.push(fn));
+        // 形态特化定位（ADR-0063）：提供者整体接管（含箭头载体显隐、未命中回退与告警措辞）
+        if (this._positioner) {
+            const anchorCfg = normalizeAtConfig(this.config.at);
+            const anchorEl = anchorCfg ? resolveAnchorEl(anchorCfg.selector, this.searchRoot) : null;
+            this._positioner({
+                panel: this._panel!,
+                anchor: anchorCfg,
+                anchorEl,
+                registerCleanup: (fn) => this._cleanups.push(fn),
+                warn: (msg) => this.engine.logger.warn(msg),
+            });
         } else {
-            if (this.config.at != null) {
-                // 提示原始选择器（config.at 已归一化为对象，String 化前取回 selector）
-                this.engine.logger.warn(
-                    `x-overlay "${this.name}": at "${String(anchorCfg?.selector ?? this.config.at)}" 未命中，退屏幕居中（ADR-0052 决策 22）`,
+            // 内置两态（每次显示现算：配置与锚点可随重开变化；未命中 warn 退居中，决策 22/24）。
+            // config.at 三态（字符串/元素简写 ≡ {selector}）经 normalizeAtConfig 归一。
+            // 箭头（ADR-0062）：**渲染归 shell**（模板恒含 `.autospark-overlay-arrow` 载体），
+            // **显隐与定位归引擎**——锚定命中且 `arrow !== false` 才保留并交给 floating-ui
+            // （middleware 经 :scope > 查询载体）；退居中 / `arrow: false` 时移除载体，
+            // 防未定位载体残留孤立菱形。
+            const anchorCfg = normalizeAtConfig(this.config.at);
+            const anchorEl = anchorCfg ? resolveAnchorEl(anchorCfg.selector, this.searchRoot) : null;
+            const arrowEl = this._panel!.querySelector(
+                `:scope > .${OVERLAY_ARROW_CLASS}`,
+            ) as HTMLElement | null;
+            if (anchorEl && anchorCfg) {
+                if (anchorCfg.arrow === false) arrowEl?.remove();
+                applyAnchorPosition(anchorCfg, anchorEl, this._panel!, (fn) =>
+                    this._cleanups.push(fn),
                 );
+            } else {
+                arrowEl?.remove();
+                if (this.config.at != null) {
+                    // 提示原始选择器（config.at 已归一化为对象，String 化前取回 selector）
+                    this.engine.logger.warn(
+                        `x-overlay "${this.name}": at "${String(anchorCfg?.selector ?? this.config.at)}" 未命中，退屏幕居中（ADR-0052 决策 22）`,
+                    );
+                }
+                this._resetPanelToCentered();
             }
-            this._resetPanelToCentered();
         }
 
         const phase = resolveAnimate(this.config.animate).enter;

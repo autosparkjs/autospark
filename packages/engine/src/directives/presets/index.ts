@@ -19,7 +19,10 @@ export * from "./loading";
 export * from "./isolate";
 export * from "./scope";
 export * from "./overlay";
+export * from "./visible-overlay";
 export * from "./dialog";
+export * from "./popover";
+export * from "./drawer";
 export * from "./component";
 export * from "./define";
 export * from "./slot";
@@ -42,7 +45,10 @@ import { BindDirective } from "./bind";
 import { OnDirective } from "./on";
 import { LoadingDirective } from "./loading";
 import { IsolateDirective } from "./isolate";
+import { TeleportDirective } from "./teleport";
 import { DialogDirective } from "./dialog";
+import { DrawerDirective } from "./drawer";
+import { PopoverDirective } from "./popover";
 import { ModelDirective } from "./model";
 import { ScopeDirective } from "./scope";
 import { ComponentDirective } from "./component";
@@ -89,10 +95,16 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     model: ModelDirective,
     loading: LoadingDirective,
     isolate: IsolateDirective,
+    // x-teleport 传送（ADR-0059）：一次性静态结构指令（ownsChildren 延迟编译 + dataContext 基准）
+    teleport: TeleportDirective,
     scope: ScopeDirective,
     // 覆盖物体系（ADR-0052 修订版）：x-dialog 模态形态消费者（OverlayDirective 基座不注册——
     // 模板无 x-overlay 语法，覆盖物内容 = 任意组件，消费 attr 名即组件名）
     dialog: DialogDirective,
+    // x-popover 悬浮形态消费者（ADR-0060）：宿主 mouseenter 触发、共享 hover 域 + hover 链
+    popover: PopoverDirective,
+    // x-drawer 贴边抽屉形态消费者（ADR-0063）：屏幕贴边默认 + 元素贴边锚定（长轴=锚边长）
+    drawer: DrawerDirective,
     component: ComponentDirective,
     define: DefineDirective,
     slot: SlotDirective,

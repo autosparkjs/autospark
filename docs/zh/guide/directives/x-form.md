@@ -1,4 +1,4 @@
-# 表单
+# x-form 表单
 
 ## 概述
 
@@ -24,9 +24,9 @@
 
 ## 指南
 
-### 声明表单
+### 指令值
 
-`x-form` 指令用于在 `form` 元素中创建一个实时响应式表单。
+`x-form` 指令用于在 `form` 元素中创建一个实时响应式表单。值三种形态：
 
 | 值形态           | 语义                                                                                          | 适用                            |
 | ---------------- | --------------------------------------------------------------------------------------------- | ------------------------------- |
@@ -62,6 +62,8 @@ x-form 只能声明在 `<form>` 元素上；表单数据恒挂私有域（`mount
 
 `x-field` 指令用于在 `x-form` 表单内部创建响应式表单字段。**必须声明在 `x-form` 内**（沿作用域链就近查找所属表单，含表单元素自身），脱离表单则编译期报错、指令失效。
 
+<demo html="form/field-control.html" />
+
 #### 指定字段值
 
 值指定字段绑定的**状态路径**，必须为**简单状态路径**（不支持表达式，否则编译期报错、指令失效）。两种写法：
@@ -76,7 +78,7 @@ x-form 只能声明在 `<form>` 元素上；表单数据恒挂私有域（`mount
 
 #### 用在标准表单控件上（控件形态）
 
-`x-field` 声明在 `input`/`textarea`/`select` 三类**标准控件**上时，行为与 `x-model` 完全一致（ControlKind 分派、`.trim`/`.number` 修饰符、[元数据自动注入](./x-model#元数据自动注入)），并额外注入 `$field`——表单内不必再写 `x-model`：
+`x-field` 声明在 `input`/`textarea`/`select` 三类**标准控件**上时，行为与 `x-model` 完全一致（ControlKind 分派、`.trim`/`.number` 修饰符、[元数据自动注入](./x-model.md#自动注入)），并额外注入 `$field`——表单内不必再写 `x-model`：
 
 ```html
 <form x-form="{ age: 18 }">
@@ -84,8 +86,6 @@ x-form 只能声明在 `<form>` 元素上；表单数据恒挂私有域（`mount
   <!-- 双向绑定 + number 转换 -->
 </form>
 ```
-
-<demo html="form/field-control.html" />
 
 #### 用在非表单输入控件上（容器形态）
 
@@ -106,6 +106,8 @@ x-form 只能声明在 `<form>` 元素上；表单数据恒挂私有域（`mount
 
 `$field` 是注入后代作用域的 Proxy 对象，三种读取来源分层响应：
 
+<demo html="form/metadata.html" />
+
 | 键                                                                         | 来源                                                               | 响应式                  |
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------- |
 | `$field.value`                                                             | 字段输入值（可读可写——schema 声明 toInput/toState 时为转换值，未声明即状态值） | ✅ 自动（依赖收集穿透） |
@@ -122,7 +124,9 @@ x-form 只能声明在 `<form>` 元素上；表单数据恒挂私有域（`mount
 
 ### 视图转换（toInput / toState）
 
-字段的[元数据](#元数据自动注入)提供 `toInput` / `toState` 转换函数时，x-field 自动让其在**全部读写通道**生效（ADR-0050）——典型场景：状态存编码值（`sex: 1`），控件显示文案（`"男"`）：
+字段的[元数据](#字段上下文)提供 `toInput` / `toState` 转换函数时，x-field 自动让其在**全部读写通道**生效（ADR-0050）——典型场景：状态存编码值（`sex: 1`），控件显示文案（`"男"`）：
+
+<demo html="form/transform.html" />
 
 ```ts
 import { configurable } from "autospark";
@@ -181,7 +185,7 @@ const state = {
 
 ### 标准表单字段
 
-input / textarea / select 三类标准控件一律 `<控件 x-bind="$field" />` 快速绑定；**select 的 schema.choices 自动渲染 `<option>` 子树**（响应式：程序改写 `schema.choices` 经 configManager 桥接触发全量重建，选中态自动重放）。静态手写 `<option>` 优先于 choices（与 [x-model 选项三源](./x-model#选项列表) 同序）。
+input / textarea / select 三类标准控件一律 `<控件 x-bind="$field" />` 快速绑定；**select 的 schema.choices 自动渲染 `<option>` 子树**（响应式：程序改写 `schema.choices` 经 configManager 桥接触发全量重建，选中态自动重放）。静态手写 `<option>` 优先于 choices（与 [x-model 选项三源](./x-model.md#select) 同序）。
 
 <demo html="form/native-fields.html" />
 
@@ -292,6 +296,8 @@ schema 元数据写 computed 联动在 x-field 下**不可用**——闭包直�
 
 x-form 容器内注入 `$form`（字段可分散于状态树，故 `getState` 是方法而非对象）：
 
+<demo html="form/basic.html" />
+
 | 键                     | 说明                                                                                          |
 | ---------------------- | --------------------------------------------------------------------------------------------- |
 | `$form.getState()`     | 聚合注册字段的值：`{ name: 值 }`（name 三层解析：`x-field-options` > schema.name > 路径末段） |
@@ -319,9 +325,9 @@ x-form 恒拦截原生提交（`preventDefault`——`action` 属性留给无 JS
 
 <demo html="form/reset.html" />
 
-## 配置
+## 配置选项
 
-两套指令选项：表单级 `x-form-options`、字段级 `x-field-options`（宽松 JSON 对象；读取走「指令选项 → 宿主选项 `x-options`」两层回退、缺失才回退，见[指令配置](../directive/config.md)）。
+两套指令选项：表单级 `x-form-options`、字段级 `x-field-options`（宽松 JSON 对象；读取走「指令选项 → 宿主选项 `x-options`」两层回退、缺失才回退，见[指令配置](../directive/config.md)）：
 
 ```html
 <!-- 表单级：validateOnSubmit（默认 true）/ onInvalid（表单级校验默认，字段 schema 覆盖之） -->
@@ -331,12 +337,15 @@ x-form 恒拦截原生提交（`preventDefault`——`action` 属性留给无 JS
 <div x-field="login.name" x-field-options="{ label: '覆盖名', name: 'userName' }">...</div>
 ```
 
-### 表单级（x-form-options）
+| 配置项             | 默认值   | 修饰符    | 说明                                                                                         |
+| ------------------ | -------- | --------- | -------------------------------------------------------------------------------------------- |
+| `validateOnSubmit` | `true`   | —         | 表单级：提交校验门——逐字段跑 `schema.validate` + 存量错误检查，任一有错即阻止 `@submit`；`false` 直通 |
+| `onInvalid`        | `'pass'` | —         | 表单级：校验失败默认行为（`pass`/`throw`/`ignore`/`throw-pass`），补写进未显式声明的字段 schema；字段 schema 显式声明覆盖之 |
+| `trim`             | `false`  | `.trim`   | 字段级：写回前去首尾空白（仅字符串）                                                         |
+| `number`           | `false`  | `.number` | 字段级：写回前转数字（NaN 回退原值，不破坏输入）                                             |
+| `boolean`          | `false`  | `.boolean` | 字段级：`'true'`/`'false'`/`''` 转布尔（严格集外保留原值）                                    |
 
-| 配置项             | 默认值   | 说明                                                                                         |
-| ------------------ | -------- | -------------------------------------------------------------------------------------------- |
-| `validateOnSubmit` | `true`   | 提交校验门：逐字段跑 `schema.validate` + 存量错误检查，任一有错即阻止 `@submit`；`false` 直通 |
-| `onInvalid`        | `'pass'` | 表单级校验失败默认行为（`pass`/`throw`/`ignore`/`throw-pass`），补写进未显式声明的字段 schema；字段 schema 显式声明覆盖之 |
+### 表单级（x-form-options）
 
 url / action 异步取数形态沿用 x-data 的[异步专属选项](./x-data#异步状态反馈)（`path` / `loading` / `method` / `header`）。
 
@@ -346,13 +355,7 @@ url / action 异步取数形态沿用 x-data 的[异步专属选项](./x-data#�
 
 ### 字段级（x-field-options）
 
-**写方向修饰符**（✅，解析期并入指令选项，与 x-model 同款管道 `trim → number → boolean`）：
-
-| 修饰符      | 说明                                               |
-| ----------- | -------------------------------------------------- |
-| `.trim`     | 写回前去首尾空白（仅字符串）                       |
-| `.number`   | 写回前转数字（NaN 回退原值，不破坏输入）           |
-| `.boolean`  | `'true'`/`'false'`/`''` 转布尔（严格集外保留原值） |
+**写方向修饰符**（`.trim` / `.number` / `.boolean`，见上表）解析期并入指令选项，与 x-model 同款管道 `trim → number → boolean`。
 
 **元数据覆盖**（覆盖链最高层 `x-field-options` > `configurable` schema > 默认；只作用于视图读取，**不写回 schema 本体**）：
 
@@ -373,3 +376,11 @@ url / action 异步取数形态沿用 x-data 的[异步专属选项](./x-data#�
 ::: warning 已知限制
 schema 字段写 `computed` 联动全局状态会得到陈旧缓存（autostore 跨 store 失效链断裂）——联动请写模板表达式（`:disabled="level <= 0"`）或字面量元数据 + 程序改写。详见 ADR-0045「限制与避坑」。
 :::
+
+## 注意事项
+
+- **只能声明在 `<form>` 上**：`x-form` 写在非 form 元素上无效；表单数据恒挂私有域，`mount` / `global` 选项声明即 warn 忽略。
+- **x-field 必须在 x-form 内**：沿作用域链就近查找所属表单（含表单元素自身），脱离表单编译期报错、指令失效；字段值必须是**简单状态路径**（不支持表达式）。
+- **控件形态不支持写方向变换**：`get` 可作显示变换，`set` 由引擎接管——拆分 / 组合走容器形态 + action（见[字段拆分](#字段拆分) / [字段组合](#字段组合)）。
+- **reset 是状态快照回滚**（回到 applyData 后的初始深快照、`Object.assign` 回域），不是浏览器原生只重置 DOM 的 reset——状态驱动下二者会分叉。
+- **schema computed 联动不可用**（跨 store 失效链断裂得陈旧缓存）：联动一律走模板表达式或字面量元数据 + watch 程序改写，详见[字段联动](#字段联动)与 ADR-0045。

@@ -1,4 +1,4 @@
-# 树形渲染
+# x-tree 树形渲染
 
 ## 概述
 
@@ -96,7 +96,7 @@ new AutoSparkSpaces.AutoSpark(el, state); // state 即响应式数据源
 <span class="arrow" x-tree-toggle>▸</span>   <!-- 只有这里触发展开 -->
 ```
 
-行内其他 `@click`（如删除按钮）自行 `@click.stop` 阻断冒泡。更进一步的交互——勾选级联（`x-tree-check`）、节点选中（`selectedField`）、拖拽（`draggable`）——见[指南](#指南)各章节与[标记一览](#标记一览)。
+行内其他 `@click`（如删除按钮）自行 `@click.stop` 阻断冒泡。更进一步的交互——勾选级联（`x-tree-check`）、节点选中（`selectedField`）、拖拽（`draggable`）——见[指南](#指南)各章节与[指令值](#指令值)的标记一览表。
 
 ### 总结
 
@@ -106,6 +106,37 @@ new AutoSparkSpaces.AutoSpark(el, state); // state 即响应式数据源
 - **交互**：`x-tree-toggle` 收窄展开触点，进阶交互见指南。
 
 ## 指南
+
+### 指令值
+
+指令值形如 **`<节点变量[, <序号变量>]> of <状态路径>`**（必填，`of` 不可省——对齐 x-for，不支持裸路径）：`of` 左侧自定义节点变量名（模板内 `node.xxx` 读当前节点字段），可选第二变量自定义序号名（缺省 `$index`）；右侧是嵌套树数据的状态路径。
+
+**数据格式**：只接受**嵌套结构**——子节点经 `childrenField`（默认 `"children"`）递归组织，单根 `{...}` 与多根 `[{...}]` 均可（自动归一，见快速入门第 1 步的组织架构树）；平铺数据（数据库查询结果、CSV）请先在数据层转换为嵌套结构再交给 x-tree。
+
+**标记一览**——x-tree 家族的全部标记（除 `x-tree` 本体外均为**无值标记**——写属性名即可，带值会被忽略并提示）：
+
+| 标记 | 书写位置 | 作用 |
+| --- | --- | --- |
+| `x-tree` | 容器（宿主元素） | 树渲染指令本体：`x-tree="node of nodes"` |
+| `x-tree-node` | 容器**直接子元素** | 节点模板声明（首个生效，多余提示）——引擎对展开路径递归套用此模板 |
+| `x-tree-children` | 节点模板内 | 子节点渲染点（缺省只渲染一层并提示）；多个取首个 |
+| `x-tree-toggle` | 节点模板内 | 展开触点收窄——声明后仅标记元素触发展开/折叠；启用选中（`selectedField`）后**必须声明** |
+| `x-tree-check` | 节点模板内 | 复选触点——声明即启用复选交互与级联（状态写入 `checkedField` 字段） |
+| `x-empty` | 容器**直接子元素** | 空态模板（树数据为真空数组 `[]` 时渲染，对齐 x-for 惯例） |
+
+```html
+<ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 2 }"><!-- ① x-tree 宿主 -->
+    <li x-tree-node><!-- ② 节点模板（直接子元素） -->
+        <span class="arrow" x-tree-toggle>▸</span>   <!-- ③ 展开触点 -->
+        <span class="chk" x-tree-check>☐</span>      <!-- ④ 复选触点 -->
+        <span x-text="node.title"></span>
+        <ul x-tree-children></ul>                     <!-- ⑤ 子节点渲染点 -->
+    </li>
+    <li x-empty>暂无数据</li>                          <!-- ⑥ 空态（直接子元素） -->
+</ul>
+```
+
+各标记的机制详见下方指南各章节（模板优先级 / 交互触点 / 选中 / 复选与级联 / 空态）。
 
 ### 节点模板三级优先
 
@@ -147,6 +178,8 @@ new AutoSparkSpaces.AutoSpark(el, state); // state 即响应式数据源
 
 在容器内声明 `<li x-tree-node>`——**唯一会被递归套用到每一层的模板**（根层、子层、孙层全用这同一个 `<li>`，`node` 在每层指向当前节点）。模板 = 行内容自由 + 一个子容器标记：
 
+<demo html="tree/basic.html"/>
+
 ```html
 <ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 2 }">
     <li x-tree-node>                                   <!-- ① 行根：节点模板声明 -->
@@ -170,6 +203,20 @@ new AutoSparkSpaces.AutoSpark(el, state); // state 即响应式数据源
 
 三个注意：宿主直接子元素只认 `x-tree-node` 与 `x-empty`（其余丢弃并提示）；`x-tree-children` 取第一个（多余提示）；模板缺 `x-tree-children` 时只渲染一层（提示）。
 
+#### 交互触点
+
+默认**整行点击**展开/折叠；节点模板内声明了 `x-tree-toggle` 标记后，**仅标记元素**触发（文件树「点箭头展开、点行选中」的语义）：
+
+```html
+<li x-tree-node>
+    <span class="arrow" x-tree-toggle>▸</span>  <!-- 只有这里触发展开 -->
+    <span x-text="node.title"></span>           <!-- 这里不触发 -->
+    <ul x-tree-children></ul>
+</li>
+```
+
+行内其他 `@click`（如删除按钮）请自行 `@click.stop` 阻断冒泡。启用选中（见[节点选中](#节点选中)）后整行点击语义变为**选中**，展开恒收窄到 `x-tree-toggle` 标记。
+
 ### 展开语义：惰性写回
 
 节点的**有效展开态**按以下规则合成：
@@ -192,10 +239,6 @@ const state = {
 };
 ```
 
-### 数据格式：嵌套 children
-
-只接受嵌套结构：子节点经 `childrenField`（默认 `"children"`）递归组织；单根 `{...}` 与多根 `[{...}]` 均可（自动归一）——如上方快速入门的组织架构树。平铺数据（数据库查询结果、CSV）请先在数据层转换为嵌套结构再交给 x-tree。
-
 ### 循环变量（九元组）
 
 节点模板的求值作用域内自动注入以下变量（`$` 前缀对齐 [x-for 派生变量](./x-for.md)，不占自定义命名空间）：
@@ -213,23 +256,11 @@ const state = {
 
 `$expanded` 是合成值——不必手写 `node.expand ?? $level < 2` 这类回退表达式。
 
-### 交互触点
-
-默认**整行点击**展开/折叠；节点模板内声明了 `x-tree-toggle` 标记后，**仅标记元素**触发（文件树「点箭头展开、点行选中」的语义）：
-
-```html
-<li x-tree-node>
-    <span class="arrow" x-tree-toggle>▸</span>  <!-- 只有这里触发展开 -->
-    <span x-text="node.title"></span>           <!-- 这里不触发 -->
-    <ul x-tree-children></ul>
-</li>
-```
-
-行内其他 `@click`（如删除按钮）请自行 `@click.stop` 阻断冒泡。启用选中（见下节）后整行点击语义变为**选中**，展开恒收窄到 `x-tree-toggle` 标记。
-
 ### 节点选中
 
 配置 `selectedField` 即启用（值即选中状态写入的字段名）——**显式声明才启用**，因为它改变整行点击语义（toggle → 选中，VSCode 文件树心智）：
+
+<demo html="tree/builtin.html"/>
 
 ```html
 <ul x-tree="node of nodes" x-tree-options="{ selectedField: 'selected' }">
@@ -318,6 +349,8 @@ const state = {
 
 树数据为**真空数组 `[]`** 时，容器内带 `x-empty` 的子元素渲染（对齐 x-for 惯例；`undefined` 不认领——留给异步加载场景）：
 
+<demo html="tree/empty.html"/>
+
 ```html
 <ul x-tree="node of nodes">
     <li x-tree-node>…</li>
@@ -325,51 +358,24 @@ const state = {
 </ul>
 ```
 
-## 标记一览
-
-x-tree 家族的全部标记（除 `x-tree` 本体外均为**无值标记**——写属性名即可，带值会被忽略并提示）：
-
-| 标记 | 书写位置 | 作用 |
-| --- | --- | --- |
-| `x-tree` | 容器（宿主元素） | 树渲染指令本体：`x-tree="node of nodes"` |
-| `x-tree-node` | 容器**直接子元素** | 节点模板声明（首个生效，多余提示）——引擎对展开路径递归套用此模板 |
-| `x-tree-children` | 节点模板内 | 子节点渲染点（缺省只渲染一层并提示）；多个取首个 |
-| `x-tree-toggle` | 节点模板内 | 展开触点收窄——声明后仅标记元素触发展开/折叠；启用选中（`selectedField`）后**必须声明** |
-| `x-tree-check` | 节点模板内 | 复选触点——声明即启用复选交互与级联（状态写入 `checkedField` 字段） |
-| `x-empty` | 容器**直接子元素** | 空态模板（树数据为真空数组 `[]` 时渲染，对齐 x-for 惯例） |
-
-```html
-<ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 2 }"><!-- ① x-tree 宿主 -->
-    <li x-tree-node><!-- ② 节点模板（直接子元素） -->
-        <span class="arrow" x-tree-toggle>▸</span>   <!-- ③ 展开触点 -->
-        <span class="chk" x-tree-check>☐</span>      <!-- ④ 复选触点 -->
-        <span x-text="node.title"></span>
-        <ul x-tree-children></ul>                     <!-- ⑤ 子节点渲染点 -->
-    </li>
-    <li x-empty>暂无数据</li>                          <!-- ⑥ 空态（直接子元素） -->
-</ul>
-```
-
-各标记的机制详见上方指南各章节（模板优先级 / 交互触点 / 选中 / 复选与级联 / 空态）。
-
-## 配置
+## 配置选项
 
 `x-tree-options`（relaxed-json；按[指令选项回退](../directive/config.md#两层回退)惯例可回退宿主 `x-options`）：
 
-| 配置项               | 默认值      | 说明                                                         |
-| -------------------- | ----------- | ------------------------------------------------------------ |
-| `idField`            | `"id"`      | 节点唯一标识字段——复用 key 的唯一来源；缺省回退层级路径      |
-| `childrenField`      | `"children"`| 子节点字段                                                   |
-| `expandField`        | `"expand"`  | 展开状态字段（惰性写回目标）                                 |
-| `nameField`          | `"name"`    | 内置默认节点模板显示的字段名                                 |
-| `defaultExpandLevel` | `1`         | 前多少层可见（回退规则，不写数据；合法值 ≥ 1）               |
-| `keepalive`          | `false`     | 折叠保活子树（display:none），默认 eager 销毁                |
-| `animate`            | `'expand'`  | 子容器整体进出场动画（同 [animate 选项](../animate.md)三形态；默认 expand 高度过渡，后续节点平滑跟随） |
-| `selectedField`      | 无          | 声明即启用选中（值即字段名）；整行点击 = 选中，展开收窄到 `x-tree-toggle` |
-| `multiSelect`        | `false`     | 多选模式（各行独立 toggle，不清其他选中）                    |
-| `checkedField`       | `"checked"` | 复选状态写入的字段名。**显式声明即启用复选**——零模板场景默认模板自动带三态触点；自定义模板以 `x-tree-check` 标记为准（声明但无触点会提示） |
-| `cascade`            | `true`      | 复选级联（父→子孙 / 子→祖先重算）；`false` 各节点独立        |
-| `draggable`          | `false`     | 启用拖拽（三态定位 + 环检测 + 数据 splice 写回）             |
+| 配置项               | 默认值      | 修饰符       | 说明                                                         |
+| -------------------- | ----------- | ------------ | ------------------------------------------------------------ |
+| `idField`            | `"id"`      | —            | 节点唯一标识字段——复用 key 的唯一来源；缺省回退层级路径      |
+| `childrenField`      | `"children"`| —            | 子节点字段                                                   |
+| `expandField`        | `"expand"`  | —            | 展开状态字段（惰性写回目标）                                 |
+| `nameField`          | `"name"`    | —            | 内置默认节点模板显示的字段名                                 |
+| `defaultExpandLevel` | `1`         | —            | 前多少层可见（回退规则，不写数据；合法值 ≥ 1）               |
+| `keepalive`          | `false`     | `.keepalive` | 折叠保活子树（display:none），默认 eager 销毁                |
+| `animate`            | `'expand'`  | —            | 子容器整体进出场动画（同 [animate 选项](../animate.md)三形态；默认 expand 高度过渡，后续节点平滑跟随） |
+| `selectedField`      | 无          | —            | 声明即启用选中（值即字段名）；整行点击 = 选中，展开收窄到 `x-tree-toggle` |
+| `multiSelect`        | `false`     | —            | 多选模式（各行独立 toggle，不清其他选中）                    |
+| `checkedField`       | `"checked"` | —            | 复选状态写入的字段名。**显式声明即启用复选**——零模板场景默认模板自动带三态触点；自定义模板以 `x-tree-check` 标记为准（声明但无触点会提示） |
+| `cascade`            | `true`      | —            | 复选级联（父→子孙 / 子→祖先重算）；`false` 各节点独立        |
+| `draggable`          | `false`     | —            | 启用拖拽（三态定位 + 环检测 + 数据 splice 写回）             |
 
 ## 注意事项
 

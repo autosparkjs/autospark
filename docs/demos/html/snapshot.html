@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-html · 静态快照 vs .compile</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 对照：同一段注入 HTML，默认 x-html 是静态快照（其中的 x-text / {{}} 只当纯文本显示）；
+             x-html.compile 把它当子模板编译（指令生效、随状态刷新）。 -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button is-primary" @click="bump">改 name（B 跟着变，A 不动）</button>
+                <button class="button is-light" @click="swap">换 tpl（两边都重新注入）</button>
+            </div>
+
+            <div class="field">
+                <label class="label">① 默认 x-html：静态快照——注入的指令不执行</label>
+                <div class="box" x-html="tpl"></div>
+            </div>
+
+            <div class="field">
+                <label class="label">② x-html.compile：子模板编译——注入的指令生效</label>
+                <div class="box" x-html.compile="tpl"></div>
+            </div>
+
+            <p class="has-text-grey is-size-7">
+                name = <span x-text="name"></span> — 点「改 name」只有 ② 里的 <code>x-text</code> 刷新；① 里同款
+                <code>&lt;span&gt;</code> 是字面 HTML。
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    name: "zhang",
+                    tpl: '<span x-text="name"></span> · <em>{{ greeting }}</em>（注入原文）',
+                },
+                {
+                    actions: {
+                        bump: () => {
+                            engine.state.name = engine.state.name === "zhang" ? "li" : "zhang";
+                        },
+                        swap: () => {
+                            engine.state.tpl =
+                                engine.state.tpl.indexOf("第一版") === -1
+                                    ? '<span x-text="name"></span> 第一版（重新注入）'
+                                    : '<span x-text="name"></span> · <em>{{ greeting }}</em>（注入原文）';
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

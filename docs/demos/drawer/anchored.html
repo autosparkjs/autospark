@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-drawer · 元素贴边锚定</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .layout {
+        display: flex;
+        gap: 16px;
+        align-items: stretch;
+      }
+      .fake-sidebar {
+        width: 100%;
+        height: 300px;
+        border: 1px solid #dbdbdb;
+        border-radius: 6px;
+        padding: 14px;
+        box-sizing: border-box;
+        background: #fafafa;
+        margin: 0.5em;
+      }
+      .drawer-body {
+        padding: 16px 20px;
+        box-sizing: border-box;
+      }
+      .drawer-body h3 {
+        margin: 0 0 8px;
+      }
+      .drawer-body p {
+        margin: 0 0 14px;
+        color: #666;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 元素贴边锚定（at.selector 命中）：抽屉贴锚元素对应边外侧滑出，
+             长轴 = 锚边长（随锚 resize 重同步），短轴仍走 --autospark-drawer-size。
+             锚定 flip 默认关（方向是明确指定）、无箭头；未命中 warn 退屏幕贴边。 -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="layout">
+          <aside class="fake-sidebar" id="sidebar">
+            <strong>布局侧栏（锚元素 #sidebar）</strong>
+            <p class="is-size-7 has-text-grey">右侧抽屉将贴本侧栏右缘滑出，高度 = 侧栏高度。</p>
+          </aside>
+        </div>
+        <div class="block">
+          <!-- 消费者指令与 at 配置必须同元素（宿主兼触发点） -->
+          <button
+            class="button is-primary"
+            x-drawer:filters="ui.filters"
+            x-drawer-options.at="{selector: '#sidebar', placement: 'right'}"
+          >
+            侧栏右缘滑出过滤器
+          </button>
+          <button
+            class="button"
+            x-drawer:miss="ui.miss"
+            x-drawer-options.at="{selector: '#not-exists'}"
+          >
+            锚未命中示例（warn 退屏幕贴边）
+          </button>
+        </div>
+        <div x-define="filters">
+          <div class="drawer-body">
+            <h3>过滤器</h3>
+            <p>贴 #sidebar 右缘，高度沿锚边展开。</p>
+            <button class="button is-small" @click="close()">关闭</button>
+          </div>
+        </div>
+        <div x-define="miss">
+          <div class="drawer-body">
+            <h3>回退抽屉</h3>
+            <p>锚未命中：warn 后退屏幕贴边（默认 right）。</p>
+            <button class="button is-small" @click="close()">关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+        ui: { filters: false, miss: false },
+      });
+    </script>
+  </body>
+</html>

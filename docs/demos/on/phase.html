@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-on · 双通道阶段事件</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 按容器聚合子 action 阶段事件：@action:名称.pending/resolved/rejected。
+             只按 action 名过滤——saveDraft 触发时上方状态不变。 -->
+        <div class="demo-app section">
+            <div
+                class="card"
+                @action:submit.pending="phase = 'submit → pending（等待中）'"
+                @action:submit.resolved="phase = 'submit → resolved ✓'"
+                @action:submit.rejected="phase = 'submit → rejected ✗'"
+            >
+                <div class="card-content">
+                    <p class="label">容器聚合（仅监听 action:submit）：</p>
+                    <div class="buttons">
+                        <button class="button is-primary" @click="submit">提交（1s）</button>
+                        <button class="button is-light" @click="saveDraft">保存草稿（0.6s，不改此状态）</button>
+                    </div>
+                    <p>阶段：<strong class="has-text-primary" x-text="phase"></strong></p>
+                </div>
+            </div>
+
+            <div class="card" @action:boom.pending="failPhase = 'boom → pending'" @action:boom.rejected="failPhase = 'boom → rejected ✓（失败也有信号）'">
+                <div class="card-content">
+                    <p class="label">失败动作同样有 rejected 阶段：</p>
+                    <div class="buttons">
+                        <button class="button is-danger" @click="boom">故意失败</button>
+                    </div>
+                    <p>阶段：<strong class="has-text-danger" x-text="failPhase"></strong></p>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { phase: "等待触发…", failPhase: "等待触发…" },
+                {
+                    actions: {
+                        submit: () => new Promise((resolve) => setTimeout(resolve, 1000)),
+                        saveDraft: () => new Promise((resolve) => setTimeout(resolve, 600)),
+                        boom: () =>
+                            new Promise((_resolve, reject) =>
+                                setTimeout(() => reject(new Error("示例失败")), 600),
+                            ),
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-isolate · inline 子引擎</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- inline：x-isolate 内部由独立子引擎编译——x-data 自治；种子状态取父状态初值快照 -->
+        <div class="demo-app section">
+            <!-- 无值：内部 x-data 自治，计数与外部互不相干 -->
+            <div class="card" x-isolate>
+                <div class="card-content">
+                    <p class="is-italic has-text-grey">隔离世界（独立子引擎，x-data 自治）：</p>
+                    <div x-data="{ count: 1 }">
+                        <button class="button is-primary is-small" @click="count++">
+                            隔离内点击 <span x-text="count"></span> 次
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 种子状态：{ n: seed } 在父作用域求值一次——初值快照，父变化不跟随 -->
+            <div class="card" x-isolate="{ n: seed }">
+                <div class="card-content">
+                    <p class="is-italic has-text-grey">种子状态（初值快照，不随父变化）：</p>
+                    <p>种子值：<strong x-text="n"></strong></p>
+                </div>
+            </div>
+
+            <div class="block">
+                普通区域（父 engine）：seed = <span class="has-text-primary has-text-weight-semibold" x-text="seed"></span>
+                <button class="button is-small" @click="bump">父 seed +1（不影响上方种子）</button>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { seed: 7 },
+                {
+                    actions: {
+                        bump: () => {
+                            engine.state.seed++;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

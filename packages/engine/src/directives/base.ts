@@ -95,6 +95,15 @@ export class AutoSparkDirectiveBase {
     static ownsChildren(_info: AutoDirectiveInfo): boolean {
         return false;
     }
+    /**
+     * 是否为**覆盖物消费者**（静态）：`x-dialog` 等把组件渲染到 body 容器的消费指令
+     * （OverlayDirective 家族唯一覆写点）。
+     *
+     * 供两处按类判定而无需 import 具体子类（避免 component → overlay 的循环依赖）：
+     * - compiler 的插槽归属剪枝（宿主子树内容识别）；
+     * - x-component 的混合宿主冲突检测（ADR-0056 决策十修订）。
+     */
+    static readonly overlayConsumer: boolean = false;
 
     /**
      * 类级初始化钩子（静态，可选，所有 kind 通用）。

@@ -170,6 +170,7 @@ describe("分支内容编译执行（Q2/Q8）", () => {
                 <div x-else-if="a" class="br" :title="msg" :data-hot="hot ? 'on' : 'off'" x-text="msg"></div>
              </div>`,
             { on: false, a: true, hot: false, msg: "文案" },
+            { tooltip: false },
         );
         await nextTick();
         const br = root.querySelector(".br")!;

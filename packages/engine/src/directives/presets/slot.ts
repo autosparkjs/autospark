@@ -69,6 +69,13 @@ export class SlotDirective extends AutoSparkDirectiveBase {
 
     override compile(): void {
         if (this.content && this.callerScope) {
+            // 活体段（ADR-0062 shell 机制）：引擎已编译的组件实例直挂出口——不克隆、不再编译、
+            // 不建内容 scope（DOM 挂载不动 scope 上的 watcher/监听；销毁权责归构造方
+            // OverlayInstance 对内容/shell 双 scope 的统一回收）
+            if (this.content.mode === "live") {
+                for (const n of this.content.nodes) this.el.appendChild(n);
+                return;
+            }
             // 投影：内容在调用方基准下编译、挂到出口元素（原出口子节点不进 DOM）
             this.contentScopes = this.engine.compiler.compileSlotNodes(
                 this.content.nodes,
