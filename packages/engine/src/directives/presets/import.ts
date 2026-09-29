@@ -7,7 +7,7 @@ import { AutoSparkDirectiveBase } from "../base";
  * 这类值直接作 url 加载，避免被表达式求值误解析（`/cmp.html` 当正则、`http://` 当注释等）。
  * 含空白/花括号/运算符的值视为表达式（响应式 url，watch 求值）。
  */
-function isLiteralUrl(raw: string): boolean {
+export function isLiteralUrl(raw: string): boolean {
     if (/\s/.test(raw)) return false; // 含空白 → 表达式
     if (raw.startsWith("/") || raw.startsWith("./") || raw.startsWith("../")) return true;
     if (/^https?:\/\//i.test(raw) || /^file:\/\//i.test(raw)) return true;

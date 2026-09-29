@@ -208,9 +208,51 @@ export function refreshIconStyle(): void {
 /** 全局图标注册表单例（`AutoSpark.icons` 静态暴露同一实例） */
 export const iconRegistry = new IconRegistry();
 
+/** 内置图标 SVG 片段模板：统一 stroke 型开标签（width/height/class 不写，symbol 归一化承载） */
+const SVG_BEGIN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">`;
+const SVG_END = `</svg>`;
+
 // 内置默认图标（ADR-0046 决策 8 沿用）：未命中（未声明或已删除）的替换渲染——「缺图不破相」。
 // 以条目 default 驻注册表：可被用户同名覆盖自定义；delete("default") 后未命中退回空占位。
+// 另有内置常用图标 no / yes / warn / error / arrow / info / file，同纪律（可同名覆盖、可 delete）。
 iconRegistry.add(
     "default",
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>',
+    `${SVG_BEGIN}<rect x="5" y="5" width="14" height="14" rx="3"/>${SVG_END}`,
 );
+iconRegistry.add(
+    "no",
+    `${SVG_BEGIN}<path d="M18 6 6 18"/><path d="m6 6 12 12"/>${SVG_END}`,
+);
+iconRegistry.add(
+    "yes",
+    `${SVG_BEGIN}<path d="M20 6 9 17l-5-5"/>${SVG_END}`,
+);
+iconRegistry.add(
+    "warn",
+    `${SVG_BEGIN}<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>${SVG_END}`,
+);
+iconRegistry.add(
+    "error",
+    `${SVG_BEGIN}<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>${SVG_END}`,
+);
+iconRegistry.add(
+    "arrow",
+    `${SVG_BEGIN}<path d="m9 18 6-6-6-6"/>${SVG_END}`,
+);
+iconRegistry.add(
+    "info",
+    `${SVG_BEGIN}<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>${SVG_END}`,
+);
+iconRegistry.add(
+    "file",
+    `${SVG_BEGIN}<path d="m9 18 6-6-6-6"/>${SVG_END}`,
+);
+iconRegistry.add(
+    "refresh",
+    `${SVG_BEGIN}<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>${SVG_END}`,
+);
+iconRegistry.add(
+    "success",
+    `${SVG_BEGIN}<circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/>${SVG_END}`,
+);
+

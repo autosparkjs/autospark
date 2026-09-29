@@ -58,52 +58,61 @@ export class DrawerDirective extends VisibleOverlayDirective {
     /** 生效配置 stash（_resolveConfig 与 _modalMask/_positioner 同一次打开内先后执行） */
     private _config: OverlayConfig | null = null;
 
-    // ── 折叠把手（ADR-0063 修订）──────────────────────────────────────
+    // ── 抽屉把手（trigger，ADR-0063 修订）────────────────────────────
 
     /** 把手元素（实例外常驻——面板销毁后存活；null = 未建/已销毁） */
-    private _toggleEl: HTMLElement | null = null;
+    private _triggerEl: HTMLElement | null = null;
     /** 最近 visible 驱动态（把手位置/箭头/裁切的分派依据） */
-    private _toggleOn = false;
+    private _triggerOn = false;
     /** 把手的视口监听清理（destroy 时摘除） */
-    private _toggleCleanup: (() => void) | null = null;
+    private _triggerCleanup: (() => void) | null = null;
     /** 展开态位置对齐帧句柄（与面板 enter 切换帧同调度；destroy/重入时撤销） */
-    private _toggleFrame: number | null = null;
-    private _toggleTimer: ReturnType<typeof setTimeout> | null = null;
+    private _triggerFrame: number | null = null;
+    private _triggerTimer: ReturnType<typeof setTimeout> | null = null;
 
     /**
-     * 折叠把手挂载（ADR-0063 修订）：`toggle` 默认开启、`false` 显式关闭；仅反应式
+     * 把手挂载（ADR-0063 修订）：`trigger` 默认开启、`false` 显式关闭；仅反应式
      * （简单路径）形态生效——字面量/表达式形态状态不可写，把手点击无意义，不建。
-     * 把手挂覆盖物容器（z 层级同源），圆心恒骑面板活动边线，几何见 `_positionToggle`。
+     * 把手挂覆盖物容器（z 层级同源），圆心恒骑面板活动边线，几何见 `_positionTrigger`。
      */
     override created(): void {
         super.created();
-        if (this.options?.toggle === false) return;
+        if (this.getOption("trigger") === false) return;
         if (!this._visiblePath) return;
         const container = getOverlayContainer(this.engine);
         if (!container) return;
         const el = document.createElement("div");
-        el.className = "autospark-drawer-toggle";
-        el.addEventListener("click", () => this._onToggleClick());
-        this._toggleEl = el;
+        el.className = "autospark-drawer-trigger";
+        el.addEventListener("click", () => this._onTriggerClick());
+        this._triggerEl = el;
         // 先定位再插入（避免 transition 从 0,0 滑到首位的闪移）
-        this._positionToggle();
+        this._positionTrigger();
         container.appendChild(el);
-        const onViewport = () => this._positionToggle();
+        const onViewport = () => this._positionTrigger();
         window.addEventListener("resize", onViewport);
         window.addEventListener("scroll", onViewport, true);
-        this._toggleCleanup = () => {
+        this._triggerCleanup = () => {
             window.removeEventListener("resize", onViewport);
             window.removeEventListener("scroll", onViewport, true);
         };
     }
 
+    /**
+     * 选项成员表达式热应用（ADR-0007 修订钩子）：`trigger` 坐标变化即重定位——把手
+     * 常驻（面板销毁后仍存活），不热应用则折叠态可能长期停在过期坐标（props 热应用
+     * 由 overlay 基座专管订阅，此处只补坐标维度）。
+     */
+    protected override _onOptionExprChange(key: string, _value: any): void {
+        if (key === "trigger") this._positionTrigger();
+    }
+
     /** 把手随指令销毁摘除（宿主脱离 / scope 死亡 / engine destroy 均达此处） */
     override destroy(): void {
-        this._toggleCleanup?.();
-        this._toggleCleanup = null;
-        this._cancelToggleSync();
-        this._toggleEl?.remove();
-        this._toggleEl = null;
+        this._triggerCleanup?.();
+        this._triggerCleanup = null;
+        this._cancelTriggerSync();
+        this._triggerEl?.remove();
+        this._triggerEl = null;
         super.destroy();
     }
 
@@ -115,33 +124,33 @@ export class DrawerDirective extends VisibleOverlayDirective {
      */
     protected override _open(): void {
         super._open();
-        this._toggleOn = true;
-        this._cancelToggleSync();
-        this._toggleFrame = requestAnimationFrame(() => {
-            this._toggleTimer = setTimeout(() => {
-                this._toggleFrame = null;
-                this._toggleTimer = null;
-                this._positionToggle();
+        this._triggerOn = true;
+        this._cancelTriggerSync();
+        this._triggerFrame = requestAnimationFrame(() => {
+            this._triggerTimer = setTimeout(() => {
+                this._triggerFrame = null;
+                this._triggerTimer = null;
+                this._positionTrigger();
             }, 0);
         });
     }
 
     protected override _close(): void {
         super._close();
-        this._toggleOn = false;
-        this._cancelToggleSync();
-        this._positionToggle();
+        this._triggerOn = false;
+        this._cancelTriggerSync();
+        this._positionTrigger();
     }
 
     /** 撤销待决的展开态对齐调度（重入开合/销毁时防过期位置写入） */
-    private _cancelToggleSync(): void {
-        if (this._toggleFrame != null) {
-            cancelAnimationFrame(this._toggleFrame);
-            this._toggleFrame = null;
+    private _cancelTriggerSync(): void {
+        if (this._triggerFrame != null) {
+            cancelAnimationFrame(this._triggerFrame);
+            this._triggerFrame = null;
         }
-        if (this._toggleTimer != null) {
-            clearTimeout(this._toggleTimer);
-            this._toggleTimer = null;
+        if (this._triggerTimer != null) {
+            clearTimeout(this._triggerTimer);
+            this._triggerTimer = null;
         }
     }
 
@@ -149,10 +158,10 @@ export class DrawerDirective extends VisibleOverlayDirective {
      * 把手点击（折叠 ≡ visible 归假，无第三态）：展开态走实例请求关闭（与 ESC/遮罩
      * 同链——含简单路径回写）；折叠态直接写回 `true`（状态是唯一真相源，watch 驱动重开）。
      */
-    private _onToggleClick(): void {
-        if (this._toggleOn) {
+    private _onTriggerClick(): void {
+        if (this._triggerOn) {
             const inst = this._overlayInstance;
-            if (inst && !inst.destroyed && inst.visible) inst.requestClose("toggle");
+            if (inst && !inst.destroyed && inst.visible) inst.requestClose("trigger");
         } else {
             this._writeVisible(true);
         }
@@ -163,20 +172,19 @@ export class DrawerDirective extends VisibleOverlayDirective {
      * - 圆心恒骑「活动边线」——展开态 = 面板**开口边线**（面板布局盒对侧边，offset 系
      *   布局值不含 transform，enter 动画期取值即终态）；折叠态 = 贴边线（屏幕模式 =
      *   视口边；锚定模式 = 锚内侧对应边）；
-     * - 交叉轴沿边线居中（屏幕模式 = 视口中心；锚定模式 = 锚边中点）；
-     * - 折叠态 `data-collapsed`（箭头翻转 + 半圆裁切的 CSS 钩子——朝外一半被裁，
-     *   与屏幕模式「屏外不可见」统一为显式 clip-path）。
+     * - 沿边线滑轨位置由 `trigger` 坐标决定（{@link _triggerCross}，默认居中）；
+     * - 折叠态 `data-collapsed`（箭头翻转 + 半圆裁切的 CSS 钩子——露面板展开侧半圆）。
      */
-    private _positionToggle(): void {
-        const el = this._toggleEl;
+    private _positionTrigger(): void {
+        const el = this._triggerEl;
         if (!el) return;
         const dir = this._screenPlacement();
         el.setAttribute("data-overlay-placement", dir);
-        el.toggleAttribute("data-collapsed", !this._toggleOn);
+        el.toggleAttribute("data-collapsed", !this._triggerOn);
         const horizontal = dir === "left" || dir === "right";
         // 半径（样式注入前 offsetWidth 为 0，回退默认 24px）
         const half = (horizontal ? el.offsetWidth || 24 : el.offsetHeight || 24) / 2;
-        // 贴边线（折叠位）+ 居中基准：锚定模式取锚 rect，屏幕模式取视口
+        // 贴边线（折叠位）+ 滑轨长度：锚定模式取锚 rect，屏幕模式取视口
         const at = this._effectiveAt();
         const anchorEl = at ? resolveAnchorEl(at.selector, this.el) : null;
         const ar = anchorEl?.getBoundingClientRect();
@@ -185,13 +193,15 @@ export class DrawerDirective extends VisibleOverlayDirective {
         const edgeLine = ar
             ? (dir === "right" ? ar.right : dir === "left" ? ar.left : dir === "top" ? ar.top : ar.bottom)
             : (dir === "right" ? vw : dir === "left" ? 0 : dir === "top" ? 0 : vh);
-        const crossCenter = ar
-            ? (horizontal ? ar.top + ar.height / 2 : ar.left + ar.width / 2)
-            : (horizontal ? vh / 2 : vw / 2);
+        const lineLen = ar ? (horizontal ? ar.height : ar.width) : horizontal ? vh : vw;
+        // 滑轨锚定基准（视口系起点）：锚定模式 = 锚边起点（fixed 坐标须加锚偏移，
+        // 否则相对锚边的坐标会被当视口坐标、把手渲染到锚外）；屏幕模式 = 0（视口边）
+        const railOrigin = ar ? (horizontal ? ar.top : ar.left) : 0;
+        const cross = this._triggerCross(lineLen, half);
         // 开口边线（展开位）：面板布局盒（offset 系不含 transform）对侧边
         let line = edgeLine;
         const panel = this._overlayInstance?.panel;
-        if (this._toggleOn && panel) {
+        if (this._triggerOn && panel) {
             if (dir === "right") line = panel.offsetLeft;
             else if (dir === "left") line = panel.offsetLeft + panel.offsetWidth;
             else if (dir === "top") line = panel.offsetTop + panel.offsetHeight;
@@ -199,11 +209,67 @@ export class DrawerDirective extends VisibleOverlayDirective {
         }
         if (horizontal) {
             el.style.left = `${line - half}px`;
-            el.style.top = `${crossCenter - half}px`;
+            el.style.top = `${railOrigin + cross - half}px`;
         } else {
             el.style.top = `${line - half}px`;
-            el.style.left = `${crossCenter - half}px`;
+            el.style.left = `${railOrigin + cross - half}px`;
         }
+    }
+
+    /**
+     * 把手沿边线滑轨坐标（`trigger` 选项，ADR-0063 修订）：**边缘锚定模型**——坐标沿
+     * 滑轨一维（左右抽屉 = top、上下抽屉 = left，由 placement 决定），正距主边
+     * （top/left）、负距对面边（bottom/right）的绝对距离；`true`/缺省 = 居中（语法糖
+     * ≡ `'50%'`）。解析：number = px；string = CSS 长度（`'20%'` / `'100px'` / `'2rem'`
+     * / `'10vw'`，纯数字字符串按 px；% 基准 = 滑轨长度——屏幕模式视口长轴 / 锚定模式
+     * 锚边长）。非法值 warn 回退居中；`0` 是合法坐标（距主边 0），与 `false` 严格区分。
+     * 结果静默钳制到 `[half, 滑轨长 - half]`——把手是唯一的重开触发点，越出滑轨即
+     * 抽屉不可达（功能性死锁），钳制而非放任。
+     */
+    private _triggerCross(lineLen: number, half: number): number {
+        const raw = this.getOption("trigger");
+        let dist = this._parseTriggerDist(raw, lineLen);
+        if (dist == null) {
+            this.warn(
+                `x-drawer:${this.attr}: trigger 须为 true/false/数字（px）或 CSS 长度字符串（如 '-20%'），已按居中处理`,
+            );
+            dist = lineLen / 2;
+        }
+        return Math.min(Math.max(dist, half), lineLen - half);
+    }
+
+    /** trigger 取值 → 距主边的 px 距离（边缘锚定换算：负值 = 距对面边）；非法返回 null */
+    private _parseTriggerDist(raw: any, lineLen: number): number | null {
+        if (raw == null || raw === true || raw === "") return lineLen / 2;
+        if (raw === false) return null; // 不可达（created 已拦），防御性按非法处理
+        const toDist = (px: number) => (px >= 0 ? px : lineLen - Math.min(-px, lineLen));
+        if (typeof raw === "number") {
+            return Number.isFinite(raw) ? toDist(raw) : null;
+        }
+        if (typeof raw !== "string") return null;
+        const m = /^(-?[\d.]+)\s*(%|px|rem|em|vw|vh)?$/i.exec(raw.trim());
+        if (!m) return null;
+        const v = parseFloat(m[1]!);
+        if (!Number.isFinite(v)) return null;
+        switch ((m[2] ?? "px").toLowerCase()) {
+            case "%": return toDist((v / 100) * lineLen);
+            case "rem": return toDist(v * this._rootFontSize());
+            case "em": return toDist(v * this._elFontSize());
+            case "vw": return toDist((v / 100) * window.innerWidth);
+            case "vh": return toDist((v / 100) * window.innerHeight);
+            default: return toDist(v); // px / 纯数字
+        }
+    }
+
+    /** 根字号 px（rem 基准；取不到回退 16） */
+    private _rootFontSize(): number {
+        return parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    }
+
+    /** 把手段字号 px（em 基准；取不到回退根字号） */
+    private _elFontSize(): number {
+        const el = this._triggerEl;
+        return (el && parseFloat(getComputedStyle(el).fontSize)) || this._rootFontSize();
     }
 
     /**

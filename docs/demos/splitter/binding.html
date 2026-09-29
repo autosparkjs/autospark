@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-splitter · 双向绑定</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .pane {
+        background: #fff;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        padding: 14px 16px;
+        box-sizing: border-box;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- :data-size 绑定简单路径 = 双向：拖拽实时写回状态，外部改状态反向同步（等值短路防递归） -->
+    <div class="demo-app section">
+      <div x-data="{ sidebar: 260 }">
+        <div class="block is-size-7 has-text-grey">
+          拖分隔条：<code x-text="sidebar"></code>px 实时联动；或用按钮直接改状态。
+          <button class="button is-small" @click="sidebar = 400">设为 400</button>
+          <button class="button is-small" @click="sidebar = 180">设为 180</button>
+        </div>
+        <div
+          x-splitter="'horizontal'"
+          style="height: 200px; border: 1px solid #eee; border-radius: 8px"
+        >
+          <div class="pane" :data-size="sidebar" data-min-size="160" data-max-size="520">
+            <strong>侧栏</strong>
+          </div>
+          <div class="pane"><strong>内容区</strong></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

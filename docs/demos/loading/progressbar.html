@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-loading · .progressbar 进度条模式</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .panel {
+                position: relative;
+                min-height: 100px;
+                display: flex;
+                align-items: center;
+            }
+            .panel .card-content {
+                cursor: pointer;
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- .progressbar 修饰符：不铺遮罩，仅目标顶部一条约 3px 的不确定型无限滚动条 -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button is-primary" @click="go">{{ page ? '隐藏' : '显示' }}顶部加载条</button>
+            </div>
+            <div class="card panel" x-loading.progressbar="page">
+                <div class="card-content" @click="notify">
+                    <code>x-loading.progressbar</code>：仅顶部一条约 3px 的橙色无限滚动条，内容保持可见、<strong>可正常点击</strong>（点我试试）。
+                </div>
+            </div>
+            <div class="block has-text-grey" x-text="tip"></div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { page: false, tip: "条显示期间宿主内容仍可交互。" },
+                {
+                    actions: {
+                        go: async () => {
+                            if (engine.state.page) return;
+                            engine.state.page = true;
+                            await new Promise((r) => setTimeout(r, 1500));
+                            engine.state.page = false;
+                        },
+                        notify: () => {
+                            engine.state.tip =
+                                "点击生效——进度条不拦截交互（pointer-events:none）。";
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

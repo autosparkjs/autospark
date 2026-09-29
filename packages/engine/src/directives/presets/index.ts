@@ -30,6 +30,7 @@ export * from "./icon";
 export * from "./icons";
 export * from "./import";
 export * from "./resize";
+export * from "./splitter";
 
 import type { AutoSparkDirectiveBase } from "../base";
 import { TextDirective } from "./text";
@@ -61,6 +62,7 @@ import { FieldDirective } from "./field";
 import { IconDirective } from "./icon";
 import { IconsDirective } from "./icons";
 import { ResizeDirective } from "./resize";
+import { SplitterDirective } from "./splitter";
 
 /**
  * 预设指令映射：指令名 → 指令类。
@@ -120,4 +122,6 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     // x-resize 尺寸调节（ADR-0064）：自绘手柄拖拽调宿主尺寸（可选值双向 + resize:* 事件）；
     // overlay 家族的 resize 选项复用其 ResizeSession 核心（写路径走 shell 面板）
     resize: ResizeDirective,
+    // x-splitter 分割器（ADR-0067）：两面板分割布局 + 分隔条拖拽调节 + collapsible 折叠把手
+    splitter: SplitterDirective,
 };

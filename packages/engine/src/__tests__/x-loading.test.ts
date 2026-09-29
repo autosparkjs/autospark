@@ -665,3 +665,149 @@ describe("x-loading 动作按钮（ADR-0038）", () => {
         expect(root.querySelector(".my-loading")).toBeNull(); // overlay 已随 hide() 移除
     });
 });
+
+describe("x-loading 进度条模式（.progressbar）", () => {
+    /** 读取进度条根节点（宿主/目标内 .x-loading-progressbar） */
+    const barOf = (host: Element | null): HTMLElement | null =>
+        (host?.querySelector(".x-loading-progressbar") as HTMLElement) ?? null;
+
+    test(".progressbar → 挂载贴顶进度条（内置条模板），不渲染遮罩结构", () => {
+        const { root } = mount(`<div id="h" x-loading.progressbar="l"></div>`, { l: true });
+        const h = root.querySelector("#h")!;
+        const bar = barOf(h);
+        expect(bar).not.toBeNull();
+        expect(bar!.querySelector(".x-loading-progressbar-seg")).not.toBeNull(); // 滚动段
+        expect(h.querySelector(".x-loading-overlay")).toBeNull(); // 无遮罩壳
+        expect(bar!.querySelector(".x-loading-loader")).toBeNull(); // 无 spinner
+        expect(bar!.querySelector(".x-loading-box")).toBeNull();
+    });
+
+    test("value 显隐共享遮罩通道：false 不挂载 / true 挂载 / 反复切换至多 1 个", async () => {
+        const { root, engine } = mount(`<div id="h" x-loading.progressbar="l"></div>`, {
+            l: false,
+        });
+        const h = root.querySelector("#h")!;
+        expect(barOf(h)).toBeNull();
+        engine.state.l = true;
+        await nextTick();
+        expect(barOf(h)).not.toBeNull();
+        for (let i = 0; i < 3; i++) {
+            engine.state.l = false;
+            await nextTick();
+            expect(barOf(h)).toBeNull();
+            engine.state.l = true;
+            await nextTick();
+        }
+        expect(h.querySelectorAll(".x-loading-progressbar").length).toBe(1);
+    });
+
+    test("静态布局归注入样式表：贴顶 3px（CSS 变量可覆盖）+ pointer-events:none 不拦截交互", () => {
+        const css = document.getElementById("x-loading-styles")?.textContent ?? "";
+        // 贴顶细条壳：高度默认 3px 且留 CSS 变量供宿主页覆盖
+        expect(css).toMatch(
+            /\.x-loading-progressbar\s*\{[^}]*height:\s*var\(--autospark-loading-progressbar-height,\s*3px\)/,
+        );
+        // 不拦截宿主内容交互（条模式的本质差异：纯视觉指示）
+        expect(css).toMatch(/\.x-loading-progressbar\s*\{[^}]*pointer-events:\s*none/);
+    });
+
+    test("滚动段实心 30% 宽（background:currentColor，非渐隐渐变——显色度优先）", () => {
+        const css = document.getElementById("x-loading-styles")?.textContent ?? "";
+        expect(css).toMatch(/\.x-loading-progressbar-seg\s*\{[^}]*width:\s*30%/);
+        expect(css).toMatch(/\.x-loading-progressbar-seg\s*\{[^}]*background:\s*currentColor/);
+        expect(css).not.toMatch(/\.x-loading-progressbar-seg\s*\{[^}]*linear-gradient/);
+    });
+
+    test("字段映射：color → 滚动段色（style.color/currentColor）；bgColor+opacity → 轨道底色（rgba）", () => {
+        const { root } = mount(
+            `<div id="h" x-loading.progressbar="{ value:'l', color:'red', bgColor:'white', opacity:0.5 }"></div>`,
+            { l: true },
+        );
+        const bar = barOf(root.querySelector("#h"))!;
+        expect(bar.style.background || bar.style.backgroundColor).toMatch(/rgba?\(/);
+        expect(bar.style.color.length).toBeGreaterThan(0);
+    });
+
+    test("缺省轨道为浅轨 rgba(0,0,0,0.08)（深轨压暗段色）；显式 bgColor/opacity 仍走 rgba 契约", () => {
+        const none = mount(`<div id="a" x-loading.progressbar="l"></div>`, { l: true });
+        const trackA = barOf(none.root.querySelector("#a"))!.style.background;
+        expect(trackA).toMatch(/0\.08/);
+        expect(trackA).not.toMatch(/rgba\(0,\s*0,\s*0,\s*0\.5\)/);
+        // 仅 opacity 显式（bgColor 缺省）→ 也回归 rgba(bgColor, opacity) 契约（不取缺省浅轨）
+        const half = mount(
+            `<div id="b" x-loading.progressbar="{ value:'l', opacity:0.5 }"></div>`,
+            { l: true },
+        );
+        const trackB = barOf(half.root.querySelector("#b"))!.style.background;
+        expect(trackB).toMatch(/rgba?\(/);
+        expect(trackB).not.toMatch(/0\.08/);
+    });
+
+    test("默认段色为橙色（3px 细条明显性优先，不沿用遮罩 loader 默认灰）", () => {
+        const { root } = mount(`<div id="h" x-loading.progressbar="true"></div>`, {});
+        const bar = barOf(root.querySelector("#h"))!;
+        expect(bar.style.color.toLowerCase()).toContain("orange");
+        expect(bar.style.color.toLowerCase()).not.toContain("#888");
+    });
+
+    test("message / actions 在条模式下静默不渲染（不 warn、不产生内容节点）", async () => {
+        const warns: string[] = [];
+        const origWarn = console.warn;
+        console.warn = (...args: any[]) => {
+            warns.push(String(args[0] ?? ""));
+        };
+        let root: Element;
+        try {
+            const m = mount(
+                `<div id="h" x-loading.progressbar="{ value:'l', message:'加载中', actions:['close'] }"></div>`,
+                { l: true },
+            );
+            root = m.root;
+        } finally {
+            console.warn = origWarn;
+        }
+        await nextTick();
+        const bar = barOf(root.querySelector("#h"))!;
+        expect(bar).not.toBeNull();
+        expect(bar.querySelector(".x-loading-message")).toBeNull();
+        expect(bar.querySelector(".x-loading-action")).toBeNull();
+        expect(bar.textContent).toBe(""); // 条内无任何文本内容
+        expect(warns).toEqual([]); // 静默忽略：不产生 warn
+    });
+
+    test(".progressbar.screen → position:fixed（条贴视口顶）；无 .screen → absolute", () => {
+        const fixed = mount(`<div id="a" x-loading.progressbar.screen="l"></div>`, { l: true });
+        expect(barOf(fixed.root.querySelector("#a"))!.style.position).toBe("fixed");
+        const abs = mount(`<div id="b" x-loading.progressbar="l"></div>`, { l: true });
+        expect(barOf(abs.root.querySelector("#b"))!.style.position).toBe("absolute");
+    });
+
+    test("selector → 条挂到解析目标顶部；未命中回退宿主（同遮罩通道）", () => {
+        const hit = mount(
+            `<div id="h" x-loading.progressbar="{ value:'l', selector:'#t' }"><div id="t"></div></div>`,
+            { l: true },
+        );
+        const bar = barOf(hit.root.querySelector("#h"))!;
+        expect(bar.parentElement === hit.root.querySelector("#t")).toBe(true);
+        const miss = mount(
+            `<div id="h" x-loading.progressbar="{ value:'l', selector:'#missing' }"></div>`,
+            { l: true },
+        );
+        expect(
+            barOf(miss.root.querySelector("#h"))!.parentElement === miss.root.querySelector("#h"),
+        ).toBe(true);
+    });
+
+    test("条模式忽略自定义 loading 组件（x-define=loading 不生效）", async () => {
+        const { root } = mount(
+            `<div x-scope>
+                <div x-define="loading"><div class="my-loading"></div></div>
+                <div id="h" x-loading.progressbar="l">内容</div>
+            </div>`,
+            { l: true },
+        );
+        await nextTick();
+        expect(root.querySelector(".my-loading")).toBeNull(); // 自定义组件未被取用
+        expect(barOf(root.querySelector("#h"))).not.toBeNull(); // 仍渲染内置条
+    });
+});

@@ -6,13 +6,18 @@
  *
  * **url 缓存**由调用方各自管理（x-import 按 url 缓存解析出的组件定义；x-isolate 不缓存——每次 url 变化重建 child engine）。
  *
- * @param url    目标 url
- * @param signal 可选中止信号
+ * @param url     目标 url
+ * @param signal  可选中止信号
+ * @param request 额外 fetch 参数（ADR-0065：loader 的 request 整包透传 requestInit；与 signal 合并时 signal 优先）
  * @returns HTML 文本
  * @throws HTTP 非 2xx / 网络错误 / abort（abort 时调用方应静默丢弃，非真错误）
  */
-export async function fetchHtml(url: string, signal?: AbortSignal): Promise<string> {
-    const res = await fetch(url, { signal });
+export async function fetchHtml(
+    url: string,
+    signal?: AbortSignal,
+    request?: RequestInit,
+): Promise<string> {
+    const res = await fetch(url, { ...request, signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.text();
 }

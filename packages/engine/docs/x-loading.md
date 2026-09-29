@@ -21,6 +21,7 @@
 | **快速绑定** | 字符串语法 `x-loading="isLoading"`：整个值即 value 表达式，配置全默认 |
 | **配置绑定** | 对象语法 `x-loading="{value,message,...}"`：字段化配置 |
 | **防闪烁（delay）** | value 变 true 后延迟 N ms 才真正显示；延迟窗口内回 false 则不显示 |
+| **进度条模式（progressbar）** | `.progressbar` 修饰符启用的显示形态：不铺遮罩，仅在挂载目标顶部显示约 3px 高的**不确定型**无限滚动条（`pointer-events:none` 不拦截宿主交互）；`color`=滚动段色（**默认橙色**，细条明显性优先）、`bgColor`+`opacity`=轨道底色（**缺省浅轨** `rgba(0,0,0,0.08)`），滚动段 30% 宽实心，`message`/`actions` 静默忽略、自定义 loading 组件不取用（见 ADR-010） |
 | **运行时指令** | `DirectiveKind.Runtime`：编译器致盲（不建 scope），属性保留在结果 DOM，由 observer 通道驱动生命周期 |
 | **observer 通道** | `static initialize` 在 engine.el 上建立的 MutationObserver，检测 `x-loading` 元素的 add/remove/attr-change，分别触发 `mounted`/`unmounted`/`attrChanged` |
 
@@ -60,9 +61,9 @@
 |---|---|---|---|
 | `value` | string | — | **配置绑定必填**；value 表达式（路径或表达式）。缺失 ≡ true（命令式 overlay 契约）；旧键 `visible` 已废弃（warn + 忽略） |
 | `message` | string | `undefined` | 可选文本；不传则不渲染文字层 |
-| `bgColor` | string | `"black"` | 遮罩底色（任意合法 CSS 颜色） |
-| `color` | string | `"#888"` | loader 动画色（任意合法 CSS 颜色） |
-| `opacity` | number | `0.5` | 遮罩底色 alpha，`0~1` |
+| `bgColor` | string | `"black"` | 遮罩底色（任意合法 CSS 颜色）；**进度条模式**中与 `opacity` **皆缺省**时轨道改用浅轨 `rgba(0,0,0,0.08)`，任一显式配置回归本契约（ADR-010） |
+| `color` | string | `"#888"` | loader 动画色（任意合法 CSS 颜色）；**进度条模式默认改为 `orange`**（ADR-010，细条明显性优先） |
+| `opacity` | number | `0.5` | 遮罩底色 alpha，`0~1`；进度条模式缺省语义见 `bgColor` 行（ADR-010） |
 | `selector` | string | `undefined` | 覆盖层挂载目标选择器，默认挂宿主。普通值（如 `'#target'`）→ `宿主.querySelector`；以 `@` 开头（如 `'@#modal'`）→ `document.querySelector`；未命中/非法 → 回退宿主（见 ADR-009） |
 | `delay` | number | `0` | 防闪烁延迟（ms）；0 = 立即显示 |
 
@@ -71,6 +72,7 @@
 | 修饰符 | 行为 |
 |---|---|
 | `.screen` | 覆盖层 `position:fixed;inset:0`，撑满视口；留在宿主子树（不 teleport） |
+| `.progressbar` | **进度条模式**：不铺遮罩，仅目标顶部一条约 3px 的不确定型无限滚动条（不拦截交互）；见 ADR-010 |
 
 ### 2.4 运行时行为（observer 通道）
 
@@ -165,6 +167,26 @@ el.removeAttribute('x-loading');               // 删除属性 → 卸载实例�
 
 **生命周期** 覆盖层是目标元素的子节点，但实例仍挂在宿主（x-loading 属性所在）。宿主移除 → observer 触发 `unmounted` → `overlay.remove()` 从目标处干净移除，无孤儿。
 
+## 4a. 形态决策（ADR-010）
+
+### ADR-010：进度条模式（.progressbar）
+
+**背景** 遮罩整块覆盖宿主内容（且现状拦截点击），表达「此区域暂不可用」；大量场景只需轻量的「进行中」指示——内容应继续可见、可交互。需求原话：「仅在宿主元素顶部显示一个高度约 2 像素的无限滚动条」。
+
+**决策** 修饰符 `.progressbar` 启用**进度条模式**：不铺遮罩，仅在挂载目标顶部显示一条约 3px 高的**不确定型（indeterminate）**无限滚动条（初版需求为 2px，实施后按明显性修订为 3px，见下「显色度」）。
+
+- **入口仅修饰符（v1）**：与 `.screen` 同构、面最小；不开放 `mode` 配置字段，`x-loading-options` 同名键不生效。代价（已接受）：修饰符形态的运行时改值不触发 attrChanged（既有已知限制，见 §2.4），模式对单个元素是静态的；x-data/x-html 合成的 `loading:{...}` 配置亦无法启用条模式——待异步源侧出现真实需求再补字段（届时字段优先于修饰符）。
+- **术语**：规范名「**进度条模式**」，释义锁定**不确定型、不表达完成度**——Avoid「百分比进度」「确定进度」（领域语言里进度条暗示可表示完成度，本形态不能）。
+- **交互语义**：条元素 `pointer-events:none`——不拦截宿主交互。这是与遮罩的**本质差异**（不只是尺寸差异），故条模式归入「加载指示」而非「加载遮罩」家族。
+- **字段映射**：`color` = 滚动段色（`style.color` → currentColor，ADR-002 同通道；**默认 `orange` 橙色**——3px 细条明显性优先，不沿用遮罩 loader 的默认灰 `#888`，配置仍可覆盖）；`bgColor` + `opacity` = 轨道底色（**两者皆缺省** → 浅轨 `rgba(0,0,0,0.08)`，深轨压暗段色是「不明显」主因之一；任一显式配置仍走 `rgba(bgColor, opacity)`，ADR-001 同通道、不破坏遮罩契约）；`message` / `actions` **静默忽略**（不 warn——两者在遮罩态下仍是合法声明，切模式不该刷警告）；`value` / `delay` / `selector` 照常生效（显隐与防闪烁共享同一 show/hide 通道）。
+- **组合语义**：`.screen` 并存 → 条 `position:fixed` 贴视口顶（ADR-005 同权衡、同 transform 已知限制）；`selector` 照常解析（ADR-009），条贴**解析后目标**的顶部，未命中回退宿主。
+- **自定义组件边界**：条模式**不取** `getComponent('loading')`，用内置条模板——自定义组件的领域语义是「遮罩内容的替换」（含 message/actions 布局），条无内容可替换；文档声明该边界，避免用户误以为自定义组件失效。
+- **尺寸与动画**：高度默认 **3px**（初版 2px，明显性修订），经 CSS 变量 `--autospark-loading-progressbar-height` 覆盖（不扩指令配置面）；滚动段为 **30% 宽实心纯色**（初版 40% 两端渐隐渐变，实测瞬时显色不足）从左到右循环（1.2s 线性无限），keyframes 独立命名空间 `x-loading-progressbar-move`（同 `x-loading-spin` 惯例）。
+- **显色度三件套（实施后修订）**：初版（2px + 渐隐渐变段 + 遮罩契约缺省深轨）实测段色不明显，一次修订为——高度 3px、段实心不透明、轨道缺省浅轨；段色维持 `orange` 不再加艳（一次只动一组变量，先落地结构项、颜色值留作后续单点调节）。
+- **与 `.feedback` 不并存**：feedback 命令式写**裸** `x-loading` 属性，与修饰符属性并存即双属性（同指令两条记录）——v1 文档声明不并存（`.screen` 既有的同类边界，不为条开运行时特例）。
+
+**理由（入口取舍）** 修饰符是本指令已有的模式选择通道（`.screen` 先例），零新配置面；配置字段虽可运行时切换并透传异步源，但 v1 无此需求，按 YAGNI 留待真实场景。
+
 ## 5. 指令元信息
 
 | 字段 | 值 | 理由 |
@@ -194,5 +216,13 @@ initialize 恰是"每类、每 engine、一次"的钩子。initialize 内顺序�
     <div class="x-loading-loader" style="color:#888"></div>
     <div class="x-loading-message">正在加载</div>   <!-- 仅当有 message -->
   </div>
+</div>
+```
+
+进度条模式（`.progressbar`，ADR-010）——单根 + 滚动段，无内容层；贴顶/高度/裁剪/`pointer-events:none` 归注入样式表，定位/轨道底色/段色为内联注入：
+
+```html
+<div class="x-loading-progressbar" style="position:absolute;background:rgba(0,0,0,0.08);color:orange">
+  <span class="x-loading-progressbar-seg"></span>
 </div>
 ```

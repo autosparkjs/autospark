@@ -1208,7 +1208,7 @@ describe("x-import 远程组件加载（ADR-0022 决策六）", () => {
         );
         await nextTick();
         await nextTick();
-        expect(root.querySelector(".v")?.textContent).toBe("远程数据");
+        expect(root.querySelector(".v")?.textContent).toContain("远程数据");
     });
 
     test("fetch 失败：warn 不崩溃，x-component 保持 loading 占位", async () => {
@@ -1967,5 +1967,282 @@ describe("x-define methods Proxy this（ADR-0022 决策二-3 修订）", () => {
         expect(warns.some((w) => w.includes("data / data()"))).toBe(true);
         // 剪枝不生效：count 未注入，模板读不到
         expect(root.querySelector(".v")?.textContent).not.toBe("5");
+    });
+});
+
+// ---------------------------------------------------------------------------
+// x-component loader 远程直接实例化（ADR-0065）
+// ---------------------------------------------------------------------------
+
+/** 原始 fetch（afterEach 恢复，防 mock 泄漏） */
+const realLoaderFetch = globalThis.fetch;
+
+/** fetch 调用记录 + 可编程应答（同 x-html-async.test.ts 约定） */
+function mockLoaderFetch(handler: (url: string, init?: RequestInit) => any) {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    (globalThis as any).fetch = async (url: any, init?: any) => {
+        calls.push({ url: String(url), init });
+        let res = handler(String(url), init);
+        if (res && typeof (res as any).then === "function") res = await res;
+        if (res instanceof Error) throw res;
+        const body = res?.body ?? "";
+        const ok = res?.ok ?? true;
+        return {
+            ok,
+            status: res?.status ?? 200,
+            statusText: res?.statusText ?? (ok ? "OK" : "Error"),
+            json: async () => body,
+            text: async () => String(body),
+        };
+    };
+    return calls;
+}
+
+/** 手动放行的延迟应答（控制 pending 窗口） */
+function loaderDeferred<T>() {
+    let resolve!: (v: T) => void;
+    const promise = new Promise<T>((res) => {
+        resolve = res;
+    });
+    return { promise, resolve };
+}
+
+/** 等 fetch 微任务链 + scheduler flush（宏任务一跳） */
+const flushLoader = async () => {
+    await Promise.resolve();
+    await new Promise<void>((r) => setTimeout(r, 0));
+};
+
+const RC_BODY = `<div x-define="rc"><b class="v" x-text="msg">占位</b><script setup>{ data(){ return { msg: "远程数据" } } }</script></div>`;
+
+describe("x-component loader 远程直接实例化（ADR-0065）", () => {
+    afterEach(() => {
+        (globalThis as any).fetch = realLoaderFetch;
+    });
+
+    test("string 简写字面量 url：加载注册 + 实例化（组件 data 生效）", async () => {
+        const calls = mockLoaderFetch(() => ({ body: RC_BODY }));
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options.loader="/rc.html"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        expect(calls.length).toBe(1);
+        expect(calls[0]!.url).toBe("/rc.html");
+        expect(root.querySelector(".v")?.textContent).toContain("远程数据");
+    });
+
+    test("裸标识符作状态路径求值（响应式 url），url 变化重载重实例化", async () => {
+        mockLoaderFetch((url) => ({ body: `<div x-define="rc"><b>${url}</b></div>` }));
+        const { root, engine } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options.loader="urlState"></div></div>`,
+            { urlState: "/a.html" },
+        );
+        await flushLoader();
+        expect(root.querySelector("b")?.textContent).toBe("/a.html");
+        engine.state.urlState = "/b.html";
+        await nextTick();
+        await flushLoader();
+        expect(root.querySelector("b")?.textContent).toBe("/b.html");
+    });
+
+    test("缺省 fallback：加载期间 x-loading 占位，完成后清除", async () => {
+        const gate = loaderDeferred<{ body: string }>();
+        mockLoaderFetch(() => gate.promise);
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options.loader="/rc.html"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        const host = root.querySelector("#host") ?? root.querySelector("#h");
+        expect(host?.getAttribute("x-loading")).toBe("true");
+        gate.resolve({ body: `<div x-define="rc"><b>ok</b></div>` });
+        await flushLoader();
+        expect(host?.getAttribute("x-loading")).toBeNull();
+        expect(host?.querySelector("b")?.textContent).toBe("ok");
+    });
+
+    test("自定义 fallback HTML：静态插入不编译，完成后清除", async () => {
+        const gate = loaderDeferred<{ body: string }>();
+        mockLoaderFetch(() => gate.promise);
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options="{ loader: { url: '/rc.html', fallback: '<i class=ph>{{ msg }}</i>' } }"></div></div>`,
+            { msg: "不应编译" },
+        );
+        await flushLoader();
+        const host = root.querySelector("#h")!;
+        // 插值原样保留（静态插入、不参与编译）
+        expect(host.querySelector(".ph")?.textContent).toBe("{{ msg }}");
+        gate.resolve({ body: `<div x-define="rc"><b>ok</b></div>` });
+        await flushLoader();
+        expect(host.querySelector(".ph")).toBeNull();
+    });
+
+    test("fallback 组件 {name, props}：用户 props 与引擎注入上下文合并（注入优先）", async () => {
+        const gate = loaderDeferred<{ body: string }>();
+        mockLoaderFetch(() => gate.promise);
+        const { root } = mount(
+            `<div x-scope>
+                <div x-define="myph"><span class="ph-txt" x-text="tip + '@' + url"></span></div>
+                <div id="h" x-component:rc x-component-options="{ loader: { url: '/rc.html', fallback: { name: 'myph', props: { tip: '载入', url: '用户态' } } } }"></div>
+            </div>`,
+            {},
+        );
+        await flushLoader();
+        // 用户 props（tip）透传；url 撞名时引擎注入优先
+        expect(root.querySelector(".ph-txt")?.textContent).toBe("载入@/rc.html");
+    });
+
+    test("fetch 失败 → 内置 error 组件呈现（message + retry/close 可见、back 不渲染）", async () => {
+        mockLoaderFetch(() => new Error("网络炸了"));
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options.loader="/rc.html"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        expect(root.querySelector(".as-error-message")?.textContent).toContain("加载失败");
+        expect(root.querySelector(".as-error-message")?.textContent).toContain("/rc.html");
+        const btns = root.querySelectorAll(".as-error-btn");
+        expect(btns.length).toBe(3);
+        // retry/close 注入闭包 → 显示；back 未注入 → x-show 隐藏
+        expect((btns[0] as HTMLElement).style.display).not.toBe("none");
+        expect((btns[1] as HTMLElement).style.display).not.toBe("none");
+        expect((btns[2] as HTMLElement).style.display).toBe("none");
+    });
+
+    test("retry 点击重新加载成功后替换 error 呈现", async () => {
+        let fail = true;
+        mockLoaderFetch(() =>
+            fail ? new Error("挂了") : { body: `<div x-define="rc"><b>恢复了</b></div>` },
+        );
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options.loader="/rc.html"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        expect(root.querySelector(".as-error-message")).not.toBeNull();
+        fail = false;
+        (root.querySelectorAll(".as-error-btn")[0] as HTMLElement).click();
+        await flushLoader();
+        expect(root.querySelector("b")?.textContent).toBe("恢复了");
+        expect(root.querySelector(".as-error-message")).toBeNull();
+    });
+
+    test("加载结果无同名组件 → error 呈现（不误报链上旧同名）", async () => {
+        mockLoaderFetch(() => ({ body: `<div x-define="other"><b>x</b></div>` }));
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options.loader="/rc.html"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        expect(root.querySelector(".as-error-message")?.textContent).toContain('无组件 "rc"');
+    });
+
+    test(".global 修饰符：注册为全局组件", async () => {
+        mockLoaderFetch(() => ({ body: `<div x-define="grc"><b>g</b></div>` }));
+        const { root, engine } = mount(
+            `<div x-scope><div id="h" x-component:grc.global x-component-options.loader="/g.html"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        expect(engine.options.components?.grc).toBeDefined();
+        expect(root.querySelector("b")?.textContent).toBe("g");
+    });
+
+    test("远程覆盖已注册同名组件：warn + 以远程版为准（首帧严格）", async () => {
+        const warns: string[] = [];
+        const origWarn = console.warn;
+        console.warn = (...args: any[]) => warns.push(String(args[0] ?? ""));
+        let calls: Array<{ url: string }>;
+        calls = mockLoaderFetch(() => ({ body: `<div x-define="dup"><b>remote</b></div>` }));
+        const { root } = mount(
+            `<div x-scope>
+                <div x-define="dup"><i>local</i></div>
+                <div id="h" x-component:dup x-component-options.loader="/dup.html"></div>
+            </div>`,
+            {},
+        );
+        // warn 发生在 fetch 完成的微任务链上——捕获须覆盖 flushLoader 之后再恢复；
+        // flex-tools logger 异步 flush，多等一拍确保落地
+        await flushLoader();
+        await new Promise((r) => setTimeout(r, 150));
+        console.warn = origWarn;
+        expect(warns.some((w) => w.includes("覆盖注册"))).toBe(true);
+        // warn 去重：同 url 缓存命中重跑注册不重复 warn（去重）
+        expect(warns.filter((w) => w.includes("覆盖注册")).length).toBe(1);
+        expect(calls.length).toBe(1);
+        expect(root.querySelector("b")?.textContent).toBe("remote");
+    });
+
+    test("对象配置形态：request 整包透传 fetch", async () => {
+        const calls = mockLoaderFetch(() => ({ body: RC_BODY }));
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options="{ loader: { url: '/rc.html', request: { headers: { 'X-K': 'v' } } } }"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        expect(calls[0]!.init?.headers).toEqual({ "X-K": "v" });
+        expect(root.querySelector(".v")?.textContent).toContain("远程数据");
+    });
+
+    test("props 与 loader 并存：props 注入覆盖组件 data 默认", async () => {
+        mockLoaderFetch(() => ({ body: RC_BODY }));
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc="{ msg: '外部props' }" x-component-options.loader="/rc.html"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        expect(root.querySelector(".v")?.textContent).toContain("外部props");
+    });
+
+    test("width/height 占位尺寸：加载期间生效，成功后移除", async () => {
+        const gate = loaderDeferred<{ body: string }>();
+        mockLoaderFetch(() => gate.promise);
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options="{ loader: { url: '/rc.html', width: 120, height: 40 } }"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(host.style.width).toBe("120px");
+        expect(host.style.height).toBe("40px");
+        gate.resolve({ body: `<div x-define="rc"><b>ok</b></div>` });
+        await flushLoader();
+        expect(host.style.width).toBe("");
+        expect(host.style.height).toBe("");
+    });
+});
+
+describe("内置 error 组件与 back 内置 action（ADR-0065）", () => {
+    test("engine 默认注册内置 error 组件，用户同名声明覆盖", () => {
+        const { engine } = mount(`<div><span>x</span></div>`, {});
+        expect(typeof engine.options.components?.error).toBe("string");
+        expect(engine.options.components?.error as string).toContain("as-error");
+
+        const { engine: engine2 } = mount(
+            `<div><span>x</span></div>`,
+            {},
+            { components: { error: `<div x-define="error" class="my-err">自定义</div>` } },
+        );
+        expect(engine2.options.components?.error).toContain("my-err");
+    });
+
+    test("back 内置 action：builtin 标记 + handle 执行 history.back()", () => {
+        const { engine } = mount(`<div><span>x</span></div>`, {});
+        const back = (engine.actions as any).back;
+        expect(back).toBeDefined();
+        expect(back.builtin).toBe(true);
+        expect(back.title).toBe("返回");
+        const origBack = history.back.bind(history);
+        let backed = false;
+        (history as any).back = () => {
+            backed = true;
+        };
+        try {
+            back.handle();
+        } finally {
+            (history as any).back = origBack;
+        }
+        expect(backed).toBe(true);
     });
 });

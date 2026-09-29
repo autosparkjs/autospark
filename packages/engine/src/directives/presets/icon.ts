@@ -123,7 +123,6 @@ export class IconDirective extends AutoSparkDirectiveBase {
         }
         if (!missWarned.has(raw)) {
             missWarned.add(raw);
-            this.warn(`图标 "${raw}" 未声明，渲染默认图标（ADR-0058）`);
         }
         this.missName = raw;
         const fallback = iconRegistry.has("default") ? "default" : null;

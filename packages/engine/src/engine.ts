@@ -1,4 +1,4 @@
-import type { AutoSparkEvents, AutoSparkOptions } from "./types";
+import type { AutoSparkEvents, AutoSparkOptions, AutoSparkVars } from "./types";
 import type { ComponentDef } from "./directives/component-def";
 import { DirectiveManager } from "./directives/manager";
 import { AutoSparkCompiler } from "./compile/compiler";
@@ -19,6 +19,9 @@ import { OverlayHandle } from "./overlay/handle";
 import { removeOverlayContainer } from "./overlay/container";
 import { TooltipManager } from "./tooltip/manager";
 import type { TooltipAPI } from "./tooltip/types";
+import { ToastManager } from "./toast/manager";
+import type { ToastProps, ToastTask } from "./toast/types";
+import { BUILTIN_ERROR_COMPONENT, ensureErrorStyle } from "./builtinError";
 
 /**
  * 框架保留键：x-data 默认模式的私有响应式数据域在 store.state 下的容器键。
@@ -69,6 +72,7 @@ export class AutoSpark<
     readonly el: HTMLElement;
     /** 响应式数据源：engine 在 `_createStore` 内自建并拥有（destroy 时销毁）。ADR-0044 */
     readonly store: AutoStore<State>;
+    readonly vars:AutoSparkVars={}
     /**
      * engine 自建的默认 configManager（`_createStore` 补缺省时创建）。
      * destroy 时仅销毁此实例；消费者经 `storeOptions.configManager` 传入的不动（所有权对称，ADR-0044）。
@@ -99,6 +103,8 @@ export class AutoSpark<
     readonly animate: AutoSparkAnimator;
     /** 全局工具提示管理单元（ADR-0061）：data-tooltip 约定消费面 + title 编译期转换开关；公共入口经 `tooltip` getter */
     readonly tooltipManager: TooltipManager;
+    /** 全局轻提示管理单元（ADR-0068）：`extends Map<string, ToastTask>`（键恒为 string id）；公共入口经 `toast()` / 本表 */
+    readonly toastManager: ToastManager;
     /** 原始模板（深克隆根元素，保留指令属性作为编译只读输入） */
     readonly template: HTMLElement;
     /** 每个渲染元素对应的 Scope（销毁时遍历清理其 watcher） */
@@ -110,6 +116,7 @@ export class AutoSpark<
     get state() {
         return this.store.state;
     }
+
     /** 是否已编译并挂载 */
     private pending = false;
 
@@ -121,7 +128,21 @@ export class AutoSpark<
      * @throws {Error} el 非 HTMLElement；state 为 AutoStore 实例（不再接受借用，ADR-0044）
      */
     constructor(el: HTMLElement, state: State, options?: Partial<AutoSparkOptions<State>>) {
-        super({ autostart: true, debug: false, actions: {}, ...options });
+        // 内置 error 组件（ADR-0065）：默认注册 options.components.error，用户同名声明展开覆盖
+        //（组件查找链：局部 x-define > options.components，均天然优先于内置，无需特判）；
+        // 样式幂等注入（document 级资产，与 icons 同纪律，engine.destroy 不清理）
+        const { components: userComponents, ...restOptions } = (options ?? {}) as Partial<
+            AutoSparkOptions<State>
+        >;
+        ensureErrorStyle();
+        // 展开形态传入（super 参数类型为 FastLiteEventOptions，无 components 键——spread 免过剩检查）
+        const init = {
+            autostart: true,
+            debug: false,
+            actions: {},
+            components: { error: BUILTIN_ERROR_COMPONENT, ...userComponents },
+        };
+        super({ ...init, ...restOptions });
         if (!(el instanceof HTMLElement)) {
             throw new Error("Root element must be an HTMLElement");
         }
@@ -155,6 +176,10 @@ export class AutoSpark<
         // 全局工具提示（ADR-0061）：须早于 autostart compile——编译期 title→data-tooltip
         // 转换依赖 manager 的 enabled 开关；委托监听/样式注入在构造内就位（tooltip: false 时全短路）
         this.tooltipManager = new TooltipManager(this);
+        // 全局轻提示（ADR-0068）：引擎级子系统，容器/样式随首个 toast 懒建（toast: false 时
+        // 构造即短路——show() warn + no-op）；全局 toast action 的 handle 闭包经 engine 引用
+        // 惰性触达本管理器，无初始化顺序约束
+        this.toastManager = new ToastManager(this);
         if (this.options.autostart) {
             this.compile();
         }
@@ -229,6 +254,16 @@ export class AutoSpark<
     }
 
     /**
+     * 发起一条全局轻提示（ADR-0068 决策 4）：消息字符串 / ToastProps / async factory 三态入参，
+     * 返回任务句柄（`{ id, el, hide(), closed }`）。同 id = 原地更新（换内容 + 重置计时）。
+     * 实例管理与队列见 `toastManager`（extends Map）。`options.toast: false` 时 warn + 死句柄
+     * （全关语义，决策 6）；模板侧可用内置 `toast` action（ADR-0068 决策 15）。
+     */
+    toast(props: string | ToastProps | (() => Promise<ToastProps | void | undefined>)): ToastTask {
+        return this.toastManager.show(props);
+    }
+
+    /**
      * 全局组件懒预编译缓存（ADR-0022 承接 ADR-0021 决策 11）：key=组件名，value=预编译根元素
      * （已自动包装、含 `x-define`、未编译、保留指令属性、**不注入 x-scope**）。首次 `getComponent`
      * 命中全局时解析 `options.components[name]` 字符串入参并写入此 Map，后续命中直接 `cloneNode(true)`。
@@ -260,6 +295,13 @@ export class AutoSpark<
     private _importUrlCache = new Map<string, HTMLElement[]>();
     /** 正在 fetch 的 url 集合（循环 import 检测，ADR-0022 决策六-4） */
     private _importingUrls = new Set<string>();
+    /**
+     * 远程覆盖注册的 warn 去重（ADR-0065 决策三）：同 url 缓存命中重跑注册循环时，
+     * 「已有同名组件被覆盖」只警告一次（per 注册目标 per 组件名），避免 loader 多实例场景刷屏。
+     * 全局目标用独立 Set；作用域目标 WeakMap（scope 销毁后条目自然释放）。
+     */
+    private _overrideWarnedScope = new WeakMap<AutoSparkScope, Set<string>>();
+    private _overrideWarnedGlobal = new Set<string>();
 
     // action 管理单元已提炼至 src/actions/（manager.ts + buildAction.ts，承接 ADR-0010 的
     // utils 提炼）；三入口——构造函数 options.actions 扫描、actions Proxy 的 set trap、
@@ -641,47 +683,77 @@ export class AutoSpark<
      * @param url        远程组件 HTML url
      * @param ownerScope 作用域注册的目标 scope（global=false 时挂此；global=true 时忽略）
      * @param global     是否注册为全局组件（.global 修饰符）
-     * @returns 已注册的组件名数组（空数组=无组件/失败）
+     * @param request    额外 fetch 参数（ADR-0065 决策五：loader 的 request 整包透传 requestInit；
+     *                   参与 url 缓存 key——同 url 不同请求参数不串缓存，无 request 退化为裸 url）
+     * @param signal     可选中止信号（ADR-0065 决策四：loader url 响应式变化时 abort 旧请求）
+     * @returns 已注册的组件名数组；**null = 加载失败**（fetch 非 2xx/网络错误/解析为空——与
+     *          「成功但无组件」的空数组区分，供 loader 给出准确 error 文案，ADR-0065）
      */
     async importComponentsFromUrl(
         url: string,
         ownerScope: AutoSparkScope | null,
         global: boolean,
-    ): Promise<string[]> {
+        request?: RequestInit,
+        signal?: AbortSignal,
+    ): Promise<string[] | null> {
+        // 缓存/循环检测 key（ADR-0065 决策九）：url + 序列化 request；无 request 退化为裸 url
+        const cacheKey = request ? `${url}##${JSON.stringify(request)}` : url;
         // 循环 import 检测（决策六-4）
-        if (this._importingUrls.has(url)) {
+        if (this._importingUrls.has(cacheKey)) {
             this.logger.warn(`x-import: 检测到循环引用 "${url}"，已中断该导入链。`);
             return [];
         }
         // url 缓存命中：直接复用解析结果
         let elements: HTMLElement[];
-        if (this._importUrlCache.has(url)) {
-            elements = this._importUrlCache.get(url)!;
+        if (this._importUrlCache.has(cacheKey)) {
+            elements = this._importUrlCache.get(cacheKey)!;
         } else {
-            this._importingUrls.add(url);
+            this._importingUrls.add(cacheKey);
             let html: string;
             try {
-                html = await fetchHtml(url);
+                html = await fetchHtml(url, signal, request);
             } catch (e: any) {
                 this.logger.warn(`x-import: 加载 "${url}" 失败: ${e?.message ?? e}`);
-                this._importingUrls.delete(url);
-                return [];
+                this._importingUrls.delete(cacheKey);
+                return null;
             }
-            this._importingUrls.delete(url);
+            this._importingUrls.delete(cacheKey);
             const frag = parseHtmlFragment(html);
             if (!frag) {
                 this.logger.warn(`x-import: "${url}" 解析为空，无组件可注册。`);
-                return [];
+                return null;
             }
             elements = Array.from(frag.children).filter(
                 (n): n is HTMLElement => n instanceof HTMLElement && n.hasAttribute("x-define"),
             );
-            this._importUrlCache.set(url, elements);
+            this._importUrlCache.set(cacheKey, elements);
         }
         // 注册各组件
         const registered: string[] = [];
         for (const el of elements) {
             const name = (el.getAttribute("x-define") ?? "").trim() || "default";
+            // 覆盖 warn（ADR-0065 决策三）：远程版覆盖已注册同名组件时警告（loader「以此 url 为准」
+            // 与 x-import 同口径）；per 注册目标 per 名去重——缓存命中重跑注册循环不刷屏
+            const existed = global
+                ? this.options.components?.[name] != null || this._globalComponentDefCache.has(name)
+                : ownerScope?.components?.[name] != null;
+            if (existed) {
+                const warned =
+                    global ?
+                        this._overrideWarnedGlobal
+                    : this._overrideWarnedScope.get(ownerScope!) ??
+                      (() => {
+                          const s = new Set<string>();
+                          this._overrideWarnedScope.set(ownerScope!, s);
+                          return s;
+                      })();
+                if (!warned.has(name)) {
+                    warned.add(name);
+                    this.logger.warn(
+                        `远程组件覆盖注册："${name}"（${global ? "全局组件表" : "作用域"}已有同名组件，已被远程版覆盖，ADR-0065）`,
+                    );
+                }
+            }
             // declarerScope：作用域注册挂 ownerScope（ADR-0053 declarer 基准）；全局注册无声明 scope → null
             const def = buildComponentDef(
                 el,
@@ -797,6 +869,9 @@ export class AutoSpark<
         removeOverlayContainer(this);
         // 工具提示收口（ADR-0061）：摘委托监听 + tooltip 容器整体移除 + 清计时器/兜底循环
         this.tooltipManager.dispose();
+        // 轻提示收口（ADR-0068 决策 10）：全部立即销毁（无动画——离场的延迟移除已被上方
+        // animate.dispose 同步完成）+ toast 容器整体移除
+        this.toastManager.dispose();
         this.el.replaceChildren();
         // 移除 engine 根标识（ADR-0060，与构造期打点对称）
         this.el.removeAttribute("data-autospark");

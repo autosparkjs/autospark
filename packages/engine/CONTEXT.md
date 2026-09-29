@@ -41,7 +41,7 @@ action 执行上下文（AutoSparkActionContext）中指向**自身动作描述�
 _Avoid_: `$action`（$ 系是引擎注入特殊物，实体引用无前缀）、`this.meta`（窄化为只见元数据）、动作快照（它是活引用）
 
 **内置动作 / Built-in Actions**:
-引擎自动注册的信号型全局 action（`yes` / `no` / `cancel` / `close`）：handle **透传首参**（`close(1)` → resolved 广播 `result:1`），价值在**广播语义**——祖先监听 `action:close` 等 DOM 冒泡事件（`detail.result` 读信号载荷）即可驱动关闭对话框/确认/取消等通用交互。用户同名声明覆盖内置。详见 ADR-0036 决策 7。
+引擎自动注册的信号型全局 action（`yes` / `no` / `cancel` / `close` / `back`）：handle **透传首参**（`close(1)` → resolved 广播 `result:1`），价值在**广播语义**——祖先监听 `action:close` 等 DOM 冒泡事件（`detail.result` 读信号载荷）即可驱动关闭对话框/确认/取消等通用交互。`back` 无信号载荷，点击即 `history.back()`（ADR-0066 随内置 error 组件引入）。用户同名声明覆盖内置。详见 ADR-0036 决策 7。
 _Avoid_: 默认动作（泛化）、系统动作（易与 DOM/浏览器原生事件联想）、公共动作（它们是信号不是共享实现）
 
 ### 配置层
@@ -228,6 +228,32 @@ _Avoid_: resize-start 连字符（家族惯例是冒号命名空间）、裸 res
 覆盖物消费者的 `resize` 选项（ADR-0064）：`true`（方向自动推导 + 默认约束）| 对象（字段与 x-resize 选项表同构；`handles` 只能在合法集内**收窄**，越界 warn + 忽略）。方向推导贴合形态几何：drawer 贴边内侧单边（`placement: left` → `e`，类推）、dialog 四角（`ne,nw,se,sw`）。写路径走 **shell 定位体系**（与普通元素 style 直改分离，钳制/手柄/指针核心逻辑复用）；**不写回 store**（「调节事件」detail 即数据出口——overlay 选项语法无绑定位）；尺寸**会话内记忆**（指令实例状态，重开沿用、优先于声明 `size` / CSS 尺寸，engine destroy 才清）。
 _Avoid_: overlay 缩放、可拖拽面板（泛化）、宽度绑定（不写回状态）
 
+### 分割器层
+
+**分割器 / x-splitter（Splitter）**:
+两面板分割布局的结构指令（ADR-0067）：宿主的两个渲染子元素（面板）之间由引擎注入分隔条，拖拽（或键盘）调节定容面板的主轴尺寸，自适应面板恒吸收剩余空间。值 = direction 表达式（`'horizontal'` 左右分栏 / `'vertical'` 上下分栏，**其余一切值静默归一 horizontal**；响应式切换 = 换轴重排、DOM 不重建、定容尺寸同值换轴重写）。结构契约：只认两个渲染子元素（多余 warn + 丢弃、template/script 静默容忍）、不足两个 warn 降级普通编译。嵌套零新机制。
+_Avoid_: 分栏容器（泛化）、split-panel（曾用名，grilling 中期更名 x-splitter——panel 与 pane 一字之差易混淆）、布局组件（无组件机制参与）、grid 分栏（实现是 flex）
+
+**面板 / Pane**:
+分割器的**子元素**——被分割的东西。每个分割器恒两面板（分隔条前 / 后各一），面板是正常编译的子树（自身指令、嵌套分割器照常工作）。
+_Avoid_: 子元素（泛化）、column/row（方向耦合词，面板在两方向下同权）、split panel（那是旧指令名，容器正名是分割器）
+
+**定容面板 / Sized Pane**:
+声明 `data-size` 的面板——拖拽调节的对象。至多一个（两个都声明 warn + 第二个按自适应处理——拖拽需要吸收方是结构前提）。`data-size` 为 CSS 长度全形态（纯数字按 px）、**保持声明单位写回**（`30%` 拖后仍 `%`，单位是布局意图）；`data-min-size` / `data-max-size` 仅它认读（自适应面板上声明 warn + 忽略）；初始声明值不钳制（声明即真相），拖拽钳制恒遵守；绑定形态 `:data-size` 简单路径双向（拖拽实时写回 / 外部反向同步 / 等值短路 + 会话抑制防递归），表达式形态 warn 一次单向降级。
+_Avoid_: 固定面板（「固定」暗示不可调）、可调节元素（用户初期用语——自适应面板同样参与布局，可调节的是分隔条手势）、fixed 尺寸（position 语义撞词）
+
+**自适应面板 / Auto Pane**:
+未声明 `data-size` 的面板——恒 flex:1 吸收剩余空间，可被拖至 0 宽（无隐式防挤压下限；保底需求用定容面板的 `max` 表达）。双自适应 = 静态等分形态：分隔条退化为纯视觉分界（不可聚焦不可拖、折叠不生效）。
+_Avoid_: 自动面板（「自动」歧义）、弹性面板（flex 术语泛化）、剩余面板（实现视角词）
+
+**分隔条 / Divider**:
+两面板之间引擎注入的**真实元素**（`role="separator"` 可聚焦）——拖拽命中区（默认 10px）+ 居中 2px 指示线（CSS 变量可调）。键盘方向键 = 分隔条的几何位移方向（±1px / Shift ±10px）。
+_Avoid_: 拖拽手柄（那是 x-resize 的 Resize Handle 概念）、指示线（只是它的视觉层，命中区是本体）、分割线（泛化）、grip / sizer（英文别名）
+
+**折叠（x-splitter）**:
+`collapsible` 选项启用的定容面板折叠：**折叠 ≡ 纯派生态**（无独立 collapsed 状态源，drawer「折叠 ≡ visible 归假」同构）——折叠目标由 `data-minimize-size` 分派：未声明或 0 = **slide 滑入滑出**（面板宽度保持、负 margin 拉回占位整体滑出容器，内容不挤压）；`> 0` = **收缩到最小化尺寸**（迷你可见形态）。把手点击就是写尺寸（绑定时写状态、静态时直写 DOM），初始声明等于折叠目标即初始折叠（不派发事件），折叠前记忆 lastSize（实例状态）展开恢复，折叠写目标值绕过 min 钳制。跨折叠态翻转有过渡动画，非翻转变更与拖拽全程瞬时。把手骑分隔条（子元素，天然随分隔条滑移）、三态坐标化对齐 drawer trigger（`true` ≡ `'50%'` / number px / CSS 长度串，负值距对端，越界静默钳制——把手是唯一重开触发点）；箭头 = 内置全局图标 `arrow`（同名覆盖自动跟随），指向下一步动作的分隔条位移方向、随折叠态翻转（`data-collapsed` 是存在性属性——`"false"` 字符串恒命中 CSS 选择器的坑）；创建以编译期为断（表达式动态开启不补建）。
+_Avoid_: collapsed 状态（它是派生态不是独立状态）、收起（单向词，折叠是双向翻转）、width:0 折叠（0 目标已改 slide 滑出，width 收缩仅 minimize > 0 形态）、collapsibled（非词，grilling 初期拼写已纠正）
+
 ### 树形渲染层
 
 **树形渲染 / x-tree（Tree Rendering）**:
@@ -341,13 +367,13 @@ _Avoid_: overlay 对象、弹层实例（泛化）、对话框实例（那是 x-
 _Avoid_: 触发器（家族默认宿主无隐式交互；悬浮形态例外见「悬浮触发」）、弹出指令（泛化）、调用方（action 语境词汇）、保留键封闭清单（非保留键隐式作 props 的分流已删除，ADR-0052 v2.3）
 
 **贴边抽屉（Drawer）**:
-覆盖物消费者的贴边形态（x-drawer，ADR-0063）：面板从屏幕四边（默认）或锚元素边缘滑入滑出。**双定位模式**——屏幕贴边（无 `at`：fixed 贴视口对应边，贴边轴全屏展开）与**元素贴边锚定**（`at.selector` 命中：面板终态贴锚元素对应边**内侧**、恒在锚内不越界，**长轴 = 锚边长**随锚/视口变化重同步）；经实例定位策略钩子（`positioner`）整体接管，锚定未命中**回退屏幕贴边**（非家族「退居中」——居中对抽屉无意义）。`at.placement` 四主方向（展开/滑入起始边）、默认 `right`（`auto`/`-start/-end`/非法值两模式一律静默归一；浮动定位子键 `flip`/`offset`/`shift` 静默忽略）、无箭头。短轴尺寸走 `size` 选项（number/CSS 长度，方向中立，引擎 inline 写入，ADR-0063 实施期修订），缺省回退 CSS 变量 `--autospark-drawer-size`；声明 `resize` 选项启用拖拽调短轴后，会话内记忆值优先于声明 `size` 生效（见「覆盖物尺寸调节」）；默认动画 `'drawer'`（遮罩淡入淡出 + 面板位移滑入滑出，主流 drawer 形态语言）；默认带**折叠把手**（`toggle`，见专条，`toggle: false` 显式关闭）；内置外壳 `drawer-shell`（直角、无箭头载体）。嵌套零新机制（子消费者声明在父组件模板内，ESC 打开栈只关栈顶）。
+覆盖物消费者的贴边形态（x-drawer，ADR-0063）：面板从屏幕四边（默认）或锚元素边缘滑入滑出。**双定位模式**——屏幕贴边（无 `at`：fixed 贴视口对应边，贴边轴全屏展开）与**元素贴边锚定**（`at.selector` 命中：面板终态贴锚元素对应边**内侧**、恒在锚内不越界，**长轴 = 锚边长**随锚/视口变化重同步）；经实例定位策略钩子（`positioner`）整体接管，锚定未命中**回退屏幕贴边**（非家族「退居中」——居中对抽屉无意义）。`at.placement` 四主方向（展开/滑入起始边）、默认 `right`（`auto`/`-start/-end`/非法值两模式一律静默归一；浮动定位子键 `flip`/`offset`/`shift` 静默忽略）、无箭头。短轴尺寸走 `size` 选项（number/CSS 长度，方向中立，引擎 inline 写入，ADR-0063 实施期修订），缺省回退 CSS 变量 `--autospark-drawer-size`；声明 `resize` 选项启用拖拽调短轴后，会话内记忆值优先于声明 `size` 生效（见「覆盖物尺寸调节」）；默认动画 `'drawer'`（遮罩淡入淡出 + 面板位移滑入滑出，主流 drawer 形态语言）；默认带**抽屉把手**（`trigger`，见专条，`trigger: false` 显式关闭、坐标沿边线滑轨可定位）；内置外壳 `drawer-shell`（直角、无箭头载体）。嵌套零新机制（子消费者声明在父组件模板内，ESC 打开栈只关栈顶）。
 _Avoid_: 侧滑菜单（泛化场景词）、局部抽屉（指锚定模式时直说「元素贴边锚定」）、推挤模式（push mode 未实现，勿暗示）
 
-**折叠把手（Drawer Toggle）**:
-贴边抽屉的常驻折叠/展开控制按钮（x-drawer `toggle` 选项，**默认开启**、`false` 显式关闭）：骑在面板**活动边线**上的圆形按钮（直径 `24px`、`1px solid`，视觉继承面板边框/背景，尺寸走 CSS 变量 `--autospark-drawer-toggle-size`），箭头指向「下一步动作」随折叠态翻转。**折叠 ≡ visible 归假**（无第三态）：点把手即写回状态，面板滑出销毁、重开重建（「每次打开新实例」家族语义，内容运行态不保留）；把手是覆盖物家族**首个实例外常驻交互元素**——面板销毁后存活，折叠后骑屏幕边（屏幕模式）或锚内侧边线（锚定模式）露半圆，展开/折叠时沿边线同步滑移（与面板同曲线）。生命周期挂指令实例：多把手各自独立，宿主脱离 / scope 死亡 / engine 销毁时摘除。与 `mask` 正交。
-_Avoid_: 停靠 / dock、折叠态 / collapsed state、peek、最小化 / minimize（均在暗示「折叠是独立第三态」——折叠就是 visible 归假）、收起按钮（泛化，把手的语义是双向控制不只是收）
-_Avoid_: 触发器（家族默认宿主无隐式交互；悬浮形态例外见「悬浮触发」）、弹出指令（泛化）、调用方（action 语境词汇）、保留键封闭清单（非保留键隐式作 props 的分流已删除，ADR-0052 v2.3）
+**抽屉把手（Drawer Trigger）**:
+贴边抽屉的常驻折叠/展开控制按钮（x-drawer `trigger` 选项，**默认开启**、`false` 显式关闭）：骑在面板**活动边线**上的圆形按钮（直径 `24px`、`1px solid`，视觉继承面板边框/背景，尺寸走 CSS 变量 `--autospark-drawer-trigger-size`），箭头指向「下一步动作」随折叠态翻转。**折叠 ≡ visible 归假**（无第三态）：点把手即写回状态，面板滑出销毁、重开重建（「每次打开新实例」家族语义，内容运行态不保留）；把手是覆盖物家族**首个实例外常驻交互元素**——面板销毁后存活，折叠后骑屏幕边（屏幕模式）或锚内侧边线（锚定模式）露**面板展开侧**半圆，展开/折叠时沿边线同步滑移（与面板同曲线）。沿边线**滑轨位置**由 `trigger` 坐标控制（**边缘锚定模型**：正距主边 top/left、负距对面边 bottom/right 的绝对距离，`true` = 居中语法糖 ≡ `'50%'`；越界静默钳制——把手是唯一重开触发点，永可达），支持成员属性表达式响应式重定位；展开态无阴影（视觉属于面板）、折叠态保留阴影（独立浮起提示可点）。生命周期挂指令实例：多把手各自独立，宿主脱离 / scope 死亡 / engine 销毁时摘除。与 `mask` 正交。
+_消歧_: 本词条的 trigger 是**引擎生成的常驻按钮**——区别于 x-popover / x-tooltip 的「宿主触发器」（用户模板中的元素，见「悬浮触发」）与 action 的 triggerEl（事件派发点）；三者同名异物，文档中指涉把手时优先用「把手」、写选项名时用 `trigger`。
+_Avoid_: toggle（已废弃的旧选项名）、停靠 / dock、折叠态 / collapsed state、peek、最小化 / minimize（均在暗示「折叠是独立第三态」——折叠就是 visible 归假）、收起按钮（泛化，把手的语义是双向控制不只是收）
 
 **面板外壳（Shell）**:
 覆盖物**面板层形态**的可替换载体——一个声明了默认出口的普通组件，负责面板的边框 / 圆角 / 背景 / 箭头 / 内容布局；内容组件经默认出口进入外壳。**外壳不含遮罩**（遮罩是引擎结构，模态行为的一部分，换外壳不影响遮罩 / 定位 / 动画 / 关闭等行为）；箭头由外壳渲染、引擎定位。内置默认外壳（dialog-shell / popover-shell / drawer-shell）开箱即用、不占用户组件命名空间；自定义外壳与内容组件同一查找协议，未命中回退内置默认。配置链：实例选项 > 宿主选项 > 引擎级默认 > 内置默认。
@@ -387,6 +413,16 @@ _Avoid_: data-tips（grilling 过程中的过渡命名，从未实施）、autos
 tooltip 的**单例浮层元素**（`autospark-tooltip` 类名契约）——每引擎一个、常驻 `autospark-tooltips` body 容器（首个 tooltip 显示时懒创建、`destroy()` 整体移除，overlays 容器先例），显示 = 填充内容 + 定位 + display，隐藏 = 离场动画后 display:none（不反复摘挂 DOM）。内容随悬停目标切换、上一目标的类名/边框/箭头全量重置。显示期间 rAF 兜底「曾连接 → 断开」跳变（x-for 回收 / patch / DOM 移除无事件可感知，立即隐藏）；`engine.stop()` 同步隐藏。
 _Avoid_: tooltip 实例（无实例化概念——单例复用）、每元素独立浮层（单例是防多显的设计决策）
 
+### 轻提示（Toast）
+
+**轻提示 / toast（Toast）**:
+引擎级子系统的**全局非阻塞通知**（ADR-0068）——消息在屏幕分区栈短暂浮现、几秒后自动消失、不打断操作。命令式 `engine.toast(message | props | async factory)` 返回**任务句柄**（`id` / `el` / `hide()` / `closed`；factory 求值 `undefined` → 静默跳过——条件通知）；`engine.toastManager` 继承 Map、键恒为 string id（缺省自动生成，**同 id = 原地更新**：显示中换内容并重置计时、不重播动画——进度类场景的更新形态）。**纯屏幕锚定**：pos 7 值枚举（`top-left` / `top-center` / `top-right` 默认 / `bottom-left` / `bottom-center` / `bottom-right` / `center`），分区堆叠列是引擎结构（`data-toast-pos` 标记），单项卡片是内置私有组件 **toast-shell**（见下词条）。**按 pos 分区 FIFO 队列**：`showCount`（默认 5）满员排队、append 列尾。`delay` 默认 3000、`0` = sticky 永不自动关、hover 暂停 / 移出恢复（剩余时间制）。type 5 值（`none | info | success | warn | error`）驱动图标（同名词映射，success→`yes`；`icons` 键重映射）与语义色（图标 + 左 3px accent 条）。actions 双形态：字符串查全局 action 表 / 内联对象直调；`hide` 键默认 true（点击关 toast）。`options.toast` 三态：缺省开启 / `false` 全关（调用 warn + no-op）/ 配置对象 = 全局默认（单次 props 覆盖）。内置全局 action `toast`（执行型：payload = message | props，模板任意可执行 action 处可发通知）。事件双通道 `toast:show` / `toast:hide`（payload `{toast, el}`）。`engine.stop()` 不动 toast（无锚非树内，生命周期独立）、`destroy()` 收口。
+_Avoid_: 通知（notification 语义更重，指订阅推送）、消息框（模态 alert，是 dialog 语义）、吐司（音译不采纳）、浮层（tip 已占用）、anchor 元素定位（v1 纯屏幕锚定，元素锚定是 fast-follow）
+
+**轻提示外壳（toast-shell）**:
+toast **单项卡片**的内置私有组件（shell 机制延伸，ADR-0068）——双类名根 `autospark-dialog autospark-toast` + `data-toast-type` 语义分派（图标 / accent 条着色 / 关闭钮）。与面板外壳（Shell）的两点分野：**无出口协议**（toast 没有内容组件投影概念，message 是 props 键不是组件，自定义外壳直接 `x-html="message"` 消费 props）；ToastProps **预解析注入**（引擎解析 `icon` 与 `actions` 后整包注入，外壳拿到即解析后形态）。真响应式活体——同 id 原地更新 = 改 data 域 props 自动响应。分区堆叠列是**引擎结构**不组件化（与「遮罩不归外壳」同分界地位），只留类名 + CSS 变量契约。
+_Avoid_: 显示容器（分区列是引擎结构非组件）、出口 / slot（toast-shell 无出口协议）、面板外壳复用（结构相似、协议分叉）
+
 ### 加载遮罩（Loading Mask）
 
 > 旧称「加载覆盖层」已让位更名——「覆盖物」词汇归属弹层消费家族（正式词条见上方「覆盖物」章节，历史沿革见「已废弃」词条）。
@@ -398,6 +434,10 @@ _Avoid_: 动作列表（泛化）、buttons（配置的是 action 名不是按�
 **data-action 委托（x-loading）**:
 遮罩根上的点击委托契约：块内任意 `data-action="<name>"` 元素点击 → 经块 scope `getAction` 链逐次现查（已注册走真 action、未注册走「合成动作描述符」），以标准 AutoSparkActionContext（`el`=被点元素）调用 → 双通道广播；随后按「hide 约定键」决定是否自动隐藏遮罩。自定义 loading 组件零接线同享。详见 ADR-0038。
 _Avoid_: 动作绑定（泛化）、action 属性（与广播事件名 `action:<name>` 撞形）
+
+**进度条模式 / progressbar（x-loading）**:
+x-loading 的第二种显示形态——不铺加载遮罩，仅在挂载目标顶部呈现一条约 3px 高的**不确定型**无限滚动条，宿主内容保持可见、可交互（条不拦截命中——这是与遮罩的**本质差异**，非尺寸差异，故本形态归「加载指示」而非遮罩家族）。经 `.progressbar` 修饰符启用（v1 仅修饰符入口、模式静态）；`color` 为滚动段色（**默认橙色**——细条以明显性优先，不沿用 loader 默认灰）、`bgColor`+`opacity` 为轨道底色（**缺省为浅轨**，深轨压暗段色），滚动段为 30% 宽实心纯色；`message`/`actions` 在条模式下静默不渲染、自定义 loading 组件不取用（条无内容可替换）。与 `.screen` 并存贴视口顶；`selector` 照常解析（条贴目标顶部）。
+_Avoid_: 百分比进度（不表达完成度）、确定进度、进度指示器（泛化）、顶部进度条（条可经 selector 挂到任意目标，不限「顶部页面」语义）
 
 ### 表单绑定层
 
@@ -688,7 +728,7 @@ scoped CSS 之上的值响应式能力。`<style>` 声明值写 `bind(expr)`（�
 _Avoid_: 内联样式绑定（`:style` 指令是元素级，style bind 是组件级样式表）、CSS-in-JS（无运行时对象）
 
 **组件实例化 / x-component（Component Instantiation）**:
-在模板中实例化一个已声明组件的指令：**属性参数承载组件名**（`x-component:counter`，编译期静态可知），**值专职 props**（见「props 注入」）。宿主化身组件根（属性继承：class 合并拼接、style 合并冲突键组件根优先、其他不覆盖）。无属性参数（`x-component="xxx"`）warn 缺组件名并跳过实例化。组件名静态、不支持响应式切换（条件切换用外层 x-if）。组件未就绪（x-import 加载中）显示 loading 占位，就绪后重实例化。详见 ADR-0054。
+在模板中实例化一个已声明组件的指令：**属性参数承载组件名**（`x-component:counter`，编译期静态可知），**值专职 props**（见「props 注入」）。宿主化身组件根（属性继承：class 合并拼接、style 合并冲突键组件根优先、其他不覆盖）。无属性参数（`x-component="xxx"`）warn 缺组件名并跳过实例化。组件名静态、不支持响应式切换（条件切换用外层 x-if）。组件未就绪（x-import 加载中）显示 loading 占位，就绪后重实例化。远程组件可经 `x-component-options.loader` 一步加载实例化（见「远程直接实例化」）。详见 ADR-0054、ADR-0066。
 _Avoid_: x-use（已废弃旧名）、组件渲染（泛化）、组件挂载（Vue 术语）
 
 **props 注入 / Props Injection（x-component）**:
@@ -698,6 +738,22 @@ _Avoid_: 双向绑定（那是 x-model）、props 同步（不是镜像同步）
 **x-import（远程组件加载）**:
 fetch 远程 HTML 加载组件定义（可含 1-N 个 x-define）。`.global` 修饰符注册全局组件，否则作用域组件（挂最近祖先 `scope.components`）。url 缓存 + 循环 import 检测。
 _Avoid_: 组件异步加载（泛化）、组件懒加载（语义不符）
+
+**远程直接实例化 / loader（Direct Remote Instantiation）**:
+x-component 经 `x-component-options.loader` 一步完成「远程加载 + 注册 + 实例化」（ADR-0066）——相对「x-import + x-component」两步组合的**声明糖**，内部复用同一管线（url 缓存、循环检测、注册、`component/registered` 广播），加载的组件照常进组件查找链供他人复用。loader 语义「**以此 url 为准**」：组件已注册仍 fetch 并以远程版覆盖注册（覆盖 warn，已实例化不受影响）；首帧严格等待 fetch（期间 fallback 占位）。url **响应式**（loader 表达式重求值，url 变化 → 中止旧请求 → 重载重实例化，组件内部状态丢失）；新 url 无同名组件 → error 呈现。`.global` 修饰符注册全局（`x-component:名.global`）。
+_Avoid_: 值传 url（值仍专职 props，ADR-0054 不变）、远程加载新机制（纯糖非新管线）、动态加载器抽象（loader 只是选项键名）
+
+**loader 选项（loader Option）**:
+`x-component-options.loader` 的声明形态：**string 简写**（以 `/`、`./`、`http(s)://` 开头等字面量 url 直接加载、其余作表达式 watch——与 x-import 双轨同构）| **对象** `{ url, request, fallback, error, width, height }`。`request` 整包透传 fetch（requestInit，参与 url 缓存 key）；`width/height` 是加载中宿主的临时占位尺寸（防布局跳动，成功与出错均移除）；`fallback`（加载中占位）与 `error`（失败呈现）见「loader 占位呈现」。整包/成员属性/定向三形态照 ADR-0007；响应式 url 写成员属性表达式（`x-component-options.loader="表达式"`，成员属性须单段）。
+_Avoid_: `loader.url` 多段子路径写法（成员属性须单段，响应用整体表达式）、fallback 声明自身 loader（占位组件不支持嵌套远程加载）
+
+**loader 占位呈现（loader Placeholder）**:
+loader 的 `fallback`（加载中）与 `error`（失败）呈现值的统一形态：**HTML 字符串**（静态插入、不参与编译）或 **`{ name, props }`**（引入具名组件：用户 props 与引擎注入上下文 `{ url, name, error }` 合并、**引擎注入优先**）；无 fallback → 默认 x-loading 占位；error 缺省用**内置 error 组件**。error 阶段引擎注入 `error`（Error 实例）与 `message`（引擎生成的友好文案）。
+_Avoid_: 占位模板编译（HTML 形态纯静态）、用户 props 覆盖注入键（撞名时注入优先）
+
+**内置 error 组件（Built-in Error Component）**:
+engine 初始化注册进全局组件表的**默认错误呈现组件**（ADR-0066）——loader 失败的缺省呈现，亦可 `x-component:error` 显式实例化渲染任意错误。props 契约 `{ error, message, icon, hasRetry, hasClose, hasBack }`：`message` 为引擎友好文案；`icon` 为图标名称（x-icon 机制，未注册静默）；`hasRetry/hasClose/hasBack` 为**布尔显隐键**（falsy 不渲染对应按钮），执行体走 **action 通道**（loader 注入实例 `retry`=重新 fetch、`close`=清除本实例 error 并照常广播信号；`back` 天然命中内置 action）——**函数值不入响应式 data 域**（autostore 当 computed 执行，无限循环陷阱）。用户同名声明沿查找链天然覆盖。error 呈现**替换宿主内容**（非覆盖层）。
+_Avoid_: 错误边界（React 术语）、错误拦截器（无拦截语义，纯呈现组件）、props 传执行函数（computed 陷阱，执行体走 action 通道）
 
 **组件数据边界（Component Data Boundary）**:
 组件实例化（x-component）的组件默认**封闭**数据边界：组件内表达式只能读自身 data/顶层私有变量、props 与全局 state，祖先 scope 的局部数据域（x-data 域、x-for locals）不可见，读+写一并切断。收口三处：`getContext` 聚合视图、`hasLocalContext` 探测、x-data 相对挂载上溯（越过边界视同越顶落根）。边界只封**数据视图**——action 沿链查找、getComponent 定义查找、`this.$parent` 显式寻址照常；与 methods 组件边界（方法查找止步，ADR-0022 决策二-3）正交并存。模板片段渲染（x-loading 遮罩 / x-empty / tree-node 行模板等无组件语义注入的原地 UI 替换）不受边界管辖。详见 ADR-0053。

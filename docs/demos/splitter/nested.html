@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-splitter · 嵌套（经典三栏）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .pane {
+        background: #fff;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        padding: 14px 16px;
+        box-sizing: border-box;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 嵌套零新机制：子 splitter 声明在某面板内部，随子树编译自然生效 -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block has-text-grey is-size-7">
+          经典应用骨架：外层左右分栏（侧栏 / 主区），主区内层上下分栏（头部 / 编辑器）。
+        </div>
+        <div
+          x-splitter="'horizontal'"
+          style="height: 300px; border: 1px solid #eee; border-radius: 8px"
+        >
+          <div class="pane" data-size="200px" data-min-size="140">
+            <strong>侧栏</strong>
+          </div>
+          <div
+            x-splitter="'vertical'"
+            style="height: 100%"
+          >
+            <div class="pane" data-size="64px" data-min-size="40">
+              <strong>头部</strong>
+            </div>
+            <div class="pane">
+              <strong>编辑器</strong>
+              <p class="is-size-7 has-text-grey">内外两层分隔条独立拖拽、互不干扰。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

@@ -77,7 +77,10 @@
 - 网络错误 / HTTP 非 2xx → `warn` + 该 url 组件视为未注册（**不阻断其余 url 的加载**）；
 - **url 缓存**：同一 url 重复 import 命中缓存，不重复 fetch；
 - **循环 import 检测**：A import B、B import A 的环被检测并中断该导入链（`warn`）；
+- **覆盖同名组件**：加载的组件与已注册同名时 `warn` + 以远程版覆盖（后续实例化用远程版，已实例化不受影响）——`x-import` 与 `x-component` 的 loader 直接形式同一口径；
 - 加载中途 url 变化 → abort 旧请求丢弃过期结果。
+
+加载管线（fetch / url 缓存 / 循环检测 / 注册 / 广播）由 engine 单一入口 `importComponentsFromUrl` 承担——与 `x-component` 的 loader 直接形式完全共享（ADR-0066），url 缓存跨指令生效。
 
 ## 配置选项
 
@@ -96,4 +99,4 @@
 - **远程内容是组件定义**：fetched HTML 的顶级元素须带 `x-define`（引擎按该属性筛注册）；普通 HTML 片段不会被注册为组件；
 - **fetched HTML 同样支持 `<script setup>` / `<style>`**：加载注册时一并提取求值，能力与本地声明等价——**仅加载可信来源**（`new Function` 信任求值）；
 - **不渲染自身**：`x-import` 元素无 DOM 输出，可写在任意位置（通常放消费处附近或统一容器）；
-- **消费侧**：加载的组件经 `x-component:名称` 实例化，见 [x-component](./x-component.md)。
+- **消费侧**：加载的组件经 `x-component:名称` 实例化，见 [x-component](./x-component.md)——只用一次、无需批量注册的组件也可用 `x-component-options.loader` 直接形式一步加载实例化，加载管线与本指令共享；

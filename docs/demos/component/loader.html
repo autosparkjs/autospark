@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-component · loader 远程直接实例化</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!--
+            x-component-options.loader：一步完成「远程加载 + 注册 + 实例化」（ADR-0065）——
+            - string 简写：字面量 url（以 / ./ http(s):// 开头）直接加载；
+            - 对象配置：url 必需，width/height 为加载中占位尺寸（防布局跳动），fallback/error 自定义呈现；
+            - .global 修饰符：注册为全局组件（语义同 x-import.global）；
+            - loader 语义「以此 url 为准」：组件已注册仍 fetch 覆盖，首帧严格等待 fetch（fallback 占位）；
+            - 加载失败或结果中无同名组件 → 渲染内置 error 组件（重试/关闭），url 成员属性表达式即响应式 url。
+            组件文件见 /autospark/components/like-button.html 与 widgets.html。
+        -->
+        <div id="app" x-scope>
+            <!-- ① string 简写：与「x-import + x-component」两步写法等价的声明糖 -->
+            <div class="panel">
+                <div class="label">① string 简写 —— x-component-options.loader="/autospark/components/like-button.html"</div>
+                <div x-component:like-button x-component-options.loader="/autospark/components/like-button.html"></div>
+            </div>
+
+            <!-- ② 对象配置：加载中占位尺寸（width/height，防布局跳动）+ 自定义 fallback（HTML 字符串，静态插入不编译）；
+                 url 含多个 x-define 时按属性参数名取用，其余照常注册备用 -->
+            <div class="panel">
+                <div class="label">② 对象配置 —— url 含多组件按名取用（widgets.html 含 stat/chip）</div>
+                <div x-component:stat="{ label: '收入', value: '12,580', tone: 'up' }"
+                     x-component-options="{ loader: { url: '/autospark/components/widgets.html', width: 160, height: 64, fallback: '<i>统计加载中…</i>' } }"></div>
+            </div>
+
+            <!-- ③ 失败呈现：url 不存在 → 内置 error 组件（错误文案 + 重试/关闭按钮，back 走内置 action） -->
+            <div class="panel">
+                <div class="label">③ 加载失败 —— 缺省渲染内置 error 组件（url 不存在，可点「重试」）</div>
+                <div x-component:ghost x-component-options.loader="/autospark/components/not-exist.html"></div>
+            </div>
+
+            <!-- ④ .global 修饰符：注册为全局组件（语义同 x-import.global），本页其他作用域亦可实例化 -->
+            <div class="panel">
+                <div class="label">④ .global 修饰符 —— 注册为全局组件</div>
+                <div x-component:chip.global="{ text: '全局 chip' }" x-component-options.loader="/autospark/components/chip.html"></div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+        </script>
+
+        <style>
+            .panel {
+                padding: 16px;
+                border: 1px solid #dbdbdb;
+                border-radius: 8px;
+                margin-bottom: 12px;
+            }
+            .label {
+                font-size: 0.8rem;
+                color: #888;
+                margin-bottom: 8px;
+            }
+        </style>
+    </body>
+</html>

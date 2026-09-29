@@ -18,28 +18,15 @@
  * （与 getData/getComponent/getMethod 的 parent 链就近 + 全局兜底范式同构），不在本管理单元内；
  * 提取入口的 scope 解析（`_findNearestScope`）依赖 compiler 私有 templateScopeMap，由 compiler
  * 查好后作为入参传入。
+ *
+ * **内置 action**：信号型全局 action（yes/no/cancel/close）的表与构造/补齐逻辑在 `builtins.ts`
+ * （ADR-0036 决策 7），`registerGlobals` 末尾调用补用户未占用的键。
  */
 import type { AutoSpark } from "../engine";
 import type { AutoSparkScope } from "../scope";
 import { buildAction } from "./buildAction";
+import { registerBuiltinActions } from "./builtins";
 import type { ActionDecl, ActionDesc } from "./types";
-
-/**
- * 内置信号型全局 action（ADR-0036 决策 7）：yes / no / cancel / close。
- *
- * handle 为**参数透传**（`close(1)` → resolved 广播 `result:1`）：价值不在执行体而在**广播语义**——
- * 模板任意元素 `@click="close"` 触发，祖先监听 `action:close` DOM 冒泡事件（或总线
- * `actions/close/*`）即可实现关闭对话框、确认/取消等通用交互，无需为每个对话框手写空 action；
- * 透传首参让信号可携带载荷（如 `close("cancel-icon")`、`yes(formData)`），监听方从
- * `detail.result` / `$event.detail.result` 读取。value=title 供 UI 消费。
- * 用户同名声明**覆盖**内置（registerGlobals 先扫用户声明、后补缺失键，用户优先）。
- */
-const BUILTIN_ACTIONS: Record<string, string> = {
-    yes: "确认",
-    no: "否",
-    cancel: "取消",
-    close: "关闭",
-};
 
 export class ActionManager {
     readonly engine: AutoSpark<any>;
@@ -87,15 +74,13 @@ export class ActionManager {
             if (desc) initActions[k] = desc;
             else delete initActions[k];
         }
-        // 内置信号型 action 只补用户未占用的键（用户优先）；handle 透传首参作信号载荷
-        for (const [k, title] of Object.entries(BUILTIN_ACTIONS)) {
-            if (!(k in initActions)) {
-                initActions[k] = buildAction(
-                    (type, payload) => this.engine.emit(type as any, payload),
-                    { handle: (payload?: any) => payload, name: k, title, builtin: true },
-                );
-            }
-        }
+        // 内置信号型 action 只补用户未占用的键（用户优先）；表与构造逻辑见 builtins.ts（ADR-0036 决策 7）。
+        // engine 实参供 toast 键的执行体绑定（engine.toast，ADR-0068 决策 15）
+        registerBuiltinActions(
+            initActions,
+            (type, payload) => this.engine.emit(type as any, payload),
+            this.engine,
+        );
     }
 
     /**

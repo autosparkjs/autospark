@@ -36,6 +36,10 @@ bun run dev                             # 根目录启动（等价 cd docs && bu
                                         # 改 packages/engine 代码保存后自动整页刷新生效，无需手动刷新/构建（ADR-0030）
 cd docs && bun run build                # 构建（生产用 tsup 产物 docs/public/autospark.js）
 
+# 指令文档结构校验（五段骨架，规范见 packages/engine/docs/specs/directive-doc-template.md）
+bun scripts/check-doc-structure.ts        # 全量（x-patch.md 除外）；ERROR 阻断，WARN 为待确认 demo 例外
+bun scripts/check-doc-structure.ts docs/zh/guide/directives/x-model.md   # 指定文件
+
 # Lint / 格式化（oxc 工具链；VS Code 保存时自动 formatOnSave，见 .vscode/settings.json）
 oxlint
 oxfmt
@@ -75,5 +79,5 @@ oxfmt
 
 - `packages/engine/docs/adr/` — ADR 0001~0058，源码注释大量以「ADR-XXXX 决策 N」形式回链。
 - `packages/engine/CONTEXT.md` — 领域语言表（含每个术语的 Avoid 列表与已废弃词条，如 x-block → x-component → x-define、x-use → x-component、`.keep` → `.keepalive`）。
-- `packages/engine/docs/specs/` — 关键机制规格（engine-patch / 插值 / x-html / x-on action）。
+- `packages/engine/docs/specs/` — 关键机制规格（engine-patch / 插值 / x-html / x-on action / 指令文档统一模板）。
 - `packages/engine/CLAUDE.md` 为模块级简版导航，工程约定以本文件为准。

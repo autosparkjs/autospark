@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-splitter · direction 响应式切换</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .pane {
+        background: #fff;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        padding: 14px 16px;
+        box-sizing: border-box;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 指令值是响应式表达式：切换方向 = 换轴重排，定容尺寸同值换轴重写 -->
+    <div class="demo-app section">
+      <div x-data="{ dir: 'horizontal' }">
+        <div class="block is-size-7">
+          <label class="radio">
+            <input type="radio" value="horizontal" x-model="dir" /> 左右分栏
+          </label>
+          <label class="radio">
+            <input type="radio" value="vertical" x-model="dir" /> 上下分栏
+          </label>
+        </div>
+        <div
+          x-splitter="dir"
+          style="height: 220px; border: 1px solid #eee; border-radius: 8px"
+        >
+          <div class="pane" data-size="140px" data-min-size="80">
+            <strong>定容面板</strong>
+            <p class="is-size-7 has-text-grey">data-size="140px"（轴中立：width ↔ height 同值重写）</p>
+          </div>
+          <div class="pane">
+            <strong>自适应面板</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

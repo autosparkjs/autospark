@@ -101,6 +101,35 @@ engine.state.ui.loading = false; // 隐藏
 <div x-loading.screen="{ value:'pageLoading', message:'加载中…' }">内容</div>
 ```
 
+### 进度条模式
+
+`.progressbar` 修饰符把加载遮罩换成**进度条模式**：不铺满遮罩，仅在目标顶部显示一条约 3px 高的**不确定型**无限滚动条——宿主内容保持可见、可交互（条不拦截鼠标），只给一个轻量的「进行中」提示。
+
+<demo html="loading/progressbar.html"/>
+
+```html
+<div x-loading.progressbar="isLoading">内容</div>
+```
+
+要点：
+
+- **显隐与遮罩一致**：`value` / 字面量 / 命令式三种触发方式、`delay` 防闪烁、`selector` 挂载目标解析照常工作，条贴在**解析后目标**的顶部；
+- **字段映射**：`color` 为滚动段色（**默认橙色**——3px 细条以明显性优先，不沿用 loader 的默认灰），`bgColor` + `opacity` 为轨道底色（**缺省时用浅轨** `rgba(0,0,0,0.08)`——深轨会压暗段色；任一字段显式配置则回归 `rgba(bgColor, opacity)`），滚动段为 **30% 宽实心纯色**（非渐隐渐变，保证显色度）；`message` / `actions` 在条模式下**静默不渲染**（不 warn，条里放不下内容）；
+- **与 `.screen` 并存**：`x-loading.progressbar.screen` 让条 `position:fixed` 贴**视口**顶（仍留宿主子树）；
+- **不取自定义 loading 组件**：条模式用内置条模板，`getComponent("loading")` 的自定义组件只服务遮罩形态（条无内容可替换）；
+- **高度可覆盖**：默认 3px，经 CSS 变量 `--autospark-loading-progressbar-height` 调整。
+
+```html
+<!-- 轻量顶部加载条：内容照常可见、可点 -->
+<div x-loading.progressbar="{ value:'pageLoading', color:'#42b883' }">表格内容</div>
+<!-- 贴视口顶（整页级） -->
+<div x-loading.progressbar.screen="pageLoading">内容</div>
+```
+
+::: warning 不要与 .feedback 并存
+`.feedback` 命令式写的是**裸** `x-loading` 属性，与 `x-loading.progressbar` 会并存成双属性（同指令两条记录）。feedback 场景请用遮罩形态。
+:::
+
 ### 提示文本
 
 `message` 渲染在 loader 下方的提示文案。默认模板的 message 元素恒存在，不传 `message` 时其文本为空（不显示文案、仅 loader）；若用自定义模板，message 是否渲染由你的模板决定。
@@ -195,7 +224,7 @@ const engine = new AutoSpark(el, { loading: false }, {
 
 ### 自定义加载模板
 
-默认覆盖层是内置旋转 `loader`。若不满意——想换成脉冲扩散点、进度条、骨架屏，甚至完全自定义布局——无需 fork 指令，用**组件**覆盖即可。`x-loading` 渲染时会先经 `getComponent("loading")` 取组件：取到则用块替换默认 loader，取不到才回退内置。
+默认覆盖层是内置旋转 `loader`。若不满意——想换成脉冲扩散点、进度条、骨架屏，甚至完全自定义布局——无需 fork 指令，用**组件**覆盖即可。`x-loading` 渲染时会先经 `getComponent("loading")` 取组件：取到则用块替换默认 loader，取不到才回退内置。（[进度条模式](#进度条模式)除外——条模式用内置条模板，不取自定义组件。）
 
 <demo html="loading/block-local.html"/>
 
@@ -303,6 +332,7 @@ const engine = new AutoSpark(el, state, {
 | `selector` | 宿主元素     | —         | 覆盖层挂载目标选择器：普通值查宿主后代，`../` 父级爬升、`^` closest、`/` 全局（如 `'/#modal'`，挂到宿主外元素），见[挂载目标](#挂载目标) |
 | `actions`  | 无（不渲染） | —         | 动作按钮名数组（如 `['close','retry']`），渲染在 message 下方；点击触发对应动作并广播 `action:<name>`，默认点击后自动隐藏（动作声明 `hide:false` 可逐按钮续显）。详见[动作按钮](#动作按钮) |
 | —          | 未启用       | `.screen` | 全屏覆盖（`position:fixed;inset:0` 撑满视口），见[全屏覆盖](#全屏覆盖) |
+| —          | 未启用       | `.progressbar` | 进度条模式（仅目标顶部约 3px 的不确定型无限滚动条，不遮挡交互），见[进度条模式](#进度条模式) |
 
 ::: info 关于指令配置体系
 指令选项 / 修饰符 / 宿主选项 / 两层回退见[指令配置](../directive/config.md)。
@@ -317,3 +347,5 @@ const engine = new AutoSpark(el, state, {
 - **颜色解析限制**：`bgColor`/`color` 支持 hex、`rgb()/rgba()`、`hsl()/hsla()` 及常用颜色名；`oklch`/`color()`/`lab` 等现代语法不可识别，回退默认色。
 - **动作按钮的自动隐藏不写状态**：点击按钮后覆盖层是纯 DOM 移除，引擎不会改写 `value` 状态——消费方应在 `action:<name>` 监听里自行同步状态（如置 `loading = false`），否则 value 保持为真、覆盖层保持隐藏，直到状态翻转或属性改写触发重建。
 - **未注册的动作名恒隐藏**：合成信号型动作没有配置位，点击必然收起覆盖层；想控制点击行为（如 `retry` 续显），就把它注册为真实动作并声明 `hide: false`。
+- **进度条模式不拦截交互**：`.progressbar` 的条元素 `pointer-events:none`，宿主内容照常点击/选中——它是纯视觉指示，不是遮罩；此时 `message` / `actions` 静默不渲染，自定义 loading 组件也不取用。
+- **修饰符形态的改值限制**：`.progressbar` / `.screen` 修饰符形式的运行时 `setAttribute` 改值**不触发** attrChanged（共享 observer 的 attributeFilter 只含裸 `x-loading`），元素的增删仍正常生效。

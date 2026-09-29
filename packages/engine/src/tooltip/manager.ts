@@ -384,6 +384,10 @@ export class TooltipManager {
         const linePx = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.5 || 19.5;
         const contentH = tip.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
         const lines = Math.max(1, Math.floor(contentH / linePx));
+        // 矩形裁剪只在此路径打开（-webkit-line-clamp 生效前提）：箭头露出段必被一并裁掉，
+        // 显式移除载体防边缘残影（ADR-0061 修订 9）
+        tip.style.overflow = "hidden";
+        tip.querySelector(`:scope > .${TOOLTIP_ARROW_CLASS}`)?.remove();
         tip.style.display = "-webkit-box";
         tip.style.webkitBoxOrient = "vertical";
         tip.style.setProperty("-webkit-line-clamp", String(lines));
@@ -438,6 +442,7 @@ export class TooltipManager {
         tip.style.maxWidth = options.maxWidth != null ? formatSize(options.maxWidth) : "";
         tip.style.maxHeight = options.maxHeight != null ? formatSize(options.maxHeight) : "";
         tip.style.removeProperty("display"); // 恢复 styles.ts 默认 none（display 由 _show/_hide 管理）
+        tip.style.removeProperty("overflow"); // 上一目标若走了截断路径，不得残留裁剪（会剪掉箭头露出段）
         tip.style.removeProperty("-webkit-line-clamp");
         tip.style.removeProperty("-webkit-box-orient");
         tip.innerHTML = "";

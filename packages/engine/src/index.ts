@@ -4,5 +4,7 @@ export * from "./engine";
 export * from "./icons/registry";
 // action 声明/描述符类型（ADR-0036 ActionDesc/ActionDecl，纯类型导出）
 export * from "./actions/types";
+// 轻提示体系类型（ADR-0068 ToastManager/ToastTask/ToastProps/ToastOptions，manager 运行时随 engine 引入）
+export * from "./toast/types";
 // 全量转导出 autostore：消费者仅需安装 autospark 即可获得 AutoStore 完整 API（ADR-0030）
 export * from "autostore";

@@ -41,10 +41,14 @@ export function injectTooltipStyles(): void {
   inset: 0 auto auto 0;
   display: none;
   /* 大内容约束：默认 70vw/70vh（CSS 变量全局定制；元素级 maxWidth/maxHeight 保留键经
-     inline style 覆盖，manager 显示时测量溢出并以 -webkit-line-clamp 截断显示省略号） */
+     inline style 覆盖，manager 显示时测量溢出并以 -webkit-line-clamp 截断显示省略号）。
+     基础态**不可 overflow:hidden**——箭头载体一半露出面板边缘外（floating-ui staticSide
+     反偏协议），基础态裁剪即箭头整体不可见（ADR-0061 修订 9，真实缺陷）；矩形裁剪只在
+     line-clamp 截断路径（manager._applyOverflowClamp）按需 inline 打开 */
   max-width: var(--autospark-tooltip-max-w, 70vw);
   max-height: var(--autospark-tooltip-max-h, 70vh);
-  overflow: hidden;
+  /* 超长不可断词（长 URL 等）wrap 到盒宽，不横向溢出面板（原先由 overflow:hidden 兜底） */
+  overflow-wrap: break-word;
   /* 上下 7px：箭头覆盖层同心嵌入面板 ≈8.5px，须容纳在 padding + 行盒留白（≈3.25px）内
      （7 + 3.25 = 10.25 > 8.49，文字墨迹零遮挡且内容保持居中——勿改回对称性破坏的侧向让位） */
   padding: 7px 10px;

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-splitter · 快速入门</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .pane {
+        background: #fff;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        padding: 14px 16px;
+        box-sizing: border-box;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 快速入门：两面板 + data-size 定容 / 自适应，分隔条可拖拽 -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block has-text-grey is-size-7">
+          拖中间分隔条调节左侧面板宽度（200px ~ 60%），右侧自适应吸收剩余空间。
+        </div>
+        <div
+          x-splitter="'horizontal'"
+          style="height: 220px; border: 1px solid #eee; border-radius: 8px"
+        >
+          <div class="pane" data-size="240px" data-min-size="200" data-max-size="60%">
+            <strong>定容面板</strong>
+            <p class="is-size-7 has-text-grey">data-size="240px" · min 200px · max 60%</p>
+          </div>
+          <div class="pane">
+            <strong>自适应面板</strong>
+            <p class="is-size-7 has-text-grey">无 data-size，恒 flex:1 吸收剩余空间</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

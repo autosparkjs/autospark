@@ -47,7 +47,7 @@
 import type { ActionDesc } from "./types";
 
 /** 总线广播函数类型：emit `actions/<name>/<verb>`（调用点绑 engine.emit）。 */
-type ActionEmit = (type: string, payload: Record<string, any>) => void;
+export type ActionEmit = (type: string, payload: Record<string, any>) => void;
 
 /**
  * 把一个已规范化的 action 描述符的 handle 包装为**双通道广播生命周期事件**的版本

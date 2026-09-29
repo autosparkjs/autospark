@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-splitter · 折叠把手（collapsible）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .pane {
+        background: #fff;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        padding: 14px 16px;
+        box-sizing: border-box;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- collapsible 三态坐标化把手：折叠 ≡ size=0 纯派生，折叠前记忆 lastSize、展开恢复 -->
+    <div class="demo-app section">
+      <div x-data="{ log: '' }">
+        <div class="block is-size-7 has-text-grey">
+          三个示例的把手坐标分别为 <code>true</code>（居中）/ <code>80</code>（距顶 80px）/
+          <code>'-20%'</code>（距底 20%）。点击把手折叠/展开（跨 0 有过渡动画）。
+        </div>
+        <div class="block" style="height: 160px" @splitter:collapse="log = 'collapsed @ ' + $event.detail.size"
+          @splitter:expand="log = 'expanded @ ' + $event.detail.size">
+          <div x-splitter="'horizontal'" x-splitter-options="{collapsible: true}"
+            style="height: 100%; border: 1px solid #eee; border-radius: 8px">
+            <div class="pane" data-size="220px" data-min-size="120">
+              <strong>collapsible: true</strong>
+            </div>
+            <div class="pane">自适应</div>
+          </div>
+        </div>
+        <div class="block is-size-7 has-text-info" x-show="log" x-text="log"></div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

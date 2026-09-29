@@ -2,6 +2,41 @@ import { AutoSparkDirectiveBase } from "../base";
 import type { ComponentDataBasis, ComponentDef } from "../component-def";
 import type { AutoSparkScope } from "../../scope";
 import { collectSlotContent } from "../../utils/slot";
+import { parseHtmlFragment } from "../../utils/transformElement";
+
+/**
+ * loader 成员属性值的字面量 url 判定（loader 专属，ADR-0065 决策二）：以 `/` `./` `../`
+ * `http(s)://` `file://` 开头 → 字面量 url 直接加载（不经表达式求值，避免 `/a.html` 被当正则）；
+ * 其余一律作表达式 watch 求值——裸标识符是响应式 url 的主形态（状态路径），与 x-import
+ * 「标识符=文件名」语义相反，故**不复用** isLiteralUrl。
+ */
+function isLiteralLoaderUrl(raw: string): boolean {
+    return /^(?:\/|\.\.\/|\.\/|https?:\/\/|file:\/\/)/i.test(raw);
+}
+
+/**
+ * loader 占位呈现值（ADR-0065 决策六）：**HTML 字符串**（静态插入、不参与编译）|
+ * **`{ name, props }`**（引入具名组件，用户 props 与引擎注入上下文合并、引擎注入优先）。
+ */
+type LoaderPlaceholder = string | { name: string; props?: Record<string, any> };
+
+/**
+ * loader 配置（ADR-0065 决策五）：`x-component-options.loader` 的对象形态。
+ * string 简写（裸 url）在应用时归一为 `{ url }`。
+ */
+interface ComponentLoaderConfig {
+    /** 远程组件 HTML url（必需） */
+    url: string;
+    /** 整包透传 fetch 的 requestInit（参与 url 缓存 key，防同 url 不同参数串缓存） */
+    request?: RequestInit;
+    /** 加载中占位；缺省 = x-loading */
+    fallback?: LoaderPlaceholder;
+    /** 失败呈现；缺省 = 内置 error 组件 */
+    error?: LoaderPlaceholder;
+    /** 加载中宿主临时占位尺寸（防布局跳动，成功与出错均移除） */
+    width?: number | string;
+    height?: number | string;
+}
 
 /**
  * 判定值是否为纯标识符 / 连字符段形态（如 `counter`、`my-card`、`UserAvatar`）。
@@ -85,6 +120,25 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     /** component/registered 监听解绑函数 */
     private registeredUnsub: (() => void) | null = null;
 
+    // === loader 状态（ADR-0065） ===
+    /** loader 激活标志：created 解析到 loader 声明后置位，接管实例化时序（props watch 只记 pending） */
+    private _loaderActive = false;
+    /** 当前 loader 配置（retry 重取时复用） */
+    private _loaderCfg: ComponentLoaderConfig | null = null;
+    /** 当前已加载 url（响应式重求值的同 url 去重位） */
+    private _loadedUrl: string | null = null;
+    /** 在途加载的 AbortController（url 响应式变化 / destroy 时 abort 丢弃过期结果） */
+    private _loaderAbort: AbortController | null = null;
+    /** pending props（loader 加载完成前 props watch 的暂存，完成后随实例化应用） */
+    private _pendingProps: Record<string, any> | undefined;
+    /** 占位块（fallback/error 组件）编译 scope（随宿主 scope.destroy 递归销毁，此处仅断引用） */
+    private _placeholderScope: AutoSparkScope | null = null;
+
+    /** .global 修饰符（ADR-0065 决策二：`x-component:名.global` 经解析期注入 options.global） */
+    private get _globalMode(): boolean {
+        return !!this.getOption("global");
+    }
+
     override created() {
         // 结构指令冲突检测（U3）：同元素含其他 ownsChildren 指令 → warn + 拒绝实例化。
         // 注意：x-show 与 .keepalive 变体 ownsChildren=false，不在禁用集合（可同元素共存）；
@@ -118,7 +172,37 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             return;
         }
         this.componentName = name;
-        // 值专职 props（ADR-0054 决策三）：无值 = 无 props（不订阅）
+        // === loader 解析（ADR-0065 决策二）：成员属性表达式（双轨）优先，回退静态选项/宿主回退 ===
+        const loaderExpr = this.info.optionExprs?.loader;
+        if (loaderExpr !== undefined) {
+            const trimmed = loaderExpr.trim();
+            if (trimmed === "") {
+                this.warn(
+                    `x-component: x-component-options.loader 的值为空（须提供 url 或配置对象表达式），已忽略。`,
+                );
+                return;
+            }
+            this._watchPropsOnly();
+            if (isLiteralLoaderUrl(trimmed)) {
+                // 字面量 url：直接加载，不经表达式求值（避免 /a.html 被当正则、http:// 被当注释）
+                this.engine.scheduler.schedule(() => this._applyLoader(trimmed));
+            } else {
+                // 表达式：watch 求值（值 = url 字符串或配置对象），url 变化重载重实例化（响应式）
+                const initial = this.binding.watch(loaderExpr, ({ value }) =>
+                    this._applyLoader(value),
+                );
+                this.engine.scheduler.schedule(() => this._applyLoader(initial));
+            }
+            return;
+        }
+        const staticLoader = this.getOption("loader");
+        if (staticLoader !== undefined && staticLoader !== "") {
+            // 静态形态（整包 x-component-options="{loader:...}" / 字符串简写 / 宿主 x-options 回退）
+            this._watchPropsOnly();
+            this.engine.scheduler.schedule(() => this._applyLoader(staticLoader));
+            return;
+        }
+        // === 无 loader：原流程（值专职 props，ADR-0054 决策三） ===
         const rawValue = this.value == null ? "" : String(this.value).trim();
         if (rawValue === "") {
             this.engine.scheduler.schedule(() => this._onValueChange(undefined));
@@ -194,7 +278,263 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             this._updateProps(props);
             return;
         }
+        this._pendingProps = props;
+        // loader 接管实例化时机（ADR-0065 决策三首帧严格）：加载完成后 _runLoader 统一实例化
+        if (this._loaderActive) return;
         this._instantiate(this.componentName!, props);
+    }
+
+    /**
+     * loader 场景的 props 订阅（ADR-0065）：值变化仅更新 pending（实例化时机归 loader）。
+     * 无值 = 无 props（不订阅，与原流程一致）。
+     */
+    private _watchPropsOnly(): void {
+        const rawValue = this.value == null ? "" : String(this.value).trim();
+        if (rawValue === "") {
+            this._pendingProps = undefined;
+            return;
+        }
+        this.binding.watch(rawValue, ({ value }) => this._onValueChange(value), {
+            depth: 2,
+        });
+    }
+
+    /**
+     * 应用 loader 声明（ADR-0065）：值形态归一 + 同 url 去重后发起加载。
+     *
+     * 值三态：string → url 简写（归一 `{ url }`）；对象 → 配置原样；nullish → 静默
+     * （绑定状态未就绪，对齐 props 绑定 nullish 静默先例）；其余 → warn 忽略。
+     */
+    private _applyLoader(value: unknown): void {
+        let cfg: ComponentLoaderConfig | null = null;
+        if (typeof value === "string") {
+            const raw = value.trim();
+            if (raw === "") return;
+            cfg = { url: raw };
+        } else if (value && typeof value === "object" && !(value instanceof RegExp)) {
+            cfg = value as ComponentLoaderConfig;
+        } else if (value == null) {
+            return;
+        }
+        const url = cfg?.url;
+        if (!cfg || !url || typeof url !== "string" || url.trim() === "") {
+            this.warn(`x-component: loader 缺少有效 url，已跳过加载。`);
+            return;
+        }
+        this._loaderActive = true;
+        if (url === this._loadedUrl) return; // 同 url 去重（响应式重求值但 url 未变）
+        void this._runLoader(cfg);
+    }
+
+    /**
+     * 执行 loader 加载（ADR-0065 决策三/四）：清旧内容 → 占位（fallback/x-loading + 尺寸）→
+     * fetch 注册（已注册仍 fetch，「以此 url 为准」）→ 同名校验 → 实例化；失败 → error 呈现。
+     * url 响应式变化重入本方法：abort 旧请求、销毁旧实例子树（组件内部状态丢失）。
+     */
+    private async _runLoader(cfg: ComponentLoaderConfig): Promise<void> {
+        this._loaderAbort?.abort();
+        const ctrl = (this._loaderAbort = new AbortController());
+        const url = cfg.url;
+        this._loadedUrl = url;
+        this._loaderCfg = cfg;
+        // 首帧严格（决策三）：渲染的永远是 url 版——清旧内容（含旧实例子树）后占位等待
+        this._clearHostContent();
+        this.instanceScope = null;
+        this.instanceDef = null;
+        this._appliedProps = undefined;
+        this._applyPlaceholderSize(cfg);
+        if (cfg.fallback !== undefined && cfg.fallback !== "") {
+            this._renderPlaceholder(cfg.fallback, {
+                url,
+                name: this.componentName,
+                error: null,
+                message: "",
+            });
+        } else {
+            // 缺省 fallback：复用 x-loading 占位（R6=B 既有机制）
+            this._showLoadingPlaceholder(this.componentName!);
+        }
+        try {
+            const registered = await this.engine.importComponentsFromUrl(
+                url,
+                this._globalMode ? null : this.binding.parent,
+                this._globalMode,
+                cfg.request,
+                ctrl.signal,
+            );
+            if (ctrl.signal.aborted) return;
+            // null = 加载失败（fetch/解析错误，原始错误已在 engine 内 warn）
+            if (registered === null) {
+                this._renderLoaderError(new Error(`远程内容加载失败（${url}）`), cfg);
+                return;
+            }
+            // 同名校验（决策四）：本次加载结果无属性参数指定的组件 → error 呈现
+            //（查返回清单而非沿链查找——命中祖先 scope 的旧同名组件不算本次加载成功）
+            if (!registered.includes(this.componentName!)) {
+                this._renderLoaderError(
+                    new Error(`远程内容中无组件 "${this.componentName}"`),
+                    cfg,
+                );
+                return;
+            }
+            this._clearHostContent();
+            this._instantiate(this.componentName!, this._pendingProps);
+        } catch (e: any) {
+            if (ctrl.signal.aborted) return;
+            this._renderLoaderError(
+                e instanceof Error ? e : new Error(String(e?.message ?? e)),
+                cfg,
+            );
+        } finally {
+            if (this._loaderAbort === ctrl) this._loaderAbort = null;
+        }
+    }
+
+    /**
+     * 渲染占位呈现（ADR-0065 决策六，fallback/error 共用协议）：
+     * HTML 字符串静态插入（不编译）；`{name, props}` 引入具名组件（用户 props 与引擎注入
+     * 上下文 `ctx` 合并、引擎注入优先）；组件未注册 warn + 回退默认 x-loading 占位。
+     */
+    private _renderPlaceholder(decl: LoaderPlaceholder, ctx: Record<string, any>): void {
+        this._clearHostContent();
+        if (typeof decl === "string") {
+            const frag = parseHtmlFragment(decl);
+            if (frag) this.el.replaceChildren(...Array.from(frag.childNodes));
+            return;
+        }
+        const snapshot =
+            decl && typeof decl === "object" ? this.binding.getComponent(decl.name) : null;
+        if (!snapshot) {
+            this.warn(
+                `x-component: loader 占位组件 "${(decl as any)?.name}" 未注册，回退默认占位。`,
+            );
+            this._showLoadingPlaceholder(this.componentName!);
+            return;
+        }
+        // props/上下文合并：函数值自动分流到非响应式 locals（autostore computed 陷阱防御，
+        // 同 _renderLoaderError），其余走响应式 data 域
+        const merged = { ...(decl.props ?? {}), ...ctx };
+        const reactiveData: Record<string, any> = {};
+        const localFns: Record<string, any> = {};
+        for (const [k, v] of Object.entries(merged)) {
+            (typeof v === "function" ? localFns : reactiveData)[k] = v;
+        }
+        const compiled = this.engine.compiler.compileChild(
+            snapshot.cloneNode(true) as HTMLElement,
+            this.binding,
+            localFns,
+            undefined,
+            reactiveData,
+        );
+        if (Object.keys(localFns).length > 0) {
+            compiled.scope.actions = { ...compiled.scope.actions, ...localFns } as Record<
+                string,
+                any
+            >;
+        }
+        this._placeholderScope = compiled.scope;
+        this.el.replaceChildren(compiled.el);
+    }
+
+    /**
+     * 呈现加载失败（ADR-0065 决策六/七）：自定义 error 声明走占位协议；缺省渲染内置 error
+     * 组件（getComponent("error") 沿链 + 全局兜底 → 构造器默认内置），注入 error/message 与
+     * retry/close 闭包（back 按钮走内置 action，无需注入）。error 不自愈——恢复途径仅
+     * url 变化（响应式重入）或 retry。
+     */
+    private _renderLoaderError(err: Error, cfg: ComponentLoaderConfig): void {
+        this._clearHostContent();
+        const message = `组件 "${this.componentName}" 加载失败（${cfg.url}）：${err.message}`;
+        if (cfg.error !== undefined && cfg.error !== "") {
+            this._renderPlaceholder(cfg.error, {
+                url: cfg.url,
+                name: this.componentName,
+                error: err,
+                message,
+            });
+            return;
+        }
+        const snapshot = this.binding.getComponent("error");
+        if (!snapshot) {
+            this.warn(`x-component: ${message}（且 error 组件未注册，无错误呈现。）`);
+            return;
+        }
+        const compiled = this.engine.compiler.compileChild(
+            snapshot.cloneNode(true) as HTMLElement,
+            this.binding,
+            {},
+            undefined,
+            // 数据上下文走响应式 data 域——**纯数据 + 布尔显隐键，绝无函数**：autostore 把
+            // state 中的函数值当 computed，依赖收集（watch 读取）时执行函数 → 失败重渲染 →
+            // 无限循环（实测抓栈证实）。执行体走 action 通道（下方 scope.actions 注入）。
+            {
+                error: err,
+                message,
+                url: cfg.url,
+                name: this.componentName,
+                hasRetry: true,
+                hasClose: true,
+            },
+        );
+        this._placeholderScope = compiled.scope;
+        // retry/close 执行体注入实例 scope.actions（@click 经 getAction 命中；`back` 走内置 action）：
+        // retry：重新 fetch 当前 url（重置去重位强制重跑）
+        compiled.scope.actions = {
+            ...(compiled.scope.actions ?? {}),
+            retry: {
+                name: "retry",
+                handle: () => {
+                    this._loadedUrl = null;
+                    void this._runLoader(cfg);
+                },
+            },
+            // close：清除本实例 error 呈现 + 照常广播 close 信号（嵌套 overlay 场景语义兼容）
+            close: {
+                name: "close",
+                handle: () => {
+                    try {
+                        (this.engine.actions as Record<string, any>)?.close?.handle?.();
+                    } catch {
+                        /* 广播失败不阻断清理 */
+                    }
+                    this._clearHostContent();
+                },
+            },
+        } as Record<string, any>;
+        this.el.replaceChildren(compiled.el);
+    }
+
+    /**
+     * 清空宿主内容（loader 加载前 / url 变化重实例化 / retry/close）：销毁宿主 el 内的子树
+     * scopes（组件子树 / 占位块编译产物——均为宿主 scope 的直接 children，child.destroy 递归
+     * 销毁孙辈并从父 children 移除自身；拷贝防遍历中 Set 变异）+ 清 DOM + 清占位尺寸与 x-loading。
+     */
+    private _clearHostContent(): void {
+        for (const child of [...this.binding.children]) {
+            if (child.el && this.el.contains(child.el)) child.destroy();
+        }
+        this.el.replaceChildren();
+        this._placeholderScope = null;
+        this._removePlaceholderSize();
+        this._hideLoadingPlaceholder();
+    }
+
+    /** 应用加载中占位尺寸（宿主临时 inline style，防布局跳动；成功与出错均移除） */
+    private _applyPlaceholderSize(cfg: ComponentLoaderConfig): void {
+        if (cfg.width != null) {
+            this.el.style.width =
+                typeof cfg.width === "number" ? `${cfg.width}px` : String(cfg.width);
+        }
+        if (cfg.height != null) {
+            this.el.style.height =
+                typeof cfg.height === "number" ? `${cfg.height}px` : String(cfg.height);
+        }
+    }
+
+    /** 移除占位尺寸 */
+    private _removePlaceholderSize(): void {
+        this.el.style.removeProperty("width");
+        this.el.style.removeProperty("height");
     }
 
     /**
@@ -449,12 +789,18 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
 
     override destroy(): void {
         // 宿主 scope 销毁由 compileElement 触发（scope.destroy 会调本 destroy + 触发 hooks）；
-        // 此处清理 pending 监听 + loading 占位 + 实例引用。组件子树子 scope 随宿主 scope.destroy 递归销毁。
+        // 此处清理 pending 监听 + loading 占位 + 实例引用 + loader 在途请求。
+        // 组件子树/占位块子 scope 随宿主 scope.destroy 递归销毁（置 null 断引用即可）。
         // （组件名静态后无换名重实例化场景，原 x-use 的 _destroyInstance 已随之移除，ADR-0054。）
+        this._loaderAbort?.abort();
+        this._loaderAbort = null;
         this._clearPending();
         this._hideLoadingPlaceholder();
         this.instanceScope = null;
         this.instanceDef = null;
         this._appliedProps = undefined;
+        this._placeholderScope = null;
+        this._loaderActive = false;
+        this._loaderCfg = null;
     }
 }

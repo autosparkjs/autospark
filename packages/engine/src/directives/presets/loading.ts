@@ -4,7 +4,8 @@ import { SCOPES_KEY } from "../../engine";
 import type { AutoSparkScope } from "../../scope";
 import { isSimpleStatePath } from "../../scope";
 import { getVal, type Watcher } from "autostore";
-import { rgba } from "../../utils/colors";import { relaxedToJson } from "../../utils/relaxedToJson";
+import { rgba } from "../../utils/colors";
+import { relaxedToJson } from "../../utils/relaxedToJson";
 import { queryRelElement } from "../../utils/queryRelElement";
 import { parseHtmlFragment } from "../../utils/transformElement";
 import { buildAction } from "../../actions/buildAction";
@@ -36,6 +37,11 @@ import type { AutoSparkActionContext } from "./on/types";
  * **显隐**：value 求值为 truthy → 挂载覆盖层；falsy → 移除覆盖层 DOM（重建式，非 display 隐藏）。
  *
  * **修饰符**：`.screen` → 覆盖层 `position:fixed;inset:0` 撑满视口（留在宿主子树，不 teleport）。
+ * `.progressbar` → **进度条模式**：不铺遮罩，仅在目标顶部显示一条约 3px 高的不确定型无限
+ * 滚动条（贴顶细条，`pointer-events:none` 不拦截宿主交互）；用内置条模板、忽略自定义 loading
+ * 组件（条无内容可替换），`color`=滚动段色（**默认橙色**，明显性优先）、`bgColor`+`opacity`
+ * =轨道底色（**两者缺省时用浅轨** `rgba(0,0,0,0.08)`，深轨压暗段色），`message`/`actions`
+ * 静默不渲染；与 `.screen` 并存贴视口顶，`selector` 照常解析（条贴目标顶部）。
  *
  * **动作按钮（ADR-0038）**：配置 `actions:['close','retry']` 在 message 下方渲染动作按钮行——
  * 挂载时经 getAction 链解析 `title`（`ActionDesc.title ?? name`）注入块 data，渲染归块作者
@@ -78,6 +84,23 @@ const ACTIONS_CLASS = "x-loading-actions";
 const ACTION_CLASS = "x-loading-action";
 /** 旋转动画名（独立命名空间，避免与宿主页面 keyframes 冲突） */
 const SPIN_KEY = "x-loading-spin";
+/** 进度条模式根节点 class（`.progressbar` 修饰符启用） */
+const PROGRESSBAR_CLASS = "x-loading-progressbar";
+/** 进度条滚动段 class（实心段，颜色经 currentColor 取根元素 style.color） */
+const PROGRESSBAR_SEG_CLASS = "x-loading-progressbar-seg";
+/** 进度条滚动动画名（独立命名空间，同 SPIN_KEY 惯例） */
+const PROGRESSBAR_KEY = "x-loading-progressbar-move";
+/**
+ * 进度条滚动段**默认色**：橙色——3px 细条的明显性优先，不用遮罩 loader 的默认灰 `#888`
+ * （灰段在轨道上辨识度过低）。配置 `color` 仍显式覆盖。
+ */
+const PROGRESSBAR_DEFAULT_COLOR = "orange";
+/**
+ * 进度条模式**缺省**轨道底色（浅轨）：遮罩契约的默认 `rgba(black, 0.5)` 是中深灰线，
+ * 会压暗段色（显色度低的主因之一）。仅 `bgColor`/`opacity` **两者皆缺省**时取此值；
+ * 任一显式配置仍走 `rgba(bgColor, opacity)` 契约（ADR-010）。
+ */
+const PROGRESSBAR_DEFAULT_TRACK = "rgba(0, 0, 0, 0.08)";
 
 /** 默认配置（与 docs/x-loading.md 规格一致） */
 const DEFAULTS = {
@@ -132,6 +155,14 @@ const DEFAULT_BLOCK = `<div class="${OVERLAY_CLASS}">
     </div>
   </div>
 </div>`;
+
+/**
+ * 进度条模式内置条模板（`.progressbar` 修饰符）：单根 + 滚动段子节点，**无任何指令绑定**
+ * ——条不渲染内容（message/actions 在条模式下静默忽略），段色经根元素 `style.color` 的
+ * currentColor 取用（ADR-002 同款注入通道）。指令**不取自定义 loading 组件**（见
+ * {@link LoadingDirective._resolveProgressbarBlock}——条无内容可替换，自定义组件语义是遮罩内容）。
+ */
+const PROGRESSBAR_BLOCK = `<div class="${PROGRESSBAR_CLASS}"><span class="${PROGRESSBAR_SEG_CLASS}"></span></div>`;
 
 /**
  * 注入全局样式（initialize 首次调用，幂等）。
@@ -211,6 +242,31 @@ function injectStyles(): void {
 }
 .${ACTION_CLASS}:active {
   background: rgba(255, 255, 255, 0.1);
+}
+/* 进度条模式（.progressbar）：贴顶细条壳——静态布局归样式表（height 留 CSS 变量供覆盖），
+   定位/底色/段色由指令内联注入（见 _applyShellStyle）；pointer-events:none 保证不拦截宿主交互 */
+.${PROGRESSBAR_CLASS} {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--autospark-loading-progressbar-height, 3px);
+  z-index: ${DEFAULTS.zIndex};
+  overflow: hidden;
+  pointer-events: none;
+}
+.${PROGRESSBAR_SEG_CLASS} {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 30%;
+  background: currentColor;
+  animation: ${PROGRESSBAR_KEY} 1.2s linear infinite;
+}
+@keyframes ${PROGRESSBAR_KEY} {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(350%); }
 }`;
     document.head.appendChild(style);
     stylesInjected = true;
@@ -330,7 +386,9 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
             this._read = () => getVal(store.state, expr);
             this.watchers.push(store.watch(expr, onChange));
         } else {
-            const getter = new Function("scope", `with(scope){ return (${expr}); }`) as (scope: any) => any;
+            const getter = new Function("scope", `with(scope){ return (${expr}); }`) as (
+                scope: any,
+            ) => any;
             this._read = () => {
                 try {
                     return getter(store.state);
@@ -360,7 +418,8 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
             clearTimeout(this.delayTimer);
             this.delayTimer = null;
         }
-        if (this.blockScope) {             // 销毁块 scope（off 块内 watcher）+ 回收其私有响应式域 $scopes[id]
+        if (this.blockScope) {
+            // 销毁块 scope（off 块内 watcher）+ 回收其私有响应式域 $scopes[id]
             const id = this.blockScope.id;
             this.blockScope.destroy();
             const scopes = (this.engine.store.state as Record<string, any>)[SCOPES_KEY] as
@@ -388,7 +447,15 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
         const inline: LoadingConfig = raw.startsWith("{") ? this.parseObject(raw) : { value: raw };
         const opt = this.options;
         if (!opt || typeof opt !== "object") return inline;
-        for (const key of ["message", "bgColor", "color", "opacity", "delay", "selector", "actions"] as const) {
+        for (const key of [
+            "message",
+            "bgColor",
+            "color",
+            "opacity",
+            "delay",
+            "selector",
+            "actions",
+        ] as const) {
             const v = (opt as Record<string, any>)[key];
             if (v !== undefined && (inline as Record<string, any>)[key] === undefined) {
                 (inline as Record<string, any>)[key] = v;
@@ -478,19 +545,48 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
     }
 
     /**
+     * 是否进度条模式：`.progressbar` 修饰符启用（v1 **仅修饰符入口**——不读配置字段，
+     * `x-loading-options` 里的同名键不生效；修饰符形态的运行时改值本就不触发 attrChanged，
+     * 与 `.screen` 同款已知限制）。
+     */
+    private _isProgressbar(): boolean {
+        return this.modifiers?.includes("progressbar") === true;
+    }
+
+    /**
+     * 解析进度条模式内置条模板（不走 `getComponent('loading')`——自定义组件的领域语义是
+     * 「遮罩内容的替换」，条无内容可替换，故条模式**忽略自定义组件**，文档声明该边界）。
+     * 与 {@link _resolveLoadingComponent} 的 DEFAULT_BLOCK 支路同构：字符串模板现解析取单根。
+     */
+    private _resolveProgressbarBlock(): HTMLElement {
+        const frag = parseHtmlFragment(PROGRESSBAR_BLOCK);
+        const root = (frag?.firstElementChild as HTMLElement | null) ?? null;
+        if (root) return root;
+        // 兜底（解析失败，理论上不可达）：建空条根防 NPE
+        const fallback = document.createElement("div");
+        fallback.className = PROGRESSBAR_CLASS;
+        return fallback;
+    }
+
+    /**
      * 构建并挂载覆盖层（= 编译后的组件根）到目标元素（ADR-0022 承接 ADR-0021 决策 12）。
      *
      * 渲染统一走「编译组件」路径：取组件 = `getComponent('loading') ?? DEFAULT_BLOCK`，深克隆 → 经 compileChild
      * 编译挂载（parentScope 为宿主 scope 使组件继承宿主数据上下文；**config 经 compileChild 第 5 参      * initialData 在 compile 前注入 data**，确保组件内 watch 首次求值即收集到 `$scopes.<id>.<field>`
      * 精准路径，后续 attrChanged 可字段级细粒度更新）→ 注入壳样式到组件根 → 挂到 target。
+     *
+     * 进度条模式（`.progressbar`）改取内置条模板 {@link _resolveProgressbarBlock}，其余路径相同。
      */
     private mountOverlay(): void {
         if (this.overlay) return;
         const target = this.resolveTarget();
         if (!target) return;
 
-        // 取组件快照：自定义 loading 组件（沿宿主 scope 链就近 + 全局兜底），未命中用 DEFAULT_BLOCK
-        const snapshot = this._resolveLoadingComponent();
+        // 取组件快照：进度条模式用内置条模板（忽略自定义 loading 组件）；遮罩态取自定义组件
+        // （沿宿主 scope 链就近 + 全局兜底），未命中用 DEFAULT_BLOCK
+        const snapshot = this._isProgressbar()
+            ? this._resolveProgressbarBlock()
+            : this._resolveLoadingComponent();
         const clone = snapshot.cloneNode(true) as HTMLElement;
 
         // config 视图：七字段，作为块根 data 在 compile 前注入（响应式，块内 x-text="message" 取用）
@@ -545,11 +641,27 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
      *
      * 追加在块作者声明样式之后（覆盖定位冲突）。「覆盖层」语义由指令保证，块作者只管装内容。
      * screen 修饰符 → position:fixed 撑满视口；否则 position:absolute 撑满宿主（须宿主定位）。
+     *
+     * **进度条模式分支**：不铺遮罩——只注入定位（贴顶；screen → fixed 贴视口顶）、轨道底色
+     * （`bgColor`+`opacity` 显式配置 → `rgba(bgColor, opacity)`，ADR-001 同通道；**两者皆缺省**
+     * → 浅轨 {@link PROGRESSBAR_DEFAULT_TRACK}，深轨压暗段色）与段色（`style.color` →
+     * currentColor，ADR-002 同通道）；贴顶/高度/裁剪/不拦截交互等静态布局归注入样式表
+     * （height 留 CSS 变量供覆盖）。
      */
     private _applyShellStyle(overlay: HTMLElement): void {
         const bgColor = this.config.bgColor ?? DEFAULTS.bgColor;
         const opacity = this.config.opacity ?? DEFAULTS.opacity;
         const screen = this.modifiers?.includes("screen");
+        if (this._isProgressbar()) {
+            overlay.style.position = screen ? "fixed" : "absolute";
+            // 轨道底色：显式 bgColor/opacity 任一 → 遮罩契约；皆缺省 → 浅轨（明显性优先）
+            overlay.style.background =
+                this.config.bgColor === undefined && this.config.opacity === undefined
+                    ? PROGRESSBAR_DEFAULT_TRACK
+                    : rgba(bgColor, opacity);
+            overlay.style.color = this.config.color ?? PROGRESSBAR_DEFAULT_COLOR; // 段色（currentColor），默认橙
+            return;
+        }
         overlay.style.position = screen ? "fixed" : "absolute";
         overlay.style.inset = "0";
         overlay.style.display = "flex";
@@ -645,9 +757,9 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
      * **先完整广播再移除**——监听方同步跑完；async 到 pending 即隐藏不等待 resolved）。
      */
     private _onOverlayClick(event: Event, scope: AutoSparkScope): void {
-        const target = (event.target as HTMLElement | null)?.closest?.("[data-action]") as
-            | HTMLElement
-            | null;
+        const target = (event.target as HTMLElement | null)?.closest?.(
+            "[data-action]",
+        ) as HTMLElement | null;
         if (!target || !this.overlay?.contains(target)) return;
         const name = target.getAttribute("data-action");
         if (!name) return;

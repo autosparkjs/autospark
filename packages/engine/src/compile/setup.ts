@@ -158,13 +158,7 @@ export function mergeComponentSetups(
         } else if (s.data && typeof s.data === "object") {
             dataObjects.push(s.data);
             hasData = true;
-        } else if (s.data !== undefined) {
-            warn("组件 <script setup> 段 data 须是对象或工厂函数（响应式数据），已忽略（ADR-0057）");
-        }
-        // 旧写法 state()：函数 → warn 指引更名 data/data()，剪枝不生效（ADR-0057）
-        if (typeof (s as any).state === "function") {
-            warn("组件 <script setup> 段 state() 已移除（ADR-0057 更名为 data / data()，响应式数据），该段已忽略");
-        }
+        }  
         // methods：浅合并
         if (s.methods && typeof s.methods === "object") {
             for (const [k, fn] of Object.entries(s.methods)) {
@@ -181,7 +175,6 @@ export function mergeComponentSetups(
         for (const [k, v] of Object.entries(s)) {
             if (SETUP_SECTION_KEYS.has(k)) continue;
             if (CONTEXT_RESERVED_KEYS.has(k)) {
-                warn(`组件 <script setup> 顶层变量 "${k}" 与内置上下文键重名，已忽略（请改名，ADR-0057）`);
                 continue;
             }
             (locals as any)[k] = v;

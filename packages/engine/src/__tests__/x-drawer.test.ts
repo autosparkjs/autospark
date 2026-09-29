@@ -1,6 +1,7 @@
-import { describe, expect, test, afterEach } from "bun:test";
+import { describe, expect, test, afterEach, beforeEach } from "bun:test";
 import "./setup";
 import { mount, nextTick } from "./helpers";
+import { DRAWER_SHELL_STYLES } from "../overlay/wrappers/drawer-shell";
 
 /**
  * x-drawer 贴边抽屉形态测试（ADR-0063）。
@@ -441,9 +442,9 @@ describe("shell 集成（ADR-0062）", () => {
     });
 });
 
-describe("折叠把手（toggle，ADR-0063 修订）", () => {
-    const toggleOf = (i = 0): HTMLElement | null =>
-        document.querySelectorAll(".autospark-drawer-toggle")[i] as HTMLElement ?? null;
+describe("抽屉把手（trigger，ADR-0063 修订）", () => {
+    const triggerOf = (i = 0): HTMLElement | null =>
+        document.querySelectorAll(".autospark-drawer-trigger")[i] as HTMLElement ?? null;
 
     test("默认带把手：类名/属性契约（placement 归一 + 折叠态 data-collapsed），挂覆盖物容器", () => {
         const { engine } = mountDrawer(
@@ -454,24 +455,24 @@ describe("折叠把手（toggle，ADR-0063 修订）", () => {
             { ui: { open: false } },
         );
         // 初始折叠（visible=false）：把手即存在（实例外常驻），折叠态标记在
-        const t = toggleOf();
+        const t = triggerOf();
         expect(t).not.toBeNull();
-        expect(t!.className).toBe("autospark-drawer-toggle");
+        expect(t!.className).toBe("autospark-drawer-trigger");
         expect(t!.getAttribute("data-overlay-placement")).toBe("right");
         expect(t!.hasAttribute("data-collapsed")).toBe(true);
         expect(containerOf()?.contains(t!)).toBe(true);
         expect(engine.state.ui.open).toBe(false);
     });
 
-    test("toggle: false 显式关闭：无把手", () => {
+    test("trigger: false 显式关闭：无把手", () => {
         mountDrawer(
             `<div id="app"><div x-scope>
                 <div x-define="panel"><span>x</span></div>
-                <button x-drawer:panel="ui.open" x-drawer-options="{toggle: false}"></button>
+                <button x-drawer:panel="ui.open" x-drawer-options="{trigger: false}"></button>
             </div></div>`,
             { ui: { open: false } },
         );
-        expect(toggleOf()).toBeNull();
+        expect(triggerOf()).toBeNull();
     });
 
     test("字面量形态不建把手（状态不可写，点击无意义）", () => {
@@ -482,7 +483,7 @@ describe("折叠把手（toggle，ADR-0063 修订）", () => {
             </div></div>`,
             {},
         );
-        expect(toggleOf()).toBeNull();
+        expect(triggerOf()).toBeNull();
     });
 
     test("折叠态点击把手：写回 true → 面板重开；展开态点击：请求关闭 → 写回 false + 面板销毁", async () => {
@@ -494,19 +495,19 @@ describe("折叠把手（toggle，ADR-0063 修订）", () => {
             { ui: { open: false } },
         );
         // 折叠 → 展开
-        toggleOf()!.click();
+        triggerOf()!.click();
         await nextTick();
         expect(engine.state.ui.open).toBe(true);
         expect(panelOf("panel")).not.toBeNull();
-        expect(toggleOf()!.hasAttribute("data-collapsed")).toBe(false);
+        expect(triggerOf()!.hasAttribute("data-collapsed")).toBe(false);
         // 展开 → 折叠（请求关闭链：回写 false + leave 后销毁；animate:false 同步销毁）
-        toggleOf()!.click();
+        triggerOf()!.click();
         await nextTick();
         expect(engine.state.ui.open).toBe(false);
         expect(panelOf("panel")).toBeNull();
-        expect(toggleOf()!.hasAttribute("data-collapsed")).toBe(true);
+        expect(triggerOf()!.hasAttribute("data-collapsed")).toBe(true);
         // 把手仍在（实例外常驻）
-        expect(toggleOf()).not.toBeNull();
+        expect(triggerOf()).not.toBeNull();
     });
 
     test("多实例各自独立把手；engine 销毁全部摘除", () => {
@@ -519,8 +520,152 @@ describe("折叠把手（toggle，ADR-0063 修订）", () => {
             </div></div>`,
             { ui: { a: false, b: false } },
         );
-        expect(document.querySelectorAll(".autospark-drawer-toggle").length).toBe(2);
+        expect(document.querySelectorAll(".autospark-drawer-trigger").length).toBe(2);
         m.engine.destroy();
-        expect(document.querySelectorAll(".autospark-drawer-toggle").length).toBe(0);
+        expect(document.querySelectorAll(".autospark-drawer-trigger").length).toBe(0);
+    });
+});
+
+describe("把手坐标（trigger 坐标化，边缘锚定模型）", () => {
+    const triggerOf = (i = 0): HTMLElement | null =>
+        document.querySelectorAll(".autospark-drawer-trigger")[i] as HTMLElement ?? null;
+    const vh = (): number => document.documentElement.clientHeight;
+    const vw = (): number => document.documentElement.clientWidth;
+    // happy-dom 无视口布局（clientHeight/clientWidth = 0）：mock 固定视口使滑轨计算可断言
+    beforeEach(() => {
+        Object.defineProperty(document.documentElement, "clientHeight", {
+            value: 768,
+            configurable: true,
+        });
+        Object.defineProperty(document.documentElement, "clientWidth", {
+            value: 1024,
+            configurable: true,
+        });
+    });
+    afterEach(() => {
+        delete (document.documentElement as any).clientHeight;
+        delete (document.documentElement as any).clientWidth;
+    });
+    const triggerHtml = (option: string, placement?: string) => `
+        <div id="app"><div x-scope>
+            <div x-define="panel"><span>x</span></div>
+            <button x-drawer:panel="ui.open" x-drawer-options="{${option}}"${
+                placement ? ` x-drawer-options.at="{placement: '${placement}'}"` : ""
+            }></button>
+        </div></div>`;
+
+    test("0 是合法坐标（距主边 0，不误判为关闭）：钳制到把手半径 → top 0", () => {
+        mountDrawer(triggerHtml("trigger: 0"), { ui: { open: false } });
+        expect(triggerOf()!.style.top).toBe("0px");
+    });
+
+    test("true 与缺省 = 居中（≡ '50%'），数字按 px（滑轨 top = 坐标 - 半径）", () => {
+        const center = vh() / 2 - 12;
+        mountDrawer(triggerHtml("trigger: true"), { ui: { open: false } });
+        expect(triggerOf()!.style.top).toBe(`${center}px`);
+        engines.pop()?.destroy();
+        mountDrawer(triggerHtml("trigger: 100"), { ui: { open: false } });
+        expect(triggerOf()!.style.top).toBe("88px");
+    });
+
+    test("负值 = 距对面边绝对距离（'-25%' = 距底 25%）", () => {
+        mountDrawer(triggerHtml("trigger: '-25%'"), { ui: { open: false } });
+        expect(triggerOf()!.style.top).toBe(`${vh() * 0.75 - 12}px`);
+    });
+
+    test("CSS 长度字符串：纯数字按 px、rem 按根字号换算", () => {
+        mountDrawer(triggerHtml("trigger: '60'"), { ui: { open: false } });
+        expect(triggerOf()!.style.top).toBe("48px");
+        engines.pop()?.destroy();
+        mountDrawer(triggerHtml("trigger: '2rem'"), { ui: { open: false } });
+        // happy-dom 根字号缺 16px（取不到亦回退 16）→ 32px
+        expect(triggerOf()!.style.top).toBe("20px");
+    });
+
+    test("越界静默钳制到滑轨内（负向正向均可达，把手永可点）", () => {
+        // '-110%' 越过主边外 → 钳回主边端；99999px 越过对面边 → 钳对面端
+        mountDrawer(triggerHtml("trigger: '-110%'"), { ui: { open: false } });
+        expect(triggerOf()!.style.top).toBe("0px");
+        engines.pop()?.destroy();
+        mountDrawer(triggerHtml("trigger: 99999"), { ui: { open: false } });
+        expect(triggerOf()!.style.top).toBe(`${vh() - 24}px`);
+    });
+
+    test("锚定模式：滑轨长 = 锚边长、以锚起点为视口基准（把手恒在锚内）", () => {
+        const { root } = mountDrawer(
+            `<div id="app"><div x-scope>
+                <div x-define="panel"><span>x</span></div>
+                <button x-drawer:panel="ui.open" x-drawer-options.at="{selector: '#a1'}" x-drawer-options="{trigger: '-25%'}"><i id="a1">锚</i></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        // happy-dom 无布局：mock 锚 rect（视口内 top=100、高 260）；把手 created 期定位时
+        // rect 尚全 0，派发 scroll（viewport 监听同步重定位）后断言
+        const anchor = root.querySelector("#a1")!;
+        anchor.getBoundingClientRect = () =>
+            ({ top: 100, left: 40, right: 460, bottom: 360, width: 420, height: 260 } as DOMRect);
+        window.dispatchEvent(new Event("scroll"));
+        const t = triggerOf()!;
+        // '-25%' → 距锚底 25%：top = 锚顶 100 + (260 - 65) - 半径 12 = 283
+        expect(t.style.top).toBe("283px");
+        // 折叠态骑锚内侧边线：left = 锚右缘 460 - 12
+        expect(t.style.left).toBe("448px");
+    });
+
+    test("上下抽屉滑轨 = 水平 left（屏幕模式滑轨长 = 视口宽）", () => {
+        mountDrawer(
+            triggerHtml("trigger: '-25%'", "top"),
+            { ui: { open: false } },
+        );
+        expect(triggerOf()!.style.left).toBe(`${vw() * 0.75 - 12}px`);
+    });
+
+    test("成员属性表达式：created 期求值 + 变化热应用（把手常驻、折叠态坐标即时更新）", async () => {
+        const { engine } = mountDrawer(
+            `<div id="app"><div x-scope>
+                <div x-define="panel"><span>x</span></div>
+                <button x-drawer:panel="ui.open" x-drawer-options.trigger="ui.pos"></button>
+            </div></div>`,
+            { ui: { open: false, pos: 100 } },
+        );
+        expect(triggerOf()!.style.top).toBe("88px");
+        engine.state.ui.pos = "-25%";
+        await nextTick();
+        expect(triggerOf()!.style.top).toBe(`${vh() * 0.75 - 12}px`);
+    });
+
+    test("非法值 warn 回退居中", async () => {
+        const warns = await catchWarnsAsync(() => {
+            mountDrawer(triggerHtml("trigger: 'abc'"), { ui: { open: false } });
+        });
+        expect(triggerOf()!.style.top).toBe(`${vh() / 2 - 12}px`);
+        expect(warns.some((w) => w.includes("x-drawer:panel") && w.includes("trigger"))).toBe(
+            true,
+        );
+    });
+
+    test("折叠裁切契约：四方向露面板展开侧（top 露下半 / bottom 露上半，与 right/left 同构）", () => {
+        expect(DRAWER_SHELL_STYLES).toContain(
+            '.autospark-drawer-trigger[data-collapsed][data-overlay-placement="top"] { clip-path: inset(50% 0 0 0); }',
+        );
+        expect(DRAWER_SHELL_STYLES).toContain(
+            '.autospark-drawer-trigger[data-collapsed][data-overlay-placement="bottom"] { clip-path: inset(0 0 50% 0); }',
+        );
+        expect(DRAWER_SHELL_STYLES).toContain(
+            '.autospark-drawer-trigger[data-collapsed][data-overlay-placement="right"] { clip-path: inset(0 50% 0 0); }',
+        );
+        expect(DRAWER_SHELL_STYLES).toContain(
+            '.autospark-drawer-trigger[data-collapsed][data-overlay-placement="left"] { clip-path: inset(0 0 0 50%); }',
+        );
+    });
+
+    test("阴影契约：展开态无 box-shadow，折叠态保留（[data-collapsed] 独立规则）", () => {
+        // 基础规则不含 box-shadow（展开态视觉属于面板）
+        const base = DRAWER_SHELL_STYLES.match(/\.autospark-drawer-trigger \{[^}]*\}/)![0];
+        expect(base).not.toContain("box-shadow");
+        // 折叠态独立加回（独立浮起提示可点）
+        expect(DRAWER_SHELL_STYLES).toMatch(
+            /\.autospark-drawer-trigger\[data-collapsed\] \{\s*box-shadow:/,
+        );
     });
 });

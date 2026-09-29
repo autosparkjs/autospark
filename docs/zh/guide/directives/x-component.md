@@ -29,6 +29,7 @@
 | `x-component:<名称>` | 属性参数承载组件名（必写；缺参 `warn` 并跳过实例化——值恰为纯标识符时附言迁移指引） |
 | `x-component:<名称>="<props>"` | 值 = props 表达式（对象字面量 / 状态路径；注入组件响应式数据域） |
 | `x-component:<名称>.open` | 修饰符：**消费侧豁免**——打开封闭组件（≡ `x-component-options="{open:true}"`，显式声明即豁免、不 `warn`，ADR-0053 修订） |
+| `x-component:<名称>.global` | 修饰符：配合 `loader` 把远程加载的组件注册为**全局组件**（语义同 `x-import.global`） |
 
 组件名**静态、编译期可知**——不支持响应式切换组件名；要条件切换组件，把 `x-if` 写在外层包裹元素上，分支内各自实例化：
 
@@ -107,12 +108,46 @@ methods / 钩子内的 `this` 是组件实例 Proxy：`this.data`（聚合视图
 
 <demo html="component/import.html"/>
 
+### 远程直接实例化（loader）
+
+不需要批量注册、只用一次的组件，可经 `x-component-options.loader` 一步完成「远程加载 + 注册 + 实例化」——内部复用 `x-import` 同一管线（url 缓存、循环检测、注册广播），加载的组件照常进组件查找链供他人复用（ADR-0066）：
+
+```html
+<!-- string 简写：字面量 url（以 / ./ ../ http(s):// 开头）直接加载 -->
+<div x-component:like-button x-component-options.loader="/components/like-button.html"></div>
+
+<!-- 对象配置：request 透传 fetch、width/height 加载中占位尺寸、fallback/error 自定义呈现 -->
+<div x-component:stat="{ label: '收入' }"
+     x-component-options="{ loader: { url: '/components/stat.html', width: 160, height: 48 } }"></div>
+
+<!-- .global 修饰符：注册为全局组件 -->
+<div x-component:chip.global x-component-options.loader="/components/chip.html"></div>
+```
+
+loader 语义「**以此 url 为准**」：组件已注册仍 fetch 并以远程版覆盖注册（覆盖时 `warn`，已实例化不受影响）；首次渲染**严格等待 fetch**——期间显示 fallback 占位（缺省 = `x-loading`）。
+
+url 含多个 `x-define` 时按属性参数名取用，其余照常注册备用。
+
+**响应式 url**：成员属性形态的值是表达式——裸状态路径即响应式 url，url 变化时中止旧请求、重新加载并重实例化（组件内部状态丢失）：
+
+```html
+<div x-component:detail x-component-options.loader="detailUrl"></div>
+```
+
+裸标识符恒按状态路径求值（与 `x-import` 的「标识符 = 文件名」语义相反）；字面量 url 请以 `/`、`./`、`http(s)://` 开头书写。
+
+**失败呈现**：fetch 失败或加载结果中无同名组件时，宿主渲染**内置 error 组件**（引擎默认注册——错误文案 + 重试按钮（重新 fetch）+ 关闭按钮；用户同名声明可覆盖），亦可 `x-component:error` 显式实例化渲染任意错误。`error` 键可自定义呈现（形态同 fallback：HTML 字符串或 `{ name, props }`）。
+
+<demo html="component/loader.html"/>
+
 ## 配置选项
 
 | 配置项       | 默认值 | 修饰符  | 说明                                                                                                 |
 | ------------ | ------ | ------- | ---------------------------------------------------------------------------------------------------- |
 | `open`       | `false` | `.open` | 消费侧豁免：打开封闭组件（显式声明即豁免、不 `warn`）；仅指令选项层生效，不经宿主 `x-options` 回退 |
 | `dataContext` | —      | —       | 数据上下文的**消费侧覆盖**：`'host'` \| `'declarer'`——对已 `open` 的组件生效；对完全封闭的组件声明 `warn` 忽略 |
+| `global` | `false` | `.global` | 配合 `loader`：远程加载的组件注册为全局组件（语义同 `x-import.global`） |
+| `loader` | — | — | 远程直接实例化：string 简写（字面量 url / 表达式）或对象 `{ url, request?, fallback?, error?, width?, height? }`；见[远程直接实例化](#远程直接实例化loader) |
 
 ```html
 <!-- 组件侧已声明 open，消费处把基准改为声明处上下文 -->
@@ -138,4 +173,5 @@ methods / 钩子内的 `this` 是组件实例 Proxy：`this.data`（聚合视图
 - **旧写法已彻底移除**：`x-use="counter"` / `x-use="{name:'counter',...}"`（ADR-0054 废弃）不再识别——静默失效，请分别改写为 `x-component:counter` / `x-component:counter="{...}"`；
 - **对象内 `name` / `is` / `component` 字段识别已废除**：组件名由属性参数承载，这些键回归普通 prop 名；
 - **props 更新不重置内部状态**：值无变化（浅等）不更新；多次更新只覆盖出现过的键；要「镜像同步」请销毁重建（外层 `x-if` 切换）；
+- **占位呈现组件的 props 不支持函数值**：`fallback` / `error` 的 `{ name, props }` 中，函数会被引擎自动分流到非响应式通道（重试 / 关闭等执行逻辑由引擎经 action 通道注入）——响应式数据域中的函数值会被 autostore 当 computed 在依赖收集时执行，请传纯数据；
 - **完整教程**：声明、`<script setup>` 段、作用域样式见 [x-define](./x-define.md) 与[组件](../component/)。
