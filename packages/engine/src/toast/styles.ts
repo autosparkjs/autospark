@@ -16,6 +16,12 @@ import { TOAST_SHELL_STYLES } from "./shell";
  */
 const TOAST_STYLES_ID = "autospark-toast-styles";
 
+/**
+ * 分区列卡片间距（px）。离场收拢（manager `_dismiss`）以 `margin-bottom: -GAP` 抵消
+ * 收拢卡后侧的列 gap——remove 瞬间兄弟零跳变，此值须与 manager 侧保持同步。
+ */
+export const TOAST_COLUMN_GAP = 10;
+
 /** 幂等注入 toast 样式（已存在则跳过） */
 export function injectToastStyles(): void {
     if (typeof document === "undefined" || !document.head) return;
@@ -34,7 +40,7 @@ const COLUMN_STYLES = `
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 10px;
+  gap: ${TOAST_COLUMN_GAP}px;
   z-index: var(--autospark-toast-z, 1100);
   pointer-events: none;
 }

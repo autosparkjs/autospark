@@ -80,7 +80,7 @@ ToastProps 保留键封闭清单：`id` / `type` / `message` / `delay` / `pos` /
 
 - **计数粒度按 pos 分区各计**：每列独立 FIFO 队列，上限 `showCount`（默认 5，`ToastManagerOptions` 承载于 `options.toast.showCount`）——右上排满不阻塞右下入队；满员排队、自动关闭后按序补位显示；
 - **append 列尾**（先来在上、后来在下，antd message 先例）——新卡不把已有卡往下顶，视觉稳定；
-- 离场后兄弟**直接回流不动画**（FLIP / margin 过渡 fast-follow，happy-dom 亦测不出）；
+- 离场后兄弟**直接回流不动画**（FLIP / margin 过渡 fast-follow，happy-dom 亦测不出。⚠️ 2026-09-29 已废止，由离场收拢实现平滑回流，见 fast-follow 清单第 3 项修订）；
 - `center` 与其他 pos **零特判**（同队列同上限，列垂直居中多卡堆叠）；「中央单例」语义用同 id 原地更新表达（文档标注）。
 
 ### 四、生命周期
@@ -217,7 +217,12 @@ ToastProps 保留键封闭清单：`id` / `type` / `message` / `delay` / `pos` /
 
 1. `anchor` 元素锚定（走 `applyAnchorPosition` 共享装配 + autoUpdate）。
 2. 满员折叠「+N」徽标展开。
-3. 离场兄弟补位动画（FLIP）。
+3. ~~离场兄弟补位动画（FLIP）~~ **已实现（2026-09-29 修订）**：最终未采用 FLIP——改为
+   **离场收拢**（`_dismiss` 离场相把 height/padding/margin/border 垂直收拢进 leave 过渡
+   链，`margin-bottom: -GAP` 抵消收拢卡后侧列 gap，remove 瞬间零跳变；布局属性过渡
+   兄弟随流平滑上移，且与 slide 的 transform 通道正交无冲突。决策 8 的「直接回流
+   不动画」描述由此废止）。自定义动画（fade 等无 transform 相位）个别属性不发事件时
+   由结束检测超时兜底 +50ms 收口，无视觉影响。
 4. manager 运行时改配置（`configure(partial)`）。
 5. a11y：`role="status"` / `aria-live` 动态关联。
 6. 触屏场景 hover 暂停退化策略（长按？点击即暂停？）。

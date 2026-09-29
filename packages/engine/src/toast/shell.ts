@@ -43,9 +43,10 @@ export const TOAST_SHELL_TEMPLATE =
  * - 双类名根：`autospark-dialog` 承担圆角（panel-shell 形态样式）；边框/背景/阴影因不打
  *   `data-overlay-border`（overlay 专属契约）而由本表承担——复用同一批 CSS 变量
  *   （`--autospark-overlay-bg/-border`），主题换肤一处生效；
- * - **语义色双层变量**：单一消费点 `--autospark-toast-accent`（图标着色 + 左侧 3px 语义条），
- *   各 type 经 `data-toast-type` 分派到用户可覆盖的 `--autospark-toast-{type}-color`；
- *   `none` 不匹配任何分派规则 → accent 落默认 transparent（无语义条）；
+ * - **语义色双层变量**：单一消费点 `--autospark-toast-accent`（全边 border + 同色系
+ *   超淡底 + 图标着色，color-mix 随 accent 自动调和），各 type 经
+ *   `data-toast-type` 分派到用户可覆盖的 `--autospark-toast-{type}-color`；`none`
+ *   不匹配任何分派规则 → 灰边白底纯中性；
  * - **slide 方向自适应覆写层**（ADR-0068 决策 16，tooltip 先例 ADR-0061 决策 16 同构）：
  *   内置 slide 纵向固定（`translateY(-12px→0)`），按卡片根 `data-toast-pos` 前缀/后缀换
  *   from 值——`top-*` 从上、`bottom-*` 从下、`*-left` 从左、`*-right` 从右滑入（角列贴边
@@ -55,12 +56,12 @@ export const TOAST_SHELL_TEMPLATE =
  * 非 scoped、引用无关——多实例共享一份，经 `injectToastStyles()` 幂等注入（styles.ts 合并注入）。
  */
 export const TOAST_SHELL_STYLES = `
-/* 卡片形态：复用 dialog 面板变量 + 左侧语义条（accent 默认 transparent——none 无条） */
+/* 卡片形态：复用 dialog 面板变量。阴影轻于 dialog 面板的 0 8px 30px——
+   非模态轻提示浮于页面上而非遮罩上，量级对齐 tooltip */
 .autospark-toast {
   border: 1px solid var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
   background: var(--autospark-overlay-bg, #fff);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
-  border-left: 3px solid var(--autospark-toast-accent, transparent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -71,11 +72,29 @@ export const TOAST_SHELL_STYLES = `
   line-height: 1.5;
   color: var(--autospark-toast-fg, #1f2329);
 }
-/* 语义色分派（双层变量：用户覆盖 --autospark-toast-{type}-color 一处即换肤） */
-.autospark-toast[data-toast-type="info"]    { --autospark-toast-accent: var(--autospark-toast-info-color,    #409eff); }
-.autospark-toast[data-toast-type="success"] { --autospark-toast-accent: var(--autospark-toast-success-color, #67c23a); }
-.autospark-toast[data-toast-type="warn"]    { --autospark-toast-accent: var(--autospark-toast-warn-color,    #e6a23c); }
-.autospark-toast[data-toast-type="error"]   { --autospark-toast-accent: var(--autospark-toast-error-color,   #f56c6c); }
+/* 语义色分派（双层变量：用户覆盖 --autospark-toast-{type}-color 一处即换肤）。
+   着色面 = 全边 border + 同色系超淡底（color-mix 混白，随 accent 联动，换肤改主色
+   即自动重调和）+ 图标着色；none 不命中任何规则 = 灰边白底纯中性 */
+.autospark-toast[data-toast-type="info"] {
+  --autospark-toast-accent: var(--autospark-toast-info-color, #409eff);
+  border-color: var(--autospark-toast-accent);
+  background: color-mix(in srgb, var(--autospark-toast-accent) 7%, var(--autospark-overlay-bg, #fff));
+}
+.autospark-toast[data-toast-type="success"] {
+  --autospark-toast-accent: var(--autospark-toast-success-color, #67c23a);
+  border-color: var(--autospark-toast-accent);
+  background: color-mix(in srgb, var(--autospark-toast-accent) 7%, var(--autospark-overlay-bg, #fff));
+}
+.autospark-toast[data-toast-type="warn"] {
+  --autospark-toast-accent: var(--autospark-toast-warn-color, #e6a23c);
+  border-color: var(--autospark-toast-accent);
+  background: color-mix(in srgb, var(--autospark-toast-accent) 7%, var(--autospark-overlay-bg, #fff));
+}
+.autospark-toast[data-toast-type="error"] {
+  --autospark-toast-accent: var(--autospark-toast-error-color, #f56c6c);
+  border-color: var(--autospark-toast-accent);
+  background: color-mix(in srgb, var(--autospark-toast-accent) 7%, var(--autospark-overlay-bg, #fff));
+}
 /* 图标区：currentColor 流入 x-icon（ADR-0058 颜色主权在宿主） */
 .autospark-toast-icon {
   flex: none;

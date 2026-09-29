@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-expandable · slide 通道（transform 平移）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            body {
+                margin: 0;
+                overflow-x: hidden; /* 覆盖形态：面板 fixed 滑出屏幕方向由视口天然裁剪 */
+            }
+            /* 覆盖式面板（非布局占位）：fixed 贴右边 */
+            .panel {
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                width: 300px;
+                background: #fff;
+                border-left: 1px solid #e2e8f0;
+                box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
+                padding: 20px;
+                z-index: 100;
+            }
+            .demo-app {
+                padding: 24px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="demo-app section">
+            <div class="block">
+                <span class="tag is-primary">ui.open = <code x-text="ui.open"></code></span>
+                <button class="button is-small" @click="ui.open = !ui.open">状态驱动翻转</button>
+            </div>
+            <div class="content block" style="max-width: 560px">
+                <h3>slide 通道</h3>
+                <p><code>collapse: 'slide'</code> 折叠 = <code>translateX(100%)</code> 平移滑出
+                    （占位不变——服务 fixed 覆盖形态，x-drawer 的把手后续版本将走此通道）；
+                    终态保持 transform 不归零。</p>
+                <p>把手折叠后贴容器右边线，随时可点回。</p>
+            </div>
+            <!-- direction:'right' = 向右收起（贴右边停靠）；collapse:'slide' = transform 平移。
+                 面板须在引擎树内（fixed 定位不随 DOM 位置改变视觉） -->
+            <div class="panel" x-expandable="ui.open" x-expandable-options="{ direction: 'right', collapse: 'slide' }">
+                <h4 class="title is-4">覆盖面板</h4>
+                <p class="has-text-grey">fixed 定位、不占布局——主内容不重排。</p>
+            </div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                ui: { open: false },
+            });
+        </script>
+    </body>
+</html>

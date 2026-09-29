@@ -251,8 +251,22 @@ _Avoid_: 自动面板（「自动」歧义）、弹性面板（flex 术语泛化
 _Avoid_: 拖拽手柄（那是 x-resize 的 Resize Handle 概念）、指示线（只是它的视觉层，命中区是本体）、分割线（泛化）、grip / sizer（英文别名）
 
 **折叠（x-splitter）**:
-`collapsible` 选项启用的定容面板折叠：**折叠 ≡ 纯派生态**（无独立 collapsed 状态源，drawer「折叠 ≡ visible 归假」同构）——折叠目标由 `data-minimize-size` 分派：未声明或 0 = **slide 滑入滑出**（面板宽度保持、负 margin 拉回占位整体滑出容器，内容不挤压）；`> 0` = **收缩到最小化尺寸**（迷你可见形态）。把手点击就是写尺寸（绑定时写状态、静态时直写 DOM），初始声明等于折叠目标即初始折叠（不派发事件），折叠前记忆 lastSize（实例状态）展开恢复，折叠写目标值绕过 min 钳制。跨折叠态翻转有过渡动画，非翻转变更与拖拽全程瞬时。把手骑分隔条（子元素，天然随分隔条滑移）、三态坐标化对齐 drawer trigger（`true` ≡ `'50%'` / number px / CSS 长度串，负值距对端，越界静默钳制——把手是唯一重开触发点）；箭头 = 内置全局图标 `arrow`（同名覆盖自动跟随），指向下一步动作的分隔条位移方向、随折叠态翻转（`data-collapsed` 是存在性属性——`"false"` 字符串恒命中 CSS 选择器的坑）；创建以编译期为断（表达式动态开启不补建）。
-_Avoid_: collapsed 状态（它是派生态不是独立状态）、收起（单向词，折叠是双向翻转）、width:0 折叠（0 目标已改 slide 滑出，width 收缩仅 minimize > 0 形态）、collapsibled（非词，grilling 初期拼写已纠正）
+`collapsible` 选项启用的定容面板折叠：**折叠 ≡ 纯派生态**（无独立 collapsed 状态源，drawer「折叠 ≡ visible 归假」同构）——折叠目标由 `data-minimize-size` 分派：未声明或 0 = **slide 滑入滑出**（面板宽度保持、负 margin 拉回占位整体滑出容器，内容不挤压）；`> 0` = **收缩到最小化尺寸**（迷你可见形态）。把手点击就是写尺寸（绑定时写状态、静态时直写 DOM），初始声明等于折叠目标即初始折叠（不派发事件），折叠前记忆 lastSize（实例状态）展开恢复，折叠写目标值绕过 min 钳制。跨折叠态翻转有过渡动画，非翻转变更与拖拽全程瞬时。把手骑分隔条（子元素，天然随分隔条滑移）、三态坐标化对齐 drawer trigger（`true` ≡ `'50%'` / number px / CSS 长度串，负值距对端，越界静默钳制——把手是唯一重开触发点）；箭头 = 内置全局图标 `arrow`（同名覆盖自动跟随），指向下一步动作的分隔条位移方向、随折叠态翻转（`data-collapsed` 是存在性属性——`"false"` 字符串恒命中 CSS 选择器的坑）；创建以编译期为断（表达式动态开启不补建）。显式展开态状态源的展开/折叠归 x-expandable（见「展开折叠层」）——splitter 折叠恒为派生态，后续将组合该指令承担把手与折叠机制。
+_Avoid_: collapsed 状态（splitter 上下文：它是派生态不是独立状态；显式状态源场景归 x-expandable，见「展开折叠层」）、收起（单向词，折叠是双向翻转）、width:0 折叠（0 目标已改 slide 滑出，width 收缩仅 minimize > 0 形态）、collapsibled（非词，grilling 初期拼写已纠正）
+
+### 展开折叠层
+
+**展开折叠 / x-expandable（Expandable）**:
+宿主元素的通用展开/折叠指令：值是**展开态布尔**（true=展开）双向绑定——简单路径点击把手经 `setVal` 回写（x-model 防循环纪律同款）、表达式 warn 一次只读降级。`direction` 指收起方向（停靠边：`left` = 向左收起，把手骑活动边即对侧边线；默认 `left`）。折叠通道由 `minSize` 分派：`0`（默认）= **滑出折叠**——宽度/高度保持不改，`collapse:'margin'`（默认）负 margin 滑出（占位归零、兄弟流入）或 `'slide'` transform 平移（占位不变，服务 fixed 覆盖形态），终态持续保持不归零；`> 0` = 尺寸收缩动画（width/height 过渡至 minSize，子内容不隐藏——迷你形态内容可见）。展开时 `maxSize` 有值写内联尺寸、缺省移除内联尺寸由 CSS 决定（不快照记忆）。初始值 false 编译期立即应用折叠态、无动画（splitter 惯例）。与「折叠（x-splitter）」的分工：splitter 折叠是纯派生态（尺寸==折叠目标），本指令值是**显式状态源**；splitter / drawer 后续组合本指令承担把手与折叠机制。事件 `expandable:expand` / `expandable:collapse`（宿主派发、冒泡、detail `{size}`）。
+_Avoid_: collapsed 状态（该 Avoid 限于 splitter 上下文——本指令的值就是显式展开态）、收起（单向词）、toggle（drawer 把手已废弃旧选项名）、推挤 / push（未实现形态勿暗示）
+
+**展开把手（Expandable Trigger）**:
+**圆心骑边线**的圆形折叠控制按钮（20px、内置全局图标 `arrow`、样式契约同 splitter 折叠把手；`role=button` 键盘可达、箭头随折叠态翻转指向下一步动作）：展开态圆心骑宿主**活动边线**（外半圆突出）；滑出折叠态圆心骑父容器**停靠边线**（外一半被裁呈半圆把手，drawer 形态），图标缩至 0.65 倍并平移 1/4 圆径移入半圆中心保完整可见。滑轨坐标 `pos` 三态对齐家族惯例（`'center'` 默认 ≡ `'50%'` / number=px / CSS 长度串负值距对端，越界静默钳制——把手是唯一重开触点）。**动态挂载（reparent）**：展开态挂宿主内骑活动边；滑出折叠（minSize=0）完成后移入父容器骑停靠边线（宿主滑出后其内子元素随容器裁剪，把手外迁保常驻可达；滑出全程圆心恒贴边线，reparent 零跳变），展开动画启动前移回宿主；minSize>0 折叠不迁移（宿主不滑出）。折叠态子内容经 `[data-collapsed]` 规则 `visibility:hidden`（把手排除）——宿主自身不能 `overflow:hidden`（宽度保持的盒子会把 absolute 把手一并裁掉）；把手定位上下文由指令在宿主 computed `position` 为 static 时 inline 补 `relative`（fixed/absolute 宿主不动——slide 通道的覆盖形态）。
+_Avoid_: 抽屉把手（那是 x-drawer `trigger` 选项的词条）、拖拽手柄 / resize handle（x-resize 词汇）、grip（英文别名）、toggle 按钮（同已废弃词）
+
+**父容器注入 / injectOverflow（Overflow Injection）**:
+滑出折叠（margin 通道）对宿主父容器的 `overflow:hidden` 注入契约：默认（`injectOverflow: true`）**折叠期间**由指令注入——折叠动画开始挂、保持至展开动画完成后恢复原值（终态宿主滑出在外，动画瞬间注入摘除会令溢出重新可见）；父容器本为 `hidden/clip` 幂等跳过；多实例共享父容器引用计数、最后一个展开完成才恢复；原值 `auto/scroll` 的滚动条折叠期间暂失（已知副作用）。`false` 显式禁用后回落编译期检测：父容器 computed overflow 非 `hidden/clip` 时 warn 一次、由用户自负。
+_Avoid_: 自动裁剪（泛化）、overflow 选项（语义不完整——它只表达注入开关）
 
 ### 树形渲染层
 

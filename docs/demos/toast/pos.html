@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>toast · 屏幕位置与队列</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- pos 7 值屏幕锚定（默认 top-right）：top-left / top-center / top-right /
+             bottom-left / bottom-center / bottom-right / center。
+             showCount 按分区各计（此处 3）：满员 FIFO 排队，自动关闭后按序补位。 -->
+        <div class="demo-app section">
+            <div class="block" id="pos-btns"></div>
+            <div class="block">
+                <button class="button is-warning" onclick="burst()">右上连发 5 条（showCount=3 排队演示）</button>
+            </div>
+            <div class="block has-text-grey">
+                连发 5 条只显示 3 条，其余排队——前一条消失后下一条自动补位；
+                <code>offset</code> 键调分区列与屏幕边缘的间距（仅该列首次创建时生效）。
+            </div>
+        </div>
+        <script>
+            const POS = ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right", "center"];
+            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {}, {
+                toast: { showCount: 3, delay: 1500 },
+            });
+            // 动态生成 7 个位置按钮
+            for (const p of POS) {
+                const b = document.createElement("button");
+                b.className = "button is-small";
+                b.textContent = p;
+                b.onclick = () => app.toast({ message: `来自 ${p} 的提示`, pos: p, delay: 2000 });
+                document.getElementById("pos-btns").appendChild(b);
+            }
+            function burst() {
+                for (let i = 1; i <= 5; i++) app.toast({ message: `第 ${i} 条（1.5 秒后消失）` });
+            }
+        </script>
+    </body>
+</html>

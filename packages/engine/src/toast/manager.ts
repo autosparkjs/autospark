@@ -5,6 +5,7 @@ import type { AutoSparkScope } from "../scope";
 import type { ComponentDef } from "../directives/component-def";
 import { releaseComponentStyle } from "../utils/scopedStyle";
 import { getToastColumn, removeToastContainer, TOAST_COLUMN_ATTR } from "./container";
+import { TOAST_COLUMN_GAP } from "./styles";
 import { resolveBuiltinToastShell } from "./shell";
 import {
     parseToastProps,
@@ -412,6 +413,13 @@ export class ToastManager extends Map<string, ToastTask> {
     /**
      * 关闭（一切移除路径终点）：hide 广播在发起时（语义对齐 tooltip:hide / overlay:close
      * 请求时点）；离场动画完成后 `_teardown`（摘 DOM + scope 收口 + 出 Map + 补位 flush）。
+     *
+     * 离场收拢（ADR-0068 fast-follow「兄弟平滑跟进」）：transform/opacity 不参与布局，
+     * 卡片 remove 瞬间兄弟会跳位——故离场相同时把 height/padding/border 垂直收拢进同一条
+     * 过渡链（inline transition 覆写扩展属性集），布局高度平滑归零、兄弟随流平滑上移；
+     * `margin-bottom: -GAP` 抵消收拢卡后侧的列 gap，remove 瞬间零跳变。结束检测按
+     * computed transition-property 收齐全部分属事件（animate._registerEnd 契约）；
+     * 自定义动画（fade 等无 transform 相位）个别属性不发事件时由超时兜底 +50ms 收口。
      */
     private _dismiss(entry: ToastEntry, animated: boolean): void {
         if (entry.state === "closed") return;
@@ -421,8 +429,35 @@ export class ToastManager extends Map<string, ToastTask> {
         const finish = () => this._teardown(entry);
         const leave = animated ? entry.leave : null;
         if (leave && entry.el) {
-            const started = this.engine.animate.leave(entry.el, leave, finish);
-            if (!started) finish();
+            const el = entry.el;
+            // ① 收拢起始帧（先于 leave）：锁定自然高度（height auto → px 才可过渡；
+            //    offsetHeight 为 border-box 渲染高，box-sizing 同步对齐——expand 同款）。
+            //    只设布局属性——transition 系列留待 ②：leave 起手 cancel 会还原在播动画
+            //    的 inline 备份（enter ①帧备份含 transition），设在 ① 会被抹掉。
+            //    happy-dom 无布局环境 offsetHeight 恒 0，锁定 0 → 归零 0→0 无变化无害。
+            el.style.boxSizing = "border-box";
+            el.style.height = `${el.offsetHeight}px`;
+            el.style.overflow = "hidden";
+            const started = this.engine.animate.leave(el, leave, finish);
+            if (!started) {
+                finish();
+            } else {
+                // ② 收拢目标帧：仅扩展 transition-property（duration/easing 沿用类与用户
+                //    inline 配置——shorthand 会重置时长，故只动属性集），与 leave-to 类
+                //    同帧归零——height/padding/margin/border 与 transform/opacity 同链
+                //    过渡，布局高度平滑归零、兄弟随流上移。结束检测 expected 已在 leave
+                //    内按 transform/opacity 计（need=2），8 事件同刻到达第 2 个即 finish
+                //    同步收口，无早收。唯一卡场景 -GAP 无后侧 gap 抵消、淡出中轻微上移，
+                //    可忽略（KISS 不特判）
+                el.style.transitionProperty =
+                    "transform, opacity, height, padding-top, padding-bottom, margin-bottom, border-top-width, border-bottom-width";
+                el.style.height = "0px";
+                el.style.paddingTop = "0px";
+                el.style.paddingBottom = "0px";
+                el.style.marginBottom = `${-TOAST_COLUMN_GAP}px`;
+                el.style.borderTopWidth = "0px";
+                el.style.borderBottomWidth = "0px";
+            }
         } else {
             finish();
         }

@@ -31,6 +31,7 @@ export * from "./icons";
 export * from "./import";
 export * from "./resize";
 export * from "./splitter";
+export * from "./expandable";
 
 import type { AutoSparkDirectiveBase } from "../base";
 import { TextDirective } from "./text";
@@ -63,6 +64,7 @@ import { IconDirective } from "./icon";
 import { IconsDirective } from "./icons";
 import { ResizeDirective } from "./resize";
 import { SplitterDirective } from "./splitter";
+import { ExpandableDirective } from "./expandable";
 
 /**
  * 预设指令映射：指令名 → 指令类。
@@ -124,4 +126,7 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     resize: ResizeDirective,
     // x-splitter 分割器（ADR-0067）：两面板分割布局 + 分隔条拖拽调节 + collapsible 折叠把手
     splitter: SplitterDirective,
+    // x-expandable 展开折叠（ADR-0069）：值为显式展开态布尔（双向绑定），把手 + collapse
+    // 双通道滑出/收缩；后续阶段 x-splitter collapsible 与 x-drawer 把手将组合本指令
+    expandable: ExpandableDirective,
 };

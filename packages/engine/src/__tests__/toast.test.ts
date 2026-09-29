@@ -58,9 +58,21 @@ const setup = (options: any = {}) => {
     return m;
 };
 
+// 用例间收口（feedback.test.ts 同模式，try/catch 容「destroy 收口」用例的二次销毁）：
+// 断言走 document 级选择器（容器挂 body），不销毁则 sticky 卡片跨用例泄漏——后续用例的
+// `expect(cardOf()).toBeNull()` 失败时 bun 对 happy-dom 元素 diff 死循环（超时失效）。
+afterEach(() => {
+    for (const e of engines.splice(0)) {
+        try {
+            e.destroy();
+        } catch {
+            /* 已在用例内销毁 */
+        }
+    }
+});
+
 describe("API 三态入参（ADR-0068 决策 4）", () => {
     test("字符串简写 ≡ { message }：卡片挂 top-right 列、x-html 渲染内容", async () => {
-        console.error("@@C1");
         const { engine } = setup();
         const task = engine.toast("你好");
         await nextTick();
@@ -73,7 +85,6 @@ describe("API 三态入参（ADR-0068 决策 4）", () => {
     });
 
     test("props 对象：id 缺省自动生成自增；className 追加卡片根", () => {
-        console.error("@@C2");
         const { engine } = setup();
         const t1 = engine.toast({ message: "a", delay: 0 });
         const t2 = engine.toast({ message: "b", delay: 0, className: "my-toast extra" });
@@ -85,7 +96,6 @@ describe("API 三态入参（ADR-0068 决策 4）", () => {
     });
 
     test("async factory：resolve props 显示；resolve undefined 静默跳过", async () => {
-        console.error("@@C3");
         const { engine } = setup();
         const t1 = engine.toast(async () => ({ message: "异步内容", delay: 0 }));
         expect(t1.el).toBeNull(); // 挂起期无 DOM
@@ -99,7 +109,6 @@ describe("API 三态入参（ADR-0068 决策 4）", () => {
     });
 
     test("async factory：挂起期 hide() = 取消，resolve 后不显示", async () => {
-        console.error("@@C4");
         const { engine } = setup();
         let release: (v: any) => void = () => {};
         const gate = new Promise((r) => (release = r));
@@ -113,7 +122,6 @@ describe("API 三态入参（ADR-0068 决策 4）", () => {
     });
 
     test("空 message warn + no-op；未知保留键 warn + 忽略", () => {
-        console.error("@@C5");
         const { engine } = setup();
         const warns = hijackWarns(engine, () => {
             engine.toast("");
@@ -126,7 +134,6 @@ describe("API 三态入参（ADR-0068 决策 4）", () => {
     });
 
     test("message 经 sanitizer 消毒（x-html 默认通道）：script 剥除", async () => {
-        console.error("@@C6");
         const { engine } = setup();
         engine.toast({ message: 'hi<script>window.__toast_xss = 1</script>', delay: 0 });
         await nextTick();

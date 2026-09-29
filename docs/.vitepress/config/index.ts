@@ -72,6 +72,7 @@ export default defineConfig({
             { text: "动态模板", link: "/zh/guide/patch" },
             { text: "动画", link: "/zh/guide/animate" },
             { text: "工具提示", link: "/zh/guide/tooltip" },
+            { text: "轻提示", link: "/zh/guide/toast" },
             { text: "Scope", link: "/zh/guide/scope" }
           ],
         },
@@ -105,6 +106,7 @@ export default defineConfig({
             { text: "x-drawer", link: "/zh/guide/directives/x-drawer" },
             { text: "x-resize", link: "/zh/guide/directives/x-resize" },
             { text: "x-splitter", link: "/zh/guide/directives/x-splitter" },
+            { text: "x-expandable", link: "/zh/guide/directives/x-expandable" },
             { text: "x-model", link: "/zh/guide/directives/x-model" },
             { text: "x-form", link: "/zh/guide/directives/x-form" },
             { text: "x-icon", link: "/zh/guide/directives/x-icon" },

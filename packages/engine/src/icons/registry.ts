@@ -215,44 +215,22 @@ const SVG_END = `</svg>`;
 // 内置默认图标（ADR-0046 决策 8 沿用）：未命中（未声明或已删除）的替换渲染——「缺图不破相」。
 // 以条目 default 驻注册表：可被用户同名覆盖自定义；delete("default") 后未命中退回空占位。
 // 另有内置常用图标 no / yes / warn / error / arrow / info / file，同纪律（可同名覆盖、可 delete）。
-iconRegistry.add(
-    "default",
-    `${SVG_BEGIN}<rect x="5" y="5" width="14" height="14" rx="3"/>${SVG_END}`,
-);
-iconRegistry.add(
-    "no",
-    `${SVG_BEGIN}<path d="M18 6 6 18"/><path d="m6 6 12 12"/>${SVG_END}`,
-);
-iconRegistry.add(
-    "yes",
-    `${SVG_BEGIN}<path d="M20 6 9 17l-5-5"/>${SVG_END}`,
-);
-iconRegistry.add(
-    "warn",
-    `${SVG_BEGIN}<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>${SVG_END}`,
-);
-iconRegistry.add(
-    "error",
-    `${SVG_BEGIN}<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>${SVG_END}`,
-);
-iconRegistry.add(
-    "arrow",
-    `${SVG_BEGIN}<path d="m9 18 6-6-6-6"/>${SVG_END}`,
-);
-iconRegistry.add(
-    "info",
-    `${SVG_BEGIN}<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>${SVG_END}`,
-);
-iconRegistry.add(
-    "file",
-    `${SVG_BEGIN}<path d="m9 18 6-6-6-6"/>${SVG_END}`,
-);
-iconRegistry.add(
-    "refresh",
-    `${SVG_BEGIN}<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>${SVG_END}`,
-);
-iconRegistry.add(
-    "success",
-    `${SVG_BEGIN}<circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/>${SVG_END}`,
-);
+const icon_svgdatas=[
+    ["default",`<rect x="5" y="5" width="14" height="14" rx="3"/>`],
+    ["no",`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`],
+    ["yes",`<path d="M20 6 9 17l-5-5"/>`],
+    ["warn",`<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>`],
+    ["error",`<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>`],
+    ["arrow",`<path d="m9 18 6-6-6-6"/>`],
+    ["info",`<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>`],
+    ["file",`<path d="m9 18 6-6-6-6"/>`],
+    ["refresh",`<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>`],
+    ["success",`<circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/>`],
+    ["copy",`<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>`],
+    ["external",`<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>`]
+] as const 
 
+
+icon_svgdatas.forEach(([name,svg])=>{
+    iconRegistry.add(name,`${SVG_BEGIN}${svg}${SVG_END}`)
+})
