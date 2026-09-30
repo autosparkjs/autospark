@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-layout · 同侧多窗格与窗格分割</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .pane {
+        background: #fff;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        padding: 12px 14px;
+        box-sizing: border-box;
+        font-size: 13px;
+      }
+      .pane strong {
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 同侧多窗格：自动组合 x-splitter（首窗格定容 240px，其余自适应），分隔条守恒分割 -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block has-text-grey is-size-7">
+          左侧两个 sidebar 窗格自动组合 x-splitter：首窗格定容（width 选项或
+          240px），其余自适应——拖中间分隔条守恒分配；存在性回流照常（按钮切换 l2）。
+        </div>
+        <div class="block">
+          <button class="button is-small" @click="ui.show2 = !ui.show2">切换第二个窗格</button>
+        </div>
+        <div x-layout x-layout-options="{gap: 8}" style="height: 320px">
+          <div class="pane" x-pane:sidebar.left x-pane-options="{width:200}">
+            <strong>导航</strong>
+            <p class="is-size-7 has-text-grey">定容 200px（width 选项 → data-size）</p>
+          </div>
+          <div class="pane" x-pane:sidebar.left x-show="ui.show2">
+            <strong>收藏</strong>
+            <p class="is-size-7 has-text-grey">自适应面板，可被拖至 0 宽</p>
+          </div>
+          <div class="pane" x-pane:content><strong>content</strong></div>
+          <div class="pane" x-pane:sidebar.right.up><strong>侧栏</strong> · through=up</div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+        ui: { show2: true },
+      });
+    </script>
+  </body>
+</html>

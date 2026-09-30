@@ -22,19 +22,22 @@
       <div x-data="{ dir: 'horizontal' }">
         <div class="block is-size-7">
           <label class="radio">
-            <input type="radio" value="horizontal" x-model="dir" /> 左右分栏
+            <input type="radio" value="horizontal" x-model="dir" x-model-options="{set: 'dir = $value'}" />
+            左右分栏
           </label>
           <label class="radio">
-            <input type="radio" value="vertical" x-model="dir" /> 上下分栏
+            <input type="radio" value="vertical" x-model="dir" x-model-options="{set: 'dir = $value'}" />
+            上下分栏
           </label>
+          <!-- x-model 简单路径的写回落点在 store 根；写回本层 x-data 域须显式 set 表达式（with(scope) 经 Proxy 落域），
+               与 x-model「绑定 x-data 局部数据」demo 同款约定 -->
         </div>
-        <div
-          x-splitter="dir"
-          style="height: 220px; border: 1px solid #eee; border-radius: 8px"
-        >
+        <div x-splitter="dir" style="height: 220px">
           <div class="pane" data-size="140px" data-min-size="80">
             <strong>定容面板</strong>
-            <p class="is-size-7 has-text-grey">data-size="140px"（轴中立：width ↔ height 同值重写）</p>
+            <p class="is-size-7 has-text-grey">
+              data-size="140px"（轴中立：width ↔ height 同值重写）
+            </p>
           </div>
           <div class="pane">
             <strong>自适应面板</strong>

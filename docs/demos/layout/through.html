@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-layout · through 贯穿</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .pane {
+        background: #fff;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        padding: 12px 14px;
+        box-sizing: border-box;
+        font-size: 13px;
+      }
+      .pane strong {
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- through：左侧栏上延贯穿 header 行带（header 被推向对侧），修饰符与选项两形等价 -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block has-text-grey is-size-7">
+          左 sidebar 声明 <code>.up</code> 上延至容器顶——header 不再全宽，被推向右侧；下方示例右侧栏
+          <code>through:"up,down"</code> 上下全贯穿。
+        </div>
+        <div x-layout x-layout-options="{gap: 8}" style="height: 220px" class="block">
+          <div class="pane" x-pane:header><strong>header</strong>（被 up 贯穿的 sidebar 推让）</div>
+          <div class="pane" x-pane:sidebar.left.up><strong>sidebar.left</strong> · through=up</div>
+          <div class="pane" x-pane:content><strong>content</strong></div>
+          <div class="pane" x-pane:footer><strong>footer</strong> · 全宽</div>
+        </div>
+        <div x-layout x-layout-options="{gap: 8}" style="height: 220px">
+          <div class="pane" x-pane:header><strong>header</strong>（被夹在中间）</div>
+          <div class="pane" x-pane:sidebar.left><strong>sidebar.left</strong></div>
+          <div class="pane" x-pane:content><strong>content</strong></div>
+          <div class="pane" x-pane:sidebar.right x-pane-options="{through: 'up,down'}">
+            <strong>sidebar.right</strong> · through=up,down（上下全贯穿）
+          </div>
+          <div class="pane" x-pane:footer><strong>footer</strong></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

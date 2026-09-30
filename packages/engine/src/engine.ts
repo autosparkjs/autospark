@@ -19,8 +19,8 @@ import { OverlayHandle } from "./overlay/handle";
 import { removeOverlayContainer } from "./overlay/container";
 import { TooltipManager } from "./tooltip/manager";
 import type { TooltipAPI } from "./tooltip/types";
-import { ToastManager } from "./toast/manager";
-import type { ToastProps, ToastTask } from "./toast/types";
+import { MessageManager } from "./messages/manager";
+import type { MessageProps, MessageTask, ProgressTask } from "./messages/types";
 import { BUILTIN_ERROR_COMPONENT, ensureErrorStyle } from "./builtinError";
 
 /**
@@ -103,8 +103,8 @@ export class AutoSpark<
     readonly animate: AutoSparkAnimator;
     /** 全局工具提示管理单元（ADR-0061）：data-tooltip 约定消费面 + title 编译期转换开关；公共入口经 `tooltip` getter */
     readonly tooltipManager: TooltipManager;
-    /** 全局轻提示管理单元（ADR-0068）：`extends Map<string, ToastTask>`（键恒为 string id）；公共入口经 `toast()` / 本表 */
-    readonly toastManager: ToastManager;
+    /** 全局消息管理单元（ADR-0071）：`extends Map<string, MessageTask>`（键恒为 string id，可枚举全部存活记录）；公共入口经 `add/confirm/progressbar/load/save/...` / 本表 */
+    readonly messages: MessageManager;
     /** 原始模板（深克隆根元素，保留指令属性作为编译只读输入） */
     readonly template: HTMLElement;
     /** 每个渲染元素对应的 Scope（销毁时遍历清理其 watcher） */
@@ -176,10 +176,10 @@ export class AutoSpark<
         // 全局工具提示（ADR-0061）：须早于 autostart compile——编译期 title→data-tooltip
         // 转换依赖 manager 的 enabled 开关；委托监听/样式注入在构造内就位（tooltip: false 时全短路）
         this.tooltipManager = new TooltipManager(this);
-        // 全局轻提示（ADR-0068）：引擎级子系统，容器/样式随首个 toast 懒建（toast: false 时
-        // 构造即短路——show() warn + no-op）；全局 toast action 的 handle 闭包经 engine 引用
-        // 惰性触达本管理器，无初始化顺序约束
-        this.toastManager = new ToastManager(this);
+        // 全局消息（ADR-0071）：引擎级子系统，容器/样式随首个消息懒建（messages: false 时
+        // 构造即短路——add() warn + no-op）；配套 action（toast/confirm/task）的 handle 闭包
+        // 经 engine 引用惰性触达本管理器，无初始化顺序约束
+        this.messages = new MessageManager(this);
         if (this.options.autostart) {
             this.compile();
         }
@@ -254,13 +254,16 @@ export class AutoSpark<
     }
 
     /**
-     * 发起一条全局轻提示（ADR-0068 决策 4）：消息字符串 / ToastProps / async factory 三态入参，
-     * 返回任务句柄（`{ id, el, hide(), closed }`）。同 id = 原地更新（换内容 + 重置计时）。
-     * 实例管理与队列见 `toastManager`（extends Map）。`options.toast: false` 时 warn + 死句柄
-     * （全关语义，决策 6）；模板侧可用内置 `toast` action（ADR-0068 决策 15）。
+     * 发起一条轻提示（ADR-0071 决策 3 迁移期别名）：≡ `messages.add({ kind: 'toast', ... })`
+     * ——消息字符串 / MessageProps / async factory 三态入参，返回 MessageTask 句柄。
+     * props 键按新模型（title / delayClose）；旧键 message / delay 按未知键 warn。
+     * `options.messages: false` 时 warn + 死句柄（全关语义）；模板侧配套 action 见
+     * `toast` / `confirm` / `task`（ADR-0071 决策 22/23）。新代码请直接用 `engine.messages.add`。
      */
-    toast(props: string | ToastProps | (() => Promise<ToastProps | void | undefined>)): ToastTask {
-        return this.toastManager.show(props);
+    toast(
+        props: string | MessageProps | (() => Promise<MessageProps | void | undefined>),
+    ): MessageTask {
+        return this.messages.add(props);
     }
 
     /**
@@ -869,9 +872,9 @@ export class AutoSpark<
         removeOverlayContainer(this);
         // 工具提示收口（ADR-0061）：摘委托监听 + tooltip 容器整体移除 + 清计时器/兜底循环
         this.tooltipManager.dispose();
-        // 轻提示收口（ADR-0068 决策 10）：全部立即销毁（无动画——离场的延迟移除已被上方
-        // animate.dispose 同步完成）+ toast 容器整体移除
-        this.toastManager.dispose();
+        // 消息收口（ADR-0071 决策 10/18）：全部立即销毁（无动画——离场的延迟移除已被上方
+        // animate.dispose 同步完成）+ 消息容器整体移除 + 持久化终态 flush（keepalive 兜底）
+        this.messages.dispose();
         this.el.replaceChildren();
         // 移除 engine 根标识（ADR-0060，与构造期打点对称）
         this.el.removeAttribute("data-autospark");

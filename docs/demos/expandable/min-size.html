@@ -1,83 +1,78 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <title>x-expandable · minSize 迷你形态</title>
-        <script src="/autospark/autospark.js"></script>
-        <link rel="stylesheet" href="/autospark/bulma.min.css" />
-        <style>
-            .layout {
-                display: flex;
-                height: 320px;
-                border: 1px solid #dbdbdb;
-                border-radius: 6px;
-            }
-            /* 折叠到 minSize=56 的迷你宽度：内容如何适应窄形态由 CSS 决定（决策四：
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-expandable · minSize 迷你形态</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .layout {
+        display: flex;
+        height: 420px;
+        border: 1px solid #dbdbdb;
+        border-radius: 6px;
+      }
+      /* 折叠到 minSize=56 的迷你宽度：内容如何适应窄形态由 CSS 决定（决策四：
                  minSize>0 子内容不隐藏——白名单列隐藏、图标列保留） */
-            .sidebar {
-                width: 220px;
-                flex: 0 0 auto;
-                background: #f8fafc;
-                border-right: 1px solid #e2e8f0;
-                padding: 12px;
-                overflow: hidden;
-            }
-            .sidebar[data-collapsed] .wide-only {
-                display: none;
-            }
-            .main {
-                flex: 1;
-                padding: 16px;
-                min-width: 0;
-            }
-            .icon-row {
-                display: flex;
-                gap: 8px;
-                align-items: center;
-                margin-bottom: 6px;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="demo-app section">
-            <div class="block">
-                <span class="tag is-primary">ui.open = <code x-text="ui.open"></code></span>
-                <button class="button is-small" @click="ui.open = !ui.open">状态驱动翻转</button>
-            </div>
-            <!-- minSize > 0：折叠 = 纯尺寸收缩动画（width → 56px），不滑出、内容不隐藏；
+      .sidebar {
+        width: 220px;
+        flex: 0 0 auto;
+        background: #f8fafc;
+        border-right: 1px solid #e2e8f0;
+        padding: 12px;
+      }
+      .sidebar[data-collapsed] .wide-only {
+        display: none;
+      }
+      .main {
+        flex: 1;
+        padding: 16px;
+        min-width: 0;
+      }
+      .icon-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-app section">
+      <div class="block">
+        <span class="tag is-primary">ui.open = <code x-text="ui.open"></code></span>
+        <button class="button is-small" @click="ui.open = !ui.open">状态驱动翻转</button>
+      </div>
+      <!-- minSize > 0：折叠 = 纯尺寸收缩动画（width → 56px），不滑出、内容不隐藏；
                  maxSize：展开写 inline width=220px（覆盖 CSS 声明宽度） -->
-            <div class="layout block">
-                <div
-                    class="sidebar"
-                    x-expandable="ui.open"
-                    x-expandable-options="{ direction: 'left', minSize: 56, maxSize: 220, pos: '80%' }"
-                >
-                    <div class="icon-row">
-                        <span>📌</span><span class="wide-only">概览</span>
-                    </div>
-                    <div class="icon-row">
-                        <span>🧾</span><span class="wide-only">订单</span>
-                    </div>
-                    <div class="icon-row">
-                        <span>⚙️</span><span class="wide-only">设置</span>
-                    </div>
-                    <div class="wide-only has-text-grey" style="font-size: 12px; margin-top: 16px">
-                        折叠后仅图标列可见（内容适应窄形态由页面 CSS 负责）。
-                    </div>
-                </div>
-                <div class="main content">
-                    <h3>主区</h3>
-                    <p><code>minSize: 56</code> 折叠 = <strong>尺寸收缩</strong>（width 过渡到
-                        56px）——与 minSize=0 的滑出折叠是两条通道；<code>collapse</code>
-                        选项仅 minSize=0 时生效，本形态忽略。</p>
-                    <p>把手位置 <code>pos: '80%'</code>（沿活动边滑轨 80% 处）。</p>
-                </div>
-            </div>
+      <div class="layout block">
+        <div
+          class="sidebar"
+          x-expandable="ui.open"
+          x-expandable-options="{ direction: 'left', minSize: 56, maxSize: 220, pos: '80%' }"
+        >
+          <div class="icon-row"><span>📌</span><span class="wide-only">概览</span></div>
+          <div class="icon-row"><span>🧾</span><span class="wide-only">订单</span></div>
+          <div class="icon-row"><span>⚙️</span><span class="wide-only">设置</span></div>
+          <div class="wide-only has-text-grey" style="font-size: 12px; margin-top: 16px">
+            折叠后仅图标列可见（内容适应窄形态由页面 CSS 负责）。
+          </div>
         </div>
-        <script>
-            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
-                ui: { open: true },
-            });
-        </script>
-    </body>
+        <div class="main content">
+          <h3>主区</h3>
+          <p>
+            <code>minSize: 56</code> 折叠 = <strong>尺寸收缩</strong>（width 过渡到 56px）——与
+            minSize=0 的滑出折叠是两条通道；<code>collapse</code> 选项仅 minSize=0
+            时生效，本形态忽略。
+          </p>
+          <p>把手位置 <code>pos: '80%'</code>（沿活动边滑轨 80% 处）。</p>
+        </div>
+      </div>
+    </div>
+    <script>
+      const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+        ui: { open: true },
+      });
+    </script>
+  </body>
 </html>

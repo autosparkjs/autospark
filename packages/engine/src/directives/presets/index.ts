@@ -32,6 +32,8 @@ export * from "./import";
 export * from "./resize";
 export * from "./splitter";
 export * from "./expandable";
+export * from "./layout";
+export * from "./pane";
 
 import type { AutoSparkDirectiveBase } from "../base";
 import { TextDirective } from "./text";
@@ -65,6 +67,8 @@ import { IconsDirective } from "./icons";
 import { ResizeDirective } from "./resize";
 import { SplitterDirective } from "./splitter";
 import { ExpandableDirective } from "./expandable";
+import { LayoutDirective } from "./layout";
+import { PaneDirective } from "./pane";
 
 /**
  * 预设指令映射：指令名 → 指令类。
@@ -129,4 +133,8 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     // x-expandable 展开折叠（ADR-0069）：值为显式展开态布尔（双向绑定），把手 + collapse
     // 双通道滑出/收缩；后续阶段 x-splitter collapsible 与 x-drawer 把手将组合本指令
     expandable: ExpandableDirective,
+    // x-layout 布局容器（ADR-0072）：grid 骨架 + x-pane 布局窗格（through 贯穿、存在性回流、
+    // 行为组合 expandable/resize/splitter）；x-pane 为名位标记（收集/剪枝由 layout 接管，孤儿 warn）
+    layout: LayoutDirective,
+    pane: PaneDirective,
 };

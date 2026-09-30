@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-expandable · 嵌套折叠（滑出 × 收缩两层组合）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      /* 外层滑出折叠需要父容器裁剪——demo 显式声明，指令幂等跳过注入 */
+      .layout {
+        display: flex;
+        height: 460px;
+        overflow: hidden;
+        border: 1px solid #dbdbdb;
+        border-radius: 6px;
+      }
+      /* 外层宿主：margin 滑出（minSize=0 默认），宽度保持、负 margin-left 滑出；
+         不可 overflow:hidden（把手骑右边线的外半圆会被裁） */
+      .sidebar {
+        width: 240px;
+        flex: 0 0 auto;
+        background: #f8fafc;
+        border-right: 1px solid #e2e8f0;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .sidebar .menu {
+        flex: 1;
+        margin: 0;
+      }
+      /* 内层宿主：尺寸收缩（minSize>0），把手骑底边线——两层把手各骑各边、互不干扰；
+         宿主自身不可设 overflow（裁掉/滚走骑底边把手） */
+      .panel {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 10px 12px;
+      }
+      /* 内层包裹：充满宿主并承载 overflow 需求——恒挂 overflow:auto，折叠态内容超出
+         minSize 高度时自动出滚动条、展开态（maxSize 容得下）自然收回，无需感知折叠态 */
+      .panel-body {
+        height: 100%;
+        overflow: auto;
+      }
+      .panel .panel-title {
+        margin: 0 0 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #64748b;
+      }
+      .panel .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 0;
+        font-size: 14px;
+      }
+      .main {
+        flex: 1;
+        padding: 16px;
+        min-width: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-app section">
+      <div class="block">
+        <span class="tag is-primary">ui.sidebar = <code x-text="ui.sidebar"></code></span>
+        <span class="tag is-primary">ui.panel = <code x-text="ui.panel"></code></span>
+        <button class="button is-small" @click="ui.sidebar = !ui.sidebar">翻转侧栏</button>
+        <button class="button is-small" @click="ui.panel = !ui.panel">翻转面板</button>
+      </div>
+      <!-- 外层：侧栏滑出折叠（minSize=0 默认 + margin 通道）；内层：设置面板尺寸收缩
+           （direction:'top' + minSize:44 折叠只留标题行，maxSize:140 展开显示设置行）。
+           两层各自绑定独立状态，把手各自可达 -->
+      <div class="layout block">
+        <aside class="sidebar" x-expandable="ui.sidebar">
+          <p class="menu-label" style="margin-bottom: 0">侧栏（外层 · 滑出）</p>
+          <aside class="menu">
+            <ul class="menu-list">
+              <li><a>概览</a></li>
+              <li><a>订单</a></li>
+              <li><a>消息</a></li>
+            </ul>
+          </aside>
+          <div
+            class="panel"
+            x-expandable="ui.panel"
+            x-expandable-options="{ direction: 'bottom', minSize: 100, maxSize: 240 }"
+          >
+            <div class="panel-body">
+              <p class="panel-title">高级设置（内层 · 收缩）</p>
+              <div class="row">
+                <span>自动同步</span>
+                <input type="checkbox" checked />
+              </div>
+              <div class="row">
+                <span>桌面通知</span>
+                <input type="checkbox" checked />
+              </div>
+              <div class="row">
+                <span>紧凑模式</span>
+                <input type="checkbox" />
+              </div>
+            </div>
+          </div>
+        </aside>
+        <main class="main content">
+          <h3>主区</h3>
+          <p>
+            嵌套要点：外层折叠把整个侧栏 <strong>margin 滑出</strong>，内层面板随宿主子内容
+            隐藏规则（<code>visibility</code>）一并隐藏、展开后原样恢复；内层用
+            <strong>尺寸收缩</strong> 通道（<code>minSize&gt;0</code> 无父容器注入）——若内层
+            也走滑出通道，其注入会挂到外层宿主上、裁掉外层把手的外半圆。
+          </p>
+          <p>
+            内层面板的 overflow 需求由<strong>内层包裹</strong>承载：<code>.panel-body</code>
+            （<code>height:100%</code> + 恒挂 <code>overflow:auto</code>）充满宿主——折叠态内容 超出
+            <code>minSize</code> 高度时自动出滚动条，展开态自然收回；宿主自身不可设
+            <code>overflow</code>（会裁掉/滚走骑底边把手）。
+          </p>
+          <p>两个把手各骑各边（外层右缘 / 内层底缘），滑轨坐标、状态、事件完全独立。</p>
+        </main>
+      </div>
+    </div>
+    <script>
+      const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+        ui: { sidebar: true, panel: true },
+      });
+    </script>
+  </body>
+</html>

@@ -4,7 +4,7 @@ import type { ComponentHooks } from "./directives/component-def";
 import type { ActionDesc } from "./actions/types";
 import type { SlotContent } from "./utils/slot";
 import { AutoSparkDirectiveBase } from "./directives/base";
-import { getVal, type Watcher } from "autostore";
+import { getVal, setVal, type Watcher } from "autostore";
 import { getDirectives, getHostOptions } from "./directives/utils/getDirectives";
 import { createDirectives } from "./directives/utils/createDirectives";
 import { releaseScopeIcons, type ScopeIconEntry } from "./icons/domain";
@@ -915,6 +915,41 @@ export class AutoSparkScope {
             //this.engine.logger.warn(`scope.read: eval "${value}" failed: ${e?.message ?? e}`);
             return undefined;
         }
+    }
+
+    /**
+     * 写回落点解析（ADR-0073 读写对称）：把简单路径的写入**经 getContext 聚合视图透传**——
+     * 单段路径直接赋值（Proxy set 陷阱就近命中：本层 locals > x-data 域 > 沿父视图链，
+     * 边界/基准语义由视图已有的实现承担），全链未命中等价落 store 根（与旧直写行为兼容）。
+     * 多段路径首键命中域时取**域内成员对象**对余段 setVal（写入留域内），否则落根 setVal
+     * （保持旧「根上自动建中间节点」语义）。
+     *
+     * 修复 x-model / x-resize / x-splitter 等指令「读局部、写全局」的基准分裂：
+     * 读方向经 `watch` 表达式支路命中域、写方向直写根——现在同走聚合视图，读写同源。
+     *
+     * 仅供指令的写回快通道使用（须简单路径）；调用方持有的 flags/等值短路等防循环簿记不变。
+     */
+    writeThrough(path: string, value: any): void {
+        const segs = path.split(this.engine.store.delimiter);
+        const view = this.getContext();
+        if (segs.length === 1) {
+            // 单段：set 陷阱就近命中（域字段/根字段）——未命中时 Reflect.set 透传落根，等价旧直写
+            view[path] = value;
+            return;
+        }
+        const head = segs[0]!;
+        // 多段：首键不在聚合视图（has 陷阱）→ 根上 setVal（自动建中间节点，旧行为）；命中 → 取域内
+        // 成员对象（get 陷阱返回响应式容器成员）对余段 setVal——写入留域内
+        if (!(head in view)) {
+            setVal(this.engine.store.state, segs, value);
+            return;
+        }
+        const host = view[head];
+        if (host == null || typeof host !== "object") {
+            setVal(this.engine.store.state, segs, value);
+            return;
+        }
+        setVal(host, segs.slice(1), value);
     }
 
     /**

@@ -1,7 +1,7 @@
 # ADR-0068：全局轻提示（ToastManager 与 toast-shell）
 
-- **状态**：Accepted（共识已 grilling 确认，实现未开始）
-- **日期**：2026-09-29
+- **状态**：Accepted（共识已 grilling 确认，实现未开始）；⚠️ **API 面与生命周期决策已被 [ADR-0071](0071-messages.md) 取代**（升维为消息模块 MessageManager）——本文机制决策（三层结构 / 分区队列 / 离场收拢 / 动画 / 图标映射 / stop/destroy 语义）继续有效，字段名 / 入口名 / 事件名以 ADR-0071 为准
+- **日期**：2026-09-29（2026-09-30 部分废止修订）
 - **关联**：[ADR-0061](0061-tooltip.md)（引擎级子系统先例——全关语义 / body 容器懒建 / slide 方向自适应覆写 / 命令式窄面）、[ADR-0062](0062-overlay-shell.md)（shell 机制——内置私有组件 / config 整包注入 / 面板是外壳产物 / 遮罩是引擎结构的分界先例）、[ADR-0052](0052-x-overlay-and-x-dialog.md)（body 容器先例 / 双通道事件）、[ADR-0038](0038-x-loading.md)（actions 按钮行——hide 键 / 字符串查表）、[ADR-0036](0036-action-manager.md)（内置 action / ActionDesc）、[ADR-0039](0039-animate-mechanism.md)（animate 三形态与六类名）、[ADR-0058](0058-icon-symbol-and-icon-domain.md)（图标域——同名词映射 / 缺图不破相 / 颜色主权在宿主）、[ADR-0053](0053-component-data-boundary.md)（数据基准——detached 实例化）、[CONTEXT.md](../../CONTEXT.md)（「轻提示（Toast）」词条）
 - **共识来源**：grilling 三轮决策（Q1~Q21），本文即共识落盘
 

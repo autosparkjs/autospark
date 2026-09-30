@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>x-drawer · 抽屉把手（trigger）</title>
+    <title>x-drawer · 抽屉把手（expandable）</title>
     <script src="/autospark/autospark.js"></script>
     <link rel="stylesheet" href="/autospark/bulma.min.css" />
     <style>
@@ -35,41 +35,41 @@
     </style>
   </head>
   <body>
-    <!-- 抽屉把手（trigger，默认开启）：骑面板活动边线的常驻圆形按钮（24px），
-             点击折叠/展开——折叠 ≡ visible 归假（面板销毁、重开重建）。
-             坐标沿边线滑轨（边缘锚定模型）：true 居中 / false 关闭 /
-             number(px) 与 CSS 长度定位，负数距对面边（如 '-20%' = 距底 20%）、越界钳制；
-             折叠后骑屏幕边（屏幕模式）或锚内侧边（锚定模式）露面板展开侧半圆，
-             展开↔折叠把手沿边线同步滑移。坐标支持成员属性表达式响应式。 -->
+    <!-- 抽屉把手（expandable 选项，ADR-0070 把手组合 x-expandable 共享把手模块）：
+         骑面板活动边线的常驻圆形按钮（20px 共享契约），点击折叠/展开——折叠 ≡ visible 归假
+         （面板销毁、重开重建）。expandable 取值：true 居中 / false 关闭 /
+         {pos} 对象定位（number(px) 与 CSS 长度，负数距对面边如 '-20%' = 距底 20%、越界钳制）。
+         折叠后骑屏幕边（屏幕模式）或锚内侧边（锚定模式）露面板展开侧半圆，
+         展开↔折叠把手沿边线同步滑移。坐标支持成员属性表达式响应式（整个 expandable 对象）。 -->
     <div class="demo-app section" style="height: 480px">
       <div x-data>
         <div class="block buttons">
           <button class="button is-primary" x-drawer:right="ui.right" @click="ui.right = true">右侧抽屉（默认居中把手）</button>
-          <button class="button" x-drawer:left="ui.left" x-drawer-options.at="{placement: 'left'}" x-drawer-options="{trigger: '-20%'}" @click="ui.left = true">左侧（把手距底 20%）</button>
-          <button class="button" x-drawer:top="ui.top" x-drawer-options.at="{placement: 'top'}" x-drawer-options="{trigger: '120px'}" @click="ui.top = true">顶部（把手距左 120px）</button>
+          <button class="button" x-drawer:left="ui.left" x-drawer-options.at="{placement: 'left'}" x-drawer-options="{expandable: {pos: '-20%'}}" @click="ui.left = true">左侧（把手距底 20%）</button>
+          <button class="button" x-drawer:top="ui.top" x-drawer-options.at="{placement: 'top'}" x-drawer-options="{expandable: {pos: '120px'}}" @click="ui.top = true">顶部（把手距左 120px）</button>
           <button
             class="button"
             x-drawer:no-trigger="ui.noTrigger"
-            x-drawer-options="{trigger: false}"
+            x-drawer-options="{expandable: false}"
             @click="ui.noTrigger = true"
           >
-            无把手抽屉（trigger: false）
+            无把手抽屉（expandable: false）
           </button>
         </div>
         <div class="block">
           响应式坐标（右抽屉把手距顶百分比）：
-          <input class="pos-slider" type="range" min="-50" max="50" :value="ui.pos" @input="ui.pos = $event.target.value" />
-          <code>trigger: '<span x-text="ui.pos"></span>%'</code>
-          <button class="button is-small is-primary" x-drawer:live="ui.live" x-drawer-options.trigger="ui.pos + '%'" @click="ui.live = true">打开看效果</button>
+          <input class="pos-slider" type="range" min="-50" max="50" :value="ui.pos" @input="ui.exp = {pos: $event.target.value + '%'}" />
+          <code>expandable: {pos: '<span x-text="ui.pos"></span>%'}</code>
+          <button class="button is-small is-primary" x-drawer:live="ui.live" x-drawer-options.expandable="ui.exp" @click="ui.live = true">打开看效果</button>
         </div>
         <div class="block has-text-grey is-size-7">
-          负数 = 距对面边的绝对距离（'-20%' = 距底 20%）；越界值钳制到滑轨内。屏幕模式折叠后把手骑屏幕边露半圆，也可以直接点面板边线上的圆形把手折叠。
+          负数 = 距对面边的绝对距离（'-20%' = 距底 20%）；越界值钳制到滑轨内。屏幕模式折叠后把手骑屏幕边露半圆，也可以直接点面板边线上的圆形把手折叠（键盘 Tab 聚焦 + Enter/Space 同管线）。
         </div>
 
         <div class="fake-sidebar" id="sidebar">
           <strong>锚元素 #sidebar</strong>
           <p class="is-size-7 has-text-grey">下方按钮的抽屉贴本侧栏内侧展开，折叠后把手骑侧栏边线露半圆。</p>
-          <button class="button is-small" x-drawer:anchored="ui.anchored" x-drawer-options.at="{selector: '/#sidebar', placement: 'right'}" x-drawer-options="{trigger: '-25%'}" @click="ui.anchored = true">锚定抽屉（把手距底 25%）</button>
+          <button class="button is-small" x-drawer:anchored="ui.anchored" x-drawer-options.at="{selector: '/#sidebar', placement: 'right'}" x-drawer-options="{expandable: {pos: '-25%'}}" @click="ui.anchored = true">锚定抽屉（把手距底 25%）</button>
         </div>
 
         <div x-define="right">
@@ -81,26 +81,26 @@
         <div x-define="left">
           <div class="drawer-body">
             <h3>左侧抽屉</h3>
-            <p>把手在面板右边线（开口边）、距底 20%（trigger: '-20%'）。</p>
+            <p>把手在面板右边线（开口边）、距底 20%（pos: '-20%'）。</p>
           </div>
         </div>
         <div x-define="top">
           <div class="drawer-body">
             <h3>顶部抽屉</h3>
-            <p>把手在面板底边线、距左 120px（trigger: '120px'——上下抽屉的坐标是水平 left）。</p>
+            <p>把手在面板底边线、距左 120px（pos: '120px'——上下抽屉的坐标是水平 left）。</p>
           </div>
         </div>
         <div x-define="noTrigger">
           <div class="drawer-body">
             <h3>无把手抽屉</h3>
-            <p>trigger: false——不显示把手，用状态归假 / ESC / close 关闭。</p>
+            <p>expandable: false——不显示把手，用状态归假 / ESC / close 关闭。</p>
             <button class="button is-small" @click="close()">关闭</button>
           </div>
         </div>
         <div x-define="live">
           <div class="drawer-body">
             <h3>响应式坐标</h3>
-            <p>把手坐标绑定 ui.pos（成员属性表达式），拖动滑杆即时生效——折叠态也会跟着动。</p>
+            <p>把手坐标绑定 ui.exp（成员属性表达式，整个 expandable 对象），拖动滑杆即时生效——折叠态也会跟着动。</p>
           </div>
         </div>
         <div x-define="anchored">
@@ -113,7 +113,16 @@
     </div>
     <script>
       new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
-        ui: { right: false, left: false, top: false, noTrigger: false, live: false, anchored: false, pos: 50 },
+        ui: {
+          right: false,
+          left: false,
+          top: false,
+          noTrigger: false,
+          live: false,
+          anchored: false,
+          pos: 50,
+          exp: { pos: "50%" },
+        },
       });
     </script>
   </body>

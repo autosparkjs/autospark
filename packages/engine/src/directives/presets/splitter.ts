@@ -3,6 +3,7 @@ import { AutoSparkDirectiveBase } from "../base";
 import { isSimpleStatePath } from "../../scope";
 import type { AutoSpark } from "../../engine";
 import type { AutoDirectiveInfo } from "../types";
+import { ExpandableDirective } from "./expandable";
 
 /**
  * x-splitter：分割器（ADR-0067）——两面板（Pane）分割布局 + 分隔条（Divider）拖拽调节。
@@ -41,30 +42,22 @@ import type { AutoDirectiveInfo } from "../types";
  * **分隔条**（ADR-0067 决策五）：真实元素 `role="separator"` + `tabindex=0`（键盘方向键
  * ±1px / Shift ±10px = 分隔条几何位移方向）；视觉 2px（`--autospark-splitter-divider-size`）、
  * 命中区 10px（`--autospark-splitter-hit-size`）；双 auto 静态形态（无 sized 面板）下分隔条
- * 仅视觉分界（data-static，不可聚焦不可拖、collapsible 不生效）。
+ * 仅视觉分界（data-static，不可聚焦不可拖、data-expandable 不适用）。
  *
- * **折叠**（ADR-0067 决策七 + 修订）：`collapsible` 容器级选项，默认 `false`。
- * **折叠 ≡ 纯派生态**（无独立 collapsed 真相源，drawer「折叠 ≡ visible 归假」同构）：
- * 折叠目标 = `data-minimize-size` 声明（面板保留最小化可见形态）或缺省 **0**（隐藏）——
- * 折叠态判定 = 当前尺寸等于折叠目标（声明值全等），初始声明即折叠目标则初始折叠
- * （不派发事件）。`collapsible` 三态坐标化（对齐 drawer trigger）：`true` ≡ `'50%'` 居中 /
- * `number` px / `string` CSS 长度——把手沿分隔条长轴一维定位，正距主端、负距对端，
- * **纯 CSS 钳制**（样式表 `max()/min()`，越界静默钳到 `[half, rail − half]`——把手是唯一
- * 重开触发点永可达），非法值 warn 回退居中。把手点击：折叠前记忆 lastSize（实例状态，
- * engine destroy 随 instance 回收）、展开恢复；折叠写目标值 **绕过 min 钳制**（折叠目标
- * 是特殊语义值）。箭头 = 内置全局图标 `arrow`（`<use href="#as-arrow">`，用户同名覆盖
- * 自动跟随），指向下一步动作的分隔条位移方向、随折叠态翻转（`data-collapsed` 为
- * **存在性属性**——恒 setAttribute(String) 会让 "false" 命中 CSS 选择器，箭头恒折叠向）。
- * 把手是分隔条子元素，天然随分隔条滑移（drawer 的实例外重定位复杂度被 DOM 嵌套消解）；
- * 指针流拦截把手 pointerdown（分隔条的 preventDefault 会抑制合成 click，见 _buildTrigger）。
+ * **折叠 = 组合 x-expandable**（ADR-0070，决策七修订）：定容面板声明 `data-expandable`
+ * 启用（空属性全默认 / JSON 透传 options；自适应面板 warn + 忽略）——面板上实例化
+ * x-expandable（`ExpandableDirective.compose`），把手/动画/事件全走其原生管线。
+ * **折叠布尔为真相**（组合实例持有；本指令的派生检测收敛为「拖拽/外部写值跨折叠目标 →
+ * 翻转布尔」单点）；折叠目标 = options 的 `minSize`（`data-minimize-size` 与 `collapsible`
+ * 选项已删除）；`direction` 按 sized 位次推导（首位 `left`/`top`、次位 `right`/`bottom`），
+ * 展开尺寸由 lastSize 恢复链经 `composeSetMaxSize` 供给（options 中 `direction`/`maxSize`
+ * 声明无效 warn）；面板把手默认 `showTrigger:'always'`（hover 感应边条与分隔条拖拽命中区
+ * 冲突）。初始声明尺寸等于折叠目标即初始折叠（无动画不派发）。旧分隔条把手与
+ * `splitter:collapse/expand` 事件已删除——事件走 `expandable:collapse/expand`（面板派发
+ * 冒泡，宿主监听靠冒泡）。
  *
- * **动画**（ADR-0067 决策八）：transition 绑定「折叠态翻转」而非尺寸变更——跨 0 边界的
- * 变更（把手/键盘/外部写 0 或恢复）都动画，非跨 0 变更（含拖拽全程）瞬时；拖拽会话期
- * 强制禁用。时长 `--autospark-splitter-duration`（默认 .25s）。
- *
- * **事件**（ADR-0067 决策九）：`splitter:resize`（拖拽 end 时，detail `{ size }`）/
- * `splitter:collapse` / `splitter:expand`（折叠态翻转时，detail `{ size: 0 | 恢复值 }`）；
- * 宿主派发、DOM 冒泡，`@splitter:resize="..."` 监听；初始折叠态不派发（事件只反馈变更）。
+ * **事件**（ADR-0067 决策九）：`splitter:resize`（拖拽 end 时，detail `{ size }`）——
+ * 宿主派发、DOM 冒泡，`@splitter:resize="..."` 监听。
  *
  * **嵌套零新机制**：子 splitter 声明在某面板内部，随子树编译自然生效。
  * 代价（决策一）：`engine.patch` 拒绝落入 splitter 子树（ownsChildren 动态区域防护）。
@@ -165,9 +158,8 @@ interface PaneDecl {
     minStatic: LengthDecl | null;
     maxExpr: string | null;
     maxStatic: LengthDecl | null;
-    /** data-minimize-size：折叠目标尺寸（缺省折叠 = 0 隐藏） */
-    minimizeExpr: string | null;
-    minimizeStatic: LengthDecl | null;
+    /** data-expandable 声明的透传 options（null = 未声明；{} = 空属性全默认） */
+    expandable: Record<string, any> | null;
 }
 
 /** 拖拽/键盘会话快照（会话内约束与换算基准恒定——对齐 ResizeSession constraints 模式） */
@@ -185,8 +177,6 @@ interface SplitSession {
     maxPx: number | null;
     /** 写回单位（保持声明单位） */
     unit: string;
-    /** 会话前折叠态（end 时判定翻转派发事件） */
-    wasCollapsed: boolean;
     /** 键盘会话标志（keyup/blur 收尾） */
     keyboard: boolean;
 }
@@ -199,7 +189,6 @@ const SPLITTER_CSS = `
 /* 面板：自适应恒 flex:1 吸收剩余空间（可压至 0）；定容 flex-basis 交还 inline 主轴尺寸 */
 .autospark-splitter>[data-autospark-splitter-pane]{flex:1 1 0px;min-width:0;min-height:0;}
 .autospark-splitter>[data-autospark-splitter-pane][data-autospark-splitter-sized]{flex:0 0 auto;}
-.autospark-splitter>[data-autospark-splitter-pane][data-collapsed]{overflow:hidden;}
 .autospark-splitter-divider{position:relative;flex:0 0 auto;touch-action:none;user-select:none;-webkit-user-select:none;}
 .autospark-splitter-divider::after{content:"";position:absolute;background:var(--autospark-splitter-color,transparent);transition:background .15s;}
 .autospark-splitter[data-direction="horizontal"]>.autospark-splitter-divider{width:var(--autospark-splitter-hit-size,4px);cursor:col-resize;}
@@ -209,32 +198,12 @@ const SPLITTER_CSS = `
 .autospark-splitter-divider:hover::after,.autospark-splitter-divider:focus-visible::after{background:var(--autospark-splitter-color-hover,#94a3b8);}
 .autospark-splitter-divider:focus-visible{outline:none;}
 .autospark-splitter-divider[data-static]{cursor:default;}
-.autospark-splitter-trigger{position:absolute;z-index:5;width:var(--autospark-splitter-trigger-size,20px);height:var(--autospark-splitter-trigger-size,20px);border-radius:50%;border:1px solid var(--autospark-splitter-trigger-border,#cbd5e1);background:var(--autospark-splitter-trigger-bg,#fff);box-shadow:0 1px 3px rgba(0,0,0,.1);cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;transition:border-color .15s,background .15s;color:var(--autospark-splitter-trigger-fg,#64748b);}
-/* 箭头 = 全局图标 arrow（内置 ›，基朝向指右，currentColor 继承把手 color）；
-   旋转矩阵挂 svg（纯旋转，flex 居中不受干扰）；颜色走 --autospark-splitter-trigger-fg */
-.autospark-splitter-trigger>svg{width:var(--autospark-splitter-trigger-icon-size,12px);height:var(--autospark-splitter-trigger-icon-size,12px);stroke-width:1.5;transition:transform .15s;}
-.autospark-splitter-trigger:hover{border-color:var(--autospark-splitter-trigger-border-hover,#94a3b8);background:var(--autospark-splitter-trigger-bg-hover,#f8fafc);}
-/* 把手滑轨定位（ADR-0067 决策七）：inline 只写坐标变量 --as-rail 与 data-rail-negative 属性，
-   定位与钳制全在样式表。坐标语义 = 把手**圆心**距主端的距离：钳制圆心到 [half, rail − half]
-   （把手是唯一重开触发点永可达）后顶边 = 圆心 − half——漏掉 − half 会让圆心恒偏 half
-   （默认居中时肉眼可见偏下/偏右），且 coord 钳到 rail − half 时圆心探出轨道末端 */
-.autospark-splitter-trigger{--as-rail-half:calc(var(--autospark-splitter-trigger-size,20px)/2);}
-.autospark-splitter[data-direction="horizontal"]>.autospark-splitter-divider>.autospark-splitter-trigger{left:calc(50% - var(--autospark-splitter-trigger-size,20px)/2);top:calc(max(var(--as-rail-half),min(calc(100% - var(--as-rail-half)),var(--as-rail,50%))) - var(--as-rail-half));}
-.autospark-splitter[data-direction="horizontal"]>.autospark-splitter-divider>.autospark-splitter-trigger[data-rail-negative]{top:auto;bottom:calc(max(var(--as-rail-half),min(calc(100% - var(--as-rail-half)),var(--as-rail,50%))) - var(--as-rail-half));}
-.autospark-splitter[data-direction="vertical"]>.autospark-splitter-divider>.autospark-splitter-trigger{top:calc(50% - var(--autospark-splitter-trigger-size,20px)/2);left:calc(max(var(--as-rail-half),min(calc(100% - var(--as-rail-half)),var(--as-rail,50%))) - var(--as-rail-half));}
-.autospark-splitter[data-direction="vertical"]>.autospark-splitter-divider>.autospark-splitter-trigger[data-rail-negative]{left:auto;right:calc(max(var(--as-rail-half),min(calc(100% - var(--as-rail-half)),var(--as-rail,50%))) - var(--as-rail-half));}
-/* 箭头 = 下一步动作的分隔条位移方向（决策九）：基箭头指右，按 data-side/data-collapsed/data-direction 旋转（作用于 svg） */
-.autospark-splitter-trigger[data-side="first"]>svg{transform:rotate(180deg);}
-.autospark-splitter-trigger[data-side="first"][data-collapsed]>svg{transform:rotate(0deg);}
-.autospark-splitter-trigger[data-side="last"]>svg{transform:rotate(0deg);}
-.autospark-splitter-trigger[data-side="last"][data-collapsed]>svg{transform:rotate(180deg);}
-.autospark-splitter[data-direction="vertical"]>.autospark-splitter-divider>.autospark-splitter-trigger[data-side="first"]>svg{transform:rotate(-90deg);}
-.autospark-splitter[data-direction="vertical"]>.autospark-splitter-divider>.autospark-splitter-trigger[data-side="first"][data-collapsed]>svg{transform:rotate(90deg);}
-.autospark-splitter[data-direction="vertical"]>.autospark-splitter-divider>.autospark-splitter-trigger[data-side="last"]>svg{transform:rotate(90deg);}
-.autospark-splitter[data-direction="vertical"]>.autospark-splitter-divider>.autospark-splitter-trigger[data-side="last"][data-collapsed]>svg{transform:rotate(-90deg);}
-/* 折叠态翻转动画（决策八）：sized 面板主轴尺寸过渡 + slide 隐藏的 margin 位移；
-   拖拽/键盘会话（data-dragging）强制禁用 */
-.autospark-splitter>[data-autospark-splitter-pane][data-animating]{transition:width var(--autospark-splitter-duration,.25s) ease,height var(--autospark-splitter-duration,.25s) ease,margin var(--autospark-splitter-duration,.25s) ease;}
+/* 组合把手（ADR-0070）：x-expandable 的感应边条在本语境被抑制——24px 边条会整体遮挡
+   分隔条拖拽命中区；感应面由分隔条本身充当（divider:hover 经桥接类显形把手，见
+   _buildDivider），把手本体 hover/聚焦照常显形（共享契约） */
+.autospark-splitter>.autospark-expandable>.autospark-expandable-edge{display:none!important;}
+/* 折叠动画的 transition 规则由组合的 x-expandable 提供（.autospark-expandable[data-animating]，
+   把手视觉在共享把手模块）——本指令只保留拖拽/键盘会话的强制禁用（优先级压过动画通道） */
 .autospark-splitter[data-dragging]>[data-autospark-splitter-pane]{transition:none!important;}
 `;
 
@@ -282,8 +251,10 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
     private _paneEls: HTMLElement[] = [];
     /** 分隔条元素 */
     private _divider: HTMLElement | null = null;
-    /** 折叠把手（collapsible 时创建） */
-    private _trigger: HTMLElement | null = null;
+    /** 折叠组合实例（sized 面板声明 data-expandable 时创建，ADR-0070） */
+    private _composeInst: ExpandableDirective | null = null;
+    /** 折叠目标（组合 options 的 minSize 解析；null = 0 隐藏——slide 通道） */
+    private _paneMinDecl: LengthDecl | null = null;
     /** sized 面板当前声明值（唯一内部真相；null = 无 sized） */
     private _curSize: LengthDecl | null = null;
     /** 折叠前尺寸记忆（实例状态；engine destroy 随实例回收） */
@@ -294,24 +265,18 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
     private _warnedReadonly = false;
     /** UI-only 折叠 warn 已发（一次） */
     private _warnedUiOnly = false;
-    /** 首值哨兵（初始应用不派发折叠/展开事件） */
-    private _initialized = false;
-    /** 当前折叠态（size==0 派生缓存） */
+    /** 当前折叠态（组合布尔的本地镜像——拖拽/外部写值跨目标检测与恢复链判据） */
     private _collapsed = false;
     /** 进行中的拖拽/键盘会话（null = 空闲） */
     private _session: SplitSession | null = null;
     /** 键盘会话所在元素（keyup/blur 收尾判定） */
     private _kbTarget: HTMLElement | null = null;
-    /** 动画摘除兜底计时器 */
-    private _animTimer: ReturnType<typeof setTimeout> | null = null;
     /** 微任务建连前被销毁（快速 x-if 切换防护） */
     private _destroyed = false;
 
     // ── 生命周期 ──────────────────────────────────────────────────────
 
     override created(): void {
-        // 选项成员表达式管道（collapsible 坐标可表达式化；热应用见 _onOptionExprChange）
-        this._watchOptionExprs();
         this._collectPanes();
         this._setupDirection();
         if (this._panes.length === 2) this._setupSizeBinding();
@@ -327,27 +292,21 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
         this._compilePane(0);
         this._buildDivider();
         this._compilePane(1);
-        // 布局身份与初始尺寸（host 属性/类 + pane inline）
+        // 布局身份与初始尺寸（host 属性/类 + pane inline；allowTarget——初始折叠场景
+        // 面板宽度先行落位，组合实例的初始滑出才有 extent 可测）
         this._applyDirection(this._dir, true);
         if (this._sizedIndex != null && this._curSize) {
-            this._applySize(this._curSize, false);
+            this._applySize(this._curSize, true);
         }
-        this._initialized = true;
+        this._setupCompose();
     }
 
     override destroy(): void {
         this._destroyed = true;
         this._session = null;
         this._kbTarget = null;
-        if (this._animTimer != null) {
-            clearTimeout(this._animTimer);
-            this._animTimer = null;
-        }
-    }
-
-    /** 选项成员表达式热应用：collapsible 坐标变化即重定位把手（drawer trigger 同款） */
-    protected override _onOptionExprChange(key: string, _value: any): void {
-        if (key === "collapsible") this._positionTrigger();
+        this._composeInst?.destroy();
+        this._composeInst = null;
     }
 
     // ── 面板收集（created 期，模板只读）────────────────────────────────
@@ -391,8 +350,7 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
             minStatic: null,
             maxExpr: null,
             maxStatic: null,
-            minimizeExpr: null,
-            minimizeStatic: null,
+            expandable: null,
         };
         const read = (name: string): { expr: string | null; staticValue: LengthDecl | null } => {
             const bound =
@@ -410,21 +368,52 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
         const size = read("data-size");
         const min = read("data-min-size");
         const max = read("data-max-size");
-        const minimize = read("data-minimize-size");
         decl.sizeExpr = size.expr;
         decl.sizeStatic = size.staticValue;
         decl.minExpr = min.expr;
         decl.minStatic = min.staticValue;
         decl.maxExpr = max.expr;
         decl.maxStatic = max.staticValue;
-        decl.minimizeExpr = minimize.expr;
-        decl.minimizeStatic = minimize.staticValue;
+        // data-expandable（折叠组合声明，ADR-0070）：空属性 = 全默认；JSON 对象 = 透传
+        // options。绑定形态不支持（warn + 忽略）；解析失败 warn + 按空对象（仍启用）
+        if (
+            decl.template.getAttribute(":data-expandable") ||
+            decl.template.getAttribute("x-bind:data-expandable")
+        ) {
+            decl.template.removeAttribute(":data-expandable");
+            decl.template.removeAttribute("x-bind:data-expandable");
+            this.warn(
+                `x-splitter: :data-expandable 绑定形态不支持（options 为静态声明），已按未声明处理`,
+            );
+        } else {
+            const rawExp = decl.template.getAttribute("data-expandable");
+            if (rawExp != null) {
+                decl.template.removeAttribute("data-expandable");
+                decl.expandable = {};
+                const s = rawExp.trim();
+                if (s !== "") {
+                    try {
+                        const v = JSON.parse(s);
+                        if (v && typeof v === "object" && !Array.isArray(v)) {
+                            decl.expandable = v;
+                        } else {
+                            this.warn(
+                                `x-splitter: data-expandable 值 "${rawExp}" 须为 options JSON 对象，已按默认参数处理`,
+                            );
+                        }
+                    } catch {
+                        this.warn(
+                            `x-splitter: data-expandable 值 "${rawExp}" 不是合法 JSON，已按默认参数处理`,
+                        );
+                    }
+                }
+            }
+        }
         // 非法静态值 warn（有绑定表达式者豁免——表达式非法值运行时按无约束处理）
         for (const [label, parsed, expr] of [
             ["data-size", size.staticValue, size.expr],
             ["data-min-size", min.staticValue, min.expr],
             ["data-max-size", max.staticValue, max.expr],
-            ["data-minimize-size", minimize.staticValue, minimize.expr],
         ] as const) {
             const raw = decl.template.getAttribute(label);
             if (raw != null && parsed == null && expr == null) {
@@ -491,12 +480,13 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
         }
         // sized 尺寸换轴重写（同值 width ↔ height；size 声明轴中立）——先清旧轴 inline，
         // 避免旧轴值钉死新方向的交叉轴布局
-        if (!initial && changed && this._sizedIndex != null && this._curSize) {
+        if (!initial && changed && this._sizedIndex != null) {
             const pane = this._paneEls[this._sizedIndex];
             if (pane) pane.style.removeProperty(dir === "horizontal" ? "height" : "width");
-            this._applySize(this._curSize, false);
+            // 组合实例换轴：清滑出痕迹（负 margin/transform）后按当前态重应用终态
+            this._composeInst?.composeSetDirection(this._expandableDir());
+            if (!this._collapsed && this._curSize) this._applySize(this._curSize);
         }
-        this._positionTrigger();
     }
 
     // ── data-size 家族绑定 ────────────────────────────────────────────
@@ -518,11 +508,10 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
                 p.minStatic != null ||
                 p.maxExpr != null ||
                 p.maxStatic != null ||
-                p.minimizeExpr != null ||
-                p.minimizeStatic != null
+                p.expandable != null
             ) {
                 this.warn(
-                    `x-splitter: data-min-size/data-max-size/data-minimize-size 仅定容面板（声明 data-size 者）认读，自适应面板上的声明已忽略`,
+                    `x-splitter: data-min-size/data-max-size/data-expandable 仅定容面板（声明 data-size 者）认读，自适应面板上的声明已忽略`,
                 );
             }
         }
@@ -539,8 +528,7 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
                 p.minStatic = null;
                 p.maxExpr = null;
                 p.maxStatic = null;
-                p.minimizeExpr = null;
-                p.minimizeStatic = null;
+                p.expandable = null;
             }
         }
 
@@ -572,13 +560,6 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
             });
             this._maxBound = this._parseStateLength(initial);
         }
-        // minimize 订阅（折叠目标）
-        if (sized.minimizeExpr != null && isSimpleStatePath(sized.minimizeExpr)) {
-            const initial = this.binding.watch(sized.minimizeExpr, ({ value }) => {
-                this._minimizeBound = this._parseStateLength(value);
-            });
-            this._minimizeBound = this._parseStateLength(initial);
-        }
     }
 
     /** 状态值 → 长度声明（number=px；string 解析；非法 null） */
@@ -587,10 +568,9 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
         return parseLength(v);
     }
 
-    /** min/max/折叠目标绑定现值缓存（订阅回调维护；null = 未绑定或值非法） */
+    /** min/max 绑定现值缓存（订阅回调维护；null = 未绑定或值非法） */
     private _minBound: LengthDecl | null = null;
     private _maxBound: LengthDecl | null = null;
-    private _minimizeBound: LengthDecl | null = null;
 
     /** 现读 min/max 生效值（绑定现值优先、静态声明兜底；null = 无界） */
     private _readBound(kind: "min" | "max"): LengthDecl | null {
@@ -602,14 +582,11 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
     }
 
     /**
-     * 折叠目标（data-minimize-size 声明或绑定现值）：null = 无声明 → 折叠 = 0（隐藏）；
-     * 有声明 → 折叠 = 该尺寸（面板保留最小化可见形态）。
+     * 折叠目标（组合 options 的 minSize，ADR-0070）：null = 无声明 → 折叠 = 0（隐藏，
+     * slide 负 margin 通道）；有声明 → 折叠 = 该尺寸（收缩迷你形态）。
      */
     private _collapseTarget(): LengthDecl | null {
-        const s = this._panes[this._sizedIndex!];
-        if (!s) return null;
-        if (this._minimizeBound != null) return this._minimizeBound;
-        return s.minimizeStatic;
+        return this._paneMinDecl;
     }
 
     // ── 分隔条与把手 ──────────────────────────────────────────────────
@@ -632,188 +609,84 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
         divider.addEventListener("keydown", this._onKeyDown);
         divider.addEventListener("keyup", this._endKeyboard);
         divider.addEventListener("blur", this._endKeyboard);
-        this._buildTrigger(divider);
-    }
-
-    /**
-     * 折叠把手（collapsible 三态坐标化，ADR-0067 决策七）：分隔条子元素（天然随分隔条
-     * 滑移）；沿长轴一维定位 inline（正距主端 top/left、负距对端 bottom/right），
-     * 纯 CSS min()/max() 钳制；侧向居中走样式表。创建以 created 期为断（表达式动态
-     * false → 真值不补建，drawer 同款）。
-     *
-     * **指针流拦截**：把手 pointerdown `stopPropagation`——分隔条的 pointerdown 监听
-     * 含 `preventDefault()`（拖拽会话前置），而 pointerdown 的 preventDefault 会抑制
-     * 后续合成的兼容性鼠标事件（mousedown/mouseup/**click**），把手 click 永不触发
-     * （dispatchEvent 直接派发 click 的测试绕过合成链，暴露不出此问题）。
-     * 键盘 Enter/Space 兑现 role=button 语义。
-     */
-    private _buildTrigger(divider: HTMLElement): void {
-        const raw = this.getOption("collapsible");
-        if (raw === false || raw == null) return;
-        const trigger = document.createElement("div");
-        trigger.className = "autospark-splitter-trigger";
-        trigger.setAttribute("role", "button");
-        trigger.setAttribute("aria-label", "折叠/展开面板");
-        trigger.tabIndex = 0;
-        // 箭头 = 全局图标 arrow（内置条目，registry.add 时已注入 sprite `as-arrow`；
-        // use 文档全局解析——用户同名覆盖 arrow 自动跟随）
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("aria-hidden", "true");
-        const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
-        use.setAttribute("href", "#as-arrow");
-        svg.appendChild(use);
-        trigger.appendChild(svg);
-        trigger.addEventListener("pointerdown", (ev) => ev.stopPropagation());
-        trigger.addEventListener("click", () => this._toggleFold());
-        trigger.addEventListener("keydown", (ev) => {
-            if (ev.key !== "Enter" && ev.key !== " ") return;
-            ev.preventDefault();
-            this._toggleFold();
+        // hover 桥接（showTrigger:'hover' 默认，ADR-0070 修订）：分隔条本身充当全长感应线
+        // ——enter/leave 经组合接缝置位把手 data-edge-hover（统一桥接契约）；x-expandable
+        // 感应边条在 splitter 语境被样式表抑制，理由见 _setupCompose。always 模式无副作用（恒显）
+        divider.addEventListener("mouseenter", () => {
+            this._composeInst?.composeSetEdgeHover(true);
         });
-        this._trigger = trigger;
-        divider.appendChild(trigger);
-        this._positionTrigger();
+        divider.addEventListener("mouseleave", () => {
+            this._composeInst?.composeSetEdgeHover(false);
+        });
     }
 
-    /** 把手定位：inline 只写坐标变量 --as-rail + data-rail-negative 属性（定位/钳制归样式表） */
-    private _positionTrigger(): void {
-        const t = this._trigger;
-        if (!t) return;
-        const side = this._sizedIndex === 1 ? "last" : "first";
-        t.setAttribute("data-side", side);
-        // 存在性语义：恒 setAttribute(String) 会让 "false" 也命中 CSS [data-collapsed]——箭头恒显示折叠方向
-        t.toggleAttribute("data-collapsed", this._collapsed);
-        const rail = this._parseRailCoord();
-        if (rail == null) return; // warn 已发，回退居中
-        t.style.setProperty("--as-rail", rail.value);
-        t.toggleAttribute("data-rail-negative", rail.negative);
+    // ── 折叠组合（ADR-0070）───────────────────────────────────────────
+
+    /** 组合实例的收起方向：按 sized 位次推导（首位向主端收、次位向对端收） */
+    private _expandableDir(): "left" | "right" | "top" | "bottom" {
+        const first = this._sizedIndex === 0;
+        return this._dir === "horizontal" ? (first ? "left" : "right") : first ? "top" : "bottom";
     }
 
     /**
-     * collapsible 坐标解析（边缘锚定模型，对齐 drawer trigger）：`true` ≡ `'50%'`；
-     * number = px（0 合法）；string = CSS 长度（负号 = 距对端）。非法 warn 回退居中（null）。
+     * 组合实例装配（compile 末尾）：sized 面板声明 `data-expandable` → 面板上实例化
+     * x-expandable（把手/动画/事件全管线）。**折叠布尔为真相**：driver 由本指令持有——
+     * get 供初值（初始声明 == 折叠目标即初始折叠），set 承接把手翻转（记忆 lastSize/
+     * 状态写回后再经 composeSet 驱动全管线）。初始应用微任务与模板形态同一时机语义
+     * （无动画、不派发事件）。options 接管语义：direction 按位次推导、maxSize 由
+     * lastSize 恢复链供给（声明无效 warn）；面板把手默认 `showTrigger:'always'`。
      */
-    private _parseRailCoord(): { value: string; negative: boolean } | null {
-        const raw = this.getOption("collapsible");
-        if (raw === true || raw == null || raw === "") return { value: "50%", negative: false };
-        let v: string;
-        let negative = false;
-        if (typeof raw === "number") {
-            if (!Number.isFinite(raw)) v = "50%";
-            else {
-                negative = raw < 0;
-                v = `${Math.abs(raw)}px`;
-            }
-        } else if (typeof raw === "string") {
-            const s = raw.trim();
-            const m = /^(-?[\d.]+)\s*(%|px|rem|em|vw|vh)?$/i.exec(s);
-            if (!m) {
-                this.warn(
-                    `x-splitter: collapsible 值 "${raw}" 无法解析为坐标（true/数字 px/CSS 长度串），已按居中处理`,
-                );
-                return { value: "50%", negative: false };
-            }
-            negative = m[1]!.startsWith("-");
-            v = `${m[1]!.replace("-", "")}${m[2]?.toLowerCase() ?? "px"}`;
-        } else {
-            v = "50%";
-        }
-        return { value: v, negative };
-    }
-
-    // ── 尺寸应用与写回 ────────────────────────────────────────────────
-
-    /** 应用尺寸：inline 写入 + 折叠态派生 + 跨 0 动画 + 翻转事件 */
-    private _applySize(d: LengthDecl, animate: boolean): void {
-        const idx = this._sizedIndex;
-        const pane = idx != null ? this._paneEls[idx] : undefined;
+    private _setupCompose(): void {
+        if (this._sizedIndex == null) return;
+        const decl = this._panes[this._sizedIndex]!;
+        if (decl.expandable == null) return;
+        const pane = this._paneEls[this._sizedIndex];
         if (!pane) return;
-        const from0 = this._collapsed;
-        const to0 = this._isCollapseTarget(d);
-        // 折叠目标为 0（显式声明 "0" 或未声明 minimize）→ **slide 隐藏**：宽度保持、负 margin
-        // 拉回占位——面板整体滑出容器（内容不挤压）；目标 >0 → 收缩到最小化尺寸。
-        // 初始应用（未 initialized）无几何可滑，恒走收缩通道（静态 0 宽）。
-        const target = this._collapseTarget();
-        const slideHide = to0 && this._initialized && (!target || target.value === 0);
-        const prop = this._dir === "horizontal" ? "width" : "height";
-        const marginProp = this._marginProp;
-        this._curSize = d;
-        if (slideHide) {
-            // 滑出距离 = 面板当前主轴宽度（inline 精确值优先，布局值兜底）；宽度本身不动
-            const inline = parseFloat(pane.style[prop]);
-            const dist =
-                Number.isFinite(inline) && inline > 0
-                    ? inline
-                    : pane.getBoundingClientRect()[
-                          this._dir === "horizontal" ? "width" : "height"
-                      ] || 0;
-            pane.style[marginProp] = `-${dist}px`;
-        } else {
-            pane.style.removeProperty(marginProp);
-            pane.style[prop] = formatCss(d);
-        }
-        pane.toggleAttribute("data-collapsed", to0);
-        this._collapsed = to0;
-        // 存在性语义：恒 setAttribute(String) 会让 "false" 也命中 CSS [data-collapsed]——箭头恒显示折叠方向
-        this._trigger?.toggleAttribute("data-collapsed", to0);
-        // 跨折叠态翻转动画（决策八）：非跨态变更瞬时；拖拽会话期 animate=false 恒成立
-        if (animate && from0 !== to0 && !this._session) this._playAnimation(pane);
-        // 翻转事件（初始不派发；会话中的跨态由 _endSession 统一派发，防双发）
-        if (this._initialized && from0 !== to0 && !this._session) {
-            this.el.dispatchEvent(
-                new CustomEvent(to0 ? "splitter:collapse" : "splitter:expand", {
-                    detail: { size: formatState(d) },
-                    bubbles: true,
-                }),
-            );
-        }
-    }
-
-    /** 挂动画类（data-animating → CSS transition），transitionend/兜底超时摘除 */
-    private _playAnimation(pane: HTMLElement): void {
-        if (this._animTimer != null) clearTimeout(this._animTimer);
-        pane.setAttribute("data-animating", "");
-        const done = () => {
-            pane.removeAttribute("data-animating");
-            if (this._animTimer != null) {
-                clearTimeout(this._animTimer);
-                this._animTimer = null;
-            }
-        };
-        pane.addEventListener("transitionend", done, { once: true });
-        // transitionend 不触发的环境（无布局/happy-dom/被禁用）兜底摘除
-        this._animTimer = setTimeout(done, 600);
-    }
-
-    /** 外部状态 → DOM（反向通道）：会话期抑制 + 等值短路（防递归三防线之二） */
-    private _applyFromState(value: any): void {
-        if (this._destroyed || value == null || this._sizedIndex == null) return;
-        if (this._session) return; // 会话抑制：拖拽优先
-        const d = this._parseStateLength(value);
-        if (d == null) return;
-        const cur = this._curSize;
-        if (cur && cur.value === d.value && cur.unit === d.unit) return; // 等值短路
-        this._applySize(d, true);
-    }
-
-    /** 统一写入出口（把手/键盘折叠路径）：绑定路径写状态；静态/降级直写 DOM */
-    private _writeSize(d: LengthDecl): void {
-        if (this._sizePath) {
-            try {
-                setVal(
-                    this.engine.store.state,
-                    this._sizePath.split(this.engine.store.delimiter),
-                    formatState(d),
+        const opts: Record<string, any> = { ...decl.expandable };
+        for (const k of ["direction", "maxSize", "resize"] as const) {
+            if (k in opts) {
+                this.warn(
+                    `x-splitter: data-expandable 的 "${k}" 由分割器接管（direction 按 sized 位次推导、展开尺寸由 lastSize 恢复链决定、面板调节走分隔条拖拽），声明被忽略`,
                 );
-                return; // watcher → _applyFromState 完成应用（微任务）
-            } catch (e: any) {
-                this.warn(`x-splitter: 尺寸写回失败（"${this._sizePath}"）: ${e?.message ?? e}`);
+                delete opts[k];
             }
         }
-        // 静态声明 / 表达式降级：UI-only 直写（降级时 warn 一次）
+        opts.direction = this._expandableDir(); // 推导方向注入（初始装配；换轴走 composeSetDirection）
+        // 显隐默认 'hover'（用户裁决）：x-expandable 的感应边条在 splitter 语境被样式表
+        // 抑制（会整体遮挡分隔条拖拽命中区）——感应面由分隔条本身充当（hover 桥接见
+        // _buildDivider）；折叠态把手恒显（滑出折叠 dock 规则 / 收缩态折叠目标触达）
+        if (opts.showTrigger === undefined) opts.showTrigger = "hover";
+        // 把手中分分隔条：注入分隔条宽度一半的偏移（offset 固定轴语义 + = 右/下）——
+        // 与 sized 位次相关：首位面板分隔条在其跨轴正方向（+half）、次位在负方向（−half）；
+        // 用户显式声明 offset 则尊重不覆盖
+        if (opts.offset === undefined) {
+            const hitHalf = "var(--autospark-splitter-hit-size, 4px) / 2";
+            opts.offset = this._sizedIndex === 0 ? `calc(${hitHalf})` : `calc(-1 * ${hitHalf})`;
+        }
+        this._paneMinDecl = opts.minSize != null ? parseLength(opts.minSize) : null;
+        this._collapsed = this._curSize != null && this._isCollapseTarget(this._curSize);
+        this._composeInst = ExpandableDirective.compose(
+            this.engine,
+            this.binding,
+            pane,
+            opts,
+            { get: () => !this._collapsed, set: (v) => this._onDriverSet(v) },
+        );
+        this._composeInst.created();
+        this._composeInst.compile(undefined as any, pane);
+    }
+
+    /**
+     * 组合 driver 落点（把手点击/键盘翻转，ADR-0070 决策三）：折叠前记忆 lastSize
+     * （实例状态），展开走恢复链（lastSize → 声明值[非折叠值] → 200px 兜底）经
+     * composeSetMaxSize 喂给组合实例；绑定形态同步写回状态（watcher 回流被等值短路吸收）。
+     */
+    private _onDriverSet(expanded: boolean): void {
+        if (this._sizedIndex == null || this._composeInst == null) return;
+        // 表达式形态尺寸（不可写）：UI-only warn 一次
         if (
             !this._sizePath &&
-            this._panes[this._sizedIndex!]?.sizeExpr != null &&
+            this._panes[this._sizedIndex]?.sizeExpr != null &&
             !this._warnedUiOnly
         ) {
             this._warnedUiOnly = true;
@@ -821,7 +694,93 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
                 `x-splitter: :data-size 为表达式形态（不可写），本次折叠/展开仅作用于 UI，状态变更后会被拉回`,
             );
         }
-        this._applySize(d, true);
+        if (expanded) {
+            const restore = this._restoreDecl();
+            this._curSize = restore;
+            this._collapsed = false;
+            this._composeInst.composeSetMaxSize(restore);
+            this._composeInst.composeSet(true);
+        } else {
+            if (this._curSize && !this._isCollapseTarget(this._curSize)) {
+                this._lastSize = this._curSize;
+            }
+            this._curSize = this._collapseTarget() ?? {
+                value: 0,
+                unit: this._curSize?.unit ?? "px",
+            };
+            this._collapsed = true;
+            this._composeInst.composeSet(false);
+        }
+        if (this._sizePath) {
+            try {
+                setVal(
+                    this.engine.store.state,
+                    this._sizePath.split(this.engine.store.delimiter),
+                    formatState(this._curSize),
+                );
+            } catch (e: any) {
+                this.warn(`x-splitter: 尺寸写回失败（"${this._sizePath}"）: ${e?.message ?? e}`);
+            }
+        }
+    }
+
+    /** 展开恢复链：lastSize → 声明值（仅非折叠态值）→ 200px 兜底 */
+    private _restoreDecl(): LengthDecl {
+        const declared = this._panes[this._sizedIndex!]!.sizeStatic;
+        const target = this._collapseTarget();
+        const declaredRestorable =
+            !!declared &&
+            declared.value > 0 &&
+            !(target && declared.value === target.value && declared.unit === target.unit);
+        return this._lastSize ?? (declaredRestorable ? declared! : null) ?? { value: 200, unit: "px" };
+    }
+
+    // ── 尺寸应用与写回 ────────────────────────────────────────────────
+
+    /**
+     * 应用尺寸（普通尺寸通道：inline 直写 + 簿记）。**折叠目标值不经此写**——终态由
+     * 组合实例承担（slide 负 margin / 收缩写 minSize）；allowTarget 服务初始应用
+     * （初始折叠场景面板宽度先行落位，组合实例初始滑出才有 extent 可测）。
+     */
+    private _applySize(d: LengthDecl, allowTarget = false): void {
+        const idx = this._sizedIndex;
+        const pane = idx != null ? this._paneEls[idx] : undefined;
+        if (!pane) return;
+        if (!allowTarget && this._isCollapseTarget(d)) return;
+        this._curSize = d;
+        pane.style[this._dir === "horizontal" ? "width" : "height"] = formatCss(d);
+    }
+
+    /** 外部状态 → DOM（反向通道）：会话期抑制 + 等值短路（防递归）+ 跨折叠目标驱动组合实例 */
+    private _applyFromState(value: any): void {
+        if (this._destroyed || value == null || this._sizedIndex == null) return;
+        if (this._session) return; // 会话抑制：拖拽优先
+        const d = this._parseStateLength(value);
+        if (d == null) return;
+        // 跨折叠目标（ADR-0070 派生检测单点）：目标值 → 折叠；非目标值 → 展开 + 应用尺寸
+        if (this._composeInst != null && this._isCollapseTarget(d)) {
+            if (this._collapsed) return; // 已折叠，等值短路
+            if (this._curSize && !this._isCollapseTarget(this._curSize)) {
+                this._lastSize = this._curSize;
+            }
+            this._curSize = this._collapseTarget() ?? { value: 0, unit: d.unit };
+            this._collapsed = true;
+            this._composeInst.composeSet(false);
+            return;
+        }
+        const cur = this._curSize;
+        if (!this._collapsed && cur && cur.value === d.value && cur.unit === d.unit) {
+            return; // 等值短路
+        }
+        if (this._composeInst != null && this._collapsed) {
+            // 折叠态收到非目标尺寸 → 展开（组合实例写 inline，本指令同步簿记）
+            this._composeInst.composeSetMaxSize(d);
+            this._curSize = d;
+            this._collapsed = false;
+            this._composeInst.composeSet(true);
+            return;
+        }
+        this._applySize(d);
     }
 
     // ── 指针拖拽（1-D 会话，对齐 ResizeSession 模式）──────────────────
@@ -898,13 +857,12 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
             minPx: minD ? toPx(minD, ctx) : null,
             maxPx: maxD ? toPx(maxD, ctx) : null,
             unit: this._curSize?.unit ?? "px",
-            wasCollapsed: this._collapsed,
             keyboard,
         };
         host.setAttribute("data-dragging", "");
     }
 
-    /** 会话内调节落点（钳制 → 递进记账 → 应用 → 写回；事件 end 时派发） */
+    /** 会话内调节落点（钳制 → 递进记账 → 跨目标翻转检测 → 应用 → 写回；end 时派发 resize） */
     private _applyPx(rawPx: number): void {
         const s = this._session;
         if (!s || this._sizedIndex == null) return;
@@ -914,7 +872,26 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
         if (px < 0) px = 0;
         s.curPx = px;
         const d = fromPx(px, s.unit, s.ctx);
-        this._applySize(d, false);
+        if (this._composeInst != null) {
+            // 拖拽跨折叠目标（ADR-0070 派生检测单点）：翻转载体布尔，终态由组合实例承接
+            // （composeSet 恒瞬时——data-dragging 强制禁用 transition）
+            const toCollapsed = this._isCollapseTarget(d);
+            if (toCollapsed !== this._collapsed) {
+                this._collapsed = toCollapsed;
+                if (toCollapsed) {
+                    this._curSize = this._collapseTarget() ?? { value: 0, unit: s.unit };
+                    this._composeInst.composeSet(false, false);
+                } else {
+                    this._curSize = d;
+                    this._composeInst.composeSetMaxSize(d);
+                    this._composeInst.composeSet(true, false);
+                }
+            } else if (!toCollapsed) {
+                this._applySize(d);
+            }
+        } else {
+            this._applySize(d);
+        }
         this._writeSizeThrottled(d);
     }
 
@@ -933,7 +910,7 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
         }
     }
 
-    /** 会话结束：摘 data-dragging + splitter:resize 事件（最终值）+ 翻转事件判定 */
+    /** 会话结束：摘 data-dragging + splitter:resize 事件（最终值） */
     private _endSession(): void {
         const s = this._session;
         if (!s) return;
@@ -947,16 +924,6 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
                     bubbles: true,
                 }),
             );
-            // 拖拽跨 0 翻转（会话中动画被抑制）补事件：折叠态由 _applySize 派生，
-            // 此处补派发翻转事件（_initialized 时）
-            if (this._initialized && s.wasCollapsed !== this._collapsed) {
-                this.el.dispatchEvent(
-                    new CustomEvent(this._collapsed ? "splitter:collapse" : "splitter:expand", {
-                        detail: { size: formatState(this._curSize) },
-                        bubbles: true,
-                    }),
-                );
-            }
         }
     }
 
@@ -997,49 +964,9 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
         this._endSession();
     };
 
-    // ── 折叠/展开 ─────────────────────────────────────────────────────
-
-    /**
-     * 把手点击翻转：折叠 ≡ size=0 纯派生（无独立 collapsed 真相源）。折叠前记忆
-     * lastSize（实例状态），展开恢复；记忆缺失（初始即 0）回退 data-size 声明值。
-     * 折叠写 0 绕过 min 钳制（0 是特殊语义值）。
-     */
-    private _toggleFold(): void {
-        if (this._sizedIndex == null) return;
-        if (this._collapsed) {
-            // 恢复链：lastSize → 声明值（仅非折叠态值——0 或 minimize 目标是折叠声明非可恢复尺寸）→ 默认 200px
-            const declared = this._panes[this._sizedIndex]!.sizeStatic;
-            const target = this._collapseTarget();
-            const declaredRestorable =
-                declared &&
-                declared.value > 0 &&
-                !(target && declared.value === target.value && declared.unit === target.unit);
-            const restore = this._lastSize ??
-                (declaredRestorable ? declared : null) ?? { value: 200, unit: "px" };
-            this._writeSize(restore);
-        } else {
-            // 折叠目标：minimize 声明（面板保留最小化形态）或缺省 0（隐藏）——均绕过 min 钳制
-            if (this._curSize && !this._isCollapseTarget(this._curSize)) {
-                this._lastSize = this._curSize;
-            }
-            const target = this._collapseTarget();
-            this._writeSize(target ?? { value: 0, unit: this._curSize?.unit ?? "px" });
-        }
-    }
-
-    /** 声明值是否为折叠目标（判定与记忆共用） */
+    /** 声明值是否为折叠目标（跨目标翻转检测与 lastSize 记忆判据共用） */
     private _isCollapseTarget(d: LengthDecl): boolean {
         const target = this._collapseTarget();
         return target ? d.value === target.value && d.unit === target.unit : d.value === 0;
-    }
-
-    /**
-     * slide 隐藏的位移通道（负 margin 拉回占位，面板内容盒保持原宽整体滑出容器）：
-     * sized 在前 → 左/上缘滑出（margin-left/top），在后 → 右/下缘（margin-right/bottom）。
-     */
-    private get _marginProp(): string {
-        const first = this._sizedIndex === 0;
-        if (this._dir === "horizontal") return first ? "margin-left" : "margin-right";
-        return first ? "margin-top" : "margin-bottom";
     }
 }

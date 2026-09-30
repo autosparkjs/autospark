@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-expandable · 超长内容折叠（height 轴收缩）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .stage {
+        /* 舞台级裁剪：收缩态溢出的正文由外层裁掉（页面 CSS 负责内容适应） */
+        overflow: hidden;
+        border: 1px solid #dbdbdb;
+        border-radius: 6px;
+        padding: 16px;
+      }
+      /* 文章宿主：折叠 = 高度过渡到 minSize，展开尺寸缺省（maxSize 不设）由内容撑开；
+         宿主自身不可设 overflow——会把骑底边把手的外半圆一并裁掉（滚动同理会把把手滚走） */
+      .article {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 12px 16px;
+      }
+      /* 内层 body 跟随宿主高度并承载宿主的 overflow 需求（本例 hidden 裁溢出正文；
+         迷你形态内部滚动则在此设 auto/scroll）——把手是宿主直接子元素，不受影响 */
+      .article-body {
+        height: 100%;
+        overflow: hidden;
+      }
+      .article-body p {
+        margin: 0 0 8px;
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-app section">
+      <div class="block">
+        <span class="tag is-primary">doc.open = <code x-text="doc.open"></code></span>
+        <button class="button is-small" @click="doc.open = !doc.open">展开 / 折叠</button>
+      </div>
+      <!-- direction:'top' = 向上收起（顶边不动、底边向上缩），把手骑底边线随宿主底边移动；
+           minSize: 96 = 折叠只留标题 + 两行摘要 -->
+      <div class="stage block">
+        <div
+          class="article"
+          x-expandable="doc.open"
+          x-expandable-options="{ direction: 'top', minSize: 96, fadeSize: 48, resize: true }"
+        >
+          <div class="article-body">
+            <h3 class="title is-5" style="margin-bottom: 8px">v3.0 发布说明（节选）</h3>
+            <p>
+              本次发布围绕「渲染性能」与「开发体验」两条主线展开。渲染层引入了全新的增量补丁调度器，状态变更不再触发子树重建，而是按依赖路径精准定位受影响节点——在千人规模列表的基准测试中，单次更新的耗时从中位数
+              42ms 降至 6ms，长任务碎片化程度显著下降。
+            </p>
+            <p>
+              开发体验方面，指令系统补齐了完整的类型推导链路：模板中的表达式在编译期即可获得参数与返回值类型提示，拼写错误与不存在的状态路径会在构建阶段直接报错，而不是等到运行时静默失效。配套的调试面板支持按指令名过滤、按状态路径反查消费方。
+            </p>
+            <p>
+              兼容性说明：本版本对弃用已久的旧版插值语法做了最终清理，迁移脚本已随工具链发布，绝大多数项目可一键升级。动画时序相关的两个默认值有微调，依赖像素级动效还原的项目请查阅附录中的对照表。
+            </p>
+            <p>
+              后续路线图上，下一代响应式内核已进入灰度阶段，将进一步压缩依赖收集的内存开销；文档站同步上线了交互式教程与可运行示例库，欢迎在社区渠道反馈使用体验。
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="block has-text-grey">
+        <code>direction: 'top'</code> + <code>minSize: 96</code> = height 轴收缩折叠：底边向上收、
+        只留标题与摘要；<code>fadeSize: 48</code> 折叠态在底边显示渐隐遮盖，指示内容被截断；
+        <code>resize: true</code> 启用底缘单边调节——拖动底边直接调阅读高度，拖出高度在折叠
+        再展开后保持。展开尺寸缺省（不设 <code>maxSize</code>）= 移除 inline 高度、由内容
+        撑开（拖高后由 <code>resize</code> 接管展开尺寸）。溢出裁剪交给内层包裹
+        （<code>height:100%</code> + <code>overflow:hidden</code>）——宿主自身不可设
+        <code>overflow:hidden</code>（会裁掉骑边把手的外半圆）。
+      </div>
+    </div>
+    <script>
+      const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+        doc: { open: true },
+      });
+    </script>
+  </body>
+</html>

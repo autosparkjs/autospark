@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-expandable · 内建单边 resize</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .stage {
+        border: 1px solid #dbdbdb;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .panel {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 12px 16px;
+        box-sizing: border-box;
+      }
+      /* 内层包裹跟随宿主尺寸（折叠/拖宽共用） */
+      .inner {
+        height: 100%;
+        overflow: hidden;
+      }
+      .inner p {
+        margin: 0 0 8px;
+        line-height: 1.6;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 内建单边 resize（ADR-0072）：手柄骑活动边线，方向由折叠方向推导
+         （direction left → 右缘调宽）；拖出尺寸接管展开尺寸真相——折叠再展开
+         恢复拖出宽度。与 x-resize 同元素互斥（x-resize 自失效）。 -->
+    <div class="demo-app section">
+      <div x-data="{ log: '' }">
+        <div class="block is-size-7 has-text-grey">
+          示例一：<code>{resize: true, minWidth: 160}</code>——拖右缘单边调宽（下限 160），
+          点把手折叠再展开，宽度保持拖出值；示例二：<code>{enable: false, resize: true}</code>
+          ——退化为纯单边 resize（direction top → 底缘调高，无把手）。
+        </div>
+        <div
+          class="block stage"
+          style="display: flex; height: 170px"
+          @resize:end="log = 'width → ' + $event.detail.width"
+        >
+          <div
+            class="panel"
+            x-expandable="ui.open"
+            x-expandable-options="{resize: true, minWidth: 160}"
+            style="width: 250px"
+          >
+            <div class="inner">
+              <strong>折叠 + 调宽</strong>
+              <p>拖右缘单边调节宽度；点骑边把手折叠（负 margin 滑出）再展开，宽度保持拖出值。</p>
+            </div>
+          </div>
+          <div style="flex: 1; padding: 12px 16px">主区（自适应流入）</div>
+        </div>
+        <div class="block stage" style="height: 200px">
+          <div
+            class="panel"
+            x-expandable="'top'"
+            x-expandable-options="{enable: false, resize: true, minHeight: 120}"
+            style="height: 150px"
+          >
+            <div class="inner">
+              <strong>纯单边 resize（enable: false）</strong>
+              <p>无折叠把手——拖底缘调高（下限 120）。折叠功能关闭，仅保留单边调节。</p>
+            </div>
+          </div>
+        </div>
+        <div class="block is-size-7 has-text-info" x-show="log" x-text="log"></div>
+        <div class="block is-size-7 has-text-grey">
+          与 x-resize 同元素互斥：宿主同时声明两者时 x-resize 自失效（warn 提示迁移）——
+          边线交互由本指令独占（ADR-0072）。
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+        ui: { open: true },
+      });
+    </script>
+  </body>
+</html>

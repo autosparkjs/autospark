@@ -2,39 +2,62 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>x-splitter · 折叠把手（collapsible）</title>
+    <title>x-splitter · 面板折叠（data-expandable）</title>
     <script src="/autospark/autospark.js"></script>
     <link rel="stylesheet" href="/autospark/bulma.min.css" />
     <style>
+      .stage {
+        overflow: hidden;
+      }
       .pane {
         background: #fff;
-        border: 1px solid #dbdbdb;
-        border-radius: 8px;
         padding: 14px 16px;
         box-sizing: border-box;
-        overflow: auto;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
       }
+      /* 滑出折叠的内容隐藏由组合的 x-expandable 经 visibility 规则处理（把手排除） */
     </style>
   </head>
   <body>
-    <!-- collapsible 三态坐标化把手：折叠 ≡ size=0 纯派生，折叠前记忆 lastSize、展开恢复 -->
+    <!-- data-expandable 组合 x-expandable（ADR-0070）：把手骑定容面板活动边线（= 分隔条边界），
+         滑出折叠终态把手迁至分割器宿主边缘呈半圆。折叠布尔为真相：拖拽跨折叠目标同样翻转 -->
     <div class="demo-app section">
       <div x-data="{ log: '' }">
         <div class="block is-size-7 has-text-grey">
-          三个示例的把手坐标分别为 <code>true</code>（居中）/ <code>80</code>（距顶 80px）/
-          <code>'-20%'</code>（距底 20%）。点击把手折叠/展开（跨 0 有过渡动画）。
+          示例一：空属性全默认（滑出折叠，折叠前记忆 lastSize、展开恢复）；示例二：
+          <code>{pos: '70%'}</code> 把手沿边线定位 + <code>{minSize: 44}</code> 收缩折叠
+          （迷你形态）。拖拽分隔条到头（跨折叠目标）同样翻转折叠态。
         </div>
-        <div class="block" style="height: 160px" @splitter:collapse="log = 'collapsed @ ' + $event.detail.size"
-          @splitter:expand="log = 'expanded @ ' + $event.detail.size">
-          <div x-splitter="'horizontal'" x-splitter-options="{collapsible: true}"
-            style="height: 100%; border: 1px solid #eee; border-radius: 8px">
-            <div class="pane" data-size="220px" data-min-size="120">
-              <strong>collapsible: true</strong>
+        <div
+          class="block stage"
+          style="height: 150px"
+          @expandable:collapse="log = 'collapsed @ ' + $event.detail.size"
+          @expandable:expand="log = 'expanded @ ' + $event.detail.size"
+        >
+          <div x-splitter="'horizontal'" style="height: 100%">
+            <div class="pane" data-size="220px" data-min-size="120" data-expandable>
+              <strong>滑出折叠</strong>
+              <p class="is-size-7">空属性 = 全默认参数。</p>
             </div>
             <div class="pane">自适应</div>
           </div>
         </div>
+        <div class="block stage" style="height: 130px">
+          <div x-splitter="'horizontal'" style="height: 100%">
+            <div class="pane">自适应</div>
+            <div class="pane" data-size="200px" data-expandable='{"pos": "70%", "minSize": 44}'>
+              <strong>收缩折叠</strong>
+              <p class="is-size-7">minSize 44 = 迷你形态。</p>
+            </div>
+          </div>
+        </div>
         <div class="block is-size-7 has-text-info" x-show="log" x-text="log"></div>
+        <div class="block is-size-7 has-text-grey">
+          折叠事件由组合的 x-expandable 派发在面板上、冒泡至宿主监听（
+          <code>@expandable:collapse</code> / <code>@expandable:expand</code>）；
+          <code>splitter:collapse/expand</code> 已删除（ADR-0070）。
+        </div>
       </div>
     </div>
     <script>

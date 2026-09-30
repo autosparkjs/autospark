@@ -2,7 +2,7 @@
 
 ## 概述
 
-`x-drawer` 是覆盖物消费者的**贴边抽屉形态**：把**任意组件**渲染成从屏幕四边或某元素边缘滑入滑出的抽屉面板（侧边栏、过滤器、设置面板）。它与 x-dialog 同基座、同 visible 驱动模型（组件即内容 / 查找 / props / 插槽 / scope 基准，见[覆盖物](../overlays.md)与[x-dialog](./x-dialog.md)），形态差异在**定位与视觉**：默认贴屏幕边滑入、`at.selector` 可锚定到任意元素边缘（长轴沿锚边展开），默认动画为方向性滑入滑出（ADR-0063），默认带抽屉把手（见「抽屉把手」）。
+`x-drawer` 是覆盖物消费者的**贴边抽屉形态**：把**任意组件**渲染成从屏幕四边或某元素边缘滑入滑出的抽屉面板（侧边栏、过滤器、设置面板）。它与 x-dialog 同基座、同 visible 驱动模型（组件即内容 / 查找 / props / 插槽 / scope 基准，见[覆盖物](../overlays.md)与[x-dialog](./x-dialog.md)），形态差异在**定位与视觉**：默认贴屏幕边滑入、`at.selector` 可锚定到任意元素边缘（长轴沿锚边展开），默认动画为方向性滑入滑出（ADR-0063），默认带抽屉把手（机制组合 x-expandable 共享把手模块，见「抽屉把手」）。
 
 ```html
 <button x-drawer:sidebar="ui.sidebarOpen">菜单</button>
@@ -114,7 +114,7 @@
 
 ### 拖拽调宽（resize）
 
-`resize` 选项启用面板拖拽调节（复用 [x-resize](./x-resize.md) 核心，ADR-0064）：方向按贴边形态**自动推导**——左/右抽屉的内侧竖边（`placement: left` → `e`，类推）、上/下抽屉的内侧横边；`handles` 只能在合法集内收窄。约束字段与 x-resize 选项同构；尺寸**会话内记忆**（重开沿用拖出宽度、**优先于声明 `size`**）；数据不写回 store，`@resize:end` 事件 detail 即出口（事件派发在指令宿主上）：
+`resize` 选项启用面板拖拽调节（**ADR-0073：经面板组合的 [x-expandable](./x-expandable.md) resize 通道**，复用其 `ResizeSession` 核心）：方向按贴边形态**自动推导**——左/右抽屉的内侧竖边（`placement: left` → `e`，类推）、上/下抽屉的内侧横边。约束字段与 x-resize 选项同构；尺寸**会话内记忆**（重开沿用拖出宽度、**优先于声明 `size`**）；调节会话中抽屉把手**跟随开口边线同步重定位**；`showTrigger: 'hover'` 时拖拽手柄自动接管感应（边条抑制，悬停手柄即显形把手）；**把手让位**——把手区域（开口边中央）下压拖拽判定为 resize 意图（不触发折叠），点击把手**外侧突出半圆**才是折叠；数据不写回 store，`@resize:end` 事件 detail 即出口（事件派发在指令宿主上）：
 
 <demo html="resize/drawer.html"/>
 
@@ -126,36 +126,37 @@
 ></button>
 ```
 
-### 抽屉把手（trigger）
+### 抽屉把手（expandable）
 
-抽屉**默认带**一个常驻的圆形把手（`24px`、`1px solid`，视觉继承面板边框/背景配色）：骑在面板**活动边线**上（圆心一半在面板内一半在外），点击即折叠/展开。**折叠 ≡ visible 归假**——没有第三态：折叠就是面板滑出销毁（重开内容重建，overlay 家族「每次打开新实例」既有语义），把手是常驻的打开触发器：
+抽屉**默认带**一个常驻的圆形把手：骑在面板**活动边线**上（圆心一半在面板内一半在外），点击即折叠/展开。**折叠 ≡ visible 归假**——没有第三态：折叠就是面板滑出销毁（重开内容重建，overlay 家族「每次打开新实例」既有语义），把手是常驻的打开触发器。把手机制由 [x-expandable](./x-expandable.md) 的**共享把手模块**统一提供（ADR-0070：元素/箭头矩阵/键盘可达/半圆折叠态与 x-expandable、x-splitter 同一契约，类名 `.autospark-expandable-trigger`、变量族 `--autospark-expandable-trigger-*`）：
 
 <demo html="drawer/trigger.html"/>
 
-**位置坐标**：把手沿边线**滑轨**的位置由 `trigger` 坐标控制，默认居中——左右抽屉是垂直位置（把手 `top`）、上下抽屉是水平位置（把手 `left`），由 placement 决定。取值为**边缘锚定模型**（正值距主边、负值距对面边的绝对距离）：
+**位置坐标**：把手沿边线**滑轨**的位置由 `expandable` 选项的 `pos` 控制，默认居中——左右抽屉是垂直位置（把手 `top`）、上下抽屉是水平位置（把手 `left`），由 placement 决定。`expandable` 取值：
 
 | 取值 | 行为 |
 |---|---|
-| `true`（默认） | 居中（语法糖 ≡ `'50%'`） |
+| `true`（默认） | 建把手，`pos` 居中（语法糖 ≡ `'50%'`） |
 | `false` | 不建把手 |
-| `number` | px 坐标，距**主边**（top/left）：`100` = 距顶/左 100px |
-| `string` | CSS 长度：`'20%'`（滑轨长的百分比）/ `'100px'` / `'2rem'`，纯数字字符串按 px |
+| `{pos: number}` | px 坐标，距**主边**（top/left）：`{pos: 100}` = 距顶/左 100px |
+| `{pos: string}` | CSS 长度：`'20%'`（滑轨长的百分比）/ `'100px'` / `'2rem'`，纯数字字符串按 px |
 
-**负数 = 距对面边的绝对距离**：`trigger: "-20%"` = 把手显示在距底边（右抽屉）20% 处。越界值静默**钳制到滑轨内**（把手是唯一的重开触发点，永可达、不会滑出可视范围）：
+**负数 = 距对面边的绝对距离**：`{pos: "-20%"}` = 把手显示在距底边（右抽屉）20% 处。越界值静默**钳制到滑轨内**（把手是唯一的重开触发点，永可达、不会滑出可视范围）：
 
 ```html
 <button x-drawer:sidebar="ui.open">默认带把手（居中）</button>
-<button x-drawer:sidebar="ui.open" x-drawer-options="{trigger: false}">无把手</button>
-<button x-drawer:sidebar="ui.open" x-drawer-options="{trigger: '-20%'}">把手靠下（距底 20%）</button>
-<button x-drawer:sidebar="sidebar" x-drawer-options.trigger="ui.pos">坐标响应式</button>
+<button x-drawer:sidebar="ui.open" x-drawer-options="{expandable: false}">无把手</button>
+<button x-drawer:sidebar="ui.open" x-drawer-options="{expandable: {pos: '-20%'}}">把手靠下（距底 20%）</button>
+<button x-drawer:sidebar="ui.open" x-drawer-options.expandable="ui.exp">坐标响应式</button>
 ```
 
-- 坐标支持**成员属性表达式响应式**（`x-drawer-options.trigger="ui.pos"`，值变化即时重定位，折叠态同样生效）；
+- 坐标支持**成员属性表达式响应式**（`x-drawer-options.expandable="ui.exp"`，值变化即时重定位，折叠态同样生效）；
+- **显隐策略 `showTrigger` 默认 `'hover'`**：展开态把手隐藏、鼠标悬停边线或 Tab 聚焦显形——感应区是覆盖**整条活动边线**的透明边条（厚 24px，随把手同一几何基准同步，展开态贴面板开口边、折叠态贴屏幕/锚边）；**折叠态恒显**（把手是唯一重开触点，不参与 hover 隐藏）、触屏设备恒显；`'always'` 恒常驻（边条不启用）。已知代价：hover 模式边条遮挡边线附近面板内容的点击（`resize` 启用时边条自动让位于拖拽手柄，见[拖拽调宽](#拖拽调宽resize)）；
 - 折叠后把手骑**屏幕边**（屏幕模式）或**锚内侧边**（锚定模式）只露一半（面板展开侧半圆保留）；展开↔折叠时把手沿边线**同步滑移**（与面板同曲线），视觉连续；
-- 箭头指向「下一步动作」：展开态指折叠方向、折叠态翻转指展开方向；**展开态无阴影**（视觉属于面板）、**折叠态保留阴影**（独立浮起提示可点）；
+- 箭头指向「下一步动作」：展开态指折叠方向、折叠态翻转指展开方向；键盘可达（Tab 聚焦 + Enter/Space 触发，共享把手管线）；**展开态无阴影**（视觉属于面板）、**折叠态保留阴影**（独立浮起提示可点）；
 - 把手生命周期挂**消费者**（每指令一把、多实例独立），宿主销毁 / engine 销毁时摘除——面板销毁后它仍在；
 - 字面量 / 表达式形态**不建把手**（visible 状态不可写回，点击无意义）；
-- 尺寸/配色可调：CSS 变量 `--autospark-drawer-trigger-size`（默认 `24px`）+ 面板配色变量（`--autospark-overlay-border` / `--autospark-overlay-bg`）；
+- 尺寸/配色可调：CSS 变量 `--autospark-expandable-trigger-size`（默认 `20px`）及 `--autospark-expandable-trigger-*` 变量族（见 [x-expandable](./x-expandable.md)）；
 - 与 `mask` 正交：模态抽屉的把手折叠走请求关闭（含状态回写），与 ESC / 点遮罩同链。
 
 ### 传递 props 与内容（插槽）
@@ -216,7 +217,7 @@
 | `mask` | `true` | 模态遮罩显隐；`false` = 裸面板贴边（无外点关闭） |
 | `closeOnMask` | `true` | 点遮罩请求关闭（无遮罩时静默无效） |
 | `animate` | `'drawer'` | 进出场动画；显式配置整键尊重 |
-| `trigger` | `true` | 抽屉把手：骑活动边线的常驻圆形按钮（折叠 ≡ visible 归假）；坐标沿边线滑轨——`true` 居中 / `false` 关闭 / number(px) 与 CSS 长度定位，负数距对面边、越界钳制；字面量/表达式形态不建（详见[抽屉把手](#抽屉把手trigger)） |
+| `expandable` | `true` | 抽屉把手（机制组合 x-expandable 共享把手模块，ADR-0070）：骑活动边线的常驻圆形按钮（折叠 ≡ visible 归假）——`true` 居中 / `false` 关闭 / `{pos}` 对象定位（number(px) 与 CSS 长度，负数距对面边、越界钳制）+ `{showTrigger}` 显隐策略（默认 `'hover'`：展开态边线感应显形、折叠态恒显；`'always'` 恒常驻）；字面量/表达式形态不建（详见[抽屉把手](#抽屉把手expandable)） |
 | `shell` | `drawer-shell` | 面板外壳组件名（配置链：成员表达式 > 引擎级 `options.overlay.drawer.shell` > 内置） |
 | `border` | `true` | 面板 1px 边框（外壳承担） |
 | `delayClose` | `0` | 打开后自动关闭延迟（ms） |

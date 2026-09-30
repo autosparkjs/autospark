@@ -109,55 +109,58 @@ export const DRAWER_SHELL_STYLES = `
 .autospark-dialog-mask.drawer-leave-to {
   opacity: 0;
 }
-/* 抽屉把手（trigger，ADR-0063 修订）：实例外常驻圆形按钮——骑面板活动边线（引擎
-   inline 写 left/top），展开↔折叠沿边线同步滑移（与面板同曲线 .3s）；视觉继承面板
-   边框/背景配色变量；箭头 CSS 三角指向「下一步动作」，折叠态 180° 翻转；折叠态半圆
-   裁切（露面板展开侧半圆——屏幕模式朝外半圆在屏外不可见的显式统一）。
-   阴影仅折叠态保留：展开态把手骑面板边线、视觉属于面板；折叠态独立浮起须提示可点。 */
-.autospark-drawer-trigger {
+/* 抽屉把手（ADR-0070：把手机制组合 x-expandable 共享把手模块——元素/箭头矩阵/半圆
+   视觉在 expandable-trigger（契约类 .autospark-expandable-trigger、变量族
+   --autospark-expandable-trigger-*；旧 .autospark-drawer-trigger 类与
+   --autospark-drawer-trigger-size 变量已删除）。此处仅承载 drawer 语境差异：
+   fixed 定位（引擎 inline 写 left/top，展开↔折叠沿边线 .3s 同步滑移）、覆盖物 z 层级、
+   展开态无阴影（视觉属于面板）折叠态保留（独立浮起提示可点）、折叠态半圆裁切（露
+   面板展开侧半圆——屏幕模式朝外半圆本在屏外的显式统一；方向键 = data-direction =
+   placement，共享矩阵属性随身）。 */
+.autospark-overlays > .autospark-expandable-trigger {
   position: fixed;
-  width: var(--autospark-drawer-trigger-size, 24px);
-  height: var(--autospark-drawer-trigger-size, 24px);
-  box-sizing: border-box;
-  border-radius: 50%;
-  border: 1px solid var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
-  background: var(--autospark-overlay-bg, #fff);
-  cursor: pointer;
   z-index: calc(var(--autospark-overlay-z, 1000) + 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  user-select: none;
-  transition: left .3s ease, top .3s ease, clip-path .3s ease, transform .3s ease;
+  box-shadow: none;
+  transition: left .3s ease, top .3s ease, clip-path .3s ease, border-color .15s, background .15s, opacity .15s;
 }
-.autospark-drawer-trigger[data-collapsed] {
+/* 显隐策略（expandable.showTrigger，默认 'hover'）：展开态隐藏、hover/聚焦显形
+   （无边条感应——折叠态恒显使「寻找隐藏把手」场景不存在，把手位置沿面板边线可预测）；
+   折叠态恒显（唯一重开触点，规则后置胜出同特异性）；触屏（hover:none）恒显 */
+.autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"] {
+  opacity: 0;
+}
+.autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"]:hover,
+.autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"]:focus-visible {
+  opacity: 1;
+}
+.autospark-overlays > .autospark-expandable-trigger[data-collapsed] {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  opacity: 1;
 }
-.autospark-drawer-trigger::after {
-  /* 箭头三角：border 绘制（border-left 着色 = 右指基准），基准角按 placement 分派，
-     折叠态整体翻转 180°（指向「下一步动作」：展开态指折叠方向、折叠态指展开方向） */
-  content: '';
-  border: 3px solid transparent;
-  border-left: 4px solid var(--autospark-overlay-border, rgba(0, 0, 0, 0.45));
-  border-right-width: 0;
-  margin-right: -1px;
+@media (hover: none) {
+  .autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"] {
+    opacity: 1;
+  }
 }
-.autospark-drawer-trigger[data-overlay-placement="right"]::after { transform: rotate(0deg); }
-.autospark-drawer-trigger[data-overlay-placement="left"]::after { transform: rotate(180deg); }
-.autospark-drawer-trigger[data-overlay-placement="top"]::after { transform: rotate(-90deg); }
-.autospark-drawer-trigger[data-overlay-placement="bottom"]::after { transform: rotate(90deg); }
-/* 折叠态：翻转指展开方向 + 向可见半边平移（圆径 1/4，随尺寸变量缩放）——半圆裁切下
-   三角仍居中圆心会被裁掉朝外一半，须落位到可见半圆的视觉中心 */
-.autospark-drawer-trigger[data-collapsed][data-overlay-placement="right"]::after { transform: translateX(calc(var(--autospark-drawer-trigger-size, 24px) / -4)) rotate(180deg); }
-.autospark-drawer-trigger[data-collapsed][data-overlay-placement="left"]::after { transform: translateX(calc(var(--autospark-drawer-trigger-size, 24px) / 4)) rotate(0deg); }
-.autospark-drawer-trigger[data-collapsed][data-overlay-placement="top"]::after { transform: translateY(calc(var(--autospark-drawer-trigger-size, 24px) / 4)) rotate(90deg); }
-.autospark-drawer-trigger[data-collapsed][data-overlay-placement="bottom"]::after { transform: translateY(calc(var(--autospark-drawer-trigger-size, 24px) / -4)) rotate(-90deg); }
+/* 感应边条（showTrigger:'hover'）：与把手同为覆盖物容器直接子元素、fixed 几何由引擎
+   inline 写入（整条活动边线、厚 24px 跨边内外各 12px）——hover 显形把手走共享的
+   edge:hover ~ trigger 兄弟规则（边条置于把手之前的兄弟序前提）；触屏不启用。
+   已知代价：边条遮挡边线附近面板内容的点击（与 x-expandable hover 模式同款固有代价） */
+.autospark-overlays > .autospark-expandable-edge {
+  position: fixed;
+  display: none;
+  z-index: calc(var(--autospark-overlay-z, 1000) + 1);
+}
+@media (hover: hover) {
+  .autospark-overlays > .autospark-expandable-edge[data-show-trigger="hover"] {
+    display: block;
+  }
+}
 /* 折叠态半圆裁切：保留面板展开侧半圆（right 骑右缘 → 露左半、top 骑顶缘 → 露下半；
-   屏幕模式下朝外半圆本就在屏外，锚定模式露展开侧与面板原位置视觉连续——四方向同构） */
-.autospark-drawer-trigger[data-collapsed][data-overlay-placement="right"] { clip-path: inset(0 50% 0 0); }
-.autospark-drawer-trigger[data-collapsed][data-overlay-placement="left"] { clip-path: inset(0 0 0 50%); }
-.autospark-drawer-trigger[data-collapsed][data-overlay-placement="top"] { clip-path: inset(50% 0 0 0); }
-.autospark-drawer-trigger[data-collapsed][data-overlay-placement="bottom"] { clip-path: inset(0 0 50% 0); }
+   图标入半圆的缩放/平移由共享 data-half 规则承担） */
+.autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="right"] { clip-path: inset(0 50% 0 0); }
+.autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="left"] { clip-path: inset(0 0 0 50%); }
+.autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="top"] { clip-path: inset(50% 0 0 0); }
+.autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="bottom"] { clip-path: inset(0 0 50% 0); }
 ${buildSlideRules()}
 `;

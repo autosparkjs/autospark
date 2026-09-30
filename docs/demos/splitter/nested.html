@@ -23,17 +23,11 @@
         <div class="block has-text-grey is-size-7">
           经典应用骨架：外层左右分栏（侧栏 / 主区），主区内层上下分栏（头部 / 编辑器）。
         </div>
-        <div
-          x-splitter="'horizontal'"
-          style="height: 300px; border: 1px solid #eee; border-radius: 8px"
-        >
+        <div x-splitter="'horizontal'" style="height: 300px">
           <div class="pane" data-size="200px" data-min-size="140">
             <strong>侧栏</strong>
           </div>
-          <div
-            x-splitter="'vertical'"
-            style="height: 100%"
-          >
+          <div x-splitter="'vertical'" style="height: 100%">
             <div class="pane" data-size="64px" data-min-size="40">
               <strong>头部</strong>
             </div>

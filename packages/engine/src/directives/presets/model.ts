@@ -1,6 +1,5 @@
 import { AutoSparkDirectiveBase } from "../base";
 import { isSimpleStatePath, type AutoSparkScope } from "../../scope";
-import { setVal } from "autostore";
 import type { AutoSparkActionContext } from "./on/types";
 import { createDirectiveOptions } from "../utils/createDirectiveOptions";
 import { resolveEmptyValues } from "../utils/emptyPlaceholder";
@@ -134,7 +133,7 @@ function toBooleanStrict(v: any): any {
  *   `this` = `AutoSparkActionContext`（el/data/scope/store/globalState/engine/$options + value/$value）。
  *
  * ## 绑定值语义
- * - **简单路径**（`order.price`）：无 get/set 时读 `scope.watch(path)`、写 `setVal` 直通（快路径）。
+ * - **简单路径**（`order.price`）：无 get/set 时读 `scope.watch(path)`、写 `binding.writeThrough` 透传（快路径，ADR-0075 读写对称——域字段落域、其余落根）。
  * - **表达式**（`user.first+','+user.last`）：读求值；写**必须**有 set。
  * - **计算属性**（`order.total`）：天然无 set → 只读降级。
  * - **无 setter 的表达式/computed**：`logger.warn`（一次）+ 只读（state→DOM 仍工作，DOM→state 静默），
@@ -517,7 +516,11 @@ export class ModelDirective extends AutoSparkDirectiveBase {
         // 首次 state→DOM 写入（state 作真相源）。undefined（路径不存在/求值失败/状态字面 undefined）
         // 经空值回填判定（ADR-0027）：有 default 回填显示；无 default 走 writeToDom 的控件空值
         // 显示（text-like 空串 / select 首项）。仅当「无 default 且非 select」时保持 DOM 原值 + warn
-        if (this._initialValue !== undefined || this._resolveDefault() !== undefined || this._controlKind === "select") {
+        if (
+            this._initialValue !== undefined ||
+            this._resolveDefault() !== undefined ||
+            this._controlKind === "select"
+        ) {
             this.writeToDom(this._initialValue);
         } else if (this.el) {
             // state 路径不存在且无回填：不动 DOM（不回填，避免 DOM 污染 state 真相源），仅 warn
@@ -676,9 +679,10 @@ export class ModelDirective extends AutoSparkDirectiveBase {
             if (this._defaultTrueValue === undefined && item.default === true) {
                 this._defaultTrueValue = option.value;
             }
-            option.textContent = item.label !== undefined && item.label !== null
-                ? String(item.label)
-                : String(item.value ?? "");
+            option.textContent =
+                item.label !== undefined && item.label !== null
+                    ? String(item.label)
+                    : String(item.value ?? "");
             if (groupKey && item[groupKey] !== undefined && item[groupKey] !== null) {
                 const label = String(item[groupKey]);
                 let og = groupEls.get(label);
@@ -756,7 +760,12 @@ export class ModelDirective extends AutoSparkDirectiveBase {
                 option.selected = filtered.includes(option.value);
             }
         } else {
-            if (typeof display !== "string" && !this._selectMismatchWarned && display !== undefined && display !== null) {
+            if (
+                typeof display !== "string" &&
+                !this._selectMismatchWarned &&
+                display !== undefined &&
+                display !== null
+            ) {
                 this._selectMismatchWarned = true;
                 this.warn(
                     `x-model: 单选 <select> 绑定 "${this.value}" 的状态为非字符串（${Array.isArray(display) ? "array" : typeof display}），不勾中任何项。${Array.isArray(display) ? "多选请声明 .multiple 或 schema.multiple。" : "须配 string 状态，或用 get/toInput 转换。"}`,
@@ -876,11 +885,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
                 v = Number.isNaN(n) ? v : n; // NaN 回退原值，不破坏
             } else if (key === "boolean") {
                 const converted = toBooleanStrict(v);
-                if (
-                    converted === v &&
-                    this._controlKind === "radio" &&
-                    !this._radioBooleanWarned
-                ) {
+                if (converted === v && this._controlKind === "radio" && !this._radioBooleanWarned) {
                     this._radioBooleanWarned = true;
                     this.warn(
                         `x-model: radio value "${v}" 不在 .boolean 严格集 {"true","false",""} 内，保留原值写回`,
@@ -896,7 +901,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
      * 写 state（DOM→state 方向）。
      *
      * - 有 set（`x-model-options="{set:'...'}"`）→ 经 set 表达式/action 反向变换（拆分到多字段等）；
-     * - 无 set + 简单路径 → `setVal` 直写（快路径，绝大多数场景）；
+     * - 无 set + 简单路径 → `binding.writeThrough` 透传（快路径，绝大多数场景；ADR-0073 读写对称）；
      * - 无 set + 表达式/computed → 只读降级（warn 一次，不写）。
      *
      * 经 `store.update({flags:-seq})` 承载 flags 标识（与 syncer 范式一致），供 syncer/未来指令识别。
@@ -906,7 +911,9 @@ export class ModelDirective extends AutoSparkDirectiveBase {
         // schema 写转换（ADR-0050）：统一出口入口——用户输入、select autoSelect 回写、
         // 多选过滤回写全部经过；数组（select multiple）逐项转换
         if (this.toStateFn) {
-            const converted = toStateValue(this.toStateFn, $value, (m) => this._warnTransform("toState", m));
+            const converted = toStateValue(this.toStateFn, $value, (m) =>
+                this._warnTransform("toState", m),
+            );
             if (converted === TRANSFORM_ABORT) {
                 // 放弃本次写入：回滚防循环标志——否则下一次外部变更的 read 回调被误跳过一次
                 this._selfWriting = false;
@@ -917,11 +924,13 @@ export class ModelDirective extends AutoSparkDirectiveBase {
         const expr = String(this.value ?? "");
         const setExpr = this.getOption("set");
         this.engine.store.update(
-            (state) => {
+            (_state) => {
                 if (typeof setExpr === "string" && setExpr.trim() !== "") {
                     this._evalSet(setExpr, $value);
                 } else if (isSimpleStatePath(expr)) {
-                    setVal(state, expr.split(this.engine.store.delimiter), $value);
+                    // 写回落点经聚合视图透传（ADR-0075 读写对称）：x-data 域字段落域、其余落根，
+                    // 与读方向的 scope.watch 表达式支路同源（旧直写根导致「读局部、写全局」分裂）
+                    this.binding.writeThrough(expr, $value);
                 } else {
                     // 表达式/computed 无 set → 只读降级
                     if (!this._readonlyWarned) {
@@ -972,7 +981,9 @@ export class ModelDirective extends AutoSparkDirectiveBase {
             display = this._evalGet(getExpr, stateValue);
         } else if (this.toInputFn) {
             this._toInputOwns = true;
-            display = toInputValue(this.toInputFn, stateValue, (m) => this._warnTransform("toInput", m));
+            display = toInputValue(this.toInputFn, stateValue, (m) =>
+                this._warnTransform("toInput", m),
+            );
         }
         // 空值回填（ADR-0027 决策 1/3/4）：仅 text-like + select 参与；判定在 get 之后
         //（get 的产物是显示值）；default 取模板 > schema 两级，缓存判定后的显示值供重放。
@@ -1064,10 +1075,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
             }
         }
         try {
-            return compileFn("value,scope", `with(scope){ return (${getExpr}); }`)(
-                value,
-                scopeCtx,
-            );
+            return compileFn("value,scope", `with(scope){ return (${getExpr}); }`)(value, scopeCtx);
         } catch (e: any) {
             this.warn(`x-model get "${getExpr}" 求值失败: ${e?.message ?? e}`);
             return value; // 求值失败回退原值

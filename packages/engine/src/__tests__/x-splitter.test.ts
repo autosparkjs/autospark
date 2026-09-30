@@ -9,8 +9,9 @@ import { mount, nextTick } from "./helpers";
  * 不足两个降级 / 2 sized 降级）、direction（字面量与响应式切换换轴重排）、data-size 家族
  * （静态值 inline / 绑定剥除与初值 / auto 面板 min/max warn）、拖拽（前后方向语义 / min-max
  * 钳制 / 绝对式数学）、双向绑定（写回状态 / 外部反向同步 / 等值短路防递归 / 表达式只读降级）、
- * 折叠（把手三态坐标 / 点击折叠写 0 / lastSize 恢复 / 初始 0 不派发事件 / 折叠绕过 min）、
- * 事件（splitter:resize/collapse/expand）、静态形态（双 auto）、键盘微调。
+ * 折叠（ADR-0070 组合 x-expandable：data-expandable 声明 / 点击折叠 slide·收缩 / lastSize
+ * 恢复 / 初始折叠不派发 / 拖拽跨目标翻转载体布尔 / expandable:* 冒泡事件）、
+ * 事件（splitter:resize + expandable:collapse/expand）、静态形态（双 auto）、键盘微调。
  *
  * 约定：happy-dom 无布局——定容面板初值走 inline（_beginSession 的 inline 优先路径），
  * 拖拽模拟用 MouseEvent 携带 pointer* 事件名（x-resize 同款）。
@@ -62,7 +63,8 @@ function drag(divider: Element, dx: number, dy = 0, from = { x: 100, y: 100 }) {
 const panesOf = (host: Element) =>
     [...host.querySelectorAll(":scope > [data-autospark-splitter-pane]")] as HTMLElement[];
 const dividerOf = (host: Element) => host.querySelector(":scope > .autospark-splitter-divider");
-const triggerOf = (host: Element) => host.querySelector(".autospark-splitter-trigger");
+/** 折叠把手（ADR-0070 组合）：共享把手类名，宿主内（展开态面板内 / 滑出终态 dock 宿主内） */
+const triggerOf = (host: Element) => host.querySelector(".autospark-expandable-trigger");
 
 /** 标准 horizontal splitter：sized(300) + auto */
 const H_TMPL = `<div id="app"><div x-scope>
@@ -472,146 +474,209 @@ describe("双向绑定", () => {
 
 // ── 折叠 ──────────────────────────────────────────────────────────────
 
-describe("折叠（collapsible）", () => {
-    test("默认不建把手；collapsible: true 建居中把手（坐标变量 50%、无负向属性）", () => {
+describe("折叠（data-expandable 组合，ADR-0070）", () => {
+    test("未声明无折叠能力；data-expandable 空属性启用（面板组合身份 + 把手 hover 显隐默认）", async () => {
         const { root } = mountSplitter(H_TMPL, {});
+        await nextTick();
         expect(triggerOf(root.querySelector("#host")!)).toBeNull();
         const { root: root2 } = mountSplitter(
+            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                <div id="p1" data-size="300" data-expandable>a</div><div>b</div>
+            </div></div></div>`,
+            {},
+        );
+        await nextTick();
+        const p1 = root2.querySelector("#p1")! as HTMLElement;
+        // 面板获得 x-expandable 组合身份（把手/动画/事件全管线挂面板）
+        expect(p1.classList.contains("autospark-expandable")).toBe(true);
+        expect(p1.getAttribute("data-direction")).toBe("left"); // sized 在前 → 向左收
+        expect(p1.getAttribute("data-show-trigger")).toBe("hover"); // 默认 hover（ADR-0070 修订）
+        const t = triggerOf(root2.querySelector("#host")!)! as HTMLElement;
+        expect(t.getAttribute("role")).toBe("button");
+        expect(t.getAttribute("tabindex")).toBe("0");
+        expect(t.getAttribute("data-direction")).toBe("left");
+        // 感应边条前置兄弟（共享把手契约；splitter 语境样式表抑制显示）
+        expect(p1.querySelector(".autospark-expandable-edge")).not.toBeNull();
+    });
+
+    test("showTrigger：分隔条 hover 桥接显形（边条抑制）；always 显式透传", async () => {
+        const { root } = mountSplitter(
+            `<div id="app"><div x-scope>
+                <div id="h1" x-splitter="'horizontal'">
+                    <div id="p1" data-size="300" data-expandable>a</div><div>b</div></div>
+                <div id="h2" x-splitter="'horizontal'">
+                    <div id="p2" data-size="300" data-expandable='{"showTrigger":"always"}'>a</div><div>b</div></div>
+            </div></div>`,
+            {},
+        );
+        await nextTick();
+        const p1 = document.getElementById("p1")! as HTMLElement;
+        const p2 = document.getElementById("p2")! as HTMLElement;
+        expect(p2.getAttribute("data-show-trigger")).toBe("always");
+        // 边条抑制（splitter 语境：分隔条本身充当全长感应线）
+        const css = document.getElementById("autospark-splitter-styles")!.textContent!;
+        expect(css).toContain(
+            ".autospark-splitter>.autospark-expandable>.autospark-expandable-edge{display:none!important;}",
+        );
+        // hover 桥接：分隔条 enter/leave 置位把手 data-edge-hover（统一桥接契约）
+        const divider = dividerOf(document.getElementById("h1")!)!;
+        const t1 = triggerOf(document.getElementById("h1")!)! as HTMLElement;
+        divider.dispatchEvent(new MouseEvent("mouseenter", { bubbles: false }));
+        expect(t1.hasAttribute("data-edge-hover")).toBe(true);
+        divider.dispatchEvent(new MouseEvent("mouseleave", { bubbles: false }));
+        expect(t1.hasAttribute("data-edge-hover")).toBe(false);
+    });
+
+    test("collapsible 旧选项已删除：声明不建把手（回归锁定）", async () => {
+        const { root } = mountSplitter(
             `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'" x-splitter-options="{collapsible: true}">
                 <div id="p1" data-size="300">a</div><div>b</div>
             </div></div></div>`,
             {},
         );
-        const t = triggerOf(root2.querySelector("#host")!)! as HTMLElement;
-        expect(t.getAttribute("data-side")).toBe("first");
-        expect(t.style.getPropertyValue("--as-rail")).toBe("50%");
-        expect(t.hasAttribute("data-rail-negative")).toBe(false);
+        await nextTick();
+        expect(triggerOf(root.querySelector("#host")!)).toBeNull();
     });
 
-    test("三态坐标：number 正值主端 / 负值对端（data-rail-negative）；非法值 warn 回退居中", () => {
-        const warns: string[] = [];
-        const orig = console.warn;
-        console.warn = (...a: any[]) => warns.push(String(a[0] ?? ""));
-        let m: any;
-        try {
-            m = mountSplitter(
+    test("options JSON：pos 三态坐标透传；非法 JSON warn + 默认启用", async () => {
+        const warns = catchWarns(() =>
+            mountSplitter(
                 `<div id="app"><div x-scope>
-                    <div id="h1" x-splitter="'horizontal'" x-splitter-options="{collapsible: 80}">
-                        <div data-size="100">a</div><div>b</div></div>
-                    <div id="h2" x-splitter="'horizontal'" x-splitter-options="{collapsible: '-20%'}">
-                        <div data-size="100">a</div><div>b</div></div>
-                    <div id="h3" x-splitter="'horizontal'" x-splitter-options="{collapsible: 'bad'}">
-                        <div data-size="100">a</div><div>b</div></div>
+                    <div id="h1" x-splitter="'horizontal'">
+                        <div data-size="100" data-expandable='{"pos": 80}'>a</div><div>b</div></div>
+                    <div id="h2" x-splitter="'horizontal'">
+                        <div data-size="100" data-expandable='{"pos":"-20%"}'>a</div><div>b</div></div>
+                    <div id="h3" x-splitter="'horizontal'">
+                        <div data-size="100" data-expandable='{bad}'>a</div><div>b</div></div>
                 </div></div>`,
                 {},
-            );
-        } finally {
-            console.warn = orig;
-        }
-        const t1 = triggerOf(m.root.querySelector("#h1")!)! as HTMLElement;
-        const t2 = triggerOf(m.root.querySelector("#h2")!)! as HTMLElement;
-        const t3 = triggerOf(m.root.querySelector("#h3")!)! as HTMLElement;
-        expect(t1.style.getPropertyValue("--as-rail")).toBe("80px");
-        expect(t1.hasAttribute("data-rail-negative")).toBe(false);
-        expect(t2.style.getPropertyValue("--as-rail")).toBe("20%");
-        expect(t2.hasAttribute("data-rail-negative")).toBe(true);
-        expect(t3.style.getPropertyValue("--as-rail")).toBe("50%");
-        expect(warns.join()).toContain("无法解析为坐标");
+            ),
+        );
+        await nextTick();
+        const g = (id: string) => triggerOf(document.getElementById(id)!)! as HTMLElement;
+        expect(g("h1")).not.toBeNull();
+        expect(g("h1").style.getPropertyValue("--as-pos")).toBe("80px");
+        expect(g("h1").hasAttribute("data-pos-negative")).toBe(false);
+        expect(g("h2").style.getPropertyValue("--as-pos")).toBe("20%");
+        expect(g("h2").hasAttribute("data-pos-negative")).toBe(true);
+        expect(g("h3").style.getPropertyValue("--as-pos")).toBe("50%"); // 解析失败回退居中（仍启用）
+        expect(warns.join()).toContain("不是合法 JSON");
     });
 
-    test("点击折叠（默认 0 目标 = slide 隐藏）：宽度保持 + 负 margin 滑出；再点展开恢复", () => {
+    test("点击折叠（slide）：宽度保持 + 负 margin 滑出 + data-half；再点展开恢复（lastSize）", async () => {
         const { root } = mountSplitter(
-            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'" x-splitter-options="{collapsible: true}">
-                <div id="p1" data-size="300">a</div><div>b</div>
+            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                <div id="p1" data-size="300" data-expandable>a</div><div>b</div>
             </div></div></div>`,
             {},
         );
-        const host = root.querySelector("#host")! as HTMLElement;
+        await nextTick();
         const p1 = root.querySelector("#p1")! as HTMLElement;
-        const t = triggerOf(host)!;
+        const t = triggerOf(root.querySelector("#host")!)!;
         t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        // slide 隐藏：宽度保持（内容不挤压），负 margin 拉回占位——面板整体滑出容器左缘
+        // slide 隐藏（组合实例 margin 通道）：宽度保持（内容不挤压），负 margin 拉回占位
         expect(p1.style.width).toBe("300px");
         expect(p1.style.marginLeft).toBe("-300px");
-        expect(p1.hasAttribute("data-collapsed")).toBe(true);
+        expect(p1.hasAttribute("data-collapsed")).toBe(true); // 宿主级（滑出折叠）
         expect(t.hasAttribute("data-collapsed")).toBe(true);
+        expect(t.hasAttribute("data-half")).toBe(true); // 半圆形态判据（共享把手）
         t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         expect(p1.style.marginLeft).toBe(""); // margin 清理
-        expect(p1.style.width).toBe("300px"); // lastSize 恢复
+        expect(p1.style.width).toBe("300px"); // lastSize 恢复（composeSetMaxSize 喂给组合实例）
         expect(p1.hasAttribute("data-collapsed")).toBe(false);
-        // 展开态 data-collapsed 为存在性属性：必须不存在（恒 setAttribute(String) 会让
-        // "false" 命中 CSS [data-collapsed]——箭头恒显示折叠方向的根因回归）
         expect(t.hasAttribute("data-collapsed")).toBe(false);
+        expect(t.hasAttribute("data-half")).toBe(false);
     });
 
-    test("sized 在后：slide 向右缘滑出（margin-right）", () => {
+    test("sized 在后：direction=right，slide 向右缘滑出（margin-right）", async () => {
         const { root } = mountSplitter(
-            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'" x-splitter-options="{collapsible: true}">
-                <div>a</div><div id="p2" data-size="200">b</div>
+            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                <div>a</div><div id="p2" data-size="200" data-expandable>b</div>
             </div></div></div>`,
             {},
         );
+        await nextTick();
         const p2 = root.querySelector("#p2")! as HTMLElement;
+        expect(p2.getAttribute("data-direction")).toBe("right");
         triggerOf(root.querySelector("#host")!)!.dispatchEvent(
             new MouseEvent("click", { bubbles: true }),
         );
         expect(p2.style.marginRight).toBe("-200px");
     });
 
-    test("data-minimize-size > 0：折叠收缩到指定尺寸（非 slide）；展开恢复", () => {
+    test("minSize>0：收缩折叠（width=minSize + data-shrunk）；拖拽跨目标翻转；lastSize 跟随拖拽", async () => {
         const { root } = mountSplitter(
-            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'" x-splitter-options="{collapsible: true}">
-                <div id="p1" data-size="300" data-minimize-size="80">a</div><div>b</div>
+            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                <div id="p1" data-size="300" data-expandable='{"minSize": 80}'>a</div><div>b</div>
             </div></div></div>`,
             {},
         );
+        await nextTick();
         const host = root.querySelector("#host")! as HTMLElement;
         const p1 = root.querySelector("#p1")! as HTMLElement;
         const t = triggerOf(host)!;
         t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        // 目标 > 0 = 收缩模式：width 写目标值，无 margin 位移
+        // 收缩模式：width 写目标值、无 margin 位移；pane 挂 data-shrunk（收缩态钩子）
         expect(p1.style.width).toBe("80px");
         expect(p1.style.marginLeft).toBe("");
-        expect(p1.hasAttribute("data-collapsed")).toBe(true);
-        // 拖拽仍遵守 min（minimize 不参与拖拽钳制）：从折叠值 80 拖 +300 = 380
+        expect(p1.hasAttribute("data-shrunk")).toBe(true);
+        expect(p1.hasAttribute("data-collapsed")).toBe(false); // data-collapsed 仅滑出折叠挂
+        expect(t.hasAttribute("data-half")).toBe(false); // 收缩折叠全圆（不缩放图标）
+        // 拖拽跨折叠目标 → 翻转为展开（组合实例接管 inline 尺寸）
         drag(dividerOf(host)!, 300);
         expect(p1.style.width).toBe("380px");
-        expect(p1.hasAttribute("data-collapsed")).toBe(false);
+        expect(p1.hasAttribute("data-shrunk")).toBe(false);
         // 再折叠：lastSize 已更新为拖拽结果
         t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         expect(p1.style.width).toBe("380px");
     });
 
-    test("初始 data-size=minimize 值 = 初始折叠态（收缩模式）", () => {
+    test("初始声明 == minSize = 初始折叠（收缩模式，不派发事件）", async () => {
         const { root } = mountSplitter(
-            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'" x-splitter-options="{collapsible: true}">
-                <div id="p1" data-size="80" data-minimize-size="80">a</div><div>b</div>
+            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                <div id="p1" data-size="80" data-expandable='{"minSize": 80}'>a</div><div>b</div>
             </div></div></div>`,
             {},
         );
+        await nextTick(); // 初始应用在编译后微任务
+        const host = root.querySelector("#host")! as HTMLElement;
+        const p1 = root.querySelector("#p1")! as HTMLElement;
+        expect(p1.hasAttribute("data-shrunk")).toBe(true);
+        expect(p1.style.width).toBe("80px");
+        let fired = 0;
+        host.addEventListener("expandable:collapse", () => fired++);
+        host.addEventListener("expandable:expand", () => fired++);
+        triggerOf(host)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        expect(fired).toBe(1); // 仅 expand（初始折叠不派发）
+    });
+
+    test("初始 data-size=0 = 初始折叠（slide，不派发事件）；展开回退默认 200px", async () => {
+        const { root } = mountSplitter(
+            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                <div id="p1" data-size="0" data-expandable>a</div><div>b</div>
+            </div></div></div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#host")! as HTMLElement;
         const p1 = root.querySelector("#p1")! as HTMLElement;
         expect(p1.hasAttribute("data-collapsed")).toBe(true);
-        expect(p1.style.width).toBe("80px");
+        const t = triggerOf(host)!;
+        expect(t.hasAttribute("data-collapsed")).toBe(true);
+        expect(t.hasAttribute("data-half")).toBe(true);
+        let fired = 0;
+        host.addEventListener("expandable:collapse", () => fired++);
+        host.addEventListener("expandable:expand", () => fired++);
+        t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        expect(p1.style.width).toBe("200px"); // 声明值 0 不可恢复 → 兜底 200px
+        expect(fired).toBe(1); // 仅 expand（初始折叠不派发）
     });
 
-    test("箭头 = 全局图标 arrow（svg use 载体）", () => {
-        const { root } = mountSplitter(
-            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'" x-splitter-options="{collapsible: true}">
-                <div data-size="300">a</div><div>b</div>
-            </div></div></div>`,
-            {},
-        );
-        const t = triggerOf(root.querySelector("#host")!)!;
-        const use = t.querySelector("use");
-        expect(use).not.toBeNull();
-        expect(use!.getAttribute("href")).toBe("#as-arrow");
-    });
-
-    test("绑定形态折叠：写回状态 0 / 恢复写回记忆值", async () => {
+    test("绑定形态：折叠写回状态 0 / 展开写回恢复值", async () => {
         const { root, engine } = mountSplitter(
-            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'" x-splitter-options="{collapsible: true}">
-                <div id="p1" :data-size="s.w">a</div><div>b</div>
+            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                <div id="p1" :data-size="s.w" data-expandable>a</div><div>b</div>
             </div></div></div>`,
             { s: { w: 240 } },
         );
@@ -623,35 +688,35 @@ describe("折叠（collapsible）", () => {
         t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         await nextTick();
         expect((engine.state as any).s.w).toBe(240);
+        expect((root.querySelector("#p1") as HTMLElement).style.width).toBe("240px");
     });
 
-    test("初始 data-size=0 = 初始折叠态（不派发事件）", () => {
-        const { root } = mountSplitter(
-            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'" x-splitter-options="{collapsible: true}">
-                <div id="p1" data-size="0">a</div><div>b</div>
+    test("外部状态写 0 = 折叠；写非目标值 = 展开", async () => {
+        const { root, engine } = mountSplitter(
+            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                <div id="p1" :data-size="s.w" data-expandable>a</div><div>b</div>
             </div></div></div>`,
-            {},
+            { s: { w: 240 } },
         );
-        const host = root.querySelector("#host")! as HTMLElement;
+        await nextTick();
         const p1 = root.querySelector("#p1")! as HTMLElement;
-        expect(p1.hasAttribute("data-collapsed")).toBe(true);
-        expect(triggerOf(host)!.hasAttribute("data-collapsed")).toBe(true);
-        let fired = 0;
-        host.addEventListener("splitter:collapse", () => fired++);
-        host.addEventListener("splitter:expand", () => fired++);
-        // 展开恢复走声明值缺失 → 回退默认 200px
-        triggerOf(host)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        expect(p1.style.width).toBe("200px");
-        expect(fired).toBe(1); // 仅 expand（初始折叠不派发）
+        engine.state.s.w = 0;
+        await nextTick();
+        expect(p1.style.marginLeft).toBe("-240px"); // 折叠（slide）
+        engine.state.s.w = 260;
+        await nextTick();
+        expect(p1.style.marginLeft).toBe(""); // 展开
+        expect(p1.style.width).toBe("260px");
     });
 
-    test("折叠写 0 绕过 min 钳制（slide 隐藏）；拖拽仍遵守 min", () => {
+    test("折叠写 0 绕过 min 钳制（slide 隐藏）；拖拽仍遵守 min", async () => {
         const { root } = mountSplitter(
-            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'" x-splitter-options="{collapsible: true}">
-                <div id="p1" data-size="300" data-min-size="120">a</div><div>b</div>
+            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                <div id="p1" data-size="300" data-min-size="120" data-expandable>a</div><div>b</div>
             </div></div></div>`,
             {},
         );
+        await nextTick();
         const host = root.querySelector("#host")! as HTMLElement;
         const p1 = root.querySelector("#p1")! as HTMLElement;
         triggerOf(host)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -662,27 +727,71 @@ describe("折叠（collapsible）", () => {
         expect(p1.style.width).toBe("120px"); // 拖拽遵守 min
     });
 
-    test("双 auto 静态形态 collapsible 不生效（无把手）", () => {
+    test("拖拽跨折叠目标翻转载体布尔（slide 终态由组合实例承接）", async () => {
         const { root } = mountSplitter(
-            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'" x-splitter-options="{collapsible: true}">
-                <div>a</div><div>b</div>
+            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                <div id="p1" data-size="300" data-expandable>a</div><div>b</div>
             </div></div></div>`,
             {},
         );
-        expect(triggerOf(root.querySelector("#host")!)).toBeNull();
-    });
-
-    test("真实事件序：把手 pointerdown（stopPropagation）不启动拖拽，后续 click 正常折叠", () => {
-        const { root } = mountSplitter(
-            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'" x-splitter-options="{collapsible: true}">
-                <div id="p1" data-size="300">a</div><div>b</div>
-            </div></div></div>`,
-            {},
-        );
+        await nextTick();
         const host = root.querySelector("#host")! as HTMLElement;
         const p1 = root.querySelector("#p1")! as HTMLElement;
-        const t = triggerOf(host)!;
-        // 回归：分隔条 pointerdown 的 preventDefault 会抑制合成 click——把手必须拦截冒泡
+        drag(dividerOf(host)!, -400);
+        expect(p1.style.marginLeft).toBe("-300px"); // 跨 0 → slide 隐藏
+        expect(p1.hasAttribute("data-collapsed")).toBe(true);
+        drag(dividerOf(host)!, 500);
+        expect(p1.style.marginLeft).toBe(""); // 反向拖拽 → 展开
+        expect(p1.hasAttribute("data-collapsed")).toBe(false);
+    });
+
+    test("direction/maxSize 由分割器接管（声明 warn 忽略）；把手箭头 = 全局图标 arrow", async () => {
+        const warns = catchWarns(() =>
+            mountSplitter(
+                `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                    <div id="p1" data-size="300" data-expandable='{"direction":"top","maxSize":500}'>a</div><div>b</div>
+                </div></div></div>`,
+                {},
+            ),
+        );
+        await nextTick();
+        expect(warns.join()).toContain("由分割器接管");
+        const p1 = document.querySelector("#p1")! as HTMLElement;
+        expect(p1.getAttribute("data-direction")).toBe("left"); // 位次推导覆盖声明
+        const use = triggerOf(p1)! .querySelector("use");
+        expect(use).not.toBeNull();
+        expect(use!.getAttribute("href")).toBe("#as-arrow");
+    });
+
+    test("自适应面板声明 data-expandable：warn + 忽略；双 auto 无把手", async () => {
+        const warns = catchWarns(() =>
+            mountSplitter(
+                `<div id="app"><div x-scope>
+                    <div id="h1" x-splitter="'horizontal'">
+                        <div data-expandable>a</div><div id="s2" data-size="300">b</div></div>
+                    <div id="h2" x-splitter="'horizontal'">
+                        <div data-expandable>a</div><div data-expandable>b</div></div>
+                </div></div>`,
+                {},
+            ),
+        );
+        await nextTick();
+        expect(warns.join()).toContain("仅定容面板");
+        expect(triggerOf(document.getElementById("h1")!)).toBeNull();
+        expect(triggerOf(document.getElementById("h2")!)).toBeNull();
+    });
+
+    test("真实事件序：把手 pointerdown（stopPropagation）不启动拖拽，后续 click 正常折叠", async () => {
+        const { root } = mountSplitter(
+            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                <div id="p1" data-size="300" data-expandable>a</div><div>b</div>
+            </div></div></div>`,
+            {},
+        );
+        await nextTick();
+        const p1 = root.querySelector("#p1")! as HTMLElement;
+        const t = triggerOf(root.querySelector("#host")!)!;
+        // 回归：把手 pointerdown 须不落入分隔条拖拽（共享把手 onActivate 与拖拽正交）
         t.dispatchEvent(
             new MouseEvent("pointerdown", { bubbles: true, clientX: 100, clientY: 100, button: 0 }),
         );
@@ -694,13 +803,14 @@ describe("折叠（collapsible）", () => {
         expect(p1.style.marginLeft).toBe("-300px"); // click 折叠生效（slide 隐藏）
     });
 
-    test("把手键盘触发（Enter / Space 兑现 role=button）", () => {
+    test("把手键盘触发（Enter / Space 兑现 role=button）", async () => {
         const { root } = mountSplitter(
-            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'" x-splitter-options="{collapsible: true}">
-                <div id="p1" data-size="300">a</div><div>b</div>
+            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                <div id="p1" data-size="300" data-expandable>a</div><div>b</div>
             </div></div></div>`,
             {},
         );
+        await nextTick();
         const p1 = root.querySelector("#p1")! as HTMLElement;
         const t = triggerOf(root.querySelector("#host")!)!;
         expect(t.getAttribute("tabindex")).toBe("0");
@@ -713,6 +823,48 @@ describe("折叠（collapsible）", () => {
         );
         expect(p1.style.marginLeft).toBe("");
         expect(p1.style.width).toBe("300px");
+    });
+
+    test("offset 默认注入分隔条宽度一半（与 sized 位次相关：首位 + / 次位 −）；显式声明覆盖", async () => {        const { root } = mountSplitter(
+            `<div id="app"><div x-scope>
+                <div id="h1" x-splitter="'horizontal'">
+                    <div data-size="300" data-expandable>a</div><div>b</div></div>
+                <div id="h2" x-splitter="'horizontal'">
+                    <div>a</div><div id="p2" data-size="200" data-expandable>b</div></div>
+                <div id="h3" x-splitter="'horizontal'">
+                    <div data-size="300" data-expandable='{"offset": 6}'>a</div><div>b</div></div>
+            </div></div>`,
+            {},
+        );
+        await nextTick();
+        const t1 = triggerOf(document.getElementById("h1")!)! as HTMLElement;
+        const t2 = triggerOf(document.getElementById("h2")!)! as HTMLElement;
+        const t3 = triggerOf(document.getElementById("h3")!)! as HTMLElement;
+        // 首位（direction left，分隔条在跨轴正方向）→ +half；次位 → −half
+        expect(t1.style.getPropertyValue("--as-offset")).toBe(
+            "calc(var(--autospark-splitter-hit-size, 4px) / 2)",
+        );
+        expect(t2.style.getPropertyValue("--as-offset")).toBe(
+            "calc(-1 * var(--autospark-splitter-hit-size, 4px) / 2)",
+        );
+        // 用户显式声明 offset → 尊重不覆盖
+        expect(t3.style.getPropertyValue("--as-offset")).toBe("6px");
+    });
+
+    test("data-expandable 的 resize 由分割器接管（warn 忽略，面板调节走分隔条拖拽，ADR-0073 修订）", async () => {
+        const warns = catchWarns(() =>
+            mountSplitter(
+                `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                    <div id="p1" data-size="300" data-expandable='{"resize": true}'>a</div><div>b</div>
+                </div></div></div>`,
+                {},
+            ),
+        );
+        await nextTick();
+        expect(warns.some((w) => w.includes('"resize" 由分割器接管'))).toBe(true);
+        // 面板无内建 resize 手柄（调节入口唯一 = 分隔条拖拽）
+        const p1 = document.getElementById("p1")! as HTMLElement;
+        expect(p1.querySelector("[data-autospark-resize-handle]")).toBeNull();
     });
 });
 
@@ -733,21 +885,22 @@ describe("事件", () => {
         expect(detail).toEqual({ size: 245 });
     });
 
-    test("跨 0 翻转派发 collapse / expand；非跨 0 变更不派发", () => {
+    test("expandable:collapse / expand 面板派发冒泡到宿主（splitter:collapse/expand 已删除）", async () => {
         const { root } = mountSplitter(
-            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'" x-splitter-options="{collapsible: true}">
-                <div id="p1" data-size="300">a</div><div>b</div>
+            `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
+                <div id="p1" data-size="300" data-expandable>a</div><div>b</div>
             </div></div></div>`,
             {},
         );
+        await nextTick();
         const host = root.querySelector("#host")!;
         const seq: string[] = [];
         let lastDetail: any = null;
-        host.addEventListener("splitter:collapse", (e: any) => {
+        host.addEventListener("expandable:collapse", (e: any) => {
             seq.push("collapse");
             lastDetail = e.detail;
         });
-        host.addEventListener("splitter:expand", (e: any) => {
+        host.addEventListener("expandable:expand", (e: any) => {
             seq.push("expand");
             lastDetail = e.detail;
         });
@@ -755,27 +908,28 @@ describe("事件", () => {
         t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         expect(seq).toEqual(["collapse", "expand"]);
-        expect(lastDetail).toEqual({ size: 300 });
+        expect(lastDetail).toEqual({ size: "300px" }); // 展开尺寸 = lastSize（formatCss 形态）
         // 拖拽（非跨 0）不派发折叠事件
         seq.length = 0;
         drag(dividerOf(host)!, 50);
         expect(seq).toEqual([]);
     });
 
-    test("拖拽跨 0 翻转补派发折叠事件（会话中抑制、end 统一派发）", () => {
+    test("拖拽跨折叠目标：事件即时派发（跨目标瞬间）+ end 派发 resize", async () => {
         const { root } = mountSplitter(
             `<div id="app"><div x-scope><div id="host" x-splitter="'horizontal'">
-                <div id="p1" data-size="80" data-min-size="0">a</div><div>b</div>
+                <div id="p1" data-size="80" data-expandable>a</div><div>b</div>
             </div></div></div>`,
             {},
         );
+        await nextTick();
         const host = root.querySelector("#host")!;
         const seq: string[] = [];
-        host.addEventListener("splitter:collapse", () => seq.push("collapse"));
-        host.addEventListener("splitter:expand", () => seq.push("expand"));
+        host.addEventListener("expandable:collapse", () => seq.push("collapse"));
+        host.addEventListener("expandable:expand", () => seq.push("expand"));
         host.addEventListener("splitter:resize", () => seq.push("resize"));
         drag(dividerOf(host)!, -200);
-        expect(seq).toEqual(["resize", "collapse"]);
+        expect(seq).toEqual(["collapse", "resize"]); // 跨目标瞬间派发（组合实例事件管线）
     });
 });
 

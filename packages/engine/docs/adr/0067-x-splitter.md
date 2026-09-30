@@ -119,3 +119,7 @@ Pointer Events（`setPointerCapture` + 临时监听）+ **绝对式数学**（�
 ### 五、把手滑轨定位补 `− half` 偏移（居中缺陷修复）
 
 样式表钳制表达式 `max(half, min(rail − half, coord))` 输出的是**圆心坐标**，曾被直接当作 `top/left`（顶边位置）写入——圆心恒偏 `half`（默认居中时肉眼可见偏下/偏右 10px），且 coord 钳到 `rail − half` 时圆心探出轨道末端半截。修复：表达式外包 `calc(... − half)`——钳制圆心、顶边取差。侧向居中（`left: calc(50% − size/2)`）本就正确，缺陷仅在滑轨轴向。同源核对：drawer `_positionTrigger` 的 `railOrigin + cross − half` 一直带此偏移，坐标模型迁移时遗漏。
+
+## 修订：折叠机制组合 x-expandable——`collapsible` 与 `data-minimize-size` 删除（2026-09-30，ADR-0070）
+
+折叠机制（把手/动画/事件）整体移交 x-expandable：定容面板声明 `data-expandable` 启用（空属性全默认 / JSON 透传 options），分隔条不再承载把手。**清除清单**：`collapsible` 选项（含表达式热重定位）、`data-minimize-size`（含绑定形态）、`splitter:collapse/expand` 事件、分隔条把手 DOM/CSS、`--autospark-splitter-trigger-*` 变量、pane `data-collapsed` overflow 规则。折叠目标 = `data-expandable` 的 `minSize`（0 负 margin 滑出 / >0 收缩，与修订四的分派同构零漂移）；事件走 `expandable:collapse/expand`（面板派发冒泡，宿主监听靠冒泡）。**决策七修订**：组合语境折叠**布尔为真相**（expandable 持有），「否决独立 collapsed 布尔源」在此场景被推翻——派生检测收敛为「拖拽跨折叠目标 → 翻转布尔」单点；`lastSize` 记忆链保留（splitter 侧持有、展开写回），`direction` 按 sized 位次推导、展开尺寸由 splitter 接管（options 中 `direction`/`maxSize` 无效）。把手默认 `showTrigger:'always'`（hover 感应边条与分隔条拖拽命中区冲突，需显式传）。`splitter:resize` 与拖拽/键盘机制不受影响。

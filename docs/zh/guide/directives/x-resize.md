@@ -110,6 +110,10 @@
 
 手柄可聚焦（`tabindex=0` + `role="separator"`）：聚焦后**方向键 ±1px**、**Shift + 方向键 ±10px**，与拖拽走同一钳制管线、派发同样的三事件。
 
+### 与 x-expandable 同元素互斥
+
+宿主同时声明 [x-expandable](./x-expandable.md) 时本指令**自失效**（warn 提示迁移）——x-expandable 内建**单边** resize（方向由折叠方向推导，复用本指令的 `ResizeSession` 核心，约束字段同构），边线交互由其独占以消除把手/手柄/边条的三层命中冲突（ADR-0072）。需要「可折叠 + 可调节」的组合请直接使用 `x-expandable-options="{resize: true}"`。
+
 ### 手柄样式定制
 
 <demo html="resize/styles.html"/>

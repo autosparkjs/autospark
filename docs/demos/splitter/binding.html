@@ -25,10 +25,7 @@
           <button class="button is-small" @click="sidebar = 400">设为 400</button>
           <button class="button is-small" @click="sidebar = 180">设为 180</button>
         </div>
-        <div
-          x-splitter="'horizontal'"
-          style="height: 200px; border: 1px solid #eee; border-radius: 8px"
-        >
+        <div x-splitter="'horizontal'" style="height: 200px">
           <div class="pane" :data-size="sidebar" data-min-size="160" data-max-size="520">
             <strong>侧栏</strong>
           </div>

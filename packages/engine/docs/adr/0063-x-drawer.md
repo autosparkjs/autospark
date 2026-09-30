@@ -156,3 +156,7 @@ drawer 内再开 drawer：每次打开新实例（ADR-0052 决策 9）DOM 追加
 - **`toggle` deprecated 别名**：见上，未发版 + 类型不同构。
 - **折叠露背离半圆**（锚定模式「把手浮在锚外」观感）：屏幕模式下露出的半圆在视口外，须为两模式写不同方向分支——不同构、CSS/三角/文档全复杂化；统一露展开侧改动最小（clip 两行对调）且三角零改动。
 - **把手创建随表达式动态补建**：把手存亡挂 created 期一次断定，动态补建引入「把手出现时机」第二套时序，YAGNI。
+
+## 修订：把手机制组合 x-expandable 共享模块——`trigger` 选项删除（2026-09-30，ADR-0070）
+
+把手实现整体移交 x-expandable 共享把手模块（本文件前两条把手修订的**实现**被取代，**坐标模型语义**——边缘锚定/负值距对端/越界钳制/表达式热应用/created 期创建断言——成为共享模块的契约来源）：`trigger` 选项删除，取值域移交 `x-drawer-options.expandable`（`false` 不建把手 / `true` 默认居中 / 对象 `{ pos }` 传坐标，原三态取值映射至 `pos`）。类名 `.autospark-drawer-trigger` 与变量 `--autospark-drawer-trigger-size` 删除，统一 expandable 契约（默认直径 24px → 20px，breaking）；折叠露展开侧半圆、展开无阴影折叠有阴影的视觉规则随模块统一。overlay 生命周期不变：把手实例外常驻（生命周期挂指令实例）、折叠 ≡ visible 归假、`requestClose("trigger")` source 标签保留、锚定模式贴锚内侧边保留、shell 开合动画不动；显隐策略经后续修订（ADR-0070，2026-09-30）定为 `showTrigger` 默认 `'hover'`——展开态隐藏、hover/聚焦显形（含全长固定感应边条）、**折叠态恒显**（唯一重开触点）、触屏恒显。

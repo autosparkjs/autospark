@@ -11,7 +11,11 @@ import { mount, nextTick, finishAnim } from "./helpers";
  * 子内容不隐藏 + 把手不迁移）、maxSize（有值内联 / 缺省移除自己写的 inline、用户 inline 不动）、
  * 把手（DOM 契约 / 键盘 / pos 三态与热应用）、reparent（折叠完成迁父容器 / 展开前迁回 /
  * 初始折叠立即迁移）、父容器注入（dock/clip 挂摘 / 幂等 / injectOverflow:false 回落 warn /
- * 多实例引用计数）、事件（expand/collapse detail / 初始不派发）、初始态与销毁。
+ * 多实例引用计数）、事件（expand/collapse detail / 初始不派发）、初始态与销毁、
+ * 宿主样式契约（static 补 relative / overflow 非 visible 检测 warn）、把手显隐
+ * （showTrigger 三态：默认 hover / always / 非法回退）、渐变遮盖（fadeSize 启用标记
+ * 与厚度变量 / data-shrunk 收缩态钩子 / 非法回退）、把手偏移（offset 三形态与两态
+ * 定位规则的跨轴符号契约）。
  *
  * 约定：happy-dom 无布局——滑出距离走 inline 数值优先路径（模板给宿主 inline 尺寸），
  * 动画结束用 finishAnim 手动派发 transitionend（helpers 惯例）。
@@ -590,5 +594,294 @@ describe("初始态与销毁", () => {
     test("全局样式注入（幂等 id）", () => {
         mountExpandable(tmpl(), { ui: { open: true } });
         expect(document.getElementById("autospark-expandable-styles")).not.toBeNull();
+    });
+});
+
+// ── 宿主样式契约 ──────────────────────────────────────────────────────
+
+describe("宿主样式契约", () => {
+    test("static 宿主自动补 inline position:relative（把手定位上下文）", async () => {
+        const { root } = mountExpandable(tmpl(), { ui: { open: true } });
+        await nextTick();
+        expect(hostOf(root).style.position).toBe("relative");
+    });
+
+    test("宿主 overflow 非 visible（hidden）：编译后 warn 一次，提示内层包裹承载", async () => {
+        const warns: string[] = [];
+        const orig = console.warn;
+        console.warn = (...a: any[]) => warns.push(String(a[0] ?? ""));
+        try {
+            mountExpandable(tmpl("", "<span>x</span>", "width:200px;overflow:hidden"), {
+                ui: { open: true },
+            });
+            await nextTick();
+        } finally {
+            console.warn = orig;
+        }
+        expect(warns.some((w) => w.includes("内层包裹"))).toBe(true);
+    });
+
+    test("宿主 overflow 默认（visible）：不 warn", async () => {
+        const warns: string[] = [];
+        const orig = console.warn;
+        console.warn = (...a: any[]) => warns.push(String(a[0] ?? ""));
+        try {
+            mountExpandable(tmpl(), { ui: { open: true } });
+            await nextTick();
+        } finally {
+            console.warn = orig;
+        }
+        expect(warns.some((w) => w.includes("overflow"))).toBe(false);
+    });
+});
+
+// ── 把手显隐（showTrigger） ───────────────────────────────────────────
+
+describe("把手显隐（showTrigger）", () => {
+    test("默认 hover：宿主挂 data-show-trigger=hover + 感应边条注入（把手之前）", () => {
+        const { root } = mountExpandable(tmpl(), { ui: { open: true } });
+        const host = hostOf(root);
+        expect(host.getAttribute("data-show-trigger")).toBe("hover");
+        const edge = host.querySelector(".autospark-expandable-edge") as HTMLElement;
+        expect(edge).not.toBeNull();
+        // 边条必须是把手的前置兄弟（.edge:hover ~ .trigger 显形的前提）
+        expect(edge.nextElementSibling).toBe(triggerOf(root));
+        expect(edge.getAttribute("aria-hidden")).toBe("true");
+    });
+
+    test("always：宿主级恒常驻标记", () => {
+        const { root } = mountExpandable(
+            tmpl(`x-expandable-options="{showTrigger:'always'}"`),
+            { ui: { open: true } },
+        );
+        expect(hostOf(root).getAttribute("data-show-trigger")).toBe("always");
+    });
+
+    test("非法值 warn 回退 hover", () => {
+        const warns = catchWarns(() =>
+            mountExpandable(tmpl(`x-expandable-options="{showTrigger:'auto'}"`), {
+                ui: { open: true },
+            }),
+        );
+        expect(warns.some((w) => w.includes("showTrigger"))).toBe(true);
+        const root = roots[roots.length - 1] as HTMLElement;
+        expect(hostOf(root).getAttribute("data-show-trigger")).toBe("hover");
+    });
+
+    test("销毁：感应边条随宿主移除", () => {
+        const { root } = mountExpandable(tmpl(), { ui: { open: true } });
+        const host = hostOf(root);
+        root.querySelector(".autospark-expandable-trigger")!.dispatchEvent(
+            new MouseEvent("click", { bubbles: true }),
+        );
+        engines[engines.length - 1]?.destroy();
+        expect(host.querySelector(".autospark-expandable-edge")).toBeNull();
+        expect(host.querySelector(".autospark-expandable-trigger")).toBeNull();
+    });
+});
+
+// ── 渐变遮盖（fadeSize） ──────────────────────────────────────────────
+
+describe("渐变遮盖（fadeSize）", () => {
+    test("默认 0：不启用（无 data-fade、无厚度变量）", () => {
+        const { root } = mountExpandable(tmpl(`x-expandable-options="{minSize:48}"`), {
+            ui: { open: true },
+        });
+        const host = hostOf(root);
+        expect(host.hasAttribute("data-fade")).toBe(false);
+        expect(host.style.getPropertyValue("--as-fade-size")).toBe("");
+    });
+
+    test("启用：data-fade + --as-fade-size 变量（编译期写入）", () => {
+        const { root } = mountExpandable(
+            tmpl(`x-expandable-options="{minSize:48,fadeSize:40}"`),
+            { ui: { open: true } },
+        );
+        const host = hostOf(root);
+        expect(host.hasAttribute("data-fade")).toBe(true);
+        expect(host.style.getPropertyValue("--as-fade-size")).toBe("40px");
+    });
+
+    test("收缩折叠挂 data-shrunk（fadeSize 未启用也挂——通用收缩态钩子），展开摘除", async () => {
+        const { engine, root } = mountExpandable(tmpl(`x-expandable-options="{minSize:48}"`), {
+            ui: { open: true },
+        });
+        const host = hostOf(root);
+        engine.store.state.ui.open = false;
+        await nextTick();
+        expect(host.hasAttribute("data-shrunk")).toBe(true);
+        engine.store.state.ui.open = true;
+        await nextTick();
+        expect(host.hasAttribute("data-shrunk")).toBe(false);
+    });
+
+    test("滑出折叠（minSize=0）不挂 data-shrunk", async () => {
+        const { engine, root } = mountExpandable(tmpl(), { ui: { open: true } });
+        engine.store.state.ui.open = false;
+        await nextTick();
+        expect(hostOf(root).hasAttribute("data-shrunk")).toBe(false);
+        expect(hostOf(root).hasAttribute("data-collapsed")).toBe(true);
+    });
+
+    test("非法 fadeSize warn 忽略", () => {
+        const warns = catchWarns(() =>
+            mountExpandable(tmpl(`x-expandable-options="{fadeSize:'abc'}"`), {
+                ui: { open: true },
+            }),
+        );
+        expect(warns.some((w) => w.includes("fadeSize"))).toBe(true);
+        expect(hostOf(roots[roots.length - 1] as HTMLElement).hasAttribute("data-fade")).toBe(false);
+    });
+});
+
+// ── 把手额外偏移（offset）────────────────────────────────────────────────
+
+describe("把手偏移（offset）", () => {
+    test("默认不写 --as-offset（回退样式表 0px）", () => {
+        mountExpandable(tmpl(), { ui: { open: true } });
+        const t = triggerOf(roots[roots.length - 1] as HTMLElement)!;
+        expect(t.style.getPropertyValue("--as-offset")).toBe("");
+    });
+
+    test("number / CSS 长度串（负值合法）写入 --as-offset", () => {
+        mountExpandable(tmpl(`x-expandable-options="{offset: 3}"`), { ui: { open: true } });
+        const t1 = triggerOf(roots[roots.length - 1] as HTMLElement)!;
+        expect(t1.style.getPropertyValue("--as-offset")).toBe("3px");
+        mountExpandable(tmpl(`x-expandable-options="{offset: '-2px'}"`), { ui: { open: true } });
+        const t2 = triggerOf(roots[roots.length - 1] as HTMLElement)!;
+        expect(t2.style.getPropertyValue("--as-offset")).toBe("-2px");
+    });
+
+    test("calc()/var() 表达式原样透传（splitter 注入分隔条宽度补偿的载体）", () => {
+        mountExpandable(
+            tmpl(`x-expandable-options="{offset: 'calc(var(--w, 4px) / 2)'}"`),
+            { ui: { open: true } },
+        );
+        const t = triggerOf(roots[roots.length - 1] as HTMLElement)!;
+        expect(t.style.getPropertyValue("--as-offset")).toBe("calc(var(--w, 4px) / 2)");
+    });
+
+    test("非法值 warn 忽略（不写变量）", () => {
+        const warns = catchWarns(() =>
+            mountExpandable(tmpl(`x-expandable-options="{offset: 'abc'}"`), {
+                ui: { open: true },
+            }),
+        );
+        expect(warns.some((w) => w.includes("offset"))).toBe(true);
+        const t = triggerOf(roots[roots.length - 1] as HTMLElement)!;
+        expect(t.style.getPropertyValue("--as-offset")).toBe("");
+    });
+
+    test("两态定位规则消费 offset（展开态跨轴符号：left/right 方向相异、dock 态相反）", () => {
+        // 样式表契约锁定：跨轴属性 = calc(-1*half ± offset)，符号逐方向固定
+        // （固定轴语义 + = 右/下；展开 right/bottom 与 dock left/top 取 +，其余取 −）
+        const css = document.getElementById("autospark-expandable-styles")!.textContent!;
+        expect(css).toContain(
+            '[data-direction="left"]>.autospark-expandable-trigger{right:calc(-1*var(--as-pos-half) - var(--as-offset,0px));',
+        );
+        expect(css).toContain(
+            '[data-direction="right"]>.autospark-expandable-trigger{left:calc(-1*var(--as-pos-half) + var(--as-offset,0px));',
+        );
+        expect(css).toContain(
+            '[data-autospark-expandable-dock]>.autospark-expandable-trigger[data-direction="left"]{left:calc(-1*var(--as-pos-half) + var(--as-offset,0px));',
+        );
+        expect(css).toContain(
+            '[data-autospark-expandable-dock]>.autospark-expandable-trigger[data-direction="right"]{right:calc(-1*var(--as-pos-half) - var(--as-offset,0px));',
+        );
+    });
+});
+
+// ── 内建单边 resize（ADR-0072）──────────────────────────────────────────
+
+describe("内建单边 resize（ADR-0072）", () => {
+    /** 模拟手柄指针拖拽（e 方向：向右 dx） */
+    const dragHandle = (h: Element, dx: number) => {
+        h.dispatchEvent(
+            new MouseEvent("pointerdown", { bubbles: true, clientX: 100, clientY: 100, button: 0 }),
+        );
+        h.dispatchEvent(new MouseEvent("pointermove", { bubbles: true, clientX: 100 + dx, clientY: 100 }));
+        h.dispatchEvent(new MouseEvent("pointerup", { bubbles: true }));
+    };
+
+    test("同元素 x-resize 互斥：x-resize warn + 自失效（单手柄），expandable 正常", async () => {
+        const warns = catchWarns(() =>
+            mountExpandable(tmpl(`x-resize x-expandable-options="{resize: true}"`), {
+                ui: { open: true },
+            }),
+        );
+        await nextTick();
+        expect(warns.some((w) => w.includes("同元素存在 x-expandable"))).toBe(true);
+        const host = hostOf(roots[roots.length - 1] as HTMLElement);
+        // x-resize 失效（其三手柄 e/s/se 不存在），仅剩 expandable 的单边手柄
+        expect(host.querySelectorAll("[data-autospark-resize-handle]").length).toBe(1);
+        expect(triggerOf(roots[roots.length - 1] as HTMLElement)).not.toBeNull();
+    });
+
+    test(".resize 修饰符启用：单边手柄（direction left → e）拖拽调宽", async () => {
+        // 修饰符与值同属一个属性（x-expandable.resize="ui.open"——同名第二声明会被
+        // singleton 去重覆盖，分离书写非法）
+        mountExpandable(
+            `<div id="app"><div id="box" style="display:flex;width:600px;height:400px">` +
+                `<div id="host" x-expandable.resize="ui.open" style="width:200px"><span>侧栏内容</span></div>` +
+                `<div id="main">主区</div></div></div>`,
+            { ui: { open: true } },
+        );
+        await nextTick();
+        const host = hostOf(roots[roots.length - 1] as HTMLElement);
+        const e = host.querySelector<HTMLElement>('[data-autospark-resize-handle="e"]')!;
+        expect(e).not.toBeNull();
+        expect(host.querySelector('[data-autospark-resize-handle="s"]')).toBeNull(); // 单边
+        dragHandle(e, 50);
+        expect(host.style.width).toBe("250px"); // inline 200 + 50
+    });
+
+    test("resize 接管展开尺寸真相（Q4=A）：收缩折叠再展开恢复拖出宽度", async () => {
+        mountExpandable(tmpl(`x-expandable-options="{resize: true, minSize: 80}"`), {
+            ui: { open: true },
+        });
+        await nextTick();
+        const host = hostOf(roots[roots.length - 1] as HTMLElement);
+        const t = triggerOf(roots[roots.length - 1] as HTMLElement)!;
+        const e = host.querySelector<HTMLElement>('[data-autospark-resize-handle="e"]')!;
+        dragHandle(e, 50);
+        expect(host.style.width).toBe("250px");
+        // 收缩折叠（width=80）→ 展开：恢复拖出宽度 250（maxDecl 被 resize 接管）
+        t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await nextTick();
+        expect(host.style.width).toBe("80px");
+        t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await nextTick();
+        expect(host.style.width).toBe("250px");
+    });
+
+    test("enable 退化矩阵：enable:false + resize → 无把手有手柄；双关 warn 不作为", () => {
+        mountExpandable(tmpl(`x-expandable-options="{enable: false, resize: true}"`), {
+            ui: { open: true },
+        });
+        let root = roots[roots.length - 1] as HTMLElement;
+        expect(triggerOf(root)).toBeNull(); // 折叠功能关：无把手
+        expect(root.querySelector("#host")!.querySelector("[data-autospark-resize-handle]")).not.toBeNull();
+        const warns = catchWarns(() =>
+            mountExpandable(tmpl(`x-expandable-options="{enable: false}"`), { ui: { open: true } }),
+        );
+        root = roots[roots.length - 1] as HTMLElement;
+        expect(warns.some((w) => w.includes("均未启用"))).toBe(true);
+        expect(triggerOf(root)).toBeNull();
+        expect(root.querySelector("#host")!.querySelector("[data-autospark-resize-handle]")).toBeNull();
+    });
+
+    test("resize 对象形态：handles/aspectRatio 子键 warn 忽略；minWidth 约束生效", async () => {
+        const warns = catchWarns(() =>
+            mountExpandable(
+                tmpl(`x-expandable-options="{resize: {handles: 'e,w', aspectRatio: 2, minWidth: 240}}"`),
+                { ui: { open: true } },
+            ),
+        );
+        await nextTick();
+        expect(warns.some((w) => w.includes("handles/aspectRatio"))).toBe(true);
+        const host = hostOf(roots[roots.length - 1] as HTMLElement);
+        const e = host.querySelector<HTMLElement>('[data-autospark-resize-handle="e"]')!;
+        dragHandle(e, -100);
+        expect(host.style.width).toBe("240px"); // minWidth 钳制（200-100 → 240 下限）
     });
 });

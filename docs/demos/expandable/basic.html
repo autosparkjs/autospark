@@ -1,69 +1,77 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <title>x-expandable · 基本用法（margin 通道侧栏折叠）</title>
-        <script src="/autospark/autospark.js"></script>
-        <link rel="stylesheet" href="/autospark/bulma.min.css" />
-        <style>
-            /* margin 通道要求父容器裁剪滑出部分——demo 显式声明（injectOverflow 默认会临时注入，
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-expandable · 基本用法（margin 通道侧栏折叠）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      /* margin 通道要求父容器裁剪滑出部分——demo 显式声明（injectOverflow 默认会临时注入，
                  这里自己设了 overflow:hidden，指令幂等跳过） */
-            .layout {
-                display: flex;
-                height: 320px;
-                overflow: hidden;
-                border: 1px solid #dbdbdb;
-                border-radius: 6px;
-            }
-            /* 展开尺寸交给 CSS（maxSize 缺省 = 指令不动 inline 尺寸） */
-            .sidebar {
-                width: 220px;
-                flex: 0 0 auto;
-                background: #f8fafc;
-                border-right: 1px solid #e2e8f0;
-                padding: 12px;
-            }
-            .main {
-                flex: 1;
-                padding: 16px;
-                min-width: 0;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="demo-app section">
-            <div class="block">
-                <span class="tag is-primary">ui.open = <code x-text="ui.open"></code></span>
-                <button class="button is-small" @click="ui.open = !ui.open">状态驱动翻转</button>
-            </div>
-            <!-- direction:'left'（默认）= 向左收起；把手骑右边线、折叠后贴容器左缘；
+      .layout {
+        display: flex;
+        height: 320px;
+        overflow: hidden;
+        border: 1px solid #dbdbdb;
+        border-radius: 6px;
+      }
+      /* 展开尺寸交给 CSS（maxSize 缺省 = 指令不动 inline 尺寸） */
+      .sidebar {
+        width: 220px;
+        flex: 0 0 auto;
+        background: #f8fafc;
+        border-right: 1px solid #e2e8f0;
+        padding: 12px;
+      }
+      .main {
+        flex: 1;
+        padding: 16px;
+        min-width: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-app section">
+      <div class="block">
+        <span class="tag is-primary">ui.open = <code x-text="ui.open"></code></span>
+        <button class="button is-small" @click="ui.open = !ui.open">状态驱动翻转</button>
+      </div>
+      <!-- direction:'left'（默认）= 向左收起；把手骑右边线、折叠后贴容器左缘；
                  点击把手与按钮都会回写 ui.open（双向绑定） -->
-            <div class="layout block">
-                <div class="sidebar" x-expandable="ui.open" x-expandable-options="{ direction: 'left', pos: 'center' }">
-                    <p class="menu-label">侧栏</p>
-                    <aside class="menu">
-                        <ul class="menu-list">
-                            <li><a>概览</a></li>
-                            <li><a>订单</a></li>
-                            <li><a>设置</a></li>
-                        </ul>
-                    </aside>
-                </div>
-                <div class="main content">
-                    <h3>主区</h3>
-                    <p>侧栏折叠（minSize=0 默认）走 <strong>margin 滑出</strong>：宽度保持、负 margin
-                        拉回占位——内容不挤压，主区平滑流入。展开时把手回到侧栏右边线。</p>
-                </div>
-            </div>
-            <div class="block has-text-grey">
-                把手（圆形箭头）可点击、可 Tab 聚焦后 Enter/Space 触发；滑轨坐标 <code>pos</code>
-                支持 <code>'center'</code> / 数字 px / CSS 长度串（负值距对端）。
-            </div>
+      <div class="layout block">
+        <div
+          class="sidebar"
+          x-expandable="ui.open"
+          x-expandable-options="{ direction: 'left', pos: '-25%' }"
+        >
+          <p class="menu-label">侧栏</p>
+          <aside class="menu">
+            <ul class="menu-list">
+              <li><a>概览</a></li>
+              <li><a>订单</a></li>
+              <li><a>设置</a></li>
+            </ul>
+          </aside>
         </div>
-        <script>
-            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
-                ui: { open: true },
-            });
-        </script>
-    </body>
+        <div class="main content">
+          <h3>主区</h3>
+          <p>
+            侧栏折叠（minSize=0 默认）走 <strong>margin 滑出</strong>：宽度保持、负 margin
+            拉回占位——内容不挤压，主区平滑流入。展开时把手回到侧栏右边线。
+          </p>
+        </div>
+      </div>
+      <div class="block has-text-grey">
+        把手（圆形箭头）默认 <code>showTrigger: 'hover'</code>——鼠标接近边线 ±12px 才淡入
+        （折叠态与触屏常驻、Tab 聚焦显形；<code>'always'</code> 恒常驻）。可点击、可 Tab 聚焦后
+        Enter/Space 触发；滑轨坐标 <code>pos</code> 支持 <code>'center'</code> / 数字 px / CSS
+        长度串（负值距对端）。
+      </div>
+    </div>
+    <script>
+      const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+        ui: { open: true },
+      });
+    </script>
+  </body>
 </html>

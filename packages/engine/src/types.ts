@@ -1,8 +1,7 @@
 import type { AutoStore, AutoStoreOptions, Dict, FastEvent } from "autostore";
 import type { ActionDecl } from "./actions/types";
 import type { TooltipOptions } from "./tooltip/types";
-import type { ToastOptions } from "./toast/types";
-import type { ToastTask } from "./toast/types";
+import type { MessageOptions, MessageTask } from "./messages/types";
 import type { AutoSparkScope } from "./scope";
 
 /**
@@ -190,17 +189,17 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      */
     tooltip?: false | TooltipOptions;
     /**
-     * 全局轻提示（ADR-0068）：引擎级子系统 `engine.toast()` / `toastManager` 的全局默认。三态：
+     * 全局消息（ADR-0071）：引擎级子系统 `engine.messages` 的全局默认。三态：
      *
-     * - 缺省：默认开启 + 内置默认（pos top-right / delay 3000 / showCount 5 / slide）；
-     * - `false`：**整体关闭**——不建容器、不注样式，`engine.toast()` 与内置 `toast` action
-     *   warn + no-op（死句柄，不给半开状态）；
-     * - 配置对象：全局默认（与单次调用 props 同构，单次覆盖全局；`showCount` / `icons` /
-     *   `shell` 为管理器级键，仅本层生效）。
+     * - 缺省：默认开启 + 内置默认（pos top-right / delayClose 3000 / showCount 5 / slide）；
+     * - `false`：**整体关闭**——不建容器、不注样式，`engine.messages` / `engine.toast()`
+     *   别名与内置 `toast` / `confirm` / `task` action 一并 warn + no-op（死句柄，不给半开状态）；
+     * - 配置对象：全局默认（与单次调用 props 同构，单次覆盖全局；`showCount` / `maxLen` /
+     *   `url` / `headers` / `icons` / `shell` / `kinds` 为管理器级键，仅本层生效）。
      *
-     * @default 开启 + 内置默认（ToastOptions 各键见 ADR-0068 决策 4/6）
+     * @default 开启 + 内置默认（MessageOptions 各键见 ADR-0071 决策 4/15）
      */
-    toast?: false | ToastOptions;
+    messages?: false | MessageOptions;
 }
 
 /**
@@ -240,11 +239,31 @@ export interface AutoSparkEvents {
     /** 工具提示隐藏（一切隐藏路径均广播：移出/聚焦离场/断连/stop/命令式） */
     "tooltip:hide": { el: HTMLElement; tip: HTMLElement };
 
-    // ── toast:* 轻提示（ADR-0068 决策 17，双通道之总线侧；卡片元素 dispatchEvent 同步广播） ──
+    // ── message:* 消息（ADR-0071 决策 20，双通道之总线侧；卡片元素 dispatchEvent 同步广播） ──
+    /** 记录创建（payload：message = 任务句柄，el = 卡片根元素，排队未挂为 null） */
+    "message:add": { message: MessageTask; el: HTMLElement | null };
+    /** 记录级补丁生效 / 同 id 原地更新 */
+    "message:update": { message: MessageTask; el: HTMLElement | null };
+    /** 展示挂载（进场动画发起时） */
+    "message:show": { message: MessageTask; el: HTMLElement | null };
+    /** 展示关闭（一切移除路径均广播：自动关闭 / hide() / delete() / clear() / destroy） */
+    "message:hide": { message: MessageTask; el: HTMLElement | null };
+    /** 已读置位（卡片任意点击 / markRead / markAllRead） */
+    "message:read": { message: MessageTask; el: HTMLElement | null };
+    /** 业务状态补丁（status 键变更） */
+    "message:status": { message: MessageTask; el: HTMLElement | null };
+    /** action 按钮点击（value 应答在此；anchor 存在时以发起子树为根额外派发，决策 14） */
+    "message:action": {
+        message: MessageTask;
+        el: HTMLElement | null;
+        action: { title: string; hide: boolean };
+        value?: any;
+    };
+    // ── toast:* 轻提示旧事件（ADR-0068 决策 17；ADR-0071 迁移期兼容——kind='toast' 双发，随别名退役） ──
     /** 轻提示显示（payload：toast = 任务句柄，el = 卡片根元素） */
-    "toast:show": { toast: ToastTask; el: HTMLElement };
+    "toast:show": { toast: MessageTask; el: HTMLElement | null };
     /** 轻提示隐藏（一切移除路径均广播：自动关闭 / hide() / clear() / 原地更新替换 / destroy） */
-    "toast:hide": { toast: ToastTask; el: HTMLElement };
+    "toast:hide": { toast: MessageTask; el: HTMLElement | null };
 
     // ── directive/** 指令生命周期（<name> 占位，跨主体通配） ──
     // scope 通道（Compile/Hybrid）：带 scope.id

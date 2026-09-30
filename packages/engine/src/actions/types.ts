@@ -37,6 +37,8 @@ export interface ActionDesc {
      * **点击时现读**；其他场景不解释（开放元数据，引擎核心只认 handle）。
      */
     hide?: boolean;
+    
+    value?:any
     /**
      * 自由元数据键（开放元数据，决策 2）：原样保留、引擎不解释。将来扩展
      * `description` / `hotkey` / `disabled` 等键无需改本类型与规范化逻辑。

@@ -116,19 +116,20 @@ export interface OverlayConfig {
      */
     resize?: boolean | ResizeOptions;
     /**
-     * 抽屉把手坐标（x-drawer 消费，ADR-0063 修订）：骑面板活动边线的常驻圆形按钮，
-     * 点击折叠/展开——**折叠 ≡ visible 归假**（无第三态，面板销毁、重开重建）。把手是
-     * 覆盖物家族首个**实例外常驻交互元素**（面板销毁后存活，折叠后骑屏幕边/锚内侧边
-     * 露半圆）；生命周期挂指令实例。仅反应式（简单路径）形态生效——字面量形态状态
-     * 不可写，不建把手。取值（边缘锚定模型——坐标沿边线滑轨，正距主边 top/left、负距
-     * 对面边 bottom/right 的绝对距离）：
-     * - `true`（默认）：居中（语法糖 ≡ `'50%'`）；
+     * 抽屉把手（x-drawer 消费，ADR-0070 组合共享把手模块）：骑面板活动边线的常驻圆形
+     * 按钮，点击折叠/展开——**折叠 ≡ visible 归假**（无第三态，面板销毁、重开重建）。
+     * 把手是覆盖物家族首个**实例外常驻交互元素**（面板销毁后存活，折叠后骑屏幕边/
+     * 锚内侧边露半圆）；生命周期挂指令实例。仅反应式（简单路径）形态生效——字面量
+     * 形态状态不可写，不建把手。取值：
+     * - `true`（默认）：建把手，`pos` 居中（语法糖 ≡ `'50%'`）；
      * - `false`：不建把手；
-     * - `number`：px 坐标；`string`：CSS 长度（`'20%'` / `'100px'` / `'2rem'`，纯数字
-     *   字符串按 px）——`'-20%'` = 距对面边 20%。越界静默钳制到边线内。
-     * 尺寸走 CSS 变量 `--autospark-drawer-trigger-size`。
+     * - `{pos}`：坐标对象——`number` px / `string` CSS 长度（`'20%'` / `'100px'` /
+     *   `'2rem'`，纯数字字符串按 px），**边缘锚定模型**（正距主边 top/left、负距对面边
+     *   bottom/right 的绝对距离，`'-20%'` = 距对面边 20%）。越界静默钳制到边线内。
+     * 视觉走共享把手契约（`.autospark-expandable-trigger` /
+     * `--autospark-expandable-trigger-*`，ADR-0070）。
      */
-    trigger?: number | string | boolean;
+    expandable?: boolean | { pos?: number | string; [key: string]: any };
     /** 其余自由键原样保留（开放配置，供消费者指令/自定义 UI 消费） */
     [key: string]: any;
 }

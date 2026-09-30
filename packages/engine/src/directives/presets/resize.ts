@@ -35,16 +35,7 @@ import type { AutoSpark } from "../../engine";
 export type ResizeDirection = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 /** 全部合法方向（校验与归一用） */
-export const RESIZE_DIRECTIONS = new Set<string>([
-    "n",
-    "s",
-    "e",
-    "w",
-    "ne",
-    "nw",
-    "se",
-    "sw",
-]);
+export const RESIZE_DIRECTIONS = new Set<string>(["n", "s", "e", "w", "ne", "nw", "se", "sw"]);
 
 /** 流内自然方向：流内元素左/上边缘锚定布局位，仅这三向拖拽无需位置补偿（ADR-0064 决策四） */
 const FLOW_SAFE_DIRECTIONS = new Set<string>(["e", "s", "se"]);
@@ -276,8 +267,7 @@ export function resolveHandles(
 function readPositionValue(el: HTMLElement): { left: number; top: number } {
     const read = (inline: string, key: "left" | "top"): number => {
         if (/^-?\d+(\.\d+)?px$/.test(inline.trim())) return parseFloat(inline);
-        const cs =
-            typeof getComputedStyle === "function" ? getComputedStyle(el) : null;
+        const cs = typeof getComputedStyle === "function" ? getComputedStyle(el) : null;
         const v = cs ? parseFloat(cs.getPropertyValue(key)) : NaN;
         return Number.isFinite(v) ? v : 0;
     };
@@ -360,11 +350,7 @@ export class ResizeSession {
                 start: SessionStart,
             ) => void;
             /** 每次应用后的回调（写回状态 / 更新会话记忆；overlay 与普通元素各自消费） */
-            onApplied?: (
-                width: number,
-                height: number,
-                handle: ResizeDirection,
-            ) => void;
+            onApplied?: (width: number, height: number, handle: ResizeDirection) => void;
             warn: (msg: string) => void;
         },
     ) {}
@@ -589,7 +575,8 @@ export class ResizeSession {
         width?: number,
         height?: number,
     ): void {
-        const size = width != null ? { width, height: height ?? 0 } : readElementSize(this.opts.target);
+        const size =
+            width != null ? { width, height: height ?? 0 } : readElementSize(this.opts.target);
         this.opts.eventTarget.dispatchEvent(
             new CustomEvent(name, {
                 detail: { width: size.width, height: size.height, handle },
@@ -655,8 +642,20 @@ export class ResizeDirective extends AutoSparkDirectiveBase {
     private _destroyed = false;
     /** 只读降级 warn 一次（对齐 x-model 只读降级词条） */
     private _warnedReadonly = false;
+    /** 同元素互斥失效标记（ADR-0072）：宿主同时声明 x-expandable 时本指令自失效 */
+    private _dead = false;
 
     override created(): void {
+        // 同元素互斥（ADR-0072，Q1=A）：x-expandable 内建单边 resize（本指令能力的单边
+        // 子集，迁移路径 = x-expandable-options.resize）——同元素声明时本指令自失效，
+        // 单点 warn，消灭把手/手柄/边条三层的命中抢夺
+        if (this.binding.directives.some((d) => d.info.name === "expandable")) {
+            this._dead = true;
+            this.warn(
+                `x-resize: 同元素存在 x-expandable，本指令已忽略（其内建单边 resize 为本指令能力子集，请迁移至 x-expandable-options.resize，ADR-0072）`,
+            );
+            return;
+        }
         // 选项成员表达式管道（handles/minWidth 等可表达式化，配置成员不热应用——
         // 手势开始时现读 getOption，值变自然生效）
         this._watchOptionExprs();
@@ -690,17 +689,16 @@ export class ResizeDirective extends AutoSparkDirectiveBase {
             );
             this._applyFromState(this._readSizeEntry()?.leaf);
         } else {
-            const initial = this.binding.watch(
-                raw,
-                ({ value }) => this._applyFromState(value),
-                { depth: 2 },
-            );
+            const initial = this.binding.watch(raw, ({ value }) => this._applyFromState(value), {
+                depth: 2,
+            });
             this._applyFromState(initial);
         }
     }
 
     /** 编译完成后微任务建连（结果树已挂载，computed 检测可靠——对齐 x-teleport 先例） */
     override compile(): void {
+        if (this._dead) return;
         Promise.resolve().then(() => this._setup());
     }
 
@@ -721,11 +719,21 @@ export class ResizeDirective extends AutoSparkDirectiveBase {
             return;
         }
         const handles = resolveHandles(this.options, (m) => this.warn(m));
-        // 流内降级（ADR-0064 决策四）：非 absolute/fixed 丢弃非自然方向 + warn
+        // 流内降级（ADR-0064 决策四）：非 absolute/fixed 丢弃非自然方向 + warn。
+        // grid item 豁免（ADR-0072）：父容器 display:grid 时轨道定位下 width 单写即对缘让位
+        // （免 left 补偿跟手），`w` 方向放行且不做定位补偿（_applyToEl 的 positioned 分支天然
+        // 跳过）；`n` 仍保守丢弃——行轨道下顶缘跟手性不保证（首行场景顶缘锚定）。
         const positioned =
             typeof getComputedStyle === "function" &&
             ["absolute", "fixed"].includes(getComputedStyle(el).position);
-        const dropped = handles.filter((d) => !positioned && !FLOW_SAFE_DIRECTIONS.has(d));
+        const gridItem =
+            !positioned &&
+            el.parentElement != null &&
+            typeof getComputedStyle === "function" &&
+            getComputedStyle(el.parentElement).display === "grid";
+        const flowSafe = (d: string): boolean =>
+            FLOW_SAFE_DIRECTIONS.has(d) || (gridItem && d === "w");
+        const dropped = handles.filter((d) => !positioned && !flowSafe(d));
         const final = handles.filter((d) => !dropped.includes(d));
         if (dropped.length) {
             this.warn(
@@ -827,9 +835,7 @@ export class ResizeDirective extends AutoSparkDirectiveBase {
      * 尺寸状态落点解析（读方向共用）：沿链找首段键的容器（locals → x-data 域）逐段下钻，
      * 全链无局部落点 → 全局 state（getVal 读取）。返回叶对象（尺寸对象本体）。
      */
-    private _resolveSizeEntry():
-        | { segs: string[]; leaf: any; local: boolean }
-        | null {
+    private _resolveSizeEntry(): { segs: string[]; leaf: any; local: boolean } | null {
         const segs = this._sizePath!.split(this.engine.store.delimiter);
         let s: any = this.binding;
         while (s) {

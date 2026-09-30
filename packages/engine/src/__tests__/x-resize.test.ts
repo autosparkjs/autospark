@@ -545,7 +545,35 @@ describe("overlay：x-drawer resize", () => {
         expect(reopened.style.width).toBe("380px");
     });
 
-    test("handles 收窄：越界方向 warn + 忽略（left 抽屉合法集仅 e）", async () => {
+    test("resize 会话把手跟随：调节改变开口边线，把手同步重定位（ADR-0070 修订）", async () => {
+        mountResize(
+            `<div id="app"><div x-scope>
+                <div x-define="p"><span>x</span></div>
+                <button id="host" x-drawer:p="ui.open" x-drawer-options="{resize: true, size: 300}"></button>
+            </div></div>`,
+            { ui: { open: true } },
+        );
+        const panel = panelOf("p")!;
+        // happy-dom 无布局：mock offsetLeft = 视口宽 − 当前 inline 宽（右抽屉开口边真实几何）；
+        // mock 晚于 open 期定位，派发 viewport resize 触发同步重定位后再取基准
+        Object.defineProperty(panel, "offsetLeft", {
+            get: () => 1024 - (parseFloat(panel.style.width) || 0),
+            configurable: true,
+        });
+        window.dispatchEvent(new Event("resize"));
+        const trigger = document.querySelector(
+            ".autospark-expandable-trigger",
+        ) as HTMLElement;
+        const half = 10; // 共享把手契约半径（20px / 2）
+        expect(trigger.style.left).toBe(`${1024 - 300 - half}px`); // 展开态骑开口边线
+        drag(handleOf(panel, "w")!, 80);
+        await nextTick();
+        // w 手柄右拖 80 = 收窄（300 → 220）→ 开口边线右移 80 → 把手同步跟随
+        // （未修复时停留在过期边线 714px）
+        expect(trigger.style.left).toBe(`${1024 - 220 - half}px`);
+    });
+
+    test("handles 子键不适用单边语义：warn 忽略（合法集 = placement 推导单方向，ADR-0073）", async () => {
         const warns: string[] = [];
         const orig = console.warn;
         console.warn = (...a: any[]) => warns.push(String(a[0] ?? ""));
@@ -560,8 +588,9 @@ describe("overlay：x-drawer resize", () => {
         } finally {
             console.warn = orig;
         }
+        // expandable 剥除 handles（单边语义）→ 仅剩 placement 推导的方向（left → e）
         expect(handleDirs(panelOf("p")!)).toEqual(["e"]);
-        expect(warns.join()).toContain("收窄");
+        expect(warns.join()).toContain("handles/aspectRatio");
     });
 
     test("resize:* 事件派发在指令宿主（非面板）", async () => {
