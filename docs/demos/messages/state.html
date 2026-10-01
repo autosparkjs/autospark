@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>messages · 状态暴露 $messages</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .inbox { max-width: 520px; }
+            .inbox-list { list-style: none; margin: 0; padding: 0; }
+            .inbox-list li {
+                display: flex; align-items: baseline; gap: 8px;
+                padding: 6px 10px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 6px;
+            }
+            .inbox-list .lv { font-size: 11px; color: #999; flex: none; min-width: 34px; }
+            .inbox-list .t { font-weight: 600; }
+            .inbox-list .d { font-size: 12px; color: #666; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .inbox-list .dot { width: 8px; height: 8px; border-radius: 50%; background: #f56c6c; flex: none; }
+            .inbox-list li[data-read="true"] { opacity: 0.55; }
+        </style>
+    </head>
+    <body>
+        <!-- $messages 保留键（ADR-0072）：items = 记录镜像（shallow——只读纪律，写走 API）；
+             options = 生效配置真身（可直写，对后续操作生效）。消息中心面板零桥接直绑。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <span class="tag is-danger" x-text="'未读 ' + $messages.items.filter(r => !r.read).length"></span>
+                <button class="button is-small" onclick="spawn('普通', 0)">add level:0</button>
+                <button class="button is-small is-warning" onclick="spawn('重要', 5)">add level:5</button>
+                <button class="button is-small is-danger" onclick="spawn('紧急', 9)">add level:9</button>
+                <button class="button is-small" onclick="allRead()">markAllRead()</button>
+                <button class="button is-small" onclick="toggleSticky()">options.delayClose 0/3000</button>
+                <code id="opt-readout" class="is-size-7" x-text="'delayClose=' + $messages.options.delayClose + ' / showCount=' + $messages.options.showCount"></code>
+            </div>
+            <!-- 消息中心面板：x-for 直绑镜像（高级别排前）；未读角标 = 聚合表达式 -->
+            <div class="inbox">
+                <ul class="inbox-list" x-for="r of $messages.items">
+                    <li :data-read="r.read">
+                        <span class="lv" x-text="'L' + (r.level ?? 0)"></span>
+                        <span class="t" x-text="r.title"></span>
+                        <span class="d" x-text="r.description"></span>
+                        <b class="dot" x-show="!r.read"></b>
+                        <button class="delete is-small" type="button" @click="dismiss(r.id)"></button>
+                    </li>
+                </ul>
+                <p class="has-text-grey is-size-7" x-show="!$messages.items.filter(r => true).length">（暂无记录——点上方按钮发消息）</p>
+            </div>
+            <div class="block has-text-grey is-size-7">
+                items 为 <code>shallow</code> 镜像：结构变更（增删/整替换）与字段读写有事件；写通道仅
+                <code>engine.messages</code> API——面板上的 × 走 <code>dismiss(r.id)</code>，不直改镜像。
+            </div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            let seq = 0;
+            function spawn(label, level) {
+                app.messages.add({
+                    title: `${label}通知 ${++seq}`,
+                    description: `level=${level}，级别越高排越前（角标与列序同规则）`,
+                    level,
+                    kind: "notice",
+                    delayClose: 0, // sticky：留给面板演示，关闭走 ×
+                    closable: false,
+                });
+            }
+            function dismiss(id) {
+                app.messages.delete(id); // 镜像同步移除（面板行即删）
+            }
+            function allRead() {
+                app.messages.markAllRead();
+            }
+            function toggleSticky() {
+                const o = app.store.state.$messages.options;
+                o.delayClose = o.delayClose === 0 ? 3000 : 0; // 真身直写：后续 add 生效
+            }
+        </script>
+    </body>
+</html>

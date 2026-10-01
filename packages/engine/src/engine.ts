@@ -20,7 +20,8 @@ import { removeOverlayContainer } from "./overlay/container";
 import { TooltipManager } from "./tooltip/manager";
 import type { TooltipAPI } from "./tooltip/types";
 import { MessageManager } from "./messages/manager";
-import type { MessageProps, MessageTask, ProgressTask } from "./messages/types";
+import { SHELL_TEMPLATE } from "./messages/renderers/shell";
+import { PANEL_SHELL_TEMPLATE, DRAWER_SHELL_TEMPLATE } from "./overlay/wrappers";
 import { BUILTIN_ERROR_COMPONENT, ensureErrorStyle } from "./builtinError";
 
 /**
@@ -33,6 +34,18 @@ import { BUILTIN_ERROR_COMPONENT, ensureErrorStyle } from "./builtinError";
  * **保留键**：用户 state 树不得使用 "$scopes" 命名，否则将被 engine 覆盖/冲突。
  */
 export const SCOPES_KEY = "$scopes";
+
+/**
+ * 框架保留键（第二例，ADR-0072）：全局消息子系统的状态暴露容器。
+ *
+ * MessageManager 构造时注入 `store.state[MESSAGES_KEY] = { items, options }`：
+ * - `items`：记录镜像（`shallow(items, 1)`——AutoSparkMessage 纯数据，写通道仅 manager，
+ *   模板直写为违约自理）；
+ * - `options`：生效全局配置**真身**（可直写——运行时修改对后续操作生效、已展示卡片不回溯）。
+ *
+ * **保留键**：用户 state 树不得使用 "$messages" 命名，否则将被 engine 覆盖/冲突。
+ */
+export const MESSAGES_KEY = "$messages";
 
 /**
  * AutoStore Template 渲染引擎核心类
@@ -103,7 +116,7 @@ export class AutoSpark<
     readonly animate: AutoSparkAnimator;
     /** 全局工具提示管理单元（ADR-0061）：data-tooltip 约定消费面 + title 编译期转换开关；公共入口经 `tooltip` getter */
     readonly tooltipManager: TooltipManager;
-    /** 全局消息管理单元（ADR-0071）：`extends Map<string, MessageTask>`（键恒为 string id，可枚举全部存活记录）；公共入口经 `add/confirm/progressbar/load/save/...` / 本表 */
+    /** 全局消息管理单元（ADR-0071）：`extends Map<string, SessionImpl>`（键恒为 string id，可枚举全部存活记录——`messages.sessions` 即本表正名视图）；公共入口经 `add/confirm/progressbar/load/save/...` / 本表 */
     readonly messages: MessageManager;
     /** 原始模板（深克隆根元素，保留指令属性作为编译只读输入） */
     readonly template: HTMLElement;
@@ -176,6 +189,21 @@ export class AutoSpark<
         // 全局工具提示（ADR-0061）：须早于 autostart compile——编译期 title→data-tooltip
         // 转换依赖 manager 的 enabled 开关；委托监听/样式注入在构造内就位（tooltip: false 时全短路）
         this.tooltipManager = new TooltipManager(this);
+        // UI 外壳注册表（ADR-0077）：内置四件种子 < 用户 options.uiShells 浅覆盖——构造期固化。
+        // 内置模板来自 messages/renderers/shell 与 overlay/wrappers（叶子模块，无循环依赖）。
+        // builtin 键集排除被用户接管的种子键（接管后的模板无引擎类名契约，按用户模板装配）
+        const userUiShells =
+            ((options as any)?.uiShells as Record<string, string> | undefined) ?? {};
+        this._uiShells = {
+            message: SHELL_TEMPLATE,
+            dialog: PANEL_SHELL_TEMPLATE,
+            popover: PANEL_SHELL_TEMPLATE,
+            drawer: DRAWER_SHELL_TEMPLATE,
+            ...userUiShells,
+        };
+        this._builtinUiShellKeys = new Set(
+            ["message", "dialog", "popover", "drawer"].filter((k) => !(k in userUiShells)),
+        );
         // 全局消息（ADR-0071）：引擎级子系统，容器/样式随首个消息懒建（messages: false 时
         // 构造即短路——add() warn + no-op）；配套 action（toast/confirm/task）的 handle 闭包
         // 经 engine 引用惰性触达本管理器，无初始化顺序约束
@@ -216,7 +244,7 @@ export class AutoSpark<
                 "AutoSpark no longer accepts an AutoStore instance. Pass plain state and configure the store via options.storeOptions instead (ADR-0044).",
             );
         }
-        const storeOptions: AutoStoreOptions<State> = { ...options?.storeOptions };
+        const storeOptions: AutoStoreOptions<State> = { ...options?.storeOptions,resetable:true };
         if (storeOptions.configManager == null) {
             this._ownedConfigManager = new ConfigManager({ load: () => ({}) });
             storeOptions.configManager = this._ownedConfigManager;
@@ -254,19 +282,6 @@ export class AutoSpark<
     }
 
     /**
-     * 发起一条轻提示（ADR-0071 决策 3 迁移期别名）：≡ `messages.add({ kind: 'toast', ... })`
-     * ——消息字符串 / MessageProps / async factory 三态入参，返回 MessageTask 句柄。
-     * props 键按新模型（title / delayClose）；旧键 message / delay 按未知键 warn。
-     * `options.messages: false` 时 warn + 死句柄（全关语义）；模板侧配套 action 见
-     * `toast` / `confirm` / `task`（ADR-0071 决策 22/23）。新代码请直接用 `engine.messages.add`。
-     */
-    toast(
-        props: string | MessageProps | (() => Promise<MessageProps | void | undefined>),
-    ): MessageTask {
-        return this.messages.add(props);
-    }
-
-    /**
      * 全局组件懒预编译缓存（ADR-0022 承接 ADR-0021 决策 11）：key=组件名，value=预编译根元素
      * （已自动包装、含 `x-define`、未编译、保留指令属性、**不注入 x-scope**）。首次 `getComponent`
      * 命中全局时解析 `options.components[name]` 字符串入参并写入此 Map，后续命中直接 `cloneNode(true)`。
@@ -281,6 +296,15 @@ export class AutoSpark<
      * 本表服务于 x-component 等需要组件元数据（setup/hooks/styles）的消费者。同条目二缓存同源（一次预编译产出）。
      */
     private _globalComponentDefCache = new Map<string, ComponentDef | null>();
+    /**
+     * UI 外壳注册表私表（ADR-0077）：构造期合成（内置四件种子 < 用户 `options.uiShells`
+     * 浅覆盖），**构造期固化**——运行时突变不失效缓存（换 shell 走消费者选择器）。
+     */
+    private _uiShells: Record<string, string>;
+    /** uiShells 懒预编译缓存（name → { snapshot, def }；null = 已查明未命中，避免重复解析） */
+    private _uiShellCache = new Map<string, { snapshot: HTMLElement; def: ComponentDef | null } | null>();
+    /** 内置种子键集（wrapper 装配规则判据：内置模板自带引擎类名契约，用户模板零污染） */
+    private _builtinUiShellKeys: ReadonlySet<string>;
     /**
      * 组件定义表（ADR-0022 决策二-1、决策七）：key=组件冻结快照根元素，value=ComponentDef。
      *
@@ -473,6 +497,49 @@ export class AutoSpark<
         this._globalComponentCache.set(name, def.snapshot);
         this._globalComponentDefCache.set(name, def);
         return def.snapshot;
+    }
+
+    /**
+     * 解析 UI 外壳（ADR-0077 `options.uiShells` 注册表）：引擎级外壳表的懒预编译查询——
+     * 内置种子（message/dialog/popover/drawer）与用户覆盖模板同管道：字符串经自动包装规则
+     * （`_wrapGlobalComponent`）规范化 + `buildComponentDef` 一次产出快照与 def，缓存后命中直取。
+     *
+     * 解析链位于 getComponent 链（scope 局部 → `options.components`）**之后**——用户自定义
+     * 外壳优先，本表为引擎级兜底。构造期固化：运行时突变 `options.uiShells` 不失效缓存。
+     *
+     * @param name 外壳键（消费者裸名，如 'message' / 'dialog'）
+     * @returns { snapshot, def }，或 null（键不存在/模板解析失败——消费者回退其内置默认）
+     */
+    _resolveUiShell(name: string): { snapshot: HTMLElement; def: ComponentDef | null } | null {
+        if (this._uiShellCache.has(name)) {
+            return this._uiShellCache.get(name) ?? null;
+        }
+        const raw = this._uiShells[name];
+        if (typeof raw !== "string" || raw.trim() === "") {
+            this._uiShellCache.set(name, null);
+            return null;
+        }
+        let hit: { snapshot: HTMLElement; def: ComponentDef | null } | null = null;
+        try {
+            const root = this._wrapGlobalComponent(raw, name);
+            if (root) {
+                const def = buildComponentDef(root, name, (msg) => this.logger.warn(msg));
+                hit = { snapshot: def.snapshot, def };
+            }
+        } catch (e: any) {
+            this.logger.warn(`UI 外壳 "${name}" 解析失败，视为未命中: ${e?.message ?? e}`);
+        }
+        this._uiShellCache.set(name, hit);
+        return hit;
+    }
+
+    /**
+     * 是否内置种子外壳键（ADR-0077）：消费者 wrapper 装配规则判据——内置模板自带引擎类名
+     * 契约（如消息双类名根）根即载体；用户模板（components 命中或 uiShells 用户键）包
+     * wrapper，零引擎类污染。
+     */
+    _isBuiltinUiShell(name: string): boolean {
+        return this._builtinUiShellKeys.has(name);
     }
 
     /**

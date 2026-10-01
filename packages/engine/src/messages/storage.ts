@@ -8,9 +8,10 @@
  *   透传 fetch（鉴权只此一通道，不做鉴权抽象）；`save()` 立即 flush；`destroy()` 时
  *   keepalive 兜底尝试。
  *
- * 序列化形态见 types.ts `serializeMessage`（剥函数与运行态）。恢复侧（restore/load）归
- * manager——本模块只管通道。
+ * 序列化形态见 types.ts `serializeMessage`（剥函数与运行态；ADR-0072 起载荷 = 记录数据面
+ * `AutoSparkMessageRecord` 字段）。恢复侧（restore/load）归 manager——本模块只管通道。
  */
+import type { MessageFetchOptions } from "./types";
 
 /** localStorage 键（ADR-0071 决策 18 约定值） */
 export const MESSAGE_STORAGE_KEY = "autospark-messages";
@@ -49,14 +50,16 @@ export function readLocalMessages(warn: (msg: string) => void): Record<string, a
 /**
  * remote 持久化控制器：防抖 500ms 合并全量 POST。records 在**触发时刻**传入快照——
  * 防抖窗口内多次变更只发窗口结束时点的最新全量（服务端整体替换语义下的正确合并）。
+ *
+ * 传输配置经 getter **fetch 时现读** state 的 `fetchOptions`（ADR-0072）：鉴权头运行时
+ * 可刷新（token 续期）；无 url 即跳过（运行时补 url 即激活 remote 同步）。
  */
 export class RemotePersistController {
     private timer: ReturnType<typeof setTimeout> | null = null;
     private pending: Record<string, any>[] | null = null;
 
     constructor(
-        private url: string,
-        private headers: Record<string, string> | undefined,
+        private getFetchOptions: () => MessageFetchOptions | null,
         private warn: (msg: string) => void,
     ) {}
 
@@ -79,11 +82,14 @@ export class RemotePersistController {
             this.timer = null;
             this.pending = null;
         }
-        if (typeof fetch === "undefined" || !this.url) return;
+        const fetchOptions = this.getFetchOptions();
+        if (typeof fetch === "undefined" || !fetchOptions?.url) return;
         try {
-            const resp = await fetch(this.url, {
+            const { url, ...init } = fetchOptions;
+            const resp = await fetch(url, {
+                ...init,
                 method: "POST",
-                headers: { "Content-Type": "application/json", ...(this.headers ?? {}) },
+                headers: { "Content-Type": "application/json", ...(init.headers as Record<string, string> | undefined) },
                 body: JSON.stringify(records),
                 keepalive,
             });

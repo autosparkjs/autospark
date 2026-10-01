@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>messages · 生命周期：记录与展示</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- persist（ADR-0077 数值化 0|1|2|3）决定记录存续：0 隐藏即删（toast 语义）；
+             1 会话缓冲——隐藏不删不持久化（$messages.items 仍可见，管理界面可再查看，
+             刷新即失）；2/3（local/remote）隐藏转「已隐藏」存活可枚举 + 持久化。
+             remove()/delete()/clear() 立即同步持久化（「删干净」闭环）。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <button class="button" onclick="spawn(0)">persist: 0（隐藏即删）</button>
+                <button class="button is-warning" onclick="spawn(1)">persist: 1（会话缓冲）</button>
+                <button class="button is-info" onclick="spawn(2)">persist: 2（local 存活）</button>
+            </div>
+            <div class="block">
+                <button class="button is-warning" onclick="hideAll()">hide() 全部</button>
+                <button class="button is-primary" onclick="reshow()">show(id) 重显已隐藏</button>
+                <button class="button is-danger is-light" onclick="app.messages.clear(false)">clear(false)</button>
+            </div>
+            <div class="block"><pre id="state" class="has-background-light" style="padding: 8px">记录枚举：空</pre></div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            const state = document.getElementById("state");
+            window.app = app;
+            let seq = 0;
+            function dump() {
+                const lines = Array.from(app.messages.values()).map((s) => `  ${s.id}  closed=${s.closed}`);
+                state.textContent = `记录枚举（size=${app.messages.size}，展示中 + 已隐藏/缓冲）：\n${lines.join("\n") || "  （空）"}`;
+            }
+            function spawn(persist) {
+                app.messages.add({
+                    id: `note-${++seq}`,
+                    title: `记录 ${seq}（persist=${persist}）`,
+                    kind: "notice",
+                    persist, // 0|1|2|3（常量 AutoSparkSpaces.MESSAGE_PERSIST.* 同义）
+                    delayClose: 0,
+                    pos: persist === 0 ? "bottom-right" : "top-right",
+                });
+                dump();
+            }
+            function hideAll() {
+                for (const s of app.messages.values()) s.hide();
+                setTimeout(dump, 400); // 等离场动画收口（teardown 决定记录去留）
+            }
+            function reshow() {
+                const hidden = Array.from(app.messages.values()).filter((s) => s.closed);
+                if (hidden.length) app.messages.show(hidden[hidden.length - 1].id);
+                setTimeout(dump, 300);
+            }
+            app.on("message:hide", () => setTimeout(dump, 400));
+        </script>
+    </body>
+</html>

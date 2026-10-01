@@ -100,8 +100,12 @@ _Avoid_: 点分相对路径（`..` 与 `.` 分隔符字符冲突，无法按 spl
 相对挂载的步进基准开关（≡ `nearest:true`）：每级 `..` 从「直接父 scope」改为「最近的持有 `_data` 的祖先 scope」（跳过 x-if/x-for/x-scope 等占位元素）；`./` 仍指自身容器；上溯无数据祖先落根；配绝对路径静默忽略。「跳层」语义只在此显式 opt-in，不是默认——默认步进的确定性优先。
 _Avoid_: 自动跳层（默认语义已被否决，跳层必须显式声明）
 
+**浅响应 / shallow（x-data）**:
+x-data 数据域的**响应深度开关**（显式 opt-in，默认全深不变）：三入口同义——`.shallow` 修饰符（**0 档**）/ `x-data-options="{shallow:1}"`（**1 档**，显式选项键静默精调覆盖修饰符）/ 数据脚本 `options` 属性（同键同义）。档位语义：**0 档**域内容器仅一层浅代理——顶层键赋值（含整体替换）有事件，**键内字段深写静默失效**（读出即原始引用，仅整体替换键值可唤醒深路径订阅）、嵌套 computed 不激活；**1 档**顶层键成员再获一层浅代理——第二层字段（`user.name`）写有事件，第三层起失效。仅私有域（local 挂载形态）支持，root/path 声明 warn + 忽略；异步落地与 `engine.data()` 追加自动继承域档位。与 `$messages` 的 shallow 选项（ADR-0072/0077）同词汇，值域 `0|1`。详见 ADR-0078。
+_Avoid_: deep / `.deep` / `deep:true`（被否决的命名体系，该修饰符与选项键不存在）、浅代理（autostore 机制词汇，不承载档位语义）、深度 N≥2（autostore 值域仅 `0|1`，越界归 1）
+
 **数据脚本 / Data Script**:
-`<script type="autospark/data">`：父元素数据域的 **JS 对象字面量声明源**（x-data 的超集，非字面等效）。只作用于**直接父元素**（与 `autospark/actions` 的最近祖先语义有意分歧——数据是结构性的，归属必须一眼确定）；多个数据脚本与 x-data 经 `deepMerge` 深合并（数组替换、undefined 不覆盖、函数整体覆盖），**x-data 最后合并、优先级最高**；`options` 属性承载 mount/global/nearest（父元素 `x-data-options` 权威，冲突忽略 + warn）；求值注入 `computed`/`configurable`/`watch`，**普通函数值是 computed 简写**（方法归 `autospark/actions` / `<script setup>`；watch 是纯副作用声明，引擎注入后强制首读激活）。编译前预扫合成单一数据对象走既有挂载管道（位置无关、每实例独立数据域、回收同权）。详见 ADR-0032。
+`<script type="autospark/data">`：父元素数据域的 **JS 对象字面量声明源**（x-data 的超集，非字面等效）。只作用于**直接父元素**（与 `autospark/actions` 的最近祖先语义有意分歧——数据是结构性的，归属必须一眼确定）；多个数据脚本与 x-data 经 `deepMerge` 深合并（数组替换、undefined 不覆盖、函数整体覆盖），**x-data 最后合并、优先级最高**；`options` 属性承载 mount/global/nearest/shallow（父元素 `x-data-options` 权威，冲突忽略 + warn）；求值注入 `computed`/`configurable`/`watch`，**普通函数值是 computed 简写**（方法归 `autospark/actions` / `<script setup>`；watch 是纯副作用声明，引擎注入后强制首读激活）。编译前预扫合成单一数据对象走既有挂载管道（位置无关、每实例独立数据域、回收同权）。详见 ADR-0032。
 _Avoid_: 脚本数据（泛化）、x-data 脚本（它是声明源不是指令）、JSON 块（内容是 JS 不是 JSON）
 
 **异步数据源 / Async Data Source（x-data）**:
@@ -416,8 +420,8 @@ _消歧_: 本词条的把手是**引擎生成的常驻按钮**——区别于 x-
 _Avoid_: trigger（已删除的旧选项名）、toggle（更早废弃的选项名）、停靠 / dock、折叠态 / collapsed state、peek、最小化 / minimize（均在暗示「折叠是独立第三态」——折叠就是 visible 归假）、收起按钮（泛化，把手的语义是双向控制不只是收）
 
 **面板外壳（Shell）**:
-覆盖物**面板层形态**的可替换载体——一个声明了默认出口的普通组件，负责面板的边框 / 圆角 / 背景 / 箭头 / 内容布局；内容组件经默认出口进入外壳。**外壳不含遮罩**（遮罩是引擎结构，模态行为的一部分，换外壳不影响遮罩 / 定位 / 动画 / 关闭等行为）；箭头由外壳渲染、引擎定位。内置默认外壳（dialog-shell / popover-shell / drawer-shell）开箱即用、不占用户组件命名空间；自定义外壳与内容组件同一查找协议，未命中回退内置默认。配置链：实例选项 > 宿主选项 > 引擎级默认 > 内置默认。
-_Avoid_: 包装器（wrapper，曾用名，已定名 shell）、皮肤（弱化了结构 + 出口职责）、容器（与覆盖物容器撞名）、mask（遮罩不归外壳）、面板（面板是外壳渲染出的那一层 DOM，外壳是渲染它的组件）
+覆盖物**面板层形态**的可替换载体——一个声明了默认出口的普通组件，负责面板的边框 / 圆角 / 背景 / 箭头 / 内容布局；内容组件经默认出口进入外壳。**外壳不含遮罩**（遮罩是引擎结构，模态行为的一部分，换外壳不影响遮罩 / 定位 / 动画 / 关闭等行为）；箭头由外壳渲染、引擎定位。内置默认外壳寄存于 `options.uiShells` 引擎级注册表（ADR-0077——键 = 消费者裸名 `dialog` / `popover` / `drawer`，用户同键浅覆盖）开箱即用、不占用户组件命名空间；自定义外壳与内容组件同一查找协议，未命中回退内置默认。配置链：实例选项 > 宿主选项 > 引擎级默认（`options.overlay.{kind}.shell`）> uiShells > 内置默认。
+_Avoid_: 包装器（wrapper，曾用名，已定名 shell）、皮肤（弱化了结构 + 出口职责）、容器（与覆盖物容器撞名）、mask（遮罩不归外壳）、面板（面板是外壳渲染出的那一层 DOM，外壳是渲染它的组件）、dialog-shell / popover-shell / drawer-shell（旧组件名已退役——uiShells 键为 dialog/popover/drawer）
 
 **悬浮触发（Hover Trigger）**:
 x-popover 的触发模型（ADR-0060，家族「纯状态驱动」的唯一显式偏离）：宿主是**悬浮触发器**——`mouseenter`/`mouseleave` 悬浮意图语义（非字面 mouseover）驱动显示；指令值不参与驱动、无 visible 真相源（非空值 warn）。**共享 hover 域**：宿主与面板（body 容器内、DOM 分离）双侧监听视为同一域，宿主↔面板互移不闪关；离开域经 `delayHide`（默认 150ms）宽限关闭、宽限内回域取消；`delayShow`（默认 200ms）为悬浮意图延迟，快速掠过不触发。**hover 链**：嵌套 popover 经 document 级打开中注册表把后代域并入祖先域（指针位于任一后代 popover 上祖先保持），后代关闭后祖先经最后指针坐标 `elementFromPoint` 重估、已出域才关（ESC 关子父不残留）。形态默认：裸面板、锚=宿主自身、`placement` 默认 `'bottom'`（`at` 显式换锚只改位置不换触发关系）。悬浮离开走直接 UI 关闭（无写回目标，不经「请求关闭」）；ESC 照常走打开栈请求关闭。触摸设备 v1 不适配（触屏用 x-dialog）。
@@ -456,16 +460,32 @@ _Avoid_: tooltip 实例（无实例化概念——单例复用）、每元素独
 ### 消息（Message）
 
 **消息 / message（Message）**:
-引擎级子系统的**统一信息记录**（ADR-0071）——数据层收件箱式管理 + 屏幕分区栈呈现，承载轻提示 / 通知 / 业务提醒 / 任务跟踪。命令式 `engine.messages.add(message | props | async factory)`（factory 求值 `undefined` → 静默跳过——条件通知）；`engine.messages` 继承 Map、键恒为 string id，可枚举范围 = 全部**存活记录**。**记录与展示两态分离**：`persist` 决定记录存续（`'none'` 默认隐藏即删 / `'local'` localStorage / `'remote'` 服务器同步），展示走 queued / shown / closed 三态（按 pos 分区 FIFO 队列、同 id 原地更新、离场收拢，机制沿 ADR-0068）。记录级字段：`read`（卡片任意点击置已读）/ `status`（业务状态，引擎纯透传）/ `result`（action `value` 写入的应答）——**写一律走 `update(id, patch)` 单一通道**，task 只读 getter。辅助 API：`show(id)` 重显已隐藏记录、`markRead(id)` / `markAllRead(kind?)`、`confirm(message, {yes?, no?}?)` 通用确认（value-only actions 糖，`Promise<result>`，sticky 永不 settle）；内置执行型 `confirm` action 支持模板快速确认——anchor 注入发起元素，确认/取消结果经 `message:action` 事件就近回流（`detail.value`）、`progressbar(props)` 进度任务（**进度能力归 kind='task' 提供**——task-shell 渲染进度条，直接 add 该 kind 同样获得进度条、推进走 `update(id,{progress})`；progressbar 是其行为句柄糖：ProgressTask 的 `start/pause/resume/stop/cancel/progress(n)`，pause 为闸门语义）、`load(url)` 服务器拉取（GET JSON 数组、按 id 覆盖合并、只入记录不弹）、`save()` 立即 flush 持久化。`maxLen` 存活记录数上限（溢出 FIFO 丢最旧）。**kind 开放集合**（默认 `'toast'`）驱动四层合并链 `内置默认 < options.messages < kinds[kind] < 单次 props` 与渲染插槽 `kinds[kind].render`（kind 级）→ `shell`（全局兜底）→ 内置 message-shell；kind='task' 由 progressbar 内部构造。`anchor` **三职合一**（非定位——元素定位是 fast-follow）：局部 action 解析根 + 事件派发根 + **渲染数据视图基准（dataContext）**——anchor 存在时 kind render 组件挂链 anchor scope（表达式访问发起域数据），无 anchor rootless 仅 props。配套 action 家族 `toast` / `confirm` / `task` 在 DOM 处使用时自动注入发起元素为 anchor（编程式 API 仅显式传时生效）。actions 对象形态带 `value` 键：点击闭环 = 置已读 → 写 result → 发事件 → handle → hide 判定。事件族 `message:add/update/show/hide/read/status/action` 双通道。`engine.stop()` 不动消息、`destroy()` 收口（含持久化 flush）。
-_Avoid_: 消息中心 / 收件箱 UI（引擎只做数据层 + 呈现层，界面用指令自建）、choices 按钮（已否决——actions value 键覆盖数据应答）、模态确认框（confirm 是加强版 toast 非模态，模态走 dialog）、kind 数字值（string only）、消息框（模态 alert，是 dialog 语义）
+引擎级子系统的**统一信息记录**（ADR-0071）——数据层收件箱式管理 + 屏幕分区栈呈现，承载轻提示 / 通知 / 业务提醒 / 任务跟踪。命令式 `engine.messages.add(message | props | async factory)`（factory 求值 `undefined` → 静默跳过——条件通知）**返回按 kind 分派的消息会话**（见「消息会话」词条）；`engine.messages` 继承 Map、键恒为 string id，可枚举范围 = 全部**存活记录**（`messages.sessions` 即本表正名视图）。**记录与展示两态分离**：`persist`（ADR-0077 数值化 `0|1|2|3` + 常量 `MESSAGE_PERSIST`）决定记录存续——`0` 隐藏即删（toast 兼容）/ `1` **会话缓冲**（隐藏不删不持久化、复用 maxLen 淘汰、管理界面可再查看）/ `2` localStorage / `3` 服务器同步；`remove`/`delete`/`clear` **立即同步持久化**（local 即写 / remote 即 flush 全量覆盖）。展示走 queued / shown / closed 三态（按 pos 分区 FIFO 队列、同 id 原地更新、离场收拢，机制沿 ADR-0068）。记录级字段：`read`（卡片任意点击置已读）/ `status`（业务状态，引擎纯透传）/ `result`（action `value` 写入的应答）——**写一律走 `update(id, patch)` 单一通道**，session 只读 getter。辅助 API：`show(props | factory)` = `add` 别名 / `show(id)` 重显已隐藏记录（双形态消歧：字符串恒 id、对象恒新建——**发起统一入口**）、**kind 快捷方式** `toast(props)` / `confirm(message, {yes,no}?)` / `task(props)`（均 ≡ `show({...props, kind})` 强制对应 kind；confirm 返回 **thenable** Confirm 会话——await 即得 choice 应答，sticky 永不 settle，`{yes,no}` 可提取键转按钮文案；task 返回 Task 会话，原 progressbar 糖同义更名）、`markRead(id)` / `markAllRead(kind?)`、`load(url)` 服务器拉取（GET JSON 数组、按 id 覆盖合并、只入记录不弹）、`save()` 立即 flush 持久化。`maxLen` 存活记录数上限（溢出 FIFO 丢最旧，含会话缓冲记录）。**kind 开放集合**（默认 `'toast'`；`'confirm'` 升内置——ADR-0077）驱动四层合并链 `内置默认 < options.messages < kinds[kind] < 单次 props` 与**双层渲染**（见「消息外壳」词条）。`anchor` **三职合一**（非定位——元素定位是 fast-follow）：局部 action 解析根 + 事件派发根 + **渲染数据视图基准（dataContext）**——anchor 存在时 shell 与 kind renderer 挂链 anchor scope（表达式访问发起域数据），无 anchor rootless 仅 props。配套 action 家族 `toast` / `confirm` / `task` 在 DOM 处使用时自动注入发起元素为 anchor（编程式 API 仅显式传时生效）。actions 对象形态带 `value` 键：点击闭环 = 置已读 → 写 result → 发事件 → handle → hide 判定（Confirm 会话 `yes()/no()` 同路）。事件族 `message:add/update/show/hide/read/status/action` 双通道（payload.message = 会话）。`engine.stop()` 不动消息、`destroy()` 收口（含持久化 flush）。**状态暴露（ADR-0072）**：保留键 `store.state.$messages = { items, options }`（`$scopes` 后第二例，永不整体替换、`messages:false` 不注入）——`items` 为记录镜像（`AutoSparkMessage` = 数据记录 `AutoSparkMessageRecord` + 渲染行为层；`shallow(items, options.shallow ?? 1)`——`0|1` 构造期一次性；**写通道仅本 API**，记录级变更 = 镜像内整条替换，模板直写违约自理）、`options` 为生效配置**真身**（构造注入「内置默认 < options.messages」合并结果，直写即对后续操作生效、已展示卡不回溯；边界键 `anchor`/`actions` 构造期私有固化——「函数、元素不入 state」；`shallow` 为唯一例外键——直写静默忽略）。`level` 级别排序（默认 0，越大越靠列边端，top 系列在首 / bottom 系列在末；入列快照定序、update 不重排、不影响 maxLen 淘汰）；`owner` 归属者（业务透传不代填）；`styles` 内联样式 cssText（渲染键不入载荷，ADR-0077）；传输配置 `fetchOptions`（原 url+headers 合并）fetch 时现读 state——token 续期直改即生效。词汇全链路统一：正文 `description`（旧 body）、链接 `link`（旧 href，HTML 属性仍 href）。
+_Avoid_: 消息中心 / 收件箱 UI（引擎只做数据层 + 呈现层；界面用指令自建——`$messages` 直绑零桥接）、choices 按钮（已否决——actions value 键覆盖数据应答）、模态确认框（confirm 是加强版 toast 非模态，模态走 dialog）、kind 数字值（string only——persist 才数值化）、消息框（模态 alert，是 dialog 语义）、旧键 body / href / url / headers（ADR-0072 更名 description / link / fetchOptions）、persist 字符串值 'none'/'local'/'remote'（ADR-0077 数值化 0/1/2/3）
 
 **轻提示 / toast（Toast）**:
-消息的**瞬时呈现形态**（kind='toast'，ADR-0071，机制沿 ADR-0068）——存活记录在分区栈短暂浮现、delayClose 后自动消失；persist 默认 'none'（隐藏即删）即 toast 语义。`engine.toast()` 方法与全局 `toast` action 保留为 `messages.add({kind:'toast',...})` 的**别名**（kind='toast' 迁移期双发旧事件 `toast:show`/`toast:hide`）。呈现机制细节（pos 7 值枚举 `top-right` 默认 / type 5 值图标语义色 / hover 暂停 / closable）见「消息」词条。
+消息的**瞬时呈现形态**（kind='toast'，ADR-0071，机制沿 ADR-0068）——存活记录在分区栈短暂浮现、delayClose 后自动消失；persist 默认 0（隐藏即删）即 toast 语义。发起走统一入口 `show`（默认 kind 即 'toast'）；全局 `toast` action（模板侧）转发同路（kind='toast' 迁移期双发旧事件 `toast:show`/`toast:hide`，ADR-0077 `engine.toast()` 方法已退役）。呈现机制细节（pos 7 值枚举 `top-right` 默认 / type 5 值图标语义色 / hover 暂停 / closable）见「消息」词条。
 _Avoid_: 通知（对 Toast 仍避免——notification 语义更重）、吐司（音译不采纳）、浮层（tip 已占用）、toastManager（已更名 `engine.messages`，见「已废弃」）
 
-**消息外壳（message-shell）**:
-消息**单项卡片**的内置私有组件（shell 机制延伸，ADR-0071，原 toast-shell 更名扩容）——双类名根 `autospark-dialog autospark-message` + `data-message-type` 语义分派。查找协议四级：`kinds[kind].render`（用户 kind 级插槽）→ `options.messages.shell`（用户全局兜底）→ **内置注册表按 kind**（引擎内置：'task' → task-shell）→ 内置 message-shell（最终默认）。内置集一组件一文件（`src/messages/renders/`）：message-shell（默认，无进度槽）/ task-shell（task 专属，进度条全权归它）。Message **全量数据域整包注入**（剥函数：title/body/icon/actions 已解析/read/status/result/progress…），自定义外壳自由消费（`x-html="body"` / `x-show="!read"`）。与面板外壳分野不变：**无出口协议**。真响应式活体——同 id 原地更新 = 改 data 域 props 自动响应。自定义接管 kind='task' 时进度条渲染随接管者自带。分区堆叠列是**引擎结构**不组件化。
-_Avoid_: 显示容器（分区列是引擎结构非组件）、出口 / slot（无出口协议）、面板外壳复用（结构相似、协议分叉）、toast-shell（旧称，随 ADR-0071 更名）
+**消息外壳 / shell（原 message-shell）**:
+消息**公共骨架**组件（ADR-0077 双层组合，原 ADR-0071「整卡渲染四级链」被推翻）——**所有 kind 共享**，渲染公共元素与行为：close 按钮 → type 图标 + title（+link）→ description → **kind 默认出口**（裸 `x-slot`）→ actions 按钮行最底；并声明 kind renderer 的投影位。**引入出口协议**（推翻旧「无出口协议」分野——与面板外壳 ADR-0062 同构对齐）：kind renderer（专属区组件）先编译、产物以 `mode:"live"` 段投影进出口；自定义 shell 未声明出口 → warn + kind 区丢弃（数据无损）。查找链（shell 链）：`options.messages.shell`（**选择器**，默认 `'message'`，运行时直写换键对后续 add 生效）→ getComponent 链 → `options.uiShells` 引擎级注册表 → 内置 shell 兜底。装配判据：内置种子（未被用户接管的 `message` 键）模板自带双类名根（`autospark-dialog autospark-message` + `data-message-type`）根即卡片根；用户模板包引擎 wrapper（零类污染）。props 全量数据域**同权注入 shell 与 renderer 两层**（剥函数）+ `$session` 派生变量双注入（见「消息会话」）。分区堆叠列是**引擎结构**不组件化。
+_Avoid_: 显示容器（分区列是引擎结构非组件）、整卡渲染 / 四级查找（ADR-0071 决策 16 旧语义已推翻）、message-shell / task-shell（旧名——现内置 shell 名 `shell`、task 专属区叫 task renderer，目录 `src/messages/renderers/`）、taskWidget（中间名已退役不入词汇）
+
+**kind renderer（消息专属区组件）**:
+消息双层渲染的**kind 专属层**（ADR-0077）：嵌公共 shell 默认出口内的区组件——`task` renderer 渲染进度槽（进度能力归 kind='task'）、`toast` / `confirm` 为**空占位**（结构对称 + `kinds[kind].render` 整键替换扩展点，零内容天然不占位）。查找链（kind 链，与 shell 链正交）：`kinds[kind].render`（用户 kind 级）→ 内置注册表 `{ toast, task, confirm }`（一 kind 一文件，`src/messages/renderers/`，名即 kind 名）→ 无（自定义 kind 出口空置）。接管 kind='task' 时进度渲染随接管者自带（`props.progress` + `$session.progress(n)`）——内置进度槽不是特权通道。
+_Avoid_: kind shell / 渲染插槽（它不是外壳是出口内容）、render（口语——`kinds[kind].render` 是选项键名，组件本身叫 renderer）、taskWidget（已退役中间名）
+
+**消息会话（AutoSparkMessageSession）**:
+单条消息**渲染生命周期的行为句柄**（ADR-0077，原 MessageTask/ProgressTask 家族更名扩容）——`add()` 按 kind 类型窄化分派返回：基类面 `show()/hide()/remove()` + `id/kind/el/closed/read/status/result` 只读 getter；`AutoSparkTaskMessageSession`（start/progress/pause/resume/stop/cancel——pause 闸门语义、创建不自启）、`AutoSparkConfirmMessageSession`（yes/no/cancel——≡ 点击对应按钮，与 DOM 点击同一 `_fireAction` 闭环）；自定义 kind 回基类面。**运行时同构**（全集方法的闭包对象——task.cancel 与 confirm.cancel 同为「立即关」同一实现），类型面按 kind 窄化。`messages.sessions` = manager Map 正名视图（同一张表）；**死会话**（remove 后）方法 no-op + warn 不复活。卡片子树经 `$session` 派生变量访问（localData 通道——x-for `$index` 同构：非响应式、不进 state、行为专职；嵌套封闭组件不可见）。
+_Avoid_: 消息任务 / MessageTask / ProgressTask（旧名已更名）、task 句柄（「任务」撞 kind='task'——会话是生命周期对象不是任务）、双继承树 Task/Session 并存（已否决——单套词汇）
+
+**UI 外壳注册表 / uiShells**:
+`options.uiShells: Record<string, string>`——引擎级「**带出口协议的骨架外壳**」统一寄存处（ADR-0077）：内置四件种子 `message`（消息）/ `dialog` / `popover` / `drawer`（overlay 三件自模块级内置表迁入，键 = 消费者裸名）+ 用户同键浅覆盖。值为 HTML 模板字符串（懒预编译，与 `options.components` 同纪律）；**构造期固化**（运行时突变不失效缓存——注册与选择分离，运行时换 shell 走消费者选择器如 `messages.shell` 直写换键）。解析链：消费者选项 shell 名 → getComponent 链（局部覆盖能力保留）→ 本表 → 消费者内置默认。**边界**：只收外壳语义组件——loading 块 / error 组件 / tree-node / kind renderer 不入。
+_Avoid_: shell 注册表（泛化）、组件表（那是 options.components）、内置 shell 表 / BUILTIN_SHELL_NAMES / dialog-shell 组件名（旧机制已迁入并退役——键统一消费者裸名）、运行时可写注册表（已否决——构造期固化）
+
+**消息记录（AutoSparkMessage / AutoSparkMessageRecord）**:
+消息数据的**双层类型**（ADR-0072）：`AutoSparkMessageRecord` = 纯业务数据——服务器通知 DTO 形态、persist/remote 载荷基底（`id/kind/read` 恒有 + `owner/level/type/title/description/status/result/link`）；`AutoSparkMessage extends Record` = 追加渲染 / 行为 / 生命周期层（`closed` 恒有 + `icon/pos/offset/closable/animate/className/delayClose/persist/progress/actions` 数据投影），即 `$messages.items` 元素。与 MessageTask（行为句柄）是**同一 entry 的平行投影**——无继承关系，「items 不含行为」的类型化表达。持久化载荷 = Record 字段（渲染键不入、恢复走生效默认；closed 由策略置位、persist 按存储介质反推）。
+_Avoid_: 句柄入 state（函数 / DOM / 循环引用——快照炸）、双层词汇翻译层（body/description 曾评估后否决——一词到底）、DTO 携渲染键（className 等不跨会话）
 
 ### 加载遮罩（Loading Mask）
 
@@ -488,6 +508,10 @@ _Avoid_: 百分比进度（不表达完成度）、确定进度、进度指示�
 **双向绑定 / x-model（Two-way Binding）**:
 输入控件与状态的双向同步——state→DOM（读方向）+ DOM→state（写方向）。区别于 `:value`/`x-bind:value` 的单向 state→DOM（"回写 state 须另用 x-model"）。控件按 **控件类别（ControlKind）** 分派读写：text-like（`<input>` 非 checkbox/radio + `<textarea>`，读 `el.value`）+ checkbox 单值布尔（读 `el.checked`，详见 ADR-0023）+ radio 值匹配 + select（选项子树见 **choices**，详见 ADR-0026）；checkbox 组 / radio 组收集暂不支持。详见 ADR-0018、ADR-0023、ADR-0026。
 _Avoid_: 双向数据绑定（泛化）、表单绑定（泛化）
+
+**写回落点透传 / Write-through（x-model）**:
+x-model 简单路径写回（DOM→state）的落点规则：经聚合视图按「本层域 → 父域 → store 根」就近命中——域字段落域（多段路径留域内成员对象）、全链未命中落根，与读方向（scope.watch 表达式支路）**同源对称**。边界语义（组件封闭边界、declarer 基准、插槽改道）由聚合视图既有实现承担，无第二套落点判定（`scope.writeThrough` 是唯一入口，供指令写回快通道复用）。详见 ADR-0075。
+_Avoid_: 直写根（旧语义，「读局部、写全局」分裂与根上幽灵键的根源）、set 桥接（那是写转换/字段拆分手段，不是落点规则——ADR-0075 后不再是域内绑定的必需品）
 
 **getter（state→DOM 变换）**:
 x-model **读取方向**的状态值加工（如 `value.split('.')[0]`），把状态值变成 DOM 显示值。经 `x-model-options="{get:'...'}"` 声明，字符串形态（表达式形参 `value` / action 名）。
@@ -563,6 +587,14 @@ _Avoid_: 表单组件（它不渲染 UI）、独立表单 store（已否决—�
 声明一个表单字段的指令，单指令双形态（按宿主分派）：标准控件（input/textarea/select）上 = **x-model 全部语义** + `$field` 注入（表单内正身，散装控件仍用 x-model）；非控件元素上 = 字段域声明，渲染完全归模板（不 ownsChildren、不自动渲染）。**必须在 x-form 内**（注册消费其中心化监听）。详见 ADR-0045。
 _Avoid_: 字段组件、自动渲染器（已否决——不生成模板）、表单版 x-model（它是超集，双向绑定只是其一面）
 
+**字段绝对路径 / absPath**:
+x-field 绑定值经 `resolveFieldAbsPath` 在编译期一次解析的**绝对状态路径**（从 store.state 根起算）——此后表单层（`$field.value` / reset / getState / dirty / 校验取值）全部按它读写同位（x-field 的对称范式，区别于 x-model 的运行期相对解释，ADR-0075）。首段沿 scope 链就近命中：x-for 项映射（`item.name` → `items.<index>.name`，ADR-0076）> `_data` 域（拼 `$scopes.<id>.` / 挂载段前缀）> 全局原样。表达式源 / 分页切片无稳定路径不记映射（项内回退全局解释）；异步数据未就绪按全局解析 + warn（完整修复立后续）。
+_Avoid_: 相对路径（那是绑定值的书写形态，absPath 是解析产物）、项内路径（指 `items.<index>.name` 的解析结果，不是一种新路径类别）
+
+**项映射 / LOCAL_PATHS**:
+x-for 在项局部数据（localData）上记录的「项变量 → 绝对状态段」映射（`item → ["items","0"]`），供字段绝对路径解析沿链反解——纯路径源且非分页才记录；挂 Symbol 键不进聚合视图命中、不被 Object.assign 复用更新冲掉。x-for 的「同 key + index 变则销毁重订」铁律保证映射随 rebind 自动重解析（无陈旧路径）。详见 ADR-0076。
+_Avoid_: 项路径表（实现细节视角）、item 绑定（那是 x-model 的语义，映射服务的是路径反解不是绑定）
+
 **字段上下文 / $field**:
 x-field 注入后代作用域的 **Proxy 对象**：`.value`（**字段输入值**，读写——schema 声明 toInput/toState 时为转换后的输入值，未声明即状态值，ADR-0050）、`.error`（校验错误）、`.onInput`/`.onChange`（写方向事件封装）、`.xxx`（任意 configurable 元数据，经元数据覆盖链解析）。响应式三分层：value 靠根 store 依赖收集穿透；error 与动态控制白名单（enable/visible/disabled/readOnly）靠 configManager.watch 桥接 + refresh；其余静态快照。作为 `x-bind` 展开源时暴露控件展开键集。详见 ADR-0045、ADR-0050。
 _Avoid_: 字段元数据对象（它含动态值与事件封装，不止元数据）、field props、`$field.input` 属性包（grilling 中间形态，已并入本体）
@@ -584,7 +616,7 @@ _Avoid_: 字段路径（那是 `getState(true)` 的键）、字段 key（key 是
 _Avoid_: schema 修改（方向反——视图层覆盖，schema 不动）、字段配置（泛化）
 
 **中心化监听 / Centralized Watching**:
-x-form 作为**唯一订阅者**统一监听 configManager 元数据依赖，各 x-field 编译期注册（字段路径 + 消费回调）、变更由 x-form 分发——避免每字段独立建监听。是 x-field 强依赖 x-form 的架构根源。
+x-form 作为**唯一订阅者**统一监听 configManager 元数据依赖，各 x-field 编译期注册（字段路径 + 消费回调）、变更由 x-form 分发——避免每字段独立建监听。是 x-field 强依赖 x-form 的架构根源。注册与注销生命周期对称（field 销毁即注销，引用校验删除——x-for 删项不留悬垂条目，ADR-0076）。
 _Avoid_: 事件总线（订阅的是响应式依赖，不是事件）、字段监听器（监听集中在表单层不在字段层）
 
 ### 图标层
@@ -885,6 +917,10 @@ _Avoid_: mask-image、data-as-icon、`--as-icon-<名>` 变量
 已废弃。per-icon 远程物种（`x-icon="集/名"` 值形 + `baseUrl/<集>/<名>.svg` 协议）、localStorage 持久缓存、`prefetch` 预取、并发限流整体移除；远程加载统一为 x-icons 声明处批量 IconifyJSON（编译期 fetch + 原名注册 + 会话内存缓存）。旧值形求值 NaN → 空占位（斜杠是除法表达式，复杂形态不回退字面量）。**修订注**：持久缓存后来以「`cache` 选项（声明级 opt-in + TTL）」的受限形态回归（见「IconifyJSON 远程源」），与本词条废弃的无条件持久层（无过期 + LRU + `persist` 全局开关 + 预取）不是同一方案。历史 ADR（0047/0048）正文保留旧协议描述，作为决策当时的记录。
 _Avoid_: `集/名` 值形、baseUrl、persist、prefetch
 
+**MessageTask / ProgressTask / persist 字符串值 / 四级渲染链（ADR-0077 更名与重构）**:
+已废弃。`MessageTask` / `ProgressTask` 更名 **`AutoSparkMessageSession` 家族**（基类 show/hide/remove + `AutoSparkTaskMessageSession` / `AutoSparkConfirmMessageSession` 子类；`messages.sessions` 正名视图）；`persist` 字符串值 `'none'/'local'/'remote'` 数值化 **`0/1/2/3`**（常量 `MESSAGE_PERSIST`，新增级别 1 会话缓冲）；ADR-0071 决策 16 的四级互斥渲染链（`kinds[kind].render` → `shell` → 内置注册表 → message-shell）被**双层正交组合**取代（公共 shell + kind renderer 经 `x-slot` 出口）；`message-shell` → `shell`、`task-shell` → task renderer、目录 `renders/` → `renderers/`；overlay 内置 shell 表 `BUILTIN_SHELL_NAMES` / `resolveBuiltinShell` 迁入 `options.uiShells`（键 = 消费者裸名）。均未发布零迁移。
+_Avoid_: MessageTask / ProgressTask（写 Session 家族）、persist 'none'/'local'/'remote'（写 0/1/2/3 或常量）、message-shell / task-shell / taskWidget（现名 shell / task renderer）、四级查找 / 整卡渲染（双层组合）
+
 **toastManager / ToastProps 旧字段（ADR-0071 更名）**:
-已废弃。`engine.toastManager` 更名 **`engine.messages`**、`ToastManager` → `MessageManager`、`src/toast/` → `src/messages/`（ADR-0071 轻提示升维为消息模块）。`engine.toast()` 方法与全局 `toast` action **保留为别名**（转发 `messages.add({kind:'toast',...})`，kind='toast' 迁移期双发旧事件 `toast:show`/`toast:hide`，随别名退役）；`engine.toastManager` 属性面不留旧名。ToastProps 旧字段同步更名：`message` → `title`、`delay` → `delayClose`（旧键按未知键 warn + 忽略）。详见 ADR-0071。
+已废弃。`engine.toastManager` 更名 **`engine.messages`**、`ToastManager` → `MessageManager`、`src/toast/` → `src/messages/`（ADR-0071 轻提示升维为消息模块）。`engine.toast()` 方法与全局 `toast` action **保留为别名**（转发 `messages.add({kind:'toast',...})`，kind='toast' 迁移期双发旧事件 `toast:show`/`toast:hide`，随别名退役）；`engine.toastManager` 属性面不留旧名。ToastProps 旧字段同步更名：`message` → `title`、`delay` → `delayClose`（旧键按未知键 warn + 忽略）。详见 ADR-0071。ADR-0072 再更名（未发布零迁移）：`body` → `description`、`href` → `link`（HTML 属性仍 href）、`url` + `headers` 合并 → `fetchOptions`。
 _Avoid_: engine.toastManager、toastManager 类名引用（现 MessageManager）、旧 props 键 message / delay（写 title / delayClose）

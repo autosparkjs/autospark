@@ -9,7 +9,6 @@ import {
 import { resolveOverlayConfig } from "../../overlay/handle";
 import { resolveDataContext, type OverlayConfig } from "../../overlay/types";
 import { collectSlotGroups, collectSlotSegments, type SlotContent } from "../../utils/slot";
-import { BUILTIN_SHELL_NAMES, resolveBuiltinShell } from "../../overlay/wrappers";
 import {
     ResizeSession,
     resolveHandles,
@@ -247,11 +246,12 @@ export abstract class OverlayDirective extends ComponentDirective {
     }
 
     /**
-     * shell 解析（ADR-0062）：面板外壳组件按配置链取组件名——`config.shell`（成员表达式
-     * 打开时求值一次）> 引擎级 `options.overlay.{overlayKind}.shell` > 内置默认（私有表，
-     * 不占用户命名空间）。显式名走与内容组件同源的查找协议（scope 链 x-define →
-     * options.components 全局），未命中 warn + 回退内置默认（弹窗照常工作，失效可发现；
-     * 不等待 x-import——shell 是结构骨架，异步回退内置的错误形态比延迟打开更糟，ADR-0062）。
+     * shell 解析（ADR-0062 / ADR-0077 uiShells）：面板外壳组件按配置链取组件名——
+     * `config.shell`（成员表达式打开时求值一次）> 引擎级 `options.overlay.{overlayKind}.shell`
+     * > `options.uiShells` 内置种子（私有表，不占用户命名空间）。显式名走与内容组件同源的
+     * 查找协议（scope 链 x-define → options.components 全局），未命中 warn + 回退内置默认
+     * （弹窗照常工作，失效可发现；不等待 x-import——shell 是结构骨架，异步回退内置的错误
+     * 形态比延迟打开更糟，ADR-0062）。
      */
     protected _resolveShell(config: OverlayConfig): OverlayShellDef {
         const kind = this.overlayKind;
@@ -269,8 +269,9 @@ export abstract class OverlayDirective extends ComponentDirective {
                 `${this.directiveLabel}:${this.attr}: shell "${name}" 未命中（scope 链与全局组件表均无），回退内置默认 shell（若来自 x-import 请先注册再打开）（ADR-0062）`,
             );
         }
-        const builtinName = BUILTIN_SHELL_NAMES[kind] ?? BUILTIN_SHELL_NAMES.dialog!;
-        return { name: builtinName, ...resolveBuiltinShell(builtinName) };
+        // uiShells 内置种子兜底（ADR-0077：消费者裸名 = 注册表键，构造期恒注入——断言安全）
+        const shellKey = kind ?? "dialog";
+        return { name: shellKey, ...this.engine._resolveUiShell(shellKey)! };
     }
 
     /**

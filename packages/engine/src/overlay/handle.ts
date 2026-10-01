@@ -9,7 +9,6 @@ import {
 } from "./types";
 import { OverlayInstance, type OverlayShellDef } from "./instance";
 import { registerInstance, getInstances } from "./registry";
-import { BUILTIN_SHELL_NAMES, resolveBuiltinShell } from "./wrappers";
 
 /**
  * 覆盖物定义句柄（ADR-0052 决策 15）：覆盖物的**编程视图**，命令式消费入口。
@@ -131,10 +130,11 @@ export function resolveOverlayConfig(
 }
 
 /**
- * 命令式 shell 解析（ADR-0062）：`config.shell`（getOverlay options / open options）>
- * 内置默认（按 mask 分派——`true` 模态用 `dialog-shell`、`false` 裸面板用 `popover-shell`，
- * 两者模板同构、名字表达形态语义）。查找协议镜像声明式：锚点 scope 链（x-define）→
- * 全局组件表（options.components）；未命中 warn + 回退内置默认。
+ * 命令式 shell 解析（ADR-0062 / ADR-0077 uiShells）：`config.shell`（getOverlay options /
+ * open options）> `options.uiShells` 引擎级注册表（内置种子按 mask 分派——`true` 模态用
+ * `dialog`、`false` 裸面板用 `popover`，两者模板同构、键名表达形态语义）。查找协议镜像
+ * 声明式：锚点 scope 链（x-define）→ 全局组件表（options.components）→ uiShells；
+ * 未命中 warn + 回退内置默认。
  */
 function resolveCommandShell(
     engine: AutoSpark<any>,
@@ -157,6 +157,7 @@ function resolveCommandShell(
             `engine.getOverlay("${overlayName}"): shell "${name}" 未命中（scope 链与全局组件表均无），回退内置默认 shell（ADR-0062）`,
         );
     }
-    const builtinName = BUILTIN_SHELL_NAMES[mask ? "dialog" : "popover"]!;
-    return { name: builtinName, ...resolveBuiltinShell(builtinName) };
+    // uiShells 内置种子兜底（ADR-0077：消费者裸名 = 注册表键，构造期恒注入——断言安全）
+    const key = mask ? "dialog" : "popover";
+    return { name: key, ...engine._resolveUiShell(key)! };
 }

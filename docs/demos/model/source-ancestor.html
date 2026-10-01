@@ -27,22 +27,14 @@
                     <div class="field">
                         <label class="label">内层 tag（落到内层声明）</label>
                         <div class="control">
-                            <input
-                                class="input"
-                                x-model="tag"
-                                x-model-options="{set:'tag=$value'}"
-                            />
+                            <input class="input" x-model="tag" />
                         </div>
                     </div>
                     <p class="help">内层 tag = <strong x-text="tag || '（空）'"></strong></p>
                     <div class="field">
                         <label class="label">tenant（本地未声明 → 继承祖先）</label>
                         <div class="control">
-                            <input
-                                class="input"
-                                x-model="tenant"
-                                x-model-options="{set:'tenant=$value'}"
-                            />
+                            <input class="input" x-model="tenant" />
                         </div>
                     </div>
                     <p class="help">tenant = <strong x-text="tenant"></strong>（写到祖先层）</p>

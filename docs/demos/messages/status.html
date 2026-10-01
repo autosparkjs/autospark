@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>messages · 已读与业务状态</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- status 引擎纯透传（语义归开发者）；update(id, patch) 是记录级字段唯一写通道；
+             任意点击置已读，编程式走 markRead / markAllRead(kind)。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <button class="button is-primary" onclick="send()">模拟发送（sending → failed）</button>
+                <button class="button is-info" onclick="retry()">重试（failed → sent）</button>
+                <button class="button is-light" onclick="markAll()">markAllRead("notice")</button>
+            </div>
+            <div class="block has-text-grey">
+                发送后卡片 body 显示状态；点卡片任意处（含按钮）置已读——
+                下方实时打印 status / read 变化事件。
+            </div>
+            <div class="block"><pre id="log" class="has-background-light" style="padding: 8px; max-height: 140px; overflow: auto">事件日志：
+</pre></div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            const log = (t) => {
+                const pre = document.getElementById("log");
+                pre.textContent += `${new Date().toLocaleTimeString()}  ${t}\n`;
+                pre.scrollTop = pre.scrollHeight;
+            };
+            let task = null;
+            const send = () => {
+                task = app.messages.add({
+                    id: "deliver",
+                    title: "投递报告",
+                    description: "状态：sending…",
+                    kind: "notice",
+                    status: "sending",
+                    delayClose: 0,
+                    pos: "top-right",
+                });
+                log(`add  status=${task.status}`);
+                setTimeout(() => {
+                    if (task.status === "sending") {
+                        app.messages.update("deliver", { status: "failed", description: "状态：failed（网络中断）", type: "error" });
+                    }
+                }, 1200);
+            };
+            const retry = () => {
+                if (!task) return;
+                app.messages.update("deliver", { status: "sent", description: "状态：sent ✓", type: "success" });
+            };
+            const markAll = () => app.messages.markAllRead("notice");
+            // 只读 getter + 专用事件：status 补丁发 message:status，已读置位发 message:read
+            app.on("message:status", (m) => log(`message:status  id=${m.payload.message.id} → ${m.payload.message.status}`));
+            app.on("message:read", (m) => log(`message:read  id=${m.payload.message.id}`));
+            app.on("message:update", (m) => log(`message:update  id=${m.payload.message.id}`));
+        </script>
+    </body>
+</html>

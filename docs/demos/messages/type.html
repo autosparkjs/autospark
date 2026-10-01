@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>messages · 类型与语义色</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- type 5 值：none（默认，纯文本）/ info / success / warn / error——
+             驱动内置图标（同名词映射，success → yes）+ 全边语义色 border 与同色系淡底。
+             options.messages.icons 可重映射图标名；closable: true 出关闭钮。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <button class="button" onclick="app.messages.add('普通提示（type 缺省 none）')">none</button>
+                <button class="button" onclick="app.messages.add({ title: '正在同步数据', type: 'info' })">info</button>
+                <button class="button" onclick="app.messages.add({ title: '保存成功', type: 'success' })">success</button>
+                <button class="button" onclick="app.messages.add({ title: '连接不稳定', type: 'warn' })">warn</button>
+                <button class="button" onclick="app.messages.add({ title: '网络请求失败', type: 'error' })">error</button>
+            </div>
+            <div class="block">
+                <button
+                    class="button is-light"
+                    onclick="app.messages.add({ title: '带关闭钮的提示', type: 'info', closable: true, delayClose: 0 })"
+                >
+                    closable（sticky 不自动关）
+                </button>
+            </div>
+            <div class="block has-text-grey">
+                五连发观察语义色 border 与同色系超淡底；语义色可经
+                <code>--autospark-message-{type}-color</code> CSS 变量换肤（见「视觉定制」）。
+            </div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

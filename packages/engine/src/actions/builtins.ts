@@ -110,7 +110,8 @@ export function registerBuiltinActions(
         } else if (engine && name === "confirm") {
             // confirm（决策 22）：模板快速确认——payload 的 yes/no 可提取键转按钮文案；
             // 确认/取消结果经 message:action 事件以发起子树回流（anchor 注入），
-            // Promise resolve 值亦随 actions/confirm/resolved 广播（buildAction 异步语义）
+            // Confirm 会话 thenable 的 resolve 值亦随 actions/confirm/resolved 广播
+            // （buildAction 异步语义——ADR-0077 统一 show 入口后糖退役，会话本体承载 Promise）
             target[name] = createBuiltinAction(
                 name,
                 {
@@ -120,16 +121,21 @@ export function registerBuiltinActions(
                             typeof payload === "string" ? { title: payload } : { ...(payload ?? {}) };
                         const { yes, no, ...rest } = obj;
                         if (rest.anchor == null) rest.anchor = triggerAnchor(this) ?? undefined;
-                        return engine.messages.confirm(rest as MessageProps, {
-                            yes: yes as string | undefined,
-                            no: no as string | undefined,
+                        return engine.messages.show({
+                            ...(rest as MessageProps),
+                            kind: "confirm",
+                            delayClose: (rest as MessageProps).delayClose ?? 0, // sticky：永不自动关
+                            actions: [
+                                { title: (yes as string) ?? "确定", value: true },
+                                { title: (no as string) ?? "取消", value: false },
+                            ],
                         });
                     },
                 },
                 emit,
             );
         } else if (engine && name === "task") {
-            // task（决策 23）：payload → progressbar(...)；ProgressTask 经返回值与
+            // task（决策 23）：payload → show({kind:'task'})；Task 会话经返回值与
             // actions/task/resolved 广播 payload 交付（进度推进仍为编程式）
             target[name] = createBuiltinAction(
                 name,
@@ -140,7 +146,7 @@ export function registerBuiltinActions(
                             typeof payload === "string" ? { title: payload } : { ...(payload ?? {}) };
                         props.kind = "task";
                         if (props.anchor == null) props.anchor = triggerAnchor(this) ?? undefined;
-                        return engine.messages.progressbar(props);
+                        return engine.messages.show(props);
                     },
                 },
                 emit,

@@ -9,21 +9,17 @@
     </head>
 
     <body>
-        <!-- x-model 绑 x-data 局部字段：
+        <!-- x-model 绑 x-data 局部字段（ADR-0075 读写同源对称）：
              读方向（state→DOM）：scope.watch 因局部上下文走表达式支路，经 getContext 读到 count。
-             写方向（DOM→state）：简单路径会落到全局 state.count（分裂），故用 set 表达式经
-               with(scope) 的 set 陷阱透传到本层私有响应式域 _scopes[id].count，读写才同源。 -->
+             写方向（DOM→state）：简单路径经 binding.writeThrough 聚合视图透传，就近写回
+               本层私有响应式域 _scopes[id].count——简单路径即双向对称，无需 set 表达式桥接。 -->
         <div class="demo-app section">
             <div x-data="{ count: 0, label: '计数' }">
                 <div class="field">
                     <label class="label">{{ label }}：</label>
                     <div class="control">
-                        <!-- set:'count=$value' 把 DOM 输入值写回本层 x-data 的 count -->
-                        <input
-                            class="input"
-                            x-model="count"
-                            x-model-options="{set:'count=$value'}"
-                        />
+                        <!-- 简单路径即对称：输入写回本层 x-data 的 count -->
+                        <input class="input" x-model="count" />
                     </div>
                 </div>
                 <p class="help">

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>messages · 标题与正文</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- title 主行 + description 次行（字号小一号，缺省不渲染行）。
+             两者均为 HTML，经 options.sanitizer 同一安全通道消毒。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <button class="button" onclick="app.messages.add({ title: '版本 2.0 已发布', description: '包含 12 项改进与 3 项修复，查看 <b>更新日志</b> 了解详情。', type: 'info', delayClose: 0, closable: true })">
+                    title + description（富文本正文）
+                </button>
+                <button class="button" onclick="app.messages.add({ title: '只有标题（无正文行）', delayClose: 0, closable: true, pos: 'bottom-right' })">
+                    缺省 description（不渲染行）
+                </button>
+            </div>
+            <div class="block has-text-grey">
+                正文渲染在标题下一行、小一号；两张卡片均为 sticky 手动关闭，方便对比有无 description 的骨架差异。
+            </div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

@@ -36,11 +36,7 @@
                         <span class="tag is-light is-small tag-source">本地 x-data</span>
                     </label>
                     <div class="control">
-                        <input
-                            class="input"
-                            x-model="remark"
-                            x-model-options="{set:'remark=$value'}"
-                        />
+                        <input class="input" x-model="remark" />
                     </div>
                 </div>
                 <!-- 汇总行须在声明 remark 的容器内（scope 链就近解析） -->
@@ -59,10 +55,7 @@
                         </label>
                         <div class="control">
                             <div class="select">
-                                <select
-                                    x-model="section"
-                                    x-model-options="{set:'section=$value'}"
-                                >
+                                <select x-model="section">
                                     <option value="basic">基础信息</option>
                                     <option value="advanced">高级设置</option>
                                 </select>

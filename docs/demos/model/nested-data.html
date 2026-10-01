@@ -10,10 +10,10 @@
 
     <body>
         <!-- 多级嵌套 x-data + x-model：父层声明 user，子层覆盖 user、新增 score。
-             各层 x-model 经 set 表达式写「本层命中」的字段：
-               - getContext 的 set 陷阱按 localData > data 就近命中本层，
-                 故子层 input 改的是子层 user、父层 input 改的是父层 user，互不影响。
-               - 未覆盖的键沿 parent 链继承（子层 score 改本层；子层读 role 继承父层）。 -->
+             简单路径写回经聚合视图就近命中（ADR-0075 读写同源对称）：
+               - 子层 input 改的是子层 user、父层 input 改的是父层 user，互不影响。
+               - 未覆盖的键沿 parent 链继承（子层 score 改本层；子层读 role 继承父层）。
+               - score 配 set 是写转换示例（NaN→0 兜底）——set 仅用于写转换/字段拆分，非落点桥接。 -->
         <div class="demo-app section">
             <!-- 父层：声明 user / role -->
             <div x-data="{ user: '张三', role: 'admin' }">
@@ -23,11 +23,7 @@
                         <div class="field">
                             <label class="label">user：</label>
                             <div class="control">
-                                <input
-                                    class="input"
-                                    x-model="user"
-                                    x-model-options="{set:'user=$value'}"
-                                />
+                                <input class="input" x-model="user" />
                             </div>
                         </div>
                         <p class="help">
@@ -44,11 +40,7 @@
                             <div class="field">
                                 <label class="label">user：</label>
                                 <div class="control">
-                                    <input
-                                        class="input"
-                                        x-model="user"
-                                        x-model-options="{set:'user=$value'}"
-                                    />
+                                    <input class="input" x-model="user" />
                                 </div>
                             </div>
                             <div class="field">

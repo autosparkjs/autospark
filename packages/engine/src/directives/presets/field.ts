@@ -122,7 +122,16 @@ export class FieldDirective extends AutoSparkDirectiveBase {
             this.form = null;
             return;
         }
-        this.absPath = resolveFieldAbsPath(this.binding, this._resolvePath(raw));
+        const resolved = this._resolvePath(raw);
+        this.absPath = resolveFieldAbsPath(this.binding, resolved);
+        // 异步数据未就绪 warn（ADR-0076）：沿链存在未建域的 DataDirective（异步源 in-flight，
+        // 域归属查不到）时 absPath 按全局路径解析——控件层经聚合视图照常，但表单层
+        // （$field.value/reset/getState/校验）将错位。数据晚到不重解析（完整修复立后续 ADR）。
+        if (this.absPath === resolved && this._hasPendingDataAncestor()) {
+            this.warn(
+                `x-field: 绑定 "${raw}" 解析时沿链异步数据源尚未就绪，按全局路径 "${this.absPath}" 解析——表单层（$field/reset/getState）可能错位，控件层不受影响（ADR-0076）`,
+            );
+        }
 
         // schema 转换函数（ADR-0050）：created 期静态读取缓存（后注册/热替换不生效，
         // 与 synthesizeSchemaBindings「牺牲动态性换静默」取舍一致）；仅 schema 来源——
@@ -140,7 +149,7 @@ export class FieldDirective extends AutoSparkDirectiveBase {
             if (ModelCls) {
                 // 绑定值 = absPath 的可求值表达式形态（数字段索引化，见 toStateExpr）；
                 // 写方向恒附 set 表达式（域内路径含索引段时 setVal 直写快路径不可达，经 with 赋值
-                // 写入聚合视图 → 根 state，读写同位）；options 透传 x-field-options（修饰符管道同款）
+                // 写入聚合视图——ADR-0075 后就近命中域容器，读写同位）；options 透传 x-field-options（修饰符管道同款）
                 const expr = toStateExpr(splitPath(this.absPath));
                 const opts = { ...(this.options ?? {}), set: `${expr}=$value` };
                 const info: AutoDirectiveInfo = { name: "model", value: expr, options: opts };
@@ -185,6 +194,9 @@ export class FieldDirective extends AutoSparkDirectiveBase {
 
     override destroy() {
         this._model?.destroy();
+        // 注销 form 注册（ADR-0076 生命周期对称）：x-for 删项/rebind 销毁项内字段时，
+        // 不注销则条目悬垂（reset 对已删路径回写会在根上重建幽灵节点、watcher 空转）
+        this.form?.unregisterField(this);
     }
 
     /** $field Proxy（懒构建；get/ownKeys 职责分离——任意元数据读取 vs 控件展开键集） */
@@ -425,5 +437,24 @@ export class FieldDirective extends AutoSparkDirectiveBase {
             s = s.parent;
         }
         return null;
+    }
+
+    /**
+     * 沿链是否存在「数据未就绪」的 DataDirective（x-data/x-form 异步源 in-flight：
+     * 域 `_data` 尚未建立）。按指令名判定（data/form——FormDirective 继承 DataDirective
+     * 同样建域），避免 field→data 的运行时 import 依赖。就绪的域不在此列（其字段解析
+     * 会命中 `_data`，不触发 warn）。
+     */
+    private _hasPendingDataAncestor(): boolean {
+        let s: AutoSparkScope | null = this.binding;
+        while (s) {
+            for (const d of s.directives) {
+                if ((d.info.name === "data" || d.info.name === "form") && (d as any)._data == null) {
+                    return true;
+                }
+            }
+            s = s.parent;
+        }
+        return false;
     }
 }

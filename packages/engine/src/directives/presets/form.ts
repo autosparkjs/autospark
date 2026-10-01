@@ -2,7 +2,7 @@ import { DataDirective } from "./data";
 import { SCOPES_KEY } from "../../engine";
 import { detectDataForm } from "./async-source";
 import { getVal, setVal, splitPath, type Watcher } from "autostore";
-import { isSimpleStatePath, type AutoSparkScope } from "../../scope";
+import { isSimpleStatePath, LOCAL_PATHS, type AutoSparkScope } from "../../scope";
 import type { FieldDirective } from "./field";
 import type { AutoSpark } from "../../engine";
 
@@ -23,20 +23,31 @@ export interface FormFieldEntry {
     error: string | undefined;
     /** 桥接副本：字段值是否偏离初始快照 */
     dirty: boolean;
+    /** value 订阅（unregisterField 时 off；ADR-0076 生命周期注销——x-for 删项防悬垂） */
+    valueWatcher?: Watcher;
+    /** schema 元数据订阅（同上；仅 configManager 有该字段 schema 时存在） */
+    schemaWatcher?: Watcher;
 }
 
 /**
  * 解析简单路径的**绝对状态路径**（从 store.state 根起算）：
- * 路径首段沿 parent 链查找所属容器——命中某层 `_data`（私有域 / 挂载容器）则拼该容器
- * 前缀；全链未命中视为全局路径原样返回。
+ * 路径首段沿 parent 链查找所属容器——命中某层项映射（x-for 的 `item → items.<index>`，
+ * ADR-0076）或 `_data`（私有域 / 挂载容器）则拼对应前缀；全链未命中视为全局路径原样返回。
  *
  * 供 x-form / x-field 统一推导字段绝对路径（form 的精准订阅 / 快照 / getState(true) 与
  * 控件形态内部 model 的读写目标都依赖它——绝对路径保证 with 求值与 setVal 写入同位）。
+ * 命中序「项映射 > _data」与聚合视图的「locals > data」一致。
  */
 export function resolveFieldAbsPath(scope: AutoSparkScope, expr: string): string {
     const first = expr.split(".")[0]!;
+    const rest = splitPath(expr).slice(1);
     let s: AutoSparkScope | null = scope;
     while (s) {
+        // 项映射（ADR-0076）：x-for 项 localData 上的 LOCAL_PATHS——item.name → items.0.name
+        const localMap = (s.locals as any)?.[LOCAL_PATHS] as Record<string, string[]> | undefined;
+        if (localMap && Object.prototype.hasOwnProperty.call(localMap, first)) {
+            return [...localMap[first]!, ...rest].join(".");
+        }
         if (s._data && Object.prototype.hasOwnProperty.call(s._data, first)) {
             // path 模式（mount:'x.y'）的 _data 指向挂载容器（不在 $scopes 下）——取其真实容器段
             const dd = s.directives.find(
@@ -97,8 +108,6 @@ export class FormDirective extends DataDirective {
     private fields = new Map<string, FormFieldEntry>();
     /** 字段名注册表（getState 无参形态的键冲突检测：后者覆盖 + warn，ADR-0045 决策 7） */
     private fieldNames = new Map<string, string>();
-    /** 中心化监听持有的 watcher（value + schema，destroy 统一 off） */
-    private formWatchers: Watcher[] = [];
     /** 路径形态解析出的相对路径上下文（`x-form="login"` → "login"）；其余形态为 null */
     pathContext: string | null = null;
     /** 宿主元素事件回调（submit/reset，箭头函数绑定 this 供移除同引用） */
@@ -209,15 +218,15 @@ export class FormDirective extends DataDirective {
             dirty: false,
         };
         this.fields.set(absPath, entry);
-        // value watcher：精准订阅绝对路径（含 $scopes 域前缀——state 树一部分）
+        // value watcher：精准订阅绝对路径（含 $scopes 域前缀——state 树一部分）。
+        // 引用存 entry（ADR-0076）：unregisterField 按 entry off——替代 formWatchers 数组
+        //（destroy 遍历 fields 统一 off，注销路径与注册对称）
         const store = this.engine.store;
-        this.formWatchers.push(
-            store.watch(absPath, () => {
-                entry!.error = _readError(this.engine, absPath);
-                entry!.dirty = !_valueEq(getVal(state, absPath), entry!.initial);
-                this._scheduleRefresh();
-            }),
-        );
+        entry.valueWatcher = store.watch(absPath, () => {
+            entry!.error = _readError(this.engine, absPath);
+            entry!.dirty = !_valueEq(getVal(state, absPath), entry!.initial);
+            this._scheduleRefresh();
+        });
         // schema watcher：元数据字面量改写桥接（cm 是独立 AutoStore，字面量读取对根 store
         // 管线不可见——grilling 实测，ADR-0045 决策 5）
         const cm = (store as any).configManager;
@@ -231,12 +240,30 @@ export class FormDirective extends DataDirective {
                 if (schema.onInvalid === undefined) {
                     schema.onInvalid = typeof this.formOnInvalid === "string" ? this.formOnInvalid : "pass";
                 }
-                this.formWatchers.push(
-                    cm.watch(fullKey, () => this._scheduleRefresh(), { depth: 2 } as any),
-                );
+                entry.schemaWatcher = cm.watch(fullKey, () => this._scheduleRefresh(), {
+                    depth: 2,
+                } as any);
             }
         }
         return entry;
+    }
+
+    /**
+     * 字段注销（ADR-0076 生命周期对称）：x-field 销毁时移除注册条目——x-for 删项/rebind
+     * 会销毁项内字段，不注销则条目悬垂（reset 对已删路径 setVal 会在根上重建幽灵节点、
+     * watcher 空转）。**引用校验删除**：仅当条目 field 引用即注销者本人时删除——两阶段
+     * rebind 的注册间隙内条目可能已被后来者接管，谁拥有谁删除。
+     */
+    unregisterField(field: FieldDirective): void {
+        const entry = this.fields.get(field.absPath);
+        if (!entry || entry.field !== field) return;
+        this.fields.delete(field.absPath);
+        entry.valueWatcher?.off();
+        entry.schemaWatcher?.off();
+        // 字段名逆向表同步清理（值匹配才删——名字可能已被后来者覆盖注册）
+        for (const [name, path] of this.fieldNames) {
+            if (path === field.absPath) this.fieldNames.delete(name);
+        }
     }
 
     /** 字段注册条目读取（$field.error 桥接副本的读取通道；无条目返回 undefined） */
@@ -319,10 +346,19 @@ export class FormDirective extends DataDirective {
         this.reset();
     }
 
-    /** reset 管道（决策 8）：逐字段回初始深快照（拷贝回写，快照不被运行时变更污染）+ 清态 + refresh */
+    /**
+     * reset 管道（决策 8）：逐字段回初始深快照（拷贝回写，快照不被运行时变更污染）+ 清态 + refresh。
+     *
+     * 曾评估改用 autostore `reset(absPath)`（ADR-0076 调研），实验三重否决：
+     * ① entry 仅支持**对象节点**快照（`deep`/`$scopes.f1` 二层对象生效），叶子标量路径
+     *   （`g`、`$scopes.5.username`——form 字段形态）静默无效；② x-form 域为运行时注入，
+     *   对象节点也无快照记录（`reset("$scopes.5")` 无效）；③ 域内数组结构变更后整树/子树
+     *   reset 会把数组键抹成 undefined。无参 `reset()` 虽生效但是全 store 回滚（波及无关
+     *   域与全局）。故维持自管快照管道；engine 自建 store 的 `resetable:true`（engine.ts）
+     *   保留——零冲突，未来 autostore 修复上述限制后可 revisit。
+     */
     reset(): void {
-        const store = this.engine.store;
-        const state = store.state as Record<string, any>;
+        const state = this.engine.store.state as Record<string, any>;
         for (const entry of this.fields.values()) {
             setVal(state, splitPath(entry.absPath), _cloneDeep(entry.initial));
             entry.dirty = false;
@@ -387,12 +423,15 @@ export class FormDirective extends DataDirective {
     }
 
     override destroy(): void {
-        // 表单级行为资源回收（域数据回收归 super.destroy 的 DataDirective 管道）
+        // 表单级行为资源回收（域数据回收归 super.destroy 的 DataDirective 管道）。
+        // 字段订阅随条目 off（ADR-0076：watcher 引用存 entry，替代原 formWatchers 数组）
         this._hostEl?.removeEventListener("submit", this.onSubmit);
         this._hostEl?.removeEventListener("reset", this.onReset);
         this._hostEl = null;
-        for (const w of this.formWatchers) w.off();
-        this.formWatchers.length = 0;
+        for (const entry of this.fields.values()) {
+            entry.valueWatcher?.off();
+            entry.schemaWatcher?.off();
+        }
         this.fields.clear();
         this.fieldNames.clear();
         super.destroy();

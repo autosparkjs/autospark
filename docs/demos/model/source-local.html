@@ -16,19 +16,11 @@
                 <div class="field">
                     <label class="label">草稿内容（本地字段 draft）</label>
                     <div class="control">
-                        <input
-                            class="input"
-                            x-model="draft"
-                            x-model-options="{set:'draft=$value'}"
-                        />
+                        <input class="input" x-model="draft" />
                     </div>
                 </div>
                 <label class="checkbox">
-                    <input
-                        type="checkbox"
-                        x-model="urgent"
-                        x-model-options="{set:'urgent=$value'}"
-                    />
+                    <input type="checkbox" x-model="urgent" />
                     紧急（本地字段 urgent）
                 </label>
                 <p class="help">

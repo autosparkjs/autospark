@@ -8,7 +8,7 @@
     "devDependencies": {
         "@happy-dom/global-registrator": "^20.10.6",
         "@types/bun": "^1.3.14",
-        "autostore": "^4.6.2",
+        "autostore": "^4.7.0",
         "happy-dom": "^20.10.6",
         "tsup": "^8.5.1"
     },

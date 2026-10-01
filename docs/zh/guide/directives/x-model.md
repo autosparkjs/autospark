@@ -531,9 +531,9 @@ actions: {
 
 ```html
 <div x-data="{ draft: '', urgent: false }">
-    <!-- 读局部字段；写方向须配 set 桥接（见下 warning）——所有控件类型同理 -->
-    <input x-model="draft" x-model-options="{set:'draft=$value'}" />
-    <input type="checkbox" x-model="urgent" x-model-options="{set:'urgent=$value'}" />
+    <!-- 简单路径读写同源对称（ADR-0075）：读就近、写回落本层域——所有控件类型同理 -->
+    <input x-model="draft" />
+    <input type="checkbox" x-model="urgent" />
 </div>
 ```
 
@@ -577,12 +577,12 @@ new AutoSpark(el, {
 ```html
 <div x-data="{ draftName: '', remark: '' }">
     <!-- 本地：本卡片草稿 -->
-    <input x-model="draftName" x-model-options="{set:'draftName=$value'}" />
+    <input x-model="draftName" />
     <!-- ↑ 本地 x-data：草稿，提交前不进全局 -->
 
     <div x-data="{ section: 'basic' }">
         <!-- 祖先（对更深控件而言）：分区共享 -->
-        <input x-model="section" x-model-options="{set:'section=$value'}" />
+        <input x-model="section" />
         <!-- ↑ 祖先 x-data：本分区共享，兄弟卡片同读同写 -->
 
         <input x-model="user.name" />
@@ -592,7 +592,7 @@ new AutoSpark(el, {
 ```
 
 ::: tip 来源判定规则
-读方向：`getContext()` 聚合 `localData > data > state`，同名键**就近覆盖**（本地 > 祖先 > 全局）；写方向：**简单路径直写全局 store**（不经局部域），绑局部字段必须配 `set:'<字段>=$value'` 桥接——详见下文[绑定局部数据](#绑定局部数据)的读写不对称 warning。
+读写两方向**同源对称**（[ADR-0075](https://github.com/zhangfisher/autospark/blob/main/packages/engine/docs/adr/0075-x-model-write-symmetry.md)）：都经 `getContext()` 聚合 `localData > data > state`，同名键**就近命中**（本地 > 祖先 > 全局）——读经 `scope.watch` 表达式支路、写经 `binding.writeThrough` 透传。简单路径即双向对称（域内字段写回落所在域）；`set` 表达式仅用于写转换、字段拆分等场景，详见下文[绑定局部数据](#绑定局部数据)。
 :::
 
 ### 绑定局部数据
@@ -940,4 +940,4 @@ choices 深读会收集每个选项项的 `label`/`value`/`group` 字段路径�
 - **安全：get/set 是代码执行点**：表达式经 `new Function` 在当前页面上下文求值（与 x-on/action 同级的既有机制）。**绝不要把用户输入拼进 get/set 表达式**——表达式必须来自开发者编写的模板。编译产物有缓存（同表达式只编译一次），但求值本身不受沙箱保护。若模板来源不可信（如服务端下发、用户提交），须在编译前消毒（sanitize）指令属性。
 - **动态改 `x-model` 属性值不支持**：运行时 `setAttribute("x-model", ...)` 改绑定值不生效（编译期解析，首版有意）。
 - **循环防护是内置的**：无需手动处理，写入经 flags 标识，read 回调自动跳过自身触发的回写。
-- **绑定 x-data 局部字段须配 set 表达式**：简单路径 `x-model="<局部字段>"` 会「读局部、写全局」（写方向经 `setVal` 直写 `store.state` 绕过私有域），导致读写分裂。绑局部字段时务必加 `x-model-options="{set:'<字段>=$value'}"`，详见上文[绑定局部数据](#绑定局部数据)。
+- **域内写回落点已变更（ADR-0075，不设迁移期）**：简单路径 `x-model="<局部字段>"` 写回**落最近的 x-data 域**（读写同源对称）。旧行为是直写 `store.state` 根——根上凭空长出「幽灵键」，属「读局部、写全局」分裂 bug 的产物；旧依赖该写根副作用的用法（根上幽灵键被下游消费）已失效。需要写转换、字段拆分仍可配 `set` 表达式（可选，非必需），详见上文[绑定局部数据](#绑定局部数据)。

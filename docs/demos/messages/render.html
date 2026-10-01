@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>messages · 自定义渲染（双层组合）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* kind renderer（专属区组件）与 shell 两层同权拿到全量数据域 props（已解析、剥函数）：
+               id/kind/title/description/type/icon/actions/closable/link/read/status/result/
+               progress(仅 task)/delayClose + $session 行为通道 */
+            .my-notice-extra {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-top: 4px;
+            }
+            .my-notice-extra .tag {
+                font-weight: 700;
+                font-size: 11px;
+            }
+            .my-notice-extra .dim {
+                color: #666;
+                font-size: 12px;
+            }
+            .my-notice-extra button {
+                border: none;
+                background: none;
+                color: #2563eb;
+                cursor: pointer;
+                padding: 0;
+                font-size: 13px;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- 双层组合（ADR-0077）：公共 shell 恒渲染 title/description/actions/close，kind renderer
+             只渲染专属区（嵌 kind 出口）——不必重写公共元素。title 行由 shell 出（下方 toast 卡
+             同构）；按钮带 data-message-action 索引即接入引擎点击委托闭环（置已读/事件/hide 判定）；
+             $session 为行为通道（remove/progress 等）。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <button class="button is-info" onclick="spawn()">kind: notice（自定义专属区）</button>
+                <button class="button" onclick="app.messages.add({ title: '普通 toast（内置 shell + 空占位 kind 区）', delayClose: 0, pos: 'bottom-right', closable: true })">
+                    kind 缺省（内置兜底）
+                </button>
+            </div>
+            <div class="block has-text-grey">
+                notice 专属区显示 #kind 标签与未读标记；点「知道了」（shell 公共 actions 行）后
+                read=true、未读标记即时消失（响应式活体，无需重建）。
+            </div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {},
+                {
+                    components: {
+                        // kind='notice' 的专属区：只渲染增量——title/description/actions 归公共 shell
+                        "notice-card": `
+                            <div class="my-notice-extra">
+                                <span class="tag is-info is-light" x-text="'#' + kind"></span>
+                                <span class="dim" x-show="!read">未读</span>
+                                <button type="button" @click="$session.remove()">不再提示</button>
+                            </div>`,
+                    },
+                    messages: { kinds: { notice: { render: "notice-card", delayClose: 0 } } },
+                },
+            );
+            function spawn() {
+                app.messages.add({
+                    title: "明日 10:00 例会改到 14:00",
+                    kind: "notice",
+                    actions: [{ title: "知道了", hide: false }],
+                });
+            }
+        </script>
+    </body>
+</html>

@@ -15,7 +15,6 @@ import {
     type OverlayConfig,
     type OverlayEventDetail,
 } from "./types";
-import { BUILTIN_SHELL_NAMES, resolveBuiltinShell } from "./wrappers";
 
 /**
  * 面板外壳组件定义（shell 机制，ADR-0062）：消费者/命令式解析后传入。
@@ -198,10 +197,11 @@ export class OverlayInstance {
         this.searchRoot = opts.searchRoot ?? null;
         this.dataContextEl = opts.dataContextEl ?? null;
         this.mask = opts.mask ?? false;
-        // shell 缺省兜底内置 dialog-shell（防御路径：声明式/命令式消费面恒显式解析传入）
+        // shell 缺省兜底 uiShells 内置 dialog 种子（防御路径：声明式/命令式消费面恒显式解析传入；
+        // ADR-0077——消费者裸名 = 注册表键，构造期恒注入，断言安全）
         this._shell = opts.shell ?? {
-            name: BUILTIN_SHELL_NAMES.dialog!,
-            ...resolveBuiltinShell(BUILTIN_SHELL_NAMES.dialog!),
+            name: "dialog",
+            ...this.engine._resolveUiShell("dialog")!,
         };
         this.slotContents = opts.slotContents ?? null;
         this.slotCallerScope = opts.slotCallerScope ?? null;

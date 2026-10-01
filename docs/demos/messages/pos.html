@@ -2,7 +2,7 @@
 <html lang="zh-CN">
     <head>
         <meta charset="UTF-8" />
-        <title>toast · 屏幕位置与队列</title>
+        <title>messages · 屏幕位置与队列</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
@@ -22,19 +22,21 @@
         </div>
         <script>
             const POS = ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right", "center"];
-            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {}, {
-                toast: { showCount: 3, delay: 1500 },
-            });
+            const app = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {},
+                { messages: { showCount: 3, delayClose: 1500 } },
+            );
             // 动态生成 7 个位置按钮
             for (const p of POS) {
                 const b = document.createElement("button");
                 b.className = "button is-small";
                 b.textContent = p;
-                b.onclick = () => app.toast({ message: `来自 ${p} 的提示`, pos: p, delay: 2000 });
+                b.onclick = () => app.messages.add({ title: `来自 ${p} 的提示`, pos: p, delayClose: 2000 });
                 document.getElementById("pos-btns").appendChild(b);
             }
             function burst() {
-                for (let i = 1; i <= 5; i++) app.toast({ message: `第 ${i} 条（1.5 秒后消失）` });
+                for (let i = 1; i <= 5; i++) app.messages.add({ title: `第 ${i} 条（1.5 秒后消失）` });
             }
         </script>
     </body>

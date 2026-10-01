@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-data · 浅响应（shallow）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 深浅对照（ADR-0078）：三个域持有同构数据 user = { name, profile: { city } }，
+             按钮在哪个面板点击就写哪个域（this.data 按发起元素聚合），观察各档位的响应边界：
+             全深——三类写全部生效；1 档——第三层写失效；0 档——键内字段写全部失效、仅整体替换生效。 -->
+        <div class="demo-app section">
+            <div class="notification is-info is-light">
+                同构数据 <code>user = { name, profile: { city } }</code> 落在三个档位的域里，
+                分别执行<strong>第二层写</strong>（user.name）、<strong>第三层写</strong>（user.profile.city）、
+                <strong>整体替换</strong>（user = 新对象）——观察各域的更新边界。
+            </div>
+
+            <div class="columns">
+                <div class="column">
+                    <div class="box" x-data="{ user: { name: '张三', profile: { city: '北京' } } }">
+                        <p class="has-text-weight-bold">全深（默认）</p>
+                        <p>
+                            name = <span class="tag is-link" x-text="user.name"></span>
+                            city = <span class="tag is-info" x-text="user.profile.city"></span>
+                        </p>
+                        <div class="buttons">
+                            <button class="button is-small is-primary" @click="writeName">第二层写</button>
+                            <button class="button is-small is-primary" @click="writeCity">第三层写</button>
+                            <button class="button is-small is-dark" @click="replaceUser">整体替换</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="column">
+                    <div
+                        class="box"
+                        x-data="{ user: { name: '张三', profile: { city: '北京' } } }"
+                        x-data-options="{shallow:1}"
+                    >
+                        <p class="has-text-weight-bold">1 档（shallow:1）</p>
+                        <p>
+                            name = <span class="tag is-link" x-text="user.name"></span>
+                            city = <span class="tag is-info" x-text="user.profile.city"></span>
+                        </p>
+                        <div class="buttons">
+                            <button class="button is-small is-primary" @click="writeName">第二层写 ✓</button>
+                            <button class="button is-small is-primary" @click="writeCity">第三层写 ✗</button>
+                            <button class="button is-small is-dark" @click="replaceUser">整体替换 ✓</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="column">
+                    <div class="box" x-data.shallow="{ user: { name: '张三', profile: { city: '北京' } } }">
+                        <p class="has-text-weight-bold">0 档（.shallow 修饰符）</p>
+                        <p>
+                            name = <span class="tag is-link" x-text="user.name"></span>
+                            city = <span class="tag is-info" x-text="user.profile.city"></span>
+                        </p>
+                        <div class="buttons">
+                            <button class="button is-small is-primary" @click="writeName">第二层写 ✗</button>
+                            <button class="button is-small is-primary" @click="writeCity">第三层写 ✗</button>
+                            <button class="button is-small is-dark" @click="replaceUser">整体替换 ✓</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {},
+                {
+                    actions: {
+                        // this.data 是按发起元素聚合的视图：按钮在哪个面板，写入就落在该面板的
+                        // 私有域（$scopes[id]）——三个面板共用同一组 action，档位决定写入是否触发更新。
+                        writeName: function () {
+                            this.data.user.name = "李四";
+                        },
+                        writeCity: function () {
+                            this.data.user.profile.city = "上海";
+                        },
+                        replaceUser: function () {
+                            this.data.user = { name: "王五", profile: { city: "广州" } };
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

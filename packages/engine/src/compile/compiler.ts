@@ -1311,11 +1311,14 @@ export class AutoSparkCompiler {
         slotContents?: Map<string, SlotContent> | null,
         /** 插槽内容调用方视图基准（ADR-0056）：overlay 传 x-dialog 消费者 binding */
         slotCallerScope?: AutoSparkScope | null,
+        /** 求值上下文派生变量（ADR-0077 `$session` 通道）：x-for localData 同款——非响应式、
+         *  不进 state、`$` 前缀不占用户命名空间；随编译建入块根求值上下文 */
+        localData?: Record<string, any> | null,
     ): { el: HTMLElement; scope: AutoSparkScope } {
         const compiled = this.compileChild(
             template,
             parentScope,
-            {},
+            localData ?? {},
             undefined,
             props,
             def ?? undefined,

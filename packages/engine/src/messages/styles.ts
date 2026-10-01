@@ -1,10 +1,10 @@
-import { MESSAGE_SHELL_STYLES } from "./renders/message-shell";
-import { TASK_SHELL_STYLES } from "./renders/task-shell";
+import { SHELL_STYLES } from "./renderers/shell";
+import { TASK_RENDERER_STYLES } from "./renderers/task";
 
 /**
- * 消息引擎结构样式（ADR-0071）：分区列定位（引擎结构，不归 shell——遮罩同构分界）+
- * 内置 render 形态样式。幂等注入 head（toast / registerShellStyles 同构纪律），首个
- * 消息容器懒建时调用（container.ts）。
+ * 消息引擎结构样式（ADR-0071 / ADR-0077 renderers 目录）：分区列定位（引擎结构，不归
+ * shell——遮罩同构分界）+ 内置 shell / kind renderer 形态样式。幂等注入 head（toast /
+ * registerShellStyles 同构纪律），首个消息容器懒建时调用（container.ts）。
  *
  * 分区列定位契约（7 pos × fixed inset，ADR-0068 决策 7 沿用）：
  * - 边距走 CSS 变量 `--autospark-message-inset`（默认 16px；`offset` 键在列创建时由引擎
@@ -29,7 +29,7 @@ export function injectMessageStyles(): void {
     if (document.getElementById(MESSAGE_STYLES_ID)) return;
     const style = document.createElement("style");
     style.id = MESSAGE_STYLES_ID;
-    style.textContent = COLUMN_STYLES + "\n" + MESSAGE_SHELL_STYLES + "\n" + TASK_SHELL_STYLES;
+    style.textContent = COLUMN_STYLES + "\n" + SHELL_STYLES + "\n" + TASK_RENDERER_STYLES;
     document.head.appendChild(style);
 }
 

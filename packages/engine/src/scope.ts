@@ -34,6 +34,20 @@ export function isSimpleStatePath(value: string): boolean {
     return SIMPLE_PATH_RE.test(value);
 }
 
+/**
+ * 项局部变量→绝对状态段映射的载体键（ADR-0076）：x-for 在项 localData 上挂
+ * `{ [itemName]: ["items", "0"] }` 形态的映射，供 x-field 的 resolveFieldAbsPath
+ * 沿 scope 链把 `item.name` 反解为 `items.0.name`（项内字段的表单层——reset/
+ * getState/校验——依赖绝对路径读写同位）。
+ *
+ * 用 Symbol 而非字符串键：不进聚合视图的 string 键命中分支（Proxy get 陷阱仅拦截
+ * string 键），也不被 Object.assign 复用更新冲掉。挂在 localData（先于成员 scope
+ * 构造）而非 scope 上，保证嵌套 x-for 的内层 created 期能沿链读到外层映射。
+ * 仅纯路径源 + 非分页模式记录（表达式源/分页切片无稳定状态路径，不记 → 项内
+ * x-field 回退全局路径解释 + warn）。
+ */
+export const LOCAL_PATHS = Symbol("autospark.localPaths");
+
 export type AutoSparkBindingOptions = {
     /** 引用模板元素（编译只读输入，保留指令属性） */
     template: HTMLElement;
@@ -918,7 +932,7 @@ export class AutoSparkScope {
     }
 
     /**
-     * 写回落点解析（ADR-0073 读写对称）：把简单路径的写入**经 getContext 聚合视图透传**——
+     * 写回落点解析（ADR-0075 读写对称）：把简单路径的写入**经 getContext 聚合视图透传**——
      * 单段路径直接赋值（Proxy set 陷阱就近命中：本层 locals > x-data 域 > 沿父视图链，
      * 边界/基准语义由视图已有的实现承担），全链未命中等价落 store 根（与旧直写行为兼容）。
      * 多段路径首键命中域时取**域内成员对象**对余段 setVal（写入留域内），否则落根 setVal

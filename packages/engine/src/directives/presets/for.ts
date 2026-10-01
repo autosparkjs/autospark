@@ -1,9 +1,11 @@
 import { AutoSparkDirectiveBase } from "../base";
 import type { AutoDirectiveInfo } from "../types";
-import { isSimpleStatePath, type AutoSparkScope } from "../../scope";
+import { isSimpleStatePath, LOCAL_PATHS, type AutoSparkScope } from "../../scope";
 import { isDataScript } from "../../compile/dataScript";
 import { resolveAnimate } from "../../animate";
+import { splitPath } from "autostore";
 import type { AutoSpark } from "../../engine";
+import { resolveFieldAbsPath } from "./form";
 
 // ── 虚拟列表常量 ──────────────────────────────────────────────────────────────
 
@@ -174,6 +176,12 @@ export class ForDirective extends AutoSparkDirectiveBase {
     private itemName = "item";
     private indexName = "index";
     private itemsPath = "";
+    /**
+     * 源路径的绝对段缓存（ADR-0076 项映射）：纯路径源且非分页时为段数组（如
+     * ["items"] / 嵌套外层展开后的 ["rows","2","cells"]），null = 不可解析（表达式
+     * 源 / 分页切片，无稳定状态路径，不记映射）。首次需要时解析并缓存。
+     */
+    private _itemSourceSegs: string[] | null | undefined = undefined;
     private keyExpr: string | null = null;
     /** 复合项模板：容器下【非 special】的元素子节点（单子节点时长度为 1）。
      *  命中 SPECIAL_CHILDREN.match（如 x-empty）的子节点已分入 specialTemplates，不在此列。 */
@@ -728,32 +736,45 @@ export class ForDirective extends AutoSparkDirectiveBase {
         const ordered: ForItemEntry[] = [];
         const visibleKeys = new Set<unknown>();
 
+        // (B)/(C) 两阶段（ADR-0076，与主 render 同款事务性）：决策与复用在循环内，
+        // 重编译统一延迟到集中销毁之后——可见窗口内多项 rebind 互换时同路径不交叉。
+        const vRebinds: { old: ForItemEntry; item: any; index: number }[] = [];
+        const vCreates: { item: any; index: number }[] = [];
         for (let index = startIndex; index < visibleEndIndex; index++) {
             const item = items[index];
             const key = this.evalKey(item, index);
             visibleKeys.add(key);
             const old = this.itemMap.get(key);
-            let entry: ForItemEntry;
 
             if (old && old.index === index) {
                 // 复用
-                entry = old;
                 const itemChanged = old.item !== item;
-                entry.item = item;
-                Object.assign(entry.localData, this.buildLocalData(item, index, length));
+                old.item = item;
+                Object.assign(old.localData, this.buildLocalData(item, index, length));
                 if (itemChanged) {
-                    for (const scope of entry.scopes) scope.refresh();
+                    for (const scope of old.scopes) scope.refresh();
                 }
+                ordered.push(old);
             } else if (old) {
-                // 重绑定
-                entry = this.rebindItem(old, item, index, length);
-                this.itemMap.set(key, entry);
+                // 重绑定（收集，两阶段执行）
+                vRebinds.push({ old, item, index });
+                ordered.push(null as unknown as ForItemEntry);
             } else {
-                // 新建
-                entry = this.createItem(item, index, length);
-                this.itemMap.set(key, entry);
+                // 新建（收集，两阶段执行）
+                vCreates.push({ item, index });
+                ordered.push(null as unknown as ForItemEntry);
             }
-            ordered.push(entry);
+        }
+        for (const r of vRebinds) this.destroyItemScopes(r.old);
+        for (const r of vRebinds) {
+            const entry = this.compileRebound(r.old, r.item, r.index, length);
+            this.itemMap.set(this.evalKey(r.item, r.index), entry);
+            ordered[r.index - startIndex] = entry;
+        }
+        for (const c of vCreates) {
+            const entry = this.createItem(c.item, c.index, length);
+            this.itemMap.set(this.evalKey(c.item, c.index), entry);
+            ordered[c.index - startIndex] = entry;
         }
 
         // 销毁不在可见范围内的项
@@ -1190,6 +1211,11 @@ export class ForDirective extends AutoSparkDirectiveBase {
         const createdEntries: ForItemEntry[] = [];
 
         // === Pass 1：对新 items 逐项决策 reuse / recreate / create ===
+        // (B)/(C) 两阶段执行（ADR-0076）：循环内只决策与复用，重编译统一延迟到「集中销毁」
+        // 之后——所有 form 字段注销先于所有注册，保证跨项事务性（同路径不交叉：互换、头部
+        // 插入推挤时，新建项撞 rebind 项尚未销毁的旧条目会错拿 initial / 注销会误删刚注册的条目）。
+        const rebinds: { old: ForItemEntry; item: any; index: number }[] = [];
+        const creates: { item: any; index: number }[] = [];
         for (let index = 0; index < items.length; index++) {
             const item = items[index];
             const key = this.evalKey(item, index);
@@ -1198,38 +1224,51 @@ export class ForDirective extends AutoSparkDirectiveBase {
             }
             seen.add(key);
             const old = this.itemMap.get(key);
-            let entry: ForItemEntry;
             if (old && old.index === index) {
                 // (A) 同 key + index 不变 → 复用 DOM/scope/订阅：原地更新 localData（item + 全部 $*）。
                 //    订阅路径含 index、index 不变则订阅仍有效；引用变的内容差异由 Pass 4 refresh patch。
                 //    铁律：Object.assign 原地改，禁止换 localData 对象（_scopeView Proxy 闭包绑定引用）。
-                entry = old;
-                const itemChanged = old.item !== item; // P2 脏标记
-                entry.item = item;
-                Object.assign(entry.localData, this.buildLocalData(item, index, length));
+                const itemChanged = old.item !== item; // P2 脏标记（比较先于赋值）
+                old.item = item;
+                Object.assign(old.localData, this.buildLocalData(item, index, length));
                 // P2 短路：item 引用未变 && length 未变 → localData 内容未变，跳过 refresh
                 // （$* 随 Object.assign 重算但值不变；项内字段变更已由字段级 watcher 精准 patch，未进 render）。
-                if (itemChanged || lengthChanged) reuseEntries.push(entry);
+                if (itemChanged || lengthChanged) reuseEntries.push(old);
+                ordered.push(old);
             } else if (old) {
                 // (B) 同 key + index 变（移动）→ 旧订阅路径含旧 index 已失效。
                 //    P1：复用项根 DOM（old.nodes）仅销毁旧 scope 重订阅——保住项根本身焦点/属性；
                 //    子树 DOM 由 compileChild(reuseEl) 清空重建（子节点焦点彻底保留需 core 对象身份订阅）。
-                entry = this.rebindItem(old, item, index, length);
-                this.itemMap.set(key, entry);
+                rebinds.push({ old, item, index });
+                ordered.push(null as unknown as ForItemEntry); // 占位，第二阶段按下标回填
             } else {
-                // (C) 新 key → compileChild 新建 scope+订阅+DOM（首次渲染取最新值）
-                entry = this.createItem(item, index, length);
-                this.itemMap.set(key, entry);
-                createdEntries.push(entry);
+                // (C) 新 key → compileChild 新建 scope+订阅+DOM（首次渲染取最新值）——
+                //     编译延迟到销毁清场后（撞 rebind 旧条目竞态，见上）
+                creates.push({ item, index });
+                ordered.push(null as unknown as ForItemEntry);
             }
-            ordered.push(entry);
         }
-
-        // === Pass 2：消失的旧 key → 销毁（有离场动画则延迟移除 DOM，ADR-0039 决策 9/10）===
+        // === 两阶段清场（ADR-0076 事务性）：全部注销（(B) rebind 旧 scope + Pass 2 消失项销毁）
+        //     先于全部编译注册——删中间项推挤场景中，后项 rebind 注册会撞上被删项尚未销毁的
+        //     活条目（错拿 initial），故 Pass 2 的销毁也须在编译阶段之前。
+        for (const r of rebinds) this.destroyItemScopes(r.old);
+        // Pass 2：消失的旧 key → 销毁（有离场动画则延迟移除 DOM，ADR-0039 决策 9/10）
         for (const key of this.itemMap.keys()) {
             if (!seen.has(key)) {
                 this.destroyItem(key, animate);
             }
+        }
+        // === 编译阶段：统一注册 (B) rebind + (C) 新建 ===
+        for (const r of rebinds) {
+            const entry = this.compileRebound(r.old, r.item, r.index, length);
+            this.itemMap.set(this.evalKey(r.item, r.index), entry);
+            ordered[r.index] = entry;
+        }
+        for (const c of creates) {
+            const entry = this.createItem(c.item, c.index, length);
+            this.itemMap.set(this.evalKey(c.item, c.index), entry);
+            createdEntries.push(entry);
+            ordered[c.index] = entry;
         }
 
         // === Pass 3：DOM 重排（P2：相对序已就位则跳过，避免无结构变更的全量 insertBefore）===
@@ -1319,6 +1358,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
      *  不插入 DOM、不登记 itemMap、不做重复 key 检测（均由 render 负责）。 */
     private createItem(item: any, index: number, length: number): ForItemEntry {
         const localData = this.buildLocalData(item, index, length);
+        this._attachLocalPaths(localData, index);
         const scopes: AutoSparkScope[] = [];
         const nodes: HTMLElement[] = [];
         for (const tpl of this.itemTemplates) {
@@ -1330,20 +1370,56 @@ export class ForDirective extends AutoSparkDirectiveBase {
     }
 
     /**
+     * 解析源路径的绝对段（ADR-0076）：复用 resolveFieldAbsPath 的容器展开（嵌套 x-for
+     * 的相对源 `row.cells` 沿链展开外层项映射/域前缀）。表达式源 / 分页切片返回 null
+     * （无稳定状态路径，不记映射——项内 x-field 回退全局路径解释 + warn）。
+     */
+    private _resolveItemSourceSegs(): string[] | null {
+        if (this._itemSourceSegs !== undefined) return this._itemSourceSegs;
+        this._itemSourceSegs =
+            !this._paging && isSimpleStatePath(this.itemsPath)
+                ? splitPath(resolveFieldAbsPath(this.binding, this.itemsPath))
+                : null;
+        return this._itemSourceSegs;
+    }
+
+    /**
+     * 在项 localData 上挂项映射（ADR-0076）：`item → [...源绝对段, String(index)]`，
+     * 供项内 x-field 的 resolveFieldAbsPath 把 `item.name` 反解为 `items.<index>.name`。
+     * 挂载时机在 compileChild 之前（localData 先于成员 scope 构造），保证嵌套 x-for
+     * 的内层 created 期能沿链读到外层映射。复用分支（index 不变）映射不变，无须重挂；
+     * Object.assign 原地更新不触碰 Symbol 键，映射天然不被冲掉。
+     */
+    private _attachLocalPaths(localData: Record<string, any>, index: number): void {
+        const segs = this._resolveItemSourceSegs();
+        if (!segs) return;
+        localData[LOCAL_PATHS] = { [this.itemName]: [...segs, String(index)] };
+    }
+
+    /**
      * 移动复用（P1）：同 key 但 index 变时，复用项根 DOM 节点，仅销毁旧 scope 重新编译订阅。
      *
      * 旧订阅路径含旧 index 已失效（core 路径驱动响应式的固有限制），必须重建订阅；但项根 DOM
      * 节点（old.nodes）保留——避免移动导致的 DOM 创建/销毁，保住项根本身的焦点/属性。子树 DOM
      * 由 compileChild(reuseEl) 清空重建（compileChild 会 removeChild 旧子节点）。
      *
+     * **两阶段执行（ADR-0076）**：Pass 1 对全部 (B) 项先集中调 destroyItemScopes（清场），
+     * 再统一调 compileRebound（注册）——单项内「先销毁后重建」正确，但逐项串行时同路径
+     * 会交叉（A 的注销删掉 B 刚注册的 form 条目 / B 复用 A 尚未销毁的活条目错拿 initial），
+     * 两阶段提供事务性，根除互换/插入推挤竞态。
+     *
      * 注：子节点级焦点彻底保留需 core 提供「对象身份订阅」（订阅与 index 解耦），见 v3 路线。
      */
-    private rebindItem(old: ForItemEntry, item: any, index: number, length: number): ForItemEntry {
+    private destroyItemScopes(old: ForItemEntry): void {
         // 销毁旧 scope（off watcher + 清 children），但不 remove DOM——nodes 由 render Pass 3 管理
         for (const s of old.scopes) s.destroy();
+    }
+
+    private compileRebound(old: ForItemEntry, item: any, index: number, length: number): ForItemEntry {
         // 用新 localData（新 index）逐成员重新编译，复用 old.nodes 的项根 DOM（reuseEl）。
         // old.nodes 与 itemTemplates 同长（createItem 按模板顺序建 nodes），索引配对安全。
         const localData = this.buildLocalData(item, index, length);
+        this._attachLocalPaths(localData, index);
         const scopes: AutoSparkScope[] = [];
         for (let i = 0; i < this.itemTemplates.length; i++) {
             const { scope } = this.engine.compiler.compileChild(

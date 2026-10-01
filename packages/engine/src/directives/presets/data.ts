@@ -2,7 +2,7 @@ import { AutoSparkDirectiveBase } from "../base";
 import { relaxedToJson } from "../../utils/relaxedToJson";
 import { deepMerge } from "flex-tools/object/deepMerge";
 import { SCOPES_KEY } from "../../engine";
-import { getVal, splitPath } from "autostore";
+import { getVal, shallow, splitPath } from "autostore";
 import type { AutoSparkScope } from "../../scope";
 import { AsyncSourceRunner, createAsyncOnError } from "../async-source";
 import { detectDataForm, isAsyncDataValue, mapResponse } from "./async-source";
@@ -99,6 +99,13 @@ type ResolvedMount = {
  * 自动透传进各 item scope。x-for 的 localData（item/$index 等）仍为普通对象、靠 x-for 自身的
  * refresh 驱动——本指令只负责 data 的响应式化。
  *
+ * **浅响应（ADR-0078）**：`shallow` 选项显式关闭私有域的深层代理（默认全深，行为零变化）：
+ * `.shallow` 修饰符 ≡ `shallow:true` ≡ **0 档**（顶层键赋值有事件，键内字段读出即原始引用、
+ * 深写静默失效，仅整体替换键值可唤醒深路径订阅）；`{shallow:1}` = **1 档**（第二层字段写
+ * 有事件，第三层起失效）。`true→0` 归一在 engine 侧完成（autostore 运行时 true→1，不透传）；
+ * 数值 ≥2 warn 归 1；仅 local 形态支持（root/path warn + 忽略）；异步落地与 `engine.data()`
+ * 追加靠 autostore 惰性纳管自动继承域档位（零特判）。
+ *
  * **铁律：永不整体替换 `$scopes[id]`**——`scope.data` 闭包绑定该 store 代理引用，
  * 写入只 `Object.assign` 原地改、`delete` 消失键，绝不 `store.state.$scopes[id] = newObj`，
  * 否则 data 指向旧代理、新数据写不进。
@@ -118,6 +125,8 @@ export class DataDirective extends AutoSparkDirectiveBase {
     private createdSegments: string[][] | null = null;
     /** `..` 步进基准（`.nearest` 修饰符切换，ADR-0029） */
     private stepBase: StepBase = "parent";
+    /** 浅响应档位（ADR-0078）：null = 不标记（全深默认）；0|1 = 私有域容器 shallow 标记档位 */
+    private shallowDepth: 0 | 1 | null = null;
 
     /** 供 nearest 上溯取挂载容器路径：本实例是否 path 模式且已解析（scopeContainerSegments 消费） */
     isPathMode(): boolean {
@@ -172,6 +181,48 @@ export class DataDirective extends AutoSparkDirectiveBase {
             return "root";
         }
         return "local";
+    }
+
+    /**
+     * 归一化 shallow 选项为档位（ADR-0078 决策 4）：
+     *
+     * - 缺省 / `false`（含 `"false"`）→ null（不标记，全深——默认行为零变化）；
+     * - `true` / `"true"` / `0` → **0 档**：`true→0` 在 engine 侧归一、**不透传** autostore
+     *   （其运行时 `shallow(obj, true)` 归 1，与 `.shallow` 修饰符 ≡ 0 档的声明语义矛盾）；
+     * - `1` → 1 档（第二层字段写有事件，第三层起失效）；
+     * - 数值 ≥2 → warn + 归 1（autostore 值域仅 0|1、无第三层，「宁深勿浅」）；
+     * - 其他类型 → warn + 忽略（保持全深）。
+     *
+     * 仅 local 挂载形态生效（决策 6）：root 不能标记根 state（越权波及所有全局键）、
+     * path 挂载容器可能与既有数据共享（单方面改共享者响应深度）→ warn + 忽略。
+     */
+    private resolveShallowDepth(mode: MountMode): 0 | 1 | null {
+        const raw = this.getOption("shallow");
+        let depth: 0 | 1 | null;
+        if (raw === undefined || raw === null || raw === false || raw === "false") {
+            depth = null;
+        } else if (raw === true || raw === "true" || raw === 0) {
+            depth = 0;
+        } else if (raw === 1) {
+            depth = 1;
+        } else if (typeof raw === "number" && raw >= 2) {
+            this.warn(
+                `x-data: shallow 选项值域 0|1（autostore 无第三层），实际 ${JSON.stringify(raw)}，已归 1（ADR-0078）`,
+            );
+            depth = 1;
+        } else {
+            this.warn(
+                `x-data: shallow 选项须为 boolean 或 0|1（true≡0 档），实际 ${JSON.stringify(raw)}，已忽略、保持全深（ADR-0078）`,
+            );
+            return null;
+        }
+        if (depth !== null && mode !== "local") {
+            this.warn(
+                `x-data: shallow 仅支持默认私有域（local 挂载形态），当前${mode === "root" ? "global 根挂载" : "mount 路径挂载"}已忽略、保持全深响应（ADR-0078）`,
+            );
+            return null;
+        }
+        return depth;
     }
 
     /**
@@ -333,6 +384,7 @@ export class DataDirective extends AutoSparkDirectiveBase {
     private applyData(data: Record<string, any>) {
         const mode = this.resolveMode();
         this.modeCache = mode;
+        this.shallowDepth = this.resolveShallowDepth(mode);
         if (mode === "root") {
             this.applyRoot(data);
             this._activateObservers(this.engine.store.state as Record<string, any>, data);
@@ -649,7 +701,14 @@ export class DataDirective extends AutoSparkDirectiveBase {
             any
         >;
         // 不存在才建：避免对已存在的 [id] 重复赋值触发无谓的 set 通知
-        if (!scopes[this.binding.id]) scopes[this.binding.id] = {};
+        if (!scopes[this.binding.id]) {
+            // 浅响应标记（ADR-0078）：建容器时对**裸对象**一次性打标（shallow 只标记、返回裸引用，
+            // 代理在容器入 store 后按标记构建——故须在赋值前完成）。仅打新建容器：他人（相对挂载
+            // ensureScopeData 等）预建的容器视为共享物，不单方面改其响应深度。
+            const container: Record<string, any> = {};
+            if (this.shallowDepth !== null) shallow(container, this.shallowDepth);
+            scopes[this.binding.id] = container;
+        }
         return scopes[this.binding.id];
     }
 

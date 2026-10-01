@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>messages · 基本用法</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <!-- 三态入参：字符串简写 ≡ { title }；配置对象承载 type/delayClose/pos…；
+             async factory resolve undefined 则静默不弹（条件通知）。 -->
+    <div class="demo-app section">
+      <div class="grid">
+        <button class="cell button" onclick="app.messages.add('已保存')">
+          字符串简写（默认 3 秒）
+        </button>
+        <button
+          class="cell button"
+          onclick="app.messages.add({ title: '删除失败', type: 'error', delayClose: 5000 })"
+        >
+          配置对象（error · 5 秒）
+        </button>
+        <button class="cell button" onclick="notifyMaybe()">async factory（条件通知）</button>
+      </div>
+      <div class="block has-text-grey">
+        <code>delayClose: 0</code> 表示永不自动关（sticky）；鼠标悬停在卡片上会暂停倒计时，
+        移开后按剩余时间继续。点「条件通知」看条件满足与否的两种结果。
+      </div>
+    </div>
+    <script>
+      const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+      // 条件通知：异步结果为空则静默跳过，不给白板提示
+      let flip = false;
+      function notifyMaybe() {
+        app.messages.add(async () => {
+          flip = !flip;
+          await new Promise((r) => setTimeout(r, 300));
+          return flip ? { title: "条件满足，弹出这条提示", type: "success" } : undefined;
+        });
+      }
+    </script>
+  </body>
+</html>

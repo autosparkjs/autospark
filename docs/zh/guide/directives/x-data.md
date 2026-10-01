@@ -275,6 +275,43 @@ url 形态是声明式幂等取数（GET 为主）；action 形态覆盖命令�
 - **`mount:'$scopes.3'` 直指他域私有域** → `warn` + **放行**（后果自负：目标 scope 销毁时整删条目，挂载数据被连带蒸发）；
 - **优先级**：`mount`（非空串）> `global` > 默认；两者同写 `mount` 胜出并 `warn`；`mount:""` 等价 `.global`；`mount` 值非字符串（误写 `.mount` 修饰符产生 `true`）→ `warn` + 忽略、回默认私有域。
 
+### 浅响应（shallow）
+
+`shallow` 选项显式**关闭私有域的深层代理**——大而深的数据域（长列表、大对象）省下逐层 Proxy 的构建与内存开销。默认不声明即全深响应，行为零变化。
+
+三种推荐写法：
+
+| 写法                                    | 档位 | 响应边界                                                       |
+| --------------------------------------- | ---- | --------------------------------------------------------------- |
+| 不声明（默认）                          | 全深 | 任意深层写都有响应（现状行为）                                  |
+| `x-data.shallow="{...}"`                | 0 档 | 最省：仅**顶层键赋值**（含整体替换）有响应，键内字段深写静默失效 |
+| `x-data-options="{shallow:1}"`          | 1 档 | 第二层字段（`user.name`）写有响应，第三层起失效                 |
+
+<demo html="data/shallow.html"/>
+
+**档位失效边界**（深写失效是**静默**的——无更新、无报错）：
+
+- **0 档**：域内顶层键的值读出即原始对象——键内字段深写不触发任何更新；只有「整体替换键值」（`域.user = {...}`）能唤醒深路径绑定；嵌套对象内的 computed 不会激活；
+- **1 档**：第二层字段写照常响应（表单 `user.name`、列表项字段 `todo.done` 都在这一层）；第三层及以下同 0 档语义失效。
+
+```html
+<!-- 长列表 + 1 档：列表结构变更（push/splice）与项字段写有响应，更深层不做代理 -->
+<div x-data="{ todos: [...] }" x-data-options="{shallow:1}">
+  <ul x-for="t of todos" :key="t.id"><li x-text="t.text"></li></ul>
+</div>
+```
+
+**细则**：
+
+- 仅默认私有域支持——`.global` / `mount` 声明 `shallow` → `warn` + 忽略（保持全深）；
+- 异步数据落地（url / action）与 `engine.data()` 运行时追加**自动继承**域档位；
+- 数据脚本入口：`<script type="autospark/data" options="{shallow:1}">`（同键同义）；
+- `true` ≡ 0 档（`.shallow` 修饰符的机制等价物，`true→0` 归一由引擎完成）；数值 ≥2 `warn` 后按 1 档处理（autostore 值域仅 `0|1`）。
+
+::: warning 何时不用 shallow
+域内数据需要第三层及以下的细粒度更新（如 `user.profile.city` 双向绑定、深嵌套 computed）时**保持默认全深**。表格 / 列表场景（项字段一层）是 1 档的甜点区；键内只读不改的大字典是 0 档的甜点区。
+:::
+
 ### 嵌套作用域
 
 父子元素的 data 经 `getContext` 的 parent 链层叠，读取时**就近命中**：
@@ -331,6 +368,7 @@ engine.data(document.getElementById("block"), { times: 10 });
 | `mount`   | —      | —         | 挂载位置：绝对路径 `'x.y'` / 相对 `'./x'`、`'../a/b'`；`""` 等价根。不可用修饰符携带路径 |
 | `global`  | 未启用 | `.global` | 挂到根（≡ `mount:""`）；不设 `this.data`、不改 scope 行为          |
 | `nearest` | 未启用 | `.nearest` | 相对挂载时 `..` 按最近数据祖先步进（跳过占位 scope）               |
+| `shallow` | 未启用 | `.shallow` | 浅响应档位：`.shallow` ≡ 0 档（仅顶层键赋值有响应）、`{shallow:1}` 1 档（第二层写有响应）；仅默认私有域支持，见[浅响应](#浅响应-shallow) |
 
 优先级：`mount`（非空串）> `global` > 默认私有域。
 
@@ -344,5 +382,6 @@ engine.data(document.getElementById("block"), { times: 10 });
 - **仅编译期注入**：`x-data` 不监听属性变化，运行时更新用 `engine.data(el, data)`。
 - **局部数据隔离**：默认模式下各 scope 的私有域互不影响；要共享就用 `mount`（指定位置）或 `.global`（挂根）。
 - **永不整体替换私有域**：内部按字段 `Object.assign`，不要试图整体替换 `$scopes[id]`。
+- **浅响应的失效边界**：`shallow` 0 档下键内字段深写**静默失效**（仅整体替换键值有响应）、1 档第三层起失效——需要深层细粒度更新的域保持默认全深，见[浅响应](#浅响应-shallow)小节。
 - **`.global` 与 `mount` 的分工**：`.global` 只挂根、不设 `this.data`（运行时改全局写 `engine.state.<键>`）；`mount` 挂任意位置、行为与默认模式同构（`this.data` / `engine.data()` 直接作用于挂载容器）。
 - **数据脚本与 x-data 的分工**：大宗数据（大 JSON、computed、configurable、watch）放 `<script type="autospark/data">`；零星覆盖放 x-data 属性（最后合并、优先级最高）。详见上方「数据脚本」小节。

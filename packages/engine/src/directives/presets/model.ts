@@ -901,7 +901,7 @@ export class ModelDirective extends AutoSparkDirectiveBase {
      * 写 state（DOM→state 方向）。
      *
      * - 有 set（`x-model-options="{set:'...'}"`）→ 经 set 表达式/action 反向变换（拆分到多字段等）；
-     * - 无 set + 简单路径 → `binding.writeThrough` 透传（快路径，绝大多数场景；ADR-0073 读写对称）；
+     * - 无 set + 简单路径 → `binding.writeThrough` 透传（快路径，绝大多数场景；ADR-0075 读写对称）；
      * - 无 set + 表达式/computed → 只读降级（warn 一次，不写）。
      *
      * 经 `store.update({flags:-seq})` 承载 flags 标识（与 syncer 范式一致），供 syncer/未来指令识别。

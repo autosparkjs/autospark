@@ -1,6 +1,6 @@
 # ADR-0071：消息模块（MessageManager——轻提示升维为信息反馈与管理）
 
-- **状态**：Accepted（共识已 grilling 四轮确认，实现未开始）
+- **状态**：Accepted（已实现——`src/messages/` 全量落地，`src/__tests__/messages.test.ts` 48 用例全绿）
 - **日期**：2026-09-30
 - **关联**：[ADR-0068](0068-toast.md)（机制基座——三层结构 / 分区队列 / 原地更新 / 离场收拢 / shell 机制 / 动画 / 图标映射全部沿用，**API 面与生命周期决策由本文取代**）、[ADR-0061](0061-tooltip.md)（引擎级子系统先例）、[ADR-0062](0062-overlay-shell.md)（shell 机制）、[ADR-0052](0052-x-overlay-and-x-dialog.md)（双通道事件）、[ADR-0038](0038-x-loading.md)（actions 按钮行 hide 键）、[ADR-0036](0036-action-manager.md)（ActionDesc）、[ADR-0039](0039-animate-mechanism.md)（animate）、[ADR-0058](0058-icon-symbol-and-icon-domain.md)（图标域）、[CONTEXT.md](../../CONTEXT.md)（「消息（Message）」词条）
 - **共识来源**：grilling 四轮决策（Q1~Q23），本文即共识落盘
@@ -175,6 +175,7 @@ kinds[kind].render（用户 kind 级插槽）
 
 - 前两级是**用户配置**（同一概念的两个作用域层，吸收进既有「用户组件（全局表）→ 内置默认」协议）；后两级是**引擎内置**（按 kind 注册表 + 最终默认兜底）——用户配置恒压过引擎内置；
 - **内置 render 一组件一文件**（Q24 补充决策）：`src/messages/renders/` 目录，`message-shell.ts`（默认外壳，无进度槽）与 `task-shell.ts`（kind='task' 专属，进度槽由它全权渲染，**actions 行与 message-shell 同构照常渲染**）；后续新增内置 render 同规（一个文件一个）；
+- **挂载形态双轨**（实现期落定）：内置 render 的组件根即卡片根（模板自带双类名，沿 ADR-0068 惯例）；**自定义 render 包引擎 wrapper**——`autospark-message` 基类 / `data-message-pos` 标记 / 卡片级动画、离场收拢与 hover 监听恒挂 wrapper，用户模板零引擎类污染（不被卡片布局样式干扰）。列内查找契约（`:scope > .autospark-message`）对两种形态恒成立；
 - **props 注入升级**：消息记录**全量数据域整包**（剥函数）：`{ id, kind, title, body, type, icon(已解析), actions(已解析), closable, href, read, status, result, progress(仅 kind='task' 携带), delayClose }`——自定义 render 需要什么取什么；
 - `render` 仅收组件名字符串，走 `options.components` 全局组件表查找（manager 级无 el 不查 scope 链）；
 - 自定义接管 `kind='task'`（render 指向自定义组件）时进度条渲染随接管者自带（`props.progress` 驱动）——内置 task-shell 的进度渲染不是特权通道。
@@ -296,3 +297,7 @@ localStorage 缺失 → local 持久化 warn + no-op；fetch 通道（load / sav
 - ADR-0068 的 **API 面与生命周期决策**由本文取代：决策 4（入口 `toast` → `messages.add`、`message` → `title`、`delay` → `delayClose`）、决策 5（关闭即删 → persist 三态存续 + 记录/展示分离）、决策 6（`options.toast` → `options.messages` + kinds 层）、决策 11（内置模板扩容 title/body/href/进度槽 + shell → render 插槽）、决策 14（actions 增 value 键）、决策 15（全局 toast action → 别名）、决策 17（toast:show/hide → message:* 族）；
 - ADR-0068 的**机制决策继续有效**：三层结构（决策 2）、复用边界（决策 3）、纯屏幕锚定与 pos 7 值（决策 7）、分区 FIFO 队列（决策 8）、delay/sticky/hover（决策 9）、stop 不动 destroy 收口（决策 10）、type 5 值图标映射（决策 12）、语义色双层变量（决策 13）、动画方向自适应（决策 16）；
 - CONTEXT.md「轻提示（Toast）」词条修订为 kind='toast' 呈现形态、「轻提示外壳（toast-shell）」更名为「消息外壳（message-shell）」；`engine.toastManager` 登记已废弃词条。
+
+## 修订记录
+
+- **ADR-0077**：决策 8（MessageTask 句柄）更名扩容为 **AutoSparkMessageSession** 家族（show/hide/remove 基类面 + Task/Confirm 子类；`messages.sessions` 正名视图）；决策 5（persist）数值化 `0|1|2|3` 并新增级别 1 **会话缓冲**；决策 16（四级渲染互斥链）被**双层正交组合**取代（公共 shell + kind renderer 经 `x-slot` 出口投影）；决策 12 的 `ProgressTask` 更名 `AutoSparkTaskMessageSession`。正文保留原决策记录。

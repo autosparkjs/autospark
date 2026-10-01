@@ -72,9 +72,14 @@ x-form 只能声明在 `<form>` 元素上；表单数据恒挂私有域（`mount
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
 | 字段名（相对路径）   | 沿祖先链就近解析：字面量私有域（`x-form="{...}"`）解析为域内字段；路径上下文（`x-form="login"`）拼接为 `login.username` | 字段归属表单自身数据（最常用）          |
 | 状态路径（绝对路径） | 按原路径解析，指向全局状态或域内深层位置                                                                                | 纯行为壳表单（`x-form` 空值）的唯一写法 |
+| x-for 项内路径       | `item.name` 经**项映射**绝对化为 `items.<index>.name`（[ADR-0076](https://github.com/zhangfisher/autospark/blob/main/packages/engine/docs/adr/0076-x-field-item-abs-path.md)） | 可编辑列表的行内表单字段                |
 
 - **拼接优先，失败回退**：路径上下文拼接后在作用域链内解析不到时 warn，按原路径重新解析；
 - **解析产物（绝对状态路径）是唯一真相源**：双向绑定、`$field.value` 读写、表单订阅 / 快照 / `getState` 全走它。
+
+::: tip x-for 项内字段（ADR-0076）
+`<li x-for="item of items"><input x-field="item.name"/></li>` 的表单层（`$field.value` / reset / `getState` / dirty / 校验取值）按 `items.<index>.name` 绝对路径读写同位；项随增删/移动重建时字段自动重新解析与注册（x-for 的 index 变即销毁重建铁律）。**边界**：表达式源（`items.filter(...)`）与分页切片不记映射（字段按全局路径解释）；祖先异步数据源未就绪时编译期 warn 一次（表单层可能错位，控件层不受影响）。
+:::
 
 #### 用在标准表单控件上（控件形态）
 
@@ -324,6 +329,10 @@ x-form 恒拦截原生提交（`preventDefault`——`action` 属性留给无 JS
 拦截原生 reset + 状态回 **applyData 后的初始深快照**（`Object.assign` 回域，永不换容器）——状态驱动架构下浏览器原生只重置 DOM 会造成显示与状态分叉，reset 必须是状态操作；`dirty` 复位、错误重算。`$form.reset()` 与 `重置` 按钮同一条管道。
 
 <demo html="form/reset.html" />
+
+::: warning reset 只回值、不回数组结构
+字段级回滚不重建数组：reset 前删掉的行不复活、新增的行不消失（x-for 项内字段同理——项字段随项销毁自动注销，已删行的字段不参与回滚，[ADR-0076](https://github.com/zhangfisher/autospark/blob/main/packages/engine/docs/adr/0076-x-field-item-abs-path.md)）。需要整体回滚（含结构）时请在应用层对数组整体赋回快照。
+:::
 
 ## 配置选项
 

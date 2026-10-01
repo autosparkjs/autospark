@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>messages · 进度任务 progressbar</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- progressbar = kind='task' + 行为句柄（start/pause/resume/progress/stop/cancel）：
+             创建不自启；进行中 sticky 不计时；100% 完成态按 delayClose 收口。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <button class="button is-primary" id="go" onclick="start()">创建并开始</button>
+                <button class="button" onclick="push(25)">progress(+25)</button>
+                <button class="button is-warning" onclick="task &amp;&amp; task.pause()">pause()</button>
+                <button class="button is-info" onclick="task &amp;&amp; task.resume()">resume()</button>
+                <button class="button is-dark" onclick="task &amp;&amp; task.stop()">stop() = 100%</button>
+                <button class="button is-danger" onclick="task &amp;&amp; task.cancel()">cancel()</button>
+            </div>
+            <div class="block has-text-grey">
+                每次创建新任务（可连点多个）；pause 是闸门——暂停期间 progress 调用被忽略；
+                卡片带「取消」按钮（actions 行照常渲染，引擎不自动注入）。
+            </div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            let task = null;
+            let current = 0; // 当前进度（demo 自管；progress(n) 是绝对值）
+            function start() {
+                current = 10;
+                task = app.messages.show({
+                    title: "导出数据…",
+                    kind: "task",
+                    delayClose: 1500, // 完成态展示 1.5 秒收口
+                    actions: [{ title: "取消", handle: () => task.cancel() }],
+                });
+                task.start();
+                task.progress(current);
+            }
+            function push(n) {
+                if (!task) return;
+                current = Math.min(100, current + n);
+                task.progress(current);
+            }
+        </script>
+    </body>
+</html>
