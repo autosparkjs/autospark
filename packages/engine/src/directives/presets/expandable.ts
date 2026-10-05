@@ -54,7 +54,8 @@ import { resolveResizeConstraints, ResizeSession, type ResizeDirection } from ".
  * （固定轴语义：+ = 把手跨轴正方向右/下，负值反向——splitter 注入分隔条宽度一半
  * 使把手中分分隔条）。
  * **显隐策略**（`showTrigger`，默认 `'hover'`）：opacity 隐藏不丢命中；感应边条覆盖
- * 整条活动边线（pos 自定义后把手位置不可预知）；常驻仅限滑出折叠（minSize=0——
+ * 整条活动边线（pos 自定义后把手位置不可预知；启用内建 resize 时感应载体让位手柄带，
+ * 见「内建单边 resize」——两者同骑一条边线）；常驻仅限滑出折叠（minSize=0——
  * 感应载体随宿主隐藏）与触屏，minSize>0 收缩折叠保持 hover 控制；Tab 聚焦显形；
  * `'always'` 恒常驻。
  * **动态挂载（reparent）**：展开态挂宿主骑活动边；滑出折叠**完成后**（transitionend /
@@ -71,6 +72,14 @@ import { resolveResizeConstraints, ResizeSession, type ResizeDirection } from ".
  * （属性驱动，用户 inline/类样式不受影响；多实例共享父容器 WeakMap 引用计数、最后一个
  * 展开完成才摘）；原值 `auto/scroll` 滚动条折叠期间暂失为已知副作用。`false` 显式禁用
  * 后回落检测：父容器 computed overflow 非 hidden/clip 时 warn 一次、用户自负。
+ *
+ * **内建单边 resize**（ADR-0072）：`resize` 选项启用单边调节（方向由折叠方向自动推导、
+ * 复用 x-resize 的 ResizeSession 核心、拖出尺寸接管 `_maxDecl` 展开尺寸真相；同元素
+ * x-resize 互斥自失效——边线交互单指令独占）。**把手与手柄同骑活动边线，两层协调**：
+ * ① *把手压手柄之上*（宿主挂 `data-resize` → 样式表抬至 z11：手柄带 z10 全长覆盖边线，
+ * 压住 z5 把手会让调节线横穿把手圆面、把手圆面区命中被拦 → hover 模式下把手不可见且
+ * 折叠不可点）；② *手柄 hover 桥接显形*（`data-edge-hover` 统一契约，splitter/drawer
+ * 同款）：感应边条 z4 被手柄带完全盖住收不到 hover，hover 模式的边线感应由手柄转译。
  *
  * **事件**（决策八）：`expandable:expand` / `expandable:collapse`（宿主派发、DOM 冒泡、
  * detail `{ size }`——展开为 maxSize 格式化值或 null，折叠为 0 或 minSize 格式化值）；
@@ -152,9 +161,10 @@ ${SHARED_TRIGGER_CSS}
 .autospark-expandable[data-show-trigger="always"]>.autospark-expandable-trigger{opacity:1;}
 .autospark-expandable[data-animating]>.autospark-expandable-trigger{opacity:1;}
 /* 边线交互元素桥接显形（ADR-0070 修订 + ADR-0072 契约收敛）：活动边上存在另一交互
-   元素（分隔条/resize 手柄）时，元素 hover 即为感应事件——消费方置位把手 data-edge-hover
-   属性显形（统一契约：splitter 分隔条桥接 / drawer 面板手柄桥接；同元素 x-resize 已被
-   互斥取代，本指令不再自动探测）；hover 模式下生效，always 模式无副作用（恒显） */
+   元素（分隔条 / resize 手柄）时，元素 hover 即为感应事件——消费方置位把手 data-edge-hover
+   属性显形（统一契约：splitter 分隔条桥接 / drawer 面板手柄桥接；**同元素**边线元素只有
+   内建单边 resize 手柄一种，由本指令 _bridgeHandleHover 自行接线）；hover 模式下生效，
+   always 模式无副作用（恒显） */
 .autospark-expandable-trigger[data-edge-hover]{opacity:1;}
 @media (hover: hover) {
   .autospark-expandable-trigger:hover{opacity:1;}
@@ -176,6 +186,14 @@ ${SHARED_TRIGGER_CSS}
 .autospark-expandable[data-direction="right"]>.autospark-expandable-edge{left:-12px;top:0;bottom:0;width:24px;}
 .autospark-expandable[data-direction="top"]>.autospark-expandable-edge{bottom:-12px;left:0;right:0;height:24px;}
 .autospark-expandable[data-direction="bottom"]>.autospark-expandable-edge{top:-12px;left:0;right:0;height:24px;}
+/* 内建单边 resize 层级（ADR-0072 修订：把手压手柄之上）：把手与手柄**同骑活动边线**
+   ——手柄带 z10 全长覆盖边线，z5 把手被压在下：调节线（2px）横穿把手圆面、把手圆面区
+   命中被手柄拦走（hover 模式下把手又不可见 → 折叠不可点）。宿主挂 data-resize 时把把手
+   抬至 z11 全量盖过调节线，调节线在把手 20px 之外照常拖拽（边线交互唯一入口的把手优先，
+   与 drawer 让位语义的方向相反：drawer 的把手在覆盖物容器、层级封顶抬不动只能让位）。
+   感应载体同步让位：边条（z4）被手柄带完全盖住收不到 hover，hover 模式「移到边线即见
+   把手」改由手柄桥接承担（_bridgeHandleHover → data-edge-hover） */
+.autospark-expandable[data-resize]>.autospark-expandable-trigger{z-index:11;}
 /* 渐变遮盖（fadeSize>0，收缩折叠态）：贴活动边线的渐隐层，指示内容被截断（业界惯例）。
    宿主 ::before（零 DOM）；data-shrunk 仅收缩折叠挂（滑出折叠走 data-collapsed）——
    折叠态渐显、展开摘属性渐隐（复用 --autospark-expandable-duration）；pointer-events
@@ -428,6 +446,9 @@ export class ExpandableDirective extends AutoSparkDirectiveBase {
         // 宿主身份（退化态也保留：resize 手柄定位 CSS 按 data-direction 分派）
         this.el.classList.add("autospark-expandable");
         this.el.setAttribute("data-direction", this._dir);
+        // 内建 resize 标记：样式表据此把把手抬到手柄之上（同一活动边线两层交互元素同宿主，
+        // ADR-0072 修订）——手柄 z10 全长带会盖住 z5 把手，折叠不可点
+        if (this._resizeOn) this.el.setAttribute("data-resize", "");
         if (this._enable) {
             // 渐变遮盖（fadeSize>0）：启用标记 + 厚度变量（JS 写值 CSS 消费，无布局测量）
             if (this._fadeDecl && this._fadeDecl.value > 0) {
@@ -667,8 +688,9 @@ export class ExpandableDirective extends AutoSparkDirectiveBase {
         );
     }
 
-    /** 手柄桥接委托句柄已随 ADR-0072 互斥移除——同元素 x-resize 非法，跨元素桥接在
-     *  消费方（splitter 分隔条 / drawer 面板手柄）各自接线 */
+/** 手柄桥接接线落点：**同元素**边线交互元素只有内建单边 resize 手柄一种（x-resize 已随
+     *  ADR-0072 互斥移除），由 `_bridgeHandleHover` 在装配期接线；跨元素桥接（splitter
+     *  分隔条 / drawer 面板手柄）仍在消费方各自接线。 */
 
     // ── 把手 ──────────────────────────────────────────────────────────
 
@@ -858,7 +880,8 @@ export class ExpandableDirective extends AutoSparkDirectiveBase {
      * 方向 = 活动边法线自动推导（left → e / right → w / top → s / bottom → n），手柄骑
      * 活动边线。本指令独占边线交互（同元素 x-resize 已被互斥），把手/手柄/边条无跨指令
      * 抢夺。约束经 resolveResizeConstraints 透传（min/max/snap；handles/aspectRatio 已在
-     * 选项读取时剥离）。
+     * 选项读取时剥离）。手柄与把手同骑边线时的两层协调：把手压手柄之上（宿主 data-resize
+     * → 样式表抬 z，命中与视觉都不被调节线拦），手柄 hover 桥接触发显形把手。
      */
     private _setupResize(): void {
         const dir: ResizeDirection =
@@ -879,6 +902,26 @@ export class ExpandableDirective extends AutoSparkDirectiveBase {
             warn: (m) => this.warn(m),
         });
         this._resizeSession.attach();
+        this._bridgeHandleHover();
+    }
+
+    /**
+     * 手柄 → 把手 hover 桥接（`data-edge-hover` 统一契约，splitter 分隔条 / drawer 面板
+     * 手柄同款）：感应边条（z4）被手柄带（z10 全长）完全盖住收不到 hover，hover 模式
+     * 「鼠标移到边线任何位置把手即淡入」须由手柄转译——否则启用 resize 后把手只剩命中
+     * （不可见但可点）一条退路。enable:false 退化形态无把手，直接跳过。
+     * 监听器随手柄/把手同生命周期消亡，无需显式解绑（与 drawer 面板手柄桥接同款）。
+     */
+    private _bridgeHandleHover(): void {
+        const t = this._trigger;
+        if (!t) return;
+        const set = (on: boolean) => t.toggleAttribute("data-edge-hover", on);
+        for (const h of this.el.querySelectorAll<HTMLElement>("[data-autospark-resize-handle]")) {
+            h.addEventListener("mouseenter", () => set(true));
+            h.addEventListener("mouseleave", () => set(false));
+            h.addEventListener("focus", () => set(true));
+            h.addEventListener("blur", () => set(false));
+        }
     }
 
     /** resize 写路径：直写主轴 inline 尺寸 + **接管 maxSize**（Q4=A：拖出值成为展开尺寸

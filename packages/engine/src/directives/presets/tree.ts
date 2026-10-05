@@ -299,10 +299,12 @@ const TREE_STYLES_ID = "x-tree-styles";
 
 /** 默认节点模板（三级优先最末级）：箭头 + nameField 字段 + 子容器，data-* 为运行时标记（编译后保留）。
  *  checkedField 显式声明时附带三态复选触点（零模板场景的复选启用通道——选项即标记，
- *  与 selectedField 声明哲学对称，ADR-0040 决策 10 修订五） */
+ *  与 selectedField 声明哲学对称，ADR-0040 决策 10 修订五）。三态取**内置图标**
+ *  checked / semi-checked / unchecked（x-icon 经图标域落全局注册表兜底，同名可被用户覆盖）；
+ *  外层 x-tree-ico 只做槽位定宽居中，图形由内层图标宿主承载（与箭头的两层分工同构） */
 function defaultNodeTemplate(nameField: string, withCheck: boolean): HTMLElement {
     const check = withCheck
-        ? `<span class="x-tree-ico" data-x-tree-check x-text="node.checked ? '☑' : ($indeterminate ? '⊟' : '☐')"></span>`
+        ? `<span class="x-tree-ico" data-x-tree-check><i x-icon="node.checked ? 'checked' : ($indeterminate ? 'semi-checked' : 'unchecked')"></i></span>`
         : "";
     // 不打 data-x-tree-toggle：默认模板恒整行点击展开/折叠（启用选中时点行 = 选中 + 展开，
     // antd 心智；收窄到标记是自定义模板 + selectedField 的语义，修订七）
@@ -336,7 +338,7 @@ function defaultNodeTemplate(nameField: string, withCheck: boolean): HTMLElement
  *   路径递归套用同一节点模板；缩进由 DOM 嵌套天然承担。容器直接子元素只认 `x-tree-node`
  *   （无值标记，值 warn 忽略）与 `x-empty`，其余 warn 丢弃（数据脚本静默跳过，同 x-for）。
  * - **节点模板三级优先（决策 3）**：原地 `x-tree-node` > `tree-node` 组件（scope 链就近 +
- *   全局兜底，getComponent 惯例）> 内置默认模板（缩进 + 箭头 + nameField 字段）。
+ *   全局兜底，getComponentDeclaration 惯例）> 内置默认模板（缩进 + 箭头 + nameField 字段）。
  * - **模板属性改写**：`x-tree-children` / `x-tree-toggle` 在收集期改写为 `data-x-tree-*`
  *   保留属性（编译会剥除全部 `x-*` 指令属性，运行时 click 委托 / 子容器定位需可寻址），
  *   行根打 `data-x-tree-row`（click 委托 closest 定位行）。
@@ -587,9 +589,9 @@ li[data-x-tree-row].x-tree-drop-inside{background:#eef3fc;outline:1px dashed #32
             this.warn("容器直接子元素既非 x-tree-node 也非 x-empty，被丢弃（仅此两者生效，ADR-0040）");
         }
         if (count > 1) this.warn(`检测到 ${count} 个 x-tree-node，首个生效`);
-        // 二级：tree-node 组件（scope 链就近 + 全局兜底，getComponent 惯例）
+        // 二级：tree-node 组件（scope 链就近 + 全局兜底，getComponentDeclaration 惯例）
         if (!snapshot) {
-            const custom = this.engine.getComponent(this.el, "tree-node");
+            const custom = this.engine.getComponentDeclaration(this.el, "tree-node");
             if (custom) snapshot = custom.cloneNode(true) as HTMLElement;
         }
         // 三级：内置默认（nameField 生成；checkedField 显式声明 → 附带三态复选触点）

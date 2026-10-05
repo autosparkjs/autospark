@@ -7,7 +7,7 @@
  * 载体：标记属性会被克隆链路洗掉，内容哈希对任意克隆天然稳定）。
  *
  * **名字表**：`scope.icons`（图标名 → 令牌）沿 parent 链就近查找、内层遮蔽外层，到顶兜底
- * 全局注册表（与 getComponent 同构）。同 scope 多声明同名：Map 后写胜 = **编译期声明序
+ * 全局注册表（与 getComponentDeclaration 同构）。同 scope 多声明同名：Map 后写胜 = **编译期声明序
  * 所有权**，与 fetch 到达序无关（决策 12）。
  *
  * **待定名**：名字已登记但 symbol 未就绪（`names` 无此名且未 `failed`）——x-icon 渲染空

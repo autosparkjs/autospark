@@ -16,7 +16,7 @@
  * 判断形态）。`engine.actions[name]` / `scope.getAction` 恒返回本对象，执行取 `.handle(...)`
  * （x-on / x-model / x-data 等内部消费者透明解包，模板侧无感）。
  */
-export interface ActionDesc {
+export interface AutoSparkAction {
     /**
      * 执行体（唯一必需保留键）。规范化时经 buildAction 包装，获得双通道生命周期广播
      * （ADR-0010 / 0011）；广播与 `this.action` 自引用取到的即包装后版本。
@@ -38,7 +38,19 @@ export interface ActionDesc {
      */
     hide?: boolean;
     
-    value?:any
+    value?: any
+    /**
+     * 排序号
+     */
+    order?: number
+    /**
+     * 用于控制动作显示在哪里,左对齐右对齐
+     */
+    align?: 'auto' | 'left' | 'right' | 'top' | 'bottom'
+    /**
+     * 工具提示
+     */
+    tooltip?: string
     /**
      * 自由元数据键（开放元数据，决策 2）：原样保留、引擎不解释。将来扩展
      * `description` / `hotkey` / `disabled` 等键无需改本类型与规范化逻辑。
@@ -52,4 +64,4 @@ export interface ActionDesc {
  * 规范化由 ActionManager 统一执行（`options.actions` / Proxy set / extractScript），
  * 非法声明（非函数、对象缺 `handle` 或 `handle` 非函数）记 error 日志后跳过（决策 2）。
  */
-export type ActionDecl = ((...args: any[]) => any) | ActionDesc;
+export type ActionDecl = ((...args: any[]) => any) | AutoSparkAction;

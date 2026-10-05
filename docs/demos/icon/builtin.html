@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 内置图标</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* 网格卡片：图标格 + 图标名 */
+            .icon-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+                gap: 8px;
+            }
+            .icon-cell {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start;
+                gap: 6px;
+                padding: 10px 4px 8px;
+                border: 1px solid #ebebeb;
+                border-radius: 6px;
+            }
+            /* 图标槽：min-height 随字号联动，行高随 size 平滑伸缩 */
+            .icon-cell .slot {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 1.6em;
+            }
+            .icon-cell code {
+                font-size: 11px;
+                color: #7a7a7a;
+                word-break: break-all;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section" style="max-width: 720px">
+            <h1 class="title is-5">内置图标</h1>
+            <p class="subtitle is-6">
+                引擎随包注入的 <code x-text="count"></code> 枚全局图标——零声明直接 <code
+                    x-text="'x-icon=&quot;' + current + '&quot;'"
+                ></code>
+                即可渲染
+            </p>
+
+            <!-- 控制面板：三条控制通道都是纯 CSS 通道，拖动即时生效、零指令重渲染
+                 color  → 容器 color，图标经 currentColor 继承跟随
+                 size   → 容器 font-size，默认 1em 方寸随字号缩放
+                 笔划   → 容器 --as-icon-sw 变量，经 stroke-width 继承直达 symbol 内容 -->
+            <div class="box">
+                <div class="columns is-multiline is-variable is-3">
+                    <div class="column is-6">
+                        <label class="label is-small">
+                            颜色 color = <code x-text="color"></code>
+                        </label>
+                        <div class="buttons has-addons">
+                            <button
+                                class="button is-small"
+                                :class="{'is-primary': color === '#485fc7'}"
+                                @click="color='#485fc7'"
+                            >
+                                蓝
+                            </button>
+                            <button
+                                class="button is-small"
+                                :class="{'is-primary': color === '#f03d5e'}"
+                                @click="color='#f03d5e'"
+                            >
+                                红
+                            </button>
+                            <button
+                                class="button is-small"
+                                :class="{'is-primary': color === '#00875a'}"
+                                @click="color='#00875a'"
+                            >
+                                绿
+                            </button>
+                            <button
+                                class="button is-small"
+                                :class="{'is-primary': color === '#b8860b'}"
+                                @click="color='#b8860b'"
+                            >
+                                金
+                            </button>
+                        </div>
+                        <input type="color" x-model="color" style="width: 100%; height: 32px" />
+                    </div>
+
+                    <div class="column is-6">
+                        <label class="label is-small">
+                            尺寸 font-size = <code x-text="size"></code>px（默认 1em 方寸随字号缩放）
+                        </label>
+                        <input
+                            type="range"
+                            min="12"
+                            max="64"
+                            step="1"
+                            x-model="size"
+                            style="width: 100%"
+                        />
+
+                        <label class="label is-small">
+                            笔划 strokeWidth = <code x-text="sw"></code>
+                        </label>
+                        <input
+                            type="range"
+                            min="0.5"
+                            max="4"
+                            step="0.25"
+                            x-model="sw"
+                            style="width: 100%"
+                        />
+                    </div>
+                </div>
+                <div class="help is-size-7">
+                    <button class="button is-small is-light" @click="reset()">
+                        恢复默认（蓝 / 28px / sw 1.25）
+                    </button>
+                </div>
+            </div>
+
+            <!-- 图标网格：x-icon 逐名引用内置条目（无 x-icons 声明、无远程请求）
+                 x-for 宿主是网格容器（渲染一次），.icon-cell 为项模板逐名克隆 -->
+            <div
+                class="icon-grid"
+                :style="{ color: color, fontSize: size + 'px', '--as-icon-sw': sw }"
+                x-for="name of names"
+                :key="name"
+            >
+                <div class="icon-cell">
+                    <span class="slot"><span x-icon="name"></span></span>
+                    <code x-text="name"></code>
+                </div>
+            </div>
+
+            <div class="notification is-light is-size-7 mt-4">
+                内置图标属 <strong>全局注册表</strong>（<code>AutoSpark.icons</code>，document 级共享）——
+                <code>add('arrow', svg)</code> 同名覆盖后，引擎自身的 x-expandable / x-splitter
+                折叠箭头同步跟随；<code>delete(name)</code> 后使用中的实例回退 <code>default</code>。
+            </div>
+        </div>
+
+        <script>
+            const icons = AutoSparkSpaces.AutoSpark.icons;
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                names: [...icons],
+                current: [...icons][0] ?? "",
+                count: icons.size,
+                color: "#485fc7",
+                size: 28,
+                sw: 1.25,
+                reset() {
+                    this.color = "#485fc7";
+                    this.size = 28;
+                    this.sw = 1.25;
+                },
+            });
+        </script>
+    </body>
+</html>

@@ -73,4 +73,4 @@
 - **不建数据、不渲染内容**：`x-scope` 仅为 scope 锚点服务，不改变元素的其他行为，也不注入任何 data。
 - **无选项、无修饰符**：`x-scope` 是纯标记指令，仅需写上属性名（`x-scope-options` 即使写了也无人消费）。
 - **必须有祖先或自身 scope 才能收 `x-define`**：每个 `x-define` 都需要至少一个祖先 scope（来自 `x-scope` 或任意其他指令、插值）。否则该组件在编译期被 `warn` 丢弃。
-- **完整的组件机制**（声明摘除、`getComponent` 就近覆盖、全局组件兜底、消费者注入）见[组件](../component/)。
+- **完整的组件机制**（声明摘除、`getComponentDeclaration` 就近覆盖、全局组件兜底、消费者注入）见[组件](../component/)。

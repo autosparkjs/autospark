@@ -29,6 +29,11 @@ export class DirectiveManager extends Map<string, DirectiveClass> {
     readonly initialized = new Set<DirectiveClass>();
     /** engine 是否已就绪（构造完成）：就绪后 set 才立即触发 initialize */
     private _ready = false;
+    /**
+     * 元素名 → 指令名 反查索引（ADR-0084，惰性构建）：元素名形态指令（类静态
+     * `elementName` 非 null，如 x-super）的触发通道。set 晚注册后置空重建。
+     */
+    private _elementNameIndex: Map<string, string> | null = null;
 
     constructor(engine: AutoSpark<any>) {
         super();
@@ -48,12 +53,31 @@ export class DirectiveManager extends Map<string, DirectiveClass> {
      */
     override set(name: string, Cls: DirectiveClass): this {
         super.set(name, Cls);
+        this._elementNameIndex = null; // 注册表变更：元素名索引重建
         if (this._ready) {
             this._initOne(Cls);
             // runtime 指令晚注册：通知 dispatcher 重建 observer attributeFilter + 重扫该属性
             if (Cls.kind === DirectiveKind.Runtime) this.engine.dispatcher.onDirectiveRegistered(name, Cls);
         }
         return this;
+    }
+
+    /**
+     * 按元素名反查指令名（ADR-0084 元素名形态指令通道）。
+     *
+     * 索引惰性构建（声明 `elementName` 的类 → 指令名），tagName 大小写归一（HTML 元素名
+     * 被 DOM 小写化，`<x-super>` 的 tagName 为 "X-SUPER"）。单次编译内注册表不变，缓存稳定。
+     *
+     * @returns 指令名（如 "super"）；无元素名指令命中返回 undefined
+     */
+    findByElementName(tagName: string): string | undefined {
+        if (!this._elementNameIndex) {
+            this._elementNameIndex = new Map();
+            for (const [name, cls] of this) {
+                if (cls.elementName) this._elementNameIndex.set(cls.elementName, name);
+            }
+        }
+        return this._elementNameIndex.get(tagName.toLowerCase());
     }
 
     /**

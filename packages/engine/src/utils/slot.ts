@@ -1,8 +1,8 @@
 /**
  * x-slot 插槽标记识别与内容收集（ADR-0056）。
  *
- * 纯函数层：不依赖 engine/scope，供 collect（出口清单）、component/overlay（内容收集）
- * 与 SlotDirective（标记解析）共用。
+ * 纯函数层：不依赖 engine/scope（`import type` 仅类型层、零运行时依赖），供 collect
+ * （出口清单）、component/overlay（内容收集）与 SlotDirective（标记解析）共用。
  *
  * 两侧标记同形：
  * - 裸 `x-slot` / `x-slot.mod` → 默认出口/内容（名 `"default"`）；
@@ -13,6 +13,27 @@
  * 内容侧值 = 解构形参（`{ item, index }` 简式，非 JSON）；出口侧值 = 对象字面量
  * （组件作用域求值）。形参解析只认简单键（无 rename/默认值）。
  */
+
+import type { AutoSparkScope } from "../scope";
+
+/**
+ * super 展开产物（ADR-0084）：本段 fallback 的一次独立编译结果。
+ * `nodes` 由 SuperDirective 挂入标记元素内；`scopes` 的 parent = 出口 binding
+ * （组件作用域基准，出口销毁级联），SuperDirective.destroy 兜底回收（幂等）。
+ */
+export interface SuperFallback {
+    /** 编译产物节点（未挂载，调用方挂入 x-super 标记元素） */
+    nodes: ChildNode[];
+    /** 本次编译建立的 scopes */
+    scopes: AutoSparkScope[];
+}
+
+/**
+ * super 句柄（ADR-0084）：插槽内容 scope 携带的惰性 fallback 编译入口。
+ * 每次调用**独立编译**一份（同段多个 x-super 各自展开、各挂各的 watcher）；
+ * 出口无 fallback 子树 → 返回空产物（静默，Q8）。
+ */
+export type SuperInlet = () => SuperFallback;
 
 /** 插槽标记（出口侧与内容侧共用的识别结果） */
 export interface SlotMarker {

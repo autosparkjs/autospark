@@ -31,8 +31,9 @@ const SETUP_SECTION_KEYS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * 组件 this 上下文的**内置键**（ADR-0057）：顶层私有变量与之重名时 warn + 忽略（内置优先）。
- * `data` / `methods` / 钩子名是段键、天然不冲突，不入此列；`state` 已非保留键，亦不入列。
+ * 组件 this 上下文的**内置键**（ADR-0057；`super` 为 ADR-0082 增补）：顶层私有变量与之重名时
+ * warn + 忽略（内置优先）。`data` / `methods` / 钩子名是段键、天然不冲突，不入此列；
+ * `state` 已非保留键，亦不入列。
  */
 const CONTEXT_RESERVED_KEYS: ReadonlySet<string> = new Set([
     "props",
@@ -41,6 +42,7 @@ const CONTEXT_RESERVED_KEYS: ReadonlySet<string> = new Set([
     "scope",
     "el",
     "$parent",
+    "super",
 ]);
 
 /**

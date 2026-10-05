@@ -201,16 +201,37 @@ function findMatchingBrace(css: string, openIdx: number): number {
 const styleRefCount = new Map<string, number>();
 
 /**
+ * def 级 scoped id 分配（ADR-0087 修订）：按**组件定义**（name）而非实例 scope.id 分配——
+ * 同 def 多实例共享同一份改写样式与 `data-cmp-{id}` 属性。原按实例 scopeId 的取法在
+ * 「样式元素按 defName 去重复用 + 属性按实例 id 打点」组合下，第二实例起属性值与缓存
+ * 样式的选择器后缀失配（首实例 `[data-cmp-1]` 永不命中 `[data-cmp-2]` 的元素——二次
+ * 实例化样式全丢）。name → id 映射全引擎稳定（style 元素被引用计数回收后重注入仍取同 id，
+ * 旧实例已不存在，无冲突）。
+ */
+const defScopedIds = new Map<string, number>();
+let nextComponentScopedId = 1;
+
+/** 取组件定义的稳定 scoped id（首次分配后缓存） */
+export function componentScopedId(defName: string): number {
+    let id = defScopedIds.get(defName);
+    if (id === undefined) {
+        id = nextComponentScopedId++;
+        defScopedIds.set(defName, id);
+    }
+    return id;
+}
+
+/**
  * 为组件实例注入 scoped 样式（ADR-0022 决策四-4）。
  *
  * - 同名组件定义的样式只改写、注入一次（`<style data-cmp-def="${defName}">`），多实例共享，引用计数管理；
  * - 实例化（mountComponentStyle）时计数 +1，卸载（releaseComponentStyle）时 -1，归零移除 `<style>`；
- * - scopeId 用于改写时的属性后缀——但同 def 共享一份样式，故用 defName 作 key，scopeId 取首实例的 id
- *   （实例化时给元素打的 data-cmp-{id} 属性须与此处改写用的 id 一致 → 见 mountComponentScopedAttr）。
+ * - scopeId 为改写用的属性后缀——**须传 componentScopedId(defName)**（def 级稳定 id，
+ *   与实例化时打的 data-cmp-{id} 属性保持一致 → 见 mountComponentScopedAttr）。
  *
  * @param defName   组件名（样式缓存 key）
  * @param styles    组件 `<style>` 文本数组
- * @param scopeId   作用域 id（改写用）
+ * @param scopeId   def 级 scoped id（componentScopedId 产物）
  * @returns 注入的 `<style>` 元素（已存在则返回既有）
  */
 export function injectComponentStyle(

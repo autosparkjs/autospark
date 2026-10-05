@@ -1,6 +1,6 @@
 # ADR-0077：消息会话体系与双层渲染组合
 
-- 状态：已采纳
+- 状态：已采纳（**字段面被 [ADR-0079](0079-message-type-level-rename.md) 取代**——`kind`→`type`、语义色 `type`→`level`、排序 `level` 移除；**双层组合的内容分工被 [ADR-0088](0088-message-content-ownership-module-split.md) 修订**——title/description/actions 等内容渲染下放 type 模板，shell 降级为外观容器（chrome + close 钮 + 出口）；本 ADR 的会话 / persist / 双层投影机制本身不受影响）
 - 日期：2026-10-01
 - 关联：[ADR-0071](0071-messages.md)（消息模块）、[ADR-0072](0072-messages-state.md)（$messages 状态暴露）、[ADR-0062](0062-overlay-shell.md)（面板外壳 / shell 机制）、ADR-0056（插槽投影）
 
@@ -76,7 +76,9 @@ ADR-0072 落地 `$messages` 状态暴露后，实际使用暴露三类缺口：
 ### 六、杂项键
 
 - **`styles?: string`**（cssText）——卡片根追加语义（与 className 同点），渲染键不入 `AutoSparkMessageRecord` 与持久化载荷；
+- **尺寸五键** `width / height / minWidth / maxWidth / minHeight`（number = px、字符串透传 CSS；width/height 默认 auto 不写内联、maxWidth 缺省走内置 shell 的 `--autospark-message-max-w` CSS 兜底）——inline 经 `setProperty` 结构化写入卡片根（在 styles cssText 之后执行，结构化键最终生效）；**内置 kind 种子默认层**（`BUILTIN_KIND_DEFAULTS`，合并链位于 MESSAGE_DEFAULTS 与 options.messages 之间）：confirm / task 默认 `width: 300`（双钮与进度形态紧凑；toast 不设——auto 跟内容），用户任意配置层可覆盖；
 - **`options.shallow: 0 | 1`**——`$messages.items` 的 shallow 深度透传（默认 1；0 = 成员不代理、仅结构变更有事件——超大列表最省形态）。**构造期一次性**：运行时直写**静默忽略**（shallow 包装无法换壳）——ADR-0072「options 真身直写即生效」契约的**第一条例外键**（实施时实测 autostore `shallow` 的 Deep 类型约束即 `0 | 1`，文档同步收窄）。
+- **sticky 自动关闭钮**（实施后修订）：`delayClose ≤ 0`（永不自动关）且整条合并链**未显式声明** `closable` 时自动置 `closable: true`——否则除 API / actions 外消息无法关闭（可发现性缺口：sticky 卡片无 × 就只能编程收）。显式 `closable: false`（含全局层）照常压制——「用户明确不要 ×」优先。动因：可用性兜底属**默认值语义**而非覆盖语义，任何显式层都必须能压过它。
 
 ## 实现要点（防再踩）
 
@@ -84,6 +86,7 @@ ADR-0072 落地 `$messages` 状态暴露后，实际使用暴露三类缺口：
 2. **confirm 双消息陷阱**：`confirm()` 与后续 `add({ id })` 是两条独立记录——编程应答要么用 `confirm()` 的 Promise，要么对自己的 add 结果调 `session.yes()`，不要跨记录混用（测试曾因此挂起：Promise 挂在另一条上永不 settle）；
 3. **运行时全集 + 类型窄化**：Session 实现是含全部方法的一个闭包对象——`typeof (toastSession as any).progress === "function"` 是预期的（类型面窄化不等于运行时裁剪），断言「基类面无某方法」只能做类型层测试；
 4. **级别 1 的 localStorage 形态**：不入桶 ≠ 不写——`writeLocalMessages([])` 仍会写 `"[]"`（全量覆盖语义），断言空载荷须 parse 后查长度。
+5. **sticky 推断的显式性判定**：state 的 `$messages.options` 真身被 MESSAGE_DEFAULTS 全键兜底（ADR-0072「可读全量」契约），`"closable" in opts` **恒真**——区分「全局层显式配置」与「兜底值」须用构造期兜底前快照（`_globalDeclared`）；单次 props / kinds 层是原样对象，`in` 判定可靠。另：断言关闭钮显隐须查 `style.display`——`x-show` 只切 display，元素恒在 DOM。
 
 ## 被否决 / 演变的方案
 

@@ -5,8 +5,8 @@ import { AutoSpark } from "../engine";
 
 /**
  * 消息模块测试（ADR-0071）：三态入参 / 同 id 原地更新 / 记录⇄展示两态（persist/show）/
- * 分区 FIFO 队列 / delayClose 与 hover 暂停 / type 图标与语义色 / actions value 闭环 /
- * confirm / progressbar / update+markRead / maxLen / 渲染插槽四级查找 / anchor 三职 /
+ * 分区 FIFO 队列 / delayClose 与 hover 暂停 / level 图标与语义色 / actions value 闭环 /
+ * confirm / task 进度 / update+markRead / maxLen / 渲染双层组合 / anchor 三职 /
  * 持久化 local·load / 双通道事件与迁移期双发 / 全关语义 / destroy 收口 / 配套 action 三件套。
  *
  * 断言走 document 级选择器（容器挂 body，toast.test.ts 同模式）。卡片内容经响应式 watcher
@@ -30,6 +30,9 @@ const descriptionOf = (card: HTMLElement | null): string =>
     card?.querySelector(".autospark-message-description")?.innerHTML ?? "";
 const actionBtnsOf = (card: HTMLElement | null): HTMLElement[] =>
     (Array.from(card?.querySelectorAll(".autospark-message-action") ?? []) as HTMLElement[]);
+/** 关闭钮显隐判定：x-show 只切 display（元素恒在 DOM），以 display 为准 */
+const closeShownOf = (card: HTMLElement | null): boolean =>
+    ((card?.querySelector(".autospark-message-close") as HTMLElement | null)?.style?.display ?? "none") !== "none";
 
 /** 劫持 engine.logger.warn 收集告警 */
 function hijackWarns(engine: any, fn: () => void): string[] {
@@ -78,7 +81,7 @@ describe("API 三态入参（ADR-0071 决策 7）", () => {
         const task = engine.messages.add("你好");
         await nextTick();
         expect(task.id).toMatch(/^message-\d+$/);
-        expect(task.kind).toBe("toast");
+        expect(task.type).toBe("toast");
         expect(task.el).toBe(cardOf());
         expect(task.closed).toBe(false);
         expect(titleOf(cardOf())).toContain("你好");
@@ -113,23 +116,31 @@ describe("API 三态入参（ADR-0071 决策 7）", () => {
         expect(cardOf()).toBeNull(); // 取消后不显示
     });
 
-    test("空 title warn + no-op；未知键 warn + 忽略", () => {
+    test("空 title warn + no-op；未知键整包透传不 warn（ADR-0088）但不落盘（十键白名单修订）", () => {
         const { engine } = setup();
         const warns = hijackWarns(engine, () => {
             engine.messages.add({ title: "  " }); // 空 title：warn + 不建卡
-            engine.messages.add({ title: "x", delay: 100 }); // 旧键 delay → 未知键 warn，卡片照建
         });
-        expect(engine.messages.size).toBe(1); // 仅合法的那条
+        expect(engine.messages.size).toBe(0);
         expect(warns.some((w) => w.includes("title 为空"))).toBe(true);
-        expect(warns.some((w) => w.includes('未知配置键 "delay"'))).toBe(true);
-        engine.messages.clear(false); // 清理（default delayClose 3000 sticky 泄漏防护）
+        // 未知键（旧键 delay / 自定义键）：props 层整包透传不 warn、卡片照建（ADR-0088）；
+        // 持久化**不落盘**（ADR-0088 修订：十键白名单——后端通用消息表只管业务数据，
+        // 自有业务数据走 owner/status/result 三透传键）
+        const warns2 = hijackWarns(engine, () => {
+            engine.messages.add({ id: "u1", title: "x", delay: 100, delayClose: 0, persist: 2 });
+        });
+        expect(warns2.length).toBe(0);
+        expect(engine.messages.size).toBe(1);
+        const stored = JSON.parse(localStorage.getItem("autospark-messages")!);
+        expect(stored.find((r: any) => r.id === "u1")?.delay).toBeUndefined();
+        engine.messages.clear(false); // 清理
     });
 });
 
 describe("同 id 原地更新（决策 7）", () => {
     test("显示中换内容 + 重置计时 + 不重播动画；未传键保留原值", async () => {
         const { engine } = setup();
-        const task = engine.messages.add({ id: "up", title: "v1", type: "info", delayClose: 80 });
+        const task = engine.messages.add({ id: "up", title: "v1", level: "info", delayClose: 80 });
         await nextTick();
         const el = task.el!;
         engine.messages.add({ id: "up", title: "v2" }); // 只换 title
@@ -137,7 +148,7 @@ describe("同 id 原地更新（决策 7）", () => {
         expect(task.el).toBe(el); // 同一卡片 DOM（不重建）
         expect(titleOf(cardOf())).toContain("v2");
         // 未传的 type 保留
-        expect(el.getAttribute("data-message-type")).toBe("info");
+        expect(el.getAttribute("data-message-level")).toBe("info");
         // 重置计时：首 add 后 60ms 更新，更新后再 60ms（累计 120 > 80）仍存活
         await sleep(60);
         engine.messages.add({ id: "up", title: "v3" });
@@ -205,23 +216,23 @@ describe("delayClose / sticky / hover 暂停", () => {
 describe("type 图标与语义色（沿现行实现契约）", () => {
     test("data-message-type 分派；none 无图标；success 图标 + 图标元素", async () => {
         const { engine } = setup();
-        engine.messages.add({ title: "ok", type: "success", delayClose: 0 });
+        engine.messages.add({ title: "ok", level: "success", delayClose: 0 });
         engine.messages.add({ title: "plain", delayClose: 0, pos: "bottom-right" });
         await nextTick();
-        expect(cardOf()?.getAttribute("data-message-type")).toBe("success");
+        expect(cardOf()?.getAttribute("data-message-level")).toBe("success");
         const icon = cardOf()?.querySelector(".autospark-message-icon");
         expect(icon).toBeTruthy();
         // x-icon 渲染内置 yes 图标（svg 注入）
         expect(icon?.innerHTML).not.toBe("");
         const plain = cardsOf("bottom-right")[0];
-        expect(plain.getAttribute("data-message-type")).toBe("none");
+        expect(plain.getAttribute("data-message-level")).toBe("none");
         const plainIcon = plain.querySelector(".autospark-message-icon") as HTMLElement;
         expect(plainIcon.style.display).toBe("none"); // x-show 隐藏
     });
 
     test("显式 icon 优先于 type 默认映射", async () => {
         const { engine } = setup();
-        engine.messages.add({ title: "x", type: "info", icon: "warn", delayClose: 0 });
+        engine.messages.add({ title: "x", level: "info", icon: "warn", delayClose: 0 });
         await nextTick();
         const icon = cardOf()?.querySelector(".autospark-message-icon");
         // warn 图标为内置同名词——与 info 不同的 svg 内容（此处仅断言渲染出了图标）
@@ -257,11 +268,41 @@ describe("description / link / closable", () => {
         expect(task.closed).toBe(true);
     });
 
-    test("closable 缺省无关闭钮", async () => {
+    test("closable 缺省（非 sticky）无关闭钮", async () => {
         const { engine } = setup();
-        engine.messages.add({ title: "x", delayClose: 0 });
+        engine.messages.add({ title: "x" }); // delayClose 默认 3000
         await nextTick();
-        expect(cardOf()?.querySelector(".autospark-message-close")).toBeNull();
+        expect(closeShownOf(cardOf())).toBe(false);
+    });
+
+    test("sticky（delayClose: 0）自动补关闭钮；显式 closable: false 压制（三层显式源）", async () => {
+        // 缺省：sticky 永不自动关——自动补 ×（否则除 API 外无法关闭）
+        const a = setup();
+        a.engine.messages.add({ title: "x", delayClose: 0 });
+        await nextTick();
+        expect(closeShownOf(cardOf())).toBe(true);
+        a.engine.destroy();
+
+        // 单次层显式 false：用户明确不要 ×
+        const b = setup();
+        b.engine.messages.add({ title: "x", delayClose: 0, closable: false });
+        await nextTick();
+        expect(closeShownOf(cardOf())).toBe(false);
+        b.engine.destroy();
+
+        // 全局层显式 false（构造期显式键快照——state 真身被兜底污染不可判 in）
+        const c = setup({ messages: { closable: false } });
+        c.engine.messages.add({ title: "x", delayClose: 0 });
+        await nextTick();
+        expect(closeShownOf(cardOf())).toBe(false);
+        c.engine.destroy();
+
+        // types 层显式 false
+        const d = setup({ messages: { types: { notice: { closable: false } } } });
+        d.engine.messages.add({ title: "x", type: "notice", delayClose: 0 });
+        await nextTick();
+        expect(closeShownOf(cardOf())).toBe(false);
+        d.engine.destroy();
     });
 });
 
@@ -320,7 +361,7 @@ describe("actions 与 value 闭环（决策 13）", () => {
 describe("confirm（决策 11）", () => {
     test("value-only actions 糖：点击 resolve value、写 result、sticky 不自动关", async () => {
         const { engine } = setup();
-        const promise = engine.messages.show({ title: "确认删除？", kind: "confirm", delayClose: 0, actions: [{ title: "删除", value: true }, { title: "再想想", value: false }] });
+        const promise = engine.messages.show({ title: "确认删除？", type: "confirm", delayClose: 0, actions: [{ title: "删除", value: true }, { title: "再想想", value: false }] });
         await nextTick();
         const btns = actionBtnsOf(cardOf());
         expect(btns.length).toBe(2);
@@ -340,7 +381,7 @@ describe("confirm（决策 11）", () => {
     test("{yes,no} 可提取键从 props 剥离（不落消息 props）", async () => {
         const { engine } = setup();
         const warns = hijackWarns(engine, () => {
-            const p = engine.messages.show({ title: "删除？", kind: "confirm", delayClose: 0, actions: [{ title: "删", value: true }, { title: "留", value: false }] });
+            const p = engine.messages.show({ title: "删除？", type: "confirm", delayClose: 0, actions: [{ title: "删", value: true }, { title: "留", value: false }] });
             p.then(() => {});
         });
         await nextTick();
@@ -353,7 +394,7 @@ describe("confirm（决策 11）", () => {
     test("永不 settle：关闭钮关闭不 resolve（不 reject）", async () => {
         const { engine } = setup();
         let settled = false;
-        const p = engine.messages.show({ title: "q", kind: "confirm", delayClose: 0 }).then((v: any) => ((settled = true), v));
+        const p = engine.messages.show({ title: "q", type: "confirm", delayClose: 0 }).then((v: any) => ((settled = true), v));
         await nextTick();
         const task = engine.messages.get(Array.from(engine.messages.keys())[0])!;
         task.el!.querySelector(".autospark-message-close")!.dispatchEvent(
@@ -365,19 +406,19 @@ describe("confirm（决策 11）", () => {
     });
 });
 
-describe("progressbar（决策 12）", () => {
-    test("创建不自启；progress 推进渲染；100% 完成态 delayClose 收口", async () => {
+describe("task 进度（决策 12）", () => {
+    test("创建即 started（ADR-0083 二次修订）：progress 直呼推进；start() 幂等兼容面", async () => {
         const { engine } = setup();
-        const upload = engine.messages.show({ title: "上传", kind: "task", delayClose: 80 });
+        const upload = engine.messages.show({ title: "上传", type: "task", delayClose: 80 });
         await nextTick();
         expect(cardOf()?.querySelector(".autospark-message-progress")).toBeTruthy();
-        upload.progress(50); // 未 start → 忽略
-        await nextTick();
-        expect((cardOf()?.querySelector(".autospark-message-progress-bar") as HTMLElement).style.width).toBe("0%");
-        upload.start();
-        upload.progress(50);
+        upload.progress(50); // 创建即 started——无需显式 start
         await nextTick();
         expect((cardOf()?.querySelector(".autospark-message-progress-bar") as HTMLElement).style.width).toBe("50%");
+        upload.start(); // 幂等兼容面（旧写法）——重复调用无效果
+        upload.progress(60);
+        await nextTick();
+        expect((cardOf()?.querySelector(".autospark-message-progress-bar") as HTMLElement).style.width).toBe("60%");
         upload.progress(150); // clamp
         await nextTick();
         expect(upload.el!.querySelector(".autospark-message-progress-text")?.textContent).toBe("100%");
@@ -385,9 +426,35 @@ describe("progressbar（决策 12）", () => {
         expect(upload.closed).toBe(true);
     });
 
+    test("全逻辑 factory 形态（ADR-0083 二次修订）：return 初始 props 立即弹卡 + 闭包驱动实时推进", async () => {
+        const { engine } = setup();
+        let settle!: () => void;
+        const done = new Promise<void>((r) => (settle = r));
+        const s = engine.messages.task(async (session) => {
+            // 下载逻辑全部在 factory 内：异步闭包不 await——return 立即执行（卡先弹）
+            void (async () => {
+                for (let i = 1; i <= 4; i++) {
+                    await sleep(25);
+                    session.progress(i * 25); // 激活后实时推进（无需 start）
+                }
+                session.complete();
+                settle();
+            })();
+            return { title: "下载 dataset.zip", delayClose: 60 }; // 初始 props——立即建卡
+        });
+        await nextTick();
+        expect(cardsOf("top-right").length).toBe(1); // 卡已弹出（不等下载完成）
+        expect(titleOf(cardOf())).toContain("下载");
+        await done;
+        await nextTick();
+        expect(s.el!.querySelector(".autospark-message-progress-text")?.textContent).toBe("100%");
+        await sleep(150); // complete → delayClose 60ms 收口
+        expect(s.closed).toBe(true);
+    });
+
     test("pause 闸门 / resume 恢复；cancel 立即关；update(id,{progress}) 同通道", async () => {
         const { engine } = setup();
-        const task = engine.messages.show({ title: "导出", kind: "task", delayClose: 0 });
+        const task = engine.messages.show({ title: "导出", type: "task", delayClose: 0 });
         task.start();
         task.pause();
         task.progress(30);
@@ -403,12 +470,13 @@ describe("progressbar（决策 12）", () => {
         expect(task.closed).toBe(true);
     });
 
-    test("progress 是 kind='task' 专属键：其他 kind 携带 warn + 忽略", () => {
+    test("task 专属键不再筛选：非 task 携带 progress 不 warn（ADR-0088 整包直传）", () => {
         const { engine } = setup();
         const warns = hijackWarns(engine, () => {
-            engine.messages.add({ title: "n", kind: "notice", progress: 50, delayClose: 0 });
+            engine.messages.add({ title: "n", type: "notice", progress: 50, delayClose: 0 });
         });
-        expect(warns.some((w) => w.includes("kind='task' 专属键"))).toBe(true);
+        expect(warns.length).toBe(0); // 无害透传——专属键 warn 已随白名单投影退役
+        engine.messages.clear(false);
     });
 });
 
@@ -432,11 +500,11 @@ describe("记录级写通道 update + 已读（决策 8/11）", () => {
         expect(task.result).toEqual({ ok: false });
     });
 
-    test("markRead / markAllRead(kind)；点击自动置已读", async () => {
+    test("markRead / markAllRead(type)；点击自动置已读", async () => {
         const { engine } = setup();
-        const a = engine.messages.add({ title: "a", kind: "notice", delayClose: 0 });
-        const b = engine.messages.add({ title: "b", kind: "notice", delayClose: 0, pos: "bottom-right" });
-        const c = engine.messages.add({ title: "c", kind: "toast", delayClose: 0 });
+        const a = engine.messages.add({ title: "a", type: "notice", delayClose: 0 });
+        const b = engine.messages.add({ title: "b", type: "notice", delayClose: 0, pos: "bottom-right" });
+        const c = engine.messages.add({ title: "c", type: "toast", delayClose: 0 });
         expect(a.read).toBe(false);
         engine.messages.markAllRead("notice");
         expect(a.read).toBe(true);
@@ -512,12 +580,12 @@ describe("渲染双层组合（ADR-0077，取代决策 16 四级互斥链）", (
     const setupCustom = () =>
         setup({
             components: { probe: CUSTOM },
-            messages: { kinds: { notice: { render: "probe" } } },
+            messages: { types: { notice: { render: "probe" } } },
         });
 
-    test("kinds[kind].render 命中；未配置 kind 走内置 message-shell", async () => {
+    test("types[type].render 命中；未配置 type 走内置 message-shell", async () => {
         const { engine } = setupCustom();
-        engine.messages.add({ title: "通知体", kind: "notice", delayClose: 0 });
+        engine.messages.add({ title: "通知体", type: "notice", delayClose: 0 });
         engine.messages.add({ title: "普通", delayClose: 0, pos: "bottom-right" });
         await nextTick();
         expect(cardOf()?.querySelector(".probe-card")).toBeTruthy(); // 自定义渲染
@@ -529,26 +597,26 @@ describe("渲染双层组合（ADR-0077，取代决策 16 四级互斥链）", (
             components: { fallback: `<div class="fallback-card" x-html="title"></div>` },
             messages: {
                 shell: "fallback",
-                kinds: { notice: { render: "nope" } },
+                types: { notice: { render: "nope" } },
             },
         });
         const warns = hijackWarns(engine, () => {
-            engine.messages.add({ title: "n", kind: "notice", delayClose: 0 });
+            engine.messages.add({ title: "n", type: "notice", delayClose: 0 });
         });
         await nextTick();
         expect(warns.some((w) => w.includes("nope"))).toBe(true); // 第一级未命中 warn
         expect(cardOf()?.querySelector(".fallback-card")).toBeTruthy(); // 第二级兜底
-        // task kind：无 custom（fallback 只对 notice kind 配置——shell 全局兜底也命中 fallback？
+        // task type：无 custom（fallback 只对 notice type 配置——shell 全局兜底也命中 fallback？
         // shell 是全局层：task 也走 fallback……此用例验证注册表仅在无用户配置时生效
-        const t = engine.messages.show({ title: "t", kind: "task", pos: "bottom-right", delayClose: 0 });
+        const t = engine.messages.show({ title: "t", type: "task", pos: "bottom-right", delayClose: 0 });
         await nextTick();
         expect(cardsOf("bottom-right")[0].querySelector(".fallback-card")).toBeTruthy();
         t.cancel();
     });
 
-    test("无用户配置：task → 内置 task-shell（进度槽）；其他 kind → message-shell（无进度槽）", async () => {
+    test("无用户配置：task → 内置 task renderer（进度槽）；其他 type → message-shell（无进度槽）", async () => {
         const { engine } = setup();
-        const t = engine.messages.show({ title: "t", kind: "task", delayClose: 0 });
+        const t = engine.messages.show({ title: "t", type: "task", delayClose: 0 });
         engine.messages.add({ title: "m", delayClose: 0, pos: "bottom-right" });
         await nextTick();
         expect(cardsOf("top-right")[0].classList.contains("autospark-message")).toBe(true);
@@ -557,19 +625,18 @@ describe("渲染双层组合（ADR-0077，取代决策 16 四级互斥链）", (
         t.cancel();
     });
 
-    test("接管 task kind：进度渲染随接管者自带（内置 task renderer 非特权；ADR-0077 kind 区嵌 shell 出口）", async () => {
+    test("接管 task type：内容渲染整体随接管者（ADR-0088——title 亦归 type 模板，引擎不兜底）", async () => {
         const { engine } = setup({
             components: { "my-task": `<div class="my-task"><i x-text="progress"></i></div>` },
-            messages: { kinds: { task: { render: "my-task" } } },
+            messages: { types: { task: { render: "my-task" } } },
         });
-        const t = engine.messages.show({ title: "t", kind: "task", progress: 30, delayClose: 0 });
+        const t = engine.messages.show({ title: "t", type: "task", progress: 30, delayClose: 0 });
         await nextTick();
         const el = cardsOf("top-right")[0];
-        // 双层组合：公共 shell 恒在（title 行），kind renderer 嵌出口（.autospark-message-kind 内）
-        expect(el.querySelector(".autospark-message-title")).toBeTruthy();
-        expect(el.querySelector(".my-task")).toBeTruthy();
-        expect(el.querySelector(".my-task")?.closest(".autospark-message-kind")).toBeTruthy();
+        expect(el.querySelector(".my-task")).toBeTruthy(); // 接管者渲染（数据域整包注入可绑 progress）
         expect(el.querySelector(".my-task i")?.textContent).toBe("30");
+        expect(el.querySelector(".autospark-message-title")).toBeNull(); // 内容归接管者——引擎不再兜底 title
+        expect(el.querySelector(".autospark-message-close")).toBeTruthy(); // shell 外观（close 钮）恒在
         t.cancel();
     });
 });
@@ -605,12 +672,12 @@ describe("anchor 三职（决策 14）", () => {
     test("③ 数据视图基准：anchor 存在时 render 挂链发起 scope（表达式访问发起域）", async () => {
         const m = mount(PAGE, {}, {
             components: { probe: `<div class="probe"><i x-text="hostVal"></i></div>` },
-            messages: { kinds: { notice: { render: "probe" } } },
+            messages: { types: { notice: { render: "probe" } } },
         });
         engines.push(m.engine);
         const btn = m.root.querySelector("#btn") as HTMLElement;
         await nextTick();
-        engine_messages_add(m.engine, { title: "x", kind: "notice", anchor: btn, delayClose: 0 });
+        engine_messages_add(m.engine, { title: "x", type: "notice", anchor: btn, delayClose: 0 });
         await nextTick();
         expect(cardOf()?.querySelector(".probe")?.textContent).toContain("来自发起域");
     });
@@ -622,7 +689,7 @@ describe("anchor 三职（决策 14）", () => {
         const got: any[] = [];
         btn.addEventListener("message:action", (e: any) => got.push(e.detail.value));
         await nextTick();
-        const p = m.engine.messages.show({ title: "q", kind: "confirm", anchor: btn, delayClose: 0 });
+        const p = m.engine.messages.show({ title: "q", type: "confirm", anchor: btn, delayClose: 0 });
         await nextTick();
         click(actionBtnsOf(cardOf())[0]); // 确定
         await Promise.resolve();
@@ -645,7 +712,7 @@ function engine_messages_add(engine: any, props: any) {
 }
 
 describe("配套 action 三件套（决策 22/23）", () => {
-    test("toast action：@click 发起 kind='toast' 消息 + anchor 注入", async () => {
+    test("toast action：@click 发起 type='toast' 消息 + anchor 注入", async () => {
         const m = mount(
             `<div id="app"><button id="go" @click="toast(' hi ')" type="button">go</button></div>`,
             {},
@@ -655,7 +722,7 @@ describe("配套 action 三件套（决策 22/23）", () => {
         btn.click();
         await nextTick();
         expect(titleOf(cardOf())).toContain("hi");
-        expect(engine_messages_kind(m.engine)).toBe("toast");
+        expect(engine_messages_type(m.engine)).toBe("toast");
     });
 
     test("confirm action：yes/no 可提取键；结果经 message:action 以发起子树回流", async () => {
@@ -676,7 +743,7 @@ describe("配套 action 三件套（决策 22/23）", () => {
         expect(got).toEqual([true]); // anchor 派发回流
     });
 
-    test("task action：progressbar 转发 + 进度卡片", async () => {
+    test("task action：task 转发 + 进度卡片", async () => {
         const m = mount(
             `<div id="app"><button id="go" @click="task({ title: '导出' })" type="button">go</button></div>`,
             {},
@@ -699,13 +766,13 @@ describe("配套 action 三件套（决策 22/23）", () => {
     });
 });
 
-function engine_messages_kind(engine: any): string {
+function engine_messages_type(engine: any): string {
     const first = Array.from(engine.messages.values())[0];
-    return first?.kind ?? "";
+    return first?.type ?? "";
 }
 
 describe("事件族与迁移期双发（决策 20/3）", () => {
-    test("add/show/hide 时序 + kind='toast' 双发 toast:show/hide；notice 不双发", async () => {
+    test("add/show/hide 时序 + type='toast' 双发 toast:show/hide；notice 不双发", async () => {
         const { engine } = setup();
         const seq: string[] = [];
         const legacy: string[] = [];
@@ -715,10 +782,10 @@ describe("事件族与迁移期双发（决策 20/3）", () => {
         engine.on("toast:show", () => legacy.push("toast:show"));
         engine.on("toast:hide", () => legacy.push("toast:hide"));
         const t = engine.messages.add({ title: "x", delayClose: 0 });
-        const n = engine.messages.add({ title: "n", kind: "notice", delayClose: 0, pos: "bottom-right" });
+        const n = engine.messages.add({ title: "n", type: "notice", delayClose: 0, pos: "bottom-right" });
         // add 即同步 mount（有空坑）→ show 紧随 add
         expect(seq).toEqual(["add", "show", "add", "show"]);
-        expect(legacy).toEqual(["toast:show"]); // 仅 kind=toast 双发（notice 不发）
+        expect(legacy).toEqual(["toast:show"]); // 仅 type=toast 双发（notice 不发）
         t.hide();
         fireCardEnd(t.el!);
         expect(seq).toEqual(["add", "show", "add", "show", "hide"]);
@@ -746,7 +813,7 @@ describe("持久化（决策 17/18）", () => {
         const task = first.engine.messages.add({
             id: "persist-1",
             title: "持久通知",
-            kind: "notice",
+            type: "notice",
             persist: 2,
             delayClose: 0,
         });
@@ -782,15 +849,15 @@ describe("持久化（决策 17/18）", () => {
             asked = String(url);
             return new Response(
                 JSON.stringify([
-                    { id: "srv-1", title: "服务端通知", kind: "notice" },
-                    { id: "srv-2", title: "第二条", kind: "notice", read: true },
+                    { id: "srv-1", title: "服务端通知", type: "notice" },
+                    { id: "srv-2", title: "第二条", type: "notice", read: true },
                 ]),
                 { status: 200 },
             );
         }) as any;
         try {
             const { engine } = setup({ messages: { fetchOptions: { url: "/api/messages" } } });
-            engine.messages.add({ id: "srv-1", title: "本地旧值", kind: "notice", delayClose: 0 });
+            engine.messages.add({ id: "srv-1", title: "本地旧值", type: "notice", delayClose: 0 });
             await nextTick();
             const loaded = await engine.messages.load();
             expect(asked).toBe("/api/messages");
@@ -833,20 +900,63 @@ describe("持久化（决策 17/18）", () => {
         }
     });
 
-    test("序列化剥函数：内联 handle 不入载荷；actions 仅保留字符串名", () => {
+    test("序列化白名单十键（ADR-0088 修订：纯业务数据）：actions/渲染键/运行态/自有键全不入载荷", () => {
         const { engine } = setup();
         engine.messages.add({
             id: "s1",
             title: "x",
+            level: "warn",
+            owner: "u1",
             persist: 2,
             delayClose: 0,
-            actions: ["undo", { title: "inline", handle: () => {} }],
+            custom: "not-persisted",
+            canCancel: true,
+            actions: ["undo", { title: "inline", value: 7, handle: () => {} }],
             anchor: document.body,
         });
-        const stored = JSON.parse(localStorage.getItem("autospark-messages")!);
-        expect(stored[0].actions).toEqual(["undo"]); // 字符串名保留、对象 handle 剥除
-        expect(stored[0].anchor).toBeUndefined(); // 运行态剥除
-        expect(stored[0].handle).toBeUndefined();
+        const stored = JSON.parse(localStorage.getItem("autospark-messages")!)[0];
+        // 十二键白名单封闭：业务数据落盘（createAt/updateAt 时间戳恒有）
+        expect(stored.createAt).toBeGreaterThan(0);
+        expect(stored.updateAt).toBeGreaterThanOrEqual(stored.createAt);
+        const { createAt, updateAt, ...data } = stored;
+        expect(data).toEqual({ id: "s1", type: "toast", read: false, title: "x", level: 3, owner: "u1" });
+        expect([createAt, updateAt].every((t: any) => typeof t === "number")).toBe(true);
+        // 渲染 / 行为 / 运行态 / 边界 / 自有未知键一律不入（后端通用消息表只管数据）
+        expect(stored.actions).toBeUndefined(); // actions = 渲染行为键——恢复由 session 按生效配置重建
+        expect(stored.anchor).toBeUndefined(); // DOM 引用
+        expect(stored.custom).toBeUndefined(); // 自有键不透传（原黑名单式语义退役）
+        expect(stored.delayClose).toBeUndefined(); // 渲染键
+        expect(stored.canCancel).toBeUndefined(); // 三控制键（行为）
+        expect(stored.persist).toBeUndefined(); // 介质反推
+        engine.messages.clear(false);
+    });
+
+    test("createAt/updateAt（数据审计）：创建同刻；数据变更入口刷新；恢复按载荷还原", async () => {
+        const { engine } = setup();
+        const s = engine.messages.add({ id: "t1", title: "v1", persist: 2, delayClose: 0 });
+        let stored = JSON.parse(localStorage.getItem("autospark-messages")!)[0];
+        const { createAt, updateAt } = stored;
+        expect(updateAt).toBe(createAt); // 创建时同刻
+        await sleep(15);
+        engine.messages.update("t1", { title: "v2" }); // 数据变更入口 → touch
+        stored = JSON.parse(localStorage.getItem("autospark-messages")!)[0];
+        expect(stored.updateAt).toBeGreaterThan(createAt); // 刷新
+        expect(stored.createAt).toBe(createAt); // 创建时间不变
+        expect(stored.title).toBe("v2");
+        // 置已读 / result 写入同样刷新
+        await sleep(15);
+        engine.messages.markRead("t1");
+        stored = JSON.parse(localStorage.getItem("autospark-messages")!)[0];
+        expect(stored.updateAt).toBeGreaterThan(stored.createAt);
+        expect(stored.read).toBe(true);
+        // 恢复还原：时间戳以载荷为准（淘汰序/审计跨会话准确）
+        const first = { createAt: stored.createAt, updateAt: stored.updateAt };
+        engine.destroy();
+        const second = setup();
+        const rec = (second.engine.store.state.$messages.items as any[]).find((r: any) => r.id === "t1");
+        expect(rec.createAt).toBe(first.createAt);
+        expect(rec.updateAt).toBe(first.updateAt);
+        s.remove();
     });
 });
 
@@ -895,27 +1005,27 @@ describe("delete / clear / 全关 / destroy（决策 10/15）", () => {
     });
 });
 
-describe("kinds 默认与全局 options（决策 15）", () => {
-    test("kinds[kind] 提供默认值（delayClose/closable），单次可覆盖", async () => {
+describe("types 默认与全局 options（决策 15）", () => {
+    test("types[type] 提供默认值（delayClose/closable），单次可覆盖", async () => {
         const { engine } = setup({
-            messages: { kinds: { notice: { delayClose: 0, closable: true, type: "info" } } },
+            messages: { types: { notice: { delayClose: 0, closable: true, level: "info" } } },
         });
-        const n = engine.messages.add({ title: "n", kind: "notice" });
+        const n = engine.messages.add({ title: "n", type: "notice" });
         await nextTick();
-        expect(cardOf()?.getAttribute("data-message-type")).toBe("info");
+        expect(cardOf()?.getAttribute("data-message-level")).toBe("info");
         expect(cardOf()?.querySelector(".autospark-message-close")).toBeTruthy();
         await sleep(60);
-        expect(n.closed).toBe(false); // kinds 默认 sticky 生效
+        expect(n.closed).toBe(false); // types 默认 sticky 生效
         n.hide();
         fireCardEnd(n.el!);
     });
 
-    test("kinds 内 manager 级键 warn + 忽略", () => {
+    test("types 内 manager 级键 warn + 忽略", () => {
         const { engine } = setup({
-            messages: { kinds: { notice: { showCount: 9 } as any } },
+            messages: { types: { notice: { showCount: 9 } as any } },
         });
         const warns = hijackWarns(engine, () => {
-            engine.messages.add({ title: "n", kind: "notice", delayClose: 0 });
+            engine.messages.add({ title: "n", type: "notice", delayClose: 0 });
         });
         expect(warns.some((w) => w.includes("不允许管理器级键"))).toBe(true);
     });
@@ -931,7 +1041,7 @@ describe("$messages 状态暴露（ADR-0072）", () => {
         expect(Array.isArray(m.items)).toBe(true);
         expect(m.options.showCount).toBe(3);
         expect(m.options.delayClose).toBe(3000); // 生效配置：内置默认并入真身
-        expect(m.options.type).toBe("none");
+        expect(m.options.level).toBe(0);
         const off = mount(`<div id="app"></div>`, {}, { messages: false });
         engines.push(off.engine);
         expect((off.engine.store.state as any).$messages).toBeUndefined();
@@ -1066,29 +1176,48 @@ describe("$messages 状态暴露（ADR-0072）", () => {
         }
     });
 
-    test("level 排序：top 列高级别在前 / bottom 列在末（边端优先）；镜像 level 降序；同 level FIFO；update 改 level 不重排", async () => {
+    test("FIFO 定序（ADR-0079 排序移除）：列内纯到达序、镜像创建序——level 只管语义不管位置", async () => {
         const { engine } = setup();
-        const low = engine.messages.add({ title: "低", delayClose: 0 });
+        const first = engine.messages.add({ title: "先到", delayClose: 0 });
         await nextTick();
-        engine.messages.add({ title: "高", level: 5, delayClose: 0 });
+        engine.messages.add({ title: "后到", level: "error", delayClose: 0 }); // 高严重度不插队
+        engine.messages.add({ title: "迟到", delayClose: 0, pos: "bottom-right" });
         await nextTick();
-        engine.messages.add({ title: "同高", level: 5, delayClose: 0, pos: "bottom-right" });
+        // 列内：到达序（原 level 边端定序已删）
+        expect(titleOf(cardsOf("top-right")[0])).toContain("先到");
+        expect(titleOf(cardsOf("top-right")[1])).toContain("后到");
+        // 镜像：创建序
+        expect(itemsOf(engine).map((r: any) => r.title)).toEqual(["先到", "后到", "迟到"]);
+        // level 语义面照常：data-message-level 名字面（CSS 语义色挂它）+ 镜像数值
+        expect(cardsOf("top-right")[1].getAttribute("data-message-level")).toBe("error");
+        expect(itemsOf(engine)[1].level).toBe(4);
+        // update 改 level：语义跟随（属性 + 镜像刷新），位置不动
+        engine.messages.update(first.id, { level: "success" });
         await nextTick();
-        engine.messages.add({ title: "b低", delayClose: 0, pos: "bottom-right" });
+        expect(titleOf(cardsOf("top-right")[0])).toContain("先到"); // 不重排
+        expect(cardsOf("top-right")[0].getAttribute("data-message-level")).toBe("success");
+        expect(itemsOf(engine).find((r: any) => r.id === first.id).level).toBe(2);
+    });
+
+    test("level 宽松归一（ADR-0079）：字符串名与数字同权；非法值 warn + 回退 none", async () => {
+        const { engine } = setup();
+        const a = engine.messages.add({ title: "a", level: "warn", delayClose: 0 });
+        const b = engine.messages.add({ title: "b", level: 3, delayClose: 0, pos: "bottom-right" });
+        let c: any;
+        const warns = hijackWarns(engine, () => {
+            c = engine.messages.add({ title: "c", level: 9, delayClose: 0, pos: "bottom-left" });
+        });
         await nextTick();
-        // top 列：高(5) 插到 低(0) 之前（边端 = 首）
-        expect(titleOf(cardsOf("top-right")[0])).toContain("高");
-        expect(titleOf(cardsOf("top-right")[1])).toContain("低");
-        // bottom 列：边端在末——展示自上而下按级别升序（b低 在 同高 之上）
-        expect(titleOf(cardsOf("bottom-right")[0])).toContain("b低");
-        expect(titleOf(cardsOf("bottom-right")[1])).toContain("同高");
-        // 镜像：level 降序、同级创建序
-        expect(itemsOf(engine).map((r: any) => r.title)).toEqual(["高", "同高", "低", "b低"]);
-        // update 改 level：已展示卡不迁移、镜像如实反映新值
-        engine.messages.update(low.id, { level: 9 });
-        await nextTick();
-        expect(titleOf(cardsOf("top-right")[0])).toContain("高"); // 不重排
-        expect(itemsOf(engine).find((r: any) => r.id === low.id).level).toBe(9);
+        expect(a.el!.getAttribute("data-message-level")).toBe("warn"); // 名字串
+        expect(b.el!.getAttribute("data-message-level")).toBe("warn"); // 数字 3 ≡ "warn"
+        expect(warns.some((w) => w.includes("未知 level"))).toBe(true); // 越界（>4）
+        expect(c?.el?.getAttribute("data-message-level")).toBe("none"); // 回退
+        a.hide();
+        b.hide();
+        c?.hide();
+        fireCardEnd(a.el!);
+        fireCardEnd(b.el!);
+        if (c?.el) fireCardEnd(c.el);
     });
 
     test("persist 载荷 = Record 字段：closed/persist/className/icon/pos/closable/delayClose 不入", () => {
@@ -1123,7 +1252,7 @@ describe("$messages 状态暴露（ADR-0072）", () => {
     test("恢复语义：closed 由策略统一置 true、persist 按存储介质反推 local", () => {
         localStorage.setItem(
             "autospark-messages",
-            JSON.stringify([{ id: "r1", title: "旧通知", kind: "notice", description: "d" }]),
+            JSON.stringify([{ id: "r1", title: "旧通知", type: "notice", description: "d" }]),
         );
         const { engine } = setup();
         const rec = itemsOf(engine).find((r: any) => r.id === "r1");
@@ -1137,11 +1266,11 @@ describe("$messages 状态暴露（ADR-0072）", () => {
 describe("会话与双层渲染（ADR-0077）", () => {
     const itemsOf = (engine: any) => engine.store.state.$messages.items;
 
-    test("Session 家族：add 按 kind 分派返回；sessions 即 manager Map 正名视图", async () => {
+    test("Session 家族：add 按 type 分派返回；sessions 即 manager Map 正名视图", async () => {
         const { engine } = setup();
         const toast = engine.messages.add({ title: "t", delayClose: 0 });
-        const task = engine.messages.add({ kind: "task", title: "k", progress: 10, delayClose: 0 });
-        const confirm = engine.messages.add({ kind: "confirm", title: "c", delayClose: 0 });
+        const task = engine.messages.add({ type: "task", title: "k", progress: 10, delayClose: 0 });
+        const confirm = engine.messages.add({ type: "confirm", title: "c", delayClose: 0 });
         await nextTick();
         // 基类面三态恒有
         for (const s of [toast, task, confirm]) {
@@ -1169,14 +1298,14 @@ describe("会话与双层渲染（ADR-0077）", () => {
         confirm.remove();
     });
 
-    test("kind 快捷方式（ADR-0077 便捷层）：toast/confirm/task ≡ show({kind}) 强制对应 kind", async () => {
+    test("type 快捷方式（ADR-0077 便捷层）：toast/confirm/task ≡ show({type}) 强制对应 type", async () => {
         const { engine } = setup();
-        // toast：强制 kind（误传他 kind 归 toast）
-        const t = engine.messages.toast({ title: "t", kind: "notice", delayClose: 0 });
-        expect(t.kind).toBe("toast");
+        // toast：强制 type（误传他 type 归 toast）
+        const t = engine.messages.toast({ title: "t", type: "notice", delayClose: 0 });
+        expect(t.type).toBe("toast");
         // confirm：thenable 会话（await 得 choice）+ {yes,no} 文案提取 + sticky
         const c = engine.messages.confirm("保存修改？", { yes: "保存", no: "放弃" });
-        expect(c.kind).toBe("confirm");
+        expect(c.type).toBe("confirm");
         await nextTick();
         const cCard = cardsOf("top-right")[1]; // 第一张是先入列的 toast（sticky）
         expect(actionBtnsOf(cCard).map((b) => b.textContent)).toEqual(["保存", "放弃"]);
@@ -1184,9 +1313,9 @@ describe("会话与双层渲染（ADR-0077）", () => {
         await nextTick();
         expect(c.result).toBe(true);
         expect(await c).toBe(true); // thenable（会话本体，非独立 Promise）
-        // task：六方法句柄 + 强制 kind
-        const k = engine.messages.task({ title: "k", kind: "notice", progress: 10, delayClose: 0 });
-        expect(k.kind).toBe("task");
+        // task：六方法句柄 + 强制 type
+        const k = engine.messages.task({ title: "k", type: "notice", progress: 10, delayClose: 0 });
+        expect(k.type).toBe("task");
         k.start();
         (k as any).progress(50);
         const rec = itemsOf(engine).find((r: any) => r.id === k.id);
@@ -1195,6 +1324,39 @@ describe("会话与双层渲染（ADR-0077）", () => {
         fireCardEnd(k.el!);
         t.remove();
         c.remove();
+    });
+
+    test("尺寸五键（ADR-0077）：confirm/task 内置默认 width 300px；单次/types/全局层可覆盖；toast auto", async () => {
+        const { engine } = setup();
+        // toast：无 width inline（auto 归 CSS）
+        const t = engine.messages.toast({ title: "t", delayClose: 0 });
+        await nextTick();
+        expect(t.el!.style.width).toBe("");
+        expect(t.el!.style.getPropertyValue("min-width")).toBe("");
+        // confirm：内置 type 种子默认 300px
+        const c = engine.messages.confirm("q");
+        await nextTick();
+        expect(c.el!.style.width).toBe("300px");
+        c.remove();
+        // task：同 300px + 单次 props 覆盖
+        const k = engine.messages.task({ title: "k", width: 420, delayClose: 0 });
+        await nextTick();
+        expect(k.el!.style.width).toBe("420px");
+        // minWidth/maxWidth 字符串 CSS 透传 + 镜像记录
+        const m = engine.messages.add({ title: "m", minWidth: "20rem", maxWidth: 600, delayClose: 0, pos: "bottom-right" });
+        await nextTick();
+        expect(m.el!.style.getPropertyValue("min-width")).toBe("20rem");
+        expect(m.el!.style.getPropertyValue("max-width")).toBe("600px");
+        const rec = itemsOf(engine).find((r: any) => r.id === m.id);
+        expect(rec?.minWidth).toBe("20rem");
+        // 原地更新换装：width 变更重写
+        engine.messages.update(m.id, { width: 260 });
+        await nextTick();
+        expect(m.el!.style.width).toBe("260px");
+        m.remove();
+        k.cancel();
+        fireCardEnd(k.el!);
+        t.remove();
     });
 
     test("show 别名（ADR-0077）：对象 ≡ add；string 保留重显语义（消歧零冲突）", async () => {
@@ -1234,11 +1396,11 @@ describe("会话与双层渲染（ADR-0077）", () => {
 
     test("Confirm 会话 yes()/no() ≡ 点击按钮（value 闭环 + thenable await）", async () => {
         const { engine } = setup();
-        const p = engine.messages.show({ title: "保存修改？", kind: "confirm", delayClose: 0 });
+        const p = engine.messages.show({ title: "保存修改？", type: "confirm", delayClose: 0 });
         await nextTick();
-        const s = engine.messages.values().next().value as any; // kind='confirm' 会话（与 p 同一对象——thenable 本体）
+        const s = engine.messages.values().next().value as any; // type='confirm' 会话（与 p 同一对象——thenable 本体）
         expect(s).toBe(p as any);
-        expect(s.kind).toBe("confirm");
+        expect(s.type).toBe("confirm");
         const hit: any[] = [];
         engine.on("message:action" as any, (e: any) => hit.push(e.payload.value));
         s.yes();
@@ -1287,17 +1449,17 @@ describe("会话与双层渲染（ADR-0077）", () => {
         expect(localStorage.getItem("autospark-messages")).toBe("[]"); // 立即同步（非防抖延迟）
     });
 
-    test("$session 派生变量：kind renderer 层可访问（行为专职）", async () => {
+    test("$session 派生变量：type renderer 层可访问（行为专职）", async () => {
         const { engine } = setup({
             components: {
                 "my-kind": `<div class="my-kind"><button class="go" @click="$session.progress(66)"></button></div>`,
             },
-            messages: { kinds: { task: { render: "my-kind" } } },
+            messages: { types: { task: { render: "my-kind" } } },
         });
-        const t = engine.messages.add({ kind: "task", title: "k", progress: 10, delayClose: 0 });
+        const t = engine.messages.add({ type: "task", title: "k", progress: 10, delayClose: 0 });
         await nextTick();
         (t as any).start();
-        // kind renderer 层的 $session：点击按钮推进进度 → 出口内进度文本（自定义 renderer 接管，
+        // type renderer 层的 $session：点击按钮推进进度 → 出口内进度文本（自定义 renderer 接管，
         // 无内置进度槽——推进效果经镜像 items 断言）
         click(cardOf()!.querySelector(".my-kind .go")!);
         await nextTick();
@@ -1389,5 +1551,306 @@ describe("会话与双层渲染（ADR-0077）", () => {
         expect(itemsOf(engine).length).toBe(1); // 镜像结构变更照常（add 落 items）
         s.remove();
         expect(itemsOf(engine).length).toBe(0);
+    });
+});
+
+describe("会话 class 化与 run/respond（ADR-0083）", () => {
+    const sessionsOf = (engine: any): string[] => engine.store.state.$messages.sessions;
+    const itemsOf = (engine: any): any[] => engine.store.state.$messages.items;
+
+    test("complete ≡ stop：完成态进度 100 并按 delayClose 收口", async () => {
+        const { engine } = setup();
+        const t = engine.messages.show({ title: "t", type: "task", delayClose: 60 });
+        t.start();
+        t.complete(); // 显式别名
+        await nextTick();
+        expect(t.el!.querySelector(".autospark-message-progress-text")?.textContent).toBe("100%");
+        await sleep(120);
+        expect(t.closed).toBe(true);
+    });
+
+    test("创建即完成态：初始 progress 100 直接进入 delayClose 收口（factory return 完成卡配套）", async () => {
+        const { engine } = setup();
+        const t = engine.messages.show({ title: "done", type: "task", progress: 100, delayClose: 60 });
+        await nextTick();
+        expect(t.el!.querySelector(".autospark-message-progress-text")?.textContent).toBe("100%");
+        await sleep(130); // 未 start 也未 complete——初始完成态直接计时收口
+        expect(t.closed).toBe(true);
+    });
+
+    test("三控制钮（ADR-0088：task 模板分立按钮）：x-show 数据域驱动；@click 直调 session；不发 message:action（观测走 message:update）；取消 signal abort", async () => {
+        const { engine } = setup();
+        const actionLog: string[] = [];
+        const updateLog: number[] = [];
+        engine.on("message:action" as any, (e: any) => actionLog.push(e.payload.action.title));
+        engine.on("message:update" as any, () => updateLog.push(updateLog.length)); // payload.message 为会话（无 paused getter）——以事件计数断言
+        const t = engine.messages.show({
+            title: "下载", type: "task", delayClose: 0,
+            canPause: true, canCancel: true, canStop: true,
+        });
+        await nextTick();
+        const el = t.el!;
+        const opsOf = () => Array.from(el.querySelectorAll(".autospark-message-op")) as HTMLElement[]; // 控制钮（task 模板自带，非 actions 行）
+        expect(opsOf().length).toBe(3); // 三分立控制钮
+        expect(opsOf().map((b) => b.textContent)).toEqual(["暂停", "停止", "取消"]);
+        expect([t.canPause, t.canCancel, t.canStop]).toEqual([true, true, true]);
+        expect(t.signal).toBeTruthy(); // AbortSignal 暴露
+        // 暂停：@click 直调 session.pause()——不发 message:action，paused 投影经 message:update 可观测
+        click(opsOf().find((b) => b.textContent.includes("暂停"))!);
+        await nextTick();
+        expect(actionLog).toEqual([]); // 控制钮是行为不是 action（ADR-0088）
+        expect(updateLog.length).toBe(1); // paused 转换经 message:update 可观测
+        expect(opsOf()[0].textContent).toContain("恢复");
+        expect(t.read).toBe(true); // 卡片点击委托置已读（任意点击）
+        t.progress(50);
+        await nextTick();
+        expect(el.querySelector(".autospark-message-progress-text")?.textContent).toBe("0%"); // 闸门拦截
+        // 恢复：文案回「暂停」+ 推进恢复
+        click(opsOf()[0]);
+        await nextTick();
+        expect(updateLog.length).toBe(2); // resume 转换再发一次
+        expect(opsOf()[0].textContent).toContain("暂停");
+        t.progress(50);
+        await nextTick();
+        expect(el.querySelector(".autospark-message-progress-text")?.textContent).toBe("50%");
+        // 停止：完成态 → 控制钮行经 completed 投影 x-show 收起（display:none——行收起，按钮仍在行内）
+        click(opsOf().find((b) => b.textContent.includes("停止"))!);
+        await nextTick();
+        expect(el.querySelector(".autospark-message-progress-text")?.textContent).toBe("100%");
+        expect((el.querySelector(".autospark-message-ops") as HTMLElement).style.display).toBe("none");
+        t.remove();
+        // canCancel：点「取消」→ 卡关 + signal abort（协作取消信号）
+        const c = engine.messages.show({ title: "c", type: "task", delayClose: 0, canCancel: true, pos: "bottom-right" });
+        await nextTick();
+        let aborted = false;
+        c.signal!.addEventListener("abort", () => (aborted = true));
+        click(Array.from(c.el!.querySelectorAll(".autospark-message-op")).find((b) => b.textContent.includes("取消"))!);
+        fireCardEnd(c.el!);
+        expect(aborted).toBe(true);
+        expect(c.closed).toBe(true);
+        // 非 task 携带三键 → 不再 warn（ADR-0088 整包直传）
+        const warns = hijackWarns(engine, () => {
+            engine.messages.add({ title: "n", canPause: true, delayClose: 0, pos: "bottom-left" });
+        });
+        expect(warns.length).toBe(0);
+        engine.messages.clear(false);
+    });
+
+    test("respond(id, value)：≡ yes()/点击按钮（同一闭环）；未命中 warn", async () => {
+        const { engine } = setup();
+        const p = engine.messages.show({ title: "q", type: "confirm", delayClose: 0 });
+        await nextTick();
+        const s = engine.messages.values().next().value as any;
+        const hit: any[] = [];
+        engine.on("message:action" as any, (e: any) => hit.push(e.payload.value));
+        engine.messages.respond(s.id, false);
+        await nextTick();
+        expect(hit).toEqual([false]);
+        expect(s.result).toBe(false);
+        expect(await p).toBe(false); // thenable 同路 resolve
+        expect(s.closed).toBe(true);
+        const warns = hijackWarns(engine, () => engine.messages.respond("nope", true));
+        expect(warns.some((w) => w.includes("未命中存活记录"))).toBe(true);
+    });
+
+    test("$messages.sessions：展示序 id 列表——入队即进、teardown 出、重显回；items 含隐藏（分工）", async () => {
+        const { engine } = setup({ messages: { showCount: 1, delayClose: 0 } });
+        const a = engine.messages.add({ title: "a", persist: 1 });
+        const b = engine.messages.add({ title: "b", persist: 1 }); // 满员排队（queued 也入列）
+        await nextTick();
+        expect(Array.from(sessionsOf(engine))).toEqual([a.id, b.id]);
+        a.hide();
+        fireCardEnd(a.el!);
+        await nextTick();
+        expect(Array.from(sessionsOf(engine))).toEqual([b.id]); // 隐藏出列
+        expect(itemsOf(engine).length).toBe(2); // items 数据全集（含隐藏）
+        expect(itemsOf(engine).find((r: any) => r.id === a.id).closed).toBe(true);
+        a.show(); // b 仍占坑 → a 排队，但重回展示序列
+        await nextTick();
+        expect(Array.from(sessionsOf(engine))).toEqual([b.id, a.id]);
+        a.remove();
+        b.remove();
+    });
+
+    test("factory 第二参 type（ADR-0083 修订）：挂起即子类（task 方法可用）；return type 冲突以声明为准；对象形态携带 warn 忽略", async () => {
+        const { engine } = setup();
+        let pending: any = null;
+        const s = engine.messages.add(async (session) => {
+            pending = session;
+            expect(typeof session.progress).toBe("function"); // 挂起即 Task 会话
+            await sleep(20);
+            return { title: "f", type: "notice" }; // 与声明冲突 → warn + 以 'task' 为准
+        }, "task");
+        expect(typeof (s as any).progress).toBe("function"); // 同步返回的也是 Task 实例
+        const warns: string[] = [];
+        const origWarn = engine.logger.warn;
+        engine.logger.warn = (...args: any[]) => warns.push(args.join(" "));
+        try {
+            await sleep(40);
+        } finally {
+            engine.logger.warn = origWarn;
+        }
+        await nextTick();
+        expect(s.type).toBe("task"); // 声明锁定
+        expect(engine.messages.get(s.id)).toBe(s);
+        expect(warns.some((w) => w.includes("不一致，以声明为准"))).toBe(true);
+        // 对象形态携带第二参：warn + 忽略（对象自带 type 字段）
+        const warns2 = hijackWarns(engine, () => {
+            engine.messages.add({ title: "obj", type: "notice", delayClose: 0, pos: "bottom-left" }, "task");
+        });
+        expect(warns2.some((w) => w.includes("仅对 factory 形态生效"))).toBe(true);
+        const obj = Array.from(engine.messages.values()).find((x: any) => x.type === "notice") as any;
+        expect(obj?.type).toBe("notice"); // 第二参未改对象的 type
+        s.remove();
+        obj?.remove();
+    });
+
+    test("task(factory)：快捷方式透传挂起 session 且为 Task 实例（factory 内可驱动进度）", async () => {
+        const { engine } = setup();
+        let held: any = null;
+        const t = engine.messages.task(async (session) => {
+            held = session;
+            expect(typeof session.progress).toBe("function"); // 挂起即 Task 会话（非基类）
+            await sleep(20);
+            return { title: "快捷任务", delayClose: 0 };
+        });
+        expect(held).toBe(t); // factory 收到的就是返回的同一实例
+        await sleep(40);
+        await nextTick();
+        expect(t.type).toBe("task");
+        t.start();
+        t.progress(30);
+        await nextTick();
+        expect(t.el!.querySelector(".autospark-message-progress-text")?.textContent).toBe("30%");
+        t.cancel();
+        fireCardEnd(t.el!);
+    });
+
+    test("factory(session) 挂起注入：update 缓存随 return 落地；挂起期 cancel 不弹", async () => {
+        const { engine } = setup();
+        let held: any = null;
+        const s = engine.messages.add(async (session) => {
+            held = session;
+            session.update({ level: "warn" }); // 挂起缓存
+            await sleep(20);
+            return { title: "迟到", delayClose: 0 };
+        });
+        expect(held).toBeTruthy(); // factory 收到挂起会话
+        expect(s.closed).toBe(true); // 挂起期（无 entry）
+        await sleep(40);
+        await nextTick();
+        expect(engine.messages.has(s.id)).toBe(true);
+        expect(s.el).toBeTruthy();
+        expect(s.el!.getAttribute("data-message-level")).toBe("warn"); // 缓存补丁落地
+        // 挂起期 cancel：resolve 后不弹
+        const s2 = engine.messages.add(async (session) => {
+            session.cancel();
+            return { title: "被取消", delayClose: 0 };
+        });
+        await sleep(20);
+        expect(engine.messages.has(s2.id)).toBe(false);
+        expect(cardOf()?.querySelector(".autospark-message-title")?.innerHTML).not.toContain("被取消");
+        s.remove();
+    });
+
+    test("class 面：toast/自定义 type 无 task 方法；task 有 complete；confirm 有 then", async () => {
+        const { engine } = setup();
+        const t = engine.messages.add({ title: "t", delayClose: 0 });
+        const n = engine.messages.add({ title: "n", type: "notice", delayClose: 0, pos: "bottom-right" });
+        const k = engine.messages.show({ title: "k", type: "task", delayClose: 0 });
+        const c = engine.messages.show({ title: "c", type: "confirm", delayClose: 0 });
+        expect(typeof (t as any).progress).toBe("undefined"); // 类型面 = 运行时面（ADR-0083）
+        expect(typeof (n as any).progress).toBe("undefined");
+        expect(typeof (k as any).complete).toBe("function");
+        expect(typeof (c as any).then).toBe("function");
+        expect(typeof t.update).toBe("function"); // 基类新面
+        k.cancel();
+        fireCardEnd(k.el!);
+        c.remove();
+        t.remove();
+        n.remove();
+    });
+});
+
+describe("presets 预设组件族（ADR-0083 → ADR-0088 内容归属）", () => {
+    test("全局组件表种子五件；base 有实体内容；task 自有布局（不继承 base，ADR-0088）", async () => {
+        const { engine } = setup();
+        const snap = (engine as any)._resolveGlobalComponent("autospark.messages.task");
+        expect(snap).toBeTruthy();
+        expect(snap.querySelector(".autospark-message-progress")).toBeTruthy(); // 进度槽（自有布局）
+        expect(snap.querySelector(".autospark-message-ops")).toBeTruthy(); // 三控制钮行（模板自带）
+        expect(snap.classList.contains("autospark-message-type")).toBe(false); // 不再继承 base（YAGNI 裁决）
+        // task 模板内 x-component 组合 actions 组件（ADR-0088 唯一公共复用件）
+        const host = Array.from(snap.querySelectorAll("div")).find((d) =>
+            d.hasAttribute("x-component:autospark.messages.actions"),
+        );
+        expect(host).toBeTruthy();
+        const base = (engine as any)._resolveGlobalComponent("autospark.messages.base");
+        expect(base?.classList.contains("autospark-message-type")).toBe(true); // 根保持 type 类
+        expect(base?.querySelector(".autospark-message-title")).toBeTruthy(); // ADR-0088：base 升格默认内容模板
+        expect(base?.querySelector("[x-slot]")).toBeTruthy(); // 继承覆盖出口保留（ADR-0081）
+        const actions = (engine as any)._resolveGlobalComponent("autospark.messages.actions");
+        expect(actions?.querySelector(".autospark-message-action")).toBeTruthy(); // 公共按钮行组件
+        // task 样式经 <style> 组件 scoped 提取（ADR-0083 修订；styles 形态 ComponentStyleDecl[]）
+        const decls = (engine as any).getGlobalComponentDef("autospark.messages.task")?.styles ?? [];
+        expect(decls.map((d: any) => d.css ?? "").join("")).toContain(".autospark-message-progress");
+        expect(decls.map((d: any) => d.css ?? "").join("")).toContain(".autospark-message-op");
+    });
+
+    test("scoped 样式二次实例化不丢失（ADR-0087 修订：def 级 scoped id）——进度条在第二张卡照常", async () => {
+        const { engine } = setup();
+        const trackH = () => {
+            const track = cardOf()?.querySelector(".autospark-message-progress-track") as HTMLElement | null;
+            return track ? getComputedStyle(track).height : "无track";
+        };
+        // 第一次：创建 → 关闭（teardown 引用归零移除 <style>）
+        const a = engine.messages.show({ title: "a", type: "task", delayClose: 0 });
+        await nextTick();
+        expect(trackH()).toBe("6px");
+        a.cancel();
+        fireCardEnd(a.el!);
+        expect(engine.messages.size).toBe(0);
+        // 第二次：重注入的样式须与本次实例的 data-cmp 属性同 id 命中（原 bug：按实例
+        // scope.id 打属性 + 按 defName 复用首实例选择器 → 二次起 [data-cmp-1] 永不命中）
+        const b = engine.messages.show({ title: "b", type: "task", delayClose: 0 });
+        await nextTick();
+        expect(trackH()).toBe("6px");
+        b.cancel();
+        fireCardEnd(b.el!);
+    });
+
+    test("无用户配置：task 走预设组件渲染进度槽（type 链默认指向 autospark.messages.<type>）", async () => {
+        const { engine } = setup();
+        const t = engine.messages.show({ title: "t", type: "task", delayClose: 0 });
+        await nextTick();
+        expect(cardOf()?.querySelector(".autospark-message-progress")).toBeTruthy();
+        t.cancel();
+    });
+
+    test("用户 components 同名覆盖预设：全局 toast 定制免配置", async () => {
+        const { engine } = setup({
+            components: {
+                "autospark.messages.toast": `<div class="my-global-toast"><b x-text="title"></b></div>`,
+            },
+        });
+        const t = engine.messages.add({ title: "覆盖", delayClose: 0 });
+        await nextTick();
+        expect(cardOf()?.querySelector(".my-global-toast")).toBeTruthy(); // 同名覆盖优先于种子
+        t.remove();
+    });
+
+    test("用户自定义 type 组件 inherit 官方 base：全局组件继承（ADR-0081 V1 边界修订）", async () => {
+        const { engine } = setup({
+            components: {
+                "my-notice": `<div x-define="my-notice" x-define:inherit="autospark.messages.base"><b class="inh" x-text="title"></b></div>`,
+            },
+            messages: { types: { notice: { render: "my-notice" } } },
+        });
+        const n = engine.messages.add({ title: "继承", type: "notice", delayClose: 0 });
+        await nextTick();
+        const el = cardOf()!;
+        expect(el.querySelector(".inh")).toBeTruthy(); // 子覆盖段
+        expect(el.querySelector(".autospark-message-type")).toBeTruthy(); // 父根结构（base 骨架）
+        n.remove();
     });
 });

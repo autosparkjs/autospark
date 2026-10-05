@@ -59,7 +59,7 @@
 `x-import` 编译期尽早发起 fetch（priority = 75，先于 `x-component` 的 70），但网络到达仍是异步的：
 
 1. `x-component:名称` 实例化时组件未就绪 → 宿主挂 **loading 占位**（`x-loading` 机制）；
-2. fetch 完成、组件注册 → 广播 `component/registered`；
+2. fetch 完成、组件注册 → 发出 `components/<名>/registered`（retain，ADR-0085）；
 3. pending 的 `x-component` 监听到目标名就绪 → 移除占位、自动重试实例化。
 
 <demo html="component/import.html"/>

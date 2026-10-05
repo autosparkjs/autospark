@@ -1,5 +1,12 @@
 # 查找组件
 
+「找到组件」在引擎里是**两个问题**，共用一套词汇但机制互不相干：
+
+- **查找组件声明**（本章第一节）：`<div x-define="counter">` 这份声明挂在哪里、`x-component:counter` / `x-dialog` 等消费者如何按名取到它——决定声明的**可见范围**与**可用时机**；
+- **获取组件实例**（本章第二节）：组件实例化之后，页面脚本如何拿到**这个实例**——调它的方法、读写它的数据——入口是 `engine.getComponent(el)`。
+
+## 查找组件声明
+
 `x-component:counter` 实例化（或 `x-dialog` 等消费者取用）时，引擎如何找到 `<div x-define="counter">` 这份声明？答案是两个**互相独立**的协议：
 
 - **归属**（编译期）：每份 `x-define` 声明挂到哪个 scope——由**声明的位置**决定；
@@ -7,9 +14,9 @@
 
 二者共同决定了「声明的可见范围」与「声明的可用时机」。理解这一节，就能回答诸如「声明写在这里能不能被找到」的一类问题。
 
-## 查找链：就近向上 + 全局兜底
+### 查找链：就近向上 + 全局兜底
 
-消费者（`x-component` / `x-dialog` / `x-loading` 等）经 `getComponent(名称)` 取组件，查找顺序固定：
+消费者（`x-component` / `x-dialog` / `x-loading` 等）经 `getComponentDeclaration(名称)` 取组件，查找顺序固定：
 
 ```
 消费元素自身的 scope
@@ -46,7 +53,7 @@
 | `x-component` | 显示 loading 占位，监听组件就绪（`x-import` 加载完成）后自动重试 |
 | `x-dialog` 等覆盖物 | `warn` + 等待；visible 仍为真时 `x-import` 就绪会自动打开 |
 
-## 归属：挂最近祖先 scope
+### 归属：挂最近祖先 scope
 
 `x-define` 在编译期被前置收集：从声明元素**向上找最近的带 scope 祖先**，冻结快照挂到它的 `components` 上，然后从渲染树摘除。规则：
 
@@ -70,7 +77,7 @@
 纯容器 `<div>` 默认不建 scope。要在一个「无任何指令的容器」上提供归属锚点，`x-scope` 是最轻的声明（零副作用的纯占位指令）。
 :::
 
-## 声明位置决定可见范围
+### 声明位置决定可见范围
 
 把两个协议合在一起，常见声明位置的查找结果如下：
 
@@ -82,7 +89,7 @@
 | 嵌套 `x-define` 内 | 外层组件的实例 scope | 仅外层组件实例内部（[私有子组件](../directives/x-define.md#嵌套私有子组件)） |
 | 无带 scope 的祖先 | 无处归属 | `warn` + 丢弃 |
 
-### 推荐形态：声明在消费之外、之前
+#### 推荐形态：声明在消费之外、之前
 
 声明是「模板供体」，与消费位置**分离**是推荐写法——兄弟位或祖先位均可，且放在消费**之前**（文档序）：
 
@@ -103,7 +110,7 @@
 
 覆盖物（`x-dialog` / `x-popup` 等）的组件渲染目的地是 `document.body` 下的容器——**实例化位置与声明处的 DOM 位置无关**，声明不必（也不应）塞进触发按钮里。
 
-### 特殊形态：声明在消费宿主子树内
+#### 特殊形态：声明在消费宿主子树内
 
 把 `x-define` 写进消费元素内部（如触发按钮的子级），**机制上能查到**——宿主元素因带指令而建 scope，对子级 `x-define` 而言它就是最近祖先，声明恰好挂在消费自身的 scope 上，查找第一跳即命中。但有两个边界，**不推荐**这种写法：
 
@@ -125,7 +132,7 @@
 
 声明处与消费处重合时，`dataContext` 的 `'declarer'`（声明处）与 `'host'`（消费处）两基准指向**同一个 scope**——同一份声明放在消费宿主内与放在外层容器，会产生不同的数据视图基准，而模板上没有任何显式标记区分。这也是「声明与消费分离」更可预期的原因之一。
 
-## 时序速查：声明的文档序
+### 时序速查：声明的文档序
 
 | 消费者类型 | 实例化时机 | 对声明文档序的要求 |
 |---|---|---|
@@ -134,8 +141,63 @@
 
 一句话：**编译期消费的，声明写在前；运行期消费的，何时声明都行**——统一按「声明在前」书写最省心。
 
-## 全局组件兜底
+### 全局组件兜底
 
-scope 链到顶未命中时，`getComponent` 兜底查构造选项 `options.components`（字符串模板，自动包装 + 懒预编译缓存）。全局组件与作用域组件经**同一条查找链**取用，消费者无需区分来源；局部同名就近遮蔽全局同名。详见[关于组件 → 全局组件](./index.md#全局组件)与[开发组件 → 全局组件自动包装](./develop.md#全局组件自动包装)。
+scope 链到顶未命中时，`getComponentDeclaration` 兜底查全局组件定义表（先查已登记的名，miss 再惰性读构造选项 `options.components` 的字符串模板，自动包装 + 懒预编译）。全局组件与作用域组件经**同一条查找链**取用，消费者无需区分来源；局部同名就近遮蔽全局同名。详见[关于组件 → 全局组件](./index.md#全局组件)与[开发组件 → 全局组件自动包装](./develop.md#全局组件自动包装)。
 
-动态注册（运行时增补组件）不走 `options.components`（构造期配置语义），用 [`x-import`](./remote.md) 远程加载——它触发的就绪信号正是上表「未命中等待」的唤醒来源。
+动态注册（运行时增补组件）不走 `options.components`（构造期配置语义），用 [`engine.registerComponent`](./runtime.md) 或 [`x-import`](./remote.md) 远程加载——x-import 触发的就绪信号正是上表「未命中等待」的唤醒来源。`registerComponent` 的归属三态（`scope` / `el` / 全局）、严格单根契约、覆盖与继承挂起语义详见[运行时创建组件](./runtime.md)。
+
+## 获取组件实例
+
+上一节回答「声明怎么被找到」；这一节回答另一半：**组件实例化之后，页面脚本如何拿到这个实例**——比如从业务代码或控制台里让某个组件 +1、读它的当前状态、在测试里驱动它。
+
+### engine.getComponent(el)
+
+自**任意元素**沿 DOM 链向上找**最近的组件实例**，返回与组件内 `this` 同构的门面对象（`ComponentInstance`）：
+
+```html
+<div x-scope>
+    <div x-define="counter">
+        <span x-text="count"></span>
+        <script setup>
+            { data: { count: 1 }, methods: { inc() { this.data.count++ } } }
+        </script>
+    </div>
+    <div id="host" x-component:counter></div>
+</div>
+```
+
+```javascript
+const inst = engine.getComponent(document.querySelector("#host"));
+
+inst.name;              // "counter"（x-component:名称 的属性参数）
+inst.data.count;        // 1（聚合数据视图，响应式、可写）
+inst.methods.inc();     // 调组件方法——与组件内 this.inc() 同一 this 绑定
+inst.data.count = 100;  // 外部改数据，组件自动刷新
+```
+
+**就近即止**：传嵌套组件的内部元素返回**内层**实例——「这个元素属于哪个组件」的自然语义。不必精确传到 `x-component` 宿主，组件内任意元素都能反查；元素在任何组件之外时返回 `undefined`。
+
+<demo html="component/instance.html"/>
+
+### 门面字段：实例就是组件外的 this
+
+| 字段 | 语义 |
+| --- | --- |
+| `el` | 实例根元素（宿主化身组件根） |
+| `name` | 组件名（`x-component:名称` 的属性参数） |
+| `data` | 聚合数据视图（自有 data+props → 祖先近层 → 全局 state），响应式、可写 |
+| `props` | `data` 的完全等价别名 |
+| `globalState` | 全局状态（`engine.state`）——聚合视图同名键遮蔽时取全局值的明确通道 |
+| `methods` | 组件方法的 this 绑定代理——`inst.methods.inc()` 与组件内 `this.inc()` 行为一致 |
+| `scope` | 实例 scope 逃生舱（`this.scope` 同款；内部对象，字段布局非公开契约） |
+
+与[组件间通讯](./communication.md)的关系：通讯文档里 `this.data` / `this.globalState` 的全部约定，在组件外拿到实例后**原样成立**——门面就是「组件外的 this」。
+
+### 覆盖物不走此通道
+
+覆盖物（`x-dialog` / `x-popup` 等）的实例渲染在 `document.body` 下的容器——**触发按钮的 DOM 链通不到实例**，`getComponent(el)` 对覆盖物恒为 `undefined`。命令式操控覆盖物用 `engine.getOverlay(el, name)` 返回的句柄（`open()` / `close()` 等），详见[覆盖物](../overlays.md)。
+
+### 组件内不需要「获取」
+
+组件**内部**天然持有实例：methods / 钩子里的 `this` 就是（见[响应式数据](./data.md)）。跨组件联动优先走全局 state / 事件总线（[组件间通讯](./communication.md)）——拿实例是**命令式场景**（外部脚本驱动、调试探查、测试）的工具。

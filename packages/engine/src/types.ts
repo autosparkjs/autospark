@@ -1,13 +1,8 @@
-import type { AutoStore, AutoStoreOptions, Dict, FastEvent } from "autostore";
+import type { AnyAutoStore, AutoStoreOptions, Dict, FastEvent } from "autostore";
 import type { ActionDecl } from "./actions/types";
 import type { TooltipOptions } from "./tooltip/types";
 import type { MessageOptions, AutoSparkMessageSession } from "./messages/types";
 import type { AutoSparkScope } from "./scope";
-
-/**
- * AutoStore 任意类型
- */
-export type AnyAutoStore = AutoStore<any, any>;
 
 /**
  * 指令接口
@@ -155,9 +150,9 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
     /**
      * 全局组件表（ADR-0022）：声明全引擎复用的命名组件（字符串入参，懒预编译缓存）。
      *
-     * 作为 `scope.getComponent` 查找链的**终点兜底**——scope 链无命中时查此。与局部组件
-     * （x-define 声明、入参为 DOM）经同一条 `getComponent` 链统一取用。供 x-loading 等内置
-     * 消费者定制其默认 UI（如 `getComponent("loading")`）。详见 ADR-0022。
+     * 作为 `scope.getComponentDeclaration` 查找链的**终点兜底**——scope 链无命中时查此。与局部组件
+     * （x-define 声明、入参为 DOM）经同一条 `getComponentDeclaration` 链统一取用。供 x-loading 等内置
+     * 消费者定制其默认 UI（如 `getComponentDeclaration("loading")`）。详见 ADR-0022。
      */
     components?: Record<string, any>;
     /**
@@ -177,9 +172,9 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      **构造期固化**：运行时突变不失效缓存（注册与选择分离——运行时换 shell 走消费者
      * 选择器，如 `messages.shell` 直写换键对后续操作生效）。
      *
-     * 解析链（消费者选项 shell 名 → getComponent 链（scope 局部 → `options.components`）→
+     * 解析链（消费者选项 shell 名 → getComponentDeclaration 链（scope 局部 → `options.components`）→
      * 本表 → 消费者内置默认）。只收外壳语义组件（出口协议 + 公共骨架）——loading 块 /
-     * error 组件 / tree-node / 消息 kind renderer 不入此表。
+     * error 组件 / tree-node / 消息 type renderer 不入此表。
      *
      * @default 内置四件种子 { message, dialog, popover, drawer }
      */
@@ -275,7 +270,7 @@ export interface AutoSparkEvents {
         action: { title: string; hide: boolean };
         value?: any;
     };
-    // ── toast:* 轻提示旧事件（ADR-0068 决策 17；ADR-0071 迁移期兼容——kind='toast' 双发，随别名退役） ──
+    // ── toast:* 轻提示旧事件（ADR-0068 决策 17；ADR-0071 迁移期兼容——type='toast' 双发，随别名退役） ──
     /** 轻提示显示（payload：toast = 任务句柄，el = 卡片根元素） */
     "toast:show": { toast: AutoSparkMessageSession; el: HTMLElement | null };
     /** 轻提示隐藏（一切移除路径均广播：自动关闭 / hide() / clear() / 原地更新替换 / destroy） */
@@ -303,9 +298,14 @@ export interface AutoSparkEvents {
     /** patch 后 */
     "patch/after": { id: number };
 
-    // ── component/** 组件注册（ADR-0022，供 x-component 监听异步 x-import 就绪） ──
-    /** 组件注册（x-import fetch 完成注册后广播；name=组件名，供 pending 的 x-component 重新实例化） */
-    "component/registered": { name: string; global: boolean };
+    // ── components/<名>/registered 组件注册（ADR-0085 按名动态键 + retain 保留事件） ──
+    /**
+     * 组件注册成功广播：事件键 = `components/${组件名}/registered`，五条注册路径（本地 x-define /
+     * 继承解析 / x-import 远程 / 全局组件懒预编译首解析）成功即发，载荷 `{ name, global }`。
+     * **retain**——订阅晚于注册也立即补发（组件依赖方不漏听）；通配符订阅即补发全部已注册名。
+     * 发射处 `as any`（`directive/*` 同法）；旧单数全局事件 `component/registered` 已移除（硬切）。
+     */
+    "components/*/registered": { name: string; global: boolean };
 
     // ── render/** 调度 flush（热路径，emit 按 type 门控） ──────
     /** flush 前 */
@@ -325,10 +325,9 @@ export interface AutoSparkEvents {
     "actions/*/rejected": { name: string; error: any };
 }
 
+export type AutoSparkPresetVars = {
+    version?: string;
+    language?: string;
+};
 
-export type AutoSparkPresetVars={
-    version?:string
-    language?:string
-}
-
-export type AutoSparkVars = Record<string,any> & AutoSparkPresetVars
+export type AutoSparkVars = Record<string, any> & AutoSparkPresetVars;

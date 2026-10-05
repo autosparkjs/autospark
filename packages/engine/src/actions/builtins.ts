@@ -17,14 +17,14 @@
  * `toast` / `confirm` / `task` 是**配套 action 三件套**（ADR-0071 决策 22/23，执行型——
  * 与 Message API 配套，依赖 engine 实例，handle 在 `registerBuiltinActions` 内经 engine 参数
  * 绑定）：DOM 处使用时**自动注入 `anchor = 发起元素`**（AutoSparkActionContext.el，经
- * buildAction 包装的 this 传入）——结果/进度事件以发起子树回流（决策 14 职责②），kind render
- * 组件获得发起域数据视图（职责③）；编程式 API（engine.messages.add 等）无注入（anchor 仅
- * API 显式传时生效）。
+ * buildAction 包装的 this 传入）——结果/进度事件以发起子树回流（决策 14 职责②），type
+ * renderer 组件获得发起域数据视图（职责③）；编程式 API（engine.messages.add 等）无注入
+ * （anchor 仅 API 显式传时生效）。
  */
 import type { AutoSpark } from "../engine";
 import type { MessageProps } from "../messages/types";
 import { buildAction, type ActionEmit } from "./buildAction";
-import type { ActionDecl, ActionDesc } from "./types";
+import type { ActionDecl, AutoSparkAction } from "./types";
 
 /** 内置 action 表值形态：string = 纯信号（标题，handle 透传首参）；对象 = 自带执行体 */
 type BuiltinActionSpec = string | { title: string; handle?: (payload?: any) => any };
@@ -54,7 +54,7 @@ export const BUILTIN_ACTIONS: Record<string, BuiltinActionSpec> = {
 };
 
 /** 构造单个内置 action 描述符（信号型）：默认 handle 透传首参 + `title` + `builtin: true` 标记 */
-export function createBuiltinAction(name: string, spec: BuiltinActionSpec, emit: ActionEmit): ActionDesc {
+export function createBuiltinAction(name: string, spec: BuiltinActionSpec, emit: ActionEmit): AutoSparkAction {
     const normalized = typeof spec === "string" ? { title: spec } : spec;
     return buildAction(emit, {
         handle: normalized.handle ?? ((payload?: any) => payload),
@@ -91,7 +91,7 @@ export function registerBuiltinActions(
     for (const [name, spec] of Object.entries(BUILTIN_ACTIONS)) {
         if (name in target) continue;
         if (engine && name === "toast") {
-            // toast（决策 3 别名 + 决策 23）：payload = 字符串 | props → add({kind:'toast',...})，
+            // toast（决策 3 别名 + 决策 23）：payload = 字符串 | props → add({type:'toast',...})，
             // anchor 注入发起元素（显式传的 anchor 优先）
             target[name] = createBuiltinAction(
                 name,
@@ -100,7 +100,7 @@ export function registerBuiltinActions(
                     handle: function (this: unknown, payload?: any) {
                         const props: MessageProps =
                             typeof payload === "string" ? { title: payload } : { ...(payload ?? {}) };
-                        if (props.kind == null) props.kind = "toast";
+                        if (props.type == null) props.type = "toast";
                         if (props.anchor == null) props.anchor = triggerAnchor(this) ?? undefined;
                         return engine.messages.add(props);
                     },
@@ -123,7 +123,7 @@ export function registerBuiltinActions(
                         if (rest.anchor == null) rest.anchor = triggerAnchor(this) ?? undefined;
                         return engine.messages.show({
                             ...(rest as MessageProps),
-                            kind: "confirm",
+                            type: "confirm",
                             delayClose: (rest as MessageProps).delayClose ?? 0, // sticky：永不自动关
                             actions: [
                                 { title: (yes as string) ?? "确定", value: true },
@@ -135,7 +135,7 @@ export function registerBuiltinActions(
                 emit,
             );
         } else if (engine && name === "task") {
-            // task（决策 23）：payload → show({kind:'task'})；Task 会话经返回值与
+            // task（决策 23）：payload → show({type:'task'})；Task 会话经返回值与
             // actions/task/resolved 广播 payload 交付（进度推进仍为编程式）
             target[name] = createBuiltinAction(
                 name,
@@ -144,7 +144,7 @@ export function registerBuiltinActions(
                     handle: function (this: unknown, payload?: any) {
                         const props: MessageProps =
                             typeof payload === "string" ? { title: payload } : { ...(payload ?? {}) };
-                        props.kind = "task";
+                        props.type = "task";
                         if (props.anchor == null) props.anchor = triggerAnchor(this) ?? undefined;
                         return engine.messages.show(props);
                     },

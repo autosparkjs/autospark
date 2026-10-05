@@ -44,7 +44,7 @@
  * （消除 unhandled rejection）。两者互斥（async 函数体 throw 被包装为 rejected promise）。
  */
 
-import type { ActionDesc } from "./types";
+import type { AutoSparkAction } from "./types";
 
 /** 总线广播函数类型：emit `actions/<name>/<verb>`（调用点绑 engine.emit）。 */
 export type ActionEmit = (type: string, payload: Record<string, any>) => void;
@@ -58,7 +58,7 @@ export type ActionEmit = (type: string, payload: Record<string, any>) => void;
  * @param local  局部 action（scope.actions）：只 DOM 冒泡、不进总线（ADR-0012，默认 false=全局）
  * @returns 同一 descriptor（handle 已替换为包装后版本）
  */
-export function buildAction(emit: ActionEmit, desc: ActionDesc, local = false): ActionDesc {
+export function buildAction(emit: ActionEmit, desc: AutoSparkAction, local = false): AutoSparkAction {
     // 防御性防重包装：handle 已包装直接返回。正常路径（ActionManager._normalize）对已包装
     // 描述符先解包（__rawAction）再以本次注册键重包装，不经此分支；此处兜底直接调用方。
     if ((desc.handle as any).__buildActionWrapped) return desc;

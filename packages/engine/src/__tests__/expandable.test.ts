@@ -15,7 +15,9 @@ import { mount, nextTick, finishAnim } from "./helpers";
  * 宿主样式契约（static 补 relative / overflow 非 visible 检测 warn）、把手显隐
  * （showTrigger 三态：默认 hover / always / 非法回退）、渐变遮盖（fadeSize 启用标记
  * 与厚度变量 / data-shrunk 收缩态钩子 / 非法回退）、把手偏移（offset 三形态与两态
- * 定位规则的跨轴符号契约）。
+ * 定位规则的跨轴符号契约）、内建单边 resize（修饰符启用 / 尺寸真相接管 / 退化矩阵 /
+ * 约束钳制，与把手同骑边线的层级协调：data-resize 标记与把手压手柄之上、手柄 hover
+ * 桥接触发显形）。
  *
  * 约定：happy-dom 无布局——滑出距离走 inline 数值优先路径（模板给宿主 inline 尺寸），
  * 动画结束用 finishAnim 手动派发 transitionend（helpers 惯例）。
@@ -883,5 +885,54 @@ describe("内建单边 resize（ADR-0072）", () => {
         const e = host.querySelector<HTMLElement>('[data-autospark-resize-handle="e"]')!;
         dragHandle(e, -100);
         expect(host.style.width).toBe("240px"); // minWidth 钳制（200-100 → 240 下限）
+    });
+
+    test("把手压手柄之上：宿主挂 data-resize + 样式表抬 z 至手柄（10）之上", () => {
+        // 同骑活动边线的两层交互元素：手柄带 z10 全长覆盖边线，压住 z5 把手会让调节线
+        // 横穿把手圆面、把手圆面区命中被拦（hover 模式把手不可见 → 折叠不可点）
+        mountExpandable(tmpl(`x-expandable-options="{resize: true}"`), { ui: { open: true } });
+        const host = hostOf(roots[roots.length - 1] as HTMLElement);
+        expect(host.hasAttribute("data-resize")).toBe(true);
+        const css = document.getElementById("autospark-expandable-styles")!.textContent!;
+        expect(css).toContain(".autospark-expandable[data-resize]>.autospark-expandable-trigger{z-index:11;}");
+        // 未启用 resize 的宿主不挂标记（层级规则不误伤无手柄形态）
+        mountExpandable(tmpl(), { ui: { open: true } });
+        expect(hostOf(roots[roots.length - 1] as HTMLElement).hasAttribute("data-resize")).toBe(
+            false,
+        );
+    });
+
+    test("手柄 hover 桥接触发显形把手（data-edge-hover 统一契约）", async () => {
+        // 感应边条（z4）被手柄带（z10）完全盖住收不到 hover——感应由手柄转译，
+        // 否则 hover 模式「移到边线即见把手」失效（把手只剩不可见的命中）
+        mountExpandable(tmpl(`x-expandable-options="{resize: true}"`), { ui: { open: true } });
+        await nextTick();
+        const root = roots[roots.length - 1] as HTMLElement;
+        const host = hostOf(root);
+        const t = triggerOf(root)!;
+        const e = host.querySelector<HTMLElement>('[data-autospark-resize-handle="e"]')!;
+        expect(t.hasAttribute("data-edge-hover")).toBe(false);
+        e.dispatchEvent(new MouseEvent("mouseenter", { bubbles: false }));
+        expect(t.hasAttribute("data-edge-hover")).toBe(true);
+        e.dispatchEvent(new MouseEvent("mouseleave", { bubbles: false }));
+        expect(t.hasAttribute("data-edge-hover")).toBe(false);
+        // 键盘聚焦同桥（手柄 tabIndex=0 可达）
+        e.dispatchEvent(new FocusEvent("focus"));
+        expect(t.hasAttribute("data-edge-hover")).toBe(true);
+        e.dispatchEvent(new FocusEvent("blur"));
+        expect(t.hasAttribute("data-edge-hover")).toBe(false);
+    });
+
+    test("enable:false 退化形态（无把手）：data-resize 仍挂、不建桥接监听", async () => {
+        mountExpandable(tmpl(`x-expandable-options="{enable: false, resize: true}"`), {
+            ui: { open: true },
+        });
+        await nextTick();
+        const root = roots[roots.length - 1] as HTMLElement;
+        const host = hostOf(root);
+        expect(host.hasAttribute("data-resize")).toBe(true);
+        expect(triggerOf(root)).toBeNull();
+        const e = host.querySelector<HTMLElement>('[data-autospark-resize-handle="e"]')!;
+        expect(() => e.dispatchEvent(new MouseEvent("mouseenter"))).not.toThrow();
     });
 });

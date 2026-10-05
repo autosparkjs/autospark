@@ -2,37 +2,37 @@
 <html lang="zh-CN">
     <head>
         <meta charset="UTF-8" />
-        <title>messages · 全局默认与 kinds</title>
+        <title>messages · 全局默认与 types</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
     <body>
-        <!-- 四层合并链：内置默认 < options.messages < kinds[kind] < 单次 props。
-             kind 是给每类消息定默认值的钩子——同一次 add 只给 kind，其余走层叠默认。 -->
+        <!-- 四层合并链：内置默认 < options.messages < types[type] < 单次 props。
+             type 是给每类消息定默认值的钩子——同一次 add 只给 type，其余走层叠默认。 -->
         <div class="demo-app section">
             <div class="block">
-                <button class="button" onclick="app.messages.add({ title: '默认 toast（3 秒）' })">kind 缺省（toast）</button>
-                <button class="button is-info" onclick="app.messages.add({ title: '站点通知', kind: 'notice' })">
-                    kind: notice（sticky + 可关闭）
+                <button class="button" onclick="app.messages.add({ title: '默认 toast（3 秒）' })">type 缺省（toast）</button>
+                <button class="button is-info" onclick="app.messages.add({ title: '站点通知', type: 'notice' })">
+                    type: notice（sticky + 可关闭）
                 </button>
-                <button class="button is-warning" onclick="app.messages.add({ title: '记得续费', kind: 'remind' })">
-                    kind: remind（默认 warn 色）
+                <button class="button is-warning" onclick="app.messages.add({ title: '记得续费', type: 'remind' })">
+                    type: remind（默认 warn 色）
                 </button>
-                <button class="button is-dark" onclick="app.messages.add({ title: '单次覆盖 kind 默认', kind: 'notice', delayClose: 1500, type: 'success' })">
-                    单次 props 压过 kinds
+                <button class="button is-dark" onclick="app.messages.add({ title: '单次覆盖 type 默认', type: 'notice', delayClose: 1500, level: 'success' })">
+                    单次 props 压过 types
                 </button>
             </div>
             <div class="block has-text-grey">
                 notice 默认 <code>delayClose: 0</code>（sticky）+ <code>closable: true</code>；remind 默认
-                <code>type: "warn"</code>——第四个按钮用单次 props 覆盖 kinds 层，观察 1.5 秒自动关与 success 色。
+                <code>level: "warn"</code>——第四个按钮用单次 props 覆盖 types 层，观察 1.5 秒自动关与 success 色。
             </div>
         </div>
         <script>
             const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {}, {
                 messages: {
-                    kinds: {
+                    types: {
                         notice: { delayClose: 0, closable: true }, // 通知：sticky + 手关
-                        remind: { type: "warn" },                  // 提醒：默认警示色
+                        remind: { level: "warn" },                  // 提醒：默认警示色
                     },
                 },
             });

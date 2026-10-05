@@ -9,7 +9,7 @@ import { relaxedToJson } from "../../utils/relaxedToJson";
 import { queryRelElement } from "../../utils/queryRelElement";
 import { parseHtmlFragment } from "../../utils/transformElement";
 import { buildAction } from "../../actions/buildAction";
-import type { ActionDesc } from "../../actions/types";
+import type { AutoSparkAction } from "../../actions/types";
 import type { AutoSparkActionContext } from "./on/types";
 
 /**
@@ -144,7 +144,7 @@ let stylesInjected = false;
  * `message`(`x-text="message"`)。`color`/`message` 经块 data 响应式注入（见 {@link mountOverlay}）。
  *
  * **由 LoadingDirective 持有**（非 engine 注册表）——是「某指令自带的、可被全局/局部 loading 组件
- * 覆盖的默认实现」，不违反「引擎不预定义 UI 态名册」。消费者取组件 = `getComponent('loading') ?? DEFAULT_BLOCK`。
+ * 覆盖的默认实现」，不违反「引擎不预定义 UI 态名册」。消费者取组件 = `getComponentDeclaration('loading') ?? DEFAULT_BLOCK`。
  */
 const DEFAULT_BLOCK = `<div class="${OVERLAY_CLASS}">
   <div class="${BOX_CLASS}">
@@ -298,7 +298,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
     /** value 当前值的读取函数（路径支路 getVal / 表达式支路 with(state) 求值） */
     private _read!: () => any;
     /** 未注册名的合成透传 descriptor 缓存（按名复用，ADR-0038 决策 4；随实例生死） */
-    private _synthetics: Map<string, ActionDesc> = new Map();
+    private _synthetics: Map<string, AutoSparkAction> = new Map();
 
     /** 元素挂载（dispatcher 检测到 add / 初始扫描）：解析配置 + 字面量/反应式分流 + 首渲 */
     override mounted(): void {
@@ -554,7 +554,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
     }
 
     /**
-     * 解析进度条模式内置条模板（不走 `getComponent('loading')`——自定义组件的领域语义是
+     * 解析进度条模式内置条模板（不走 `getComponentDeclaration('loading')`——自定义组件的领域语义是
      * 「遮罩内容的替换」，条无内容可替换，故条模式**忽略自定义组件**，文档声明该边界）。
      * 与 {@link _resolveLoadingComponent} 的 DEFAULT_BLOCK 支路同构：字符串模板现解析取单根。
      */
@@ -571,7 +571,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
     /**
      * 构建并挂载覆盖层（= 编译后的组件根）到目标元素（ADR-0022 承接 ADR-0021 决策 12）。
      *
-     * 渲染统一走「编译组件」路径：取组件 = `getComponent('loading') ?? DEFAULT_BLOCK`，深克隆 → 经 compileChild
+     * 渲染统一走「编译组件」路径：取组件 = `getComponentDeclaration('loading') ?? DEFAULT_BLOCK`，深克隆 → 经 compileChild
      * 编译挂载（parentScope 为宿主 scope 使组件继承宿主数据上下文；**config 经 compileChild 第 5 参      * initialData 在 compile 前注入 data**，确保组件内 watch 首次求值即收集到 `$scopes.<id>.<field>`
      * 精准路径，后续 attrChanged 可字段级细粒度更新）→ 注入壳样式到组件根 → 挂到 target。
      *
@@ -623,7 +623,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
      */
     private _resolveLoadingComponent(): HTMLElement {
         if (this.el) {
-            const custom = this.engine.getComponent(this.el, "loading");
+            const custom = this.engine.getComponentDeclaration(this.el, "loading");
             if (custom) return custom;
         }
         // DEFAULT_BLOCK 字符串 → 解析取单根元素（parseHtmlFragment 已 trim，单顶级元素）
@@ -735,7 +735,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
      * `{name, title: name, handle: (p) => p}` 经 buildAction 包装（local=false → 总线 + DOM 双发），
      * 按名缓存复用。让未注册名同样走完整双通道广播——pending+resolved 同 tick、无 rejected。
      */
-    private _syntheticAction(name: string): ActionDesc {
+    private _syntheticAction(name: string): AutoSparkAction {
         let desc = this._synthetics.get(name);
         if (!desc) {
             desc = buildAction((type, payload) => this.engine.emit(type as any, payload), {

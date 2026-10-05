@@ -64,24 +64,24 @@
 ```html
 <!-- 字号、颜色、加粗均随 state 实时变化 -->
 <p
-    :style="{ color: theme.color, fontSize: theme.size + 'px', fontWeight: theme.bold ? '700' : '400' }"
+  :style="{ color: theme.color, fontSize: theme.size + 'px', fontWeight: theme.bold ? '700' : '400' }"
 >
-    文本
+  文本
 </p>
 ```
 
-### 过渡动画 .transition
+### 过渡动画
 
 给 `x-style` 加 `.transition` 修饰符，引擎会在每次写样式时注入一条 CSS `transition` 声明，让内联样式的变化被浏览器**自动过渡动画**——无需手写 `transition` 到样式对象里：
 
 <demo html="bind/style-transition.html"/>
 
 ```html
-<!-- 默认 transition:all 0.3s ease-in，尺寸/颜色变化自动过渡 -->
+<!-- 默认 transition:all 0.2s ease-in，尺寸/颜色变化自动过渡 -->
 <div x-style.transition="box.on ? box.big : box.small"></div>
 ```
 
-**默认值与覆盖**：`.transition`（无值）注入默认值 `all 0.3s ease-in`。要自定义，用 `x-bind-options` 传字符串（指令选项层显式优先于修饰符）：
+**默认值与覆盖**：`.transition`（无值）注入默认值 `all 0.2s ease-in`。要自定义，用 `x-bind-options` 传字符串（指令选项层显式优先于修饰符）：
 
 ```html
 <!-- 覆盖为 all 0.8s ease-out -->
@@ -95,7 +95,7 @@
 
 1. **样式对象自带的 `transition` key**（显式，最高）——对象里写了 `transition` 就用它；
 2. **指令配置**（`x-bind-options` 传字符串覆盖、或 `.transition` 注入的 `true`）；
-3. **默认值** `all 0.3s ease-in`（仅当 `.transition` 修饰符存在时）。
+3. **默认值** `all 0.2s ease-in`（仅当 `.transition` 修饰符存在时）。
 
 故对象里写 `transition:'none'` 可临时关掉某次动画；`x-bind-options="{transition:false}"` 可整条关闭注入。
 :::
@@ -104,14 +104,61 @@
 字符串写法走 `el.style.cssText = value` **整体替换**，会擦掉之前一次性写入的 `transition`。故 `.transition` 在每次 patch 内部合并注入，保证两种写法下都生效。详见 ADR-0015。
 :::
 
+### 全局样式
+
+::: tip 机制归属
+全局样式不是 `:style` 的能力，而是**组件 `<style>` 样式表**的 `global` 形态（`x-define` 内声明、注册期注入 `<head>`）。此处作速览导流，完整规则见[组件样式 · 全局样式](../component/styles.md#全局样式-style-global)。
+:::
+
+组件内的 `<style>` 默认只作用于本组件实例（scoped 隔离）。加 `global` 属性即切换为**全局注入**：不做 scoped 改写，组件**注册时**原样注入 `<head>`——页面里即使还没有任何实例，样式也已生效：
+
+```html
+<div x-define="card">
+  <div class="title" x-text="title"></div>
+  <style global>
+    .title {
+      color: #3273dc;
+      font-weight: 700;
+    }
+    .title:hover {
+      color: #23d160;
+    }
+  </style>
+</div>
+```
+
+注入结果（`<head>` 内）：
+
+```html
+<style id="autospark-styles">
+  .title {
+    color: #3273dc;
+    font-weight: 700;
+  }
+  .title:hover {
+    color: #23d160;
+  }
+</style>
+```
+
+**速览规则**：
+
+- **无 id**：多段（跨组件、同组件多个）合并进共享容器 `<style id="autospark-styles">`，按声明序追加；
+- **带 id**（`<style id="xx" global>`）：注入为独立容器 `<style id="xx">`，同 id 跨组件追加——可作共享主题样式池；
+- **移除时机**：`engine.destroy()` 只移除本 engine 贡献的段，运行期常驻；
+- **混用自由**：每个 `<style>` 标签独立分流——私有结构样式走 scoped（防泄漏），公共类 / `@keyframes` / 跨组件主题类走 global；
+- **局限**：`bind()` 响应式在 global 段不可用（warn + 原样保留），动态值回到 scoped 段 `bind()` 或本指令 `:style`。
+
+<demo html="component/global-style.html"/>
+
 其余边界（与插值的配合等）见 [x-bind · 绑定 style](./x-bind.md)。
 
 ## 配置选项
 
 下列配置项控制过渡动画注入。注意 `x-style` 归一化为 `bind`，**`x-style-options` 会被静默丢弃**——选项须写 `x-bind-options` 或宿主 `x-options`。
 
-| 配置项       | 默认值 | 修饰符      | 说明                                                                                                                                                                  |
-| ------------ | ------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 配置项       | 默认值 | 修饰符        | 说明                                                                                                                                                                                                                                  |
+| ------------ | ------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `transition` | 未启用 | `.transition` | 注入 CSS `transition` 让样式变化自动过渡。`.transition`（无值）注入默认 `all 0.3s ease-in`；`x-bind-options` 传字符串覆盖、显式 `false` 关闭。仅 `attr === 'style'` 消费。详见[过渡动画 .transition](#过渡动画-transition)与 ADR-0015 |
 
 ::: info 关于指令配置体系
@@ -122,4 +169,5 @@
 
 - `x-style` / `:style` / `x-bind:style` 三者**完全等价**，任选其一。
 - 对象 key 用驼峰，字符串用连字符。
+- `:style` 是**元素级内联样式**通道，与组件 `<style>` 样式表机制是一族互补能力：单元素动态值用 `:style`；组件私有样式走 `<style>`（scoped 隔离）、公共类 / `@keyframes` / 跨组件主题类走 `<style global>`（注册期注入 head）、组件级响应式 CSS 变量走 `<style>` 的 `bind()`。见[组件样式](../component/styles.md)。
 - 完整能力与边界见 [x-bind](./x-bind.md)。

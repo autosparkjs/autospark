@@ -1,8 +1,8 @@
 // oxlint-disable typescript/no-this-alias
 import type { AutoSpark } from "./engine";
 import type { ComponentHooks } from "./directives/component-def";
-import type { ActionDesc } from "./actions/types";
-import type { SlotContent } from "./utils/slot";
+import type { AutoSparkAction } from "./actions/types";
+import type { SlotContent, SuperInlet } from "./utils/slot";
 import { AutoSparkDirectiveBase } from "./directives/base";
 import { getVal, setVal, type Watcher } from "autostore";
 import { getDirectives, getHostOptions } from "./directives/utils/getDirectives";
@@ -221,7 +221,7 @@ export class AutoSparkScope {
      * `.handle(...)`。与 locals/data 同级参与 getAction 的 parent 链查找（子覆盖父，命中即止）；
      * scope destroy 时随 scope 对象回收，无需手动清理。null 表示本层无局部 action。
      */
-    actions: Record<string, ActionDesc> | null = null;
+    actions: Record<string, AutoSparkAction> | null = null;
     /**
      * 组件实例的生命周期钩子（ADR-0022 决策三）。
      *
@@ -256,14 +256,14 @@ export class AutoSparkScope {
      * **`default` 唯一性已放宽**（ADR-0022 决策四-4）：同名组件直接归属同一 scope 时 warn + 后者覆盖
      * （不再抛错）；沿 parent 链允许就近覆盖（内层遮蔽外层）。其他组件名自由、可多 scope 同名。
      *
-     * 消费者（x-loading/x-empty/x-error…）经 `getComponent(name)` 沿 parent 链就近取用
+     * 消费者（x-loading/x-empty/x-error…）经 `getComponentDeclaration(name)` 沿 parent 链就近取用
      * （到顶兜底全局组件），命中则替换默认 UI，未命中回退默认实现（组件兜底）。
      * 本字段**仅在收集到组件时才创建**，多数 scope 无组件 → null，避免给每个 scope 平白分配空对象（YAGNI）。
      */
     components: Record<string, HTMLElement> | null = null;
     /**
      * 图标域名字表（ADR-0058）：x-icons 声明收集产物——图标名 → 声明令牌条目。
-     * 后代 x-icon 沿 parent 链就近查找（内层遮蔽外层），到顶兜底全局注册表（与 getComponent
+     * 后代 x-icon 沿 parent 链就近查找（内层遮蔽外层），到顶兜底全局注册表（与 getComponentDeclaration
      * 同构）。多数 scope 无声明 → null（同 components，YAGNI）；销毁时随 iconTokens 回收。
      */
     icons: Map<string, ScopeIconEntry> | null = null;
@@ -320,6 +320,17 @@ export class AutoSparkScope {
      * `parent.getCallerContext()`（跳过组件 `_data`/边界，保留调用方 locals）。
      */
     isSlotContent = false;
+    /**
+     * super 句柄（ADR-0084）：插槽内容 scope 由出口 SlotDirective 编译内容时注入，
+     * 内容子树内的 x-super 标记沿 parent 链就近查找（`findSuperInlet`）。
+     *
+     * 三态：函数 = 命中（惰性编译本段 fallback）；`null` = 组件实例边界**遮蔽**
+     * （instantiateComponent/Detached 置位——嵌套组件模板不得沿链读到外层内容通道的
+     * 句柄）；`undefined` = 未设置（继续上溯）。判空用**值比较**（`!== undefined`）
+     * 而非自有键——TS 可选字段会被转译器物化为 `defineProperty undefined` 自有键，
+     * hasOwnProperty 无法区分「未设置」与「物化」。
+     */
+    superInlet?: SuperInlet | null;
     /** 缓存的聚合视图（命中优先级：locals > data > parent 链 > engine.state） */
     private _scopeView: any = null;
     /** 缓存的调用方视图（getCallerContext，组件/边界/declarer 三态；普通 scope 直接复用 getContext） */
@@ -521,7 +532,7 @@ export class AutoSparkScope {
      * 子 scope 同名 action 覆盖祖先（命中即止）。供 OnDirective 求值器（Action 优先策略）使用。
      * 返回 ActionDesc 描述符（ADR-0036），执行取 `.handle(...)`。
      */
-    getAction(name: string): ActionDesc | undefined {
+    getAction(name: string): AutoSparkAction | undefined {
         let s: AutoSparkScope | null = this;
         while (s) {
             if (s.actions && Object.prototype.hasOwnProperty.call(s.actions, name)) {
@@ -552,21 +563,24 @@ export class AutoSparkScope {
     }
 
     /**
-     * 沿 parent 链就近查找命名组件，到顶兜底全局组件（ADR-0022 决策五，承接 ADR-0021 决策 5/9）。
+     * 沿 parent 链就近查找命名组件**声明**，到顶兜底全局组件（ADR-0022 决策五，承接 ADR-0021 决策 5/9；
+     * 原名 `getComponent`，ADR-0080 更名——短名让位给实例读取 `engine.getComponent(el)`）。
      *
      * 消费者协议的核心查找：从本 scope 起，向上取首个含该名 component 的祖先 scope，
      * 命中即止（就近覆盖语义——内层 scope 的同名组件遮蔽外层、亦遮蔽全局）。scope 链无命中时
-     * 兜底查 `engine.options.components`（全局组件，字符串入参，懒预编译缓存），由 `engine.getComponent`
-     * 解析/包装/缓存。整条链（含全局）无命中返回 undefined，由消费者回退其默认实现（组件兜底）。
+     * 兜底查 `engine.options.components`（全局组件，字符串入参，懒预编译缓存），由
+     * `engine._resolveGlobalComponent` 解析/包装/缓存。整条链（含全局）无命中返回 undefined，
+     * 由消费者回退其默认实现（组件兜底）。
      *
      * 与 `getAction`/`getData` 的 parent 链查找范式同构（getAction 末端亦兜底 engine.actions）。
-     * 供 x-loading 等 Compile/Hybrid 消费指令经 `this.binding.getComponent(name)` 使用；Runtime 指令
-     * （无 binding）改用 `engine.getComponent(el, name)`（经 el 反查 scope 后委托本方法）。
+     * 供 x-loading 等 Compile/Hybrid 消费指令经 `this.binding.getComponentDeclaration(name)` 使用；
+     * Runtime 指令（无 binding）改用 `engine.getComponentDeclaration(el, name)`（经 el 反查 scope 后
+     * 委托本方法）。查**实例**（实例化后的组件）不经本方法，用 `engine.getComponent(el)`。
      *
      * @param name 组件名（消费者约定名，如 `loading`/`empty`/`error`；自由命名）
      * @returns 组件冻结快照 HTMLElement（未编译、保留指令属性），或 undefined（未命中）
      */
-    getComponent(name: string): HTMLElement | undefined {
+    getComponentDeclaration(name: string): HTMLElement | undefined {
         let s: AutoSparkScope | null = this;
         while (s) {
             if (s.components && Object.prototype.hasOwnProperty.call(s.components, name)) {
@@ -574,7 +588,7 @@ export class AutoSparkScope {
             }
             s = s.parent;
         }
-        // 兜底全局组件（懒预编译缓存，见 engine.getComponent 全局解析）
+        // 兜底全局组件（懒预编译缓存，见 engine._resolveGlobalComponent 全局解析）
         return this.engine._resolveGlobalComponent(name);
     }
 
@@ -648,8 +662,9 @@ export class AutoSparkScope {
      * - `scope` → 本 scope 实例
      * - `el` → 组件根元素（scope.el）
      * - `<method名>` → getMethod 命中（组件边界，支持 `this.inc()`/`this.other()` 直调互调）
-     * - `watch`/`read`/`getComponent` → scope 同名方法（bind scope）
+     * - `watch`/`read`/`getComponentDeclaration` → scope 同名方法（bind scope）
      * - `$parent` → 父组件实例的 Proxy（沿链最近 isComponent 祖先的 getMethodThis()，链式向上；无则 null）
+     * - `super` → 继承链父方法视图（ADR-0082：当前执行方法**声明层**的下一层方法集；非继承组件 undefined）
      * - 其余 → scope 原生（bind scope，让用户也能用 scope 其他能力）
      *
      * set 陷阱：框架引用键（data/props/globalState/engine/scope/el）禁止整体覆盖（warn + 忽略）；
@@ -659,10 +674,26 @@ export class AutoSparkScope {
      * 方法同名时用户 method 胜出（仅影响用户代码），不破坏引擎内部。
      */
     private _methodThis: any = null;
+    /** super 引用层表（ADR-0082）：[自身声明层 → 链根]，仅继承组件携带（initSuperLayers 注入） */
+    private _superLayers: Array<Record<string, (...args: any[]) => any>> | null = null;
+    /** 当前执行方法的声明层号（super 词法解析基准；方法置层包装器置位、finally 还原） */
+    private _superDepth = 0;
+    /** 按层号缓存的 super 视图（成员为置层包装函数） */
+    private _superViews: Record<number, any> = {};
+    /** 链根越界（super 之上无层）的空视图回退 */
+    private static readonly _EMPTY_SUPER_VIEW = Object.freeze({});
     getMethodThis(): any {
         if (this._methodThis) return this._methodThis;
         const scope = this;
-        const FRAMEWORK_KEYS = new Set(["data", "props", "globalState", "engine", "scope", "el"]);
+        const FRAMEWORK_KEYS = new Set([
+            "data",
+            "props",
+            "globalState",
+            "engine",
+            "scope",
+            "el",
+            "super",
+        ]);
         this._methodThis = new Proxy(scope, {
             get(_t, k: string | symbol) {
                 if (typeof k !== "string") return Reflect.get(scope, k);
@@ -681,6 +712,9 @@ export class AutoSparkScope {
                     case "$parent":
                         // 沿链找最近 isComponent 祖先的 Proxy（链式：其 get 陷阱递归处理 $parent）
                         return scope._parentComponentProxy();
+                    case "super":
+                        // super 引用（ADR-0082）：当前执行方法声明层的下一层方法集（精确词法链）
+                        return scope.getSuperView();
                     default:
                         break;
                 }
@@ -705,7 +739,7 @@ export class AutoSparkScope {
                 if (typeof k === "string" && k in view) {
                     return view[k];
                 }
-                // scope 原生方法/字段（watch/read/getComponent/getAction/...）
+                // scope 原生方法/字段（watch/read/getComponentDeclaration/getAction/...）
                 const native = Reflect.get(scope, k);
                 return typeof native === "function" ? (native as any).bind(scope) : native;
             },
@@ -759,10 +793,92 @@ export class AutoSparkScope {
     }
 
     /**
+     * super 引用初始化（ADR-0082）：`injectComponentSemantics` 注入层表时调用——挂层表并为
+     * 合并视图（`scope.methods`，已按实例克隆）上的每个方法装「置层」包装器（层表 findIndex
+     * 定声明层）。**所有入口**（代理互调 / `@click` / super 调用 / 引擎直调）统一经包装器，
+     * 这是 super 精确词法解析的唯一保证——父方法体内 `this.super` 解析到**其声明层**的下一层。
+     */
+    initSuperLayers(layers: Array<Record<string, (...args: any[]) => any>>): void {
+        this._superLayers = layers;
+        if (this.methods) {
+            for (const k of Object.keys(this.methods)) {
+                const idx = layers.findIndex((l) =>
+                    Object.prototype.hasOwnProperty.call(l, k),
+                );
+                if (idx >= 0) this.methods[k] = this._wrapSuperMethod(this.methods[k]!, idx);
+            }
+        }
+    }
+
+    /**
+     * super 视图（ADR-0082）：`this.super`（method this 代理）与门面 `instance.super` 的共同
+     * 读取入口——**当前声明层 + 1** 的方法集。方法执行栈外（门面调用 / hooks）当前层恒 0，
+     * 即直接父。非继承组件返回 undefined；越界（链根之上）返回冻结空对象。
+     */
+    getSuperView(): any {
+        if (!this._superLayers) return undefined;
+        return this._superViewAt(this._superDepth + 1);
+    }
+
+    /** 置层包装：调用前置当前声明层、finally 还原（异常路径也回栈）；this 恒绑本实例代理 */
+    private _wrapSuperMethod(fn: (...args: any[]) => any, layer: number): (...args: any[]) => any {
+        const scope = this;
+        return function (this: any, ...args: any[]) {
+            const prev = scope._superDepth;
+            scope._superDepth = layer;
+            try {
+                return fn.apply(scope.getMethodThis(), args);
+            } finally {
+                scope._superDepth = prev;
+            }
+        };
+    }
+
+    /** 按层号取（并缓存冻结）super 视图；越界返回冻结空对象（成员访问 undefined） */
+    private _superViewAt(idx: number): any {
+        if (!this._superLayers || idx < 0 || idx >= this._superLayers.length) {
+            return AutoSparkScope._EMPTY_SUPER_VIEW;
+        }
+        if (!(idx in this._superViews)) {
+            const layer = this._superLayers[idx]!;
+            const view: Record<string, any> = {};
+            for (const k of Object.keys(layer)) {
+                view[k] = this._wrapSuperMethod(layer[k]!, idx);
+            }
+            this._superViews[idx] = Object.freeze(view);
+        }
+        return this._superViews[idx];
+    }
+
+    /**
+     * 沿 parent 链就近查找 super 句柄（ADR-0084）：内容子树内 x-super 标记的触发通道。
+     *
+     * 沿链首个**值非 undefined** 的 `superInlet` 定论（函数命中 / null 遮蔽即止），
+     * undefined 继续上溯（含字段物化形态）；全链未设置返回 null（插槽内容之外，调用方 warn）。
+     * 组件实例边界由实例化管道显式遮蔽（置 null），嵌套组件模板内的 x-super 不穿透。
+     */
+    findSuperInlet(): SuperInlet | null {
+        let s: AutoSparkScope | null = this;
+        while (s) {
+            if (s.superInlet !== undefined) {
+                return s.superInlet ?? null;
+            }
+            s = s.parent;
+        }
+        return null;
+    }
+
+    /**
      * 创建指令实例（按优先级降序排列，大的先执行）。
      */
     private _createDirectives() {
         const directiveDefine = getDirectives(this.template as HTMLElement);
+        // 元素名形态指令（ADR-0084 首例 x-super）：元素名命中注册表 → 以无属性信息实例化
+        //（unshift 先行，createDirectives 内按 priority 统一重排；类须静态声明 elementName）
+        const elementDirective = this.engine.directives.findByElementName(
+            (this.template as HTMLElement).tagName,
+        );
+        if (elementDirective) directiveDefine.unshift({ name: elementDirective });
         // createDirectives 内部已按静态 priority 降序排列，无需在此再排序
         this.directives = createDirectives(this.engine, directiveDefine, this);
         // 元素级宿主选项（x-options）：解析挂 scope，供同元素指令经 getOption 回退读取（ADR-0007）

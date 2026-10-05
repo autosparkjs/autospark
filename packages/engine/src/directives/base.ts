@@ -104,6 +104,15 @@ export class AutoSparkDirectiveBase {
      * - x-component 的混合宿主冲突检测（ADR-0056 决策十修订）。
      */
     static readonly overlayConsumer: boolean = false;
+    /**
+     * 元素名形态声明（静态，ADR-0084 首例）：非 null 时该指令以**元素名**触发
+     * （如 `<x-super></x-super>`），无属性形态——scope 构造期经
+     * `DirectiveManager.findByElementName` 命中后以无属性信息实例化，
+     * 编译器快速路径（compileElement 无指令浅克隆）同步识别。
+     *
+     * 默认 null（属性形态指令）。元素名须为小写全串（HTML 元素名被 DOM 小写化）。
+     */
+    static readonly elementName: string | null = null;
 
     /**
      * 类级初始化钩子（静态，可选，所有 kind 通用）。

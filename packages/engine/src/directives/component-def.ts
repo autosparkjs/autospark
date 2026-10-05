@@ -106,7 +106,7 @@ export type ComponentHooks = Record<ComponentHookPhase, Array<() => void>>;
  * compiler 前置 transformer 命中 x-define 元素时，提取其 `<script setup>` / `<style>` 子节点、
  * 求值合并 setup、深克隆剩余 DOM 为冻结快照，组装成本对象。
  *
- * `getComponent(name)` 返回 HTMLElement 快照（保持 x-loading 等消费者契约不变）；ComponentDef 的额外
+ * `getComponentDeclaration(name)` 返回 HTMLElement 快照（保持 x-loading 等消费者契约不变）；ComponentDef 的额外
  * 元数据（setup/hooks/styles）经 engine 的 `_componentDefs`（WeakMap，以快照根为 key）反查，供 x-component
  * 实例化时取用。
  *
@@ -114,6 +114,23 @@ export type ComponentHooks = Record<ComponentHookPhase, Array<() => void>>;
  * `x-define="B"` 经 transformElement 再次命中收集器，B 归属到 **A 的实例 scope**
  * （`A实例scope.components`）——运行期 scope 链天然实现严格私有（U5=A），不需定义 scope 链。
  */
+/**
+ * 组件 `<style>` 声明段（ADR-0087）：每个 `<style>` 子节点一项，scoped/global 混排自由。
+ *
+ * - **scoped 段**（默认，无 `global` 属性）：`css` 为已提取 bind 后的改写文本，实例化期经
+ *   `rewriteScopedCss` 加 `[data-cmp-{id}]` 后缀注入（ADR-0022 决策四-4）；
+ * - **global 段**（`<style global>`）：注册期原样注入 head——`id` 缺省归共享容器
+ *   `autospark-styles`、声明 id 用独立容器（ADR-0087）；不做 scoped 改写、不参与 bind 提取。
+ */
+export interface ComponentStyleDecl {
+    /** 样式文本：scoped 段为已提取 bind 后的改写文本；global 段为原文 */
+    css: string;
+    /** `<style global>` 标记（全局注入形态） */
+    global?: boolean;
+    /** `<style id>` 声明的容器 id（仅 global 段携带；scoped 段忽略 id） */
+    id?: string;
+}
+
 export interface ComponentDef {
     /** 组件名（无值 x-define 取 "default"） */
     name: string;
@@ -123,8 +140,8 @@ export interface ComponentDef {
     setup: ComponentSetup | undefined;
     /** 合并后的钩子表（从 setup 提取，实例化时克隆到 scope.hooks）；无钩子时为 undefined */
     hooks: ComponentHooks | undefined;
-    /** 合并后的组件作用域 CSS 文本数组（每个 `<style>` 一项，**已提取 bind** 后的改写文本）；无 `<style>` 时为 undefined */
-    styles: string[] | undefined;
+    /** 合并后的组件样式声明段数组（每个 `<style>` 一项，scoped/global 混排，见 ComponentStyleDecl）；无 `<style>` 时为 undefined */
+    styles: ComponentStyleDecl[] | undefined;
     /**
      * 响应式 `<style>` bind 清单（ADR-0022 决策四-4.1）。
      *
@@ -160,4 +177,16 @@ export interface ComponentDef {
      * 声明侧不做运行时校验（首个出口胜出，重复者剥属性）。
      */
     slots?: string[];
+    /**
+     * 继承的父组件名（ADR-0081）：`x-define:inherit="父名"` 解析成功后记录——
+     * 供继承链环检测与调试反查；未声明 / 未解析（全局组件 V1 不参与继承）为 undefined。
+     */
+    inherit?: string;
+    /**
+     * 方法声明层表（ADR-0082 super 引用）：`[自身声明层 → 链根]` 升序，每层为该 def **自己声明**
+     * 的 methods 原始对象（非合并结果）。解析期随继承逐层拼接（独立父以其 `setup.methods` 为单层）；
+     * 非继承组件 / 全链无 methods 时为 undefined。实例化期挂 scope 驱动 `this.super` 的
+     * **精确词法解析**（super = 当前执行方法声明层的下一层）。
+     */
+    methodLayers?: Array<Record<string, (...args: any[]) => any>>;
 }

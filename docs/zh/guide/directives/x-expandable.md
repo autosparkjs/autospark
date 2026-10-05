@@ -75,13 +75,15 @@
 
 `offset` 为把手提供**跨轴额外偏移**（修正骑边位置）：`number`（px）/ CSS 长度串 / `calc()`/`var()` 表达式，**负值合法**——固定轴语义：`+` = 把手跨轴的正方向（`direction: 'left'/'right'` 时 = 向右、`'top'/'bottom'` 时 = 向下），`3px` 在现有位置上向右/下偏 3px、`-2px` 反向。展开态与滑出折叠终态（dock）两套定位规则分别消费（活动边翻边，符号逐方向固定，见实现样式表）。典型用途：组合方注入几何补偿——[x-splitter](./x-splitter.md) 注入**分隔条宽度一半**使把手中分分隔条（首位 `+half` / 次位 `−half`）。
 
-把手显隐经 `showTrigger` 控制（默认 `'hover'`）：视觉隐藏但**不丢命中**（`opacity: 0` 仍可点击/聚焦）；感应区是覆盖**整条活动边线**的透明边条（厚 24px，跨边内外各 12px）——`pos` 自定义把手位置后位置不可预知，鼠标移到边线任何位置把手即淡入；Tab 聚焦即显形。**常驻仅限滑出折叠**（`minSize=0`：宿主滑出后边条感应载体随宿主隐藏，把手是唯一重开触点必须常驻）与触屏设备；`minSize>0` 尺寸收缩折叠宿主可见、边条感应仍在——把手保持 hover 显隐控制（折叠态鼠标离开边线即隐藏）。`'always'` 恒常驻（边条不启用、零遮挡）。注意 hover 模式的边条会遮挡边线附近内容的点击（固有代价）。
+把手显隐经 `showTrigger` 控制（默认 `'hover'`）：视觉隐藏但**不丢命中**（`opacity: 0` 仍可点击/聚焦）；感应区是覆盖**整条活动边线**的透明边条（厚 24px，跨边内外各 12px）——`pos` 自定义把手位置后位置不可预知，鼠标移到边线任何位置把手即淡入；Tab 聚焦即显形。**常驻仅限滑出折叠**（`minSize=0`：宿主滑出后边条感应载体随宿主隐藏，把手是唯一重开触点必须常驻）与触屏设备；`minSize>0` 尺寸收缩折叠宿主可见、边条感应仍在——把手保持 hover 显隐控制（折叠态鼠标离开边线即隐藏）。`'always'` 恒常驻（边条不启用、零遮挡）。注意 hover 模式的边条会遮挡边线附近内容的点击（固有代价）；启用内建 `resize` 时感应载体让位拖拽手柄（见[内建单边 resize](#内建单边-resize与-x-resize-互斥)）。
 
 ### 内建单边 resize（与 x-resize 互斥）
 
 <demo html="expandable/resize.html"/>
 
 `resize` 选项（`true` / 对象，默认关闭；修饰符 `.resize` 同效——**修饰符与值同属一个属性** `x-expandable.resize="ui.open"`）为宿主启用**单边拖拽调节**：手柄骑活动边线，方向由折叠方向自动推导（`left` 折叠 → 右缘单边拉伸），复用 [x-resize](./x-resize.md) 的 `ResizeSession` 核心（指针/键盘/钳制零差异，事件 `resize:start/move/end` 派发宿主）。约束字段透传 x-resize（`minWidth/maxWidth/minHeight/maxHeight/snap`）；`handles`/`aspectRatio` 子键不适用单边语义（warn 忽略）。**拖出尺寸接管展开尺寸真相**：折叠再展开恢复拖出宽度（`detail.size` 同步）。
+
+**把手与手柄同骑一条边线时的两层协调**（ADR-0072）：把手**压在手柄之上**——宿主挂 `data-resize`，样式表把把手抬到手柄层级之上，调节线不再横穿把手圆面、把手圆面区的命中不被手柄拦走（否则 hover 模式下把手不可见且点不到，折叠不可达）；代价是从把手圆面起手拖不到手柄，**调节线在把手 20px 之外照常拖拽**。同时**手柄接管感应**：感应边条被手柄带完全盖住收不到 hover，hover 模式「鼠标移到边线即显形把手」改由手柄 hover / 聚焦转译（`data-edge-hover` 桥接，与 [x-splitter](./x-splitter.md) 分隔条、[x-drawer](./x-drawer.md) 面板手柄同款契约）。
 
 **与 x-resize 同元素互斥**（ADR-0072）：宿主同时声明两者时 **x-resize 自失效**（warn 提示迁移）——折叠与拖拽的边线交互由本指令独占，从根上消除把手/手柄/边条的三层命中冲突。`enable: false` 可关闭折叠功能：`{enable: false, resize: true}` 退化为**纯单边 resize**（无把手、值绑定不订阅）；双关 warn + 指令不作为。
 
@@ -144,7 +146,7 @@ x-expandable 是全引擎折叠机制的唯一实现（ADR-0070）——另外�
 | 配置项 | 默认值 | 修饰符 | 说明 |
 |---|---|---|---|
 | `enable` | `true` | — | 折叠功能开关：`false` 不建把手、值绑定不订阅；与 `resize` 双关 warn + 指令不作为（见[内建单边 resize](#内建单边-resize与-x-resize-互斥)） |
-| `resize` | 关闭 | `.resize` | 内建单边拖拽调节（复用 x-resize 核心，方向由折叠方向推导）：`true` 默认约束 / 对象透传约束字段（`minWidth` 等，`handles`/`aspectRatio` 不适用 warn 忽略）；拖出尺寸接管展开尺寸真相；与 x-resize 同元素互斥 |
+| `resize` | 关闭 | `.resize` | 内建单边拖拽调节（复用 x-resize 核心，方向由折叠方向推导）：`true` 默认约束 / 对象透传约束字段（`minWidth` 等，`handles`/`aspectRatio` 不适用 warn 忽略）；拖出尺寸接管展开尺寸真相；把手压手柄之上、感应让位手柄（手柄带盖住感应边条）；与 x-resize 同元素互斥 |
 | `direction` | `'left'` | — | 收起方向（停靠边）：`'left'`/`'right'`/`'top'`/`'bottom'`，`left`/`right` 走 width 轴、`top`/`bottom` 走 height 轴；把手骑活动边（对侧边线）。非法值 warn 回退 `left` |
 | `minSize` | `0` | — | 折叠尺寸：`number`（px）/ CSS 长度串。`0` = 滑出折叠（配合 `collapse`）；`> 0` = 尺寸收缩（迷你形态） |
 | `maxSize` | — | — | 展开尺寸：`number`（px）/ CSS 长度串。缺省 = 展开时移除本指令写过的 inline 尺寸、由 CSS 决定 |

@@ -40,7 +40,7 @@
 | `x-component` | 在模板中**实例化**一个组件 |
 | `x-import` | 从远程 url **加载**组件定义（可 `.global` 注册为全局） |
 
-此外，`x-loading` 等内置消费者也经 `getComponent(name)` 取用组件来定制默认 UI。
+此外，`x-loading` 等内置消费者也经 `getComponentDeclaration(name)` 取用组件来定制默认 UI。
 
 ::: tip 组件元素不渲染自身
 `x-define` 声明的元素在编译期会被**摘除**——它不进结果 DOM、不建 scope、不渲染。它只是作为「模板供体」上交给祖先 scope，等待 `x-component` 克隆实例化。
@@ -67,7 +67,7 @@
 
 ### 全局组件
 
-在构造引擎时经 `options.components` 传入的组件，是字符串模板，全引擎复用。当 scope 链上没有同名作用域组件时，`getComponent` 最终兜底到全局组件：
+在构造引擎时经 `options.components` 传入的组件，是字符串模板，全引擎复用。当 scope 链上没有同名作用域组件时，`getComponentDeclaration` 最终兜底到全局组件：
 
 ```javascript
 const engine = new AutoSpark(el, {}, {
@@ -81,13 +81,37 @@ const engine = new AutoSpark(el, {}, {
 
 全局组件字符串入参首次使用时，按顶级节点数**自动包装**为「恰好一个带 `x-define` 的根元素」（详见[开发组件 → 全局组件自动包装](./develop.md#全局组件自动包装)），并懒预编译缓存。
 
+除构造期配置外，全局组件也可在**运行期**登记——代码里按数据/按分支决定注册什么时用 [`engine.registerComponent`](./runtime.md)（与 `x-import` 远程加载同一条登记通道，只是数据来自代码而非网络）。
+
 <demo html="component/global.html"/>
+
+## 组件注册事件
+
+任意组件注册成功后，引擎发出按名事件 `components/<名>/registered`（ADR-0085）。依赖指定组件的代码（如等待继承父、等待 `x-import` 就绪）直接订阅带名事件——**订阅晚于注册也能立即收到补发**（retain 保留事件），不会错过：
+
+```javascript
+// 依赖 card 的场景：注册前后任意时机订阅均可
+engine.on("components/card/registered", (m) => {
+    console.log("card 已注册", m.payload); // { name: 'card', global: false }
+});
+```
+
+要点：
+
+- **触发范围**：五条注册路径成功即发——本地 `x-define`（含无值 `default`）、继承解析（即时或挂起排水）、`x-import` 远程注册、全局组件懒预编译首解析；同名覆盖注册照常重发。
+- **retain 补发**：引擎按精确事件名保留最后一条消息，之后任意 `on()` / `once()` 订阅立即收到——「该名已有注册」不漏听；通配符 `components/*/registered` 订阅即补发**全部**已注册名（此后新注册实时到达）。
+- **引擎级信号**：事件只承诺「该名已有注册」，**链上是否可见**由消费方沿查找协议自查（`getComponentDeclaration` 就近 + 全局兜底）；同名组件注册于多个 scope 时，补发的是最后一次载荷。
+- 旧单数全局事件 `component/registered` 已移除（硬切，无兼容层）。
+
+<demo html="component/registered.html"/>
 
 ## 深入阅读
 
 - [开发组件](./develop.md)——从零开发一个组件：快速入门五步走，以及 `x-define` 声明细节
+- [组件继承](./inherit.md)——`x-define:inherit` 单继承：插槽出口覆盖、三层优先级与 setup 合并
+- [组件递归](./recursive.md)——组件模板内实例化自身：数据驱动的自相似结构与深度保护
 - [实例化组件](./instantiate.md)——`x-component` 用法、props 传递与更新语义
-- [查找组件](./lookup.md)——归属与查找协议：声明位置如何决定可见范围与可用时机
+- [查找组件](./lookup.md)——查声明（归属与查找协议）与取实例（`engine.getComponent(el)` 门面）
 - [响应式数据](./data.md)——`data` 声明、组件上下文 `this`、顶层私有变量、数据边界
 - [组件间通讯](./communication.md)——props 下传 / 全局 state / 事件总线
 - [生命周期](./lifecycle.md)——四阶段钩子与触发时机

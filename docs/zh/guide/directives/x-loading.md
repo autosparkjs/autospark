@@ -116,7 +116,7 @@ engine.state.ui.loading = false; // 隐藏
 - **显隐与遮罩一致**：`value` / 字面量 / 命令式三种触发方式、`delay` 防闪烁、`selector` 挂载目标解析照常工作，条贴在**解析后目标**的顶部；
 - **字段映射**：`color` 为滚动段色（**默认橙色**——3px 细条以明显性优先，不沿用 loader 的默认灰），`bgColor` + `opacity` 为轨道底色（**缺省时用浅轨** `rgba(0,0,0,0.08)`——深轨会压暗段色；任一字段显式配置则回归 `rgba(bgColor, opacity)`），滚动段为 **30% 宽实心纯色**（非渐隐渐变，保证显色度）；`message` / `actions` 在条模式下**静默不渲染**（不 warn，条里放不下内容）；
 - **与 `.screen` 并存**：`x-loading.progressbar.screen` 让条 `position:fixed` 贴**视口**顶（仍留宿主子树）；
-- **不取自定义 loading 组件**：条模式用内置条模板，`getComponent("loading")` 的自定义组件只服务遮罩形态（条无内容可替换）；
+- **不取自定义 loading 组件**：条模式用内置条模板，`getComponentDeclaration("loading")` 的自定义组件只服务遮罩形态（条无内容可替换）；
 - **高度可覆盖**：默认 3px，经 CSS 变量 `--autospark-loading-progressbar-height` 调整。
 
 ```html
@@ -224,7 +224,7 @@ const engine = new AutoSpark(el, { loading: false }, {
 
 ### 自定义加载模板
 
-默认覆盖层是内置旋转 `loader`。若不满意——想换成脉冲扩散点、进度条、骨架屏，甚至完全自定义布局——无需 fork 指令，用**组件**覆盖即可。`x-loading` 渲染时会先经 `getComponent("loading")` 取组件：取到则用块替换默认 loader，取不到才回退内置。（[进度条模式](#进度条模式)除外——条模式用内置条模板，不取自定义组件。）
+默认覆盖层是内置旋转 `loader`。若不满意——想换成脉冲扩散点、进度条、骨架屏，甚至完全自定义布局——无需 fork 指令，用**组件**覆盖即可。`x-loading` 渲染时会先经 `getComponentDeclaration("loading")` 取组件：取到则用块替换默认 loader，取不到才回退内置。（[进度条模式](#进度条模式)除外——条模式用内置条模板，不取自定义组件。）
 
 <demo html="loading/block-local.html"/>
 

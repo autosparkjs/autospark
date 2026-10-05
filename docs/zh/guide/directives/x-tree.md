@@ -160,7 +160,7 @@ new AutoSparkSpaces.AutoSpark(el, state); // state 即响应式数据源
 
 ### 一行渲染（内置默认模板）
 
-容器内不写任何子元素，引擎套用内置默认节点模板——每级缩进 20px、展开箭头（随展开旋转）、`nameField` 字段名（默认 `"name"`，可定制），**整行点击展开/折叠**（启用选中后点行 = 选中并展开，antd 心智）、expand 高度动画、前 N 层可见全部内置。**全部交互也能零模板启用**——`checkedField` 声明即启用复选（默认模板自动带三态触点 ☑/⊟/☐）、`selectedField` 声明即启用选中、`draggable` 即启用拖拽：
+容器内不写任何子元素，引擎套用内置默认节点模板——每级缩进 20px、展开箭头（随展开旋转）、`nameField` 字段名（默认 `"name"`，可定制），**整行点击展开/折叠**（启用选中后点行 = 选中并展开，antd 心智）、expand 高度动画、前 N 层可见全部内置。**全部交互也能零模板启用**——`checkedField` 声明即启用复选（默认模板自动带三态触点，取内置图标 `checked` / `semi-checked` / `unchecked`，`x-icon` 同名可覆盖）、`selectedField` 声明即启用选中、`draggable` 即启用拖拽：
 
 <demo html="tree/builtin.html"/>
 

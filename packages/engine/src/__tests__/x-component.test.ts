@@ -20,7 +20,7 @@ import { exprToVarName, extractStyleBinds } from "../utils/styleBind";
  * - Q7 编译期摘除（不进结果 DOM、不建 scope）+ 组件根不注入 x-scope（决策 7 修订）
  * - Q8 同元素指令随组件冻结
  * - Q9 default 唯一性（直接归属）+ 自由命名
- * - 决策 9 getComponent 沿 parent 链就近 + 全局组件兜底 + 局部遮蔽全局
+ * - 决策 9 getComponentDeclaration 沿 parent 链就近 + 全局组件兜底 + 局部遮蔽全局
  * - 决策 10 全局组件自动包装（单根打标/多根包 div/已含尊重/纯文本）
  * - 决策 11 懒预编译缓存（首次解析、后续 deepClone、失败视为未命中）
  * - x-loading 消费 loading 组件替换默认组件（data 注入）
@@ -71,7 +71,7 @@ describe("x-define 收集与摘除", () => {
         const scopeEl = root.querySelector("div")!;
         const scope = engine.findScopeByEl(scopeEl as HTMLElement);
         expect(scope).toBeDefined();
-        const block = scope!.getComponent("loading");
+        const block = scope!.getComponentDeclaration("loading");
         expect(block).toBeDefined();
         // 副本保留指令属性（未编译）；根**不**注入 x-scope（决策 7 修订：scope 由消费编译路径内禀保证）
         expect(block!.hasAttribute("x-define")).toBe(true);
@@ -85,7 +85,7 @@ describe("x-define 收集与摘除", () => {
             {},
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        const block = scope.getComponent("plain")!;
+        const block = scope.getComponentDeclaration("plain")!;
         expect(block.hasAttribute("x-scope")).toBe(false); // 不注入，无论组件根有无指令
     });
 
@@ -95,7 +95,7 @@ describe("x-define 收集与摘除", () => {
             {},
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        const block = scope.getComponent("b")!;
+        const block = scope.getComponentDeclaration("b")!;
         // 用户显式声明 x-scope 仍保留（引擎不注入也不剥除）；不再注入是指「无则不加」
         expect(block.hasAttribute("x-scope")).toBe(true);
     });
@@ -120,7 +120,7 @@ describe("x-define 收集与摘除", () => {
         );
         // 中间两层纯 div 不建 scope，x-define 仍归属最近的 x-scope 祖先
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        expect(scope.getComponent("deep")).toBeDefined();
+        expect(scope.getComponentDeclaration("deep")).toBeDefined();
         // 组件从渲染树摘除（连同包裹层保留，但组件本身不在）
         expect(root.querySelector("[x-define]")).toBeNull();
     });
@@ -139,7 +139,7 @@ describe("default 组件与命名约定（Q9）", () => {
     test("无值 x-define 取名 default", () => {
         const { engine, root } = mount(`<div x-scope><div x-define>默认组件</div></div>`, {});
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        expect(scope.getComponent("default")).toBeDefined();
+        expect(scope.getComponentDeclaration("default")).toBeDefined();
     });
 
     test("同一 scope 同名 default 放宽：warn + 后者覆盖（ADR-0022 决策四-4）", () => {
@@ -150,7 +150,7 @@ describe("default 组件与命名约定（Q9）", () => {
         );
         // 不抛错；同名直接归属后者覆盖前者
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        expect(scope.getComponent("default")?.textContent).toBe("第二个");
+        expect(scope.getComponentDeclaration("default")?.textContent).toBe("第二个");
     });
 
     test("沿 parent 链允许 default 覆盖（内层遮蔽外层）", () => {
@@ -166,10 +166,10 @@ describe("default 组件与命名约定（Q9）", () => {
         // 内层 scope 可能因 x-data 属性剥除而难以定位，改验证外层 default 仍在
         const outerScopeEl = root.querySelector("div") as HTMLElement;
         const outerScope = engine.findScopeByEl(outerScopeEl)!;
-        expect(outerScope.getComponent("default")?.textContent).toBe("外层默认");
+        expect(outerScope.getComponentDeclaration("default")?.textContent).toBe("外层默认");
         // 内层 default 不影响外层（直接归属各自 scope）
         if (innerScope) {
-            expect(innerScope.getComponent("default")?.textContent).toBe("内层默认");
+            expect(innerScope.getComponentDeclaration("default")?.textContent).toBe("内层默认");
         }
     });
 
@@ -179,22 +179,22 @@ describe("default 组件与命名约定（Q9）", () => {
             {},
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        expect(scope.getComponent("loading")).toBeDefined();
-        expect(scope.getComponent("error")).toBeDefined();
-        expect(scope.getComponent("empty")).toBeDefined();
+        expect(scope.getComponentDeclaration("loading")).toBeDefined();
+        expect(scope.getComponentDeclaration("error")).toBeDefined();
+        expect(scope.getComponentDeclaration("empty")).toBeDefined();
     });
 });
 
 describe("组件查找沿 parent 链就近 + 组件兜底（Q1/Q5）", () => {
     test("Q5：消费者沿 parent 链向上就近找组件", () => {
-        // 外层 x-scope 声明 loading 组件；内层 x-data scope 经 getComponent 向上命中
+        // 外层 x-scope 声明 loading 组件；内层 x-data scope 经 getComponentDeclaration 向上命中
         const { engine, root } = mount(
             `<div x-scope><div x-define="loading">外层组件</div><div x-data="{a:1}"><span>内层</span></div></div>`,
             {},
         );
         const innerEl = root.querySelector("span")!;
         // span 的 scope 经 parent 链向上找到外层 x-scope 的 loading 组件
-        // （span 本身因 x-text/插值才建 scope；此处 span 无指令，用 engine.getComponent 经宿主反查）
+        // （span 本身因 x-text/插值才建 scope；此处 span 无指令，用 engine.getComponentDeclaration 经宿主反查）
         // 改用内层 div（x-data 建 scope）验证
         const innerDiv = root.querySelectorAll("div");
         // 找到含子代 span 的内层 div
@@ -207,14 +207,14 @@ describe("组件查找沿 parent 链就近 + 组件兜底（Q1/Q5）", () => {
             }
         }
         expect(innerScope).toBeDefined();
-        expect(innerScope!.getComponent("loading")?.textContent).toBe("外层组件");
+        expect(innerScope!.getComponentDeclaration("loading")?.textContent).toBe("外层组件");
     });
 
     test("Q5：链上无命中返回 undefined（组件兜底由消费者处理）", () => {
         const { engine, root } = mount(`<div x-scope><span>无组件</span></div>`, {});
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        expect(scope.getComponent("loading")).toBeUndefined(); // 无 loading 组件
-        expect(scope.getComponent("notexist")).toBeUndefined();
+        expect(scope.getComponentDeclaration("loading")).toBeUndefined(); // 无 loading 组件
+        expect(scope.getComponentDeclaration("notexist")).toBeUndefined();
     });
 });
 
@@ -295,7 +295,7 @@ describe("全局组件（决策 9/10/11）", () => {
             { components: { loading: `<div class="global-load">全局</div>` } },
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        const block = scope.getComponent("loading");
+        const block = scope.getComponentDeclaration("loading");
         expect(block).toBeDefined();
         // 单顶级元素自动包装：根自身即原 div（class=global-load、文本=全局）
         expect(block!.className).toBe("global-load");
@@ -314,7 +314,7 @@ describe("全局组件（决策 9/10/11）", () => {
             { components: { loading: `<div class="global">全局</div>` } },
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        const block = scope.getComponent("loading")!;
+        const block = scope.getComponentDeclaration("loading")!;
         // 局部组件优先（就近），全局被遮蔽
         expect(block.querySelector(".local")).not.toBeNull();
         expect(block.querySelector(".global")).toBeNull();
@@ -327,7 +327,7 @@ describe("全局组件（决策 9/10/11）", () => {
             { components: { other: "<div/>" } },
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        expect(scope.getComponent("nope")).toBeUndefined();
+        expect(scope.getComponentDeclaration("nope")).toBeUndefined();
     });
 
     test("决策10：单顶级元素无 x-define → 根打本 key 名", () => {
@@ -339,7 +339,7 @@ describe("全局组件（决策 9/10/11）", () => {
             },
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        const block = scope.getComponent("t1")!;
+        const block = scope.getComponentDeclaration("t1")!;
         expect(block.className).toBe("a");
         expect(block.getAttribute("x-define")).toBe("t1");
     });
@@ -353,7 +353,7 @@ describe("全局组件（决策 9/10/11）", () => {
             },
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        const block = scope.getComponent("t1")!;
+        const block = scope.getComponentDeclaration("t1")!;
         expect(block.getAttribute("x-define")).toBe("foo"); // 用户显式声明优先
     });
 
@@ -366,7 +366,7 @@ describe("全局组件（决策 9/10/11）", () => {
             },
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        const block = scope.getComponent("t1")!;
+        const block = scope.getComponentDeclaration("t1")!;
         expect(block.tagName).toBe("DIV");
         expect(block.getAttribute("x-define")).toBe("t1");
         expect(block.querySelectorAll("div").length).toBe(2); // 两个原节点作子树
@@ -381,7 +381,7 @@ describe("全局组件（决策 9/10/11）", () => {
             },
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        const block = scope.getComponent("t1")!;
+        const block = scope.getComponentDeclaration("t1")!;
         expect(block.tagName).toBe("DIV");
         expect(block.getAttribute("x-define")).toBe("t1");
         expect(block.textContent).toBe("纯文本组件");
@@ -396,10 +396,10 @@ describe("全局组件（决策 9/10/11）", () => {
             },
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        expect(scope.getComponent("t1")!.hasAttribute("x-scope")).toBe(false);
+        expect(scope.getComponentDeclaration("t1")!.hasAttribute("x-scope")).toBe(false);
     });
 
-    test("决策11：懒预编译缓存——重复 getComponent 返回同根（deepClone 由消费者负责）", () => {
+    test("决策11：懒预编译缓存——重复 getComponentDeclaration 返回同根（deepClone 由消费者负责）", () => {
         const { engine, root } = mount(
             `<div x-scope></div>`,
             {},
@@ -408,10 +408,10 @@ describe("全局组件（决策 9/10/11）", () => {
             },
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        // 两次 getComponent 命中全局组件应返回缓存中的同一根元素（预编译只跑一次）
-        // 注意：getComponent 自身不 clone，消费者负责 cloneNode；故两次返回引用相同
-        const b1 = scope.getComponent("t1")!;
-        const b2 = scope.getComponent("t1")!;
+        // 两次 getComponentDeclaration 命中全局组件应返回缓存中的同一根元素（预编译只跑一次）
+        // 注意：getComponentDeclaration 自身不 clone，消费者负责 cloneNode；故两次返回引用相同
+        const b1 = scope.getComponentDeclaration("t1")!;
+        const b2 = scope.getComponentDeclaration("t1")!;
         expect(b1).toBe(b2);
     });
 
@@ -422,8 +422,8 @@ describe("全局组件（决策 9/10/11）", () => {
             { components: { bad: "", ugly: "   " } },
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        expect(scope.getComponent("bad")).toBeUndefined();
-        expect(scope.getComponent("ugly")).toBeUndefined();
+        expect(scope.getComponentDeclaration("bad")).toBeUndefined();
+        expect(scope.getComponentDeclaration("ugly")).toBeUndefined();
     });
 });
 
@@ -444,7 +444,7 @@ describe("x-loading data 注入与 attrChanged patch（决策 12）", () => {
         expect(host.querySelector(".msg")?.textContent).toBe("加载中");
     });
 
-    test("决策12-c：全局 loading 组件经 getComponent 兜底命中 + data 注入", async () => {
+    test("决策12-c：全局 loading 组件经 getComponentDeclaration 兜底命中 + data 注入", async () => {
         const { root } = mount(
             `<div id="host" x-loading="{ value: 'loading', message: '全局加载' }">内容</div>`,
             { loading: true },
@@ -518,7 +518,7 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
             {},
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        const snapshot = scope.getComponent("card")!;
+        const snapshot = scope.getComponentDeclaration("card")!;
         const def = engine.getComponentDef(snapshot)!;
         // def 元数据正确
         expect(def).toBeDefined();
@@ -527,7 +527,7 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
         expect(def.setup?.methods?.inc).toBeInstanceOf(Function);
         expect(def.hooks?.mounted.length).toBe(1);
         expect(def.hooks?.unmounted.length).toBe(1);
-        expect(def.styles).toEqual([".body{color:red}"]);
+        expect(def.styles).toEqual([{ css: ".body{color:red}" }]);
         // data 工厂返回值正确
         expect((def.setup?.data as () => Record<string, any>)?.()).toEqual({ count: 0 });
     });
@@ -544,7 +544,7 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
             {},
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        const def = engine.getComponentDef(scope.getComponent("multi")!)!;
+        const def = engine.getComponentDef(scope.getComponentDeclaration("multi")!)!;
         // 对象+工厂混声明归一化为工厂：a 与 b 都在（ADR-0057 双形态合并）
         expect((def.setup?.data as () => Record<string, any>)?.()).toEqual({ a: 1, b: 2 });
         expect(def.setup?.methods?.f).toBeInstanceOf(Function);
@@ -563,7 +563,7 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
             {},
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        const def = engine.getComponentDef(scope.getComponent("bad")!)!;
+        const def = engine.getComponentDef(scope.getComponentDeclaration("bad")!)!;
         // 组件仍存在，但无 setup（求值失败丢弃）
         expect(def.setup).toBeUndefined();
         expect(def.hooks).toBeUndefined();
@@ -585,7 +585,7 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
                 {},
             );
             const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-            const def = engine.getComponentDef(scope.getComponent("legacy")!)!;
+            const def = engine.getComponentDef(scope.getComponentDeclaration("legacy")!)!;
             // 旧写法不再识别为 setup 脚本：不求值（与 actions 旧写法「warn + 不执行」对称）
             expect(def.setup).toBeUndefined();
         } finally {
@@ -600,7 +600,7 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
             {},
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        const def = engine.getComponentDef(scope.getComponent("plain")!)!;
+        const def = engine.getComponentDef(scope.getComponentDeclaration("plain")!)!;
         expect(def.setup).toBeUndefined();
         expect(def.hooks).toBeUndefined();
         expect(def.styles).toBeUndefined();
@@ -617,8 +617,8 @@ describe("x-define <script setup> / <style> 提取（ADR-0022 决策四）", () 
             },
         );
         const scope = engine.findScopeByEl(root.querySelector("div") as HTMLElement)!;
-        // getComponent 触发懒预编译（建 def + 快照双缓存）
-        const snapshot = scope.getComponent("gcard")!;
+        // getComponentDeclaration 触发懒预编译（建 def + 快照双缓存）
+        const snapshot = scope.getComponentDeclaration("gcard")!;
         expect(snapshot.hasAttribute("x-define")).toBe(true);
         // 快照已剥离 script（不进实例化 DOM）
         expect(snapshot.querySelector("script")).toBeNull();
@@ -1530,7 +1530,7 @@ describe("x-define <style> 响应式 bind()（ADR-0022 决策四-4.1）", () => 
  * methods Proxy this（ADR-0022 决策二-3 修订）。
  *
  * methods 从 action 剥离为独立机制：method 内 this 是 Proxy（getMethodThis），暴露集合
- * data/state/engine/scope/el/method名/watch/read/getComponent/$parent；method 名直调互调；
+ * data/state/engine/scope/el/method名/watch/read/getComponentDeclaration/$parent；method 名直调互调；
  * 组件边界（不穿透父组件）；$parent 链式；框架引用键禁覆盖；$event 改形参。
  */
 describe("x-define methods Proxy this（ADR-0022 决策二-3 修订）", () => {
@@ -2145,7 +2145,10 @@ describe("x-component loader 远程直接实例化（ADR-0065）", () => {
             {},
         );
         await flushLoader();
-        expect(engine.options.components?.grc).toBeDefined();
+        // ADR-0086 决策三：全局注册写全局组件定义表，**不写** options.components——
+        // 断言的是「跨 scope 可解析」这一行为，而非「写回用户配置」这一机制
+        expect(engine.getGlobalComponentDef("grc")).toBeDefined();
+        expect(engine.options.components?.grc).toBeUndefined();
         expect(root.querySelector("b")?.textContent).toBe("g");
     });
 
@@ -2244,5 +2247,87 @@ describe("内置 error 组件与 back 内置 action（ADR-0065）", () => {
             (history as any).back = origBack;
         }
         expect(backed).toBe(true);
+    });
+});
+
+describe("engine.getComponent(el) 组件实例门面（ADR-0080）", () => {
+    test("宿主元素命中：门面字段与组件内 this 同构", async () => {
+        const { engine, root } = mount(
+            `<div x-scope>
+                <div x-define="counter">
+                    <span id="cval" x-text="count"></span>
+                    <script setup>{ data:{ count: 5 }, methods:{ inc(){ this.data.count++ } } }</script>
+                </div>
+                <div id="host" x-component:counter></div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#host") as HTMLElement;
+        const inst = engine.getComponent(host);
+        expect(inst).toBeDefined();
+        expect(inst!.name).toBe("counter");
+        expect(inst!.el).toBe(host); // 宿主化身组件根
+        expect(inst!.data.count).toBe(5);
+        expect(inst!.props.count).toBe(5); // data 的等价别名（ADR-0057）
+        expect(inst!.globalState).toBe(engine.state); // 无遮蔽全局通道
+        expect(inst!.scope.isComponent).toBe(true); // 逃生舱
+    });
+
+    test("组件内任意元素向上冒泡命中最近实例（就近即止）", async () => {
+        const { engine, root } = mount(
+            `<div x-scope>
+                <div id="host" x-component:outer></div>
+                <div x-define="outer">
+                    <div id="inner-host" x-component:inner></div>
+                    <span id="outer-tip" class="tip">外层</span>
+                    <div x-define="inner"><span id="inner-tip" class="tip">内层</span></div>
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        // 组件内静态元素（无指令无 scope）沿 DOM 链向上命中宿主实例
+        expect(engine.getComponent(root.querySelector("#outer-tip") as HTMLElement)?.name).toBe("outer");
+        // 嵌套组件的内部元素就近命中内层实例（不穿透到外层）
+        expect(engine.getComponent(root.querySelector("#inner-tip") as HTMLElement)?.name).toBe("inner");
+        // 内层宿主自身即内层实例
+        expect(engine.getComponent(root.querySelector("#inner-host") as HTMLElement)?.name).toBe("inner");
+    });
+
+    test("组件外元素返回 undefined", () => {
+        const { engine, root } = mount(
+            `<div x-scope>
+                <div x-define="a"><span>x</span></div>
+                <span id="outside">组件外</span>
+                <div id="host" x-component:a></div>
+            </div>`,
+            {},
+        );
+        expect(engine.getComponent(root.querySelector("#outside") as HTMLElement)).toBeUndefined();
+        expect(engine.getComponent(root)).toBeUndefined(); // root 自身在组件外
+    });
+
+    test("门面 data 可写驱动刷新、methods 代理与组件内 this 同一绑定", async () => {
+        const { engine, root } = mount(
+            `<div x-scope>
+                <div x-define="counter">
+                    <span id="cval" x-text="count"></span>
+                    <script setup>{ data:{ count: 1 }, methods:{ inc(){ this.data.count += 1 } } }</script>
+                </div>
+                <div id="host" x-component:counter></div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const inst = engine.getComponent(root.querySelector("#host") as HTMLElement)!;
+        // methods 代理：与组件内 this.inc() 同一 this 绑定
+        inst.methods.inc();
+        inst.methods.inc();
+        expect(inst.data.count).toBe(3);
+        // data 可写：外部改聚合视图，组件自动刷新
+        inst.data.count = 100;
+        await nextTick();
+        expect(root.querySelector("#cval")?.textContent).toBe("100");
     });
 });

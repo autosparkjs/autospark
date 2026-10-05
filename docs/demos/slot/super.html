@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>x-slot · 叠加默认内容（x-super）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <!--
+            x-super 插槽 fallback 展开标记（ADR-0084）：
+            - 写在插槽内容里任意位置，把「本段覆盖掉的默认内容（fallback）」原位展开进标记元素内部；
+            - 标记元素保留为包裹层（与出口标记对称），本页用 x-super { display: contents } 消除布局影响；
+            - 同一段里可以写多次，各自独立展开、独立响应状态变化；
+            - ⚠️ 必须双标签 <x-super></x-super>：HTML 解析器不认未知元素自闭合，
+              <x-super/> 的斜杠会被忽略、后续兄弟节点全部被吞进标记内部。
+        -->
+    <style>
+      x-super {
+        display: contents; /* 让包裹层布局透明（fallback 直接参与父级布局） */
+      }
+      .badge {
+        display: inline-block;
+        padding: 0 8px;
+        margin-left: 6px;
+        border-radius: 4px;
+        background: #eef3fb;
+        color: #3b74d9;
+        font-size: 0.8rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" x-scope>
+      <!-- ① 定义侧：header 出口 + 默认出口，各写一份 fallback -->
+      <div x-define="card">
+        <div class="card">
+          <header class="card-head" x-slot:header>默认头 · {{title}}</header>
+          <div class="card-body" x-slot>默认正文（{{count}} 次浏览）</div>
+          <footer class="card-foot">© 组件固定页脚</footer>
+        </div>
+        <script type="autospark/setup">
+          {
+              data: { title: "卡片", count: 3 },
+          }
+        </script>
+      </div>
+
+      <!-- ② 对照：不提供内容 → 两处出口都渲染 fallback -->
+      <div class="panel">
+        <div class="label">无内容 → 渲染 fallback（对照组）</div>
+        <div x-component:card></div>
+      </div>
+
+      <!-- ③ 叠加：内容里用 <x-super></x-super> 原位展开被覆盖的默认内容 -->
+      <div class="panel">
+        <div class="label">提供内容 + x-super → 自定义内容与默认内容合成</div>
+        <div x-component:card>
+          <template x-slot:header>
+            <h3 class="is-size-5" style="display: inline">自定义标题</h3>
+            <!-- 后置叠加：标记处展开「默认头 · {{title}}」（组件作用域求值） -->
+            <x-super></x-super>
+          </template>
+          <!-- 默认段：交错形态——默认内容嵌在自定义内容中间，且展开两次 -->
+          <p>
+            前缀文字 → <x-super></x-super> ← 交错 → <x-super></x-super> ← 再次展开
+            <span class="badge">两次独立展开</span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+    </script>
+
+    <style>
+      .panel {
+        padding: 16px;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        margin-bottom: 12px;
+      }
+      .label {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 8px;
+      }
+      .card {
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .card-head {
+        padding: 10px 14px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #dbdbdb;
+        font-weight: 600;
+      }
+      .card-body {
+        padding: 14px;
+      }
+      .card-foot {
+        padding: 8px 14px;
+        font-size: 0.75rem;
+        color: #888;
+        border-top: 1px solid #eee;
+      }
+    </style>
+  </body>
+</html>

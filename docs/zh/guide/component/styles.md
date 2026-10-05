@@ -27,6 +27,59 @@
 当前不支持 `:deep()` / `>>>`（纯隔离）。真实穿透需求出现时再加——它只是改写器的一个额外规则，不影响架构。
 :::
 
+## 全局样式（`<style global>`）
+
+`<style>` 加 `global` 属性即切换为**全局注入**形态：不做 scoped 改写，组件**注册时**原样注入 `<head>`——页面里即使还没有任何实例，样式也已生效：
+
+```html
+<div x-define="card">
+    <div class="title" x-text="title"></div>
+    <style global>
+        .title { color: #3273dc; font-weight: 700; }
+        .title:hover { color: #23d160; }
+    </style>
+</div>
+```
+
+注入结果（`<head>` 内）：
+
+```html
+<style id="autospark-styles">
+    .title { color: #3273dc; font-weight: 700; }
+    .title:hover { color: #23d160; }
+</style>
+```
+
+**规则**：
+
+| 场景 | 行为 |
+| --- | --- |
+| `<style global>`（无 id） | 合并进共享容器 `<style id="autospark-styles">`——跨组件、同组件多段按声明序追加 |
+| `<style id="xx" global>` | 注入为独立容器 `<style id="xx">`；同 id 跨组件**追加**，可作共享主题样式池 |
+| `<style id="xx">`（无 global） | id 静默忽略，维持 scoped |
+| 注入时机 | 组件**注册时**（声明即生效，无需实例化）；`x-import` / `registerComponent` 注册的组件同样生效 |
+| 移除时机 | `engine.destroy()` 只移除本 engine 贡献的段；运行期常驻 |
+| 同名组件覆盖声明 | 旧段**整组替换**、保持原注入位置（与组件「后者覆盖」语义一致，无幽灵样式） |
+| 组件继承 | 样式拼接语义照常（父段经父、子两个定义各注入一次，重复无害） |
+| 组件外声明 | 仅 `x-define` 内生效，其他位置 warn + 按普通样式元素处理 |
+
+::: warning bind() 不支持 global
+`<style global>` 内的 `bind()` 不生效（变量挂载点在全局语境无对应物）——warn 后原样保留（该声明被浏览器丢弃，不影响其余规则）。动态值请回到 scoped 段配合 [bind](#响应式样式-style-bind)，或使用 `:style`。
+:::
+
+scoped 与 global 可在同一组件**混用**——每个 `<style>` 标签独立分流：私有结构样式走 scoped（防泄漏），公共类 / `@keyframes` / 跨组件主题类走 global：
+
+```html
+<div x-define="card">
+    <div class="body">...</div>
+    <style>.body { padding: 8px }</style>          <!-- scoped：仅本组件实例 -->
+    <style global>.card-theme { ... }</style>       <!-- 全局：合并进 autospark-styles -->
+    <style id="theme" global>.btn { ... }</style>   <!-- 全局：独立容器 style#theme -->
+</div>
+```
+
+<demo html="component/global-style.html"/>
+
 ## 响应式样式（`<style>` bind）
 
 `<style>` 的声明值可以写 `bind(expr)`，把状态/表达式注入为 **CSS 变量**，实现样式的响应式——状态变，样式跟着变，无需 `:style` 逐元素绑定：

@@ -1,6 +1,6 @@
 import { AutoSparkDirectiveBase } from "../base";
 import type { AutoSparkScope } from "../../scope";
-import type { SlotContent } from "../../utils/slot";
+import type { SlotContent, SuperInlet } from "../../utils/slot";
 
 /**
  * x-slot：插槽出口（ADR-0056）。
@@ -76,12 +76,18 @@ export class SlotDirective extends AutoSparkDirectiveBase {
                 for (const n of this.content.nodes) this.el.appendChild(n);
                 return;
             }
-            // 投影：内容在调用方基准下编译、挂到出口元素（原出口子节点不进 DOM）
+            // 投影：内容在调用方基准下编译、挂到出口元素（原出口子节点不进 DOM）。
+            // super 句柄（ADR-0084）随内容 scope 注入——内容子树内 x-super 惰性取本段
+            // fallback 的独立编译产物（多次出现各自展开；出口无 fallback 静默空）
+            const inlet = this._makeSuperInlet();
             this.contentScopes = this.engine.compiler.compileSlotNodes(
                 this.content.nodes,
                 this.callerScope,
                 this.paramData,
                 this.el,
+                (s) => {
+                    s.superInlet = inlet;
+                },
             );
             return;
         }
@@ -98,6 +104,25 @@ export class SlotDirective extends AutoSparkDirectiveBase {
             return;
         }
         this.engine.compiler.compileSubtree(this.el, tpl, this.binding);
+    }
+
+    /**
+     * 构造 super 句柄（ADR-0084）：内容子树内 x-super 标记的惰性 fallback 编译入口。
+     *
+     * 每次调用经 `compiler.compileSuperFallback` 在**出口 binding（组件作用域）**链上
+     * 独立编译一份（同段多次出现各自展开、各挂各的 watcher）；fallback 事实源与既有
+     * fallback 编译路径一致（普通出口 `childNodes` / `<template>` 出口 `.content`，
+     * 继承覆盖已替换快照 → 天然展开继承覆盖层）；出口无 fallback 子树 → 静默空（Q8）。
+     * 产物 scopes 的销毁：parent=出口 binding 级联 + SuperDirective.destroy 兜底（幂等）。
+     */
+    private _makeSuperInlet(): SuperInlet {
+        return () => {
+            const tpl = this.template;
+            if (!tpl) return { nodes: [], scopes: [] };
+            const source = tpl instanceof HTMLTemplateElement ? tpl.content : tpl;
+            if (source.childNodes.length === 0) return { nodes: [], scopes: [] };
+            return this.engine.compiler.compileSuperFallback(source, this.binding);
+        };
     }
 
     /**

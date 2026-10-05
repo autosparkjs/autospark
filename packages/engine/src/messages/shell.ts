@@ -1,77 +1,62 @@
-import { buildComponentDef } from "../../compile/collect";
-import type { ComponentDef } from "../../directives/component-def";
-import { parseHtmlFragment } from "../../utils/transformElement";
+import { buildComponentDef } from "../compile/collect";
+import type { ComponentDef } from "../directives/component-def";
+import { parseHtmlFragment } from "../utils/transformElement";
 
 /**
- * 消息公共骨架（ADR-0077 双层组合，原 message-shell 更名收窄）——**所有 kind 共享**的
- * shell 组件：渲染公共元素与行为（close 按钮 / type 图标 / title / description / actions
- * 行最底），并声明 **kind 默认出口**（裸 `x-slot`）承载各 kind 的专属 renderer（如 task
- * 进度条）。一组件一文件（`src/messages/renderers/` 目录纪律）。
+ * 消息公共骨架（ADR-0077 双层组合 → **ADR-0088 内容下放降级**）——**所有 type 共享**的
+ * 卡片级外观容器：只渲染 chrome（卡片根的边框 / 背景 / 阴影 / 圆角 + **close 钮**）并声明
+ * **type 默认出口**（裸 `x-slot`）——icon/title/description/link/actions 等**内容渲染归
+ * type 模板**（ADR-0088，经出口 `mode:"live"` 投影）。接管 shell = 换整卡外观（含关闭钮
+ * 形态）——「换外观」与「换内容」（同名覆盖 type 模板）两个扩展点正交。独立于 presets.ts /
+ * sessions/（外观与内容正交）。
  *
- * 与面板外壳（panel-shell，ADR-0062）**同构对齐**（ADR-0077 推翻「无出口协议」旧分野）：
- * 外壳负责公共骨架、内容组件（kind renderer）经默认出口进入；区别仅在于消息无遮罩/定位。
- * 自定义 shell 契约：模板须含默认出口（裸 `x-slot`）——未声明 → warn + kind 区丢弃
- * （数据仍在 items / `$session`，仅视觉缺位，可发现）；可消费 `$session`（行为）与
- * data 域全量 props（title/description/actions/read/…）。
+ * 与面板外壳（panel-shell，ADR-0062）**同构对齐**：外壳负责公共骨架、内容组件经默认出口
+ * 进入；区别仅在于消息无遮罩/定位。自定义 shell 契约：模板须含默认出口（裸 `x-slot`）——
+ * 未声明 → warn + type 区丢弃（数据仍在 items / `$session`，仅视觉缺位，可发现）；可消费
+ * `$session`（行为）与 data 域全量 props（closable 驱动关闭钮显隐等）。
  *
- * MessageProps 全量数据域整包注入（剥函数）：引擎注入前解析派生键——`type`→`icon`
- * （icons 映射）、`actions` 字符串名→解析合成。真响应式活体：同 id 原地更新 /
+ * MessageProps 数据域（剥函数整包，ADR-0088）注入；真响应式活体：同 id 原地更新 /
  * `update(id, patch)` = 引擎写 data 域 props，绑定自动响应。
  *
- * 行为契约分工：模板只渲染形态——按钮点击（actions handle/value + hide 语义）、关闭钮
- * 点击与「任意点击置已读」由 MessageManager 在卡片根上**委托监听**
- * （`data-message-action` 索引 / `autospark-message-close` 类名命中），模板不绑 `@click`。
+ * 行为契约分工：模板只渲染形态——关闭钮点击与「任意点击置已读」由 MessageManager 在卡片
+ * 根上**委托监听**（`autospark-message-close` 类名命中），模板不绑 `@click`；action 按钮的
+ * 委托契约类名 / 索引归 actions 组件（presets.ts）。
  *
- * 模板指令清单：`x-html`（title/description，sanitizer 默认通道）/ `x-show`（图标区、link、
- * 按钮行、关闭钮显隐）/ `x-for`（按钮行，x-loading 按钮行同构）/ `x-icon`（图标，值两栖）/
- * `:data-message-type`（语义分派属性绑定）/ `x-slot`（kind 默认出口）。不用 `x-if`（KISS，
- * 显隐均可用 x-show 表达，避开结构指令接管子树编译）。
+ * 卡片根属性（`data-message-pos` / `data-message-level` / `data-message-type`）由引擎装配
+ * 期静态写入与刷新（ADR-0088——原 `:data-message-type` 模板绑定改引擎写，用户 shell 的
+ * wrapper 同享契约）——不依赖模板绑定，自定义 shell 同享。
  */
 
-/** 消息 shell 模板：双类名根 + 图标 + 消息列（title/link/description/kind 出口）+ actions 独立行 + 关闭钮 */
-export const SHELL_TEMPLATE =
-    `<div class="autospark-dialog autospark-message" :data-message-type="type">` +
-    `<div class="autospark-message-main">` +
-    `<i class="autospark-message-icon" x-icon="icon" x-show="icon" aria-hidden="true"></i>` +
-    `<div class="autospark-message-content">` +
-    `<div class="autospark-message-title-row">` +
-    `<span class="autospark-message-title" x-html="title"></span>` +
-    `<a class="autospark-message-link" x-show="link" :href="link" target="_blank" rel="noopener noreferrer" aria-label="查看详情"><i class="autospark-message-link-icon" x-icon="'external'" aria-hidden="true"></i></a>` +
-    `</div>` +
-    `<div class="autospark-message-description" x-html="description" x-show="description"></div>` +
-    `<div class="autospark-message-kind" x-slot></div>` +
-    `</div>` +
-    `<button class="autospark-message-close" type="button" x-show="closable" x-icon="'no'" aria-label="关闭"></button>` +
-    `</div>` +
-    `<div class="autospark-message-actions" x-show="actions.length > 0" x-for="a of actions">` +
-    `<button class="autospark-message-action" type="button" x-text="a.title" :data-message-action="actions.indexOf(a)"></button>` +
-    `</div>` +
-    `</div>`;
+/** 消息 shell 模板（ADR-0088 降级形态）：外观根（body 出口 + close 钮） */
+export const SHELL_TEMPLATE = `<div class="autospark-dialog autospark-message">
+<div class="autospark-message-body"><div x-slot></div></div>
+<button class="autospark-message-close" type="button" x-show="closable" x-icon="'no'" aria-label="关闭"></button>
+</div>`;
 
 /**
- * 消息 shell 默认视觉（语义色沿现行 toast 实现契约，ADR-0068 决策 13 的左 3px accent
- * 条未随实现保留、废止）：
+ * 消息 shell 默认视觉（ADR-0088 降级后只承载卡片 chrome 与内容区公共样式——内容结构样式
+ * 仍全局注入：base/task 模板复用同名类，用户接管模板同享）：
  *
- * - 双类名根：`autospark-dialog` 承担圆角（panel-shell 形态样式）；边框/背景/阴影由本表
- *   承担——复用同一批 CSS 变量（`--autospark-overlay-bg/-border`），主题换肤一处生效；
+ * - 双类名根：`autospark-dialog` 承担圆角（panel-shell 形态样式）；根为**横向行**（body
+ *   弹性伸展 + close 收尾）——内容纵向堆叠移入 `.autospark-message-body` 列；
  * - **语义色 = 全边 border + 同色系超淡底（color-mix 7% 混白）+ 图标着色**：内部单一消费点
- *   `--autospark-message-accent`，各 type 经 `data-message-type` 分派到用户换肤接口
- *   `--autospark-message-{type}-color`；`none` 不匹配任何分派规则 → 灰边白底纯中性；
+ *   `--autospark-message-accent`，各 level 经 `data-message-level` 分派到用户换肤接口
+ *   `--autospark-message-{level}-color`；`none` 不匹配任何分派规则 → 灰边白底纯中性；
  * - **slide 方向自适应覆写层**（ADR-0068 决策 16 沿用）：按卡片根 `data-message-pos` 前缀/
  *   后缀换 from 值；`leave-to` = `enter-from` 同值视觉对称；duration 保持内置默认 300ms。
  *
  * 非 scoped、引用无关——多实例共享一份，经 `injectMessageStyles()` 幂等注入（styles.ts 合并注入）。
  */
 export const SHELL_STYLES = `
-/* 卡片形态：纵向堆叠骨架。阴影轻于 dialog 面板的 0 8px 30px——非模态消息浮于页面上
-   而非遮罩上，量级对齐 tooltip */
+/* 卡片形态（ADR-0088：横向行 body + close；内容纵向堆叠在 body 列内）。阴影轻于 dialog
+   面板的 0 8px 30px——非模态消息浮于页面上而非遮罩上，量级对齐 tooltip */
 .autospark-message {
   border: 1px solid var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
   background: var(--autospark-overlay-bg, #fff);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 8px;
   padding: 10px 12px;
   box-sizing: border-box;
   max-width: var(--autospark-message-max-w, 360px);
@@ -79,6 +64,12 @@ export const SHELL_STYLES = `
   line-height: 1.5;
   color: var(--autospark-message-fg, #1f2329);
 }
+/* type 模板投影位（ADR-0088）：body 弹性伸展承接整卡内容 */
+.autospark-message-body {
+  flex: 1;
+  min-width: 0;
+}
+/* 内容主行（icon + 内容列）——base/task 模板复用 */
 .autospark-message-main {
   display: flex;
   align-items: flex-start;
@@ -117,15 +108,13 @@ export const SHELL_STYLES = `
   margin-top: 2px;
   overflow-wrap: break-word;
 }
-/* kind 出口（ADR-0077）：kind renderer 投影位——空 renderer（toast/confirm 占位）零内容
-   天然不占位，有内容时与 description 同列排布 */
-/* actions 独立行（link 形态，无边框）——最底（kind 出口之后） */
+/* actions 独立行（link 形态，无边框）——内容行之后（actions 组件根） */
 .autospark-message-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  padding-left: 25px; /* 与 content 列对齐（图标 17px + gap 8px） */
+  margin-top: 6px;
 }
 .autospark-message-action {
   flex: none;
@@ -143,32 +132,33 @@ export const SHELL_STYLES = `
   align-items: center;
   border: none;
   background: none;
-  padding: 0;
+  padding: 2px;
   font-size: 13px;
   color: inherit;
   opacity: 0.45;
   cursor: pointer;
 }
 .autospark-message-close:hover { opacity: 0.9; }
-/* 语义色分派（双层变量：用户覆盖 --autospark-message-{type}-color 一处即换肤）。
+/* 语义色分派（双层变量：用户覆盖 --autospark-message-{level}-color 一处即换肤）。
    着色面 = 全边 border + 同色系超淡底（color-mix 混白，随 accent 联动）+ 图标着色；
+   选择器挂 data-message-level（ADR-0079——原 data-message-type 已让位业务类别）；
    none 不命中任何规则 = 灰边白底纯中性 */
-.autospark-message[data-message-type="info"] {
+.autospark-message[data-message-level="info"] {
   --autospark-message-accent: var(--autospark-message-info-color, #409eff);
   border-color: var(--autospark-message-accent);
   background: color-mix(in srgb, var(--autospark-message-accent) 7%, var(--autospark-overlay-bg, #fff));
 }
-.autospark-message[data-message-type="success"] {
+.autospark-message[data-message-level="success"] {
   --autospark-message-accent: var(--autospark-message-success-color, #67c23a);
   border-color: var(--autospark-message-accent);
   background: color-mix(in srgb, var(--autospark-message-accent) 7%, var(--autospark-overlay-bg, #fff));
 }
-.autospark-message[data-message-type="warn"] {
+.autospark-message[data-message-level="warn"] {
   --autospark-message-accent: var(--autospark-message-warn-color, #e6a23c);
   border-color: var(--autospark-message-accent);
   background: color-mix(in srgb, var(--autospark-message-accent) 7%, var(--autospark-overlay-bg, #fff));
 }
-.autospark-message[data-message-type="error"] {
+.autospark-message[data-message-level="error"] {
   --autospark-message-accent: var(--autospark-message-error-color, #f56c6c);
   border-color: var(--autospark-message-accent);
   background: color-mix(in srgb, var(--autospark-message-accent) 7%, var(--autospark-overlay-bg, #fff));

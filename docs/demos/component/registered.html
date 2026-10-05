@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>components/&lt;名&gt;/registered · 组件注册事件（retain 补发）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!--
+            组件注册事件（ADR-0085）：`components/<名>/registered`，载荷 { name, global }。
+            - 五条注册路径成功即发（本地 x-define / 继承解析 / x-import 远程 / 全局懒预编译首解析）；
+            - **retain 保留事件**——订阅晚于注册也立即补发，依赖指定组件的场景不漏听；
+            - 通配符 components/*/registered 订阅即补发全部已注册名。
+            本 demo 三个场景全部走真实注册路径，不手动 emit：
+            - 场景一：card 在编译期注册（x-define 声明）→ 晚订阅 → on() 返回前即收到补发；
+            - 场景二：先订阅 late → 运行时写全局组件表 + 首次查找触发懒预编译注册 → 事件触发；
+            - 场景三：通配符订阅 → 一次性补发当前全部已注册名（此后新注册实时到达）。
+        -->
+        <div id="app" x-scope>
+            <div class="panel">
+                <div class="label">编译期已注册的组件（x-define 声明，注册发生在引擎编译时）</div>
+                <div x-define="card">
+                    <div class="card">
+                        <header class="card-header"><p class="card-header-title">卡片组件</p></header>
+                        <div class="card-content">我是 card，注册于编译期。</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="label">场景一：注册完成后才订阅 —— retain 补发，不错过</div>
+                <button class="button is-primary is-small" id="btn-late-sub">
+                    订阅 components/card/registered
+                </button>
+            </div>
+
+            <div class="panel">
+                <div class="label">场景二：先订阅、组件后注册 —— 全局组件懒预编译路径</div>
+                <button class="button is-small is-outlined" id="btn-pre-sub">1. 先订阅 components/late/registered</button>
+                <button class="button is-link is-small" id="btn-register">2. 注册全局组件 late 并实例化</button>
+                <!-- 外层 x-if 控制显隐，内层消费组件：真值编译即触发查找 → 懒预编译注册 → 发事件 -->
+                <div x-if="show.late"><div x-component:late></div></div>
+            </div>
+
+            <div class="panel">
+                <div class="label">场景三：通配符订阅 —— 一次拿到全部已注册名（此后实时到达）</div>
+                <button class="button is-small is-outlined" id="btn-wildcard">订阅 components/*/registered</button>
+            </div>
+
+            <div class="panel">
+                <div class="label">事件日志</div>
+                <pre id="log" class="is-size-7"></pre>
+            </div>
+        </div>
+
+        <script>
+            const { AutoSpark } = AutoSparkSpaces;
+            const app = document.getElementById("app");
+            const engine = new AutoSpark(app, { show: { late: false } });
+            const logEl = document.getElementById("log");
+            const logs = [];
+            function log(msg) {
+                logs.push(`[${new Date().toLocaleTimeString()}] ${msg}`);
+                logEl.textContent = logs.join("\n");
+            }
+
+            // 场景一：注册发生在编译期（本行执行前）——晚订阅，on() 内部即同步补发
+            document.getElementById("btn-late-sub").onclick = () => {
+                log("→ 订阅 components/card/registered（此时 card 早已注册）");
+                engine.on("components/card/registered", (m) => {
+                    const p = m.payload ?? m;
+                    log(`收到补发：name=${p.name}, global=${p.global} —— 没有错过`);
+                });
+            };
+
+            // 场景二：先订阅，再走「全局组件懒预编译首解析」注册路径
+            document.getElementById("btn-pre-sub").onclick = () => {
+                log("→ 先订阅 components/late/registered（late 尚未注册）");
+                engine.on("components/late/registered", (m) => {
+                    const p = m.payload ?? m;
+                    log(`late 就绪通知：name=${p.name}, global=${p.global}`);
+                });
+            };
+            document.getElementById("btn-register").onclick = () => {
+                if (engine.options.components.late) return;
+                log("→ 运行时写入全局组件表 + 翻真 x-if 触发首次查找（懒预编译 → 注册 → 发事件）");
+                engine.options.components.late = "<div>我是 late，注册于运行时</div>";
+                engine.state.show.late = true; // x-if 编译消费 x-component:late → 查找 → 注册 → 事件 + 渲染
+            };
+
+            // 场景三：通配符订阅——补发全部已注册名，此后新注册实时到达
+            document.getElementById("btn-wildcard").onclick = () => {
+                log("→ 通配符订阅 components/*/registered");
+                engine.on("components/*/registered", (m) => {
+                    const p = m.payload ?? m;
+                    log(`组件注册：name=${p.name}, global=${p.global}`);
+                });
+            };
+        </script>
+
+        <style>
+            .panel {
+                padding: 16px;
+                border: 1px solid #dbdbdb;
+                border-radius: 8px;
+                margin-bottom: 12px;
+                max-width: 640px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            .label {
+                font-size: 0.8rem;
+                color: #888;
+                margin-bottom: 8px;
+            }
+            #app {
+                padding: 24px 16px;
+            }
+            #log {
+                background: #f7f7f7;
+                padding: 12px;
+                border-radius: 6px;
+                min-height: 80px;
+                white-space: pre-wrap;
+            }
+            .button {
+                margin-right: 8px;
+            }
+        </style>
+    </body>
+</html>

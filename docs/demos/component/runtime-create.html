@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>registerComponent · 运行时创建组件</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <!--
+            运行时创建组件：engine.registerComponent(code, opts)（ADR-0086）。
+            与模板内 x-define（编译期静态声明）、options.components（构造期配置）并列的第三条入口——
+            模板数据来自代码，而非网络（x-import）或模板文件。
+
+            四个场景，全部走真实 registerComponent 调用：
+            - 场景一：按数据/按分支决定注册什么（核心用法）；
+            - 场景二：opts.el 作用域注册——只在指定元素所属 scope 内可见；
+            - 场景三：同名覆盖——warn 一次，已实例化不热替换，重新挂载才取新版；
+            - 场景四：x-define:inherit 父未就绪 → 挂起（返回 null），父后注册 → 事件排水解锁。
+        -->
+    </head>
+    <body>
+        <div id="app" x-scope>
+            <div class="panel">
+                <div class="label">场景一：按数据/按分支注册（核心用法）</div>
+                <div class="buttons">
+                    <button class="button is-small is-primary" data-role="admin">管理员</button>
+                    <button class="button is-small" data-role="editor">编辑者</button>
+                    <button class="button is-small" data-role="guest">访客</button>
+                </div>
+                <!-- 动态组件名只在编译期已知，故按分支各写一个宿主（与 x-component 文档同款约定） -->
+                <div class="stage">
+                    <div x-if="show.admin"><div x-component:role-admin="{ who: '管理员' }"></div></div>
+                    <div x-if="show.editor"><div x-component:role-editor="{ who: '编辑者' }"></div></div>
+                    <div x-if="show.guest"><div x-component:role-guest="{ who: '访客' }"></div></div>
+                    <p class="empty" x-if="!show.admin && !show.editor && !show.guest">
+                        尚未注册任何角色组件——点上方按钮，模板字符串由代码现场决定。
+                    </p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="label">场景二：opts.el 作用域注册（只在指定元素所属 scope 内可见）</div>
+                <div class="buttons">
+                    <button class="button is-small is-link" id="btn-scoped">注册到 #scoped-zone 所在 scope</button>
+                </div>
+                <div id="scoped-zone" class="stage">
+                    <div x-if="show.chip"><div x-component:scoped-chip></div></div>
+                    <p class="empty" x-if="!show.chip">该 scope 内尚未注册 scoped-chip。</p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="label">
+                    场景三：同名覆盖 —— 场景一的实例不热替换（下方面板仍是 v1），此处重新挂载的实例取 v2
+                </div>
+                <div class="buttons">
+                    <button class="button is-small" id="btn-v2">发布 role-admin v2（同名覆盖）</button>
+                    <button class="button is-small is-outlined" id="btn-remount">重新挂载一个 role-admin</button>
+                </div>
+                <div class="stage">
+                    <div x-if="show.remounted"><div x-component:role-admin="{ who: '管理员' }"></div></div>
+                    <p class="empty" x-if="!show.remounted">尚未重新挂载。</p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="label">场景四：继承挂起（子先注册 → 挂起返回 null → 父后注册 → 排水解锁）</div>
+                <div class="buttons">
+                    <button class="button is-small is-warning" id="btn-kid">1. 先注册子 badge（父未就绪）</button>
+                    <button class="button is-small is-success" id="btn-base">2. 再注册父 chip-base</button>
+                </div>
+                <div class="stage">
+                    <div x-if="show.badge"><div x-component:badge="{ label: '运行时注册' }"></div></div>
+                    <p class="empty" x-if="!show.badge">badge 未就绪（尚未注册或挂起中）。</p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="label">日志（registerComponent 返回值 + 组件注册事件）</div>
+                <pre id="log" class="is-size-7"></pre>
+            </div>
+        </div>
+
+        <script>
+            const { AutoSpark } = AutoSparkSpaces;
+            const app = document.getElementById("app");
+            const engine = new AutoSpark(app, {
+                show: { admin: false, editor: false, guest: false, chip: false, remounted: false, badge: false },
+            });
+
+            const logEl = document.getElementById("log");
+            const logs = [];
+            function log(msg) {
+                logs.push(`[${new Date().toLocaleTimeString()}] ${msg}`);
+                logEl.textContent = logs.join("\n");
+            }
+
+            // 组件注册就绪信号（retain：订阅晚于注册也能收到补发）
+            engine.on("components/*/registered", (m) => {
+                const p = m.payload ?? m;
+                log(`⇠ 事件 components/${p.name}/registered（global=${p.global}）`);
+            });
+
+            // ── 场景一：按数据决定注册什么 ──────────────────────────────────────
+            // 角色模板放在数据里，注册时按 key 取——真实项目里这份「模板表」通常来自
+            // 配置、schema 驱动，或后端下发的 UI 描述。
+            const ROLE = {
+                admin: {
+                    label: "管理员",
+                    code: `<div x-define="role-admin">
+                            <div class="role">
+                                <span class="role-name" x-text="who"></span>
+                                <span class="role-flag">全权限 · v1</span>
+                            </div>
+                            <style>
+                                .role { display:inline-flex; gap:10px; align-items:center;
+                                        padding:10px 14px; border-radius:8px;
+                                        background:#f3f8ff; border:1px solid #b8d4f5; }
+                                .role-name { font-weight:700; }
+                                .role-flag { font-size:.75rem; padding:2px 8px; border-radius:10px;
+                                             background:#3273dc; color:#fff; }
+                            </style>
+                        </div>`,
+                    // 同名覆盖用的第二版（场景三）
+                    next: `<div x-define="role-admin">
+                            <div class="role">
+                                <span class="role-name" x-text="who"></span>
+                                <span class="role-flag">超管 · v2</span>
+                            </div>
+                            <style>
+                                .role { display:inline-flex; gap:10px; align-items:center;
+                                        padding:10px 14px; border-radius:8px;
+                                        background:#fff7f0; border:1px solid #f0b48a; }
+                                .role-name { font-weight:700; }
+                                .role-flag { font-size:.75rem; padding:2px 8px; border-radius:10px;
+                                             background:#e8590c; color:#fff; }
+                            </style>
+                        </div>`,
+                },
+                editor: {
+                    label: "编辑者",
+                    code: `<div x-define="role-editor">
+                            <div class="role">
+                                <span class="role-name" x-text="who"></span>
+                                <span class="role-flag">可发布</span>
+                            </div>
+                            <style>
+                                .role { display:inline-flex; gap:10px; align-items:center;
+                                        padding:10px 14px; border-radius:8px;
+                                        background:#f6fff8; border:1px solid #a8dcb9; }
+                                .role-name { font-weight:700; }
+                                .role-flag { font-size:.75rem; padding:2px 8px; border-radius:10px;
+                                             background:#23a35a; color:#fff; }
+                            </style>
+                        </div>`,
+                },
+                guest: {
+                    label: "访客",
+                    code: `<div x-define="role-guest">
+                            <div class="role">
+                                <span class="role-name" x-text="who"></span>
+                                <span class="role-flag">只读</span>
+                                <button class="button is-small" x-on:click="bump()">浏览 +1</button>
+                                <span class="role-count" x-text="n"></span>
+                            </div>
+                            <script type="autospark/setup">{
+                                data: { n: 0 },
+                                methods: {
+                                    bump() {
+                                        this.data.n++;
+                                    },
+                                },
+                            }<\/script>
+                            <style>
+                                .role { display:inline-flex; gap:10px; align-items:center;
+                                        padding:10px 14px; border-radius:8px;
+                                        background:#fafafa; border:1px solid #dbdbdb; }
+                                .role-name { font-weight:700; }
+                                .role-flag { font-size:.75rem; padding:2px 8px; border-radius:10px;
+                                             background:#7a7a7a; color:#fff; }
+                                .role-count { font-weight:700; font-variant-numeric:tabular-nums; }
+                            </style>
+                        </div>`,
+                },
+            };
+
+            app.querySelectorAll("[data-role]").forEach((btn) => {
+                btn.onclick = () => {
+                    const key = btn.dataset.role;
+                    const spec = ROLE[key];
+                    // 严格单根契约：模板须「恰好一个带 x-define 的根元素」——不做自动包装
+                    const def = engine.registerComponent(spec.code);
+                    log(`registerComponent(${spec.label}) → ${def ? "已注册" : "失败（详见控制台 warn）"}`);
+                    engine.state.show[key] = true;
+                };
+            });
+
+            // ── 场景二：opts.el 作用域注册 ─────────────────────────────────────
+            // el 与 scope 同义（都是「声明处」）：自该元素向上取最近的 scope 根，
+            // 与 x-define 的「最近祖先 scope」归属同构；整条链都查不到才 warn 并降级为全局。
+            document.getElementById("btn-scoped").onclick = () => {
+                const zone = document.getElementById("scoped-zone");
+                const def = engine.registerComponent(
+                    `<div x-define="scoped-chip">
+                        <span class="chip">仅本 scope 可见的 chip</span>
+                        <style>
+                            .chip { padding:6px 12px; border-radius:12px; font-size:.8rem;
+                                    background:#eef4ff; border:1px solid #b8d4f5; }
+                        </style>
+                    </div>`,
+                    { el: zone },
+                );
+                log(
+                    `registerComponent(scoped-chip, { el: #scoped-zone }) → ` +
+                        `${def ? "已注册到该 scope" : "失败"}`,
+                );
+                engine.state.show.chip = true;
+            };
+
+            // ── 场景三：同名覆盖 ───────────────────────────────────────────────
+            document.getElementById("btn-v2").onclick = () => {
+                const def = engine.registerComponent(ROLE.admin.next);
+                log(`registerComponent(role-admin v2) → ${def ? "覆盖完成" : "失败"}（控制台 warn 一次）`);
+            };
+            document.getElementById("btn-remount").onclick = () => {
+                // 已实例化的组件持有自己的克隆，不被覆盖影响；重新挂载才取到新定义
+                engine.state.show.remounted = false;
+                queueMicrotask(() => {
+                    engine.state.show.remounted = true;
+                });
+                log("重新挂载一个 role-admin（x-if 重建 → 取最新定义）");
+            };
+
+            // ── 场景四：继承挂起 ───────────────────────────────────────────────
+            document.getElementById("btn-kid").onclick = () => {
+                // 父 chip-base 尚未注册 → 本次挂起并返回 null，待父注册事件排水重试
+                const def = engine.registerComponent(
+                    `<div x-define="badge" x-define:inherit="chip-base">
+                        <template x-slot:label><b x-text="label"></b></template>
+                    </div>`,
+                );
+                log(
+                    `registerComponent(badge, 继承 chip-base) → ` +
+                        `${def ? "已注册" : "null（父未就绪，已挂起）"}`,
+                );
+                if (def) engine.state.show.badge = true;
+            };
+            document.getElementById("btn-base").onclick = () => {
+                const def = engine.registerComponent(
+                    `<div x-define="chip-base">
+                        <div class="chip-wrap">
+                            <span class="chip-dot"></span>
+                            <span class="chip-label" x-slot:label>未命名</span>
+                            <span class="chip-tail" x-slot>父 fallback 保留</span>
+                        </div>
+                        <style>
+                            .chip-wrap { display:inline-flex; gap:8px; align-items:center;
+                                         padding:8px 12px; border-radius:8px;
+                                         background:#f7f7f7; border:1px solid #dbdbdb; }
+                            .chip-dot { width:8px; height:8px; border-radius:50%; background:#23a35a; }
+                            .chip-tail { font-size:.72rem; color:#999; }
+                        </style>
+                    </div>`,
+                );
+                log(
+                    `registerComponent(chip-base) → ` +
+                        `${def ? "父已注册，子 badge 挂起项已排水解锁" : "失败"}`,
+                );
+                // 排水已完成（同步），此时翻真即取到继承展开后的定义
+                engine.state.show.badge = true;
+            };
+        </script>
+
+        <style>
+            .panel {
+                padding: 16px;
+                border: 1px solid #dbdbdb;
+                border-radius: 8px;
+                margin-bottom: 12px;
+            }
+            .label {
+                font-size: 0.8rem;
+                color: #888;
+                margin-bottom: 8px;
+            }
+            #app {
+                padding: 24px 16px;
+            }
+            .stage {
+                padding: 12px;
+                border: 1px dashed #dbdbdb;
+                border-radius: 6px;
+                min-height: 44px;
+            }
+            .empty {
+                margin: 0;
+                font-size: 0.8rem;
+                color: #aaa;
+            }
+            #log {
+                background: #f7f7f7;
+                padding: 12px;
+                border-radius: 6px;
+                min-height: 80px;
+                white-space: pre-wrap;
+            }
+        </style>
+    </body>
+</html>

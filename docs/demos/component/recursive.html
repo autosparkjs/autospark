@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件递归 · x-component 自引用</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .tree {
+                max-width: 360px;
+                font-size: 0.95em;
+                user-select: none;
+            }
+            .tree-row {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 3px 6px;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            .tree-row:hover {
+                background: #f5f5f5;
+            }
+            .tree-row .arrow {
+                width: 14px;
+                color: #888;
+                text-align: center;
+            }
+            .tree-kids {
+                margin-left: 14px;
+                padding-left: 10px;
+                border-left: 1px solid #dbdbdb;
+            }
+        </style>
+    </head>
+    <body>
+        <!--
+            组件递归：组件模板内 x-component:自身名 实例化自身（依赖嵌套私有子组件机制——
+            组件模板内的名字沿实例 scope 链就近命中声明）。终止条件由数据驱动：
+            无 children 的节点不再展开实例化。点击行翻转 open，经共享响应式代理驱动 x-show
+            （子树保活、仅切显隐；递归子级在 x-for 项内逐层实例化）。
+        -->
+        <div id="app" x-scope>
+            <!-- 递归组件：一行节点 + 子级容器（子级再实例化自身） -->
+            <div x-define="tree-item">
+                <div class="tree-row" x-on:click="toggle">
+                    <span
+                        class="arrow"
+                        x-text="(node.children && node.children.length > 0) ? (node.open ? '▾' : '▸') : ''"
+                    ></span>
+                    <span x-text="node.name"></span>
+                </div>
+                <div class="tree-kids" x-show="node.open">
+                    <div x-for="child of node.children">
+                        <div x-component:tree-item="{ node: child }"></div>
+                    </div>
+                </div>
+                <script type="autospark/setup">
+                    {
+                        methods: {
+                            toggle() {
+                                if (this.data.node.children && this.data.node.children.length > 0) {
+                                    this.data.node.open = !this.data.node.open;
+                                }
+                            },
+                        },
+                    }
+                </script>
+            </div>
+
+            <div class="panel">
+                <p><b>递归组件：</b>点击行展开 / 收起（open 状态驱动 x-show，子级递归实例化）</p>
+                <div class="tree">
+                    <div x-for="root of tree">
+                        <div x-component:tree-item="{ node: root }"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {
+                tree: [
+                    {
+                        name: "src",
+                        open: true,
+                        children: [
+                            {
+                                name: "compile",
+                                open: true,
+                                children: [{ name: "compiler.ts" }, { name: "inherit.ts" }],
+                            },
+                            {
+                                name: "directives",
+                                open: false,
+                                children: [{ name: "define.ts" }, { name: "slot.ts" }],
+                            },
+                        ],
+                    },
+                    {
+                        name: "docs",
+                        open: false,
+                        children: [{ name: "guide" }, { name: "demos" }],
+                    },
+                    { name: "package.json" },
+                ],
+            });
+        </script>
+    </body>
+</html>

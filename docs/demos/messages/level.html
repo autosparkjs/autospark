@@ -2,7 +2,7 @@
 <html lang="zh-CN">
     <head>
         <meta charset="UTF-8" />
-        <title>messages · 类型与语义色</title>
+        <title>messages · 严重度与语义色（level）</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
@@ -13,15 +13,15 @@
         <div class="demo-app section">
             <div class="block">
                 <button class="button" onclick="app.messages.add('普通提示（type 缺省 none）')">none</button>
-                <button class="button" onclick="app.messages.add({ title: '正在同步数据', type: 'info' })">info</button>
-                <button class="button" onclick="app.messages.add({ title: '保存成功', type: 'success' })">success</button>
-                <button class="button" onclick="app.messages.add({ title: '连接不稳定', type: 'warn' })">warn</button>
-                <button class="button" onclick="app.messages.add({ title: '网络请求失败', type: 'error' })">error</button>
+                <button class="button" onclick="app.messages.add({ title: '正在同步数据', level: 'info' })">info</button>
+                <button class="button" onclick="app.messages.add({ title: '保存成功', level: 'success' })">success</button>
+                <button class="button" onclick="app.messages.add({ title: '连接不稳定', level: 'warn' })">warn</button>
+                <button class="button" onclick="app.messages.add({ title: '网络请求失败', level: 'error' })">error</button>
             </div>
             <div class="block">
                 <button
                     class="button is-light"
-                    onclick="app.messages.add({ title: '带关闭钮的提示', type: 'info', closable: true, delayClose: 0 })"
+                    onclick="app.messages.add({ title: '带关闭钮的提示', level: 'info', closable: true, delayClose: 0 })"
                 >
                     closable（sticky 不自动关）
                 </button>

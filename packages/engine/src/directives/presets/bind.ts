@@ -162,9 +162,6 @@ export class BindDirective extends AutoSparkDirectiveBase {
         // configManager 不存在 → warn + 静默（不动 DOM）
         const cm = this.engine.store.configManager;
         if (!cm) {
-            logger.warn(
-                `x-bind: 配置引用 "${this.value}" 需要 configManager，但 store 未配置（value="${this.value}"）`,
-            );
             return;
         }
         const raw = String(this.value);
@@ -174,9 +171,6 @@ export class BindDirective extends AutoSparkDirectiveBase {
         const rightRaw = raw.slice(at + 1);
         // @ 两侧均须非空
         if (!leftRaw.trim() || !rightRaw.trim()) {
-            logger.warn(
-                `x-bind: 配置引用 "${this.value}" 的 @ 两侧均须非空（左配置状态路径 + 右配置属性路径），已忽略`,
-            );
             return;
         }
         const leftSegs = splitPath(leftRaw, ".");
@@ -238,7 +232,7 @@ export class BindDirective extends AutoSparkDirectiveBase {
      */
     private resolveTransitionOption(): string | undefined {
         const opt = this.getOption("transition");
-        if (opt === true) return "all 0.3s ease-in";
+        if (opt === true) return "all 0.2s ease-in";
         if (typeof opt === "string") return opt;
         return undefined;
     }

@@ -235,7 +235,7 @@ AutoSpark 注册 **31 条**指令，Vue 内置 **15 条**，Alpine 内置 **18 �
 <button x-icon.button="check"></button>   <!-- .button：hover/press 载体动效，零 DOM 变化 -->
 ```
 
-渲染走 **SVG symbol + `<use>` + document 级唯一 sprite**（`ADR-0058`），颜色经 `currentColor` 继承、尺寸默认 `1em`。图标集有**作用域链**（默认挂最近祖先 scope，内层遮蔽外层，`.global` 进 `AutoSpark.icons`），与 `getComponent` 同构。远程图标经 IconifyJSON 批量转 symbol，支持 TTL 持久缓存（`ADR-0047`/`0048`），**异步未就绪占位、就绪自动唤醒**。详见 [x-icon](../guide/directives/x-icon.md)。
+渲染走 **SVG symbol + `<use>` + document 级唯一 sprite**（`ADR-0058`），颜色经 `currentColor` 继承、尺寸默认 `1em`。图标集有**作用域链**（默认挂最近祖先 scope，内层遮蔽外层，`.global` 进 `AutoSpark.icons`），与 `getComponentDeclaration` 同构。远程图标经 IconifyJSON 批量转 symbol，支持 TTL 持久缓存（`ADR-0047`/`0048`），**异步未就绪占位、就绪自动唤醒**。详见 [x-icon](../guide/directives/x-icon.md)。
 
 #### x-dialog / x-drawer / x-popover：组件即内容，状态驱动
 

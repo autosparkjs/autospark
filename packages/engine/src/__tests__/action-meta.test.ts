@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
 import { mount, nextTick } from "./helpers";
-import type { ActionDesc } from "../actions/types";
+import type { AutoSparkAction } from "../actions/types";
 
 /**
  * action 元数据化（ADR-0036）—— ActionDesc 统一存储形态。
@@ -34,7 +34,7 @@ describe("action 元数据化（ADR-0036 ActionDesc）", () => {
             },
         );
         // 存储层全量规范化：值恒为描述符（非函数）
-        const desc = engine.actions.toggle as ActionDesc;
+        const desc = engine.actions.toggle as AutoSparkAction;
         expect(typeof desc).toBe("object");
         expect(desc.name).toBe("toggle");
         expect(desc.title).toBe("切换");
@@ -69,7 +69,7 @@ describe("action 元数据化（ADR-0036 ActionDesc）", () => {
              </script></div>`,
             { local: false },
         );
-        const desc = engine.actions.toggle as ActionDesc | undefined;
+        const desc = engine.actions.toggle as AutoSparkAction | undefined;
         // 局部 action 不进全局表（ADR-0012），经 scope.getAction 查到
         expect(desc).toBeUndefined();
         root.querySelector("button")!.click();
@@ -252,7 +252,7 @@ describe("action 元数据化（ADR-0036 ActionDesc）", () => {
     test("内置 yes/no/cancel/close：自动注册，handle 透传首参 + title + builtin 标记", () => {
         const { engine } = mount(`<div></div>`, {});
         for (const name of ["yes", "no", "cancel", "close"]) {
-            const desc = (engine.actions as any)[name] as ActionDesc;
+            const desc = (engine.actions as any)[name] as AutoSparkAction;
             expect(desc.name).toBe(name);
             expect(typeof desc.handle).toBe("function");
             expect(desc.title).toBeTruthy();

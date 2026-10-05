@@ -31,19 +31,19 @@
             function dump(label, task) {
                 state.textContent =
                     `句柄状态：${label}\n` +
-                    `  id=${task.id}  kind=${task.kind}  closed=${task.closed}\n` +
+                    `  id=${task.id}  type=${task.type}  closed=${task.closed}\n` +
                     `  read=${task.read}  status=${task.status}  result=${JSON.stringify(task.result)}`;
             }
 
             function addObj() {
-                const task = app.messages.add({ title: "同步完成", type: "success", delayClose: 1500 });
+                const task = app.messages.add({ title: "同步完成", level: "success", delayClose: 1500 });
                 dump("配置对象", task);
             }
 
             function addFactory() {
                 pending = app.messages.add(async () => {
                     await new Promise((r) => setTimeout(r, 1000));
-                    return { title: "迟到数据（1 秒工厂）", type: "info" };
+                    return { title: "迟到数据（1 秒工厂）", level: "info" };
                 });
                 dump("async factory 挂起中", pending);
                 setTimeout(() => pending && dump("async factory 已 resolve", pending), 1200);

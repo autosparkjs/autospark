@@ -63,7 +63,7 @@ function isLiteralComponentName(raw: string): boolean {
  *   更新出现键，组件内绑定经 getContext 重读自动刷新；组件内部状态不被重置、不回写外部状态。
  *
  * 其余机制（承接原 x-use）：
- * - 取组件冻结快照（经 `scope.getComponent(name)` 沿链就近 + 全局兜底）；
+ * - 取组件冻结快照（经 `scope.getComponentDeclaration(name)` 沿链就近 + 全局兜底）；
  * - **宿主化身组件根**（T4=B）：复用宿主节点身份，清空其原内容、编译组件快照子树挂入；
  *   宿主属性继承到组件根（class 合并拼接、style 合并冲突键组件根优先、其他属性不覆盖；
  *   x-define 声明族属性不复制）；
@@ -113,12 +113,14 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     private componentName: string | null = null;
     /** 当前实例化的组件 def（缓存，props 更新时复用） */
     private instanceDef: ComponentDef | null = null;
-    /** pending 组件名（异步加载中，组件未就绪；监听 component/registered 后重试实例化，R6=B） */
+    /** pending 组件名（异步加载中，组件未就绪；监听 components/<名>/registered 后重试实例化，R6=B） */
     protected pendingName: string | null = null;
     /** pending 期间的 props（组件就绪重试时复用） */
     protected pendingProps: Record<string, any> | undefined;
-    /** component/registered 监听解绑函数 */
+    /** components/<名>/registered 监听解绑函数 */
     private registeredUnsub: (() => void) | null = null;
+    /** 当前监听的事件名（= `components/<pendingName>/registered`）：名变时比对重订（订阅键即过滤） */
+    private _pendingEventName: string | null = null;
 
     // === loader 状态（ADR-0065） ===
     /** loader 激活标志：created 解析到 loader 声明后置位，接管实例化时序（props watch 只记 pending） */
@@ -162,7 +164,22 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         }
         // 组件名：属性参数承载（x-component:counter，ADR-0054 决策二）。缺参 → warn 跳过实例化；
         // 值恰为纯标识符时附言迁移指引（旧定义写法 x-component="名" 与新实例化同形，指回 x-define）。
-        const name = (this.attr ?? "").trim();
+        let name = (this.attr ?? "").trim();
+        // 点号组件名重建（ADR-0088）：指令解析器把属性参数的句点段切为修饰符
+        // （`x-component:autospark.messages.actions` → attr="autospark" + modifiers），而组件名
+        // 合法含点（`autospark.*` 引擎保留命名空间，ADR-0083）——按**升序候选回溯**拼接：
+        // attr 起逐段并入修饰符试查组件表，首个命中者即组件名；短名优先命中时点号段保持
+        // 修饰符语义（`x-component:counter.global` 的 .global 不受影响）。
+        if (name !== "" && this.modifiers?.length) {
+            const segments = [name, ...this.modifiers];
+            for (let i = 2; i <= segments.length; i++) {
+                const candidate = segments.slice(0, i).join(".");
+                if (this.binding.getComponentDeclaration(candidate)) {
+                    name = candidate;
+                    break;
+                }
+            }
+        }
         if (name === "") {
             const rawValue = this.value == null ? "" : String(this.value).trim();
             const hint = isLiteralComponentName(rawValue)
@@ -371,10 +388,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             // 同名校验（决策四）：本次加载结果无属性参数指定的组件 → error 呈现
             //（查返回清单而非沿链查找——命中祖先 scope 的旧同名组件不算本次加载成功）
             if (!registered.includes(this.componentName!)) {
-                this._renderLoaderError(
-                    new Error(`远程内容中无组件 "${this.componentName}"`),
-                    cfg,
-                );
+                this._renderLoaderError(new Error(`远程内容中无组件 "${this.componentName}"`), cfg);
                 return;
             }
             this._clearHostContent();
@@ -403,7 +417,9 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             return;
         }
         const snapshot =
-            decl && typeof decl === "object" ? this.binding.getComponent(decl.name) : null;
+            decl && typeof decl === "object"
+                ? this.binding.getComponentDeclaration(decl.name)
+                : null;
         if (!snapshot) {
             this.warn(
                 `x-component: loader 占位组件 "${(decl as any)?.name}" 未注册，回退默认占位。`,
@@ -438,7 +454,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
 
     /**
      * 呈现加载失败（ADR-0065 决策六/七）：自定义 error 声明走占位协议；缺省渲染内置 error
-     * 组件（getComponent("error") 沿链 + 全局兜底 → 构造器默认内置），注入 error/message 与
+     * 组件（getComponentDeclaration("error") 沿链 + 全局兜底 → 构造器默认内置），注入 error/message 与
      * retry/close 闭包（back 按钮走内置 action，无需注入）。error 不自愈——恢复途径仅
      * url 变化（响应式重入）或 retry。
      */
@@ -454,7 +470,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             });
             return;
         }
-        const snapshot = this.binding.getComponent("error");
+        const snapshot = this.binding.getComponentDeclaration("error");
         if (!snapshot) {
             this.warn(`x-component: ${message}（且 error 组件未注册，无错误呈现。）`);
             return;
@@ -540,7 +556,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     /**
      * 组件查找 + def 反查（x-component 与 overlay 基座共享）。
      *
-     * 快照经 `scope.getComponent(name)`（scope 链就近 + 全局兜底）；def 反查：
+     * 快照经 `scope.getComponentDeclaration(name)`（scope 链就近 + 全局兜底）；def 反查：
      * 作用域组件经 `_componentDefs`（WeakMap，snapshot 为 key）、全局组件经
      * `_globalComponentDefCache`（按 name）——getComponentDef 对全局 snapshot 返回 undefined，
      * 须 fallback getGlobalComponentDef，否则全局组件的 setup(data/methods/hooks) 丢失、不注入。
@@ -550,7 +566,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     protected _findComponentDef(
         name: string,
     ): { snapshot: HTMLElement; def: ComponentDef | null } | null {
-        const snapshot = this.binding.getComponent(name);
+        const snapshot = this.binding.getComponentDeclaration(name);
         if (!snapshot) return null;
         const def =
             this.engine.getComponentDef(snapshot) ??
@@ -660,9 +676,10 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         for (const attr of Array.from(snapshot.attributes)) {
             if (!attr) continue;
             const name = attr.name;
-            // 跳过 x-define 声明族属性（正身 / 修饰符形态 / 指令选项，均不进实例化 DOM，ADR-0054）
+            // 跳过 x-define 声明族属性（正身 / 修饰符形态 / 指令选项 / 属性参数，均不进实例化 DOM，ADR-0054/0081）
             if (name === "x-define" || name === "x-define-options") continue;
             if (name.startsWith("x-define.")) continue;
+            if (name.startsWith("x-define:")) continue;
             if (name === "class") {
                 const hostClass = host.getAttribute("class") ?? "";
                 const merged = (hostClass + " " + attr.value).trim();
@@ -733,18 +750,27 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     }
 
     /**
-     * 监听 component/registered 事件，目标组件就绪后经 {@link _retryPendingComponent} 重试
-     * （R6=B 异步占位）。
+     * 监听带名注册事件（`components/<名>/registered`，ADR-0085），目标组件就绪后经
+     * {@link _retryPendingComponent} 重试（R6=B 异步占位）。
+     *
+     * 订阅键即过滤（无回调内名比对）；事件 **retain**——订阅晚于注册也能立即补发，
+     * 消灭「查找失败 → 订阅之间组件恰好注册」的竞态窗口。pendingName 变化须比对重订
+     * （订阅键随名走；旧实现已监听即 return 不换键，靠回调内比对——迁移时一并修正）。
      */
     protected _waitForComponent(name: string, props: Record<string, any> | undefined): void {
         this.pendingName = name;
         this.pendingProps = props;
-        if (this.registeredUnsub) return; // 已在监听
-        const sub = this.engine.on("component/registered", (m: any) => {
-            const payload = m?.payload ?? m;
-            if (payload?.name === this.pendingName) {
-                this._retryPendingComponent();
-            }
+        if (this.registeredUnsub && this._pendingEventName === name) return; // 已在监听同名
+        if (this.registeredUnsub) {
+            this.registeredUnsub();
+            this.registeredUnsub = null;
+        }
+        this._pendingEventName = name;
+        const sub = this.engine.on(`components/${name}/registered` as any, () => {
+            // retain 补发在 on() 内同步执行，重试清理后订阅可能短暂残留——无 pending 时
+            // 忽略重复触发（等价于旧实现的回调内名比对守卫）
+            if (this.pendingName == null) return;
+            this._retryPendingComponent();
         });
         this.registeredUnsub = typeof sub === "function" ? sub : () => sub.off();
     }
@@ -765,6 +791,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     protected _clearPending(): void {
         this.pendingName = null;
         this.pendingProps = undefined;
+        this._pendingEventName = null;
         if (this.registeredUnsub) {
             this.registeredUnsub();
             this.registeredUnsub = null;

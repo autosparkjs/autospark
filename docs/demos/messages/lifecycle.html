@@ -37,7 +37,7 @@
                 app.messages.add({
                     id: `note-${++seq}`,
                     title: `记录 ${seq}（persist=${persist}）`,
-                    kind: "notice",
+                    type: "notice",
                     persist, // 0|1|2|3（常量 AutoSparkSpaces.MESSAGE_PERSIST.* 同义）
                     delayClose: 0,
                     pos: persist === 0 ? "bottom-right" : "top-right",

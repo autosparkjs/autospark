@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import "./setup";
 import { mount, nextTick, finishAnim } from "./helpers";
+import { iconRegistry } from "../icons/registry";
+
+/** 默认模板三态图标名（x-icon 取内置图标，图形内容与本用例无关，只断言「名」）。
+ *  x-icon.test.ts 会清空全局注册表，用例自备种子以免受测试执行顺序影响 */
+function seedCheckIcons() {
+    for (const n of ["checked", "unchecked", "semi-checked"]) {
+        if (!iconRegistry.has(n)) iconRegistry.add(n, `<svg viewBox="0 0 24 24"><rect/></svg>`);
+    }
+}
 
 /**
  * x-tree 树形渲染测试，覆盖 ADR-0040（P1 范围）：
@@ -670,6 +679,7 @@ describe("x-tree 复选与级联（P2，决策 10/13）", () => {
     });
 
     test("零模板 + checkedField 声明：默认模板自动带复选触点（级联可用）", async () => {
+        seedCheckIcons();
         const { root, engine } = mount(
             `<ul x-tree="node of nodes" x-tree-options="{ checkedField: 'checked', defaultExpandLevel: 2 }"></ul>`,
             makeTree(),
@@ -677,12 +687,21 @@ describe("x-tree 复选与级联（P2，决策 10/13）", () => {
         await nextTick();
         const check = root.querySelector("[data-x-tree-check]") as HTMLElement;
         expect(check).not.toBeNull(); // 默认模板带触点
-        expect(check.textContent).toBe("☐");
+        // 三态取内置图标（x-icon 渲染 use href 指向全局 symbol）
+        const iconHref = () => check.querySelector("use")?.getAttribute("href");
+        expect(iconHref()).toBe("#as-unchecked");
         check.dispatchEvent(new Event("click", { bubbles: true }));
         await nextTick();
         const st = engine.state as any;
         expect(st.nodes[0].checked).toBe(true);
         expect(st.nodes[0].children[0].checked).toBe(true); // 级联照常
+        expect(iconHref()).toBe("#as-checked"); // 父行全勾 → 勾选态
+        // 取消首个子节点 → 父行回落半选（图标切 semi-checked）
+        const rows = Array.from(root.querySelectorAll("[data-x-tree-check]"));
+        rows[1]!.dispatchEvent(new Event("click", { bubbles: true }));
+        await nextTick();
+        expect(st.nodes[0].checked).toBe(false);
+        expect(rows[0]!.querySelector("use")!.getAttribute("href")).toBe("#as-semi-checked");
     });
 
     test("checkedField 声明但自定义模板无触点：warn 防呆", async () => {

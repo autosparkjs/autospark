@@ -12,7 +12,8 @@ import { mount, nextTick, finishAnim } from "./helpers";
 
 const containerOf = (): HTMLElement | null => document.querySelector(".autospark-overlays");
 const maskOf = (name: string): HTMLElement | null =>
-    document.querySelector(`.autospark-dialog-mask [data-overlay="${name}"]`)?.parentElement ?? null;
+    document.querySelector(`.autospark-dialog-mask [data-overlay="${name}"]`)?.parentElement ??
+    null;
 
 const engines: any[] = [];
 const mountOverlay = (html: string, state: any, options?: any) => {
@@ -60,7 +61,9 @@ describe("消费模型（组件即覆盖物内容）", () => {
         expect(mask).not.toBeNull();
         expect(containerOf()).not.toBeNull();
         expect(mask!.textContent).toContain("登录");
-        expect(mask!.querySelector(".autospark-dialog")!.getAttribute("data-overlay")).toBe("login");
+        expect(mask!.querySelector(".autospark-dialog")!.getAttribute("data-overlay")).toBe(
+            "login",
+        );
     });
 
     test("全局组件（options.components）可被消费；scope 链就近覆盖全局", async () => {
@@ -96,7 +99,7 @@ describe("消费模型（组件即覆盖物内容）", () => {
         expect(warns.some((w) => w.includes("missing"))).toBe(true);
     });
 
-    test("x-import 延迟就绪：component/registered 后自动打开；等待期间归假则放弃", async () => {
+    test("x-import 延迟就绪：components/<名>/registered 后自动打开；等待期间归假则放弃", async () => {
         const { root, engine } = mountOverlay(
             `<div id="app"><div x-scope id="host">
                 <button x-dialog:late="ui.open"></button>
@@ -112,7 +115,7 @@ describe("消费模型（组件即覆盖物内容）", () => {
         const compEl = document.createElement("div");
         compEl.innerHTML = "<span>迟到组件</span>";
         hostScope.components = { late: compEl };
-        engine.emit("component/registered", { name: "late" });
+        engine.emit("components/late/registered" as any, { name: "late", global: false }, true);
         await nextTick();
         expect(maskOf("late")!.textContent).toContain("迟到组件");
 
@@ -129,7 +132,7 @@ describe("消费模型（组件即覆盖物内容）", () => {
         const compEl2 = document.createElement("div");
         compEl2.innerHTML = "<span>x</span>";
         hostScope.components = { late: compEl2 };
-        engine.emit("component/registered", { name: "late" });
+        engine.emit("components/late/registered" as any, { name: "late", global: false }, true);
         await nextTick();
         expect(maskOf("late")).toBeNull(); // 已归假，放弃打开
     });
@@ -211,7 +214,9 @@ describe("「请求关闭」触点与写回", () => {
         const { engine } = setup();
         const mask = maskOf("login")!;
         // 面板内点击：不关
-        mask.querySelector(".autospark-dialog")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        mask.querySelector(".autospark-dialog")!.dispatchEvent(
+            new MouseEvent("click", { bubbles: true }),
+        );
         await nextTick();
         expect(engine.state.ui.loginVisible).toBe(true);
         // 遮罩本体点击：关 + 回写
@@ -475,15 +480,19 @@ describe("配置两级链（ADR-0052 v2.3：内置默认 < x-dialog-options）",
     });
 });
 
-describe("命令式 API（engine.getOverlay，共识 10 镜像 getComponent）", () => {
+describe("命令式 API（engine.getOverlay，共识 10 镜像 getComponentDeclaration）", () => {
     const html = `<div id="app"><div x-scope id="host">
         <div x-define="confirm"><span>{{msg}}</span></div>
     </div></div>`;
 
     test("el 起链查找 / 省略 el 仅查全局 / open({props}) / close / 未知键零防御", async () => {
-        const { root, engine } = mountOverlay(html, {}, {
-            components: { global: "<div><span>全局覆盖物</span></div>" },
-        });
+        const { root, engine } = mountOverlay(
+            html,
+            {},
+            {
+                components: { global: "<div><span>全局覆盖物</span></div>" },
+            },
+        );
         const host = root.querySelector("#host")!;
         // el 起链查找命中局部 x-define 声明
         const handle = engine.getOverlay(host, "confirm", { animate: false })!;
@@ -523,7 +532,10 @@ describe("命令式 API（engine.getOverlay，共识 10 镜像 getComponent）",
     test("getOverlay options.props 句柄级默认：被 open({props}) 覆盖", async () => {
         const { root, engine } = mountOverlay(html, {});
         const host = root.querySelector("#host")!;
-        const handle = engine.getOverlay(host, "confirm", { animate: false, props: { msg: "默认" } })!;
+        const handle = engine.getOverlay(host, "confirm", {
+            animate: false,
+            props: { msg: "默认" },
+        })!;
         handle.open();
         await nextTick();
         expect(maskOf("confirm")!.textContent).toContain("默认");
@@ -601,7 +613,7 @@ describe("嵌套与打开栈", () => {
 });
 
 describe("dataContext 数据视图基准（共识 8：declarer 默认 / host）", () => {
-    // 组件声明须在消费者的祖先链上（getComponent 协议）；嵌套 x-data：外层 = 声明处、内层 = 消费处
+    // 组件声明须在消费者的祖先链上（getComponentDeclaration 协议）；嵌套 x-data：外层 = 声明处、内层 = 消费处
     const html = (options: string) => `<div id="app"><div x-scope>
         <div x-data="{ title: '声明处' }">
             <div x-define="basis"><span>{{title}}</span></div>
@@ -751,9 +763,24 @@ describe("at 锚定定位（ADR-0052 决策 21–24）", () => {
         // autoPlacement 经 reset 自主决定 placement，最终值写回面板（候选序首个可容纳方向）
         const final = panel.getAttribute("data-overlay-placement")!;
         expect(final).not.toBe("");
-        expect(["top", "bottom", "left", "right", "top-start", "top-end", "bottom-start", "bottom-end", "left-start", "left-end", "right-start", "right-end"]).toContain(final);
+        expect([
+            "top",
+            "bottom",
+            "left",
+            "right",
+            "top-start",
+            "top-end",
+            "bottom-start",
+            "bottom-end",
+            "left-start",
+            "left-end",
+            "right-start",
+            "right-end",
+        ]).toContain(final);
         // staticSide 偏移按最终方向设置（方向→对侧映射：top/bottom→bottom/top，left/right→right/left）
-        const staticSide = { top: "bottom", bottom: "top", left: "right", right: "left" }[final.split("-")[0] as string]!;
+        const staticSide = { top: "bottom", bottom: "top", left: "right", right: "left" }[
+            final.split("-")[0] as string
+        ]!;
         const arrow = panel.querySelector(":scope > .autospark-overlay-arrow") as HTMLElement;
         expect(arrow.style[staticSide as any]).not.toBe("");
     });

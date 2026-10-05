@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-define:inherit · 组件继承</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .demo-card {
+                border: 1px solid #dbdbdb;
+                border-radius: 6px;
+                padding: 12px 16px;
+                margin-bottom: 12px;
+                max-width: 420px;
+            }
+            .demo-card .hd {
+                border-bottom: 1px solid #ededed;
+                padding-bottom: 6px;
+                margin-bottom: 8px;
+                font-weight: 600;
+            }
+            .demo-card .bd {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+            .demo-card .ft {
+                margin-top: 8px;
+                color: #888;
+                font-size: 0.85em;
+            }
+        </style>
+    </head>
+    <body>
+        <!--
+            组件继承（ADR-0081）：order-card 经 x-define:inherit="card" 复用 card 的
+            模板结构 / setup / 样式，子定义子节点按插槽规则做覆盖——
+            <template x-slot:header> 覆盖 header 出口，裸子节点覆盖默认出口。
+            三层优先级：消费方内容 > 继承覆盖 > 父 fallback。
+        -->
+        <div id="app" x-scope>
+            <!-- 父组件：三出口（header / 默认 / footer）+ 计数逻辑 -->
+            <div x-define="card">
+                <div class="demo-card">
+                    <div class="hd" x-slot:header>默认标题</div>
+                    <div class="bd" x-slot>count={{ count }}</div>
+                    <div class="ft" x-slot:footer>card 组件</div>
+                </div>
+                <script type="autospark/setup">
+                    {
+                        data: { count: 0, step: 1 },
+                        methods: {
+                            inc() {
+                                this.data.count += this.data.step;
+                            },
+                            dec() {
+                                this.data.count -= this.data.step;
+                            },
+                        },
+                    }
+                </script>
+            </div>
+
+            <!-- 子组件：继承 card——header 换订单标题、默认出口换成价格 + 下单交互；
+                 inc 覆盖父方法并用 this.super.inc() 保留父行为（父 +step 后再叠加 +1） -->
+            <div x-define="order-card" x-define:inherit="card">
+                <template x-slot:header><b>🧾 订单卡片</b></template>
+                <div>
+                    <span>价格 {{ price }} / 已下单 {{ count }} 件</span>
+                    <button class="button is-small" x-on:click="dec">父方法 −1</button>
+                    <button class="button is-small is-primary" x-on:click="add">子方法下单</button>
+                    <button class="button is-small is-info" x-on:click="inc">super 增强 +2</button>
+                </div>
+                <script type="autospark/setup">
+                    {
+                        data: { price: 100 },
+                        methods: {
+                            add() {
+                                this.data.count += 1;
+                            },
+                            // 覆盖父 inc：先执行父实现（count += step），再叠加自己的 +1
+                            inc() {
+                                this.super.inc();
+                                this.data.count += 1;
+                            },
+                        },
+                    }
+                </script>
+            </div>
+
+            <!-- 1. 直接实例化子组件：继承覆盖生效（header=订单、默认出口=价格交互、footer=父 fallback） -->
+            <div class="panel">
+                <p><b>继承覆盖：</b>header 与默认出口被子定义覆盖，footer 保留父 fallback</p>
+                <div x-component:order-card></div>
+            </div>
+
+            <!-- 2. 消费方再提供 header 内容：三层优先级——消费方内容 > 继承覆盖 > 父 fallback -->
+            <div class="panel">
+                <p><b>三层优先级：</b>消费方提供的 header 盖过继承覆盖，其余出口不变</p>
+                <div x-component:order-card>
+                    <template x-slot:header><b>📦 消费方自定义标题</b></template>
+                </div>
+            </div>
+
+            <!-- 3. 父组件自身不受影响：仍按原模板实例化 -->
+            <div class="panel">
+                <p><b>父组件不受影响：</b>card 照常独立实例化（父快照不被变异）</p>
+                <div x-component:card></div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+        </script>
+    </body>
+</html>

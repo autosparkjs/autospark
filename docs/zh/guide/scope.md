@@ -95,7 +95,7 @@ Scope 通过 `parent` 字段形成一棵**树形结构**，这是 AutoSpark 多�
 parent 链被以下机制沿链查找：
 - **聚合视图（`getContext()`）**：逐层叠加 locals → data → parent 视图 → 根 state
 - **动作查找（`getAction()`）**：本 scope.actions → 祖先 actions → engine.actions
-- **组件查找（`getComponent()`）**：就近取首个含该名组件的祖先 → 兜底全局组件
+- **组件查找（`getComponentDeclaration()`）**：就近取首个含该名组件的祖先 → 兜底全局组件
 - **数据查找（`getData()`）**：沿链找最近持有 `_data` 的祖先 scope
 - **资源清理**：destroy 时递归销毁所有 children，批量 off watcher
 
@@ -226,7 +226,7 @@ this.binding.engine    // AutoSpark 实例
 this.binding.watch(expr, listener)   // 订阅状态
 this.binding.getContext()             // 聚合视图
 this.binding.getAction(name)         // 查找 action
-this.binding.getComponent(name)      // 查找组件
+this.binding.getComponentDeclaration(name)      // 查找组件
 ```
 
 ### 从动作上下文获取 Scope
@@ -261,7 +261,7 @@ this.binding.getComponent(name)      // 查找组件
 // el      → 组件根元素
 // $parent → 父组件实例 Proxy
 // <method名> → 方法直调互调（如 this.inc()）
-// watch/read/getComponent → scope 同名方法
+// watch/read/getComponentDeclaration → scope 同名方法
 {
   inc() { this.data.count++; },
   reset() { this.globalState.count = 0; },

@@ -33,7 +33,9 @@
   <body>
     <!-- 内建单边 resize（ADR-0072）：手柄骑活动边线，方向由折叠方向推导
          （direction left → 右缘调宽）；拖出尺寸接管展开尺寸真相——折叠再展开
-         恢复拖出宽度。与 x-resize 同元素互斥（x-resize 自失效）。 -->
+         恢复拖出宽度。与 x-resize 同元素互斥（x-resize 自失效）。
+         把手与手柄同骑一条边线：**把手压手柄之上**（把手 20px 圆面覆盖调节线，
+         点击即折叠）；调节线在把手之外拖拽，悬停手柄即显形把手。 -->
     <div class="demo-app section">
       <div x-data="{ log: '' }">
         <div class="block is-size-7 has-text-grey">
@@ -54,7 +56,7 @@
           >
             <div class="inner">
               <strong>折叠 + 调宽</strong>
-              <p>拖右缘单边调节宽度；点骑边把手折叠（负 margin 滑出）再展开，宽度保持拖出值。</p>
+              <p>把手压调节线之上：点把手折叠（负 margin 滑出），把手之外拖右缘调节宽度，再展开宽度保持拖出值。</p>
             </div>
           </div>
           <div style="flex: 1; padding: 12px 16px">主区（自适应流入）</div>

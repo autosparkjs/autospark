@@ -26,7 +26,7 @@ export function isLiteralUrl(raw: string): boolean {
  *
  * url 支持**响应式**（经 `scope.watch` 求值，支持路径/表达式/x-data 局部）；url 变化 → 重新加载。
  * 加载经 `engine.importComponentsFromUrl`（url 缓存 + 循环 import 检测 + `<script setup>`/`<style>` 提取），
- * 注册后广播 `component/registered`，供 pending 的 x-component 重新实例化（异步占位 R6=B）。
+ * 注册后发 `components/<名>/registered`（retain，ADR-0085），供 pending 的 x-component 重新实例化（异步占位 R6=B）。
  *
  * **声明性指令**：x-import 本身不渲染（无 DOM 输出），仅副作用（加载注册）。`name` 属性可选——
  * 若声明则加载完成后校验该名组件已注册（未注册 warn）。
@@ -97,7 +97,7 @@ export class ImportDirective extends AutoSparkDirectiveBase {
             // 校验 name 属性声明的组件是否注册成功（可选诊断）
             const expectedName = this.el.getAttribute("name");
             if (expectedName) {
-                const found = this.binding.getComponent(expectedName);
+                const found = this.binding.getComponentDeclaration(expectedName);
                 if (!found) {
                     this.warn(
                         `x-import: url "${urlStr}" 加载完成，但未找到 name 属性声明的组件 "${expectedName}"。`,

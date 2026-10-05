@@ -33,7 +33,12 @@ import {
     isAsyncDataValue,
     isAsyncHtmlValue,
 } from "../directives/presets/async-source";
-import { buildComponentDef } from "./collect";
+import {
+    buildComponentDef,
+    hasComponentDeclareAttr,
+    parseComponentDeclare,
+} from "./collect";
+import { resolveComponentInheritance, PENDING_PARENT, type InheritResolveResult } from "./inherit";
 import { resolveComponentData } from "./setup";
 import type { ComponentDataBasis, ComponentDef } from "../directives/component-def";
 import {
@@ -41,8 +46,9 @@ import {
     getSlotsContainer,
     stripOwnSlotAttrs,
     type SlotContent,
+    type SuperFallback,
 } from "../utils/slot";
-import { mountComponentScopedAttr, injectComponentStyle } from "../utils/scopedStyle";
+import { mountComponentScopedAttr, injectComponentStyle, componentScopedId } from "../utils/scopedStyle";
 import { coerceStyleValue, type StyleBind } from "../utils/styleBind";
 import { registerIconDecl } from "../icons/domain";
 import { DEFAULT_REMOTE_URL, MODIFY_VALUES, interpolateUrl } from "../icons/remote";
@@ -272,7 +278,8 @@ export class AutoSparkCompiler {
         if (!this._overlayConsumerNames) {
             const names = new Set<string>();
             for (const [name, cls] of this.engine.directives) {
-                if ((cls as { overlayConsumer?: boolean }).overlayConsumer === true) names.add(name);
+                if ((cls as { overlayConsumer?: boolean }).overlayConsumer === true)
+                    names.add(name);
             }
             this._overlayConsumerNames = names;
         }
@@ -356,47 +363,11 @@ export class AutoSparkCompiler {
     /**
      * 元素是否带 x-define 声明属性（含修饰符形态，ADR-0053；指令名 ADR-0054）。
      *
-     * 命中形态：`x-define`（正身）与 `x-define.open` 等带 `.` 修饰符段的属性名；
-     * `x-define-options`（指令选项属性）**不是**声明形态——不命中（`x-define-` 前缀
-     * 与 `x-define.` 修饰符前缀是两个不同边界，与 dispatcher 的保留规则同构）。
-     * 实例化指令 `x-component:名称` 亦不命中（属性名整体是 `x-component:xxx`，与上述前缀均不同）。
+     * 判定规则本体在 `collect.ts` 的 {@link hasComponentDeclareAttr}——与运行时注册
+     * （`engine.registerComponent`，ADR-0086）共用同一实现，两条路径的门禁永不漂移。
      */
     private _matchComponentAttr(el: HTMLElement): boolean {
-        if (el.hasAttribute("x-define")) return true;
-        for (const attr of Array.from(el.attributes)) {
-            if (attr.name.startsWith("x-define.")) return true;
-        }
-        return false;
-    }
-
-    /**
-     * 解析 x-define 声明属性：组件名（值，无值 `default`）+ 修饰符段（属性名 `.` 后段）。
-     * 未知修饰符 warn + 忽略；`open` 修饰符注入边界开关（ADR-0053）。
-     */
-    private _parseComponentAttr(el: HTMLElement): { name: string; modifierOpen: boolean } {
-        let attrName = "x-define";
-        let rawName = el.getAttribute("x-define");
-        if (rawName == null) {
-            for (const attr of Array.from(el.attributes)) {
-                if (attr.name.startsWith("x-define.")) {
-                    attrName = attr.name;
-                    rawName = attr.value;
-                    break;
-                }
-            }
-        }
-        const segments = attrName.slice("x-define".length).split(".").filter(Boolean);
-        for (const seg of segments) {
-            if (seg !== "open") {
-                this.engine.logger.warn(
-                    `x-define: 未知修饰符 ".${seg}"，已忽略（ADR-0053 仅提供 .open）`,
-                );
-            }
-        }
-        return {
-            name: (rawName ?? "").trim() || "default",
-            modifierOpen: segments.includes("open"),
-        };
+        return hasComponentDeclareAttr(el);
     }
 
     /**
@@ -406,17 +377,24 @@ export class AutoSparkCompiler {
      * 按名存入**最近祖先 scope** 的 `components`，然后返回 `null` 剪枝——组件元素及其子树
      * **不进结果 DOM、不建 scope、不实例化指令**。
      *
-     * 消费者（x-loading/x-empty/x-error…）经 `scope.getComponent(name)` 沿 parent 链就近取用本快照
+     * 消费者（x-loading/x-empty/x-error…）经 `scope.getComponentDeclaration(name)` 沿 parent 链就近取用本快照
      * （到顶兜底全局组件），clone 后编译渲染、替换其默认 UI（组件兜底）。详见 ADR-0022。
      *
      * **default 唯一性已放宽**（ADR-0022 决策四-4）：同名组件直接归属同一 scope 时 warn + 后者覆盖
-     * （不再抛错）。沿 parent 链的就近覆盖由 getComponent 就近原则处理。
+     * （不再抛错）。沿 parent 链的就近覆盖由 getComponentDeclaration 就近原则处理。
      *
      * @param componentEl 原树中的 x-define 元素（只读编译输入，仅读取其属性与结构）
      * @returns 固定 `null`（剪枝，x-define 永不进结果 DOM）
      */
     private _collectComponent(componentEl: HTMLElement): null {
-        const { name, modifierOpen } = this._parseComponentAttr(componentEl);
+        const warn = (msg: string) => this.engine.logger.warn(msg);
+        const declared = parseComponentDeclare(componentEl, warn);
+        if (!declared) {
+            // 门禁（_matchComponentAttr）已保证命中，防御性兜底：未命中声明属性即丢弃
+            warn("x-define: 未命中声明属性，组件已丢弃");
+            return null;
+        }
+        const { name, modifierOpen, inherit } = declared;
         // 沿原树向上找最近祖先 scope（与 _linkParent 同构：跨中间无 scope 的纯 div）。
         // walk 是 DFS，祖先元素已先 transform，若建了 scope 必已 templateScopeMap.set。
         // 注：实例化父组件时 compileSubtree 编译其快照子树，内层 x-define 经 transformElement
@@ -436,7 +414,7 @@ export class AutoSparkCompiler {
             return null;
         }
         // default 唯一性放宽（ADR-0022 决策四-4）：同名组件直接归属本 scope → warn + 后者覆盖（不再抛错）。
-        // 沿 parent 链的就近覆盖由 getComponent 就近原则处理（不在此校验）。
+        // 沿 parent 链的就近覆盖由 getComponentDeclaration 就近原则处理（不在此校验）。
         if (owner.components && Object.prototype.hasOwnProperty.call(owner.components, name)) {
             this.engine.logger.warn(
                 `[x-define] 组件 "${name}" 在同一 scope 下重复声明，后者覆盖前者（ADR-0022 决策四-4 放宽 default 唯一性）。`,
@@ -444,18 +422,70 @@ export class AutoSparkCompiler {
         }
         // 组装组件定义：提取 <script setup>/<style>、求值合并 setup、深克隆冻结快照（已剥离 script/style）。
         // declarerScope 归属本祖先 scope（ADR-0053 declarer 基准的数据视图挂链目标）；.open 修饰符并入边界声明。
-        const def = buildComponentDef(
-            componentEl,
-            name,
-            (msg) => this.engine.logger.warn(msg),
-            owner,
-            modifierOpen,
-        );
-        // scope.components 仍存 HTMLElement 快照（保持 getComponent 的 HTMLElement 契约，x-loading 等消费者不变）；
+        const def = buildComponentDef(componentEl, name, warn, owner, modifierOpen);
+        // 继承解析（ADR-0081 + ADR-0083）：`x-define:inherit="父名"`——以父已解析 def 重算
+        // 快照/setup/边界，父查找与消费侧同一协议（owner 链就近 + 全局兜底）；终局失败
+        //（值空 / 自身 / 环）warn + 拒绝注册；父未就绪（可能来自 x-import 异步加载）挂起
+        // engine pending 表，父注册的 components/<父名>/registered 事件排水重试（消费侧 loading 等待）
+        if (inherit !== null) {
+            const registerResolved = (resolved: ComponentDef): void => {
+                // scope.components 仍存 HTMLElement 快照（保持 getComponentDeclaration 的 HTMLElement 契约）；
+                // ComponentDef 元数据（setup/hooks/styles）以快照根为 key 注册到 engine，供 x-component 反查。
+                this.engine.registerComponentDef(resolved);
+                if (!owner.components) owner.components = {};
+                owner.components[name] = resolved.snapshot;
+            };
+            const lookupParent = (pname: string): ComponentDef | null => {
+                const snap = owner!.getComponentDeclaration(pname);
+                if (!snap) return null;
+                return (
+                    this.engine.getComponentDef(snap) ??
+                    this.engine.getGlobalComponentDef(pname) ??
+                    null
+                );
+            };
+            const attempt = (): InheritResolveResult =>
+                resolveComponentInheritance({
+                    componentEl,
+                    name,
+                    inherit,
+                    modifierOpen,
+                    childDef: def,
+                    lookupParent,
+                    warn: (msg) => this.engine.logger.warn(msg),
+                    deferMissingParent: true,
+                });
+            const first = attempt();
+            if (first === PENDING_PARENT) {
+                // 挂起期软提示（typo 与异步未归同形——真正的终局诊断只剩使用处 loading 与
+                // fetch 失败提示，ADR-0083 语义代价）
+                this.engine.logger.warn(
+                    `x-define "${name}": 父组件 "${inherit}" 暂未就绪，已挂起（若来自 x-import 将在加载后自动解析，ADR-0083）`,
+                );
+                this.engine.addPendingInherit(inherit, () => {
+                    const retry = attempt();
+                    if (retry === PENDING_PARENT) return false; // 同名注册不在本链可见范围——继续等
+                    if (retry) {
+                        registerResolved(retry);
+                        this.engine._afterComponentRegistered(name, false); // 发事件 + 级联排水（ADR-0085）
+                    }
+                    return true; // 解析成功或终局失败（已 warn），均出队
+                });
+                return null; // 本次不注册（元素照常剪枝；使用处 loading 等待）
+            }
+            if (!first) return null;
+            registerResolved(first);
+            this.engine._afterComponentRegistered(name, false);
+            return null;
+        }
+        // scope.components 仍存 HTMLElement 快照（保持 getComponentDeclaration 的 HTMLElement 契约，x-loading 等消费者不变）；
         // ComponentDef 元数据（setup/hooks/styles）以快照根为 key 注册到 engine，供 x-component 实例化时反查。
         this.engine.registerComponentDef(def);
         if (!owner.components) owner.components = {};
         owner.components[name] = def.snapshot;
+        // 发事件 + 排水（ADR-0085）：本地普通路径原不发事件也不排水——「父在子后」的文档顺序
+        //（子先挂起、父后注册）由此解锁，且注册对外可观测（retain 补发）。
+        this.engine._afterComponentRegistered(name, false);
         return null;
     }
 
@@ -574,8 +604,7 @@ export class AutoSparkCompiler {
             modify = undefined;
         }
         // 4) 内联收集：template 内容的多个带 id 的 <svg>（非 svg 根节点 warn 忽略）
-        const root: ParentNode =
-            iconEl instanceof HTMLTemplateElement ? iconEl.content : iconEl;
+        const root: ParentNode = iconEl instanceof HTMLTemplateElement ? iconEl.content : iconEl;
         const inline: Array<{ name: string; svg: string }> = [];
         let extraRoots = 0;
         for (const child of root.children) {
@@ -790,12 +819,26 @@ export class AutoSparkCompiler {
      * 同元素出现多个结构指令（如 `x-for` + eager `x-if`）会在 `_resolveOwnership` 中抛错。
      */
     compileElement(template: HTMLElement): HTMLElement | OwnsChildrenResult {
+        // 组件外 <style global>（ADR-0087）：全局注入仅在 x-define 收集路径生效（组件快照的
+        // <style> 已在提取期剥离，普通编译路径遇到的必是组件外/嵌套层节点）——warn 提示
+        // 引擎不接管，按普通样式元素处理（浏览器全局生效、global 属性随浅克隆保留无害）。
+        if (template instanceof HTMLStyleElement && template.hasAttribute("global")) {
+            this.engine.logger.warn(
+                `<style global> 仅在 x-define 组件根的直接子级生效（注册期全局注入，ADR-0087）；当前位置按普通样式元素处理。`,
+            );
+        }
         // 数据脚本预扫（ADR-0032）：直接子级 <script type="autospark/data"> 先于指令求值
         // 收集合成，与 x-data 合成单一数据对象走既有注入管道（desugar：位置无关）
         const dataStash = collectDataScripts(this.engine, template);
         // 含插值（文本/属性）但无指令的元素也需建 scope（隐式指令，ADR-0004 决策 2）；
-        // 含数据脚本亦同——父元素等效持有 x-data（即便无任何指令属性，脚本独立成立）
-        if (!hasDirectives(template) && !hasInterpolation(template) && !dataStash) {
+        // 含数据脚本亦同——父元素等效持有 x-data（即便无任何指令属性，脚本独立成立）；
+        // 元素名形态指令（ADR-0084，如 <x-super>）无属性无插值，须显式命中才建 scope
+        if (
+            !hasDirectives(template) &&
+            !hasInterpolation(template) &&
+            !dataStash &&
+            !this.engine.directives.findByElementName(template.tagName)
+        ) {
             // 必须浅克隆：transformElement 用 live NodeList 遍历原节点子节点并挂到返回的新节点下，
             // 若返回原节点，appendChild 会写回原节点自身、其 childNodes 持续增长，导致 live 遍历无限循环。
             return template.cloneNode(false) as HTMLElement;
@@ -1049,6 +1092,8 @@ export class AutoSparkCompiler {
      * @param parentScope 调用方基准（x-component=宿主 scope / overlay=x-dialog binding）
      * @param localData   作用域形参容器（共享引用，出口侧 Object.assign 刷新；无参 null）
      * @param mountEl     出口元素（内容挂载点）
+     * @param extraConfigure 额外 scope 预配置（ADR-0084）：在 `isSlotContent` 之后调用——
+     *   super 句柄注入等（每内容 scope 一致携带，深层 x-super 沿链就近命中）
      * @returns 内容 scopes（供 SlotDirective.destroy 回收）
      */
     compileSlotNodes(
@@ -1056,8 +1101,13 @@ export class AutoSparkCompiler {
         parentScope: AutoSparkScope,
         localData: Record<string, any> | null,
         mountEl: HTMLElement,
+        extraConfigure?: (scope: AutoSparkScope) => void,
     ): AutoSparkScope[] {
         const scopes: AutoSparkScope[] = [];
+        const configure = (s: AutoSparkScope) => {
+            s.isSlotContent = true;
+            extraConfigure?.(s);
+        };
         for (const node of nodes) {
             if (node instanceof HTMLElement) {
                 const { el, scope } = this.compileChild(
@@ -1068,9 +1118,7 @@ export class AutoSparkCompiler {
                     undefined,
                     undefined,
                     undefined,
-                    (s) => {
-                        s.isSlotContent = true;
-                    },
+                    configure,
                 );
                 scopes.push(scope);
                 mountEl.appendChild(el);
@@ -1079,7 +1127,7 @@ export class AutoSparkCompiler {
                 const dummy = document.createElement("span");
                 const textScope = new AutoSparkScope(this.engine, dummy, dummy);
                 textScope.locals = localData;
-                textScope.isSlotContent = true;
+                configure(textScope);
                 parentScope.addChild(textScope);
                 this.engine.scopes.set(new WeakRef(dummy), textScope);
                 scopes.push(textScope);
@@ -1090,6 +1138,44 @@ export class AutoSparkCompiler {
             }
         }
         return scopes;
+    }
+
+    /**
+     * 编译出口 fallback 子树为独立产物（ADR-0084 super 句柄的实现体）。
+     *
+     * 与 `compileSlotNodes`（内容侧：调用方作用域基准）对称，本方法在**出口 binding
+     * （组件作用域）**链上离线编译 fallback 子节点——元素走 `compileChild`（显式
+     * `parentScope` 兜底 detached 节点 `_linkParent` 挂不上链的问题）；插值文本建轻量
+     * scope；其余原样克隆。每次调用独立编译（同段多个 x-super 各自展开、各挂各的
+     * watcher）；产物不挂载（由 SuperDirective 挂入标记元素内）。
+     *
+     * @param source    fallback 事实源（出口元素 childNodes / `<template>` 出口的 `.content`）
+     * @param baseScope 出口 binding scope（组件作用域基准 + 产物 scopes 的销毁级联父）
+     */
+    compileSuperFallback(source: ParentNode, baseScope: AutoSparkScope): SuperFallback {
+        const nodes: ChildNode[] = [];
+        const scopes: AutoSparkScope[] = [];
+        for (const child of Array.from(source.childNodes)) {
+            if (child instanceof HTMLElement) {
+                const { el, scope } = this.compileChild(child, baseScope, null);
+                scopes.push(scope);
+                nodes.push(el);
+            } else if (
+                child.nodeType === Node.TEXT_NODE &&
+                hasMustache((child as Text).nodeValue)
+            ) {
+                const dummy = document.createElement("span");
+                const textScope = new AutoSparkScope(this.engine, dummy, dummy);
+                baseScope.addChild(textScope);
+                this.engine.scopes.set(new WeakRef(dummy), textScope);
+                scopes.push(textScope);
+                const frag = this.compileTextNode(child as Text, textScope);
+                if (frag) nodes.push(...Array.from(frag.childNodes));
+            } else {
+                nodes.push(child.cloneNode(true) as ChildNode);
+            }
+        }
+        return { nodes, scopes };
     }
 
     /**
@@ -1159,6 +1245,11 @@ export class AutoSparkCompiler {
         if (def.setup?.methods) {
             scope.methods = { ...def.setup.methods };
         }
+        // super 引用层表（ADR-0082）：挂 scope + 合并方法装「置层」包装器——
+        // x-component / overlay（detached）/ 远程路径共用本注入管道，super 自动生效
+        if (def.methodLayers && def.methodLayers.length > 0) {
+            scope.initSuperLayers(def.methodLayers);
+        }
         // 顶层私有变量注入 scope._locals（ADR-0057；ADR-0022 决策二-3 (10)：
         // 非响应式组件私有数据，不进聚合视图）。经 Proxy this 的 this.<key> 读写
         //（method/framework key/_data 优先级高于 _locals）。
@@ -1222,6 +1313,9 @@ export class AutoSparkCompiler {
             hostScope.slotContents = slotContents;
             hostScope.slotCallerScope = slotCallerScope ?? hostScope;
         }
+        // 1.6 super 句柄边界遮蔽（ADR-0084）：宿主化身组件根——快照子树（组件模板）不得沿链
+        // 读到宿主所在内容通道的外层句柄（x-super 仅在插槽内容内生效；嵌套组件的句柄归其出口注入）
+        hostScope.superInlet = null;
         // 2. 注入组件语义
         if (def) {
             this.injectComponentSemantics(hostScope, def, props);
@@ -1241,10 +1335,14 @@ export class AutoSparkCompiler {
         }
         // 3. 编译快照子树到宿主元素（hostScope.el）
         this.compileSubtree(hostEl, snapshot, hostScope);
-        // 3.5 组件作用域 CSS（ADR-0022 决策四-4）：给组件根+后代打 data-cmp-{id} 属性 + 注入改写后的样式
-        if (def?.styles && def.styles.length > 0) {
-            mountComponentScopedAttr(hostEl, hostScope.id);
-            injectComponentStyle(def.name, def.styles, hostScope.id);
+        // 3.5 组件作用域 CSS（ADR-0022 决策四-4）：给组件根+后代打 data-cmp-{id} 属性 + 注入改写后的样式。
+        // global 段不走此处——已在组件注册期注入 head 容器（ADR-0087），实例化期只消费 scoped 段。
+        // scoped id 取 def 级稳定值（ADR-0087 修订——按实例 scope.id 会使二次实例化与缓存样式失配）。
+        const scopedStyles = def?.styles?.filter((s) => !s.global).map((s) => s.css);
+        if (scopedStyles && scopedStyles.length > 0) {
+            const scopedId = componentScopedId(def!.name);
+            mountComponentScopedAttr(hostEl, scopedId);
+            injectComponentStyle(def!.name, scopedStyles, scopedId);
         }
         // 4. 补触发组件 created/mounted hooks
         if (def) {
@@ -1328,6 +1426,9 @@ export class AutoSparkCompiler {
                     scope.slotContents = slotContents;
                     scope.slotCallerScope = slotCallerScope ?? parentScope;
                 }
+                // super 句柄边界遮蔽（ADR-0084）：覆盖物组件实例根——shell 模板子树不得沿链
+                // 读到宿主内容通道的外层句柄（与 instantiateComponent 的 1.6 步对称）
+                scope.superInlet = null;
             },
         );
         // styleBinds 订阅（ADR-0022 决策四-4.1）：data 已注入（compileChild 内），首值写编译根；
@@ -1335,10 +1436,14 @@ export class AutoSparkCompiler {
         if (def?.styleBinds && def.styleBinds.length > 0) {
             this._bindStyleVars(compiled.scope, compiled.el, def.styleBinds);
         }
-        // 组件作用域 CSS（ADR-0022 决策四-4）：编译根 + 后代打 data-cmp-{id} + 注入改写样式
-        if (def?.styles && def.styles.length > 0) {
-            mountComponentScopedAttr(compiled.el, compiled.scope.id);
-            injectComponentStyle(def.name, def.styles, compiled.scope.id);
+        // 组件作用域 CSS（ADR-0022 决策四-4）：编译根 + 后代打 data-cmp-{id} + 注入改写样式。
+        // global 段不走此处——已在组件注册期注入 head 容器（ADR-0087），实例化期只消费 scoped 段。
+        // scoped id 取 def 级稳定值（ADR-0087 修订——按实例 scope.id 会使二次实例化与缓存样式失配）。
+        const scopedStyles = def?.styles?.filter((s) => !s.global).map((s) => s.css);
+        if (scopedStyles && scopedStyles.length > 0) {
+            const scopedId = componentScopedId(def!.name);
+            mountComponentScopedAttr(compiled.el, scopedId);
+            injectComponentStyle(def!.name, scopedStyles, scopedId);
         }
         return compiled;
     }

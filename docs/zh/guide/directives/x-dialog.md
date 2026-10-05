@@ -388,7 +388,7 @@ x-popover 同机制（内置 `popover-shell`，见 [x-popover](./x-popover.md#�
 
 ### 命令式弹出
 
-`engine.getOverlay(el, name, options?)` 镜像 `getComponent` 查找协议（`el` 起链就近 + 全局兜底，省略 `el` 仅查全局），返回**定义句柄**；`open()` 返回**实例句柄**：
+`engine.getOverlay(el, name, options?)` 镜像 `getComponentDeclaration` 查找协议（`el` 起链就近 + 全局兜底，省略 `el` 仅查全局），返回**定义句柄**；`open()` 返回**实例句柄**：
 
 <demo html="dialog/imperative.html"/>
 

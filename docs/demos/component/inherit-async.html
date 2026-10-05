@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-define:inherit · 异步父就绪即解析</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .demo-card {
+                border: 1px solid #dbdbdb;
+                border-radius: 6px;
+                padding: 12px 16px;
+                margin-bottom: 12px;
+                max-width: 420px;
+            }
+            .demo-card .hd {
+                border-bottom: 1px solid #ededed;
+                padding-bottom: 6px;
+                margin-bottom: 8px;
+                font-weight: 600;
+            }
+            .demo-card .bd {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+            .async-log {
+                max-width: 420px;
+                background: #f7f7f7;
+                border: 1px dashed #dbdbdb;
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-size: 0.8em;
+                color: #666;
+                line-height: 1.7;
+            }
+        </style>
+    </head>
+    <body>
+        <!--
+            异步父延迟解析（ADR-0083）：card 定义在远程文件，fetch 到达前本地子组件
+            order-card 挂起（暂不注册）、使用处显示 loading；card 注册的
+            components/card/registered 事件排水 → order-card 自动解析注册 → 消费方渲染。
+            组件文件在 /autospark/components/inherit-base.html（demo 经 srcdoc 内嵌，
+            相对路径以文档页为基解析会落空——远程组件文件须绝对路径引用）。
+        -->
+        <div id="app" x-scope>
+            <!-- 异步父：远程文件只含 card 的 x-define 声明 -->
+            <div x-import="/autospark/components/inherit-base.html"></div>
+
+            <!-- 本地子：编译期父未就绪 → 挂起；父注册后自动解析 -->
+            <div x-define="order-card" x-define:inherit="card">
+                <template x-slot:header><b>🧾 异步订单卡片</b></template>
+                <div>
+                    <span>价格 {{ price }} / count={{ count }}</span>
+                    <button class="button is-small is-primary" x-on:click="inc">父方法 +1</button>
+                </div>
+                <script type="autospark/setup">
+                    {
+                        data: { price: 100 },
+                    }
+                </script>
+            </div>
+
+            <div class="panel">
+                <p>
+                    <b>异步父：</b>x-import 加载期间 order-card 挂起、使用处显示 loading；父注册后自动解析渲染（下方日志可见注册时序）
+                </p>
+                <div x-component:order-card></div>
+                <div class="async-log"></div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+            // 注册时序日志：让「挂起 → 父注册 → 排水解析子」的过程在渲染完成后仍可观察
+            const logEl = document.querySelector(".async-log");
+            const log = (msg) => {
+                const line = document.createElement("div");
+                line.textContent = msg;
+                logEl.appendChild(line);
+            };
+            log("编译完成：order-card 挂起（父 card 未就绪，ADR-0083）");
+            // 通配符订阅注册事件（ADR-0085）：retain 补发 + 此后新注册实时到达
+            engine.on("components/*/registered", (m) => {
+                const p = m?.payload ?? m;
+                log(`components/${p?.name}/registered`);
+            });
+        </script>
+    </body>
+</html>

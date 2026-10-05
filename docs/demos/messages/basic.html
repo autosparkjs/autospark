@@ -16,7 +16,7 @@
         </button>
         <button
           class="cell button"
-          onclick="app.messages.add({ title: '删除失败', type: 'error', delayClose: 5000 })"
+          onclick="app.messages.add({ title: '删除失败', level: 'error', delayClose: 5000 })"
         >
           配置对象（error · 5 秒）
         </button>
@@ -35,7 +35,7 @@
         app.messages.add(async () => {
           flip = !flip;
           await new Promise((r) => setTimeout(r, 300));
-          return flip ? { title: "条件满足，弹出这条提示", type: "success" } : undefined;
+          return flip ? { title: "条件满足，弹出这条提示", level: "success" } : undefined;
         });
       }
     </script>

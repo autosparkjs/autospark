@@ -2,13 +2,13 @@
 <html lang="zh-CN">
     <head>
         <meta charset="UTF-8" />
-        <title>messages · 自定义渲染（双层组合）</title>
+        <title>messages · 自定义渲染（内容归属）</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
-            /* kind renderer（专属区组件）与 shell 两层同权拿到全量数据域 props（已解析、剥函数）：
-               id/kind/title/description/type/icon/actions/closable/link/read/status/result/
-               progress(仅 task)/delayClose + $session 行为通道 */
+            /* type 模板与 shell 两层同权拿到整包数据域 props（ADR-0088 剥函数整包注入）：
+               id/type/title/description/icon/actions/closable/link/read/status/result/
+               progress/paused/completed + 自定义自有键 + $session 行为通道 */
             .my-notice-extra {
                 display: flex;
                 align-items: center;
@@ -34,20 +34,21 @@
         </style>
     </head>
     <body>
-        <!-- 双层组合（ADR-0077）：公共 shell 恒渲染 title/description/actions/close，kind renderer
-             只渲染专属区（嵌 kind 出口）——不必重写公共元素。title 行由 shell 出（下方 toast 卡
-             同构）；按钮带 data-message-action 索引即接入引擎点击委托闭环（置已读/事件/hide 判定）；
-             $session 为行为通道（remove/progress 等）。 -->
+        <!-- 双层组合（ADR-0077 → ADR-0088 内容归属）：shell 管卡片外观（边框/close 钮 + 出口），
+             type 模板管全部内容（title/description/actions/专属区）。自定义 type 组件可继承
+             autospark.messages.base（默认内容模板）只覆盖出口段——公共内容零重写；亦可全自绘。
+             按钮行经 actions 组件组合（x-component，props 深层触发联动）；$session 为行为通道。 -->
         <div class="demo-app section">
             <div class="block">
-                <button class="button is-info" onclick="spawn()">kind: notice（自定义专属区）</button>
-                <button class="button" onclick="app.messages.add({ title: '普通 toast（内置 shell + 空占位 kind 区）', delayClose: 0, pos: 'bottom-right', closable: true })">
-                    kind 缺省（内置兜底）
+                <button class="button is-info" onclick="spawn()">type: notice（继承默认内容）</button>
+                <button class="button" onclick="app.messages.add({ title: '普通 toast（内置 shell + base 默认内容）', delayClose: 0, pos: 'bottom-right', closable: true })">
+                    type 缺省（内置兜底）
                 </button>
             </div>
             <div class="block has-text-grey">
-                notice 专属区显示 #kind 标签与未读标记；点「知道了」（shell 公共 actions 行）后
-                read=true、未读标记即时消失（响应式活体，无需重建）。
+                notice 卡继承 base 默认内容（icon/title/description/actions），覆盖段显示 #type 标签与
+                未读标记；点「知道了」（actions 组件按钮行）后 read=true、未读标记即时消失（响应式
+                活体，无需重建）。
             </div>
         </div>
         <script>
@@ -56,21 +57,24 @@
                 {},
                 {
                     components: {
-                        // kind='notice' 的专属区：只渲染增量——title/description/actions 归公共 shell
+                        // type='notice'：继承默认内容模板（ADR-0081）——裸子节点替换 base 出口
+                        // fallback，title/description/actions 零重写
                         "notice-card": `
-                            <div class="my-notice-extra">
-                                <span class="tag is-info is-light" x-text="'#' + kind"></span>
-                                <span class="dim" x-show="!read">未读</span>
-                                <button type="button" @click="$session.remove()">不再提示</button>
+                            <div x-define="notice-card" x-define:inherit="autospark.messages.base">
+                                <div class="my-notice-extra">
+                                    <span class="tag is-info is-light" x-text="'#' + type"></span>
+                                    <span class="dim" x-show="!read">未读</span>
+                                    <button type="button" @click="$session.remove()">不再提示</button>
+                                </div>
                             </div>`,
                     },
-                    messages: { kinds: { notice: { render: "notice-card", delayClose: 0 } } },
+                    messages: { types: { notice: { render: "notice-card", delayClose: 0 } } },
                 },
             );
             function spawn() {
                 app.messages.add({
                     title: "明日 10:00 例会改到 14:00",
-                    kind: "notice",
+                    type: "notice",
                     actions: [{ title: "知道了", hide: false }],
                 });
             }

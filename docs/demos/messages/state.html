@@ -25,14 +25,15 @@
         <div class="demo-app section">
             <div class="block">
                 <span class="tag is-danger" x-text="'未读 ' + $messages.items.filter(r => !r.read).length"></span>
-                <button class="button is-small" onclick="spawn('普通', 0)">add level:0</button>
-                <button class="button is-small is-warning" onclick="spawn('重要', 5)">add level:5</button>
-                <button class="button is-small is-danger" onclick="spawn('紧急', 9)">add level:9</button>
+                <button class="button is-small" onclick="spawn('普通', 'none')">add level:none</button>
+                <button class="button is-small is-info" onclick="spawn('信息', 'info')">add level:info</button>
+                <button class="button is-small is-warning" onclick="spawn('警示', 'warn')">add level:warn</button>
+                <button class="button is-small is-danger" onclick="spawn('故障', 'error')">add level:error</button>
                 <button class="button is-small" onclick="allRead()">markAllRead()</button>
                 <button class="button is-small" onclick="toggleSticky()">options.delayClose 0/3000</button>
                 <code id="opt-readout" class="is-size-7" x-text="'delayClose=' + $messages.options.delayClose + ' / showCount=' + $messages.options.showCount"></code>
             </div>
-            <!-- 消息中心面板：x-for 直绑镜像（高级别排前）；未读角标 = 聚合表达式 -->
+            <!-- 消息中心面板：x-for 直绑镜像（创建序，ADR-0079 排序移除）；未读角标 = 聚合表达式 -->
             <div class="inbox">
                 <ul class="inbox-list" x-for="r of $messages.items">
                     <li :data-read="r.read">
@@ -56,9 +57,9 @@
             function spawn(label, level) {
                 app.messages.add({
                     title: `${label}通知 ${++seq}`,
-                    description: `level=${level}，级别越高排越前（角标与列序同规则）`,
-                    level,
-                    kind: "notice",
+                    description: `level=${level}——记录按创建序排列（ADR-0079 排序移除，level 只管图标与语义色）`,
+                    level, // 宽松入参：名字符串与数字同权（ADR-0079）
+                    type: "notice",
                     delayClose: 0, // sticky：留给面板演示，关闭走 ×
                     closable: false,
                 });

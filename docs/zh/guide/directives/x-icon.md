@@ -227,6 +227,41 @@
 默认不开（批量声明天然少量请求 + HTTP 缓存兜底已够用）；图标集**变更低频而访问频繁**、或**弱网 / 离线二次访问**体验敏感的页面按需开启——自托管内网源同样适用。
 :::
 
+### 内置图标
+
+引擎**随包自带一组常用图标**（共 15 枚），以条目形式驻在全局注册表 `AutoSpark.icons` 中（模块加载即注入全局 sprite）——**零声明直接可用**：`x-icon="info"` 无需 `<template x-icons>` 声明、无需远程请求。
+
+<demo html="icon/builtin.html"/>
+
+```html
+<span x-icon="info"></span>     <!-- 内置图标，零声明 -->
+<span x-icon="arrow"></span>   <!-- x-expandable / x-splitter 折叠箭头同款 -->
+```
+
+完整清单（按用途分组）：
+
+| 类别     | 图标名                                                                          |
+| -------- | ------------------------------------------------------------------------------- |
+| 兜底     | `default`（未命中回退图形）                                                       |
+| 状态语义 | `yes` · `no` · `warn` · `error` · `info` · `success`                              |
+| 交互     | `arrow`（折叠箭头）· `refresh`（刷新）· `copy`（复制）· `external`（外链）        |
+| 选择态   | `unchecked` · `checked` · `semi-checked`                                          |
+| 其他     | `file`                                                                            |
+
+三条规则：
+
+- **可同名覆盖**：`AutoSpark.icons.add("arrow", mySvg)` 即换图形——引擎自身的 `x-expandable` / `x-splitter` 箭头、message 的 level 图标、关闭钮图标会**同步跟随**（同走全局注册表）。模板里 `<template x-icons>` 声明同名者同样后声明者胜
+- **可删除**：`delete(name)` 摘除 symbol；使用中的实例回退 `default`（`default` 也被删则退回空占位）
+- **全局共享**：`engine.destroy()` **不清理**内置图标与 sprite（document 级资产纪律）
+
+::: warning 命名避让
+这 15 个名字占用全局命名空间——业务图标请避开同名（如需自绘关闭叉，请用 `close` 而非 `no`），否则会覆盖内置条目并连带改变引擎自身部件的图形。
+:::
+
+::: tip `file` 与 `arrow` 同形
+`file` 与 `arrow` 当前共用同一 path（chevron），`success` 与 `yes` 语义重叠（前者带外圈圆）——内置集为轻量兜底，如需精确形态请自绘覆盖。
+:::
+
 ### 图标注册表
 
 图标注册表是 **document 级全局单例**（多 engine 共享），`AutoSpark.icons` 静态暴露，形态为 `Set` 子类——图标域的全局兜底层：

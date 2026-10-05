@@ -38,7 +38,7 @@
 <div x-if="mode === 'b'"><div x-component:card-b></div></div>
 ```
 
-组件查找沿 scope 链**就近 + 全局兜底**（与 `getComponent` 协议一致）：本 scope 的 `components` → 祖先链 → `options.components` 全局组件。
+组件查找沿 scope 链**就近 + 全局兜底**（与 `getComponentDeclaration` 协议一致）：本 scope 的 `components` → 祖先链 → `options.components` 全局组件。
 
 ### props：三种形态
 
@@ -104,7 +104,7 @@ methods / 钩子内的 `this` 是组件实例 Proxy：`this.data`（聚合视图
 
 ### 异步占位
 
-组件定义尚未就绪（`x-import` fetch 中）时宿主显示 **loading 占位**；就绪后（`component/registered` 广播）自动重试实例化、替换为组件实例。远程组件消费见 [x-import](./x-import.md)。
+组件定义尚未就绪（`x-import` fetch 中）时宿主显示 **loading 占位**；就绪后（`components/<名>/registered` 广播）自动重试实例化、替换为组件实例。远程组件消费见 [x-import](./x-import.md)。
 
 <demo html="component/import.html"/>
 

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>messages · 消息类型：轻提示 / 确认 / 任务</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- 三个内置 type 一页对比：
+             toast（默认）——瞬时提示，delayClose 后自动消失（persist 默认 0 隐藏即删）；
+             confirm——双钮确认（sticky + thenable 会话）；
+             task——进度条（进行中 sticky，完成态按 delayClose 收口）。
+             均有同名快捷方式（messages.toast/confirm/task）与模板 action。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <button class="button is-primary" onclick="spawnToast()">toast —— 轻提示（自动消失）</button>
+                <button class="button is-info" onclick="spawnConfirm()">confirm —— 确认（等用户选择）</button>
+                <button class="button is-warning" onclick="spawnTask()">task —— 任务（进度跟踪）</button>
+            </div>
+            <div class="block">
+                <button class="button is-light" onclick="runFlow()">三 type 组合流：提示 → 确认 → 任务</button>
+            </div>
+            <div class="block"><pre id="log" class="has-background-light" style="padding: 8px">（点击按钮体验三种消息类型）</pre></div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            window.app = app;
+            const log = (t) => (document.getElementById("log").textContent = t);
+            function spawnToast() {
+                // ≡ show({ title, type: 'toast' })——默认 type 即 'toast'，persist 默认 0
+                app.messages.toast({ title: "已保存", level: "success" });
+            }
+            async function spawnConfirm() {
+                // thenable 会话：await 即得 choice（true/false）；不点则永远挂起（sticky）
+                log("confirm：等待用户选择…");
+                const ok = await app.messages.confirm("确认清空回收站？");
+                log(`confirm：${ok ? "已清空" : "已取消"}`);
+            }
+            function spawnTask() {
+                const s = app.messages.task({
+                    title: "打包导出…",
+                    delayClose: 2000,
+                    canPause: true, canStop: true, canCancel: true, // 三控制键：模板自带 暂停/停止/取消 控制钮
+                });
+                s.start();
+                let p = 0;
+                const timer = setInterval(() => {
+                    p = Math.min(100, p + 12 + Math.floor(Math.random() * 10));
+                    s.progress(p);
+                    if (p >= 100) clearInterval(timer); // 完成态：2 秒后自动收口
+                }, 160);
+            }
+            async function runFlow() {
+                app.messages.toast({ title: "开始导出流程", level: "info" });
+                const ok = await app.messages.confirm("导出将覆盖服务器版本，继续？");
+                if (!ok) return log("流程：用户取消");
+                spawnTask();
+                log("流程：确认通过，任务执行中");
+            }
+        </script>
+    </body>
+</html>

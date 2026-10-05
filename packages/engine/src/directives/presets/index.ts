@@ -26,6 +26,7 @@ export * from "./drawer";
 export * from "./component";
 export * from "./define";
 export * from "./slot";
+export * from "./super";
 export * from "./icon";
 export * from "./icons";
 export * from "./import";
@@ -59,6 +60,7 @@ import { ScopeDirective } from "./scope";
 import { ComponentDirective } from "./component";
 import { DefineDirective } from "./define";
 import { SlotDirective } from "./slot";
+import { SuperDirective } from "./super";
 import { ImportDirective } from "./import";
 import { FormDirective } from "./form";
 import { FieldDirective } from "./field";
@@ -118,6 +120,9 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     component: ComponentDirective,
     define: DefineDirective,
     slot: SlotDirective,
+    // x-super 插槽 fallback 展开标记（ADR-0084）：引擎首个元素名形态指令
+    //（static elementName = "x-super"，无属性形态——元素名即触发）
+    super: SuperDirective,
     import: ImportDirective,
     form: FormDirective,
     field: FieldDirective,

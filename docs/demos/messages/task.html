@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>messages · 进度任务（完整生命周期）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <!-- type='task' 完整生命周期：创建 → start → progress 推进（卡片实时刷新）→
+             progress(100) 完成态 → 按 delayClose 自动收口关闭。进行中可干预：
+             pause 闸门（暂停期间 progress 被忽略）/ resume / cancel 立即中止。
+             进行中 sticky 不计时——只有完成/取消才进入关闭流程。 -->
+    <div class="demo-app section">
+      <div class="block">
+        <button class="button is-primary" id="go" onclick="runFull()">
+          ▶ 完整演示：开始 → 完成 → 自动关闭
+        </button>
+        <p></p>
+        <button class="button is-warning" onclick="gate('pause')">⏸ pause()</button>
+        <button class="button is-info" onclick="gate('resume')">▶ resume()</button>
+        <button class="button is-danger" onclick="gate('cancel')">✕ cancel()</button>
+      </div>
+      <div class="block has-text-grey is-size-7">
+        完整流程全自动推进（约 2 秒走满）；进行中可随时点 pause / resume / cancel 干预；
+        卡片自带「取消」按钮（通用按钮行照常渲染）。每次点击开启一个新任务（可叠加观察）。
+      </div>
+      <div class="block">
+        <pre
+          id="log"
+          class="has-background-light"
+          style="padding: 8px; max-height: 220px; overflow: auto"
+        >
+（点击上方按钮开始任务演示）</pre>
+      </div>
+    </div>
+    <script>
+      const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+      window.app = app;
+      const logEl = document.getElementById("log");
+      const lines = [];
+      const log = (t) => {
+        lines.push(`[${new Date().toLocaleTimeString("zh-CN", { hour12: false })}] ${t}`);
+        logEl.textContent = lines.slice(-8).join("\n");
+      };
+      let task = null;
+      let current = 0;
+
+      /** 完整生命周期演示：创建 → start → 定时推进 → 100% 完成态 → delayClose 收口 */
+      function runFull() {
+        current = 0;
+        task = app.messages.task({
+          title: "正在导出数据…",
+          delayClose: 2000, // ④ 完成态展示 2 秒后自动收口
+          // 三控制键（ADR-0088）：声明即 task 模板自带 暂停/停止/取消 按钮（x-show 数据域驱动）
+          canPause: true, // 「暂停 ↔ 恢复」（文案随运行态切换，pause() 闸门生效）
+          canStop: true, // 「停止」≡ complete()
+          canCancel: true, // 「取消」≡ cancel()（session.signal 同时可用）
+        });
+        log("① 创建任务（type='task'，创建不自启）并 start()");
+        task.start();
+        task.progress(0);
+        const timer = setInterval(() => {
+          current = Math.min(100, current + 6 + Math.floor(Math.random() * 12));
+          task.progress(current); // 推进：卡片进度条 + 百分比实时刷新（原地更新）
+          if (current < 100) {
+            log(`② progress(${current}) 推进中…`);
+          } else {
+            clearInterval(timer);
+            log(`③ progress(100) = 完成态（completed=true）——按 delayClose 2 秒收口`);
+            setTimeout(() => log(`④ 任务已自动关闭（closed=${task.closed}）——生命周期结束`), 2400);
+          }
+        }, 160);
+      }
+
+      /** 进行中干预：pause 闸门 / resume / cancel */
+      function gate(op) {
+        if (!task || task.closed) return log(`（当前无进行中的任务）`);
+        if (op === "pause") {
+          task.pause();
+          log("⏸ 已暂停：暂停期间 progress() 调用被忽略（闸门语义）");
+        } else if (op === "resume") {
+          task.resume();
+          log("▶ 已恢复：继续接受 progress() 推进");
+        } else if (op === "cancel") {
+          task.cancel();
+          log("✕ 已中止：立即关闭（无完成态展示）");
+        }
+      }
+    </script>
+  </body>
+</html>

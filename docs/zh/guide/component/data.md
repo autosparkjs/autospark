@@ -32,7 +32,7 @@
 | `this.el` | 组件根元素 HTMLElement | ❌ |
 | `this.<方法名>` | 组件 methods（**支持 `this.inc()` 直调、`this.other()` 互调**，仅本组件边界内） | — |
 | `this.<顶层私有变量>` | 组件私有变量（见[下文](#顶层私有变量)，非响应式） | ✅ |
-| `this.watch` / `this.read` / `this.getComponent` | scope 同名方法（订阅/读值/取组件） | — |
+| `this.watch` / `this.read` / `this.getComponentDeclaration` | scope 同名方法（订阅/读值/取组件） | — |
 | `this.$parent` | 父组件实例的 Proxy（沿链最近父组件，支持 `this.$parent.$parent` 链式；顶层为 null） | — |
 
 ::: warning 框架引用键不可整体覆盖

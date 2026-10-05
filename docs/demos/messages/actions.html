@@ -14,14 +14,14 @@
             <div class="block">
                 <button
                     class="button"
-                    onclick="app.messages.add({ title: '已删除 3 个文件', type: 'warn', delayClose: 0, actions: [{ title: '撤销', handle: undo }] })"
+                    onclick="app.messages.add({ title: '已删除 3 个文件', level: 'warn', delayClose: 0, actions: [{ title: '撤销', handle: undo }] })"
                 >
                     局部按钮（点击后关闭）
                 </button>
                 <button class="button" onclick="retry()">hide: false 续显（失败重试）</button>
                 <button
                     class="button"
-                    onclick="app.messages.add({ title: '配置已导出', type: 'success', actions: ['copy'] })"
+                    onclick="app.messages.add({ title: '配置已导出', level: 'success', actions: ['copy'] })"
                 >
                     字符串查全局表（copy）
                 </button>
@@ -44,7 +44,7 @@
                 },
             );
             function undo() {
-                app.messages.add({ title: "已撤销删除", type: "success" });
+                app.messages.add({ title: "已撤销删除", level: "success" });
             }
             let failed = true;
             function retry() {
@@ -53,14 +53,14 @@
                     app.messages.add({
                         id: "sync",
                         title: "同步失败，请重试",
-                        type: "error",
+                        level: "error",
                         delayClose: 0,
                         actions: [{ title: "重试", handle: retry, hide: false }],
                     });
                 } else {
                     failed = true;
                     // 同 id 原地更新收尾：换 success + 2 秒自动关
-                    app.messages.add({ id: "sync", title: "重试成功", type: "success", delayClose: 2000 });
+                    app.messages.add({ id: "sync", title: "重试成功", level: "success", delayClose: 2000 });
                 }
             }
             function survey() {

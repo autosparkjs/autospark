@@ -8,7 +8,7 @@
     </head>
     <body>
         <!-- status 引擎纯透传（语义归开发者）；update(id, patch) 是记录级字段唯一写通道；
-             任意点击置已读，编程式走 markRead / markAllRead(kind)。 -->
+             任意点击置已读，编程式走 markRead / markAllRead(type)。 -->
         <div class="demo-app section">
             <div class="block">
                 <button class="button is-primary" onclick="send()">模拟发送（sending → failed）</button>
@@ -35,7 +35,7 @@
                     id: "deliver",
                     title: "投递报告",
                     description: "状态：sending…",
-                    kind: "notice",
+                    type: "notice",
                     status: "sending",
                     delayClose: 0,
                     pos: "top-right",
@@ -43,13 +43,13 @@
                 log(`add  status=${task.status}`);
                 setTimeout(() => {
                     if (task.status === "sending") {
-                        app.messages.update("deliver", { status: "failed", description: "状态：failed（网络中断）", type: "error" });
+                        app.messages.update("deliver", { status: "failed", description: "状态：failed（网络中断）", level: "error" });
                     }
                 }, 1200);
             };
             const retry = () => {
                 if (!task) return;
-                app.messages.update("deliver", { status: "sent", description: "状态：sent ✓", type: "success" });
+                app.messages.update("deliver", { status: "sent", description: "状态：sent ✓", level: "success" });
             };
             const markAll = () => app.messages.markAllRead("notice");
             // 只读 getter + 专用事件：status 补丁发 message:status，已读置位发 message:read

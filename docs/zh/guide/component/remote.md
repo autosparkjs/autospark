@@ -14,7 +14,7 @@
 
 ## 异步占位与编译时序
 
-`x-import` 的 fetch 是异步的，**不阻塞编译**。组件就绪前，`x-component` 宿主显示 loading 占位；组件就绪后引擎广播 `component/registered`，pending 的 `x-component` 收到通知重新实例化（首次渲染用最新 props）。
+`x-import` 的 fetch 是异步的，**不阻塞编译**。组件就绪前，`x-component` 宿主显示 loading 占位；组件就绪后引擎发出 `components/<名>/registered`（retain，ADR-0085），pending 的 `x-component` 收到通知重新实例化（首次渲染用最新 props）。
 
 ```html
 <div x-scope>

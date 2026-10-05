@@ -96,3 +96,7 @@ engine.on('favorite', (e) => {
 ::: tip 事件总线跨作用域
 `engine` 的事件总线是**引擎级**的——任意作用域、任意组件、甚至页面脚本都能 `emit`/`on`。事件名自由约定（引擎不预定义名册），建议用带命名空间的写法（如 `cart/add`、`user/login`）避免冲突。
 :::
+
+::: tip 从组件外拿到实例
+本文的 `this.data` / `this.globalState` 约定在组件**外**同样可用：`engine.getComponent(el)` 返回与组件内 `this` 同构的门面对象——见[查找组件 → 获取组件实例](./lookup.md#获取组件实例)。
+:::

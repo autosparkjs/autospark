@@ -1,0 +1,22 @@
+<!--
+    异步父组件库（component/inherit-async.html 经 x-import 加载）：
+    仅含 x-define 声明，无需引入引擎脚本——x-import 只解析其中的 x-define 元素并注册。
+    放 public/autospark/components/（文档站静态目录，dev/build 双环境可达，绝对路径引用）。
+-->
+<div x-define="card">
+    <div class="demo-card">
+        <div class="hd" x-slot:header>默认标题</div>
+        <div class="bd" x-slot>count={{ count }}</div>
+        <div class="ft" x-slot:footer>远程 card 组件（异步加载）</div>
+    </div>
+    <script type="autospark/setup">
+        {
+            data: { count: 0, step: 1 },
+            methods: {
+                inc() {
+                    this.data.count += this.data.step;
+                },
+            },
+        }
+    </script>
+</div>

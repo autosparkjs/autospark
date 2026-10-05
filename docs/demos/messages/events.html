@@ -8,7 +8,7 @@
     </head>
     <body>
         <!-- 双通道：引擎总线 message:* + 卡片元素 dispatchEvent（payload { message, el }；
-             message:action 追加 { action, value? }）。kind='toast' 迁移期双发
+             message:action 追加 { action, value? }）。type='toast' 迁移期双发
              旧事件 toast:show / toast:hide（notice 不双发）。 -->
         <div class="demo-app section">
             <div class="block">
@@ -32,7 +32,7 @@
                 pre.scrollTop = pre.scrollHeight;
             };
             const fireToast = () => app.messages.add({ title: "toast 消息", delayClose: 1200 });
-            const fireNotice = () => app.messages.add({ title: "notice 消息", kind: "notice", delayClose: 1200, pos: "bottom-right" });
+            const fireNotice = () => app.messages.add({ title: "notice 消息", type: "notice", delayClose: 1200, pos: "bottom-right" });
             const fireAction = () =>
                 app.messages.add({
                     title: "带按钮的消息",
@@ -48,7 +48,7 @@
                     log(`[总线] ${type}  id=${m.payload.message.id}${extra}`);
                 });
             }
-            // 迁移期双发：仅 kind='toast' 的 show/hide 照发旧事件
+            // 迁移期双发：仅 type='toast' 的 show/hide 照发旧事件
             app.on("toast:show", () => log("[总线] toast:show（迁移期双发）"));
             app.on("toast:hide", () => log("[总线] toast:hide（迁移期双发）"));
             // DOM 通道：卡片元素 dispatchEvent（bubbles，body 捕获）

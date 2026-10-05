@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-define · 全局样式 global style</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* 页面自有样式（未参与组件机制） */
+            .panel {
+                border: 1px solid #e8e8e8;
+                border-radius: 6px;
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+            .label {
+                color: #999;
+                font-size: 0.8rem;
+                margin-bottom: 8px;
+            }
+        </style>
+    </head>
+    <body>
+        <!--
+            组件 <style global> 全局注入（ADR-0087）：
+            - 不做 scoped 改写，组件【注册时】原样注入 head——无需实例化即生效；
+            - 无 id 的多段（跨组件）合并进共享容器 <style id="autospark-styles">；
+            - <style id="xx" global> 注入为独立容器 <style id="xx">，同 id 跨组件追加；
+            - engine.destroy() 只移除本 engine 贡献的段；同名组件覆盖声明时旧段整组替换保位；
+            - scoped 与 global 可混用（每个 <style> 标签独立分流）。
+            打开 DevTools 查看本页 <head>：应有 <style id="autospark-styles"> 与 <style id="card-theme">。
+        -->
+        <div id="app" x-scope>
+            <div x-define="card">
+                <div class="card-title" x-text="title"></div>
+                <div class="card-body" x-text="desc"></div>
+                <!-- scoped：仅命中本组件实例（页面级 .card-title 红色不受影响，见 scoped-style demo） -->
+                <style>
+                    .card-body {
+                        color: #888;
+                        font-size: 0.85rem;
+                        margin-top: 4px;
+                    }
+                </style>
+                <!-- global 无 id：合并进共享容器 <style id="autospark-styles"> -->
+                <style global>
+                    .card-title {
+                        color: #3273dc;
+                        font-weight: 700;
+                    }
+                    .card-title:hover {
+                        color: #23d160;
+                        cursor: default;
+                    }
+                </style>
+                <!-- global 带 id：独立容器 <style id="card-theme">，页面任意处可复用 -->
+                <style id="card-theme" global>
+                    .themed-border {
+                        border: 1px dashed #3273dc;
+                        border-radius: 6px;
+                        padding: 10px 14px;
+                        margin-top: 6px;
+                    }
+                </style>
+            </div>
+
+            <div class="panel">
+                <div class="label">组件实例（.card-title 来自全局容器 autospark-styles，.card-body 来自 scoped）</div>
+                <div x-component:card="{title: '卡片标题', desc: 'body 样式是 scoped，title 样式是 global'}"></div>
+            </div>
+
+            <div class="panel">
+                <div class="label">组件外的页面元素同样吃到全局样式（证明「全局」——组件未实例化也生效）</div>
+                <div class="card-title">页面级 .card-title（与组件共用全局样式，hover 变绿）</div>
+                <div class="themed-border">页面级 .themed-border（来自 style#card-theme 命名容器）</div>
+            </div>
+
+            <div class="panel">
+                <div class="label">head 注入结果（本页面真实状态）</div>
+                <pre id="head-dump" style="font-size: 0.75rem; color: #666; white-space: pre-wrap"></pre>
+            </div>
+        </div>
+
+        <script>
+            const { AutoSpark } = AutoSparkSpaces;
+            const engine = new AutoSpark(document.getElementById("app"), {
+                title: "卡片标题",
+                desc: "body 样式是 scoped，title 样式是 global",
+            });
+            // 展示 head 注入结果（声明即生效：本页仅一个实例，但全局段在注册期已注入）
+            const dump = ["autospark-styles", "card-theme"]
+                .map((id) => {
+                    const el = document.head.querySelector(`style#${id}`);
+                    return el ? `/* <style id="${id}"> */\n${el.textContent.trim()}` : `/* style#${id} 不存在 */`;
+                })
+                .join("\n\n");
+            document.getElementById("head-dump").textContent = dump;
+        </script>
+    </body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>快速入门 · 轻提示（toast）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- toast：最常用的轻提示——一行调用，默认 3 秒自动消失。
+             level 决定图标与语义色（success 绿 / info 蓝 / error 红）。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <button class="button is-primary" onclick="fire('success')">保存成功（success）</button>
+                <button class="button is-info" onclick="fire('info')">同步提示（info）</button>
+                <button class="button is-danger" onclick="fire('error')">网络错误（error）</button>
+                <button class="button is-light" onclick="fire('warn', 0)">警示 sticky（不自动关）</button>
+            </div>
+            <div class="block has-text-grey is-size-7">
+                <code>engine.messages.toast({ title, level, delayClose })</code>——sticky（delayClose: 0）
+                自动显示关闭钮；hover 卡片可暂停倒计时。
+            </div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            function fire(level, delay) {
+                app.messages.toast({
+                    title: { success: "已保存到草稿箱", info: "正在同步到云端…", warn: "存储空间不足", error: "网络请求失败" }[level],
+                    level,
+                    delayClose: delay ?? 2500,
+                });
+            }
+        </script>
+    </body>
+</html>

@@ -11,7 +11,7 @@
 
 import type { AnyAutoStore } from "autostore";
 import type { AutoSparkScope } from "../../../scope";
-import type { ActionDesc } from "../../../actions/types";
+import type { AutoSparkAction } from "../../../actions/types";
 
 /** addEventListener 第 3 参的子集（option 类修饰符可产出的字段） */
 export type EventListenerOptionsSubset = Pick<
@@ -120,5 +120,5 @@ export interface AutoSparkActionContext {
      * 由 buildAction 在 handle 调用时就地注入（仅 action 调用路径可达；组件 method /
      * 表达式路径无此字段；命令式 `.handle(...)` 直调时 this 非 ctx，同样不可达）。
      */
-    action?: ActionDesc;
+    action?: AutoSparkAction;
 }

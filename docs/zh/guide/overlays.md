@@ -37,7 +37,7 @@
 
 ### 查找：scope 链就近 + 全局兜底
 
-消费者按组件名沿 scope 链就近查找（内层同名组件遮蔽外层），到顶兜底 `options.components` 全局组件——与 `getComponent` 协议完全一致：
+消费者按组件名沿 scope 链就近查找（内层同名组件遮蔽外层），到顶兜底 `options.components` 全局组件——与 `getComponentDeclaration` 协议完全一致：
 
 <demo html="overlay/global.html"/>
 
@@ -47,7 +47,7 @@
 <button x-dialog:confirm="ui.showConfirm"></button>
 ```
 
-整条链（含全局）未命中：消费者 warn + 不渲染；组件正在被 `x-import` 加载时消费者会**等待就绪**（`component/registered` 后自动打开）。
+整条链（含全局）未命中：消费者 warn + 不渲染；组件正在被 `x-import` 加载时消费者会**等待就绪**（`components/<名>/registered` 后自动打开）。
 
 ### props 统一：非保留键全部注入组件 data 域
 
@@ -124,7 +124,7 @@ new AutoSpark(el, state, { overlay: { dialog: { shell: "my-dialog" } } });
 
 ## 命令式 API
 
-`engine.getOverlay(el, name, options?)` 镜像 `getComponent` 协议：`el` 起 scope 链查找（就近覆盖）+ 全局兜底，**省略 `el` 仅查全局**：
+`engine.getOverlay(el, name, options?)` 镜像 `getComponentDeclaration` 协议：`el` 起 scope 链查找（就近覆盖）+ 全局兜底，**省略 `el` 仅查全局**：
 
 ```javascript
 const handle = engine.getOverlay(document.getElementById("app"), "confirm", { animate: false });

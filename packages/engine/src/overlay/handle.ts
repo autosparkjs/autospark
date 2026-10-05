@@ -13,7 +13,7 @@ import { registerInstance, getInstances } from "./registry";
 /**
  * 覆盖物定义句柄（ADR-0052 决策 15）：覆盖物的**编程视图**，命令式消费入口。
  *
- * `engine.getOverlay(el, name, options?)` 工厂产出（镜像 `getComponent` 查找协议——修订共识 10）。
+ * `engine.getOverlay(el, name, options?)` 工厂产出（镜像 `getComponentDeclaration` 查找协议——修订共识 10）。
  * `open()` 返回实例句柄（多实例并存时唯一能精确关闭单个实例的通道）；`close()` 关该覆盖物
  * 当前**全部**打开实例。
  */
@@ -147,7 +147,7 @@ function resolveCommandShell(
     const name = raw == null ? "" : String(raw).trim();
     if (name !== "") {
         const snapshot =
-            anchorScope?.getComponent(name) ?? engine._resolveGlobalComponent(name);
+            anchorScope?.getComponentDeclaration(name) ?? engine._resolveGlobalComponent(name);
         if (snapshot) {
             const def =
                 engine.getComponentDef(snapshot) ?? engine.getGlobalComponentDef(name) ?? null;

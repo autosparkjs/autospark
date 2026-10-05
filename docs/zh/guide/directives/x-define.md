@@ -33,11 +33,11 @@
 | 写法 | 组件名 | 说明 |
 | --- | --- | --- |
 | `x-define="counter"` | `counter` | 值承载组件名（kebab-case / 大驼峰均可） |
-| `x-define`（无值） | `default` | 默认名，供 `getComponent("default")` 等约定名消费者取用 |
+| `x-define`（无值） | `default` | 默认名，供 `getComponentDeclaration("default")` 等约定名消费者取用 |
 
 - 组件名**自由命名**，引擎不预定义任何 UI 态名册（`x-loading` 等消费者按各自约定名取用，自由命名）；
 - 同名组件直接归属**同一 scope** 时 `warn` + 后者覆盖（不抛错）；
-- 沿 parent 链允许**就近遮蔽**：内层 scope 的同名组件遮蔽外层与全局同名——与 `getComponent` 就近原则一致。
+- 沿 parent 链允许**就近遮蔽**：内层 scope 的同名组件遮蔽外层与全局同名——与 `getComponentDeclaration` 就近原则一致。
 
 <demo html="component/scoped.html"/>
 
@@ -87,9 +87,34 @@
 
 开放后的数据上下文由 `dataContext` 键决定（消费侧可经 `x-component-options.dataContext` 覆盖已开放组件的数据上下文）：`'host'`（默认，消费处上下文）| `'declarer'`（声明处上下文，词法基准）。完整规则见[数据边界](../component/data.md#数据边界默认封闭与-open)一节。
 
+### 组件继承：`x-define:inherit`
+
+属性参数 `x-define:inherit="父名"` 声明**单继承**（`x-define:extends` 为同义别名，正名 `inherit`）——子组件复用父组件的模板结构、`<script setup>` 与 `<style>`，经插槽出口做内容差异化（覆盖段在组件实例作用域求值，父子数据 / 方法全可见）：
+
+```html
+<div x-scope>
+    <div x-define="card">
+        <div class="hd" x-slot:header>默认标题</div>
+        <div class="bd" x-slot>count={{ count }}</div>
+        <script setup>{ data: { count: 0 }, methods: { inc() { this.data.count++ } } }</script>
+    </div>
+    <!-- 子组件：header 覆盖为「订单」、默认出口覆盖为价格 -->
+    <div x-define="order-card" x-define:inherit="card">
+        <template x-slot:header><b>订单</b></template>
+        <div>价格 {{ price }}</div>
+        <script setup>{ data: { price: 100 } }</script>
+    </div>
+    <div x-component:order-card></div>
+</div>
+```
+
+实例化时形成三层优先级：**消费方内容 > 继承覆盖 > 父 fallback**。父组件须先于子组件声明（编译期一次性解析，查找协议同消费侧：scope 链就近 + 全局兜底）；解析失败（父缺失 / 值空 / 继承链成环）`warn` + 拒绝注册。setup 按层合并（data / methods / 私有变量子同名胜、钩子父先子后串行），同名方法覆盖后可经 `this.super.方法名(...)` 调用父实现。完整规则见[组件继承](../component/inherit.md)。
+
+<demo html="component/inherit.html"/>
+
 ### 嵌套私有子组件
 
-`x-define` 内可再声明 `x-define`——内层组件归属到**外层组件的实例 scope**，仅在该组件实例内部可见（运行期 scope 链天然实现严格私有）。树形 / 递归组件（组件内 `x-component:自身名`）即依赖此机制，引擎带递归深度保护（上限 100，超出 `warn` 停止）。
+`x-define` 内可再声明 `x-define`——内层组件归属到**外层组件的实例 scope**，仅在该组件实例内部可见（运行期 scope 链天然实现严格私有）。树形 / 递归组件（组件内 `x-component:自身名`）即依赖此机制，引擎带递归深度保护（上限 100，超出 `warn` 停止），详见[组件递归](../component/recursive.md)。
 
 ## 配置选项
 
@@ -111,4 +136,6 @@
 - **必须有祖先 scope**：`x-define` 需要至少一个祖先 scope（`x-scope` 或任意指令 / 插值），否则编译期 `warn` 丢弃；
 - **不渲染自身**：`x-define` 元素及其子树不进结果 DOM，同元素的其他指令（如 `x-text`）随组件冻结、待实例化时才编译执行；
 - **旧写法已废弃**：`x-component="名称"` 的定义写法已更名 `x-define`（ADR-0054），旧写法会被读作缺少组件名的 `x-component` 实例化并 `warn`；
+- **继承的父组件须先声明（同步场景）**：父同步在场（文档序在前 / 全局已注册）则编译期立即解析；值空 / 指向自身 / 继承环 `warn` + 拒绝注册。`x-import` 异步父**就绪即解析**（挂起至父注册事件排水，ADR-0083；拼错父名同表现为持续 loading，详见[组件继承](../component/inherit.md)）；
+- **组件名建议 kebab-case**：`x-component:名称` 的属性参数会被 DOM 小写化，`x-define="orderCard"` 与 `x-component:orderCard` 因大小写不一致无法命中，请统一小写 / kebab-case（如 `order-card`）；
 - **完整教程**：组件来源、查找链、全局组件、`x-import` 远程加载见[组件](../component/)。

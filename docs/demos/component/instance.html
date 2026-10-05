@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>获取组件实例 · engine.getComponent(el)</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!--
+            engine.getComponent(el)：自任意元素沿 DOM 链向上找**最近的组件实例**，
+            返回与组件内 this 同构的门面（ComponentInstance）——实例就是组件外的 this。
+            - 就近即止：嵌套组件的内部元素返回内层实例，不必精确传到 x-component 宿主；
+            - data 是聚合视图（响应式可写）：外部改值，组件自动刷新；
+            - methods 代理与组件内 this.inc() 同一 this 绑定。
+        -->
+        <div id="app" x-scope>
+            <div class="panel">
+                <p class="label">组件实例——下方组件由 <code>x-component:counter</code> 实例化，三个按钮从组件外部操控它</p>
+
+                <div class="box" id="host" x-component:counter></div>
+
+                <div class="buttons" style="margin-top: 12px">
+                    <button class="button is-info" onclick="readState()">读实例状态</button>
+                    <button class="button is-primary" onclick="callInc()">inst.methods.inc()</button>
+                    <button class="button is-warning" onclick="writeData()">inst.data.count = 100</button>
+                </div>
+                <pre id="out" class="notification is-light" style="margin-top: 12px; white-space: pre-wrap">点上面按钮，从组件外部操控实例…</pre>
+            </div>
+
+            <!-- 声明：兄弟位，挂共同父 scope；编译期摘除，页面上不可见 -->
+            <div x-define="counter">
+                <div class="field has-addons">
+                    <button class="button" x-on:click="dec">−</button>
+                    <span class="button is-static" x-text="count"></span>
+                    <button class="button" x-on:click="inc">+</button>
+                </div>
+                <script type="autospark/setup">
+                    {
+                        data: { count: 1 },
+                        methods: {
+                            inc() { this.data.count++ },
+                            dec() { this.data.count-- },
+                        },
+                    }
+                </script>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+            const out = document.getElementById("out");
+
+            // 自宿主元素取实例；传组件内任意元素（如中间的 span）结果相同——沿 DOM 链就近向上
+            const inst = engine.getComponent(document.getElementById("host"));
+            // 也可从组件内部元素反查：engine.getComponent(document.querySelector(".is-static"))
+
+            function readState() {
+                out.textContent = `inst.name = ${inst.name}\ninst.data.count = ${inst.data.count}\ninst.el.id = ${inst.el.id}`;
+            }
+            function callInc() {
+                inst.methods.inc(); // 与组件内 this.inc() 同一 this 绑定
+                out.textContent = `inst.methods.inc() 调用后 count = ${inst.data.count}`;
+            }
+            function writeData() {
+                inst.data.count = 100; // 聚合视图可写，上方组件自动刷新
+                out.textContent = "inst.data.count = 100 已写入——上方组件已联动刷新";
+            }
+        </script>
+
+        <style>
+            body {
+                padding: 24px;
+            }
+            .panel {
+                max-width: 560px;
+            }
+            .label {
+                margin-bottom: 12px;
+            }
+        </style>
+    </body>
+</html>

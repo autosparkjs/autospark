@@ -7,22 +7,35 @@ import type { AutoStoreOptions } from "autostore";
 import type { AutoSparkScope } from "./scope";
 import { UpdateScheduler } from "./scheduler";
 import { RuntimeObserverDispatcher } from "./directives/runtime/dispatcher";
-import { parseHtmlFragment } from "./utils/transformElement";
+import { parseHtmlFragment, pickSingleRootElement } from "./utils/transformElement";
 import { ActionManager } from "./actions/manager";
-import type { ActionDesc } from "./actions/types";
+import type { AutoSparkAction } from "./actions/types";
 import { recompileSubtree } from "./utils/recompileSubtree";
 import { AutoSparkAnimator } from "./animate";
-import { buildComponentDef } from "./compile/collect";
+import {
+    buildComponentDef,
+    parseComponentDeclare,
+    warnNestedResourceNodes,
+} from "./compile/collect";
+import {
+    readInheritAttr,
+    resolveComponentInheritance,
+    PENDING_PARENT,
+    type InheritResolveResult,
+} from "./compile/inherit";
 import { fetchHtml } from "./utils/fetchHtml";
+import { injectGlobalComponentStyles, releaseEngineGlobalStyles } from "./utils/globalStyle";
 import { iconRegistry, type IconRegistry } from "./icons/registry";
 import { OverlayHandle } from "./overlay/handle";
 import { removeOverlayContainer } from "./overlay/container";
 import { TooltipManager } from "./tooltip/manager";
 import type { TooltipAPI } from "./tooltip/types";
 import { MessageManager } from "./messages/manager";
-import { SHELL_TEMPLATE } from "./messages/renderers/shell";
+import { SHELL_TEMPLATE } from "./messages/shell";
+import { MESSAGE_PRESET_COMPONENTS } from "./messages/presets";
 import { PANEL_SHELL_TEMPLATE, DRAWER_SHELL_TEMPLATE } from "./overlay/wrappers";
 import { BUILTIN_ERROR_COMPONENT, ensureErrorStyle } from "./builtinError";
+import { ComponentInstance } from "./component-instance";
 
 /**
  * 框架保留键：x-data 默认模式的私有响应式数据域在 store.state 下的容器键。
@@ -85,7 +98,7 @@ export class AutoSpark<
     readonly el: HTMLElement;
     /** 响应式数据源：engine 在 `_createStore` 内自建并拥有（destroy 时销毁）。ADR-0044 */
     readonly store: AutoStore<State>;
-    readonly vars:AutoSparkVars={}
+    readonly vars: AutoSparkVars = {};
     /**
      * engine 自建的默认 configManager（`_createStore` 补缺省时创建）。
      * destroy 时仅销毁此实例；消费者经 `storeOptions.configManager` 传入的不动（所有权对称，ADR-0044）。
@@ -144,6 +157,8 @@ export class AutoSpark<
         // 内置 error 组件（ADR-0065）：默认注册 options.components.error，用户同名声明展开覆盖
         //（组件查找链：局部 x-define > options.components，均天然优先于内置，无需特判）；
         // 样式幂等注入（document 级资产，与 icons 同纪律，engine.destroy 不清理）
+        // 消息预设组件族（ADR-0083）：base/toast/task/confirm 四件同位注入——autospark.*
+        // 点前缀为引擎保留命名空间，用户同名声明覆盖（同 error 先例）
         const { components: userComponents, ...restOptions } = (options ?? {}) as Partial<
             AutoSparkOptions<State>
         >;
@@ -153,7 +168,11 @@ export class AutoSpark<
             autostart: true,
             debug: false,
             actions: {},
-            components: { error: BUILTIN_ERROR_COMPONENT, ...userComponents },
+            components: {
+                error: BUILTIN_ERROR_COMPONENT,
+                ...MESSAGE_PRESET_COMPONENTS,
+                ...userComponents,
+            },
         };
         super({ ...init, ...restOptions });
         if (!(el instanceof HTMLElement)) {
@@ -244,7 +263,7 @@ export class AutoSpark<
                 "AutoSpark no longer accepts an AutoStore instance. Pass plain state and configure the store via options.storeOptions instead (ADR-0044).",
             );
         }
-        const storeOptions: AutoStoreOptions<State> = { ...options?.storeOptions,resetable:true };
+        const storeOptions: AutoStoreOptions<State> = { ...options?.storeOptions, resetable: true };
         if (storeOptions.configManager == null) {
             this._ownedConfigManager = new ConfigManager({ load: () => ({}) });
             storeOptions.configManager = this._ownedConfigManager;
@@ -268,7 +287,7 @@ export class AutoSpark<
      * options.actions；读取、遍历、getAction 均透明（get 默认转发底层）。故 action 注册即追踪，
      * 无需手动包装。实现委托 actionsManager（src/actions/manager.ts）。
      */
-    get actions(): Record<string, ActionDesc> {
+    get actions(): Record<string, AutoSparkAction> {
         return this.actionsManager.proxy;
     }
 
@@ -282,34 +301,41 @@ export class AutoSpark<
     }
 
     /**
-     * 全局组件懒预编译缓存（ADR-0022 承接 ADR-0021 决策 11）：key=组件名，value=预编译根元素
-     * （已自动包装、含 `x-define`、未编译、保留指令属性、**不注入 x-scope**）。首次 `getComponent`
-     * 命中全局时解析 `options.components[name]` 字符串入参并写入此 Map，后续命中直接 `cloneNode(true)`。
-     * 生命周期随 engine（destroy 自动回收）。记录 null 表示该名全局组件解析失败/不存在，已查明
-     * 「视为未命中」，避免重复解析尝试。
+     * 全局组件定义表（ADR-0022 承接 ADR-0021 决策 11；ADR-0086 合并双缓存）：
+     * key=组件名，value=ComponentDef（快照 + setup/hooks/styles 等元数据同源同次产出）。
+     *
+     * **单表**（原 `_globalComponentCache` 快照表与 `_globalComponentDefCache` 定义表合并）：
+     * 两者同源同生命周期，分表只会带来「快照在、def 不在」的不一致态。快照经
+     * {@link getGlobalComponentDef} 取 `def.snapshot` 派生，x-loading 等只需 DOM 的消费者
+     * 契约不变（`getComponentDeclaration` 仍返回 HTMLElement）。
+     *
+     * **两种来源、两种时机**（ADR-0086 决策二）：
+     * - `options.components` 字符串 → **惰性**：首次查找未命中时经 `_resolveGlobalComponent` 预编译入表；
+     * - `engine.registerComponent(code)` → **即时**：注册时解析入表。
+     * 查找一律「先查表、未命中才读 `options.components`」——运行时注册因此**天然覆盖**构造期配置，
+     * 无需失效缓存、无需把 def 序列化回字符串重解析（ADR-0086 决策三）。
+     *
+     * 记录 `null` 表示该名已查明未命中（不存在/解析失败），避免重复解析尝试。
+     * 生命周期随 engine（destroy 自动回收）。
      */
-    private _globalComponentCache = new Map<string, HTMLElement | null>();
-    /**
-     * 全局组件 def 缓存（ADR-0022 决策二/四）：key=组件名，value=ComponentDef
-     * （由 `_resolveGlobalComponent` 懒预编译时建：解析字符串 → 包装根 → 提取 `<script setup>`/`<style>` → 组装 def）。
-     * 与 `_globalComponentCache`（HTMLElement 快照）并行——后者服务于 x-loading 等只需 DOM 的消费者，
-     * 本表服务于 x-component 等需要组件元数据（setup/hooks/styles）的消费者。同条目二缓存同源（一次预编译产出）。
-     */
-    private _globalComponentDefCache = new Map<string, ComponentDef | null>();
+    private _globalComponentDefs = new Map<string, ComponentDef | null>();
     /**
      * UI 外壳注册表私表（ADR-0077）：构造期合成（内置四件种子 < 用户 `options.uiShells`
      * 浅覆盖），**构造期固化**——运行时突变不失效缓存（换 shell 走消费者选择器）。
      */
     private _uiShells: Record<string, string>;
     /** uiShells 懒预编译缓存（name → { snapshot, def }；null = 已查明未命中，避免重复解析） */
-    private _uiShellCache = new Map<string, { snapshot: HTMLElement; def: ComponentDef | null } | null>();
+    private _uiShellCache = new Map<
+        string,
+        { snapshot: HTMLElement; def: ComponentDef | null } | null
+    >();
     /** 内置种子键集（wrapper 装配规则判据：内置模板自带引擎类名契约，用户模板零污染） */
     private _builtinUiShellKeys: ReadonlySet<string>;
     /**
      * 组件定义表（ADR-0022 决策二-1、决策七）：key=组件冻结快照根元素，value=ComponentDef。
      *
      * compiler `_collectComponent` 命中 x-component 时建 def，以快照根为 key 存入此表。
-     * `getComponent(name)` 返回 HTMLElement 快照（保持 x-loading 等消费者契约不变），x-component 实例化时
+     * `getComponentDeclaration(name)` 返回 HTMLElement 快照（保持 x-loading 等消费者契约不变），x-component 实例化时
      * 经快照根反查本表取 def（setup/hooks/styles/parent/components）。定义 scope 链（嵌套私有子组件）经
      * `def.parent` / `def.components` 表达，与此表正交。WeakMap：scope 回收后 def 自动释放。
      */
@@ -431,11 +457,12 @@ export class AutoSpark<
     }
 
     /**
-     * 按 el 反查 scope，再沿 parent 链就近查找命名组件，到顶兜底全局组件（ADR-0022 决策五，承接 ADR-0021 决策 5/9）。
+     * 按 el 反查 scope，再沿 parent 链就近查找命名组件**声明**，到顶兜底全局组件（ADR-0022 决策五，
+     * 承接 ADR-0021 决策 5/9；原名 `getComponent`，ADR-0080 更名——短名让位给实例读取）。
      *
      * 供 **Runtime 指令**（如 x-loading，无 binding/scope）消费 x-define 声明的组件：编译期元素建过 scope
      * 的才能被反查到（el 经 `engine.scopes` WeakRef 遍历 deref 比对，O(n)、低频可接受）。
-     * Compile/Hybrid 消费指令应直接用 `this.binding.getComponent(name)`，避免 O(n) 遍历。
+     * Compile/Hybrid 消费指令应直接用 `this.binding.getComponentDeclaration(name)`，避免 O(n) 遍历。
      *
      * 消费者协议：命中则用组件替换默认 UI，未命中回退默认实现（组件兜底）。详见 ADR-0022。
      *
@@ -443,13 +470,39 @@ export class AutoSpark<
      * @param name 组件名（消费者约定名，自由命名）
      * @returns 组件冻结快照 HTMLElement，或 undefined（el 无 scope / 链+全局均无该名组件）
      */
-    getComponent(el: HTMLElement, name: string): HTMLElement | undefined {
+    getComponentDeclaration(el: HTMLElement, name: string): HTMLElement | undefined {
         const scope = this.findScopeByEl(el);
-        return scope?.getComponent(name);
+        return scope?.getComponentDeclaration(name);
     }
 
     /**
-     * 全局组件兜底解析（ADR-0022 承接 ADR-0021 决策 9/10/11）：`scope.getComponent` 到顶后委托本方法。
+     * 读取组件**实例**（ADR-0080）：自任意元素沿 DOM parent 链向上找**最近的组件实例 scope**
+     * （`isComponent`），以 ComponentInstance 门面返回——字段与组件内 `this` 同构
+     * （el/name/data/props/globalState/methods/scope），心智一句话：**实例就是组件外的 this**。
+     *
+     * - **就近即止**：嵌套组件的内部元素返回内层实例；「这个按钮属于哪个组件」的自然问法；
+     * - 冒泡对**覆盖物实例**天然无效（覆盖物渲染于 body 容器，触发处 DOM 链不通）——
+     *   覆盖物用 `engine.getOverlay(el, name)` → OverlayHandle；
+     * - 实现沿 parent 逐层 `findScopeByEl`（O(深度 × scope 总数)），页面脚本低频调用可接受；
+     *   engine 边界天然不越——`findScopeByEl` 只查本 `engine.scopes`，x-isolate 子引擎查不到即止步。
+     *
+     * 不缓存实例列表（引擎无实例注册表），每次调用现算返回新门面对象。
+     *
+     * @param el 任意元素（通常是组件内某元素或 x-component 宿主自身）
+     * @returns 最近组件实例的门面，或 undefined（el 在任何组件实例之外 / 不属于本 engine）
+     */
+    getComponent(el: HTMLElement): ComponentInstance | undefined {
+        let cur: HTMLElement | null = el;
+        while (cur) {
+            const scope = this.findScopeByEl(cur);
+            if (scope?.isComponent) return new ComponentInstance(scope);
+            cur = cur.parentElement;
+        }
+        return undefined;
+    }
+
+    /**
+     * 全局组件兜底解析（ADR-0022 承接 ADR-0021 决策 9/10/11）：`scope.getComponentDeclaration` 到顶后委托本方法。
      *
      * 懒预编译：首次访问某全局组件时，把 `options.components[name]` 字符串入参解析为 DOM，按自动包装规则
      * （决策 10）规范化为「恰好一个带 `x-define` 的根元素」，存入 `_globalComponentCache`；后续命中直接
@@ -464,15 +517,14 @@ export class AutoSpark<
      * @returns 预编译根元素（未编译、含 x-define），或 undefined（无此全局组件/解析失败）
      */
     _resolveGlobalComponent(name: string): HTMLElement | undefined {
-        if (this._globalComponentCache.has(name)) {
-            return this._globalComponentCache.get(name) ?? undefined;
+        if (this._globalComponentDefs.has(name)) {
+            return this._globalComponentDefs.get(name)?.snapshot;
         }
         const components = this.options.components;
         const raw = components?.[name];
         if (typeof raw !== "string" || raw.trim() === "") {
             // 非字符串 / 空串 → 记 null（视为未命中），避免重复判定
-            this._globalComponentCache.set(name, null);
-            this._globalComponentDefCache.set(name, null);
+            this._globalComponentDefs.set(name, null);
             return undefined;
         }
         let root: HTMLElement | null = null;
@@ -480,23 +532,59 @@ export class AutoSpark<
             root = this._wrapGlobalComponent(raw, name);
         } catch (e: any) {
             this.logger.warn(`全局组件 "${name}" 解析失败，视为未命中: ${e?.message ?? e}`);
-            this._globalComponentCache.set(name, null);
-            this._globalComponentDefCache.set(name, null);
+            this._globalComponentDefs.set(name, null);
             return undefined;
         }
         if (!root) {
             this.logger.warn(`全局组件 "${name}" 解析为空，视为未命中`);
-            this._globalComponentCache.set(name, null);
-            this._globalComponentDefCache.set(name, null);
+            this._globalComponentDefs.set(name, null);
+            return undefined;
+        }
+        // 全局组件继承（ADR-0081 V1 边界修订，ADR-0083）：字符串入参带 x-define:inherit 时经
+        // resolveComponentInheritance 编译期展开——子 def 独立构建后与父（沿全局表递归懒预
+        // 编译，父可也是继承产物）合并。失败（父未命中 / 成环等）warn 已发，按未命中处理。
+        const inherit = readInheritAttr(root);
+        if (inherit !== null) {
+            const childDef = buildComponentDef(root, name, (msg) => this.logger.warn(msg));
+            const resolved = resolveComponentInheritance({
+                componentEl: root,
+                name,
+                inherit,
+                modifierOpen: false, // 全局字符串路径不解析 .open 修饰符（远程注册路径同款）
+                childDef,
+                lookupParent: (n) => this._globalDefForInherit(n),
+                warn: (msg) => this.logger.warn(msg),
+            });
+            if (resolved && typeof resolved === "object") {
+                this._globalComponentDefs.set(name, resolved);
+                // def 注册统一走 registerComponentDef（快照反查 + global 样式注入收口，ADR-0087）
+                this.registerComponentDef(resolved);
+                // ADR-0085：懒预编译首解析成功即视为「注册」——发按名事件 + 排水。
+                // 判据天然成立：函数入口已对「表中有条目」早返回，走到此处必为首解析。
+                this._afterComponentRegistered(name, true);
+                return resolved.snapshot;
+            }
+            this._globalComponentDefs.set(name, null);
             return undefined;
         }
         // 组装组件定义：提取 <script setup>/<style>、求值合并 setup、克隆洁净快照（剥离 script/style）。
-        // 全局组件的 def 元数据与快照同源——一次预编译同时产出 _globalComponentCache（快照）与
-        // _globalComponentDefCache（def），供 x-loading（取快照）与 x-component（取 def）分别消费。
+        // 快照与 def 同源同次产出，一次入表供 x-loading（取快照）与 x-component（取 def）分别消费。
         const def = buildComponentDef(root, name, (msg) => this.logger.warn(msg));
-        this._globalComponentCache.set(name, def.snapshot);
-        this._globalComponentDefCache.set(name, def);
+        this._globalComponentDefs.set(name, def);
+        // def 注册统一走 registerComponentDef（快照反查 + global 样式注入收口，ADR-0087）
+        this.registerComponentDef(def);
+        this._afterComponentRegistered(name, true);
         return def.snapshot;
+    }
+
+    /**
+     * 继承解析的父 def 查找（ADR-0083 全局组件继承）：先触发父名懒预编译（父自身可带
+     * inherit——递归展开），再取其 def；未命中返回 null（由 resolveComponentInheritance
+     * warn + 拒绝注册）。
+     */
+    private _globalDefForInherit(name: string): ComponentDef | null {
+        this._resolveGlobalComponent(name);
+        return this.getGlobalComponentDef(name) ?? null;
     }
 
     /**
@@ -504,7 +592,7 @@ export class AutoSpark<
      * 内置种子（message/dialog/popover/drawer）与用户覆盖模板同管道：字符串经自动包装规则
      * （`_wrapGlobalComponent`）规范化 + `buildComponentDef` 一次产出快照与 def，缓存后命中直取。
      *
-     * 解析链位于 getComponent 链（scope 局部 → `options.components`）**之后**——用户自定义
+     * 解析链位于 getComponentDeclaration 链（scope 局部 → `options.components`）**之后**——用户自定义
      * 外壳优先，本表为引擎级兜底。构造期固化：运行时突变 `options.uiShells` 不失效缓存。
      *
      * @param name 外壳键（消费者裸名，如 'message' / 'dialog'）
@@ -556,6 +644,9 @@ export class AutoSpark<
      *
      * 包装标签固定 `<div>`（YAGNI，不开放配置）。**不注入 x-scope**（决策 7 修订）。
      *
+     * 单根判定复用 `pickSingleRootElement`（与 `registerComponent` 的严格路径同源，ADR-0086——
+     * 两套规则只在「不单根时怎么办」分叉：此处包一层、严格路径 warn 拒绝）。
+     *
      * @param html  全局组件字符串入参（已 trim 非空）
      * @param name  全局组件名（单根无 x-define 时用作根标签名）
      * @returns 规范化后的根元素；解析为空返回 null
@@ -563,24 +654,254 @@ export class AutoSpark<
     private _wrapGlobalComponent(html: string, name: string): HTMLElement | null {
         const frag = parseHtmlFragment(html);
         if (!frag) return null;
-        // 取顶级元素节点（忽略顶级文本/注释以判定"单根元素"）
-        const elementChildren = Array.from(frag.children);
-        const hasTextNode = Array.from(frag.childNodes).some(
-            (n) => n.nodeType === Node.TEXT_NODE && (n.nodeValue ?? "").trim() !== "",
-        );
-        if (elementChildren.length === 1 && !hasTextNode) {
+        const single = pickSingleRootElement(frag);
+        if (single) {
             // 单顶级元素：已含 x-define 则尊重原值，否则打本 key 名
-            const root = elementChildren[0] as HTMLElement;
-            if (!root.hasAttribute("x-define")) {
-                root.setAttribute("x-define", name);
+            if (!single.hasAttribute("x-define")) {
+                single.setAttribute("x-define", name);
             }
-            return root;
+            return single;
         }
         // 多顶级元素 / 元素+文本混排 / 纯文本：包一层 div
         const wrap = document.createElement("div");
         wrap.setAttribute("x-define", name);
         wrap.appendChild(frag);
         return wrap;
+    }
+
+    /**
+     * 组件字符串归一化（ADR-0086）：`code` → 「恰好一个带 `x-define` 的根元素」+ 声明三元组。
+     *
+     * **严格单根契约**（与 `_wrapGlobalComponent` 的宽松自动包装分叉的那一半）：
+     * | 输入形态 | 本方法（`registerComponent`） | `_wrapGlobalComponent`（`options.components`/`uiShells`） |
+     * |---|---|---|
+     * | 单根 + `x-define` | 原样为根 | 原样为根 |
+     * | 单根、无 `x-define` | **warn + null**（注册路径要求自带声明） | 打本 key 名 |
+     * | 多根 / 元素与文本混排 / 纯文本 | **warn + null** | 包一层 `<div x-define>` |
+     *
+     * 单根判定复用 `pickSingleRootElement`，声明解析复用 `parseComponentDeclare`（与编译期收集器
+     * 同一实现）——「什么算合法声明」只有一处定义，运行时注册不与模板声明漂移。
+     *
+     * `optsName` 仅作校验：与串内 `x-define` 不一致时 warn，**仍以内联名为准**（串内声明是权威）。
+     *
+     * @param code     组件模板字符串（调用方契约：恰好一个带 x-define 的根元素）
+     * @param optsName 可选的期望组件名（校验用，不参与命名）
+     * @returns 归一化根元素 + 声明解析结果；任一校验不通过返回 `null`（已 warn）
+     */
+    private parseComponentCode(
+        code: string,
+        optsName?: string,
+    ): { root: HTMLElement; name: string; modifierOpen: boolean; inherit: string | null } | null {
+        const warn = (msg: string) => this.logger.warn(msg);
+        if (typeof code !== "string" || code.trim() === "") {
+            warn("engine.registerComponent: code 为空或非字符串，未注册");
+            return null;
+        }
+        let frag: DocumentFragment | null = null;
+        try {
+            frag = parseHtmlFragment(code);
+        } catch (e: any) {
+            warn(`engine.registerComponent: code 解析失败，未注册: ${e?.message ?? e}`);
+            return null;
+        }
+        if (!frag) {
+            warn("engine.registerComponent: code 解析为空（不含任何节点），未注册");
+            return null;
+        }
+        const root = pickSingleRootElement(frag);
+        if (!root) {
+            warn(
+                `engine.registerComponent: code 须为恰好一个顶级根元素` +
+                    `（多根 / 元素与文本混排 / 纯文本均不支持），未注册（ADR-0086）`,
+            );
+            return null;
+        }
+        const declared = parseComponentDeclare(root, warn);
+        if (!declared) {
+            warn(
+                `engine.registerComponent: 根元素 <${root.tagName.toLowerCase()}> 缺少 x-define 声明，` +
+                    `未注册（ADR-0086）`,
+            );
+            return null;
+        }
+        const expected = (optsName ?? "").trim();
+        if (expected !== "" && expected !== declared.name) {
+            warn(
+                `engine.registerComponent: name "${expected}" 与 code 内 x-define "${declared.name}" ` +
+                    `不一致，以内联名为准（ADR-0086）`,
+            );
+        }
+        // 嵌套声明资源节点补 warn（不改变收集行为，见 warnNestedResourceNodes）
+        warnNestedResourceNodes(root, warn);
+        return {
+            root,
+            name: declared.name,
+            modifierOpen: declared.modifierOpen,
+            inherit: declared.inherit,
+        };
+    }
+
+    /**
+     * 自 `el`（含自身）沿 `parentElement` 向上取最近的 scope 根元素所属 scope。
+     *
+     * `findScopeByEl` 是**精确匹配**（`scope.el === el`），供 Runtime 指令「我自己的元素 → 我的 scope」
+     * 用；声明处语义要求的是 x-define 那套「最近祖先 scope」归属（ADR-0022 决策：`_linkParent`
+     * 同构），故此处自行上溯——否则传入一个普通容器元素会查不到而降级全局（可见域静默放大）。
+     */
+    private _findNearestScopeOf(el: HTMLElement): AutoSparkScope | undefined {
+        for (let cur: HTMLElement | null = el; cur; cur = cur.parentElement) {
+            const scope = this.findScopeByEl(cur);
+            if (scope) return scope;
+        }
+        return undefined;
+    }
+
+    /**
+     * 运行时注册组件（ADR-0086）：把一段组件模板字符串注册为全局组件或作用域组件。
+     *
+     * ```ts
+     * engine.registerComponent(`
+     *   <div x-define="panel">
+     *     <div class="panel"><slot /></div>
+     *     <style>.panel { border: 1px solid }</style>
+     *   </div>
+     * `);
+     * ```
+     *
+     * **归属**（`scope` 与 `el` 同义——都是「声明处」）：
+     * | 传入 | 注册目标 |
+     * |---|---|
+     * | 都不传 | 全局组件定义表，全域 `x-component` 可查 |
+     * | `scope` | 挂 `scope.components`（仅该 scope 链内可见，`declarerScope` = 此 scope） |
+     * | `el` | 自该元素向上取**最近的 scope 根**（含自身），与 x-define「最近祖先 scope」归属同构；查不到则 warn 后降级为全局 |
+     * | `scope` + `el` | 以 `scope` 为准并 warn |
+     *
+     * **覆盖语义**：同名后注册覆盖先注册（per 名去重 warn）；**已实例化的组件不热替换**——
+     * 实例持有自己的克隆，仅后续 `x-component` 实例化取到新定义。
+     *
+     * **继承**：`x-define:inherit` 在注册层解析（复用编译期/x-import 同一 `resolveComponentInheritance`
+     * 管线，父查找 = scope 链就近 + 全局兜底），父未就绪时挂起待 `components/<父名>/registered`
+     * 排水重试（ADR-0083）——故注册所得组件与 `options.components` 平齐地支持继承。
+     *
+     * **只注册不注销**：无 `unregisterComponent`——作用域注册挂在 `scope.components` 上，随 scope
+     * 对象一并失去引用而回收（scope 销毁不逐项清表，但该 scope 已脱活链、无处可达）；
+     * 全局注册随 `destroy()` 丢弃。
+     *
+     * @param code 组件模板字符串（须恰好一个带 `x-define` 的根元素）
+     * @param opts `name` 仅校验（以内联名为准）/ `scope` 声明处 scope / `el` 声明处元素锚点
+     * @returns 已登记的组件定义（继承已解析）；校验或解析失败返回 `null`（已 warn）
+     */
+    registerComponent(
+        code: string,
+        opts?: { name?: string; scope?: AutoSparkScope; el?: HTMLElement },
+    ): ComponentDef | null {
+        const warn = (msg: string) => this.logger.warn(msg);
+        // ① 声明处归属：scope 与 el 同义，同时传入以 scope 为准
+        let ownerScope: AutoSparkScope | null = null;
+        if (opts?.scope) {
+            if (opts.el) {
+                warn(
+                    "engine.registerComponent: scope 与 el 同时传入，以 scope 为准（el 忽略，ADR-0086）",
+                );
+            }
+            ownerScope = opts.scope;
+        } else if (opts?.el) {
+            ownerScope = this._findNearestScopeOf(opts.el) ?? null;
+            if (!ownerScope) {
+                warn(
+                    "engine.registerComponent: el 未对应任何 scope（含向上祖先），已降级为全局注册（ADR-0086）",
+                );
+            }
+        }
+        const owner = ownerScope; // const 别名：闭包内可安全窄化
+        const global = owner === null;
+
+        // ② 归一化 + 声明校验（严格单根、必带 x-define）
+        const parsed = this.parseComponentCode(code, opts?.name);
+        if (!parsed) return null;
+        const { root, name, modifierOpen, inherit } = parsed;
+
+        // ③ 覆盖 warn（per 注册目标 per 名去重——与 x-import 同款机制，ADR-0065 决策三）
+        const existed = global
+            ? this._globalComponentDefs.has(name) || this.options.components?.[name] != null
+            : owner.components?.[name] != null;
+        if (existed) {
+            const warned = global
+                ? this._overrideWarnedGlobal
+                : (this._overrideWarnedScope.get(owner) ??
+                  (() => {
+                      const s = new Set<string>();
+                      this._overrideWarnedScope.set(owner, s);
+                      return s;
+                  })());
+            if (!warned.has(name)) {
+                warned.add(name);
+                warn(
+                    `组件注册覆盖："${name}"（${global ? "全局组件表" : "作用域"}已有同名组件，已被覆盖，ADR-0086）`,
+                );
+            }
+        }
+
+        // ④ 组装子定义（declarerScope = 声明处；.open 修饰符并入边界声明）
+        const childDef = buildComponentDef(root, name, warn, owner, modifierOpen);
+
+        // ⑤ 登记尾巴（解析成功 / 无继承共用）：作用域挂 components（保 HTMLElement 契约）／全局入定义表
+        const registerResolved = (resolved: ComponentDef): void => {
+            this.registerComponentDef(resolved);
+            if (owner) {
+                if (!owner.components) owner.components = {};
+                owner.components[name] = resolved.snapshot;
+            } else {
+                this._globalComponentDefs.set(name, resolved);
+            }
+        };
+
+        // ⑥ 继承解析（与编译器 / x-import 同一管线）
+        let finalDef: ComponentDef = childDef;
+        if (inherit !== null) {
+            const lookupParent = (pname: string): ComponentDef | null => {
+                const snap = owner
+                    ? (owner.getComponentDeclaration(pname) ??
+                      this._resolveGlobalComponent(pname) ??
+                      null)
+                    : (this._resolveGlobalComponent(pname) ?? null);
+                if (!snap) return null;
+                return this.getComponentDef(snap) ?? this.getGlobalComponentDef(pname) ?? null;
+            };
+            const attempt = (): InheritResolveResult =>
+                resolveComponentInheritance({
+                    componentEl: root,
+                    name,
+                    inherit,
+                    modifierOpen,
+                    childDef,
+                    lookupParent,
+                    warn,
+                    deferMissingParent: true,
+                });
+            const first = attempt();
+            if (first === PENDING_PARENT) {
+                warn(
+                    `x-define "${name}": 父组件 "${inherit}" 暂未就绪，已挂起` +
+                        `（父注册后自动解析，ADR-0083）`,
+                );
+                this.addPendingInherit(inherit, () => {
+                    const retry = attempt();
+                    if (retry === PENDING_PARENT) return false; // 同名注册不在可见链——继续等
+                    if (retry) {
+                        registerResolved(retry);
+                        this._afterComponentRegistered(name, global); // 发事件 + 级联排水（ADR-0085）
+                    }
+                    return true; // 解析成功或终局失败（已 warn），均出队
+                });
+                return null; // 本次不注册；返回 null 与「终局拒绝」同形（调用方据 warn 区分）
+            }
+            if (!first) return null;
+            finalDef = first;
+        }
+        registerResolved(finalDef);
+        this._afterComponentRegistered(name, global); // 发事件 + 排水（ADR-0085）
+        return finalDef;
     }
 
     /**
@@ -673,7 +994,7 @@ export class AutoSpark<
      *
      * 公开供 Runtime 指令（如 x-loading）消费组件（x-define 声明）时取得宿主 scope 作组件编译的 parentScope
      * （Runtime 指令无 binding，需经 el 反查）。Compile/Hybrid 指令直接用 `this.binding`。
-     * 亦用于 `engine.getComponent` 的全局组件兜底（`scope.getComponent` 到顶委托 `engine._resolveGlobalComponent`）。
+     * 亦用于 `engine.getComponentDeclaration` 的全局组件兜底（`scope.getComponentDeclaration` 到顶委托 `engine._resolveGlobalComponent`）。
      */
     findScopeByEl(el: HTMLElement): AutoSparkScope | undefined {
         for (const scope of this.scopes.values()) {
@@ -684,15 +1005,72 @@ export class AutoSpark<
 
     /**
      * 注册组件定义（ADR-0022 决策二-1）。compiler `_collectComponent` 建好 def 后调用，以快照根为 key 存入。
+     *
+     * 同时是**全局样式段注入的收口点**（ADR-0087）：五条注册路径（本地 x-define / 继承解析 /
+     * x-import 远程 / 运行时注册 / 全局组件懒预编译）全走本方法——「凡注册必注入」，
+     * global 段无实例化依赖，声明即生效。
      */
     registerComponentDef(def: ComponentDef): void {
         this._componentDefs.set(def.snapshot, def);
+        injectGlobalComponentStyles(this, def);
+    }
+
+    /** 挂起的继承解析表（ADR-0083）：父名 → 待重试任务队列（父未就绪时压入，注册事件排水） */
+    private _pendingInherits = new Map<string, Array<() => boolean>>();
+
+    /**
+     * 挂起一条继承解析（ADR-0083）：父组件未就绪（可能来自 x-import 异步加载）时由
+     * compiler / 远程注册路径调用。任务约定：返回 `true` = 出队（解析成功或终局失败），
+     * `false` = 继续等待（本次注册的同名组件不在子组件可见链上）。
+     */
+    addPendingInherit(parentName: string, task: () => boolean): void {
+        const arr = this._pendingInherits.get(parentName) ?? [];
+        arr.push(task);
+        this._pendingInherits.set(parentName, arr);
+    }
+
+    /**
+     * 排水挂起继承（ADR-0083）：组件注册后调用——重试等待该名的
+     * 全部任务；任务注册的新组件经其自身注册路径递归排水（链式继承任意到达顺序逐级解锁）。
+     */
+    _drainPendingInherits(name: string): void {
+        const tasks = this._pendingInherits.get(name);
+        if (!tasks || tasks.length === 0) return;
+        const keep = tasks.filter((task) => !task());
+        if (keep.length > 0) this._pendingInherits.set(name, keep);
+        else this._pendingInherits.delete(name);
+    }
+
+    /**
+     * 注册成功后的统一后置（ADR-0085）：发按名注册事件（retain）+ 排水挂起继承。
+     *
+     * 五条注册路径（本地普通 / 本地继承即时 / 挂起排水重试、远程普通 / 挂起排水重试、
+     * 全局组件懒预编译首解析）全走本方法——「凡注册必发事件、必排水」是结构不变量，
+     * 新增注册路径只调它，不可能只做其一。
+     *
+     * 事件键 = `components/${name}/registered`，载荷 `{ name, global }`，**retain=true**
+     * （订阅晚于注册也立即补发，组件依赖方不漏听；通配符订阅即补发全部已注册名）。
+     * 先发事件（retain 落盘）再排水：排水重试注册的新组件经
+     * 自身路径递归走本方法，链式解锁收敛。旧单数全局事件 `component/registered` 已移除。
+     */
+    _afterComponentRegistered(name: string, global: boolean): void {
+        this.emit(`components/${name}/registered` as any, { name, global }, true);
+        this._drainPendingInherits(name);
+    }
+
+    /** fetch 失败时提示仍未就绪的挂起继承名（ADR-0083 诊断补偿：typo 与异步未归的兜底线索） */
+    private _warnPendingInheritsIfAny(reason: string): void {
+        if (this._pendingInherits.size === 0) return;
+        const names = [...this._pendingInherits.keys()].join("、");
+        this.logger.warn(
+            `x-define:inherit: ${reason}，以下父组件仍未就绪（疑为拼写错误或其来源加载失败）: ${names}`,
+        );
     }
 
     /**
      * 经组件冻结快照根反查组件定义（ADR-0022）。
      *
-     * `getComponent(name)` 返回 HTMLElement 快照（保持 x-loading 等消费者契约不变）；x-component 实例化时
+     * `getComponentDeclaration(name)` 返回 HTMLElement 快照（保持 x-loading 等消费者契约不变）；x-component 实例化时
      * 经快照反查本方法取 def（setup/hooks/styles/parent/components）以注入组件语义。
      * 局部组件经 `_componentDefs`（WeakMap）；全局组件经 `_globalComponentDefCache`。
      */
@@ -701,17 +1079,17 @@ export class AutoSpark<
     }
 
     /**
-     * 取全局组件定义（ADR-0022 决策二-1）。`_resolveGlobalComponent` 预编译时同步建 def 并缓存。
-     * 供 x-component 实例化全局组件时取 setup/hooks/styles。
+     * 取全局组件定义（ADR-0022 决策二-1；ADR-0086 单表）。`options.components` 惰性预编译或
+     * `registerComponent` 即时注册时入表。供 x-component 实例化全局组件时取 setup/hooks/styles。
      */
     getGlobalComponentDef(name: string): ComponentDef | undefined {
-        return this._globalComponentDefCache.get(name) ?? undefined;
+        return this._globalComponentDefs.get(name) ?? undefined;
     }
 
     /**
      * 命令式消费入口（ADR-0052 修订版 共识 10）：`getOverlay(el, name, options?)` → 定义句柄。
      *
-     * **镜像 `getComponent` 查找协议**：`el` 起 scope 链就近查找（内层同名组件遮蔽外层）
+     * **镜像 `getComponentDeclaration` 查找协议**：`el` 起 scope 链就近查找（内层同名组件遮蔽外层）
      * + `options.components` 全局兜底；省略 `el` 仅查全局。覆盖物内容 = 任意组件
      * （x-define 声明 / 全局注册 / x-import 加载），本方法返回 OverlayHandle 供
      * `open()` / `close()`。未命中 warn + 返回 undefined。
@@ -727,7 +1105,7 @@ export class AutoSpark<
     ): OverlayHandle | undefined {
         const scope = el ? this.findScopeByEl(el) : undefined;
         const snapshot = scope
-            ? scope.getComponent(name)
+            ? scope.getComponentDeclaration(name)
             : (this._resolveGlobalComponent(name) ?? undefined);
         if (!snapshot) {
             this.logger.warn(
@@ -747,7 +1125,7 @@ export class AutoSpark<
      * - 各 x-define 元素经 `buildComponentDef` 提取 `<script setup>`/`<style>` + 组装 def；
      * - 注册：global=true → 全局（`options.components` 懒预编译路径，写入 options + 清缓存让其重解析）；
      *   global=false → 作用域（挂 ownerScope.components）；
-     * - 注册后广播 `component/registered`，供 pending 的 x-component 重新实例化；
+     * - 注册后发 `components/<名>/registered`（retain，ADR-0085），供 pending 的 x-component / 组件依赖方获知；
      * - 失败 warn + 视为未注册（不阻断其余组件）。
      *
      * @param url        远程组件 HTML url
@@ -784,6 +1162,7 @@ export class AutoSpark<
                 html = await fetchHtml(url, signal, request);
             } catch (e: any) {
                 this.logger.warn(`x-import: 加载 "${url}" 失败: ${e?.message ?? e}`);
+                this._warnPendingInheritsIfAny(`远程加载 "${url}" 失败`);
                 this._importingUrls.delete(cacheKey);
                 return null;
             }
@@ -805,18 +1184,17 @@ export class AutoSpark<
             // 覆盖 warn（ADR-0065 决策三）：远程版覆盖已注册同名组件时警告（loader「以此 url 为准」
             // 与 x-import 同口径）；per 注册目标 per 名去重——缓存命中重跑注册循环不刷屏
             const existed = global
-                ? this.options.components?.[name] != null || this._globalComponentDefCache.has(name)
+                ? this.options.components?.[name] != null || this._globalComponentDefs.has(name)
                 : ownerScope?.components?.[name] != null;
             if (existed) {
-                const warned =
-                    global ?
-                        this._overrideWarnedGlobal
-                    : this._overrideWarnedScope.get(ownerScope!) ??
+                const warned = global
+                    ? this._overrideWarnedGlobal
+                    : (this._overrideWarnedScope.get(ownerScope!) ??
                       (() => {
                           const s = new Set<string>();
                           this._overrideWarnedScope.set(ownerScope!, s);
                           return s;
-                      })();
+                      })());
                 if (!warned.has(name)) {
                     warned.add(name);
                     this.logger.warn(
@@ -831,21 +1209,69 @@ export class AutoSpark<
                 (msg) => this.logger.warn(msg),
                 global ? null : (ownerScope ?? null),
             );
-            this.registerComponentDef(def);
-            if (global) {
-                // 全局：写入 options.components（字符串形态），清全局缓存让其重新懒预编译
-                // 注：def.snapshot 是剥离了 script/style 的洁净 DOM，序列化为 HTML 存入 options
-                if (!this.options.components) this.options.components = {};
-                this.options.components[name] = def.snapshot.outerHTML;
-                this._globalComponentCache.delete(name);
-                this._globalComponentDefCache.set(name, def);
-            } else if (ownerScope) {
-                // 作用域：挂 ownerScope.components
-                if (!ownerScope.components) ownerScope.components = {};
-                ownerScope.components[name] = def.snapshot;
+            // 注册尾巴（解析成功 / 无继承共用）：作用域挂 ownerScope.components；
+            // 全局写全局组件定义表（ADR-0086 决策三：不再写 options.components + 清缓存重懒预编译
+            // ——那会把 def 序列化成快照 outerHTML 再解析回来，快照已剥离的 <script setup>/<style>
+            // 无法复原，setup/styles 会在往返中丢失；直接入表既保真又免一次解析）
+            const registerResolved = (resolved: ComponentDef): void => {
+                this.registerComponentDef(resolved);
+                if (global) {
+                    this._globalComponentDefs.set(name, resolved);
+                } else if (ownerScope) {
+                    if (!ownerScope.components) ownerScope.components = {};
+                    ownerScope.components[name] = resolved.snapshot;
+                }
+            };
+            // 继承解析（ADR-0081 + ADR-0083）：远程子组件继承本地/全局父——同一查找协议（ownerScope
+            // 链就近 + 全局兜底；全局注册仅查全局）。终局失败 warn + 拒绝注册（不入 registered 清单）；
+            // 父未就绪挂起 pending 表（父可能来自其他异步 url），registered 排水重试。
+            // 远程路径本就不解析 .open 修饰符，传 false 一致。
+            let finalDef: ComponentDef = def;
+            const inherit = readInheritAttr(el);
+            if (inherit !== null) {
+                const lookupParent = (pname: string): ComponentDef | null => {
+                    const snap = global
+                        ? (this._resolveGlobalComponent(pname) ?? null)
+                        : (ownerScope?.getComponentDeclaration(pname) ??
+                          this._resolveGlobalComponent(pname) ??
+                          null);
+                    if (!snap) return null;
+                    return this.getComponentDef(snap) ?? this.getGlobalComponentDef(pname) ?? null;
+                };
+                const attempt = (): InheritResolveResult =>
+                    resolveComponentInheritance({
+                        componentEl: el,
+                        name,
+                        inherit,
+                        modifierOpen: false,
+                        childDef: def,
+                        lookupParent,
+                        warn: (msg) => this.logger.warn(msg),
+                        deferMissingParent: true,
+                    });
+                const first = attempt();
+                if (first === PENDING_PARENT) {
+                    this.logger.warn(
+                        `x-define "${name}": 父组件 "${inherit}" 暂未就绪，已挂起（若来自 x-import 将在加载后自动解析，ADR-0083）`,
+                    );
+                    this.addPendingInherit(inherit, () => {
+                        const retry = attempt();
+                        if (retry === PENDING_PARENT) return false; // 同名注册不在可见链——继续等
+                        if (retry) {
+                            registerResolved(retry);
+                            this._afterComponentRegistered(name, global); // 发事件 + 级联排水（ADR-0085）
+                        }
+                        return true; // 成功或终局失败（已 warn）均出队
+                    });
+                    continue; // 本次不注册、不入 registered 清单
+                }
+                if (!first) continue;
+                finalDef = first;
             }
+            registerResolved(finalDef);
             registered.push(name);
-            this.emit("component/registered", { name, global });
+            // 发事件 + 排水（ADR-0085）：本组件可能是他处挂起继承等待的异步父
+            this._afterComponentRegistered(name, global);
         }
         return registered;
     }
@@ -947,6 +1373,13 @@ export class AutoSpark<
         this.el.removeAttribute("data-autospark");
         this.pending = false;
         // store 恒为 engine 自建（ADR-0044）：销毁回收 core 资源；destroy 内部向 configManager 注销本 store
+        // 全局组件定义表清空（ADR-0086：含运行时注册的组件——注册生命周期随 engine）
+        this._globalComponentDefs.clear();
+        // 组件全局样式段移除（ADR-0087）：只移除本 engine 贡献的段，不误伤共页其他 engine；
+        // 段清空的容器连 <style> 元素一并移除
+        releaseEngineGlobalStyles(this);
+        // 挂起继承清表（ADR-0083）：未就绪的异步父任务随 engine 一并废弃
+        this._pendingInherits.clear();
         this.store.destroy();
         // 仅销毁 engine 自建的默认 configManager（先 store 后 cm，保证注销次序）；消费者传入的不动
         if (this._ownedConfigManager) {

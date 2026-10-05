@@ -38,11 +38,11 @@
             <div class="block">
                 <button
                     class="button"
-                    onclick="a.messages.add({ title: 'className 圆角胶囊主题', type: 'success', className: 'my-message-theme' })"
+                    onclick="a.messages.add({ title: 'className 圆角胶囊主题', level: 'success', className: 'my-message-theme' })"
                 >
                     className 主题
                 </button>
-                <button class="button" onclick="a.messages.add({ title: '语义色已按 :root 变量换肤', type: 'error' })">
+                <button class="button" onclick="a.messages.add({ title: '语义色已按 :root 变量换肤', level: 'error' })">
                     CSS 变量换肤（error 红）
                 </button>
             </div>
@@ -63,14 +63,15 @@
                 {},
                 {
                     components: {
-                        // props 注入：全量数据域整包（type / title / icon / actions / closable… 预解析后形态）
-                        "my-message": `<div class="my-message" :data-message-type="type"><b x-text="type"></b><span x-html="title"></span></div>`,
+                        // props 注入：全量数据域整包（type / level / title / icon / actions / closable… 预解析后形态）；
+                        // 卡片根（引擎 wrapper）已自动携带 data-message-type / data-message-level（ADR-0079）
+                        "my-message": `<div class="my-message"><b x-text="type"></b><span x-html="title"></span></div>`,
                     },
                     messages: { shell: "my-message", delayClose: 2500 },
                 },
             );
             document.querySelector("#custom-app button").onclick = () =>
-                b.messages.add({ title: "我来自自定义外壳", type: "success" });
+                b.messages.add({ title: "我来自自定义外壳", level: "success" });
         </script>
     </body>
 </html>

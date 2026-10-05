@@ -9,7 +9,7 @@
     <body>
         <!-- anchor 三职：① actions 字符串沿 anchor scope 链解析局部 action；
              ② message:action 以 anchor 为根额外派发（发起子树就近消费）；
-             ③ 渲染数据视图基准——kind render 组件挂链 anchor scope，表达式可访问发起域。
+             ③ 渲染数据视图基准——type render 组件挂链 anchor scope，表达式可访问发起域。
              配套 action（toast/confirm/task）DOM 处使用时自动注入发起元素为 anchor。 -->
         <div class="demo-app section">
             <div class="block" x-data="{ orderNo: 'DD-2026-0930' }" id="order-box">
@@ -32,7 +32,7 @@
             </div>
             <div class="block has-text-grey">
                 第一个按钮的 actions 字符串 <code>"reopenOrder"</code> 在 x-data 私有域声明——只沿 anchor
-                scope 链可达；第二个按钮走 kinds[notice].render 自定义组件，表达式读的
+                scope 链可达；第二个按钮走 types[notice].render 自定义组件，表达式读的
                 <code>orderNo</code> 来自发起元素的 x-data（anchor 数据视图）。
             </div>
         </div>
@@ -46,13 +46,13 @@
                         // anchor 存在时挂链发起 scope：orderNo 来自 #order-box 的 x-data
                         "order-notice": `<div class="my-order-note"><b x-text="orderNo"></b><span x-text="title"></span></div>`,
                     },
-                    messages: { kinds: { notice: { render: "order-notice" } } },
+                    messages: { types: { notice: { render: "order-notice" } } },
                 },
             );
             const notifyTimeout = () =>
                 app.messages.add({
                     title: "订单已超时",
-                    kind: "remind", // 公共 shell（notice 的 kind 区已被自定义 renderer 接管）
+                    type: "remind", // 无自定义模板——base 默认内容兜底（ADR-0088 type 链末端）
                     actions: ["reopenOrder"],
                     anchor: "#order-box", // 选择器字符串或元素
                     delayClose: 0,
@@ -60,7 +60,7 @@
             const notifyView = () =>
                 app.messages.add({
                     title: "（数据视图演示）",
-                    kind: "notice",
+                    type: "notice",
                     anchor: document.getElementById("btn2"),
                     delayClose: 0,
                 });

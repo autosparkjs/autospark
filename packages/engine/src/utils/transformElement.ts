@@ -48,6 +48,27 @@ export function parseHtmlFragment(html: string): DocumentFragment | null {
 }
 
 /**
+ * 顶级单根判定：片段是否为「恰好一个根元素」（同级无非空白文本）。
+ *
+ * 组件字符串入参的两套规范化规则共用此判定——差异只在「不单根时怎么办」（ADR-0086）：
+ * - 自动包装版（`options.components` / `options.uiShells` 字符串，ADR-0022/0077）：不单根则包一层 `<div x-define>`；
+ * - 严格注册版（`engine.registerComponent`）：不单根则 warn + 拒绝注册。
+ *
+ * 注释节点与缩进空白不参与判定（HTML 片段常带二者，二者不改变「单根」语义）；
+ * 元素 + 文本混排视为**不**单根（顶级文本无从归属组件根）。
+ *
+ * @param frag - 待判定的片段（须非空）
+ * @returns 唯一根元素；不满足单根形态返回 `null`
+ */
+export function pickSingleRootElement(frag: DocumentFragment): HTMLElement | null {
+    const children = Array.from(frag.children);
+    const hasTextNode = Array.from(frag.childNodes).some(
+        (n) => n.nodeType === Node.TEXT_NODE && (n.nodeValue ?? "").trim() !== "",
+    );
+    return children.length === 1 && !hasTextNode ? (children[0] as HTMLElement) : null;
+}
+
+/**
  * 深度优先遍历 DOM 树，基于 `transformers` 声明式地重建一棵新树。
  *
  * 原树保持只读、不会被修改；函数返回由转换器构建出的全新根元素。

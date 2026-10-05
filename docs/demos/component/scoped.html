@@ -12,7 +12,7 @@
             组件查找「沿 parent 链就近 + 全局兜底」：
             - 全局组件 badge（蓝底）在 options.components 声明，全引擎兜底；
             - 内层 x-scope 声明一个同名局部 badge（绿底），仅该子树可见。
-            因 getComponent 沿 parent 链向上查找（ADR-0022 决策五），查找顺序是：
+            因 getComponentDeclaration 沿 parent 链向上查找（ADR-0022 决策五），查找顺序是：
               本 scope.components → 各祖先 scope.components → 全局兜底。
             故：
               - 外层 x-component（无局部 badge，链上无祖先局部）→ 兜底全局（蓝）；
@@ -21,7 +21,7 @@
             后代就能取到（非「独立作用域」）。本 demo把局部声明放内层，演示「局部特例」。
         -->
         <div id="app" x-scope>
-            <!-- 外层：无局部 badge → getComponent 沿链无祖先局部 → 兜底全局（蓝） -->
+            <!-- 外层：无局部 badge → getComponentDeclaration 沿链无祖先局部 → 兜底全局（蓝） -->
             <div class="panel">
                 <div class="label">外层（无局部 badge）：兜底全局 → 蓝</div>
                 <div x-component:badge></div>

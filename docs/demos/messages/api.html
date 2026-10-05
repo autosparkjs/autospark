@@ -9,7 +9,7 @@
     <body>
         <!-- 配套 action 三件套（toast / confirm / task，均为内置执行型）：模板任意
              @click 处直接发起，自动注入 anchor = 发起元素。事件双通道：
-             引擎总线 message:* + 卡片元素 dispatchEvent；kind='toast' 迁移期
+             引擎总线 message:* + 卡片元素 dispatchEvent；type='toast' 迁移期
              双发旧事件 toast:show / toast:hide。 -->
         <div class="demo-app section">
             <div x-data="{ size: 'M' }">
@@ -18,7 +18,7 @@
                     <!-- action 参数表达式经 with(data) 求值——payload 里可直接引用 x-data 字段 -->
                     <button
                         class="button is-primary"
-                        @click="toast({ type: 'success', title: '已加入购物车（' + size + ' 码）' })"
+                        @click="toast({ level: 'success', title: '已加入购物车（' + size + ' 码）' })"
                     >
                         toast action（对象 · 引用状态）
                     </button>
