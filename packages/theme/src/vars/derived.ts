@@ -1,0 +1,95 @@
+export const derivedVars = {
+    /* 语义色调 */
+    "--auto-primary-color": "var(--k-color-primary)",
+    "--auto-success-color": "var(--k-color-success)",
+    "--auto-danger-color": "var(--k-color-danger)",
+    "--auto-warning-color": "var(--k-color-warning)",
+    "--auto-info-color": "var(--k-color-info)",
+    "--auto-theme-color": "var(--k-color-theme-5)",
+
+    /** 活动颜色 */
+    "--auto-selected-color": "var(--k-color-theme-5)!important",
+    "--auto-selected-bgcolor":
+        "color-mix(in srgb, var(--auto-selected-color), transparent 80% )!important",
+
+    "--auto-hover-color": "var(--auto-theme-color)!important",
+    "--auto-hover-bgcolor":
+        "color-mix(in srgb, var(--auto-hover-color), transparent 85%)!important",
+
+    "--auto-active-color": "var(--k-color-theme-8)!important",
+    "--auto-active-bgcolor":
+        "color-mix(in srgb, var(--auto-active-color), transparent 85%)!important",
+
+    "--auto-disable-color": "color-mix(in srgb, var(--k-color-8), gray 50%)!important",
+    "--auto-disable-bgcolor": "color-mix(in srgb, currentColor, transparent 60%)!important",
+
+    /* 字体颜色 */
+    /* 字体颜色：三档引用 color 标尺的 1/3/4 档（light 下 59/109/149，档距均匀；
+     * 次要文字白底对比约 5.3:1 达 WCAG AA。勿取相邻档（次要/辅助难分）或跨 4 档（梯度失衡） */
+    "--auto-color": "var(--k-color-1)",
+    "--auto-secondary-color": "var(--k-color-2)",
+    "--auto-third-color": "var(--k-color-3)",
+
+    /* 背景颜色: 用于面板/对话框/组件的背景 */
+    /* 背景语义按透明度阶梯区分：面板为实色容器，次级/内嵌为同一原料（bgcolor-2）的不同不透明度叠加
+     * （45% / 75%），light 与 dark 下均落在可辨区间；!important 移除（模式覆盖作用于基变量，此处无需） */
+    "--auto-bgcolor": "var(--k-bgcolor-0)",
+    "--auto-secondary-bgcolor": "color-mix(in srgb, var(--k-bgcolor-2), transparent 55%)",
+    "--auto-third-bgcolor": "color-mix(in srgb, var(--k-bgcolor-2), transparent 25%)",
+    "--auto-workspace-bgcolor": "var(--k-bgcolor-1)",
+
+    /* 边框 */
+    "--auto-border-size": "1px",
+    "--auto-border-color": "var(--k-color-7)",
+    "--auto-border": "var(--auto-border-size) solid var(--auto-border-color)",
+    // hover
+    "--auto-hover-border-color": "var(--auto-hover-color)",
+    "--auto-hover-border": "1px solid var(--auto-hover-border-color)",
+    // selected
+    "--auto-selected-border-color": "var(--auto-selected-color)",
+    "--auto-selected-border": "1px solid var(--auto-selected-border-color)",
+    // active
+    "--auto-active-border-color": "var(--auto-active-color)",
+    "--auto-active-border": "1px solid var(--auto-active-border-color)",
+    // disable
+    "--auto-disable-border-color": "var(--auto-disable-color)",
+    "--auto-disable-border": "1px solid var(--auto-disable-border-color)",
+
+    /* 排版/字体 */
+    "--auto-font": "var(--k-font-weight-medium) var(--auto-font-size)/1.5 var(--auto-font-family)",
+    "--auto-font-family":
+        "Lantinghei SC,Microsoft Yahei,Hiragino Sans GB,Microsoft Sans Serif,WenQuanYi Micro Hei,sans-serif",
+    "--auto-font-size": "var(--k-font-size-medium)",
+    "--auto-font-weight": "var(--k-font-weight-medium)",
+    "--auto-letter-spacing": "var(--k-letter-spacing-medium)",
+    "--auto-line-height": "var(--k-line-height-medium)",
+    "--auto-title-font":
+        "calc(var(--auto-font-weight) + 100) calc(var(--auto-font-size) * 1.05)/1.5 var(--auto-font-family)",
+
+    /* 面板: 用于导航/标题栏/标签页标题 */
+    "--auto-card-header-color": "var(--auto-color)",
+    "--auto-card-header": "var(--auto-title-font)",
+    /** 标题背景颜色：用于标题/标题栏的背景颜色*/
+    "--auto-card-header-bgcolor": "var(--auto-secondary-bgcolor)",
+    /* 面板背景颜色：用于面板/区块/Drawer等背景颜色*/
+    "--auto-card-bgcolor": "var(--auto-bgcolor)",
+
+    /* 边框/间距 */
+    "--auto-border-radius": "var(--k-border-radius-medium)",
+    "--auto-spacing": "var(--k-spacing-medium)",
+    "--auto-padding": "var(--k-spacing-medium)",
+    "--auto-margin": "var(--k-spacing-medium)",
+    "--auto-shadow": "var(--k-shadow-medium)",
+
+    /* 输入框 */
+    /** 输入框背景颜色：用于输入框背景颜色*/
+    "--auto-input-font": "var(--auto-font)",
+    "--auto-input-border": "var(--auto-border)",
+    "--auto-input-bgcolor": "var(--auto-bgcolor)",
+    "--auto-input-padding": "var(--auto-padding)",
+    "--auto-input-radius": "var(--auto-border-radius)",
+    "--auto-input-height": "var(--auto-line-height)",
+    /** 其他 */
+    "--auto-icon-size": "var(--k-icon-size-medium)",
+};
+export const derivedColorizedVars = {};

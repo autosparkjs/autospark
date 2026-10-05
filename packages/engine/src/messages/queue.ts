@@ -1,20 +1,18 @@
-import { getMessageColumn } from "./container";
 import type { MessagePos } from "./types";
 import type { MessageEntry } from "./entry";
 import type { MessageManager } from "./manager";
 
 /**
- * 分区等待队列（ADR-0088 模块拆分：自 manager `_queues` 簿记收束为类——每 pos 一实例）：
- * 持有该分区的**列元素懒建**（吃掉 manager 对 container 的直接触达）、`showCount` 容量
- * 判定（state 真身现读——运行时改即刻生效）、满员排队、关闭后按队首 FIFO 补位、出队。
- *
- * 挂载触发经编排：有坑即 `session.mount(column)`（装配管线归会话，ADR-0088）；入列
- * `records.sessionListAdd`（queued + shown 均入展示序，ADR-0083 Q11a——由 offer 统一收口）。
- * maxLen 淘汰是跨 pos 的记录级策略，归 records（与本类的展示分区职责正交）。
+ * 分区等待队列（ADR-0088 → **ADR-0089 display 模型简化**——offer/flush 补位**挂载**机制
+ * 退役，装配在 add 期已完成）：`showCount` 容量判定（state 真身现读）+ 满员排队 + FIFO
+ * 补位**显示**（display 切换）。可见计数（shown 簿记）与列内 DOM 数解耦——display:none
+ * 的隐藏/排队记录不占可见容量。
  */
 export class MessageQueue {
     /** 等待队列（满员排队，补位按队首 FIFO） */
     private waiting: MessageEntry[] = [];
+    /** 本分区当前可见（shown）的 entry id 簿记——容量判定的计数源 */
+    private shown = new Set<string>();
 
     constructor(
         private readonly manager: MessageManager,
@@ -27,42 +25,45 @@ export class MessageQueue {
     }
 
     /**
-     * 容量判定与挂载入口（manager `_displayEntry` 的收口）：有坑即 mount，满员排队。
-     * SSR / 无 body（列不可建）保持 queued 不入队（文档不承诺 SSR 显示）。
+     * 容量判定与显示入口（manager `_displayEntry` 的收口）：有坑即 display 切换显示，
+     * 满员排队。SSR / 无 body（装配已失败）不会到达此处。
      */
     offer(entry: MessageEntry): void {
-        const column = getMessageColumn(this.manager.engine, this.pos, entry.props.offset);
-        if (!column) return;
-        this.manager.records.sessionListAdd(entry.id); // queued + shown 均入展示序列（Q11a）
-        if (column.childElementCount < this._showCount) {
-            entry.session.mount(column);
+        if (entry.state === "shown") {
+            this.shown.add(entry.id);
+            return;
+        }
+        if (this.shown.size < this._showCount) {
+            this.shown.add(entry.id);
+            this.manager._showEntry(entry);
         } else {
             this.waiting.push(entry);
         }
     }
 
-    /** 出等待队列（dismiss 前置——防止补位 flush 挂载已关闭 entry） */
+    /** 出等待队列（关闭前置——防止补位显示已关闭 entry） */
     remove(entry: MessageEntry): void {
         const i = this.waiting.indexOf(entry);
         if (i >= 0) this.waiting.splice(i, 1);
     }
 
-    /** 补位：该分区列有空坑时按队首 FIFO 挂载等待队列（teardown 后调用） */
+    /** 可见簿记释放（关闭收口调——display 模型下隐藏/销毁均释放容量） */
+    releaseShown(id: string): void {
+        this.shown.delete(id);
+    }
+
+    /** 补位：该分区有空坑时按队首 FIFO 显示等待队列 */
     flush(): void {
-        if (!this.waiting.length) return;
-        const column = getMessageColumn(this.manager.engine, this.pos);
-        while (this.waiting.length && column && column.childElementCount < this._showCount) {
-            this.waiting.shift()!.session.mount(column);
+        while (this.waiting.length && this.shown.size < this._showCount) {
+            const entry = this.waiting.shift()!;
+            this.shown.add(entry.id);
+            this.manager._showEntry(entry);
         }
     }
 
-    /** 清空等待队列（clear / dispose 前置——防 dismiss 同步 teardown 的补位 flush 挂载排队 entry） */
+    /** 清空等待队列（clear / dispose 前置——防 dismiss 收口的补位显示排队 entry） */
     clear(): void {
         this.waiting.length = 0;
     }
 
-    /** 等待中的 entry 数（测试观察面） */
-    get size(): number {
-        return this.waiting.length;
-    }
 }

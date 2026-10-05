@@ -9,17 +9,17 @@
  * 机制全部沿用；API 面（title / delayClose / add / update / show）与生命周期（记录 ⇄ 展示
  * 两态分离，persist 控制记录存续）由本模块取代。
  *
- * 状态暴露（ADR-0072）：`store.state.$messages = { items, options }` 保留键——items 为
- * 记录镜像（`shallow(items, shallow选项)`，AutoSparkMessage 纯数据）、options 为生效配置真身
- * （AutoSparkMessagesOptions，可直写）。词汇全链路统一：正文 `description`（旧 body 弃用）、
- * 链接 `link`（旧 href 弃用——HTML 属性仍 href）。
+ * 状态暴露（ADR-0072 → ADR-0089 纯化）：`store.state.$messages = { items, options }` 保留键
+ * ——items 为记录镜像（`shallow(items, shallow选项)`，**AutoSparkMessageRecord 纯业务数据**
+ * ——与持久化载荷零转换同构；渲染配置与运行态归组件实例，ADR-0089 决策七之三）、options
+ * 为生效配置真身（AutoSparkMessagesOptions，可直写）。词汇全链路统一：正文 `description`
+ * （旧 body 弃用）、链接 `link`（旧 href 弃用——HTML 属性仍 href）。
  *
- * 会话与双层渲染（ADR-0077）：`add()` 按 type 返回 **AutoSparkMessageSession** 行为句柄
- * （原 MessageTask 家族正名扩容——show/hide/remove 统一基类面，Task/Confirm 子类扩展）；
- * 渲染改双层正交组合——**公共 shell**（所有 type 共享骨架：close/level 图标/title/
- * description/type 出口/actions 最底）+ **type renderer**（专属区组件，经 shell 默认出口
- * `x-slot` 嵌入，一 type 一文件于 `src/messages/renderers/`）；卡片子树注入 **`$session`**
- * 派生变量（localData 通道——x-for `$index` 同构，行为专职、非响应式）。
+ * type 组件化（ADR-0089，取代 ADR-0077/0083/0088 的 session class 体系）：`add()` 恒返回
+ * **组件实例**（ComponentInstance——data 响应式视图 / methods 直调 / props 别名）；一个
+ * type = 一个 autospark 组件（x-define + `<script setup>` data/methods + scoped style，
+ * 强制继承 base 族根——结构+行为双继承）；可见性 = display 模型（挂起/排队/隐藏
+ * display:none，remove 真销毁）；`$session` 派生变量退役（模板内 methods 直达）。
  *
  * 三键更名（ADR-0079，未发布零迁移）：`kind` → **`type`**（业务类别——开放集合，驱动
  * types 默认与 type renderer 分派）；原 `type`（语义色五值）→ **`level`**（严重度，
@@ -156,26 +156,23 @@ export interface ResolvedMessageAction {
 }
 
 /**
- * 单次消息配置（ADR-0071 决策 4 数据模型）：保留键**封闭清单**——`options.messages` 全局
- * 默认、`types[type]` 与单次调用 props 同构，浅合并（逐键覆盖）。未知键 warn + 忽略。
- * `progress` 为 type='task' 专属键：其他 type 携带 → warn + 忽略（非通用功能，决策 12）。
+ * record 面入参（ADR-0089 决策九**两分法**）：复用 `AutoSparkMessageRecord`——时间戳引擎
+ * 生成不收；`level` 宽松入参（数字或名字符串，归一后落 record）。提平进 record，由
+ * `persist` 分级决定是否持久化（type 种子默认差异化：toast 默认 0——隐于全局默认）。
  */
-export interface MessageProps {
-    /** 记录 id（缺省自动生成补齐；同 id = 展示 props 原地更新） */
-    id?: string;
-    /** 业务类别（开放集合，默认 'toast'；原 kind 更名，ADR-0079）；`toast` / `task` /
-     *  `confirm` 为内置语义 type（Session 分派 + type renderer + types 默认钩子） */
-    type?: string;
-    /** 严重度（默认 0 = none，原 type 语义色数值化，ADR-0079）：驱动图标与语义色
-     *  （全边 border + 淡底）。宽松入参：数字或名字符串（`"warn"` ≡ 3），内部归一为数字 */
+export type MessageRecordInput = Partial<Omit<AutoSparkMessageRecord, "createAt" | "updateAt" | "level">> & {
     level?: AutoSparkMessageLevel | MessageLevelName;
+};
+
+/**
+ * 组件面 props（ADR-0089 决策九）：注水组件实例 data 域的配置——**永不持久化**；type
+ * 自有键（task 的 `progress/canPause/canCancel/canStop` 等）经索引签名开放（随 type 组件
+ * 契约）。调用语法与 record 面单包混传（分流是持久化语义，非可见性语义——组件可见全量：
+ * 注水面 = record 面 + 组件面）。
+ */
+export interface MessageComponentProps {
     /** 显式图标名（优先于 level 默认映射） */
     icon?: string;
-    /** 消息标题（HTML；经 options.sanitizer 消毒——x-html 同通道） */
-    title?: string;
-    /** 可选正文（HTML 同通道），渲染在 title 下一行、字号小一号；缺省不渲染行。
-     * 全链路统一词（ADR-0072）：输入 / 渲染 props / 记录面同名 description */
-    description?: string;
     /** 自动关闭延迟 ms（默认全局 delayClose=3000；`0` = sticky；hover 暂停/恢复剩余时间制） */
     delayClose?: number;
     /** 屏幕锚定位置（默认 'top-right'）；非法值 warn + 回退全局默认 */
@@ -184,32 +181,15 @@ export interface MessageProps {
     offset?: number | string;
     /** 关闭按钮（默认 false；开启出 ×，内置 no 图标） */
     closable?: boolean;
-    /** 可选链接：尾随 external 图标（新标签 + noopener；点击不关闭、置已读）。
-     * 全链路统一词（ADR-0072）：记录面同名 link；HTML 属性仍为 href */
-    link?: string;
-    /** 归属者：业务透传（收件人/来源模块等），引擎不解释、不代填（ADR-0072） */
-    owner?: string;
-    /** 已读标记（卡片任意点击自动置位；编程式走 markRead） */
-    read?: boolean;
-    /** 业务层状态：引擎纯透传存储 + `message:status` 事件，零解释 */
-    status?: number | string;
-    /** action value 应答结果（点击写入；task 只读 getter，写走 update） */
-    result?: any;
-    /** 记录存续级别（默认 0 隐藏即删；1 会话缓冲 / 2 local / 3 remote 隐藏转「已隐藏」态存活） */
-    persist?: MessagePersistLevel;
     /** 按钮行（字符串 = action 名 / 对象 = 局部按钮；value 键数据应答） */
     actions?: AutoSparkAction[];
     /**
      * 上下文元素（三职合一，ADR-0071 决策 14）：① 局部 action 解析根 ② action 事件派发根
-     * ③ 渲染数据视图基准（dataContext——render 组件挂链其 scope）。非定位（元素定位是
-     * fast-follow）。字符串 = add 时一次性 querySelector，未命中 warn + 按无 anchor 处理。
+     * ③ 渲染数据视图基准（type 组件挂链其 scope）。非定位（元素定位是 fast-follow）。
+     * 字符串 = add 时一次性 querySelector，未命中 warn + 按无 anchor 处理。
      */
     anchor?: HTMLElement | string;
-    /**
-     * 进出场动画（ADR-0039 三形态；默认 'slide' + 按 pos 的方向自适应覆写层）
-     * ——**公共 props 到此为止**：type 专属键（task 的 progress / 三控制键等）不在本接口，
-     * 各自随 session 定义（`TaskMessageProps` 见 sessions/task.ts——组件作者按 type 窄化）
-     */
+    /** 进出场动画（ADR-0039 三形态；默认 'slide' + 按 pos 的方向自适应覆写层） */
     animate?: any;
     /** 附加类名（追加在 `autospark-message` 之后，主题定制通道） */
     className?: string;
@@ -227,7 +207,17 @@ export interface MessageProps {
     maxWidth?: number | string;
     /** 最小高度（number = px） */
     minHeight?: number | string;
+    /** type 自有键开放通道（ADR-0089）：task 的 progress/canPause/canCancel/canStop 等——
+     * 随各 type 组件契约（types/*.ts 注释声明），引擎不解释透传注水 */
+    [key: string]: any;
 }
+
+/**
+ * 单次消息配置（ADR-0071 决策 4 → **ADR-0089 两分法组合**）：record 面（可持久化）×
+ * 组件面（注水）单包混传——类型即架构宣言（键零重复声明：record 键单一来源
+ * `AutoSparkMessageRecord`）。`options.messages` 全局默认、`types[type]` 同构，浅合并。
+ */
+export type MessageProps = MessageRecordInput & MessageComponentProps;
 
 /**
  * fetch 透传配置（ADR-0072，原 `url` + `headers` 两键合并）：`url` + RequestInit 子集。
@@ -326,98 +316,6 @@ export const MESSAGE_RESERVED_KEYS: ReadonlySet<string> = new Set([
     "minHeight",
 ]);
 
-/**
- * 消息会话（ADR-0077，原 MessageTask 更名扩容）：单条消息**渲染生命周期的行为句柄**——
- * `messages.add()` 按 type 分派返回（内置映射 `{ toast, task, confirm }`，自定义 type 回
- * 基类）；`messages.sessions` 即全部存活会话的注册表（manager Map 面正名，同一张表）。
- * 数据投影（read/status/result）只读 getter——写走 `update(id, patch)`；`remove()` 后会话
- * 死亡（后续方法 no-op + warn，不复活）。卡片子树内可经 `$session` 派生变量访问本对象。
- */
-export interface AutoSparkMessageSession {
-    /** 记录 id（factory 形态下 resolve 后回填，挂起期为空串） */
-    readonly id: string;
-    /** 业务类别（原 kind 更名，ADR-0079） */
-    readonly type: string;
-    /** 卡片根元素（排队未显示 / 已关闭 / 已隐藏为 null；与渲染组件 1:1——ADR-0083） */
-    readonly el: HTMLElement | null;
-    /** 展示是否已关闭（隐藏记录 closed 为 true，但记录仍存活、可 show() 重显） */
-    readonly closed: boolean;
-    /** 已读标记（只读） */
-    readonly read: boolean;
-    /** 业务状态（只读透传） */
-    readonly status: number | string | undefined;
-    /** action value 应答（只读） */
-    readonly result: any;
-    /** 重显已隐藏记录（完整展示管线；展示中 / 排队中幂等 no-op；死后 no-op + warn） */
-    show(): void;
-    /** 关闭（走离场动画；幂等；factory 挂起期 = 取消） */
-    hide(): void;
-    /** 硬移除记录（含持久化数据同步删除：local 即写 / remote 即 flush 全量覆盖） */
-    remove(): void;
-    /** 记录级补丁（manager.update 的句柄面）；factory 挂起期 = 缓存（return 落地时合并，ADR-0083） */
-    update(patch: Partial<MessageProps>): void;
-    /** 取消：挂起期 = 丢弃；展示中 / 排队中 = 立即关（无完成态） */
-    cancel(): void;
-}
-
-/** toast 会话（type='toast'）：基类面即全部——瞬时提示无专属行为 */
-export interface AutoSparkToastMessageSession extends AutoSparkMessageSession {}
-
-/**
- * 任务会话（type='task'，原 ProgressTask 正名）：进度能力归 type='task' 提供（非通用
- * 功能）。pause 为闸门语义（pause 后 progress 调用被忽略）；**创建即 started**（ADR-0083
- * 二次修订——progress 直呼即推进，`start()` 为幂等兼容面）；factory 挂起期 progress 走
- * 缓存（return 落地时合并）；progress(100) / stop() / complete() 完成态按 delayClose 收口、
- * cancel() 立即关。
- */
-export interface AutoSparkTaskMessageSession extends AutoSparkMessageSession {
-    /** 开始接受进度推进（幂等兼容面——创建即 started，ADR-0083 二次修订） */
-    start(): void;
-    /** 推进进度（clamp [0,100]；已 pause / 已完成时忽略；factory 挂起期缓存） */
-    progress(n: number): void;
-    /** 闸门关闭：progress(n) 调用被忽略 */
-    pause(): void;
-    /** 闸门打开：恢复接受 progress(n) */
-    resume(): void;
-    /** 标记完成（≡ progress(100)）：完成态按 delayClose 展示后关 */
-    stop(): void;
-    /** 完成的显式别名（≡ stop——一个通用名一个语义名，同一实现，ADR-0083 Q8） */
-    complete(): void;
-    /** 是否允许暂停（只读——canPause 配置投影；启用时预设组件自带「暂停/恢复」按钮） */
-    readonly canPause: boolean;
-    /** 是否允许取消（只读——canCancel 配置投影；启用时预设组件自带「取消」按钮 + signal） */
-    readonly canCancel: boolean;
-    /** 是否允许停止（只读——canStop 配置投影；启用时预设组件自带「停止」按钮） */
-    readonly canStop: boolean;
-    /**
-     * 协作取消信号（canCancel 启用时有效，否则 undefined）：`cancel()` 瞬间 abort——
-     * fetch 等协作式异步挂接即中断；自然完成 / 超时收口 / remove **不发信号**。
-     * @example fetch(url, { signal: session.signal })
-     */
-    readonly signal: AbortSignal | undefined;
-}
-
-/**
- * 确认会话（type='confirm'，ADR-0077 升内置 type）：三方法 ≡ 点击对应按钮（value 闭环：
- * 写 result → `message:action` 事件 → confirm resolve → hide 判定），与 DOM 点击同一条
- * 执行路径（事件观察者无感知差异）。**thenable**：`await show({type:'confirm'})` 直接得
- * choice 应答（value；sticky 永不 settle——原 confirm() 糖的 Promise 语义由会话本体承载）。
- */
-export interface AutoSparkConfirmMessageSession extends AutoSparkMessageSession {
-    /** 确认（≡ 点击 yes 按钮） */
-    yes(): void;
-    /** 拒绝（≡ 点击 no 按钮） */
-    no(): void;
-    /** 取消（≡ 关闭消息，无应答写入） */
-    cancel(): void;
-    /** thenable：await 会话 = 等 choice 应答（value；sticky 永不 settle、永不 reject） */
-    then<TResult1 = any, TResult2 = never>(
-        onfulfilled?: ((value: any) => TResult1 | PromiseLike<TResult1>) | null,
-        onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
-    ): Promise<TResult1 | TResult2>;
-}
-
-/** 值解析产物：保留键校验前的用户 props（仅含清单内键的原始对象） */
 export type ParsedMessageProps = MessageProps;
 
 /**
@@ -499,54 +397,6 @@ export interface AutoSparkMessageRecord {
     updateAt: number;
 }
 
-/**
- * 消息记录（`$messages.items` 元素）= 数据记录 + 渲染/行为/生命周期字段。
- * 仍是纯数据形态：无函数（actions 为解析后剥 handle 形态）、无 DOM 引用（anchor 不入）。
- * 写通道仅 manager（记录级变更 = `items[i]` 整替换）；模板直写为违约自理（纪律不加机制）。
- */
-export interface AutoSparkMessage extends AutoSparkMessageRecord {
-    /** 记录⇄展示两态（恒有——恢复时由策略统一置 true，不读载荷） */
-    closed: boolean;
-    /** 显式图标名（优先于 level 默认映射） */
-    icon?: string;
-    /** 屏幕锚定位置（7 值枚举） */
-    pos?: MessagePos;
-    /** 分区列与屏幕边缘间距（仅列首次创建时生效） */
-    offset?: number | string;
-    /** 关闭按钮 */
-    closable?: boolean;
-    /** 进出场动画 */
-    animate?: any;
-    /** 附加类名（主题定制通道） */
-    className?: string;
-    /** 自动关闭延迟 ms（0 = sticky） */
-    delayClose?: number;
-    /** 内联样式（cssText——渲染键，ADR-0077） */
-    styles?: string;
-    /** 卡片尺寸五键（渲染键；width/height 默认 auto 不落、内置 type 默认层可注入） */
-    width?: number | string;
-    height?: number | string;
-    minWidth?: number | string;
-    maxWidth?: number | string;
-    minHeight?: number | string;
-    /** 记录存续级别（恢复时按存储介质反推：local 存储 → 2 / remote → 3） */
-    persist?: MessagePersistLevel;
-    /** 进度（type='task' 专属；每写同步进镜像） */
-    progress?: number;
-    /** 暂停闸门态（task 数据投影——按钮文案 / 闸门判定驱动，每写同步进镜像） */
-    paused?: boolean;
-    /** 完成态（task 数据投影——控制按钮隐藏 / 镜像可见） */
-    completed?: boolean;
-    /** 三控制键投影（canPause/canCancel/canStop——预设组件按钮显隐驱动） */
-    canPause?: boolean;
-    canCancel?: boolean;
-    canStop?: boolean;
-    /** 按钮行数据面（解析后、剥执行体） */
-    actions?: AutoSparkMessageAction[];
-}
-
-/** 按钮项数据投影：`ResolvedMessageAction` 剥执行体——title/value/hide 是数据，handle 是行为 */
-export type AutoSparkMessageAction = Omit<ResolvedMessageAction, "handle">;
 
 /**
  * `$messages.options` 真身类型：生效全局配置（构造期注入「内置默认 < options.messages」
@@ -556,22 +406,17 @@ export type AutoSparkMessageAction = Omit<ResolvedMessageAction, "handle">;
  */
 export type AutoSparkMessagesOptions = Omit<MessageOptions, "anchor" | "actions">;
 
-/** $messages 容器（engine 注入 store.state 的保留键形态，ADR-0072；sessions 键 ADR-0083） */
+/**
+ * $messages 容器（engine 注入 store.state 的保留键形态，ADR-0072；sessions 键 ADR-0083 →
+ * **ADR-0089 退役**——display 模型下在屏观察 = DOM / 组件 data.visible，第三通道可派生）。
+ * items 纯 record 化（ADR-0089 决策七之三）：与持久化载荷零转换同构；渲染配置与运行态
+ * 归组件实例（props 注水面 / data 域——`messages.get(id).data` 直读）。
+ */
 export interface AutoSparkMessagesState {
     /** 记录镜像：`shallow(items, options.shallow)`——默认 1：数组结构变更 + 成员一层字段
-     * 读写有事件（孙级起 raw）；0：仅结构变更有事件。深度为构造期一次性配置（运行时改静默忽略） */
-    items: ShallowObject<AutoSparkMessage[], 1>;
-    /**
-     * 展示中 id 序列（ADR-0083 Q11a）：`shown + queued` 的消息 id（展示序）——「当前在屏
-     * 消息」的响应式观察面（id 字符串数组，无成员字段——shallow 深度 0 仅结构变更有事件）。
-     * `session.show()` 追加 / `hide()` 移除（「仅隐藏」——记录仍留 items，persist≥1 存活）；
-     * 引擎分区栈渲染不经它（观察面）。items = 数据全集（含隐藏，创建序）与本品分工。
-     */
-    sessions: ShallowObject<string[], 0>;
+     * 读写有事件（孙级起 raw）；0：仅结构变更有事件。深度为构造期一次性配置（运行时改静默忽略）。
+     * 元素 = AutoSparkMessageRecord 纯业务数据（只管数据） */
+    items: ShallowObject<AutoSparkMessageRecord[], 1>;
     /** 生效全局配置真身（普通对象 → autostore 默认深层代理，孙级可写有事件） */
     options: AutoSparkMessagesOptions;
 }
-
-
-
-export * from "./sessions/types"

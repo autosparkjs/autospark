@@ -1,37 +1,26 @@
 import type { AutoSpark } from "../engine";
 import { MESSAGES_KEY } from "../engine";
 import { shallow } from "autostore";
+import { resolveAnimate } from "../animate";
+import { ComponentInstance } from "../component-instance";
 import { removeMessageContainer } from "./container";
 import { MESSAGE_COLUMN_GAP } from "./styles";
 import { MessageRecords } from "./records";
 import type { MessageEntry } from "./entry";
 import { MessageQueue } from "./queue";
 import { MessagePersistence, readLocalMessages } from "./storage";
+import { applyCardSizes, assembleCard, buildInjectProps, unmountCard } from "./assembly";
 import { mergeMessageProps, settleMessageLevel, validatePos, validatePersist, type MessageMergeContext } from "./props";
-import {
-    MessageSessionBase,
-    MessageToastSession,
-    MessageTaskSession,
-    MessageConfirmSession,
-    DEAD_SESSION,
-    type MessageSessionFactory,
-} from "./sessions";
-import type { TaskMessageProps } from "./sessions/task";
-import type { ToastMessageProps } from "./sessions/toast";
-import type { ConfirmMessageProps } from "./sessions/confirm";
+import { MESSAGE_TYPE_DEFAULTS } from "./presets";
 import {
     parseMessageProps,
     messageLevelName,
     MESSAGE_DEFAULTS,
     MESSAGE_LEVEL_ICONS,
     MESSAGE_PERSIST,
-    type AutoSparkMessage,
-    type AutoSparkMessageSession,
-    type AutoSparkMessageLevel,
+    type AutoSparkMessageRecord,
     type AutoSparkMessagesOptions,
     type AutoSparkMessagesState,
-    type AutoSparkTaskMessageSession,
-    type AutoSparkConfirmMessageSession,
     type AutoSparkAction,
     type MessageOptions,
     type MessagePos,
@@ -41,74 +30,57 @@ import {
 
 export type { MessageEntry } from "./entry";
 
-/**
- * MessageManager：全局消息引擎级子系统（ADR-0071 / ADR-0077 / ADR-0083 → **ADR-0088 模块
- * 拆分收束**——本类瘦身为**编排门面**：Map 语义 + API 门面 + 事件双通道 + 关闭收口 + 各
- * 部件编排）。
- *
- * 职责分层（ADR-0088 决策五）：
- *
- * - **props.ts**——五层合并链 + 归一校验（单次 props 整包直传，白名单投影退役）；
- * - **records.ts**——entry 构建 / `$messages` 镜像（items + sessions 双列表五处收口）/
- *   maxLen 淘汰 / 恢复重建；
- * - **queue.ts**——`MessageQueue` 每 pos 一实例（分区列懒建 + showCount 判定 + FIFO 补位）；
- * - **storage.ts**——`MessagePersistence` 持久化全责（分桶收集 / 调度 / 删后即刷 / save·load，
- *   serializeMessage 白名单十键——纯业务数据，ADR-0088 修订）；
- * - **sessions/**——class 家族 + **装配管线**（`mount/unmount` 双层装配、监听、计时器、
- *   hover 暂停；task 三控制钮归模板 x-show 数据域驱动，ADR-0088）；
- * - **本类**——`add/show/toast/confirm/task/update/respond/delete/clear/dispose/load/save/
- *   markRead*` API 面 + `message:*` 事件双通道 + `_fireAction` 闭环 + session 工厂。
- *
- * - **Map 语义**（决策 10）：继承 `Map<string, MessageSessionBase>`，键恒为 string id（缺省自动生成）；
- *   可枚举范围 = 全部存活记录（展示中 + 已隐藏）；`delete(id)` 覆写为**硬移除**（无动画，persist
- *   记录一并删 + 立即同步持久化）；`clear()` 覆写为清全部存活记录（含隐藏，默认带动画）；
- *   `dispose()` destroy 收口。
- * - **记录 ⇄ 展示两态分离**（决策 5，ADR-0077 数值化）：`persist` 控制记录存续——`0`（默认）
- *   关闭即移除（toast 兼容语义）；`1` **会话缓冲**（隐藏不删不持久化、复用 maxLen 淘汰——
- *   管理界面可再查看，刷新即失）；`2`/`3`（local/remote）关闭转「已隐藏」态仍可枚举、
- *   `show(id)` 可重显。
- * - **生命周期**：`delayClose` 默认 3000、`0` = sticky；hover 暂停/移出恢复（剩余时间制）；
- *   `engine.stop()` 不感知（无锚非树内），`dispose()`（destroy 调用）全部立即销毁 + 容器移除
- *   + 持久化 flush（keepalive 兜底）。
- * - **原地更新**（决策 7）：同 id 重复 add = 换展示 props（scope.data 响应式赋值）+ 显示中重置
- *   计时；不重播动画；pos / offset 忽略（不迁移列）。记录级字段走 `update(id, patch)`（决策 8，
- *   唯一写通道——session 上 read/status/result 为只读 getter）。
- * - **actions value 闭环**（决策 13）：点击 = 置已读 → 写 result → 发 `message:action` →
- *   handle → hide 判定；confirm（决策 11）= value-only actions 糖，Promise resolve choice value。
- * - **anchor 三职**（决策 14）：局部 action 解析根 + 事件派发根 + 渲染数据视图基准。
- * - **全关语义**（决策 15）：`options.messages: false` 构造即短路，一切入口 warn + no-op。
- */
+/** factory 函数类型（ADR-0089：注入 **组件实例**——add 即建，挂起期 methods/data 全程可用） */
+export type MessageSessionFactory = (instance: ComponentInstance) => Promise<MessageProps | void | undefined>;
 
 /**
- * ToastManager → MessageManager（ADR-0071）：服务挂 engine 实例（`engine.messages`）。
- * 多引擎独立 manager / 容器 / 队列 / 持久化，跨引擎不去重不共享。
+ * MessageManager：全局消息引擎级子系统（ADR-0071 / 0077 / 0083 / 0088 → **ADR-0089 type
+ * 组件化**）——编排门面：Map 语义 + API 面 + 事件双通道 + 可见性切换（display 模型）+
+ * 组件实例化编排 + 计时与持久化调度。
+ *
+ * **add 恒返回组件实例**（ComponentInstance——`data` 响应式视图 / `methods` 直调 / `props`
+ * 别名；唯一返回物）。可见性纯样式切换：装配即挂 DOM（display:none 挂起/排队）→ 显示 →
+ * persist≥1 关闭转隐藏（display:none 保留实例）/ persist=0 与 remove·淘汰真销毁。
+ *
+ * - **props.ts**——五层合并链 + 归一校验（type 种子经 ctx.typeDefaults 注入，ADR-0089 决策九）；
+ * - **records.ts**——entry 构建 / `$messages` 镜像（纯 record 化，ADR-0089 决策七之三）/
+ *   maxLen 淘汰 / 恢复重建；
+ * - **assembly.ts**——卡片装配管线（双层装配 + 约定键 watch 联动，ADR-0089）；
+ * - **queue.ts**——每 pos 一实例（容量判定 + FIFO 出队；display 切换——补位挂载机制退役）；
+ * - **storage.ts**——持久化全责（分桶收集 / 调度 / 删后即刷 / save·load）；
+ * - **types/**——内置 type 组件族（一 type 一组件，ADR-0089）。
+ *
+ * - **Map 语义**（决策 10）：`Map<string, ComponentInstance>`，键恒 string id；可枚举范围 =
+ *   全部存活记录（展示中 + 已隐藏）；`delete(id)` = 硬移除（persist 记录一并删 + 立即同步）。
+ * - **记录 ⇄ 展示两态分离**（决策 5）：`persist` 0（默认）关闭即删；`1` 会话缓冲 / `2`/`3`
+ *   （local/remote）关闭转「已隐藏」态（display:none 保留实例，`show(id)` 直切可见）。
+ * - **原地更新**（决策 7）：同 id 重复 add = 换展示 props（注水刷新）+ 重置计时。
  */
-export class MessageManager extends Map<string, MessageSessionBase> {
+export class MessageManager extends Map<string, ComponentInstance> {
     readonly engine: AutoSpark<any>;
     /** 特性开关（options.messages !== false）；false 时构造即短路 */
     readonly enabled: boolean;
 
-    /** 记录域（ADR-0088：entry 构建 / 镜像 / 淘汰 / 恢复） */
+    /** 记录域（entry 构建 / 镜像 / 淘汰 / 恢复） */
     readonly records: MessageRecords;
-    /** 持久化域（ADR-0088：收集 / 调度 / 即刷 / save·load） */
+    /** 持久化域（收集 / 调度 / 即刷 / save·load） */
     readonly storage: MessagePersistence;
 
-    /**
-     * 全部存活会话的注册表（ADR-0077 正名视图）：即本 Map 自身——`sessions.get(id)` ≡
-     * `messages.get(id)`，随 remove/dispose 同步进出。暴露独立入口仅为词汇正名（Session 体系）。
-     */
-    get sessions(): Map<string, AutoSparkMessageSession> {
-        return this as unknown as Map<string, AutoSparkMessageSession>;
+    /** 全部运行时 entry 的私有注册表（id → entry；Map 公共面 value = 组件实例） */
+    private _entries = new Map<string, MessageEntry>();
+
+    /** entry 内部取用（协作部件口——storage/records/queue 经 manager 实例回触） */
+    _entryOf(id: string): MessageEntry | undefined {
+        return this._entries.get(id);
     }
 
     /**
      * $messages 状态容器（ADR-0072；`messages: false` 时恒 null）。options 真身：
-     * manager 运行时一律经 `_options` 现读 state——state 即配置唯一存放地（无副本、
-     * 无 watch 回写）；state 写入为信任通道（不走 parseMessageProps 校验）。
+     * manager 运行时一律经 `_options` 现读 state——state 即配置唯一存放地。
      */
     private _state: AutoSparkMessagesState | null = null;
 
-    /** 协作部件读取口（records / queue / storage / sessions——ADR-0088 模块拆分） */
+    /** 协作部件读取口（records / queue / storage——ADR-0088 模块拆分） */
     get _stateRef(): AutoSparkMessagesState | null {
         return this._state;
     }
@@ -121,10 +93,7 @@ export class MessageManager extends Map<string, MessageSessionBase> {
     /** anchor / actions 的全局默认（ADR-0072 边界键）：构造期私有固化——DOM 引用与函数值不入 state */
     private _frozen: { anchor?: MessageProps["anchor"]; actions?: AutoSparkAction[] } = {};
 
-    /**
-     * 用户在 options.messages **显式配置过的键名**（构造期兜底前快照）：sticky 自动关闭钮的
-     * 显式性判定基准（ADR-0077 修订）。
-     */
+    /** 用户在 options.messages 显式配置过的键名（构造期兜底前快照——sticky 关闭钮显式性判定基准） */
     private _globalDeclared: ReadonlySet<string> = new Set();
 
     /** 自动 id 计数器（records 恢复路径共用） */
@@ -139,16 +108,13 @@ export class MessageManager extends Map<string, MessageSessionBase> {
         const cfg = (engine.options as any).messages;
         this.enabled = cfg !== false;
         const user: MessageOptions = cfg === false || cfg == null ? {} : cfg;
-        // 边界键私有固化（ADR-0072：「函数、元素不入 state」——anchor 是 DOM 引用，
-        // actions 对象形态含 handle 函数值会被 autostore 按计算属性语义劫持）
         this._frozen = { anchor: user.anchor, actions: user.actions };
-        // 用户显式键快照（兜底前）：sticky 自动关闭钮的显式性判定基准（见字段注释）
         this._globalDeclared = new Set(Object.keys(user));
         this.records = new MessageRecords(this);
         this.storage = new MessagePersistence(this);
         if (!this.enabled) return; // messages: false——不注入保留键、不恢复
-        // $messages 保留键注入（沿 $scopes 先例，1 engine 1 store 约定；永不整体替换容器）：
-        // options 真身 = 内置默认 < 用户配置（剥 anchor/actions 两边界键）
+        // $messages 保留键注入（永不整体替换容器）：options 真身 = 内置默认 < 用户配置
+        // （剥 anchor/actions 两边界键）；items 纯 record 化（ADR-0089 决策七之三）
         const effective: Record<string, any> = {};
         for (const key of Object.keys(user)) {
             if (key !== "anchor" && key !== "actions") effective[key] = (user as any)[key];
@@ -156,134 +122,137 @@ export class MessageManager extends Map<string, MessageSessionBase> {
         for (const key of Object.keys(MESSAGE_DEFAULTS)) {
             if (effective[key] === undefined) effective[key] = (MESSAGE_DEFAULTS as any)[key];
         }
-        // 注意：`shallow()` 只**标记**对象（返回裸引用），真正的代理在容器进入 store、
-        // 经 state 读出时才创建——变更句柄必须用**回读值**（裸引用上 splice 不发通知）。
-        // 深度 = options.shallow（构造期一次性，ADR-0077；autostore shallow 值域 0|1）：默认 1
-        // （成员一层字段读写有事件）、0 = 成员不代理（仅数组结构变更有事件——超大消息列表
-        // 的最省形态）；非零值一律归 1；运行时直写静默忽略（shallow 包装无法换壳——options
-        // 真身契约例外键）
         const shallowDepth: 0 | 1 = Number(effective.shallow) === 0 ? 0 : 1;
         (engine.store.state as Record<string, any>)[MESSAGES_KEY] = {
-            items: shallow<AutoSparkMessage[], 0 | 1>([], shallowDepth) as AutoSparkMessagesState["items"],
-            // 展示序 id 列表（ADR-0083 Q11a）：成员是 string 无字段——shallow 深度 0（仅结构变更有事件）
-            sessions: shallow<string[], 0>([], 0) as AutoSparkMessagesState["sessions"],
+            items: shallow<AutoSparkMessageRecord[], 0 | 1>([], shallowDepth) as AutoSparkMessagesState["items"],
             options: effective as AutoSparkMessagesOptions,
         };
         this._state = (engine.store.state as Record<string, any>)[MESSAGES_KEY] as AutoSparkMessagesState;
-        // local 持久化的启动恢复（决策 18）：构造期读 localStorage——只入枚举（隐藏态）、
-        // 不自动重弹（需要时 show(id)）；脏数据 warn + 剪除（readLocalMessages 守卫）。
-        // persist 按存储介质反推为 'local'（ADR-0072：载荷不携带 closed/persist）
+        // local 持久化的启动恢复（决策 18）：只入记录（隐藏态 display:none）、不自动重弹
         this.records.restoreRecords(
             readLocalMessages((m) => this.engine.logger.warn(m)),
             "local",
         );
     }
 
-    // ── 显示入口（ADR-0071 决策 7：三态入参） ─────────────────────────
+    // ── 显示入口（决策 7 三态入参；ADR-0089 恒返回组件实例） ─────────────
 
     /**
-     * 添加一条消息（字符串简写 ≡ `{ title }`；async factory resolve `undefined`/`void` →
-     * 静默跳过，挂起期 `session.hide()` = 取消）。同 id = 原地更新（决策 7）。
-     * 返回按 type 分派的**会话实例**（ADR-0083 class 家族）。`options.messages: false` 时
-     * warn + 死会话。统一入口：`show(props | factory)` 为本方法别名（ADR-0077）。
+     * 添加一条消息（字符串简写 ≡ `{ title }`；factory resolve `undefined` → 静默销毁）。
+     * **恒返回组件实例**（add 即装配挂 DOM——display:none 挂起/排队态）。同 id = 原地更新。
      *
-     * 第二参 `type`（ADR-0083 修订）：**factory 形态的挂起会话类型指定**——挂起 session 按
-     * 此创建子类；session 类型不可变，return props 携带不同 type → warn + 以本参数为准。
-     * 非 factory 形态携带 → warn + 忽略（props 对象自带 type 字段）。
+     * 第二参（ADR-0089 决策八）：**factory 形态的类型声明 + 初始 props**——`'task'`（type 名）
+     * 或 `{ type: 'task', canCancel: true, … }`（对象形态携初始配置，实例化同刻注水——
+     * `instance.data._abort.signal` 等在 factory 闭包内即可用）。非 factory 形态携带 → warn 忽略。
      */
-    add(
-        input: TaskMessageProps & { type: "task" } | ((session: AutoSparkMessageSession) => Promise<(TaskMessageProps & { type: "task" }) | void | undefined>),
-    ): AutoSparkTaskMessageSession;
-    add(
-        input: ConfirmMessageProps & { type: "confirm" } | ((session: AutoSparkMessageSession) => Promise<(ConfirmMessageProps & { type: "confirm" }) | void | undefined>),
-    ): AutoSparkConfirmMessageSession;
-    add(
-        input: (session: AutoSparkMessageSession) => Promise<MessageProps | void | undefined>,
-        type: "task",
-    ): AutoSparkTaskMessageSession;
-    add(
-        input: (session: AutoSparkMessageSession) => Promise<MessageProps | void | undefined>,
-        type: "confirm",
-    ): AutoSparkConfirmMessageSession;
-    add(
-        input: string | MessageProps | ((session: AutoSparkMessageSession) => Promise<MessageProps | void | undefined>),
-        second?: string | ((session: AutoSparkMessageSession) => Promise<Partial<MessageProps> | void | undefined>),
-    ): AutoSparkMessageSession;
-    add(
-        input: string | MessageProps | ((session: AutoSparkMessageSession) => Promise<MessageProps | void | undefined>),
-        second?: string | ((session: AutoSparkMessageSession) => Promise<Partial<MessageProps> | void | undefined>),
-    ): AutoSparkMessageSession {
+    add(input: string | MessageProps | MessageSessionFactory, second?: string | MessageProps): ComponentInstance | null {
         if (!this.enabled) {
-            this.engine.logger.warn(
-                "engine.messages: 消息特性已通过 options.messages: false 关闭，调用被忽略",
-            );
-            return DEAD_SESSION;
+            this.engine.logger.warn("engine.messages: 消息特性已通过 options.messages: false 关闭，调用被忽略");
+            return null;
         }
-        if (typeof input === "function") return this._addAsync(input, second as string | undefined);
+        if (typeof input === "function") return this._addAsync(input, second);
         if (second != null) {
             this.engine.logger.warn(
-                `engine.messages: add(..., "${second}") 第二参 type 仅对 factory 形态生效（对象形态请用 type 字段），已忽略`,
+                `engine.messages: add(..., ${typeof second === "string" ? `"${second}"` : "props"}) 第二参仅对 factory 形态生效（对象形态请用 type 字段），已忽略`,
             );
         }
         const parsed = parseMessageProps(input, (m) => this.engine.logger.warn(m));
-        if (!parsed) return DEAD_SESSION;
-        return this._enqueue(parsed, undefined);
+        if (!parsed) return null;
+        return this._enqueueProps(parsed);
     }
 
     /**
-     * async factory 形态（ADR-0083 Q12a 挂起注入）：同步创建**挂起会话**（按第二参 type 创建
-     * 子类——缺省 'toast' 基类面，type 随 return props 定）注入 factory；挂起期 `update()` 缓存
-     * 补丁、`cancel()/hide()` = 取消；resolve props = 初始展示配置（undefined → 静默跳过），
-     * 落地时合并挂起缓存。**type 锁定**：第二参已指定时 return props 的 type 与之不同 →
-     * warn + 以第二参为准（session 类型不可变）。
+     * async factory 形态（ADR-0089 决策八——**真实例，预句柄/缓存机制退役**）：同步装配
+     * （display:none 挂起态）并把**组件实例**注入 factory——挂起期 methods/data 全程可用
+     * （`progress()` 直写 data 域）。resolve props = 初始展示配置（走注水刷新——运行约定键
+     * 剥离不回拨闭包已推值；`undefined` → 静默销毁；缺 title → warn 销毁）。**主用法 = 立即
+     * return**（即时卡 + 后台驱动：长任务不 await 主线，`inst` 闭包存活持续驱动——
+     * 「后台静默跑完才弹卡」不是目标形态，ADR-0083 二次修订沿用）。
      */
-    private _addAsync(factory: MessageSessionFactory, type?: string): AutoSparkMessageSession {
-        const declared = type != null && String(type).trim() !== "" ? String(type).trim() : "toast";
-        const session = this._createSession(declared); // 挂起会话：按声明 type 创建子类（ADR-0083 修订）
-        factory(session)
-            .then((props) => {
-                if (session._cancelled) return; // 挂起期 hide()/cancel() = 取消
+    private _addAsync(factory: MessageSessionFactory, second?: string | MessageProps): ComponentInstance | null {
+        const seedProps: MessageProps =
+            second != null && typeof second === "object" ? second : ({} as MessageProps);
+        const declared =
+            second == null ? "toast" : typeof second === "string" ? String(second).trim() || "toast" : String(seedProps.type ?? "").trim() || "toast";
+        const { merged, type } = this._mergeProps({ ...seedProps, type: declared });
+        validatePos(merged, (m) => this.engine.logger.warn(m));
+        this._settleLevel(merged);
+        validatePersist(merged, (m) => this.engine.logger.warn(m));
+        const id = merged.id != null && merged.id !== "" ? String(merged.id) : `message-${++this._autoId}`;
+        merged.id = id; // 写回生效配置（注水面 / this.props.id 数据源——ADR-0089 无 session 回填通道）
+        merged.type = type; // 同上（instance.type / this.props.type 数据源）
+        const entry = this.records.createEntry(merged as MessageProps, id, type);
+        if (!this._materialize(entry)) return null; // 装配 + 入表（SSR 无容器 → null）
+        const instance = entry.instance;
+        void (async () => {
+            try {
+                const props = await factory(instance!);
+                if (!this._entries.has(id) || entry.state === "closed") return; // 挂起期 hide()/cancel() = 丢弃
                 if (props == null) {
-                    session._cancelled = true; // 条件通知：内容就绪才弹，静默跳过
+                    this._destroyEntry(entry); // 条件通知：内容不就绪，静默销毁
                     return;
                 }
-                const parsed =
-                    parseMessageProps(
-                        typeof props === "string" ? props : (props as MessageProps),
-                        (m) => this.engine.logger.warn(m),
-                    ) ?? null;
+                const parsed = parseMessageProps(
+                    typeof props === "string" ? props : (props as MessageProps),
+                    (m) => this.engine.logger.warn(m),
+                );
                 if (!parsed || !String((parsed as MessageProps).title ?? "").trim()) {
-                    this.engine.logger.warn("engine.messages: factory 结果缺少 title（空消息），已跳过");
-                    session._cancelled = true;
+                    this.engine.logger.warn("engine.messages: factory 结果缺少 title（空消息），已销毁");
+                    this._destroyEntry(entry);
                     return;
                 }
-                // type 锁定（ADR-0083 修订）：显式声明的 type 优先——session 子类已定，不可变
+                // type 锁定（ADR-0083 修订）：显式声明的 type 优先——组件已按声明实例化，不可变
                 if (parsed.type != null && String(parsed.type) !== declared) {
                     this.engine.logger.warn(
-                        `engine.messages: factory 声明 type "${declared}" 与 return props type "${parsed.type}" 不一致，以声明为准（会话类型不可变）`,
+                        `engine.messages: factory 声明 type "${declared}" 与 return props type "${parsed.type}" 不一致，以声明为准（类型不可变）`,
                     );
                     parsed.type = declared as MessageProps["type"];
                 }
-                if (declared !== "toast" && parsed.type == null) {
-                    parsed.type = declared as MessageProps["type"];
-                }
-                // 挂起期 update 缓存合并（后写胜——ADR-0083 Q12a）
-                if (session._pendingPatch) Object.assign(parsed as Record<string, any>, session._pendingPatch);
-                this._enqueue(parsed as MessageProps, session);
-            })
-            .catch((e: any) => {
-                this.engine.logger.warn(`engine.messages: factory 执行失败，已跳过: ${e?.message ?? e}`);
-                session._cancelled = true;
-            });
-        return session;
+                const fresh = this._mergeProps({ ...parsed, id, type: declared }).merged;
+                this._applyEntryConfig(entry, fresh as MessageProps);
+                entry.state = "queued";
+                this._emit("message:add", entry);
+                this._displayEntry(entry);
+                this.storage.schedule();
+            } catch (e: any) {
+                this.engine.logger.warn(`engine.messages: factory 执行失败，已销毁: ${e?.message ?? e}`);
+                this._destroyEntry(entry);
+            }
+        })();
+        return instance;
     }
 
-    /** 合并链上下文（props.ts mergeMessageProps 的 manager 侧入参组装） */
+    /** entry 物化：装配（display:none）+ choice 绑定 + 入表 + 镜像 + 淘汰；失败（SSR）false。
+     *  （`_` 内部面——records 恢复路径共用） */
+    _materialize(entry: MessageEntry): boolean {
+        if (!assembleCard(this, entry)) return false;
+        this._bindChoice(entry);
+        this._entries.set(entry.id, entry);
+        super.set(entry.id, entry.instance!);
+        this.records.mirrorAdd(entry);
+        this.records.evictOverflow(entry);
+        return true;
+    }
+
+    /** confirm choice 闭环（ADR-0077/0083）：choice promise + 实例附加 then（thenable——await 实例即得应答） */
+    private _bindChoice(entry: MessageEntry): void {
+        if (entry.type !== "confirm" || !entry.instance) return;
+        const choice = new Promise<any>((resolve) => {
+            entry.confirmResolve = resolve;
+        });
+        Object.defineProperty(entry.instance, "then", {
+            value: choice.then.bind(choice),
+            configurable: true,
+        });
+    }
+
+    /** 合并链上下文（props.ts mergeMessageProps 的 manager 侧入参组装——type 种子经此注入） */
     private _mergeCtx(): MessageMergeContext {
         return {
             opts: this.enabled ? this._options : ({} as AutoSparkMessagesOptions),
             frozen: this._frozen,
             globalDeclared: this._globalDeclared,
+            typeDefaults: MESSAGE_TYPE_DEFAULTS,
             warn: (m: string) => this.engine.logger.warn(m),
         };
     }
@@ -298,65 +267,41 @@ export class MessageManager extends Map<string, MessageSessionBase> {
         settleMessageLevel(merged, (m) => this.engine.logger.warn(m));
     }
 
-    /** 入队 / 原地更新（同 id）唯一入口：合并链 → 校验 → 已存在则更新，否则创建 entry 排队 */
-    private _enqueue(userProps: MessageProps, reuseSession?: MessageSessionBase): AutoSparkMessageSession {
-        // 空 title no-op（含字符串简写形态；factory 路径已先行校验）
+    /** 入队 / 原地更新（同 id）唯一入口：合并链 → 校验 → 已存在则更新，否则物化 + 容量判定 */
+    private _enqueueProps(userProps: MessageProps): ComponentInstance | null {
         if (!String(userProps.title ?? "").trim()) {
             this.engine.logger.warn("engine.messages: title 为空，调用被忽略");
-            if (reuseSession) reuseSession._cancelled = true;
-            return DEAD_SESSION;
+            return null;
         }
-        // 合并链（决策 15）：内置默认 < 内置 type 种子 < options.messages < types[type] < 单次 props。
-        // `id` 仅单次层生效。
         const { merged, type } = this._mergeProps(userProps);
         validatePos(merged, (m) => this.engine.logger.warn(m));
         this._settleLevel(merged);
         validatePersist(merged, (m) => this.engine.logger.warn(m));
         const id = merged.id != null && merged.id !== "" ? String(merged.id) : `message-${++this._autoId}`;
+        merged.id = id; // 写回生效配置（注水面数据源——ADR-0089 无 session 回填通道）
+        merged.type = type; // 同上（instance.type / this.props.type 数据源）
 
-        // 同 id 处理（决策 5/7）：queued/shown → 原地更新；hidden（persist 存续记录）→ 更新 + 重显
-        const existing = super.get(id);
+        // 同 id 处理（决策 5/7）：queued/shown → 原地更新；hidden/closed → 换新配置重显
+        const existing = this._entries.get(id);
         if (existing) {
-            const entry = existing._entry;
-            if (entry && (entry.state === "shown" || entry.state === "queued")) {
-                this._updateInPlace(entry, userProps);
-                return existing;
+            if (existing.state === "shown" || existing.state === "queued") {
+                this._updateInPlace(existing, userProps);
+                return this.get(id) ?? null;
             }
-            if (entry && (entry.state === "hidden" || entry.state === "closed")) {
-                // 已隐藏 / 离场动画中：换新配置后重新走展示管线（记录复用）
-                const fresh = this._mergeProps(userProps).merged;
-                fresh.id = id;
-                this._applyEntryConfig(entry, fresh as MessageProps);
-                entry.state = "queued";
-                this._displayEntry(entry);
-                this.storage.schedule();
-                return existing;
-            }
+            const fresh = this._mergeProps({ ...merged, id }).merged;
+            this._applyEntryConfig(existing, fresh as MessageProps);
+            existing.state = "queued";
+            this._displayEntry(existing);
+            this.storage.schedule();
+            return this.get(id) ?? null;
         }
 
-        const session = reuseSession ?? this._createSession(type);
-        const entry = this.records.createEntry(merged as MessageProps, id, type, session);
-        // confirm 会话 thenable（ADR-0077，取代 confirm() 糖的 Promise）：await 会话 = 等
-        // choice 应答——confirmResolve 由 _fireAction 在按钮点击 / yes()/no()/respond() 时
-        // 调用（sticky 永不 settle 语义保持；一次应答后 Promise 定格）
-        if (type === "confirm") {
-            const choice = new Promise<any>((resolve) => {
-                entry.confirmResolve = resolve;
-            });
-            (session as MessageConfirmSession)._bindChoice(choice);
-        }
-        super.set(id, session);
+        const entry = this.records.createEntry(merged as MessageProps, id, type);
+        if (!this._materialize(entry)) return null;
         this._emit("message:add", entry);
-        this.records.mirrorAdd(entry);
-
-        // maxLen 淘汰（决策 6）：存活记录超限 FIFO 丢最旧（不豁免未读 / 展示中；
-        // persist=1 会话缓冲记录同受此约束——ADR-0077「缓冲区超出清除」复用 maxLen）
-        this.records.evictOverflow(entry);
-
-        // 容量判定与挂载（queue 分区收口）：有坑即显示，满员排队
         this._displayEntry(entry);
         this.storage.schedule();
-        return session;
+        return entry.instance;
     }
 
     // ── 配套解析（icon / anchor / actions——records 与原地更新共用） ────
@@ -374,10 +319,10 @@ export class MessageManager extends Map<string, MessageSessionBase> {
     }
 
     /** level → 图标名：显式 icon > icons 重映射 > 同名词默认；none(0) 无图标 */
-    _resolveIcon(level: AutoSparkMessageLevel, explicit?: string): string {
+    _resolveIcon(level: number, explicit?: string): string {
         if (explicit) return explicit;
         if (level === 0) return "";
-        const name = messageLevelName(level) as Exclude<ReturnType<typeof messageLevelName>, "none">;
+        const name = messageLevelName(level as any) as Exclude<ReturnType<typeof messageLevelName>, "none">;
         return this._options.icons?.[name] ?? MESSAGE_LEVEL_ICONS[name] ?? name;
     }
 
@@ -396,11 +341,7 @@ export class MessageManager extends Map<string, MessageSessionBase> {
         return null;
     }
 
-    /**
-     * actions 预解析（决策 13/14）：字符串查 action 表——有 anchor 时沿其 scope 链解析局部
-     * action（决策 14 职责①），未命中回退全局表；全局也未命中 warn + 剪枝。对象形态解析
-     * `value` / `handle` / `hide` 键。
-     */
+    /** actions 预解析（决策 13/14）：字符串查 action 表（anchor 沿 scope 链），对象形态解析 value/handle/hide */
     _resolveActions(items: AutoSparkAction[] | undefined, anchor: HTMLElement | null): ResolvedMessageAction[] {
         const resolved: ResolvedMessageAction[] = [];
         for (const item of items ?? []) {
@@ -457,63 +398,68 @@ export class MessageManager extends Map<string, MessageSessionBase> {
             this.engine.logger.warn("engine.messages: 同 id 更新不支持变更 type，已忽略");
         }
         const merged: Record<string, any> = { ...entry.props };
-        // ADR-0088 整包直传：补丁键全量并入（自定义键同权）；id / type 恒不变；
-        // pos / offset 忽略（不迁移已建列，ADR-0068 决策 7 沿用）
+        // ADR-0088 整包直传：补丁键全量并入；id / type / pos / offset 恒不变
         for (const key of Object.keys(userProps)) {
             if (key === "id" || key === "type" || key === "pos" || key === "offset") continue;
             merged[key] = (userProps as any)[key];
         }
         validatePos(merged, (m) => this.engine.logger.warn(m));
-        this._applyEntryConfig(entry, merged as MessageProps); // level 归一在 _applyEntryConfig 统一收口
-        if (entry.state === "shown") entry.session._startTimer(); // 重置满额计时
+        this._applyEntryConfig(entry, merged as MessageProps);
+        if (entry.state === "shown") this._startTimer(entry); // 重置满额计时
         this._emit("message:update", entry);
         this.storage.schedule();
     }
 
-    /** 应用新配置到 entry（level 归一 + 业务键同步 record + icon/actions/progress 派生 + 数据域刷新 + className/styles 换装） */
+    /**
+     * 应用新配置到 entry（level 归一 + 业务键同步 record + icon/actions 派生 + 注水刷新 +
+     * className/styles 换装）。**注水面剥运行约定键**（progress/paused/completed——运行态唯
+     * 组件 data 域是尊，闭包已推值不被 return props / update 补丁回拨，ADR-0089 决策八）；
+     * `progress` 显式补丁经组件 method 应用（paused/completed 守卫内建）。
+     */
     _applyEntryConfig(entry: MessageEntry, props: MessageProps): void {
         const prevClassName = entry.appliedClassName;
         const prevStyles = entry.appliedStyles;
         this._settleLevel(props as Record<string, any>);
         entry.props = props;
-        // 业务键同步进 record（update / 同 id 原地更新 / 恢复 upsert 三路共用收口——
-        // record 是持久化数据单一数据源；props 出现的键覆盖，未出现保留）+ updateAt 刷新
         for (const key of ["title", "description", "owner", "status", "result", "link", "read"] as const) {
             if (key in props) (entry.record as any)[key] = (props as any)[key];
         }
-        entry.record.level = props.level as AutoSparkMessageLevel;
+        entry.record.level = props.level as any;
         this.records.touch(entry);
         entry.icon = this._resolveIcon(entry.record.level ?? 0, props.icon);
         entry.actions = this._resolveActions(props.actions, entry.anchor);
-        entry.session.onEntryProps(entry, props); // type 专属键响应（钩子——task progress 通道等）
-        entry.session.syncData();
+        // 注水刷新（数据域响应式活体红利——shell 与 type 组件两层同权）
+        const inject = buildInjectProps(this, entry);
+        if (entry.scope) Object.assign((entry.scope as any)._data ?? {}, inject);
+        if (entry.instance) Object.assign(entry.instance.data, inject);
+        // progress 补丁通道（update(id, { progress }) 同路——组件 method 守卫内建）
+        if (props.progress != null && entry.instance) {
+            entry.instance.methods.progress?.(Number(props.progress));
+        }
         const nextClassName = props.className ? String(props.className).trim() : "";
         const nextStyles = props.styles ? String(props.styles) : "";
         if (entry.el) {
             if (prevClassName) entry.el.classList.remove(...prevClassName.split(/\s+/));
             if (nextClassName) entry.el.classList.add(...nextClassName.split(/\s+/));
             if (nextStyles !== prevStyles) {
-                entry.el.style.cssText = nextStyles; // 换装（无则清空内联）
-                entry.session._applySizes(entry.el, props); // cssText 整体覆盖后尺寸键须重写
-            } else {
-                entry.session._applySizes(entry.el, props); // 幂等：等值 setProperty 天然去重
+                entry.el.style.cssText = nextStyles;
+                applyCardSizes(entry.el, props);
             }
-            entry.el.setAttribute("data-message-level", messageLevelName(entry.record.level ?? 0)); // 语义色跟随
+            entry.el.setAttribute("data-message-level", messageLevelName(entry.record.level ?? 0));
         }
         entry.appliedClassName = nextClassName;
         entry.appliedStyles = nextStyles;
-        this.records.mirrorReplace(entry); // 记录级变更 → items[i] 整替换（update/原地更新/恢复 upsert 共用收口）
+        this.records.mirrorReplace(entry); // 记录级变更 → 镜像整替换（纯 record 面）
     }
+
 
     /**
      * 记录级字段唯一写通道（决策 8）：`read` / `status` / `result` / `title` / `level` 等补丁
-     * 生效 = 改记录 + 发 `message:update`（read/status 变更另发专用事件）+ 触发持久化。
-     * id / type 不可变。session 上只读 getter（写一律走此 API）。
+     * 生效 = 改记录 + 发 `message:update` + 触发持久化。id / type 不可变。
      */
     update(id: string, patch: Partial<MessageProps>): void {
-        const session = super.get(id);
-        const entry = session?._entry;
-        if (!session || !entry) {
+        const entry = this._entries.get(id);
+        if (!entry || !this._entries.has(id)) {
             this.engine.logger.warn(`engine.messages: update("${id}") 未命中存活记录，已忽略`);
             return;
         }
@@ -524,8 +470,6 @@ export class MessageManager extends Map<string, MessageSessionBase> {
         const prevRead = entry.props.read === true;
         const prevStatus = entry.props.status;
         const merged: Record<string, any> = { ...entry.props };
-        // ADR-0088 整包直传：补丁键全量并入（自定义键同权）；id / type 恒不变；
-        // pos / offset 忽略（不迁移已建列）
         for (const key of Object.keys(patch)) {
             if (key === "id" || key === "type" || key === "pos" || key === "offset") continue;
             merged[key] = (patch as any)[key];
@@ -545,8 +489,8 @@ export class MessageManager extends Map<string, MessageSessionBase> {
         if (entry.props.read === true) return;
         entry.props.read = true;
         entry.record.read = true;
-        this.records.touch(entry); // updateAt 刷新（数据变更入口之一）
-        entry.session.syncData();
+        this.records.touch(entry);
+        if (entry.instance) entry.instance.data.read = true;
         this.records.mirrorReplace(entry);
         this._emit("message:read", entry);
         this.storage.schedule();
@@ -554,7 +498,7 @@ export class MessageManager extends Map<string, MessageSessionBase> {
 
     /** 编程式置已读 */
     markRead(id: string): void {
-        const entry = super.get(id)?._entry;
+        const entry = this._entries.get(id);
         if (!entry) {
             this.engine.logger.warn(`engine.messages: markRead("${id}") 未命中存活记录，已忽略`);
             return;
@@ -564,15 +508,14 @@ export class MessageManager extends Map<string, MessageSessionBase> {
 
     /** 按 type 批量置已读（缺省全量） */
     markAllRead(type?: string): void {
-        for (const session of Array.from(super.values())) {
-            const entry = session._entry;
-            if (entry && entry.props.read !== true && (type == null || entry.type === type)) {
+        for (const entry of Array.from(this._entries.values())) {
+            if (entry.props.read !== true && (type == null || entry.type === type)) {
                 this._setRead(entry);
             }
         }
     }
 
-    // ── 展示编排（queue 分区收口，ADR-0088） ───────────────────────────
+    // ── 展示编排（display 模型，ADR-0089 决策四；queue 分区收口） ───────
 
     /** 分区队列取（或懒建） */
     private _queueOf(pos: MessagePos): MessageQueue {
@@ -584,17 +527,33 @@ export class MessageManager extends Map<string, MessageSessionBase> {
         return q;
     }
 
-    /** 容量判定与挂载入口（queue.offer 收口：sessionListAdd + 有坑 mount / 满员排队） */
+    /** 容量判定入口（queue.offer 收口：有坑 display 切换显示 / 满员排队） */
     _displayEntry(entry: MessageEntry): void {
         this._queueOf(entry.props.pos as MessagePos).offer(entry);
     }
 
-    /** 出等待队列 */
+    /**
+     * 显示（display 切换 + 进场动画 + 计时启动 + visible 约定键）——queue 与 show(id) 共用。
+     */
+    _showEntry(entry: MessageEntry): void {
+        if (entry.state === "shown") return;
+        if (entry.el) entry.el.style.display = "";
+        entry.state = "shown";
+        if (entry.instance) {
+            entry.instance.data.visible = true;
+            entry.instance.data.closed = false;
+        }
+        if (entry.el) this.engine.animate.enter(entry.el, resolveAnimate(entry.props.animate).enter);
+        this._startTimer(entry);
+        this._emit("message:show", entry);
+    }
+
+    /** 出等待队列（关闭前置——防止补位显示已关闭 entry） */
     _dequeue(entry: MessageEntry): void {
         this._queues.get(entry.props.pos as MessagePos)?.remove(entry);
     }
 
-    /** 补位：该分区列有空坑时按队首 FIFO 挂载等待队列 */
+    /** 补位：该分区有空坑时按队首 FIFO 显示等待队列 */
     _flushQueue(pos: MessagePos): void {
         this._queueOf(pos).flush();
     }
@@ -602,58 +561,41 @@ export class MessageManager extends Map<string, MessageSessionBase> {
     // ── 重显（决策 9）与 add 别名 ────────────────────────────────────
 
     /**
-     * `add` 的别名（ADR-0077）：配置对象 / async factory 形态直转 `add(...)`（含按 type 的
-     * Session 分派返回与第二参 factory type 透传——ADR-0083 修订）——「show = 让消息出现」。
-     * **string 形态保留决策 9 重显语义**：重显已隐藏记录（重新走完整展示管线：入队、进场
-     * 动画、满额 delayClose 计时）；展示中 / 排队中幂等 no-op；不存在或离场中 warn + null。
-     * 消歧规则零歧义——字符串恒为 id、对象恒为新建，同 id 原地更新语义归 `add` / 对象形态。
+     * `add` 的别名：配置对象 / async factory 直转 `add(...)`（含第二参透传）。**string 形态
+     * 保留重显语义**：已隐藏记录 display 直切可见（重走进场动画与计时）；展示中幂等 no-op；
+     * 不存在 warn + null。
      */
-    show(input: TaskMessageProps & { type: "task" } | ((session: AutoSparkMessageSession) => Promise<(TaskMessageProps & { type: "task" }) | void | undefined>)): AutoSparkTaskMessageSession;
-    show(input: ConfirmMessageProps & { type: "confirm" } | ((session: AutoSparkMessageSession) => Promise<(ConfirmMessageProps & { type: "confirm" }) | void | undefined>)): AutoSparkConfirmMessageSession;
-    show(input: (session: AutoSparkMessageSession) => Promise<MessageProps | void | undefined>, type: "task"): AutoSparkTaskMessageSession;
-    show(input: (session: AutoSparkMessageSession) => Promise<MessageProps | void | undefined>, type: "confirm"): AutoSparkConfirmMessageSession;
-    show(input: (session: AutoSparkMessageSession) => Promise<MessageProps | void | undefined>, type: string): AutoSparkMessageSession;
-    show(input: MessageProps | ((session: AutoSparkMessageSession) => Promise<MessageProps | void | undefined>)): AutoSparkMessageSession;
-    show(id: string): AutoSparkMessageSession | null;
-    show(
-        input:
-            | string
-            | MessageProps
-            | ((session: AutoSparkMessageSession) => Promise<MessageProps | void | undefined>),
-        second?: string | ((session: AutoSparkMessageSession) => Promise<Partial<MessageProps> | void | undefined>),
-    ): AutoSparkMessageSession | null {
+    show(input: string | MessageProps | MessageSessionFactory, second?: string | MessageProps): ComponentInstance | null {
         if (typeof input !== "string") return this.add(input, second);
         if (second != null) {
-            this.engine.logger.warn(
-                `engine.messages: show("${input}", ...) 第二参仅对 factory 形态生效（string 形态是重显 id），已忽略`,
-            );
+            this.engine.logger.warn(`engine.messages: show("${input}", ...) 第二参仅对 factory 形态生效，已忽略`);
         }
-        const session = super.get(input);
-        const entry = session?._entry;
-        if (!session || !entry || entry.state === "closed") {
-            this.engine.logger.warn(`engine.messages: show("${input}") 未命中存活记录（persist=0 的已关消息已移除）`);
+        const entry = this._entries.get(input);
+        if (!entry || entry.state === "closed") {
+            this.engine.logger.warn(`engine.messages: show("${input}") 未命中存活记录（persist=0 的已关消息已销毁）`);
             return null;
         }
-        if (entry.state === "shown" || entry.state === "queued") return session; // 幂等
+        if (entry.state === "shown" || entry.state === "queued") return this.get(input) ?? null; // 幂等
         entry.state = "queued";
         this._displayEntry(entry);
-        return session;
+        return this.get(input) ?? null;
+    }
+
+    /** 关闭（走离场动画；幂等；排队/挂起中 = 出队后收口）——base 组件 methods 的公共落点 */
+    hide(id: string): void {
+        const entry = this._entries.get(id);
+        if (entry && entry.state !== "closed" && entry.state !== "hidden") {
+            this._dismiss(entry, true);
+        }
     }
 
     // ── type 快捷方式（ADR-0077：show 统一入口上的便捷层，均强制对应 type） ──
 
-    /**
-     * toast 快捷方式：≡ `show({ ...props, type: 'toast' })`（默认 type 即 'toast'，本方法
-     * 显式强制——误传他 type 一律归 toast）。anchor 显式传时生效（模板侧 `toast` action
-     * 自动注入宿主元素，两者等价）。
-     */
-    toast(
-        props: string | ToastMessageProps | MessageSessionFactory,
-    ): AutoSparkMessageSession {
+    /** toast 快捷方式：≡ `show({ ...props, type: 'toast' })` */
+    toast(props: string | MessageProps | MessageSessionFactory): ComponentInstance | null {
         if (typeof props === "function") {
-            // factory 形态：透传挂起 session（ADR-0083 修订）+ 第二参锁定 type（挂起即子类）
-            return this.show(async (session) => {
-                const resolved = await props(session);
+            return this.show(async (instance) => {
+                const resolved = await props(instance);
                 return resolved == null ? undefined : { ...resolved, type: "toast" };
             }, "toast");
         }
@@ -663,16 +605,11 @@ export class MessageManager extends Map<string, MessageSessionBase> {
 
     /**
      * confirm 快捷方式：≡ `show({ ...props, type: 'confirm', delayClose: 0, 双钮 })`——返回
-     * **Confirm 会话**（thenable：`await` 直接得 choice 应答，sticky 永不 settle / 永不 reject；
-     * `yes()/no()/cancel()` 编程应答——原 Promise 糖语义由会话本体承载，ADR-0077）。
-     * `{yes, no}` 可提取键（决策 22）从 props 剥离转按钮文案，不落消息 props。
+     * **thenable 组件实例**（`await` 直接得 choice 应答，sticky 永不 settle；`yes()/no()`
+     * methods 编程应答）。`{yes, no}` 可提取键（决策 22）从 props 剥离转按钮文案。
      */
-    confirm(
-        message: string | ConfirmMessageProps,
-        texts?: { yes?: string; no?: string },
-    ): AutoSparkConfirmMessageSession {
-        const base: Record<string, any> =
-            typeof message === "string" ? { title: message } : { ...message };
+    confirm(message: string | MessageProps, texts?: { yes?: string; no?: string }): ComponentInstance | null {
+        const base: Record<string, any> = typeof message === "string" ? { title: message } : { ...message };
         const yes = texts?.yes ?? base.yes;
         const no = texts?.no ?? base.no;
         delete base.yes; // 可提取键剥离（决策 22）——不落入消息 props
@@ -681,53 +618,46 @@ export class MessageManager extends Map<string, MessageSessionBase> {
             ...(base as MessageProps),
             type: "confirm",
             delayClose: base.delayClose ?? 0, // sticky：永不自动关
-            actions: [
+            actions: (base.actions?.length ? base.actions : undefined) ?? [
                 { title: yes ?? "确定", value: true },
                 { title: no ?? "取消", value: false },
             ],
-        }) as AutoSparkConfirmMessageSession;
+        });
     }
 
-    /**
-     * task 快捷方式：≡ `show({ ...props, type: 'task' })`——返回 **Task 会话**
-     * （`start/progress/pause/resume/stop/cancel` 七方法——创建即 started、pause 闸门、
-     * stop 完成态收口）。原 progressbar() 糖同义更名（名即 type 名）。
-     */
-    task(
-        props: string | MessageProps | MessageSessionFactory,
-    ): AutoSparkTaskMessageSession {
+    /** task 快捷方式：≡ `show({ ...props, type: 'task' })`——返回 task 组件实例（methods 直调） */
+    task(props: string | MessageProps | MessageSessionFactory): ComponentInstance | null {
         if (typeof props === "function") {
-            // factory 形态：透传挂起 session + 第二参锁定 'task'（挂起即 Task 会话，可 start/progress）
-            return this.show(async (session) => {
-                const resolved = await props(session);
+            return this.show(async (instance) => {
+                const resolved = await props(instance);
                 return resolved == null ? undefined : { ...resolved, type: "task" };
-            }, "task") as AutoSparkTaskMessageSession;
+            }, "task");
         }
         const initial = { ...(typeof props === "string" ? { title: props } : props), type: "task" };
-        return this.show(initial) as AutoSparkTaskMessageSession;
+        return this.show(initial);
     }
 
-    // ── 关闭与收口（记录 ⇄ 展示两态分离，决策 5） ──────────────────────
+    // ── 关闭与收口（display 模型：persist 分流，ADR-0089 决策四） ────────
 
     /**
-     * 关闭（一切移除路径终点）：`message:hide` 广播在发起时；离场动画完成后 `_teardown`
-     * （摘 DOM + 双 scope 收口），**persist 决定记录存续**（ADR-0077 数值化）：`0` → 出 Map
-     * （记录移除，toast 兼容语义）；`1`（会话缓冲）/`2`/`3`（持久化）→ 转「已隐藏」态
-     * （记录存活，可 `show(id)` 重显——1 不持久化刷新即失）。排队中的 entry 同步出等待队列。
+     * 关闭（一切移除路径终点）：`message:hide` 广播在发起时；离场动画（收拢沿用）完成后按
+     * persist 分流——`≥1` 转「已隐藏」（display:none **保留实例**，closed 约定键置位）；
+     * `0` 真销毁（`_destroyEntry`）。排队中的 entry 同步出等待队列。
      */
     _dismiss(entry: MessageEntry, animated: boolean): void {
         if (entry.state === "closed" || entry.state === "hidden") return;
-        // 排队中：先出等待队列（防止补位 flush 挂载已关闭 entry）
         if (entry.state === "queued") this._dequeue(entry);
         entry.state = "closed";
-        entry.session._clearTimer();
+        this._clearTimer(entry);
+        if (entry.instance) {
+            entry.instance.data.visible = false;
+        }
         this._emit("message:hide", entry);
-        const finish = () => this._teardown(entry);
+        const finish = () => this._settleClose(entry);
         const leave = animated ? entry.leave : null;
-        if (leave && entry.el) {
-            const el = entry.el;
-            // ① 收拢起始帧（先于 leave）：锁定自然高度（height auto → px 才可过渡；
-            //    happy-dom 无布局环境 offsetHeight 恒 0，锁定 0 → 归零 0→0 无变化无害）。
+        const el = entry.el;
+        if (leave && el && el.style.display !== "none") {
+            // 收拢起始帧（先于 leave）：锁定自然高度（happy-dom offsetHeight 恒 0 无害）
             el.style.boxSizing = "border-box";
             el.style.height = `${el.offsetHeight}px`;
             el.style.overflow = "hidden";
@@ -735,8 +665,7 @@ export class MessageManager extends Map<string, MessageSessionBase> {
             if (!started) {
                 finish();
             } else {
-                // ② 收拢目标帧：扩展 transition-property 与 leave-to 类同帧归零——布局高度
-                //    平滑归零、兄弟随流上移（ADR-0068 离场收拢机制沿用）
+                // 收拢目标帧：布局高度平滑归零、兄弟随流上移（ADR-0068 离场收拢沿用）
                 el.style.transitionProperty =
                     "transform, opacity, height, padding-top, padding-bottom, margin-bottom, border-top-width, border-bottom-width";
                 el.style.height = "0px";
@@ -751,100 +680,90 @@ export class MessageManager extends Map<string, MessageSessionBase> {
         }
     }
 
-    /** 摘除卡片（session.unmount 收 DOM/scope）+ 记录存续 / 镜像 / 队列补位编排 */
-    private _teardown(entry: MessageEntry): void {
-        entry.session.unmount();
-        this.records.sessionListRemove(entry.id); // 展示序 id 出列（Q11a「仅隐藏」）
-        // persist 决定记录存续（决策 5，ADR-0077 数值化）：≥1（会话缓冲/持久化）转隐藏；
-        // 0（含缺省/非法——MESSAGE_DEFAULTS 已归一）出 Map（toast 兼容语义）
+    /** 关闭收口（动画完成后）：persist ≥ 1 转隐藏（display:none 保留）；否则真销毁 */
+    private _settleClose(entry: MessageEntry): void {
         const persist = Number(entry.props.persist ?? MESSAGE_PERSIST.NONE);
+        this._queueOf(entry.props.pos as MessagePos).releaseShown(entry.id);
         if (persist >= MESSAGE_PERSIST.SESSION && persist <= MESSAGE_PERSIST.REMOTE) {
-            entry.state = "hidden"; // 记录存活（可 show(id) 重显；1 不持久化刷新即失）
+            entry.state = "hidden"; // 记录存活（display:none 保留实例，show(id) 直切可见）
+            if (entry.el) entry.el.style.display = "none";
+            if (entry.instance) {
+                entry.instance.data.closed = true;
+                entry.instance.data.visible = false;
+            }
         } else {
-            super.delete(entry.id); // 记录移除
+            this._destroyEntry(entry); // toast 兼容语义：关闭即销毁
         }
-        // 镜像跟随 Map 权威层（ADR-0072）：存活 → 整替换（closed 翻 true）；已移除 → 删除
-        // （clear() 硬删后异步 teardown 的 persist 记录走 remove 分支）
-        if (super.has(entry.id)) this.records.mirrorReplace(entry);
-        else this.records.mirrorRemove(entry.id);
         this._flushQueue(entry.props.pos as MessagePos);
         this.storage.schedule();
+    }
+
+    /** 真销毁（remove/淘汰/persist=0 关闭/factory 丢弃）：摘 DOM + 双 scope 收口 + 出表 + 镜像删。
+     *  （`_` 内部面——records 淘汰路径共用） */
+    _destroyEntry(entry: MessageEntry): void {
+        if (entry.state === "queued") this._dequeue(entry);
+        entry.state = "closed";
+        this._clearTimer(entry);
+        entry.confirmResolve = null;
+        unmountCard(this, entry);
+        this._entries.delete(entry.id);
+        super.delete(entry.id);
+        this.records.mirrorRemove(entry.id);
+        this._queueOf(entry.props.pos as MessagePos).releaseShown(entry.id);
     }
 
     // ── Map 覆写与批量操作（决策 10） ──────────────────────────────────
 
     /**
-     * 覆写 `Map.delete`：**硬移除**（无动画——Map 硬移除语义；persist 记录一并删）+
-     * **立即同步持久化**（ADR-0077：local 即写、remote 即 flush 全量覆盖——「删干净」闭环，
-     * 刷新/多标签页不复活）。展示中先摘 DOM；排队中出等待队列；不存在返回 false。
+     * 覆写 `Map.delete`：**硬移除**（无动画 + persist 记录一并删）+ **立即同步持久化**
+     * （local 即写、remote 即 flush——「删干净」闭环）。展示中/排队中先广播 `message:hide`
+     * （决策 20：一切移除路径均广播——payload.message 在销毁前取）。
      */
     override delete(id: string): boolean {
-        const session = super.get(id);
-        const entry = session?._entry;
-        if (!session || !entry) return false;
-        if (entry.state === "shown") this._dismiss(entry, false);
-        if (entry.state === "queued") this._dequeue(entry);
-        entry.state = "closed";
-        entry.session._clearTimer();
-        if (entry.confirmResolve) entry.confirmResolve = null;
-        super.delete(id);
-        session._entry = null; // 会话死亡（ADR-0077）：后续方法 no-op + warn，不复活
-        this.records.mirrorRemove(id); // 硬移除（hidden 态无 teardown 路径，此处兜底）
-        this.records.sessionListRemove(id); // 展示序 id 出列（hidden 态直删不经 teardown）
+        const entry = this._entries.get(id);
+        if (!entry) return false;
+        if (entry.state === "shown" || entry.state === "queued") this._emit("message:hide", entry);
+        this._destroyEntry(entry);
+        this._flushQueue(entry.props.pos as MessagePos);
         this.storage.flushNow();
         return true;
     }
 
-    /**
-     * 覆写 `Map.clear`：清全部存活记录（含隐藏与会话缓冲），默认带离场动画；`clear(false)`
-     * 立即清空。**立即同步持久化**（ADR-0077 同 delete）。
-     */
+    /** 覆写 `Map.clear`：清全部存活记录（含隐藏），默认带离场动画；立即同步持久化 */
     override clear(animated: boolean = true): void {
-        for (const q of this._queues.values()) q.clear(); // 先清等待队列（防 dismiss 同步 teardown 的补位 flush 挂载排队 entry）
-        for (const session of Array.from(super.values())) {
-            const entry = session._entry;
-            if (!entry) continue;
+        for (const q of this._queues.values()) q.clear(); // 先清等待队列（防 dismiss 补位显示排队 entry）
+        for (const entry of Array.from(this._entries.values())) {
             if (entry.state === "shown" || entry.state === "queued") {
                 this._dismiss(entry, animated);
+            } else {
+                this._destroyEntry(entry); // 隐藏态直销（display 模型下仍在 DOM）
             }
-            // persist 存续的隐藏记录一并移除（决策 10：清全部存活记录含隐藏）
-            if (entry.state === "hidden" || entry.state === "closed") {
-                entry.state = "closed";
-                super.delete(entry.id);
-            }
-            session._entry = null; // 会话死亡（ADR-0077）
         }
-        if (this._state) this._state.items.splice(0); // 镜像清空（含动画中记录——异步 teardown 的 remove 分支自然 no-op）
-        if (this._state) this._state.sessions.splice(0); // 展示序清空
+        if (this._state) this._state.items.splice(0); // 镜像清空
         this.storage.flushNow();
     }
 
-    /** engine.destroy() 收口（决策 10/18）：全部立即销毁 + 容器整体移除 + 持久化 flush */
+    /** engine.destroy() 收口：全部立即销毁 + 容器整体移除 + 持久化 flush */
     dispose(): void {
-        for (const q of this._queues.values()) q.clear(); // 先清等待队列（防 dismiss 同步 teardown 的补位 flush）
-        for (const session of Array.from(super.values())) {
-            const entry = session._entry;
-            if (entry && (entry.state === "shown" || entry.state === "queued")) {
-                this._dismiss(entry, false);
+        for (const q of this._queues.values()) q.clear();
+        for (const entry of Array.from(this._entries.values())) {
+            if (entry.state === "shown" || entry.state === "queued" || entry.state === "hidden") {
+                this._destroyEntry(entry);
             }
         }
-        for (const q of this._queues.values()) q.clear();
         removeMessageContainer(this.engine);
         if (this._state) this._state.items.splice(0); // 镜像清空（引擎收口——Map 与镜像同步归零）
-        if (this._state) this._state.sessions.splice(0); // 展示序清空
-        // 持久化终态 flush（keepalive 兜底页面卸载）
         this.storage.flushNow();
     }
 
     // ── 持久化与拉取（storage 域委托，ADR-0088） ───────────────────────
 
-    /** 从服务器拉取消息（决策 17）：storage.load 收口——GET JSON 数组、按 id 覆盖合并、
-     *  只入记录不弹（重建归 records）、失败 warn + 空数组 */
-    async load(url?: string): Promise<AutoSparkMessageSession[]> {
+    /** 从服务器拉取消息（决策 17）：GET JSON 数组、按 id 覆盖合并、只入记录不弹 */
+    async load(url?: string): Promise<ComponentInstance[]> {
         return this.storage.load(url);
     }
 
-    /** 立即持久化 flush（决策 18）：local 同步写 + remote 立即 POST（Promise） */
+    /** 立即持久化 flush（决策 18）：local 同步写 + remote 立即 POST */
     async save(): Promise<void> {
         await this.storage.save();
     }
@@ -868,16 +787,15 @@ export class MessageManager extends Map<string, MessageSessionBase> {
     }
 
     /**
-     * action 触发闭环（决策 13，按钮点击与 Confirm 会话 `yes()/no()` 共用——事件观察者
-     * 无感知差异）：value 写 result → `message:action` 广播 → confirm resolve → handle →
-     * hide 判定。
+     * action 触发闭环（决策 13，按钮点击与 confirm `yes()/no()` / `respond()` 共用）：value 写
+     * result → `message:action` 广播 → confirm resolve → handle → hide 判定。
      */
     _fireAction(entry: MessageEntry, action: ResolvedMessageAction): void {
         if (action.hasValue) {
             entry.props.result = action.value;
             entry.record.result = action.value;
-            this.records.touch(entry); // updateAt 刷新（数据变更入口之一）
-            entry.session.syncData();
+            this.records.touch(entry);
+            if (entry.instance) entry.instance.data.result = action.value;
             this.records.mirrorReplace(entry);
         }
         this._emit("message:action", entry, {
@@ -894,93 +812,114 @@ export class MessageManager extends Map<string, MessageSessionBase> {
     }
 
     /**
-     * Confirm 会话选择（ADR-0077；ADR-0083 起 `respond(id, value)` 同路）：`yes()/no()` ≡
-     * 点击对应 value 按钮——沿 `_fireAction` 同一闭环（value 写 result → `message:action`
-     * 广播 → confirm resolve → hide），事件观察者对编程触发与 DOM 点击无感知差异。无匹配
-     * action（如 actions 被自定义清空）→ warn + no-op。
+     * Confirm 选择（`yes()/no()` ≡ 点击对应 value 按钮 / `respond(id, value)` 同路）——沿
+     * `_fireAction` 同一闭环。无匹配 action（actions 被自定义清空）→ warn + no-op。
      */
-    _fireConfirmChoice(session: MessageSessionBase, value: boolean): void {
-        const entry = session._entry;
-        if (!entry) {
-            this.engine.logger.warn(
-                `engine.messages: 会话已死亡（记录已 remove），选择操作无效（ADR-0077）`,
-            );
-            return;
-        }
+    _fireConfirmChoice(entry: MessageEntry, value: boolean): void {
         const action = entry.actions.find((a) => a.hasValue && a.value === value);
         if (!action) {
             this.engine.logger.warn(
-                `engine.messages: type='confirm' 会话缺少 value=${value} 的按钮（actions 已被自定义），${value ? "yes()" : "no()"} 无效（ADR-0077）`,
+                `engine.messages: type='confirm' 会话缺少 value=${value} 的按钮（actions 已被自定义），选择无效（ADR-0077）`,
             );
             return;
         }
         this._fireAction(entry, action);
     }
 
-    /**
-     * confirm 编程应答（ADR-0083 Q6a）：`respond(id, true)` ≡ 点击对应 value 按钮 / 会话
-     * `yes()`——`_fireConfirmChoice` 同一闭环（value 写 result → 事件 → resolve → hide 判定）。
-     * JS 侧编程驱动进度另有既有通道 `update(id, { progress })`。
-     */
+    /** 编程应答（ADR-0083 Q6a）：`respond(id, true)` ≡ 点击对应 value 按钮 */
     respond(id: string, value: any): void {
-        const session = super.get(id);
-        if (!session?._entry) {
+        const entry = this._entries.get(id);
+        if (!entry) {
             this.engine.logger.warn(`engine.messages: respond("${id}") 未命中存活记录，已忽略`);
             return;
         }
-        this._fireConfirmChoice(session, value);
+        this._fireConfirmChoice(entry, value);
     }
 
     // ── 事件（决策 20） ────────────────────────────────────────────────
 
     /**
-     * 双通道事件（决策 20）：引擎总线 + 卡片元素 dispatchEvent（body 侧，树内收不到冒泡）；
-     * `message:action` 额外以 anchor 为根派发（决策 14 职责②——发起子树就近消费）；
-     * type='toast' 迁移期双发 `toast:show` / `toast:hide`（决策 3）。payload `{ message, el }`。
+     * 双通道事件（决策 20）：引擎总线 + 卡片元素 dispatchEvent；`message:action` 额外以
+     * anchor 为根派发（决策 14 职责②）；type='toast' 迁移期双发 `toast:show`/`toast:hide`。
+     * payload `{ message: 组件实例, el }`。
      */
     _emit(
         type: "message:add" | "message:update" | "message:show" | "message:hide" | "message:read" | "message:status" | "message:action",
         entry: MessageEntry,
         extra?: Record<string, any>,
+        legacyToast = true,
     ): void {
-        const detail = { message: entry.session as AutoSparkMessageSession, el: entry.el, ...extra };
+        const detail = { message: entry.instance as ComponentInstance, el: entry.el, ...extra };
         this.engine.emit(type, detail as any);
         entry.el?.dispatchEvent(new CustomEvent(type, { detail, bubbles: true }));
         if (type === "message:action" && entry.anchor) {
             entry.anchor.dispatchEvent(new CustomEvent(type, { detail, bubbles: true }));
         }
         // 迁移期双发（决策 3）：type='toast' 的展示状态转换照发旧事件
-        if (entry.type === "toast" && (type === "message:show" || type === "message:hide")) {
+        if (legacyToast && entry.type === "toast" && (type === "message:show" || type === "message:hide")) {
             const legacy = type === "message:show" ? "toast:show" : "toast:hide";
-            const legacyDetail = { toast: entry.session as any, el: entry.el };
+            const legacyDetail = { toast: entry.instance as any, el: entry.el };
             this.engine.emit(legacy as any, legacyDetail as any);
             entry.el?.dispatchEvent(new CustomEvent(legacy, { detail: legacyDetail, bubbles: true }));
         }
     }
 
-    // ── 会话工厂（ADR-0083 class 家族） ────────────────────────────────
+    // ── delayClose 计时与 hover 暂停（剩余时间制 + remaining 约定键联动） ──
 
-    /**
-     * 会话工厂（ADR-0083 class 家族）：按 type `switch` 实例化子类——`toast` / `confirm` /
-     * `task` 各得专属面，自定义 type 回基类面。**类型面与运行时面统一**（取代 ADR-0077 的
-     * 「闭包全集方法 + 类型窄化」——基类实例不再携带 task/confirm 域方法）。records 恢复
-     * 路径共用（`_` 前缀内部面惯例）。
-     */
-    _createSession(type: string): MessageSessionBase {
-        switch (type) {
-            case "task":
-                return new MessageTaskSession(this);
-            case "confirm":
-                return new MessageConfirmSession(this);
-            case "toast":
-                return new MessageToastSession(this);
-            default:
-                return new MessageSessionBase(this); // 自定义 type 回基类面（ADR-0077 沿用）
+
+    /** 启动自动关闭计时（holdOpen 约定键拦截——true 期间不计时，ADR-0089 决策五） */
+    _startTimer(entry: MessageEntry): void {
+        this._clearTimer(entry);
+        if (entry.instance?.data.holdOpen === true) return; // 进行中 sticky（task 未完成等）
+        const delay = entry.props.delayClose;
+        if (typeof delay === "number" && delay > 0) {
+            entry.deadline = Date.now() + delay;
+            entry.pausedRemaining = null;
+            if (entry.instance) entry.instance.data.remaining = delay;
+            entry.tickTimer = setInterval(() => {
+                if (entry.deadline != null && entry.instance) {
+                    entry.instance.data.remaining = Math.max(0, entry.deadline - Date.now());
+                }
+            }, 1000);
+            entry.timer = setTimeout(() => {
+                entry.timer = null;
+                this._dismiss(entry, true);
+            }, delay);
+        } else {
+            entry.deadline = null; // sticky
+            if (entry.instance) entry.instance.data.remaining = -1;
         }
     }
 
-    /** 原生 Map 删除（records 淘汰路径——绕过 `delete` 覆写的硬移除 + 即刷编排） */
-    _rawDelete(id: string): void {
-        super.delete(id);
+    /** hover 暂停：记剩余时间、停表与 tick（sticky 无表 no-op） */
+    _pauseTimer(entry: MessageEntry): void {
+        if (entry.timer == null || entry.deadline == null) return;
+        clearTimeout(entry.timer);
+        entry.timer = null;
+        entry.pausedRemaining = Math.max(0, entry.deadline - Date.now());
+    }
+
+    /** hover 移出恢复：按剩余时间续表 */
+    _resumeTimer(entry: MessageEntry): void {
+        if (entry.pausedRemaining == null || entry.state !== "shown") return;
+        const remaining = entry.pausedRemaining;
+        entry.pausedRemaining = null;
+        entry.deadline = Date.now() + remaining;
+        entry.timer = setTimeout(() => {
+            entry.timer = null;
+            this._dismiss(entry, true);
+        }, remaining);
+    }
+
+    _clearTimer(entry: MessageEntry): void {
+        if (entry.timer != null) {
+            clearTimeout(entry.timer);
+            entry.timer = null;
+        }
+        if (entry.tickTimer != null) {
+            clearInterval(entry.tickTimer);
+            entry.tickTimer = null;
+        }
+        entry.pausedRemaining = null;
     }
 }

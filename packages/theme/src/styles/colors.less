@@ -1,0 +1,17 @@
+:host,
+:root {
+    // 注意：语义色（--k-color-primary/success/danger/warning/info）不在静态层定义，
+    // 其唯一真值源是 ThemeScope 运行时注入（默认跟随主题色，可经 update() 覆盖）。
+    // 若在此再给静态默认值，会在样式层叠中与运行时注入形成双真值源竞争。
+    // 灰色
+    --k-color-gray-0: #FFFFFF;
+    --k-color-gray-1: #F2F2F2;
+    --k-color-gray-2: #E9E9E9;
+    --k-color-gray-3: #D9D9D9;
+    --k-color-gray-4: #B5B5B5;
+    --k-color-gray-5: #959595;
+    --k-color-gray-6: #6D6D6D;
+    --k-color-gray-7: #5A5A5A;
+    --k-color-gray-8: #3B3B3B;
+    --k-color-gray-9: #1B1B1B;
+}

@@ -2,7 +2,7 @@
 
 ## 概述
 
-`x-tree` 渲染**嵌套树形数据**——DOM 结构即树（`ul > li > ul > li…`），引擎对展开路径递归套用同一节点模板，内置展开/折叠交互与动画、节点选中、复选级联（半选派生）、拖拽调序、循环变量注入。手写递归 `x-for` + 展开状态管理的复杂度一次清零。
+`x-tree` 渲染**嵌套树形数据**——DOM 结构即树（`ul > li > ul > li…`），引擎对展开路径递归套用同一节点模板，内置展开/折叠交互与动画、节点懒加载（按需取子树）、节点选中、复选级联（半选派生）、拖拽调序、节点类型图标、循环变量注入。手写递归 `x-for` + 展开状态管理的复杂度一次清零。
 
 ```html
 <ul x-tree="node of nodes" x-tree-options="{ defaultExpandLevel: 2 }">
@@ -58,7 +58,7 @@ new AutoSparkSpaces.AutoSpark(el, state); // state 即响应式数据源
 <ul x-tree="node of nodes"></ul>
 ```
 
-`x-tree="node of nodes"`——`of` 左侧自定义节点变量名（模板里用 `node.xxx` 读字段），右侧是状态路径。容器内**不写任何子元素**时，引擎套用内置默认节点模板：缩进 + 展开箭头 + `nameField` 字段名（默认 `"name"`），整行点击展开/折叠，高度过渡动画——零配置开箱即用。
+`x-tree="node of nodes"`——`of` 左侧自定义节点变量名（模板里用 `node.xxx` 读字段），右侧是状态路径。容器内**不写任何子元素**时，引擎套用内置默认节点模板：缩进 + 展开箭头 + 节点类型图标（`folder` / `folder-open` / `file`）+ `nameField` 字段名（默认 `"name"`），整行点击展开/折叠，高度过渡动画——零配置开箱即用。
 
 ### 第 3 步：自定义节点模板（x-tree-node / x-tree-children）
 
@@ -96,7 +96,7 @@ new AutoSparkSpaces.AutoSpark(el, state); // state 即响应式数据源
 <span class="arrow" x-tree-toggle>▸</span>   <!-- 只有这里触发展开 -->
 ```
 
-行内其他 `@click`（如删除按钮）自行 `@click.stop` 阻断冒泡。更进一步的交互——勾选级联（`x-tree-check`）、节点选中（`selectedField`）、拖拽（`draggable`）——见[指南](#指南)各章节与[指令值](#指令值)的标记一览表。
+行内其他 `@click`（如删除按钮）自行 `@click.stop` 阻断冒泡。更进一步的能力——节点懒加载（`loadedField`）、勾选级联（`x-tree-check`）、节点选中（`selectedField`）、拖拽（`draggable`）——见[指南](#指南)各章节与[指令值](#指令值)的标记一览表。
 
 ### 总结
 
@@ -136,7 +136,7 @@ new AutoSparkSpaces.AutoSpark(el, state); // state 即响应式数据源
 </ul>
 ```
 
-各标记的机制详见下方指南各章节（模板优先级 / 交互触点 / 选中 / 复选与级联 / 空态）。
+各标记的机制详见下方指南各章节（模板优先级 / 交互触点 / 展开语义 / 懒加载 / 选中 / 复选与级联 / 空态）。
 
 ### 节点模板三级优先
 
@@ -160,7 +160,7 @@ new AutoSparkSpaces.AutoSpark(el, state); // state 即响应式数据源
 
 ### 一行渲染（内置默认模板）
 
-容器内不写任何子元素，引擎套用内置默认节点模板——每级缩进 20px、展开箭头（随展开旋转）、`nameField` 字段名（默认 `"name"`，可定制），**整行点击展开/折叠**（启用选中后点行 = 选中并展开，antd 心智）、expand 高度动画、前 N 层可见全部内置。**全部交互也能零模板启用**——`checkedField` 声明即启用复选（默认模板自动带三态触点，取内置图标 `checked` / `semi-checked` / `unchecked`，`x-icon` 同名可覆盖）、`selectedField` 声明即启用选中、`draggable` 即启用拖拽：
+容器内不写任何子元素，引擎套用内置默认节点模板——每级缩进 20px、展开箭头（随展开旋转）、节点类型图标（`folder` / `folder-open` / `file`，未加载 `unknown`、加载中 `loading`，`icon: false` 关闭）、`nameField` 字段名（默认 `"name"`，可定制），**整行点击展开/折叠**（启用选中后点行 = 选中并展开，antd 心智）、expand 高度动画、前 N 层可见全部内置。**全部交互也能零模板启用**——`checkedField` 声明即启用复选（默认模板自动带三态触点，取内置图标 `checked` / `semi-checked` / `unchecked`，`x-icon` 同名可覆盖）、`selectedField` 声明即启用选中、`draggable` 即启用拖拽：
 
 <demo html="tree/builtin.html"/>
 
@@ -197,7 +197,7 @@ new AutoSparkSpaces.AutoSpark(el, state); // state 即响应式数据源
 模板内可用的一切（这就是「自定义」的全部原料）：
 
 - **节点数据 `node`**：`of` 左侧自定义变量名——`x-text="node.title"`、`:class="{ hot: node.hot }"`、`:title="node.desc"` 等任意字段绑定（含事件 `@click`，注意自行 `.stop` 阻断冒泡）；
-- **循环变量九元组**：`$expanded`（箭头方向）、`$leaf`（叶子不加箭头/图标差异化）、`$children`（计数徽标）、`$level`（层级差异化样式 `:class="'lv-' + $level"`）、`$indeterminate`（复选半选图标）等——完整清单见[循环变量](#循环变量九元组)；
+- **循环变量十二元组**：`$expanded`（箭头方向）、`$leaf`（叶子不加箭头/图标差异化）、`$children`（计数徽标）、`$level`（层级差异化样式 `:class="'lv-' + $level"`）、`$indeterminate`（复选半选图标）、`$loading`（懒加载在途）、`$error`（懒加载失败，`Error | null`）、`$icon`（节点类型图标）等——完整清单见[循环变量](#循环变量十二元组)；
 - **交互触点标记**：`x-tree-toggle`（展开收窄到标记元素）、`x-tree-check`（复选触点）；
 - **缩进与行样式**：完全归你的 CSS——缩进 = 子容器的 `padding-left` 每级叠加（见快速入门第 4 步），行样式写在行内容元素上（引擎只注入默认模板的样式，自定义模板零注入）。
 
@@ -239,7 +239,71 @@ const state = {
 };
 ```
 
-### 循环变量（九元组）
+### 懒加载
+
+子树数据**按需拉取**——`loaded: false` 的节点展开时引擎广播 `tree:load`，宿主只需两件事：**成功写 `children`，失败调 `fail(err)`**，其余（渲染、标记、图标、提示）全部引擎代劳：
+
+| 时机 | 谁  | 做什么 |
+| --- | --- | --- |
+| ① 标记 | 宿主 | 懒节点写 `loaded: false`（字段名可配 `loadedField`；**无该字段 = 非懒节点**，永不触发加载） |
+| ② 请求 | 引擎 | 节点展开且未加载 → 广播 `tree:load`，detail = `{ id, node, level, fail }` |
+| ③a 成功 | 宿主 | **只写** `node.children = list`——引擎自动置 `loaded = true`（不用手动写）、渲染子行、广播 `tree:loaded` |
+| ③b 失败 | 宿主 | 调 `detail.fail(err)`——图标转红 `file-error`、行挂 `data-tooltip = 错误消息`、`$error` 可读 |
+
+<demo html="tree/lazy.html"/>
+
+```html
+<ul x-tree="node of nodes" @tree:load="loadChildren($event)">
+    <li x-tree-node>
+        <span class="arrow" x-tree-toggle x-text="$leaf ? '·' : ($expanded ? '▾' : '▸')"></span>
+        <span x-text="node.name"></span>
+        <span x-show="$loading">加载中…</span>
+        <span x-show="$error" x-text="$error ? $error.message : ''" style="color:#e5484d"></span>
+        <ul x-tree-children></ul>
+    </li>
+</ul>
+```
+
+```javascript
+// 取数响应注册为 action（见 x-on 文档）；失败其实可以不写 UI——引擎自动红图标 + 行 tooltip
+const engine = new AutoSparkSpaces.AutoSpark(el, state, {
+    actions: {
+        loadChildren: (ev) => {
+            fetch(`/api/children/${ev.detail.id}`)
+                .then((list) => { ev.detail.node.children = list; })  // 成功：只写 children（loaded 引擎自动置 true）
+                .catch((err) => ev.detail.fail(err));                 // 失败：file-error 红图标 + 行 tooltip
+        },
+    },
+});
+```
+
+**四态状态机**——节点任一时刻居其一，`$loading` / `$error` / `$icon` 均为派生量（不落盘）：
+
+| 状态 | 判据 | `$icon` | 可见表现 |
+| --- | --- | --- | --- |
+| 未加载 | `loaded === false`，请求未发 | `unknown` | **未加载 ≠ 叶子**——箭头照常显示、可点开（`$leaf` 恒 `false`） |
+| 在途 | 请求已广播、未结算 | `loading` | 转圈（`$loading === true`）；同次展开连点不重发 |
+| 错误 | `fail(err)` 已调用 | `file-error`（红） | 行挂 `data-tooltip = err.message`，悬停出提示；`$error` 为 `Error` 对象 |
+| 已加载 | `loaded !== false` | `folder` / `folder-open` / `file` | 正常渲染；`loaded` 由引擎在 children 到达时**自动写入** |
+
+红色由引擎注入的 CSS 承担（默认模板零配置变红）；行上的 `data-x-tree-error` 属性同时是自定义模板的样式钩子。错误接管前的宿主 `data-tooltip` 原值会被保存、清除时还原。
+
+**何时发请求、如何重试**：
+
+- **触发门**：`loaded === false` && 有效展开 && 模板含 `x-tree-children`（非递归模板无子容器，静默不发）——用户点击展开、`defaultExpandLevel` 初始展开、拖拽收纳自动展开全部收敛到这一个门；初始展开的请求**延至微任务**广播（首渲在 `mount()` 内同步完成，延一拍保证宿主监听器能收到）；
+- **重试零 API**（在途/错误态的三条出口，任选其一）：
+  - **折叠再展开**——默认 eager 折叠连错误与在途一并清掉，再展开即重发；
+  - **写回 `loaded: false`**（失效重载）——已展开原位立即重发，已折叠留待下次展开；缓存即 state，不需要任何 reload 方法；
+  - `.keepalive` 折叠保留错误/在途，重展开时重发即清；
+- **完成信号**：children 到达（或手动补写 `loaded: true`）即恢复——即使此前已 `fail` 也能自愈；无在途时**不补发** `tree:loaded`（该事件只结算在途请求）。
+
+**边界**：
+
+- **级联只作用已加载部分**：未加载节点无 children，复选级联递归天然终止；数据到达后不回溯继承旧勾选；
+- **出生矛盾态**（`loaded: false` + 已有 children）不代偿：照常渲染已有部分、展开照常发 `tree:load`——不想要请求，出生时写 `loaded: true` 即可；
+- **表达式数据源**无字段订阅，懒加载降级为仅结构变化可响应（见[注意事项](#注意事项)）。
+
+### 循环变量（十二元组）
 
 节点模板的求值作用域内自动注入以下变量（`$` 前缀对齐 [x-for 派生变量](./x-for.md)，不占自定义命名空间）：
 
@@ -249,10 +313,13 @@ const state = {
 | `$level`    | 层级，根 = 0                           | 层级差异化样式、缩进微调          |
 | `$children` | 原始子节点数据数组                     | 判断有无子节点                    |
 | `$expanded` | **有效展开态**（含回退合成）           | 箭头方向 `:class="$expanded"`     |
-| `$leaf`     | 无子节点                               | 叶子不渲染箭头                    |
+| `$leaf`     | 叶子（无子节点；**未加载节点恒 `false`**——未加载 ≠ 叶子） | 叶子不渲染箭头                    |
 | `$index` / `$first` / `$last` | 兄弟内序号 / 首末 | 首末行样式            |
 | `$parent`   | 父节点数据引用（根为 `null`）          | 面包屑、向上操作                  |
 | `$indeterminate` | 复选半选派生态（不落盘；未启用复选恒 `false`） | 半选图标 `x-text="$indeterminate ? '⊟' : '☐'"` |
+| `$loading`  | 懒加载在途态（派生不落盘；非懒节点恒 `false`） | 加载提示 `x-show="$loading"`      |
+| `$error`   | 懒加载失败态（`Error \| null`，派生不落盘——`fail(err)` 挂行） | 错误提示 `x-text="$error ? $error.message : ''"` |
+| `$icon`     | 节点类型图标名（`loading` > `file-error`（失败红） > 未加载 `unknown` > 节点覆盖 > `folder`/`folder-open` > `file` 优先级链；恒注入） | 自定义模板一行 `x-icon="$icon"`   |
 
 `$expanded` 是合成值——不必手写 `node.expand ?? $level < 2` 这类回退表达式。
 
@@ -302,7 +369,7 @@ const state = {
 
 ### 拖拽
 
-配置 `draggable: true` 启用（行根自动置 `draggable`）。基于 HTML5 DnD，**三态定位**：鼠标在目标行的**上 1/4** → 移到其前（上边缘线）、**下 1/4** → 移到其后（下边缘线）、**中段** → 收纳为子（高亮 + 落下自动展开）：
+配置 `draggable: true` 启用（行根自动置 `draggable`）。基于 HTML5 DnD，**三态定位**：鼠标在目标行**行线**（行自身高度，不含已展开子树——分段按行线算，孙及更深后代区域归子行各自的三段）的**上 1/4** → 移到其前（上边缘线）、**下 1/4** → 移到其后（下边缘线）、**中段** → 收纳为子（高亮 + 落下自动展开）：
 
 <demo html="tree/drag.html"/>
 
@@ -337,6 +404,8 @@ const state = {
 | `tree:collapse`| 节点折叠 | `{ id, node, level }`       |
 | `tree:select`  | 节点选中（启用 `selectedField`） | `{ id, node, level }` |
 | `tree:check`   | 复选切换（启用 `x-tree-check`） | `{ id, node, level, checked }` |
+| `tree:load`    | 懒加载请求（未加载节点展开时） | `{ id, node, level, fail }`（`fail(err)` 上报加载失败→红图标+行 tooltip） |
+| `tree:loaded`  | 懒加载完成（在途请求结算时）   | `{ id, node, level, children }`（children 为到达快照） |
 | `tree:drop`    | 拖拽落点（启用 `draggable`）    | `{ source, target, position }`（source/target 各含 `{id, node, level}`，position 为 `before` / `after` / `inside`） |
 
 ```html
@@ -367,7 +436,10 @@ const state = {
 | `idField`            | `"id"`      | —            | 节点唯一标识字段——复用 key 的唯一来源；缺省回退层级路径      |
 | `childrenField`      | `"children"`| —            | 子节点字段                                                   |
 | `expandField`        | `"expand"`  | —            | 展开状态字段（惰性写回目标）                                 |
+| `loadedField`        | `"loaded"`  | —            | 加载指示字段——值严格 `false` 即懒加载节点（字段缺失天然非懒）；宿主成功**只写 `children`**，`true` 由引擎在到达时自动写入（见[懒加载](#懒加载)） |
 | `nameField`          | `"name"`    | —            | 内置默认节点模板显示的字段名                                 |
+| `icon`               | `true`      | —            | 内置默认模板的节点图标列开关（`false` 回到无图标布局）；循环变量 `$icon` 恒注入不受影响 |
+| `iconField`          | `"icon"`    | —            | 节点图标覆盖字段——值为图标名或 `"close,open"` 逗号对（收起/展开两态） |
 | `defaultExpandLevel` | `1`         | —            | 前多少层可见（回退规则，不写数据；合法值 ≥ 1）               |
 | `keepalive`          | `false`     | `.keepalive` | 折叠保活子树（display:none），默认 eager 销毁                |
 | `animate`            | `'expand'`  | —            | 子容器整体进出场动画（同 [animate 选项](../animate.md)三形态；默认 expand 高度过渡，后续节点平滑跟随） |
@@ -384,7 +456,8 @@ const state = {
 - **`:key` 不生效**：节点 key 唯一来源是 `idField`（`:key` 声明 warn 忽略）；无 id 节点回退层级路径作 key（`id` 重复会 warn）。
 - **同元素 `x-for`**：两者都是结构指令，同元素声明编译期报错——树本身是列表的超集，不需要组合。
 - **子容器内容归引擎管理**：`x-tree-children` 元素内写的静态内容会被清空；模板缺 `x-tree-children` 时 warn 且只渲染一层。
-- **表达式数据源**：`x-tree="node of getNodes()"` 这类表达式只有结构变化可响应（表达式订阅收集不到 `expandField` 依赖），展开/折叠请用纯状态路径。
+- **表达式数据源**：`x-tree="node of getNodes()"` 这类表达式只有结构变化可响应（表达式订阅收集不到 `expandField` 依赖），展开/折叠与懒加载字段（`children` / `loaded` / `icon`）订阅同样收集不到——请用纯状态路径。
+- **懒加载成功只写 `children`**：`loaded: true` 由引擎在 children 到达时自动写入（手动补写幂等兼容，但不必要）；失效只认宿主写回 `loaded: false`；加载失败调 `tree:load` detail 的 `fail(err)`，引擎转红 `file-error` 图标 + 行 `data-tooltip`。
 - **超大树**：嵌套结构不支持虚拟滚动——依赖折叠（默认 eager 销毁省内存 / `keepalive` 按需保活）控制 DOM 规模。
 - **拖拽单根限制**：单根对象数据的根行无兄弟序，仅允许 `inside` 收纳；需要根层调序请用多根数组数据。
 - **选中改变整行语义**：启用 `selectedField` 前请确认模板已声明 `x-tree-toggle`（否则无法展开，引擎 warn 提示）。

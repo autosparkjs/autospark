@@ -43,6 +43,29 @@ grilling 六轮 17 问决议（形态分岔 / 跨态墙 / 句柄面 / 生命周�
 - `await add({ type: 'confirm' })`：confirm 组件 setup 定义 `then` method（实例可 await，存量写法零改）；`messages.confirm()` 快捷方式语义保持；
 - 外部驱动：组件实例恒在（display:none 亦然），实例方法直调即可——**无 `invoke` 通道**；数据型驱动走 `messages.update(id, patch)`。
 
+### 七之二、`$messages.sessions` 退役；消息容器归一 overlay 根
+
+- **`$messages.sessions`（展示序 id 数组，ADR-0083 Q11a）退役**：display 模型下「在屏」的真相源有二——DOM（实例恒挂、可见性 = display）与 `items[].closed` 投影（恒有，恢复时策略置位）——第三通道（id 数组）信息可派生（在屏集合 ≡ `items.filter(r => !r.closed)`）而维护成本真实（五处镜像收口点之一，幽灵 id 风险面）。`$messages` 收敛为 `{ items, options }` 两键。
+- **消息容器纳入 overlay 容器**：`.autospark-messages` 由 body 直挂改为挂 `.autospark-overlays`（引擎级 overlay 根）之下——dialog/popover/drawer/messages 同一根，跨家族层叠（消息 vs 弹层谁上谁下）由同容器 DOM 序天然裁决，body 下引擎渲染根唯一。分区列 fixed 定位与容器透明壳语义不变（容器不建层叠上下文时行为与 body 直挂等同——实施时校验容器定位样式）。
+
+### 七之三、`$messages.items` 纯 record 化；`AutoSparkMessage` 退役
+
+`$messages.items: AutoSparkMessageRecord[]`——**只管数据**（业务十二键，与持久化载荷完全同构）。`AutoSparkMessage`（record + 渲染配置 + 观察投影的大杂烩镜像类型）退役：渲染配置（icon/pos/closable/animate/styles/尺寸/delayClose…）与运行态投影（closed/progress/paused/completed/canXxx/actions）**全部封装在组件中**——前者活在实例 props 注水面，后者活在实例 data 域（`messages.get(id).data` 直读）。连带简化：
+
+- `buildRecord` 投影管线与「task 约定键 → mirrorReplace」联动退役——镜像只剩业务键变更收口（update / 已读 / result / 原地更新 / 恢复）；
+- **在屏观察通道 = DOM**（display——决策七之二的容器结构；closed 投影随之退役）；
+- serialize/load 与 items 同构，无转换层；
+- 类型命名统一 `AutoSparkMessageRecord`（`MessageRecord` 简称废弃）。
+
+### 九、add 入参两分法：record 面 / 组件面
+
+`add(props)` 单包传入，引擎按**键归属**分流（调用语法不分家——分流是持久化语义，非可见性语义）：
+
+- **record 面**（固定清单：`id/type/title/description/level/owner/read/status/result/link/persist`）→ 提平落 record（可能持久化——由 `persist` 分级决定，**type 种子默认差异化**：toast 默认 `0` 不持久化〔隐于全局默认〕，task/confirm 等 type 可经 `types/*.ts` 种子携非零默认，用户任意层覆盖）；
+- **组件面**（其余全部：`icon/actions/pos/closable/delayClose/animate/className/styles/尺寸/canXxx` 及 type 自有键）→ props 注水组件实例 data 域，**不持久化**；
+- **组件可见全量**：注水面 = record 面 + 组件面（title 等业务键模板渲染需要）——分流决定「什么进 record / 什么可持久化」，不决定「组件能看什么」；反向不流（组件 data 运行态不进 record，决策七之三）；
+- `update(id, patch)` 同模型两路分流：业务键 → record + touch（updateAt 刷新）；渲染键 → props 注水刷新。
+
 ### 八、factory 挂起期（用户修订：真实例，预句柄退役）
 
 `add(async (instance) => …)` **调用瞬间即创建组件实例**并注入 factory——挂起 = `display:none` 的特殊排队态（与排队/隐藏统一为同一可见性模型）。推论：

@@ -150,8 +150,8 @@ export class MessagePersistence {
     collect(): { locals: Record<string, any>[]; remotes: Record<string, any>[] } {
         const locals: Record<string, any>[] = [];
         const remotes: Record<string, any>[] = [];
-        for (const session of Array.from(this.manager.values())) {
-            const entry = session._entry;
+        for (const id of Array.from(this.manager.keys())) {
+            const entry = this.manager._entryOf(id);
             if (!entry) continue;
             const serialized = serializeMessage(entry);
             if (entry.props.persist === MESSAGE_PERSIST.LOCAL) locals.push(serialized);
@@ -189,7 +189,7 @@ export class MessagePersistence {
      * 合并、新 id 追加；**只入记录不弹**（需要时 `show(id)`——重建归 records）；失败 warn +
      * resolve 空数组（不 reject 中断调用方）。传输配置现读 state 的 `fetchOptions`（ADR-0072）。
      */
-    async load(url?: string): Promise<import("./types").AutoSparkMessageSession[]> {
+    async load(url?: string): Promise<import("../component-instance").ComponentInstance[]> {
         const fetchOptions = this.manager._stateRef?.options.fetchOptions ?? null;
         const target = url ?? fetchOptions?.url;
         if (!target || typeof fetch === "undefined") {

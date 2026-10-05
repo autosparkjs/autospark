@@ -1,7 +1,8 @@
 import type { AnyAutoStore, AutoStoreOptions, Dict, FastEvent } from "autostore";
 import type { ActionDecl } from "./actions/types";
 import type { TooltipOptions } from "./tooltip/types";
-import type { MessageOptions, AutoSparkMessageSession } from "./messages/types";
+import type { MessageOptions } from "./messages/types";
+import type { ComponentInstance } from "./component-instance";
 import type { AutoSparkScope } from "./scope";
 
 /**
@@ -251,30 +252,30 @@ export interface AutoSparkEvents {
     "tooltip:hide": { el: HTMLElement; tip: HTMLElement };
 
     // ── message:* 消息（ADR-0071 决策 20，双通道之总线侧；卡片元素 dispatchEvent 同步广播） ──
-    /** 记录创建（payload：message = 任务句柄，el = 卡片根元素，排队未挂为 null） */
-    "message:add": { message: AutoSparkMessageSession; el: HTMLElement | null };
+    /** 记录创建（payload：message = 组件实例（ADR-0089），el = 卡片根元素，排队未挂为 null） */
+    "message:add": { message: ComponentInstance; el: HTMLElement | null };
     /** 记录级补丁生效 / 同 id 原地更新 */
-    "message:update": { message: AutoSparkMessageSession; el: HTMLElement | null };
+    "message:update": { message: ComponentInstance; el: HTMLElement | null };
     /** 展示挂载（进场动画发起时） */
-    "message:show": { message: AutoSparkMessageSession; el: HTMLElement | null };
+    "message:show": { message: ComponentInstance; el: HTMLElement | null };
     /** 展示关闭（一切移除路径均广播：自动关闭 / hide() / delete() / clear() / destroy） */
-    "message:hide": { message: AutoSparkMessageSession; el: HTMLElement | null };
+    "message:hide": { message: ComponentInstance; el: HTMLElement | null };
     /** 已读置位（卡片任意点击 / markRead / markAllRead） */
-    "message:read": { message: AutoSparkMessageSession; el: HTMLElement | null };
+    "message:read": { message: ComponentInstance; el: HTMLElement | null };
     /** 业务状态补丁（status 键变更） */
-    "message:status": { message: AutoSparkMessageSession; el: HTMLElement | null };
+    "message:status": { message: ComponentInstance; el: HTMLElement | null };
     /** action 按钮点击（value 应答在此；anchor 存在时以发起子树为根额外派发，决策 14） */
     "message:action": {
-        message: AutoSparkMessageSession;
+        message: ComponentInstance;
         el: HTMLElement | null;
         action: { title: string; hide: boolean };
         value?: any;
     };
     // ── toast:* 轻提示旧事件（ADR-0068 决策 17；ADR-0071 迁移期兼容——type='toast' 双发，随别名退役） ──
-    /** 轻提示显示（payload：toast = 任务句柄，el = 卡片根元素） */
-    "toast:show": { toast: AutoSparkMessageSession; el: HTMLElement | null };
+    /** 轻提示显示（payload：toast = 组件实例（ADR-0089），el = 卡片根元素） */
+    "toast:show": { toast: ComponentInstance; el: HTMLElement | null };
     /** 轻提示隐藏（一切移除路径均广播：自动关闭 / hide() / clear() / 原地更新替换 / destroy） */
-    "toast:hide": { toast: AutoSparkMessageSession; el: HTMLElement | null };
+    "toast:hide": { toast: ComponentInstance; el: HTMLElement | null };
 
     // ── directive/** 指令生命周期（<name> 占位，跨主体通配） ──
     // scope 通道（Compile/Hybrid）：带 scope.id

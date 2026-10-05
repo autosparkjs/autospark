@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@autospark/theme 示例汇总</title>
+    <!-- 静态样式层（三个 less）经 main.ts 的 import 引入：
+      dev root 是 examples/，此处 <link href="../src/*.less"> 会相对解析为 /src/*.less（root 外）→ 404 静默失败 -->
+    <style>
+        /* 三列布局骨架：左导航树 240px / 中示例自适应 / 右控制面板固定宽 */
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            display: flex;
+            overflow: hidden;
+            font-size: var(--auto-font-size);
+            color: var(--auto-color);
+            background: var(--auto-workspace-bgcolor);
+            transition: background 0.3s;
+        }
+
+        /* 左：示例导航树 */
+        #nav {
+            width: 240px;
+            flex-shrink: 0;
+            overflow-y: auto;
+            padding: 0.5rem 0;
+            border-right: var(--auto-border);
+            background: var(--auto-bgcolor);
+        }
+
+        .nav-title {
+            padding: 0.6rem 1rem 0.3rem;
+            font-size: 0.72rem;
+            color: var(--auto-third-color);
+        }
+
+        #nav a {
+            display: block;
+            padding: 0.4rem 1rem 0.4rem 1.5rem;
+            font-size: 0.85rem;
+            text-decoration: none;
+            color: var(--auto-secondary-color);
+            cursor: pointer;
+            border-right: 2px solid transparent;
+        }
+
+        #nav a:hover {
+            color: var(--auto-hover-color);
+            background: var(--auto-hover-bgcolor);
+        }
+
+        #nav a.active {
+            color: var(--auto-selected-color);
+            background: var(--auto-selected-bgcolor);
+            border-right-color: var(--auto-theme-color);
+        }
+
+        /* 中：当前故事展示区（自动尺寸，独立滚动） */
+        #stage {
+            flex: 1;
+            min-width: 0;
+            overflow-y: auto;
+            padding: 1.25rem 1.5rem;
+        }
+
+        #story-title {
+            margin: 0 0 1rem;
+            font: var(--auto-title-font);
+            color: var(--auto-color);
+        }
+
+        #story-host {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* 故事特性说明块：每个故事内容的首卡片，介绍本特性涉及的变量与 API */
+        .story-intro {
+            padding: 0.9rem 1.1rem;
+            border: var(--auto-border);
+            border-left: 3px solid var(--auto-theme-color);
+            border-radius: var(--auto-border-radius);
+            background: var(--auto-secondary-bgcolor);
+            font-size: 0.85rem;
+            color: var(--auto-secondary-color);
+            line-height: 1.6;
+        }
+
+        .story-intro .story-intro-title {
+            font-weight: 600;
+            color: var(--auto-color);
+            margin-bottom: 0.35rem;
+        }
+
+        .story-intro ul {
+            margin: 0.35rem 0;
+            padding-left: 1.2rem;
+        }
+
+        .story-intro code {
+            color: var(--auto-theme-color);
+        }
+
+        .story-intro pre {
+            margin: 0.45rem 0 0;
+            padding: 0.5rem 0.7rem;
+            background: var(--auto-bgcolor);
+            border: var(--auto-border);
+            border-radius: var(--auto-border-radius);
+            overflow-x: auto;
+            font-size: 0.78rem;
+        }
+
+        /* 示例区块统一以卡片分割：.auto-card 默认无边框（border 类才显示），补统一边框增强分割 */
+        #story-host .auto-card {
+            border: var(--auto-border);
+        }
+
+        /* 说明块叠加 auto-card 后：保持文档流排版（.auto-card 为 flex column），并保留主题色竖线强调 */
+        #story-host .story-intro {
+            display: block;
+            border-left: 3px solid var(--auto-theme-color);
+        }
+
+        /* 右：主题控制面板（lit web component，内容见 theme-controls.ts） */
+        #panel {
+            width: 260px;
+            flex-shrink: 0;
+            overflow-y: auto;
+            border-left: var(--auto-border);
+            background: var(--auto-bgcolor);
+        }
+    </style>
+</head>
+
+<body>
+    <nav id="nav"></nav>
+    <main id="stage">
+        <h2 id="story-title"></h2>
+        <div id="story-host"></div>
+    </main>
+    <aside id="panel">
+        <theme-controls></theme-controls>
+    </aside>
+    <script type="module" src="./main.ts"></script>
+</body>
+
+</html>

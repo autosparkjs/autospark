@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-tree · 节点懒加载</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .org-tree {
+                max-width: 460px;
+                border: 1px solid #dbdbdb;
+                border-radius: 6px;
+                padding: 8px;
+            }
+            .org-tree .x-tree-row {
+                gap: 6px;
+                padding: 4px 6px;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            .org-tree .x-tree-row:hover {
+                background: #f5f5f5;
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- 懒加载（ADR-0090）：节点 loaded:false → 展开发 tree:load → 宿主取数
+             → 成功只写 children（引擎自动置 loaded:true）/ 失败调 detail.fail(err)。
+             零模板默认模板自动带节点类型图标（unknown → loading → folder / folder-open，
+             失败态 file-error 红 + 行 tooltip）。安全中心演示首次加载失败与重试 -->
+        <div class="demo-app section">
+            <h1 class="title is-5">组织架构（节点懒加载）</h1>
+            <p class="subtitle is-6">
+                初始展开的根节点自动请求；继续点开 <code>信息中心 / 数字营销部 / 平台研发部</code> 逐层取数。
+                <code>安全中心</code> 首次加载失败（红色 <code>file-error</code> 图标，悬停行可见错误消息），
+                <strong>折叠再展开</strong>即重试成功。最近事件：<code x-text="lastEvent">（加载中…）</code>
+            </p>
+            <div class="org-tree">
+                <ul
+                    x-tree="node of nodes"
+                    x-tree-options="{ defaultExpandLevel: 2 }"
+                    @tree:load="onLoad($event)"
+                    @tree:loaded="onLoaded($event)"
+                ></ul>
+            </div>
+        </div>
+
+        <script>
+            // 模拟远端「按 id 取子节点」（600ms 延迟）；带 loaded:false 的条目表示该分支继续懒加载
+            const DB = {
+                admin: [
+                    { id: "admin-hr", name: "人力资源部" },
+                    { id: "admin-fin", name: "财务部" },
+                    { id: "admin-it", name: "信息中心", loaded: false },
+                ],
+                mkt: [
+                    { id: "mkt-mkt", name: "市场部" },
+                    { id: "mkt-sales", name: "销售部" },
+                    { id: "mkt-digital", name: "数字营销部", loaded: false },
+                ],
+                rd: [
+                    { id: "rd-mobile", name: "移动研发部" },
+                    { id: "rd-qa", name: "测试部" },
+                    { id: "rd-plat", name: "平台研发部", loaded: false },
+                ],
+                sec: [
+                    { id: "sec-ops", name: "安全运维组" },
+                    { id: "sec-audit", name: "合规审计组" },
+                ],
+                "admin-it": [
+                    { id: "admin-it-ops", name: "运维组" },
+                    { id: "admin-it-dev", name: "研发组" },
+                    { id: "admin-it-hd", name: "服务台" },
+                ],
+                "mkt-digital": [
+                    { id: "mkt-digital-seo", name: "搜索优化组" },
+                    { id: "mkt-digital-ads", name: "投放组" },
+                    { id: "mkt-digital-cm", name: "内容组" },
+                ],
+                "rd-plat": [
+                    { id: "rd-plat-infra", name: "基础设施组" },
+                    { id: "rd-plat-frame", name: "框架组" },
+                    { id: "rd-plat-data", name: "数据组" },
+                ],
+            };
+
+            // 安全中心首次加载失败一次（演示 fail → file-error 红图标 + 行 tooltip），重试即成功
+            const failedOnce = {};
+
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    lastEvent: "（加载中…）",
+                    // 根节点全部未加载；defaultExpandLevel: 2 初始展开即触发首批 tree:load
+                    nodes: [
+                        { id: "admin", name: "行政中心", loaded: false },
+                        { id: "mkt", name: "市场中心", loaded: false },
+                        { id: "rd", name: "研发中心", loaded: false },
+                        { id: "sec", name: "安全中心", loaded: false },
+                    ],
+                },
+                {
+                    actions: {
+                        // tree:load detail：{ id, node, level, fail }——引擎只广播，取数、成功写回与失败上报都在宿主
+                        onLoad: (ev) => {
+                            const { id, node, level, fail } = ev.detail;
+                            engine.state.lastEvent = `tree:load：${node.name}（level ${level}，等待 600ms）`;
+                            setTimeout(() => {
+                                if (id === "sec" && !failedOnce.sec) {
+                                    // 失败：调 detail.fail(err)——引擎转红 file-error 图标 + 行挂 data-tooltip
+                                    failedOnce.sec = true;
+                                    engine.state.lastEvent = `tree:load 失败：${node.name}（折叠再展开可重试）`;
+                                    fail(new Error("网络错误：503 Service Unavailable"));
+                                    return;
+                                }
+                                // 成功：只写 children——loaded:true 由引擎在到达时自动写入
+                                node.children = (DB[id] || []).map((n) => ({ ...n }));
+                            }, 600);
+                        },
+                        // tree:loaded detail：{ id, node, level, children }——在途结算时广播
+                        onLoaded: (ev) => {
+                            const { node, children } = ev.detail;
+                            engine.state.lastEvent = `tree:loaded：${node.name}（到达 ${children.length} 个子节点）`;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>
