@@ -130,13 +130,13 @@ export default {
                     <div data-radius="x-small" style="flex:1;min-width:14rem;display:flex;flex-direction:column;gap:0.6rem;padding:0.8rem;border:1px dashed var(--auto-border-color);border-radius:var(--auto-border-radius);">
                         <div style="font-size:0.75rem;color:var(--auto-third-color);">data-radius="x-small"</div>
                         <div class="auto-btn small">按钮</div>
-                        <div class="auto-input-wrapper"><input type="text" placeholder="输入框" /></div>
+                        <div class="auto-input"><input type="text" placeholder="输入框" /></div>
                         <div style="padding:0.5rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">色块</div>
                     </div>
                     <div data-radius="large" style="flex:1;min-width:14rem;display:flex;flex-direction:column;gap:0.6rem;padding:0.8rem;border:1px dashed var(--auto-border-color);border-radius:var(--auto-border-radius);">
                         <div style="font-size:0.75rem;color:var(--auto-third-color);">data-radius="large"</div>
                         <div class="auto-btn small">按钮</div>
-                        <div class="auto-input-wrapper"><input type="text" placeholder="输入框" /></div>
+                        <div class="auto-input"><input type="text" placeholder="输入框" /></div>
                         <div style="padding:0.5rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">色块</div>
                     </div>
                 </div>

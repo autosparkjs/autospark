@@ -8,17 +8,19 @@ export default {
         <div class="auto-card story-intro">
             <div class="story-intro-title">特性说明：表单（Form Inputs）</div>
             <p>
-                表单控件通过两个类消费主题：<code>.auto-input</code> 直接应用于 input / textarea / select，
-                <code>.auto-input-wrapper</code> 提供前后缀组合布局。边框、圆角、字体、焦点态
-                全部来自 <code>--auto-input-*</code> 系列变量，随主题与尺寸档位联动。
+                表单控件单一类名 <code>.auto-input</code> 双形态：<strong>元素形态</strong>直接标注在
+                input / textarea / select 上（完整输入外观）；<strong>容器形态</strong>标注在 div 等布局元素上
+                （组合前后缀操作件 <code>.auto-input-action</code>、字段标签、选择类组合），形态由宿主标签自动判别。
+                边框、圆角、字体、焦点态全部来自 <code>--auto-input-*</code> 系列变量，随主题与尺寸档位联动。
             </p>
             <ul>
-                <li>焦点态：聚焦时边框转主题色（<code>--auto-theme-color</code>）</li>
-                <li>禁用态：消费 <code>--auto-disable-*</code> 变量</li>
+                <li>焦点态：聚焦时边框高亮 + 2px 光晕（<code>--auto-selected-*</code>），容器形态经 <code>:focus-within</code> 整体高亮</li>
+                <li>禁用态：消费 <code>--auto-disable-*</code> 变量，容器整体降调</li>
+                <li>容器内 label 自动处理：选择类组合时状态联动，文本输入时作为前置字段标签</li>
                 <li>相关变量：<code>--auto-input-bgcolor</code> / <code>--auto-input-border</code> / <code>--auto-input-padding</code> / <code>--auto-input-height</code></li>
             </ul>
             <pre>&lt;input class="auto-input" placeholder="..." /&gt;
-&lt;div class="auto-input-wrapper"&gt;&lt;span class="input-addon"&gt;https://&lt;/span&gt;&lt;input /&gt;&lt;/div&gt;</pre>
+&lt;div class="auto-input"&gt;&lt;span class="auto-input-action"&gt;https://&lt;/span&gt;&lt;input /&gt;&lt;/div&gt;</pre>
         </div>
         <style>
             .form-element {
@@ -54,14 +56,6 @@ export default {
                 font-size: calc(var(--auto-font-size) * 1.1);
                 letter-spacing: var(--auto-letter-spacing);
             }
-            .input-addon {
-                padding: 0 0.5rem;
-                color: var(--auto-secondary-color);
-                font: var(--auto-font);
-                display: flex;
-                align-items: center;
-                white-space: nowrap;
-            }
         </style>
 
         <!-- 用法一：直接使用 .auto-input 类 -->
@@ -83,42 +77,42 @@ export default {
             </div>
         </div>
 
-        <!-- 用法二：使用 .auto-input-wrapper 包裹 -->
+        <!-- 用法二：容器形态（.auto-input 作用于 div） -->
         <div class="auto-card">
-            <div class="auto-card-header">用法二：使用 .auto-input-wrapper 包裹（支持前缀/后缀）</div>
+            <div class="auto-card-header">用法二：容器形态（.auto-input 作用于 div，支持前缀/后缀）</div>
             <div class="auto-card-body col">
                 <div class="auto-card-body-item">
                     <label class="form-label">基础用法</label>
-                    <div class="auto-input-wrapper">
+                    <div class="auto-input">
                         <input type="text" placeholder="请输入内容" />
                     </div>
                 </div>
                 <div class="auto-card-body-item">
                     <label class="form-label">带前缀</label>
-                    <div class="auto-input-wrapper">
-                        <span class="input-addon">https://</span>
+                    <div class="auto-input">
+                        <span class="auto-input-action">https://</span>
                         <input type="text" placeholder="example.com" />
                     </div>
                 </div>
                 <div class="auto-card-body-item">
                     <label class="form-label">带后缀</label>
-                    <div class="auto-input-wrapper">
+                    <div class="auto-input">
                         <input type="text" placeholder="用户名" />
-                        <span class="input-addon">@kylinbits.com</span>
+                        <span class="auto-input-action">@kylinbits.com</span>
                     </div>
                 </div>
                 <div class="auto-card-body-item">
                     <label class="form-label">带前后缀</label>
-                    <div class="auto-input-wrapper">
-                        <span class="input-addon">¥</span>
+                    <div class="auto-input">
+                        <span class="auto-input-action">¥</span>
                         <input type="text" placeholder="0.00" />
-                        <span class="input-addon">CNY</span>
+                        <span class="auto-input-action">CNY</span>
                     </div>
                 </div>
                 <div class="auto-card-body-item">
                     <label class="form-label">搜索框</label>
-                    <div class="auto-input-wrapper">
-                        <span class="input-addon">🔍</span>
+                    <div class="auto-input">
+                        <span class="auto-input-action">🔍</span>
                         <input type="search" placeholder="搜索..." />
                     </div>
                 </div>
@@ -210,12 +204,12 @@ export default {
 
         <!-- 密码输入 -->
         <div class="auto-card">
-            <div class="auto-card-header">密码输入 (使用 .auto-input-wrapper 包裹)</div>
+            <div class="auto-card-header">密码输入 (容器形态)</div>
             <div class="auto-card-body col">
                 <div class="auto-card-body-item">
                     <label class="form-label">密码输入框</label>
-                    <div class="auto-input-wrapper">
-                        <span class="input-addon">🔒</span>
+                    <div class="auto-input">
+                        <span class="auto-input-action">🔒</span>
                         <input type="password" value="password123" />
                     </div>
                 </div>
@@ -251,14 +245,31 @@ export default {
 
         <!-- 搜索输入框 -->
         <div class="auto-card">
-            <div class="auto-card-header">搜索输入框 (使用 .auto-input-wrapper 包裹)</div>
+            <div class="auto-card-header">搜索输入框 (容器形态)</div>
             <div class="auto-card-body col">
                 <div class="auto-card-body-item">
                     <label class="form-label">搜索框</label>
-                    <div class="auto-input-wrapper">
-                        <span class="input-addon">🔍</span>
+                    <div class="auto-input">
+                        <span class="auto-input-action">🔍</span>
                         <input type="search" placeholder="搜索..." />
-                        <button class="auto-btn" style="margin-left:0.5rem;">搜索</button>
+                        <span class="auto-input-action"><button>搜索</button></span>
+                    </div>
+                </div>
+                <div class="auto-card-body-item">
+                    <label class="form-label">多重前后缀（前 2 + 后 2，action 间以垂直线分隔）</label>
+                    <div class="auto-input">
+                        <span class="auto-input-action">💰</span>
+                        <span class="auto-input-action">CNY</span>
+                        <input type="text" placeholder="输入金额，自动按汇率换算" />
+                        <span class="auto-input-action"><button>换算</button></span>
+                        <span class="auto-input-action"><button>✓</button></span>
+                    </div>
+                    <div class="auto-input" style="margin-top:0.6rem;">
+                        <span class="auto-input-action">📅</span>
+                        <span class="auto-input-action"><button>今天</button></span>
+                        <input type="text" placeholder="选择日期范围" />
+                        <span class="auto-input-action"><button>清空</button></span>
+                        <span class="auto-input-action"><button>确定</button></span>
                     </div>
                 </div>
             </div>
@@ -266,19 +277,19 @@ export default {
 
         <!-- URL 和 Email 输入 -->
         <div class="auto-card">
-            <div class="auto-card-header">URL 和 Email 输入 (使用 .auto-input-wrapper 包裹)</div>
+            <div class="auto-card-header">URL 和 Email 输入 (容器形态)</div>
             <div class="auto-card-body col">
                 <div class="auto-card-body-item">
                     <label class="form-label">URL 输入</label>
-                    <div class="auto-input-wrapper">
-                        <span class="input-addon">🌐</span>
+                    <div class="auto-input">
+                        <span class="auto-input-action">🌐</span>
                         <input type="url" value="https://example.com" placeholder="https://example.com" />
                     </div>
                 </div>
                 <div class="auto-card-body-item">
                     <label class="form-label">Email 输入</label>
-                    <div class="auto-input-wrapper">
-                        <span class="input-addon">✉️</span>
+                    <div class="auto-input">
+                        <span class="auto-input-action">✉️</span>
                         <input type="email" value="user@example.com" placeholder="user@example.com" />
                     </div>
                 </div>
@@ -303,22 +314,22 @@ export default {
                 <div class="auto-card-body-item">
                     <label class="form-label">登录表单</label>
                     <div style="display:flex;flex-direction:column;gap:0.5rem;">
-                        <div class="auto-input-wrapper">
-                            <span class="input-addon">👤</span>
+                        <div class="auto-input">
+                            <span class="auto-input-action">👤</span>
                             <input type="text" placeholder="用户名/邮箱" />
                         </div>
-                        <div class="auto-input-wrapper">
-                            <span class="input-addon">🔒</span>
+                        <div class="auto-input">
+                            <span class="auto-input-action">🔒</span>
                             <input type="password" placeholder="密码" />
                         </div>
                     </div>
                 </div>
                 <div class="auto-card-body-item">
                     <label class="form-label">数量选择器</label>
-                    <div class="auto-input-wrapper">
-                        <button class="auto-btn">-</button>
+                    <div class="auto-input">
+                        <span class="auto-input-action"><button>-</button></span>
                         <input type="number" value="1" min="0" style="text-align:center;" />
-                        <button class="auto-btn">+</button>
+                        <span class="auto-input-action"><button>+</button></span>
                     </div>
                 </div>
             </div>
@@ -326,34 +337,34 @@ export default {
 
         <!-- 复选框和单选框（label 联动） -->
         <div class="auto-card">
-            <div class="auto-card-header">使用 .auto-input-wrapper 的复选框和单选框（带 label 联动效果）</div>
+            <div class="auto-card-header">容器形态的复选框和单选框（label 自动联动）</div>
             <div class="auto-card-body col">
                 <div class="auto-card-body-item">
                     <label class="form-label">复选框组（label 联动）</label>
-                    <div class="auto-input-wrapper" style="width:fit-content;">
+                    <div class="auto-input" style="width:fit-content;">
                         <input type="checkbox" id="wrapperCheck1" checked />
                         <label for="wrapperCheck1">启用自动保存</label>
                     </div>
-                    <div class="auto-input-wrapper" style="width:fit-content;">
+                    <div class="auto-input" style="width:fit-content;">
                         <input type="checkbox" id="wrapperCheck2" />
                         <label for="wrapperCheck2">接收通知</label>
                     </div>
-                    <div class="auto-input-wrapper" style="width:fit-content;">
+                    <div class="auto-input" style="width:fit-content;">
                         <input type="checkbox" id="wrapperCheck3" disabled />
                         <label for="wrapperCheck3">禁用选项</label>
                     </div>
                 </div>
                 <div class="auto-card-body-item">
                     <label class="form-label">单选框组（label 联动）</label>
-                    <div class="auto-input-wrapper" style="width:fit-content;">
+                    <div class="auto-input" style="width:fit-content;">
                         <input type="radio" id="wrapperRadio1" name="wrapperRadiogroup" checked />
                         <label for="wrapperRadio1">浅色模式</label>
                     </div>
-                    <div class="auto-input-wrapper" style="width:fit-content;">
+                    <div class="auto-input" style="width:fit-content;">
                         <input type="radio" id="wrapperRadio2" name="wrapperRadiogroup" />
                         <label for="wrapperRadio2">深色模式</label>
                     </div>
-                    <div class="auto-input-wrapper" style="width:fit-content;">
+                    <div class="auto-input" style="width:fit-content;">
                         <input type="radio" id="wrapperRadio3" name="wrapperRadiogroup" disabled />
                         <label for="wrapperRadio3">跟随系统（禁用）</label>
                     </div>

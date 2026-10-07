@@ -155,9 +155,10 @@ export class MessageRecords {
             const { merged, type } = manager._mergeProps({ ...raw, id });
             manager._settleLevel(merged);
             const entry = this.createEntry(merged as MessageProps, id, type);
-            if (!manager._materialize(entry)) continue; // 装配（display:none）+ 入表 + 镜像
-            entry.record.createAt = validCreate; // 恢复记录保留原创建时间（淘汰序/审计准确）
+            // 时间戳还原先于物化（mirrorAdd 取 record 快照——还原在后会镜像漂移）
+            entry.record.createAt = validCreate;
             entry.record.updateAt = validUpdate;
+            if (!manager._materialize(entry)) continue; // 装配（display:none）+ 入表 + 镜像
             entry.state = "hidden"; // 恢复只入记录不弹（display:none——closed 约定键置位）
             if (entry.instance) entry.instance.data.closed = true;
             restored.push(entry.instance!);

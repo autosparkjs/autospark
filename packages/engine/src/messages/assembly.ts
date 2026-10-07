@@ -259,7 +259,8 @@ export function assembleCard(manager: MessageManager, entry: MessageEntry): bool
 }
 
 /**
- * 约定键 watch 联动（装配后挂、scope.destroy 随收）：
+ * 约定键联动（装配后挂、unmountCard 随收）：经 `engine.store.watch` 全局路径精准订阅
+ * （`$scopes.<id>.<key>`——autostore 原生通道；scope.watch 相对求值在组件域不可靠）：
  * - `holdOpen`：true → 清计时；false 且展示中 → 启动计时（task 完成态联动转倒计时）
  * - `progress/paused/completed`（task 运行键）：变更广播 `message:update`（控制钮失去
  *   message:action 后的观测面，ADR-0088 沿用）；首跑跳过（watch 建立即激活的首次求值非变更）
@@ -267,8 +268,11 @@ export function assembleCard(manager: MessageManager, entry: MessageEntry): bool
 function bindContractWatches(manager: MessageManager, entry: MessageEntry): void {
     const scope = entry.instance?.scope;
     if (!scope) return;
+    const engine = manager.engine;
+    const base = `${SCOPES_KEY}.${scope.id}`; // store.watch 点路径精准订阅（探针验证有效；'/' 分隔不触发）
     let holdFirst = true;
-    scope.watch("holdOpen", (v: any) => {
+    engine.store.watch(`${base}.holdOpen`, (...args: any[]) => {
+        const v = args[args.length - 1]; // autostore watch 回调末参 = 新值（重载形态兼容）
         if (holdFirst) {
             holdFirst = false;
             return;
@@ -278,7 +282,7 @@ function bindContractWatches(manager: MessageManager, entry: MessageEntry): void
     });
     for (const key of ["progress", "paused", "completed"]) {
         let first = true;
-        scope.watch(key, () => {
+        engine.store.watch(`${base}.${key}`, () => {
             if (first) {
                 first = false;
                 return;

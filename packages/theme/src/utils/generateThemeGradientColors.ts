@@ -1,8 +1,7 @@
-import { createPrimaryPalette } from '@yosulramp/material-color-palette-js'
-import { FastColor } from '@ant-design/fast-color'
+import { createPrimaryPalette } from './createPrimaryPalette'
+import { toThemeColorHex } from './toThemeColorHex'
 
 export function generateThemeGradientColors(color: string) {
-    const fColor = new FastColor(color)
-    const customPrimaryPalette = createPrimaryPalette(fColor.toHexString().replace('#', ''))
-    return customPrimaryPalette!.map((rgbColor: any) => `#${rgbColor.rgbHex}`)
+    const customPrimaryPalette = createPrimaryPalette(toThemeColorHex(color))
+    return customPrimaryPalette!.map((rgbColor) => `#${rgbColor.rgbHex}`)
 }

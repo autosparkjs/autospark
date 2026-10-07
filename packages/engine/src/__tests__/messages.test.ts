@@ -328,6 +328,7 @@ describe("actions 与 value 闭环（决策 13）", () => {
         expect(btns.length).toBe(2);
         click(btns[0]);
         expect(handled).toBe(true);
+        await sleep(80); // 离场动画 0 时长下一宏任务完成（happy-dom 超时兜底 50ms+）
         expect(task.closed).toBe(true); // hide 默认关
         fireCardEnd(task.el!.closest(".autospark-message")!);
         expect(task.read).toBe(true); // 点击置已读
@@ -345,7 +346,7 @@ describe("actions 与 value 闭环（决策 13）", () => {
         expect(events[events.length - 1].value).toBe(42);
         // DOM 通道：卡片元素可收到
         const domEvents: any[] = [];
-        t2.el!.addEventListener("message:action", (e: any) => domEvents.push(e.detail));
+        t2.el!.closest(".autospark-message")!.addEventListener("message:action", (e: any) => domEvents.push(e.detail));
         click(actionBtnsOf(cardOf())[0]);
         expect(domEvents.length).toBe(1);
         t2.hide();
@@ -374,7 +375,7 @@ describe("confirm（决策 11）", () => {
         await sleep(80);
         expect(task.closed).toBe(false); // sticky
         click(btns[1]);
-        await Promise.resolve();
+        await sleep(80); // 离场动画宏任务收敛（微任务不够）
         expect(await promise).toBe(false);
         expect(task.result).toBe(false);
         expect(task.closed).toBe(true);
@@ -400,7 +401,7 @@ describe("confirm（决策 11）", () => {
         const p = engine.messages.show({ title: "q", type: "confirm", delayClose: 0 }).then((v: any) => ((settled = true), v));
         await nextTick();
         const task = engine.messages.get(Array.from(engine.messages.keys())[0])!;
-        task.el!.querySelector(".autospark-message-close")!.dispatchEvent(
+        task.el!.closest(".autospark-message")!.querySelector(".autospark-message-close")!.dispatchEvent(
             new MouseEvent("click", { bubbles: true }),
         );
         await sleep(20);
@@ -424,7 +425,7 @@ describe("task 进度（决策 12）", () => {
         expect((cardOf()?.querySelector(".autospark-message-progress-bar") as HTMLElement).style.width).toBe("60%");
         upload.progress(150); // clamp
         await nextTick();
-        expect(upload.el!.querySelector(".autospark-message-progress-text")?.textContent).toBe("100%");
+        expect(upload.el!.closest(".autospark-message")!.querySelector(".autospark-message-progress-text")?.textContent).toBe("100%");
         await sleep(150); // 完成态 80ms 后收口
         expect(upload.closed).toBe(true);
     });
@@ -450,7 +451,7 @@ describe("task 进度（决策 12）", () => {
         expect(titleOf(cardOf())).toContain("下载");
         await done;
         await nextTick();
-        expect(s.el!.querySelector(".autospark-message-progress-text")?.textContent).toBe("100%");
+        expect(s.el!.closest(".autospark-message")!.querySelector(".autospark-message-progress-text")?.textContent).toBe("100%");
         await sleep(150); // complete → delayClose 60ms 收口
         expect(s.closed).toBe(true);
     });
@@ -461,15 +462,16 @@ describe("task 进度（决策 12）", () => {
         task.start();
         task.pause();
         task.progress(30);
-        expect(task.el!.querySelector(".autospark-message-progress-text")?.textContent).toBe("0%");
+        expect(task.el!.closest(".autospark-message")!.querySelector(".autospark-message-progress-text")?.textContent).toBe("0%");
         task.resume();
         task.progress(30);
         await nextTick();
-        expect(task.el!.querySelector(".autospark-message-progress-text")?.textContent).toBe("30%");
+        expect(task.el!.closest(".autospark-message")!.querySelector(".autospark-message-progress-text")?.textContent).toBe("30%");
         engine.messages.update(task.id, { progress: 60 });
         await nextTick();
-        expect(task.el!.querySelector(".autospark-message-progress-text")?.textContent).toBe("60%");
+        expect(task.el!.closest(".autospark-message")!.querySelector(".autospark-message-progress-text")?.textContent).toBe("60%");
         task.cancel();
+        await sleep(80);
         expect(task.closed).toBe(true);
     });
 
@@ -1490,7 +1492,7 @@ describe("会话与双层渲染（ADR-0077）", () => {
         s.show();
         await nextTick();
         // $session 非响应式：closed 再翻不重求值（仍为首渲染值）——行为专职纪律
-        expect(s.el!.querySelector(".c")?.textContent).toBe("false");
+        expect(s.el!.closest(".autospark-message")!.querySelector(".c")?.textContent).toBe("false");
         s.remove();
     });
 
@@ -1567,7 +1569,7 @@ describe("会话 class 化与 run/respond（ADR-0083）", () => {
         t.start();
         t.complete(); // 显式别名
         await nextTick();
-        expect(t.el!.querySelector(".autospark-message-progress-text")?.textContent).toBe("100%");
+        expect(t.el!.closest(".autospark-message")!.querySelector(".autospark-message-progress-text")?.textContent).toBe("100%");
         await sleep(120);
         expect(t.closed).toBe(true);
     });
@@ -1576,7 +1578,7 @@ describe("会话 class 化与 run/respond（ADR-0083）", () => {
         const { engine } = setup();
         const t = engine.messages.show({ title: "done", type: "task", progress: 100, delayClose: 60 });
         await nextTick();
-        expect(t.el!.querySelector(".autospark-message-progress-text")?.textContent).toBe("100%");
+        expect(t.el!.closest(".autospark-message")!.querySelector(".autospark-message-progress-text")?.textContent).toBe("100%");
         await sleep(130); // 未 start 也未 complete——初始完成态直接计时收口
         expect(t.closed).toBe(true);
     });
@@ -1627,7 +1629,7 @@ describe("会话 class 化与 run/respond（ADR-0083）", () => {
         await nextTick();
         let aborted = false;
         c.signal!.addEventListener("abort", () => (aborted = true));
-        click(Array.from(c.el!.querySelectorAll(".autospark-message-op")).find((b) => b.textContent.includes("取消"))!);
+        click(Array.from(c.el!.closest(".autospark-message")!.querySelectorAll(".autospark-message-op")).find((b) => b.textContent.includes("取消"))!);
         fireCardEnd(c.el!.closest(".autospark-message")!);
         expect(aborted).toBe(true);
         expect(c.closed).toBe(true);
@@ -1724,7 +1726,7 @@ describe("会话 class 化与 run/respond（ADR-0083）", () => {
         t.start();
         t.progress(30);
         await nextTick();
-        expect(t.el!.querySelector(".autospark-message-progress-text")?.textContent).toBe("30%");
+        expect(t.el!.closest(".autospark-message")!.querySelector(".autospark-message-progress-text")?.textContent).toBe("30%");
         t.cancel();
         fireCardEnd(t.el!.closest(".autospark-message")!);
     });

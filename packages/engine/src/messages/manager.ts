@@ -743,8 +743,10 @@ export class MessageManager extends Map<string, ComponentInstance> {
         this.storage.flushNow();
     }
 
-    /** engine.destroy() 收口：全部立即销毁 + 容器整体移除 + 持久化 flush */
+    /** engine.destroy() 收口：全部立即销毁 + 容器整体移除 + 持久化 flush。
+     *  （flush 先于销毁——collect 遍历存活记录，先删后收会写空载荷） */
     dispose(): void {
+        this.storage.flushNow();
         for (const q of this._queues.values()) q.clear();
         for (const entry of Array.from(this._entries.values())) {
             if (entry.state === "shown" || entry.state === "queued" || entry.state === "hidden") {
@@ -753,7 +755,6 @@ export class MessageManager extends Map<string, ComponentInstance> {
         }
         removeMessageContainer(this.engine);
         if (this._state) this._state.items.splice(0); // 镜像清空（引擎收口——Map 与镜像同步归零）
-        this.storage.flushNow();
     }
 
     // ── 持久化与拉取（storage 域委托，ADR-0088） ───────────────────────

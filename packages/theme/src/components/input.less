@@ -1,4 +1,246 @@
-.auto-input {
+/*
+ * 输入控件：单类双形态（ADR-0001）
+ *
+ * - 元素形态：:is(input, select, textarea).auto-input —— 完整输入外观；checkbox/radio/range 定制仅存于此形态
+ * - 容器形态：.auto-input 作用于 div 等布局元素 —— 组合复杂输入（前后缀操作件 / 字段标签 / 选择类组合），
+ *   内部表单元素一律裸化，外观由容器统一承载
+ */
+
+// ---------- 选择类控件定制（单一源码，元素形态与容器形态共用） ----------
+.input-checkbox-skin() {
+    cursor: pointer;
+    width: var(--auto-font-size);
+    height: var(--auto-font-size);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    position: relative;
+    border: 1px solid var(--auto-border-color);
+    border-radius: calc(var(--auto-border-radius) * 0.5);
+    background: var(--auto-input-bgcolor);
+    transition: all 0.2s ease;
+    padding: calc(var(--auto-font-size) * 0.5);
+
+    // 选中时联动 label 样式
+    &+label,
+    &~label {
+        cursor: pointer;
+    }
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(45deg) scale(0);
+        width: calc(var(--auto-font-size) * 0.25);
+        height: calc(var(--auto-font-size) * 0.5);
+        border: solid var(--auto-primary-color);
+        border-width: 0 1px 1px 0;
+        transition: all 0.2s ease;
+    }
+
+    &:checked {
+        border-color: var(--auto-primary-color);
+        background: var(--auto-selected-bgcolor);
+
+        &::before {
+            transform: translate(-50%, -65%) rotate(45deg) scale(1);
+        }
+    }
+
+    &:hover {
+        border-color: var(--auto-hover-border-color);
+    }
+
+    &:focus {
+        outline: none;
+        border-color: var(--auto-selected-border-color);
+        box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+    }
+
+    &:disabled {
+        border-color: var(--auto-disable-border-color);
+        background: var(--auto-disable-bgcolor);
+        cursor: not-allowed;
+
+        &::before {
+            border-color: var(--auto-disable-color);
+        }
+    }
+}
+
+.input-radio-skin() {
+    cursor: pointer;
+    width: var(--auto-font-size);
+    height: var(--auto-font-size);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    position: relative;
+    border: 1px solid var(--auto-border-color);
+    border-radius: 50%;
+    background: var(--auto-input-bgcolor);
+    transition: all 0.2s ease;
+    padding: calc(var(--auto-font-size) * 0.5);
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        width: calc(var(--auto-font-size) * 0.4);
+        height: calc(var(--auto-font-size) * 0.4);
+        background: var(--auto-primary-color);
+        border-radius: 50%;
+        transition: transform 0.2s ease;
+    }
+
+    &:checked {
+        border-color: var(--auto-primary-color);
+        background: var(--auto-selected-bgcolor);
+
+        &::before {
+            transform: translate(-50%, -50%) scale(1);
+        }
+    }
+
+    &:hover {
+        border-color: var(--auto-hover-border-color);
+    }
+
+    &:focus {
+        outline: none;
+        border-color: var(--auto-selected-border-color);
+        box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+    }
+
+    &:disabled {
+        border-color: var(--auto-disable-border-color);
+        background: var(--auto-disable-bgcolor);
+        cursor: not-allowed;
+
+        &::before {
+            background: var(--auto-disable-color);
+        }
+    }
+
+    &~label {
+        cursor: pointer;
+    }
+}
+
+.input-range-skin() {
+    cursor: pointer;
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: transparent;
+    font: var(--auto-font);
+
+    // 滑块轨道
+    &::-webkit-slider-runnable-track {
+        height: 0px;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    &::-moz-range-track {
+        width: 100%;
+        height: calc(0.5 * var(--auto-font-size));
+        background: var(--auto-theme-color);
+        border: var(--auto-input-border);
+        border-radius: var(--auto-border-radius);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    // 滑块拇指
+    &::-webkit-slider-thumb {
+        appearance: none;
+        -webkit-appearance: none;
+        width: var(--auto-font-size);
+        height: var(--auto-font-size);
+        background: var(--auto-primary-color);
+        border: 1px solid white;
+        outline: 1px solid var(--auto-primary-color);
+        border-radius: 50%;
+        cursor: pointer;
+        margin-top: calc(-0.5 * var(--auto-font-size));
+        transition: all 0.2s ease;
+
+        &:hover {
+            background: var(--auto-hover-color);
+            transform: scale(1.1);
+        }
+    }
+
+    &::-moz-range-thumb {
+        appearance: none;
+        -moz-appearance: none;
+        width: var(--auto-font-size);
+        height: var(--auto-font-size);
+        background: var(--auto-primary-color);
+        border: 1px solid var(--auto-border-color);
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+            background: var(--auto-hover-color);
+            transform: scale(1.1);
+        }
+    }
+
+    // focus 状态
+    &:focus {
+        outline: none;
+
+        &::-webkit-slider-thumb {
+            box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+            border-color: var(--auto-selected-border-color);
+        }
+
+        &::-moz-range-thumb {
+            box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+            border-color: var(--auto-selected-border-color);
+        }
+    }
+
+    // hover 状态 - 轨道
+    &:hover {
+        &::-webkit-slider-runnable-track {
+            border-color: var(--auto-hover-border-color);
+        }
+
+        &::-moz-range-track {
+            border-color: var(--auto-hover-border-color);
+        }
+    }
+
+    // disabled 状态
+    &:disabled {
+        cursor: not-allowed;
+
+        &::-webkit-slider-thumb,
+        &::-moz-range-thumb {
+            background: var(--auto-disable-color);
+            cursor: not-allowed;
+        }
+
+        &::-webkit-slider-runnable-track,
+        &::-moz-range-track {
+            border-color: var(--auto-disable-border-color);
+            background: var(--auto-disable-bgcolor);
+        }
+    }
+}
+
+// ---------- 元素形态：直接作用于表单元素 ----------
+:is(input, select, textarea).auto-input {
     background: var(--auto-input-bgcolor);
     border: var(--auto-input-border);
     padding: calc(0.5 * var(--auto-input-padding)) var(--auto-input-padding);
@@ -12,641 +254,234 @@
         transition: all 0.3s ease-in;
     }
 
+    // focus 统一语言：边框高亮 + 2px 光晕（原 --k-theme-bgcolor-1 为未定义幽灵变量，已替换）
     &:focus {
         outline: none;
-        background: var(--k-theme-bgcolor-1);
-        transition: all 0.5s ease-in;
+        border: var(--auto-selected-border);
+        box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+        transition: all 0.2s ease;
     }
 
-
     &::placeholder {
-        color: var(--auto-secondary-color);
+        color: var(--auto-input-placeholder);
     }
 
     &[type=checkbox] {
-        cursor: pointer;
-        width: auto;
-        appearance: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        position: relative;
-        width: var(--auto-font-size);
-        height: var(--auto-font-size);
-        border: 1px solid var(--auto-border-color);
-        border-radius: calc(var(--auto-border-radius) * 0.5);
-        background: var(--auto-input-bgcolor);
-        transition: all 0.2s ease;
-        padding: calc(var(--auto-font-size) * 0.5);
-
-        // 选中时联动 label 样式
-        &+label,
-        &~label {
-            cursor: pointer;
-        }
-
-        &::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(45deg) scale(0);
-            width: calc(var(--auto-font-size) * 0.25);
-            height: calc(var(--auto-font-size) * 0.5);
-            border: solid var(--auto-primary-color);
-            border-width: 0 1px 1px 0;
-            transition: all 0.2s ease;
-        }
-
-        &:checked {
-            border-color: var(--auto-primary-color);
-            background: var(--auto-selected-bgcolor);
-
-            &::before {
-                transform: translate(-50%, -65%) rotate(45deg) scale(1);
-            }
-        }
-
-        &:hover {
-            border-color: var(--auto-hover-border-color);
-        }
-
-        &:focus {
-            outline: none;
-            border-color: var(--auto-selected-border-color);
-            box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
-        }
-
-        &:disabled {
-            border-color: var(--auto-disable-border-color);
-            background: var(--auto-disable-bgcolor);
-            cursor: not-allowed;
-
-            &::before {
-                border-color: var(--auto-disable-color);
-            }
-        }
+        .input-checkbox-skin();
     }
 
     &[type=radio] {
-        cursor: pointer;
-        width: auto;
-        appearance: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        position: relative;
-        width: var(--auto-font-size);
-        height: var(--auto-font-size);
-        border: 1px solid var(--auto-border-color);
-        border-radius: 50%;
-        background: var(--auto-input-bgcolor);
-        transition: all 0.2s ease;
-        padding: calc(var(--auto-font-size) * 0.5);
-
-        &::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0);
-            width: calc(var(--auto-font-size) * 0.4);
-            height: calc(var(--auto-font-size) * 0.4);
-            background: var(--auto-primary-color);
-            border-radius: 50%;
-            transition: transform 0.2s ease;
-        }
-
-        &:checked {
-            border-color: var(--auto-primary-color);
-            background: var(--auto-selected-bgcolor);
-
-            &::before {
-                transform: translate(-50%, -50%) scale(1);
-            }
-        }
-
-        &:hover {
-            border-color: var(--auto-hover-border-color);
-        }
-
-        &:focus {
-            outline: none;
-            border-color: var(--auto-selected-border-color);
-            box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
-        }
-
-        &:disabled {
-            border-color: var(--auto-disable-border-color);
-            background: var(--auto-disable-bgcolor);
-            cursor: not-allowed;
-
-            &::before {
-                background: var(--auto-disable-color);
-            }
-        }
-
-        &~label {
-            cursor: pointer;
-        }
+        .input-radio-skin();
     }
 
     &[type=range] {
-        cursor: pointer;
-        width: 100%;
-        appearance: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        background: transparent;
-        font: var(--auto-font);
-
-        // 滑块轨道
-        &::-webkit-slider-runnable-track {
-            height: 0px;
-            background: transparent;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        &::-moz-range-track {
-            width: 100%;
-            height: calc(0.5 *var(--auto-font-size));
-            background: var(--auto-theme-color);
-            border: var(--auto-input-border);
-            border-radius: var(--auto-border-radius);
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        // 滑块拇指
-        &::-webkit-slider-thumb {
-            appearance: none;
-            -webkit-appearance: none;
-            width: var(--auto-font-size);
-            height: var(--auto-font-size);
-            background: var(--auto-primary-color);
-            border: 1px solid white;
-            outline: 1px solid var(--auto-primary-color);
-            border-radius: 50%;
-            cursor: pointer;
-            margin-top: calc(-0.5*var(--auto-font-size));
-            transition: all 0.2s ease;
-
-            &:hover {
-                background: var(--auto-hover-color);
-                transform: scale(1.1);
-            }
-        }
-
-        &::-moz-range-thumb {
-            appearance: none;
-            -moz-appearance: none;
-            width: var(--auto-font-size);
-            height: var(--auto-font-size);
-            background: var(--auto-primary-color);
-            border: 1px solid var(--auto-border-color);
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.2s ease;
-
-            &:hover {
-                background: var(--auto-hover-color);
-                transform: scale(1.1);
-            }
-        }
-
-        // focus 状态
-        &:focus {
-            outline: none;
-
-            &::-webkit-slider-thumb {
-                box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
-                border-color: var(--auto-selected-border-color);
-            }
-
-            &::-moz-range-thumb {
-                box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
-                border-color: var(--auto-selected-border-color);
-            }
-
-            &::after {
-                border-color: var(--auto-selected-border-color);
-                color: var(--auto-selected-color);
-            }
-        }
-
-        // hover 状态 - 轨道和值
-        &:hover {
-            &::-webkit-slider-runnable-track {
-                border-color: var(--auto-hover-border-color);
-            }
-
-            &::-moz-range-track {
-                border-color: var(--auto-hover-border-color);
-            }
-
-        }
+        .input-range-skin();
     }
 
-    // disabled 状态
+    // disabled 状态（通用）
     &:disabled {
         cursor: not-allowed;
         opacity: 0.6;
-
-        &::-webkit-slider-thumb {
-            background: var(--auto-disable-color);
-            cursor: not-allowed;
-        }
-
-        &::-moz-range-thumb {
-            background: var(--auto-disable-color);
-            cursor: not-allowed;
-        }
-
-        &::-webkit-slider-runnable-track {
-            border-color: var(--auto-disable-border-color);
-            background: var(--auto-disable-bgcolor);
-        }
-
-        &::-moz-range-track {
-            border-color: var(--auto-disable-border-color);
-            background: var(--auto-disable-bgcolor);
-        }
-
-        &::after {
-            color: var(--auto-disable-color);
-            border-color: var(--auto-disable-border-color);
-            background: var(--auto-disable-bgcolor);
-        }
     }
 }
 
-// 用来提供一个包含input的容器
-.auto-input-wrapper {
+// 容器内子元素间距（相邻 action 间以负 margin 抵消，见 .auto-input-action 规则）
+@input-gap: 0.4em;
+
+// 纯选择类组合判别：容器含 checkbox/radio 且不含任何文本类输入（checkbox/radio + label 借容器做联动）
+@select-only: ~':has(> input[type=checkbox], > input[type=radio]):not(:has(> input:not([type=checkbox]):not([type=radio]))):not(:has(> select, > textarea))';
+
+// ---------- 容器形态：作用于 div 等布局元素 ----------
+.auto-input:not(:is(input, select, textarea)) {
     display: flex;
+    align-items: center;
+    gap: @input-gap;
     background: var(--auto-input-bgcolor);
     border: var(--auto-input-border);
     padding: calc(0.5 * var(--auto-input-padding)) var(--auto-input-padding);
     border-radius: var(--auto-border-radius);
     width: 100%;
 
-    &:hover {
+    &:hover:not(@{select-only}) {
         border: var(--auto-active-border);
-        transition: all 0.5s ease-in;
+        transition: all 0.3s ease-in;
     }
 
-    &:focus {
+    // 内部聚焦时容器高亮（原 wrapper 的 &:focus 在 div 上永不触发，属死代码，以 :focus-within 取代）；
+    // 纯选择类组合豁免——checkbox 自身已有 focus 反馈
+    &:focus-within:not(@{select-only}) {
         outline: none;
+        border: var(--auto-selected-border);
+        box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
     }
 
-    .auto-input,
-    input {
+    // 禁用整体降调（渐进增强：:has 不可用时无害降级）；纯选择类组合豁免（label 已联动降调）
+    &:has(:is(input, select, textarea):disabled):not(@{select-only}) {
+        border-color: var(--auto-disable-border-color);
+        background: var(--auto-disable-bgcolor);
+        cursor: not-allowed;
+    }
+
+    // 仅含选择类控件（checkbox/radio + label）的组合：无输入框语义，去掉边框/背景/内边距
+    &@{select-only} {
+        border: none;
+        background: transparent;
+        padding: 0;
+    }
+
+    // 内部文本类表单元素一律裸化（含误带 .auto-input 类的，防双重边框）；
+    // 选择类（checkbox/radio/range）排除在裸化之外，走下方皮肤规则
+    &> :is(input, select, textarea):not([type=checkbox]):not([type=radio]):not([type=range]) {
         width: 100%;
         border: none;
         padding: 0;
-        border-radius: var(--auto-border-radius);
+        border-radius: 0;
         box-shadow: none;
-        flex-grow: 1;
+        flex: 1 1 auto;
         min-width: 0;
         font: var(--auto-font);
         background: transparent;
+        outline: none;
+
+        &::placeholder {
+            color: var(--auto-input-placeholder);
+        }
 
         &:focus,
         &:hover {
             outline: none;
-        }
-
-        &::placeholder {
-            color: var(--auto-secondary-color);
-        }
-
-        // 复选框样式
-        &[type=checkbox] {
-            width: auto;
-            flex-grow: 0;
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            position: relative;
-            width: var(--auto-font-size);
-            height: var(--auto-font-size);
-            border: 1px solid var(--auto-border-color);
-            border-radius: calc(var(--auto-border-radius) * 0.5);
-            background: var(--auto-input-bgcolor);
-            transition: all 0.2s ease;
-            cursor: pointer;
-            padding: calc(var(--auto-font-size) * 0.5);
-
-            // 选中时联动 label 样式
-            &+label,
-            &~label {
-                cursor: pointer;
-            }
-
-            &::before {
-                content: '';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%) rotate(45deg) scale(0);
-                width: calc(var(--auto-font-size) * 0.25);
-                height: calc(var(--auto-font-size) * 0.5);
-                border: solid var(--auto-primary-color);
-                border-width: 0 1px 1px 0;
-                transition: all 0.2s ease;
-            }
-
-            &:checked {
-                border-color: var(--auto-primary-color);
-                background: var(--auto-selected-bgcolor);
-
-                &::before {
-                    transform: translate(-50%, -65%) rotate(45deg) scale(1);
-                }
-
-                // 选中时联动 label 样式
-                +label,
-                ~label {
-                    color: var(--auto-selected-color);
-                    font-weight: var(--auto-font-weight);
-                }
-            }
-
-            &:hover {
-                border-color: var(--auto-hover-border-color);
-
-                // hover 时联动 label 样式
-                +label,
-                ~label {
-                    color: var(--auto-hover-color);
-                }
-            }
-
-            &:focus {
-                outline: none;
-                border-color: var(--auto-selected-border-color);
-                box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
-            }
-
-            &:disabled {
-                border-color: var(--auto-disable-border-color);
-                background: var(--auto-disable-bgcolor);
-                cursor: not-allowed;
-
-                &::before {
-                    border-color: var(--auto-disable-color);
-                }
-
-                +label,
-                ~label {
-                    color: var(--auto-disable-color);
-                    cursor: not-allowed;
-                }
-            }
-        }
-
-        // 单选框样式
-        &[type=radio] {
-            width: auto;
-            flex-grow: 0;
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            position: relative;
-            width: var(--auto-font-size);
-            height: var(--auto-font-size);
-            border: 1px solid var(--auto-border-color);
-            border-radius: 50%;
-            background: var(--auto-input-bgcolor);
-            transition: all 0.2s ease;
-            cursor: pointer;
-            padding: calc(var(--auto-font-size) * 0.5);
-
-
-            &::before {
-                content: '';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%) scale(0);
-                width: calc(var(--auto-font-size) * 0.4);
-                height: calc(var(--auto-font-size) * 0.4);
-                background: var(--auto-primary-color);
-                border-radius: 50%;
-                transition: transform 0.2s ease;
-            }
-
-            &:checked {
-                border-color: var(--auto-primary-color);
-                background: var(--auto-selected-bgcolor);
-
-                &::before {
-                    transform: translate(-50%, -50%) scale(1);
-                }
-
-                // 选中时联动 label 样式
-                +label,
-                ~label {
-                    color: var(--auto-selected-color);
-                    font-weight: var(--auto-font-weight);
-                }
-            }
-
-            &:hover {
-                border-color: var(--auto-hover-border-color);
-
-                // hover 时联动 label 样式
-                +label,
-                ~label {
-                    color: var(--auto-hover-color);
-                }
-            }
-
-            &:focus {
-                outline: none;
-                border-color: var(--auto-selected-border-color);
-                box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
-            }
-
-            &:disabled {
-                border-color: var(--auto-disable-border-color);
-                background: var(--auto-disable-bgcolor);
-                cursor: not-allowed;
-
-                &::before {
-                    background: var(--auto-disable-color);
-                }
-
-                +label,
-                ~label {
-                    color: var(--auto-disable-color);
-                    cursor: not-allowed;
-                }
-            }
-        }
-
-        // 滑块样式
-        &[type=range] {
-            width: 100%;
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            background: transparent;
-            font: var(--auto-font);
-            flex-grow: 1;
-            position: relative;
-
-            // 显示值的伪元素
-            &::after {
-                content: attr(value);
-                position: absolute;
-                bottom: calc(var(--auto-font-size) * 0.7);
-                left: calc((attr(value) - attr(min)) / (attr(max) - attr(min)) * 100%);
-                transform: translateX(-50%);
-                font: var(--auto-font);
-                font-size: calc(var(--auto-font-size) * 0.75);
-                color: var(--auto-color);
-                pointer-events: none;
-                transition: left 0.1s ease, all 0.2s ease;
-                white-space: nowrap;
-            }
-
-            // 滑块轨道
-            &::-webkit-slider-runnable-track {
-                width: 100%;
-                height: calc(var(--auto-font-size) * 0.5);
-                background: var(--auto-input-bgcolor);
-                border: var(--auto-input-border);
-                border-radius: var(--auto-border-radius);
-                cursor: pointer;
-                transition: all 0.2s ease;
-            }
-
-            &::-moz-range-track {
-                width: 100%;
-                height: calc(var(--auto-font-size) * 0.5);
-                background: var(--auto-input-bgcolor);
-                border: var(--auto-input-border);
-                border-radius: var(--auto-border-radius);
-                cursor: pointer;
-                transition: all 0.2s ease;
-            }
-
-            // 滑块拇指
-            &::-webkit-slider-thumb {
-                appearance: none;
-                -webkit-appearance: none;
-                width: var(--auto-font-size);
-                height: var(--auto-font-size);
-                background: var(--auto-primary-color);
-                border: 1px solid var(--auto-border-color);
-                border-radius: 50%;
-                cursor: pointer;
-                margin-top: 0;
-                transition: all 0.2s ease;
-
-                &:hover {
-                    background: var(--auto-hover-color);
-                    transform: scale(1.1);
-                }
-            }
-
-            &::-moz-range-thumb {
-                appearance: none;
-                -moz-appearance: none;
-                width: var(--auto-font-size);
-                height: var(--auto-font-size);
-                background: var(--auto-primary-color);
-                border: 1px solid var(--auto-border-color);
-                border-radius: 50%;
-                cursor: pointer;
-                transition: all 0.2s ease;
-
-                &:hover {
-                    background: var(--auto-hover-color);
-                    transform: scale(1.1);
-                }
-            }
-
-            // focus 状态
-            &:focus {
-                outline: none;
-
-                &::-webkit-slider-thumb {
-                    box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
-                    border-color: var(--auto-selected-border-color);
-                }
-
-                &::-moz-range-thumb {
-                    box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
-                    border-color: var(--auto-selected-border-color);
-                }
-
-                &::after {
-                    color: var(--auto-selected-color);
-                }
-            }
-
-            // hover 状态
-            &:hover {
-                &::-webkit-slider-runnable-track {
-                    border-color: var(--auto-hover-border-color);
-                }
-
-                &::-moz-range-track {
-                    border-color: var(--auto-hover-border-color);
-                }
-
-                &::after {
-                    color: var(--auto-hover-color);
-                }
-            }
-
-            // disabled 状态
-            &:disabled {
-                cursor: not-allowed;
-                opacity: 0.6;
-
-                &::-webkit-slider-thumb {
-                    background: var(--auto-disable-color);
-                    cursor: not-allowed;
-                }
-
-                &::-moz-range-thumb {
-                    background: var(--auto-disable-color);
-                    cursor: not-allowed;
-                }
-
-                &::-webkit-slider-runnable-track {
-                    border-color: var(--auto-disable-border-color);
-                    background: var(--auto-disable-bgcolor);
-                }
-
-                &::-moz-range-track {
-                    border-color: var(--auto-disable-border-color);
-                    background: var(--auto-disable-bgcolor);
-                }
-
-                &::after {
-                    color: var(--auto-disable-color);
-                }
-            }
+            border: none;
+            box-shadow: none;
         }
     }
 
-    // label 样式联动
-    label {
-        cursor: pointer;
-        transition: all 0.2s ease;
-        user-select: none;
+    // 容器内选择类控件：复用皮肤（单一源码）
+    &>input[type=checkbox] {
+        flex: 0 0 auto;
+        .input-checkbox-skin();
+    }
 
-        &:hover {
-            color: var(--auto-hover-color);
+    &>input[type=radio] {
+        flex: 0 0 auto;
+        .input-radio-skin();
+    }
+
+    &>input[type=range] {
+        flex: 1 1 auto;
+        .input-range-skin();
+    }
+
+    // 操作件（前后缀）：纯间距分隔，内嵌按钮保持独立外观
+    // 首/尾子元素为操作件时，容器对应侧内边距归零——action 视觉上贴住容器边框、占据全部空间
+    &:has(> .auto-input-action:first-child) {
+        padding-left: 0;
+    }
+    &:has(> .auto-input-action:last-child) {
+        padding-right: 0;
+    }
+
+    // 操作件（前后缀）：与容器等高、垂直线贯穿容器全高；内部裸 button 自动按钮化（无需 .auto-btn）
+    .auto-input-action {
+        flex: 0 0 auto;
+        align-self: stretch;
+        display: inline-flex;
+        align-items: center;
+        color: var(--auto-secondary-color);
+        white-space: nowrap;
+        // 上下负边距抵消容器内边距，使分割线贯穿容器全高
+        margin: calc(-0.5 * var(--auto-input-padding)) 0;
+        padding: calc(0.5 * var(--auto-input-padding)) 0.6em;
+        border-left: 1px solid var(--auto-border-color);
+
+        // 前缀位置（容器首个子元素）：分割线在右侧
+        &:first-child {
+            border-left: none;
+            border-right: 1px solid var(--auto-border-color);
+        }
+
+        // 相邻 action 紧贴（抵消容器 gap）：垂直分割线即唯一分隔，避免「线 + 空隙」的双重间隔
+        & + .auto-input-action {
+            margin-left: -@input-gap;
+        }
+
+        // first-child 紧邻另一个 action 时，右侧线让位于后者的左侧线（避免并排双线）
+        &:first-child:has(+ .auto-input-action) {
+            border-right: none;
+        }
+
+        // 含按钮时水平 padding 归零，让 button（自带水平内距）真正充满操作区
+        // ——负 margin 的区域不参与着色，无法用于视觉填充
+        &:has(> button) {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        // 裸 button 即按钮：融入容器的一体式外观，充满整个 action 区域
+        > button {
+            align-self: stretch;
+            height: auto;
+            width: 100%;
+            box-sizing: border-box;
+            margin: calc(-0.5 * var(--auto-input-padding)) 0;
+            padding: 0 0.8em;
+            border: none;
+            border-radius: 0; // 默认无圆角；端部 action 由下方特例贴合容器圆角
+            background: transparent;
+            color: var(--auto-secondary-color);
+            font: var(--auto-font);
             cursor: pointer;
+            transition: all 0.2s ease;
+
+            &:hover {
+                color: var(--auto-hover-color);
+                background: var(--auto-hover-bgcolor);
+            }
+
+            &:active {
+                color: var(--auto-active-color);
+                background: var(--auto-active-bgcolor);
+            }
+
+            &:disabled {
+                color: var(--auto-disable-color);
+                cursor: not-allowed;
+            }
         }
 
-        // 当 label 关联的输入框禁用时，label 也显示禁用状态
-        input:disabled+&,
-        input:disabled~& {
-            cursor: not-allowed;
+        // 端部 action 的按钮：贴容器边缘一侧贴合容器圆角（hover 背景不溢出圆角）
+        &:first-child > button {
+            border-radius: var(--auto-border-radius) 0 0 var(--auto-border-radius);
         }
+
+        &:last-child > button {
+            border-radius: 0 var(--auto-border-radius) var(--auto-border-radius) 0;
+        }
+    }
+
+    // 内部 label 自动处理：
+    // - 文本字段场景：前置字段名（secondary 色、不换行、垂直居中）
+    // - 选择类组合场景：随控件状态联动（注意选择器为「容器 input:checked + label」直接兄弟形式）
+    & input[type=checkbox]:checked+label,
+    & input[type=radio]:checked+label {
+        color: var(--auto-selected-color);
+        font-weight: var(--auto-font-weight);
+    }
+
+    & input:hover+label {
+        color: var(--auto-hover-color);
+    }
+
+    & input:disabled+label {
+        color: var(--auto-disable-color);
+        cursor: not-allowed;
+    }
+
+    label {
+        flex: 0 0 auto;
+        color: var(--auto-secondary-color);
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.2s ease;
     }
 }

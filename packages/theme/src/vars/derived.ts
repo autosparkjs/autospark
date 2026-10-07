@@ -86,6 +86,8 @@ export const derivedVars = {
     "--auto-input-font": "var(--auto-font)",
     "--auto-input-border": "var(--auto-border)",
     "--auto-input-bgcolor": "var(--auto-bgcolor)",
+    /** 输入框占位符颜色：主文字色 40% 不透明（弱于三档正文，随模式自动适配） */
+    "--auto-input-placeholder": "color-mix(in srgb, var(--auto-color), transparent 60%)",
     "--auto-input-padding": "var(--auto-padding)",
     "--auto-input-radius": "var(--auto-border-radius)",
     "--auto-input-height": "var(--auto-line-height)",
