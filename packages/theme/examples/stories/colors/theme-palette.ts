@@ -43,7 +43,7 @@ ThemePro.themeColor = '#7c3aed'   // 任意色值</pre>
                     Array.from({ length: 10 }),
                     (_, i) => html`
                         <div class="auto-card-body-item" style="background-color:var(--k-color-theme-${i})">
-                            --k-color-theme-${i}
+                            <span style="color:var(--k-color-${i > 3 ? 9 : 0})">--k-color-theme-${i}</span>
                         </div>
                     `,
                 )}

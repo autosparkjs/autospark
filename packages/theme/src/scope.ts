@@ -20,7 +20,9 @@ import {
     baseVars,
     radiusVars,
     derivedVars,
+    darkDerivedVars,
     shadowVars,
+    darkShadowVars,
     spacingVars,
     sizeVars,
     lightColorVars,
@@ -28,6 +30,15 @@ import {
     darkColorVars,
     darkColorizedColorVars,
 } from "./vars";
+
+/**
+ * 判断值是否可解析为颜色字面量（#hex / rgb() / 命名色经 toRGBString 规范为 hex）。
+ * var() 引用等返回 false，用于豁免语义色梯度化。
+ */
+const isColorLiteral = (value: string): boolean => {
+    const normalized = toRGBString(value.trim());
+    return /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(normalized);
+};
 export class ThemeScope {
     options: Required<ThemeOptions>;
     private _selectors: string[] = [];
@@ -234,31 +245,48 @@ export class ThemeScope {
      * @returns {string|undefined} 生成的CSS样式字符串，如果未覆盖默认颜色则返回undefined
      * @private
      */
+    /**
+     * 生成语义化颜色样式。
+     *
+     * 语义色作为梯度种子统一生成 10 阶标尺（--k-color-{name}-0..9，0 最浅 9 最深，
+     * 与 palette.less 色系惯例同向）：light 直引种子原值（行为与固定 hex 时代零差异），
+     * dark 提亮引用第 3 档——深底上语义色需提亮而非变暗（ADR-0002）。
+     *
+     * var() 引用等不可解析为颜色字面量的种子豁免梯度化，直接注入原值且无 dark 覆盖
+     * （primary 默认值 var(--auto-theme-color) 即此情形，其 dark 适配由 theme 标尺
+     * 提档承担）。
+     */
     protected _generateSemanticColorStyles() {
-        const vars: Record<string, string> = {
-            "--k-color-primary": this.options.primary,
-            "--k-color-success": this.options.success,
-            "--k-color-warning": this.options.warning,
-            "--k-color-danger": this.options.danger,
-            "--k-color-info": this.options.info,
+        const semanticColors: Record<string, string> = {
+            primary: this.options.primary,
+            success: this.options.success,
+            warning: this.options.warning,
+            danger: this.options.danger,
+            info: this.options.info,
         };
-        const isOverride = !!(
-            this.options.primary ||
-            this.options.success ||
-            this.options.warning ||
-            this.options.danger ||
-            this.options.info
-        );
-        if (!isOverride) return;
-        const darkVars = Object.entries(vars).reduce(
-            (r, [k, v]) => {
-                r[k] = `color-mix(in srgb, ${v}, transparent 60%)!important`;
-                return r;
-            },
-            {} as Record<string, any>,
-        );
-        return `${this._selectors.join(",")}{\n${toVarStyles(vars)}\n}\n
-        ${this._selectors.map((s) => `${s}[dark]`).join(",")}{\n${toVarStyles(darkVars)}\n}\n`;
+        const selectors = this._selectors.join(",");
+        const scaleBlocks: string[] = [];
+        const lightVars: Record<string, string> = {};
+        const darkVars: Record<string, string> = {};
+
+        for (const [name, value] of Object.entries(semanticColors)) {
+            if (!value) continue;
+            if (isColorLiteral(value)) {
+                const scale = generateThemeColorVars(value, { prefix: `--k-color-${name}-` });
+                scaleBlocks.push(`${selectors}{\n${toVarStyles(scale)}\n}`);
+                lightVars[`--k-color-${name}`] = value;
+                darkVars[`--k-color-${name}`] = `var(--k-color-${name}-3)!important`;
+            } else {
+                lightVars[`--k-color-${name}`] = value;
+            }
+        }
+        if (!Object.keys(lightVars).length) return;
+
+        return [
+            ...scaleBlocks,
+            `${selectors}{\n${toVarStyles(lightVars)}\n}`,
+            `${selectors}[dark]{\n${toVarStyles(darkVars)}\n}`,
+        ].join("\n");
     }
 
     /**
@@ -290,12 +318,18 @@ export class ThemeScope {
         const spacingStyles = getVarsStyles(spacingVars, this._selectors, "data-spacing");
         const shadowStyles = getVarsStyles(shadowVars, this._selectors, "data-shadow");
 
-        const darkStyles = `${this._selectors.join(",")}[dark]{\n${toVarStyles(darkColorVars)}\n}\n`;
+        // color-scheme：原生控件（滚动条/表单）随暗色换肤；与 _generateThemeColorStyles
+        // 中的声明重复无害，且此处覆盖 themeColor="light" + dark 的缺口
+        const darkStyles = `${this._selectors.join(",")}[dark]{\n    color-scheme: dark;\n${toVarStyles(darkColorVars)}\n}\n`;
+        // 暗色阴影：覆盖 baseStyles 中的 --k-shadow-* 基值（尺寸切换走 --auto-shadow 引用，自动生效）
+        const darkShadowStyles = `${this._selectors.join(",")}[dark]{\n${toVarStyles(darkShadowVars)}\n}\n`;
         const lightColorizedStyles = `${this._selectors.join(",")}[colorized]{\n${toVarStyles(lightColorizedColorVars)}\n}\n`;
         const darkColorizedStyles = `${this._selectors.join(",")}[dark][colorized]{\n${toVarStyles(darkColorizedColorVars)}\n}\n`;
         const derivedStyles = `${this._selectors.join(",")}{\n${toVarStyles(derivedVars)}}\n`;
+        // 暗色派生：置于 derivedStyles 之后以覆盖同名变量（同特异性下后者胜出）
+        const darkDerivedStyles = `${this._selectors.join(",")}[dark]{\n${toVarStyles(darkDerivedVars)}\n}\n`;
 
-        return `${baseStyles}\n${darkStyles}\n${lightColorizedStyles}\n${darkColorizedStyles}\n${sizeStyles}\n${radiusStyles}\n${spacingStyles}\n${shadowStyles}\n${derivedStyles}`;
+        return `${baseStyles}\n${darkStyles}\n${darkShadowStyles}\n${lightColorizedStyles}\n${darkColorizedStyles}\n${sizeStyles}\n${radiusStyles}\n${spacingStyles}\n${shadowStyles}\n${derivedStyles}\n${darkDerivedStyles}`;
     }
 
     /**

@@ -94,4 +94,41 @@ export const derivedVars = {
     /** 其他 */
     "--auto-icon-size": "var(--k-icon-size-medium)",
 };
+/**
+ * 暗色专属派生变量：dark 属性下覆盖 derivedVars 的同名变量。
+ *
+ * 模式差异（档位引用 / 不透明度参数）集中于此，组件层保持模式无关。
+ * 注入层级：必须在 derivedStyles 之后（同特异性下后者胜出）。
+ *
+ * 参数依据（校准工具：scripts/check-dark-contrast.ts，blue 主题实测）：
+ * - 主色提一档（theme-5 → theme-6）：dark 下梯度已反转，theme-5 对面板底 gray-8 对比不足
+ * - 交互态 bgcolor 不透明度与 light 保持同百分比：主色提档（更浅的蓝）叠加深底 Weber 敏感
+ *   已补偿感知衰减——实测 15% 对称 +14.5%（1.34 vs 基准 1.17），抬高百分比反而过强（28% 达 1.77）
+ * - 边框 gray-7 → gray-6：dark 下面板轮廓发虚（≈1.5:1），提档至 1.92:1，
+ *   配合暗阴影双信号表达层级
+ * - 输入框背景改指工作区色（gray-9 方向）：凹陷流派，比面板更深的"挖坑"感
+ */
+export const darkDerivedVars = {
+    /* 主色基准：交互文字/primary 上游随此联动（hover-color 等引用 --auto-theme-color） */
+    "--auto-theme-color": "var(--k-color-theme-6)",
+
+    /* 交互态：selected-color 由 theme-5 提至主色同档；bgcolor 与 light 同百分比即感知对称 */
+    "--auto-selected-color": "var(--auto-theme-color)!important",
+    "--auto-selected-bgcolor":
+        "color-mix(in srgb, var(--auto-selected-color), transparent 82%)!important",
+    "--auto-hover-bgcolor":
+        "color-mix(in srgb, var(--auto-hover-color), transparent 85%)!important",
+    "--auto-active-bgcolor":
+        "color-mix(in srgb, var(--auto-active-color), transparent 85%)!important",
+
+    /* 禁用态：derivedVars 取 --k-color-8（dark 下为深灰，对面板仅 ≈1.9:1 近乎消失），
+     * 提至中灰档保底可辨（≈4.3:1，仍明显弱于正文 13.5） */
+    "--auto-disable-color": "color-mix(in srgb, var(--k-color-4), gray 50%)!important",
+
+    /* 边框提亮（覆盖后 --auto-border 等引用自动跟随） */
+    "--auto-border-color": "var(--k-color-6)",
+
+    /* 输入框凹陷：dark 下 --k-bgcolor-1 为工作区最沉色 */
+    "--auto-input-bgcolor": "var(--k-bgcolor-1)",
+};
 export const derivedColorizedVars = {};
