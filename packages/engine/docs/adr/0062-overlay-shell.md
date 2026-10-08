@@ -51,7 +51,7 @@
 
 ### 七、样式随组件文件走，类名与 CSS 变量契约保留（Q11）
 
-内置 shell 的面板视觉样式（圆角 / 边框 / 背景 / 箭头双伪元素 / placement 方向偏移 / 裸面板 z-index）自 `DialogDirective`/`PopoverDirective` 的注入代码迁移至 `src/overlay/wrappers/`（template + styles 同文件内聚），经 `registerShellStyles()` 幂等注入（消费者类级 `initialize` 调用，FOUC 防御时机不变）。**不走组件 scoped CSS**（跨实例共享 + 类名契约语义）。`.autospark-dialog` / `.autospark-dialog-mask` / `.autospark-overlay-arrow` 类名与 `--autospark-overlay-z/-bg/-border/-radius` 变量原样保留——既有用户样式覆盖习惯不破坏；自定义外壳复用类名即继承默认视觉，完全自写则完全自由。
+内置 shell 的面板视觉样式（圆角 / 边框 / 背景 / 箭头双伪元素 / placement 方向偏移 / 裸面板 z-index）自 `DialogDirective`/`PopoverDirective` 的注入代码迁移至 `src/features/overlay/wrappers/`（template + styles 同文件内聚），经 `registerShellStyles()` 幂等注入（消费者类级 `initialize` 调用，FOUC 防御时机不变）。**不走组件 scoped CSS**（跨实例共享 + 类名契约语义）。`.autospark-dialog` / `.autospark-dialog-mask` / `.autospark-overlay-arrow` 类名与 `--autospark-overlay-z/-bg/-border/-radius` 变量原样保留——既有用户样式覆盖习惯不破坏；自定义外壳复用类名即继承默认视觉，完全自写则完全自由。
 
 ### 八、单一渲染路径（Q14）
 

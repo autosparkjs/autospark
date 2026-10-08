@@ -52,7 +52,7 @@ AutoSparkActionContext 新增 `action` 字段，指向**规范化后的 descript
 
 ### 6. 类型落点与防重包装迁移
 
-- 新类型 `ActionDesc`（`{ handle; name; title?; icon?; [key: string]: any }`，命名随项目 `Desc` 描述符惯例）与入参联合 `ActionDecl = fn | ActionDesc`，定义于 `src/actions/types.ts` 并经包入口公开导出；`scope.getAction` 返回类型、`options.actions` 入参类型同步迁移；
+- 新类型 `ActionDesc`（`{ handle; name; title?; icon?; [key: string]: any }`，命名随项目 `Desc` 描述符惯例）与入参联合 `ActionDecl = fn | ActionDesc`，定义于 `src/features/action/types.ts` 并经包入口公开导出；`scope.getAction` 返回类型、`options.actions` 入参类型同步迁移；
 - `__buildActionWrapped` 防重包装判断从函数级移到 **descriptor 级**；包装时在 wrapped 上保留 `__rawAction` 原始 handle 引用——重复/跨名赋值同一描述符时 `_normalize` 解包重包装，广播名跟随本次注册键（原包装闭包捕获旧 name，不解包则错名）。
 
 ### 7. 内置信号型全局 action（yes / no / cancel / close）
@@ -72,6 +72,6 @@ AutoSparkActionContext 新增 `action` 字段，指向**规范化后的 descript
 
 - ✅ 模板作者零变化；JS 侧直调迁移 `.handle(...)`（包未发布，零成本 breaking 窗口，承接 ADR-0030/0031 惯例）。
 - ✅ 生命周期广播消费者（x-loading 等）可直接从 payload 读元数据（如 toast 显示动作标题）。
-- ✅ `src/actions/` 继续作为 action 域唯一落点（ADR-0031 决策 3 的演进预留兑现）。
+- ✅ `src/features/action/` 继续作为 action 域唯一落点（ADR-0031 决策 3 的演进预留兑现）。
 - ⚠️ payload 携带函数本体：消费者不得假设可序列化。
 - 测试迁移：`buildAction.test.ts` / `x-on.test.ts` / `x-data-async.test.ts` / `x-model.test.ts` / `x-loading.test.ts` 直调断言改 `.handle()` + 对象写法新用例；活文档（CONTEXT.md、docs/zh、specs、CLAUDE.md）随更，历史 ADR 正文保留旧称。

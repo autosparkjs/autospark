@@ -1,5 +1,5 @@
-import type { AutoSpark } from "../engine";
-import type { ComponentDef } from "../directives/component-def";
+import type { AutoSpark } from "../engine/engine";
+import type { ComponentDef } from "../features/component/component-def";
 
 /**
  * 组件全局样式注入器（ADR-0087）：`<style global>` 的 document 级注入与记账。

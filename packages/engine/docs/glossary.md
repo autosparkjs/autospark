@@ -129,7 +129,7 @@
 
 ### actions 域（x-on action 生命周期）
 
-事件总线中承载 **action 生命周期**的域：`actions/<name>/<verb>`——`<name>` = action 函数名（**入路径**），verb = `pending`/`resolved`/`rejected`。由 `src/actions/`（ActionManager）在**注册时自动包装**触发——`engine.actions[name]=fn`（actions Proxy 的 set trap）、构造时 `options.actions`（构造函数扫描）、`<script type="autospark/actions">`（compiler 提取）三入口均自动包装。**同步/异步 action 统一广播**（ADR-0011）：pending 在执行前、resolved（成功）/rejected（失败）在完成时——同步 action 同 tick 内 pending→resolved（或抛错 pending→rejected），异步经 `then`；同步抛错 broadcast rejected 后 **rethrow**（保持错误传播），async reject 经内部 `then(_, onRejected)` 消费消除 unhandled rejection。payload 亦带 `name`（方便通配订阅者区分）。流信号 plain emit（不 retain）。见 `src/actions/buildAction` 实现。
+事件总线中承载 **action 生命周期**的域：`actions/<name>/<verb>`——`<name>` = action 函数名（**入路径**），verb = `pending`/`resolved`/`rejected`。由 `src/features/action/`（ActionManager）在**注册时自动包装**触发——`engine.actions[name]=fn`（actions Proxy 的 set trap）、构造时 `options.actions`（构造函数扫描）、`<script type="autospark/actions">`（compiler 提取）三入口均自动包装。**同步/异步 action 统一广播**（ADR-0011）：pending 在执行前、resolved（成功）/rejected（失败）在完成时——同步 action 同 tick 内 pending→resolved（或抛错 pending→rejected），异步经 `then`；同步抛错 broadcast rejected 后 **rethrow**（保持错误传播），async reject 经内部 `then(_, onRejected)` 消费消除 unhandled rejection。payload 亦带 `name`（方便通配订阅者区分）。流信号 plain emit（不 retain）。见 `src/features/action/buildAction` 实现。
 
 > **ADR-0010 起双发并存**：`buildAction` 在 thenable 分支除 emit 本域总线事件外，**同时** dispatch DOM 冒泡事件 `action:<name>`（`bubbles+composed`，detail **不带 el/scope**——靠 `event.target` 与冒泡路径表达触发元素/作用域），服务**祖先聚合后代 action**（`<form @action:submit>`，经 x-on 监听、phase 修饰符过滤）。总线（全局通配）与 DOM 冒泡（DOM 层级）**正交并存**，见下文「action DOM 冒泡事件」。
 

@@ -21,7 +21,7 @@ export const derivedVars = {
         "color-mix(in srgb, var(--auto-active-color), transparent 85%)!important",
 
     "--auto-disable-color": "color-mix(in srgb, var(--x-color-8), gray 50%)!important",
-    "--auto-disable-bgcolor": "color-mix(in srgb, currentColor, transparent 60%)!important",
+    "--auto-disable-bgcolor": "color-mix(in srgb, currentColor, transparent 80%)!important",
 
     /* 字体颜色 */
     /* 字体颜色：三档引用 color 标尺的 1/3/4 档（light 下 59/109/149，档距均匀；
@@ -126,7 +126,7 @@ export const darkDerivedVars = {
 
     /* 禁用态：derivedVars 取 --x-color-8（dark 下为深灰，对面板仅 ≈1.9:1 近乎消失），
      * 提至中灰档保底可辨（≈4.3:1，仍明显弱于正文 13.5） */
-    "--auto-disable-color": "color-mix(in srgb, var(--x-color-4), gray 50%)!important",
+    "--auto-disable-color": "color-mix(in srgb, var(--x-color-8), gray 80%)!important",
 
     /* 边框提亮（覆盖后 --auto-border 等引用自动跟随） */
     "--auto-border-color": "var(--x-color-8)",

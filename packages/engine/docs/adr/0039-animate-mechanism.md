@@ -119,4 +119,4 @@ eager 卸载照常立即销毁子树 scope / watcher，DOM 留在原地播完离
 - ⚠️ 分支共演期间新旧分支同处文档流，容器高度跳动——文档标注（离场分支加 `position:absolute` 可解；单分支手风琴场景改用 `expand`）。
 - ⚠️ eager 离场元素动画期间 inert（状态变更不再影响它）——接受，离场元素不应「复活」。
 - ⚠️ x-for 项移动无动画；x-show 离场延迟 `display:none` 期间仍占 `:nth-child` 位（本就是 x-show 语义，无新增差异）。
-- 交付：`src/animate.ts`（Animator + 内置 CSS 常量 + 注入）、四指令挂点改造、`transition.ts` 空壳删除、x-if / x-show / x-for / x-switch 测试增补（happy-dom 无真实 transition，断言类挂摘 + 定时器推进超时兜底路径）、`docs/zh/guide/` 动画页 + `docs/demos/` 示例、本 ADR + CONTEXT.md 词条。
+- 交付：`src/features/animate/animate.ts`（Animator + 内置 CSS 常量 + 注入）、四指令挂点改造、`transition.ts` 空壳删除、x-if / x-show / x-for / x-switch 测试增补（happy-dom 无真实 transition，断言类挂摘 + 定时器推进超时兜底路径）、`docs/zh/guide/` 动画页 + `docs/demos/` 示例、本 ADR + CONTEXT.md 词条。

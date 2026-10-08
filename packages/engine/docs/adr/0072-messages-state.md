@@ -1,6 +1,6 @@
 # ADR-0072：消息状态暴露（$messages 保留键）
 
-- **状态**：Accepted（已实现——`src/messages/manager.ts` 镜像与真身化全量落地，`src/__tests__/messages.test.ts` 57 用例全绿）
+- **状态**：Accepted（已实现——`src/features/messages/manager.ts` 镜像与真身化全量落地，`src/__tests__/messages.test.ts` 57 用例全绿）
 - **日期**：2026-10-01
 - **关联**：[ADR-0071](0071-messages.md)（消息模块——本文修订其决策 4/6/15/18：词汇改名、载荷收紧、options 真身化；「收件箱 UI 留给用户自建」的兑现路径）、[ADR-0029](0029-scopes-reserved-key.md)（保留键先例）、autostore ADR-0006/0007（`shallow` 语义）
 - **共识来源**：grilling 七轮决策（评估 → 形态 → shallow → 边界 → 类型分层 → 词汇统一 → fetchOptions），本文即共识落盘

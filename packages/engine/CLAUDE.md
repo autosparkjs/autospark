@@ -15,7 +15,7 @@ autostore 已打包进产物并经入口全量转导出（ADR-0030）：`import 
 ```bash
 cd packages/engine
 bun test                                # 全部测试
-bun test src/__tests__/x-text.test.ts   # 单个文件
+bun test src/__tests__/directives/x-text.test.ts   # 单个文件（__tests__ 按 engine/features/directives/utils 一层分组）
 bun test -t "用例名称"                   # 按名称过滤
 bun run build                           # tsup 三格式 + d.ts；成功后自动复制 IIFE 到 docs/public/autospark.js
 ```
@@ -23,5 +23,5 @@ bun run build                           # tsup 三格式 + d.ts；成功后自�
 ## 文档索引
 
 - [CONTEXT.md](CONTEXT.md) — 领域语言表（术语 + Avoid 列表 + 已废弃词条）
-- [docs/adr/](docs/adr/) — ADR 0001~0088（0001~0029 正文保留更名前旧称，作为决策当时的记录）
+- [docs/adr/](docs/adr/) — ADR 0001~0093（0001~0029 正文保留更名前旧称，作为决策当时的记录）
 - [docs/specs/](docs/specs/) — 关键机制规格（engine.patch / 插值 / x-html / x-on action 等）

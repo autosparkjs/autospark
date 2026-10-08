@@ -1,6 +1,6 @@
 # ADR-0071：消息模块（MessageManager——轻提示升维为信息反馈与管理）
 
-- **状态**：Accepted（已实现——`src/messages/` 全量落地，`src/__tests__/messages.test.ts` 48 用例全绿）
+- **状态**：Accepted（已实现——`src/features/messages/` 全量落地，`src/__tests__/messages.test.ts` 48 用例全绿）
 - **日期**：2026-09-30
 - **关联**：[ADR-0068](0068-toast.md)（机制基座——三层结构 / 分区队列 / 原地更新 / 离场收拢 / shell 机制 / 动画 / 图标映射全部沿用，**API 面与生命周期决策由本文取代**）、[ADR-0061](0061-tooltip.md)（引擎级子系统先例）、[ADR-0062](0062-overlay-shell.md)（shell 机制）、[ADR-0052](0052-x-overlay-and-x-dialog.md)（双通道事件）、[ADR-0038](0038-x-loading.md)（actions 按钮行 hide 键）、[ADR-0036](0036-action-manager.md)（ActionDesc）、[ADR-0039](0039-animate-mechanism.md)（animate）、[ADR-0058](0058-icon-symbol-and-icon-domain.md)（图标域）、[CONTEXT.md](../../CONTEXT.md)（「消息（Message）」词条）
 - **共识来源**：grilling 四轮决策（Q1~Q23），本文即共识落盘
@@ -23,7 +23,7 @@
 
 #### 决策 1：引擎级子系统 MessageManager——`engine.messages`
 
-`src/messages/` 的 `MessageManager`，服务挂 engine 实例（`engine.messages`），继承 `Map<string, MessageTask>`（键恒为 string id）。ADR-0068 的 `engine.toastManager` 属性**不保留**（未发布、无版本号，自由破坏性改名，无迁移负担）。
+`src/features/messages/` 的 `MessageManager`，服务挂 engine 实例（`engine.messages`），继承 `Map<string, MessageTask>`（键恒为 string id）。ADR-0068 的 `engine.toastManager` 属性**不保留**（未发布、无版本号，自由破坏性改名，无迁移负担）。
 
 #### 决策 2：术语——「消息（Message）」上位词条
 
@@ -174,7 +174,7 @@ kinds[kind].render（用户 kind 级插槽）
 ```
 
 - 前两级是**用户配置**（同一概念的两个作用域层，吸收进既有「用户组件（全局表）→ 内置默认」协议）；后两级是**引擎内置**（按 kind 注册表 + 最终默认兜底）——用户配置恒压过引擎内置；
-- **内置 render 一组件一文件**（Q24 补充决策）：`src/messages/renders/` 目录，`message-shell.ts`（默认外壳，无进度槽）与 `task-shell.ts`（kind='task' 专属，进度槽由它全权渲染，**actions 行与 message-shell 同构照常渲染**）；后续新增内置 render 同规（一个文件一个）；
+- **内置 render 一组件一文件**（Q24 补充决策）：`src/features/messages/renders/` 目录，`message-shell.ts`（默认外壳，无进度槽）与 `task-shell.ts`（kind='task' 专属，进度槽由它全权渲染，**actions 行与 message-shell 同构照常渲染**）；后续新增内置 render 同规（一个文件一个）；
 - **挂载形态双轨**（实现期落定）：内置 render 的组件根即卡片根（模板自带双类名，沿 ADR-0068 惯例）；**自定义 render 包引擎 wrapper**——`autospark-message` 基类 / `data-message-pos` 标记 / 卡片级动画、离场收拢与 hover 监听恒挂 wrapper，用户模板零引擎类污染（不被卡片布局样式干扰）。列内查找契约（`:scope > .autospark-message`）对两种形态恒成立；
 - **props 注入升级**：消息记录**全量数据域整包**（剥函数）：`{ id, kind, title, body, type, icon(已解析), actions(已解析), closable, href, read, status, result, progress(仅 kind='task' 携带), delayClose }`——自定义 render 需要什么取什么；
 - `render` 仅收组件名字符串，走 `options.components` 全局组件表查找（manager 级无 el 不查 scope 链）；
@@ -210,7 +210,7 @@ localStorage 缺失 → local 持久化 warn + no-op；fetch 通道（load / sav
 
 #### 决策 21：message 化统一更名
 
-`MessageManager` / `src/messages/` / 内置外壳 `message-shell` + `task-shell`（`src/messages/renders/` 目录**一组件一文件**，Q24 补充决策）/ 卡片类名 `autospark-message`（双类名根 `autospark-dialog autospark-message` 沿用）/ 卡片骨架为**纵向堆叠**（Q27 预览修订，非现行 toast 的单行 flex 横排）：① 图标 + title 行（行尾关闭钮）→ ② 进度槽（task 域，进度为主状态置于 body 之前）→ ③ body（小一号，与 title 缩进对齐）→ ④ **actions 独立行**（不与 title 同行，link 形态）/ **语义色沿现行 toast 实现契约**（Q27 预览确认）：全边语义色 border + 同色系超淡底（`color-mix` 7% 混白随主色自动调和）+ 图标着色，内部单一消费点 `--autospark-message-accent`（各 type 经 `data-message-type` 分派到换肤接口 `--autospark-message-{type}-color`；`none` 灰边白底纯中性）——ADR-0068 决策 13 文本的「左 3px accent 条」未随实现保留，**废止** / `--autospark-message-z` 默认 1100 / 分区列标记 `data-message-pos`。CONTEXT.md 登记词条「消息（Message）」、修订「轻提示」与外壳词条。
+`MessageManager` / `src/features/messages/` / 内置外壳 `message-shell` + `task-shell`（`src/features/messages/renders/` 目录**一组件一文件**，Q24 补充决策）/ 卡片类名 `autospark-message`（双类名根 `autospark-dialog autospark-message` 沿用）/ 卡片骨架为**纵向堆叠**（Q27 预览修订，非现行 toast 的单行 flex 横排）：① 图标 + title 行（行尾关闭钮）→ ② 进度槽（task 域，进度为主状态置于 body 之前）→ ③ body（小一号，与 title 缩进对齐）→ ④ **actions 独立行**（不与 title 同行，link 形态）/ **语义色沿现行 toast 实现契约**（Q27 预览确认）：全边语义色 border + 同色系超淡底（`color-mix` 7% 混白随主色自动调和）+ 图标着色，内部单一消费点 `--autospark-message-accent`（各 type 经 `data-message-type` 分派到换肤接口 `--autospark-message-{type}-color`；`none` 灰边白底纯中性）——ADR-0068 决策 13 文本的「左 3px accent 条」未随实现保留，**废止** / `--autospark-message-z` 默认 1100 / 分区列标记 `data-message-pos`。CONTEXT.md 登记词条「消息（Message）」、修订「轻提示」与外壳词条。
 
 ### 九、配套 action（Q25 补充决策）
 

@@ -1,4 +1,4 @@
-import { AutoSpark } from "../engine";
+import { AutoSpark } from "../engine/engine";
 import type { AutoSparkOptions } from "../types";
 
 /**

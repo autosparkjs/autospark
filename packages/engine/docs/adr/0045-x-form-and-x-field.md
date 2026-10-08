@@ -103,6 +103,6 @@ x-form 作为**唯一订阅者**统一监听 configManager 元数据依赖（`co
 - ✅ 表单三件套（提交门 / 校验 / reset）+ 元数据驱动（configurable 声明一处，$field/$form/spread 三态消费）落地，零 UI 生成。
 - ✅ 全额复用既有机制：$scopes 域（0029）、数据脚本（0032）、x-model 控件语义（0018/0023/0026）、元数据注入（0020）、属性展开（0043）、默认 configManager（0044）、配置体系（0007）。
 - ⚠️ 元数据响应式限动态白名单（enable/visible/disabled/readOnly + error），其余静态快照；schema computed 联动是已记录陷阱（限制 1）。
-- **实现落点**：`src/directives/presets/form.ts`（FormDirective，继承 DataDirective）、`src/directives/presets/field.ts`（FieldDirective，组合 ModelDirective）、`$field`/`$form` 上下文注入（scope locals **独立拷贝层**——`_linkParent` 把父 locals 以共享引用下传，直接加键会污染整个子树）、SpreadBinder 的 `$field` 键集扩展 + **`on*` 函数键事件挂载分支**（bind-spread.ts）、presets 注册。
+- **实现落点**：`src/directives/x-form.ts`（FormDirective，继承 DataDirective）、`src/directives/x-field.ts`（FieldDirective，组合 ModelDirective）、`$field`/`$form` 上下文注入（scope locals **独立拷贝层**——`_linkParent` 把父 locals 以共享引用下传，直接加键会污染整个子树）、SpreadBinder 的 `$field` 键集扩展 + **`on*` 函数键事件挂载分支**（bind-spread.ts）、presets 注册。
 - **实现注记（根容器事件盲点）**：挂载容器自身的指令在 template 克隆根上执行，`addEventListener` 挂在克隆上收不到真实事件——FormDirective 经 `binding.template === engine.template` 判定根容器形态、把 submit/reset 挂到 `engine.el` 实容器（`_hostEl`）；**x-on 在根容器上仍有此盲点**（引擎既有局限，超出本 ADR 范围），demo 指引：需要绑定事件的元素作为容器后代出现。
 - **交付**：x-form.test.ts（19）/ x-field.test.ts（23）、CONTEXT.md「表单层」词条族、docs/zh/guide/directives/x-form.md + docs/demos/form/（basic / metadata / path-context / submit-validate，Playwright 端到端验证：双向绑定、spread 展开、错误显示/消失、校验门拦截与放行、reset 回滚、dirty/getState 全链路通过）。

@@ -21,7 +21,7 @@ AutoSpark 需要一套**声明式内容投影**机制，语义对齐 Vue slot（
 ### 一、命名与类（Q1）
 
 - 指令名复用 **`x-slot`**：旧 x-isolate 曾用此名（ADR-0006，2026-09-24 更名腾空）；本 ADR 赋予全新语义。
-- 新类 **`SlotDirective`**（`src/directives/presets/slot.ts`），与旧 `IsolateDirective`（`isolate.ts`）**无关**。
+- 新类 **`SlotDirective`**（`src/directives/x-slot.ts`），与旧 `IsolateDirective`（`isolate.ts`）**无关**。
 - 注册键 `slot`；`kind = Compile`、`singleton = true`、`static ownsChildren = () => true`（出口/内容侧皆然，见决策十）。
 
 ### 二、定义侧：出口声明（Q2）

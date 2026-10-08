@@ -78,11 +78,11 @@ x-for Pass3 重排按 `entry.nodes` 全量 `insertBefore`，**不感知 x-if 的
 
 ## 实现
 
-- `src/directives/presets/else.ts`：`ElseDirective` 空类（注册名位，同 x-component 模式）；
-- `src/directives/presets/if.ts`：`_collectBranches`（收集 + 防呆）/ `evaluate`（整链重算）/ `show`（态机分派）/ `mountBranch` / `unmountBranch`；
-- `src/directives/presets/index.ts`：`"else-if"` / `else` 显式映射到 `ElseDirective`；
-- `src/compile/compiler.ts`：前置剪枝 transformer（孤儿 warn）+ `compileOneChild` 分支标记统一剪枝 + `compileChild` 的 `localData` 放宽为可空（分支透传 `binding.locals`，与 `_linkParent` 自动继承语义一致）；
-- `src/directives/presets/for.ts`：项模板采集跳过分支标记 + warn。
+- `src/directives/x-else.ts`：`ElseDirective` 空类（注册名位，同 x-component 模式）；
+- `src/directives/x-if.ts`：`_collectBranches`（收集 + 防呆）/ `evaluate`（整链重算）/ `show`（态机分派）/ `mountBranch` / `unmountBranch`；
+- `src/directives/index.ts`：`"else-if"` / `else` 显式映射到 `ElseDirective`；
+- `src/engine/compile/compiler.ts`：前置剪枝 transformer（孤儿 warn）+ `compileOneChild` 分支标记统一剪枝 + `compileChild` 的 `localData` 放宽为可空（分支透传 `binding.locals`，与 `_linkParent` 自动继承语义一致）；
+- `src/directives/x-for.ts`：项模板采集跳过分支标记 + warn。
 
 ## 后果
 

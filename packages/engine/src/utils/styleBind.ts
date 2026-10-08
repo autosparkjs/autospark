@@ -15,7 +15,7 @@
  * **按表达式复用**（决策四-4.1-(2)，本机制的性能与正确性基石）：同 expr → 同变量名 → 一处 watch、
  * 多处 `var()` 共享。跨多个 `<style>` 块由调用方传入合并后做全局去重（见 extractStyleBindsFromMany）。
  */
-import { isSimpleStatePath } from "../scope";
+import { isSimpleStatePath } from "../engine/scope";
 
 /** 单个 bind 绑定：表达式 + 派生的 CSS 变量名。声明性清单，多实例共享只读。 */
 export interface StyleBind {

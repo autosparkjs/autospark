@@ -37,7 +37,7 @@
 
 ### 3. ActionManager 提炼（同场落地，行为零变更）
 
-action 处理逻辑自 engine/compiler 收编为独立管理单元 `src/actions/`：
+action 处理逻辑自 engine/compiler 收编为独立管理单元 `src/features/action/`：
 
 - `manager.ts` — `ActionManager`：全局表（`options.actions`）构造扫描包装、`proxy` getter（`engine.actions` 赋值即自动包装的 set trap）、`extractScript(script, scope)`（模板 script 解析与 global/局部分流，ADR-0012 语义不变）。
 - `buildAction.ts` — 自 `utils/buildAction.ts` 迁入（ADR-0010 的双通道广播包装，零改动）。
@@ -51,4 +51,4 @@ action 处理逻辑自 engine/compiler 收编为独立管理单元 `src/actions/
 - 模板 DSL 的 script 声明与品牌命名空间一致，撞车与误提取风险消除。
 - 旧模板迁移有 warn 指引（actions：脚本未注册；setup：脚本不再求值），失效可发现。
 - 活文档（docs/zh、engine glossary、specs、根 CLAUDE.md、CONTEXT.md）全部随更；ADR 0010/0012/0004/0021 等历史正文保留旧称（决策当时的记录，ADR-0030 惯例）。
-- `src/actions/` 成为 action 域的唯一落点，后续 action 相关演进（如注册来源扩展）在此扩展。
+- `src/features/action/` 成为 action 域的唯一落点，后续 action 相关演进（如注册来源扩展）在此扩展。

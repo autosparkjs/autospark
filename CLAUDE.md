@@ -24,7 +24,7 @@ bun install
 # engine 测试（在 packages/engine 下）
 cd packages/engine
 bun test                                # 全部测试
-bun test src/__tests__/x-text.test.ts   # 单个文件
+bun test src/__tests__/directives/x-text.test.ts   # 单个文件（__tests__ 按 engine/features/directives/utils 一层分组镜像）
 bun test -t "用例名称"                   # 按名称过滤
 
 # engine 构建（tsup，esm/cjs/iife 三格式；成功后自动复制 IIFE 到 docs/public/autospark.js）
@@ -49,16 +49,18 @@ oxfmt
 
 ## 架构（packages/engine）
 
+**四层目录结构（ADR-0093）**：`src/directives/`（指令实现，文件名 = `x-` 规范指令名，注册表在 `directives/index.ts`）→ `src/features/`（特性机制：directive/component/overlay/tooltip/messages/icons/action/animate，横向 DAG 禁环）→ `src/engine/`（核心：engine 门面/scope/scheduler/compile）→ 最底层（`consts.ts`/`errors.ts`/`types/`/`utils/`）。数据资产层（`components/*.html`、`icons.ts`、`actions/` 内置动作）只存数据不存机制，被上层单向引用。`engine/engine.ts` 门面是**组装根**——全引擎唯一豁免分层规则的位置；`import type` 引用宽松豁免。
+
 核心数据流：外部传入的 AutoStore（或裸状态自建 store）→ 编译期把模板树重建为运行树（剥除指令属性）→ 各指令在编译期用 `scope.watch` 订阅自己的状态路径 → 状态变更经 `UpdateScheduler` 微任务合并去重 → 各指令的 updateFn 重新求值并**只 patch 受影响节点**（不重建子树，保留焦点/滚动等运行态）。
 
 ### 运行时主干
 
-- `src/engine.ts` — `AutoSpark` 门面类。构造入参 `(el, store | 裸状态, options)`：AutoStore 实例为借用（destroy 不销毁），裸状态为自建并拥有（ADR-0009）。生命周期 `compile → stop/start → destroy`。`engine.patch(selector, updater)` 支持运行时局部模板替换（ADR-0002），updater 返回值四态决定重建语义。
-- `src/compile/compiler.ts` — 深度优先重建模板树：浅克隆元素、剥指令属性、建 scope、跑指令编译期生命周期；`{{}}` 文本/属性插值 desugar 为绑定（`compile/mustache.ts`，ADR-0004）。
-- `src/scope.ts` — `AutoSparkScope`：单元素上多指令的生命周期/订阅容器。`watch` 双轨：纯标识符路径走精准订阅，含运算符/函数调用的表达式走 with 求值（`isSimpleStatePath` 分流）。
-- `src/scheduler.ts` — `UpdateScheduler`：watcher 回调只 `schedule`（稳定闭包引用，Set 天然去重），microtask flush 时 updateFn **重新求值**取累积结果。
-- `src/actions/` — `ActionManager`（`manager.ts`）：action 管理单元——全局表注册/Proxy 包装 + `<script type="autospark/actions">` 模板提取；`buildAction.ts` 双通道广播包装（ADR-0031 script type 命名空间化）。
-- `src/directives/manager.ts` — `DirectiveManager`：指令名 → 指令类注册表；`presetDirectives`（`presets/index.ts`）为**显式映射**（勿依赖类名/`Function.name`）。
+- `src/engine/engine.ts` — `AutoSpark` 门面类。构造入参 `(el, store | 裸状态, options)`：AutoStore 实例为借用（destroy 不销毁），裸状态为自建并拥有（ADR-0009）。生命周期 `compile → stop/start → destroy`。`engine.patch(selector, updater)` 支持运行时局部模板替换（ADR-0002），updater 返回值四态决定重建语义。
+- `src/engine/compile/compiler.ts` — 深度优先重建模板树：浅克隆元素、剥指令属性、建 scope、跑指令编译期生命周期；`{{}}` 文本/属性插值 desugar 为绑定（`compile/mustache.ts`，ADR-0004）。
+- `src/engine/scope.ts` — `AutoSparkScope`：单元素上多指令的生命周期/订阅容器。`watch` 双轨：纯标识符路径走精准订阅，含运算符/函数调用的表达式走 with 求值（`isSimpleStatePath` 分流）。
+- `src/engine/scheduler.ts` — `UpdateScheduler`：watcher 回调只 `schedule`（稳定闭包引用，Set 天然去重），microtask flush 时 updateFn **重新求值**取累积结果。
+- `src/features/action/` — `ActionManager`（`manager.ts`）：action 管理单元——全局表注册/Proxy 包装 + `<script type="autospark/actions">` 模板提取；`buildAction.ts` 双通道广播包装（ADR-0031 script type 命名空间化）。
+- `src/features/directive/manager.ts` — `DirectiveManager`：指令名 → 指令类注册表；`presetDirectives`（`directives/index.ts`）为**显式映射**（勿依赖类名/`Function.name`）。
 
 ### 指令体系（src/directives/）
 
@@ -66,18 +68,18 @@ oxfmt
 - **双执行通道**：scope 通道（Compile/Hybrid：编译期 created/compile/destroy，binding 支持相对表达式）与 observer 通道（Runtime/Hybrid：编译器致盲、属性保留在结果 DOM，由共享 `RuntimeObserverDispatcher` 的单一 MutationObserver 触发 mounted/unmounted/attrChanged，仅绝对路径）。Hybrid 双通道职责正交。
 - 类级 `static initialize(engine)` / `static dispose(engine)`：engine 就绪/销毁时对每个注册类调用一次（建 observer、注入全局样式等）。
 - 配置体系（ADR-0007）：修饰符（`.xxx`）在解析期并入**指令选项**（`x-{name}-options`，relaxed-json）；读取走「指令选项 → 宿主选项（`x-options`）」**回退**，缺失才回退、不做合并。
-- 新增指令：继承基类 → 在 `presets/index.ts` 的 `presetDirectives` 注册。
+- 新增指令：继承基类 → 在 `directives/index.ts` 的 `presetDirectives` 注册。
 
 ### 关键域约定（改动前必读对应 ADR）
 
 - `store.state.$scopes` 是**框架保留键**（x-data 私有响应式域容器）；x-data 只 `Object.assign` 进 `$scopes[id]`，**永不整体替换容器**（ADR-0029 mount 三形态）。
-- action 三入口（构造 `options.actions`、`engine.actions` Proxy 赋值、`<script type="autospark/actions">`）统一经 `src/actions/`（ActionManager）包装，自动广播 `actions/<name>/*` 生命周期信号（x-loading 消费）；script type 已命名空间化（ADR-0031，旧写法 warn 剪枝）。
+- action 三入口（构造 `options.actions`、`engine.actions` Proxy 赋值、`<script type="autospark/actions">`）统一经 `src/features/action/`（ActionManager）包装，自动广播 `actions/<name>/*` 生命周期信号（x-loading 消费）；script type 已命名空间化（ADR-0031，旧写法 warn 剪枝）。
 - 组件（ADR-0022/0054）：`x-define` 编译期剪枝、冻结快照挂最近祖先 `scope.components`；`x-component:名称` 实例化（属性参数承载组件名、值专职 props，单向注入组件 data 域）；`getComponent` 沿 scope 链就近查找 + `options.components` 全局兜底。
 - 冲突防护：`engine.patch` 拒绝落入动态区域（x-for / eager x-if / x-isolate 祖先链内）。
 
 ## 决策文档（改机制前先读）
 
-- `packages/engine/docs/adr/` — ADR 0001~0088，源码注释大量以「ADR-XXXX 决策 N」形式回链。
+- `packages/engine/docs/adr/` — ADR 0001~0093，源码注释大量以「ADR-XXXX 决策 N」形式回链。
 - `packages/engine/CONTEXT.md` — 领域语言表（含每个术语的 Avoid 列表与已废弃词条，如 x-block → x-component → x-define、x-use → x-component、`.keep` → `.keepalive`）。
 - `packages/engine/docs/specs/` — 关键机制规格（engine-patch / 插值 / x-html / x-on action / 指令文档统一模板）。
 - `packages/engine/CLAUDE.md` 为模块级简版导航，工程约定以本文件为准。

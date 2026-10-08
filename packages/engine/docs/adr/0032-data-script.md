@@ -78,5 +78,5 @@ script 体内容含 `</script>` 会截断 HTML 解析——字符串中需写 `<
 - ✅ computed / configurable / watch 首次可在模板内声明（x-data 属性形态做不到）。
 - ✅ 复用 ADR-0029 全部挂载/回收语义，零新心智模型。
 - ⚠️ watch 依赖「注入后强制首读」激活——只覆盖顶层键，嵌套 watch 不激活（文档化：watch 声明在顶层）。
-- **实现落点**：`src/compile/dataScript.ts`（预扫/求值/合成）、`compiler.ts`（剪枝 transformer + `_applyDataScriptStash` / `consumeDataScriptStash` + compileElement 钩子）、`data.ts`（created 合成消费 + `_activateObservers`）、`for.ts`（项模板跳过数据脚本）。
+- **实现落点**：`src/engine/compile/dataScript.ts`（预扫/求值/合成）、`compiler.ts`（剪枝 transformer + `_applyDataScriptStash` / `consumeDataScriptStash` + compileElement 钩子）、`data.ts`（created 合成消费 + `_activateObservers`）、`for.ts`（项模板跳过数据脚本）。
 - **交付**：22 用例 `data-script.test.ts` 全绿、既有 795 用例回归通过；CONTEXT.md「数据脚本 / Data Script」词条；docs/zh x-data 指南小节 + demo `data/script.html`。

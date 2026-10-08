@@ -21,7 +21,7 @@ ADR-0077 落地后遗留两处架构不满足：
 - **渲染组件（presets 继承族）**：零行为零业务 data——模板内行为经既有 `$session` 派生变量调用。每条消息 1:1（session ↔ 组件实例，`session.el` 即组件根）；
 - **组件隐藏语义**：`hide()` = 组件销毁（teardown），session / 记录按 `persist` 存活；再显示 = `show()` 重建。纯渲染组件无内部态，销毁重建零损失（保活隐藏被否决——引入「半死实例」第三态与三态模型冲突）。
 
-### 二、session class 化（`src/messages/sessions/` 目录——一文件一类：base/toast/task/confirm/types）
+### 二、session class 化（`src/features/messages/sessions/` 目录——一文件一类：base/toast/task/confirm/types）
 
 `add()` 内部按 type `switch` 实例化：`MessageToastSession` / `MessageConfirmSession` / `MessageTaskSession`，自定义 type 回 `MessageSessionBase` 基类面——**类型面与运行时面统一**（基类实例不携带 task/confirm 域方法，取代 ADR-0077「闭包同构」）。死会话语义不变（`_entry` 空即死，方法 no-op + warn）。
 

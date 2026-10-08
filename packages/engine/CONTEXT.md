@@ -771,6 +771,20 @@ _Avoid_: component/registered（旧单数全局事件已废弃）、注册回调
 子定义直接子节点（非 `<script setup>` / `<style>`）按**插槽内容分段规则**原样收集的覆盖段（`<template x-slot:名>`=命名段、裸子节点=默认段；无对应父出口 warn+丢弃、未提及出口保留父 fallback）——解析期**替换父快照中该出口的 fallback 子树**，故在组件实例作用域（合并后 data 域）求值。实例化时三层优先级：**消费方内容 > 继承覆盖 > 父 fallback**——继承只改默认，不锁死出口。覆盖段声明作用域形参 → warn + 忽略。详见 ADR-0081。
 _Avoid_: 覆盖插槽（那是消费方内容侧词汇）、默认内容覆盖（与 fallback 混淆——覆盖动作发生在定义期，覆盖产物成为新 fallback）
 
+### 引擎结构层
+
+**特性 / Feature**:
+引擎子系统的归类单元：自成体系的机制域（覆盖物、工具提示、消息、图标、动作、动画、组件机制等），由「特性机制」（manager / 注册表 / 生命周期，供引擎与指令共同消费）与「具体指令实现」两半组成。区别于引擎核心（编译 / 调度 / 作用域主干，不含业务性机制）。特性间允许横向引用、禁止成环。详见 ADR-0093。
+_Avoid_: 模块（泛化）、插件（无动态注册语义）、功能（口语词）
+
+**组装根 / Composition Root**:
+engine 门面的架构角色——全引擎**唯一豁免分层依赖规则**的位置：它在构造期引用并装配各特性的 manager，使「引擎核心不反向感知特性」成为可能。除它以外，运行时依赖一律单向（指令与动作实现 → 特性机制 → 引擎核心 → 常量 / 类型 / 工具）。详见 ADR-0093。
+_Avoid_: 门面（那是其形态词，不表达豁免职责）、入口文件（那是包导出面 index.ts）、上帝对象（贬义且不表达组装职责）
+
+**内置资产 / Builtin Assets**:
+随引擎发行的**纯数据面**：内置组件模板、图标注册数据、内置动作声明——只存数据不存机制（机制住特性层）；「新增内置内容 = 改数据文件」，不动机制代码。被上层单向引用，自身不引用任何层。详见 ADR-0091/0092/0093。
+_Avoid_: 静态资源（泛化）、内置资源（与远程加载资源撞义）
+
 ### 引擎构造层
 
 **数据源 / Data Source**:
@@ -974,7 +988,7 @@ _Avoid_: `集/名` 值形、baseUrl、persist、prefetch
 _Avoid_: MessageTask / ProgressTask（写 Session 家族）、persist 'none'/'local'/'remote'（写 0/1/2/3 或常量）、message-shell / task-shell / taskWidget（现名 shell / task renderer）、四级查找 / 整卡渲染（双层组合）
 
 **toastManager / ToastProps 旧字段（ADR-0071 更名）**:
-已废弃。`engine.toastManager` 更名 **`engine.messages`**、`ToastManager` → `MessageManager`、`src/toast/` → `src/messages/`（ADR-0071 轻提示升维为消息模块）。`engine.toast()` 方法与全局 `toast` action **保留为别名**（转发 `messages.add({kind:'toast',...})`，kind='toast' 迁移期双发旧事件 `toast:show`/`toast:hide`，随别名退役）；`engine.toastManager` 属性面不留旧名。ToastProps 旧字段同步更名：`message` → `title`、`delay` → `delayClose`（旧键按未知键 warn + 忽略）。详见 ADR-0071。ADR-0072 再更名（未发布零迁移）：`body` → `description`、`href` → `link`（HTML 属性仍 href）、`url` + `headers` 合并 → `fetchOptions`。
+已废弃。`engine.toastManager` 更名 **`engine.messages`**、`ToastManager` → `MessageManager`、`src/features/messages/` → `src/features/messages/`（ADR-0071 轻提示升维为消息模块）。`engine.toast()` 方法与全局 `toast` action **保留为别名**（转发 `messages.add({kind:'toast',...})`，kind='toast' 迁移期双发旧事件 `toast:show`/`toast:hide`，随别名退役）；`engine.toastManager` 属性面不留旧名。ToastProps 旧字段同步更名：`message` → `title`、`delay` → `delayClose`（旧键按未知键 warn + 忽略）。详见 ADR-0071。ADR-0072 再更名（未发布零迁移）：`body` → `description`、`href` → `link`（HTML 属性仍 href）、`url` + `headers` 合并 → `fetchOptions`。
 _Avoid_: engine.toastManager、toastManager 类名引用（现 MessageManager）、旧 props 键 message / delay（写 title / delayClose）
 
 **消息三键旧分工（kind / 语义色 type / 排序 level，ADR-0079 更名）**:
@@ -990,7 +1004,7 @@ _Avoid_: scope.getComponent(name)、engine.getComponent(el, name)（查声明改
 _Avoid_: component/registered（改用 components/<名>/registered）
 
 **消息闭包同构 / BUILTIN_RENDERERS / renderers 目录（ADR-0083 取代）**:
-已废弃。ADR-0077 的 session「闭包全集方法 + 类型窄化」实现被 **class 家族**取代（`MessageSessionBase` + Toast/Task/Confirm 子类真继承——类型面 = 运行时面，基类实例不再携带 task/confirm 域方法）；`src/messages/renderers/` 目录更名 **`presets/`**，`BUILTIN_RENDERERS` 引擎私有注册表退役（预设组件经 `options.components` 种子进全局表：`autospark.messages.base/toast/task/confirm` 继承族）；Task 会话补 `complete`（≡ stop）、基类补 `update/cancel`、manager 补 `respond(id, value)`、factory 升挂起注入形态 `add(async (session) => ...)`。`run()` 展示周期 await 通道曾随本 ADR 实施、随后移除（展示结束感知走 `message:hide` 事件 + `closed` getter，YAGNI）。均未发布零迁移。
+已废弃。ADR-0077 的 session「闭包全集方法 + 类型窄化」实现被 **class 家族**取代（`MessageSessionBase` + Toast/Task/Confirm 子类真继承——类型面 = 运行时面，基类实例不再携带 task/confirm 域方法）；`src/features/messages/renderers/` 目录更名 **`presets/`**，`BUILTIN_RENDERERS` 引擎私有注册表退役（预设组件经 `options.components` 种子进全局表：`autospark.messages.base/toast/task/confirm` 继承族）；Task 会话补 `complete`（≡ stop）、基类补 `update/cancel`、manager 补 `respond(id, value)`、factory 升挂起注入形态 `add(async (session) => ...)`。`run()` 展示周期 await 通道曾随本 ADR 实施、随后移除（展示结束感知走 `message:hide` 事件 + `closed` getter，YAGNI）。均未发布零迁移。
 _Avoid_: run() 方法 / await session.run()（已移除——写事件族 / closed getter）、闭包同构 / 运行时全集方法（写 class 家族）、renderers 目录 / resolveBuiltinRendererByKind（写 presets / 全局组件表预设名）
 _Avoid_: 闭包同构 / 运行时全集方法（写 class 家族）、renderers 目录 / resolveBuiltinRendererByKind（写 presets / 全局组件表预设名）、（session as any).progress 跨面断言（基类实例真无此方法）
 

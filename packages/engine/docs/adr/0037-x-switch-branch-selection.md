@@ -8,7 +8,7 @@
 
 多路条件已有 x-if 条件分支链（ADR-0034）：每分支一个**独立布尔表达式**、短路求值。但当各分支条件是「同一主表达式的不同取值」时（状态机 tab、level 分档），写成 `<div x-else-if="status==='a'">` 链存在三重冗余：主表达式重复书写、重复求值（每分支独立订阅）、比较意图被 `===` 淹没。
 
-`src/directives/presets/switch.ts` 早有未注册的占位骨架（草案形态：宿主 + 直接子级 `x-case` + `x-default`），`use.ts` 结构指令冲突名单也已列入 x-switch。需求：落地 x-switch 分支选择指令，**最大程度复用 x-if 分支链基建**（用户明确诉求）。
+`src/directives/x-switch.ts` 早有未注册的占位骨架（草案形态：宿主 + 直接子级 `x-case` + `x-default`），`use.ts` 结构指令冲突名单也已列入 x-switch。需求：落地 x-switch 分支选择指令，**最大程度复用 x-if 分支链基建**（用户明确诉求）。
 
 grilling 两轮十问定案（第一轮核心语义五问、第二轮边界与实现形态五问）。
 

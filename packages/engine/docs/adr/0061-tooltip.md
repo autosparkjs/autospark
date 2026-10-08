@@ -25,7 +25,7 @@
 
 #### 决策 1：引擎级子系统 TooltipManager（非指令、非 overlay 消费者）
 
-`src/tooltip/` 的 `TooltipManager`，服务挂 engine 实例（类比 `ActionManager`/`UpdateScheduler`）。生效方式为**属性约定**而非指令声明——`title`/`data-tooltip` 不是 `x-*` 属性，与指令体系（observer 通道按 `x-*` 属性触发）正面冲突；tooltip 亦无组件定义，`OverlayDirective`/`OverlayInstance` 路线不成立。
+`src/features/tooltip/` 的 `TooltipManager`，服务挂 engine 实例（类比 `ActionManager`/`UpdateScheduler`）。生效方式为**属性约定**而非指令声明——`title`/`data-tooltip` 不是 `x-*` 属性，与指令体系（observer 通道按 `x-*` 属性触发）正面冲突；tooltip 亦无组件定义，`OverlayDirective`/`OverlayInstance` 路线不成立。
 
 #### 决策 2：启用开关与全局默认——`options.tooltip`
 

@@ -88,7 +88,7 @@ Pointer Events（`setPointerCapture` + 临时监听）+ **绝对式数学**（�
 
 ## 测试
 
-`src/__tests__/x-splitter.test.ts`（36 用例）：结构契约（两面板 + 分隔条组装 / 多余 warn 丢弃 / template-script 容忍 / 不足两个降级 / 双 sized 降级唯一化 / auto 面板 min-max warn）、direction（非法值归一 / 响应式切换换轴重排 + 旧轴清理）、data-size 家族（静态值 inline / 绑定剥除 + 初值 / 绑定 min/max 进钳制 / 非法值 warn）、拖拽（前后方向语义 / min-max 钳制 / 绝对式数学残差回归 / 双 auto 静态禁拖）、双向绑定（实时写回 / 外部反向同步 + 等值短路 / % 形态保持 / 表达式降级 warn）、折叠（默认无把手 / 三态坐标与负向属性 / 点击折叠写 0 + lastSize 恢复 / 绑定形态写状态 / 初始 0 不派发事件 / 折叠绕过 min / 双 auto 不生效）、事件（resize end detail / 跨 0 翻转 collapse-expand / 拖拽跨 0 补派发防双发 / 非跨 0 不派发）、键盘（方向语义前后镜像 / Shift 步进递进 / 会话 keyup 收尾）、嵌套（子 splitter 随子树编译）。全量回归 1560 pass（2 失败为并行会话在 `src/compile/setup.ts` 的未提交改动所致，与本期无关——`git diff` 反向对照确认）。
+`src/__tests__/x-splitter.test.ts`（36 用例）：结构契约（两面板 + 分隔条组装 / 多余 warn 丢弃 / template-script 容忍 / 不足两个降级 / 双 sized 降级唯一化 / auto 面板 min-max warn）、direction（非法值归一 / 响应式切换换轴重排 + 旧轴清理）、data-size 家族（静态值 inline / 绑定剥除 + 初值 / 绑定 min/max 进钳制 / 非法值 warn）、拖拽（前后方向语义 / min-max 钳制 / 绝对式数学残差回归 / 双 auto 静态禁拖）、双向绑定（实时写回 / 外部反向同步 + 等值短路 / % 形态保持 / 表达式降级 warn）、折叠（默认无把手 / 三态坐标与负向属性 / 点击折叠写 0 + lastSize 恢复 / 绑定形态写状态 / 初始 0 不派发事件 / 折叠绕过 min / 双 auto 不生效）、事件（resize end detail / 跨 0 翻转 collapse-expand / 拖拽跨 0 补派发防双发 / 非跨 0 不派发）、键盘（方向语义前后镜像 / Shift 步进递进 / 会话 keyup 收尾）、嵌套（子 splitter 随子树编译）。全量回归 1560 pass（2 失败为并行会话在 `src/engine/compile/setup.ts` 的未提交改动所致，与本期无关——`git diff` 反向对照确认）。
 
 ## 修订记录
 

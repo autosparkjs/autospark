@@ -14,7 +14,7 @@ title: 对比评测：AutoSpark vs Vue 3 vs Alpine.js
 1. **只比框架自身内置能力**。生态、第三方库、工具链的能力不计入框架能力。唯一的例外是[第七章](#七、包体积与综合成本)——那里会额外给出「要在 Vue/Alpine 上补齐同等能力需要叠加多少体积」的参照数据。
 2. **体积全部实测**。官方 CDN 产物或本地构建产物，经 Node `zlib.gzip` 压缩后取值，不引用厂商宣传数字，也不引用没有测试环境说明的性能跑分。
 3. **性能只讲机制**。「谁更快」依赖数据规模、更新频率、浏览器等一长串变量，脱离环境的数字没有意义；本文化解三者的渲染与调度机制差异，把判断依据交给读者。
-4. **指令清单以注册表为准**：Vue 取官方 Built-in Directives 页（15 条），Alpine 取官方文档 `directives/` 目录（18 条），AutoSpark 取 `presetDirectives` 注册表（31 条，`packages/engine/src/directives/presets/index.ts:82`）。
+4. **指令清单以注册表为准**：Vue 取官方 Built-in Directives 页（15 条），Alpine 取官方文档 `directives/` 目录（18 条），AutoSpark 取 `presetDirectives` 注册表（31 条，`packages/engine/src/directives/index.ts:82`）。
 
 ### 1.1 评测对象速览
 
@@ -53,7 +53,7 @@ AutoSpark 与 Vue / Alpine 的差异不是「功能多少」，而是**设计理
 | 图标异步加载 | 远程图标集**未就绪占位、就绪后自动唤醒**待决实例 |
 | 配置绑定 | `@` 配置引用经 configManager 订阅，配置中心一变界面即变 |
 
-实现底座是 AutoStore 的路径订阅 + 引擎的双轨 `watch`（`packages/engine/src/scope.ts:773`）：**纯标识符路径走精准订阅**（编译期就确定绝对路径，直连 `store.watch(path)`），**含运算符 / 函数调用的表达式走依赖收集**（`new Function` + `with(scope)` 求值，运行时收集读依赖、依赖集变化即重订）。两条轨的回调都只做一件事——`scheduler.schedule()`，微任务 flush 时 `Set` 天然去重（`src/scheduler.ts:39`），再由各指令的 `updateFn` **重新求值**取累积结果。
+实现底座是 AutoStore 的路径订阅 + 引擎的双轨 `watch`（`packages/engine/src/engine/scope.ts:773`）：**纯标识符路径走精准订阅**（编译期就确定绝对路径，直连 `store.watch(path)`），**含运算符 / 函数调用的表达式走依赖收集**（`new Function` + `with(scope)` 求值，运行时收集读依赖、依赖集变化即重订）。两条轨的回调都只做一件事——`scheduler.schedule()`，微任务 flush 时 `Set` 天然去重（`src/engine/scheduler.ts:39`），再由各指令的 `updateFn` **重新求值**取累积结果。
 
 **与 Vue / Alpine 的差别**：
 
@@ -119,7 +119,7 @@ AutoSpark 与 Vue / Alpine 的差异不是「功能多少」，而是**设计理
 | **需要工具链** | 需要（Node + 打包器 + loader/plugin 版本矩阵） | **不需要**（`<script>` 引入即用） | 不需要 |
 | **之后还解析模板吗** | 不（render 函数已生成） | **不**（运行树已重建、指令属性已剥除） | 持续（每次 effect 重跑重新编译求值） |
 
-AutoSpark 的「编译」发生在浏览器里，但**性质与 Alpine 不同**：它深度优先重建整棵模板树、剥除指令属性、为每条指令注册好订阅（`src/compile/compiler.ts:792`），**一次性完成**；此后状态更新不再触碰模板解析，只做定点 patch。某种意义上，它把 Vue 在构建期做的事搬到了浏览器首帧执行——于是既拿到了**零构建**，又避开了「每次更新都重新解释模板」的成本。
+AutoSpark 的「编译」发生在浏览器里，但**性质与 Alpine 不同**：它深度优先重建整棵模板树、剥除指令属性、为每条指令注册好订阅（`src/engine/compile/compiler.ts:792`），**一次性完成**；此后状态更新不再触碰模板解析，只做定点 patch。某种意义上，它把 Vue 在构建期做的事搬到了浏览器首帧执行——于是既拿到了**零构建**，又避开了「每次更新都重新解释模板」的成本。
 
 **收益**：零构建依赖（首页称其为「零编译时依赖」）、无工具链版本矩阵、CDN 一个 `<script>` 即可点亮任意 DOM 子树、HTML 可直接作为交付物。
 **代价**：首帧要付一次编译成本；无 SSR / 水合；运行时编译要求完整 DOM 环境（源码中以 `typeof document` 守卫降级）。
@@ -146,8 +146,8 @@ AutoSpark 的「编译」发生在浏览器里，但**性质与 Alpine 不同**�
 | **编译时机** | 构建期：SFC → render 函数 | 运行时：逐指令解释 | 浏览器首帧：一次性重建运行树 |
 | **中间表示** | VNode 树 | 无 | 无（直接是 DOM 运行树） |
 | **更新粒度** | 组件级 | 表达式级 | **指令 × 状态路径** |
-| **批处理** | `nextTick` 合并 | 无（同步逐条写） | **微任务 `Set` 天然去重**（`src/scheduler.ts:39`） |
-| **列表更新** | key-based diff，O(n) | 逐项重跑 | `x-for` 自带 key-based 四趟 diff + 复用（`src/directives/presets/for.ts:1120`） |
+| **批处理** | `nextTick` 合并 | 无（同步逐条写） | **微任务 `Set` 天然去重**（`src/engine/scheduler.ts:39`） |
+| **列表更新** | key-based diff，O(n) | 逐项重跑 | `x-for` 自带 key-based 四趟 diff + 复用（`src/directives/x-for.ts:1120`） |
 | **大数据量方案** | 需第三方虚拟滚动库 | 需第三方 | **内置 `x-for.virtual` / `x-for.paging`** |
 | **运行态保留** | 依赖 diff 精确性（同标签通常保留） | 直写保留 | **不重建子树，焦点 / 滚动 / 输入天然保留** |
 | **GC 压力** | 中高（VNode 短命对象） | 低 | 低（无 VNode） |
@@ -155,8 +155,8 @@ AutoSpark 的「编译」发生在浏览器里，但**性质与 Alpine 不同**�
 
 几个值得注意的机制细节：
 
-- **指令属性会被剥除**。编译时 `removeDirectives(el, "x-")` 把 `x-*` 属性从运行树里移除（`src/compile/compiler.ts:804`），只有少数 Runtime 指令（目前仅 `x-loading`）保留属性由单一 `MutationObserver` 分发器监听——**全库只开一个 observer**，这与 Alpine 早期因全量 DOM 扫描导致的卡顿问题（其 GitHub Issues #566 / #570 有记录）是两种思路。
-- **更新是「重求值 + 单点写」**，不是「重建 + diff」。watcher 回调只标脏，flush 时 updateFn 重新求值并直接写 DOM，属性写入走五路分派（`src/directives/utils/attrPatch.ts:67`）。
+- **指令属性会被剥除**。编译时 `removeDirectives(el, "x-")` 把 `x-*` 属性从运行树里移除（`src/engine/compile/compiler.ts:804`），只有少数 Runtime 指令（目前仅 `x-loading`）保留属性由单一 `MutationObserver` 分发器监听——**全库只开一个 observer**，这与 Alpine 早期因全量 DOM 扫描导致的卡顿问题（其 GitHub Issues #566 / #570 有记录）是两种思路。
+- **更新是「重求值 + 单点写」**，不是「重建 + diff」。watcher 回调只标脏，flush 时 updateFn 重新求值并直接写 DOM，属性写入走五路分派（`src/features/directive/utils/attrPatch.ts:67`）。
 - **运行时局部换模板**：`engine.patch(selector, updater)` 支持四态返回值决定重建语义（`ADR-0002`），且有冲突防护——不允许 patch 落入 `x-for` / eager `x-if` 等动态区域。Vue 里对应能力通常是动态组件 `<component :is>` 或 `v-if` 切换。
 
 ---

@@ -25,7 +25,7 @@
 
 #### 决策 1：引擎级子系统 ToastManager（非指令、非 overlay 消费者）
 
-`src/toast/` 的 `ToastManager`，服务挂 engine 实例（`engine.toastManager`，ADR-0061 决策 1 同构）。toast 与 tooltip 同属「引擎级全局非树内 UI 子系统」；overlay 管线（dataContext / mask / 打开栈 / 组件投影）对 fire-and-forget 通知全是死重，`OverlayInstance` 必须持 `ComponentDef` 的内容组件模型亦与 toast 的「message 是 props 键」模型不合。
+`src/features/messages/` 的 `ToastManager`，服务挂 engine 实例（`engine.toastManager`，ADR-0061 决策 1 同构）。toast 与 tooltip 同属「引擎级全局非树内 UI 子系统」；overlay 管线（dataContext / mask / 打开栈 / 组件投影）对 fire-and-forget 通知全是死重，`OverlayInstance` 必须持 `ComponentDef` 的内容组件模型亦与 toast 的「message 是 props 键」模型不合。
 
 #### 决策 2：三层结构——单项组件化，分区列引擎结构
 
@@ -35,7 +35,7 @@
 
 #### 决策 3：复用边界
 
-- **复用**：`instantiateDetachedComponent`（shell 实例化 + props 注入，rootless）；`resolveBuiltinShell` 同构的内置私有组件懒构建模式（toast 侧独立小注册表，放 `src/toast/`，不动 `overlay/wrappers`）；`registerShellStyles` 幂等注入模式；容器懒建 + destroy 清理模式；`engine.animate`（ADR-0039 指令无关服务）；`buildAction`（全局 toast action 广播）；`engine.actions` 全局表（actions 字符串解析——toast API 无 el 参数无法定位 scope 链，**只查全局表**，局部 scope action 不支持，文档标注）；`options.sanitizer`（message 消毒，x-html 同通道）；
+- **复用**：`instantiateDetachedComponent`（shell 实例化 + props 注入，rootless）；`resolveBuiltinShell` 同构的内置私有组件懒构建模式（toast 侧独立小注册表，放 `src/features/messages/`，不动 `overlay/wrappers`）；`registerShellStyles` 幂等注入模式；容器懒建 + destroy 清理模式；`engine.animate`（ADR-0039 指令无关服务）；`buildAction`（全局 toast action 广播）；`engine.actions` 全局表（actions 字符串解析——toast API 无 el 参数无法定位 scope 链，**只查全局表**，局部 scope action 不支持，文档标注）；`options.sanitizer`（message 消毒，x-html 同通道）；
 - **不复用**：`OverlayInstance`（遮罩 / floating-ui 定位 / 打开栈全死重）、`autospark-overlays` 容器（组件实例领地）、floating-ui / `applyAnchorPosition`（屏幕锚定纯 CSS inset 定位，零 JS 测量）。
 
 ### 二、API 面

@@ -14,7 +14,7 @@
  * （组件作用域求值）。形参解析只认简单键（无 rename/默认值）。
  */
 
-import type { AutoSparkScope } from "../scope";
+import type { AutoSparkScope } from "../engine/scope";
 
 /**
  * super 展开产物（ADR-0084）：本段 fallback 的一次独立编译结果。

@@ -1,4 +1,4 @@
-import type { AutoSparkScope } from "../scope";
+import type { AutoSparkScope } from "../engine/scope";
 
 /**
  * 重编译指定 scope 的子树（以 `scope.template` 当前内容为源）。
