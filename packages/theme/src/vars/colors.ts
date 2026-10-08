@@ -4,9 +4,9 @@
  *
  */
 export const colors = {
-    // "--k-color-primary": "#3292ff",
-    // "--k-color-success": "#22c55e",
-    // "--k-color-danger": "#ef4444",
-    // "--k-color-warning": "#f59e0b",
-    // "--k-color-info": "#71717a",
+    // "--x-color-primary": "#3292ff",
+    // "--x-color-success": "#22c55e",
+    // "--x-color-danger": "#ef4444",
+    // "--x-color-warning": "#f59e0b",
+    // "--x-color-info": "#71717a",
 };

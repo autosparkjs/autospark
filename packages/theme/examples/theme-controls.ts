@@ -8,13 +8,16 @@ import { presetThemes, themeManager } from "../src/index.ts";
  * 面板自身配色消费从 :root 继承穿透的 --auto-* CSS 变量，主题切换时面板随动。
  * 采用 static properties 而非装饰器声明响应式属性，规避 esbuild 标准装饰器转译差异。
  */
-const SIZES = ["x-small", "small", "medium", "large", "x-large"];
+/** 视觉密度档（圆角/间距/阴影）：含 none（直角/零间距/无阴影） */
+const SIZES = ["none","x-small", "small", "medium", "large", "x-large"];
+/** 字号档：字号无「归零」语义（sizeVars 未定义 none 档），不提供 none 选项 */
+const FONT_SIZES = ["x-small", "small", "medium", "large", "x-large"];
 
 const SIZE_ATTRS = [
-    { attr: "size", label: "尺寸" },
-    { attr: "radius", label: "圆角" },
-    { attr: "spacing", label: "间距" },
-    { attr: "shadow", label: "阴影" },
+    { attr: "size", label: "尺寸", sizes: FONT_SIZES },
+    { attr: "radius", label: "圆角", sizes: SIZES },
+    { attr: "spacing", label: "间距", sizes: SIZES },
+    { attr: "shadow", label: "阴影", sizes: SIZES },
 ] as const;
 
 type SizeAttr = (typeof SIZE_ATTRS)[number]["attr"];
@@ -134,36 +137,26 @@ export class ThemeControls extends LitElement {
             color: var(--auto-third-color, #999);
             margin-bottom: 0.25rem;
         }
-        .segments {
-            display: flex;
-            gap: 0.25rem;
-        }
-        .segment {
-            flex: 1;
-            text-align: center;
-            padding: 0.25rem 0;
-            font-size: 0.68rem;
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--auto-theme-color, #1677ff);
             cursor: pointer;
-            border: 1px solid var(--auto-border-color, #e9e9e9);
-            border-radius: var(--auto-border-radius, 4px);
-            color: var(--auto-secondary-color, #666);
-            user-select: none;
-        }
-        .segment:hover {
-            color: var(--auto-hover-color);
-            background: var(--auto-hover-bgcolor);
-        }
-        .segment.active {
-            color: var(--auto-selected-color);
-            background: var(--auto-selected-bgcolor);
-            border-color: var(--auto-selected-border-color, var(--auto-theme-color));
         }
     `;
 
-    /** 切换主题色：预设名或任意色值 */
+    /** 待应用的主题色（rAF 合帧的挂起值） */
+    private _pendingColor: string | null = null;
+    private _colorRaf = 0;
+
+    /** 切换主题色：预设名或任意色值；@input 逐像素触发，rAF 合帧为每帧至多一次主题应用 */
     private _setThemeColor(value: string) {
-        this.currentColor = value;
-        themeManager.themeColor = value;
+        this.currentColor = value; // 选中态即时反馈
+        this._pendingColor = value;
+        if (this._colorRaf) return;
+        this._colorRaf = requestAnimationFrame(() => {
+            this._colorRaf = 0;
+            if (this._pendingColor !== null) themeManager.themeColor = this._pendingColor;
+        });
     }
 
     private _setSize(attr: SizeAttr, value: string) {
@@ -217,18 +210,22 @@ export class ThemeControls extends LitElement {
             <div class="group">
                 <div class="group-title">尺寸参数（ThemeSize）</div>
                 ${SIZE_ATTRS.map(
-                    ({ attr, label }) => html`
+                    ({ attr, label, sizes }) => html`
                         <div class="size-group">
-                            <div class="size-label">${label}（${attr}）</div>
-                            <div class="segments">
-                                ${SIZES.map(
-                                    (size) => html`<span
-                                        class="segment ${this.sizeValues[attr] === size ? "active" : ""}"
-                                        @click=${() => this._setSize(attr, size)}
-                                        >${size}</span
-                                    >`,
-                                )}
-                            </div>
+                            <div class="size-label">${label}（${attr}）：${this.sizeValues[attr]}</div>
+                            <input
+                                type="range"
+                                min="0"
+                                class="auto-input"
+                                max="${sizes.length - 1}"
+                                step="1"
+                                .value=${String(sizes.indexOf(this.sizeValues[attr]))}
+                                @input=${(e: Event) =>
+                                    this._setSize(
+                                        attr,
+                                        sizes[Number((e.target as HTMLInputElement).value)],
+                                    )}
+                            />
                         </div>
                     `,
                 )}

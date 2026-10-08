@@ -27,6 +27,7 @@
  * （数字级别）**移除**——列内与镜像均纯到达序（FIFO）。
  */
 import type { ShallowObject } from "autostore";
+import type { AutoSparkAction } from "../actions/types";
 
 /**
  * 消息严重度级别（ADR-0079，原 `type` 五值语义色数值化）：`0` = 无图标无着色纯文本
@@ -123,26 +124,6 @@ export const MESSAGE_LEVEL_ICONS: Record<Exclude<MessageLevelName, "none">, stri
     error: "error",
 };
 
-/**
- * 消息按钮项（沿 ADR-0068 决策 14 双形态 + ADR-0071 决策 13 `value` 键）：
- * 字符串 = 全局 action 名（查 `engine.actions`；带 anchor 时沿其 scope 链解析局部 action）；
- * 对象 = 局部一次性按钮（不进全局表，点击直调）。`value` 键为**数据应答**通道——点击写入
- * `message.result`（与 `handle` 正交可并存）；`hide` 约定键对齐 x-loading（ADR-0038）：
- * 默认 true（点击后关消息）、显式 false 保留。
- */
-export type AutoSparkAction =
-    | string
-    | {
-          /** 按钮文案（缺失回退 "action"） */
-          title?: string;
-          /** 数据应答值：点击写入 message.result（决策 13 闭环） */
-          value?: any;
-          /** 点击执行体（局部按钮点击直调，不走 buildAction 广播） */
-          handle?: (...args: any[]) => any;
-          /** 点击后是否关闭所在消息（默认 true；显式 false 保留） */
-          hide?: boolean;
-          [key: string]: any;
-      };
 
 /** 预解析后的按钮项（引擎注入 props 前完成——render（含自定义）拿到即此形态） */
 export interface ResolvedMessageAction {

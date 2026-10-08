@@ -12,13 +12,12 @@ export default {
         <div class="auto-card story-intro">
             <div class="story-intro-title">特性说明：阴影（Shadow）</div>
             <p>
-                阴影梯度为浮层、卡片等提供层次感。基础变量 <code>--k-shadow-*</code> 提供六级强度
+                阴影梯度为浮层、卡片等提供层次感。基础变量 <code>--x-shadow-*</code> 提供六级强度
                 （<code>none</code> 至 <code>x-large</code>），别名 <code>--auto-shadow</code> 指向当前选中档位，
                 卡片 / 按钮 / 提示组件默认消费该别名。
             </p>
             <ul>
-                <li>五档可调：<code>x-small / small / medium / large / x-large</code>（<code>medium</code> 为默认态）</li>
-                <li><code>none</code> 用于无阴影的扁平场景</li>
+                <li>六档可调：<code>none / x-small / small / medium / large / x-large</code>（<code>medium</code> 为默认态），<code>none</code> 用于无阴影的扁平场景</li>
                 <li>局部换档：任意容器加 <code>data-shadow="档位"</code> 属性即可让内部元素局部生效</li>
             </ul>
             <pre>ThemePro.shadow = 'small'  // 等价 document.documentElement.dataset.shadow = 'small'</pre>
@@ -32,11 +31,11 @@ export default {
                         (level) => html`
                             <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem;">
                                 <div
-                                    style="width:4.5rem;height:2.8rem;background:var(--auto-bgcolor);border-radius:var(--auto-border-radius);box-shadow:var(--k-shadow-${level});display:flex;align-items:center;justify-content:center;font-size:0.72rem;"
+                                    style="width:4.5rem;height:2.8rem;background:var(--auto-bgcolor);border-radius:var(--auto-border-radius);box-shadow:var(--x-shadow-${level});display:flex;align-items:center;justify-content:center;font-size:0.72rem;"
                                 >
                                     ${level}
                                 </div>
-                                <code style="font-size:0.68rem;color:var(--auto-third-color);">--k-shadow-${level}</code>
+                                <code style="font-size:0.68rem;color:var(--auto-third-color);">--x-shadow-${level}</code>
                             </div>
                         `,
                     )}
@@ -48,15 +47,15 @@ export default {
             <div class="auto-card-body col">
                 <div class="auto-card-body-item" style="gap:1.5rem;align-items:flex-end;flex-wrap:wrap;padding:1rem 0.5rem;">
                     <span
-                        style="display:inline-flex;align-items:center;justify-content:center;width:2.5rem;height:2.5rem;border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);box-shadow:var(--k-shadow-medium);font-size:0.7rem;"
+                        style="display:inline-flex;align-items:center;justify-content:center;width:2.5rem;height:2.5rem;border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);box-shadow:var(--x-shadow-medium);font-size:0.7rem;"
                         >小</span
                     >
                     <span
-                        style="display:inline-flex;align-items:center;justify-content:center;width:5rem;height:4rem;border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);box-shadow:var(--k-shadow-medium);font-size:0.75rem;"
+                        style="display:inline-flex;align-items:center;justify-content:center;width:5rem;height:4rem;border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);box-shadow:var(--x-shadow-medium);font-size:0.75rem;"
                         >中</span
                     >
                     <span
-                        style="display:inline-flex;align-items:center;justify-content:center;width:9rem;height:5.5rem;border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);box-shadow:var(--k-shadow-medium);font-size:0.8rem;"
+                        style="display:inline-flex;align-items:center;justify-content:center;width:9rem;height:5.5rem;border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);box-shadow:var(--x-shadow-medium);font-size:0.8rem;"
                         >大</span
                     >
                 </div>
@@ -70,10 +69,10 @@ export default {
             <div class="auto-card-header">自动阴影：局部固定 vs 跟随全局（在右侧面板切换「阴影」观察）</div>
             <div class="auto-card-body col">
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;">
-                    ${["x-small", "none", "large"].map(
+                    ${["x-small", "global", "large"].map(
                         (level) => {
-                            // "none" 表示不加 data-shadow 属性：容器不覆盖变量，内部元素继承 :root 的全局档位
-                            const isGlobal = level === "none";
+                            // "global" 表示不加 data-shadow 属性：容器不覆盖变量，内部元素继承 :root 的全局档位
+                            const isGlobal = level === "global";
                             return html`
                                 <div
                                     data-shadow="${isGlobal ? undefined : level}"

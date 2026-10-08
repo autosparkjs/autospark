@@ -69,7 +69,7 @@ export default {
                     ${repeat(
                         Array.from({ length: 10 }),
                         (_, i) => html`<span
-                            style="text-align:center;flex:1;height:2em;background-color:var(--k-color-theme-${i});"
+                            style="text-align:center;flex:1;height:2em;background-color:var(--x-color-theme-${i});"
                             >${i}</span
                         >`,
                     )}
@@ -104,9 +104,9 @@ export default {
             <div class="auto-card-body col">
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;">
                     ${[
-                        { name: "--auto-color", ref: "var(--k-color-1)", tag: "主要文字" },
-                        { name: "--auto-secondary-color", ref: "var(--k-color-3)", tag: "次要文字" },
-                        { name: "--auto-third-color", ref: "var(--k-color-4)", tag: "辅助文字" },
+                        { name: "--auto-color", ref: "var(--auto-color)", tag: "主要文字" },
+                        { name: "--auto-secondary-color", ref: "var(--auto-secondary-color)", tag: "次要文字" },
+                        { name: "--auto-third-color", ref: "var(--auto-third-color)", tag: "辅助文字" },
                     ].map(
                         (item) => html`
                             <div
@@ -122,7 +122,7 @@ export default {
                 <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
                     三档分别引用文字标尺的 <code>color-1 / color-3 / color-4</code> 档（light 下
                     #3B3B3B / #6D6D6D / #959595，档距均匀）：逐档变浅，
-                    dark 与多彩模式下随 <code>--k-color-*</code> 标尺整体换值，但「主要 &gt; 次要 &gt; 辅助」的层级恒成立——
+                    dark 与多彩模式下随 <code>--x-color-*</code> 标尺整体换值，但「主要 &gt; 次要 &gt; 辅助」的层级恒成立——
                     在右侧面板切换暗色 / 多彩观察三档联动。
                 </p>
             </div>

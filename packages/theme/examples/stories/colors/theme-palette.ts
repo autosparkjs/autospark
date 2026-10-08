@@ -10,7 +10,7 @@ export default {
             <div class="story-intro-title">特性说明：主题调色板（Theme Color Palette）</div>
             <p>
                 主题系统从单个主题色（<code>themeColor</code>）算法生成 10 阶梯度
-                <code>--k-color-theme-0..9</code>（0 浅 → 9 深），无需为每阶手工配色。
+                <code>--x-color-theme-0..9</code>（0 浅 → 9 深），无需为每阶手工配色。
                 暗色模式下梯度自动反转（浅深互换），保证两种模式的可读性。
             </p>
             <ul>
@@ -28,7 +28,7 @@ ThemePro.themeColor = '#7c3aed'   // 任意色值</pre>
                     ${repeat(
                         Array.from({ length: 10 }),
                         (_, i) => html`<span
-                            style="text-align:center;flex:1;height:2em;background-color:var(--k-color-theme-${i});"
+                            style="text-align:center;flex:1;height:2em;background-color:var(--x-color-theme-${i});"
                             >${i}</span
                         >`,
                     )}
@@ -38,12 +38,12 @@ ThemePro.themeColor = '#7c3aed'   // 任意色值</pre>
         <div class="auto-card">
             <div class="auto-card-header">主题色</div>
             <div class="auto-card-body col">
-                <div class="auto-card-body-item" style="color:var(--k-color-theme-0)">--k-color-theme-0</div>
+                <div class="auto-card-body-item" style="color:var(--x-color-theme-0)">--x-color-theme-0</div>
                 ${repeat(
                     Array.from({ length: 10 }),
                     (_, i) => html`
-                        <div class="auto-card-body-item" style="background-color:var(--k-color-theme-${i})">
-                            <span style="color:var(--k-color-${i > 3 ? 9 : 0})">--k-color-theme-${i}</span>
+                        <div class="auto-card-body-item" style="background-color:var(--x-color-theme-${i})">
+                            <span style="color:var(--x-color-${i > 3 ? 9 : 0})">--x-color-theme-${i}</span>
                         </div>
                     `,
                 )}

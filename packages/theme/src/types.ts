@@ -1,5 +1,4 @@
-export type ThemeSize = "x-small" | "small" | "medium" | "large" | "x-large";
-export type ThemeRadius = "none" | ThemeSize;
+export type ThemeSize =  'none' | "x-small" | "small" | "medium" | "large" | "x-large";
 export type ThemeVariantType = "primary" | "success" | "warning" | "danger" | "info";
 
 export type ThemeOptions = {
@@ -15,7 +14,6 @@ export type ThemeOptions = {
      * 主题颜色
      */
     themeColor?: string;
-    defaultThemeColor?: string;
     /**
      * 深色模式
      */
@@ -46,6 +44,18 @@ export type ThemeOptions = {
      * @default 1px
      */
     border?: string;
+    /**
+     * 调色板形态参数：梯度相邻档间最小明度递减间隔
+     *
+     * 缺省时由生成器层使用默认值 1.7，语义见 PaletteOptions.seedLightnessGap
+     */
+    seedLightnessGap?: number;
+    /**
+     * 调色板形态参数：非种子档彩度缩放倍率上限
+     *
+     * 缺省时由生成器层使用默认值 1.25，语义见 PaletteOptions.chromaBoostCap
+     */
+    chromaBoostCap?: number;
     /**
      * 语义颜色
      */
@@ -79,9 +89,30 @@ export type ThemeOptions = {
      *
      */
     docRoot?: HTMLElement;
+    /**
+     * 是否参与持久化（ADR-0003）
+     *
+     * 默认 true：参数写入 `{storageKey}-scope-{id}`，生成的 CSS 参与样式快照合成。
+     * 设为 false 时照常注入渲染，仅不读写 localStorage。
+     */
+    persistence?: boolean;
+    /**
+     * 持久化 key 前缀（ADR-0003）
+     *
+     * 样式快照存 `{storageKey}-styles`，scope 参数存 `{storageKey}-scope-{id}`。
+     * 默认 `autospark-theme`；同源多应用经自定义前缀隔离。由 ThemeManager 统一下发。
+     */
+    storageKey?: string;
 };
 
 export type DynamicThemeOptions = Pick<
     ThemeOptions,
-    "themeColor" | "primary" | "success" | "warning" | "danger" | "info"
+    | "themeColor"
+    | "primary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "info"
+    | "seedLightnessGap"
+    | "chromaBoostCap"
 >;

@@ -166,6 +166,10 @@ export function resolveComponentInheritance(input: ComponentInheritInput): Inher
         hooks,
         styles: styles.length > 0 ? styles : undefined,
         styleBinds: styleBinds.length > 0 ? styleBinds : undefined,
+        // 默认值（ADR-0092）：子声明胜、子未声明沿父（浅合并与 setup 段同纪律）
+        defaults: childDef.defaults
+            ? { ...(parentDef.defaults ?? {}), ...childDef.defaults }
+            : parentDef.defaults,
         open,
         dataContext,
         declarerScope: childDef.declarerScope,

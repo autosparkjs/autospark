@@ -23,7 +23,7 @@ export default {
             </p>
             <ul>
                 <li>内置名称：<code>home / info / close / settings / star / tag / checked / unchecked / yes / no / important / file / folder / folder-open / triangle / save / loading / alert / bell / arrow</code></li>
-                <li>尺寸变量：<code>--k-icon-size-{size}</code> 五档；默认继承 <code>font-size</code></li>
+                <li>尺寸变量：<code>--x-icon-size-{size}</code> 五档；默认继承 <code>font-size</code></li>
             </ul>
             <pre>&lt;span class="auto-icon home"&gt;&lt;/span&gt;
 &lt;span class="auto-icon star" colorized&gt;&lt;/span&gt;

@@ -4,7 +4,8 @@
  * 从 @yosulramp/material-color-palette-js@1.0.4（MIT License，
  * https://github.com/yosulramp/material-color-palette-js ，系 Hammwerk/material-color-palette
  * 的 TypeScript 移植）中提取 createPrimaryPalette / createComplementaryPalette 及其全部
- * 依赖闭包，算法与数值与原包完全一致。
+ * 依赖闭包，默认参数下算法与数值与原包完全一致（seedLightnessGap / chromaBoostCap
+ * 系原包两处硬编码值的参数化，见 PaletteOptions）。
  *
  * 与原包的差异（不影响输出结果）：
  * - 原包通过 `Number.prototype` 扩展（correctGamma/coerceIn 等）实现数值工具，此处改为
@@ -436,6 +437,14 @@ class LchColor {
 
 /* ------------------------------ 基准色板与派生 ------------------------------ */
 
+/** 调色板形态参数；缺省值与原包（material-color-palette-js）硬编码值一致 */
+export type PaletteOptions = {
+    /** 种子明度间隔：梯度相邻档间的最小明度递减间隔（maxLightness 阶梯约束，实测可波及种子两侧的临界档），默认 1.7（建议 ≥0，负值破坏梯度单调性） */
+    seedLightnessGap?: number
+    /** 彩度放大上限：非种子档彩度缩放倍率的上限，默认 1.25（<1 可压低饱和度） */
+    chromaBoostCap?: number
+}
+
 /**
  * Material 基准色板（原包 GoldenPalette.ts）：以一组 LCH 基准色为骨架，
  * 按明度/彩度缩放因子将自定义主色扩散为 10 阶梯度。
@@ -459,13 +468,14 @@ class GoldenPalette {
         return this.colors[indexOfColorDeltaList]
     }
 
-    createCustomPalette(customBaseColor: LchColor): LchColor[] {
+    createCustomPalette(customBaseColor: LchColor, options?: PaletteOptions): LchColor[] {
+        const { seedLightnessGap = 1.7, chromaBoostCap = 1.25 } = options ?? {}
         let maxLightness = 100.0
 
         const closestGoldenPaletteColor = this.getClosestColor(customBaseColor)
         const closestColorIndex = this.colors.indexOf(closestGoldenPaletteColor)
         const adjustMaxLightness = (color: LchColor) =>
-            coerceAtLeast(color.getLightness() - 1.7, 0.0)
+            coerceAtLeast(color.getLightness() - seedLightnessGap, 0.0)
 
         return this.colors.map((color, index) => {
             if (color === closestGoldenPaletteColor) {
@@ -491,7 +501,7 @@ class GoldenPalette {
                                     : coerceAtMost(
                                           this.chromaFactors[index] /
                                               this.chromaFactors[closestColorIndex],
-                                          1.25
+                                          chromaBoostCap
                                       ))
                         )
                 )
@@ -785,11 +795,11 @@ const toRgbColorOrNull = (hexColor: string): RgbColor | null => {
 }
 
 /** 由 HSL 主色生成 10 阶 LCH 色板后转回 RGB（原包 index.ts 的 createPalette） */
-const createPalette = (hslColor: HslColor): RgbColor[] => {
+const createPalette = (hslColor: HslColor, options?: PaletteOptions): RgbColor[] => {
     const lchColor = hslColor.toRgbColor().toXyzColor().toLabColor().toLchColor()
 
     const customPalette =
-        getClosestGoldenPalette(lchColor).createCustomPalette(lchColor)
+        getClosestGoldenPalette(lchColor).createCustomPalette(lchColor, options)
 
     const customPaletteAsRgb = customPalette.map((color) =>
         color.toLabColor().toXyzColor().toRgbColor()
@@ -815,7 +825,10 @@ const getClosestGoldenPalette = (color: LchColor): GoldenPalette => {
  * 由十六进制主色（不含 # 前缀，6/8 位）生成 Material 风格 10 阶主色板；
  * 长度非法时返回 null。
  */
-export const createPrimaryPalette = (hexColor: string): RgbColor[] | null => {
+export const createPrimaryPalette = (
+    hexColor: string,
+    options?: PaletteOptions
+): RgbColor[] | null => {
     const hexToRgbColor = toRgbColorOrNull(hexColor)
     if (hexToRgbColor == null) {
         return null
@@ -823,14 +836,17 @@ export const createPrimaryPalette = (hexColor: string): RgbColor[] | null => {
 
     const hslColor = hexToRgbColor.toHslColor()
 
-    return createPalette(hslColor)
+    return createPalette(hslColor, options)
 }
 
 /**
  * 由十六进制主色（不含 # 前缀，6/8 位）生成其互补色（色相 +180°）的
  * Material 风格 10 阶色板；长度非法时返回 null。
  */
-export const createComplementaryPalette = (hexColor: string): RgbColor[] | null => {
+export const createComplementaryPalette = (
+    hexColor: string,
+    options?: PaletteOptions
+): RgbColor[] | null => {
     const hexToRgbColor = toRgbColorOrNull(hexColor)
     if (hexToRgbColor == null) {
         return null
@@ -838,7 +854,7 @@ export const createComplementaryPalette = (hexColor: string): RgbColor[] | null 
 
     const hslColor = hexToRgbColor.toHslColor().complementaryColor
 
-    return createPalette(hslColor)
+    return createPalette(hslColor, options)
 }
 
 export type { RgbColor }

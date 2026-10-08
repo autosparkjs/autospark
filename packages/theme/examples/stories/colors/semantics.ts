@@ -11,10 +11,10 @@ export default {
             <p>
                 语义色为「操作结果」提供固定语言：<code>primary</code>（品牌/主操作）、<code>success</code>（成功）、
                 <code>warning</code>（警告）、<code>danger</code>（危险）、<code>info</code>（中性信息）。
-                每个语义色有 <code>--k-color-*</code>（基础值）与 <code>--auto-*-color</code>（组件消费别名）两层。
+                每个语义色有 <code>--x-color-*</code>（基础值）与 <code>--auto-*-color</code>（组件消费别名）两层。
             </p>
             <ul>
-                <li>暗色模式下自动提亮：语义色作为梯度种子生成 <code>--k-color-{name}-0..9</code> 标尺，dark 引用第 3 档（ADR-0002）</li>
+                <li>暗色模式下自动提亮：语义色作为梯度种子生成 <code>--x-color-{name}-0..9</code> 标尺，dark 引用第 3 档（ADR-0002）</li>
                 <li>可通过 <code>update()</code> 自定义任意语义色（见下方演示卡片）</li>
             </ul>
             <pre>ThemePro.update({ primary: '#7c3aed', success: '#16a34a' })  // 运行时覆盖语义色</pre>
@@ -23,23 +23,23 @@ export default {
             <div class="auto-card-header">语义颜色</div>
             <div class="auto-card-body col">
                 <pre><code>ThemePro</code> 支持 primary / success / danger / warning / info</pre>
-                <div class="auto-card-body-item center" style="color:var(--k-color-gray-10);background-color:var(--auto-primary-color)">
-                    --auto-primary-color: var(--k-color-primary)
+                <div class="auto-card-body-item center" style="color:var(--x-color-gray-10);background-color:var(--auto-primary-color)">
+                    --auto-primary-color: var(--x-color-primary)
                 </div>
-                <div class="auto-card-body-item center" style="color:var(--k-color-gray-10);background-color:var(--auto-secondary-color)">
-                    --auto-secondary-color: var(--k-color-secondary)
+                <div class="auto-card-body-item center" style="color:var(--x-color-gray-10);background-color:var(--auto-secondary-color)">
+                    --auto-secondary-color: var(--x-color-secondary)
                 </div>
-                <div class="auto-card-body-item center" style="color:var(--k-color-gray-10);background-color:var(--auto-success-color)">
-                    --auto-success-color: var(--k-color-success)
+                <div class="auto-card-body-item center" style="color:var(--x-color-gray-10);background-color:var(--auto-success-color)">
+                    --auto-success-color: var(--x-color-success)
                 </div>
-                <div class="auto-card-body-item center" style="color:var(--k-color-gray-10);background-color:var(--auto-danger-color)">
-                    --auto-danger-color: var(--k-color-danger)
+                <div class="auto-card-body-item center" style="color:var(--x-color-gray-10);background-color:var(--auto-danger-color)">
+                    --auto-danger-color: var(--x-color-danger)
                 </div>
-                <div class="auto-card-body-item center" style="color:var(--k-color-gray-10);background-color:var(--auto-warning-color)">
-                    --auto-warning-color: var(--k-color-warning)
+                <div class="auto-card-body-item center" style="color:var(--x-color-gray-10);background-color:var(--auto-warning-color)">
+                    --auto-warning-color: var(--x-color-warning)
                 </div>
-                <div class="auto-card-body-item center" style="color:var(--k-color-gray-10);background-color:var(--auto-info-color)">
-                    --auto-info-color: var(--k-color-info)
+                <div class="auto-card-body-item center" style="color:var(--x-color-gray-10);background-color:var(--auto-info-color)">
+                    --auto-info-color: var(--x-color-info)
                 </div>
             </div>
         </div>
@@ -57,7 +57,7 @@ export default {
                         恢复默认（跟随主题色）
                     </button>
                 </div>
-                <div class="auto-card-body-item center" style="color:var(--k-color-gray-10);background-color:var(--auto-primary-color)">
+                <div class="auto-card-body-item center" style="color:var(--x-color-gray-10);background-color:var(--auto-primary-color)">
                     观察 --auto-primary-color 的变化（按钮 / 上方 primary 色块联动）
                 </div>
             </div>
@@ -68,8 +68,8 @@ export default {
                 <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
                     在右侧面板开启「暗色模式」：语义色自动切换到梯度第 3 档（提亮），无需为暗色单独配色。
                 </p>
-                <div class="auto-card-body-item center" style="color:var(--k-color-primary);border:var(--auto-border);">
-                    color: var(--k-color-primary) — 暗/亮两模式对比
+                <div class="auto-card-body-item center" style="color:var(--x-color-primary);border:var(--auto-border);">
+                    color: var(--x-color-primary) — 暗/亮两模式对比
                 </div>
             </div>
         </div>

@@ -8,8 +8,8 @@ export default {
         <div class="auto-card story-intro">
             <div class="story-intro-title">特性说明：字体（Font）</div>
             <p>
-                字体梯度提供字号与字重的五档标准值。基础变量 <code>--k-font-size-*</code> /
-                <code>--k-font-weight-*</code> 提供绝对值；组合速写 <code>--auto-font</code>
+                字体梯度提供字号与字重的五档标准值。基础变量 <code>--x-font-size-*</code> /
+                <code>--x-font-weight-*</code> 提供绝对值；组合速写 <code>--auto-font</code>
                 聚合了字重、字号、行高与字体族，一次消费即可获得与全局尺寸档位联动的完整排版。
             </p>
             <ul>
@@ -22,40 +22,40 @@ export default {
         <div class="auto-card">
             <div class="auto-card-header">字体大小</div>
             <div class="auto-card-body col">
-                <div class="auto-card-body-item" style="font-size:var(--k-font-size-x-small)">
-                    道可道非常道，名可名非常名。--k-font-size-x-small
+                <div class="auto-card-body-item" style="font-size:var(--x-font-size-x-small)">
+                    道可道非常道，名可名非常名。--x-font-size-x-small
                 </div>
-                <div class="auto-card-body-item" style="font-size:var(--k-font-size-small)">
-                    道可道非常道，名可名非常名。--k-font-size-small
+                <div class="auto-card-body-item" style="font-size:var(--x-font-size-small)">
+                    道可道非常道，名可名非常名。--x-font-size-small
                 </div>
-                <div class="auto-card-body-item" style="font-size:var(--k-font-size-medium)">
-                    道可道非常道，名可名非常名。--k-font-size-medium
+                <div class="auto-card-body-item" style="font-size:var(--x-font-size-medium)">
+                    道可道非常道，名可名非常名。--x-font-size-medium
                 </div>
-                <div class="auto-card-body-item" style="font-size:var(--k-font-size-large)">
-                    道可道非常道，名可名非常名。--k-font-size-large
+                <div class="auto-card-body-item" style="font-size:var(--x-font-size-large)">
+                    道可道非常道，名可名非常名。--x-font-size-large
                 </div>
-                <div class="auto-card-body-item" style="font-size:var(--k-font-size-x-large)">
-                    道可道非常道，名可名非常名。--k-font-size-x-large
+                <div class="auto-card-body-item" style="font-size:var(--x-font-size-x-large)">
+                    道可道非常道，名可名非常名。--x-font-size-x-large
                 </div>
             </div>
         </div>
         <div class="auto-card">
             <div class="auto-card-header">字体粗细</div>
             <div class="auto-card-body col">
-                <div class="auto-card-body-item" style="font-weight:var(--k-font-weight-x-small)">
-                    道可道非常道，名可名非常名。--k-font-weight-x-small
+                <div class="auto-card-body-item" style="font-weight:var(--x-font-weight-x-small)">
+                    道可道非常道，名可名非常名。--x-font-weight-x-small
                 </div>
-                <div class="auto-card-body-item" style="font-weight:var(--k-font-weight-small)">
-                    道可道非常道，名可名非常名。--k-font-weight-small
+                <div class="auto-card-body-item" style="font-weight:var(--x-font-weight-small)">
+                    道可道非常道，名可名非常名。--x-font-weight-small
                 </div>
-                <div class="auto-card-body-item" style="font-weight:var(--k-font-weight-medium)">
-                    道可道非常道，名可名非常名。--k-font-weight-medium
+                <div class="auto-card-body-item" style="font-weight:var(--x-font-weight-medium)">
+                    道可道非常道，名可名非常名。--x-font-weight-medium
                 </div>
-                <div class="auto-card-body-item" style="font-weight:var(--k-font-weight-large)">
-                    道可道非常道，名可名非常名。--k-font-weight-large
+                <div class="auto-card-body-item" style="font-weight:var(--x-font-weight-large)">
+                    道可道非常道，名可名非常名。--x-font-weight-large
                 </div>
-                <div class="auto-card-body-item" style="font-weight:var(--k-font-weight-x-large)">
-                    道可道非常道，名可名非常名。--k-font-weight-x-large
+                <div class="auto-card-body-item" style="font-weight:var(--x-font-weight-x-large)">
+                    道可道非常道，名可名非常名。--x-font-weight-x-large
                 </div>
             </div>
         </div>

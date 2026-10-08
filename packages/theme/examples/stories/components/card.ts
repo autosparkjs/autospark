@@ -10,7 +10,7 @@ export default {
             <p>
                 <code>.auto-card</code> 是内容容器的标准形态：可选的 <code>header</code>（头部）、
                 <code>body</code>（主体，<code>col</code> 类切换垂直排列）、<code>footer</code>（操作区）三段结构。
-                背景、边框、圆角、阴影、头部样式全部来自 <code>--auto-card-*</code> 与 <code>--auto-*</code> 变量。
+                背景、边框、圆角、阴影、头部样式全部来自 <code>--auto-panel-*</code> 与 <code>--auto-*</code> 变量。
             </p>
             <ul>
                 <li>结构类：<code>.auto-card-header / .auto-card-body(.col) / .auto-card-footer / .auto-card-title</code></li>
@@ -112,9 +112,9 @@ export default {
         <div class="auto-card">
             <div class="auto-card-header">CSS 变量说明</div>
             <div class="auto-card-body col">
-                <div><strong>卡片背景色：</strong><code>var(--auto-card-bgcolor)</code></div>
-                <div><strong>头部颜色：</strong><code>var(--auto-card-header-color)</code></div>
-                <div><strong>头部背景：</strong><code>var(--auto-card-header-bgcolor)</code></div>
+                <div><strong>卡片背景色：</strong><code>var(--auto-panel-bgcolor)</code></div>
+                <div><strong>头部颜色：</strong><code>var(--auto-panel-header-color)</code></div>
+                <div><strong>头部背景：</strong><code>var(--auto-panel-header-bgcolor)</code></div>
                 <div><strong>边框圆角：</strong><code>var(--auto-border-radius)</code></div>
                 <div><strong>阴影：</strong><code>var(--auto-shadow)</code></div>
                 <div><strong>间距：</strong><code>var(--auto-spacing)</code></div>

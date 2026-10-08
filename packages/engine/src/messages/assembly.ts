@@ -7,7 +7,6 @@ import type { SlotContent } from "../utils/slot";
 import { readInheritAttr } from "../compile/inherit";
 import { MESSAGE_COLUMN_ATTR } from "./container";
 import { getMessageColumn } from "./container";
-import { resolveMessageShell } from "./shell";
 import type { MessageEntry } from "./entry";
 import type { MessageManager } from "./manager";
 import { BASE_PRESET_NAME, formatMessageSize, messageLevelName } from "./types";
@@ -43,7 +42,7 @@ interface RendererRef {
     def: ComponentDef | null;
 }
 
-/** shell 解析（ADR-0088 自 sessions/base 迁入）：选择器名 → getComponentDeclaration 链 → `options.uiShells` → 内置兜底 */
+/** shell 解析（ADR-0088 自 sessions/base 迁入；ADR-0092 收敛统一组件链）：选择器名 → getComponentDeclaration 链 → 内置 shell 组件 */
 function resolveShell(manager: MessageManager): ShellRef {
     const engine = manager.engine;
     const name = String(manager._options.shell ?? "").trim() || "message";
@@ -53,11 +52,14 @@ function resolveShell(manager: MessageManager): ShellRef {
         const def = engine.getComponentDef(snapshot) ?? engine.getGlobalComponentDef(name) ?? null;
         return { name, snapshot, def, builtin: false };
     }
-    // ② options.uiShells 引擎级注册表（ADR-0077：内置种子 + 用户同键覆盖）
-    const ui = engine._resolveUiShell(name);
-    if (ui) return { name, ...ui, builtin: engine._isBuiltinUiShell(name) };
+    // ② 内置 shell 组件（autospark.messages.shell，builtinComponents 种子——用户同名覆盖即在此命中，
+    //    builtin=false 走 wrapper 装配；ADR-0092 shell 即组件，独立 uiShells 注册表退役）
+    const ui = engine._resolveUiShell("message");
+    if (ui) return { name, ...ui, builtin: engine._isBuiltinUiShell("message") };
 
-    return { name: "message", ...resolveMessageShell(), builtin: true };
+    // 理论不可达（内置种子恒在组件表）：空壳兜底——出口缺失会经既有 warn 链路暴露
+    engine.logger.warn("内置消息 shell 解析失败，已退化为空壳（请检查 builtinComponents 完整性）");
+    return { name, snapshot: document.createElement("div"), def: null, builtin: true };
 }
 
 /**

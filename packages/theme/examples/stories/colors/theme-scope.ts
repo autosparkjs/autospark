@@ -97,7 +97,7 @@ scope.themeColor = 'purple'   // 仅 sidebar 区域变紫</pre>
                             ${repeat(
                                 Array.from({ length: 10 }),
                                 (_, i) => html`<span
-                                    style="flex:1;height:1.6em;background-color:var(--k-color-theme-${i});border-radius:calc(var(--auto-border-radius) * 0.5);"
+                                    style="flex:1;height:1.6em;background-color:var(--x-color-theme-${i});border-radius:calc(var(--auto-border-radius) * 0.5);"
                                 ></span>`,
                             )}
                         </div>

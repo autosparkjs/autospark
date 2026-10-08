@@ -4,7 +4,7 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: calc(0.8 * var(--auto-input-padding)) calc(2 * var(--auto-input-padding));
+    padding: calc(0.5* var(--x-spacing-medium)) var(--x-spacing-medium);
     border-radius: var(--auto-border-radius);
     font: var(--auto-font);
     cursor: pointer;
@@ -20,38 +20,38 @@
 
     &:hover {
         border: var(--auto-active-border);
-        background-color: var(--k-color-theme-1);
+        background-color: var(--x-color-theme-1);
         color: var(--auto-active-border-color);
         outline: 4px solid var(--auto-active-border);
     }
 
     &:active {
-        background: var(--k-color-theme-2);
+        background: var(--x-color-theme-2);
     }
 
     &.x-small {
-        font-size: var(--k-font-size-x-small);
-        padding: calc(0.5 * var(--k-spacing-x-small)) var(--k-spacing-x-small);
+        font-size: var(--x-font-size-x-small);
+        padding: calc(0.5 * var(--x-spacing-x-small)) var(--x-spacing-x-small);
     }
 
     &.small {
-        font-size: var(--k-font-size-small);
-        padding: calc(0.5 * var(--k-spacing-small)) var(--k-spacing-small);
+        font-size: var(--x-font-size-small);
+        padding: calc(0.5 * var(--x-spacing-small)) var(--x-spacing-small);
     }
 
     &.medium {
-        font-size: var(--k-font-size-medium);
-        padding: calc(0.5* var(--k-spacing-medium)) var(--k-spacing-medium);
+        font-size: var(--x-font-size-medium);
+        padding: calc(0.5* var(--x-spacing-medium)) var(--x-spacing-medium);
     }
 
     &.large {
-        font-size: var(--k-font-size-large);
-        padding: calc(0.5* var(--k-spacing-large)) var(--k-spacing-large);
+        font-size: var(--x-font-size-large);
+        padding: calc(0.5* var(--x-spacing-large)) var(--x-spacing-large);
     }
 
     &.x-large {
-        font-size: var(--k-font-size-x-large);
-        padding: calc(0.5* var(--k-spacing-x-large)) var(--k-spacing-x-large);
+        font-size: var(--x-font-size-x-large);
+        padding: calc(0.5* var(--x-spacing-x-large)) var(--x-spacing-x-large);
     }
 
     &.compact {
@@ -74,68 +74,68 @@
         border: 1px solid var(--auto-primary-color);
 
         &:hover {
-            background-color: color-mix(in srgb, var(--k-color-primary), white 20%);
+            background-color: color-mix(in srgb, var(--x-color-primary), white 20%);
         }
 
         &:active {
-            background-color: color-mix(in srgb, var(--k-color-primary), white 30%);
+            background-color: color-mix(in srgb, var(--x-color-primary), white 30%);
         }
     }
 
     &.success {
-        background-color: var(--k-color-success);
-        color: color-mix(in srgb, var(--k-color-success) 0%, white 100%);
-        border: 1px solid var(--k-color-success);
+        background-color: var(--x-color-success);
+        color: color-mix(in srgb, var(--x-color-success) 0%, white 100%);
+        border: 1px solid var(--x-color-success);
 
         &:hover {
-            background-color: color-mix(in srgb, var(--k-color-success), white 10%);
+            background-color: color-mix(in srgb, var(--x-color-success), white 10%);
         }
 
         &:active {
-            background-color: color-mix(in srgb, var(--k-color-success), white 20%);
+            background-color: color-mix(in srgb, var(--x-color-success), white 20%);
         }
     }
 
     &.warning {
-        background-color: var(--k-color-warning);
-        color: color-mix(in srgb, var(--k-color-warning) 0%, white 100%);
-        border: 1px solid var(--k-color-warning);
+        background-color: var(--x-color-warning);
+        color: color-mix(in srgb, var(--x-color-warning) 0%, white 100%);
+        border: 1px solid var(--x-color-warning);
 
         &:hover {
-            background-color: color-mix(in srgb, var(--k-color-warning), white 10%);
+            background-color: color-mix(in srgb, var(--x-color-warning), white 10%);
         }
 
         &:active {
-            background-color: color-mix(in srgb, var(--k-color-warning), white 20%);
+            background-color: color-mix(in srgb, var(--x-color-warning), white 20%);
         }
     }
 
     &.error,
     &.danger {
-        background-color: var(--k-color-danger);
-        color: color-mix(in srgb, var(--k-color-danger), white 100%);
-        border: 1px solid var(--k-color-danger);
+        background-color: var(--x-color-danger);
+        color: color-mix(in srgb, var(--x-color-danger), white 100%);
+        border: 1px solid var(--x-color-danger);
 
         &:hover {
-            background-color: color-mix(in srgb, var(--k-color-danger), white 10%);
+            background-color: color-mix(in srgb, var(--x-color-danger), white 10%);
         }
 
         &:active {
-            background-color: color-mix(in srgb, var(--k-color-danger), white 20%);
+            background-color: color-mix(in srgb, var(--x-color-danger), white 20%);
         }
     }
 
     &.info {
-        background-color: var(--k-color-info);
-        color: color-mix(in srgb, var(--k-color-info) 0%, white 100%);
-        border: 1px solid var(--k-color-info-4);
+        background-color: var(--x-color-info);
+        color: color-mix(in srgb, var(--x-color-info) 0%, white 100%);
+        border: 1px solid var(--x-color-info-4);
 
         &:hover {
-            background-color: color-mix(in srgb, var(--k-color-info), white 10%);
+            background-color: color-mix(in srgb, var(--x-color-info), white 10%);
         }
 
         &:active {
-            background-color: color-mix(in srgb, var(--k-color-info), white 20%);
+            background-color: color-mix(in srgb, var(--x-color-info), white 20%);
         }
     }
 }

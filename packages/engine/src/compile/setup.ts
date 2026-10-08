@@ -21,12 +21,15 @@ const SETUP_HOOK_PHASES: readonly ComponentHookPhase[] = [
  * setup 的**段键**（ADR-0057）：这些键按段消费，不参与顶层私有变量收集。
  * `state` 特殊——函数值按旧 API warn 剪枝（ADR-0057 移除），非函数值视作普通顶层私有
  * （state 不再是保留键）。
+ * `defaults` 为 ADR-0092 增补：组件的默认值声明（内置组件的合并链 type 种子层经此声明），
+ * 静态对象字面量，按段浅合并（后者同名覆盖前者），随 ComponentDef 暴露。
  */
 const SETUP_SECTION_KEYS: ReadonlySet<string> = new Set([
     "data",
     "methods",
     "locals",
     "state",
+    "defaults",
     ...SETUP_HOOK_PHASES,
 ]);
 
@@ -151,7 +154,17 @@ export function mergeComponentSetups(
     let hasData = false;
     let hasMethods = false;
     let hasLocals = false;
+    let hasDefaults = false;
+    const defaults: Record<string, any> = {};
     for (const s of setups) {
+        // defaults：浅合并（ADR-0092）——组件默认值声明，静态对象字面量，后者同名覆盖前者；
+        // 非对象值 warn 忽略
+        if (s.defaults && typeof s.defaults === "object" && !Array.isArray(s.defaults)) {
+            Object.assign(defaults, s.defaults);
+            hasDefaults = true;
+        } else if (s.defaults !== undefined) {
+            warn("x-define: <script setup> 的 defaults 须为对象字面量，已忽略");
+        }
         // data：双形态收集（ADR-0057）——对象字面量（响应式初始数据，实例化时深克隆）
         // 与工厂函数（每实例调用）分池；非法类型 warn 忽略
         if (typeof s.data === "function") {
@@ -217,6 +230,7 @@ export function mergeComponentSetups(
     }
     if (hasMethods) merged.methods = methods;
     if (hasLocals) merged.locals = locals;
+    if (hasDefaults) merged.defaults = defaults;
     // hooks 单独返回（供实例化时克隆到 scope.hooks），不放进 setup 避免重复
     // 但为接口完整，setup 上的四阶段钩子取合并后数组的「首项」无意义——hooks 经第二返回值传递。
     // 此处把 hooks 挂到 merged 上以兼容 ComponentSetup 类型（实例化时优先读 hooks 字段）。

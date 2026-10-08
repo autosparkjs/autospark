@@ -139,11 +139,11 @@ function resolveVar(name: string, table: Record<string, string>, seen = new Set<
 
 /* -------------------------------- 变量表构建 -------------------------------- */
 
-/** 从 palette.less 提取灰阶字面值（--k-color-gray-0..10），与样式源同源 */
+/** 从 colors.less 提取灰阶字面值（--x-color-gray-0..9，hex 或 hsl），与样式源同源 */
 function loadGrayScale(): Record<string, string> {
-    const less = readFileSync(join(import.meta.dir, "../src/styles/palette.less"), "utf-8");
+    const less = readFileSync(join(import.meta.dir, "../src/styles/colors.less"), "utf-8");
     const vars: Record<string, string> = {};
-    for (const m of less.matchAll(/(--k-color-gray-\d+):\s*(hsl\([^)]+\))/g)) {
+    for (const m of less.matchAll(/(--x-color-gray-\d+):\s*(hsl\([^)]+\)|#[0-9a-fA-F]{3,8})/g)) {
         vars[m[1]] = m[2];
     }
     return vars;
@@ -165,7 +165,7 @@ function buildVars(mode: Mode, colorized: boolean, themeColor = presetThemes.blu
     const table: Record<string, string> = {};
     Object.assign(table, loadGrayScale());
     // 主题梯度：dark 下 reverse（0 最深），与 _createThemeColorVars 一致
-    Object.assign(table, generateThemeColorVars(themeColor, { prefix: "--k-color-theme-", reverse: mode === "dark" }));
+    Object.assign(table, generateThemeColorVars(themeColor, { prefix: "--x-color-theme-", reverse: mode === "dark" }));
     Object.assign(table, colorized ? lightColorizedColorVars : lightColorVars);
     if (mode === "dark") Object.assign(table, colorized ? darkColorizedColorVars : darkColorVars);
     Object.assign(table, derivedVars);
@@ -173,15 +173,15 @@ function buildVars(mode: Mode, colorized: boolean, themeColor = presetThemes.blu
     // 语义色：与 _generateSemanticColorStyles 同构（标尺 + light 直引种子 / dark 提亮第 3 档）
     for (const [name, seed] of Object.entries(SEMANTIC_SEEDS)) {
         if (seed.startsWith("var(")) {
-            table[`--k-color-${name}`] = seed;
+            table[`--x-color-${name}`] = seed;
             continue;
         }
-        Object.assign(table, generateThemeColorVars(seed, { prefix: `--k-color-${name}-` }));
-        table[`--k-color-${name}`] = seed;
+        Object.assign(table, generateThemeColorVars(seed, { prefix: `--x-color-${name}-` }));
+        table[`--x-color-${name}`] = seed;
     }
     if (mode === "dark") {
         for (const name of ["success", "warning", "danger", "info"]) {
-            table[`--k-color-${name}`] = `var(--k-color-${name}-3)`;
+            table[`--x-color-${name}`] = `var(--x-color-${name}-3)`;
         }
     }
     return table;
@@ -257,11 +257,11 @@ check({ label: "面板浮起 / 工作区", mode: "dark+colorized", table: darkCo
 /* --- 语义色 --- */
 /* light 直引种子（既有现状，黄绿系白底物理限制普遍 <4.5，范围约定 light 不调，仅记录基准） */
 for (const name of ["success", "warning", "danger", "info"]) {
-    check({ label: `${name} / 面板`, mode: "light", table: light, fg: `--k-color-${name}`, bg: "--auto-bgcolor", recordAs: `light-sem-${name}` });
+    check({ label: `${name} / 面板`, mode: "light", table: light, fg: `--x-color-${name}`, bg: "--auto-bgcolor", recordAs: `light-sem-${name}` });
 }
 /* dark 提亮第 3 档（ADR-0002）：语义色作正文场景须达 AA */
 for (const name of ["success", "warning", "danger", "info"]) {
-    check({ label: `${name} / 面板`, mode: "dark", table: dark, fg: `--k-color-${name}`, bg: "--auto-bgcolor", min: 4.5 });
+    check({ label: `${name} / 面板`, mode: "dark", table: dark, fg: `--x-color-${name}`, bg: "--auto-bgcolor", min: 4.5 });
 }
 
 /* --------------------------------- 报告输出 --------------------------------- */

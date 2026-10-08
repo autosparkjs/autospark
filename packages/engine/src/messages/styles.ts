@@ -1,9 +1,7 @@
-import { SHELL_STYLES } from "./shell";
-
 /**
- * 消息引擎结构样式（ADR-0071 / ADR-0077 renderers 目录）：分区列定位（引擎结构，不归
- * shell——遮罩同构分界）+ 内置 shell / type renderer 形态样式。幂等注入 head（toast /
- * registerShellStyles 同构纪律），首个消息容器懒建时调用（container.ts）。
+ * 消息引擎结构样式（ADR-0071；ADR-0092 后仅存**分区列定位**——引擎结构层，不归任何组件；
+ * 卡片 chrome / 内容结构 / actions 按钮行样式已随各组件文件的 `<style global>` 注册期注入）。
+ * 幂等注入 head，首个消息容器懒建时调用（container.ts）。
  *
  * 分区列定位契约（7 pos × fixed inset，ADR-0068 决策 7 沿用）：
  * - 边距走 CSS 变量 `--autospark-message-inset`（默认 16px；`offset` 键在列创建时由引擎
@@ -22,17 +20,7 @@ const MESSAGE_STYLES_ID = "autospark-message-styles";
  */
 export const MESSAGE_COLUMN_GAP = 10;
 
-/** 幂等注入消息样式（已存在则跳过） */
-export function injectMessageStyles(): void {
-    if (typeof document === "undefined" || !document.head) return;
-    if (document.getElementById(MESSAGE_STYLES_ID)) return;
-    const style = document.createElement("style");
-    style.id = MESSAGE_STYLES_ID;
-    style.textContent = COLUMN_STYLES + "\n" + SHELL_STYLES;
-    document.head.appendChild(style);
-}
-
-/** 分区列定位样式（引擎结构层） */
+/** 分区列定位样式（引擎结构层；含 GAP 插值故不可静态化） */
 const COLUMN_STYLES = `
 /* 分区列：fixed 纵向堆叠栈（每 pos 一列，data-message-pos 标记）；空白区不拦截点击 */
 .autospark-message-column {
@@ -84,3 +72,13 @@ const COLUMN_STYLES = `
   align-items: center;
 }
 `;
+
+/** 幂等注入消息结构样式（已存在则跳过） */
+export function injectMessageStyles(): void {
+    if (typeof document === "undefined" || !document.head) return;
+    if (document.getElementById(MESSAGE_STYLES_ID)) return;
+    const style = document.createElement("style");
+    style.id = MESSAGE_STYLES_ID;
+    style.textContent = COLUMN_STYLES;
+    document.head.appendChild(style);
+}

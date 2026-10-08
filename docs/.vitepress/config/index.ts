@@ -3,6 +3,9 @@ import fs from "fs";
 import { defineConfig } from "vitepress";
 import { vitepressDemoPlugin } from "vitepress-demo-plugin";
 import { context } from "esbuild";
+// 与 tsup 共享的 ?raw 静态资源插件（内置组件模板 .html/.css，ADR-0091）——
+// esbuild watch 直接构建 engine 源码，同样需要 ?raw 解析
+import { rawAssetsPlugin } from "../../../packages/engine/scripts/esbuild-raw-assets";
 
 export default defineConfig({
   base: "/autospark/",
@@ -210,6 +213,7 @@ export default defineConfig({
             sourcemap: "inline",
             write: false,
             plugins: [
+              rawAssetsPlugin,
               {
                 name: "autospark-dev-cache",
                 setup(b: any) {

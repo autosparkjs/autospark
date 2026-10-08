@@ -29,7 +29,7 @@ themeManager.dark = true
      [selector][dark]            { 语义色 transparent 60% }    // _generateSemanticColorStyles
 ```
 
-- 前景 `--k-color-i`：dark 下 = `gray-i`（1:1 反转）
+- 前景 `--x-color-i`：dark 下 = `gray-i`（1:1 反转）
 - 背景：面板浮起流派——`bgcolor-0`（面板）= gray-8 浮于 `bgcolor-1`（工作区）= gray-9
 - 派生层 `derivedVars` 为**单套**，无 dark 专属值——所有 `--auto-*` 在两种模式下的"引用档位/百分比参数"完全相同，仅靠基变量换值间接适配
 
@@ -39,28 +39,28 @@ themeManager.dark = true
 
 ### P0 —— 可读性硬伤（dark 下当前不合格）
 
-| # | 问题 | 现状与证据 | 估算 |
-|---|---|---|---|
-| 1 | **语义色暗化方向错误** | `scope.ts:255` 对 success/warning/danger/info 统一 `color-mix(transparent 60%)`——等效"变透明"，而深底上语义色本应**提亮**。danger 叠加后对面板底仅 ≈**1.6:1**，success ≈**2.2:1**，均跌破 3:1 图形线 | 提亮至同系第 3 档（red-3/green-3）可达 ≈7~8.5:1 |
-| 2 | **交互态感知衰减** | hover/selected/active 的 bgcolor 为主色 15%~20% 不透明度叠加（`derived.ts:11-21`）。同样百分比对深/浅底感知不等价，dark 下 hover 几乎不可见；checkbox/radio 选中底、focus 光晕同源（`input.less` 皮肤全走 `--auto-selected-bgcolor`） | dark 需 25%~35% 方与 light 15%~20% 等强 |
+| #   | 问题                   | 现状与证据                                                                                                                                                                                                                            | 估算                                            |
+| --- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| 1   | **语义色暗化方向错误** | `scope.ts:255` 对 success/warning/danger/info 统一 `color-mix(transparent 60%)`——等效"变透明"，而深底上语义色本应**提亮**。danger 叠加后对面板底仅 ≈**1.6:1**，success ≈**2.2:1**，均跌破 3:1 图形线                                  | 提亮至同系第 3 档（red-3/green-3）可达 ≈7~8.5:1 |
+| 2   | **交互态感知衰减**     | hover/selected/active 的 bgcolor 为主色 15%~20% 不透明度叠加（`derived.ts:11-21`）。同样百分比对深/浅底感知不等价，dark 下 hover 几乎不可见；checkbox/radio 选中底、focus 光晕同源（`input.less` 皮肤全走 `--auto-selected-bgcolor`） | dark 需 25%~35% 方与 light 15%~20% 等强         |
 
 ### P1 —— 层级与形态（明显劣化但不致不可用）
 
-| # | 问题 | 现状与证据 |
-|---|---|---|
-| 3 | **阴影失效** | `baseVars` 阴影为中灰 `hsl(240 3.8% 46.1% / 6~12%)`，`darkColorVars` 无 shadow 覆盖——深底上灰色阴影基本不可见，层级感丢失 |
-| 4 | **主色基准档位未校准** | `--auto-theme-color` 恒为 `theme-5`（`derived.ts:8`）。梯度反转后 dark 的 theme-5 = 原 palette 第 4 档，仅比 light 主色略浅；它喂 `--auto-primary-color`（按钮主文字）与 hover 色，dark 下对比度预期不足 |
-| 5 | **面板边框过弱** | dark 下 `--auto-border-color` = gray-7（L 26.1%）对面板 gray-8（L 15.9%）对比 ≈1.5:1，卡片轮廓发虚 |
-| 6 | **输入框同色漂浮** | `--auto-input-bgcolor` = 面板色（`derived.ts:88`），dark 下输入区仅靠边框区分，"平"而非"凹" |
-| 7 | **bgcolor-8/9 疑似笔误** | `vars/dark.ts:55-56` colorized 暗底 `bgcolor-8` 与 `bgcolor-9` 均指 `theme-9`；对照 light 版（8→8、9→9）与注释"3..9 递进保持单调"，`bgcolor-8` 应为 `theme-8` |
+| #   | 问题                     | 现状与证据                                                                                                                                                                                               |
+| --- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3   | **阴影失效**             | `baseVars` 阴影为中灰 `hsl(240 3.8% 46.1% / 6~12%)`，`darkColorVars` 无 shadow 覆盖——深底上灰色阴影基本不可见，层级感丢失                                                                                |
+| 4   | **主色基准档位未校准**   | `--auto-theme-color` 恒为 `theme-5`（`derived.ts:8`）。梯度反转后 dark 的 theme-5 = 原 palette 第 4 档，仅比 light 主色略浅；它喂 `--auto-primary-color`（按钮主文字）与 hover 色，dark 下对比度预期不足 |
+| 5   | **面板边框过弱**         | dark 下 `--auto-border-color` = gray-7（L 26.1%）对面板 gray-8（L 15.9%）对比 ≈1.5:1，卡片轮廓发虚                                                                                                       |
+| 6   | **输入框同色漂浮**       | `--auto-input-bgcolor` = 面板色（`derived.ts:88`），dark 下输入区仅靠边框区分，"平"而非"凹"                                                                                                              |
+| 7   | **bgcolor-8/9 疑似笔误** | `vars/dark.ts:55-56` colorized 暗底 `bgcolor-8` 与 `bgcolor-9` 均指 `theme-9`；对照 light 版（8→8、9→9）与注释"3..9 递进保持单调"，`bgcolor-8` 应为 `theme-8`                                            |
 
 ### P2 —— 边缘与外围
 
-| # | 问题 | 现状与证据 |
-|---|---|---|
-| 8 | **color-scheme 缺口** | `color-scheme: dark` 仅声明于 `_generateThemeColorStyles`（themeColor≠"light" 时）与静态 `themes/dark.less`；`themeColor="light"` + `dark=true` 时无任何声明，原生滚动条/表单控件不变暗 |
-| 9 | 机制 B 叠加行为未验证 | `data-theme=dark` 预设 × `dark` 属性的组合未做过系统检查 |
-| 10 | colorized dark 整体回归 | 问题 7 修复后需整体回归一遍多彩暗底 |
+| #   | 问题                    | 现状与证据                                                                                                                                                                              |
+| --- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 8   | **color-scheme 缺口**   | `color-scheme: dark` 仅声明于 `_generateThemeColorStyles`（themeColor≠"light" 时）与静态 `themes/dark.less`；`themeColor="light"` + `dark=true` 时无任何声明，原生滚动条/表单控件不变暗 |
+| 9   | 机制 B 叠加行为未验证   | `data-theme=dark` 预设 × `dark` 属性的组合未做过系统检查                                                                                                                                |
+| 10  | colorized dark 整体回归 | 问题 7 修复后需整体回归一遍多彩暗底                                                                                                                                                     |
 
 ## 4. 优化方案
 
@@ -71,7 +71,9 @@ themeManager.dark = true
 **改动**：`vars/derived.ts` 新增 `darkDerivedVars` 导出；`scope.ts` `_generateBaseStyles` 在 `derivedStyles` 之后追加注入：
 
 ```css
-[selector][dark] { /* darkDerivedVars */ }
+[selector][dark] {
+  /* darkDerivedVars */
+}
 ```
 
 **职责**：承载所有 dark 专属的派生值（主色档位、交互态参数、边框、输入框背景），使"模式差异"集中在变量层可见，组件层（less）保持模式无关。
@@ -82,12 +84,12 @@ themeManager.dark = true
 
 ```css
 /* 基础标尺（方向恒定：0 最浅 → 9 最深，同 palette.less 惯例；不 reverse） */
---k-color-success-0 … --k-color-success-9
+--x-color-success-0 … --x-color-success-9
 /* light：直引种子原值（实测梯度第 5 档 ≠ 种子色，success 偏差肉眼可辨，
    直引保证 light 行为零差异） */
---k-color-success: #22c55e;
+--x-color-success: #22c55e;
 /* dark：提亮引用第 3 档 */
---k-color-success: var(--k-color-success-3)!important;
+--x-color-success: var(--x-color-success-3)!important;
 ```
 
 **改动点**：重写 `scope.ts` `_generateSemanticColorStyles`。
@@ -102,12 +104,12 @@ themeManager.dark = true
 
 **方案**：dark 专属参数双管齐下（起点值，终值以"与 light 感知等强"经脚本+截图校准）：
 
-| 变量 | light 现状 | dark 实施值（校准后） |
-|---|---|---|
-| `--auto-hover-bgcolor` | 主色 15% | 主色 15%（与 light 同百分比） |
-| `--auto-selected-bgcolor` | 主色 20% | 主色 18% |
-| `--auto-active-bgcolor` | 主色 15% | 主色 15%（与 light 同百分比） |
-| `--auto-hover-color` / 交互文字档位 | theme-5 | theme-6（与 4.4 联动） |
+| 变量                                | light 现状 | dark 实施值（校准后）         |
+| ----------------------------------- | ---------- | ----------------------------- |
+| `--auto-hover-bgcolor`              | 主色 15%   | 主色 15%（与 light 同百分比） |
+| `--auto-selected-bgcolor`           | 主色 20%   | 主色 18%                      |
+| `--auto-active-bgcolor`             | 主色 15%   | 主色 15%（与 light 同百分比） |
+| `--auto-hover-color` / 交互文字档位 | theme-5    | theme-6（与 4.4 联动）        |
 
 > 实施修正：原方案预设 dark 需 25%~35% 叠加强度，被校准数据推翻——主色提档（theme-6，
 > 更浅的蓝）叠加深底的 Weber 敏感已补偿感知衰减，实测 15% 对称 +14.5%（1.34 vs 基准
@@ -119,11 +121,11 @@ focus 光晕（`0 0 0 2px selected-bgcolor`）与 checkbox/radio 选中底随 se
 
 ### 4.4 P1 主色基准档位
 
-**方案**：`darkDerivedVars` 中 `--auto-theme-color: var(--k-color-theme-6)`（起点，脚本对 gray-8 面板底 ≥ 4.5:1 定档；不足则试 theme-7）。同时是 4.3 交互文字档位的上游。
+**方案**：`darkDerivedVars` 中 `--auto-theme-color: var(--x-color-theme-6)`（起点，脚本对 gray-8 面板底 ≥ 4.5:1 定档；不足则试 theme-7）。同时是 4.3 交互文字档位的上游。
 
 ### 4.5 P1 阴影 + 边框
 
-**阴影**：`darkShadowVars`（dark 下覆盖 `--k-shadow-*` 五档），黑色系高不透明度起点值：
+**阴影**：`darkShadowVars`（dark 下覆盖 `--x-shadow-*` 五档），黑色系高不透明度起点值：
 
 ```
 x-small 0 1px 2px  hsl(0 0% 0% / 35%)
@@ -133,17 +135,17 @@ large   0 2px 8px  hsl(0 0% 0% / 55%)
 x-large 0 4px 16px hsl(0 0% 0% / 60%)
 ```
 
-**边框**：`darkDerivedVars` 中 `--auto-border-color: var(--k-color-6)`（gray-6，L 33.9%，对面板 ≈1.8:1）。阴影（暗投影）+ 亮边双信号表达层级，为 GitHub/VS Code dark 流派。
+**边框**：`darkDerivedVars` 中 `--auto-border-color: var(--x-color-6)`（gray-6，L 33.9%，对面板 ≈1.8:1）。阴影（暗投影）+ 亮边双信号表达层级，为 GitHub/VS Code dark 流派。
 
 ### 4.6 P1 输入框凹陷
 
-**方案**：`darkDerivedVars` 中 `--auto-input-bgcolor: var(--k-bgcolor-1)`（dark 下 = 工作区 gray-9，比面板更深，"挖坑"感）。light 不动。
+**方案**：`darkDerivedVars` 中 `--auto-input-bgcolor: var(--x-bgcolor-1)`（dark 下 = 工作区 gray-9，比面板更深，"挖坑"感）。light 不动。
 
 **注意**：checkbox/radio 皮肤同用 `--auto-input-bgcolor` 作底色（`input.less` 皮肤 mixin），凹陷底对选择件同样成立（VS Code 亦然），实施时截图复核。
 
 ### 4.7 P1 bgcolor-8 笔误修复
 
-`vars/dark.ts:55`：`--k-bgcolor-8: var(--k-color-theme-9)` → `var(--k-color-theme-8)`，恢复"2..9 单调递浅"。
+`vars/dark.ts:55`：`--x-bgcolor-8: var(--x-color-theme-9)` → `var(--x-color-theme-8)`，恢复"2..9 单调递浅"。
 
 ### 4.8 P2 收尾项
 
@@ -160,7 +162,7 @@ x-large 0 4px 16px hsl(0 0% 0% / 60%)
 - **形态**：Bun.serve 托管 fixture 页（注入 `scope.toStyles()` 产物）+ Playwright 读 `getComputedStyle`——真浏览器解析 var 链与 `color-mix`（happy-dom 不可靠）
 - **输入**：变量对清单 × 模式矩阵（light/dark × colorized），如：
   - `--auto-color` / `--auto-bgcolor` ≥ 4.5
-  - `--k-color-{success|danger|warning|info}` / 面板底 ≥ 4.5
+  - `--x-color-{success|danger|warning|info}` / 面板底 ≥ 4.5
   - `--auto-theme-color` / 面板底 ≥ 4.5
   - `--auto-hover-bgcolor` / 面板底 ≥ 对照基准（light 现状 ±20%）
 - **输出**：对比度表 + 阈值判定（PASS/FAIL）
@@ -172,19 +174,19 @@ examples 演示页（`theme-controls.ts` 已有全局 dark 开关），Playwrigh
 
 ## 6. 决策记录（对话已确认）
 
-| 决策点 | 结论 |
-|---|---|
-| 「启用 dark」所指 | `dark` 属性机制，含 colorized；机制 B 顺带扫描 |
-| 评判标准 | WCAG 量化兜底 + 感知对称双轨 |
-| 验证载体 | 演示页 + Playwright 截图 + 对比度脚本三层 |
-| 改动边界 | 数值 + 映射结构（含新增 dark 派生层）；不动梯度生成算法 |
-| 语义色 dark 策略 | 统一 10 阶梯度，light 取 5 档 / dark 取 3 档；var() 引用豁免 |
-| 交互态策略 | bgcolor 不透明度 + 交互文字档位双管 |
-| 层级表达 | dark 专属阴影 + 面板边框提亮 |
-| 输入框形态 | 凹陷流派（dark 下比面板更深） |
-| 主色档位 | dark 下提档（起点 theme-6），入 darkDerivedVars |
-| bgcolor-8/9 | 按笔误修复（bgcolor-8 → theme-8） |
-| 产出边界 | 本方案为止，不实施代码 |
+| 决策点            | 结论                                                         |
+| ----------------- | ------------------------------------------------------------ |
+| 「启用 dark」所指 | `dark` 属性机制，含 colorized；机制 B 顺带扫描               |
+| 评判标准          | WCAG 量化兜底 + 感知对称双轨                                 |
+| 验证载体          | 演示页 + Playwright 截图 + 对比度脚本三层                    |
+| 改动边界          | 数值 + 映射结构（含新增 dark 派生层）；不动梯度生成算法      |
+| 语义色 dark 策略  | 统一 10 阶梯度，light 取 5 档 / dark 取 3 档；var() 引用豁免 |
+| 交互态策略        | bgcolor 不透明度 + 交互文字档位双管                          |
+| 层级表达          | dark 专属阴影 + 面板边框提亮                                 |
+| 输入框形态        | 凹陷流派（dark 下比面板更深）                                |
+| 主色档位          | dark 下提档（起点 theme-6），入 darkDerivedVars              |
+| bgcolor-8/9       | 按笔误修复（bgcolor-8 → theme-8）                            |
+| 产出边界          | 本方案为止，不实施代码                                       |
 
 **待立 ADR**（随实施落盘，`docs/adr/0002-semantic-colors-as-gradient-seeds.md`）：语义色从固定 hex 改为梯度种子——难逆（发布后消费者依赖新行为）、无上下文会意外（默认值不再精确等于 `#22c55e`）、真权衡（精确 hex vs 模式自适应）。ADR 三要件齐备。
 
@@ -201,16 +203,16 @@ examples 演示页（`theme-controls.ts` 已有全局 dark 开关），Playwrigh
 
 全部按 §7 顺序落地，改动文件：
 
-| 文件 | 改动 |
-|---|---|
-| `src/vars/derived.ts` | 新增 `darkDerivedVars`（主色 theme-6 / 交互态 / 禁用色 / 边框 / 输入底） |
-| `src/vars/shadow.ts` | 新增 `darkShadowVars`（黑色系五档，尺寸切换自动生效） |
-| `src/vars/dark.ts` | colorized 暗底重构：面板 theme-0 + 工作区 theme-0 混黑 30%（保色相压暗，多彩全域浸染） + bgcolor-2..9 对齐（消灭 bgcolor-8/9 笔误） |
-| `src/scope.ts` | 注入 darkShadow/darkDerived 块；darkStyles 补 `color-scheme: dark`；`_generateSemanticColorStyles` 重写为梯度种子模式；`isColorLiteral` 判定 |
-| `scripts/check-dark-contrast.ts` | 新增校准脚本（26 项检查，与 src 变量同源） |
-| `docs/adr/0002-semantic-colors-as-gradient-seeds.md` | 语义色梯度种子 ADR |
-| `examples/stories/colors/semantics.ts` | 色块文字白→近黑（两模式语义块均处亮段）；过时文案更新 |
-| `examples/stories/colors/theme-palette.ts` | 色阶条带文字随 `k-color` 标尺反转（`var(--k-color-${i>3?9:0})`） |
+| 文件                                                 | 改动                                                                                                                                         |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/vars/derived.ts`                                | 新增 `darkDerivedVars`（主色 theme-6 / 交互态 / 禁用色 / 边框 / 输入底）                                                                     |
+| `src/vars/shadow.ts`                                 | 新增 `darkShadowVars`（黑色系五档，尺寸切换自动生效）                                                                                        |
+| `src/vars/dark.ts`                                   | colorized 暗底重构：面板 theme-0 + 工作区 theme-0 混黑 30%（保色相压暗，多彩全域浸染） + bgcolor-2..9 对齐（消灭 bgcolor-8/9 笔误）          |
+| `src/scope.ts`                                       | 注入 darkShadow/darkDerived 块；darkStyles 补 `color-scheme: dark`；`_generateSemanticColorStyles` 重写为梯度种子模式；`isColorLiteral` 判定 |
+| `scripts/check-dark-contrast.ts`                     | 新增校准脚本（26 项检查，与 src 变量同源）                                                                                                   |
+| `docs/adr/0002-semantic-colors-as-gradient-seeds.md` | 语义色梯度种子 ADR                                                                                                                           |
+| `examples/stories/colors/semantics.ts`               | 色块文字白→近黑（两模式语义块均处亮段）；过时文案更新                                                                                        |
+| `examples/stories/colors/theme-palette.ts`           | 色阶条带文字随 `k-color` 标尺反转（`var(--x-color-${i>3?9:0})`）                                                                             |
 
 **量化验收（blue 主题，26 项全 PASS）**：
 
@@ -230,6 +232,6 @@ examples 演示页（`theme-controls.ts` 已有全局 dark 开关），Playwrigh
 运行时 `themeColor="dark"` 时，注入的 `[data-theme='dark'][dark]` 块特异性更高、接管
 theme 标尺并按 dark 规则反转——两机制正交一致，无需修复。
 
-**遗留（记录不阻断）**：light 主色 theme-5/面板 2.81:1、light 语义色 2.03~4.58:1——
+**遗留（记录不阻断）**：light 主色 theme-5/面板 2.81:1、light 语义色 2.03~~4.58:1——
 黄绿/黄色系在白底的物理限制 + light 范围约定（本轮不调），如需达 AA 另立方案
-（方向：light 档位加深 1~2 档，代价是 light 视觉变化）。
+（方向：light 档位加深 1~~2 档，代价是 light 视觉变化）。

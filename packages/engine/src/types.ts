@@ -332,3 +332,20 @@ export type AutoSparkPresetVars = {
 };
 
 export type AutoSparkVars = Record<string, any> & AutoSparkPresetVars;
+
+
+
+/**
+ * `?raw` 静态资源导入声明（ADR-0091）：内置组件模板迁移为 .html / .css 文件，
+ * `?raw` 后缀导入返回文件源文本（default 字符串）——Bun 运行时与 Vite 原生支持，
+ * esbuild 链由 scripts/esbuild-raw-assets.ts 补齐，三条链语义一致。
+ */
+declare module "*.html?raw" {
+    const content: string;
+    export default content;
+}
+
+declare module "*.css?raw" {
+    const content: string;
+    export default content;
+}

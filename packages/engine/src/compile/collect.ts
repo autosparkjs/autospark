@@ -371,6 +371,7 @@ export function buildComponentDef(
         hooks,
         styles,
         styleBinds,
+        defaults: setup?.defaults,
         open,
         dataContext,
         declarerScope,

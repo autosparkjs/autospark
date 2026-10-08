@@ -2,11 +2,12 @@ import type { ThemeSize } from '@/types'
 
 function getRadiusVars(radius: ThemeSize) {
     return {
-        '--auto-border-radius': `var(--k-border-radius-${radius})!important`,
+        '--auto-border-radius': `var(--x-border-radius-${radius})!important`,
     }
 }
 
 export const radiusVars = {
+    'none': getRadiusVars('none'),
     'x-small': getRadiusVars('x-small'),
     small: getRadiusVars('small'),
     medium: getRadiusVars('medium'),

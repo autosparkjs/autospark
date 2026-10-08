@@ -1,34 +1,15 @@
 /**
- * 抽屉面板外壳（shell 机制，ADR-0062/0063）——`drawer-shell` 内置私有组件。
+ * 抽屉滑入/滑出动画规则（ADR-0063；ADR-0092 后仅存动态生成段——抽屉静态样式已随组件文件
+ * components/drawer-shell.html 的 `<style global>` 注册期注入）。
  *
- * 形态语义（ADR-0063）：面板贴边（屏幕四边或锚元素边线外侧）滑入滑出的抽屉。与
- * dialog-shell/popover-shell 的形态分化点：
- *
- * - **无箭头载体**（ADR-0063 共识 Q14）：抽屉形态语言无箭头——模板不渲染
- *   `.autospark-overlay-arrow`，`at.arrow: true` 显式配置静默无效（引擎查不到载体，
- *   floating-ui 无箭头中间件）；
- * - **贴边直角**：`border-radius: 0`（边框/背景/阴影经 `.autospark-dialog` 类继承外壳
- *   联动样式——模板根双类名 `autospark-dialog autospark-drawer`）；
- * - **短轴尺寸默认**：经 CSS 变量 `--autospark-drawer-size`（左右抽屉的宽与上下抽屉的
- *   高共用，语义 = 抽屉短轴尺寸），按 `data-overlay-placement` 前缀分派——贴边另一轴由
- *   引擎 inline inset 对拉拉伸（屏幕模式全屏展开）或 JS 同步锚边长（锚定模式，ADR-0063）；
- * - **'drawer' 内置动画**（默认 animate）：类挂实例根（遮罩根或裸面板根，ADR-0039 六类名
- *   契约），placement 属性挂面板（= 根或根的直接子级）——复合选择器覆盖两种结构：模态
- *   遮罩淡入淡出 + 面板**位移滑入滑出**（`translate ±100%`，主流 drawer 形态语言：面板
- *   整体平移、内容不变形、纯合成零 reflow；placement 即滑入边——`right` = 从右缘滑入向
- *   左移动。锚定模式面板终态在锚内侧，位移只是入场轨迹）；裸面板仅滑动分量。引擎在
- *   进入动画前同步写 placement（屏幕模式定位时 / 锚定模式首帧预写，最终值由定位管线
- *   写回），首帧即有正确的滑入方向。
+ * 'drawer' 内置动画：类挂实例根（遮罩根或裸面板根，ADR-0039 六类名契约），placement 属性
+ * 挂面板（= 根或根的直接子级）——复合选择器覆盖两种结构：模态遮罩淡入淡出（静态段）+ 面板
+ * **位移滑入滑出**（本模块，`translate ±100%`：面板整体平移、内容不变形、纯合成零 reflow；
+ * placement 即滑入边——`right` = 从右缘滑入向左移动。锚定模式面板终态在锚内侧，位移只是
+ * 入场轨迹）；裸面板仅滑动分量。引擎在进入动画前同步写 placement，首帧即有正确滑入方向。
  */
 
-/** 抽屉 shell 模板：双类名根（继承 dialog 外壳联动样式）+ 默认出口；无箭头载体（Q14） */
-export const DRAWER_SHELL_TEMPLATE =
-    `<div class="autospark-dialog autospark-drawer">` + `<div x-slot></div>` + `</div>`;
-
-/**
- * 贴边主方向 → 面板滑入/滑出的离屏位移（enter-from 与 leave-to 同向）：
- * placement 即滑入边（`right` = 从面板终态位置右侧滑入、向左移动——主流右抽屉）。
- */
+/** 贴边主方向 → 面板滑入/滑出的离屏位移（enter-from 与 leave-to 同向） */
 const DRAWER_SLIDE_TRANSFORMS: Record<string, string> = {
     right: "translateX(100%)",
     left: "translateX(-100%)",
@@ -79,88 +60,5 @@ function buildSlideRules(): string {
     return rules.join("\n");
 }
 
-/**
- * 抽屉 shell 默认视觉与 'drawer' 动画（样式随组件文件走，ADR-0062 决策七）：
- * 非 scoped、引用无关——多实例共享一份，经 `registerShellStyles()` 与面板样式合并注入。
- */
-export const DRAWER_SHELL_STYLES = `
-/* 抽屉形态：贴边直角 + 内容滚动 + border-box（短轴变量尺寸含边框不溢出） */
-.autospark-drawer {
-  border-radius: 0;
-  box-sizing: border-box;
-  overflow: auto;
-}
-/* 短轴尺寸默认（placement 前缀分派；贴边另一轴由引擎 inline inset 对拉或锚定长轴同步承担）。
-   自定义 shell 不带本类名即无默认尺寸——完全自由。 */
-.autospark-drawer[data-overlay-placement^="left"],
-.autospark-drawer[data-overlay-placement^="right"] {
-  width: var(--autospark-drawer-size, 280px);
-}
-.autospark-drawer[data-overlay-placement^="top"],
-.autospark-drawer[data-overlay-placement^="bottom"] {
-  height: var(--autospark-drawer-size, 280px);
-}
-/* 'drawer' 动画遮罩分量：淡入淡出（模态形态；裸面板无遮罩不淡） */
-.autospark-dialog-mask.drawer-enter-active,
-.autospark-dialog-mask.drawer-leave-active {
-  transition: opacity .3s ease;
-}
-.autospark-dialog-mask.drawer-enter-from,
-.autospark-dialog-mask.drawer-leave-to {
-  opacity: 0;
-}
-/* 抽屉把手（ADR-0070：把手机制组合 x-expandable 共享把手模块——元素/箭头矩阵/半圆
-   视觉在 expandable-trigger（契约类 .autospark-expandable-trigger、变量族
-   --autospark-expandable-trigger-*；旧 .autospark-drawer-trigger 类与
-   --autospark-drawer-trigger-size 变量已删除）。此处仅承载 drawer 语境差异：
-   fixed 定位（引擎 inline 写 left/top，展开↔折叠沿边线 .3s 同步滑移）、覆盖物 z 层级、
-   展开态无阴影（视觉属于面板）折叠态保留（独立浮起提示可点）、折叠态半圆裁切（露
-   面板展开侧半圆——屏幕模式朝外半圆本在屏外的显式统一；方向键 = data-direction =
-   placement，共享矩阵属性随身）。 */
-.autospark-overlays > .autospark-expandable-trigger {
-  position: fixed;
-  z-index: calc(var(--autospark-overlay-z, 1000) + 1);
-  box-shadow: none;
-  transition: left .3s ease, top .3s ease, clip-path .3s ease, border-color .15s, background .15s, opacity .15s;
-}
-/* 显隐策略（expandable.showTrigger，默认 'hover'）：展开态隐藏、hover/聚焦显形
-   （无边条感应——折叠态恒显使「寻找隐藏把手」场景不存在，把手位置沿面板边线可预测）；
-   折叠态恒显（唯一重开触点，规则后置胜出同特异性）；触屏（hover:none）恒显 */
-.autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"] {
-  opacity: 0;
-}
-.autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"]:hover,
-.autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"]:focus-visible {
-  opacity: 1;
-}
-.autospark-overlays > .autospark-expandable-trigger[data-collapsed] {
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-  opacity: 1;
-}
-@media (hover: none) {
-  .autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"] {
-    opacity: 1;
-  }
-}
-/* 感应边条（showTrigger:'hover'）：与把手同为覆盖物容器直接子元素、fixed 几何由引擎
-   inline 写入（整条活动边线、厚 24px 跨边内外各 12px）——hover 显形把手走共享的
-   edge:hover ~ trigger 兄弟规则（边条置于把手之前的兄弟序前提）；触屏不启用。
-   已知代价：边条遮挡边线附近面板内容的点击（与 x-expandable hover 模式同款固有代价） */
-.autospark-overlays > .autospark-expandable-edge {
-  position: fixed;
-  display: none;
-  z-index: calc(var(--autospark-overlay-z, 1000) + 1);
-}
-@media (hover: hover) {
-  .autospark-overlays > .autospark-expandable-edge[data-show-trigger="hover"] {
-    display: block;
-  }
-}
-/* 折叠态半圆裁切：保留面板展开侧半圆（right 骑右缘 → 露左半、top 骑顶缘 → 露下半；
-   图标入半圆的缩放/平移由共享 data-half 规则承担） */
-.autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="right"] { clip-path: inset(0 50% 0 0); }
-.autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="left"] { clip-path: inset(0 0 0 50%); }
-.autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="top"] { clip-path: inset(50% 0 0 0); }
-.autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="bottom"] { clip-path: inset(0 0 50% 0); }
-${buildSlideRules()}
-`;
+/** 抽屉滑入/滑出动画规则（纯函数输出，模块加载时求值一次；经 registerShellStyles 注入） */
+export const DRAWER_SLIDE_STYLES = buildSlideRules();

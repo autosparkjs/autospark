@@ -33,10 +33,6 @@ export const presetThemes: Record<string, PresetTheme> = {
         color: '#faad14',
         title: '金盏花',
     },
-    yellow: {
-        color: '#fadb14',
-        title: '日出',
-    },
     green: {
         color: '#52c41a',
         title: '极光绿',

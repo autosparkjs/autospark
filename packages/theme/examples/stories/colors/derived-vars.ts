@@ -78,7 +78,7 @@ export default {
             <ul>
                 <li>派生种类：语义色调 / 交互活动色（hover·active·selected·disable）/ 字体颜色 / 背景透明度阶梯 /
                     边框（五态）/ 排版字体 / 面板 / 输入框 / 间距圆角阴影图标</li>
-                <li>层叠关系：基础值（<code>--k-*</code>）→ 用途派生（<code>--auto-*</code>）→ 组件类（<code>.auto-card</code> 等）</li>
+                <li>层叠关系：基础值（<code>--x-*</code>）→ 用途派生（<code>--auto-*</code>）→ 组件类（<code>.auto-card</code> 等）</li>
             </ul>
             <pre>.my-panel { background: var(--auto-bgcolor); border: var(--auto-border); box-shadow: var(--auto-shadow); }</pre>
         </div>
@@ -134,9 +134,9 @@ export default {
             <div class="auto-card-body col">
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;">
                     ${[
-                        { name: "--auto-color", ref: "var(--k-color-1)", tag: "主要文字" },
-                        { name: "--auto-secondary-color", ref: "var(--k-color-2)", tag: "次要文字" },
-                        { name: "--auto-third-color", ref: "var(--k-color-3)", tag: "辅助文字" },
+                        { name: "--auto-color", ref: "var(--x-color-1)", tag: "主要文字" },
+                        { name: "--auto-secondary-color", ref: "var(--x-color-2)", tag: "次要文字" },
+                        { name: "--auto-third-color", ref: "var(--x-color-3)", tag: "辅助文字" },
                     ].map(
                         (item) => html`
                             <div
@@ -234,12 +234,12 @@ export default {
             <div class="auto-card-header">种类七：面板（header 与 body 派生组合）</div>
             <div class="auto-card-body">
                 <div
-                    style="margin-bottom:1em;background-color:var(--auto-card-header-bgcolor);font:var(--auto-card-header);color:var(--auto-card-header-color);padding:0.6rem 0.9rem;border-radius:var(--auto-border-radius) var(--auto-border-radius) 0 0;"
+                    style="margin-bottom:1em;background-color:var(--auto-panel-header-bgcolor);font:var(--auto-panel-header);color:var(--auto-panel-header-color);padding:0.6rem 0.9rem;border-radius:var(--auto-border-radius) var(--auto-border-radius) 0 0;"
                 >
-                    面板头部：font(--auto-card-header) / color(--auto-card-header-color) / bg(--auto-card-header-bgcolor)
+                    面板头部：font(--auto-panel-header) / color(--auto-panel-header-color) / bg(--auto-panel-header-bgcolor)
                 </div>
-                <div class="auto-card-body-item" style="background-color:var(--auto-card-bgcolor);border:var(--auto-border);">
-                    面板主体背景: var(--auto-card-bgcolor)
+                <div class="auto-card-body-item" style="background-color:var(--auto-panel-bgcolor);border:var(--auto-border);">
+                    面板主体背景: var(--auto-panel-bgcolor)
                 </div>
             </div>
         </div>

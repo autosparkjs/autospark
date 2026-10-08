@@ -254,7 +254,7 @@
         transition: all 0.3s ease-in;
     }
 
-    // focus 统一语言：边框高亮 + 2px 光晕（原 --k-theme-bgcolor-1 为未定义幽灵变量，已替换）
+    // focus 统一语言：边框高亮 + 2px 光晕（原 --x-theme-bgcolor-1 为未定义幽灵变量，已替换）
     &:focus {
         outline: none;
         border: var(--auto-selected-border);
@@ -376,6 +376,7 @@
     &:has(> .auto-input-action:first-child) {
         padding-left: 0;
     }
+
     &:has(> .auto-input-action:last-child) {
         padding-right: 0;
     }
@@ -400,7 +401,7 @@
         }
 
         // 相邻 action 紧贴（抵消容器 gap）：垂直分割线即唯一分隔，避免「线 + 空隙」的双重间隔
-        & + .auto-input-action {
+        &+.auto-input-action {
             margin-left: -@input-gap;
         }
 
@@ -417,7 +418,7 @@
         }
 
         // 裸 button 即按钮：融入容器的一体式外观，充满整个 action 区域
-        > button {
+        >button {
             align-self: stretch;
             height: auto;
             width: 100%;
@@ -449,11 +450,11 @@
         }
 
         // 端部 action 的按钮：贴容器边缘一侧贴合容器圆角（hover 背景不溢出圆角）
-        &:first-child > button {
+        &:first-child>button {
             border-radius: var(--auto-border-radius) 0 0 var(--auto-border-radius);
         }
 
-        &:last-child > button {
+        &:last-child>button {
             border-radius: 0 var(--auto-border-radius) var(--auto-border-radius) 0;
         }
     }

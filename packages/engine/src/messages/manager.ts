@@ -11,7 +11,7 @@ import { MessageQueue } from "./queue";
 import { MessagePersistence, readLocalMessages } from "./storage";
 import { applyCardSizes, assembleCard, buildInjectProps, unmountCard } from "./assembly";
 import { mergeMessageProps, settleMessageLevel, validatePos, validatePersist, type MessageMergeContext } from "./props";
-import { MESSAGE_TYPE_DEFAULTS } from "./presets";
+import { resolveTypeDefaults } from "./presets";
 import {
     parseMessageProps,
     messageLevelName,
@@ -246,13 +246,34 @@ export class MessageManager extends Map<string, ComponentInstance> {
         });
     }
 
+    /** type 种子默认缓存（ADR-0092）：type 名 → 组件 defaults（undefined = 已查明无种子层） */
+    private _typeDefaultsCache = new Map<string, Record<string, any> | undefined>();
+    /**
+     * type 种子默认视图（ADR-0089 决策九 + ADR-0092 模板化）：种子随组件声明（各 type .html 的
+     * `<script setup>` defaults 段），经组件表懒解析提取（resolveTypeDefaults）+ 本缓存去重——
+     * 用户同名覆盖 type 组件时覆盖组件的 defaults 自然生效。Proxy 保持 mergeMessageProps 的
+     * `typeDefaults[type]` 消费形态不变。
+     */
+    private readonly _typeDefaults: Record<string, Record<string, any>> = new Proxy(
+        {} as Record<string, Record<string, any>>,
+        {
+            get: (_t, type: string | symbol): Record<string, any> | undefined => {
+                if (typeof type !== "string") return undefined;
+                if (!this._typeDefaultsCache.has(type)) {
+                    this._typeDefaultsCache.set(type, resolveTypeDefaults(this.engine, type));
+                }
+                return this._typeDefaultsCache.get(type);
+            },
+        },
+    );
+
     /** 合并链上下文（props.ts mergeMessageProps 的 manager 侧入参组装——type 种子经此注入） */
     private _mergeCtx(): MessageMergeContext {
         return {
             opts: this.enabled ? this._options : ({} as AutoSparkMessagesOptions),
             frozen: this._frozen,
             globalDeclared: this._globalDeclared,
-            typeDefaults: MESSAGE_TYPE_DEFAULTS,
+            typeDefaults: this._typeDefaults,
             warn: (m: string) => this.engine.logger.warn(m),
         };
     }

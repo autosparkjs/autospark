@@ -1,0 +1,91 @@
+<!-- 抽屉 shell 组件（autospark.overlays.drawer-shell）：面板贴边（屏幕四边或锚元素边线外侧）滑入
+     滑出的抽屉。与面板 shell 的形态分化点：无箭头载体（ADR-0063 共识 Q14——抽屉形态语言无箭头，
+     at.arrow: true 显式配置静默无效）；贴边直角（border-radius: 0，经 .autospark-dialog 类继承外壳
+     联动样式）；短轴尺寸默认经 --autospark-drawer-size 按 placement 前缀分派（引擎 inline inset
+     对拉拉伸或 JS 同步锚边长）；'drawer' 内置动画（位移滑入滑出，复合选择器覆盖裸面板/遮罩内两
+     种结构）。滑入/滑出动画规则含运行时方向插值，由引擎侧（wrappers）注入——不在此静态段。
+     契约与 ADR 回链：ADR-0062/0063/0092。 -->
+<div class="autospark-dialog autospark-drawer" x-define="autospark.overlays.drawer-shell">
+    <div x-slot></div>
+    <style global>
+    /* 抽屉形态：贴边直角 + 内容滚动 + border-box（短轴变量尺寸含边框不溢出） */
+    .autospark-drawer {
+      border-radius: 0;
+      box-sizing: border-box;
+      overflow: auto;
+    }
+    /* 短轴尺寸默认（placement 前缀分派；贴边另一轴由引擎 inline inset 对拉或锚定长轴同步承担）。
+       自定义 shell 不带本类名即无默认尺寸——完全自由。 */
+    .autospark-drawer[data-overlay-placement^="left"],
+    .autospark-drawer[data-overlay-placement^="right"] {
+      width: var(--autospark-drawer-size, 280px);
+    }
+    .autospark-drawer[data-overlay-placement^="top"],
+    .autospark-drawer[data-overlay-placement^="bottom"] {
+      height: var(--autospark-drawer-size, 280px);
+    }
+    /* 'drawer' 动画遮罩分量：淡入淡出（模态形态；裸面板无遮罩不淡） */
+    .autospark-dialog-mask.drawer-enter-active,
+    .autospark-dialog-mask.drawer-leave-active {
+      transition: opacity .3s ease;
+    }
+    .autospark-dialog-mask.drawer-enter-from,
+    .autospark-dialog-mask.drawer-leave-to {
+      opacity: 0;
+    }
+    /* 抽屉把手（ADR-0070：把手机制组合 x-expandable 共享把手模块——元素/箭头矩阵/半圆
+       视觉在 expandable-trigger（契约类 .autospark-expandable-trigger、变量族
+       --autospark-expandable-trigger-*；旧 .autospark-drawer-trigger 类与
+       --autospark-drawer-trigger-size 变量已删除）。此处仅承载 drawer 语境差异：
+       fixed 定位（引擎 inline 写 left/top，展开↔折叠沿边线 .3s 同步滑移）、覆盖物 z 层级、
+       展开态无阴影（视觉属于面板）折叠态保留（独立浮起提示可点）、折叠态半圆裁切（露
+       面板展开侧半圆——屏幕模式朝外半圆本在屏外的显式统一；方向键 = data-direction =
+       placement，共享矩阵属性随身）。 */
+    .autospark-overlays > .autospark-expandable-trigger {
+      position: fixed;
+      z-index: calc(var(--autospark-overlay-z, 1000) + 1);
+      box-shadow: none;
+      transition: left .3s ease, top .3s ease, clip-path .3s ease, border-color .15s, background .15s, opacity .15s;
+    }
+    /* 显隐策略（expandable.showTrigger，默认 'hover'）：展开态隐藏、hover/聚焦显形
+       （无边条感应——折叠态恒显使「寻找隐藏把手」场景不存在，把手位置沿面板边线可预测）；
+       折叠态恒显（唯一重开触点，规则后置胜出同特异性）；触屏（hover:none）恒显 */
+    .autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"] {
+      opacity: 0;
+    }
+    .autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"]:hover,
+    .autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"]:focus-visible {
+      opacity: 1;
+    }
+    .autospark-overlays > .autospark-expandable-trigger[data-collapsed] {
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+      opacity: 1;
+    }
+    @media (hover: none) {
+      .autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"] {
+        opacity: 1;
+      }
+    }
+    /* 感应边条（showTrigger:'hover'）：与把手同为覆盖物容器直接子元素、fixed 几何由引擎
+       inline 写入（整条活动边线、厚 24px 跨边内外各 12px）——hover 显形把手走共享的
+       edge:hover ~ trigger 兄弟规则（边条置于把手之前的兄弟序前提）；触屏不启用。
+       已知代价：边条遮挡边线附近面板内容的点击（与 x-expandable hover 模式同款固有代价） */
+    .autospark-overlays > .autospark-expandable-edge {
+      position: fixed;
+      display: none;
+      z-index: calc(var(--autospark-overlay-z, 1000) + 1);
+    }
+    @media (hover: hover) {
+      .autospark-overlays > .autospark-expandable-edge[data-show-trigger="hover"] {
+        display: block;
+      }
+    }
+    /* 折叠态半圆裁切：保留面板展开侧半圆（right 骑右缘 → 露左半、top 骑顶缘 → 露下半；
+       图标入半圆的缩放/平移由共享 data-half 规则承担） */
+    .autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="right"] { clip-path: inset(0 50% 0 0); }
+    .autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="left"] { clip-path: inset(0 0 0 50%); }
+    .autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="top"] { clip-path: inset(50% 0 0 0); }
+    .autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="bottom"] { clip-path: inset(0 0 50% 0); }
+    </style>
+</div>
+

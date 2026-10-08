@@ -28,7 +28,7 @@
 
     &>.title {
         font: var(--auto-title-font);
-        color: var(--auto-card-header-color);
+        color: var(--auto-panel-header-color);
         display: flex;
         align-items: center;
         padding-bottom: calc(0.5 * var(--auto-spacing));
@@ -43,6 +43,13 @@
         }
     }
 
+    /* 次要描述：--auto-font 的弱化（字号 0.9 倍），颜色取次要文字色档 */
+    &>.description {
+        font: var(--auto-font);
+        font-size: calc(var(--auto-font-size) * 0.9);
+        color: var(--auto-secondary-color);
+    }
+
     &>.closeable {
         position: absolute;
         right: var(--auto-spacing);
@@ -51,46 +58,46 @@
     }
 
     &.warning {
-        background: color-mix(in srgb, var(--k-color-warning), white 90%);
-        border: 1px solid color-mix(in srgb, var(--k-color-warning), white 50%);
-        color: var(--k-color-warning);
+        background: color-mix(in srgb, var(--x-color-warning), white 90%);
+        border: 1px solid color-mix(in srgb, var(--x-color-warning), white 50%);
+        color: var(--x-color-warning);
 
         &:after {
-            background-color: var(--k-color-warning);
+            background-color: var(--x-color-warning);
             mask-image: var(--auto-icon-alert);
         }
     }
 
     &.success {
-        background: color-mix(in srgb, var(--k-color-success), white 90%);
-        border: 1px solid color-mix(in srgb, var(--k-color-success), white 50%);
-        color: var(--k-color-success);
+        background: color-mix(in srgb, var(--x-color-success), white 90%);
+        border: 1px solid color-mix(in srgb, var(--x-color-success), white 50%);
+        color: var(--x-color-success);
 
         &:after {
-            background-color: var(--k-color-success);
+            background-color: var(--x-color-success);
             mask-image: var(--auto-icon-success);
         }
     }
 
     &.primary {
-        background: color-mix(in srgb, var(--k-color-primary), white 90%);
-        border: 1px solid color-mix(in srgb, var(--k-color-primary), white 50%);
-        color: var(--k-color-primary);
+        background: color-mix(in srgb, var(--x-color-primary), white 90%);
+        border: 1px solid color-mix(in srgb, var(--x-color-primary), white 50%);
+        color: var(--x-color-primary);
 
         &:after {
-            background-color: var(--k-color-primary);
+            background-color: var(--x-color-primary);
             mask-image: var(--auto-icon-focus);
         }
     }
 
     &.error,
     &.danger {
-        background: color-mix(in srgb, var(--k-color-danger), white 90%);
-        border: 1px solid color-mix(in srgb, var(--k-color-danger), white 50%);
-        color: var(--k-color-danger);
+        background: color-mix(in srgb, var(--x-color-danger), white 90%);
+        border: 1px solid color-mix(in srgb, var(--x-color-danger), white 50%);
+        color: var(--x-color-danger);
 
         &:after {
-            background-color: var(--k-color-danger);
+            background-color: var(--x-color-danger);
             mask-image: var(--auto-icon-error);
 
         }
@@ -100,48 +107,48 @@
 :host([dark]),
 [dark] {
     .auto-alert {
-        background: var(--auto-card-bgcolor);
+        background: var(--auto-panel-bgcolor);
         border: var(--auto-border);
         color: var(--auto-color);
 
         &.success {
-            background: var(--k-color-success);
-            border: 1px solid var(--k-color-success);
-            color: 1px solid color-mix(in srgb, var(--k-color-success), white 70%);
+            background: color-mix(in srgb, var(--x-color-success), transparent 80%);
+            border: 1px solid var(--x-color-success);
+            color: 1px solid color-mix(in srgb, var(--x-color-success), white 70%);
 
             &:after {
-                background-color: color-mix(in srgb, var(--k-color-success), white 70%);
+                background-color: color-mix(in srgb, var(--x-color-success), white 70%);
             }
         }
 
         &.warning {
-            background: var(--k-color-warning);
-            border: 1px solid var(--k-color-warning);
-            color: color-mix(in srgb, var(--k-color-warning), white 70%);
+            background: color-mix(in srgb, var(--x-color-warning), transparent 80%);
+            border: 1px solid var(--x-color-warning);
+            color: color-mix(in srgb, var(--x-color-warning), white 70%);
 
             &:after {
-                background-color: color-mix(in srgb, var(--k-color-warning), white 70%);
+                background-color: color-mix(in srgb, var(--x-color-warning), white 70%);
             }
         }
 
         &.primary {
-            background: var(--k-color-primary);
-            border: 1px solid var(--k-color-primary);
-            color: color-mix(in srgb, var(--k-color-primary), white 70%);
+            background: color-mix(in srgb, var(--x-color-primary), transparent 80%);
+            border: 1px solid var(--x-color-primary);
+            color: color-mix(in srgb, var(--x-color-primary), white 70%);
 
             &:after {
-                background-color: color-mix(in srgb, var(--k-color-primary), white 70%);
+                background-color: color-mix(in srgb, var(--x-color-primary), white 70%);
             }
         }
 
         &.error,
         &.danger {
-            background: var(--k-color-danger);
-            border: 1px solid var(--k-color-danger);
-            color: color-mix(in srgb, var(--k-color-danger), white 70%);
+            background: color-mix(in srgb, var(--x-color-danger), transparent 80%);
+            border: 1px solid var(--x-color-danger);
+            color: color-mix(in srgb, var(--x-color-danger), white 70%);
 
             &:after {
-                background-color: color-mix(in srgb, var(--k-color-danger), white 70%);
+                background-color: color-mix(in srgb, var(--x-color-danger), white 70%);
             }
         }
     }

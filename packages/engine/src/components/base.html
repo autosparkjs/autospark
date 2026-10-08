@@ -1,0 +1,91 @@
+<!-- base 族根组件（autospark.messages.base）：所有 type 组件的公共基座——结构（icon + title/link +
+     description 内容行 + 裸出口 + actions 组合）+ 公共 methods 七件 + 约定键默认值 + 内容排版
+     scoped 样式与内容结构 global 样式。经 x-define:inherit 结构+行为双继承下渗全部 type；
+     用户同名覆盖 base = 全族换根（本组件 global 段随覆盖整组替换——内容结构基线样式由
+     覆盖者自带，ADR-0087）。契约与 ADR 回链：ADR-0089/0092。 -->
+<div x-define="autospark.messages.base" class="autospark-message-type">
+    <script setup>
+    {
+        data: () => ({
+            holdOpen: false,
+            visible: false,
+            closed: false,
+            remaining: -1,
+        }),
+        methods: {
+            hide() { this.engine.messages.hide(this.props.id); },
+            show() { this.engine.messages.show(this.props.id); },
+            remove() { this.engine.messages.delete(this.props.id); },
+            cancel() { this.engine.messages.hide(this.props.id); },
+            update(p) { this.engine.messages.update(this.props.id, p); },
+            markRead() { this.engine.messages.markRead(this.props.id); },
+            respond(v) { this.engine.messages.respond(this.props.id, v); },
+        },
+    }
+    </script>
+    <style>
+    .autospark-message-type { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .autospark-message-main { display: flex; align-items: flex-start; gap: 8px; }
+    .autospark-message-icon { flex: none; }
+    .autospark-message-content { flex: 1; min-width: 0; }
+    .autospark-message-title-row { display: flex; align-items: center; gap: 6px; }
+    .autospark-message-title { font-weight: 500; }
+    .autospark-message-link { flex: none; color: inherit; opacity: 0.6; }
+    .autospark-message-description { font-size: 0.92em; opacity: 0.8; }
+    </style>
+    <!-- 内容结构基线（global 段，原 shell 样式表的内容类迁入）：跨 type 组件共享的类名
+       （base/task 同构复用），非 scoped——随本组件注册期注入、同名覆盖整组替换（ADR-0087） -->
+    <style global>
+    /* 内容主行（icon + 内容列）——base/task 模板复用 */
+    .autospark-message-main {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .autospark-message-icon {
+      flex: none;
+      display: inline-flex;
+      font-size: 17px;
+      color: var(--autospark-message-accent, transparent);
+    }
+    .autospark-message-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .autospark-message-title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .autospark-message-title { overflow-wrap: break-word; }
+    .autospark-message-link {
+      flex: none;
+      text-decoration: none;
+      font-size: 12px;
+      color: var(--autospark-message-accent, inherit);
+    }
+    /* 外链图标（内置 external，x-icon 注入 svg） */
+    .autospark-message-link-icon {
+      display: inline-flex;
+      font-size: 13px;
+    }
+    .autospark-message-description {
+      font-size: 12px;
+      opacity: 0.75;
+      margin-top: 2px;
+      overflow-wrap: break-word;
+    }
+    </style>
+    <div class="autospark-message-main">
+        <i class="autospark-message-icon" x-icon="icon" x-show="icon" aria-hidden="true"></i>
+        <div class="autospark-message-content">
+            <div class="autospark-message-title-row">
+                <span class="autospark-message-title" x-html="title"></span>
+                <a class="autospark-message-link" x-show="link" :href="link" target="_blank" rel="noopener noreferrer" aria-label="查看详情"><i class="autospark-message-link-icon" x-icon="'external'" aria-hidden="true"></i></a>
+            </div>
+            <div class="autospark-message-description" x-html="description" x-show="description"></div>
+        </div>
+    </div>
+    <div x-slot></div>
+    <div x-component:autospark.messages.actions="{ actions }"></div>
+</div>

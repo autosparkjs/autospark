@@ -9,14 +9,14 @@ export default {
             <div class="story-intro-title">特性说明：段落（Paragraph）</div>
             <p>
                 段落排版由行高与字间距两个梯度控制，服务于大段文本的阅读密度。
-                基础变量 <code>--k-line-height-*</code> / <code>--k-letter-spacing-*</code> 提供五档绝对值，
+                基础变量 <code>--x-line-height-*</code> / <code>--x-letter-spacing-*</code> 提供五档绝对值，
                 别名 <code>--auto-line-height</code> / <code>--auto-letter-spacing</code> 随全局尺寸档位联动，
                 并被 <code>--auto-font</code> 速写一并聚合。
             </p>
             <ul>
                 <li>行高：文本行间的垂直间距，值越大阅读越松弛</li>
                 <li>字间距：字符间的水平距离，中文排版通常保持默认</li>
-                <li>自动段落 vs 固定段落：消费 <code>--auto-*</code> 别名的段落随档位联动，写死 <code>--k-*</code> 基础值的段落不联动（见下方对比卡）</li>
+                <li>自动段落 vs 固定段落：消费 <code>--auto-*</code> 别名的段落随档位联动，写死 <code>--x-*</code> 基础值的段落不联动（见下方对比卡）</li>
             </ul>
             <pre>p { font: var(--auto-font); line-height: var(--auto-line-height); }</pre>
         </div>
@@ -25,8 +25,8 @@ export default {
             <div class="auto-card-body col">
                 ${["x-small", "small", "medium", "large", "x-large"].map(
                     (size) => html`
-                        <div class="auto-card-body-item" style="line-height:var(--k-line-height-${size})">
-                            道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。故常无欲，以观其妙；常有欲，以观其徼（jiào）。此两者同出而异名，同谓之玄，玄之又玄，众妙之门。--k-line-height-${size}
+                        <div class="auto-card-body-item" style="line-height:var(--x-line-height-${size})">
+                            道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。故常无欲，以观其妙；常有欲，以观其徼（jiào）。此两者同出而异名，同谓之玄，玄之又玄，众妙之门。--x-line-height-${size}
                         </div>
                     `,
                 )}
@@ -37,8 +37,8 @@ export default {
             <div class="auto-card-body col">
                 ${["x-small", "small", "medium", "large", "x-large"].map(
                     (size) => html`
-                        <div class="auto-card-body-item" style="letter-spacing:var(--k-letter-spacing-${size})">
-                            道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。故常无欲，以观其妙；常有欲，以观其徼（jiào）。此两者同出而异名，同谓之玄，玄之又玄，众妙之门。--k-letter-spacing-${size}
+                        <div class="auto-card-body-item" style="letter-spacing:var(--x-letter-spacing-${size})">
+                            道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。故常无欲，以观其妙；常有欲，以观其徼（jiào）。此两者同出而异名，同谓之玄，玄之又玄，众妙之门。--x-letter-spacing-${size}
                         </div>
                     `,
                 )}
@@ -84,10 +84,10 @@ export default {
                     </div>
                     <div style="flex:1;min-width:13rem;padding:0.8rem;border:1px dashed var(--auto-border-color);border-radius:var(--auto-border-radius);">
                         <div style="font-size:0.7rem;color:var(--auto-third-color);margin-bottom:0.4rem;">
-                            固定段落（--k-* medium 写死，不随档位变化）
+                            固定段落（--x-* medium 写死，不随档位变化）
                         </div>
                         <div
-                            style="font-weight:var(--k-font-weight-medium);font-size:var(--k-font-size-medium);line-height:var(--k-line-height-medium);letter-spacing:var(--k-letter-spacing-medium);"
+                            style="font-weight:var(--x-font-weight-medium);font-size:var(--x-font-size-medium);line-height:var(--x-line-height-medium);letter-spacing:var(--x-letter-spacing-medium);"
                         >
                             道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。故常无欲，以观其妙；常有欲，以观其徼（jiào）。此两者同出而异名，同谓之玄，玄之又玄，众妙之门。
                         </div>

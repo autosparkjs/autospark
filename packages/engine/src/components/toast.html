@@ -1,0 +1,4 @@
+<!-- toast type 组件（autospark.messages.toast）：纯继承 base——零覆盖段、零自有 methods（瞬时提示
+     无专属行为）、零 defaults（width auto 跟内容；persist 沿全局默认 0 = 隐藏即删的 toast 语义）。
+     存在意义：用户同名覆盖的 per-type 定制点（免 types 配置）。契约与 ADR 回链：ADR-0089/0092。 -->
+<div x-define="autospark.messages.toast" x-define:inherit="autospark.messages.base"></div>

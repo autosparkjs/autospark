@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { defineConfig } from "tsup";
 import path from "node:path";
 import fs from "node:fs";
+// ?raw 静态资源导入（内置组件模板 .html/.css，ADR-0091）——esbuild 不识别 query 后缀，插件补齐
+import { rawAssetsPlugin } from "./scripts/esbuild-raw-assets";
 
 const gzipPromise = promisify(gzip);
 
@@ -25,6 +27,7 @@ export default defineConfig({
     // 使文档站点 demo 仅需引入一个 autospark.js 即可运行（与 autoform.js 自包含策略一致）；
     // 入口全量转导出 autostore，故 IIFE 全局下 AutoSparkSpaces.* 亦覆盖 AutoStore 完整 API（ADR-0030）。
     noExternal: ["autostore","flex-tools","@floating-ui/dom"],
+    esbuildPlugins: [rawAssetsPlugin],
     onSuccess: async () => {
         const cjsFile = readFileSync("dist/index.cjs");
         const esmFile = readFileSync("dist/index.js");

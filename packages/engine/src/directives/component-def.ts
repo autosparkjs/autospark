@@ -89,6 +89,12 @@ export interface ComponentSetup {
      * 与内置上下文键（props/globalState/engine/scope/el/$parent）重名时 warn + 忽略。
      */
     locals?: Record<string, any>;
+    /**
+     * 组件默认值声明（ADR-0092）：静态对象字面量，随 ComponentDef.defaults 暴露——内置组件的
+     * 消费侧默认（如消息 type 的合并链 type 种子层）经此声明。多 `<script setup>` 浅合并
+     * （后者同名覆盖前者）；非对象值 warn 忽略。
+     */
+    defaults?: Record<string, any>;
     created?: () => void;
     mounted?: () => void;
     beforeUnmount?: () => void;
@@ -142,6 +148,8 @@ export interface ComponentDef {
     hooks: ComponentHooks | undefined;
     /** 合并后的组件样式声明段数组（每个 `<style>` 一项，scoped/global 混排，见 ComponentStyleDecl）；无 `<style>` 时为 undefined */
     styles: ComponentStyleDecl[] | undefined;
+    /** 组件默认值声明（ADR-0092：setup 的 defaults 段合并结果）；未声明为 undefined */
+    defaults: Record<string, any> | undefined;
     /**
      * 响应式 `<style>` bind 清单（ADR-0022 决策四-4.1）。
      *

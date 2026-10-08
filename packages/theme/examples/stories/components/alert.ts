@@ -47,11 +47,11 @@ export default {
             <div class="auto-card-body col">
                 <div class="auto-alert warning">
                     <div class="title">注意<span class="closeable"></span></div>
-                    这是一条带标题的警告信息，标题行与正文自动分隔
+                    <div class="description">这是一条带标题的警告信息，标题行与正文自动分隔</div>
                 </div>
                 <div class="auto-alert success">
                     <div class="title">操作成功</div>
-                    数据已保存至服务器，title 内可放关闭按钮或操作链接
+                    <div class="description">数据已保存至服务器，title 内可放关闭按钮或操作链接</div>
                 </div>
             </div>
         </div>

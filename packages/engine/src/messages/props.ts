@@ -31,7 +31,7 @@ export const MANAGER_LEVEL_KEYS: ReadonlySet<string> = new Set([
 
 /**
  * 内置 type 的种子默认（ADR-0089 决策九）：**经 ctx.typeDefaults 注入**（来源
- * `presets.ts` 的 MESSAGE_TYPE_DEFAULTS——各 type 组件文件自带 `*_DEFAULTS`；props.ts
+ * 各 type 组件模板自带（`<script setup>` defaults 段，ADR-0092 模板化）；props.ts
  * 不 import presets 以避循环依赖）。合并链中位于 MESSAGE_DEFAULTS 与
  * options.messages 之间——用户全局 / types[type] / 单次 props 均可覆盖。
  * （progress clamp 已内联进 task 组件 methods——props.ts 的 clampProgress 随 session
@@ -46,7 +46,7 @@ export interface MessageMergeContext {
     frozen: { anchor?: MessageProps["anchor"]; actions?: any[] };
     /** 用户在 options.messages 显式配置过的键名（兜底前快照——sticky closable 显式性判定） */
     globalDeclared: ReadonlySet<string>;
-    /** type 种子默认表（ADR-0089 决策九：manager 侧聚合注入——presets.MESSAGE_TYPE_DEFAULTS） */
+    /** type 种子默认视图（ADR-0089 决策九 + ADR-0092 模板化：manager 侧 Proxy 惰性提取——presets.resolveTypeDefaults） */
     typeDefaults: Record<string, Record<string, any>>;
     /** 告警出口（engine.logger.warn） */
     warn: (msg: string) => void;
@@ -87,7 +87,7 @@ export function mergeMessageProps(
     }
     // 单次 props 层：整包直传（ADR-0088——白名单投影退役，自有键透传）
     Object.assign(merged, userProps);
-    // （confirm 默认双钮已数据化进 type 种子层 CONFIRM_DEFAULTS——ADR-0089 决策九，
+    // （confirm 默认双钮已数据化进 type 组件 defaults 段——ADR-0089 决策九 + ADR-0092 模板化，
     //  本处合并链零 type 分支）
     // sticky 自动关闭钮（ADR-0077 修订）：delayClose ≤ 0（永不自动关）时未显式声明
     // closable 则自动补 ×——否则除 API / actions 外消息无法关闭（可发现性）。显式

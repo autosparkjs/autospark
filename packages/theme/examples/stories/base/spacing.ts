@@ -3,11 +3,11 @@ import { repeat } from "lit/directives/repeat.js";
 import type { StoryModule } from "../story";
 
 /** 间距档位清单 */
-const SPACINGS = ["x-small", "small", "medium", "large", "x-large"];
+const SPACINGS = ["none", "x-small", "small", "medium", "large", "x-large"];
 
 /**
  * 间距：补建故事（原 src/stories/base/spacing.ts 是 font 的坏复制且未被登记，本文件为真正内容）。
- * 演示 --k-spacing-* 梯度与 --auto-spacing / --auto-padding / --auto-margin 别名。
+ * 演示 --x-spacing-* 梯度与 --auto-spacing / --auto-padding / --auto-margin 别名。
  */
 export default {
     title: "间距",
@@ -17,15 +17,16 @@ export default {
             <p>
                 间距梯度调节的是界面的<strong>整体稀疏度</strong>：同一屏幕内内容与留白的比例，即信息密度。
                 调高一档，卡片留白、元素内边距、布局间隙同步放宽，页面更「透气」；调低一档则更紧凑、
-                单屏可容纳更多信息。基础变量 <code>--k-spacing-{size}</code> 提供五档绝对值，
+                单屏可容纳更多信息。基础变量 <code>--x-spacing-{size}</code> 提供六档绝对值
+                （<code>none</code> 至 <code>x-large</code>），
                 别名 <code>--auto-spacing</code> / <code>--auto-padding</code> / <code>--auto-margin</code>
                 统一指向当前选中档位，组件样式均消费别名——改一档，全站稀疏度联动。
             </p>
             <ul>
                 <li>稀疏度联动面：卡片留白（<code>--auto-spacing</code>）、元素内边距（<code>--auto-padding</code>）、布局间隙（<code>--auto-margin</code>）</li>
-                <li>选档建议：数据密集型界面（表格、仪表盘）选 <code>x-small / small</code> 提高信息密度；展示型 / 阅读型页面选 <code>large / x-large</code> 更透气</li>
+                <li>选档建议：数据密集型界面（表格、仪表盘）选 <code>x-small / small</code> 提高信息密度；展示型 / 阅读型页面选 <code>large / x-large</code> 更透气；<code>none</code> 为零间距（留白完全消除），适合表格单元格等需要自行控制留白的紧凑场景</li>
                 <li>与「尺寸」档的分工：<code>size</code> 调字号与行高、<code>spacing</code> 调留白，两者组合决定最终密度——只调 spacing 时字号不变</li>
-                <li>五档取值：<code>x-small / small / medium / large / x-large</code>（<code>medium</code> 为默认态）</li>
+                <li>六档取值：<code>none / x-small / small / medium / large / x-large</code>（<code>medium</code> 为默认态）</li>
                 <li>局部换档：任意容器加 <code>data-spacing="档位"</code> 属性即可让内部元素局部生效、与全局隔离</li>
             </ul>
             <pre>ThemePro.spacing = 'large'  // 等价 document.documentElement.dataset.spacing = 'large'</pre>
@@ -43,12 +44,12 @@ export default {
                                     style="border:1px dashed var(--auto-border-color);border-radius:var(--auto-border-radius);display:inline-flex;"
                                 >
                                     <span
-                                        style="padding:var(--k-spacing-${level});background:var(--auto-selected-bgcolor);border-radius:calc(var(--auto-border-radius) * 0.6);"
+                                        style="padding:var(--x-spacing-${level});background:var(--auto-selected-bgcolor);border-radius:calc(var(--auto-border-radius) * 0.6);"
                                     >
                                         文本
                                     </span>
                                 </div>
-                                <code style="font-size:0.68rem;color:var(--auto-third-color);">--k-spacing-${level}</code>
+                                <code style="font-size:0.68rem;color:var(--auto-third-color);">--x-spacing-${level}</code>
                             </div>
                         `,
                     )}
@@ -123,8 +124,8 @@ export default {
             <div class="auto-card-header">局部固定 vs 跟随全局（在右侧面板切换「间距」观察）</div>
             <div class="auto-card-body col">
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;">
-                    ${["x-small", "none", "large"].map((level) => {
-                        const isGlobal = level === "none";
+                    ${["x-small", "global", "large"].map((level) => {
+                        const isGlobal = level === "global";
                         return html`
                             <div
                                 data-spacing="${isGlobal ? undefined : level}"
@@ -155,12 +156,12 @@ export default {
             <div class="auto-card-header">组件联动：按钮内边距随档位联动</div>
             <div class="auto-card-body col" style="gap:var(--auto-spacing);">
                 <div>
-                    <div class="auto-btn small">小按钮（内边距随 --k-spacing-small）</div>
-                    <div class="auto-btn medium">中按钮（内边距随 --k-spacing-medium）</div>
-                    <div class="auto-btn large">大按钮（内边距随 --k-spacing-large）</div>
+                    <div class="auto-btn small">小按钮（内边距随 --x-spacing-small）</div>
+                    <div class="auto-btn medium">中按钮（内边距随 --x-spacing-medium）</div>
+                    <div class="auto-btn large">大按钮（内边距随 --x-spacing-large）</div>
                 </div>
                 <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
-                    按钮的尺寸类同时决定字号与内边距（<code>.auto-btn.large { padding: calc(0.5*var(--k-spacing-large)) }</code>）；
+                    按钮的尺寸类同时决定字号与内边距（<code>.auto-btn.large { padding: calc(0.5*var(--x-spacing-large)) }</code>）；
                     在右侧面板切换「间距」档位不会影响这三个按钮（它们消费的是各尺寸类的固定档），
                     只有未指定尺寸类、消费 <code>--auto-*</code> 别名的元素才随档位联动。
                 </p>

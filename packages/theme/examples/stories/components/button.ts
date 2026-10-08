@@ -35,12 +35,12 @@ export default {
             <div class="auto-card-header">语义按钮</div>
             <div class="auto-card-body col">
                 <div>
-                    <div class="auto-btn">确定</div>
-                    <div class="auto-btn primary">确定</div>
-                    <div class="auto-btn success">确定</div>
-                    <div class="auto-btn warning">确定</div>
-                    <div class="auto-btn danger">确定</div>
-                    <div class="auto-btn info">确定</div>
+                    <div class="auto-btn">Normal</div>
+                    <div class="auto-btn primary">Primary</div>
+                    <div class="auto-btn success">Success</div>
+                    <div class="auto-btn warning">Warning</div>
+                    <div class="auto-btn danger">Danger</div>
+                    <div class="auto-btn info">Info</div>
                 </div>
             </div>
         </div>

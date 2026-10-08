@@ -4,14 +4,14 @@ import type { StoryModule } from "../story";
 
 /** 圆角档位清单：label 为显示名，radius 为对应变量 */
 const RADII = [
-    { label: "none", radius: "var(--k-border-radius-none)" },
-    { label: "x-small", radius: "var(--k-border-radius-x-small)" },
-    { label: "small", radius: "var(--k-border-radius-small)" },
-    { label: "medium", radius: "var(--k-border-radius-medium)" },
-    { label: "large", radius: "var(--k-border-radius-large)" },
-    { label: "x-large", radius: "var(--k-border-radius-x-large)" },
-    { label: "pill", radius: "var(--k-border-radius-pill)" },
-    { label: "circle", radius: "var(--k-border-radius-circle)" },
+    { label: "none", radius: "var(--x-border-radius-none)" },
+    { label: "x-small", radius: "var(--x-border-radius-x-small)" },
+    { label: "small", radius: "var(--x-border-radius-small)" },
+    { label: "medium", radius: "var(--x-border-radius-medium)" },
+    { label: "large", radius: "var(--x-border-radius-large)" },
+    { label: "x-large", radius: "var(--x-border-radius-x-large)" },
+    { label: "pill", radius: "var(--x-border-radius-pill)" },
+    { label: "circle", radius: "var(--x-border-radius-circle)" },
 ];
 
 /** 圆角：转译自 src/stories/base/radius.story.ts（主题控制交由右侧面板） */
@@ -21,12 +21,12 @@ export default {
         <div class="auto-card story-intro">
             <div class="story-intro-title">特性说明：圆角（Border Radius）</div>
             <p>
-                圆角梯度为面板、按钮等组件提供统一的圆角语言。基础变量 <code>--k-border-radius-*</code>
+                圆角梯度为面板、按钮等组件提供统一的圆角语言。基础变量 <code>--x-border-radius-*</code>
                 提供绝对值，别名 <code>--auto-border-radius</code> 指向当前选中档位，组件样式统一消费别名。
             </p>
             <ul>
-                <li>五档可调：<code>x-small / small / medium / large / x-large</code>（<code>medium</code> 为默认态）</li>
-                <li>特殊值：<code>none</code>（直角）、<code>pill</code>（胶囊 9999px）、<code>circle</code>（正圆 50%，需搭配正方形容器）</li>
+                <li>六档可调：<code>none / x-small / small / medium / large / x-large</code>（<code>medium</code> 为默认态），<code>none</code> 即直角</li>
+                <li>特殊值：<code>pill</code>（胶囊 9999px）、<code>circle</code>（正圆 50%，需搭配正方形容器）——仅为基础变量，不参与档位切换</li>
                 <li>局部换档：任意容器加 <code>data-radius="档位"</code> 属性即可让内部元素局部生效，无需改全局</li>
             </ul>
             <pre>ThemePro.radius = 'large'  // 等价 document.documentElement.dataset.radius = 'large'</pre>
@@ -40,11 +40,11 @@ export default {
                         ({ label, radius }, i) => html`
                             <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;">
                                 <div
-                                    style="width:4.2rem;height:2.8rem;border-radius:${radius};background:var(--k-color-theme-${i + 1});border:var(--auto-border);display:flex;align-items:center;justify-content:center;font-size:0.72rem;"
+                                    style="width:4.2rem;height:2.8rem;border-radius:${radius};background:var(--x-color-theme-${i + 1});border:var(--auto-border);display:flex;align-items:center;justify-content:center;font-size:0.72rem;"
                                 >
                                     ${label}
                                 </div>
-                                <code style="font-size:0.68rem;color:var(--auto-third-color);">--k-border-radius-${label}</code>
+                                <code style="font-size:0.68rem;color:var(--auto-third-color);">--x-border-radius-${label}</code>
                             </div>
                         `,
                     )}
@@ -61,15 +61,15 @@ export default {
             <div class="auto-card-body col">
                 <div class="auto-card-body-item" style="gap:1rem;flex-wrap:wrap;">
                     <span
-                        style="display:inline-flex;align-items:center;justify-content:center;width:3rem;height:3rem;border-radius:var(--k-border-radius-circle);background:var(--auto-theme-color);color:white;font-size:0.8rem;"
+                        style="display:inline-flex;align-items:center;justify-content:center;width:3rem;height:3rem;border-radius:var(--x-border-radius-circle);background:var(--auto-theme-color);color:white;font-size:0.8rem;"
                         >头像</span
                     >
                     <span
-                        style="display:inline-flex;align-items:center;padding:0.3em 1em;border-radius:var(--k-border-radius-pill);background:var(--auto-selected-bgcolor);color:var(--auto-selected-color);border:1px solid var(--auto-selected-border-color);"
+                        style="display:inline-flex;align-items:center;padding:0.3em 1em;border-radius:var(--x-border-radius-pill);background:var(--auto-selected-bgcolor);color:var(--auto-selected-color);border:1px solid var(--auto-selected-border-color);"
                         >胶囊标签 pill</span
                     >
                     <span
-                        style="display:inline-flex;align-items:center;padding:0.3em 1em;border-radius:var(--k-border-radius-pill);background:var(--auto-secondary-bgcolor);color:var(--auto-secondary-color);"
+                        style="display:inline-flex;align-items:center;padding:0.3em 1em;border-radius:var(--x-border-radius-pill);background:var(--auto-secondary-bgcolor);color:var(--auto-secondary-color);"
                         >状态 · 运行中</span
                     >
                 </div>
@@ -83,15 +83,15 @@ export default {
             <div class="auto-card-body col">
                 <div class="auto-card-body-item" style="gap:1rem;align-items:flex-end;flex-wrap:wrap;">
                     <span
-                        style="display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:var(--k-border-radius-medium);background:var(--k-color-theme-1);font-size:0.7rem;"
+                        style="display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:var(--x-border-radius-medium);background:var(--x-color-theme-1);font-size:0.7rem;"
                         >小</span
                     >
                     <span
-                        style="display:inline-flex;align-items:center;justify-content:center;width:4rem;height:4rem;border-radius:var(--k-border-radius-medium);background:var(--k-color-theme-2);font-size:0.75rem;"
+                        style="display:inline-flex;align-items:center;justify-content:center;width:4rem;height:4rem;border-radius:var(--x-border-radius-medium);background:var(--x-color-theme-2);font-size:0.75rem;"
                         >中</span
                     >
                     <span
-                        style="display:inline-flex;align-items:center;justify-content:center;width:7rem;height:5rem;border-radius:var(--k-border-radius-medium);background:var(--k-color-theme-3);font-size:0.8rem;"
+                        style="display:inline-flex;align-items:center;justify-content:center;width:7rem;height:5rem;border-radius:var(--x-border-radius-medium);background:var(--x-color-theme-3);font-size:0.8rem;"
                         >大</span
                     >
                 </div>
@@ -106,15 +106,15 @@ export default {
             <div class="auto-card-body col">
                 <div class="auto-card-body-item" style="flex-direction:column;align-items:stretch;gap:0;padding:0;border:var(--auto-border);background:transparent;">
                     <div
-                        style="padding:0.6em 1em;background:var(--auto-card-header-bgcolor);border-radius:var(--k-border-radius-medium) var(--k-border-radius-medium) 0 0;border-bottom:var(--auto-border);"
+                        style="padding:0.6em 1em;background:var(--auto-panel-header-bgcolor);border-radius:var(--x-border-radius-medium) var(--x-border-radius-medium) 0 0;border-bottom:var(--auto-border);"
                     >
                         顶部两角圆、底部两角直
                     </div>
                     <div style="padding:0.8em 1em;background:var(--auto-bgcolor);">
-                        常用于「头部 + 主体」的连通卡片：<code>border-radius: var(--k-border-radius-medium) var(--k-border-radius-medium) 0 0</code>
+                        常用于「头部 + 主体」的连通卡片：<code>border-radius: var(--x-border-radius-medium) var(--x-border-radius-medium) 0 0</code>
                     </div>
                 </div>
-                <div class="auto-card-body-item" style="align-items:center;justify-content:center;height:3rem;border-radius:var(--k-border-radius-large) 0 var(--k-border-radius-large) 0;background:var(--auto-selected-bgcolor);border:1px solid var(--auto-selected-border-color);">
+                <div class="auto-card-body-item" style="align-items:center;justify-content:center;height:3rem;border-radius:var(--x-border-radius-large) 0 var(--x-border-radius-large) 0;background:var(--auto-selected-bgcolor);border:1px solid var(--auto-selected-border-color);">
                     对角圆：large 0 large 0
                 </div>
             </div>

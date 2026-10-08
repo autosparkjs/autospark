@@ -31,10 +31,11 @@ import { removeOverlayContainer } from "./overlay/container";
 import { TooltipManager } from "./tooltip/manager";
 import type { TooltipAPI } from "./tooltip/types";
 import { MessageManager } from "./messages/manager";
-import { SHELL_TEMPLATE } from "./messages/shell";
 import { MESSAGE_PRESET_COMPONENTS } from "./messages/presets";
-import { PANEL_SHELL_TEMPLATE, DRAWER_SHELL_TEMPLATE } from "./overlay/wrappers";
-import { BUILTIN_ERROR_COMPONENT, ensureErrorStyle } from "./builtinError";
+import MESSAGE_SHELL_TEMPLATE from "./components/message-shell.html?raw";
+import PANEL_SHELL_TEMPLATE from "./components/panel-shell.html?raw";
+import DRAWER_SHELL_TEMPLATE from "./components/drawer-shell.html?raw";
+import ERROR_TEMPLATE from "./components/error.html?raw";
 import { ComponentInstance } from "./component-instance";
 
 /**
@@ -162,19 +163,39 @@ export class AutoSpark<
         const { components: userComponents, ...restOptions } = (options ?? {}) as Partial<
             AutoSparkOptions<State>
         >;
-        ensureErrorStyle();
+        // 内置组件种子表（ADR-0092）：全部内置组件统一住 components/（一组件一 .html 自包含），
+        // 经此表注册进组件查找链——shell 亦是组件，用户同名覆盖即接管（uiShells 独立注册表退役）。
+        // super 前以局部量合成（TS17009），super 后落字段。
+        const builtinComponents: Record<string, string> = {
+            ...MESSAGE_PRESET_COMPONENTS,
+            "autospark.messages.shell": MESSAGE_SHELL_TEMPLATE,
+            "autospark.overlays.panel-shell": PANEL_SHELL_TEMPLATE,
+            "autospark.overlays.drawer-shell": DRAWER_SHELL_TEMPLATE,
+            error: ERROR_TEMPLATE,
+        };
+        // 用户同名接管判定（构造期固化）：接管后的内置组件无引擎类名契约（builtin=false，
+        // 消费者按用户模板装配包 wrapper）
+        const userOverriddenBuiltins = new Set(
+            Object.keys(builtinComponents).filter((k) => k in (userComponents ?? {})),
+        );
         // 展开形态传入（super 参数类型为 FastLiteEventOptions，无 components 键——spread 免过剩检查）
         const init = {
             autostart: true,
             debug: false,
             actions: {},
             components: {
-                error: BUILTIN_ERROR_COMPONENT,
-                ...MESSAGE_PRESET_COMPONENTS,
-                ...userComponents,
+                ...builtinComponents,
+                ...(userComponents ?? {}),
             },
         };
         super({ ...init, ...restOptions });
+        this.builtinComponents = builtinComponents;
+        this._userOverriddenBuiltins = userOverriddenBuiltins;
+        // 内置组件预热（ADR-0087 注册期注入语义）：种子键逐个触发懒预编译（def 构建 + global
+        // 样式注入收口）——「声明即生效」，不依赖首次实例化时机；9 件毫秒级。
+        for (const name of Object.keys(builtinComponents)) {
+            this._resolveGlobalComponent(name);
+        }
         if (!(el instanceof HTMLElement)) {
             throw new Error("Root element must be an HTMLElement");
         }
@@ -208,21 +229,8 @@ export class AutoSpark<
         // 全局工具提示（ADR-0061）：须早于 autostart compile——编译期 title→data-tooltip
         // 转换依赖 manager 的 enabled 开关；委托监听/样式注入在构造内就位（tooltip: false 时全短路）
         this.tooltipManager = new TooltipManager(this);
-        // UI 外壳注册表（ADR-0077）：内置四件种子 < 用户 options.uiShells 浅覆盖——构造期固化。
-        // 内置模板来自 messages/renderers/shell 与 overlay/wrappers（叶子模块，无循环依赖）。
-        // builtin 键集排除被用户接管的种子键（接管后的模板无引擎类名契约，按用户模板装配）
-        const userUiShells =
-            ((options as any)?.uiShells as Record<string, string> | undefined) ?? {};
-        this._uiShells = {
-            message: SHELL_TEMPLATE,
-            dialog: PANEL_SHELL_TEMPLATE,
-            popover: PANEL_SHELL_TEMPLATE,
-            drawer: DRAWER_SHELL_TEMPLATE,
-            ...userUiShells,
-        };
-        this._builtinUiShellKeys = new Set(
-            ["message", "dialog", "popover", "drawer"].filter((k) => !(k in userUiShells)),
-        );
+        // UI 外壳注册表（ADR-0077）已退役（ADR-0092）：shell 即组件，统一注册进 builtinComponents
+        // 种子表，用户经 options.components 同名覆盖（_userOverriddenBuiltins 判定接管）。
         // 全局消息（ADR-0071）：引擎级子系统，容器/样式随首个消息懒建（messages: false 时
         // 构造即短路——add() warn + no-op）；配套 action（toast/confirm/task）的 handle 闭包
         // 经 engine 引用惰性触达本管理器，无初始化顺序约束
@@ -320,17 +328,13 @@ export class AutoSpark<
      */
     private _globalComponentDefs = new Map<string, ComponentDef | null>();
     /**
-     * UI 外壳注册表私表（ADR-0077）：构造期合成（内置四件种子 < 用户 `options.uiShells`
-     * 浅覆盖），**构造期固化**——运行时突变不失效缓存（换 shell 走消费者选择器）。
+     * 内置组件种子表（ADR-0092）：全部内置组件（消息 type 族/base/actions/三 shell/error）
+     * 统一注册——shell 亦是组件，用户经 `options.components` 同名覆盖即接管
+     * （原 `options.uiShells` 独立注册表退役）。只读面：构造期固化。
      */
-    private _uiShells: Record<string, string>;
-    /** uiShells 懒预编译缓存（name → { snapshot, def }；null = 已查明未命中，避免重复解析） */
-    private _uiShellCache = new Map<
-        string,
-        { snapshot: HTMLElement; def: ComponentDef | null } | null
-    >();
-    /** 内置种子键集（wrapper 装配规则判据：内置模板自带引擎类名契约，用户模板零污染） */
-    private _builtinUiShellKeys: ReadonlySet<string>;
+    readonly builtinComponents: Record<string, string>;
+    /** 用户同名接管的内置组件键集（构造期判定；wrapper 装配规则判据：接管者自带样式与结构） */
+    private _userOverriddenBuiltins: ReadonlySet<string>;
     /**
      * 组件定义表（ADR-0022 决策二-1、决策七）：key=组件冻结快照根元素，value=ComponentDef。
      *
@@ -588,46 +592,46 @@ export class AutoSpark<
     }
 
     /**
-     * 解析 UI 外壳（ADR-0077 `options.uiShells` 注册表）：引擎级外壳表的懒预编译查询——
-     * 内置种子（message/dialog/popover/drawer）与用户覆盖模板同管道：字符串经自动包装规则
-     * （`_wrapGlobalComponent`）规范化 + `buildComponentDef` 一次产出快照与 def，缓存后命中直取。
-     *
-     * 解析链位于 getComponentDeclaration 链（scope 局部 → `options.components`）**之后**——用户自定义
-     * 外壳优先，本表为引擎级兜底。构造期固化：运行时突变 `options.uiShells` 不失效缓存。
+     * 外壳键 → 内置组件注册名（ADR-0092）：消费者沿用裸键（message/dialog/popover/drawer），
+     * 解析时映射到 builtinComponents 的组件注册名——shell 即组件，查找走统一组件链。
+     */
+    private static readonly UI_SHELL_COMPONENT_NAMES: Record<string, string> = {
+        message: "autospark.messages.shell",
+        dialog: "autospark.overlays.panel-shell",
+        popover: "autospark.overlays.panel-shell",
+        drawer: "autospark.overlays.drawer-shell",
+    };
+
+    /**
+     * 解析 UI 外壳（ADR-0092 收敛于统一组件链）：外壳键映射内置组件注册名，经全局组件表
+     * 懒预编译（`_resolveGlobalComponent`——含继承解析与缓存）取快照与 def。用户同名覆盖
+     * （options.components 写注册名）天然生效——内置与用户覆盖同管道，无独立注册表。
      *
      * @param name 外壳键（消费者裸名，如 'message' / 'dialog'）
      * @returns { snapshot, def }，或 null（键不存在/模板解析失败——消费者回退其内置默认）
      */
     _resolveUiShell(name: string): { snapshot: HTMLElement; def: ComponentDef | null } | null {
-        if (this._uiShellCache.has(name)) {
-            return this._uiShellCache.get(name) ?? null;
-        }
-        const raw = this._uiShells[name];
-        if (typeof raw !== "string" || raw.trim() === "") {
-            this._uiShellCache.set(name, null);
-            return null;
-        }
-        let hit: { snapshot: HTMLElement; def: ComponentDef | null } | null = null;
+        const regName = AutoSpark.UI_SHELL_COMPONENT_NAMES[name];
+        if (!regName) return null;
         try {
-            const root = this._wrapGlobalComponent(raw, name);
-            if (root) {
-                const def = buildComponentDef(root, name, (msg) => this.logger.warn(msg));
-                hit = { snapshot: def.snapshot, def };
-            }
+            const snapshot = this._resolveGlobalComponent(regName);
+            if (!snapshot) return null;
+            const def =
+                this.getComponentDef(snapshot) ?? this.getGlobalComponentDef(regName) ?? null;
+            return { snapshot, def };
         } catch (e: any) {
             this.logger.warn(`UI 外壳 "${name}" 解析失败，视为未命中: ${e?.message ?? e}`);
+            return null;
         }
-        this._uiShellCache.set(name, hit);
-        return hit;
     }
 
     /**
-     * 是否内置种子外壳键（ADR-0077）：消费者 wrapper 装配规则判据——内置模板自带引擎类名
-     * 契约（如消息双类名根）根即载体；用户模板（components 命中或 uiShells 用户键）包
-     * wrapper，零引擎类污染。
+     * 外壳键是否仍为内置种子（wrapper 装配规则判据）：内置模板自带引擎类名契约（如消息双
+     * 类名根）根即载体；用户同名接管后的模板无契约，包 wrapper 零引擎类污染。
      */
     _isBuiltinUiShell(name: string): boolean {
-        return this._builtinUiShellKeys.has(name);
+        const regName = AutoSpark.UI_SHELL_COMPONENT_NAMES[name];
+        return regName !== undefined && !this._userOverriddenBuiltins.has(regName);
     }
 
     /**

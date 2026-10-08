@@ -3,7 +3,7 @@
     display: flex;
     position: relative;
     flex-direction: column;
-    background: var(--auto-card-bgcolor);
+    background: var(--auto-panel-bgcolor);
     color: var(--auto-color);
     border-radius: var(--auto-border-radius);
     box-shadow: var(--auto-shadow);
@@ -23,8 +23,8 @@
         border-radius: var(--auto-border-radius) var(--auto-border-radius) 0 0;
         flex-shrink: 0;
         font: var(--auto-title-font);
-        color: var(--auto-card-header-color);
-        background-color: var(--auto-card-header-bgcolor);
+        color: var(--auto-panel-header-color);
+        background-color: var(--auto-panel-header-bgcolor);
         gap: 0.5em;
 
         &>.auto-card-title {
@@ -51,6 +51,7 @@
         flex: 1 1 auto;
         padding: var(--auto-spacing);
         min-height: 0;
+        gap: var(--auto-spacing);
     }
 
     &>.auto-card-body:not(:has(+ .auto-card-footer)) {
