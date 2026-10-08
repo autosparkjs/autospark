@@ -52,8 +52,8 @@ export class DrawerDirective extends VisibleOverlayDirective {
     protected override directiveLabel = "x-drawer";
 
     /** 类级初始化：注入 shell 默认视觉样式 + 共享把手样式（均幂等；ADR-0070 把手组合） */
-    static override initialize(_engine: AutoSpark): void {
-        registerShellStyles();
+    static override initialize(engine: AutoSpark): void {
+        registerShellStyles(engine);
         registerTriggerStyles();
     }
 

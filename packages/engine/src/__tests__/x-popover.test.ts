@@ -365,7 +365,8 @@ describe("形态样式", () => {
         const style = document.getElementById("autospark-shell-styles");
         expect(style).not.toBeNull();
         expect(style!.textContent).toContain("z-index");
-        // 面板视觉随 shell 迁移（ADR-0062）：类名契约保留
+        // 面板视觉随组件文件 <style global id> 注册期注入独立容器（ADR-0092：shell 即组件，
+        // 容器名沿旧注入通道 autospark-shell-styles——指令 initialize 预热触发）
         expect(style!.textContent).toContain(".autospark-dialog[data-overlay-border]");
     });
 });

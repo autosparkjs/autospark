@@ -8,7 +8,7 @@
         <div x-slot></div>
     </div>
     <button class="autospark-message-close" type="button" x-show="closable" x-icon="'no'" aria-label="关闭"></button>
-    <style global>
+    <style global id="autospark-message-styles">
     /* 卡片 chrome（ADR-0088：横向行 body + close；内容纵向堆叠在 body 列内）。阴影轻于 dialog
        面板的 0 8px 30px——非模态消息浮于页面上而非遮罩上，量级对齐 tooltip */
     .autospark-message {

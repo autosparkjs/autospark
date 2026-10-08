@@ -1,7 +1,8 @@
 import { describe, expect, test, afterEach, beforeEach } from "bun:test";
 import "./setup";
 import { mount, nextTick } from "./helpers";
-import { DRAWER_SHELL_STYLES } from "../overlay/wrappers/drawer-shell";
+// 静态样式段已随组件文件走（ADR-0092）——断言源 = 组件文件全文（规则文本仍逐字命中）
+import DRAWER_SHELL_STYLES from "../components/drawer-shell.html?raw";
 
 /**
  * x-drawer 贴边抽屉形态测试（ADR-0063）。

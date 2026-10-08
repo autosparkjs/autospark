@@ -47,8 +47,8 @@ export class PopoverDirective extends OverlayDirective {
     protected override directiveLabel = "x-popover";
 
     /** 类级初始化：注入 shell 默认视觉样式（幂等；含裸面板 z-index，样式随面板 shell 迁移 ADR-0062） */
-    static override initialize(_engine: AutoSpark): void {
-        registerShellStyles();
+    static override initialize(engine: AutoSpark): void {
+        registerShellStyles(engine);
     }
 
     // ── 触发状态 ──────────────────────────────────────────────────────

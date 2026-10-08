@@ -20,8 +20,8 @@ export class DialogDirective extends VisibleOverlayDirective {
     // warn 前缀 directiveLabel 沿用基座默认 'x-dialog'
 
     /** 类级初始化：注入 shell 默认视觉样式（幂等；FOUC 防御——先于任何实例打开） */
-    static override initialize(_engine: AutoSpark): void {
-        registerShellStyles();
+    static override initialize(engine: AutoSpark): void {
+        registerShellStyles(engine);
     }
 
     /** 模态形态（共识 4）：遮罩外壳 + closeOnMask + 居中默认（x-dialog 恒模态，ADR-0062） */

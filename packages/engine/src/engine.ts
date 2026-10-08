@@ -191,11 +191,10 @@ export class AutoSpark<
         super({ ...init, ...restOptions });
         this.builtinComponents = builtinComponents;
         this._userOverriddenBuiltins = userOverriddenBuiltins;
-        // 内置组件预热（ADR-0087 注册期注入语义）：种子键逐个触发懒预编译（def 构建 + global
-        // 样式注入收口）——「声明即生效」，不依赖首次实例化时机；9 件毫秒级。
-        for (const name of Object.keys(builtinComponents)) {
-            this._resolveGlobalComponent(name);
-        }
+        // global 样式注入时机（ADR-0092）：内置组件的 `<style global>` 随**首次懒预编译**注入
+        // （_resolveGlobalComponent 构建 def 即注册——先于任何实例挂载，无 FOUC），不做构造期
+        // 预热：head 容器保持惰性创建（构造期预热会提前建共享容器，破坏「无组件声明则无容器」
+        // 的环境假设）。
         if (!(el instanceof HTMLElement)) {
             throw new Error("Root element must be an HTMLElement");
         }
