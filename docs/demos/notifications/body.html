@@ -11,10 +11,10 @@
              两者均为 HTML，经 options.sanitizer 同一安全通道消毒。 -->
         <div class="demo-app section">
             <div class="block">
-                <button class="button" onclick="app.notifications.add({ title: '版本 2.0 已发布', description: '包含 12 项改进与 3 项修复，查看 <b>更新日志</b> 了解详情。', level: 'info', delayClose: 0, closable: true })">
+                <button class="button" onclick="app.notifications.add({ title: '版本 2.0 已发布', description: '包含 12 项改进与 3 项修复，查看 <b>更新日志</b> 了解详情。', level: 'info', delayClose: 0 })">
                     title + description（富文本正文）
                 </button>
-                <button class="button" onclick="app.notifications.add({ title: '只有标题（无正文行）', delayClose: 0, closable: true, pos: 'bottom-right' })">
+                <button class="button" onclick="app.notifications.add({ title: '只有标题（无正文行）', delayClose: 0, pos: 'bottom-right' })">
                     缺省 description（不渲染行）
                 </button>
             </div>

@@ -8,15 +8,16 @@ import { NOTIFICATION_COLUMN_ATTR } from "./container";
 import { getNotificationColumn } from "./container";
 import type { NotificationEntry } from "./entry";
 import type { NotificationManager } from "./manager";
-import { BASE_PRESET_NAME, formatNotificationSize, notificationLevelName } from "./types";
+import { SHELL_PRESET_NAME, formatNotificationSize, notificationLevelName } from "./types";
 
 /** 卡片尺寸五键（渲染键）：inline 写入卡片根，number = px（formatNotificationSize 归一） */
 const SIZE_KEYS = ["width", "height", "minWidth", "maxWidth", "minHeight"] as const;
 
 /**
  * 通知卡片装配管线（ADR-0088 自 manager `_mount` 上移 sessions/base → **ADR-0089 归位
- * 独立模块**——session class 退役，装配为纯函数）：双层装配（type 组件先编译、产物经
- * `mode:"live"` 段投影进 shell 默认出口）+ 卡片根装配 + 监听绑定 + 约定键 watch 联动。
+ * 独立模块**——session class 退役，装配为纯函数）：**单层装配**（ADR-0095 终态——type 组件
+ * 经继承族根即完整卡片，无独立 shell 实例化与 live 投影）+ 卡片根装配 + 监听绑定 + 约定键
+ * watch 联动。
  *
  * **display 模型（ADR-0089 决策四）**：装配即挂 DOM 且 `display:none`（挂起/排队态）——
  * 可见性纯样式切换（`showCard`），remove/淘汰才摘 DOM 销毁（`unmountCard`）。实例与 DOM
@@ -34,20 +35,20 @@ interface RendererRef {
 }
 
 /**
- * type 组件解析 + **强制继承 base**（ADR-0089 决策二；ADR-0095 单层化——type 实例即完整卡片）：
- * `types[type].render`（用户 type 级）→ 全局组件表按预设名 `autospark.notifications.<type>` →
- * base 兜底。未显式声明 `x-define:inherit` 的 type 组件（非 base/actions 自身）装配前自动补写
- * 并重解析 def（懒预编译缓存失效重构建
+ * type 组件解析 + **强制继承 shell 族根**（ADR-0089 决策二；ADR-0095 单层化——type 实例即
+ * 完整卡片；族根正名 base → shell，ADR-0097）：`types[type].render`（用户 type 级）→ 全局
+ * 组件表按预设名 `autospark.notifications.<type>` → shell 兜底。未显式声明 `x-define:inherit`
+ * 的 type 组件（非 shell 自身）装配前自动补写并重解析 def（懒预编译缓存失效重构建
  * ——`_globalComponentDefs` 内部缓存口的 notifications 侧唯一越界点）。
  */
 function resolveRenderer(manager: NotificationManager, type: string): RendererRef | null {
     const engine = manager.engine;
     const pick = (name: string): RendererRef | null => {
-        // 强制继承 base：snapshot 未带 inherit 属性（未解析继承的原始快照）→ 补写 + 重解析
+        // 强制继承 shell：snapshot 未带 inherit 属性（未解析继承的原始快照）→ 补写 + 重解析
         let snapshot = engine._resolveGlobalComponent(name);
         if (!snapshot) return null;
-        if (name !== BASE_PRESET_NAME && name !== "autospark.notifications.actions" && readInheritAttr(snapshot) === null) {
-            snapshot.setAttribute("x-define:inherit", BASE_PRESET_NAME);
+        if (name !== SHELL_PRESET_NAME && readInheritAttr(snapshot) === null) {
+            snapshot.setAttribute("x-define:inherit", SHELL_PRESET_NAME);
             (engine as any)._globalComponentDefs.delete(name);
             snapshot = engine._resolveGlobalComponent(name);
             if (!snapshot) return null;
@@ -58,10 +59,10 @@ function resolveRenderer(manager: NotificationManager, type: string): RendererRe
     const renderName = manager._options.types?.[type]?.render?.trim() ?? "";
     if (renderName !== "") {
         const ref = pick(renderName);
-        if (ref) return ref; 
+        if (ref) return ref;
     }
-    // 预设名顺位 → base 兜底（ADR-0088）
-    return pick(`autospark.notifications.${type}`) ?? pick(BASE_PRESET_NAME) ?? null;
+    // 预设名顺位 → shell 兜底（ADR-0088 → ADR-0097 正名）
+    return pick(`autospark.notifications.${type}`) ?? pick(SHELL_PRESET_NAME) ?? null;
 }
 
 /** anchor 数据视图（决策 14 职责③）：自 anchor 向上找最近 scope 作组件实例父挂链 */
@@ -141,10 +142,10 @@ export function assembleCard(manager: NotificationManager, entry: NotificationEn
     const props = buildInjectProps(manager, entry);
 
     // type 组件实例化（行为+数据+渲染宿主——ADR-0089；经继承族根含外观容器与内容结构，
-    // 即完整卡片。无 renderer（无内置 type 且无 base 可兜底）理论不可达——防御跳过）
+    // 即完整卡片。无 renderer（无内置 type 且无 shell 可兜底）理论不可达——防御跳过）
     if (!renderer) {
         engine.logger.warn(
-            `engine.notifications: type "${entry.type}" 无可用渲染组件（render 链与 base 兜底均未命中），已跳过装配`,
+            `engine.notifications: type "${entry.type}" 无可用渲染组件（render 链与 shell 兜底均未命中），已跳过装配`,
         );
         return false;
     }

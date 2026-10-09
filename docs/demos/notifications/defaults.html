@@ -23,7 +23,7 @@
                 </button>
             </div>
             <div class="block has-text-grey">
-                notice 默认 <code>delayClose: 0</code>（sticky）+ <code>closable: true</code>；remind 默认
+                notice 默认 <code>delayClose: 0</code>（sticky；<code>closeable</code> 默认 true 常显 ×）；remind 默认
                 <code>level: "warn"</code>——第四个按钮用单次 props 覆盖 types 层，观察 1.5 秒自动关与 success 色。
             </div>
         </div>
@@ -31,8 +31,8 @@
             const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {}, {
                 notifications: {
                     types: {
-                        notice: { delayClose: 0, closable: true }, // 通知：sticky + 手关
-                        remind: { level: "warn" },                  // 提醒：默认警示色
+                        notice: { delayClose: 0 }, // 通知：sticky（closeable 默认 true 常显 ×）
+                        remind: { level: "warn" }, // 提醒：默认警示色
                     },
                 },
             });

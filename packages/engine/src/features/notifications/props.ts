@@ -44,8 +44,6 @@ export interface NotificationMergeContext {
     opts: AutoSparkNotificationsOptions;
     /** anchor / actions 的全局默认（ADR-0072 边界键——构造期私有固化，不入 state） */
     frozen: { anchor?: NotificationProps["anchor"]; actions?: any[] };
-    /** 用户在 options.notifications 显式配置过的键名（兜底前快照——sticky closable 显式性判定） */
-    globalDeclared: ReadonlySet<string>;
     /** type 种子默认视图（ADR-0089 决策九 + ADR-0092 模板化：manager 侧 Proxy 惰性提取——manager.resolveTypeDefaults） */
     typeDefaults: Record<string, Record<string, any>>;
     /** 告警出口（engine.logger.warn） */
@@ -61,7 +59,7 @@ export function mergeNotificationProps(
     userProps: NotificationProps,
     ctx: NotificationMergeContext,
 ): { merged: Record<string, any>; type: string } {
-    const { opts, frozen, globalDeclared, typeDefaults, warn } = ctx;
+    const { opts, frozen, typeDefaults, warn } = ctx;
     const type = String(userProps.type ?? (opts as any).type ?? "toast");
     const typeOptions = opts.types?.[type];
     // types 值只允许通知级键：manager 级键 warn + 忽略（决策 15）
@@ -88,20 +86,8 @@ export function mergeNotificationProps(
     // 单次 props 层：整包直传（ADR-0088——白名单投影退役，自有键透传）
     Object.assign(merged, userProps);
     // （confirm 默认双钮已数据化进 type 组件 defaults 段——ADR-0089 决策九 + ADR-0092 模板化，
-    //  本处合并链零 type 分支）
-    // sticky 自动关闭钮（ADR-0077 修订）：delayClose ≤ 0（永不自动关）时未显式声明
-    // closable 则自动补 ×——否则除 API / actions 外通知无法关闭（可发现性）。显式
-    // closable: false 不覆盖（用户明确不要 ×）；三层显式源 = 单次 props / types[type] /
-    // options.notifications（全局层以构造期显式键快照为准——state 真身被兜底污染不可判 in）
-    const sticky = !(typeof merged.delayClose === "number" && (merged.delayClose as number) > 0);
-    if (
-        sticky &&
-        !("closable" in userProps) &&
-        !(typeOptions && "closable" in typeOptions) &&
-        !globalDeclared.has("closable")
-    ) {
-        merged.closable = true;
-    }
+    //  本处合并链零 type 分支。sticky 自动补 × 启发式已随 closeable 默认翻转 true 退役——
+    //  ADR-0097：sticky 与否默认恒显 ×，显式 false 经普通合并链压制）
     return { merged, type };
 }
 

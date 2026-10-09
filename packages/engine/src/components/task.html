@@ -1,10 +1,10 @@
-<!-- task type 组件（autospark.notifications.task）：继承 base 族根（头部/actions 复用），出口覆盖段 =
-     进度条 + 三控制钮；task 状态机（进度 clamp / pause 闸门 / 完成转计时 / 协作取消）为组件 methods。
-     约定键：`progress/paused/completed`（manager watch → notification:update 广播观测面）、`holdOpen`
-     （进行中恒 true sticky，完成态联动置 false）；`_abort`（AbortController）非约定键——canCancel
-     时由 manager 注水，外部经 `instance.data._abort.signal` 挂接协作取消。defaults 段 = 合并链
-     type 种子层（紧凑形态，ADR-0092 模板化）。契约与 ADR 回链：ADR-0089/0092。 -->
-<div x-define="autospark.notifications.task" x-define:inherit="autospark.notifications.base">
+<!-- task type 组件（autospark.notifications.task）：继承 shell 族根（header/actions 复用），默认出口
+     覆盖段 = 进度条 + 三控制钮；task 状态机（进度 clamp / pause 闸门 / 完成转计时 / 协作取消）为组件
+     methods。约定键：`progress/paused/completed`（manager watch → notification:update 广播观测面）、
+     `holdOpen`（进行中恒 true sticky，完成态联动置 false）；`_abort`（AbortController）非约定键——
+     canCancel 时由 manager 注水，外部经 `instance.data._abort.signal` 挂接协作取消。defaults 段 =
+     合并链 type 种子层（紧凑形态，ADR-0092 模板化）。契约与 ADR 回链：ADR-0089/0092/0097。 -->
+<div x-define="autospark.notifications.task" x-define:inherit="autospark.notifications.shell">
     <script setup>
     {
         defaults: { width: 300 },

@@ -8,7 +8,7 @@ import {
     ERROR_COMPONENT_NAME,
     POPOVER_SHELL_NAME,
     DRAWER_SHELL_NAME,
-    BASE_PRESET_NAME,
+    SHELL_PRESET_NAME,
     presetComponentName,
 } from "../../components";
 
@@ -41,11 +41,11 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
 
     test("点前缀注册：省略 el 纯全局命中内置组件，def.builtin=true", () => {
         const { engine } = spawn(`<div><span>x</span></div>`, {});
-        const snap = engine.getComponentDeclaration(BASE_PRESET_NAME);
+        const snap = engine.getComponentDeclaration(SHELL_PRESET_NAME);
         expect(snap).not.toBeNull(); // 省略 el → 纯全局，内置种子兜底
-        const def = engine.getGlobalComponentDef(BASE_PRESET_NAME);
+        const def = engine.getGlobalComponentDef(SHELL_PRESET_NAME);
         expect(def?.builtin).toBe(true); // 内置原版标记
-        expect(def?.name).toBe(BASE_PRESET_NAME);
+        expect(def?.name).toBe(SHELL_PRESET_NAME);
     });
 
     test("el 反查失败兜底全局：游离元素等价全局消费者", () => {
@@ -74,12 +74,12 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
             {},
             {
                 builtinComponents: {
-                    [BASE_PRESET_NAME]: `<div class="my-base" x-define="${BASE_PRESET_NAME}"></div>`,
+                    [SHELL_PRESET_NAME]: `<div class="my-base" x-define="${SHELL_PRESET_NAME}"></div>`,
                 },
             },
         );
-        expect(engine.getComponentDeclaration(BASE_PRESET_NAME)).not.toBeNull(); // 触发懒预编译
-        const def = engine.getGlobalComponentDef(BASE_PRESET_NAME);
+        expect(engine.getComponentDeclaration(SHELL_PRESET_NAME)).not.toBeNull(); // 触发懒预编译
+        const def = engine.getGlobalComponentDef(SHELL_PRESET_NAME);
         expect(def?.builtin).toBe(false); // 接管后非内置原版
         expect(def?.snapshot.className).toBe("my-base");
         // 未覆盖的内置键不受影响
@@ -94,15 +94,15 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
             {
                 components: {
                     // 不带 x-define → 自动包装打本键名（一般定制通道）
-                    [BASE_PRESET_NAME]: `<div class="via-components"></div>`,
+                    [SHELL_PRESET_NAME]: `<div class="via-components"></div>`,
                 },
                 builtinComponents: {
-                    [BASE_PRESET_NAME]: `<div class="via-builtin" x-define="${BASE_PRESET_NAME}"></div>`,
+                    [SHELL_PRESET_NAME]: `<div class="via-builtin" x-define="${SHELL_PRESET_NAME}"></div>`,
                 },
             },
         );
-        expect(engine.getComponentDeclaration(BASE_PRESET_NAME)).not.toBeNull(); // 触发懒预编译
-        const def = engine.getGlobalComponentDef(BASE_PRESET_NAME);
+        expect(engine.getComponentDeclaration(SHELL_PRESET_NAME)).not.toBeNull(); // 触发懒预编译
+        const def = engine.getGlobalComponentDef(SHELL_PRESET_NAME);
         expect(def?.snapshot.className).toBe("via-components"); // components 优先级更高
         expect(def?.builtin).toBe(false);
     });
@@ -122,16 +122,15 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
         ]) {
             expect(keys.includes(k)).toBe(true);
         }
-        // 通知族（base 族根 + 三 type + actions）
+        // 通知族（shell 族根 + 三 type；actions 子组件已随 ADR-0097 退役内联）
         for (const k of [
-            BASE_PRESET_NAME,
+            SHELL_PRESET_NAME,
             presetComponentName("toast"),
             presetComponentName("task"),
             presetComponentName("confirm"),
-            "autospark.notifications.actions",
         ]) {
             expect(keys.includes(k)).toBe(true);
         }
-        expect(keys.length).toBe(9);
+        expect(keys.length).toBe(8);
     });
 });

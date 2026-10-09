@@ -5,14 +5,14 @@
  *
  * 注册名**统一 `autospark.` 点前缀**（ADR-0094——与用户业务组件零命名冲突，引擎保留命名空间）：
  * - overlay 家族 shell：`autospark.dialog` / `autospark.popover` / `autospark.drawer` / `autospark.error`；
- * - 通知族：`autospark.notifications.base`（族根，外观容器 + 内容结构合一，ADR-0095 单层化）及
- *   `autospark.notifications.<type>`——type 是开放集合（用户可扩展）。
+ * - 通知族：`autospark.notifications.shell`（通知外壳族根，外观容器 + 纵列三出口内容骨架，
+ *   ADR-0095 单层化 → ADR-0097 正名回归 shell）及 `autospark.notifications.<type>`——type 是
+ *   开放集合（用户可扩展）。
  *
  * 懒预编译纪律不变（ADR-0092）：本表只提供字符串模板，构造期经 `options.builtinComponents`
  * 注册位并入查找链，DOM 解析与 `<style global>` 注入随首次查找发生。
  */
-import ACTIONS_TEMPLATE from "./actions.html?raw";
-import BASE_TEMPLATE from "./notification-shell.html?raw";
+import SHELL_TEMPLATE from "./notification-shell.html?raw";
 import CONFIRM_TEMPLATE from "./confirm.html?raw";
 import DIALOG_SHELL_TEMPLATE from "./dialog-shell.html?raw";
 import DRAWER_SHELL_TEMPLATE from "./drawer-shell.html?raw";
@@ -24,11 +24,8 @@ import TOAST_TEMPLATE from "./toast.html?raw";
 // ── 通知族预设名（自 notifications/types.ts 迁入——注册名与种子表同处定义，杜绝 drift；
 //    原「防 sessions 循环」理由随 presets.ts 退役失效，components 为更底层叶子，方向单向）──
 
-/** actions 组件的预设名（type 模板内 `x-component:autospark.notifications.actions` 组合消费） */
-export const ACTIONS_PRESET_NAME = "autospark.notifications.actions";
-
-/** base 组件的预设名（type 链末端 fallback 查找名，ADR-0088） */
-export const BASE_PRESET_NAME = "autospark.notifications.base";
+/** 通知外壳族根的预设名（type 链末端 fallback 查找名；原 base 更名，ADR-0097） */
+export const SHELL_PRESET_NAME = "autospark.notifications.shell";
 
 /** 内置语义 type → 预设组件名（`types[type].render` 未配置时的默认查找名） */
 export function presetComponentName(type: string): string {
@@ -48,14 +45,14 @@ export const DRAWER_SHELL_NAME = "autospark.drawer";
 export const ERROR_COMPONENT_NAME = "autospark.error";
 
 /**
- * 内置组件种子表（ADR-0092 单文件化 → ADR-0094 注册位化 → ADR-0095 通知族单层化）：engine
- * 构造期并入 `options.builtinComponents`（用户同名覆盖优先——展开序在后）。通知族根
- * `autospark.notifications.base`（notification-shell.html——外观容器 + 内容结构合一，
- * ADR-0095）与 overlay 家族 shell（dialog/popover/drawer 各为一组件一文件）并存。
+ * 内置组件种子表（ADR-0092 单文件化 → ADR-0094 注册位化 → ADR-0095 通知族单层化 →
+ * ADR-0097 base 正名 shell + actions 子组件退役内联）：engine 构造期并入
+ * `options.builtinComponents`（用户同名覆盖优先——展开序在后）。通知族根
+ * `autospark.notifications.shell`（notification-shell.html——外观容器 + 纵列三出口
+ * 内容骨架合一）与 overlay 家族 shell（dialog/popover/drawer 各为一组件一文件）并存。
  */
 export const BUILTIN_COMPONENTS: Record<string, string> = {
-    [ACTIONS_PRESET_NAME]: ACTIONS_TEMPLATE,
-    [BASE_PRESET_NAME]: BASE_TEMPLATE,
+    [SHELL_PRESET_NAME]: SHELL_TEMPLATE,
     [presetComponentName("toast")]: TOAST_TEMPLATE,
     [presetComponentName("task")]: TASK_TEMPLATE,
     [presetComponentName("confirm")]: CONFIRM_TEMPLATE,

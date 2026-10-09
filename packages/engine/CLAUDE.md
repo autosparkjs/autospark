@@ -40,5 +40,5 @@ received——用例一旦失败，bun 生成 diff 时会深度序列化对象�
 ## 文档索引
 
 - [CONTEXT.md](CONTEXT.md) — 领域语言表（术语 + Avoid 列表 + 已废弃词条）
-- [docs/adr/](docs/adr/) — ADR 0001~0096（0001~0029 正文保留更名前旧称，作为决策当时的记录）
+- [docs/adr/](docs/adr/) — ADR 0001~0097（0001~0029 正文保留更名前旧称，作为决策当时的记录）
 - [docs/specs/](docs/specs/) — 关键机制规格（engine.patch / 插值 / x-html / x-on action 等）

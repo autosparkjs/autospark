@@ -2,14 +2,14 @@
 <html lang="zh-CN">
     <head>
         <meta charset="UTF-8" />
-        <title>notifications · 会话与 $session（ADR-0077）</title>
+        <title>notifications · 组件实例与 methods 直达（ADR-0089）</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
     <body>
-        <!-- 会话（AutoSparkNotificationSession）：add() 按 type 分派返回——基类 show/hide/remove；
-             Task 会话六方法（start/progress/pause/resume/stop/cancel）；Confirm 会话 yes/no/cancel。
-             $session 派生变量：卡片子树（shell 与 type renderer）行为通道——@click="$session.xxx()"。
+        <!-- 组件实例（ADR-0089）：add() 恒返回——公共 methods 七件（show/hide/remove/...）；
+             Task 另有六方法（start/progress/pause/resume/stop/cancel）；Confirm 有 yes/no。
+             模板内 methods 直达（ADR-0089 决策六——$session 派生变量已退役）：@click="progress(66)"。
              styles：内联样式 cssText 写卡片根。persist: 1 会话缓冲（隐藏不删、items 可见）。 -->
         <div class="demo-app section">
             <div class="block">
@@ -22,7 +22,8 @@
                 <code id="sess-readout" class="is-size-7" x-text="'sessions=' + $notifications.items.filter(r => true).length + ' 条'"></code>
             </div>
             <div class="block has-text-grey is-size-7">
-                task 卡片内按钮走 <code>$session.progress()</code> / <code>$session.stop()</code>（type 模板层的 $session）；
+                task 卡片内按钮走 methods 直达 <code>progress(66)</code> / <code>stop()</code>
+                （ADR-0089——$session 派生变量已退役）；
                 会话缓冲通知 hide 后仍在上面的计数里（管理界面可再查看）。
             </div>
         </div>
@@ -31,16 +32,17 @@
                 document.querySelector(".demo-app"),
                 {},
                 {
-                    // 自定义 task 模板（ADR-0088 内容归属）：继承默认内容模板 + 覆盖段驱动按钮
-                    //（$session 行为通道可点；progress 投影响应式驱动标签）
+                    // 自定义 task 模板（单层继承 ADR-0095/0097）：继承 task 组件（沿链得 shell 族根
+                    // 与 task 状态机 methods）+ 默认出口覆盖段驱动按钮（methods 直达可点；
+                    // progress 投影响应式驱动标签）
                     components: {
                         "task-ops": `
-                            <div x-define="task-ops" x-define:inherit="autospark.notifications.base">
+                            <div x-define="task-ops" x-define:inherit="autospark.notifications.task">
                                 <div class="task-ops field is-grouped" style="margin-top:6px">
                                     <span class="tag is-link" x-text="(progress ?? 0) + '%'"></span>
-                                    <button class="button is-small" @click="$session.progress(66)">progress(66)</button>
-                                    <button class="button is-small" @click="$session.progress(90)">90%</button>
-                                    <button class="button is-small is-danger" @click="$session.stop()">stop()</button>
+                                    <button class="button is-small" @click="progress(66)">progress(66)</button>
+                                    <button class="button is-small" @click="progress(90)">90%</button>
+                                    <button class="button is-small is-danger" @click="stop()">stop()</button>
                                 </div>
                             </div>`,
                     },

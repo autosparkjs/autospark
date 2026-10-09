@@ -110,9 +110,6 @@ export class NotificationManager extends Map<string, ComponentInstance> {
     /** anchor / actions 的全局默认（ADR-0072 边界键）：构造期私有固化——DOM 引用与函数值不入 state */
     private _frozen: { anchor?: NotificationProps["anchor"]; actions?: AutoSparkAction[] } = {};
 
-    /** 用户在 options.notifications 显式配置过的键名（构造期兜底前快照——sticky 关闭钮显式性判定基准） */
-    private _globalDeclared: ReadonlySet<string> = new Set();
-
     /** 自动 id 计数器（records 恢复路径共用） */
     _autoId = 0;
 
@@ -126,7 +123,6 @@ export class NotificationManager extends Map<string, ComponentInstance> {
         this.enabled = cfg !== false;
         const user: NotificationOptions = cfg === false || cfg == null ? {} : cfg;
         this._frozen = { anchor: user.anchor, actions: user.actions };
-        this._globalDeclared = new Set(Object.keys(user));
         this.records = new NotificationRecords(this);
         this.storage = new NotificationPersistence(this);
         if (!this.enabled) return; // notifications: false——不注入保留键、不恢复
@@ -289,7 +285,6 @@ export class NotificationManager extends Map<string, ComponentInstance> {
         return {
             opts: this.enabled ? this._options : ({} as AutoSparkNotificationsOptions),
             frozen: this._frozen,
-            globalDeclared: this._globalDeclared,
             typeDefaults: this._typeDefaults,
             warn: (m: string) => this.engine.logger.warn(m),
         };

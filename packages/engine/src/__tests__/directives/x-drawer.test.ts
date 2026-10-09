@@ -4,6 +4,9 @@ import { mount, nextTick } from "../helpers";
 // 静态样式段已随组件文件走（ADR-0092）——断言源 = 组件文件全文（规则文本仍逐字命中）
 import DRAWER_SHELL_STYLES from "../../components/drawer-shell.html?raw";
 
+/** CSS 断言面空白归一化（`\s+` → 单空格）：oxfmt 会折行长选择器/换行花括号，规则文本不变 */
+const flatCss = (css: string): string => css.replace(/\s+/g, " ");
+
 /**
  * x-drawer 贴边抽屉形态测试（ADR-0063）。
  *
@@ -506,13 +509,13 @@ describe("抽屉把手（expandable 组合共享把手，ADR-0070）", () => {
         expect(warns.some((w) => w.includes("showTrigger"))).toBe(true);
         expect(always!.getAttribute("data-show-trigger")).toBe("always");
         // hover 显隐 CSS 契约：展开态隐藏 + hover/聚焦显形 + 折叠态恒显（唯一重开触点）+ 触屏恒显
-        const css = DRAWER_SHELL_STYLES;
+        const css = flatCss(DRAWER_SHELL_STYLES);
         expect(css).toMatch(
-            /\.autospark-overlays > \.autospark-expandable-trigger\[data-show-trigger="hover"\] \{\s*opacity: 0;/,
+            /\.autospark-overlays > \.autospark-expandable-trigger\[data-show-trigger="hover"\] \{ opacity: 0;/,
         );
         expect(css).toContain('.autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"]:hover');
         expect(css).toContain('.autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"]:focus-visible');
-        expect(css).toMatch(/\.autospark-overlays > \.autospark-expandable-trigger\[data-collapsed\] \{\s*box-shadow: 0[^}]*opacity: 1;/s);
+        expect(css).toMatch(/\.autospark-overlays > \.autospark-expandable-trigger\[data-collapsed\] \{ box-shadow: 0[^}]*opacity: 1;/);
         expect(css).toContain("@media (hover: none)");
     });
 
@@ -758,16 +761,17 @@ describe("把手坐标（expandable.pos，边缘锚定模型）", () => {
     });
 
     test("折叠裁切契约：四方向露面板展开侧（top 露下半 / bottom 露上半，与 right/left 同构）", () => {
-        expect(DRAWER_SHELL_STYLES).toContain(
+        const css = flatCss(DRAWER_SHELL_STYLES);
+        expect(css).toContain(
             '.autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="top"] { clip-path: inset(50% 0 0 0); }',
         );
-        expect(DRAWER_SHELL_STYLES).toContain(
+        expect(css).toContain(
             '.autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="bottom"] { clip-path: inset(0 0 50% 0); }',
         );
-        expect(DRAWER_SHELL_STYLES).toContain(
+        expect(css).toContain(
             '.autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="right"] { clip-path: inset(0 50% 0 0); }',
         );
-        expect(DRAWER_SHELL_STYLES).toContain(
+        expect(css).toContain(
             '.autospark-overlays > .autospark-expandable-trigger[data-collapsed][data-direction="left"] { clip-path: inset(0 0 0 50%); }',
         );
     });

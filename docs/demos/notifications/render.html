@@ -2,13 +2,13 @@
 <html lang="zh-CN">
     <head>
         <meta charset="UTF-8" />
-        <title>notifications · 自定义渲染（内容归属）</title>
+        <title>notifications · 自定义渲染（单层三出口）</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
-            /* type 模板与 shell 两层同权拿到整包数据域 props（ADR-0088 剥函数整包注入）：
-               id/type/title/description/icon/actions/closable/link/read/status/result/
-               progress/paused/completed + 自定义自有键 + $session 行为通道 */
+            /* type 组件拿到整包数据域 props（ADR-0088 剥函数整包注入）：
+               id/type/title/description/icon/actions/closeable/link/read/status/result/
+               progress/paused/completed + 自定义自有键；行为走 methods 直达（ADR-0089） */
             .my-notice-extra {
                 display: flex;
                 align-items: center;
@@ -34,21 +34,22 @@
         </style>
     </head>
     <body>
-        <!-- 双层组合（ADR-0077 → ADR-0088 内容归属）：shell 管卡片外观（边框/close 钮 + 出口），
-             type 模板管全部内容（title/description/actions/专属区）。自定义 type 组件可继承
-             autospark.notifications.base（默认内容模板）只覆盖出口段——公共内容零重写；亦可全自绘。
-             按钮行经 actions 组件组合（x-component，props 深层触发联动）；$session 为行为通道。 -->
+        <!-- 单层继承（ADR-0095 → ADR-0097 三出口）：每张卡片 = 继承 shell 族根的 type 组件实例。
+             自定义 type 组件强制继承 autospark.notifications.shell，裸子节点 = 默认出口覆盖段
+             （type 专属区）；header / actions 出口经 <template x-slot:名> 命名段整段重载。
+             公共内容（icon/title/description/actions 按钮行）零重写；按钮行已内联进 shell 的
+             actions 出口（ADR-0097——actions 子组件退役）；methods 直达（$session 已退役）。 -->
         <div class="demo-app section">
             <div class="block">
                 <button class="button is-info" onclick="spawn()">type: notice（继承默认内容）</button>
-                <button class="button" onclick="app.notifications.add({ title: '普通 toast（内置 shell + base 默认内容）', delayClose: 0, pos: 'bottom-right', closable: true })">
+                <button class="button" onclick="app.notifications.add({ title: '普通 toast（内置 shell 默认内容）', delayClose: 0, pos: 'bottom-right' })">
                     type 缺省（内置兜底）
                 </button>
             </div>
             <div class="block has-text-grey">
-                notice 卡继承 base 默认内容（icon/title/description/actions），覆盖段显示 #type 标签与
-                未读标记；点「知道了」（actions 组件按钮行）后 read=true、未读标记即时消失（响应式
-                活体，无需重建）。
+                notice 卡继承 shell 通知外壳（icon/title/description/actions），默认出口覆盖段显示
+                #type 标签与未读标记；点「知道了」（shell actions 出口的内联按钮行）后 read=true、
+                未读标记即时消失（响应式活体，无需重建）。
             </div>
         </div>
         <script>
@@ -57,14 +58,14 @@
                 {},
                 {
                     components: {
-                        // type='notice'：继承默认内容模板（ADR-0081）——裸子节点替换 base 出口
-                        // fallback，title/description/actions 零重写
+                        // type='notice'：继承 shell 族根（ADR-0081）——裸子节点替换默认出口
+                        // fallback（type 专属区），title/description/actions 零重写
                         "notice-card": `
-                            <div x-define="notice-card" x-define:inherit="autospark.notifications.base">
+                            <div x-define="notice-card" x-define:inherit="autospark.notifications.shell">
                                 <div class="my-notice-extra">
                                     <span class="tag is-info is-light" x-text="'#' + type"></span>
                                     <span class="dim" x-show="!read">未读</span>
-                                    <button type="button" @click="$session.remove()">不再提示</button>
+                                    <button type="button" @click="remove()">不再提示</button>
                                 </div>
                             </div>`,
                     },

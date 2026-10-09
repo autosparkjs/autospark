@@ -1,14 +1,22 @@
-<!-- 通知族根组件（autospark.notifications.base，ADR-0095 单层化——原 notification-shell 外观壳与
-     base 内容族根合并，消除「双公共件」概念）：外观容器（卡片 chrome：边框/背景/阴影/圆角/close 钮）
-     + 内容结构（icon + title/link + description 内容行 + 裸出口 + actions 组合）+ 公共 methods 七件
-     + 约定键默认值，一文件自包含。type 组件（toast/task/confirm）经 x-define:inherit 继承本组件
-     得完整卡片——子模板内容填充裸出口（task 专属区），装配单层（type 实例即卡片，无独立 shell
-     实例化与投影）。契约绑定化（ADR-0095）：引擎类与分派属性由本模板自绑（props 注水
-     levelName/type 驱动），引擎不静态写卡片根；用户同名覆盖 = 全族换根（global 样式段整组替换，
-     ADR-0087）。契约与 ADR 回链：ADR-0088/0089/0092/0095。 -->
+<!-- 通知外壳（autospark.notifications.shell）：所有 type 组件（toast/task/confirm）强制继承的
+     族根（ADR-0095 单层化 base 族根 → ADR-0097 正名回归 shell 并三出口化）——外观容器（卡片
+     chrome：边框/背景/阴影/圆角）+ 纵列内容骨架一文件自包含，type 实例即完整卡片（无独立
+     shell 实例化与投影）。纵列三出口（行即出口，出口元素保留为包裹层，纯 flex 纵列禁 grid；具名出口走属性参数
+     形态 `x-slot:名`——值形态是作用域插槽形参，勿混）：
+     - x-slot:header：fallback = icon + title/link + description 内容行，type 可经
+       <template x-slot:header> 整段重载（局部保留走 x-super 拼装）；
+     - 裸 x-slot（默认出口）：type 专属区（task 的进度条与控制钮）；
+     - x-slot:actions：fallback = 内联 x-for 按钮行（ADR-0097 起 actions 子组件退役内联，
+       点击闭环仍走卡片根类名委托），type 可整段重载或经 x-super 叠加扩展。
+     关闭钮 = 根直接子节点、绝对定位右上（chrome 分离——任何出口重载不伤 ×；header 行恒
+     padding-right 预留防压 ×）；closeable 默认 true 常显，显式 false 任意配置层压制（ADR-0097
+     语义翻转，sticky 自动补 × 启发式随默认值翻转退役）。行距走 margin-top 不走根 gap——空段
+     零占位（纯 toast 无死空间）。契约绑定化（ADR-0095）：引擎类与分派属性由本模板自绑（props
+     注水 levelName/type 驱动），引擎不静态写卡片根；用户同名覆盖 = 全族换根（global 样式段
+     整组替换，ADR-0087）。契约与 ADR 回链：ADR-0088/0089/0092/0095/0097。 -->
 <div
-    class="autospark-dialog autospark-notification autospark-notification-type"
-    x-define="autospark.notifications.base"
+    class="autospark-dialog autospark-notification"
+    x-define="autospark.notifications.shell"
     :data-notification-type="type"
     :data-notification-level="levelName"
 >
@@ -31,28 +39,16 @@
         },
     }
     </script>
-    <style>
-    .autospark-notification-type { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-    .autospark-notification-main { display: flex; align-items: flex-start; gap: 8px; }
-    .autospark-notification-icon { flex: none; }
-    .autospark-notification-content { flex: 1; min-width: 0; }
-    .autospark-notification-title-row { display: flex; align-items: center; gap: 6px; }
-    .autospark-notification-title { font-weight: 500; }
-    .autospark-notification-link { flex: none; color: inherit; opacity: 0.6; }
-    .autospark-notification-description { font-size: 0.92em; opacity: 0.8; }
-    </style>
-    <!-- 卡片 chrome + 内容结构基线（global 段）：跨 type 组件共享的类名（base/task 同构复用），
-         随本组件注册期注入、同名覆盖整组替换（ADR-0087） -->
+    <!-- 卡片 chrome + 纵列骨架样式单源（ADR-0097——原 scoped/global 双段与 actions 子组件的
+         同 id 段收敛于此）：随本组件注册期注入、同名覆盖整组替换（ADR-0087）。阴影轻于 dialog
+         面板的 0 8px 30px——非模态通知浮于页面上而非遮罩上，量级对齐 tooltip -->
     <style global id="autospark-notification-styles">
-    /* 卡片 chrome（ADR-0088：横向行 body + close；内容纵向堆叠在 body 列内）。阴影轻于 dialog
-       面板的 0 8px 30px——非模态通知浮于页面上而非遮罩上，量级对齐 tooltip */
     .autospark-notification {
       border: 1px solid var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
       background: var(--autospark-overlay-bg, #fff);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
       display: flex;
-      align-items: flex-start;
-      gap: 8px;
+      flex-direction: column;
       padding: 10px 12px;
       box-sizing: border-box;
       max-width: var(--autospark-notification-max-w, 360px);
@@ -60,11 +56,44 @@
       line-height: 1.5;
       color: var(--autospark-notification-fg, #1f2329);
     }
-    /* 内容主行（icon + 内容列）——base/task 模板复用 */
+    /* 语义色分派（双层变量：用户覆盖 --autospark-notification-{level}-color 一处即换肤）。
+       着色面 = 全边 border + 同色系超淡底（color-mix 混白，随 accent 联动）+ 图标着色；
+       选择器挂 data-notification-level（ADR-0079；ADR-0095 契约绑定化——属性由本模板自绑）。
+       更名前 message-shell 原有四段，ADR-0095 单层化合并时遗失、ADR-0097 实施期核实恢复 */
+    .autospark-notification[data-notification-level="info"] {
+      --autospark-notification-accent: var(--autospark-notification-info-color, #409eff);
+      border-color: var(--autospark-notification-accent);
+      background: color-mix(in srgb, var(--autospark-notification-accent) 7%, var(--autospark-overlay-bg, #fff));
+    }
+    .autospark-notification[data-notification-level="success"] {
+      --autospark-notification-accent: var(--autospark-notification-success-color, #67c23a);
+      border-color: var(--autospark-notification-accent);
+      background: color-mix(in srgb, var(--autospark-notification-accent) 7%, var(--autospark-overlay-bg, #fff));
+    }
+    .autospark-notification[data-notification-level="warn"] {
+      --autospark-notification-accent: var(--autospark-notification-warn-color, #e6a23c);
+      border-color: var(--autospark-notification-accent);
+      background: color-mix(in srgb, var(--autospark-notification-accent) 7%, var(--autospark-overlay-bg, #fff));
+    }
+    .autospark-notification[data-notification-level="error"] {
+      --autospark-notification-accent: var(--autospark-notification-error-color, #f56c6c);
+      border-color: var(--autospark-notification-accent);
+      background: color-mix(in srgb, var(--autospark-notification-accent) 7%, var(--autospark-overlay-bg, #fff));
+    }
+    /* header 出口（行即出口）：纵列首行；padding-right 恒预留 × 空间（closeable:false 时仅
+       留白不对称——取简不做条件 padding） */
+    .autospark-notification-header {
+      display: flex;
+      align-items: flex-start;
+      padding-right: 22px;
+    }
+    /* 内容主行（icon + 内容列）——header fallback 结构 */
     .autospark-notification-main {
       display: flex;
       align-items: flex-start;
       gap: 8px;
+      flex: 1;
+      min-width: 0;
     }
     .autospark-notification-icon {
       flex: none;
@@ -81,7 +110,10 @@
       align-items: baseline;
       gap: 6px;
     }
-    .autospark-notification-title { overflow-wrap: break-word; }
+    .autospark-notification-title {
+      font-weight: 500;
+      overflow-wrap: break-word;
+    }
     .autospark-notification-link {
       flex: none;
       text-decoration: none;
@@ -99,8 +131,12 @@
       margin-top: 2px;
       overflow-wrap: break-word;
     }
+    /* 关闭钮：根直接子节点 + 绝对定位右上（根 relative 来自 .autospark-dialog）——chrome
+       分离（ADR-0097），x-show="closeable" 默认 true 常显 */
     .autospark-notification-close {
-      flex: none;
+      position: absolute;
+      top: 8px;
+      right: 8px;
       display: inline-flex;
       align-items: center;
       border: none;
@@ -112,18 +148,45 @@
       cursor: pointer;
     }
     .autospark-notification-close:hover { opacity: 1; }
+    /* actions 按钮行（link 形态，无边框）——原 autospark.notifications.actions 子组件内联
+       回归（ADR-0097）；行距 margin-top（根无 gap——空段零占位） */
+    .autospark-notification-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-top: 6px;
+    }
+    .autospark-notification-action {
+      flex: none;
+      border: none;
+      background: none;
+      padding: 0;
+      font: inherit;
+      font-size: 13px;
+      color: var(--autospark-notification-accent, #409eff);
+      cursor: pointer;
+    }
     </style>
-    <div class="autospark-notification-main">
-        <i class="autospark-notification-icon" x-icon="icon" x-show="icon" aria-hidden="true"></i>
-        <div class="autospark-notification-content">
-            <div class="autospark-notification-title-row">
-                <span class="autospark-notification-title" x-html="title"></span>
-                <a class="autospark-notification-link" x-show="link" :href="link" target="_blank" rel="noopener noreferrer" aria-label="查看详情"><i class="autospark-notification-link-icon" x-icon="'external'" aria-hidden="true"></i></a>
+    <div class="autospark-notification-header" x-slot:header>
+        <div class="autospark-notification-main">
+            <i class="autospark-notification-icon" x-icon="icon" x-show="icon" aria-hidden="true"></i>
+            <div class="autospark-notification-content">
+                <div class="autospark-notification-title-row">
+                    <span class="autospark-notification-title" x-html="title"></span>
+                    <a class="autospark-notification-link" x-show="link" :href="link" target="_blank" rel="noopener noreferrer" aria-label="查看详情"><i class="autospark-notification-link-icon" x-icon="'external'" aria-hidden="true"></i></a>
+                </div>
+                <div class="autospark-notification-description" x-html="description" x-show="description"></div>
             </div>
-            <div class="autospark-notification-description" x-html="description" x-show="description"></div>
         </div>
     </div>
     <div x-slot></div>
-    <div x-component:autospark.notifications.actions="{ actions }"></div>
-    <button class="autospark-notification-close" type="button" x-show="closable" x-icon="'no'" aria-label="关闭"></button>
+    <!-- actions 出口：中性出口包裹按钮行 fallback（出口元素即重载单元；x-for 行 verbatim 沿用
+         原子组件写法——B 容器语义：行容器渲染一次、button 子节点为项模板） -->
+    <div x-slot:actions>
+        <div class="autospark-notification-actions" x-show="actions.length > 0" x-for="a of actions">
+            <button class="autospark-notification-action" type="button" x-text="a.title" :data-notification-action="actions.indexOf(a)"></button>
+        </div>
+    </div>
+    <button class="autospark-notification-close" type="button" x-show="closeable" x-icon="'no'" aria-label="关闭"></button>
 </div>

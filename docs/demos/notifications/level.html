@@ -9,7 +9,7 @@
     <body>
         <!-- type 5 值：none（默认，纯文本）/ info / success / warn / error——
              驱动内置图标（同名词映射，success → yes）+ 全边语义色 border 与同色系淡底。
-             options.notifications.icons 可重映射图标名；closable: true 出关闭钮。 -->
+             options.notifications.icons 可重映射图标名；closeable 默认 true 常显 ×（ADR-0097）。 -->
         <div class="demo-app section">
             <div class="block">
                 <button class="button" onclick="app.notifications.add('普通提示（type 缺省 none）')">none</button>
@@ -21,9 +21,9 @@
             <div class="block">
                 <button
                     class="button is-light"
-                    onclick="app.notifications.add({ title: '带关闭钮的提示', level: 'info', closable: true, delayClose: 0 })"
+                    onclick="app.notifications.add({ title: '带关闭钮的提示', level: 'info', delayClose: 0 })"
                 >
-                    closable（sticky 不自动关）
+                    closeable（默认 true 常显 ×；sticky 不自动关）
                 </button>
             </div>
             <div class="block has-text-grey">

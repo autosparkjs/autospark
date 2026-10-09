@@ -1,9 +1,9 @@
 /**
  * 通知体系类型（ADR-0071）：引擎级统一信息记录 + 屏幕分区栈呈现。
  *
- * 家族词汇：**通知**（message——统一信息记录，type 划分业务类别）/ **分区列**（每 pos 一列的
- * fixed 定位堆叠栈，引擎结构）/ **通知外壳**（notification-shell / task-shell——单项卡片的内置
- * 私有组件，shell 机制延伸，一组件一文件）。
+ * 家族词汇：**通知**（统一信息记录，type 划分业务类别）/ **分区列**（每 pos 一列的 fixed
+ * 定位堆叠栈，引擎结构）/ **通知外壳**（autospark.notifications.shell——单项卡片的内置族根
+ * 组件，外观容器 + 纵列三出口内容骨架，ADR-0097；一组件一文件）。
  *
  * 与 ADR-0068 轻提示的传承：分区队列 / 原地更新 / 离场收拢 / shell 机制 / 动画 / 图标映射
  * 机制全部沿用；API 面（title / delayClose / add / update / show）与生命周期（记录 ⇄ 展示
@@ -162,8 +162,9 @@ export interface NotificationComponentProps {
     pos?: NotificationPos;
     /** 分区列与屏幕边缘的间距（数字 = px，字符串透传 CSS）——仅列创建时生效，已建列不迁移 */
     offset?: number | string;
-    /** 关闭按钮（默认 false；开启出 ×，内置 no 图标） */
-    closable?: boolean;
+    /** 关闭按钮（默认 true 常显 ×，内置 no 图标；显式 false 任意配置层压制——ADR-0097 语义
+     * 翻转，原 sticky 自动补 × 启发式随默认值翻转退役） */
+    closeable?: boolean;
     /** 按钮行（字符串 = action 名 / 对象 = 局部按钮；value 键数据应答） */
     actions?: AutoSparkAction[];
     /**
@@ -241,19 +242,19 @@ export interface NotificationOptions extends NotificationProps {
 
 /** types[type] 的值形态：通知级键 + render 渲染插槽（ADR-0071 决策 16；原 NotificationKindOptions 更名） */
 export interface NotificationTypeOptions extends NotificationProps {
-    /** 该 type 的渲染组件名（查找协议第一级：types[type].render → shell → 内置注册表 → notification-shell） */
+    /** 该 type 的渲染组件名（查找协议第一级：types[type].render → autospark.notifications.<type> → shell 兜底） */
     render?: string;
 }
 
 /** 内置默认（合并链第一层；persist/level 显式入表——merged 恒为数值，ADR-0077/0079；
  *  type（业务类别）不入表——缺省 'toast' 在合并处兜底，沿原 kind 先例） */
 export const NOTIFICATION_DEFAULTS: Required<
-    Pick<NotificationOptions, "pos" | "delayClose" | "showCount" | "closable" | "animate" | "level" | "persist">
+    Pick<NotificationOptions, "pos" | "delayClose" | "showCount" | "closeable" | "animate" | "level" | "persist">
 > = {
     pos: "top-right",
     delayClose: 3000,
     showCount: 5,
-    closable: false,
+    closeable: true,
     animate: "slide",
     level: 0,
     persist: 0,
@@ -269,7 +270,7 @@ export const NOTIFICATION_RESERVED_KEYS: ReadonlySet<string> = new Set([
     "delayClose",
     "pos",
     "offset",
-    "closable",
+    "closeable",
     "link",
     "owner",
     "level",
@@ -322,9 +323,11 @@ export function formatNotificationSize(v: number | string): string {
 }
 
 // ── 预设组件名约定（ADR-0083 → ADR-0094 收敛至 components/index.ts 注册面——注册名与
-//    种子表同处定义，杜绝 drift；本模块 re-export 维持既有 `from "./types"` 导入面） ──────────────────────
+//    种子表同处定义，杜绝 drift；本模块 re-export 维持既有 `from "./types"` 导入面。
+//    ADR-0097：BASE_PRESET_NAME 更名 SHELL_PRESET_NAME，ACTIONS_PRESET_NAME 随 actions
+//    子组件退役内联删除） ──────────────────────
 
-export { ACTIONS_PRESET_NAME, BASE_PRESET_NAME, presetComponentName } from "../../components";
+export { SHELL_PRESET_NAME, presetComponentName } from "../../components";
 
 // ── 状态暴露类型（ADR-0072：$notifications 保留键） ─────────────────────
 

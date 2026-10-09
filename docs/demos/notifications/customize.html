@@ -17,7 +17,7 @@
                 border-radius: 999px;
                 padding: 8px 18px;
             }
-            /* 自定义外壳的结构自由（props：type/title/icon/actions/closable… 全量数据域整包注入） */
+            /* 自定义外壳的结构自由（props：type/title/icon/actions/closeable… 全量数据域整包注入） */
             .my-message {
                 background: #1f2937;
                 color: #fff;
@@ -48,7 +48,7 @@
             </div>
             <div class="block has-text-grey">
                 右侧两个引擎各自独立容器：上面走内置 shell + 主题定制；
-                下面整体换自定义外壳（options.notifications.shell 指向全局组件表，结构骨架全换）。
+                下面整体换自定义外壳（同名覆盖 autospark.notifications.shell = 全族换根，ADR-0097）。
             </div>
             <div class="block" id="custom-app">
                 <button class="button is-dark">自定义外壳（暗色圆角）</button>
@@ -57,17 +57,17 @@
         <script>
             // 引擎一：内置 shell + className / CSS 变量定制
             const a = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
-            // 引擎二：notifications.shell 指向全局组件表里的自定义结构
+            // 引擎二：同名覆盖 autospark.notifications.shell = 全族换根（ADR-0097）
             const b = new AutoSparkSpaces.AutoSpark(
                 document.getElementById("custom-app"),
                 {},
                 {
                     components: {
-                        // props 注入：全量数据域整包（type / level / title / icon / actions / closable… 预解析后形态）；
-                        // 卡片根（引擎 wrapper）已自动携带 data-notification-type / data-notification-level（ADR-0079）
-                        "my-message": `<div class="my-message"><b x-text="type"></b><span x-html="title"></span></div>`,
+                        // props 注入：全量数据域整包（type / level / title / icon / actions / closeable… 预解析后形态）；
+                        // 契约随模板走（ADR-0095）：要引擎行为照内置模板写法补（data-notification-type 自绑等）
+                        "autospark.notifications.shell": `<div class="my-message" x-define="autospark.notifications.shell"><b x-text="type"></b><span x-html="title"></span></div>`,
                     },
-                    notifications: { shell: "my-message", delayClose: 2500 },
+                    notifications: { delayClose: 2500 },
                 },
             );
             document.querySelector("#custom-app button").onclick = () =>

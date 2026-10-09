@@ -151,7 +151,7 @@ class AutoSparkConfirmNotificationSession extends AutoSparkNotificationSession {
 - **`notifications.sessions`**：全部存活会话的注册表——即 manager 本身的 Map 正名视图（`sessions.get(id)` ≡ `notifications.get(id)`，随 remove 同步进出；注意与 `$notifications.sessions` **展示序 id 数组**是两个东西）；
 - **factory 挂起注入**：`add(async (session) => ...)` 同步创建挂起会话传入——挂起期 `session.update()` 缓存补丁（return 落地时合并）、`session.cancel()` 取消；`return props` = 初始展示配置（`undefined` 静默跳过）；
 - **死会话**：`remove()` 后会话死亡，后续方法 no-op + warn（不复活）；
-- **`$session` 派生变量**：卡片子树（shell 与 type 预设组件）模板内可直接访问本会话——`@click="$session.hide()"`、`@click="$session.progress(50)"`（详见[自定义卡片](#自定义卡片)）。
+- **methods 直达**：卡片模板内直接调用本卡片组件的 methods——`@click="hide()"`、`@click="progress(50)"`（shell 公共 methods 七件 + type 自有 methods；`$session` 派生变量已随 ADR-0089 退役，详见[自定义卡片](#自定义卡片)）。
 
 <demo html="notifications/session.html"/>
 
@@ -207,7 +207,7 @@ const app = new AutoSpark(el, state, {
         delayClose: 3000,        // 全局 3 秒
         showCount: 5,            // 每列同屏最多 5 条
         types: {
-            notice: { delayClose: 0, closable: true },  // 通知 sticky + 手关
+            notice: { delayClose: 0 },  // 通知 sticky（closeable 默认 true 常显 ×，可手动清坑）
             remind: { level: "warn" },                  // 提醒默认警示色
         },
     },
@@ -295,7 +295,6 @@ engine.notifications.add({
 const q = engine.notifications.add({
     title: "是否保存草稿？",
     delayClose: 0,
-    closable: true,
     actions: [
         { title: "保存", value: true },
         { title: "丢弃", value: false, className: "danger" },
@@ -367,7 +366,7 @@ engine.notifications.clear();         // 清全部存活记录（含隐藏与会
 
 ```ts
 engine.notifications.toast({ title: "已保存", level: "success" }); // ≡ show({ ...props })——默认 type 即 'toast'
-engine.notifications.toast({ title: "注意", level: "warn", delayClose: 0 }); // sticky——自动显示关闭钮
+engine.notifications.toast({ title: "注意", level: "warn", delayClose: 0 }); // sticky——× 常显（closeable 默认 true）
 ```
 
 - `level` 语义色 / `icon` / `pos` 等通用键照常可用（见[基础用法](#基础用法)）；
@@ -390,7 +389,7 @@ if (ok) deleteFile();
 // 或编程应答：const s = engine.notifications.show({...}); s.yes();
 ```
 
-- **永不自动关、永不 settle**——调用方需要超时请自行 `Promise.race`；卡片自动带关闭钮（sticky 推断）——点 × 直接关不作答（Promise 同样不 settle）；
+- **永不自动关、永不 settle**——调用方需要超时请自行 `Promise.race`；卡片常显关闭钮（`closeable` 默认 `true`）——点 × 直接关不作答（Promise 同样不 settle）；
 - 非模态：无遮罩、并发堆叠、pos 跟随全局默认；需要模态确认走 [x-dialog](/zh/guide/directives/x-dialog)。
 
 <demo html="notifications/confirm.html"/>
@@ -413,7 +412,7 @@ upload.progress(100); // = stop()：完成态展示 delayClose 后自动关
 ```
 
 - `progress(n)` clamp 到 [0,100]；**创建即 started**（ADR-0083 二次修订）——`progress` 直呼即推进，`start()` 为幂等兼容面；factory 挂起期 progress 走缓存（return 落地时合并）；
-- 通用按钮走 `actions` 声明（actions 组件渲染，见 [自定义卡片](#自定义卡片)）；task 三控制键启用时**预设模板自带控制钮**（见下）；
+- 通用按钮走 `actions` 声明（按钮行随 shell 的 actions 出口渲染，见 [自定义卡片](#自定义卡片)）；task 三控制键启用时**预设模板自带控制钮**（见下）；
 - **进行中不计时**（sticky），完成 / 取消才进入关闭流程；
 - 自定义渲染见 [自定义卡片](#自定义卡片)（接管 `task` type 时进度条与控制按钮随接管者自带）。
 
@@ -507,44 +506,38 @@ engine.notifications.show({
 
 ### 自定义卡片
 
-渲染是**双层正交组合**（ADR-0077 → **ADR-0088 内容归属修订**）——**shell 管外观、type 模板管内容**，各走各的查找链：
+渲染是**单层继承**（ADR-0095 单层化 → **ADR-0097 三出口化**）——每张卡片 = 一个继承**通知外壳**的 type 组件实例（type 实例即完整卡片，无独立 shell 实例化与投影）：
 
 ```
-┌─ shell（卡片外观——所有 type 共享）───────────────────────┐
-│  ┌─ type 模板（内容——按 type 定制）────────────────────┐ │
-│  │  [level 图标] [title] [link]                        │ │
-│  │  [description]                                      │ │
-│  │  [专属区（task 进度条 / 三控制钮等）]                │ │
-│  │  [actions 按钮行——actions 组件]                     │ │
-│  └─────────────────────────────────────────────────────┘ │
-│  [close ×]                                                 │
-└────────────────────────────────────────────────────────────┘
+┌─ 卡片 = type 组件实例（继承 shell 族根）────────────────────┐
+│  [level 图标] [title] [link]               [close × chrome] │
+│  [description]                                              │
+│  [默认出口：type 专属区（task 进度条 / 三控制钮等）]          │
+│  [actions 按钮行——shell 内联渲染]                            │
+└─────────────────────────────────────────────────────────────┘
 
-shell 链：options.notifications.shell（选择器，默认 'notification' = 内置 shell 裸键）
-          → getComponentDeclaration 标准链（scope 局部 x-define
-            → options.components → options.builtinComponents 内置兜底）
 type 链：types[type].render（用户 type 级）
           → 全局组件表按预设名 autospark.notifications.<type>
-          → base 默认内容模板兜底（ADR-0088——自定义 type 零配置得标准内容卡）
+          → shell 族根兜底（自定义 type 零配置得标准内容卡）
 ```
 
-五件预设组件经 `options.components` 全局表种子注入（`autospark.*` 为引擎保留命名空间，同名声明覆盖优先）：
+四件预设组件经 `options.components` 全局表种子注入（`autospark.*` 为引擎保留命名空间，同名声明覆盖优先）：
 
 | 组件 | 形态 |
 | --- | --- |
-| `autospark.notifications.actions` | **公共按钮行组件**（ADR-0088 唯一复用件）——x-for 渲染 + 委托契约；type 模板内 `x-component:autospark.notifications.actions="{ actions }"` 组合消费 |
-| `autospark.notifications.base` | **默认内容模板**（icon + title/link + description + actions 组件）兼 type 链末端 fallback；保留裸出口（继承覆盖落点） |
-| `autospark.notifications.toast` / `confirm` | 纯继承 base（同名覆盖的 per-type 定制点） |
-| `autospark.notifications.task` | 自有布局：头部 + 进度条 + 三控制钮 + actions 组件 |
+| `autospark.notifications.shell` | **通知外壳族根**（原 `base`，ADR-0097 正名）——卡片 chrome（边框 / 背景 / 阴影）+ 公共 methods 七件 + **纵列三出口**：`x-slot:header`（fallback = icon + title/link + description）、裸 `x-slot`（type 专属区）、`x-slot:actions`（内联按钮行）；关闭钮 = 根直接子节点（chrome——出口重载不伤 ×，`closeable` 默认 true 常显） |
+| `autospark.notifications.toast` / `confirm` | 继承 shell（同名覆盖的 per-type 定制点；confirm 自带默认双钮与 sticky 种子） |
+| `autospark.notifications.task` | 继承 shell + 默认出口覆盖段（进度条 + 三控制钮）+ 状态机 methods |
 
-自定义 type 组件可**继承默认内容模板**做差异化（覆盖段落 base 出口），亦可组合 actions 组件或全自绘：
+自定义 type 组件**强制继承 shell**（引擎自动补 `x-define:inherit`，显式写不重复），按**出口覆盖段**做差异化——`<template x-slot:header>` / `<template x-slot:actions>` 为命名段、裸子节点为默认段，亦可全自绘：
 
 ```ts
 const app = new AutoSpark(el, state, {
     components: {
-        // 全局组件继承（ADR-0081）：裸子节点 = 继承覆盖段，替换 base 出口 fallback
+        // 全局组件继承（ADR-0081）：裸子节点 = 继承覆盖段，替换 shell 默认出口 fallback；
+        // 命名段整段替换对应出口的 fallback（三层优先级：消费方内容 > 继承覆盖 > 父 fallback）
         "my-notice": `
-            <div x-define="my-notice" x-define:inherit="autospark.notifications.base">
+            <div x-define="my-notice" x-define:inherit="autospark.notifications.shell">
                 <i class="fa fa-bell"></i><b x-text="title"></b>
             </div>`,
     },
@@ -552,52 +545,55 @@ const app = new AutoSpark(el, state, {
 });
 ```
 
-两层组件都拿到**整包数据域 props**（剥函数后全量注入，ADR-0088——自定义 type 的自有键天然可绑）+ **`$session` 派生变量**（本通知的会话句柄——行为通道）：
+组件拿到**整包数据域 props**（剥函数后全量注入，ADR-0088——自定义 type 的自有键天然可绑），行为走 **methods 直达**（`$session` 派生变量已随 ADR-0089 退役）：
 
 ```ts
 const app = new AutoSpark(el, state, {
     components: {
-        // type='notice' 的完整内容卡（投影进 shell 出口——title 等内容归接管者渲染）
+        // type='notice' 的完整内容卡（继承 shell 得 chrome 与 methods；header 出口整段重载）
         "notice-extra": `
-            <div class="my-notice-extra">
-                <b x-text="title"></b>
-                <i x-icon="'star'" x-show="!read"></i>
-                <button @click="$session.remove()">不再显示</button>
-                <div x-component:autospark.notifications.actions="{ actions }"></div>
+            <div x-define="notice-extra" x-define:inherit="autospark.notifications.shell">
+                <template x-slot:header>
+                    <div class="my-notice-extra">
+                        <b x-text="title"></b>
+                        <i x-icon="'star'" x-show="!read"></i>
+                        <button @click="remove()">不再显示</button>
+                    </div>
+                </template>
             </div>`,
     },
     notifications: { types: { notice: { render: "notice-extra" } } },
 });
 ```
 
-- props **整包注入**（两层同权）：全部通知键（含 `id / type / level / title / description / icon / link / actions / read / status / result / delayClose` 与自定义自有键）+ 运行态投影（`progress / paused / completed`——task 控制钮显隐与文案的数据域驱动源）；
-- **`$session` 行为专职**（x-for `$index` 同款派生变量——非响应式、不进 state）：模板内 `@click="$session.hide()"` / `$session.progress(50)` / `$session.yes()`；**数据绑定走 data 域**（`x-text="title"` 响应式——`x-show="$session.closed"` 不会自动更新）；
-- 接管 `type='task'`（render 指向自定义组件）时**整卡内容渲染随接管者**（ADR-0088——title 亦归 type 模板，引擎不兜底；`props.progress` 驱动 + `$session.progress(n)` 推进、控制钮按需自绘）——内置 task 模板不是特权通道；
-- 自定义 shell 须声明**默认出口**（裸 `<div x-slot></div>`）承载 type 模板——未声明 warn + type 区丢弃（数据无损）；接管 shell = 换整卡**外观**（边框 / 背景 / 关闭钮形态），与内容扩展点（同名覆盖 type 模板 / 组件）正交。
+- props **整包注入**：全部通知键（含 `id / type / level / title / description / icon / link / actions / read / status / result / delayClose / closeable` 与自定义自有键）+ 运行态投影（`progress / paused / completed`——task 控制钮显隐与文案的数据域驱动源）；
+- **methods 直达**（ADR-0089）：模板内 `@click="hide()"` / `@click="remove()"` / `@click="yes()"`（shell 公共 methods 七件 + type 自有 methods）；**数据绑定走 data 域**（`x-text="title"` 响应式）；
+- **三出口重载**（ADR-0097）：`<template x-slot:header>` 整段换头部（局部保留走 `x-super` 拼装）、`<template x-slot:actions>` 整段换按钮行（或经 `x-super` 叠加扩展默认按钮行）、裸子节点落默认出口（type 专属区）；具名出口走**属性参数形态** `x-slot:名`（值形态是作用域插槽形参，勿混）；关闭钮是 chrome（根直接子节点），出口重载不影响；
+- 接管 `type='task'`（render 指向自定义组件）时继承链与出口同规——内置 task 模板不是特权通道；按钮点击闭环契约不变（`.autospark-notification-action` 契约类 + `data-notification-action` 索引 + 卡片根委托——自绘按钮保留类名与索引属性即得闭环）。
 
 <demo html="notifications/render.html"/>
 
-#### 外壳定制（内置 shell 裸键）
+#### 外壳定制（全族换根）
 
-通知内置外壳即内置组件 **`notification`**（裸键注册，ADR-0094——shell 与 overlay 家族的 `dialog` / `popover` / `drawer` 同为裸键），查找走标准组件链：局部 `x-define="notification"` 就近遮蔽 → `options.components.notification` 全局接管 → `options.builtinComponents` 内置兜底。**一般定制走 `components` 同名覆盖**（优先级更高）：
+**同名覆盖 `autospark.notifications.shell` = 全族换根**（ADR-0095「模板即契约」——外观 + 内容结构 + 公共 methods 一体接管，所有 type 卡片随之换装）：
 
 ```ts
 const app = new AutoSpark(el, state, {
     components: {
-        // 覆盖通知内置外观（只影响通知；dialog/popover/drawer 不动）——ADR-0088 起
-        // shell 只管卡片 chrome（边框/背景/关闭钮 + 出口），内容归 type 模板
-        notification: `
-            <div class="my-msg-shell" x-define="notification">
-                <div class="body"><div x-slot></div></div>   <!-- type 出口必声明 -->
+        // 覆盖通知外壳（只影响通知；dialog/popover/drawer 不动）
+        "autospark.notifications.shell": `
+            <div class="my-msg-shell" x-define="autospark.notifications.shell">
+                <script setup>
+                { methods: { hide() { this.engine.notifications.hide(this.props.id); } } }
+                </script>
+                <div class="body"><div x-slot></div></div>   <!-- 默认出口（type 专属区落点） -->
                 <button class="x" @click="hide()">×</button>
             </div>`,
     },
 });
-// 运行时换外观：注册新键 + 选择器直写（options 真身契约——对后续 add 生效）
-app.store.state.$notifications.options.shell = "compact";
 ```
 
-- 值为 HTML 模板字符串（懒预编译）；**构造期固化**——运行时突变注册位不生效（注册与选择分离：灵活性全在消费者选择器 `notifications.shell` 上）；
+- 值为 HTML 模板字符串（懒预编译）；要引擎契约就沿用内置模板写法（引擎类名 / `:data-notification-type` 自绑 / 公共 methods），不要则完全自定；
 - 明确接管框架内建件可用 `options.builtinComponents` 写同名（优先级低于 `components`，防业务配置流误伤内置默认，ADR-0094）。
 
 ### 保存与同步
@@ -686,7 +682,7 @@ document.body.addEventListener("notification:hide", (e) => console.log("关闭",
 | `level` | `0`（`none`） | 严重度五档 `0`none / `1`info / `2`success / `3`warn / `4`error（常量 `NOTIFICATION_LEVEL`）——驱动图标与语义色；**宽松入参**（数字或名字符串同权，非法 warn + 回退 none）；只管视觉语义、与展示位置无关（原排序语义已移除） |
 | `icon` | — | 显式图标名，优先于 level 默认映射 |
 | `owner` | — | 归属者（业务透传：收件人/来源模块等），引擎不解释、不代填 |
-| `delayClose` | `3000` | 自动关闭延迟 ms；`0` = sticky（永不自动关，自动显示关闭钮——见 `closable`）；hover 暂停 / 移出恢复（剩余时间制） |
+| `delayClose` | `3000` | 自动关闭延迟 ms；`0` = sticky（永不自动关）；hover 暂停 / 移出恢复（剩余时间制） |
 | `pos` | `"top-right"` | 屏幕锚定位置（7 值枚举）；非法值 warn + 回退 |
 | `offset` | — | 分区列与屏幕边缘间距；**仅该列首次创建时生效** |
 | `id` | 自动生成 | 记录 id；**同 id = 原地更新**。仅单次调用层生效 |
@@ -694,7 +690,7 @@ document.body.addEventListener("notification:hide", (e) => console.log("关闭",
 | `status` | — | 业务状态（引擎纯透传） |
 | `result` | — | action value 应答（只读面，点击写入） |
 | `link` | — | 尾随 external 链接（新标签、不关闭、置已读）；HTML 属性仍为 `href` |
-| `closable` | `false`（sticky 时 `true`） | 关闭按钮（开启出 ×，内置 `no` 图标）；**sticky（`delayClose ≤ 0`）且未显式声明时自动置 `true`**——否则除 API / actions 外无法关闭；显式 `false`（任意配置层）压制 |
+| `closeable` | `true` | 关闭按钮（默认常显 ×，内置 `no` 图标；原 `closable` 更名且默认值翻转，ADR-0097）；显式 `false`（任意配置层）压制 |
 | `persist` | `0` | 记录存续级别 `0/1/2/3`（常量 `NOTIFICATION_PERSIST.NONE/SESSION/LOCAL/REMOTE`，见[记录与展示](#记录与展示)） |
 | `actions` | — | 按钮行（字符串 = 全局 action 名 / 对象 = 局部按钮，`value` 键数据应答）；type='confirm' 缺省自动注入「确定/取消」双钮 |
 | `anchor` | — | 局部 action 解析根 + 事件派发根 + 渲染数据视图基准（元素或选择器字符串） |
@@ -714,17 +710,15 @@ document.body.addEventListener("notification:hide", (e) => console.log("关闭",
 | `maxLen` | 不限 | 存活记录数上限，溢出 FIFO 丢最旧（含会话缓冲记录） |
 | `fetchOptions` | — | 传输配置（原 `url`+`headers` 合并）：`url` + RequestInit 子集直传 fetch；fetch 时现读 state（运行时改 url / 刷新鉴权头即生效） |
 | `icons` | — | type → 图标名重映射（默认同名词映射） |
-| `shell` | `"notification"` | **卡片外观选择器**（ADR-0077 / ADR-0088 shell 降级为外观容器）：shell 链起点——指向标准组件链可命中的组件名（局部 `x-define` / `options.components` / 内置裸键，ADR-0094）；运行时直写换键对后续 `add` 生效 |
 | `shallow` | `1` | `$notifications.items` 的 shallow 深度（`0 \| 1`；**构造期一次性**——运行时直写静默忽略） |
-| `types` | — | 按 type 的默认值与渲染插槽（`types[type].render` = type 内容模板名；原 `kinds` 更名，ADR-0079；末端 base 兜底 ADR-0088） |
+| `types` | — | 按 type 的默认值与渲染插槽（`types[type].render` = type 组件名；原 `kinds` 更名，ADR-0079；末端 `autospark.notifications.shell` 兜底） |
 
 ## 注意事项
 
-- **sticky 永占坑位**：`delayClose: 0`（含 confirm、进行中的进度任务）永不自动关，极端场景占满分区队列——sticky 通知未显式声明 `closable` 时**自动显示关闭钮**（可手动清坑）；显式 `closable: false` 压制则须自管收口（API / actions）。
+- **sticky 永占坑位**：`delayClose: 0`（含 confirm、进行中的进度任务）永不自动关，极端场景占满分区队列——卡片常显关闭钮（`closeable` 默认 `true`，可手动清坑）；显式 `closeable: false` 压制则须自管收口（API / actions）。
 - **confirm 永不 settle**：用户不点击 Promise 永远挂起，需要超时请自行 `Promise.race`。
 - **持久化剥函数 + 剥渲染定制**：内联 `handle` 跨会话永久丢失（字符串 action 名可恢复）；`className`/`styles`/`icon`/`pos` 等渲染键不入载荷——恢复时走生效默认（自定义主题不跨会话）；恢复记录不自动重弹。
 - **maxLen 丢最旧不豁免未读**：溢出按创建序 FIFO 淘汰（会话缓冲 `persist: 1` 记录同受淘汰）。
-- **`$session` 行为专职**：卡片模板内 `$session.closed` 等派生读取**非响应式**（首渲染后不更新）——需要响应式的状态走 data 域绑定（`read`/`result`/`progress` 等）。
 - **shallow 是一次性键**：`options.shallow` 构造期消费后直写静默忽略——options 真身「直写即生效」契约的唯一例外。
 - **$notifications.items 只读纪律**：镜像写通道仅 `engine.notifications` API；模板直写（含 `options` 误改）为违约自理——`options` 是官方可写真身、`items` 不是，这一不对称是契约。
 - **鉴权头随 state 可见**：`fetchOptions.headers` 进 `$notifications.options` 真身——devtools 可查（与 network 面板等价）；**若你自行持久化整个 state 会连同落盘，请剥除**。

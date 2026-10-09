@@ -9,7 +9,11 @@ import {
 import { resolveOverlayConfig } from "../overlay/handle";
 import { resolveDataContext, type OverlayConfig } from "../overlay/types";
 import { collectSlotGroups, collectSlotSegments, type SlotContent } from "../../utils/slot";
-import { DIALOG_SHELL_NAME } from "../../components";
+import {
+    DIALOG_SHELL_NAME,
+    DRAWER_SHELL_NAME,
+    POPOVER_SHELL_NAME,
+} from "../../components";
 import {
     ResizeSession,
     resolveHandles,
@@ -44,6 +48,17 @@ import {
  * 数据视图基准 dataContext（共识 8；ADR-0053 修订更名自 `scope`）：`'declarer'`（默认，挂声明处
  * scope=定义闭包）| `'host'`（消费处）；硬切无旧键兼容（开发阶段，ADR-0053 修订）。
  */
+/**
+ * 形态键（`overlayKind`，兼 `options.overlay.{kind}` 配置键）→ 内置 shell 注册名
+ * （`autospark.{kind}` 点前缀，ADR-0094 命名空间）映射：两个键域不同，兜底查找须换键。
+ * 未知形态键回退 dialog（基座历史语义）。
+ */
+const KIND_SHELL_NAMES: Record<string, string> = {
+    dialog: DIALOG_SHELL_NAME,
+    popover: POPOVER_SHELL_NAME,
+    drawer: DRAWER_SHELL_NAME,
+};
+
 export abstract class OverlayDirective extends ComponentDirective {
     /**
      * 覆盖物宿主是**触发点/声明点**（按钮标签、触发容器），不是组件化身——
@@ -249,7 +264,8 @@ export abstract class OverlayDirective extends ComponentDirective {
     /**
      * shell 解析（ADR-0062 → ADR-0094 标准链）：面板外壳组件按配置链取组件名——
      * `config.shell`（成员表达式打开时求值一次）> 引擎级 `options.overlay.{overlayKind}.shell`
-     * > 内置 shell 裸键兜底。显式名走与内容组件同源的查找协议（scope 链 x-define →
+     * > 内置 shell 注册名兜底（形态键映射，见 {@link KIND_SHELL_NAMES}）。显式名走与内容组件
+     * 同源的查找协议（scope 链 x-define →
      * `components` > `builtinComponents` 双注册位全局），未命中 warn + 回退内置默认
      * （弹窗照常工作，失效可发现；不等待 x-import——shell 是结构骨架，异步回退内置的错误
      * 形态比延迟打开更糟，ADR-0062）。
@@ -270,9 +286,10 @@ export abstract class OverlayDirective extends ComponentDirective {
                 `${this.directiveLabel}:${this.attr}: shell "${name}" 未命中（scope 链与全局组件表均无），回退内置默认 shell（若来自 x-import 请先注册再打开）（ADR-0062）`,
             );
         }
-        // 内置 shell 裸键兜底（ADR-0094：裸键即注册名——用户任一注册位同名覆盖天然生效；
-        // 内置种子恒在组件表，断言安全）
-        const shellKey = kind ?? DIALOG_SHELL_NAME;
+        // 内置 shell 兜底（ADR-0094 点前缀命名空间：形态键（overlayKind）是配置键
+        // `options.overlay.{kind}`，注册键是 `autospark.{kind}`——两个键域不同，须映射；
+        // 用户任一注册位同名覆盖天然生效，内置种子恒在组件表，断言安全）
+        const shellKey = (kind != null && KIND_SHELL_NAMES[kind]) || DIALOG_SHELL_NAME;
         return { name: shellKey, ...this.engine._resolveGlobalComponentFull(shellKey)! };
     }
 
