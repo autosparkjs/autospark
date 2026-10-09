@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>notifications · 会话与 $session（ADR-0077）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- 会话（AutoSparkNotificationSession）：add() 按 type 分派返回——基类 show/hide/remove；
+             Task 会话六方法（start/progress/pause/resume/stop/cancel）；Confirm 会话 yes/no/cancel。
+             $session 派生变量：卡片子树（shell 与 type renderer）行为通道——@click="$session.xxx()"。
+             styles：内联样式 cssText 写卡片根。persist: 1 会话缓冲（隐藏不删、items 可见）。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <button class="button is-primary" onclick="spawnTask()">add({ type: 'task' })</button>
+                <button class="button is-info" onclick="spawnConfirm()">add({ type: 'confirm' })</button>
+                <button class="button is-warning" onclick="spawnBuffered()">persist: 1 会话缓冲</button>
+                <button class="button" onclick="reshowLast()">show() 重显最后一条隐藏</button>
+            </div>
+            <div class="block">
+                <code id="sess-readout" class="is-size-7" x-text="'sessions=' + $notifications.items.filter(r => true).length + ' 条'"></code>
+            </div>
+            <div class="block has-text-grey is-size-7">
+                task 卡片内按钮走 <code>$session.progress()</code> / <code>$session.stop()</code>（type 模板层的 $session）；
+                会话缓冲通知 hide 后仍在上面的计数里（管理界面可再查看）。
+            </div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {},
+                {
+                    // 自定义 task 模板（ADR-0088 内容归属）：继承默认内容模板 + 覆盖段驱动按钮
+                    //（$session 行为通道可点；progress 投影响应式驱动标签）
+                    components: {
+                        "task-ops": `
+                            <div x-define="task-ops" x-define:inherit="autospark.notifications.base">
+                                <div class="task-ops field is-grouped" style="margin-top:6px">
+                                    <span class="tag is-link" x-text="(progress ?? 0) + '%'"></span>
+                                    <button class="button is-small" @click="$session.progress(66)">progress(66)</button>
+                                    <button class="button is-small" @click="$session.progress(90)">90%</button>
+                                    <button class="button is-small is-danger" @click="$session.stop()">stop()</button>
+                                </div>
+                            </div>`,
+                    },
+                    notifications: { types: { task: { render: "task-ops" } } },
+                },
+            );
+            window.app = app;
+            let seq = 0;
+            window.__lastHidden = null;
+            function spawnTask() {
+                const s = app.notifications.add({
+                    title: `任务 ${++seq}`,
+                    type: "task",
+                    progress: 10,
+                    delayClose: 0, // 进行中 sticky
+                    styles: "border-left:3px solid #3273dc",
+                });
+                s.start();
+                window.__lastTask = s;
+            }
+            function spawnConfirm() {
+                const s = app.notifications.add({
+                    title: `确认 ${++seq}？`,
+                    type: "confirm", // 缺省自动注入「确定/取消」双钮
+                    delayClose: 0,
+                });
+                window.__lastConfirm = s;
+            }
+            function spawnBuffered() {
+                const s = app.notifications.add({
+                    title: `缓冲 ${++seq}`,
+                    persist: 1, // 会话缓冲：hide 后 items 仍可见、刷新即失
+                    delayClose: 1500,
+                    pos: "bottom-right",
+                });
+                window.__lastHidden = s;
+            }
+            function reshowLast() {
+                const cand = window.__lastHidden;
+                if (cand && cand.closed) cand.show();
+            }
+        </script>
+    </body>
+</html>

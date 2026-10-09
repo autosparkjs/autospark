@@ -14,8 +14,8 @@ export type {
     ComponentDataBasis,
     ComponentDataContext,
 } from "./features/component/component-def";
-// 消息体系类型（ADR-0071 MessageManager/MessageTask/ProgressTask/MessageProps/MessageOptions，manager 运行时随 engine 引入）
-export * from "./features/messages/types";
+// 通知体系类型（ADR-0071 NotificationManager/NotificationTask/ProgressTask/NotificationProps/NotificationOptions，manager 运行时随 engine 引入）
+export * from "./features/notifications/types";
 // 全量转导出 autostore：消费者仅需安装 autospark 即可获得 AutoStore 完整 API（ADR-0030）
 export * from "autostore";
 export * from "./types";

@@ -74,8 +74,8 @@ const CONFIG_SEPARATOR = "@";
  * // 求值为 null/undefined/false/'' → 移除 style 属性
  *
  * @example x-style.transition：注入 CSS `transition` 属性，使内联样式变化被浏览器过渡动画
- * <div x-style.transition="s"></div>                             // state:{s:{color:'red'}} → 首渲即带 transition:all 0.3s ease-in
- * // 默认值 'all 0.3s ease-in'；x-options/x-bind-options 传字符串可覆盖；对象自带 transition key 显式优先；详见 ADR-0015
+ * <div x-style.transition="s"></div>                             // state:{s:{color:'red'}} → 首渲即带 transition:all 0.2s ease-in
+ * // 默认值 'all 0.2s ease-in'；x-options/x-bind-options 传字符串可覆盖；对象自带 transition key 显式优先；详见 ADR-0015
  *
  * @example `:value` / `:checked` 走 property，单向 state→DOM（非 x-model 双向，不监听 input 事件）
  * <input :value="text">
@@ -224,7 +224,7 @@ export class BindDirective extends AutoSparkDirectiveBase {
     /**
      * 解析 `.transition` 配置层有效值（三级优先中的 ②③ 层，详见 ADR-0015）。
      *
-     * - `getOption('transition') === true`（`.transition` 修饰符解析期注入）→ 默认 `'all 0.3s ease-in'`
+     * - `getOption('transition') === true`（`.transition` 修饰符解析期注入）→ 默认 `'all 0.2s ease-in'`
      * - 字符串（`x-options` / `x-bind-options` 覆盖）→ 该字符串
      * - `false` / `undefined` → 不注入（显式 `false` 关闭，与 ADR-0007「显式 false 生效」一致）
      *

@@ -8,6 +8,7 @@ import {
     releaseComponentStyle,
 } from "../../utils/scopedStyle";
 import { exprToVarName, extractStyleBinds } from "../../utils/styleBind";
+import { ERROR_COMPONENT_NAME } from "../../components";
 
 /**
  * x-scope（结构占位）+ x-define（命名模板组件供体）+ 全局组件测试。
@@ -2219,15 +2220,21 @@ describe("x-component loader 远程直接实例化（ADR-0065）", () => {
 describe("内置 error 组件与 back 内置 action（ADR-0065）", () => {
     test("engine 默认注册内置 error 组件，用户同名声明覆盖", () => {
         const { engine } = mount(`<div><span>x</span></div>`, {});
-        expect(typeof engine.options.components?.error).toBe("string");
-        expect(engine.options.components?.error as string).toContain("as-error");
+        // ADR-0094 双注册位：内置住 builtinComponents，components 只承载用户声明；键 = 点前缀注册名
+        expect(typeof engine.options.builtinComponents?.[ERROR_COMPONENT_NAME]).toBe("string");
+        expect(engine.options.builtinComponents?.[ERROR_COMPONENT_NAME] as string).toContain("as-error");
+        expect(engine.options.components?.[ERROR_COMPONENT_NAME]).toBeUndefined();
 
         const { engine: engine2 } = mount(
             `<div><span>x</span></div>`,
             {},
-            { components: { error: `<div x-define="error" class="my-err">自定义</div>` } },
+            {
+                components: {
+                    [ERROR_COMPONENT_NAME]: `<div x-define="${ERROR_COMPONENT_NAME}" class="my-err">自定义</div>`,
+                },
+            },
         );
-        expect(engine2.options.components?.error).toContain("my-err");
+        expect(engine2.options.components?.[ERROR_COMPONENT_NAME]).toContain("my-err");
     });
 
     test("back 内置 action：builtin 标记 + handle 执行 history.back()", () => {

@@ -1,0 +1,64 @@
+<!-- 裸面板 shell 组件（autospark.popover，ADR-0094 点前缀）：与 dialog-shell 同构的面板层形态（形态语义分键：
+     模态 / 裸面板），边框/圆角/背景/箭头载体/内容出口，不含遮罩（遮罩是引擎结构，mask 选项
+     控制显隐，ADR-0062）。模板恒含箭头载体（.autospark-overlay-arrow），显隐归引擎锚定判定。
+     global 段 = 面板默认视觉（独立 id 容器——与 dialog-shell 的 autospark-shell-styles 分立，
+     接管任一键整组替换只影响本键，ADR-0087）。契约与 ADR 回链：ADR-0062/0077/0092/0094。 -->
+<div class="autospark-dialog" x-define="autospark.popover">
+    <div x-slot></div>
+    <div class="autospark-overlay-arrow"></div>
+    <style global id="autospark-popover-styles">
+    /* 面板默认视觉（与 dialog-shell 的 autospark-shell-styles 同内容——两键各自自包含，
+       接管替换互不波及）：结构说明见 dialog-shell.html 同段注释。 */
+    .autospark-dialog {
+      position: relative;
+      border-radius: var(--autospark-overlay-radius, 8px);
+    }
+    .autospark-dialog[data-overlay-border] {
+      border: 1px solid var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
+      background: var(--autospark-overlay-bg, #fff);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+    }
+    .autospark-overlay-arrow {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      pointer-events: none;
+    }
+    .autospark-overlay-arrow::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--autospark-overlay-bg, #fff);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+      transform: rotate(45deg);
+    }
+    .autospark-overlay-arrow::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      background: var(--autospark-overlay-bg, #fff);
+      transform: rotate(45deg);
+    }
+    .autospark-dialog[data-overlay-border] > .autospark-overlay-arrow::before {
+      background: var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
+    }
+    .autospark-dialog[data-overlay-border] > .autospark-overlay-arrow::after {
+      inset: -2px;
+    }
+    [data-overlay-placement^="top"] > .autospark-overlay-arrow::after {
+      translate: 0 -4px;
+    }
+    [data-overlay-placement^="bottom"] > .autospark-overlay-arrow::after {
+      translate: 0 4px;
+    }
+    [data-overlay-placement^="left"] > .autospark-overlay-arrow::after {
+      translate: -4px 0;
+    }
+    [data-overlay-placement^="right"] > .autospark-overlay-arrow::after {
+      translate: 4px 0;
+    }
+    [data-autospark-overlays] > .autospark-dialog {
+      z-index: var(--autospark-overlay-z, 1000);
+    }
+    </style>
+</div>

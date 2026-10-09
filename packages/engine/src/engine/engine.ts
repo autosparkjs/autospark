@@ -30,16 +30,12 @@ import { OverlayHandle } from "../features/overlay/handle";
 import { removeOverlayContainer } from "../features/overlay/container";
 import { TooltipManager } from "../features/tooltip/manager";
 import type { TooltipAPI } from "../features/tooltip/types";
-import { MessageManager } from "../features/messages/manager";
-import { MESSAGE_PRESET_COMPONENTS } from "../features/messages/presets";
-import MESSAGE_SHELL_TEMPLATE from "../components/message-shell.html?raw";
-import PANEL_SHELL_TEMPLATE from "../components/panel-shell.html?raw";
-import DRAWER_SHELL_TEMPLATE from "../components/drawer-shell.html?raw";
-import ERROR_TEMPLATE from "../components/error.html?raw";
+import { NotificationManager } from "../features/notifications/manager";
+import { BUILTIN_COMPONENTS } from "../components";
 import { ComponentInstance } from "../features/component/component-instance";
 
 // 框架保留键已下沉 consts.ts（ADR-0093 解环）；转发保持公共导出面不变
-export { MESSAGES_KEY, SCOPES_KEY } from "../consts";
+export { NOTIFICATIONS_KEY, SCOPES_KEY } from "../consts";
 import { SCOPES_KEY } from "../consts";
 
 /**
@@ -111,8 +107,8 @@ export class AutoSpark<
     readonly animate: AutoSparkAnimator;
     /** 全局工具提示管理单元（ADR-0061）：data-tooltip 约定消费面 + title 编译期转换开关；公共入口经 `tooltip` getter */
     readonly tooltipManager: TooltipManager;
-    /** 全局消息管理单元（ADR-0071）：`extends Map<string, SessionImpl>`（键恒为 string id，可枚举全部存活记录——`messages.sessions` 即本表正名视图）；公共入口经 `add/confirm/progressbar/load/save/...` / 本表 */
-    readonly messages: MessageManager;
+    /** 全局通知管理单元（ADR-0071）：`extends Map<string, SessionImpl>`（键恒为 string id，可枚举全部存活记录——`notifications.sessions` 即本表正名视图）；公共入口经 `add/confirm/progressbar/load/save/...` / 本表 */
+    readonly notifications: NotificationManager;
     /** 原始模板（深克隆根元素，保留指令属性作为编译只读输入） */
     readonly template: HTMLElement;
     /** 每个渲染元素对应的 Scope（销毁时遍历清理其 watcher） */
@@ -136,42 +132,27 @@ export class AutoSpark<
      * @throws {Error} el 非 HTMLElement；state 为 AutoStore 实例（不再接受借用，ADR-0044）
      */
     constructor(el: HTMLElement, state: State, options?: Partial<AutoSparkOptions<State>>) {
-        // 内置 error 组件（ADR-0065）：默认注册 options.components.error，用户同名声明展开覆盖
-        //（组件查找链：局部 x-define > options.components，均天然优先于内置，无需特判）；
-        // 样式幂等注入（document 级资产，与 icons 同纪律，engine.destroy 不清理）
-        // 消息预设组件族（ADR-0083）：base/toast/task/confirm 四件同位注入——autospark.*
-        // 点前缀为引擎保留命名空间，用户同名声明覆盖（同 error 先例）
-        const { components: userComponents, ...restOptions } = (options ?? {}) as Partial<
-            AutoSparkOptions<State>
-        >;
-        // 内置组件种子表（ADR-0092）：全部内置组件统一住 components/（一组件一 .html 自包含），
-        // 经此表注册进组件查找链——shell 亦是组件，用户同名覆盖即接管（uiShells 独立注册表退役）。
-        // super 前以局部量合成（TS17009），super 后落字段。
+        // 内置组件注册位（ADR-0092 种子表 → ADR-0094 注册位化）：种子表（components/index.ts
+        // 唯一注册面）+ 用户 `options.builtinComponents` 同名覆盖，构造期合成。独立于
+        // `options.components` 保存——避免内置默认被业务配置流意外冲掉；一般定制内置组件走
+        // components 同名覆盖（查找优先级更高，见 _resolveGlobalComponent 双表回退）。
+        const { components: userComponents, builtinComponents: userBuiltins, ...restOptions } = (
+            options ?? {}
+        ) as Partial<AutoSparkOptions<State>>;
+        // super 前以局部量合成（TS17009），经 init spread 进 super（FastLiteEventOptions 无
+        // components/builtinComponents 键——spread 免过剩检查），super 后 this.options 双键可读。
         const builtinComponents: Record<string, string> = {
-            ...MESSAGE_PRESET_COMPONENTS,
-            "autospark.messages.shell": MESSAGE_SHELL_TEMPLATE,
-            "autospark.overlays.panel-shell": PANEL_SHELL_TEMPLATE,
-            "autospark.overlays.drawer-shell": DRAWER_SHELL_TEMPLATE,
-            error: ERROR_TEMPLATE,
+            ...BUILTIN_COMPONENTS,
+            ...(userBuiltins ?? {}),
         };
-        // 用户同名接管判定（构造期固化）：接管后的内置组件无引擎类名契约（builtin=false，
-        // 消费者按用户模板装配包 wrapper）
-        const userOverriddenBuiltins = new Set(
-            Object.keys(builtinComponents).filter((k) => k in (userComponents ?? {})),
-        );
-        // 展开形态传入（super 参数类型为 FastLiteEventOptions，无 components 键——spread 免过剩检查）
         const init = {
             autostart: true,
             debug: false,
             actions: {},
-            components: {
-                ...builtinComponents,
-                ...(userComponents ?? {}),
-            },
+            components: { ...(userComponents ?? {}) },
+            builtinComponents,
         };
         super({ ...init, ...restOptions });
-        this.builtinComponents = builtinComponents;
-        this._userOverriddenBuiltins = userOverriddenBuiltins;
         // global 样式注入时机（ADR-0092）：内置组件的 `<style global>` 随**首次懒预编译**注入
         // （_resolveGlobalComponent 构建 def 即注册——先于任何实例挂载，无 FOUC），不做构造期
         // 预热：head 容器保持惰性创建（构造期预热会提前建共享容器，破坏「无组件声明则无容器」
@@ -209,12 +190,12 @@ export class AutoSpark<
         // 全局工具提示（ADR-0061）：须早于 autostart compile——编译期 title→data-tooltip
         // 转换依赖 manager 的 enabled 开关；委托监听/样式注入在构造内就位（tooltip: false 时全短路）
         this.tooltipManager = new TooltipManager(this);
-        // UI 外壳注册表（ADR-0077）已退役（ADR-0092）：shell 即组件，统一注册进 builtinComponents
-        // 种子表，用户经 options.components 同名覆盖（_userOverriddenBuiltins 判定接管）。
-        // 全局消息（ADR-0071）：引擎级子系统，容器/样式随首个消息懒建（messages: false 时
+        // UI 外壳注册表（ADR-0077）已退役（ADR-0092 → ADR-0094）：shell 即组件，裸键注册进
+        // builtinComponents 注册位，查找走标准组件链（getComponentDeclaration）。
+        // 全局通知（ADR-0071）：引擎级子系统，容器/样式随首个通知懒建（notifications: false 时
         // 构造即短路——add() warn + no-op）；配套 action（toast/confirm/task）的 handle 闭包
         // 经 engine 引用惰性触达本管理器，无初始化顺序约束
-        this.messages = new MessageManager(this);
+        this.notifications = new NotificationManager(this);
         if (this.options.autostart) {
             this.compile();
         }
@@ -298,23 +279,16 @@ export class AutoSpark<
      * 契约不变（`getComponentDeclaration` 仍返回 HTMLElement）。
      *
      * **两种来源、两种时机**（ADR-0086 决策二）：
-     * - `options.components` 字符串 → **惰性**：首次查找未命中时经 `_resolveGlobalComponent` 预编译入表；
+     * - 构造选项双注册位字符串（`options.components` > `options.builtinComponents`，ADR-0094）→
+     *   **惰性**：首次查找未命中时经 `_resolveGlobalComponent` 预编译入表；
      * - `engine.registerComponent(code)` → **即时**：注册时解析入表。
-     * 查找一律「先查表、未命中才读 `options.components`」——运行时注册因此**天然覆盖**构造期配置，
+     * 查找一律「先查表、未命中才读构造选项」——运行时注册因此**天然覆盖**构造期配置，
      * 无需失效缓存、无需把 def 序列化回字符串重解析（ADR-0086 决策三）。
      *
      * 记录 `null` 表示该名已查明未命中（不存在/解析失败），避免重复解析尝试。
      * 生命周期随 engine（destroy 自动回收）。
      */
     private _globalComponentDefs = new Map<string, ComponentDef | null>();
-    /**
-     * 内置组件种子表（ADR-0092）：全部内置组件（消息 type 族/base/actions/三 shell/error）
-     * 统一注册——shell 亦是组件，用户经 `options.components` 同名覆盖即接管
-     * （原 `options.uiShells` 独立注册表退役）。只读面：构造期固化。
-     */
-    readonly builtinComponents: Record<string, string>;
-    /** 用户同名接管的内置组件键集（构造期判定；wrapper 装配规则判据：接管者自带样式与结构） */
-    private _userOverriddenBuiltins: ReadonlySet<string>;
     /**
      * 组件定义表（ADR-0022 决策二-1、决策七）：key=组件冻结快照根元素，value=ComponentDef。
      *
@@ -441,22 +415,30 @@ export class AutoSpark<
     }
 
     /**
-     * 按 el 反查 scope，再沿 parent 链就近查找命名组件**声明**，到顶兜底全局组件（ADR-0022 决策五，
-     * 承接 ADR-0021 决策 5/9；原名 `getComponent`，ADR-0080 更名——短名让位给实例读取）。
+     * 按名查找组件**声明**（ADR-0022 决策五，承接 ADR-0021 决策 5/9；原名 `getComponent`，
+     * ADR-0080 更名——短名让位给实例读取）。标准组件链（ADR-0094 签名升级）：
      *
-     * 供 **Runtime 指令**（如 x-loading，无 binding/scope）消费 x-define 声明的组件：编译期元素建过 scope
+     * - `el` 有值且反查到 scope → scope 链就近 + 全局兜底（协议不变）；
+     * - `el` 省略**或反查失败** → 纯全局兜底（`options.components` > `options.builtinComponents`）
+     *   ——不在任何 engine 内的元素等价于全局消费者，修复旧签名「反查失败不兜底」的不对称。
+     *
+     * 查找规则与 `getOverlay` 同构（参数形态不同——后者的 el 是定位锚、语义必需）。
+     * 供 **Runtime 指令**（如 x-loading，无 binding/scope）与命令式消费：编译期元素建过 scope
      * 的才能被反查到（el 经 `engine.scopes` WeakRef 遍历 deref 比对，O(n)、低频可接受）。
      * Compile/Hybrid 消费指令应直接用 `this.binding.getComponentDeclaration(name)`，避免 O(n) 遍历。
      *
      * 消费者协议：命中则用组件替换默认 UI，未命中回退默认实现（组件兜底）。详见 ADR-0022。
      *
-     * @param el   消费指令的宿主元素（须是建过 scope 的元素，否则反查不到）
-     * @param name 组件名（消费者约定名，自由命名）
-     * @returns 组件冻结快照 HTMLElement，或 undefined（el 无 scope / 链+全局均无该名组件）
+     * @param name 组件名（消费者约定名，自由命名；内置组件统一 `autospark.` 点前缀，如 "autospark.dialog"/"autospark.error"）
+     * @param el   可选范围修饰——消费指令的宿主元素（须建过 scope，否则退纯全局）
+     * @returns 组件冻结快照 HTMLElement，或 undefined（链+双注册位均无该名组件）
      */
-    getComponentDeclaration(el: HTMLElement, name: string): HTMLElement | undefined {
-        const scope = this.findScopeByEl(el);
-        return scope?.getComponentDeclaration(name);
+    getComponentDeclaration(name: string, el?: HTMLElement): HTMLElement | undefined {
+        if (el) {
+            const scope = this.findScopeByEl(el);
+            if (scope) return scope.getComponentDeclaration(name);
+        }
+        return this._resolveGlobalComponent(name);
     }
 
     /**
@@ -488,14 +470,17 @@ export class AutoSpark<
     /**
      * 全局组件兜底解析（ADR-0022 承接 ADR-0021 决策 9/10/11）：`scope.getComponentDeclaration` 到顶后委托本方法。
      *
-     * 懒预编译：首次访问某全局组件时，把 `options.components[name]` 字符串入参解析为 DOM，按自动包装规则
-     * （决策 10）规范化为「恰好一个带 `x-define` 的根元素」，存入 `_globalComponentCache`；后续命中直接
-     * 返回缓存（消费者自管 `cloneNode(true)`）。解析失败/不存在 → 记 null 缓存 + 返回 undefined
-     * （视为未命中，由消费者回退默认实现；记 null 避免重复解析尝试）。
+     * 懒预编译：首次访问某全局组件时，把双注册位（`options.components` > `options.builtinComponents`，
+     * ADR-0094）中命中的字符串入参解析为 DOM，按自动包装规则（决策 10）规范化为「恰好一个带
+     * `x-define` 的根元素」，存入 `_globalComponentDefs`；后续命中直接返回缓存（消费者自管
+     * `cloneNode(true)`）。解析失败/不存在 → 记 null 缓存 + 返回 undefined（视为未命中，由消费者
+     * 回退默认实现；记 null 避免重复解析尝试）。
      *
      * **不注入 x-scope**（决策 7 修订：scope 由消费编译路径 compileChild 内禀保证）。
-     * **不回写 options.components**（不突变用户输入）。**运行时突变 options.components 不失效缓存**
+     * **不回写 options.components**（不突变用户输入）。**运行时突变任一注册位不失效缓存**
      * （构造期配置语义，与 actions/sanitizer 等同纪律）。
+     * **builtin 标记**：def 构建时按「模板与内置种子表原版逐字相同」写入（命中点级接管判定，
+     * 消费者据此分装配路径）。
      *
      * @param name 全局组件名
      * @returns 预编译根元素（未编译、含 x-define），或 undefined（无此全局组件/解析失败）
@@ -504,10 +489,15 @@ export class AutoSpark<
         if (this._globalComponentDefs.has(name)) {
             return this._globalComponentDefs.get(name)?.snapshot;
         }
-        const components = this.options.components;
-        const raw = components?.[name];
-        if (typeof raw !== "string" || raw.trim() === "") {
-            // 非字符串 / 空串 → 记 null（视为未命中），避免重复判定
+        // 双注册位回退（ADR-0094）：components 命中有效字符串即用，否则兜底 builtinComponents——
+        // components 侧垃圾值（非字符串/空串）不挡内置兜底
+        const pickRaw = (v: unknown): string | undefined =>
+            typeof v === "string" && v.trim() !== "" ? v : undefined;
+        const raw =
+            pickRaw(this.options.components?.[name]) ??
+            pickRaw(this.options.builtinComponents?.[name]);
+        if (raw === undefined) {
+            // 双表均无有效字符串 → 记 null（视为未命中），避免重复判定
             this._globalComponentDefs.set(name, null);
             return undefined;
         }
@@ -540,6 +530,7 @@ export class AutoSpark<
                 warn: (msg) => this.logger.warn(msg),
             });
             if (resolved && typeof resolved === "object") {
+                resolved.builtin = raw === BUILTIN_COMPONENTS[name];
                 this._globalComponentDefs.set(name, resolved);
                 // def 注册统一走 registerComponentDef（快照反查 + global 样式注入收口，ADR-0087）
                 this.registerComponentDef(resolved);
@@ -554,6 +545,7 @@ export class AutoSpark<
         // 组装组件定义：提取 <script setup>/<style>、求值合并 setup、克隆洁净快照（剥离 script/style）。
         // 快照与 def 同源同次产出，一次入表供 x-loading（取快照）与 x-component（取 def）分别消费。
         const def = buildComponentDef(root, name, (msg) => this.logger.warn(msg));
+        def.builtin = raw === BUILTIN_COMPONENTS[name];
         this._globalComponentDefs.set(name, def);
         // def 注册统一走 registerComponentDef（快照反查 + global 样式注入收口，ADR-0087）
         this.registerComponentDef(def);
@@ -571,47 +563,36 @@ export class AutoSpark<
         return this.getGlobalComponentDef(name) ?? null;
     }
 
-    /**
-     * 外壳键 → 内置组件注册名（ADR-0092）：消费者沿用裸键（message/dialog/popover/drawer），
-     * 解析时映射到 builtinComponents 的组件注册名——shell 即组件，查找走统一组件链。
-     */
-    private static readonly UI_SHELL_COMPONENT_NAMES: Record<string, string> = {
-        message: "autospark.messages.shell",
-        dialog: "autospark.overlays.panel-shell",
-        popover: "autospark.overlays.panel-shell",
-        drawer: "autospark.overlays.drawer-shell",
-    };
-
-    /**
-     * 解析 UI 外壳（ADR-0092 收敛于统一组件链）：外壳键映射内置组件注册名，经全局组件表
-     * 懒预编译（`_resolveGlobalComponent`——含继承解析与缓存）取快照与 def。用户同名覆盖
-     * （options.components 写注册名）天然生效——内置与用户覆盖同管道，无独立注册表。
-     *
-     * @param name 外壳键（消费者裸名，如 'message' / 'dialog'）
-     * @returns { snapshot, def }，或 null（键不存在/模板解析失败——消费者回退其内置默认）
-     */
-    _resolveUiShell(name: string): { snapshot: HTMLElement; def: ComponentDef | null } | null {
-        const regName = AutoSpark.UI_SHELL_COMPONENT_NAMES[name];
-        if (!regName) return null;
-        try {
-            const snapshot = this._resolveGlobalComponent(regName);
-            if (!snapshot) return null;
-            const def =
-                this.getComponentDef(snapshot) ?? this.getGlobalComponentDef(regName) ?? null;
-            return { snapshot, def };
-        } catch (e: any) {
-            this.logger.warn(`UI 外壳 "${name}" 解析失败，视为未命中: ${e?.message ?? e}`);
-            return null;
-        }
+    /** 全局组件是否已有来源（定义表 / 双注册位任一命中）——运行时注册的覆盖 warn 判据 */
+    private _hasGlobalComponentSource(name: string): boolean {
+        return (
+            this._globalComponentDefs.has(name) ||
+            this.options.components?.[name] != null ||
+            this.options.builtinComponents?.[name] != null
+        );
     }
 
     /**
-     * 外壳键是否仍为内置种子（wrapper 装配规则判据）：内置模板自带引擎类名契约（如消息双
-     * 类名根）根即载体；用户同名接管后的模板无契约，包 wrapper 零引擎类污染。
+     * 全局组件快照 + def 组包（ADR-0094——原 `_resolveUiShell` 键映射退役后的剩余职责）：
+     * 经全局组件表懒预编译（`_resolveGlobalComponent`——含继承解析与缓存）取快照，反查 def。
+     * shell 等需要「快照 + 元数据」双件的包内消费者共用；查找语义即标准链（就近遮蔽、
+     * `components` > `builtinComponents` 双注册位回退）。
+     *
+     * @param name 组件注册名（内置组件为裸键，如 'notification' / 'dialog'）
+     * @returns { snapshot, def }，或 null（未命中/解析失败——消费者回退其内置默认）
      */
-    _isBuiltinUiShell(name: string): boolean {
-        const regName = AutoSpark.UI_SHELL_COMPONENT_NAMES[name];
-        return regName !== undefined && !this._userOverriddenBuiltins.has(regName);
+    _resolveGlobalComponentFull(
+        name: string,
+    ): { snapshot: HTMLElement; def: ComponentDef | null } | null {
+        try {
+            const snapshot = this._resolveGlobalComponent(name);
+            if (!snapshot) return null;
+            const def = this.getComponentDef(snapshot) ?? this.getGlobalComponentDef(name) ?? null;
+            return { snapshot, def };
+        } catch (e: any) {
+            this.logger.warn(`全局组件 "${name}" 解析失败，视为未命中: ${e?.message ?? e}`);
+            return null;
+        }
     }
 
     /**
@@ -657,7 +638,7 @@ export class AutoSpark<
      * 组件字符串归一化（ADR-0086）：`code` → 「恰好一个带 `x-define` 的根元素」+ 声明三元组。
      *
      * **严格单根契约**（与 `_wrapGlobalComponent` 的宽松自动包装分叉的那一半）：
-     * | 输入形态 | 本方法（`registerComponent`） | `_wrapGlobalComponent`（`options.components`/`uiShells`） |
+     * | 输入形态 | 本方法（`registerComponent`） | `_wrapGlobalComponent`（`components`/`builtinComponents` 注册位） |
      * |---|---|---|
      * | 单根 + `x-define` | 原样为根 | 原样为根 |
      * | 单根、无 `x-define` | **warn + null**（注册路径要求自带声明） | 打本 key 名 |
@@ -807,7 +788,7 @@ export class AutoSpark<
 
         // ③ 覆盖 warn（per 注册目标 per 名去重——与 x-import 同款机制，ADR-0065 决策三）
         const existed = global
-            ? this._globalComponentDefs.has(name) || this.options.components?.[name] != null
+            ? this._hasGlobalComponentSource(name)
             : owner.components?.[name] != null;
         if (existed) {
             const warned = global
@@ -1168,7 +1149,7 @@ export class AutoSpark<
             // 覆盖 warn（ADR-0065 决策三）：远程版覆盖已注册同名组件时警告（loader「以此 url 为准」
             // 与 x-import 同口径）；per 注册目标 per 名去重——缓存命中重跑注册循环不刷屏
             const existed = global
-                ? this.options.components?.[name] != null || this._globalComponentDefs.has(name)
+                ? this._hasGlobalComponentSource(name)
                 : ownerScope?.components?.[name] != null;
             if (existed) {
                 const warned = global
@@ -1349,9 +1330,9 @@ export class AutoSpark<
         removeOverlayContainer(this);
         // 工具提示收口（ADR-0061）：摘委托监听 + tooltip 容器整体移除 + 清计时器/兜底循环
         this.tooltipManager.dispose();
-        // 消息收口（ADR-0071 决策 10/18）：全部立即销毁（无动画——离场的延迟移除已被上方
-        // animate.dispose 同步完成）+ 消息容器整体移除 + 持久化终态 flush（keepalive 兜底）
-        this.messages.dispose();
+        // 通知收口（ADR-0071 决策 10/18）：全部立即销毁（无动画——离场的延迟移除已被上方
+        // animate.dispose 同步完成）+ 通知容器整体移除 + 持久化终态 flush（keepalive 兜底）
+        this.notifications.dispose();
         this.el.replaceChildren();
         // 移除 engine 根标识（ADR-0060，与构造期打点对称）
         this.el.removeAttribute("data-autospark");

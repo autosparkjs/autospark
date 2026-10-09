@@ -16,13 +16,16 @@
 
 ### 查找链：就近向上 + 全局兜底
 
-消费者（`x-component` / `x-dialog` / `x-loading` 等）经 `getComponentDeclaration(名称)` 取组件，查找顺序固定：
+消费者（`x-component` / `x-dialog` / `x-loading` 等）经 `getComponentDeclaration(名称, el?)` 取组件，查找顺序固定：
 
 ```
 消费元素自身的 scope
   → 沿 parent 链逐级向上，取首个持有该名称的 scope（就近者胜）
-  → 到顶后兜底 engine.options.components（全局组件，懒预编译）
+  → 到顶后兜底 engine.options.components（全局业务组件，懒预编译）
+  → 仍无则兜底 engine.options.builtinComponents（内置组件末端兜底，ADR-0094）
 ```
+
+命令式调用 `engine.getComponentDeclaration(名称)` 省略 `el`（或元素不在任何 scope 内）时跳过 scope 链、直接查全局两级注册位。
 
 由此得到两条推论：
 

@@ -1,0 +1,129 @@
+<!-- 通知族根组件（autospark.notifications.base，ADR-0095 单层化——原 notification-shell 外观壳与
+     base 内容族根合并，消除「双公共件」概念）：外观容器（卡片 chrome：边框/背景/阴影/圆角/close 钮）
+     + 内容结构（icon + title/link + description 内容行 + 裸出口 + actions 组合）+ 公共 methods 七件
+     + 约定键默认值，一文件自包含。type 组件（toast/task/confirm）经 x-define:inherit 继承本组件
+     得完整卡片——子模板内容填充裸出口（task 专属区），装配单层（type 实例即卡片，无独立 shell
+     实例化与投影）。契约绑定化（ADR-0095）：引擎类与分派属性由本模板自绑（props 注水
+     levelName/type 驱动），引擎不静态写卡片根；用户同名覆盖 = 全族换根（global 样式段整组替换，
+     ADR-0087）。契约与 ADR 回链：ADR-0088/0089/0092/0095。 -->
+<div
+    class="autospark-dialog autospark-notification autospark-notification-type"
+    x-define="autospark.notifications.base"
+    :data-notification-type="type"
+    :data-notification-level="levelName"
+>
+    <script setup>
+    {
+        data: () => ({
+            holdOpen: false,
+            visible: false,
+            closed: false,
+            remaining: -1,
+        }),
+        methods: {
+            hide() { this.engine.notifications.hide(this.props.id); },
+            show() { this.engine.notifications.show(this.props.id); },
+            remove() { this.engine.notifications.delete(this.props.id); },
+            cancel() { this.engine.notifications.hide(this.props.id); },
+            update(p) { this.engine.notifications.update(this.props.id, p); },
+            markRead() { this.engine.notifications.markRead(this.props.id); },
+            respond(v) { this.engine.notifications.respond(this.props.id, v); },
+        },
+    }
+    </script>
+    <style>
+    .autospark-notification-type { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .autospark-notification-main { display: flex; align-items: flex-start; gap: 8px; }
+    .autospark-notification-icon { flex: none; }
+    .autospark-notification-content { flex: 1; min-width: 0; }
+    .autospark-notification-title-row { display: flex; align-items: center; gap: 6px; }
+    .autospark-notification-title { font-weight: 500; }
+    .autospark-notification-link { flex: none; color: inherit; opacity: 0.6; }
+    .autospark-notification-description { font-size: 0.92em; opacity: 0.8; }
+    </style>
+    <!-- 卡片 chrome + 内容结构基线（global 段）：跨 type 组件共享的类名（base/task 同构复用），
+         随本组件注册期注入、同名覆盖整组替换（ADR-0087） -->
+    <style global id="autospark-notification-styles">
+    /* 卡片 chrome（ADR-0088：横向行 body + close；内容纵向堆叠在 body 列内）。阴影轻于 dialog
+       面板的 0 8px 30px——非模态通知浮于页面上而非遮罩上，量级对齐 tooltip */
+    .autospark-notification {
+      border: 1px solid var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
+      background: var(--autospark-overlay-bg, #fff);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 10px 12px;
+      box-sizing: border-box;
+      max-width: var(--autospark-notification-max-w, 360px);
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--autospark-notification-fg, #1f2329);
+    }
+    /* 内容主行（icon + 内容列）——base/task 模板复用 */
+    .autospark-notification-main {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .autospark-notification-icon {
+      flex: none;
+      display: inline-flex;
+      font-size: 17px;
+      color: var(--autospark-notification-accent, transparent);
+    }
+    .autospark-notification-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .autospark-notification-title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .autospark-notification-title { overflow-wrap: break-word; }
+    .autospark-notification-link {
+      flex: none;
+      text-decoration: none;
+      font-size: 12px;
+      color: var(--autospark-notification-accent, inherit);
+    }
+    /* 外链图标（内置 external，x-icon 注入 svg） */
+    .autospark-notification-link-icon {
+      display: inline-flex;
+      font-size: 13px;
+    }
+    .autospark-notification-description {
+      font-size: 12px;
+      opacity: 0.75;
+      margin-top: 2px;
+      overflow-wrap: break-word;
+    }
+    .autospark-notification-close {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      border: none;
+      background: none;
+      padding: 2px;
+      font-size: 13px;
+      color: var(--autospark-notification-fg, #1f2329);
+      opacity: 0.5;
+      cursor: pointer;
+    }
+    .autospark-notification-close:hover { opacity: 1; }
+    </style>
+    <div class="autospark-notification-main">
+        <i class="autospark-notification-icon" x-icon="icon" x-show="icon" aria-hidden="true"></i>
+        <div class="autospark-notification-content">
+            <div class="autospark-notification-title-row">
+                <span class="autospark-notification-title" x-html="title"></span>
+                <a class="autospark-notification-link" x-show="link" :href="link" target="_blank" rel="noopener noreferrer" aria-label="查看详情"><i class="autospark-notification-link-icon" x-icon="'external'" aria-hidden="true"></i></a>
+            </div>
+            <div class="autospark-notification-description" x-html="description" x-show="description"></div>
+        </div>
+    </div>
+    <div x-slot></div>
+    <div x-component:autospark.notifications.actions="{ actions }"></div>
+    <button class="autospark-notification-close" type="button" x-show="closable" x-icon="'no'" aria-label="关闭"></button>
+</div>

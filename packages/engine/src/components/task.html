@@ -1,10 +1,10 @@
-<!-- task type 组件（autospark.messages.task）：继承 base 族根（头部/actions 复用），出口覆盖段 =
+<!-- task type 组件（autospark.notifications.task）：继承 base 族根（头部/actions 复用），出口覆盖段 =
      进度条 + 三控制钮；task 状态机（进度 clamp / pause 闸门 / 完成转计时 / 协作取消）为组件 methods。
-     约定键：`progress/paused/completed`（manager watch → message:update 广播观测面）、`holdOpen`
+     约定键：`progress/paused/completed`（manager watch → notification:update 广播观测面）、`holdOpen`
      （进行中恒 true sticky，完成态联动置 false）；`_abort`（AbortController）非约定键——canCancel
      时由 manager 注水，外部经 `instance.data._abort.signal` 挂接协作取消。defaults 段 = 合并链
      type 种子层（紧凑形态，ADR-0092 模板化）。契约与 ADR 回链：ADR-0089/0092。 -->
-<div x-define="autospark.messages.task" x-define:inherit="autospark.messages.base">
+<div x-define="autospark.notifications.task" x-define:inherit="autospark.notifications.base">
     <script setup>
     {
         defaults: { width: 300 },
@@ -28,7 +28,7 @@
             complete() { this._complete(); },
             cancel() {
                 this.data._abort?.abort();
-                this.engine.messages.hide(this.props.id);
+                this.engine.notifications.hide(this.props.id);
             },
             _complete() {
                 if (this.data.completed) return;
@@ -40,22 +40,22 @@
     }
     </script>
     <style>
-    .autospark-message-progress { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-    .autospark-message-progress-track { flex: 1; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--autospark-message-accent, #999) 15%, var(--autospark-overlay-bg, #fff)); overflow: hidden; }
-    .autospark-message-progress-bar { height: 100%; border-radius: 3px; background: var(--autospark-message-accent, #409eff); transition: width 0.2s; }
-    .autospark-message-progress-text { flex: none; font-size: 12px; opacity: 0.75; min-width: 34px; text-align: right; }
-    .autospark-message-ops { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 6px; }
-    .autospark-message-op { flex: none; border: none; background: none; padding: 0; font: inherit; font-size: 13px; color: var(--autospark-message-accent, #409eff); cursor: pointer; }
+    .autospark-notification-progress { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .autospark-notification-progress-track { flex: 1; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--autospark-notification-accent, #999) 15%, var(--autospark-overlay-bg, #fff)); overflow: hidden; }
+    .autospark-notification-progress-bar { height: 100%; border-radius: 3px; background: var(--autospark-notification-accent, #409eff); transition: width 0.2s; }
+    .autospark-notification-progress-text { flex: none; font-size: 12px; opacity: 0.75; min-width: 34px; text-align: right; }
+    .autospark-notification-ops { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 6px; }
+    .autospark-notification-op { flex: none; border: none; background: none; padding: 0; font: inherit; font-size: 13px; color: var(--autospark-notification-accent, #409eff); cursor: pointer; }
     </style>
-    <div class="autospark-message-progress">
-        <div class="autospark-message-progress-track">
-            <div class="autospark-message-progress-bar" :style="'width:' + (progress ?? 0) + '%'"></div>
+    <div class="autospark-notification-progress">
+        <div class="autospark-notification-progress-track">
+            <div class="autospark-notification-progress-bar" :style="'width:' + (progress ?? 0) + '%'"></div>
         </div>
-        <span class="autospark-message-progress-text" x-text="(progress ?? 0) + '%'"></span>
+        <span class="autospark-notification-progress-text" x-text="(progress ?? 0) + '%'"></span>
     </div>
-    <div class="autospark-message-ops" x-show="(canPause || canStop || canCancel) && !completed">
-        <button class="autospark-message-op" type="button" x-show="canPause" x-text="paused ? '恢复' : '暂停'" @click="paused ? resume() : pause()"></button>
-        <button class="autospark-message-op" type="button" x-show="canStop" @click="stop()">停止</button>
-        <button class="autospark-message-op" type="button" x-show="canCancel" @click="cancel()">取消</button>
+    <div class="autospark-notification-ops" x-show="(canPause || canStop || canCancel) && !completed">
+        <button class="autospark-notification-op" type="button" x-show="canPause" x-text="paused ? '恢复' : '暂停'" @click="paused ? resume() : pause()"></button>
+        <button class="autospark-notification-op" type="button" x-show="canStop" @click="stop()">停止</button>
+        <button class="autospark-notification-op" type="button" x-show="canCancel" @click="cancel()">取消</button>
     </div>
 </div>

@@ -1,38 +1,53 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <title>覆盖物 · 消费模型</title>
-        <script src="/autospark/autospark.js"></script>
-        <link rel="stylesheet" href="/autospark/bulma.min.css" />
-        <style>
-            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
-        </style>
-    </head>
-    <body>
-        <!-- 覆盖物 = 任意组件被渲染到 body 容器的消费方式：
+  <head>
+    <meta charset="UTF-8" />
+    <title>覆盖物 · 消费模型</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .ov-panel {
+        background: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        min-width: 320px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 覆盖物 = 任意组件被渲染到 body 容器的消费方式：
              内容是普通组件（x-define 声明，编译期剪枝不闪现），x-dialog 状态驱动消费 -->
-        <div class="demo-app section">
-            <div class="block">
-                <button class="button is-primary" x-dialog:login="ui.loginVisible"
-                        @click="ui.loginVisible = true">打开登录框</button>
-                <span class="tag" x-text="'ui.loginVisible = ' + ui.loginVisible"></span>
-            </div>
+    <!-- x-data 必须挂在消费按钮与组件声明的共同祖先上：
+             scope 域只对子树可见，按钮与 x-data 平级时 ui 不可达（点击会报 ui is not defined） -->
+    <div
+      class="demo-app section"
+      x-data="{ ui: { loginVisible: false }, appTitle: 'AutoSpark' }"
+      style="height: 320px"
+    >
+      <div class="block">
+        <button
+          class="button is-primary"
+          x-dialog:login="ui.loginVisible"
+          @click="ui.loginVisible = true"
+        >
+          打开登录框
+        </button>
+        <span class="tag" x-text="'ui.loginVisible = ' + ui.loginVisible"></span>
+      </div>
 
-            <div x-data="{ ui: { loginVisible: false }, appTitle: 'AutoSpark' }">
-                <!-- 组件声明处：declarer 基准（默认）——组件读此处 scope 的数据与方法 -->
-                <div x-define="login">
-                    <div class="ov-panel">
-                        <h3 class="title is-5">登录 {{appTitle}}</h3>
-                        <div class="field"><input class="input" placeholder="用户名" /></div>
-                        <div class="field"><input class="input" type="password" placeholder="密码" /></div>
-                        <button class="button is-fullwidth" @click="close()">关闭（close action）</button>
-                    </div>
-                </div>
-            </div>
+      <!-- 组件声明处：declarer 基准（默认）——组件读此处 scope 的数据与方法 -->
+      <div x-define="login">
+        <div class="ov-panel">
+          <h3 class="title is-5">登录 {{appTitle}}</h3>
+          <div class="field"><input class="input" placeholder="用户名" /></div>
+          <div class="field"><input class="input" type="password" placeholder="密码" /></div>
+          <button class="button is-fullwidth" @click="close()">关闭（close action）</button>
         </div>
-        <script>
-            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
-        </script>
-    </body>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
 </html>

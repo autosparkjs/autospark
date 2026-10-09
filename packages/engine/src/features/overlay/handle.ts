@@ -9,6 +9,7 @@ import {
 } from "./types";
 import { OverlayInstance, type OverlayShellDef } from "./instance";
 import { registerInstance, getInstances } from "./registry";
+import { DIALOG_SHELL_NAME, POPOVER_SHELL_NAME } from "../../components";
 
 /**
  * 覆盖物定义句柄（ADR-0052 决策 15）：覆盖物的**编程视图**，命令式消费入口。
@@ -130,10 +131,10 @@ export function resolveOverlayConfig(
 }
 
 /**
- * 命令式 shell 解析（ADR-0062 / ADR-0077 uiShells）：`config.shell`（getOverlay options /
- * open options）> `options.uiShells` 引擎级注册表（内置种子按 mask 分派——`true` 模态用
- * `dialog`、`false` 裸面板用 `popover`，两者模板同构、键名表达形态语义）。查找协议镜像
- * 声明式：锚点 scope 链（x-define）→ 全局组件表（options.components）→ uiShells；
+ * 命令式 shell 解析（ADR-0062 → ADR-0094 标准链）：`config.shell`（getOverlay options /
+ * open options）显式名走锚点 scope 链（就近遮蔽）→ 全局兜底；未配置时按 mask 分派内置
+ * shell 裸键——`true` 模态用 `dialog`、`false` 裸面板用 `popover`（同模板，键名表达形态
+ * 语义），经标准组件链（`components` > `builtinComponents` 双注册位回退）兜底。
  * 未命中 warn + 回退内置默认。
  */
 function resolveCommandShell(
@@ -157,7 +158,8 @@ function resolveCommandShell(
             `engine.getOverlay("${overlayName}"): shell "${name}" 未命中（scope 链与全局组件表均无），回退内置默认 shell（ADR-0062）`,
         );
     }
-    // uiShells 内置种子兜底（ADR-0077：消费者裸名 = 注册表键，构造期恒注入——断言安全）
-    const key = mask ? "dialog" : "popover";
-    return { name: key, ...engine._resolveUiShell(key)! };
+    // 内置 shell 裸键兜底（ADR-0094：裸键即注册名——用户任一注册位同名覆盖天然生效；
+    // 内置种子恒在组件表，断言安全）
+    const key = mask ? DIALOG_SHELL_NAME : POPOVER_SHELL_NAME;
+    return { name: key, ...engine._resolveGlobalComponentFull(key)! };
 }

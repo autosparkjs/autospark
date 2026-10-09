@@ -5,7 +5,8 @@
   "scripts": {
     "docs:dev": "cd docs && bun run dev",
     "examples": "cd docs && bun run dev",
-    "check:docs": "bun scripts/check-doc-structure.ts"
+    "check:docs": "bun scripts/check-doc-structure.ts",
+    "sync:sessions": " bun scripts/sync-claude-sessions.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.2",
@@ -22,5 +23,11 @@
   "packageManager": "bun@1.4.2",
   "lint-staged": {
     "*": "oxfmt --no-error-on-unmatched-pattern"
+  },
+  "json-comments": {
+    "tips": "请安装JSONComments插件为JSON文件提供注释功能, 详见: https://github.com/zhangfisher/json_comments_extension",
+    "package.json": {
+      "scripts.sync:sessions": "同步claude sessions文件到本地"
+    }
   }
 }

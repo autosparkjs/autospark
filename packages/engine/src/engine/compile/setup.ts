@@ -19,8 +19,8 @@ const SETUP_HOOK_PHASES: readonly ComponentHookPhase[] = [
 
 /**
  * setup 的**段键**（ADR-0057）：这些键按段消费，不参与顶层私有变量收集。
- * `state` 特殊——函数值按旧 API warn 剪枝（ADR-0057 移除），非函数值视作普通顶层私有
- * （state 不再是保留键）。
+ * `state` 不入列——由顶层收集循环特殊处理：函数值按旧 API warn 剪枝（ADR-0057 移除），
+ * 非函数值视作普通顶层私有（state 不再是保留键）。
  * `defaults` 为 ADR-0092 增补：组件的默认值声明（内置组件的合并链 type 种子层经此声明），
  * 静态对象字面量，按段浅合并（后者同名覆盖前者），随 ComponentDef 暴露。
  */
@@ -28,7 +28,6 @@ const SETUP_SECTION_KEYS: ReadonlySet<string> = new Set([
     "data",
     "methods",
     "locals",
-    "state",
     "defaults",
     ...SETUP_HOOK_PHASES,
 ]);
@@ -186,10 +185,21 @@ export function mergeComponentSetups(
             Object.assign(locals, s.locals);
             hasLocals = true;
         }
-        // setup 顶层其余键 → 私有变量（ADR-0057）：段键跳过（已单独处理）、内置键重名 warn 忽略
+        // setup 顶层其余键 → 私有变量（ADR-0057）：段键跳过（已单独处理）、内置键重名 warn 忽略、
+        // state() 旧写法 warn 剪枝（非函数值按普通私有变量收集）
         for (const [k, v] of Object.entries(s)) {
             if (SETUP_SECTION_KEYS.has(k)) continue;
             if (CONTEXT_RESERVED_KEYS.has(k)) {
+                warn(`x-define: <script setup> 顶层私有变量与内置上下文键 "${k}" 重名，内置优先，已忽略`);
+                continue;
+            }
+            if (k === "state") {
+                if (typeof v === "function") {
+                    warn("x-define: <script setup> 的 state() 已移除（ADR-0057 旧写法），请改写为 data / data()，本次不生效");
+                } else {
+                    (locals as any)[k] = v;
+                    hasLocals = true;
+                }
                 continue;
             }
             (locals as any)[k] = v;

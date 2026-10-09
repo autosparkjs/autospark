@@ -29,7 +29,7 @@ export function createBuiltinAction(name: string, spec: BuiltinActionSpec, emit:
  * @param target 全局 action 表（`options.actions`，声明入参形态；构造期已扫过用户声明、
  *               逐条规范化，运行时值恒为 ActionDesc）
  * @param emit   总线广播函数（调用点绑 engine.emit）
- * @param engine engine 实例（配套 action 三件套的执行体依赖——handle 转发 engine.messages.*，
+ * @param engine engine 实例（配套 action 三件套的执行体依赖——handle 转发 engine.notifications.*，
  *               ADR-0071 决策 22/23；广播语义经 buildAction 包装照常保留）
  */
 export function registerBuiltinActions(

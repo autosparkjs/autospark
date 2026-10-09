@@ -690,7 +690,7 @@ li[data-x-tree-row][data-x-tree-error] .x-tree-type-ico{color:#e5484d}
         if (count > 1) this.warn(`检测到 ${count} 个 x-tree-node，首个生效`);
         // 二级：tree-node 组件（scope 链就近 + 全局兜底，getComponentDeclaration 惯例）
         if (!snapshot) {
-            const custom = this.engine.getComponentDeclaration(this.el, "tree-node");
+            const custom = this.engine.getComponentDeclaration("tree-node", this.el);
             if (custom) snapshot = custom.cloneNode(true) as HTMLElement;
         }
         // 三级：内置默认（nameField 生成；checkedField 显式声明 → 附带三态复选触点；

@@ -4,8 +4,8 @@
  * 只收「被多层引用的全局约定」：框架保留键（state 树上的容器键）、指令属性快捷前缀。
  * 特性私有常量（如 icons 的 SVG 命名空间、symbol 正则）不进，留特性内。
  * 本文件属最底层：不得 import 引擎任何其他模块——3 处运行时下行 Symbol
- * （SCOPES_KEY / MESSAGES_KEY / LOCAL_PATHS）抽到此文件即解除了编译器 / 覆盖物 /
- * 消息域对 engine 门面的运行时环。
+ * （SCOPES_KEY / NOTIFICATIONS_KEY / LOCAL_PATHS）抽到此文件即解除了编译器 / 覆盖物 /
+ * 通知域对 engine 门面的运行时环。
  */
 
 /** 事件绑定快捷前缀（如 @click） */
@@ -25,16 +25,16 @@ export const BIND_PREFIX = ":";
 export const SCOPES_KEY = "$scopes";
 
 /**
- * 框架保留键（第二例，ADR-0072）：全局消息子系统的状态暴露容器。
+ * 框架保留键（第二例，ADR-0072）：全局通知子系统的状态暴露容器。
  *
- * MessageManager 构造时注入 `store.state[MESSAGES_KEY] = { items, options }`：
- * - `items`：记录镜像（`shallow(items, 1)`——AutoSparkMessage 纯数据，写通道仅 manager，
+ * NotificationManager 构造时注入 `store.state[NOTIFICATIONS_KEY] = { items, options }`：
+ * - `items`：记录镜像（`shallow(items, 1)`——AutoSparkNotification 纯数据，写通道仅 manager，
  *   模板直写为违约自理）；
  * - `options`：生效全局配置**真身**（可直写——运行时修改对后续操作生效、已展示卡片不回溯）。
  *
- * **保留键**：用户 state 树不得使用 "$messages" 命名，否则将被 engine 覆盖/冲突。
+ * **保留键**：用户 state 树不得使用 "$notifications" 命名，否则将被 engine 覆盖/冲突。
  */
-export const MESSAGES_KEY = "$messages";
+export const NOTIFICATIONS_KEY = "$notifications";
 
 /**
  * 项局部变量→绝对状态段映射的载体键（ADR-0076）：x-for 在项 localData 上挂

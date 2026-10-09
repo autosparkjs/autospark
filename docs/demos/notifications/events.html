@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>notifications · 事件族</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- 双通道：引擎总线 notification:* + 卡片元素 dispatchEvent（payload { notification, el }；
+             notification:action 追加 { action, value? }）。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <button class="button" onclick="fireToast()">发 toast</button>
+                <button class="button is-info" onclick="fireNotice()">发 notice</button>
+                <button class="button is-warning" onclick="fireAction()">带 value 按钮（notification:action）</button>
+                <button class="button is-light" onclick="clearLog()">清空日志</button>
+            </div>
+            <div class="block has-text-grey">
+                DOM 通道：卡片元素自身也可监听（本页在 document.body 上捕获冒泡的
+                <code>notification:*</code> 事件，日志中以 [DOM] 标注）。
+            </div>
+            <div class="block"><pre id="log" class="has-background-light" style="padding: 8px; max-height: 200px; overflow: auto">事件日志：
+</pre></div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            const log = (t) => {
+                const pre = document.getElementById("log");
+                pre.textContent += `${new Date().toLocaleTimeString()}  ${t}\n`;
+                pre.scrollTop = pre.scrollHeight;
+            };
+            const fireToast = () => app.notifications.add({ title: "toast 通知", delayClose: 1200 });
+            const fireNotice = () => app.notifications.add({ title: "notice 通知", type: "notice", delayClose: 1200, pos: "bottom-right" });
+            const fireAction = () =>
+                app.notifications.add({
+                    title: "带按钮的通知",
+                    delayClose: 0,
+                    actions: [{ title: "确认", value: "ok" }],
+                });
+            const clearLog = () => (document.getElementById("log").textContent = "事件日志：\n");
+
+            // 总线通道：payload 在 m.payload
+            for (const type of ["notification:add", "notification:update", "notification:show", "notification:hide", "notification:read", "notification:status", "notification:action"]) {
+                app.on(type, (m) => {
+                    const extra = type === "notification:action" ? `  value=${JSON.stringify(m.payload.value)}` : "";
+                    log(`[总线] ${type}  id=${m.payload.notification.id}${extra}`);
+                });
+            }
+            // DOM 通道：卡片元素 dispatchEvent（bubbles，body 捕获）
+            document.body.addEventListener("notification:show", (e) => log("[DOM]   notification:show"));
+            document.body.addEventListener("notification:action", (e) => log("[DOM]   notification:action"));
+        </script>
+    </body>
+</html>

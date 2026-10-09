@@ -1,11 +1,11 @@
-<!-- 抽屉 shell 组件（autospark.overlays.drawer-shell）：面板贴边（屏幕四边或锚元素边线外侧）滑入
+<!-- 抽屉 shell 组件（autospark.drawer，ADR-0094 点前缀；原 autospark.overlays.drawer-shell）：面板贴边（屏幕四边或锚元素边线外侧）滑入
      滑出的抽屉。与面板 shell 的形态分化点：无箭头载体（ADR-0063 共识 Q14——抽屉形态语言无箭头，
      at.arrow: true 显式配置静默无效）；贴边直角（border-radius: 0，经 .autospark-dialog 类继承外壳
      联动样式）；短轴尺寸默认经 --autospark-drawer-size 按 placement 前缀分派（引擎 inline inset
      对拉拉伸或 JS 同步锚边长）；'drawer' 内置动画（位移滑入滑出，复合选择器覆盖裸面板/遮罩内两
      种结构）。滑入/滑出动画规则含运行时方向插值，由引擎侧（wrappers）注入——不在此静态段。
      契约与 ADR 回链：ADR-0062/0063/0092。 -->
-<div class="autospark-dialog autospark-drawer" x-define="autospark.overlays.drawer-shell">
+<div class="autospark-dialog autospark-drawer" x-define="autospark.drawer">
     <div x-slot></div>
     <style global id="autospark-shell-styles">
     /* 抽屉形态：贴边直角 + 内容滚动 + border-box（短轴变量尺寸含边框不溢出） */

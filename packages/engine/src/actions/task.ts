@@ -4,7 +4,7 @@
  */
 import { triggerAnchor } from "./_anchor";
 import type { AutoSpark } from "../engine/engine";
-import type { MessageProps } from "../features/messages/types";
+import type { NotificationProps } from "../features/notifications/types";
 import type { BuiltinActionSpec } from "../features/action/types";
 
 /** 构造 task 执行体（依赖 engine 实例——注册期经 engine 参数绑定） */
@@ -12,11 +12,11 @@ export function createTaskSpec(engine: AutoSpark<any>): BuiltinActionSpec {
     return {
         title: "任务",
         handle: function (this: unknown, payload?: any) {
-            const props: MessageProps =
+            const props: NotificationProps =
                 typeof payload === "string" ? { title: payload } : { ...(payload ?? {}) };
             props.type = "task";
             if (props.anchor == null) props.anchor = triggerAnchor(this) ?? undefined;
-            return engine.messages.show(props);
+            return engine.notifications.show(props);
         },
     };
 }

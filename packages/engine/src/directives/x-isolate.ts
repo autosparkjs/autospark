@@ -104,8 +104,8 @@ export class IsolateDirective extends AutoSparkDirectiveBase {
                 this.el.appendChild(child.cloneNode(true));
             }
         }
-        // 经 this.engine.constructor 创建同类实例——避免 import engine 类引入循环依赖
-        // （isolate → engine → manager → presets → isolate），且子类化 AutoSpark 时自动跟随（v1 先例）
+        // 经 this.engine.constructor 创建同类实例——避免 import engine 类引入循环依赖，
+        // 且子类化 AutoSpark 时自动跟随（v1 先例）
         const EngineCtor = this.engine.constructor as new (
             el: HTMLElement,
             state: any,

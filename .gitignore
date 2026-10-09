@@ -37,3 +37,5 @@ node_modules
 /docs/.vitepress/cache/
 .iflow/
 .codegraph/
+.archify/
+.claude/sessions/

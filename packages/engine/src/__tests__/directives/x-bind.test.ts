@@ -328,14 +328,14 @@ describe("x-bind:style 样式绑定", () => {
 });
 
 describe("x-style.transition 过渡动画注入", () => {
-    test(".transition 修饰符注入默认值 all 0.3s ease-in（对象模式）", () => {
+    test(".transition 修饰符注入默认值 all 0.2s ease-in（对象模式）", () => {
         const { root } = mount(`<div x-style.transition="s"></div>`, {
             s: { color: "red" },
         });
         const div = root.firstElementChild as HTMLElement;
         expect(div.style.color).toBe("red");
-        // 默认值 all 0.3s ease-in 被注入（断 duration 与 all，规避 ease-in 归一化差异）
-        expect(div.style.transition).toContain("0.3s");
+        // 默认值 all 0.2s ease-in 被注入（断 duration 与 all，规避 ease-in 归一化差异）
+        expect(div.style.transition).toContain("0.2s");
         expect(div.style.transition).toContain("all");
     });
 
@@ -346,7 +346,7 @@ describe("x-style.transition 过渡动画注入", () => {
         const div = root.firstElementChild as HTMLElement;
         expect(div.style.transition).toContain("opacity");
         expect(div.style.transition).toContain("1s");
-        expect(div.style.transition).not.toContain("0.3s");
+        expect(div.style.transition).not.toContain("0.2s");
     });
 
     test("x-bind-options 覆盖默认值（指令选项层显式优先于 .transition 修饰符）", () => {
@@ -357,7 +357,7 @@ describe("x-style.transition 过渡动画注入", () => {
         const div = root.firstElementChild as HTMLElement;
         // 显式 -options 合并早于修饰符注入（getDirectives step4 先于 step5），故覆盖默认
         expect(div.style.transition).toContain("opacity");
-        expect(div.style.transition).not.toContain("0.3s");
+        expect(div.style.transition).not.toContain("0.2s");
     });
 
     test("对象自带 transition key 显式优先于默认值", () => {
@@ -365,9 +365,9 @@ describe("x-style.transition 过渡动画注入", () => {
             s: { color: "red", transition: "opacity 1s" },
         });
         const div = root.firstElementChild as HTMLElement;
-        // 用户对象的 transition key 胜出，默认 all 0.3s ease-in 不注入
+        // 用户对象的 transition key 胜出，默认 all 0.2s ease-in 不注入
         expect(div.style.transition).toContain("opacity");
-        expect(div.style.transition).not.toContain("0.3s");
+        expect(div.style.transition).not.toContain("0.2s");
     });
 
     test("字符串模式 transition 前置注入且不被 cssText 整替擦除", () => {
@@ -376,7 +376,7 @@ describe("x-style.transition 过渡动画注入", () => {
         });
         const div = root.firstElementChild as HTMLElement;
         expect(div.style.color).toBe("red");
-        expect(div.style.transition).toContain("0.3s");
+        expect(div.style.transition).toContain("0.2s");
     });
 
     test("transition 在多次响应式 patch 间持续生效", async () => {
@@ -384,12 +384,12 @@ describe("x-style.transition 过渡动画注入", () => {
             s: { color: "red" },
         });
         const div = root.firstElementChild as HTMLElement;
-        expect(div.style.transition).toContain("0.3s");
+        expect(div.style.transition).toContain("0.2s");
         engine.state.s = { color: "blue", fontSize: "20px" };
         await nextTick();
         expect(div.style.color).toBe("blue");
         // 切换样式后 transition 仍在（per-patch 注入，非一次性）
-        expect(div.style.transition).toContain("0.3s");
+        expect(div.style.transition).toContain("0.2s");
     });
 
     test("falsy 清空后下一次非空 patch 重新注入 transition", async () => {
@@ -397,7 +397,7 @@ describe("x-style.transition 过渡动画注入", () => {
             s: { color: "red" },
         });
         const div = root.firstElementChild as HTMLElement;
-        expect(div.style.transition).toContain("0.3s");
+        expect(div.style.transition).toContain("0.2s");
         // 清空：transition 随 removeAttribute('style') 一并清除
         engine.state.s = null;
         await nextTick();
@@ -406,7 +406,7 @@ describe("x-style.transition 过渡动画注入", () => {
         engine.state.s = { color: "blue" };
         await nextTick();
         expect(div.style.color).toBe("blue");
-        expect(div.style.transition).toContain("0.3s");
+        expect(div.style.transition).toContain("0.2s");
     });
 
     test("非 style 绑定的 .transition 静默忽略（仅 attr==='style' 生效）", async () => {

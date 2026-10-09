@@ -1,7 +1,7 @@
 import type { AnyAutoStore, AutoStoreOptions, Dict, FastEvent } from "autostore";
 import type { ActionDecl } from "../features/action/types";
 import type { TooltipOptions } from "../features/tooltip/types";
-import type { MessageOptions } from "../features/messages/types";
+import type { NotificationOptions } from "../features/notifications/types";
 import type { ComponentInstance } from "../features/component/component-instance";
 import type { AutoSparkScope } from "../engine/scope";
 
@@ -151,35 +151,34 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
     /**
      * 全局组件表（ADR-0022）：声明全引擎复用的命名组件（字符串入参，懒预编译缓存）。
      *
-     * 作为 `scope.getComponentDeclaration` 查找链的**终点兜底**——scope 链无命中时查此。与局部组件
-     * （x-define 声明、入参为 DOM）经同一条 `getComponentDeclaration` 链统一取用。供 x-loading 等内置
-     * 消费者定制其默认 UI（如 `getComponentDeclaration("loading")`）。详见 ADR-0022。
+     * **日常业务组件注册位**（ADR-0094 双注册位）：查找优先级高于 `options.builtinComponents`
+     * ——一般定制内置组件（如接管 `dialog` / `notification` shell、覆盖 `error`）应在本表写同名
+     * 声明。作为 `scope.getComponentDeclaration` 查找链的终点兜底之一——scope 链无命中时先查
+     * 本表、再兜底 `builtinComponents`。与局部组件（x-define 声明、入参为 DOM）经同一条
+     * `getComponentDeclaration` 链统一取用。供 x-loading 等内置消费者定制其默认 UI（如
+     * `getComponentDeclaration("loading")`）。详见 ADR-0022、ADR-0094。
      */
     components?: Record<string, any>;
     /**
+     * 内置组件注册位（ADR-0094）：随引擎发行的默认全局组件（`components/index.ts` 种子表）的
+     * 独立保存处。构造期 `{ ...内置种子表, ...本表 }` 合并，同名覆盖、追加自由；查找优先级
+     * **低于** `options.components`。
+     *
+     * **设计动机**：`components` 是日常业务注册位，内置默认独立保存以**避免被业务配置流意外
+     * 覆盖**——供明确接管框架内建件（如全站换 shell）时使用；一般定制请走 `components` 同名
+     * 覆盖。构造期配置语义：运行时突变不失效缓存。
+     *
+     * @default 内置种子表全量（notification/dialog/popover/drawer/error + autospark.notifications.* 五件）
+     */
+    builtinComponents?: Record<string, string>;
+    /**
      * 覆盖物引擎级默认（shell 机制，ADR-0062）：按消费者形态分键的默认 shell 组件名——
      * 「全站换肤」的单一配置点（逐实例经 `x-dialog-options.shell` / `x-popover-options.shell`
-     * 覆盖；都没配用内置默认 `dialog-shell` / `popover-shell`）。
+     * 覆盖；都没配用内置默认 shell 裸键 `dialog` / `popover`，ADR-0094）。
      *
      * @default 无（用内置默认 shell）
      */
     overlay?: Partial<Record<"dialog" | "popover" | (string & {}), { shell?: string }>>;
-    /**
-     * UI 外壳注册表（ADR-0077）：引擎级「带出口协议的骨架外壳」组件表——消息（`message`）
-     * 与 overlay 家族（`dialog` / `popover` / `drawer`）的内置 shell 统一寄存处 + 用户引擎级
-     * 覆盖面（同键浅覆盖，只影响对应消费者）。值为 HTML 模板字符串（懒预编译，与
-     * `components` 同纪律）。
-     *
-     **构造期固化**：运行时突变不失效缓存（注册与选择分离——运行时换 shell 走消费者
-     * 选择器，如 `messages.shell` 直写换键对后续操作生效）。
-     *
-     * 解析链（消费者选项 shell 名 → getComponentDeclaration 链（scope 局部 → `options.components`）→
-     * 本表 → 消费者内置默认）。只收外壳语义组件（出口协议 + 公共骨架）——loading 块 /
-     * error 组件 / tree-node / 消息 type renderer 不入此表。
-     *
-     * @default 内置四件种子 { message, dialog, popover, drawer }
-     */
-    uiShells?: Record<string, string>;
     /**
      * 图标种子表（ADR-0058 图标域的全局通道）：构造期并入全局图标注册表（`AutoSpark.icons`，
      * document 级多 engine 共享，注入全局 symbol `as-{name}`），同名静默覆盖。值为
@@ -201,17 +200,17 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      */
     tooltip?: false | TooltipOptions;
     /**
-     * 全局消息（ADR-0071）：引擎级子系统 `engine.messages` 的全局默认。三态：
+     * 全局通知（ADR-0071）：引擎级子系统 `engine.notifications` 的全局默认。三态：
      *
      * - 缺省：默认开启 + 内置默认（pos top-right / delayClose 3000 / showCount 5 / slide）；
-     * - `false`：**整体关闭**——不建容器、不注样式，`engine.messages`
+     * - `false`：**整体关闭**——不建容器、不注样式，`engine.notifications`
      *   别名与内置 `toast` / `confirm` / `task` action 一并 warn + no-op（死句柄，不给半开状态）；
      * - 配置对象：全局默认（与单次调用 props 同构，单次覆盖全局；`showCount` / `maxLen` /
      *   `url` / `headers` / `icons` / `shell` / `kinds` 为管理器级键，仅本层生效）。
      *
-     * @default 开启 + 内置默认（MessageOptions 各键见 ADR-0071 决策 4/15）
+     * @default 开启 + 内置默认（NotificationOptions 各键见 ADR-0071 决策 4/15）
      */
-    messages?: false | MessageOptions;
+    notifications?: false | NotificationOptions;
 }
 
 /**
@@ -251,32 +250,26 @@ export interface AutoSparkEvents {
     /** 工具提示隐藏（一切隐藏路径均广播：移出/聚焦离场/断连/stop/命令式） */
     "tooltip:hide": { el: HTMLElement; tip: HTMLElement };
 
-    // ── message:* 消息（ADR-0071 决策 20，双通道之总线侧；卡片元素 dispatchEvent 同步广播） ──
+    // ── notification:* 通知（ADR-0071 决策 20，双通道之总线侧；卡片元素 dispatchEvent 同步广播） ──
     /** 记录创建（payload：message = 组件实例（ADR-0089），el = 卡片根元素，排队未挂为 null） */
-    "message:add": { message: ComponentInstance; el: HTMLElement | null };
+    "notification:add": { notification: ComponentInstance; el: HTMLElement | null };
     /** 记录级补丁生效 / 同 id 原地更新 */
-    "message:update": { message: ComponentInstance; el: HTMLElement | null };
+    "notification:update": { notification: ComponentInstance; el: HTMLElement | null };
     /** 展示挂载（进场动画发起时） */
-    "message:show": { message: ComponentInstance; el: HTMLElement | null };
+    "notification:show": { notification: ComponentInstance; el: HTMLElement | null };
     /** 展示关闭（一切移除路径均广播：自动关闭 / hide() / delete() / clear() / destroy） */
-    "message:hide": { message: ComponentInstance; el: HTMLElement | null };
+    "notification:hide": { notification: ComponentInstance; el: HTMLElement | null };
     /** 已读置位（卡片任意点击 / markRead / markAllRead） */
-    "message:read": { message: ComponentInstance; el: HTMLElement | null };
+    "notification:read": { notification: ComponentInstance; el: HTMLElement | null };
     /** 业务状态补丁（status 键变更） */
-    "message:status": { message: ComponentInstance; el: HTMLElement | null };
+    "notification:status": { notification: ComponentInstance; el: HTMLElement | null };
     /** action 按钮点击（value 应答在此；anchor 存在时以发起子树为根额外派发，决策 14） */
-    "message:action": {
-        message: ComponentInstance;
+    "notification:action": {
+        notification: ComponentInstance;
         el: HTMLElement | null;
         action: { title: string; hide: boolean };
         value?: any;
     };
-    // ── toast:* 轻提示旧事件（ADR-0068 决策 17；ADR-0071 迁移期兼容——type='toast' 双发，随别名退役） ──
-    /** 轻提示显示（payload：toast = 组件实例（ADR-0089），el = 卡片根元素） */
-    "toast:show": { toast: ComponentInstance; el: HTMLElement | null };
-    /** 轻提示隐藏（一切移除路径均广播：自动关闭 / hide() / clear() / 原地更新替换 / destroy） */
-    "toast:hide": { toast: ComponentInstance; el: HTMLElement | null };
-
     // ── directive/** 指令生命周期（<name> 占位，跨主体通配） ──
     // scope 通道（Compile/Hybrid）：带 scope.id
     /** 指令 created（scope 通道） */
@@ -333,19 +326,5 @@ export type AutoSparkPresetVars = {
 
 export type AutoSparkVars = Record<string, any> & AutoSparkPresetVars;
 
-
-
-/**
- * `?raw` 静态资源导入声明（ADR-0091）：内置组件模板迁移为 .html / .css 文件，
- * `?raw` 后缀导入返回文件源文本（default 字符串）——Bun 运行时与 Vite 原生支持，
- * esbuild 链由 scripts/esbuild-raw-assets.ts 补齐，三条链语义一致。
- */
-declare module "*.html?raw" {
-    const content: string;
-    export default content;
-}
-
-declare module "*.css?raw" {
-    const content: string;
-    export default content;
-}
+// `?raw` 静态资源导入的类型声明住 src/types/raw.d.ts（ADR-0091/0094）——本文件是模块
+// （有顶层 export），declare module 在此为 augmentation 形态，wildcard 模式声明无效。

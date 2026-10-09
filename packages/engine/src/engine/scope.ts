@@ -557,14 +557,14 @@ export class AutoSparkScope {
      *
      * 消费者协议的核心查找：从本 scope 起，向上取首个含该名 component 的祖先 scope，
      * 命中即止（就近覆盖语义——内层 scope 的同名组件遮蔽外层、亦遮蔽全局）。scope 链无命中时
-     * 兜底查 `engine.options.components`（全局组件，字符串入参，懒预编译缓存），由
-     * `engine._resolveGlobalComponent` 解析/包装/缓存。整条链（含全局）无命中返回 undefined，
-     * 由消费者回退其默认实现（组件兜底）。
+     * 兜底查全局组件双注册位（`options.components` > `options.builtinComponents`，ADR-0094，
+     * 字符串入参懒预编译缓存），由 `engine._resolveGlobalComponent` 解析/包装/缓存。整条链
+     * （含全局）无命中返回 undefined，由消费者回退其默认实现（组件兜底）。
      *
      * 与 `getAction`/`getData` 的 parent 链查找范式同构（getAction 末端亦兜底 engine.actions）。
      * 供 x-loading 等 Compile/Hybrid 消费指令经 `this.binding.getComponentDeclaration(name)` 使用；
-     * Runtime 指令（无 binding）改用 `engine.getComponentDeclaration(el, name)`（经 el 反查 scope 后
-     * 委托本方法）。查**实例**（实例化后的组件）不经本方法，用 `engine.getComponent(el)`。
+     * Runtime 指令（无 binding）改用 `engine.getComponentDeclaration(name, el)`（经 el 反查 scope 后
+     * 委托本方法，反查失败退纯全局）。查**实例**（实例化后的组件）不经本方法，用 `engine.getComponent(el)`。
      *
      * @param name 组件名（消费者约定名，如 `loading`/`empty`/`error`；自由命名）
      * @returns 组件冻结快照 HTMLElement（未编译、保留指令属性），或 undefined（未命中）

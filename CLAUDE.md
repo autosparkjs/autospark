@@ -49,7 +49,7 @@ oxfmt
 
 ## 架构（packages/engine）
 
-**四层目录结构（ADR-0093）**：`src/directives/`（指令实现，文件名 = `x-` 规范指令名，注册表在 `directives/index.ts`）→ `src/features/`（特性机制：directive/component/overlay/tooltip/messages/icons/action/animate，横向 DAG 禁环）→ `src/engine/`（核心：engine 门面/scope/scheduler/compile）→ 最底层（`consts.ts`/`errors.ts`/`types/`/`utils/`）。数据资产层（`components/*.html`、`icons.ts`、`actions/` 内置动作）只存数据不存机制，被上层单向引用。`engine/engine.ts` 门面是**组装根**——全引擎唯一豁免分层规则的位置；`import type` 引用宽松豁免。
+**四层目录结构（ADR-0093）**：`src/directives/`（指令实现，文件名 = `x-` 规范指令名，注册表在 `directives/index.ts`）→ `src/features/`（特性机制：directive/component/overlay/tooltip/notifications/icons/action/animate，横向 DAG 禁环）→ `src/engine/`（核心：engine 门面/scope/scheduler/compile）→ 最底层（`consts.ts`/`errors.ts`/`types/`/`utils/`）。数据资产层（`components/*.html`、`icons.ts`、`actions/` 内置动作）只存数据不存机制，被上层单向引用。`engine/engine.ts` 门面是**组装根**——全引擎唯一豁免分层规则的位置；`import type` 引用宽松豁免。
 
 核心数据流：外部传入的 AutoStore（或裸状态自建 store）→ 编译期把模板树重建为运行树（剥除指令属性）→ 各指令在编译期用 `scope.watch` 订阅自己的状态路径 → 状态变更经 `UpdateScheduler` 微任务合并去重 → 各指令的 updateFn 重新求值并**只 patch 受影响节点**（不重建子树，保留焦点/滚动等运行态）。
 
@@ -79,7 +79,7 @@ oxfmt
 
 ## 决策文档（改机制前先读）
 
-- `packages/engine/docs/adr/` — ADR 0001~0093，源码注释大量以「ADR-XXXX 决策 N」形式回链。
+- `packages/engine/docs/adr/` — ADR 0001~0096，源码注释大量以「ADR-XXXX 决策 N」形式回链。
 - `packages/engine/CONTEXT.md` — 领域语言表（含每个术语的 Avoid 列表与已废弃词条，如 x-block → x-component → x-define、x-use → x-component、`.keep` → `.keepalive`）。
 - `packages/engine/docs/specs/` — 关键机制规格（engine-patch / 插值 / x-html / x-on action / 指令文档统一模板）。
 - `packages/engine/CLAUDE.md` 为模块级简版导航，工程约定以本文件为准。

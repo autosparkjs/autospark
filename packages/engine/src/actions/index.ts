@@ -18,7 +18,7 @@ import type { BuiltinActionSpec } from "../features/action/types";
  * 组装完整内置 action 表：注册键 → 展示标题（或 { title, handle } 自定义执行体）。
  *
  * engine 缺省（纯信号语境）时三件套落标题占位；有 engine 时绑定执行体
- * （转发 engine.messages.*，ADR-0071 决策 22/23）。
+ * （转发 engine.notifications.*，ADR-0071 决策 22/23）。
  */
 export function buildBuiltinActions(engine?: AutoSpark<any>): Record<string, BuiltinActionSpec> {
     return {

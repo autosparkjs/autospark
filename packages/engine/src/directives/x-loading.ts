@@ -623,7 +623,7 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
      */
     private _resolveLoadingComponent(): HTMLElement {
         if (this.el) {
-            const custom = this.engine.getComponentDeclaration(this.el, "loading");
+            const custom = this.engine.getComponentDeclaration("loading", this.el);
             if (custom) return custom;
         }
         // DEFAULT_BLOCK 字符串 → 解析取单根元素（parseHtmlFragment 已 trim，单顶级元素）

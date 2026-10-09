@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>notifications · 视觉定制与自定义外壳</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* 语义色换肤：定义在 :root / body 层（容器挂 body 下，业务容器上的变量继承不到） */
+            :root {
+                --autospark-notification-error-color: #d93025;
+                --autospark-notification-success-color: #1e8e3e;
+            }
+            /* className 主题通道：追加在卡片根的类。引擎样式后注入 head——主题选择器须带
+               .autospark-notification 提升 specificity 才能覆盖内置规则（单类同权重会被后声明者压过） */
+            .autospark-notification.my-message-theme {
+                border-radius: 999px;
+                padding: 8px 18px;
+            }
+            /* 自定义外壳的结构自由（props：type/title/icon/actions/closable… 全量数据域整包注入） */
+            .my-message {
+                background: #1f2937;
+                color: #fff;
+                padding: 10px 16px;
+                border-radius: 8px;
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            }
+            .my-message b {
+                margin-right: 8px;
+            }
+            .my-message .autospark-notification-close {
+                color: #fff;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="demo-app section">
+            <div class="block">
+                <button
+                    class="button"
+                    onclick="a.notifications.add({ title: 'className 圆角胶囊主题', level: 'success', className: 'my-message-theme' })"
+                >
+                    className 主题
+                </button>
+                <button class="button" onclick="a.notifications.add({ title: '语义色已按 :root 变量换肤', level: 'error' })">
+                    CSS 变量换肤（error 红）
+                </button>
+            </div>
+            <div class="block has-text-grey">
+                右侧两个引擎各自独立容器：上面走内置 shell + 主题定制；
+                下面整体换自定义外壳（options.notifications.shell 指向全局组件表，结构骨架全换）。
+            </div>
+            <div class="block" id="custom-app">
+                <button class="button is-dark">自定义外壳（暗色圆角）</button>
+            </div>
+        </div>
+        <script>
+            // 引擎一：内置 shell + className / CSS 变量定制
+            const a = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            // 引擎二：notifications.shell 指向全局组件表里的自定义结构
+            const b = new AutoSparkSpaces.AutoSpark(
+                document.getElementById("custom-app"),
+                {},
+                {
+                    components: {
+                        // props 注入：全量数据域整包（type / level / title / icon / actions / closable… 预解析后形态）；
+                        // 卡片根（引擎 wrapper）已自动携带 data-notification-type / data-notification-level（ADR-0079）
+                        "my-message": `<div class="my-message"><b x-text="type"></b><span x-html="title"></span></div>`,
+                    },
+                    notifications: { shell: "my-message", delayClose: 2500 },
+                },
+            );
+            document.querySelector("#custom-app button").onclick = () =>
+                b.notifications.add({ title: "我来自自定义外壳", level: "success" });
+        </script>
+    </body>
+</html>

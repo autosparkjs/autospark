@@ -77,7 +77,7 @@
 对象写法经 `Object.assign(el.style, value)` 合并，key 必须是 `CSSStyleDeclaration` 的属性名（驼峰，如 `fontSize`、`backgroundColor`），连字符（`font-size`）不生效。字符串写法用连字符没问题。
 :::
 
-`.transition` 修饰符可让样式变化自动过渡动画（注入默认 `transition:all 0.3s ease-in`，可用 `x-bind-options` 覆盖）。完整说明见 [x-style · 过渡动画 `.transition`](./x-style.md#过渡动画-transition)。
+`.transition` 修饰符可让样式变化自动过渡动画（注入默认 `transition:all 0.2s ease-in`，可用 `x-bind-options` 覆盖）。完整说明见 [x-style · 过渡动画 `.transition`](./x-style.md#过渡动画-transition)。
 
 ### 绑定布尔属性
 

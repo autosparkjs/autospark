@@ -1013,7 +1013,8 @@ describe("x-tree 拖拽（P3，决策 10）", () => {
 
 /** 懒加载/图标种子（x-icon.test.ts 清空全局注册表的同款防御，图形内容与断言无关） */
 function seedTreeIcons() {
-    for (const n of ["file", "folder", "folder-open", "unknown", "loading", "file-error", "checked", "unchecked", "semi-checked"]) {
+    // yes/no 供节点 iconField 覆盖用例（单名/逗号对）——全局注册表可能被 x-icon 等测试清空，本文件自足
+    for (const n of ["file", "folder", "folder-open", "unknown", "loading", "file-error", "checked", "unchecked", "semi-checked", "yes", "no"]) {
         if (!iconRegistry.has(n)) iconRegistry.add(n, `<svg viewBox="0 0 24 24"><rect/></svg>`);
     }
 }

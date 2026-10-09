@@ -78,7 +78,7 @@ export default defineConfig({
             { text: "动态模板", link: "/zh/guide/patch" },
             { text: "动画", link: "/zh/guide/animate" },
             { text: "工具提示", link: "/zh/guide/tooltip" },
-            { text: "消息", link: "/zh/guide/messages" },
+            { text: "通知", link: "/zh/guide/notifications" },
             { text: "Scope", link: "/zh/guide/scope" }
           ],
         },

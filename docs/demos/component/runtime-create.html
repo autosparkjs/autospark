@@ -191,6 +191,8 @@
                     // 严格单根契约：模板须「恰好一个带 x-define 的根元素」——不做自动包装
                     const def = engine.registerComponent(spec.code);
                     log(`registerComponent(${spec.label}) → ${def ? "已注册" : "失败（详见控制台 warn）"}`);
+                    // 场景三「重新挂载」的前置条件：role-admin 至少注册过一次
+                    if (def && key === "admin") roleAdminRegistered = true;
                     engine.state.show[key] = true;
                 };
             });
@@ -218,16 +220,32 @@
             };
 
             // ── 场景三：同名覆盖 ───────────────────────────────────────────────
+            let roleAdminRegistered = false; // 场景一或本场景任一注册成功后置真，供重挂载前置校验
             document.getElementById("btn-v2").onclick = () => {
+                const isOverride = roleAdminRegistered; // 此前注册过才构成覆盖（否则是首次注册）
                 const def = engine.registerComponent(ROLE.admin.next);
-                log(`registerComponent(role-admin v2) → ${def ? "覆盖完成" : "失败"}（控制台 warn 一次）`);
+                log(
+                    def
+                        ? isOverride
+                            ? "registerComponent(role-admin v2) → 覆盖完成（控制台 warn 一次）"
+                            : "registerComponent(role-admin v2) → 已注册（此前无同名组件，不构成覆盖）"
+                        : "registerComponent(role-admin v2) → 失败（详见控制台 warn）",
+                );
+                if (def) roleAdminRegistered = true;
             };
             document.getElementById("btn-remount").onclick = () => {
-                // 已实例化的组件持有自己的克隆，不被覆盖影响；重新挂载才取到新定义
+                if (!roleAdminRegistered) {
+                    log("role-admin 尚未注册——先在场景一点「管理员」，或先点上方「发布 role-admin v2」");
+                    return;
+                }
+                // 已实例化的组件持有自己的克隆，不被覆盖影响；重新挂载才取到新定义。
+                // false→true 须拆到两个宏任务：同一 tick 内的翻转会被 scheduler 按「flush 时取
+                // 累积值」合并为 no-op（x-if 幂等早退，实例不重建）。setTimeout 保证摘除 flush
+                // 先落地，不依赖 autostore「set 即同步通知」这一实现细节。
                 engine.state.show.remounted = false;
-                queueMicrotask(() => {
+                setTimeout(() => {
                     engine.state.show.remounted = true;
-                });
+                }, 0);
                 log("重新挂载一个 role-admin（x-if 重建 → 取最新定义）");
             };
 

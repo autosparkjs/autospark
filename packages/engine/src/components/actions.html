@@ -1,29 +1,29 @@
-<!-- actions 按钮行组件（autospark.messages.actions）：渲染 `actions` 数组为按钮行——纯渲染零行为，
-     点击闭环由 manager 卡片根委托收口（.autospark-message-action 委托契约类 + data-message-action
+<!-- actions 按钮行组件（autospark.notifications.actions）：渲染 `actions` 数组为按钮行——纯渲染零行为，
+     点击闭环由 manager 卡片根委托收口（.autospark-notification-action 委托契约类 + data-notification-action
      索引）。props 契约：`{ actions }`（resolved 按钮表，深层触发——数组换引用即刷新）。
      契约与 ADR 回链：ADR-0088/0092。 -->
-<div x-define="autospark.messages.actions">
-    <style global id="autospark-message-styles">
+<div x-define="autospark.notifications.actions">
+    <style global id="autospark-notification-styles">
     /* actions 独立行（link 形态，无边框）——内容行之后（本组件根） */
-    .autospark-message-actions {
+    .autospark-notification-actions {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 12px;
       margin-top: 6px;
     }
-    .autospark-message-action {
+    .autospark-notification-action {
       flex: none;
       border: none;
       background: none;
       padding: 0;
       font: inherit;
       font-size: 13px;
-      color: var(--autospark-message-accent, #409eff);
+      color: var(--autospark-notification-accent, #409eff);
       cursor: pointer;
     }
     </style>
-    <div class="autospark-message-actions" x-show="actions.length > 0" x-for="a of actions">
-        <button class="autospark-message-action" type="button" x-text="a.title" :data-message-action="actions.indexOf(a)"></button>
+    <div class="autospark-notification-actions" x-show="actions.length > 0" x-for="a of actions">
+        <button class="autospark-notification-action" type="button" x-text="a.title" :data-notification-action="actions.indexOf(a)"></button>
     </div>
 </div>

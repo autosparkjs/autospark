@@ -191,6 +191,13 @@ export interface ComponentDef {
      */
     inherit?: string;
     /**
+     * 内置原版标记（ADR-0094 命中点级接管判定）：该 def 的模板字符串与内置种子表原版逐字相同
+     * （懒预编译时判定）为 true——消费者（messages 装配等）据此决定走内置路径还是用户模板路径
+     * （scope 链 / `options.components` 命中恒为 false——胜出模板决定契约）。仅全局组件定义表
+     * 写入时标记；局部 x-define 无此概念（undefined）。
+     */
+    builtin?: boolean;
+    /**
      * 方法声明层表（ADR-0082 super 引用）：`[自身声明层 → 链根]` 升序，每层为该 def **自己声明**
      * 的 methods 原始对象（非合并结果）。解析期随继承逐层拼接（独立父以其 `setup.methods` 为单层）；
      * 非继承组件 / 全链无 methods 时为 undefined。实例化期挂 scope 驱动 `this.super` 的

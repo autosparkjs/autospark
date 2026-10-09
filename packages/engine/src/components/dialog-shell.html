@@ -1,0 +1,83 @@
+<!-- 模态面板 shell 组件（autospark.dialog，ADR-0094 点前缀）：面板层形态——边框/圆角/背景/箭头载体/内容出口，
+     不含遮罩（遮罩是引擎结构，mask 选项控制显隐，ADR-0062）。模板恒含箭头载体
+     （.autospark-overlay-arrow），显隐归引擎锚定判定。global 段 = 面板默认视觉，注册期注入、
+     同名覆盖整组替换（ADR-0087）。与 popover-shell 同构（形态语义分键：模态 / 裸面板），
+     样式段独立 id——接管任一键整组替换只影响本键。契约与 ADR 回链：ADR-0062/0077/0092/0094。 -->
+<div class="autospark-dialog" x-define="autospark.dialog">
+    <div x-slot></div>
+    <div class="autospark-overlay-arrow"></div>
+    <style global id="autospark-shell-styles">
+    /* 面板默认视觉（自 dialog 形态样式迁移，ADR-0062）：
+       - 面板相对定位（居中模式由遮罩 flex 承载；锚定模式被改写 fixed）+ 圆角 / 边框 / 背景
+         （data-overlay-border 标记下，border: true 默认开——外壳模式，Tippy 同构）；
+       - 箭头双伪元素（载体由 floating-ui arrow middleware 定位，ADR-0052 决策 24）：
+         ::before 带阴影菱形（8×8 旋转 45°，立体感）；::after 无阴影同色菱形尺寸外扩 1px
+         （10×10，对角半径 ≈7.07px）并按最终 placement 朝面板内侧偏移 4px（= 阴影模糊半径）：
+         内向覆盖 7.07+4 = 11.07px ≥ 阴影最远端 ≈10.66px（嵌入段阴影完整遮蔽），外向 7.07-4 =
+         3.07px < 5.66px（完全藏在带阴影菱形轮廓内，箭头尖锐度不受影响）。偏移方向经
+         data-overlay-placement 前缀选择器表达（placement 由定位管线写回面板）；
+       - border: true 时箭头双层变色融合（::before 变边框色、::after 变面板背景色并外扩至
+         12×12，留 ≈1.17px 边框色斜带——视觉 ≈1px，与面板 border 在两个交点连续）；
+       - 颜色 / 圆角经 --autospark-overlay-border / -bg / -radius 定制。 */
+    .autospark-dialog {
+      position: relative;
+      border-radius: var(--autospark-overlay-radius, 8px);
+    }
+    .autospark-dialog[data-overlay-border] {
+      border: 1px solid var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
+      background: var(--autospark-overlay-bg, #fff);
+      /* 面板投影（浮层 elevation）：形态归 shell（ADR-0062）——与边框/背景/圆角同由外壳统一
+         承担，不再要求内容组件自持阴影。柔和弥散投影，浮层与页面/遮罩拉开层次。 */
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+    }
+    .autospark-overlay-arrow {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      pointer-events: none;
+    }
+    .autospark-overlay-arrow::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--autospark-overlay-bg, #fff);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+      transform: rotate(45deg);
+    }
+    /* 无阴影覆盖层：尺寸外扩 1px（10×10，对角半径 ≈7.07px）+ 朝面板内侧偏移 4px（= 阴影模糊半径）——
+       内向覆盖到 ≈11.07px ≥ 阴影最远端 ≈10.66px（嵌入段阴影完整遮蔽）；外向 ≈3.07px 不出带阴影
+       菱形轮廓（5.66px），箭头尖锐度不受影响 */
+    .autospark-overlay-arrow::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      background: var(--autospark-overlay-bg, #fff);
+      transform: rotate(45deg);
+    }
+    .autospark-dialog[data-overlay-border] > .autospark-overlay-arrow::before {
+      background: var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
+    }
+    .autospark-dialog[data-overlay-border] > .autospark-overlay-arrow::after {
+      inset: -2px;
+    }
+    /* 覆盖层偏移方向 = 面板内侧（嵌入段所在方向）。语义推导（防反向）：
+       placement 'top' = 面板在锚点上方 → 箭头在面板底边 → 嵌入段是菱形上尖 → 覆盖层向上偏 -y；
+       placement 'left' = 面板在锚点左侧 → 箭头在面板右边（朝右侧锚点）→ 嵌入段是菱形左尖 → 向 -x。 */
+    [data-overlay-placement^="top"] > .autospark-overlay-arrow::after {
+      translate: 0 -4px;
+    }
+    [data-overlay-placement^="bottom"] > .autospark-overlay-arrow::after {
+      translate: 0 4px;
+    }
+    [data-overlay-placement^="left"] > .autospark-overlay-arrow::after {
+      translate: -4px 0;
+    }
+    [data-overlay-placement^="right"] > .autospark-overlay-arrow::after {
+      translate: 4px 0;
+    }
+    /* 裸面板 z-index（mask:false 形态：面板是容器直接子级） */
+    [data-autospark-overlays] > .autospark-dialog {
+      z-index: var(--autospark-overlay-z, 1000);
+    }
+    </style>
+</div>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>notifications · 外链（href）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- link：尾部 external 图标链接，新标签打开（target=_blank + rel=noopener noreferrer）。
+             点击不关闭通知、置已读——「可回访的轻通知」语义。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <button
+                    class="button"
+                    onclick="app.notifications.add({ title: '新版本可用', description: '点击外链图标查看发布说明', link: 'https://example.com/release', delayClose: 0, closable: true, level: 'info' })"
+                >
+                    带 link 的通知（sticky 手关）
+                </button>
+            </div>
+            <div class="block has-text-grey">
+                点击卡片尾部外链图标会在新标签打开链接——通知不关闭、自动置已读；
+                关闭请用右侧 ×。
+            </div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            // 已读演示：链接点击置已读，总线可观察
+            app.on("notification:read", (m) => console.log("已读:", m.payload.notification.id));
+        </script>
+    </body>
+</html>

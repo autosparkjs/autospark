@@ -3,6 +3,7 @@ import type { ComponentDataBasis, ComponentDef } from "../features/component/com
 import type { AutoSparkScope } from "../engine/scope";
 import { collectSlotContent } from "../utils/slot";
 import { parseHtmlFragment } from "../utils/transformElement";
+import { ERROR_COMPONENT_NAME } from "../components";
 
 /**
  * loader 成员属性值的字面量 url 判定（loader 专属，ADR-0065 决策二）：以 `/` `./` `../`
@@ -166,7 +167,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         // 值恰为纯标识符时附言迁移指引（旧定义写法 x-component="名" 与新实例化同形，指回 x-define）。
         let name = (this.attr ?? "").trim();
         // 点号组件名重建（ADR-0088）：指令解析器把属性参数的句点段切为修饰符
-        // （`x-component:autospark.messages.actions` → attr="autospark" + modifiers），而组件名
+        // （`x-component:autospark.notifications.actions` → attr="autospark" + modifiers），而组件名
         // 合法含点（`autospark.*` 引擎保留命名空间，ADR-0083）——按**升序候选回溯**拼接：
         // attr 起逐段并入修饰符试查组件表，首个命中者即组件名；短名优先命中时点号段保持
         // 修饰符语义（`x-component:counter.global` 的 .global 不受影响）。
@@ -454,9 +455,9 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
 
     /**
      * 呈现加载失败（ADR-0065 决策六/七）：自定义 error 声明走占位协议；缺省渲染内置 error
-     * 组件（getComponentDeclaration("error") 沿链 + 全局兜底 → 构造器默认内置），注入 error/message 与
-     * retry/close 闭包（back 按钮走内置 action，无需注入）。error 不自愈——恢复途径仅
-     * url 变化（响应式重入）或 retry。
+     * 组件（getComponentDeclaration(ERROR_COMPONENT_NAME) 沿链 + 全局兜底 → 构造器默认内置），
+     * 注入 error/message 与 retry/close 闭包（back 按钮走内置 action，无需注入）。error 不自愈
+     * ——恢复途径仅 url 变化（响应式重入）或 retry。
      */
     private _renderLoaderError(err: Error, cfg: ComponentLoaderConfig): void {
         this._clearHostContent();
@@ -470,7 +471,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             });
             return;
         }
-        const snapshot = this.binding.getComponentDeclaration("error");
+        const snapshot = this.binding.getComponentDeclaration(ERROR_COMPONENT_NAME);
         if (!snapshot) {
             this.warn(`x-component: ${message}（且 error 组件未注册，无错误呈现。）`);
             return;

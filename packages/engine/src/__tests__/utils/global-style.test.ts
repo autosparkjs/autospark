@@ -111,7 +111,7 @@ describe("x-define 全局样式（ADR-0087）", () => {
         // CSS 原样保留（非法声明由浏览器丢弃，引擎不代为改写）
         expect(containerOf()!.textContent).toContain("bind(color)");
         // global 段不进 bindMap → def.styleBinds 不含该表达式
-        const snap = engine.getComponentDeclaration(root.firstElementChild as HTMLElement, "gb")!;
+        const snap = engine.getComponentDeclaration("gb", root.firstElementChild as HTMLElement)!;
         const def = engine.getComponentDef(snap)!;
         expect(def.styles).toEqual([
             { css: ".gb { color: bind(color) }", global: true, id: undefined },
@@ -224,7 +224,7 @@ describe("x-define 全局样式（ADR-0087）", () => {
             },
         });
         expect(containerOf()).toBeNull(); // 懒预编译：未消费不解析
-        m.engine.getComponentDeclaration(m.root.firstElementChild as HTMLElement, "card");
+        m.engine.getComponentDeclaration("card", m.root.firstElementChild as HTMLElement);
         expect(containerOf()?.textContent).toContain(".lazy-g");
     });
 

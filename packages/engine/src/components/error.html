@@ -5,7 +5,7 @@
      布尔显隐键；retry/close 由 loader 场景注入 scope.actions，back 走内置 action（history.back()）。
      函数值不得入响应式 data 域（autostore 视为 computed——无限循环，实测抓栈证实）。
      契约与 ADR 回链：ADR-0065/0092。 -->
-<div x-define="error" class="as-error">
+<div x-define="autospark.error" class="as-error">
     <style global id="autospark-error">
     .as-error { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 24px; color: #888; font-size: 14px; }
     .as-error-icon { display: inline-flex; width: 28px; height: 28px; color: #c0c4cc; }

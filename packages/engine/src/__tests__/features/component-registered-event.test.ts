@@ -104,7 +104,7 @@ describe("components/<名>/registered 注册事件（ADR-0085）", () => {
         expect(got[0].name).toBe("greet");
         expect(got[0].global).toBe(true);
         // 再次查找走缓存命中：不重发（retain 数量不变）
-        engine.getComponentDeclaration(root.firstElementChild as HTMLElement, "greet");
+        engine.getComponentDeclaration("greet", root.firstElementChild as HTMLElement);
         expect(collect(engine, "components/greet/registered").length).toBe(1);
     });
 

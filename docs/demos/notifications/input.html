@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>notifications · 入参三态与句柄</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!-- 入参形态：字符串 ≡ { title } / 配置对象承载全部保留键 /
+             async factory 挂起期 session.hide() = 取消。返回 AutoSparkNotificationSession 会话
+             （read/status/result 只读，写走 update）。 -->
+        <div class="demo-app section">
+            <div class="block">
+                <button class="button" onclick="app.notifications.add('已保存')">add("已保存")</button>
+                <button class="button" onclick="addObj()">add({ title, type, delayClose })</button>
+                <button class="button is-warning" onclick="addFactory()">add(async () => …)</button>
+                <button class="button is-danger is-light" onclick="cancelPending()">挂起期 hide() 取消</button>
+            </div>
+            <div class="block has-text-grey">
+                点「async factory」立即点「取消」——工厂 resolve 前句柄被取消，结果不再弹出；
+                不取消则 1 秒后弹出迟到数据。句柄字段实时显示在下方。
+            </div>
+            <div class="block"><pre id="state" class="has-background-light" style="padding: 8px">句柄状态：尚无调用</pre></div>
+        </div>
+        <script>
+            const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+            const state = document.getElementById("state");
+            let pending = null;
+
+            function dump(label, task) {
+                state.textContent =
+                    `句柄状态：${label}\n` +
+                    `  id=${task.id}  type=${task.type}  closed=${task.closed}\n` +
+                    `  read=${task.read}  status=${task.status}  result=${JSON.stringify(task.result)}`;
+            }
+
+            function addObj() {
+                const task = app.notifications.add({ title: "同步完成", level: "success", delayClose: 1500 });
+                dump("配置对象", task);
+            }
+
+            function addFactory() {
+                pending = app.notifications.add(async () => {
+                    await new Promise((r) => setTimeout(r, 1000));
+                    return { title: "迟到数据（1 秒工厂）", level: "info" };
+                });
+                dump("async factory 挂起中", pending);
+                setTimeout(() => pending && dump("async factory 已 resolve", pending), 1200);
+            }
+
+            function cancelPending() {
+                if (pending) {
+                    pending.hide(); // 挂起期 hide = 取消：resolve 后静默不弹
+                    dump("已取消（closed=true）", pending);
+                    pending = null;
+                }
+            }
+        </script>
+    </body>
+</html>
