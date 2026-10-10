@@ -6,66 +6,47 @@
     <script src="/autospark/autospark.js"></script>
     <link rel="stylesheet" href="/autospark/bulma.min.css" />
     <style>
+      /* 工具栏类会随克隆壳延续到弹出面板——面板与容器视觉一致、子元素沿用同一套后代样式 */
       .toolbar {
         border: 1px solid #dbdbdb;
         border-radius: 8px;
-        width: 440px;
-      }
-      .tool {
-        padding: 6px 8px;
-        font-size: 13px;
-        white-space: nowrap;
-      }
-      .tool.head {
-        background: #f5f5f5;
-      }
-      .tool.main {
-        background: #fbfbfc;
-      }
-      .tool.foot {
-        background: #ececee;
-      }
-      .tool + .tool {
-        border-left: 1px solid #e8e8e8;
+        padding: 6px 10px;
+        gap: 6px;
+        background: #fff;
       }
     </style>
   </head>
   <body style="overflow:auto">
     <div class="demo-app section">
-      <div x-data>
-        <div class="block has-text-grey is-size-7">
-          拖动容器右缘手柄（x-resize）压缩宽度：分区被压溢出时 footer 先折入弹出面板（more
-          图标，hover 展开）、header 被压溢出再收（menu 图标）；body 恒弹性永不收缩。弹出面板
-          内容跨开关保留（输入框文字不丢）。
-        </div>
-        <div
-          class="toolbar"
-          x-block="row"
-          x-block-options="{ gap: 4 }"
-          x-resize
-          @block:collapse="collapsed = collapsed + 1"
-          @block:expand="collapsed = collapsed - 1"
-        >
-          <div class="tool head" x-block:header>
-            <input class="input is-small" style="width: 110px" placeholder="搜索…" />
-          </div>
-          <div class="tool main" x-block:body>
-            <b>主体</b> · 两端被压溢出即折入弹出面板，body 恒吸收剩余空间
-          </div>
-          <div class="tool foot" x-block:footer>
-            <button class="button is-small">新建</button>
-            <button class="button is-small">导出</button>
-            <input class="input is-small" style="width: 90px" placeholder="备注" />
-          </div>
-        </div>
-        <div class="field mt-2">
-          <span class="tag is-info is-light">当前收缩分区数：<b x-text="collapsed"></b></span>
-          <span class="tag is-light">拖右缘手柄调节宽度</span>
-        </div>
+      <div class="block has-text-grey is-size-7">
+        拖动滑块改窄容器：末尾按钮逐个折入「更多」面板（hover 展开查看）；改宽自动按原序还原。
+        面板外壳即容器克隆——<code>.toolbar</code> 的边框、间距、底色在面板内原样生效。
+      </div>
+      <div class="field">
+        <input
+          id="resizer"
+          type="range"
+          min="140"
+          max="560"
+          value="560"
+          style="width: 560px; max-width: 100%"
+        />
+      </div>
+      <div id="tb" x-block="row" class="toolbar" style="width: 560px">
+        <button class="button is-small">新建</button>
+        <button class="button is-small">编辑</button>
+        <button class="button is-small">删除</button>
+        <button class="button is-small">导入</button>
+        <button class="button is-small">导出</button>
+        <button class="button is-small">刷新</button>
+        <button class="button is-small">打印</button>
       </div>
     </div>
     <script>
-      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), { collapsed: 0 });
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+      document.getElementById("resizer").addEventListener("input", (e) => {
+        document.getElementById("tb").style.width = e.target.value + "px";
+      });
     </script>
   </body>
 </html>

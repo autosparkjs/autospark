@@ -1,6 +1,13 @@
 import type { AutoSparkEvents, AutoSparkOptions, AutoSparkVars } from "../types";
 import type { ComponentDef } from "../features/component/component-def";
 import { DirectiveManager } from "../features/directive/manager";
+import {
+    defineDirective as defineDirectiveImpl,
+    setupGlobalDirectiveQueue,
+    unregisterLiveEngine,
+} from "../features/directive/global-queue";
+import type { DirectiveSpec } from "../features/directive/global-queue";
+import type { AutoSparkDirectiveBase } from "../features/directive/base";
 import { AutoSparkCompiler } from "./compile/compiler";
 import { AutoStore, ConfigManager, FastEvent, isAutoStore } from "autostore";
 import type { AutoStoreOptions } from "autostore";
@@ -71,6 +78,20 @@ export class AutoSpark<
      * 声明入口三通道：模板 `x-icons.global`（ADR-0058）/ 本表编程注册 / 构造 `options.icons` 种子。
      */
     static readonly icons: IconRegistry = iconRegistry;
+
+    /**
+     * 定义外部指令并**立即加入全局安装队列**（定义即全局安装，ADR-0100 决策 10）：
+     * 造类（继承 `AutoSparkDirectiveBase`）→ 安装器入队（存活 engine 即时生效；尚无 engine
+     * 则待首个构造消费）→ 返回类本身（可组合、可测试）。
+     *
+     * spec 为最小键集（`name` 必填 / `kind` / `priority` / 六个实例钩子）；结构指令、元素名
+     * 指令、类级钩子（`initialize`/`dispose`）等高级形态请直接继承基类并经
+     * `engine.directives.set` / `install` 注册。script 场景经 IIFE 全局
+     * `AutoSparkSpaces.AutoSpark.defineDirective(...)` 取用。
+     */
+    static defineDirective(spec: DirectiveSpec): typeof AutoSparkDirectiveBase {
+        return defineDirectiveImpl(spec);
+    }
 
     /** 挂载容器（编译产物替换其子节点，容器本身保留） */
     readonly el: HTMLElement;
@@ -184,6 +205,10 @@ export class AutoSpark<
         this.scheduler = new UpdateScheduler(this);
         this.compiler = new AutoSparkCompiler(this);
         this.directives = new DirectiveManager(this);
+        // 外部指令全局安装队列（ADR-0100 决策 3/4）：首次调用 Proxy 化
+        // `window.__AUTOSPARK_DIRECTIVES__`，随后全量消费现有队列 → 本 engine（安装器在
+        // autostart compile 前注册，保证参与首次编译），并入存活表（push trap 的广播目标）
+        setupGlobalDirectiveQueue(this);
         this.dispatcher = new RuntimeObserverDispatcher(this);
         // 进出场动画服务（ADR-0039）：样式注入须早于首次状态变化驱动的挂卸
         this.animate = new AutoSparkAnimator();
@@ -1317,6 +1342,8 @@ export class AutoSpark<
         this.emit("engine/destroy/before");
         // 类级销毁：对所有已 initialize 的指令类调用 static dispose(engine)。
         this.directives.disposeAll();
+        // 摘除全局安装队列存活表（ADR-0100 决策 12）：销毁后不再触达晚到的安装器
+        unregisterLiveEngine(this);
         // 断开 runtime 共享 observer + 卸载全部 live 实例（先于 DOM 清理，避免拆 DOM 时空转回调）
         this.dispatcher.dispose();
         this.scheduler.clear();

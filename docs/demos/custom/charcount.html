@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>自定义指令 · 字数统计（Hybrid 通道）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 示例二：x-charcount 订阅 note，输入时字数自动刷新（scope.watch 反应式） -->
+        <div class="demo-app section" x-data="{ note: '你好，AutoSpark。' }">
+            <textarea class="textarea" x-model="note" rows="3"></textarea>
+            <p class="mt-2">
+                当前字数：<strong class="has-text-primary" x-charcount="note"></strong>
+            </p>
+        </div>
+
+        <script>
+            // Hybrid 通道：created 内 binding.watch 建立反应式订阅（退订由 scope 统一管理）
+            AutoSparkSpaces.AutoSpark.defineDirective({
+                name: "charcount",
+                kind: 2, // Hybrid：scope 通道反应式 + observer 通道生命周期
+                created() {
+                    const apply = (v) => (this.el.textContent = `${String(v ?? "").length} 字`);
+                    // watch 返回初始值；this.value 即表达式 "note"，沿 scope 链求值
+                    apply(this.binding.watch(this.value, ({ value }) => apply(value)));
+                },
+            });
+
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                note: "你好，AutoSpark。",
+            });
+        </script>
+    </body>
+</html>

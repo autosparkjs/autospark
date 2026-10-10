@@ -43,13 +43,6 @@ export const POPOVER_SHELL_NAME = "autospark.popover";
 export const DRAWER_SHELL_NAME = "autospark.drawer";
 /** 内置错误呈现组件 */
 export const ERROR_COMPONENT_NAME = "autospark.error";
-/**
- * x-block 溢出面板载体（popover-shell 同模板别名）：**点自由名**——声明式消费 attr
- * （`x-popover:名`）经修饰符语法解析，点号会被截断为修饰符（attr="autospark" + .popover），
- * 点前缀注册名（autospark.popover）无法经 attr 声明；x-block 预置触发按钮的声明载体
- * 用此别名（同模板同视觉，用户同名遮蔽定制照常）。
- */
-export const BLOCK_PANEL_NAME = "block-popover";
 
 /**
  * 内置组件种子表（ADR-0092 单文件化 → ADR-0094 注册位化 → ADR-0095 通知族单层化 →
@@ -67,5 +60,4 @@ export const BUILTIN_COMPONENTS: Record<string, string> = {
     [POPOVER_SHELL_NAME]: POPOVER_SHELL_TEMPLATE,
     [DRAWER_SHELL_NAME]: DRAWER_SHELL_TEMPLATE,
     [ERROR_COMPONENT_NAME]: ERROR_TEMPLATE,
-    [BLOCK_PANEL_NAME]: POPOVER_SHELL_TEMPLATE,
 };

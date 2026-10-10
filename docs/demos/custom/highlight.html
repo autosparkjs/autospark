@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>自定义指令 · 高亮（Runtime 通道）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 示例一：x-highlight 字面量施色；:x-highlight 绑定驱动属性变化 → attrChanged 原地换色 -->
+        <div class="demo-app section" x-data="{ color: 'pink' }">
+            <div class="block">
+                <p x-highlight="lemonchiffon" class="p-2">
+                    字面量施色：<code>x-highlight="lemonchiffon"</code>（this.value 为属性原值）
+                </p>
+                <p :x-highlight="color" class="p-2">
+                    绑定驱动：<code>:x-highlight="color"</code>（属性变化触发 attrChanged，原地更新不重挂）
+                </p>
+            </div>
+            <div class="buttons">
+                <button class="button is-primary is-small" @click="color = 'lightgreen'">绿色</button>
+                <button class="button is-info is-small" @click="color = 'lightblue'">蓝色</button>
+                <button class="button is-warning is-small" @click="color = 'pink'">粉色</button>
+            </div>
+        </div>
+
+        <script>
+            // Runtime 通道：defineDirective 一步到位（须在 new AutoSpark 之前定义，参与首次编译）
+            AutoSparkSpaces.AutoSpark.defineDirective({
+                name: "highlight",
+                kind: 1, // Runtime：observer 通道，属性保留在结果 DOM
+                mounted() {
+                    this.el.style.backgroundColor = this.value || "yellow";
+                },
+                attrChanged(newVal) {
+                    this.el.style.backgroundColor = newVal || "yellow";
+                },
+                unmounted() {},
+            });
+
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                color: "pink",
+            });
+        </script>
+    </body>
+</html>

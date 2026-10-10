@@ -144,7 +144,7 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     // 行为组合 expandable/resize/splitter）；x-pane 为名位标记（收集/剪枝由 layout 接管，孤儿 warn）
     layout: LayoutDirective,
     pane: PaneDirective,
-    // x-block 布局条（ADR-0098）：行内三段分区布局（x-block:header|body|footer 标记）
-    // + 溢出折叠（渐进链 footer→header，组合 popover shell hover 面板，stash 常驻）
+    // x-block 溢出折叠容器（ADR-0098 重写版）：flex nowrap 布局 + 溢出子元素折叠进
+    // 宿主克隆壳面板（x-popover hover 接管，stash 真实搬移跨开关保态）
     block: BlockDirective,
 };

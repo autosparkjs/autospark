@@ -2,29 +2,21 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>x-block · 快速入门</title>
+    <title>x-block · 布局与伸缩比值</title>
     <script src="/autospark/autospark.js"></script>
     <link rel="stylesheet" href="/autospark/bulma.min.css" />
     <style>
       .blk {
         border: 1px solid #dbdbdb;
-        border-radius: 8px; 
+        border-radius: 8px;
+        padding: 6px 10px;
+        gap: 8px;
       }
-      /* 三段分区以不同淡灰背景区分 */
-      .seg {
-        padding: 8px 10px;
-        font-size: 13px;
-      }
-      .seg.head {
-        background: #f5f5f5;
+      .blk .title {
+        white-space: nowrap;
         font-weight: 600;
-      }
-      .seg.main {
-        background: #fbfbfc;
-      }
-      .seg.foot {
-        background: #ececee;
-        color: #555;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     </style>
   </head>
@@ -32,17 +24,18 @@
     <div class="demo-app section">
       <div x-data="{ dir: 'row' }">
         <div class="block has-text-grey is-size-7">
-          三段分区（灰度由浅到深：header / body / footer）。body 恒为弹性区，header/footer
-          随容器压缩、被压溢出时折入弹出面板。切换方向观察换轴重排。
+          子元素默认不伸不缩；<code>data-grow</code> 的标题吸收剩余空间（空间不足时它不收缩、和其余子元素一样照常折叠）。
+          切换方向观察换轴。
         </div>
         <div class="field is-grouped">
           <button class="button is-small" @click="dir = 'row'" :class="{ 'is-link': dir === 'row' }">row</button>
           <button class="button is-small" @click="dir = 'column'" :class="{ 'is-link': dir === 'column' }">column</button>
         </div>
-        <div class="blk" x-block="dir" x-block-options="{ gap: 8, align: 'center' }">
-          <div class="seg head" x-block:header>头部</div>
-          <div class="seg main" x-block:body>主体内容——flex-grow:1 吸收剩余空间，align 控制主轴对齐</div>
-          <div class="seg foot" x-block:footer>尾部</div>
+        <div class="blk" x-block="dir" style="width: 460px">
+          <span class="title" data-grow>自动扩大的标题——吸收剩余空间</span>
+          <button class="button is-small">保存</button>
+          <button class="button is-small">取消</button>
+          <button class="button is-small">删除</button>
         </div>
       </div>
     </div>

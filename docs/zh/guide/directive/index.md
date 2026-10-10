@@ -20,7 +20,7 @@
 
 ### 指令名由注册表决定
 
-指令名由预设注册表 `presetDirectives` 的 key 标识（如 `text` / `if` / `for` / `on` / `bind`），**不是**类的 `Function.name`。当前已注册：`text` `html` `if` `else-if` `else` `switch` `case` `default` `show` `for` `tree` `data` `bind` `on` `model` `loading` `isolate` `scope` `dialog` `component` `define` `slot` `import` `form` `field` `icon` `icon-define`。`x-class` / `x-style` 会在解析期归一化为 `x-bind`，不单独注册。
+指令名由预设注册表 `presetDirectives` 的 key 标识（如 `text` / `if` / `for` / `on` / `bind`），**不是**类的 `Function.name`。当前已注册：`text` `html` `if` `else-if` `else` `switch` `case` `default` `show` `for` `tree` `data` `bind` `on` `model` `loading` `isolate` `teleport` `scope` `dialog` `popover` `drawer` `component` `define` `slot` `super` `import` `form` `field` `icon` `icons` `resize` `splitter` `expandable` `layout` `pane` `block`。`x-class` / `x-style` 会在解析期归一化为 `x-bind`，不单独注册。自定义指令的注册见[自定义指令](./custom.md)。
 
 ### 一条声明的组成
 

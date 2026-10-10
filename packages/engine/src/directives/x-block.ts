@@ -1,114 +1,95 @@
-import { AutoSparkDirectiveBase } from "../features/directive/base";
+import { AutoSparkDirectiveBase, DirectiveKind } from "../features/directive/base";
 import type { AutoSpark } from "../engine/engine";
-import type { AutoDirectiveInfo } from "../features/directive/types";
-import { BLOCK_PANEL_NAME } from "../components";
+import type { AutoSparkScope } from "../engine/scope";
+import { buildComponentDef } from "../engine/compile/collect";
 import type { OverlayInstance } from "../features/overlay/instance";
 
 /**
- * x-block：布局条（ADR-0098）——行内三段条状布局 + 溢出折叠。
+ * x-block：溢出折叠容器（ADR-0098 重写版，与旧三段分区模型无承继）。
  *
- * **双角色指令**（一名一义，attr 分流）：`x-block="row|column"`（attr 空）是容器实例，
- * ownsChildren 接管子树；`x-block:header|body|footer`（attr 非空）是分区标记——正常流程
- * 由容器在收集期剥除标记属性（永不实例化），孤儿场景（深层 / 无容器祖先）实例化本类 →
- * warn 诊断、元素照常编译（x-pane 名位标记同型，合一在本类）。
+ * **布局契约**：宿主 `display:flex` + `nowrap` + `align-items:center`；全部直接子元素默认
+ * `flex-grow:0` / `flex-shrink:0`（不伸不缩，溢出交给折叠机制而非压缩）；子元素以
+ * `data-grow` / `data-shrink` 契约属性直通 CSS `flex-grow` / `flex-shrink`（只写属性 = 1，
+ * 显式数值原样、`"0"` = 显式关闭、非法/负值 warn + 回退 1；两属性互相独立、无隐含，
+ * 无豁免类别——所有子元素均可被折叠）。
  *
- * **布局契约**（ADR-0098 决策三）：容器 flex + `align-items:stretch`（分区等高）、分区
- * 内部 `align-items:center`（内容交叉轴居中）——两级分离化解「等高」与「居中」的表面矛盾；
- * 三段 nowrap；body flex-grow:1 恒为弹性区，header/footer 默认收缩系数（**不设 shrink:0**，
- * 决策四修订——定容会让分区永不缩小、溢出折叠失灵）。值 = row|column
- * 表达式（响应式换轴重排，x-splitter 先例；非 "column" 一律归一 row）。分区按语义序
- * 渲染（header → body → footer，追加序即文档序，无需 CSS order）；body 缺失不 warn
- * 静默空渲染（用户裁决，否决 x-layout content 的 warn 先例）；重复分区首胜 + warn；
- * 未标记渲染子元素 warn + 丢弃，`<template>`/`<script>`/文本静默容忍。
+ * **指令值 = 轴**（响应式）：裸词 `row` / `column` 按字面量（书写主轴场景，非法字面量
+ * warn + 保持 row）；其余按 scope 表达式求值（结果 "column" → column，其余归一 row，
+ * 静默归一如 x-splitter 先例），状态变化换轴——换轴时折叠子元素全部按原位锚复位后
+ * 按新轴全量重算。
  *
- * **选项**（编译期静态，gap/padding/align 不热应用）：
- * - `gap` / `padding`：number（px）/ CSS 长度串原样，非法 warn + 忽略；
- * - `align`：`start|center|end`（默认 start）——轴无关逻辑值，写 body 的 justify-content
- *   （CSS 变量承载）；left/right 等旧值 warn + 忽略；
- * - `overflow`：`false` 整体禁用溢出折叠（默认开启）；
- * - `delayShow` / `delayHide`：透传为分区触发按钮的 `x-popover-options`（popover 悬浮
- *   模型的开关延迟，缺省不注入——PopoverDirective 默认 200/150ms 生效）；
- * - `headerPlacement` / `footerPlacement`：分区弹出方位（floating-ui placement 值），
- *   显式配置 = 用户权威不再随轴翻转；未配置按轴推导默认（row：bottom-start/bottom-end，
- *   column：right-start/right-end），换轴热更经 popover 指令实例 options 重写。
- * - `bodyMinSize`：body 收缩下限（row 为宽 / column 为高，默认 120px）——容器缩小时
- *   body 优先吸收、压到下限后退出收缩（flex min 钳制），剩余压缩量全部落在 header/footer，
- *   两端被压溢出才触发折入（收缩次序：body 吸收 → 两端压缩 → 两端折入，决策三修订）。
+ * **溢出折叠**（核心机制，布局数学直读 + 步进收敛）：shrink:0 + nowrap 保证溢出态下
+ * `scrollWidth` = Σ子元素自然宽 + gap——「是否溢出」直读 `scrollMain > clientMain`，
+ * 无需逐元素理论求和。步进循环每步一次真实布局：溢出 → 折叠最后一个**可见**子元素
+ * （缓存自然尺寸 + 原位锚，真实搬移出文档存 stash）；有富余 → 从栈顶试恢复（
+ * `scroll + gap + 缓存尺寸 ≤ client` 才放回，失败即停；防「多折一个」的自愈回看）。
+ * grow 只在正剩余空间生效而折叠只发生在溢出态，故缓存测量不受 grow 拉伸污染。
+ * 宿主 `min-width`（column 对称 `min-height`）= 触发按钮尺寸（写入后不撤，保证按钮
+ * 永不被挤没）。
  *
- * **溢出折叠**（ADR-0098 决策四/五/六）：**分区级溢出检测**（分区被 flex 压缩后自身主轴
- * scrollWidth/Height > client + 1px 容差——「尺寸较小」的直接信号；ResizeObserver + window
- * resize + 宿主 childList MutationObserver 三通道重估）驱动渐进收缩链——footer 溢出先收
- * footer、header 溢出再收 header，body 永不收（body 溢出由容器 overflow:hidden 恒挂裁切）。
- * 收缩 = 分区子节点 reparent 进 stash 容器（实例持有，DOM 态跨开关保留）+ 分区挂
- * `x-block-collapsed` 类（用户 CSS 断言面；触发按钮常驻分区、display 随类切换）。
+ * **触发通道**（ResizeObserver 宿主 + 子元素 / MutationObserver childList + data-grow·
+ * data-shrink 属性 / window resize 兜底）任一变化即全量重算——「绑定生效但布局不跟随」
+ * 的静默失效零容忍（子元素增删、伸缩比值变化、内容尺寸变化全部跟随）。
  *
- * **弹出面板 = x-popover 指令全权接管**（ADR-0098 决策五修订二）：触发按钮在分区子树
- * 编译期预置并声明 `x-popover:autospark.popover`——PopoverDirective（ADR-0060 悬浮模型）
- * 完整接管开关 / 定位 / 动画 / shell 解析 / delayShow·delayHide / 组件等待重试，x-block
- * 零自建弹层管理。x-block 只补两件事：
- * - **内容注入**：订阅 `overlay:open` 广播，按 at.selector 认领本指令按钮打开的实例 →
- *   把 stash 挂入面板（活 DOM 内容无声明式投影通道，注入是唯一旁路）；
- * - **键盘通道**（共识 Q16）：按钮 keydown Enter/Space → 模拟 mouseenter/mouseleave
- *   （PopoverDirective 是纯 hover 模型；Escape 关闭由 shell 既有能力承担）。
- * **常驻语义**：内容折叠期间常驻 stash、开关仅显隐——覆盖物实例「关闭即销毁」（ADR-0052
- * 修订共识 5），故订阅 `overlay:close` 广播在面板 DOM 尚在时把 stash 摘回（脱离文档但
- * 完整保留），下次打开重新挂入——控件状态跨开关保留。
+ * **弹出面板**：溢出时宿主末尾显示 more 触发按钮（内置 `more` 图标 + aria-label，键盘
+ * Enter/Space 等价开关），声明 `x-popover` 交由 PopoverDirective（ADR-0060 hover 模型）
+ * 全权接管开关/定位/动画。**面板外壳 = 宿主元素浅克隆**（清洗指令/绑定属性后加
+ * `autospark-block-panel` 标识类 + 内嵌 `x-slot` 出口，编程式注册为组件）——用户在宿主
+ * 类上的样式上下文（gap、后代选择器、主题变量）在面板内原样延续；`x-block-options.shell`
+ * 可指定自定义外壳组件名（须提供默认出口）替换默认克隆壳。折叠子元素经 `overlay:open`
+ * 广播认领后挂入面板出口，`overlay:close` 动画窗口内摘回 stash（脱离文档持有，控件
+ * 状态跨开关保留）。
  *
- * **事件**：`block:collapse` / `block:expand`（宿主派发、冒泡，`detail = { part }`）。
+ * **不做**（v1 裁决）：无事件广播、无 more 定制入口、`x-block-options` 仅 `shell` 一键。
  */
-
-/** 分区参数词表（渲染语义序） */
-export type BlockPart = "header" | "body" | "footer";
-const PART_ORDER: BlockPart[] = ["header", "body", "footer"];
 
 /** 容器契约类（全局样式选择器基准） */
 const BLOCK_CLASS = "autospark-block";
-/** 分区契约属性（`data-block-part="header|body|footer"`） */
-const PART_ATTR = "data-block-part";
-/** 收缩态标识类（ADR-0098 决策七：用户裁决 class 而非 data-*） */
-const COLLAPSED_CLASS = "x-block-collapsed";
-/** 分区内预置的 popover 触发按钮（编译期声明 x-popover，PopoverDirective 接管开关） */
+/** 面板标识类（宿主浅克隆壳承载；面板内垂直堆叠布局挂此类） */
+const PANEL_CLASS = "autospark-block-panel";
+/** more 触发按钮（容器直接子元素，flex-shrink:0；未溢出 display:none 不参与布局不计 gap） */
 const TRIGGER_CLASS = "autospark-block-trigger";
 
-/** 溢出检测容差（px）：亚像素舍入不误触发 */
-const OVERFLOW_TOLERANCE = 1;
+/**
+ * 共享空内容组件名（点自由名——`x-popover:名` attr 经修饰符语法解析，点号会被截断）。
+ * popover 通道要求 attr 必填（内容组件），实际内容由指令经 overlay 广播挂入面板出口，
+ * 此载体仅满足通道契约；`display:contents` 不产生盒子、不参与面板布局。
+ */
+const CONTENT_COMPONENT_NAME = "autospark-block-content";
 
-/** 各分区收缩后的触发图标（全局 sprite 名，icons.ts 内置表） */
-const PART_TRIGGER_ICON: Record<BlockPart, string> = { header: "menu", body: "more", footer: "more" };
-const PART_TRIGGER_LABEL: Record<BlockPart, string> = { header: "菜单", body: "更多", footer: "更多" };
-
-// 全局样式（类级 initialize 注入，幂等；CSS 变量定制视觉，ADR-0098）
+// 全局样式（类级 initialize 注入，幂等；CSS 变量定制视觉）
 const BLOCK_STYLE_ID = "autospark-block-styles";
 const BLOCK_CSS = `
-.autospark-block{display:flex;align-items:stretch;overflow:hidden;}
+.autospark-block{display:flex;flex-wrap:nowrap;align-items:center;overflow:hidden;}
 .autospark-block[data-direction="column"]{flex-direction:column;}
-/* 分区：等高（stretch 由容器承担）+ 内容交叉轴居中；nowrap 契约；min-*:0 允许收缩与溢出检测准确。
-   header/footer 不设 flex-shrink:0（ADR-0098 决策四修订）：三段随容器变窄等比压缩，分区被压溢出
-   （自身 scrollWidth > clientWidth）即「尺寸较小」信号——定容收缩会让分区永不缩小、溢出折叠失灵 */
-.autospark-block>[${PART_ATTR}]{display:flex;align-items:center;min-width:0;min-height:0;white-space:nowrap;}
-/* body 恒弹性 + 收缩下限（ADR-0098 决策三修订，用户裁决）：容器缩小时 body 优先吸收（grow:1），
-   压到 bodyMinSize 下限后 flex min 钳制使其退出收缩——剩余压缩量全部落在 header/footer，
-   两端被压溢出才触发折入（收缩次序：body 吸收 → 两端压缩 → 两端折入）；
-   align 选项经 CSS 变量落在 body 主轴 */
-.autospark-block>[${PART_ATTR}="body"]{flex-grow:1;justify-content:var(--autospark-block-align,flex-start);}
-.autospark-block[data-direction="row"]>[${PART_ATTR}="body"]{min-width:var(--autospark-block-body-min,120px);}
-.autospark-block[data-direction="column"]>[${PART_ATTR}="body"]{min-height:var(--autospark-block-body-min,120px);}
-/* 触发按钮常驻分区（编译期预置、x-popover 接管开关）：未收缩时隐藏（display:none 不响应 hover），
-   收缩类挂上即显示——display 切换与收缩态单一真相（COLLAPSED_CLASS）绑定 */
-.autospark-block>[${PART_ATTR}]>.${TRIGGER_CLASS}{display:none;}
-.autospark-block>[${PART_ATTR}].${COLLAPSED_CLASS}>.${TRIGGER_CLASS}{display:inline-flex;}
-/* 触发按钮视觉（引擎 chrome，样式自治；对齐 splitter divider / expandable trigger 契约） */
-.autospark-block>[${PART_ATTR}]>.${TRIGGER_CLASS}{
-  flex-shrink:0;align-items:center;justify-content:center;
+/* 子元素默认不伸不缩（shrink:0 是溢出检测的布局数学前提）；data-grow/data-shrink 经
+   指令写内联样式直通，优先级天然高于本默认 */
+.autospark-block>:not(.${TRIGGER_CLASS}){flex-grow:0;flex-shrink:0;}
+/* more 触发按钮：未溢出 display:none（不参与 flex 布局、不计 gap），溢出时由指令切
+   inline-flex——显示与折叠态单一真相在指令 */
+.autospark-block>.${TRIGGER_CLASS}{
+  display:none;flex-grow:0;flex-shrink:0;align-items:center;justify-content:center;
   width:var(--autospark-block-trigger-size,24px);height:var(--autospark-block-trigger-size,24px);
   padding:0;border:none;background:transparent;color:inherit;cursor:pointer;border-radius:4px;
 }
-.autospark-block>[${PART_ATTR}]>.${TRIGGER_CLASS}>svg{width:16px;height:16px;stroke-width:1.5;}
-.autospark-block>[${PART_ATTR}]>.${TRIGGER_CLASS}:hover{background:rgba(0,0,0,.06);}
-.autospark-block>[${PART_ATTR}]>.${TRIGGER_CLASS}:focus-visible{outline:2px solid var(--autospark-block-trigger-focus,#94a3b8);outline-offset:-2px;}
-/* 占位壳：收缩分区在宿主中的原位锚（承载触发按钮），视觉由分区通用规则承担 */
-/* x-block 载体面板不显示指示箭头（用户裁决）：面板紧贴触发按钮，指向装饰冗余 */
-[data-overlay="${BLOCK_PANEL_NAME}"] .autospark-overlay-arrow{display:none;}
+.autospark-block>.${TRIGGER_CLASS}>svg{width:16px;height:16px;stroke-width:1.5;}
+.autospark-block>.${TRIGGER_CLASS}:hover{background:rgba(0,0,0,.06);}
+.autospark-block>.${TRIGGER_CLASS}:focus-visible{outline:2px solid var(--autospark-block-trigger-focus,#94a3b8);outline-offset:-2px;}
+/* 面板（宿主浅克隆壳）：垂直堆叠折叠子元素；gap 由宿主克隆携带的用户样式（类规则或
+   内联 style）天然命中，无需引擎预设 */
+.${PANEL_CLASS}{display:flex;flex-direction:column;align-items:stretch;}
+/* 出口透明化：折叠子元素直接参与面板 flex 布局（gap 生效面 = 面板根） */
+.${PANEL_CLASS}>[x-slot]{display:contents;}
+/* 面板边框兜底（复刻 popover-shell 的 data-overlay-border 内置视觉；config.border 可关，
+   宿主克隆携带的用户类样式按优先级覆盖） */
+.${PANEL_CLASS}[data-overlay-border]{
+  border:1px solid var(--autospark-overlay-border,rgba(0,0,0,.1));
+  background:var(--autospark-overlay-bg,#fff);
+  box-shadow:0 8px 30px rgba(0,0,0,.18);
+  border-radius:var(--autospark-overlay-radius,8px);
+}
+/* overlay 容器直下的面板 z-index 契约（克隆壳无 autospark-dialog 类，须自带） */
+[data-autospark-overlays]>.${PANEL_CLASS}{z-index:var(--autospark-overlay-z,1000);}
 `;
 
 /** 注入 block 全局样式（幂等；多 engine 共享、destroy 不移除——对齐全局样式惯例） */
@@ -120,143 +101,107 @@ export function registerBlockStyles(): void {
     document.head.appendChild(style);
 }
 
-/** 分区声明（编译期收集的冻结快照） */
-interface PartDecl {
-    part: BlockPart;
-    /** 冻结快照（cloneNode(true)，模板只读契约——标记属性已剥除） */
-    template: HTMLElement;
-}
+/** 克隆壳组件名序号（每宿主一份壳组件，模块级递增保证唯一） */
+let shellSeq = 0;
 
-/** align 逻辑值 → CSS justify-content 值 */
-const ALIGN_CSS: Record<string, string> = {
-    start: "flex-start",
-    center: "center",
-    end: "flex-end",
-};
+/** 已 warn 过的非法伸缩比值（el + 属性名——重算通道高频复入，warn 只报一次） */
+const ratioWarned = new WeakMap<HTMLElement, Set<string>>();
 
 /**
- * 分区弹出面板的锚定方位（用户裁决）：row 轴 header=bottom-start（面板左对齐按钮）、
- * footer=bottom-end（右对齐）；column 轴对称翻转为右展（header=right-start / footer=right-end）。
- */
-function derivePlacement(part: BlockPart, dir: "row" | "column"): string {
-    const end = part === "footer" ? "end" : "start";
-    return dir === "column" ? `right-${end}` : `bottom-${end}`;
-}
-
-/** floating-ui placement 合法词表（四基向 + 8 组合） */
-const PLACEMENT_RE = /^(top|bottom|left|right)(-(start|end))?$/;
-
-/**
- * x-block 指令（ADR-0098）：容器（attr 空）与分区标记（attr 非空，孤儿诊断）双角色。
+ * x-block 指令（ADR-0098 重写版）：溢出折叠容器。
  */
 export class BlockDirective extends AutoSparkDirectiveBase {
     static override readonly priority = 0;
     static override readonly singleton = true;
+    /** Hybrid：scope 通道管编译期装配（克隆壳/触发按钮）+ observer 通道管生命周期（观察器启停） */
+    static override readonly kind = DirectiveKind.Hybrid;
 
-    /** 结构指令：仅容器实例接管子树（分区标记不占——正常流程被容器剥除，孤儿照常编译） */
-    static override ownsChildren(info: AutoDirectiveInfo): boolean {
-        return !info.attr;
-    }
-
-    /** 类级初始化：注入全局样式（幂等） */
-    static override initialize(_engine: AutoSpark): void {
+    /** 类级初始化：注入全局样式 + 注册共享空内容组件（幂等，per engine 一次） */
+    static override initialize(engine: AutoSpark): void {
         registerBlockStyles();
+        engine.registerComponent(
+            `<div x-define="${CONTENT_COMPONENT_NAME}" style="display:contents"></div>`,
+            { name: CONTENT_COMPONENT_NAME },
+        );
     }
 
-    // ── 编译期收集态 ──────────────────────────────────────────────────
+    // ── 运行态 ────────────────────────────────────────────────────────
 
-    /** 当前方向（表达式求值派生，非 "column" 一律 row——x-splitter 静默归一先例） */
+    /** 当前轴（值表达式求值派生；非 "column" 一律归一 row） */
     private _dir: "row" | "column" = "row";
-    /** 分区声明（词表内首胜者；索引即 PART_ORDER 序） */
-    private _parts: Partial<Record<BlockPart, PartDecl>> = {};
-    /** 词表外的 x-block:* 标记（克隆快照；compile 期照常编译——孤儿实例 warn 诊断） */
-    private _strays: HTMLElement[] = [];
-
-    // ── 溢出折叠运行态 ────────────────────────────────────────────────
-
-    /** 分区编译产物（compile 期填充；与 _parts 键对齐） */
-    private _partEls: Partial<Record<BlockPart, HTMLElement>> = {};
-    /** 各分区触发按钮（compile 期预置的 x-popover 宿主，开关由 PopoverDirective 接管） */
-    private _triggers: Partial<Record<BlockPart, HTMLButtonElement>> = {};
-    /** 当前收缩集（渐进链真相） */
-    private _collapsed = new Set<BlockPart>();
-    /** 各分区 stash 容器（收缩时收集子节点；脱离文档仍完整保留——常驻语义载体） */
-    private _stash = new Map<BlockPart, HTMLElement>();
-    /** 尺寸观察（真实浏览器通道；观察开始必发一次首回调——初始评估入口） */
+    /** more 触发按钮（编译期预置的 x-popover 宿主，开关归 PopoverDirective） */
+    private _trigger: HTMLButtonElement | null = null;
+    /** 面板外壳组件名（克隆壳或用户指定；写入触发按钮的 x-popover-options.shell） */
+    private _shellName = "";
+    /** 折叠子元素栈（push 序 = 折叠序 = DOM 逆序；栈顶 = DOM 最靠前的折叠元素） */
+    private _stash: HTMLElement[] = [];
+    /** 各折叠元素的原位锚（折叠时刻的 nextSibling；复位按 LIFO + 锚精确还原） */
+    private _anchors = new Map<HTMLElement, ChildNode | null>();
+    /** 各折叠元素的自然主轴尺寸缓存（溢出态测量值——grow 不污染，见文件头论证） */
+    private _cache = new Map<HTMLElement, number>();
+    /** 尺寸观察（宿主 + 子元素；观察开始必发一次首回调——初始评估入口） */
     private _ro: ResizeObserver | null = null;
-    /** 宿主 childList 观察（分区 x-if/x-show 存在性与内容动态变化的重估通道） */
+    /** 宿主子树观察（childList 增删 + data-grow/data-shrink 属性变化的重估通道） */
     private _mo: MutationObserver | null = null;
-    /** window resize 兜底通道（亦是测试驱动入口——happy-dom 无 RO 回调） */
-    private _onWinResize = (): void => this._evaluate();
-    /** 重估重入防护（收缩/展开动作会改变布局，防评估循环） */
-    private _evaluating = false;
-    /** 溢出折叠禁用（overflow:false） */
-    private _overflowEnabled = true;
-
-    // ── 弹出面板运行态（开关归 PopoverDirective，此处仅内容注入与抢救）──
-
+    /** window resize 兜底通道（外部输入源——解锁振荡熔断；亦是测试驱动入口——happy-dom 无 RO 回调） */
+    private _onWinResize = (): void => this._reconcile("ext");
+    /** RO 链内的 stash 深度历史（振荡检测——折叠/恢复会改布局，自适应宽宿主下 RO 可能被反噬重触发） */
+    private _settle = new Set<number>();
+    /** 振荡熔断（RO 后果链停止重估；外部输入解锁） */
+    private _fused = false;
+    /** 重估重入防护（折叠/恢复动作会改变布局，防评估循环） */
+    private _reconciling = false;
+    /** 微任务建连前被销毁（快速 x-if 切换防护，splitter 先例） */
+    private _destroyed = false;
+    /** min 尺寸已写入值（同值不重写——防宿主 RO 循环） */
+    private _minWritten = "";
+    /** 面板当前打开（键盘通道的状态真相；overlay 广播认领时翻转） */
+    private _panelOpen = false;
     /** 当前打开的实例（overlay:open 认领；overlay:close 广播时清引用） */
     private _inst: OverlayInstance | null = null;
-    /** 当前面板归属分区（哪端的按钮打开的） */
-    private _openPart: BlockPart | null = null;
     /** overlay:open / overlay:close 广播退订（destroy 摘除） */
     private _unsubOpen: (() => void) | null = null;
     private _unsubClose: (() => void) | null = null;
-    /** 微任务建连前被销毁（快速 x-if 切换防护，splitter 先例） */
-    private _destroyed = false;
 
     // ── 生命周期 ──────────────────────────────────────────────────────
 
     override created(): void {
-        // 分区标记实例（attr 非空）：正常流程已被容器剥除标记属性，走到这里即孤儿/非法参数
+        // 新设计无参数形态（旧三段分区标记已随重构废除），attr 非空即误用
         if (this.attr) {
-            if (!(PART_ORDER as string[]).includes(this.attr)) {
-                this.warn(
-                    `x-block:${this.attr}: 未知分区参数（词表 header|body|footer），本标记已忽略`,
-                );
-            } else {
-                this.warn(
-                    `x-block:${this.attr}: 仅可作为 x-block 容器的直接子元素使用（深层或无 x-block 祖先的声明无效），本标记已忽略`,
-                );
-            }
+            this.warn(
+                `x-block:${this.attr}: 不支持的参数形态（x-block 为无参容器指令，轴由值声明 row|column），本标记已忽略`,
+            );
             return;
         }
-        this._collectParts();
-        this._applyStaticOptions();
-        this._setupDirection();
+        this._setupAxis();
         this._setupPanelRelay();
-        this._setupOverflow();
     }
 
     override compile(_context: Record<string, any>, _parent: HTMLElement): void {
         const host = this.el;
         host.classList.add(BLOCK_CLASS);
         host.dataset.direction = this._dir;
-        // 分区按语义序追加（header → body → footer，追加序即文档序，无需 CSS order）
-        for (const part of PART_ORDER) {
-            const decl = this._parts[part];
-            if (!decl) continue;
-            const el = this._compilePart(decl);
-            if (el) host.appendChild(el);
-        }
-        // 词表外语法标记：照常编译（属性由编译器剥除，孤儿实例 warn 诊断）
-        for (const tpl of this._strays) {
-            const temp = document.createElement("div");
-            temp.appendChild(tpl);
-            this.engine.compiler.compileSubtree(this.el, temp, this.binding);
-        }
-        this._strays = [];
+        this._buildShellComponent();
+        this._buildTrigger();
     }
 
-    /** 结果树挂载后：打开观察通道（RO 首回调即初始评估） */
+    /** 结果树挂载后：打开观察通道 + 子元素契约落样式 + 初始折叠评估 */
     override mounted(): void {
         if (this._destroyed) return;
         this._startObserving();
+        this._applyChildContracts();
+        this._reconcile("ext");
     }
 
     override destroy(): void {
         this._destroyed = true;
-        this._teardownOverflow();
+        this._ro?.disconnect();
+        this._ro = null;
+        this._mo?.disconnect();
+        this._mo = null;
+        window.removeEventListener("resize", this._onWinResize);
+        this._settle.clear();
+        this._fused = false;
         if (this._inst && !this._inst.destroyed && this._inst.visible) {
             this._inst.requestClose("consumer-destroyed");
         }
@@ -264,377 +209,396 @@ export class BlockDirective extends AutoSparkDirectiveBase {
         this._unsubOpen = null;
         this._unsubClose?.();
         this._unsubClose = null;
-        this._parts = {};
-        this._strays = [];
-        this._partEls = {};
-        this._triggers = {};
-        this._collapsed.clear();
-        this._stash.clear();
+        this._stash = [];
+        this._anchors.clear();
+        this._cache.clear();
+        this._trigger = null;
+        this._inst = null;
     }
 
-    // ── 分区收集（created 期，模板只读）────────────────────────────────
+    // ── 轴（值表达式订阅 + 字面量分流）────────────────────────────────
 
     /**
-     * 扫描宿主模板直接子元素：只认 `x-block:词表参数` 标记的分区（重复首胜 + warn；
-     * 标记属性从克隆快照剥除——防 BlockDirective 在分区上二次实例化）；未标记渲染子元素
-     * warn + 丢弃（x-splitter/x-layout 家族先例）；`<template>`/`<script>`/文本静默容忍。
-     * body 缺失不 warn（ADR-0098 决策二：弹性区缺席不构成误用）。
+     * 指令值解析：裸词 `row` / `column` 按字面量（主轴几乎不动态切换，字面量书写免引号）；
+     * 其余按 scope 表达式订阅（状态驱动换轴，Q7 裁决），结果 "column" → column、其余归一
+     * row（静默归一——过渡态 undefined 不构成误用，x-splitter 先例）。
      */
-    private _collectParts(): void {
+    private _setupAxis(): void {
+        const raw = String(this.value ?? "").trim();
+        if (raw === "row" || raw === "column") {
+            this._applyDir(raw);
+            return;
+        }
+        const expr = raw || "'row'";
+        const initial = this.binding.watch(expr, ({ value }) => {
+            this._applyDir(value === "column" ? "column" : "row");
+        });
+        this._applyDir(initial === "column" ? "column" : "row");
+    }
+
+    private _applyDir(dir: "row" | "column"): void {
+        if (dir === this._dir && this.el?.dataset.direction === dir) return;
+        this._dir = dir;
+        if (this.el) this.el.dataset.direction = dir;
+        this._syncTriggerPlacement();
+        if (this._stash.length > 0) this._restoreAll();
+        this._reconcile("ext");
+    }
+
+    /** 换轴热更触发按钮弹出方位（row：面板右对齐按钮下方；column：对称右侧） */
+    private _syncTriggerPlacement(): void {
+        const trigger = this._trigger;
+        if (!trigger) return;
+        const scope = this.engine.findScopeByEl(trigger);
+        const inst = scope?.directives.find((d) => d.info.name === "popover");
+        if (inst) {
+            (inst as any).options.at = { placement: this._placement() };
+        }
+    }
+
+    /** 面板弹出方位（more 恒在主轴末端：row 下方右对齐 / column 右侧下对齐） */
+    private _placement(): string {
+        return this._dir === "column" ? "right-end" : "bottom-end";
+    }
+
+    // ── 编译期装配（克隆壳 + 触发按钮）────────────────────────────────
+
+    /**
+     * 面板外壳组件（编译期编程式注册）：宿主模板元素浅克隆 → 清洗（剥离 `x-*` / `:*` /
+     * `@*` / 含 `{{}}` 的属性与容器契约类——壳会经组件编译且 shell scope rootless，残留
+     * 绑定会误求值）→ 加面板标识类 + 内嵌 `x-slot` 出口 → buildComponentDef + 注册进
+     * 宿主 scope 的 components 表（popover shell 解析走 scope 链，随 scope 生死、零全局污染）。
+     * `x-block-options.shell` 显式指定时跳过克隆（用户外壳权威）。
+     */
+    private _buildShellComponent(): void {
+        const explicit = this.getOption("shell");
+        if (explicit != null && explicit !== "") {
+            if (typeof explicit === "string" && explicit.trim() !== "") {
+                this._shellName = explicit.trim();
+                return;
+            }
+            this.warn(
+                `x-block: shell 须为非空组件名（字符串），收到 "${explicit}" 已忽略（默认宿主克隆壳）`,
+            );
+        }
         const tpl = this.template;
-        if (!tpl) return;
-        for (const child of Array.from(tpl.children)) {
-            if (child instanceof HTMLTemplateElement || child instanceof HTMLScriptElement) {
-                continue;
-            }
-            const el = child as HTMLElement;
-            const marker = PART_ORDER.map((p) => `x-block:${p}`).find((n) => el.hasAttribute(n));
-            if (!marker) {
-                // x-block: 前缀但词表外（如 x-block:aside）：留给通用编译——BlockDirective(attr=aside)
-                // 孤儿实例化后 warn「未知分区参数」（失效可发现），元素本体照常渲染
-                const stray = Array.from(el.attributes).some((a) => a.name.startsWith("x-block:"));
-                if (stray) {
-                    this._strays.push(el.cloneNode(true) as HTMLElement);
-                    continue;
-                }
-                this.warn(
-                    `x-block: 未标记的子元素 <${el.localName}> 被丢弃——分区须以 x-block:header|body|footer 标记（ADR-0098 决策二）`,
-                );
-                continue;
-            }
-            const part = marker.slice("x-block:".length) as BlockPart;
-            if (this._parts[part]) {
-                this.warn(
-                    `x-block:${part}: 重复分区声明，首个生效、其余丢弃`,
-                );
-                continue;
-            }
-            const snapshot = el.cloneNode(true) as HTMLElement;
-            snapshot.removeAttribute(marker);
-            this._parts[part] = { part, template: snapshot };
+        if (!tpl) {
+            this.warn("x-block: 缺少模板元素，无法构建面板克隆壳（面板回退内置默认 shell）");
+            return;
         }
+        const clone = tpl.cloneNode(false) as HTMLElement;
+        for (const attr of Array.from(clone.attributes)) {
+            const dynamic =
+                /^[x:@]/.test(attr.name) || (attr.value.includes("{{") && attr.value.includes("}}"));
+            if (dynamic) clone.removeAttribute(attr.name);
+        }
+        clone.classList.remove(BLOCK_CLASS);
+        clone.classList.add(PANEL_CLASS);
+        const outlet = document.createElement("div");
+        outlet.setAttribute("x-slot", "");
+        clone.appendChild(outlet);
+        const name = `autospark-block-shell-${++shellSeq}`;
+        const warn = (msg: string) => this.warn(msg);
+        const def = buildComponentDef(clone, name, warn, this.binding as AutoSparkScope);
+        this.engine.registerComponentDef(def);
+        const scope = this.binding as unknown as { components?: Record<string, HTMLElement> };
+        if (!scope.components) scope.components = {};
+        scope.components[name] = def.snapshot;
+        this._shellName = name;
     }
 
     /**
-     * 编译单分段子树（temp wrapper 技巧，x-layout 先例）+ 契约属性 + **预置触发按钮**：
-     * 按钮作为分区**内部**最后子节点进入编译管道（`x-popover:autospark.popover` 声明）——
-     * PopoverDirective 正常实例化并全权接管开关/定位/动画/shell；未收缩时按钮
-     * display:none（全局样式随 COLLAPSED_CLASS 切换）。delayShow/delayHide 经
-     * x-block-options 声明时透传为按钮的 x-popover-options（PopoverDirective 的
-     * getOption 回退链原生消费）；at.placement 初值按轴推导，换轴时经指令实例热更
-     * （见 {@link _syncTriggerPlacements}）。
+     * more 触发按钮（编译期形态；图标走全局 sprite）：声明 `x-popover:共享空内容组件`
+     * （attr 必填的通道契约，实际内容由 overlay 广播挂入）+ `x-popover-options`（shell =
+     * 克隆壳/用户外壳名，at.placement 按轴初值、换轴经 {@link _syncTriggerPlacement} 热更）。
+     * 键盘 Enter/Space 模拟 mouseenter/mouseleave（PopoverDirective 纯 hover 模型的补偿）。
      */
-    private _compilePart(decl: PartDecl): HTMLElement | null {
-        decl.template.appendChild(this._buildTrigger(decl.part));
-        const temp = document.createElement("div");
-        temp.appendChild(decl.template);
-        const nodes = this.engine.compiler.compileSubtree(this.el, temp, this.binding);
-        const el = nodes.find((n) => n instanceof HTMLElement) as HTMLElement | undefined;
-        if (!el) return null;
-        el.setAttribute(PART_ATTR, decl.part);
-        // 编译产物中的触发按钮：补挂键盘通道（PopoverDirective 纯 hover 模型的补偿，共识 Q16）
-        const trigger = el.querySelector(`:scope > .${TRIGGER_CLASS}`) as HTMLButtonElement | null;
-        if (trigger) {
-            this._triggers[decl.part] = trigger;
-            trigger.addEventListener("keydown", (e) => this._onTriggerKeydown(e, decl.part));
-        }
-        this._partEls[decl.part] = el;
-        return el;
-    }
-
-    /** 触发按钮模板（编译期形态；图标走全局 sprite，expandable-trigger 先例） */
-    private _buildTrigger(part: BlockPart): HTMLButtonElement {
+    private _buildTrigger(): void {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = TRIGGER_CLASS;
-        btn.setAttribute("aria-label", PART_TRIGGER_LABEL[part]);
-        // 不加任何 tooltip 提示（title / data-tooltip 均不写）：hover 已弹出 popover 面板，
-        // tooltip 会与之同时出现（用户裁决）；且 title 会触发 transformer 链前置转换器
-        // first-match-wins 遮蔽后续指令 transformer（按钮上的 x-popover 将静默丢失）
-        // ——可达性由 aria-label 承担。
-        btn.setAttribute(`x-popover:${BLOCK_PANEL_NAME}`, "");
-        btn.setAttribute("x-popover-options", this._popoverOptionsJson(part));
+        btn.setAttribute("aria-label", "更多");
+        btn.setAttribute("aria-haspopup", "true");
+        btn.setAttribute(`x-popover:${CONTENT_COMPONENT_NAME}`, "");
+        btn.setAttribute(
+            "x-popover-options",
+            `{shell:'${this._shellName}',at:{placement:'${this._placement()}'}}`,
+        );
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("aria-hidden", "true");
         const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
-        use.setAttribute("href", `#as-${PART_TRIGGER_ICON[part]}`);
+        use.setAttribute("href", "#as-more");
         svg.appendChild(use);
         btn.appendChild(svg);
-        return btn;
+        // 不加 tooltip（title / data-tooltip 均不写）：hover 已弹出面板会与之同时出现；
+        // 且 title 会触发 transformer 链 first-match-wins 遮蔽按钮上的 x-popover（旧实现教训）
+        btn.addEventListener("keydown", (e) => this._onTriggerKeydown(e));
+        const temp = document.createElement("div");
+        temp.appendChild(btn);
+        const nodes = this.engine.compiler.compileSubtree(this.el, temp, this.binding);
+        const compiled = nodes.find(
+            (n) => n instanceof HTMLElement && (n as HTMLElement).classList.contains(TRIGGER_CLASS),
+        ) as HTMLButtonElement | undefined;
+        if (!compiled) return;
+        this._trigger = compiled;
+        this.el.appendChild(compiled);
     }
 
-    /** delayShow/delayHide 透传（x-block-options 声明才注入按钮选项；缺省走 PopoverDirective 默认） */
-    private _popoverOptionsJson(part: BlockPart): string {
-        const members = [`at:{placement:'${this._resolvePlacement(part)}'}`];
-        const show = this.getOption("delayShow");
-        const hide = this.getOption("delayHide");
-        if (show !== undefined) members.push(`delayShow:${Number(show) || 0}`);
-        if (hide !== undefined) members.push(`delayHide:${Number(hide) || 0}`);
-        return `{${members.join(",")}}`;
-    }
-
-    /**
-     * 分区弹出方位解析：`headerPlacement` / `footerPlacement` 显式配置 = 用户权威
-     * （写什么用什么，不再随轴翻转）；未配置按轴推导默认（row：bottom-start/bottom-end，
-     * column：right-start/right-end）。非法值 warn + 回退推导默认。
-     */
-    private _resolvePlacement(part: BlockPart): string {
-        const key = part === "header" ? "headerPlacement" : "footerPlacement";
-        const raw = this.getOption(key);
-        if (raw != null && raw !== "") {
-            const v = String(raw).trim();
-            if (PLACEMENT_RE.test(v)) return v;
-            this.warn(
-                `x-block: ${key} 须为 floating-ui 方位值（如 bottom-start / right-end），收到 "${raw}" 已忽略（按轴推导默认）`,
-            );
-        }
-        return derivePlacement(part, this._dir);
-    }
-
-    /**
-     * 键盘通道（PopoverDirective 纯 hover 模型的补偿）：Enter/Space 模拟 mouseenter /
-     * mouseleave 驱动开关（delayShow=0 时同步打开）；Escape 关闭由 shell 既有能力承担。
-     */
-    private _onTriggerKeydown(e: KeyboardEvent, part: BlockPart): void {
+    /** 键盘通道：Enter/Space 按面板开关状态模拟 hover 进出（delayShow=0 时同步开） */
+    private _onTriggerKeydown(e: KeyboardEvent): void {
         if (e.key !== "Enter" && e.key !== " ") return;
         e.preventDefault();
-        const trigger = this._triggers[part];
-        if (!trigger) return;
-        trigger.dispatchEvent(
-            new MouseEvent(this._openPart === part ? "mouseleave" : "mouseenter"),
+        this._trigger?.dispatchEvent(
+            new MouseEvent(this._panelOpen ? "mouseleave" : "mouseenter"),
         );
     }
 
-    // ── 配置（编译期静态）─────────────────────────────────────────────
+    // ── 子元素伸缩契约（data-grow / data-shrink 直通）──────────────────
 
-    /** gap / padding / align / bodyMinSize 静态应用（非法 warn + 忽略；不热应用） */
-    private _applyStaticOptions(): void {
-        const gap = this._resolveLength("gap");
-        if (gap !== null) this.el.style.gap = gap;
-        const padding = this._resolveLength("padding");
-        if (padding !== null) this.el.style.padding = padding;
-        // body 收缩下限（row 为宽、column 为高——CSS 按 data-direction 分支取同一变量）。
-        // 单值长度严格校验（值进 flex min 钳制管线，非法会静默失效——不能像 gap/padding
-        // 那样对字符串原样放行）
-        this.el.style.setProperty("--autospark-block-body-min", this._resolveBodyMin());
-        const align = this.getOption("align");
-        if (align != null && align !== "") {
-            const css = ALIGN_CSS[String(align)];
-            if (css) {
-                this.el.style.setProperty("--autospark-block-align", css);
-            } else {
-                this.warn(
-                    `x-block: align 须为 start|center|end（轴无关逻辑值），收到 "${align}" 已忽略（默认 start）`,
-                );
+    /** 全量子元素契约落内联样式（mounted 初始 + DOM 变化后重跑；同值不重写——写自身即
+        mutation，重写会在 MO 通道上自feed成宏任务风暴） */
+    private _applyChildContracts(): void {
+        for (const el of this._childItems()) {
+            const grow = this._parseRatio(el, "data-grow");
+            if (grow !== undefined && el.style.flexGrow !== String(grow)) {
+                el.style.flexGrow = String(grow);
             }
-        }
-        this._overflowEnabled = this.getOption("overflow") !== false;
-    }
-
-    /** 长度选项解析（number≥0 按 px / 非空字符串原样；非法 warn 返回 null） */
-    private _resolveLength(key: string): string | null {
-        const raw = this.getOption(key);
-        if (raw == null || raw === "") return null;
-        if (typeof raw === "number") {
-            if (Number.isFinite(raw) && raw >= 0) return `${raw}px`;
-        } else if (typeof raw === "string" && raw.trim() !== "") {
-            return raw.trim();
-        }
-        this.warn(`x-block: ${key} 须为非负数字（px）或 CSS 长度串，收到 "${raw}" 已忽略`);
-        return null;
-    }
-
-    /**
-     * body 收缩下限解析（`bodyMinSize`）：number≥0 按 px、string 限**单值长度**形态
-     * （数字 + 可选单位——与 gap/padding 的任意 CSS 串不同，此值进 flex min 钳制管线，
-     * 非法形态会静默失效使下限落空）。缺省/非法均回退默认 120px。
-     */
-    private _resolveBodyMin(): string {
-        const raw = this.getOption("bodyMinSize");
-        if (raw == null || raw === "") return "120px";
-        if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) return `${raw}px`;
-        if (
-            typeof raw === "string" &&
-            /^(\d+(\.\d+)?)(px|%|rem|em|vw|vh|ch)?$/i.test(raw.trim())
-        ) {
-            return raw.trim();
-        }
-        this.warn(
-            `x-block: bodyMinSize 须为非负数字（px）或单值 CSS 长度（如 120 / "10rem"），收到 "${raw}" 已忽略（默认 120px）`,
-        );
-        return "120px";
-    }
-
-    // ── 方向（响应式换轴）─────────────────────────────────────────────
-
-    /** 值表达式订阅（scope.watch 双轨；字面量经 with 求值即常量）+ 初值应用 */
-    private _setupDirection(): void {
-        const expr = String(this.value ?? "").trim() || "'row'";
-        const initial = this.binding.watch(expr, ({ value }) => {
-            this._applyDirection(value === "column" ? "column" : "row");
-        });
-        this._applyDirection(initial === "column" ? "column" : "row");
-    }
-
-    private _applyDirection(dir: "row" | "column"): void {
-        this._dir = dir;
-        if (this.el) this.el.dataset.direction = dir;
-        this._syncTriggerPlacements();
-    }
-
-    /**
-     * 换轴时热更触发按钮的弹出方位：按钮上的 PopoverDirective 实例经 scope 链定位，
-     * 重写其指令选项 at.placement——_resolveConfig 每次打开现读（ADR-0052 v2.3 重开生效），
-     * 下一次 hover 即按新轴展开；编译期初值由 _buildTrigger 注入。compile 前调用（初值
-     * 应用）时 triggers 为空表自然跳过。
-     */
-    private _syncTriggerPlacements(): void {
-        for (const part of PART_ORDER) {
-            const trigger = this._triggers[part];
-            if (!trigger) continue;
-            const scope = this.engine.findScopeByEl(trigger);
-            const inst = scope?.directives.find((d) => d.info.name === "popover");
-            if (inst) {
-                (inst as any).options.at = { placement: this._resolvePlacement(part) };
+            const shrink = this._parseRatio(el, "data-shrink");
+            if (shrink !== undefined && el.style.flexShrink !== String(shrink)) {
+                el.style.flexShrink = String(shrink);
             }
         }
     }
 
-    // ── 溢出折叠管线 ──────────────────────────────────────────────────
+    /**
+     * 比值属性解析（出现 = 1，显式数值原样，"0" = 显式关闭；非法/负 warn + 回退 1——
+     * 重算通道高频复入，per 元素 per 属性只 warn 一次）。
+     */
+    private _parseRatio(el: HTMLElement, name: string): number | undefined {
+        if (!el.hasAttribute(name)) return undefined;
+        const raw = (el.getAttribute(name) ?? "").trim();
+        if (raw === "") return 1;
+        const n = Number(raw);
+        if (Number.isFinite(n) && n >= 0) return n;
+        const warned = ratioWarned.get(el);
+        if (!warned?.has(name)) {
+            this.warn(
+                `x-block: ${name} 须为非负数值（缺省 1），收到 "${raw}" 已回退 1`,
+            );
+            if (!warned) ratioWarned.set(el, new Set([name]));
+            else warned.add(name);
+        }
+        return 1;
+    }
 
-    /** 打开观察通道（RO + window resize + 宿主 childList MO；overflow:false 全不开） */
-    private _setupOverflow(): void {
-        if (!this._overflowEnabled) return;
+    /** 宿主直接子元素清单（元素节点；排除触发按钮） */
+    private _childItems(): HTMLElement[] {
+        return Array.from(this.el.children).filter(
+            (n): n is HTMLElement =>
+                n instanceof HTMLElement && !n.classList.contains(TRIGGER_CLASS),
+        );
+    }
+
+    // ── 观察通道（尺寸 / DOM 结构 / 属性 / resize）─────────────────────
+
+    /** 打开观察通道（RO + window resize + 宿主子树 MO；回调统一宏任务化防自触发重入） */
+    private _startObserving(): void {
         if (typeof ResizeObserver !== "undefined") {
-            this._ro = new ResizeObserver(() => this._evaluate());
+            // RO 是「后果」通道：折叠/恢复改变布局 → RO 重触发。稳定收敛靠步进算法的
+            // 单调性（fold 前富余严格小于被折元素宽，恢复判定必不成立，无数学交替），
+            // 病态拉锯（用户 CSS 使宿主尺寸依赖折叠态）由 _settle 熔断兜底（见 _reconcile）
+            this._ro = new ResizeObserver(() => this._reconcile("ro"));
+            this._ro.observe(this.el);
+            this._syncChildRO();
         }
         window.addEventListener("resize", this._onWinResize);
         if (typeof MutationObserver !== "undefined") {
-            // childList：分区 x-if detach / x-show 挂卸、子内容增删——存在性变化的重估通道。
-            // 回调宏任务化：evaluate 自身的收缩/回滚动作也改 childList，微任务直调会无限
-            // 重入震荡（同轮收敛已由 evaluate 循环内完成，宏任务化只放行真实外部变化）
-            this._mo = new MutationObserver(() => setTimeout(() => this._evaluate(), 0));
+            // attributeFilter 之外再按 mutation 记录过滤一次（childList / 目标属性才重估；
+            // 其余属性写入——含本指令自身的样式写入——直接忽略，防自feed重估）
+            this._mo = new MutationObserver((muts) => {
+                const relevant = muts.some(
+                    (m) =>
+                        m.type === "childList" ||
+                        (m.type === "attributes" &&
+                            (m.attributeName === "data-grow" ||
+                                m.attributeName === "data-shrink")),
+                );
+                if (!relevant) return;
+                setTimeout(() => {
+                    if (this._destroyed) return;
+                    this._applyChildContracts();
+                    this._syncChildRO();
+                    this._reconcile("ext");
+                }, 0);
+            });
+            this._mo.observe(this.el, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ["data-grow", "data-shrink"],
+            });
         }
     }
 
-    /** mounted 后开启观察（RO 观察开始必发一次首回调 = 初始评估） */
-    private _startObserving(): void {
-        this._ro?.observe(this.el);
-        this._mo?.observe(this.el, { childList: true, subtree: true });
+    /** 子元素尺寸观察同步（子元素增删后补挂 RO；detached 元素 RO 自动静默，无需摘除） */
+    private _syncChildRO(): void {
+        if (!this._ro) return;
+        for (const el of this._childItems()) this._ro.observe(el);
     }
 
-    /** 分区溢出测量（ADR-0098 决策四修订：分区级判据——分区被 flex 压缩后自身主轴
-     *  scroll 超出 client 即「尺寸较小」；happy-dom 恒 0 → 恒不溢出） */
-    private _partOverflow(part: BlockPart): boolean {
-        const el = this._partEls[part];
-        if (!el || el.parentElement !== this.el) return false;
-        if (this._dir === "column") {
-            return el.scrollHeight > el.clientHeight + OVERFLOW_TOLERANCE;
-        }
-        return el.scrollWidth > el.clientWidth + OVERFLOW_TOLERANCE;
+    // ── 折叠核心（步进收敛，每步一次真实布局）──────────────────────────
+
+    /** 主轴读数（row 为宽 / column 为高） */
+    private get _scrollMain(): number {
+        return this._dir === "column" ? this.el.scrollHeight : this.el.scrollWidth;
+    }
+
+    private get _clientMain(): number {
+        return this._dir === "column" ? this.el.clientHeight : this.el.clientWidth;
+    }
+
+    private _sizeOf(el: HTMLElement): number {
+        return this._dir === "column" ? el.offsetHeight : el.offsetWidth;
+    }
+
+    /** 主轴 gap（用户 CSS 承载，引擎不预设；normal 解析为 NaN 归零） */
+    private _mainGap(): number {
+        const cs = getComputedStyle(this.el);
+        const raw = this._dir === "column" ? cs.rowGap : cs.columnGap;
+        const n = Number.parseFloat(raw);
+        return Number.isFinite(n) ? n : 0;
+    }
+
+    /** 子元素可见性（display:none 不占布局——折叠候选与恢复判定都跳过） */
+    private _hidden(el: HTMLElement): boolean {
+        return getComputedStyle(el).display === "none";
     }
 
     /**
-     * 溢出重估（渐进链，ADR-0098 决策四修订）：分区被压缩溢出时按 footer → header 收
-     * （body 恒弹性永不收，body 溢出由容器 overflow:hidden 裁切）；不溢出时按 header →
-     * footer 试展——试展后该分区仍溢出即**静默回滚**并停（事件只报站得稳的状态变迁，
-     * 避免 expand 后立刻 collapse 的失衡序）。收缩释放空间会改变其余分区的压缩量，
-     * 循环内现测现判，guard 防御异常布局下的死循环。
+     * 折叠重估（按触发源分派）：溢出 → 折叠最后一个可见子元素（缓存自然尺寸 + 原位锚，
+     * 真实搬移出文档；more 按钮显示、宿主 min 尺寸写入）；有富余 → 从栈顶试恢复（
+     * `scroll + gap + 缓存 ≤ client` 才放回，失败即停；隐藏者跳过留栈，等可见后自然回位）。
+     * 每步重读真实布局，more 显隐 / gap / 动态内容的耦合被循环自然吸收；guard 防御意外
+     * 死循环。
+     *
+     * **振荡熔断**（`ro` 源专属）：折叠/恢复改变布局，自适应宽宿主（client 依赖内容）下
+     * RO 可能被反噬重触发。步进算法本身单调（fold 前富余严格小于被折元素宽，恢复判定
+     * 必不成立），但用户 CSS 病态构造（宿主尺寸依赖折叠态）可致深度拉锯——RO 链内 stash
+     * 深度**回访**（A-B-A 模式）即熔断，直到下一个外部输入（resize / childList / 属性 /
+     * 换轴）解锁。`ext` 源是用户意图，永不熔断且解锁。
      */
-    private _evaluate(): void {
-        if (this._destroyed || !this._overflowEnabled || this._evaluating) return;
-        this._evaluating = true;
+    private _reconcile(source: "ro" | "ext" = "ext"): void {
+        if (this._destroyed || this._reconciling) return;
+        if (source === "ro") {
+            if (this._fused) return;
+        } else {
+            this._fused = false;
+            this._settle.clear();
+        }
+        this._reconciling = true;
         try {
-            for (let guard = 0; guard < 4; guard++) {
-                const next = this._collapsible("footer") && this._partOverflow("footer")
-                    ? "footer"
-                    : this._collapsible("header") && this._partOverflow("header")
-                      ? "header"
-                      : null;
-                if (!next) break; // 终态：无可收分区（body 溢出交容器裁切）
-                this._applyCollapse(next);
-                this._emit(next, "collapse");
-            }
-            for (let guard = 0; guard < 4; guard++) {
-                const back =
-                    this._collapsed.has("header") ? "header" : this._collapsed.has("footer") ? "footer" : null;
-                if (!back) break;
-                this._applyExpand(back);
-                if (this._partOverflow(back)) {
-                    this._applyCollapse(back); // 回滚（静默——展开尝试不成立）
-                    break;
+            // 上限循环外定死（循环内折叠会使现存子元素减少，重算上限会收紧余量）
+            const guardMax = this._childItems().length + 2;
+            for (let guard = 0; guard < guardMax; guard++) {
+                if (this._scrollMain > this._clientMain) {
+                    if (!this._foldOne()) break;
+                    continue;
                 }
-                this._emit(back, "expand");
+                if (this._stash.length > 0) {
+                    if (!this._restoreOne()) break;
+                    continue;
+                }
+                break;
             }
         } finally {
-            this._evaluating = false;
+            this._reconciling = false;
+        }
+        if (source === "ro") {
+            if (this._settle.has(this._stash.length)) {
+                this._fused = true;
+            } else {
+                this._settle.add(this._stash.length);
+            }
         }
     }
 
-    /** 可收缩判定：分区在场（编译产物存活且仍在宿主）且未收缩 */
-    private _collapsible(part: BlockPart): boolean {
-        return !this._collapsed.has(part) && this._partEls[part]?.parentElement === this.el;
+    /** 折叠一步：末个可见子元素出文档入栈；无可折叠者返回 false（溢出交 overflow:hidden 裁切） */
+    private _foldOne(): boolean {
+        const items = this._childItems();
+        for (let i = items.length - 1; i >= 0; i--) {
+            const el = items[i];
+            if (this._hidden(el)) continue;
+            this._cache.set(el, this._sizeOf(el));
+            this._anchors.set(el, el.nextSibling);
+            el.remove();
+            this._stash.push(el);
+            this._showTrigger(true);
+            this._writeMinSize();
+            return true;
+        }
+        return false;
     }
 
-    /**
-     * 收缩纯动作（无事件）：**整个分区元素**搬入 stash（Map 持有、脱离文档——用户对分区
-     * 的 class / padding 等样式在面板内原样生效，开发者自行控制分区外观，用户裁决）；
-     * 原位放引擎占位壳（同契约属性 + 收缩类）承载触发按钮——按钮从分区内移入占位壳
-     * （DOM 搬移不掉 PopoverDirective 的监听与锚定引用，hover 照常开面板、锚点随按钮）。
-     */
-    private _applyCollapse(part: BlockPart): void {
-        const el = this._partEls[part];
-        const trigger = this._triggers[part];
-        if (!el || this._collapsed.has(part)) return;
-        const placeholder = document.createElement("div");
-        placeholder.setAttribute(PART_ATTR, part);
-        placeholder.classList.add(COLLAPSED_CLASS);
-        el.before(placeholder);
-        if (trigger) placeholder.appendChild(trigger);
-        el.remove(); // 分区元素脱离文档（Map 持有，面板开时挂入面板——占位壳是原位锚）
-        this._stash.set(part, el);
-        el.classList.add(COLLAPSED_CLASS);
-        this._collapsed.add(part);
+    /** 恢复一步：栈顶起找首个可见者，确有富余才放回原位；放不下即停（防振荡） */
+    private _restoreOne(): boolean {
+        const gap = this._mainGap();
+        for (let i = this._stash.length - 1; i >= 0; i--) {
+            const el = this._stash[i];
+            if (this._hidden(el)) continue;
+            const cached = this._cache.get(el) ?? 0;
+            if (this._scrollMain + gap + cached > this._clientMain) return false;
+            this._stash.splice(i, 1);
+            this._insertBack(el);
+            if (this._stash.length === 0) this._showTrigger(false);
+            return true;
+        }
+        return false;
     }
 
-    /**
-     * 展开纯动作（无事件）：先通知触发器「指针已离开」（PopoverDirective 按宽限调度
-     * 关闭——relatedTarget 为 null 必关，面板开着时由 overlay:close 抢救通道摘回分区），
-     * 再用分区元素**原位替换占位壳**（位置精确还原）+ 按钮搬回分区内 + 摘收缩类。
-     */
-    private _applyExpand(part: BlockPart): void {
-        const el = this._partEls[part];
-        if (!el || !this._collapsed.has(part)) return;
-        this._triggers[part]?.dispatchEvent(new MouseEvent("mouseleave"));
-        // 占位壳 = 分区元素在宿主中的位置锚（replaceWith 精确还原）；按钮随占位壳被移出
-        // 文档（引用仍在 _triggers），搬回分区内恢复编译期形态
-        const placeholder = this.el.querySelector(
-            `:scope > [${PART_ATTR}="${part}"].${COLLAPSED_CLASS}`,
-        );
-        if (placeholder) placeholder.replaceWith(el);
-        else this.el.appendChild(el);
-        const trigger = this._triggers[part];
-        if (trigger && trigger.parentElement !== el) el.appendChild(trigger);
-        el.classList.remove(COLLAPSED_CLASS);
-        // 必须出 stash 表：面板关闭广播的抢救遍历只摘 _stash 内的分区——已展开回原位的
-        // 分区若残留表内，150ms 后 overlay:close 善后会把刚恢复的分区再次摘出文档
-        this._stash.delete(part);
-        this._collapsed.delete(part);
+    /** 按原位锚复位（锚失效——运行时外部 DOM 变动——退化为尾插） */
+    private _insertBack(el: HTMLElement): void {
+        const anchor = this._anchors.get(el) ?? null;
+        if (anchor && anchor.parentNode === this.el) {
+            this.el.insertBefore(el, anchor);
+        } else {
+            this.el.insertBefore(el, this._trigger);
+        }
+        this._anchors.delete(el);
+        this._cache.delete(el);
     }
 
-    /** 宿主派发收缩/展开事件（冒泡，detail {part}——家族惯例） */
-    private _emit(part: BlockPart, phase: "collapse" | "expand"): void {
-        this.el.dispatchEvent(new CustomEvent(`block:${phase}`, { detail: { part }, bubbles: true }));
+    /** 换轴复位：全部折叠元素按 LIFO + 锚还原（锚在 DOM 未动时恒有效），再走全量重算 */
+    private _restoreAll(): void {
+        while (this._stash.length > 0) {
+            this._insertBack(this._stash.pop()!);
+        }
+        this._showTrigger(false);
+    }
+
+    /** more 按钮显隐（display 切换单一真相在指令；未溢出时不参与 flex 不计 gap） */
+    private _showTrigger(show: boolean): void {
+        if (this._trigger) this._trigger.style.display = show ? "inline-flex" : "";
+    }
+
+    /** 宿主 min 尺寸 = 触发按钮主轴尺寸（写入后不撤——保证按钮永不被挤没；同值不重写） */
+    private _writeMinSize(): void {
+        if (!this._trigger) return;
+        const px = `${this._sizeOf(this._trigger)}px`;
+        const key = `${this._dir}:${px}`;
+        if (key === this._minWritten) return;
+        this._minWritten = key;
+        if (this._dir === "column") this.el.style.minHeight = px;
+        else this.el.style.minWidth = px;
     }
 
     // ── 面板内容中继（overlay:open 注入 / overlay:close 抢救）──────────
 
     /**
-     * 订阅 overlay 广播：**open** 时按 `config.at.selector` 反查分区（selector = 触发按钮，
-     * 与 _triggers 表比对——PopoverDirective 的 mouseenter 监听先于本类注册，delayShow=0
-     * 时同步打开使广播先于任何意图记录，故认领只信锚元素）→ stash 挂入面板（活 DOM 内容
-     * 无声明式投影通道，注入是唯一旁路）；**close** 时在面板 DOM 尚在的窗口把 stash 摘回
-     * （脱离文档但 Map 持有，子树 DOM 态完整保留——常驻语义载体）。
+     * 订阅 overlay 广播：**open** 时按 `config.at.selector` 认领本指令触发按钮打开的实例
+     * （selector = 按钮，PopoverDirective 缺省锚 = 宿主自身）→ 折叠子元素按 DOM 序挂入
+     * 面板出口（活 DOM 无声明式投影通道，注入是唯一旁路；出口 display:contents 透明）；
+     * **close** 时在面板 DOM 尚在的窗口把子元素摘回（脱离文档持有——覆盖物实例关闭即
+     * 销毁 ADR-0052 修订共识 5，控件状态跨开关保留）。
      */
     private _setupPanelRelay(): void {
         const unwrap = (sub: any): (() => void) =>
@@ -645,14 +609,14 @@ export class BlockDirective extends AutoSparkDirectiveBase {
                 const inst = payload?.instance as OverlayInstance | undefined;
                 if (!inst || this._destroyed) return;
                 const at = (inst as any).config?.at;
-                const part = (Object.keys(this._triggers) as BlockPart[]).find(
-                    (p) => this._triggers[p] === at?.selector,
-                );
-                if (!part || !this._stash.has(part)) return; // 非本指令按钮 / 分区未收缩
+                if (at?.selector !== this._trigger || this._stash.length === 0) return;
                 this._inst = inst;
-                this._openPart = part;
-                const stash = this._stash.get(part);
-                if (inst.panel && stash) inst.panel.appendChild(stash);
+                this._panelOpen = true;
+                const panel = (inst as any).panel as HTMLElement | undefined;
+                if (!panel) return;
+                const outlet = panel.querySelector("[x-slot]") ?? panel;
+                // stash push 序 = DOM 逆序，倒序挂入即还原文档序
+                for (const el of [...this._stash].reverse()) outlet.appendChild(el);
             }),
         );
         this._unsubClose = unwrap(
@@ -663,19 +627,10 @@ export class BlockDirective extends AutoSparkDirectiveBase {
         );
     }
 
-    /** 面板关闭善后（leave 动画未播、面板 DOM 尚在——x-popover 同款时序）：stash 摘回 */
+    /** 面板关闭善后（leave 动画未播、面板 DOM 尚在——x-popover 同款时序）：子元素摘回 */
     private _onPanelClosed(): void {
-        for (const stash of this._stash.values()) stash.remove();
+        for (const el of this._stash) el.remove();
         this._inst = null;
-        this._openPart = null;
-    }
-
-    /** 溢出观察通道整体清理（destroy） */
-    private _teardownOverflow(): void {
-        this._ro?.disconnect();
-        this._ro = null;
-        this._mo?.disconnect();
-        this._mo = null;
-        window.removeEventListener("resize", this._onWinResize);
+        this._panelOpen = false;
     }
 }

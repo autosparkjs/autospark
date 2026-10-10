@@ -50,8 +50,41 @@ export class DirectiveManager extends Map<string, DirectiveClass> {
      *
      * engine 就绪后立即对新类调用 initialize（runtime 指令得以建 observer 生效）；
      * 就绪前仅注册，由 `initializeAll` 统一处理。
+     *
+     * 覆盖语义（ADR-0100 决策 7）：静默覆盖任何已注册名——包括预设指令名（「运行时注册
+     * 自定义指令类以覆盖内置指令」是本表的文档化特性）。受控注册走 {@link install}。
      */
     override set(name: string, Cls: DirectiveClass): this {
+        return this._register(name, Cls);
+    }
+
+    /**
+     * 受控注册（全局安装队列通道，ADR-0100 决策 8）：与 {@link set} 的覆盖语义分叉——
+     *
+     * - 撞**预设**指令名（`presetDirectives` 键）：warn + 跳过（预设原类保留，调用方后续
+     *   代码继续执行——单个越界插件不中断整个安装流程）；
+     * - 撞其他**自定义**名（先装插件等已注册）：warn + 覆盖（对齐 icons 注册表先例）；
+     * - 新名：静默注册。
+     *
+     * 就绪衔接与 set 一致（就绪前待 `initializeAll`、就绪后立即 initialize + Runtime 重扫）。
+     */
+    install(name: string, Cls: DirectiveClass): this {
+        if (Object.prototype.hasOwnProperty.call(presetDirectives, name)) {
+            this.engine.logger.warn(
+                `install: "${name}" 是预设指令名，禁止覆盖（ADR-0100 决策 8），已跳过`,
+            );
+            return this;
+        }
+        if (this.has(name)) {
+            this.engine.logger.warn(
+                `install: 自定义指令 "${name}" 已存在，后者覆盖（ADR-0100 决策 8）`,
+            );
+        }
+        return this._register(name, Cls);
+    }
+
+    /** 注册共享后处理（set / install 共用，DRY）：索引重建 + 就绪期 initialize / Runtime 重扫 */
+    private _register(name: string, Cls: DirectiveClass): this {
         super.set(name, Cls);
         this._elementNameIndex = null; // 注册表变更：元素名索引重建
         if (this._ready) {

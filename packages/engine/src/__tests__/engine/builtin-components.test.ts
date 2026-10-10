@@ -4,7 +4,6 @@ import { mount } from "../helpers";
 import type { AutoSpark } from "../../engine/engine";
 import {
     BUILTIN_COMPONENTS,
-    BLOCK_PANEL_NAME,
     DIALOG_SHELL_NAME,
     ERROR_COMPONENT_NAME,
     POPOVER_SHELL_NAME,
@@ -108,14 +107,13 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
         expect(def?.builtin).toBe(false);
     });
 
-    test("种子表键面：全部统一 autospark. 点前缀（block-popover 载体别名显式豁免）", () => {
+    test("种子表键面：全部统一 autospark. 点前缀", () => {
         const keys = Object.keys(BUILTIN_COMPONENTS);
-        // 每键均以引擎保留命名空间开头（与用户业务组件零冲突）。唯一豁免 BLOCK_PANEL_NAME
-        // （block-popover，ADR-0098 决策五修订二）：声明式消费 attr（x-popover:名）经修饰符
-        // 语法解析，点号截断为修饰符——点前缀名无法经 attr 声明，x-block 预置触发按钮的
-        // 载体别名只能用点自由名（同模板同视觉，用户同名遮蔽定制照常）
+        // 每键均以引擎保留命名空间开头（与用户业务组件零冲突）。原 block-popover 点自由名
+        // 载体别名已随 x-block 重写为「宿主克隆壳」退役（ADR-0098 重写版）——面板外壳不再
+        // 走内置种子表，而是编程式注册进宿主 scope
         for (const k of keys) {
-            expect(k.startsWith("autospark.") || k === BLOCK_PANEL_NAME).toBe(true);
+            expect(k.startsWith("autospark.")).toBe(true);
         }
         // overlay 家族 shell + error
         for (const k of [
@@ -135,6 +133,6 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
         ]) {
             expect(keys.includes(k)).toBe(true);
         }
-        expect(keys.length).toBe(9); // 8 内置 + block-popover 载体别名（同模板）
+        expect(keys.length).toBe(8); // 4 overlay 家族 shell + error + 通知族 shell + 三 type
     });
 });

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>自定义指令 · 倒序（结构指令，自动更改结构）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 示例三：x-reverse 编译期倒序子树；列表渲染为 丙 乙 甲，点按钮文本仍响应——
+             改写后交还编译器，子元素内部绑定照常生效 -->
+        <div class="demo-app section" x-data="{ one: '甲', two: '乙', three: '丙' }">
+            <ul x-reverse class="block">
+                <li x-text="one"></li>
+                <li x-text="two"></li>
+                <li x-text="three"></li>
+            </ul>
+            <div class="buttons">
+                <button class="button is-small" @click="one = '壹'">one → 壹</button>
+                <button class="button is-small" @click="three = '叁'">three → 叁</button>
+            </div>
+        </div>
+
+        <script>
+            // 结构指令超出 defineDirective 最小 spec，走类形态 + 全局安装队列（加载顺序无关）
+            (
+                window.__AUTOSPARK_DIRECTIVES__ = window.__AUTOSPARK_DIRECTIVES__ || []
+            ).push((engine) => {
+                const { AutoSparkDirectiveBase } = AutoSparkSpaces; // 安装器体执行时引擎必已加载
+                engine.directives.install(
+                    "reverse",
+                    class extends AutoSparkDirectiveBase {
+                        static kind = 0; // Compile：scope 通道
+                        static ownsChildren() {
+                            return true; // 接管子树，结构由本指令作主
+                        }
+                        created() {
+                            const tpl = this.template; // 只读模板子树（含原始子元素与指令属性）
+                            // 倒序 = 逆序逐个搬到尾部（正序搬运是恒等变换）
+                            for (const child of [...tpl.children].reverse()) tpl.appendChild(child);
+                            // 改写完成后交还编译器，子元素照常走指令编译
+                            this.engine.compiler.compileSubtree(this.el, tpl, this.binding);
+                        }
+                    },
+                );
+            });
+
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+                one: "甲",
+                two: "乙",
+                three: "丙",
+            });
+        </script>
+    </body>
+</html>
