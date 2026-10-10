@@ -370,3 +370,69 @@ describe("形态样式", () => {
         expect(style!.textContent).toContain(".autospark-dialog[data-overlay-border]");
     });
 });
+
+describe("fit（面板尺寸跟随宿主）", () => {
+    // happy-dom 无真实布局：stub offsetWidth/offsetHeight 模拟宿主尺寸
+    function stubHostSize(el: HTMLElement, w: number, h: number) {
+        Object.defineProperty(el, "offsetWidth", { value: w, configurable: true });
+        Object.defineProperty(el, "offsetHeight", { value: h, configurable: true });
+    }
+
+    test("fit=true + 上下弹出：面板宽度与宿主一致", async () => {
+        const { root } = mountPopover(
+            `<div id="app"><div x-scope>
+                <div x-define="tip"><span>x</span></div>
+                <button id="t" x-popover:tip x-popover-options="{delayShow: 0, fit: true, at: {placement: 'top'}}">悬停</button>
+            </div></div>`,
+            {},
+        );
+        const host = root.querySelector("#t")!;
+        stubHostSize(host, 200, 50);
+        enter(host);
+        await nextTick();
+        await nextTick();
+        await nextTick();
+        const panel = panelOf("tip")!;
+        // 上下弹出 → 宽度跟随宿主
+        expect(panel.style.width).toBe("200px");
+        expect(panel.style.height).toBe("");
+    });
+
+    test("fit=true + 左右弹出：面板高度与宿主一致", async () => {
+        const { root } = mountPopover(
+            `<div id="app"><div x-scope>
+                <div x-define="tip"><span>x</span></div>
+                <button id="t" x-popover:tip x-popover-options="{delayShow: 0, fit: true, at: {placement: 'right-start'}}">悬停</button>
+            </div></div>`,
+            {},
+        );
+        const host = root.querySelector("#t")!;
+        stubHostSize(host, 200, 50);
+        enter(host);
+        await nextTick();
+        await nextTick();
+        await nextTick();
+        const panel = panelOf("tip")!;
+        // 左右弹出 → 高度跟随宿主
+        expect(panel.style.height).toBe("50px");
+        expect(panel.style.width).toBe("");
+    });
+
+    test("fit 默认 false：不设置面板尺寸", async () => {
+        const { root } = mountPopover(
+            `<div id="app"><div x-scope>
+                <div x-define="tip"><span>x</span></div>
+                <button id="t" x-popover:tip x-popover-options="{delayShow: 0}">悬停</button>
+            </div></div>`,
+            {},
+        );
+        const host = root.querySelector("#t")!;
+        stubHostSize(host, 200, 50);
+        enter(host);
+        await nextTick();
+        await nextTick();
+        const panel = panelOf("tip")!;
+        expect(panel.style.width).toBe("");
+        expect(panel.style.height).toBe("");
+    });
+});

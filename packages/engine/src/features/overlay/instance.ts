@@ -462,8 +462,15 @@ export class OverlayInstance {
             ) as HTMLElement | null;
             if (anchorEl && anchorCfg) {
                 if (anchorCfg.arrow === false) arrowEl?.remove();
+                // fit：面板尺寸跟随宿主（声明式 searchRoot = 指令宿主 this.el）——按最终
+                // placement 主向自动选轴（左右→高度、上下→宽度），autoUpdate 重算持续生效
+                const anchorOpts =
+                    this.config.fit && this.searchRoot
+                        ? { fitToEl: this.searchRoot }
+                        : undefined;
                 applyAnchorPosition(anchorCfg, anchorEl, this._panel!, (fn) =>
                     this._cleanups.push(fn),
+                    anchorOpts,
                 );
             } else {
                 arrowEl?.remove();

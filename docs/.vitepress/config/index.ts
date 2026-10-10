@@ -140,6 +140,7 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { text: "x-layout", link: "/zh/guide/directives/x-layout" },
+                { text: "x-block", link: "/zh/guide/directives/x-block" },
                 { text: "x-splitter", link: "/zh/guide/directives/x-splitter" },
                 { text: "x-expandable", link: "/zh/guide/directives/x-expandable" },
                 { text: "x-resize", link: "/zh/guide/directives/x-resize" },

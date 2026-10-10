@@ -35,6 +35,7 @@ export * from "./x-splitter";
 export * from "./x-expandable";
 export * from "./x-layout";
 export * from "./x-pane";
+export * from "./x-block";
 
 import type { AutoSparkDirectiveBase } from "../features/directive/base";
 import { TextDirective } from "./x-text";
@@ -71,6 +72,7 @@ import { SplitterDirective } from "./x-splitter";
 import { ExpandableDirective } from "./x-expandable";
 import { LayoutDirective } from "./x-layout";
 import { PaneDirective } from "./x-pane";
+import { BlockDirective } from "./x-block";
 
 /**
  * 预设指令映射：指令名 → 指令类。
@@ -142,4 +144,7 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     // 行为组合 expandable/resize/splitter）；x-pane 为名位标记（收集/剪枝由 layout 接管，孤儿 warn）
     layout: LayoutDirective,
     pane: PaneDirective,
+    // x-block 布局条（ADR-0098）：行内三段分区布局（x-block:header|body|footer 标记）
+    // + 溢出折叠（渐进链 footer→header，组合 popover shell hover 面板，stash 常驻）
+    block: BlockDirective,
 };

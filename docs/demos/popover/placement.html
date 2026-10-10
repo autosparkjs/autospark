@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-popover · 弹出方向（placement 九宫格）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .pop-panel { background: #fff; border-radius: 8px; padding: 12px 16px; min-width: 180px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+            .pop-panel-sm { padding: 10px 14px; min-width: 0; font-size: 12px; text-align: center; }
+            /* 九宫格：全部 placement 取值演示（中央 = 锚点） */
+            .placement-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 6px;
+                max-width: 360px;
+                margin: 0 auto;
+            }
+            .placement-grid .button {
+                font-size: 11px;
+                padding: 0 6px;
+                height: auto;
+                white-space: nowrap;
+            }
+            .anchor-center {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: hsl(171, 100%, 29%);
+                color: #fff;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                min-height: 34px;
+            }
+            .placement-extra {
+                display: flex;
+                gap: 6px;
+                justify-content: center;
+                margin-top: 8px;
+                flex-wrap: wrap;
+            }
+            .placement-extra .button {
+                font-size: 11px;
+                padding: 0 10px;
+                height: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- 九宫格：12 个 placement 取值全演示（纯声明式 x-popover）。
+             中央 = 定位锚点；悬停按钮时面板按标注 placement 贴附到中央锚点弹出。
+             换锚只改显示位置，不改变触发关系（触发器恒为按钮自身的悬浮）。 -->
+        <div class="demo-app section">
+            <div x-data>
+                <div class="block">
+                    <div class="placement-grid">
+                        <button
+                            class="button is-light"
+                            x-popover:ptip
+                            x-popover-options="{delayShow: 0, delayHide: 0, at: {selector: '/#anchor-center', placement: 'top-start', flip: false}, props: {placement: 'top-start'}}"
+                        >
+                            top-start
+                        </button>
+                        <button
+                            class="button is-light"
+                            x-popover:ptip
+                            x-popover-options="{delayShow: 0, delayHide: 0, at: {selector: '/#anchor-center', placement: 'top', flip: false}, props: {placement: 'top'}}"
+                        >
+                            top
+                        </button>
+                        <button
+                            class="button is-light"
+                            x-popover:ptip
+                            x-popover-options="{delayShow: 0, delayHide: 0, at: {selector: '/#anchor-center', placement: 'top-end', flip: false}, props: {placement: 'top-end'}}"
+                        >
+                            top-end
+                        </button>
+                        <button
+                            class="button is-light"
+                            x-popover:ptip
+                            x-popover-options="{delayShow: 0, delayHide: 0, at: {selector: '/#anchor-center', placement: 'left-start', flip: false}, props: {placement: 'left-start'}}"
+                        >
+                            left-start
+                        </button>
+                        <div class="anchor-center" id="anchor-center">锚点</div>
+                        <button
+                            class="button is-light"
+                            x-popover:ptip
+                            x-popover-options="{delayShow: 0, delayHide: 0, at: {selector: '/#anchor-center', placement: 'right-start', flip: false}, props: {placement: 'right-start'}}"
+                        >
+                            right-start
+                        </button>
+                        <button
+                            class="button is-light"
+                            x-popover:ptip
+                            x-popover-options="{delayShow: 0, delayHide: 0, at: {selector: '/#anchor-center', placement: 'bottom-start', flip: false}, props: {placement: 'bottom-start'}}"
+                        >
+                            bottom-start
+                        </button>
+                        <button
+                            class="button is-light"
+                            x-popover:ptip
+                            x-popover-options="{delayShow: 0, delayHide: 0, at: {selector: '/#anchor-center', placement: 'bottom', flip: false}, props: {placement: 'bottom'}}"
+                        >
+                            bottom
+                        </button>
+                        <button
+                            class="button is-light"
+                            x-popover:ptip
+                            x-popover-options="{delayShow: 0, delayHide: 0, at: {selector: '/#anchor-center', placement: 'bottom-end', flip: false}, props: {placement: 'bottom-end'}}"
+                        >
+                            bottom-end
+                        </button>
+                    </div>
+                    <div class="placement-extra">
+                        <button
+                            class="button is-light"
+                            x-popover:ptip
+                            x-popover-options="{delayShow: 0, delayHide: 0, at: {selector: '/#anchor-center', placement: 'left', flip: false}, props: {placement: 'left'}}"
+                        >
+                            left
+                        </button>
+                        <button
+                            class="button is-light"
+                            x-popover:ptip
+                            x-popover-options="{delayShow: 0, delayHide: 0, at: {selector: '/#anchor-center', placement: 'left-end', flip: false}, props: {placement: 'left-end'}}"
+                        >
+                            left-end
+                        </button>
+                        <button
+                            class="button is-light"
+                            x-popover:ptip
+                            x-popover-options="{delayShow: 0, delayHide: 0, at: {selector: '/#anchor-center', placement: 'right', flip: false}, props: {placement: 'right'}}"
+                        >
+                            right
+                        </button>
+                        <button
+                            class="button is-light"
+                            x-popover:ptip
+                            x-popover-options="{delayShow: 0, delayHide: 0, at: {selector: '/#anchor-center', placement: 'right-end', flip: false}, props: {placement: 'right-end'}}"
+                        >
+                            right-end
+                        </button>
+                    </div>
+                </div>
+
+                <div x-define="ptip">
+                    <script type="autospark/setup">
+                        { data: { placement: "bottom" } }
+                    </script>
+                    <div class="pop-panel pop-panel-sm">
+                        placement: <b x-text="placement"></b>
+                    </div>
+                </div>
+
+                <div class="block has-text-grey is-size-7" style="margin-top: 8px">
+                    12 个方向取值：悬停按钮，面板按标注 <code>placement</code> 贴附到中央锚点
+                    （<code>flip: false</code> 展示原始语义，生产默认开启视口翻转；省略 <code>placement</code> 回退默认
+                    <code>bottom</code>——popover 惯例，与 x-dialog 的 <code>auto</code> 不同）。
+                    换锚只改显示位置，触发仍是按钮自身的悬浮。
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

@@ -116,6 +116,13 @@ export interface OverlayConfig {
      */
     resize?: boolean | ResizeOptions;
     /**
+     * 面板尺寸跟随宿主（x-popover 消费）：`true` 时面板宽度或高度与宿主元素一致——
+     * 按定位主向自动选轴：左右弹出（left/right 系）→ 高度与宿主一致；上下弹出（top/bottom 系）
+     * → 宽度与宿主一致。跟随 flip 翻转后的最终 placement；autoUpdate 重算时持续生效。
+     * 缺省 `false`。
+     */
+    fit?: boolean;
+    /**
      * 抽屉把手（x-drawer 消费，ADR-0070 组合共享把手模块）：骑面板活动边线的常驻圆形
      * 按钮，点击折叠/展开——**折叠 ≡ visible 归假**（无第三态，面板销毁、重开重建）。
      * 把手是覆盖物家族首个**实例外常驻交互元素**（面板销毁后存活，折叠后骑屏幕边/

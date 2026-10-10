@@ -41,6 +41,13 @@ export interface AnchorPositionOptions {
     flipDefault?: boolean;
     /** 每次定位完成回调（含 autoUpdate 重算）：placement 写回后触发（x-drawer 锚定长轴同步） */
     onPositioned?: (placement: string, anchorEl: HTMLElement, panel: HTMLElement) => void;
+    /**
+     * 面板尺寸跟随基准元素（x-popover `fit` 消费）：定位完成后按最终 placement 主向设置
+     * 面板尺寸——左右方向（left/right 系）→ `height` = 基准 `offsetHeight`；上下方向
+     * （top/bottom 系）→ `width` = 基准 `offsetWidth`。跟随 flip 翻转后的最终 placement；
+     * autoUpdate 重算时持续生效。缺省 undefined（不 fit）。
+     */
+    fitToEl?: HTMLElement;
 }
 
 /**
@@ -72,6 +79,7 @@ export function applyAnchorPosition(
             arrowSelector: `:scope > .${OVERLAY_ARROW_CLASS}`,
             flipDefault: opts?.flipDefault,
             onPositioned: opts?.onPositioned,
+            fitToEl: opts?.fitToEl,
         },
     );
 }

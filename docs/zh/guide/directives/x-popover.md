@@ -79,7 +79,22 @@
 <button x-popover:tip x-popover-options="{at: '/#navbar-logo'}">悬停</button>
 ```
 
+`placement` 共 **12 个方向取值**（4 方向 × start / 居中 / end）：`top` / `top-start` / `top-end`、`bottom` / `bottom-start` / `bottom-end`、`left` / `left-start` / `left-end`、`right` / `right-start` / `right-end`；省略时回退默认 **`bottom`**（popover 惯例，与 x-dialog 的 `auto` 不同）。九宫格 demo（悬停按钮，面板按标注 placement 贴附到中央锚点弹出）演示全部取值：
+
+<demo html="popover/placement.html"/>
+
 `at` 键的完整语义（相对查询语法 / flip / offset / shift / arrow / 边框配色变量）见[覆盖物 · 定位锚点](../overlays.md)。
+
+### 尺寸跟随宿主（fit）
+
+`fit`（默认 `false`）让面板尺寸与宿主一致——按定位主向自动选轴：左右弹出（left/right 系）→ 面板高度 = 宿主高度；上下弹出（top/bottom 系）→ 面板宽度 = 宿主宽度（[ADR-0099](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0099-overlay-fit.md)）。跟随 `flip` 翻转后的最终方向（`auto` 选位同样生效），inline 写在面板外壳根上、`autoUpdate` 重算时持续生效——自定义 shell 照常约束：
+
+<demo html="popover/fit.html"/>
+
+```html
+<!-- 面板宽度 = 按钮宽度（上下弹出取宽度；左右弹出则取高度） -->
+<button x-popover:tip x-popover-options="{fit: true}">悬停</button>
+```
 
 ### 传递 props 与内容（插槽）
 
@@ -130,3 +145,20 @@
 | 典型场景       | 悬浮菜单、卡片提示、级联面板 | 确认框、表单弹窗、内容向导   |
 
 需要「悬浮之外还能程序化开关」时，用状态驱动的 x-dialog + `@mouseenter` 改状态组合表达——两个真相源不混在一个指令里。
+
+## 与 tooltip 的区别
+
+tooltip（[工具提示](../tooltip.md)）是**引擎级零声明**能力（`data-tooltip` 属性），popover 是**指令式组件内容浮层**（`x-popover`）——形态相似（都是宿主旁的悬浮提示），定位机制与内容模型完全不同：
+
+| 维度         | x-popover                              | tooltip                              |
+| ------------ | -------------------------------------- | ------------------------------------ |
+| 声明方式     | `x-popover:组件名`（消费组件）         | `data-tooltip="…"`（零声明，`title` 自动转换） |
+| 内容模型     | **任意组件**（props / 插槽 / scope）   | 纯文本或富 HTML（sanitizer 消毒）    |
+| 定位         | `at` 锚配置（默认贴宿主 `bottom` + 箭头） | 默认 `top` + flip，无箭头            |
+| 尺寸约束     | 可选 `fit`（跟随宿主单轴），否则组件自持 | `70vw × 70vh` + line-clamp 截断      |
+| 单例         | 否（各自独立实例）                     | 是（全局单例，同时只显示一个）       |
+| 命令式 API   | 无（纯声明）                           | `engine.tooltip.show/hide`           |
+| 全局开关     | 无                                     | `options.tooltip: false`             |
+| 典型场景     | 悬浮菜单、卡片、级联面板               | 图标/按钮的轻量文字提示              |
+
+轻量文字/HTML 提示用 tooltip（零声明、统一样式）；需要组件内容、嵌套链或自定义外壳时用 popover。

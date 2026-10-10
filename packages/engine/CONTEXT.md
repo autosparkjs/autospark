@@ -266,7 +266,7 @@ _Avoid_: 布局组件（无组件机制参与）、页面框架（泛化）、�
 
 **布局窗格 / Layout Pane（x-pane）**:
 布局容器的**布局单元**——`x-pane:参数` 标记的直接子元素，参数词表固定 `header | content | sidebar | footer`；`sidebar` 必带 `.left` / `.right` 修饰符（缺省按 `.left`），参数不在词表 warn + 剪枝。content 必需（缺失 warn + 降级渲染空容器），header/footer/sidebar 可选。同侧多窗格按 DOM 序并排，**仅首个有 through 资格**。存在性与 x-if / x-show 正交配合（见「布局回流」）。
-_Avoid_: 面板 / Pane（那是 x-splitter 的子元素正名——两概念并存，须以全称 Layout Pane / 分割器面板消歧）、x-slot（那是组件插槽出口，ADR-0056，命名竞选时因撞名被否）、区域 / region（命名竞选中落选词，勿混用）、布局块（x-block 是已废弃词条）
+_Avoid_: 面板 / Pane（那是 x-splitter 的子元素正名——两概念并存，须以全称 Layout Pane / 分割器面板消歧）、x-slot（那是组件插槽出口，ADR-0056，命名竞选时因撞名被否）、区域 / region（命名竞选中落选词，勿混用）、布局块（x-block 旧义已废弃——组件机制前身已由 x-define 承接；新 x-block 是行内三段条布局指令，见「布局条」，勿混用）、分区（那是 x-block 的子元素正名）
 
 **贯穿 / through**:
 sidebar 窗格**纵向跨过 header / footer 行带**的声明（`"up"` / `"down"` / `"up,down"`；`.up` / `.down` 修饰符为等价简写）：`up` = 该侧栏上延至容器顶、header 被推向对侧；`down` = 下延至容器底、footer 同理；左右都 up 时 header 夹在中间。仅 sidebar 支持（header/footer 上声明 warn + 忽略）；**header 全宽是缺省态**，由 sidebar 未声明 through 自然表达，无独立配置。编译期静态，变更需重编译。
@@ -283,6 +283,18 @@ _Avoid_: 内建分隔条（组合而非自建，ADR-0070「机制唯一实现 + 
 **窗格尺寸调节（Pane Resizing）**:
 未参与分割的窗格的尺寸通道：**sidebar 默认注入** x-resize（内缘单方向手柄——left 拖东缘 / right 拖西缘）+ x-expandable（`compose` 程序化组合，ADR-0070 先例），拖拽跨折叠目标自动翻转折叠布尔（折叠目标 / lastSize 恢复链沿用 splitter 模型）；header / footer 显式挂 `x-resize` 合法（auto 轨道跟随元素尺寸）、content 上挂 warn（1fr 轨道拖拽无效）。**显式声明优先于默认注入**（options 全生效）；默认注入 = 内部态，状态绑定须显式 `x-expandable="路径"`；opt-out = `x-pane-options={expandable:false}` / `{resize:false}`；注入实例的 options 读同元素 `x-expandable-options`。默认尺寸（header/footer 64px、sidebar 240px）经 CSS 变量注入——用户 CSS 与窗格选项（`{height}` / `{width}`，inline）两条覆盖路都通。
 _Avoid_: 默认可调（header/footer/sidebar 之外的窗格无默认注入）、单向吸收（pane 间分割是守恒语义，单侧吸收被否决）
+
+**布局条 / x-block（Block）**:
+行内三段条状布局的结构指令（ADR-0098）：宿主直接子元素中只认 `x-block:参数` 标记的分区（非法参数 warn + 剪枝），值 = `row | column` 表达式（响应式换轴重排，x-splitter 先例）。容器 flex（column 时 `flex-direction:column`）+ `align-items:stretch`（分区等高）、分区内部 `align-items:center`（内容交叉轴居中）——两级分离化解「等高」与「居中」的表面矛盾；三段 nowrap 不换行，body `flex-grow:1` 恒为弹性区（永不参与收缩），header/footer 默认收缩系数随容器压缩（不设 `flex-shrink:0`——溢出折叠的信号来源，ADR-0098 决策四修订）。`gap`（默认 0）/ `padding`（默认 0）/ `align`（值域 `start|center|end`，默认 `start`——轴无关逻辑值，row 下 start=左、column 下 start=上，随 justify-content 语义自然翻转）编译期静态（number=px / CSS 长度串原样）。分区书写序不限、按语义序渲染；分区子树照常编译（不接管编译语义），x-if / x-show 分区存在性正交、变化触发溢出重算；嵌套零新机制。与 x-layout 分工：x-layout 管整页 grid 骨架，x-block 管行内三段条（工具栏 / 卡片头）。
+_Avoid_: 布局块（旧义词条，见已废弃区——与新义无承继关系）、x-slot:header 分区写法（那是组件插槽出口，非组件宿主子级会被组件机制 warn + 丢弃，ADR-0056）、工具栏（那是典型场景不是本体）、面板 / 窗格（各归 x-splitter Pane / x-layout Layout Pane）
+
+**分区（Part，x-block）**:
+布局条的**分区单元**——`x-block:参数` 标记的直接子元素，参数词表固定 `header | body | footer`。body 必需（缺失**不 warn、静默空渲染**——弹性区缺席不构成误用），header / footer 可选（缺失静默跳过）。
+_Avoid_: 槽 / 插槽（那是 x-slot 组件插槽词汇，ADR-0056）、列 / 行（轴耦合词——分区在两方向下同权，仅布局位置随轴翻转）、栏（泛化）
+
+**溢出折叠（Overflow Collapse，x-block）**:
+布局条的响应式收缩机制：**分区级溢出检测**（分区被 flex 压缩后自身主轴 `scrollWidth/Height > clientWidth` + 1px 容差，ResizeObserver 驱动——「尺寸较小」的直接信号，header/footer 不设 `flex-shrink:0`、随容器等比压缩）触发**渐进收缩链**——footer 溢出先收 footer、header 溢出再收 header，body 恒弹性永不收（body 溢出交容器 `overflow:hidden` 裁切）。**收缩次序由 body 下限驱动**（`bodyMinSize`，默认 120px）：容器缩小时 body 优先吸收、压到下限后 flex min 钳制使其退出收缩，剩余压缩量全部落在两端。收缩 = **整个分区元素** reparent（实例持有、脱离文档——用户的分区 class / padding 样式在面板内原样生效，分区外观由开发者控制）+ 原位占位壳（同契约属性 + 收缩类，承载触发按钮——footer = more、header = menu）+ 挂 `x-block-collapsed` 类（用户 CSS 断言面）。弹出面板由按钮上的 **x-popover 指令全权接管**（ADR-0060 悬浮模型：开关 / 定位 / 动画 / delayShow·delayHide 透传），载体是内置组件 **block-popover**（popover shell 同模板别名——点自由名，声明式 attr 经修饰符语法解析无法承载点前缀名）；锚定方位随轴（row：header=bottom-start / footer=bottom-end；column 对称翻转），换轴经指令实例 options 热更。**常驻语义**：内容折叠期间常驻 stash、开关仅显隐（控件状态跨开关保留）——偏离覆盖物「每次打开新实例」标准语义，靠 `overlay:open` 注入 / `overlay:close`（面板 DOM 尚在的窗口）摘回实现（偏离理由记录于 ADR-0098）。溢出解除反向展开（header 先回、试展后仍溢出静默回滚）。事件 `block:collapse` / `block:expand`（宿主派发、冒泡，`detail = { part }`）。`overflow:false` 整体禁用（默认开启）。
+_Avoid_: 点击弹出（触发是 hover 非 click）、容器级判溢（已修订为分区级——定容收缩让分区永不缩小、信号无从产生）、x-popover:autospark.popover 载体声明（点前缀名经 attr 被修饰符语法截断，载体别名是 block-popover）、溢出菜单（泛化，且撞「内置动作」语境）、移动 / 复制内容（reparent 是搬移不是副本）、收起（单向词，折叠是双向）
 
 ### 展开折叠层
 
@@ -939,9 +951,9 @@ _Avoid_: `.keep`（已更名为 `.keepalive`）、`x-if-options="{keep:true}"`�
 已被废弃的修饰符带值语法，形如 `.debounce.500` 中句点后的数字段。带值配置现统一走**指令选项**（如 `x-on-options="{debounce:500}"`）。详见 ADR-0007。
 _Avoid_: （不再使用）
 
-**x-block / blocks / getBlock 全套术语**:
-已废弃，升级为 x-component / components / getComponent（ADR-0022；其中 getComponent 后经 ADR-0080 更名 getComponentDeclaration）。default 块唯一性抛错语义亦废止，改为 warn + 后者覆盖。
-_Avoid_: （不再使用）
+**x-block / blocks / getBlock 全套术语（旧义）**:
+已废弃，升级为 x-component / components / getComponent（ADR-0022；其中 getComponent 后经 ADR-0080 更名 getComponentDeclaration）。default 块唯一性抛错语义亦废止，改为 warn + 后者覆盖。注意：此为 x-block 的**旧义**（组件机制前身）；`x-block` 名现已复用为**行内三段条布局指令**（ADR-0098，见「布局条 / x-block」），两义无承继关系。
+_Avoid_: blocks / getBlock（旧 API 族，不再使用）；把新 x-block 当组件机制引用（那是 x-define / x-component）
 
 **AutoTemplate / AutoStore Template（旧品牌名）**:
 已废弃。项目品牌更名为 **AutoSpark**（ADR-0030）：npm 包名 `autospark`、代码标识符前缀 `AutoSpark*`、IIFE 全局变量 `AutoSparkSpaces`。历史 ADR 正文中的旧名保留原词，作为决策当时的记录；活文档（本表、specs、docs/zh）一律用新名。

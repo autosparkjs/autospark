@@ -1,97 +1,53 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>x-define · 组件基础</title>
-        <script src="/autospark/autospark.js"></script>
-        <link rel="stylesheet" href="/autospark/bulma.min.css" />
-        <style>
-            /* panel 给覆盖层提供定位上下文（position:relative） */
-            .panel {
-                position: relative;
-                min-height: 120px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            /* 自定义 loading 块：骨架屏样式（替代默认旋转 loader） */
-            .my-skeleton {
-                width: 80%;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-            }
-            .my-skeleton > span {
-                display: block;
-                height: 12px;
-                border-radius: 6px;
-                background: rgba(255, 255, 255, 0.4);
-                animation: my-shimmer 1.4s infinite linear;
-            }
-            .my-skeleton > span:nth-child(1) {
-                width: 60%;
-            }
-            .my-skeleton > span:nth-child(2) {
-                width: 90%;
-            }
-            .my-skeleton > span:nth-child(3) {
-                width: 40%;
-            }
-            @keyframes my-shimmer {
-                0% {
-                    opacity: 0.35;
-                }
-                50% {
-                    opacity: 0.8;
-                }
-                100% {
-                    opacity: 0.35;
-                }
-            }
-        </style>
-    </head>
-
-    <body>
-        <!-- 组件基础：
-             1. x-scope 让纯容器建 scope，为其内的 x-define 提供归属锚点；
-             2. x-define="loading" 在编译期被深克隆为快照、上交给最近祖先 scope 的 blocks，
-                然后【从渲染树摘除】——它本身不会出现在页面上；
-             3. x-loading 渲染时经 getBlock("loading") 取到该快照，clone+编译后替换内置 loader。 -->
-        <div class="demo-app section">
-            <div class="buttons">
-                <button class="button is-primary" @click="toggle">{{ on ? '隐藏' : '显示' }}加载态</button>
-            </div>
-
-            <div x-scope>
-                <!-- 声明命名块 loading：骨架屏。此元素编译后即从 DOM 消失，仅作"模板供体" -->
-                <div x-define="loading">
-                    <div class="my-skeleton"><span></span><span></span><span></span></div>
-                </div>
-
-                <!-- 消费者：x-loading 自动取上面的 loading 块替换内置旋转 loader -->
-                <div class="card panel" x-loading="{ value:'on' }">
-                    <div class="card-content">数据内容区</div>
-                </div>
-            </div>
-
-            <div class="block has-text-grey">
-                上面的 <code>x-define="loading"</code> 声明不会渲染成可见节点——它在编译期被摘除，仅在 <code>x-loading</code> 需要时作为模板被克隆消费。
-            </div>
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-block · 快速入门</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .blk {
+        border: 1px solid #dbdbdb;
+        border-radius: 8px; 
+      }
+      /* 三段分区以不同淡灰背景区分 */
+      .seg {
+        padding: 8px 10px;
+        font-size: 13px;
+      }
+      .seg.head {
+        background: #f5f5f5;
+        font-weight: 600;
+      }
+      .seg.main {
+        background: #fbfbfc;
+      }
+      .seg.foot {
+        background: #ececee;
+        color: #555;
+      }
+    </style>
+  </head>
+  <body style="overflow:auto">
+    <div class="demo-app section">
+      <div x-data="{ dir: 'row' }">
+        <div class="block has-text-grey is-size-7">
+          三段分区（灰度由浅到深：header / body / footer）。body 恒为弹性区，header/footer
+          随容器压缩、被压溢出时折入弹出面板。切换方向观察换轴重排。
         </div>
-
-        <script>
-            const engine = new AutoSparkSpaces.AutoSpark(
-                document.querySelector(".demo-app"),
-                { on: true },
-                {
-                    actions: {
-                        toggle: () => {
-                            engine.state.on = !engine.state.on;
-                        },
-                    },
-                },
-            );
-        </script>
-    </body>
+        <div class="field is-grouped">
+          <button class="button is-small" @click="dir = 'row'" :class="{ 'is-link': dir === 'row' }">row</button>
+          <button class="button is-small" @click="dir = 'column'" :class="{ 'is-link': dir === 'column' }">column</button>
+        </div>
+        <div class="blk" x-block="dir" x-block-options="{ gap: 8, align: 'center' }">
+          <div class="seg head" x-block:header>头部</div>
+          <div class="seg main" x-block:body>主体内容——flex-grow:1 吸收剩余空间，align 控制主轴对齐</div>
+          <div class="seg foot" x-block:footer>尾部</div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
 </html>

@@ -54,6 +54,13 @@ export interface FloatingContract {
      * 形态特化的同步点（x-drawer 锚定长轴 = 锚边长，随锚 resize 重同步，ADR-0063）。
      */
     onPositioned?: (placement: string, anchorEl: HTMLElement, panel: HTMLElement) => void;
+    /**
+     * 面板尺寸跟随基准元素（x-popover `fit` 消费）：定位完成后按最终 placement 主向设置
+     * 面板尺寸——左右方向（left/right 系）→ `height` = 基准 `offsetHeight`；上下方向
+     * （top/bottom 系）→ `width` = 基准 `offsetWidth`。跟随 flip 翻转后的最终 placement；
+     * autoUpdate 重算时持续生效。缺省 undefined（不 fit）。
+     */
+    fitToEl?: HTMLElement;
 }
 
 /** placement 主方向 → staticSide（箭头所在的面板边缘侧）映射 */
@@ -128,6 +135,19 @@ export function applyFloatingPosition(
                 });
                 // 最终 placement 写回面板（flip 后的值；箭头伪元素与方向性动画按此分派）
                 panel.setAttribute(contract.placementAttr, finalPlacement);
+                // 面板尺寸跟随宿主（x-popover `fit`）：按最终 placement 主向自动选轴——
+                // 左右弹出（left/right 系）→ 高度与宿主一致；上下弹出（top/bottom 系）→ 宽度一致。
+                // inline 优先级高于样式表；autoUpdate 重算时持续生效（宿主尺寸变化自动跟随）。
+                if (contract.fitToEl) {
+                    const mainAxis = String(finalPlacement).split("-")[0];
+                    if (mainAxis === "left" || mainAxis === "right") {
+                        panel.style.height = `${contract.fitToEl.offsetHeight}px`;
+                        panel.style.width = "";
+                    } else {
+                        panel.style.width = `${contract.fitToEl.offsetWidth}px`;
+                        panel.style.height = "";
+                    }
+                }
                 // 形态特化同步点（含 autoUpdate 重算路径）：长轴同步等消费方钩子（ADR-0063）
                 contract.onPositioned?.(String(finalPlacement), anchorEl, panel);
                 // 箭头载体定位（floating-ui 官方协议）：middlewareData.arrow.{x,y} 是把载体**贴在

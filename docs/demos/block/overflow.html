@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-block · 溢出折叠</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .toolbar {
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        width: 440px;
+      }
+      .tool {
+        padding: 6px 8px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .tool.head {
+        background: #f5f5f5;
+      }
+      .tool.main {
+        background: #fbfbfc;
+      }
+      .tool.foot {
+        background: #ececee;
+      }
+      .tool + .tool {
+        border-left: 1px solid #e8e8e8;
+      }
+    </style>
+  </head>
+  <body style="overflow:auto">
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block has-text-grey is-size-7">
+          拖动容器右缘手柄（x-resize）压缩宽度：分区被压溢出时 footer 先折入弹出面板（more
+          图标，hover 展开）、header 被压溢出再收（menu 图标）；body 恒弹性永不收缩。弹出面板
+          内容跨开关保留（输入框文字不丢）。
+        </div>
+        <div
+          class="toolbar"
+          x-block="row"
+          x-block-options="{ gap: 4 }"
+          x-resize
+          @block:collapse="collapsed = collapsed + 1"
+          @block:expand="collapsed = collapsed - 1"
+        >
+          <div class="tool head" x-block:header>
+            <input class="input is-small" style="width: 110px" placeholder="搜索…" />
+          </div>
+          <div class="tool main" x-block:body>
+            <b>主体</b> · 两端被压溢出即折入弹出面板，body 恒吸收剩余空间
+          </div>
+          <div class="tool foot" x-block:footer>
+            <button class="button is-small">新建</button>
+            <button class="button is-small">导出</button>
+            <input class="input is-small" style="width: 90px" placeholder="备注" />
+          </div>
+        </div>
+        <div class="field mt-2">
+          <span class="tag is-info is-light">当前收缩分区数：<b x-text="collapsed"></b></span>
+          <span class="tag is-light">拖右缘手柄调节宽度</span>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), { collapsed: 0 });
+    </script>
+  </body>
+</html>

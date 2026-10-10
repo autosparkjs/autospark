@@ -73,7 +73,7 @@
 - **「请求关闭」**：ESC / 遮罩 / close 动作统一走 `requestClose`——消费者可注入写回（visible 简单路径回写 `false`，状态是唯一真相源），不可回写时仅收 UI；
 - **事件双通道**：`overlay:open` / `overlay:close` 在实例根（DOM 冒泡）与引擎总线同时广播，payload 收窄为 `{ name, instance, dataContext }`（`dataContext` 为命令式传元素时的基准元素）；
 - **打开栈**：document 级共享，ESC 只关全局栈顶实例——嵌套打开（确认框叠对话框）只关最上层，多 engine 并存不连环关；
-- **at 锚定定位**：`{selector, placement, offset, shift, flip, arrow}`（字符串 / 元素简写 ≡ `{selector}`）经 floating-ui 贴锚定位（详见 [x-dialog 的 at](./directives/x-dialog.md#弹出定位)）;
+- **at 锚定定位**：`{selector, placement, offset, shift, flip, arrow}`（字符串 / 元素简写 ≡ `{selector}`）经 floating-ui 贴锚定位（详见 [x-dialog 的 at](./directives/x-dialog.md#弹出定位)）；锚定生效时可开 `fit: true` 让面板单轴尺寸与宿主一致（左右弹出取高、上下弹出取宽，跟随翻转后的最终方向，ADR-0099，消费面见 [x-popover · 尺寸跟随宿主（fit）](./directives/x-popover.md#尺寸跟随宿主fit)）；
 - **进出场动画**：复用 ADR-0039 animate 机制，默认 `fade`，「播完动画再动 DOM」。
 
 ### 面板外壳（shell）：形态可定制

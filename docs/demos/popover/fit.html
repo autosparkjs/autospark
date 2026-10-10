@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-popover · 尺寸跟随宿主（fit）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .pop-panel {
+                background: #fff;
+                border-radius: 8px;
+                padding: 6px 8px;
+                font-size: 11px;
+                line-height: 1.6;
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+            }
+            .fit-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+                max-width: 560px;
+                margin: 0 auto;
+            }
+            .fit-col {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                align-items: flex-start;
+            }
+            .fit-col-title {
+                font-size: 12px;
+                font-weight: 600;
+                color: #7a7a7a;
+            }
+            .btn-narrow {
+                width: 72px;
+            }
+            .btn-mid {
+                width: 130px;
+            }
+            .btn-wide {
+                width: 220px;
+            }
+            .tall-host {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 150px;
+                height: 120px;
+                background: hsl(171, 100%, 29%);
+                color: #fff;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: default;
+            }
+            .tall-row {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                align-items: flex-start;
+                margin-top: 12px;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- fit 对照：上组左右两列同按钮——左列默认（面板宽度随内容）、右列 fit: true（面板宽度 = 按钮宽度）；
+             下组左右弹出（placement: right）——默认高度随内容、fit 高度 = 宿主高度（120px）。 -->
+        <div class="demo-app section">
+            <div x-data>
+                <div class="block">
+                    <div class="fit-grid">
+                        <div class="fit-col">
+                            <div class="fit-col-title">默认（宽度随内容）</div>
+                            <button
+                                class="button is-light btn-narrow"
+                                x-popover:fitbox
+                                x-popover-options="{delayShow: 0, delayHide: 0, props: {note: '宽度随内容自适应'}}"
+                            >
+                                保存
+                            </button>
+                            <button
+                                class="button is-light btn-mid"
+                                x-popover:fitbox
+                                x-popover-options="{delayShow: 0, delayHide: 0, props: {note: '宽度随内容自适应'}}"
+                            >
+                                导出当前视图
+                            </button>
+                            <button
+                                class="button is-light btn-wide"
+                                x-popover:fitbox
+                                x-popover-options="{delayShow: 0, delayHide: 0, props: {note: '宽度随内容自适应'}}"
+                            >
+                                归档所有已完成任务
+                            </button>
+                        </div>
+                        <div class="fit-col">
+                            <div class="fit-col-title">fit: true（宽度 = 按钮宽度）</div>
+                            <button
+                                class="button is-light btn-narrow"
+                                x-popover:fitbox
+                                x-popover-options="{delayShow: 0, delayHide: 0, fit: true, props: {note: '宽 = 宿主'}}"
+                            >
+                                保存
+                            </button>
+                            <button
+                                class="button is-light btn-mid"
+                                x-popover:fitbox
+                                x-popover-options="{delayShow: 0, delayHide: 0, fit: true, props: {note: '宽 = 宿主'}}"
+                            >
+                                导出当前视图
+                            </button>
+                            <button
+                                class="button is-light btn-wide"
+                                x-popover:fitbox
+                                x-popover-options="{delayShow: 0, delayHide: 0, fit: true, props: {note: '宽 = 宿主'}}"
+                            >
+                                归档所有已完成任务
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="tall-row">
+                        <div class="fit-col">
+                            <div class="fit-col-title">左右弹出 · 默认（高度随内容）</div>
+                            <div
+                                class="tall-host"
+                                x-popover:fittall
+                                x-popover-options="{delayShow: 0, delayHide: 0, at: {placement: 'right'}, props: {note: '高度随内容'}}"
+                            >
+                                悬停我（120px 高）
+                            </div>
+                        </div>
+                        <div class="fit-col">
+                            <div class="fit-col-title">左右弹出 · fit: true（高度 = 宿主高度）</div>
+                            <div
+                                class="tall-host"
+                                x-popover:fittall
+                                x-popover-options="{delayShow: 0, delayHide: 0, at: {placement: 'right'}, fit: true, props: {note: '高 = 宿主（120px）'}}"
+                            >
+                                悬停我（120px 高）
+                            </div>
+                        </div>
+                    </div>
+
+                    <div x-define="fitbox">
+                        <div class="pop-panel" x-text="note"></div>
+                    </div>
+
+                    <div x-define="fittall">
+                        <div class="pop-panel" style="width: 150px" x-text="note"></div>
+                    </div>
+
+                    <div class="block has-text-grey is-size-7" style="margin-top: 8px">
+                        上下弹出（默认 <code>bottom</code>）时 <code>fit: true</code> 让面板宽度 = 宿主宽度；左右弹出（<code>right</code>）
+                        时改为高度 = 宿主高度——按定位主向自动选轴，跟随 <code>flip</code> 翻转后的最终方向；自定义 shell 同样约束。
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>
