@@ -20,7 +20,7 @@ import {
     resolveResizeConstraints,
     type ResizeDirection,
     type ResizeOptions,
-} from "../../directives/x-resize";
+} from "../../directives/x-resizable";
 
 /**
  * OverlayDirective：覆盖物消费侧**公共抽象基座**（ADR-0052 修订版——组件化统一，共识 2/3）。
@@ -396,7 +396,7 @@ export abstract class OverlayDirective extends ComponentDirective {
 
     /**
      * 面板就绪钩子（onPanelReady 消费，ADR-0064）：读 `config.resize` 建调节会话并挂手柄——
-     * `true`（形态合法全集 + 默认约束）| 对象（字段与 x-resize 同构；handles 收窄校验，
+     * `true`（形态合法全集 + 默认约束）| 对象（字段与 x-resizable 同构；handles 收窄校验，
      * 越界 warn + 忽略）。钳制/手柄/指针核心复用 ResizeSession，写路径走 shell 面板
      * （{@link _applyResize}）；`resize:*` 事件派发在**指令宿主**（非面板，绑定语法不变）；
      * 不写回 store（事件 detail 即出口）；拖出尺寸进会话记忆（{@link _resizeMem}）。
@@ -419,7 +419,7 @@ export abstract class OverlayDirective extends ComponentDirective {
         let opts: ResizeOptions | null = null;
         if (cfg !== true) {
             if (typeof cfg !== "object") {
-                warn(`resize 须为 true 或选项对象（与 x-resize 选项同构），已忽略: ${JSON.stringify(cfg)}`);
+                warn(`resize 须为 true 或选项对象（与 x-resizable 选项同构），已忽略: ${JSON.stringify(cfg)}`);
                 return;
             }
             opts = cfg as ResizeOptions;

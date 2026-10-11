@@ -76,9 +76,9 @@ x-pane 不接管两者的语义——`x-show=false` 仍是 `display:none`（DOM 
 **sidebar 窗格默认可折叠、可调节**，无需显式声明：
 
 - **折叠**：默认注入 [x-expandable](./x-expandable.md)（程序化组合，ADR-0070 先例）——边缘圆把手常驻，把手/动画/事件全走 expandable 原生管线；注入实例为**内部态**（刷新即还原），要状态绑定/持久化请显式写 `x-expandable="路径"`；
-- **调节**：默认注入 [x-resize](./x-resize.md)（内缘单方向手柄——left 拖东缘 / right 拖西缘；西缘手柄依赖 x-resize 的 grid item 感知：父容器 `display:grid` 时豁免流内方向降级且免位置补偿，无值 = 纯 DOM 内部态）——拖拽终值 ≤ 折叠阈值（`minSize`，缺省 0）自动翻转为折叠；折叠前最后有效宽度被记忆，把手展开时恢复；
-- **显式优先**：窗格显式写 `x-expandable` / `x-resize` 时以显式为准（其 options 全生效）；注入实例的 options 读同元素 `x-expandable-options`——选项与是否显式写指令属性解耦；
-- header / footer 显式挂 `x-resize` 合法（auto 轨道跟随元素尺寸）；content 上挂 `x-resize` 无效（warn）——content 轨道是 1fr，元素尺寸被轨道钉死。
+- **调节**：默认注入 [x-resizable](./x-resizable.md)（内缘单方向手柄——left 拖东缘 / right 拖西缘；西缘手柄依赖 x-resizable 的 grid item 感知：父容器 `display:grid` 时豁免流内方向降级且免位置补偿，无值 = 纯 DOM 内部态）——拖拽终值 ≤ 折叠阈值（`minSize`，缺省 0）自动翻转为折叠；折叠前最后有效宽度被记忆，把手展开时恢复；
+- **显式优先**：窗格显式写 `x-expandable` / `x-resizable` 时以显式为准（其 options 全生效）；注入实例的 options 读同元素 `x-expandable-options`——选项与是否显式写指令属性解耦；
+- header / footer 显式挂 `x-resizable` 合法（auto 轨道跟随元素尺寸）；content 上挂 `x-resizable` 无效（warn）——content 轨道是 1fr，元素尺寸被轨道钉死。
 
 <demo html="layout/basic.html"/>
 

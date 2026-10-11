@@ -54,7 +54,7 @@
 | --- | --- | --- |
 | `content` | — | 内容（HTML；JSON 形态必填，缺失 warn） |
 | `placement` | `'top'` | 弹出方向（floating-ui 12 方向值；不支持 `'auto'`） |
-| `offset` / `shift` / `flip` | 让位 8px / — / `true` | 透传 floating-ui 中间件（箭头开启时的默认让位，与 12×12 箭头载体配套） |
+| `offset` / `shift` / `flip` | 让位 8px / 启用（`padding: 0`） / `true` | 透传 floating-ui 中间件（shift 默认启用——浮层溢出视口时沿交叉轴滑回，`false` 关闭；箭头开启时的默认让位与 12×12 箭头载体配套） |
 | `arrow` | `true` | 箭头（复用 overlay 菱形视觉协议） |
 | `showDelay` / `hideDelay` | `0` / `150` | 显示 / 隐藏延迟（ms）；隐藏延迟给鼠标跨越间隙移入浮层的时间（可交互 tooltip） |
 | `className` | — | 附加类名（主题定制通道） |

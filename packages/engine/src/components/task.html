@@ -1,55 +1,218 @@
 <div x-define="autospark.notifications.task" x-define:inherit="autospark.notifications.shell">
     <script setup>
-    {
-        defaults: { width: 300 },
-        data: () => ({
-            progress: 0,
-            paused: false,
-            completed: false,
-            holdOpen: true,
-        }),
-        methods: {
-            start() {},            // 幂等兼容面（创建即 started，ADR-0083 二次修订沿用）
-            progress(n) {
-                if (this.data.paused || this.data.completed) return;
-                const v = Math.min(100, Math.max(0, Math.round(Number(n) || 0)));
-                this.data.progress = v;
-                if (v >= 100) this._complete();
+        {
+            defaults: { width: 300 },
+            data: () => ({
+                progress: 0,
+                // 任务态状态机（ADR-0104）：pending（canStart 手动门控待启动）→ running ⇄
+                // paused；终态 stopped（中止留卡）/ completed（完成）。声明缺省 pending——
+                // 自动模式由引擎注水归位 running（挂起/排队期闭包 progress 直写不丢）。
+                // cancel/close 不入状态机：它们的终态是卡片不可见，不是任务态
+                state: "pending",
+                holdOpen: true,
+            }),
+            methods: {
+                // 开始（ADR-0104）：手动门控（canStart）的启动触发——pending → running +
+                // actions/start 广播；自动模式装配期已 running，此处幂等 no-op
+                start() {
+                    if (this.data.state !== "pending") return;
+                    this.data.state = "running";
+                    this.engine.notifications._emitControlAction(this.props.id, "start");
+                },
+                progress(n) {
+                    if (this.data.state !== "running") return;
+                    const v = Math.min(100, Math.max(0, Math.round(Number(n) || 0)));
+                    this.data.progress = v;
+                    if (v >= 100) this.complete();
+                },
+                pause() {
+                    if (this.data.state !== "running") return;
+                    this.data.state = "paused";
+                    this.engine.notifications._emitControlAction(this.props.id, "pause");
+                },
+                resume() {
+                    if (this.data.state !== "paused") return;
+                    this.data.state = "running";
+                    this.engine.notifications._emitControlAction(this.props.id, "resume");
+                },
+                // 停止（ADR-0104 语义分野）：abort + 「已停止」终态留卡（进度定格、
+                // closeWhenDone 对 stopped 同生效）——与取消（abort + 立即隐藏）的分野
+                // = 结果是否留卡可查
+                stop() {
+                    if (this.data.state === "stopped" || this.data.state === "completed") return;
+                    this.data.state = "stopped";
+                    this.data._abort?.abort();
+                    this.engine.notifications._emitControlAction(this.props.id, "stop");
+                    this._settleCloseWhenDone();
+                },
+                complete() {
+                    if (this.data.state === "completed" || this.data.state === "stopped") return;
+                    this.data.progress = 100;
+                    this.data.state = "completed";
+                    this._settleCloseWhenDone();
+                },
+                // 取消：abort（完成守卫沿用 ADR-0102）+ 立即隐藏——不留结果
+                cancel() {
+                    if (this.data.state !== "completed") this.data._abort?.abort();
+                    this.engine.notifications._emitControlAction(this.props.id, "cancel");
+                    this.engine.notifications.hide(this.props.id);
+                },
+                // × 关闭（ADR-0104 独立动词，修订 ADR-0102 × ≡ cancel）：非终态先 abort
+                // 再关；completed/stopped 终态仅关卡（不发无用 abort）
+                close() {
+                    if (this.data.state !== "completed" && this.data.state !== "stopped") this.data._abort?.abort();
+                    this.engine.notifications._emitControlAction(this.props.id, "close");
+                    this.engine.notifications.hide(this.props.id);
+                },
+                // —— 控制订阅便捷面（ADR-0104）：具体名订阅（回调收裸 payload），返回退订
+                // 函数；卡销毁时引擎自动清残留侦听（entry.controlOffs）
+                onStart(cb) {
+                    return this._onControl("start", cb);
+                },
+                onPause(cb) {
+                    return this._onControl("pause", cb);
+                },
+                onResume(cb) {
+                    return this._onControl("resume", cb);
+                },
+                onStop(cb) {
+                    return this._onControl("stop", cb);
+                },
+                onCancel(cb) {
+                    return this._onControl("cancel", cb);
+                },
+                onClose(cb) {
+                    return this._onControl("close", cb);
+                },
+                _onControl(verb, cb) {
+                    return this.engine.notifications._onControlAction(this.props.id, verb, cb);
+                },
+                // 终态收口三态（ADR-0102 closeWhenDone → ADR-0104 扩至 stopped 终态）：
+                // false/缺省 = 终态常驻（delayClose 对 task 彻底无效）；true = 即关；
+                // number(ms) = 经 update 写入生效配置后翻 holdOpen 交还计时器——
+                // hover 暂停/remaining 倒计时保留
+                _settleCloseWhenDone() {
+                    const cw = this.props.closeWhenDone;
+                    if (cw === true) {
+                        this.hide();
+                    } else if (typeof cw === "number" && cw > 0) {
+                        this.update({ delayClose: cw });
+                        this.data.holdOpen = false;
+                    }
+                },
             },
-            pause() { if (!this.data.completed) this.data.paused = true; },
-            resume() { this.data.paused = false; },
-            stop() { this._complete(); },
-            complete() { this._complete(); },
-            cancel() {
-                this.data._abort?.abort();
-                this.engine.notifications.hide(this.props.id);
-            },
-            _complete() {
-                if (this.data.completed) return;
-                this.data.progress = 100;
-                this.data.completed = true;
-                this.data.holdOpen = false;
-            },
-        },
-    }
+        }
     </script>
     <style>
-    .autospark-notification-progress { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-    .autospark-notification-progress-track { flex: 1; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--autospark-notification-accent, #999) 15%, var(--autospark-overlay-bg, #fff)); overflow: hidden; }
-    .autospark-notification-progress-bar { height: 100%; border-radius: 3px; background: var(--autospark-notification-accent, #409eff); transition: width 0.2s; }
-    .autospark-notification-progress-text { flex: none; font-size: 12px; opacity: 0.75; min-width: 34px; text-align: right; }
-    .autospark-notification-ops { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 6px; }
-    .autospark-notification-op { flex: none; border: none; background: none; padding: 0; font: inherit; font-size: 13px; color: var(--autospark-notification-accent, #409eff); cursor: pointer; }
+        .autospark-notification-progress {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        .autospark-notification-progress-track {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: color-mix(
+                in srgb,
+                var(--autospark-notification-accent, #999) 15%,
+                var(--autospark-overlay-bg, #fff)
+            );
+            overflow: hidden;
+        }
+        .autospark-notification-progress-bar {
+            height: 100%;
+            border-radius: 3px;
+            background: var(--autospark-notification-accent, #409eff);
+            transition: width 0.2s;
+        }
+        /* 待启动（pending，ADR-0104 手动门控）：短条呼吸——等待用户点「开始」 */
+        .autospark-notification-progress-pending {
+            width: 30%;
+            animation: autospark-notification-pending-pulse 1.2s ease-in-out infinite;
+        }
+        @keyframes autospark-notification-pending-pulse {
+            0%,
+            100% {
+                opacity: 0.25;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+        .autospark-notification-progress-text {
+            flex: none;
+            font-size: 12px;
+            opacity: 0.75;
+            min-width: 34px;
+            text-align: right;
+        }
+        .autospark-notification-ops {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            margin-top: 6px;
+        }
+        .autospark-notification-op {
+            flex: none;
+            border: none;
+            background: none;
+            padding: 0;
+            font: inherit;
+            font-size: 13px;
+            color: var(--autospark-notification-accent, #409eff);
+            cursor: pointer;
+        }
     </style>
     <div class="autospark-notification-progress">
         <div class="autospark-notification-progress-track">
-            <div class="autospark-notification-progress-bar" :style="'width:' + (progress ?? 0) + '%'"></div>
+            <div
+                class="autospark-notification-progress-bar"
+                :class="state === 'pending' ? 'autospark-notification-progress-pending' : ''"
+                :style="state === 'pending' ? '' : 'width:' + (progress ?? 0) + '%'"
+            ></div>
         </div>
-        <span class="autospark-notification-progress-text" x-text="(progress ?? 0) + '%'"></span>
+        <span
+            class="autospark-notification-progress-text"
+            x-text="state === 'pending' ? '待启动' : state === 'stopped' ? '已停止' : (progress ?? 0) + '%'"
+        ></span>
     </div>
-    <div class="autospark-notification-ops" x-show="(canPause || canStop || canCancel) && !completed">
-        <button class="autospark-notification-op" type="button" x-show="canPause" x-text="paused ? '恢复' : '暂停'" @click="paused ? resume() : pause()"></button>
-        <button class="autospark-notification-op" type="button" x-show="canStop" @click="stop()">停止</button>
-        <button class="autospark-notification-op" type="button" x-show="canCancel" @click="cancel()">取消</button>
+    <div
+        class="autospark-notification-ops"
+        x-show="(canStart || canPause || canStop || canCancel) && state !== 'completed' && state !== 'stopped'"
+    >
+        <button
+            class="autospark-notification-op"
+            type="button"
+            x-show="canStart && state === 'pending'"
+            @click="start()"
+        >
+            开始
+        </button>
+        <button
+            class="autospark-notification-op"
+            type="button"
+            x-show="canPause && (state === 'running' || state === 'paused')"
+            x-text="state === 'paused' ? '恢复' : '暂停'"
+            @click="state === 'paused' ? resume() : pause()"
+        ></button>
+        <button
+            class="autospark-notification-op"
+            type="button"
+            x-show="canStop && state !== 'completed' && state !== 'stopped'"
+            @click="stop()"
+        >
+            停止
+        </button>
+        <button
+            class="autospark-notification-op"
+            type="button"
+            x-show="canCancel && state !== 'completed' && state !== 'stopped'"
+            @click="cancel()"
+        >
+            取消
+        </button>
     </div>
 </div>

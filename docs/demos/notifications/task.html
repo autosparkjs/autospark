@@ -2,36 +2,96 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>notifications · 进度任务（完整生命周期）</title>
+    <title>notifications · 进度任务（控制与生命周期全场景）</title>
     <script src="/autospark/autospark.js"></script>
     <link rel="stylesheet" href="/autospark/bulma.min.css" />
   </head>
   <body>
-    <!-- type='task' 完整生命周期：创建 → start → progress 推进（卡片实时刷新）→
-             progress(100) 完成态 → 按 delayClose 自动收口关闭。进行中可干预：
-             pause 闸门（暂停期间 progress 被忽略）/ resume / cancel 立即中止。
-             进行中 sticky 不计时——只有完成/取消才进入关闭流程。 -->
+    <!-- type='task' 控制与生命周期全场景（ADR-0104 六控制动词 + 状态机 + abortSignal）：
+         ① 完整生命周期（自动模式 + 页面按钮外部控制：pause 闸门 / resume / stop 留卡 / cancel 即关）
+         ② 手动开始（canStart 门控：pending 态等「开始」，progress 被门控，onStart 后才跑）
+         ③ 闭包内控制（factory 写法：session.onStop/onCancel/onClose 响应手势 +
+            abortSignal.aborted 逐分块协作取消——用户的原始诉求形态）
+         ④ 自定义 actions 与内置控制钮共存（用户按钮走标准 actions/<名> 闭环，hide:false 不关卡）
+         ⑤ 停止 vs 取消分野对比（同进度停止留卡可查 / 取消关卡不留）
+         ⑥ 全事件监听开关（notifications/task/** 通配——verb + actions/* 全收）
+         共同语义：任务态 state ∈ pending/running/paused/stopped/completed；进行中 sticky 不计时；
+         终态收口全在 closeWhenDone（delayClose 对 task 无效）；× 是独立 close 动词（非终态先中断）。 -->
     <div class="demo-app section">
+      <!-- ① 完整生命周期 + 外部控制 -->
       <div class="block">
-        <button class="button is-primary" id="go" onclick="runFull()">
-          ▶ 完整演示：开始 → 完成 → 自动关闭
-        </button>
+        <p class="heading">① 完整生命周期（自动模式 + 外部控制按钮）</p>
+        <button class="button is-primary" onclick="runFull()">▶ 创建任务：开始 → 完成 → 自动关闭</button>
         <p></p>
-        <button class="button is-warning" onclick="gate('pause')">⏸ pause()</button>
-        <button class="button is-info" onclick="gate('resume')">▶ resume()</button>
-        <button class="button is-danger" onclick="gate('cancel')">✕ cancel()</button>
+        <button class="button is-warning is-small" onclick="gate('pause')">⏸ pause()</button>
+        <button class="button is-info is-small" onclick="gate('resume')">▶ resume()</button>
+        <button class="button is-dark is-small" onclick="gate('stop')">■ stop()</button>
+        <button class="button is-danger is-small" onclick="gate('cancel')">✕ cancel()</button>
+        <p class="has-text-grey is-size-7">
+          创建即 running（首次显示自动补发 actions/start）；页面按钮与卡片自带控制钮同源——
+          同样触发状态机与 <code>actions/&lt;动词&gt;</code> 事件。
+        </p>
       </div>
-      <div class="block has-text-grey is-size-7">
-        完整流程全自动推进（约 2 秒走满）；进行中可随时点 pause / resume / cancel 干预；
-        卡片自带「取消」按钮（通用按钮行照常渲染）。每次点击开启一个新任务（可叠加观察）。
+
+      <!-- ② 手动开始门控 -->
+      <div class="block">
+        <p class="heading">② 手动开始（canStart 门控）</p>
+        <button class="button is-primary is-light" onclick="runManual()">⏳ 创建待启动任务——去点卡片上的「开始」</button>
+        <p class="has-text-grey is-size-7">
+          <code>canStart: true</code>：卡片以 pending 态等待（呼吸条 + 「待启动」），进度被门控；
+          点「开始」发 <code>actions/start</code>，宿主在 <code>onStart</code> 里才开跑。
+        </p>
       </div>
+
+      <!-- ③ 闭包内控制 -->
+      <div class="block">
+        <p class="heading">③ 闭包内控制（factory + onXxx + abortSignal 协作取消）</p>
+        <button class="button is-link is-light" onclick="runClosure()">⬇ 下载 dataset.zip（闭包响应停止/取消/×）</button>
+        <p class="has-text-grey is-size-7">
+          factory 写法：return 初始 props 立即弹卡，下载闭包里 <code>session.onStop / onCancel / onClose</code>
+          响应用户手势、每分块检查 <code>session.abortSignal.aborted</code> 提前退出——真实 fetch
+          直接把 signal 传给 <code>fetch(url, { signal })</code> 即中断。
+        </p>
+      </div>
+
+      <!-- ④ 自定义 actions 共存 -->
+      <div class="block">
+        <p class="heading">④ 自定义 actions 与内置控制钮共存</p>
+        <button class="button is-success is-light" onclick="runActions()">🔨 构建任务（带「重试 / 查看日志」按钮）</button>
+        <p class="has-text-grey is-size-7">
+          用户按钮走标准 <code>actions/&lt;名&gt;</code> 闭环（置已读 → 事件 → handle → hide 判定），
+          与内置 暂停/停止/取消 各行排布；<code>hide: false</code> 的 action 点击不关卡。
+          内置动词（start/pause/resume/stop/cancel/close）是该卡 actions 命名空间的事实保留名。
+        </p>
+      </div>
+
+      <!-- ⑤ 停止 vs 取消 -->
+      <div class="block">
+        <p class="heading">⑤ 停止 vs 取消分野对比</p>
+        <button class="button is-dark is-light" onclick="runCompare()">⚖ 同时创建 A/B 两任务，60% 时分别 stop / cancel</button>
+        <p class="has-text-grey is-size-7">
+          <b>停止</b> = abort +「已停止」终态<b>留卡</b>（进度定格，结果可查，closeWhenDone 对 stopped
+          同生效）；<b>取消</b> = abort + <b>立即隐藏</b>（不留结果）。
+        </p>
+      </div>
+
+      <!-- ⑥ 事件监听开关 -->
+      <div class="block">
+        <p class="heading">⑥ 事件观测</p>
+        <button class="button is-light" id="insp" onclick="toggleInspector(this)">📡 开启 notifications/task/** 全事件监听</button>
+        <span class="has-text-grey is-size-7">
+          通配订阅收 <code>{ type, payload }</code> 信封——verb（add/update/show/hide/…）与
+          <code>actions/*</code>（控制动词 + 用户按钮）全收，再点一次关闭。
+        </span>
+      </div>
+
       <div class="block">
         <pre
           id="log"
           class="has-background-light"
-          style="padding: 8px; max-height: 220px; overflow: auto"
+          style="padding: 8px; max-height: 300px; overflow: auto"
         >
-（点击上方按钮开始任务演示）</pre>
+（点击上方场景按钮开始任务演示）</pre>
       </div>
     </div>
     <script>
@@ -41,51 +101,224 @@
       const lines = [];
       const log = (t) => {
         lines.push(`[${new Date().toLocaleTimeString("zh-CN", { hour12: false })}] ${t}`);
-        logEl.textContent = lines.slice(-8).join("\n");
+        logEl.textContent = lines.slice(-14).join("\n");
       };
-      let task = null;
-      let current = 0;
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      let task = null; // 场景①的外部控制作用对象（最新完整演示任务）
 
-      /** 完整生命周期演示：创建 → start → 定时推进 → 100% 完成态 → delayClose 收口 */
-      function runFull() {
-        current = 0;
-        task = app.notifications.task({
-          title: "正在导出数据…",
-          delayClose: 2000, // ④ 完成态展示 2 秒后自动收口
-          // 三控制键（ADR-0088）：声明即 task 模板自带 暂停/停止/取消 按钮（x-show 数据域驱动）
-          canPause: true, // 「暂停 ↔ 恢复」（文案随运行态切换，pause() 闸门生效）
-          canStop: true, // 「停止」≡ complete()
-          canCancel: true, // 「取消」≡ cancel()（session.signal 同时可用）
-        });
-        log("① 创建任务（type='task'，创建不自启）并 start()");
-        task.start();
-        task.progress(0);
+      /** 驱动器：定时推进（闸门 / 终态 / 关闭自动停表）——多个场景共用 */
+      function drive(t, step = 160) {
+        let cur = t.data.progress ?? 0;
         const timer = setInterval(() => {
-          current = Math.min(100, current + 6 + Math.floor(Math.random() * 12));
-          task.progress(current); // 推进：卡片进度条 + 百分比实时刷新（原地更新）
-          if (current < 100) {
-            log(`② progress(${current}) 推进中…`);
-          } else {
+          const st = t.data.state;
+          if (t.closed || st === "completed" || st === "stopped") return clearInterval(timer);
+          if (st === "paused") return; // 闸门：暂停期间 progress 被忽略
+          cur = Math.min(100, cur + 6 + Math.floor(Math.random() * 12));
+          t.progress(cur);
+        }, step);
+      }
+
+      /** 驱动到指定进度后 resolve（场景⑤对比用） */
+      function driveTo(t, target, step = 110) {
+        return new Promise((resolve) => {
+          let cur = 0;
+          const timer = setInterval(() => {
+            if (t.closed || t.data.state !== "running") {
+              clearInterval(timer);
+              return resolve();
+            }
+            cur = Math.min(target, cur + 8);
+            t.progress(cur);
+            if (cur >= target) {
+              clearInterval(timer);
+              resolve();
+            }
+          }, step);
+        });
+      }
+
+      // ── ① 完整生命周期（自动模式 + 外部控制） ─────────────────────────
+      function runFull() {
+        const t = app.notifications.task({
+          title: "正在导出数据…",
+          closeWhenDone: 2000, // 终态展示 2 秒后自动收口（缺省 = 常驻；true = 即关）
+          canPause: true, // 「暂停 ↔ 恢复」（文案随 state 切换，pause() 闸门生效）
+          canStop: true, // 「停止」= abort + stopped 终态留卡
+          canCancel: true, // 「取消」= abort + 立即关
+        });
+        task = t;
+        // 控制动词订阅便捷面：卡片上的用户手势（含自动模式的补发 start）全部可观测
+        for (const v of ["Start", "Pause", "Resume", "Stop", "Cancel", "Close"]) {
+          t["on" + v](() => log(`⇄ actions/${v.toLowerCase()}（${v === "Close" ? "用户点 ×" : v === "Start" ? "自动补发 / 用户手势" : "用户手势"}）`));
+        }
+        log("① 创建任务（自动模式创建即 running，首次显示自动补发 actions/start）");
+        t.progress(0);
+        const timer = setInterval(() => {
+          if (t.closed) return clearInterval(timer);
+          const st = t.data.state; // 状态机：pending/running/paused/stopped/completed
+          if (st === "completed" || st === "stopped") {
             clearInterval(timer);
-            log(`③ progress(100) = 完成态（completed=true）——按 delayClose 2 秒收口`);
-            setTimeout(() => log(`④ 任务已自动关闭（closed=${task.closed}）——生命周期结束`), 2400);
+            log(`③ ${st === "completed" ? "progress(100) = completed" : "stop() → stopped（进度定格于 " + t.data.progress + "%）"}——按 closeWhenDone 2 秒收口`);
+            setTimeout(() => t.closed && log(`④ 任务已自动关闭（closed=${t.closed}）——生命周期结束`), 2400);
+            return;
           }
+          if (st === "paused") {
+            t.progress(t.data.progress); // 闸门演示：暂停期间 progress 被忽略
+            return;
+          }
+          const next = Math.min(100, (t.data.progress ?? 0) + 6 + Math.floor(Math.random() * 12));
+          t.progress(next);
+          if (next < 100) log(`② progress(${next}) 推进中…`);
         }, 160);
       }
 
-      /** 进行中干预：pause 闸门 / resume / cancel */
+      /** 场景①外部干预（作用于最新任务） */
       function gate(op) {
-        if (!task || task.closed) return log(`（当前无进行中的任务）`);
+        if (!task || task.closed) return log(`（当前无进行中的任务——先点场景①创建）`);
         if (op === "pause") {
-          task.pause();
+          task.methods.pause();
           log("⏸ 已暂停：暂停期间 progress() 调用被忽略（闸门语义）");
         } else if (op === "resume") {
-          task.resume();
+          task.methods.resume();
           log("▶ 已恢复：继续接受 progress() 推进");
+        } else if (op === "stop") {
+          task.methods.stop();
+          log("■ 已停止：abortSignal 中断 + 「已停止」终态留卡（进度定格，结果可查）");
         } else if (op === "cancel") {
-          task.cancel();
-          log("✕ 已中止：立即关闭（无完成态展示）");
+          task.methods.cancel();
+          log("✕ 已取消：abortSignal 中断 + 立即关闭（不留结果）");
         }
+      }
+
+      // ── ② 手动开始门控（canStart） ──────────────────────────────────
+      function runManual() {
+        const t = app.notifications.task({
+          title: "等待开始的导出任务",
+          description: "canStart: true——待启动（呼吸条），点「开始」才跑",
+          canStart: true, // 手动门控：pending 态 + 「开始」按钮
+          canPause: true,
+          canStop: true,
+          canCancel: true,
+          closeWhenDone: 2000,
+        });
+        log("① 创建即 pending——progress 被门控");
+        t.progress(88); // 门控演示：pending 态推进被忽略
+        log(`② 偷跑 progress(88) 被忽略（state=${t.data.state}，进度仍 ${t.data.progress}%）`);
+        t.onStart(() => {
+          log("③ actions/start——宿主在 onStart 里开跑");
+          drive(t);
+          const watch = setInterval(() => {
+            if (t.closed || t.data.state !== "running") return clearInterval(watch);
+            if (t.data.progress >= 100) {
+              clearInterval(watch);
+              log("④ 推进完成——closeWhenDone 2 秒收口");
+            }
+          }, 120);
+        });
+      }
+
+      // ── ③ 闭包内控制（factory + onXxx + abortSignal） ────────────────
+      function runClosure() {
+        app.notifications.task(async (session) => {
+          // 手势观测：闭包里直接订阅（返回退订函数，卡销毁自动清——本演示不持有）
+          session.onStop(() => {
+            session.update({ description: "onStop：收到停止——闭包收尾，进度定格" });
+            log("⇄ 闭包收到 actions/stop——正在收尾…");
+          });
+          session.onCancel(() => log("⇄ 闭包收到 actions/cancel——下载作废"));
+          session.onClose(() => log("⇄ 闭包收到 actions/close（用户点 ×）——下载作废"));
+          void (async () => {
+            // 下载闭包：不 await——让 return 先执行（卡先弹）
+            const chunks = 16;
+            for (let i = 1; i <= chunks; i++) {
+              await sleep(110 + Math.random() * 90); // 分块到达（时长抖动）
+              // 协作取消：停止/取消/× 任一触发即中断（真实场景传给 fetch 的 signal）
+              if (session.abortSignal.aborted) {
+                log(`⏹ abortSignal.aborted @ ${session.data.progress}%——闭包退出`);
+                return;
+              }
+              session.progress(Math.round((i / chunks) * 100));
+            }
+            session.complete(); // ≡ 进度 100 → closeWhenDone 收口
+            log("✓ 闭包下载完成——complete()");
+          })();
+          return {
+            // 初始 props——立即建卡
+            title: "下载 dataset.zip（闭包控制）",
+            description: "停止 / 取消 / × 任一触发即中断（abortSignal）",
+            canPause: true,
+            canStop: true,
+            canCancel: true,
+            closeWhenDone: 1500,
+          };
+        });
+        log("③ factory 写法：return 立即弹卡，闭包内 onStop/onCancel/onClose + abortSignal 就绪");
+      }
+
+      // ── ④ 自定义 actions 与内置控制钮共存 ───────────────────────────
+      function runActions() {
+        const t = app.notifications.task({
+          title: "构建索引（build-index）",
+          description: "自定义按钮与 暂停/停止/取消 共存——「重试」发起新任务，「查看日志」不关卡",
+          canPause: true,
+          canStop: true,
+          canCancel: true,
+          closeWhenDone: 1800,
+          actions: [
+            {
+              title: "重试",
+              hide: false, // 点击不关卡
+              handle: () => {
+                log("⇄ action「重试」（actions/重试 事件 + handle）——发起新构建");
+                runActions();
+              },
+            },
+            {
+              title: "查看日志",
+              hide: false,
+              handle: () => log("⇄ action「查看日志」——hide:false，卡片保持打开"),
+            },
+          ],
+        });
+        log("④ 创建带自定义 actions 的构建任务（重试 = 新任务、查看日志 = 不关卡）");
+        drive(t, 200);
+      }
+
+      // ── ⑤ 停止 vs 取消分野对比 ──────────────────────────────────────
+      async function runCompare() {
+        log("⑤ 同时创建 A/B 两任务，各自推进到 60% 后分别 stop / cancel");
+        const a = app.notifications.task({
+          title: "任务 A——将停止",
+          description: "stop() @ 60% → 已停止终态留卡（进度定格可查）",
+          canStop: true,
+          // closeWhenDone 缺省 = 终态常驻——留卡给用户看
+        });
+        const b = app.notifications.task({
+          title: "任务 B——将取消",
+          description: "cancel() @ 60% → 立即关闭（不留结果）",
+          canCancel: true,
+        });
+        await Promise.all([driveTo(a, 60), driveTo(b, 60)]);
+        a.stop();
+        log(`■ A stop()：state=${a.data.state}，进度定格 ${a.data.progress}%，卡片保留`);
+        b.cancel();
+        await sleep(400); // 等 300ms 离场动画收口
+        log(`✕ B cancel()：卡片已关（closed=${b.closed}）——同样触发 abort，但不留结果`);
+      }
+
+      // ── ⑥ 全事件监听开关（notifications/task/**） ────────────────────
+      let inspector = null;
+      function toggleInspector(btn) {
+        if (inspector) {
+          inspector.off();
+          inspector = null;
+          btn.classList.remove("is-active");
+          log("📡 事件监听已关闭");
+          return;
+        }
+        inspector = app.on("notifications/task/**", ({ type }) => log(`⇢ ${type}`));
+        btn.classList.add("is-active");
+        log("📡 监听开启：notifications/task/** ——verb 与 actions/* 全收（重放任意场景观察）");
       }
     </script>
   </body>

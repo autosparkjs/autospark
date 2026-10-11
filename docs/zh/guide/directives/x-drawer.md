@@ -78,7 +78,7 @@
 :root { --autospark-drawer-size: 400px; }
 ```
 
-面板默认直角（贴边形态语言）、带边框与投影（继承 `.autospark-dialog` 外壳视觉，配色变量同 [覆盖物](../overlays.md)），内容超高自动滚动。
+面板默认直角（贴边形态语言）、带边框与投影（继承 `[data-overlay]` 家族面板视觉，配色变量同 [覆盖物](../overlays.md)；形态类 `.autospark-drawer`，ADR-0062 修订），内容超高自动滚动。
 
 ### 元素贴边锚定（at.selector）
 
@@ -114,9 +114,9 @@
 
 ### 拖拽调宽（resize）
 
-`resize` 选项启用面板拖拽调节（**ADR-0073：经面板组合的 [x-expandable](./x-expandable.md) resize 通道**，复用其 `ResizeSession` 核心）：方向按贴边形态**自动推导**——左/右抽屉的内侧竖边（`placement: left` → `e`，类推）、上/下抽屉的内侧横边。约束字段与 x-resize 选项同构；尺寸**会话内记忆**（重开沿用拖出宽度、**优先于声明 `size`**）；调节会话中抽屉把手**跟随开口边线同步重定位**；`showTrigger: 'hover'` 时拖拽手柄自动接管感应（边条抑制，悬停手柄即显形把手）；**把手让位**——把手区域（开口边中央）下压拖拽判定为 resize 意图（不触发折叠），点击把手**外侧突出半圆**才是折叠；数据不写回 store，`@resize:end` 事件 detail 即出口（事件派发在指令宿主上）：
+`resize` 选项启用面板拖拽调节（**ADR-0073：经面板组合的 [x-expandable](./x-expandable.md) resize 通道**，复用其 `ResizeSession` 核心）：方向按贴边形态**自动推导**——左/右抽屉的内侧竖边（`placement: left` → `e`，类推）、上/下抽屉的内侧横边。约束字段与 x-resizable 选项同构；尺寸**会话内记忆**（重开沿用拖出宽度、**优先于声明 `size`**）；调节会话中抽屉把手**跟随开口边线同步重定位**；`showTrigger: 'hover'` 时拖拽手柄自动接管感应（边条抑制，悬停手柄即显形把手）；**把手让位**——把手区域（开口边中央）下压拖拽判定为 resize 意图（不触发折叠），点击把手**外侧突出半圆**才是折叠；数据不写回 store，`@resize:end` 事件 detail 即出口（事件派发在指令宿主上）：
 
-<demo html="resize/drawer.html"/>
+<demo html="resizable/drawer.html"/>
 
 ```html
 <button

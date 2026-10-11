@@ -805,16 +805,16 @@ describe("内建单边 resize（ADR-0072）", () => {
         h.dispatchEvent(new MouseEvent("pointerup", { bubbles: true }));
     };
 
-    test("同元素 x-resize 互斥：x-resize warn + 自失效（单手柄），expandable 正常", async () => {
+    test("同元素 x-resizable 互斥：x-resizable warn + 自失效（单手柄），expandable 正常", async () => {
         const warns = catchWarns(() =>
-            mountExpandable(tmpl(`x-resize x-expandable-options="{resize: true}"`), {
+            mountExpandable(tmpl(`x-resizable x-expandable-options="{resize: true}"`), {
                 ui: { open: true },
             }),
         );
         await nextTick();
         expect(warns.some((w) => w.includes("同元素存在 x-expandable"))).toBe(true);
         const host = hostOf(roots[roots.length - 1] as HTMLElement);
-        // x-resize 失效（其三手柄 e/s/se 不存在），仅剩 expandable 的单边手柄
+        // x-resizable 失效（其三手柄 e/s/se 不存在），仅剩 expandable 的单边手柄
         expect(host.querySelectorAll("[data-autospark-resize-handle]").length).toBe(1);
         expect(triggerOf(roots[roots.length - 1] as HTMLElement)).not.toBeNull();
     });

@@ -64,7 +64,7 @@
             );
             // 总线 payload 携带完整描述符（ADR-0036）：消费者直接读元数据（如 toast 显示标题）
             engine.on("actions/*/pending", (m) => {
-                console.log(`[${m.payload.action.title ?? m.payload.name}] 开始执行`);
+                console.log(`[${m.payload.action.title ?? m.payload.id}] 开始执行`);
             });
         </script>
     </body>

@@ -2,7 +2,7 @@
 
 - **状态**：Accepted
 - **日期**：2026-09-30
-- **关联**：[ADR-0029](0029-x-data-mount.md)（x-data 私有响应式域与 `$scopes` 容器）、[ADR-0053](0053-component-data-boundary.md)（组件封闭数据边界——getContext 的边界语义被写路径直接继承）、[ADR-0064](0064-x-resize.md)（x-resize 已有的落点解析先例）、[CONTEXT.md](../../CONTEXT.md)（「绑定局部数据」文档口径）
+- **关联**：[ADR-0029](0029-x-data-mount.md)（x-data 私有响应式域与 `$scopes` 容器）、[ADR-0053](0053-component-data-boundary.md)（组件封闭数据边界——getContext 的边界语义被写路径直接继承）、[ADR-0064](0064-x-resizable.md)（x-resize 已有的落点解析先例）、[CONTEXT.md](../../CONTEXT.md)（「绑定局部数据」文档口径）
 - **共识来源**：用户浏览器实测发现 x-splitter direction demo 切换不生效 → 复现定位 x-model 简单路径「读局部、写全局」基准分裂 → 用户裁决引擎层修正（读写对称，仅 x-model 范围）
 
 ## 背景

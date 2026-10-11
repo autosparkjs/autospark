@@ -110,8 +110,8 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
     test("种子表键面：全部统一 autospark. 点前缀", () => {
         const keys = Object.keys(BUILTIN_COMPONENTS);
         // 每键均以引擎保留命名空间开头（与用户业务组件零冲突）。原 block-popover 点自由名
-        // 载体别名已随 x-block 重写为「宿主克隆壳」退役（ADR-0098 重写版）——面板外壳不再
-        // 走内置种子表，而是编程式注册进宿主 scope
+        // 载体别名已退役（ADR-0098）；x-foldable 面板外壳默认走本种子表 autospark.popover
+        //（内置边框/箭头/出口——克隆壳机制已随修订记录 10 移除）
         for (const k of keys) {
             expect(k.startsWith("autospark.")).toBe(true);
         }

@@ -11,7 +11,7 @@ import { mount, nextTick } from "../helpers";
  *  - 构造时 `options.actions`（engine 构造函数扫描）
  *  - `<script type="autospark/actions">`（compiler 提取时包装）
  * 仅 async action（返回 thenable）广播 `actions/<name>/{pending,resolved,rejected}`；同步 action 透明。
- * action 函数名入事件路径，payload 亦带 name → 通配订阅可抓任意 action 开始/成功/失败。
+ * action 函数名入事件路径，payload 亦带 id → 通配订阅可抓任意 action 开始/成功/失败。
  */
 describe("actions 注册时自动包装（buildAction → actions/<name>/*）", () => {
     test("全局赋值自动包装：async 成功广播 pending + resolved", async () => {
@@ -168,7 +168,7 @@ describe("actions 注册时自动包装（buildAction → actions/<name>/*）", 
         expect(warns.some((w) => w.includes("已更名为"))).toBe(true);
     });
 
-    test("通配 action 通配订阅抓任意 action 开始（payload.name 区分）", async () => {
+    test("通配 action 通配订阅抓任意 action 开始（payload.id 区分）", async () => {
         const names: string[] = [];
         const { root, engine } = mount(
             `<button @click="a">a</button><button @click="b">b</button>`,
@@ -176,7 +176,7 @@ describe("actions 注册时自动包装（buildAction → actions/<name>/*）", 
         );
         engine.actions.a = async () => {};
         engine.actions.b = async () => {};
-        engine.on("actions/*/pending", (m: any) => names.push(m.payload.name));
+        engine.on("actions/*/pending", (m: any) => names.push(m.payload.id));
         root.querySelectorAll("button")[0]!.click();
         root.querySelectorAll("button")[1]!.click();
         await nextTick();

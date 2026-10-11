@@ -18,6 +18,7 @@
  * 无每图标规则、无规则烘焙（symbol 机制下渲染走 `<use>`，零样式表登记）。
  */
 import { injectSymbol, normalizeSvgSpec, removeSymbol } from "./symbol";
+import { injectStylesheet } from "../../utils/injectStylesheet";
 
 /** 图标样式表 id（document 级共享） */
 const ICON_STYLE_ID = "autospark-icons";
@@ -194,15 +195,13 @@ const BUTTON_BADGE_RULE =
 
 /** 惰性建表（幂等；SSR 无 document 守卫）。内容为静态常量，建表后不再变更。 */
 export function refreshIconStyle(): void {
-    if (typeof document === "undefined" || !document.head) return;
+    // 缓存表已连文档即免重写（内容是静态常量，重复覆写徒增样式重算）
     if (iconStyleEl && iconStyleEl.isConnected) return;
-    iconStyleEl = (document.getElementById(ICON_STYLE_ID) as HTMLStyleElement | null) ?? null;
-    if (!iconStyleEl) {
-        iconStyleEl = document.createElement("style");
-        iconStyleEl.id = ICON_STYLE_ID;
-        document.head.appendChild(iconStyleEl);
-    }
-    iconStyleEl.textContent = [BASE_RULE, BADGE_RULE, BUTTON_HOST_RULE, BUTTON_BADGE_RULE].join("\n");
+    iconStyleEl =
+        injectStylesheet(
+            () => [BASE_RULE, BADGE_RULE, BUTTON_HOST_RULE, BUTTON_BADGE_RULE].join("\n"),
+            { id: ICON_STYLE_ID, mode: "replace" },
+        ) ?? null;
 }
 
 /** 全局图标注册表单例（`AutoSpark.icons` 静态暴露同一实例） */

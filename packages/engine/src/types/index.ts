@@ -4,6 +4,7 @@ import type { TooltipOptions } from "../features/tooltip/types";
 import type { NotificationOptions } from "../features/notifications/types";
 import type { ComponentInstance } from "../features/component/component-instance";
 import type { AutoSparkScope } from "../engine/scope";
+import type { ContainerGlobalOptions } from "../directives/x-container";
 
 /**
  * 渲染选项
@@ -43,7 +44,7 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      *
      * 值为声明形态（ADR-0036）：**函数简写**（`toggle(){...}`）或**对象写法**
      * （`{ title, icon, handle }`，`handle` 必需、其余自由元数据），两种写法可混用；
-     * 构造期统一规范化为 `ActionDesc` 描述符存储（name 以注册键注入）。
+     * 构造期统一规范化为 `ActionDesc` 描述符存储（id 以注册键注入）。
      * `@click="name"` / `@click="name(args)"` 命中时，以 AutoSparkActionContext 为 this
      * 调用 `desc.handle`。作为 scope.getAction 查找链的终点；模板内
      * `<script type="autospark/actions">` 注入的局部 action 优先级更高（沿 scope parent 链先命中）。
@@ -126,6 +127,16 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      * @default 开启 + 内置默认（NotificationOptions 各键见 ADR-0071 决策 4/15）
      */
     notifications?: false | NotificationOptions;
+    /**
+     * x-container 全局默认断点表（ADR-0101）：断点两表（`breakpoints` 阈值 / `maxWidths`
+     * 按档），被实例 `x-container-options` / 宿主 `x-options` 同名键**整表覆盖**（回退不
+     * 合并，ADR-0007 惯例）；两级均缺省用内置 Bootstrap 5 缺省表（阈值 sm:576 / md:768 /
+     * lg:992 / xl:1200 / xxl:1400，max-width 100% / 540 / 720 / 960 / 1140 / 1320）。
+     * 构造期配置语义：运行时突变不生效。
+     *
+     * @default 内置 Bootstrap 5 缺省表
+     */
+    container?: ContainerGlobalOptions;
 }
 
 /**
@@ -165,21 +176,22 @@ export interface AutoSparkEvents {
     /** 工具提示隐藏（一切隐藏路径均广播：移出/聚焦离场/断连/stop/命令式） */
     "tooltip:hide": { el: HTMLElement; tip: HTMLElement };
 
-    // ── notification:* 通知（ADR-0071 决策 20，双通道之总线侧；卡片元素 dispatchEvent 同步广播） ──
-    /** 记录创建（payload：message = 组件实例（ADR-0089），el = 卡片根元素，排队未挂为 null） */
-    "notification:add": { notification: ComponentInstance; el: HTMLElement | null };
-    /** 记录级补丁生效 / 同 id 原地更新 */
-    "notification:update": { notification: ComponentInstance; el: HTMLElement | null };
+    // ── notifications/<type>/<id>/<verb> 通知（ADR-0071 决策 20 → **ADR-0102 分层命名升级**；
+    //    双通道：总线具体名广播（订阅面可 `*`/`**` 通配）+ 卡片元素 dispatchEvent 同步广播）──
+    /** 记录创建——订阅模式键即本键（`*` 配一段、`**` 配尾段；payload：notification = 组件实例（ADR-0089），el = 卡片根元素，排队未挂为 null） */
+    "notifications/*/*/add": { notification: ComponentInstance; el: HTMLElement | null };
+    /** 记录级补丁生效 / 同 id 原地更新 / task 运行键（progress·paused·completed）变更 */
+    "notifications/*/*/update": { notification: ComponentInstance; el: HTMLElement | null };
     /** 展示挂载（进场动画发起时） */
-    "notification:show": { notification: ComponentInstance; el: HTMLElement | null };
+    "notifications/*/*/show": { notification: ComponentInstance; el: HTMLElement | null };
     /** 展示关闭（一切移除路径均广播：自动关闭 / hide() / delete() / clear() / destroy） */
-    "notification:hide": { notification: ComponentInstance; el: HTMLElement | null };
+    "notifications/*/*/hide": { notification: ComponentInstance; el: HTMLElement | null };
     /** 已读置位（卡片任意点击 / markRead / markAllRead） */
-    "notification:read": { notification: ComponentInstance; el: HTMLElement | null };
+    "notifications/*/*/read": { notification: ComponentInstance; el: HTMLElement | null };
     /** 业务状态补丁（status 键变更） */
-    "notification:status": { notification: ComponentInstance; el: HTMLElement | null };
-    /** action 按钮点击（value 应答在此；anchor 存在时以发起子树为根额外派发，决策 14） */
-    "notification:action": {
+    "notifications/*/*/status": { notification: ComponentInstance; el: HTMLElement | null };
+    /** action 按钮点击——末段 = action 名（value 应答在此；anchor 存在时以发起子树为根额外派发，决策 14） */
+    "notifications/*/*/actions/*": {
         notification: ComponentInstance;
         el: HTMLElement | null;
         action: { title: string; hide: boolean };
@@ -225,13 +237,13 @@ export interface AutoSparkEvents {
     // ── actions/** async action 生命周期（buildAction 注册时自动包装） ──
     // <name> = action 函数名。通配：action 通配订阅抓任意 action 的开始/成功/失败（全局 loading / 错误 toast）。
     // 仅 async action（返回 thenable）广播；同步 action 不广播。流信号 plain（不 retain，ADR-0003 决策 6）。
-    // payload name 与路径一致（方便通配订阅者）；不带 el/$event（避免持 DOM 引用泄漏）。
+    // payload id 与路径一致（方便通配订阅者）；不带 el/$event（避免持 DOM 引用泄漏）。
     /** async action 开始（action 返回 thenable 后同步广播；pending = "进行中"状态形容词） */
-    "actions/*/pending": { name: string };
+    "actions/*/pending": { id: string };
     /** async action 成功；result 为 resolve 值 */
-    "actions/*/resolved": { name: string; result: any };
+    "actions/*/resolved": { id: string; result: any };
     /** async action 失败（reject 经内部 then 消费广播，消除 unhandled rejection） */
-    "actions/*/rejected": { name: string; error: any };
+    "actions/*/rejected": { id: string; error: any };
 }
 
 export type AutoSparkPresetVars = {

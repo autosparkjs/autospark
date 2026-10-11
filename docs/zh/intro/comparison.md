@@ -82,7 +82,7 @@ AutoSpark 与 Vue / Alpine 的差异不是「功能多少」，而是**设计理
 - 图标、覆盖物、动画、动作、表单用的是**同一套配置体系**（指令选项 → 宿主 `x-options` → 引擎级默认 → 内置默认，见[指令配置](../guide/directive/config.md)）；
 - 弹层关闭、`ESC`、遮罩点击走的是**同一个全局打开栈**（`ADR-0052`）；
 - `x-loading` 能直接订阅 action 生命周期，因为 action 也是引擎的一等公民（[动作](../guide/action.md)）；
-- 抽屉的 `resize` 能复用 `x-resize` 的 `ResizeSession`，因为两者同源（`ADR-0064`）。
+- 抽屉的 `resize` 能复用 `x-resizable` 的 `ResizeSession`，因为两者同源（`ADR-0064`）。
 
 > 体积数据见[第七章](#七、包体积与综合成本)：AutoSpark 全量产物 104.9 KiB gzip，比 Vue full build 多 44.9 KiB，比 Alpine 多 85.4 KiB。
 
@@ -105,7 +105,7 @@ AutoSpark 与 Vue / Alpine 的差异不是「功能多少」，而是**设计理
 
 求值链有四层：`x-dialog-options.shell`（成员表达式，**打开时求值一次**）→ 宿主 `x-options` → 引擎级默认 `options.overlay.dialog.shell`（**全站换肤的单一配置点**）→ 内置 `dialog-shell`。ADR 里有一句关键的实现约束：**内置 shell 就是「一个普通的 shell」（默认值而非特殊分支）**，所有覆盖物实例（声明式 / 命令式）走同一条「内容编译 → shell 编译 → 组装挂载」路径，没有双路径行为漂移。
 
-同理，视觉层留了三层逃生口：CSS 变量（`--autospark-overlay-z / -bg / -border / -radius`）、类名契约（`.autospark-dialog` / `.autospark-dialog-mask` / `.autospark-overlay-arrow`）、以及完全自写 shell。**自定义外壳复用类名即继承默认视觉，完全自写则完全自由。**
+同理，视觉层留了三层逃生口：CSS 变量（`--autospark-overlay-z / -bg / -border / -radius`）、契约选择器（`[data-overlay]` 属性 + `.autospark-dialog-mask` / `.autospark-overlay-arrow` 载体类，形态类 `.autospark-dialog` / `.autospark-popover` / `.autospark-drawer` 各归各形态）、以及完全自写 shell。**自定义外壳保留契约属性即继承默认视觉，完全自写则完全自由。**
 
 引擎级的扩展通道见[第六章](#六、扩展性实测-内置怎么改成自己的)。
 
@@ -183,7 +183,7 @@ AutoSpark 注册 **31 条**指令，Vue 内置 **15 条**，Alpine 内置 **18 �
 | 对话框 / 抽屉 / 弹层 | **组件库**（Element Plus 等） | **三方插件或手写** | **`x-dialog` / `x-drawer` / `x-popover`** |
 | 工具提示 | **三方**（tippy / @vueuse） | **三方**（tippy 等） | **全局 tooltip**（`data-tooltip`，零声明，`ADR-0061`） |
 | 图标 | **图标包**（@element-plus/icons 等） | **图标包 / 手写 SVG** | **`x-icon` / `x-icons`**（symbol + `<use>`，远程 Iconify，`ADR-0058`） |
-| 尺寸拖拽 | 无 | 无 | **`x-resize`**（手柄 + 键盘可达 + 钳制管线，`ADR-0064`） |
+| 尺寸拖拽 | 无 | 无 | **`x-resizable`**（手柄 + 键盘可达 + 钳制管线，`ADR-0064`） |
 | 动作体系 | 无（需自行封装） | 无 | **action 注册 + 双通道广播 + 生命周期信号** |
 | 异步数据源 | 无（自行 `fetch` + `onMounted`） | 无 | **`x-data` 异步源** / `x-html` 异步源 / `x-import` |
 | 运行时局部换模板 | 动态组件 | 无 | **`engine.patch()`**（`ADR-0002`） |
@@ -191,7 +191,7 @@ AutoSpark 注册 **31 条**指令，Vue 内置 **15 条**，Alpine 内置 **18 �
 
 ### 4.2 三者对比，只有 AutoSpark 内置的能力（19 条）
 
-`x-switch` / `x-case` / `x-default`、`x-tree`、`x-data`、`x-loading`、`x-isolate`、`x-scope`、`x-dialog`、`x-drawer`、`x-popover`、`x-component`、`x-define`、`x-import`、`x-form`、`x-field`、`x-icon` / `x-icons`、`x-resize`
+`x-switch` / `x-case` / `x-default`、`x-tree`、`x-data`、`x-loading`、`x-isolate`、`x-scope`、`x-dialog`、`x-drawer`、`x-popover`、`x-component`、`x-define`、`x-import`、`x-form`、`x-field`、`x-icon` / `x-icons`、`x-resizable`
 
 反向也如实列出 **AutoSpark 缺失**的：`v-pre` / `v-once` / `v-memo` / `v-cloak`、`x-init`、`x-effect`、`x-ref`、`x-modelable`、以及 Vue 的 SSR 与完整组件生态。
 
@@ -276,7 +276,7 @@ AutoSpark 注册 **31 条**指令，Vue 内置 **15 条**，Alpine 内置 **18 �
 | `x-for.virtual` / `.paging` | 万级列表是常态 | vue-virtual-scroller 等第三方库 |
 | `x-form` / `x-field` | 表单是 Web 应用的主干 | vee-validate / vuetify-form 等 |
 | `x-loading` | 加载态是最普遍的反馈 | 手写遮罩 + 请求拦截器 |
-| `x-resize` | 侧栏/面板可调尺寸是中后台标配 | 原生 CSS `resize` 只有右下角、无回调 |
+| `x-resizable` | 侧栏/面板可调尺寸是中后台标配 | 原生 CSS `resize` 只有右下角、无回调 |
 
 ### 5.3 设计考虑：为什么是指令，而不是组件？
 
@@ -292,7 +292,7 @@ ADR 里给出了四条明确理由，值得原样转述：
 ### 5.4 这么做换来了什么（优点）
 
 1. **综合成本最低**（[2.2](#_2-2-基础能力内置——综合成本最低)）：体积一次性付费，集成与一致性成本归零。
-2. **能力免费联动**：`x-loading` 订阅 action 生命周期、抽屉复用 `x-resize` 的 ResizeSession、覆盖物与 tooltip 共用 Floating UI 与容器、动画契约（六类名）跨 `x-show` / `x-if` / `x-for` / 覆盖物统一。
+2. **能力免费联动**：`x-loading` 订阅 action 生命周期、抽屉复用 `x-resizable` 的 ResizeSession、覆盖物与 tooltip 共用 Floating UI 与容器、动画契约（六类名）跨 `x-show` / `x-if` / `x-for` / 覆盖物统一。
 3. **同一门语言**：学会 `x-dialog-options` 的四层回退，就同时学会了 `x-popover-options`、`x-drawer-options`、`x-icons-options`——配置体系只有一套（`ADR-0007`）。
 4. **全响应式贯通**：对话框开关是状态、`x-icon` 的图标名是表达式、tooltip 的延迟可以绑 `ui.slow`——不存在「组件库内部自己一套状态」的裂缝。
 5. **粒度可控**：内置能力走的仍是引擎的细粒度 patch，不会因为用了对话框就把整棵子树重渲染。
@@ -325,7 +325,7 @@ ADR 里给出了四条明确理由，值得原样转述：
 | 想改什么 | 怎么改 | 参考 |
 | --- | --- | --- |
 | 对话框 / 弹层 / 抽屉的**面板形态** | `x-dialog-options.shell` 指定自家组件；或改 `options.overlay.dialog.shell` 全站换肤 | [覆盖物](../guide/overlays.md) |
-| **视觉细节** | CSS 变量 `--autospark-overlay-z/-bg/-border/-radius`；类名 `.autospark-dialog` 等 | `ADR-0062` |
+| **视觉细节** | CSS 变量 `--autospark-overlay-z/-bg/-border/-radius`；契约选择器 `[data-overlay]` 属性 / `.autospark-popover` 等形态类 | `ADR-0062` |
 | **任何指令的行为** | 继承 `AutoSparkDirectiveBase`，声明 `kind` / `priority` / `singleton` / `ownsChildren`，注册进 `presetDirectives` | [自定义指令](../guide/directive/custom.md) |
 | **指令选项与修饰符** | `x-{name}-options` 四形态 + 宿主 `x-options` 两层回退 | [指令配置](../guide/directive/config.md) |
 | **图标来源与风格** | `x-icons-options` `{url, icons, modify, cache}`（四级配置链）；`AutoSpark.icons.add/delete` | [x-icon](../guide/directives/x-icon.md) |
@@ -374,7 +374,7 @@ ADR 里给出了四条明确理由，值得原样转述：
 | 体积 | 基础框架 + 组件库 + 定位库 + 图标库 + 虚拟列表库 + 表单库 | **单包 104.9 KiB** |
 | 集成 | 多包选型、版本对齐、样式体系接入、构建配置 | 一个 `<script>` |
 | 一致性 | 多套 API / 动画 / 生命周期 / 主题变量 | 一套选项体系、一套动画契约、一套 CSS 变量 |
-| 联动 | 自己写胶水（loading ↔ 请求、drawer ↔ resize） | 引擎内建（`x-loading` ↔ action、drawer ↔ `x-resize`） |
+| 联动 | 自己写胶水（loading ↔ 请求、drawer ↔ resize） | 引擎内建（`x-loading` ↔ action、drawer ↔ `x-resizable`） |
 | 升级 | 各包独立 breaking change | 单版本号演进 |
 
 **结论**：如果应用只需要 tooltip + 少量交互，Alpine 的 19.5 KiB 确实无可替代；但只要开始要对话框、图标、树、表单、虚拟列表，**内置路径的综合成本就会反超**——这正是「虽然增加了包大小，但对最终应用而言综合成本最低」这句话的量化含义。

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-foldable · 自定义 shell</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .toolbar {
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        padding: 6px 10px;
+        gap: 6px;
+        background: #fff;
+        justify-content: flex-end;
+      }
+      /* 自定义外壳视觉：品牌色卡片 + 头部标题 + 脚注（出口布局与兜底 gap 由引擎的
+         autospark-foldable-panel 类承担，外壳只管「容器」的视觉骨架） */
+      .my-panel {
+        background: #1f2430;
+        color: #e6e9f0;
+        border-radius: 10px;
+        box-shadow: 0 12px 32px rgba(15, 18, 30, 0.35);
+        min-width: 180px;
+        overflow: hidden;
+      }
+      .my-panel .panel-header {
+        padding: 8px 14px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        color: #9aa3b8;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .my-panel .panel-footer {
+        padding: 6px 14px;
+        font-size: 11px;
+        color: #6b7387;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+    </style>
+  </head>
+  <body style="overflow: auto">
+    <div class="demo-app section" style="height: 420px">
+      <div class="block has-text-grey is-size-7">
+        拖动滑块改窄容器：末尾按钮折入「更多」——面板使用 <code>x-foldable-options.shell</code>
+        指定的自定义组件（深色卡片：头部标题 + 折叠按钮列表 + 脚注），箭头载体保留照常指向按钮。
+      </div>
+      <div class="field">
+        <input
+          id="resizer"
+          type="range"
+          min="140"
+          max="560"
+          value="560"
+          style="width: 560px; max-width: 100%"
+        />
+      </div>
+      <div
+        id="tb"
+        x-foldable="row"
+        class="toolbar"
+        style="width: 560px"
+        x-foldable-options="{shell:'my-panel'}"
+      >
+        <button class="button is-small">新建</button>
+        <button class="button is-small">编辑</button>
+        <button class="button is-small">删除</button>
+        <button class="button is-small">导入</button>
+        <button class="button is-small">导出</button>
+        <button class="button is-small">刷新</button>
+        <button class="button is-small">打印</button>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(
+        document.querySelector(".demo-app"),
+        {},
+        {
+          components: {
+            // 自定义外壳：默认出口（x-slot）承载折叠子元素；.autospark-overlay-arrow
+            // 箭头载体保留——popover 锚定箭头照常工作
+            "my-panel": `
+            <div x-define="my-panel" class="my-panel">
+              <div class="panel-header">更多操作</div>
+              <div x-slot></div>
+              <div class="panel-footer">按 Esc 或移开关闭</div>
+              <div class="autospark-overlay-arrow"></div>
+            </div>`,
+          },
+        },
+      );
+      document.getElementById("resizer").addEventListener("input", (e) => {
+        document.getElementById("tb").style.width = e.target.value + "px";
+      });
+    </script>
+  </body>
+</html>

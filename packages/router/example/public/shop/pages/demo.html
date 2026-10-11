@@ -1,0 +1,303 @@
+<!-- 功能演示页面 -->
+<div class="demo-page">
+    <div class="demo-header">
+        <h1>Kylin Router 功能演示</h1>
+        <p>完整展示所有路由功能和特性</p>
+    </div>
+
+    <!-- 导航方法演示 -->
+    <section class="demo-section">
+        <h2>🔗 导航方法演示</h2>
+        <p>测试各种导航 API 的使用</p>
+        <div class="demo-buttons">
+            <button @click="window.router.push('/products')">
+                <span>📱</span>
+                <span>push('/products')</span>
+            </button>
+            <button @click="window.router.replace('/services')">
+                <span>🔧</span>
+                <span>replace('/services')</span>
+            </button>
+            <button @click="window.router.back()">
+                <span>⬅️</span>
+                <span>back()</span>
+            </button>
+            <button @click="window.router.forward()">
+                <span>➡️</span>
+                <span>forward()</span>
+            </button>
+            <button @click="window.router.go(-1)">
+                <span>↩️</span>
+                <span>go(-1)</span>
+            </button>
+            <button @click="window.router.home()">
+                <span>🏠</span>
+                <span>home()</span>
+            </button>
+        </div>
+        <div class="demo-hint">
+            💡 提示：点击按钮后观察浏览器地址栏和历史记录变化
+        </div>
+    </section>
+
+    <!-- 模态路由演示 -->
+    <section class="demo-section">
+        <h2>🪟 模态路由演示</h2>
+        <p>模态路由不会改变主路由历史，适合弹窗、抽屉等场景</p>
+        <div class="demo-buttons">
+            <button @click="window.router.push('!/preview/p1')">
+                <span>👁️</span>
+                <span>打开产品预览（抽屉）</span>
+            </button>
+            <button @click="window.router.push('!/preview/p2')">
+                <span>👁️</span>
+                <span>打开服务预览（居中）</span>
+            </button>
+            <button @click="window.router.back()">
+                <span>❌</span>
+                <span>关闭模态</span>
+            </button>
+        </div>
+        <div class="demo-hint">
+            💡 提示：使用 <code>!</code> 前缀的路径表示模态路由，按 ESC 或点击遮罩关闭
+        </div>
+    </section>
+
+    <!-- keepAlive 缓存演示 -->
+    <section class="demo-section">
+        <h2>💾 keepAlive 缓存演示</h2>
+        <p>保持页面状态，避免重复渲染</p>
+        <div class="demo-buttons">
+            <kylin-link to="/order-form">
+                <span>📝</span>
+                <span>打开订单表单（keepAlive）</span>
+            </kylin-link>
+        </div>
+        <div class="demo-hint">
+            💡 提示：在表单中填写内容后跳转到其他页面，返回时表单内容会保持
+        </div>
+    </section>
+
+    <!-- 错误处理演示 -->
+    <section class="demo-section">
+        <h2>⚠️ 错误处理演示</h2>
+        <p>测试各种错误场景和自定义错误页面</p>
+        <div class="demo-buttons">
+            <kylin-link to="/non-existent-page">
+                <span>🔗</span>
+                <span>访问 404 页面</span>
+            </kylin-link>
+            <kylin-link to="/test-error-500">
+                <span>🔗</span>
+                <span>模拟 500 错误</span>
+            </kylin-link>
+            <kylin-link to="/test-timeout">
+                <span>🔗</span>
+                <span>模拟超时错误</span>
+            </kylin-link>
+            <kylin-link to="/error-test">
+                <span>🔗</span>
+                <span>错误测试中心</span>
+            </kylin-link>
+        </div>
+    </section>
+
+    <!-- 预加载演示 -->
+    <section class="demo-section">
+        <h2>⚡ 预加载演示</h2>
+        <p>预先加载页面，提升用户体验</p>
+        <div class="demo-buttons">
+            <kylin-link to="/heavy-page">
+                <span>📄</span>
+                <span>访问重型页面（已预加载）</span>
+            </kylin-link>
+        </div>
+        <div class="demo-hint">
+            💡 提示：该页面在路由初始化时已预加载，访问时会立即显示
+        </div>
+    </section>
+
+    <!-- 重定向演示 -->
+    <section class="demo-section">
+        <h2>↪️ 重定向演示</h2>
+        <p>自动将旧路由重定向到新路由</p>
+        <div class="demo-buttons">
+            <kylin-link to="/old-products">
+                <span>🔗</span>
+                <span>访问旧产品页（重定向到 /products）</span>
+            </kylin-link>
+            <kylin-link to="/p/p1">
+                <span>🔗</span>
+                <span>访问旧产品详情（重定向到 /product/p1）</span>
+            </kylin-link>
+        </div>
+    </section>
+
+    <!-- 事件日志 -->
+    <section class="demo-section">
+        <h2>📋 事件日志</h2>
+        <p>实时显示路由事件</p>
+        <div class="event-log" id="event-log">
+            <div class="event-log-item">
+                <span class="event-time">--:--:--</span>
+                <span class="event-type">info</span>
+                <span class="event-message">等待事件触发...</span>
+            </div>
+        </div>
+        <div class="demo-buttons">
+            <button @click="clearEventLog()">
+                <span>🗑️</span>
+                <span>清空日志</span>
+            </button>
+        </div>
+    </section>
+</div>
+
+<style>
+    .demo-page {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .demo-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .demo-header h1 {
+        font-size: 2em;
+        margin-bottom: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .demo-header p {
+        color: var(--text-secondary);
+    }
+
+    .demo-section {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .demo-section h2 {
+        font-size: 1.3em;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .demo-section p {
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+    }
+
+    .demo-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .demo-buttons button,
+    .demo-buttons kylin-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        background: white;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        font-size: 0.9em;
+    }
+
+    .demo-buttons button:hover,
+    .demo-buttons kylin-link:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+
+    .demo-hint {
+        margin-top: 12px;
+        padding: 10px 14px;
+        background: #f5f5f5;
+        border-radius: 6px;
+        font-size: 0.85em;
+        color: var(--text-secondary);
+    }
+
+    .demo-hint code {
+        padding: 2px 6px;
+        background: #e0e0e0;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+
+    .event-log {
+        max-height: 200px;
+        overflow-y: auto;
+        background: #1e1e1e;
+        border-radius: 8px;
+        padding: 12px;
+        font-family: monospace;
+        font-size: 0.85em;
+    }
+
+    .event-log-item {
+        display: flex;
+        gap: 8px;
+        padding: 4px 0;
+        border-bottom: 1px solid #333;
+    }
+
+    .event-log-item:last-child {
+        border-bottom: none;
+    }
+
+    .event-time {
+        color: #888;
+        min-width: 60px;
+    }
+
+    .event-type {
+        min-width: 80px;
+        font-weight: bold;
+    }
+
+    .event-type.info { color: #4caf50; }
+    .event-type.navigate { color: #2196f3; }
+    .event-type.error { color: #f44336; }
+    .event-type.modal { color: #ff9800; }
+
+    .event-message {
+        color: #ddd;
+    }
+</style>
+
+<script>
+    // 清空事件日志
+    window.clearEventLog = function() {
+        const log = document.getElementById('event-log');
+        if (log) {
+            log.innerHTML = `
+                <div class="event-log-item">
+                    <span class="event-time">--:--:--</span>
+                    <span class="event-type">info</span>
+                    <span class="event-message">日志已清空</span>
+                </div>
+            `;
+        }
+    };
+</script>

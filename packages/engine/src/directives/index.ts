@@ -30,12 +30,13 @@ export * from "./x-super";
 export * from "./x-icon";
 export * from "./x-icons";
 export * from "./x-import";
-export * from "./x-resize";
+export * from "./x-resizable";
 export * from "./x-splitter";
 export * from "./x-expandable";
 export * from "./x-layout";
 export * from "./x-pane";
-export * from "./x-block";
+export * from "./x-foldable";
+export * from "./x-container";
 
 import type { AutoSparkDirectiveBase } from "../features/directive/base";
 import { TextDirective } from "./x-text";
@@ -67,12 +68,13 @@ import { FormDirective } from "./x-form";
 import { FieldDirective } from "./x-field";
 import { IconDirective } from "./x-icon";
 import { IconsDirective } from "./x-icons";
-import { ResizeDirective } from "./x-resize";
+import { ResizableDirective } from "./x-resizable";
 import { SplitterDirective } from "./x-splitter";
 import { ExpandableDirective } from "./x-expandable";
 import { LayoutDirective } from "./x-layout";
 import { PaneDirective } from "./x-pane";
-import { BlockDirective } from "./x-block";
+import { FoldableDirective } from "./x-foldable";
+import { ContainerDirective } from "./x-container";
 
 /**
  * 预设指令映射：指令名 → 指令类。
@@ -132,9 +134,9 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     // x-icons 图标集声明（ADR-0058）：经 compiler 前置 transformer 拦截、永不被实例化，
     // 注册仅为合法可发现名位（x-define 同构）。旧 `x-icon-define` 已硬移除（不注册、静默失效）。
     icons: IconsDirective,
-    // x-resize 尺寸调节（ADR-0064）：自绘手柄拖拽调宿主尺寸（可选值双向 + resize:* 事件）；
-    // overlay 家族的 resize 选项复用其 ResizeSession 核心（写路径走 shell 面板）
-    resize: ResizeDirective,
+    // x-resizable 尺寸调节（ADR-0064 更名版，原名 x-resize 已退役）：自绘手柄拖拽调宿主尺寸
+    //（可选值双向 + resize:* 事件）；overlay 家族的 resize 选项复用其 ResizeSession 核心（写路径走 shell 面板）
+    resizable: ResizableDirective,
     // x-splitter 分割器（ADR-0067）：两面板分割布局 + 分隔条拖拽调节 + collapsible 折叠把手
     splitter: SplitterDirective,
     // x-expandable 展开折叠（ADR-0069）：值为显式展开态布尔（双向绑定），把手 + collapse
@@ -144,7 +146,11 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     // 行为组合 expandable/resize/splitter）；x-pane 为名位标记（收集/剪枝由 layout 接管，孤儿 warn）
     layout: LayoutDirective,
     pane: PaneDirective,
-    // x-block 溢出折叠容器（ADR-0098 重写版）：flex nowrap 布局 + 溢出子元素折叠进
-    // 宿主克隆壳面板（x-popover hover 接管，stash 真实搬移跨开关保态）
-    block: BlockDirective,
+    // x-foldable 溢出折叠容器（ADR-0098 更名版，原名 x-block 已退役）：flex nowrap 布局 +
+    // 溢出子元素折叠进 popover 面板（默认内置 shell，x-popover hover 接管，stash 真实搬移跨开关保态）
+    foldable: FoldableDirective,
+    // x-container 响应式容器（ADR-0101）：Bootstrap .container 视觉契约 + 档名单向写回
+    //（值双态）；判定基准恒视口（纯 CSS media query + mql 监听），.fluid 关按档 max-width；
+    // viewport:change 跨档事件（初值静默；.self 宿主宽度形态已裁剪，见修订记录）
+    container: ContainerDirective,
 };

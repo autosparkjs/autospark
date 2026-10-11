@@ -1,0 +1,36 @@
+<!-- 个人中心模板 -->
+<div class="profile-header">
+    <div class="profile-avatar" x-text="user.avatar"></div>
+    <div class="profile-info">
+        <h2 x-text="user.name"></h2>
+        <p x-text="user.email"></p>
+        <p>会员时间: <span x-text="user.memberSince"></span></p>
+    </div>
+</div>
+
+<div class="profile-stats">
+    <div class="stat-card">
+        <div class="stat-value" x-text="stats.orders"></div>
+        <div class="stat-label">订单数</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" x-text="stats.wishlist"></div>
+        <div class="stat-label">收藏数</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" x-text="stats.points"></div>
+        <div class="stat-label">积分</div>
+    </div>
+</div>
+
+<div class="profile-menu">
+    <template x-for="item in menuItems" :key="item.title">
+        <div class="profile-menu-item">
+            <div class="menu-icon" x-text="item.icon"></div>
+            <div>
+                <div style="font-weight: 600; color: #333;" x-text="item.title"></div>
+                <div style="font-size: 13px; color: #888;" x-text="item.desc"></div>
+            </div>
+        </div>
+    </template>
+</div>

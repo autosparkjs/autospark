@@ -13,11 +13,11 @@ import { buildAction, type ActionEmit } from "./buildAction";
 import type { ActionDecl, AutoSparkAction, BuiltinActionSpec } from "./types";
 
 /** 构造单个内置 action 描述符（信号型）：默认 handle 透传首参 + `title` + `builtin: true` 标记 */
-export function createBuiltinAction(name: string, spec: BuiltinActionSpec, emit: ActionEmit): AutoSparkAction {
+export function createBuiltinAction(id: string, spec: BuiltinActionSpec, emit: ActionEmit): AutoSparkAction {
     const normalized = typeof spec === "string" ? { title: spec } : spec;
     return buildAction(emit, {
         handle: normalized.handle ?? ((payload?: any) => payload),
-        name,
+        id,
         title: normalized.title,
         builtin: true,
     });
@@ -37,8 +37,8 @@ export function registerBuiltinActions(
     emit: ActionEmit,
     engine?: AutoSpark<any>,
 ): void {
-    for (const [name, spec] of Object.entries(buildBuiltinActions(engine))) {
-        if (name in target) continue;
-        target[name] = createBuiltinAction(name, spec, emit);
+    for (const [id, spec] of Object.entries(buildBuiltinActions(engine))) {
+        if (id in target) continue;
+        target[id] = createBuiltinAction(id, spec, emit);
     }
 }

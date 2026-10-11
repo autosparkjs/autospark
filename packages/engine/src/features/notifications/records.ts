@@ -1,4 +1,4 @@
-import { NOTIFICATION_PERSIST, type AutoSparkNotificationRecord, type AutoSparkNotificationLevel, type NotificationProps } from "./types";
+import { NOTIFICATION_PERSIST,  type AutoSparkNotificationLevel, type NotificationProps } from "./types";
 import type { NotificationManager } from "./manager";
 import type { NotificationEntry } from "./entry";
 
@@ -62,6 +62,8 @@ export class NotificationRecords {
             clickHandler: null,
             enterHandler: null,
             leaveHandler: null,
+            controlOffs: [],
+            startEmitted: false,
             appliedClassName: "",
             appliedStyles: "",
         };

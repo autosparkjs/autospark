@@ -73,8 +73,8 @@ engine.destroy(); // 彻底清理
 ```javascript
 engine.on("engine/ready", ({ el }) => console.log("就绪", el));
 engine.on("scope/created", ({ id }) => console.log("scope#", id));
-engine.on("actions/*/pending", ({ name }) => console.log("动作开始", name));
-engine.on("actions/*/*", ({ name }) => console.log("任一动作事件", name)); // 通配
+engine.on("actions/*/pending", ({ id }) => console.log("动作开始", id));
+engine.on("actions/*/*", ({ id }) => console.log("任一动作事件", id)); // 通配
 ```
 
 ::: tip 态信号会补发

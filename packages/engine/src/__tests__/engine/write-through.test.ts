@@ -8,7 +8,7 @@ import { mount, nextTick } from "../helpers";
  * 全链未命中落 store 根，与读方向（scope.watch 表达式支路）同源。
  *
  * 背景：旧实现写方向 setVal 直写 store 根，域内绑定「读局部、写全局」静默分裂
- * （x-model.md「绑定局部数据」曾以 set 表达式为约定解法，ADR-0075 后简单路径即对称）。x-splitter / x-resize 的写回落点维持原状（splitter 直写根、resize 已有落点解析）。
+ * （x-model.md「绑定局部数据」曾以 set 表达式为约定解法，ADR-0075 后简单路径即对称）。x-splitter / x-resizable 的写回落点维持原状（splitter 直写根、resize 已有落点解析）。
  */
 
 const engines: any[] = [];

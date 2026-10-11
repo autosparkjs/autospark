@@ -68,6 +68,9 @@ export class SlotDirective extends AutoSparkDirectiveBase {
     }
 
     override compile(): void {
+        // 出口运行态标记：`x-slot` 属性随编译剥除，出口元素留 `data-slot`（=出口名）作
+        // 稳定寻址锚——运行期 DOM 注入通道（如 x-foldable 折叠面板中继）据此定位出口
+        this.el.dataset.slot = (this.attr ?? "").trim() || "default";
         if (this.content && this.callerScope) {
             // 活体段（ADR-0062 shell 机制）：引擎已编译的组件实例直挂出口——不克隆、不再编译、
             // 不建内容 scope（DOM 挂载不动 scope 上的 watcher/监听；销毁权责归构造方

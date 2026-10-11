@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>麒麟手机商店 - Kylin Phone Store</title>
+        <link rel="stylesheet" href="index.css" />
+    </head>
+    <body>
+        <div
+            id="app"
+            x-data="{
+            isLoggedIn: false,
+            isNavigating: false,
+            loginForm: { username: '', password: '' },
+            testUrl: '',
+            async login() {
+                // 模拟登录
+                await new Promise(resolve => setTimeout(resolve, 500));
+                this.isLoggedIn = this.loginForm.username === 'admin' && this.loginForm.password === 'admin';
+                if (!this.isLoggedIn) {
+                    alert('用户名或密码错误（提示：admin/admin）');
+                }
+            },
+            logout() {
+                this.isLoggedIn = false;
+                window.router.push('/');
+            }
+        }"
+        >
+            <!-- 顶部导航栏 -->
+            <nav class="top-nav">
+                <div class="container">
+                    <div class="logo">
+                        <div class="logo-icon">🐲</div>
+                        <span>麒麟手机商店</span>
+                    </div>
+                    <div class="nav-menu">
+                        <kylin-link to="/">
+                            <span>🏠</span>
+                            <span>首页</span>
+                        </kylin-link>
+                        <kylin-link to="/products">
+                            <span>📱</span>
+                            <span>产品</span>
+                        </kylin-link>
+                        <kylin-link to="/services">
+                            <span>🔧</span>
+                            <span>服务</span>
+                        </kylin-link>
+                        <kylin-link to="/docs">
+                            <span>📚</span>
+                            <span>文档</span>
+                        </kylin-link>
+                        <kylin-link to="/store">
+                            <span>🏪</span>
+                            <span>商店</span>
+                        </kylin-link>
+                        <kylin-link to="/demo">
+                            <span>🎮</span>
+                            <span>演示</span>
+                        </kylin-link>
+                        <kylin-link to="/profile">
+                            <span>👤</span>
+                            <span>我的</span>
+                        </kylin-link>
+                    </div>
+                    <div class="user-info">
+                        <div
+                            class="user-avatar"
+                            @click="window.router.push('/profile')"
+                            x-text="isLoggedIn ? '✅' : '👤'"
+                        ></div>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- 主内容区 -->
+            <div class="main-content">
+                <div class="content-area">
+                    <kylin-outlet></kylin-outlet>
+                </div>
+            </div>
+        </div>
+
+        <script type="module">
+            import { createRouter } from "/src/index.ts";
+
+            // 创建路由器
+            const app = document.getElementById("app");
+            const router = createRouter(app, {
+                debug: true,
+                base: "/shop", // 配置基础路径
+                home: "/", // 配置首页路径
+                routes: [
+                    // 首页
+                    {
+                        path: "home",
+                        default: true,
+                        view: "pages/home.html",
+                        data: "data/home.json",
+                    },
+
+                    // 产品页面（包含左侧边栏和 outlet）
+                    {
+                        path: "products",
+                        view: "pages/products.html",
+                        data: "data/products.json",
+                        children: [
+                            {
+                                path: ":category",
+                                view: "pages/product-list.html",
+                                data: "data/products.json",
+                                params: {
+                                    category: "smartphones",
+                                },
+                                children: [
+                                    {
+                                        path: ":id",
+                                        view: "pages/product-detail.html",
+                                        data: {
+                                            from: async (context) => {
+                                                const response = await fetch(".data/products.json");
+                                                const allProducts = await response.json();
+                                                const product = allProducts.products.find(
+                                                    (p) => p.id === context.params.id,
+                                                );
+                                                return product || {};
+                                            },
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    // 服务页面（包含左侧边栏和 outlet）
+                    {
+                        path: "services",
+                        view: "pages/services.html",
+                        children: [
+                            // 服务列表（默认显示）
+                            {
+                                path: "",
+                                view: "pages/services-list.html",
+                                data: "data/services.json",
+                            },
+                        ],
+                    },
+
+                    // 文档页面（包含左侧边栏和 outlet）
+                    {
+                        path: "docs",
+                        view: "pages/docs.html",
+                        children: [
+                            // 文档列表（默认显示）
+                            {
+                                path: "",
+                                view: "pages/docs-list.html",
+                                data: "data/docs.json",
+                            },
+                        ],
+                    },
+
+                    // 商店页面（包含左侧边栏和 outlet）
+                    {
+                        path: "store",
+                        view: "pages/store.html",
+                        children: [
+                            // 商店列表（默认显示）
+                            {
+                                path: "",
+                                view: "pages/store-list.html",
+                                data: "data/store.json",
+                            },
+                        ],
+                    },
+
+                    // 个人中心（需要认证）
+                    {
+                        path: "profile",
+                        beforeEnter: async () => {
+                            const alpineApp = document.getElementById("app")._x_dataStack[0];
+                            if (!alpineApp.isLoggedIn) {
+                                return "login";
+                            }
+                            return true;
+                        },
+                        view: "pages/profile.html",
+                        data: "data/profile.json",
+                    },
+
+                    // 登录页面
+                    {
+                        path: "login",
+                        view: "pages/login.html",
+                        data: "data/login.json",
+                    },
+
+                    // ==================== 新增功能演示路由 ====================
+
+                    // 功能演示页面
+                    {
+                        path: "demo",
+                        view: "pages/demo.html",
+                        data: "data/demo.json",
+                    },
+
+                    // 错误测试页面
+                    {
+                        path: "error-test",
+                        view: "pages/error-test.html",
+                    },
+
+                    // 订单表单（keepAlive 演示）
+                    {
+                        path: "order-form",
+                        keepAlive: true,
+                        view: "pages/order-form.html",
+                    },
+
+                    // 重型页面（预加载演示）
+                    {
+                        path: "heavy-page",
+                        preload: true,
+                        view: "pages/heavy-page.html",
+                        data: "data/heavy-page.json",
+                    },
+
+                    // ==================== 错误测试路由 ====================
+
+                    // 模拟 500 错误
+                    {
+                        path: "test-error-500",
+                        view: "pages/error-test.html",
+                        data: {
+                            from: async () => {
+                                throw { status: 500, message: "模拟的服务器内部错误" };
+                            },
+                        },
+                    },
+
+                    // 模拟超时错误
+                    {
+                        path: "test-timeout",
+                        view: "pages/error-test.html",
+                        data: {
+                            from: async () => {
+                                await new Promise((resolve) => setTimeout(resolve, 10000));
+                                return {};
+                            },
+                            timeout: 3000,
+                        },
+                    },
+
+                    // 模拟网络错误
+                    {
+                        path: "test-network-error",
+                        view: "pages/error-test.html",
+                        data: {
+                            from: async () => {
+                                throw { status: 0, message: "网络连接失败" };
+                            },
+                        },
+                    },
+
+                    // ==================== 模态路由 ====================
+
+                    // 产品预览模态（抽屉式）
+                    {
+                        path: "!preview/:id",
+                        modal: {
+                            type: "drawer",
+                            position: "right",
+                            backdrop: true,
+                            closeOnBackdropClick: true,
+                            closeOnEsc: true,
+                        },
+                        view: "pages/product-preview.html",
+                        data: {
+                            from: async (context) => {
+                                const response = await fetch("./data/products.json");
+                                const allProducts = await response.json();
+                                return (
+                                    allProducts.products.find((p) => p.id === context.params.id) ||
+                                    null
+                                );
+                            },
+                        },
+                    },
+
+                    // ==================== 重定向路由 ====================
+
+                    // 旧产品页重定向
+                    {
+                        path: "old-products",
+                        redirect: "/products",
+                    },
+
+                    // 旧产品详情重定向
+                    {
+                        path: "p/:id",
+                        redirect: "/product/:id",
+                    },
+                ],
+            });
+
+            // 暴露路由器实例
+            window.router = router;
+
+            // 暴露 login 方法给全局
+            window.handleLogin = async (username, password) => {
+                const alpineApp = document.getElementById("app")._x_dataStack[0];
+                alpineApp.loginForm.username = username;
+                alpineApp.loginForm.password = password;
+                await alpineApp.login();
+
+                // 登录成功后返回首页
+                if (alpineApp.isLoggedIn) {
+                    router.home();
+                }
+            };
+
+            // 暴露返回首页方法
+            window.goHome = () => {
+                router.home();
+            };
+
+            // ==================== 辅助函数 ====================
+
+            // 添加事件日志
+            function addEventLog(type, message) {
+                const log = document.getElementById("event-log");
+                if (!log) return;
+
+                const time = new Date().toLocaleTimeString();
+                const item = document.createElement("div");
+                item.className = "event-log-item";
+                item.innerHTML = `
+                    <span class="event-time">${time}</span>
+                    <span class="event-type ${type}">${type}</span>
+                    <span class="event-message">${message}</span>
+                `;
+
+                // 限制日志条数
+                while (log.children.length > 50) {
+                    log.removeChild(log.firstChild);
+                }
+
+                log.appendChild(item);
+                log.scrollTop = log.scrollHeight;
+            }
+
+            // 暴露给全局
+            window.addEventLog = addEventLog;
+        </script>
+    </body>
+</html>

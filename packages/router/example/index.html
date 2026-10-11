@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Kylin Router - Demo 演示中心</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+                    sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                padding: 2rem;
+                color: #333;
+            }
+
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+
+            header {
+                text-align: center;
+                margin-bottom: 3rem;
+                color: white;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+                margin-bottom: 0.5rem;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            }
+
+            .subtitle {
+                font-size: 1.1rem;
+                opacity: 0.9;
+            }
+
+            .demo-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }
+
+            .demo-card {
+                background: white;
+                border-radius: 12px;
+                padding: 1.5rem;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                transition: all 0.3s ease;
+                text-decoration: none;
+                color: inherit;
+                display: block;
+            }
+
+            .demo-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+            }
+
+            .demo-card h2 {
+                color: #667eea;
+                margin-bottom: 0.75rem;
+                font-size: 1.3rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+
+            .demo-card .icon {
+                font-size: 1.5rem;
+            }
+
+            .demo-card p {
+                color: #666;
+                line-height: 1.6;
+                margin-bottom: 1rem;
+            }
+
+            .demo-card .tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            .tag {
+                background: #f0f0f0;
+                padding: 0.25rem 0.75rem;
+                border-radius: 15px;
+                font-size: 0.8rem;
+                color: #555;
+            }
+
+            .tag.featured {
+                background: #667eea;
+                color: white;
+            }
+
+            footer {
+                text-align: center;
+                color: white;
+                margin-top: 2rem;
+                padding: 1rem;
+                border-top: 1px solid rgba(255, 255, 255, 0.2);
+            }
+
+            @media (max-width: 768px) {
+                h1 {
+                    font-size: 2rem;
+                }
+
+                .demo-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <header>
+                <h1>🚀 Kylin Router</h1>
+                <p class="subtitle">基于 Lit 和 History API 的现代化前端路由库</p>
+            </header>
+
+            <div class="demo-grid">
+                <a href="/public/shop/index.html" class="demo-card">
+                    <h2><span class="icon">🏪</span> 麒麟手机商店</h2>
+                    <p>
+                        完整的企业级电商应用示例，包含产品展示、服务管理、用户认证、
+                        页签切换等功能，展示 kylin-router 在实际项目中的应用。
+                    </p>
+                    <div class="tags">
+                        <span class="tag featured">完整应用</span>
+                        <span class="tag">企业级</span>
+                        <span class="tag">最佳实践</span>
+                    </div>
+                </a>
+                <a href="/public/app/hooks-demo.html" class="demo-card">
+                    <h2><span class="icon">🪝</span> 生命周期钩子</h2>
+                    <p>
+                        演示路由生命周期钩子的使用，包括 beforeEach、afterEach、beforeEnter
+                        等钩子函数的应用场景。
+                    </p>
+                    <div class="tags">
+                        <span class="tag">生命周期</span>
+                        <span class="tag">导航守卫</span>
+                    </div>
+                </a>
+
+                <a href="/public/app/error-demo.html" class="demo-card">
+                    <h2><span class="icon">⚠️</span> 错误处理</h2>
+                    <p>
+                        展示路由系统的错误处理机制，包括 404
+                        页面、加载失败处理、错误边界等容错特性。
+                    </p>
+                    <div class="tags">
+                        <span class="tag">错误处理</span>
+                        <span class="tag">用户体验</span>
+                    </div>
+                </a>
+
+                <a href="/public/app/loader-demo.html" class="demo-card">
+                    <h2><span class="icon">⏳</span> 异步加载器</h2>
+                    <p>演示组件的异步加载和代码分割功能，提升应用性能和首屏加载速度。</p>
+                    <div class="tags">
+                        <span class="tag">性能优化</span>
+                        <span class="tag">代码分割</span>
+                    </div>
+                </a>
+
+                <a href="/public/app/modal-demo.html" class="demo-card">
+                    <h2><span class="icon">🪟</span> 模态框路由</h2>
+                    <p>展示如何使用路由系统管理模态框状态，实现可回退的弹窗导航体验。</p>
+                    <div class="tags">
+                        <span class="tag">高级特性</span>
+                        <span class="tag">交互设计</span>
+                    </div>
+                </a>
+
+                <a href="/public/app/modal-demo.html" class="demo-card">
+                    <h2><span class="icon">🪟</span> 模态框路由</h2>
+                    <p>展示如何使用路由系统管理模态框状态，实现可回退的弹窗导航体验。</p>
+                    <div class="tags">
+                        <span class="tag">高级特性</span>
+                        <span class="tag">交互设计</span>
+                    </div>
+                </a>
+
+                <a href="/debug-demo.html" class="demo-card">
+                    <h2><span class="icon">🐛</span> 调试模式</h2>
+                    <p>内置调试工具界面，实时查看路由状态、参数信息和导航历史，方便开发调试。</p>
+                    <div class="tags">
+                        <span class="tag featured">开发工具</span>
+                        <span class="tag">调试</span>
+                    </div>
+                </a>
+            </div>
+
+            <footer>
+                <p>Kylin Router v1.0.0 | 基于 Lit 3.3.2 + History 5.3.0 构建</p>
+                <p style="margin-top: 0.5rem; opacity: 0.8">轻量级 • 高性能 • 易扩展</p>
+            </footer>
+        </div>
+    </body>
+</html>

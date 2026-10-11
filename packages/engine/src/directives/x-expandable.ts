@@ -3,13 +3,14 @@ import { AutoSparkDirectiveBase } from "../features/directive/base";
 import { isSimpleStatePath } from "../engine/scope";
 import type { AutoSpark } from "../engine/engine";
 import type { AutoSparkScope } from "../engine/scope";
+import { injectStylesheet } from "../utils/injectStylesheet";
 import {
     createCollapseTrigger,
     parseRailCoord,
     registerTriggerStyles,
     SHARED_TRIGGER_CSS,
 } from "../features/directive/expandable-trigger";
-import { resolveResizeConstraints, ResizeSession, type ResizeDirection } from "./x-resize";
+import { resolveResizeConstraints, ResizeSession, type ResizeDirection } from "./x-resizable";
 
 /**
  * x-expandable：展开折叠（ADR-0069）——宿主元素的通用展开/折叠指令，值为**显式展开态布尔**
@@ -38,7 +39,7 @@ import { resolveResizeConstraints, ResizeSession, type ResizeDirection } from ".
  * （宿主 ::before，零 DOM），指示内容被截断（业界惯例）；显示判据 `data-shrunk`
  * （仅收缩折叠挂的宿主级标记，兼作页面 CSS 感知收缩态的通用钩子）。
  * 初始值 false：编译期挂终态、**无动画**（splitter「初始折叠不派发事件」惯例）；margin
- * 通道的滑出距离依赖布局测量，整体推迟到编译后微任务（x-resize 先例——元素挂载后执行）。
+ * 通道的滑出距离依赖布局测量，整体推迟到编译后微任务（x-resizable 先例——元素挂载后执行）。
  *
  * **子内容隐藏**（决策五）：滑出折叠态经 `[data-collapsed] > :not(把手){visibility:hidden}`
  * 隐藏——**宿主自身不能 overflow:hidden**（宽度保持的盒子会把 absolute 把手一并裁掉）；
@@ -74,8 +75,8 @@ import { resolveResizeConstraints, ResizeSession, type ResizeDirection } from ".
  * 后回落检测：父容器 computed overflow 非 hidden/clip 时 warn 一次、用户自负。
  *
  * **内建单边 resize**（ADR-0072）：`resize` 选项启用单边调节（方向由折叠方向自动推导、
- * 复用 x-resize 的 ResizeSession 核心、拖出尺寸接管 `_maxDecl` 展开尺寸真相；同元素
- * x-resize 互斥自失效——边线交互单指令独占）。**把手与手柄同骑活动边线，两层协调**：
+ * 复用 x-resizable 的 ResizeSession 核心、拖出尺寸接管 `_maxDecl` 展开尺寸真相；同元素
+ * x-resizable 互斥自失效——边线交互单指令独占）。**把手与手柄同骑活动边线，两层协调**：
  * ① *把手压手柄之上*（宿主挂 `data-resize` → 样式表抬至 z11：手柄带 z10 全长覆盖边线，
  * 压住 z5 把手会让调节线横穿把手圆面、把手圆面区命中被拦 → hover 模式下把手不可见且
  * 折叠不可点）；② *手柄 hover 桥接显形*（`data-edge-hover` 统一契约，splitter/drawer
@@ -240,11 +241,7 @@ ${SHARED_TRIGGER_CSS}
 
 /** 注入 x-expandable 全局样式（幂等；多 engine 共享、destroy 不移除——全局样式惯例） */
 export function registerExpandableStyles(): void {
-    if (document.getElementById(EXPANDABLE_STYLE_ID)) return;
-    const style = document.createElement("style");
-    style.id = EXPANDABLE_STYLE_ID;
-    style.textContent = EXPANDABLE_CSS;
-    document.head.appendChild(style);
+    injectStylesheet(EXPANDABLE_CSS, { id: EXPANDABLE_STYLE_ID });
 }
 
 /**
@@ -283,7 +280,7 @@ export class ExpandableDirective extends AutoSparkDirectiveBase {
     private _resizeOn = false;
     /** resize 透传约束（ResizeOptions 剥离 handles/aspectRatio 后的剩余键） */
     private _resizeOpts: Record<string, any> | null = null;
-    /** 单边 resize 会话（复用 x-resize 的 ResizeSession 核心，ADR-0072） */
+    /** 单边 resize 会话（复用 x-resizable 的 ResizeSession 核心，ADR-0072） */
     private _resizeSession: ResizeSession | null = null;
 
     // ── 运行态 ──────────────────────────────────────────────────────────
@@ -463,7 +460,7 @@ export class ExpandableDirective extends AutoSparkDirectiveBase {
             }
         }
         // 初始折叠：margin 通道的滑出距离与父容器检测依赖布局测量，推迟到编译后微任务
-        // （x-resize 先例——元素挂载后执行；slide 通道 transform % 相对自身本可编译期写，
+        // （x-resizable 先例——元素挂载后执行；slide 通道 transform % 相对自身本可编译期写，
         //  统一走微任务保持路径单一）。无动画（splitter「初始折叠不派发事件」惯例）。
         // 同微任务补把手/手柄定位上下文：宿主 computed position 为 static 才 inline 补
         // relative（fixed/absolute 宿主不动——slide 通道的目标覆盖形态）。
@@ -688,7 +685,7 @@ export class ExpandableDirective extends AutoSparkDirectiveBase {
         );
     }
 
-/** 手柄桥接接线落点：**同元素**边线交互元素只有内建单边 resize 手柄一种（x-resize 已随
+/** 手柄桥接接线落点：**同元素**边线交互元素只有内建单边 resize 手柄一种（x-resizable 已随
      *  ADR-0072 互斥移除），由 `_bridgeHandleHover` 在装配期接线；跨元素桥接（splitter
      *  分隔条 / drawer 面板手柄）仍在消费方各自接线。 */
 
@@ -876,9 +873,9 @@ export class ExpandableDirective extends AutoSparkDirectiveBase {
     // ── 内建单边 resize（ADR-0072）────────────────────────────────────
 
     /**
-     * 单边 resize 装配（复用 x-resize 的 ResizeSession 核心——overlay 家族同款复用面）：
+     * 单边 resize 装配（复用 x-resizable 的 ResizeSession 核心——overlay 家族同款复用面）：
      * 方向 = 活动边法线自动推导（left → e / right → w / top → s / bottom → n），手柄骑
-     * 活动边线。本指令独占边线交互（同元素 x-resize 已被互斥），把手/手柄/边条无跨指令
+     * 活动边线。本指令独占边线交互（同元素 x-resizable 已被互斥），把手/手柄/边条无跨指令
      * 抢夺。约束经 resolveResizeConstraints 透传（min/max/snap；handles/aspectRatio 已在
      * 选项读取时剥离）。手柄与把手同骑边线时的两层协调：把手压手柄之上（宿主 data-resize
      * → 样式表抬 z，命中与视觉都不被调节线拦），手柄 hover 桥接触发显形把手。

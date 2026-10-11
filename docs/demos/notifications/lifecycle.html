@@ -53,7 +53,7 @@
                 if (hidden.length) app.notifications.show(hidden[hidden.length - 1].id);
                 setTimeout(dump, 300);
             }
-            app.on("notification:hide", () => setTimeout(dump, 400));
+            app.on("notifications/*/*/hide", () => setTimeout(dump, 400));
         </script>
     </body>
 </html>

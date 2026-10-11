@@ -1,0 +1,78 @@
+<!-- 产品详情模板 -->
+<div class="product-detail-container">
+    <div class="product-detail-image">
+        <span>📱</span>
+    </div>
+    <div class="product-detail-info">
+        <div class="product-detail-name" x-text="name"></div>
+        <div class="product-detail-desc" x-text="desc"></div>
+        <div class="product-detail-price">
+            ¥<span x-text="price"></span>
+            <small x-show="originalPrice">¥<span x-text="originalPrice"></span></small>
+        </div>
+        <div class="product-detail-actions">
+            <button class="btn-primary">立即购买</button>
+            <button class="btn-secondary">加入购物车</button>
+        </div>
+    </div>
+</div>
+
+<!-- 页签切换 -->
+<div class="tabs-container" x-data="{ activeTab: 'attributes' }">
+    <div class="tabs-header">
+        <button class="tab-button" :class="{ active: activeTab === 'attributes' }" @click="activeTab = 'attributes'">产品属性</button>
+        <button class="tab-button" :class="{ active: activeTab === 'specs' }" @click="activeTab = 'specs'">技术规格</button>
+        <button class="tab-button" :class="{ active: activeTab === 'sales' }" @click="activeTab = 'sales'">销售信息</button>
+    </div>
+
+    <!-- 产品属性页签 -->
+    <div class="tab-content" :class="{ active: activeTab === 'attributes' }">
+        <table class="spec-table">
+            <tr><td>品牌</td><td x-text="attributes.brand"></td></tr>
+            <tr><td>型号</td><td x-text="attributes.model"></td></tr>
+            <tr><td>颜色</td><td x-text="attributes.color"></td></tr>
+            <tr><td>重量</td><td x-text="attributes.weight"></td></tr>
+            <tr><td>尺寸</td><td x-text="attributes.dimensions"></td></tr>
+            <tr><td>操作系统</td><td x-text="attributes.os"></td></tr>
+            <tr><td>网络</td><td x-text="attributes.network"></td></tr>
+            <tr><td>保修期</td><td x-text="attributes.warranty"></td></tr>
+        </table>
+    </div>
+
+    <!-- 技术规格页签 -->
+    <div class="tab-content" :class="{ active: activeTab === 'specs' }">
+        <table class="spec-table">
+            <tr><td>屏幕</td><td x-text="specs.screen"></td></tr>
+            <tr><td>处理器</td><td x-text="specs.processor"></td></tr>
+            <tr><td>运行内存</td><td x-text="specs.ram"></td></tr>
+            <tr><td>存储容量</td><td x-text="specs.storage"></td></tr>
+            <tr><td>电池</td><td x-text="specs.battery"></td></tr>
+            <tr><td>摄像头</td><td x-text="specs.camera"></td></tr>
+        </table>
+    </div>
+
+    <!-- 销售信息页签 -->
+    <div class="tab-content" :class="{ active: activeTab === 'sales' }">
+        <div class="sales-stats">
+            <div class="sales-stat-card">
+                <div class="sales-stat-value" x-text="sales.monthly"></div>
+                <div class="sales-stat-label">月销量</div>
+            </div>
+            <div class="sales-stat-card">
+                <div class="sales-stat-value">
+                    <span class="rating-stars">★★★★★</span>
+                    <span x-text="sales.rating"></span>
+                </div>
+                <div class="sales-stat-label">用户评分</div>
+            </div>
+            <div class="sales-stat-card">
+                <div class="sales-stat-value" x-text="sales.reviews"></div>
+                <div class="sales-stat-label">评价数</div>
+            </div>
+            <div class="sales-stat-card">
+                <div class="sales-stat-value" x-text="sales.stock"></div>
+                <div class="sales-stat-label">库存状态</div>
+            </div>
+        </div>
+    </div>
+</div>

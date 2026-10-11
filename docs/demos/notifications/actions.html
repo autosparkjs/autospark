@@ -8,7 +8,7 @@
     </head>
     <body>
         <!-- actions 双形态：字符串 = 全局 action 名（沿 anchor scope 链解析，无 anchor 查全局表）；
-             对象 = 局部一次性按钮。value 键 = 数据应答（点击写 result + 发 notification:action）；
+             对象 = 局部一次性按钮。value 键 = 数据应答（点击写 result + 发 actions/<名> 事件）；
              hide 键默认 true（点击后关卡片），显式 false 续显（「失败重试」场景）。 -->
         <div class="demo-app section">
             <div class="block">
@@ -28,7 +28,7 @@
                 <button class="button is-info" onclick="survey()">value 数据应答（写 result）</button>
             </div>
             <div class="block has-text-grey">
-                点击闭环：置已读 → value 写 <code>result</code> → 发 <code>notification:action</code> →
+                点击闭环：置已读 → value 写 <code>result</code> → 发 <code>actions/&lt;名&gt;</code> 事件 →
                 handle 调用 → hide 判定。带按钮时悬停暂停倒计时给你时间点。
             </div>
         </div>
@@ -73,11 +73,11 @@
                     ],
                 });
                 let voted = false;
-                app.on("notification:action", (m) => {
-                    // value 点击写 result + 发事件；一次性守卫防重复处理
-                    if (!voted && m.payload.notification.id === task.id && m.payload.value != null) {
+                app.on("notifications/*/*/actions/*", ({ payload }) => {
+                    // value 点击写 result + 发事件（分层命名，ADR-0102）；一次性守卫防重复处理
+                    if (!voted && payload.notification.id === task.id && payload.value != null) {
                         voted = true;
-                        app.notifications.update(task.id, { title: `已记录：${m.payload.value} 分`, actions: [] });
+                        app.notifications.update(task.id, { title: `已记录：${payload.value} 分`, actions: [] });
                     }
                 });
             }

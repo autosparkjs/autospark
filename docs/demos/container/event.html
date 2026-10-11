@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-container · viewport:change 事件</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .vp {
+        border: 1px dashed #b5b5b5;
+        border-radius: 8px;
+        background: #f9fafb;
+        min-height: 90px;
+        padding: 12px 16px;
+      }
+    </style>
+  </head>
+  <body style="overflow:auto">
+    <div class="demo-app section" x-data="{ tier: '', n: 0, innerHits: 0, log: [] }">
+      <div class="block has-text-grey is-size-7">
+        拖动浏览器宽度跨越断点（576 / 768 / 992 / 1200 / 1400）——<code>viewport:change</code>
+        <strong>向下传播</strong>：容器内部任意元素声明 <code>@viewport:change</code> 都能收到
+        （<code>detail = { from, to }</code>，一次跨多档只派发一次）；初值同步不派发。
+      </div>
+      <div class="field is-grouped is-grouped-multiline mb-3">
+        <span class="tag is-link is-light is-medium">当前档位：{{ tier }}</span>
+        <span class="tag is-info is-light is-medium">宿主事件：{{ n }}</span>
+        <span class="tag is-success is-light is-medium">后代事件：{{ innerHits }}</span>
+      </div>
+      <div class="vp" x-container="tier"
+           @viewport:change="n = n + 1, log = [$event.detail.from + ' → ' + $event.detail.to].concat(log).slice(0, 5)">
+        <p class="title is-6 has-text-centered">事件宿主（容器）</p>
+        <div class="notification is-light is-size-7 has-text-centered" @viewport:change="innerHits = innerHits + 1">
+          容器内部的后代监听（向下传播）：第 {{ innerHits }} 次收到 · 当前 {{ tier }} 档
+        </div>
+      </div>
+      <div class="mt-3" x-show="log.length > 0">
+        <div class="is-size-7 has-text-grey mb-1">最近 {{ log.length }} 次跨越：</div>
+        <div class="tags" x-for="item of log" :key="$index">
+          <span class="tag is-dark" x-text="item"></span>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

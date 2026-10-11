@@ -39,10 +39,10 @@ if (ok) deleteFile();
 
 ### 任务（task）——异步下载文件
 
-`task()` 返回 Task 会话——`progress(n)` 推进进度条、`complete()` 完成收场（创建即 started，无需显式 `start()`）：
+`task()` 返回 Task 会话——`progress(n)` 推进进度条、`complete()` 完成收场（自动模式创建即 running，无需显式 `start()`）：
 
 ```ts
-const s = engine.notifications.task({ title: "下载 dataset.zip", delayClose: 1200 });
+const s = engine.notifications.task({ title: "下载 dataset.zip", closeWhenDone: 1200 });
 for (const chunk of chunks) {
     await fetchChunk(chunk);      // 分块下载
     s.progress(pct);              // 实时推进
@@ -50,18 +50,18 @@ for (const chunk of chunks) {
 s.complete();                     // ≡ 进度 100 → 1.2s 后自动关
 ```
 
-**factory 写法**——全部逻辑在 factory 内：`return` 的初始 props **立即弹卡**，下载逻辑作为异步闭包继续驱动进度条（无需 `start()`——创建即 started）：
+**factory 写法**——全部逻辑在 factory 内：`return` 的初始 props **立即弹卡**，下载逻辑作为异步闭包继续驱动进度条；用户按下 停止 / 取消 / × 时 `session.abortSignal` 中断、`onStop` 等便捷订阅收到通知（见[进度任务](#进度任务)）：
 
 ```ts
 engine.notifications.task(async (session) => {
     void (async () => {                          // 下载闭包：不 await——让 return 先执行（卡先弹）
         for (const chunk of chunks) {
-            await fetchChunk(chunk);
+            await fetchChunk(chunk, session.abortSignal);  // 停止/取消/× 任一触发即中断
             session.progress(pct);               // 实时推进（session 激活后直接生效）
         }
-        session.complete();                      // ≡ 进度 100 → delayClose 后自动收
+        session.complete();                      // ≡ 进度 100 → closeWhenDone 后自动收
     })();
-    return { title: "下载 dataset.zip", delayClose: 1200 };   // 初始 props——立即建卡
+    return { title: "下载 dataset.zip", closeWhenDone: 1200, canStop: true, canCancel: true };
 });
 ```
 
@@ -147,7 +147,7 @@ class AutoSparkConfirmNotificationSession extends AutoSparkNotificationSession {
 }
 ```
 
-- **JS 侧编程应答**：`engine.notifications.respond(id, value)`（≡ 会话 `yes()` / 点击按钮，同一闭环）；展示结束的感知走 `notification:hide` 事件与 `closed` getter；
+- **JS 侧编程应答**：`engine.notifications.respond(id, value)`（≡ 会话 `yes()` / 点击按钮，同一闭环）；展示结束的感知走 `notifications/*/*/hide` 事件（分层命名，ADR-0102）与 `closed` getter；
 - **`notifications.sessions`**：全部存活会话的注册表——即 manager 本身的 Map 正名视图（`sessions.get(id)` ≡ `notifications.get(id)`，随 remove 同步进出；注意与 `$notifications.sessions` **展示序 id 数组**是两个东西）；
 - **factory 挂起注入**：`add(async (session) => ...)` 同步创建挂起会话传入——挂起期 `session.update()` 缓存补丁（return 落地时合并）、`session.cancel()` 取消；`return props` = 初始展示配置（`undefined` 静默跳过）；
 - **死会话**：`remove()` 后会话死亡，后续方法 no-op + warn（不复活）；
@@ -165,7 +165,7 @@ engine.notifications.toast({ title: "已保存", level: "success" });  // ≡ sh
 const ok = await engine.notifications.confirm("确认删除该文件？", { yes: "删除", no: "再想想" });
 // ≡ show({ type: 'confirm', delayClose: 0, 双钮 })——返回 Confirm 会话（thenable：await 即得应答）
 
-const upload = engine.notifications.task({ title: "上传中", delayClose: 3000 }); // ≡ show({ type: 'task' })——Task 会话
+const upload = engine.notifications.task({ title: "上传中", closeWhenDone: 3000 }); // ≡ show({ type: 'task' })——完成 3 秒后收口（缺省常驻）
 ```
 
 模板侧有配套的全局 action `toast` / `confirm` / `task`（内置执行型，用户同名声明覆盖）：
@@ -173,12 +173,17 @@ const upload = engine.notifications.task({ title: "上传中", delayClose: 3000 
 ```html
 <button @click="toast('已保存')">保存</button>
 <button @click="confirm({ title: '确认删除？', yes: '删除', no: '再想想' })">删除</button>
-<!-- 结果就近回流：发起子树监听 notification:action（detail.value：true 确认 / false 取消） -->
-<div @notification:action="onChoice($event.detail.value)">…</div>
+<!-- 结果回流：总线通配订阅 actions 事件（信封 payload.value：true 确认 / false 取消；
+     payload.notification.id 区分并发）——事件名含运行时 id，模板侧无法预知，回流走总线 -->
+<script>
+    engine.on("notifications/*/*/actions/*", ({ payload }) => {
+        onChoice(payload.value);
+    });
+</script>
 ```
 
 - `toast`：payload（字符串 | 配置对象）转发 `show({ type: 'toast', ... })`；
-- `confirm`：payload 对象的 `yes` / `no` 键定制按钮文案，结果经 `notification:action` 事件就近回流（`detail.notification.id` 区分并发）；
+- `confirm`：payload 对象的 `yes` / `no` 键定制按钮文案，结果经 `notifications/<type>/<id>/actions/<名>` 事件回流（`payload.notification.id` 区分并发；ADR-0102 分层命名）；
 - `task`：payload 转发 `show({ type: 'task', ... })`，Task 会话句柄经 `actions/task/*` 广播 payload 交付（进度推进仍为编程式）；
 - 三个 action 均广播各自生命周期信号（`actions/toast/*` / `actions/confirm/*` / `actions/task/*`）；`notifications: false` 时均 warn + no-op。
 
@@ -303,7 +308,7 @@ const q = engine.notifications.add({
 // 点击后：q.result === true / false
 ```
 
-点击闭环顺序：**置已读 → 写 `result = value` → 发 `notification:action` 事件 → `handle` 调用（若有）→ `hide` 判定关闭**。`value` 与 `handle` 正交可并存；`hide` 默认 `true`、显式 `false` 续显；字符串形态查全局 action 表（带 `anchor` 时沿 scope 链解析，见 [关联页面元素](#关联页面元素)）。actions 渲染在卡片**底部独立行**（不与标题同行，link 形态无边框）。
+点击闭环顺序：**置已读 → 写 `result = value` → 发 `actions/<名>` 事件 → `handle` 调用（若有）→ `hide` 判定关闭**。`value` 与 `handle` 正交可并存；`hide` 默认 `true`、显式 `false` 续显；字符串形态查全局 action 表（带 `anchor` 时沿 scope 链解析，见 [关联页面元素](#关联页面元素)）。actions 渲染在卡片**底部独立行**（不与标题同行，link 形态无边框）。
 
 <demo html="notifications/actions.html"/>
 
@@ -311,7 +316,7 @@ const q = engine.notifications.add({
 
 - **已读**：卡片内任意点击（按钮 / 链接 / 关闭钮）自动置已读；编程式走 `markRead(id)` / `markAllRead(type?)`；
 - **业务状态 `status`**：引擎纯透传存储 + 事件，语义归开发者（如 `"sending"` / `"sent"` / `"failed"`）；
-- **`update(id, patch)` 是记录级字段唯一写通道**（`read` / `status` / `result` / `title` / `description`…），生效 = 改记录 + 发 `notification:update` + 触发持久化：
+- **`update(id, patch)` 是记录级字段唯一写通道**（`read` / `status` / `result` / `title` / `description`…），生效 = 改记录 + 发 `update` 事件（`notifications/<type>/<id>/update`）+ 触发持久化：
 
 ```ts
 engine.notifications.update(id, { status: "failed", description: "网络中断，点击重试" });
@@ -396,55 +401,81 @@ if (ok) deleteFile();
 
 #### 进度任务
 
-`show({ type: 'task' })` 创建进度通知，返回 **Task 会话**（六方法行为句柄）。**进度能力由 type='task' 提供（非通用通知功能）**——`progress` 是该 type 的专属键，其他 type 携带会被 warn + 忽略；推进也可走 `update(id, { progress: n })`：
+`show({ type: 'task' })` 创建进度通知，返回 **Task 会话**（控制动词 + 进度方法的行为句柄）。**进度能力由 type='task' 提供（非通用通知功能）**——`progress` 是该 type 的专属键，其他 type 携带会被 warn + 忽略；推进也可走 `update(id, { progress: n })`：
 
 ```ts
 const upload = engine.notifications.show({
     title: "上传 report.pdf",
     type: "task",
-    delayClose: 3000, // 完成后展示 3 秒再关
+    closeWhenDone: 2000, // 终态（完成/停止）后展示 2 秒再关（缺省 = 常驻；true = 即关）
 });
-upload.progress(30); // 创建即 started——无需显式 start()（start 为幂等兼容面）
-upload.pause();    // 闸门：pause 后 progress 调用被忽略
+upload.progress(30);    // 自动模式创建即 running——progress 直呼即推进
+upload.pause();         // 闸门：pause 后 progress 调用被忽略
 upload.resume();
-upload.progress(100); // = stop()：完成态展示 delayClose 后自动关
-// upload.cancel();   // 中止：立即关
+upload.progress(100);   // 完成态——收口由 closeWhenDone 决定（见下）
+// upload.stop();       // 停止：abort + 「已停止」终态留卡（进度定格）
+// upload.cancel();     // 取消：abort + 立即关（不留结果）
 ```
 
-- `progress(n)` clamp 到 [0,100]；**创建即 started**（ADR-0083 二次修订）——`progress` 直呼即推进，`start()` 为幂等兼容面；factory 挂起期 progress 走缓存（return 落地时合并）；
-- 通用按钮走 `actions` 声明（按钮行随 shell 的 actions 出口渲染，见 [自定义卡片](#自定义卡片)）；task 三控制键启用时**预设模板自带控制钮**（见下）；
-- **进行中不计时**（sticky），完成 / 取消才进入关闭流程；
+- `progress(n)` clamp 到 [0,100]，仅 **running 态**生效（pending / paused / 终态忽略）；
+- **任务态状态机** `state ∈ pending / running / paused / stopped / completed`（`upload.data.state` 直读）——旧 `paused / completed` 布尔已并入（ADR-0104）；cancel / close 不入状态机（它们的终态是卡片不可见，不是任务态）；
+- 通用按钮走 `actions` 声明（按钮行随 shell 的 actions 出口渲染，见 [自定义卡片](#自定义卡片)）；task 四控制键启用时**预设模板自带控制钮**（见下）；
+- **进行中不计时**（sticky，holdOpen 持卡）；**终态后默认常驻**——`delayClose` 对 task **彻底无效**（收口语义全在 `closeWhenDone`，ADR-0102/0104）；`cancel()` 立即关；
 - 自定义渲染见 [自定义卡片](#自定义卡片)（接管 `task` type 时进度条与控制按钮随接管者自带）。
 
-**三控制键**（`canPause` / `canCancel` / `canStop`，task 专属，默认 `false`）——启用后 task 预设模板自带**分立控制按钮**（ADR-0088：显隐与「暂停 ↔ 恢复」文案由数据域响应式驱动、点击直调会话方法；完成态经 `completed` 投影自动收起）：
+**六控制动词**（ADR-0104）——每动词 = 会话方法 + `actions/<动词>` 事件 + `on<动词>` 订阅便捷面，**方法与事件同源**（按钮点击与程序直调不可区分——外部可模拟用户操作）：
+
+| 动词 | 方法语义 | 事件名 |
+| --- | --- | --- |
+| `start` | 手动门控启动（`canStart`：pending → running）；自动模式首次显示补发一次（纯观测） | `actions/start` |
+| `pause` / `resume` | running ⇄ paused（pause 后 progress 被忽略） | `actions/pause` / `actions/resume` |
+| `stop` | **abort +「已停止」终态留卡**（进度定格，closeWhenDone 对 stopped 同生效） | `actions/stop` |
+| `cancel` | **abort + 立即隐藏**（不留结果） | `actions/cancel` |
+| `close` | × 关闭：非终态先 abort——独立动词，「用户主动取消」与「只是关卡」可区分 | `actions/close` |
+
+**完成收口 `closeWhenDone`**（task 专属，宽松入参 `boolean | number`，默认 `false`，ADR-0102；**对 stopped 终态同样生效**，ADR-0104）：
+
+| 值 | 终态后行为 |
+| --- | --- |
+| `false` / 缺省 | **常驻**——终态卡片 sticky 展示，`×` / `hide()` / `delete()` 手动收口 |
+| `true` | 终态即关（组件直呼 `hide()`） |
+| `number`（ms） | 终态 n 毫秒后收口——走引擎计时管道，**hover 暂停 / remaining 倒计时保留** |
+
+终态时刻读值——终态后再 `update({ closeWhenDone: true })` 不追溯收口。
+
+**× 点击语义（ADR-0104，修订 ADR-0102）**：关闭钮按 `close() → cancel() → 直关` 逐级派发——task 覆写 `close()` 为「**非终态先中断 `abortSignal` 再关**」：运行中的 task 点 × = abort + 关闭 + `actions/close` 事件；终态（完成/停止）仅关卡（不发无用 abort）。shell 无 close（× 走 cancel ≡ hide，既有行为零变化）；自定义 type 覆写 `close()` 即可获得独立 × 语义。
+
+**四控制键**（`canStart` / `canPause` / `canStop` / `canCancel`，task 专属，默认 `false`）——启用后 task 预设模板自带**分立控制按钮**（显隐与「暂停 ↔ 恢复」文案由数据域响应式驱动、点击直调会话方法；终态自动收起）：
 
 ```ts
 const download = engine.notifications.show({
     title: "下载 dataset.zip",
     type: "task",
-    delayClose: 1500,
-    canPause: true,     // 「暂停 / 恢复」按钮（文案切换，pause() 闸门生效）
-    canCancel: true,    // 「取消」按钮 + session.signal（AbortSignal 协作取消）
-    canStop: true,      // 「停止」按钮（≡ complete()——立即完成态收口）
+    closeWhenDone: 1500,
+    canStart: true,    // 手动门控：pending 态 + 「开始」按钮——点击才发 actions/start（progress 被门控）
+    canPause: true,    // 「暂停 / 恢复」按钮（文案切换，pause() 闸门生效）
+    canCancel: true,   // 「取消」按钮
+    canStop: true,     // 「停止」按钮（abort + 已停止终态留卡）
 });
 
-// canCancel 启用时暴露协作取消信号——fetch 等挂接即中断（自然完成 / 超时 / remove 不发信号）：
-const resp = await fetch(url, { signal: download.signal });
+// abortSignal 恒可用（与按钮开关解耦——信号是底层能力）——停止/取消/× 任一触发即中断：
+const resp = await fetch(url, { signal: download.abortSignal });
 try {
     await pump(resp, (n) => download.progress(n));
 } catch (e) {
-    if (e.name === "AbortError") download.update({ description: "已取消" });
+    if (e.name === "AbortError") download.update({ description: "已中止" });
 }
 
-// 控制钮是行为不是 action——不发 notification:action（那是用户自定义 actions 的事件）；
-// 观测控制行为走 notification:update（paused / completed 投影变更照发）+ notification:show / notification:hide：
-engine.on("notification:update", (e) => { /* 暂停/恢复/完成转换 */ });
-engine.on("notification:hide", (e) => { /* cancel 关闭 */ });
+// 控制订阅便捷面：onStart / onPause / onResume / onStop / onCancel / onClose——
+// 返回退订函数，卡销毁自动清残留。也可直接订阅事件（动词与用户自定义 actions 同族）：
+download.onStop(({ payload }) => console.log("已停止，进度定格于", payload.notification.data.progress));
+engine.on("notifications/task/<id>/actions/cancel", ({ payload }) => { /* 用户主动取消 */ });
 ```
 
-- 按钮行为 ≡ 会话方法（`pause()/resume()`、`complete()`、`cancel()`）——编程驱动与点击**同一实现**；
-- session 上另有只读投影 `canPause / canCancel / canStop`；
-- 控制钮与**用户自定义 actions 共存**（各行排布）；用户 actions 照常走标准 `notification:action` 闭环（置已读 → 事件 → handle → hide 判定）。
+- 按钮行为 ≡ 会话方法——编程驱动与点击**同一实现、同发事件**；
+- 内置动词 `start/pause/resume/stop/cancel/close` 是该卡 actions 命名空间的**事实保留名**——用户自定义 action 撞名 = 同义触发（责任自负）；
+- **开始双模式**：缺省自动开跑（创建即 running，**首次显示时补发一次** `actions/start`——factory 闭包内挂的 `onStart` 不丢事件；重显不重发）；声明 `canStart` 转手动门控（pending 态等「开始」，progress 被门控）；
+- 控制钮与**用户自定义 actions 共存**（各行排布）；用户 actions 照常走标准 `actions/<名>` 闭环（置已读 → 事件 → handle → hide 判定）。
 
 <demo html="notifications/task.html"/>
 
@@ -487,7 +518,7 @@ store.state.$notifications = {
 `anchor` 把通知关联到页面元素，**三职合一**（模板 action 自动注入或 API 显式传同规）：
 
 - **局部 action 解析根**：actions 字符串沿 anchor 的 scope 链解析局部 action（无 anchor 只查全局表）；
-- **事件派发根**：action 生命周期事件以 anchor 为根额外派发（发起子树 `@notification:action` 就近消费）；
+- **事件派发根**：action 生命周期事件以 anchor 为根额外派发（具体名 `notifications/<type>/<id>/actions/<名>`——发起子树拿到 id 后可精确监听；批量消费走总线通配，ADR-0102）；
 - **渲染数据视图基准（dataContext）**：anchor 存在时 shell 与 type 模板挂链 anchor 所在 scope——自定义渲染组件的表达式可访问发起元素的数据域（响应式订阅生效）；无 anchor 时 rootless（仅消费 props）。
 
 ```ts
@@ -525,7 +556,7 @@ type 链：types[type].render（用户 type 级）
 
 | 组件 | 形态 |
 | --- | --- |
-| `autospark.notifications.shell` | **通知外壳族根**（原 `base`，ADR-0097 正名）——卡片 chrome（边框 / 背景 / 阴影）+ 公共 methods 七件 + **纵列三出口**：`x-slot:header`（fallback = icon + title/link + description）、裸 `x-slot`（type 专属区）、`x-slot:actions`（内联按钮行）；关闭钮 = 根直接子节点（chrome——出口重载不伤 ×，`closeable` 默认 true 常显） |
+| `autospark.notifications.shell` | **通知外壳族根**（原 `base`，ADR-0097 正名）——卡片 chrome（边框 / 背景 / 阴影）+ 公共 methods 七件 + **纵列三出口**：`x-slot:header`（fallback = icon + title/link + description）、裸 `x-slot`（type 专属区）、`x-slot:actions`（内联按钮行）；关闭钮 = 根直接子节点（chrome——出口重载不伤 ×，`closeable` 默认 true 常显，默认与 title 首行文字垂直居中对齐） |
 | `autospark.notifications.toast` / `confirm` | 继承 shell（同名覆盖的 per-type 定制点；confirm 自带默认双钮与 sticky 种子） |
 | `autospark.notifications.task` | 继承 shell + 默认出口覆盖段（进度条 + 三控制钮）+ 状态机 methods |
 
@@ -566,7 +597,7 @@ const app = new AutoSpark(el, state, {
 });
 ```
 
-- props **整包注入**：全部通知键（含 `id / type / level / title / description / icon / link / actions / read / status / result / delayClose / closeable` 与自定义自有键）+ 运行态投影（`progress / paused / completed`——task 控制钮显隐与文案的数据域驱动源）；
+- props **整包注入**：全部通知键（含 `id / type / level / title / description / icon / link / actions / read / status / result / delayClose / closeable / closeWhenDone` 与自定义自有键）+ 运行态投影（`progress / state`——task 控制钮显隐与文案的数据域驱动源，ADR-0104）；
 - **methods 直达**（ADR-0089）：模板内 `@click="hide()"` / `@click="remove()"` / `@click="yes()"`（shell 公共 methods 七件 + type 自有 methods）；**数据绑定走 data 域**（`x-text="title"` 响应式）；
 - **三出口重载**（ADR-0097）：`<template x-slot:header>` 整段换头部（局部保留走 `x-super` 拼装）、`<template x-slot:actions>` 整段换按钮行（或经 `x-super` 叠加扩展默认按钮行）、裸子节点落默认出口（type 专属区）；具名出口走**属性参数形态** `x-slot:名`（值形态是作用域插槽形参，勿混）；关闭钮是 chrome（根直接子节点），出口重载不影响；
 - 接管 `type='task'`（render 指向自定义组件）时继承链与出口同规——内置 task 模板不是特权通道；按钮点击闭环契约不变（`.autospark-notification-action` 契约类 + `data-notification-action` 索引 + 卡片根委托——自绘按钮保留类名与索引属性即得闭环）。
@@ -629,22 +660,38 @@ await engine.notifications.save(); // 立即 flush（缺省变更防抖 500ms �
 
 ### 事件
 
-双通道广播（引擎总线 + 卡片元素 `dispatchEvent`），payload `{ notification: AutoSparkNotificationSession, el }`：
+**分层命名（ADR-0102）**：`notifications/<type>/<id>/<verb>`——emit 面恒**具体名**，订阅面可
+`*`（配一段）/ `**`（配尾段）通配。**双通道广播**：引擎总线 + 卡片元素 `dispatchEvent`
+（具体名冒泡）；action 额外以 anchor 为根派发。payload `{ notification, el }`，action 追加
+`{ action, value? }`。**总线回调收 `{ type, payload }` 信封**（payload 在 `.payload`）；
+DOM 通道 `e.detail` 即 payload：
 
 ```ts
-engine.on("notification:action", (m) => {
-    console.log(m.payload.notification.id, m.payload.value); // value 应答在此
+// 总线：通配批量订阅（verb 过滤 / type 过滤 / 全收）
+engine.on("notifications/*/*/hide", ({ payload }) => {
+    console.log("关闭", payload.notification.id);
 });
-document.body.addEventListener("notification:hide", (e) => console.log("关闭", e.detail.notification.id));
+engine.on("notifications/task/**", ({ type }) => {
+    console.log("task 全事件", type); // notifications/task/<id>/<verb> 具体名
+});
+// 总线：精确订阅单卡（id 已知时）
+engine.on("notifications/toast/my-id/actions/save", ({ payload }) => {
+    console.log("value 应答在此", payload.value);
+});
+// DOM 通道：卡片元素具体名冒泡（body 级捕获）
+document.body.addEventListener("notifications/toast/my-id/show", (e) => console.log("展示", e.detail.el));
 ```
 
-| 事件 | 触发时机 |
+| 事件（订阅模式） | 触发时机 |
 | --- | --- |
-| `notification:add` | 记录创建 |
-| `notification:update` | `update(id, patch)` 生效 / 同 id 原地更新 |
-| `notification:show` / `notification:hide` | 展示状态转换（一切移除路径均广播 hide） |
-| `notification:read` / `notification:status` | 已读置位 / status 补丁 |
-| `notification:action` | action 点击（追加 `{ action, value? }`） |
+| `notifications/*/*/add` | 记录创建 |
+| `notifications/*/*/update` | `update(id, patch)` 生效 / 同 id 原地更新 / task 运行键（progress·state）变更 |
+| `notifications/*/*/show` / `notifications/*/*/hide` | 展示状态转换（一切移除路径均广播 hide） |
+| `notifications/*/*/read` / `notifications/*/*/status` | 已读置位 / status 补丁 |
+| `notifications/*/*/actions/*` | action 点击（末段 = action id：字符串形态 = action id / 对象形态 = `id` ?? `title`；追加 `{ action, value? }`） |
+
+- **段卫生**：type/id/action 名中的 `/` 与 `*` 组合事件名时替换为 `-`（事件名仅是广播/匹配键，记录 id 本身不变）；
+- 模板侧 `@事件名` 监听无法通配（DOM 精确匹配）——事件名含运行时 id，模板预知不到；批量消费走总线通配，单卡消费在拿到 id 后动态 `addEventListener` 具体名。
 
 
 <demo html="notifications/events.html"/>
@@ -695,7 +742,7 @@ document.body.addEventListener("notification:hide", (e) => console.log("关闭",
 | `actions` | — | 按钮行（字符串 = 全局 action 名 / 对象 = 局部按钮，`value` 键数据应答）；type='confirm' 缺省自动注入「确定/取消」双钮 |
 | `anchor` | — | 局部 action 解析根 + 事件派发根 + 渲染数据视图基准（元素或选择器字符串） |
 | `progress` | `0` | **type='task' 专属键**（类型分型属 `TaskNotificationProps`——其他 type 携带 warn + 忽略）；初始进度 0~100 |
-| `canPause` / `canCancel` / `canStop` | `false` | **task 三控制键**（**类型分型**：属 `TaskNotificationProps`〔sessions/task.ts〕——公共 `NotificationProps` 不含，其他 type 携带 warn + 忽略）：启用后预设组件自动带「暂停/恢复」「取消」「停止」按钮（完成态隐藏）；`canCancel` 同时暴露 `session.signal`（AbortSignal——`cancel()` 瞬间 abort，fetch 挂接即中断） |
+| `canStart` / `canPause` / `canStop` / `canCancel` | `false` | **task 四控制键**（ADR-0104）：启用后预设组件自动带「开始」「暂停/恢复」「停止」「取消」按钮（终态隐藏）；`canStart` 转手动门控（pending 态等启动，progress 被门控）。`session.abortSignal`（AbortSignal）**恒暴露**（与按钮开关解耦）——stop / cancel / × 于非终态触发 abort，fetch 挂接即中断 |
 | `animate` | `"slide"` | 进出场动画（默认按 pos 方向自适应，`false` 关闭） |
 | `className` | — | 附加类名（主题定制通道） |
 | `styles` | — | 内联样式 cssText（如 `"border-left:3px solid red"`）——卡片根追加语义；渲染键不入持久化载荷 |
@@ -715,7 +762,7 @@ document.body.addEventListener("notification:hide", (e) => console.log("关闭",
 
 ## 注意事项
 
-- **sticky 永占坑位**：`delayClose: 0`（含 confirm、进行中的进度任务）永不自动关，极端场景占满分区队列——卡片常显关闭钮（`closeable` 默认 `true`，可手动清坑）；显式 `closeable: false` 压制则须自管收口（API / actions）。
+- **sticky 永占坑位**：`delayClose: 0`（含 confirm、进行中的进度任务）永不自动关；**完成后的 task 默认同样常驻**（`closeWhenDone` 缺省即 sticky，ADR-0102）——极端场景占满分区队列。卡片常显关闭钮（`closeable` 默认 `true`，可手动清坑；task 未完成时点 × ≡ cancel）；显式 `closeable: false` 压制则须自管收口（API / actions）。
 - **confirm 永不 settle**：用户不点击 Promise 永远挂起，需要超时请自行 `Promise.race`。
 - **持久化剥函数 + 剥渲染定制**：内联 `handle` 跨会话永久丢失（字符串 action 名可恢复）；`className`/`styles`/`icon`/`pos` 等渲染键不入载荷——恢复时走生效默认（自定义主题不跨会话）；恢复记录不自动重弹。
 - **maxLen 丢最旧不豁免未读**：溢出按创建序 FIFO 淘汰（会话缓冲 `persist: 1` 记录同受淘汰）。

@@ -22,7 +22,7 @@ export interface TooltipOptions {
     placement?: string;
     /** 透传 offset 中间件（间距；未配置时箭头默认让位 8px——12×12 载体配套露出更大） */
     offset?: any;
-    /** 透传 shift 中间件（视口内滑移 padding） */
+    /** 视口内滑移：默认启用（keep in view 防溢出）；`false` 关闭；对象透传（padding 等参数） */
     shift?: any;
     /** 视口翻转，默认 true */
     flip?: boolean;
@@ -137,28 +137,4 @@ export function parseTooltipValue(
         return null;
     }
     return { content: String(content), options };
-}
-
-/**
- * 编译期静态 `title` → `data-tooltip` 转换（ADR-0061 决策 4/5，作用于模板 clone——模板只读契约）：
- *
- * - `title` 存在且无 `data-tooltip` → 值转移至 `data-tooltip`；
- * - 两者并存 → `data-tooltip` 优先，仅剥 `title`（原生 tooltip 与自定义浮层同屏双显是 bug）；
- * - 无 `title`（仅 `data-tooltip`，手写约定）→ 原样放行（幂等，双挂点安全）。
- *
- * **绑定形态 `:title` / `x-bind:title` 不在本函数职责内**：`scope.compile()` 从只读模板收集
- * 指令（scope.ts），clone 侧转换拦不住绑定注册——重定向由 `BindDirective.created` 承担
- * （写回落 `data-tooltip`，覆盖全编译通道）。
- *
- * @returns 转换后的 clone（调用方继续子树递归）；无 `title` 时返回原元素（零拷贝放行）
- */
-export function convertTooltipTitle(el: HTMLElement): HTMLElement {
-    if (!el.hasAttribute("title")) return el;
-    const clone = el.cloneNode(false) as HTMLElement;
-    const title = clone.getAttribute("title") ?? "";
-    clone.removeAttribute("title");
-    if (!clone.hasAttribute("data-tooltip")) {
-        clone.setAttribute("data-tooltip", title);
-    }
-    return clone;
 }

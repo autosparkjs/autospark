@@ -89,8 +89,9 @@ export class DirectiveManager extends Map<string, DirectiveClass> {
         this._elementNameIndex = null; // 注册表变更：元素名索引重建
         if (this._ready) {
             this._initOne(Cls);
-            // runtime 指令晚注册：通知 dispatcher 重建 observer attributeFilter + 重扫该属性
-            if (Cls.kind === DirectiveKind.Runtime) this.engine.dispatcher.onDirectiveRegistered(name, Cls);
+            // runtime/hybrid 指令晚注册：通知 dispatcher 重建 observer attributeFilter + 重扫该属性
+            if (Cls.kind !== DirectiveKind.Compile)
+                this.engine.dispatcher.onDirectiveRegistered(name, Cls);
         }
         return this;
     }

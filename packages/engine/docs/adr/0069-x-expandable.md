@@ -2,7 +2,7 @@
 
 - **状态**：Accepted
 - **日期**：2026-09-29
-- **关联**：[ADR-0067](0067-x-splitter.md)（splitter 折叠——slide 负 margin 通道与把手样式契约的同构来源）、[ADR-0063](0063-x-drawer.md)（drawer trigger——滑轨三态坐标与覆盖形态折叠的先例）、[ADR-0018](0018-x-model-two-way-binding.md)（双向绑定与只读降级纪律）、[ADR-0064](0064-x-resize.md)（回写防递归先例）、[ADR-0007](0007-directive-options-and-modifiers.md)（指令选项体系）、[CONTEXT.md](../../CONTEXT.md)（「展开折叠层」词条）
+- **关联**：[ADR-0067](0067-x-splitter.md)（splitter 折叠——slide 负 margin 通道与把手样式契约的同构来源）、[ADR-0063](0063-x-drawer.md)（drawer trigger——滑轨三态坐标与覆盖形态折叠的先例）、[ADR-0018](0018-x-model-two-way-binding.md)（双向绑定与只读降级纪律）、[ADR-0064](0064-x-resizable.md)（回写防递归先例）、[ADR-0007](0007-directive-options-and-modifiers.md)（指令选项体系）、[CONTEXT.md](../../CONTEXT.md)（「展开折叠层」词条）
 - **共识来源**：grilling 四轮决策（Q1–Q24，含两轮代码事实调查 12 条、一项技术事实纠正后重裁决）
 
 ## 背景

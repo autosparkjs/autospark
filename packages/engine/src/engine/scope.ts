@@ -1043,7 +1043,7 @@ export class AutoSparkScope {
      * 多段路径首键命中域时取**域内成员对象**对余段 setVal（写入留域内），否则落根 setVal
      * （保持旧「根上自动建中间节点」语义）。
      *
-     * 修复 x-model / x-resize / x-splitter 等指令「读局部、写全局」的基准分裂：
+     * 修复 x-model / x-resizable / x-splitter 等指令「读局部、写全局」的基准分裂：
      * 读方向经 `watch` 表达式支路命中域、写方向直写根——现在同走聚合视图，读写同源。
      *
      * 仅供指令的写回快通道使用（须简单路径）；调用方持有的 flags/等值短路等防循环簿记不变。

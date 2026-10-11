@@ -20,7 +20,7 @@
  * **descriptor 签名（ADR-0036 决策 4/5/6）**：入参/返回值均为已规范化的 `ActionDesc`——
  * 包装其 `handle` 并**就地替换**（存储 / 广播 payload / `this.action` 自引用同源一致）：
  * - **广播带完整描述符**（决策 5）：两通道 payload/detail 均新增嵌套 `action` 字段 = 完整
- *   descriptor（含 name/title/icon/自由元数据/handle 函数本体）；顶层既有字段（name/phase/
+ *   descriptor（含 id/title/icon/自由元数据/handle 函数本体）；顶层既有字段（id/phase/
  *   result/error）原样不动；payload **不承诺可序列化**（handle 是函数）。
  * - **`this.action` 自引用注入**（决策 4）：handle 调用时向 this（AutoSparkActionContext）就地
  *   写入 `action = desc`（活引用：元数据可读写但无响应式承诺）；`this === desc`
@@ -54,7 +54,7 @@ export type ActionEmit = (type: string, payload: Record<string, any>) => void;
  * （同步/异步统一），就地替换 `desc.handle` 并返回同一 descriptor。
  *
  * @param emit   总线广播函数（调用点绑 engine.emit；动态事件名由调用点 `as any` 适配）
- * @param desc   已规范化的 action 描述符（name 已注入；浅拷贝体，安全就地突变）
+ * @param desc   已规范化的 action 描述符（id 已注入；浅拷贝体，安全就地突变）
  * @param local  局部 action（scope.actions）：只 DOM 冒泡、不进总线（ADR-0012，默认 false=全局）
  * @returns 同一 descriptor（handle 已替换为包装后版本）
  */
@@ -63,22 +63,22 @@ export function buildAction(emit: ActionEmit, desc: AutoSparkAction, local = fal
     // 描述符先解包（__rawAction）再以本次注册键重包装，不经此分支；此处兜底直接调用方。
     if ((desc.handle as any).__buildActionWrapped) return desc;
     const raw = desc.handle;
-    const name = desc.name;
+    const id = desc.id;
     const wrapped = function (this: unknown, ...args: any[]) {
         // 触发元素：仅 AutoSparkActionContext（经 x-on 触发）有 el；命令式直调无 el
         const triggerEl = (this as any)?.el as HTMLElement | undefined;
         // 双通道广播：总线（全局通配，仅全局 action）+ DOM 冒泡（祖先聚合，全局+局部）。
-        // local=true（局部 action）：跳过 emit，只 DOM——避免同名局部 action 总线串扰（ADR-0012）。
+        // local=true（局部 action）：跳过 emit，只 DOM——避免同 id 局部 action 总线串扰（ADR-0012）。
         // triggerEl 为空（命令式直调）：跳过 DOM；全局 action 仍 emit 总线，局部 action 静默。
         // action 字段 = 完整 descriptor（含 handle 函数本体，ADR-0036 决策 5；不承诺可序列化）。
         const broadcast = (phase: string, extra: Record<string, any> = {}) => {
-            if (!local) emit(`actions/${name}/${phase}`, { name, action: desc, ...extra });
+            if (!local) emit(`actions/${id}/${phase}`, { id, action: desc, ...extra });
             if (triggerEl) {
                 triggerEl.dispatchEvent(
-                    new CustomEvent(`action:${name}`, {
+                    new CustomEvent(`action:${id}`, {
                         bubbles: true,
                         composed: true,
-                        detail: { name, phase, action: desc, ...extra },
+                        detail: { id, phase, action: desc, ...extra },
                     }),
                 );
             }

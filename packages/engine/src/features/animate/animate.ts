@@ -1,3 +1,5 @@
+import { injectStylesheet } from "../../utils/injectStylesheet";
+
 /**
  * 结构指令进出场动画（ADR-0039）：Vue 同构的六类名 CSS 生命周期 + 内置 fade/slide/expand。
  *
@@ -110,12 +112,7 @@ const ANIMATE_STYLE_ID = "autospark-animate-styles";
 
 /** 幂等注入内置动画样式（engine 构造期调用一次；已存在则跳过） */
 function ensureAnimateStyles() {
-    if (typeof document === "undefined") return;
-    if (document.getElementById(ANIMATE_STYLE_ID)) return;
-    const style = document.createElement("style");
-    style.id = ANIMATE_STYLE_ID;
-    style.textContent = BUILTIN_ANIMATE_CSS;
-    document.head.appendChild(style);
+    injectStylesheet(BUILTIN_ANIMATE_CSS, { id: ANIMATE_STYLE_ID });
 }
 
 /** 进行中的动画记录（同元素互斥的载体，engine 存活期内数量有限，强引用可接受） */

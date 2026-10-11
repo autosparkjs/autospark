@@ -55,7 +55,7 @@
 
 <demo html="splitter/binding.html"/>
 
-`:data-size` 绑定**简单状态路径**即双向（语义与 [x-resize](./x-resize.md) 可选值绑定同源）：
+`:data-size` 绑定**简单状态路径**即双向（语义与 [x-resizable](./x-resizable.md) 可选值绑定同源）：
 
 ```html
 <div x-data="{ sidebar: 260 }">
@@ -69,7 +69,7 @@
 - **拖拽 → 状态**：拖拽中实时写回（保持声明单位；px 写 number、其余写 string）；
 - **状态 → DOM**：外部改 `sidebar` 反向同步面板尺寸；
 - **防递归三防线**：拖拽会话期抑制外部反写 + 等值短路 + 写回统一格式化，循环不可达；
-- 值为**表达式**（非简单路径）时 warn 一次 + 降级单向（状态 → DOM），面板折叠（[data-expandable](#折叠data-expandable)）仅作用于 UI（状态变更后会被拉回）——对齐 x-model / x-resize 的只读降级惯例。
+- 值为**表达式**（非简单路径）时 warn 一次 + 降级单向（状态 → DOM），面板折叠（[data-expandable](#折叠data-expandable)）仅作用于 UI（状态变更后会被拉回）——对齐 x-model / x-resizable 的只读降级惯例。
 
 ### 方向切换
 

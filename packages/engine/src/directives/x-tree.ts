@@ -5,6 +5,7 @@ import type { AutoSpark } from "../engine/engine";
 import { resolveAnimate, type ResolvedAnimate } from "../features/animate/animate";
 import { parseHtmlFragment } from "../utils/transformElement";
 import { isDataScript } from "../engine/compile/dataScript";
+import { injectStylesheet } from "../utils/injectStylesheet";
 
 /** 行内运行时实体：一个已渲染的节点行（ADR-0040） */
 interface TreeNodeEntry {
@@ -465,11 +466,8 @@ export class TreeDirective extends AutoSparkDirectiveBase {
 
     /** 注入默认树样式（幂等；多 engine 实例共享 document） */
     static override initialize(_engine: AutoSpark): void {
-        if (typeof document === "undefined" || !document.head) return;
-        if (document.getElementById(TREE_STYLES_ID)) return;
-        const style = document.createElement("style");
-        style.id = TREE_STYLES_ID;
-        style.textContent = `
+        injectStylesheet(
+            `
 .x-tree-node{margin:0}
 .x-tree-row{display:flex;align-items:center;gap:4px;padding:2px 4px;border-radius:4px;cursor:pointer;user-select:none}
 .x-tree-row:hover{background:#f0f0f0}
@@ -486,8 +484,9 @@ li[data-x-tree-row].x-tree-drop-inside{background:#eef3fc;outline:1px dashed #32
 /* 懒加载错误态（ADR-0090 修订）：行挂 data-x-tree-error → 默认模板节点图标变红
    （自定义模板可用同属性自行选样式；错误消息经行 data-tooltip 提示） */
 li[data-x-tree-row][data-x-tree-error] .x-tree-type-ico{color:#e5484d}
-`;
-        document.head.appendChild(style);
+`,
+            { id: TREE_STYLES_ID },
+        );
     }
 
     // ── 语法解析结果 ──

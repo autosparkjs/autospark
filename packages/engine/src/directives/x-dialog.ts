@@ -1,7 +1,7 @@
 import type { AutoSpark } from "../engine/engine";
 import { registerShellStyles } from "../features/overlay/wrappers";
 import { VisibleOverlayDirective } from "../features/directive/visible-overlay";
-import type { ResizeDirection } from "./x-resize";
+import type { ResizeDirection } from "./x-resizable";
 
 /**
  * x-dialog：覆盖物消费者的**模态形态**（ADR-0052 修订版，共识 4 薄子类）。

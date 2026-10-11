@@ -89,7 +89,7 @@ engine.actions.rename = () => {
 
 所有注册入口（构造 `options.actions` / 运行时 `engine.actions.x = {...}` / 模板 script）统一接受两种写法，写入时**规范化**为描述符（`ActionDesc`）存储：
 
-- `name` 由注册键自动注入（声明里写的 `name` 不生效）；
+- `id` 由注册键自动注入（声明里写的 `id` 不生效）；
 - 生命周期广播的 payload / DOM 事件 detail 均携带完整描述符（`payload.action.title` 直接可用，见[统一生命周期](#统一生命周期)）；
 - `engine.actions[name]` 与 `getAction` 返回的是**描述符对象**，命令式调用取 `engine.actions.save.handle(...)`（模板内 `@click="save"` 无感，透明解包）；
 - 对象写法缺 `handle`（或非函数）会记错误日志并跳过该条，不影响同块其他动作。
@@ -126,7 +126,7 @@ engine.actions.rename = () => {
 | `this.store`    | `AutoStore` 实例（`watch` / `state` / `collectDependencies` 等）      |
 | `this.engine`   | `AutoSpark` 实例（等价于外部持有的 `engine` 变量）                    |
 | `this.$options` | 指令配置只读聚合视图（指令选项 → `x-options` 宿主选项，两层回退）     |
-| `this.action`   | **动作自引用**：指向当前动作的描述符（`name` / `title` / `icon` / `handle` 活引用），详见[动作元数据](#动作元数据-对象写法) |
+| `this.action`   | **动作自引用**：指向当前动作的描述符（`id` / `title` / `icon` / `handle` 活引用），详见[动作元数据](#动作元数据-对象写法) |
 
 ### 读写聚合视图
 
@@ -168,12 +168,12 @@ actions: {
 - **总线**：`actions/<name>/{pending,resolved,rejected}`——全局消费者，可用通配订阅一批（如 `actions/*/pending` 做全局 loading）。
 - **DOM 冒泡**：在触发元素上 dispatch `action:<name>` CustomEvent（`bubbles+composed`）——冒泡到祖先，供容器级聚合。
 
-两个通道的载荷均携带完整**动作描述符**：顶层字段（`name` / `phase` / `result` / `error`）不变，嵌套 `action` 字段含 `title` / `icon` / 自由元数据与 `handle` 本体（不承诺可序列化）——消费者可直接读元数据：
+两个通道的载荷均携带完整**动作描述符**：顶层字段（`id` / `phase` / `result` / `error`）不变，嵌套 `action` 字段含 `title` / `icon` / 自由元数据与 `handle` 本体（不承诺可序列化）——消费者可直接读元数据：
 
 ```javascript
 engine.on("actions/*/pending", (m) => {
     // 全局 toast 显示动作标题
-    toast.show(m.payload.action.title ?? m.payload.name);
+    toast.show(m.payload.action.title ?? m.payload.id);
 });
 ```
 

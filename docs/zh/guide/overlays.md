@@ -73,7 +73,7 @@
 - **「请求关闭」**：ESC / 遮罩 / close 动作统一走 `requestClose`——消费者可注入写回（visible 简单路径回写 `false`，状态是唯一真相源），不可回写时仅收 UI；
 - **事件双通道**：`overlay:open` / `overlay:close` 在实例根（DOM 冒泡）与引擎总线同时广播，payload 收窄为 `{ name, instance, dataContext }`（`dataContext` 为命令式传元素时的基准元素）；
 - **打开栈**：document 级共享，ESC 只关全局栈顶实例——嵌套打开（确认框叠对话框）只关最上层，多 engine 并存不连环关；
-- **at 锚定定位**：`{selector, placement, offset, shift, flip, arrow}`（字符串 / 元素简写 ≡ `{selector}`）经 floating-ui 贴锚定位（详见 [x-dialog 的 at](./directives/x-dialog.md#弹出定位)）；锚定生效时可开 `fit: true` 让面板单轴尺寸与宿主一致（左右弹出取高、上下弹出取宽，跟随翻转后的最终方向，ADR-0099，消费面见 [x-popover · 尺寸跟随宿主（fit）](./directives/x-popover.md#尺寸跟随宿主fit)）；
+- **at 锚定定位**：`{selector, placement, offset, shift, flip, arrow}`（字符串 / 元素简写 ≡ `{selector}`）经 floating-ui 贴锚定位，`shift` 默认启用（面板溢出视口时自动滑回视口，`at.shift: false` 关闭、对象透传调参；详见 [x-dialog 的 at](./directives/x-dialog.md#弹出定位)）；锚定生效时可开 `fit: true` 让面板单轴尺寸与宿主一致（左右弹出取高、上下弹出取宽，跟随翻转后的最终方向，ADR-0099，消费面见 [x-popover · 尺寸跟随宿主（fit）](./directives/x-popover.md#尺寸跟随宿主fit)）；
 - **进出场动画**：复用 ADR-0039 animate 机制，默认 `fade`，「播完动画再动 DOM」。
 
 ### 面板外壳（shell）：形态可定制
@@ -109,7 +109,11 @@
 new AutoSpark(el, state, { overlay: { dialog: { shell: "my-dialog" } } });
 ```
 
-内置默认面板复用契约类名（`.autospark-dialog` / `.autospark-overlay-arrow`）与 CSS 变量（`--autospark-overlay-z / -bg / -border / -radius`）——既有用户样式覆盖不受影响；自定义外壳复用这些类名即继承默认视觉（可覆盖），完全自写类名则完全自由。
+内置默认面板的家族通用视觉（圆角 / 边框 / 阴影 / 层级 / 箭头定位）挂引擎契约选择器（`[data-overlay]` 属性 + `.autospark-overlay-arrow` 载体类 + `data-overlay-border` / `data-overlay-placement` 标记）与 CSS 变量（`--autospark-overlay-z / -bg / -border / -radius`）——形态中立；形态类名（`.autospark-dialog` / `.autospark-popover` / `.autospark-drawer`）只承载形态特异（ADR-0062 修订）。自定义外壳保留 `data-overlay` 契约属性即继承默认视觉（可覆盖），完全自写则完全自由。
+
+::: warning 迁移（ADR-0062 修订）
+泛化旧义 `.autospark-dialog` 基类已退役（该类回归 dialog 形态专属）：popover / drawer / notification 面板不再携带该类。按 `.autospark-dialog` 定制过这些面板 CSS 的代码请改用形态类（如 `.autospark-popover`）或 `[data-overlay]` 属性选择器。
+:::
 
 ### 消费者家族
 

@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Kylin Router - 钩子系统示例</title>
+        <style>
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+                    Cantarell, sans-serif;
+                margin: 0;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }
+            #app {
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+            nav {
+                margin-bottom: 20px;
+                padding-bottom: 20px;
+                border-bottom: 1px solid #eee;
+            }
+            nav a {
+                margin-right: 15px;
+                color: #0066cc;
+                text-decoration: none;
+                padding: 5px 10px;
+                border-radius: 4px;
+                transition: background-color 0.2s;
+            }
+            nav a:hover {
+                background-color: #f0f0f0;
+            }
+            nav a.active {
+                background-color: #0066cc;
+                color: white;
+            }
+            .content {
+                padding: 20px 0;
+            }
+            .info {
+                background-color: #e3f2fd;
+                padding: 15px;
+                border-radius: 4px;
+                margin: 10px 0;
+                border-left: 4px solid #2196f3;
+            }
+            .warning {
+                background-color: #fff3e0;
+                padding: 15px;
+                border-radius: 4px;
+                margin: 10px 0;
+                border-left: 4px solid #ff9800;
+            }
+            .error {
+                background-color: #ffebee;
+                padding: 15px;
+                border-radius: 4px;
+                margin: 10px 0;
+                border-left: 4px solid #f44336;
+            }
+            pre {
+                background-color: #f5f5f5;
+                padding: 10px;
+                border-radius: 4px;
+                overflow-x: auto;
+            }
+            .log {
+                background-color: #f9f9f9;
+                padding: 15px;
+                border-radius: 4px;
+                font-family: "Courier New", monospace;
+                font-size: 12px;
+                max-height: 300px;
+                overflow-y: auto;
+                position: relative;
+            }
+            .log-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+                padding-bottom: 10px;
+                border-bottom: 2px solid #ddd;
+            }
+            .log-title {
+                font-weight: bold;
+                font-size: 14px;
+            }
+            .log-clear {
+                background: #ff4444;
+                color: white;
+                border: none;
+                padding: 5px 15px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+                transition: background 0.2s;
+            }
+            .log-clear:hover {
+                background: #cc0000;
+            }
+            .log-entries {
+                max-height: 250px;
+                overflow-y: auto;
+            }
+            .log-entry {
+                margin: 5px 0;
+                padding: 5px;
+                border-bottom: 1px solid #eee;
+            }
+            .log-entry:last-child {
+                border-bottom: none;
+            }
+            .auth-controls {
+                display: flex;
+                gap: 10px;
+                margin-top: 15px;
+                padding: 15px;
+                background: #f0f0f0;
+                border-radius: 4px;
+            }
+            .auth-btn {
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s;
+                font-weight: 500;
+            }
+            .auth-btn-primary {
+                background: #2196f3;
+                color: white;
+            }
+            .auth-btn-primary:hover {
+                background: #1976d2;
+            }
+            .auth-btn-success {
+                background: #4caf50;
+                color: white;
+            }
+            .auth-btn-success:hover {
+                background: #388e3c;
+            }
+            .auth-btn-danger {
+                background: #f44336;
+                color: white;
+            }
+            .auth-btn-danger:hover {
+                background: #d32f2f;
+            }
+            .auth-status {
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: bold;
+                margin-left: 10px;
+            }
+            .auth-status-authenticated {
+                background: #e8f5e9;
+                color: #2e7d32;
+            }
+            .auth-status-unauthenticated {
+                background: #ffebee;
+                color: #c62828;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app">
+            <nav>
+                <kylin-link to="/">首页</kylin-link>
+                <kylin-link to="/profile">个人资料</kylin-link>
+                <kylin-link to="/admin">管理员面板</kylin-link>
+                <kylin-link to="/users/123">用户详情</kylin-link>
+                <kylin-link to="/redirect">重定向测试</kylin-link>
+                <kylin-link to="/async">异步测试</kylin-link>
+            </nav>
+
+            <div class="content">
+                <kylin-outlet></kylin-outlet>
+            </div>
+
+            <div class="log">
+                <div class="log-header">
+                    <span class="log-title">📋 导航日志</span>
+                    <button class="log-clear" onclick="clearLog()">🗑️ 清空日志</button>
+                </div>
+                <div class="log-entries" id="navigation-log">
+                    <div class="log-entry" style="font-weight: bold">导航日志：</div>
+                </div>
+            </div>
+
+            <div class="auth-controls">
+                <div style="flex: 1">
+                    <strong>认证状态：</strong>
+                    <span id="auth-status" class="auth-status auth-status-unauthenticated"
+                        >未登录</span
+                    >
+                    <span id="user-role" style="margin-left: 10px; color: #666"></span>
+                </div>
+                <button class="auth-btn auth-btn-primary" onclick="simulateLogin()">
+                    🔐 用户登录
+                </button>
+                <button class="auth-btn auth-btn-success" onclick="simulateAdminLogin()">
+                    👑 管理员登录
+                </button>
+                <button class="auth-btn auth-btn-danger" onclick="simulateLogout()">
+                    🚪 退出登录
+                </button>
+            </div>
+        </div>
+
+        <script type="module">
+            import { KylinRouter } from "/src/index.js";
+
+            // 模拟认证状态
+            let isAuthenticated = false;
+            let userRole = "user";
+
+            // 路由配置
+            const routes = [
+                {
+                    name: "home",
+                    path: "/",
+                    title: "首页",
+                    meta: {
+                        description: "欢迎使用 Kylin Router 钩子系统示例",
+                    },
+                    renderEach: (to, from, next) => {
+                        // 数据预加载示例
+                        next({
+                            currentTime: new Date().toLocaleString(),
+                            visitorCount: Math.floor(Math.random() * 1000),
+                        });
+                    },
+                    view: `
+                    <div>
+                        <h1>🎉 欢迎来到 Kylin Router 钩子系统示例</h1>
+                        <div class="info">
+                            <strong>📅 当前时间：</strong> {{currentTime}}<br>
+                            <strong>👥 访问人数：</strong> {{visitorCount}}
+                        </div>
+                        <p>本示例演示了 Kylin Router 的完整钩子系统功能：</p>
+                        <ul>
+                            <li><strong>🔒 beforeEach：</strong> 全局前置守卫，用于认证检查和日志记录</li>
+                            <li><strong>📦 renderEach：</strong> 数据预加载，在渲染前获取页面所需数据</li>
+                            <li><strong>✅ afterEach：</strong> 全局后置钩子，用于滚动到顶部和分析追踪</li>
+                            <li><strong>🛡️ beforeEnter：</strong> 路由级守卫，控制特定路由的访问权限</li>
+                            <li><strong>👋 afterLeave：</strong> 路由离开守卫，执行清理工作</li>
+                        </ul>
+                        <div class="warning">
+                            <strong>💡 提示：</strong>点击上方导航链接体验不同的钩子功能，使用下方的认证按钮测试权限控制。
+                        </div>
+                    </div>
+                `,
+                },
+                {
+                    name: "profile",
+                    path: "/profile",
+                    title: "个人资料",
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    beforeEnter: (to, from) => {
+                        // 路由级守卫：检查认证状态
+                        if (!isAuthenticated) {
+                            addLog("访问被拒绝：未登录，重定向到登录页面", "warning");
+                            return "/login";
+                        }
+                        return true;
+                    },
+                    renderEach: (to, from, next) => {
+                        // 数据预加载：加载用户资料
+                        setTimeout(() => {
+                            next({
+                                userProfile: {
+                                    name: "张三",
+                                    email: "zhangsan@example.com",
+                                    role: userRole,
+                                },
+                            });
+                        }, 100);
+                    },
+                    view: `
+                    <div>
+                        <h1>👤 个人资料</h1>
+                        <div class="info">
+                            <strong>👤 用户名：</strong> {{userProfile.name}}<br>
+                            <strong>📧 邮箱：</strong> {{userProfile.email}}<br>
+                            <strong>🎭 角色：</strong> {{userProfile.role}}
+                        </div>
+                        <div class="warning">
+                            <strong>🔐 权限说明：</strong>此页面需要登录才能访问。beforeEnter 守卫会检查认证状态，未登录用户会被重定向到登录页面。
+                        </div>
+                        <p>💡 你可以通过下方的"用户登录"按钮来访问此页面。</p>
+                    </div>
+                `,
+                },
+                {
+                    name: "admin",
+                    path: "/admin",
+                    title: "管理员面板",
+                    meta: {
+                        requiresAuth: true,
+                        requiresAdmin: true,
+                    },
+                    beforeEnter: (to, from) => {
+                        // 路由级守卫：检查管理员权限
+                        if (!isAuthenticated) {
+                            addLog("访问被拒绝：未登录，重定向到登录页面", "warning");
+                            return "/login";
+                        }
+                        if (userRole !== "admin") {
+                            addLog("访问被拒绝：权限不足，重定向到首页", "error");
+                            return "/";
+                        }
+                        return true;
+                    },
+                    afterLeave: (to, from) => {
+                        addLog("离开管理员面板，执行清理工作", "info");
+                    },
+                    view: `
+                    <div>
+                        <h1>👑 管理员面板</h1>
+                        <div class="info">
+                            <strong>🛠️ 管理员功能：</strong>
+                            <ul>
+                                <li>👥 用户管理</li>
+                                <li>⚙️ 系统设置</li>
+                                <li>📊 数据统计</li>
+                                <li>🔒 权限控制</li>
+                            </ul>
+                        </div>
+                        <div class="warning">
+                            <strong>🔐 权限说明：</strong>此页面需要管理员权限才能访问。beforeEnter 守卫会检查用户角色，非管理员用户会被重定向到首页。
+                        </div>
+                        <p>💡 你可以通过下方的"管理员登录"按钮来访问此页面。</p>
+                    </div>
+                `,
+                },
+                {
+                    name: "user-detail",
+                    path: "/users/:id",
+                    title: "用户详情",
+                    renderEach: (to, from, next) => {
+                        // 根据路由参数预加载数据
+                        const userId = to.params.id;
+                        addLog(`预加载用户 ${userId} 的数据...`, "info");
+
+                        setTimeout(() => {
+                            next({
+                                userId: userId,
+                                userName: `用户${userId}`,
+                                userStatus: "active",
+                            });
+                        }, 100);
+                    },
+                    view: `
+                    <div>
+                        <h1>👤 用户详情</h1>
+                        <div class="info">
+                            <strong>🆔 用户ID：</strong> {{userId}}<br>
+                            <strong>👤 用户名：</strong> {{userName}}<br>
+                            <strong>📊 状态：</strong> {{userStatus}}
+                        </div>
+                        <div class="warning">
+                            <strong>💡 动态路由：</strong>此页面演示了动态路由参数的使用。renderEach 钩子根据路由参数预加载了用户数据。
+                        </div>
+                        <p>你可以尝试访问不同的用户ID，例如：/users/456、/users/789 等。</p>
+                    </div>
+                `,
+                },
+                {
+                    name: "redirect",
+                    path: "/redirect",
+                    title: "重定向测试",
+                    beforeEnter: (to, from) => {
+                        addLog("触发重定向：/redirect -> /target", "info");
+                        return "/target";
+                    },
+                    view: `
+                    <div>
+                        <h1>🔄 重定向测试</h1>
+                        <div class="error">
+                            <strong>❌ 错误：</strong>如果您看到此页面，说明重定向失败。beforeEnter 守卫应该将您重定向到 /target 页面。
+                        </div>
+                    </div>
+                `,
+                },
+                {
+                    name: "target",
+                    path: "/target",
+                    title: "重定向目标",
+                    view: `
+                    <div>
+                        <h1>✅ 重定向成功</h1>
+                        <div class="info">
+                            <strong>🎯 目标页面：</strong> 您已成功从 /redirect 重定向到此页面。beforeEnter 守卫正确地处理了重定向逻辑。
+                        </div>
+                        <p>💡 重定向功能在许多场景下非常有用，比如：登录后跳转、权限验证、URL 规范化等。</p>
+                    </div>
+                `,
+                },
+                {
+                    name: "async",
+                    path: "/async",
+                    title: "异步测试",
+                    renderEach: async (to, from, next) => {
+                        addLog("开始异步数据加载...", "info");
+                        // 模拟异步数据加载
+                        await new Promise((resolve) => setTimeout(resolve, 500));
+                        addLog("异步数据加载完成", "info");
+                        next({
+                            asyncData: "异步加载的数据",
+                            loadTime: "500ms",
+                        });
+                    },
+                    view: `
+                    <div>
+                        <h1>⏳ 异步测试</h1>
+                        <div class="info">
+                            <strong>📦 异步数据：</strong> {{asyncData}}<br>
+                            <strong>⏱️ 加载时间：</strong> {{loadTime}}
+                        </div>
+                        <div class="warning">
+                            <strong>💡 异步加载：</strong>此页面演示了异步数据预加载功能。renderEach 钩子支持 async/await，可以等待异步操作完成后再渲染页面。
+                        </div>
+                        <p>这在实际应用中非常有用，比如：从 API 获取数据、加载用户配置、预加载资源等。</p>
+                    </div>
+                `,
+                },
+                {
+                    name: "login",
+                    path: "/login",
+                    title: "登录",
+                    view: `
+                    <div>
+                        <h1>🔐 登录页面</h1>
+                        <div class="warning">
+                            <strong>🔑 模拟登录：</strong>请使用页面底部的认证控制按钮进行登录测试。
+                        </div>
+                        <p>💡 此页面是受保护路由的默认重定向目标。当未登录用户尝试访问需要认证的页面时，会被自动重定向到这里。</p>
+                        <div class="info">
+                            <strong>📋 测试账号：</strong><br>
+                            • 普通用户：点击"用户登录"按钮<br>
+                            • 管理员：点击"管理员登录"按钮
+                        </div>
+                    </div>
+                `,
+                },
+                {
+                    name: "not-found",
+                    path: "*",
+                    view: `
+                    <div>
+                        <h1>404 - 页面未找到</h1>
+                        <div class="error">
+                            <strong>❌ 错误：</strong>您访问的页面不存在。请检查URL是否正确，或返回首页继续浏览。
+                        </div>
+                        <p>💡 这是通配符路由（*）的示例，用于处理所有未匹配的路由。</p>
+                    </div>
+                `,
+                },
+            ];
+
+            // 创建路由实例
+            const app = document.getElementById("app");
+            const router = new KylinRouter(app, {
+                routes: routes,
+                mode: "history",
+                debug: true,
+            });
+
+            // 全局 beforeEach：日志记录
+            router.hooks.add("beforeEach", (to, from, next) => {
+                addLog(`导航开始：${from.path || "初始"} -> ${to.path}`, "info");
+                next();
+            });
+
+            // 全局 beforeEach：认证检查
+            router.hooks.add("beforeEach", (to, from, next) => {
+                if (to.meta?.requiresAuth && !isAuthenticated) {
+                    addLog(`认证检查失败：${to.path} 需要登录`, "warning");
+                    next("/login");
+                    return;
+                }
+                next();
+            });
+
+            // 全局 renderEach：页面标题设置
+            router.hooks.add("renderEach", (to, from, next) => {
+                if (to.meta?.title) {
+                    document.title = `${to.meta.title} - Kylin Router 示例`;
+                }
+                next();
+            });
+
+            // 全局 afterEach：滚动到顶部
+            router.hooks.add("afterEach", (to, from) => {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                addLog(`导航完成：${to.path}`, "info");
+            });
+
+            // 全局 afterEach：分析追踪
+            router.hooks.add("afterEach", (to, from) => {
+                // 模拟页面访问统计
+                if (typeof ga !== "undefined") {
+                    ga("send", "pageview", to.path);
+                }
+            });
+
+            // 添加日志函数
+            function addLog(message, type = "info") {
+                const logContainer = document.getElementById("navigation-log");
+                const entry = document.createElement("div");
+                entry.className = "log-entry";
+
+                const timestamp = new Date().toLocaleTimeString();
+                const typeIcon =
+                    {
+                        info: "ℹ️",
+                        warning: "⚠️",
+                        error: "❌",
+                    }[type] || "ℹ️";
+
+                entry.innerHTML = `[${timestamp}] ${typeIcon} ${message}`;
+                logContainer.appendChild(entry);
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+
+            // 清空日志函数
+            window.clearLog = function () {
+                const logContainer = document.getElementById("navigation-log");
+                if (logContainer) {
+                    logContainer.innerHTML =
+                        '<div class="log-entry" style="font-weight: bold; color: #666;">🗑️ 日志已清空</div>';
+                }
+            };
+
+            // 更新认证状态显示
+            function updateAuthStatus() {
+                const statusElement = document.getElementById("auth-status");
+                const roleElement = document.getElementById("user-role");
+
+                if (statusElement && roleElement) {
+                    if (isAuthenticated) {
+                        statusElement.textContent = "已登录";
+                        statusElement.className = "auth-status auth-status-authenticated";
+                        roleElement.textContent =
+                            userRole === "admin" ? "👑 管理员" : "👤 普通用户";
+                    } else {
+                        statusElement.textContent = "未登录";
+                        statusElement.className = "auth-status auth-status-unauthenticated";
+                        roleElement.textContent = "";
+                    }
+                }
+            }
+
+            // 模拟登录函数
+            window.simulateLogin = function () {
+                isAuthenticated = true;
+                userRole = "user";
+                addLog("✅ 登录成功：普通用户", "info");
+                updateAuthStatus();
+                router.push("/profile");
+            };
+
+            // 模拟管理员登录函数
+            window.simulateAdminLogin = function () {
+                isAuthenticated = true;
+                userRole = "admin";
+                addLog("✅ 登录成功：管理员", "info");
+                updateAuthStatus();
+                router.push("/admin");
+            };
+
+            // 模拟登出函数
+            window.simulateLogout = function () {
+                isAuthenticated = false;
+                userRole = "user";
+                addLog("🚪 已退出登录", "info");
+                updateAuthStatus();
+                router.push("/");
+            };
+
+            // 使用 router.on() 监听路由变化事件，用于渲染组件
+            router.on("route/change", (data) => {
+                const { route, params, query } = data;
+
+                // 简单的模板渲染
+                if (route && route.view) {
+                    const outlet = app.querySelector("kylin-outlet");
+                    if (outlet) {
+                        let html = route.view;
+
+                        // 替换数据占位符
+                        if (route.data) {
+                            Object.keys(route.data).forEach((key) => {
+                                const placeholder = `{{${key}}}`;
+                                const value = route.data[key];
+                                html = html.replace(new RegExp(placeholder, "g"), value);
+                            });
+                        }
+
+                        // 替换参数占位符
+                        if (params) {
+                            Object.keys(params).forEach((key) => {
+                                const placeholder = `{{params.${key}}}`;
+                                const value = params[key];
+                                html = html.replace(new RegExp(placeholder, "g"), value);
+                            });
+                        }
+
+                        outlet.innerHTML = html;
+                    }
+                }
+            });
+
+            addLog("🎉 路由器初始化完成，准备就绪", "info");
+            updateAuthStatus();
+        </script>
+    </body>
+</html>

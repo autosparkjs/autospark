@@ -8,8 +8,10 @@
  *
  * - **placement 默认 `'auto'`**：autoPlacement 视口空间自动选位（overlay 默认）；tooltip
  *   恒传具体方向（`'top'` + flip，业界惯例，ADR-0061 决策 14）。显式方向则固定 + flip 翻转。
- * - 中间件按配置装配：offset / shift 透传（箭头开启且未配置 offset 时默认让位 6px，三角尖
- *   点在锚元素边缘上）；**箭头载体须由调用方预先注入 panel**（本函数只负责定位它）。
+ * - 中间件装配（顺序 = floating-ui 官方推荐 offset → flip → shift → arrow）：offset 透传
+ *   （箭头开启且未配置时默认让位 6px，三角尖点在锚元素边缘上）；**shift 默认启用**（keep in
+ *   view——面板沿交叉轴滑回视口防溢出，`false` 关闭、对象透传调参）；**箭头载体须由调用方
+ *   预先注入 panel**（本函数只负责定位它）。
  * - autoUpdate 默认开（锚点滚动/resize 重定位）；无 ResizeObserver 环境（部分测试/SSR）退化为
  *   单次 computePosition。cleanup 回调经 registerCleanup 注册（实例/浮层销毁时执行）。
  */
@@ -29,7 +31,7 @@ export interface FloatingPositionOptions {
     placement?: string;
     /** 透传 offset 中间件（间距） */
     offset?: any;
-    /** 透传 shift 中间件（视口内滑移 padding） */
+    /** 视口内滑移：默认启用（keep in view 防溢出）；`false` 关闭；对象透传（padding 等参数） */
     shift?: any;
     /** 视口翻转，默认 true；placement: 'auto' 时无 flip（互斥） */
     flip?: boolean;
@@ -119,11 +121,23 @@ export function applyFloatingPosition(
         // flip 缺省值可被消费方契约覆写（opts.flip 显式配置恒优先——x-drawer 默认关，ADR-0063）
         middleware.push(mwFlip());
     }
-    if (opts.shift != null) middleware.push(mwShift(opts.shift as any));
+    // shift 默认启用（keep in view——floating-ui 推荐：面板沿交叉轴滑回视口，防溢出屏幕）；
+    // `false` 显式关闭；对象透传（padding 等参数）；`true`/缺省 = 无参默认（padding 0）
+    if (opts.shift !== false) {
+        middleware.push(
+            opts.shift == null || opts.shift === true
+                ? mwShift()
+                : mwShift(opts.shift as any),
+        );
+    }
     if (arrowEl) middleware.push(mwArrow({ element: arrowEl } as any));
 
     const update = () => {
         computePosition(anchorEl, panel, {
+            // 面板 CSS position:fixed → 策略必须同为 fixed（floating-ui 坐标系契约：策略与
+            // 元素实际定位不一致时，flip/shift 的视口溢出检测按错误坐标系计算而失效——
+            // 简单无滚动页面两种策略数值恰好相同，溢出/滚动场景才暴露）
+            strategy: "fixed",
             // auto 模式不传 placement（computePosition 默认 'bottom' 会被 autoPlacement reset 覆盖）
             placement: useAuto ? undefined : (placement as any),
             middleware,

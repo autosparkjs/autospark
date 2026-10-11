@@ -1,163 +1,217 @@
 <div
-    class="autospark-dialog autospark-notification"
+    class="autospark-notification"
     x-define="autospark.notifications.shell"
     :data-notification-type="type"
     :data-notification-level="levelName"
 >
     <script setup>
-    {
-        data: () => ({
-            holdOpen: false,
-            visible: false,
-            closed: false,
-            remaining: -1,
-        }),
-        methods: {
-            hide() { this.engine.notifications.hide(this.props.id); },
-            show() { this.engine.notifications.show(this.props.id); },
-            remove() { this.engine.notifications.delete(this.props.id); },
-            cancel() { this.engine.notifications.hide(this.props.id); },
-            update(p) { this.engine.notifications.update(this.props.id, p); },
-            markRead() { this.engine.notifications.markRead(this.props.id); },
-            respond(v) { this.engine.notifications.respond(this.props.id, v); },
-        },
-    }
+        {
+            data: () => ({
+                holdOpen: false,
+                visible: false,
+                closed: false,
+                remaining: -1,
+            }),
+            methods: {
+                hide() { this.engine.notifications.hide(this.props.id); },
+                show() { this.engine.notifications.show(this.props.id); },
+                remove() { this.engine.notifications.delete(this.props.id); },
+                cancel() { this.engine.notifications.hide(this.props.id); },
+                update(p) { this.engine.notifications.update(this.props.id, p); },
+                markRead() { this.engine.notifications.markRead(this.props.id); },
+                respond(v) { this.engine.notifications.respond(this.props.id, v); },
+            },
+        }
     </script>
     <style global id="autospark-notification-styles">
-    .autospark-notification {
-      border: 1px solid var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
-      background: var(--autospark-overlay-bg, #fff);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      display: flex;
-      flex-direction: column;
-      padding: 10px 12px;
-      box-sizing: border-box;
-      max-width: var(--autospark-notification-max-w, 360px);
-      font-size: 14px;
-      line-height: 1.5;
-      color: var(--autospark-notification-fg, #1f2329);
-    } 
-    .autospark-notification[data-notification-level="info"] {
-      --autospark-notification-accent: var(--autospark-notification-info-color, #409eff);
-      border-color: var(--autospark-notification-accent);
-      background: color-mix(in srgb, var(--autospark-notification-accent) 7%, var(--autospark-overlay-bg, #fff));
-    }
-    .autospark-notification[data-notification-level="success"] {
-      --autospark-notification-accent: var(--autospark-notification-success-color, #67c23a);
-      border-color: var(--autospark-notification-accent);
-      background: color-mix(in srgb, var(--autospark-notification-accent) 7%, var(--autospark-overlay-bg, #fff));
-    }
-    .autospark-notification[data-notification-level="warn"] {
-      --autospark-notification-accent: var(--autospark-notification-warn-color, #e6a23c);
-      border-color: var(--autospark-notification-accent);
-      background: color-mix(in srgb, var(--autospark-notification-accent) 7%, var(--autospark-overlay-bg, #fff));
-    }
-    .autospark-notification[data-notification-level="error"] {
-      --autospark-notification-accent: var(--autospark-notification-error-color, #f56c6c);
-      border-color: var(--autospark-notification-accent);
-      background: color-mix(in srgb, var(--autospark-notification-accent) 7%, var(--autospark-overlay-bg, #fff));
-    }
-    /* header 出口（行即出口）：纵列首行；padding-right 恒预留 × 空间（closeable:false 时仅
-       留白不对称——取简不做条件 padding） */
-    .autospark-notification-header {
-      display: flex;
-      align-items: flex-start;
-      padding-right: 22px;
-    }
-    /* 内容主行（icon + 内容列）——header fallback 结构 */
-    .autospark-notification-main {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      flex: 1;
-      min-width: 0;
-    }
-    .autospark-notification-icon {
-      flex: none;
-      display: inline-flex;
-      font-size: 17px;
-      color: var(--autospark-notification-accent, transparent);
-    }
-    .autospark-notification-content {
-      flex: 1;
-      min-width: 0;
-    }
-    .autospark-notification-title-row {
-      display: flex;
-      align-items: baseline;
-      gap: 6px;
-    }
-    .autospark-notification-title {
-      font-weight: 500;
-      overflow-wrap: break-word;
-    }
-    .autospark-notification-link {
-      flex: none;
-      text-decoration: none;
-      font-size: 12px;
-      color: var(--autospark-notification-accent, inherit);
-    }
-    /* 外链图标（内置 external，x-icon 注入 svg） */
-    .autospark-notification-link-icon {
-      display: inline-flex;
-      font-size: 13px;
-    }
-    .autospark-notification-description {
-      font-size: 12px;
-      opacity: 0.75;
-      margin-top: 2px;
-      overflow-wrap: break-word;
-    }
-    .autospark-notification-close {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      display: inline-flex;
-      align-items: center;
-      border: none;
-      background: none;
-      padding: 2px;
-      font-size: 13px;
-      color: var(--autospark-notification-fg, #1f2329);
-      opacity: 0.5;
-      cursor: pointer;
-    }
-    .autospark-notification-close:hover { opacity: 1; }
-    .autospark-notification-actions {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 12px;
-      margin-top: 6px;
-    }
-    .autospark-notification-action {
-      flex: none;
-      border: none;
-      background: none;
-      padding: 0;
-      font: inherit;
-      font-size: 13px;
-      color: var(--autospark-notification-accent, #409eff);
-      cursor: pointer;
-    }
+        .autospark-notification {
+            position: relative;
+            border-radius: var(--autospark-overlay-radius, 8px);
+            border: 1px solid var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
+            background: var(--autospark-overlay-bg, #fff);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            padding: 10px 12px;
+            box-sizing: border-box;
+            max-width: var(--autospark-notification-max-w, 360px);
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--autospark-notification-fg, #1f2329);
+        }
+        .autospark-notification[data-notification-level="info"] {
+            --autospark-notification-accent: var(--autospark-notification-info-color, #409eff);
+            border-color: var(--autospark-notification-accent);
+            background: color-mix(
+                in srgb,
+                var(--autospark-notification-accent) 7%,
+                var(--autospark-overlay-bg, #fff)
+            );
+        }
+        .autospark-notification[data-notification-level="success"] {
+            --autospark-notification-accent: var(--autospark-notification-success-color, #67c23a);
+            border-color: var(--autospark-notification-accent);
+            background: color-mix(
+                in srgb,
+                var(--autospark-notification-accent) 7%,
+                var(--autospark-overlay-bg, #fff)
+            );
+        }
+        .autospark-notification[data-notification-level="warn"] {
+            --autospark-notification-accent: var(--autospark-notification-warn-color, #e6a23c);
+            border-color: var(--autospark-notification-accent);
+            background: color-mix(
+                in srgb,
+                var(--autospark-notification-accent) 7%,
+                var(--autospark-overlay-bg, #fff)
+            );
+        }
+        .autospark-notification[data-notification-level="error"] {
+            --autospark-notification-accent: var(--autospark-notification-error-color, #f56c6c);
+            border-color: var(--autospark-notification-accent);
+            background: color-mix(
+                in srgb,
+                var(--autospark-notification-accent) 7%,
+                var(--autospark-overlay-bg, #fff)
+            );
+        }
+        .autospark-notification-header {
+            display: flex;
+            align-items: flex-start;
+            padding-right: 22px;
+        }
+        .autospark-notification-main {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+        }
+        .autospark-notification-icon {
+            flex: none;
+            display: inline-flex;
+            font-size: 17px;
+            color: var(--autospark-notification-accent, transparent);
+        }
+        .autospark-notification-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .autospark-notification-title-row {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+        .autospark-notification-title {
+            font-weight: 500;
+            overflow-wrap: break-word;
+        }
+        .autospark-notification-link {
+            flex: none;
+            text-decoration: none;
+            font-size: 12px;
+            color: var(--autospark-notification-accent, inherit);
+        }
+        .autospark-notification-link-icon {
+            display: inline-flex;
+            font-size: 13px;
+        }
+        .autospark-notification-description {
+            font-size: 12px;
+            opacity: 0.75;
+            margin-top: 2px;
+            overflow-wrap: break-word;
+        }
+        .autospark-notification-close {
+            position: absolute;
+            /* 与 title 首行文字中心对齐：10(卡 padding-top) + 21/2(首行 14×1.5) − 17/2(钮高 13+2×2) = 12；
+               推导自本表写死的排版常量，改 padding/字号/行高须同步重算（无 title 时维持同位——chrome 不读 slot 内容） */
+            top: 12px;
+            right: 8px;
+            display: inline-flex;
+            align-items: center;
+            border: none;
+            background: none;
+            padding: 2px;
+            font-size: 13px;
+            color: var(--autospark-notification-fg, #1f2329);
+            opacity: 0.5;
+            cursor: pointer;
+        }
+        .autospark-notification-close:hover {
+            opacity: 1;
+        }
+        .autospark-notification-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            margin-top: 6px;
+        }
+        .autospark-notification-action {
+            flex: none;
+            border: none;
+            background: none;
+            padding: 0;
+            font: inherit;
+            font-size: 13px;
+            color: var(--autospark-notification-accent, #409eff);
+            cursor: pointer;
+        }
     </style>
     <div class="autospark-notification-header" x-slot:header>
         <div class="autospark-notification-main">
-            <i class="autospark-notification-icon" x-icon="icon" x-show="icon" aria-hidden="true"></i>
+            <i
+                class="autospark-notification-icon"
+                x-icon="icon"
+                x-show="icon"
+                aria-hidden="true"
+            ></i>
             <div class="autospark-notification-content">
                 <div class="autospark-notification-title-row">
                     <span class="autospark-notification-title" x-html="title"></span>
-                    <a class="autospark-notification-link" x-show="link" :href="link" target="_blank" rel="noopener noreferrer" aria-label="查看详情"><i class="autospark-notification-link-icon" x-icon="'external'" aria-hidden="true"></i></a>
+                    <a
+                        class="autospark-notification-link"
+                        x-show="link"
+                        :href="link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="查看详情"
+                        ><i
+                            class="autospark-notification-link-icon"
+                            x-icon="'external'"
+                            aria-hidden="true"
+                        ></i
+                    ></a>
                 </div>
-                <div class="autospark-notification-description" x-html="description" x-show="description"></div>
+                <div
+                    class="autospark-notification-description"
+                    x-html="description"
+                    x-show="description"
+                ></div>
             </div>
         </div>
     </div>
     <div x-slot></div>
     <div x-slot:actions>
-        <div class="autospark-notification-actions" x-show="actions.length > 0" x-for="a of actions">
-            <button class="autospark-notification-action" type="button" x-text="a.title" :data-notification-action="actions.indexOf(a)"></button>
+        <div
+            class="autospark-notification-actions"
+            x-show="actions.length > 0"
+            x-for="a of actions"
+        >
+            <button
+                class="autospark-notification-action"
+                type="button"
+                x-text="a.title"
+                :data-notification-action="actions.indexOf(a)"
+            ></button>
         </div>
     </div>
-    <button class="autospark-notification-close" type="button" x-show="closeable" x-icon="'no'" aria-label="关闭"></button>
+    <button
+        class="autospark-notification-close"
+        type="button"
+        x-show="closeable"
+        x-icon="'no'"
+        aria-label="关闭"
+    ></button>
 </div>

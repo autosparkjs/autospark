@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-container · 视口断点容器</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .vp {
+        border: 1px dashed #b5b5b5;
+        border-radius: 8px;
+        background: #f9fafb;
+        min-height: 120px;
+        padding: 12px 16px;
+      }
+    </style>
+  </head>
+  <body style="overflow:auto">
+    <div class="demo-app section">
+      <div class="block has-text-grey is-size-7">
+        拖动浏览器窗口宽度：容器 max-width 按档切换（Bootstrap 5 缺省表），档位徽章与状态写回同步，
+        <code>viewport:change</code> 跨档计数（初值不计）。
+      </div>
+      <div class="field is-grouped is-grouped-multiline mb-3">
+        <span class="tag is-link is-light is-medium">当前档位：{{ tier }}</span>
+        <span class="tag is-info is-light is-medium">跨档次数：{{ n }}</span>
+      </div>
+      <div class="vp" x-container="tier" @viewport:change="n++">
+        <p class="title is-6 has-text-centered">响应式容器</p>
+        <p class="is-size-7 has-text-centered has-text-grey">
+          xs &lt;576 通栏 · sm 540 · md 720 · lg 960 · xl 1140 · xxl 1320（max-width，px）
+        </p>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), { tier: "", n: 0 });
+    </script>
+  </body>
+</html>

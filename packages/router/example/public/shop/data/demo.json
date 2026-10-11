@@ -1,0 +1,36 @@
+{
+    "title": "Kylin Router 功能演示",
+    "subtitle": "完整展示所有路由功能和特性",
+    "sections": [
+        {
+            "icon": "🔗",
+            "title": "导航方法",
+            "description": "push、replace、back、forward、go、home"
+        },
+        {
+            "icon": "🪟",
+            "title": "模态路由",
+            "description": "不改变主路由历史的弹窗模式"
+        },
+        {
+            "icon": "💾",
+            "title": "keepAlive",
+            "description": "保持页面状态，避免重复渲染"
+        },
+        {
+            "icon": "⚠️",
+            "title": "错误处理",
+            "description": "404、500 等错误的自定义页面"
+        },
+        {
+            "icon": "⚡",
+            "title": "预加载",
+            "description": "提前加载页面，提升响应速度"
+        },
+        {
+            "icon": "↪️",
+            "title": "重定向",
+            "description": "自动将旧路由重定向到新路由"
+        }
+    ]
+}

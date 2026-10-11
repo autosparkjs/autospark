@@ -3,6 +3,7 @@ import { AutoSparkDirectiveBase } from "../features/directive/base";
 import { isSimpleStatePath } from "../engine/scope";
 import type { AutoSpark } from "../engine/engine";
 import type { AutoDirectiveInfo } from "../features/directive/types";
+import { injectStylesheet } from "../utils/injectStylesheet";
 import { ExpandableDirective } from "./x-expandable";
 
 /**
@@ -209,11 +210,7 @@ const SPLITTER_CSS = `
 
 /** 注入 splitter 全局样式（幂等；多 engine 共享、destroy 不移除——对齐全局样式惯例） */
 export function registerSplitterStyles(): void {
-    if (document.getElementById(SPLITTER_STYLE_ID)) return;
-    const style = document.createElement("style");
-    style.id = SPLITTER_STYLE_ID;
-    style.textContent = SPLITTER_CSS;
-    document.head.appendChild(style);
+    injectStylesheet(SPLITTER_CSS, { id: SPLITTER_STYLE_ID });
 }
 
 /** 把手滑轨定位的样式表钳制形态见 SPLITTER_CSS（inline 只写 --as-rail 坐标变量） */
@@ -538,7 +535,7 @@ export class SplitterDirective extends AutoSparkDirectiveBase {
             if (isSimpleStatePath(expr)) {
                 this._sizePath = expr;
             } else if (!this._warnedReadonly) {
-                // 表达式只读降级（对齐 x-model/x-resize 先例）
+                // 表达式只读降级（对齐 x-model/x-resizable 先例）
                 this._warnedReadonly = true;
                 this.warn(
                     `x-splitter: :data-size 值 "${expr}" 非简单状态路径，退化为单向（状态→DOM；拖拽/折叠写回须绑定对象路径）`,

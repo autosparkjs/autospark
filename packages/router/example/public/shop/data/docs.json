@@ -1,0 +1,68 @@
+{
+  "docs": [
+    {
+      "id": "getting-started",
+      "title": "快速入门",
+      "desc": "了解如何快速开始使用您的麒麟设备",
+      "icon": "🚀",
+      "views": 25680,
+      "updated": "2024-01-15"
+    },
+    {
+      "id": "user-guide",
+      "title": "使用指南",
+      "desc": "详细的产品使用说明和功能介绍",
+      "icon": "📖",
+      "views": 18920,
+      "updated": "2024-01-10"
+    },
+    {
+      "id": "faq",
+      "title": "常见问题",
+      "desc": "用户最常遇到的问题和解答",
+      "icon": "❓",
+      "views": 32560,
+      "updated": "2024-01-18"
+    },
+    {
+      "id": "troubleshooting",
+      "title": "故障排除",
+      "desc": "设备故障诊断和解决方案",
+      "icon": "🔍",
+      "views": 12450,
+      "updated": "2024-01-12"
+    },
+    {
+      "id": "warranty-info",
+      "title": "保修政策",
+      "desc": "了解保修范围、期限和索赔流程",
+      "icon": "📋",
+      "views": 25630,
+      "updated": "2024-01-08"
+    },
+    {
+      "id": "shipping",
+      "title": "配送说明",
+      "desc": "配送方式、时效和费用说明",
+      "icon": "🚚",
+      "views": 18520,
+      "updated": "2024-01-05"
+    },
+    {
+      "id": "returns",
+      "title": "退换货流程",
+      "desc": "7天无理由退货和换货流程说明",
+      "icon": "🔄",
+      "views": 14230,
+      "updated": "2024-01-03"
+    },
+    {
+      "id": "contact",
+      "title": "联系我们",
+      "desc": "客服联系方式和营业时间",
+      "icon": "📞",
+      "views": 28560,
+      "updated": "2024-01-20"
+    }
+  ]
+}

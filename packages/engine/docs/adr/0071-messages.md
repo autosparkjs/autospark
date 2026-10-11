@@ -204,6 +204,8 @@ localStorage 缺失 → local 持久化 warn + no-op；fetch 通道（load / sav
 
 #### 决策 20：`message:*` 事件族
 
+> **ADR-0102 修订**：事件族已升级为分层命名 `notifications/<type>/<id>/<verb>`（+ `actions/<名>` 尾段），旧 `notification:*` / `message:*` 扁平名全部删除；双通道与 payload 契约不变。
+
 `message:add` / `message:update` / `message:show` / `message:hide` / `message:read` / `message:status` / `message:action`——双通道（引擎总线 + 卡片元素 dispatchEvent，ADR-0052 同构）；payload `{ message: MessageTask, el: HTMLElement | null }`，`message:action` 追加 `{ action, value? }`。kind='toast' 时**双发**旧事件 `toast:show` / `toast:hide`（迁移期兼容，见决策 3）。一切移除路径均广播 `message:hide`。
 
 ### 八、命名契约

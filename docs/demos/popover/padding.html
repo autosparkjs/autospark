@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-popover · 内容内边距</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .pop-panel {
+        border-radius: 8px;
+        min-width: 220px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+      }
+      .pop-panel .inner-demo {
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- padding 选项（默认 0）：应用在 shell 内容区 .autospark-popover-content 的 inline
+             padding——number 按 px、CSS 长度字符串直写（成员属性表达式形态）；重开生效。 -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block">
+          <button class="button is-primary" x-popover:zero x-popover-options="{delayShow: 0}">
+            默认 0（悬停我）
+          </button>
+          <span class="tag">padding = 0（内容贴边，蓝色区块顶到面板边）</span>
+        </div>
+        <div class="block">
+          <button
+            class="button is-link"
+            x-popover:num
+            x-popover-options="{trigger:'click',delayShow: 0, padding: 16}"
+          >
+            数字 16（Click我）
+          </button>
+          <span class="tag">padding = 16 → 16px 四边</span>
+        </div>
+        <div class="block">
+          <button
+            class="button is-success"
+            x-popover:multi
+            x-popover-options.delay-show="0"
+            x-popover-options.padding="'10px 24px'"
+          >
+            多值字符串（悬停我）
+          </button>
+          <span class="tag">padding = '10px 24px'（成员属性表达式，上下 10 / 左右 24）</span>
+        </div>
+
+        <!-- 内容区蓝色区块用于直观对照内边距；三按钮共用组件经 props 区分标题 -->
+        <div x-define="zero">
+          <div class="pop-panel"><div class="inner-demo">padding: 0 —— 内容贴边</div></div>
+        </div>
+        <div x-define="num">
+          <div class="pop-panel"><div class="inner-demo">padding: 16 —— 四边留白 16px</div></div>
+        </div>
+        <div x-define="multi">
+          <div class="pop-panel">
+            <div class="inner-demo">padding: '10px 24px' —— 上下 10 / 左右 24</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

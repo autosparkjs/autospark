@@ -2,7 +2,7 @@ import type { OverlayInstance } from "./instance";
 import type { AutoSpark } from "../../engine/engine";
 import type { AutoSparkScope } from "../../engine/scope";
 import type { ComponentDef } from "../component/component-def";
-import type { ResizeOptions } from "../../directives/x-resize";
+import type { ResizeOptions } from "../../directives/x-resizable";
 
 /**
  * 覆盖物体系类型（ADR-0052 修订版——组件化统一）。
@@ -32,7 +32,7 @@ export interface OverlayAnchorConfig {
     placement?: string;
     /** 透传 offset 中间件（间距） */
     offset?: any;
-    /** 透传 shift 中间件（视口内滑移 padding） */
+    /** 视口内滑移：默认启用（keep in view 防溢出）；`false` 关闭；对象透传（padding 等参数） */
     shift?: any;
     /** 视口翻转，默认 true（floating-ui 推荐默认）；placement: 'auto' 时无 flip（互斥） */
     flip?: boolean;
@@ -109,7 +109,7 @@ export interface OverlayConfig {
     shell?: string;
     /**
      * 面板尺寸拖拽调节（x-drawer / x-dialog 消费，ADR-0064）：`true`（方向按形态自动推导 +
-     * 默认约束）| 对象（字段与 x-resize 选项表同构——`handles` 只能在形态合法集内**收窄**，
+     * 默认约束）| 对象（字段与 x-resizable 选项表同构——`handles` 只能在形态合法集内**收窄**，
      * 越界 warn + 忽略）。写路径走 shell 面板（与普通元素 style 直改分离）；**不写回 store**
      * （`resize:end` 事件 detail 即数据出口）；尺寸**会话内记忆**（重开沿用、优先于声明
      * `size` / CSS 尺寸）。形态推导：drawer 贴边内侧单边、dialog 四角（`ne,nw,se,sw`）。

@@ -1,0 +1,127 @@
+<!-- 商店页面布局 - 左侧边栏 + 右侧内容区 -->
+<div class="page-layout">
+    <!-- 左侧边栏 -->
+    <aside class="page-sidebar">
+        <div class="sidebar-title">
+            <span>🏪</span>
+            <span>门店信息</span>
+        </div>
+        <nav class="sidebar-menu">
+            <kylin-link to="/shop/store/beijing" class="sidebar-menu-item">
+                <span>🏢</span>
+                <span>北京门店</span>
+            </kylin-link>
+            <kylin-link to="/shop/store/shanghai" class="sidebar-menu-item">
+                <span>🏙️</span>
+                <span>上海门店</span>
+            </kylin-link>
+            <kylin-link to="/shop/store/guangzhou" class="sidebar-menu-item">
+                <span>🌆</span>
+                <span>广州门店</span>
+            </kylin-link>
+            <kylin-link to="/shop/store/shenzhen" class="sidebar-menu-item">
+                <span>🏗️</span>
+                <span>深圳门店</span>
+            </kylin-link>
+            <kylin-link to="/shop/store/hangzhou" class="sidebar-menu-item">
+                <span>🌄</span>
+                <span>杭州门店</span>
+            </kylin-link>
+            <kylin-link to="/shop/store/chengdu" class="sidebar-menu-item">
+                <span>🐼</span>
+                <span>成都门店</span>
+            </kylin-link>
+            <kylin-link to="/shop/store/wuhan" class="sidebar-menu-item">
+                <span>🌸</span>
+                <span>武汉门店</span>
+            </kylin-link>
+            <kylin-link to="/shop/store/xian" class="sidebar-menu-item">
+                <span>🏛️</span>
+                <span>西安门店</span>
+            </kylin-link>
+        </nav>
+    </aside>
+
+    <!-- 右侧内容区 -->
+    <main class="page-content">
+        <kylin-outlet></kylin-outlet>
+    </main>
+</div>
+
+<style>
+.page-layout {
+    display: flex;
+    gap: 20px;
+}
+
+.page-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    height: fit-content;
+    position: sticky;
+    top: 80px;
+}
+
+.page-content {
+    flex: 1;
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    min-height: 500px;
+}
+
+.sidebar-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sidebar-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.sidebar-menu-item {
+    padding: 12px 15px;
+    border-radius: 8px;
+    color: #555;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.sidebar-menu-item:hover {
+    background: #f0f0f0;
+    color: #667eea;
+}
+
+.sidebar-menu-item.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .page-layout {
+        flex-direction: column;
+    }
+
+    .page-sidebar {
+        width: 100%;
+        position: static;
+    }
+}
+</style>

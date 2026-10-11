@@ -1,0 +1,24 @@
+{
+  "title": "个人中心",
+  "user": {
+    "name": "麒麟用户",
+    "email": "user@kylin.com",
+    "avatar": "👤",
+    "memberSince": "2024-01-15"
+  },
+  "stats": {
+    "orders": 12,
+    "wishlist": 5,
+    "points": 2580
+  },
+  "menuItems": [
+    { "icon": "📦", "title": "我的订单", "desc": "查看订单历史和状态" },
+    { "icon": "❤️", "title": "我的收藏", "desc": "查看收藏的产品" },
+    { "icon": "🎁", "title": "优惠券", "desc": "查看可用优惠券" },
+    { "icon": "⭐", "title": "会员积分", "desc": "积分兑换和记录" },
+    { "icon": "📍", "title": "收货地址", "desc": "管理收货地址" },
+    { "icon": "⚙️", "title": "账户设置", "desc": "修改账户信息" },
+    { "icon": "🔔", "title": "消息通知", "desc": "查看系统消息" },
+    { "icon": "🚪", "title": "退出登录", "desc": "退出当前账户", "action": "logout" }
+  ]
+}

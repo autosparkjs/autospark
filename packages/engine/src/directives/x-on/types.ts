@@ -114,7 +114,7 @@ export interface AutoSparkActionContext {
     /**
      * **动作自引用**（ADR-0036 决策 4）：指向当前执行的 action 自身的规范化描述符
      * （ActionDesc 活引用）。handle 内经 `this.action.title` / `this.action.icon` 读写
-     * 元数据（可写但无响应式承诺）、`this.action.name` 读注册名；`this.action.handle(...)`
+     * 元数据（可写但无响应式承诺）、`this.action.id` 读注册键；`this.action.handle(...)`
      * 递归调用会再次触发完整生命周期广播。
      *
      * 由 buildAction 在 handle 调用时就地注入（仅 action 调用路径可达；组件 method /

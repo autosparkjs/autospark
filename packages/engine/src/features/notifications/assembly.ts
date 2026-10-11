@@ -1,4 +1,5 @@
 import { SCOPES_KEY } from "../../consts";
+import { markRaw } from "autostore";
 import { resolveAnimate } from "../animate/animate";
 import { ComponentInstance } from "../component/component-instance";
 import type { AutoSparkScope } from "../../engine/scope";
@@ -80,16 +81,18 @@ function anchorScopeOf(manager: NotificationManager, anchor: HTMLElement | null)
 /**
  * 注水面构建（ADR-0089 决策九：组件可见**全量** = record 面 + 组件面 + 派生键）：
  * props 剥函数（autostore computed 劫持防线）/ anchor（DOM 引用）/ **运行约定键**
- * （progress/paused/completed——运行态唯组件 data 域是尊，return props / update 补丁
- * 不回拨闭包已推值，ADR-0089 决策八）；补派生键 icon / actions / `_abort`（canCancel 时
- * manager 侧造、组件 cancel method 消费——外部 `instance.data._abort.signal` 挂接协作取消）。
+ * （progress/state——运行态唯组件 data 域是尊，return props / update 补丁不回拨闭包
+ * 已推值，ADR-0089 决策八；旧 paused/completed 布尔随 ADR-0104 状态机并入 state）；
+ * 补派生键 icon / actions / `_abort`（task 恒注入〔ADR-0104——stop/cancel/close 三动词
+ * 共用，UI 开关不该决定信号存废〕、其他 type 沿 canCancel 门控；原地更新换装时复用
+ * 既有 controller——中途 update() 不换发新信号孤儿化已挂接的监听）。
  */
 export function buildInjectProps(manager: NotificationManager, entry: NotificationEntry): Record<string, any> {
     const out: Record<string, any> = {};
     for (const [key, value] of Object.entries(entry.props)) {
         if (typeof value === "function") continue;
         if (typeof HTMLElement !== "undefined" && value instanceof HTMLElement) continue;
-        if (key === "progress" || key === "paused" || key === "completed") continue;
+        if (key === "progress" || key === "state" || key === "paused" || key === "completed") continue;
         out[key] = value;
     }
     // record 面键以 record 为单一数据源（归一值：read 恒布尔 / type 恒字符串——instance
@@ -110,7 +113,19 @@ export function buildInjectProps(manager: NotificationManager, entry: Notificati
     // 语义色分派名派生键（ADR-0095 契约绑定化——shell 模板自绑 `:data-notification-level`，
     // 归一名引擎注入，模板零逻辑）
     out.levelName = notificationLevelName(rec.level ?? 0);
-    if ((entry.props as any).canCancel === true) out._abort = new AbortController();
+    if (entry.type === "task" || (entry.props as any).canCancel === true) {
+        // markRaw：_abort 落响应式 data 域后须免代理——经代理 this 调原生 abort 会
+        // Illegal invocation（AbortController 品牌校验），自有函数属性又会被计算属性
+        // 语义劫持。raw 包装后读到的恒是原生 controller（abort / signal 均原生可用）。
+        // 复用既有实例（原地更新换装不换发新 controller，ADR-0104）
+        out._abort = (entry.instance?.data as any)?._abort ?? markRaw(new AbortController());
+    }
+    // task 状态机初值注水（ADR-0104）：data.state 声明缺省 'pending'，经 props 覆盖通道
+    // 归位——canStart 门控卡留 pending 等「开始」，自动模式即 running（挂起/排队期闭包
+    // progress 直写不丢）。原地更新换装时读现值回填（运行态唯 data 域是尊，同 progress）
+    if (entry.type === "task") {
+        out.state = (entry.instance?.data as any)?.state ?? ((entry.props as any).canStart === true ? "pending" : "running");
+    }
     return out;
 }
 
@@ -189,7 +204,7 @@ export function assembleCard(manager: NotificationManager, entry: NotificationEn
     const resolved = resolveAnimate(entry.props.animate);
     entry.leave = resolved.leave;
 
-    // 约定键联动（ADR-0089 决策五）：holdOpen（计时拦截）+ task 运行键（notification:update 观测面）
+    // 约定键联动（ADR-0089 决策五）：holdOpen（计时拦截）+ task 运行键（update 事件观测面）
     bindContractWatches(manager, entry);
     // 初始进度一次性应用（props.progress——闭包胜：挂起期已推（data > 0）则跳过）
     const initialProgress = (entry.props as any).progress;
@@ -202,33 +217,36 @@ export function assembleCard(manager: NotificationManager, entry: NotificationEn
 /**
  * 约定键联动（装配后挂、unmountCard 随收）：经 `engine.store.watch` 全局路径精准订阅
  * （`$scopes.<id>.<key>`——autostore 原生通道；scope.watch 相对求值在组件域不可靠）：
- * - `holdOpen`：true → 清计时；false 且展示中 → 启动计时（task 完成态联动转倒计时）
- * - `progress/paused/completed`（task 运行键）：变更广播 `notification:update`（控制钮失去
- *   notification:action 后的观测面，ADR-0088 沿用）；首跑跳过（watch 建立即激活的首次求值非变更）
+ * - `holdOpen`：true → 清计时；false 且展示中 → 启动计时（task 完成态联动转倒计时，closeWhenDone）
+ * - `progress/state`（task 运行键）：变更广播 `update` 事件（控制动词的语义迁移各自发
+ *   `actions/<动词>` 事件，ADR-0104；update 是数据面观测）
+ *
+ * **值比对去重（ADR-0102 修复）**：watch 建立即激活的首次求值并非确定发生（实测可能缺席），
+ * 「数 fire 跳首次」会把首个真实变更吞掉——task 的 holdOpen true→false 完成转换一生仅一次，
+ * 恰是被吞的那次（完成永不收口）。故 bind 时记初值、fire 时读 `data` 现值、同值跳过——
+ * bind 首评在场被去重消解、缺席也不误伤；同时不再依赖 watch 回调参数取值（末参形态不稳定）。
  */
 function bindContractWatches(manager: NotificationManager, entry: NotificationEntry): void {
     const scope = entry.instance?.scope;
     if (!scope) return;
     const engine = manager.engine;
     const base = `${SCOPES_KEY}.${scope.id}`; // store.watch 点路径精准订阅（探针验证有效；'/' 分隔不触发）
-    let holdFirst = true;
-    engine.store.watch(`${base}.holdOpen`, (...args: any[]) => {
-        const v = args[args.length - 1]; // autostore watch 回调末参 = 新值（重载形态兼容）
-        if (holdFirst) {
-            holdFirst = false;
-            return;
-        }
+    const data = () => entry.instance?.data;
+    let lastHold = data()?.holdOpen;
+    engine.store.watch(`${base}.holdOpen`, () => {
+        const v = data()?.holdOpen;
+        if (v === lastHold) return;
+        lastHold = v;
         if (v === true) manager._clearTimer(entry);
         else if (entry.state === "shown") manager._startTimer(entry);
     });
-    for (const key of ["progress", "paused", "completed"]) {
-        let first = true;
+    for (const key of ["progress", "state"]) {
+        let last = data()?.[key];
         engine.store.watch(`${base}.${key}`, () => {
-            if (first) {
-                first = false;
-                return;
-            }
-            manager._emit("notification:update", entry);
+            const v = data()?.[key];
+            if (v === last) return;
+            last = v;
+            manager._emit("update", entry);
         });
     }
 }
@@ -248,11 +266,18 @@ function flattenMethods(instance: ComponentInstance, def: ComponentDef | null): 
             configurable: true,
         });
     }
+    // 中止信号便捷面（ADR-0104）：`session.abortSignal`——data._abort.signal 的公共读法
+    // （未注入 _abort 的 type 为 undefined）
+    Object.defineProperty(instance, "abortSignal", {
+        get: () => (instance.data as any)?._abort?.signal,
+        configurable: true,
+    });
     const methods = def?.setup?.methods;
     if (!methods) return;
     const defined = new Set<string>(reserved);
     defined.add("id"), defined.add("type"), defined.add("read"), defined.add("closed");
     defined.add("status"), defined.add("result"), defined.add("visible"), defined.add("remaining");
+    defined.add("abortSignal");
     for (const key of Object.keys(methods)) {
         if (defined.has(key)) continue;
         // 命名转发（flattenMethod）——markInstanceDead 以函数名识别 method 转发位做死亡标记
@@ -282,6 +307,15 @@ export function unmountCard(manager: NotificationManager, entry: NotificationEnt
         if (entry.enterHandler) el.removeEventListener("mouseenter", entry.enterHandler);
         if (entry.leaveHandler) el.removeEventListener("mouseleave", entry.leaveHandler);
         el.remove();
+    }
+    // 控制订阅自动退订（ADR-0104）：onXxx 挂的引擎级侦听随卡销毁清理（id 唯一使残留
+    // 侦听永不再触发，纯泄漏）；调用方手动提前退订过的 off 幂等 no-op
+    for (const off of entry.controlOffs.splice(0)) {
+        try {
+            off();
+        } catch {
+            // 退订异常不阻断销毁
+        }
     }
     const instance = entry.instance;
     entry.el = null;

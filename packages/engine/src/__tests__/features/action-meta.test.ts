@@ -8,7 +8,7 @@ import type { AutoSparkAction } from "../../features/action/types";
  *
  * - **规范化**：三入口（options.actions / engine.actions Proxy / script type）统一接受
  *   函数简写 | 对象写法（`{ title, icon, handle }`，handle 必需、其余自由元数据），混用允许；
- *   存储层全量规范化为描述符，name 以注册键注入覆盖；非法声明 error + 跳过该条。
+ *   存储层全量规范化为描述符，id 以注册键注入覆盖；非法声明 error + 跳过该条。
  * - **this.action**：handle 内自引用活引用（元数据可读写、无响应式承诺；递归调用再触发广播）。
  * - **广播**：两通道 payload/detail 嵌套 `action` = 完整描述符（含 handle 本体，不承诺可序列化），
  *   顶层字段不变。
@@ -17,7 +17,7 @@ import type { AutoSparkAction } from "../../features/action/types";
 describe("action 元数据化（ADR-0036 ActionDesc）", () => {
     // ── 规范化：三入口统一 ─────────────────────────────────────────────
 
-    test("options.actions 对象写法：规范化为描述符，name 注入，handle 可触发", async () => {
+    test("options.actions 对象写法：规范化为描述符，id 注入，handle 可触发", async () => {
         const { root, engine } = mount(
             `<button @click="toggle">x</button>`,
             { local: false },
@@ -36,7 +36,7 @@ describe("action 元数据化（ADR-0036 ActionDesc）", () => {
         // 存储层全量规范化：值恒为描述符（非函数）
         const desc = engine.actions.toggle as AutoSparkAction;
         expect(typeof desc).toBe("object");
-        expect(desc.name).toBe("toggle");
+        expect(desc.id).toBe("toggle");
         expect(desc.title).toBe("切换");
         expect(desc.icon).toBe("sun");
         expect(typeof desc.handle).toBe("function");
@@ -54,7 +54,7 @@ describe("action 元数据化（ADR-0036 ActionDesc）", () => {
                 engine.state.n++;
             },
         };
-        expect(engine.actions.run.name).toBe("run");
+        expect(engine.actions.run.id).toBe("run");
         expect(engine.actions.run.title).toBe("执行");
         root.querySelector("button")!.click();
         await nextTick();
@@ -94,13 +94,13 @@ describe("action 元数据化（ADR-0036 ActionDesc）", () => {
         expect([...engine.state.log]).toEqual(["pay:undefined", "toggle:切换"]);
     });
 
-    test("name 以注册键注入覆盖（对象内声明 name 不生效）", () => {
+    test("id 以注册键注入覆盖（对象内声明 id 不生效）", () => {
         const { engine } = mount(`<div></div>`, {});
         engine.actions.real = {
-            name: "wrong",
+            id: "wrong",
             handle() {},
         } as any;
-        expect(engine.actions.real.name).toBe("real");
+        expect(engine.actions.real.id).toBe("real");
     });
 
     test("非法声明（对象缺 handle）error 日志 + 跳过该条，同块其他条目正常", async () => {
@@ -126,14 +126,14 @@ describe("action 元数据化（ADR-0036 ActionDesc）", () => {
 
     // ── this.action 自引用（决策 4）───────────────────────────────────
 
-    test("handle 内 this.action 自引用：name/title/icon 可读，活引用可写", async () => {
+    test("handle 内 this.action 自引用：id/title/icon 可读，活引用可写", async () => {
         const seen: any[] = [];
         const { root, engine } = mount(`<button @click="probe">x</button>`, {});
         engine.actions.probe = {
             title: "探针",
             icon: "dot",
             handle() {
-                seen.push(this.action.name, this.action.title, this.action.icon);
+                seen.push(this.action.id, this.action.title, this.action.icon);
                 this.action.title = "已改"; // 活引用：元数据可写（无响应式承诺）
                 this.engine.state.done = true;
             },
@@ -196,10 +196,10 @@ describe("action 元数据化（ADR-0036 ActionDesc）", () => {
         engine.on("actions/save/resolved", (m: any) => payloads.push(["resolved", m.payload]));
         root.querySelector("button")!.click();
         await nextTick();
-        expect(payloads[0][1].name).toBe("save"); // 顶层字段不动
+        expect(payloads[0][1].id).toBe("save"); // 顶层字段不动
         expect(payloads[0][1].action.title).toBe("保存");
         expect(payloads[0][1].action.icon).toBe("disk");
-        expect(payloads[0][1].action.name).toBe("save");
+        expect(payloads[0][1].action.id).toBe("save");
         expect(typeof payloads[0][1].action.handle).toBe("function");
         expect(payloads[0][1].action.handle).toBe(engine.actions.save.handle); // 存储同源
         expect(payloads[1][1].result).toBe("done"); // resolved 顶层 result 不变
@@ -221,7 +221,7 @@ describe("action 元数据化（ADR-0036 ActionDesc）", () => {
         root.querySelector("button")!.click();
         await nextTick();
         expect(details.length).toBeGreaterThanOrEqual(1);
-        expect(details[0].name).toBe("localAct");
+        expect(details[0].id).toBe("localAct");
         expect(details[0].phase).toBe("pending");
         expect(details[0].action.title).toBe("局部动作");
         expect(typeof details[0].action.handle).toBe("function");
@@ -236,14 +236,14 @@ describe("action 元数据化（ADR-0036 ActionDesc）", () => {
         const pendings: string[] = [];
         const { root, engine } = mount(`<button @click="copy">x</button>`, {});
         engine.actions.dup = { title: "原始", handle() {} };
-        engine.actions.copy = engine.actions.dup as any; // 跨名赋值：浅拷贝解包，name 覆盖为 copy
+        engine.actions.copy = engine.actions.dup as any; // 跨名赋值：浅拷贝解包，id 覆盖为 copy
         engine.on("actions/dup/pending", () => pendings.push("dup"));
         engine.on("actions/copy/pending", () => pendings.push("copy"));
         root.querySelector("button")!.click();
         await nextTick();
         // 广播名跟随注册键 copy（闭包重新捕获），各一次、无双重
         expect(pendings).toEqual(["copy"]);
-        expect(engine.actions.copy.name).toBe("copy");
+        expect(engine.actions.copy.id).toBe("copy");
         expect(engine.actions.copy.handle).not.toBe(engine.actions.dup.handle);
     });
 
@@ -253,7 +253,7 @@ describe("action 元数据化（ADR-0036 ActionDesc）", () => {
         const { engine } = mount(`<div></div>`, {});
         for (const name of ["yes", "no", "cancel", "close"]) {
             const desc = (engine.actions as any)[name] as AutoSparkAction;
-            expect(desc.name).toBe(name);
+            expect(desc.id).toBe(name);
             expect(typeof desc.handle).toBe("function");
             expect(desc.title).toBeTruthy();
             expect(desc.builtin).toBe(true);

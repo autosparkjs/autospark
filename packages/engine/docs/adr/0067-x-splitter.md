@@ -2,7 +2,7 @@
 
 - **状态**：Accepted
 - **日期**：2026-09-29
-- **关联**：[ADR-0064](0064-x-resize.md)（x-resize——指针会话/键盘微调/双向防递归的先例语义）、[ADR-0063](0063-x-drawer.md)（x-drawer trigger——把手三态坐标化与「折叠 ≡ 单值归零」派生哲学的同构来源）、[ADR-0034](0034-x-else-if.md)（分支冻结快照克隆）、[ADR-0001](0001-directive-kinds.md)（Compile kind + ownsChildren）、[ADR-0007](0007-directive-options-and-modifiers.md)（collapsible 选项与成员表达式热应用）、[CONTEXT.md](../../CONTEXT.md)（「分割器层」词条）
+- **关联**：[ADR-0064](0064-x-resizable.md)（x-resize——指针会话/键盘微调/双向防递归的先例语义）、[ADR-0063](0063-x-drawer.md)（x-drawer trigger——把手三态坐标化与「折叠 ≡ 单值归零」派生哲学的同构来源）、[ADR-0034](0034-x-else-if.md)（分支冻结快照克隆）、[ADR-0001](0001-directive-kinds.md)（Compile kind + ownsChildren）、[ADR-0007](0007-directive-options-and-modifiers.md)（collapsible 选项与成员表达式热应用）、[CONTEXT.md](../../CONTEXT.md)（「分割器层」词条）
 - **共识来源**：grilling 三轮决策（Q1–Q15 + 派生事实 20 条），本文即共识落盘；指令名经 grilling 中期由 x-split-panel 更名 x-splitter（panel/pane 一字之差混淆，splitter 与 pane 形成「机制 vs 被分割物」的清晰分工）
 
 ## 背景

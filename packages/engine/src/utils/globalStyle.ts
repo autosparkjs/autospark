@@ -1,5 +1,6 @@
 import type { AutoSpark } from "../engine/engine";
 import type { ComponentDef } from "../features/component/component-def";
+import { injectStylesheet } from "./injectStylesheet";
 
 /**
  * 组件全局样式注入器（ADR-0087）：`<style global>` 的 document 级注入与记账。
@@ -27,7 +28,7 @@ const ledger = new Map<string, Map<AutoSpark, Map<string, string[]>>>();
  *
  * 同名组件覆盖声明场景（ADR-0022 决策四-4 后者覆盖）：同 defName 再次注入即整组替换。
  */
-export function injectGlobalComponentStyles(engine: AutoSpark, def: ComponentDef): void {
+export function injectGlobalComponentStyles(engine: AutoSpark<any>, def: ComponentDef): void {
     const globals = def.styles?.filter((s) => s.global) ?? [];
     if (globals.length === 0) return;
     // 按容器 id 归组本 def 的段（一个 def 可向多个容器贡献）
@@ -49,7 +50,7 @@ export function injectGlobalComponentStyles(engine: AutoSpark, def: ComponentDef
 }
 
 /** 移除 engine 贡献的全部 global 段并重写受影响容器（engine.destroy 收口，不误伤其他 engine） */
-export function releaseEngineGlobalStyles(engine: AutoSpark): void {
+export function releaseEngineGlobalStyles(engine: AutoSpark<any>): void {
     for (const [containerId, engines] of ledger) {
         if (!engines.has(engine)) continue;
         engines.delete(engine);
@@ -60,10 +61,9 @@ export function releaseEngineGlobalStyles(engine: AutoSpark): void {
 
 /** 按账本全体贡献者重写容器 textContent；段清空移除容器元素（容器 lazy 创建） */
 function rewriteContainer(containerId: string): void {
-    const el = document.head.querySelector<HTMLStyleElement>(`style#${cssEscape(containerId)}`);
     const engines = ledger.get(containerId);
     if (!engines || engines.size === 0) {
-        el?.remove();
+        removeContainerEl(containerId);
         return;
     }
     const parts: string[] = [];
@@ -71,19 +71,18 @@ function rewriteContainer(containerId: string): void {
         for (const segments of defs.values()) parts.push(...segments);
     }
     if (parts.length === 0) {
-        el?.remove();
+        removeContainerEl(containerId);
         ledger.delete(containerId);
         return;
     }
-    if (el) {
-        el.textContent = parts.join("\n");
-    } else {
-        const style = document.createElement("style");
-        // property 赋值登记 id（happy-dom 仅认 property 形态登记查询表）
-        style.id = containerId;
-        style.textContent = parts.join("\n");
-        document.head.appendChild(style);
-    }
+    // 覆写/创建容器（injectStylesheet 幂等 + replace：容器不存在时创建——id 经 property
+    // 赋值登记，happy-dom 查询表依赖该形态）
+    injectStylesheet(parts.join("\n"), { id: containerId, mode: "replace" });
+}
+
+/** 按 id 移除容器 `<style>`（不存在则空操作） */
+function removeContainerEl(containerId: string): void {
+    document.head.querySelector(`style#${cssEscape(containerId)}`)?.remove();
 }
 
 /** CSS 标识符转义（id 选择器中特殊字符，对齐 scopedStyle.cssEscape） */

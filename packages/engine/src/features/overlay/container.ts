@@ -1,4 +1,5 @@
 import type { AutoSpark } from "../../engine/engine";
+import { injectStylesheet } from "../../utils/injectStylesheet";
 
 /**
  * 覆盖物容器（ADR-0052 决策 13）：**每 engine 一个**，挂 `document.body` 下。
@@ -16,9 +17,8 @@ export const OVERLAYS_CONTAINER_CLASS = "autospark-overlays";
 /** 容器属性标记（与类名双标记） */
 export const OVERLAYS_CONTAINER_ATTR = "data-autospark-overlays";
 
-/** dialog 模态外壳类名契约（ADR-0052 决策 12；样式注入在 DialogDirective，结构在 OverlayInstance） */
+/** dialog 模态遮罩类名契约（ADR-0052 决策 12；样式注入在 DialogDirective，结构在 OverlayInstance） */
 export const MASK_CLASS = "autospark-dialog-mask";
-export const PANEL_CLASS = "autospark-dialog";
 
 /** 遮罩样式 <style> 的 id（首次懒建容器时注入一次，常驻不回收） */
 const MASK_STYLES_ID = "autospark-mask-styles";
@@ -29,10 +29,8 @@ const MASK_STYLES_ID = "autospark-mask-styles";
  * z-index 走 CSS 变量（用户可全局调层）。
  */
 function injectMaskStyles(): void {
-    if (document.getElementById(MASK_STYLES_ID)) return;
-    const style = document.createElement("style");
-    style.id = MASK_STYLES_ID;
-    style.textContent = `
+    injectStylesheet(
+        `
 .${MASK_CLASS} {
   position: fixed;
   inset: 0;
@@ -40,8 +38,9 @@ function injectMaskStyles(): void {
   align-items: center;
   justify-content: center;
   z-index: var(--autospark-overlay-z, 1000);
-}`;
-    document.head.appendChild(style);
+}`,
+        { id: MASK_STYLES_ID },
+    );
 }
 
 /** 取（或懒建）本 engine 的覆盖物容器；SSR 返回 null。 */

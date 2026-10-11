@@ -7,23 +7,28 @@
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
     <body>
-        <!-- task：异步下载一个文件——进度条实时推进，完成态展示片刻后自动收场。
-             生命周期：task() 创建（不自启）→ start() → progress(n) 分块推进 → complete()
-             （≡ 进度 100，进入 delayClose 倒计时）→ 自动关；进行中可 cancel() 立即中止。
-             下方两种写法：① 普通调用（先弹卡、实时推进）；② factory 写法（后台静默下载，
-             完成才弹「已就绪」卡——内容就绪才提示，挂起会话即 Task 实例可 cancel）。 -->
+        <!-- task：异步下载一个文件——进度条实时推进，完成态展示片刻后自动收场（ADR-0102/0104：
+             收口由 closeWhenDone 决定——delayClose 对 task 无效；缺省 = 终态常驻）。
+             生命周期：task() 创建（自动模式即 running）→ progress(n) 分块推进 → complete()
+             （≡ 进度 100，进入 closeWhenDone 倒计时）→ 自动关。
+             协作取消：session.abortSignal 恒可用（与按钮开关解耦）——停止 / 取消 / × 任一触发
+             即中断，下载闭包每分块检查 aborted 提前退出。
+             下方两种写法：① 普通调用（先弹卡、实时推进；下载中再次点击本按钮 = 取消）；
+             ② factory 写法（return 初始 props 立即弹卡，下载闭包后台驱动进度条）。 -->
         <div class="demo-app section">
             <div class="block">
                 <button class="button is-primary" id="dl" onclick="download()">① 实时进度：下载 dataset.zip（8.4 MB）</button>
-                <span class="has-text-grey is-size-7">task 模板自带 暂停/停止/取消 控制钮（三控制键）；下载中再次点击本按钮 = 取消</span>
+                <span class="has-text-grey is-size-7">task 模板自带 暂停/停止/取消 控制钮（四控制键）；下载中再次点击本按钮 = 取消</span>
             </div>
             <div class="block">
                 <button class="button is-info is-light" id="bg" onclick="downloadBackground()">② factory 写法：全部逻辑在 factory 内</button>
                 <span class="has-text-grey is-size-7">return 初始 props 立即弹卡，下载闭包实时推进进度条</span>
             </div>
             <div class="block has-text-grey is-size-7">
-                <code>task()</code> 返回 Task 会话（七方法：start / progress / pause / resume /
-                stop / complete / cancel）；factory 形态 <code>task(async (session) =&gt; ...)</code>
+                <code>task()</code> 返回 Task 会话：进度 <code>progress/complete</code> + 六控制动词
+                <code>start / pause / resume / stop / cancel / close</code>（各配 <code>on&lt;动词&gt;</code> 订阅
+                ——按钮点击与程序直调同发 <code>actions/&lt;动词&gt;</code> 事件）；<code>session.abortSignal</code>
+                恒可用（停止/取消/× 触发中断）。factory 形态 <code>task(async (session) =&gt; ...)</code>
                 收到的挂起会话即 Task 实例（type 已锁定），<code>return</code> 的 props 为初始展示配置。
             </div>
         </div>
@@ -37,50 +42,50 @@
                 const s = app.notifications.task({
                     title: "下载 dataset.zip",
                     description: "8.4 MB · cdn.example.com",
-                    delayClose: 1200, // 完成态展示 1.2s 后自动收场
-                    canPause: true,  // 「暂停/恢复」按钮（文案随运行态切换）
-                    canStop: true,   // 「停止」按钮（≡ complete()）
-                    canCancel: true, // 「取消」按钮 + session.signal（AbortSignal 协作取消）
+                    closeWhenDone: 1200, // 终态展示 1.2s 后自动收场（缺省 = 终态常驻）
+                    canPause: true, // 「暂停/恢复」按钮（文案随 state 切换）
+                    canStop: true, // 「停止」按钮（abort + 已停止终态留卡）
+                    canCancel: true, // 「取消」按钮（abort + 立即关）
                 });
                 current = s;
                 btn.classList.add("is-loading");
-                s.start(); // 创建不自启，显式开始
                 const chunks = 12; // 模拟 12 个分块的网络下载
                 try {
                     for (let i = 1; i <= chunks; i++) {
                         await sleep(90 + Math.random() * 160); // 分块到达（时长抖动）
+                        if (s.abortSignal.aborted) return; // 协作取消：停止/取消/× 任一触发即退出
                         s.progress(Math.round((i / chunks) * 100)); // 实时推进进度条
                     }
-                    s.complete(); // ≡ stop()：进度 100 → 完成态 → 1.2s 后自动关
+                    s.complete(); // 进度 100 → 完成态 → 1.2s 后自动关
                 } finally {
                     current = null;
                     btn.classList.remove("is-loading");
                 }
             }
-            // ② factory 写法：下载在后台进行（factory 挂起期无卡片），return 才弹出
+            // ② factory 写法：return 初始 props（卡立即弹出）+ 下载闭包实时驱动
             async function downloadBackground() {
                 const btn = document.getElementById("bg");
                 btn.classList.add("is-loading");
-                let settle; // 下载完成信号（恢复按钮 loading）
+                let settle; // 下载结束信号（恢复按钮 loading）
                 const finished = new Promise((r) => (settle = r));
-                // ② 全部逻辑在 factory 内：return 初始 props（卡立即弹出）+ 下载闭包实时驱动
                 app.notifications.task(async (session) => {
                     void (async () => { // 下载闭包：不 await——让 return 先执行（卡先弹）
                         const chunks = 12;
                         for (let i = 1; i <= chunks; i++) {
                             await sleep(90 + Math.random() * 160); // 分块到达（时长抖动）
-                            session.progress(Math.round((i / chunks) * 100)); // 实时推进（无需 start——创建即 started）
+                            if (session.abortSignal.aborted) return settle(); // 停止/取消/× 提前退出
+                            session.progress(Math.round((i / chunks) * 100)); // 实时推进
                         }
-                        session.complete(); // ≡ 进度 100 → 完成态 → delayClose 后自动收
+                        session.complete(); // ≡ 进度 100 → 完成态 → closeWhenDone 后自动收
                         settle();
                     })();
                     return { // 初始展示配置——卡片立即弹出（不等下载完成）
                         title: "下载 dataset.zip（factory 驱动）",
                         description: "8.4 MB · cdn.example.com",
-                        delayClose: 1200, // 完成态展示 1.2s 后自动收场
-                        canPause: true,  // 三控制键在初始 props 里声明——模板同样自带控制钮
+                        closeWhenDone: 1200, // 终态展示 1.2s 后自动收场
+                        canPause: true, // 四控制键在初始 props 里声明——模板同样自带控制钮
                         canStop: true,
-                        canCancel: true, // 挂起会话即可 session.cancel()（含 signal abort）
+                        canCancel: true,
                     };
                 });
                 await finished;

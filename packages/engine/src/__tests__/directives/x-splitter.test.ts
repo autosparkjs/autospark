@@ -14,7 +14,7 @@ import { mount, nextTick } from "../helpers";
  * 事件（splitter:resize + expandable:collapse/expand）、静态形态（双 auto）、键盘微调。
  *
  * 约定：happy-dom 无布局——定容面板初值走 inline（_beginSession 的 inline 优先路径），
- * 拖拽模拟用 MouseEvent 携带 pointer* 事件名（x-resize 同款）。
+ * 拖拽模拟用 MouseEvent 携带 pointer* 事件名（x-resizable 同款）。
  */
 
 const engines: any[] = [];

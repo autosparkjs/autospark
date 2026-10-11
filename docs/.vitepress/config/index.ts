@@ -139,11 +139,12 @@ export default defineConfig({
               text: "布局",
               collapsed: true,
               items: [
+                { text: "x-container", link: "/zh/guide/directives/x-container" },
                 { text: "x-layout", link: "/zh/guide/directives/x-layout" },
-                { text: "x-block", link: "/zh/guide/directives/x-block" },
+                { text: "x-foldable", link: "/zh/guide/directives/x-foldable" },
                 { text: "x-splitter", link: "/zh/guide/directives/x-splitter" },
                 { text: "x-expandable", link: "/zh/guide/directives/x-expandable" },
-                { text: "x-resize", link: "/zh/guide/directives/x-resize" },
+                { text: "x-resizable", link: "/zh/guide/directives/x-resizable" },
               ],
             },
             {

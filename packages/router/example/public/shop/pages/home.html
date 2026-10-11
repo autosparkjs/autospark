@@ -1,0 +1,31 @@
+<!-- 首页模板 -->
+<div class="hero-section">
+    <div class="hero-title" x-text="title"></div>
+    <div class="hero-subtitle" x-text="subtitle"></div>
+    <div class="hero-buttons">
+        <kylin-link to="/products" class="hero-cta">立即选购</kylin-link>
+        <button @click="window.router.home()" class="hero-secondary">刷新首页</button>
+    </div>
+    <p class="demo-hint">
+        💡 提示：点击"刷新首页"按钮会调用 <code>router.home()</code> 方法返回主页
+    </p>
+</div>
+
+<div class="features-grid">
+    <template x-for="feature in features" :key="feature.title">
+        <div class="feature-card">
+            <div class="feature-icon" x-text="feature.icon"></div>
+            <div class="feature-title" x-text="feature.title"></div>
+            <div class="feature-desc" x-text="feature.desc"></div>
+        </div>
+    </template>
+</div>
+
+<style>
+    .hero-title {
+        font-size: 2.5em;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: red;
+    }
+</style>

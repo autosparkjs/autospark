@@ -37,7 +37,7 @@ _Avoid_: createDirective（与内部编译期工具 `createDirectives` 近名混
 _Avoid_: 动作脚本（泛化）、内联动作（易与 x-on 内联表达式混淆）、`type="actions"`（裸值旧写法已废弃）
 
 **动作描述符 / ActionDesc**:
-action 的**统一存储与读取形态**：`handle` 是唯一必需保留键（执行体），`name` 由注册键注入；`title` / `icon`（展示型）与 `hide`（行为型，见「hide 约定键」）为文档化约定键，其余自由键原样保留（开放元数据）。函数写法是它的**简写形态**（≡ `{ handle: fn }`），两种写法在任何声明入口可混用；`engine.actions[name]` / `getAction` 恒返回本对象，执行取 `.handle(...)`（引擎内部消费者透明解包，模板侧无感）。详见 ADR-0036 / 0038。
+action 的**统一存储与读取形态**：`handle` 是唯一必需保留键（执行体），`id` 由注册键注入；`title` / `icon`（展示型）与 `hide`（行为型，见「hide 约定键」）为文档化约定键，其余自由键原样保留（开放元数据）。函数写法是它的**简写形态**（≡ `{ handle: fn }`），两种写法在任何声明入口可混用；`engine.actions[name]` / `getAction` 恒返回本对象，执行取 `.handle(...)`（引擎内部消费者透明解包，模板侧无感）。详见 ADR-0036 / 0038 / 0103。
 _Avoid_: action 对象（泛化）、action 配置（它是存储形态不是配置）、元数据对象（handle 也是它的一部分）
 
 **hide 约定键（ActionDesc）**:
@@ -45,7 +45,7 @@ ActionDesc 的**行为型**文档化约定键（ADR-0038）：声明「触发后
 _Avoid_: autoHide / dismiss（英文别名）、hide 选项（它是 action 的键，不是指令配置）
 
 **合成动作描述符 / Synthetic ActionDesc**:
-x-loading 按钮点击遇到**未注册名**时就地合成的透传 descriptor（`{name, title: name, handle: (p) => p}`，与内置信号型同构、指令实例内按名缓存）——让未注册名同样走 buildAction 双通道广播（pending + resolved 同 tick）。逐次点击现查现决，先注册的真 action 优先；仅 x-loading 委托内部生效，不改 x-on「未命中→表达式兜底」。
+x-loading 按钮点击遇到**未注册 id** 时就地合成的透传 descriptor（`{id, title: id, handle: (p) => p}`，与内置信号型同构、指令实例内按 id 缓存）——让未注册 id 同样走 buildAction 双通道广播（pending + resolved 同 tick）。逐次点击现查现决，先注册的真 action 优先；仅 x-loading 委托内部生效，不改 x-on「未命中→表达式兜底」。
 _Avoid_: 匿名 action / 虚拟 action / 隐式 action（合成的是形态不是身份）、fallback action（与组件兜底撞义）
 
 **动作自引用 / this.action**:
@@ -220,8 +220,8 @@ _Avoid_: 横向 slide 参数化（v1 纵向固定，横向走自定义动画）�
 
 ### 尺寸调节层
 
-**尺寸调节 / x-resize（Resize）**:
-宿主元素尺寸的拖拽调节指令（ADR-0064）：**可选值双向**——无值 = 纯 DOM 直改 `style.width/height`；有值（`x-resize="size"`）= 双向绑定，拖拽中实时写回 `{width, height}`（px number，经调度器合并），外部改状态反向同步宿主（过「尺寸钳制」管线、等值短路防循环），语义与 x-model 的双向同源。Compile 类（编译期注入「调节手柄」+ 建绑定），动态启停用 x-if 包宿主表达，不发明值语法。
+**尺寸调节 / x-resizable（Resize）**:
+宿主元素尺寸的拖拽调节指令（ADR-0064，2026-10-11 由 x-resize 更名，旧名入废弃链）：**可选值双向**——无值 = 纯 DOM 直改 `style.width/height`；有值（`x-resizable="size"`）= 双向绑定，拖拽中实时写回 `{width, height}`（px number，经调度器合并），外部改状态反向同步宿主（过「尺寸钳制」管线、等值短路防循环），语义与 x-model 的双向同源。Compile 类（编译期注入「调节手柄」+ 建绑定），动态启停用 x-if 包宿主表达，不发明值语法。
 _Avoid_: 缩放（那是 transform scale 语义）、可调节（泛化）、resize 绑定（它是交互指令，值是数据通道不是绑定目标）
 
 **调节手柄 / Resize Handle**:
@@ -229,7 +229,7 @@ _Avoid_: 缩放（那是 transform scale 语义）、可调节（泛化）、res
 _Avoid_: 拖拽手柄（那是 x-tree 拖拽预留的 drag handle 概念）、grip / sizer（英文别名）、resize 控件（它是子元素不是控件）
 
 **方向枚举 / handles**:
-八方向枚举 `n/s/e/w/ne/nw/se/sw`（北=上）。声明走 `handles` 选项（逗号串或数组），修饰符 `x-resize.e.s.se` 解析期并入（ADR-0007）；默认 `e,s,se`（流内自然最大集——流内元素左/上边缘锚定布局位，反向拖拽需补偿 left/top，非自然方向仅对定位元素开放）。**grid item 豁免**（ADR-0074）：父容器 `display:grid` 时 `w` 放行且免位置补偿——轨道定位下 width 单写即对缘让位；`n` 仍保守丢弃（行轨道下顶缘跟手性不保证）。
+八方向枚举 `n/s/e/w/ne/nw/se/sw`（北=上）。声明走 `handles` 选项（逗号串或数组），修饰符 `x-resizable.e.s.se` 解析期并入（ADR-0007）；默认 `e,s,se`（流内自然最大集——流内元素左/上边缘锚定布局位，反向拖拽需补偿 left/top，非自然方向仅对定位元素开放）。**grid item 豁免**（ADR-0074）：父容器 `display:grid` 时 `w` 放行且免位置补偿——轨道定位下 width 单写即对缘让位；`n` 仍保守丢弃（行轨道下顶缘跟手性不保证）。
 _Avoid_: 四边四角（口语——边和角统一叫方向）、edges（同上）、方位（泛化）
 
 **尺寸钳制 / Clamp Chain**:
@@ -241,7 +241,7 @@ resize 手势生命周期的 DOM 冒泡事件（宿主派发）：`resize:start`
 _Avoid_: resize-start 连字符（家族惯例是冒号命名空间）、裸 resize（与 DOM 原生 window resize 事件撞名）、resizing（英文进行态——move 对齐 tree:expand 的动词本干风格）
 
 **覆盖物尺寸调节 / overlay resize（drawer / dialog）**:
-覆盖物消费者的 `resize` 选项（ADR-0064）：`true`（方向自动推导 + 默认约束）| 对象（字段与 x-resize 选项表同构；`handles` 只能在合法集内**收窄**，越界 warn + 忽略）。方向推导贴合形态几何：drawer 贴边内侧单边（`placement: left` → `e`，类推）、dialog 四角（`ne,nw,se,sw`）。写路径走 **shell 定位体系**（与普通元素 style 直改分离，钳制/手柄/指针核心逻辑复用）；**不写回 store**（「调节事件」detail 即数据出口——overlay 选项语法无绑定位）；尺寸**会话内记忆**（指令实例状态，重开沿用、优先于声明 `size` / CSS 尺寸，engine destroy 才清）。
+覆盖物消费者的 `resize` 选项（ADR-0064）：`true`（方向自动推导 + 默认约束）| 对象（字段与 x-resizable 选项表同构；`handles` 只能在合法集内**收窄**，越界 warn + 忽略）。方向推导贴合形态几何：drawer 贴边内侧单边（`placement: left` → `e`，类推）、dialog 四角（`ne,nw,se,sw`）。写路径走 **shell 定位体系**（与普通元素 style 直改分离，钳制/手柄/指针核心逻辑复用）；**不写回 store**（「调节事件」detail 即数据出口——overlay 选项语法无绑定位）；尺寸**会话内记忆**（指令实例状态，重开沿用、优先于声明 `size` / CSS 尺寸，engine destroy 才清）。
 _Avoid_: overlay 缩放、可拖拽面板（泛化）、宽度绑定（不写回状态）
 
 ### 分割器层
@@ -264,7 +264,7 @@ _Avoid_: 自动面板（「自动」歧义）、弹性面板（flex 术语泛化
 
 **分隔条 / Divider**:
 两面板之间引擎注入的**真实元素**（`role="separator"` 可聚焦）——拖拽命中区（默认 10px）+ 居中 2px 指示线（CSS 变量可调）。键盘方向键 = 分隔条的几何位移方向（±1px / Shift ±10px）。
-_Avoid_: 拖拽手柄（那是 x-resize 的 Resize Handle 概念）、指示线（只是它的视觉层，命中区是本体）、分割线（泛化）、grip / sizer（英文别名）
+_Avoid_: 拖拽手柄（那是 x-resizable 的 Resize Handle 概念）、指示线（只是它的视觉层，命中区是本体）、分割线（泛化）、grip / sizer（英文别名）
 
 **折叠（x-splitter）**:
 定容面板声明 `data-expandable` 启用的折叠（ADR-0070：机制整体组合 x-expandable，`collapsible` 选项与分隔条把手已清除）——面板上实例化 x-expandable，把手/动画/事件全走其原生管线。**折叠布尔为真相**（expandable 持有，ADR-0067 决策七在组合语境被推翻；派生检测仅存「拖拽跨折叠目标 → 翻转布尔」单点）。折叠目标 = `data-expandable` 的 `minSize`（未声明或 0 = 负 margin 滑出、`> 0` = 收缩迷你形态，`data-minimize-size` 已删除）；`direction` 按 sized 位次推导（首位 `left`/次位 `right`，vertical 类推，options 中写无效）；展开尺寸由 splitter 写回（`lastSize` 记忆链保留——面板尺寸经拖拽动态产生；options 中 `maxSize` 无效 warn）。把手骑面板活动边线（即分隔条所在边界，几何与旧分隔条把手重合）、默认 `showTrigger:'hover'`——分隔条本身充当**全长感应线**（divider hover 经桥接类显形把手，x-expandable 感应边条在本语境被样式表抑制以免遮挡拖拽命中区）、折叠态恒显。事件 `expandable:collapse/expand` 面板派发冒泡（`splitter:collapse/expand` 已删除，宿主监听靠冒泡）；`splitter:resize` 不受影响。属性值专职 options JSON（空属性 = 全默认），折叠态内部持有、程序控制经事件外泄。初始声明尺寸等于 minSize 即初始折叠（无动画不派发）。
@@ -278,7 +278,7 @@ _Avoid_: 布局组件（无组件机制参与）、页面框架（泛化）、�
 
 **布局窗格 / Layout Pane（x-pane）**:
 布局容器的**布局单元**——`x-pane:参数` 标记的直接子元素，参数词表固定 `header | content | sidebar | footer`；`sidebar` 必带 `.left` / `.right` 修饰符（缺省按 `.left`），参数不在词表 warn + 剪枝。content 必需（缺失 warn + 降级渲染空容器），header/footer/sidebar 可选。同侧多窗格按 DOM 序并排，**仅首个有 through 资格**。存在性与 x-if / x-show 正交配合（见「布局回流」）。
-_Avoid_: 面板 / Pane（那是 x-splitter 的子元素正名——两概念并存，须以全称 Layout Pane / 分割器面板消歧）、x-slot（那是组件插槽出口，ADR-0056，命名竞选时因撞名被否）、区域 / region（命名竞选中落选词，勿混用）、布局块（x-block 更旧义已废弃——组件机制前身已由 x-define 承接；现行 x-block 是溢出折叠容器，见该词条，勿混用）
+_Avoid_: 面板 / Pane（那是 x-splitter 的子元素正名——两概念并存，须以全称 Layout Pane / 分割器面板消歧）、x-slot（那是组件插槽出口，ADR-0056，命名竞选时因撞名被否）、区域 / region（命名竞选中落选词，勿混用）、布局块（x-block 更旧义已废弃——组件机制前身已由 x-define 承接；x-block 名后经溢出折叠容器三度使用并更名 x-foldable，勿混用）
 
 **贯穿 / through**:
 sidebar 窗格**纵向跨过 header / footer 行带**的声明（`"up"` / `"down"` / `"up,down"`；`.up` / `.down` 修饰符为等价简写）：`up` = 该侧栏上延至容器顶、header 被推向对侧；`down` = 下延至容器底、footer 同理；左右都 up 时 header 夹在中间。仅 sidebar 支持（header/footer 上声明 warn + 忽略）；**header 全宽是缺省态**，由 sidebar 未声明 through 自然表达，无独立配置。编译期静态，变更需重编译。
@@ -293,34 +293,56 @@ _Avoid_: 重排（浏览器 layout 术语撞词）、重建（反契约——恰
 _Avoid_: 内建分隔条（组合而非自建，ADR-0070「机制唯一实现 + 组合」基调）、均分（默认各 240px 可经窗格选项覆盖，非均分语义）
 
 **窗格尺寸调节（Pane Resizing）**:
-未参与分割的窗格的尺寸通道：**sidebar 默认注入** x-resize（内缘单方向手柄——left 拖东缘 / right 拖西缘）+ x-expandable（`compose` 程序化组合，ADR-0070 先例），拖拽跨折叠目标自动翻转折叠布尔（折叠目标 / lastSize 恢复链沿用 splitter 模型）；header / footer 显式挂 `x-resize` 合法（auto 轨道跟随元素尺寸）、content 上挂 warn（1fr 轨道拖拽无效）。**显式声明优先于默认注入**（options 全生效）；默认注入 = 内部态，状态绑定须显式 `x-expandable="路径"`；opt-out = `x-pane-options={expandable:false}` / `{resize:false}`；注入实例的 options 读同元素 `x-expandable-options`。默认尺寸（header/footer 64px、sidebar 240px）经 CSS 变量注入——用户 CSS 与窗格选项（`{height}` / `{width}`，inline）两条覆盖路都通。
+未参与分割的窗格的尺寸通道：**sidebar 默认注入** x-resizable（内缘单方向手柄——left 拖东缘 / right 拖西缘）+ x-expandable（`compose` 程序化组合，ADR-0070 先例），拖拽跨折叠目标自动翻转折叠布尔（折叠目标 / lastSize 恢复链沿用 splitter 模型）；header / footer 显式挂 `x-resizable` 合法（auto 轨道跟随元素尺寸）、content 上挂 warn（1fr 轨道拖拽无效）。**显式声明优先于默认注入**（options 全生效）；默认注入 = 内部态，状态绑定须显式 `x-expandable="路径"`；opt-out = `x-pane-options={expandable:false}` / `{resize:false}`；注入实例的 options 读同元素 `x-expandable-options`。默认尺寸（header/footer 64px、sidebar 240px）经 CSS 变量注入——用户 CSS 与窗格选项（`{height}` / `{width}`，inline）两条覆盖路都通。
 _Avoid_: 默认可调（header/footer/sidebar 之外的窗格无默认注入）、单向吸收（pane 间分割是守恒语义，单侧吸收被否决）
 
-**溢出折叠容器 / x-block（Block）**:
-nowrap flex 容器结构指令（ADR-0098 重写版）：值 = 主轴 `row | column`（裸词按字面量，其余按响应式表达式求值——状态变化换轴，折叠元素先按原位锚复位再全量重算，触发按钮弹出方位随轴热更）。容器 `display:flex` + `nowrap` + `align-items:center`（row/column 对称）；**直接子元素默认 `flex-grow:0` / `flex-shrink:0`**（不伸不缩，空间不足交给折叠机制而非 flex 压缩——shrink:0 同时是溢出检测布局数学的前提）；`data-grow` / `data-shrink` 契约属性**独立直通** CSS `flex-grow` / `flex-shrink`（只写属性 = 1、显式数值原样、`"0"` = 显式关闭、非法/负值 warn 一次 + 回退 1；两属性无隐含、**无豁免类别**——grow 子元素空间不足也会被折叠，需弹性收缩请并写 data-shrink）。gap 由用户 CSS 承载（引擎不预设），克隆语义使其在面板内天然延续。与 x-layout 分工：x-layout 管整页 grid 骨架，x-block 管行内溢出折叠（工具栏 / 面包屑 / 标签条）。
-_Avoid_: 布局条 / 三段分区（初稿废弃模型——`x-block:header|body|footer` 分区标记已废除，attr 非空即误用 warn）、布局块（更旧义，见已废弃区——组件机制前身已由 x-define 承接）、工具栏（典型场景不是本体）、面板 / 窗格（各归 x-splitter Pane / x-layout Layout Pane）
+**溢出折叠容器 / x-foldable（Foldable）**:
+nowrap flex 容器结构指令（ADR-0098 重写版，2026-10-10 由 x-block 更名，旧名入废弃链）：值 = 主轴 `row | column`（裸词按字面量，其余按响应式表达式求值——状态变化换轴，折叠元素先按原位锚复位再全量重算，触发按钮弹出方位随轴热更）。容器 `display:flex` + `nowrap` + `align-items:center`（row/column 对称）；**直接子元素强制 `flex-grow:0` / `flex-shrink:0`**（引擎全局样式唯一决定，无伸缩直通出口——伸缩态主轴尺寸是拉伸布局宽而非自然宽，污染溢出求和判据；空间不足交给折叠机制而非 flex 压缩/拉伸）。gap 由用户 CSS 承载（引擎不预设），克隆语义使其在面板内天然延续。与 x-layout 分工：x-layout 管整页 grid 骨架，x-foldable 管行内溢出折叠（工具栏 / 面包屑 / 标签条）。
+_Avoid_: 布局条 / 三段分区（初稿废弃模型——`x-foldable:header|body|footer` 分区标记已废除，attr 非空即误用 warn）、布局块（更旧义，见已废弃区——组件机制前身已由 x-define 承接）、工具栏（典型场景不是本体）、面板 / 窗格（各归 x-splitter Pane / x-layout Layout Pane）
 
-**溢出折叠（Overflow Collapse，x-block）**:
-容器的核心机制：空间不足时**从主轴末尾起把可见子元素逐个折入 more 按钮的弹出面板**，空间恢复按 LIFO 原序还原。判定 = **布局数学直读**（shrink:0 + nowrap 保证溢出态 `scrollMain = Σ子元素自然宽 + gap`、不溢出态 `scrollMain = clientMain`——`scrollMain > clientMain` 即溢出；more 按钮宽与 gap **不进公式**，其显隐改变布局由步进循环每步重读自然吸收）+ **步进收敛**（每步一次真实布局：折叠 = 末个**可见**子元素缓存自然尺寸与原位锚后真实搬移出文档存 stash；`display:none` 子元素宽 0 永不折叠、栈中隐藏者跳过恢复等可见后自然回位；恢复 = 从栈顶试放，`scroll + gap + 缓存尺寸 ≤ client` 才放回原位锚，失败即停防振荡）。宿主 `min-width`（column 对称 `min-height`）= 触发按钮主轴尺寸，首次折叠写入后不撤（同值不重写防 RO 循环）。**重估通道**：ResizeObserver（宿主 + 子元素）+ MutationObserver（childList + data-grow/data-shrink 属性变化）+ window resize 兜底——子元素增删、比值变化、内容尺寸变化全部跟随，「绑定生效但布局不跟随」零容忍。**已知代价**：Runtime 类指令（x-loading 等）随搬移 unmount/重挂、运行态重置（交互控件类子元素无感）。
+**溢出折叠（Overflow Collapse，x-foldable）**:
+容器的核心机制：空间不足时**从主轴末尾起把可见子元素逐个折入 more 按钮的弹出面板**，空间恢复按 LIFO 原序还原。判定 = **对齐无关求和**（`contentMain = Σ可见子元素与触发按钮的主轴尺寸 + gap×(n-1)` > 主轴内容可用宽 `clientMain − 主轴 padding`（子元素布局在 content box 内）即溢出——不读 scrollWidth：flex-end 等主轴对齐下溢出向起始侧不计入、不溢出态又取 max(内容, client)，两态皆不可靠）+ **步进收敛**（每步一次真实布局：折叠 = 末个**可见**子元素缓存自然尺寸与原位锚后真实搬移出文档存 stash；`display:none` 子元素宽 0 永不折叠、栈中隐藏者跳过恢复等可见后自然回位；恢复 = 从栈顶真实放回后按 contentMain 复验，放不下同帧折回本人并停步（防振荡；面板开态跳过栈内已挂入面板出口的元素，面板关闭摘回后自然回位））。宿主 `min-width`（column 对称 `min-height`）= 触发按钮主轴尺寸，首次折叠写入后不撤（同值不重写防 RO 循环）。**重估通道**：ResizeObserver（宿主 + 子元素）+ MutationObserver（childList + 换轴 data-direction 属性变化）+ window resize 兜底——子元素增删、内容尺寸变化全部跟随，「绑定生效但布局不跟随」零容忍。**已知代价**：Runtime 类指令（x-loading 等）随搬移 unmount/重挂、运行态重置（交互控件类子元素无感）。
 _Avoid_: 阈值判定 / 渐进收缩链 / 分区收缩（初稿废弃模型词汇）、收起（单向词，折叠是双向）、渲染副本（搬移不是复制——绑定全程存活）、移动内容（reparent 是搬移，但语义重点是「折叠态」而非动作本身）
 
-**more 按钮（More Trigger，x-block）**:
+**more 按钮（More Trigger，x-foldable）**:
 溢出时宿主**末尾**出现的折叠入口按钮（容器直接子元素、`flex-shrink:0`；未溢出 `display:none`——不参与 flex 布局、不计 gap，显示与折叠态单一真相在指令）。内置 `more` 图标 + `aria-label="更多"`，hover 触发弹出面板（PopoverDirective 全权接管开关/定位/动画，键盘 Enter/Space 等价开关）。
-_Avoid_: 点击弹出（触发是 hover 非 click）、more 定制入口（v1 无——仅 CSS 变量视觉定制）、溢出菜单（泛化）
+_Avoid_: 点击弹出（more 入口固定悬浮触发，未随 x-popover 的 `trigger` 选项暴露 click）、more 定制入口（v1 无——仅 CSS 变量视觉定制）、溢出菜单（泛化）
 
-**面板外壳 / 宿主克隆壳（Panel Shell，x-block）**:
-弹出面板的外壳 = **宿主元素浅克隆**（`cloneNode(false)`——仅标签+属性、无子节点）+ `autospark-block-panel` 标识类 + 内嵌无名 `x-slot` 出口，清洗指令/绑定属性（`x-*` / `:*` / `@*` / 含 `{{}}` 的属性与容器契约类）后编程式注册进宿主 scope（shell 解析走 scope 链、随其生死）。用户在宿主类上的样式上下文（gap、后代选择器、主题变量）在面板内原样延续——克隆方案的动机本体。`x-block-options.shell` 可指定自定义外壳组件名（须提供默认出口）替换默认克隆壳，视觉责任随 shell 转移。折叠子元素经 `overlay:open` 广播注入出口、`overlay:close`（面板 DOM 尚在的动画窗口）摘回 stash——覆盖物关闭即销毁，摘回是控件状态跨开关保留的唯一途径。
-_Avoid_: 渲染副本（克隆的只是壳——子元素是真实搬移）、block-popover 载体别名（已随重写退役，种子表回归全点前缀）、shell 热切换（编译期静态）
+**面板外壳（Panel Shell，x-foldable）**:
+弹出面板的容器形态：**默认无壳**——走 x-popover 内置 `autospark.popover` 种子 shell（自带边框/默认出口/箭头载体，锚定模式 arrow 默认开启，默认 `padding:0.5em`），宿主样式不克隆延续；`x-foldable-options.shell` 显式指定组件名时才以用户外壳为容器（须自带默认出口，解析走 popover 的 scope 链 + 全局组件表协议）。折叠子元素挂入面板出口时打 `autospark-foldable-panel` 类——垂直堆叠布局 + 兜底 gap（CSS 变量 `--autospark-foldable-panel-gap`）。`x-foldable-options.popover` 对象整包透传合并进触发按钮的 `x-popover-options`（用户值优先）。
+_Avoid_: 宿主克隆壳（旧机制，已随 ADR-0098 修订记录 10 移除——不再克隆宿主作面板容器）；克隆延续（面板视觉与宿主解耦是新版语义）
+
+### 响应式容器层
+
+**响应式容器 / x-container（Responsive Container）**:
+Bootstrap `.container` 心智的断点容器指令：宿主获得 `width:100%` + 按档 `max-width` + 居中（`margin-inline:auto`，默认开不可关——想不居中别用容器）+ gutter（`padding-inline: var(--autospark-container-gutter, 0.75rem)`，仅 CSS 变量无选项面）的视觉契约。值双态（x-resizable 先例）：留空 = 纯视觉容器；简单状态路径 = **响应式状态源**——当前档名（字符串）随切换实时**单向写回**（档位是测量真相，外部写不解释）；宿主常驻 `data-breakpoint="<档名>"`（纯 CSS 子代选择器与测试的 DOM 暴露面）。`.fluid` 修饰符关闭按档 max-width（恒 100% 通栏），档位判定 / data-breakpoint / 写回照常——「纯状态探针 + 无约束容器」用法。
+_Avoid_: 布局容器（那是 x-layout 正名——grid 骨架）、@container / 容器查询（CSS 原生概念，`.self` 判定刻意不用它）、响应式（本表默认 reactive 语义——指断点语义须写全称）
+
+**断点档位（Breakpoint Tier）**:
+宽度区间的六档枚举 `xs/sm/md/lg/xl/xxl`（Bootstrap 5 对齐）：**mobile-forward min-width** 区间语义——宽度 ≥ 档位阈值即命中，当前档 = 命中档中最大者；**xs 是 < sm 的隐含兜底档**（无阈值，写入阈值表 warn + 忽略——初稿 `xs:"576px"` 与 sm 区间重合永不独立命中，已纠正）。默认表冻结：阈值 sm:576 / md:768 / lg:992 / xl:1200 / xxl:1400（px）；max-width xs:100% / sm:540 / md:720 / lg:960 / xl:1140 / xxl:1320。
+_Avoid_: 断点（口语泛指——档位是区间名、阈值是区间边界，两概念分离）、max-width 区间语义（旧 Foundation 风格已否决）、xs 阈值（xs 无阈值）
+
+**判定基准（Measuring Base）**:
+断点档位判定度量的宽度对象——恒**视口宽度**：视觉约束走纯 CSS media query（全局样式表一份、零 JS 布局开销），档位状态走 matchMedia 按档 mql 监听（跨越才触发，当前档 = 命中档中最大者）。元素宽度形态（`.self`，曾按宿主可用宽度探测）已裁剪（ADR-0101 修订记录）。
+_Avoid_: 容器查询 / container-type（CSS 原生方案已否决——`@container` 无法样式化容器自身、纯 CSS 须加 wrapper 侵入 DOM、size containment 副作用破坏 flex/inline 布局）、.self / 宿主宽度 / 可用宽度探测（已裁剪形态，勿再书写）
+
+**断点表 / breakpoints + maxWidths（Tier Tables）**:
+x-container 的两张选项表：`breakpoints`（档位阈值表）与 `maxWidths`（按档 max-width 表）——**两表分离**（按档合并形态因 xs 兜底档无 min 不对称而否决），各自**整表替换**（回退不合并，ADR-0007 惯例）。三级回退：engine `options.container`（按特性命名空间，对齐 options.components 先例）→ `x-container-options` → 内置 Bootstrap 5 缺省表。值收 number（按 px）与 CSS 长度串双形态（parseCssLength 复用）。
+_Avoid_: 按档合并（`sm:{min,maxWidth}` 形态，已否决）、按键合并（整表替换）、顶层 options.breakpoints（留给未来通用响应特性，现归 options.container 命名空间）
+
+**断点事件 / viewport:change（Tier Change Event）**:
+断点档位**跨越**时派发的事件（`detail = { from, to }` 档名字符串），**向下传播**：先沿 scope 子树把事件逐个派发给容器内声明 `@viewport:change` 的**后代元素**（不冒泡、每元素恰好一次——DOM 事件物理上只向上流，向下经 scope 树实现；响应视口变化的通常是容器内部组件），宿主再冒泡上行（祖先监听）；嵌套容器各自独立派发。**初始同步不派发**：监听编译期建立，编译期派发受指令编译顺序影响不可靠；初值经状态写回 / `data-breakpoint` 读取。
+_Avoid_: container:change（旧名已更名 viewport:change，ADR-0101 修订记录）、宿主单点冒泡（旧派发语义，已改向下传播）、viewport-change 连字符（冒号命名空间家族惯例，对齐 `resize:*` / `tree:*`）、裸 change（与原生 change 事件撞名）
 
 ### 展开折叠层
 
 **展开折叠 / x-expandable（Expandable）**:
-宿主元素的通用展开/折叠指令：值是**展开态布尔**（true=展开）双向绑定——简单路径点击把手经 `setVal` 回写（x-model 防循环纪律同款）、表达式 warn 一次只读降级。`direction` 指收起方向（停靠边：`left` = 向左收起，把手骑活动边即对侧边线；默认 `left`）。折叠通道由 `minSize` 分派：`0`（默认）= **滑出折叠**——宽度/高度保持不改，`collapse:'margin'`（默认）负 margin 滑出（占位归零、兄弟流入）或 `'slide'` transform 平移（占位不变，服务 fixed 覆盖形态），终态持续保持不归零；`> 0` = 尺寸收缩动画（width/height 过渡至 minSize，子内容不隐藏——迷你形态内容可见）。展开时 `maxSize` 有值写内联尺寸、缺省移除内联尺寸由 CSS 决定（不快照记忆）。初始值 false 编译期立即应用折叠态、无动画（splitter 惯例）。**折叠机制唯一实现**（ADR-0070 组合落定）：x-splitter 经面板 `data-expandable` 声明全机制组合（折叠布尔由本指令持有，splitter 折叠不再是纯派生态）；x-drawer 经共享把手模块统一把手层（折叠 ≡ visible 归假语义不变）。**内建单边 resize**（ADR-0072 内建 + ADR-0073 迁移）：`resize` 选项启用（方向由折叠方向推导、复用 x-resize 的 ResizeSession 核心、拖出尺寸接管展开尺寸真相），`enable:false` 退化为纯单边 resize——**与 x-resize 同元素互斥**（x-resize 自失效，边线交互单指令独占）；把手与手柄同骑活动边线时**把手压手柄之上**（宿主 `data-resize` 标记 + 样式表抬层级——手柄带盖住把手会让折叠不可点）、**感应边条让位手柄**（手柄 hover/聚焦经 `data-edge-hover` 桥接显形把手，与 splitter/drawer 同一契约）；drawer 的 resize 迁移至此通道（组合 `resized` 钩子路由会话记忆，dialog 四角保留 overlay 机制；splitter 面板调节走分隔条拖拽、`data-expandable` 的 resize 被接管 warn 忽略）。事件 `expandable:expand` / `expandable:collapse`（宿主派发、冒泡、detail `{size}`）。
+宿主元素的通用展开/折叠指令：值是**展开态布尔**（true=展开）双向绑定——简单路径点击把手经 `setVal` 回写（x-model 防循环纪律同款）、表达式 warn 一次只读降级。`direction` 指收起方向（停靠边：`left` = 向左收起，把手骑活动边即对侧边线；默认 `left`）。折叠通道由 `minSize` 分派：`0`（默认）= **滑出折叠**——宽度/高度保持不改，`collapse:'margin'`（默认）负 margin 滑出（占位归零、兄弟流入）或 `'slide'` transform 平移（占位不变，服务 fixed 覆盖形态），终态持续保持不归零；`> 0` = 尺寸收缩动画（width/height 过渡至 minSize，子内容不隐藏——迷你形态内容可见）。展开时 `maxSize` 有值写内联尺寸、缺省移除内联尺寸由 CSS 决定（不快照记忆）。初始值 false 编译期立即应用折叠态、无动画（splitter 惯例）。**折叠机制唯一实现**（ADR-0070 组合落定）：x-splitter 经面板 `data-expandable` 声明全机制组合（折叠布尔由本指令持有，splitter 折叠不再是纯派生态）；x-drawer 经共享把手模块统一把手层（折叠 ≡ visible 归假语义不变）。**内建单边 resize**（ADR-0072 内建 + ADR-0073 迁移）：`resize` 选项启用（方向由折叠方向推导、复用 x-resizable 的 ResizeSession 核心、拖出尺寸接管展开尺寸真相），`enable:false` 退化为纯单边 resize——**与 x-resizable 同元素互斥**（x-resizable 自失效，边线交互单指令独占）；把手与手柄同骑活动边线时**把手压手柄之上**（宿主 `data-resize` 标记 + 样式表抬层级——手柄带盖住把手会让折叠不可点）、**感应边条让位手柄**（手柄 hover/聚焦经 `data-edge-hover` 桥接显形把手，与 splitter/drawer 同一契约）；drawer 的 resize 迁移至此通道（组合 `resized` 钩子路由会话记忆，dialog 四角保留 overlay 机制；splitter 面板调节走分隔条拖拽、`data-expandable` 的 resize 被接管 warn 忽略）。事件 `expandable:expand` / `expandable:collapse`（宿主派发、冒泡、detail `{size}`）。
 _Avoid_: collapsed 状态（splitter 组合后布尔为真相，派生词汇已过时）、收起（单向词）、toggle / trigger（drawer 把手先后废弃的旧选项名，统一 `expandable`）、推挤 / push（未实现形态勿暗示）
 
 **展开把手（Expandable Trigger）**:
 **圆心骑边线**的圆形折叠控制按钮（20px、内置全局图标 `arrow`、样式契约同 splitter 折叠把手；`role=button` 键盘可达、箭头随折叠态翻转指向下一步动作）：展开态圆心骑宿主**活动边线**（外半圆突出）；滑出折叠态圆心骑父容器**停靠边线**（外一半被裁呈半圆把手，drawer 形态），图标缩至 0.65 倍并平移 1/4 圆径移入半圆中心保完整可见。滑轨坐标 `pos` 三态对齐家族惯例（`'center'` 默认 ≡ `'50%'` / number=px / CSS 长度串负值距对端，越界静默钳制——把手是唯一重开触点）。**动态挂载（reparent）**：展开态挂宿主内骑活动边；滑出折叠（minSize=0）完成后移入父容器骑停靠边线（宿主滑出后其内子元素随容器裁剪，把手外迁保常驻可达；滑出全程圆心恒贴边线，reparent 零跳变），展开动画启动前移回宿主；minSize>0 折叠不迁移（宿主不滑出）。折叠态子内容经 `[data-collapsed]` 规则 `visibility:hidden`（把手排除）——宿主自身不能 `overflow:hidden`（宽度保持的盒子会把 absolute 把手一并裁掉）；把手定位上下文由指令在宿主 computed `position` 为 static 时 inline 补 `relative`（fixed/absolute 宿主不动——slide 通道的覆盖形态）。**层级**：把手 z5、感应边条 z4、resize 手柄 z10；**同宿主启用内建 resize 时把手压手柄之上**（z11，否则调节线横穿圆面且命中被拦 → hover 模式下折叠不可点），手柄 hover/聚焦经 `data-edge-hover` 桥接显形把手（drawer 让位语义方向相反：其把手在覆盖物容器、层级抬不动只能把命中让给手柄）。**共享把手模块**（ADR-0070）：把手机制（元素构建/滑轨坐标/半圆折叠态/箭头矩阵）抽为独立模块，x-drawer 为第二消费者——抽屉把手不再有独立实现，本词条类名与变量族即全引擎折叠把手的唯一契约。
-_Avoid_: 抽屉把手（x-drawer 已组合本机制，见「抽屉把手」词条）、拖拽手柄 / resize handle（x-resize 词汇）、grip（英文别名）、toggle 按钮（同已废弃词）
+_Avoid_: 抽屉把手（x-drawer 已组合本机制，见「抽屉把手」词条）、拖拽手柄 / resize handle（x-resizable 词汇）、grip（英文别名）、toggle 按钮（同已废弃词）
 
 **父容器注入 / injectOverflow（Overflow Injection）**:
 滑出折叠（margin 通道）对宿主父容器的 `overflow:hidden` 注入契约：默认（`injectOverflow: true`）**折叠期间**由指令注入——折叠动画开始挂、保持至展开动画完成后恢复原值（终态宿主滑出在外，动画瞬间注入摘除会令溢出重新可见）；父容器本为 `hidden/clip` 幂等跳过；多实例共享父容器引用计数、最后一个展开完成才恢复；原值 `auto/scroll` 的滚动条折叠期间暂失（已知副作用）。`false` 显式禁用后回落编译期检测：父容器 computed overflow 非 `hidden/clip` 时 warn 一次、由用户自负。
@@ -443,8 +465,8 @@ _Avoid_: 覆盖层（旧称，随声明指令一起废弃）、弹层模板（�
 _Avoid_: overlay 对象、弹层实例（泛化）、对话框实例（那是 x-dialog 消费者视角的产物）、单例（机制未引入）
 
 **覆盖物消费者（Overlay Consumer）**:
-把覆盖物组件实例化并驱动其生命周期的指令族（x-dialog / x-popover / x-drawer 已落地，x-popup 预留）：`OverlayDirective` 基座（继承组件实例化基座 `ComponentDirective`，ADR-0054 更名）上的**薄子类**，只叠加形态差异（外壳 / 定位 / 触发 / 关闭行为）；visible 驱动四形态承载于中间抽象基座 `VisibleOverlayDirective`（dialog 与 drawer 平级继承，ADR-0063）。**纯状态驱动**（家族默认；x-popover 的悬浮触发为唯一显式偏离，见「悬浮触发」）——宿主是纯声明点（无隐式交互），值**专职 visible 布尔控制**（简单路径可回写 / 表达式 / 字面量，对象形态已废弃，ADR-0052 v2.3），真值即开；props 经「选项成员属性」`x-dialog-options.props` 注入组件 data 域（表达式求值 + 持续热更新，与 x-component props 同构）。配置两级合并：`内置默认 < x-dialog-options`（可定向到特定组件名实例；组件 def 不携带配置）。形态与模态**正交**：x-dialog 恒模态，x-drawer 默认模态、`mask: false` 可关（ADR-0062 官方 mask 选项的声明式读取面）。
-_Avoid_: 触发器（家族默认宿主无隐式交互；悬浮形态例外见「悬浮触发」）、弹出指令（泛化）、调用方（action 语境词汇）、保留键封闭清单（非保留键隐式作 props 的分流已删除，ADR-0052 v2.3）
+把覆盖物组件实例化并驱动其生命周期的指令族（x-dialog / x-popover / x-drawer 已落地，x-popup 预留）：`OverlayDirective` 基座（继承组件实例化基座 `ComponentDirective`，ADR-0054 更名）上的**薄子类**，只叠加形态差异（外壳 / 定位 / 触发 / 关闭行为）；visible 驱动四形态承载于中间抽象基座 `VisibleOverlayDirective`（dialog 与 drawer 平级继承，ADR-0063）。**纯状态驱动**（家族默认；x-popover 的悬浮/点击触发为唯一显式偏离，见「悬浮触发」「点击触发」）——宿主是纯声明点（无隐式交互），值**专职 visible 布尔控制**（简单路径可回写 / 表达式 / 字面量，对象形态已废弃，ADR-0052 v2.3），真值即开；props 经「选项成员属性」`x-dialog-options.props` 注入组件 data 域（表达式求值 + 持续热更新，与 x-component props 同构）。配置两级合并：`内置默认 < x-dialog-options`（可定向到特定组件名实例；组件 def 不携带配置）。形态与模态**正交**：x-dialog 恒模态，x-drawer 默认模态、`mask: false` 可关（ADR-0062 官方 mask 选项的声明式读取面）。
+_Avoid_: 触发器（家族默认宿主无隐式交互；悬浮/点击形态例外见「悬浮触发」「点击触发」）、弹出指令（泛化）、调用方（action 语境词汇）、保留键封闭清单（非保留键隐式作 props 的分流已删除，ADR-0052 v2.3）
 
 **贴边抽屉（Drawer）**:
 覆盖物消费者的贴边形态（x-drawer，ADR-0063）：面板从屏幕四边（默认）或锚元素边缘滑入滑出。**双定位模式**——屏幕贴边（无 `at`：fixed 贴视口对应边，贴边轴全屏展开）与**元素贴边锚定**（`at.selector` 命中：面板终态贴锚元素对应边**内侧**、恒在锚内不越界，**长轴 = 锚边长**随锚/视口变化重同步）；经实例定位策略钩子（`positioner`）整体接管，锚定未命中**回退屏幕贴边**（非家族「退居中」——居中对抽屉无意义）。`at.placement` 四主方向（展开/滑入起始边）、默认 `right`（`auto`/`-start/-end`/非法值两模式一律静默归一；浮动定位子键 `flip`/`offset`/`shift` 静默忽略）、无箭头。短轴尺寸走 `size` 选项（number/CSS 长度，方向中立，引擎 inline 写入，ADR-0063 实施期修订），缺省回退 CSS 变量 `--autospark-drawer-size`；声明 `resize` 选项启用拖拽调短轴后，会话内记忆值优先于声明 `size` 生效（见「覆盖物尺寸调节」）；默认动画 `'drawer'`（遮罩淡入淡出 + 面板位移滑入滑出，主流 drawer 形态语言）；默认带**抽屉把手**（`expandable` 选项，见专条，`expandable: false` 显式关闭、`pos` 沿边线滑轨可定位）；内置外壳 `drawer-shell`（直角、无箭头载体）。嵌套零新机制（子消费者声明在父组件模板内，ESC 打开栈只关栈顶）。
@@ -452,16 +474,20 @@ _Avoid_: 侧滑菜单（泛化场景词）、局部抽屉（指锚定模式时�
 
 **抽屉把手（Drawer Trigger）**:
 贴边抽屉的常驻折叠/展开控制按钮（x-drawer `expandable` 选项，**默认开启**、`false` 显式关闭；ADR-0070：把手机制由 x-expandable 共享把手模块统一提供，旧 `trigger` 选项与 `.autospark-drawer-trigger` 类名、`--autospark-drawer-trigger-size` 变量已删除，契约统一为 `.autospark-expandable-trigger` / `--autospark-expandable-trigger-*`）。**折叠 ≡ visible 归假**（无第三态）：点把手即写回状态，面板滑出销毁、重开重建（「每次打开新实例」家族语义，内容运行态不保留）；把手是覆盖物家族**首个实例外常驻交互元素**——面板销毁后存活（生命周期挂指令实例，宿主脱离 / scope 死亡 / engine 销毁时摘除），折叠后骑屏幕边（屏幕模式）或锚内侧边线（锚定模式）露**面板展开侧**半圆，展开/折叠时沿边线同步滑移（与面板同曲线）。沿边线**滑轨位置**由 `expandable: { pos }` 控制（**边缘锚定模型**：正距主边 top/left、负距对面边 bottom/right 的绝对距离，`true` = 居中语法糖 ≡ `'50%'`；越界静默钳制——把手是唯一重开触发点，永可达），支持成员属性表达式响应式重定位；展开态无阴影（视觉属于面板）、折叠态保留阴影（独立浮起提示可点）。显隐 `showTrigger` 默认 `'hover'`：展开态隐藏、hover/聚焦显形（含全长固定定位感应边条，随把手同一边线基准同步）；**折叠态恒显**（唯一重开触点不可让渡）、触屏恒显。与 `mask` 正交。
-_消歧_: 本词条的把手是**引擎生成的常驻按钮**——区别于 x-popover / x-tooltip 的「宿主触发器」（用户模板中的元素，见「悬浮触发」）与 action 的 triggerEl（事件派发点）；文档中指涉把手时优先用「把手」、写选项名时用 `expandable`。
-_Avoid_: trigger（已删除的旧选项名）、toggle（更早废弃的选项名）、停靠 / dock、折叠态 / collapsed state、peek、最小化 / minimize（均在暗示「折叠是独立第三态」——折叠就是 visible 归假）、收起按钮（泛化，把手的语义是双向控制不只是收）
+_消歧_: 本词条的把手是**引擎生成的常驻按钮**——区别于 x-popover / x-tooltip 的「宿主触发器」（用户模板中的元素，见「悬浮触发」「点击触发」）与 action 的 triggerEl（事件派发点）；x-popover 的 `trigger` 选项（触发方式枚举）与本词条已删除的旧选项名 trigger **同名不同义**。文档中指涉把手时优先用「把手」、写选项名时用 `expandable`。
+_Avoid_: trigger（已删除的旧选项名——限 x-drawer 语境；x-popover 的 `trigger` 是触发方式选项，同名不同义）、toggle（更早废弃的选项名）、停靠 / dock、折叠态 / collapsed state、peek、最小化 / minimize（均在暗示「折叠是独立第三态」——折叠就是 visible 归假）、收起按钮（泛化，把手的语义是双向控制不只是收）
 
 **面板外壳（Shell）**:
-覆盖物**面板层形态**的可替换载体——一个声明了默认出口的普通组件，负责面板的边框 / 圆角 / 背景 / 箭头 / 内容布局；内容组件经默认出口进入外壳。**外壳不含遮罩**（遮罩是引擎结构，模态行为的一部分，换外壳不影响遮罩 / 定位 / 动画 / 关闭等行为）；箭头由外壳渲染、引擎定位。内置默认外壳寄存于 `options.uiShells` 引擎级注册表（ADR-0077——键 = 消费者裸名 `dialog` / `popover` / `drawer`，用户同键浅覆盖）开箱即用、不占用户组件命名空间；自定义外壳与内容组件同一查找协议，未命中回退内置默认。配置链：实例选项 > 宿主选项 > 引擎级默认（`options.overlay.{kind}.shell`）> uiShells > 内置默认。
-_Avoid_: 包装器（wrapper，曾用名，已定名 shell）、皮肤（弱化了结构 + 出口职责）、容器（与覆盖物容器撞名）、mask（遮罩不归外壳）、面板（面板是外壳渲染出的那一层 DOM，外壳是渲染它的组件）、dialog-shell / popover-shell / drawer-shell（旧组件名已退役——uiShells 键为 dialog/popover/drawer）
+覆盖物**面板层形态**的可替换载体——一个声明了默认出口的普通组件，负责面板的边框 / 圆角 / 背景 / 箭头 / 内容布局；内容组件经默认出口进入外壳。**外壳不含遮罩**（遮罩是引擎结构，模态行为的一部分，换外壳不影响遮罩 / 定位 / 动画 / 关闭等行为）；箭头由外壳渲染、引擎定位。家族通用面板视觉挂引擎契约属性选择器 `[data-overlay]`（形态中立——position/圆角/边框/层级/箭头定位，ADR-0062 修订），形态类名只承载形态特异（`.autospark-dialog` / `.autospark-popover` / `.autospark-drawer` 各归各形态；通知面板无该属性——渲染不走覆盖物实例，视觉自包含）。内置默认外壳寄存于 `options.uiShells` 引擎级注册表（ADR-0077——键 = 消费者裸名 `dialog` / `popover` / `drawer`，用户同键浅覆盖）开箱即用、不占用户组件命名空间；自定义外壳与内容组件同一查找协议，未命中回退内置默认。配置链：实例选项 > 宿主选项 > 引擎级默认（`options.overlay.{kind}.shell`）> uiShells > 内置默认。
+_Avoid_: 包装器（wrapper，曾用名，已定名 shell）、皮肤（弱化了结构 + 出口职责）、容器（与覆盖物容器撞名）、mask（遮罩不归外壳）、面板（面板是外壳渲染出的那一层 DOM，外壳是渲染它的组件）、dialog-shell / popover-shell / drawer-shell（旧组件名已退役——uiShells 键为 dialog/popover/drawer）、autospark-dialog 基类 / 面板基类（泛化旧义已退役，ADR-0062 修订——家族通用视觉按 [data-overlay] 属性选择器写，该类回归 dialog 形态专属）
 
 **悬浮触发（Hover Trigger）**:
-x-popover 的触发模型（ADR-0060，家族「纯状态驱动」的唯一显式偏离）：宿主是**悬浮触发器**——`mouseenter`/`mouseleave` 悬浮意图语义（非字面 mouseover）驱动显示；指令值不参与驱动、无 visible 真相源（非空值 warn）。**共享 hover 域**：宿主与面板（body 容器内、DOM 分离）双侧监听视为同一域，宿主↔面板互移不闪关；离开域经 `delayHide`（默认 150ms）宽限关闭、宽限内回域取消；`delayShow`（默认 200ms）为悬浮意图延迟，快速掠过不触发。**hover 链**：嵌套 popover 经 document 级打开中注册表把后代域并入祖先域（指针位于任一后代 popover 上祖先保持），后代关闭后祖先经最后指针坐标 `elementFromPoint` 重估、已出域才关（ESC 关子父不残留）。形态默认：裸面板、锚=宿主自身、`placement` 默认 `'bottom'`（`at` 显式换锚只改位置不换触发关系）。悬浮离开走直接 UI 关闭（无写回目标，不经「请求关闭」）；ESC 照常走打开栈请求关闭。触摸设备 v1 不适配（触屏用 x-dialog）。
-_Avoid_: mouseover 触发（字面 mouseover 冒泡、子元素间移动反复触发，非本语义）、tooltip（悬浮提示只是场景之一，本词条是触发模型）、外点关闭（已否决的关闭触点——离开即关场景下冗余）、混合驱动（悬浮之外再挂 visible 值通道 = 两个真相源，已否决）
+x-popover 的**默认**触发方式（`trigger: 'hover'`；ADR-0060 修订：触发方式扩展为悬浮/点击两形态，家族「纯状态驱动」的显式偏离）：宿主是**悬浮触发器**——`mouseenter`/`mouseleave` 悬浮意图语义（非字面 mouseover）驱动显示；指令值不参与驱动、无 visible 真相源（非空值 warn）。**共享 hover 域**：宿主与面板（body 容器内、DOM 分离）双侧监听视为同一域，宿主↔面板互移不闪关；离开域经 `delayHide`（默认 150ms）宽限关闭、宽限内回域取消；`delayShow`（默认 200ms）为悬浮意图延迟，快速掠过不触发。**hover 链**：嵌套 popover 经 document 级打开中注册表把后代域并入祖先域（指针位于任一后代 popover 上祖先保持），后代关闭后祖先经最后指针坐标 `elementFromPoint` 重估、已出域才关（ESC 关子父不残留）。形态默认：裸面板、锚=宿主自身、`placement` 默认 `'bottom'`（`at` 显式换锚只改位置不换触发关系）。悬浮离开走直接 UI 关闭（无写回目标，不经「请求关闭」）；ESC 照常走打开栈请求关闭。触摸设备 hover 不适配（触屏场景改 `trigger: 'click'`，见「点击触发」；或用 x-dialog）。
+_Avoid_: mouseover 触发（字面 mouseover 冒泡、子元素间移动反复触发，非本语义）、tooltip（悬浮提示只是场景之一，本词条是触发模型）、外点关闭（hover 方式下已否决的关闭触点——离开即关场景冗余；click 方式的主关闭通道见「点击触发」）、混合驱动（悬浮之外再挂 visible 值通道 = 两个真相源，已否决）
+
+**点击触发（Click Trigger）**:
+x-popover 的 `trigger: 'click'` 触发方式（ADR-0060 修订；触屏适配主路径——点按开关 + 外点关闭）：宿主是**点击触发器**——click 即 **toggle**（开↔关，一次点击语义一致）。关闭触点三通道：再点宿主（toggle）、**点击面板外部**（document 级判定，命中目标不在活跃面板内即关——点其他 popover 宿主算外部，关旧开新自然发生）、ESC（打开栈栈顶，机制继承）；**面板内点击不关**。hover 设施整体不生效（宿主/面板悬浮监听按当前 trigger 现读分流忽略——鼠标移出面板无反应，面板内交互控件可安全使用）；`delayShow`/`delayHide` 静默不适用（不 warn）。触发方式热切换（选项成员为表达式）：打开中的面板不重估不打断，切换自下一次触发生效（对齐家族「重开生效、不热应用」）。hover 链解耦：click 消费者打开时仍登记 document 级打开中注册表（充当 hover 后代的域容器——嵌套 hover 子级的链判定需要），但自身不受域豁免保护、不参与后代关闭后的重估（子级关闭重估不误关 click 父——其关闭只听点击/外点/ESC）；hover 父 + click 子经既有链机制天然成立。指令值不参与驱动、同宿主多声明 warn 与悬浮方式共用（措辞按触发方式中性化）。
+_Avoid_: manual / 手动模式（未实现——程序化开关是 x-dialog 状态驱动的领地，与本指令「无 visible 真相源」原则冲突）、focus / 焦点触发（未实现——键盘可达经 button 宿主 Enter/Space 天然获得）、点外关闭 / 外点关（口语变体，统一「点击面板外部关闭」）、混合触发（同一消费者同一时刻只取一种触发方式）
 
 **请求关闭（Request Close）**:
 覆盖物关闭动作（ESC / 点遮罩 / close action）的统一语义——关闭是「请求」不是命令：visible 可回写（简单路径）则回写 `false`（状态是唯一真相源）；不可回写（表达式/字面量）仅 UI 关闭 + `overlay:close` 广播由用户善后。已知边界：表达式形态关闭后依赖变化重求值仍真会**重开**。子树内 close action 由消费者在实例根上委托监听（覆盖物 DOM 在 body 下，engine 树收不到冒泡）。
@@ -496,7 +522,7 @@ _Avoid_: tooltip 实例（无实例化概念——单例复用）、每元素独
 ### 通知（Notification）
 
 **通知 / notification（Notification）**:
-引擎级子系统的**统一信息记录**（ADR-0071）——数据层收件箱式管理 + 屏幕分区栈呈现，承载轻提示 / 通知 / 业务提醒 / 任务跟踪。命令式 `engine.notifications.add(message | props | async factory)`（factory 求值 `undefined` → 静默跳过——条件通知）**返回组件实例**（ADR-0089——见「通知组件实例」词条）；`engine.notifications` 继承 Map、键恒为 string id，可枚举范围 = 全部**存活记录**（`notifications.sessions` 即本表正名视图）。**记录与展示两态分离**：`persist`（ADR-0077 数值化 `0|1|2|3` + 常量 `NOTIFICATION_PERSIST`）决定记录存续——`0` 隐藏即删（toast 兼容）/ `1` **会话缓冲**（隐藏不删不持久化、复用 maxLen 淘汰、管理界面可再查看）/ `2` localStorage / `3` 服务器同步；`remove`/`delete`/`clear` **立即同步持久化**（local 即写 / remote 即 flush 全量覆盖）。展示走 queued / shown / closed 三态（按 pos 分区 FIFO 队列、同 id 原地更新、离场收拢，机制沿 ADR-0068）。记录级字段：`read`（卡片任意点击置已读）/ `status`（业务状态，引擎纯透传）/ `result`（action `value` 写入的应答）——**写一律走 `update(id, patch)` 单一通道**，session 只读 getter。辅助 API：`show(props | factory)` = `add` 别名 / `show(id)` 重显已隐藏记录（双形态消歧：字符串恒 id、对象恒新建——**发起统一入口**）、**type 快捷方式** `toast(props)` / `confirm(message, {yes,no}?)` / `task(props)`（均 ≡ `show({...props, type})` 强制对应 type；confirm 返回 **thenable** Confirm 会话——await 即得 choice 应答，sticky 永不 settle，`{yes,no}` 可提取键转按钮文案；task 返回 Task 会话，原 progressbar 糖同义更名）、`markRead(id)` / `markAllRead(type?)`、`load(url)` 服务器拉取（GET JSON 数组、按 id 覆盖合并、只入记录不弹）、`save()` 立即 flush 持久化。`maxLen` 存活记录数上限（溢出 FIFO 丢最旧，含会话缓冲记录）。**type 开放集合**（默认 `'toast'`；`'confirm'` 升内置——ADR-0077）驱动四层合并链 `内置默认 < options.notifications < types[type] < 单次 props` 与**单层渲染**（见「通知外壳」词条）。`anchor` **三职合一**（非定位——元素定位是 fast-follow）：局部 action 解析根 + 事件派发根 + **渲染数据视图基准（dataContext）**——anchor 存在时 shell 与 type renderer 挂链 anchor scope（表达式访问发起域数据），无 anchor rootless 仅 props。配套 action 家族 `toast` / `confirm` / `task` 在 DOM 处使用时自动注入发起元素为 anchor（编程式 API 仅显式传时生效）。actions 对象形态带 `value` 键：点击闭环 = 置已读 → 写 result → 发事件 → handle → hide 判定（Confirm 会话 `yes()/no()` 同路）。事件族 `notification:add/update/show/hide/read/status/action` 双通道（payload.message = 会话）。`engine.stop()` 不动通知、`destroy()` 收口（含持久化 flush）。**状态暴露（ADR-0072；`sessions` 键 ADR-0083 → **ADR-0089 退役**——display 模型下 DOM 与 `items[].closed` 投影双真相源，第三通道可派生）**：保留键 `store.state.$notifications = { items, options }`（`$scopes` 后第二例，永不整体替换、`notifications:false` 不注入）——`items` 为记录镜像（`AutoSparkNotification` = 数据记录 `AutoSparkNotificationRecord` + 渲染行为层；`shallow(items, options.shallow ?? 1)`——`0|1` 构造期一次性；**写通道仅本 API**，记录级变更 = 镜像内整条替换，模板直写违约自理）、`sessions` 展示序 id 数组已随 ADR-0089 退役（在屏观察 = `items[].closed` 投影 / DOM display——实例恒挂容器）、`options` 为生效配置**真身**（构造注入「内置默认 < options.notifications」合并结果，直写即对后续操作生效、已展示卡不回溯；边界键 `anchor`/`actions` 构造期私有固化——「函数、元素不入 state」；`shallow` 为唯一例外键——直写静默忽略）。`level` 严重度（ADR-0079，原 type 语义色数值化：`AutoSparkNotificationLevel` = `0`none/`1`info/`2`success/`3`warn/`4`error + 常量 `NOTIFICATION_LEVEL`；宽松入参收数字或名字符串、内部恒数字；驱动图标与语义色，**与展示位置无关**——原排序数字 level 已移除，列内与镜像纯到达序）；`owner` 归属者（业务透传不代填）；`styles` 内联样式 cssText（渲染键不入载荷，ADR-0077）；**尺寸五键** `width/height/minWidth/maxWidth/minHeight`（number=px、width/height 默认 auto、maxWidth 缺省走 shell CSS 兜底——**内置 type 种子层** confirm/task 默认 `width:300`，用户任意层可覆盖）；**关闭钮**（ADR-0097 语义翻转）：`closeable`（原 closable 更名）默认 **true 常显 ×**（含自动关闭的 toast），显式 `false` 任意配置层压制——sticky 自动补 × 启发式（ADR-0077 修订）随默认值翻转退役；传输配置 `fetchOptions`（原 url+headers 合并）fetch 时现读 state——token 续期直改即生效。词汇全链路统一：正文 `description`（旧 body）、链接 `link`（旧 href，HTML 属性仍 href）。
+引擎级子系统的**统一信息记录**（ADR-0071）——数据层收件箱式管理 + 屏幕分区栈呈现，承载轻提示 / 通知 / 业务提醒 / 任务跟踪。命令式 `engine.notifications.add(message | props | async factory)`（factory 求值 `undefined` → 静默跳过——条件通知）**返回组件实例**（ADR-0089——见「通知组件实例」词条）；`engine.notifications` 继承 Map、键恒为 string id，可枚举范围 = 全部**存活记录**（`notifications.sessions` 即本表正名视图）。**记录与展示两态分离**：`persist`（ADR-0077 数值化 `0|1|2|3` + 常量 `NOTIFICATION_PERSIST`）决定记录存续——`0` 隐藏即删（toast 兼容）/ `1` **会话缓冲**（隐藏不删不持久化、复用 maxLen 淘汰、管理界面可再查看）/ `2` localStorage / `3` 服务器同步；`remove`/`delete`/`clear` **立即同步持久化**（local 即写 / remote 即 flush 全量覆盖）。展示走 queued / shown / closed 三态（按 pos 分区 FIFO 队列、同 id 原地更新、离场收拢，机制沿 ADR-0068）。记录级字段：`read`（卡片任意点击置已读）/ `status`（业务状态，引擎纯透传）/ `result`（action `value` 写入的应答）——**写一律走 `update(id, patch)` 单一通道**，session 只读 getter。辅助 API：`show(props | factory)` = `add` 别名 / `show(id)` 重显已隐藏记录（双形态消歧：字符串恒 id、对象恒新建——**发起统一入口**）、**type 快捷方式** `toast(props)` / `confirm(message, {yes,no}?)` / `task(props)`（均 ≡ `show({...props, type})` 强制对应 type；confirm 返回 **thenable** Confirm 会话——await 即得 choice 应答，sticky 永不 settle，`{yes,no}` 可提取键转按钮文案；task 返回 task 组件实例——控制动词与生命周期见「任务控制动词」词条（原 progressbar 糖同义更名））、`markRead(id)` / `markAllRead(type?)`、`load(url)` 服务器拉取（GET JSON 数组、按 id 覆盖合并、只入记录不弹）、`save()` 立即 flush 持久化。`maxLen` 存活记录数上限（溢出 FIFO 丢最旧，含会话缓冲记录）。**type 开放集合**（默认 `'toast'`；`'confirm'` 升内置——ADR-0077）驱动四层合并链 `内置默认 < options.notifications < types[type] < 单次 props` 与**单层渲染**（见「通知外壳」词条）。`anchor` **三职合一**（非定位——元素定位是 fast-follow）：局部 action 解析根 + 事件派发根 + **渲染数据视图基准（dataContext）**——anchor 存在时 shell 与 type renderer 挂链 anchor scope（表达式访问发起域数据），无 anchor rootless 仅 props。配套 action 家族 `toast` / `confirm` / `task` 在 DOM 处使用时自动注入发起元素为 anchor（编程式 API 仅显式传时生效）。actions 对象形态带 `value` 键：点击闭环 = 置已读 → 写 result → 发事件 → handle → hide 判定（Confirm 会话 `yes()/no()` 同路）。事件族 `notification:add/update/show/hide/read/status/action` 双通道（payload.message = 会话）。`engine.stop()` 不动通知、`destroy()` 收口（含持久化 flush）。**状态暴露（ADR-0072；`sessions` 键 ADR-0083 → **ADR-0089 退役**——display 模型下 DOM 与 `items[].closed` 投影双真相源，第三通道可派生）**：保留键 `store.state.$notifications = { items, options }`（`$scopes` 后第二例，永不整体替换、`notifications:false` 不注入）——`items` 为记录镜像（`AutoSparkNotification` = 数据记录 `AutoSparkNotificationRecord` + 渲染行为层；`shallow(items, options.shallow ?? 1)`——`0|1` 构造期一次性；**写通道仅本 API**，记录级变更 = 镜像内整条替换，模板直写违约自理）、`sessions` 展示序 id 数组已随 ADR-0089 退役（在屏观察 = `items[].closed` 投影 / DOM display——实例恒挂容器）、`options` 为生效配置**真身**（构造注入「内置默认 < options.notifications」合并结果，直写即对后续操作生效、已展示卡不回溯；边界键 `anchor`/`actions` 构造期私有固化——「函数、元素不入 state」；`shallow` 为唯一例外键——直写静默忽略）。`level` 严重度（ADR-0079，原 type 语义色数值化：`AutoSparkNotificationLevel` = `0`none/`1`info/`2`success/`3`warn/`4`error + 常量 `NOTIFICATION_LEVEL`；宽松入参收数字或名字符串、内部恒数字；驱动图标与语义色，**与展示位置无关**——原排序数字 level 已移除，列内与镜像纯到达序）；`owner` 归属者（业务透传不代填）；`styles` 内联样式 cssText（渲染键不入载荷，ADR-0077）；**尺寸五键** `width/height/minWidth/maxWidth/minHeight`（number=px、width/height 默认 auto、maxWidth 缺省走 shell CSS 兜底——**内置 type 种子层** confirm/task 默认 `width:300`，用户任意层可覆盖）；**关闭钮**（ADR-0097 语义翻转）：`closeable`（原 closable 更名）默认 **true 常显 ×**（含自动关闭的 toast），显式 `false` 任意配置层压制——sticky 自动补 × 启发式（ADR-0077 修订）随默认值翻转退役；传输配置 `fetchOptions`（原 url+headers 合并）fetch 时现读 state——token 续期直改即生效。词汇全链路统一：正文 `description`（旧 body）、链接 `link`（旧 href，HTML 属性仍 href）。
 _Avoid_: 通知中心 / 收件箱 UI（引擎只做数据层 + 呈现层；界面用指令自建——`$notifications` 直绑零桥接）、choices 按钮（已否决——actions value 键覆盖数据应答）、模态确认框（confirm 是加强版 toast 非模态，模态走 dialog）、type 数字值（string only——level 才数值化）、通知框（模态 alert，是 dialog 语义）、旧键 body / href / url / headers（ADR-0072 更名 description / link / fetchOptions）、persist 字符串值 'none'/'local'/'remote'（ADR-0077 数值化 0/1/2/3）、旧三键分工 kind / 语义色 type / 排序 level（ADR-0079 三键更名——写 type / level）、closable（ADR-0097 更名 closeable——默认翻转 true 常显，sticky 自动补 × 启发式退役）
 
 **轻提示 / toast（Toast）**:
@@ -512,8 +538,12 @@ _Avoid_: 显示容器（分区列是引擎结构非组件）、双层壳 / 投�
 _Avoid_: kind renderer / type 模板（旧名，渲染层独占语义已退役——type 组件是行为+渲染完整单元）、base / base 族根（ADR-0097 更名——现称 shell 族根 / 通知外壳）、autospark.notifications.actions 组合件（ADR-0097 退役——按钮行内联进 shell）、BUILTIN_RENDERERS / 内置注册表（ADR-0083 退役）、renderers / presets 目录（ADR-0083 变体 A 聚合后退役）、session class 家族 / `sessions/` 目录（ADR-0089 退役——行为归组件 setup）、组件纯渲染（已失效表述——组件承载行为）、一个 type = 一个 TS 类 / `registerType`（评估中途方案，被否决——双轨两套心智）、type 外壳（措辞勿用——shell 是被继承的族根，type 组件是继承方非外壳）、taskWidget（已退役中间名）
 
 **通知组件实例（Notification Component Instance，原「通知会话」）**:
-`add()` 的**恒一返回物 = 组件实例**（ADR-0089——「直接返回组件实例」，无二态判别）：add 即实例化挂 DOM，实例上 methods 直调即外部驱动（`session.progress(50)` / `session.yes()`——display:none 亦然，无需 invoke 通道）；数据型驱动走 `notifications.update(id, patch)`；confirm 实例 setup 定义 `then`（可 await，存量写法零改）。**可见性 = display 模型**（实例与 DOM 与记录三者恒同生命周期）：排队 `display:none`（满员不占可见容量）/ 显示可见 / persist ≥ 1 隐藏 `display:none` 保留实例 / `remove()`·淘汰·persist=0 关闭**真销毁**——queue 补位挂载机制简化为样式切换。跨态数据宿主在数据层（与组件分离）；factory 形态（`add(async (instance)=>…, 'task' | {type:'task',…})`）**调用瞬间即创建组件实例**注入——挂起 = `display:none` 特殊排队态（progress 直写 data 域，缓存机制退役；第二参对象形态携带初始 props 同刻注水；**主用法 = 立即 return**〔即时卡 + 后台驱动，长任务不 await 主线〕、await 形态仅属条件通知域；resolve 时 return props 落地注水〔与期间已写 data 同名键**闭包运行态胜**〕、`undefined` 静默销毁）。`notifications.sessions` = manager Map 正名视图（与 `$notifications.sessions` 展示序 **id 数组**是两个东西）。
+`add()` 的**恒一返回物 = 组件实例**（ADR-0089——「直接返回组件实例」，无二态判别）：add 即实例化挂 DOM，实例上 methods 直调即外部驱动（`session.progress(50)` / `session.yes()`——display:none 亦然，无需 invoke 通道）；数据型驱动走 `notifications.update(id, patch)`；confirm 实例 setup 定义 `then`（可 await，存量写法零改）。**可见性 = display 模型**（实例与 DOM 与记录三者恒同生命周期）：排队 `display:none`（满员不占可见容量）/ 显示可见 / persist ≥ 1 隐藏 `display:none` 保留实例 / `remove()`·淘汰·persist=0 关闭**真销毁**——queue 补位挂载机制简化为样式切换。跨态数据宿主在数据层（与组件分离）；factory 形态（`add(async (instance)=>…, 'task' | {type:'task',…})`）**调用瞬间即创建组件实例**注入——挂起 = `display:none` 特殊排队态（progress 直写 data 域，缓存机制退役；第二参对象形态携带初始 props 同刻注水；**主用法 = 立即 return**〔即时卡 + 后台驱动，长任务不 await 主线〕、await 形态仅属条件通知域；resolve 时 return props 落地注水〔与期间已写 data 同名键**闭包运行态胜**〕、`undefined` 静默销毁）。`notifications.sessions` = manager Map 正名视图（与 `$notifications.sessions` 展示序 **id 数组**是两个东西）。**控制订阅面（ADR-0104）**：task 实例的 `onStart/onPause/onResume/onStop/onCancel/onClose(cb)` 转发具体名订阅、返回退订函数、卡销毁自动清残留；`abortSignal` getter = 中止信号公共读法（见「任务控制动词」）。**session 形参约定（ADR-0104）**：文档/示例的 factory 形参名用 `session`——变量名不是类名（ADR-0089 退役的是 Session 类家族，不是禁用这个单词）。
 _Avoid_: 通知会话 / Session / NotificationSession 家族（ADR-0089 退役——历史沿革 ADR-0077 正名 → ADR-0083 class 化 → 0089 组件实例化）、`$session` 派生变量（退役——组件模板内 methods 直达，shell close/actions 走卡片根委托）、轻 token 句柄（评估否决——多一层无行为实体）、invoke 外部驱动通道（不需要——实例恒在方法直调）、闭包同构 / 运行时全集方法（ADR-0077 形态早已退役）、run() 展示周期 await 通道（已移除——观测走 notification:hide 事件，YAGNI）
+
+**任务控制动词 / task controls（Notification）**:
+task 通知的六个用户级控制——**开始（start）/ 暂停（pause）/ 恢复（resume）/ 停止（stop）/ 取消（cancel）/ 关闭（close，即 ×）**，详见 ADR-0104。每动词 = 组件方法 + `actions/<动词>` 事件 + `on<动词>` 订阅便捷面，**事件与方法同源**（按钮点击与程序直调不可区分——外部可模拟用户操作）；动词事件复用 props.actions 的 action 事件家族，内置动词是该卡 actions 命名空间的**事实保留名**。**语义分野**：停止 = 中止 +「已停止」终态**留卡**（进度定格，closeWhenDone 对终态同生效）；取消 = 中止 + **立即隐藏**（不留结果）；× 是独立 close 动词（非终态同中止——「用户主动放弃任务」与「用户只是关卡」可区分）。**任务态** `pending/running/paused/stopped/completed`（cancel / close 不入状态机——它们的终态是卡片不可见，不是任务态）。**开始双模式**：缺省自动开跑 + 首次显示补发一次 start（纯观测）；声明 `canStart` 转手动门控（pending 态等「开始」，进度推进被门控）。**中止信号（abortSignal）**：task 恒有（与 can* 按钮开关解耦——信号是底层能力），stop / cancel / × 于非终态触发，供宿主协作取消（fetch 等）。
+_Avoid_: 停止 = 提前完成（旧义已废——「中止伪装成完成」，ADR-0104 修订 ADR-0102 沿革）、× ≡ 取消（ADR-0102 判定已被 ADR-0104 修订为独立 close 动词）、取消/关闭也是任务态（不进状态机）、ops 事件段（未采用——与 actions 家族分离的独立段提案已否决）、仅点击发事件（已否决——方法是单一真相源，程序直调同发）
 
 **UI 外壳注册表 / uiShells**:
 `options.uiShells: Record<string, string>`——引擎级「**带出口协议的骨架外壳**」统一寄存处（ADR-0077）：内置四件种子 `notification`（通知）/ `dialog` / `popover` / `drawer`（overlay 三件自模块级内置表迁入，键 = 消费者裸名）+ 用户同键浅覆盖。值为 HTML 模板字符串（懒预编译，与 `options.components` 同纪律）；**构造期固化**（运行时突变不失效缓存——注册与选择分离，运行时换 shell 走消费者选择器如 `notifications.shell` 直写换键）。解析链：消费者选项 shell 名 → getComponentDeclaration 链（局部覆盖能力保留）→ 本表 → 消费者内置默认。**边界**：只收外壳语义组件——loading 块 / error 组件 / tree-node / type renderer 不入。
@@ -935,6 +965,10 @@ _Avoid_: 数据源（那是异步源家族术语）、上下文基准（中英�
 
 ## 已废弃
 
+**autospark-dialog 泛化基类（ADR-0062 修订，面板类名契约正名）**:
+已废弃。`.autospark-dialog` 曾兼作覆盖物家族通用面板基类——popover / drawer / notification 面板根携带 `autospark-dialog` + 形态类**双类**蹭基类视觉（名字说 dialog、实际管全家；历史成因：x-dialog 是家族首个成员，ADR-0052 决策 12 的面板类契约随之得名，组件化统一后升格为事实基类）。正名（通用性走属性、特异性走类名）：家族通用规则（position / 圆角 / 边框视觉 / 层级 / 箭头定位）改挂引擎契约属性选择器 `[data-overlay]`（面板必挂、形态中立）；`.autospark-dialog` 回归 **dialog 形态专属类**，popover / drawer / notification 根改单形态类；通知面板无 `data-overlay` 属性（渲染不走覆盖物实例），relative / 圆角自包含；`PANEL_CLASS` 导出常量删除。开发期硬切无兼容。详见 ADR-0062 修订记录。
+_Avoid_: autospark-dialog 基类 / 面板基类（泛化旧义——通用视觉按 [data-overlay] 属性选择器写）、popover / drawer 面板写 .autospark-dialog（已不携带，改形态类）、PANEL_CLASS（常量已删）
+
 **Message 家族旧名（ADR-0096 全链更名，未发布零迁移）**:
 已废弃。原「消息」子系统全链正名为**通知（Notification）**：目录 `features/messages/` → `notifications/`、`MessageManager` → `NotificationManager`、`engine.messages` → `engine.notifications`、`options.messages` → `options.notifications`、保留键 `$messages` → `$notifications`、全部 `AutoSparkMessage*` / `Message*` 类型与 `MESSAGE_*` 常量 → `Notification*` / `NOTIFICATION_*`、事件 `message:*` → `notification:*`（`toast:show`/`toast:hide` 迁移期双发一并移除）、内置组件键 `autospark.messages.*` → `autospark.notifications.*`、shell 裸键 `message` → `notification`、CSS `autospark-message*` / `data-message-*` / `--autospark-message-*` → `autospark-notification*` / `data-notification-*` / `--autospark-notification-*`、localStorage 键 `autospark-messages` → `autospark-notifications`、自动 id 前缀 `message-N` → `notification-N`。完整映射表见 ADR-0096。
 _Avoid_: engine.messages / $messages / options.messages / AutoSparkMessage* / MessageManager / MESSAGE_* / message:* 事件 / autospark.messages.* / `message` shell 裸键 / autospark-message 类名 / data-message-* 属性（一律按上表写 Notification 形态）；本节以下旧词条内的 Message 时代名目为决策当时记录，现名按本条映射换读
@@ -968,8 +1002,12 @@ _Avoid_: `.keep`（已更名为 `.keepalive`）、`x-if-options="{keep:true}"`�
 _Avoid_: （不再使用）
 
 **x-block / blocks / getBlock 全套术语（旧义）**:
-已废弃，升级为 x-component / components / getComponent（ADR-0022；其中 getComponent 后经 ADR-0080 更名 getComponentDeclaration）。default 块唯一性抛错语义亦废止，改为 warn + 后者覆盖。注意：此为 x-block 的**旧义**（组件机制前身）；`x-block` 名现已二度复用为**溢出折叠容器指令**（ADR-0098 重写版，见「溢出折叠容器 / x-block」），历史各义无承继关系。
-_Avoid_: blocks / getBlock（旧 API 族，不再使用）；把新 x-block 当组件机制引用（那是 x-define / x-component）
+已废弃，升级为 x-component / components / getComponent（ADR-0022；其中 getComponent 后经 ADR-0080 更名 getComponentDeclaration）。default 块唯一性抛错语义亦废止，改为 warn + 后者覆盖。**x-block 名三度变迁**：组件机制前身（本词条）→ 行内三段分区（初稿即废）→ 溢出折叠容器（ADR-0098 重写版，2026-10-10 更名 **x-foldable**，见「溢出折叠容器 / x-foldable」）——x-block 名就此退役，历史各义无承继关系。
+_Avoid_: blocks / getBlock（旧 API 族，不再使用）；把 x-foldable 当组件机制引用（那是 x-define / x-component）；继续书写 x-block 属性（该名已退役，现行指令名是 x-foldable）
+
+**x-resize（旧指令名）**:
+已废弃。尺寸调节指令更名 **x-resizable**（2026-10-11，ADR-0064 修订记录）：裸名词形态易误读为 resize 事件钩子，更名补全 x-expandable / x-foldable 的能力形容词家族（拼写取标准形 resizable——ADR-0072 已否决过 `resizeable` 非标准变体）。**衍生命名保留 `resize-*` 不随更名**：`resize:start/move/end` 事件、`data-autospark-resize-handle`、`--autospark-resize-handle-*` CSS 变量、`ResizeSession` / `ResizeOptions` 机制导出与 overlay `resize` 选项——resize 在这些层面是调节手势的通用英语词，不是指令专名。
+_Avoid_: 继续书写 x-resize / x-resize-options 属性（现行指令名是 x-resizable）；把 resize:* 事件名改写为 resizable:*（事件未更名）
 
 **AutoTemplate / AutoStore Template（旧品牌名）**:
 已废弃。项目品牌更名为 **AutoSpark**（ADR-0030）：npm 包名 `autospark`、代码标识符前缀 `AutoSpark*`、IIFE 全局变量 `AutoSparkSpaces`。历史 ADR 正文中的旧名保留原词，作为决策当时的记录；活文档（本表、specs、docs/zh）一律用新名。

@@ -1,0 +1,399 @@
+{
+    "meta": {
+        "title": "智能手机"
+    },
+    "products": [
+        {
+            "id": "p1",
+            "name": "麒麟 Pro Max",
+            "category": "smartphones",
+            "desc": "旗舰级性能，极致体验",
+            "price": 5999,
+            "originalPrice": 6999,
+            "badge": "热销",
+            "specs": {
+                "screen": "6.8英寸 OLED 120Hz",
+                "processor": "麒麟9000S",
+                "ram": "12GB",
+                "storage": "256GB",
+                "battery": "5000mAh",
+                "camera": "5000万像素三摄"
+            },
+            "attributes": {
+                "brand": "麒麟",
+                "model": "Pro Max",
+                "color": "星空黑、极光白、丹霞橙",
+                "weight": "210g",
+                "dimensions": "162.8 x 75.5 x 8.4mm",
+                "os": "KylinOS 4.0",
+                "network": "5G全网通",
+                "warranty": "12个月"
+            },
+            "sales": {
+                "monthly": "10000+",
+                "rating": 4.8,
+                "reviews": 25680,
+                "stock": "充足"
+            }
+        },
+        {
+            "id": "p2",
+            "name": "麒麟 Air",
+            "category": "smartphones",
+            "desc": "轻薄设计，长续航",
+            "price": 3999,
+            "originalPrice": 4499,
+            "badge": "新品",
+            "specs": {
+                "screen": "6.5英寸 AMOLED 90Hz",
+                "processor": "麒麟8000",
+                "ram": "8GB",
+                "storage": "128GB",
+                "battery": "4500mAh",
+                "camera": "4000万像素双摄"
+            },
+            "attributes": {
+                "brand": "麒麟",
+                "model": "Air",
+                "color": "冰霜蓝、樱花粉、星空灰",
+                "weight": "175g",
+                "dimensions": "160.5 x 73.2 x 7.8mm",
+                "os": "KylinOS 4.0",
+                "network": "5G全网通",
+                "warranty": "12个月"
+            },
+            "sales": {
+                "monthly": "8000+",
+                "rating": 4.7,
+                "reviews": 18230,
+                "stock": "充足"
+            }
+        },
+        {
+            "id": "p3",
+            "name": "麒麟 Ultra",
+            "category": "smartphones",
+            "desc": "商务旗舰，安全可靠",
+            "price": 7999,
+            "originalPrice": 8999,
+            "badge": "旗舰",
+            "specs": {
+                "screen": "6.9英寸 OLED 120Hz",
+                "processor": "麒麟9000S+",
+                "ram": "16GB",
+                "storage": "512GB",
+                "battery": "5500mAh",
+                "camera": "6000万像素四摄"
+            },
+            "attributes": {
+                "brand": "麒麟",
+                "model": "Ultra",
+                "color": "曜石黑、钛金灰",
+                "weight": "230g",
+                "dimensions": "165.2 x 77.8 x 8.9mm",
+                "os": "KylinOS 4.0",
+                "network": "5G全网通",
+                "warranty": "24个月"
+            },
+            "sales": {
+                "monthly": "5000+",
+                "rating": 4.9,
+                "reviews": 8520,
+                "stock": "有限"
+            }
+        },
+        {
+            "id": "t1",
+            "name": "麒麟 Pad Pro",
+            "category": "tablets",
+            "desc": "生产力工具，创意无限",
+            "price": 4999,
+            "originalPrice": 5499,
+            "badge": "推荐",
+            "specs": {
+                "screen": "11英寸 LCD 120Hz",
+                "processor": "麒麟9000E",
+                "ram": "8GB",
+                "storage": "256GB",
+                "battery": "8000mAh",
+                "camera": "1300万像素"
+            },
+            "attributes": {
+                "brand": "麒麟",
+                "model": "Pad Pro",
+                "color": "深空灰、银色",
+                "weight": "485g",
+                "dimensions": "248.5 x 175.5 x 6.9mm",
+                "os": "KylinOS 4.0",
+                "network": "WiFi+5G",
+                "warranty": "12个月"
+            },
+            "sales": {
+                "monthly": "6000+",
+                "rating": 4.6,
+                "reviews": 12450,
+                "stock": "充足"
+            }
+        },
+        {
+            "id": "t2",
+            "name": "麒麟 Pad Mini",
+            "category": "tablets",
+            "desc": "便携小巧，娱乐利器",
+            "price": 2999,
+            "originalPrice": 3299,
+            "badge": "",
+            "specs": {
+                "screen": "8.4英寸 LCD 60Hz",
+                "processor": "麒麟820",
+                "ram": "6GB",
+                "storage": "128GB",
+                "battery": "5000mAh",
+                "camera": "800万像素"
+            },
+            "attributes": {
+                "brand": "麒麟",
+                "model": "Pad Mini",
+                "color": "白色、粉色、蓝色",
+                "weight": "305g",
+                "dimensions": "202.5 x 137.5 x 7.4mm",
+                "os": "KylinOS 4.0",
+                "network": "WiFi",
+                "warranty": "12个月"
+            },
+            "sales": {
+                "monthly": "4500+",
+                "rating": 4.5,
+                "reviews": 8900,
+                "stock": "充足"
+            }
+        },
+        {
+            "id": "l1",
+            "name": "麒麟 Book Pro",
+            "category": "laptops",
+            "desc": "轻薄本，高性能",
+            "price": 7999,
+            "originalPrice": 8999,
+            "badge": "新品",
+            "specs": {
+                "screen": "14英寸 2.8K 90Hz",
+                "processor": "麒麟i7-1260P",
+                "ram": "16GB",
+                "storage": "512GB SSD",
+                "battery": "70Wh",
+                "graphics": "集成显卡"
+            },
+            "attributes": {
+                "brand": "麒麟",
+                "model": "Book Pro",
+                "color": "深空灰",
+                "weight": "1.4kg",
+                "dimensions": "315.6 x 220.4 x 15.9mm",
+                "os": "Windows 11",
+                "network": "WiFi 6",
+                "warranty": "24个月"
+            },
+            "sales": {
+                "monthly": "3000+",
+                "rating": 4.7,
+                "reviews": 5620,
+                "stock": "充足"
+            }
+        },
+        {
+            "id": "w1",
+            "name": "麒麟 Watch 3",
+            "category": "wearables",
+            "desc": "健康管家，智能生活",
+            "price": 1999,
+            "originalPrice": 2299,
+            "badge": "热销",
+            "specs": {
+                "screen": "1.43英寸 AMOLED",
+                "processor": "麒麟310",
+                "ram": "2GB",
+                "storage": "16GB",
+                "battery": "450mAh",
+                "waterproof": "5ATM"
+            },
+            "attributes": {
+                "brand": "麒麟",
+                "model": "Watch 3",
+                "color": "黑色、白色、棕色",
+                "weight": "54g",
+                "dimensions": "46 x 46 x 10.7mm",
+                "os": "KylinOS Watch",
+                "network": "蓝牙5.2",
+                "warranty": "12个月"
+            },
+            "sales": {
+                "monthly": "8000+",
+                "rating": 4.6,
+                "reviews": 15230,
+                "stock": "充足"
+            }
+        },
+        {
+            "id": "w2",
+            "name": "麒麟 Band 6",
+            "category": "wearables",
+            "desc": "运动健康，时尚佩戴",
+            "price": 299,
+            "originalPrice": 349,
+            "badge": "",
+            "specs": {
+                "screen": "1.47英寸 AMOLED",
+                "processor": "麒麟210",
+                "ram": "512MB",
+                "storage": "16MB",
+                "battery": "180mAh",
+                "waterproof": "5ATM"
+            },
+            "attributes": {
+                "brand": "麒麟",
+                "model": "Band 6",
+                "color": "黑色、蓝色、橙色、绿色",
+                "weight": "28g",
+                "dimensions": "46 x 24.5 x 12.7mm",
+                "os": "KylinOS Band",
+                "network": "蓝牙5.0",
+                "warranty": "6个月"
+            },
+            "sales": {
+                "monthly": "15000+",
+                "rating": 4.4,
+                "reviews": 28560,
+                "stock": "充足"
+            }
+        },
+        {
+            "id": "a1",
+            "name": "麒麟 Buds Pro",
+            "category": "audio",
+            "desc": "主动降噪，纯净音质",
+            "price": 999,
+            "originalPrice": 1199,
+            "badge": "推荐",
+            "specs": {
+                "driver": "11mm 动圈",
+                "anc": "混合主动降噪",
+                "battery": "7小时（单次）",
+                "charging": "USB-C",
+                "waterproof": "IPX4",
+                "codec": "AAC/SBC"
+            },
+            "attributes": {
+                "brand": "麒麟",
+                "model": "Buds Pro",
+                "color": "黑色、白色、银色",
+                "weight": "6.1g（单耳）",
+                "dimensions": "40.8 x 22.9 x 23.6mm",
+                "connectivity": "蓝牙5.2",
+                "warranty": "12个月"
+            },
+            "sales": {
+                "monthly": "12000+",
+                "rating": 4.7,
+                "reviews": 22150,
+                "stock": "充足"
+            }
+        },
+        {
+            "id": "a2",
+            "name": "麒麟 Sound X",
+            "category": "audio",
+            "desc": "便携音箱，震撼音效",
+            "price": 499,
+            "originalPrice": 599,
+            "badge": "",
+            "specs": {
+                "driver": "双全频扬声器",
+                "power": "20W",
+                "battery": "4800mAh",
+                "charging": "USB-C",
+                "waterproof": "IPX7",
+                "playtime": "12小时"
+            },
+            "attributes": {
+                "brand": "麒麟",
+                "model": "Sound X",
+                "color": "黑色、蓝色、红色",
+                "weight": "680g",
+                "dimensions": "Φ102 x 197mm",
+                "connectivity": "蓝牙5.0",
+                "warranty": "12个月"
+            },
+            "sales": {
+                "monthly": "6000+",
+                "rating": 4.5,
+                "reviews": 9850,
+                "stock": "充足"
+            }
+        },
+        {
+            "id": "g1",
+            "name": "麒麟 GamePad",
+            "category": "gaming",
+            "desc": "游戏手柄，畅快体验",
+            "price": 399,
+            "originalPrice": 449,
+            "badge": "",
+            "specs": {
+                "connection": "蓝牙5.0/2.4G",
+                "battery": "1000mAh",
+                "charging": "USB-C",
+                "platforms": "Android/PC/TV",
+                "runtime": "30小时",
+                "motors": "双震动马达"
+            },
+            "attributes": {
+                "brand": "麒麟",
+                "model": "GamePad",
+                "color": "黑色",
+                "weight": "260g",
+                "dimensions": "155 x 110 x 60mm",
+                "compatibility": "Android 8.0+",
+                "warranty": "12个月"
+            },
+            "sales": {
+                "monthly": "4000+",
+                "rating": 4.6,
+                "reviews": 6780,
+                "stock": "充足"
+            }
+        },
+        {
+            "id": "h1",
+            "name": "麒麟 Smart Hub",
+            "category": "smart-home",
+            "desc": "智能家居控制中心",
+            "price": 599,
+            "originalPrice": 699,
+            "badge": "新品",
+            "specs": {
+                "screen": "4英寸 触摸屏",
+                "protocol": "Zigbee/WiFi/蓝牙",
+                "devices": "支持100+设备",
+                "voice": "内置语音助手",
+                "nightLight": "8000mAh",
+                "network": "WiFi 2.4G"
+            },
+            "attributes": {
+                "brand": "麒麟",
+                "model": "Smart Hub",
+                "color": "白色",
+                "weight": "320g",
+                "dimensions": "110 x 110 x 45mm",
+                "platform": "Kylin Smart Home",
+                "warranty": "12个月"
+            },
+            "sales": {
+                "monthly": "2500+",
+                "rating": 4.3,
+                "reviews": 3240,
+                "stock": "充足"
+            }
+        }
+    ]
+}

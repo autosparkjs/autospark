@@ -1,0 +1,22 @@
+<!-- 文档列表模板 -->
+<div class="content-header">
+    <div class="content-title" x-text="title"></div>
+    <div class="content-subtitle" x-text="subtitle"></div>
+</div>
+
+<div class="doc-list">
+    <template x-for="doc in docs" :key="doc.id">
+        <div class="doc-item">
+            <div class="doc-icon" x-text="doc.icon"></div>
+            <div class="doc-info">
+                <div class="doc-title" x-text="doc.title"></div>
+                <div class="doc-desc" x-text="doc.desc"></div>
+                <div class="doc-meta">
+                    <span x-text="doc.views + ' 次浏览'"></span>
+                    <span> • </span>
+                    <span x-text="'更新于 ' + doc.updated"></span>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>

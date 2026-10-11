@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-foldable · 拖拽调宽驱动折叠</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      /* 宿主同时声明 x-foldable + x-resizable：resize 手柄（宿主真实子元素）被折叠机制
+         排除，不参与折叠候选与宽度求和 */
+      .toolbar {
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        padding: 6px 10px;
+        gap: 6px;
+        background: #fff;
+        justify-content: flex-end;
+      }
+    </style>
+  </head>
+  <body style="overflow: auto">
+    <div class="demo-app section" style="height: 420px">
+      <div class="block has-text-grey is-size-7">
+        拖动宿主右缘的调节手柄（或聚焦手柄后用 ← / → 方向键）：改窄时末尾按钮逐个折入
+        「更多」，改宽时自动按原序还原；拖到最窄时全部子元素折入、容器恰停在一个「更多」
+        按钮的宽度（引擎写入宿主 min-width，拖拽下限由它兜底）。宽度来源不限
+        （x-resizable / 布局约束 / 滑块皆可）。
+      </div>
+      <div
+        id="tb"
+        x-foldable="row"
+        x-resizable
+        x-resizable-options="{handles:'e', maxWidth:560}"
+        class="toolbar"
+        style="width: 560px"
+      >
+        <button class="button is-small">新建</button>
+        <button class="button is-small" style="flex-grow: 1">编辑</button>
+        <button class="button is-small">删除</button>
+        <button class="button is-small">导入</button>
+        <button class="button is-small">导出</button>
+        <button class="button is-small">刷新</button>
+        <button class="button is-small">打印</button>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

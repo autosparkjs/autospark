@@ -8,7 +8,7 @@
         "@floating-ui/dom": "^1.8.0",
         "asyncsignal": "^1.0.1",
         "fastevent": "^2.7.3",
-        "flex-tools": "^1.6.4",
+        "flex-tools": "^1.6.6",
         "type-fest": "^5.10.0",
       },
       "devDependencies": {

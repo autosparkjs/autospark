@@ -52,10 +52,10 @@
                 app.notifications.update("deliver", { status: "sent", description: "状态：sent ✓", level: "success" });
             };
             const markAll = () => app.notifications.markAllRead("notice");
-            // 只读 getter + 专用事件：status 补丁发 notification:status，已读置位发 notification:read
-            app.on("notification:status", (m) => log(`notification:status  id=${m.payload.notification.id} → ${m.payload.notification.status}`));
-            app.on("notification:read", (m) => log(`notification:read  id=${m.payload.notification.id}`));
-            app.on("notification:update", (m) => log(`notification:update  id=${m.payload.notification.id}`));
+            // 只读 getter + 专用事件（分层命名 ADR-0102）：status 补丁 / 已读置位 / 记录更新
+            app.on("notifications/*/*/status", ({ payload }) => log("status  id=" + payload.notification.id + " → " + payload.notification.status));
+            app.on("notifications/*/*/read", ({ payload }) => log("read  id=" + payload.notification.id));
+            app.on("notifications/*/*/update", ({ payload }) => log("update  id=" + payload.notification.id));
         </script>
     </body>
 </html>

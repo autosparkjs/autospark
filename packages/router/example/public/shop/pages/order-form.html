@@ -1,0 +1,357 @@
+<!-- 订单表单页面 - keepAlive 演示 -->
+<div class="order-form-page">
+    <div class="order-form-header">
+        <h1>📝 创建订单</h1>
+        <p>填写订单信息后跳转到其他页面，返回时表单内容会保持（keepAlive）</p>
+    </div>
+
+    <form class="order-form" @submit.prevent="submitOrder()">
+        <!-- 客户信息 -->
+        <fieldset class="form-section">
+            <legend>👤 客户信息</legend>
+            <div class="form-group">
+                <label for="customer-name">姓名 *</label>
+                <input
+                    type="text"
+                    id="customer-name"
+                    x-model="form.customerName"
+                    placeholder="请输入您的姓名"
+                    required
+                >
+            </div>
+            <div class="form-group">
+                <label for="customer-phone">联系电话 *</label>
+                <input
+                    type="tel"
+                    id="customer-phone"
+                    x-model="form.customerPhone"
+                    placeholder="请输入您的手机号"
+                    required
+                >
+            </div>
+            <div class="form-group">
+                <label for="customer-email">邮箱</label>
+                <input
+                    type="email"
+                    id="customer-email"
+                    x-model="form.customerEmail"
+                    placeholder="请输入您的邮箱"
+                >
+            </div>
+        </fieldset>
+
+        <!-- 收货地址 -->
+        <fieldset class="form-section">
+            <legend>📍 收货地址</legend>
+            <div class="form-group">
+                <label for="province">省份 *</label>
+                <select id="province" x-model="form.province" required>
+                    <option value="">请选择省份</option>
+                    <option value="北京">北京</option>
+                    <option value="上海">上海</option>
+                    <option value="广东">广东</option>
+                    <option value="浙江">浙江</option>
+                    <option value="江苏">江苏</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="city">城市 *</label>
+                <input
+                    type="text"
+                    id="city"
+                    x-model="form.city"
+                    placeholder="请输入城市"
+                    required
+                >
+            </div>
+            <div class="form-group">
+                <label for="address">详细地址 *</label>
+                <textarea
+                    id="address"
+                    x-model="form.address"
+                    placeholder="请输入详细地址"
+                    rows="3"
+                    required
+                ></textarea>
+            </div>
+        </fieldset>
+
+        <!-- 产品信息 -->
+        <fieldset class="form-section">
+            <legend>📱 产品信息</legend>
+            <div class="form-group">
+                <label for="product-select">选择产品 *</label>
+                <select id="product-select" x-model="form.productId" required>
+                    <option value="">请选择产品</option>
+                    <option value="p1">麒麟手机 Pro - ¥4999</option>
+                    <option value="p2">麒麟平板 Air - ¥3299</option>
+                    <option value="p3">麒麟手表 Sport - ¥1999</option>
+                    <option value="p4">麒麟耳机 Max - ¥899</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="quantity">数量 *</label>
+                <input
+                    type="number"
+                    id="quantity"
+                    x-model="form.quantity"
+                    min="1"
+                    max="10"
+                    value="1"
+                    required
+                >
+            </div>
+        </fieldset>
+
+        <!-- 备注 -->
+        <fieldset class="form-section">
+            <legend>💬 备注</legend>
+            <div class="form-group">
+                <label for="notes">订单备注</label>
+                <textarea
+                    id="notes"
+                    x-model="form.notes"
+                    placeholder="如有特殊要求，请在此备注"
+                    rows="3"
+                ></textarea>
+            </div>
+        </fieldset>
+
+        <!-- 操作按钮 -->
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">
+                <span>✅</span>
+                <span>提交订单</span>
+            </button>
+            <button type="button" class="btn-secondary" @click="saveDraft()">
+                <span>💾</span>
+                <span>保存草稿</span>
+            </button>
+            <kylin-link to="/products" class="btn-link">
+                <span>📱</span>
+                <span>跳转到产品页</span>
+            </kylin-link>
+            <kylin-link to="/demo" class="btn-link">
+                <span>🎮</span>
+                <span>跳转到功能演示</span>
+            </kylin-link>
+        </div>
+    </form>
+
+    <!-- 状态提示 -->
+    <div class="form-status" x-show="formStatus" x-transition>
+        <div class="status-icon" x-text="formStatus === 'saved' ? '💾' : '✅'"></div>
+        <div class="status-text" x-text="formStatusMessage"></div>
+    </div>
+</div>
+
+<style>
+    .order-form-page {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .order-form-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .order-form-header h1 {
+        font-size: 1.8em;
+        margin-bottom: 8px;
+    }
+
+    .order-form-header p {
+        color: var(--text-secondary);
+    }
+
+    .order-form {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .form-section {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .form-section legend {
+        font-weight: 600;
+        padding: 0 10px;
+        color: var(--primary-color);
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        font-size: 0.95em;
+        transition: border-color 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    .form-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 24px;
+    }
+
+    .form-actions button,
+    .form-actions .btn-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.95em;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: #f5f5f5;
+        color: var(--text-primary);
+    }
+
+    .btn-secondary:hover {
+        background: #e0e0e0;
+    }
+
+    .btn-link {
+        background: white;
+        border: 1px solid #e0e0e0;
+        color: var(--text-primary);
+        text-decoration: none;
+    }
+
+    .btn-link:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    .form-status {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .status-icon {
+        font-size: 1.5em;
+    }
+
+    .status-text {
+        font-weight: 500;
+    }
+</style>
+
+<script>
+    // 表单数据（通过 Alpine.js 响应式管理）
+    function initOrderForm() {
+        return {
+            form: {
+                customerName: '',
+                customerPhone: '',
+                customerEmail: '',
+                province: '',
+                city: '',
+                address: '',
+                productId: '',
+                quantity: 1,
+                notes: ''
+            },
+            formStatus: null,
+            formStatusMessage: '',
+
+            submitOrder() {
+                // 显示提交成功消息
+                this.formStatus = 'submitted';
+                this.formStatusMessage = '订单提交成功！';
+                setTimeout(() => {
+                    this.formStatus = null;
+                    // 重置表单
+                    this.form = {
+                        customerName: '',
+                        customerPhone: '',
+                        customerEmail: '',
+                        province: '',
+                        city: '',
+                        address: '',
+                        productId: '',
+                        quantity: 1,
+                        notes: ''
+                    };
+                }, 3000);
+            },
+
+            saveDraft() {
+                // 显示保存成功消息
+                this.formStatus = 'saved';
+                this.formStatusMessage = '草稿已保存（由于 keepAlive，页面会保持状态）';
+                setTimeout(() => {
+                    this.formStatus = null;
+                }, 3000);
+            }
+        };
+    }
+</script>

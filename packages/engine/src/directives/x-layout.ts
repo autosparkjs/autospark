@@ -2,6 +2,7 @@ import { AutoSparkDirectiveBase } from "../features/directive/base";
 import type { AutoSpark } from "../engine/engine";
 import type { AutoDirectiveInfo } from "../features/directive/types";
 import { relaxedToJson } from "../utils/relaxedToJson";
+import { injectStylesheet } from "../utils/injectStylesheet";
 import { ExpandableDirective } from "./x-expandable";
 
 /**
@@ -38,9 +39,9 @@ import { ExpandableDirective } from "./x-expandable";
  * 用户 CSS 与窗格选项两条覆盖路都通（决策八）。
  *
  * **行为组合**（决策六，M3 阶段实施）：sidebar 默认注入 x-expandable（compose 程序化组合，
- * ADR-0070 先例）+ x-resize 内缘单方向手柄；显式声明优先于默认注入；注入实例的 options
+ * ADR-0070 先例）+ x-resizable 内缘单方向手柄；显式声明优先于默认注入；注入实例的 options
  * 读同元素 `x-expandable-options`；拖拽跨折叠目标自动翻转折叠布尔。
- * header/footer 显式挂 `x-resize` 合法（auto 轨道跟随）；content 上挂 warn（1fr 轨道拖拽无效）。
+ * header/footer 显式挂 `x-resizable` 合法（auto 轨道跟随）；content 上挂 warn（1fr 轨道拖拽无效）。
  *
  * **嵌套零新机制**：窗格归属最近 x-layout 祖先，窗格内是正常编译子树
  * （嵌套 x-splitter / 子 layout / 任意指令照常）。
@@ -180,10 +181,10 @@ export class LayoutDirective extends AutoSparkDirectiveBase {
         // 侧分组后置处理（决策七 + 决策六的分界）：
         // - 同侧 ≥2 → grouped（窗格转面板语义：宽度声明改走 data-size、跳过默认行为注入——
         //   分隔条即调节通道，expandable 折叠由窗格显式 data-expandable 走 splitter 通道）
-        // - 单窗格侧 → 默认注入 x-resize（编译期模板改写，克隆补 `x-resize.<向>` 修饰符属性，
-        //   子树编译自然实例化 ResizeDirective——无值 = 纯 DOM 直改宽度，Q18-C 内部态；
+        // - 单窗格侧 → 默认注入 x-resizable（编译期模板改写，克隆补 `x-resizable.<向>` 修饰符属性，
+        //   子树编译自然实例化 ResizableDirective——无值 = 纯 DOM 直改宽度，Q18-C 内部态；
         //   显式声明与 opt-out 均不补。内缘单方向：left 拖东缘（e）/ right 拖西缘（w）——
-        //   w 依赖 x-resize 的 grid item 感知（父容器 display:grid 时豁免流内降级且免位置补偿）
+        //   w 依赖 x-resizable 的 grid item 感知（父容器 display:grid 时豁免流内降级且免位置补偿）
         for (const list of Object.values(sideDecls)) {
             if (!list?.length) continue;
             if (list.length >= 2) {
@@ -191,7 +192,7 @@ export class LayoutDirective extends AutoSparkDirectiveBase {
             } else {
                 const d = list[0]!;
                 if (!d.resizeExplicit && !d.resizeOptOut) {
-                    d.template.setAttribute(`x-resize.${d.side === "right" ? "w" : "e"}`, "");
+                    d.template.setAttribute(`x-resizable.${d.side === "right" ? "w" : "e"}`, "");
                     d.resizeInjected = true;
                 }
             }
@@ -323,7 +324,7 @@ export class LayoutDirective extends AutoSparkDirectiveBase {
                 (a) => a.name === base || a.name.startsWith(`${base}.`),
             );
         decl.expandableExplicit = hasAttr("x-expandable");
-        decl.resizeExplicit = hasAttr("x-resize");
+        decl.resizeExplicit = hasAttr("x-resizable");
         // 无显式 expandable 时，x-expandable-options 由 layout 收集备用（Q25b：注入实例读它），
         // 并从克隆剥除（防无主指令的 options 残留歧义）；显式时保留原样（显式路径自洽）
         if (!decl.expandableExplicit) {
@@ -339,10 +340,10 @@ export class LayoutDirective extends AutoSparkDirectiveBase {
                 decl.template.removeAttribute("x-expandable-options");
             }
         }
-        // content 上挂 x-resize：1fr 轨道钉死尺寸、拖拽必无效 → warn（Q24 修正案）
+        // content 上挂 x-resizable：1fr 轨道钉死尺寸、拖拽必无效 → warn（Q24 修正案）
         if (kind === "content" && decl.resizeExplicit) {
             this.warn(
-                "x-layout: content 窗格上的 x-resize 无效（content 轨道为 1fr，元素尺寸不可拖拽调节），该指令已忽略",
+                "x-layout: content 窗格上的 x-resizable 无效（content 轨道为 1fr，元素尺寸不可拖拽调节），该指令已忽略",
             );
             decl.resizeExplicit = false;
         }
@@ -626,7 +627,7 @@ export class LayoutDirective extends AutoSparkDirectiveBase {
     /**
      * resize ↔ 折叠联动（Q26）：`resize:move` 持续记忆非折叠宽度（lastSize）；
      * `resize:end` 终值 ≤ 阈值（minSize，缺省 0）→ 翻转折叠布尔（终态由组合实例承接）。
-     * 事件由 x-resize 派发冒泡（ADR-0064 契约），宿主级单一监听按 target 反查窗格。
+     * 事件由 x-resizable 派发冒泡（ADR-0064 契约），宿主级单一监听按 target 反查窗格。
      */
     private _onPaneResize(ev: Event, isEnd: boolean): void {
         const width = (ev as CustomEvent).detail?.width;
@@ -857,9 +858,5 @@ const LAYOUT_CSS = `
 
 /** 注入 layout 全局样式（幂等；多 engine 共享、destroy 不移除——全局样式惯例） */
 export function registerLayoutStyles(): void {
-    if (document.getElementById(LAYOUT_STYLE_ID)) return;
-    const style = document.createElement("style");
-    style.id = LAYOUT_STYLE_ID;
-    style.textContent = LAYOUT_CSS;
-    document.head.appendChild(style);
+    injectStylesheet(LAYOUT_CSS, { id: LAYOUT_STYLE_ID });
 }

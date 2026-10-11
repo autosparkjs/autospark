@@ -18,7 +18,7 @@
  *
  * 恢复侧记录重建（restore/load）归 records.ts——本模块只管通道与序列化边界。
  */
-import type { NotificationFetchOptions, NotificationProps, AutoSparkNotificationRecord } from "./types";
+import type { NotificationFetchOptions,  AutoSparkNotificationRecord } from "./types";
 import { NOTIFICATION_PERSIST } from "./types";
 import type { NotificationManager } from "./manager";
 

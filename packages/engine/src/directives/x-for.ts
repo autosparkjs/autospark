@@ -7,6 +7,7 @@ import { resolveAnimate } from "../features/animate/animate";
 import { splitPath } from "autostore";
 import type { AutoSpark } from "../engine/engine";
 import { resolveFieldAbsPath } from "./x-form";
+import { injectStylesheet } from "../utils/injectStylesheet";
 
 // ── 虚拟列表常量 ──────────────────────────────────────────────────────────────
 
@@ -122,11 +123,8 @@ export class ForDirective extends AutoSparkDirectiveBase {
 
     /** 注入默认虚拟列表滚动条样式（幂等；多 engine 实例共享 document） */
     static override initialize(_engine: AutoSpark): void {
-        if (typeof document === "undefined" || !document.head) return;
-        if (document.getElementById(VIRTUAL_STYLES_ID)) return;
-        const style = document.createElement("style");
-        style.id = VIRTUAL_STYLES_ID;
-        style.textContent = `
+        injectStylesheet(
+            `
 /* x-for 虚拟列表默认滚动条样式 */
 [${VIRTUAL_ATTR}] {
   scrollbar-width: thin;
@@ -142,8 +140,9 @@ export class ForDirective extends AutoSparkDirectiveBase {
 }
 [${VIRTUAL_ATTR}]::-webkit-scrollbar-track {
   background: transparent;
-}`;
-        document.head.appendChild(style);
+}`,
+            { id: VIRTUAL_STYLES_ID },
+        );
     }
 
     /**

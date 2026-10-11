@@ -80,6 +80,6 @@ oxfmt
 ## 决策文档（改机制前先读）
 
 - `packages/engine/docs/adr/` — ADR 0001~0097，源码注释大量以「ADR-XXXX 决策 N」形式回链。
-- `packages/engine/CONTEXT.md` — 领域语言表（含每个术语的 Avoid 列表与已废弃词条，如 x-block → x-component → x-define、x-use → x-component、`.keep` → `.keepalive`）。
+- `packages/engine/CONTEXT.md` — 领域语言表（含每个术语的 Avoid 列表与已废弃词条，如 x-block → x-component → x-define（x-block 名后三度用于溢出折叠容器、现已更名 x-foldable）、x-use → x-component、`.keep` → `.keepalive`）。
 - `packages/engine/docs/specs/` — 关键机制规格（engine-patch / 插值 / x-html / x-on action / 指令文档统一模板）。
 - `packages/engine/CLAUDE.md` 为模块级简版导航，工程约定以本文件为准。

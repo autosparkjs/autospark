@@ -9,7 +9,9 @@
  * **实例化工厂沿用** runtime 标准模式：`new Cls(engine, undefined, info)` + `inst.el = el` + `inst.mounted()`
  * （见 base.ts 构造函数；Runtime 实例无 scope/binding）。
  *
- * **仅处理 `DirectiveKind.Runtime`**（Hybrid 当前不存在，按 YAGNI 暂不处理，留扩展口）。
+ * **处理 `DirectiveKind.Runtime` 与 `DirectiveKind.Hybrid`**（编译器对两者同款致盲+保属性，
+ * 见 compiler._runtimeKeepAttr；Hybrid 的 mounted/unmounted/attrChanged 亦走本通道——
+ * scope 实例管编译期装配、observer 实例管运行期生命周期，两实例状态互不共享）。
  *
  * **已知限制（与旧 loading observer 一致，刻意保留）**：attributeFilter 只含裸属性 `x-<name>`，
  * 故修饰符形式（如 `x-loading.screen`）的运行时**值变化**不触发 attrChanged；其增/删仍生效。
@@ -56,14 +58,15 @@ export class RuntimeObserverDispatcher {
     }
 
     /**
-     * 启动：枚举 engine.directives 中 `kind===Runtime` 的类建 registry，连 observer，初始扫描。
+     * 启动：枚举 engine.directives 中 `kind !== Compile`（Runtime + Hybrid）的类建 registry，
+     * 连 observer，初始扫描。
      *
      * 须在 `initializeAll()`（含各指令的 injectStyles 等 FOUC 防御副作用）**之后**调用——
      * 初始扫描会同步触发首次 mounted → mountOverlay，依赖样式已注入。
      */
     start(): void {
         for (const [name, Cls] of this.engine.directives) {
-            if (Cls.kind === DirectiveKind.Runtime) this._register(name, Cls);
+            if (Cls.kind !== DirectiveKind.Compile) this._register(name, Cls);
         }
         this._buildObserver();
         // 初始扫描：编译产物中已存在的静态 runtime 指令元素（同步触发 mounted，首屏立即可见）

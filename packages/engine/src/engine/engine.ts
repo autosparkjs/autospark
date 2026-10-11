@@ -153,10 +153,6 @@ export class AutoSpark<
      * @throws {Error} el 非 HTMLElement；state 为 AutoStore 实例（不再接受借用，ADR-0044）
      */
     constructor(el: HTMLElement, state: State, options?: Partial<AutoSparkOptions<State>>) {
-        // 内置组件注册位（ADR-0092 种子表 → ADR-0094 注册位化）：种子表（components/index.ts
-        // 唯一注册面）+ 用户 `options.builtinComponents` 同名覆盖，构造期合成。独立于
-        // `options.components` 保存——避免内置默认被业务配置流意外冲掉；一般定制内置组件走
-        // components 同名覆盖（查找优先级更高，见 _resolveGlobalComponent 双表回退）。
         const { components: userComponents, builtinComponents: userBuiltins, ...restOptions } = (
             options ?? {}
         ) as Partial<AutoSparkOptions<State>>;
@@ -164,13 +160,13 @@ export class AutoSpark<
         // components/builtinComponents 键——spread 免过剩检查），super 后 this.options 双键可读。
         const builtinComponents: Record<string, string> = {
             ...BUILTIN_COMPONENTS,
-            ...(userBuiltins ?? {}),
+            ...userBuiltins,
         };
         const init = {
             autostart: true,
             debug: false,
             actions: {},
-            components: { ...(userComponents ?? {}) },
+            components: { ...userComponents },
             builtinComponents,
         };
         super({ ...init, ...restOptions });
@@ -275,7 +271,7 @@ export class AutoSpark<
     /**
      * 全局事件 action 表（来自 options.actions），作为 scope.getAction 查找链的终点。
      *
-     * 值恒为 **ActionDesc 描述符**（ADR-0036：三入口写入时全量规范化，name 注入 + handle 包装），
+     * 值恒为 **ActionDesc 描述符**（ADR-0036：三入口写入时全量规范化，id 注入 + handle 包装），
      * 命令式直调取 `.handle(...)`。返回 Proxy：**赋值即自动规范化包装**——`engine.actions.save = decl`
      * （函数简写或对象写法）经规范化（获得 `actions/<name>/*` 生命周期广播）后写入底层
      * options.actions；读取、遍历、getAction 均透明（get 默认转发底层）。故 action 注册即追踪，
@@ -1002,7 +998,7 @@ export class AutoSpark<
      */
     registerComponentDef(def: ComponentDef): void {
         this._componentDefs.set(def.snapshot, def);
-        injectGlobalComponentStyles(this, def);
+        injectGlobalComponentStyles(this as any, def);
     }
 
     /** 挂起的继承解析表（ADR-0083）：父名 → 待重试任务队列（父未就绪时压入，注册事件排水） */

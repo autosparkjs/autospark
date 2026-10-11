@@ -1,3 +1,5 @@
+import { injectStylesheet } from "./injectStylesheet";
+
 /**
  * 组件作用域 CSS 改写器（ADR-0022 决策四-4，属性后缀法，仿 Vue `<style scoped>`）。
  *
@@ -241,18 +243,20 @@ export function injectComponentStyle(
 ): HTMLStyleElement | null {
     if (styles.length === 0) return null;
     const cacheKey = `cmp-style-${defName}`;
-    let el = document.head.querySelector<HTMLStyleElement>(
-        `style[data-cmp-def="${cssEscape(defName)}"]`,
-    );
-    if (!el) {
-        const rewritten = styles.map((s) => rewriteScopedCss(s, scopeId)).join("\n");
-        el = document.createElement("style");
-        el.setAttribute("data-cmp-def", defName);
-        el.textContent = rewritten;
-        document.head.appendChild(el);
-    }
+    // 惰性工厂：样式表已存在（多实例共享）时零成本复用，免重复改写
+    const el = injectStylesheet(() => styles.map((s) => rewriteScopedCss(s, scopeId)).join("\n"), {
+        id: componentStyleId(defName),
+    });
+    if (!el) return null; // SSR 无 document
+    // 标识属性（data-cmp-def：查证/测试契约；新建与复用同打，幂等）
+    el.setAttribute("data-cmp-def", defName);
     styleRefCount.set(cacheKey, (styleRefCount.get(cacheKey) ?? 0) + 1);
     return el;
+}
+
+/** 组件 scoped 样式表 id（defName → 稳定编号，注入与释放同一寻址；编号回收复用见 componentScopedId） */
+function componentStyleId(defName: string): string {
+    return `autospark-cmp-style-${componentScopedId(defName)}`;
 }
 
 /**

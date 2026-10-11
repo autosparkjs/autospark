@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KylinRouter 调试模式演示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .nav {
+            margin-bottom: 20px;
+        }
+        .nav button {
+            margin-right: 10px;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+        .content {
+            border: 1px solid #ccc;
+            padding: 20px;
+            min-height: 200px;
+        }
+        .info {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>KylinRouter 调试模式演示</h1>
+
+    <div class="info">
+        <h3>🔍 调试模式已启用</h3>
+        <p>打开浏览器控制台查看详细的导航日志，包括：</p>
+        <ul>
+            <li>导航开始和完成</li>
+            <li>路由匹配结果</li>
+            <li>钩子执行状态</li>
+            <li>导航方法调用</li>
+        </ul>
+    </div>
+
+    <div class="nav">
+        <button onclick="router.push('/')">首页</button>
+        <button onclick="router.push('/about')">关于</button>
+        <button onclick="router.push('/user/123')">用户</button>
+        <button onclick="router.back()">后退</button>
+        <button onclick="router.forward()">前进</button>
+    </div>
+
+    <div class="content">
+        <kylin-outlet></kylin-outlet>
+    </div>
+
+    <script type="module">
+        import { createRouter } from './src/index.js';
+
+        // 创建路由器实例，启用调试模式
+        const router = await createRouter(document.body, {
+            routes: [
+                {
+                    name: 'home',
+                    path: '/',
+                    component: '<h1>欢迎来到首页</h1><p>这是首页内容</p>',
+                    meta: { title: '首页' }
+                },
+                {
+                    name: 'about',
+                    path: '/about',
+                    component: '<h1>关于我们</h1><p>这是关于页面</p>',
+                    meta: { title: '关于' }
+                },
+                {
+                    name: 'user',
+                    path: '/user/:id',
+                    component: '<h1>用户详情</h1><p>用户ID: <span id="user-id"></span></p>',
+                    meta: { title: '用户详情' }
+                }
+            ],
+            debug: true,  // 🔍 启用调试模式
+            onBeforeEach: (to, from) => {
+                console.log('[自定义钩子] beforeEach 执行');
+                return true;
+            },
+            renderEach: (to, from, next) => {
+                console.log('[自定义钩子] renderEach 执行');
+                // 模拟数据预加载
+                if (to.name === 'user') {
+                    next({ userId: to.params.id, userName: '测试用户' });
+                } else {
+                    next();
+                }
+            },
+            onAfterEach: (to, from) => {
+                console.log('[自定义钩子] afterEach 执行');
+                // 更新页面标题
+                if (to.meta?.title) {
+                    document.title = to.meta.title;
+                }
+            }
+        });
+
+        // 将路由器暴露到全局，方便在控制台测试
+        window.router = router;
+
+        console.log('%c🚀 KylinRouter 初始化完成', 'color: green; font-weight: bold');
+        console.log('提示: 点击上方按钮进行导航，查看控制台中的调试日志');
+    </script>
+</body>
+</html>

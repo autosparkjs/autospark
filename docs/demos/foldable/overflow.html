@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-foldable · 溢出折叠</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      /* 面板默认走 x-popover 内置外壳（白底/边框/箭头 + padding:0.5em），不克隆宿主样式；
+         右对齐是宿主 row 主轴排版 */
+      .toolbar {
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        padding: 6px 10px;
+        gap: 6px;
+        background: #fff;
+        justify-content: flex-end;
+      }
+    </style>
+  </head>
+  <body style="overflow: auto">
+    <div class="demo-app section" style="height: 420px">
+      <div class="block has-text-grey is-size-7">
+        拖动滑块改窄容器：末尾按钮逐个折入「更多」面板（hover
+        展开查看，带指向箭头）；改宽自动按原序还原。 面板为 x-popover 内置外壳（默认
+        <code>padding:0.5em</code>），不克隆宿主样式；自定义外观见 shell 示例。
+      </div>
+      <div class="field">
+        <input
+          id="resizer"
+          type="range"
+          min="140"
+          max="560"
+          value="560"
+          style="width: 560px; max-width: 100%"
+        />
+      </div>
+      <div id="tb" x-foldable="row" class="toolbar" style="width: 560px">
+        <button class="button is-small" style="flex-grow: 1">新建</button>
+        <button class="button is-small">编辑</button>
+        <button class="button is-small">删除</button>
+        <button class="button is-small">导入</button>
+        <button class="button is-small">导出</button>
+        <button class="button is-small">刷新</button>
+        <button class="button is-small">打印</button>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+      document.getElementById("resizer").addEventListener("input", (e) => {
+        document.getElementById("tb").style.width = e.target.value + "px";
+      });
+    </script>
+  </body>
+</html>

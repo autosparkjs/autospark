@@ -71,8 +71,7 @@ describe("屏幕贴边（默认定位）", () => {
         // 短轴 inline 恒写（未配置 size → CSS 变量表达式，不依赖样式表注入时机）
         expect(panel.style.width).toBe("var(--autospark-drawer-size, 280px)");
         expect(panel.getAttribute("data-overlay-placement")).toBe("right");
-        // drawer-shell 模板根双类名：继承 dialog 外壳联动样式 + 抽屉形态覆写
-        expect(panel.classList.contains("autospark-dialog")).toBe(true);
+        // drawer-shell 模板根单形态类（ADR-0062 修订：泛化 dialog 基类退役，家族通用走 [data-overlay]）
         expect(panel.classList.contains("autospark-drawer")).toBe(true);
     });
 

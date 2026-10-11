@@ -8,7 +8,8 @@
     </head>
     <body>
         <!-- anchor 三职：① actions 字符串沿 anchor scope 链解析局部 action；
-             ② notification:action 以 anchor 为根额外派发（发起子树就近消费）；
+             ② action 事件以 anchor 为根额外派发——具体名 notifications/<type>/<id>/actions/<名>
+             （ADR-0102 分层命名；模板就近监听须钉死 id，批量消费走总线通配）；
              ③ 渲染数据视图基准——type render 组件挂链 anchor scope，表达式可访问发起域。
              配套 action（toast/confirm/task）DOM 处使用时自动注入发起元素为 anchor。 -->
         <div class="demo-app section">
@@ -17,7 +18,7 @@
                 <button class="button is-warning" id="btn1" type="button" onclick="notifyTimeout()">
                     局部 action（沿 anchor 解析）
                 </button>
-                <button class="button is-info" id="btn2" type="button" @click="notifyView()" @notification:action="onNearby($event.detail)">
+                <button class="button is-info" id="btn2" type="button" @click="notifyView()" @notifications/remind/r1/actions/reopenOrder="onNearby($event.detail)">
                     数据视图（render 挂链发起域）
                 </button>
                 <span class="tag" x-show="reopened" x-text="'已重开：' + orderNo"></span>
@@ -51,6 +52,7 @@
             );
             const notifyTimeout = () =>
                 app.notifications.add({
+                    id: "r1", // 钉死 id——模板就近监听具体名（notifications/remind/r1/actions/reopenOrder）
                     title: "订单已超时",
                     type: "remind", // 无自定义模板——base 默认内容兜底（ADR-0088 type 链末端）
                     actions: ["reopenOrder"],
@@ -64,9 +66,9 @@
                     anchor: document.getElementById("btn2"),
                     delayClose: 0,
                 });
-            // 职责②：事件以 anchor 为根额外派发——#btn2 就近监听 @notification:action
+            // 职责②：action 事件以 anchor 为根额外派发——#btn2 就近监听具体名（id 已钉死为 r1）
             function onNearby(detail) {
-                console.log("anchor 侧收到 notification:action:", detail.value);
+                console.log("anchor 侧收到 actions/reopenOrder:", detail.value);
             }
         </script>
     </body>

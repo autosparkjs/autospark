@@ -1,0 +1,20 @@
+<!-- 服务列表模板 -->
+<div class="content-header">
+    <div class="content-title" x-text="title"></div>
+    <div class="content-subtitle" x-text="subtitle"></div>
+</div>
+
+<div class="service-list">
+    <template x-for="service in services" :key="service.id">
+        <div class="service-card">
+            <div class="service-header">
+                <div class="service-name">
+                    <span x-text="service.icon"></span>
+                    <span x-text="service.name"></span>
+                </div>
+                <div class="service-price" x-text="service.price"></div>
+            </div>
+            <div class="service-desc" x-text="service.desc"></div>
+        </div>
+    </template>
+</div>

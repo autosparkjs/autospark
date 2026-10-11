@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模态路由演示 - Kylin Router</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .demo-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .demo-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .demo-section h3 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .button-group button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .button-group button.primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .button-group button.primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .button-group button.secondary {
+            background: #48bb78;
+            color: white;
+        }
+
+        .button-group button.secondary:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(72, 187, 120, 0.3);
+        }
+
+        .button-group button.danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .button-group button.danger:hover {
+            background: #e53e3e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(245, 101, 101, 0.3);
+        }
+
+        .info-box {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .info-box h4 {
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .info-box p {
+            color: #4a5568;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.active {
+            background: #48bb78;
+        }
+
+        .status-indicator.inactive {
+            background: #cbd5e0;
+        }
+
+        .modal-stack-info {
+            background: #edf2f7;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        .modal-stack-info h4 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .modal-stack-item {
+            background: white;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 3px solid #667eea;
+            font-size: 14px;
+        }
+
+        /* 模态样式（用于自定义模态内容） */
+        .custom-modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .custom-modal-content h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .custom-modal-content p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .custom-modal-content .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* 测试结果区域 */
+        .test-results {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        .test-results h4 {
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .test-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 4px;
+        }
+
+        .test-item .status {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        .test-item .status.pass {
+            color: #48bb78;
+        }
+
+        .test-item .status.fail {
+            color: #f56565;
+        }
+
+        .test-item .description {
+            color: #4a5568;
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>模态路由系统演示</h1>
+            <p>这个页面演示了 Kylin Router 的模态路由功能，包括模态容器、模态栈、背景遮罩和关闭交互。</p>
+        </div>
+
+        <div class="demo-section">
+            <h2>1. 基本模态功能</h2>
+            <div class="info-box">
+                <h4>功能说明</h4>
+                <p>点击下方按钮打开一个基本的模态框。模态框会显示在专用的 .kylin-modals 容器中，并带有背景遮罩。</p>
+            </div>
+            <div class="button-group">
+                <button class="primary" onclick="openBasicModal()">打开基本模态</button>
+                <button class="danger" onclick="closeModal()">关闭模态</button>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>2. 多层模态栈</h2>
+            <div class="info-box">
+                <h4>功能说明</h4>
+                <p>点击下方按钮在第一个模态中打开第二个模态，验证多层模态的正确堆叠。新的模态会覆盖在旧模态之上。</p>
+            </div>
+            <div class="button-group">
+                <button class="primary" onclick="openFirstModal()">打开第一个模态</button>
+                <button class="secondary" onclick="openSecondModal()">打开第二个模态</button>
+                <button class="danger" onclick="closeModal()">关闭顶层模态</button>
+            </div>
+            <div class="modal-stack-info">
+                <h4>当前模态栈</h4>
+                <div id="modalStack">
+                    <div class="modal-stack-item">
+                        <span class="status-indicator inactive"></span>
+                        暂无打开的模态
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>3. 关闭交互测试</h2>
+            <div class="info-box">
+                <h4>功能说明</h4>
+                <p>测试不同的模态关闭方式：点击背景遮罩、按 ESC 键、调用 router.back() 或 router.closeModal()。</p>
+            </div>
+            <div class="button-group">
+                <button class="primary" onclick="openModalForCloseTest()">打开测试模态</button>
+                <button class="secondary" onclick="testBackMethod()">测试 router.back()</button>
+                <button class="danger" onclick="closeModal()">测试 closeModal()</button>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>4. 与普通路由共存</h2>
+            <div class="info-box">
+                <h4>功能说明</h4>
+                <p>打开模态后，普通路由的 URL 保持不变，普通路由的内容仍然可见。关闭模态后，普通路由正常工作。</p>
+            </div>
+            <div class="button-group">
+                <button class="primary" onclick="openModalAndCheckRoute()">打开模态检查路由</button>
+            </div>
+            <div id="routeInfo" class="info-box" style="display: none;">
+                <h4>当前路由信息</h4>
+                <p>URL: <strong id="currentUrl"></strong></p>
+                <p>模态数量: <strong id="modalCount"></strong></p>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>5. 功能验证清单</h2>
+            <div class="test-results">
+                <h4>验证项目</h4>
+                <div id="testList">
+                    <div class="test-item">
+                        <span class="status" id="test1-status">○</span>
+                        <span class="description">模态容器正确创建（.kylin-modals）</span>
+                    </div>
+                    <div class="test-item">
+                        <span class="status" id="test2-status">○</span>
+                        <span class="description">背景遮罩正确显示</span>
+                    </div>
+                    <div class="test-item">
+                        <span class="status" id="test3-status">○</span>
+                        <span class="description">点击遮罩关闭模态</span>
+                    </div>
+                    <div class="test-item">
+                        <span class="status" id="test4-status">○</span>
+                        <span class="description">ESC 键关闭模态</span>
+                    </div>
+                    <div class="test-item">
+                        <span class="status" id="test5-status">○</span>
+                        <span class="description">router.back() 关闭模态</span>
+                    </div>
+                    <div class="test-item">
+                        <span class="status" id="test6-status">○</span>
+                        <span class="description">多层模态正确堆叠</span>
+                    </div>
+                    <div class="test-item">
+                        <span class="status" id="test7-status">○</span>
+                        <span class="description">模态不影响普通路由</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 新功能演示：模态类型和位置 -->
+        <div class="demo-section">
+            <h2>6. 模态类型和位置</h2>
+            <div class="info-box">
+                <h4>功能说明</h4>
+                <p>演示不同的模态类型（dialog/drawer）和不同的显示位置。</p>
+                <p><strong>抽屉类型</strong>：left/right 为满高抽屉，top/bottom 为满宽抽屉。</p>
+            </div>
+            <div class="button-group">
+                <button class="primary" onclick="openDialogAt('center')">居中对话框</button>
+                <button class="secondary" onclick="openDialogAt('top-right')">右上对话框</button>
+                <button class="secondary" onclick="openDrawer('left')">左侧抽屉</button>
+                <button class="secondary" onclick="openDrawer('right')">右侧抽屉</button>
+                <button class="secondary" onclick="openDrawer('top')">顶部抽屉</button>
+                <button class="secondary" onclick="openDrawer('bottom')">底部抽屉</button>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>7. 自动关闭和遮罩控制</h2>
+            <div class="info-box">
+                <h4>功能说明</h4>
+                <p>演示自动关闭功能和隐藏遮罩功能。</p>
+            </div>
+            <div class="button-group">
+                <button class="secondary" onclick="openAutoCloseModal()">3秒自动关闭</button>
+                <button class="secondary" onclick="openModalNoMask()">无遮罩模态</button>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>8. 使用 ! 前缀路径</h2>
+            <div class="info-box">
+                <h4>功能说明</h4>
+                <p>使用 router.push("!/path") 可以直接打开模态，不进入 history 栈。</p>
+            </div>
+            <div class="button-group">
+                <button class="primary" onclick="openModalWithPrefix()">使用 ! 前缀打开模态</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createRouter } from '/src/index.js';
+
+        // 创建路由实例
+        const router = createRouter(document.body, {
+            mode: 'history',
+            routes: [
+                {
+                    name: 'home',
+                    path: '/app/modal-demo.html',
+                    view: '/app/index.html',
+                    title: '模态路由演示'
+                },
+                {
+                    name: 'basic-modal',
+                    path: '/modal/basic',
+                    view: createBasicModalView(),
+                    modal: true,
+                    title: '基本模态'
+                },
+                {
+                    name: 'first-modal',
+                    path: '/modal/first',
+                    view: createFirstModalView(),
+                    modal: true,
+                    title: '第一个模态'
+                },
+                {
+                    name: 'second-modal',
+                    path: '/modal/second',
+                    view: createSecondModalView(),
+                    modal: true,
+                    title: '第二个模态'
+                },
+                {
+                    name: 'close-test-modal',
+                    path: '/modal/close-test',
+                    view: createCloseTestModalView(),
+                    modal: true,
+                    title: '关闭测试模态'
+                },
+                {
+                    name: 'dialog-center',
+                    path: '/modal/dialog-center',
+                    view: createDialogModalView('center'),
+                    modal: {
+                        type: 'dialog',
+                        position: 'center'
+                    },
+                    title: '居中对话框'
+                },
+                {
+                    name: 'dialog-top-right',
+                    path: '/modal/dialog-top-right',
+                    view: createDialogModalView('top-right'),
+                    modal: {
+                        type: 'dialog',
+                        position: 'top-right'
+                    },
+                    title: '右上对话框'
+                },
+                {
+                    name: 'drawer-left',
+                    path: '/modal/drawer-left',
+                    view: createDrawerModalView('left'),
+                    modal: {
+                        type: 'drawer',
+                        position: 'left'
+                    },
+                    title: '左侧抽屉'
+                },
+                {
+                    name: 'drawer-right',
+                    path: '/modal/drawer-right',
+                    view: createDrawerModalView('right'),
+                    modal: {
+                        type: 'drawer',
+                        position: 'right'
+                    },
+                    title: '右侧抽屉'
+                },
+                {
+                    name: 'drawer-top',
+                    path: '/modal/drawer-top',
+                    view: createDrawerModalView('top'),
+                    modal: {
+                        type: 'drawer',
+                        position: 'top'
+                    },
+                    title: '顶部抽屉'
+                },
+                {
+                    name: 'drawer-bottom',
+                    path: '/modal/drawer-bottom',
+                    view: createDrawerModalView('bottom'),
+                    modal: {
+                        type: 'drawer',
+                        position: 'bottom'
+                    },
+                    title: '底部抽屉'
+                },
+                {
+                    name: 'auto-close-modal',
+                    path: '/modal/auto-close',
+                    view: createAutoCloseModalView(),
+                    modal: {
+                        autoClose: 3000
+                    },
+                    title: '自动关闭模态'
+                },
+                {
+                    name: 'no-mask-modal',
+                    path: '/modal/no-mask',
+                    view: createNoMaskModalView(),
+                    modal: {
+                        backdrop: false
+                    },
+                    title: '无遮罩模态'
+                },
+                {
+                    name: 'prefix-modal',
+                    path: '/modal/prefix',
+                    view: createPrefixModalView(),
+                    modal: true,
+                    title: '!前缀模态'
+                }
+            ],
+            debug: true
+        });
+
+        // 绑定路由到 DOM
+        router.attach();
+
+        // 创建模态视图内容的辅助函数
+        function createBasicModalView() {
+            const template = document.createElement('template');
+            template.innerHTML = `
+                <div class="custom-modal-content">
+                    <h2>基本模态框</h2>
+                    <p>这是一个基本的模态框示例。模态框显示在专用的容器中，带有背景遮罩。</p>
+                    <p>你可以通过以下方式关闭这个模态：</p>
+                    <ul>
+                        <li>点击背景遮罩</li>
+                        <li>按 ESC 键</li>
+                        <li>点击下方的关闭按钮</li>
+                    </ul>
+                    <div class="modal-actions">
+                        <button onclick="window.closeModal()">关闭模态</button>
+                    </div>
+                </div>
+            `;
+            return template;
+        }
+
+        function createFirstModalView() {
+            const template = document.createElement('template');
+            template.innerHTML = `
+                <div class="custom-modal-content">
+                    <h2>第一个模态框</h2>
+                    <p>这是第一个模态框。你可以在这个模态框上打开第二个模态框，测试多层模态栈功能。</p>
+                    <div class="modal-actions">
+                        <button onclick="window.openSecondModal()">打开第二个模态</button>
+                        <button onclick="window.closeModal()">关闭模态</button>
+                    </div>
+                </div>
+            `;
+            return template;
+        }
+
+        function createSecondModalView() {
+            const template = document.createElement('template');
+            template.innerHTML = `
+                <div class="custom-modal-content">
+                    <h2>第二个模态框</h2>
+                    <p>这是第二个模态框，它覆盖在第一个模态框之上。</p>
+                    <p>当你关闭这个模态框时，第一个模态框会重新显示。</p>
+                    <div class="modal-actions">
+                        <button onclick="window.closeModal()">关闭此模态</button>
+                    </div>
+                </div>
+            `;
+            return template;
+        }
+
+        function createCloseTestModalView() {
+            const template = document.createElement('template');
+            template.innerHTML = `
+                <div class="custom-modal-content">
+                    <h2>关闭交互测试</h2>
+                    <p>这个模态框用于测试不同的关闭方式：</p>
+                    <ul>
+                        <li>点击背景遮罩关闭</li>
+                        <li>按 ESC 键关闭</li>
+                        <li>调用 router.back() 关闭</li>
+                        <li>调用 router.closeModal() 关闭</li>
+                    </ul>
+                    <div class="modal-actions">
+                        <button onclick="window.testBackMethod()">测试 router.back()</button>
+                        <button onclick="window.closeModal()">测试 closeModal()</button>
+                    </div>
+                </div>
+            `;
+            return template;
+        }
+
+        function createDialogModalView(position) {
+            const positionText = {
+                'center': '居中',
+                'top': '顶部',
+                'top-left': '左上',
+                'top-right': '右上',
+                'right': '右侧',
+                'bottom-right': '右下',
+                'bottom': '底部',
+                'bottom-left': '左下',
+                'left': '左侧'
+            }[position] || position;
+
+            const template = document.createElement('template');
+            template.innerHTML = `
+                <div class="custom-modal-content">
+                    <h2>${positionText}对话框</h2>
+                    <p>这是一个显示在${positionText}的对话框模态。</p>
+                    <p>模态类型：<strong>dialog</strong></p>
+                    <p>显示位置：<strong>${position}</strong></p>
+                    <div class="modal-actions">
+                        <button onclick="window.closeModal()">关闭模态</button>
+                    </div>
+                </div>
+            `;
+            return template;
+        }
+
+        function createDrawerModalView(side) {
+            const sideText = {
+                'left': '左侧',
+                'right': '右侧',
+                'top': '顶部',
+                'bottom': '底部'
+            }[side] || side;
+
+            const template = document.createElement('template');
+            template.innerHTML = `
+                <div class="custom-modal-content">
+                    <h2>${sideText}抽屉</h2>
+                    <p>这是一个从${sideText}滑出的抽屉式模态。</p>
+                    <p>模态类型：<strong>drawer</strong></p>
+                    <p>显示位置：<strong>${side}</strong></p>
+                    <div class="modal-actions">
+                        <button onclick="window.closeModal()">关闭抽屉</button>
+                    </div>
+                </div>
+            `;
+            return template;
+        }
+
+        function createAutoCloseModalView() {
+            const template = document.createElement('template');
+            template.innerHTML = `
+                <div class="custom-modal-content">
+                    <h2>自动关闭模态</h2>
+                    <p>这个模态将在 3 秒后自动关闭。</p>
+                    <p>倒计时：<strong id="auto-close-countdown">3</strong> 秒</p>
+                    <p style="color: #f56565;">注意：配置了 <code>autoClose: 3000</code></p>
+                </div>
+            `;
+            return template;
+        }
+
+        function createNoMaskModalView() {
+            const template = document.createElement('template');
+            template.innerHTML = `
+                <div class="custom-modal-content" style="border: 2px solid #667eea;">
+                    <h2>无遮罩模态</h2>
+                    <p>这个模态没有背景遮罩。</p>
+                    <p>注意：你可以看到背景内容，并且点击背景不会关闭模态。</p>
+                    <p style="color: #f56565;">注意：配置了 <code>backdrop: false</code></p>
+                    <div class="modal-actions">
+                        <button onclick="window.closeModal()">关闭模态</button>
+                    </div>
+                </div>
+            `;
+            return template;
+        }
+
+        function createPrefixModalView() {
+            const template = document.createElement('template');
+            template.innerHTML = `
+                <div class="custom-modal-content">
+                    <h2>! 前缀路径模态</h2>
+                    <p>这个模态是通过 <code>router.push("!/modal/prefix")</code> 打开的。</p>
+                    <p>使用 <code>!</code> 前缀的路径会直接打开模态，不会进入 history 栈。</p>
+                    <p>这意味着：</p>
+                    <ul>
+                        <li>URL 不会改变</li>
+                        <li>浏览器的后退按钮不会关闭模态</li>
+                        <li>模态独立于普通路由系统</li>
+                    </ul>
+                    <div class="modal-actions">
+                        <button onclick="window.closeModal()">关闭模态</button>
+                    </div>
+                </div>
+            `;
+            return template;
+        }
+
+        // 全局函数 - 使用 openModal API 而不是 push
+        window.openBasicModal = function() {
+            router.openModal({ route: '/modal/basic' });
+            updateTestStatus('test1-status', 'pass');
+            updateTestStatus('test2-status', 'pass');
+        };
+
+        window.openFirstModal = function() {
+            router.openModal({ route: '/modal/first' });
+            updateModalStackInfo();
+        };
+
+        window.openSecondModal = function() {
+            router.openModal({ route: '/modal/second' });
+            updateTestStatus('test6-status', 'pass');
+            updateModalStackInfo();
+        };
+
+        window.openModalForCloseTest = function() {
+            router.openModal({ route: '/modal/close-test' });
+        };
+
+        window.closeModal = function() {
+            router.closeModal();
+            updateModalStackInfo();
+        };
+
+        window.testBackMethod = function() {
+            router.back();
+            updateTestStatus('test5-status', 'pass');
+            updateModalStackInfo();
+        };
+
+        window.openModalAndCheckRoute = function() {
+            const currentUrl = window.location.pathname;
+            document.getElementById('currentUrl').textContent = currentUrl;
+            document.getElementById('routeInfo').style.display = 'block';
+
+            router.push('/modal/basic');
+
+            setTimeout(() => {
+                const modalCount = router.modalCount;
+                document.getElementById('modalCount').textContent = modalCount;
+
+                // 验证 URL 没有改变
+                if (window.location.pathname === currentUrl) {
+                    updateTestStatus('test7-status', 'pass');
+                }
+            }, 500);
+        };
+
+        // 新功能全局函数
+        window.openDialogAt = function(position) {
+            const routeMap = {
+                'center': '/modal/dialog-center',
+                'top-right': '/modal/dialog-top-right'
+            };
+            const route = routeMap[position];
+            if (route) {
+                router.openModal({ route });
+            }
+        };
+
+        window.openDrawer = function(side) {
+            const routeMap = {
+                'left': '/modal/drawer-left',
+                'right': '/modal/drawer-right',
+                'top': '/modal/drawer-top',
+                'bottom': '/modal/drawer-bottom'
+            };
+            const route = routeMap[side];
+            if (route) {
+                router.openModal({ route });
+            }
+        };
+
+        window.openAutoCloseModal = function() {
+            router.openModal({ route: '/modal/auto-close' });
+
+            // 添加倒计时效果
+            let countdown = 3;
+            const countdownElement = document.getElementById('auto-close-countdown');
+            if (countdownElement) {
+                const interval = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        countdownElement.textContent = countdown;
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, 1000);
+            }
+        };
+
+        window.openModalNoMask = function() {
+            router.openModal({ route: '/modal/no-mask' });
+        };
+
+        window.openModalWithPrefix = function() {
+            // 使用 ! 前缀路径打开模态
+            router.push('!/modal/prefix');
+        };
+
+        // 监听模态事件
+        router.on('modal/open', (event) => {
+            console.log('模态打开:', event);
+            updateModalStackInfo();
+        });
+
+        router.on('modal/close', (event) => {
+            console.log('模态关闭:', event);
+            updateModalStackInfo();
+        });
+
+        // 监听键盘事件（用于测试 ESC 键关闭）
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && router.hasOpenModals) {
+                updateTestStatus('test4-status', 'pass');
+            }
+        });
+
+        // 监听背景遮罩点击（用于测试点击关闭）
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('kylin-modal-backdrop')) {
+                updateTestStatus('test3-status', 'pass');
+            }
+        });
+
+        // 更新模态栈信息
+        function updateModalStackInfo() {
+            const stackInfo = document.getElementById('modalStack');
+            const modalCount = router.modalCount;
+
+            if (modalCount === 0) {
+                stackInfo.innerHTML = `
+                    <div class="modal-stack-item">
+                        <span class="status-indicator inactive"></span>
+                        暂无打开的模态
+                    </div>
+                `;
+            } else {
+                let html = '';
+                for (let i = 0; i < modalCount; i++) {
+                    const isActive = i === modalCount - 1;
+                    html += `
+                        <div class="modal-stack-item">
+                            <span class="status-indicator ${isActive ? 'active' : 'inactive'}"></span>
+                            模态层级 ${i + 1} ${isActive ? '(当前)' : ''}
+                        </div>
+                    `;
+                }
+                stackInfo.innerHTML = html;
+            }
+        }
+
+        // 更新测试状态
+        function updateTestStatus(testId, status) {
+            const testElement = document.getElementById(testId);
+            if (testElement) {
+                if (status === 'pass') {
+                    testElement.textContent = '✓';
+                    testElement.className = 'status pass';
+                } else if (status === 'fail') {
+                    testElement.textContent = '✗';
+                    testElement.className = 'status fail';
+                }
+            }
+        }
+
+        // 暴露路由实例到全局（用于调试）
+        window.router = router;
+
+        console.log('模态路由演示页面已加载');
+        console.log('路由实例:', router);
+    </script>
+</body>
+</html>

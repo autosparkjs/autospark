@@ -129,6 +129,11 @@ export const NOTIFICATION_LEVEL_ICONS: Record<Exclude<NotificationLevelName, "no
 
 /** 预解析后的按钮项（引擎注入 props 前完成——render（含自定义）拿到即此形态） */
 export interface ResolvedNotificationAction {
+    /**
+     * action id（ADR-0102——事件名末段来源）：字符串形态 = action id（查表键）；对象形态 =
+     * `AutoSparkAction.id`，缺省回落 `title`。仅作标识/事件键，与展示文案 `title` 分工。
+     */
+    name: string;
     title: string;
     /** 执行体（null = 纯数据应答按钮，如 confirm 的 value-only actions） */
     handle: ((...args: any[]) => any) | null;
@@ -281,9 +286,11 @@ export const NOTIFICATION_RESERVED_KEYS: ReadonlySet<string> = new Set([
     "actions",
     "anchor",
     "progress",
+    "canStart",
     "canPause",
     "canCancel",
     "canStop",
+    "closeWhenDone",
     "animate",
     "className",
     "styles",

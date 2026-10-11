@@ -1,0 +1,15 @@
+<!-- 商店列表模板 -->
+<div class="content-header">
+    <div class="content-title" x-text="title"></div>
+    <div class="content-subtitle" x-text="subtitle"></div>
+</div>
+
+<div class="store-grid">
+    <template x-for="store in stores" :key="store.id">
+        <div class="store-card">
+            <div class="store-name" x-text="store.name"></div>
+            <div class="store-address" x-text="store.address"></div>
+            <div class="store-hours" x-text="store.hours"></div>
+        </div>
+    </template>
+</div>

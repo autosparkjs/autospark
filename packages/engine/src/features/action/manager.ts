@@ -10,7 +10,7 @@
  *    （global 标志分流全局/局部，ADR-0012）。
  *
  * 三入口均经 `_normalize` **存储层全量规范化**（ADR-0036 决策 1）：函数简写 | 对象写法 →
- * `ActionDesc` 描述符（name 以注册键注入、handle 经 buildAction 包装），`engine.actions` 与
+ * `ActionDesc` 描述符（id 以注册键注入、handle 经 buildAction 包装），`engine.actions` 与
  * `scope.actions` 的值恒为描述符；非法声明（非函数、对象缺 `handle` / `handle` 非函数）记
  * error 日志后**跳过该条**（决策 2）。
  *
@@ -42,7 +42,7 @@ export class ActionManager {
      * 全局事件 action 表（来自 options.actions），作为 scope.getAction 查找链的终点。
      *
      * 返回 Proxy：**赋值即自动规范化包装**——`engine.actions.save = decl`（函数简写或对象写法）
-     * 时经 `_normalize` 规范化为 ActionDesc（name 注入 + buildAction 包装，获得
+     * 时经 `_normalize` 规范化为 ActionDesc（id 注入 + buildAction 包装，获得
      * `actions/<name>/*` 生命周期广播）后写入底层 options.actions；读取、遍历、getAction
      * 均透明（get 默认转发底层）。非法声明 error + 不写入（跳过该条）。故 action 注册即追踪，无需手动包装。
      */
@@ -141,34 +141,34 @@ export class ActionManager {
      *
      * - 函数简写 ≡ `{ handle: fn }`（一等公民形态，非 deprecated）；
      * - 对象写法浅拷贝入存（不突变调用方源对象），`handle` 缺失/非函数 → error 日志 + 返回 null（跳过该条）；
-     * - `name` 以注册键统一注入覆盖（决策 3）：descriptor 自知其名，用户声明里的 name 不生效；
+     * - `id` 以注册键统一注入覆盖（决策 3）：descriptor 自知其 id，用户声明里的 id 不生效；
      * - handle 经 buildAction 包装（descriptor 级防重包装，重复赋值同一 handle 不双重广播）。
      *
      * @returns 规范化后的描述符；null 表示非法声明，调用方跳过该条
      */
-    private _normalize(name: string, decl: unknown, local = false): AutoSparkAction | null {
+    private _normalize(id: string, decl: unknown, local = false): AutoSparkAction | null {
         let desc: AutoSparkAction;
         if (typeof decl === "function") {
-            desc = { handle: decl as (...args: any[]) => any, name };
+            desc = { handle: decl as (...args: any[]) => any, id };
         } else if (
             decl &&
             typeof decl === "object" &&
             typeof (decl as AutoSparkAction).handle === "function"
         ) {
-            // 入参可能是已规范化的描述符（重复/跨名赋值）：解包出原始 handle 重包装，
-            // 广播名跟随本次注册键（原包装闭包捕获的是旧 name）
+            // 入参可能是已规范化的描述符（重复/跨 id 赋值）：解包出原始 handle 重包装，
+            // 广播 id 跟随本次注册键（原包装闭包捕获的是旧 id）
             const h = (decl as AutoSparkAction).handle;
             const raw = ((h as any).__buildActionWrapped ? (h as any).__rawAction : h) as (
                 ...args: any[]
             ) => any;
-            desc = { ...(decl as object), handle: raw, name } as AutoSparkAction;
+            desc = { ...(decl as object), handle: raw, id } as AutoSparkAction;
         } else {
             this.engine.logger.error(
-                `action "${name}" 声明非法：须为函数或含函数 handle 的对象，已跳过（ADR-0036）`,
+                `action "${id}" 声明非法：须为函数或含函数 handle 的对象，已跳过（ADR-0036）`,
             );
             return null;
         }
-        desc.name = name;
+        desc.id = id;
         return buildAction((type, payload) => this.engine.emit(type as any, payload), desc, local);
     }
 }

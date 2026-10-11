@@ -14,7 +14,6 @@
 import { AutoSparkScope } from "../scope";
 import { SCOPES_KEY } from "../../consts";
 import { CompileError } from "../../errors";
-import { convertTooltipTitle } from "../../features/tooltip/types";
 import { removeDirectives } from "../../features/directive/utils/removeDirectives";
 import { isDirectiveAttr } from "../../features/directive/utils/isDirectiveAttr";
 import { DirectiveKind } from "../../features/directive/base";
@@ -113,35 +112,24 @@ export class AutoSparkCompiler {
     }
 
     /**
-     * 静态 title → data-tooltip 转换（ADR-0061 决策 4）。
-     *
-     * **双挂点共用**：① 主 walk 前置 transformer（覆盖直接编译通道）；② `compileChild` 块根
-     * clone 行——项根/x-loading 块根/组件根绕过 transformElement（ownsChildren 语义，项根不
-     * 走 compileElement 的既有设计），不经 transformer 链，须在此补转换（同
-     * `_compileAttrInterpolation` 的「项根不走 compileElement 须补」先例）。转换幂等
-     * （无 title 即原样返回），双挂点不冲突。绑定形态 `:title` 的重定向在 BindDirective
-     * （scope 从只读模板收集指令，clone 侧转换拦不住绑定注册）。
+     * 静态 `title` → `data-tooltip` 属性转换（ADR-0061 决策 4/5，**原地**作用于 clone——
+     * 模板只读契约）：title 值转移、data-tooltip 已存在则仅剥 title（原生 tooltip 与自定义
+     * 浮层同屏双显是 bug）；特性关闭（`options.tooltip: false`）时 title 原样保留（全关语义）。
+     * 绑定形态 `:title` / `x-bind:title` 的重定向不在此处——由 BindDirective.created 承担。
      */
-    private _convertTitleAttrs(el: HTMLElement): HTMLElement {
-        return convertTooltipTitle(el);
+    private _convertTitleEl(el: HTMLElement): void {
+        const title = el.getAttribute("title");
+        if (title === null) return;
+        el.removeAttribute("title");
+        if (!el.hasAttribute("data-tooltip")) el.setAttribute("data-tooltip", title);
     }
 
     private _getTransformers(): NodeTransformer<HTMLElement>[] {
         return [
-            // 前置：title → data-tooltip 编译期转换（ADR-0061 决策 4）——特性开启时引擎树内所有带
-            // title 的元素转移值并剥除（原生浏览器 tooltip 从根上不可能出现；data-tooltip 优先、
-            // 并存仅剥 title）；绑定形态 :title / x-bind:title 重定向为 :data-tooltip（运行期
-            // 写回不复活原生 tooltip）。挂 transformElement 即覆盖全部子树编译通道（主 walk /
-            // x-for 项 / patch 重建 / keepalive——HTMLElement 必走 transformElement 的编译铁律）。
-            // 模板只读契约：转换作用于 clone。enabled=false（options.tooltip: false）不命中，
-            // title 原样保留（原生行为，全关语义）。
-            [
-                (node: Node) =>
-                    node instanceof HTMLElement &&
-                    this.engine.tooltipManager.enabled &&
-                    node.hasAttribute("title"),
-                (el: HTMLElement) => this._convertTitleAttrs(el),
-            ],
+            // 注：静态 title → data-tooltip 转换（ADR-0061 决策 4）在 compileElement 内联执行
+            //（两条路径统一），不以本表前置 transformer 形态实现——first-match-wins 会吞掉
+            // 带指令宿主的通用编译（x-foldable/x-text 等全部静默失效）；compileElement 同样是
+            // 全部子树编译通道（主 walk / x-for 项 / patch / keepalive）的必经之路，覆盖等价。
             // 前置：<script type="autospark/actions"> 提取为局部 action 后剪枝（普通 script 原样保留）。
             // 提取/解析/注入收编于 ActionManager；scope 解析留在 compiler（依赖私有 templateScopeMap）
             [
@@ -844,9 +832,12 @@ export class AutoSparkCompiler {
         ) {
             // 必须浅克隆：transformElement 用 live NodeList 遍历原节点子节点并挂到返回的新节点下，
             // 若返回原节点，appendChild 会写回原节点自身、其 childNodes 持续增长，导致 live 遍历无限循环。
-            return template.cloneNode(false) as HTMLElement;
+            const plain = template.cloneNode(false) as HTMLElement;
+            if (this.engine.tooltipManager.enabled) this._convertTitleEl(plain);
+            return plain;
         }
         const el = template.cloneNode(false) as HTMLElement;
+        if (this.engine.tooltipManager.enabled) this._convertTitleEl(el);
         removeDirectives(el, "x-", this._runtimeKeepAttr());
         const scope = new AutoSparkScope(this.engine, el, template);
         this._linkParent(template, scope);
@@ -1560,8 +1551,13 @@ export class AutoSparkCompiler {
          */
         configure?: (scope: AutoSparkScope) => void,
     ): { el: HTMLElement; scope: AutoSparkScope } {
-        const el = reuseEl ?? this._convertTitleAttrs(itemTemplate.cloneNode(false) as HTMLElement);
-        if (!reuseEl) removeDirectives(el, "x-", this._runtimeKeepAttr());
+        const el = (reuseEl ?? itemTemplate.cloneNode(false)) as HTMLElement;
+        // 非 reuse 分支须做 title 转换 + 指令剥除（项根绕过 transformElement，compileElement
+        // 的两步此处手动等价）
+        if (!reuseEl) {
+            if (this.engine.tooltipManager.enabled) this._convertTitleEl(el);
+            removeDirectives(el, "x-", this._runtimeKeepAttr());
+        }
         // reuseEl：旧 scope 已 destroy，其子树 DOM 残留在 el 上，须清空后重建，否则 compileSubtree
         // 的 appendChild 会导致子节点重复。
         if (reuseEl) {

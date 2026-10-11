@@ -51,6 +51,13 @@ export interface NotificationEntry {
     clickHandler: ((e: Event) => void) | null;
     enterHandler: (() => void) | null;
     leaveHandler: (() => void) | null;
+    /**
+     * 控制动词订阅退订函数登记（ADR-0104 onXxx 便捷面）：`session.onPause(cb)` 等挂的
+     * 引擎级侦听随卡销毁自动退订（id 唯一使残留侦听永不再触发，纯泄漏）。
+     */
+    controlOffs: (() => void)[];
+    /** 自动模式 start 已补发标记（ADR-0104：首次显示发一次，重显不重发） */
+    startEmitted: boolean;
     /** 已应用的附加类名（原地更新换装用） */
     appliedClassName: string;
     /** 已应用的内联样式（原地更新换装用，ADR-0077 styles） */

@@ -2,7 +2,7 @@
 
 - **状态**：Accepted
 - **日期**：2026-09-30
-- **关联**：[ADR-0072](0072-x-expandable-resize.md)（内建单边 resize 与同元素互斥——本决策的消费前提）、[ADR-0070](0070-x-expandable-compose.md)（组合与边线交互协调）、[ADR-0064](0064-x-resize.md)（ResizeSession 核心与 overlay 集成——drawer 迁出、dialog 保留）
+- **关联**：[ADR-0072](0072-x-expandable-resize.md)（内建单边 resize 与同元素互斥——本决策的消费前提）、[ADR-0070](0070-x-expandable-compose.md)（组合与边线交互协调）、[ADR-0064](0064-x-resizable.md)（ResizeSession 核心与 overlay 集成——drawer 迁出、dialog 保留）
 - **共识来源**：grilling 决策 Q1–Q4 全确认（迁移范围 C / 让位内建化认知 / splitter 写回路由 / dialog 保留）
 
 ## 背景

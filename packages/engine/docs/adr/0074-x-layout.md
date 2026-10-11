@@ -2,7 +2,7 @@
 
 - **状态**：Accepted
 - **日期**：2026-09-30
-- **关联**：[ADR-0067](0067-x-splitter.md)（被组合的分割器）、[ADR-0069](0069-x-expandable.md) / [ADR-0070](0070-x-expandable-compose.md)（`compose` 程序化组合先例与共享把手）、[ADR-0064](0064-x-resize.md)（被注入的尺寸调节指令）、[ADR-0056](0056-x-slot.md)（命名避让的证实——x-slot 已是组件插槽出口）、[ADR-0007](0007-directive-options.md)（指令选项体系）、[ADR-0002](0002-engine-patch.md)（ownsChildren → patch 动态区域）、[CONTEXT.md](../../CONTEXT.md)（「布局容器」「布局窗格」「贯穿」「布局回流」「窗格分割」「窗格尺寸调节」词条）
+- **关联**：[ADR-0067](0067-x-splitter.md)（被组合的分割器）、[ADR-0069](0069-x-expandable.md) / [ADR-0070](0070-x-expandable-compose.md)（`compose` 程序化组合先例与共享把手）、[ADR-0064](0064-x-resizable.md)（被注入的尺寸调节指令）、[ADR-0056](0056-x-slot.md)（命名避让的证实——x-slot 已是组件插槽出口）、[ADR-0007](0007-directive-options.md)（指令选项体系）、[ADR-0002](0002-engine-patch.md)（ownsChildren → patch 动态区域）、[CONTEXT.md](../../CONTEXT.md)（「布局容器」「布局窗格」「贯穿」「布局回流」「窗格分割」「窗格尺寸调节」词条）
 - **共识来源**：grilling Q1–Q29 六轮闭合（flex vs grid 结构论证、pane/panel 词汇占用的事实重开、拖拽折叠联动与窗格分割两处用户反转）+ 两轮代码事实调查（指令清单与 x-slot / x-resize 现状；x-expandable / x-splitter / patch 机制）
 
 ## 背景

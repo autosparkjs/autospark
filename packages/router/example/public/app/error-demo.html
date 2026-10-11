@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kylin Router - 错误处理和重试机制演示</title>
+    <link rel="stylesheet" href="../styles.css">
+    <style>
+        .demo-nav {
+            padding: 20px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .demo-nav h1 {
+            margin: 0;
+            font-size: 24px;
+            margin-right: 20px;
+        }
+
+        .demo-nav kylin-link,
+        .demo-nav button {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .demo-nav kylin-link:hover,
+        .demo-nav button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        main {
+            padding: 20px;
+            min-height: 400px;
+        }
+
+        .error-log {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #ddd;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .error-log h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        #error-container {
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .error-entry {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid #dc3545;
+            background: #fff;
+            border-radius: 4px;
+        }
+
+        .error-entry.success {
+            border-left-color: #28a745;
+        }
+
+        .error-entry .timestamp {
+            color: #666;
+            font-size: 11px;
+        }
+
+        .error-entry .message {
+            margin-top: 5px;
+            color: #333;
+        }
+
+        .error-entry .details {
+            margin-top: 5px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #666;
+        }
+
+        .error-boundary {
+            padding: 40px;
+            text-align: center;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .error-boundary h2 {
+            color: #dc3545;
+            margin-bottom: 20px;
+        }
+
+        .error-boundary p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .error-boundary button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        .error-boundary button:hover {
+            background: #0056b3;
+        }
+
+        .retry-info {
+            padding: 15px;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+
+        .retry-info h4 {
+            margin: 0 0 10px 0;
+            color: #856404;
+        }
+
+        .retry-info p {
+            margin: 5px 0;
+            color: #856404;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <nav class="demo-nav">
+            <h1>错误处理和重试机制演示</h1>
+            <kylin-link href="/error/404">404 错误</kylin-link>
+            <kylin-link href="/error/load-fail">加载失败</kylin-link>
+            <kylin-link href="/error/timeout">超时错误</kylin-link>
+            <kylin-link href="/error/retry">自动重试</kylin-link>
+        </nav>
+        <main>
+            <kylin-outlet></kylin-outlet>
+        </main>
+        <div class="error-log">
+            <h3>错误日志</h3>
+            <div id="error-container"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { KylinRouter } from '/src/index.ts';
+
+        const host = document.getElementById('app');
+
+        // 自定义错误组件
+        const ErrorComponent = (props) => {
+            const error = props.error || new Error('未知错误');
+            const retryInfo = props.retryInfo || null;
+
+            let html = `
+                <div class="error-boundary">
+                    <h2>出错了！</h2>
+                    <p><strong>错误消息：</strong>${error.message}</p>
+            `;
+
+            if (retryInfo) {
+                html += `
+                    <div class="retry-info">
+                        <h4>重试信息</h4>
+                        <p>已尝试次数：${retryInfo.attempt}/${retryInfo.maxAttempts}</p>
+                        <p>下次重试在：${retryInfo.nextRetry ? new Date(retryInfo.nextRetry).toLocaleTimeString() : '计算中...'}</p>
+                    </div>
+                `;
+            }
+
+            html += `
+                    <button onclick="window.router.retryLoad()">重试</button>
+                    <kylin-link href="/">返回首页</kylin-link>
+                </div>
+            `;
+
+            return html;
+        };
+
+        const router = new KylinRouter(host, {
+            routes: [
+                // 默认路由
+                {
+                    path: '/',
+                    component: 'div',
+                    data: {
+                        title: '错误处理演示首页',
+                        content: '点击上方链接测试各种错误场景和重试机制。'
+                    }
+                },
+                // 404 错误示例
+                {
+                    path: '/error/404',
+                    component: 'div',
+                    data: {
+                        title: '404 页面',
+                        content: '这是一个正常页面，用于演示 404 错误处理。'
+                    }
+                },
+                // 加载失败示例
+                {
+                    path: '/error/load-fail',
+                    component: 'invalid-component-that-will-fail',
+                    data: {
+                        title: '加载失败示例'
+                    },
+                    errorBoundary: {
+                        component: ErrorComponent,
+                        retry: {
+                            max: 2,
+                            delay: 1000
+                        }
+                    }
+                },
+                // 超时错误示例
+                {
+                    path: '/error/timeout',
+                    component: async () => {
+                        // 模拟超时
+                        await new Promise(resolve => setTimeout(resolve, 10000));
+                        return 'div';
+                    },
+                    timeout: 2000,
+                    data: {
+                        title: '超时错误示例'
+                    },
+                    errorBoundary: {
+                        component: ErrorComponent
+                    }
+                },
+                // 自动重试示例
+                {
+                    path: '/error/retry',
+                    component: async () => {
+                        // 模拟失败后成功
+                        const attempts = window.retryAttempts || 0;
+                        window.retryAttempts = attempts + 1;
+
+                        if (attempts < 2) {
+                            throw new Error(`模拟加载失败（尝试 ${attempts + 1}/3）`);
+                        }
+
+                        return 'div';
+                    },
+                    data: {
+                        title: '重试成功示例',
+                        content: '经过几次重试后，组件加载成功！',
+                        attempts: window.retryAttempts
+                    },
+                    retry: {
+                        max: 3,
+                        delay: 1000,
+                        strategy: 'fixed'
+                    },
+                    errorBoundary: {
+                        component: ErrorComponent
+                    }
+                }
+            ],
+            defaultErrorComponent: ErrorComponent
+        });
+
+        router.attach();
+
+        // 添加错误日志
+        function addErrorLog(message, details = null) {
+            const container = document.getElementById('error-container');
+            const log = document.createElement('div');
+            log.className = 'error-entry';
+
+            let html = `
+                <div class="timestamp">${new Date().toLocaleString()}</div>
+                <div class="message">${message}</div>
+            `;
+
+            if (details) {
+                html += `<div class="details">${JSON.stringify(details, null, 2)}</div>`;
+            }
+
+            log.innerHTML = html;
+            container.insertBefore(log, container.firstChild);
+
+            // 限制日志数量
+            while (container.children.length > 20) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        // 监听组件错误
+        router.on('component-error', (event) => {
+            addErrorLog(
+                `组件加载失败: ${event.detail.error.message}`,
+                {
+                    route: event.detail.route?.path,
+                    stack: event.detail.error.stack
+                }
+            );
+        });
+
+        // 监听重试事件
+        router.on('retry-attempt', (event) => {
+            addErrorLog(
+                `重试第 ${event.detail.attempt} 次`,
+                {
+                    route: event.detail.route?.path,
+                    error: event.detail.error?.message,
+                    delay: event.detail.delay
+                }
+            );
+        });
+
+        // 监听重试成功
+        router.on('retry-success', (event) => {
+            const log = document.createElement('div');
+            log.className = 'error-entry success';
+            log.innerHTML = `
+                <div class="timestamp">${new Date().toLocaleString()}</div>
+                <div class="message">重试成功！共尝试 ${event.detail.totalAttempts} 次</div>
+            `;
+            document.getElementById('error-container').insertBefore(
+                log,
+                document.getElementById('error-container').firstChild
+            );
+        });
+
+        // 监听重试失败
+        router.on('retry-failed', (event) => {
+            addErrorLog(
+                `重试失败：已达到最大重试次数 (${event.detail.maxAttempts})`,
+                {
+                    route: event.detail.route?.path,
+                    lastError: event.detail.lastError?.message
+                }
+            );
+        });
+
+        // 初始日志
+        addErrorLog('错误处理系统初始化完成');
+        addErrorLog('点击上方链接测试各种错误场景');
+    </script>
+</body>
+</html>

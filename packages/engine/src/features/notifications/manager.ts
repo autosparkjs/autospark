@@ -31,6 +31,19 @@ import {
 export type { NotificationEntry } from "./entry";
 
 /**
+ * 事件名段卫生（ADR-0102）：type/id/action 名中的 `/` 与 `*` 会击穿分层结构与通配匹配，
+ * 组合具体名时替换为 `-`——事件名仅是广播/匹配键，记录 id 本身不受影响。
+ */
+function eventSegment(v: unknown): string {
+    return String(v ?? "").replace(/[/]/g, "-").replace(/\*/g, "-");
+}
+
+/** 组合通知事件具体名（emit 面恒具体；订阅面可 `*`/`**` 通配——ADR-0102） */
+function notificationEventName(type: string, id: string, tail: string): string {
+    return `notifications/${eventSegment(type)}/${eventSegment(id)}/${tail}`;
+}
+
+/**
  * type 种子默认提取（ADR-0089 决策九 + ADR-0092 模板化 → ADR-0094 自 presets.ts 收编）：
  * 种子随组件声明（各 type .html 的 `<script setup>` defaults 段），经标准组件链懒解析提取
  * （`def.defaults`）——用户同名覆盖 type 组件时覆盖组件的 defaults 自然生效（覆盖彻底性）；
@@ -224,7 +237,7 @@ export class NotificationManager extends Map<string, ComponentInstance> {
                 const fresh = this._mergeProps({ ...parsed, id, type: declared }).merged;
                 this._applyEntryConfig(entry, fresh as NotificationProps);
                 entry.state = "queued";
-                this._emit("notification:add", entry);
+                this._emit("add", entry);
                 this._displayEntry(entry);
                 this.storage.schedule();
             } catch (e: any) {
@@ -330,8 +343,8 @@ export class NotificationManager extends Map<string, ComponentInstance> {
         }
 
         const entry = this.records.createEntry(merged as NotificationProps, id, type);
-        if (!this._materialize(entry)) return null;
-        this._emit("notification:add", entry);
+        if (!this._materialize(entry)) return null; // 装配 + 入表（SSR 无容器 → null）
+        this._emit("add", entry);
         this._displayEntry(entry);
         this.storage.schedule();
         return entry.instance;
@@ -387,6 +400,7 @@ export class NotificationManager extends Map<string, ComponentInstance> {
                     continue;
                 }
                 resolved.push({
+                    name: item,
                     title: (desc.title as string) ?? item,
                     handle: desc.handle,
                     hide: (desc as any).hide !== false,
@@ -396,6 +410,7 @@ export class NotificationManager extends Map<string, ComponentInstance> {
             } else if (item && typeof item === "object") {
                 const hasValue = "value" in item;
                 resolved.push({
+                    name: String((item as any).id ?? (item as any).title ?? "action"),
                     title: (item as any).title ?? "action",
                     handle: typeof (item as any).handle === "function" ? (item as any).handle : null,
                     hide: (item as any).hide !== false,
@@ -439,7 +454,7 @@ export class NotificationManager extends Map<string, ComponentInstance> {
         validatePos(merged, (m) => this.engine.logger.warn(m));
         this._applyEntryConfig(entry, merged as NotificationProps);
         if (entry.state === "shown") this._startTimer(entry); // 重置满额计时
-        this._emit("notification:update", entry);
+        this._emit("update", entry);
         this.storage.schedule();
     }
 
@@ -489,7 +504,7 @@ export class NotificationManager extends Map<string, ComponentInstance> {
 
     /**
      * 记录级字段唯一写通道（决策 8）：`read` / `status` / `result` / `title` / `level` 等补丁
-     * 生效 = 改记录 + 发 `notification:update` + 触发持久化。id / type 不可变。
+     * 生效 = 改记录 + 发 `update` 事件（分层名 `notifications/<type>/<id>/update`）+ 触发持久化。id / type 不可变。
      */
     update(id: string, patch: Partial<NotificationProps>): void {
         const entry = this._entries.get(id);
@@ -510,15 +525,15 @@ export class NotificationManager extends Map<string, ComponentInstance> {
         }
         validatePos(merged, (m) => this.engine.logger.warn(m));
         this._applyEntryConfig(entry, merged as NotificationProps);
-        this._emit("notification:update", entry);
-        if (!prevRead && entry.props.read === true) this._emit("notification:read", entry);
-        if (entry.props.status !== prevStatus) this._emit("notification:status", entry);
+        this._emit("update", entry);
+        if (!prevRead && entry.props.read === true) this._emit("read", entry);
+        if (entry.props.status !== prevStatus) this._emit("status", entry);
         this.storage.schedule();
     }
 
     // ── 已读（决策 11） ───────────────────────────────────────────────
 
-    /** 置已读（幂等）：卡片任意点击自动调用；变更时发 `notification:read` + 持久化 + 镜像替换 */
+    /** 置已读（幂等）：卡片任意点击自动调用；变更时发 `read` 事件 + 持久化 + 镜像替换 */
     private _setRead(entry: NotificationEntry): void {
         if (entry.props.read === true) return;
         entry.props.read = true;
@@ -526,7 +541,7 @@ export class NotificationManager extends Map<string, ComponentInstance> {
         this.records.touch(entry);
         if (entry.instance) entry.instance.data.read = true;
         this.records.mirrorReplace(entry);
-        this._emit("notification:read", entry);
+        this._emit("read", entry);
         this.storage.schedule();
     }
 
@@ -579,7 +594,8 @@ export class NotificationManager extends Map<string, ComponentInstance> {
         }
         if (entry.el) this.engine.animate.enter(entry.el, resolveAnimate(entry.props.animate).enter);
         this._startTimer(entry);
-        this._emit("notification:show", entry);
+        this._emit("show", entry);
+        this._emitTaskAutoStart(entry);
     }
 
     /** 出等待队列（关闭前置——防止补位显示已关闭 entry） */
@@ -674,7 +690,7 @@ export class NotificationManager extends Map<string, ComponentInstance> {
     // ── 关闭与收口（display 模型：persist 分流，ADR-0089 决策四） ────────
 
     /**
-     * 关闭（一切移除路径终点）：`notification:hide` 广播在发起时；离场动画（收拢沿用）完成后按
+     * 关闭（一切移除路径终点）：`hide` 事件广播在发起时；离场动画（收拢沿用）完成后按
      * persist 分流——`≥1` 转「已隐藏」（display:none **保留实例**，closed 约定键置位）；
      * `0` 真销毁（`_destroyEntry`）。排队中的 entry 同步出等待队列。
      */
@@ -686,7 +702,7 @@ export class NotificationManager extends Map<string, ComponentInstance> {
         if (entry.instance) {
             entry.instance.data.visible = false;
         }
-        this._emit("notification:hide", entry);
+        this._emit("hide", entry);
         const finish = () => this._settleClose(entry);
         const leave = animated ? entry.leave : null;
         const el = entry.el;
@@ -750,13 +766,13 @@ export class NotificationManager extends Map<string, ComponentInstance> {
 
     /**
      * 覆写 `Map.delete`：**硬移除**（无动画 + persist 记录一并删）+ **立即同步持久化**
-     * （local 即写、remote 即 flush——「删干净」闭环）。展示中/排队中先广播 `notification:hide`
+     * （local 即写、remote 即 flush——「删干净」闭环）。展示中/排队中先广播 `hide` 事件
      * （决策 20：一切移除路径均广播——payload.notification 在销毁前取）。
      */
     override delete(id: string): boolean {
         const entry = this._entries.get(id);
         if (!entry) return false;
-        if (entry.state === "shown" || entry.state === "queued") this._emit("notification:hide", entry);
+        if (entry.state === "shown" || entry.state === "queued") this._emit("hide", entry);
         this._destroyEntry(entry);
         this._flushQueue(entry.props.pos as NotificationPos);
         this.storage.flushNow();
@@ -817,13 +833,20 @@ export class NotificationManager extends Map<string, ComponentInstance> {
             return;
         }
         if (target?.closest?.(".autospark-notification-close")) {
-            this._dismiss(entry, true);
+            // × 语义（ADR-0102 → ADR-0104 修订为独立 close 动词）：优先组件 close()——task
+            // 覆写为「非终态先 abort + actions/close 广播再关」；无 close 的 type 回落
+            // cancel()（shell ≡ hide——既有行为零变化）；均无则直关
+            const methods = (entry.instance?.methods ?? {}) as Record<string, unknown>;
+            const routed =
+                typeof methods.close === "function" ? methods.close : typeof methods.cancel === "function" ? methods.cancel : null;
+            if (typeof routed === "function") (routed as () => void)();
+            else this._dismiss(entry, true);
         }
     }
 
     /**
      * action 触发闭环（决策 13，按钮点击与 confirm `yes()/no()` / `respond()` 共用）：value 写
-     * result → `notification:action` 广播 → confirm resolve → handle → hide 判定。
+     * result → `actions/<名>` 事件广播 → confirm resolve → handle → hide 判定。
      */
     _fireAction(entry: NotificationEntry, action: ResolvedNotificationAction): void {
         if (action.hasValue) {
@@ -833,10 +856,7 @@ export class NotificationManager extends Map<string, ComponentInstance> {
             if (entry.instance) entry.instance.data.result = action.value;
             this.records.mirrorReplace(entry);
         }
-        this._emit("notification:action", entry, {
-            action: { title: action.title, hide: action.hide },
-            value: action.hasValue ? action.value : undefined,
-        });
+        this._emitAction(entry, action);
         if (entry.confirmResolve) {
             entry.confirmResolve(action.hasValue ? action.value : undefined);
             entry.confirmResolve = null;
@@ -871,22 +891,92 @@ export class NotificationManager extends Map<string, ComponentInstance> {
         this._fireConfirmChoice(entry, value);
     }
 
-    // ── 事件（决策 20） ────────────────────────────────────────────────
+    // ── 任务控制动词（ADR-0104） ─────────────────────────────────────
 
     /**
-     * 双通道事件（决策 20）：引擎总线 + 卡片元素 dispatchEvent；`notification:action` 额外以
-     * anchor 为根派发（决策 14 职责②）。payload `{ notification: 组件实例, el }`。
+     * 控制动词事件派发（ADR-0104）：`notifications/<type>/<id>/actions/<动词>`——task 内置
+     * 控制钮（开始/暂停/恢复/停止/取消）与 × 关闭共用 props.actions 的 action 事件家族
+     * （内置动词 start/pause/resume/stop/cancel/close 为该卡 actions 命名空间的事实保留
+     * 名）。**方法级单一真相源**：组件方法内调用——按钮点击与程序直调（`session.pause()`)
+     * 同发，外部可模拟用户操作。payload `{ notification, el }`（无 value——控制动词无应答）。
+     */
+    _emitControlAction(id: string, verb: string): void {
+        const entry = this._entries.get(id);
+        if (!entry) return;
+        const name = notificationEventName(entry.type, entry.props.id, `actions/${verb}`);
+        const detail = { notification: entry.instance as ComponentInstance, el: entry.el };
+        this.engine.emit(name, detail as any);
+        entry.el?.dispatchEvent(new CustomEvent(name, { detail, bubbles: true }));
+        if (entry.anchor) {
+            entry.anchor.dispatchEvent(new CustomEvent(name, { detail, bubbles: true }));
+        }
+    }
+
+    /**
+     * 控制动词订阅（ADR-0104 onXxx 便捷面的引擎侧落点）：具体名订阅（精确名回调收
+     * `{type, payload}` 信封——`session.onPause(cb)` 等转发至此）+ 退订函数登记
+     * `entry.controlOffs`（unmountCard 自动清）。返回**退订函数**（fastevent 订阅者
+     * 对象的 `.off()` 包装——调用方提前手动退订用）。
+     */
+    _onControlAction(id: string, verb: string, cb: (payload: any) => void): () => void {
+        const entry = this._entries.get(id);
+        const name = notificationEventName(entry?.type ?? "task", id, `actions/${verb}`);
+        const subscriber = this.engine.on(name, cb as any);
+        const off = () => subscriber.off();
+        if (entry) entry.controlOffs.push(off);
+        return off;
+    }
+
+    /**
+     * 自动模式 start 补发（ADR-0104 决策 1c）：未声明 canStart 的 task 自动开跑，**首次
+     * 显示时**补发一次 `actions/start`——时机在 show 事件后（factory 闭包内挂的 onStart
+     * 不丢事件）；重显（persist ≥ 1 hide → show）不重发。手动门控卡（canStart）的 start
+     * 归「开始」钮 / `start()`；显示前已入终态（闭包抢跑完成/停止）不补发——生命周期已由
+     * update 事件讲完。
+     */
+    private _emitTaskAutoStart(entry: NotificationEntry): void {
+        if (entry.type !== "task" || entry.startEmitted) return;
+        if ((entry.props as any).canStart === true) return;
+        const st = (entry.instance?.data as any)?.state;
+        if (st === "stopped" || st === "completed") return;
+        entry.startEmitted = true;
+        this._emitControlAction(entry.props.id, "start");
+    }
+
+    // ── 事件（决策 20 → ADR-0102 分层命名） ────────────────────────
+
+    /**
+     * 双通道事件（决策 20 → ADR-0102）：引擎总线 + 卡片元素 dispatchEvent，均以**具体名**
+     * `notifications/<type>/<id>/<verb>` 广播（订阅面可 `*`/`**` 通配，emit 面恒具体——
+     * `components/<名>/registered` 动态键先例）。payload `{ notification: 组件实例, el }`。
      */
     _emit(
-        type: "notification:add" | "notification:update" | "notification:show" | "notification:hide" | "notification:read" | "notification:status" | "notification:action",
+        verb: "add" | "update" | "show" | "hide" | "read" | "status",
         entry: NotificationEntry,
-        extra?: Record<string, any>,
     ): void {
-        const detail = { notification: entry.instance as ComponentInstance, el: entry.el, ...extra };
-        this.engine.emit(type, detail as any);
-        entry.el?.dispatchEvent(new CustomEvent(type, { detail, bubbles: true }));
-        if (type === "notification:action" && entry.anchor) {
-            entry.anchor.dispatchEvent(new CustomEvent(type, { detail, bubbles: true }));
+        const name = notificationEventName(entry.type, entry.props.id, verb);
+        const detail = { notification: entry.instance as ComponentInstance, el: entry.el };
+        this.engine.emit(name, detail as any);
+        entry.el?.dispatchEvent(new CustomEvent(name, { detail, bubbles: true }));
+    }
+
+    /**
+     * action 事件（`notifications/<type>/<id>/actions/<名>`）：末段 = action id（字符串形态 =
+     * action id / 对象形态 = `id` ?? `title`）；payload 额外 `action`/`value`；anchor 存在时
+     * 以发起子树为根额外派发（决策 14 职责②）。
+     */
+    _emitAction(entry: NotificationEntry, action: ResolvedNotificationAction): void {
+        const name = notificationEventName(entry.type, entry.props.id, `actions/${action.name}`);
+        const detail = {
+            notification: entry.instance as ComponentInstance,
+            el: entry.el,
+            action: { title: action.title, hide: action.hide },
+            value: action.hasValue ? action.value : undefined,
+        };
+        this.engine.emit(name, detail as any);
+        entry.el?.dispatchEvent(new CustomEvent(name, { detail, bubbles: true }));
+        if (entry.anchor) {
+            entry.anchor.dispatchEvent(new CustomEvent(name, { detail, bubbles: true }));
         }
     }
 

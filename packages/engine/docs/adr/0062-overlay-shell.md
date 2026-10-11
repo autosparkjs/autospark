@@ -1,7 +1,7 @@
 # ADR-0062：覆盖物面板外壳（shell）——面板形态组件化，与遮罩正交
 
-- **状态**：Accepted
-- **日期**：2026-09-28
+- **状态**：Accepted（2026-10-11 修订：面板类名契约正名——泛化 `autospark-dialog` 基类退役，家族通用视觉改挂 `[data-overlay]` 属性选择器，见文末[修订记录](#修订记录2026-10-11面板类名契约正名)）
+- **日期**：2026-09-28（初版） / 2026-10-11（修订）
 - **关联**：[ADR-0052](0052-x-overlay-and-x-dialog.md)（覆盖物组件化统一——shell 是「形态可定制」的延续）、[ADR-0056](0056-x-slot.md)（插槽投影——live 段扩展）、[ADR-0007](0007-directive-options-and-modifiers.md)（配置体系）、[ADR-0060](0060-x-popover.md)（悬浮形态同机制）、[CONTEXT.md](../../CONTEXT.md)（「面板外壳（Shell）」词条）
 - **共识来源**：grilling 三轮决策（Q1–Q15）+ 实施中两次修订（mask 保留在引擎侧、shell 不含遮罩——用户明确「mask 应保留，其用于控制是否显示 mask」「shell 不包括 mask」），本文即共识落盘
 
@@ -65,3 +65,13 @@
 
 - 无废弃 API。`DialogDirective`/`PopoverDirective` 的类级样式注入函数（`autospark-dialog-styles` / `autospark-popover-styles` 两个 `<style>` id）迁并为 `autospark-shell-styles`——若用户脚本依赖旧 id 选择器（罕见）需改。
 - `OverlayInstanceOptions.mask` 语义不变；引擎内部 `_buildAndMount` 的面板硬编码创建为私有实现，无外部消费面。
+
+## 修订记录（2026-10-11：面板类名契约正名）
+
+初版后 popover / drawer / notification 面板根普遍携带 `autospark-dialog` + 形态类**双类**蹭家族基类视觉——`.autospark-dialog` 名义上属 dialog、实际承载全家通用规则（历史成因：x-dialog 是家族首个成员，ADR-0052 决策 12 的面板类契约随之得名，组件化统一后升格为事实基类），语义割裂：读 popover-shell 的人无法从类名推断共享基类还是抄错文件。正名方案（**通用性走属性、特异性走类名**）：
+
+1. **家族通用规则改挂引擎契约属性选择器 `[data-overlay]`**（面板必挂、形态中立，决策二既有契约）：`position: relative` / 圆角 / `[data-overlay-border]` 边框背景阴影 / 箭头 staticSide 定位 / `[data-autospark-overlays] > [data-overlay]` 层级——本就是属性选择器的箭头规则不动；
+2. **`.autospark-dialog` 回归 dialog 形态专属类**（名实相符）；popover / drawer / notification 根改单形态类 `.autospark-popover` / `.autospark-drawer` / `.autospark-notification`（去双类）；dialog/popover 两 shell 样式段各自自包含通用规则（ADR-0094 原则不变）；
+3. **通知面板特例自包含**：notification 渲染不走 OverlayInstance、面板无 `data-overlay` 属性，原经基类获得的 `position: relative` / 圆角在 `.autospark-notification` 段内自补；
+4. `container.ts` 的 `PANEL_CLASS` 导出常量删除（引擎内部零消费，泛化语义已死）；
+5. **开发期硬切无兼容**（仓库惯例）：按 `.autospark-dialog` 定制过 popover/drawer 面板 CSS 的消费者改用形态类或 `[data-overlay]` 属性选择器；遮罩类 `.autospark-dialog-mask` 不在本次范围（名实同样割裂，待后续裁决）。

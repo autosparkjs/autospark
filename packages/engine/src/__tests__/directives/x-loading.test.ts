@@ -519,7 +519,7 @@ describe("x-loading 动作按钮（ADR-0038）", () => {
             { l: true },
         );
         engine.on("actions/refresh/pending", () => bus.push("pending"));
-        engine.on("actions/refresh/resolved", (m: any) => bus.push(`resolved:${m.payload.name}`));
+        engine.on("actions/refresh/resolved", (m: any) => bus.push(`resolved:${m.payload.id}`));
         root.querySelector("#h")!.addEventListener("action:refresh", (e) => {
             domCount++;
             domDetail = (e as CustomEvent).detail;
@@ -528,10 +528,10 @@ describe("x-loading 动作按钮（ADR-0038）", () => {
         root.querySelector("#h .x-loading-action")!.click();
         // 总线照播（合成 descriptor 的广播语义与内置信号型同构）
         expect(bus).toEqual(["pending", "resolved:refresh"]);
-        // DOM 冒泡照发：pending + resolved 两次，detail 携带 name 与合成 descriptor
+        // DOM 冒泡照发：pending + resolved 两次，detail 携带 id 与合成 descriptor
         expect(domCount).toBe(2);
-        expect(domDetail?.name).toBe("refresh");
-        expect(domDetail?.action?.name).toBe("refresh");
+        expect(domDetail?.id).toBe("refresh");
+        expect(domDetail?.action?.id).toBe("refresh");
         expect(typeof domDetail?.action?.handle).toBe("function");
     });
 

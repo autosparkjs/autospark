@@ -9,7 +9,7 @@
     <body>
         <!-- 配套 action 三件套（toast / confirm / task，均为内置执行型）：模板任意
              @click 处直接发起，自动注入 anchor = 发起元素。事件双通道：
-             引擎总线 notification:* + 卡片元素 dispatchEvent。 -->
+             引擎总线 notifications/<type>/<id>/<verb>（ADR-0102 分层命名，通配订阅）+ 卡片元素 dispatchEvent。 -->
         <div class="demo-app section">
             <div x-data="{ size: 'M' }">
                 <div class="block">
@@ -48,13 +48,13 @@
                 pre.textContent += `[${t}] ${new Date().toLocaleTimeString()}\n`;
                 pre.scrollTop = pre.scrollHeight;
             };
-            // 引擎总线回调收 payload { message, el }；notification:action 追加 { action, value? }
-            app.on("notification:show", (m) => log(`notification:show  id=${m.payload.notification.id}`));
-            app.on("notification:hide", (m) => log(`notification:hide  id=${m.payload.notification.id}`));
-            app.on("notification:action", (m) =>
-                log(`notification:action  id=${m.payload.notification.id} value=${JSON.stringify(m.payload.value)}`),
+            // 引擎总线回调收 { type, payload } 信封（payload 在 .payload）；actions 事件追加 { action, value? }
+            app.on("notifications/*/*/show", ({ type, payload }) => log(type + "  id=" + payload.notification.id));
+            app.on("notifications/*/*/hide", ({ type, payload }) => log(type + "  id=" + payload.notification.id));
+            app.on("notifications/*/*/actions/*", ({ type, payload }) =>
+                log(type + "  value=" + JSON.stringify(payload.value)),
             );
-            // confirm 的结果消费：模板就近监听（anchor 派发根）或总线 notification:action 均可
+            // confirm 的结果消费：总线通配 actions 事件（anchor 派发根走具体名，ADR-0102）
         </script>
     </body>
 </html>

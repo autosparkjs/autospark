@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-foldable · column 纵轴折叠</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      /* column 轴：宿主定高、子元素纵向堆叠（align-items:stretch 撑满横轴成菜单形态）；
+         高度不足时末尾项折入「更多」面板——纵向主轴下 more 按钮在底部、面板自右侧弹出
+         （right-end），面板出口布局仍是引擎统一的垂直堆叠 */
+      .sidebar {
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        padding: 10px 6px;
+        gap: 6px;
+        background: #fff;
+        align-items: stretch;
+        width: 80px;
+      }
+    </style>
+  </head>
+  <body style="overflow: auto;height:600px;">
+    <div class="demo-app section" style="height: 480px">
+      <div class="block has-text-grey is-size-7">
+        拖动滑块改矮容器：末尾菜单项逐个折入「更多」面板（hover
+        展开、自右侧弹出，省略号图标自动旋转 90° 成竖排）；改高自动按原序还原。column
+        轴下引擎写入宿主 <code>min-height</code>（= more 按钮尺寸，写入后不撤），保证极矮时按钮不被挤没。
+      </div>
+      <div class="field">
+        <input
+          id="resizer"
+          type="range"
+          min="80"
+          max="360"
+          value="360"
+          style="width: 360px; max-width: 100%"
+        />
+      </div>
+      <div id="sb" x-foldable="column" class="sidebar" style="height: 360px; ">
+        <button class="button is-small">个人资料</button>
+        <button class="button is-small">账号安全</button>
+        <button class="button is-small">通知设置</button>
+        <button class="button is-small">隐私偏好</button>
+        <button class="button is-small">主题外观</button>
+        <button class="button is-small">语言地区</button>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+      document.getElementById("resizer").addEventListener("input", (e) => {
+        document.getElementById("sb").style.height = e.target.value + "px";
+      });
+    </script>
+  </body>
+</html>

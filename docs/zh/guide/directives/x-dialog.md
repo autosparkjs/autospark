@@ -382,7 +382,7 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 - `shell` 值为组件名，与内容组件同一查找协议（`x-define` / `options.components` 全局 / `x-import` 均可）；**打开时求值一次**（重开生效，不热更新）；未命中 warn + 回退内置默认；
 - 配置链：`x-dialog-options.shell` > 宿主 `x-options` > 引擎级 `options.overlay.dialog.shell`（全站换肤一处配置）> 内置默认；内置名不占用用户命名空间；
 - **箭头**：锚定模式下（`at.arrow !== false` 默认开）引擎会定位 shell 模板里的 `.autospark-overlay-arrow` 载体元素——内置模板自带；自定义外壳想带箭头就放一个该类名的元素，不放则无箭头（定位照常）；
-- 内置默认面板复用契约类名（`.autospark-dialog` / `.autospark-overlay-arrow`）与 CSS 变量（`--autospark-overlay-z / -bg / -border / -radius`）——既有用户样式覆盖不受影响；自定义外壳复用这些类名即继承默认视觉（可覆盖），完全自写类名则完全自由。
+- 内置默认面板的家族通用视觉挂契约选择器（`[data-overlay]` 属性 + `.autospark-overlay-arrow` 载体类，ADR-0062 修订——泛化 `.autospark-dialog` 基类已退役、该类回归本形态专属）与 CSS 变量（`--autospark-overlay-z / -bg / -border / -radius`）——既有用户样式覆盖不受影响；自定义外壳保留 `data-overlay` 契约属性即继承默认视觉（可覆盖），完全自写则完全自由。
 
 x-popover 同机制（内置 `popover-shell`，见 [x-popover](./x-popover.md#面板外壳shell)）；机制全貌见[覆盖物 · 面板外壳](../overlays.md#面板外壳shell形态可定制)。
 
@@ -461,7 +461,7 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 | `selector`  | 配置 `at` 时必填 | 定位锚（两栖）：`/` 全局选择器（`'/#btn'`）/ 无前缀选择器（消费者 scope 子树内查）/ `../` 父级爬升 / `^` closest / 元素引用——打开时现查，未命中 warn + 退屏幕居中 |
 | `placement` | `"auto"`         | `"auto"`：autoPlacement 按视口空间自动选位（默认）；或 12 个方向值（`top / bottom / left / right`×`'' / -start / -end`）固定方向                                   |
 | `offset`    | 箭头开启时 `6`   | 面板与锚点的间距（透传 floating-ui offset）；箭头开启且未配置时默认让位 6px——三角尖恰好点在锚元素边缘上                                                           |
-| `shift`     | 无               | 视口内滑移 padding（透传 floating-ui shift）                                                                                                                      |
+| `shift`     | 启用（`padding: 0`） | 视口内滑移（floating-ui shift）——面板溢出视口时沿交叉轴滑回，**默认启用**；`false` 关闭；对象透传调参（如 `{padding: 8}`）                                        |
 | `flip`      | `true`           | 视口翻转（当前方向放不下自动翻面）；`placement: 'auto'` 时不生效（与 autoPlacement 互斥）                                                                         |
 | `arrow`     | `true`           | 箭头：载体 + 双伪元素视觉（阴影层 + 融合覆盖层），`false` 关闭                                                                                                    |
 

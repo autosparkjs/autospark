@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-popover · 触发方式</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .pop-panel {
+        background: #fff;
+        border-radius: 8px;
+        padding: 14px 18px;
+        min-width: 240px;
+      }
+      .pop-panel .button {
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 触发方式（ADR-0060 修订）：trigger 选项——'hover' 默认（悬浮意图 + 共享 hover 域 + delay 配对）；
+             'click' 点击 toggle——再点宿主 / 点击面板外部 / ESC 关闭，面板内点击不关，
+             delayShow/delayHide 不适用（触屏适配主路径）。修饰符 .click 等价 trigger: 'click'。 -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block">
+          <button class="button is-primary" x-popover:hover-tip>hover 默认（悬停我）</button>
+          <span class="tag">trigger = 'hover'（默认）</span>
+        </div>
+        <div class="block">
+          <button class="button is-link" x-popover:click-tip x-popover-options="{trigger: 'click'}">
+            click 触发（点击我）
+          </button>
+          <span class="tag">trigger = 'click'：再点宿主 / 点面板外 / ESC 关闭</span>
+        </div>
+        <div class="block">
+          <button class="button is-success" x-popover:dot.click>修饰符糖（点击我）</button>
+          <span class="tag">x-popover:dot.click ≡ trigger: 'click'</span>
+        </div>
+        <div class="block has-text-grey">
+          click 方式下鼠标移出面板不会关闭，面板内可安全交互（试试面板里的按钮）；<br />
+          两种方式均可用 <kbd>ESC</kbd> 关闭当前面板（打开栈只关栈顶）。
+        </div>
+
+        <!-- 覆盖物内容 = 普通组件（x-define 声明，编译期剪枝不闪现） -->
+        <div x-define="hover-tip">
+          <div class="pop-panel">
+            <strong>悬浮触发（默认）</strong>
+            <p class="is-size-7 has-text-grey">
+              mouseenter 显示、离开「宿主∪面板」共享域经 delayHide 宽限关闭。
+            </p>
+          </div>
+        </div>
+        <div x-define="click-tip">
+          <div class="pop-panel">
+            <strong>点击触发</strong>
+            <p class="is-size-7 has-text-grey">
+              click 即开关：再点宿主、点击面板外部或按 ESC 关闭；面板内点击不关。
+            </p>
+            <button class="button is-small">面板内按钮（点击不关闭）</button>
+          </div>
+        </div>
+        <div x-define="dot">
+          <div class="pop-panel">
+            <strong>修饰符糖</strong>
+            <p class="is-size-7 has-text-grey">
+              .click 修饰符等价于 trigger: 'click'；显式 trigger 配置恒优先于修饰符。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

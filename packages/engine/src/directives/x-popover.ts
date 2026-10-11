@@ -5,27 +5,43 @@ import { registerShellStyles } from "../features/overlay/wrappers";
 import { OverlayDirective } from "../features/directive/overlay";
 
 /**
- * x-popover：覆盖物消费者的**悬浮形态**（ADR-0060）——{@link OverlayDirective} 薄子类。
+ * x-popover：覆盖物消费者的**悬浮形态**（ADR-0060，2026-10-11 修订：触发方式可选）——
+ * {@link OverlayDirective} 薄子类。
  *
  * 与 x-dialog 的唯一形态差异是**触发模型**：宿主不再是纯声明点（家族「纯状态驱动」原则的
- * 显式偏离，ADR-0060），而是**悬浮触发器**——mouseenter 显示、指针离开「宿主∪面板」共享
- * hover 域后关闭。查找/防护/等待/props/配置链/插槽/锚定定位全部继承基座。
+ * 显式偏离，ADR-0060），而是**触发器**——`trigger` 选项（`'hover'` 默认 | `'click'`，经
+ * `getOption` 三层链现读）分派两种方式。查找/防护/等待/props/配置链/插槽/锚定定位全部继承基座。
  *
- * - **触发**：mouseenter/mouseleave 语义（不冒泡——悬浮意图，非字面 mouseover）；
- *   `delayShow`（默认 200ms）悬浮意图延迟、`delayHide`（默认 150ms）关闭宽限，均 0 即无延迟，
- *   经 `getOption` 三层链读取（`x-popover-options` 整包 / 成员属性表达式 / 宿主选项）；
- * - **共享 hover 域**（ADR-0060）：宿主与面板在 DOM 上分离（面板渲染进 body 容器），双向
- *   mouseenter/mouseleave 让「宿主↔面板」互移不闪关；leave 的 relatedTarget 与 delayHide
- *   到期是仅有的两个关闭判定点，域内豁免、域外关闭；
+ * - **hover 方式（默认）**：mouseenter/mouseleave 语义（不冒泡——悬浮意图，非字面
+ *   mouseover）；`delayShow`（默认 200ms）悬浮意图延迟、`delayHide`（默认 150ms）关闭宽限，
+ *   均 0 即无延迟（`x-popover-options` 整包 / 成员属性表达式 / 宿主选项）；
+ * - **内容内边距（padding 选项，默认 0）**：应用在 shell 内容区
+ *   `.autospark-popover-content` 的 inline padding（number→px / CSS 长度字符串直写），
+ *   自定义 shell 无该类名则静默跳过——现读应用，重开生效；
+ * - **click 方式**：宿主 click 即 **toggle**；关闭触点三通道——再点宿主（toggle）、点击
+ *   面板外部（document **capture** 监听——capture 路径先于宿主 target 阶段，打开的那次
+ *   click 不会回流触发，天然免疫「开即关」；宿主∪面板内点击豁免，宿主归 toggle 管）、
+ *   ESC（打开栈栈顶，机制继承）；面板内点击不关；`delayShow`/`delayHide` 静默不适用；
+ * - **读取时机（修订决策 4）**：宿主/面板监听**恒挂**、回调内现读 `_resolveTrigger()` 分派
+ *   ——hover↔click 热切换（选项成员为表达式）零特例，打开中的面板不重估不打断，切换自
+ *   下一次触发生效；
+ * - **修饰符桥接（修订决策 5）**：`.click` 经 ADR-0007 注入为 `options.click === true`，与
+ *   `trigger` 键名错位，`_resolveTrigger` 内桥接——显式 `trigger` 恒优先 > `.click` > 默认
+ *   hover；只做 `.click` 不做 `.hover`（修饰符惯例是打开非默认开关）；
+ * - **共享 hover 域**（ADR-0060，hover 方式）：宿主与面板在 DOM 上分离（面板渲染进 body
+ *   容器），双向 mouseenter/mouseleave 让「宿主↔面板」互移不闪关；leave 的 relatedTarget
+ *   与 delayHide 到期是仅有的两个关闭判定点，域内豁免、域外关闭；
  * - **hover 链（嵌套）**：子 popover 声明在父面板内（面板同在 body 容器、DOM 兄弟），经
  *   document 级打开中注册表把后代 popover 的域并入祖先域——指针位于任一后代 popover 上时
  *   祖先保持打开；后代关闭（含 ESC 关子）后祖先经最后指针坐标 `elementFromPoint` 重估，
- *   已出域才关闭（防 ESC 关子后父级残留）；
- * - **值语义**：指令值不参与驱动（悬浮模型无 visible 真相源），非空值 warn；
- *   同宿主多 popover 声明 warn（驱动源重合将同开），不去重不拦截。
+ *   已出域才关闭（防 ESC 关子后父级残留）。**click 消费者登记与触发解耦**（修订决策 6）：
+ *   打开时仍登记注册表（充当 hover 后代的域容器），但不参与链豁免/重估——重估通知跳过
+ *   click 消费者（防子关闭重估误关 click 父，其关闭只听点击/外点/ESC）；
+ * - **值语义**：指令值不参与驱动（触发模型无 visible 真相源），非空值 warn；
+ *   同宿主多 popover 声明 warn（触发源重合将同开），不去重不拦截。
  *
- * 关闭触点：共享域离开（delayHide 宽限）+ ESC（打开栈栈顶，机制继承）。无 visible 写回
- * （`_makeCloseRequest` 恒 null——关闭即 UI 关闭，无状态善后）。
+ * 关闭触点按方式分述：hover = 共享域离开（delayHide 宽限）+ ESC；click = toggle + 面板外
+ * 点击 + ESC。均无 visible 写回（`_makeCloseRequest` 恒 null——关闭即 UI 关闭，无状态善后）。
  */
 /** delayShow 默认（ms）：悬浮意图延迟——快速掠过宿主不触发 */
 const DEFAULT_DELAY_SHOW = 200;
@@ -61,6 +77,8 @@ export class PopoverDirective extends OverlayDirective {
     private _lastPointer: { x: number; y: number } | null = null;
     /** 活跃实例的 overlay:close 广播退订（实例关闭/消费者销毁时退订） */
     private _unsubClose: (() => void) | null = null;
+    /** 外点关闭监听退订（click 方式打开时挂 document capture、关闭/销毁时摘） */
+    private _unsubDocClick: (() => void) | null = null;
 
     override created(): void {
         // 基座：选项表达式统一管道 + props 通道（ADR-0007 修订 / ADR-0052 v2.3）
@@ -71,26 +89,28 @@ export class PopoverDirective extends OverlayDirective {
             );
             return;
         }
-        // 悬浮触发模型下指令值不参与驱动（ADR-0060）：显示由宿主 mouseenter 驱动，
+        // 触发模型下指令值不参与驱动（ADR-0060）：显示由宿主悬浮/点击驱动（trigger 选项），
         // 无 visible 真相源——非空值按误用提示（失效可发现，不静默吞）
         const raw = String(this.value ?? "").trim();
         if (raw) {
             this.warn(
-                `x-popover:${this.attr}: 指令值不参与驱动（悬浮触发模型，显示由宿主 mouseenter 驱动），已忽略值 "${raw}"`,
+                `x-popover:${this.attr}: 指令值不参与驱动（触发模型无 visible 真相源，显示由宿主悬浮/点击驱动，见 trigger 选项），已忽略值 "${raw}"`,
             );
         }
-        // 同宿主多 popover（对齐基座 singleton=false 的「用户错误不去重」哲学）：悬浮驱动源
-        // 唯一重合——同一份 hover 将同时打开全部面板，warn 可发现、不拦截
+        // 同宿主多 popover（对齐基座 singleton=false 的「用户错误不去重」哲学）：触发源
+        // 唯一重合——同一次触发将同时打开全部面板，warn 可发现、不拦截
         const siblings = this.binding.directives.filter((d) => d instanceof PopoverDirective);
         if (siblings.length > 1) {
             this.warn(
-                `x-popover:${this.attr}: 同宿主声明了 ${siblings.length} 个 popover 消费者，悬浮驱动源重合，hover 将同时打开全部面板`,
+                `x-popover:${this.attr}: 同宿主声明了 ${siblings.length} 个 popover 消费者，触发源重合，同一次触发将同时打开全部面板`,
             );
         }
-        // 触发监听：mouseenter/mouseleave 不冒泡——悬浮意图语义（字面 mouseover 会在宿主
-        // 子元素间移动时反复触发）。宿主监听随宿主 DOM 生死，destroy 显式摘除。
+        // 触发监听恒挂、回调内按 trigger 现读分派（修订决策 4——热切换自下一次触发生效）：
+        // mouseenter/mouseleave 不冒泡——悬浮意图语义（字面 mouseover 会在宿主子元素间移动
+        // 时反复触发）；click 服务 click 方式 toggle。宿主监听随宿主 DOM 生死，destroy 显式摘除。
         this.el.addEventListener("mouseenter", this._onEnter);
         this.el.addEventListener("mouseleave", this._onLeave);
+        this.el.addEventListener("click", this._onClick);
     }
 
     /** 消费者销毁：清触发设施 + 打开中的实例直接请求关闭（无写回目标） */
@@ -138,8 +158,9 @@ export class PopoverDirective extends OverlayDirective {
         return !!inst && !inst.destroyed && inst.visible;
     }
 
-    /** 宿主进入：取消挂起关闭 → 已开防重 → delayShow 计时（0 立即）打开 */
+    /** 宿主进入（hover 方式）：取消挂起关闭 → 已开防重 → delayShow 计时（0 立即）打开 */
     private _onEnter = (e: MouseEvent): void => {
+        if (this._resolveTrigger() !== "hover") return;
         this._recordPointer(e);
         this._clearHideTimer();
         if (this._isInstanceAlive()) return;
@@ -148,6 +169,8 @@ export class PopoverDirective extends OverlayDirective {
         if (delay > 0) {
             this._showTimer = setTimeout(() => {
                 this._showTimer = null;
+                // 计时期间方式已切换（hover→click）：上一次悬浮意图作废，放弃打开
+                if (this._resolveTrigger() !== "hover") return;
                 this._openNow();
             }, delay);
         } else {
@@ -155,23 +178,47 @@ export class PopoverDirective extends OverlayDirective {
         }
     };
 
-    /** 宿主离开：show 计时取消；relatedTarget 已入域（面板/后代 popover）豁免，否则 delayHide 宽限后关 */
+    /** 宿主离开（hover 方式）：show 计时取消；relatedTarget 已入域（面板/后代 popover）豁免，否则 delayHide 宽限后关 */
     private _onLeave = (e: MouseEvent): void => {
+        if (this._resolveTrigger() !== "hover") return;
         this._recordPointer(e);
         this._clearShowTimer();
         this._scheduleClose(e);
     };
 
-    /** 面板进入：取消挂起关闭（宿主↔面板互移不闪关的对面侧） */
+    /** 宿主点击（click 方式）：toggle——已开清计时器后关（防 hover 残留计时双开），未开即开 */
+    private _onClick = (): void => {
+        if (this._resolveTrigger() !== "click") return;
+        this._clearShowTimer();
+        this._clearHideTimer();
+        if (this._isInstanceAlive()) this._closeNow();
+        else this._openNow();
+    };
+
+    /** 面板进入（hover 方式）：取消挂起关闭（宿主↔面板互移不闪关的对面侧） */
     private _onPanelEnter = (e: MouseEvent): void => {
+        if (this._resolveTrigger() !== "hover") return;
         this._recordPointer(e);
         this._clearHideTimer();
     };
 
-    /** 面板离开：与宿主离开同一判定（relatedTarget 域内豁免 / delayHide 宽限） */
+    /** 面板离开（hover 方式）：与宿主离开同一判定（relatedTarget 域内豁免 / delayHide 宽限） */
     private _onPanelLeave = (e: MouseEvent): void => {
+        if (this._resolveTrigger() !== "hover") return;
         this._recordPointer(e);
         this._scheduleClose(e);
+    };
+
+    /**
+     * 外点判定（click 方式，document capture）：命中目标在宿主∪活跃面板内豁免——宿主点击
+     * 归 `_onClick` toggle 管（防同一次点击双通道打架），面板内点击不关；否则关闭。
+     */
+    private _onDocClick = (e: MouseEvent): void => {
+        const target = e.target instanceof Element ? e.target : null;
+        if (target && (this.el === target || this.el.contains(target))) return;
+        const panel = this._overlayInstance?.el;
+        if (panel && (panel === target || panel.contains(target))) return;
+        this._closeNow();
     };
 
     private _openNow(): void {
@@ -263,6 +310,8 @@ export class PopoverDirective extends OverlayDirective {
      */
     private _onInstanceClosed(): void {
         this._unsubInstanceClose();
+        this._unsubDocClick?.();
+        this._unsubDocClick = null;
         openPopovers.delete(this);
         this._clearHideTimer();
         this._clearShowTimer();
@@ -271,10 +320,13 @@ export class PopoverDirective extends OverlayDirective {
         this._notifyAncestors();
     }
 
-    /** 通知祖先：本消费者宿主落在其活跃面板子树内的打开消费者逐个重估 */
+    /** 通知祖先：本消费者宿主落在其活跃面板子树内的打开消费者逐个重估。
+     *  click 消费者跳过（修订决策 6——重估是 hover 链机制，click 父的关闭只听点击/外点/ESC，
+     *  防子关闭重估时指针恰在面板外把 click 父误关） */
     private _notifyAncestors(): void {
         for (const other of openPopovers) {
             if (other === this) continue;
+            if (other._resolveTrigger() === "click") continue;
             const panel = other._overlayInstance?.el;
             if (panel && panel.contains(this.el)) other._reevaluate();
         }
@@ -282,18 +334,74 @@ export class PopoverDirective extends OverlayDirective {
 
     // ── 内部设施 ──────────────────────────────────────────────────────
 
-    /** 实例打开后的后置登记：面板监听（共享域对面侧）+ 注册表 + overlay:close 订阅 */
+    /** 实例打开后的后置登记：面板监听（共享域对面侧）+ 注册表 + overlay:close 订阅 + 内容
+     *  内边距应用；click 方式补挂外点关闭监听（document capture——capture 路径先于宿主
+     *  target 阶段，打开的那次 click 不会回流触发，天然免疫「开即关」） */
     private _attachInstance(): void {
         const inst = this._overlayInstance;
         if (!inst || inst.destroyed || !inst.el) return; // 未命中等待路径：实例未产生，重试再登记
         inst.el.addEventListener("mouseenter", this._onPanelEnter);
         inst.el.addEventListener("mouseleave", this._onPanelLeave);
+        this._applyContentPadding(inst.el);
         openPopovers.add(this);
+        if (this._resolveTrigger() === "click") {
+            document.addEventListener("click", this._onDocClick, true);
+            this._unsubDocClick = () =>
+                document.removeEventListener("click", this._onDocClick, true);
+        }
         const sub = (this.engine as any).on("overlay:close", (m: any) => {
             const payload = m?.payload ?? m;
             if (payload?.instance === inst) this._onInstanceClosed();
         });
         this._unsubClose = typeof sub === "function" ? sub : () => sub.off();
+    }
+
+    /**
+     * 内容内边距（padding 选项）：现读三层链，应用到 shell 内容区
+     * `.autospark-popover-content` 的 inline padding（覆盖 shell 样式表默认 0）——对齐
+     * delayShow 现读先例（重开生效）；自定义 shell 未提供该类名的内容区则静默跳过
+     * （外壳形态自控内边距，ADR-0062）。
+     */
+    private _applyContentPadding(panel: HTMLElement): void {
+        const padding = this._resolvePadding();
+        const content = panel.querySelector(".autospark-popover-content");
+        if (content) (content as HTMLElement).style.padding = padding;
+    }
+
+    /** 读取内容内边距（默认 0 = 空串不写 inline，shell 样式表 0px 兜底）；number→px、
+     *  字符串按 CSS 值直写（多值如 `'8px 16px'`）、负数/非有限数 warn 回退默认 */
+    private _resolvePadding(): string {
+        const raw = this.getOption("padding");
+        if (raw === undefined || raw === null || raw === "") return "";
+        if (typeof raw === "number") {
+            if (!Number.isFinite(raw) || raw < 0) {
+                this.warn(
+                    `x-popover:${this.attr}: padding 须为非负数字（px）或 CSS 长度字符串，已按默认 0 处理`,
+                );
+                return "";
+            }
+            return `${raw}px`;
+        }
+        return String(raw);
+    }
+
+    /**
+     * 读取触发方式（修订决策 4：回调内现读——热切换自下一次触发生效）。修饰符桥接（决策 5）：
+     * `.click` 经 ADR-0007 注入为 `options.click === true`（与 trigger 键名错位，此处桥接），
+     * 优先级：显式 `trigger` 恒优先 > `.click` > 默认 hover（对齐 ADR-0007「显式已写则不
+     * 覆盖」同精神）。非法值 warn 回退 hover（对齐 `_resolveDelay` 哲学）。
+     */
+    private _resolveTrigger(): "hover" | "click" {
+        const raw = this.getOption("trigger");
+        if (raw === undefined || raw === null || raw === "") {
+            return this.getOption("click") === true ? "click" : "hover";
+        }
+        const v = String(raw).trim();
+        if (v === "hover" || v === "click") return v;
+        this.warn(
+            `x-popover:${this.attr}: trigger 须为 'hover' | 'click'，已按默认 'hover' 处理`,
+        );
+        return "hover";
     }
 
     /** 读取延迟配置（getOption 三层链：成员表达式 > 指令选项 > 宿主选项），非法值 warn 回退默认 */
@@ -335,13 +443,16 @@ export class PopoverDirective extends OverlayDirective {
         }
     }
 
-    /** 触发设施整体清理（消费者销毁）：宿主监听 + 双计时器 + 关闭订阅 + 注册表 */
+    /** 触发设施整体清理（消费者销毁）：宿主监听 + 双计时器 + 关闭订阅 + 外点监听 + 注册表 */
     private _teardownTriggers(): void {
         this.el.removeEventListener("mouseenter", this._onEnter);
         this.el.removeEventListener("mouseleave", this._onLeave);
+        this.el.removeEventListener("click", this._onClick);
         this._clearShowTimer();
         this._clearHideTimer();
         this._unsubInstanceClose();
+        this._unsubDocClick?.();
+        this._unsubDocClick = null;
         openPopovers.delete(this);
     }
 }

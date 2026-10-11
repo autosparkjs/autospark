@@ -1,0 +1,238 @@
+<!-- 重型页面 - 预加载演示 -->
+<div class="heavy-page">
+    <div class="heavy-page-header">
+        <h1>⚡ 预加载演示</h1>
+        <p>此页面在路由初始化时已预加载，访问时会立即显示</p>
+    </div>
+
+    <div class="preload-info">
+        <div class="info-card">
+            <div class="info-icon">🚀</div>
+            <div class="info-title">预加载已启用</div>
+            <div class="info-desc">该页面在应用启动时已提前加载，无需等待</div>
+        </div>
+        <div class="info-card">
+            <div class="info-icon">📊</div>
+            <div class="info-title">内容丰富</div>
+            <div class="info-desc" x-text="'共加载 ' + (items?.length || 0) + ' 个项目'"></div>
+        </div>
+        <div class="info-card">
+            <div class="info-icon">⏱️</div>
+            <div class="info-title">加载时间</div>
+            <div class="info-desc">几乎瞬时显示</div>
+        </div>
+    </div>
+
+    <div class="heavy-content">
+        <h2>📋 大量数据列表</h2>
+        <div class="data-grid">
+            <template x-for="(item, index) in items" :key="item.id">
+                <div class="data-card">
+                    <div class="card-index" x-text="index + 1"></div>
+                    <div class="card-icon" x-text="item.icon"></div>
+                    <div class="card-title" x-text="item.title"></div>
+                    <div class="card-desc" x-text="item.description"></div>
+                    <div class="card-meta">
+                        <span class="card-category" x-text="item.category"></span>
+                        <span class="card-date" x-text="item.date"></span>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <div class="heavy-features">
+        <h2>✨ 预加载的优势</h2>
+        <div class="feature-list">
+            <div class="feature-item">
+                <span class="feature-icon">🎯</span>
+                <div class="feature-content">
+                    <h4>即时响应</h4>
+                    <p>用户访问时无需等待，内容立即显示</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">📦</span>
+                <div class="feature-content">
+                    <h4>数据预取</h4>
+                    <p>页面所需数据在后台提前加载完成</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">💡</span>
+                <div class="feature-content">
+                    <h4>智能选择</h4>
+                    <p>对关键页面启用预加载，提升用户体验</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">⚠️</span>
+                <div class="feature-content">
+                    <h4>适度使用</h4>
+                    <p>预加载会消耗带宽，请按需使用</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .heavy-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .heavy-page-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .heavy-page-header h1 {
+        font-size: 2em;
+        margin-bottom: 10px;
+    }
+
+    .heavy-page-header p {
+        color: var(--text-secondary);
+    }
+
+    .preload-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 40px;
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .info-icon {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+    }
+
+    .info-title {
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .info-desc {
+        color: var(--text-secondary);
+        font-size: 0.9em;
+    }
+
+    .heavy-content {
+        margin-bottom: 40px;
+    }
+
+    .heavy-content h2 {
+        margin-bottom: 20px;
+    }
+
+    .data-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 16px;
+    }
+
+    .data-card {
+        background: white;
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        position: relative;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .data-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    }
+
+    .card-index {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 24px;
+        height: 24px;
+        background: var(--primary-color);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75em;
+        font-weight: bold;
+    }
+
+    .card-icon {
+        font-size: 2em;
+        margin-bottom: 10px;
+    }
+
+    .card-title {
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .card-desc {
+        color: var(--text-secondary);
+        font-size: 0.9em;
+        margin-bottom: 10px;
+    }
+
+    .card-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8em;
+    }
+
+    .card-category {
+        padding: 4px 8px;
+        background: #f0f0f0;
+        border-radius: 4px;
+    }
+
+    .card-date {
+        color: var(--text-secondary);
+    }
+
+    .heavy-features h2 {
+        margin-bottom: 20px;
+    }
+
+    .feature-list {
+        display: grid;
+        gap: 16px;
+    }
+
+    .feature-item {
+        display: flex;
+        gap: 16px;
+        background: white;
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .feature-icon {
+        font-size: 2em;
+        flex-shrink: 0;
+    }
+
+    .feature-content h4 {
+        margin: 0 0 4px 0;
+    }
+
+    .feature-content p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.9em;
+    }
+</style>

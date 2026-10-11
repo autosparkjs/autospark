@@ -1,0 +1,60 @@
+<!-- 产品列表模板 -->
+<div class="product-grid">
+    <div>
+        <h3 x-text="meta.title"></h3>
+        - <span x-text="$params.category"></span>
+    </div>
+    <div class="products">
+        <template
+            x-for="product in products.filter((product) => product.category === $params.category)"
+        >
+            <div
+                class="product-card"
+                @click="window.router.push('/shop/product/' + product.id)"
+                :key="product.id"
+            >
+                <div class="product-image">
+                    <span>📱</span>
+                    <div class="product-badge" x-show="product.badge" x-text="product.badge"></div>
+                </div>
+                <div class="product-info">
+                    <div class="product-name" x-text="product.name"></div>
+                    <div class="product-desc" x-text="product.desc"></div>
+                    <div class="product-price">
+                        ¥<span x-text="product.price"></span>
+                        <small x-show="product.originalPrice"
+                            >¥<span x-text="product.originalPrice"></span
+                        ></small>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
+<style>
+    .product-grid {
+        display: flex;
+        flex-direction: column;
+    }
+    .products {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 1em;
+    }
+    .products .product-card {
+        flex: 0 0 calc(25% - 12px);
+        min-width: 200px;
+        max-width: 280px;
+    }
+    @media (max-width: 1200px) {
+        .products .product-card {
+            flex: 0 0 calc(33.33% - 11px);
+        }
+    }
+    @media (max-width: 768px) {
+        .products .product-card {
+            flex: 0 0 calc(50% - 8px);
+        }
+    }
+</style>

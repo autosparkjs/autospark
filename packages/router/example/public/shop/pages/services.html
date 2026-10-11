@@ -1,0 +1,127 @@
+<!-- 服务页面布局 - 左侧边栏 + 右侧内容区 -->
+<div class="page-layout">
+    <!-- 左侧边栏 -->
+    <aside class="page-sidebar">
+        <div class="sidebar-title">
+            <span>🔧</span>
+            <span>服务项目</span>
+        </div>
+        <nav class="sidebar-menu">
+            <kylin-link to="/shop/services/repair" class="sidebar-menu-item">
+                <span>🔧</span>
+                <span>维修服务</span>
+            </kylin-link>
+            <kylin-link to="/shop/services/warranty" class="sidebar-menu-item">
+                <span>🛡️</span>
+                <span>保修查询</span>
+            </kylin-link>
+            <kylin-link to="/shop/services/installment" class="sidebar-menu-item">
+                <span>💳</span>
+                <span>分期付款</span>
+            </kylin-link>
+            <kylin-link to="/shop/services/trade-in" class="sidebar-menu-item">
+                <span>🔄</span>
+                <span>以旧换新</span>
+            </kylin-link>
+            <kylin-link to="/shop/services/insurance" class="sidebar-menu-item">
+                <span>📋</span>
+                <span>手机保险</span>
+            </kylin-link>
+            <kylin-link to="/shop/services/data-transfer" class="sidebar-menu-item">
+                <span>📤</span>
+                <span>数据迁移</span>
+            </kylin-link>
+            <kylin-link to="/shop/services/cleaning" class="sidebar-menu-item">
+                <span>✨</span>
+                <span>清洁保养</span>
+            </kylin-link>
+            <kylin-link to="/shop/services/consultation" class="sidebar-menu-item">
+                <span>💬</span>
+                <span>专家咨询</span>
+            </kylin-link>
+        </nav>
+    </aside>
+
+    <!-- 右侧内容区 -->
+    <main class="page-content">
+        <kylin-outlet></kylin-outlet>
+    </main>
+</div>
+
+<style>
+.page-layout {
+    display: flex;
+    gap: 20px;
+}
+
+.page-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    height: fit-content;
+    position: sticky;
+    top: 80px;
+}
+
+.page-content {
+    flex: 1;
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    min-height: 500px;
+}
+
+.sidebar-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sidebar-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.sidebar-menu-item {
+    padding: 12px 15px;
+    border-radius: 8px;
+    color: #555;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.sidebar-menu-item:hover {
+    background: #f0f0f0;
+    color: #667eea;
+}
+
+.sidebar-menu-item.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .page-layout {
+        flex-direction: column;
+    }
+
+    .page-sidebar {
+        width: 100%;
+        position: static;
+    }
+}
+</style>

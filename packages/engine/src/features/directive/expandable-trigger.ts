@@ -1,3 +1,5 @@
+import { injectStylesheet } from "../../utils/injectStylesheet";
+
 /**
  * 共享折叠把手模块（ADR-0070 决策二）：圆形折叠把手的**元素构建 / 滑轨坐标解析 /
  * 箭头旋转矩阵 / 半圆折叠态视觉**的唯一实现——x-expandable（宿主内置 + reparent）
@@ -121,9 +123,5 @@ export const SHARED_TRIGGER_CSS = `
 
 /** 共享把手样式注入（幂等；多 engine 共享、destroy 不移除——全局样式惯例） */
 export function registerTriggerStyles(): void {
-    if (document.getElementById("autospark-trigger-styles")) return;
-    const style = document.createElement("style");
-    style.id = "autospark-trigger-styles";
-    style.textContent = SHARED_TRIGGER_CSS;
-    document.head.appendChild(style);
+    injectStylesheet(SHARED_TRIGGER_CSS, { id: "autospark-trigger-styles" });
 }

@@ -15,6 +15,8 @@
 // 引擎结构样式 id 独立命名：不得与组件 <style global id="autospark-notification-styles">（base/
 // notification-shell/actions 三处共享的 ADR-0087 覆盖挂载点）同 id——否则组件样式先注入时本表
 // 被幂等检查顶掉，分区列 fixed 定位全丢。
+import { injectStylesheet } from "../../utils/injectStylesheet";
+
 const NOTIFICATION_STYLES_ID = "autospark-notification-column-styles";
 
 /**
@@ -25,7 +27,6 @@ export const NOTIFICATION_COLUMN_GAP = 10;
 
 /** 分区列定位样式（引擎结构层；含 GAP 插值故不可静态化） */
 const COLUMN_STYLES = `
-/* 分区列：fixed 纵向堆叠栈（每 pos 一列，data-notification-pos 标记）；空白区不拦截点击 */
 .autospark-notification-column {
   position: fixed;
   display: flex;
@@ -78,10 +79,5 @@ const COLUMN_STYLES = `
 
 /** 幂等注入通知结构样式（已存在则跳过） */
 export function injectNotificationStyles(): void {
-    if (typeof document === "undefined" || !document.head) return;
-    if (document.getElementById(NOTIFICATION_STYLES_ID)) return;
-    const style = document.createElement("style");
-    style.id = NOTIFICATION_STYLES_ID;
-    style.textContent = COLUMN_STYLES;
-    document.head.appendChild(style);
+    injectStylesheet(COLUMN_STYLES, { id: NOTIFICATION_STYLES_ID });
 }

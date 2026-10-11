@@ -8,6 +8,7 @@ import { rgba } from "../features/directive/utils/colors";
 import { relaxedToJson } from "../utils/relaxedToJson";
 import { queryRelElement } from "../utils/queryRelElement";
 import { parseHtmlFragment } from "../utils/transformElement";
+import { injectStylesheet } from "../utils/injectStylesheet";
 import { buildAction } from "../features/action/buildAction";
 import type { AutoSparkAction } from "../features/action/types";
 import type { AutoSparkActionContext } from "./x-on/types";
@@ -172,14 +173,10 @@ const PROGRESSBAR_BLOCK = `<div class="${PROGRESSBAR_CLASS}"><span class="${PROG
  */
 function injectStyles(): void {
     if (stylesInjected) return;
-    if (typeof document === "undefined" || !document.head) return;
-    if (document.getElementById(STYLES_ID)) {
-        stylesInjected = true;
-        return;
-    }
-    const style = document.createElement("style");
-    style.id = STYLES_ID;
-    style.textContent = `
+    // 幂等注入（已存在同 id 样式表则复用；SSR 无 document 返回 undefined、不置位）
+    if (
+        injectStylesheet(
+            `
 .${OVERLAY_CLASS} {
   position: absolute;
   inset: 0;
@@ -267,9 +264,12 @@ function injectStyles(): void {
 @keyframes ${PROGRESSBAR_KEY} {
   from { transform: translateX(-100%); }
   to { transform: translateX(350%); }
-}`;
-    document.head.appendChild(style);
-    stylesInjected = true;
+}`,
+            { id: STYLES_ID },
+        )
+    ) {
+        stylesInjected = true;
+    }
 }
 
 export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeDirective {
@@ -731,18 +731,18 @@ export class LoadingDirective extends AutoSparkDirectiveBase implements RuntimeD
     }
 
     /**
-     * 取未注册名的合成透传 descriptor（ADR-0038 决策 4，与 ADR-0036 决策 7 内置信号型同构）：
-     * `{name, title: name, handle: (p) => p}` 经 buildAction 包装（local=false → 总线 + DOM 双发），
-     * 按名缓存复用。让未注册名同样走完整双通道广播——pending+resolved 同 tick、无 rejected。
+     * 取未注册 id 的合成透传 descriptor（ADR-0038 决策 4，与 ADR-0036 决策 7 内置信号型同构）：
+     * `{id, title: id, handle: (p) => p}` 经 buildAction 包装（local=false → 总线 + DOM 双发），
+     * 按 id 缓存复用。让未注册 id 同样走完整双通道广播——pending+resolved 同 tick、无 rejected。
      */
-    private _syntheticAction(name: string): AutoSparkAction {
-        let desc = this._synthetics.get(name);
+    private _syntheticAction(id: string): AutoSparkAction {
+        let desc = this._synthetics.get(id);
         if (!desc) {
             desc = buildAction((type, payload) => this.engine.emit(type as any, payload), {
                 handle: (payload?: any) => payload,
-                name,
+                id,
             });
-            this._synthetics.set(name, desc);
+            this._synthetics.set(id, desc);
         }
         return desc;
     }

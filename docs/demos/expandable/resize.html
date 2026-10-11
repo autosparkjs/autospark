@@ -33,7 +33,7 @@
   <body>
     <!-- 内建单边 resize（ADR-0072）：手柄骑活动边线，方向由折叠方向推导
          （direction left → 右缘调宽）；拖出尺寸接管展开尺寸真相——折叠再展开
-         恢复拖出宽度。与 x-resize 同元素互斥（x-resize 自失效）。
+         恢复拖出宽度。与 x-resizable 同元素互斥（x-resizable 自失效）。
          把手与手柄同骑一条边线：**把手压手柄之上**（把手 20px 圆面覆盖调节线，
          点击即折叠）；调节线在把手之外拖拽，悬停手柄即显形把手。 -->
     <div class="demo-app section">
@@ -76,7 +76,7 @@
         </div>
         <div class="block is-size-7 has-text-info" x-show="log" x-text="log"></div>
         <div class="block is-size-7 has-text-grey">
-          与 x-resize 同元素互斥：宿主同时声明两者时 x-resize 自失效（warn 提示迁移）——
+          与 x-resizable 同元素互斥：宿主同时声明两者时 x-resizable 自失效（warn 提示迁移）——
           边线交互由本指令独占（ADR-0072）。
         </div>
       </div>

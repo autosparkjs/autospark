@@ -1,8 +1,8 @@
-# 悬浮弹层（x-popover）
+# x-popover 悬浮弹层
 
 ## 概述
 
-`x-popover` 是覆盖物消费者的**悬浮形态**：把**任意组件**渲染成贴附在触发元素旁的轻量浮层（无遮罩、带箭头），显示由**宿主悬浮**触发——鼠标移入宿主显示、指针离开「宿主∪面板」区域后关闭。它与 x-dialog 同基座、同消费模型（组件即内容 / 查找 / props / 插槽 / scope 基准，见[覆盖物](../overlays.md)），唯一形态差异是**触发模型**：宿主不再是纯声明点，而是悬浮触发器，指令值不参与驱动（ADR-0060）。
+`x-popover` 是覆盖物消费者的**悬浮形态**：把**任意组件**渲染成贴附在触发元素旁的轻量浮层（无遮罩、带箭头），显示由**宿主触发**——默认悬浮（鼠标移入宿主显示、指针离开「宿主∪面板」区域后关闭），可经 `trigger: 'click'` 改为点击开关。它与 x-dialog 同基座、同消费模型（组件即内容 / 查找 / props / 插槽 / scope 基准，见[覆盖物](../overlays.md)），唯一形态差异是**触发模型**：宿主不再是纯声明点，而是触发器，指令值不参与驱动（ADR-0060）。
 
 ```html
 <button x-popover:tip>悬停查看提示</button>
@@ -12,23 +12,54 @@
 
 <demo html="popover/basic.html"/>
 
-`x-popover:tip`——组件名走 attr（与 `x-dialog:login` 同一载体约定）；显示与关闭完全由悬浮驱动，不需要（也不读取）指令值。
+`x-popover:tip`——组件名走 attr（与 `x-dialog:login` 同一载体约定）；显示与关闭完全由宿主触发驱动（默认悬浮），不需要（也不读取）指令值。
 
 ## 指南
 
-### 触发模型
+### 指令值
 
-- **显示**：`mouseenter` 触发（悬浮意图语义，不是字面 `mouseover`——后者会在宿主子元素间移动时反复触发）。经过 `delayShow` 悬浮意图延迟后打开；计时期间移开则取消（快速掠过不误触发）。
-- **关闭**：指针离开「宿主∪面板」**共享 hover 域**后，经 `delayHide` 关闭宽限关闭；宽限期内回到域内则取消。按 `ESC` 也可关闭（与 x-dialog 共用全局打开栈，只关栈顶）。
-- **无状态写回**：悬浮模型没有 visible 真相源，关闭即 UI 关闭，不回写任何状态。写了指令值会收到 warn（值不参与驱动）。
+值不参与驱动——悬浮/点击两种触发方式都没有 visible 真相源：显示与关闭完全由宿主触发驱动，关闭即 UI 关闭，不回写任何状态。写了指令值会收到 warn（值已忽略，失效可发现）：
+
+```html
+<!-- 值被忽略并 warn：触发模型无 visible 真相源 -->
+<button x-popover:tip="ui.flag">悬停</button>
+```
+
+### 触发方式
+
+`trigger` 选项决定宿主以何种交互触发显示与关闭，取值封闭两值（非法值触发时 warn 并回退 `'hover'`）：
+
+| 取值 | 触发 | 关闭触点 |
+| --- | --- | --- |
+| `'hover'`（默认） | 宿主 `mouseenter`，经 `delayShow` 悬浮意图延迟后打开 | 指针离开「宿主∪面板」共享域（`delayHide` 宽限）、`ESC` |
+| `'click'` | 宿主 `click` 即开关（toggle） | 再点宿主、**点击面板外部**、`ESC`；面板内点击不关 |
+
+<demo html="popover/trigger.html"/>
+
+两种方式都没有 visible 真相源（见[指令值](#指令值)）；`ESC` 与 x-dialog 共用全局打开栈、只关栈顶。三种书写形态（修饰符与显式 `trigger` 同写时**显式赢**）：
+
+```html
+<!-- 整包 -->
+<button x-popover:tip x-popover-options="{trigger: 'click'}">点击</button>
+
+<!-- 修饰符糖（≡ trigger: 'click'） -->
+<button x-popover:tip.click>点击</button>
+
+<!-- 成员属性（值为表达式，可绑定响应式状态热切换——打开中的面板不重估，切换自下一次触发生效） -->
+<button x-popover:tip x-popover-options.trigger="ui.mode">切换</button>
+```
+
+**hover（默认）**：`mouseenter` 悬浮意图语义（不是字面 `mouseover`——后者会在宿主子元素间移动时反复触发），计时期间移开则取消（快速掠过不误触发）；关闭 = 指针离开共享 hover 域经 `delayHide` 宽限（机制见[共享 hover 域](#共享-hover-域不闪关)与[延迟配置](#延迟配置)）。
+
+**click**：一次点击语义一致——关着点开、开着点关；关闭还可经**点击面板外部**（点任何面板外元素即关；点另一个 popover 宿主会关旧开新）与 `ESC`。click 方式下悬浮设施整体不生效：鼠标移入/移出宿主与面板无反应（面板内交互控件可安全使用），`delayShow`/`delayHide` 静默不适用（不 warn）。click 也是触摸设备的主路径（点按开关 + 外点关闭）。
 
 ::: warning 触觉设备
-悬浮交互在触摸屏上没有对应物（点按会以模拟事件触发 mouseenter）。触摸适配（点按开关、外点关闭）不在 v1 范围——触屏场景请改用 `x-dialog` 状态驱动。
+hover 交互在触摸屏上没有对应物（点按会以模拟事件触发 mouseenter）。触屏场景请改用 `trigger: 'click'`（点按开关、外点关闭）；需要模态专注时用 `x-dialog` 状态驱动。
 :::
 
 ### 延迟配置
 
-`delayShow`（默认 `200`）与 `delayHide`（默认 `150`）均为毫秒，`0` 表示无延迟：
+`delayShow`（默认 `200`）与 `delayHide`（默认 `150`）均为毫秒，`0` 表示无延迟（仅 `hover` 方式生效——`click` 方式下无悬浮语义，静默忽略）：
 
 ```html
 <!-- 整包 -->
@@ -63,7 +94,7 @@
 <button x-popover:menu>多级菜单</button>
 ```
 
-同宿主声明多个 `x-popover:*` 会收到 warn（悬浮驱动源重合，hover 将同时打开全部面板）——多个入口请分散到不同宿主元素。
+同宿主声明多个 `x-popover:*` 会收到 warn（触发源重合，同一次触发将同时打开全部面板，见[注意事项](#注意事项)）——多个入口请分散到不同宿主元素或改用嵌套。嵌套链上各 popover 可各自声明 `trigger`（混合触发，如 click 父 + hover 子）：click 消费者不参与 hover 链的豁免与重估（其关闭只听点击/外点/ESC），但仍充当 hover 后代的域容器，子级照常悬浮交互。
 
 ### 定位
 
@@ -94,6 +125,20 @@
 ```html
 <!-- 面板宽度 = 按钮宽度（上下弹出取宽度；左右弹出则取高度） -->
 <button x-popover:tip x-popover-options="{fit: true}">悬停</button>
+```
+
+### 内容内边距（padding）
+
+`padding`（默认 `0`）控制 shell 内容区 `.autospark-popover-content` 的内边距：`number` 按 `px`，CSS 长度字符串（含多值如 `'10px 24px'`）直写；负数/非法值触发时 warn 并按默认 `0` 处理。现读应用、重开生效；自定义 shell 未提供该类名的内容区时静默跳过（外壳形态自控内边距）：
+
+<demo html="popover/padding.html"/>
+
+```html
+<!-- 数字：四边 16px -->
+<button x-popover:tip x-popover-options="{padding: 16}">悬停</button>
+
+<!-- 多值（成员属性表达式：顶层字符串字面量须双层引号） -->
+<button x-popover:tip x-popover-options.padding="'10px 24px'">悬停</button>
 ```
 
 ### 传递 props 与内容（插槽）
@@ -133,20 +178,20 @@
 
 悬浮行为（共享 hover 域 / 延迟 / 嵌套链）挂在实例与宿主上，与 shell 无关；`at.arrow: false` 或自定义外壳不放箭头元素时静默无箭头，贴附定位照常。引擎级默认走 `options.overlay.popover.shell`（全站换气泡皮一处配置）。
 
-## 与 x-dialog 的取舍
+### 与 x-dialog 的取舍
 
 | 维度           | x-popover                    | x-dialog                     |
 | -------------- | ---------------------------- | ---------------------------- |
-| 驱动           | 宿主悬浮（值不参与）         | 状态 visible（纯状态驱动）   |
+| 驱动           | 宿主触发：悬浮（默认）/ 点击（值不参与） | 状态 visible（纯状态驱动）   |
 | 遮罩           | 无（裸面板 + 箭头）          | 有（模态遮罩 + 居中）        |
 | 默认定位       | 贴附宿主（`bottom` + 箭头）  | 屏幕居中（可 `at` 锚定）     |
-| 关闭触点       | 离开共享域、ESC              | ESC、遮罩、close action、状态归假 |
+| 关闭触点       | hover：离开共享域、ESC；click：再点宿主、面板外点击、ESC | ESC、遮罩、close action、状态归假 |
 | 状态写回       | 无                           | 简单路径自动回写 `false`     |
-| 典型场景       | 悬浮菜单、卡片提示、级联面板 | 确认框、表单弹窗、内容向导   |
+| 典型场景       | 悬浮菜单、卡片提示、级联面板、点击菜单 | 确认框、表单弹窗、内容向导   |
 
-需要「悬浮之外还能程序化开关」时，用状态驱动的 x-dialog + `@mouseenter` 改状态组合表达——两个真相源不混在一个指令里。
+需要「触发之外还能程序化开关」时，用状态驱动的 x-dialog + `@mouseenter`/`@click` 改状态组合表达——两个真相源不混在一个指令里。
 
-## 与 tooltip 的区别
+### 与 tooltip 的区别
 
 tooltip（[工具提示](../tooltip.md)）是**引擎级零声明**能力（`data-tooltip` 属性），popover 是**指令式组件内容浮层**（`x-popover`）——形态相似（都是宿主旁的悬浮提示），定位机制与内容模型完全不同：
 
@@ -162,3 +207,11 @@ tooltip（[工具提示](../tooltip.md)）是**引擎级零声明**能力（`dat
 | 典型场景     | 悬浮菜单、卡片、级联面板               | 图标/按钮的轻量文字提示              |
 
 轻量文字/HTML 提示用 tooltip（零声明、统一样式）；需要组件内容、嵌套链或自定义外壳时用 popover。
+
+## 注意事项
+
+- 同宿主声明多个 `x-popover:*` 会收到 warn（触发源重合，同一次触发将同时打开全部面板）——多个入口请分散到不同宿主元素。
+- 指令值不参与驱动，写了会收到 warn（触发模型无 visible 真相源，见[指令值](#指令值)）。
+- `trigger` 非法值（非 `'hover'`/`'click'`）在触发时 warn 并按默认 `'hover'` 处理；修饰符 `.click` 与显式 `trigger` 同写时显式赢。
+- 触摸设备 hover 无对应物（点按会以模拟事件触发 mouseenter），触屏场景改用 `trigger: 'click'`（见[触发方式](#触发方式)）。
+- 远程锚（`at.selector` 锚向别的元素）距离宿主过远时，指针从宿主到面板的旅程可能超出 `delayHide` 宽限（hover 方式）。

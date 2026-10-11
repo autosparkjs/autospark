@@ -2,7 +2,7 @@
 
 - **状态**：Accepted
 - **日期**：2026-09-30
-- **关联**：[ADR-0069](0069-x-expandable.md)（宿主指令本体、被部分取代的通用自动桥接）、[ADR-0064](0064-x-resize.md)（复用的 ResizeSession 核心）、[ADR-0070](0070-x-expandable-compose.md)（边线交互协调的前序）、[CONTEXT.md](../../CONTEXT.md)（「展开折叠」词条）
+- **关联**：[ADR-0069](0069-x-expandable.md)（宿主指令本体、被部分取代的通用自动桥接）、[ADR-0064](0064-x-resizable.md)（复用的 ResizeSession 核心）、[ADR-0070](0070-x-expandable-compose.md)（边线交互协调的前序）、[CONTEXT.md](../../CONTEXT.md)（「展开折叠」词条）
 - **共识来源**：grilling 决策 Q1–Q6 全 A（互斥失败形态 / 修饰符命名 / 退化矩阵 / 尺寸真相 / 既有消费方处置 / 桥接处置）+ 两轮代码事实调查（同元素互查机制 / ResizeSession 复用面）
 
 ## 背景

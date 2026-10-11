@@ -397,16 +397,16 @@ describe("选项", () => {
         expect(m.root.querySelector("[x-pane-options\\.through]")).toBeNull();
     });
 
-    test("content 上挂 x-resize warn（1fr 轨道拖拽无效）；非法 relaxed-json warn", () => {
+    test("content 上挂 x-resizable warn（1fr 轨道拖拽无效）；非法 relaxed-json warn", () => {
         const warns = catchWarns(() =>
             mountLayout(
                 `<div id="app"><div x-scope><div id="host" x-layout>
-                    <div id="ct" x-pane:content x-resize x-pane-options="{bad json">C</div>
+                    <div id="ct" x-pane:content x-resizable x-pane-options="{bad json">C</div>
                 </div></div></div>`,
                 {},
             ),
         );
-        expect(warns.some((w) => w.includes("x-resize 无效"))).toBe(true);
+        expect(warns.some((w) => w.includes("x-resizable 无效"))).toBe(true);
         expect(warns.some((w) => w.includes("不是合法配置"))).toBe(true);
     });
 });
@@ -564,20 +564,20 @@ describe("行为组合", () => {
                 </div>
                 <div id="host2" x-layout style="display:grid">
                     <div id="l2" x-pane:sidebar.left x-pane-options="{resize:false}">L2</div>
-                    <div id="r2" x-pane:sidebar.right x-resize.se>R2</div>
+                    <div id="r2" x-pane:sidebar.right x-resizable.se>R2</div>
                     <div id="ct2" x-pane:content>C2</div>
                 </div>
             </div></div>`,
             {},
         );
-        await nextTick(); // 手柄经 compile 微任务建连（x-resize 先例）
+        await nextTick(); // 手柄经 compile 微任务建连（x-resizable 先例）
         const handleOf = (id: string) =>
             root.querySelector(`#${id} [data-autospark-resize-handle]`);
-        // 内缘单方向：left 拖东缘、right 拖西缘（w 依赖 x-resize 的 grid item 感知）
+        // 内缘单方向：left 拖东缘、right 拖西缘（w 依赖 x-resizable 的 grid item 感知）
         expect(handleOf("l1")!.getAttribute("data-autospark-resize-handle")).toBe("e");
         expect(handleOf("r1")!.getAttribute("data-autospark-resize-handle")).toBe("w");
         expect(handleOf("l2")).toBeNull();
-        // 显式 x-resize.se：用户方向保留（自然方向，流内可用）
+        // 显式 x-resizable.se：用户方向保留（自然方向，流内可用）
         expect(handleOf("r2")!.getAttribute("data-autospark-resize-handle")).toBe("se");
     });
 
@@ -615,7 +615,7 @@ describe("行为组合", () => {
     test("无组合实例的窗格 resize 事件不联动（header 无折叠语义）", () => {
         const { root } = mountLayout(
             `<div id="app"><div x-scope><div id="host" x-layout>
-                <div id="hd" x-pane:header x-resize>H</div>
+                <div id="hd" x-pane:header x-resizable>H</div>
                 <div id="ct" x-pane:content>C</div>
             </div></div></div>`,
             {},

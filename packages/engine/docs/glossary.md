@@ -129,7 +129,7 @@
 
 ### actions 域（x-on action 生命周期）
 
-事件总线中承载 **action 生命周期**的域：`actions/<name>/<verb>`——`<name>` = action 函数名（**入路径**），verb = `pending`/`resolved`/`rejected`。由 `src/features/action/`（ActionManager）在**注册时自动包装**触发——`engine.actions[name]=fn`（actions Proxy 的 set trap）、构造时 `options.actions`（构造函数扫描）、`<script type="autospark/actions">`（compiler 提取）三入口均自动包装。**同步/异步 action 统一广播**（ADR-0011）：pending 在执行前、resolved（成功）/rejected（失败）在完成时——同步 action 同 tick 内 pending→resolved（或抛错 pending→rejected），异步经 `then`；同步抛错 broadcast rejected 后 **rethrow**（保持错误传播），async reject 经内部 `then(_, onRejected)` 消费消除 unhandled rejection。payload 亦带 `name`（方便通配订阅者区分）。流信号 plain emit（不 retain）。见 `src/features/action/buildAction` 实现。
+事件总线中承载 **action 生命周期**的域：`actions/<name>/<verb>`——`<name>` = action 注册键（**入路径**），verb = `pending`/`resolved`/`rejected`。由 `src/features/action/`（ActionManager）在**注册时自动包装**触发——`engine.actions[name]=fn`（actions Proxy 的 set trap）、构造时 `options.actions`（构造函数扫描）、`<script type="autospark/actions">`（compiler 提取）三入口均自动包装。**同步/异步 action 统一广播**（ADR-0011）：pending 在执行前、resolved（成功）/rejected（失败）在完成时——同步 action 同 tick 内 pending→resolved（或抛错 pending→rejected），异步经 `then`；同步抛错 broadcast rejected 后 **rethrow**（保持错误传播），async reject 经内部 `then(_, onRejected)` 消费消除 unhandled rejection。payload 亦带 `id`（方便通配订阅者区分）。流信号 plain emit（不 retain）。见 `src/features/action/buildAction` 实现。
 
 > **ADR-0010 起双发并存**：`buildAction` 在 thenable 分支除 emit 本域总线事件外，**同时** dispatch DOM 冒泡事件 `action:<name>`（`bubbles+composed`，detail **不带 el/scope**——靠 `event.target` 与冒泡路径表达触发元素/作用域），服务**祖先聚合后代 action**（`<form @action:submit>`，经 x-on 监听、phase 修饰符过滤）。总线（全局通配）与 DOM 冒泡（DOM 层级）**正交并存**，见下文「action DOM 冒泡事件」。
 
@@ -260,6 +260,10 @@ remote 模式**原计划**广播 `task/slot/{started,resolved,rejected}` 供全�
 
 ## 结构占位与模板块（x-scope / x-block）
 
+> **[已废弃]** 本章 x-block（命名模板块）描述的机制已随 x-component 体系移除
+> （ADR-0022，现行承接为 x-define）；x-block 名后三度用于溢出折叠容器并已更名
+> **x-foldable**（ADR-0098 修订记录 9）。x-scope 词条仍有效。
+
 ### x-scope（结构占位指令）
 
 纯占位指令——元素上声明 `x-scope` 即令其建立 `AutoSparkScope`，**即便该元素没有其他指令、没有插值**。注册占位类 `ScopeDirective`（`created`/`compile` 皆空、高优先级）。填补「纯容器 `<div>` 不建 scope」的缺口：让后代 scope 的 parent 链落到此处（而非更远祖先），并为后代 `x-block` 提供**归属锚点**。**不建数据域**——与 [x-data](#x-data)（数据注入）职责正交。冗余声明（元素已有其他指令、本就建 scope）静默无副作用。见 [ADR-0021](adr/0021-x-scope-and-x-block.md) 决策 1。
@@ -337,7 +341,7 @@ feedback 状态机的重入竞态防护：单调递增 `gen` 标记每次触发�
 
 ### action: DOM 事件（Action Bubble Event）
 
-action 生命周期的 **DOM 表达**：`action:<name>` CustomEvent，`bubbles:true` + `composed:true`，`detail={name, phase, result?/error?}`，由 `buildAction` 在 thenable 分支 dispatch 自**触发元素**（`AutoSparkActionContext.el`）。与总线 `actions/<name>/*`（全局广播、吃通配符）**正交并存**——服务**祖先聚合后代 action**：事件冒泡到祖先即等价「action 发生在该祖先作用域内」。经 `x-on` 监听（`<form @action:submit>`），与 `@click` 同构、**零新指令**。**作用域由冒泡路径表达（detail 不带 scope）、触发元素由 `event.target` 表达（detail 不带 el）**——规避 ADR-0008 否决的「payload 带 el」。命令式 `engine.actions[name]()` 直调无触发元素 → 只走总线、不发 DOM 事件（声明式 vs 命令式不对称）。见 [ADR-0010](adr/0010-action-dom-bubble-event.md)。
+action 生命周期的 **DOM 表达**：`action:<name>` CustomEvent，`bubbles:true` + `composed:true`，`detail={id, phase, result?/error?}`，由 `buildAction` 在 thenable 分支 dispatch 自**触发元素**（`AutoSparkActionContext.el`）。与总线 `actions/<name>/*`（全局广播、吃通配符）**正交并存**——服务**祖先聚合后代 action**：事件冒泡到祖先即等价「action 发生在该祖先作用域内」。经 `x-on` 监听（`<form @action:submit>`），与 `@click` 同构、**零新指令**。**作用域由冒泡路径表达（detail 不带 scope）、触发元素由 `event.target` 表达（detail 不带 el）**——规避 ADR-0008 否决的「payload 带 el」。命令式 `engine.actions[name]()` 直调无触发元素 → 只走总线、不发 DOM 事件（声明式 vs 命令式不对称）。见 [ADR-0010](adr/0010-action-dom-bubble-event.md)。
 
 ### phase 修饰符（Phase Modifier）
 

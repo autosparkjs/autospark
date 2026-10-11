@@ -1,15 +1,19 @@
 <div class="autospark-dialog" x-define="autospark.dialog">
-    <div x-slot></div>
+    <div class="autospark-dialog-content" x-slot></div>
     <div class="autospark-overlay-arrow"></div>
     <style global id="autospark-shell-styles">
-        .autospark-dialog {
+        [data-overlay] {
             position: relative;
             border-radius: var(--autospark-overlay-radius, 8px);
         }
-        .autospark-dialog[data-overlay-border] {
+        .autospark-dialog > .autospark-dialog-content {
+            position: relative;
+            z-index: var(--autospark-overlay-z, 1000);
+        }
+        [data-overlay][data-overlay-border] {
             border: 1px solid var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
             background: var(--autospark-overlay-bg, #fff);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+            box-shadow: 2px 4px 4px rgba(0, 0, 0, 0.18);
         }
         .autospark-overlay-arrow {
             position: absolute;
@@ -32,10 +36,10 @@
             background: var(--autospark-overlay-bg, #fff);
             transform: rotate(45deg);
         }
-        .autospark-dialog[data-overlay-border] > .autospark-overlay-arrow::before {
+        [data-overlay][data-overlay-border] > .autospark-overlay-arrow::before {
             background: var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
         }
-        .autospark-dialog[data-overlay-border] > .autospark-overlay-arrow::after {
+        [data-overlay][data-overlay-border] > .autospark-overlay-arrow::after {
             inset: -2px;
         }
         [data-overlay-placement^="top"] > .autospark-overlay-arrow::after {
@@ -50,7 +54,7 @@
         [data-overlay-placement^="right"] > .autospark-overlay-arrow::after {
             translate: 4px 0;
         }
-        [data-autospark-overlays] > .autospark-dialog {
+        [data-autospark-overlays] > [data-overlay] {
             z-index: var(--autospark-overlay-z, 1000);
         }
     </style>

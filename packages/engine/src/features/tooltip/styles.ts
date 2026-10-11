@@ -4,6 +4,7 @@ import {
     TOOLTIP_PLACEMENT_ATTR,
     TOOLTIP_BORDER_ATTR,
 } from "./container";
+import { injectStylesheet } from "../../utils/injectStylesheet";
 
 /**
  * tooltip 默认样式注入（ADR-0061 决策 9/16，幂等——多 engine 实例共享 document）：
@@ -31,11 +32,8 @@ const STYLES_ID = "autospark-tooltip-styles";
 const SLIDE_FROM_VAR = "--autospark-tip-slide-from";
 
 export function injectTooltipStyles(): void {
-    if (typeof document === "undefined" || !document.head) return;
-    if (document.getElementById(STYLES_ID)) return;
-    const style = document.createElement("style");
-    style.id = STYLES_ID;
-    style.textContent = `
+    injectStylesheet(
+        `
 .${TOOLTIP_CLASS} {
   position: fixed;
   inset: 0 auto auto 0;
@@ -113,6 +111,7 @@ export function injectTooltipStyles(): void {
 .${TOOLTIP_CLASS}.slide-leave-to {
   opacity: 0;
   transform: var(${SLIDE_FROM_VAR}, translateY(6px));
-}`;
-    document.head.appendChild(style);
+}`,
+        { id: STYLES_ID },
+    );
 }

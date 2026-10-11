@@ -1,6 +1,7 @@
 /**
  * confirm（ADR-0071 决策 22）：模板快速确认——payload 的 yes/no 可提取键转按钮文案；
- * 确认/取消结果经 notification:action 事件以发起子树回流（anchor 注入），Confirm 会话
+ * 确认/取消结果经 notifications/<type>/<id>/actions/<名> 事件以发起子树回流（anchor 注入，
+ * ADR-0102 分层命名），Confirm 会话
  * thenable 的 resolve 值亦随 actions/confirm/resolved 广播（buildAction 异步语义
  * ——ADR-0077 统一 show 入口后糖退役，会话本体承载 Promise）。
  */
