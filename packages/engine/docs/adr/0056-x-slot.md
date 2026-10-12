@@ -2,8 +2,8 @@
 
 - **状态**：Accepted（设计 grilling 共识已达成，实施中）
 - **日期**：2026-09-24
-- **修订**：2026-09-28 覆盖物侧内容归属就地修订（grilling 第四轮 Q1–Q13，用户确认）——推翻「宿主子节点自动继承为默认段」，改为显式声明 + `x-slots` 归属容器；仅动决策三/八/十、Consequences、实现注记，组件路径（决策一~七、九）不受影响
-- **关联**：[ADR-0022](0022-x-component.md)（组件定义/实例化，本 ADR 为其补插槽投影面）、[ADR-0006](0006-x-isolate-directive.md)（旧 `x-slot` 更名腾名，本 ADR 复用该名新义）、[ADR-0040](0040-x-tree-rendering.md)（曾以「引擎无插槽机制」否决内置递归组件——本 ADR 改变该前提的插槽供给面，但节点模板经组件传递的路径结论维持）、[ADR-0052](0052-x-overlay-and-x-dialog.md)（overlay 覆盖物子节点去向）、[ADR-0053](0053-component-data-boundary.md)（组件数据封闭边界——插槽内容不受其约束）、[ADR-0054](0054-component-define-instantiation-rename.md)、[CONTEXT.md](../../CONTEXT.md)（插槽四词条）
+- **修订**：2026-09-28 覆盖物侧内容归属就地修订（grilling 第四轮 Q1–Q13，用户确认）——推翻「宿主子节点自动继承为默认段」，改为显式声明 + `x-slots` 归属容器；仅动决策三/八/十、Consequences、实现注记，组件路径（决策一~七、九）不受影响；2026-10-12 增补 [ADR-0108](0108-x-slot-bind-caller-bindings.md)（内容侧 `x-slot.bind` 调用方传递绑定——标记元素可携带绑定表达式，展开到出口元素，调用方赢）
+- **关联**：[ADR-0022](0022-x-component.md)（组件定义/实例化，本 ADR 为其补插槽投影面）、[ADR-0006](0006-x-isolate-directive.md)（旧 `x-slot` 更名腾名，本 ADR 复用该名新义）、[ADR-0040](0040-x-tree-rendering.md)（曾以「引擎无插槽机制」否决内置递归组件——本 ADR 改变该前提的插槽供给面，但节点模板经组件传递的路径结论维持）、[ADR-0052](0052-x-overlay-and-x-dialog.md)（overlay 覆盖物子节点去向）、[ADR-0053](0053-component-data-boundary.md)（组件数据封闭边界——插槽内容不受其约束）、[ADR-0054](0054-component-define-instantiation-rename.md)、[ADR-0108](0108-x-slot-bind-caller-bindings.md)（传递绑定）、[CONTEXT.md](../../CONTEXT.md)（插槽四词条）
 - **共识来源**：grilling 三轮 Q1–Q17 + 7 条终局假设，前沿为空，用户全盘确认
 
 ## 背景
@@ -53,6 +53,7 @@ AutoSpark 需要一套**声明式内容投影**机制，语义对齐 Vue slot（
 
 - **裸子节点 = 默认插槽**（无形参，见决策八）。
 - **命名内容**用元素 `x-slot:header` 标记，标记元素保留为包裹层（与定义侧对称）。
+- **传递绑定**（ADR-0108）：标记元素可同元素携带 `x-slot.bind="{ … }"`（或别名 `x-slot:header.bind`）——表达式在调用方作用域求值，展开到出口元素（class/style 合并、其余键调用方赢）。
 - ⚠️ 以上仅限 **x-component 路径**：覆盖物消费者（x-dialog 等）宿主的裸子节点**永不参与收集**，内容须显式声明，见决策十（2026-09-28 修订）。
 
 ### 四、作用域语义（Q4、假设①④）

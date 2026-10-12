@@ -321,6 +321,10 @@ x-block **不绑定具体消费者**，是声明性资源——任意指令按�
 
 作用域插槽数据面：出口 `x-slot:header="{ item: row }"`（组件作用域 watch 求值注入）↔ 内容 `x-slot:header="{ item, index }"`（自定义 `{ 键, 键 }` 解构解析，非 JSON）。形参挂内容作用域 `locals`（进聚合视图）；注入变化 → `Object.assign(locals)` + `scope.refresh()`（x-for 复用先例）。裸子节点=无形参；默认内容要形参须显式 `<div x-slot="{ item }">`。
 
+### 传递绑定（Slot Bindings，ADR-0108）
+
+内容侧 `x-slot.bind="对象表达式"`（别名 `x-slot:名.bind`，正典为与槽标记同元素合写）：表达式在**调用方作用域** watch（depth:2），经 `SpreadBinder` 展开到**出口元素**（`SlotContent.bindingsExpr` 承载 → `SlotDirective._applyCallerBindings` 消费）。优先级**调用方赢**：覆盖出口静态属性与出口侧 `x-bind` 结果，class/style 合并（组件在前、调用方追加）；跨组件通道 `template: null` 不收集 reservedKeys 恒赢集。空 `<template x-slot.bind>` 只贡献绑定、不构成默认段；载体无附着内容 warn+丢弃；出口侧遇 `.bind` warn（裸形态值仍按动态出口名，ADR-0107 兼容）。绑定表达式**看不到插槽形参**（形参在内容 locals，绑定在调用方基准作用域）。
+
 > **与 x-isolate 区分**：x-isolate 是 engine 边界/隔离快照（内部不编译）；x-slot 是组件内容投影（内容在调用方作用域编译）。旧 x-slot 曾是 isolate 前身名（ADR-0006 更名腾名），2026-09-24 由 ADR-0056 赋予插槽新义。
 
 ## x-on 反馈（feedback）

@@ -825,6 +825,10 @@ _Avoid_: 插槽体、传入内容（content 是与 outlet 对称的固定词）�
 覆盖物宿主上包裹插槽内容、声明**内容归属哪个覆盖物**的容器元素（ADR-0056 决策十修订）：`x-slots="覆盖物组件名"`，值须命中宿主上的某个 `x-dialog:名称` 消费者。容器内即该覆盖物的内容集（裸子节点=默认段、`x-slot:*`=命名段），单消费者可省容器把标记直写宿主子级、多消费者**必须**各套容器（裸标记无法判定归属 → warn+丢弃）。编译期剪枝：容器与标记子级不进运行 DOM（收集从只读 template 克隆）。与 `x-component` 不得同宿主（化身与声明点对宿主子节点的定位互斥，component 让步跳过实例化）。
 _Avoid_: `x-slot-for`（早期命名，已废弃为 x-slots）、插槽容器（泛化——重点是归属而非包裹）、归属标记（那是属性不是元素）、`x-slot`（多一个 s：`x-slot:名` 恒为出口名段，归属不进它）
 
+**传递绑定 / x-slot.bind（Slot Bindings）**:
+内容侧传递给出口元素的属性展开（ADR-0108）：`x-slot.bind="对象表达式"` 写在槽标记元素自身（正典与 `x-slot:名` 合写；别名 `x-slot:名.bind`），表达式在**调用方作用域**响应式求值（depth:2），以 x-bind 展开语义应用到**出口元素**（`SlotContent.bindingsExpr` → `SlotDirective._applyCallerBindings` → `SpreadBinder`）。优先级**调用方赢**（覆盖出口静态属性与出口侧 x-bind；class/style 合并，组件在前、调用方追加）。空 `<template x-slot.bind>` 只贡献绑定不构成内容；载体无内容 warn+丢弃；出口侧（组件内）写 `.bind` → warn 引导用 x-bind。绑定只可见调用方状态，引用不到插槽形参。
+_Avoid_: 属性透传/fallthrough（不转移包裹层静态属性，只认显式 x-slot.bind）、`x-slot-options.bind`（-options 通道是指令自身配置，作用域与方向都不对）、透传绑定（就叫传递绑定）
+
 **作用域形参（Slot Params）**:
 作用域插槽（scoped slot）的双向数据面：出口侧值承载对象字面量 `x-slot:header="{ item: row }"`（组件作用域经 watch 求值，注入变化→形参容器 `Object.assign` + `scope.refresh()` 刷新）；内容侧值承载**解构形参** `x-slot:header="{ item, index }"`（自定义 `{ 键, 键 }` 解析，非 JSON）。形参挂内容作用域 `locals`（进聚合视图）。裸子节点=默认插槽无形参；默认内容要形参须显式 `<div x-slot="{ item }">`。
 _Avoid_: scoped props（props 是 x-component 的注入通道，形参是插槽投影的数据面）、插槽变量（泛化）、解构绑定（那是形参的写法不是概念名）

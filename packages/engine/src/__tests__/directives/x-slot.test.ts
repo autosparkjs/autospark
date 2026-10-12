@@ -8,7 +8,7 @@ import { mount, nextTick, finishAnim } from "../helpers";
  *
  * 12 组：命名/默认出口命中、fallback、无主 warn、重复首胜、裸子节点默认段、
  * 命名分段直接子级、深层忽略 warn、作用域插槽形参、形参响应式、调用方作用域求值、
- * overlay 继承、x-dialog 子节点进覆盖物。
+ * overlay 继承、x-dialog 子节点进覆盖物；+ 传递绑定组（ADR-0108，11 例）。
  */
 
 /** 挂载并拦截 logger.warn（编译期同步 warn 也可靠捕获） */
@@ -564,5 +564,219 @@ describe("x-slot overlay 继承（ADR-0056 决策十）", () => {
         // 子节点本就不进运行 DOM——既不投影也不残留
         expect(root.querySelector("#mix .card")).toBeNull();
         expect(root.querySelector("#mix span")).toBeNull();
+    });
+});
+
+describe("x-slot 传递绑定（ADR-0108）", () => {
+    const maskOf = (name: string): HTMLElement | null =>
+        document.querySelector(`.autospark-dialog-mask [data-overlay="${name}"]`)?.parentElement ??
+        null;
+
+    test("双属性形态：x-slot.bind 在调用方作用域求值并展开到出口元素", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="card">
+                    <header x-slot:header>默认头</header>
+                </div>
+                <div id="h" x-component:card>
+                    <template x-slot:header x-slot.bind="{ 'data-k': k, title: t }"><h1>自定义</h1></template>
+                </div>
+            </div>`,
+            { k: "v1", t: "hello" },
+        );
+        await nextTick();
+        const header = root.querySelector("#h header")!;
+        expect(header.getAttribute("data-k")).toBe("v1");
+        expect(header.getAttribute("title")).toBe("hello");
+        expect(header.querySelector("h1")!.textContent).toBe("自定义");
+        expect(header.textContent).not.toInclude("默认头");
+    });
+
+    test("别名形态 x-slot:header.bind 等价于双属性合写", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="card">
+                    <header x-slot:header>默认头</header>
+                </div>
+                <div id="h" x-component:card>
+                    <template x-slot:header.bind="{ 'data-k': k }"><h1>自定义</h1></template>
+                </div>
+            </div>`,
+            { k: "v2" },
+        );
+        await nextTick();
+        const header = root.querySelector("#h header")!;
+        expect(header.getAttribute("data-k")).toBe("v2");
+        expect(header.querySelector("h1")).not.toBeNull();
+    });
+
+    test("形参与传递绑定共存：params 走组件作用域、绑定只看调用方状态", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="row">
+                    <div x-slot:item="{ label: lbl }"><em>默认</em></div>
+                </div>
+                <div id="h" x-component:row>
+                    <template x-slot:item="{ label }" x-slot.bind="{ 'data-l': k }">{{ label }}</template>
+                </div>
+            </div>`,
+            { lbl: "L1", k: "K1" },
+        );
+        await nextTick();
+        const outlet = root.querySelector("#h [data-slot]")!;
+        expect(outlet.textContent).toBe("L1"); // 形参：组件作用域 lbl → 内容
+        expect(outlet.getAttribute("data-l")).toBe("K1"); // 绑定：调用方 k → 出口属性
+        expect(outlet.textContent).not.toInclude("默认");
+    });
+
+    test("调用方赢：覆盖出口静态属性；class 双侧合并", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="card">
+                    <header x-slot:header class="base" data-src="comp">默认头</header>
+                </div>
+                <div id="h" x-component:card>
+                    <template x-slot:header x-slot.bind="{ 'data-src': 'caller', class: 'extra' }">X</template>
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const header = root.querySelector("#h header")!;
+        expect(header.getAttribute("data-src")).toBe("caller"); // 覆盖：调用方恒赢
+        expect(header.classList.contains("base")).toBe(true); // 组件侧 class 保留
+        expect(header.classList.contains("extra")).toBe(true); // 调用方 class 追加
+    });
+
+    test("响应式：depth:2 键级更新 + 键消失清理", async () => {
+        const { root, engine } = mountSlot(
+            `<div x-scope>
+                <div x-define="card">
+                    <header x-slot:header>默认头</header>
+                </div>
+                <div id="h" x-component:card>
+                    <template x-slot:header x-slot.bind="attrs">X</template>
+                </div>
+            </div>`,
+            { attrs: { a: "1", b: "2" } },
+        );
+        await nextTick();
+        const header = root.querySelector("#h header")!;
+        expect(header.getAttribute("a")).toBe("1");
+        expect(header.getAttribute("b")).toBe("2");
+        engine.state.attrs.b = "x"; // 子键修改（depth:2）
+        await nextTick();
+        expect(header.getAttribute("b")).toBe("x");
+        engine.state.attrs = { a: "9" }; // 整体替换：b 键消失 → 属性移除
+        await nextTick();
+        expect(header.getAttribute("a")).toBe("9");
+        expect(header.hasAttribute("b")).toBe(false);
+    });
+
+    test("default 槽：空绑定载体只贡献绑定、不构成内容段", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="card"><div x-slot>默认体</div></div>
+                <div id="h" x-component:card>
+                    裸内容
+                    <template x-slot.bind="{ 'data-d': d }"></template>
+                </div>
+            </div>`,
+            { d: "D1" },
+        );
+        await nextTick();
+        const outlet = root.querySelector("#h [data-slot]")!;
+        expect(outlet.textContent).toInclude("裸内容");
+        expect(outlet.textContent).not.toInclude("默认体");
+        expect(outlet.getAttribute("data-d")).toBe("D1");
+    });
+
+    test("绑定载体无附着内容：warn + 忽略（出口渲染 fallback）", async () => {
+        const { root, warns } = mountSlotCaptureWarn(
+            `<div x-scope>
+                <div x-define="card"><div x-slot>默认体</div></div>
+                <div id="h" x-component:card>
+                    <template x-slot.bind="{ 'data-d': d }"></template>
+                </div>
+            </div>`,
+            { d: "D1" },
+        );
+        await nextTick();
+        const outlet = root.querySelector("#h [data-slot]")!;
+        expect(warns.some((w) => w.includes("未附着任何内容"))).toBe(true);
+        expect(outlet.textContent).toInclude("默认体");
+        expect(outlet.hasAttribute("data-d")).toBe(false);
+    });
+
+    test("onXxx 函数键 → 监听挂到出口元素，调用方作用域执行", async () => {
+        const { root, engine } = mountSlot(
+            `<div x-scope>
+                <div x-define="card"><button x-slot:header>默认</button></div>
+                <div id="h" x-component:card>
+                    <template x-slot:header x-slot.bind="{ onclick: () => count = count + 1 }">点</template>
+                </div>
+            </div>`,
+            { count: 0 },
+        );
+        await nextTick();
+        const btn = root.querySelector("#h button")!;
+        btn.dispatchEvent(new Event("click"));
+        await nextTick();
+        expect(engine.state.count).toBe(1);
+    });
+
+    test("出口侧裸 x-slot.bind：warn + 值仍按动态出口名（ADR-0107 兼容）", async () => {
+        const { root, warns } = mountSlotCaptureWarn(
+            `<div x-scope>
+                <div x-define="card"><div x-slot.bind="dyn">默认体</div></div>
+                <div id="h" x-component:card>
+                    <template x-slot:header>投影头</template>
+                </div>
+            </div>`,
+            { dyn: "header" },
+        );
+        await nextTick();
+        expect(warns.some((w) => w.includes("传递绑定语法"))).toBe(true);
+        const outlet = root.querySelector("#h [data-slot]")!;
+        expect(outlet.dataset.slot).toBe("header"); // 动态名照常解析（兼容）
+        expect(outlet.textContent).toBe("投影头");
+    });
+
+    test("出口侧具名 .bind 别名：warn + 静态出口照常工作", async () => {
+        const { root, warns } = mountSlotCaptureWarn(
+            `<div x-scope>
+                <div x-define="card"><header x-slot:header.bind="whatever">默认头</header></div>
+                <div id="h" x-component:card>
+                    <template x-slot:header>投影</template>
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        expect(warns.some((w) => w.includes("出口侧请改用 x-bind"))).toBe(true);
+        expect(root.querySelector("#h header")!.textContent).toBe("投影");
+    });
+
+    test("overlay 通道：x-dialog 内 x-slot.bind 同样透传到出口元素", async () => {
+        const { root, engine } = mountSlot(
+            `<div x-scope>
+                <div x-define="confirm"><div class="body"><div x-slot>默认正文</div></div></div>
+                <button id="t" x-dialog:confirm="ui.open">
+                    打开
+                    <div x-slot x-slot.bind="{ 'data-o': od }">要确认吗？</div>
+                </button>
+            </div>`,
+            { ui: { open: false }, od: "O1" },
+            { animate: false },
+        );
+        expect(root.querySelector("#t [data-o]")).toBeNull(); // 标记子节点剪枝不进宿主
+        engine.state.ui.open = true;
+        await nextTick();
+        const mask = maskOf("confirm")!;
+        expect(mask).not.toBeNull();
+        expect(mask.textContent).toInclude("要确认吗？");
+        const outlet = mask.querySelector("[data-o]")!;
+        expect(outlet).not.toBeNull();
+        expect(outlet.getAttribute("data-o")).toBe("O1");
     });
 });
