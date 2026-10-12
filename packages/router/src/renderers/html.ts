@@ -28,6 +28,8 @@ export class AutoSparkRouterHTMLViewRenderer extends AutoSparkRouterViewRenderer
             // 步骤 2: x-outlet 简写预处理（编译前改写为 x-component:autospark.outlet，
             // 远程模板中的嵌套出口声明在此激活）
             transformXOutlet(doc);
+            // 产物从改写后的 doc 序列化（原实现取原始字符串，简写改写会丢失）
+            renderResult.value = doc.body.innerHTML.trim();
             // 步骤 3: 如果提供了自定义选择器，使用它
             if (typeof selector === "string" && selector.length > 0) {
                 try {

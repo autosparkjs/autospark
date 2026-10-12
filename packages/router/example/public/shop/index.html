@@ -9,23 +9,11 @@
     <body>
         <div
             id="app"
-            x-data="{
+            x-data.global="{
             isLoggedIn: false,
             isNavigating: false,
             loginForm: { username: '', password: '' },
-            testUrl: '',
-            async login() {
-                // 模拟登录
-                await new Promise(resolve => setTimeout(resolve, 500));
-                this.isLoggedIn = this.loginForm.username === 'admin' && this.loginForm.password === 'admin';
-                if (!this.isLoggedIn) {
-                    alert('用户名或密码错误（提示：admin/admin）');
-                }
-            },
-            logout() {
-                this.isLoggedIn = false;
-                window.router.push('/');
-            }
+            testUrl: ''
         }"
         >
             <!-- 顶部导航栏 -->
@@ -313,17 +301,21 @@
             // 暴露路由器实例
             window.router = router;
 
-            // 暴露 login 方法给全局
+            // 暴露 login 方法给全局（登录页表单提交回调；状态挂根（x-data.global），
+            // 经 engine.state 直写——AutoSpark 无 Alpine 的 _x_dataStack 内部机制）
             window.handleLogin = async (username, password) => {
-                const alpineApp = document.getElementById("app")._x_dataStack[0];
-                alpineApp.loginForm.username = username;
-                alpineApp.loginForm.password = password;
-                await alpineApp.login();
-
-                // 登录成功后返回首页
-                if (alpineApp.isLoggedIn) {
-                    router.home();
+                // 模拟登录耗时
+                await new Promise((resolve) => setTimeout(resolve, 500));
+                const state = engine.state;
+                state.loginForm.username = username;
+                state.loginForm.password = password;
+                state.isLoggedIn = username === "admin" && password === "admin";
+                if (!state.isLoggedIn) {
+                    alert("用户名或密码错误（提示：admin/admin）");
+                    return;
                 }
+                // 登录成功后返回首页
+                router.home();
             };
 
             // 暴露返回首页方法

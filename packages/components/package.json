@@ -1,0 +1,36 @@
+{
+  "name": "@autospark/components",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zhangfisher/autospark.git"
+  },
+  "files": [
+    "dist",
+    "readme.md"
+  ],
+  "type": "module",
+  "module": "src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "browser": "./dist/index.global.js"
+    },
+    "./global": {
+      "import": "./dist/index.global.js",
+      "require": "./dist/index.global.js"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsup",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "autospark": "workspace:*",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.0"
+  }
+}

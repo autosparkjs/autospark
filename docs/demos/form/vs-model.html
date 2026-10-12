@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-field · 与 x-model 的区别（散装控件 vs 表单域）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 左右两个输入框外观一致：差别全在「表单域」这层身份——
+             左（x-model）绑定即止；右（x-field）编译期注册进表单，
+             多出 $form.getState() / dirty / reset() 等表单能力与 $field 上下文 -->
+        <div class="demo-app section">
+            <div class="columns">
+                <div class="column">
+                    <p class="title is-6">散装控件 · x-model</p>
+                    <div x-data="{ name: '' }">
+                        <div class="field">
+                            <div class="control">
+                                <input class="input" x-model="name" placeholder="输入试试" />
+                            </div>
+                        </div>
+                        <p class="help">
+                            局部值：<strong x-text="JSON.stringify(name)"></strong>
+                        </p>
+                        <p class="help">绑定即止——没有 getState / dirty / reset</p>
+                    </div>
+                </div>
+                <div class="column">
+                    <p class="title is-6">表单域 · x-field</p>
+                    <form x-form="{ name: '' }">
+                        <div class="field">
+                            <div class="control">
+                                <input class="input" x-field="name" placeholder="输入试试" />
+                            </div>
+                        </div>
+                        <p class="help">
+                            getState()：<strong x-text="JSON.stringify($form.getState())"></strong>
+                        </p>
+                        <p class="help">
+                            dirty：<strong x-text="$form.dirty"></strong>
+                        </p>
+                        <div class="buttons">
+                            <button type="button" class="button is-light" @click="$form.reset()">重置（快照回滚）</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <p class="help">
+                左右输入互不相干（两个私有域）；右侧输入后 dirty 变 true，点「重置」一步回初始快照。
+            </p>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

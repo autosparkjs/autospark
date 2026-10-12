@@ -21,7 +21,7 @@
             <div class="preview-specs" x-show="product?.specs">
                 <h4>规格参数</h4>
                 <ul>
-                    <template x-for="(value, key) in product?.specs" :key="key">
+                    <template x-for="(value, key) of product?.specs" :key="key">
                         <li>
                             <span class="spec-key" x-text="key + ':'"></span>
                             <span class="spec-value" x-text="value"></span>

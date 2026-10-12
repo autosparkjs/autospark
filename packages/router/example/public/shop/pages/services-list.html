@@ -5,7 +5,7 @@
 </div>
 
 <div class="service-list">
-    <template x-for="service in services" :key="service.id">
+    <template x-for="service of services" :key="service.id">
         <div class="service-card">
             <div class="service-header">
                 <div class="service-name">

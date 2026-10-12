@@ -398,7 +398,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
 
     /** 初始化虚拟列表选项并设置事件监听 */
     private setupVirtualOptions() {
-        const container = this.el;
+        const container = this._renderContainer;
         if (!container) return;
 
         // 读取配置
@@ -447,7 +447,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
 
     /** 创建/更新滚动高度垫片元素 */
     private _createSpacers() {
-        const container = this.el;
+        const container = this._renderContainer;
         if (!container) return;
 
         const spacerStyle = "margin:0;padding:0;overflow:hidden;pointer-events:none;";
@@ -456,14 +456,14 @@ export class ForDirective extends AutoSparkDirectiveBase {
             this._topSpacerEl = document.createElement("div");
             this._topSpacerEl.setAttribute("aria-hidden", "true");
             this._topSpacerEl.style.cssText = spacerStyle + "height:0;";
-            container.appendChild(this._topSpacerEl);
+            container.insertBefore(this._topSpacerEl, this._tailAnchor);
         }
 
         if (!this._spacerEl) {
             this._spacerEl = document.createElement("div");
             this._spacerEl.setAttribute("aria-hidden", "true");
             this._spacerEl.style.cssText = spacerStyle + "height:0;";
-            container.appendChild(this._spacerEl);
+            container.insertBefore(this._spacerEl, this._tailAnchor);
         }
     }
 
@@ -487,7 +487,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
 
     /** 检测 :data-index 绑定的状态路径 */
     private _detectDataIndexBinding() {
-        const container = this.el;
+        const container = this._renderContainer;
         if (!container) return;
 
         // 检查容器上的 :data-index 或 x-bind:data-index 属性
@@ -505,7 +505,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
 
     /** 设置滚动事件监听（passive + rAF 节流） */
     private _setupScrollListener() {
-        const container = this.el;
+        const container = this._renderContainer;
         if (!container) return;
 
         const onScroll = () => {
@@ -529,7 +529,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
     private _setupResizeObserver() {
         if (typeof ResizeObserver === "undefined") return;
 
-        const container = this.el;
+        const container = this._renderContainer;
         if (!container) return;
 
         this._resizeObserver = new ResizeObserver(() => {
@@ -542,7 +542,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
     private _onScroll() {
         if (!this._virtual || this.activeSpecial) return;
 
-        const container = this.el;
+        const container = this._renderContainer;
         if (!container) return;
 
         const items = this.readItems();
@@ -570,7 +570,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
     private _onResize() {
         if (!this._virtual || this.activeSpecial) return;
 
-        const container = this.el;
+        const container = this._renderContainer;
         if (!container) return;
 
         const items = this.readItems();
@@ -601,7 +601,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
     private _autoDetectItemHeight() {
         if (this._itemHeight > 0 || this._autoItemHeight > 0) return;
 
-        const container = this.el;
+        const container = this._renderContainer;
         if (!container || container.children.length === 0) return;
 
         // 取第一个子元素的高度（假设项等高）
@@ -616,7 +616,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
 
     /** 更新 data-index 属性和绑定的状态 */
     private _updateDataIndex(index: number) {
-        const container = this.el;
+        const container = this._renderContainer;
         if (!container) return;
 
         this._isUpdatingDataIndex = true;
@@ -648,7 +648,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
     private _observeDataIndex() {
         if (!this._virtual || !this._dataIndexBinding) return;
 
-        const container = this.el;
+        const container = this._renderContainer;
         if (!container) return;
 
         // 使用 MutationObserver 监听 data-index 属性变化
@@ -675,7 +675,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
 
     /** 程序化滚动到指定索引 */
     private scrollToIndex(index: number) {
-        const container = this.el;
+        const container = this._renderContainer;
         if (!container) return;
 
         const items = this.readItems();
@@ -700,7 +700,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
 
     /** 虚拟列表渲染：只渲染可见项 + overscan */
     private _renderVirtual() {
-        const container = this.el;
+        const container = this._renderContainer;
         if (!container || this.itemTemplates.length === 0) return;
 
         const items = this.readItems();
@@ -787,10 +787,10 @@ export class ForDirective extends AutoSparkDirectiveBase {
         // DOM 重排：结构为 [topSpacer, item0, item1, ..., bottomSpacer]
         // 先确保两个垫片在容器中
         if (this._topSpacerEl && this._topSpacerEl.parentNode !== container) {
-            container.appendChild(this._topSpacerEl);
+            container.insertBefore(this._topSpacerEl, this._tailAnchor);
         }
         if (this._spacerEl && this._spacerEl.parentNode !== container) {
-            container.appendChild(this._spacerEl);
+            container.insertBefore(this._spacerEl, this._tailAnchor);
         }
 
         const flatNodes = ordered.flatMap((e) => e.nodes);
@@ -1035,6 +1035,26 @@ export class ForDirective extends AutoSparkDirectiveBase {
         }
     }
 
+    /**
+     * 渲染容器（template 宿主修订）：B 语义下 x-for 元素自身是容器；`<template x-for>` 宿主
+     * 的子节点在 content 隔离域、appendChild 进 content 不渲染——项改挂 template 的**父节点**，
+     * template 元素自身保留在 DOM 作声明位标记（不渲染内容，无痕）。父节点缺失（未挂载）时
+     * 兜底 this.el（后续 insertBefore 在挂载后执行，届时 parentElement 就位）。
+     */
+    private get _renderContainer(): HTMLElement {
+        return this.el instanceof HTMLTemplateElement
+            ? (this.el.parentElement ?? this.el)
+            : this.el;
+    }
+
+    /**
+     * 尾部锚点：普通宿主 = null（插到容器末尾）；template 宿主 = template 元素自身——
+     * 项与 spacer 恒插其前，保持声明位置的文档序（template 是列表的「尾部边界」）。
+     */
+    private get _tailAnchor(): ChildNode | null {
+        return this.el instanceof HTMLTemplateElement ? this.el : null;
+    }
+
     /** 解析 "item of items" / "item,index of items" 与 :key（可选），并采集复合项模板 */
     private parse() {
         const raw = String(this.value ?? "").trim();
@@ -1063,7 +1083,11 @@ export class ForDirective extends AutoSparkDirectiveBase {
         // 走 compileChild 不经主 walk 剪枝层，不在此拦会被当普通项模板随每项渲染。
         const tpl = this.template;
         if (tpl) {
-            for (const child of Array.from(tpl.children)) {
+            // template 宿主：元素子节点在 content 隔离域（tpl.children 恒空），改从 content 收集；
+            // 其余按 B 语义直接遍历宿主 children。两源均仅含 Element 节点。
+            const collectFrom: ParentNode =
+                tpl instanceof HTMLTemplateElement ? tpl.content : tpl;
+            for (const child of Array.from(collectFrom.children)) {
                 if (
                     !(child instanceof HTMLElement) ||
                     isDataScript(child) ||
@@ -1149,7 +1173,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
      * 虚拟列表模式（.virtual）：只渲染可见项 + overscan，由 _renderVirtual() 处理。
      */
     private render() {
-        const container = this.el;
+        const container = this._renderContainer;
         if (!container || (this.itemTemplates.length === 0 && this.specialTemplates.size === 0))
             return;
 
@@ -1292,7 +1316,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
             // insertBefore(node, anchor) 把 node 放到 anchor 之前；anchor=null 表示插到末尾。
             // 从后向前：末项先落位（anchor=null 到尾部），anchor 推进到本组首节点，
             // 前一项整组插到它之前。组内正序插入保证复合项成员文档顺序（0..n-1 自上而下）。
-            let anchor: Node | null = null;
+            let anchor: Node | null = this._tailAnchor;
             for (let j = ordered.length - 1; j >= 0; j--) {
                 const nodes = ordered[j]!.nodes;
                 for (let k = 0; k < nodes.length; k++) {
@@ -1478,13 +1502,13 @@ export class ForDirective extends AutoSparkDirectiveBase {
      * 多个 x-empty 全部渲染、按文档序占位。
      */
     private mountSpecial(desc: { name: string }, animate = true) {
-        const container = this.el;
+        const container = this._renderContainer;
         const templates = this.specialTemplates.get(desc.name);
         if (!container || !templates) return;
         const phase = animate ? this._anim.enter : null;
         for (const tpl of templates) {
             const { el, scope } = this.engine.compiler.compileChild(tpl, this.binding, {});
-            container.appendChild(el);
+            container.insertBefore(el, this._tailAnchor);
             this.specialNodes.push(el);
             this.specialScopes.push(scope);
             // 空状态挂载与列表项同权播进场（ADR-0039 决策 10）

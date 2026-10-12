@@ -1,6 +1,27 @@
 import { patchAttrValue, createAttrPatchState } from "../features/directive/utils/attrPatch";
 import { isDirectiveAttr } from "../features/directive/utils/isDirectiveAttr";
-import type { BindDirective } from "./x-bind";
+import type { AutoSpark } from "../engine/engine";
+import type { AutoSparkScope } from "../engine/scope";
+
+/**
+ * SpreadBinder 宿主接口：`BindDirective`（x-bind 无参形态，ADR-0043）与
+ * `SlotDirective` 传递绑定（ADR-0108）共用同一展开语义——结构兼容，双方各自实现。
+ */
+export interface SpreadBinderHost {
+    engine: AutoSpark;
+    el: HTMLElement | undefined;
+    /**
+     * 原始模板（reservedKeys「后写静态恒赢」收集用）。
+     * 跨组件通道（ADR-0108）传 null：出口静态属性不保留恒赢——调用方赢。
+     */
+    template?: HTMLElement | null;
+    /** 指令配置读取（.invert 等）；跨组件通道无指令配置 → 恒 undefined */
+    getOption(key: string): any;
+    /** 展开表达式（仅 init() 用；调用方通道由外部 watch 后直接传值 apply） */
+    value?: any;
+    /** watch 订阅入口（仅 init() 用；调用方通道由外部 watch 后直接 apply） */
+    binding?: AutoSparkScope;
+}
 
 /**
  * 属性展开 / Attribute Spread（`x-bind="expr"` 无参形态，ADR-0043）
@@ -61,7 +82,7 @@ import type { BindDirective } from "./x-bind";
  * <div class="btn" x-bind="{class:{primary:isPrimary}, title:tip}">
  */
 export class SpreadBinder {
-    private directive: BindDirective;
+    private directive: SpreadBinderHost;
 
     /** 上次展开管辖的键集合（含 false/null 值键——处理过即管辖；不含被剔除的对象值键） */
     private lastKeys = new Set<string>();
@@ -74,7 +95,7 @@ export class SpreadBinder {
     /** 已挂事件监听器：键 → 当前 listener（替换/消失时移除旧监听，ADR-0045 决策 6） */
     private listeners = new Map<string, EventListener>();
 
-    constructor(directive: BindDirective) {
+    constructor(directive: SpreadBinderHost) {
         this.directive = directive;
         this.reservedKeys = this._collectReservedKeys();
     }
@@ -88,7 +109,7 @@ export class SpreadBinder {
                 `x-bind: .invert 修饰符对无参属性展开无意义，已忽略（ADR-0043）`,
             );
         }
-        const initial = this.directive.binding.watch(
+        const initial = this.directive.binding!.watch(
             String(this.directive.value),
             ({ value }) => this.apply(value),
             { depth: 2 },

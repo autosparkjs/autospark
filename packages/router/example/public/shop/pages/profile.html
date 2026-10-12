@@ -24,7 +24,7 @@
 </div>
 
 <div class="profile-menu">
-    <template x-for="item in menuItems" :key="item.title">
+    <template x-for="item of menuItems" :key="item.title">
         <div class="profile-menu-item">
             <div class="menu-icon" x-text="item.icon"></div>
             <div>

@@ -28,8 +28,11 @@ export class AutoSparkLoading extends HTMLElement {
     }
 
     connectedCallback() {
-        // 创建 Shadow DOM
-        this.attachShadow({ mode: "open" });
+        // 创建 Shadow DOM（幂等：x-for 重排等场景节点会被重新插入、connectedCallback
+        // 再触发，二次 attachShadow 抛 NotSupportedError——已存在则复用）
+        if (!this.shadowRoot) {
+            this.attachShadow({ mode: "open" });
+        }
         // 应用样式
         if (this.shadowRoot) {
             this.shadowRoot.adoptedStyleSheets = [styles];

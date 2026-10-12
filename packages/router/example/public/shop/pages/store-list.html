@@ -5,7 +5,7 @@
 </div>
 
 <div class="store-grid">
-    <template x-for="store in stores" :key="store.id">
+    <template x-for="store of stores" :key="store.id">
         <div class="store-card">
             <div class="store-name" x-text="store.name"></div>
             <div class="store-address" x-text="store.address"></div>

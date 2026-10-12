@@ -149,6 +149,7 @@ export default defineConfig({
               items: [
                 { text: "x-model", link: "/zh/guide/directives/x-model" },
                 { text: "x-form", link: "/zh/guide/directives/x-form" },
+                { text: "x-field", link: "/zh/guide/directives/x-field" },
               ],
             },
             {
@@ -181,6 +182,8 @@ export default defineConfig({
                 { text: "x-define", link: "/zh/guide/directives/x-define" },
                 { text: "x-component", link: "/zh/guide/directives/x-component" },
                 { text: "x-slot", link: "/zh/guide/directives/x-slot" },
+                { text: "x-super", link: "/zh/guide/directives/x-super" },
+                { text: "x-slots", link: "/zh/guide/directives/x-slots" },
                 { text: "x-import", link: "/zh/guide/directives/x-import" },
               ],
             },

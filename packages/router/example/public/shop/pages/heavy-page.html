@@ -26,7 +26,7 @@
     <div class="heavy-content">
         <h2>📋 大量数据列表</h2>
         <div class="data-grid">
-            <template x-for="(item, index) in items" :key="item.id">
+            <template x-for="(item, index) of items" :key="item.id">
                 <div class="data-card">
                     <div class="card-index" x-text="index + 1"></div>
                     <div class="card-icon" x-text="item.icon"></div>

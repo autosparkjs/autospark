@@ -62,12 +62,12 @@ export const OUTLET_COMPONENT_CODE = `<div x-define="${OUTLET_COMPONENT_NAME}" c
         }
     }
     <\/script>
-    <template x-for="view in views" :key="view.hash">
+    <div class="autospark-outlet-views" x-for="view of views" :key="view.hash">
         <div class="autospark-outlet-view" x-show="view.hash === active" :data-view-hash="view.hash">
             <autospark-loading x-show="!view.ready"></autospark-loading>
             <div class="autospark-outlet-view-content" x-html.compile="view.html"></div>
         </div>
-    </template>
+    </div>
     <div class="autospark-outlet-ephemeral" x-show="active === ephemeral.hash">
         <autospark-loading x-show="!ephemeral.ready"></autospark-loading>
         <div class="autospark-outlet-view-content" x-html.compile="ephemeral.html"></div>
@@ -75,10 +75,13 @@ export const OUTLET_COMPONENT_CODE = `<div x-define="${OUTLET_COMPONENT_NAME}" c
 </div>`;
 
 /**
- * 向 engine 注册 outlet 组件（Q10：自动注册 + 探测跳过）。
- * 应用经构造 options.components 预注册同名组件时跳过——允许应用定制 outlet 而无需 fork。
- * 注册晚于组件声明（x-component 静态声明先于本调用编译）时，由 x-component 的
- * 「未注册占位 + components/<名>/registered retain 事件重试」机制兜底激活。
+ * 向 engine 注册 outlet 组件（Q10：自动注册 + 探测跳过）。应用经构造 options.components
+ * 预注册同名组件时跳过——允许应用定制 outlet 而无需 fork。
+ *
+ * 时序说明：注入模式下应用 engine 已编译、本注册晚于 `x-component:autospark.outlet` 声明——
+ * 由 x-component 的「未注册 loading 占位 + components/<候选名>/registered retain 重试」机制
+ * 兜底激活（ADR-0088 点号候选全集订阅）；自建模式经构造 options.components 先于编译注册，
+ * 无时序问题（见 engineHost.ts）。
  */
 export function registerOutletComponent(engine: AutoSpark): void {
     if (engine.getComponentDeclaration(OUTLET_COMPONENT_NAME)) return;

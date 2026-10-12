@@ -12,6 +12,10 @@
  *
  * 内容侧值 = 解构形参（`{ item, index }` 简式，非 JSON）；出口侧值 = 对象字面量
  * （组件作用域求值）。形参解析只认简单键（无 rename/默认值）。
+ *
+ * 传递绑定（ADR-0108）：内容侧另可携带 `x-slot.bind="表达式"`（或别名 `x-slot:名.bind`）
+ * ——表达式在调用方作用域求值、展开到出口元素；随 {@link SlotContent.bindingsExpr} 顺流
+ * 至 SlotDirective（各收集通道共享本文件，组件/overlay/动态出口天然统一）。
  */
 
 import type { AutoSparkScope } from "../engine/scope";
@@ -60,6 +64,12 @@ export interface SlotContent {
     params: string[];
     /** 形参表达式原文（`{ item, index }`；无值 null）——出口侧 watch 注入时按 params 键抽取 */
     paramsExpr: string | null;
+    /**
+     * 传递绑定表达式（ADR-0108）：`x-slot.bind="…"` / `x-slot:名.bind="…"` 载体属性的值原文。
+     * 出口侧经 `callerScope.watch(expr, …, { depth: 2 })` 响应式求值、以 x-bind 展开语义
+     * 应用到出口元素（调用方赢）。无载体 null；live 段恒无（引擎编程式构造）。
+     */
+    bindingsExpr?: string | null;
     /**
      * 段形态（ADR-0062）：`"template"`（缺省）= 模板态克隆（投影时全量编译建 scope）；
      * `"live"` = 活体组件实例（出口直挂，见 nodes 注记）。收集管道（collectSlotSegments）
@@ -154,6 +164,46 @@ export function getSlotMarker(el: HTMLElement): SlotMarker | null {
     return null;
 }
 
+/** 传递绑定载体属性（ADR-0108）：内容侧 `x-slot.bind` / `x-slot:名.bind` 的识别结果 */
+export interface SlotBindingsAttr {
+    /** 命中的原始属性名（剥除时用） */
+    attrName: string;
+    /** 所属槽名（裸形态 = `"default"`；具名别名 = `:` 后段） */
+    name: string;
+    /** 绑定表达式原文（调用方作用域求值，值语义 = x-bind 属性展开 ADR-0043） */
+    value: string;
+}
+
+/**
+ * 识别元素上的**传递绑定**载体属性（ADR-0108）。
+ *
+ * 三形态：`x-slot.bind="表达式"`（default 槽）、`x-slot:名.bind="表达式"`（具名别名，
+ * 双属性正典下的同元素合写亦命中）、`x-slot.修饰.bind`（修饰符中含 bind 即命中）。
+ *
+ * 与 {@link getSlotMarker} 正交：标记认名、本函数认绑定载体——同一元素可同时携带
+ * 形参标记属性与 `x-slot.bind`（形参与绑定正交共存）。仅内容侧承载语义；
+ * 出口侧（x-define 模板内）遇 `.bind` 由 SlotDirective warn + 兼容处理（ADR-0108）。
+ *
+ * @returns 绑定载体属性（属性名 + 所属槽名 + 表达式原文）；无返回 null
+ */
+export function getSlotBindingsAttr(el: HTMLElement): SlotBindingsAttr | null {
+    if (!(el instanceof HTMLElement)) return null;
+    for (const attr of Array.from(el.attributes)) {
+        const n = attr.name;
+        let name: string | null = null;
+        if (n === "x-slot.bind") {
+            name = "default";
+        } else if (n.startsWith("x-slot.")) {
+            if (n.slice("x-slot.".length).split(".").includes("bind")) name = "default";
+        } else if (n.startsWith("x-slot:")) {
+            const segs = n.slice("x-slot:".length).split(".");
+            if (segs.includes("bind")) name = segs[0] === "" ? "default" : segs[0]!;
+        }
+        if (name !== null) return { attrName: n, name, value: attr.value };
+    }
+    return null;
+}
+
 /**
  * 解析内容侧解构形参 `{ item, index }` → 键列表。
  *
@@ -207,6 +257,19 @@ function stripNestedSlotMarkers(root: HTMLElement, warn: (msg: string) => void):
 /** 文本节点是否纯空白 */
 function isWhitespaceText(node: Node): boolean {
     return node.nodeType === Node.TEXT_NODE && (node.nodeValue ?? "").trim() === "";
+}
+
+/**
+ * 载体元素是否无实质子内容（空白文本 / 注释不算——ADR-0108 绑定载体判定：
+ * 空的 `<template x-slot.bind>` 只贡献绑定、不构成默认段内容）。
+ */
+function isWhitespaceOnlyCarrier(el: HTMLElement): boolean {
+    const source = el instanceof HTMLTemplateElement ? el.content : el;
+    return Array.from(source.childNodes).every(
+        (n) =>
+            n.nodeType === Node.COMMENT_NODE ||
+            (n.nodeType === Node.TEXT_NODE && (n.nodeValue ?? "").trim() === ""),
+    );
 }
 
 /**
@@ -293,6 +356,8 @@ export function collectSlotSegments(
     const bareNodes: ChildNode[] = [];
     /** 裸 `x-slot` 标记默认段 */
     let markerDefault: SlotContent | null = null;
+    /** 空绑定载体（`<template x-slot.bind>`）的表达式——附着到最终胜出的默认段（ADR-0108） */
+    let pendingDefaultBindings: string | null = null;
     /** 首个裸子节点在直接子级中的序号（与标记段比较归属） */
     let firstBareIndex = -1;
     let markerIndex = -1;
@@ -333,7 +398,16 @@ export function collectSlotSegments(
                 warn(`x-slot: 插槽内容 "${marker.name}" 重复，后者已忽略（ADR-0056）`);
                 continue;
             }
-            const rawVal = child.getAttribute(marker.attrName);
+            const bindAttr = getSlotBindingsAttr(child);
+            // 别名形态（x-slot:名.bind，ADR-0108）：标记属性本身即绑定载体 → 形参改取
+            // 另一条具名属性（可缺省——别名即「无形参」的简写；两者同在时正交共存）
+            const paramsAttrName =
+                bindAttr && bindAttr.attrName === marker.attrName
+                    ? `x-slot:${marker.name}`
+                    : marker.attrName;
+            const rawVal = child.hasAttribute(paramsAttrName)
+                ? child.getAttribute(paramsAttrName)
+                : null;
             let params = parseSlotParams(rawVal);
             if (params === null) {
                 warn(
@@ -346,19 +420,36 @@ export function collectSlotSegments(
                 nodes: collectMarkerNodes(child, warn),
                 params,
                 paramsExpr: params.length > 0 ? (rawVal ?? "").trim() || null : null,
+                bindingsExpr: bindAttr ? bindAttr.value.trim() || null : null,
             });
             continue;
         }
         // 裸 `x-slot` 标记 → 默认段（标记形态）
+        const bindAttr = getSlotBindingsAttr(child);
+        // 传递绑定载体（ADR-0108 决策六）：标记属性即绑定属性且无 plain `x-slot` 形参属性
+        const bindOnly = !!bindAttr && bindAttr.attrName === marker.attrName && !child.hasAttribute("x-slot");
+        if (bindOnly) {
+            const expr = bindAttr!.value.trim();
+            if (expr !== "") {
+                if (pendingDefaultBindings === null) pendingDefaultBindings = expr;
+                else warn(`x-slot: 默认插槽传递绑定重复，后者已忽略（ADR-0108）`);
+            }
+            // 空载体（含空白/注释）只贡献绑定、不构成内容段（Q6：绑定与槽标记同生）
+            if (isWhitespaceOnlyCarrier(child)) continue;
+        }
         if (markerDefault) {
             warn(`x-slot: 默认插槽内容重复（裸 x-slot 标记），后者已忽略（ADR-0056）`);
             continue;
         }
         markerIndex = i;
-        const rawVal = child.getAttribute(marker.attrName);
+        const rawVal = bindOnly
+            ? child.hasAttribute("x-slot")
+                ? child.getAttribute("x-slot")
+                : null
+            : child.getAttribute(marker.attrName);
         let params = parseSlotParams(rawVal);
         if (params === null) {
-            warn(`x-slot: 默认插槽标记的形参须为简单解构形（{ item }），已按无形参处理`);
+            if (rawVal !== null) warn(`x-slot: 默认插槽标记的形参须为简单解构形（{ item }），已按无形参处理`);
             params = [];
         }
         markerDefault = {
@@ -366,6 +457,7 @@ export function collectSlotSegments(
             nodes: collectMarkerNodes(child, warn),
             params,
             paramsExpr: params.length > 0 ? (rawVal ?? "").trim() || null : null,
+            bindingsExpr: bindAttr ? bindAttr.value.trim() || null : null,
         };
     }
 
@@ -377,7 +469,10 @@ export function collectSlotSegments(
             warn(
                 `x-slot: 默认插槽同时存在裸 x-slot 标记与裸子节点，标记在前——裸子节点已丢弃（ADR-0056）`,
             );
-            map.set("default", markerDefault);
+            map.set("default", {
+                ...markerDefault,
+                bindingsExpr: markerDefault.bindingsExpr ?? pendingDefaultBindings,
+            });
         } else {
             warn(
                 `x-slot: 默认插槽同时存在裸子节点与裸 x-slot 标记，裸子节点在前——x-slot 标记已丢弃（ADR-0056）`,
@@ -387,10 +482,14 @@ export function collectSlotSegments(
                 nodes: bareNodes,
                 params: [],
                 paramsExpr: null,
+                bindingsExpr: pendingDefaultBindings,
             });
         }
     } else if (markerDefault) {
-        map.set("default", markerDefault);
+        map.set("default", {
+            ...markerDefault,
+            bindingsExpr: markerDefault.bindingsExpr ?? pendingDefaultBindings,
+        });
     } else if (hasBare) {
         // 裸段全纯空白 → 未提供（leading/trailing 空白已被跳过；中间空白+元素/非空白文本 = 已提供）
         // 再保险：若全部节点仍是纯空白文本 → 未提供
@@ -401,8 +500,14 @@ export function collectSlotSegments(
                 nodes: bareNodes,
                 params: [],
                 paramsExpr: null,
+                bindingsExpr: pendingDefaultBindings,
             });
+        } else if (pendingDefaultBindings !== null) {
+            warn(`x-slot: 默认插槽传递绑定未附着任何内容（仅有绑定载体），已忽略（ADR-0108）`);
         }
+    } else if (pendingDefaultBindings !== null) {
+        // 空载体 + 无任何默认内容：绑定无段可附着（出口将渲染 fallback，调用方绑定不可达）
+        warn(`x-slot: 默认插槽传递绑定未附着任何内容（仅有绑定载体），已忽略（ADR-0108）`);
     }
 
     // 出口清单校验：无对应出口 → warn + 丢弃（ADR-0107 决策五：组件路径 skipValidation

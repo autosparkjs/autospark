@@ -21,7 +21,7 @@ import { isFunction } from "flex-tools/typecheck/isFunction";
 import { isUrlSource } from "@/utils/isUrlSource";
 import type { ViewRenderOptions } from "@/renderers/types";
 import { AutoSparkRouterLoadError, AutoSparkRouterTimeoutError } from "@/errors";
-import { AsyncLoader, type IAsyncLoader } from "asyncsignal";
+import { AsyncLoader, type IAsyncLoader } from "asyncsignal/loader";
 
 /**
  * DataLoader 元数据类型

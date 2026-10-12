@@ -499,8 +499,17 @@ export class AutoSparkRouter extends Mixin(
                 this.attached = true;
                 this.emit("routes:attached", undefined);
                 // 标记为已绑定
-                // 自动导航到主页
-                this.home();
+                // 初始导航：按当前 URL 恢复路由状态（直达/刷新/前进后退落地）；
+                // 仅当前路径即 base 根（无路由信息）时才走默认主页
+                const currentPath = removePathPrefix(
+                    this.history.location.pathname,
+                    this.options.base,
+                );
+                if (currentPath === "" || currentPath === "/") {
+                    this.home();
+                } else {
+                    this.replace(this.history.location.pathname);
+                }
             })
             .catch((e) => {
                 this.logger.error("路由表加载失败:{}", e);

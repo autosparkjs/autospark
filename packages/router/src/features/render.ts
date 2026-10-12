@@ -52,7 +52,10 @@ export class Render {
         const data: Record<string, any> = {};
         try {
             const result = await signal();
-            data.value = result;
+            // 解包 loader 通道的 AutoSparkRemoteLoadResult（{value} 包装，见 baseLoader.onLoadSuccess
+            // 的 signal.resolve(data)）——data/value 两通道同构，直接取 value 本体
+            data.value =
+                result && typeof result === "object" && "value" in result ? result.value : result;
             data.hash = signal.meta.hash;
         } catch (e: any) {
             data.error = new AutoSparkRouterError((e as Error).message, e.status || 500);
@@ -155,6 +158,29 @@ export class Render {
     }
 
     /**
+     * 嵌套出口定位（带有限微任务重试）：上一层 mountView 落位后，x-html.compile 的编译
+     * 落地是多级微任务链（compile → schedule → flush，ADR-0017），深层路由连续渲染时单次
+     * `await Promise.resolve()` 不保证视图容器内的出口已就位——让出微任务重试至多
+     * {@link NESTED_OUTLET_MICROTASK_RETRIES} 次，仍 miss 才判失败（导航中止立即停）。
+     */
+    private static readonly NESTED_OUTLET_MICROTASK_RETRIES = 20;
+
+    private async _awaitNestedOutlet(
+        this: AutoSparkRouter,
+        navSignal: AbortSignal,
+        parentOutlet: HTMLElement,
+        viewHash: string,
+    ): Promise<HTMLElement | null> {
+        for (let attempt = 0; attempt <= Render.NESTED_OUTLET_MICROTASK_RETRIES; attempt++) {
+            if (navSignal.aborted) return null;
+            const found = this._findNestedOutlet(parentOutlet, viewHash);
+            if (found) return found;
+            await Promise.resolve();
+        }
+        return null;
+    }
+
+    /**
      * 执行渲染步骤
      * 支持逐级嵌套路由渲染、beforeRender/afterRender 钩子
      * 包含并发控制，防止快速导航时渲染混乱
@@ -182,6 +208,8 @@ export class Render {
             const commonRouteIndex: number = this._getCommonRouteIndex(fromRoute, toRoute);
             let preViewHash: string;
             let currentOutlet: HTMLElement | null = rootOutlet;
+            // 上一层是否挂载了视图（有无 view 声明）：嵌套出口只在上一层有视图容器时才存在
+            let prevHadView = false;
             for (let i = 0; i < toRoute.length; i++) {
                 // 检查是否被导航中止
                 if (navSignal.aborted) {
@@ -195,15 +223,24 @@ export class Render {
                     // 定位本层出口：首层 = 根出口；嵌套层 = 上一层激活视图容器内的出口。
                     // x-html.compile 首渲 defer 至微任务（ADR-0017），先让出一个微任务等
                     // 上一层视图内容编译就位，嵌套出口才存在于运行 DOM。
+                    // 无 view 的中间层（如根路由 "/" 仅为布局占位）不挂视图容器——
+                    // 不推进出口，子层沿用当前出口（否则嵌套出口必落空）。
                     if (i === 0) {
                         currentOutlet = rootOutlet;
-                    } else {
-                        await Promise.resolve();
-                        currentOutlet = this._findNestedOutlet(currentOutlet!, preViewHash!);
+                    } else if (prevHadView) {
+                        currentOutlet = await this._awaitNestedOutlet(
+                            navSignal,
+                            currentOutlet!,
+                            preViewHash!,
+                        );
                     }
 
                     const viewHash = matched.hash;
                     preViewHash = viewHash;
+
+                    // 是否指定了View参数（含公共路由跳过层的记录，出口推进依赖此状态）
+                    const hasView = !!matched.route?.view;
+                    prevHadView = hasView;
 
                     // 公共路由跳过逻辑：视图已激活，直接跳过
                     if (i < commonRouteIndex) {
@@ -212,12 +249,16 @@ export class Render {
 
                     // 检查 currentOutlet 是否有效
                     if (!currentOutlet) {
-                        this.logger.error("{} -> 无法找到出口，跳过渲染", toRoute[0].id);
+                        this.logger.error(
+                            "{} -> 无法找到出口，跳过渲染（层 {}，路径链 {}）",
+                            toRoute[0].id,
+                            i,
+                            toRoute.map((r) => r.route?.path ?? "?").join(" > "),
+                        );
                         continue;
                     }
 
-                    // 是否指定了View参数，如果没有指定
-                    const hasView = !!matched.route?.view;
+
                     const keepAlive = curRouteItem.keepAlive !== false;
                     const outletComp = hasView ? this._getOutletComponent(currentOutlet) : null;
                     if (hasView) {

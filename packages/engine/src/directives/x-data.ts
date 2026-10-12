@@ -652,7 +652,8 @@ export class DataDirective extends AutoSparkDirectiveBase {
      * 解析宽松 JSON 为普通对象。
      *
      * 失败 / 非对象（数组、标量、null）→ **静默**：仅打印日志，返回空对象，不中断编译。
-     * 值是 JSON 字面量（非表达式）：`{a:1+1}` 不做求值。
+     * 值是 JSON 字面量（非表达式）：`{a:1+1}` 不做求值（方法等逻辑成员走 actions /
+     * `<script type="autospark/actions">` 通道，ADR-0031）。
      */
     private parse(raw: string): Record<string, any> {
         const trimmed = raw.trim();

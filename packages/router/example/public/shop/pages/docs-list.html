@@ -5,7 +5,7 @@
 </div>
 
 <div class="doc-list">
-    <template x-for="doc in docs" :key="doc.id">
+    <template x-for="doc of docs" :key="doc.id">
         <div class="doc-item">
             <div class="doc-icon" x-text="doc.icon"></div>
             <div class="doc-info">

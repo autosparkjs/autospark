@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@autospark/components · 组件演示</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      ul {
+        list-style: none;
+        padding: 0;
+        display: grid;
+        gap: 12px;
+      }
+      li a {
+        display: block;
+        padding: 16px 20px;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #212529;
+        transition: border-color 0.15s ease;
+      }
+      li a:hover {
+        border-color: #339af0;
+      }
+      li a code {
+        color: #339af0;
+      }
+      li a p {
+        margin: 4px 0 0;
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>@autospark/components 组件演示</h1>
+    <p>
+      每个组件一个演示页；组件资产在 <code>src/components/</code>，注册面在
+      <code>src/index.ts</code>。
+    </p>
+    <ul>
+      <li>
+        <a href="./button.html">
+          <code>autospark.button</code>
+          <p>按钮：type/size 外观变体 + 默认插槽兜底 + 使用处事件绑定</p>
+        </a>
+      </li>
+    </ul>
+  </body>
+</html>

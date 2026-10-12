@@ -1,42 +1,17 @@
-/grill-with-docs  
-开发x-block 指令，渲染一个布局行或列
+@grill-with-docs 为x-slot增加传递元素绑定
 
-以布局行为例，由三部分组成
-
-
--------------------------------------------
-| <header slot> <body slot> <footer slot> |
--------------------------------------------
-
-<div x-block="row | column" x-block-options="{ 
-      gap:<默认0>          
-      align?: 'center' | 'left' | 'right'        // body内容居中     
-      padding?:string           // 作为于header,body,footer的padding,    
-}">
-<div x-slot:header>...</div>
-<div x-slot:body>...</div>
-<div x-slot:footer>...</div>
+<!-- 组件：两个插槽 + 固定页脚 -->
+<div x-define="card">
+  <header x-slot:header>默认头 · {{title}}</header>
+</div>
+ 
+<!-- 用法二：提供内容 → 按名替换 -->
+<div x-component:card>
+  <template x-slot:header x-slot.bind="{...}"><h3>自定义标题</h3></template>  
 </div>
 
-- 容器使用display布局,
-   display:flex, align-items:center
-  row布局
-  padding：0
-- header
-  display:flex, align-items:center min-width=0,flex-shrink=0,
-- body:
-  display:flex, align-items:center flex-grow=1,默认居左
-- footer：
-  display:flex, align-items:center min-width=0,flex-shrink=0,默认居右
+x-slot.bind用于为插槽元素提供额外的绑定属性
 
-- header,body,footert等高与容器高一致, 均不允许换行
-
-- 支持响应式
-当footer尺寸较小时，显示一个more图标，点击后弹出一个popover，将footer内的内容移到popover内
-然后增加一个类标识
-
-当header尺寸较小时，显示一个menu图标，点击后弹出一个popover，将header内的内容移到popover内
-然后增加一个类标识
-
-
-- 除了body是必须的外，header和footer均是可选的
+<div x-define="card">
+  <header x-slot:header x-bind="{....}">默认头 · {{title}}</header>
+</div>

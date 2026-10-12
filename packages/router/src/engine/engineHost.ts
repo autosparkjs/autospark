@@ -1,6 +1,6 @@
 import type { AutoSpark } from "autospark";
 import type { AutoSparkRouter } from "@/router";
-import { registerOutletComponent } from "./outletComponent";
+import { registerOutletComponent, OUTLET_COMPONENT_NAME, OUTLET_COMPONENT_CODE } from "./outletComponent";
 import { transformXOutlet } from "./xOutlet";
 
 /**
@@ -38,8 +38,9 @@ function ensureDefaultOutletElement(host: HTMLElement): void {
  *
  * - **注入模式**（options.engine）：应用拥有 engine 生命周期，router 纯消费。应用的静态
  *   模板已编译完成，x-outlet 简写不再生效（须写 x-component:autospark.outlet 完整形态；
- *   远程模板中的 x-outlet 经渲染管线照常生效）。若应用模板已静态声明 outlet 组件而注册
- *   晚于编译，由 x-component 的 registered retain 事件重试机制兜底激活。
+ *   远程模板中的 x-outlet 经渲染管线照常生效）。outlet 组件已在 router 入口模块加载期
+ *   经 `registerOutletGlobal()` 注入 `AutoSpark.options.components`（先于应用 new AutoSpark，
+ *   编译期即命中）；下述实例级注册仅兜底 engine 晚于 router 加载的极端场景。
  * - **自建模式**（缺省）：编译前完成 x-outlet 预处理与默认出口插入，随后经全局
  *   `window.AutoSparkSpaces.AutoSpark` 构造（产物零 import engine——运行时探测，
  *   ADR-0002 产物零耦合契约）——options.data 作为裸状态种子（engine 自建并拥有）。
@@ -66,8 +67,11 @@ export function setupRouterEngine(router: AutoSparkRouter): RouterEngineBinding 
 
     ensureDefaultOutletElement(router.host);
     transformXOutlet(router.host);
-    // 裸状态自建（ADR-0044）：router.options.data 作为初始数据种子
-    const engine = new AutoSparkCtor(router.host, router.options.data ?? {}, {});
+    // 裸状态自建（ADR-0044）：router.options.data 作为初始数据种子；outlet 组件经构造期
+    // options.components 注册（构造参数通道——先于编译，编译期即命中，无时序问题）
+    const engine = new AutoSparkCtor(router.host, router.options.data ?? {}, {
+        components: { [OUTLET_COMPONENT_NAME]: OUTLET_COMPONENT_CODE },
+    });
     registerOutletComponent(engine);
     return { engine, owned: true };
 }

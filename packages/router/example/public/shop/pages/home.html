@@ -12,7 +12,7 @@
 </div>
 
 <div class="features-grid">
-    <template x-for="feature in features" :key="feature.title">
+    <template x-for="feature of features" :key="feature.title">
         <div class="feature-card">
             <div class="feature-icon" x-text="feature.icon"></div>
             <div class="feature-title" x-text="feature.title"></div>

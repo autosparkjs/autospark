@@ -118,10 +118,10 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     protected pendingName: string | null = null;
     /** pending 期间的 props（组件就绪重试时复用） */
     protected pendingProps: Record<string, any> | undefined;
-    /** components/<名>/registered 监听解绑函数 */
-    private registeredUnsub: (() => void) | null = null;
-    /** 当前监听的事件名（= `components/<pendingName>/registered`）：名变时比对重订（订阅键即过滤） */
-    private _pendingEventName: string | null = null;
+    /** components/<名>/registered 监听解绑函数集（点号名候选全集一键一订，ADR-0088 pending 修订） */
+    private registeredUnsubs: Array<() => void> = [];
+    /** 当前监听的事件名集：候选集变化时比对重订（订阅键即过滤） */
+    private _pendingEventNames: string[] = [];
 
     // === loader 状态（ADR-0065） ===
     /** loader 激活标志：created 解析到 loader 声明后置位，接管实例化时序（props watch 只记 pending） */
@@ -165,22 +165,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         }
         // 组件名：属性参数承载（x-component:counter，ADR-0054 决策二）。缺参 → warn 跳过实例化；
         // 值恰为纯标识符时附言迁移指引（旧定义写法 x-component="名" 与新实例化同形，指回 x-define）。
-        let name = (this.attr ?? "").trim();
-        // 点号组件名重建（ADR-0088）：指令解析器把属性参数的句点段切为修饰符
-        // （`x-component:autospark.notifications.actions` → attr="autospark" + modifiers），而组件名
-        // 合法含点（`autospark.*` 引擎保留命名空间，ADR-0083）——按**升序候选回溯**拼接：
-        // attr 起逐段并入修饰符试查组件表，首个命中者即组件名；短名优先命中时点号段保持
-        // 修饰符语义（`x-component:counter.global` 的 .global 不受影响）。
-        if (name !== "" && this.modifiers?.length) {
-            const segments = [name, ...this.modifiers];
-            for (let i = 2; i <= segments.length; i++) {
-                const candidate = segments.slice(0, i).join(".");
-                if (this.binding.getComponentDeclaration(candidate)) {
-                    name = candidate;
-                    break;
-                }
-            }
-        }
+        const name = this._resolveComponentName();
         if (name === "") {
             const rawValue = this.value == null ? "" : String(this.value).trim();
             const hint = isLiteralComponentName(rawValue)
@@ -234,6 +219,43 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             depth: 2,
         });
         this.engine.scheduler.schedule(() => this._onValueChange(initial));
+    }
+
+    /**
+     * 点号组件名重建（ADR-0088，pending 场景可重跑）：指令解析器把属性参数的句点段切为
+     * 修饰符（`x-component:autospark.notifications.actions` → attr="autospark" + modifiers），
+     * 而组件名合法含点（`autospark.*` 引擎保留命名空间，ADR-0083）——按**升序候选回溯**
+     * 拼接：attr 起逐段并入修饰符试查组件表，首个命中者即组件名；短名优先命中时点号段保持
+     * 修饰符语义（`x-component:counter.global` 的 .global 不受影响）。
+     *
+     * 编译期（created）单次回溯的盲区：组件注册晚于编译（注入模式 registerComponent /
+     * x-import 异步加载）时全部候选 miss，名字定格在截断短名——pending 重试时经
+     * {@link _retryPendingComponent} 重跑本方法，注册表已变则回溯升级为全名。
+     */
+    private _resolveComponentName(): string {
+        let name = (this.attr ?? "").trim();
+        if (name !== "" && this.modifiers?.length) {
+            const segments = [name, ...this.modifiers];
+            for (let i = 2; i <= segments.length; i++) {
+                const candidate = segments.slice(0, i).join(".");
+                if (this.binding.getComponentDeclaration(candidate)) {
+                    name = candidate;
+                    break;
+                }
+            }
+        }
+        return name;
+    }
+
+    /**
+     * 点号候选全集（升序）：`attr`、`attr.m1`、…、全串——pending 等待的注册事件键集
+     * （截断名与全名任一注册到来都能解锁重试，重试时回溯重判）。无修饰符时为单键。
+     */
+    private _componentNameCandidates(): string[] {
+        const base = (this.attr ?? "").trim();
+        if (base === "" || !this.modifiers?.length) return base === "" ? [] : [base];
+        const segments = [base, ...this.modifiers];
+        return segments.map((_, i) => segments.slice(0, i + 1).join("."));
     }
 
     /**
@@ -761,46 +783,62 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
      * 订阅键即过滤（无回调内名比对）；事件 **retain**——订阅晚于注册也能立即补发，
      * 消灭「查找失败 → 订阅之间组件恰好注册」的竞态窗口。pendingName 变化须比对重订
      * （订阅键随名走；旧实现已监听即 return 不换键，靠回调内比对——迁移时一并修正）。
+     *
+     * 点号名候选全集订阅（ADR-0088 pending 修订）：解析器把属性参数句点段切为修饰符，
+     * 编译期回溯未命中时名字定格截断短名——单键等待会与全名注册事件（如
+     * `components/autospark.outlet/registered`）键不匹配而死锁。故对候选全集
+     * （`autospark`、`autospark.outlet`、…）逐键订阅，任一到来即解锁，重试时回溯重判。
      */
     protected _waitForComponent(name: string, props: Record<string, any> | undefined): void {
         this.pendingName = name;
         this.pendingProps = props;
-        if (this.registeredUnsub && this._pendingEventName === name) return; // 已在监听同名
-        if (this.registeredUnsub) {
-            this.registeredUnsub();
-            this.registeredUnsub = null;
+        const eventNames = this._componentNameCandidates().map((c) => `components/${c}/registered`);
+        if (eventNames.length === 0) return;
+        const sameSet =
+            eventNames.length === this._pendingEventNames.length &&
+            eventNames.every((k) => this._pendingEventNames.includes(k));
+        if (sameSet) return; // 已在监听同候选集
+        this._unsubscribePending();
+        this._pendingEventNames = eventNames;
+        for (const key of eventNames) {
+            const sub = this.engine.on(key as any, () => {
+                // retain 补发在 on() 内同步执行，重试清理后订阅可能短暂残留——无 pending 时
+                // 忽略重复触发（等价于旧实现的回调内名比对守卫）
+                if (this.pendingName == null) return;
+                this._retryPendingComponent();
+            });
+            this.registeredUnsubs.push(typeof sub === "function" ? sub : () => sub.off());
         }
-        this._pendingEventName = name;
-        const sub = this.engine.on(`components/${name}/registered` as any, () => {
-            // retain 补发在 on() 内同步执行，重试清理后订阅可能短暂残留——无 pending 时
-            // 忽略重复触发（等价于旧实现的回调内名比对守卫）
-            if (this.pendingName == null) return;
-            this._retryPendingComponent();
-        });
-        this.registeredUnsub = typeof sub === "function" ? sub : () => sub.off();
+    }
+
+    /** 解除 pending 订阅集（重订 / 清理时） */
+    private _unsubscribePending(): void {
+        for (const off of this.registeredUnsubs) off();
+        this.registeredUnsubs = [];
+        this._pendingEventNames = [];
     }
 
     /**
      * 等待的组件就绪后的重试入口（R6=B）：清 pending + 移除占位 + 重新实例化
      * （首次渲染用最新 props）。子类可覆盖加前置条件（如 overlay 的 visible 已归假则放弃）。
+     *
+     * 重跑点号回溯（ADR-0088 pending 修订）：等待期间注册表已变（如全名组件经
+     * registerComponent / x-import 注册），截断短名可能已可升级为全名。
      */
     protected _retryPendingComponent(): void {
-        const retryName = this.pendingName!;
         const retryProps = this.pendingProps;
+        const resolved = this._resolveComponentName();
         this._clearPending();
         this._hideLoadingPlaceholder();
-        this._instantiate(retryName, retryProps);
+        if (resolved === "") return;
+        this._instantiate(resolved, retryProps);
     }
 
     /** 清理 pending 状态（组件就绪重试 / 卸载时） */
     protected _clearPending(): void {
         this.pendingName = null;
         this.pendingProps = undefined;
-        this._pendingEventName = null;
-        if (this.registeredUnsub) {
-            this.registeredUnsub();
-            this.registeredUnsub = null;
-        }
+        this._unsubscribePending();
     }
 
     /**

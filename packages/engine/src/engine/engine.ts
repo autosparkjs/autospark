@@ -591,10 +591,12 @@ export class AutoSpark<
         return this.getGlobalComponentDef(name) ?? null;
     }
 
-    /** 全局组件是否已有来源（定义表 / 双注册位任一命中）——运行时注册的覆盖 warn 判据 */
+    /** 全局组件是否已有来源（定义表 / 双注册位任一命中）——运行时注册的覆盖 warn 判据。
+     *  定义表的 null 是「查过且无」的未命中缓存标记（懒预编译写入），不算已有来源——
+     *  否则注册前的一次未命中查找（如 x-component pending 的候选回溯）会让首次注册误报覆盖。 */
     private _hasGlobalComponentSource(name: string): boolean {
         return (
-            this._globalComponentDefs.has(name) ||
+            this._globalComponentDefs.get(name) != null ||
             this.options.components?.[name] != null ||
             this.options.builtinComponents?.[name] != null
         );

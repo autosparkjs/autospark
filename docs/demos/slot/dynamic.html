@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>x-slot · 动态插槽（tabs）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <!--
+            动态插槽 · tabs（出口名由状态决定，ADR-0107）：
+            - 标签栏与出口数量都来自组件数据 tabs：x-for="key, i of tabs" 每个标签建一个出口；
+            - 裸 x-slot 带值 = 动态出口名，对象形态 x-slot="{ name, params }" 一并传出下标；
+              名在出口创建时求值一次（改名/新增靠 x-for 重建子树），params 走 watch 保持响应式；
+            - $slots 是组件实例域只读注册表：调用方给了哪些名字（含尚未创建的标签），
+              蓝点即「该标签有调用方内容」；
+            - 内容名恒静态（写死在属性名里）：可为将来的标签预置内容，但组件不渲染它就一直闲置；
+            - 名字对不上的标签显示默认面板（fallback，不警告）。
+        -->
+  </head>
+  <body>
+    <div id="app" x-scope>
+      <!-- ① 组件：标签栏与出口都由数据决定 -->
+      <div x-define="tabs">
+        <div class="tab-bar">
+          <div class="tab-row" x-for="key of tabs">
+            <button class="tab" :class="{ 'is-active': key === active }" x-on:click="active = key">
+              {{ key }}
+              <span class="dot" x-if="Object.keys($slots).includes(key)"></span>
+            </button>
+          </div>
+          <button class="button is-small is-primary" x-on:click="newTab">＋ 新建 tab</button>
+        </div>
+
+        <div class="meta">调用方提供了：<b>{{ Object.keys($slots).join("、") || "（空）" }}</b></div>
+
+        <!-- 出口数量 = 标签数量；名字来自迭代变量 key -->
+        <div class="panes" x-for="key, i of tabs">
+          <div
+            class="pane"
+            x-show="key === active"
+            x-slot="{ name: key, params: { index: i } }"
+          >
+            默认面板 · {{ key }}（调用方没为这个名字提供内容）
+          </div>
+        </div>
+
+        <script type="autospark/setup">
+          {
+              data: { tabs: ["home", "profile", "about"], active: "home" },
+              methods: {
+                  newTab() {
+                      const name = "tab-" + (this.data.tabs.length + 1);
+                      this.data.tabs.push(name);
+                      this.data.active = name;
+                  },
+              },
+          }
+        </script>
+      </div>
+
+      <!-- ② 面板一：三段内容——tab-4 是给「将要新建的标签」预置的 -->
+      <div class="panel">
+        <div class="label">
+          home / profile 有调用方内容（带蓝点），about 没有 → 默认面板；<b>tab-4 预置</b>：此刻
+          还没有这个标签
+        </div>
+        <div x-component:tabs>
+          <template x-slot:home="{ index }">首页内容 · 第 {{ index + 1 }} 个标签页</template>
+          <template x-slot:profile>个人资料内容</template>
+          <template x-slot:tab-4>为「新建 tab」预置的内容（还没有出口来取它）</template>
+        </div>
+      </div>
+
+      <!-- ③ 面板二：对照组——不提供任何内容 -->
+      <div class="panel">
+        <div class="label">对照：不提供任何内容 → $slots 为空，所有标签都是默认面板</div>
+        <div x-component:tabs></div>
+      </div>
+    </div>
+
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+    </script>
+
+    <style>
+      .panel {
+        padding: 16px;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        margin-bottom: 12px;
+      }
+      .label {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 8px;
+      }
+      .tab-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        border-bottom: 1px solid #dbdbdb;
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+      }
+      .tab-row {
+        display: flex;
+        gap: 6px;
+      }
+      .tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border: 1px solid #dbdbdb;
+        border-radius: 6px 6px 0 0;
+        background: #f5f5f5;
+        color: #666;
+        font-size: 0.85rem;
+        cursor: pointer;
+      }
+      .tab.is-active {
+        background: #fff;
+        border-color: #3273dc;
+        border-bottom-color: #fff;
+        color: #3273dc;
+        font-weight: 600;
+      }
+      .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #3273dc;
+        display: inline-block;
+      }
+      .meta {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 8px;
+      }
+      .pane {
+        padding: 12px;
+        background: #f5f5f5;
+        border: 1px solid #dbdbdb;
+        border-radius: 0 6px 6px 6px;
+        min-height: 44px;
+      }
+    </style>
+  </body>
+</html>

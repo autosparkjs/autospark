@@ -6,7 +6,7 @@
     </div>
     <div class="products">
         <template
-            x-for="product in products.filter((product) => product.category === $params.category)"
+            x-for="product of products.filter((product) => product.category === $params.category)"
         >
             <div
                 class="product-card"

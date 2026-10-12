@@ -1,6 +1,7 @@
 import { AutoSparkDirectiveBase } from "../features/directive/base";
 import type { AutoSparkScope } from "../engine/scope";
 import type { SlotContent, SuperInlet } from "../utils/slot";
+import { SpreadBinder } from "./x-bind-spread";
 
 /**
  * x-slot：插槽出口（ADR-0056）。
@@ -23,6 +24,11 @@ import type { SlotContent, SuperInlet } from "../utils/slot";
  * 分流）。名在 created 编译期求值一次静态绑定（不响应式，名变化靠 x-for 重建）；
  * params 走既有 watch 通道保持响应式。无效名 warn + fallback；动态出口不可消费 live
  * 活体段（warn + fallback，活体段仅静态出口可直挂）。
+ *
+ * 传递绑定（ADR-0108）：内容段携带 `bindingsExpr`（内容侧 `x-slot.bind` 载体）时，
+ * 在**调用方作用域** watch 并以 x-bind 展开语义应用到出口元素（调用方赢：出口静态
+ * 属性不做 reservedKeys 恒赢）。`.bind` 修饰符写在出口侧无意义 → warn 引导；
+ * 裸 `x-slot.bind` 的值仍按动态出口名消费（ADR-0107 向后兼容）。
  */
 export class SlotDirective extends AutoSparkDirectiveBase {
     /**
@@ -55,6 +61,18 @@ export class SlotDirective extends AutoSparkDirectiveBase {
         /** 动态名模式：形参取值表达式 = 整个指令值，形参取 value.params（ADR-0107） */
         let dynamic = false;
         const rawValue = this.value == null ? "" : String(this.value).trim();
+        // ADR-0108：`.bind` 是调用方（使用处）内容侧的传递绑定语法，出口侧不承载透传语义
+        if (this.modifiers?.includes("bind")) {
+            if (attrName === "") {
+                this.warn(
+                    `x-slot.bind 是调用方（使用处）的传递绑定语法，出口侧不支持——请改用 x-bind（值非空时仍按动态出口名处理以兼容 ADR-0107，ADR-0108）`,
+                );
+            } else {
+                this.warn(
+                    `x-slot:${attrName}.bind 是调用方（使用处）的传递绑定语法，出口侧请改用 x-bind（修饰符已忽略，ADR-0108）`,
+                );
+            }
+        }
         if (attrName === "" && rawValue !== "") {
             // 动态出口名（ADR-0107 决策二/三）：值承名，编译期求值一次静态绑定
             dynamic = true;
@@ -131,6 +149,8 @@ export class SlotDirective extends AutoSparkDirectiveBase {
                 this.dynamicResolved?.name ?? ((this.attr ?? "").trim() || "default");
         }
         if (this.content && this.callerScope) {
+            // 传递绑定（ADR-0108）：内容侧 x-slot.bind 载体 → 调用方作用域 watch → 出口元素展开
+            this._applyCallerBindings();
             // 活体段（ADR-0062 shell 机制）：引擎已编译的组件实例直挂出口——不克隆、不再编译、
             // 不建内容 scope（DOM 挂载不动 scope 上的 watcher/监听；销毁权责归构造方
             // OverlayInstance 对内容/shell 双 scope 的统一回收）
@@ -185,6 +205,38 @@ export class SlotDirective extends AutoSparkDirectiveBase {
             if (source.childNodes.length === 0) return { nodes: [], scopes: [] };
             return this.engine.compiler.compileSuperFallback(source, this.binding);
         };
+    }
+
+    /**
+     * 应用内容侧传递绑定（ADR-0108）：`x-slot.bind` 表达式在**调用方作用域链**求值
+     * （depth:2 键级响应，与 x-bind 展开同款订阅粒度），以 SpreadBinder 展开到出口元素。
+     *
+     * - 跨组件优先级：调用方赢——`template: null` 不收集出口静态属性的 reservedKeys
+     *   恒赢集，出口自身静态属性可被覆盖；class/style 走既有 diff 合并（组件侧 token 保留、
+     *   调用方追加/覆盖）。
+     * - watch 挂 callerScope（watcher 由 scope 持有、随调用方卸载回收）；出口 destroy 后
+     *   以 `this.content === null` 短路，回调空转、不再写已分离的出口元素。
+     * - live 段恒无 bindingsExpr（引擎编程式构造），自然跳过。
+     */
+    private _applyCallerBindings(): void {
+        const expr = this.content?.bindingsExpr;
+        const caller = this.callerScope;
+        if (!expr || !caller) return;
+        const binder = new SpreadBinder({
+            engine: this.engine,
+            el: this.el,
+            template: null,
+            getOption: () => undefined,
+        });
+        const initial = caller.watch(
+            expr,
+            ({ value }) => {
+                if (!this.content) return; // 出口已销毁：watcher 存续期间空转
+                binder.apply(value);
+            },
+            { depth: 2 },
+        );
+        binder.apply(initial);
     }
 
     /**
