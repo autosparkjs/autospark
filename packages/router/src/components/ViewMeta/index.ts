@@ -1,28 +1,28 @@
 /**
- * kylin-view-meta 组件（原生 Web Components 版本）
+ * autospark-view-meta 组件（原生 Web Components 版本）
  *
  * 用于存储视图级别的元数据，支持任意自定义属性。
  * 这些元数据可以被父组件或其他系统读取，用于配置页面行为、SEO、权限控制等。
  *
  * @example
  * ```html
- * <kylin-view-meta
+ * <autospark-view-meta
  *   title="页面标题"
  *   description="页面描述"
  *   keep-alive="true"
  *   roles="admin,user"
  *   custom-data='{"key": "value"}'
- * ></kylin-view-meta>
+ * ></autospark-view-meta>
  * ```
  *
  * @example 在组件中读取元数据
  * ```ts
- * const meta = document.querySelector('kylin-view-meta');
+ * const meta = document.querySelector('autospark-view-meta');
  * const title = meta?.get('title');
  * const roles = meta?.get('roles')?.split(',');
  * ```
  */
-export class KylinViewMeta extends HTMLElement {
+export class AutoSparkViewMeta extends HTMLElement {
     /**
      * 组件不占据任何空间，不参与排版
      */
@@ -40,7 +40,7 @@ export class KylinViewMeta extends HTMLElement {
      *
      * @example
      * ```ts
-     * const meta = document.querySelector('kylin-view-meta');
+     * const meta = document.querySelector('autospark-view-meta');
      * const title = meta?.get('title'); // "页面标题"
      * ```
      */
@@ -75,7 +75,7 @@ export class KylinViewMeta extends HTMLElement {
      *
      * @example
      * ```ts
-     * const meta = document.querySelector('kylin-view-meta');
+     * const meta = document.querySelector('autospark-view-meta');
      * const all = meta?.getAll();
      * // { title: "页面标题", description: "页面描述", ... }
      * ```
@@ -107,7 +107,7 @@ export class KylinViewMeta extends HTMLElement {
      *
      * @example
      * ```html
-     * <kylin-view-meta data='{"key": "value"}'></kylin-view-meta>
+     * <autospark-view-meta data='{"key": "value"}'></autospark-view-meta>
      * ```
      * ```ts
      * const data = meta?.getJSON('data', {});
@@ -131,7 +131,7 @@ export class KylinViewMeta extends HTMLElement {
      *
      * @example
      * ```html
-     * <kylin-view-meta keep-alive></kylin-view-meta>
+     * <autospark-view-meta keep-alive></autospark-view-meta>
      * ```
      * ```ts
      * const keepAlive = meta?.getBoolean('keep-alive'); // true
@@ -151,7 +151,7 @@ export class KylinViewMeta extends HTMLElement {
      *
      * @example
      * ```html
-     * <kylin-view-meta roles="admin,user,guest"></kylin-view-meta>
+     * <autospark-view-meta roles="admin,user,guest"></autospark-view-meta>
      * ```
      * ```ts
      * const roles = meta?.getArray('roles'); // ["admin", "user", "guest"]
@@ -176,12 +176,12 @@ export class KylinViewMeta extends HTMLElement {
 }
 
 // 注册自定义元素
-if (!customElements.get("kylin-view-meta")) {
-    customElements.define("kylin-view-meta", KylinViewMeta);
+if (!customElements.get("autospark-view-meta")) {
+    customElements.define("autospark-view-meta", AutoSparkViewMeta);
 }
 
 declare global {
     interface HTMLElementTagNameMap {
-        "kylin-view-meta": KylinViewMeta;
+        "autospark-view-meta": AutoSparkViewMeta;
     }
 }

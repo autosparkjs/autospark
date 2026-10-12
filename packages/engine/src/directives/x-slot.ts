@@ -17,6 +17,12 @@ import type { SlotContent, SuperInlet } from "../utils/slot";
  *
  * `ownsChildren`：出口子树不进通用 walk——由本指令在 compile 中选择「投影内容」或
  * 「fallback 编译」二选一，避免双重编译。
+ *
+ * 动态出口名（ADR-0107）：裸 `x-slot="表达式"` 值承名——求值为字符串即出口名；求值为
+ * `{ name, params }` 对象则 name 为出口名、params 即形参取值表达式（单一值通道双形态
+ * 分流）。名在 created 编译期求值一次静态绑定（不响应式，名变化靠 x-for 重建）；
+ * params 走既有 watch 通道保持响应式。无效名 warn + fallback；动态出口不可消费 live
+ * 活体段（warn + fallback，活体段仅静态出口可直挂）。
  */
 export class SlotDirective extends AutoSparkDirectiveBase {
     /**
@@ -38,39 +44,92 @@ export class SlotDirective extends AutoSparkDirectiveBase {
     private paramData: Record<string, any> | null = null;
     /** 已编译的内容 scopes（destroy 回收；幂等） */
     private contentScopes: AutoSparkScope[] = [];
+    /** 动态名出口的编译期解析结果（ADR-0107）：null = 静态名模式或无效名 */
+    private dynamicResolved: { name: string } | null = null;
+    /** 动态名求值结果非法（ADR-0107 决策八）：恒按无内容处理（fallback），不写 data-slot */
+    private dynamicInvalid = false;
 
     override created(): void {
-        const name = (this.attr ?? "").trim() || "default";
-        // 沿 parent 链就近找第一个持有 slotContents 的 scope（嵌套组件隔离）
-        let holder: AutoSparkScope | null = this.binding.parent;
-        while (holder) {
-            if (holder.slotContents) {
-                const hit = holder.slotContents.get(name);
-                if (hit) {
-                    this.content = hit;
-                    this.callerScope = holder.slotCallerScope ?? holder;
-                }
-                break; // 持有者已定：无本名段 → fallback，不上溯（防穿透到外层组件）
+        const attrName = (this.attr ?? "").trim();
+        let name = attrName || "default";
+        /** 动态名模式：形参取值表达式 = 整个指令值，形参取 value.params（ADR-0107） */
+        let dynamic = false;
+        const rawValue = this.value == null ? "" : String(this.value).trim();
+        if (attrName === "" && rawValue !== "") {
+            // 动态出口名（ADR-0107 决策二/三）：值承名，编译期求值一次静态绑定
+            dynamic = true;
+            const resolved = this.binding.read(rawValue);
+            const r = resolved as Record<string, any> | null | undefined;
+            if (typeof resolved === "string" && resolved.trim() !== "") {
+                name = resolved.trim();
+                this.dynamicResolved = { name };
+            } else if (
+                resolved != null &&
+                typeof resolved === "object" &&
+                !Array.isArray(resolved) &&
+                typeof r?.name === "string" &&
+                r.name.trim() !== ""
+            ) {
+                name = r.name.trim();
+                this.dynamicResolved = { name };
+            } else {
+                this.dynamicInvalid = true;
+                this.warn(
+                    `x-slot: 动态出口名无效（"${rawValue}" 求值结果须为非空字符串或 { name, params } 对象），出口按无内容处理（渲染 fallback）（ADR-0107）`,
+                );
             }
-            holder = holder.parent;
+        }
+        // 沿 parent 链就近找第一个持有 slotContents 的 scope（嵌套组件隔离）
+        if (!this.dynamicInvalid) {
+            let holder: AutoSparkScope | null = this.binding.parent;
+            while (holder) {
+                if (holder.slotContents) {
+                    const hit = holder.slotContents.get(name);
+                    if (hit) {
+                        if (dynamic && hit.mode === "live") {
+                            // 动态出口不可消费活体段（ADR-0107 决策七）：live 段不可克隆/再编译，
+                            // 多出口消费即 DOM reparent 静默丢失——warn + fallback
+                            this.warn(
+                                `x-slot: 动态出口 "${name}" 不可消费活体内容段（live 段仅静态出口可直挂），已按无内容处理（渲染 fallback）（ADR-0107）`,
+                            );
+                        } else {
+                            this.content = hit;
+                            this.callerScope = holder.slotCallerScope ?? holder;
+                        }
+                    }
+                    break; // 持有者已定：无本名段 → fallback，不上溯（防穿透到外层组件）
+                }
+                holder = holder.parent;
+            }
         }
 
-        // 作用域插槽：内容声明了形参 → 建共享容器 + 在**组件作用域** watch 出口值（假设③）
+        // 作用域插槽：内容声明了形参 → 建共享容器 + 在**组件作用域** watch 出口值（假设③）。
+        // 静态出口值即形参取值表达式；动态出口 watch 整个值表达式、形参取 value.params
+        //（ADR-0107 决策三：name 编译期静态绑定不响应式，params 保持响应式）
         if (this.content && this.content.params.length > 0) {
             this.paramData = {};
             for (const k of this.content.params) this.paramData[k] = undefined;
-            const raw = this.value == null ? "" : String(this.value).trim();
-            if (raw !== "") {
-                const initial = this.binding.watch(raw, ({ value }) => this._applyParams(value));
-                this._applyParams(initial);
+            if (rawValue !== "") {
+                const extract = (v: any): any =>
+                    dynamic && v != null && typeof v === "object" && !Array.isArray(v)
+                        ? (v as Record<string, any>).params
+                        : v;
+                const initial = this.binding.watch(rawValue, ({ value }) =>
+                    this._applyParams(extract(value)),
+                );
+                this._applyParams(extract(initial));
             }
         }
     }
 
     override compile(): void {
         // 出口运行态标记：`x-slot` 属性随编译剥除，出口元素留 `data-slot`（=出口名）作
-        // 稳定寻址锚——运行期 DOM 注入通道（如 x-foldable 折叠面板中继）据此定位出口
-        this.el.dataset.slot = (this.attr ?? "").trim() || "default";
+        // 稳定寻址锚——运行期 DOM 注入通道（如 x-foldable 折叠面板中继）据此定位出口。
+        // 动态出口写求值结果名；无效名不写（ADR-0107 决策八）
+        if (!this.dynamicInvalid) {
+            this.el.dataset.slot =
+                this.dynamicResolved?.name ?? ((this.attr ?? "").trim() || "default");
+        }
         if (this.content && this.callerScope) {
             // 活体段（ADR-0062 shell 机制）：引擎已编译的组件实例直挂出口——不克隆、不再编译、
             // 不建内容 scope（DOM 挂载不动 scope 上的 watcher/监听；销毁权责归构造方
@@ -157,5 +216,7 @@ export class SlotDirective extends AutoSparkDirectiveBase {
         this.content = null;
         this.callerScope = null;
         this.paramData = null;
+        this.dynamicResolved = null;
+        this.dynamicInvalid = false;
     }
 }

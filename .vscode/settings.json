@@ -1,8 +1,5 @@
 {
-    "editor.codeActionsOnSave": {
-        "source.fixAll.oxc": "always"
-    },
-    "editor.defaultFormatter": "oxc.oxc-vscode",
+    "editor.codeActionsOnSave": {},
     "editor.formatOnSave": true,
     "js/ts.experimental.useTsgo": false
 }

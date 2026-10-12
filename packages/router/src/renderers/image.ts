@@ -1,8 +1,8 @@
-import type { KylinMatchedRouteItem } from "@/types";
-import { KylinRouterViewRendererBase } from "./base";
+import type { AutoSparkMatchedRouteItem } from "@/types";
+import { AutoSparkRouterViewRendererBase } from "./base";
 
-export class KylinRouterImageViewRenderer extends KylinRouterViewRendererBase {
-    test(_response: Response, _matched: KylinMatchedRouteItem) {
+export class AutoSparkRouterImageViewRenderer extends AutoSparkRouterViewRendererBase {
+    test(_response: Response, _matched: AutoSparkMatchedRouteItem) {
         return true;
     }
 }

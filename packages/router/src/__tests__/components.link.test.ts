@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import type { KylinRouter } from "@/router";
+import type { AutoSparkRouter } from "@/router";
 import { isInternalLink, isDangerousProtocol } from "@/components/Link";
 
 /**
@@ -34,8 +34,8 @@ function createTestDOM() {
 }
 
 async function createRouter(host: HTMLElement, options: any) {
-    const { KylinRouter } = await import("@/router");
-    return new KylinRouter(host, options);
+    const { AutoSparkRouter } = await import("@/router");
+    return new AutoSparkRouter(host, options);
 }
 
 /**
@@ -45,7 +45,7 @@ async function createRouter(host: HTMLElement, options: any) {
 function simulateHandleClick(
     to: string,
     replace: boolean,
-    router: KylinRouter | undefined,
+    router: AutoSparkRouter | undefined,
     event: Event,
 ) {
     // 安全检查：拒绝危险协议
@@ -73,9 +73,9 @@ function simulateHandleClick(
     }
 }
 
-describe("KylinLinkElement", () => {
+describe("AutoSparkLinkElement", () => {
     let host: HTMLElement;
-    let router: KylinRouter;
+    let router: AutoSparkRouter;
 
     const routes = [
         { name: "home", path: "/" },
@@ -136,7 +136,7 @@ describe("KylinLinkElement", () => {
     });
 
     describe("内部路由导航", () => {
-        it("点击 <kylin-link to=\"/user\"> 应该调用 router.push('/user')", async () => {
+        it("点击 <autospark-link to=\"/user\"> 应该调用 router.push('/user')", async () => {
             router = await createRouter(host, { routes });
 
             const clickEvent = new Event("click", { cancelable: true });
@@ -146,7 +146,7 @@ describe("KylinLinkElement", () => {
             expect(router.routes.current.route!.name).toBe("user");
         });
 
-        it("点击 <kylin-link to=\"/user\" replace> 应该调用 router.replace('/user')", async () => {
+        it("点击 <autospark-link to=\"/user\" replace> 应该调用 router.replace('/user')", async () => {
             router = await createRouter(host, { routes });
 
             // 先导航到一个路径建立初始状态
@@ -176,7 +176,7 @@ describe("KylinLinkElement", () => {
     });
 
     describe("外部链接处理", () => {
-        it('点击 <kylin-link to="https://external.com"> 不应使用 router 导航', async () => {
+        it('点击 <autospark-link to="https://external.com"> 不应使用 router 导航', async () => {
             router = await createRouter(host, { routes });
 
             router.push("/settings");
@@ -189,7 +189,7 @@ describe("KylinLinkElement", () => {
             expect(clickEvent.defaultPrevented).toBe(false);
         });
 
-        it('点击 <kylin-link to="http://example.com"> 不应使用 router 导航', async () => {
+        it('点击 <autospark-link to="http://example.com"> 不应使用 router 导航', async () => {
             router = await createRouter(host, { routes });
 
             router.push("/user");
@@ -204,7 +204,7 @@ describe("KylinLinkElement", () => {
     });
 
     describe("降级处理", () => {
-        it("<kylin-link> 在未获取到 router 实例时应该降级为普通链接", () => {
+        it("<autospark-link> 在未获取到 router 实例时应该降级为普通链接", () => {
             const clickEvent = new Event("click", { cancelable: true });
             simulateHandleClick("/user", false, undefined, clickEvent);
 

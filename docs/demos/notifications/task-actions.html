@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>notifications · 任务——自定义 actions 与内置控制钮共存</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <!-- ④ 自定义 actions 与内置控制钮共存：用户按钮走标准 actions/<名> 闭环（置已读 → 事件 →
+         handle → hide 判定），与内置 暂停/停止/取消 各行排布；hide:false 的 action 点击不关卡。
+         内置动词（start/pause/resume/stop/cancel/close）是该卡 actions 命名空间的事实保留名。 -->
+    <div class="demo-app section">
+      <div class="block">
+        <button class="button is-success is-light" onclick="runActions()">🔨 构建任务（带「重试 / 查看日志」按钮）</button>
+        <p class="has-text-grey is-size-7">
+          用户按钮走标准 <code>actions/&lt;名&gt;</code> 闭环（置已读 → 事件 → handle → hide 判定），
+          与内置 暂停/停止/取消 各行排布；<code>hide: false</code> 的 action 点击不关卡。
+          内置动词（start/pause/resume/stop/cancel/close）是该卡 actions 命名空间的事实保留名。
+        </p>
+      </div>
+      <div class="block">
+        <pre
+          id="log"
+          class="has-background-light"
+          style="padding: 8px; max-height: 300px; overflow: auto"
+        >
+（点击上方按钮开始任务演示）</pre>
+      </div>
+    </div>
+    <script>
+      const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+      const logEl = document.getElementById("log");
+      const lines = [];
+      const log = (t) => {
+        lines.push(`[${new Date().toLocaleTimeString("zh-CN", { hour12: false })}] ${t}`);
+        logEl.textContent = lines.slice(-14).join("\n");
+      };
+
+      /** 驱动器：定时推进（闸门 / 终态 / 关闭自动停表） */
+      function drive(t, step = 200) {
+        let cur = t.data.progress ?? 0;
+        const timer = setInterval(() => {
+          const st = t.data.state;
+          if (t.closed || st === "completed" || st === "stopped") return clearInterval(timer);
+          if (st === "paused") return; // 闸门：暂停期间 progress 被忽略
+          cur = Math.min(100, cur + 6 + Math.floor(Math.random() * 12));
+          t.progress(cur);
+        }, step);
+      }
+
+      function runActions() {
+        const t = app.notifications.task({
+          title: "构建索引（build-index）",
+          description: "自定义按钮与 暂停/停止/取消 共存——「重试」发起新任务，「查看日志」不关卡",
+          canPause: true,
+          canStop: true,
+          canCancel: true,
+          closeWhenDone: 1800,
+          actions: [
+            {
+              title: "重试",
+              hide: false, // 点击不关卡
+              handle: () => {
+                log("⇄ action「重试」（actions/重试 事件 + handle）——发起新构建");
+                runActions();
+              },
+            },
+            {
+              title: "查看日志",
+              hide: false,
+              handle: () => log("⇄ action「查看日志」——hide:false，卡片保持打开"),
+            },
+          ],
+        });
+        log("创建带自定义 actions 的构建任务（重试 = 新任务、查看日志 = 不关卡）");
+        drive(t);
+      }
+    </script>
+  </body>
+</html>

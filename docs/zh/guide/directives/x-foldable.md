@@ -90,5 +90,5 @@
 - **宿主 `min-width`（column 为 `min-height`）由指令写入**（= more 按钮尺寸，写入后不撤）——会覆盖用户同属性的内联声明，请勿在宿主上内联声明 `min-width`。
 - **Runtime 类指令的子元素被折叠时运行态重置**：搬移会触发引擎观察器的卸载/重挂（如进行中的 `x-loading` 动画会重开）；普通按钮 / 文本 / 表单控件无感。
 - **子元素不提供 flex 伸缩出口**：强制 `grow:0 / shrink:0` 是溢出判据的布局数学前提（伸缩态尺寸污染求和）；弹性布局需求请改子元素自身 `min/max-width` 或移出容器。
-- **触发按钮图标走全局 sprite**（`#as-more`）：同名内置图标可被 [x-icons](./x-icons.md) 注册覆盖；视觉定制经 CSS 变量 `--autospark-foldable-trigger-size`（按钮尺寸，默认 24px）、`--autospark-foldable-trigger-focus`（聚焦轮廓色）。
+- **触发按钮图标走全局 sprite**（`#as-more`）：同名内置图标可被 `x-icons` 注册覆盖（见 [x-icon](./x-icon.md)）；视觉定制经 CSS 变量 `--autospark-foldable-trigger-size`（按钮尺寸，默认 24px）、`--autospark-foldable-trigger-focus`（聚焦轮廓色）。
 - **`x-foldable` 名与历史词条无关**：旧「布局块」（组件机制前身）已由 x-define / x-component 承接，初稿「三段分区布局」模型也已废弃（`x-foldable:header` 之类参数形态即误用，warn），三者无承继关系（见 [ADR-0098](https://github.com/zhangfisher/autospark/blob/main/packages/engine/docs/adr/0098-x-foldable.md)）。

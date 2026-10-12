@@ -12,9 +12,9 @@
  * @module features/modal
  */
 
-import type { KylinRouter } from "@/router";
+import type { AutoSparkRouter } from "@/router";
 import type {
-    KylinRouteItem,
+    AutoSparkRouteItem,
     ModalConfig,
     ModalState,
     ModalStackItem,
@@ -24,21 +24,21 @@ import type {
 /**
  * Modal Mixin 类 - 负责模态窗口的所有功能
  *
- * 注意：此 Mixin 依赖以下在 KylinRouter 中定义的属性：
+ * 注意：此 Mixin 依赖以下在 AutoSparkRouter 中定义的属性：
  * - modalContainer: HTMLElement | null
  * - modalState: ModalState
  * - maxModals: number
  */
 export class Modal {
     // =========================================================================
-    // 公共 API - 这些方法暴露给 KylinRouter 用户
+    // 公共 API - 这些方法暴露给 AutoSparkRouter 用户
     // =========================================================================
 
     /**
      * 打开模态
      * @param options - 模态选项
      */
-    async openModal(this: KylinRouter, options: ModalOptions): Promise<void> {
+    async openModal(this: AutoSparkRouter, options: ModalOptions): Promise<void> {
         const modalState = this.modalState as ModalState;
         const maxModals = this.maxModals as number;
 
@@ -106,12 +106,12 @@ export class Modal {
      * 关闭模态
      * @param route - 可选，指定要关闭的模态路由
      */
-    async closeModal(this: KylinRouter, route?: KylinRouteItem | string): Promise<void> {
+    async closeModal(this: AutoSparkRouter, route?: AutoSparkRouteItem | string): Promise<void> {
         const modalState = (this as any).modalState as ModalState;
 
         if (route) {
             // 关闭指定模态
-            let targetRoute: KylinRouteItem | null;
+            let targetRoute: AutoSparkRouteItem | null;
             if (typeof route === "string") {
                 // 通过路径查找路由
                 const matched = this.routes.match(route);
@@ -138,7 +138,7 @@ export class Modal {
     /**
      * 关闭所有模态
      */
-    async closeAllModals(this: KylinRouter): Promise<void> {
+    async closeAllModals(this: AutoSparkRouter): Promise<void> {
         while ((this as any).modalState.stack.length > 0) {
             await (this as any)._closeTopModal();
         }
@@ -173,7 +173,7 @@ export class Modal {
      * 初始化模态系统
      * 在路由器 attach 时调用
      */
-    _initModals(this: KylinRouter): void {
+    _initModals(this: AutoSparkRouter): void {
         this._createModalContainer();
         this._setupModalEventListeners();
         this._injectModalStyles();
@@ -184,14 +184,14 @@ export class Modal {
      */
     protected injectModalStyles(): void {
         // 检查是否已注入样式
-        if (document.querySelector("#kylin-modal-styles")) {
+        if (document.querySelector("#autospark-modal-styles")) {
             return;
         }
 
         const style = document.createElement("style");
-        style.id = "kylin-modal-styles";
+        style.id = "autospark-modal-styles";
         style.textContent = `
-            .kylin-modals {
+            .autospark-modals {
                 position: fixed;
                 top: 0;
                 left: 0;
@@ -200,7 +200,7 @@ export class Modal {
                 z-index: 9999;
                 pointer-events: none;
             }
-            .kylin-modal-backdrop {
+            .autospark-modal-backdrop {
                 position: absolute;
                 top: 0;
                 left: 0;
@@ -209,7 +209,7 @@ export class Modal {
                 background: rgba(0, 0, 0, 0.5);
                 pointer-events: auto;
             }
-            .kylin-modal-content {
+            .autospark-modal-content {
                 position: relative;
                 pointer-events: auto;
                 z-index: 1;
@@ -219,21 +219,21 @@ export class Modal {
                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
             }
             /* Drawer 样式 */
-            .kylin-modal-drawer {
+            .autospark-modal-drawer {
                 background: white;
                 box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
             }
-            .kylin-modal-drawer.kylin-modal-left {
+            .autospark-modal-drawer.autospark-modal-left {
                 box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
             }
-            .kylin-modal-drawer.kylin-modal-top {
+            .autospark-modal-drawer.autospark-modal-top {
                 box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             }
-            .kylin-modal-drawer.kylin-modal-bottom {
+            .autospark-modal-drawer.autospark-modal-bottom {
                 box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
             }
             /* 默认内容样式 */
-            .kylin-modal-content .custom-modal-content {
+            .autospark-modal-content .custom-modal-content {
                 padding: 0;
             }
         `;
@@ -243,11 +243,11 @@ export class Modal {
      * 创建模态容器
      * 如果容器不存在则创建，并返回容器元素
      */
-    _createModalContainer(this: KylinRouter): HTMLElement {
-        let container = this.host.querySelector(".kylin-modals") as HTMLElement;
+    _createModalContainer(this: AutoSparkRouter): HTMLElement {
+        let container = this.host.querySelector(".autospark-modals") as HTMLElement;
         if (!container) {
             container = document.createElement("div");
-            container.className = "kylin-modals";
+            container.className = "autospark-modals";
             this.host.appendChild(container);
         }
         (this as any).modalContainer = container;
@@ -258,7 +258,7 @@ export class Modal {
      * 设置模态事件监听
      * 监听 ESC 键关闭模态
      */
-    _setupModalEventListeners(this: KylinRouter): void {
+    _setupModalEventListeners(this: AutoSparkRouter): void {
         // ESC 键关闭模态
         document.addEventListener("keydown", (e) => {
             const modalState = (this as any).modalState as ModalState;
@@ -275,7 +275,7 @@ export class Modal {
      * 获取模态配置
      * 从路由配置中提取模态配置
      */
-    _getModalConfig(this: KylinRouter, route: KylinRouteItem): ModalConfig | null {
+    _getModalConfig(this: AutoSparkRouter, route: AutoSparkRouteItem): ModalConfig | null {
         if (typeof route.modal === "boolean") {
             return route.modal ? {} : null;
         }
@@ -286,17 +286,17 @@ export class Modal {
      * 注入模态样式
      * 添加模态容器和背景遮罩的默认样式，包含动画效果
      */
-    _injectModalStyles(this: KylinRouter): void {
+    _injectModalStyles(this: AutoSparkRouter): void {
         // 检查是否已注入样式
-        if (document.querySelector("#kylin-modal-styles")) {
+        if (document.querySelector("#autospark-modal-styles")) {
             return;
         }
 
         const style = document.createElement("style");
-        style.id = "kylin-modal-styles";
+        style.id = "autospark-modal-styles";
         style.textContent = `
             /* ==================== 模态容器 ==================== */
-            .kylin-modals {
+            .autospark-modals {
                 position: fixed;
                 top: 0;
                 left: 0;
@@ -307,7 +307,7 @@ export class Modal {
             }
 
             /* ==================== 背景遮罩 ==================== */
-            .kylin-modal-backdrop {
+            .autospark-modal-backdrop {
                 position: absolute;
                 top: 0;
                 left: 0;
@@ -315,15 +315,15 @@ export class Modal {
                 bottom: 0;
                 background: rgba(0, 0, 0, 0.5);
                 pointer-events: auto;
-                animation: kylin-fade-in 0.2s ease-out;
+                animation: autospark-fade-in 0.2s ease-out;
             }
 
-            .kylin-modal-backdrop.closing {
-                animation: kylin-fade-out 0.2s ease-in forwards;
+            .autospark-modal-backdrop.closing {
+                animation: autospark-fade-out 0.2s ease-in forwards;
             }
 
             /* ==================== 模态内容基础样式 ==================== */
-            .kylin-modal-content {
+            .autospark-modal-content {
                 position: fixed;
                 pointer-events: auto;
                 z-index: 10000;
@@ -334,7 +334,7 @@ export class Modal {
             }
 
             /* ==================== Dialog 样式和动画 ==================== */
-            .kylin-modal-dialog {
+            .autospark-modal-dialog {
                 max-width: 600px;
                 max-height: 80vh;
                 overflow: auto;
@@ -344,139 +344,139 @@ export class Modal {
             }
 
             /* 居中对话框 */
-            .kylin-modal-dialog.kylin-modal-center {
-                animation: kylin-dialog-center-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            .autospark-modal-dialog.autospark-modal-center {
+                animation: autospark-dialog-center-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            .kylin-modal-dialog.kylin-modal-center.closing {
-                animation: kylin-dialog-center-out 0.2s ease-in forwards;
+            .autospark-modal-dialog.autospark-modal-center.closing {
+                animation: autospark-dialog-center-out 0.2s ease-in forwards;
             }
 
             /* 顶部对话框 */
-            .kylin-modal-dialog.kylin-modal-top {
+            .autospark-modal-dialog.autospark-modal-top {
                 top: 0;
                 left: 50%;
                 transform: translateX(-50%);
-                animation: kylin-dialog-top-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                animation: autospark-dialog-top-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            .kylin-modal-dialog.kylin-modal-top.closing {
-                animation: kylin-dialog-top-out 0.2s ease-in forwards;
+            .autospark-modal-dialog.autospark-modal-top.closing {
+                animation: autospark-dialog-top-out 0.2s ease-in forwards;
             }
 
             /* 左上对话框 */
-            .kylin-modal-dialog.kylin-modal-top-left {
+            .autospark-modal-dialog.autospark-modal-top-left {
                 top: 0;
                 left: 0;
-                animation: kylin-dialog-top-left-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                animation: autospark-dialog-top-left-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            .kylin-modal-dialog.kylin-modal-top-left.closing {
-                animation: kylin-dialog-top-left-out 0.2s ease-in forwards;
+            .autospark-modal-dialog.autospark-modal-top-left.closing {
+                animation: autospark-dialog-top-left-out 0.2s ease-in forwards;
             }
 
             /* 右上对话框 */
-            .kylin-modal-dialog.kylin-modal-top-right {
+            .autospark-modal-dialog.autospark-modal-top-right {
                 top: 0;
                 right: 0;
-                animation: kylin-dialog-top-right-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                animation: autospark-dialog-top-right-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            .kylin-modal-dialog.kylin-modal-top-right.closing {
-                animation: kylin-dialog-top-right-out 0.2s ease-in forwards;
+            .autospark-modal-dialog.autospark-modal-top-right.closing {
+                animation: autospark-dialog-top-right-out 0.2s ease-in forwards;
             }
 
             /* 右侧对话框 */
-            .kylin-modal-dialog.kylin-modal-right {
+            .autospark-modal-dialog.autospark-modal-right {
                 top: 50%;
                 right: 0;
-                animation: kylin-dialog-right-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                animation: autospark-dialog-right-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            .kylin-modal-dialog.kylin-modal-right.closing {
-                animation: kylin-dialog-right-out 0.2s ease-in forwards;
+            .autospark-modal-dialog.autospark-modal-right.closing {
+                animation: autospark-dialog-right-out 0.2s ease-in forwards;
             }
 
             /* 右下对话框 */
-            .kylin-modal-dialog.kylin-modal-bottom-right {
+            .autospark-modal-dialog.autospark-modal-bottom-right {
                 bottom: 0;
                 right: 0;
-                animation: kylin-dialog-bottom-right-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                animation: autospark-dialog-bottom-right-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            .kylin-modal-dialog.kylin-modal-bottom-right.closing {
-                animation: kylin-dialog-bottom-right-out 0.2s ease-in forwards;
+            .autospark-modal-dialog.autospark-modal-bottom-right.closing {
+                animation: autospark-dialog-bottom-right-out 0.2s ease-in forwards;
             }
 
             /* 底部对话框 */
-            .kylin-modal-dialog.kylin-modal-bottom {
+            .autospark-modal-dialog.autospark-modal-bottom {
                 bottom: 0;
                 left: 50%;
                 transform: translateX(-50%);
-                animation: kylin-dialog-bottom-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                animation: autospark-dialog-bottom-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            .kylin-modal-dialog.kylin-modal-bottom.closing {
-                animation: kylin-dialog-bottom-out 0.2s ease-in forwards;
+            .autospark-modal-dialog.autospark-modal-bottom.closing {
+                animation: autospark-dialog-bottom-out 0.2s ease-in forwards;
             }
 
             /* 左下对话框 */
-            .kylin-modal-dialog.kylin-modal-bottom-left {
+            .autospark-modal-dialog.autospark-modal-bottom-left {
                 bottom: 0;
                 left: 0;
-                animation: kylin-dialog-bottom-left-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                animation: autospark-dialog-bottom-left-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            .kylin-modal-dialog.kylin-modal-bottom-left.closing {
-                animation: kylin-dialog-bottom-left-out 0.2s ease-in forwards;
+            .autospark-modal-dialog.autospark-modal-bottom-left.closing {
+                animation: autospark-dialog-bottom-left-out 0.2s ease-in forwards;
             }
 
             /* 左侧对话框 */
-            .kylin-modal-dialog.kylin-modal-left {
+            .autospark-modal-dialog.autospark-modal-left {
                 top: 50%;
                 left: 0;
-                animation: kylin-dialog-left-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                animation: autospark-dialog-left-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            .kylin-modal-dialog.kylin-modal-left.closing {
-                animation: kylin-dialog-left-out 0.2s ease-in forwards;
+            .autospark-modal-dialog.autospark-modal-left.closing {
+                animation: autospark-dialog-left-out 0.2s ease-in forwards;
             }
 
             /* ==================== Drawer 样式和动画 ==================== */
-            .kylin-modal-drawer {
+            .autospark-modal-drawer {
                 background: white;
                 max-height: 100vh;
                 overflow: auto;
             }
 
             /* 左侧抽屉 - 水平滑动，固定高度 */
-            .kylin-modal-drawer.kylin-modal-left {
+            .autospark-modal-drawer.autospark-modal-left {
                 width: 300px;
                 top: 0;
                 left: 0;
                 height: 100vh;
-                animation: kylin-slide-in-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                animation: autospark-slide-in-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            .kylin-modal-drawer.kylin-modal-left.closing {
-                animation: kylin-slide-out-left 0.2s ease-in forwards;
+            .autospark-modal-drawer.autospark-modal-left.closing {
+                animation: autospark-slide-out-left 0.2s ease-in forwards;
             }
 
             /* 右侧抽屉 - 水平滑动，固定高度 */
-            .kylin-modal-drawer.kylin-modal-right {
+            .autospark-modal-drawer.autospark-modal-right {
                 width: 300px;
                 top: 0;
                 right: 0;
                 height: 100vh;
-                animation: kylin-slide-in-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                animation: autospark-slide-in-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            .kylin-modal-drawer.kylin-modal-right.closing {
-                animation: kylin-slide-out-right 0.2s ease-in forwards;
+            .autospark-modal-drawer.autospark-modal-right.closing {
+                animation: autospark-slide-out-right 0.2s ease-in forwards;
             }
 
             /* 顶部抽屉 - 从顶部滑入，满宽 */
-            .kylin-modal-drawer.kylin-modal-top {
+            .autospark-modal-drawer.autospark-modal-top {
                 position: fixed;
                 top: 0;
                 left: 0;
@@ -487,21 +487,21 @@ export class Modal {
                 box-sizing: border-box;
                 padding: 0;
                 border-radius: 0;
-                animation: kylin-slide-in-top 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                animation: autospark-slide-in-top 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
             }
 
             /* 顶部抽屉内容满宽 */
-            .kylin-modal-drawer.kylin-modal-top .custom-modal-content {
+            .autospark-modal-drawer.autospark-modal-top .custom-modal-content {
                 max-width: none;
                 width: auto;
             }
 
-            .kylin-modal-drawer.kylin-modal-top.closing {
-                animation: kylin-slide-out-top 0.2s ease-in forwards;
+            .autospark-modal-drawer.autospark-modal-top.closing {
+                animation: autospark-slide-out-top 0.2s ease-in forwards;
             }
 
             /* 底部抽屉 - 从底部滑入，满宽 */
-            .kylin-modal-drawer.kylin-modal-bottom {
+            .autospark-modal-drawer.autospark-modal-bottom {
                 position: fixed;
                 bottom: 0;
                 left: 0;
@@ -512,33 +512,33 @@ export class Modal {
                 box-sizing: border-box;
                 padding: 0;
                 border-radius: 0;
-                animation: kylin-slide-in-bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                animation: autospark-slide-in-bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
             }
 
             /* 底部抽屉内容满宽 */
-            .kylin-modal-drawer.kylin-modal-bottom .custom-modal-content {
+            .autospark-modal-drawer.autospark-modal-bottom .custom-modal-content {
                 max-width: none;
                 width: auto;
             }
 
-            .kylin-modal-drawer.kylin-modal-bottom.closing {
-                animation: kylin-slide-out-bottom 0.2s ease-in forwards;
+            .autospark-modal-drawer.autospark-modal-bottom.closing {
+                animation: autospark-slide-out-bottom 0.2s ease-in forwards;
             }
 
             /* ==================== 动画关键帧 ==================== */
             /* 淡入/淡出 */
-            @keyframes kylin-fade-in {
+            @keyframes autospark-fade-in {
                 from { opacity: 0; }
                 to { opacity: 1; }
             }
 
-            @keyframes kylin-fade-out {
+            @keyframes autospark-fade-out {
                 from { opacity: 1; }
                 to { opacity: 0; }
             }
 
             /* 对话框动画 */
-            @keyframes kylin-dialog-center-in {
+            @keyframes autospark-dialog-center-in {
                 from {
                     opacity: 0;
                     transform: translate(-50%, -50%) scale(0.9);
@@ -549,7 +549,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-center-out {
+            @keyframes autospark-dialog-center-out {
                 from {
                     opacity: 1;
                     transform: translate(-50%, -50%) scale(1);
@@ -560,7 +560,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-top-in {
+            @keyframes autospark-dialog-top-in {
                 from {
                     opacity: 0;
                     transform: translate(-50%, -20px);
@@ -571,7 +571,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-top-out {
+            @keyframes autospark-dialog-top-out {
                 from {
                     opacity: 1;
                     transform: translate(-50%, 0);
@@ -582,7 +582,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-top-left-in {
+            @keyframes autospark-dialog-top-left-in {
                 from {
                     opacity: 0;
                     transform: translate(-20px, -20px);
@@ -593,7 +593,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-top-left-out {
+            @keyframes autospark-dialog-top-left-out {
                 from {
                     opacity: 1;
                     transform: translate(0, 0);
@@ -604,7 +604,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-top-right-in {
+            @keyframes autospark-dialog-top-right-in {
                 from {
                     opacity: 0;
                     transform: translate(20px, -20px);
@@ -615,7 +615,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-top-right-out {
+            @keyframes autospark-dialog-top-right-out {
                 from {
                     opacity: 1;
                     transform: translate(0, 0);
@@ -626,7 +626,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-right-in {
+            @keyframes autospark-dialog-right-in {
                 from {
                     opacity: 0;
                     transform: translate(20px, -50%);
@@ -637,7 +637,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-right-out {
+            @keyframes autospark-dialog-right-out {
                 from {
                     opacity: 1;
                     transform: translate(0, -50%);
@@ -648,7 +648,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-bottom-right-in {
+            @keyframes autospark-dialog-bottom-right-in {
                 from {
                     opacity: 0;
                     transform: translate(20px, 20px);
@@ -659,7 +659,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-bottom-right-out {
+            @keyframes autospark-dialog-bottom-right-out {
                 from {
                     opacity: 1;
                     transform: translate(0, 0);
@@ -670,7 +670,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-bottom-in {
+            @keyframes autospark-dialog-bottom-in {
                 from {
                     opacity: 0;
                     transform: translate(-50%, 20px);
@@ -681,7 +681,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-bottom-out {
+            @keyframes autospark-dialog-bottom-out {
                 from {
                     opacity: 1;
                     transform: translate(-50%, 0);
@@ -692,7 +692,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-bottom-left-in {
+            @keyframes autospark-dialog-bottom-left-in {
                 from {
                     opacity: 0;
                     transform: translate(-20px, 20px);
@@ -703,7 +703,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-bottom-left-out {
+            @keyframes autospark-dialog-bottom-left-out {
                 from {
                     opacity: 1;
                     transform: translate(0, 0);
@@ -714,7 +714,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-left-in {
+            @keyframes autospark-dialog-left-in {
                 from {
                     opacity: 0;
                     transform: translate(-20px, -50%);
@@ -725,7 +725,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-dialog-left-out {
+            @keyframes autospark-dialog-left-out {
                 from {
                     opacity: 1;
                     transform: translate(0, -50%);
@@ -737,27 +737,27 @@ export class Modal {
             }
 
             /* 抽屉动画 */
-            @keyframes kylin-slide-in-left {
+            @keyframes autospark-slide-in-left {
                 from { transform: translateX(-100%); }
                 to { transform: translateX(0); }
             }
 
-            @keyframes kylin-slide-out-left {
+            @keyframes autospark-slide-out-left {
                 from { transform: translateX(0); }
                 to { transform: translateX(-100%); }
             }
 
-            @keyframes kylin-slide-in-right {
+            @keyframes autospark-slide-in-right {
                 from { transform: translateX(100%); }
                 to { transform: translateX(0); }
             }
 
-            @keyframes kylin-slide-out-right {
+            @keyframes autospark-slide-out-right {
                 from { transform: translateX(0); }
                 to { transform: translateX(100%); }
             }
 
-            @keyframes kylin-slide-in-top {
+            @keyframes autospark-slide-in-top {
                 from {
                     transform: translateY(-100%);
                 }
@@ -766,7 +766,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-slide-out-top {
+            @keyframes autospark-slide-out-top {
                 from {
                     transform: translateY(0);
                 }
@@ -775,7 +775,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-slide-in-bottom {
+            @keyframes autospark-slide-in-bottom {
                 from {
                     transform: translateY(100%);
                 }
@@ -784,7 +784,7 @@ export class Modal {
                 }
             }
 
-            @keyframes kylin-slide-out-bottom {
+            @keyframes autospark-slide-out-bottom {
                 from {
                     transform: translateY(0);
                 }
@@ -794,13 +794,13 @@ export class Modal {
             }
 
             /* ==================== 自定义内容样式 ==================== */
-            .kylin-modal-content .custom-modal-content {
+            .autospark-modal-content .custom-modal-content {
                 padding: 0;
             }
 
             /* ==================== 无动画支持 ==================== */
-            .kylin-modal-content.no-animation,
-            .kylin-modal-backdrop.no-animation {
+            .autospark-modal-content.no-animation,
+            .autospark-modal-backdrop.no-animation {
                 animation: none !important;
             }
         `;
@@ -810,7 +810,7 @@ export class Modal {
     /**
      * 关闭顶层模态
      */
-    _closeTopModal(this: KylinRouter): Promise<void> {
+    _closeTopModal(this: AutoSparkRouter): Promise<void> {
         const modalState = (this as any).modalState as ModalState;
 
         if (modalState.stack.length === 0) {
@@ -853,9 +853,9 @@ export class Modal {
     /**
      * 创建模态元素
      */
-    protected _createModalElement(this: KylinRouter, route: KylinRouteItem): Promise<HTMLElement> {
+    protected _createModalElement(this: AutoSparkRouter, route: AutoSparkRouteItem): Promise<HTMLElement> {
         const element = document.createElement("div");
-        element.className = "kylin-modal-content";
+        element.className = "autospark-modal-content";
 
         // 加载组件
         if (route.view) {
@@ -900,11 +900,11 @@ export class Modal {
      * 创建模态容器（D-17）
      * 如果容器不存在则创建，并返回容器元素
      */
-    private createModalContainer(this: KylinRouter): HTMLElement {
-        let container = this.host.querySelector(".kylin-modals") as HTMLElement;
+    private createModalContainer(this: AutoSparkRouter): HTMLElement {
+        let container = this.host.querySelector(".autospark-modals") as HTMLElement;
         if (!container) {
             container = document.createElement("div");
-            container.className = "kylin-modals";
+            container.className = "autospark-modals";
             this.host.appendChild(container);
         }
         this.modalContainer = container;
@@ -915,7 +915,7 @@ export class Modal {
      * 设置模态事件监听
      * 监听 ESC 键关闭模态
      */
-    private setupModalEventListeners(this: KylinRouter): void {
+    private setupModalEventListeners(this: AutoSparkRouter): void {
         // ESC 键关闭模态
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && this.modalState.current) {
@@ -931,7 +931,7 @@ export class Modal {
      * 获取模态配置
      * 从路由配置中提取模态配置
      */
-    private getModalConfig(route: KylinRouteItem): ModalConfig | null {
+    private getModalConfig(route: AutoSparkRouteItem): ModalConfig | null {
         if (typeof route.modal === "boolean") {
             return route.modal ? {} : null;
         }
@@ -940,7 +940,7 @@ export class Modal {
     /**
      * 关闭顶层模态（D-20）
      */
-    async closeTopModal(this: KylinRouter): Promise<void> {
+    async closeTopModal(this: AutoSparkRouter): Promise<void> {
         if (this.modalState.stack.length === 0) {
             return;
         }
@@ -967,14 +967,14 @@ export class Modal {
     /**
      * 创建背景遮罩
      */
-    protected _createBackdrop(this: KylinRouter, config: ModalConfig): HTMLElement | undefined {
+    protected _createBackdrop(this: AutoSparkRouter, config: ModalConfig): HTMLElement | undefined {
         // 检查是否隐藏遮罩（backdrop: false 表示不显示）
         if (config.backdrop === false) {
             return undefined;
         }
 
         const backdrop = document.createElement("div");
-        backdrop.className = "kylin-modal-backdrop";
+        backdrop.className = "autospark-modal-backdrop";
 
         // 点击遮罩关闭模态
         if (config.closeOnBackdropClick !== false) {
@@ -989,7 +989,7 @@ export class Modal {
     /**
      * 渲染模态
      */
-    protected _renderModal(this: KylinRouter, stackItem: ModalStackItem): Promise<void> {
+    protected _renderModal(this: AutoSparkRouter, stackItem: ModalStackItem): Promise<void> {
         const modalContainer = (this as any).modalContainer as HTMLElement;
 
         // 获取模态配置
@@ -1013,7 +1013,7 @@ export class Modal {
      * 应用模态样式
      */
     protected _applyModalStyles(
-        this: KylinRouter,
+        this: AutoSparkRouter,
         element: HTMLElement,
         config: ModalConfig | null,
     ): void {
@@ -1024,8 +1024,8 @@ export class Modal {
         const offset = config.offset || [0, 0];
 
         // 设置类型样式类
-        element.classList.add(`kylin-modal-${type}`);
-        element.classList.add(`kylin-modal-${position}`);
+        element.classList.add(`autospark-modal-${type}`);
+        element.classList.add(`autospark-modal-${position}`);
 
         // 应用位置样式
         (this as any)._applyPositionStyles(element, type, position, offset);
@@ -1036,7 +1036,7 @@ export class Modal {
      * 注意：位置样式已通过 CSS 类在动画中定义，不需要内联样式
      */
     protected _applyPositionStyles(
-        this: KylinRouter,
+        this: AutoSparkRouter,
         element: HTMLElement,
         type: string,
         position: string,
@@ -1124,7 +1124,7 @@ export class Modal {
     /**
      * 解析模态路由
      */
-    protected _resolveModalRoute(this: KylinRouter, options: ModalOptions): KylinRouteItem | null {
+    protected _resolveModalRoute(this: AutoSparkRouter, options: ModalOptions): AutoSparkRouteItem | null {
         if (options.route) {
             if (typeof options.route === "string") {
                 // 通过路径查找路由
@@ -1141,7 +1141,7 @@ export class Modal {
      * 更新模态 URL（不改变 URL，模态路由与普通路由共存）
      * 模态路由通过内部状态管理，不改变浏览器 URL
      */
-    _updateModalURL(this: KylinRouter, _route: KylinRouteItem): void {
+    _updateModalURL(this: AutoSparkRouter, _route: AutoSparkRouteItem): void {
         // 模态路由不改变 URL，保持当前 URL 不变
         // 这样模态路由可以与普通路由共存
     }
@@ -1149,7 +1149,7 @@ export class Modal {
     /**
      * 恢复模态 URL（不需要恢复，因为 URL 从未改变）
      */
-    protected _restoreModalURL(this: KylinRouter): void {
+    protected _restoreModalURL(this: AutoSparkRouter): void {
         // 不需要恢复，因为模态路由不改变 URL
     }
 }

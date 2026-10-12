@@ -10,8 +10,8 @@
  */
 
 import type {
-    KylinRouteItem,
-    KylinMatchedRouteItem,
+    AutoSparkRouteItem,
+    AutoSparkMatchedRouteItem,
     RedirectTarget,
     RedirectFunction,
     RedirectResult,
@@ -21,10 +21,10 @@ import { joinPath } from "./joinPath";
 import { extractQueryParams } from "./extractQueryParams";
 import { getRouteHash } from "./getRouteHash";
 import {
-    KylinMaxRedirectRouteError,
-    KylinLoopRouteError,
-    KylinNotFoundRouteError,
-    KylinExternalRouteError,
+    AutoSparkMaxRedirectRouteError,
+    AutoSparkLoopRouteError,
+    AutoSparkNotFoundRouteError,
+    AutoSparkExternalRouteError,
 } from "@/errors";
 import { isExternalLink } from "./isExternalLink";
 
@@ -37,7 +37,7 @@ export interface MatchRouteOptions {
     /**
      * 全局重定向配置（后备重定向）
      * 当匹配的路由项没有 redirect 配置时，使用此配置
-     * 优先级低于 KylinRouteItem.redirect
+     * 优先级低于 AutoSparkRouteItem.redirect
      */
     redirect?: import("@/types").RedirectTarget | import("@/types").RedirectFunction;
 
@@ -53,7 +53,7 @@ export interface MatchRouteOptions {
      * 命名路由映射表
      * 用于解析命名路由重定向 { name: 'home' }
      */
-    namedRoutes?: Map<string, WeakRef<import("@/types").KylinRouteItem>>;
+    namedRoutes?: Map<string, WeakRef<import("@/types").AutoSparkRouteItem>>;
 
     /**
      * 内部使用：重定向链，防止无限递归
@@ -142,7 +142,7 @@ function normalizePath(path: string): string {
  * - 先去掉当前路由段 up1，得到父路径 /a/b
  * - ../target 表示从父路径向上一级到 /a，然后添加 target -> /a/target
  */
-function resolveRedirectPath(target: string, currentMatch: KylinMatchedRouteItem): string {
+function resolveRedirectPath(target: string, currentMatch: AutoSparkMatchedRouteItem): string {
     // 绝对路径直接返回
     if (target.startsWith("/")) {
         return target;
@@ -204,8 +204,8 @@ interface RedirectResolution {
  */
 function resolveRedirect(
     target: RedirectTarget | RedirectFunction,
-    namedRoutes: Map<string, WeakRef<KylinRouteItem>> | undefined,
-    matchedRoute: KylinMatchedRouteItem,
+    namedRoutes: Map<string, WeakRef<AutoSparkRouteItem>> | undefined,
+    matchedRoute: AutoSparkMatchedRouteItem,
 ): RedirectResolution | null {
     // 函数类型重定向
     if (typeof target === "function") {
@@ -478,11 +478,11 @@ function replacePathParams(path: string, params: Record<string, string>): string
  * - 如果父路由的 data 为空且默认路由有 data，则使用默认路由的 data
  */
 function findDefaultRoute(
-    routes: KylinRouteItem[],
-    parentMatchedRoute: KylinMatchedRouteItem,
+    routes: AutoSparkRouteItem[],
+    parentMatchedRoute: AutoSparkMatchedRouteItem,
     inputQuery: Record<string, string>,
     id: number,
-): KylinMatchedRouteItem[] | null {
+): AutoSparkMatchedRouteItem[] | null {
     // 查找第一个 default: true 的路由
     for (const route of routes) {
         if (route.default === true) {
@@ -496,7 +496,7 @@ function findDefaultRoute(
             const fullPathWithDefaults = replacePathParams(fullPath, mergedParams);
             const fullUrl = normalizeUrl(fullPathWithDefaults);
 
-            const currentMatch: KylinMatchedRouteItem = {
+            const currentMatch: AutoSparkMatchedRouteItem = {
                 route,
                 params: mergedParams,
                 query: mergedQuery,
@@ -533,10 +533,10 @@ function findDefaultRoute(
  */
 function createUnmatchedRouteItem(
     unmatchedPath: string,
-    parentMatchedRoute: KylinMatchedRouteItem | null,
+    parentMatchedRoute: AutoSparkMatchedRouteItem | null,
     inputQuery: Record<string, string>,
     id: number,
-): KylinMatchedRouteItem {
+): AutoSparkMatchedRouteItem {
     const parentPath = parentMatchedRoute?.path || "";
     const parentUrl = parentMatchedRoute?.url || "";
     const parentParams = parentMatchedRoute?.params || {};
@@ -566,7 +566,7 @@ function createUnmatchedRouteItem(
  * @returns 匹配函数，接受 pathname 返回匹配结果
  */
 export function createRouteMatcher(
-    route: KylinRouteItem,
+    route: AutoSparkRouteItem,
     isPrefix: boolean = false,
 ): (pathname: string) => RouteMatchResult {
     const rawPattern = route.path;
@@ -649,12 +649,12 @@ export function createRouteMatcher(
  * @returns 匹配结果数组，如果未匹配则返回 null
  */
 function processSingleRoute(
-    route: KylinRouteItem,
+    route: AutoSparkRouteItem,
     path: string,
-    parentMatchedRoute: KylinMatchedRouteItem | null,
+    parentMatchedRoute: AutoSparkMatchedRouteItem | null,
     inputQuery: Record<string, string>,
     id: number,
-): KylinMatchedRouteItem[] | null {
+): AutoSparkMatchedRouteItem[] | null {
     const parentPath = parentMatchedRoute?.path || "";
     const parentParams = parentMatchedRoute?.params || {};
     const parentUrl = parentMatchedRoute?.url || "";
@@ -673,7 +673,7 @@ function processSingleRoute(
     const mergedParams = Object.assign({}, route.params, parentParams, matchResult.params);
     const routeQuery = route.query || {};
 
-    const currentMatch: KylinMatchedRouteItem = {
+    const currentMatch: AutoSparkMatchedRouteItem = {
         route,
         params: mergedParams,
         query: routeQuery,
@@ -781,11 +781,11 @@ function processSingleRoute(
 
 function _matchRoutesInternal(
     path: string,
-    routes: KylinRouteItem[],
-    parentMatchedRoute: KylinMatchedRouteItem | null,
+    routes: AutoSparkRouteItem[],
+    parentMatchedRoute: AutoSparkMatchedRouteItem | null,
     inputQuery: Record<string, string> = {},
     id: number,
-): KylinMatchedRouteItem[] {
+): AutoSparkMatchedRouteItem[] {
     // 按优先级分组遍历：具体路径 > 参数化路径 > 通配符
     // 第一组：具体路径和参数化路径（非通配符）
     for (const route of routes) {
@@ -838,7 +838,7 @@ function _matchRoutesInternal(
  * @param path - 当前 URL 路径
  * @param roots - 树形路由表配置（具有唯一根节点）
  * @param options - 匹配选项
- * @returns 匹配的路由项数组，包含根路由和匹配分支上的所有 KylinMatchedRouteItem
+ * @returns 匹配的路由项数组，包含根路由和匹配分支上的所有 AutoSparkMatchedRouteItem
  *
  * @example
  * // 返回完整的匹配分支（包括根路由）
@@ -854,9 +854,9 @@ function _matchRoutesInternal(
  */
 export function matchRoute(
     path: string,
-    roots: KylinRouteItem,
+    roots: AutoSparkRouteItem,
     options?: MatchRouteOptions,
-): KylinMatchedRouteItem[] {
+): AutoSparkMatchedRouteItem[] {
     const { pathname: pathWithoutQuery, query: inputQuery } = parseQueryString(path);
     const normalizedPath = normalizePath(pathWithoutQuery);
     const redirectChain = options?._redirectChain || [];
@@ -867,7 +867,7 @@ export function matchRoute(
 
     // 创建根路由的匹配项（根路由的 path 一定是 "/"）
     // @ts-ignore
-    const rootMatch: KylinMatchedRouteItem = {
+    const rootMatch: AutoSparkMatchedRouteItem = {
         id: currentId,
         route: roots,
         params: {},
@@ -929,7 +929,7 @@ export function matchRoute(
             {
                 ...lastMatched,
                 route: undefined,
-                error: new KylinMaxRedirectRouteError(lastMatched),
+                error: new AutoSparkMaxRedirectRouteError(lastMatched),
                 redirectFrom: redirectChain.length > 0 ? [...redirectChain] : undefined,
             },
         ];
@@ -944,7 +944,7 @@ export function matchRoute(
             {
                 ...lastMatched,
                 route: undefined,
-                error: new KylinLoopRouteError(lastMatched),
+                error: new AutoSparkLoopRouteError(lastMatched),
                 redirectFrom: redirectChain.length > 0 ? [...redirectChain] : undefined,
             },
         ];
@@ -973,7 +973,7 @@ export function matchRoute(
                 {
                     ...lastMatched,
                     target: windowTarget,
-                    error: new KylinNotFoundRouteError(redirectTarget, lastMatched),
+                    error: new AutoSparkNotFoundRouteError(redirectTarget, lastMatched),
                     redirectFrom: redirectChain.length > 0 ? [...redirectChain] : undefined,
                 },
             ];
@@ -987,7 +987,7 @@ export function matchRoute(
                 {
                     ...lastMatched,
                     target: windowTarget || "_blank",
-                    error: new KylinExternalRouteError(redirectTarget, windowTarget || "_blank"),
+                    error: new AutoSparkExternalRouteError(redirectTarget, windowTarget || "_blank"),
                     redirectFrom: redirectChain.length > 0 ? [...redirectChain] : undefined,
                 },
             ];
@@ -1020,7 +1020,7 @@ export function matchRoute(
                 {
                     ...lastMatched,
                     target: windowTarget,
-                    error: new KylinNotFoundRouteError(redirectTarget, lastMatched),
+                    error: new AutoSparkNotFoundRouteError(redirectTarget, lastMatched),
                     redirectFrom: redirectChain.length > 0 ? [...redirectChain] : undefined,
                 },
             ];
@@ -1054,7 +1054,7 @@ export function matchRoute(
                     {
                         ...lastMatched,
                         target: windowTarget,
-                        error: new KylinNotFoundRouteError(redirectTarget, lastMatched),
+                        error: new AutoSparkNotFoundRouteError(redirectTarget, lastMatched),
                         redirectFrom: redirectChain.length > 0 ? [...redirectChain] : undefined,
                     },
                 ];
@@ -1068,7 +1068,7 @@ export function matchRoute(
                     {
                         ...lastMatched,
                         target: windowTarget || "_blank",
-                        error: new KylinExternalRouteError(
+                        error: new AutoSparkExternalRouteError(
                             redirectTarget,
                             windowTarget || "_blank",
                         ),
@@ -1103,7 +1103,7 @@ export function matchRoute(
                     {
                         ...lastMatched,
                         target: windowTarget,
-                        error: new KylinNotFoundRouteError(redirectTarget, lastMatched),
+                        error: new AutoSparkNotFoundRouteError(redirectTarget, lastMatched),
                         redirectFrom: redirectChain.length > 0 ? [...redirectChain] : undefined,
                     },
                 ];

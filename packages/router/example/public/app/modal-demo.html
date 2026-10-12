@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>模态路由演示 - Kylin Router</title>
+    <title>模态路由演示 - AutoSpark Router</title>
     <style>
         * {
             margin: 0;
@@ -238,14 +238,14 @@
     <div class="container">
         <div class="header">
             <h1>模态路由系统演示</h1>
-            <p>这个页面演示了 Kylin Router 的模态路由功能，包括模态容器、模态栈、背景遮罩和关闭交互。</p>
+            <p>这个页面演示了 AutoSpark Router 的模态路由功能，包括模态容器、模态栈、背景遮罩和关闭交互。</p>
         </div>
 
         <div class="demo-section">
             <h2>1. 基本模态功能</h2>
             <div class="info-box">
                 <h4>功能说明</h4>
-                <p>点击下方按钮打开一个基本的模态框。模态框会显示在专用的 .kylin-modals 容器中，并带有背景遮罩。</p>
+                <p>点击下方按钮打开一个基本的模态框。模态框会显示在专用的 .autospark-modals 容器中，并带有背景遮罩。</p>
             </div>
             <div class="button-group">
                 <button class="primary" onclick="openBasicModal()">打开基本模态</button>
@@ -311,7 +311,7 @@
                 <div id="testList">
                     <div class="test-item">
                         <span class="status" id="test1-status">○</span>
-                        <span class="description">模态容器正确创建（.kylin-modals）</span>
+                        <span class="description">模态容器正确创建（.autospark-modals）</span>
                     </div>
                     <div class="test-item">
                         <span class="status" id="test2-status">○</span>
@@ -384,10 +384,14 @@
     </div>
 
     <script type="module">
+        import { AutoSpark } from "autospark";
         import { createRouter } from '/src/index.js';
 
         // 创建路由实例
+        // 注入模式：应用创建并拥有 engine 实例（vite 源码场景无 IIFE 全局，须显式注入）
+        const engine = new AutoSpark(document.body, {});
         const router = createRouter(document.body, {
+            engine,
             mode: 'history',
             routes: [
                 {
@@ -812,7 +816,7 @@
 
         // 监听背景遮罩点击（用于测试点击关闭）
         document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('kylin-modal-backdrop')) {
+            if (e.target.classList.contains('autospark-modal-backdrop')) {
                 updateTestStatus('test3-status', 'pass');
             }
         });

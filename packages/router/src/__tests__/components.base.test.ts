@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { Window } from "happy-dom";
-import { KylinRouter } from "@/router";
+import { AutoSparkRouter } from "@/router";
  
 /**
  * 创建测试环境
@@ -25,17 +25,17 @@ function createTestEnvironment() {
     return { window, document };
 }
 
-describe("KylinRouterElementBase 核心功能测试", () => {
-    describe("KylinRouter 实例管理测试", () => {
-        it("KylinRouter 应该在 host 元素上设置 data-kylin-router 属性", () => {
+describe("AutoSparkRouterElementBase 核心功能测试", () => {
+    describe("AutoSparkRouter 实例管理测试", () => {
+        it("AutoSparkRouter 应该在 host 元素上设置 data-autospark-router 属性", () => {
             const { document } = createTestEnvironment();
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new KylinRouter(host, []);
+            const router = new AutoSparkRouter(host, []);
 
-            // 验证 data-kylin-router 属性已设置
-            expect(host.hasAttribute("data-kylin-router")).toBe(true);
+            // 验证 data-autospark-router 属性已设置
+            expect(host.hasAttribute("data-autospark-router")).toBe(true);
             // 验证 router 实例已存储在 host 上
             expect((host as any).router).toBe(router);
         });
@@ -45,7 +45,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new KylinRouter(host, []);
+            const router = new AutoSparkRouter(host, []);
 
             // 创建一个中间元素
             const wrapper = document.createElement("div") as any;
@@ -55,13 +55,13 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             const testElement = document.createElement("div") as any;
             wrapper.appendChild(testElement);
 
-            // 模拟 KylinRouterElementBase 的 _getRouterSync 方法
+            // 模拟 AutoSparkRouterElementBase 的 _getRouterSync 方法
             let currentElement: any = testElement;
             let foundRouter: any = undefined;
 
             while (currentElement) {
-                // 查找 router 宿主元素（data-kylin-router 属性）
-                if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-kylin-router")) {
+                // 查找 router 宿主元素（data-autospark-router 属性）
+                if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-autospark-router")) {
                     foundRouter = (currentElement as any).router;
                     break;
                 }
@@ -78,7 +78,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new KylinRouter(host, []);
+            const router = new AutoSparkRouter(host, []);
 
             // 创建深层嵌套结构
             const level1 = document.createElement("div") as any;
@@ -91,12 +91,12 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             level2.appendChild(level3);
             level3.appendChild(testElement);
 
-            // 模拟 KylinRouterElementBase 的 _getRouterSync 方法
+            // 模拟 AutoSparkRouterElementBase 的 _getRouterSync 方法
             let currentElement: any = testElement;
             let foundRouter: any = undefined;
 
             while (currentElement) {
-                if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-kylin-router")) {
+                if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-autospark-router")) {
                     foundRouter = (currentElement as any).router;
                     break;
                 }
@@ -113,7 +113,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new KylinRouter(host, []);
+            const router = new AutoSparkRouter(host, []);
 
             // 创建多个测试元素
             const element1 = document.createElement("div") as any;
@@ -128,7 +128,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             const findRouter = (element: any) => {
                 let currentElement: any = element;
                 while (currentElement) {
-                    if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-kylin-router")) {
+                    if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-autospark-router")) {
                         return (currentElement as any).router;
                     }
                     currentElement = currentElement.parentElement;
@@ -155,7 +155,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new KylinRouter(host, []);
+            const router = new AutoSparkRouter(host, []);
 
             // 验证 router 实例的完整性
             expect(router.host).toBeDefined();
@@ -177,7 +177,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new KylinRouter(host, []);
+            const router = new AutoSparkRouter(host, []);
 
             // 验证 location 属性
             expect(router.location).toBeDefined();
@@ -199,7 +199,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             let foundRouter: any = undefined;
 
             while (currentElement) {
-                if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-kylin-router")) {
+                if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-autospark-router")) {
                     foundRouter = (currentElement as any).router;
                     break;
                 }
@@ -219,8 +219,8 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             document.body.appendChild(host1);
             document.body.appendChild(host2);
 
-            const router1 = new KylinRouter(host1, []);
-            const router2 = new KylinRouter(host2, []);
+            const router1 = new AutoSparkRouter(host1, []);
+            const router2 = new AutoSparkRouter(host2, []);
 
             // 在第一个 router 下创建元素
             const element1 = document.createElement("div");
@@ -234,7 +234,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             const findRouter = (element: any) => {
                 let currentElement: any = element;
                 while (currentElement) {
-                    if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-kylin-router")) {
+                    if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-autospark-router")) {
                         return (currentElement as any).router;
                     }
                     currentElement = currentElement.parentElement;
@@ -258,7 +258,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new KylinRouter(host, []);
+            const router = new AutoSparkRouter(host, []);
 
             // 创建复杂的 DOM 结构
             const header = document.createElement("header") as any;
@@ -280,7 +280,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             let foundRouter: any = undefined;
 
             while (currentElement) {
-                if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-kylin-router")) {
+                if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-autospark-router")) {
                     foundRouter = (currentElement as any).router;
                     break;
                 }
@@ -297,7 +297,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new KylinRouter(host, []);
+            const router = new AutoSparkRouter(host, []);
 
             // 创建多个分支
             const branch1 = document.createElement("div") as any;
@@ -320,7 +320,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             const findRouter = (element: any) => {
                 let currentElement: any = element;
                 while (currentElement) {
-                    if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-kylin-router")) {
+                    if (currentElement instanceof HTMLElement && currentElement.hasAttribute("data-autospark-router")) {
                         return (currentElement as any).router;
                     }
                     currentElement = currentElement.parentElement;
@@ -345,7 +345,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new KylinRouter(host, []);
+            const router = new AutoSparkRouter(host, []);
 
             // 创建深层嵌套结构（100层）
             let currentElement = host;
@@ -365,7 +365,7 @@ describe("KylinRouterElementBase 核心功能测试", () => {
             let foundRouter: any = undefined;
 
             while (current) {
-                if (current instanceof HTMLElement && current.hasAttribute("data-kylin-router")) {
+                if (current instanceof HTMLElement && current.hasAttribute("data-autospark-router")) {
                     foundRouter = (current as any).router;
                     break;
                 }

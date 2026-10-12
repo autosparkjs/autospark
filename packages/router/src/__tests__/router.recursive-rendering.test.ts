@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import type { KylinRouter } from "@/router";
+import type { AutoSparkRouter } from "@/router";
 
 /**
  * 创建测试用的 DOM 环境
@@ -48,18 +48,18 @@ function createTestDOM() {
 }
 
 /**
- * 动态导入 KylinRouter
+ * 动态导入 AutoSparkRouter
  */
 async function createRouter(host: HTMLElement, options: any) {
-    const { KylinRouter } = await import("@/router");
-    const router = new KylinRouter(host, options);
+    const { AutoSparkRouter } = await import("@/router");
+    const router = new AutoSparkRouter(host, options);
     router.attach();
     return router;
 }
 
-describe("KylinRouter 递归渲染测试", () => {
+describe("AutoSparkRouter 递归渲染测试", () => {
     let host: HTMLElement;
-    let router: KylinRouter;
+    let router: AutoSparkRouter;
 
     beforeEach(() => {
         host = createTestDOM();
@@ -99,7 +99,7 @@ describe("KylinRouter 递归渲染测试", () => {
                 routes: {
                     name: "root",
                     path: "/",
-                    view: '<div class="root">根路由 <kylin-outlet></kylin-outlet></div>',
+                    view: '<div class="root">根路由 <autospark-outlet></autospark-outlet></div>',
                     children: [
                         {
                             name: "child",
@@ -128,17 +128,17 @@ describe("KylinRouter 递归渲染测试", () => {
                 routes: {
                     name: "root",
                     path: "/",
-                    view: '<div class="root">根 <kylin-outlet></kylin-outlet></div>',
+                    view: '<div class="root">根 <autospark-outlet></autospark-outlet></div>',
                     children: [
                         {
                             name: "level1",
                             path: "level1",
-                            view: '<div class="level1">一级 <kylin-outlet></kylin-outlet></div>',
+                            view: '<div class="level1">一级 <autospark-outlet></autospark-outlet></div>',
                             children: [
                                 {
                                     name: "level2",
                                     path: "level2",
-                                    view: '<div class="level2">二级 <kylin-outlet></kylin-outlet></div>',
+                                    view: '<div class="level2">二级 <autospark-outlet></autospark-outlet></div>',
                                     children: [
                                         {
                                             name: "level3",
@@ -186,13 +186,13 @@ describe("KylinRouter 递归渲染测试", () => {
             // 等待渲染完成
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const outlet = host.querySelector("kylin-outlet");
+            const outlet = host.querySelector("autospark-outlet");
             expect(outlet).not.toBeNull();
         });
 
         it("根路由已有 outlet 时不应该重复创建", async () => {
             // 预先插入 outlet
-            const existingOutlet = document.createElement("kylin-outlet");
+            const existingOutlet = document.createElement("autospark-outlet");
             host.appendChild(existingOutlet);
 
             router = await createRouter(host, {
@@ -208,7 +208,7 @@ describe("KylinRouter 递归渲染测试", () => {
             // 等待渲染完成
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const outlets = host.querySelectorAll("kylin-outlet");
+            const outlets = host.querySelectorAll("autospark-outlet");
             expect(outlets.length).toBe(1);
         });
 
@@ -217,7 +217,7 @@ describe("KylinRouter 递归渲染测试", () => {
                 routes: {
                     name: "root",
                     path: "/",
-                    view: '<div class="root">根 <kylin-outlet></kylin-outlet></div>',
+                    view: '<div class="root">根 <autospark-outlet></autospark-outlet></div>',
                     children: [
                         {
                             name: "child",
@@ -263,7 +263,7 @@ describe("KylinRouter 递归渲染测试", () => {
             if (rootRoute && rootRoute.el) {
                 const outlet = rootRoute.el.deref();
                 expect(outlet).not.toBeNull();
-                expect(outlet?.tagName.toLowerCase()).toBe("kylin-outlet");
+                expect(outlet?.tagName.toLowerCase()).toBe("autospark-outlet");
             }
         });
 
@@ -272,7 +272,7 @@ describe("KylinRouter 递归渲染测试", () => {
                 routes: {
                     name: "root",
                     path: "/",
-                    view: '<div class="root">根 <kylin-outlet></kylin-outlet></div>',
+                    view: '<div class="root">根 <autospark-outlet></autospark-outlet></div>',
                     children: [
                         {
                             name: "child",
@@ -301,7 +301,7 @@ describe("KylinRouter 递归渲染测试", () => {
                     if (route.el) {
                         const outlet = route.el.deref();
                         expect(outlet).not.toBeNull();
-                        expect(outlet?.tagName.toLowerCase()).toBe("kylin-outlet");
+                        expect(outlet?.tagName.toLowerCase()).toBe("autospark-outlet");
                     }
                 }
             }
@@ -328,14 +328,14 @@ describe("KylinRouter 递归渲染测试", () => {
 
             // 立即检查，应该有 loading
             await new Promise((resolve) => setTimeout(resolve, 10));
-            let loadingElement = host.querySelector("kylin-loading[data-role='loading-indicator']");
+            let loadingElement = host.querySelector("autospark-loading[data-role='loading-indicator']");
             expect(loadingElement).not.toBeNull();
 
             // 等待加载完成
             await new Promise((resolve) => setTimeout(resolve, 150));
 
             // loading 应该被替换为实际内容
-            loadingElement = host.querySelector("kylin-loading[data-role='loading-indicator']");
+            loadingElement = host.querySelector("autospark-loading[data-role='loading-indicator']");
             expect(loadingElement).toBeNull();
 
             const contentElement = host.querySelector(".content");
@@ -347,7 +347,7 @@ describe("KylinRouter 递归渲染测试", () => {
                 routes: {
                     name: "root",
                     path: "/",
-                    view: '<div class="root">根 <kylin-outlet></kylin-outlet></div>',
+                    view: '<div class="root">根 <autospark-outlet></autospark-outlet></div>',
                     children: [
                         {
                             name: "slow-child",
@@ -368,11 +368,11 @@ describe("KylinRouter 递归渲染测试", () => {
             // 等待一下，检查子 outlet 的 loading
             await new Promise((resolve) => setTimeout(resolve, 10));
 
-            const parentOutlet = host.querySelector("kylin-outlet");
+            const parentOutlet = host.querySelector("autospark-outlet");
             expect(parentOutlet).not.toBeNull();
 
             if (parentOutlet) {
-                const childLoading = parentOutlet.querySelector("kylin-loading[data-role='loading-indicator']");
+                const childLoading = parentOutlet.querySelector("autospark-loading[data-role='loading-indicator']");
                 expect(childLoading).not.toBeNull();
             }
 
@@ -405,7 +405,7 @@ describe("KylinRouter 递归渲染测试", () => {
             // 等待加载完成
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const loadingElement = host.querySelector("kylin-loading[data-role='loading-indicator']");
+            const loadingElement = host.querySelector("autospark-loading[data-role='loading-indicator']");
             expect(loadingElement).toBeNull();
         });
 
@@ -414,7 +414,7 @@ describe("KylinRouter 递归渲染测试", () => {
                 routes: {
                     name: "root",
                     path: "/",
-                    view: '<div class="root">根 <kylin-outlet></kylin-outlet></div>',
+                    view: '<div class="root">根 <autospark-outlet></autospark-outlet></div>',
                     children: [
                         {
                             name: "error-child",
@@ -455,7 +455,7 @@ describe("KylinRouter 递归渲染测试", () => {
                 return {
                     name: `level-${depth}`,
                     path: `level-${depth}`,
-                    view: `<div class="level-${depth}">层级 ${depth} <kylin-outlet></kylin-outlet></div>`,
+                    view: `<div class="level-${depth}">层级 ${depth} <autospark-outlet></autospark-outlet></div>`,
                     children: [createNestedRoutes(depth - 1)],
                 };
             };
@@ -466,7 +466,7 @@ describe("KylinRouter 递归渲染测试", () => {
                 routes: {
                     name: "root",
                     path: "/",
-                    view: '<div class="root">根 <kylin-outlet></kylin-outlet></div>',
+                    view: '<div class="root">根 <autospark-outlet></autospark-outlet></div>',
                     children: [routes],
                 },
             });
@@ -534,7 +534,7 @@ describe("KylinRouter 递归渲染测试", () => {
                 routes: {
                     name: "root",
                     path: "/",
-                    view: '<div class="root">根 <kylin-outlet></kylin-outlet></div>',
+                    view: '<div class="root">根 <autospark-outlet></autospark-outlet></div>',
                     children: [
                         {
                             name: "route1",

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>x-container · 自定义断点表与 .fluid</title>
+    <title>x-container · 自定义阈值与 max-width</title>
     <script src="/autospark/autospark.js"></script>
     <link rel="stylesheet" href="/autospark/bulma.min.css" />
     <style>
@@ -23,25 +23,25 @@
   <body style="overflow:auto">
     <div class="demo-app section">
       <div class="block has-text-grey is-size-7">
-        上：自定义两表（阈值 sm:600 / lg:900，max-width sm:560px / lg:840px——<strong>整表替换</strong>，
-        与内置 576/992 · 540/960 不同）；下：<code>.fluid</code> 恒通栏、无 max-width 约束，
-        档位判定与写回照常（纯状态探针用法）。
+        引擎级自定义阈值（<code>options.viewport.breakpoints</code>：sm:600 / lg:900——engine 级唯一真相，
+        档位判定与容器 media 样式同源）；容器实例自定义 max-width（sm:560px / lg:840px——<strong>整表替换</strong>）；
+        下：<code>.fluid</code> 恒通栏、无 max-width 约束（纯状态探针用法）。
       </div>
       <div class="tags has-addons mb-2">
-        <span class="tag is-dark">自定义表档位</span>
-        <span class="tag is-link">{{ tier }}</span>
-        <span class="tag is-dark">.fluid 档位</span>
-        <span class="tag is-info">{{ tier2 }}</span>
+        <span class="tag is-dark">全局档位</span>
+        <span class="tag is-link">{{ $.viewport }}</span>
       </div>
-      <div class="vp" x-container="tier" x-container-options="{ breakpoints:{ sm:600, lg:900 }, maxWidths:{ sm:'560px', lg:'840px' } }">
-        <p class="title is-6 has-text-centered">自定义断点表容器</p>
+      <div class="vp" x-container x-container-options="{ maxWidths:{ sm:'560px', lg:'840px' } }">
+        <p class="title is-6 has-text-centered">自定义 max-width 容器（阈值走 options.viewport）</p>
       </div>
-      <div class="vp fluid mt-4" x-container.fluid="tier2">
-        <p class="title is-6 has-text-centered">.fluid 通栏容器（恒 100%，档位照判）</p>
+      <div class="vp fluid mt-4" x-container.fluid>
+        <p class="title is-6 has-text-centered">.fluid 通栏容器（恒 100%，data-breakpoint 照常）</p>
       </div>
     </div>
     <script>
-      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), { tier: "", tier2: "" });
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {}, {
+        viewport: { breakpoints: { sm: 600, lg: 900 } },
+      });
     </script>
   </body>
 </html>

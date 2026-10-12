@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Kylin Router - 钩子系统示例</title>
+        <title>AutoSpark Router - 钩子系统示例</title>
         <style>
             body {
                 font-family:
@@ -177,16 +177,16 @@
     <body>
         <div id="app">
             <nav>
-                <kylin-link to="/">首页</kylin-link>
-                <kylin-link to="/profile">个人资料</kylin-link>
-                <kylin-link to="/admin">管理员面板</kylin-link>
-                <kylin-link to="/users/123">用户详情</kylin-link>
-                <kylin-link to="/redirect">重定向测试</kylin-link>
-                <kylin-link to="/async">异步测试</kylin-link>
+                <autospark-link to="/">首页</autospark-link>
+                <autospark-link to="/profile">个人资料</autospark-link>
+                <autospark-link to="/admin">管理员面板</autospark-link>
+                <autospark-link to="/users/123">用户详情</autospark-link>
+                <autospark-link to="/redirect">重定向测试</autospark-link>
+                <autospark-link to="/async">异步测试</autospark-link>
             </nav>
 
             <div class="content">
-                <kylin-outlet></kylin-outlet>
+                <div x-outlet></div>
             </div>
 
             <div class="log">
@@ -220,7 +220,8 @@
         </div>
 
         <script type="module">
-            import { KylinRouter } from "/src/index.js";
+            import { AutoSpark } from "autospark";
+            import { AutoSparkRouter } from "/src/index.js";
 
             // 模拟认证状态
             let isAuthenticated = false;
@@ -233,7 +234,7 @@
                     path: "/",
                     title: "首页",
                     meta: {
-                        description: "欢迎使用 Kylin Router 钩子系统示例",
+                        description: "欢迎使用 AutoSpark Router 钩子系统示例",
                     },
                     renderEach: (to, from, next) => {
                         // 数据预加载示例
@@ -244,12 +245,12 @@
                     },
                     view: `
                     <div>
-                        <h1>🎉 欢迎来到 Kylin Router 钩子系统示例</h1>
+                        <h1>🎉 欢迎来到 AutoSpark Router 钩子系统示例</h1>
                         <div class="info">
                             <strong>📅 当前时间：</strong> {{currentTime}}<br>
                             <strong>👥 访问人数：</strong> {{visitorCount}}
                         </div>
-                        <p>本示例演示了 Kylin Router 的完整钩子系统功能：</p>
+                        <p>本示例演示了 AutoSpark Router 的完整钩子系统功能：</p>
                         <ul>
                             <li><strong>🔒 beforeEach：</strong> 全局前置守卫，用于认证检查和日志记录</li>
                             <li><strong>📦 renderEach：</strong> 数据预加载，在渲染前获取页面所需数据</li>
@@ -474,7 +475,10 @@
 
             // 创建路由实例
             const app = document.getElementById("app");
-            const router = new KylinRouter(app, {
+            // 注入模式：应用创建并拥有 engine 实例（vite 源码场景无 IIFE 全局，须显式注入）
+            const engine = new AutoSpark(app, {});
+            const router = new AutoSparkRouter(app, {
+                engine,
                 routes: routes,
                 mode: "history",
                 debug: true,
@@ -499,7 +503,7 @@
             // 全局 renderEach：页面标题设置
             router.hooks.add("renderEach", (to, from, next) => {
                 if (to.meta?.title) {
-                    document.title = `${to.meta.title} - Kylin Router 示例`;
+                    document.title = `${to.meta.title} - AutoSpark Router 示例`;
                 }
                 next();
             });
@@ -598,7 +602,7 @@
 
                 // 简单的模板渲染
                 if (route && route.view) {
-                    const outlet = app.querySelector("kylin-outlet");
+                    const outlet = app.querySelector("[data-autospark-outlet]");
                     if (outlet) {
                         let html = route.view;
 

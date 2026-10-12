@@ -38,6 +38,7 @@ import { removeOverlayContainer } from "../features/overlay/container";
 import { TooltipManager } from "../features/tooltip/manager";
 import type { TooltipAPI } from "../features/tooltip/types";
 import { NotificationManager } from "../features/notifications/manager";
+import { ViewportManager } from "../features/viewport/manager";
 import { BUILTIN_COMPONENTS } from "../components";
 import { ComponentInstance } from "../features/component/component-instance";
 
@@ -130,6 +131,8 @@ export class AutoSpark<
     readonly tooltipManager: TooltipManager;
     /** 全局通知管理单元（ADR-0071）：`extends Map<string, SessionImpl>`（键恒为 string id，可枚举全部存活记录——`notifications.sessions` 即本表正名视图）；公共入口经 `add/confirm/progressbar/load/save/...` / 本表 */
     readonly notifications: NotificationManager;
+    /** 全局视口档位管理单元（ADR-0105）：跨档写 `state.$.viewport` + 根元素 `data-viewport`；`options.viewport: false` 时整体短路 */
+    readonly viewport: ViewportManager;
     /** 原始模板（深克隆根元素，保留指令属性作为编译只读输入） */
     readonly template: HTMLElement;
     /** 每个渲染元素对应的 Scope（销毁时遍历清理其 watcher） */
@@ -217,6 +220,10 @@ export class AutoSpark<
         // 构造即短路——add() warn + no-op）；配套 action（toast/confirm/task）的 handle 闭包
         // 经 engine 引用惰性触达本管理器，无初始化顺序约束
         this.notifications = new NotificationManager(this);
+        // 全局视口档位（ADR-0105）：构造期同步求值并写 `state.$.viewport` 初值 + 根元素
+        // data-viewport——须早于 autostart compile（x-container 编译期 watch $.viewport、
+        // 首值即档位真值，无首渲染空档）；viewport: false 时构造即短路
+        this.viewport = new ViewportManager(this);
         if (this.options.autostart) {
             this.compile();
         }
@@ -1356,6 +1363,8 @@ export class AutoSpark<
         // 通知收口（ADR-0071 决策 10/18）：全部立即销毁（无动画——离场的延迟移除已被上方
         // animate.dispose 同步完成）+ 通知容器整体移除 + 持久化终态 flush（keepalive 兜底）
         this.notifications.dispose();
+        // 视口收口（ADR-0105）：反注册 mql + 摘根元素 data-viewport（$.viewport 残留——destroy 不清保留键）
+        this.viewport.dispose();
         this.el.replaceChildren();
         // 移除 engine 根标识（ADR-0060，与构造期打点对称）
         this.el.removeAttribute("data-autospark");

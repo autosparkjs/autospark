@@ -517,23 +517,23 @@ li[data-x-tree-row][data-x-tree-error] .x-tree-type-ico{color:#e5484d}
         }\r
     </style>\r
 </div>\r
-`;var uc=`<div x-define="autospark.error" class="as-error">\r
-    <style global id="autospark-error">\r
-    .as-error { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 24px; color: #888; font-size: 14px; }\r
-    .as-error-icon { display: inline-flex; width: 28px; height: 28px; color: #c0c4cc; }\r
-    .as-error-message { text-align: center; line-height: 1.5; word-break: break-word; }\r
-    .as-error-actions { display: flex; gap: 8px; margin-top: 4px; }\r
-    .as-error-btn { padding: 4px 16px; border: 1px solid #dcdfe6; border-radius: 6px; background: #fff; color: #606266; font-size: 13px; cursor: pointer; transition: all 0.15s; }\r
-    .as-error-btn:hover { border-color: #c0c4cc; color: #409eff; }\r
-    </style>\r
-    <span class="as-error-icon" x-show="icon" x-icon="icon"></span>\r
-    <div class="as-error-message">{{ message }}</div>\r
-    <div class="as-error-actions">\r
-        <button type="button" class="as-error-btn" x-show="hasRetry" @click="retry">\u91CD\u8BD5</button>\r
-        <button type="button" class="as-error-btn" x-show="hasClose" @click="close">\u5173\u95ED</button>\r
-        <button type="button" class="as-error-btn" x-show="hasBack" @click="back">\u8FD4\u56DE</button>\r
-    </div>\r
-</div>\r
+`;var uc=`<div x-define="autospark.error" class="as-error">
+    <style global id="autospark-error">
+    .as-error { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 24px; color: #888; font-size: 14px; }
+    .as-error-icon { display: inline-flex; width: 28px; height: 28px; color: #c0c4cc; }
+    .as-error-message { text-align: center; line-height: 1.5; word-break: break-word; }
+    .as-error-actions { display: flex; gap: 8px; margin-top: 4px; }
+    .as-error-btn { padding: 4px 16px; border: 1px solid #dcdfe6; border-radius: 6px; background: #fff; color: #606266; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+    .as-error-btn:hover { border-color: #c0c4cc; color: #409eff; }
+    </style>
+    <span class="as-error-icon" x-show="icon" x-icon="icon"></span>
+    <div class="as-error-message">{{ message }}</div>
+    <div class="as-error-actions">
+        <button type="button" class="as-error-btn" x-show="hasRetry" @click="retry">\u91CD\u8BD5</button>
+        <button type="button" class="as-error-btn" x-show="hasClose" @click="close">\u5173\u95ED</button>
+        <button type="button" class="as-error-btn" x-show="hasBack" @click="back">\u8FD4\u56DE</button>
+    </div>
+</div>
 `;var hc=`<div class="autospark-popover" x-define="autospark.popover">\r
     <div class="autospark-popover-content" x-slot></div>\r
     <div class="autospark-overlay-arrow"></div>\r
@@ -608,6 +608,14 @@ li[data-x-tree-row][data-x-tree-error] .x-tree-type-ico{color:#e5484d}
                 // cancel/close \u4E0D\u5165\u72B6\u6001\u673A\uFF1A\u5B83\u4EEC\u7684\u7EC8\u6001\u662F\u5361\u7247\u4E0D\u53EF\u89C1\uFF0C\u4E0D\u662F\u4EFB\u52A1\u6001\r
                 state: "pending",\r
                 holdOpen: true,\r
+                // \u63A7\u5236\u952E\u9ED8\u8BA4\u503C\uFF08canCancel \u7F3A\u7701 true\u2014\u2014\u53D6\u6D88\u662F\u4EFB\u52A1\u5361\u7684\u57FA\u672C\u51FA\u53E3\uFF1B\r
+                // canStart/canPause/canStop \u7F3A\u7701 false\uFF09\uFF1A\u987B\u5728 data \u57DF\u7269\u5316\u2014\u2014\u63A7\u5236\u94AE\u5BB9\u5668\u7684\r
+                // x-show \u8868\u8FBE\u5F0F\u8BFB\u53D6\u8FD9\u4E9B\u952E\uFF0C\u672A\u7269\u5316\u952E\u53C2\u4E0E\u8868\u8FBE\u5F0F\u4F1A\u4F7F\u6C42\u503C\u629B\u9519\uFF08\u6574\u5BB9\u5668\u4E0D\u663E\u793A\uFF09\uFF1B\r
+                // props \u6CE8\u5165\uFF08initialData\uFF09\u540E\u8986\u76D6\uFF08\u542B\u663E\u5F0F canCancel: false\uFF09\r
+                canStart: false,\r
+                canPause: false,\r
+                canStop: false,\r
+                canCancel: true,\r
             }),\r
             methods: {\r
                 // \u5F00\u59CB\uFF08ADR-0104\uFF09\uFF1A\u624B\u52A8\u95E8\u63A7\uFF08canStart\uFF09\u7684\u542F\u52A8\u89E6\u53D1\u2014\u2014pending \u2192 running +\r
@@ -632,6 +640,13 @@ li[data-x-tree-row][data-x-tree-error] .x-tree-type-ico{color:#e5484d}
                     if (this.data.state !== "paused") return;\r
                     this.data.state = "running";\r
                     this.engine.notifications._emitControlAction(this.props.id, "resume");\r
+                },\r
+                // \u6682\u505C/\u6062\u590D\u5207\u6362\uFF08\u6A21\u677F\u6309\u94AE\u7528\uFF09\uFF1A@click \u4EC5\u88F8\u6807\u8BC6\u7B26/\u6807\u8BC6\u7B26\u8C03\u7528\u5F62\u6001\u7ECF getMethod\r
+                // \u67E5\u627E\u7EC4\u4EF6 method\u2014\u2014\u4E09\u5143\u8868\u8FBE\u5F0F\u5F62\u6001\uFF08\`state === 'paused' ? resume() : pause()\`\uFF09\r
+                // \u8D70\u8868\u8FBE\u5F0F\u515C\u5E95\u8DEF\u5F84\uFF08with \u6570\u636E\u89C6\u56FE\u6C42\u503C\uFF09\uFF0Cmethods \u4E0D\u5728\u6570\u636E\u89C6\u56FE\u5185\uFF0C\u89E3\u6790\u5FC5\u5931\u8D25\r
+                togglePause() {\r
+                    if (this.data.state === "paused") this.resume();\r
+                    else this.pause();\r
                 },\r
                 // \u505C\u6B62\uFF08ADR-0104 \u8BED\u4E49\u5206\u91CE\uFF09\uFF1Aabort + \u300C\u5DF2\u505C\u6B62\u300D\u7EC8\u6001\u7559\u5361\uFF08\u8FDB\u5EA6\u5B9A\u683C\u3001\r
                 // closeWhenDone \u5BF9 stopped \u540C\u751F\u6548\uFF09\u2014\u2014\u4E0E\u53D6\u6D88\uFF08abort + \u7ACB\u5373\u9690\u85CF\uFF09\u7684\u5206\u91CE\r
@@ -794,7 +809,7 @@ li[data-x-tree-row][data-x-tree-error] .x-tree-type-ico{color:#e5484d}
             type="button"\r
             x-show="canPause && (state === 'running' || state === 'paused')"\r
             x-text="state === 'paused' ? '\u6062\u590D' : '\u6682\u505C'"\r
-            @click="state === 'paused' ? resume() : pause()"\r
+            @click="togglePause()"\r
         ></button>\r
         <button\r
             class="autospark-notification-op"\r

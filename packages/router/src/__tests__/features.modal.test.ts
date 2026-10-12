@@ -12,7 +12,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { Modal } from "@/features/modal";
-import type { KylinRouteItem, ModalConfig, ModalState, ModalStackItem } from "@/types";
+import type { AutoSparkRouteItem, ModalConfig, ModalState, ModalStackItem } from "@/types";
 
 /**
  * 创建测试用的 DOM 环境
@@ -72,7 +72,7 @@ class MockRouter {
     // 模拟 routes.match 方法
     routes = {
         match: (path: string) => {
-            const routes: Record<string, KylinRouteItem> = {
+            const routes: Record<string, AutoSparkRouteItem> = {
                 "/modal/basic": {
                     name: "basic-modal",
                     path: "/modal/basic",
@@ -165,7 +165,7 @@ describe("Modal Feature", () => {
         }
         // 清理可能创建的模态样式
         // @ts-ignore
-        const style = document.querySelector("#kylin-modal-styles");
+        const style = document.querySelector("#autospark-modal-styles");
         if (style) {
             style.remove();
         }
@@ -176,12 +176,12 @@ describe("Modal Feature", () => {
             mockRouter._createModalContainer();
 
             expect(mockRouter.modalContainer).not.toBeNull();
-            expect(mockRouter.modalContainer?.className).toBe("kylin-modals");
+            expect(mockRouter.modalContainer?.className).toBe("autospark-modals");
         });
 
         it("应该复用已存在的模态容器", () => {
             const existingContainer = document.createElement("div");
-            existingContainer.className = "kylin-modals";
+            existingContainer.className = "autospark-modals";
             container.appendChild(existingContainer);
 
             mockRouter._createModalContainer();
@@ -192,17 +192,17 @@ describe("Modal Feature", () => {
         it("应该注入模态样式", () => {
             mockRouter._injectModalStyles();
 
-            const style = document.querySelector("#kylin-modal-styles");
+            const style = document.querySelector("#autospark-modal-styles");
             expect(style).not.toBeNull();
-            expect(style?.textContent).toContain(".kylin-modals");
-            expect(style?.textContent).toContain(".kylin-modal-backdrop");
-            expect(style?.textContent).toContain(".kylin-modal-content");
+            expect(style?.textContent).toContain(".autospark-modals");
+            expect(style?.textContent).toContain(".autospark-modal-backdrop");
+            expect(style?.textContent).toContain(".autospark-modal-content");
         });
     });
 
     describe("模态配置解析", () => {
         it("应该正确解析布尔类型的模态配置", () => {
-            const route: KylinRouteItem = {
+            const route: AutoSparkRouteItem = {
                 name: "test",
                 path: "/test",
                 view: document.createElement("div"),
@@ -220,7 +220,7 @@ describe("Modal Feature", () => {
                 closeOnBackdropClick: true,
                 closeOnEsc: true,
             };
-            const route: KylinRouteItem = {
+            const route: AutoSparkRouteItem = {
                 name: "test",
                 path: "/test",
                 view: document.createElement("div"),
@@ -232,7 +232,7 @@ describe("Modal Feature", () => {
         });
 
         it("应该为非模态路由返回 null", () => {
-            const route: KylinRouteItem = {
+            const route: AutoSparkRouteItem = {
                 name: "test",
                 path: "/test",
                 view: document.createElement("div"),
@@ -252,7 +252,7 @@ describe("Modal Feature", () => {
         });
 
         it("应该直接使用路由对象", async () => {
-            const routeItem: KylinRouteItem = {
+            const routeItem: AutoSparkRouteItem = {
                 name: "test",
                 path: "/test",
                 view: document.createElement("div"),
@@ -279,7 +279,7 @@ describe("Modal Feature", () => {
             const backdrop = mockRouter._createBackdrop(config);
 
             expect(backdrop).toBeDefined();
-            expect(backdrop?.className).toBe("kylin-modal-backdrop");
+            expect(backdrop?.className).toBe("autospark-modal-backdrop");
         });
 
         it("应该为 backdrop: false 不创建遮罩", () => {
@@ -322,7 +322,7 @@ describe("Modal Feature", () => {
             // 当 closeOnBackdropClick 为 false 时，backdrop 不会有点击事件监听器
             // 所以我们通过检查元素的事件监听器来验证
             // 但由于无法直接检查事件监听器，我们只验证 backdrop 被创建了
-            expect(backdrop?.className).toBe("kylin-modal-backdrop");
+            expect(backdrop?.className).toBe("autospark-modal-backdrop");
         });
     });
 
@@ -348,7 +348,7 @@ describe("Modal Feature", () => {
             expect(mockRouter.currentModal).toBeNull();
 
             const stackItem: ModalStackItem = {
-                route: {} as KylinRouteItem,
+                route: {} as AutoSparkRouteItem,
                 element: document.createElement("div"),
                 timestamp: Date.now(),
             };
@@ -368,7 +368,7 @@ describe("Modal Feature", () => {
             // 尝试超过最大层数
             for (let i = 0; i < 5; i++) {
                 mockRouter.modalState.stack.push({
-                    route: {} as KylinRouteItem,
+                    route: {} as AutoSparkRouteItem,
                     element: document.createElement("div"),
                     timestamp: Date.now(),
                 });
@@ -380,12 +380,12 @@ describe("Modal Feature", () => {
 
         it("应该正确更新当前模态", () => {
             const item1: ModalStackItem = {
-                route: {} as KylinRouteItem,
+                route: {} as AutoSparkRouteItem,
                 element: document.createElement("div"),
                 timestamp: Date.now(),
             };
             const item2: ModalStackItem = {
-                route: {} as KylinRouteItem,
+                route: {} as AutoSparkRouteItem,
                 element: document.createElement("div"),
                 timestamp: Date.now() + 1,
             };
@@ -405,7 +405,7 @@ describe("Modal Feature", () => {
     describe("事件触发", () => {
         it("应该在打开模态时触发 modal/open 事件", async () => {
             mockRouter._initModals();
-            const route: KylinRouteItem = {
+            const route: AutoSparkRouteItem = {
                 name: "test",
                 path: "/test",
                 view: document.createElement("div"),
@@ -450,8 +450,8 @@ describe("Modal Feature", () => {
             mockRouter._initModals();
 
             expect(mockRouter.modalContainer).not.toBeNull();
-            expect(document.querySelector(".kylin-modals")).not.toBeNull();
-            expect(document.querySelector("#kylin-modal-styles")).not.toBeNull();
+            expect(document.querySelector(".autospark-modals")).not.toBeNull();
+            expect(document.querySelector("#autospark-modal-styles")).not.toBeNull();
         });
     });
 
@@ -463,7 +463,7 @@ describe("Modal Feature", () => {
         });
 
         it("应该为非模态路由抛出错误", async () => {
-            const route: KylinRouteItem = {
+            const route: AutoSparkRouteItem = {
                 name: "test",
                 path: "/test",
                 view: document.createElement("div"),
@@ -481,7 +481,7 @@ describe("Modal Feature", () => {
             const template = document.createElement("template");
             template.innerHTML = "<div>Modal Content</div>";
 
-            const route: KylinRouteItem = {
+            const route: AutoSparkRouteItem = {
                 name: "test",
                 path: "/test",
                 view: template,
@@ -490,7 +490,7 @@ describe("Modal Feature", () => {
 
             const element = await mockRouter._createModalElement(route);
 
-            expect(element.className).toBe("kylin-modal-content");
+            expect(element.className).toBe("autospark-modal-content");
             expect(element.innerHTML).toContain("Modal Content");
         });
 
@@ -498,7 +498,7 @@ describe("Modal Feature", () => {
             const div = document.createElement("div");
             div.textContent = "Direct Element";
 
-            const route: KylinRouteItem = {
+            const route: AutoSparkRouteItem = {
                 name: "test",
                 path: "/test",
                 view: div,
@@ -507,7 +507,7 @@ describe("Modal Feature", () => {
 
             const element = await mockRouter._createModalElement(route);
 
-            expect(element.className).toBe("kylin-modal-content");
+            expect(element.className).toBe("autospark-modal-content");
             expect(element.contains(div)).toBe(true);
         });
     });
@@ -515,7 +515,7 @@ describe("Modal Feature", () => {
     describe("与普通路由共存", () => {
         it("模态路由不应该改变 URL", () => {
             const initialURL = window.location.href;
-            mockRouter._updateModalURL({} as KylinRouteItem);
+            mockRouter._updateModalURL({} as AutoSparkRouteItem);
 
             expect(window.location.href).toBe(initialURL);
         });

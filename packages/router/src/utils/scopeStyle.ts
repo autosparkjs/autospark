@@ -5,8 +5,10 @@
  * - 解析 HTML 中的 <style> 标签
  * - 识别 scoped / global 属性
  * - 为 scoped 样式添加 #hash 前缀
- * - 解析 v-bind(dataProperty) 并转换为 CSS 变量
  * - 将所有 <style> 标签移到 HTML 内容最后
+ *
+ * 历史注记：v-bind(expr) → CSS 变量的转换已随 Alpine 桥退役（ADR-0002）——
+ * CSS 变量的响应式写入请改用 engine 的 :style / x-bind 指令。
  *
  * @module utils/scopeStyle
  */
@@ -14,17 +16,6 @@
 export interface ScopeStyleResult {
     /** 转换后的 HTML */
     html: string;
-    /** 收集的 v-bind 变量名 */
-    vBindVars: string[];
-}
-
-/**
- * 驼峰命名转短横命名
- * @example titleColor -> title-color
- * @example theme.primaryColor -> theme.primary-color
- */
-function camelToKebab(str: string): string {
-    return str.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 }
 
 /**
@@ -60,50 +51,13 @@ function transformSelector(selector: string, scopeId: string): string {
 }
 
 /**
- * 解析 v-bind 表达式，提取变量名
- * @param expression - v-bind 表达式，如 "titleColor" 或 "theme.primary"
- * @returns 变量名
- */
-function parseVBindExpression(expression: string): string {
-    // 移除可能的空格和引号
-    const cleaned = expression.trim().replace(/^['"]|['"]$/g, "");
-    return cleaned;
-}
-
-/**
- * 转换 v-bind 为 CSS var()
- * @param value - CSS 属性值
- * @param vBindVars - 收集 v-bind 变量的数组
- * @returns 转换后的值
- */
-function transformVBind(value: string, vBindVars: string[]): string {
-    // 匹配 v-bind(xxx) 或 v-bind(xxx, defaultValue)
-    const vBindRegex = /v-bind\s*\(\s*([^),]+)(?:\s*,\s*([^)]+))?\s*\)/g;
-
-    return value.replace(vBindRegex, (_, varExpr, defaultValue) => {
-        const varName = parseVBindExpression(varExpr);
-        vBindVars.push(varName);
-
-        // 转换为短横命名
-        const cssVarName = `--${camelToKebab(varName)}`;
-        return defaultValue ? `var(${cssVarName}, ${defaultValue.trim()})` : `var(${cssVarName})`;
-    });
-}
-
-/**
  * 转换 CSS 规则
  * @param css - CSS 规则文本
  * @param scopeId - scope ID
  * @param isScoped - 是否为 scoped 样式
- * @param vBindVars - 收集 v-bind 变量的数组
  * @returns 转换后的 CSS
  */
-function transformCSS(
-    css: string,
-    scopeId: string,
-    isScoped: boolean,
-    vBindVars: string[],
-): string {
+function transformCSS(css: string, scopeId: string, isScoped: boolean): string {
     // global 样式不做转换
     if (!isScoped) {
         return css;
@@ -131,10 +85,7 @@ function transformCSS(
         // 转换选择器
         const transformedSelector = transformSelector(selector, scopeId);
 
-        // 转换 v-bind
-        const transformedDeclarations = transformVBind(declarations, vBindVars);
-
-        transformed.push(`${transformedSelector} { ${transformedDeclarations} }`);
+        transformed.push(`${transformedSelector} { ${declarations} }`);
     }
 
     return transformed.join(" ");
@@ -147,8 +98,6 @@ function transformCSS(
  * @returns 处理结果
  */
 export function scopeStyles(html: string, scopeId: string): ScopeStyleResult {
-    const vBindVars: string[] = [];
-
     // 匹配所有 <style> 标签
     const styleRegex = /<style(\s+[^>]*)?>([\s\S]*?)<\/style>/gi;
     const styles: Array<{ content: string; attrs: string; isScoped: boolean; isGlobal: boolean }> =
@@ -176,8 +125,8 @@ export function scopeStyles(html: string, scopeId: string): ScopeStyleResult {
     }
 
     // 转换样式
-    const transformedStyles = styles.map(({ content, attrs, isScoped, isGlobal }) => {
-        const transformedContent = transformCSS(content, scopeId, isScoped, vBindVars);
+    const transformedStyles = styles.map(({ content, attrs, isScoped }) => {
+        const transformedContent = transformCSS(content, scopeId, isScoped);
 
         // 移除 scoped 属性（已应用），保留 global 属性（用于标识）
         const cleanedAttrs = attrs
@@ -193,6 +142,5 @@ export function scopeStyles(html: string, scopeId: string): ScopeStyleResult {
 
     return {
         html: result,
-        vBindVars: [...new Set(vBindVars)], // 去重
     };
 }

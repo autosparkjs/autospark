@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loading 状态演示 - Kylin Router</title>
+    <title>Loading 状态演示 - AutoSpark Router</title>
     <script src="../../src/index.ts" type="module"></script>
     <style>
         body {
@@ -91,16 +91,20 @@
         </div>
 
         <div id="app">
-            <!-- Router 会自动创建 kylin-outlet -->
+            <!-- Router 缺省自建模式会在编译前自动插入 x-outlet 出口 -->
         </div>
     </div>
 
     <script type="module">
-        import { KylinRouter } from '../../src/router.ts';
+        import { AutoSpark } from "autospark";
+        import { AutoSparkRouter } from '../../src/router.ts';
 
         const app = document.getElementById('app');
 
-        const router = new KylinRouter(app, {
+        // 注入模式：应用创建并拥有 engine 实例（vite 源码场景无 IIFE 全局，须显式注入）
+        const engine = new AutoSpark(app, {});
+        const router = new AutoSparkRouter(app, {
+            engine,
             routes: {
                 name: 'root',
                 path: '/',
@@ -123,7 +127,7 @@
                                     <div class="page-content">
                                         <h2>🐢 慢速加载页面</h2>
                                         <p>这个页面模拟了2秒的加载时间。</p>
-                                        <p>您应该已经看到了<kylin-loading>组件的loading动画。</p>
+                                        <p>您应该已经看到了<autospark-loading>组件的loading动画。</p>
                                         <p>这就是loading状态的实际效果！</p>
                                     </div>
                                 `;
@@ -156,7 +160,7 @@
                                 <p>这是一个包含子路由的页面。</p>
                                 <div class="nested-outlet">
                                     <h3>子路由区域：</h3>
-                                    <kylin-outlet></kylin-outlet>
+                                    <div x-outlet></div>
                                 </div>
                             </div>
                         `,

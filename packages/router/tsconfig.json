@@ -31,6 +31,9 @@
         "paths": {
             "@/*": [
                 "./src/*"
+            ],
+            "autospark": [
+                "../engine/src/index.ts"
             ]
         }
     },

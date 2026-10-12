@@ -1,0 +1,9 @@
+<!-- 调试演示 - 用户详情页：路由数据（含 $params）经 autospark/data script 注入，x-text 激活 -->
+<div>
+    <h1>用户详情</h1>
+    <p>用户ID: <span x-text="$params.id"></span></p>
+    <p>来源: <span x-text="source"></span></p>
+</div>
+<script type="autospark/data">
+    { source: "静态默认来源" }
+</script>

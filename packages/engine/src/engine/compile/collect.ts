@@ -240,6 +240,7 @@ export function finalizeBoundaryOptions(
  *
  * 仅扫后代（`querySelectorAll("*")` 不含根——出口是组件作者的结构声明，写在根上无意义）。
  * 同名重复出口：首个胜 + warn + 剥除后者的标记属性（防 snapshot 编译期二次实例化 SlotDirective）。
+ * 动态名出口（裸 `x-slot` 且值非空，ADR-0107）不入清单——名运行期才可知。
  *
  * @returns 出口名列表（含 `"default"`）；无出口返回 undefined
  */
@@ -250,6 +251,11 @@ function collectOutletSlots(root: HTMLElement, warn: (msg: string) => void): str
         if (!(el instanceof HTMLElement)) continue;
         const marker = getSlotMarker(el);
         if (!marker) continue;
+        // 动态名出口（ADR-0107 决策十）：裸 x-slot 形态且值非空——名运行期求值，不入静态
+        // 清单、不参与同名去重、不剥标记属性（留给 SlotDirective 实例化时动态解析）
+        if (marker.name === "default" && (el.getAttribute(marker.attrName) ?? "").trim() !== "") {
+            continue;
+        }
         if (seen.has(marker.name)) {
             warn(`x-slot: 出口 "${marker.name}" 重复声明，后者已忽略（ADR-0056）`);
             el.removeAttribute(marker.attrName);

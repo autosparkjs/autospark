@@ -1,10 +1,10 @@
-import type { KylinRouter } from "@/router";
-import type { KylinRouteItem, KylinRouteDataOptions } from "@/types";
+import type { AutoSparkRouter } from "@/router";
+import type { AutoSparkRouteItem, AutoSparkRouteDataOptions } from "@/types";
 
 export function getRouteDataOptions(
-    route: KylinRouteItem,
-    router: KylinRouter,
-): KylinRouteDataOptions {
+    route: AutoSparkRouteItem,
+    router: AutoSparkRouter,
+): AutoSparkRouteDataOptions {
     return Object.assign(
         {},
         router.options.dataOptions,
@@ -13,5 +13,5 @@ export function getRouteDataOptions(
             : {
                   from: route.data,
               },
-    ) as KylinRouteDataOptions;
+    ) as AutoSparkRouteDataOptions;
 }

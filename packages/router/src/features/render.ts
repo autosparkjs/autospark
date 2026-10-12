@@ -1,31 +1,48 @@
 /**
  * Render 特性 - 路由渲染系统
  *
- * 提供完整的路由渲染功能，包括：
- * - 逐级嵌套路由渲染
+ * 提供完整的路由渲染功能：
+ * - 逐级嵌套路由渲染（autospark.outlet 组件出口，x-html.compile 编译激活远程模板）
  * - beforeRender/afterRender 钩子集成
- * - routeSlot 管理
- * - 错误处理和降级
- * - Outlet 查找和创建辅助方法
+ * - autospark/data script 数据注入：动态数据以 script 追加到视图 HTML 尾部，
+ *   engine 编译期 deepMerge（文档序后者覆盖）→ 动态数据覆盖远程模板自带的静态数据
+ * - keepalive：同 hash 视图复用（activateView 不触碰内容，运行态保留）；非缓存视图走临时容器
+ * - 错误处理和降级（错误页按所在通道渲染）
  *
  * @module features/render
  */
 
 import { findOutlet } from "@/utils/findOutlet";
-import type { KylinRouter } from "@/router";
-import type { KylinMatchedRouteItem, KylinRouteItem } from "@/types";
-import type { KylinOutlet } from "@/components/Outlet";
+import type { AutoSparkRouter } from "@/router";
+import type { AutoSparkMatchedRouteItem, AutoSparkRouteItem } from "@/types";
 import type { IAsyncSignal } from "asyncsignal";
-import { KylinRouterError } from "@/errors";
-import type { KylinSlot } from "@/components/Slot";
-import Alpine from "alpinejs";
-import { isEmptyObject } from "es-toolkit";
+import { AutoSparkRouterError } from "@/errors";
 
 type RouteSignalReuslt<T = any> = {
     value: T;
-    error?: KylinRouterError;
+    error?: AutoSparkRouterError;
     hash: string;
 };
+
+/** 视图挂载载荷（outlet 组件 methods 的入参契约） */
+interface ViewPayload {
+    hash: string;
+    html: string;
+    ready: boolean;
+}
+
+/** outlet 组件实例的最小驱动面（engine.getComponent 门面的子集） */
+interface OutletComponentHandle {
+    data: {
+        views: Array<{ hash: string; html: string; ready: boolean }>;
+        active: string;
+    };
+    methods: {
+        activateView(hash: string): void;
+        mountView(view: ViewPayload): void;
+        mountEphemeral(view: ViewPayload): void;
+    };
+}
 
 export class Render {
     private async _loadSignal(signal: IAsyncSignal | null) {
@@ -38,37 +55,47 @@ export class Render {
             data.value = result;
             data.hash = signal.meta.hash;
         } catch (e: any) {
-            data.error = new KylinRouterError((e as Error).message, e.status || 500);
+            data.error = new AutoSparkRouterError((e as Error).message, e.status || 500);
         }
         return data as RouteSignalReuslt;
     }
-    private async _loadView(matched: KylinMatchedRouteItem) {
-        const route = matched.route as Required<KylinRouteItem>;
+    private async _loadView(matched: AutoSparkMatchedRouteItem) {
+        const route = matched.route as Required<AutoSparkRouteItem>;
         return (await this._loadSignal(route._getView)) as RouteSignalReuslt;
     }
-    private async _loadData(matched: KylinMatchedRouteItem) {
-        const route = matched.route as Required<KylinRouteItem>;
+    private async _loadData(matched: AutoSparkMatchedRouteItem) {
+        const route = matched.route as Required<AutoSparkRouteItem>;
         return await this._loadSignal(route._getData);
     }
     private _routeReject(
-        this: KylinRouter,
+        this: AutoSparkRouter,
         error: any,
-        slot: KylinSlot,
-        toRoute: KylinMatchedRouteItem[],
+        outletComp: OutletComponentHandle | null,
+        viewHash: string,
+        keepAlive: boolean,
+        toRoute: AutoSparkMatchedRouteItem[],
     ) {
         this.hooks.runRouteError({
             error,
             to: toRoute,
         });
-        slot.reject(error, this._getErrorPage(error, toRoute));
+        if (!outletComp) return;
+        // 错误页按所在通道渲染（与原 slot.reject 行为对齐：错误内容挂在视图位置）
+        const page = this._getErrorPage(error, toRoute);
+        const payload: ViewPayload = { hash: viewHash, html: page.outerHTML, ready: true };
+        if (keepAlive) {
+            outletComp.methods.mountView(payload);
+        } else {
+            outletComp.methods.mountEphemeral(payload);
+        }
     }
     private _getCommonRouteIndex(
-        this: KylinRouter,
-        fromRoute: KylinMatchedRouteItem[] | undefined,
-        toRoute: KylinMatchedRouteItem[],
+        this: AutoSparkRouter,
+        fromRoute: AutoSparkMatchedRouteItem[] | undefined,
+        toRoute: AutoSparkMatchedRouteItem[],
     ): number {
         // 找出 fromRoute 和 toRoute 的公共路由层级
-        // 公共路由不需要重新渲染，直接激活已存在的视图容器即可
+        // 公共路由不需要重新渲染，保持已激活视图即可
         let commonRouteIndex = 0;
         if (fromRoute && fromRoute.length > 0) {
             for (let i = 0; i < Math.min(fromRoute.length, toRoute.length); i++) {
@@ -82,84 +109,79 @@ export class Render {
         this.logger.debug("{} -> 公共路由层数: {}", toRoute[0].id, commonRouteIndex);
         return commonRouteIndex;
     }
-    private _getRootOutlet(this: KylinRouter): KylinOutlet {
-        let outlet: KylinOutlet | null = findOutlet(this.host)[0];
-        if (!outlet) {
-            outlet = document.createElement("kylin-outlet");
-            this.host.appendChild(outlet);
-        }
-        return outlet;
-    }
-    private _injectRouteParams(slot: KylinSlot, matched: KylinMatchedRouteItem) {
-        const params = {
-            $params: matched.params || {},
-            $query: matched.query || {},
-            $state: matched.state || {},
-        };
-        if (!isEmptyObject(params)) {
-            slot.setAttribute("x-inject-data", JSON.stringify(params));
-        }
-    }
+
     /**
-     * 在指定的 Outlet 内部创建或复用 kylin-slot 元素
-     *
-     * @param outlet - 父级 Outlet 元素
-     * @param options - 配置选项
-     * @returns kylin-slot 元素
+     * 动态数据序列化为 `<script type="autospark/data">`（ADR-0032 契约）。
+     * engine 编译期对多脚本 deepMerge（文档序后者覆盖），router 写入的 script 追加在
+     * 视图 HTML 尾部 → 动态数据覆盖远程模板自带的同名静态键（Q6=A）。
+     * `<` 统一转义为 `<`，防止数据值中的 `</script>` 提前闭合标签。
      */
-    private _createSlot(
-        this: KylinRouter,
-        matched: KylinMatchedRouteItem,
-        outlet: KylinOutlet,
-        options: {
-            id: string; // slot ID，用于唯一标识和复用
-            url?: string; // 当前 URL，用于参数变化检测
-            keepAlive?: boolean; // 是否启用缓存，默认 true
-        },
-    ): KylinSlot {
-        const { id, url, keepAlive = true } = options;
-
-        // 查找已存在的 slot（基于 hash 复用）
-        const existingSlot = outlet.querySelector<KylinSlot>(`kylin-slot[id="${id}"]`);
-
-        // keepAlive=false 时删除旧 slot 并创建新的
-        if (existingSlot && !keepAlive) {
-            existingSlot.remove();
-        }
-
-        // keepAlive=true 时复用已存在的 slot（hash 相同即复用，忽略 url）
-        if (existingSlot && keepAlive) {
-            return existingSlot;
-        }
-
-        // 创建新 slot
-        const slot = document.createElement("kylin-slot") as KylinSlot;
-        slot.id = id;
-        if (url) slot.url = url;
-        slot.loading = true; // 渲染前显示 Loading
-        this._injectRouteParams(slot, matched);
-        outlet.appendChild(slot);
-
-        return slot;
+    private _buildDataScript(this: AutoSparkRouter, data: Record<string, any> | undefined): string {
+        if (!data || typeof data !== "object") return "";
+        const json = JSON.stringify(data).replace(/</g, "\\u003c");
+        return `<script type="autospark/data">${json}<\/script>`;
     }
+
     /**
-     * 执行渲染步骤 - 新的渲染系统
-     * 支持逐级嵌套路由渲染、beforeRender/afterRender 钩子、layout 布局等
+     * 取 outlet 宿主关联的组件驱动面（宿主未实例化时 error 返回 null）
+     */
+    private _getOutletComponent(
+        this: AutoSparkRouter,
+        outlet: HTMLElement,
+    ): OutletComponentHandle | null {
+        const comp = this.engine?.getComponent(outlet);
+        if (!comp) {
+            this.logger.error("{} -> outlet 宿主未关联组件实例，无法渲染视图", outlet.tagName);
+            return null;
+        }
+        return comp as unknown as OutletComponentHandle;
+    }
+
+    private _getRootOutlet(this: AutoSparkRouter): HTMLElement | null {
+        return findOutlet(this.host)[0] ?? null;
+    }
+
+    /**
+     * 在父出口的指定视图容器内查找嵌套出口（远程模板里的 x-outlet 经编译激活后落位于此）
+     */
+    private _findNestedOutlet(
+        this: AutoSparkRouter,
+        parentOutlet: HTMLElement,
+        viewHash: string,
+    ): HTMLElement | null {
+        const viewHost = parentOutlet.querySelector(`[data-view-hash="${viewHash}"]`);
+        if (!(viewHost instanceof HTMLElement)) return null;
+        return findOutlet(viewHost)[0] ?? null;
+    }
+
+    /**
+     * 执行渲染步骤
+     * 支持逐级嵌套路由渲染、beforeRender/afterRender 钩子
      * 包含并发控制，防止快速导航时渲染混乱
      */
     protected async _renderRoutes(
-        this: KylinRouter,
-        toRoute: KylinMatchedRouteItem[],
-        fromRoute: KylinMatchedRouteItem[] | undefined,
+        this: AutoSparkRouter,
+        toRoute: AutoSparkMatchedRouteItem[],
+        fromRoute: AutoSparkMatchedRouteItem[] | undefined,
         navSignal: AbortSignal,
     ): Promise<void> {
         let hasError: any;
-        let slot: KylinSlot | null | undefined;
+        let activeOutlet: HTMLElement | null = null;
         try {
-            let currentOutlet: KylinOutlet | null = this._getRootOutlet();
+            const rootOutlet = this._getRootOutlet();
+            if (!rootOutlet) {
+                // 自建 engine 模式已在 engineHost 兜底插入默认出口；走到这里说明
+                // 注入模式下应用模板未声明任何出口（x-outlet / x-component:autospark.outlet）
+                this.logger.error(
+                    "宿主内未找到 autospark.outlet 出口，跳过渲染（注入模式须在模板中声明出口元素）",
+                );
+                this.emit("render:after", { route: toRoute, error: hasError, slot: null });
+                return;
+            }
             this.emit("render:before", { route: toRoute });
             const commonRouteIndex: number = this._getCommonRouteIndex(fromRoute, toRoute);
             let preViewHash: string;
+            let currentOutlet: HTMLElement | null = rootOutlet;
             for (let i = 0; i < toRoute.length; i++) {
                 // 检查是否被导航中止
                 if (navSignal.aborted) {
@@ -170,36 +192,39 @@ export class Render {
                 const curRouteItem = matched.route;
 
                 if (curRouteItem) {
-                    currentOutlet =
-                        i === 0 ? this._getRootOutlet() : currentOutlet.findOutlet(preViewHash!);
+                    // 定位本层出口：首层 = 根出口；嵌套层 = 上一层激活视图容器内的出口。
+                    // x-html.compile 首渲 defer 至微任务（ADR-0017），先让出一个微任务等
+                    // 上一层视图内容编译就位，嵌套出口才存在于运行 DOM。
+                    if (i === 0) {
+                        currentOutlet = rootOutlet;
+                    } else {
+                        await Promise.resolve();
+                        currentOutlet = this._findNestedOutlet(currentOutlet!, preViewHash!);
+                    }
 
                     const viewHash = matched.hash;
                     preViewHash = viewHash;
 
-                    // 公共路由跳过逻辑：直接跳过，currentOutlet 保持不变
+                    // 公共路由跳过逻辑：视图已激活，直接跳过
                     if (i < commonRouteIndex) {
                         continue;
                     }
 
-                    // keepAlive 逻辑已在 _createSlot() 内部处理
-
                     // 检查 currentOutlet 是否有效
                     if (!currentOutlet) {
-                        this.logger.error("{} -> 无法找到 outlet，跳过渲染", toRoute[0].id);
+                        this.logger.error("{} -> 无法找到出口，跳过渲染", toRoute[0].id);
                         continue;
                     }
-                    // 是否指定了View参数，如果没有指定
-                    const hasView = matched.route?.view;
 
-                    // 创建 kylin-slot: 用于渲染视图内容或错误页
-                    slot = hasView
-                        ? this._createSlot(matched, currentOutlet, {
-                              id: viewHash,
-                              url: matched.url,
-                              keepAlive: curRouteItem.keepAlive !== false,
-                          })
-                        : null;
-                    this._lastViewSlot = slot;
+                    // 是否指定了View参数，如果没有指定
+                    const hasView = !!matched.route?.view;
+                    const keepAlive = curRouteItem.keepAlive !== false;
+                    const outletComp = hasView ? this._getOutletComponent(currentOutlet) : null;
+                    if (hasView) {
+                        this._lastViewSlot = currentOutlet;
+                        activeOutlet = currentOutlet;
+                    }
+
                     try {
                         // 检查导航是否被中止
                         if (navSignal.aborted) {
@@ -215,32 +240,83 @@ export class Render {
                         }
 
                         const view = await this._loadView(matched);
+
+                        // keepalive 复用判断：同 hash 视图已就绪 → 仅激活，不触碰内容（运行态保留）
+                        const existing =
+                            outletComp?.data.views.find(
+                                (v) => v.hash === viewHash && v.ready,
+                            ) ?? null;
+                        const isReuse = !!(keepAlive && existing);
+
+                        // 非复用：先落加载占位（内容就绪前显示 autospark-loading）
+                        if (!isReuse && outletComp && view) {
+                            const placeholder: ViewPayload = {
+                                hash: viewHash,
+                                html: "",
+                                ready: false,
+                            };
+                            if (keepAlive) {
+                                outletComp.methods.mountView(placeholder);
+                            } else {
+                                outletComp.methods.mountEphemeral(placeholder);
+                            }
+                        }
+                        if (outletComp) {
+                            outletComp.methods.activateView(viewHash);
+                        }
+
                         // 如果 view 为 null/undefined，即没有创建
                         if (view) {
                             if (view.error) {
-                                this._routeReject(view.error, slot!, toRoute);
+                                this._routeReject(
+                                    view.error,
+                                    outletComp,
+                                    viewHash,
+                                    keepAlive,
+                                    toRoute,
+                                );
                                 break;
                             } else {
                                 await this._runBeforeRender(
                                     fromRoute || [],
                                     toRoute,
-                                    slot!,
+                                    currentOutlet,
                                     data?.value,
                                 );
-                                slot?.resolve(view.value, data);
-                                slot!.active = true;
-                                this._runAfterRender(fromRoute || [], toRoute, slot!);
+                                if (outletComp) {
+                                    if (isReuse) {
+                                        outletComp.methods.activateView(viewHash);
+                                    } else {
+                                        // 远程模板 + 动态数据 script 合并（动态覆盖静态，Q6=A）
+                                        const mergedHtml =
+                                            view.value + this._buildDataScript(data?.value);
+                                        const payload: ViewPayload = {
+                                            hash: viewHash,
+                                            html: mergedHtml,
+                                            ready: true,
+                                        };
+                                        if (keepAlive) {
+                                            outletComp.methods.mountView(payload);
+                                        } else {
+                                            outletComp.methods.mountEphemeral(payload);
+                                        }
+                                    }
+                                }
+                                this._runAfterRender(fromRoute || [], toRoute, currentOutlet);
                             }
                         }
                     } catch (loadingError) {
                         this.logger.error("视图或数据加载失败", loadingError);
-                        if (slot) this._routeReject(loadingError, slot, toRoute);
-                        break;
-                    } finally {
-                        if (slot) {
-                            slot.finally();
-                            Alpine.initTree(slot);
+                        if (outletComp) {
+                            this._routeReject(
+                                loadingError,
+                                outletComp,
+                                viewHash,
+                                keepAlive,
+                                toRoute,
+                            );
                         }
+                        break;
                     }
                 }
             }
@@ -248,10 +324,7 @@ export class Render {
             this.logger.error(`渲染失败: ${error.message}`, error);
             hasError = error;
         } finally {
-            // 渲染完成后，从渲染根开始重新初始化 Alpine
-            // 这样可以让 Alpine 处理动态插入的子路由内容
-            Alpine.initTree(this.host);
-            this.emit("render:after", { route: toRoute, error: hasError, slot });
+            this.emit("render:after", { route: toRoute, error: hasError, slot: activeOutlet });
         }
     }
 
@@ -262,13 +335,13 @@ export class Render {
      *
      * @param from - 来源路由
      * @param to - 目标路由
-     * @param view - 视图容器
+     * @param view - 视图出口宿主元素
      * @param data - 路由数据
      */
     protected async _runBeforeRender(
-        this: KylinRouter,
-        from: KylinMatchedRouteItem[],
-        to: KylinMatchedRouteItem[],
+        this: AutoSparkRouter,
+        from: AutoSparkMatchedRouteItem[],
+        to: AutoSparkMatchedRouteItem[],
         view: HTMLElement,
         data?: Record<string, any>,
     ): Promise<void> {
@@ -288,12 +361,12 @@ export class Render {
      * 执行 afterRender 钩子（异步，不等待）
      * @param from - 来源路由
      * @param to - 目标路由
-     * @param el - 视图元素
+     * @param el - 视图出口宿主元素
      */
     protected _runAfterRender(
-        this: KylinRouter,
-        from: KylinMatchedRouteItem[],
-        to: KylinMatchedRouteItem[],
+        this: AutoSparkRouter,
+        from: AutoSparkMatchedRouteItem[],
+        to: AutoSparkMatchedRouteItem[],
         el: HTMLElement,
     ): void {
         this.hooks
@@ -314,9 +387,9 @@ export class Render {
      * @returns 错误页面 HTMLElement
      */
     protected _getErrorPage(
-        this: KylinRouter,
-        error: KylinRouterError,
-        route: KylinMatchedRouteItem[],
+        this: AutoSparkRouter,
+        error: AutoSparkRouterError,
+        route: AutoSparkMatchedRouteItem[],
     ): HTMLElement {
         const statusCode = String(error.status || 500);
 
@@ -344,21 +417,24 @@ export class Render {
      * @param parent - 父元素
      * @returns 找到的第一个 outlet 元素，未找到返回 null
      */
-    protected _findOutlet(this: KylinRouter, parent: HTMLElement): KylinOutlet | null {
+    protected _findOutlet(this: AutoSparkRouter, parent: HTMLElement): HTMLElement | null {
         const outlets = findOutlet(parent);
         return outlets[0] || null;
     }
 
     /**
      * 确保 host 元素内部有至少一个 outlet
-     * 如果没有，自动创建并插入一个默认 outlet
+     *
+     * 自建 engine 模式已在 engineHost 兜底（编译前插入，可正常激活）；
+     * 注入模式下宿主已编译，无法再插入激活——仅告警提示应用声明出口。
      */
-    protected _ensureDefaultOutlet(this: KylinRouter): void {
-        const outlets = findOutlet(this.host);
-        if (outlets.length > 0) {
+    protected _ensureDefaultOutlet(this: AutoSparkRouter): void {
+        if (findOutlet(this.host).length > 0) {
             return;
         }
-        const defaultOutlet = document.createElement("kylin-outlet");
-        this.host.appendChild(defaultOutlet);
+        this.logger.warn(
+            "宿主内未找到 autospark.outlet 出口：注入 engine 模式下请在模板中声明 " +
+                "<div x-component:autospark.outlet>（x-outlet 简写仅对自建模式与远程模板生效）",
+        );
     }
 }

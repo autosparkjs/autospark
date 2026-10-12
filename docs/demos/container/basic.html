@@ -18,22 +18,26 @@
   <body style="overflow:auto">
     <div class="demo-app section">
       <div class="block has-text-grey is-size-7">
-        拖动浏览器窗口宽度：容器 max-width 按档切换（Bootstrap 5 缺省表），档位徽章与状态写回同步，
-        <code>viewport:change</code> 跨档计数（初值不计）。
+        拖动浏览器窗口宽度：容器 max-width 按档切换（Bootstrap 5 缺省表）；档位真相全局唯一
+        （<code>$.viewport</code>），插值与容器 <code>data-breakpoint</code> 同步联动。
       </div>
       <div class="field is-grouped is-grouped-multiline mb-3">
-        <span class="tag is-link is-light is-medium">当前档位：{{ tier }}</span>
-        <span class="tag is-info is-light is-medium">跨档次数：{{ n }}</span>
+        <span class="tag is-link is-light is-medium">$.viewport：{{ $.viewport }}</span>
+        <span class="tag is-info is-light is-medium">md 及以上？{{ $.viewport === 'xs' || $.viewport === 'sm' ? '否' : '是' }}</span>
       </div>
-      <div class="vp" x-container="tier" @viewport:change="n++">
+      <div class="vp" x-container>
         <p class="title is-6 has-text-centered">响应式容器</p>
         <p class="is-size-7 has-text-centered has-text-grey">
-          xs &lt;576 通栏 · sm 540 · md 720 · lg 960 · xl 1140 · xxl 1320（max-width，px）
+          data-breakpoint 与 <code>$.viewport</code> 同步
+          —— xs &lt;576 通栏 · sm 540 · md 720 · lg 960 · xl 1140 · xxl 1320（max-width，px）
         </p>
+        <div class="notification is-light is-info is-size-7" x-show="$.viewport === 'lg'">
+          仅 lg 档可见的提示（x-show="$.viewport === 'lg'"）
+        </div>
       </div>
     </div>
     <script>
-      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), { tier: "", n: 0 });
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
     </script>
   </body>
 </html>

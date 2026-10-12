@@ -3,13 +3,13 @@
  * 将扁平路由声明转换为嵌套结构，确保根路由存在
  */
 
-import type { KylinRouteItem } from "@/types/routes";
+import type { AutoSparkRouteItem } from "@/types/routes";
 
 /**
  * 路由树节点 - 用于构建规范化过程中的临时结构
  */
 interface RouteTreeNode {
-    route: KylinRouteItem;
+    route: AutoSparkRouteItem;
     children: Map<string, RouteTreeNode>;
 }
 
@@ -40,7 +40,7 @@ function splitPath(path: string): string[] {
 /**
  * 检查路由是否为根路由
  */
-function isRootRoute(route: KylinRouteItem): boolean {
+function isRootRoute(route: AutoSparkRouteItem): boolean {
     const path = route.path.trim();
     return path === "" || path === "/" || path === "./";
 }
@@ -68,20 +68,20 @@ function getOrCreateNode(
 /**
  * 检查是否为默认路由（default: true）
  */
-function isDefaultRoute(route: KylinRouteItem): boolean {
+function isDefaultRoute(route: AutoSparkRouteItem): boolean {
     return route.default === true;
 }
 
 /**
  * 将路由树转换为路由数组，并处理默认路由
  */
-function treeToArray(node: RouteTreeNode): KylinRouteItem[] {
-    const result: KylinRouteItem[] = [];
+function treeToArray(node: RouteTreeNode): AutoSparkRouteItem[] {
+    const result: AutoSparkRouteItem[] = [];
 
     for (const [, childNode] of node.children) {
         // 从 childNode.route 复制属性，但排除 children（稍后会根据子节点重新构建）
         const { children: _, ...routeWithoutChildren } = childNode.route;
-        const route: KylinRouteItem = { ...routeWithoutChildren };
+        const route: AutoSparkRouteItem = { ...routeWithoutChildren };
 
         if (childNode.children.size > 0) {
             // 递归处理子节点
@@ -99,7 +99,7 @@ function treeToArray(node: RouteTreeNode): KylinRouteItem[] {
  * @param root - 根节点
  * @param route - 要处理的路由
  */
-function processRoute(root: RouteTreeNode, route: KylinRouteItem): void {
+function processRoute(root: RouteTreeNode, route: AutoSparkRouteItem): void {
     const segments = splitPath(route.path);
 
     // 如果是根路由（且不是默认路由），直接处理
@@ -164,9 +164,9 @@ function processRoute(root: RouteTreeNode, route: KylinRouteItem): void {
  *   { path: "a/c", view: "C.html" }
  * ])
  */
-export function normalizeRoutes(routes?: KylinRouteItem | KylinRouteItem[] | null): KylinRouteItem {
+export function normalizeRoutes(routes?: AutoSparkRouteItem | AutoSparkRouteItem[] | null): AutoSparkRouteItem {
     // 统一转换为数组处理
-    const routesArray: KylinRouteItem[] = routes ? (Array.isArray(routes) ? routes : [routes]) : [];
+    const routesArray: AutoSparkRouteItem[] = routes ? (Array.isArray(routes) ? routes : [routes]) : [];
 
     // 处理空数组
     if (routesArray.length === 0) {
@@ -199,7 +199,7 @@ export function normalizeRoutes(routes?: KylinRouteItem | KylinRouteItem[] | nul
     }
 
     // 构建最终结果
-    const result: KylinRouteItem = {
+    const result: AutoSparkRouteItem = {
         path: "/",
     };
 

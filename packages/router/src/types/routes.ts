@@ -9,16 +9,15 @@ import type {
     BeforeRouteHook,
     RouteErrorHook,
 } from "./hooks";
-import type { KylinRouteDataOptions } from "./data";
-import type { KylinRouteDataSource } from "./data";
-import type { TemplateResult } from "lit";
+import type { AutoSparkRouteDataOptions } from "./data";
+import type { AutoSparkRouteDataSource } from "./data";
 import type { ErrorBoundaryOptions, RetryOptions } from "./config";
 import type { ModalConfig } from "./modals";
 import type { IAsyncSignal } from "asyncsignal";
 import type { BaseLoaderOptions } from "@/features/baseLoader";
-import type { KylinRouterViewRendererBase } from "@/renderers/base";
+import type { AutoSparkRouterViewRendererBase } from "@/renderers/base";
 // 重新导出 RouteData 以保持向后兼容
-export type { KylinRouteDataSource as RouteData };
+export type { AutoSparkRouteDataSource as RouteData };
 
 // 重新导出模态相关类型以保持向后兼容
 export type { ModalConfig, ModalState, ModalStackItem, ModalOptions } from "./modals";
@@ -32,7 +31,7 @@ export type { ModalConfig, ModalState, ModalStackItem, ModalOptions } from "./mo
  * - replace: 替换模式，新内容替换 outlet 中的旧内容（默认）
  * - append: 追加模式，新内容添加到现有内容之后
  */
-export type KylinRenderMode = "replace" | "append";
+export type AutoSparkRenderMode = "replace" | "append";
 
 /**
  * 模板数据类型
@@ -47,19 +46,19 @@ export type TemplateData = Record<string, any>;
  * - HTMLElement: 直接使用指定的HTMLElement元素作为视图内容
  * - () => Promise<any>: 通过函数动态加载视图，支持动态导入和异步加载
  */
-export type KylinRouteViewSource =
+export type AutoSparkRouteViewSource =
     | string
     | HTMLElement
-    | ((route: KylinMatchedRouteItem) => string | HTMLElement | Promise<string | HTMLElement>);
+    | ((route: AutoSparkMatchedRouteItem) => string | HTMLElement | Promise<string | HTMLElement>);
 /**
  * 渲染上下文接口
  * 提供模板渲染时所需的上下文数据
  */
-export interface KylinRouteViewContext {
+export interface AutoSparkRouteViewContext {
     /**
      * 当前路由对象，包含预加载的数据
      */
-    $route: KylinRouteItem;
+    $route: AutoSparkRouteItem;
     /**
      * 查询参数对象
      */
@@ -79,11 +78,11 @@ export interface KylinRouteViewContext {
  * 渲染选项接口
  * 配置组件渲染行为
  */
-export interface KylinRenderOptions {
+export interface AutoSparkRenderOptions {
     /**
      * 渲染模式（默认 replace）
      */
-    mode?: KylinRenderMode;
+    mode?: AutoSparkRenderMode;
 
     /**
      * 目标 outlet 元素
@@ -91,9 +90,9 @@ export interface KylinRenderOptions {
     outlet?: HTMLElement;
 
     /**
-     * lit 模板（可选）
+     * 模板字符串（可选）
      */
-    template?: TemplateResult;
+    template?: string;
 }
 
 // ============================================================================
@@ -104,13 +103,13 @@ export interface KylinRenderOptions {
  * 视图加载配置选项
  * 当 view 需要特殊配置时使用
  */
-export interface KylinRouteViewOptions<T = string> extends BaseLoaderOptions<T> {
-    renderer?: KylinRouterViewRendererBase;
+export interface AutoSparkRouteViewOptions<T = string> extends BaseLoaderOptions<T> {
+    renderer?: AutoSparkRouterViewRendererBase;
 }
 /**
  * 路由配置项
  */
-export interface KylinRouteItem {
+export interface AutoSparkRouteItem {
     name?: string;
 
     /**
@@ -163,7 +162,7 @@ export interface KylinRouteItem {
      *    - timeout: 加载超时时间（默认 5000ms）
      *    - selector: 自定义内容提取选择器
      */
-    view?: KylinRouteViewSource | KylinRouteViewOptions;
+    view?: AutoSparkRouteViewSource | AutoSparkRouteViewOptions;
     /**
      * 内部属性：视图模板缓存
      * 用于存储已加载的视图内容，避免重复加载
@@ -174,14 +173,14 @@ export interface KylinRouteItem {
      * @internal
      */
     _getView?: IAsyncSignal<string | HTMLElement> | null;
-    _viewOptions?: Required<KylinRouteViewOptions>;
+    _viewOptions?: Required<AutoSparkRouteViewOptions>;
     /**
      *
      * 在导航到此路由时预加载的数据，可以是以下类型：
      *
      * 这些数据会被作为路由视图渲染时使用的变量
      */
-    data?: KylinRouteDataSource | KylinRouteDataOptions | true;
+    data?: AutoSparkRouteDataSource | AutoSparkRouteDataOptions | true;
     /**
      * 缓存数据
      *
@@ -189,7 +188,7 @@ export interface KylinRouteItem {
      * 调用不同的id参数时，需要分别进行加载和缓存
      */
     _getData?: IAsyncSignal<Record<string, any>> | null;
-    _dataOptions?: Required<KylinRouteDataOptions>;
+    _dataOptions?: Required<AutoSparkRouteDataOptions>;
     /**
      * 是否缓存此路由对应的组件实例，默认为 true
      *
@@ -248,7 +247,7 @@ export interface KylinRouteItem {
      * 路由别名（URL 不变，使用目标路由配置）
      */
     alias?: string | string[];
-    children?: KylinRouteItem[];
+    children?: AutoSparkRouteItem[];
     meta?: Record<string, any>;
 
     beforeRoute?: BeforeRouteHook | BeforeRouteHook[];
@@ -299,27 +298,27 @@ export interface KylinRouteItem {
  * - 字符串：URL路径，从该路径加载路由表
  * - 函数：动态返回路由配置
  */
-export type KylinRoutes =
-    | KylinRouteItem[]
-    | KylinRouteItem
+export type AutoSparkRoutes =
+    | AutoSparkRouteItem[]
+    | AutoSparkRouteItem
     | string
     | (() =>
-          | KylinRouteItem[]
-          | KylinRouteItem
-          | Promise<KylinRouteItem>
-          | Promise<KylinRouteItem[]>);
+          | AutoSparkRouteItem[]
+          | AutoSparkRouteItem
+          | Promise<AutoSparkRouteItem>
+          | Promise<AutoSparkRouteItem[]>);
 
-export type NormalizedKylinRoutes = {
+export type NormalizedAutoSparkRoutes = {
     path: "/";
-    children?: KylinRouteItem[];
-} & Omit<KylinRouteItem, "path" | "children">;
+    children?: AutoSparkRouteItem[];
+} & Omit<AutoSparkRouteItem, "path" | "children">;
 
 /**
  * 路由匹配结果
  */
 export interface MatchedRoute {
     /** 匹配的路由配置 */
-    route: KylinRouteItem;
+    route: AutoSparkRouteItem;
     /** 提取的路径参数 */
     params: Record<string, string>;
     /** 提取的查询参数 */
@@ -373,15 +372,15 @@ export type RedirectTarget = string | NamedRedirectTarget | RedirectResult;
  * @param route - 当前匹配的路由项
  * @returns 重定向目标或结果对象
  */
-export type RedirectFunction = (route: KylinMatchedRouteItem) => RedirectTarget | null;
+export type RedirectFunction = (route: AutoSparkMatchedRouteItem) => RedirectTarget | null;
 
 // ============================================================================
 // 路由匹配相关类型定义
 // ============================================================================
 
-export type KylinMatchedRouteItem = {
+export type AutoSparkMatchedRouteItem = {
     /** 匹配的路由配置 */
-    route: KylinRouteItem | undefined;
+    route: AutoSparkRouteItem | undefined;
     /** 提取的路径参数 */
     params: Record<string, string | number>;
     /** 提取的查询参数 */

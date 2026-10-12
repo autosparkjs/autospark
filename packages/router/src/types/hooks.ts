@@ -2,10 +2,10 @@
  * 钩子系统相关类型定义
  */
 
-import type { KylinRouter } from "@/router";
-import type { KylinMatchedRouteItem } from "./routes";
-import type { KylinRouteDataSource } from "./data";
-import type { KylinRouterError } from "@/errors";
+import type { AutoSparkRouter } from "@/router";
+import type { AutoSparkMatchedRouteItem } from "./routes";
+import type { AutoSparkRouteDataSource } from "./data";
+import type { AutoSparkRouterError } from "@/errors";
 
 // ============================================================================
 // 现有钩子类型（保留原有结构和功能）
@@ -21,8 +21,8 @@ import type { KylinRouterError } from "@/errors";
  * @returns 可以返回 void 或 Promise<void>，通过 next 回调控制导航
  */
 export type BeforeRouteHookArgs = {
-    from: KylinMatchedRouteItem[] | undefined;
-    to: KylinMatchedRouteItem[];
+    from: AutoSparkMatchedRouteItem[] | undefined;
+    to: AutoSparkMatchedRouteItem[];
 };
 export type BeforeRouteHook = (
     args: BeforeRouteHookArgs,
@@ -37,13 +37,13 @@ export type BeforeRouteHook = (
  * @returns 可以返回 void 或 Promise<void>
  */
 export type AfterRouteHookArgs = {
-    to: KylinMatchedRouteItem[];
+    to: AutoSparkMatchedRouteItem[];
 };
 export type AfterRouteHook = (args: AfterRouteHookArgs) => void | Promise<void>;
 
 export type RouteErrorHookArgs = {
-    error: KylinRouterError;
-    to: KylinMatchedRouteItem[];
+    error: AutoSparkRouterError;
+    to: AutoSparkMatchedRouteItem[];
 };
 /**
  * 当路由发生错误时的钩子函数类型
@@ -62,16 +62,16 @@ export type RouteErrorHook = (args: RouteErrorHookArgs) => void;
  * @returns 可以返回 void、Promise<void>、RouteData 或 Promise<RouteData>
  */
 export type BeforeRenderHookArgs = {
-    from: KylinMatchedRouteItem[];
-    to: KylinMatchedRouteItem[];
+    from: AutoSparkMatchedRouteItem[];
+    to: AutoSparkMatchedRouteItem[];
     view: HTMLElement;
-    data: KylinRouteDataSource | undefined;
+    data: AutoSparkRouteDataSource | undefined;
 };
 export type BeforeRenderHook = (args: BeforeRenderHookArgs) => void | Promise<void>;
 
 export type AfterRenderHookArgs = {
-    from: KylinMatchedRouteItem[];
-    to: KylinMatchedRouteItem[];
+    from: AutoSparkMatchedRouteItem[];
+    to: AutoSparkMatchedRouteItem[];
     el: HTMLElement | undefined;
 };
 export type AfterRenderHook = (args: AfterRenderHookArgs) => void | Promise<void>;
@@ -80,7 +80,7 @@ export type AfterRenderHook = (args: AfterRenderHookArgs) => void | Promise<void
  * 钩子集合对象类型
  * 包含所有可用的全局钩子数组
  */
-export type KylinRouterHooks = {
+export type AutoSparkRouterHooks = {
     beforeRoute: BeforeRouteHook[];
     afterRoute: AfterRouteHook[];
     beforeRender: BeforeRenderHook[];
@@ -103,14 +103,14 @@ export type KylinRouterHooks = {
  * @remarks
  */
 export type IRouteHook = (
-    from: KylinMatchedRouteItem[],
-    to: KylinMatchedRouteItem[],
+    from: AutoSparkMatchedRouteItem[],
+    to: AutoSparkMatchedRouteItem[],
     next: (result?: boolean | string) => void,
-    router: KylinRouter,
+    router: AutoSparkRouter,
 ) => void | Promise<void>;
 
 /**
  * 钩子类型的键
- * 用于索引访问 KylinRouterHooks 对象
+ * 用于索引访问 AutoSparkRouterHooks 对象
  */
-export type KylinRouterHookType = keyof KylinRouterHooks;
+export type AutoSparkRouterHookType = keyof AutoSparkRouterHooks;

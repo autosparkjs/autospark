@@ -1,4 +1,4 @@
-# Kylin Router - 静态资源模块文档
+# AutoSpark Router - 静态资源模块文档
 
 > **[根目录](../../CLAUDE.md) > [src](../) > **assets** (静态资源)**
 
@@ -14,7 +14,7 @@
 
 ## 模块职责
 
-**assets/** 目录存储 Kylin Router 项目的静态资源文件，包括：
+**assets/** 目录存储 AutoSpark Router 项目的静态资源文件，包括：
 
 - **PNG 图片**: 用于页面展示的位图资源
 - **SVG 图标**: 矢量图标，支持缩放和样式定制

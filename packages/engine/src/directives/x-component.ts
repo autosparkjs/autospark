@@ -607,10 +607,14 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         // 数据基准解析（ADR-0053）：x-component-options.dataContext（消费覆盖）> def.dataContext（作者声明）> 默认
         const basis = this._resolveDataBasis(found.def);
         // 插槽内容懒收集（ADR-0056）：ownsChildren 下子节点留在 template、不进 el——
-        // 此处按出口清单收集为 content map，stash 到宿主 scope 供出口 SlotDirective 查找。
+        // 此处收集为 content map，stash 到宿主 scope 供出口 SlotDirective 查找。
+        // 组件路径全量收集（ADR-0107 决策五）：跳过出口清单校验——动态出口名运行期才可知，
+        // 未被消费的段静默闲置不 warn；覆盖物路径（overlay）维持清单校验不变。
         // 模板只读：collect 一律 cloneNode，不摘原节点（ADR-0002）。
         const slotContents = this.template
-            ? collectSlotContent(this.template, found.def?.slots, (m) => this.warn(m))
+            ? collectSlotContent(this.template, found.def?.slots, (m) => this.warn(m), {
+                  skipValidation: true,
+              })
             : null;
         // 防御性清空宿主 runtime 子节点（ownsChildren 下 el 为浅克隆本无子节点；
         // 覆盖 pending 占位等异常残留，保证投影/fallback 是唯一内容来源）

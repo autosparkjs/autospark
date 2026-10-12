@@ -25,7 +25,7 @@
                 "color": "星空黑、极光白、丹霞橙",
                 "weight": "210g",
                 "dimensions": "162.8 x 75.5 x 8.4mm",
-                "os": "KylinOS 4.0",
+                "os": "AutoSparkOS 4.0",
                 "network": "5G全网通",
                 "warranty": "12个月"
             },
@@ -58,7 +58,7 @@
                 "color": "冰霜蓝、樱花粉、星空灰",
                 "weight": "175g",
                 "dimensions": "160.5 x 73.2 x 7.8mm",
-                "os": "KylinOS 4.0",
+                "os": "AutoSparkOS 4.0",
                 "network": "5G全网通",
                 "warranty": "12个月"
             },
@@ -91,7 +91,7 @@
                 "color": "曜石黑、钛金灰",
                 "weight": "230g",
                 "dimensions": "165.2 x 77.8 x 8.9mm",
-                "os": "KylinOS 4.0",
+                "os": "AutoSparkOS 4.0",
                 "network": "5G全网通",
                 "warranty": "24个月"
             },
@@ -124,7 +124,7 @@
                 "color": "深空灰、银色",
                 "weight": "485g",
                 "dimensions": "248.5 x 175.5 x 6.9mm",
-                "os": "KylinOS 4.0",
+                "os": "AutoSparkOS 4.0",
                 "network": "WiFi+5G",
                 "warranty": "12个月"
             },
@@ -157,7 +157,7 @@
                 "color": "白色、粉色、蓝色",
                 "weight": "305g",
                 "dimensions": "202.5 x 137.5 x 7.4mm",
-                "os": "KylinOS 4.0",
+                "os": "AutoSparkOS 4.0",
                 "network": "WiFi",
                 "warranty": "12个月"
             },
@@ -223,7 +223,7 @@
                 "color": "黑色、白色、棕色",
                 "weight": "54g",
                 "dimensions": "46 x 46 x 10.7mm",
-                "os": "KylinOS Watch",
+                "os": "AutoSparkOS Watch",
                 "network": "蓝牙5.2",
                 "warranty": "12个月"
             },
@@ -256,7 +256,7 @@
                 "color": "黑色、蓝色、橙色、绿色",
                 "weight": "28g",
                 "dimensions": "46 x 24.5 x 12.7mm",
-                "os": "KylinOS Band",
+                "os": "AutoSparkOS Band",
                 "network": "蓝牙5.0",
                 "warranty": "6个月"
             },
@@ -385,7 +385,7 @@
                 "color": "白色",
                 "weight": "320g",
                 "dimensions": "110 x 110 x 45mm",
-                "platform": "Kylin Smart Home",
+                "platform": "AutoSpark Smart Home",
                 "warranty": "12个月"
             },
             "sales": {

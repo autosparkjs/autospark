@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>notifications · 任务——闭包内控制（factory + abortSignal）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <!-- ③ 闭包内控制（factory 写法）：return 的初始 props 立即弹卡，下载逻辑作为异步闭包继续
+         驱动进度条；闭包内 session.onStop / onCancel / onClose / onPause / onResume 响应用户手势、
+         每分块检查 session.abortSignal.aborted 协作取消、暂停时协作挂起——停止/取消/× 任一触发即中断。 -->
+    <div class="demo-app section">
+      <div class="block">
+        <button class="button is-link is-light" onclick="runClosure()">
+          ⬇ 下载 dataset.zip（闭包响应停止/取消/×）
+        </button>
+        <p class="has-text-grey is-size-7">
+          factory 写法：return 初始 props 立即弹卡，下载闭包里
+          <code>session.onStop / onCancel / onClose / onPause / onResume</code>
+          响应用户手势、每分块检查
+          <code>session.abortSignal.aborted</code> 提前退出、暂停时协作挂起——真实 fetch
+          直接把 signal 传给 <code>fetch(url, { signal })</code> 即中断。
+        </p>
+      </div>
+      <div class="block">
+        <pre
+          id="log"
+          class="has-background-light"
+          style="padding: 8px; max-height: 300px; overflow: auto"
+        >
+（点击上方按钮开始任务演示）</pre
+        >
+      </div>
+    </div>
+    <script>
+      const app = new AutoSparkSpaces.AutoSpark(
+        document.querySelector(".demo-app"),
+        {},
+      );
+      const logEl = document.getElementById("log");
+      const lines = [];
+      const log = (t) => {
+        lines.push(
+          `[${new Date().toLocaleTimeString("zh-CN", { hour12: false })}] ${t}`,
+        );
+        logEl.textContent = lines.slice(-14).join("\n");
+      };
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      function runClosure() {
+        app.notifications.task(async (session) => {
+          // 手势观测：闭包里直接订阅（返回退订函数，卡销毁自动清——本演示不持有）
+          session.onStop(() => {
+            session.update({
+              description: "onStop：收到停止——闭包收尾，进度定格",
+            });
+            log("⇄ 闭包收到 actions/stop——正在收尾…");
+          });
+          session.onCancel(() => log("⇄ 闭包收到 actions/cancel——下载作废"));
+          session.onClose(() =>
+            log("⇄ 闭包收到 actions/close（用户点 ×）——下载作废"),
+          );
+          session.onPause(() =>
+            log("⏸ 闭包收到 actions/pause——挂起等待（不再消费分块）"),
+          );
+          session.onResume(() => log("▶ 闭包收到 actions/resume——继续下载"));
+          void (async () => {
+            // 下载闭包：不 await——让 return 先执行（卡先弹）
+            const chunks = 16;
+            for (let i = 1; i <= chunks; i++) {
+              await sleep(310 + Math.random() * 90); // 分块到达（时长抖动）
+              // 协作取消：停止/取消/× 任一触发即中断（真实场景传给 fetch 的 signal）
+              if (session.abortSignal.aborted) {
+                log(
+                  `⏹ abortSignal.aborted @ ${session.data.progress}%——闭包退出`,
+                );
+                return;
+              }
+              // 协作暂停：state=paused 时挂起不消费分块（progress() 自带闸门——非
+              // running 直接忽略，此处是闭包侧的协作式感知），恢复后从原进度继续
+              while (session.data.state === "paused") {
+                await sleep(80);
+                if (session.abortSignal.aborted) return; // 暂停期间停止/取消/×
+              }
+              session.progress(Math.round((i / chunks) * 100));
+            }
+            session.complete(); // ≡ 进度 100 → closeWhenDone 收口
+            log("✓ 闭包下载完成——complete()");
+          })();
+          return {
+            // 初始 props——立即建卡
+            title: "下载 dataset.zip（闭包控制）",
+            description: "停止 / 取消 / × 任一触发即中断（abortSignal）",
+            canPause: true,
+            canStop: true,
+            canCancel: true,
+            closeWhenDone: 1500,
+          };
+        });
+        log(
+          "factory 写法：return 立即弹卡，闭包内 onStop/onCancel/onClose/onPause/onResume + abortSignal 就绪",
+        );
+      }
+    </script>
+  </body>
+</html>

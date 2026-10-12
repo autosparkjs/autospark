@@ -1,7 +1,7 @@
 // @ts-nocheck - 集成测试包含理想情况下的测试场景，与实际类型定义有差异
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { KylinRouter } from "@/router";
-import type { KylinRouteItem } from "@/types";
+import { AutoSparkRouter } from "@/router";
+import type { AutoSparkRouteItem } from "@/types";
 
 /**
  * 创建测试用的 DOM 环境
@@ -35,7 +35,7 @@ function createTestDOM() {
 
 describe("Phase 3 Integration Tests", () => {
     let host: HTMLElement;
-    let router: KylinRouter;
+    let router: AutoSparkRouter;
 
     beforeEach(() => {
         createTestDOM();
@@ -56,7 +56,7 @@ describe("Phase 3 Integration Tests", () => {
 
     describe("组件加载系统集成", () => {
         it("应该正确加载本地组件", async () => {
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "local",
@@ -75,7 +75,7 @@ describe("Phase 3 Integration Tests", () => {
         });
 
         it("应该正确处理动态导入", async () => {
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "dynamic",
@@ -95,7 +95,7 @@ describe("Phase 3 Integration Tests", () => {
         it("应该正确处理组件加载状态", async () => {
             let loadStarted = false;
 
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "async",
@@ -125,7 +125,7 @@ describe("Phase 3 Integration Tests", () => {
 
     describe("渲染系统集成", () => {
         it("应该正确渲染 lit 模板", async () => {
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "render",
@@ -147,7 +147,7 @@ describe("Phase 3 Integration Tests", () => {
         });
 
         it("应该正确插值模板变量", async () => {
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "interpolate",
@@ -168,7 +168,7 @@ describe("Phase 3 Integration Tests", () => {
         });
 
         it("应该支持嵌套路由配置", async () => {
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "parent",
@@ -202,7 +202,7 @@ describe("Phase 3 Integration Tests", () => {
             let hookExecuted = false;
             let preloadedData = null;
 
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "data",
@@ -227,7 +227,7 @@ describe("Phase 3 Integration Tests", () => {
         });
 
         it("应该正确处理重试配置", async () => {
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "retry-route",
@@ -251,7 +251,7 @@ describe("Phase 3 Integration Tests", () => {
         });
 
         it("应该正确处理错误边界配置", async () => {
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "error-boundary",
@@ -275,7 +275,7 @@ describe("Phase 3 Integration Tests", () => {
 
     describe("模态路由系统集成", () => {
         it("应该正确配置模态路由", async () => {
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "modal",
@@ -299,7 +299,7 @@ describe("Phase 3 Integration Tests", () => {
         });
 
         it("应该正确配置模态选项", async () => {
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "modal-options",
@@ -325,7 +325,7 @@ describe("Phase 3 Integration Tests", () => {
         });
 
         it("应该支持 ! 前缀的模态路径", async () => {
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "quick-modal",
@@ -351,7 +351,7 @@ describe("Phase 3 Integration Tests", () => {
             let guardExecuted = false;
             let dataPreloaded = false;
 
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "complete",
@@ -380,7 +380,7 @@ describe("Phase 3 Integration Tests", () => {
         });
 
         it("应该正确处理路由参数", async () => {
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "params",
@@ -399,7 +399,7 @@ describe("Phase 3 Integration Tests", () => {
         });
 
         it("应该正确处理查询参数", async () => {
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "query",
@@ -421,7 +421,7 @@ describe("Phase 3 Integration Tests", () => {
 
     describe("路由器生命周期", () => {
         it("应该正确处理路由配置", async () => {
-            const routes: KylinRouteItem[] = [
+            const routes: AutoSparkRouteItem[] = [
                 {
                     name: "route1",
                     path: "/route1",
@@ -436,7 +436,7 @@ describe("Phase 3 Integration Tests", () => {
                 },
             ];
 
-            router = new KylinRouter(host, { routes });
+            router = new AutoSparkRouter(host, { routes });
 
             router.attach();
             await router.push("/route1");
@@ -450,7 +450,7 @@ describe("Phase 3 Integration Tests", () => {
         it("应该正确处理多个路由导航", async () => {
             const navigations: string[] = [];
 
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "route1",
@@ -491,7 +491,7 @@ describe("Phase 3 Integration Tests", () => {
         });
 
         it("应该正确处理路由数据隔离", async () => {
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "isolated1",
@@ -527,7 +527,7 @@ describe("Phase 3 Integration Tests", () => {
             let componentLoaded = false;
             let dataRendered = false;
 
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "integrated",
@@ -564,7 +564,7 @@ describe("Phase 3 Integration Tests", () => {
         it("应该正确处理加载失败情况", async () => {
             let errorHandled = false;
 
-            router = new KylinRouter(host, {
+            router = new AutoSparkRouter(host, {
                 routes: [
                     {
                         name: "fail-route",

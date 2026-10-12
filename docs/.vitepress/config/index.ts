@@ -78,7 +78,22 @@ export default defineConfig({
             { text: "动态模板", link: "/zh/guide/patch" },
             { text: "动画", link: "/zh/guide/animate" },
             { text: "工具提示", link: "/zh/guide/tooltip" },
-            { text: "通知", link: "/zh/guide/notifications" },
+            { text: "视口断点", link: "/zh/guide/viewport" },
+            {
+              text: "通知",
+              link: "/zh/guide/notifications/",
+              collapsed: true,
+              items: [
+                { text: "关于", link: "/zh/guide/notifications/" },
+                { text: "轻提示", link: "/zh/guide/notifications/toast" },
+                { text: "通用确认", link: "/zh/guide/notifications/confirm" },
+                { text: "任务", link: "/zh/guide/notifications/task" },
+                { text: "事件", link: "/zh/guide/notifications/events" },
+                { text: "数据视图", link: "/zh/guide/notifications/data" },
+                { text: "自定义", link: "/zh/guide/notifications/custom" },
+                { text: "配置参数", link: "/zh/guide/notifications/config" },
+              ],
+            },
             { text: "Scope", link: "/zh/guide/scope" }
           ],
         },
@@ -105,6 +120,7 @@ export default defineConfig({
               items: [
                 { text: "x-if", link: "/zh/guide/directives/x-if" },
                 { text: "x-show", link: "/zh/guide/directives/x-show" },
+                { text: "x-viewport", link: "/zh/guide/directives/x-viewport" },
                 { text: "x-switch", link: "/zh/guide/directives/x-switch" },
                 {
                   text: "x-for",

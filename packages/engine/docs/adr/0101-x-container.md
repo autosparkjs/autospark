@@ -134,3 +134,9 @@ max-width（恒 100% 通栏），档位判定 / data-breakpoint / 写回照常�
    scope 指令表；x-if / x-for 重建子树随 children 增删，跨档时现走现得）逐个派发
    （不冒泡、每元素恰好一次），宿主再冒泡上行——先下后上，对齐捕获→冒泡心智。嵌套
    容器各自独立派发为已知语义。
+4. **2026-10-12 断点判定收归全局 viewport 特性（ADR-0105）**：档位判定 / 自定义阈值表 /
+   档名写回 / `viewport:change` 事件整体移出本指令——全局真相 `state.$.viewport`（viewport
+   特性，`$` 元状态容器首个居民）成为档位唯一来源，x-container 收窄为纯视觉容器（订阅
+   `$.viewport` 切 `data-breakpoint`）；`options.container` 键与实例级 `breakpoints` 废除
+   （并入 `options.viewport`，阈值为 engine 级唯一真相），视觉约束仍走 media query。
+   决策 1（值双态）、决策 5（三级回退含实例表）、决策 8（事件）由 ADR-0105 取代。

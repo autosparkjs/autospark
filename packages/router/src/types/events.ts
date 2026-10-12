@@ -1,11 +1,11 @@
 import type { Update } from "history";
-import type { KylinRouteItem } from "./index";
-import type { KylinMatchedRouteItem, ModalStackItem } from "./routes";
-import type { KylinSlot } from "@/components/Slot";
+import type { AutoSparkRouteItem } from "./index";
+import type { AutoSparkMatchedRouteItem, ModalStackItem } from "./routes";
+import type { AutoSparkSlot } from "@/components/Slot";
 
 export type NavigationLocation = Update;
 
-export type KylinRouterEvents = {
+export type AutoSparkRouterEvents = {
     /**
      * 路由表加载完成
      */
@@ -21,45 +21,45 @@ export type KylinRouterEvents = {
      * 当导航匹配后
      */
     "navigation:matched": {
-        fromRoute: KylinMatchedRouteItem[] | undefined;
-        toRoute: KylinMatchedRouteItem[];
+        fromRoute: AutoSparkMatchedRouteItem[] | undefined;
+        toRoute: AutoSparkMatchedRouteItem[];
     };
     "route:updated": {
-        route: KylinRouteItem | undefined;
+        route: AutoSparkRouteItem | undefined;
         params: Record<string, string>;
         query: Record<string, string>;
         location: Update;
     };
 
-    "render:before": { route: KylinMatchedRouteItem[] };
-    "render:after": { route: KylinMatchedRouteItem[]; error?: Error; slot?: KylinSlot | null };
+    "render:before": { route: AutoSparkMatchedRouteItem[] };
+    "render:after": { route: AutoSparkMatchedRouteItem[]; error?: Error; slot?: AutoSparkSlot | null };
 
     "modal:open": {
-        route: KylinRouteItem;
+        route: AutoSparkRouteItem;
         stackItem: ModalStackItem;
     };
     "modal:close": {
-        route: KylinRouteItem;
+        route: AutoSparkRouteItem;
         stackItem: ModalStackItem;
     };
     "data:loading": {
-        route: KylinRouteItem;
+        route: AutoSparkRouteItem;
     };
     "data:loaded": {
-        route: KylinRouteItem;
+        route: AutoSparkRouteItem;
     };
     "data:error": {
-        route: KylinRouteItem;
+        route: AutoSparkRouteItem;
         error: Error;
     };
     "view:loading": {
-        route: KylinRouteItem;
+        route: AutoSparkRouteItem;
     };
     "view:loaded": {
-        route: KylinRouteItem;
+        route: AutoSparkRouteItem;
     };
     "view:error": {
-        route: KylinRouteItem;
+        route: AutoSparkRouteItem;
     };
-    "hook:error": KylinRouteItem;
+    "hook:error": AutoSparkRouteItem;
 };

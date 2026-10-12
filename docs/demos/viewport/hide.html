@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-viewport · 视口档位显隐</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .box-vp {
+        border: 1px dashed #b5b5b5;
+        border-radius: 8px;
+        background: #f9fafb;
+        padding: 10px 14px;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body style="overflow:auto">
+    <div class="demo-app section">
+      <div class="block has-text-grey is-size-7">
+        拖动浏览器窗口宽度跨越阈值（576 / 768 / 992 / 1200 / 1400）——三个元素的显隐随
+        <code>$.viewport</code> 切换（隐藏 = <code>autospark-viewport-hidden</code> 类，
+        <code>display:none !important</code>）。
+      </div>
+      <div class="tags mb-3">
+        <span class="tag is-dark is-medium">当前档位</span>
+        <span class="tag is-link is-medium">{{ $.viewport }}</span>
+      </div>
+      <div class="box-vp" x-viewport="md">
+        <code>x-viewport="md"</code> —— 仅 md 档可见
+      </div>
+      <div class="box-vp" x-viewport="xs,sm">
+        <code>x-viewport="xs,sm"</code> —— 小屏（xs / sm）可见
+      </div>
+      <div class="box-vp" x-viewport.hide="lg">
+        <code>x-viewport.hide="lg"</code> —— 除 lg 外可见（.hide 反向）
+      </div>
+      <div class="box-vp" x-viewport="md" x-show="expanded">
+        <code>x-viewport="md"</code> + <code>x-show="expanded"</code> —— 组合：档位隐藏恒胜，
+        x-show 只在 md 档内起作用（
+        <button class="button is-small is-link is-light" @click="expanded = !expanded">
+          toggle expanded = {{ expanded }}
+        </button>）
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), { expanded: true });
+    </script>
+  </body>
+</html>

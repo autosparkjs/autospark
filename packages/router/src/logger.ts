@@ -1,11 +1,12 @@
-import type { KylinRouterOptions } from "./types/config";
+import type { AutoSparkRouterOptions } from "./types/config";
 
-export type KylinRouterLogger = {
+export type AutoSparkRouterLogger = {
 	debug: (message: string, ...args: any[]) => void;
 	info: (message: string, ...args: any[]) => void;
 	warn: (message: string, ...args: any[]) => void;
 	error: (message: string, ...args: any[]) => void;
 };
+
 
 type Token = string | { placeholder: true };
 
@@ -33,8 +34,8 @@ function tokenizeMessage(message: string): Token[] {
 	return tokens;
 }
 
-export function createLogger(options: KylinRouterOptions): KylinRouterLogger {
-	function createLog(level: keyof KylinRouterLogger, output: (...args: any[]) => void) {
+export function createLogger(options: AutoSparkRouterOptions): AutoSparkRouterLogger {
+	function createLog(level: keyof AutoSparkRouterLogger, output: (...args: any[]) => void) {
 		return (message: string | Error, ...args: any[]) => {
 			if (!options.debug) {
 				if (["debug", "info"].includes(level)) {

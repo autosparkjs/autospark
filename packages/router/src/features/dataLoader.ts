@@ -7,21 +7,20 @@
  * @module features/dataLoader
  */
 
-import type { KylinRouter } from "@/router";
-import type { KylinMatchedRouteItem } from "@/types/routes";
-import type { KylinRouteDataOptions } from "@/types/data";
+import type { AutoSparkRouter } from "@/router";
+import type { AutoSparkMatchedRouteItem } from "@/types/routes";
+import type { AutoSparkRouteDataOptions } from "@/types/data";
 import { asyncSignal, type IAsyncSignal } from "asyncsignal";
 import { getRouteVars } from "@/utils/getRouteVars";
 import { prefixBaseUrl } from "@/utils/prefixBaseUrl";
 import { getSignalHash } from "@/utils/getSignalHash";
-import Alpine from "alpinejs";
 import { getJsonFileFromUrl } from "@/utils/getJsonFileFromUrl";
 import { cloneDeep } from "es-toolkit/object";
 import { isPlainObject } from "es-toolkit/predicate";
 import { isFunction } from "flex-tools/typecheck/isFunction";
 import { isUrlSource } from "@/utils/isUrlSource";
 import type { ViewRenderOptions } from "@/renderers/types";
-import { KylinRouterLoadError, KylinRouterTimeoutError } from "@/errors";
+import { AutoSparkRouterLoadError, AutoSparkRouterTimeoutError } from "@/errors";
 import { AsyncLoader, type IAsyncLoader } from "asyncsignal";
 
 /**
@@ -40,7 +39,7 @@ export interface DataLoaderMeta {
 /**
  * 远程加载结果类型
  */
-type KylinRemoteLoadResult<T = any> = {
+type AutoSparkRemoteLoadResult<T = any> = {
     value?: T;
     error?: Error | null;
     meta?: Record<string, any>;
@@ -48,7 +47,7 @@ type KylinRemoteLoadResult<T = any> = {
 
 /**
  * 缓存项基础结构
- * 存储的是 KylinRemoteLoadResult 格式：{ value: data, timestamp: number }
+ * 存储的是 AutoSparkRemoteLoadResult 格式：{ value: data, timestamp: number }
  */
 interface CacheItem<T> extends CacheItemBase {
     value: T;
@@ -69,20 +68,20 @@ export class DataLoader {
     // 公共属性
     // ========================================
 
-    router: KylinRouter;
+    router: AutoSparkRouter;
 
     // ========================================
     // 私有属性
     // ========================================
 
     private cache: Map<string, CacheItem<any>> = new Map();
-    private options: Required<Omit<KylinRouteDataOptions, "from">>;
+    private options: Required<Omit<AutoSparkRouteDataOptions, "from">>;
 
     // ========================================
     // 构造函数
     // ========================================
 
-    constructor(router: KylinRouter) {
+    constructor(router: AutoSparkRouter) {
         this.router = router;
         this.options = Object.assign(
             {
@@ -91,7 +90,7 @@ export class DataLoader {
                 hash: "{path}",
             },
             router.options.dataOptions || {},
-        ) as Required<Omit<KylinRouteDataOptions, "from">>;
+        ) as Required<Omit<AutoSparkRouteDataOptions, "from">>;
     }
 
     // ========================================
@@ -102,7 +101,7 @@ export class DataLoader {
      * 获取路由的 AsyncLoader 实例
      * 提供类型安全的访问方式
      */
-    public getLoader(matched: KylinMatchedRouteItem): AsyncLoader<any, DataLoaderMeta> | undefined {
+    public getLoader(matched: AutoSparkMatchedRouteItem): AsyncLoader<any, DataLoaderMeta> | undefined {
         return (matched.route as any)._getData as AsyncLoader<any, DataLoaderMeta>;
     }
 
@@ -110,7 +109,7 @@ export class DataLoader {
      * 获取路由的数据加载信号（兼容性方法）
      * 用于需要直接访问 signal 的场景
      */
-    public getSignal(matched: KylinMatchedRouteItem): IAsyncSignal | undefined {
+    public getSignal(matched: AutoSparkMatchedRouteItem): IAsyncSignal | undefined {
         const loader = this.getLoader(matched);
         return loader?.signal;
     }
@@ -119,8 +118,8 @@ export class DataLoader {
      * 为单个路由创建 AsyncLoader 实例
      */
     private _createLoader(
-        matched: KylinMatchedRouteItem,
-        options: KylinRouteDataOptions,
+        matched: AutoSparkMatchedRouteItem,
+        options: AutoSparkRouteDataOptions,
         navSignal?: AbortSignal,
     ): AsyncLoader<any, DataLoaderMeta> {
         const loaderFn = this._createLoaderFn(matched, options);
@@ -140,7 +139,7 @@ export class DataLoader {
             onAfterLoad: (result, error) => {
                 if (!error) {
                     const signal = loader.signal;
-                    this._onLoadSuccess(matched, result, signal, options);
+                    this._onLoadSuccess(matched, result, signal);
                 }
             },
         });
@@ -154,8 +153,8 @@ export class DataLoader {
      * 创建加载器函数，适配 AsyncLoader 的 IAsyncLoader 接口
      */
     private _createLoaderFn(
-        matched: KylinMatchedRouteItem,
-        options: KylinRouteDataOptions,
+        matched: AutoSparkMatchedRouteItem,
+        options: AutoSparkRouteDataOptions,
     ): IAsyncLoader {
         return async ({ abortSignal }) => {
             const dataSource = options.from;
@@ -171,7 +170,7 @@ export class DataLoader {
                     dataSource === true ? this._getAutoUrl(matched) : (dataSource as string);
 
                 if (!url) {
-                    throw new KylinRouterLoadError("No valid URL found");
+                    throw new AutoSparkRouterLoadError("No valid URL found");
                 }
 
                 const finalUrl = prefixBaseUrl(
@@ -184,7 +183,7 @@ export class DataLoader {
                 });
 
                 if (!response.ok) {
-                    throw new KylinRouterLoadError(
+                    throw new AutoSparkRouterLoadError(
                         `Failed to load ${finalUrl} : ${response.statusText}`,
                         response.status,
                     );
@@ -198,7 +197,7 @@ export class DataLoader {
                 return await dataSource(matched);
             }
 
-            throw new KylinRouterLoadError("Invalid data source");
+            throw new AutoSparkRouterLoadError("Invalid data source");
         };
     }
 
@@ -209,23 +208,23 @@ export class DataLoader {
     /**
      * 获取路由的数据配置选项
      */
-    private _getRouteOptions(matched: KylinMatchedRouteItem): Required<KylinRouteDataOptions> {
+    private _getRouteOptions(matched: AutoSparkMatchedRouteItem): Required<AutoSparkRouteDataOptions> {
         if (!(matched.route as any)._dataOptions) {
             (matched.route as any)._dataOptions = this._mergeRouteOptions(matched) as any;
         }
-        return (matched.route as any)._dataOptions as unknown as Required<KylinRouteDataOptions>;
+        return (matched.route as any)._dataOptions as unknown as Required<AutoSparkRouteDataOptions>;
     }
 
     /**
      * 合并路由配置
      */
-    private _mergeRouteOptions(matched: KylinMatchedRouteItem): Required<KylinRouteDataOptions> {
+    private _mergeRouteOptions(matched: AutoSparkMatchedRouteItem): Required<AutoSparkRouteDataOptions> {
         const dataSource = (matched.route as any).data || {};
         const isSourceOptions = isPlainObject(dataSource) && "from" in dataSource;
         return {
             ...this.options,
             ...(isSourceOptions ? dataSource : { from: dataSource }),
-        } as Required<KylinRouteDataOptions>;
+        } as Required<AutoSparkRouteDataOptions>;
     }
 
     // ========================================
@@ -238,7 +237,7 @@ export class DataLoader {
      * @param navSignal - 导航级别的中止信号
      */
     public loadRoutes(
-        routes: KylinMatchedRouteItem[],
+        routes: AutoSparkMatchedRouteItem[],
         navSignal?: AbortSignal,
     ): Promise<PromiseSettledResult<void>[]> {
         return Promise.allSettled(routes.map((matched) => this._loadRoute(matched, navSignal)));
@@ -249,7 +248,7 @@ export class DataLoader {
      * @param matched - 匹配的路由项
      * @param navSignal - 导航级别的中止信号
      */
-    private async _loadRoute(matched: KylinMatchedRouteItem, navSignal?: AbortSignal): Promise<void> {
+    private async _loadRoute(matched: AutoSparkMatchedRouteItem, navSignal?: AbortSignal): Promise<void> {
         if (!matched.route?.data) return;
 
         const options = this._getRouteOptions(matched);
@@ -278,7 +277,7 @@ export class DataLoader {
     /**
      * 获取缓存键（保留用于其他场景）
      */
-    private _getHash(matched: KylinMatchedRouteItem, options: KylinRouteDataOptions): string {
+    private _getHash(matched: AutoSparkMatchedRouteItem, options: AutoSparkRouteDataOptions): string {
         if (options.hash) {
             return getSignalHash(options.hash, matched);
         }
@@ -305,10 +304,9 @@ export class DataLoader {
      * 从 AsyncLoader 的 onAfterLoad 回调中调用
      */
     private _onLoadSuccess(
-        matched: KylinMatchedRouteItem,
+        matched: AutoSparkMatchedRouteItem,
         data: any,
         signal: IAsyncSignal,
-        options: KylinRouteDataOptions,
     ): void {
         try {
             // 提取实际数据
@@ -318,18 +316,18 @@ export class DataLoader {
 
             // 验证数据有效性（必须是纯对象）
             if (!this._isValidData(actualData)) {
-                signal.reject(new KylinRouterLoadError("Invalid data format: expected plain object"));
+                signal.reject(new AutoSparkRouterLoadError("Invalid data format: expected plain object"));
                 return;
             }
 
             // 处理错误情况
             if (this._isRemoteLoadResult(data) && data.error && data.error instanceof Error) {
-                signal.reject(new KylinRouterLoadError(data.error.message));
+                signal.reject(new AutoSparkRouterLoadError(data.error.message));
                 return;
             }
 
-            // 处理数据（Alpine.js 集成）
-            const processedData = this._onHandleData(actualData, signal, matched, options);
+            // 处理数据（合并路由参数）
+            const processedData = this._onHandleData(actualData, matched);
             signal.resolve(processedData);
         } catch (e: any) {
             signal.reject(e);
@@ -337,9 +335,9 @@ export class DataLoader {
     }
 
     /**
-     * 检查是否为 KylinRemoteLoadResult 格式
+     * 检查是否为 AutoSparkRemoteLoadResult 格式
      */
-    private _isRemoteLoadResult(data: any): data is KylinRemoteLoadResult {
+    private _isRemoteLoadResult(data: any): data is AutoSparkRemoteLoadResult {
         return data && typeof data === 'object' && ('value' in data || 'error' in data);
     }
 
@@ -348,37 +346,32 @@ export class DataLoader {
      * 从 AsyncLoader 的 onAfterLoad 回调中调用
      */
     private _onLoadError(
-        matched: KylinMatchedRouteItem,
+        matched: AutoSparkMatchedRouteItem,
         error: Error,
         signal: IAsyncSignal,
-        _options: KylinRouteDataOptions,
+        _options: AutoSparkRouteDataOptions,
     ): void {
         if (error.name === "AbortError") {
             signal.resolve(undefined);
         } else {
             // 设置状态码到 signal meta（兼容性）
-            signal.meta.statusCode = (error as KylinRouterLoadError).status || 500;
+            signal.meta.statusCode = (error as AutoSparkRouterLoadError).status || 500;
             signal.reject(error);
         }
     }
 
     // ========================================
-    // 数据处理（Alpine.js 集成）
+    // 数据处理（合并路由参数，供渲染层写入 autospark/data script）
     // ========================================
 
     /**
-     * 处理加载的数据，集成 Alpine.js
+     * 处理加载的数据：合并 $params/$query/$state 后返回，
+     * 由渲染层序列化进远程模板的 `<script type="autospark/data">`
      */
     private _onHandleData(
         data: Record<string, any>,
-        signal: IAsyncSignal,
-        matched: KylinMatchedRouteItem,
-        options: KylinRouteDataOptions,
+        matched: AutoSparkMatchedRouteItem,
     ): any {
-        const { store } = options;
-        // 从 signal.meta 获取 hash（AsyncLoader 会同步 meta 到 signal）
-        const hash = signal.meta.hash;
-
         // 将 $params 和 $query 添加到数据对象中
         const mergedData = {
             ...cloneDeep(data),
@@ -387,20 +380,7 @@ export class DataLoader {
             $state: matched.state || {},
         };
 
-        try {
-            if (typeof store === "string") {
-                Alpine.store(store, mergedData);
-            } else {
-                Alpine.data(hash, () => mergedData);
-            }
-        } catch (e: any) {
-            this.router.logger.error(
-                `{} -> Failed to create route dataObject : ${e.message}`,
-                () => [matched.id, e],
-            );
-        }
-
-        return data;
+        return mergedData;
     }
 
     // ========================================
@@ -410,7 +390,7 @@ export class DataLoader {
     /**
      * 当 data=true 时，自动生成数据URL
      */
-    private _getAutoUrl(matched: KylinMatchedRouteItem): string | undefined {
+    private _getAutoUrl(matched: AutoSparkMatchedRouteItem): string | undefined {
         if (matched.route) {
             const viewSrc = matched.route.view;
             const viewUrl = typeof viewSrc === "function" ? viewSrc(matched) : viewSrc;
@@ -426,7 +406,7 @@ export class DataLoader {
      * @param routes - 匹配的路由数组
      * @param navSignal - 导航级别的中止信号
      */
-    async loadDatas(routes: KylinMatchedRouteItem[], navSignal?: AbortSignal) {
+    async loadDatas(routes: AutoSparkMatchedRouteItem[], navSignal?: AbortSignal) {
         return this.loadRoutes(routes, navSignal);
     }
 
@@ -437,7 +417,7 @@ export class DataLoader {
     /**
      * 使指定路由的数据缓存失效
      */
-    public invalidateRoute(matched: KylinMatchedRouteItem): void {
+    public invalidateRoute(matched: AutoSparkMatchedRouteItem): void {
         const loader = this.getLoader(matched);
         loader?.invalidate();
     }
@@ -445,7 +425,7 @@ export class DataLoader {
     /**
      * 强制重新加载指定路由的数据
      */
-    public async refreshRoute(matched: KylinMatchedRouteItem): Promise<any> {
+    public async refreshRoute(matched: AutoSparkMatchedRouteItem): Promise<any> {
         const loader = this.getLoader(matched);
         if (!loader) {
             throw new Error("No loader found for this route");
@@ -456,7 +436,7 @@ export class DataLoader {
     /**
      * 中止指定路由的数据加载
      */
-    public abortRoute(matched: KylinMatchedRouteItem): void {
+    public abortRoute(matched: AutoSparkMatchedRouteItem): void {
         const loader = this.getLoader(matched);
         loader?.abort();
     }
@@ -464,7 +444,7 @@ export class DataLoader {
     /**
      * 检查路由数据是否正在加载
      */
-    public isLoading(matched: KylinMatchedRouteItem): boolean {
+    public isLoading(matched: AutoSparkMatchedRouteItem): boolean {
         const loader = this.getLoader(matched);
         return loader?.loading || false;
     }

@@ -1,14 +1,14 @@
 import { styles } from "./styles";
 
 /**
- * kylin-loading 组件（原生 Web Components 版本）
+ * autospark-loading 组件（原生 Web Components 版本）
  *
  * 加载状态指示器组件
  * - 使用 Shadow DOM 进行样式隔离
  * - 支持自定义加载消息
  * - 动画加载指示器
  */
-export class KylinLoading extends HTMLElement {
+export class AutoSparkLoading extends HTMLElement {
     // 私有属性存储
     private _message: string = "Loading...";
 
@@ -72,12 +72,12 @@ export class KylinLoading extends HTMLElement {
 }
 
 // 注册自定义元素
-if (!customElements.get("kylin-loading")) {
-    customElements.define("kylin-loading", KylinLoading);
+if (!customElements.get("autospark-loading")) {
+    customElements.define("autospark-loading", AutoSparkLoading);
 }
 
 declare global {
     interface HTMLElementTagNameMap {
-        "kylin-loading": KylinLoading;
+        "autospark-loading": AutoSparkLoading;
     }
 }

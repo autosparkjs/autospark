@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KylinRouter 调试模式演示</title>
+    <title>AutoSparkRouter 调试模式演示</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -33,7 +33,7 @@
     </style>
 </head>
 <body>
-    <h1>KylinRouter 调试模式演示</h1>
+    <h1>AutoSparkRouter 调试模式演示</h1>
 
     <div class="info">
         <h3>🔍 调试模式已启用</h3>
@@ -44,6 +44,11 @@
             <li>钩子执行状态</li>
             <li>导航方法调用</li>
         </ul>
+        <p>
+            本页示范<strong>注入模式</strong>：应用先创建 engine 实例再交给 router
+            （静态模板中的出口须写 <code>x-component:autospark.outlet</code> 完整形态；
+            远程模板内可简写 <code>&lt;div x-outlet&gt;</code>）。
+        </p>
     </div>
 
     <div class="nav">
@@ -55,62 +60,61 @@
     </div>
 
     <div class="content">
-        <kylin-outlet></kylin-outlet>
+        <!-- 注入模式静态出口：完整组件形态 -->
+        <div x-component:autospark.outlet></div>
     </div>
 
     <script type="module">
-        import { createRouter } from './src/index.js';
+        import { AutoSpark } from "autospark";
+        import { createRouter } from "../src/index.ts";
 
-        // 创建路由器实例，启用调试模式
-        const router = await createRouter(document.body, {
+        // 注入模式：应用创建并拥有 engine 实例（host 即路由宿主）
+        const engine = new AutoSpark(document.body, {});
+
+        // 创建路由器实例，启用调试模式（缺省 engine 时 router 会自建）
+        const router = createRouter(document.body, {
+            engine,
             routes: [
                 {
-                    name: 'home',
-                    path: '/',
-                    component: '<h1>欢迎来到首页</h1><p>这是首页内容</p>',
-                    meta: { title: '首页' }
+                    name: "home",
+                    path: "/",
+                    view: "./debug-pages/home.html",
+                    meta: { title: "首页" },
                 },
                 {
-                    name: 'about',
-                    path: '/about',
-                    component: '<h1>关于我们</h1><p>这是关于页面</p>',
-                    meta: { title: '关于' }
+                    name: "about",
+                    path: "/about",
+                    view: "./debug-pages/about.html",
+                    meta: { title: "关于" },
                 },
                 {
-                    name: 'user',
-                    path: '/user/:id',
-                    component: '<h1>用户详情</h1><p>用户ID: <span id="user-id"></span></p>',
-                    meta: { title: '用户详情' }
-                }
+                    name: "user",
+                    path: "/user/:id",
+                    // 远程模板可自带 <script type="autospark/data"> 静态数据；
+                    // data 提供的动态数据覆盖同名键
+                    view: "./debug-pages/user.html",
+                    meta: { title: "用户详情" },
+                },
             ],
-            debug: true,  // 🔍 启用调试模式
-            onBeforeEach: (to, from) => {
-                console.log('[自定义钩子] beforeEach 执行');
+            debug: true, // 🔍 启用调试模式
+            beforeRoute: () => {
+                console.log("[自定义钩子] beforeRoute 执行");
                 return true;
             },
-            renderEach: (to, from, next) => {
-                console.log('[自定义钩子] renderEach 执行');
-                // 模拟数据预加载
-                if (to.name === 'user') {
-                    next({ userId: to.params.id, userName: '测试用户' });
-                } else {
-                    next();
+            afterRoute: (context) => {
+                console.log("[自定义钩子] afterRoute 执行");
+                const to = context?.to?.[context.to.length - 1];
+                if (to?.route?.meta?.title) {
+                    document.title = to.route.meta.title;
                 }
             },
-            onAfterEach: (to, from) => {
-                console.log('[自定义钩子] afterEach 执行');
-                // 更新页面标题
-                if (to.meta?.title) {
-                    document.title = to.meta.title;
-                }
-            }
         });
 
         // 将路由器暴露到全局，方便在控制台测试
         window.router = router;
 
-        console.log('%c🚀 KylinRouter 初始化完成', 'color: green; font-weight: bold');
-        console.log('提示: 点击上方按钮进行导航，查看控制台中的调试日志');
+        console.log("%c🚀 AutoSparkRouter 初始化完成", "color: green; font-weight: bold");
+        console.log("提示: 点击上方按钮进行导航，查看控制台中的调试日志");
     </script>
 </body>
 </html>

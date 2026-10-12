@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import type { KylinRouter } from "@/router";
+import type { AutoSparkRouter } from "@/router";
 
 /**
  * 创建测试用的 DOM 环境
@@ -35,15 +35,15 @@ function createTestDOM() {
 }
 
 async function createRouter(host: HTMLElement, options: any) {
-    const { KylinRouter } = await import("@/router");
-    const router = new KylinRouter(host, options);
+    const { AutoSparkRouter } = await import("@/router");
+    const router = new AutoSparkRouter(host, options);
     router.attach();
     return router;
 }
 
 describe("Remote route loading", () => {
     let host: HTMLElement;
-    let router: KylinRouter;
+    let router: AutoSparkRouter;
 
     const baseRoutes = [
         { name: "home", path: "/" },

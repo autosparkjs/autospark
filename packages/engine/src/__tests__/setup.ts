@@ -27,10 +27,15 @@ expect.extend({
         if (typeof received === "string") {
             actual = received;
         } else if (received instanceof Element) {
-            // data-autospark 是 engine 根标识（ADR-0060，运行时打点），不属于模板编译产物——
-            // 结构等价比较前剥除，避免既有 HTML 断言逐一修改。
+            // data-autospark（engine 根标识，ADR-0060）与 data-viewport（全局档位，
+            // ADR-0105）是运行时打点的引擎根级属性，不属于模板编译产物——结构等价比较前
+            // 精确剥除，避免既有 HTML 断言逐一修改。
             const clone = received.cloneNode(true) as Element;
             clone.removeAttribute("data-autospark");
+            clone.removeAttribute("data-viewport");
+            for (const name of [...clone.getAttributeNames()]) {
+                if (name.startsWith("data-autospark-")) clone.removeAttribute(name);
+            }
             actual = clone.outerHTML;
         } else {
             actual = String(received ?? "");

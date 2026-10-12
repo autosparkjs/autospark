@@ -58,7 +58,7 @@ body {
     gap: 5px;
 }
 
-.nav-menu kylin-link {
+.nav-menu autospark-link {
     color: white;
     text-decoration: none;
     padding: 10px 20px;
@@ -71,12 +71,12 @@ body {
     cursor: pointer;
 }
 
-.nav-menu kylin-link:hover {
+.nav-menu autospark-link:hover {
     background: rgba(255, 255, 255, 0.2);
     transform: translateY(-2px);
 }
 
-.nav-menu kylin-link.active {
+.nav-menu autospark-link.active {
     background: rgba(255, 255, 255, 0.3);
 }
 

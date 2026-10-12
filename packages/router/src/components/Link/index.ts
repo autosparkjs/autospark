@@ -1,6 +1,6 @@
-import type { KylinRouter } from "@/router";
+import type { AutoSparkRouter } from "@/router";
 import { joinPath } from "@/utils/joinPath";
-import { KylinRouterElementBase } from "../Base";
+import { AutoSparkRouterElementBase } from "../Base";
 
 /**
  * 判断目标路径是否为内部路由
@@ -22,14 +22,14 @@ export function isDangerousProtocol(path: string): boolean {
 }
 
 /**
- * KylinLink 组件（原生 Web Components 版本）
+ * AutoSparkLink 组件（原生 Web Components 版本）
  *
  * 路由链接组件，提供声明式导航
  * - 使用 Light DOM 模式
  * - 元素本身表现为 <a> 标签的行为
  * - 支持内部路由和外部链接
  */
-export class KylinLink extends KylinRouterElementBase {
+export class AutoSparkLink extends AutoSparkRouterElementBase {
     // 私有属性存储
     private _to = "";
     private _replace = false;
@@ -238,12 +238,12 @@ export class KylinLink extends KylinRouterElementBase {
 }
 
 // 注册自定义元素
-if (!customElements.get("kylin-link")) {
-    customElements.define("kylin-link", KylinLink);
+if (!customElements.get("autospark-link")) {
+    customElements.define("autospark-link", AutoSparkLink);
 }
 
 declare global {
     interface HTMLElementTagNameMap {
-        "kylin-link": KylinLink;
+        "autospark-link": AutoSparkLink;
     }
 }

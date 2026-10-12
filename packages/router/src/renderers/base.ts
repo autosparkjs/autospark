@@ -1,6 +1,6 @@
-import type { KylinRouter } from "@/router";
+import type { AutoSparkRouter } from "@/router";
 import type { ViewRenderOptions } from "./types";
-import type { KylinMatchedRouteItem } from "@/types";
+import type { AutoSparkMatchedRouteItem } from "@/types";
 
 export type ViewRenderResult = {
     value: string;
@@ -8,9 +8,9 @@ export type ViewRenderResult = {
     meta?: Record<string, any>;
 };
 
-export class KylinRouterViewRendererBase {
-    router: KylinRouter;
-    constructor(router: KylinRouter) {
+export class AutoSparkRouterViewRendererBase {
+    router: AutoSparkRouter;
+    constructor(router: AutoSparkRouter) {
         this.router = router;
     }
 
@@ -18,7 +18,7 @@ export class KylinRouterViewRendererBase {
      * 根据url决定选用哪一种渲染器
      * @param url
      */
-    test(_response: Response, _matched: KylinMatchedRouteItem) {
+    test(_response: Response, _matched: AutoSparkMatchedRouteItem) {
         return true;
     }
     /**
@@ -26,7 +26,7 @@ export class KylinRouterViewRendererBase {
      */
     render(
         _response: Response,
-        _matched: KylinMatchedRouteItem,
+        _matched: AutoSparkMatchedRouteItem,
         options: ViewRenderOptions,
     ): Promise<ViewRenderResult> {
         return Promise.resolve({

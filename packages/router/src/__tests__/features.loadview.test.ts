@@ -5,11 +5,11 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
-import type { KylinRouter } from "../router";
-import type { KylinMatchedRouteItem } from "../types/routes";
+import type { AutoSparkRouter } from "../router";
+import type { AutoSparkMatchedRouteItem } from "../types/routes";
 
 import { setupTestEnvironment } from "./test-setup";
-import { KylinRouterTimeoutError } from "@/errors";
+import { AutoSparkRouterTimeoutError } from "@/errors";
 
 // 初始化其他测试环境（window, document 等）
 setupTestEnvironment();
@@ -25,8 +25,8 @@ const mockLogger = {
     warn: () => {},
 };
 
-// Mock KylinRouter
-const createMockRouter = (): Partial<KylinRouter> => ({
+// Mock AutoSparkRouter
+const createMockRouter = (): Partial<AutoSparkRouter> => ({
     debug: false,
     logger: mockLogger,
     routes: {
@@ -49,7 +49,7 @@ const createMockRouter = (): Partial<KylinRouter> => ({
 });
 
 // 创建模拟的 matched route
-function createMockedRoute(path: string, view: any, id: number = 1): KylinMatchedRouteItem {
+function createMockedRoute(path: string, view: any, id: number = 1): AutoSparkMatchedRouteItem {
     return {
         route: {
             name: "test",
@@ -77,7 +77,7 @@ function createFetchMock(
 
 describe("ViewLoader", () => {
     let viewLoader: any;
-    let mockRouter: Partial<KylinRouter>;
+    let mockRouter: Partial<AutoSparkRouter>;
     let mockFetch: any;
 
     beforeEach(async () => {
@@ -88,7 +88,7 @@ describe("ViewLoader", () => {
         }
 
         mockRouter = createMockRouter();
-        viewLoader = new ViewLoader(mockRouter as KylinRouter);
+        viewLoader = new ViewLoader(mockRouter as AutoSparkRouter);
     });
 
     afterEach(() => {
@@ -828,7 +828,7 @@ describe("ViewLoader", () => {
             expect(signal).toBeDefined();
             if (signal) {
                 expect(signal.isRejected()).toBe(true);
-                expect(signal.error).toBeInstanceOf(KylinRouterTimeoutError);
+                expect(signal.error).toBeInstanceOf(AutoSparkRouterTimeoutError);
             }
         });
     });
@@ -1404,7 +1404,7 @@ describe("ViewLoader", () => {
 
     describe("同步函数返回视图测试", () => {
         it("应该处理同步函数返回的 HTML", async () => {
-            const syncFn = (route: KylinMatchedRouteItem) => {
+            const syncFn = (route: AutoSparkMatchedRouteItem) => {
                 return `<div class="route-${route.id}">Route ${route.id}</div>`;
             };
 
@@ -1422,7 +1422,7 @@ describe("ViewLoader", () => {
         });
 
         it("应该传递正确的路由参数给同步函数", async () => {
-            const syncFn = (route: KylinMatchedRouteItem) => {
+            const syncFn = (route: AutoSparkMatchedRouteItem) => {
                 const params = JSON.stringify(route.params);
                 const query = JSON.stringify(route.query);
                 return `<div data-params="${params}" data-query="${query}">Info</div>`;

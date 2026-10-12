@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>视口断点 · $.viewport 全局档位</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      /* 根元素 data-viewport 钩子：纯 CSS 按全局档位定制任意元素 */
+      .marker {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 4px;
+        color: #fff;
+        background: #7a7a7a;
+      }
+      [data-viewport="xs"] .marker-vp  { background: #485fc7; }
+      [data-viewport="sm"] .marker-vp  { background: #3e8ed0; }
+      [data-viewport="md"] .marker-vp  { background: #00947e; }
+      [data-viewport="lg"] .marker-vp  { background: #b18602; }
+      [data-viewport="xl"] .marker-vp  { background: #e56700; }
+      [data-viewport="xxl"] .marker-vp { background: #cc0f35; }
+    </style>
+  </head>
+  <body style="overflow:auto">
+    <div class="demo-app section">
+      <div class="block has-text-grey is-size-7">
+        拖动浏览器窗口宽度跨越阈值（576 / 768 / 992 / 1200 / 1400）：<code>$.viewport</code>
+        全局响应式更新——插值、x-show、根元素 <code>data-viewport</code> CSS 钩子同步联动。
+      </div>
+      <div class="field is-grouped is-grouped-multiline mb-3">
+        <span class="tag is-dark is-medium">$.viewport</span>
+        <span class="tag is-link is-medium">{{ $.viewport }}</span>
+        <span class="tag is-dark is-medium">根元素 data-viewport</span>
+        <span class="marker marker-vp">{{ $.viewport }}</span>
+      </div>
+      <div class="notification is-light is-primary is-size-7" x-show="$.viewport === 'xs' || $.viewport === 'sm'">
+        📱 小屏视图（x-show="$.viewport === 'xs' || $.viewport === 'sm'"）
+      </div>
+      <div class="notification is-light is-success is-size-7" x-show="$.viewport !== 'xs' && $.viewport !== 'sm'">
+        🖥️ 桌面视图（md 及以上）
+      </div>
+      <div class="box is-size-7" :class="'tier-' + $.viewport">
+        <code>:class</code> 按档切换（当前 class：<code>tier-{{ $.viewport }}</code>）
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

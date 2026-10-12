@@ -68,6 +68,29 @@ export interface SlotContent {
     mode?: "template" | "live";
 }
 
+/** `$slots` 注册表条目（ADR-0107 决策六）：最小元数据——v1 从窄，后续按真实需求再扩 */
+export interface SlotRegistryEntry {
+    /** 段名（键的冗余，遍历解构便利） */
+    name: string;
+}
+
+/** `$slots` 注册表（ADR-0107）：名 → 条目的只读冻结快照（组件实例域保留键） */
+export type SlotRegistry = Record<string, SlotRegistryEntry>;
+
+/**
+ * 构建 `$slots` 注册表（ADR-0107 决策六）：内容段 map → 冻结条目快照。
+ *
+ * 在组件实例化 stash 点同步构建（instantiateComponent / instantiateDetachedComponent）；
+ * null/空 map → 冻结空对象（恒注入，`Object.keys($slots)` 遍历友好）。
+ */
+export function buildSlotsRegistry(map: Map<string, SlotContent> | null | undefined): SlotRegistry {
+    const reg: SlotRegistry = {};
+    if (map) {
+        for (const [name, content] of map) reg[name] = Object.freeze({ name: content.name });
+    }
+    return Object.freeze(reg);
+}
+
 /** 属性名是否为插槽标记（裸 / 修饰 / 命名三形态；`x-slot-options` 不命中） */
 function isSlotAttrName(name: string): boolean {
     return name === "x-slot" || name.startsWith("x-slot.") || name.startsWith("x-slot:");
@@ -234,8 +257,9 @@ export function collectSlotContent(
     host: HTMLElement,
     slots: string[] | undefined,
     warn: (msg: string) => void,
+    options?: CollectSlotOptions,
 ): Map<string, SlotContent> | null {
-    return collectSlotSegments(Array.from(host.childNodes), slots, warn);
+    return collectSlotSegments(Array.from(host.childNodes), slots, warn, options);
 }
 
 /**
@@ -249,10 +273,20 @@ export function collectSlotContent(
  * @param warn     warn 日志
  * @returns 名 → 内容段；无任何有效段返回 null
  */
+/** 收集选项（ADR-0107）：`skipValidation` = 跳过出口清单校验（组件路径全量收集） */
+export interface CollectSlotOptions {
+    /**
+     * 跳过出口清单校验（ADR-0107 决策五）：动态出口名运行期才可知，命名段全量放行——
+     * 未被动态出口消费的段静默闲置不 warn。缺省 false（覆盖物/继承路径维持清单校验）。
+     */
+    skipValidation?: boolean;
+}
+
 export function collectSlotSegments(
     children: ChildNode[],
     slots: string[] | undefined,
     warn: (msg: string) => void,
+    options?: CollectSlotOptions,
 ): Map<string, SlotContent> | null {
     const named = new Map<string, SlotContent>();
     /** 裸默认段节点（文档序） */
@@ -371,19 +405,23 @@ export function collectSlotSegments(
         }
     }
 
-    // 出口清单校验：无对应出口 → warn + 丢弃
-    const slotSet = slots ? new Set(slots) : null;
-    const result = new Map<string, SlotContent>();
-    for (const [name, content] of map) {
-        if (!slotSet || !slotSet.has(name)) {
-            warn(
-                `x-slot: 内容 "${name}" 无对应出口（组件未声明该 x-slot 出口），已丢弃（ADR-0056）`,
-            );
-            continue;
+    // 出口清单校验：无对应出口 → warn + 丢弃（ADR-0107 决策五：组件路径 skipValidation
+    // 跳过——动态出口名运行期才可知，未被消费的段静默闲置不 warn）
+    if (!options?.skipValidation) {
+        const slotSet = slots ? new Set(slots) : null;
+        const result = new Map<string, SlotContent>();
+        for (const [name, content] of map) {
+            if (!slotSet || !slotSet.has(name)) {
+                warn(
+                    `x-slot: 内容 "${name}" 无对应出口（组件未声明该 x-slot 出口），已丢弃（ADR-0056）`,
+                );
+                continue;
+            }
+            result.set(name, content);
         }
-        result.set(name, content);
+        return result.size > 0 ? result : null;
     }
-    return result.size > 0 ? result : null;
+    return map.size > 0 ? map : null;
 }
 
 /**

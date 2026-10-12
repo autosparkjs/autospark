@@ -314,25 +314,37 @@ _Avoid_: 宿主克隆壳（旧机制，已随 ADR-0098 修订记录 10 移除—
 
 ### 响应式容器层
 
+**元状态容器 / `$`（Meta State Container）**:
+引擎内部状态在 `store.state` 顶层的保留容器 `state.$`（ADR-0105）：框架私有的响应式数据根——视口档位（`$.viewport`）是首个居民，后续引擎内部数据逐步迁入。**严格保留键**：用户 state 顶层注入 `$` 构造期 warn + delete + 引擎重建；框架注入对象挂 Symbol 标记（多 engine 共享 store 时不误删框架所有物，防御性保留）。与 `$scopes` / `$notifications`（各自独立的顶层保留键）并存，旧键迁移另立课题。
+_Avoid_: 用户数据写入 `$`（严格保留键，构造期 warn+delete）、$scopes 迁移臆测（并存是本期定案）
+
+**视口档位状态 / `$.viewport`（Viewport Tier State）**:
+当前视口档位（六档枚举字符串）的**全局响应式真相**（ADR-0105）：ViewportManager 构造期同步注入初值（消灭首渲染空档）、跨档经 store 响应式写入，模板任意位置 `$.viewport==='md'` 直接订阅（x-show / 插值 / watch / x-effect 全通）。**只读约定**：测量真相，外部写不解释、下次跨档自然覆盖。`options.viewport: false` 时不存在（整体关闭）。
+_Avoid_: 写 `$.viewport`（只读约定——外部写不解释）、`$viewport` 顶层键（形态是 `state.$` 容器的 `viewport` 成员）、档位对象 `{tier,width}`（恒字符串档名；像素宽度非本状态职责）
+
+**视口显隐 / x-viewport（Viewport Visibility）**:
+视口档位的声明式显隐糖（ADR-0106）：`x-viewport="md"` 仅 md 档可见、`x-viewport="xs,sm"` 多档可见、`x-viewport.hide="md"` 除 md 外可见。内部订阅全局视口档位状态 `$.viewport` 判定：隐藏 = 挂 `autospark-viewport-hidden` 类（`display:none !important`）、可见 = 摘类——**不碰 inline display**，与 x-show 同元素组合时**档位隐藏恒胜**（x-show 的显隐 / 动画 / 用户 CSS 只在档位可见时有话语权）；与 x-if（存在性）正交。档位未知（viewport: false / 无 matchMedia / 非法写入）时静默失效恒可见（零告警）。v1 无动画。
+_Avoid_: `x-viewport="!md"` 反向语法（反向走 `.hide` 修饰符）、未知档名告警预期（静默跳过）、x-viewport-options（无配置项）、范围语法 md+（未立项——`['md','lg','xl','xxl'].includes($.viewport)` 表达）、把它当存在性指令（摘 DOM 走 x-if）
+
+**根元素档位属性 / data-autospark-viewport（Root Viewport Attribute）**:
+ViewportManager 常驻写在 engine 根元素（`engine.el`）的档位暴露面（ADR-0105）：`data-autospark-viewport="<档名>"`，构造期写初值、跨档即改、destroy 摘除。纯暴露面——CSS 属性选择器钩子（`[data-autospark-viewport=md] .sidebar{...}`）、测试断言与调试可见；不承担 x-container 的视觉约束（那走 media query）。与 x-container 宿主的 `data-breakpoint`（实例档位）两级并存。
+_Avoid_: 把视觉约束挂 `data-autospark-viewport` 写（x-container max-width 走 media query）、data-breakpoint 混写（根级 data-autospark-viewport 是全局档，宿主 data-breakpoint 是容器实例档）
+
 **响应式容器 / x-container（Responsive Container）**:
-Bootstrap `.container` 心智的断点容器指令：宿主获得 `width:100%` + 按档 `max-width` + 居中（`margin-inline:auto`，默认开不可关——想不居中别用容器）+ gutter（`padding-inline: var(--autospark-container-gutter, 0.75rem)`，仅 CSS 变量无选项面）的视觉契约。值双态（x-resizable 先例）：留空 = 纯视觉容器；简单状态路径 = **响应式状态源**——当前档名（字符串）随切换实时**单向写回**（档位是测量真相，外部写不解释）；宿主常驻 `data-breakpoint="<档名>"`（纯 CSS 子代选择器与测试的 DOM 暴露面）。`.fluid` 修饰符关闭按档 max-width（恒 100% 通栏），档位判定 / data-breakpoint / 写回照常——「纯状态探针 + 无约束容器」用法。
-_Avoid_: 布局容器（那是 x-layout 正名——grid 骨架）、@container / 容器查询（CSS 原生概念，`.self` 判定刻意不用它）、响应式（本表默认 reactive 语义——指断点语义须写全称）
+Bootstrap `.container` 心智的断点容器指令：宿主获得 `width:100%` + 按档 `max-width` + 居中（`margin-inline:auto`，默认开不可关——想不居中别用容器）+ gutter（`padding-inline: var(--autospark-container-gutter, 0.75rem)`，仅 CSS 变量无选项面）的视觉契约。**档位真相全局唯一**（视口档位状态 `$.viewport`，ADR-0105）——指令自身不做断点判定，仅订阅 `$.viewport` 切换宿主常驻的 `data-breakpoint="<档名>"`（纯 CSS 子代选择器与测试的 DOM 暴露面）；按档 max-width 走纯 CSS media query（engine 生效阈值表 × 实例 `maxWidths` 指纹 scoped style）。`.fluid` 修饰符关闭按档 max-width（恒 100% 通栏），`data-breakpoint` 照常——「纯状态探针 + 无约束容器」用法。
+_Avoid_: 布局容器（那是 x-layout 正名——grid 骨架）、@container / 容器查询（CSS 原生概念，`.self` 判定刻意不用它）、响应式（本表默认 reactive 语义——指断点语义须写全称）、档名写回 / `x-container="path"` / viewport:change（ADR-0105 已废——订阅 `$.viewport` 表达式替代）
 
 **断点档位（Breakpoint Tier）**:
 宽度区间的六档枚举 `xs/sm/md/lg/xl/xxl`（Bootstrap 5 对齐）：**mobile-forward min-width** 区间语义——宽度 ≥ 档位阈值即命中，当前档 = 命中档中最大者；**xs 是 < sm 的隐含兜底档**（无阈值，写入阈值表 warn + 忽略——初稿 `xs:"576px"` 与 sm 区间重合永不独立命中，已纠正）。默认表冻结：阈值 sm:576 / md:768 / lg:992 / xl:1200 / xxl:1400（px）；max-width xs:100% / sm:540 / md:720 / lg:960 / xl:1140 / xxl:1320。
 _Avoid_: 断点（口语泛指——档位是区间名、阈值是区间边界，两概念分离）、max-width 区间语义（旧 Foundation 风格已否决）、xs 阈值（xs 无阈值）
 
 **判定基准（Measuring Base）**:
-断点档位判定度量的宽度对象——恒**视口宽度**：视觉约束走纯 CSS media query（全局样式表一份、零 JS 布局开销），档位状态走 matchMedia 按档 mql 监听（跨越才触发，当前档 = 命中档中最大者）。元素宽度形态（`.self`，曾按宿主可用宽度探测）已裁剪（ADR-0101 修订记录）。
+断点档位判定度量的宽度对象——恒**视口宽度**：档位状态由全局 ViewportManager 经 matchMedia 按档 mql 监听写入 `$.viewport`（跨越才触发，当前档 = 命中档中最大者，ADR-0105）；x-container 的视觉约束走纯 CSS media query（零 JS 布局开销，与 JS 状态同源不同通道）。元素宽度形态（`.self`，曾按宿主可用宽度探测）已裁剪（ADR-0101 修订记录）。
 _Avoid_: 容器查询 / container-type（CSS 原生方案已否决——`@container` 无法样式化容器自身、纯 CSS 须加 wrapper 侵入 DOM、size containment 副作用破坏 flex/inline 布局）、.self / 宿主宽度 / 可用宽度探测（已裁剪形态，勿再书写）
 
 **断点表 / breakpoints + maxWidths（Tier Tables）**:
-x-container 的两张选项表：`breakpoints`（档位阈值表）与 `maxWidths`（按档 max-width 表）——**两表分离**（按档合并形态因 xs 兜底档无 min 不对称而否决），各自**整表替换**（回退不合并，ADR-0007 惯例）。三级回退：engine `options.container`（按特性命名空间，对齐 options.components 先例）→ `x-container-options` → 内置 Bootstrap 5 缺省表。值收 number（按 px）与 CSS 长度串双形态（parseCssLength 复用）。
-_Avoid_: 按档合并（`sm:{min,maxWidth}` 形态，已否决）、按键合并（整表替换）、顶层 options.breakpoints（留给未来通用响应特性，现归 options.container 命名空间）
-
-**断点事件 / viewport:change（Tier Change Event）**:
-断点档位**跨越**时派发的事件（`detail = { from, to }` 档名字符串），**向下传播**：先沿 scope 子树把事件逐个派发给容器内声明 `@viewport:change` 的**后代元素**（不冒泡、每元素恰好一次——DOM 事件物理上只向上流，向下经 scope 树实现；响应视口变化的通常是容器内部组件），宿主再冒泡上行（祖先监听）；嵌套容器各自独立派发。**初始同步不派发**：监听编译期建立，编译期派发受指令编译顺序影响不可靠；初值经状态写回 / `data-breakpoint` 读取。
-_Avoid_: container:change（旧名已更名 viewport:change，ADR-0101 修订记录）、宿主单点冒泡（旧派发语义，已改向下传播）、viewport-change 连字符（冒号命名空间家族惯例，对齐 `resize:*` / `tree:*`）、裸 change（与原生 change 事件撞名）
+视口断点的两张选项表：`breakpoints`（档位阈值表，**engine 级唯一真相**——`options.viewport.breakpoints`，ViewportManager 判定与 x-container media 样式同源消费）与 `maxWidths`（按档 max-width 表，**实例级**——`x-container-options` / 宿主 `x-options`，回退 `options.viewport.maxWidths`）——**两表分离**、各自**整表替换**（回退不合并，ADR-0007 惯例）。值收 number（按 px）与 CSS 长度串双形态。
+_Avoid_: 按档合并（`sm:{min,maxWidth}` 形态，已否决）、按键合并（整表替换）、options.container（ADR-0105 已废——并入 options.viewport）、实例级 breakpoints（已废——阈值收归 engine 级唯一真相，实例自定义会与全局 $.viewport 档位语义打架）
 
 ### 展开折叠层
 
@@ -964,6 +976,10 @@ _Avoid_: public / expose（对外词汇不一致）、透明模式（不表达�
 _Avoid_: 数据源（那是异步源家族术语）、上下文基准（中英混杂）、基准点、consumer（已废弃）、scope（配置键语境已统一更名 dataContext；engine scope 语境——AutoSparkScope/x-scope/scope 链——不受影响）
 
 ## 已废弃
+
+**断点事件 / viewport:change 与档名写回（ADR-0105 废除）**:
+已废弃。ADR-0101 时代的档位跨越事件（`detail = { from, to }`，向下传播经 scope 子树 + 宿主冒泡）与 x-container 值双态写回（`x-container="path"` 档名单向写回）随档位判定收归全局 `$.viewport` 一并废除——响应式订阅是更通用同位替代（`x-show="$viewport==='md'"`、插值 / watch / x-effect 全通），`from/to` 由消费方自行记忆旧值。连带废除：实例级 mql 监听、实例级 `breakpoints` 选项、`options.container` 键。详见 ADR-0105。
+_Avoid_: `@viewport:change`（事件已不存在，改订阅 `$.viewport`）、`x-container="path"` 档名写回（同上）、options.container（改 options.viewport）、container:change（更早的旧名）
 
 **autospark-dialog 泛化基类（ADR-0062 修订，面板类名契约正名）**:
 已废弃。`.autospark-dialog` 曾兼作覆盖物家族通用面板基类——popover / drawer / notification 面板根携带 `autospark-dialog` + 形态类**双类**蹭基类视觉（名字说 dialog、实际管全家；历史成因：x-dialog 是家族首个成员，ADR-0052 决策 12 的面板类契约随之得名，组件化统一后升格为事实基类）。正名（通用性走属性、特异性走类名）：家族通用规则（position / 圆角 / 边框视觉 / 层级 / 箭头定位）改挂引擎契约属性选择器 `[data-overlay]`（面板必挂、形态中立）；`.autospark-dialog` 回归 **dialog 形态专属类**，popover / drawer / notification 根改单形态类；通知面板无 `data-overlay` 属性（渲染不走覆盖物实例），relative / 圆角自包含；`PANEL_CLASS` 导出常量删除。开发期硬切无兼容。详见 ADR-0062 修订记录。

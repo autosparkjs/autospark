@@ -1,12 +1,11 @@
-import type { OutletRefs } from "@/utils/traverseOutlet";
 import { createBrowserHistory, createHashHistory } from "history";
 import type { Update } from "history";
 
 import type {
-    KylinRouterOptions,
-    KylinRouteItem,
+    AutoSparkRouterOptions,
+    AutoSparkRouteItem,
     ModalState,
-    KylinMatchedRouteItem,
+    AutoSparkMatchedRouteItem,
 } from "./types/index";
 import { Mixin } from "ts-mixer";
 import {
@@ -24,17 +23,16 @@ import {
 import { getBaseUrl } from "@/utils/getBaseUrl";
 
 import { HookManager } from "./features/hooks";
-import { KylinRouteTable } from "./features/routes";
-import { AlpineManager } from "./features/alpine";
+import { AutoSparkRouteTable } from "./features/routes";
+import { setupRouterEngine, type RouterEngineBinding } from "./engine/engineHost";
+import type { AutoSpark } from "autospark";
 
 import { joinPath, matchRoute } from "./utils";
-import { createLogger, type KylinRouterLogger } from "./logger";
+import { createLogger, type AutoSparkRouterLogger } from "./logger";
 import { removePathPrefix } from "./utils/removePathPrefix";
-import { errorPages } from "./pages/errors";
-import { KylinRouterError } from "./errors";
-import { KylinRouterHTMLViewRenderer } from "./renderers/html";
+import { errorPages } from "./pages/errors"; 
 
-export class KylinRouter extends Mixin(
+export class AutoSparkRouter extends Mixin(
     Context,
     KeepAlive,
     Transition,
@@ -50,9 +48,8 @@ export class KylinRouter extends Mixin(
     host!: HTMLElement;
     history!: ReturnType<typeof createBrowserHistory>;
 
-    outlets?: OutletRefs;
     /** 路由表注册器 */
-    public routes!: KylinRouteTable;
+    public routes!: AutoSparkRouteTable;
 
     /** 钩子管理器 */
     public hooks!: HookManager;
@@ -62,7 +59,7 @@ export class KylinRouter extends Mixin(
 
     /** 数据加载器 */
     protected dataLoader!: DataLoader;
-    private _logger?: KylinRouterLogger;
+    private _logger?: AutoSparkRouterLogger;
     /** 是否正在导航 */
     isNavigating: boolean = false;
 
@@ -70,9 +67,9 @@ export class KylinRouter extends Mixin(
     private _pendingNavigationType?: "push" | "replace" | "pop";
 
     /** 上一个路由，用于 afterLeave 守卫 */
-    protected previous?: KylinRouteItem & {
+    protected previous?: AutoSparkRouteItem & {
         matchedRoutes?: Array<{
-            route: KylinRouteItem;
+            route: AutoSparkRouteItem;
             params: Record<string, string>;
             remainingPath: string;
         }>;
@@ -80,7 +77,7 @@ export class KylinRouter extends Mixin(
         query?: Record<string, string>;
     };
 
-    public options: KylinRouterOptions;
+    public options: AutoSparkRouterOptions;
 
     /** 是否已绑定到 DOM */
     public attached: boolean = false;
@@ -102,7 +99,7 @@ export class KylinRouter extends Mixin(
     /** 当前正在处理的路由 URL，用于检测重复导航 */
     private _currentNavUrl?: string;
     protected _lastViewSlot: HTMLElement | null = null;
-    protected _lastMatched: KylinMatchedRouteItem[] | null = null;
+    protected _lastMatched: AutoSparkMatchedRouteItem[] | null = null;
 
     /** 模态容器元素 */
     protected modalContainer: HTMLElement | null = null;
@@ -116,8 +113,13 @@ export class KylinRouter extends Mixin(
     /** 最大模态层数，防止无限堆叠 */
     protected maxModals: number = 10;
 
-    /** Alpine.js 管理器 */
-    protected alpineManager?: AlpineManager;
+    /** engine 绑定（注入或自建，见 engineHost.ts） */
+    protected _engineBinding?: RouterEngineBinding;
+
+    /** 关联的 AutoSpark engine 实例（渲染激活与组件注册的运行时基座） */
+    get engine(): AutoSpark | undefined {
+        return this._engineBinding?.engine;
+    }
 
     /**
      * 构造函数 - 仅负责配置初始化，不操作 DOM
@@ -126,15 +128,15 @@ export class KylinRouter extends Mixin(
      */
     constructor(
         host: HTMLElement | string,
-        options: KylinRouterOptions | KylinRouterOptions["routes"] = [],
+        options: AutoSparkRouterOptions | AutoSparkRouterOptions["routes"] = [],
     ) {
         super();
         // 设置 host 元素
         this.host = typeof host === "string" ? (document.querySelector(host) as HTMLElement) : host;
         if (!(this.host instanceof HTMLElement)) {
-            throw new Error("[KylinRouter] Host must be a valid HTMLElement");
+            throw new Error("[AutoSparkRouter] Host must be a valid HTMLElement");
         } // 标记 host 元素
-        this.host.setAttribute("data-kylin-router", "");
+        this.host.setAttribute("data-autospark-router", "");
         (this.host as any).router = this;
         this.options = this._initOptions(options);
         this.attach();
@@ -192,7 +194,7 @@ export class KylinRouter extends Mixin(
         return this.options.renderers!;
     }
 
-    private _initOptions(options: KylinRouterOptions | KylinRouterOptions["routes"] = []) {
+    private _initOptions(options: AutoSparkRouterOptions | AutoSparkRouterOptions["routes"] = []) {
         this.options = Object.assign(
             {
                 mode: "history",
@@ -229,8 +231,8 @@ export class KylinRouter extends Mixin(
         search: string,
         state?: unknown,
     ): {
-        fromRoute: KylinMatchedRouteItem[] | undefined;
-        toRoute: KylinMatchedRouteItem[];
+        fromRoute: AutoSparkMatchedRouteItem[] | undefined;
+        toRoute: AutoSparkMatchedRouteItem[];
     } {
         const fromRoute = this.routes.current;
         // location.search 已经包含了 ? 前缀，所以直接拼接即可
@@ -298,7 +300,7 @@ export class KylinRouter extends Mixin(
         this._navAbortController = new AbortController();
         const navSignal = this._navAbortController.signal;
 
-        let fromRoute: KylinMatchedRouteItem[] | undefined;
+        let fromRoute: AutoSparkMatchedRouteItem[] | undefined;
 
         try {
             // 检查是否在路由匹配后被中止
@@ -387,7 +389,7 @@ export class KylinRouter extends Mixin(
     protected _ensureAttached(): void {
         if (!this.attached) {
             throw new Error(
-                "[KylinRouter] Cannot navigate: router is not attached to a host element. Call attach() first.",
+                "[AutoSparkRouter] Cannot navigate: router is not attached to a host element. Call attach() first.",
             );
         }
     }
@@ -470,7 +472,7 @@ export class KylinRouter extends Mixin(
         this.history = this.mode === "hash" ? createHashHistory() : createBrowserHistory();
 
         // 初始化路由表注册器
-        this.routes = new KylinRouteTable(this);
+        this.routes = new AutoSparkRouteTable(this);
         // 初始化钩子管理器
         this.hooks = new HookManager(this);
         this.routes
@@ -489,10 +491,10 @@ export class KylinRouter extends Mixin(
                 // 初始化模态容器
                 // this._initModals();
 
-                // 初始化 Alpine.js
-                this.alpineManager = new AlpineManager(this);
+                // engine 接管（替代 Alpine 桥）：注入或自建 + outlet 组件注册（ADR-0002）
+                this._engineBinding = setupRouterEngine(this);
 
-                // 自动插入默认 outlet（如果 host 内部没有 outlet）
+                // 出口兜底检查（自建模式已在 engineHost 编译前插入；注入模式仅告警）
                 this._ensureDefaultOutlet();
                 this.attached = true;
                 this.emit("routes:attached", undefined);
@@ -522,10 +524,11 @@ export class KylinRouter extends Mixin(
         // 清理 DataLoader 资源
         this.dataLoader.cleanup();
 
-        // 清理 Alpine.js
-        if (this.alpineManager) {
-            this.alpineManager.cleanup();
+        // 销毁自建的 engine（注入的 engine 由应用拥有，不处置）
+        if (this._engineBinding?.owned) {
+            this._engineBinding.engine.destroy();
         }
+        this._engineBinding = undefined;
 
         // 清理 AbortController
         this.abortController.abort();
@@ -535,7 +538,7 @@ export class KylinRouter extends Mixin(
 
         // 清理 host 引用
         if (this.host instanceof HTMLElement) {
-            this.host.removeAttribute("data-kylin-router");
+            this.host.removeAttribute("data-autospark-router");
             delete (this.host as any).router;
         }
 

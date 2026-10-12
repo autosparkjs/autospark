@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>notifications · 任务——事件观测（notifications/task/**）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <!-- ⑥ 事件观测：总线通配订阅 notifications/task/**——verb（add/update/show/hide/…）
+         与 actions/*（控制动词 + 用户按钮）全收，信封 { type, payload }。 -->
+    <div class="demo-app section">
+      <div class="block">
+        <button class="button is-light" id="insp" onclick="toggleInspector(this)">📡 开启 notifications/task/** 全事件监听</button>
+        <span class="has-text-grey is-size-7">
+          通配订阅收 <code>{ type, payload }</code> 信封——verb（add/update/show/hide/…）与
+          <code>actions/*</code>（控制动词 + 用户按钮）全收，再点一次关闭。
+        </span>
+      </div>
+      <div class="block">
+        <button class="button is-primary is-light" onclick="runTask()">▶ 跑一个任务（观察事件流）</button>
+        <span class="has-text-grey is-size-7">先开启监听，再点此按钮观察事件流</span>
+      </div>
+      <div class="block">
+        <pre
+          id="log"
+          class="has-background-light"
+          style="padding: 8px; max-height: 300px; overflow: auto"
+        >
+（点击上方按钮开始任务演示）</pre>
+      </div>
+    </div>
+    <script>
+      const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+      const logEl = document.getElementById("log");
+      const lines = [];
+      const log = (t) => {
+        lines.push(`[${new Date().toLocaleTimeString("zh-CN", { hour12: false })}] ${t}`);
+        logEl.textContent = lines.slice(-14).join("\n");
+      };
+
+      /** 驱动器：定时推进（终态 / 关闭自动停表） */
+      function drive(t, step = 160) {
+        let cur = t.data.progress ?? 0;
+        const timer = setInterval(() => {
+          const st = t.data.state;
+          if (t.closed || st === "completed" || st === "stopped") return clearInterval(timer);
+          cur = Math.min(100, cur + 6 + Math.floor(Math.random() * 12));
+          t.progress(cur);
+        }, step);
+      }
+
+      let inspector = null;
+      function toggleInspector(btn) {
+        if (inspector) {
+          inspector.off();
+          inspector = null;
+          btn.classList.remove("is-active");
+          log("📡 事件监听已关闭");
+          return;
+        }
+        inspector = app.on("notifications/task/**", ({ type }) => log(`⇢ ${type}`));
+        btn.classList.add("is-active");
+        log("📡 监听开启：notifications/task/** ——verb 与 actions/* 全收（点下方按钮观察）");
+      }
+
+      function runTask() {
+        const t = app.notifications.task({
+          title: "示例任务",
+          canPause: true,
+          canStop: true,
+          closeWhenDone: 1500,
+        });
+        drive(t);
+      }
+    </script>
+  </body>
+</html>

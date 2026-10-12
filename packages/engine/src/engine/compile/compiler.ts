@@ -42,6 +42,7 @@ import { resolveComponentInheritance, PENDING_PARENT, type InheritResolveResult 
 import { resolveComponentData } from "./setup";
 import type { ComponentDataBasis, ComponentDef } from "../../features/component/component-def";
 import {
+    buildSlotsRegistry,
     getSlotMarker,
     getSlotsContainer,
     stripOwnSlotAttrs,
@@ -1304,11 +1305,15 @@ export class AutoSparkCompiler {
     ): void {
         // 1. 注册快照根到 templateScopeMap：子树编译时 _linkParent 沿 parentElement 找到此映射 → 宿主 scope
         this.templateScopeMap.set(snapshot, hostScope);
-        // 1.5 插槽内容 stash（须早于 compileSubtree——出口 SlotDirective.created 在子树编译时查找）
+        // 1.5 插槽内容 stash（须早于 compileSubtree——出口 SlotDirective.created 在子树编译时查找）；
+        // $slots 注册表恒构建（ADR-0107：无内容为冻结空对象），构建后失效宿主视图缓存——
+        // 宿主指令可能早于实例化建过 _scopeView（不含注册表层）
         if (slotContents) {
             hostScope.slotContents = slotContents;
             hostScope.slotCallerScope = slotCallerScope ?? hostScope;
         }
+        hostScope.slotsRegistry = buildSlotsRegistry(slotContents);
+        hostScope.invalidateScopeView();
         // 1.6 super 句柄边界遮蔽（ADR-0084）：宿主化身组件根——快照子树（组件模板）不得沿链
         // 读到宿主所在内容通道的外层句柄（x-super 仅在插槽内容内生效；嵌套组件的句柄归其出口注入）
         hostScope.superInlet = null;
@@ -1422,6 +1427,8 @@ export class AutoSparkCompiler {
                     scope.slotContents = slotContents;
                     scope.slotCallerScope = slotCallerScope ?? parentScope;
                 }
+                // $slots 注册表恒构建（ADR-0107）：覆盖物 shell 实例域同样注入（无内容为空对象）
+                scope.slotsRegistry = buildSlotsRegistry(slotContents);
                 // super 句柄边界遮蔽（ADR-0084）：覆盖物组件实例根——shell 模板子树不得沿链
                 // 读到宿主内容通道的外层句柄（与 instantiateComponent 的 1.6 步对称）
                 scope.superInlet = null;

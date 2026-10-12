@@ -10,6 +10,14 @@
                 // cancel/close 不入状态机：它们的终态是卡片不可见，不是任务态
                 state: "pending",
                 holdOpen: true,
+                // 控制键默认值（canCancel 缺省 true——取消是任务卡的基本出口；
+                // canStart/canPause/canStop 缺省 false）：须在 data 域物化——控制钮容器的
+                // x-show 表达式读取这些键，未物化键参与表达式会使求值抛错（整容器不显示）；
+                // props 注入（initialData）后覆盖（含显式 canCancel: false）
+                canStart: false,
+                canPause: false,
+                canStop: false,
+                canCancel: true,
             }),
             methods: {
                 // 开始（ADR-0104）：手动门控（canStart）的启动触发——pending → running +
@@ -34,6 +42,13 @@
                     if (this.data.state !== "paused") return;
                     this.data.state = "running";
                     this.engine.notifications._emitControlAction(this.props.id, "resume");
+                },
+                // 暂停/恢复切换（模板按钮用）：@click 仅裸标识符/标识符调用形态经 getMethod
+                // 查找组件 method——三元表达式形态（`state === 'paused' ? resume() : pause()`）
+                // 走表达式兜底路径（with 数据视图求值），methods 不在数据视图内，解析必失败
+                togglePause() {
+                    if (this.data.state === "paused") this.resume();
+                    else this.pause();
                 },
                 // 停止（ADR-0104 语义分野）：abort + 「已停止」终态留卡（进度定格、
                 // closeWhenDone 对 stopped 同生效）——与取消（abort + 立即隐藏）的分野
@@ -196,7 +211,7 @@
             type="button"
             x-show="canPause && (state === 'running' || state === 'paused')"
             x-text="state === 'paused' ? '恢复' : '暂停'"
-            @click="state === 'paused' ? resume() : pause()"
+            @click="togglePause()"
         ></button>
         <button
             class="autospark-notification-op"

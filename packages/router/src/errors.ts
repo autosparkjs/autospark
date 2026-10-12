@@ -1,9 +1,9 @@
-import type { KylinMatchedRouteItem } from "./types";
+import type { AutoSparkMatchedRouteItem } from "./types";
 
-export class KylinRouterError extends Error {
+export class AutoSparkRouterError extends Error {
     status: number = 0;
-    route?: KylinMatchedRouteItem[];
-    constructor(message?: string, status?: number, route?: KylinMatchedRouteItem[]) {
+    route?: AutoSparkMatchedRouteItem[];
+    constructor(message?: string, status?: number, route?: AutoSparkMatchedRouteItem[]) {
         super(message);
         this.status = status || 0;
         this.route = route;
@@ -17,9 +17,9 @@ export class KylinRouterError extends Error {
 /**
  * 路由匹配错误基类
  */
-export class KylinRouteError extends Error {
-    route?: KylinMatchedRouteItem;
-    constructor(message: string, route?: KylinMatchedRouteItem) {
+export class AutoSparkRouteError extends Error {
+    route?: AutoSparkMatchedRouteItem;
+    constructor(message: string, route?: AutoSparkMatchedRouteItem) {
         super(message);
         this.route = route;
     }
@@ -27,10 +27,10 @@ export class KylinRouteError extends Error {
 /**
  * 当调用matchRoutes时如果被重定向到外部时，触发发错误
  */
-export class KylinExternalRouteError extends Error {
+export class AutoSparkExternalRouteError extends Error {
     target: "_self" | "_blank" = "_self";
     url?: string; // 外部链接地址
-    name = "KylinExternalRouteError";
+    name = "AutoSparkExternalRouteError";
     constructor(url: string, target: "_self" | "_blank" = "_self") {
         super(`External redirect: ${url}`);
         this.url = url;
@@ -41,11 +41,11 @@ export class KylinExternalRouteError extends Error {
 /**
  * 重定向目标未找到错误
  */
-export class KylinNotFoundRouteError extends KylinRouteError {
+export class AutoSparkNotFoundRouteError extends AutoSparkRouteError {
     target: string;
-    constructor(target: string, route: KylinMatchedRouteItem) {
+    constructor(target: string, route: AutoSparkMatchedRouteItem) {
         super(`Redirect target not found: ${target}`, route);
-        this.name = "KylinNotFoundRouteError";
+        this.name = "AutoSparkNotFoundRouteError";
         this.target = target;
     }
 }
@@ -53,8 +53,8 @@ export class KylinNotFoundRouteError extends KylinRouteError {
 /**
  * 最大重定向次数超出错误
  */
-export class KylinMaxRedirectRouteError extends KylinRouteError {
-    constructor(route: KylinMatchedRouteItem) {
+export class AutoSparkMaxRedirectRouteError extends AutoSparkRouteError {
+    constructor(route: AutoSparkMatchedRouteItem) {
         const chainStr = route.redirectFrom?.map((item) => item.url).join(" -> ");
         super(`Maximum redirect limit exceeded:${chainStr} -> ...`, route);
     }
@@ -63,13 +63,13 @@ export class KylinMaxRedirectRouteError extends KylinRouteError {
 /**
  * 重定向循环检测错误
  */
-export class KylinLoopRouteError extends KylinRouteError {
-    constructor(route: KylinMatchedRouteItem) {
+export class AutoSparkLoopRouteError extends AutoSparkRouteError {
+    constructor(route: AutoSparkMatchedRouteItem) {
         const chainStr = route.redirectFrom?.map((item) => item.url).join(" -> ");
         super(`Redirect loop detected: ${chainStr} -> ${chainStr}`, route);
     }
 }
 
-export class KylinRouterLoadError extends KylinRouterError {}
-export class KylinRouterTimeoutError extends KylinRouterError {}
-export class KylinRouterInvalidDataError extends KylinRouterError {}
+export class AutoSparkRouterLoadError extends AutoSparkRouterError {}
+export class AutoSparkRouterTimeoutError extends AutoSparkRouterError {}
+export class AutoSparkRouterInvalidDataError extends AutoSparkRouterError {}

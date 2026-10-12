@@ -2,7 +2,7 @@
 import type { AutoSpark } from "./engine";
 import type { ComponentHooks } from "../features/component/component-def";
 import type { AutoSparkAction } from "../features/action/types";
-import type { SlotContent, SuperInlet } from "../utils/slot";
+import type { SlotContent, SlotRegistry, SuperInlet } from "../utils/slot";
 import { AutoSparkDirectiveBase } from "../features/directive/base";
 import { getVal, setVal, type Watcher } from "autostore";
 import { getDirectives, getHostOptions } from "../features/directive/utils/getDirectives";
@@ -297,6 +297,17 @@ export class AutoSparkScope {
      */
     slotContents: Map<string, SlotContent> | null = null;
     /**
+     * `$slots` 插槽注册表（ADR-0107）：组件实例域保留键——本实例收到的全部插槽内容段
+     * 的只读冻结快照（`Record<名, { name }>`，default 段在内）。
+     *
+     * 组件实例化 stash 点同步构建（instantiateComponent / instantiateDetachedComponent，
+     * 恒注入——无内容为冻结空对象）；经 getContext 聚合视图最高优先级注入（不被
+     * locals/data 遮蔽），set 拦截只读。非组件实例 scope 为 null（`$slots` 沿链上溯）。
+     */
+    slotsRegistry: SlotRegistry | null = null;
+    /** `$slots` 写入的 warn 一次标志（ADR-0107 只读保留键） */
+    private _slotsWriteWarned = false;
+    /**
      * 插槽内容的调用方视图基准（ADR-0056 决策四）：内容 scope 的 `parent` 挂此，
      * `getContext` 经 `isSlotContent` → `getCallerContext` 取调用方视图。
      *
@@ -358,14 +369,24 @@ export class AutoSparkScope {
         }
         const local = this.locals;
         const data = this._data;
-        if (!local && !data) {
-            // 无自身局部变量与 x-data 数据：直接复用父级视图（缓存别名，零额外代理）
+        const slotsReg = this.slotsRegistry;
+        if (!local && !data && !slotsReg) {
+            // 无自身局部变量与 x-data 数据、无 $slots 注册表：直接复用父级视图（缓存别名，零额外代理）
             this._scopeView = parentView;
             return parentView;
         }
+        /** `$slots` 只读保留键的 warn 一次（ADR-0107）：写入忽略并提示 */
+        const warnSlotsWrite = () => {
+            if (!this._slotsWriteWarned) {
+                this._slotsWriteWarned = true;
+                this.engine.logger.warn(`$slots 是只读保留键（插槽注册表快照，ADR-0107），写入已忽略`);
+            }
+        };
         this._scopeView = new Proxy(parentView, {
             get(_t, k: string | symbol) {
                 if (typeof k === "string") {
+                    // $slots 保留键最高优先（ADR-0107）：注册表不被 locals/data 遮蔽
+                    if (k === "$slots" && slotsReg) return slotsReg;
                     // 命中优先级：locals(x-for 的 item/index) > data(x-data 注入)
                     if (local && Object.prototype.hasOwnProperty.call(local, k)) return local[k];
                     if (data && Object.prototype.hasOwnProperty.call(data, k)) return data[k];
@@ -374,12 +395,18 @@ export class AutoSparkScope {
             },
             has(_t, k: string | symbol) {
                 if (typeof k === "string") {
+                    if (k === "$slots" && slotsReg) return true;
                     if (local && Object.prototype.hasOwnProperty.call(local, k)) return true;
                     if (data && Object.prototype.hasOwnProperty.call(data, k)) return true;
                 }
                 return k in parentView;
             },
             set(_t, k: string | symbol, val: any): boolean {
+                // $slots 只读保留键（ADR-0107）：warn 一次 + 忽略（防污染父视图/store）
+                if (k === "$slots" && slotsReg) {
+                    warnSlotsWrite();
+                    return true;
+                }
                 // 写入透传（与 get 同序：locals > data）：命中即写对应容器。                 // data = store.state.$scopes[id] 是响应式代理——写它触发细粒度更新，
                 // 故 `this.data.<x-data字段> = v` 与 `with(data){ <字段>++ }` 直接生效。
                 // locals 为普通对象（x-for item），写入不响应式；未命中本层则委托父视图沿链。

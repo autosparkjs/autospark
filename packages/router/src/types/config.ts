@@ -2,13 +2,13 @@
  * 路由器配置相关类型定义
  */
 
-import type { KylinRoutes, KylinRouteItem, KylinMatchedRouteItem } from "./routes";
-import type { TemplateResult } from "lit";
-import type { KylinRouteViewOptions } from "./routes";
-import type { KylinRouteDataOptions } from "./data";
+import type { AutoSparkRoutes, AutoSparkRouteItem, AutoSparkMatchedRouteItem } from "./routes";
+import type { AutoSparkRouteViewOptions } from "./routes";
+import type { AutoSpark } from "autospark";
+import type { AutoSparkRouteDataOptions } from "./data";
 import type { AfterRenderHook, AfterRouteHook, BeforeRenderHook, BeforeRouteHook } from "./hooks";
-import type { KylinRouterLogger } from "@/logger";
-import type { KylinRouterViewRendererBase } from "@/renderers/base";
+import type { AutoSparkRouterLogger } from "@/logger";
+import type { AutoSparkRouterViewRendererBase } from "@/renderers/base";
 
 /**
  * 错误页面处理函数类型
@@ -16,7 +16,7 @@ import type { KylinRouterViewRendererBase } from "@/renderers/base";
  * @param route - 当前匹配的路由项数组
  * @returns 错误页面的 HTMLElement
  */
-export type ErrorPageHandler = (error: any, route: KylinMatchedRouteItem[]) => HTMLElement;
+export type ErrorPageHandler = (error: any, route: AutoSparkMatchedRouteItem[]) => HTMLElement;
 
 /**
  * 错误页面配置类型
@@ -57,8 +57,8 @@ export interface ErrorBoundaryOptions {
  * 加载状态配置
  */
 export interface LoadingOptions {
-    /** 自定义加载模板 */
-    template?: TemplateResult | string;
+    /** 自定义加载模板（HTML 字符串） */
+    template?: string;
     /** 加载超时时间，单位毫秒 */
     timeout?: number;
     /** 错误时是否显示加载状态（默认 false） */
@@ -68,13 +68,25 @@ export interface LoadingOptions {
 /**
  * 路由器配置选项
  */
-export type KylinRouterOptions = {
+export type AutoSparkRouterOptions = {
     /** 路由模式：'history' 使用 BrowserHistory，'hash' 使用 HashHistory（默认 'history'） */
     mode?: "hash" | "history";
+    /**
+     * 注入的 AutoSpark engine 实例（混合所有权，ADR-0002）
+     *
+     * - 提供时 router 纯消费该实例（生命周期归应用所有，detach 不销毁）；
+     *   应用的静态模板此时已编译完成，x-outlet 简写不再生效（请书写
+     *   `<div x-component:autospark.outlet>` 完整形态；远程模板中的 x-outlet 不受影响）。
+     * - 缺省时 router 在 attach 时自建 engine（host 首编译激活 x-outlet），
+     *   并在 detach 时销毁。
+     *
+     * 运行时契约：HTML 先加载 AutoSpark.js（全局 AutoSparkSpaces）再加载 router。
+     */
+    engine?: AutoSpark;
     /** 基础路径，用于 Hash 模式（默认 ''） */
     base?: string;
     /** 路由配置 */
-    routes: KylinRoutes;
+    routes: AutoSparkRoutes;
     /**
      * 错误页面配置
      *
@@ -89,7 +101,7 @@ export type KylinRouterOptions = {
      * ```ts
      * errorPages: {
      *   '404': (error, route) => {
-     *     const el = document.createElement('kylin-feedback');
+     *     const el = document.createElement('autospark-feedback');
      *     el.type = 'error';
      *     el.message = '404 - 页面未找到';
      *     return el;
@@ -109,16 +121,16 @@ export type KylinRouterOptions = {
     /** 全局错误组件：字符串路径或动态导入函数 */
     defaultErrorComponent?: string | (() => Promise<any>);
     /** 日志记录器配置 */
-    logger?: KylinRouterLogger;
+    logger?: AutoSparkRouterLogger;
     /** 全局视图加载配置 */
-    viewOptions?: Omit<KylinRouteViewOptions, "from">;
+    viewOptions?: Omit<AutoSparkRouteViewOptions, "from">;
     /** 全局数据加载配置 */
-    dataOptions?: Omit<KylinRouteDataOptions, "from">;
+    dataOptions?: Omit<AutoSparkRouteDataOptions, "from">;
     /**
      * 全局路由参数配置
-     * KylinRouteItem中的配置项可以覆盖全局配置
+     * AutoSparkRouteItem中的配置项可以覆盖全局配置
      */
-    routeOptions?: Partial<Pick<KylinRouteItem, "cache" | "keepAlive" | "preload" | "timeout">>;
+    routeOptions?: Partial<Pick<AutoSparkRouteItem, "cache" | "keepAlive" | "preload" | "timeout">>;
     /**
      * Alpine.js 全局 store 初始数据
      **/
@@ -144,5 +156,5 @@ export type KylinRouterOptions = {
      * 在加载视图时会依次执行test方法，如果true则使用方渲染器
      * 所以渲染器的注册顺序比较重要
      */
-    renderers?: KylinRouterViewRendererBase[];
+    renderers?: AutoSparkRouterViewRendererBase[];
 };

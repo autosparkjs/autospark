@@ -1,13 +1,11 @@
-import type { KylinOutlet } from "@/components/Outlet";
-
 /**
- * 检查元素的祖先中是否包含 kylin-outlet
+ * 检查元素的祖先中是否包含 outlet 组件宿主（data-autospark-outlet 标记）
  */
-function hasOutletAncestor(el: HTMLElement, root: HTMLElement): boolean {
+function hasOutletAncestor(el: Element, root: HTMLElement): boolean {
     let parent = el.parentElement;
     while (parent) {
         if (parent === root) return false;
-        if (parent.tagName === "KYLIN-OUTLET") {
+        if (parent instanceof HTMLElement && parent.hasAttribute("data-autospark-outlet")) {
             return true;
         }
         parent = parent.parentElement;
@@ -16,33 +14,35 @@ function hasOutletAncestor(el: HTMLElement, root: HTMLElement): boolean {
 }
 
 /**
- * 在指定元素内部查找 kylin-outlet 元素
- * 采用广度优先遍历（BFS），同一分支找到第一个 outlet 后停止深入
+ * 在指定元素内部查找 autospark.outlet 组件宿主
+ *
+ * 宿主标记 = 组件模板根元素自带的 data-autospark-outlet 属性（编译保留，见 outletComponent.ts）。
+ * 采用广度优先遍历（BFS），同一分支找到第一个 outlet 后不再深入——保证返回的是
+ * 「离根最近」的出口层级，嵌套出口（远程模板内的 x-outlet）由更深层调用各自查找。
+ *
  * @param el - 要搜索的父元素
- * @returns 找到的 kylin-outlet 元素数组，按层级顺序排列
+ * @returns 找到的 outlet 宿主元素数组，按层级顺序排列
  */
-export function findOutlet(el: HTMLElement): KylinOutlet[] {
+export function findOutlet(el: HTMLElement): HTMLElement[] {
     if (!el) return [];
 
-    const result: KylinOutlet[] = [];
+    const result: HTMLElement[] = [];
     const queue: HTMLElement[] = [el];
-    const OUTLET_TAG = "KYLIN-OUTLET";
 
     while (queue.length > 0) {
         const current = queue.shift()!;
 
-        for (const child of current.children) {
-            const childEl = child as HTMLElement;
+        for (const child of Array.from(current.children)) {
             // 跳过已有 outlet 祖先的元素（嵌套在已找到的 outlet 内部）
-            if (hasOutletAncestor(childEl, el)) {
+            if (hasOutletAncestor(child, el)) {
                 continue;
             }
 
-            if (child.tagName === OUTLET_TAG) {
-                result.push(childEl as KylinOutlet);
+            if (child instanceof HTMLElement && child.hasAttribute("data-autospark-outlet")) {
+                result.push(child);
                 // 不将 outlet 加入队列，自然就不会遍历其子元素
-            } else {
-                queue.push(childEl);
+            } else if (child instanceof HTMLElement) {
+                queue.push(child);
             }
         }
     }

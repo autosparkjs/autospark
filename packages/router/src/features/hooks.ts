@@ -4,11 +4,11 @@
  * 提供 FIFO 执行顺序、异步支持和错误处理
  */
 
-import type { KylinRouter } from "@/router";
+import type { AutoSparkRouter } from "@/router";
 import type {
-    KylinRouterHooks,
-    KylinRouterHookType,
-    KylinRouterOptions,
+    AutoSparkRouterHooks,
+    AutoSparkRouterHookType,
+    AutoSparkRouterOptions,
     BeforeRouteHook,
     AfterRouteHook,
     BeforeRenderHook,
@@ -23,19 +23,19 @@ export class HookManager {
      * 按照 HookType 分组存储钩子函数，保持注册顺序（FIFO）
      * 公开访问，允许开发者直接注册钩子
      */
-    public hooks: KylinRouterHooks;
+    public hooks: AutoSparkRouterHooks;
 
     /**
      * 路由器实例
      */
-    private router: KylinRouter;
-    options: Required<Exclude<KylinRouterOptions["hookOptions"], undefined>>;
+    private router: AutoSparkRouter;
+    options: Required<Exclude<AutoSparkRouterOptions["hookOptions"], undefined>>;
 
     /**
      * 构造函数
-     * @param router - KylinRouter 实例
+     * @param router - AutoSparkRouter 实例
      */
-    constructor(router: KylinRouter) {
+    constructor(router: AutoSparkRouter) {
         this.router = router;
         this.hooks = {
             beforeRoute: [],
@@ -43,14 +43,14 @@ export class HookManager {
             beforeRender: [],
             afterRender: [],
             routeError: [],
-        } as KylinRouterHooks;
+        } as AutoSparkRouterHooks;
 
         this.options = Object.assign(
             {
                 timeout: 3000, // 执行Hook的超时时间
             },
             router.options.hookOptions,
-        ) as Required<Exclude<KylinRouterOptions["hookOptions"], undefined>>;
+        ) as Required<Exclude<AutoSparkRouterOptions["hookOptions"], undefined>>;
         this._addGlobalHooks();
     }
 
@@ -77,7 +77,7 @@ export class HookManager {
      * @param type - 钩子类型
      * @param hook - 钩子函数
      */
-    add<T extends keyof KylinRouterHooks>(type: T, hook: ArrayItem<KylinRouterHooks[T]>): void {
+    add<T extends keyof AutoSparkRouterHooks>(type: T, hook: ArrayItem<AutoSparkRouterHooks[T]>): void {
         this.hooks[type].push(hook as any);
     }
     /**
@@ -85,7 +85,7 @@ export class HookManager {
      * @param type - 钩子类型
      * @param hook - 要移除的钩子函数
      */
-    remove<T extends keyof KylinRouterHooks>(type: T, hook: ArrayItem<KylinRouterHooks[T]>): void {
+    remove<T extends keyof AutoSparkRouterHooks>(type: T, hook: ArrayItem<AutoSparkRouterHooks[T]>): void {
         const index = this.hooks[type].indexOf(hook as any);
         if (index > -1) {
             this.hooks[type].splice(index, 1);
@@ -96,7 +96,7 @@ export class HookManager {
      * 清空钩子
      * @param type - 可选，指定要清空的钩子类型。如果不指定，清空所有钩子
      */
-    clear<T extends keyof KylinRouterHooks>(type?: T): void {
+    clear<T extends keyof AutoSparkRouterHooks>(type?: T): void {
         if (type) {
             this.hooks[type] = [];
         } else {
@@ -131,7 +131,7 @@ export class HookManager {
      *  - onError: 当执行出错的中断后续执行
      */
     private async _runHooks<R = any>(
-        name: KylinRouterHookType,
+        name: AutoSparkRouterHookType,
         args: Record<string, any>,
         options?: { mode?: "serial" | "parallel"; ignoreErrors?: boolean },
     ): Promise<R> {
@@ -178,10 +178,10 @@ export class HookManager {
      * 运行单个钩子函数
      * @returns Promise<boolean | string> - 钩子执行结果
      */
-    private _runHook<T extends KylinRouterHookType>(
-        hook: ArrayItem<KylinRouterHooks[T]>,
-        args: Parameters<ArrayItem<KylinRouterHooks[T]>>[0],
-    ): ReturnType<ArrayItem<KylinRouterHooks[T]>> {
+    private _runHook<T extends AutoSparkRouterHookType>(
+        hook: ArrayItem<AutoSparkRouterHooks[T]>,
+        args: Parameters<ArrayItem<AutoSparkRouterHooks[T]>>[0],
+    ): ReturnType<ArrayItem<AutoSparkRouterHooks[T]>> {
         return new Promise((resolve, reject) => {
             const timeout =
                 this.options.timeout > 0
@@ -198,6 +198,6 @@ export class HookManager {
                     clearTimeout(timeout);
                     reject(err);
                 });
-        }) as ReturnType<ArrayItem<KylinRouterHooks[T]>>;
+        }) as ReturnType<ArrayItem<AutoSparkRouterHooks[T]>>;
     }
 }

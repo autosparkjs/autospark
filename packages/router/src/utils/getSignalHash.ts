@@ -1,4 +1,4 @@
-import type { KylinMatchedRouteItem } from "@/types";
+import type { AutoSparkMatchedRouteItem } from "@/types";
 import { getRouteVars } from "./getRouteVars";
 import { params as replaceParams } from "./params";
 import { quickHash } from "./quickHash";
@@ -12,7 +12,7 @@ import { quickHash } from "./quickHash";
     "query"     // 路由查询字符串
     "timestamp";
  */
-export function getSignalHash(hash: string, matched: KylinMatchedRouteItem) {
+export function getSignalHash(hash: string, matched: AutoSparkMatchedRouteItem) {
     const vars = getRouteVars(matched);
     const result = quickHash(replaceParams(hash, vars));
     const isNotNumPreifx = isNaN(parseInt(result.substring(0, 1)));

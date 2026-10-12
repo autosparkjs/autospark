@@ -11,30 +11,15 @@
  * @param () => Record<string, any> | Promise<Record<string, any>> - 支持同步或异步函数返回数据
  */
 
-import type { KylinMatchedRouteItem } from "./routes";
+import type { AutoSparkMatchedRouteItem } from "./routes";
 import type { BaseLoaderOptions } from "@/features/baseLoader";
 
-export type KylinRouteDataSource =
+export type AutoSparkRouteDataSource =
     | string
     | Record<string, any>
-    | ((route: KylinMatchedRouteItem) => Record<string, any> | Promise<Record<string, any>>);
+    | ((route: AutoSparkMatchedRouteItem) => Record<string, any> | Promise<Record<string, any>>);
 
-export interface KylinRouteDataOptions extends BaseLoaderOptions<KylinRouteDataSource> {
-    /**
-     *
-     * 默认情况下，data会被转为为所有outlet的x-data属性，
-     * 即使用Alpine.data(data)创建一个局部数据对象
-     *
-     * 如果store=<string>，则在全局$store创建一个store
-     *
-     * 如store="auth"
-     *
-     * 则会使用Alpine.store("auth",data)
-     *
-     * 这样在整个应用中，就可以使用$store.auth来访问数据了
-     *
-     */
-    store?: string;
+export interface AutoSparkRouteDataOptions extends BaseLoaderOptions<AutoSparkRouteDataSource> {
     /**
      * 当加载失败时提供一些默认值
      * 加载成功后可以使用Object.assign(default,data)合并，以避免加载数据的缺失

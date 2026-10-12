@@ -1,7 +1,7 @@
 <!-- 功能演示页面 -->
 <div class="demo-page">
     <div class="demo-header">
-        <h1>Kylin Router 功能演示</h1>
+        <h1>AutoSpark Router 功能演示</h1>
         <p>完整展示所有路由功能和特性</p>
     </div>
 
@@ -68,10 +68,10 @@
         <h2>💾 keepAlive 缓存演示</h2>
         <p>保持页面状态，避免重复渲染</p>
         <div class="demo-buttons">
-            <kylin-link to="/order-form">
+            <autospark-link to="/order-form">
                 <span>📝</span>
                 <span>打开订单表单（keepAlive）</span>
-            </kylin-link>
+            </autospark-link>
         </div>
         <div class="demo-hint">
             💡 提示：在表单中填写内容后跳转到其他页面，返回时表单内容会保持
@@ -83,22 +83,22 @@
         <h2>⚠️ 错误处理演示</h2>
         <p>测试各种错误场景和自定义错误页面</p>
         <div class="demo-buttons">
-            <kylin-link to="/non-existent-page">
+            <autospark-link to="/non-existent-page">
                 <span>🔗</span>
                 <span>访问 404 页面</span>
-            </kylin-link>
-            <kylin-link to="/test-error-500">
+            </autospark-link>
+            <autospark-link to="/test-error-500">
                 <span>🔗</span>
                 <span>模拟 500 错误</span>
-            </kylin-link>
-            <kylin-link to="/test-timeout">
+            </autospark-link>
+            <autospark-link to="/test-timeout">
                 <span>🔗</span>
                 <span>模拟超时错误</span>
-            </kylin-link>
-            <kylin-link to="/error-test">
+            </autospark-link>
+            <autospark-link to="/error-test">
                 <span>🔗</span>
                 <span>错误测试中心</span>
-            </kylin-link>
+            </autospark-link>
         </div>
     </section>
 
@@ -107,10 +107,10 @@
         <h2>⚡ 预加载演示</h2>
         <p>预先加载页面，提升用户体验</p>
         <div class="demo-buttons">
-            <kylin-link to="/heavy-page">
+            <autospark-link to="/heavy-page">
                 <span>📄</span>
                 <span>访问重型页面（已预加载）</span>
-            </kylin-link>
+            </autospark-link>
         </div>
         <div class="demo-hint">
             💡 提示：该页面在路由初始化时已预加载，访问时会立即显示
@@ -122,14 +122,14 @@
         <h2>↪️ 重定向演示</h2>
         <p>自动将旧路由重定向到新路由</p>
         <div class="demo-buttons">
-            <kylin-link to="/old-products">
+            <autospark-link to="/old-products">
                 <span>🔗</span>
                 <span>访问旧产品页（重定向到 /products）</span>
-            </kylin-link>
-            <kylin-link to="/p/p1">
+            </autospark-link>
+            <autospark-link to="/p/p1">
                 <span>🔗</span>
                 <span>访问旧产品详情（重定向到 /product/p1）</span>
-            </kylin-link>
+            </autospark-link>
         </div>
     </section>
 
@@ -206,7 +206,7 @@
     }
 
     .demo-buttons button,
-    .demo-buttons kylin-link {
+    .demo-buttons autospark-link {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -222,7 +222,7 @@
     }
 
     .demo-buttons button:hover,
-    .demo-buttons kylin-link:hover {
+    .demo-buttons autospark-link:hover {
         border-color: var(--primary-color);
         color: var(--primary-color);
         transform: translateY(-1px);

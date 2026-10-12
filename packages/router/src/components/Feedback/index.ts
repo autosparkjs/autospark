@@ -1,19 +1,8 @@
+import { relaxedToJson } from "../../utils/relaxedToJson";
 import { styles } from "./styles";
 
-// 创建解析器实例
-let parser: any = null;
-try {
-    // @ts-ignore
-    const rjson = require("really-relaxed-json");
-    parser = rjson.createParser();
-} catch {
-    // 如果解析器不可用，使用 JSON.parse
-    parser = {
-        stringToJson: (str: string) => JSON.parse(str)
-    };
-}
-
-const parseJson = (str: string) => parser.stringToJson(str);
+// 宽松 JSON 解析（无引号键名/单引号/尾逗号），替代 really-relaxed-json
+const parseJson = (str: string) => JSON.parse(relaxedToJson(str));
 
 /**
  * 内置错误类型
@@ -37,7 +26,7 @@ interface ActionConfig {
 }
 
 /**
- * kylin:action 事件详情类型
+ * autospark:action 事件详情类型
  */
 interface ActionEventDetail extends ActionConfig {}
 
@@ -68,16 +57,16 @@ const ACTION_ICONS = {
  *
  * @example
  * ```html
- * <kylin-feedback
+ * <autospark-feedback
  *   type="error"
  *   message="加载失败"
  *   description="无法获取资源，请稍后重试"
  *   retryable
  *   backable
- * ></kylin-feedback>
+ * ></autospark-feedback>
  * ```
  */
-export class KylinFeedback extends HTMLElement {
+export class AutoSparkFeedback extends HTMLElement {
     // 私有属性存储
     private _message?: string;
     private _description?: string;
@@ -234,7 +223,7 @@ export class KylinFeedback extends HTMLElement {
             try {
                 parsed = parseJson(this._actions) as ActionConfig[];
             } catch {
-                console.warn("[kylin-feedback] Failed to parse actions:", this._actions);
+                console.warn("[autospark-feedback] Failed to parse actions:", this._actions);
                 return [];
             }
         } else {
@@ -334,7 +323,7 @@ export class KylinFeedback extends HTMLElement {
         event.stopPropagation();
 
         // 分发自定义事件，冒泡并允许穿越 Web Component 边界
-        const customEvent = new CustomEvent<ActionEventDetail>("kylin:action", {
+        const customEvent = new CustomEvent<ActionEventDetail>("autospark:action", {
             detail: action,
             bubbles: true,
             composed: true, // 允许穿越 Shadow DOM 边界
@@ -422,16 +411,16 @@ export class KylinFeedback extends HTMLElement {
 }
 
 // 注册自定义元素
-if (!customElements.get("kylin-feedback")) {
-    customElements.define("kylin-feedback", KylinFeedback);
+if (!customElements.get("autospark-feedback")) {
+    customElements.define("autospark-feedback", AutoSparkFeedback);
 }
 
 declare global {
     interface HTMLElementTagNameMap {
-        "kylin-feedback": KylinFeedback;
+        "autospark-feedback": AutoSparkFeedback;
     }
 
     interface HTMLElementEventMap {
-        "kylin:action": CustomEvent<ActionEventDetail>;
+        "autospark:action": CustomEvent<ActionEventDetail>;
     }
 }

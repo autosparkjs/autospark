@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kylin Router - 错误处理和重试机制演示</title>
+    <title>AutoSpark Router - 错误处理和重试机制演示</title>
     <link rel="stylesheet" href="../styles.css">
     <style>
         .demo-nav {
@@ -22,7 +22,7 @@
             margin-right: 20px;
         }
 
-        .demo-nav kylin-link,
+        .demo-nav autospark-link,
         .demo-nav button {
             padding: 10px 20px;
             background: rgba(255, 255, 255, 0.2);
@@ -35,7 +35,7 @@
             transition: all 0.3s ease;
         }
 
-        .demo-nav kylin-link:hover,
+        .demo-nav autospark-link:hover,
         .demo-nav button:hover {
             background: rgba(255, 255, 255, 0.3);
             border-color: rgba(255, 255, 255, 0.5);
@@ -152,13 +152,13 @@
     <div id="app">
         <nav class="demo-nav">
             <h1>错误处理和重试机制演示</h1>
-            <kylin-link href="/error/404">404 错误</kylin-link>
-            <kylin-link href="/error/load-fail">加载失败</kylin-link>
-            <kylin-link href="/error/timeout">超时错误</kylin-link>
-            <kylin-link href="/error/retry">自动重试</kylin-link>
+            <autospark-link href="/error/404">404 错误</autospark-link>
+            <autospark-link href="/error/load-fail">加载失败</autospark-link>
+            <autospark-link href="/error/timeout">超时错误</autospark-link>
+            <autospark-link href="/error/retry">自动重试</autospark-link>
         </nav>
         <main>
-            <kylin-outlet></kylin-outlet>
+            <div x-outlet></div>
         </main>
         <div class="error-log">
             <h3>错误日志</h3>
@@ -167,7 +167,8 @@
     </div>
 
     <script type="module">
-        import { KylinRouter } from '/src/index.ts';
+        import { AutoSpark } from "autospark";
+        import { AutoSparkRouter } from '/src/index.ts';
 
         const host = document.getElementById('app');
 
@@ -194,14 +195,17 @@
 
             html += `
                     <button onclick="window.router.retryLoad()">重试</button>
-                    <kylin-link href="/">返回首页</kylin-link>
+                    <autospark-link href="/">返回首页</autospark-link>
                 </div>
             `;
 
             return html;
         };
 
-        const router = new KylinRouter(host, {
+        // 注入模式：应用创建并拥有 engine 实例（vite 源码场景无 IIFE 全局，须显式注入）
+        const engine = new AutoSpark(host, {});
+        const router = new AutoSparkRouter(host, {
+            engine,
             routes: [
                 // 默认路由
                 {

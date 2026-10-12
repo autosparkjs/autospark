@@ -6,8 +6,8 @@
  *
  */
 
-import type { KylinRouter } from "@/router";
-import type { KylinRouterEvents } from "@/types/events";
+import type { AutoSparkRouter } from "@/router";
+import type { AutoSparkRouterEvents } from "@/types/events";
 import { EventEmitter } from "@/utils";
 
-export class Emitter extends EventEmitter<KylinRouterEvents> {}
+export class Emitter extends EventEmitter<AutoSparkRouterEvents> {}

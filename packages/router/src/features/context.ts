@@ -6,20 +6,20 @@
  * 同时也保持了组件的独立性和可复用性
  */
 
-import type { KylinRouter } from "@/router";
+import type { AutoSparkRouter } from "@/router";
 
 export class Context {
-    private _onContextRequest?: (this: KylinRouter, event: Event) => void;
+    private _onContextRequest?: (this: AutoSparkRouter, event: Event) => void;
     /**
      * 监听 context-request 事件，提供 router 实例
      * 基于 @lit/context 的 ContextProvider 原理实现
      */
-    protected attachContextProvider(this: KylinRouter) {
+    protected attachContextProvider(this: AutoSparkRouter) {
         this._onContextRequest = this.onContextRequest.bind(this);
         this.host.addEventListener("context-request", this._onContextRequest);
     }
 
-    protected removeContextProvider(this: KylinRouter) {
+    protected removeContextProvider(this: AutoSparkRouter) {
         if (this._onContextRequest) {
             this.host.removeEventListener("context-request", this._onContextRequest);
         }
@@ -28,14 +28,14 @@ export class Context {
      * 处理 context-request 事件
      * 当请求的 context 匹配 routerContext 时，提供当前 router 实例
      */
-    protected onContextRequest(this: KylinRouter, event: Event): void {
+    protected onContextRequest(this: AutoSparkRouter, event: Event): void {
         const contextRequestEvent = (event as any).detail as unknown as {
-            context: "KylinRouter";
-            callback: (value: KylinRouter) => void;
+            context: "AutoSparkRouter";
+            callback: (value: AutoSparkRouter) => void;
             contextTarget?: Element;
             stopPropagation: () => void;
         };
-        if (contextRequestEvent.context === "KylinRouter") {
+        if (contextRequestEvent.context === "AutoSparkRouter") {
             event.stopPropagation();
             // 提供 router 实例
             contextRequestEvent.callback(this);

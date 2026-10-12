@@ -2,7 +2,7 @@
 
 import { describe, it, expect, beforeAll } from "bun:test";
 import { matchRoute, createRouteMatcher } from "@/utils/matchRoute";
-import type { KylinRouteItem } from "@/types";
+import type { AutoSparkRouteItem } from "@/types";
 import { normalizeRoutes } from "@/utils";
 
 const rootPathExpect = expect.objectContaining({
@@ -14,7 +14,7 @@ const rootPathExpect = expect.objectContaining({
 describe("matchRoute - 基础匹配", () => {
     describe("静态路径匹配", () => {
         it("应该完全匹配静态路径 /user", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "user", path: "user" },
@@ -38,7 +38,7 @@ describe("matchRoute - 基础匹配", () => {
         });
 
         it("应该匹配根路径 /", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "user", path: "user" }],
             });
@@ -54,7 +54,7 @@ describe("matchRoute - 基础匹配", () => {
         });
 
         it("不匹配的路径应该返回未匹配路由项", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "user", path: "user" }],
             });
@@ -76,7 +76,7 @@ describe("matchRoute - 基础匹配", () => {
 
     describe("动态参数匹配", () => {
         it("应该匹配 /user/:id 并提取参数 {id: '123'}", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "user-detail", path: "user", children: [{ path: ":id" }] }],
             });
@@ -104,7 +104,7 @@ describe("matchRoute - 基础匹配", () => {
         });
 
         it("应该匹配多个动态参数 /user/:id/post/:postId", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "user-post", path: "user/:id/post/:postId" }],
             });
@@ -144,7 +144,7 @@ describe("matchRoute - 基础匹配", () => {
         });
 
         it("应该匹配尖括号语法 /user/<id>", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "user-detail", path: "user/<id>" }],
             });
@@ -171,7 +171,7 @@ describe("matchRoute - 基础匹配", () => {
         });
 
         it("应该支持正则约束 /user/:id(\\d+)", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "user-num", path: "user/:id(\\d+)" },
@@ -221,7 +221,7 @@ describe("matchRoute - 基础匹配", () => {
 
     describe("嵌套路由匹配", () => {
         it("应该匹配嵌套路由 /user/:id/profile", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -262,7 +262,7 @@ describe("matchRoute - 基础匹配", () => {
             ]);
         });
         it("当匹配存在时，应以最先匹配到的为准", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -311,7 +311,7 @@ describe("matchRoute - 基础匹配", () => {
         });
 
         it("嵌套路由子项以 / 开头时也应作为相对路径处理", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -360,7 +360,7 @@ describe("matchRoute - 基础匹配", () => {
         });
 
         it("应该匹配多层嵌套路由并返回完整路径链", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -425,7 +425,7 @@ describe("matchRoute - 基础匹配", () => {
         });
 
         it("多级嵌套路由链上解析 params，并且 query 仅在最后节点生效", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -493,7 +493,7 @@ describe("matchRoute - 基础匹配", () => {
 
     describe("通配符匹配", () => {
         it("* 作为整个路径时应该只匹配单段路径", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 name: "home",
                 path: "/",
                 children: [{ name: "wildcard", path: "*" }],
@@ -527,7 +527,7 @@ describe("matchRoute - 基础匹配", () => {
         });
 
         it("** 应该匹配任意路径（包括空路径）", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "catch-all", path: "**" }],
             });
@@ -572,7 +572,7 @@ describe("matchRoute - 基础匹配", () => {
 
         describe("单段通配符 * 规则（匹配单个路径段）", () => {
             it("/a/*/c 应该匹配 /a/x/c", () => {
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "pattern", path: "/a/*/c" }],
                 });
@@ -600,7 +600,7 @@ describe("matchRoute - 基础匹配", () => {
             });
 
             it("/a/*/c 应该匹配 /a/y/c", () => {
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "pattern", path: "/a/*/c" }],
                 });
@@ -628,7 +628,7 @@ describe("matchRoute - 基础匹配", () => {
             });
 
             it("/a/*/c 不应该匹配 /a/x/y/c（多个段）", () => {
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "pattern", path: "/a/*/c" }],
                 });
@@ -656,7 +656,7 @@ describe("matchRoute - 基础匹配", () => {
             });
 
             it("/a/* 应该匹配 /a/x", () => {
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "pattern", path: "/a/*" }],
                 });
@@ -679,7 +679,7 @@ describe("matchRoute - 基础匹配", () => {
             });
 
             it("/a/* 不应该匹配 /a/x/y", () => {
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "pattern", path: "/a/*" }],
                 });
@@ -707,7 +707,7 @@ describe("matchRoute - 基础匹配", () => {
             });
 
             it("/*/user 应该匹配 /x/user", () => {
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "pattern", path: "/*/user" }],
                 });
@@ -730,7 +730,7 @@ describe("matchRoute - 基础匹配", () => {
             });
 
             it("多个 * 模式：/*/*/c 应该匹配 /a/b/c", () => {
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "pattern", path: "/*/*/c" }],
                 });
@@ -761,7 +761,7 @@ describe("matchRoute - 基础匹配", () => {
         describe("多段通配符规则,匹配1个或多个段", () => {
             it("/a/b/** 应该匹配 /a/b/c", () => {
                 ///a/b/** 应该匹配 /a/b/c
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "pattern", path: "/a/b/**" }],
                 });
@@ -789,7 +789,7 @@ describe("matchRoute - 基础匹配", () => {
             });
 
             it("/a/b/** 应该匹配 /a/b/x/x/ddd/d/d/d", () => {
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "pattern", path: "/a/b/**" }],
                 });
@@ -817,7 +817,7 @@ describe("matchRoute - 基础匹配", () => {
             });
 
             it("/api/** 应该匹配 /api/users/123/profile", () => {
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "api-catch-all", path: "/api/**" }],
                 });
@@ -840,7 +840,7 @@ describe("matchRoute - 基础匹配", () => {
             });
 
             it("/** 应该匹配任意路径", () => {
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "catch-all", path: "/**" }],
                 });
@@ -863,7 +863,7 @@ describe("matchRoute - 基础匹配", () => {
 
         describe("通配符剩余路径区分处理", () => {
             it("纯 * 有剩余路径时应返回 null（不参与匹配）", () => {
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "wildcard", path: "*" }],
                 });
@@ -886,7 +886,7 @@ describe("matchRoute - 基础匹配", () => {
             });
 
             it("/a/* 有剩余路径时应返回未匹配项", () => {
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "pattern", path: "/a/*" }],
                 });
@@ -918,7 +918,7 @@ describe("matchRoute - 基础匹配", () => {
             });
 
             it("纯 * 单段路径应该完全匹配", () => {
-                const routes: KylinRouteItem = normalizeRoutes({
+                const routes: AutoSparkRouteItem = normalizeRoutes({
                     path: "/",
                     children: [{ name: "wildcard", path: "*" }],
                 });
@@ -942,7 +942,7 @@ describe("matchRoute - 基础匹配", () => {
 
     describe("匹配优先级", () => {
         it("具体路径应该优先于参数化路径", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "user-new", path: "/user/new" },
@@ -975,7 +975,7 @@ describe("matchRoute - 基础匹配", () => {
 describe("matchRoute - 选项功能", () => {
     describe("params 和 query 参数", () => {
         it("应该包含路由配置中的 params 和 query", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -995,7 +995,7 @@ describe("matchRoute - 选项功能", () => {
         });
 
         it("应该解析路径中的 query 字符串并合并到返回 query 中", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -1015,7 +1015,7 @@ describe("matchRoute - 选项功能", () => {
         });
 
         it("动态提取的 params 应该与路由配置中的 params 合并", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -1034,7 +1034,7 @@ describe("matchRoute - 选项功能", () => {
         });
 
         it("输入路径参数应该覆盖路由配置中的默认 params", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -1052,7 +1052,7 @@ describe("matchRoute - 选项功能", () => {
         });
 
         it("URL query 参数应该覆盖路由配置中的默认 query", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -1072,7 +1072,7 @@ describe("matchRoute - 选项功能", () => {
 });
 describe("createRouteMatcher", () => {
     it("应该为静态路径创建匹配函数", () => {
-        const route: KylinRouteItem = { name: "home", path: "/home" };
+        const route: AutoSparkRouteItem = { name: "home", path: "/home" };
         const matcher = createRouteMatcher(route);
 
         const result = matcher("/home");
@@ -1081,7 +1081,7 @@ describe("createRouteMatcher", () => {
     });
 
     it("应该为动态路径创建匹配函数并提取参数", () => {
-        const route: KylinRouteItem = { name: "user", path: "/user/:id" };
+        const route: AutoSparkRouteItem = { name: "user", path: "/user/:id" };
         const matcher = createRouteMatcher(route);
 
         const result = matcher("/user/42");
@@ -1090,7 +1090,7 @@ describe("createRouteMatcher", () => {
     });
 
     it("应该支持正则约束 /user/:id(\\d+)", () => {
-        const route: KylinRouteItem = { name: "user", path: "/user/:id(\\d+)" };
+        const route: AutoSparkRouteItem = { name: "user", path: "/user/:id(\\d+)" };
         const matcher = createRouteMatcher(route);
 
         const numResult = matcher("/user/123");
@@ -1102,7 +1102,7 @@ describe("createRouteMatcher", () => {
     });
 
     it("不匹配的路径应该返回 matched: false", () => {
-        const route: KylinRouteItem = { name: "user", path: "/user" };
+        const route: AutoSparkRouteItem = { name: "user", path: "/user" };
         const matcher = createRouteMatcher(route);
 
         const result = matcher("/other");
@@ -1110,7 +1110,7 @@ describe("createRouteMatcher", () => {
     });
 
     it("应该支持通配符路径", () => {
-        const route: KylinRouteItem = { name: "catch-all", path: "*" };
+        const route: AutoSparkRouteItem = { name: "catch-all", path: "*" };
         const matcher = createRouteMatcher(route);
 
         const result = matcher("/any/deep/path");
@@ -1118,7 +1118,7 @@ describe("createRouteMatcher", () => {
     });
 
     it("前缀匹配模式 (isPrefix=true) 应该返回 remainingPath", () => {
-        const route: KylinRouteItem = { name: "user", path: "/user/:id" };
+        const route: AutoSparkRouteItem = { name: "user", path: "/user/:id" };
         const matcher = createRouteMatcher(route, true);
 
         const result = matcher("/user/123/profile");
@@ -1128,7 +1128,7 @@ describe("createRouteMatcher", () => {
     });
 
     it("前缀匹配模式 should ignore query params and still return remainingPath", () => {
-        const route: KylinRouteItem = { name: "user", path: "/user/:id" };
+        const route: AutoSparkRouteItem = { name: "user", path: "/user/:id" };
         const matcher = createRouteMatcher(route, true);
 
         const result = matcher("/user/123/profile?tab=activity");
@@ -1140,7 +1140,7 @@ describe("createRouteMatcher", () => {
 
 describe("matchRoute - 默认子路由处理", () => {
     it("路由时自动选择 default:true 的子路由", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: [{ name: "home", path: "home", default: true }],
         });
@@ -1161,7 +1161,7 @@ describe("matchRoute - 默认子路由处理", () => {
         ]);
     });
     it("路由时自动选择 default:true 的子路由2", () => {
-        const routes: KylinRouteItem = normalizeRoutes(
+        const routes: AutoSparkRouteItem = normalizeRoutes(
             // 首页
             {
                 path: "home",
@@ -1188,7 +1188,7 @@ describe("matchRoute - 默认子路由处理", () => {
         ]);
     });
     it("路由时自动选择 default:true 的子路由3", () => {
-        const routes: KylinRouteItem = normalizeRoutes(
+        const routes: AutoSparkRouteItem = normalizeRoutes(
             // 首页
             {
                 path: "files/:id",
@@ -1202,7 +1202,7 @@ describe("matchRoute - 默认子路由处理", () => {
         const result2 = matchRoute("/files/2", routes);
     });
     it("嵌套默认子路由", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: [
                 {
@@ -1257,7 +1257,7 @@ describe("matchRoute - 默认子路由处理", () => {
         ]);
     });
     it("应该在路径完全匹配父路由时自动选择 default:true 的子路由", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: [
                 {
@@ -1293,7 +1293,7 @@ describe("matchRoute - 默认子路由处理", () => {
     });
 
     it("当有多个 default:true 时应选择第一个", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: [
                 {
@@ -1313,7 +1313,7 @@ describe("matchRoute - 默认子路由处理", () => {
         expect(result[2].route.name).toBe("detail");
     });
     it("空路径优先级应该高于 default:true", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: [
                 {
@@ -1349,7 +1349,7 @@ describe("matchRoute - 默认子路由处理", () => {
     });
 
     it("应该忽略 path 为空字符串的路由", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: [
                 {
@@ -1378,7 +1378,7 @@ describe("matchRoute - 默认子路由处理", () => {
     });
 
     it("应该忽略 path 为斜杠的默认路由", () => {
-        const routes: KylinRouteItem[] = normalizeRoutes([
+        const routes: AutoSparkRouteItem[] = normalizeRoutes([
             {
                 name: "products",
                 path: "/products",
@@ -1404,7 +1404,7 @@ describe("matchRoute - 默认子路由处理", () => {
     });
 
     it("应该识别 path 为 ./ 的默认路由", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: [
                 {
@@ -1424,7 +1424,7 @@ describe("matchRoute - 默认子路由处理", () => {
 
     describe("default 子路由行为（移除 autoMatchSubRoute 后）", () => {
         it("没有 default:true 时应只返回根路由", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "home", path: "home" },
@@ -1444,7 +1444,7 @@ describe("matchRoute - 默认子路由处理", () => {
         });
 
         it("有 default:true 时应返回默认路由", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "home", path: "home" },
@@ -1459,7 +1459,7 @@ describe("matchRoute - 默认子路由处理", () => {
         });
 
         it("支持嵌套 default:true", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -1482,7 +1482,7 @@ describe("matchRoute - 默认子路由处理", () => {
         });
 
         it("default:true 优先于其他路由", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "first", path: "first" },
@@ -1497,7 +1497,7 @@ describe("matchRoute - 默认子路由处理", () => {
         });
 
         it("参数路由支持 default:true 和 params 默认值", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -1518,7 +1518,7 @@ describe("matchRoute - 默认子路由处理", () => {
         });
 
         it("多级嵌套参数路由支持 default:true 和 params 合并", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -1552,7 +1552,7 @@ describe("matchRoute - 默认子路由处理", () => {
 
 describe("matchRoute - 未匹配路由处理", () => {
     it("当子路由无法匹配时应该返回未匹配的路由项", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: [
                 {
@@ -1586,7 +1586,7 @@ describe("matchRoute - 未匹配路由处理", () => {
     });
 
     it("未匹配路由项应该包含正确的路径信息", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: [
                 {
@@ -1620,7 +1620,7 @@ describe("matchRoute - 未匹配路由处理", () => {
     });
 
     it("未匹配路由项应该继承父路由的 params", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: [
                 {
@@ -1660,7 +1660,7 @@ describe("matchRoute - 未匹配路由处理", () => {
         ]);
     });
     it("应该在第一个无法匹配的层级返回未匹配项", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: [
                 {
@@ -1711,7 +1711,7 @@ describe("matchRoute - 未匹配路由处理", () => {
     });
 
     it("顶层无匹配时应该返回未匹配路由项", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: [{ name: "home", path: "/" }],
         });
@@ -1730,7 +1730,7 @@ describe("matchRoute - 未匹配路由处理", () => {
         ]);
     });
     it("有根路径时顶层无匹配应该至少返回根路由", () => {
-        const routes: KylinRouteItem[] = normalizeRoutes([
+        const routes: AutoSparkRouteItem[] = normalizeRoutes([
             { name: "root", path: "/" },
             { name: "home", path: "/home" },
         ]);
@@ -1754,7 +1754,7 @@ describe("matchRoute - 未匹配路由处理", () => {
 describe("matchRoute - 重定向处理", () => {
     describe("字符串重定向", () => {
         it("应该重定向到绝对路径", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "old", path: "old-path", redirect: "/new-path" },
@@ -1778,7 +1778,7 @@ describe("matchRoute - 重定向处理", () => {
         });
 
         it("应该支持链式重定向", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "a", path: "a", redirect: "/b" },
@@ -1808,7 +1808,7 @@ describe("matchRoute - 重定向处理", () => {
 
     describe("相对路径重定向", () => {
         it("应该解析 ./sibling 相对路径", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -1852,7 +1852,7 @@ describe("matchRoute - 重定向处理", () => {
         });
 
         it("应该解析 ../sibling 相对路径", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -1890,7 +1890,7 @@ describe("matchRoute - 重定向处理", () => {
         });
 
         it("应该解析 ../../uncle 相对路径", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -1926,7 +1926,7 @@ describe("matchRoute - 重定向处理", () => {
 
     describe("push 模式重定向", () => {
         it("应该支持 push 模式重定向", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -1956,7 +1956,7 @@ describe("matchRoute - 重定向处理", () => {
 
     describe("函数重定向", () => {
         it("应该支持动态函数重定向", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -2000,7 +2000,7 @@ describe("matchRoute - 重定向处理", () => {
         });
 
         it("函数返回 null 时应该不重定向", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -2028,7 +2028,7 @@ describe("matchRoute - 重定向处理", () => {
 
     describe("重定向循环检测", () => {
         it("应该检测重定向循环并返回错误", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "a", path: "a", redirect: "/b" },
@@ -2046,7 +2046,7 @@ describe("matchRoute - 重定向处理", () => {
 
             expect(result[1]!.route).toBeUndefined();
             expect(result[1]!.url).toBe("/a");
-            expect(result[1]!.error?.constructor.name).toBe("KylinLoopRouteError");
+            expect(result[1]!.error?.constructor.name).toBe("AutoSparkLoopRouteError");
             expect(result[1]!.redirectFrom).toEqual([
                 { url: "/a", mode: "replace" },
                 { url: "/b", mode: "replace" },
@@ -2057,7 +2057,7 @@ describe("matchRoute - 重定向处理", () => {
 
     describe("最大重定向次数限制", () => {
         it("应该在达到最大重定向次数时返回错误", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "1", path: "1", redirect: "/2" },
@@ -2076,7 +2076,7 @@ describe("matchRoute - 重定向处理", () => {
 
             expect(result[1]!.route).toBeUndefined();
             expect(result[1]!.url).toBe("/4");
-            expect(result[1]!.error?.constructor.name).toBe("KylinMaxRedirectRouteError");
+            expect(result[1]!.error?.constructor.name).toBe("AutoSparkMaxRedirectRouteError");
             expect(result[1]!.redirectFrom).toEqual([
                 { url: "/1", mode: "replace" },
                 { url: "/2", mode: "replace" },
@@ -2085,7 +2085,7 @@ describe("matchRoute - 重定向处理", () => {
         });
 
         it("默认 maxRedirect=10 应该允许正常重定向", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "1", path: "1", redirect: "/2" },
@@ -2115,7 +2115,7 @@ describe("matchRoute - 重定向处理", () => {
 
     describe("全局重定向", () => {
         it("应该使用全局重定向作为后备", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "admin", path: "admin", view: "admin.html" },
@@ -2141,7 +2141,7 @@ describe("matchRoute - 重定向处理", () => {
         });
 
         it("路由级重定向应该优先于全局重定向", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "special", path: "special", redirect: "/route-redirect" },
@@ -2168,7 +2168,7 @@ describe("matchRoute - 重定向处理", () => {
 
     describe("命名路由重定向", () => {
         it("应该支持命名路由重定向", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "dashboard", path: "dashboard", view: "dashboard.html" },
@@ -2176,7 +2176,7 @@ describe("matchRoute - 重定向处理", () => {
                 ],
             });
 
-            const namedRoutes = new Map<string, WeakRef<KylinRouteItem>>();
+            const namedRoutes = new Map<string, WeakRef<AutoSparkRouteItem>>();
             namedRoutes.set("dashboard", new WeakRef(routes.children![0]!));
 
             const result = matchRoute("/start", routes, { namedRoutes });
@@ -2195,12 +2195,12 @@ describe("matchRoute - 重定向处理", () => {
         });
 
         it("命名路由不存在时应该不匹配", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "start", path: "start", redirect: { name: "nonexistent" } }],
             });
 
-            const namedRoutes = new Map<string, WeakRef<KylinRouteItem>>();
+            const namedRoutes = new Map<string, WeakRef<AutoSparkRouteItem>>();
 
             const result = matchRoute("/start", routes, { namedRoutes });
 
@@ -2220,7 +2220,7 @@ describe("matchRoute - 重定向处理", () => {
 
     describe("重定向历史记录", () => {
         it("应该记录完整的重定向链", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "a", path: "a", redirect: "/b" },
@@ -2250,7 +2250,7 @@ describe("matchRoute - 重定向处理", () => {
         });
 
         it("无重定向时 redirectFrom 应该为 undefined", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "home", path: "home", view: "home.html" }],
             });
@@ -2271,9 +2271,9 @@ describe("matchRoute - 重定向处理", () => {
     });
 
     describe("重定向目标不存在错误处理", () => {
-        it("命名路由不存在时应该返回 KylinNotFoundRouteError", () => {
-            const namedRoutes = new Map<string, WeakRef<KylinRouteItem>>();
-            const routes: KylinRouteItem = normalizeRoutes({
+        it("命名路由不存在时应该返回 AutoSparkNotFoundRouteError", () => {
+            const namedRoutes = new Map<string, WeakRef<AutoSparkRouteItem>>();
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "start", path: "start", redirect: { name: "nonexistent" } }],
             });
@@ -2290,15 +2290,15 @@ describe("matchRoute - 重定向处理", () => {
                     path: "/start",
                     url: "/start",
                     error: expect.objectContaining({
-                        name: "KylinNotFoundRouteError",
+                        name: "AutoSparkNotFoundRouteError",
                         target: "name:nonexistent",
                     }),
                 }),
             ]);
         });
 
-        it("重定向到不存在的路径时应该返回 KylinNotFoundRouteError", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+        it("重定向到不存在的路径时应该返回 AutoSparkNotFoundRouteError", () => {
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "start", path: "start", redirect: "a/b/c" }],
             });
@@ -2315,16 +2315,16 @@ describe("matchRoute - 重定向处理", () => {
                     path: "/start",
                     url: "/start",
                     error: expect.objectContaining({
-                        name: "KylinNotFoundRouteError",
+                        name: "AutoSparkNotFoundRouteError",
                         target: "/a/b/c",
                     }),
                 }),
             ]);
         });
 
-        it("全局重定向到不存在的命名路由时应该返回 KylinNotFoundRouteError", () => {
-            const namedRoutes = new Map<string, WeakRef<KylinRouteItem>>();
-            const routes: KylinRouteItem = normalizeRoutes({
+        it("全局重定向到不存在的命名路由时应该返回 AutoSparkNotFoundRouteError", () => {
+            const namedRoutes = new Map<string, WeakRef<AutoSparkRouteItem>>();
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "home", path: "home" }],
             });
@@ -2344,15 +2344,15 @@ describe("matchRoute - 重定向处理", () => {
                     route: undefined,
                     path: "/some-unknown-path",
                     error: expect.objectContaining({
-                        name: "KylinNotFoundRouteError",
+                        name: "AutoSparkNotFoundRouteError",
                         target: "name:nonexistent",
                     }),
                 }),
             ]);
         });
 
-        it("全局重定向到不存在的路径时应该返回 KylinNotFoundRouteError", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+        it("全局重定向到不存在的路径时应该返回 AutoSparkNotFoundRouteError", () => {
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "home", path: "home" }],
             });
@@ -2371,7 +2371,7 @@ describe("matchRoute - 重定向处理", () => {
                     route: undefined,
                     path: "/some-unknown-path",
                     error: expect.objectContaining({
-                        name: "KylinNotFoundRouteError",
+                        name: "AutoSparkNotFoundRouteError",
                         target: "/nonexistent/path",
                     }),
                 }),
@@ -2411,10 +2411,10 @@ describe("matchRoute - 重定向处理", () => {
             } as any;
         });
 
-        it("重定向到外部链接时应该返回 KylinExternalRouteError", () => {
+        it("重定向到外部链接时应该返回 AutoSparkExternalRouteError", () => {
             global._testUrl = "https://other.com";
 
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "external", path: "external", redirect: "https://other.com" }],
             });
@@ -2432,7 +2432,7 @@ describe("matchRoute - 重定向处理", () => {
                     url: "/external",
                     target: "_blank",
                     error: expect.objectContaining({
-                        name: "KylinExternalRouteError",
+                        name: "AutoSparkExternalRouteError",
                         url: "https://other.com",
                         target: "_blank",
                     }),
@@ -2443,7 +2443,7 @@ describe("matchRoute - 重定向处理", () => {
         it("重定向到外部链接时应该使用指定的 target", () => {
             global._testUrl = "https://other.com";
 
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     {
@@ -2467,7 +2467,7 @@ describe("matchRoute - 重定向处理", () => {
                     url: "/external",
                     target: "_self",
                     error: expect.objectContaining({
-                        name: "KylinExternalRouteError",
+                        name: "AutoSparkExternalRouteError",
                         url: "https://other.com",
                         target: "_self",
                     }),
@@ -2475,10 +2475,10 @@ describe("matchRoute - 重定向处理", () => {
             ]);
         });
 
-        it("全局重定向到外部链接时应该返回 KylinExternalRouteError", () => {
+        it("全局重定向到外部链接时应该返回 AutoSparkExternalRouteError", () => {
             global._testUrl = "https://external.com";
 
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [{ name: "home", path: "home" }],
             });
@@ -2498,7 +2498,7 @@ describe("matchRoute - 重定向处理", () => {
                     path: "/some-path",
                     target: "_blank",
                     error: expect.objectContaining({
-                        name: "KylinExternalRouteError",
+                        name: "AutoSparkExternalRouteError",
                         url: "https://external.com",
                         target: "_blank",
                     }),
@@ -2506,10 +2506,10 @@ describe("matchRoute - 重定向处理", () => {
             ]);
         });
 
-        it("重定向到不同端口的外部链接应该返回 KylinExternalRouteError", () => {
+        it("重定向到不同端口的外部链接应该返回 AutoSparkExternalRouteError", () => {
             global._testUrl = "http://example.com:3000";
 
-            const routes: KylinRouteItem = normalizeRoutes({
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "external", path: "external", redirect: "http://example.com:3000" },
@@ -2529,15 +2529,15 @@ describe("matchRoute - 重定向处理", () => {
                     url: "/external",
                     target: "_blank",
                     error: expect.objectContaining({
-                        name: "KylinExternalRouteError",
+                        name: "AutoSparkExternalRouteError",
                         url: "http://example.com:3000",
                     }),
                 }),
             ]);
         });
 
-        it("重定向到内部链接不应该返回 KylinExternalRouteError", () => {
-            const routes: KylinRouteItem = normalizeRoutes({
+        it("重定向到内部链接不应该返回 AutoSparkExternalRouteError", () => {
+            const routes: AutoSparkRouteItem = normalizeRoutes({
                 path: "/",
                 children: [
                     { name: "target", path: "target" },
@@ -2558,14 +2558,14 @@ describe("matchRoute - 重定向处理", () => {
                     url: "/target",
                 }),
             ]);
-            expect(result.some((r) => r.error?.name === "KylinExternalRouteError")).toBe(false);
+            expect(result.some((r) => r.error?.name === "AutoSparkExternalRouteError")).toBe(false);
         });
     });
 });
 
 describe("matchRoute - 根路由无子路由边界情况", () => {
     it("当路径为'/'且路由无children时，应仅返回rootMatch（无name属性）", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/"
         });
 
@@ -2577,7 +2577,7 @@ describe("matchRoute - 根路由无子路由边界情况", () => {
     });
 
     it("当路径为'/'且路由children为空数组时，应仅返回rootMatch（无name属性）", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: []
         });
@@ -2590,7 +2590,7 @@ describe("matchRoute - 根路由无子路由边界情况", () => {
     });
 
     it("当路径为'/'且路由有name属性时，应仅返回rootMatch（不自动创建默认子路由）", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             name: "home",
             view: "home.html"
@@ -2607,7 +2607,7 @@ describe("matchRoute - 根路由无子路由边界情况", () => {
     });
 
     it("非根路径无匹配时仍应返回未匹配项（404处理）", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: []
         });
@@ -2621,7 +2621,7 @@ describe("matchRoute - 根路由无子路由边界情况", () => {
     });
 
     it("子路由存在时应正常匹配", () => {
-        const routes: KylinRouteItem = normalizeRoutes({
+        const routes: AutoSparkRouteItem = normalizeRoutes({
             path: "/",
             children: [
                 { name: "about", path: "about" }

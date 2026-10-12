@@ -1,11 +1,12 @@
 import { defineConfig } from 'vite'
 import { resolve } from 'path'
 
+// example 示例应用构建（库构建走 tsup，见 tsup.config.ts；两者产物目录分离避免冲突）
 export default defineConfig({
   root: 'example',
   publicDir: 'public',
   build: {
-    outDir: '../dist'
+    outDir: '../dist-example'
   },
   server: {
     port: 5173,
@@ -22,10 +23,6 @@ export default defineConfig({
       '/src': resolve(__dirname, './src')
     },
     preserveSymlinks: true
-  },
-  optimizeDeps: {
-    include: ['lit', 'lit-element', 'lit-html', '@lit/context'],
-    exclude: []
   },
   css: {
     devSourcemap: true

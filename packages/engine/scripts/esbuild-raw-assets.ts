@@ -22,10 +22,14 @@ export const rawAssetsPlugin: Plugin = {
             path: path.resolve(path.dirname(args.importer), args.path.replace(/\?raw$/, "")),
             namespace: "raw-assets",
         }));
-        // 命名空间内按真实路径读文件，text loader 内联为字符串
+        // 命名空间内按真实路径读文件，text loader 内联为字符串。
+        // watchFiles 必须显式登记：watch 模式只跟踪 esbuild 自身解析管线里的文件，
+        // 插件 onLoad 内联的 .html/.css 模板不在其列——不登记则模板改动不触发重建
+        // （docs 开发期 esbuild watch 的组件模板改动会「不生效」）
         build.onLoad({ filter: /\.(html|css)$/, namespace: "raw-assets" }, async (args) => ({
             contents: await readFile(args.path, "utf8"),
             loader: "text",
+            watchFiles: [args.path],
         }));
     },
 };

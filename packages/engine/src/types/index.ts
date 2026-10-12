@@ -4,7 +4,7 @@ import type { TooltipOptions } from "../features/tooltip/types";
 import type { NotificationOptions } from "../features/notifications/types";
 import type { ComponentInstance } from "../features/component/component-instance";
 import type { AutoSparkScope } from "../engine/scope";
-import type { ContainerGlobalOptions } from "../directives/x-container";
+import type { ViewportOptions } from "../features/viewport/types";
 
 /**
  * 渲染选项
@@ -128,15 +128,22 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      */
     notifications?: false | NotificationOptions;
     /**
-     * x-container 全局默认断点表（ADR-0101）：断点两表（`breakpoints` 阈值 / `maxWidths`
-     * 按档），被实例 `x-container-options` / 宿主 `x-options` 同名键**整表覆盖**（回退不
-     * 合并，ADR-0007 惯例）；两级均缺省用内置 Bootstrap 5 缺省表（阈值 sm:576 / md:768 /
-     * lg:992 / xl:1200 / xxl:1400，max-width 100% / 540 / 720 / 960 / 1140 / 1320）。
+     * 全局视口特性（ADR-0105）：ViewportManager 的引擎级配置。三态：
+     *
+     * - 缺省：默认开启 + 内置 Bootstrap 5 断点表（构造期同步注入 `state.$.viewport`
+     *   初值 + 根元素 `data-viewport`，跨档响应式更新——模板任意位置 `$.viewport==='md'`
+     *   直接订阅）；
+     * - `false`：**整体关闭**——不建 mql 监听、不写 `$.viewport`、不挂 `data-viewport`
+     *   （x-container 的 media 视觉约束与 JS 无关，照常生效）；
+     * - 配置对象：`breakpoints` 是 **engine 级唯一阈值真相**（ViewportManager 判定与
+     *   x-container media 样式同源消费），`maxWidths` 为 x-container 的 engine 级兜底表
+     *   （实例 `x-container-options` 优先）。
+     *
      * 构造期配置语义：运行时突变不生效。
      *
-     * @default 内置 Bootstrap 5 缺省表
+     * @default 开启 + 内置 Bootstrap 5 断点表
      */
-    container?: ContainerGlobalOptions;
+    viewport?: false | ViewportOptions;
 }
 
 /**

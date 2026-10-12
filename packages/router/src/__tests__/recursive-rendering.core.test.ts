@@ -41,19 +41,19 @@ describe("递归渲染核心功能测试", () => {
             // 模拟 _findOrCreateOutlet 的核心逻辑
             let outlet: HTMLElement | null = null;
             const children = Array.from(parent.children);
-            outlet = children.find(child => child.tagName.toLowerCase() === "kylin-outlet") as HTMLElement || null;
+            outlet = children.find(child => child.tagName.toLowerCase() === "autospark-outlet") as HTMLElement || null;
 
             expect(outlet).toBeNull();
 
             // 允许创建
             if (!outlet) {
-                outlet = document.createElement("kylin-outlet");
+                outlet = document.createElement("autospark-outlet");
                 parent.appendChild(outlet);
             }
 
             expect(outlet).not.toBeNull();
             expect(parent.children.length).toBe(1);
-            expect(parent.children[0].tagName.toLowerCase()).toBe("kylin-outlet");
+            expect(parent.children[0].tagName.toLowerCase()).toBe("autospark-outlet");
         });
 
         it("应该在 allowCreate=false 时不创建 outlet", () => {
@@ -62,14 +62,14 @@ describe("递归渲染核心功能测试", () => {
             // 模拟 _findOrCreateOutlet 的核心逻辑
             let outlet: HTMLElement | null = null;
             const children = Array.from(parent.children);
-            outlet = children.find(child => child.tagName.toLowerCase() === "kylin-outlet") as HTMLElement || null;
+            outlet = children.find(child => child.tagName.toLowerCase() === "autospark-outlet") as HTMLElement || null;
 
             expect(outlet).toBeNull();
 
             // 不允许创建
             const allowCreate = false;
             if (!outlet && allowCreate) {
-                outlet = document.createElement("kylin-outlet");
+                outlet = document.createElement("autospark-outlet");
                 parent.appendChild(outlet);
             }
 
@@ -78,12 +78,12 @@ describe("递归渲染核心功能测试", () => {
 
         it("应该在找到现有 outlet 时返回它", () => {
             const parent = document.createElement("div");
-            const existingOutlet = document.createElement("kylin-outlet");
+            const existingOutlet = document.createElement("autospark-outlet");
             parent.appendChild(existingOutlet);
 
             // 模拟查找逻辑
             const children = Array.from(parent.children);
-            const outlet = children.find(child => child.tagName.toLowerCase() === "kylin-outlet") as HTMLElement || null;
+            const outlet = children.find(child => child.tagName.toLowerCase() === "autospark-outlet") as HTMLElement || null;
 
             expect(outlet).not.toBeNull();
             expect(outlet).toBe(existingOutlet);
@@ -92,7 +92,7 @@ describe("递归渲染核心功能测试", () => {
 
     describe("WeakRef 引用管理", () => {
         it("应该正确创建和访问 WeakRef", () => {
-            const element = document.createElement("kylin-outlet");
+            const element = document.createElement("autospark-outlet");
             const weakRef = new WeakRef(element);
 
             expect(weakRef).not.toBeNull();
@@ -103,7 +103,7 @@ describe("递归渲染核心功能测试", () => {
         });
 
         it("应该在元素被销毁后返回 null", () => {
-            let element = document.createElement("kylin-outlet");
+            let element = document.createElement("autospark-outlet");
             const weakRef = new WeakRef(element);
 
             // 移除引用，让垃圾回收器可以回收
@@ -120,8 +120,8 @@ describe("递归渲染核心功能测试", () => {
 
         it("应该支持在嵌套结构中使用 WeakRef", () => {
             const parent = document.createElement("div");
-            const child1 = document.createElement("kylin-outlet");
-            const child2 = document.createElement("kylin-outlet");
+            const child1 = document.createElement("autospark-outlet");
+            const child2 = document.createElement("autospark-outlet");
 
             parent.appendChild(child1);
             child1.appendChild(child2);
@@ -158,9 +158,9 @@ describe("递归渲染核心功能测试", () => {
                 const route = routes[i];
 
                 // 模拟查找或创建 outlet
-                let outlet = parentElement.querySelector("kylin-outlet");
+                let outlet = parentElement.querySelector("autospark-outlet");
                 if (!outlet) {
-                    outlet = document.createElement("kylin-outlet");
+                    outlet = document.createElement("autospark-outlet");
                     parentElement.appendChild(outlet);
                 }
 
@@ -219,9 +219,9 @@ describe("递归渲染核心功能测试", () => {
                 const route = match.route;
 
                 // 模拟查找或创建 outlet
-                let outlet = parentElement.querySelector("kylin-outlet");
+                let outlet = parentElement.querySelector("autospark-outlet");
                 if (!outlet) {
-                    outlet = document.createElement("kylin-outlet");
+                    outlet = document.createElement("autospark-outlet");
                     parentElement.appendChild(outlet);
                 }
 
@@ -232,7 +232,7 @@ describe("递归渲染核心功能测试", () => {
 
                 // 如果不是最后一层，添加子 outlet
                 if (i < matchedRoutes.length - 1) {
-                    const childOutlet = document.createElement("kylin-outlet");
+                    const childOutlet = document.createElement("autospark-outlet");
                     content.appendChild(childOutlet);
                 }
 
@@ -269,9 +269,9 @@ describe("递归渲染核心功能测试", () => {
                 const route = routes[i];
 
                 // 模拟查找或创建 outlet
-                let outlet = parentElement.querySelector("kylin-outlet");
+                let outlet = parentElement.querySelector("autospark-outlet");
                 if (!outlet) {
-                    outlet = document.createElement("kylin-outlet");
+                    outlet = document.createElement("autospark-outlet");
                     parentElement.appendChild(outlet);
                 }
 
@@ -290,16 +290,16 @@ describe("递归渲染核心功能测试", () => {
 
     describe("Loading 状态管理", () => {
         it("应该正确显示和隐藏 loading", () => {
-            const outlet = document.createElement("kylin-outlet");
+            const outlet = document.createElement("autospark-outlet");
 
             // 模拟显示 loading
-            const loadingElement = document.createElement("kylin-loading");
+            const loadingElement = document.createElement("autospark-loading");
             loadingElement.setAttribute("data-role", "loading-indicator");
             outlet.innerHTML = "";
             outlet.appendChild(loadingElement);
 
             // 验证 loading 存在
-            let loading = outlet.querySelector("kylin-loading[data-role='loading-indicator']");
+            let loading = outlet.querySelector("autospark-loading[data-role='loading-indicator']");
             expect(loading).not.toBeNull();
 
             // 模拟渲染实际内容（会自动替换 loading）
@@ -310,7 +310,7 @@ describe("递归渲染核心功能测试", () => {
             outlet.appendChild(content);
 
             // 验证 loading 被移除
-            loading = outlet.querySelector("kylin-loading[data-role='loading-indicator']");
+            loading = outlet.querySelector("autospark-loading[data-role='loading-indicator']");
             expect(loading).toBeNull();
 
             // 验证内容存在
@@ -320,22 +320,22 @@ describe("递归渲染核心功能测试", () => {
         });
 
         it("应该正确移除 loading", () => {
-            const outlet = document.createElement("kylin-outlet");
+            const outlet = document.createElement("autospark-outlet");
 
             // 添加 loading
-            const loadingElement = document.createElement("kylin-loading");
+            const loadingElement = document.createElement("autospark-loading");
             loadingElement.setAttribute("data-role", "loading-indicator");
             outlet.appendChild(loadingElement);
 
             // 验证 loading 存在
-            let loading = outlet.querySelector("kylin-loading[data-role='loading-indicator']");
+            let loading = outlet.querySelector("autospark-loading[data-role='loading-indicator']");
             expect(loading).not.toBeNull();
 
             // 模拟移除 loading
             loading?.remove();
 
             // 验证 loading 被移除
-            loading = outlet.querySelector("kylin-loading[data-role='loading-indicator']");
+            loading = outlet.querySelector("autospark-loading[data-role='loading-indicator']");
             expect(loading).toBeNull();
         });
     });
@@ -350,9 +350,9 @@ describe("递归渲染核心功能测试", () => {
             let parentElement = host;
             for (let i = 0; i < depth; i++) {
                 // 查找或创建 outlet
-                let outlet = parentElement.querySelector("kylin-outlet");
+                let outlet = parentElement.querySelector("autospark-outlet");
                 if (!outlet) {
-                    outlet = document.createElement("kylin-outlet");
+                    outlet = document.createElement("autospark-outlet");
                     parentElement.appendChild(outlet);
                 }
 
@@ -363,7 +363,7 @@ describe("递归渲染核心功能测试", () => {
 
                 // 如果不是最后一层，添加子 outlet
                 if (i < depth - 1) {
-                    const childOutlet = document.createElement("kylin-outlet");
+                    const childOutlet = document.createElement("autospark-outlet");
                     outlet.appendChild(childOutlet);
                     parentElement = childOutlet;
                 }
@@ -384,7 +384,7 @@ describe("递归渲染核心功能测试", () => {
 
             // 创建 1000 个 WeakRef
             for (let i = 0; i < 1000; i++) {
-                const element = document.createElement("kylin-outlet");
+                const element = document.createElement("autospark-outlet");
                 elements.push(element);
                 weakRefs.push(new WeakRef(element));
             }
@@ -418,7 +418,7 @@ describe("递归渲染核心功能测试", () => {
 
         it("应该处理路由没有 view 的情况", () => {
             const route = { name: "empty", view: null };
-            const outlet = document.createElement("kylin-outlet");
+            const outlet = document.createElement("autospark-outlet");
 
             // 模拟检查 viewContent
             const loadResult = (route as any).viewContent;
@@ -434,7 +434,7 @@ describe("递归渲染核心功能测试", () => {
             // 不添加 outlet
 
             // 模拟查找 outlet
-            const outlet = parent.querySelector("kylin-outlet");
+            const outlet = parent.querySelector("autospark-outlet");
 
             expect(outlet).toBeNull();
 

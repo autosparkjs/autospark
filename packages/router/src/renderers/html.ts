@@ -1,10 +1,11 @@
-import type { KylinMatchedRouteItem } from "@/types/routes";
-import { KylinRouterViewRendererBase, type ViewRenderResult } from "./base";
+import type { AutoSparkMatchedRouteItem } from "@/types/routes";
+import { AutoSparkRouterViewRendererBase, type ViewRenderResult } from "./base";
 import type { ViewRenderOptions } from "./types";
 import { scopeStyles } from "@/utils/scopeStyle";
+import { transformXOutlet } from "@/engine/xOutlet";
 
-export class KylinRouterHTMLViewRenderer extends KylinRouterViewRendererBase {
-    test(_response: Response, _matched: KylinMatchedRouteItem) {
+export class AutoSparkRouterHTMLViewRenderer extends AutoSparkRouterViewRendererBase {
+    test(_response: Response, _matched: AutoSparkMatchedRouteItem) {
         return true;
     }
     /**
@@ -13,7 +14,7 @@ export class KylinRouterHTMLViewRenderer extends KylinRouterViewRendererBase {
      */
     async render(
         response: Response,
-        matched: KylinMatchedRouteItem,
+        matched: AutoSparkMatchedRouteItem,
         options: ViewRenderOptions,
     ): Promise<ViewRenderResult> {
         const html = await response.text();
@@ -24,6 +25,9 @@ export class KylinRouterHTMLViewRenderer extends KylinRouterViewRendererBase {
             // 步骤 1: 解析 HTML 文档 - 使用全局 DOMParser 构造函数
             // @ts-ignore - 使用全局 DOMParser
             const doc = new DOMParser().parseFromString(html, "text/html");
+            // 步骤 2: x-outlet 简写预处理（编译前改写为 x-component:autospark.outlet，
+            // 远程模板中的嵌套出口声明在此激活）
+            transformXOutlet(doc);
             // 步骤 3: 如果提供了自定义选择器，使用它
             if (typeof selector === "string" && selector.length > 0) {
                 try {
@@ -45,8 +49,6 @@ export class KylinRouterHTMLViewRenderer extends KylinRouterViewRendererBase {
             if (scopedStyle !== false) {
                 const result = scopeStyles(renderResult.value, hash);
                 renderResult.value = result.html;
-                // 将 scopeId 和 v-bind 变量保存到 signal.meta
-                renderResult.meta = { vBindVars: result.vBindVars };
             }
         } catch (e: any) {
             this.router.logger.error(`视图内容提取失败: ${e.message}`);

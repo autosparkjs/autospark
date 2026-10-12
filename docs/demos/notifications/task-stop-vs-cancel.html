@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>notifications · 任务——停止 vs 取消分野对比</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <!-- ⑤ 停止 vs 取消语义分野（ADR-0104）：同进度（60%）下分别 stop / cancel——
+         停止 = abort + 「已停止」终态留卡（进度定格可查，closeWhenDone 对 stopped 同生效）；
+         取消 = abort + 立即隐藏（不留结果）。 -->
+    <div class="demo-app section">
+      <div class="block">
+        <button class="button is-dark is-light" onclick="runCompare()">⚖ 同时创建 A/B 两任务，60% 时分别 stop / cancel</button>
+        <p class="has-text-grey is-size-7">
+          <b>停止</b> = abort +「已停止」终态<b>留卡</b>（进度定格，结果可查，closeWhenDone 对 stopped
+          同生效）；<b>取消</b> = abort + <b>立即隐藏</b>（不留结果）。
+        </p>
+      </div>
+      <div class="block">
+        <pre
+          id="log"
+          class="has-background-light"
+          style="padding: 8px; max-height: 300px; overflow: auto"
+        >
+（点击上方按钮开始任务演示）</pre>
+      </div>
+    </div>
+    <script>
+      const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+      const logEl = document.getElementById("log");
+      const lines = [];
+      const log = (t) => {
+        lines.push(`[${new Date().toLocaleTimeString("zh-CN", { hour12: false })}] ${t}`);
+        logEl.textContent = lines.slice(-14).join("\n");
+      };
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      /** 驱动到指定进度后 resolve */
+      function driveTo(t, target, step = 110) {
+        return new Promise((resolve) => {
+          let cur = 0;
+          const timer = setInterval(() => {
+            if (t.closed || t.data.state !== "running") {
+              clearInterval(timer);
+              return resolve();
+            }
+            cur = Math.min(target, cur + 8);
+            t.progress(cur);
+            if (cur >= target) {
+              clearInterval(timer);
+              resolve();
+            }
+          }, step);
+        });
+      }
+
+      async function runCompare() {
+        log("同时创建 A/B 两任务，各自推进到 60% 后分别 stop / cancel");
+        const a = app.notifications.task({
+          title: "任务 A——将停止",
+          description: "stop() @ 60% → 已停止终态留卡（进度定格可查）",
+          canStop: true,
+          // closeWhenDone 缺省 = 终态常驻——留卡给用户看
+        });
+        const b = app.notifications.task({
+          title: "任务 B——将取消",
+          description: "cancel() @ 60% → 立即关闭（不留结果）",
+          canCancel: true,
+        });
+        await Promise.all([driveTo(a, 60), driveTo(b, 60)]);
+        a.stop();
+        log(`■ A stop()：state=${a.data.state}，进度定格 ${a.data.progress}%，卡片保留`);
+        b.cancel();
+        await sleep(400); // 等 300ms 离场动画收口
+        log(`✕ B cancel()：卡片已关（closed=${b.closed}）——同样触发 abort，但不留结果`);
+      }
+    </script>
+  </body>
+</html>

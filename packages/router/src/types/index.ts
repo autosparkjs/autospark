@@ -20,10 +20,10 @@ export * from "./modals";
 
 // 渲染系统相关类型（从 routes.ts 导出）
 export type {
-    KylinRenderMode as RenderMode,
+    AutoSparkRenderMode as RenderMode,
     TemplateData,
-    KylinRouteViewContext as RenderContext,
-    KylinRenderOptions as RenderOptions,
+    AutoSparkRouteViewContext as RenderContext,
+    AutoSparkRenderOptions as RenderOptions,
 } from "./routes";
 
 export * from "./utils";

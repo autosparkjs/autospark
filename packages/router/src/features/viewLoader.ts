@@ -7,12 +7,12 @@
  * @module features/viewLoader
  */
 
-import type { KylinRouter } from "@/router";
-import type { KylinMatchedRouteItem, KylinRouteViewOptions } from "@/types/routes";
-import { RouteDataLoaderBase, type KylinRemoteLoadResult } from "./baseLoader";
+import type { AutoSparkRouter } from "@/router";
+import type { AutoSparkMatchedRouteItem, AutoSparkRouteViewOptions } from "@/types/routes";
+import { RouteDataLoaderBase, type AutoSparkRemoteLoadResult } from "./baseLoader";
 import type { ViewRenderOptions } from "@/renderers/types";
-import { KylinRouterHTMLViewRenderer } from "@/renderers/html";
-import type { KylinRouterViewRendererBase, ViewRenderResult } from "@/renderers/base";
+import { AutoSparkRouterHTMLViewRenderer } from "@/renderers/html";
+import type { AutoSparkRouterViewRendererBase, ViewRenderResult } from "@/renderers/base";
 
 /**
  * ViewLoader 类 - 负责加载视图组件
@@ -20,32 +20,32 @@ import type { KylinRouterViewRendererBase, ViewRenderResult } from "@/renderers/
  */
 export class ViewLoader extends RouteDataLoaderBase<
     "view",
-    KylinRouteViewOptions<ViewRenderResult>,
+    AutoSparkRouteViewOptions<ViewRenderResult>,
     ViewRenderResult
 > {
-    renderers: KylinRouterViewRendererBase[] = [];
-    defaultRenderer: KylinRouterHTMLViewRenderer;
-    constructor(router: KylinRouter) {
+    renderers: AutoSparkRouterViewRendererBase[] = [];
+    defaultRenderer: AutoSparkRouterHTMLViewRenderer;
+    constructor(router: AutoSparkRouter) {
         super(
             router,
             "view",
             Object.assign({}, router.options.viewOptions) as Required<
-                Omit<KylinRouteViewOptions<ViewRenderResult>, "from">
+                Omit<AutoSparkRouteViewOptions<ViewRenderResult>, "from">
             >,
         );
         this._initRenderers();
         this.renderers = router.options.renderers!;
         this.defaultRenderer = this.renderers.find(
-            (renderer) => renderer instanceof KylinRouterHTMLViewRenderer,
+            (renderer) => renderer instanceof AutoSparkRouterHTMLViewRenderer,
         )!;
     }
 
     private _initRenderers() {
         const index = this.router.renderers.findIndex(
-            (renderer) => renderer && renderer instanceof KylinRouterHTMLViewRenderer,
+            (renderer) => renderer && renderer instanceof AutoSparkRouterHTMLViewRenderer,
         );
         if (index === -1) {
-            this.router.renderers.push(new KylinRouterHTMLViewRenderer(this.router));
+            this.router.renderers.push(new AutoSparkRouterHTMLViewRenderer(this.router));
         }
     }
 
@@ -55,11 +55,11 @@ export class ViewLoader extends RouteDataLoaderBase<
      * @param routes - 匹配的路由数组
      * @param navSignal - 导航级别的中止信号
      */
-    async loadViews(routes: KylinMatchedRouteItem[], navSignal?: AbortSignal) {
+    async loadViews(routes: AutoSparkMatchedRouteItem[], navSignal?: AbortSignal) {
         return this.loadRoutes(routes, navSignal);
     }
 
-    protected selectRenderer(response: Response, matched: KylinMatchedRouteItem) {
+    protected selectRenderer(response: Response, matched: AutoSparkMatchedRouteItem) {
         try {
             for (let renderer of this.router.renderers) {
                 if (renderer.test(response, matched)) {
@@ -74,9 +74,9 @@ export class ViewLoader extends RouteDataLoaderBase<
 
     protected async onResponse(
         response: Response,
-        matched: KylinMatchedRouteItem,
+        matched: AutoSparkMatchedRouteItem,
         options: ViewRenderOptions,
-    ): Promise<KylinRemoteLoadResult> {
+    ): Promise<AutoSparkRemoteLoadResult> {
         const renderer =
             matched.route?._viewOptions?.renderer || this.selectRenderer(response, matched)!;
         const renderResult = await renderer.render(response, matched, options);

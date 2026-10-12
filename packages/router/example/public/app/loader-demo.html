@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kylin Router - 组件加载系统演示</title>
+    <title>AutoSpark Router - 组件加载系统演示</title>
     <link rel="stylesheet" href="../styles.css">
     <style>
         .demo-nav {
@@ -22,7 +22,7 @@
             margin-right: 20px;
         }
 
-        .demo-nav kylin-link,
+        .demo-nav autospark-link,
         .demo-nav button {
             padding: 8px 16px;
             background: #007bff;
@@ -34,7 +34,7 @@
             display: inline-block;
         }
 
-        .demo-nav kylin-link:hover,
+        .demo-nav autospark-link:hover,
         .demo-nav button:hover {
             background: #0056b3;
         }
@@ -114,16 +114,16 @@
     <div id="app">
         <nav class="demo-nav">
             <h1>组件加载系统演示</h1>
-            <kylin-link to="/loader/local">本地组件</kylin-link>
-            <kylin-link to="/loader/dynamic">动态导入</kylin-link>
-            <kylin-link to="/loader/remote">远程 HTML</kylin-link>
-            <kylin-link to="/loader/nested">嵌套路由</kylin-link>
-            <kylin-link to="/loader/data">数据加载</kylin-link>
-            <kylin-link to="/loader/cache">缓存示例</kylin-link>
-            <kylin-link to="/loader/interpolate">插值变量</kylin-link>
+            <autospark-link to="/loader/local">本地组件</autospark-link>
+            <autospark-link to="/loader/dynamic">动态导入</autospark-link>
+            <autospark-link to="/loader/remote">远程 HTML</autospark-link>
+            <autospark-link to="/loader/nested">嵌套路由</autospark-link>
+            <autospark-link to="/loader/data">数据加载</autospark-link>
+            <autospark-link to="/loader/cache">缓存示例</autospark-link>
+            <autospark-link to="/loader/interpolate">插值变量</autospark-link>
         </nav>
         <main>
-            <kylin-outlet></kylin-outlet>
+            <div x-outlet></div>
         </main>
         <div class="demo-log">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -135,11 +135,15 @@
     </div>
 
     <script type="module">
-        import { KylinRouter } from '/src/index.ts';
+        import { AutoSpark } from "autospark";
+        import { AutoSparkRouter } from '/src/index.ts';
 
         const host = document.getElementById('app');
 
-        const router = new KylinRouter(host, {
+        // 注入模式：应用创建并拥有 engine 实例（vite 源码场景无 IIFE 全局，须显式注入）
+        const engine = new AutoSpark(host, {});
+        const router = new AutoSparkRouter(host, {
+            engine,
             routes: [
                 // 本地组件示例
                 {

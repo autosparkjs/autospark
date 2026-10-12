@@ -1,4 +1,4 @@
-import type { KylinMatchedRouteItem } from "@/types";
+import type { AutoSparkMatchedRouteItem } from "@/types";
 import { getSignalHash } from "./getSignalHash";
 
 /**
@@ -11,7 +11,7 @@ import { getSignalHash } from "./getSignalHash";
      "timestamp";
 
  */
-export function getRouteHash(matched: KylinMatchedRouteItem) {
+export function getRouteHash(matched: AutoSparkMatchedRouteItem) {
     const hash = matched?.route?.hash || "{path}";
     return getSignalHash(hash, matched);
 }

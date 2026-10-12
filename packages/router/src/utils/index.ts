@@ -8,4 +8,3 @@ export * from "./matchRoute";
 export * from "./normalizeRoutes";
 export * from "./params";
 export * from "./parseParams";
-export * from "./traverseOutlet";

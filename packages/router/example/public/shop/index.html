@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>麒麟手机商店 - Kylin Phone Store</title>
+        <title>麒麟手机商店 - AutoSpark Phone Store</title>
         <link rel="stylesheet" href="index.css" />
     </head>
     <body>
@@ -36,34 +36,34 @@
                         <span>麒麟手机商店</span>
                     </div>
                     <div class="nav-menu">
-                        <kylin-link to="/">
+                        <autospark-link to="/">
                             <span>🏠</span>
                             <span>首页</span>
-                        </kylin-link>
-                        <kylin-link to="/products">
+                        </autospark-link>
+                        <autospark-link to="/products">
                             <span>📱</span>
                             <span>产品</span>
-                        </kylin-link>
-                        <kylin-link to="/services">
+                        </autospark-link>
+                        <autospark-link to="/services">
                             <span>🔧</span>
                             <span>服务</span>
-                        </kylin-link>
-                        <kylin-link to="/docs">
+                        </autospark-link>
+                        <autospark-link to="/docs">
                             <span>📚</span>
                             <span>文档</span>
-                        </kylin-link>
-                        <kylin-link to="/store">
+                        </autospark-link>
+                        <autospark-link to="/store">
                             <span>🏪</span>
                             <span>商店</span>
-                        </kylin-link>
-                        <kylin-link to="/demo">
+                        </autospark-link>
+                        <autospark-link to="/demo">
                             <span>🎮</span>
                             <span>演示</span>
-                        </kylin-link>
-                        <kylin-link to="/profile">
+                        </autospark-link>
+                        <autospark-link to="/profile">
                             <span>👤</span>
                             <span>我的</span>
-                        </kylin-link>
+                        </autospark-link>
                     </div>
                     <div class="user-info">
                         <div
@@ -78,17 +78,23 @@
             <!-- 主内容区 -->
             <div class="main-content">
                 <div class="content-area">
-                    <kylin-outlet></kylin-outlet>
+                    <!-- 注入模式静态出口：完整组件形态 -->
+                    <div x-component:autospark.outlet></div>
                 </div>
             </div>
         </div>
 
         <script type="module">
+            import { AutoSpark } from "autospark";
             import { createRouter } from "/src/index.ts";
 
-            // 创建路由器
+            // 注入模式：应用创建并拥有 engine 实例
             const app = document.getElementById("app");
+            const engine = new AutoSpark(app, {});
+
+            // 创建路由器
             const router = createRouter(app, {
+                engine,
                 debug: true,
                 base: "/shop", // 配置基础路径
                 home: "/", // 配置首页路径

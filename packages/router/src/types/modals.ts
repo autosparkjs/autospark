@@ -4,7 +4,7 @@
  * @module types/modals
  */
 
-import type { KylinRouteItem } from "./routes";
+import type { AutoSparkRouteItem } from "./routes";
 
 // ============================================================================
 // 模态路由相关类型定义
@@ -81,7 +81,7 @@ export interface ModalStackItem {
     /**
      * 模态路由对象
      */
-    route: KylinRouteItem;
+    route: AutoSparkRouteItem;
 
     /**
      * 模态元素
@@ -121,7 +121,7 @@ export interface ModalOptions {
     /**
      * 路由路径或配置
      */
-    route?: string | KylinRouteItem;
+    route?: string | AutoSparkRouteItem;
 
     /**
      * 路由参数

@@ -1,4 +1,4 @@
-import type { KylinRouter } from "@/router";
+import type { AutoSparkRouter } from "@/router";
 import { triggerEvent } from "@/utils/triggerEvent";
 
 /**
@@ -7,7 +7,7 @@ import { triggerEvent } from "@/utils/triggerEvent";
 type ContextCallback<ValueType> = (value: ValueType, unsubscribe?: () => void) => void;
 
 /**
- * KylinRouter 组件基类（原生 Web Components 版本）
+ * AutoSparkRouter 组件基类（原生 Web Components 版本）
  *
  * - 为所有继承此基类的组件提供获取 router 实例的能力
  * - 不依赖 LitElement，使用原生 Web Components API
@@ -19,11 +19,11 @@ type ContextCallback<ValueType> = (value: ValueType, unsubscribe?: () => void) =
  *
  * 注意：这是抽象基类，不需要注册为自定义元素
  */
-export class KylinRouterElementBase extends HTMLElement {
+export class AutoSparkRouterElementBase extends HTMLElement {
     /**
-     * Router 实例引用，由 KylinRouter 通过 context 提供
+     * Router 实例引用，由 AutoSparkRouter 通过 context 提供
      */
-    router?: KylinRouter;
+    router?: AutoSparkRouter;
 
     /**
      * 是否已经分发过 context-request 事件
@@ -61,12 +61,12 @@ export class KylinRouterElementBase extends HTMLElement {
     /**
      * 同步获取 router 实例
      * 向上遍历 DOM 树，按优先级查找：
-     * 1. 具有 data-kylin-router 属性的元素（router 宿主元素）
-     * 2. 具有 router 实例的 KylinRouterElementBase 祖先元素
+     * 1. 具有 data-autospark-router 属性的元素（router 宿主元素）
+     * 2. 具有 router 实例的 AutoSparkRouterElementBase 祖先元素
      *
      * @returns router 实例或 undefined
      */
-    private _getRouterSync(): KylinRouter | undefined {
+    private _getRouterSync(): AutoSparkRouter | undefined {
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         let currentElement: Element | null = this;
         const walk: string[] = [];
@@ -79,15 +79,15 @@ export class KylinRouterElementBase extends HTMLElement {
                     : currentElement.tagName,
             );
 
-            // 优先查找 router 宿主元素（data-kylin-router 属性）
+            // 优先查找 router 宿主元素（data-autospark-router 属性）
             if (
                 currentElement instanceof HTMLElement &&
-                currentElement.hasAttribute("data-kylin-router")
+                currentElement.hasAttribute("data-autospark-router")
             ) {
                 return (currentElement as any).router;
             }
-            // 检查是否是 KylinRouterElementBase 且具有有效的 router 实例
-            if (currentElement instanceof KylinRouterElementBase && currentElement.router) {
+            // 检查是否是 AutoSparkRouterElementBase 且具有有效的 router 实例
+            if (currentElement instanceof AutoSparkRouterElementBase && currentElement.router) {
                 return currentElement.router;
             }
             currentElement = currentElement.parentElement;
@@ -99,7 +99,7 @@ export class KylinRouterElementBase extends HTMLElement {
      * 分发 context-request 事件来请求 router 实例
      * 与 src/features/context.ts 的 onContextRequest 逻辑匹配
      */
-    protected getRouter(callback: ContextCallback<KylinRouter> = this._contextCallback) {
+    protected getRouter(callback: ContextCallback<AutoSparkRouter> = this._contextCallback) {
         if (this.router) {
             // 已经有 router 实例，直接调用回调
             callback(this.router);
@@ -107,9 +107,9 @@ export class KylinRouterElementBase extends HTMLElement {
         }
         // 使用 ContextRequestEvent 确保事件格式与 onContextRequest 期望的一致
         triggerEvent(this, "context-request", {
-            context: "KylinRouter",
+            context: "AutoSparkRouter",
             contextTarget: this,
-            callback: (router: KylinRouter) => {
+            callback: (router: AutoSparkRouter) => {
                 this.router = router;
                 callback(router);
             },
@@ -117,12 +117,12 @@ export class KylinRouterElementBase extends HTMLElement {
     }
 
     /**
-     * Context 回调函数，当 KylinRouter 响应 context-request 时被调用
+     * Context 回调函数，当 AutoSparkRouter 响应 context-request 时被调用
      *
-     * @param router - KylinRouter 实例
+     * @param router - AutoSparkRouter 实例
      * @param unsubscribe - 取消订阅函数
      */
-    private _contextCallback: ContextCallback<KylinRouter> = (router: KylinRouter) => {
+    private _contextCallback: ContextCallback<AutoSparkRouter> = (router: AutoSparkRouter) => {
         // 保存 router 实例
         this.router = router;
         // 触发 router 就绪回调

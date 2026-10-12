@@ -4,7 +4,7 @@
  * 
  */
 
-import type { KylinRouter } from "@/router";
+import type { AutoSparkRouter } from "@/router";
 
 export class Preload {
     

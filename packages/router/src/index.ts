@@ -8,23 +8,29 @@ export * from "./utils";
 export * from "./router";
 export * from "./logger";
 
-// 导出路由器类型
-export type { KylinRouterOptions as KylinRouterOptiopns } from "./types";
+// engine 集成层（outlet 组件注册 / x-outlet 预处理，供高级用法与测试）
+export {
+    OUTLET_COMPONENT_NAME,
+    OUTLET_COMPONENT_CODE,
+    registerOutletComponent,
+} from "./engine/outletComponent";
+export { X_OUTLET_ATTR, OUTLET_COMPONENT_ATTR, transformXOutlet } from "./engine/xOutlet";
+export type { RouterEngineBinding } from "./engine/engineHost";
 
-// 导入 KylinRouter 类以创建工厂函数
-import { KylinRouter } from "./router";
-import type { KylinRouterOptions as KylinRouterOptionsType } from "./types";
+// 导入 AutoSparkRouter 类以创建工厂函数
+import { AutoSparkRouter } from "./router";
+import type { AutoSparkRouterOptions as AutoSparkRouterOptionsType } from "./types";
 
 /**
  * 创建路由器实例的工厂函数
  * @param host - 宿主元素
  * @param options - 路由配置选项
- * @returns KylinRouter 实例
+ * @returns AutoSparkRouter 实例
  */
 export function createRouter(
     host: HTMLElement,
-    options: KylinRouterOptionsType | KylinRouterOptionsType["routes"],
-): KylinRouter {
-    const router = new KylinRouter(host, options);
+    options: AutoSparkRouterOptionsType | AutoSparkRouterOptionsType["routes"],
+): AutoSparkRouter {
+    const router = new AutoSparkRouter(host, options);
     return router;
 }

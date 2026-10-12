@@ -5,11 +5,11 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
-import type { KylinRouter } from "../router";
-import type { KylinMatchedRouteItem } from "../types/routes";
+import type { AutoSparkRouter } from "../router";
+import type { AutoSparkMatchedRouteItem } from "../types/routes";
 
 import { setupTestEnvironment } from "./test-setup";
-import { KylinRouterError, KylinRouterTimeoutError } from "@/errors";
+import { AutoSparkRouterError, AutoSparkRouterTimeoutError } from "@/errors";
 
 // 初始化其他测试环境（window, document 等）
 setupTestEnvironment();
@@ -24,8 +24,8 @@ const mockLogger = {
     warn: () => {},
 };
 
-// Mock KylinRouter
-const createMockRouter = (): Partial<KylinRouter> => ({
+// Mock AutoSparkRouter
+const createMockRouter = (): Partial<AutoSparkRouter> => ({
     debug: false,
     logger: mockLogger,
     routes: {
@@ -47,7 +47,7 @@ const createMockRouter = (): Partial<KylinRouter> => ({
 });
 
 // 创建模拟的 matched route
-function createMockedRoute(path: string, data: any, id: number = 1): KylinMatchedRouteItem {
+function createMockedRoute(path: string, data: any, id: number = 1): AutoSparkMatchedRouteItem {
     return {
         route: {
             name: "test",
@@ -76,7 +76,7 @@ function createFetchMock(
 
 describe("DataLoader", () => {
     let dataLoader: any;
-    let mockRouter: Partial<KylinRouter>;
+    let mockRouter: Partial<AutoSparkRouter>;
     let mockFetch: any;
 
     beforeEach(async () => {
@@ -87,7 +87,7 @@ describe("DataLoader", () => {
         }
 
         mockRouter = createMockRouter();
-        dataLoader = new DataLoader(mockRouter as KylinRouter);
+        dataLoader = new DataLoader(mockRouter as AutoSparkRouter);
     });
 
     afterEach(() => {
@@ -744,7 +744,7 @@ describe("DataLoader", () => {
             expect(loader).toBeDefined();
             if (loader) {
                 expect(loader.signal.isRejected()).toBe(true);
-                expect(loader.signal.error).toBeInstanceOf(KylinRouterError);
+                expect(loader.signal.error).toBeInstanceOf(AutoSparkRouterError);
             }
         });
 
@@ -1002,7 +1002,7 @@ describe("DataLoader", () => {
             expect(loader).toBeDefined();
             if (loader) {
                 expect(loader.signal.isRejected()).toBe(true);
-                expect(loader.signal.error).toBeInstanceOf(KylinRouterTimeoutError);
+                expect(loader.signal.error).toBeInstanceOf(AutoSparkRouterTimeoutError);
             }
         });
     });
@@ -1405,7 +1405,7 @@ describe("DataLoader", () => {
 
     describe("同步函数返回数据测试", () => {
         it("应该处理同步函数返回的数据", async () => {
-            const syncFn = (route: KylinMatchedRouteItem) => ({
+            const syncFn = (route: AutoSparkMatchedRouteItem) => ({
                 id: route.id,
                 message: "sync",
             });
@@ -1424,7 +1424,7 @@ describe("DataLoader", () => {
         });
 
         it("应该传递正确的路由参数给同步函数", async () => {
-            const syncFn = (route: KylinMatchedRouteItem) => ({
+            const syncFn = (route: AutoSparkMatchedRouteItem) => ({
                 params: route.params,
                 query: route.query,
             });

@@ -37,6 +37,21 @@ export const SCOPES_KEY = "$scopes";
 export const NOTIFICATIONS_KEY = "$notifications";
 
 /**
+ * 框架保留键（第三例，ADR-0105）：引擎内部状态的元容器。
+ *
+ * engine 构造期由 viewport 特性注入 `store.state[META_KEY] = { viewport: "<档名>" }`：
+ * 当前视口档位作为全局响应式真相，模板任意位置 `$.viewport` 直接订阅。后续引擎内部
+ * 状态数据逐步迁入本容器。
+ *
+ * **严格保留键**：用户 state 树不得使用 "$"——构造期发现即 warn + delete + 引擎重建；
+ * 框架注入对象经 {@link META_MARK} 标记识别（检测有标记即复用，不误删框架所有物）。
+ */
+export const META_KEY = "$";
+
+/** 元容器的框架所有物标记（Symbol 挂注入对象，经 store 代理可读——LOCAL_PATHS 同法） */
+export const META_MARK = Symbol("autospark.meta");
+
+/**
  * 项局部变量→绝对状态段映射的载体键（ADR-0076）：x-for 在项 localData 上挂
  * `{ [itemName]: ["items", "0"] }` 形态的映射，供 x-field 的 resolveFieldAbsPath
  * 沿 scope 链把 `item.name` 反解为 `items.0.name`（项内字段的表单层——reset/

@@ -1,6 +1,6 @@
-import { css } from "lit";
-
-export const styles = css`
+// 原生 CSSStyleSheet（挂 Shadow DOM adoptedStyleSheets），替代 lit css 字面量
+const sheet = new CSSStyleSheet();
+sheet.replaceSync(`
     :host {
         display: flex;
         flex-direction: column;
@@ -34,4 +34,6 @@ export const styles = css`
             transform: rotate(360deg);
         }
     }
-`;
+`);
+
+export const styles: CSSStyleSheet = sheet;

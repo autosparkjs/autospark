@@ -8,8 +8,8 @@
  * - 路由匹配和参数提取
  */
 
-import type { KylinRouter } from "@/router";
-import type { KylinRouteItem, KylinMatchedRouteItem } from "@/types";
+import type { AutoSparkRouter } from "@/router";
+import type { AutoSparkRouteItem, AutoSparkMatchedRouteItem } from "@/types";
 
 import { matchRoute } from "@/utils/matchRoute";
 import { normalizeRoutes } from "@/utils/normalizeRoutes";
@@ -21,20 +21,20 @@ export interface NavigationCallbacks {
     setIsNavigating: (value: boolean) => void;
 }
 
-export class KylinRouteTable {
+export class AutoSparkRouteTable {
     /** 根路由 - 规范化后的路由树根节点 */
-    root: KylinRouteItem = normalizeRoutes();
+    root: AutoSparkRouteItem = normalizeRoutes();
     /** 当前路由状态 */
-    public current?: KylinMatchedRouteItem[];
+    public current?: AutoSparkMatchedRouteItem[];
     /**
      * 用于缓存命名路由项，方便通过name进行快速重定向或路由
      *
      * 注意： name必须是全局唯一，重复命名只会记住一个
      *
      */
-    namedRouteItems?: Map<string, WeakRef<KylinRouteItem>>;
-    router: KylinRouter;
-    constructor(router: KylinRouter) {
+    namedRouteItems?: Map<string, WeakRef<AutoSparkRouteItem>>;
+    router: AutoSparkRouter;
+    constructor(router: AutoSparkRouter) {
         this.router = router;
     }
 
@@ -44,7 +44,7 @@ export class KylinRouteTable {
      */
     async load(): Promise<void> {
         const routeArgs = this.router.options.routes || [];
-        const toArray = async (arg: any): Promise<KylinRouteItem[]> => {
+        const toArray = async (arg: any): Promise<AutoSparkRouteItem[]> => {
             if (typeof arg === "function") {
                 arg = await arg();
             } else if (typeof arg === "string") {
@@ -73,9 +73,9 @@ export class KylinRouteTable {
      * 规范化路由配置
      * 将全局配置应用到路由选项
      */
-    private _applyRouteOptions(route: KylinRouteItem): void {
+    private _applyRouteOptions(route: AutoSparkRouteItem): void {
         const overrideItems = ["keepAlive", "cache", "timeout", "preload"];
-        const processRoute = (r: KylinRouteItem) => {
+        const processRoute = (r: AutoSparkRouteItem) => {
             // 缓存命名路由项
             if (r.name && r.name.length > 0) {
                 if (!this.namedRouteItems) {
@@ -104,8 +104,8 @@ export class KylinRouteTable {
      * 从根节点开始遍历路由表
      * @param callback
      */
-    forEach(callback: (route: KylinRouteItem, parent: KylinRouteItem | null) => void): void {
-        function forEachRoute(route: KylinRouteItem, parent: KylinRouteItem | null): void {
+    forEach(callback: (route: AutoSparkRouteItem, parent: AutoSparkRouteItem | null) => void): void {
+        function forEachRoute(route: AutoSparkRouteItem, parent: AutoSparkRouteItem | null): void {
             callback(route, parent);
             if (route.children) {
                 route.children.forEach((child) => forEachRoute(child, route));

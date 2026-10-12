@@ -37,6 +37,7 @@ export * from "./x-layout";
 export * from "./x-pane";
 export * from "./x-foldable";
 export * from "./x-container";
+export * from "./x-viewport";
 
 import type { AutoSparkDirectiveBase } from "../features/directive/base";
 import { TextDirective } from "./x-text";
@@ -75,6 +76,7 @@ import { LayoutDirective } from "./x-layout";
 import { PaneDirective } from "./x-pane";
 import { FoldableDirective } from "./x-foldable";
 import { ContainerDirective } from "./x-container";
+import { ViewportDirective } from "./x-viewport";
 
 /**
  * 预设指令映射：指令名 → 指令类。
@@ -149,8 +151,12 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     // x-foldable 溢出折叠容器（ADR-0098 更名版，原名 x-block 已退役）：flex nowrap 布局 +
     // 溢出子元素折叠进 popover 面板（默认内置 shell，x-popover hover 接管，stash 真实搬移跨开关保态）
     foldable: FoldableDirective,
-    // x-container 响应式容器（ADR-0101）：Bootstrap .container 视觉契约 + 档名单向写回
-    //（值双态）；判定基准恒视口（纯 CSS media query + mql 监听），.fluid 关按档 max-width；
-    // viewport:change 跨档事件（初值静默；.self 宿主宽度形态已裁剪，见修订记录）
+    // x-container 响应式容器（ADR-0101 立 / ADR-0105 重写）：Bootstrap .container 视觉契约；
+    // 档位真相全局唯一（订阅 $.viewport 切 data-breakpoint，指令自身不做断点判定），
+    // 视觉走纯 CSS media query（engine 阈值 × 实例 maxWidths 指纹），.fluid 关按档 max-width
     container: ContainerDirective,
+    // x-viewport 视口档位显隐（ADR-0106）：$.viewport 声明式糖——切 autospark-viewport-hidden
+    // 类（display:none !important），不碰 inline display（档位隐藏恒胜 x-show）；.hide 反向；
+    // 档位未知静默失效恒可见
+    viewport: ViewportDirective,
 };

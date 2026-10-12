@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>notifications · 任务——手动开始（canStart 门控）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <!-- ② 手动开始门控（canStart）：卡片以 pending 态等待（呼吸条 + 「待启动」），progress 被
+         门控；点卡片「开始」发 actions/start（pending → running），宿主在 onStart 里才开跑。 -->
+    <div class="demo-app section">
+      <div class="block">
+        <button class="button is-primary is-light" onclick="runManual()">⏳ 创建待启动任务——去点卡片上的「开始」</button>
+        <p class="has-text-grey is-size-7">
+          <code>canStart: true</code>：卡片以 pending 态等待（呼吸条 + 「待启动」），进度被门控；
+          点「开始」发 <code>actions/start</code>，宿主在 <code>onStart</code> 里才开跑。
+        </p>
+      </div>
+      <div class="block">
+        <pre
+          id="log"
+          class="has-background-light"
+          style="padding: 8px; max-height: 300px; overflow: auto"
+        >
+（点击上方按钮开始任务演示）</pre>
+      </div>
+    </div>
+    <script>
+      const app = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+      const logEl = document.getElementById("log");
+      const lines = [];
+      const log = (t) => {
+        lines.push(`[${new Date().toLocaleTimeString("zh-CN", { hour12: false })}] ${t}`);
+        logEl.textContent = lines.slice(-14).join("\n");
+      };
+
+      /** 驱动器：定时推进（闸门 / 终态 / 关闭自动停表） */
+      function drive(t, step = 160) {
+        let cur = t.data.progress ?? 0;
+        const timer = setInterval(() => {
+          const st = t.data.state;
+          if (t.closed || st === "completed" || st === "stopped") return clearInterval(timer);
+          if (st === "paused") return; // 闸门：暂停期间 progress 被忽略
+          cur = Math.min(100, cur + 6 + Math.floor(Math.random() * 12));
+          t.progress(cur);
+        }, step);
+      }
+
+      function runManual() {
+        const t = app.notifications.task({
+          title: "等待开始的导出任务",
+          description: "canStart: true——待启动（呼吸条），点「开始」才跑",
+          canStart: true, // 手动门控：pending 态 + 「开始」按钮
+          canPause: true,
+          canStop: true,
+          canCancel: true,
+          closeWhenDone: 2000,
+        });
+        log("创建即 pending——progress 被门控");
+        t.progress(88); // 门控演示：pending 态推进被忽略
+        log(`偷跑 progress(88) 被忽略（state=${t.data.state}，进度仍 ${t.data.progress}%）`);
+        t.onStart(() => {
+          log("actions/start——宿主在 onStart 里开跑");
+          drive(t);
+          const watch = setInterval(() => {
+            if (t.closed || t.data.state !== "running") return clearInterval(watch);
+            if (t.data.progress >= 100) {
+              clearInterval(watch);
+              log("推进完成——closeWhenDone 2 秒收口");
+            }
+          }, 120);
+        });
+      }
+    </script>
+  </body>
+</html>

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { KylinRouter } from "@/router";
+import { AutoSparkRouter } from "@/router";
 
 /**
  * 创建测试用的 DOM 环境
@@ -35,16 +35,16 @@ function createTestDOM() {
 }
 
 /**
- * 动态导入 KylinRouter 以避免加载时的依赖问题
+ * 动态导入 AutoSparkRouter 以避免加载时的依赖问题
  */
 async function createRouter(host: HTMLElement, options: any) {
-    const { KylinRouter } = await import("@/router");
-    return new KylinRouter(host, options);
+    const { AutoSparkRouter } = await import("@/router");
+    return new AutoSparkRouter(host, options);
 }
 
-describe("KylinRouter attach/detach 功能", () => {
+describe("AutoSparkRouter attach/detach 功能", () => {
     let host: HTMLElement;
-    let router: KylinRouter;
+    let router: AutoSparkRouter;
 
     const routes = [
         { name: "home", path: "/" },
@@ -103,7 +103,7 @@ describe("KylinRouter attach/detach 功能", () => {
             router = await createRouter(host, { routes });
 
             // 检查 host 元素是否未被修改
-            expect(hostElement.hasAttribute("data-kylin-router")).toBe(false);
+            expect(hostElement.hasAttribute("data-autospark-router")).toBe(false);
             expect((hostElement as any).router).toBeUndefined();
 
             // 清理
@@ -143,13 +143,13 @@ describe("KylinRouter attach/detach 功能", () => {
             expect(router.attached).toBe(true);
         });
 
-        it("测试 2: attach() 应设置 host 属性并标记 data-kylin-router", async () => {
+        it("测试 2: attach() 应设置 host 属性并标记 data-autospark-router", async () => {
             router = await createRouter(host, { routes });
 
             router.attach();
 
             expect(router.host).toBe(host);
-            expect(host.hasAttribute("data-kylin-router")).toBe(true);
+            expect(host.hasAttribute("data-autospark-router")).toBe(true);
         });
 
         it("测试 3: attach() 应在 host.router 上存储 router 实例", async () => {
@@ -190,13 +190,13 @@ describe("KylinRouter attach/detach 功能", () => {
 
             router.attach();
 
-            expect(() => router.attach()).toThrow("[KylinRouter] Already attached to a host element");
+            expect(() => router.attach()).toThrow("[AutoSparkRouter] Already attached to a host element");
         });
 
         it("测试 7: 构造函数使用无效 host 应抛出错误", async () => {
             const invalidHost = null as unknown as HTMLElement;
 
-            expect(() => new KylinRouter(invalidHost, { routes: [] })).toThrow();
+            expect(() => new AutoSparkRouter(invalidHost, { routes: [] })).toThrow();
         });
     });
 
@@ -249,37 +249,37 @@ describe("KylinRouter attach/detach 功能", () => {
             router.detach();
 
             expect((host as any).router).toBeUndefined();
-            expect(host.hasAttribute("data-kylin-router")).toBe(false);
+            expect(host.hasAttribute("data-autospark-router")).toBe(false);
         });
 
         it("测试 5: 未 attached 时调用 push 应抛出错误", async () => {
             router = await createRouter(host, { routes });
 
-            expect(() => router.push("/user")).toThrow("[KylinRouter] Cannot navigate: router is not attached");
+            expect(() => router.push("/user")).toThrow("[AutoSparkRouter] Cannot navigate: router is not attached");
         });
 
         it("测试 6: 未 attached 时调用 replace 应抛出错误", async () => {
             router = await createRouter(host, { routes });
 
-            expect(() => router.replace("/user")).toThrow("[KylinRouter] Cannot navigate: router is not attached");
+            expect(() => router.replace("/user")).toThrow("[AutoSparkRouter] Cannot navigate: router is not attached");
         });
 
         it("测试 7: 未 attached 时调用 back 应抛出错误", async () => {
             router = await createRouter(host, { routes });
 
-            expect(() => router.back()).toThrow("[KylinRouter] Cannot navigate: router is not attached");
+            expect(() => router.back()).toThrow("[AutoSparkRouter] Cannot navigate: router is not attached");
         });
 
         it("测试 8: 未 attached 时调用 forward 应抛出错误", async () => {
             router = await createRouter(host, { routes });
 
-            expect(() => router.forward()).toThrow("[KylinRouter] Cannot navigate: router is not attached");
+            expect(() => router.forward()).toThrow("[AutoSparkRouter] Cannot navigate: router is not attached");
         });
 
         it("测试 9: 未 attached 时调用 go 应抛出错误", async () => {
             router = await createRouter(host, { routes });
 
-            expect(() => router.go(1)).toThrow("[KylinRouter] Cannot navigate: router is not attached");
+            expect(() => router.go(1)).toThrow("[AutoSparkRouter] Cannot navigate: router is not attached");
         });
 
         it("测试 10: detach() 后再 attach 应该正常工作", async () => {
