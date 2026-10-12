@@ -145,21 +145,37 @@ export function getSlotsContainer(el: HTMLElement): SlotsContainerMarker | null 
 /**
  * 识别元素上的插槽标记。
  *
+ * **普通标记优先、纯绑定载体仅作兜底**（ADR-0108）：绑定属性与标记同元素合写时
+ * （`<template x-slot.bind x-slot:header>` 任意书写顺序），名/形参权威属性（plain 形态）
+ * 恒为标记位来源——绑定载体不抢标记，顺序无关。
+ *
  * @returns 标记（名 + 原始属性名）；无标记返回 null
  */
 export function getSlotMarker(el: HTMLElement): SlotMarker | null {
     if (!(el instanceof HTMLElement)) return null;
+    let carrierFallback: SlotMarker | null = null;
     for (const attr of Array.from(el.attributes)) {
         const n = attr.name;
-        if (n === "x-slot" || n.startsWith("x-slot.")) {
-            return { name: "default", attrName: n };
+        if (isBindCarrierAttrName(n)) {
+            // 绑定载体兜底：仅当元素没有任何 plain 标记时才作标记（孤立载体）
+            if (!carrierFallback) carrierFallback = markerFromAttrName(n);
+            continue;
         }
-        if (n.startsWith("x-slot:")) {
-            // 名取 `:` 后、`.` 前段（`x-slot:header.foo` → header；`.` 后为修饰符忽略）
-            const rest = n.slice("x-slot:".length);
-            const name = rest.split(".")[0] ?? "";
-            return { name: name === "" ? "default" : name, attrName: n };
-        }
+        const m = markerFromAttrName(n);
+        if (m) return m;
+    }
+    return carrierFallback;
+}
+
+/** 单个属性名 → 标记（非插槽属性返回 null；名取 `:` 后、`.` 前段，`.` 后修饰符忽略） */
+function markerFromAttrName(n: string): SlotMarker | null {
+    if (n === "x-slot" || n.startsWith("x-slot.")) {
+        return { name: "default", attrName: n };
+    }
+    if (n.startsWith("x-slot:")) {
+        const rest = n.slice("x-slot:".length);
+        const name = rest.split(".")[0] ?? "";
+        return { name: name === "" ? "default" : name, attrName: n };
     }
     return null;
 }
@@ -172,6 +188,19 @@ export interface SlotBindingsAttr {
     name: string;
     /** 绑定表达式原文（调用方作用域求值，值语义 = x-bind 属性展开 ADR-0043） */
     value: string;
+}
+
+/** 属性名是否为**纯绑定载体**形态（ADR-0108）：`x-slot.bind` / `x-slot.修饰含bind` / `x-slot:名.修饰含bind`。
+ *
+ * 关键区分：`x-slot:bind` **不是**载体——冒号后第一段恒为槽名（槽恰好叫 bind 时按名处理），
+ * bind 只有出现在修饰符位（`.` 后段）才承载绑定语义。
+ */
+function isBindCarrierAttrName(name: string): boolean {
+    if (name === "x-slot.bind") return true;
+    if (name.startsWith("x-slot.")) return name.slice("x-slot.".length).split(".").includes("bind");
+    if (name.startsWith("x-slot:"))
+        return name.slice("x-slot:".length).split(".").slice(1).includes("bind");
+    return false;
 }
 
 /**
@@ -190,16 +219,10 @@ export function getSlotBindingsAttr(el: HTMLElement): SlotBindingsAttr | null {
     if (!(el instanceof HTMLElement)) return null;
     for (const attr of Array.from(el.attributes)) {
         const n = attr.name;
-        let name: string | null = null;
-        if (n === "x-slot.bind") {
-            name = "default";
-        } else if (n.startsWith("x-slot.")) {
-            if (n.slice("x-slot.".length).split(".").includes("bind")) name = "default";
-        } else if (n.startsWith("x-slot:")) {
-            const segs = n.slice("x-slot:".length).split(".");
-            if (segs.includes("bind")) name = segs[0] === "" ? "default" : segs[0]!;
-        }
-        if (name !== null) return { attrName: n, name, value: attr.value };
+        if (!isBindCarrierAttrName(n)) continue;
+        const segs = n.slice("x-slot:".length).split(".");
+        const name = n.startsWith("x-slot:") && segs[0] !== "" ? segs[0]! : "default";
+        return { attrName: n, name, value: attr.value };
     }
     return null;
 }

@@ -8,7 +8,7 @@ import { mount, nextTick, finishAnim } from "../helpers";
  *
  * 12 组：命名/默认出口命中、fallback、无主 warn、重复首胜、裸子节点默认段、
  * 命名分段直接子级、深层忽略 warn、作用域插槽形参、形参响应式、调用方作用域求值、
- * overlay 继承、x-dialog 子节点进覆盖物；+ 传递绑定组（ADR-0108，11 例）。
+ * overlay 继承、x-dialog 子节点进覆盖物；+ 传递绑定组（ADR-0108，13 例）。
  */
 
 /** 挂载并拦截 logger.warn（编译期同步 warn 也可靠捕获） */
@@ -778,5 +778,38 @@ describe("x-slot 传递绑定（ADR-0108）", () => {
         const outlet = mask.querySelector("[data-o]")!;
         expect(outlet).not.toBeNull();
         expect(outlet.getAttribute("data-o")).toBe("O1");
+    });
+
+    test("槽名恰为 bind：x-slot:bind 按命名槽处理，不误判为绑定载体", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="card"><div x-slot:bind>默认</div></div>
+                <div id="h" x-component:card>
+                    <template x-slot:bind x-slot.bind="{ 'data-y': y }">投影</template>
+                </div>
+            </div>`,
+            { y: "Y1" },
+        );
+        await nextTick();
+        const outlet = root.querySelector("#h [data-slot]")!;
+        expect(outlet.dataset.slot).toBe("bind"); // 名 "bind" 的命名出口
+        expect(outlet.textContent).toBe("投影");
+        expect(outlet.getAttribute("data-y")).toBe("Y1"); // 同元素独立载体照常展开
+    });
+
+    test("书写顺序无关：绑定属性在命名属性之前仍正确分段", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="card"><header x-slot:header>默认头</header></div>
+                <div id="h" x-component:card>
+                    <template x-slot.bind="{ 'data-h': h }" x-slot:header>投影</template>
+                </div>
+            </div>`,
+            { h: "H1" },
+        );
+        await nextTick();
+        const header = root.querySelector("#h header")!;
+        expect(header.textContent).toBe("投影"); // 绑定属性不抢标记位
+        expect(header.getAttribute("data-h")).toBe("H1");
     });
 });
