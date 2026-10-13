@@ -152,6 +152,8 @@ describe("autospark.outlet 组件（ADR-0003）", () => {
         await nextTick();
 
         const tabs = outlet.querySelectorAll(".autospark-outlet-tab");
+        console.log("DEBUG tabsBar:", (outlet.querySelector(".autospark-outlet-tabs") as HTMLElement)?.outerHTML);
+        console.log("DEBUG comp.active:", engine.getComponent(outlet)?.data?.active);
         expect(tabs).toHaveLength(2);
         expect(tabs[0].querySelector(".autospark-outlet-tab-title")!.textContent).toBe("A 页");
         expect(tabs[1].querySelector(".autospark-outlet-tab-title")!.textContent).toBe("B 页");
