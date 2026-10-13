@@ -18,6 +18,7 @@ export function injectStylesheet(css: string, options?: InjectStylesheetOptions)
     if (!style || style.tagName !== "STYLE") {
         style = document.createElement("style");
         style.id = finalId;
+        style.textContent = css;
 
         const target =
             location === "head"
@@ -29,6 +30,7 @@ export function injectStylesheet(css: string, options?: InjectStylesheetOptions)
                     : document.head;
 
         target.appendChild(style);
+        return style;
     }
 
     if (mode === "replace") {
