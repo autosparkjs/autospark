@@ -55,21 +55,19 @@ function parseDataScript(html: string): Record<string, any> | null {
 }
 
 /**
- * 构造 stub engine：按 outlet 宿主逐个给出组件驱动面。
- * mountView 会同步落位「视图容器（data-view-hash）+ 其中的嵌套 outlet」，
+ * 构造 stub engine：按 outlet 宿主逐个给出组件读取面 + engine.data 直写通道（ADR-0003 决策 6）。
+ * data(el, patch) 合并进出口数据域并同步落位「视图容器（data-view-hash）+ 其中的嵌套 outlet」，
  * 以复现真实管线（x-html.compile 编译远程模板 → 模板内 x-outlet 落地）的出口查找路径。
  */
 function createEngineStub(rootOutlet: HTMLElement) {
     const comps = new WeakMap<HTMLElement, any>();
     const mounts: MountedView[] = [];
 
-    function mountInto(outletEl: HTMLElement, view: MountedView, ephemeral: boolean) {
+    /** 视图容器落位：已存在则补 ready 标记；不存在则创建（含嵌套 outlet） */
+    function ensureContainer(outletEl: HTMLElement, view: MountedView) {
         const record: MountedView = { hash: view.hash, html: view.html || "", ready: !!view.ready };
-        if (ephemeral) {
-            outletEl.querySelectorAll("[data-view-hash]").forEach((el) => el.remove());
-        }
         const existing = outletEl.querySelector(`[data-view-hash="${record.hash}"]`);
-        if (existing && !ephemeral) {
+        if (existing) {
             existing.removeAttribute("data-stub-ready");
             if (record.ready) existing.setAttribute("data-stub-ready", "");
         } else {
@@ -80,34 +78,40 @@ function createEngineStub(rootOutlet: HTMLElement) {
             nestedOutlet.setAttribute("data-autospark-outlet", "");
             viewHost.appendChild(nestedOutlet);
             outletEl.appendChild(viewHost);
-            comps.set(nestedOutlet, makeComp(nestedOutlet));
+            comps.set(nestedOutlet, makeComp());
         }
         mounts.push(record);
     }
 
-    function makeComp(outletEl: HTMLElement): any {
-        const state = { views: [] as MountedView[], active: "" };
+    function makeComp(): any {
         return {
-            data: state,
-            methods: {
-                activateView(hash: string) {
-                    state.active = hash;
-                },
-                mountView(view: MountedView) {
-                    state.views.push(view);
-                    state.active = view.hash;
-                    mountInto(outletEl, view, false);
-                },
-                mountEphemeral(view: MountedView) {
-                    state.views = [view];
-                    state.active = view.hash;
-                    mountInto(outletEl, view, true);
-                },
+            data: {
+                views: [] as MountedView[],
+                ephemeral: { hash: "", html: "", ready: false },
+                active: "",
             },
         };
     }
 
-    comps.set(rootOutlet, makeComp(rootOutlet));
+    /** engine.data 直写通道：合并数据域并同步视图容器（对齐真实组件的 x-for/临时槽行为） */
+    function writeData(outletEl: HTMLElement, patch: Record<string, any>) {
+        const comp = comps.get(outletEl);
+        if (!comp) return;
+        const state = comp.data;
+        if (patch.ephemeral) {
+            state.ephemeral = patch.ephemeral;
+            // 临时通道：清空既有视图容器后整体替换（每次重编译、无态可丢）
+            outletEl.querySelectorAll("[data-view-hash]").forEach((el) => el.remove());
+            ensureContainer(outletEl, patch.ephemeral);
+        }
+        if (patch.views) {
+            state.views = patch.views;
+            for (const view of patch.views) ensureContainer(outletEl, view);
+        }
+        if (typeof patch.active === "string") state.active = patch.active;
+    }
+
+    comps.set(rootOutlet, makeComp());
 
     return {
         mounts,
@@ -115,6 +119,7 @@ function createEngineStub(rootOutlet: HTMLElement) {
             // 短路 outlet 组件注册（避免 stub 需要完整 registerComponent 面）
             getComponentDeclaration: () => ({ name: "autospark.outlet" }),
             getComponent: (el: HTMLElement) => comps.get(el) ?? null,
+            data: (el: HTMLElement, patch: Record<string, any>) => writeData(el, patch),
             destroy() { },
         } as any,
     };

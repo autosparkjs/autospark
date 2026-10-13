@@ -29,15 +29,23 @@ _Avoid_: 子路由（vue-router 词）、多级路由
 ### 渲染层
 
 **出口（Outlet）**:
-`autospark.outlet` engine 组件（宿主带 `data-autospark-outlet` 标记），匹配视图的 DOM 落点；内部以 x-for（`:key=hash`）持有缓存视图列表、以临时容器承接非缓存视图。
+`autospark.outlet` engine 组件（宿主带 `data-autospark-outlet` 标记），匹配视图的 DOM 落点；内部以 x-for（`:key=hash`）持有视图清单、以临时容器承接非缓存视图。承接两个 props——`keepAlive`（本出口未显式声明路由的缓存默认值，默认 false）与 `mode`（出口模式，默认 stack）。router 渲染层经 `engine.data(outletEl, …)` 直写组件数据域驱动。
 _Avoid_: 容器、视口、`autospark-outlet` 自定义元素（已退役）
 
+**出口模式（Outlet Mode）**:
+出口组件的渲染模式 prop（`mode`）——`stack` 只显示 active 视图（其余 x-show 隐藏）；`tabs` 增渲染页签条（每个已访问视图一个页签，标题取路由 `title`、缺省回退 hash），点击页签走 router 导航（URL 保持唯一真相源）。tabs 模式下所有视图常驻缓存通道（页签存续以 DOM 常驻为前提），临时通道不启用。
+_Avoid_: layout（旧 `layout: tabs/collapse` 词，决策已修订）
+
 **出口简写（x-outlet）**:
-`<div x-outlet>` 是 `<div x-component:autospark.outlet>` 的别名糖，经编译前 DOM 预处理改写（自建 engine 的宿主首编译前、远程模板 renderer 管线内两处生效）；注入 engine 模式的静态模板须写完整形态。
+`<div x-outlet>` 是 `<div x-component:autospark.outlet>` 的别名糖，经编译前 DOM 预处理改写（自建 engine 的宿主首编译前、远程模板 renderer 管线内两处生效）；**简写的值透传为 props 表达式**——`<div x-outlet="{ keepAlive: true, mode: 'tabs' }">` 等价于完整形态带值写法。注入 engine 模式的静态模板须写完整形态。
 _Avoid_: x-outlet 指令（它是指令系统之外的预处理，非 engine 指令）
 
+**视图清单（Views）**:
+出口组件数据域的唯一状态——append-only 的已访问视图记录（`{hash, html, ready, title}` 条目 + `active` hash）与临时视图槽，router 经 `engine.data` 直写；tabs 模式页签条 x-for 它渲染，条目的 hash/title 即页签元数据。它是访问记录而非缓存簿记：缓存由 DOM 常驻承担，清单只描述「有哪些视图、哪个激活」。
+_Avoid_: 缓存列表、viewCache
+
 **缓存视图 / 临时视图（Ephemeral View）**:
-出口内视图的两种容器通道——缓存视图（keepalive）进入 append-only 的 x-for 列表，切走仅隐藏、切回原样复用（运行态保留）；临时视图每次重编译、无态可丢。
+出口内视图的两种容器通道——缓存视图（keepalive）进入视图清单，切走仅 x-show 隐藏（display:none）、切回原样复用（运行态保留）；临时视图每次重编译、无态可丢。**缓存不是数据概念**——数据域只放视图清单，缓存纯由 DOM 常驻 + display:none 承担。
 _Avoid_: slot（旧载体词）、页面栈
 
 **视图源（ViewSource）**:
@@ -45,8 +53,8 @@ _Avoid_: slot（旧载体词）、页面栈
 _Avoid_: 模板、组件（组件是渲染结果形态）
 
 **KeepAlive**:
-路由视图的缓存复用策略——离开不销毁、重进即复用（`activateView` 不触碰内容）。与 `cache` 键（TTL 时长）是两个独立字段。
-_Avoid_: 缓存（那是 `cache` 键）、keep-alive 连字符拼写（键名是 `keepAlive`）
+路由视图的缓存复用策略——离开不销毁、重进即复用（`activateView` 不触碰内容）。两级声明，优先级：**出口 mode=tabs（全视图常驻）> 路由项 `keepAlive` 显式声明 > 出口 `keepAlive` prop（默认 false）**。注意历史默认已翻转：路由未声明且出口未声明时不再缓存。与 `cache` 键（TTL 时长）是两个独立字段。
+_Avoid_: 缓存（那是 `cache` 键）、keep-alive 连字符拼写、keepalive 全小写拼写（键名统一 `keepAlive`）
 
 **路由数据（Route Data）**:
 导航前由数据加载器预取、以 `<script type="autospark/data">` 形态合并进视图 HTML 尾部再交 engine 编译消费的数据（engine 对多脚本按文档序后者覆盖——动态数据覆盖远程模板自带的同名静态键）。
@@ -83,7 +91,8 @@ _Avoid_: 依赖注入框架词（provider/injector）、单例 engine
 - **KylinBits**：非本包词根，属 `packages/theme` 的独立议题，本表仅存目
 - **`autospark-outlet` / `autospark-slot` 自定义元素** → `autospark.outlet` engine 组件（ADR-0002，2026-10-12 渲染载体更换）
 - **Alpine 桥（AutoSparkAlpineStore / AlpineManager）与 x-cssvar / x-inject-data 指令** → engine 响应式体系（ADR-0002）
-- **Outlet 布局 `layout: tabs / collapse`** → stack 先行；tabs/collapse 存目待以 engine 布局件（x-container/x-foldable）组合重建（ADR-0002）
+- **Outlet 布局 `layout: tabs / collapse`** → ~~stack 先行；tabs/collapse 存目待以 engine 布局件组合重建~~（ADR-0002）→ **tabs 以出口 `mode` prop 内建复活**（ADR-0003 修订：页签需感知路由语义——title/icon 元数据、激活态与 URL 联动，布局件组合做不到）；collapse 仍存目
 - **`data` 选项的 `store` 键**（Alpine.store 全局注册）→ 数据统一走 autospark/data script 注入（ADR-0002）
 - **CSS `v-bind(expr)` → CSS 变量转换** → 改用 engine 的 `:style` / x-bind 指令写变量（ADR-0002）
 - **`template?: TemplateResult`（lit 类型字段）** → `template?: string`
+- **outlet methods 驱动面（mountView / mountEphemeral / activateView）** → `engine.data(outletEl, …)` 直写数据域（ADR-0003，2026-10-13 驱动面更换）

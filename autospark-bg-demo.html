@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>10 种预设背景 + 2 种自定义背景模式</title>
+
+  <style>
+    html, body {
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    #bgLayer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 0;
+      background: linear-gradient(45deg, #59ADEB 10%, #35CE93 90%);
+      background-size: 200% 100%;
+      -webkit-animation: move 8s ease infinite;
+      animation: move 8s ease infinite;
+      will-change: background-position;
+      pointer-events: none;
+    }
+
+    @-webkit-keyframes move {
+      0%   { background-position: 0 0; }
+      50%  { background-position: 100% 0; }
+      100% { background-position: 0 0; }
+    }
+
+    @keyframes move {
+      0%   { background-position: 0 0; }
+      50%  { background-position: 100% 0; }
+      100% { background-position: 0 0; }
+    }
+
+    /* 底部渐隐：从 50% 处开始过渡到全透明，露出页面底色 */
+    #bgLayer.bg-fade-bottom {
+      -webkit-mask-image: linear-gradient(to bottom, #000 50%, rgba(0, 0, 0, 0) 100%);
+      mask-image: linear-gradient(to bottom, #000 50%, rgba(0, 0, 0, 0) 100%);
+    }
+
+    h1 {
+      position: relative;
+      z-index: 1;
+      color: white;
+      font-family: 'Open Sans', sans-serif;
+      text-align: center;
+      padding: 150px 200px 25px;
+      font-size: 50px;
+      margin: 0;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    a {
+      position: relative;
+      z-index: 1;
+      display: inline-block;
+      padding: 25px 200px;
+      font-family: 'Open Sans', sans-serif;
+      font-size: 25px;
+      color: white;
+      text-decoration: none;
+    }
+
+    :root {
+      --panel-accent: #59ADEB;
+      --panel-text: #0f172a;
+      --panel-muted: rgba(15, 23, 42, 0.55);
+      --panel-line: rgba(15, 23, 42, 0.18);
+      --panel-hover: rgba(15, 23, 42, 0.06);
+    }
+
+    .panel {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      width: 300px;
+      max-height: calc(100vh - 24px);
+      overflow-y: auto;
+      background: #fff;
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--panel-line);
+      border-radius: 12px;
+      padding: 16px;
+      color: var(--panel-text);
+      font-family: 'Open Sans', sans-serif;
+      z-index: 10;
+      text-align: left;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      letter-spacing: 1px;
+      color: var(--panel-text);
+    }
+
+    .block-title {
+      margin: 14px 0 8px;
+      font-size: 12px;
+      letter-spacing: 1px;
+      color: var(--panel-muted);
+      border-left: 3px solid rgba(15, 23, 42, 0.25);
+      padding-left: 8px;
+    }
+
+    .preset-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .preset-btn {
+      border: 1px solid var(--panel-line);
+      background: #fff;
+      color: var(--panel-text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-family: 'Open Sans', sans-serif;
+      font-size: 12px;
+      transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.1s;
+      text-align: center;
+    }
+
+    .preset-btn:hover {
+      background: var(--panel-hover);
+      border-color: rgba(15, 23, 42, 0.35);
+    }
+
+    .preset-btn:active {
+      transform: scale(0.96);
+    }
+
+    .preset-btn.selected {
+      background: var(--panel-accent);
+      border-color: var(--panel-accent);
+      color: #fff;
+    }
+
+    .btn {
+      border: 1px solid var(--panel-line);
+      background: #fff;
+      color: var(--panel-text);
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-family: 'Open Sans', sans-serif;
+      font-size: 12px;
+      transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.1s;
+      text-align: center;
+    }
+
+    .btn:hover {
+      background: var(--panel-hover);
+      border-color: rgba(15, 23, 42, 0.35);
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn.selected {
+      background: var(--panel-accent);
+      border-color: var(--panel-accent);
+      color: #fff;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .custom-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .custom-row input {
+      flex: 1 1 100px;
+      min-width: 0;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid var(--panel-line);
+      background: #fff;
+      color: var(--panel-text);
+      font-family: 'Open Sans', sans-serif;
+      font-size: 12px;
+    }
+
+    .custom-row input::placeholder {
+      color: rgba(15, 23, 42, 0.4);
+    }
+
+    .custom-row input:focus {
+      outline: none;
+      border-color: var(--panel-accent);
+      box-shadow: 0 0 0 2px rgba(89, 173, 235, 0.25);
+    }
+
+    .custom-row button {
+      border: 1px solid var(--panel-line);
+      background: #fff;
+      color: var(--panel-text);
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-family: 'Open Sans', sans-serif;
+      font-size: 12px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .custom-row button:hover {
+      background: var(--panel-hover);
+      border-color: rgba(15, 23, 42, 0.35);
+    }
+
+    .custom-row button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .custom-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .custom-empty {
+      font-size: 12px;
+      color: var(--panel-muted);
+      padding: 4px 0;
+    }
+
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .range-row input[type="range"] {
+      flex: 1;
+      min-width: 0;
+      accent-color: var(--panel-accent);
+      cursor: pointer;
+    }
+
+    .range-value {
+      min-width: 64px;
+      text-align: right;
+      font-size: 12px;
+      color: var(--panel-text);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .range-hint {
+      font-size: 11px;
+      color: var(--panel-muted);
+      margin-bottom: 4px;
+    }
+
+    .footer {
+      position: fixed;
+      bottom: 12px;
+      left: 12px;
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 12px;
+      font-family: 'Open Sans', sans-serif;
+      z-index: 10;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: color 0.3s ease;
+    }
+
+    /* 底部渐隐开启后，页脚落在白色底上，换深色保证可读 */
+    body.fade-on .footer {
+      color: rgba(15, 23, 42, 0.6);
+    }
+  </style>
+</head>
+<body>
+  <div id="bgLayer"></div>
+
+  <div class="panel">
+    <h2>背景预设</h2>
+    <div class="preset-group" id="presets"></div>
+
+    <div class="block-title">动画速度</div>
+    <div class="range-row">
+      <input type="range" id="speedRange" min="1" max="30" step="1" value="8"
+             aria-label="背景动画周期（秒）" title="动画完成一圈所需的秒数" />
+      <span class="range-value" id="speedValue">8 秒/次</span>
+    </div>
+    <div class="range-hint">数值越小流动越快（1–30 秒一轮），切换预设后速度保持不变</div>
+
+    <div id="presetToolbar"></div>
+    <div id="presetOptions"></div>
+
+    <div class="block-title">背景效果</div>
+    <div class="preset-group">
+      <button type="button" class="btn" id="fadeToggle" aria-pressed="false"
+              title="让背景下半部分（50% → 100%）渐变到透明">底部渐隐 · 下 50%</button>
+    </div>
+  </div>
+
+  <h1>背景预设</h1>
+  <a href="#top">返回顶部</a>
+
+  <div class="footer">10 种预设背景 + 2 种自定义背景模式（单色 / 双色渐变）</div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var PRESETS = [
+        { name: '靛蓝渐变', color1: '#59ADEB', color2: '#35CE93' },
+        { name: '紫罗兰渐变', color1: '#7C3AED', color2: '#A855F7' },
+        { name: '橙红渐变', color1: '#F97316', color2: '#EF4444' },
+        { name: '青绿渐变', color1: '#06B6D4', color2: '#22C55E' },
+        { name: '玫瑰金渐变', color1: '#EC4899', color2: '#F59E0B' },
+        { name: '深海暖橙', color1: '#0F172A', color2: '#F59E0B' },
+        { name: '雾霾蓝绿', color1: '#E2E8F0', color2: '#22C55E' },
+        { name: '迷你糖红', color1: '#FFF1F2', color2: '#FDA4AF' },
+        { name: '酸奶薄荷', color1: '#FEF3C7', color2: '#84CC16' },
+        { name: '极夜星空', color1: '#0B1120', color2: '#38BDF8' }
+      ];
+
+      var CUSTOM_KINDS = [
+        { key: 'single', label: '单色渐变' },
+        { key: 'gradient', label: '双色渐变' }
+      ];
+
+      var SPEED_MIN = 1;
+      var SPEED_MAX = 30;
+      var SPEED_DEFAULT = 8;
+
+      var state = {
+        activePresetIndex: 0,
+        activeCustomKind: 'single',
+        activeCustomIndex: null,
+        customList: [],
+        fadeBottom: false
+      };
+
+      var bgLayer = document.getElementById('bgLayer');
+      var presetsEl = document.getElementById('presets');
+      var toolbarEl = document.getElementById('presetToolbar');
+      var optionsEl = document.getElementById('presetOptions');
+      var speedRange = document.getElementById('speedRange');
+      var speedValue = document.getElementById('speedValue');
+      var fadeToggle = document.getElementById('fadeToggle');
+
+      var customName, customColor1, customColor2, addCustom;
+      var editName, editColor1, editColor2, editCustom, deleteCustom;
+      var customListEl;
+
+      /* ---------- 工具 ---------- */
+
+      /* 只允许安全字符，避免把背景样式写坏（支持 #hex / rgb() / hsl() / 颜色名） */
+      function color(value, fallback) {
+        var v = (value || '').trim();
+        if (!v) return fallback;
+        return /^[#a-z0-9(),.%\s]+$/i.test(v) ? v : fallback;
+      }
+
+      function gradient(c1, c2) {
+        return 'linear-gradient(45deg, ' + c1 + ' 10%, ' + c2 + ' 90%)';
+      }
+
+      function applyBackground(c1, c2) {
+        var g = gradient(c1, c2);
+        /* 只改 background-image。
+           不能用 background 简写：简写会把 background-size 重置回 auto，
+           导致背景铺满元素、move 动画的 background-position 变化不可见。 */
+        bgLayer.style.backgroundImage = '-webkit-' + g;
+        bgLayer.style.backgroundImage = g;
+        bgLayer.style.backgroundSize = '200% 100%';
+      }
+
+      /* ---------- 动画速度 ---------- */
+
+      /* seconds = 动画循环一圈的秒数，数值越小越快 */
+      function applySpeed(seconds) {
+        var s = Math.round(Number(seconds));
+        if (!isFinite(s)) s = SPEED_DEFAULT;
+        s = Math.min(SPEED_MAX, Math.max(SPEED_MIN, s));
+
+        /* 内联 longhand 优先级高于样式表里的 animation 简写，
+           两种前缀都写，兼容老 WebKit。 */
+        bgLayer.style.setProperty('-webkit-animation-duration', s + 's');
+        bgLayer.style.setProperty('animation-duration', s + 's');
+
+        speedValue.textContent = s + ' 秒/次';
+        if (speedRange.value !== String(s)) {
+          speedRange.value = String(s);
+        }
+      }
+
+      function initSpeed() {
+        /* 以样式表计算值为准，避免和 CSS 里的默认时长打架 */
+        var cs = window.getComputedStyle(bgLayer);
+        var raw = cs.animationDuration || cs.webkitAnimationDuration || SPEED_DEFAULT + 's';
+        var sec = parseFloat(raw);
+        applySpeed(isFinite(sec) && sec > 0 ? sec : SPEED_DEFAULT);
+      }
+
+      speedRange.addEventListener('input', function () {
+        applySpeed(parseInt(speedRange.value, 10));
+      });
+
+      /* ---------- 底部渐隐 ---------- */
+
+      function syncFade() {
+        var on = state.fadeBottom;
+        bgLayer.classList.toggle('bg-fade-bottom', on);
+        document.body.classList.toggle('fade-on', on);
+        fadeToggle.classList.toggle('selected', on);
+        fadeToggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
+
+      fadeToggle.addEventListener('click', function () {
+        state.fadeBottom = !state.fadeBottom;
+        syncFade();
+      });
+
+      /* ---------- 预设 ---------- */
+
+      function selectPreset(index) {
+        var preset = PRESETS[index];
+        if (!preset) return;
+
+        state.activePresetIndex = index;
+        state.activeCustomIndex = null;
+
+        applyBackground(preset.color1, preset.color2);
+        render();
+      }
+
+      function renderPresets() {
+        presetsEl.innerHTML = '';
+
+        PRESETS.forEach(function (item, index) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'preset-btn' + (state.activePresetIndex === index ? ' selected' : '');
+          btn.textContent = item.name;
+          btn.title = item.color1 + ' → ' + item.color2;
+          btn.addEventListener('click', function () {
+            selectPreset(index);
+          });
+          presetsEl.appendChild(btn);
+        });
+      }
+
+      /* ---------- 自定义模式切换 ---------- */
+
+      function setCustomKind(kind) {
+        state.activeCustomKind = kind;
+        render();
+
+        if (state.activeCustomIndex !== null) {
+          applyCustom(state.activeCustomIndex);
+        } else {
+          syncEditForm();
+        }
+      }
+
+      function renderToolbar() {
+        toolbarEl.innerHTML = '';
+
+        var title = document.createElement('div');
+        title.className = 'block-title';
+        title.textContent = '自定义背景模式';
+        toolbarEl.appendChild(title);
+
+        var group = document.createElement('div');
+        group.className = 'preset-group';
+
+        CUSTOM_KINDS.forEach(function (kind) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn' + (state.activeCustomKind === kind.key ? ' selected' : '');
+          btn.textContent = kind.label;
+          btn.addEventListener('click', function () {
+            setCustomKind(kind.key);
+          });
+          group.appendChild(btn);
+        });
+
+        toolbarEl.appendChild(group);
+      }
+
+      /* ---------- 自定义列表 ---------- */
+
+      function applyCustom(index) {
+        var item = state.customList[index];
+        if (!item) return;
+
+        state.activeCustomIndex = index;
+        state.activePresetIndex = null;
+
+        if (state.activeCustomKind === 'single') {
+          applyBackground(item.color1, item.color1);
+        } else {
+          applyBackground(item.color1, item.color2);
+        }
+
+        render();
+      }
+
+      function renderCustomList() {
+        customListEl.innerHTML = '';
+
+        if (!state.customList.length) {
+          var empty = document.createElement('div');
+          empty.className = 'custom-empty';
+          empty.textContent = '暂无自定义背景，先在上方添加一个。';
+          customListEl.appendChild(empty);
+          return;
+        }
+
+        state.customList.forEach(function (item, index) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'preset-btn' + (state.activeCustomIndex === index ? ' selected' : '');
+          btn.textContent = item.name;
+          btn.title = item.color1 + (state.activeCustomKind === 'gradient' ? ' → ' + item.color2 : '');
+          btn.addEventListener('click', function () {
+            applyCustom(index);
+          });
+          customListEl.appendChild(btn);
+        });
+      }
+
+      /* ---------- 表单 ---------- */
+
+      function buildOptions() {
+        optionsEl.innerHTML = '';
+
+        /* 新增 */
+        var addTitle = document.createElement('div');
+        addTitle.className = 'block-title';
+        addTitle.textContent = '新增自定义背景';
+        optionsEl.appendChild(addTitle);
+
+        var addRow = document.createElement('div');
+        addRow.className = 'custom-row';
+
+        customName = document.createElement('input');
+        customName.type = 'text';
+        customName.placeholder = '名称';
+
+        customColor1 = document.createElement('input');
+        customColor1.type = 'text';
+        customColor1.placeholder = '颜色 1';
+        customColor1.value = '#59ADEB';
+
+        customColor2 = document.createElement('input');
+        customColor2.type = 'text';
+        customColor2.placeholder = '颜色 2';
+        customColor2.value = '#35CE93';
+
+        addCustom = document.createElement('button');
+        addCustom.type = 'button';
+        addCustom.textContent = '添加';
+
+        addRow.appendChild(customName);
+        addRow.appendChild(customColor1);
+        addRow.appendChild(customColor2);
+        addRow.appendChild(addCustom);
+        optionsEl.appendChild(addRow);
+
+        /* 已保存列表 */
+        var listTitle = document.createElement('div');
+        listTitle.className = 'block-title';
+        listTitle.textContent = '已保存的自定义背景';
+        optionsEl.appendChild(listTitle);
+
+        customListEl = document.createElement('div');
+        customListEl.className = 'custom-list';
+        optionsEl.appendChild(customListEl);
+
+        /* 编辑 */
+        var editTitle = document.createElement('div');
+        editTitle.className = 'block-title';
+        editTitle.textContent = '编辑选中的自定义背景';
+        optionsEl.appendChild(editTitle);
+
+        var editRow = document.createElement('div');
+        editRow.className = 'custom-row';
+
+        editName = document.createElement('input');
+        editName.type = 'text';
+        editName.placeholder = '名称';
+
+        editColor1 = document.createElement('input');
+        editColor1.type = 'text';
+        editColor1.placeholder = '颜色 1';
+
+        editColor2 = document.createElement('input');
+        editColor2.type = 'text';
+        editColor2.placeholder = '颜色 2';
+
+        editCustom = document.createElement('button');
+        editCustom.type = 'button';
+        editCustom.textContent = '保存';
+
+        deleteCustom = document.createElement('button');
+        deleteCustom.type = 'button';
+        deleteCustom.textContent = '删除';
+
+        editRow.appendChild(editName);
+        editRow.appendChild(editColor1);
+        editRow.appendChild(editColor2);
+        editRow.appendChild(editCustom);
+        editRow.appendChild(deleteCustom);
+        optionsEl.appendChild(editRow);
+
+        addCustom.addEventListener('click', function () {
+          var name = customName.value.trim();
+          if (!name) {
+            customName.focus();
+            return;
+          }
+
+          state.customList.push({
+            id: 'custom-' + Date.now(),
+            name: name,
+            color1: color(customColor1.value, '#59ADEB'),
+            color2: color(customColor2.value, '#35CE93')
+          });
+
+          customName.value = '';
+          render();
+        });
+
+        editCustom.addEventListener('click', function () {
+          var index = state.activeCustomIndex;
+          if (index === null) return;
+
+          var item = state.customList[index];
+          if (!item) return;
+
+          var name = editName.value.trim();
+          if (!name) {
+            editName.focus();
+            return;
+          }
+
+          item.name = name;
+          item.color1 = color(editColor1.value, item.color1);
+          item.color2 = color(editColor2.value, item.color2);
+
+          applyCustom(index);
+        });
+
+        deleteCustom.addEventListener('click', function () {
+          var index = state.activeCustomIndex;
+          if (index === null) return;
+
+          state.customList.splice(index, 1);
+          state.activeCustomIndex = null;
+
+          if (state.activePresetIndex === null) {
+            var fallback = PRESETS[0];
+            state.activePresetIndex = 0;
+            applyBackground(fallback.color1, fallback.color2);
+          }
+
+          render();
+        });
+      }
+
+      function syncEditForm() {
+        var index = state.activeCustomIndex;
+        var item = index === null ? null : state.customList[index];
+        var enabled = !!item;
+
+        editCustom.disabled = !enabled;
+        deleteCustom.disabled = !enabled;
+        editName.disabled = !enabled;
+        editColor1.disabled = !enabled;
+        editColor2.disabled = !enabled;
+
+        if (enabled) {
+          editName.value = item.name;
+          editColor1.value = item.color1;
+          editColor2.value = item.color2;
+        } else {
+          editName.value = '';
+          editColor1.value = '#59ADEB';
+          editColor2.value = '#35CE93';
+        }
+
+        /* 单色模式下颜色 2 无意义 */
+        editColor2.style.display = state.activeCustomKind === 'single' ? 'none' : '';
+        customColor2.style.display = state.activeCustomKind === 'single' ? 'none' : '';
+      }
+
+      /* ---------- 渲染入口 ---------- */
+
+      function render() {
+        renderPresets();
+        renderToolbar();
+        renderCustomList();
+        syncEditForm();
+      }
+
+      buildOptions();
+      render();
+      initSpeed();
+      syncFade();
+
+      /* 初始应用第一个预设 */
+      applyBackground(PRESETS[0].color1, PRESETS[0].color2);
+    })();
+  </script>
+</body>
+</html>

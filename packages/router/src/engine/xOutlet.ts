@@ -1,8 +1,10 @@
 /**
- * x-outlet 简写预处理（ADR-0002）
+ * x-outlet 简写预处理（ADR-0002 / ADR-0003）
  *
  * `<div x-outlet>` 是 `<div x-component:autospark.outlet>` 的别名糖（Q11 薄糖衣——组件机制
- * 全量复用，零逻辑重复）。以「编译前 DOM 预处理」实现：engine 的指令收集发生在编译期，
+ * 全量复用，零逻辑重复）。**简写的值透传为 props 表达式**（ADR-0003 决策 1）：
+ * `<div x-outlet="{ keepAlive: true, mode: 'tabs' }">` 等价于完整形态带值写法。
+ * 以「编译前 DOM 预处理」实现：engine 的指令收集发生在编译期，
  * 编译后改写属性无法激活，故转换必须在编译前完成。
  *
  * 生效场景（覆盖 router 主导的两条编译入口）：
@@ -20,14 +22,16 @@ export const X_OUTLET_ATTR = "x-outlet";
 export const OUTLET_COMPONENT_ATTR = "x-component:autospark.outlet";
 
 /**
- * 就地改写 root 内所有 x-outlet 声明为组件实例化属性（幂等：已改写者跳过）
+ * 就地改写 root 内所有 x-outlet 声明为组件实例化属性（幂等：已改写者跳过）。
+ * 简写属性的值原样透传为 x-component 的 props 表达式。
  */
 export function transformXOutlet(root: ParentNode): void {
     const hosts = root.querySelectorAll(`[${X_OUTLET_ATTR}]`);
     hosts.forEach((el) => {
+        const value = el.getAttribute(X_OUTLET_ATTR);
         el.removeAttribute(X_OUTLET_ATTR);
         if (!el.hasAttribute(OUTLET_COMPONENT_ATTR)) {
-            el.setAttribute(OUTLET_COMPONENT_ATTR, "");
+            el.setAttribute(OUTLET_COMPONENT_ATTR, value ?? "");
         }
     });
 }

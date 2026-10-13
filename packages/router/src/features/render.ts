@@ -6,7 +6,9 @@
  * - beforeRender/afterRender 钩子集成
  * - autospark/data script 数据注入：动态数据以 script 追加到视图 HTML 尾部，
  *   engine 编译期 deepMerge（文档序后者覆盖）→ 动态数据覆盖远程模板自带的静态数据
- * - keepalive：同 hash 视图复用（activateView 不触碰内容，运行态保留）；非缓存视图走临时容器
+ * - keepalive：同 hash 视图复用（仅激活不触碰内容，运行态保留）；非缓存视图走临时容器；
+ *   KeepAlive 两级优先级——出口 mode=tabs > 路由显式 keepAlive > 出口 keepAlive prop（ADR-0003）
+ * - 驱动面：经 `engine.data(outletEl, …)` 直写出口组件数据域（ADR-0003 决策 6，methods 驱动面已废弃）
  * - 错误处理和降级（错误页按所在通道渲染）
  *
  * @module features/render
@@ -44,23 +46,33 @@ type LoaderChannel =
     | null
     | undefined;
 
-/** 视图挂载载荷（outlet 组件 methods 的入参契约） */
-interface ViewPayload {
+/** 视图清单条目（出口数据域 append-only 记录；url/title 即页签元数据，ADR-0003 决策 7） */
+interface OutletViewEntry {
     hash: string;
+    url: string;
+    title: string;
     html: string;
     ready: boolean;
 }
 
-/** outlet 组件实例的最小驱动面（engine.getComponent 门面的子集） */
+/** 视图挂载载荷（render → outlet 数据域的写入单元） */
+interface ViewPayload {
+    hash: string;
+    url: string;
+    title: string;
+    html: string;
+    ready: boolean;
+}
+
+/** outlet 组件实例的最小读取面（engine.getComponent 门面的子集；写入一律走 engine.data） */
 interface OutletComponentHandle {
     data: {
-        views: Array<{ hash: string; html: string; ready: boolean }>;
+        views: OutletViewEntry[];
         active: string;
-    };
-    methods: {
-        activateView(hash: string): void;
-        mountView(view: ViewPayload): void;
-        mountEphemeral(view: ViewPayload): void;
+        /** 出口模式 prop（'stack' | 'tabs'，缺省 stack） */
+        mode?: string;
+        /** 出口级 keepAlive 默认值 prop（缺省 false，ADR-0003 决策 2） */
+        keepAlive?: boolean;
     };
 }
 
@@ -95,8 +107,9 @@ export class Render {
     private _routeReject(
         this: AutoSparkRouter,
         error: any,
+        outlet: HTMLElement | null,
         outletComp: OutletComponentHandle | null,
-        viewHash: string,
+        viewMeta: Omit<ViewPayload, "html" | "ready">,
         keepAlive: boolean,
         toRoute: AutoSparkMatchedRouteItem[],
     ) {
@@ -104,14 +117,14 @@ export class Render {
             error,
             to: toRoute,
         });
-        if (!outletComp) return;
+        if (!outlet || !outletComp) return;
         // 错误页按所在通道渲染（与原 slot.reject 行为对齐：错误内容挂在视图位置）
         const page = this._getErrorPage(error, toRoute);
-        const payload: ViewPayload = { hash: viewHash, html: page.outerHTML, ready: true };
+        const view: ViewPayload = { ...viewMeta, html: page.outerHTML, ready: true };
         if (keepAlive) {
-            outletComp.methods.mountView(payload);
+            this._mountView(outlet, outletComp, view);
         } else {
-            outletComp.methods.mountEphemeral(payload);
+            this._mountEphemeral(outlet, view);
         }
     }
     private _getCommonRouteIndex(
@@ -202,6 +215,66 @@ export class Render {
     }
 
     /**
+     * KeepAlive 两级优先级（ADR-0003 决策 2）：
+     * 出口 mode=tabs（全视图常驻，临时通道不启用）> 路由项 keepAlive 显式声明 >
+     * 出口 keepAlive prop（缺省 false——默认已翻转，不再缓存）。
+     */
+    private _resolveKeepAlive(
+        route: AutoSparkRouteItem,
+        outletComp: OutletComponentHandle | null,
+    ): boolean {
+        if (outletComp?.data.mode === "tabs") return true;
+        if (typeof route.keepAlive === "boolean") return route.keepAlive;
+        return outletComp?.data.keepAlive === true;
+    }
+
+    /** 经 engine.data 直写出口数据域（ADR-0003 决策 6：methods 驱动面已废弃） */
+    private _outletData(this: AutoSparkRouter, outlet: HTMLElement, patch: Record<string, any>) {
+        this.engine?.data(outlet, patch);
+    }
+
+    /**
+     * 挂载/更新缓存视图（视图清单 append-only：无则追加；占位补全不重建；随后激活）。
+     * 以不可变数组整体写回——x-for 按 :key 复用，同 key 同 index 不触碰内容（运行态保留）。
+     */
+    private _mountView(
+        this: AutoSparkRouter,
+        outlet: HTMLElement,
+        outletComp: OutletComponentHandle,
+        view: ViewPayload,
+    ): void {
+        const views = outletComp.data.views;
+        const found = views.find((v) => v.hash === view.hash);
+        if (found && found.ready) {
+            this._outletData(outlet, { active: view.hash });
+            return;
+        }
+        const next: OutletViewEntry[] = found
+            ? views.map((v) =>
+                v.hash === view.hash ? { ...v, html: view.html || "", ready: !!view.ready } : v,
+            )
+            : [
+                ...views,
+                {
+                    hash: view.hash,
+                    url: view.url,
+                    title: view.title,
+                    html: view.html || "",
+                    ready: !!view.ready,
+                },
+            ];
+        this._outletData(outlet, { views: next, active: view.hash });
+    }
+
+    /** 挂载非缓存视图（单一临时容器，整体替换重编译） */
+    private _mountEphemeral(this: AutoSparkRouter, outlet: HTMLElement, view: ViewPayload): void {
+        this._outletData(outlet, {
+            ephemeral: { hash: view.hash, html: view.html || "", ready: !!view.ready },
+            active: view.hash,
+        });
+    }
+
+    /**
      * 在父出口的指定视图容器内查找嵌套出口（远程模板里的 x-outlet 经编译激活后落位于此）
      */
     private _findNestedOutlet(
@@ -215,7 +288,7 @@ export class Render {
     }
 
     /**
-     * 嵌套出口定位（带有限微任务重试）：上一层 mountView 落位后，x-html.compile 的编译
+     * 嵌套出口定位（带有限微任务重试）：上一层视图挂载落位后，x-html.compile 的编译
      * 落地是多级微任务链（compile → schedule → flush，ADR-0017），深层路由连续渲染时单次
      * `await Promise.resolve()` 不保证视图容器内的出口已就位——让出微任务重试至多
      * {@link NESTED_OUTLET_MICROTASK_RETRIES} 次，仍 miss 才判失败（导航中止立即停）。
@@ -316,8 +389,15 @@ export class Render {
                     }
 
 
-                    const keepAlive = curRouteItem.keepAlive !== false;
                     const outletComp = hasView ? this._getOutletComponent(currentOutlet) : null;
+                    // KeepAlive 两级优先级（ADR-0003 决策 2：mode=tabs > 路由显式声明 > 出口 prop）
+                    const keepAlive = this._resolveKeepAlive(curRouteItem, outletComp);
+                    // 页签元数据：标题取路由 title、缺省回退 hash（ADR-0003 决策 3）
+                    const viewMeta = {
+                        hash: viewHash,
+                        url: matched.url,
+                        title: curRouteItem.title || viewHash,
+                    };
                     if (hasView) {
                         this._lastViewSlot = currentOutlet;
                         activeOutlet = currentOutlet;
@@ -349,18 +429,18 @@ export class Render {
                         // 非复用：先落加载占位（内容就绪前显示 autospark-loading）
                         if (!isReuse && outletComp && view) {
                             const placeholder: ViewPayload = {
-                                hash: viewHash,
+                                ...viewMeta,
                                 html: "",
                                 ready: false,
                             };
                             if (keepAlive) {
-                                outletComp.methods.mountView(placeholder);
+                                this._mountView(currentOutlet, outletComp, placeholder);
                             } else {
-                                outletComp.methods.mountEphemeral(placeholder);
+                                this._mountEphemeral(currentOutlet, placeholder);
                             }
                         }
                         if (outletComp) {
-                            outletComp.methods.activateView(viewHash);
+                            this._outletData(currentOutlet, { active: viewHash });
                         }
 
                         // 如果 view 为 null/undefined，即没有创建
@@ -368,8 +448,9 @@ export class Render {
                             if (view.error) {
                                 this._routeReject(
                                     view.error,
+                                    currentOutlet,
                                     outletComp,
-                                    viewHash,
+                                    viewMeta,
                                     keepAlive,
                                     toRoute,
                                 );
@@ -383,7 +464,7 @@ export class Render {
                                 );
                                 if (outletComp) {
                                     if (isReuse) {
-                                        outletComp.methods.activateView(viewHash);
+                                        this._outletData(currentOutlet, { active: viewHash });
                                     } else {
                                         // 远程模板 + 动态数据 script 合并（动态覆盖静态，Q6=A）
                                         const mergedHtml = this._injectRouteData(
@@ -392,14 +473,14 @@ export class Render {
                                             matched,
                                         );
                                         const payload: ViewPayload = {
-                                            hash: viewHash,
+                                            ...viewMeta,
                                             html: mergedHtml,
                                             ready: true,
                                         };
                                         if (keepAlive) {
-                                            outletComp.methods.mountView(payload);
+                                            this._mountView(currentOutlet, outletComp, payload);
                                         } else {
-                                            outletComp.methods.mountEphemeral(payload);
+                                            this._mountEphemeral(currentOutlet, payload);
                                         }
                                     }
                                 }
@@ -411,8 +492,9 @@ export class Render {
                         if (outletComp) {
                             this._routeReject(
                                 loadingError,
+                                currentOutlet,
                                 outletComp,
-                                viewHash,
+                                viewMeta,
                                 keepAlive,
                                 toRoute,
                             );
@@ -535,7 +617,7 @@ export class Render {
         }
         this.logger.warn(
             "宿主内未找到 autospark.outlet 出口：注入 engine 模式下请在模板中声明 " +
-                "<div x-component:autospark.outlet>（x-outlet 简写仅对自建模式与远程模板生效）",
+            "<div x-component:autospark.outlet>（x-outlet 简写仅对自建模式与远程模板生效）",
         );
     }
 }
