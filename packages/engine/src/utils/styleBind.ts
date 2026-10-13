@@ -15,7 +15,8 @@
  * **按表达式复用**（决策四-4.1-(2)，本机制的性能与正确性基石）：同 expr → 同变量名 → 一处 watch、
  * 多处 `var()` 共享。跨多个 `<style>` 块由调用方传入合并后做全局去重（见 extractStyleBindsFromMany）。
  */
-import { isSimpleStatePath } from "../engine/scope";
+import { isSimpleStatePath, type AutoSparkScope } from "../engine/scope";
+import type { Watcher } from "autostore";
 
 /** 单个 bind 绑定：表达式 + 派生的 CSS 变量名。声明性清单，多实例共享只读。 */
 export interface StyleBind {
@@ -97,6 +98,10 @@ function parseBindArg(raw: string): string {
     }
     return s.trim();
 }
+
+/** `bind\s*\(` 调用形态检测（决策四-4.1：global 段不支持 bind，仅 warn 不提取；
+ *  x-html.compile 的 `<style global>` 段同规则复用） */
+export const BIND_CALL_RE = /bind\s*\(/;
 
 /** 匹配 `bind\s*\(` 开头（决策四-4.1-(8)：仅识别此形态，其余视为普通 CSS 值） */
 const BIND_PREFIX_RE = /^\s*bind\s*\(/;
@@ -314,4 +319,50 @@ function readAtRule(css: string, start: number): { prelude: string; body: string
 export function coerceStyleValue(value: unknown): string | null {
     if (value == null) return null;
     return String(value);
+}
+
+/**
+ * 为 `<style>` bind 清单建立 CSS 变量订阅（ADR-0022 决策四-4.1，组件实例化与
+ * x-html.compile 样式通道共用）。
+ *
+ * 遍历 `binds`，对每个 bind 调 `scope.watch(expr)`——watch 返回当前值做首写、
+ * watcher 进 `scope.watchers`。求值结果经 `coerceStyleValue` 归一化后写入 `rootEl`
+ * 的 CSS 变量：null/undefined 不写（removeProperty，CSS 走 `var(--name, unset)` 回退），
+ * 其余 `String(value)` 写入。
+ *
+ * 表达式经 scope 的聚合视图求值（`getContext` 沿 parent 链）——宿主 scope 的祖先
+ * x-data 键可读，与普通模板插值同一数据视图。
+ *
+ * @param scope   watcher 寄主 scope（组件实例 scope / x-html 宿主 scope）
+ * @param rootEl  变量挂载点元素（组件根 / x-html 宿主）
+ * @param binds   bind 清单（组件侧编译期提取多实例共享只读；x-html 侧每轮 apply 提取）
+ * @returns 本轮新建的 watcher 列表——**寄主 scope 销毁自动 off**（组件路径零额外接线）；
+ *          生命周期短于 scope 的调用方（x-html.compile 每轮换血）须自行 off + 移出 watchers
+ */
+export function bindStyleVars(
+    scope: AutoSparkScope,
+    rootEl: HTMLElement,
+    binds: StyleBind[],
+): Watcher[] {
+    const created: Watcher[] = [];
+    const apply = (varName: string, value: unknown) => {
+        const coerced = coerceStyleValue(value);
+        if (coerced == null) {
+            rootEl.style.removeProperty(varName);
+        } else {
+            rootEl.style.setProperty(varName, coerced);
+        }
+    };
+    for (const b of binds) {
+        // watch 返回首值（同步求值 + 收集依赖），但首次 flush 前回调未触发——
+        // 须用返回值手动写首值，否则首帧变量缺失（listener 仅在状态变化 flush 时才回调）。
+        const before = scope.watchers.length;
+        const first = scope.watch(b.expr, ({ value }) => apply(b.varName, value));
+        // watch 内部把新建 watcher push 进 scope.watchers——delta 捕获本轮新增段
+        for (let i = before; i < scope.watchers.length; i++) {
+            created.push(scope.watchers[i]!);
+        }
+        apply(b.varName, first);
+    }
+    return created;
 }

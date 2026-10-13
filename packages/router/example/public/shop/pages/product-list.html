@@ -10,7 +10,7 @@
         >
             <div
                 class="product-card"
-                @click="window.router.push('/shop/product/' + product.id)"
+                @click="window.router.push('/shop/products/' + $params.category + '/' + product.id)"
                 :key="product.id"
             >
                 <div class="product-image">
@@ -30,6 +30,9 @@
             </div>
         </template>
     </div>
+
+    <!-- 三级路由出口：/products/:category/:id 的详情视图挂载点 -->
+    <div x-outlet></div>
 </div>
 <style>
     .product-grid {

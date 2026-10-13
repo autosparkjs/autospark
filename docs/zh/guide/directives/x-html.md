@@ -108,6 +108,34 @@ const engine = new AutoSpark(el, {
 
 **空值**：`tpl` 命中 `emptyValues`（默认 `null`/`undefined`/`NaN`）时销毁子树 + 清空宿主，**忽略 `empty` 占位文案**（结构空状态无文案占位语义）；`.hide` 仍生效（空值隐藏宿主）。
 
+### 注入模板的样式
+
+注入模板里的 `<style>` 走**组件样式管线**（与 `<x-define>` 的 [scoped / global / bind](../component/styles.md#样式) 同一套语义），而非按普通 HTML 直通：
+
+<demo html="html/compile-style.html"/>
+
+**scoped（默认）**：非 global 的 `<style>`（全后代收集，不止直接子级）从模板树摘出，选择器改写加 `[data-cmp-{id}]` 后缀注入 `<head>`；宿主元素与编译后代统一打 `data-cmp-{id}` 属性——样式只命中本宿主子树，页面同名类不受影响：
+
+```javascript
+// 注入模板自带 <style>：.card 只命中宿主子树内部的 .card，不影响页面其他 .card
+engine.state.tpl =
+    '<div class="card">…</div><style>.card{padding:8px}</style>';
+```
+
+与组件的差异：作用域 id 是**指令实例级随机串**（`getId()`）——bind 变量挂各自宿主，同 URL 两处加载**不共享**样式表、无引用计数，样式表生命周期完全跟随指令实例。
+
+**global**：`<style global>` **留在内容原位置**、随子树编译进结果 DOM——浏览器原生解析、天然全局生效（连宿主子树外的页面元素也命中），随内容重编译自然回收（区别于组件 global「注册期注入 head 永驻」——注入内容是动态的，随宿主生死才自洽）。`global` 属性消费后被剥除；global 段内 `bind()` 告警姿态同组件（warn 后原样保留）。
+
+**bind（响应式）**：`bind(expr)` 占据声明值位置，提取为 CSS 变量订阅——首值 + 状态变化写入**宿主元素**的 CSS 变量（纯路径 → `--路径`，表达式 → `--h{hash}`，语法与组件一致，见 [bind 语法](../component/styles.md#响应式样式-style-bind)）。表达式经宿主 scope 聚合视图求值（沿 parent 链），**祖先 x-data 可读**——与普通模板插值同一数据视图：
+
+```javascript
+// .bar 的 background 随全局状态 theme 变化；宿主挂 x-data 时祖先键同样可读
+engine.state.tpl =
+    '<div class="bar"></div><style>.bar{background:bind(theme);width:bind(size + "px")}</style>';
+```
+
+**每轮换血与回收**：`tpl` 值变 / 重取时样式整体换血（样式表替换 + 旧 bind 订阅 off 摘出 + 旧 CSS 变量清除，不随重编译累积）；空值 / destroy 同步回收样式表、订阅与宿主变量。
+
 ### 远程 HTML 片段（url 形态）
 
 值以 `/`、`//`、`http(s)://`、`./`、`../` 开头即进入**异步形态**——fetch 取回 HTML 字符串，**默认消毒**后写入 `innerHTML`（远程内容比本地更不可信，safe-by-default 更该守；`.raw` 退出消毒照旧）。它与 [x-data 异步数据源](./x-data.md#远程异步数据源) 是**同一家族**的取数机制（同一执行器：插值依赖重取、竞态丢弃、destroy 中止），差异在产物：**text 直取注入**（`res.text()`，无 path/对象映射），而非对象落域：
@@ -134,7 +162,7 @@ const engine = new AutoSpark(el, {
 
 ### 远程模板编译
 
-`x-html.compile="url"` 把取回的 text 作为**子模板编译**（继承宿主作用域、建 watcher、内部指令生效——同步 `.compile` 的既有语义不变，ADR-0017）——「模板放服务端、数据在本地」或「数据模板双远程」都成立：
+`x-html.compile="url"` 把取回的 text 作为**子模板编译**（继承宿主作用域、建 watcher、内部指令生效——同步 `.compile` 的既有语义不变，ADR-0017）——「模板放服务端、数据在本地」或「数据模板双远程」都成立。两条编译通道共用同一样式管线：远程模板里的 `<style>` 同样按 [scoped / global / bind](#注入模板的样式) 处理，重取时样式随之换血：
 
 <demo html="html/async-compile.html"/>
 
@@ -188,3 +216,4 @@ x-html 没有数据域，**不注入** `$loading`/`$error` 元键（那是 x-dat
 - **`<script>` 不会执行**：`innerHTML=` 本就不执行脚本（浏览器约束），默认消毒还会剥除——双重保险。
 - **`.raw` 需自负其责**：`.raw` 跳过消毒，务必确保内容来源可信（自家服务端、本地静态），否则引入 XSS。
 - **默认注入内容非响应式**：默认模式下注入的 HTML 是静态快照，不编译其中指令；需编译用 `.compile`（注意其安全风险高于 `.raw`）。
+- **样式通道仅 `.compile` 生效**：默认 / `.raw` 通道的 `<style>` 按普通 HTML 直通（浏览器原生解析，天然全局）——scoped 隔离与 `bind` 响应式是 `.compile` 编译通道的语义。

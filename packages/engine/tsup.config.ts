@@ -17,9 +17,11 @@ export default defineConfig({
     dts: false,
     splitting: true,
     sourcemap: true,
-    // IIFE 全局变量名
-    // 暴露：window.AutoSparkSpaces.AutoSpark，及 autostore 全量转导出成员（如 AutoSparkSpaces.AutoStore）
-    globalName: "AutoSparkSpaces",
+    // IIFE 全局变量名：临时命名空间（不进公共面）——onSuccess 后处理重排为正式形态
+    // （ADR-0111 决策 1）：window.AutoSpark = AutoSpark 类本身（类与命名空间一体，jQuery $
+    // 同构），库的全量转导出成员（AutoStore 等）挂为类静态，AutoSpark.AutoSpark 自引用；
+    // window.AutoSparkSpaces 保留为指向同一对象的兼容别名（旧消费面零迁移）
+    globalName: "__AUTOSPARK_NS__",
     clean: true,
     treeshake: true,
     minify: true,
@@ -29,6 +31,32 @@ export default defineConfig({
     noExternal: ["autostore","flex-tools","@floating-ui/dom"],
     esbuildPlugins: [rawAssetsPlugin],
     onSuccess: async () => {
+        // IIFE 全局重排（ADR-0111 决策 1）：tsup 的 footer 选项对 iife 产物不生效（实测），
+        // 改在此处直接拼接后处理——类提为主全局对象，命名空间成员挂为类静态，兼容别名归位。
+        // sourcemap 注释先行剥除再回接，保证映射指向不失效。
+        const iifePath = path.resolve("./dist/index.global.js");
+        const rawIife = readFileSync(iifePath, "utf-8");
+        const mapSuffix = "//# sourceMappingURL=index.global.js.map";
+        const body = rawIife.endsWith(mapSuffix + "\n")
+            ? rawIife.slice(0, -1 * (mapSuffix.length + 1))
+            : rawIife.replace(mapSuffix, "");
+        const reshaped =
+            body +
+            `
+;(function () {
+    var ns = __AUTOSPARK_NS__;
+    var C = ns.AutoSpark;
+    for (var k in ns) {
+        if (k !== "AutoSpark" && k !== "default" && !(k in C)) C[k] = ns[k];
+    }
+    C.AutoSpark = C;
+    window.AutoSpark = C;
+    window.AutoSparkSpaces = C;
+})();
+` +
+            mapSuffix +
+            "\n";
+        fs.writeFileSync(iifePath, reshaped);
         const cjsFile = readFileSync("dist/index.cjs");
         const esmFile = readFileSync("dist/index.js");
         const iifeFile = readFileSync("dist/index.global.js");

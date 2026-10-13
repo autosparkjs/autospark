@@ -60,9 +60,13 @@ export type ScopeWatchListener = (payload: { value: any }) => void;
  * - `depth`：向后代钻取的深度（autostore 三档语义：0=仅自身重赋值、1=自身+恰好一级后代、
  *   ≥2=自身+全部后代）。属性展开（`x-bind="obj"` 无参）用它订阅对象内部键的变更。
  *   表达式支路（collectDependencies 读代理自动收集）无此概念，声明了也不生效。
+ * - `context`：求值视图。`"caller"` = **调用方视图**（`getCallerContext`：跳过组件 `_data`/封闭
+ *   边界，保留调用方 locals）——与插槽内容同一基准（ADR-0108）。缺省 `"self"`（本 scope 聚合视图）。
+ *   `"caller"` 时强制走表达式支路（调用方视图的变量可能来自调用方 x-data 域，不能按 state 路径直订）。
  */
 export interface ScopeWatchOptions {
     depth?: number;
+    context?: "self" | "caller";
 }
 
 /**
@@ -542,9 +546,11 @@ export class AutoSparkScope {
     }
 
     /**
-     * 沿 parent 链查找事件 action（局部 `<script type="autospark/actions">` → 全局 engine.actions）。
+     * 沿 parent 链查找事件 action（局部 `<script type="autospark/actions">` → 全局 engine.actions → 插件全局表）。
      *
-     * 查找顺序：本 scope.actions → 各祖先 actions → engine.actions（终点）。
+     * 查找顺序：本 scope.actions → 各祖先 actions → engine.actions（终点）→ 插件全局表
+     * `AutoSpark.actions`（ADR-0111 决策 5 查询期委托兜底；命中经**本 engine** 惰性物化——
+     * 规范化包装绑定触发 engine 的总线与生命周期广播，this 上下文即触发处实例）。
      * 子 scope 同名 action 覆盖祖先（命中即止）。供 OnDirective 求值器（Action 优先策略）使用。
      * 返回 ActionDesc 描述符（ADR-0036），执行取 `.handle(...)`。
      */
@@ -556,7 +562,13 @@ export class AutoSparkScope {
             }
             s = s.parent;
         }
-        return this.engine.actions[name];
+        // 引擎级（options 注册 / Proxy 赋值 / 内置信号型）
+        const engineActions = this.engine.actions;
+        if (Object.prototype.hasOwnProperty.call(engineActions, name)) {
+            return engineActions[name];
+        }
+        // 插件全局表兜底（ADR-0111）：命中经本 engine 惰性物化
+        return this.engine.materializePluginAction(name);
     }
 
     /**
@@ -917,6 +929,15 @@ export class AutoSparkScope {
      * @returns 当前值（供指令 `compile` 初始渲染）
      */
     watch(value: string, listener: ScopeWatchListener, options?: ScopeWatchOptions): any {
+        // 调用方视图通道（ADR-0108 传递绑定）：求值取 getCallerContext，才能读到调用方 x-data 局部域
+        if (options?.context === "caller") {
+            // 简单路径在调用方视图里仍解析自 store 根（未被局部域遮蔽）→ 退回精准订阅，
+            // 保住 `depth` 的键级响应（既有语义，ADR-0108）
+            if (isSimpleStatePath(value) && this._callerViewIsStorePath(value)) {
+                return this.watchPath(value, listener, options);
+            }
+            return this.watchExpression(value, listener, true);
+        }
         // 有局部数据（自身或祖先的 locals/data）时，变量可能来自局部作用域
         // （如 x-data 的 a、x-for 的 item），不能按 state 路径直接订阅——统一走表达式支路
         // （经 getContext 聚合 locals+data+state 求值）。
@@ -951,6 +972,33 @@ export class AutoSparkScope {
     }
 
     /**
+     * 调用方视图是否把该简单路径解析到 **store 根**（ADR-0108 传递绑定的订阅路由）。
+     *
+     * 调用方 x-data 局部变量挂在 `$scopes.<id>` 下——读代理收集到的依赖路径会带 `$scopes.<id>`
+     * 前缀；依赖恰为该路径本身即说明未被局部域遮蔽，可退回 {@link watchPath} 精准订阅，
+     * 使 `depth` 的键级响应（对象键删除、后代修改）与既有语义一致。
+     *
+     * 读不到（未定义）或形态不认时返回 false → 交表达式支路（宽松求值 + 精确路径订阅）。
+     */
+    private _callerViewIsStorePath(path: string): boolean {
+        const store = this.engine.store;
+        const view = this.getCallerContext();
+        const getter = new Function("scope", `with(scope){ return (${path}); }`) as (
+            scope: any,
+        ) => any;
+        const deps = store.collectDependencies(() => {
+            try {
+                getter(view);
+            } catch {
+                /* 读不到即非根路径（交给表达式支路处理） */
+            }
+        }, "read");
+        // 依赖以路径段数组形式返回（如 `attrs` → `[["attrs"]]`）——拼回点分路径再比对
+        const paths = deps.map((d: any) => (Array.isArray(d) ? d.join(".") : String(d)));
+        return paths.length === 1 && paths[0] === path;
+    }
+
+    /**
      * 表达式支路：collectDependencies 自建。
      *
      * 1. `new Function` 把表达式编译为带 `scope` 形参的 getter；
@@ -961,9 +1009,14 @@ export class AutoSparkScope {
      * 记日志并返回 `undefined`——与路径支路读不到键返回 `undefined` 行为一致，避免单个坏表达式
      * 中断整个编译/刷新。`collectDependencies` 用同一安全包装：抛错前已读到的依赖仍被收集。
      */
-    private watchExpression(expr: string, listener: ScopeWatchListener): any {
+    private watchExpression(
+        expr: string,
+        listener: ScopeWatchListener,
+        /** 求值视图取调用方视图（getCallerContext，ADR-0108 传递绑定）而非本 scope 聚合视图 */
+        useCallerView = false,
+    ): any {
         const store = this.engine.store;
-        const scope = this.getContext();
+        const scope = useCallerView ? this.getCallerContext() : this.getContext();
         // 用 with(scope) 把作用域属性暴露为表达式变量，使 `user.first` 能解析到 scope.user.first。
         // new Function 默认松散模式支持 with；scope 是聚合 Proxy，has/get 陷阱联动 store.state。
         const getter = new Function("scope", "args", `with(scope){ return (${expr}); }`) as (

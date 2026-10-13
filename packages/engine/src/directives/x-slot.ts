@@ -234,7 +234,7 @@ export class SlotDirective extends AutoSparkDirectiveBase {
                 if (!this.content) return; // 出口已销毁：watcher 存续期间空转
                 binder.apply(value);
             },
-            { depth: 2 },
+            { depth: 2, context: "caller" },
         );
         binder.apply(initial);
     }

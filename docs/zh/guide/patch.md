@@ -12,16 +12,20 @@
 
 ## 指南
 
-### engine.patch(selector, updater)
+### engine.patch(selector, content, options?)
 
 ```typescript
-engine.patch(selector, updater): this
+engine.patch(selector, content, options?): this
+// content: string（HTML 片段）| Node | updater 回调
+// options: { mode?: 'replace' | 'inner' | 'prepend' | 'append'; ref?: string }
 ```
 
 - `selector`：对**模板**（`engine.template`）的 CSS 选择器，命中的须是 scope 元素（含指令或插值）。
-- `updater(templateEl)`：接收命中的模板元素，**就地修改它**；返回值决定重建范围。
+- `content`：三种形态任选——**string / Node** 直接投内容（配合 `mode` 决定放置方式），
+  或 **updater 回调**（接收命中的模板元素，**就地修改它**，返回值决定重建范围，仅 replace 语义）。
+- `options`：可选。`mode` 投放模式（缺省 `replace`）；`ref` 容器内锚点选择器（见下）。
 
-#### updater 的四种返回值
+#### updater 的四种返回值（replace 模式）
 
 | 返回值 | 行为 |
 | --- | --- |
@@ -45,6 +49,36 @@ engine.patch("#tmp", () => null);
 
 ::: tip 只动目标，保留其余运行态
 patch 只重建目标子树，**其余子树原封不动**——焦点、滚动、未提交输入都保留。需要重建整棵树时用 `engine.compile()`（全量重编译，慎用）。
+:::
+
+### 内容投放模式（options.mode）
+
+第二参直接投内容（string / Node）时，`options.mode` 决定放置方式（ADR-0109）：
+
+| mode | 行为 | 空串 |
+| --- | --- | --- |
+| `replace`（缺省） | 内容**替换命中元素本身** | 删除该元素 |
+| `inner` | **清空容器全部子级**后放入新内容，容器自身与指令保留 | 仅清空（等价 `innerHTML=''`） |
+| `prepend` | 插为容器**第一个**子节点（可多节点） | 忽略 |
+| `append` | 插为容器**最后一个**子节点（可多节点） | 忽略 |
+
+```javascript
+// 清空重填：outlet 容器固定，内容换装
+engine.patch("#outlet", '<p x-text="title"></p>', { mode: "inner" });
+
+// 增量加载：往列表尾部追加
+engine.patch("#list", "<li>更多…</li>", { mode: "append" });
+
+// 插顶
+engine.patch("#list", '<li class="new">置顶</li>', { mode: "prepend" });
+```
+
+<demo html="patch/modes.html"/>
+
+::: tip 插入模式的语义细节
+- **编译先行**：`inner` / `prepend` / `append` 先编译新内容，编译成功才动 DOM（失败零副作用）；插入节点**继承容器的数据上下文**（挂容器的 scope）。
+- **函数形态也支持插入模式**：返回 string/Node 即为待插入内容——可读取容器现状决定增量（如按现有子项数量追加下一项）；返回 `undefined` 静默忽略，返回 `null` 记警告（插入模式没有删除语义）。
+- **`options.ref` 锚点**：仅 `prepend` / `append` 生效——指定容器内某 scope 子元素（CSS 选择器）时，改为插到该元素**之前/之后**；ref 为空则插容器首/尾，未命中或命中的不是 scope 元素时记警告且不操作（给锚点挂 `x-scope` 即可）。
 :::
 
 ### 命中元素必须是 scope

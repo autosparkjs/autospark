@@ -16,6 +16,8 @@ import { findOutlet } from "@/utils/findOutlet";
 import type { AutoSparkRouter } from "@/router";
 import type { AutoSparkMatchedRouteItem, AutoSparkRouteItem } from "@/types";
 import type { IAsyncSignal } from "asyncsignal";
+import type { AsyncLoader } from "asyncsignal/loader";
+import type { DataLoaderMeta } from "./dataLoader";
 import { AutoSparkRouterError } from "@/errors";
 
 type RouteSignalReuslt<T = any> = {
@@ -23,6 +25,24 @@ type RouteSignalReuslt<T = any> = {
     error?: AutoSparkRouterError;
     hash: string;
 };
+
+/** 原始文本元素：无元素子节点、内容按文本处理，不承载视图绑定 */
+const RAW_TEXT_TAGS = new Set(["STYLE", "SCRIPT", "TITLE", "TEXTAREA"]);
+
+/**
+ * 加载通道载体（`route._getData` / `route._getView` 的实际形态）：
+ *
+ * - 视图通道（ViewLoader）：可调用的 `IAsyncSignal`；
+ * - 数据通道（DataLoader）：`AsyncLoader` 实例——本身不可调用，结果经其内部 `signal` 取得
+ *   （见 features/dataLoader 的 `_createLoader`）。
+ *
+ * 两通道取值语义同构，故取值前统一归一化到 `IAsyncSignal`。
+ */
+type LoaderChannel =
+    | IAsyncSignal
+    | AsyncLoader<Record<string, any>, DataLoaderMeta>
+    | null
+    | undefined;
 
 /** 视图挂载载荷（outlet 组件 methods 的入参契约） */
 interface ViewPayload {
@@ -45,10 +65,12 @@ interface OutletComponentHandle {
 }
 
 export class Render {
-    private async _loadSignal(signal: IAsyncSignal | null) {
-        if (!signal) {
+    private async _loadSignal(channel: LoaderChannel) {
+        if (!channel) {
             return;
         }
+        // 数据通道载体是 AsyncLoader（非可调用体）：取内部 signal，与视图通道归一
+        const signal = typeof channel === "function" ? channel : channel.signal;
         const data: Record<string, any> = {};
         try {
             const result = await signal();
@@ -114,15 +136,50 @@ export class Render {
     }
 
     /**
-     * 动态数据序列化为 `<script type="autospark/data">`（ADR-0032 契约）。
-     * engine 编译期对多脚本 deepMerge（文档序后者覆盖），router 写入的 script 追加在
-     * 视图 HTML 尾部 → 动态数据覆盖远程模板自带的同名静态键（Q6=A）。
-     * `<` 统一转义为 `<`，防止数据值中的 `</script>` 提前闭合标签。
+     * 路由数据注入视图 HTML（ADR-0032 契约）。
+     *
+     * 载荷 = 路由数据 + 渲染上下文（`$params`/`$query`/`$state`，ADR-0002 决策 6）——
+     * 视图绑定 `$params.xxx` 等路由上下文即取自此；engine 编译期多脚本 deepMerge
+     * （文档序后者覆盖），动态数据覆盖远程模板自带的同名静态键（Q6=A）。
+     *
+     * 注入位置：数据脚本**置入视图的每个元素根内部**（而非作为其尾部兄弟）——数据脚本只
+     * 作用于直接父元素（ADR-0032 决策 3），两种位置对视图内绑定等价；但注入内容经
+     * `x-html.compile` 编译时（outlet 通道），顶层数据脚本会被剪枝转换器当作「被丢弃的根元素」
+     * 而中断整次注入（transformElement 抛错 → 内容整段不编译），内部形态是 engine 当前唯一
+     * 可支持的位置。多根视图（如 product-detail.html）逐个根注入，各根各自持数据。
+     *
+     * `<` 统一转义为 `\u003c`，防止数据值中的 `</script>` 提前闭合标签。
      */
-    private _buildDataScript(this: AutoSparkRouter, data: Record<string, any> | undefined): string {
-        if (!data || typeof data !== "object") return "";
-        const json = JSON.stringify(data).replace(/</g, "\\u003c");
-        return `<script type="autospark/data">${json}<\/script>`;
+    private _injectRouteData(
+        this: AutoSparkRouter,
+        html: string,
+        data: Record<string, any> | undefined,
+        matched: AutoSparkMatchedRouteItem,
+    ): string {
+        if (!data || typeof data !== "object") return html;
+        const payload = {
+            ...data,
+            $params: matched.params || {},
+            $query: matched.query || {},
+            $state: matched.state || {},
+        };
+        const json = JSON.stringify(payload).replace(/</g, "\\u003c");
+        const script = `<script type="autospark/data">${json}<\/script>`;
+        const tpl = document.createElement("template");
+        tpl.innerHTML = html;
+        let placed = false;
+        for (const el of Array.from(tpl.content.children)) {
+            // 原始文本元素（style/script 等）不承载绑定，脚本写入会变成其文本内容
+            if (RAW_TEXT_TAGS.has(el.tagName)) continue;
+            el.insertAdjacentHTML("beforeend", script);
+            placed = true;
+        }
+        if (!placed) {
+            this.logger.debug("{} -> 视图无可注入元素根，路由数据未注入", matched.id);
+            return html;
+        }
+        // 序列化 template 内容：注释 / 文本节点与元素根一并保留（仅插入位置改变）
+        return tpl.innerHTML;
     }
 
     /**
@@ -329,8 +386,11 @@ export class Render {
                                         outletComp.methods.activateView(viewHash);
                                     } else {
                                         // 远程模板 + 动态数据 script 合并（动态覆盖静态，Q6=A）
-                                        const mergedHtml =
-                                            view.value + this._buildDataScript(data?.value);
+                                        const mergedHtml = this._injectRouteData(
+                                            view.value,
+                                            data?.value,
+                                            matched,
+                                        );
                                         const payload: ViewPayload = {
                                             hash: viewHash,
                                             html: mergedHtml,

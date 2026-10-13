@@ -15,12 +15,11 @@ import { getRouteVars } from "@/utils/getRouteVars";
 import { prefixBaseUrl } from "@/utils/prefixBaseUrl";
 import { getSignalHash } from "@/utils/getSignalHash";
 import { getJsonFileFromUrl } from "@/utils/getJsonFileFromUrl";
-import { cloneDeep } from "es-toolkit/object";
 import { isPlainObject } from "es-toolkit/predicate";
 import { isFunction } from "flex-tools/typecheck/isFunction";
 import { isUrlSource } from "@/utils/isUrlSource";
 import type { ViewRenderOptions } from "@/renderers/types";
-import { AutoSparkRouterLoadError, AutoSparkRouterTimeoutError } from "@/errors";
+import { AutoSparkRouterLoadError } from "@/errors";
 import { AsyncLoader, type IAsyncLoader } from "asyncsignal/loader";
 
 /**
@@ -28,26 +27,17 @@ import { AsyncLoader, type IAsyncLoader } from "asyncsignal/loader";
  * AsyncLoader 的 meta 泛型参数，提供类型安全的元数据访问
  */
 export interface DataLoaderMeta {
-	/** 路由哈希值，用于缓存键 */
-	hash: string;
-	/** 数据加载 URL（远程加载时设置） */
-	url?: string;
-	/** HTTP 状态码（加载失败时设置） */
-	statusCode?: number;
+    /** 路由哈希值，用于缓存键 */
+    hash: string;
+    /** 数据加载 URL（远程加载时设置） */
+    url?: string;
+    /** HTTP 状态码（加载失败时设置） */
+    statusCode?: number;
 }
 
 /**
- * 远程加载结果类型
- */
-type AutoSparkRemoteLoadResult<T = any> = {
-    value?: T;
-    error?: Error | null;
-    meta?: Record<string, any>;
-};
-
-/**
  * 缓存项基础结构
- * 存储的是 AutoSparkRemoteLoadResult 格式：{ value: data, timestamp: number }
+ * 存储的是 {@link CacheItem}（`{ value, timestamp }`），由 AsyncLoader 的 storage 读写
  */
 interface CacheItem<T> extends CacheItemBase {
     value: T;
@@ -125,6 +115,8 @@ export class DataLoader {
         const loaderFn = this._createLoaderFn(matched, options);
         const loader = new AsyncLoader<any, DataLoaderMeta>(loaderFn, {
             hash: matched.hash, // 直接使用 matched route 的 hash
+            // meta 与 `args.meta` 共享同一引用：加载函数写入的状态码在外部可读
+            meta: { hash: matched.hash },
             cache: options.cache,
             timeout: options.timeout,
             retry: options.retry,
@@ -133,15 +125,6 @@ export class DataLoader {
             defaultValue: options.default,
             abortSignal: navSignal,
             storage: this.cache,
-            onBeforeLoad: () => {
-                // 触发路由级 onBeforeLoad 钩子（如果有）
-            },
-            onAfterLoad: (result, error) => {
-                if (!error) {
-                    const signal = loader.signal;
-                    this._onLoadSuccess(matched, result, signal);
-                }
-            },
         });
 
         // 存储 AsyncLoader 实例（关键设计变更）
@@ -150,18 +133,22 @@ export class DataLoader {
     }
 
     /**
-     * 创建加载器函数，适配 AsyncLoader 的 IAsyncLoader 接口
+     * 创建加载器函数，适配 AsyncLoader 的 IAsyncLoader 接口。
+     *
+     * 数据校验在加载函数内完成——必须落在 AsyncLoader 的 signal.resolve 之前：
+     * 信号一旦落定不可重写（只读结果由渲染层序列化，见 features/render 的 _loadSignal）。
+     * `$params/$query/$state` 由渲染层在序列化时叠加，此处只交给路由自身数据。
      */
     private _createLoaderFn(
         matched: AutoSparkMatchedRouteItem,
         options: AutoSparkRouteDataOptions,
     ): IAsyncLoader {
-        return async ({ abortSignal }) => {
+        return async ({ abortSignal, meta }) => {
             const dataSource = options.from;
 
             // 静态数据
             if (isPlainObject(dataSource) && !isUrlSource(dataSource)) {
-                return dataSource;
+                return this._validateData(dataSource);
             }
 
             // URL 数据
@@ -177,24 +164,27 @@ export class DataLoader {
                     url.params(getRouteVars(matched)),
                     this.router.options.base,
                 );
+                meta.url = finalUrl;
 
                 const response = await fetch(finalUrl, {
                     signal: abortSignal,
                 });
 
                 if (!response.ok) {
+                    // HTTP 状态码进 meta（DataLoaderMeta.statusCode），供错误页/调试读取
+                    meta.statusCode = response.status;
                     throw new AutoSparkRouterLoadError(
                         `Failed to load ${finalUrl} : ${response.statusText}`,
                         response.status,
                     );
                 }
 
-                return await response.json();
+                return this._validateData(await response.json());
             }
 
             // 函数数据
             if (isFunction(dataSource)) {
-                return await dataSource(matched);
+                return this._validateData(await dataSource(matched));
             }
 
             throw new AutoSparkRouterLoadError("Invalid data source");
@@ -295,92 +285,18 @@ export class DataLoader {
         return isPlainObject(data);
     }
 
-    // ========================================
-    // 加载成功/失败处理
-    // ========================================
-
     /**
-     * 加载成功处理
-     * 从 AsyncLoader 的 onAfterLoad 回调中调用
+     * 数据校验：路由数据须为纯对象（数组/标量视为无效）
+     *
+     * 无效时抛 AutoSparkRouterLoadError，由 AsyncLoader 落为 reject
      */
-    private _onLoadSuccess(
-        matched: AutoSparkMatchedRouteItem,
-        data: any,
-        signal: IAsyncSignal,
-    ): void {
-        try {
-            // 提取实际数据
-            const actualData = this._isRemoteLoadResult(data)
-                ? (data.value || {})
-                : data;
-
-            // 验证数据有效性（必须是纯对象）
-            if (!this._isValidData(actualData)) {
-                signal.reject(new AutoSparkRouterLoadError("Invalid data format: expected plain object"));
-                return;
-            }
-
-            // 处理错误情况
-            if (this._isRemoteLoadResult(data) && data.error && data.error instanceof Error) {
-                signal.reject(new AutoSparkRouterLoadError(data.error.message));
-                return;
-            }
-
-            // 处理数据（合并路由参数）
-            const processedData = this._onHandleData(actualData, matched);
-            signal.resolve(processedData);
-        } catch (e: any) {
-            signal.reject(e);
+    private _validateData(data: any): Record<string, any> {
+        if (!this._isValidData(data)) {
+            throw new AutoSparkRouterLoadError(
+                "Invalid data format: expected plain object",
+            );
         }
-    }
-
-    /**
-     * 检查是否为 AutoSparkRemoteLoadResult 格式
-     */
-    private _isRemoteLoadResult(data: any): data is AutoSparkRemoteLoadResult {
-        return data && typeof data === 'object' && ('value' in data || 'error' in data);
-    }
-
-    /**
-     * 加载失败处理
-     * 从 AsyncLoader 的 onAfterLoad 回调中调用
-     */
-    private _onLoadError(
-        matched: AutoSparkMatchedRouteItem,
-        error: Error,
-        signal: IAsyncSignal,
-        _options: AutoSparkRouteDataOptions,
-    ): void {
-        if (error.name === "AbortError") {
-            signal.resolve(undefined);
-        } else {
-            // 设置状态码到 signal meta（兼容性）
-            signal.meta.statusCode = (error as AutoSparkRouterLoadError).status || 500;
-            signal.reject(error);
-        }
-    }
-
-    // ========================================
-    // 数据处理（合并路由参数，供渲染层写入 autospark/data script）
-    // ========================================
-
-    /**
-     * 处理加载的数据：合并 $params/$query/$state 后返回，
-     * 由渲染层序列化进远程模板的 `<script type="autospark/data">`
-     */
-    private _onHandleData(
-        data: Record<string, any>,
-        matched: AutoSparkMatchedRouteItem,
-    ): any {
-        // 将 $params 和 $query 添加到数据对象中
-        const mergedData = {
-            ...cloneDeep(data),
-            $params: matched.params || {},
-            $query: matched.query || {},
-            $state: matched.state || {},
-        };
-
-        return mergedData;
+        return data;
     }
 
     // ========================================

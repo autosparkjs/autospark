@@ -9,38 +9,54 @@
     </head>
     <body>
         <!--
-            x-component-options.loader：一步完成「远程加载 + 注册 + 实例化」（ADR-0065）——
-            - string 简写：字面量 url（以 / ./ http(s):// 开头）直接加载；
-            - 对象配置：url 必需，width/height 为加载中占位尺寸（防布局跳动），fallback/error 自定义呈现；
+            x-component 远程直接实例化（ADR-0065 loader / ADR-0110 值语义三分）——
+            - url 简写：值即 url（以 / ./ ../ http(s):// 开头）直接加载；无参形态值专职 url（响应式）；
+            - 多组件返回：显式名按参数名取用；无参取文档序首个 + warn（见控制台）；
+            - props 选项通道：x-component-options.props（url 占用指令值时的 props 来源，双源合并指令值覆盖同名键）；
+            - loader 完整配置（保留兼容）：对象 { url, request, fallback, error, width, height }；
+              附属键可平铺到 x-component-options 顶层（同名键顶层 > 内嵌）；url 优先级指令值 > loader.url；
             - .global 修饰符：注册为全局组件（语义同 x-import.global）；
-            - loader 语义「以此 url 为准」：组件已注册仍 fetch 覆盖，首帧严格等待 fetch（fallback 占位）；
-            - 加载失败或结果中无同名组件 → 渲染内置 error 组件（重试/关闭），url 成员属性表达式即响应式 url。
+            - 加载失败或结果中无同名组件 → 渲染内置 error 组件（重试/关闭）。
             组件文件见 /autospark/components/like-button.html 与 widgets.html。
         -->
         <div id="app" x-scope>
-            <!-- ① string 简写：与「x-import + x-component」两步写法等价的声明糖 -->
+            <!-- ① url 简写：单组件内容自动命名实例化（最短写法） -->
             <div class="panel">
-                <div class="label">① string 简写 —— x-component-options.loader="/autospark/components/like-button.html"</div>
-                <div x-component:like-button x-component-options.loader="/autospark/components/like-button.html"></div>
+                <div class="label">① url 简写 —— x-component="/autospark/components/like-button.html"（单组件自动命名）</div>
+                <div x-component="/autospark/components/like-button.html"></div>
             </div>
 
-            <!-- ② 对象配置：加载中占位尺寸（width/height，防布局跳动）+ 自定义 fallback（HTML 字符串，静态插入不编译）；
-                 url 含多个 x-define 时按属性参数名取用，其余照常注册备用 -->
+            <!-- ② url 简写 + 显式指定：url 含多组件时按参数名取用；props 走 x-component-options.props -->
             <div class="panel">
-                <div class="label">② 对象配置 —— url 含多组件按名取用（widgets.html 含 stat/chip）</div>
+                <div class="label">② 显式指定 + props 选项通道 —— x-component:chip="…" x-component-options.props="…"</div>
+                <div x-component:chip="/autospark/components/widgets.html"
+                     x-component-options.props="{ text: 'props 注入的 chip' }"></div>
+            </div>
+
+            <!-- ③ 无参 url + 多组件返回：取文档序首个 + warn（per-url 去重，见控制台）；
+                 fallback/error/width/height 平铺到 options 顶层（成员属性形态天然响应式） -->
+            <div class="panel">
+                <div class="label">③ 无参多组件取首个 + 顶层平铺 fallback —— 取 widgets.html 文档序首个（控制台有 warn）</div>
+                <div x-component="/autospark/components/widgets.html"
+                     x-component-options="{ fallback: '<i>载入中…</i>', width: 160, height: 64 }"></div>
+            </div>
+
+            <!-- ④ loader 对象配置（保留兼容）：占位尺寸 + 自定义 fallback；url 优先级指令值 > loader.url -->
+            <div class="panel">
+                <div class="label">④ loader 对象配置 —— x-component-options.loader（保留兼容写法）</div>
                 <div x-component:stat="{ label: '收入', value: '12,580', tone: 'up' }"
-                     x-component-options="{ loader: { url: '/autospark/components/widgets.html', width: 160, height: 64, fallback: '<i>统计加载中…</i>' } }"></div>
+                     x-component-options="{ loader: { url: '/autospark/components/widgets.html', fallback: '<i>统计加载中…</i>' } }"></div>
             </div>
 
-            <!-- ③ 失败呈现：url 不存在 → 内置 error 组件（错误文案 + 重试/关闭按钮，back 走内置 action） -->
+            <!-- ⑤ 失败呈现：url 不存在 → 内置 error 组件（错误文案 + 重试/关闭按钮，back 走内置 action） -->
             <div class="panel">
-                <div class="label">③ 加载失败 —— 缺省渲染内置 error 组件（url 不存在，可点「重试」）</div>
+                <div class="label">⑤ 加载失败 —— 缺省渲染内置 error 组件（url 不存在，可点「重试」）</div>
                 <div x-component:ghost x-component-options.loader="/autospark/components/not-exist.html"></div>
             </div>
 
-            <!-- ④ .global 修饰符：注册为全局组件（语义同 x-import.global），本页其他作用域亦可实例化 -->
+            <!-- ⑥ .global 修饰符：注册为全局组件（语义同 x-import.global），本页其他作用域亦可实例化 -->
             <div class="panel">
-                <div class="label">④ .global 修饰符 —— 注册为全局组件</div>
+                <div class="label">⑥ .global 修饰符 —— 注册为全局组件</div>
                 <div x-component:chip.global="{ text: '全局 chip' }" x-component-options.loader="/autospark/components/chip.html"></div>
             </div>
         </div>

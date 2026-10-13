@@ -18,10 +18,11 @@ function mountCaptureWarn(html: string, state: any) {
 }
 
 /**
- * x-component 实例化指令的 props 语义测试（ADR-0054）。
+ * x-component 实例化指令的 props 语义测试（ADR-0054；ADR-0110 值语义三分修订）。
  *
  * 覆盖：
- * - 组件名静态承载于属性参数：缺参 warn（纯标识符值附言迁移指引）+ 跳过实例化
+ * - 无参形态值专职 url：表达式求值字符串 → url 通道加载远程组件；纯标识符求值
+ *   undefined → 一次性迁移提示（指向属性参数，ADR-0110）
  * - 无值 = 无 props
  * - 字面量成员引用状态路径：成员级响应式（表达式支路依赖收集）
  * - 纯状态路径：按键展开 + 深层触发（depth:2——子键改/增/整体替换均触发、删键残留）
@@ -32,24 +33,35 @@ function mountCaptureWarn(html: string, state: any) {
  */
 
 describe("x-component props 语义（ADR-0054）", () => {
-    test("缺少属性参数：warn 缺组件名 + 跳过实例化（值非纯标识符无附言）", async () => {
-        const { root, warns } = mountCaptureWarn(
-            `<div x-scope>
-                <div x-define="greeting"><span class="hi">你好</span></div>
-                <div id="h" x-component="order.label"></div>
-             </div>`,
-            { order: { label: "x" } },
-        );
-        await nextTick();
-        const host = root.querySelector("#h")!;
-        // 不实例化：宿主无组件内容
-        expect(host.querySelector(".hi")).toBeNull();
-        const hit = warns.find((w) => w.includes("缺少组件名"));
-        expect(hit).toBeDefined();
-        expect(hit).not.toInclude("x-define");
+    test("无参 + 表达式求值为字符串：值专职 url（url 通道激活，ADR-0110）", async () => {
+        const realFetch = globalThis.fetch;
+        (globalThis as any).fetch = async () => ({
+            ok: true,
+            status: 200,
+            statusText: "OK",
+            json: async () => `<div x-define="remote"><b class="rv">远程</b></div>`,
+            text: async () => `<div x-define="remote"><b class="rv">远程</b></div>`,
+        });
+        try {
+            const { root, warns } = mountCaptureWarn(
+                `<div x-scope>
+                    <div x-define="greeting"><span class="hi">你好</span></div>
+                    <div id="h" x-component="order.label"></div>
+                 </div>`,
+                { order: { label: "/r.html" } },
+            );
+            await new Promise<void>((r) => setTimeout(r, 0));
+            const host = root.querySelector("#h")!;
+            // 求值结果作 url 加载远程组件（非本地 greeting 实例化、非「缺名跳过」）
+            expect(host.querySelector(".rv")?.textContent).toBe("远程");
+            expect(host.querySelector(".hi")).toBeNull();
+            expect(warns.some((w) => w.includes("缺少组件名"))).toBe(false);
+        } finally {
+            (globalThis as any).fetch = realFetch;
+        }
     });
 
-    test("缺少属性参数且值为纯标识符：warn 附言迁移指引（指向 x-define）", async () => {
+    test("无参 + 纯标识符求值 undefined：一次性迁移提示（指向属性参数，ADR-0110）", async () => {
         const { root, warns } = mountCaptureWarn(
             `<div x-scope>
                 <div id="h" x-component="counter"></div>
@@ -59,9 +71,9 @@ describe("x-component props 语义（ADR-0054）", () => {
         await nextTick();
         const host = root.querySelector("#h")!;
         expect(host.children.length).toBe(0);
-        const hit = warns.find((w) => w.includes("缺少组件名"));
+        const hit = warns.find((w) => w.includes("未求值到 url"));
         expect(hit).toBeDefined();
-        expect(hit!).toContain('x-define="counter"');
+        expect(hit!).toContain("x-component:counter");
     });
 
     test("无值形态：无 props 实例化", async () => {

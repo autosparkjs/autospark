@@ -4,7 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>麒麟手机商店 - AutoSpark Phone Store</title>
-        <link rel="stylesheet" href="index.css" />
+        <!-- 样式表用绝对路径：/shop 无尾斜杠访问时文档基目录是 /，相对路径会落到 /index.css（example 首页样式） -->
+        <link rel="stylesheet" href="/shop/index.css" />
     </head>
     <body>
         <div
@@ -103,6 +104,8 @@
                         children: [
                             {
                                 path: ":category",
+                                // default: true —— 访问 /products 无子段时以 params 默认值展开本层
+                                default: true,
                                 view: "pages/product-list.html",
                                 data: "data/products.json",
                                 params: {
@@ -114,7 +117,7 @@
                                         view: "pages/product-detail.html",
                                         data: {
                                             from: async (context) => {
-                                                const response = await fetch(".data/products.json");
+                                                const response = await fetch("/shop/data/products.json");
                                                 const allProducts = await response.json();
                                                 const product = allProducts.products.find(
                                                     (p) => p.id === context.params.id,
@@ -135,6 +138,8 @@
                             // 服务列表（默认显示）
                             {
                                 path: "",
+                                // default: true —— 空路径子路由须显式声明默认展开（autoMatchSubRoute 已移除）
+                                default: true,
                                 view: "pages/services-list.html",
                                 data: "data/services.json",
                             },
@@ -149,6 +154,7 @@
                             // 文档列表（默认显示）
                             {
                                 path: "",
+                                default: true,
                                 view: "pages/docs-list.html",
                                 data: "data/docs.json",
                             },
@@ -163,6 +169,7 @@
                             // 商店列表（默认显示）
                             {
                                 path: "",
+                                default: true,
                                 view: "pages/store-list.html",
                                 data: "data/store.json",
                             },
@@ -272,7 +279,7 @@
                         view: "pages/product-preview.html",
                         data: {
                             from: async (context) => {
-                                const response = await fetch("./data/products.json");
+                                const response = await fetch("/shop/data/products.json");
                                 const allProducts = await response.json();
                                 return (
                                     allProducts.products.find((p) => p.id === context.params.id) ||
@@ -290,10 +297,10 @@
                         redirect: "/products",
                     },
 
-                    // 旧产品详情重定向
+                    // 旧产品详情重定向（/product/:id 路由已并入 products 三级链，借默认分类落地）
                     {
                         path: "p/:id",
-                        redirect: "/product/:id",
+                        redirect: "/products/smartphones/:id",
                     },
                 ],
             });

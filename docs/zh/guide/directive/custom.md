@@ -1,12 +1,13 @@
 # 自定义指令
 
-所有内置指令都继承自 `AutoSparkDirectiveBase`。自定义指令同样继承它，声明静态元数据（`kind` / `priority`）并按通道实现生命周期钩子。创建与注册按场景分三条路径：
+所有内置指令都继承自 `AutoSparkDirectiveBase`。自定义指令同样继承它，声明静态元数据（`kind` / `priority`）并按通道实现生命周期钩子。注册按作用域分流：跨引擎的全局指令走 **`$.directive` 双重载**（spec / 类，按实参形态自动分派），单引擎私有的走 `engine.directives`：
 
-| 场景 | 创建 | 注册 | 特点 |
-| --- | --- | --- | --- |
-| script · 简单指令 | `AutoSpark.defineDirective(spec)` | 自动入全局安装队列 | 一步到位，任意时刻可调 |
-| script · 完全控制 | `class extends AutoSparkSpaces.AutoSparkDirectiveBase` | 安装器 push 进全局队列 | 加载顺序无关 |
-| ESM | `import { AutoSparkDirectiveBase } from "autospark"` | `engine.directives.set` / `.install` | 实例级精准注册 |
+| 场景 | 写法 | 特点 |
+| --- | --- | --- |
+| script · 简单指令 | `AutoSpark.directive({ name, kind, ...钩子 })`（spec 重载） | 一步到位，造类入安装队列，任意时刻可调 |
+| script · 高级形态（结构指令等） | `AutoSpark.directive(name, 指令类)`（类重载） | 直接继承基类造类，类级静态全保留 |
+| ESM | `import { AutoSparkDirectiveBase } from "autospark"` + 上述两重载同形 | 同一后端 |
+| 实例级（单 engine 私有） | `engine.directives.set` / `.install` | 不入全局，见下方「注册入口」 |
 
 ## 示例一 · 入门：高亮指令（Runtime 通道）
 
@@ -14,7 +15,7 @@
 
 ```js
 // my-directives.js —— 在 autospark.js 之后加载即可，先于/后于 new AutoSpark 均可
-AutoSpark.defineDirective({
+AutoSpark.directive({
   name: "highlight",
   kind: 1, // Runtime：observer 通道
   mounted() {
@@ -33,7 +34,7 @@ AutoSpark.defineDirective({
 
 <div id="app"><span x-highlight="pink">hello</span></div>
 <script>
-  new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+  new AutoSpark(document.getElementById("app"), {});
 </script>
 ```
 
@@ -46,7 +47,7 @@ AutoSpark.defineDirective({
 订阅状态、随变化自动更新文本。`kind: 2`（Hybrid）同时具备 scope 通道（`created` / `binding.watch` 反应式）与 observer 通道（`mounted` / `unmounted` 生命周期）。
 
 ```js
-AutoSpark.defineDirective({
+AutoSpark.directive({
   name: "charcount",
   kind: 2, // Hybrid：反应式 + 生命周期
   created() {
@@ -70,31 +71,28 @@ AutoSpark.defineDirective({
 
 ## 示例三 · 高级：倒序结构指令（自动更改结构）
 
-结构指令通过 `static ownsChildren()` 返回 `true` **接管子树**：编译器不再递归编译其子元素，结构的改写权完全交给指令——可以在编译期重排、过滤、包裹子元素，改写完成后交还编译器，子元素内部的指令照常生效。高级形态超出 `defineDirective` 的最小 spec，使用类形态 + 全局队列注册：
+结构指令通过 `static ownsChildren()` 返回 `true` **接管子树**：编译器不再递归编译其子元素，结构的改写权完全交给指令——可以在编译期重排、过滤、包裹子元素，改写完成后交还编译器，子元素内部的指令照常生效。高级形态超出 spec 键集，使用**类重载** `$.directive(name, Cls)` 注册：
 
 ```js
-// reverse.js —— 可放在 autospark.js 之前或之后，加载顺序无关
-(window.__AUTOSPARK_DIRECTIVES__ = window.__AUTOSPARK_DIRECTIVES__ || []).push(
-  (engine) => {
-    const { AutoSparkDirectiveBase } = AutoSparkSpaces; // 安装器体执行时引擎必已加载
-    engine.directives.install(
-      "reverse",
-      class extends AutoSparkDirectiveBase {
-        static kind = 0; // Compile：scope 通道
-        static ownsChildren() {
-          return true; // 接管子树，结构由本指令作主
-        }
-        created() {
-          const tpl = this.template; // 只读模板子树（含原始子元素与指令属性）
-          // 倒序 = 逆序逐个搬到尾部（正序搬运是恒等变换）
-          for (const child of [...tpl.children].reverse()) tpl.appendChild(child);
-          // 改写完成后交还编译器，子元素照常走指令编译
-          this.engine.compiler.compileSubtree(this.el, tpl, this.binding);
-        }
-      },
-    );
-  },
-);
+// reverse.js —— 在 autospark.js 之后加载即可，先于/后于 new AutoSpark 均可
+(function ($) {
+  $.directive(
+    "reverse",
+    class extends $.AutoSparkDirectiveBase {
+      static kind = 0; // Compile：scope 通道
+      static ownsChildren() {
+        return true; // 接管子树，结构由本指令作主
+      }
+      created() {
+        const tpl = this.template; // 只读模板子树（含原始子元素与指令属性）
+        // 倒序 = 逆序逐个搬到尾部（正序搬运是恒等变换）
+        for (const child of [...tpl.children].reverse()) tpl.appendChild(child);
+        // 改写完成后交还编译器，子元素照常走指令编译
+        this.engine.compiler.compileSubtree(this.el, tpl, this.binding);
+      }
+    },
+  );
+})(AutoSpark);
 ```
 
 ```html
@@ -121,17 +119,16 @@ AutoSpark.defineDirective({
 
 两者就绪衔接一致：engine 就绪前注册只入表（`initializeAll` 统一初始化），就绪后注册立即初始化——Runtime 指令晚注册经 observer 重扫**即时生效**于已编译 DOM，Compile / Hybrid 指令晚注册只影响**未来编译**（如 `engine.patch` 出的新区域；需要参与首次编译时用 `autostart: false` + 注册 + `engine.start()`）。
 
-## 全局安装队列（script 场景）
+## 安装队列（script 场景）
 
-`window.__AUTOSPARK_DIRECTIVES__` 是**指令安装器**（`(engine) => void`）的先到先存队列：
+`$.directive` 两重载的注册内部走**插件机制的内存安装队列**（ADR-0111；原 `window.__AUTOSPARK_DIRECTIVES__` window 键载体已退役）：
 
-- 每个 engine 构造时全量消费队列（先于首次编译，参与首渲）；建立后再 push 的安装器**立即广播给全部存活 engine**——先装引擎还是先装插件均无序可忧；
-- 安装器体内可安全取用 `AutoSparkSpaces` 上的任何导出（执行时引擎必已加载）；
-- 两条约定：始终经 `window.__AUTOSPARK_DIRECTIVES__.push(...)` 触达（缓存原数组引用的 push 不经广播，只影响未来 engine）；队列 Proxy 化后禁止整体重赋值该属性。
+- 每个 engine 构造时全量消费队列（先于首次编译，参与首渲）；建立后再注册的**立即广播给全部存活 engine**——先建引擎还是先装插件均无序可忧；
+- 唯一约定：经 `AutoSpark.directive` 触达，不要绕过它自行拼装安装器。
 
 ## 注意事项
 
-- `defineDirective` 的 spec 是**最小键集**：`name`（必填，缺失抛错）、`kind`（缺省 `0`）、`priority`（缺省 `0`）、六个实例钩子（`created` / `compile` / `destroy` / `mounted` / `unmounted` / `attrChanged`）。结构指令（`ownsChildren`）、元素名指令（`elementName`）、类级钩子（`static initialize` / `dispose`）、`singleton` 等高级形态请用类形态（示例三）。
+- spec 重载的 spec 是**最小键集**：`name`（必填，缺失抛错）、`kind`（缺省 `0`）、`priority`（缺省 `0`）、六个实例钩子（`created` / `compile` / `destroy` / `mounted` / `unmounted` / `attrChanged`）。结构指令（`ownsChildren`）、元素名指令（`elementName`）、类级钩子（`static initialize` / `dispose`）、`singleton` 等高级形态请用类重载 `$.directive(name, Cls)`（示例三）。
 - 同类静态元数据在类形态下用 `static` 字段声明：`static kind = 1`、`static override priority = 50`。
 - 指令名由注册表键标识（`install("reverse", Cls)` 的 `"reverse"`），与类名无关。
 

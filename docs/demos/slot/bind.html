@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>x-slot · 传递绑定（x-slot.bind）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <!--
+            x-slot.bind 传递绑定（ADR-0108）：调用方 → 出口元素 的单向属性传递。
+            - 出口元素 = 组件模板里带 x-slot 的那个元素（本例是 <header class="card-head" data-src="组件静态">），
+              它的 class / 属性 / 事件本由组件写死；
+            - 三种载体写法：正典双属性 <template x-slot:header x-slot.bind="{ … }">（可与形参共存）、
+              别名 <template x-slot:header.bind="{ … }">（无形参时的简写）、
+              default 槽空载体 <template x-slot.bind="{ … }"></template>（只贡献绑定、不构成内容段）；
+            - 优先级：调用方恒赢——出口静态属性被覆盖，class / style 例外走合并（组件 token 保留）；
+            - 值语义 = x-bind 展开：对象 diff、onXxx 挂监听、false / null 移除、键消失自动清理；
+            - 表达式在**调用方视图**求值（与插槽内容同一基准、能看到调用方 x-data 域），
+              插槽形参在内容作用域、对绑定不可见——两者正交；
+            - 键级响应取字面量形态（`{ 'data-state': state }`，与 x-bind 同款边界：局部路径形态
+              走表达式支路，只有整体替换触发）。
+            - 出口属性变化用 attr() 与属性选择器呈现，无需开控制台。
+        -->
+  </head>
+  <body>
+    <div id="app" x-scope>
+      <!-- 定义侧：出口元素自带静态 class 与 data-src；出口形参 label 传给内容 -->
+      <div x-define="card">
+        <div class="card">
+          <header class="card-head" data-src="组件静态" x-slot:header="{ label: outletLabel }">
+            fallback · {{ title }}
+          </header>
+          <div class="card-body" x-slot>fallback 正文</div>
+        </div>
+        <script type="autospark/setup">
+          {
+              data: { title: "组件标题", outletLabel: "出口形参" },
+          }
+        </script>
+      </div>
+
+      <!-- ① 正典写法：形参 + 绑定同写一个标记元素；出口静态属性被覆盖、class 双侧合并 -->
+      <div class="panel" x-data="{ id: 'A-1', theme: 'is-link' }">
+        <div class="label">
+          ① 正典写法 <code>x-slot:header + x-slot.bind</code>：覆盖出口静态属性、class 双侧合并
+        </div>
+        <div class="meta">调用方状态：id = <b>{{ id }}</b>、theme = <b>{{ theme }}</b></div>
+        <div x-component:card>
+          <template
+            x-slot:header="{ label }"
+            x-slot.bind="{ 'data-src': '调用方覆盖', 'data-id': id, class: theme }"
+          >
+            <h3 class="is-size-5">{{ label }}（内容替换 fallback）</h3>
+          </template>
+          <p>裸子节点 → 默认插槽；下面这个空载体只给默认出口贡献绑定。</p>
+          <template x-slot.bind="{ class: 'is-warning' }"></template>
+        </div>
+      </div>
+
+      <!-- ② 别名简写 + 响应式：改调用方状态，出口属性实时跟变（含假值移除） -->
+      <div class="panel" x-data="{ state: 'idle', badge: 'B-1' }">
+        <div class="label">
+          ② 别名 <code>x-slot:header.bind</code> + 响应式：出口属性跟调用方状态实时变化
+        </div>
+        <div class="meta">
+          调用方状态：state = <b>{{ state }}</b>、badge = <b>{{ badge === false ? "false" : badge }}</b>
+        </div>
+        <div x-component:card>
+          <template x-slot:header.bind="{ 'data-state': state, 'data-badge': badge }">
+            <h3 class="is-size-5">响应式标题</h3>
+          </template>
+        </div>
+        <div class="buttons">
+          <button class="button is-small" @click="state = state === 'idle' ? 'busy' : 'idle'">
+            切换 state（键级响应）
+          </button>
+          <button class="button is-small" @click="badge = false">badge = false（属性移除）</button>
+        </div>
+      </div>
+
+      <!-- ③ 事件键：绑定表达式在调用方作用域执行——点出口元素 = 改调用方自己的状态 -->
+      <div class="panel" x-data="{ clicks: 0 }">
+        <div class="label">
+          ③ <code>onXxx</code> 键：监听挂在出口元素上、在调用方作用域执行
+        </div>
+        <div class="meta">调用方状态：clicks = <b>{{ clicks }}</b></div>
+        <div x-component:card>
+          <template
+            x-slot:header
+            x-slot.bind="{ onclick: () => clicks = clicks + 1, class: 'is-clickable' }"
+          >
+            <h3 class="is-size-5">点这一整块试试（出口元素自己收到监听）</h3>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+    </script>
+
+    <style>
+      .panel {
+        padding: 16px;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        margin-bottom: 12px;
+      }
+      .label {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 8px;
+      }
+      .meta {
+        font-size: 0.8rem;
+        color: #666;
+        margin-bottom: 8px;
+      }
+      .card {
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      /* 出口元素：组件模板里那个带 x-slot 的 <header> */
+      .card-head {
+        padding: 10px 14px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #dbdbdb;
+        border-left: 4px solid transparent;
+        font-weight: 600;
+      }
+      /* 传递绑定写进来的 data-src 一直可见（面板 ① 会显示「调用方覆盖」） */
+      .card-head::after {
+        content: " · data-src=" attr(data-src);
+        font-size: 0.72rem;
+        font-weight: 400;
+        color: #888;
+      }
+      /* ① 调用方 class 合并上来的样式（组件侧 card-head token 仍在） */
+      .card-head.is-link {
+        color: #485fc7;
+        border-left-color: #485fc7;
+      }
+      /* ① 传递绑定写进来的 data-id 以徽章呈现 */
+      .card-head[data-id]::before {
+        content: attr(data-id);
+        margin-right: 6px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: #3273dc;
+        color: #fff;
+        font-size: 0.72rem;
+      }
+      /* ② data-state 的取值各有底色；② 的 data-badge 是徽章（false 后整个消失） */
+      .card-head[data-state="busy"] {
+        background: #fff3bf;
+      }
+      .card-head[data-badge]::before {
+        content: attr(data-badge);
+        margin-right: 6px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: #3273dc;
+        color: #fff;
+        font-size: 0.72rem;
+      }
+      /* ③ 出口元素自己带上调用方给的 is-clickable */
+      .card-head.is-clickable {
+        cursor: pointer;
+      }
+      /* ① 默认插槽的空载体绑定：给组件固定 class 追加一个 token */
+      .card-body {
+        padding: 14px;
+      }
+      .card-body.is-warning {
+        background: #fffaeb;
+        box-shadow: inset 0 0 0 1px #f0b429;
+      }
+    </style>
+  </body>
+</html>

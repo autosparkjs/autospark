@@ -1,5 +1,9 @@
 # 样式
 
+::: info 同款语义适用于 x-html.compile
+`x-html.compile` 注入的动态模板同样走这三套样式语义（scoped / global / bind），差异仅：作用域 id 为**指令实例级随机串**（样式表不跨实例共享、无引用计数）、`<style global>` 留内容原位置**随子树回收**（而非注册期注入 head 永驻）。详见 [x-html · 注入模板的样式](../directives/x-html.md#注入模板的样式)。
+:::
+
 ## 作用域 CSS（scoped）
 
 组件内的 `<style>` 默认仅命中本组件实例，机制是**属性后缀法**（仿 Vue `<style scoped>`）：

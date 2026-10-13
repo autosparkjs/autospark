@@ -19,7 +19,7 @@
 
         <script>
             // Hybrid 通道：created 内 binding.watch 建立反应式订阅（退订由 scope 统一管理）
-            AutoSparkSpaces.AutoSpark.defineDirective({
+            AutoSpark.directive({
                 name: "charcount",
                 kind: 2, // Hybrid：scope 通道反应式 + observer 通道生命周期
                 created() {
@@ -29,7 +29,7 @@
                 },
             });
 
-            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+            new AutoSpark(document.querySelector(".demo-app"), {
                 note: "你好，AutoSpark。",
             });
         </script>

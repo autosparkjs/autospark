@@ -14,7 +14,9 @@ import type { AutoSparkRouteDataSource } from "./data";
 import type { ErrorBoundaryOptions, RetryOptions } from "./config";
 import type { ModalConfig } from "./modals";
 import type { IAsyncSignal } from "asyncsignal";
+import type { AsyncLoader } from "asyncsignal/loader";
 import type { BaseLoaderOptions } from "@/features/baseLoader";
+import type { DataLoaderMeta } from "@/features/dataLoader";
 import type { AutoSparkRouterViewRendererBase } from "@/renderers/base";
 // 重新导出 RouteData 以保持向后兼容
 export type { AutoSparkRouteDataSource as RouteData };
@@ -186,8 +188,14 @@ export interface AutoSparkRouteItem {
      *
      * 不同url可能数据是不同的，比如/posts/:id
      * 调用不同的id参数时，需要分别进行加载和缓存
+     *
+     * 实际载体：DataLoader 写入 AsyncLoader 实例（非可调用体，结果经 `.signal` 取得）；
+     * 兼容旧通道时也可能是可调用的 IAsyncSignal。取值侧见 features/render 的 _loadSignal。
      */
-    _getData?: IAsyncSignal<Record<string, any>> | null;
+    _getData?:
+        | AsyncLoader<Record<string, any>, DataLoaderMeta>
+        | IAsyncSignal<Record<string, any>>
+        | null;
     _dataOptions?: Required<AutoSparkRouteDataOptions>;
     /**
      * 是否缓存此路由对应的组件实例，默认为 true
@@ -216,13 +224,13 @@ export interface AutoSparkRouteItem {
     /**
      * 视图哈希标识
      
-     * 路由哈希标识，用于 Alpine.js store 的命名和视图缓存
+     * 路由哈希标识，用于视图缓存与 keepAlive 复用判定（同 hash 同 ready 的视图仅激活不重渲染）
      * 支持字符串插值，可用变量：
-     * - {path}: 路由路径
+     * - {path}: 路由模式路径（如 /products/:category，不含实际参数值）
+     * - {url}: 解析后的实际 URL（如 /products/smartphones）
      * - {basepath}: 基础路径
-     * - {url}: 完整 URL
      * - {timestamp}: 时间戳 
-     * @default "{path}"
+     * @default "{url}"
      * @example
      * hash: "user-{params.id}" // 生成类似 "user-123" 的哈希
      * hash: "posts-{query.category}" // 生成类似 "posts-tech" 的哈希

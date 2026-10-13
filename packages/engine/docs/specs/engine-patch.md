@@ -60,6 +60,7 @@ AutoSpark 引擎支持**初始化全量编译**与**值层面细粒度更新**(�
 - **事件**:patch 发 `engine/patch/before|after` 广播(对齐 `compile`/`data`,经门控 `broadcast`,无订阅零成本)。
 - **错误处理**:updater 抛错 → 记 error 日志、不重建;updater 返回非法类型 → warn 忽略;编译失败 → 记 error、运行树可能未同步(未定义状态,文档声明)。
 - **HTML 字符串安全**:v1 **不经 sanitizer**(开发者控制,与 `engine.template` 同源风险);sanitizer 集成留 fast-follow。
+- **内容投放模式(ADR-0109)**:`patch(selector, content: string | Node | updater, options?: { mode?, ref? })`。函数形态保持 ADR-0002 四态;string/Node 直投 + `mode` 决定放置——`replace`(缺省,替换 T 本身,空串=删除)/`inner`(清空 T 子级后放入,旧子 scope 逐个 destroy,空串=仅清空)/`prepend`/`append`(T 首/末子级,空串 no-op)。插入模式**编译先行**(编译失败回滚编译期新建 scope,两侧树零副作用);插入节点挂 **T 的 scope**(继承容器数据上下文;对比 replace 挂 `scope.parent`)。`ref` 指定容器内锚点(CSS 选择器,**须命中 scope 元素**——纯静态子元素无正向桥,与容器资格同口径)时,prepend/append 改插锚点前/后;ref 空=容器首尾,未命中/非 scope=warn no-op,inner/replace 忽略。函数 + 插入模式:返回 string/Node 即插入内容,`undefined`/`T` 静默 no-op、`null` warn(replace 的删除语义在插入模式无意义)。非法 mode **值** warn + no-op;options 未知**键**静默忽略。事件载荷带 `mode`。
 
 ## Testing Decisions
 

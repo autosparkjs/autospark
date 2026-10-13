@@ -42,16 +42,20 @@ const engine = new AutoSpark(document.getElementById("app"), {
 
 ### IIFE（浏览器直接引入）
 
-在浏览器中用 `<script>` 标签引入 IIFE 产物，挂载在全局 `AutoSparkSpaces` 下：
+在浏览器中用 `<script>` 标签引入 IIFE 产物——全局 `AutoSpark` 即类本身（库的其他导出如 `AutoStore` 挂为类静态，ADR-0111）：
 
 ```html
 <script src="https://unpkg.com/autospark/dist/index.global.js"></script>
 <script>
-    const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {
+    const engine = new AutoSpark(document.getElementById("app"), {
         user: { name: "张三" },
     });
 </script>
 ```
+
+::: tip 兼容别名
+旧全局名 `AutoSparkSpaces` 保留为指向同一对象的别名（`AutoSparkSpaces.AutoSpark === AutoSpark`），既有代码不受影响。
+:::
 
 ::: tip 传入裸状态即可
 构造器第二参直接传**裸状态对象**——引擎会自动建立 store（并默认配备 configManager，`@` 配置绑定开箱即用）。无需手动 `new AutoStore`。详见[初始化](../guide/initial.md)。

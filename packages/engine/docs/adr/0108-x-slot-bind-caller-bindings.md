@@ -21,7 +21,22 @@
 ### 1. 传递方向与目标（单向：调用方 → 出口元素）
 
 内容侧 `x-slot.bind="expr"` 的表达式在**调用方作用域链**求值（与插槽内容同一作用域
-基准，`callerScope.watch`），展开结果应用到**出口元素**上。出口侧自带的 `x-bind`
+基准，`callerScope.watch`），展开结果应用到**出口元素**上。
+
+> **实施补充（2026-10-13）**：“调用方作用域链”指**调用方视图**（`AutoSparkScope#getCallerContext`，
+> 即内容 scope 的求值基准），不是调用方 scope 自身的聚合视图。组件路径的宿主 scope 被
+> x-component 化为组件实例根（带 ADR-0053 封闭边界），其聚合视图只回退到全局 state——
+> 绑定表达式若按聚合视图求值，会取不到使用方 `x-data` 局部域（内容却能取到，两侧基准
+> 不一致）。故 `scope.watch(expr, …, { context: "caller" })` 新增该通道：
+>
+> - 求值视图取 `getCallerContext()`——使用方 `x-data` 域 + locals 可见、组件 `_data`/边界跳过；
+> - 订阅路由按「该简单路径在调用方视图里是否仍解析自 store 根」二选一：是（全局 state 路径，
+>   如 `x-slot.bind="attrs"`）→ `watchPath` 精准订阅，`depth` 键级响应与既有语义一致；
+>   否（使用方 x-data 局部变量）→ 表达式支路，按实际读取收集 `$scopes.<id>.…` 依赖；
+> - 常规（`context: "self"`）表达式支路不受影响——`depth` 的忽略边界仍是 x-bind 既有契约。
+>
+> 回归用例：x-slot 传递绑定组「调用方 x-data 局部状态」「调用方 x-data 局部变量：改状态 →
+> 出口属性跟变」；demo 见 `docs/demos/slot/bind.html`。出口侧自带的 `x-bind`
 （既有能力，组件作者书写）不改动，与传递绑定构成两层叠加：
 
 ```

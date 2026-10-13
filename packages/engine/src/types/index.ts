@@ -1,10 +1,10 @@
-import type { AutoStoreOptions, Dict, FastEvent } from "autostore";
+import type { AutoStoreOptions, ComputedState, Dict, FastEvent } from "autostore";
 import type { ActionDecl } from "../features/action/types";
 import type { TooltipOptions } from "../features/tooltip/types";
 import type { NotificationOptions } from "../features/notifications/types";
 import type { ComponentInstance } from "../features/component/component-instance";
 import type { AutoSparkScope } from "../engine/scope";
-import type { ViewportOptions } from "../features/viewport/types";
+import type { ViewportOptions, ViewportTier } from "../features/viewport/types";
 
 /**
  * 渲染选项
@@ -154,6 +154,27 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
  *
  * emit 一律直接调继承自 FastLiteEvent 的 `engine.emit()`（按 type 查监听器，无该 type 订阅≈零成本）。
  */
+// ── engine.patch 内容投放模式（ADR-0109 承接 ADR-0002） ──────────
+/** patch 更新回调：接收命中的模板元素，返回值决定重建语义（replace 模式四态） */
+export type AutoSparkPatchUpdater = (
+    templateEl: HTMLElement,
+) => Node | string | null | undefined;
+/** patch 内容：字符串（HTML 片段，可多顶层节点）/ 节点（引擎接管并移入模板树）/ 更新回调 */
+export type AutoSparkPatchContent = string | Node | AutoSparkPatchUpdater;
+/** patch 投放模式：replace=替换命中元素本身 | inner=清空容器子级后放入 | prepend/append=容器首/末子级插入 */
+export type AutoSparkPatchMode = "replace" | "inner" | "prepend" | "append";
+/** patch 选项 */
+export interface AutoSparkPatchOptions {
+    /** 投放模式，缺省 replace */
+    mode?: AutoSparkPatchMode;
+    /**
+     * 容器内锚点元素（CSS 选择器，仅 prepend/append 生效）：指定时插入到锚点前（prepend）/
+     * 后（append）。须命中容器内 **scope 元素**（否则 warn + no-op）；为空 = 容器首/尾。
+     * inner/replace 忽略此值。
+     */
+    ref?: string;
+}
+
 export interface AutoSparkEvents {
     // ── engine/** 引擎生命周期 ──────────────────────────────
     /** 引擎初始化完成（retain：晚订阅者补拿） */
@@ -220,11 +241,11 @@ export interface AutoSparkEvents {
     /** 指令属性值变化（observer 通道） */
     "directive/*/attr-changed": { name: string; el: HTMLElement; newVal: string; oldVal?: string };
 
-    // ── patch/** 动态 patch（ADR-0002，本期占位） ──────────
-    /** patch 前 */
-    "patch/before": { id: number; templateEl: HTMLElement };
+    // ── engine/patch/** 动态 patch（ADR-0002 引入；投放模式与载荷 mode ADR-0109） ──────────
+    /** patch 前（mode：replace/inner/prepend/append） */
+    "engine/patch/before": { selector: string; el: HTMLElement; mode: AutoSparkPatchMode };
     /** patch 后 */
-    "patch/after": { id: number };
+    "engine/patch/after": { selector: string; mode: AutoSparkPatchMode };
 
     // ── components/<名>/registered 组件注册（ADR-0085 按名动态键 + retain 保留事件） ──
     /**
@@ -253,12 +274,49 @@ export interface AutoSparkEvents {
     "actions/*/rejected": { id: string; error: any };
 }
 
+/**
+ * 引擎预置元变量（`state.$` 的引擎自有字段，ADR-0105）。
+ *
+ * - `viewport`：当前视口档位，构造期同步写初值、跨档响应式更新（`ViewportTier` 六档）。
+ * - `version` / `language`：预留位，**当前无任何运行时写入方**——故为可选。
+ */
 export type AutoSparkPresetVars = {
     version?: string;
     language?: string;
+    viewport: ViewportTier;
 };
 
-export type AutoSparkVars = Record<string, any> & AutoSparkPresetVars;
+/**
+ * `state.$` 元状态容器的公共类型：**引擎预置字段 + 消费者声明合并接缝**。
+ *
+ * 消费者经 `declare module` 往本 interface 追加自己的元变量（`AutoSparkPresetVars` 是
+ * 引擎自有部分，不直接合并）：
+ *
+ * ```ts
+ * declare module "autospark" {
+ *     interface AutoSparkVars { tenant: string }
+ * }
+ * ```
+ */
+export interface AutoSparkVars extends AutoSparkPresetVars {}
+
+/**
+ * engine 根状态的完整类型：`store.state` / `engine.state` / `*.globalState` 共用同一
+ * 命名类型（ADR-0112），保证这几条通道对 `$` 的认知不漂移。
+ *
+ * `$` 标为**必选**是刻意取舍（ADR-0112）：默认配置下 ViewportManager 构造期必注入，
+ * 裸写 `engine.state.$.viewport` 是主流用法；`options.viewport === false` 或环境无
+ * `matchMedia` 时该容器**不注入**——类型在此配置下为已知偏差，读取方自担。
+ */
+export type AutoSparkState<State extends Dict = Record<string, any>> = ComputedState<State> & {
+    /**
+     * 引擎元状态容器（严格保留键 `$`，ADR-0105）：框架私有响应式数据根，`$.viewport`
+     * 为首个居民，后续引擎内部数据逐步迁入。
+     *
+     * **例外**：`options.viewport === false` 或环境无 `matchMedia` 时不存在（`undefined`）。
+     */
+    $: AutoSparkVars;
+};
 
 // `?raw` 静态资源导入的类型声明住 src/types/raw.d.ts（ADR-0091/0094）——本文件是模块
 // （有顶层 export），declare module 在此为 augmentation 形态，wildcard 模式声明无效。

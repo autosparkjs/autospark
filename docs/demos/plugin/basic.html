@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>插件机制 · 全局注册与 $.ready</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="block">
+                <h5 class="title is-5">插件全局组件（hello-card）</h5>
+                <div x-component:hello-card="{name: 'AutoSpark'}"></div>
+            </div>
+            <div class="block">
+                <button class="button is-primary" @click="plugGreet">插件 action：plugGreet</button>
+                <span class="ml-2" x-text="greeted"></span>
+            </div>
+            <div class="block" x-show="readyLog">
+                <h5 class="title is-5">$.ready 日志</h5>
+                <code x-text="readyLog"></code>
+            </div>
+        </div>
+
+        <!-- ═══ my-plugin.js：插件就是一个 js 文件（此处内联模拟） ═══ -->
+        <script>
+            (function ($) {
+                // 全局组件：所有 engine 实例共享（真全局，查找链兜底）
+                $.components["hello-card"] = `
+                    <div class="card">
+                        <div class="card-content">
+                            <p class="title is-4">你好，<span x-text="name"></span>！</p>
+                            <p class="subtitle">来自插件的组件</p>
+                        </div>
+                    </div>`;
+                // 全局 action：经触发 engine 惰性物化
+                $.actions["plugGreet"] = function () {
+                    this.data.greeted = "插件 action 已执行 ✓";
+                };
+                // 就绪回调：每个 engine 实例化后各调用一次
+                $.ready(function (engine) {
+                    engine.state.readyLog = "engine/ready ✓（el#" + engine.el.className.split(" ")[0] + "）";
+                });
+            })(AutoSpark);
+        </script>
+
+        <!-- ═══ 页面脚本：实例化引擎（插件已在前，注册对实例直接生效） ═══ -->
+        <script>
+            const engine = new AutoSpark(document.querySelector(".demo-app"), {
+                greeted: "",
+                readyLog: "",
+            });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>动态模板 · patch 内容投放模式</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- #list 是 x-scope 哨兵 scope（投放容器）；带 x-text 的 li 建 scope，可作 ref 锚点 -->
+        <div class="demo-app section">
+            <div class="block">
+                当前 content：<span class="has-text-primary has-text-weight-semibold" x-text="content"></span>
+            </div>
+            <div class="card">
+                <div class="card-content">
+                    <ul id="list" x-scope>
+                        <li x-text="'第 ' + n + ' 项（首个 li 是 scope，可作 ref 锚点）'"></li>
+                        <li>静态项（无指令无插值，不能作 ref 锚点）</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="buttons">
+                <button class="button is-primary" @click="refill">inner · 清空重填</button>
+                <button class="button is-link" @click="loadMore">append · 尾部追加</button>
+                <button class="button is-link" @click="insertTop">prepend · 首部插顶</button>
+                <button class="button is-info" @click="insertAfterFirst">append + ref · 定点插入</button>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { content: "初始内容", n: 1 },
+                {
+                    actions: {
+                        // inner：清空容器子级后放入新内容，容器自身与 x-scope 保留
+                        refill: () => {
+                            engine.patch("#list", "<li x-text='content'></li>", { mode: "inner" });
+                            engine.state.content = "重填于 #" + engine.state.n;
+                        },
+                        // append：容器末尾追加（插入的绑定持续响应 n 变化）
+                        loadMore: () => {
+                            engine.state.n += 1;
+                            engine.patch("#list", `<li x-text="'第 ' + n + ' 项'"></li>`, {
+                                mode: "append",
+                            });
+                        },
+                        // prepend：容器首部插入
+                        insertTop: () => {
+                            engine.state.n += 1;
+                            engine.patch(
+                                "#list",
+                                `<li class='has-text-warning'>置顶：第 ${engine.state.n} 项</li>`,
+                                { mode: "prepend" },
+                            );
+                        },
+                        // append + ref：插到容器内首个 li（scope 锚点）之后
+                        insertAfterFirst: () => {
+                            engine.state.n += 1;
+                            engine.patch(
+                                "#list",
+                                `<li class='has-text-info'>定点：第 ${engine.state.n} 项</li>`,
+                                { mode: "append", ref: "li:first-child" },
+                            );
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

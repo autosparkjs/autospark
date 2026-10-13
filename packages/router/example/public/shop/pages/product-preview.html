@@ -268,7 +268,7 @@
 
             async loadProduct(id) {
                 try {
-                    const response = await fetch('./data/products.json');
+                    const response = await fetch('/shop/data/products.json');
                     const data = await response.json();
                     this.product = data.products.find(p => p.id === id) || null;
                 } catch (e) {

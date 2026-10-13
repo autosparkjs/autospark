@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-html · .compile 样式通道（scoped / global / bind）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* 页面级同名类 .tag（灰底）——scoped 隔离证明：注入模板的 .tag 样式只命中宿主子树，
+               页面这个 .tag 保持本样式不变 */
+            .tag {
+                background: #ddd;
+                color: #666;
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- .compile 样式通道（组件样式管线复用）：
+             块 A · scoped——注入模板里的 <style> 摘出模板树、改写注入 head，
+               仅命中宿主子树（页面同名类不受影响）；
+             块 B · global——<style global> 留 DOM 原位置、浏览器原生全局生效
+               （块外的页面级元素也被命中），随内容重编译自然回收；
+             块 C · bind——bind(expr) 提取为 CSS 变量订阅挂宿主元素，
+               状态驱动样式响应式变化；换模板时样式换血。 -->
+        <div class="demo-app section">
+            <!-- 块 A：scoped 隔离 -->
+            <div class="card">
+                <div class="card-content">
+                    <div class="heading has-text-grey">
+                        scoped：注入模板的 &lt;style&gt; 仅命中本块
+                    </div>
+                    <div class="block" x-html.compile="cardTpl"></div>
+                    <div class="block">
+                        页面级同名类（保持灰色，不受注入样式影响）：<span class="tag">tag</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 B：global 全局生效 -->
+            <div class="card">
+                <div class="card-content">
+                    <div class="heading has-text-grey">
+                        global：&lt;style global&gt; 留在内容内、全局生效
+                    </div>
+                    <div class="block" x-html.compile="globalTpl"></div>
+                    <div class="block">
+                        被块内 global 样式命中的页面级元素：<span class="page-mark">page</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 块 C：bind 响应式样式 -->
+            <div class="card">
+                <div class="card-content">
+                    <div class="heading has-text-grey">
+                        bind：CSS 变量订阅挂宿主，状态驱动样式
+                    </div>
+                    <div class="block" x-html.compile="barTpl"></div>
+                    <div class="buttons">
+                        <button class="button is-primary is-small" @click="toggleTheme">
+                            换主题（bind(theme) 响应式）
+                        </button>
+                        <button class="button is-primary is-small" @click="grow">
+                            加宽（bind(width + 'px') 表达式）
+                        </button>
+                        <button class="button is-small" @click="swapTpl">
+                            换模板（旧样式/订阅换血回收）
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    // 块 A：scoped——<style> 与内容同住一个模板串；样式被摘出模板树、
+                    // 选择器改写加 [data-cmp-{实例id}] 后缀后注入 head，仅命中宿主子树
+                    cardTpl:
+                        '<div class="tag">注入的 tag（scoped 配色）</div>' +
+                        '<style>.tag{background:#3273dc;color:#fff;padding:4px 12px;border-radius:6px;display:inline-block}</style>',
+                    // 块 B：global——<style global> 留在结果 DOM 原位置，浏览器原生全局生效，
+                    // 块外的 .page-mark 也被命中（随本元素内容重编译回收）
+                    globalTpl:
+                        '<style global>.page-mark{background:#23d160;color:#fff;padding:2px 10px;border-radius:4px}</style>' +
+                        '<div>这段模板自带 <code>&lt;style global&gt;</code>——它不隔离，全局命中。</div>',
+                    // 块 C：bind——bind() 占据声明值位置，引擎替换为 var(--变量名, unset) 并订阅：
+                    // 纯路径 theme → --theme；表达式 width + "px" → --h{hash}。变量挂宿主元素
+                    theme: "ocean",
+                    width: 40,
+                    barTpl:
+                        '<div class="bar"></div>' +
+                        '<style>.bar{height:24px;width:bind(width + "px");background:bind(theme)}</style>',
+                },
+                {
+                    actions: {
+                        // 换主题：bind(theme) 订阅触发，宿主 CSS 变量更新，色条变色
+                        toggleTheme: () => {
+                            engine.state.theme =
+                                engine.state.theme === "ocean" ? "tomato" : "ocean";
+                        },
+                        // 加宽：bind(width + 'px') 表达式求值更新
+                        grow: () => {
+                            engine.state.width = (engine.state.width % 120) + 20;
+                        },
+                        // 换模板：旧样式表与 bind 订阅整体换血，新模板带自己的 <style>
+                        swapTpl: () => {
+                            engine.state.barTpl =
+                                '<div class="pill"></div>' +
+                                '<style>.pill{height:16px;border-radius:9999px;width:bind(width + "px");background:bind(theme)}</style>';
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

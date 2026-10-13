@@ -1,4 +1,5 @@
 import type { AutoSparkScope } from "../../engine/scope";
+import type { AutoSparkState } from "../../types";
 
 /**
  * 组件实例门面（ADR-0080）：外部读取组件实例的稳定视图。
@@ -49,7 +50,7 @@ export class ComponentInstance {
     }
 
     /** 全局状态（engine.state）——聚合视图同名键自有层优先遮蔽，取全局值用此通道 */
-    get globalState(): Record<string, any> {
+    get globalState(): AutoSparkState<Record<string, any>> {
         return this.scope.engine.state;
     }
 

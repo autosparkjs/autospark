@@ -1,6 +1,6 @@
 # ADR-0100：外部指令全局安装队列（`__AUTOSPARK_DIRECTIVES__`）
 
-- 状态：已采纳（2026-10-10 grilling 会话闭合全部决策面并实施）
+- 状态：**已被 [ADR-0111](0111-plugin-mechanism.md) 取代**（superseded，2026-10-13）——window 队列载体退役，`defineDirective` / 安装器 / liveEngines 广播语义由插件机制收编
 - 日期：2026-10-10
 - 关联：ADR-0001（指令 kind 通道体系——安装指令同受其约束）、ADR-0030（品牌与
   IIFE 全局 `AutoSparkSpaces`——本机制的宿主环境）、ADR-0031（script type 命名空间

@@ -12,7 +12,7 @@ Bun monorepo（`bun@1.4.0`），主要工作区：
 
 - `packages/engine`（包名 `autospark`）— **AutoSpark Engine**：声明式模板渲染引擎，通过宿主元素上的 `x-*` / `@*` / `:*` 指令属性把 [AutoStore](https://github.com/zhangfisher/autostore) 响应式状态绑定到 DOM（Alpine.js 风格，最小声明 + 细粒度响应式 patch）。
 - `packages/components`（包名 `@autospark/components`）— **纯 HTML 组件资产包**：每组件一个 `x-define` 资产 html（`src/components/`）+ `?raw` 聚合种子表（`src/index.ts`）；运行时零依赖 engine（仅 devDependencies 供 demo）。组件名沿用 `autospark.` 前缀、经 `options.components` 业务注册位注入（同名覆盖内置）。demo 每组件一页（`demo/`），`bun run dev` 起 vite（5181）。
-- `docs/` — VitePress 中文文档站；`docs/demos/` 下是纯 HTML 可运行示例，依赖 engine 构建产物 `docs/public/autospark.js`（IIFE，全局变量 `AutoSparkSpaces`）。
+- `docs/` — VitePress 中文文档站；`docs/demos/` 下是纯 HTML 可运行示例，依赖 engine 构建产物 `docs/public/autospark.js`（IIFE，全局变量 `AutoSpark` 即类本身、`AutoSparkSpaces` 为兼容别名，ADR-0111）。
 
 ⚠️ 依赖与发行形态（ADR-0030）：`autostore` 为 devDependencies（registry 安装），构建时经 `noExternal` **打包进三格式产物**；入口 `export * from "autostore"` **全量转导出**——消费者 `import { AutoSpark, AutoStore } from "autospark"` 单包即用。类型解析依赖 `fastevent`/`flex-tools`/`type-fest` 三个小包（dependencies，随包自动安装）。
 

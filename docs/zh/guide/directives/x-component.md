@@ -2,12 +2,13 @@
 
 ## 概述
 
-`x-component` 在模板中**实例化一个已声明的组件**（`x-define` 作用域组件 / `options.components` 全局组件 / `x-import` 远程加载）。语法职责分离（ADR-0054）：**属性参数承载组件名，值专职 props**。
+`x-component` 在模板中**实例化一个已声明的组件**（`x-define` 作用域组件 / `options.components` 全局组件 / 远程加载）。指令值按**文本形态三分**（ADR-0110）：有属性参数时值专职 props（ADR-0054）；值是 url（以 `/` `./` `../` `http(s)://` `file://` 开头）时直载远程组件；无属性参数时值专职远程 url——**响应式 url 简写**。
 
 ```html
 <div x-component:counter></div>                     <!-- 无 props -->
 <div x-component:counter="{ count: 100 }"></div>    <!-- 字面量 props -->
 <div x-component:counter="order"></div>             <!-- 绑定状态对象 -->
+<div x-component="./components/detail.html"></div>  <!-- url 简写：远程组件直载 -->
 ```
 
 实例化时**宿主化身组件根**：宿主元素保留身份，组件快照子树编译挂入；组件的 `data` / props 注入宿主 scope 的响应式数据域，`methods` / 钩子 / 作用域样式全部生效。
@@ -22,14 +23,16 @@
 
 ### 指令值
 
-指令分两段：**属性参数承载组件名**（`x-component:counter`），**值专职 props 表达式**（无值 = 无 props）：
+指令值按**文本形态**消歧（ADR-0110，与 loader 通道同源判定——props 表达式永不以 url 前缀字符开头，文本级零歧义）：
 
 | 形态 | 说明 |
 | --- | --- |
-| `x-component:<名称>` | 属性参数承载组件名（必写；缺参 `warn` 并跳过实例化——值恰为纯标识符时附言迁移指引） |
+| `x-component:<名称>` | 属性参数承载组件名；无值 = 无 props |
 | `x-component:<名称>="<props>"` | 值 = props 表达式（对象字面量 / 状态路径；注入组件响应式数据域） |
+| `x-component:<名称>="<url>"` | 值命中字面量 url（`/` `./` `../` `http(s)://` `file://` 开头）→ 远程组件直载；props 改走 `x-component-options.props` |
+| `x-component="<url>"` | **无参 url 简写**：值专职远程 url——字面量直载，否则按表达式求值（string→url、object→loader 配置），**响应式 url**；返回多组件时取文档序首个 + `warn` |
 | `x-component:<名称>.open` | 修饰符：**消费侧豁免**——打开封闭组件（≡ `x-component-options="{open:true}"`，显式声明即豁免、不 `warn`，ADR-0053 修订） |
-| `x-component:<名称>.global` | 修饰符：配合 `loader` 把远程加载的组件注册为**全局组件**（语义同 `x-import.global`） |
+| `x-component:<名称>.global` | 修饰符：把远程加载的组件注册为**全局组件**（语义同 `x-import.global`） |
 
 组件名**静态、编译期可知**——不支持响应式切换组件名；要条件切换组件，把 `x-if` 写在外层包裹元素上，分支内各自实例化：
 
@@ -54,7 +57,16 @@
 
 - **单向数据流**：外部状态 → 组件；组件内修改 props 键**不回写**外部状态（双向绑定是 `x-model` 的职责）；
 - 更新 = 重求值后先与上次应用的 props **浅值比较**：键值完全相同则跳过更新——静态字面量 props 被无关状态变化触发重算时，组件内交互改的同名键**不被打回**字面量初值；有变化才 `Object.assign` **只覆盖出现的键**——组件内部状态（用户交互改的）不被重置，绑定的状态对象删键后旧键残留（不做镜像同步）；
-- props 值必须是对象形态，标量 / 数组会 `warn` 忽略（组件照常实例化，无 props）。
+- props 值必须是对象形态，标量 / 数组会 `warn` 忽略（组件照常实例化，无 props）；
+- **props 选项通道（ADR-0110）**：`x-component-options.props`（整包静态对象或成员属性表达式——后者经 `watch` **响应式**）与指令值 props **双源合并**：`x-component-options.props` 打底、**指令值覆盖同名键**；某源无效（标量 / 数组）按缺失处理、另一源独走。url 形态下指令值被占用，props 单源 = `x-component-options.props`：
+
+```html
+<!-- url 占用指令值，props 走选项通道（成员属性表达式 = 响应式 props） -->
+<div x-component="./components/detail.html" x-component-options.props="{ id: order.id }"></div>
+
+<!-- 有参 + 双源并存：options.props 打底，指令值覆盖同名键 -->
+<div x-component:stat="{ label: '收入' }" x-component-options.props="{ unit: '万元' }"></div>
+```
 
 <demo html="component/props.html"/>
 
@@ -110,31 +122,40 @@ methods / 钩子内的 `this` 是组件实例 Proxy：`this.data`（聚合视图
 
 ### 远程直接实例化（loader）
 
-不需要批量注册、只用一次的组件，可经 `x-component-options.loader` 一步完成「远程加载 + 注册 + 实例化」——内部复用 `x-import` 同一管线（url 缓存、循环检测、注册广播），加载的组件照常进组件查找链供他人复用（ADR-0066）：
+不需要批量注册、只用一次的组件，可一步完成「远程加载 + 注册 + 实例化」——内部复用 `x-import` 同一管线（url 缓存、循环检测、注册广播），加载的组件照常进组件查找链供他人复用（ADR-0066）。**url 简写**（ADR-0110）与 `loader` 完整配置两种写法：
 
 ```html
-<!-- string 简写：字面量 url（以 / ./ ../ http(s):// 开头）直接加载 -->
-<div x-component:like-button x-component-options.loader="/components/like-button.html"></div>
+<!-- ✅ url 简写：值即 url（字面量），最短写法 -->
+<div x-component="/components/like-button.html"></div>
 
-<!-- 对象配置：request 透传 fetch、width/height 加载中占位尺寸、fallback/error 自定义呈现 -->
-<div x-component:stat="{ label: '收入' }"
-     x-component-options="{ loader: { url: '/components/stat.html', width: 160, height: 48 } }"></div>
+<!-- ✅ url 简写 + 显式指定组件名（url 内容含多个 x-define 时推荐） -->
+<div x-component:like-button="/components/buttons.html"></div>
+
+<!-- loader 完整配置（保留兼容）：string 简写 / 对象配置 / 响应式 url 表达式 -->
+<div x-component:like-button x-component-options.loader="/components/like-button.html"></div>
+<div x-component:detail x-component-options.loader="detailUrl"></div>
 
 <!-- .global 修饰符：注册为全局组件 -->
-<div x-component:chip.global x-component-options.loader="/components/chip.html"></div>
+<div x-component:chip.global="/components/chip.html"></div>
+```
+
+**url 取值优先级：指令值 > `options.loader.url`**；两者并存 `warn`（双声明）。
+
+**平铺归一（ADR-0110）**：`fallback` / `error` / `width` / `height` / `request` 可直接写在 `x-component-options` 顶层（成员属性形态天然响应式），同名键**顶层平铺 > `loader` 对象内嵌**：
+
+```html
+<!-- url 简写 + 顶层平铺 fallback（加载中占位）与占位尺寸 -->
+<div x-component="/components/stat.html"
+     x-component-options="{ fallback: '<i>载入中…</i>', width: 160, height: 48 }"></div>
 ```
 
 loader 语义「**以此 url 为准**」：组件已注册仍 fetch 并以远程版覆盖注册（覆盖时 `warn`，已实例化不受影响）；首次渲染**严格等待 fetch**——期间显示 fallback 占位（缺省 = `x-loading`）。
 
-url 含多个 `x-define` 时按属性参数名取用，其余照常注册备用。
+**多组件返回**：url 含多个 `x-define` 时——有属性参数则按参数名取用（其余照常注册备用）；**无参简写取文档序首个 + `warn`**（同 url 重入不重复提示），显式指定请改写 `x-component:名称="<url>"`。
 
-**响应式 url**：成员属性形态的值是表达式——裸状态路径即响应式 url，url 变化时中止旧请求、重新加载并重实例化（组件内部状态丢失）：
+**响应式 url**：无参形态的值是表达式——裸状态路径即响应式 url，url 变化时中止旧请求、重新加载并重实例化（组件名随新内容重新决策）；有参形态的响应式 url / 配置对象走 `x-component-options.loader`。
 
-```html
-<div x-component:detail x-component-options.loader="detailUrl"></div>
-```
-
-裸标识符恒按状态路径求值（与 `x-import` 的「标识符 = 文件名」语义相反）；字面量 url 请以 `/`、`./`、`http(s)://` 开头书写。
+裸标识符恒按状态路径求值（与 `x-import` 的「标识符 = 文件名」语义相反）；字面量 url 请以 `/`、`./`、`http(s)://` 开头书写——以 `/` 开头的**动态拼接表达式**会被当字面量，须先落到状态再绑定。
 
 **失败呈现**：fetch 失败或加载结果中无同名组件时，宿主渲染**内置 error 组件**（引擎默认注册——错误文案 + 重试按钮（重新 fetch）+ 关闭按钮；用户同名声明可覆盖），亦可 `x-component:error` 显式实例化渲染任意错误。`error` 键可自定义呈现（形态同 fallback：HTML 字符串或 `{ name, props }`）。
 
@@ -142,12 +163,16 @@ url 含多个 `x-define` 时按属性参数名取用，其余照常注册备用�
 
 ## 配置选项
 
+`x-component-options` 与 `x-define-options` 同键兼容（ADR-0110，extends）：`open` / `dataContext` 获得**实例级覆盖**能力——覆盖仅影响本实例，不回写组件定义。
+
 | 配置项       | 默认值 | 修饰符  | 说明                                                                                                 |
 | ------------ | ------ | ------- | ---------------------------------------------------------------------------------------------------- |
-| `open`       | `false` | `.open` | 消费侧豁免：打开封闭组件（显式声明即豁免、不 `warn`）；仅指令选项层生效，不经宿主 `x-options` 回退 |
-| `dataContext` | —      | —       | 数据上下文的**消费侧覆盖**：`'host'` \| `'declarer'`——对已 `open` 的组件生效；对完全封闭的组件声明 `warn` 忽略 |
-| `global` | `false` | `.global` | 配合 `loader`：远程加载的组件注册为全局组件（语义同 `x-import.global`） |
-| `loader` | — | — | 远程直接实例化：string 简写（字面量 url / 表达式）或对象 `{ url, request?, fallback?, error?, width?, height? }`；见[远程直接实例化](#远程直接实例化loader) |
+| `open`       | `false` | `.open` | 消费侧显式布尔（**含 `false`**）**覆盖** `x-define-options.open`（三级优先级：消费显式 > 作者声明 > 默认封闭）；仅指令选项层生效，不经宿主 `x-options` 回退 |
+| `dataContext` | —      | —       | 数据上下文的**消费侧覆盖**：`'host'` \| `'declarer'`——仅在生效 `open` 下有效；对封闭组件声明 `warn` 忽略 |
+| `props` | — | — | props 选项通道：整包静态对象或成员属性表达式（响应式），与指令值 props 双源合并（指令值覆盖同名键） |
+| `global` | `false` | `.global` | 配合远程加载：加载的组件注册为全局组件（语义同 `x-import.global`） |
+| `loader` | — | — | 远程直接实例化完整配置：string 简写（字面量 url / 表达式）或对象 `{ url, request?, fallback?, error?, width?, height? }`；url 优先级指令值 > `loader.url` |
+| `fallback` / `error` / `width` / `height` / `request` | — | — | loader 附属键**平铺**（ADR-0110）：顶层声明等效 `loader` 对象内嵌，同名键顶层 > 内嵌；成员属性形态天然响应式 |
 
 ```html
 <!-- 组件侧已声明 open，消费处把基准改为声明处上下文 -->
@@ -155,6 +180,9 @@ url 含多个 `x-define` 时按属性参数名取用，其余照常注册备用�
 
 <!-- 消费侧 .open 豁免：打开封闭组件（默认 host 基准，读消费处上下文） -->
 <div x-component:card.open></div>
+
+<!-- 实例级关闭：消费侧显式 false 覆盖作者声明的 open（本实例封闭，其他实例不受影响） -->
+<div x-component:card x-component-options="{ open: false }"></div>
 
 <!-- 组合：打开封闭组件 + 指定声明处基准 -->
 <div x-component:card.open x-component-options="{ dataContext: 'declarer' }"></div>
@@ -170,6 +198,9 @@ url 含多个 `x-define` 时按属性参数名取用，其余照常注册备用�
 
 ## 注意事项
 
+- **值语义消歧是文本级的**：值以 `/` `./` `../` `http(s)://` `file://` 开头即按字面量 url 直载（不经表达式求值）——以 `/` 开头的动态拼接表达式会被误当字面量，请先落到状态再绑定（`x-component="detailUrl"`）；
+- **无参 url 简写不认本地组件名**：`x-component="counter"` 的纯标识符值按**状态路径**求值（响应式 url），不存在时一次性 `warn` 迁移提示——本地组件实例化请写 `x-component:counter`（组件名走属性参数，ADR-0054）；
+- **props 双源合并是浅合并**：`x-component-options.props` 打底、指令值覆盖同名键，嵌套对象键整体替换；两源均为静态字面量时同样经浅等防抖（内部交互状态不被打回）；
 - **旧写法已彻底移除**：`x-use="counter"` / `x-use="{name:'counter',...}"`（ADR-0054 废弃）不再识别——静默失效，请分别改写为 `x-component:counter` / `x-component:counter="{...}"`；
 - **对象内 `name` / `is` / `component` 字段识别已废除**：组件名由属性参数承载，这些键回归普通 prop 名；
 - **props 更新不重置内部状态**：值无变化（浅等）不更新；多次更新只覆盖出现过的键；要「镜像同步」请销毁重建（外层 `x-if` 切换）；

@@ -42,8 +42,8 @@ interface ComponentLoaderConfig {
 /**
  * 判定值是否为纯标识符 / 连字符段形态（如 `counter`、`my-card`、`UserAvatar`）。
  *
- * ADR-0054 后组件名走属性参数、值专职 props，本判定不再参与求值分流——仅用于
- * 「缺少组件名」warn 的迁移指引附言：值恰为纯标识符时提示旧定义写法改用 x-define。
+ * ADR-0054 后组件名走属性参数、值专职 props，本判定不参与求值分流——ADR-0110 后仅用于
+ * 无参 url 简写的 undefined 迁移提示：值恰为纯标识符形态时提示旧定义写法改用属性参数。
  */
 function isLiteralComponentName(raw: string): boolean {
     return /^[A-Za-z_$][\w$-]*$/.test(raw);
@@ -53,15 +53,29 @@ function isLiteralComponentName(raw: string): boolean {
  * x-component：组件实例化指令（ADR-0054 更名自 x-use，实例化机制承接 ADR-0022 决策五）。
  *
  * 在模板中实例化一个已声明的组件（局部 x-define 或全局 options.components）。语法：
- * - **属性参数承载组件名**：`x-component:counter`——静态、编译期可知（缺参即 warn），不支持
- *   响应式切换组件（条件切换用外层 x-if，ADR-0054 决策二）；
- * - **值专职 props**（ADR-0054 决策三），三形态：
- *   - 无值：无 props、不订阅；
- *   - 对象字面量：成员可引用状态路径（表达式支路按实际读取收集依赖，成员路径级触发）；
- *   - 纯状态路径（如 `order`）：对象按键展开为 props（v-bind="obj" 心智），路径支路透传
- *     `depth:2` 订阅（子键增删改/整体替换均触发，对齐 x-bind 展开先例 ADR-0043）；
+ * - **属性参数承载组件名**：`x-component:counter`——静态、编译期可知，不支持响应式切换组件
+ *   （条件切换用外层 x-if，ADR-0054 决策二）；**可省略**——省略时值专职远程组件 url（下述三分）；
+ * - **值语义三分（ADR-0110）**：指令值按**文本形态**消歧（与 loader 通道同源的 isLiteralLoaderUrl
+ *   判定——props 表达式永不以 url 前缀字符开头，文本级零歧义）：
+ *   1. 值命中字面量 url（`/` `./` `../` `http(s)://` `file://` 开头）→ 远程组件直载；
+ *   2. 无属性参数 → 值专职 url：字面量直载，否则表达式 watch 求值（string→url、object→loader
+ *      配置、null→静默、undefined 且值为纯标识符形态 → 一次性迁移提示）——**响应式 url 简写**；
+ *   3. 其余（有参）→ props 表达式（ADR-0054 决策三，三形态不变：无值/对象字面量/纯状态路径）。
+ * - **props 选项通道（ADR-0110）**：`x-component-options.props`（整包静态或成员属性表达式——
+ *   后者经 watch 响应式）与指令值 props **双源合并**：`Object.assign(optionsProps, 指令值)`——
+ *   options.props 打底、指令值覆盖同名键；无效源（标量/数组 warn）按缺失处理、另一源独走；
+ *   url 形态下指令值被占用，props 单源 = options.props；
  * - props **单向**注入组件 data 域（后于 data() 默认覆盖，R1=A 合并顺序），值变时 `Object.assign`
  *   更新出现键，组件内绑定经 getContext 重读自动刷新；组件内部状态不被重置、不回写外部状态。
+ *
+ * **loader 配置平铺归一（ADR-0110）**：url 取值优先级 指令值 > `options.loader.url`（双声明 warn
+ * + 指令值胜）；`fallback`/`error`/`width`/`height`/`request` 平铺读 `x-component-options` 顶层
+ * 同名键（成员属性形态天然响应式），同名键平铺层 > loader 对象内嵌层；loader 对象形态保留兼容。
+ * 无参 url 返回多组件：取文档序首个 + warn（per-url 去重），显式指定用 `x-component:名称="<url>"`。
+ *
+ * **实例级边界覆盖（ADR-0110，extends x-define-options）**：`x-component-options.open`/`dataContext`
+ * 与作者侧 x-define-options 同键——显式布尔 open（含 false）**覆盖** def.open（三级优先级：消费
+ * 显式声明 > 作者声明 > 默认封闭）；dataContext 仅在生效 open 下有效（沿用 ADR-0053 校验）。
  *
  * 其余机制（承接原 x-use）：
  * - 取组件冻结快照（经 `scope.getComponentDeclaration(name)` 沿链就近 + 全局兜底）；
@@ -89,6 +103,10 @@ function isLiteralComponentName(raw: string): boolean {
  * <div x-component:counter="{ count: 100, label: order.label }"></div>
  * @example 绑定状态对象（按键展开为 props，深层响应）
  * <div x-component:counter="order"></div>
+ * @example 远程组件直载（url 简写 + props 选项通道）
+ * <div x-component="./components/detail.html" x-component-options.props="{ id: order.id }"></div>
+ * @example 多组件远程内容显式指定（url 占用指令值，props 走选项通道）
+ * <div x-component:detail="./components/pages.html" x-component-options.props="{ id: order.id }"></div>
  */
 export class ComponentDirective extends AutoSparkDirectiveBase {
     /** 介于结构指令（if=80/for=100）之下、普通指令之上，保证组件实例化在兄弟指令前执行 */
@@ -110,7 +128,10 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
 
     /** 当前实例化的组件实例 scope（destroy 时级联销毁） */
     private instanceScope: AutoSparkScope | null = null;
-    /** 当前实例化的组件名（属性参数静态承载，ADR-0054：恒定不变，无换名重实例化） */
+    /**
+     * 当前实例化的组件名（属性参数静态承载，ADR-0054：恒定不变，无换名重实例化）。
+     * null = 无参 url 简写（ADR-0110）尚未从远程清单定格（加载完成后取首个或校验参数名）。
+     */
     private componentName: string | null = null;
     /** 当前实例化的组件 def（缓存，props 更新时复用） */
     private instanceDef: ComponentDef | null = null;
@@ -136,6 +157,20 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     private _pendingProps: Record<string, any> | undefined;
     /** 占位块（fallback/error 组件）编译 scope（随宿主 scope.destroy 递归销毁，此处仅断引用） */
     private _placeholderScope: AutoSparkScope | null = null;
+
+    // === 值语义三分 / props 双源（ADR-0110） ===
+    /** props 选项通道最新值（x-component-options.props：整包静态或成员属性表达式） */
+    private _optionsProps: Record<string, any> | undefined;
+    /** 指令值通道最新 props（纯 props 通道求值产物；url 形态下恒 undefined） */
+    private _directiveProps: Record<string, any> | undefined;
+    /** 无参 url 简写的表达式文本（undefined 迁移提示的形态判定用；非表达式通道为 undefined） */
+    private _urlExprText: string | undefined;
+    /** undefined url 迁移提示已发标志（一次性，防响应式重求值刷屏） */
+    private _missingUrlWarned = false;
+    /** 多组件取首个的 warn 去重位（per-url：同 url 重入不刷屏，url 变化重新提示） */
+    private _multiWarnedUrl: string | null = null;
+    /** 无参 url 简写形态（ADR-0110）：组件名非静态——每次加载从远程清单重新决策 */
+    private _anonymousUrl = false;
 
     /** .global 修饰符（ADR-0065 决策二：`x-component:名.global` 经解析期注入 options.global） */
     private get _globalMode(): boolean {
@@ -163,19 +198,38 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             );
             return;
         }
-        // 组件名：属性参数承载（x-component:counter，ADR-0054 决策二）。缺参 → warn 跳过实例化；
-        // 值恰为纯标识符时附言迁移指引（旧定义写法 x-component="名" 与新实例化同形，指回 x-define）。
+        // 组件名 + 值文本（ADR-0110 值语义三分的判定输入）。
+        // 双缺（无参且无值）→ warn 跳过实例化。
         const name = this._resolveComponentName();
-        if (name === "") {
-            const rawValue = this.value == null ? "" : String(this.value).trim();
-            const hint = isLiteralComponentName(rawValue)
-                ? `；若是组件定义，请改用 x-define="${rawValue}"（ADR-0054）`
-                : "";
-            this.warn(`x-component: 缺少组件名（应写 x-component:名称），已跳过实例化${hint}。`);
+        const rawValue = this.value == null ? "" : String(this.value).trim();
+        if (name === "" && rawValue === "") {
+            this.warn(
+                `x-component: 缺少组件名（应写 x-component:名称 实例化本地组件，或 x-component="<url>" 直载远程组件），已跳过实例化。`,
+            );
             return;
         }
-        this.componentName = name;
-        // === loader 解析（ADR-0065 决策二）：成员属性表达式（双轨）优先，回退静态选项/宿主回退 ===
+        this.componentName = name === "" ? null : name;
+        // 无参 url 简写形态：组件名非静态——每次加载从远程清单重新决策（ADR-0110）
+        this._anonymousUrl = name === "";
+        // 配置成员统一订阅（fallback/error/width/height/request 等，ADR-0110 平铺归一）；
+        // loader/props 自管订阅（loader 沿 ADR-0065 双轨、props 双源合并），skip 防同一表达式双 watcher
+        this._watchOptionExprs(["loader", "props"]);
+        // props 选项通道（ADR-0110）：整包静态 / 成员属性表达式——所有形态统一初始化
+        this._initOptionsProps();
+        // === 通道一：值命中字面量 url（含无参简写）→ url 通道，字面量直载（props 全权归 options.props） ===
+        if (rawValue !== "" && isLiteralLoaderUrl(rawValue)) {
+            this._warnDualLoaderDeclaration();
+            this.engine.scheduler.schedule(() => this._applyLoader(rawValue));
+            return;
+        }
+        // === 通道二：无参 → 值专职 url（表达式 watch 求值——string→url、object→配置、nullish→静默） ===
+        if (name === "") {
+            this._urlExprText = rawValue;
+            const initial = this.binding.watch(rawValue, ({ value }) => this._applyLoader(value));
+            this.engine.scheduler.schedule(() => this._applyLoader(initial));
+            return;
+        }
+        // === 通道三：有参 + options.loader 旧通道（ADR-0065 保留；指令值仍专职 props） ===
         const loaderExpr = this.info.optionExprs?.loader;
         if (loaderExpr !== undefined) {
             const trimmed = loaderExpr.trim();
@@ -205,8 +259,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             this.engine.scheduler.schedule(() => this._applyLoader(staticLoader));
             return;
         }
-        // === 无 loader：原流程（值专职 props，ADR-0054 决策三） ===
-        const rawValue = this.value == null ? "" : String(this.value).trim();
+        // === 通道四：纯 props 通道（值专职 props，ADR-0054 决策三） ===
         if (rawValue === "") {
             this.engine.scheduler.schedule(() => this._onValueChange(undefined));
             return;
@@ -289,30 +342,84 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     }
 
     /**
-     * props 值变化处理（组件名静态，无换名重实例化分支，ADR-0054）。
-     *
-     * - 对象 → 按键展开为 props 集合（v-bind="obj" 心智）；
-     * - null / undefined → 无 props（如绑定的状态对象尚未就绪，静默）；
+     * props 选项通道初始化（ADR-0110）：成员属性表达式（响应式，优先，overlay 基座同款）→
+     * 整包内嵌静态 props 回退（无 watch 无热更新，作初始值）。
+     */
+    private _initOptionsProps(): void {
+        const propsExpr = this.info.optionExprs?.props;
+        if (propsExpr !== undefined) {
+            if (propsExpr.trim() === "") {
+                this.warn(
+                    `x-component: x-component-options.props 的值为空（须提供表达式：对象字面量或状态路径），已忽略`,
+                );
+                return;
+            }
+            const initial = this.binding.watch(
+                propsExpr,
+                ({ value }) => this._onOptionsProps(value),
+                { depth: 2 },
+            );
+            this._onOptionsProps(initial);
+        } else {
+            const staticProps = this.getOption("props");
+            if (staticProps !== undefined) this._onOptionsProps(staticProps);
+        }
+    }
+
+    /**
+     * props 值归一（指令值通道与 options.props 通道共用）：
+     * - 对象 → 原样；
+     * - null / undefined → undefined（如绑定的状态对象尚未就绪，静默）；
      * - 标量 / 数组 → warn 忽略（值必须是对象形态之一，数组无键值语义）。
      */
-    private _onValueChange(value: any): void {
-        let props: Record<string, any> | undefined;
+    private _normalizeProps(value: any): Record<string, any> | undefined {
         if (Array.isArray(value)) {
             this.warn(
                 `x-component: props 值须为对象（字面量或状态对象），数组已忽略: ${JSON.stringify(value)}`,
             );
-        } else if (value != null && typeof value === "object") {
-            props = value as Record<string, any>;
-        } else if (value !== undefined && value !== null) {
+            return undefined;
+        }
+        if (value != null && typeof value === "object") return value as Record<string, any>;
+        if (value !== undefined && value !== null) {
             this.warn(
                 `x-component: props 值须为对象（字面量或状态对象），已忽略: ${JSON.stringify(value)}`,
             );
         }
-        // 已实例化 → 仅更新 props（覆盖声明键，组件内部状态不被重置）。
-        // props 与上次应用值浅等则跳过：静态字面量 props（无状态路径）的表达式支路 watcher
-        // 订阅为空 deps（autostore watch([]) = 任意状态变化触发），每次重求值产生键值相同的
-        // 新对象——若照常 assign 会把组件内部交互状态重置回 props 字面量（counter demo 场景：
-        // 点击 + 后 count=105 被打回 100）。值没变就不是更新（ADR-0054 决策三）。
+        return undefined;
+    }
+
+    /** props 选项通道值变化（ADR-0110）：归一 → 存源 → 双源合并提交 */
+    private _onOptionsProps(value: any): void {
+        this._optionsProps = this._normalizeProps(value);
+        this._commitProps();
+    }
+
+    /**
+     * 指令值通道 props 变化处理（组件名静态，无换名重实例化分支，ADR-0054）。
+     * 归一后存源，实例化/更新时机统一交 {@link _commitProps}（双源合并，ADR-0110）。
+     */
+    private _onValueChange(value: any): void {
+        this._directiveProps = this._normalizeProps(value);
+        this._commitProps();
+    }
+
+    /**
+     * props 双源合并提交（ADR-0110）：`Object.assign(optionsProps, 指令值)`——options.props
+     * 打底、指令值覆盖同名键；单源缺失时另一源独走。合并结果经既有防抖/更新协议应用：
+     *
+     * 已实例化 → 仅更新 props（覆盖声明键，组件内部状态不被重置）。
+     * props 与上次应用值浅等则跳过：静态字面量 props（无状态路径）的表达式支路 watcher
+     * 订阅为空 deps（autostore watch([]) = 任意状态变化触发），每次重求值产生键值相同的
+     * 新对象——若照常 assign 会把组件内部交互状态重置回 props 字面量（counter demo 场景：
+     * 点击 + 后 count=105 被打回 100）。值没变就不是更新（ADR-0054 决策三）。
+     */
+    private _commitProps(): void {
+        let props: Record<string, any> | undefined;
+        if (this._optionsProps && this._directiveProps) {
+            props = { ...this._optionsProps, ...this._directiveProps };
+        } else {
+            props = this._directiveProps ?? this._optionsProps;
+        }
         if (this.instanceScope && this.instanceDef) {
             if (this._propsEqual(props, this._appliedProps)) return;
             this._updateProps(props);
@@ -321,7 +428,21 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         this._pendingProps = props;
         // loader 接管实例化时机（ADR-0065 决策三首帧严格）：加载完成后 _runLoader 统一实例化
         if (this._loaderActive) return;
-        this._instantiate(this.componentName!, props);
+        // 无组件名且 url 通道未激活（表达式尚未求值到 url）：等 url 通道驱动
+        if (this.componentName == null) return;
+        this._instantiate(this.componentName, props);
+    }
+
+    /** 指令值 url 与 options.loader 双声明 warn（ADR-0110：url 优先级指令值 > options.loader.url） */
+    private _warnDualLoaderDeclaration(): void {
+        if (
+            this.info.optionExprs?.loader !== undefined ||
+            this.getOption("loader") !== undefined
+        ) {
+            this.warn(
+                `x-component: 指令值 url 与 x-component-options.loader 双声明，以指令值 url 为准，loader 声明已忽略。`,
+            );
+        }
     }
 
     /**
@@ -340,10 +461,14 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     }
 
     /**
-     * 应用 loader 声明（ADR-0065）：值形态归一 + 同 url 去重后发起加载。
+     * 应用 loader 声明（ADR-0065）：值形态归一 + 平铺键合成 + 同 url 去重后发起加载。
      *
-     * 值三态：string → url 简写（归一 `{ url }`）；对象 → 配置原样；nullish → 静默
-     * （绑定状态未就绪，对齐 props 绑定 nullish 静默先例）；其余 → warn 忽略。
+     * 值三态：string → url 简写（归一 `{ url }`）；对象 → 配置原样；null → 静默（绑定状态未
+     * 就绪，对齐 props 绑定 nullish 静默先例）；undefined → 静默，但值为纯标识符形态时一次性
+     * 迁移提示（疑似旧组件名写法 `x-component="counter"`，指回属性参数，ADR-0110）；其余 → warn。
+     *
+     * 平铺归一（ADR-0110）：`fallback/error/width/height/request` 平铺读 `x-component-options`
+     * 顶层同名键（getOption 表达式层 > 整包 > 宿主），同名键平铺层 > loader 对象内嵌层。
      */
     private _applyLoader(value: unknown): void {
         let cfg: ComponentLoaderConfig | null = null;
@@ -353,7 +478,21 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             cfg = { url: raw };
         } else if (value && typeof value === "object" && !(value instanceof RegExp)) {
             cfg = value as ComponentLoaderConfig;
-        } else if (value == null) {
+        } else if (value === undefined) {
+            // 无参 url 简写：路径不存在/尚未就绪。恰为纯标识符形态 → 疑似旧组件名写法，一次性提示
+            if (
+                this._urlExprText !== undefined &&
+                !this._missingUrlWarned &&
+                isLiteralComponentName(this._urlExprText)
+            ) {
+                this._missingUrlWarned = true;
+                this.warn(
+                    `x-component: 值 "${this._urlExprText}" 未求值到 url（状态路径不存在或尚未就绪）；` +
+                        `若意图实例化本地组件，请改写 x-component:${this._urlExprText}（组件名走属性参数，ADR-0054）。`,
+                );
+            }
+            return;
+        } else if (value === null) {
             return;
         }
         const url = cfg?.url;
@@ -361,9 +500,21 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             this.warn(`x-component: loader 缺少有效 url，已跳过加载。`);
             return;
         }
+        // 平铺键合成（顶层 > loader 对象内嵌同名键）
+        const merged = { ...cfg };
+        const fallback = this.getOption("fallback") as LoaderPlaceholder | undefined;
+        const error = this.getOption("error") as LoaderPlaceholder | undefined;
+        const width = this.getOption("width") as number | string | undefined;
+        const height = this.getOption("height") as number | string | undefined;
+        const request = this.getOption("request") as RequestInit | undefined;
+        if (fallback !== undefined) merged.fallback = fallback;
+        if (error !== undefined) merged.error = error;
+        if (width !== undefined) merged.width = width;
+        if (height !== undefined) merged.height = height;
+        if (request !== undefined) merged.request = request;
         this._loaderActive = true;
         if (url === this._loadedUrl) return; // 同 url 去重（响应式重求值但 url 未变）
-        void this._runLoader(cfg);
+        void this._runLoader(merged);
     }
 
     /**
@@ -408,9 +559,24 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
                 this._renderLoaderError(new Error(`远程内容加载失败（${url}）`), cfg);
                 return;
             }
-            // 同名校验（决策四）：本次加载结果无属性参数指定的组件 → error 呈现
-            //（查返回清单而非沿链查找——命中祖先 scope 的旧同名组件不算本次加载成功）
-            if (!registered.includes(this.componentName!)) {
+            // 组件名决策：无参 url 简写（ADR-0110）**每次加载重新决策**——取文档序首个 +
+            // warn（per-url 去重），url 内容变化名字随新清单走；有参走同名校验（决策四）——
+            // 本次加载结果无属性参数指定的组件 → error 呈现（查返回清单而非沿链查找——
+            // 命中祖先 scope 的旧同名组件不算本次加载成功）
+            if (this._anonymousUrl) {
+                if (registered.length === 0) {
+                    this._renderLoaderError(new Error(`远程内容中无组件（${url}）`), cfg);
+                    return;
+                }
+                if (registered.length > 1 && this._multiWarnedUrl !== url) {
+                    this._multiWarnedUrl = url;
+                    this.warn(
+                        `x-component: 远程内容含 ${registered.length} 个组件，已取文档序首个 "${registered[0]}"；` +
+                            `如需显式指定请改写 x-component:${registered[0]}="${url}"。`,
+                    );
+                }
+                this.componentName = registered[0]!; // 上方 length === 0 已早退
+            } else if (!registered.includes(this.componentName!)) {
                 this._renderLoaderError(new Error(`远程内容中无组件 "${this.componentName}"`), cfg);
                 return;
             }
@@ -483,7 +649,9 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
      */
     private _renderLoaderError(err: Error, cfg: ComponentLoaderConfig): void {
         this._clearHostContent();
-        const message = `组件 "${this.componentName}" 加载失败（${cfg.url}）：${err.message}`;
+        // 无参 url 简写加载失败时 componentName 尚未定格 → 文案退化为「远程组件」
+        const label = this.componentName ?? "远程组件";
+        const message = `组件 "${label}" 加载失败（${cfg.url}）：${err.message}`;
         if (cfg.error !== undefined && cfg.error !== "") {
             this._renderPlaceholder(cfg.error, {
                 url: cfg.url,
@@ -656,23 +824,25 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     }
 
     /**
-     * 解析数据基准（ADR-0053 组件数据边界；修订一：消费侧 `.open` 豁免）。
+     * 解析数据基准（ADR-0053 组件数据边界；修订一：消费侧 `.open` 豁免；ADR-0110：open 实例级覆盖）。
      *
      * 解析链：`x-component-options.dataContext`（消费覆盖）→ `def.dataContext`（作者声明，含 `.open` 修饰符
      * 经 buildComponentDef 校验）→ 默认。规则：
-     * - **封闭是作者契约，消费侧 `.open` 是显式豁免**：`.open` 修饰符（≡ `x-component-options="{open:true}"`，
-     *   解析期注入 options.open）可打开封闭组件——显式声明即豁免，不 warn；基准取消费 dataContext >
-     *   def.dataContext（封闭组件上恒为 undefined）> 默认 `'host'`；
+     * - **open 三级优先级（ADR-0110，extends x-define-options）**：消费侧显式布尔（`.open` 修饰符 ≡
+     *   `x-component-options="{open:true}"`；含显式 `open:false`）**覆盖** def.open → def.open → 默认封闭。
+     *   消费侧可打开也可关闭（实例级边界覆盖，不回写 def 快照）；
+     * - 基准取消费 dataContext > def.dataContext（封闭组件上恒为 undefined）> 默认 `'host'`；
      * - 消费侧 dataContext 声明落在封闭组件（无任何 open 通道）时仍 warn + 忽略，保持封闭；
      * - 无效基准值 warn + 回退 `'host'`；
-     * - `def` 为 null（纯快照组件，无声明侧 open 通道）仍可被消费侧 `.open` 打开。
+     * - `def` 为 null（纯快照组件，无声明侧 open 通道）仍可被消费侧 open 打开。
      */
     private _resolveDataBasis(def: ComponentDef | null): ComponentDataBasis {
         const optionCtx = this.getOption("dataContext");
         // 消费侧 open 只读指令选项层（不经 getOption 的宿主 x-options 回退）——
-        // 避免宿主上给其他指令声明的 open 键意外打开组件（ADR-0007 回退语义的隔离例外）
-        const consumerOpen = this.options?.open === true;
-        const open = def?.open === true || consumerOpen;
+        // 避免宿主上给其他指令声明的 open 键意外影响组件边界（ADR-0007 回退语义的隔离例外）。
+        // 显式布尔（含 false）覆盖 def.open；未声明回退作者声明（ADR-0110 三级优先级）
+        const rawOpen = this.options?.open;
+        const open = typeof rawOpen === "boolean" ? rawOpen : def?.open === true;
         if (optionCtx !== undefined) {
             if (open) {
                 if (optionCtx === "host" || optionCtx === "declarer") return optionCtx;
@@ -872,5 +1042,11 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         this._placeholderScope = null;
         this._loaderActive = false;
         this._loaderCfg = null;
+        this._optionsProps = undefined;
+        this._directiveProps = undefined;
+        this._urlExprText = undefined;
+        this._missingUrlWarned = false;
+        this._multiWarnedUrl = null;
+        this._anonymousUrl = false;
     }
 }

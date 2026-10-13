@@ -1,7 +1,6 @@
 import type { AutoSparkMatchedRouteItem } from "@/types/routes";
 import { AutoSparkRouterViewRendererBase, type ViewRenderResult } from "./base";
 import type { ViewRenderOptions } from "./types";
-import { scopeStyles } from "@/utils/scopeStyle";
 import { transformXOutlet } from "@/engine/xOutlet";
 
 export class AutoSparkRouterHTMLViewRenderer extends AutoSparkRouterViewRendererBase {
@@ -18,7 +17,7 @@ export class AutoSparkRouterHTMLViewRenderer extends AutoSparkRouterViewRenderer
         options: ViewRenderOptions,
     ): Promise<ViewRenderResult> {
         const html = await response.text();
-        const { selector, scopedStyle, hash } = options;
+        const { selector } = options;
         const renderResult: ViewRenderResult = { value: html.trim() };
 
         try {
@@ -47,11 +46,9 @@ export class AutoSparkRouterHTMLViewRenderer extends AutoSparkRouterViewRenderer
                     this.router.logger.warn(`Invalid selector: ${selector}, ${e.message}`);
                 }
             }
-            // 应用样式隔离（默认启用）
-            if (scopedStyle !== false) {
-                const result = scopeStyles(renderResult.value, hash);
-                renderResult.value = result.html;
-            }
+            // 样式不做 router 侧改写：<style> 原样保留，经 x-html.compile 挂载后
+            // 由 engine 编译通路（innerHTML 注入）文档级生效（旧 scopeStyles 以
+            // #hash ID 前缀作用域化，但 DOM 中不存在对应 id 元素，全部规则失配）
         } catch (e: any) {
             this.router.logger.error(`视图内容提取失败: ${e.message}`);
         }
@@ -92,19 +89,15 @@ export class AutoSparkRouterHTMLViewRenderer extends AutoSparkRouterViewRenderer
      * 1. **HTML 解析**：使用 DOMParser 解析 HTML 字符串为文档对象
      * 2. **参数插值**：将选择器中的 `{key}` 占位符替换为实际参数值
      * 3. **元素选择**：使用解析后的选择器查询目标元素
-     * 4. **内容提取**：返回选定元素的 innerHTML
-     * 5. **样式隔离**：应用 scopedStyle 进行样式隔离（可选）
-     * 6. **安全清理**：根据 allowUnsafe 选项清理不安全内容（可选）
+     * 4. **内容提取**：返回选定元素的 innerHTML（含 `<style>`，样式交由 engine 编译通路挂载生效）
      *
      * ### 选项说明
      *
-     * - **selector** (string, 默认: "body"): CSS 选择器，支持参数插值
-     * - **allowUnsafe** (boolean): 是否保留不安全的 HTML（如 `<script>` 标签）
-     * - **scopedStyle** (boolean): 是否应用样式隔离，默认启用
+     * - **selector** (string): CSS 选择器，支持参数插值
      *
      * @param html - 原始 HTML 字符串
-     * @param options - 视图选项，包含 selector、allowUnsafe、scopedStyle 等
-     * @param signal - 异步信号，用于存储元数据（如 hash、vBindVars）
+     * @param options - 视图选项，包含 selector 等
+     * @param signal - 异步信号，用于存储元数据（如 hash）
      * @param matched - 匹配的路由项，提供 params、query、state 等参数用于插值
      * @returns 提取并处理后的 HTML 字符串
      */

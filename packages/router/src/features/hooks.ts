@@ -145,7 +145,8 @@ export class HookManager {
         const { to } = args;
         const hooks = [
             ...this.hooks[name],
-            ...to.flatMap((r: any) => r.route[name] || []),
+            // 404 未匹配项的 route 为 undefined（createUnmatchedRouteItem），无可提取的钩子
+            ...to.flatMap((r: any) => r.route?.[name] || []),
         ] as any[];
 
         if (mode === "serial") {

@@ -17,10 +17,11 @@ import { injectStylesheet } from "./injectStylesheet";
  * - `@keyframes name { ... }` → 整体保留不改写（关键帧名不隔离，按组件名约定避免冲突）
  *
  * @param cssText  组件 `<style>` 原始 CSS 文本
- * @param scopeId  作用域 id（数值，用作 `data-cmp-{scopeId}` 属性名后缀）
+ * @param scopeId  作用域 id（组件为 def 级数值；x-html.compile 实例为随机字符串，见
+ *                 injectHostScopedStyle），用作 `data-cmp-{scopeId}` 属性名后缀
  * @returns 改写后的 CSS 文本
  */
-export function rewriteScopedCss(cssText: string, scopeId: number): string {
+export function rewriteScopedCss(cssText: string, scopeId: number | string): string {
     const attr = `[data-cmp-${scopeId}]`;
     // 按顶层规则块改写：用状态机遍历，区分普通规则、@-rule（@media/@keyframes/@supports 等）。
     // 简化策略：按 `{` `}` 深度跟踪，对每个「选择器 { 体 }」单元改写其选择器部分。
@@ -259,6 +260,31 @@ function componentStyleId(defName: string): string {
     return `autospark-cmp-style-${componentScopedId(defName)}`;
 }
 
+// ── 实例级 scoped 样式（x-html.compile 等非组件 def 载体）─────────────────────
+
+/**
+ * 为**指令实例**注入 scoped 样式（x-html.compile 注入模板的样式通道）。
+ *
+ * 与 `injectComponentStyle`（组件 def 级，多实例共享 + 引用计数）的差异：
+ * - `scopeId` 是实例级随机字符串（`getId()`），样式表 id 挂实例——同 URL 两处加载互不共享
+ *   （bind 变量挂载点是各自宿主，共享样式表会串值）；
+ * - **无引用计数**：样式表生命周期 = 指令实例生命周期，调用方持有返回元素自行 remove
+ *   （值变 replace 姿态更新，空值/destroy 移除）。
+ *
+ * @param styles  提取 bind 后的 scoped CSS 文本数组（调用方已过 extractStyleBinds）
+ * @param scopeId 实例级随机 id（getId() 产物，实例内稳定）
+ * @returns 注入的 `<style>` 元素；空数组 / SSR 返回 undefined
+ */
+export function injectHostScopedStyle(
+    styles: string[],
+    scopeId: string,
+): HTMLStyleElement | undefined {
+    if (styles.length === 0) return undefined;
+    return injectStylesheet(() => styles.map((s) => rewriteScopedCss(s, scopeId)).join("\n"), {
+        id: `autospark-host-style-${scopeId}`,
+    });
+}
+
 /**
  * 释放组件实例的样式引用（计数 -1，归零移除 `<style>`）。
  */
@@ -277,9 +303,10 @@ export function releaseComponentStyle(defName: string): void {
 }
 
 /**
- * 给元素及其后代打 scoped 属性 `data-cmp-{scopeId}`（实例化时调用）。
+ * 给元素及其后代打 scoped 属性 `data-cmp-{scopeId}`（实例化时调用；组件 def 级数值 id
+ * 与 x-html.compile 实例级随机字符串 id 同用——属性名构造是唯一共用点）。
  */
-export function mountComponentScopedAttr(root: HTMLElement, scopeId: number): void {
+export function mountComponentScopedAttr(root: HTMLElement, scopeId: number | string): void {
     root.setAttribute(`data-cmp-${scopeId}`, "");
     root.querySelectorAll("*").forEach((n) => n.setAttribute(`data-cmp-${scopeId}`, ""));
 }

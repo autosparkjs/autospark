@@ -6,13 +6,10 @@ import type {
     ComponentStyleDecl,
 } from "../../features/component/component-def";
 import { evalComponentSetup, mergeComponentSetups, extractComponentHooks } from "./setup";
-import { extractStyleBinds, type StyleBind } from "../../utils/styleBind";
+import { extractStyleBinds, BIND_CALL_RE, type StyleBind } from "../../utils/styleBind";
 import type { AutoSparkScope } from "../scope";
 import { relaxedToJson } from "../../utils/relaxedToJson";
 import { getSlotMarker } from "../../utils/slot";
-
-/** `<style global>` 段内 bind 调用检测（ADR-0087：global 段不支持 bind，仅 warn 不提取） */
-const BIND_CALL_RE = /bind\s*\(/;
 
 /**
  * 判定 `<script>` 是否为组件 `<script setup>`（ADR-0022 决策四）。

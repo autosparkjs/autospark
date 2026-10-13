@@ -93,7 +93,8 @@ export default defineConfig({
                 { text: "自定义", link: "/zh/guide/notifications/custom" },
                 { text: "配置参数", link: "/zh/guide/notifications/config" },
               ],
-            },
+            },            
+            { text: "插件", link: "/zh/guide/plugin" },
             { text: "Scope", link: "/zh/guide/scope" }
           ],
         },
@@ -229,7 +230,23 @@ export default defineConfig({
             entryPoints: [path.resolve(__dirname, "../../../packages/engine/src/index.ts")],
             bundle: true,
             format: "iife",
-            globalName: "AutoSparkSpaces",
+            // 临时命名空间（不进公共面）——footer 重排与 tsup onSuccess 同款（ADR-0111 决策 1）：
+            // window.AutoSpark = 类本身，成员挂类静态，AutoSparkSpaces 兼容别名
+            globalName: "__AUTOSPARK_NS__",
+            footer: {
+              js: [
+                ";(function () {",
+                "    var ns = __AUTOSPARK_NS__;",
+                "    var C = ns.AutoSpark;",
+                "    for (var k in ns) {",
+                '        if (k !== "AutoSpark" && k !== "default" && !(k in C)) C[k] = ns[k];',
+                "    }",
+                "    C.AutoSpark = C;",
+                "    window.AutoSpark = C;",
+                "    window.AutoSparkSpaces = C;",
+                "})();",
+              ].join("\n"),
+            },
             target: "es2022",
             sourcemap: "inline",
             write: false,

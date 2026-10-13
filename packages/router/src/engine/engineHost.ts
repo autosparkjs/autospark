@@ -6,7 +6,8 @@ import { transformXOutlet } from "./xOutlet";
 /**
  * engine 集成层（ADR-0002）：router 与 AutoSpark engine 的接缝。
  *
- * 产物零耦合契约：router 不打包 engine、运行时经 window.AutoSparkSpaces 探测；
+ * 产物零耦合契约：router 不打包 engine、运行时经 window.AutoSparkSpaces 探测
+ * （兼容别名，ADR-0111 后主全局名为 window.AutoSpark，二者同对象）；
  * 类型面经 devDependencies 的 autospark（file:../engine）提供，import type 零运行时引用。
  */
 

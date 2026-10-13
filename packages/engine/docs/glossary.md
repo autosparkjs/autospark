@@ -87,6 +87,8 @@
 
 `patch` 的重建范围由 `updater` 返回值决定（四态）：`void`/同引用 → **子树重建**（destroy `scope.children` + `compileSubtree` 重挂，复用 `_recompileSubtree`，scope 自身不动）；新 `Node`/`string`(HTML) → **替换自身**；`null`/空串 → **删除自身**。替换/删除涉及 scope 自身 destroy + 模板/运行双侧 DOM 替换或移除。
 
+**投放模式**（[ADR-0109](adr/0109-patch-content-modes.md)）：`patch(selector, content, { mode?, ref? })` 的 string/Node 直投 + `mode` 决定放置——`replace`（缺省，替换自身，即上段四态语义）；**`inner`**（容器重填：清空全部子级、旧子 scope 逐个 destroy、容器自身与指令保留，空串=仅清空）；**`prepend`/`append`**（容器首/末子级插入，空串 no-op）。插入模式**编译先行**（失败零副作用）、插入节点挂**容器 scope**（继承数据上下文；对比 replace 挂 `scope.parent`）；`ref` 指定容器内 scope 子元素为锚点时改插锚点前/后，未命中/非 scope 拒绝。
+
 ### 增量编译 vs 全量编译
 
 - **增量编译（`patch`）**：仅动 patch 目标（子树重建 / 替换自身 / 删除自身），保留其余子树运行态（焦点/滚动/未提交输入）。
@@ -103,7 +105,7 @@
 
 ### x-scope（结构占位指令）
 
-零副作用 Compile 指令，唯一作用是让裸元素成为 scope（进正向桥）、从而可被 `engine.patch` 定位。`created`/`compile`/`destroy` 全 no-op，不建 `_scopes[id]` 数据域、不注入 `data`。等效 `x-data="{}"` 但更轻、更语义化。用法：`<div id="x" x-scope></div>` → `engine.patch("#x", ...)`。
+零副作用 Compile 指令，唯一作用是让裸元素成为 scope（进正向桥）、从而可被 `engine.patch` 定位——既作 patch 目标，也作插入模式 `ref` 锚点（ADR-0109，锚点须在正向桥内）。`created`/`compile`/`destroy` 全 no-op，不建 `_scopes[id]` 数据域、不注入 `data`。等效 `x-data="{}"` 但更轻、更语义化。用法：`<div id="x" x-scope></div>` → `engine.patch("#x", ...)`。
 
 ## 事件总线（信号面）
 
@@ -323,7 +325,7 @@ x-block **不绑定具体消费者**，是声明性资源——任意指令按�
 
 ### 传递绑定（Slot Bindings，ADR-0108）
 
-内容侧 `x-slot.bind="对象表达式"`（别名 `x-slot:名.bind`，正典为与槽标记同元素合写）：表达式在**调用方作用域** watch（depth:2），经 `SpreadBinder` 展开到**出口元素**（`SlotContent.bindingsExpr` 承载 → `SlotDirective._applyCallerBindings` 消费）。优先级**调用方赢**：覆盖出口静态属性与出口侧 `x-bind` 结果，class/style 合并（组件在前、调用方追加）；跨组件通道 `template: null` 不收集 reservedKeys 恒赢集。空 `<template x-slot.bind>` 只贡献绑定、不构成默认段；载体无附着内容 warn+丢弃；出口侧遇 `.bind` warn（裸形态值仍按动态出口名，ADR-0107 兼容）。绑定表达式**看不到插槽形参**（形参在内容 locals，绑定在调用方基准作用域）。
+内容侧 `x-slot.bind="对象表达式"`（别名 `x-slot:名.bind`，正典为与槽标记同元素合写）：表达式在**调用方视图** watch（`scope.watch(…, { context: "caller" })`——使用方 `x-data` 域可见、组件 `_data`/封闭边界跳过，与插槽内容同一基准；订阅路由看该路径是否仍解析自 store 根：全局 state 对象路径走 `watchPath` 精准订阅（depth:2 键级响应），使用方局部变量走表达式支路按实读收集依赖），经 `SpreadBinder` 展开到**出口元素**（`SlotContent.bindingsExpr` 承载 → `SlotDirective._applyCallerBindings` 消费）。优先级**调用方赢**：覆盖出口静态属性与出口侧 `x-bind` 结果，class/style 合并（组件在前、调用方追加）；跨组件通道 `template: null` 不收集 reservedKeys 恒赢集。空 `<template x-slot.bind>` 只贡献绑定、不构成默认段；载体无附着内容 warn+丢弃；出口侧遇 `.bind` warn（裸形态值仍按动态出口名，ADR-0107 兼容）。绑定表达式**看不到插槽形参**（形参在内容 locals，绑定在调用方基准作用域）。
 
 > **与 x-isolate 区分**：x-isolate 是 engine 边界/隔离快照（内部不编译）；x-slot 是组件内容投影（内容在调用方作用域编译）。旧 x-slot 曾是 isolate 前身名（ADR-0006 更名腾名），2026-09-24 由 ADR-0056 赋予插槽新义。
 

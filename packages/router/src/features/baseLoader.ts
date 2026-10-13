@@ -210,8 +210,8 @@ export abstract class RouteDataLoaderBase<
      * @param navSignal - 导航级别的中止信号
      */
     protected async loadRoute(matched: AutoSparkMatchedRouteItem, navSignal?: AbortSignal) {
-        // @ts-ignore
-        if (!matched.route[this._optionKey]) return;
+        // 404 未匹配项的 route 为 undefined（createUnmatchedRouteItem），无可加载的选项
+        if (!matched.route?.[this._optionKey]) return;
         const options = this.getRouteOptions(matched);
         let signal: IAsyncSignal;
         try {

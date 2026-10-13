@@ -24,14 +24,11 @@
         </div>
 
         <script>
-            // 结构指令超出 defineDirective 最小 spec，走类形态 + 全局安装队列（加载顺序无关）
-            (
-                window.__AUTOSPARK_DIRECTIVES__ = window.__AUTOSPARK_DIRECTIVES__ || []
-            ).push((engine) => {
-                const { AutoSparkDirectiveBase } = AutoSparkSpaces; // 安装器体执行时引擎必已加载
-                engine.directives.install(
+            // 结构指令超出 spec 键集——$.directive 类重载：$.directive(名称, 指令类)
+            (function ($) {
+                $.directive(
                     "reverse",
-                    class extends AutoSparkDirectiveBase {
+                    class extends $.AutoSparkDirectiveBase {
                         static kind = 0; // Compile：scope 通道
                         static ownsChildren() {
                             return true; // 接管子树，结构由本指令作主
@@ -45,9 +42,9 @@
                         }
                     },
                 );
-            });
+            })(AutoSpark);
 
-            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+            new AutoSpark(document.querySelector(".demo-app"), {
                 one: "甲",
                 two: "乙",
                 three: "丙",

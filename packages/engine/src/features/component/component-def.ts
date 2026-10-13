@@ -1,4 +1,5 @@
 import type { AutoSparkScope } from "../../engine/scope";
+import type { AutoSparkState } from "../../types";
 import type { StyleBind } from "../../utils/styleBind";
 
 /**
@@ -51,7 +52,7 @@ export interface ComponentMethodContext {
     /** `data` 的完全等价别名（同一聚合视图引用）；props 注入键位于聚合的自有层 */
     props: Record<string, any>;
     /** 全局状态（engine.store.state）——聚合视图同名键自有层优先遮蔽，取全局值用此通道 */
-    globalState: Record<string, any>;
+    globalState: AutoSparkState<Record<string, any>>;
     /** 当前 scope */
     scope: AutoSparkScope;
     [key: string]: any;

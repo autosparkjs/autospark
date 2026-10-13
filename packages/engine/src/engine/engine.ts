@@ -1,13 +1,34 @@
-import type { AutoSparkEvents, AutoSparkOptions, AutoSparkVars } from "../types";
+import type {
+    AutoSparkEvents,
+    AutoSparkOptions,
+    AutoSparkPatchContent,
+    AutoSparkPatchMode,
+    AutoSparkPatchOptions,
+    AutoSparkState,
+    AutoSparkVars,
+} from "../types";
 import type { ComponentDef } from "../features/component/component-def";
 import { DirectiveManager } from "../features/directive/manager";
-import {
-    defineDirective as defineDirectiveImpl,
-    setupGlobalDirectiveQueue,
-    unregisterLiveEngine,
-} from "../features/directive/global-queue";
+import { defineDirective as defineDirectiveImpl } from "../features/directive/global-queue";
 import type { DirectiveSpec } from "../features/directive/global-queue";
-import type { AutoSparkDirectiveBase } from "../features/directive/base";
+// 运行时 import（非 type）：directive 类重载的 instanceof 校验需要基类本体
+// （engine.ts 为组装根，ADR-0093 分层豁免位）
+import { AutoSparkDirectiveBase } from "../features/directive/base";
+import {
+    deletePluginActionDecl,
+    enqueueDirectiveInstaller,
+    firePluginReady,
+    getPluginActionDecl,
+    getPluginComponentRaw,
+    hasPluginComponent,
+    pluginActions,
+    pluginComponents,
+    putSharedComponentDef,
+    registerPluginReady,
+    setupPluginQueue,
+    takeSharedComponentDef,
+    unregisterPluginEngine,
+} from "../features/plugin";
 import { AutoSparkCompiler } from "./compile/compiler";
 import { AutoStore, ConfigManager, FastEvent, isAutoStore } from "autostore";
 import type { AutoStoreOptions } from "autostore";
@@ -16,7 +37,7 @@ import { UpdateScheduler } from "./scheduler";
 import { RuntimeObserverDispatcher } from "../features/directive/runtime/dispatcher";
 import { parseHtmlFragment, pickSingleRootElement } from "../utils/transformElement";
 import { ActionManager } from "../features/action/manager";
-import type { AutoSparkAction } from "../features/action/types";
+import type { ActionDecl, AutoSparkAction } from "../features/action/types";
 import { recompileSubtree } from "../utils/recompileSubtree";
 import { AutoSparkAnimator } from "../features/animate/animate";
 import {
@@ -80,25 +101,74 @@ export class AutoSpark<
      */
     static readonly icons: IconRegistry = iconRegistry;
 
+ 
     /**
-     * 定义外部指令并**立即加入全局安装队列**（定义即全局安装，ADR-0100 决策 10）：
-     * 造类（继承 `AutoSparkDirectiveBase`）→ 安装器入队（存活 engine 即时生效；尚无 engine
-     * 则待首个构造消费）→ 返回类本身（可组合、可测试）。
-     *
-     * spec 为最小键集（`name` 必填 / `kind` / `priority` / 六个实例钩子）；结构指令、元素名
-     * 指令、类级钩子（`initialize`/`dispose`）等高级形态请直接继承基类并经
-     * `engine.directives.set` / `install` 注册。script 场景经 IIFE 全局
-     * `AutoSparkSpaces.AutoSpark.defineDirective(...)` 取用。
+     * 插件全局组件声明表（ADR-0111 决策 5）：名字 → 模板字符串，**跨 engine 真全局**
+     * （对照：`options.components` 是 engine 级注册位）。engine 查找链到顶查询期委托兜底
+     * 查本表：`scope 局部 → options.components → 本表 → builtinComponents`；晚注册天然
+     * 立即生效（无复制、无广播），命中时惰性预编译入全局 def 缓存（每组件名全局只编译
+     * 一次，多 engine 共享编译产物）。同名后注册覆盖先注册。
      */
-    static defineDirective(spec: DirectiveSpec): typeof AutoSparkDirectiveBase {
-        return defineDirectiveImpl(spec);
+    static readonly components: Record<string, string> = pluginComponents;
+
+    /**
+     * 插件全局 action 声明表（ADR-0111 决策 5）：声明形态（函数简写 | 对象写法），
+     * **跨 engine 真全局**（对照：`options.actions` / `engine.actions` 是 engine 级）。
+     * scope `getAction` 链末端兜底查本表：`scope 局部 script → engine → 本表`；命中即经
+     * **触发 engine** 惰性物化（规范化 + buildAction 包装绑定本 engine 的总线与生命周期
+     * 广播）——同一声明在多实例中各绑定各的触发上下文，声明无状态即可安全共享。
+     */
+    static readonly actions: Record<string, ActionDecl> = pluginActions;
+
+    /**
+     * 注册插件就绪回调（ADR-0111 决策 4）：对**每个 engine 构造完成后**各调一次（回调收
+     * engine 实例，时机 = `engine/ready` 事件发射处）；engine 已存在时注册立即对所有存活
+     * engine 各补调一次（retain 语义）；回调抛错隔离记日志；engine destroy 摘出存活表。
+     * script 场景经 IIFE 全局 `AutoSpark.ready(fn)` 取用（`$` 为插件脚本内形参缩写）。
+     */
+    static ready(fn: (engine: AutoSpark<any>) => void): void {
+        registerPluginReady(fn);
+    }
+
+    /**
+     * 定义外部指令并**立即加入安装队列**（定义即全局安装，ADR-0111 决策 5/8）——
+     * 插件侧指令定义的**唯一入口**，双重载按实参形态分派：
+     *
+     * - **spec 重载** `$.directive(spec)`：最小键集（`name` 必填 / `kind` / `priority` /
+     *   六个实例钩子），造类（继承 `AutoSparkDirectiveBase`）→ 安装器入插件机制的内存队列
+     *   → 返回类本身（可组合、可测试）；
+     * - **类重载** `$.directive(name, Cls)`：结构指令（`ownsChildren`）、元素名指令
+     *   （`elementName`）、类级钩子（`static initialize`/`dispose`）、`singleton` 等超出
+     *   spec 键集的高级形态——直接继承基类造类后安装。
+     *
+     * 两重载同语义：安装器在 engine 构造期被消费（先于首次编译）；晚定义广播全部存活
+     * engine（Runtime 即时生效 / Compile 只影响未来编译）；撞名走 `DirectiveManager.install`
+     * （撞预设名 warn + 跳过 / 撞自定义名 warn + 覆盖）。
+     */
+    static directive(spec: DirectiveSpec): typeof AutoSparkDirectiveBase;
+    static directive(name: string, Cls: typeof AutoSparkDirectiveBase): void;
+    static directive(
+        specOrName: DirectiveSpec | string,
+        Cls?: typeof AutoSparkDirectiveBase,
+    ): typeof AutoSparkDirectiveBase | void {
+        if (typeof specOrName === "string") {
+            if (!Cls || !(Cls.prototype instanceof AutoSparkDirectiveBase)) {
+                throw new Error(
+                    `AutoSpark.directive: 类重载须提供继承 AutoSparkDirectiveBase 的指令类（收到 ${String(Cls)}）`,
+                );
+            }
+            enqueueDirectiveInstaller((engine) => {
+                engine.directives.install(specOrName, Cls);
+            });
+            return;
+        }
+        return defineDirectiveImpl(specOrName);
     }
 
     /** 挂载容器（编译产物替换其子节点，容器本身保留） */
     readonly el: HTMLElement;
     /** 响应式数据源：engine 在 `_createStore` 内自建并拥有（destroy 时销毁）。ADR-0044 */
-    readonly store: AutoStore<State>;
-    readonly vars: AutoSparkVars = {};
+    readonly store: AutoStore<State & { $: AutoSparkVars }>;
     /**
      * engine 自建的默认 configManager（`_createStore` 补缺省时创建）。
      * destroy 时仅销毁此实例；消费者经 `storeOptions.configManager` 传入的不动（所有权对称，ADR-0044）。
@@ -140,22 +210,27 @@ export class AutoSpark<
     /**
      * 整个 engine 响应式数据驱动的核心：直接暴露 `store.state`（响应式根状态）。
      * 作为 scope 聚合视图（getContext）的根 fallback、模板表达式求值的最终数据源。
+     *
+     * 顶层保留键 `$`（元状态容器，ADR-0105）已类型化为必选 `AutoSparkVars`（ADR-0112）——
+     * 例外：`options.viewport === false` 或环境无 matchMedia 时容器不注入（类型已知偏差）。
      */
-    get state() {
-        return this.store.state;
+    get state(): AutoSparkState<State> {
+        return this.store.state as AutoSparkState<State>;
     }
 
     /** 是否已编译并挂载 */
     private pending = false;
 
     /**
-     * @param el       挂载根元素（必须是 HTMLElement）
+     * @param el       挂载根元素：HTMLElement 或 CSS 选择器串（如 `"#app"`，经
+     *                 `document.querySelector` 解析，取命中的第一个元素）。
      * @param state    裸状态对象：engine 在 `_createStore` 内自建 AutoStore 并拥有、destroy 时销毁（ADR-0044）。
      *                 null/undefined 静默兜成空 store（不抛错，沿用 ADR-0009 决策 5）。
      * @param options  配置选项（`storeOptions` 恒消费，字段级默认见 `_createStore`）
-     * @throws {Error} el 非 HTMLElement；state 为 AutoStore 实例（不再接受借用，ADR-0044）
+     * @throws {Error} 选择器无命中 / 命中非 HTMLElement；或传入的 el 既非 HTMLElement 亦非串；
+     *                 state 为 AutoStore 实例（不再接受借用，ADR-0044）
      */
-    constructor(el: HTMLElement, state: State, options?: Partial<AutoSparkOptions<State>>) {
+    constructor(el: HTMLElement | string, state: State, options?: Partial<AutoSparkOptions<State>>) {
         const { components: userComponents, builtinComponents: userBuiltins, ...restOptions } = (
             options ?? {}
         ) as Partial<AutoSparkOptions<State>>;
@@ -173,14 +248,23 @@ export class AutoSpark<
             builtinComponents,
         };
         super({ ...init, ...restOptions });
+        // 根元素解析：选择器串经 querySelector 取首个命中（无命中 / 命中非 HTMLElement 即抛）
+        const rootEl =
+            typeof el === "string"
+                ? (document.querySelector<HTMLElement>(el) ?? null)
+                : el;
+        if (!(rootEl instanceof HTMLElement)) {
+            throw new Error(
+                typeof el === "string"
+                    ? `Root element not found for selector: "${el}" (or matched a non-HTMLElement node)`
+                    : "Root element must be an HTMLElement",
+            );
+        }
+        this.el = rootEl;
         // global 样式注入时机（ADR-0092）：内置组件的 `<style global>` 随**首次懒预编译**注入
         // （_resolveGlobalComponent 构建 def 即注册——先于任何实例挂载，无 FOUC），不做构造期
         // 预热：head 容器保持惰性创建（构造期预热会提前建共享容器，破坏「无组件声明则无容器」
         // 的环境假设）。
-        if (!(el instanceof HTMLElement)) {
-            throw new Error("Root element must be an HTMLElement");
-        }
-        this.el = el;
         this.store = this._createStore(state, options);
         // 注入框架保留键 $scopes（x-data 私有响应式域容器）；1 engine 1 store 约定下由 engine 负责
         this._ensureScopesState();
@@ -195,19 +279,19 @@ export class AutoSpark<
         if (options?.icons) {
             for (const [name, svg] of Object.entries(options.icons)) iconRegistry.add(name, svg);
         }
-        this.template = el.cloneNode(true) as HTMLElement;
+        this.template = rootEl.cloneNode(true) as HTMLElement;
         // engine 根标识（ADR-0060）：真实 DOM 上爬类查找（queryRelElement 的 ^ closest 与 ../ 爬升）
         // 遇此属性即止步，不越入相邻 engine 的 DOM。所有 engine 共通（app 根与 x-isolate 宿主一视同仁）。
         // 打点在 template 克隆之后——属性不进模板，不随编译产物浅克隆扩散到结果树其他元素。
-        el.setAttribute("data-autospark", "");
+        rootEl.setAttribute("data-autospark", "");
 
         this.scheduler = new UpdateScheduler(this);
         this.compiler = new AutoSparkCompiler(this);
         this.directives = new DirectiveManager(this);
-        // 外部指令全局安装队列（ADR-0100 决策 3/4）：首次调用 Proxy 化
-        // `window.__AUTOSPARK_DIRECTIVES__`，随后全量消费现有队列 → 本 engine（安装器在
-        // autostart compile 前注册，保证参与首次编译），并入存活表（push trap 的广播目标）
-        setupGlobalDirectiveQueue(this);
+        // 插件机制构造期接入（ADR-0111 决策 4/5）：全量消费插件指令安装器内存队列 → 本
+        // engine（安装器在 autostart compile 前注册，保证参与首次编译），并入存活表
+        // （晚入队安装器与就绪回调的广播目标）
+        setupPluginQueue(this);
         this.dispatcher = new RuntimeObserverDispatcher(this);
         // 进出场动画服务（ADR-0039）：样式注入须早于首次状态变化驱动的挂卸
         this.animate = new AutoSparkAnimator();
@@ -236,6 +320,9 @@ export class AutoSpark<
         // 之后、engine/ready 之前——初始扫描会同步触发首次 mounted，依赖样式已注入。
         this.dispatcher.start();
         this.emit("engine/ready", { el: this.el }, true);
+        // 插件就绪回调（ADR-0111 决策 4）：全部就绪回调对本 engine 各调一次（retain 语义的
+        // 构造侧触发——晚注册的回调经 registerPluginReady 对存活 engine 补调）
+        firePluginReady(this);
     }
 
     /**
@@ -254,7 +341,7 @@ export class AutoSpark<
     private _createStore(
         state: State,
         options?: Partial<AutoSparkOptions<State>>,
-    ): AutoStore<State> {
+    ): AutoStore<State & { $: AutoSparkVars }> {
         if (isAutoStore(state)) {
             throw new Error(
                 "AutoSpark no longer accepts an AutoStore instance. Pass plain state and configure the store via options.storeOptions instead (ADR-0044).",
@@ -266,7 +353,13 @@ export class AutoSpark<
             storeOptions.configManager = this._ownedConfigManager;
         }
         storeOptions.configKey = "";
-        return new AutoStore(state as State, storeOptions);
+        // 断言点（ADR-0112 决策一）：engine 保证构造期注入 `state.$` 元状态容器，store 的
+        // 状态类型因此在 State 之上恒并 `{$: AutoSparkVars}`。唯一断言位——`AutoSparkOptions`
+        // .storeOptions 等公共面维持 `State`，不外溢（变位未验证，不赌）。`AutoStore` 对 State
+        // 不变，双向皆不重叠，故经 unknown 双重断言。
+        return new AutoStore(state as State, storeOptions) as unknown as AutoStore<
+            State & { $: AutoSparkVars }
+        >;
     }
 
     // 显式注解：logger 的推断类型源自 autostore 传递依赖 flex-tools，声明发射不可移植（TS2742）；
@@ -286,6 +379,23 @@ export class AutoSpark<
      */
     get actions(): Record<string, AutoSparkAction> {
         return this.actionsManager.proxy;
+    }
+
+    /**
+     * 插件全局 action 惰性物化（ADR-0111 决策 5）：scope `getAction` 链末端查插件全局表
+     * （`AutoSpark.actions`）命中时调用——把声明交给**本 engine** 的 ActionManager 注册
+     * （Proxy set trap 规范化 + buildAction 包装，总线与生命周期广播绑定本 engine），返回
+     * 物化后的描述符。同一声明在多实例中各绑定各的触发上下文；物化后即入本 engine 的
+     * actions 表，后续查找走常规链。非法声明（error 已记）从插件表清除，避免重复报错；
+     * 未命中返回 undefined。
+     */
+    materializePluginAction(name: string): AutoSparkAction | undefined {
+        const decl = getPluginActionDecl(name);
+        if (decl === undefined) return undefined;
+        this.actions[name] = decl;
+        const desc = this.actions[name];
+        if (desc === undefined) deletePluginActionDecl(name);
+        return desc;
     }
 
     /**
@@ -496,17 +606,24 @@ export class AutoSpark<
     }
 
     /**
-     * 全局组件兜底解析（ADR-0022 承接 ADR-0021 决策 9/10/11）：`scope.getComponentDeclaration` 到顶后委托本方法。
+     * 全局组件兜底解析（ADR-0022 承接 ADR-0021 决策 9/10/11；ADR-0111 扩展三层声明源）：
+     * `scope.getComponentDeclaration` 到顶后委托本方法。
      *
-     * 懒预编译：首次访问某全局组件时，把双注册位（`options.components` > `options.builtinComponents`，
-     * ADR-0094）中命中的字符串入参解析为 DOM，按自动包装规则（决策 10）规范化为「恰好一个带
+     * 懒预编译：首次访问某全局组件时，把三层声明源（`options.components` > **插件全局表
+     * `AutoSpark.components`** > `options.builtinComponents`，ADR-0111 决策 5 扩展 ADR-0094
+     * 双注册位）中命中的字符串入参解析为 DOM，按自动包装规则（决策 10）规范化为「恰好一个带
      * `x-define` 的根元素」，存入 `_globalComponentDefs`；后续命中直接返回缓存（消费者自管
-     * `cloneNode(true)`）。解析失败/不存在 → 记 null 缓存 + 返回 undefined（视为未命中，由消费者
-     * 回退默认实现；记 null 避免重复解析尝试）。
+     * `cloneNode(true)`）。解析失败 → 记 null 缓存 + 返回 undefined（避免重复编译尝试）；
+     * **各声明源均无 → 直接返回 undefined 不缓存**——三层查找 O(1) 可重复，插件表晚注册的
+     * 组件对已查询过的名字同样立即生效（ADR-0111 决策 5 查询期委托的核心承诺）。
+     *
+     * **插件来源的编译产物共享**（ADR-0111 决策 5）：命中插件全局表时，def 额外写入
+     * `features/plugin` 的全局缓存——每组件名全局只编译一次，其他 engine（含后建）直接取
+     * 共享产物挂账（`registerComponentDef` 的 per-engine 样式注入 / 快照反查照常执行）。
      *
      * **不注入 x-scope**（决策 7 修订：scope 由消费编译路径 compileChild 内禀保证）。
      * **不回写 options.components**（不突变用户输入）。**运行时突变任一注册位不失效缓存**
-     * （构造期配置语义，与 actions/sanitizer 等同纪律）。
+     * （构造期配置语义，与 actions/sanitizer 等同纪律；插件表晚注册对未查询过的组件名天然生效）。
      * **builtin 标记**：def 构建时按「模板与内置种子表原版逐字相同」写入（命中点级接管判定，
      * 消费者据此分装配路径）。
      *
@@ -517,17 +634,34 @@ export class AutoSpark<
         if (this._globalComponentDefs.has(name)) {
             return this._globalComponentDefs.get(name)?.snapshot;
         }
-        // 双注册位回退（ADR-0094）：components 命中有效字符串即用，否则兜底 builtinComponents——
-        // components 侧垃圾值（非字符串/空串）不挡内置兜底
+        // 三层声明源回退（ADR-0111 扩展 ADR-0094 双注册位）：前层命中有效字符串即用，
+        // 垃圾值（非字符串/空串）不挡后层兜底。插件层精确判定来源（options 未命中才取），
+        // 供共享缓存挂账/回写分流
         const pickRaw = (v: unknown): string | undefined =>
             typeof v === "string" && v.trim() !== "" ? v : undefined;
-        const raw =
-            pickRaw(this.options.components?.[name]) ??
-            pickRaw(this.options.builtinComponents?.[name]);
+        const optRaw = pickRaw(this.options.components?.[name]);
+        const pluginRaw = optRaw === undefined ? pickRaw(getPluginComponentRaw(name)) : undefined;
+        const raw = optRaw ?? pluginRaw ?? pickRaw(this.options.builtinComponents?.[name]);
         if (raw === undefined) {
-            // 双表均无有效字符串 → 记 null（视为未命中），避免重复判定
-            this._globalComponentDefs.set(name, null);
+            // 各声明源均无有效字符串 → 直接未命中，**不缓存**：null 标记会挡住插件表对
+            // 该名的晚注册（查询期委托承诺晚注册立即生效，ADR-0111 决策 5）；三层查找
+            // 本身 O(1)，重复判定零负担
             return undefined;
+        }
+        // 插件来源（ADR-0111 决策 5）：共享 def 缓存命中直接挂账——编译产物跨 engine 共享，
+        // 跳过重复编译；null 为历史编译失败标记（同样直接判未命中，不再重复尝试）
+        const cacheShared = (def: ComponentDef | null): void => {
+            if (pluginRaw !== undefined) putSharedComponentDef(name, def);
+        };
+        if (pluginRaw !== undefined) {
+            const shared = takeSharedComponentDef(name);
+            if (shared !== undefined) {
+                if (shared === null) return undefined;
+                this._globalComponentDefs.set(name, shared);
+                this.registerComponentDef(shared);
+                this._afterComponentRegistered(name, true);
+                return shared.snapshot;
+            }
         }
         let root: HTMLElement | null = null;
         try {
@@ -535,11 +669,13 @@ export class AutoSpark<
         } catch (e: any) {
             this.logger.warn(`全局组件 "${name}" 解析失败，视为未命中: ${e?.message ?? e}`);
             this._globalComponentDefs.set(name, null);
+            cacheShared(null);
             return undefined;
         }
         if (!root) {
             this.logger.warn(`全局组件 "${name}" 解析为空，视为未命中`);
             this._globalComponentDefs.set(name, null);
+            cacheShared(null);
             return undefined;
         }
         // 全局组件继承（ADR-0081 V1 边界修订，ADR-0083）：字符串入参带 x-define:inherit 时经
@@ -565,9 +701,11 @@ export class AutoSpark<
                 // ADR-0085：懒预编译首解析成功即视为「注册」——发按名事件 + 排水。
                 // 判据天然成立：函数入口已对「表中有条目」早返回，走到此处必为首解析。
                 this._afterComponentRegistered(name, true);
+                cacheShared(resolved);
                 return resolved.snapshot;
             }
             this._globalComponentDefs.set(name, null);
+            cacheShared(null);
             return undefined;
         }
         // 组装组件定义：提取 <script setup>/<style>、求值合并 setup、克隆洁净快照（剥离 script/style）。
@@ -578,6 +716,7 @@ export class AutoSpark<
         // def 注册统一走 registerComponentDef（快照反查 + global 样式注入收口，ADR-0087）
         this.registerComponentDef(def);
         this._afterComponentRegistered(name, true);
+        cacheShared(def);
         return def.snapshot;
     }
 
@@ -591,13 +730,14 @@ export class AutoSpark<
         return this.getGlobalComponentDef(name) ?? null;
     }
 
-    /** 全局组件是否已有来源（定义表 / 双注册位任一命中）——运行时注册的覆盖 warn 判据。
-     *  定义表的 null 是「查过且无」的未命中缓存标记（懒预编译写入），不算已有来源——
-     *  否则注册前的一次未命中查找（如 x-component pending 的候选回溯）会让首次注册误报覆盖。 */
+    /** 全局组件是否已有来源（定义表 / 双注册位 / 插件全局表任一命中）——运行时注册的覆盖 warn 判据。
+     *  定义表的 null 是「编译过且失败」的缓存标记（懒预编译写入），不算已有来源——
+     *  失败产物无有效内容，同名重新注册（含修复插件声明后）不应误报覆盖。 */
     private _hasGlobalComponentSource(name: string): boolean {
         return (
             this._globalComponentDefs.get(name) != null ||
             this.options.components?.[name] != null ||
+            hasPluginComponent(name) ||
             this.options.builtinComponents?.[name] != null
         );
     }
@@ -907,24 +1047,41 @@ export class AutoSpark<
      * （焦点/滚动/未提交输入）。selector 对 `engine.template` querySelector；命中须为 scope
      * （含指令或 `{{}}` 插值的元素；纯静态裸元素需挂 `x-scope` 哨兵）。
      *
-     * **返回四态**（判定用 `===`/`typeof`，`undefined != null` 严格区分）：
+     * **`replace` 模式返回四态**（判定用 `===`/`typeof`，`undefined != null` 严格区分；
+     * 仅函数内容适用，string/Node 直投等价 updater 返回该内容）：
      * - `void`/`undefined` 或 `=== templateEl` → **子树重建**（复用 `recompileSubtree`）
      * - 新 `Node`（`!== templateEl`）→ **替换自身**
      * - `string`（HTML）→ **替换自身**（`<template>` 解析，可多节点，空串=删除）
      * - `null` → **删除自身**
      *
+     * **内容投放模式**（ADR-0109，`options.mode`，缺省 `replace`）：
+     * - `replace`：内容**替换 T 本身**（上方四态；空串直投=删除）
+     * - `inner`：清空 T 全部子级（旧子 scope 逐个 destroy）后放入新内容，T 自身及指令保留；
+     *   空串 = 仅清空（等价 `innerHTML=''`）
+     * - `prepend` / `append`：插入为 T 的第一个/最后一个子节点（多节点全插，T 自身保留）；
+     *   空串 = no-op。`options.ref` 指定**容器内**锚点（CSS 选择器，须命中 scope 元素）时
+     *   改插到锚点前（prepend）/后（append）；ref 为空 = 容器首尾，未命中/非 scope =
+     *   warn no-op（inner/replace 忽略 ref）。插入节点挂 **T 的 scope**（继承其数据上下文；
+     *   replace 挂 `scope.parent`）
+     * - 插入模式**编译先行**：新内容编译成功才动两侧 DOM，失败零副作用（回滚编译期新建 scope）
+     * - 函数 + 插入模式：返回 string/Node 即待插入内容；`undefined`/`T` 静默 no-op；
+     *   `null` warn（replace 的删除语义在此无意义）
+     *
      * **动态区域守卫**：patch 目标自身或祖先链含 ownsChildren 结构指令（x-for / eager x-if /
      * x-isolate / eager x-switch）→ 拒绝（运行侧结构非同构，正向桥不可靠）。
      *
-     * updater 抛错则记日志、不重建；patch 后同步 `flushAll`，返回时 DOM 已更新。dispatcher 经
-     * MutationObserver 自动处理新/旧节点的 runtime 指令 mount/unmount，patch 不直接操作。
+     * updater 抛错则记日志、不重建；非法 `mode` 值 warn + no-op（options 未知键静默忽略）；
+     * patch 后同步 `flushAll`，返回时 DOM 已更新。dispatcher 经 MutationObserver 自动处理
+     * 新/旧节点的 runtime 指令 mount/unmount，patch 不直接操作。
      *
      * @param selector 对 `engine.template` 的 CSS 选择器（命中的须为 scope 元素）
-     * @param updater  接收命中的模板元素，就地修改；返回值决定重建语义
+     * @param content  待投放内容：string（HTML 片段）/ Node（引擎接管移入模板树）/ updater 回调
+     * @param options  选项（`mode` 投放模式缺省 `replace`；`ref` 容器内锚点选择器；ADR-0109）
      */
     patch(
         selector: string,
-        updater: (templateEl: HTMLElement) => Node | string | null | undefined,
+        content: AutoSparkPatchContent,
+        options?: AutoSparkPatchOptions,
     ): this {
         const hit = this.template.querySelector(selector);
         if (!hit || !(hit instanceof HTMLElement)) {
@@ -950,35 +1107,197 @@ export class AutoSpark<
             this.logger.warn(`engine.patch: "${selector}" 的 scope 已失效（运行元素被回收）`);
             return this;
         }
-        this.emit("engine/patch/before", { selector, el });
-        let R: Node | string | null | undefined;
-        try {
-            R = updater(T);
-        } catch (e: any) {
-            this.logger.error(`engine.patch updater 抛错，不重建: ${e?.message ?? e}`);
+        const mode = options?.mode ?? "replace";
+        const ref = options?.ref || undefined; // 空串归一为无 ref（ADR-0109）
+        if (mode !== "replace" && mode !== "inner" && mode !== "prepend" && mode !== "append") {
+            this.logger.warn(
+                `engine.patch: 非法 mode "${mode}"（须为 replace/inner/prepend/append），已忽略`,
+            );
             return this;
         }
-        if (R === null) {
-            this._deleteSelf(scope, T, el);
-        } else if (R === undefined || R === T) {
-            recompileSubtree(scope, el);
-        } else if (typeof R === "string") {
-            const frag = parseHtmlFragment(R);
-            const nodes = frag ? Array.from(frag.childNodes) : [];
-            if (nodes.length === 0) {
-                this._deleteSelf(scope, T, el);
-            } else {
-                this._replaceSelf(scope, T, el, nodes);
+        this.emit("engine/patch/before", { selector, el, mode });
+        const insert = mode !== "replace";
+        if (typeof content === "function") {
+            let R: Node | string | null | undefined;
+            try {
+                R = content(T);
+            } catch (e: any) {
+                this.logger.error(`engine.patch updater 抛错，不重建: ${e?.message ?? e}`);
+                return this;
             }
-        } else if (R instanceof Node) {
-            this._replaceSelf(scope, T, el, [R]);
+            if (insert) {
+                // 插入模式：undefined/T 静默 no-op；null warn（replace 的删除语义在此无意义）
+                if (R === null) {
+                    this.logger.warn(
+                        `engine.patch: 插入模式下 updater 返回 null（无删除语义），已忽略`,
+                    );
+                } else if (R === undefined || R === T) {
+                    // 静默 no-op
+                } else if (typeof R === "string") {
+                    this._insertParsed(scope, T, el, R, mode, ref);
+                } else if (R instanceof Node) {
+                    this._insertInto(scope, T, el, [R], mode, ref);
+                } else {
+                    this.logger.warn(`engine.patch: updater 返回了非法类型（${typeof R}），已忽略`);
+                    return this;
+                }
+            } else if (R === null) {
+                this._deleteSelf(scope, T, el);
+            } else if (R === undefined || R === T) {
+                recompileSubtree(scope, el);
+            } else if (typeof R === "string") {
+                const nodes = this._parseNodes(R);
+                if (nodes.length === 0) {
+                    this._deleteSelf(scope, T, el);
+                } else {
+                    this._replaceSelf(scope, T, el, nodes);
+                }
+            } else if (R instanceof Node) {
+                this._replaceSelf(scope, T, el, [R]);
+            } else {
+                this.logger.warn(`engine.patch: updater 返回了非法类型（${typeof R}），已忽略`);
+                return this;
+            }
+        } else if (typeof content === "string") {
+            if (insert) {
+                this._insertParsed(scope, T, el, content, mode, ref);
+            } else {
+                const nodes = this._parseNodes(content);
+                if (nodes.length === 0) {
+                    this._deleteSelf(scope, T, el);
+                } else {
+                    this._replaceSelf(scope, T, el, nodes);
+                }
+            }
+        } else if (content instanceof Node) {
+            if (insert) {
+                this._insertInto(scope, T, el, [content], mode, ref);
+            } else {
+                this._replaceSelf(scope, T, el, [content]);
+            }
         } else {
-            this.logger.warn(`engine.patch: updater 返回了非法类型（${typeof R}），已忽略`);
+            this.logger.warn(`engine.patch: 内容类型非法（${typeof content}），已忽略`);
             return this;
         }
         this.scheduler.flushAll();
-        this.emit("engine/patch/after", { selector });
+        this.emit("engine/patch/after", { selector, mode });
         return this;
+    }
+
+    /** 解析 HTML 片段为模板节点数组（空/纯空白 → 空数组） */
+    private _parseNodes(html: string): Node[] {
+        const frag = parseHtmlFragment(html);
+        return frag ? Array.from(frag.childNodes) : [];
+    }
+
+    /**
+     * 插入模式（inner/prepend/append，ADR-0109）共用实现：**编译先行**，成功才动两侧 DOM
+     * （编译失败回滚编译期新建 scope，模板/运行树零副作用）。
+     *
+     * - ref 锚点解析最前置（失败 warn + no-op，发生在任何副作用之前）；
+     * - `inner`：先销毁旧子 scope（快照迭代——编译期新建的 scope 已入 children 不受波及；
+     *   destroy 自摘 parent.children），再 `replaceChildren` 双侧换装；T 自身及其指令保留；
+     * - `prepend` / `append`：模板 T / 运行 el 双侧同位插入首/末子级；有 ref 锚点时改为
+     *   锚点前/后（锚点为容器内 scope 子元素，模板/运行化身成对可得）。
+     *
+     * 插入顶层节点挂 **T 的 scope**（不同于 replace 的 `scope.parent`——T 自身保留在树中）。
+     * 调用方保证 mode ∈ {inner, prepend, append}；ref 仅 prepend/append 有意义。
+     */
+    private _insertInto(
+        scope: AutoSparkScope,
+        T: HTMLElement,
+        el: HTMLElement,
+        templateNodes: Node[],
+        mode: AutoSparkPatchMode,
+        ref?: string,
+    ): void {
+        // ① ref 锚点解析（先于编译：失败零副作用；inner 恒无锚——清空后锚点不存在）
+        let anchor: { tEl: HTMLElement; rEl: HTMLElement } | null = null;
+        if (ref && mode !== "inner") {
+            anchor = this._resolveRefAnchor(T, ref);
+            if (!anchor) return;
+        }
+        // ② 编译先行（挂 T 的 scope；失败回滚新建 scope，两侧 DOM 不动）
+        const oldChildren = new Set(scope.children);
+        let runtimeNodes: Node[];
+        try {
+            runtimeNodes = this.compiler.compileChildNodes(templateNodes, scope);
+        } catch (e: any) {
+            for (const child of scope.children) {
+                if (!oldChildren.has(child)) child.destroy();
+            }
+            this.logger.error(`engine.patch 编译失败，模板/运行树未变: ${e?.message ?? e}`);
+            return;
+        }
+        // ③ inner：销毁旧子 scope（watcher off + 自摘 parent.children；dispatcher 检测 remove → unmounted）
+        if (mode === "inner") {
+            for (const child of oldChildren) child.destroy();
+        }
+        // ④ 双侧同位落位（ref 锚点已在①校验，失败路径不会到达此处）
+        if (mode === "inner") {
+            T.replaceChildren(...templateNodes);
+            el.replaceChildren(...runtimeNodes);
+        } else if (anchor) {
+            if (mode === "prepend") {
+                anchor.tEl.before(...templateNodes);
+                anchor.rEl.before(...runtimeNodes);
+            } else {
+                anchor.tEl.after(...templateNodes);
+                anchor.rEl.after(...runtimeNodes);
+            }
+        } else if (mode === "prepend") {
+            T.prepend(...templateNodes);
+            el.prepend(...runtimeNodes);
+        } else {
+            T.append(...templateNodes);
+            el.append(...runtimeNodes);
+        }
+    }
+
+    /**
+     * ref 锚点解析（ADR-0109）：容器 T 内按选择器命中元素，且须为 scope 元素（有正向桥，
+     * 模板/运行化身成对可得；纯静态子元素无运行映射——与容器资格同口径，指引挂 `x-scope`）。
+     * 未命中/非 scope → warn + 返回 null（调用方 no-op）。
+     */
+    private _resolveRefAnchor(
+        T: HTMLElement,
+        ref: string,
+    ): { tEl: HTMLElement; rEl: HTMLElement } | null {
+        const refT = T.querySelector(ref);
+        if (!refT || !(refT instanceof HTMLElement)) {
+            this.logger.warn(`engine.patch: ref "${ref}" 在容器内未命中元素，已忽略`);
+            return null;
+        }
+        const refScope = this.compiler.getScopeByTemplate(refT);
+        if (!refScope?.el) {
+            this.logger.warn(
+                `engine.patch: ref "${ref}" 命中的元素非 scope 元素（需挂 x-scope），已忽略`,
+            );
+            return null;
+        }
+        return { tEl: refT, rEl: refScope.el };
+    }
+
+    /**
+     * 插入模式的字符串内容解析分发：空片段按模式退化——`inner`=仅清空（等价 `innerHTML=''`）、
+     * `prepend`/`append`=no-op。
+     */
+    private _insertParsed(
+        scope: AutoSparkScope,
+        T: HTMLElement,
+        el: HTMLElement,
+        html: string,
+        mode: AutoSparkPatchMode,
+        ref?: string,
+    ): void {
+        const nodes = this._parseNodes(html);
+        if (nodes.length === 0) {
+            if (mode === "inner") {
+                this._insertInto(scope, T, el, [], mode);
+            }
+            return;
+        }
+        this._insertInto(scope, T, el, nodes, mode, ref);
     }
 
     /**
@@ -1348,7 +1667,7 @@ export class AutoSpark<
         // 类级销毁：对所有已 initialize 的指令类调用 static dispose(engine)。
         this.directives.disposeAll();
         // 摘除全局安装队列存活表（ADR-0100 决策 12）：销毁后不再触达晚到的安装器
-        unregisterLiveEngine(this);
+        unregisterPluginEngine(this);
         // 断开 runtime 共享 observer + 卸载全部 live 实例（先于 DOM 清理，避免拆 DOM 时空转回调）
         this.dispatcher.dispose();
         this.scheduler.clear();

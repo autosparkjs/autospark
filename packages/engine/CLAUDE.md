@@ -8,7 +8,7 @@ AutoSpark（原 AutoTemplate Engine，更名决策见 [ADR-0030](docs/adr/0030-r
 
 **核心价值**：最小声明，最大响应——用最少的 HTML 属性声明，实现完整的响应式 UI 更新。
 
-autostore 已打包进产物并经入口全量转导出（ADR-0030）：`import { AutoSpark, AutoStore } from "autospark"` 单入口即用；IIFE 产物挂全局变量 `AutoSparkSpaces`。
+autostore 已打包进产物并经入口全量转导出（ADR-0030）：`import { AutoSpark, AutoStore } from "autospark"` 单入口即用；IIFE 产物全局 `AutoSpark` 即类本身（命名空间成员挂类静态，`AutoSparkSpaces` 为兼容别名，ADR-0111）。
 
 ## 常用命令
 

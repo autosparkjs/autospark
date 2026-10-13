@@ -50,7 +50,7 @@ import {
     type SuperFallback,
 } from "../../utils/slot";
 import { mountComponentScopedAttr, injectComponentStyle, componentScopedId } from "../../utils/scopedStyle";
-import { coerceStyleValue, type StyleBind } from "../../utils/styleBind";
+import { bindStyleVars, type StyleBind } from "../../utils/styleBind";
 import { registerIconDecl } from "../../features/icons/domain";
 import { DEFAULT_REMOTE_URL, MODIFY_VALUES, interpolateUrl } from "../../features/icons/remote";
 import { isValidIconName } from "../../features/icons/registry";
@@ -1476,30 +1476,15 @@ export class AutoSparkCompiler {
     /**
      * 为组件实例的 `<style>` bind 建立 CSS 变量订阅（ADR-0022 决策四-4.1）。
      *
-     * 遍历 `def.styleBinds`，对每个 bind 调 `hostScope.watch(expr)`——watch 返回当前值做首写、
-     * watcher 进 `hostScope.watchers`（随 scope.destroy 自动 off，零额外卸载接线）。
-     * 求值结果经 `coerceStyleValue` 归一化后写入组件根元素的 CSS 变量：null/undefined 不写
-     * （removeProperty，CSS 走 `var(--name, unset)` 回退），其余 `String(value)` 写入。
+     * 实现已下放公共 `bindStyleVars`（x-html.compile 样式通道复用同一实现）：watcher 进
+     * `hostScope.watchers`，随 scope.destroy 自动 off（组件路径零额外卸载接线，返回值忽略）。
      *
      * @param scope  组件实例 scope（watcher 寄主，destroy 时统一 off）
      * @param rootEl 组件根元素（变量挂载点，每实例独立）
      * @param binds  bind 清单（编译期提取、多实例共享只读）
      */
     private _bindStyleVars(scope: AutoSparkScope, rootEl: HTMLElement, binds: StyleBind[]): void {
-        const apply = (varName: string, value: unknown) => {
-            const coerced = coerceStyleValue(value);
-            if (coerced == null) {
-                rootEl.style.removeProperty(varName);
-            } else {
-                rootEl.style.setProperty(varName, coerced);
-            }
-        };
-        for (const b of binds) {
-            // watch 返回首值（同步求值 + 收集依赖），但首次 flush 前回调未触发——
-            // 须用返回值手动写首值，否则首帧变量缺失（listener 仅在状态变化 flush 时才回调）。
-            const first = scope.watch(b.expr, ({ value }) => apply(b.varName, value));
-            apply(b.varName, first);
-        }
+        bindStyleVars(scope, rootEl, binds);
     }
 
     /**

@@ -5,61 +5,210 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@autospark/components · 组件演示</title>
     <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
       body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        display: flex;
         font-family:
           system-ui,
           -apple-system,
           "Segoe UI",
           sans-serif;
-        max-width: 720px;
-        margin: 40px auto;
-        padding: 0 16px;
         color: #212529;
+        background: #fff;
       }
-      h1 {
-        font-size: 1.5rem;
+
+      /* 左侧：组件树（固定 220px） */
+      .sidebar {
+        width: 220px;
+        flex: 0 0 220px;
+        height: 100%;
+        overflow-y: auto;
+        border-right: 1px solid #dee2e6;
+        background: #f8f9fa;
+        padding: 12px 0;
       }
-      ul {
-        list-style: none;
-        padding: 0;
-        display: grid;
-        gap: 12px;
+      .sidebar .brand {
+        padding: 4px 16px 12px;
+        font-size: 0.95rem;
+        font-weight: 600;
       }
-      li a {
-        display: block;
-        padding: 16px 20px;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        text-decoration: none;
-        color: #212529;
-        transition: border-color 0.15s ease;
-      }
-      li a:hover {
-        border-color: #339af0;
-      }
-      li a code {
+      .sidebar .brand code {
         color: #339af0;
       }
-      li a p {
-        margin: 4px 0 0;
+      .tree,
+      .tree ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .tree ul {
+        padding-left: 14px;
+      }
+      .tree .group {
+        padding: 8px 16px 4px;
+        font-size: 0.75rem;
         color: #868e96;
+        letter-spacing: 0.04em;
+      }
+      .tree a {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 7px 16px;
+        text-decoration: none;
+        color: #212529;
         font-size: 0.875rem;
+        border-left: 3px solid transparent;
+      }
+      .tree a:hover {
+        background: #e9ecef;
+      }
+      .tree a.active {
+        background: #e7f5ff;
+        border-left-color: #339af0;
+        color: #1971c2;
+      }
+      .tree a .desc {
+        font-size: 0.75rem;
+        color: #868e96;
+      }
+
+      /* 右侧：组件演示区 */
+      .demo {
+        flex: 1 1 auto;
+        min-width: 0;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+      .demo-bar {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        padding: 10px 16px;
+        border-bottom: 1px solid #dee2e6;
+        background: #fff;
+      }
+      .demo-bar h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+      .demo-bar .hint {
+        color: #868e96;
+        font-size: 0.8125rem;
+      }
+      .demo-bar a {
+        margin-left: auto;
+        color: #868e96;
+        font-size: 0.8125rem;
+        text-decoration: none;
+      }
+      .demo-bar a:hover {
+        color: #339af0;
+      }
+      .demo-frame {
+        flex: 1 1 auto;
+        width: 100%;
+        border: 0;
+        background: #fff;
       }
     </style>
   </head>
   <body>
-    <h1>@autospark/components 组件演示</h1>
-    <p>
-      每个组件一个演示页；组件资产在 <code>src/components/</code>，注册面在
-      <code>src/index.ts</code>。
-    </p>
-    <ul>
-      <li>
-        <a href="./button.html">
-          <code>autospark.button</code>
-          <p>按钮：type/size 外观变体 + 默认插槽兜底 + 使用处事件绑定</p>
-        </a>
-      </li>
-    </ul>
+    <aside class="sidebar">
+      <div class="brand"><code>@autospark/components</code></div>
+      <nav>
+        <ul class="tree" id="tree"></ul>
+      </nav>
+    </aside>
+
+    <main class="demo">
+      <div class="demo-bar">
+        <h1 id="demo-title">组件演示</h1>
+        <span class="hint" id="demo-hint">选择左侧组件查看演示</span>
+        <a id="demo-open" href="#" target="_blank" rel="noopener">在新窗口打开 ↗</a>
+      </div>
+      <iframe class="demo-frame" id="demo-frame" title="组件演示"></iframe>
+    </main>
+
+    <script>
+      /**
+       * 组件树：新增演示页时在 groups 下补一项即可（path 相对本页）。
+       * 树按 group 分组，渲染为可折叠层级导航，右侧 iframe 加载对应演示页。
+       */
+      const COMPONENT_TREE = [
+        {
+          group: "基础",
+          items: [
+            {
+              id: "button",
+              name: "autospark.button",
+              desc: "按钮：type/size 变体 + 插槽兜底 + 事件绑定",
+              path: "./button.html",
+            },
+          ],
+        },
+      ];
+
+      const treeEl = document.getElementById("tree");
+      const frameEl = document.getElementById("demo-frame");
+      const titleEl = document.getElementById("demo-title");
+      const hintEl = document.getElementById("demo-hint");
+      const openEl = document.getElementById("demo-open");
+
+      /** 展平全部组件项，供查找与默认选中 */
+      const flat = COMPONENT_TREE.flatMap((g) => g.items);
+
+      function render() {
+        treeEl.innerHTML = COMPONENT_TREE.map(
+          (g) => `
+            <li>
+              <div class="group">${g.group}</div>
+              <ul>
+                ${g.items
+                  .map(
+                    (it) => `
+                  <li>
+                    <a href="#${it.id}" data-id="${it.id}" data-path="${it.path}">
+                      <span>${it.name}</span>
+                      <span class="desc">${it.desc}</span>
+                    </a>
+                  </li>`,
+                  )
+                  .join("")}
+              </ul>
+            </li>`,
+        ).join("");
+      }
+
+      /** 按 hash 选中组件并加载演示；无 hash 时回落到第一个 */
+      function activate() {
+        const id = location.hash.slice(1);
+        const item = flat.find((it) => it.id === id) ?? flat[0];
+        if (!item) return;
+
+        treeEl.querySelectorAll("a").forEach((a) => {
+          a.classList.toggle("active", a.dataset.id === item.id);
+        });
+
+        titleEl.textContent = item.name;
+        hintEl.textContent = item.desc;
+        openEl.href = item.path;
+        if (!frameEl.src.endsWith(item.path.replace("./", ""))) {
+          frameEl.src = item.path;
+        }
+      }
+
+      render();
+      activate();
+      window.addEventListener("hashchange", activate);
+    </script>
   </body>
 </html>

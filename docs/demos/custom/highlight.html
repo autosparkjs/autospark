@@ -27,8 +27,8 @@
         </div>
 
         <script>
-            // Runtime 通道：defineDirective 一步到位（须在 new AutoSpark 之前定义，参与首次编译）
-            AutoSparkSpaces.AutoSpark.defineDirective({
+            // Runtime 通道：directive spec 重载一步到位（须在 new AutoSpark 之前定义，参与首次编译）
+            AutoSpark.directive({
                 name: "highlight",
                 kind: 1, // Runtime：observer 通道，属性保留在结果 DOM
                 mounted() {
@@ -40,7 +40,7 @@
                 unmounted() {},
             });
 
-            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {
+            new AutoSpark(document.querySelector(".demo-app"), {
                 color: "pink",
             });
         </script>

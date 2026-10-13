@@ -8,7 +8,7 @@ import { mount, nextTick, finishAnim } from "../helpers";
  *
  * 12 组：命名/默认出口命中、fallback、无主 warn、重复首胜、裸子节点默认段、
  * 命名分段直接子级、深层忽略 warn、作用域插槽形参、形参响应式、调用方作用域求值、
- * overlay 继承、x-dialog 子节点进覆盖物；+ 传递绑定组（ADR-0108，13 例）。
+ * overlay 继承、x-dialog 子节点进覆盖物；+ 传递绑定组（ADR-0108，15 例）。
  */
 
 /** 挂载并拦截 logger.warn（编译期同步 warn 也可靠捕获） */
@@ -671,6 +671,55 @@ describe("x-slot 传递绑定（ADR-0108）", () => {
         await nextTick();
         expect(header.getAttribute("a")).toBe("9");
         expect(header.hasAttribute("b")).toBe(false);
+    });
+
+    test("调用方 x-data 局部状态：绑定表达式在调用方视图求值（不受组件封闭边界约束）", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="card">
+                    <header class="base" x-slot:header>默认头</header>
+                </div>
+                <div id="outer" x-data="{ id: 'A-1', theme: 'big' }">
+                    <div id="h" x-component:card>
+                        <template x-slot:header x-slot.bind="{ 'data-id': id, class: theme }">
+                            <h1>自定义</h1>
+                        </template>
+                    </div>
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const header = root.querySelector("#h header")!;
+        expect(header.getAttribute("data-id")).toBe("A-1"); // 调用方 x-data 域（$scopes）可见
+        expect(header.classList.contains("base")).toBe(true);
+        expect(header.classList.contains("big")).toBe(true);
+    });
+
+    test("调用方 x-data 局部变量：改状态 → 出口属性跟变（字面量形态键级响应）", async () => {
+        const { root } = mountSlot(
+            `<div x-scope>
+                <div x-define="card"><header x-slot:header>默认头</header></div>
+                <div id="outer" x-data="{ state: 'idle', badge: 'B-1' }">
+                    <div id="h" x-component:card>
+                        <template x-slot:header.bind="{ 'data-state': state, 'data-badge': badge }">X</template>
+                    </div>
+                    <button id="t1" @click="state = 'busy'">改 state</button>
+                    <button id="t2" @click="badge = false">清 badge</button>
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const header = root.querySelector("#h header")!;
+        expect(header.getAttribute("data-state")).toBe("idle");
+        expect(header.getAttribute("data-badge")).toBe("B-1");
+        root.querySelector("#t1")!.dispatchEvent(new Event("click"));
+        await nextTick();
+        expect(header.getAttribute("data-state")).toBe("busy");
+        root.querySelector("#t2")!.dispatchEvent(new Event("click"));
+        await nextTick();
+        expect(header.hasAttribute("data-badge")).toBe(false); // false → 移除
     });
 
     test("default 槽：空绑定载体只贡献绑定、不构成内容段", async () => {

@@ -12,6 +12,7 @@
 import type { AnyAutoStore } from "autostore";
 import type { AutoSparkScope } from "../../engine/scope";
 import type { AutoSparkAction } from "../../features/action/types";
+import type { AutoSparkState } from "../../types";
 
 /** addEventListener 第 3 参的子集（option 类修饰符可产出的字段） */
 export type EventListenerOptionsSubset = Pick<
@@ -101,7 +102,7 @@ export interface AutoSparkActionContext {
     /** AutoStore 实例 */
     store: AnyAutoStore;
     /** 全局状态（engine.store.state；ADR-0057 更名自 `state`——全局树明确通道） */
-    globalState: Record<string, any>;
+    globalState: AutoSparkState<Record<string, any>>;
     /** 引擎实例 */
     engine: any;
     /**

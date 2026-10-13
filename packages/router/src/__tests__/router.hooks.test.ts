@@ -838,4 +838,57 @@ describe("AutoSparkRouter 全局钩子系统", () => {
             expect(router.hooks.afterEach.length).toBe(0);
         });
     });
+
+    describe("404 未匹配项的钩子容错", () => {
+        it("unmatched 项（route 为 undefined）不应导致钩子执行崩溃", async () => {
+            const { HookManager } = await import("@/features/hooks");
+            const stubRouter = { options: {}, logger: console } as any;
+            const hookManager = new HookManager(stubRouter);
+
+            // 模拟 matchRoute 对 404 的产出：createUnmatchedRouteItem 的 route 为 undefined
+            const unmatchedItem = {
+                route: undefined,
+                params: {},
+                query: {},
+                state: {},
+                path: "/public/shop/index.html",
+                url: "/public/shop/index.html",
+                hash: "unmatched--public-shop-index-html",
+                id: 9999,
+            } as any;
+
+            // 修复前：r.route[name] 直接抛 TypeError
+            const before = await hookManager.runBeforeRoute({ from: undefined, to: [unmatchedItem] });
+            expect(before).toBe(true);
+            await hookManager.runAfterRoute({ to: [unmatchedItem] });
+        });
+
+        it("unmatched 项不屏蔽真匹配路由上的钩子", async () => {
+            const { HookManager } = await import("@/features/hooks");
+            const called: string[] = [];
+            const stubRouter = {
+                options: {},
+                logger: console,
+            } as any;
+            const hookManager = new HookManager(stubRouter);
+            hookManager.add("beforeRoute", () => {
+                called.push("global");
+            });
+
+            const realItem = {
+                route: { name: "home", path: "/", beforeRoute: [() => called.push("route")] },
+                params: {},
+                query: {},
+                state: {},
+                path: "/",
+                url: "/",
+                hash: "",
+                id: 1,
+            } as any;
+            const unmatchedItem = { route: undefined, params: {}, query: {}, state: {}, path: "/x", url: "/x", hash: "", id: 2 } as any;
+
+            await hookManager.runBeforeRoute({ from: undefined, to: [realItem, unmatchedItem] });
+            expect(called).toEqual(["global", "route"]);
+        });
+    });
 });

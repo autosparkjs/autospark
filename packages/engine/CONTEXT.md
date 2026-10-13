@@ -19,16 +19,30 @@ _Avoid_: 参数、子指令
 _Avoid_: 类型、模式
 
 **指令安装器（Directive Installer）**:
-全局安装队列的元素形态：`(engine: AutoSpark) => void` 函数。每 engine 构造期被调用一次，体内经 `engine.directives.install`（受控语义）或 `set`（覆盖语义）注册指令类；体执行时引擎必已加载，插件脚本可先于/后于引擎加载。与 Vue `plugin.install(app)` 心智同构。
+指令安装队列的元素形态：`(engine: AutoSpark) => void` 函数。每 engine 构造期被调用一次，体内经 `engine.directives.install`（受控语义）或 `set`（覆盖语义）注册指令类；体执行时引擎必已加载，插件脚本可先于/后于引擎实例化（须后于引擎脚本加载）。与 Vue `plugin.install(app)` 心智同构。
 _Avoid_: 插件（泛称，未点明 per-engine 调用语义）、注册函数（与 `set`/`install` 的「注册」动作混淆——安装器是队列元素，注册是体内动作）
 
-**全局安装队列（Global Directive Queue）**:
-`window.__AUTOSPARK_DIRECTIVES__`——指令安装器的先到先存数组，script/IIFE 场景的指令发现机制。首个 engine 构造时惰性 Proxy 化（push trap 广播存活 engine）+ 全量消费现有队列；晚到的安装器对已建 engine 即时生效（Runtime 指令）/ 只影响未来编译（Compile/Hybrid）。两条约定：始终经 `window.__AUTOSPARK_DIRECTIVES__.push(...)` 触达；禁止 Proxy 化后整体重赋值。详见 ADR-0100。
-_Avoid_: 插件队列（元素是安装器非泛化插件）、`AutoSparkSpaces.directives`（命名空间会被 tsup globalName 整体覆盖，独立全局是硬约束）
+**$.directive（指令定义唯一入口）**:
+`AutoSpark.directive`——插件侧指令定义的双重载入口（ADR-0111 决策 8）：**spec 重载** `$.directive({name, kind, priority, ...钩子})` 造类（继承 `AutoSparkDirectiveBase`）→ 安装器入指令安装队列（插件机制的内存队列）→ 返回类本身；**类重载** `$.directive(name, Cls)` 安装高级形态指令类（结构指令 `ownsChildren` / 元素名指令 / 类级钩子 / singleton——继承基类造类后安装）。晚定义广播全部存活 engine；撞名走 `DirectiveManager.install` 语义。`define` 与 x-define「先声明后使用」的语义平行，但对象不同（指令类 vs 组件声明）。
+_Avoid_: defineDirective / installDirective（双名已收敛删除，统一 `$.directive` 双重载）、createDirective（与内部编译期工具 `createDirectives` 近名混淆，弃用）、spec 传类定义（spec 是对象形态，类形态走第二重载）
 
-**defineDirective**:
-`AutoSpark.defineDirective(spec)`——定义即全局安装：造类（继承 `AutoSparkDirectiveBase`）→ 安装器入全局安装队列 → 返回类本身。spec 为最小键集（`name` 必填 / `kind` / `priority` / 六个实例钩子）；结构指令、元素名指令、类级钩子等高级形态走类形态继承。`define` 与 x-define「先声明后使用」的语义平行，但对象不同（指令类 vs 组件声明）。
-_Avoid_: createDirective（与内部编译期工具 `createDirectives` 近名混淆，弃用）、传类定义（spec 是对象形态，类形态直接继承基类）
+### 插件层
+
+**插件（Plugin）**:
+script/IIFE 场景的第三方能力分发单元：一个纯副作用 js 文件，在 autospark.js 之后加载即生效（jQuery 事实模型）。无插件名、无版本、无注册协议、无插件表——引擎不感知「插件」概念，只暴露全局命名空间；「在插件中编写组件/指令/action」≈「经全局命名空间注册」。重复加载是页面作者的责任，引擎不设防。
+_Avoid_: 扩展 / addon（泛化）、模块（引擎内部机制域的正名是「特性 / Feature」）、插件对象（无此实体——插件就是脚本文件）
+
+**插件命名空间（Plugin Namespace）**:
+IIFE 全局 `AutoSpark`——**类与命名空间一体**（jQuery `$` 同构）：既是构造类又承载插件 API（`ready` / `components` / `actions` / `icons` / `directive`），库的其他导出成员（AutoStore 等）挂为类静态。ESM 消费者经 `import { AutoSpark }` 取同一后端（API 挂类静态，window 全局只是 IIFE 形态的呈现）。详见 ADR-0111。
+_Avoid_: `AutoSparkSpaces` 作正名（兼容别名，指向同一对象，旧消费面专用）、`$`（插件脚本内的形参缩写习惯，非 API 名）、window 键注册表（`__AUTOSPARK_*__` 全局键方案已否决删除）
+
+**插件注册表（Plugin Registry）**:
+`AutoSpark.components` / `AutoSpark.actions`——跨 engine 的**真全局**声明表（对照：引擎级 `options.components` / `options.actions` 是 per-engine）。engine 查找链到顶兜底遍历全局表（**查询期委托**：不复制进 engine、无运行时广播，晚注册天然立即生效）。组件命中时惰性预编译入全局 def 缓存（每组件名全局只编译一次，多 engine 共享编译产物）。组件查找链：scope 局部 → `options.components` → 全局表 → `builtinComponents`；action 查找链末端命中全局表时经**触发 engine** 惰性物化（this/生命周期广播绑定触发处 engine）。图标无独立表（`AutoSpark.icons` 的 document 级全局注册表即真全局，ADR-0058 既有）。
+_Avoid_: 全局组件表（与 `options.components` 的 per-engine「全局组件」懒预编译表撞义）、构造期快照合并（委托无复制）、运行时广播（组件/action 靠查询期委托天然生效，只有指令需要广播）
+
+**$.ready（插件就绪回调）**:
+`AutoSpark.ready(fn)`——注册的回调对**每个 engine 构造完成后**各调用一次（回调收 engine 实例）；engine 已存在时注册立即对所有存活 engine 补调（retain 语义）；回调抛错隔离记日志；engine destroy 摘出存活表。回调是「拿 engine 实例做命令式操作 / 引擎级注册」的入口——仅供指定 engine 的资源在回调内走 engine 级注册位（如 `engine.actions[name] = ...`）。
+_Avoid_: DOM ready 语义（jQuery 原义不适用——这里是 per-engine 触发）、onReady（动词化变体，API 名就是 ready）、初始化钩子（它是回调注册面，不是引擎生命周期钩子）
 
 ### 动作层
 
@@ -64,7 +78,7 @@ _Avoid_: 修饰语、flag、参数（修饰符不带值）
 
 **指令选项（Directive Option）**:
 由 `x-{name}-options` 声明的**指令级**配置来源，是该指令的权威配置（修饰符在解析期并入其中）。整包形态值用宽松 JSON（relaxed-json）解析，须为普通对象；单个成员可拆散为「选项成员属性」（值为表达式）、可经「选项定向」配到特定参数实例。详见 ADR-0007 及其修订记录。
-_Avoid_: 参数对象、props
+_Avoid_: 参数对象、props（泛称禁用——唯一豁免：`x-component-options.props` 是组件属性参数的专名键，指向组件域正名而非选项别称，ADR-0110）
 
 **选项成员属性（Option Member Attribute）**:
 `x-<指令名>-options.<选项名>` 形态的独立属性，把单个指令选项**拆散声明**：值为**表达式**（与指令值同一 watch 管道，可绑定响应式状态；顶层字符串字面量须 `"'xxxx'"`），优先级高于整包内嵌同名项（整键覆盖）。camelCase 键以 **kebab-case** 书写（HTML 属性名被 DOM 小写化，`close-on-mask` 归一 `closeOnMask`）。配置成员在指令既有消费时机生效，不热应用（props 是唯一热应用成员）。与「运行时选项覆盖」（ADR-0051 的 `data-*` 覆盖属性）正交：这是编译期声明面，那是运行时变更面。详见 ADR-0007 修订记录。
@@ -155,7 +169,7 @@ x-text / x-html 的修饰符，绑定值为空时将宿主元素内联 `display`
 _Avoid_: `.empty`（与 empty 文案配置撞键）、`.ghost`（暗示 visibility:hidden 占位，与 display:none 语义冲突）
 
 **`.compile` 修饰符（x-html）**:
-x-html 的修饰符，将绑定值作为**子模板编译执行**（而非静态 HTML 快照）——反转 x-html"不编译注入内容"的原定位。注入内容写回 `scope.template` 后调 `recompileSubtree`，建 scope/watcher、继承宿主作用域（localData/data 经 `_linkParent` 自动传递），支持嵌套 x-data/x-for/x-if，与正常模板一致。**隐式强制跳过消毒**（sanitize 会剥指令属性致模板失效），安全等级**高于 `.raw`：.raw 的 `<script>` 经 innerHTML 不执行，compile 注入的 `x-on` 会真实绑定执行**——须确保来源可信。每次值变全量销毁旧子树 + 重编译（无 diff）；空值销毁子树 + 清空宿主、忽略 `empty` 文案（结构空状态无文案占位语义），`.hide` 仍生效。异步源组合：`x-html.compile="url"` 取回**远程模板**编译（重取保旧子树、x-fallback 同样认领，见「异步 HTML 源」）。详见 ADR-0017 / 0035。
+x-html 的修饰符，将绑定值作为**子模板编译执行**（而非静态 HTML 快照）——反转 x-html"不编译注入内容"的原定位。注入内容写回 `scope.template` 后调 `recompileSubtree`，建 scope/watcher、继承宿主作用域（localData/data 经 `_linkParent` 自动传递），支持嵌套 x-data/x-for/x-if，与正常模板一致。**隐式强制跳过消毒**（sanitize 会剥指令属性致模板失效），安全等级**高于 `.raw`：.raw 的 `<script>` 经 innerHTML 不执行，compile 注入的 `x-on` 会真实绑定执行**——须确保来源可信。每次值变全量销毁旧子树 + 重编译（无 diff）；空值销毁子树 + 清空宿主、忽略 `empty` 文案（结构空状态无文案占位语义），`.hide` 仍生效。异步源组合：`x-html.compile="url"` 取回**远程模板**编译（重取保旧子树、x-fallback 同样认领，见「异步 HTML 源」）。**样式通道**（组件样式管线复用，ADR-0022 决策四 / ADR-0087）：注入内容中非 global 的 `<style>`（全后代收集）摘出模板树，`bind()` 提取为 CSS 变量订阅后经 `rewriteScopedCss` 改写注入 head，宿主 + 编译后代打 `data-cmp-{实例id}`——id 为指令实例级 `getId()` 随机串（bind 变量挂各自宿主，样式表不跨实例共享、无引用计数）；`<style global>` 留模板原位置随子树编译进结果 DOM（浏览器原生全局生效，**随子树重编译回收**——与组件 global「注册期注入 head 永驻」有意分歧，因内容是动态的），global 段 bind 告警姿态同组件 ADR-0087。每轮 apply 换血（样式表 replace + 旧 bind watcher off 摘出），空值 / destroy 同步回收样式表、bind watcher 与宿主 CSS 变量。bind 表达式经宿主 scope 聚合视图求值（`getContext` 沿 parent 链），祖先 x-data 可读，与普通模板同一数据视图。详见 ADR-0017 / 0035。
 _Avoid_: `.template`（与 engine.template/`<template>` 标签重载）、`.render`（泛化）、`.eval`（求值联想 + 安全负面含义）
 
 **`.transition` 修饰符（x-style）**:
@@ -980,6 +994,14 @@ _Avoid_: public / expose（对外词汇不一致）、透明模式（不表达�
 _Avoid_: 数据源（那是异步源家族术语）、上下文基准（中英混杂）、基准点、consumer（已废弃）、scope（配置键语境已统一更名 dataContext；engine scope 语境——AutoSparkScope/x-scope/scope 链——不受影响）
 
 ## 已废弃
+
+**defineDirective / installDirective（ADR-0111 决策 8 收敛删除）**:
+已废弃。指令定义统一收敛为**唯一入口 `$.directive` 双重载**：`AutoSpark.defineDirective(spec)` → `$.directive(spec)`（spec 重载同形）；`AutoSpark.installDirective(name, Cls)` → `$.directive(name, Cls)`（类重载）。旧名硬切删除（开发期，TS 消费者编译期可发现），后端语义（内存安装队列 / 广播存活 engine / install 撞名分叉）不变。
+_Avoid_: AutoSpark.defineDirective、AutoSpark.installDirective（均改写 `AutoSpark.directive`，按实参形态自动分派）
+
+**全局安装队列 / `window.__AUTOSPARK_DIRECTIVES__`（ADR-0111 取代）**:
+已废弃。ADR-0100 的 window 挂载指令安装队列（首个 engine 构造时 Proxy 化 push trap 广播存活 engine）被**插件机制的模块内存队列**取代（ADR-0111）——script 顺序加载保证插件文件后于引擎脚本求值，window 键载体不再必要；`defineDirective` 保留（转发新通道），`window.__AUTOSPARK_DIRECTIVES__` 属性不再被监听（push 进无人消费的数组，静默失效）。`consts.ts` 的 `GLOBAL_COMPONENTS` / `GLOBAL_PLUGINS` window 键预留常量一并删除（插件注册表挂类静态，不采用 window 键方案）。
+_Avoid_: `window.__AUTOSPARK_DIRECTIVES__.push(...)`（改用 `AutoSpark.directive(spec)` / `AutoSpark.defineDirective(spec)`）、`__AUTOSPARK_COMPONENTS__` / `__AUTOSPARK_PLUGINS__`（改用 `AutoSpark.components` / `AutoSpark.actions`）、缓存全局队列数组引用（旧 Proxy 边角约定随机制一同消亡）
 
 **断点事件 / viewport:change 与档名写回（ADR-0105 废除）**:
 已废弃。ADR-0101 时代的档位跨越事件（`detail = { from, to }`，向下传播经 scope 子树 + 宿主冒泡）与 x-container 值双态写回（`x-container="path"` 档名单向写回）随档位判定收归全局 `$.viewport` 一并废除——响应式订阅是更通用同位替代（`x-show="$viewport==='md'"`、插值 / watch / x-effect 全通），`from/to` 由消费方自行记忆旧值。连带废除：实例级 mql 监听、实例级 `breakpoints` 选项、`options.container` 键。详见 ADR-0105。

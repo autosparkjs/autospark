@@ -5,6 +5,18 @@ import { recompileSubtree } from "../utils/recompileSubtree";
 import { AsyncSourceRunner, createAsyncOnError } from "../features/directive/async-source";
 import { isAsyncHtmlValue } from "../features/directive/async-source-utils";
 import { DataDirective } from "./x-data";
+import { getId } from "../utils/getId";
+import {
+    injectHostScopedStyle,
+    mountComponentScopedAttr,
+} from "../utils/scopedStyle";
+import {
+    BIND_CALL_RE,
+    bindStyleVars,
+    extractStyleBinds,
+    type StyleBind,
+} from "../utils/styleBind";
+import type { Watcher } from "autostore";
 
 /**
  * x-html：将状态值作为原始 HTML 注入元素的 innerHTML。（**默认消毒**，见 ADR-0005）
@@ -31,6 +43,12 @@ import { DataDirective } from "./x-data";
  *   `.raw` 的 `<script>` 经 innerHTML 不执行，`.compile` 注入的 `x-on` 会真实绑定执行——须确保来源可信。
  * - 每次值变全量销毁旧子树 + 重编译（无 diff）；空值销毁子树 + 清空宿主、忽略 `empty` 文案
  *   （结构空状态无文案占位语义），`.hide` 仍生效。
+ * - **样式通道（组件样式管线复用，ADR-0022 决策四 / ADR-0087）**：注入内容中的 `<style>`
+ *   按组件同款语义处理——非 global 段提取出模板树，`bind()` 提取为 CSS 变量订阅后经
+ *   `rewriteScopedCss` 改写注入 head（宿主 + 编译后代打 `data-cmp-{实例id}`，id 为指令实例级
+ *   `getId()` 随机串——bind 变量挂各自宿主，样式表不跨实例共享）；`<style global>` 留模板
+ *   原位置随子树编译进结果 DOM（浏览器原生全局生效，随子树重编译回收；global 段 bind 告警
+ *   姿态同组件 ADR-0087）。空值 / destroy 同步回收样式表与 bind watcher。
  *
  * **远程异步 HTML 源（ADR-0035）**：值以 url 前缀（`/`、`//`、`http(s)://`、`./`、`../`）或
  * `标识符(实参)`（**必须带调用括号**——裸词恒为表达式读状态键，与 x-data 判定的关键差异）
@@ -121,15 +139,9 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
                     el.style.display = prevDisplay;
                 }
             }
-            // 内容写回 template（空值清空、非空写入）+ 重编译子树。
+            // 内容写回 template（空值清空、非空写入）+ 样式提取 + 重编译子树。
             // 模板树污染是设计要求（ADR-0017）：_linkParent 靠模板树位置继承作用域。
-            tpl.innerHTML = isEmpty ? "" : String(value);
-            try {
-                recompileSubtree(this.binding, el);
-            } catch (e: any) {
-                // 抛错时 recompileSubtree 已 destroy 旧子树 + 清空 el → el 保持清空（与 engine.patch 姿态一致）
-                this.error(`x-html.compile: 编译注入内容失败: ${e?.message ?? e}`);
-            }
+            this._compileInjected(isEmpty ? "" : String(value), "编译注入内容失败");
         };
         const initial = this.binding.watch(this.value, ({ value }) => apply(value));
         // 首次 apply defer 到 microtask：created 在 compileElement 内同步跑，此时 transformElement
@@ -137,6 +149,102 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
         //（recompileSubtree 一次 + transformElement 递归一次）。defer 后递归已结束，注入仅由
         // recompileSubtree 编译一次。同 x-if 首渲 defer（if.ts）。engine.compile() 末尾 flushAll 同步消化。
         this.engine.scheduler.schedule(() => apply(initial));
+    }
+
+    // ── 样式通道（组件样式管线复用：scoped 改写注入 + global 留置 + bind 响应式）────────
+
+    /** 实例级 scoped 作用域 id（首次注入时生成，实例内稳定——重取/值变复用同一属性后缀与样式表 id） */
+    private styleScopeId: string | null = null;
+    /** 本轮注入的 scoped 样式表（head 级，值变 replace / 空值 / destroy 时移除） */
+    private styleEl: HTMLStyleElement | undefined;
+    /** 本轮 bind 订阅的 watcher（宿主 scope 无「内容级」销毁时机，指令自持换血防孤儿累积） */
+    private bindWatchers: Watcher[] = [];
+    /** 本轮已写入宿主的 CSS 变量名（释放时 removeProperty——变量无规则引用后是纯脏数据） */
+    private bindVarNames: string[] = [];
+
+    /**
+     * 注入内容统一编译入口（`.compile` 同步通道与远程异步通道共用）：
+     * 写回 template → 提取样式 → recompileSubtree → 挂载 scoped 样式与 bind 订阅。
+     */
+    private _compileInjected(html: string, errCtx: string): void {
+        const el = this.el;
+        const tpl = this.template;
+        if (!el || !tpl) return;
+        tpl.innerHTML = html;
+        const { css, binds } = this._extractStyles(tpl);
+        try {
+            recompileSubtree(this.binding, el);
+        } catch (e: any) {
+            // 抛错时 recompileSubtree 已 destroy 旧子树 + 清空 el → 内容已无作用对象，样式同步回收
+            this._releaseStyles();
+            this.error(`x-html.compile: ${errCtx}: ${e?.message ?? e}`);
+            return;
+        }
+        this._mountStyles(el, css, binds);
+    }
+
+    /**
+     * 样式提取（写回 template 后、recompileSubtree 前——结果树由模板树克隆而来）：
+     * - 非 global `<style>`：摘出模板树（不进结果 DOM），`bind()` 提取为 CSS 变量清单后
+     *   交 `_mountStyles` 改写注入 head（组件同款管线）；
+     * - `<style global>`：**留模板原位置**、剥 `global` 属性（语义已被本通道消费，剥除避免
+     *   误触编译器「global 仅 x-define 生效」告警），随子树编译进结果 DOM 浏览器原生全局生效
+     *   ——随子树重编译自然回收，与组件「注册期注入 head 永驻」有意分歧（内容是动态的）。
+     */
+    private _extractStyles(tpl: HTMLElement): { css: string[]; binds: StyleBind[] } {
+        const bindMap = new Map<string, StyleBind>();
+        const css: string[] = [];
+        for (const node of Array.from(tpl.querySelectorAll("style"))) {
+            const raw = node.textContent ?? "";
+            if (node.hasAttribute("global")) {
+                // 姿态同组件 ADR-0087：global 段不支持 bind（变量挂载点在全局语境无对应物），warn 后原样保留
+                if (BIND_CALL_RE.test(raw)) {
+                    this.warn(
+                        `x-html.compile: <style global> 不支持 bind() 响应式，该声明已原样保留`,
+                    );
+                }
+                node.removeAttribute("global");
+                continue;
+            }
+            node.remove();
+            css.push(extractStyleBinds(raw, bindMap).rewritten);
+        }
+        return { css, binds: Array.from(bindMap.values()) };
+    }
+
+    /**
+     * 挂载本轮样式：换血（释放上一轮样式表 + off 旧 bind watcher）→ 打 scoped 属性 →
+     * 注入改写样式（head）→ 建 bind 订阅（变量挂宿主 el，宿主 scope 求值——祖先 x-data 可读，
+     * 与普通模板同一数据视图）。
+     */
+    private _mountStyles(el: HTMLElement, css: string[], binds: StyleBind[]): void {
+        this._releaseStyles();
+        if (css.length > 0) {
+            this.styleScopeId ??= getId();
+            // 宿主 + 编译后代打 data-cmp-{id}（组件同款属性，改写器/打标器零改动复用）
+            mountComponentScopedAttr(el, this.styleScopeId);
+            this.styleEl = injectHostScopedStyle(css, this.styleScopeId);
+        }
+        if (binds.length > 0) {
+            this.bindWatchers = bindStyleVars(this.binding, el, binds);
+            this.bindVarNames = binds.map((b) => b.varName);
+        }
+    }
+
+    /** 释放样式资源：off 并摘出本轮 bind watcher + 移除 scoped 样式表 + 清宿主 CSS 变量 */
+    private _releaseStyles(): void {
+        for (const w of this.bindWatchers) {
+            w.off();
+            const idx = this.binding.watchers.indexOf(w);
+            if (idx >= 0) this.binding.watchers.splice(idx, 1);
+        }
+        this.bindWatchers = [];
+        this.styleEl?.remove();
+        this.styleEl = undefined;
+        for (const name of this.bindVarNames) {
+            this.el?.style.removeProperty(name);
+        }
+        this.bindVarNames = [];
     }
 
     // ── 远程异步 HTML 源（ADR-0035：url / action 形态，text-only + 视觉反馈）──────
@@ -241,13 +349,7 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
         this._hideFallback();
         // 产物进入既有双通道（决策 4）：.compile → 远程子模板编译；默认 → innerHTML（远程内容维持默认消毒）
         if (this.getOption("compile")) {
-            const tpl = this.template;
-            if (tpl) tpl.innerHTML = value;
-            try {
-                if (this.el) recompileSubtree(this.binding, this.el);
-            } catch (e: any) {
-                this.error(`x-html.compile: 编译远程模板失败: ${e?.message ?? e}`);
-            }
+            this._compileInjected(value, "编译远程模板失败");
         } else {
             const sanitize = this.getOption("raw") ? null : this.engine.options.sanitizer ?? sanitizeHtml;
             if (this.el) this.el.innerHTML = sanitize ? sanitize(value) : value;
@@ -306,8 +408,10 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
 
     override destroy(): void {
         // 异步形态清理（ADR-0035 决策 7）：中止进行中 fetch、序号失效（action 在途结果不落地）。
+        // 样式通道清理：移除 scoped 样式表 + off bind watcher（global 段随子树消亡，无需额外清理）。
         // fallback 克隆随宿主元素一起消亡，无需额外清理。
         this.destroyed = true;
         this.runner?.destroy();
+        this._releaseStyles();
     }
 }
