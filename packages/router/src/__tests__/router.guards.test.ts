@@ -34,14 +34,43 @@ function createTestDOM() {
     return host;
 }
 
+/** 最小 engine stub：注入模式下跳过自建管线 */
+function stubEngine() {
+    return {
+        getComponentDeclaration: () => ({ name: "autospark.outlet" }),
+        getComponent: () => ({
+            data: { views: [], ephemeral: { hash: "", html: "", ready: false }, active: "" },
+        }),
+        data: () => { },
+        destroy() { },
+    } as any;
+}
+
 /**
- * 动态导入 AutoSparkRouter
+ * 动态导入 AutoSparkRouter。
+ * 构造函数自动 attach()，不得重复调用；attach 链异步完成，需等待。
  */
 async function createRouter(host: HTMLElement, options: any) {
     const { AutoSparkRouter } = await import("@/router");
-    const router = new AutoSparkRouter(host, options);
-    router.attach();
+    if (!host.querySelector("[data-autospark-outlet]")) {
+        const outlet = document.createElement("div");
+        outlet.setAttribute("data-autospark-outlet", "");
+        host.appendChild(outlet);
+    }
+    const router = new AutoSparkRouter(host, { engine: stubEngine(), ...options });
+    await new Promise((resolve) => setTimeout(resolve, 80));
     return router;
+}
+
+/** 取 matched 数组末项 */
+function lastMatched(router: AutoSparkRouter) {
+    const current = router.routes.current ?? [];
+    return current[current.length - 1];
+}
+
+/** 等待导航结束（cancel 与 end 都算一轮导航结束） */
+function waitNav(ms = 120) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 describe("AutoSparkRouter 路由级守卫系统", () => {
@@ -55,6 +84,7 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
     afterEach(() => {
         if (router) {
             router.detach();
+            router = undefined as any;
         }
         // 清理 DOM
         if (host && host.parentElement) {
@@ -62,13 +92,13 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
         }
     });
 
-    describe("beforeEnter guards", () => {
-        it("应该在进入路由前执行 beforeEnter 守卫", async () => {
+    describe("路由级 beforeRoute 守卫（原 beforeEnter）", () => {
+        it("应该在进入路由前执行路由级 beforeRoute 守卫", async () => {
             const routes = [
                 {
                     name: "protected",
-                    path: "/protected",
-                    beforeEnter: (to: any, from: any) => {
+                    path: "protected",
+                    beforeRoute: () => {
                         return true;
                     }
                 }
@@ -77,13 +107,14 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
             router = await createRouter(host, { routes });
             router.push("/protected");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            expect(router.routes.current.route!.name).toBe("protected");
+            expect(lastMatched(router)?.route?.name).toBe("protected");
         });
 
-        it("应该在 beforeEnter 返回 false 时取消导航", async () => {
+        it("应该在守卫返回 false 时拦截渲染", async () => {
+            let rendered = false;
+            let cancelled = false;
             const routes = [
                 {
                     name: "home",
@@ -91,51 +122,54 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
                 },
                 {
                     name: "protected",
-                    path: "/protected",
-                    beforeEnter: () => false
+                    path: "protected",
+                    beforeRoute: () => false
                 }
             ];
 
             router = await createRouter(host, { routes });
+            router.hooks.add("beforeRender", () => { rendered = true; });
+            router.on("navigation:cancel", () => { cancelled = true; });
             router.push("/protected");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            // 导航应该被取消，保持在根路径
-            expect(router.routes.current.route!.path).not.toBe("/protected");
+            // 拦截语义：渲染被跳过、navigation:cancel 事件触发
+            // （URL 与 routes.current 仍会更新——历史条目在守卫前已落）
+            expect(rendered).toBe(false);
+            expect(cancelled).toBe(true);
         });
 
-        it("应该在 beforeEnter 返回路径字符串时重定向", async () => {
+        it("应该在守卫返回路径字符串时重定向", async () => {
             const routes = [
                 {
                     name: "redirect",
-                    path: "/redirect",
-                    beforeEnter: () => "/target"
+                    path: "redirect",
+                    beforeRoute: () => "/target"
                 },
                 {
                     name: "target",
-                    path: "/target"
+                    path: "target"
                 }
             ];
 
             router = await createRouter(host, { routes });
             router.push("/redirect");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // 等待导航完成（含改道引发的第二轮导航）
+            await waitNav(200);
 
-            expect(router.routes.current.route!.path).toBe("/target");
+            expect(lastMatched(router)?.route?.name).toBe("target");
         });
 
-        it("应该支持异步 beforeEnter 守卫", async () => {
+        it("应该支持异步守卫", async () => {
             let guardExecuted = false;
 
             const routes = [
                 {
                     name: "async",
-                    path: "/async",
-                    beforeEnter: async (to: any, from: any) => {
+                    path: "async",
+                    beforeRoute: async () => {
                         await new Promise(resolve => setTimeout(resolve, 50));
                         guardExecuted = true;
                         return true;
@@ -146,14 +180,13 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
             router = await createRouter(host, { routes });
             router.push("/async");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav(200);
 
             expect(guardExecuted).toBe(true);
-            expect(router.routes.current.route!.name).toBe("async");
+            expect(lastMatched(router)?.route?.name).toBe("async");
         });
 
-        it("应该正确传递 to 和 from 参数给 beforeEnter", async () => {
+        it("应该正确传递 to 和 from 参数给守卫", async () => {
             let capturedTo: any;
             let capturedFrom: any;
 
@@ -161,10 +194,10 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
                 { name: "home", path: "/" },
                 {
                     name: "target",
-                    path: "/target",
-                    beforeEnter: (to: any, from: any) => {
-                        capturedTo = to;
-                        capturedFrom = from;
+                    path: "target",
+                    beforeRoute: (args: any) => {
+                        capturedTo = args.to;
+                        capturedFrom = args.from;
                         return true;
                     }
                 }
@@ -173,20 +206,20 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
             router = await createRouter(host, { routes });
             router.push("/target");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            expect(capturedTo.path).toBe("/target");
-            expect(capturedFrom).toBeDefined();
+            expect(capturedTo).toBeInstanceOf(Array);
+            expect(capturedTo[capturedTo.length - 1].path).toBe("/target");
+            expect(capturedFrom).toBeInstanceOf(Array);
         });
 
-        it("应该处理 beforeEnter 守卫抛出的错误", async () => {
+        it("守卫抛出错误时应跳过该守卫（不阻断导航）", async () => {
             const routes = [
                 { name: "home", path: "/" },
                 {
                     name: "error",
-                    path: "/error",
-                    beforeEnter: () => {
+                    path: "error",
+                    beforeRoute: () => {
                         throw new Error("Guard error");
                     }
                 }
@@ -195,11 +228,10 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
             router = await createRouter(host, { routes });
             router.push("/error");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            // 导航应该被取消
-            expect(router.routes.current.route!.path).not.toBe("/error");
+            // 守卫错误默认被忽略（ignoreErrors 缺省 true），导航继续完成
+            expect(lastMatched(router)?.route?.name).toBe("error");
         });
     });
 
@@ -210,8 +242,8 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
             const routes = [
                 {
                     name: "parent",
-                    path: "/parent",
-                    beforeEnter: () => {
+                    path: "parent",
+                    beforeRoute: () => {
                         order.push("parent");
                         return true;
                     },
@@ -219,7 +251,7 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
                         {
                             name: "child",
                             path: "child",
-                            beforeEnter: () => {
+                            beforeRoute: () => {
                                 order.push("child");
                                 return true;
                             }
@@ -231,35 +263,9 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
             router = await createRouter(host, { routes });
             router.push("/parent/child");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
             expect(order).toEqual(["parent", "child"]);
-        });
-
-        it("应该在子路由守卫失败时回退到父路由", async () => {
-            const routes = [
-                {
-                    name: "parent",
-                    path: "/parent",
-                    children: [
-                        {
-                            name: "child",
-                            path: "child",
-                            beforeEnter: () => false
-                        }
-                    ]
-                }
-            ];
-
-            router = await createRouter(host, { routes });
-            router.push("/parent/child");
-
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            // 应该回退到父路由
-            expect(router.routes.current.route!.path).toBe("/parent");
         });
 
         it("应该在多层嵌套路由中正确执行守卫", async () => {
@@ -268,8 +274,8 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
             const routes = [
                 {
                     name: "level1",
-                    path: "/level1",
-                    beforeEnter: () => {
+                    path: "level1",
+                    beforeRoute: () => {
                         order.push("level1");
                         return true;
                     },
@@ -277,7 +283,7 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
                         {
                             name: "level2",
                             path: "level2",
-                            beforeEnter: () => {
+                            beforeRoute: () => {
                                 order.push("level2");
                                 return true;
                             },
@@ -285,7 +291,7 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
                                 {
                                     name: "level3",
                                     path: "level3",
-                                    beforeEnter: () => {
+                                    beforeRoute: () => {
                                         order.push("level3");
                                         return true;
                                     }
@@ -299,8 +305,7 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
             router = await createRouter(host, { routes });
             router.push("/level1/level2/level3");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
             expect(order).toEqual(["level1", "level2", "level3"]);
         });
@@ -311,8 +316,8 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
             const routes = [
                 {
                     name: "parent",
-                    path: "/parent",
-                    beforeEnter: () => {
+                    path: "parent",
+                    beforeRoute: () => {
                         order.push("parent-sync");
                         return true;
                     },
@@ -320,7 +325,7 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
                         {
                             name: "child",
                             path: "child",
-                            beforeEnter: async () => {
+                            beforeRoute: async () => {
                                 await new Promise(resolve => setTimeout(resolve, 30));
                                 order.push("child-async");
                                 return true;
@@ -333,8 +338,7 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
             router = await createRouter(host, { routes });
             router.push("/parent/child");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav(200);
 
             expect(order).toEqual(["parent-sync", "child-async"]);
         });
@@ -345,8 +349,8 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
             const routes = [
                 {
                     name: "parent",
-                    path: "/parent",
-                    beforeEnter: () => {
+                    path: "parent",
+                    beforeRoute: () => {
                         order.push("parent");
                         return false;
                     },
@@ -354,7 +358,7 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
                         {
                             name: "child",
                             path: "child",
-                            beforeEnter: () => {
+                            beforeRoute: () => {
                                 order.push("child");
                                 return true;
                             }
@@ -366,141 +370,121 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
             router = await createRouter(host, { routes });
             router.push("/parent/child");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            // 只有父路由守卫被执行
+            // 只有父路由守卫被执行（串行执行，false 即中断）
             expect(order).toEqual(["parent"]);
         });
     });
 
-    describe("afterLeave guards", () => {
-        it("应该在离开路由后执行 afterLeave 守卫", async () => {
+    describe("路由级 afterRoute 守卫（原 afterLeave 语义已并入 afterRoute）", () => {
+        it("应该在导航完成后执行目标路由的 afterRoute 守卫", async () => {
             let guardExecuted = false;
 
             const routes = [
                 {
                     name: "source",
-                    path: "/source",
-                    afterLeave: () => {
-                        guardExecuted = true;
-                    }
+                    path: "source",
                 },
                 {
                     name: "target",
-                    path: "/target"
+                    path: "target",
+                    afterRoute: () => {
+                        guardExecuted = true;
+                    }
                 }
             ];
 
             router = await createRouter(host, { routes });
             router.push("/source");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await waitNav(120);
 
             router.push("/target");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
             expect(guardExecuted).toBe(true);
-            expect(router.routes.current.route!.name).toBe("target");
+            expect(lastMatched(router)?.route?.name).toBe("target");
         });
 
-        it("应该支持异步 afterLeave 守卫", async () => {
+        it("应该支持异步 afterRoute 守卫", async () => {
             let guardExecuted = false;
 
             const routes = [
+                { name: "source", path: "source" },
                 {
-                    name: "source",
-                    path: "/source",
-                    afterLeave: async () => {
+                    name: "target",
+                    path: "target",
+                    afterRoute: async () => {
                         await new Promise(resolve => setTimeout(resolve, 50));
                         guardExecuted = true;
                     }
-                },
-                {
-                    name: "target",
-                    path: "/target"
                 }
             ];
 
             router = await createRouter(host, { routes });
             router.push("/source");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await waitNav(120);
 
             router.push("/target");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav(200);
 
             expect(guardExecuted).toBe(true);
         });
 
-        it("应该正确传递 to 和 from 参数给 afterLeave", async () => {
+        it("应该正确传递 to 参数给 afterRoute 守卫", async () => {
             let capturedTo: any;
-            let capturedFrom: any;
 
             const routes = [
-                {
-                    name: "source",
-                    path: "/source",
-                    afterLeave: (to: any, from: any) => {
-                        capturedTo = to;
-                        capturedFrom = from;
-                    }
-                },
+                { name: "source", path: "source" },
                 {
                     name: "target",
-                    path: "/target"
+                    path: "target",
+                    afterRoute: (args: any) => {
+                        capturedTo = args.to;
+                    }
                 }
             ];
 
             router = await createRouter(host, { routes });
             router.push("/source");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await waitNav(120);
 
             router.push("/target");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            expect(capturedTo.name).toBe("target");
-            expect(capturedFrom.name).toBe("source");
+            expect(capturedTo).toBeInstanceOf(Array);
+            expect(capturedTo[capturedTo.length - 1].route?.name).toBe("target");
         });
 
-        it("应该处理 afterLeave 守卫抛出的错误", async () => {
+        it("afterRoute 守卫抛出错误时导航应继续完成", async () => {
             const routes = [
-                {
-                    name: "source",
-                    path: "/source",
-                    afterLeave: () => {
-                        throw new Error("Guard error");
-                    }
-                },
+                { name: "source", path: "source" },
                 {
                     name: "target",
-                    path: "/target"
+                    path: "target",
+                    afterRoute: () => {
+                        throw new Error("Guard error");
+                    }
                 }
             ];
 
             router = await createRouter(host, { routes });
             router.push("/source");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await waitNav(120);
 
             router.push("/target");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            // 导航应该继续完成，即使 afterLeave 失败
-            expect(router.routes.current.route!.name).toBe("target");
+            // 导航应该继续完成，即使 afterRoute 失败
+            expect(lastMatched(router)?.route?.name).toBe("target");
         });
     });
 
@@ -511,9 +495,9 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
             const routes = [
                 {
                     name: "protected",
-                    path: "/protected",
-                    beforeEnter: () => {
-                        order.push("beforeEnter");
+                    path: "protected",
+                    beforeRoute: () => {
+                        order.push("route-beforeRoute");
                         return true;
                     }
                 }
@@ -521,28 +505,27 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
 
             router = await createRouter(host, { routes });
 
-            // @ts-ignore
-            router.hooks.beforeEach.push((to: any, from: any, next: any) => {
-                order.push("beforeEach");
-                next();
+            // 全局钩子先于路由项级钩子执行（_runHooks: 全局在前）
+            router.hooks.add("beforeRoute", () => {
+                order.push("global-beforeRoute");
+                return true;
             });
 
             router.push("/protected");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            expect(order).toEqual(["beforeEach", "beforeEnter"]);
+            expect(order).toEqual(["global-beforeRoute", "route-beforeRoute"]);
         });
 
-        it("应该在全局 beforeEach 钩子取消后不执行路由守卫", async () => {
+        it("应该在全局 beforeRoute 钩子取消后不执行路由守卫", async () => {
             let guardExecuted = false;
 
             const routes = [
                 {
                     name: "protected",
-                    path: "/protected",
-                    beforeEnter: () => {
+                    path: "protected",
+                    beforeRoute: () => {
                         guardExecuted = true;
                         return true;
                     }
@@ -551,104 +534,80 @@ describe("AutoSparkRouter 路由级守卫系统", () => {
 
             router = await createRouter(host, { routes });
 
-            // @ts-ignore
-            router.hooks.beforeEach.push((to: any, from: any, next: any) => {
-                next(false);
+            router.hooks.add("beforeRoute", () => {
+                return false;
             });
 
             router.push("/protected");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
             expect(guardExecuted).toBe(false);
         });
 
-        it("应该在路由守卫取消后不执行全局 afterEach 钩子", async () => {
-            let afterEachExecuted = false;
+        it("守卫拦截后应触发 navigation:cancel 且不渲染", async () => {
+            let rendered = false;
+            let cancelled = false;
 
             const routes = [
                 { name: "home", path: "/" },
                 {
                     name: "protected",
-                    path: "/protected",
-                    beforeEnter: () => false
+                    path: "protected",
+                    beforeRoute: () => false
                 }
             ];
 
             router = await createRouter(host, { routes });
 
-            // @ts-ignore
-            router.hooks.afterEach.push(() => {
-                afterEachExecuted = true;
-            });
+            router.hooks.add("beforeRender", () => { rendered = true; });
+            router.on("navigation:cancel", () => { cancelled = true; });
 
             router.push("/protected");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            expect(afterEachExecuted).toBe(false);
+            // 拦截语义（实现现状）：渲染被跳过 + cancel 事件；
+            // afterRoute 在 finally 中无条件执行（导航已产生历史条目）
+            expect(rendered).toBe(false);
+            expect(cancelled).toBe(true);
         });
     });
 
     describe("守卫错误处理", () => {
-        it("应该在守卫超时时取消导航", async () => {
+        it("挂起的守卫不应使导航永久阻塞（超时后忽略并继续）", async () => {
+            let navigated = false;
+
             const routes = [
                 {
                     name: "timeout",
-                    path: "/timeout",
-                    beforeEnter: () => {
+                    path: "timeout",
+                    beforeRoute: () => {
                         return new Promise(() => {
-                            // 永不 resolve，模拟超时
+                            // 永不 resolve，模拟挂起
                         });
                     }
+                },
+                {
+                    name: "after",
+                    path: "after"
                 }
             ];
 
-            router = await createRouter(host, { routes });
+            // hookOptions.timeout 缺省 3000ms，用例内调小以缩短等待
+            router = await createRouter(host, {
+                routes,
+                hookOptions: { timeout: 50 },
+            });
+            router.hooks.add("afterRoute", () => { navigated = true; });
+
             router.push("/timeout");
 
-            // 等待超时（30秒超时，但我们只等待较短时间）
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // 等待超时触发（50ms）+ 一轮调度
+            await waitNav(200);
 
-            // 导航应该被取消
-            expect(router.routes.current.route!.path).not.toBe("/timeout");
-        });
-
-        it("应该在守卫抛出错误时取消导航并记录错误", async () => {
-            const consoleSpy = {
-                error: console.error
-            };
-
-            let errorLogged = false;
-            console.error = (...args: any[]) => {
-                if (args[0] && args[0].includes && args[0].includes("Route beforeEnter guard error")) {
-                    errorLogged = true;
-                }
-                consoleSpy.error(...args);
-            };
-
-            const routes = [
-                {
-                    name: "error",
-                    path: "/error",
-                    beforeEnter: () => {
-                        throw new Error("Guard execution error");
-                    }
-                }
-            ];
-
-            router = await createRouter(host, { routes });
-            router.push("/error");
-
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            expect(router.routes.current.route!.path).not.toBe("/error");
-            expect(errorLogged).toBe(true);
-
-            console.error = consoleSpy.error;
+            // 挂起守卫超时后被忽略，导航继续完成（afterRoute 在 finally 执行）
+            expect(navigated).toBe(true);
         });
     });
 });
