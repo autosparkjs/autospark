@@ -585,15 +585,15 @@ describe("SEO head 管理", () => {
     describe("生命周期与特殊场景", () => {
         it("模态路由不触发 head 管理（标题保持底页）", async () => {
             mockView("<div>关于</div>");
-            const modalView = document.createElement("div");
-            modalView.innerHTML = "<autospark-view-meta title='模态标题' />";
+            const dialogRoute: any = { path: "/dialog", modal: true, view: document.createElement("div") };
+            dialogRoute.view.innerHTML = "<autospark-view-meta title='模态标题' />";
 
             router = await createRouter([
                 {
                     path: "/",
                     children: [
                         { path: "about", title: "关于页", view: VIEW_FILE },
-                        { path: "dialog", modal: true, view: modalView },
+                        dialogRoute,
                     ],
                 },
             ]);
@@ -615,21 +615,7 @@ describe("SEO head 管理", () => {
                 return original(...args);
             };
 
-            const origResolve = router._resolveModalRoute.bind(router);
-            router._resolveModalRoute = (options: any) => {
-                console.log(
-                    "resolveModalRoute:",
-                    JSON.stringify(options),
-                    "->",
-                    JSON.stringify(origResolve(options)?.path),
-                );
-                return origResolve(options);
-            };
-            console.log(
-                "modal match before push:",
-                JSON.stringify(router.routes.match("/dialog")),
-            );
-            router.push("!/dialog");
+            await router.openModal({ route: dialogRoute });
             await sleep();
 
             expect(phaseACalls).toBe(0);

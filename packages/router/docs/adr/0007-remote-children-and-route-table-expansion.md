@@ -72,7 +72,7 @@
 ### 决策 7（边界）：不做运行时路由表变更
 
 `features/routes.ts:6-7` 头注释与 `router.dynamic.test.ts`、`router.remote.test.ts` 已按 `addRoute` / `removeRoute` / `loadRemoteRoutes` 写好测试，但本次**不实现**——运行时增删改要连带处理 `routes.current`、`namedRouteItems`、已渲染视图与出口的失效，是独立议题。相关测试标 `skip` 并注明待办，不留红。
-
+wttl
 ## 备选方案
 
 - **attach 阻塞等全部子表就位**：否——首屏白屏时间随子表数量线性增长，home 场景也一并被拖住。改为「unmatched 才等」后，home 零等待、deep-link 只付出自己那条链的代价。
