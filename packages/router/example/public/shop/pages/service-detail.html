@@ -1,0 +1,226 @@
+<!-- 服务详情模板：/shop/services/:id 的三级路由视图 -->
+<div class="service-detail">
+    <!-- 服务头部 -->
+    <div class="service-detail-header">
+        <div class="service-detail-icon" x-text="icon"></div>
+        <div class="service-detail-title">
+            <h2 x-text="name"></h2>
+            <div class="service-detail-meta">
+                <span class="service-tag service-tag-price" x-text="price"></span>
+                <span class="service-tag" x-text="duration"></span>
+                <span class="service-tag service-tag-id">ID: <span x-text="$params.id"></span></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 服务简介 -->
+    <div class="service-detail-section">
+        <h3>服务介绍</h3>
+        <p class="service-detail-desc" x-text="desc"></p>
+    </div>
+
+    <!-- 服务包含内容 -->
+    <div class="service-detail-section">
+        <h3>包含内容</h3>
+        <ul class="service-feature-list">
+            <template x-for="feature of features || []" :key="feature">
+                <li x-text="feature"></li>
+            </template>
+        </ul>
+    </div>
+
+    <!-- 服务流程 -->
+    <div class="service-detail-section">
+        <h3>服务流程</h3>
+        <ol class="service-step-list">
+            <template x-for="step of steps" :key="step">
+                <li>
+                    <span class="service-step-no" x-text="$index + 1"></span>
+                    <span x-text="step"></span>
+                </li>
+            </template>
+        </ol>
+    </div>
+
+    <!-- 温馨提示 -->
+    <div class="service-detail-section" x-show="notice">
+        <h3>温馨提示</h3>
+        <p class="service-detail-notice" x-text="notice"></p>
+    </div>
+
+    <!-- 操作区 -->
+    <div class="service-detail-actions">
+        <button class="service-btn-primary">立即预约</button>
+        <autospark-link to="/shop/services" class="service-btn-secondary">返回服务列表</autospark-link>
+    </div>
+</div>
+
+<style>
+.service-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.service-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.service-detail-icon {
+    font-size: 48px;
+    line-height: 1;
+}
+
+.service-detail-title h2 {
+    margin: 0 0 8px;
+    font-size: 20px;
+    color: #1d2129;
+}
+
+.service-detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.service-tag {
+    display: inline-block;
+    padding: 2px 10px;
+    font-size: 12px;
+    border-radius: 10px;
+    background: #f2f3f5;
+    color: #4e5969;
+}
+
+.service-tag-price {
+    background: #fff3e8;
+    color: #f77234;
+    font-weight: 600;
+}
+
+.service-tag-id {
+    font-family: monospace;
+}
+
+.service-detail-section h3 {
+    margin: 0 0 10px;
+    font-size: 15px;
+    color: #1d2129;
+}
+
+.service-detail-desc,
+.service-detail-notice {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #4e5969;
+}
+
+.service-detail-notice {
+    padding: 12px;
+    background: #fffbe8;
+    border-radius: 8px;
+    color: #86909c;
+}
+
+.service-feature-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.service-feature-list li {
+    position: relative;
+    padding-left: 20px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: #4e5969;
+}
+
+.service-feature-list li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #00b42a;
+    font-weight: 700;
+}
+
+.service-step-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.service-step-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #4e5969;
+}
+
+.service-step-no {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #0891b2;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.service-detail-actions {
+    display: flex;
+    gap: 12px;
+    padding-top: 8px;
+}
+
+.service-btn-primary {
+    padding: 10px 28px;
+    border: none;
+    border-radius: 8px;
+    background: #0891b2;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.service-btn-primary:hover {
+    opacity: 0.85;
+}
+
+.service-btn-secondary {
+    padding: 10px 28px;
+    border-radius: 8px;
+    background: #f2f3f5;
+    color: #4e5969;
+    font-size: 14px;
+    text-decoration: none;
+    transition: background 0.2s ease;
+}
+
+.service-btn-secondary:hover {
+    background: #e5e6eb;
+}
+
+@media (max-width: 768px) {
+    .service-feature-list {
+        grid-template-columns: 1fr;
+    }
+}
+</style>

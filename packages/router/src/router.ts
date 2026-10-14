@@ -20,7 +20,7 @@ import {
     Redirect,
     Modal,
 } from "./features";
-import { getBaseUrl } from "@/utils/getBaseUrl";
+import { getBaseUrl, getDocumentBase } from "@/utils/getBaseUrl";
 
 import { HookManager } from "./features/hooks";
 import { AutoSparkRouteTable } from "./features/routes";
@@ -198,17 +198,15 @@ export class AutoSparkRouter extends Mixin(
         this.options = Object.assign(
             {
                 mode: "history",
-                base: getBaseUrl(), // 自动检测 base URL
                 debug: false,
                 home: "/",
                 keeyAlive: true,
                 data: {},
                 errorPages: {},
                 renderers: [], // 视图渲染器
-                // 公共路由配置
-                routeOptions: {
-                    keepAlive: true,
-                },
+                // 公共路由配置（仅作应用级缺省，路由项显式声明优先）。
+                // 不预置 keepAlive:true——ADR-0003 默认翻转：路由与出口均未声明时不缓存
+                routeOptions: {},
                 viewOptions: {},
             },
             options && typeof options === "object" && "routes" in options
@@ -217,6 +215,13 @@ export class AutoSparkRouter extends Mixin(
                       routes: options,
                   },
         );
+        // base 缺省链（ADR-0006 决策 2a/2b）：显式配置 > 文档 <base href> 标签 > URL 目录推断。
+        // base 移出 defaults 由本处条件填充——显式传 undefined 视为未设置（不再覆盖推断值）。
+        // <base href> 信号服务于动态入口（服务端渲染入口 HTML、URL 无文件名）：深层直达的
+        // URL 不含「前缀到哪结束」的信号，getBaseUrl 目录规则会把路由路径误判为目录
+        if (this.options.base === undefined) {
+            this.options.base = getDocumentBase() ?? getBaseUrl();
+        }
         this.options.errorPages = { ...errorPages, ...this.options.errorPages };
         return this.options;
     }
@@ -338,10 +343,15 @@ export class AutoSparkRouter extends Mixin(
                 return;
             }
 
+            // 公共层数：fromRoute 与 toRoute 的 URL 前缀公共部分（ADR-0004 加载域公共层跳过）。
+            // 加载域：i < commonRouteIndex 且加载成功过的层跳过加载（复用既有 signal）；
+            // 渲染域同算法跳过公共层渲染（_renderRoutes 内自算，同一判定键 matched.url）
+            const commonRouteIndex = this._getCommonRouteIndex(fromRoute, toRoute);
+
             // 传递 navSignal 给 dataLoader 和 viewLoader
             // 这样当导航被中止时，正在进行的网络请求也会被取消
-            this.dataLoader.loadDatas(toRoute, navSignal);
-            this.viewLoader.loadViews(toRoute, navSignal);
+            this.dataLoader.loadDatas(toRoute, navSignal, commonRouteIndex);
+            this.viewLoader.loadViews(toRoute, navSignal, commonRouteIndex);
 
             // 执行渲染，传递 navSignal
             await this._renderRoutes(toRoute, fromRoute, navSignal);
@@ -500,15 +510,30 @@ export class AutoSparkRouter extends Mixin(
                 this.emit("routes:attached", undefined);
                 // 标记为已绑定
                 // 初始导航：按当前 URL 恢复路由状态（直达/刷新/前进后退落地）；
-                // 仅当前路径即 base 根（无路由信息）时才走默认主页
-                const currentPath = removePathPrefix(
-                    this.history.location.pathname,
-                    this.options.base,
-                );
+                // 入口文档直开（ADR-0006 修订版）：原始 pathname 以 .html/.htm 结尾（对齐
+                // getBaseUrl 的扩展名集合）即视为载体直开（如 /public/shop/index.html、
+                // /shop/a.html、/shop/x/y/z.html）——先试真实匹配，命中（路由 path 带 .html
+                // 的合法场景）正常渲染，仅 unmatched 才归位 home（地址栏落 base 根）。
+                // 未显式 base 时 getBaseUrl 构造期已把入口文件所在目录推断为 base，
+                // 归位即落目录根（/shop/x/y/z.html → /shop/x/y/z）
+                const rawPathname = this.history.location.pathname;
+                const currentPath = removePathPrefix(rawPathname, this.options.base);
                 if (currentPath === "" || currentPath === "/") {
                     this.home();
+                } else if (rawPathname.endsWith(".html") || rawPathname.endsWith(".htm")) {
+                    // 试匹配输入与 onRouteUpdate 同构（base 剥离后的路径 + search）；
+                    // toRoute 首项是根路由（route 恒有值），真实匹配看首项之后
+                    const matched = this._matchRoute(currentPath, this.history.location.search);
+                    const hasRealMatch = matched.toRoute
+                        .slice(1)
+                        .some((m) => m.route !== undefined);
+                    if (hasRealMatch) {
+                        this.replace(rawPathname);
+                    } else {
+                        this.home();
+                    }
                 } else {
-                    this.replace(this.history.location.pathname);
+                    this.replace(rawPathname);
                 }
             })
             .catch((e) => {

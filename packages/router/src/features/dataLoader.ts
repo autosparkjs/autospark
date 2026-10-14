@@ -221,16 +221,39 @@ export class DataLoader {
     // 路由加载
     // ========================================
 
+    // ========================================
+    // 加载状态标记（ADR-0004 公共层跳过的前提；DataLoader 独立实现，不继承 baseLoader）
+    // ========================================
+
+    /** 读路由项上 data 通道的加载状态标记 */
+    private loadStateOf(matched: AutoSparkMatchedRouteItem): "ok" | "error" | undefined {
+        if (!matched.route) return undefined;
+        return (matched.route as any)._dataLoadState as "ok" | "error" | undefined;
+    }
+    /** 写路由项上 data 通道的加载状态标记 */
+    private setLoadState(matched: AutoSparkMatchedRouteItem, state: "ok" | "error"): void {
+        if (!matched.route) return;
+        (matched.route as any)._dataLoadState = state;
+    }
+
     /**
      * 并发加载多个路由的数据
      * @param routes - 匹配的路由数组
      * @param navSignal - 导航级别的中止信号
+     * @param fromIndex - 公共层起点：`i < fromIndex` 且 data 通道加载成功过的层跳过
+     *   （已加载层复用，ADR-0004）；失败层（"error"/未标记）公共也重试
      */
     public loadRoutes(
         routes: AutoSparkMatchedRouteItem[],
         navSignal?: AbortSignal,
+        fromIndex: number = 0,
     ): Promise<PromiseSettledResult<void>[]> {
-        return Promise.allSettled(routes.map((matched) => this._loadRoute(matched, navSignal)));
+        return Promise.allSettled(
+            routes.map((matched, i) => {
+                if (i < fromIndex && this.loadStateOf(matched) === "ok") return;
+                return this._loadRoute(matched, navSignal);
+            }),
+        );
     }
 
     /**
@@ -249,9 +272,12 @@ export class DataLoader {
 
             // 触发加载（AsyncLoader 内部处理缓存、超时、重试）
             await loader.get();
+            // 加载成功落账：公共层跳过的前提（ADR-0004）
+            this.setLoadState(matched, "ok");
         } catch (e: any) {
-            // AbortError 通常是由于用户导航取消导致的，无需处理
+            // AbortError 通常是由于用户导航取消导致的，无需处理（不写状态标记）
             if (e.name !== "AbortError") {
+                this.setLoadState(matched, "error");
                 this.router.logger.error(
                     `DataLoader: Failed to load data for route ${matched.path}`,
                     () => [e],
@@ -321,9 +347,14 @@ export class DataLoader {
      * 并发加载匹配路由的数据（公共 API）
      * @param routes - 匹配的路由数组
      * @param navSignal - 导航级别的中止信号
+     * @param fromIndex - 公共层起点（已加载层复用，ADR-0004）
      */
-    async loadDatas(routes: AutoSparkMatchedRouteItem[], navSignal?: AbortSignal) {
-        return this.loadRoutes(routes, navSignal);
+    async loadDatas(
+        routes: AutoSparkMatchedRouteItem[],
+        navSignal?: AbortSignal,
+        fromIndex: number = 0,
+    ) {
+        return this.loadRoutes(routes, navSignal, fromIndex);
     }
 
     // ========================================

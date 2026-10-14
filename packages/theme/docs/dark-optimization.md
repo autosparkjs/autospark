@@ -33,6 +33,28 @@ themeManager.dark = true
 - 背景：面板浮起流派——`bgcolor-0`（面板）= gray-8 浮于 `bgcolor-1`（工作区）= gray-9
 - 派生层 `derivedVars` 为**单套**，无 dark 专属值——所有 `--auto-*` 在两种模式下的"引用档位/百分比参数"完全相同，仅靠基变量换值间接适配
 
+**独立样式域（2026-10-14 追加，同日扩展为四属性）**：模式维度（`data-light` / `data-dark`）与色彩维度（`data-colorized` / `data-uncolored`）各一对手动通道，任意元素裸挂属性即可独立启用对应样式域，与作用域元素上的 `dark` / `colorized`（JS setter 通道）长期并存。维度可自由组合——模式切换会把色彩重置为灰（同元素组合两个维度才生效），色彩开关则保留语境模式：
+
+```css
+/* 根域（:host/:root）裸追加；作用域收敛为「自身+后代」两式 */
+[selector][dark],[data-dark]                                    /* 暗色块 */
+[selector],[data-light]                                         /* 亮色块（基色块含 color-scheme: light，完整亮域） */
+[selector][colorized],[data-colorized]                          /* 多彩块 */
+[selector][dark][colorized],[dark][data-colorized],
+[data-dark][colorized],[data-dark][data-colorized]              /* 叠加块：四组合同元素命中 */
+[data-uncolored]                                                /* 无彩块：色彩回灰、模式随语境 */
+```
+
+实现基础是模式块内的**别名层**：`--x-plain-*`（灰色方向）与 `--x-tinted-*`（多彩映射）由亮/暗模式块各自声明，`data-uncolored` 与 `data-colorized` 只声明对别名的引用——自定义属性继承的是解析后的值，直接声明即压过继承值，因此无彩/多彩元素的「方向」自动随最近的模式块（含作用域内 `data-dark` 后代）切换。附带修复：暗语境中的 `data-colorized` 元素此前取不到暗多彩映射（Q5），现经 `--x-tinted-*` 继承自动正确。
+
+作用域约束：根域（`:host`/`:root`）子树即文档，保持裸属性追加；其余作用域由 `_selectors` 派生 `S[data-X]`（自身）与 `S [data-X]`（后代）两式，把命中收敛在本作用域子树内。作用域叠加块另有后代守卫 `S [data-dark][colorized]` / `S [data-dark][data-colorized]`——无守卫时作用域暗色块的 `S [data-dark]`（`!important` 灰）会把作用域内 `data-dark`+`data-colorized` 组合降级为灰。
+
+已知限制（既定接受）：
+
+- 同元素语义：叠加态要求属性同元素——`html[dark]` + 后代 `[data-colorized]` 不命中叠加块（手工挂 `colorized` 属性时代即存在，非本次引入）。`data-uncolored` 可作为该场景的降级手段（回灰但保留模式）
+- 非作用域元素上手工 `dark`/`colorized` 属性只命中叠加块、不命中普通暗色/多彩块（不对称，既定接受）
+- 组件层字面量规则（如 `alert.less` 的暗色 `color-mix`）不随 CSS 变量走，已为 `data-light` 补对偶反规则；更深的嵌套矛盾（亮元素内再挂暗元素）组件层兜不住，请走变量层
+
 ## 3. 问题清单
 
 对比度为手算估算（面板底 gray-8，L≈0.021），精确值以校准脚本（§5.1）为准。

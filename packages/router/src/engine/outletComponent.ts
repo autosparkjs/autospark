@@ -9,6 +9,8 @@ import { injectStylesheet } from "@/utils/injectStylesheet";
  *   `active` hash + 临时视图槽。它是访问记录而非缓存簿记：缓存纯由 DOM 常驻 +
  *   x-show（display:none）承担，切回原样复用（运行态保留）。
  * - **临时视图**：非缓存视图（keepAlive 解析为 false）走单一临时容器，每次重编译。
+ *   容器仅在确有临时视图时显示（ephemeral.hash 非空）——空转出口（所在路由层没有更深的
+ *   子路由渲染进来，数据域从未被写入）不显示 loading。
  * - **props**：`keepAlive`（本出口未显式声明路由的缓存默认值，默认 false）与
  *   `mode`（'stack' | 'tabs'，默认 stack）——经 x-component 值 / x-outlet 简写值透传注入。
  * - **tabs 模式**：内建页签条（标题取路由 title 回退 hash），点击页签走 router 导航
@@ -113,7 +115,7 @@ export const OUTLET_COMPONENT_CODE = `<div x-define="${OUTLET_COMPONENT_NAME}" c
             <div class="autospark-outlet-view-content" x-html.compile="view.html"></div>
         </div>
     </div>
-    <div class="autospark-outlet-ephemeral" x-show="active === ephemeral.hash">
+    <div class="autospark-outlet-ephemeral" x-show="ephemeral.hash !== '' && active === ephemeral.hash" :data-view-hash="ephemeral.hash">
         <autospark-loading x-show="!ephemeral.ready"></autospark-loading>
         <div class="autospark-outlet-view-content" x-html.compile="ephemeral.html"></div>
     </div>

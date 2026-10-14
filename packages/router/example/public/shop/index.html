@@ -143,6 +143,22 @@
                                 view: "pages/services-list.html",
                                 data: "data/services.json",
                             },
+                            // 服务详情（/services/:id）：按 id 从 services.json 取单项
+                            {
+                                path: ":id",
+                                view: "pages/service-detail.html",
+                                data: {
+                                    from: async (context) => {
+                                        const response = await fetch("/shop/data/services.json");
+                                        const all = await response.json();
+                                        return (
+                                            all.services.find(
+                                                (s) => s.id === context.params.id,
+                                            ) || {}
+                                        );
+                                    },
+                                },
+                            },
                         ],
                     },
 
@@ -157,6 +173,12 @@
                                 default: true,
                                 view: "pages/docs-list.html",
                                 data: "data/docs.json",
+                            },
+                            // 文档详情（/docs/:id）：每篇文档一个独立 html（view URL {id} 插值），
+                            // 标题/正文/元信息全部静态写在对应 html 内
+                            {
+                                path: ":id",
+                                view: "pages/docs/help/{id}.html",
                             },
                         ],
                     },

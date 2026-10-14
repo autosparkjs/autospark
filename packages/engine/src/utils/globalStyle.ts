@@ -11,7 +11,8 @@ import { injectStylesheet } from "./injectStylesheet";
  * - **容器聚合**：无 id 段合并进共享容器 `<style id="autospark-styles">`，带 id 段用独立容器；
  *   同 id 段按声明序**追加**（跨组件共享主题池）；
  * - **覆盖声明整组替换保位**：同名组件重新声明时该 defName 的段被新段整组替换，Map 同 key
- *   赋值保持原插入位置（与 scoped 侧按 defName 缓存天然覆盖的行为对齐，防幽灵样式）；
+ *   赋值保持原插入位置（与 scoped 侧按 defName 缓存 + patch 模式按需覆写的行为对齐——
+ *   ADR-0113 落地后该对齐为真，防幽灵样式）；
  * - **多 engine 共页共享容器**：账本按（容器 id → engine → defName）三级，重写时遍历**全体**
  *   engine 的段拼接（每 engine 独立重写会抹掉他人贡献）；
  * - 段清空的容器连 `<style>` 元素一并移除。

@@ -122,7 +122,9 @@ export abstract class RouteDataLoaderBase<
             {
                 timeout: 0,
                 cache: 0,
-                hash: "{path}",
+                // 默认 "{url}"：缓存键须区分参数取值（"{path}" 是模式路径，参数不同的层会
+                // 坍缩为同一键，ADR-0004 决策 6）；与 _getHash 的兜底一致
+                hash: "{url}",
                 datatype: "json",
             },
             defaultOptions,
@@ -188,12 +190,36 @@ export abstract class RouteDataLoaderBase<
      * 并发加载多个路由
      * @param routes - 匹配的路由数组
      * @param navSignal - 导航级别的中止信号
+     * @param fromIndex - 公共层起点：`i < fromIndex` 且该通道加载成功过
+     *   （`_viewLoadState/_dataLoadState === "ok"`）的层跳过加载——已加载层复用既有
+     *   signal，只加载新增层（ADR-0004）。失败层（"error"/未标记）公共也重试。
      */
     public loadRoutes(
         routes: AutoSparkMatchedRouteItem[],
         navSignal?: AbortSignal,
+        fromIndex: number = 0,
     ): Promise<PromiseSettledResult<void>[]> {
-        return Promise.allSettled(routes.map((matched) => this.loadRoute(matched, navSignal)));
+        return Promise.allSettled(
+            routes.map((matched, i) => {
+                if (i < fromIndex && this.loadStateOf(matched) === "ok") return;
+                return this.loadRoute(matched, navSignal);
+            }),
+        );
+    }
+
+    /** 本 loader 通道的路由项加载状态键（`_viewLoadState` / `_dataLoadState`） */
+    protected get loadStateKey(): `_viewLoadState` | `_dataLoadState` {
+        return `_${this._optionKey}LoadState` as `_viewLoadState` | `_dataLoadState`;
+    }
+    /** 读路由项上本通道的加载状态标记 */
+    protected loadStateOf(matched: AutoSparkMatchedRouteItem): "ok" | "error" | undefined {
+        if (!matched.route) return undefined;
+        return (matched.route as any)[this.loadStateKey] as "ok" | "error" | undefined;
+    }
+    /** 写路由项上本通道的加载状态标记（成功/失败在 onLoadSuccess/onLoadError 统一落账） */
+    protected setLoadState(matched: AutoSparkMatchedRouteItem, state: "ok" | "error"): void {
+        if (!matched.route) return;
+        (matched.route as any)[this.loadStateKey] = state;
     }
 
     private _createErrorSignal(matched: AutoSparkMatchedRouteItem, error: any, options: Options) {
@@ -306,7 +332,9 @@ export abstract class RouteDataLoaderBase<
         if (options.hash) {
             return getSignalHash(options.hash, matched);
         }
-        return getSignalHash(options.hash || "{path}", matched);
+        // 默认 "{url}"：matched.path 是模式路径（如 /products/:category，不含参数值），
+        // 参数不同的层会坍缩为同一缓存键；matched.url 才是实际完整路径（ADR-0004）
+        return getSignalHash("{url}", matched);
     }
 
     protected getAutoUrl(_matched: AutoSparkMatchedRouteItem): string | undefined {
@@ -453,11 +481,15 @@ export abstract class RouteDataLoaderBase<
                 } as CacheItem<Data>);
             }
             if (data.error && data.error instanceof Error) {
+                this.setLoadState(matched, "error");
                 signal.reject(new AutoSparkRouterLoadError(data.error.message));
             } else {
+                // 加载成功落账：公共层跳过的前提（ADR-0004）
+                this.setLoadState(matched, "ok");
                 signal.resolve(data);
             }
         } catch (e: any) {
+            this.setLoadState(matched, "error");
             signal.reject(e);
         }
     }
@@ -469,8 +501,10 @@ export abstract class RouteDataLoaderBase<
         options: Options,
     ): void {
         if (error.name === "AbortError") {
+            // 导航取消不算加载失败：不写状态标记（公共层跳过判定不受影响）
             signal.resolve(undefined);
         } else {
+            this.setLoadState(matched, "error");
             signal.meta.statusCode = (error as AutoSparkRouterLoadError).status || 500;
             // 使用正确的缓存键
             const hash = this._getHash(matched, options);

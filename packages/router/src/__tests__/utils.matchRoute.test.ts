@@ -449,43 +449,48 @@ describe("matchRoute - 基础匹配", () => {
 
             const result = matchRoute("/user/1/post/2/comment/3?keyword=x", routes);
 
+            // ADR-0004：matched.url 为完整路径（pathname + search），全层携带 search
             expect(result).toEqual([
-                rootPathExpect,
+                expect.objectContaining({
+                    route: expect.objectContaining({ path: "/" }),
+                    path: "/",
+                    url: "/?keyword=x",
+                }),
                 expect.objectContaining({
                     route: expect.objectContaining({ path: "user" }),
                     path: "/user",
-                    url: "/user",
+                    url: "/user?keyword=x",
                 }),
                 expect.objectContaining({
                     route: expect.objectContaining({ path: ":id" }),
                     params: { id: "1" },
                     path: "/user/:id",
-                    url: "/user/1",
+                    url: "/user/1?keyword=x",
                 }),
                 expect.objectContaining({
                     route: expect.objectContaining({ path: "post" }),
                     params: { id: "1" },
                     path: "/user/:id/post",
-                    url: "/user/1/post",
+                    url: "/user/1/post?keyword=x",
                 }),
                 expect.objectContaining({
                     route: expect.objectContaining({ path: ":postId" }),
                     params: { id: "1", postId: "2" },
                     path: "/user/:id/post/:postId",
-                    url: "/user/1/post/2",
+                    url: "/user/1/post/2?keyword=x",
                 }),
                 expect.objectContaining({
                     route: expect.objectContaining({ path: "comment" }),
                     params: { id: "1", postId: "2" },
                     path: "/user/:id/post/:postId/comment",
-                    url: "/user/1/post/2/comment",
+                    url: "/user/1/post/2/comment?keyword=x",
                 }),
                 expect.objectContaining({
                     route: expect.objectContaining({ path: ":commentId" }),
                     params: { id: "1", postId: "2", commentId: "3" },
                     query: { keyword: "x" },
                     path: "/user/:id/post/:postId/comment/:commentId",
-                    url: "/user/1/post/2/comment/3",
+                    url: "/user/1/post/2/comment/3?keyword=x",
                 }),
             ]);
         });
@@ -1011,7 +1016,8 @@ describe("matchRoute - 选项功能", () => {
             expect(result).toHaveLength(3);
             expect(result[2].params).toEqual({ id: "123" });
             expect(result[2].query).toEqual({ debug: "true", from: "home" });
-            expect(result[2].url).toBe("/user/123");
+            // ADR-0004：matched.url 为完整路径（pathname + search）
+            expect(result[2].url).toBe("/user/123?from=home");
         });
 
         it("动态提取的 params 应该与路由配置中的 params 合并", () => {
@@ -2634,5 +2640,83 @@ describe("matchRoute - 根路由无子路由边界情况", () => {
         expect(result[0].route.path).toBe("/");
         expect(result[1].route.name).toBe("about");
         expect(result[1].url).toBe("/about");
+    });
+});
+
+describe("matchRoute - url 完整路径语义（ADR-0004）", () => {
+    it("带 query 的导航应使每层 matched.url 含 search", () => {
+        const routes: AutoSparkRouteItem = normalizeRoutes({
+            path: "/",
+            children: [
+                {
+                    name: "products",
+                    path: "products",
+                    children: [{ name: "category", path: ":category" }],
+                },
+            ],
+        });
+
+        const result = matchRoute("/products/tablets?tab=2&x=1", routes);
+
+        expect(result).toHaveLength(3);
+        expect(result[0].url).toBe("/?tab=2&x=1");
+        expect(result[1].url).toBe("/products?tab=2&x=1");
+        expect(result[2].url).toBe("/products/tablets?tab=2&x=1");
+    });
+
+    it("query 变化应产生不同的 matched.url（公共层判定区分 query）", () => {
+        const routes: AutoSparkRouteItem = normalizeRoutes({
+            path: "/",
+            children: [{ name: "products", path: "products" }],
+        });
+
+        const first = matchRoute("/products?tab=1", routes);
+        const second = matchRoute("/products?tab=2", routes);
+
+        expect(first[1].url).toBe("/products?tab=1");
+        expect(second[1].url).toBe("/products?tab=2");
+        expect(first[1].url).not.toBe(second[1].url);
+    });
+
+    it("query 变化应使路由 hash（默认 {url} 模板）随之变化", () => {
+        const routes: AutoSparkRouteItem = normalizeRoutes({
+            path: "/",
+            children: [{ name: "products", path: "products" }],
+        });
+
+        const first = matchRoute("/products?tab=1", routes);
+        const second = matchRoute("/products?tab=2", routes);
+        const noQuery = matchRoute("/products", routes);
+
+        expect(first[1].hash).not.toBe(second[1].hash);
+        expect(noQuery[1].hash).not.toBe(first[1].hash);
+    });
+
+    it("无 query 的导航 matched.url 保持纯 pathname（不追加 ?）", () => {
+        const routes: AutoSparkRouteItem = normalizeRoutes({
+            path: "/",
+            children: [{ name: "products", path: "products" }],
+        });
+
+        const result = matchRoute("/products", routes);
+
+        expect(result[0].url).toBe("/");
+        expect(result[1].url).toBe("/products");
+    });
+
+    it("redirect 目标自带 query 时以目标的 search 为准（防重复追加）", () => {
+        const routes: AutoSparkRouteItem = normalizeRoutes({
+            path: "/",
+            children: [
+                { name: "old", path: "old-products", redirect: "/products?src=redirect" },
+                { name: "products", path: "products" },
+            ],
+        });
+
+        const result = matchRoute("/old-products?tab=1", routes);
+
+        // 命中重定向后，最终层的 url 含目标自身 search，不被原始 search 二次追加
+        const last = result[result.length - 1];
+        expect(last.url).toBe("/products?src=redirect");
     });
 });

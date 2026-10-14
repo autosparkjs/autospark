@@ -198,18 +198,14 @@ function findMatchingBrace(css: string, openIdx: number): number {
     return css.length - 1;
 }
 
-// ── 样式注入与引用计数（按组件定义缓存，多实例共享）──────────────────────────
-
-/** 引用计数：key=`${defName}`，value=当前实例数。归零时移除 <style> 元素。 */
-const styleRefCount = new Map<string, number>();
+// ── 样式注入与生命周期（按组件定义缓存，多实例共享）───────────────────────────
 
 /**
  * def 级 scoped id 分配（ADR-0087 修订）：按**组件定义**（name）而非实例 scope.id 分配——
  * 同 def 多实例共享同一份改写样式与 `data-cmp-{id}` 属性。原按实例 scopeId 的取法在
  * 「样式元素按 defName 去重复用 + 属性按实例 id 打点」组合下，第二实例起属性值与缓存
  * 样式的选择器后缀失配（首实例 `[data-cmp-1]` 永不命中 `[data-cmp-2]` 的元素——二次
- * 实例化样式全丢）。name → id 映射全引擎稳定（style 元素被引用计数回收后重注入仍取同 id，
- * 旧实例已不存在，无冲突）。
+ * 实例化样式全丢）。name → id 映射全引擎稳定（style 元素重注入仍取同 id）。
  */
 const defScopedIds = new Map<string, number>();
 let nextComponentScopedId = 1;
@@ -225,10 +221,12 @@ export function componentScopedId(defName: string): number {
 }
 
 /**
- * 为组件实例注入 scoped 样式（ADR-0022 决策四-4）。
+ * 为组件实例注入 scoped 样式（ADR-0022 决策四-4，生命周期修订见 ADR-0113）。
  *
- * - 同名组件定义的样式只改写、注入一次（`<style data-cmp-def="${defName}">`），多实例共享，引用计数管理；
- * - 实例化（mountComponentStyle）时计数 +1，卸载（releaseComponentStyle）时 -1，归零移除 `<style>`；
+ * - 同名组件定义只改写注入一次（`<style data-cmp-def="${defName}">`），多实例共享；
+ * - **页面级常驻**：无引用计数、不随卸载/destroy 移除（多 engine 共页同名组件共享同一
+ *   元素，单方无法判定最后使用者——对齐 ADR-0001/0087「文档级共享资源不移除」）；
+ * - 同名覆盖声明经 `patch` 模式按需更新内容（等值零开销，防幽灵旧样式）；
  * - scopeId 为改写用的属性后缀——**须传 componentScopedId(defName)**（def 级稳定 id，
  *   与实例化时打的 data-cmp-{id} 属性保持一致 → 见 mountComponentScopedAttr）。
  *
@@ -243,19 +241,18 @@ export function injectComponentStyle(
     scopeId: number,
 ): HTMLStyleElement | null {
     if (styles.length === 0) return null;
-    const cacheKey = `cmp-style-${defName}`;
-    // 惰性工厂：样式表已存在（多实例共享）时零成本复用，免重复改写
+    // 惰性工厂：改写仅在新建 / 内容变化时求值（patch 模式须比对，恒求值）
     const el = injectStylesheet(() => styles.map((s) => rewriteScopedCss(s, scopeId)).join("\n"), {
         id: componentStyleId(defName),
+        mode: "patch",
     });
     if (!el) return null; // SSR 无 document
     // 标识属性（data-cmp-def：查证/测试契约；新建与复用同打，幂等）
     el.setAttribute("data-cmp-def", defName);
-    styleRefCount.set(cacheKey, (styleRefCount.get(cacheKey) ?? 0) + 1);
     return el;
 }
 
-/** 组件 scoped 样式表 id（defName → 稳定编号，注入与释放同一寻址；编号回收复用见 componentScopedId） */
+/** 组件 scoped 样式表 id（defName → 稳定编号，注入同一寻址；编号不回收复用，见 componentScopedId） */
 function componentStyleId(defName: string): string {
     return `autospark-cmp-style-${componentScopedId(defName)}`;
 }
@@ -286,32 +283,10 @@ export function injectHostScopedStyle(
 }
 
 /**
- * 释放组件实例的样式引用（计数 -1，归零移除 `<style>`）。
- */
-export function releaseComponentStyle(defName: string): void {
-    const cacheKey = `cmp-style-${defName}`;
-    const count = (styleRefCount.get(cacheKey) ?? 0) - 1;
-    if (count <= 0) {
-        styleRefCount.delete(cacheKey);
-        const el = document.head.querySelector(
-            `style[data-cmp-def="${cssEscape(defName)}"]`,
-        );
-        el?.remove();
-    } else {
-        styleRefCount.set(cacheKey, count);
-    }
-}
-
-/**
  * 给元素及其后代打 scoped 属性 `data-cmp-{scopeId}`（实例化时调用；组件 def 级数值 id
  * 与 x-html.compile 实例级随机字符串 id 同用——属性名构造是唯一共用点）。
  */
 export function mountComponentScopedAttr(root: HTMLElement, scopeId: number | string): void {
     root.setAttribute(`data-cmp-${scopeId}`, "");
     root.querySelectorAll("*").forEach((n) => n.setAttribute(`data-cmp-${scopeId}`, ""));
-}
-
-/** CSS 转义（属性选择器中 defName 含特殊字符时） */
-function cssEscape(s: string): string {
-    return s.replace(/["\\]/g, "\\$&");
 }

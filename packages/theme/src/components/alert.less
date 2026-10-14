@@ -105,7 +105,9 @@
 }
 
 :host([dark]),
-[dark] {
+:host([data-dark]),
+[dark],
+[data-dark] {
     .auto-alert {
         background: var(--auto-panel-bgcolor);
         border: var(--auto-border);
@@ -149,6 +151,63 @@
 
             &:after {
                 background-color: color-mix(in srgb, var(--x-color-danger), white 70%);
+            }
+        }
+    }
+}
+
+/*
+ * data-light 手动通道：暗语境（外层 [dark]/[data-dark]）中的亮元素——
+ * 告警的暗色规则用字面量 color-mix 固化了暗配色（不随 CSS 变量走），
+ * 此处还原亮配色。特异性与暗色规则打平（均 (0,2,0)），置于其后靠顺序胜出；
+ * 嵌套矛盾（亮元素内再挂暗元素）时亮规则仍胜——组件层仅此一条兜底，
+ * 精细嵌套请走 CSS 变量层（--auto-* / --x-color-* 已随 data-light 正确解析）。
+ */
+:host([data-light]),
+[data-light] {
+    .auto-alert {
+        background: var(--auto-bgcolor);
+        border: var(--auto-border);
+        color: var(--auto-color);
+
+        &.warning {
+            background: color-mix(in srgb, var(--x-color-warning), white 90%);
+            border: 1px solid color-mix(in srgb, var(--x-color-warning), white 50%);
+            color: var(--x-color-warning);
+
+            &:after {
+                background-color: var(--x-color-warning);
+            }
+        }
+
+        &.success {
+            background: color-mix(in srgb, var(--x-color-success), white 90%);
+            border: 1px solid color-mix(in srgb, var(--x-color-success), white 50%);
+            color: var(--x-color-success);
+
+            &:after {
+                background-color: var(--x-color-success);
+            }
+        }
+
+        &.primary {
+            background: color-mix(in srgb, var(--x-color-primary), white 90%);
+            border: 1px solid color-mix(in srgb, var(--x-color-primary), white 50%);
+            color: var(--x-color-primary);
+
+            &:after {
+                background-color: var(--x-color-primary);
+            }
+        }
+
+        &.error,
+        &.danger {
+            background: color-mix(in srgb, var(--x-color-danger), white 90%);
+            border: 1px solid color-mix(in srgb, var(--x-color-danger), white 50%);
+            color: var(--x-color-danger);
+
+            &:after {
+                background-color: var(--x-color-danger);
             }
         }
     }

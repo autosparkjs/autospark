@@ -275,7 +275,9 @@ export class Render {
     }
 
     /**
-     * 在父出口的指定视图容器内查找嵌套出口（远程模板里的 x-outlet 经编译激活后落位于此）
+     * 在父出口的指定视图容器内查找嵌套出口（远程模板里的 x-outlet 经编译激活后落位于此）。
+     * 两条挂载通道均有锚点：views 清单容器（:data-view-hash="view.hash"）与
+     * 临时容器（:data-view-hash="ephemeral.hash"，见 outletComponent.ts 模板）。
      */
     private _findNestedOutlet(
         this: AutoSparkRouter,
@@ -311,6 +313,40 @@ export class Render {
     }
 
     /**
+     * 激活前提判定（ADR-0005 决策 2）：本层视图是否仍是其出口的当前激活视图。
+     * 公共层跳过的前提——不成立时跳过转为重挂（出口已被更深回退视图置换，或
+     * 后退裁剪后激活态指向其他层）。轻量读取出口数据域，不做组件缺失告警。
+     */
+    private _isOutletActive(
+        this: AutoSparkRouter,
+        outlet: HTMLElement,
+        viewHash: string,
+    ): boolean {
+        const comp = this.engine?.getComponent(outlet);
+        return (comp as unknown as OutletComponentHandle | null)?.data.active === viewHash;
+    }
+
+    /**
+     * 从元素向上找最近的出口宿主（不越过 root）。裁剪清理用：定位被裁层视图
+     * 挂载的出口（= 其视图容器的最近出口祖先）；root 本身不参与（起点的激活态
+     * 由激活前提管理，永不因裁剪清空）。
+     */
+    private _closestOutlet(
+        this: AutoSparkRouter,
+        el: HTMLElement,
+        root: HTMLElement,
+    ): HTMLElement | null {
+        let parent = el.parentElement;
+        while (parent && parent !== root) {
+            if (parent instanceof HTMLElement && parent.hasAttribute("data-autospark-outlet")) {
+                return parent;
+            }
+            parent = parent.parentElement;
+        }
+        return null;
+    }
+
+    /**
      * 执行渲染步骤
      * 支持逐级嵌套路由渲染、beforeRender/afterRender 钩子
      * 包含并发控制，防止快速导航时渲染混乱
@@ -336,8 +372,10 @@ export class Render {
             }
             this.emit("render:before", { route: toRoute });
             const commonRouteIndex: number = this._getCommonRouteIndex(fromRoute, toRoute);
-            let preViewHash: string;
-            let currentOutlet: HTMLElement | null = rootOutlet;
+            let preViewHash = "";
+            // 回退语义（ADR-0005 决策 1）下 currentOutlet 恒非空：根出口缺失已在入口提前返回，
+            // 嵌套查找失败沿用上一层出口，不再置空
+            let currentOutlet: HTMLElement = rootOutlet;
             // 上一层是否挂载了视图（有无 view 声明）：嵌套出口只在上一层有视图容器时才存在
             let prevHadView = false;
             for (let i = 0; i < toRoute.length; i++) {
@@ -350,19 +388,36 @@ export class Render {
                 const curRouteItem = matched.route;
 
                 if (curRouteItem) {
-                    // 定位本层出口：首层 = 根出口；嵌套层 = 上一层激活视图容器内的出口。
+                    // 定位本层出口：首层 = 根出口；嵌套层 = 上一层视图容器内的出口。
                     // x-html.compile 首渲 defer 至微任务（ADR-0017），先让出一个微任务等
                     // 上一层视图内容编译就位，嵌套出口才存在于运行 DOM。
                     // 无 view 的中间层（如根路由 "/" 仅为布局占位）不挂视图容器——
                     // 不推进出口，子层沿用当前出口（否则嵌套出口必落空）。
+                    // 出口回退（ADR-0005 决策 1）：上一层视图未提供嵌套出口时不推进出口，
+                    // 本层视图沿用上一层出口挂载（置换上一层视图），更深匹配层继续在同一
+                    // 出口逐级置换、最深者胜；回退视图自带 x-outlet 时更深层自然向下扎根
+                    // （查找协议不变）。检测以挂载后的 DOM 真相为准，不做 HTML 预判。
                     if (i === 0) {
                         currentOutlet = rootOutlet;
                     } else if (prevHadView) {
-                        currentOutlet = await this._awaitNestedOutlet(
+                        const nested = await this._awaitNestedOutlet(
                             navSignal,
-                            currentOutlet!,
-                            preViewHash!,
+                            currentOutlet,
+                            preViewHash,
                         );
+                        if (navSignal.aborted) {
+                            return;
+                        }
+                        if (nested) {
+                            currentOutlet = nested;
+                        } else {
+                            this.logger.warn(
+                                "{} -> 层 {} 未找到嵌套出口，回退沿用上一层出口（路径链 {}）",
+                                toRoute[0].id,
+                                i,
+                                toRoute.map((r) => r.route?.path ?? "?").join(" > "),
+                            );
+                        }
                     }
 
                     const viewHash = matched.hash;
@@ -372,22 +427,16 @@ export class Render {
                     const hasView = !!matched.route?.view;
                     prevHadView = hasView;
 
-                    // 公共路由跳过逻辑：视图已激活，直接跳过
-                    if (i < commonRouteIndex) {
+                    // 公共路由跳过逻辑（ADR-0005 决策 2「激活前提」）：本层视图仍是其出口的
+                    // 当前激活视图时才跳过——目标链短于当前链（后退裁剪）或出口已被更深回退
+                    // 视图置换时，跳过前提不成立，正常执行挂载（signal 已由加载域备好，零网络
+                    // 成本：keepAlive 视图仅激活不触碰 DOM，ephemeral 视图重挂恢复）
+                    if (
+                        i < commonRouteIndex &&
+                        (!hasView || this._isOutletActive(currentOutlet, viewHash))
+                    ) {
                         continue;
                     }
-
-                    // 检查 currentOutlet 是否有效
-                    if (!currentOutlet) {
-                        this.logger.error(
-                            "{} -> 无法找到出口，跳过渲染（层 {}，路径链 {}）",
-                            toRoute[0].id,
-                            i,
-                            toRoute.map((r) => r.route?.path ?? "?").join(" > "),
-                        );
-                        continue;
-                    }
-
 
                     const outletComp = hasView ? this._getOutletComponent(currentOutlet) : null;
                     // KeepAlive 两级优先级（ADR-0003 决策 2：mode=tabs > 路由显式声明 > 出口 prop）
@@ -501,6 +550,26 @@ export class Render {
                         }
                         break;
                     }
+                }
+            }
+
+            // 裁剪清理（ADR-0005 决策 2）：from 链比 to 链长出的层级，其视图仍激活在
+            // 挂载出口中（如后退裁剪后详情残留在列表视图的嵌套出口内）——从渲染终点
+            // 出口起按被裁层逐级下探：按容器锚点找到被裁层视图，向上定位其挂载出口，
+            // 清空激活态休眠（keepAlive 条目保留可复用，ephemeral 容器随 x-show 隐藏）；
+            // 容器不存在（已被置换）即无残留
+            if (fromRoute && fromRoute.length > toRoute.length && !navSignal.aborted) {
+                let scope: HTMLElement = currentOutlet;
+                for (let i = toRoute.length; i < fromRoute.length; i++) {
+                    if (navSignal.aborted) break;
+                    const trimmed = fromRoute[i];
+                    if (!trimmed.route?.view) break;
+                    const viewHost = scope.querySelector(`[data-view-hash="${trimmed.hash}"]`);
+                    if (!(viewHost instanceof HTMLElement)) break;
+                    const mountedOutlet = this._closestOutlet(viewHost, scope);
+                    if (!mountedOutlet) break;
+                    this._outletData(mountedOutlet, { active: "" });
+                    scope = mountedOutlet;
                 }
             }
         } catch (error: any) {

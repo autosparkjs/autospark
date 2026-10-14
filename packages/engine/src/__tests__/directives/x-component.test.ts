@@ -2,11 +2,7 @@ import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import "../setup";
 import { mount, nextTick } from "../helpers";
 import type { ComponentDef } from "../../features/component/component-def";
-import {
-    rewriteScopedCss,
-    injectComponentStyle,
-    releaseComponentStyle,
-} from "../../utils/scopedStyle";
+import { rewriteScopedCss, injectComponentStyle } from "../../utils/scopedStyle";
 import { exprToVarName, extractStyleBinds } from "../../utils/styleBind";
 import { ERROR_COMPONENT_NAME } from "../../components";
 
@@ -1123,26 +1119,101 @@ describe("scoped CSS 改写器（ADR-0022 决策四-4）", () => {
         const attr = Array.from(host.attributes).find((a) => a.name.startsWith("data-cmp-"));
         expect(attr).toBeDefined();
         expect(span.getAttribute(attr!.name)).toBe("");
-        // 样式注入 head（按组件名缓存）
+        // 注入 head（按组件名缓存）
         const styleEl = document.head.querySelector('style[data-cmp-def="styled"]');
         expect(styleEl).not.toBeNull();
         expect(styleEl!.textContent).toContain(`.t[${attr!.name}]`);
-        // 清理：释放引用移除样式
-        releaseComponentStyle("styled");
     });
 
-    test("多实例共享样式（引用计数）", () => {
-        injectComponentStyle("shared-cmp", [".x { color: red }"], 1);
-        injectComponentStyle("shared-cmp", [".x { color: red }"], 2);
+    test("多实例共享样式：重注入复用同一元素，页面级常驻", () => {
+        const a = injectComponentStyle("shared-cmp", [".x { color: red }"], 1);
+        const b = injectComponentStyle("shared-cmp", [".x { color: red }"], 1);
         const els = document.head.querySelectorAll('style[data-cmp-def="shared-cmp"]');
-        // 两次注入只一个 <style>（共享）
+        // 两次注入只一个 <style>（共享 + 复用同一元素引用）
         expect(els.length).toBe(1);
-        // 释放一次仍保留（计数 1）
-        releaseComponentStyle("shared-cmp");
+        expect(b).toBe(a);
+        // 常驻契约（ADR-0113）：无引用计数释放通道，元素不因实例消亡而移除
         expect(document.head.querySelector('style[data-cmp-def="shared-cmp"]')).not.toBeNull();
-        // 再释放归零移除
-        releaseComponentStyle("shared-cmp");
-        expect(document.head.querySelector('style[data-cmp-def="shared-cmp"]')).toBeNull();
+        a!.remove();
+    });
+
+    test("覆盖声明：同名组件重声明样式内容更新（patch 模式，无幽灵旧样式）", () => {
+        injectComponentStyle("patch-cmp", [".x { color: red }"], 1);
+        injectComponentStyle("patch-cmp", [".x { color: green }"], 1);
+        const css = document.head.querySelector('style[data-cmp-def="patch-cmp"]')!.textContent!;
+        expect(css).toContain("green");
+        expect(css).not.toContain("red");
+        document.head.querySelector('style[data-cmp-def="patch-cmp"]')!.remove();
+    });
+
+    test("反复装卸：head 中 scoped 样式恒 1（id 查重防重复插入）", async () => {
+        const { engine } = mount(
+            `<div x-scope>
+                <div x-if="show"><div id="host" x-component:cyc></div></div>
+                <div x-define="cyc">
+                    <span class="t">文本</span>
+                    <style>.t { color: blue }</style>
+                </div>
+             </div>`,
+            { show: true },
+        );
+        await nextTick();
+        const countOf = () => document.head.querySelectorAll('style[data-cmp-def="cyc"]').length;
+        expect(countOf()).toBe(1);
+        for (let i = 0; i < 4; i++) {
+            engine.state.show = false;
+            await nextTick();
+            engine.state.show = true;
+            await nextTick();
+            expect(countOf()).toBe(1); // 5 轮装卸恒 1（不重复插入，常驻不移除——ADR-0113）
+        }
+        document.head.querySelector('style[data-cmp-def="cyc"]')?.remove();
+    });
+
+    test("页面级常驻：engine.destroy 后 scoped 样式仍在（ADR-0113 契约）", async () => {
+        const { engine } = mount(
+            `<div x-scope>
+                <div id="host" x-component:resid></div>
+                <div x-define="resid">
+                    <span class="t">文本</span>
+                    <style>.t { color: blue }</style>
+                </div>
+             </div>`,
+            {},
+        );
+        await nextTick();
+        expect(document.head.querySelector('style[data-cmp-def="resid"]')).not.toBeNull();
+        engine.destroy();
+        // global 段随 destroy 移除，scoped 段按 defName 常驻（生命周期 = 页面而非 engine）
+        expect(document.head.querySelector('style[data-cmp-def="resid"]')).not.toBeNull();
+        document.head.querySelector('style[data-cmp-def="resid"]')?.remove();
+    });
+
+    test("x-define 同名重声明（集成级）：新样式替换旧样式", async () => {
+        mount(
+            `<div x-scope>
+                <div id="h1" x-component:redec></div>
+                <div x-define="redec"><span class="t">A</span><style>.t { color: red }</style></div>
+             </div>`,
+            {},
+        );
+        await nextTick();
+        const css = () =>
+            document.head.querySelector('style[data-cmp-def="redec"]')?.textContent ?? "";
+        expect(css()).toContain("red");
+        // 同名组件再声明（另一个 scope），后者覆盖前者 → 实例化时 patch 更新样式内容
+        const { engine: engine2 } = mount(
+            `<div x-scope>
+                <div id="h2" x-component:redec></div>
+                <div x-define="redec"><span class="t">B</span><style>.t { color: green }</style></div>
+             </div>`,
+            {},
+        );
+        await nextTick();
+        expect(css()).toContain("green");
+        expect(css()).not.toContain("red");
+        engine2.destroy();
+        document.head.querySelector('style[data-cmp-def="redec"]')?.remove();
     });
 });
 

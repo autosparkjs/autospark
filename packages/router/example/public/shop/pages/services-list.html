@@ -6,7 +6,10 @@
 
 <div class="service-list">
     <template x-for="service of services" :key="service.id">
-        <div class="service-card">
+        <div
+            class="service-card"
+            @click="window.router.push('/shop/services/' + service.id)"
+        >
             <div class="service-header">
                 <div class="service-name">
                     <span x-text="service.icon"></span>
@@ -18,3 +21,15 @@
         </div>
     </template>
 </div>
+
+<style>
+.service-list .service-card {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.service-list .service-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+</style>

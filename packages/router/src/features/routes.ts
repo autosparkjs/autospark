@@ -86,8 +86,10 @@ export class AutoSparkRouteTable {
             if (this.router.options.routeOptions) {
                 const routeOptions = this.router.options.routeOptions;
                 overrideItems.forEach((item) => {
+                    // 全局 routeOptions 仅作缺省值：路由项显式声明优先（方向反了会令全局
+                    // 配置对未声明路由失效、且反向覆盖路由显式值，ADR-0003 默认翻转语义）
                     // @ts-ignore
-                    if (r[item] !== undefined && routeOptions[item] !== undefined) {
+                    if (r[item] === undefined && routeOptions[item] !== undefined) {
                         // @ts-ignore
                         r[item] = routeOptions[item];
                     }

@@ -34,6 +34,7 @@ import {
     sizeVars,
     lightColorVars,
     lightColorizedColorVars,
+    uncoloredColorVars,
     darkColorVars,
     darkColorizedColorVars,
 } from "./vars";
@@ -232,6 +233,47 @@ export class ThemeScope {
         this.elements = this.elements.filter((elRef) => elRef.deref());
     }
     /**
+     * 本作用域是否为文档根域（:host/:root 选择器，即 manager 的 root scope）。
+     * 根域子树即文档，data-* 手动通道可裸追加；其余作用域须收敛到自身子树。
+     */
+    private get _isRootScope(): boolean {
+        return this._selectors.every((s) => s === ":host" || s === ":root");
+    }
+    /**
+     * data-* 手动通道的替选择器（Q2a：约束到本作用域子树）：根域保持裸属性
+     * 追加——其子树即文档，裸命中即正确；其余作用域由 _selectors 逐个产出
+     * 「自身 + 后代」两式（S[data-X],S [data-X]），把命中约束在本作用域子树内
+     * ——跨作用域裸命中会错拿别的作用域的字面量梯度（自定义属性继承的是
+     * 解析后的值，裸属性无法感知所属作用域）。
+     */
+    private _dataAlt(attr: string): string {
+        if (this._isRootScope) return `[${attr}]`;
+        return this._selectors.flatMap((s) => [`${s}[${attr}]`, `${s} [${attr}]`]).join(",");
+    }
+    /**
+     * 暗色+多彩叠加块选择器：根域沿用四组合裸写（既有纯遗留 + 三个裸组合，
+     * 同元素命中）；作用域收敛为「自身四组合 + 后代守卫」——后代守卫
+     * S [data-dark][colorized] / S [data-dark][data-colorized] 以更高特异性
+     * 压过本作用域暗色块的 S [data-dark]（!important 灰），否则作用域内
+     * data-dark+data-colorized 会被降级为灰（Q5 组合修复的特异性前提）。
+     */
+    private _comboSelector(): string {
+        if (this._isRootScope) {
+            return `${this._selectors.join(",")}[dark][colorized],[dark][data-colorized],[data-dark][colorized],[data-dark][data-colorized]`;
+        }
+        const self = this._selectors.flatMap((s) => [
+            `${s}[dark][colorized]`,
+            `${s}[dark][data-colorized]`,
+            `${s}[data-dark][colorized]`,
+            `${s}[data-dark][data-colorized]`,
+        ]);
+        const guards = this._selectors.flatMap((s) => [
+            `${s} [data-dark][colorized]`,
+            `${s} [data-dark][data-colorized]`,
+        ]);
+        return [...self, ...guards].join(",");
+    }
+    /**
      * 生成主题颜色的CSS样式字符串
      * @returns {string} 包含主题颜色变量的CSS样式字符串，支持亮色和暗色模式
      */
@@ -242,7 +284,7 @@ export class ThemeScope {
         // id replace 更新，实例 options.themeColor 即唯一主题源。此前 dark 反转块要求
         // [data-theme] 属性命中，而挂载链路（attach/autoAttach/connect）不写该属性，
         // 局部作用域 dark+colorized 时继承全局未反转标尺导致标尺映射整体反向。
-        return `${selectors}{\n    color-scheme: light;\n${toVarStyles(this._createThemeColorVars(themeColor))};\n}\n${selectors}[dark]{\n    color-scheme: dark;\n${toVarStyles(this._createThemeColorVars(themeColor, true))};\n}`;
+        return `${selectors},${this._dataAlt("data-light")}{\n    color-scheme: light;\n${toVarStyles(this._createThemeColorVars(themeColor))};\n}\n${selectors}[dark],${this._dataAlt("data-dark")}{\n    color-scheme: dark;\n${toVarStyles(this._createThemeColorVars(themeColor, true))};\n}`;
     }
 
     protected _injectThemeColorStyles() {
@@ -316,8 +358,8 @@ export class ThemeScope {
 
         return [
             ...scaleBlocks,
-            `${selectors}{\n${toVarStyles(lightVars)}\n}`,
-            `${selectors}[dark]{\n${toVarStyles(darkVars)}\n}`,
+            `${selectors},${this._dataAlt("data-light")}{\n${toVarStyles(lightVars)}\n}`,
+            `${selectors}[dark],${this._dataAlt("data-dark")}{\n${toVarStyles(darkVars)}\n}`,
         ].join("\n");
     }
 
@@ -346,24 +388,56 @@ export class ThemeScope {
         }
     }
     protected _generateBaseStyles() {
-        const baseStyles = `${this._selectors.join(",")}{\n${toVarStyles(baseVars)}\n${toVarStyles(lightColorVars)}\n${toVarStyles(derivedVars)}}\n`;
+        // data-light：亮域手动通道，追加到全部亮色生成器（基色块/主题标尺/语义色）。
+        // 基色块同时声明 color-scheme: light——data-light 是「完整亮域」：深语境中的
+        // 亮元素连原生控件（滚动条/表单）一并回亮；dark 块的 color-scheme: dark
+        // 同特异性下依赖生成顺序胜出（前提见下）。
+        const baseStyles = `${this._selectors.join(",")},${this._dataAlt("data-light")}{\n    color-scheme: light;\n${toVarStyles(baseVars)}\n${toVarStyles(lightColorVars)}\n${toVarStyles(derivedVars)}}\n`;
         const sizeStyles = getVarsStyles(sizeVars, this._selectors, "data-size");
         const radiusStyles = getVarsStyles(radiusVars, this._selectors, "data-radius");
         const spacingStyles = getVarsStyles(spacingVars, this._selectors, "data-spacing");
         const shadowStyles = getVarsStyles(shadowVars, this._selectors, "data-shadow");
 
-        // color-scheme：原生控件（滚动条/表单）随暗色换肤；与 _generateThemeColorStyles
-        // 中的声明重复无害，且此处覆盖 themeColor="light" + dark 的缺口
-        const darkStyles = `${this._selectors.join(",")}[dark]{\n    color-scheme: dark;\n${toVarStyles(darkColorVars)}\n}\n`;
+        // 独立样式域：data-light / data-dark / data-colorized / data-uncolored 四属性
+        // 手动通道，与作用域元素上的 [dark]/[colorized]（JS setter 通道）长期并存。
+        //
+        // 作用域约束：根域（:host/:root）裸追加——其子树即文档；其余作用域经
+        // _dataAlt 收敛为「自身+后代」两式（S[data-X],S [data-X]），跨作用域裸命中
+        // 会错拿别的作用域的字面量梯度（自定义属性继承的是解析后的值）。
+        //
+        // 顺序前提：暗色/彩色块恒在亮色块之后，-colors/-semantics 经 connect 注入于
+        // -vars 之后，且 darkColorVars 带 !important——裸属性与亮色 :root 平特异性
+        // (0,1,0) 时靠顺序胜出。调整注入或块生成顺序前须先验证该前提。
+        const darkStyles = `${this._selectors.join(",")}[dark],${this._dataAlt("data-dark")}{\n    color-scheme: dark;\n${toVarStyles(darkColorVars)}\n}\n`;
         // 暗色阴影：覆盖 baseStyles 中的 --x-shadow-* 基值（尺寸切换走 --auto-shadow 引用，自动生效）
-        const darkShadowStyles = `${this._selectors.join(",")}[dark]{\n${toVarStyles(darkShadowVars)}\n}\n`;
-        const lightColorizedStyles = `${this._selectors.join(",")}[colorized]{\n${toVarStyles(lightColorizedColorVars)}\n}\n`;
-        const darkColorizedStyles = `${this._selectors.join(",")}[dark][colorized]{\n${toVarStyles(darkColorizedColorVars)}\n}\n`;
-        const derivedStyles = `${this._selectors.join(",")}{\n${toVarStyles(derivedVars)}}\n`;
+        const darkShadowStyles = `${this._selectors.join(",")}[dark],${this._dataAlt("data-dark")}{\n${toVarStyles(darkShadowVars)}\n}\n`;
+        const lightColorizedStyles = `${this._selectors.join(",")}[colorized],${this._dataAlt("data-colorized")}{\n${toVarStyles(lightColorizedColorVars)}\n}\n`;
+        // 暗色+多彩叠加（Q5 组合修复）：块内容为 tinted 别名引用，映射随语境模式块。
+        // 根域四组合裸写（遗留 + data-* 混合，同元素命中）；作用域收敛为自身四组合
+        // + 后代守卫（S [data-dark][colorized]/[data-dark][data-colorized]，(0,3,0)）——
+        // 无守卫时本作用域 S [data-dark] 的灰 !important (0,2,0) 会把作用域内
+        // data-dark+data-colorized 组合降级为灰。
+        const darkColorizedStyles = `${this._comboSelector()}{\n${toVarStyles(darkColorizedColorVars)}\n}\n`;
+        // 无彩（data-uncolored）：仅重置色彩两键为灰色方向引用，模式随语境——
+        // --x-plain-* 别名由最近的模式块声明并继承。置于彩色块之后：同特异性
+        // 平局（如元素同时挂 data-colorized + data-uncolored）时无彩胜出。
+        // 根域裸追加即可；作用域含自身式 S（对齐亮色块形状，冗余无害）。
+        const uncoloredStyles = `${this._isRootScope ? "" : `${this._selectors.join(",")},`}${this._dataAlt("data-uncolored")}{\n${toVarStyles(uncoloredColorVars)}\n}\n`;
+        // 派生层自举（data-* 手动通道可见性的关键前提）：自定义属性的 var() 在「声明
+        // 所在元素」的计算值期替换、后代继承的是已替换的值。派生层 --auto-* 引用 --x-color-*/
+        // --x-bgcolor-*，若只声明在 :host/:root/[data-light]，则 data-dark/colorized/uncolored
+        // 后代仅自举了 --x-* 基层、未自举 --auto-* —— 它们继承的 --auto-* 仍是根域（亮/灰）
+        // 的已替换值，模式/色彩维度切换对组件（消费 --auto-*）不可见。故把派生层一并声明到
+        // 四个手动通道元素自身，使 --auto-* 在元素上按其自身的 --x-* 重新替换。
+        // （data-light 经 baseStyles 已含派生层，此处重复声明同值无害，保持四域自举形状一致。）
+        //
+        // 顺序前提：本块置于 darkDerivedStyles 之前，暗色派生的同名 !important 覆盖（selected/
+        // hover/active/disable 等）在同特异性下靠「后者胜出」压过此处的亮派生。
+        const derivedStyles = `${this._selectors.join(",")},${this._dataAlt("data-light")},${this._dataAlt("data-dark")},${this._dataAlt("data-colorized")},${this._dataAlt("data-uncolored")}{\n${toVarStyles(derivedVars)}}\n`;
         // 暗色派生：置于 derivedStyles 之后以覆盖同名变量（同特异性下后者胜出）
-        const darkDerivedStyles = `${this._selectors.join(",")}[dark]{\n${toVarStyles(darkDerivedVars)}\n}\n`;
+        const darkDerivedStyles = `${this._selectors.join(",")}[dark],${this._dataAlt("data-dark")}{\n${toVarStyles(darkDerivedVars)}\n}\n`;
 
-        return `${baseStyles}\n${darkStyles}\n${darkShadowStyles}\n${lightColorizedStyles}\n${darkColorizedStyles}\n${sizeStyles}\n${radiusStyles}\n${spacingStyles}\n${shadowStyles}\n${derivedStyles}\n${darkDerivedStyles}`;
+        return `${baseStyles}\n${darkStyles}\n${darkShadowStyles}\n${lightColorizedStyles}\n${darkColorizedStyles}\n${uncoloredStyles}\n${sizeStyles}\n${radiusStyles}\n${spacingStyles}\n${shadowStyles}\n${derivedStyles}\n${darkDerivedStyles}`;
     }
 
     /**

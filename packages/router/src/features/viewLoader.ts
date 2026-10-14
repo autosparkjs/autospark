@@ -54,9 +54,14 @@ export class ViewLoader extends RouteDataLoaderBase<
      * 并发加载匹配路由的视图
      * @param routes - 匹配的路由数组
      * @param navSignal - 导航级别的中止信号
+     * @param fromIndex - 公共层起点：已成功加载过的层跳过，只加载新增层（ADR-0004）
      */
-    async loadViews(routes: AutoSparkMatchedRouteItem[], navSignal?: AbortSignal) {
-        return this.loadRoutes(routes, navSignal);
+    async loadViews(
+        routes: AutoSparkMatchedRouteItem[],
+        navSignal?: AbortSignal,
+        fromIndex: number = 0,
+    ) {
+        return this.loadRoutes(routes, navSignal, fromIndex);
     }
 
     protected selectRenderer(response: Response, matched: AutoSparkMatchedRouteItem) {

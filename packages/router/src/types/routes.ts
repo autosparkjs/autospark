@@ -198,6 +198,18 @@ export interface AutoSparkRouteItem {
         | null;
     _dataOptions?: Required<AutoSparkRouteDataOptions>;
     /**
+     * 内部属性：本路由项 view 通道最近一次加载的结果标记
+     * "ok" = 加载成功（公共层跳过的前提，ADR-0004）；"error" = 失败（公共层也重新加载）。
+     * 挂在持久路由表项上——生命周期 = 路由表（应用级），页面刷新才重置。
+     *
+     * @internal
+     */
+    _viewLoadState?: "ok" | "error";
+    /** 内部属性：本路由项 data 通道最近一次加载的结果标记（语义同 {@link _viewLoadState}）
+     * @internal
+     */
+    _dataLoadState?: "ok" | "error";
+    /**
      * 是否缓存此路由对应的视图（KeepAlive 两级优先级的中层声明，ADR-0003）
      *
      * 优先级：出口 `mode=tabs`（全视图常驻）> 本字段显式声明 > 出口 `keepAlive` prop（默认 false）。

@@ -19,12 +19,46 @@ _Avoid_: 容器（泛称）、挂载点（Vue 词）
 _Avoid_: 页面（页面是渲染结果）、路由对象（泛称）
 
 **匹配路由（MatchedRouteItem）**:
-URL 经路由表匹配后的运行时结果，携带解析出的 params/query 与重定向链（`redirectFrom`）。
+URL 经路由表匹配后的运行时结果，携带解析出的 params/query 与重定向链（`redirectFrom`）。其 `url` 是**完整路径**（pathname + search，ADR-0004）：公共层判定、路由 hash 默认模板（`"{url}"`）、tabs 页签回跳均以此为键。
 _Avoid_: 路由实例、活动路由
 
 **嵌套路由（Nested Routes）**:
 路由项的视图渲染进更深层出口的组合形态，渲染按出口层级递归进行。
 _Avoid_: 子路由（vue-router 词）、多级路由
+
+**远程子表（Remote Children）**:
+路由项 `children` 声明为远程地址字符串的形态——初始化期从该地址取回子路由项声明、展开为本节点的子路由。地址解析三级：含协议（`http://`、`//`）者原样；`/` 开头者拼 `base`；其余拼 `base` + 祖先路由路径。地址支持 `{path}` / `{name}` / `{meta.*}` / `{timestamp}` 插值，**绝对路径亦参与插值**；**初始化期不存在运行时变量**——`{params.*}` `{query.*}` `{url}` `{state.*}` 均不提供。响应接受数组或单个对象，返回项的 `path` 相对本节点。
+_Avoid_: 动态路由表（泛称，亦可指顶层远程整表）、懒加载路由（那是 view 的加载时机）
+
+**约定子表（Convention Children）**:
+远程子表的约定式简写——`children: true`，地址取 `options.routesFile`（默认 `"routes.json"`），解析规则与字符串形态完全一致、无特殊分支。
+_Avoid_: 默认子路由（那是 `default` 键的缺省展开语义）
+
+**远程路由表（Remote Route Table）**:
+顶层 `options.routes` 传 URL 的既有能力——取回整表。与远程子表同族但层级不同：前者取整表，后者取某个路由项的子树。
+_Avoid_: 远程子表
+
+### 加载层
+
+**公共层跳过（Common-Layer Skip）**:
+导航时 fromRoute 与 toRoute 逐层比较 `matched.url`（完整路径，含 search）得到的公共前缀层级——渲染域跳过公共层渲染，加载域跳过已成功加载层的 data/view 请求（复用既有 signal）。两域前提不同：加载域是该通道加载成功（`_viewLoadState`/`_dataLoadState === "ok"`，挂在持久路由表项上，边界 = 应用生命周期）；渲染域是激活前提（本层视图仍是其出口的激活视图，ADR-0005）。失败/非激活层公共也重渲染或重试。与 loader 的 `cache` TTL（显式配置、默认 0）是两个独立机制。
+_Avoid_: 缓存命中（那是 cache TTL 机制）、已缓存层跳过（跳过判定与缓存无关）
+
+**加载状态标记（Load State）**:
+路由项上按通道记录的最近一次加载结果（`_viewLoadState` / `_dataLoadState`，`"ok" | "error"`），由 loader 成功/失败落账点统一写入；导航取消不写。生命周期 = 路由表（页面刷新重置）。
+_Avoid_: 缓存标记（非缓存簿记）、加载中状态（只有终态）
+
+**路由表展开（Route Table Expansion）**:
+初始化期发起、**后台渐进进行**的远程子表解析过程——分层逐层并发、不阻塞首屏匹配与渲染，深度上限 `options.maxChildrenDepth`（默认 10）。完整性是它的目标性质：成功路径下最终得到完整路由树；单个子表失败不致命——该节点局部降级为无子路由并落 error 状态（见「加载状态标记」），表其余部分照常可用。失败与触顶均发 `routes:error`，全部展开完成发 `routes:expanded`（`routes:loaded` 仍表示骨架就绪）。
+_Avoid_: 路由表加载（那是 `load()` 取骨架）、路由表初始化（含混）
+
+**待展开（Pending Expansion）**:
+路由项 `children` 已声明为远程但尚未就位的状态（`_childrenState: "pending"`）。匹配撞到此状态只能判定为「未知」而非「该节点无子路由」——首屏 unmatched 重试与运行时导航挂起都以此为前提。
+_Avoid_: 未加载（那是 view/data 通道的语义）
+
+**重匹配（Re-match）**:
+展开令路由表变长后，对当前 URL 重新执行一次匹配、并在结果变化时纠正渲染的动作。两处发生：attach 初始导航判定为 unmatched 时等展开完成后重试；运行时导航撞上待展开节点时挂起等待后继续判定。不产生新历史条目。
+_Avoid_: 重新导航（会误导为写入历史）
 
 ### 渲染层
 
@@ -35,6 +69,18 @@ _Avoid_: 容器、视口、`autospark-outlet` 自定义元素（已退役）
 **出口模式（Outlet Mode）**:
 出口组件的渲染模式 prop（`mode`）——`stack` 只显示 active 视图（其余 x-show 隐藏）；`tabs` 增渲染页签条（每个已访问视图一个页签，标题取路由 `title`、缺省回退 hash），点击页签走 router 导航（URL 保持唯一真相源）。tabs 模式下所有视图常驻缓存通道（页签存续以 DOM 常驻为前提），临时通道不启用。
 _Avoid_: layout（旧 `layout: tabs/collapse` 词，决策已修订）
+
+**出口回退（Outlet Fallback）**:
+嵌套渲染时上一层视图未提供子出口（模板无 x-outlet），本层视图不终止渲染而是**沿用上一层出口**挂载（置换上一层视图），更深匹配层继续在同一出口逐级置换、最深者胜；回退挂进的视图自带 x-outlet 时更深层自然向下扎根。检测以挂载后的 DOM 真相为准（有限微任务重试后仍缺失才回退），不做视图 HTML 预判。根出口缺失无处可退，维持 error 终止。
+_Avoid_: 找不到出口跳过渲染（已废弃的旧行为）、出口继承、出口穿透
+
+**激活前提（Active-View Precondition）**:
+渲染域公共层跳过的前提——本层视图仍是其出口的当前激活视图，成立才跳过。不成立（出口已被更深回退视图置换，或后退裁剪后激活态指向被裁层）时跳过转为重挂：keepAlive 视图仅写 active 复用（不触碰 DOM 运行态），ephemeral 视图重挂恢复。后退裁剪配套：被裁层挂载出口的激活态清空休眠（keepAlive 条目保留可复用）。
+_Avoid_: 跳过即什么都不做（旧语义）
+
+**入口文档导航（Entry Document Navigation）**:
+attach 初始导航对「直开应用载体」的自动归位——原始 pathname 以 `.html`/`.htm` 结尾（如 `/public/shop/index.html`、`/shop/a.html`、`/shop/x/y/z.html`，共同特征是 URL 即静态文件本身、不含路由信息）时，先试真实匹配（路由 path 带 `.html` 的合法场景正常渲染），仅 unmatched 才 replace 到 home 路径（地址栏归位 base 根，不留历史），首页展开交给根级 default 机制。base 未显式设置时构造期按缺省链推断：**显式配置 > 文档 `<base href>` 标签 > URL 目录推断**——目录规则为入口文件所在目录即 base（`/shop/x/y/z.html` → base=`/shop/x/y/`）；`<base href>` 信号服务于动态入口（服务端渲染入口 HTML、URL 无文件名如 `/shop`），深层直达/刷新须有它或显式 base，否则路由路径会被目录推断误判。仅 attach 初始化检测一次；运行中导航到 `.html` 结尾的 URL 按正常匹配走（404 场景不拦截）。history/hash 双模式统一。
+_Avoid_: 默认路由兜底（default 是缺省展开机制，不覆盖 unmatched）、404 兜底（unmatched 静默空白是另一议题，存目）、文件名作目录（`z.html` 不产生 `z` 目录层）
 
 **出口简写（x-outlet）**:
 `<div x-outlet>` 是 `<div x-component:autospark.outlet>` 的别名糖，经编译前 DOM 预处理改写（自建 engine 的宿主首编译前、远程模板 renderer 管线内两处生效）；**简写的值透传为 props 表达式**——`<div x-outlet="{ keepAlive: true, mode: 'tabs' }">` 等价于完整形态带值写法。注入 engine 模式的静态模板须写完整形态。
@@ -53,7 +99,7 @@ _Avoid_: slot（旧载体词）、页面栈
 _Avoid_: 模板、组件（组件是渲染结果形态）
 
 **KeepAlive**:
-路由视图的缓存复用策略——离开不销毁、重进即复用（`activateView` 不触碰内容）。两级声明，优先级：**出口 mode=tabs（全视图常驻）> 路由项 `keepAlive` 显式声明 > 出口 `keepAlive` prop（默认 false）**。注意历史默认已翻转：路由未声明且出口未声明时不再缓存。与 `cache` 键（TTL 时长）是两个独立字段。
+路由视图的缓存复用策略——离开不销毁、重进即复用（`activateView` 不触碰内容）。两级声明，优先级：**出口 mode=tabs（全视图常驻）> 路由项 `keepAlive` 显式声明 > 出口 `keepAlive` prop（默认 false）**。注意历史默认已翻转：路由未声明且出口未声明时不再缓存。与 `cache` 键（TTL 时长）是两个独立字段。视图条目粒度唯一裁决者是路由 hash（`route.hash` 模板，默认 `"{url}"` 即完整路径）——hash 相同即同一条目（复用），不同即新条目；覆盖模板须注意：不含 query 的模板会在 query 变化时令重载数据无法反映到复用视图（ADR-0004 数据黑洞）。
 _Avoid_: 缓存（那是 `cache` 键）、keep-alive 连字符拼写、keepalive 全小写拼写（键名统一 `keepAlive`）
 
 **路由数据（Route Data）**:

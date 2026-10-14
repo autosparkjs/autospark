@@ -57,3 +57,29 @@ export function getBaseUrl(): string {
     // 默认返回根路径
     return '/';
 }
+
+/**
+ * 从文档 `<base href>` 标签推断应用 base（ADR-0006 动态入口信号源）
+ *
+ * 动态入口（服务端渲染入口 HTML、URL 无文件名，如 /shop）下，深层直达/刷新的 URL
+ * 不含「应用前缀到哪结束」的信号——getBaseUrl 的目录规则会把路由路径误判为目录。
+ * 服务端在入口模板注入 `<base href="/shop/">` 即可携带挂载路径（HTML 标准、SSR 天然
+ * 知道），顺带修复动态入口页相对路径资源的解析。
+ *
+ * 仅当页面真有 `<base>` 标签时才采纳：无标签时 document.baseURI 等于文档 URL
+ * （含路由路径），采纳会把路由路径误当 base。返回形态对齐 getBaseUrl（非根带尾斜杠）。
+ */
+export function getDocumentBase(): string | null {
+    if (typeof document === "undefined" || !document.querySelector("base")) {
+        return null;
+    }
+    try {
+        const pathname = new URL(document.baseURI).pathname;
+        if (!pathname || pathname === "/") {
+            return "/";
+        }
+        return pathname.endsWith("/") ? pathname : pathname + "/";
+    } catch {
+        return null;
+    }
+}

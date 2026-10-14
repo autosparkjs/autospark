@@ -938,7 +938,7 @@ _Avoid_: $super（未采纳的前缀形态）、$parent 挪用（那是嵌套父
 _Avoid_: 生命周期（泛化）、组件钩子（泛化）
 
 **组件作用域 CSS（Scoped CSS）**:
-`<style>` 的**默认**形态（无 `global` 属性时）。属性后缀法（仿 Vue scoped，不支持穿透）：组件根+后代打 `data-cmp-{id}` 属性，选择器末尾追加 `[data-cmp-{id}]`，实例化期按组件定义缓存 + 引用计数注入 head。`id` 取 **def 级稳定值**（`componentScopedId`，ADR-0087 修订）——同 def 全部实例共享同一后缀，与按 defName 缓存一份样式的模型对齐。
+`<style>` 的**默认**形态（无 `global` 属性时）。属性后缀法（仿 Vue scoped，不支持穿透）：组件根+后代打 `data-cmp-{id}` 属性，选择器末尾追加 `[data-cmp-{id}]`，实例化期按组件定义幂等注入 head（按 id 查重，反复装卸恒一份）、**页面级常驻**（不随实例卸载或 engine.destroy 移除）、同名覆盖声明内容按需更新（patch 模式）。`id` 取 **def 级稳定值**（`componentScopedId`，ADR-0087 修订）——同 def 全部实例共享同一后缀，与按 defName 缓存一份样式的模型对齐。生命周期见 ADR-0113。
 _Avoid_: CSS 隔离（泛化）、CSS Modules（机制不同）、全局注入（那是 `<style global>` 的语义，见「全局样式」）
 
 **全局样式 / Global Style（`<style global>`）**:

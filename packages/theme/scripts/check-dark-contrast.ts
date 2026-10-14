@@ -166,8 +166,10 @@ function buildVars(mode: Mode, colorized: boolean, themeColor = presetThemes.blu
     Object.assign(table, loadGrayScale());
     // 主题梯度：dark 下 reverse（0 最深），与 _createThemeColorVars 一致
     Object.assign(table, generateThemeColorVars(themeColor, { prefix: "--x-color-theme-", reverse: mode === "dark" }));
-    Object.assign(table, colorized ? lightColorizedColorVars : lightColorVars);
-    if (mode === "dark") Object.assign(table, colorized ? darkColorizedColorVars : darkColorVars);
+    // 模式块恒声明（含 plain/tinted 别名层），colorized 块仅覆盖色彩两键（与注入级联一致）
+    Object.assign(table, lightColorVars);
+    if (mode === "dark") Object.assign(table, darkColorVars);
+    if (colorized) Object.assign(table, lightColorizedColorVars, mode === "dark" ? darkColorizedColorVars : {});
     Object.assign(table, derivedVars);
     if (mode === "dark") Object.assign(table, darkDerivedVars);
     // 语义色：与 _generateSemanticColorStyles 同构（标尺 + light 直引种子 / dark 提亮第 3 档）

@@ -664,6 +664,13 @@ function processSingleRoute(
     const matchResult = matcher(path);
     if (!matchResult.matched) return null;
 
+    // 空路径子路由只承接自身（剩余路径为空）：空 pattern 的前缀正则 `^(?:/(.*))?$`
+    // 会匹配任意剩余段，按声明序先于兄弟参数路由（如 :id）时将误抢其路径段
+    // （场景：services 的 "" 列表层 vs :id 详情层）
+    if ((route.path === "" || route.path === "/") && parentMatchedRoute && matchResult.remainingPath) {
+        return null;
+    }
+
     const matchedUrl = normalizeUrl(
         path.slice(0, path.length - (matchResult.remainingPath?.length || 0)),
     );
@@ -859,6 +866,9 @@ export function matchRoute(
 ): AutoSparkMatchedRouteItem[] {
     const { pathname: pathWithoutQuery, query: inputQuery } = parseQueryString(path);
     const normalizedPath = normalizePath(pathWithoutQuery);
+    // 原始 search 串保真提取（顺序/编码不重建）：matched.url 的完整路径语义（ADR-0004）
+    const rawPath = stripHash(path);
+    const search = rawPath.includes("?") ? rawPath.slice(rawPath.indexOf("?") + 1) : "";
     const redirectChain = options?._redirectChain || [];
     const maxRedirect = options?.maxRedirect ?? 10;
     const namedRoutes = options?.namedRoutes;
@@ -915,6 +925,18 @@ export function matchRoute(
     } else {
         // 否则返回空数组
         return [];
+    }
+
+    // url 完整路径语义（ADR-0004）：matched.url = pathname + search——公共层判定、
+    // 路由 hash（默认 "{url}" 模板）、tabs 页签回跳 URL 均依赖完整路径。构造期各层
+    // url 只含 pathname，在此统一追加；redirect 递归的内层结果已带目标自身的 search，
+    // 靠 includes("?") 防重复追加。unmatched 项 hash 是降级标识（unmatched-<path>），保持原样。
+    if (search) {
+        childMatches.forEach((m) => {
+            if (m.url.includes("?")) return;
+            m.url = `${m.url}?${search}`;
+            if (m.route) m.hash = getRouteHash(m);
+        });
     }
 
     // 获取最深层匹配的路由项

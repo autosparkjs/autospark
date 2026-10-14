@@ -6,7 +6,10 @@
 
 <div class="doc-list">
     <template x-for="doc of docs" :key="doc.id">
-        <div class="doc-item">
+        <div
+            class="doc-item"
+            @click="window.router.push('/shop/docs/' + doc.id)"
+        >
             <div class="doc-icon" x-text="doc.icon"></div>
             <div class="doc-info">
                 <div class="doc-title" x-text="doc.title"></div>
@@ -20,3 +23,15 @@
         </div>
     </template>
 </div>
+
+<style>
+.doc-list .doc-item {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.doc-list .doc-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+</style>

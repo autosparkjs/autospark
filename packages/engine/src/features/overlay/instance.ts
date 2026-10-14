@@ -4,7 +4,6 @@ import type { AutoSparkScope } from "../../engine/scope";
 import type { ComponentDef } from "../component/component-def";
 import type { SlotContent } from "../../utils/slot";
 import { resolveAnimate } from "../animate/animate";
-import { releaseComponentStyle } from "../../utils/scopedStyle";
 import { getOverlayContainer, MASK_CLASS } from "./container";
 import { pushOpenInstance, removeOpenInstance } from "./stack";
 import { applyAnchorPosition, resolveAnchorEl, OVERLAY_ARROW_CLASS } from "./anchor";
@@ -306,11 +305,10 @@ export class OverlayInstance {
                 | Record<string, any>
                 | undefined;
             if (scopes) delete scopes[id]; // 回收私有响应式域（对齐 x-loading teardown 纪律）
-            if (this.def?.name) releaseComponentStyle(this.def.name); // scoped 样式引用对称释放
             this.instanceScope = null;
         }
         // shell scope 统一回收（ADR-0062）：rootless 挂链无级联来源，destroy 显式销毁 +
-        // 回收私有响应式域 + scoped 样式引用对称释放（自定义 shell 自带 <style> 时触发）
+        // 回收私有响应式域（scoped 样式页面级常驻，无需对称释放——ADR-0113）
         if (this._shellScope) {
             const shellId = this._shellScope.id;
             this._shellScope.destroy();
@@ -318,7 +316,6 @@ export class OverlayInstance {
                 | Record<string, any>
                 | undefined;
             if (scopes) delete scopes[shellId];
-            if (this._shell.def?.styles?.length) releaseComponentStyle(this._shell.def.name);
             this._shellScope = null;
         }
         if (this.el) {
