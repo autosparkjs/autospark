@@ -97,6 +97,53 @@ export const derivedVars = {
     /** 其他 */
     "--auto-icon-size": "var(--x-icon-size-medium)",
 };
+
+/**
+ * 规模维度键（font/spacing/radius/shadow/icon 梯度及其组合速写）：只引用模式无关
+ * 基变量（--x-font-…/--x-spacing-…/--x-border-radius-…/--x-icon-size-… 等，暗色/
+ * 彩色生成器从不覆盖）或字面常量。元素从 :root 继承的已替换值与重新声明完全相同，
+ * 故**不进** data-* 自举块——自举块生成在 data-size/data-radius/data-spacing/
+ * data-shadow 档位块之后、同特异性下后者胜出，重新声明会把档位强制回 medium
+ * （data-size 组合 data-dark 时被击穿的根因）。只留在基亮块作根域默认值。
+ */
+const scaleVarKeys = new Set([
+    "--auto-border-size",
+    "--auto-font",
+    "--auto-text",
+    "--auto-font-family",
+    "--auto-font-size",
+    "--auto-text-size",
+    "--auto-font-weight",
+    "--auto-letter-spacing",
+    "--auto-line-height",
+    "--auto-title-font",
+    "--auto-panel-header",
+    "--auto-border-radius",
+    "--auto-spacing",
+    "--auto-padding",
+    "--auto-margin",
+    "--auto-shadow",
+    "--auto-input-font",
+    "--auto-input-padding",
+    "--auto-input-radius",
+    "--auto-input-height",
+    "--auto-icon-size",
+]);
+
+/**
+ * 色彩维度子集（全集 − 规模键）：var() 链最终触达 --x-color-… / --x-bgcolor-… /
+ * currentColor（随 data-dark / data-colorized / data-uncolored 变化的基变量），
+ * 必须随四个手动通道重新声明到元素自身，--auto-* 才能按其自身的 --x-* 重新替换
+ * （自定义属性的 var() 在声明所在元素计算值期替换、后代继承已替换值）。
+ * scope.ts 的派生层自举块只取本对象。
+ *
+ * 唯一模式相关的规模键 --auto-shadow 例外在侧：--x-shadow-* 被 darkShadowVars
+ * 覆盖，其暗域重新声明由 darkShadowStyles 承担（该块恒在档位块之前，
+ * data-size/data-shadow 可正常覆盖它），故它留在规模键集合内、不进自举块。
+ */
+export const derivedColorVars: Record<string, string> = Object.fromEntries(
+    Object.entries(derivedVars).filter(([key]) => !scaleVarKeys.has(key)),
+);
 /**
  * 暗色专属派生变量：dark 属性下覆盖 derivedVars 的同名变量。
  *

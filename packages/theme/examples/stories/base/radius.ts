@@ -28,6 +28,7 @@ export default {
                 <li>六档可调：<code>none / x-small / small / medium / large / x-large</code>（<code>medium</code> 为默认态），<code>none</code> 即直角</li>
                 <li>特殊值：<code>pill</code>（胶囊 9999px）、<code>circle</code>（正圆 50%，需搭配正方形容器）——仅为基础变量，不参与档位切换</li>
                 <li>局部换档：任意容器加 <code>data-radius="档位"</code> 属性即可让内部元素局部生效，无需改全局</li>
+                <li><strong>独立样式域</strong>：<code>data-radius</code> 属<strong>规模维度</strong>的档位通道，与模式维度（<code>data-dark</code> / <code>data-light</code>）、色彩维度（<code>data-colorized</code> / <code>data-uncolored</code>）分属不同域、可同元素叠加——见底部「维度叠加」卡</li>
             </ul>
             <pre>ThemePro.radius = 'large'  // 等价 document.documentElement.dataset.radius = 'large'</pre>
         </div>
@@ -139,6 +140,36 @@ export default {
                         <div class="auto-input"><input type="text" placeholder="输入框" /></div>
                         <div style="padding:0.5rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">色块</div>
                     </div>
+                </div>
+            </div>
+        </div>
+        <div class="auto-card">
+            <div class="auto-card-header">维度叠加：data-dark（模式域）× data-radius（圆角域）</div>
+            <div class="auto-card-body col">
+                <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
+                    <code>data-dark</code> 与 <code>data-radius</code> 分属不同独立样式域：前者切模式维度（配色换暗），
+                    后者切规模维度（圆角换档）。同元素叠加时两域同时生效、互不覆盖——
+                    中右两卡同为暗色，右卡圆角独立放大到 <code>x-large</code>。
+                </p>
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+                    ${[
+                        { label: "无属性（跟随全局：亮色 · 全局圆角档）", dark: false, radius: undefined as string | undefined },
+                        { label: "data-dark（仅模式域：暗色，圆角仍随全局）", dark: true, radius: undefined as string | undefined },
+                        { label: 'data-dark + data-radius="x-large"（两域叠加：暗色 + 大圆角）', dark: true, radius: "x-large" },
+                    ].map(
+                        (c) => html`
+                            <div
+                                ?data-dark="${c.dark}"
+                                data-radius="${c.radius}"
+                                style="flex:1;min-width:13rem;display:flex;flex-direction:column;gap:0.6rem;padding:0.9rem;border:1px dashed var(--auto-border-color);border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);color:var(--auto-color);"
+                            >
+                                <div style="font-size:0.72rem;color:var(--auto-third-color);">${c.label}</div>
+                                <div class="auto-btn small">按钮</div>
+                                <div class="auto-input"><input type="text" placeholder="输入框" /></div>
+                                <div style="padding:0.5rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">色块（--auto-border-radius）</div>
+                            </div>
+                        `,
+                    )}
                 </div>
             </div>
         </div>

@@ -17,6 +17,7 @@ export default {
                 <li>行高：文本行间的垂直间距，值越大阅读越松弛</li>
                 <li>字间距：字符间的水平距离，中文排版通常保持默认</li>
                 <li>自动段落 vs 固定段落：消费 <code>--auto-*</code> 别名的段落随档位联动，写死 <code>--x-*</code> 基础值的段落不联动（见下方对比卡）</li>
+                <li><strong>独立样式域</strong>：<code>data-size</code> 属<strong>规模维度</strong>的档位通道（字号/行高/字重/间距整体换档），与模式维度（<code>data-dark</code> / <code>data-light</code>）、色彩维度（<code>data-colorized</code> / <code>data-uncolored</code>）分属不同域、可同元素叠加——见底部「维度叠加」卡</li>
             </ul>
             <pre>p { font: var(--auto-font); line-height: var(--auto-line-height); }</pre>
         </div>
@@ -97,6 +98,36 @@ export default {
                     两段初始观感相同（全局默认 medium）；切换右面板「尺寸」到 <code>x-small</code> 或
                     <code>x-large</code>：自动段落整体缩放，固定段落保持不变——这正是消费别名与写死基础值的本质区别。
                 </p>
+            </div>
+        </div>
+        <div class="auto-card">
+            <div class="auto-card-header">维度叠加：data-dark（模式域）× data-size（字号域）</div>
+            <div class="auto-card-body col">
+                <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
+                    <code>data-dark</code> 切模式维度（配色换暗）、<code>data-size</code> 切规模维度（字号/行高/字距整体换档）——
+                    三卡并排正是回归验证点：中卡 <code>data-dark data-size="x-small"</code>、右卡
+                    <code>data-dark data-size="x-large"</code>，暗色下字号档位各自独立生效（不被模式通道压回 medium）。
+                </p>
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+                    ${[
+                        { label: "无属性（跟随全局：亮色 · 全局尺寸档）", dark: false, size: undefined as string | undefined },
+                        { label: 'data-dark data-size="x-small"（暗色 + 最小字号）', dark: true, size: "x-small" },
+                        { label: 'data-dark data-size="x-large"（暗色 + 最大字号）', dark: true, size: "x-large" },
+                    ].map(
+                        (c) => html`
+                            <div
+                                ?data-dark="${c.dark}"
+                                data-size="${c.size}"
+                                style="flex:1;min-width:13rem;padding:0.8rem;border:1px dashed var(--auto-border-color);border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);color:var(--auto-color);"
+                            >
+                                <div style="font-size:0.7rem;color:var(--auto-third-color);margin-bottom:0.4rem;">${c.label}</div>
+                                <div style="font:var(--auto-font);line-height:var(--auto-line-height);letter-spacing:var(--auto-letter-spacing);">
+                                    道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。故常无欲，以观其妙；常有欲，以观其徼（jiào）。此两者同出而异名，同谓之玄，玄之又玄，众妙之门。
+                                </div>
+                            </div>
+                        `,
+                    )}
+                </div>
             </div>
         </div>
     `,

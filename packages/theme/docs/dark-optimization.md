@@ -33,7 +33,7 @@ themeManager.dark = true
 - 背景：面板浮起流派——`bgcolor-0`（面板）= gray-8 浮于 `bgcolor-1`（工作区）= gray-9
 - 派生层 `derivedVars` 为**单套**，无 dark 专属值——所有 `--auto-*` 在两种模式下的"引用档位/百分比参数"完全相同，仅靠基变量换值间接适配
 
-**独立样式域（2026-10-14 追加，同日扩展为四属性）**：模式维度（`data-light` / `data-dark`）与色彩维度（`data-colorized` / `data-uncolored`）各一对手动通道，任意元素裸挂属性即可独立启用对应样式域，与作用域元素上的 `dark` / `colorized`（JS setter 通道）长期并存。维度可自由组合——模式切换会把色彩重置为灰（同元素组合两个维度才生效），色彩开关则保留语境模式：
+**独立样式域（2026-10-14 追加，同日两次扩展：模式+色彩四属性 → 规模四属性，共三维度八属性）**：模式维度（`data-light` / `data-dark`）与色彩维度（`data-colorized` / `data-uncolored`）各一对手动通道，任意元素裸挂属性即可独立启用对应样式域，与作用域元素上的 `dark` / `colorized`（JS setter 通道）长期并存。维度可自由组合——模式切换会把色彩重置为灰（同元素组合两个维度才生效），色彩开关则保留语境模式：
 
 ```css
 /* 根域（:host/:root）裸追加；作用域收敛为「自身+后代」两式 */
@@ -48,6 +48,22 @@ themeManager.dark = true
 实现基础是模式块内的**别名层**：`--x-plain-*`（灰色方向）与 `--x-tinted-*`（多彩映射）由亮/暗模式块各自声明，`data-uncolored` 与 `data-colorized` 只声明对别名的引用——自定义属性继承的是解析后的值，直接声明即压过继承值，因此无彩/多彩元素的「方向」自动随最近的模式块（含作用域内 `data-dark` 后代）切换。附带修复：暗语境中的 `data-colorized` 元素此前取不到暗多彩映射（Q5），现经 `--x-tinted-*` 继承自动正确。
 
 作用域约束：根域（`:host`/`:root`）子树即文档，保持裸属性追加；其余作用域由 `_selectors` 派生 `S[data-X]`（自身）与 `S [data-X]`（后代）两式，把命中收敛在本作用域子树内。作用域叠加块另有后代守卫 `S [data-dark][colorized]` / `S [data-dark][data-colorized]`——无守卫时作用域暗色块的 `S [data-dark]`（`!important` 灰）会把作用域内 `data-dark`+`data-colorized` 组合降级为灰。
+
+**规模维度（同日第二次扩展：`data-size` / `data-radius` / `data-spacing` / `data-shadow`）**：四档位属性把独立样式域扩到第三维度，与模式、色彩正交、可同元素叠加（`data-dark data-size="small"` 同时生效，见 `examples/stories/base/*` 的「维度叠加」卡）。选择器形状与模式/色彩对齐——根域裸追加、作用域收敛为「自身+后代」两式：
+
+```css
+/* 档位块：根域裸追加（子树即文档）；作用域收敛（getVarsStyles(..., isRootScope)，与 _dataAlt 同源） */
+:host([data-size='small']),:root[data-size='small'],[data-size=small]
+[data-theme-scope='sA'][data-size='small'],[data-theme-scope='sA'] [data-size=small]
+```
+
+> 此前档位块的作用域侧是裸全局追加 `[data-size=small]`（`getVarsStyles` 固定形状），与 `_dataAlt` 不一致、跨作用域裸命中；因规模梯度（`--x-font-size-*` 等）全局同值，无视觉差异，收敛属架构一致性修正。根域保持裸式不变（全域命中即其子树）。
+
+**维度拆分（`derivedColorVars`，data-size 组合 data-dark 被击穿的根因与修复）**：`data-*` 自举块只携带**色彩维度**派生键（`derivedColorVars` = 全集 − 规模键），规模键只留在基亮块 `baseStyles`。因为自举块生成在四组档位块**之后**、同特异性 (0,1,0) 下后者胜出——若自举块携带 `--auto-font-size: var(--x-font-size-medium)`，`data-dark` + `data-size=small` 元素上档位会被强制回 medium。规模键的 `--x-*` 基层（font/spacing/radius/icon 梯度）模式无关，不重新声明与继承值完全相同，拆出无损（`radius`/`spacing`/`shadow` 档位块带 `!important`，`size` 不带——三者此前幸存而 `data-size` 被击穿正是此别）。
+
+唯一模式相关的规模键是 `--auto-shadow`：其 `--x-shadow-*` 基层被 `darkShadowVars` 覆盖，非根 `data-dark` 元素不重新声明它就继承根域已替换的**亮**阴影值。故其暗域自举改由暗阴影块承担——`darkShadowStyles`（生成在档位块**之前**）声明 `--auto-shadow: var(--x-shadow-medium)`，档位切换照常覆盖（`data-size` 同特异性后者胜出、`data-shadow` 带 `!important`）。
+
+配套修复 `--auto-input-padding`：消费端（`button.less` / `input.less` / `components.less`）取 `var(--auto-input-padding)`，它在 `derivedVars` 中组合 `var(--auto-padding)`——仅 `:root` 有值，子元素继承已替换的具体值，局部 `data-size` / `data-spacing` 容器内不联动；现由 size/spacing 档位块按档直引梯度重定义（与 `--auto-padding` 同步，spacing 侧带 `!important`）。
 
 已知限制（既定接受）：
 

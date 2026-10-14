@@ -19,6 +19,8 @@ export default {
             <ul>
                 <li>六档可调：<code>none / x-small / small / medium / large / x-large</code>（<code>medium</code> 为默认态），<code>none</code> 用于无阴影的扁平场景</li>
                 <li>局部换档：任意容器加 <code>data-shadow="档位"</code> 属性即可让内部元素局部生效</li>
+                <li><strong>独立样式域</strong>：<code>data-shadow</code> 属<strong>规模维度</strong>的档位通道，与模式维度（<code>data-dark</code> / <code>data-light</code>）、色彩维度（<code>data-colorized</code> / <code>data-uncolored</code>）分属不同域、可同元素叠加——见底部「维度叠加」卡</li>
+                <li>暗语境阴影：<code>data-dark</code> 下 <code>--x-shadow-*</code> 自动换成暗底可见的黑色系配方（深底上中灰阴影不可见），<code>--auto-shadow</code> 与档位切换照常联动</li>
             </ul>
             <pre>ThemePro.shadow = 'small'  // 等价 document.documentElement.dataset.shadow = 'small'</pre>
         </div>
@@ -98,6 +100,39 @@ export default {
                     <code>--auto-shadow</code>，全局（:root）的档位变化透不进容器内部；
                     局部固定的用途正是让某块区域（如侧边栏）不随全局换肤漂移。
                 </p>
+            </div>
+        </div>
+        <div class="auto-card">
+            <div class="auto-card-header">维度叠加：data-dark（模式域）× data-shadow（阴影域）</div>
+            <div class="auto-card-body col">
+                <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
+                    <code>data-dark</code> 切模式维度（<code>--x-shadow-*</code> 换暗底可见配方 + 配色换暗）、
+                    <code>data-shadow</code> 切规模维度（阴影强度换档）——两域叠加时同时生效：
+                    中卡仅暗色（暗梯度 medium），右卡暗色 + <code>x-large</code> 强阴影。
+                </p>
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+                    ${[
+                        { label: "无属性（跟随全局：亮色 · 全局阴影档）", dark: false, shadow: undefined as string | undefined },
+                        { label: "data-dark（仅模式域：暗色配色 + 暗阴影梯度）", dark: true, shadow: undefined as string | undefined },
+                        { label: 'data-dark + data-shadow="x-large"（两域叠加：暗色 + 最强阴影）', dark: true, shadow: "x-large" },
+                    ].map(
+                        (c) => html`
+                            <div
+                                ?data-dark="${c.dark}"
+                                data-shadow="${c.shadow}"
+                                style="flex:1;min-width:13rem;display:flex;flex-direction:column;gap:0.7rem;padding:0.9rem;border:1px dashed var(--auto-border-color);border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);color:var(--auto-color);"
+                            >
+                                <div style="font-size:0.72rem;color:var(--auto-third-color);">${c.label}</div>
+                                <div class="auto-btn small">按钮（--auto-shadow）</div>
+                                <div
+                                    style="padding:0.6rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);box-shadow:var(--auto-shadow);"
+                                >
+                                    色块卡片（box-shadow: var(--auto-shadow)）
+                                </div>
+                            </div>
+                        `,
+                    )}
+                </div>
             </div>
         </div>
     `,

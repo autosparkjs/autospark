@@ -27,6 +27,7 @@ import {
     baseVars,
     radiusVars,
     derivedVars,
+    derivedColorVars,
     darkDerivedVars,
     shadowVars,
     darkShadowVars,
@@ -393,10 +394,10 @@ export class ThemeScope {
         // 亮元素连原生控件（滚动条/表单）一并回亮；dark 块的 color-scheme: dark
         // 同特异性下依赖生成顺序胜出（前提见下）。
         const baseStyles = `${this._selectors.join(",")},${this._dataAlt("data-light")}{\n    color-scheme: light;\n${toVarStyles(baseVars)}\n${toVarStyles(lightColorVars)}\n${toVarStyles(derivedVars)}}\n`;
-        const sizeStyles = getVarsStyles(sizeVars, this._selectors, "data-size");
-        const radiusStyles = getVarsStyles(radiusVars, this._selectors, "data-radius");
-        const spacingStyles = getVarsStyles(spacingVars, this._selectors, "data-spacing");
-        const shadowStyles = getVarsStyles(shadowVars, this._selectors, "data-shadow");
+        const sizeStyles = getVarsStyles(sizeVars, this._selectors, "data-size", this._isRootScope);
+        const radiusStyles = getVarsStyles(radiusVars, this._selectors, "data-radius", this._isRootScope);
+        const spacingStyles = getVarsStyles(spacingVars, this._selectors, "data-spacing", this._isRootScope);
+        const shadowStyles = getVarsStyles(shadowVars, this._selectors, "data-shadow", this._isRootScope);
 
         // 独立样式域：data-light / data-dark / data-colorized / data-uncolored 四属性
         // 手动通道，与作用域元素上的 [dark]/[colorized]（JS setter 通道）长期并存。
@@ -409,7 +410,10 @@ export class ThemeScope {
         // -vars 之后，且 darkColorVars 带 !important——裸属性与亮色 :root 平特异性
         // (0,1,0) 时靠顺序胜出。调整注入或块生成顺序前须先验证该前提。
         const darkStyles = `${this._selectors.join(",")}[dark],${this._dataAlt("data-dark")}{\n    color-scheme: dark;\n${toVarStyles(darkColorVars)}\n}\n`;
-        // 暗色阴影：覆盖 baseStyles 中的 --x-shadow-* 基值（尺寸切换走 --auto-shadow 引用，自动生效）
+        // 暗色阴影：覆盖 baseStyles 中的 --x-shadow-* 基值，并自举派生键 --auto-shadow——
+        // 非根 data-dark 元素若不重新声明 --auto-shadow，继承的是根域已替换的亮阴影值，
+        // 暗阴影对组件（消费 var(--auto-shadow)）不可见。尺寸切换走档位块（生成在本块
+        // 之后：data-size 同特异性后者胜出、data-shadow 带 !important），自动生效。
         const darkShadowStyles = `${this._selectors.join(",")}[dark],${this._dataAlt("data-dark")}{\n${toVarStyles(darkShadowVars)}\n}\n`;
         const lightColorizedStyles = `${this._selectors.join(",")}[colorized],${this._dataAlt("data-colorized")}{\n${toVarStyles(lightColorizedColorVars)}\n}\n`;
         // 暗色+多彩叠加（Q5 组合修复）：块内容为 tinted 别名引用，映射随语境模式块。
@@ -424,16 +428,25 @@ export class ThemeScope {
         // 根域裸追加即可；作用域含自身式 S（对齐亮色块形状，冗余无害）。
         const uncoloredStyles = `${this._isRootScope ? "" : `${this._selectors.join(",")},`}${this._dataAlt("data-uncolored")}{\n${toVarStyles(uncoloredColorVars)}\n}\n`;
         // 派生层自举（data-* 手动通道可见性的关键前提）：自定义属性的 var() 在「声明
-        // 所在元素」的计算值期替换、后代继承的是已替换的值。派生层 --auto-* 引用 --x-color-*/
-        // --x-bgcolor-*，若只声明在 :host/:root/[data-light]，则 data-dark/colorized/uncolored
-        // 后代仅自举了 --x-* 基层、未自举 --auto-* —— 它们继承的 --auto-* 仍是根域（亮/灰）
-        // 的已替换值，模式/色彩维度切换对组件（消费 --auto-*）不可见。故把派生层一并声明到
-        // 四个手动通道元素自身，使 --auto-* 在元素上按其自身的 --x-* 重新替换。
-        // （data-light 经 baseStyles 已含派生层，此处重复声明同值无害，保持四域自举形状一致。）
+        // 所在元素」的计算值期替换、后代继承的是已替换的值。色彩派生层 --auto-* 引用
+        // --x-color-*/--x-bgcolor-*，若只声明在 :host/:root/[data-light]，则
+        // data-dark/colorized/uncolored 后代仅自举了 --x-* 基层、未自举 --auto-* —— 它们
+        // 继承的 --auto-* 仍是根域（亮/灰）的已替换值，模式/色彩维度切换对组件（消费
+        // --auto-*）不可见。故把色彩派生层一并声明到四个手动通道元素自身，使 --auto-* 在
+        // 元素上按其自身的 --x-* 重新替换。
+        //
+        // 规模键不进本块（derivedColorVars = 全集 − 规模键）：其 --x-* 基层（font/spacing/
+        // radius 梯度）模式无关，重新声明与继承值完全相同（无信息增益）；而本块生成在
+        // data-size/data-radius/data-spacing/data-shadow 档位块之后、同特异性下后者胜出，
+        // 重新声明会把档位强制回 medium——data-size 组合 data-dark 时被击穿的根因。
+        // 规模键只留基亮块（baseStyles）作根域默认值，档位切换由档位块声明到元素自身。
+        // 唯一模式相关的 --auto-shadow 走 darkShadowStyles 自举（见上 darkShadowStyles 注释）。
+        //
+        // （data-light 经 baseStyles 已含色彩派生层，此处重复声明同值无害，保持四域自举形状一致。）
         //
         // 顺序前提：本块置于 darkDerivedStyles 之前，暗色派生的同名 !important 覆盖（selected/
         // hover/active/disable 等）在同特异性下靠「后者胜出」压过此处的亮派生。
-        const derivedStyles = `${this._selectors.join(",")},${this._dataAlt("data-light")},${this._dataAlt("data-dark")},${this._dataAlt("data-colorized")},${this._dataAlt("data-uncolored")}{\n${toVarStyles(derivedVars)}}\n`;
+        const derivedStyles = `${this._selectors.join(",")},${this._dataAlt("data-light")},${this._dataAlt("data-dark")},${this._dataAlt("data-colorized")},${this._dataAlt("data-uncolored")}{\n${toVarStyles(derivedColorVars)}}\n`;
         // 暗色派生：置于 derivedStyles 之后以覆盖同名变量（同特异性下后者胜出）
         const darkDerivedStyles = `${this._selectors.join(",")}[dark],${this._dataAlt("data-dark")}{\n${toVarStyles(darkDerivedVars)}\n}\n`;
 

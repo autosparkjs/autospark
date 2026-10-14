@@ -185,4 +185,101 @@ describe("独立样式域 data-* 手动通道", () => {
         const idxDarkDerived = rootCss.indexOf(":host,:root[dark],[data-dark]{", idxDerived);
         expect(idxDarkDerived).toBeGreaterThan(idxDerived);
     });
+
+    /**
+     * 自举块维度拆分回归（data-size 被击穿的根因）：自举块此前携带全量 derivedVars，
+     * 含规模键（--auto-font-size 等），而它生成在 data-size 档位块之后、同特异性
+     * (0,1,0) 下后者胜出——data-dark + data-size=small 时档位被强制回 medium。
+     * 规模键的 --x-* 基层（font/spacing/radius 梯度）模式无关，重新声明与继承值完全
+     * 相同，故自举块只保留色彩维度（derivedColorVars = 全集 − 规模键）。
+     */
+    test("自举块仅含色彩维度，不重声明规模键（data-size 档位不被自举块击穿）", () => {
+        const scaleKeys = [
+            "--auto-font-size",
+            "--auto-font:",
+            "--auto-title-font",
+            "--auto-spacing",
+            "--auto-padding",
+            "--auto-margin",
+            "--auto-border-radius",
+            "--auto-shadow",
+            "--auto-icon-size",
+            "--auto-input-padding",
+        ];
+        for (const css of [rootCss, scopeCss]) {
+            const blocks = css.split(/(?<=\})\s*(?=[^{}]*\{)/);
+            const derived = blocks.find(
+                (b) => /\[data-dark\]/.test(b.split("{")[0]) && /--auto-color:/.test(b),
+            );
+            expect(derived).toBeDefined();
+            for (const key of scaleKeys) {
+                expect(derived).not.toContain(`${key}:`);
+            }
+            // 色彩维度仍在（四通道自举的前提不回归）
+            expect(derived).toContain("--auto-color:var(--x-color-1)");
+            expect(derived).toContain("--auto-border-color");
+        }
+        // 规模键仍由基亮块提供根域默认值
+        expect(rootCss).toContain(":host,:root,[data-light]{");
+        const idxBase = rootCss.indexOf(":host,:root,[data-light]{");
+        expect(rootCss.slice(idxBase, rootCss.indexOf("}", idxBase))).toContain(
+            "--auto-font-size:",
+        );
+    });
+
+    /**
+     * --auto-shadow 是规模键中唯一的模式相关项（--x-shadow-* 被 darkShadowVars 覆盖），
+     * 拆分后自举块不再声明它——非根 data-dark 元素必须改由暗色阴影块自举，否则
+     * 继承根域已替换的亮阴影值，暗阴影对组件不可见。同时暗色阴影块恒在档位块之前，
+     * data-size / data-shadow 档位仍可覆盖它。
+     */
+    test("暗色阴影块自举 --auto-shadow 且位于档位块之前（暗阴影可见 + 档位可覆盖）", () => {
+        for (const css of [rootCss, scopeCss]) {
+            const idxDarkShadow = css.indexOf("--x-shadow-x-small:");
+            expect(idxDarkShadow).toBeGreaterThan(-1);
+            const idxOpen = css.lastIndexOf("{", idxDarkShadow);
+            const block = css.slice(idxOpen, css.indexOf("}", idxDarkShadow));
+            expect(block).toContain("--auto-shadow:var(--x-shadow-medium)");
+            // 档位块在其后：data-size（同特异性靠后者胜出）、data-shadow（!important）
+            expect(css.indexOf("[data-size=small]", idxDarkShadow)).toBeGreaterThan(-1);
+            expect(css.indexOf("[data-shadow=small]", idxDarkShadow)).toBeGreaterThan(idxDarkShadow);
+        }
+    });
+
+    /**
+     * 四个规模属性的元素级通道统一作用域约束（与 _dataAlt「自身+后代」两式对齐）：
+     * 根域裸追加（其子树即文档）；作用域收敛为 S[data-X=key],S [data-X=key]，
+     * 不再裸命中 [data-X=key]——裸式跨作用域命中会错拿别的作用域的字面量梯度。
+     */
+    test("规模属性档位选择器按作用域收敛（根域裸、作用域自身+后代）", () => {
+        for (const attr of ["data-size", "data-radius", "data-spacing", "data-shadow"]) {
+            // 根域保持裸追加（既有全局通道不回归）
+            expect(rootCss).toContain(
+                `:host([${attr}='small']),:root[${attr}='small'],[${attr}=small]{`,
+            );
+            // 作用域：自身式 + 后代式，且无裸全局式
+            expect(scopeCss).toContain(
+                `[data-theme-scope='scopeD'][${attr}='small'],[data-theme-scope='scopeD'] [${attr}=small]{`,
+            );
+            expect(scopeCss).not.toContain(`],[${attr}=small]{`);
+        }
+    });
+
+    /**
+     * --auto-input-padding 消费端（button.less / input.less / components.less）取
+     * var(--auto-input-padding)，它在 derivedVars 中组合 var(--auto-padding)——仅
+     * :root 有值，子元素继承已替换的具体值，局部 data-size / data-spacing 容器内
+     * 不联动。档位块须按档直引梯度重定义（与 --auto-padding 同步）。
+     */
+    test("档位块重定义 --auto-input-padding（局部 data-size/data-spacing 联动）", () => {
+        expect(rootCss).toMatch(
+            /:host\(\[data-size='large'\]\),:root\[data-size='large'\],\[data-size=large\]\{[^}]*--auto-input-padding:var\(--x-spacing-large\)/,
+        );
+        expect(rootCss).toMatch(
+            /:host\(\[data-spacing='large'\]\),:root\[data-spacing='large'\],\[data-spacing=large\]\{[^}]*--auto-input-padding:var\(--x-spacing-large\) !important/,
+        );
+        expect(scopeCss).toMatch(
+            /\[data-theme-scope='scopeD'\]\[data-spacing='large'\],[^}]*--auto-input-padding:var\(--x-spacing-large\) !important/,
+        );
+    });
 });

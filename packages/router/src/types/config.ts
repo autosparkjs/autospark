@@ -66,6 +66,32 @@ export interface LoadingOptions {
 }
 
 /**
+ * SEO `<head>` 管理配置
+ *
+ * 由 `AutoSparkRouterOptions.head` 承载，缺省（不声明或声明为空对象）即**开启**，
+ * 传 `false` 整体关闭（router 不再读写 `<head>`）。
+ *
+ * 路由侧的声明是纯约定：`route.title` + `route.meta` 的固定键
+ * （`title` / `description` / `canonical` / `robots` / `og` / `jsonLd` / `seo`），
+ * 视图侧用 `<autospark-view-meta>` 同名属性覆盖。
+ */
+export type HeadConfigOptions = {
+    /**
+     * 站点绝对地址（如 `https://example.com`）
+     *
+     * 用于把相对形式的 `canonical` / `og:url` 解析为绝对地址；不声明时相对地址原样
+     * 输出（浏览器与 Google 会按文档地址解析）。
+     */
+    siteUrl?: string;
+    /**
+     * 标题模板，`%s` 会被替换为最终标题（如 `"%s - 麒麟商店"`）
+     *
+     * 模板不含 `%s` 时退化为 `"{标题} - {模板}"`。
+     */
+    titleTemplate?: string;
+};
+
+/**
  * 路由器配置选项
  */
 export type AutoSparkRouterOptions = {
@@ -170,4 +196,20 @@ export type AutoSparkRouterOptions = {
      * 所以渲染器的注册顺序比较重要
      */
     renderers?: AutoSparkRouterViewRendererBase[];
+
+    /**
+     * SEO `<head>` 管理（默认开启）
+     *
+     * - `false`：整体关闭，router 不再读写 `<head>`
+     * - `{ siteUrl?, titleTemplate? }`：开启并配置站点地址 / 标题模板
+     * - 不声明：以默认配置开启
+     *
+     * 单条路由可用 `meta: { seo: false }` 关闭该路由的 head 管理。
+     *
+     * @example
+     * ```ts
+     * head: { siteUrl: "https://example.com", titleTemplate: "%s - 示例站" }
+     * ```
+     */
+    head?: false | HeadConfigOptions;
 };

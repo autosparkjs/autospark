@@ -9,9 +9,7 @@ AutoSpark Engine **不是静态模板引擎**，而是与 Vue、React、Alpine.j
 :::
 
 与它们的不同只在于实现路径：它以原生 HTML 为模板，在元素上书写 `x-*` 指令，把 [AutoStore](https://zhangfisher.github.io/autostore/) 的响应式状态绑定到 DOM。状态一变，界面自动更新。事件处理、表单双向绑定、条件渲染、列表渲染、组件化、转场动画、动态 patch……构建现代前端应用所需的能力，它都具备。
-
-不要被「模板引擎」的名字误导——它消费的是完整的 `AutoStore`（计算属性、异步计算、状态监听、批量更新），用「最小声明语法」换取「细粒度响应式更新」。你完全可以像写一个 Vue/React 应用那样，用它从零搭建一个全功能的交互式前端应用。
-
+ 
 ```html
 <div id="app">
     <p>你好，<span x-text="user.name"></span>！</p>

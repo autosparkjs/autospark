@@ -28,6 +28,7 @@ export default {
                 <li>与「尺寸」档的分工：<code>size</code> 调字号与行高、<code>spacing</code> 调留白，两者组合决定最终密度——只调 spacing 时字号不变</li>
                 <li>六档取值：<code>none / x-small / small / medium / large / x-large</code>（<code>medium</code> 为默认态）</li>
                 <li>局部换档：任意容器加 <code>data-spacing="档位"</code> 属性即可让内部元素局部生效、与全局隔离</li>
+                <li><strong>独立样式域</strong>：<code>data-spacing</code> 属<strong>规模维度</strong>的档位通道，与模式维度（<code>data-dark</code> / <code>data-light</code>）、色彩维度（<code>data-colorized</code> / <code>data-uncolored</code>）分属不同域、可同元素叠加——见底部「维度叠加」卡</li>
             </ul>
             <pre>ThemePro.spacing = 'large'  // 等价 document.documentElement.dataset.spacing = 'large'</pre>
         </div>
@@ -149,6 +150,40 @@ export default {
                     切换全局间距档位：只有「跟随全局」列（主题色虚线框）变化，左右两列纹丝不动——
                     <code>[data-spacing=x]</code> 在容器层覆盖了间距别名，全局（:root）的档位变化透不进容器内部。
                 </p>
+            </div>
+        </div>
+
+        <div class="auto-card">
+            <div class="auto-card-header">维度叠加：data-dark（模式域）× data-spacing（间距域）</div>
+            <div class="auto-card-body col">
+                <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
+                    <code>data-dark</code> 切模式维度（配色换暗）、<code>data-spacing</code> 切规模维度（稀疏度换档）——
+                    两域叠加时暗色配色与间距档位同时生效、互不覆盖：中右两卡同为暗色，
+                    右卡留白独立放大到 <code>large</code>。
+                </p>
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+                    ${[
+                        { label: "无属性（跟随全局：亮色 · 全局间距档）", dark: false, spacing: undefined as string | undefined },
+                        { label: "data-dark（仅模式域：暗色，稀疏度随全局）", dark: true, spacing: undefined as string | undefined },
+                        { label: 'data-dark + data-spacing="large"（两域叠加：暗色 + 宽留白）', dark: true, spacing: "large" },
+                    ].map(
+                        (c) => html`
+                            <div
+                                ?data-dark="${c.dark}"
+                                data-spacing="${c.spacing}"
+                                style="flex:1;min-width:13rem;display:flex;flex-direction:column;gap:0.6rem;padding:0.9rem;border:1px dashed var(--auto-border-color);border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);color:var(--auto-color);"
+                            >
+                                <div style="font-size:0.72rem;color:var(--auto-third-color);">${c.label}</div>
+                                <div
+                                    style="padding:var(--auto-padding);background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);"
+                                >
+                                    色块卡片（--auto-padding）
+                                </div>
+                                <div class="auto-alert">提示组件留白（--auto-spacing）</div>
+                            </div>
+                        `,
+                    )}
+                </div>
             </div>
         </div>
 

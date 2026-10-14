@@ -7,6 +7,8 @@ export * from "./components";
 export * from "./utils";
 export * from "./router";
 export * from "./logger";
+// 全部类型定义（AutoSparkRouterOptions / HeadConfigOptions / 路由与钩子类型…）
+export * from "./types";
 
 // engine 集成层（outlet 组件注册 / x-outlet 预处理，供高级用法与测试）
 export {

@@ -5,6 +5,7 @@ export * from "./keepAlive";
 export * from "./transition";
 export * from "./preload";
 export * from "./render";
+export * from "./headManager";
 export * from "./modal";
 export * from "./redirect";
 export * from "./routes";

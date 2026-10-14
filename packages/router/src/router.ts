@@ -19,6 +19,7 @@ import {
     Emitter,
     Redirect,
     Modal,
+    HeadManager,
 } from "./features";
 import { getBaseUrl, getDocumentBase } from "@/utils/getBaseUrl";
 
@@ -41,6 +42,7 @@ export class AutoSparkRouter extends Mixin(
     Render,
     Redirect,
     Emitter,
+    HeadManager,
 ) {
     // 用于存储一需要清理的副作用函数，比如 history.listen 返回的取消监听函数
     protected _cleanups: Array<() => void> = [];
@@ -298,6 +300,8 @@ export class AutoSparkRouter extends Mixin(
     async onRouteUpdate(location: Update) {
         // 标记正在导航
         this.isNavigating = true;
+        // 清掉上一次导航遗留的渲染错误标记（SEO head 管理读取）
+        this._headBeginNavigation();
         // 触发 navigation/start 事件
         this.emit("navigation:start", location);
         const pathname = location.location.pathname;
@@ -393,6 +397,15 @@ export class AutoSparkRouter extends Mixin(
 
             // 执行渲染，传递 navSignal
             await this._renderRoutes(toRoute, fromRoute, navSignal);
+
+            // SEO head 管理（两阶段，见 features/headManager）：
+            // 阶段 A 立即写路由级声明（route.title + route.meta，父→子合并）；
+            // 阶段 B 延后一个宏任务读已挂载视图里的 <autospark-view-meta> 覆盖合并。
+            // 守卫取消 / 被新导航中止的路径到不了这里；导航已换代则本次写入作废。
+            if (navVersion === this.currentNavVersion && !navSignal.aborted) {
+                this._headApplyRoutePhase(toRoute);
+                this._headScheduleViewPhase(toRoute, navVersion);
+            }
         } finally {
             // 清理导航状态（只有当前导航版本才清理）
             if (navVersion === this.currentNavVersion) {
@@ -523,6 +536,8 @@ export class AutoSparkRouter extends Mixin(
         this.routes = new AutoSparkRouteTable(this);
         // 初始化钩子管理器
         this.hooks = new HookManager(this);
+        // SEO head 管理（捕获种子标题 + 注册内部 routeError 钩子；head:false 时跳过）
+        this._headAttach();
         this.routes.load().then(async () => {
                 // 初始化组件加载器，传递全局视图选项
                 this.viewLoader = new ViewLoader(this);
@@ -586,6 +601,9 @@ export class AutoSparkRouter extends Mixin(
         if (!this.attached) {
             return; // 或抛出警告
         }
+
+        // 撤销 SEO head 管理的全部写入（移除内部钩子、还原受管标签与种子标题）
+        this._headDetach();
 
         // 清理所有副作用
         this._cleanups.forEach((unsubscribe) => unsubscribe());

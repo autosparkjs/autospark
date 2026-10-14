@@ -24,6 +24,10 @@ function getSizeVars(size: ThemeSize) {
         '--auto-icon-size': `calc(1.5 * var(--x-font-size-${size}))`,
         /* 输入框 */
         '--auto-input-height': `var(--x-input-height-${size})`,
+        /* 消费方（button.less/input.less）取 var(--auto-input-padding)——它在 derivedVars
+         * 中组合 var(--auto-padding)，仅 :root 有值（继承已替换值），局部档位容器不联动；
+         * 与 --auto-padding 同步按档直引梯度重定义。 */
+        '--auto-input-padding': `var(--x-spacing-${size})`,
     }
 }
 
