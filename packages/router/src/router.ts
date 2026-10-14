@@ -208,6 +208,9 @@ export class AutoSparkRouter extends Mixin(
                 // 不预置 keepAlive:true——ADR-0003 默认翻转：路由与出口均未声明时不缓存
                 routeOptions: {},
                 viewOptions: {},
+                // 远程子表（ADR-0007）：约定子表的文件名与最大展开深度
+                routesFile: "routes.json",
+                maxChildrenDepth: 10,
             },
             options && typeof options === "object" && "routes" in options
                 ? options
@@ -255,6 +258,40 @@ export class AutoSparkRouter extends Mixin(
     }
 
     /**
+     * 真实匹配判定：toRoute 首项是根路由（route 恒有值），真实匹配看首项之后
+     */
+    protected _hasRealMatch(toRoute: AutoSparkMatchedRouteItem[]): boolean {
+        return toRoute.slice(1).some((matchedItem) => matchedItem.route !== undefined);
+    }
+
+    /**
+     * 匹配并在必要时等待路由表展开后**重匹配**（ADR-0007 决策 3）
+     *
+     * 先用骨架匹配：命中即返回，零等待（home 场景不被任何远程请求阻塞）。
+     * 仅当未命中且仍有待展开节点时，等展开完成后重判一次——deep-link 直开
+     * （其路由声明尚在某个远程子表里）由此得以落地。重匹配不产生新历史条目。
+     *
+     * 等待上限沿用既有 timeout 来源链，避免一个挂死的 json 把导航拖死。
+     */
+    protected async _matchRouteAfterExpansion(
+        pathname: string,
+        search: string,
+        state?: unknown,
+        timeout?: number,
+    ): Promise<{
+        fromRoute: AutoSparkMatchedRouteItem[] | undefined;
+        toRoute: AutoSparkMatchedRouteItem[];
+    }> {
+        const matched = this._matchRoute(pathname, search, state);
+        if (this._hasRealMatch(matched.toRoute) || !this.routes.hasPending()) {
+            return matched;
+        }
+        // 等待上限沿用既有 timeout 来源链（未命中时无路由项可取其 timeout，故退到全局缺省）
+        await this.routes.whenExpanded(timeout ?? this.options.routeOptions?.timeout);
+        return this._matchRoute(pathname, search, state);
+    }
+
+    /**
      * 路由更新回调 - 在 URL 变化时被调用
      * 执行路由匹配和参数提取
      */
@@ -266,8 +303,9 @@ export class AutoSparkRouter extends Mixin(
         const pathname = location.location.pathname;
         const search = location.location.search;
         this._lastViewSlot = null;
-        // 执行路由匹配并获取导航上下文
-        const matched = this._matchRoute(
+        // 执行路由匹配并获取导航上下文。
+        // 命中即走；未命中且仍有待展开的远程子表时，等展开完成后重匹配（ADR-0007 决策 3）
+        const matched = await this._matchRouteAfterExpansion(
             removePathPrefix(pathname, this.options.base),
             search,
             location.location.state,
@@ -485,9 +523,7 @@ export class AutoSparkRouter extends Mixin(
         this.routes = new AutoSparkRouteTable(this);
         // 初始化钩子管理器
         this.hooks = new HookManager(this);
-        this.routes
-            .load()
-            .then(() => {
+        this.routes.load().then(async () => {
                 // 初始化组件加载器，传递全局视图选项
                 this.viewLoader = new ViewLoader(this);
                 // 初始化数据加载器，传递全局数据选项
@@ -509,31 +545,34 @@ export class AutoSparkRouter extends Mixin(
                 this.attached = true;
                 this.emit("routes:attached", undefined);
                 // 标记为已绑定
-                // 初始导航：按当前 URL 恢复路由状态（直达/刷新/前进后退落地）；
+                // 初始导航：按当前 URL 恢复路由状态（直达/刷新/前进后退落地）。
+                // 骨架先匹配、命中即渲染（home 场景零等待）；仅 unmatched 才等路由表
+                // 展开完成后重判一次（ADR-0007 决策 3），使声明在远程子表里的 deep-link
+                // 得以落地——否则表还没长全就被判为 404。
                 // 入口文档直开（ADR-0006 修订版）：原始 pathname 以 .html/.htm 结尾（对齐
                 // getBaseUrl 的扩展名集合）即视为载体直开（如 /public/shop/index.html、
-                // /shop/a.html、/shop/x/y/z.html）——先试真实匹配，命中（路由 path 带 .html
-                // 的合法场景）正常渲染，仅 unmatched 才归位 home（地址栏落 base 根）。
+                // /shop/a.html、/shop/x/y/z.html）——试匹配命中（路由 path 带 .html
+                // 的合法场景）正常渲染，未命中才归位 home（地址栏落 base 根）。
                 // 未显式 base 时 getBaseUrl 构造期已把入口文件所在目录推断为 base，
                 // 归位即落目录根（/shop/x/y/z.html → /shop/x/y/z）
                 const rawPathname = this.history.location.pathname;
                 const currentPath = removePathPrefix(rawPathname, this.options.base);
+                const isEntryDoc =
+                    rawPathname.endsWith(".html") || rawPathname.endsWith(".htm");
                 if (currentPath === "" || currentPath === "/") {
                     this.home();
-                } else if (rawPathname.endsWith(".html") || rawPathname.endsWith(".htm")) {
-                    // 试匹配输入与 onRouteUpdate 同构（base 剥离后的路径 + search）；
-                    // toRoute 首项是根路由（route 恒有值），真实匹配看首项之后
-                    const matched = this._matchRoute(currentPath, this.history.location.search);
-                    const hasRealMatch = matched.toRoute
-                        .slice(1)
-                        .some((m) => m.route !== undefined);
-                    if (hasRealMatch) {
-                        this.replace(rawPathname);
-                    } else {
-                        this.home();
-                    }
                 } else {
-                    this.replace(rawPathname);
+                    const matched = await this._matchRouteAfterExpansion(
+                        currentPath,
+                        this.history.location.search,
+                    );
+                    if (this._hasRealMatch(matched.toRoute)) {
+                        this.replace(rawPathname);
+                    } else if (isEntryDoc) {
+                        this.home();
+                    } else {
+                        this.replace(rawPathname);
+                    }
                 }
             })
             .catch((e) => {

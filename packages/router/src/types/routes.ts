@@ -268,7 +268,30 @@ export interface AutoSparkRouteItem {
      * 路由别名（URL 不变，使用目标路由配置）
      */
     alias?: string | string[];
-    children?: AutoSparkRouteItem[];
+    /**
+     * 子路由声明，三种形态（ADR-0007）：
+     *
+     * 1. `AutoSparkRouteItem[]` — 静态子路由项数组
+     * 2. `string` — **远程子表**：远程地址，初始化期取回子路由项声明并展开为本节点的子路由
+     * 3. `true` — **约定子表**：远程子表的约定式简写，地址取 `options.routesFile`（默认 `routes.json`）
+     */
+    children?: AutoSparkRouteChildren;
+    /**
+     * 内部属性：远程子表的展开状态（ADR-0007 决策 3）
+     *
+     * - `"pending"` = **待展开**——已声明为远程但尚未就位；匹配到此只能判定为「未知」，
+     *   而非「该节点无子路由」（首屏 unmatched 重试与运行时导航挂起都以此为前提）
+     * - `"ok"` = 展开成功
+     * - `"error"` = 失败或触顶降级，本节点退化为无子路由
+     *
+     * @internal
+     */
+    _childrenState?: "pending" | "ok" | "error";
+    /**
+     * 内部属性：远程子表的原始声明（`string` 地址 或 `true` 约定式简写），展开后仍保留以便溯源
+     * @internal
+     */
+    _childrenSource?: string | true;
     meta?: Record<string, any>;
 
     beforeRoute?: BeforeRouteHook | BeforeRouteHook[];
@@ -308,6 +331,15 @@ export interface AutoSparkRouteItem {
      */
     default?: boolean;
 }
+
+/**
+ * 子路由声明（ADR-0007）
+ *
+ * - `AutoSparkRouteItem[]`：静态子路由项
+ * - `string`：**远程子表**地址
+ * - `true`：**约定子表**简写，地址取 `options.routesFile`
+ */
+export type AutoSparkRouteChildren = AutoSparkRouteItem[] | string | true;
 
 /**
  * 路由配置类型

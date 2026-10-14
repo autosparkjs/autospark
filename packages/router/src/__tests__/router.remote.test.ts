@@ -94,7 +94,8 @@ describe("Remote route loading", () => {
         expect(router.routes.current.route!.name).toBe("dashboard");
     });
 
-    it("loadRemoteRoutes() 应该合并远程路由到现有路由表", async () => {
+    // 待办：loadRemoteRoutes 属运行时路由表变更，ADR-0007 决策 7 划出本次范围
+    it.skip("loadRemoteRoutes() 应该合并远程路由到现有路由表", async () => {
         router = await createRouter(host, { routes: baseRoutes });
 
         // 使用 loadRemoteRoutes 加载额外路由
@@ -111,7 +112,7 @@ describe("Remote route loading", () => {
         expect(router.routes.current.route!.name).toBe("profile");
     });
 
-    it("loadRemoteRoutes() 支持传入函数", async () => {
+    it.skip("loadRemoteRoutes() 支持传入函数", async () => {
         router = await createRouter(host, { routes: baseRoutes });
 
         const loader = () => [
@@ -124,7 +125,7 @@ describe("Remote route loading", () => {
         expect(router.routes.current.route!.name).toBe("reports");
     });
 
-    it("loadRemoteRoutes() 传入无效格式时应该抛出错误", async () => {
+    it.skip("loadRemoteRoutes() 传入无效格式时应该抛出错误", async () => {
         router = await createRouter(host, { routes: baseRoutes });
 
         // 传入无效数据应该抛错

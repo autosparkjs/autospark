@@ -80,12 +80,15 @@ function treeToArray(node: RouteTreeNode): AutoSparkRouteItem[] {
 
     for (const [, childNode] of node.children) {
         // 从 childNode.route 复制属性，但排除 children（稍后会根据子节点重新构建）
-        const { children: _, ...routeWithoutChildren } = childNode.route;
+        const { children: rawChildren, ...routeWithoutChildren } = childNode.route;
         const route: AutoSparkRouteItem = { ...routeWithoutChildren };
 
         if (childNode.children.size > 0) {
             // 递归处理子节点
             route.children = treeToArray(childNode);
+        } else if (rawChildren !== undefined && !Array.isArray(rawChildren)) {
+            // 远程子表地址 / 约定子表简写：原样透传，交由路由表展开处理（ADR-0007）
+            route.children = rawChildren;
         }
 
         result.push(route);
@@ -105,8 +108,8 @@ function processRoute(root: RouteTreeNode, route: AutoSparkRouteItem): void {
     // 如果是根路由（且不是默认路由），直接处理
     // 默认路由（path="" 或 path="/"）应该作为普通子路由处理
     if (segments.length === 1 && segments[0] === "/" && !isDefaultRoute(route)) {
-        // 根路由：合并到根节点
-        if (route.children) {
+        // 根路由：合并到根节点（仅数组形态参与，远程子表交由路由表展开，ADR-0007）
+        if (Array.isArray(route.children)) {
             for (const child of route.children) {
                 processRoute(root, child);
             }
@@ -136,7 +139,9 @@ function processRoute(root: RouteTreeNode, route: AutoSparkRouteItem): void {
             currentNode.route = routeToApply;
 
             // 递归处理子路由（但如果最后一段是 **，不处理其 children）
-            if (route.children && !isWildcardLast) {
+            // 仅数组形态参与归一化：远程子表（`string`）与约定子表（`true`）原样透传，
+            // 交由路由表展开处理（ADR-0007）——否则 for...of 会按字符遍历字符串
+            if (Array.isArray(route.children) && !isWildcardLast) {
                 for (const child of route.children) {
                     processRoute(currentNode, child);
                 }
@@ -184,12 +189,10 @@ export function normalizeRoutes(routes?: AutoSparkRouteItem | AutoSparkRouteItem
     };
 
     // 处理现有的根路由
-    if (existingRoot) {
+    if (existingRoot && Array.isArray(existingRoot.children)) {
         // 如果根路由有子路由，先处理它们
-        if (existingRoot.children) {
-            for (const child of existingRoot.children) {
-                processRoute(rootNode, child);
-            }
+        for (const child of existingRoot.children) {
+            processRoute(rootNode, child);
         }
     }
 
@@ -214,6 +217,9 @@ export function normalizeRoutes(routes?: AutoSparkRouteItem | AutoSparkRouteItem
 
     if (children.length > 0) {
         result.children = children;
+    } else if (existingRoot && !Array.isArray(existingRoot.children) && existingRoot.children !== undefined) {
+        // 根路由声明的远程子表 / 约定子表：原样透传（ADR-0007）
+        result.children = existingRoot.children;
     }
 
     return result;

@@ -508,8 +508,8 @@ function findDefaultRoute(
             };
             currentMatch.hash = getRouteHash(currentMatch);
 
-            // 递归查找下一级默认路由
-            if (route.children && route.children.length > 0) {
+            // 递归查找下一级默认路由（children 恒为数组：远程子表已由路由表展开收敛，ADR-0007）
+            if (Array.isArray(route.children) && route.children.length > 0) {
                 const childDefaults = findDefaultRoute(
                     route.children,
                     currentMatch,
@@ -659,7 +659,7 @@ function processSingleRoute(
     const parentParams = parentMatchedRoute?.params || {};
     const parentUrl = parentMatchedRoute?.url || "";
 
-    const isLeaf = !route.children || route.children.length === 0;
+    const isLeaf = !Array.isArray(route.children) || route.children.length === 0;
     const matcher = createRouteMatcher(route, true);
     const matchResult = matcher(path);
     if (!matchResult.matched) return null;
@@ -694,7 +694,7 @@ function processSingleRoute(
 
     if (!matchResult.remainingPath) {
         // 路径完全匹配当前路由
-        if (route.children && route.children.length > 0) {
+        if (Array.isArray(route.children) && route.children.length > 0) {
             // 首先查找默认路由
             const defaultMatches = findDefaultRoute(
                 route.children,
@@ -727,7 +727,7 @@ function processSingleRoute(
         return [currentMatch];
     }
 
-    if (route.children && route.children.length > 0) {
+    if (Array.isArray(route.children) && route.children.length > 0) {
         const childPath = "/" + matchResult.remainingPath;
         const childMatches = _matchRoutesInternal(
             childPath,
@@ -889,7 +889,7 @@ export function matchRoute(
     rootMatch.hash = getRouteHash(rootMatch);
 
     // 从根节点的 children 开始匹配
-    const rootChildren = roots.children || [];
+    const rootChildren: AutoSparkRouteItem[] = Array.isArray(roots.children) ? roots.children : [];
     let childMatches = _matchRoutesInternal(
         normalizedPath,
         rootChildren,
@@ -907,7 +907,7 @@ export function matchRoute(
     } else if (normalizedPath === "/" || normalizedPath === "") {
         // 如果路径是根路径，检查是否有默认子路由
         const defaultMatches = findDefaultRoute(
-            rootChildren || [],
+            rootChildren,
             rootMatch,
             inputQuery,
             currentId,

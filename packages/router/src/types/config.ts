@@ -88,6 +88,19 @@ export type AutoSparkRouterOptions = {
     /** 路由配置 */
     routes: AutoSparkRoutes;
     /**
+     * 约定子表的默认文件名（ADR-0007）
+     *
+     * `children: true` 时的解析地址即为此文件名，默认 `"routes.json"`
+     */
+    routesFile?: string;
+    /**
+     * 远程子表的最大展开深度（ADR-0007），默认 10
+     *
+     * 触顶时该节点降级为无子路由并落 error 状态。用于界定循环引用（子表的子项又指回祖先，
+     * 其地址因拼祖先路径而无限增长）的最坏情况——本包不做循环检测，仅以此兜底
+     */
+    maxChildrenDepth?: number;
+    /**
      * 错误页面配置
      *
      * 支持按错误状态码配置不同的错误页面：
