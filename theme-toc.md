@@ -46,3 +46,6 @@
     静态主题包
 
 API参考
+
+
+所有章节均需要配套demo, 开发一个控制面板webcomponent，在每个demo中包括，用于控制，参考packages\theme\examples\theme-controls.ts
