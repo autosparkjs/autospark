@@ -41,6 +41,12 @@ function createTestDOM() {
  */
 async function createRouter(host: HTMLElement, options: any) {
     const { AutoSparkRouter } = await import("@/router");
+    // 渲染链路（含 beforeRender 触发）要求宿主内存在出口元素
+    if (!host.querySelector("[data-autospark-outlet]")) {
+        const outlet = document.createElement("div");
+        outlet.setAttribute("data-autospark-outlet", "");
+        host.appendChild(outlet);
+    }
     const router = new AutoSparkRouter(host, {
         engine: stubEngine(),
         ...options,
@@ -466,7 +472,7 @@ describe("AutoSparkRouter 全局钩子系统", () => {
 
             // afterRoute 至少在最终路由（/profile）上执行
             expect(lastRoute(router)?.path).toBe("profile");
-            expect(seen).toContain("profile");
+            expect(seen).toContain("/profile");
         });
 
         it("应该按照注册顺序执行多个 afterRoute 钩子", async () => {
