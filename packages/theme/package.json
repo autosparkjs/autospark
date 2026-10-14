@@ -32,8 +32,9 @@
     },
     "scripts": {
         "dev": "vite",
-        "build": "bun run build:css && tsup",
-        "build:css": "lessc src/styles/index.less dist/index.css"
+        "build": "bun run build:css && tsup && bun run build:docs-css",
+        "build:css": "lessc src/styles/index.less dist/index.css",
+        "build:docs-css": "lessc docs.less ../../docs/public/autospark-theme.css"
     },
     "dependencies": {
         "@yosulramp/material-color-palette-js": "^1.0.4"

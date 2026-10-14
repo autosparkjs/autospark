@@ -1,0 +1,1258 @@
+@charset "utf-8";
+html,
+body {
+  color: var(--auto-color);
+  background: var(--x-bgcolor-1);
+  line-height: var(--auto-line-height);
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-rendering: optimizelegibility;
+  font-family: Lantinghei SC, Microsoft Yahei, Hiragino Sans GB, Microsoft Sans Serif, WenQuanYi Micro Hei, sans-serif;
+  font-size: 16px;
+}
+html *,
+body *,
+html *:before,
+body *:before,
+html *:after,
+body *:after {
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+}
+/* 内外边距通常让各个浏览器样式的表现位置不同 */
+dl,
+dt,
+dd,
+ul,
+ol,
+li,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+pre,
+code,
+form,
+fieldset,
+legend,
+input,
+textarea,
+p,
+blockquote,
+th,
+td,
+hr,
+button,
+article,
+aside,
+details,
+figcaption,
+figure,
+footer,
+header,
+menu,
+nav,
+section {
+  margin: 0;
+  padding: 0;
+}
+article,
+aside,
+details,
+figcaption,
+figure,
+footer,
+header,
+menu,
+nav,
+section {
+  display: block;
+}
+audio,
+canvas,
+video {
+  display: inline-block;
+}
+/* 所有主流浏览器 */
+::selection {
+  background-color: color-mix(in srgb, var(--x-color-theme-1), transparent 50%) !important;
+  color: var(--x-color-theme-6);
+}
+::-moz-selection {
+  background-color: color-mix(in srgb, var(--x-color-theme-1), transparent 50%) !important;
+  color: var(--x-color-theme-6);
+  /* WebKit/Blink Browsers */
+}
+/* 去掉各Table cell 的边距并让其边重合 */
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+/* 去除默认边框 */
+fieldset,
+img {
+  border: 0;
+}
+/* 块/段落引用 */
+blockquote {
+  position: relative;
+  color: #999;
+  font-weight: 400;
+  border-left: 1px solid #1abc9c;
+  padding-left: 1em;
+  margin: 1em 3em 1em 2em;
+}
+ul,
+ol {
+  list-style: none;
+}
+/* 默认不显示下划线，保持页面简洁 */
+ins,
+a {
+  text-decoration: none;
+}
+/* 标记，类似于手写的荧光笔的作用 */
+mark {
+  background: #fffdd1;
+  border-bottom: 1px solid #ffedce;
+  padding: 2px;
+  margin: 0 5px;
+}
+/* 代码片断 */
+pre,
+code,
+pre tt {
+  font-family: Courier, 'Courier New', monospace;
+}
+pre {
+  padding: 1em 1.5em;
+  display: block;
+  -webkit-overflow-scrolling: touch;
+}
+/* 一致化 horizontal rule */
+hr {
+  border: none;
+  border-bottom: 1px solid #cfcfcf;
+  margin-bottom: 0.8em;
+  height: 10px;
+}
+/* 可拖动文件添加拖动手势 */
+[draggable] {
+  cursor: move;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font: var(--auto-title-font);
+  margin: 0;
+}
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.loading {
+  animation: spin 2s linear infinite;
+}
+.auto-border {
+  border: var(--auto-border);
+}
+.auto-radius {
+  border-radius: var(--auto-border-radius);
+}
+.auto-title {
+  font: var(--auto-title-font);
+  font-weight: 500;
+}
+.auto-title.colorized {
+  color: var(--auto-panel-header-color);
+}
+.auto-shadow {
+  box-shadow: var(--auto-shadow);
+}
+.auto-text {
+  font: var(--auto-font);
+}
+.auto-text.colorized {
+  color: var(--auto-panel-header-color);
+}
+.auto-disabled {
+  color: color-mix(in srgb, var(--auto-theme-color) 50%, transparent 10%) !important;
+  background: color-mix(in srgb, var(--x-color-theme-1), white 28%) !important;
+}
+.auto-selected {
+  color: color-mix(in srgb, var(--auto-theme-color) 0%, white 100%) !important;
+  background: var(--x-color-theme-5) !important;
+}
+:host,
+:root {
+  --x-color-gray-0: #FAFAFA;
+  --x-color-gray-1: #f4f4f4;
+  --x-color-gray-2: #ececec;
+  --x-color-gray-3: #dedede;
+  --x-color-gray-4: #bbbbbb;
+  --x-color-gray-5: #9b9b9b;
+  --x-color-gray-6: #727272;
+  --x-color-gray-7: #5f5f5f;
+  --x-color-gray-8: #404040;
+  --x-color-gray-9: #1f1f1f;
+}
+.autospark-container > .popup {
+  position: relative;
+  border: var(--auto-border);
+  box-shadow: var(--auto-shadow);
+  border-radius: var(--auto-border-radius);
+  padding: var(--auto-input-padding);
+  background-color: var(--auto-bgcolor);
+}
+:root {
+  --auto-icon-alert: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>');
+  --auto-icon-info: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>');
+  --auto-icon-success: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335" /><path d="m9 11 3 3L22 4" /></svg>');
+  --auto-icon-warning: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="5" y1="12" y2="12" /><line x1="19" x2="22" y1="12" y2="12" /><line x1="12" x2="12" y1="2" y2="5" /><line x1="12" x2="12" y1="19" y2="22" /><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="3" /></svg>');
+  --auto-icon-error: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="m15 9-6 6" /><path d="m9 9 6 6" /></svg>');
+  --auto-icon-focus: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="5" y1="12" y2="12" /><line x1="19" x2="22" y1="12" y2="12" /><line x1="12" x2="12" y1="2" y2="5" /><line x1="12" x2="12" y1="19" y2="22" /><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="3" /></svg>');
+}
+button::-moz-focus-inner,
+input::-moz-focus-inner {
+  padding: 0;
+  border: 0;
+}
+.auto-alert {
+  border-radius: var(--auto-border-radius);
+  box-shadow: var(--auto-shadow);
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  font-size: var(--auto-font-size);
+  padding: calc(1.5 * var(--auto-spacing));
+  background: var(--auto-bgcolor);
+  border: var(--auto-border);
+  color: var(--auto-color);
+  padding-left: calc(3em + var(--auto-spacing));
+  /* 次要描述：--auto-font 的弱化（字号 0.9 倍），颜色取次要文字色档 */
+}
+.auto-alert:after {
+  content: ' ';
+  left: var(--auto-spacing);
+  top: 50%;
+  transform: translateY(-50%);
+  mask-image: var(--auto-icon-info);
+  mask-size: cover;
+  width: 2em;
+  height: 2em;
+  position: absolute;
+  background-color: var(--auto-color);
+}
+.auto-alert > .title {
+  font: var(--auto-title-font);
+  color: var(--auto-panel-header-color);
+  display: flex;
+  align-items: center;
+  padding-bottom: calc(0.5 * var(--auto-spacing));
+  justify-content: space-between;
+}
+.auto-alert > .title:first-child {
+  flex-grow: 1;
+}
+.auto-alert > .title > .closeable {
+  flex-shrink: 0;
+}
+.auto-alert > .description {
+  font: var(--auto-font);
+  font-size: calc(var(--auto-font-size) * 0.9);
+  color: var(--auto-secondary-color);
+}
+.auto-alert > .closeable {
+  position: absolute;
+  right: var(--auto-spacing);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.auto-alert.warning {
+  background: color-mix(in srgb, var(--x-color-warning), white 90%);
+  border: 1px solid color-mix(in srgb, var(--x-color-warning), white 50%);
+  color: var(--x-color-warning);
+}
+.auto-alert.warning:after {
+  background-color: var(--x-color-warning);
+  mask-image: var(--auto-icon-alert);
+}
+.auto-alert.success {
+  background: color-mix(in srgb, var(--x-color-success), white 90%);
+  border: 1px solid color-mix(in srgb, var(--x-color-success), white 50%);
+  color: var(--x-color-success);
+}
+.auto-alert.success:after {
+  background-color: var(--x-color-success);
+  mask-image: var(--auto-icon-success);
+}
+.auto-alert.primary {
+  background: color-mix(in srgb, var(--x-color-primary), white 90%);
+  border: 1px solid color-mix(in srgb, var(--x-color-primary), white 50%);
+  color: var(--x-color-primary);
+}
+.auto-alert.primary:after {
+  background-color: var(--x-color-primary);
+  mask-image: var(--auto-icon-focus);
+}
+.auto-alert.error,
+.auto-alert.danger {
+  background: color-mix(in srgb, var(--x-color-danger), white 90%);
+  border: 1px solid color-mix(in srgb, var(--x-color-danger), white 50%);
+  color: var(--x-color-danger);
+}
+.auto-alert.error:after,
+.auto-alert.danger:after {
+  background-color: var(--x-color-danger);
+  mask-image: var(--auto-icon-error);
+}
+:host([dark]) .auto-alert,
+:host([data-dark]) .auto-alert,
+[dark] .auto-alert,
+[data-dark] .auto-alert {
+  background: var(--auto-panel-bgcolor);
+  border: var(--auto-border);
+  color: var(--auto-color);
+}
+:host([dark]) .auto-alert.success,
+:host([data-dark]) .auto-alert.success,
+[dark] .auto-alert.success,
+[data-dark] .auto-alert.success {
+  background: color-mix(in srgb, var(--x-color-success), transparent 80%);
+  border: 1px solid var(--x-color-success);
+  color: 1px solid color-mix(in srgb, var(--x-color-success), white 70%);
+}
+:host([dark]) .auto-alert.success:after,
+:host([data-dark]) .auto-alert.success:after,
+[dark] .auto-alert.success:after,
+[data-dark] .auto-alert.success:after {
+  background-color: color-mix(in srgb, var(--x-color-success), white 70%);
+}
+:host([dark]) .auto-alert.warning,
+:host([data-dark]) .auto-alert.warning,
+[dark] .auto-alert.warning,
+[data-dark] .auto-alert.warning {
+  background: color-mix(in srgb, var(--x-color-warning), transparent 80%);
+  border: 1px solid var(--x-color-warning);
+  color: color-mix(in srgb, var(--x-color-warning), white 70%);
+}
+:host([dark]) .auto-alert.warning:after,
+:host([data-dark]) .auto-alert.warning:after,
+[dark] .auto-alert.warning:after,
+[data-dark] .auto-alert.warning:after {
+  background-color: color-mix(in srgb, var(--x-color-warning), white 70%);
+}
+:host([dark]) .auto-alert.primary,
+:host([data-dark]) .auto-alert.primary,
+[dark] .auto-alert.primary,
+[data-dark] .auto-alert.primary {
+  background: color-mix(in srgb, var(--x-color-primary), transparent 80%);
+  border: 1px solid var(--x-color-primary);
+  color: color-mix(in srgb, var(--x-color-primary), white 70%);
+}
+:host([dark]) .auto-alert.primary:after,
+:host([data-dark]) .auto-alert.primary:after,
+[dark] .auto-alert.primary:after,
+[data-dark] .auto-alert.primary:after {
+  background-color: color-mix(in srgb, var(--x-color-primary), white 70%);
+}
+:host([dark]) .auto-alert.error,
+:host([data-dark]) .auto-alert.error,
+[dark] .auto-alert.error,
+[data-dark] .auto-alert.error,
+:host([dark]) .auto-alert.danger,
+:host([data-dark]) .auto-alert.danger,
+[dark] .auto-alert.danger,
+[data-dark] .auto-alert.danger {
+  background: color-mix(in srgb, var(--x-color-danger), transparent 80%);
+  border: 1px solid var(--x-color-danger);
+  color: color-mix(in srgb, var(--x-color-danger), white 70%);
+}
+:host([dark]) .auto-alert.error:after,
+:host([data-dark]) .auto-alert.error:after,
+[dark] .auto-alert.error:after,
+[data-dark] .auto-alert.error:after,
+:host([dark]) .auto-alert.danger:after,
+:host([data-dark]) .auto-alert.danger:after,
+[dark] .auto-alert.danger:after,
+[data-dark] .auto-alert.danger:after {
+  background-color: color-mix(in srgb, var(--x-color-danger), white 70%);
+}
+/*
+ * data-light 手动通道：暗语境（外层 [dark]/[data-dark]）中的亮元素——
+ * 告警的暗色规则用字面量 color-mix 固化了暗配色（不随 CSS 变量走），
+ * 此处还原亮配色。特异性与暗色规则打平（均 (0,2,0)），置于其后靠顺序胜出；
+ * 嵌套矛盾（亮元素内再挂暗元素）时亮规则仍胜——组件层仅此一条兜底，
+ * 精细嵌套请走 CSS 变量层（--auto-* / --x-color-* 已随 data-light 正确解析）。
+ */
+:host([data-light]) .auto-alert,
+[data-light] .auto-alert {
+  background: var(--auto-bgcolor);
+  border: var(--auto-border);
+  color: var(--auto-color);
+}
+:host([data-light]) .auto-alert.warning,
+[data-light] .auto-alert.warning {
+  background: color-mix(in srgb, var(--x-color-warning), white 90%);
+  border: 1px solid color-mix(in srgb, var(--x-color-warning), white 50%);
+  color: var(--x-color-warning);
+}
+:host([data-light]) .auto-alert.warning:after,
+[data-light] .auto-alert.warning:after {
+  background-color: var(--x-color-warning);
+}
+:host([data-light]) .auto-alert.success,
+[data-light] .auto-alert.success {
+  background: color-mix(in srgb, var(--x-color-success), white 90%);
+  border: 1px solid color-mix(in srgb, var(--x-color-success), white 50%);
+  color: var(--x-color-success);
+}
+:host([data-light]) .auto-alert.success:after,
+[data-light] .auto-alert.success:after {
+  background-color: var(--x-color-success);
+}
+:host([data-light]) .auto-alert.primary,
+[data-light] .auto-alert.primary {
+  background: color-mix(in srgb, var(--x-color-primary), white 90%);
+  border: 1px solid color-mix(in srgb, var(--x-color-primary), white 50%);
+  color: var(--x-color-primary);
+}
+:host([data-light]) .auto-alert.primary:after,
+[data-light] .auto-alert.primary:after {
+  background-color: var(--x-color-primary);
+}
+:host([data-light]) .auto-alert.error,
+[data-light] .auto-alert.error,
+:host([data-light]) .auto-alert.danger,
+[data-light] .auto-alert.danger {
+  background: color-mix(in srgb, var(--x-color-danger), white 90%);
+  border: 1px solid color-mix(in srgb, var(--x-color-danger), white 50%);
+  color: var(--x-color-danger);
+}
+:host([data-light]) .auto-alert.error:after,
+[data-light] .auto-alert.error:after,
+:host([data-light]) .auto-alert.danger:after,
+[data-light] .auto-alert.danger:after {
+  background-color: var(--x-color-danger);
+}
+.closeable {
+  z-index: 1;
+  aspect-ratio: 1;
+  display: flex;
+  justify-content: center;
+  line-height: 1;
+  align-items: center;
+  width: var(--auto-padding);
+  height: var(--auto-padding);
+  box-sizing: border-box;
+  cursor: pointer;
+  font-size: var(--auto-font-size);
+  border-radius: 50%;
+  background: color-mix(in hsl, currentColor, white 50%);
+  font-family: Helvetica, Arial, sans-serif;
+  user-select: none;
+  opacity: 0.6;
+  mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxZW0iIGhlaWdodD0iMWVtIiB2aWV3Qm94PSIwIDAgMjQgMjQiPjxnIGZpbGw9Im5vbmUiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2UtZGFzaGFycmF5PSIyMiIgc3Ryb2tlLWRhc2hvZmZzZXQ9IjIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS13aWR0aD0iMiI+PHBhdGggZD0iTTE5IDVMNSAxOSI+PGFuaW1hdGUgZmlsbD0iZnJlZXplIiBhdHRyaWJ1dGVOYW1lPSJzdHJva2UtZGFzaG9mZnNldCIgYmVnaW49IjAuM3MiIGR1cj0iMC4zcyIgdmFsdWVzPSIyMjswIi8+PC9wYXRoPjxwYXRoIGQ9Ik01IDVMMTkgMTkiPjxhbmltYXRlIGZpbGw9ImZyZWV6ZSIgYXR0cmlidXRlTmFtZT0ic3Ryb2tlLWRhc2hvZmZzZXQiIGR1cj0iMC4zcyIgdmFsdWVzPSIyMjswIi8+PC9wYXRoPjwvZz48L3N2Zz4=");
+  mask-size: cover;
+  -webkit-mask-size: cover;
+}
+.closeable:hover {
+  background: color-mix(in hsl, currentColor, black 20%);
+}
+.closeable:active {
+  opacity: 0.9;
+}
+.auto-card {
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  background: var(--auto-panel-bgcolor);
+  color: var(--auto-color);
+  border-radius: var(--auto-border-radius);
+  box-shadow: var(--auto-shadow);
+  padding: 0;
+  box-sizing: border-box;
+}
+.auto-card.border {
+  border: var(--auto-border);
+}
+.auto-card > .auto-card-header {
+  display: flex;
+  position: relative;
+  flex-direction: row;
+  align-items: center;
+  padding: calc(0.8 * var(--auto-spacing));
+  border-radius: var(--auto-border-radius) var(--auto-border-radius) 0 0;
+  flex-shrink: 0;
+  font: var(--auto-title-font);
+  color: var(--auto-panel-header-color);
+  background-color: var(--auto-panel-header-bgcolor);
+  gap: 0.5em;
+}
+.auto-card > .auto-card-header > .auto-card-title {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.auto-card > .auto-card-header > * {
+  flex-grow: 1;
+}
+.auto-card > .auto-card-header > .closeable {
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  margin-left: auto;
+}
+.auto-card > .auto-card-body {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  flex: 1 1 auto;
+  padding: var(--auto-spacing);
+  min-height: 0;
+  gap: var(--auto-spacing);
+}
+.auto-card > .auto-card-body:not(:has(+ .auto-card-footer)) {
+  border-radius: 0 0 var(--auto-border-radius) var(--auto-border-radius);
+}
+.auto-card > .auto-card-footer {
+  padding: calc(0.8 * var(--auto-spacing)) var(--auto-spacing);
+  display: flex;
+  position: relative;
+  flex-direction: row;
+  align-items: center;
+  border-top: var(--auto-border);
+  border-radius: 0 0 var(--auto-border-radius) var(--auto-border-radius);
+  gap: 0.5em;
+}
+.auto-card > .auto-card-footer > *[type='button'] {
+  margin-left: auto;
+  margin-right: 0;
+}
+.auto-btn,
+.auto-btn button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: calc(0.5*var(--x-spacing-medium)) var(--x-spacing-medium);
+  border-radius: var(--auto-border-radius);
+  font: var(--auto-font);
+  cursor: pointer;
+  color: var(--auto-color);
+  background: var(--auto-bgcolor);
+  box-shadow: var(--auto-shadow);
+  border: var(--auto-border);
+  box-sizing: border-box;
+  vertical-align: bottom;
+  gap: 0.3em;
+  user-select: none;
+  position: relative;
+}
+.auto-btn:hover,
+.auto-btn button:hover {
+  border: var(--auto-active-border);
+  background-color: var(--x-color-theme-1);
+  color: var(--auto-active-border-color);
+  outline: 4px solid var(--auto-active-border);
+}
+.auto-btn:active,
+.auto-btn button:active {
+  background: var(--x-color-theme-2);
+}
+.auto-btn.x-small,
+.auto-btn button.x-small {
+  font-size: var(--x-font-size-x-small);
+  padding: calc(0.5 * var(--x-spacing-x-small)) var(--x-spacing-x-small);
+}
+.auto-btn.small,
+.auto-btn button.small {
+  font-size: var(--x-font-size-small);
+  padding: calc(0.5 * var(--x-spacing-small)) var(--x-spacing-small);
+}
+.auto-btn.medium,
+.auto-btn button.medium {
+  font-size: var(--x-font-size-medium);
+  padding: calc(0.5*var(--x-spacing-medium)) var(--x-spacing-medium);
+}
+.auto-btn.large,
+.auto-btn button.large {
+  font-size: var(--x-font-size-large);
+  padding: calc(0.5*var(--x-spacing-large)) var(--x-spacing-large);
+}
+.auto-btn.x-large,
+.auto-btn button.x-large {
+  font-size: var(--x-font-size-x-large);
+  padding: calc(0.5*var(--x-spacing-x-large)) var(--x-spacing-x-large);
+}
+.auto-btn.compact,
+.auto-btn button.compact {
+  padding: calc(0.3 * var(--auto-input-padding)) calc(0.5 * var(--auto-input-padding));
+}
+.auto-btn.circle,
+.auto-btn button.circle {
+  border-radius: 50%;
+  aspect-ratio: 1;
+  padding: var(--auto-input-padding);
+}
+.auto-btn.pill,
+.auto-btn button.pill {
+  border-radius: 9999px;
+}
+.auto-btn.primary,
+.auto-btn button.primary {
+  background-color: var(--auto-primary-color);
+  color: color-mix(in srgb, var(--auto-primary-color) 0%, white 100%);
+  border: 1px solid var(--auto-primary-color);
+}
+.auto-btn.primary:hover,
+.auto-btn button.primary:hover {
+  background-color: color-mix(in srgb, var(--x-color-primary), white 20%);
+}
+.auto-btn.primary:active,
+.auto-btn button.primary:active {
+  background-color: color-mix(in srgb, var(--x-color-primary), white 30%);
+}
+.auto-btn.success,
+.auto-btn button.success {
+  background-color: var(--x-color-success);
+  color: color-mix(in srgb, var(--x-color-success) 0%, white 100%);
+  border: 1px solid var(--x-color-success);
+}
+.auto-btn.success:hover,
+.auto-btn button.success:hover {
+  background-color: color-mix(in srgb, var(--x-color-success), white 10%);
+}
+.auto-btn.success:active,
+.auto-btn button.success:active {
+  background-color: color-mix(in srgb, var(--x-color-success), white 20%);
+}
+.auto-btn.warning,
+.auto-btn button.warning {
+  background-color: var(--x-color-warning);
+  color: color-mix(in srgb, var(--x-color-warning) 0%, white 100%);
+  border: 1px solid var(--x-color-warning);
+}
+.auto-btn.warning:hover,
+.auto-btn button.warning:hover {
+  background-color: color-mix(in srgb, var(--x-color-warning), white 10%);
+}
+.auto-btn.warning:active,
+.auto-btn button.warning:active {
+  background-color: color-mix(in srgb, var(--x-color-warning), white 20%);
+}
+.auto-btn.error,
+.auto-btn button.error,
+.auto-btn.danger,
+.auto-btn button.danger {
+  background-color: var(--x-color-danger);
+  color: color-mix(in srgb, var(--x-color-danger), white 100%);
+  border: 1px solid var(--x-color-danger);
+}
+.auto-btn.error:hover,
+.auto-btn button.error:hover,
+.auto-btn.danger:hover,
+.auto-btn button.danger:hover {
+  background-color: color-mix(in srgb, var(--x-color-danger), white 10%);
+}
+.auto-btn.error:active,
+.auto-btn button.error:active,
+.auto-btn.danger:active,
+.auto-btn button.danger:active {
+  background-color: color-mix(in srgb, var(--x-color-danger), white 20%);
+}
+.auto-btn.info,
+.auto-btn button.info {
+  background-color: var(--x-color-info);
+  color: color-mix(in srgb, var(--x-color-info) 0%, white 100%);
+  border: 1px solid var(--x-color-info-4);
+}
+.auto-btn.info:hover,
+.auto-btn button.info:hover {
+  background-color: color-mix(in srgb, var(--x-color-info), white 10%);
+}
+.auto-btn.info:active,
+.auto-btn button.info:active {
+  background-color: color-mix(in srgb, var(--x-color-info), white 20%);
+}
+@keyframes clickEffect {
+  0% {
+    outline: 1px solid transparent;
+  }
+  50% {
+    outline: 8px solid var(--auto-theme-color-3);
+  }
+  100% {
+    outline: 1px solid transparent;
+  }
+}
+/*
+ * 输入控件：单类双形态（ADR-0001）
+ *
+ * - 元素形态：:is(input, select, textarea).auto-input —— 完整输入外观；checkbox/radio/range 定制仅存于此形态
+ * - 容器形态：.auto-input 作用于 div 等布局元素 —— 组合复杂输入（前后缀操作件 / 字段标签 / 选择类组合），
+ *   内部表单元素一律裸化，外观由容器统一承载
+ */
+:is(input, select, textarea).auto-input {
+  background: var(--auto-input-bgcolor);
+  border: var(--auto-input-border);
+  padding: calc(0.5 * var(--auto-input-padding)) var(--auto-input-padding);
+  border-radius: var(--auto-border-radius);
+  accent-color: var(--auto-primary-color);
+  font: var(--auto-font);
+  width: 100%;
+}
+:is(input, select, textarea).auto-input:hover {
+  border: var(--auto-active-border);
+  transition: all 0.3s ease-in;
+}
+:is(input, select, textarea).auto-input:focus {
+  outline: none;
+  border: var(--auto-selected-border);
+  box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+  transition: all 0.2s ease;
+}
+:is(input, select, textarea).auto-input::placeholder {
+  color: var(--auto-input-placeholder);
+}
+:is(input, select, textarea).auto-input[type=checkbox] {
+  cursor: pointer;
+  width: var(--auto-font-size);
+  height: var(--auto-font-size);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  position: relative;
+  border: 1px solid var(--auto-border-color);
+  border-radius: calc(var(--auto-border-radius) * 0.5);
+  background: var(--auto-input-bgcolor);
+  transition: all 0.2s ease;
+  padding: calc(var(--auto-font-size) * 0.5);
+}
+:is(input, select, textarea).auto-input[type=checkbox] + label,
+:is(input, select, textarea).auto-input[type=checkbox] ~ label {
+  cursor: pointer;
+}
+:is(input, select, textarea).auto-input[type=checkbox]::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(45deg) scale(0);
+  width: calc(var(--auto-font-size) * 0.25);
+  height: calc(var(--auto-font-size) * 0.5);
+  border: solid var(--auto-primary-color);
+  border-width: 0 1px 1px 0;
+  transition: all 0.2s ease;
+}
+:is(input, select, textarea).auto-input[type=checkbox]:checked {
+  border-color: var(--auto-primary-color);
+  background: var(--auto-selected-bgcolor);
+}
+:is(input, select, textarea).auto-input[type=checkbox]:checked::before {
+  transform: translate(-50%, -65%) rotate(45deg) scale(1);
+}
+:is(input, select, textarea).auto-input[type=checkbox]:hover {
+  border-color: var(--auto-hover-border-color);
+}
+:is(input, select, textarea).auto-input[type=checkbox]:focus {
+  outline: none;
+  border-color: var(--auto-selected-border-color);
+  box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+}
+:is(input, select, textarea).auto-input[type=checkbox]:disabled {
+  border-color: var(--auto-disable-border-color);
+  background: var(--auto-disable-bgcolor);
+  cursor: not-allowed;
+}
+:is(input, select, textarea).auto-input[type=checkbox]:disabled::before {
+  border-color: var(--auto-disable-color);
+}
+:is(input, select, textarea).auto-input[type=radio] {
+  cursor: pointer;
+  width: var(--auto-font-size);
+  height: var(--auto-font-size);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  position: relative;
+  border: 1px solid var(--auto-border-color);
+  border-radius: 50%;
+  background: var(--auto-input-bgcolor);
+  transition: all 0.2s ease;
+  padding: calc(var(--auto-font-size) * 0.5);
+}
+:is(input, select, textarea).auto-input[type=radio]::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: calc(var(--auto-font-size) * 0.4);
+  height: calc(var(--auto-font-size) * 0.4);
+  background: var(--auto-primary-color);
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+:is(input, select, textarea).auto-input[type=radio]:checked {
+  border-color: var(--auto-primary-color);
+  background: var(--auto-selected-bgcolor);
+}
+:is(input, select, textarea).auto-input[type=radio]:checked::before {
+  transform: translate(-50%, -50%) scale(1);
+}
+:is(input, select, textarea).auto-input[type=radio]:hover {
+  border-color: var(--auto-hover-border-color);
+}
+:is(input, select, textarea).auto-input[type=radio]:focus {
+  outline: none;
+  border-color: var(--auto-selected-border-color);
+  box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+}
+:is(input, select, textarea).auto-input[type=radio]:disabled {
+  border-color: var(--auto-disable-border-color);
+  background: var(--auto-disable-bgcolor);
+  cursor: not-allowed;
+}
+:is(input, select, textarea).auto-input[type=radio]:disabled::before {
+  background: var(--auto-disable-color);
+}
+:is(input, select, textarea).auto-input[type=radio] ~ label {
+  cursor: pointer;
+}
+:is(input, select, textarea).auto-input[type=range] {
+  cursor: pointer;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: transparent;
+  font: var(--auto-font);
+}
+:is(input, select, textarea).auto-input[type=range]::-webkit-slider-runnable-track {
+  height: 0px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+:is(input, select, textarea).auto-input[type=range]::-moz-range-track {
+  width: 100%;
+  height: calc(0.5 * var(--auto-font-size));
+  background: var(--auto-theme-color);
+  border: var(--auto-input-border);
+  border-radius: var(--auto-border-radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+:is(input, select, textarea).auto-input[type=range]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: var(--auto-font-size);
+  height: var(--auto-font-size);
+  background: var(--auto-primary-color);
+  border: 1px solid white;
+  outline: 1px solid var(--auto-primary-color);
+  border-radius: 50%;
+  cursor: pointer;
+  margin-top: calc(-0.5 * var(--auto-font-size));
+  transition: all 0.2s ease;
+}
+:is(input, select, textarea).auto-input[type=range]::-webkit-slider-thumb:hover {
+  background: var(--auto-hover-color);
+  transform: scale(1.1);
+}
+:is(input, select, textarea).auto-input[type=range]::-moz-range-thumb {
+  appearance: none;
+  -moz-appearance: none;
+  width: var(--auto-font-size);
+  height: var(--auto-font-size);
+  background: var(--auto-primary-color);
+  border: 1px solid var(--auto-border-color);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+:is(input, select, textarea).auto-input[type=range]::-moz-range-thumb:hover {
+  background: var(--auto-hover-color);
+  transform: scale(1.1);
+}
+:is(input, select, textarea).auto-input[type=range]:focus {
+  outline: none;
+}
+:is(input, select, textarea).auto-input[type=range]:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+  border-color: var(--auto-selected-border-color);
+}
+:is(input, select, textarea).auto-input[type=range]:focus::-moz-range-thumb {
+  box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+  border-color: var(--auto-selected-border-color);
+}
+:is(input, select, textarea).auto-input[type=range]:hover::-webkit-slider-runnable-track {
+  border-color: var(--auto-hover-border-color);
+}
+:is(input, select, textarea).auto-input[type=range]:hover::-moz-range-track {
+  border-color: var(--auto-hover-border-color);
+}
+:is(input, select, textarea).auto-input[type=range]:disabled {
+  cursor: not-allowed;
+}
+:is(input, select, textarea).auto-input[type=range]:disabled::-webkit-slider-thumb,
+:is(input, select, textarea).auto-input[type=range]:disabled::-moz-range-thumb {
+  background: var(--auto-disable-color);
+  cursor: not-allowed;
+}
+:is(input, select, textarea).auto-input[type=range]:disabled::-webkit-slider-runnable-track,
+:is(input, select, textarea).auto-input[type=range]:disabled::-moz-range-track {
+  border-color: var(--auto-disable-border-color);
+  background: var(--auto-disable-bgcolor);
+}
+:is(input, select, textarea).auto-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.auto-input:not(:is(input, select, textarea)) {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  background: var(--auto-input-bgcolor);
+  border: var(--auto-input-border);
+  padding: calc(0.5 * var(--auto-input-padding)) var(--auto-input-padding);
+  border-radius: var(--auto-border-radius);
+  width: 100%;
+}
+.auto-input:not(:is(input, select, textarea)):hover:not(:has(> input[type=checkbox], > input[type=radio]):not(:has(> input:not([type=checkbox]):not([type=radio]))):not(:has(> select, > textarea))) {
+  border: var(--auto-active-border);
+  transition: all 0.3s ease-in;
+}
+.auto-input:not(:is(input, select, textarea)):focus-within:not(:has(> input[type=checkbox], > input[type=radio]):not(:has(> input:not([type=checkbox]):not([type=radio]))):not(:has(> select, > textarea))) {
+  outline: none;
+  border: var(--auto-selected-border);
+  box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+}
+.auto-input:not(:is(input, select, textarea)):has(:is(input, select, textarea):disabled):not(:has(> input[type=checkbox], > input[type=radio]):not(:has(> input:not([type=checkbox]):not([type=radio]))):not(:has(> select, > textarea))) {
+  border-color: var(--auto-disable-border-color);
+  background: var(--auto-disable-bgcolor);
+  cursor: not-allowed;
+}
+.auto-input:not(:is(input, select, textarea)):has(> input[type=checkbox], > input[type=radio]):not(:has( > input:not([type=checkbox]):not([type=radio]))):not(:has(> select, > textarea)) {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+.auto-input:not(:is(input, select, textarea)) > :is(input, select, textarea):not([type=checkbox]):not([type=radio]):not([type=range]) {
+  width: 100%;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  font: var(--auto-font);
+  background: transparent;
+  outline: none;
+}
+.auto-input:not(:is(input, select, textarea)) > :is(input, select, textarea):not([type=checkbox]):not([type=radio]):not([type=range])::placeholder {
+  color: var(--auto-input-placeholder);
+}
+.auto-input:not(:is(input, select, textarea)) > :is(input, select, textarea):not([type=checkbox]):not([type=radio]):not([type=range]):focus,
+.auto-input:not(:is(input, select, textarea)) > :is(input, select, textarea):not([type=checkbox]):not([type=radio]):not([type=range]):hover {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=checkbox] {
+  flex: 0 0 auto;
+  cursor: pointer;
+  width: var(--auto-font-size);
+  height: var(--auto-font-size);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  position: relative;
+  border: 1px solid var(--auto-border-color);
+  border-radius: calc(var(--auto-border-radius) * 0.5);
+  background: var(--auto-input-bgcolor);
+  transition: all 0.2s ease;
+  padding: calc(var(--auto-font-size) * 0.5);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=checkbox] + label,
+.auto-input:not(:is(input, select, textarea)) > input[type=checkbox] ~ label {
+  cursor: pointer;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=checkbox]::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(45deg) scale(0);
+  width: calc(var(--auto-font-size) * 0.25);
+  height: calc(var(--auto-font-size) * 0.5);
+  border: solid var(--auto-primary-color);
+  border-width: 0 1px 1px 0;
+  transition: all 0.2s ease;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=checkbox]:checked {
+  border-color: var(--auto-primary-color);
+  background: var(--auto-selected-bgcolor);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=checkbox]:checked::before {
+  transform: translate(-50%, -65%) rotate(45deg) scale(1);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=checkbox]:hover {
+  border-color: var(--auto-hover-border-color);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=checkbox]:focus {
+  outline: none;
+  border-color: var(--auto-selected-border-color);
+  box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=checkbox]:disabled {
+  border-color: var(--auto-disable-border-color);
+  background: var(--auto-disable-bgcolor);
+  cursor: not-allowed;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=checkbox]:disabled::before {
+  border-color: var(--auto-disable-color);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=radio] {
+  flex: 0 0 auto;
+  cursor: pointer;
+  width: var(--auto-font-size);
+  height: var(--auto-font-size);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  position: relative;
+  border: 1px solid var(--auto-border-color);
+  border-radius: 50%;
+  background: var(--auto-input-bgcolor);
+  transition: all 0.2s ease;
+  padding: calc(var(--auto-font-size) * 0.5);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=radio]::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: calc(var(--auto-font-size) * 0.4);
+  height: calc(var(--auto-font-size) * 0.4);
+  background: var(--auto-primary-color);
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=radio]:checked {
+  border-color: var(--auto-primary-color);
+  background: var(--auto-selected-bgcolor);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=radio]:checked::before {
+  transform: translate(-50%, -50%) scale(1);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=radio]:hover {
+  border-color: var(--auto-hover-border-color);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=radio]:focus {
+  outline: none;
+  border-color: var(--auto-selected-border-color);
+  box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=radio]:disabled {
+  border-color: var(--auto-disable-border-color);
+  background: var(--auto-disable-bgcolor);
+  cursor: not-allowed;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=radio]:disabled::before {
+  background: var(--auto-disable-color);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=radio] ~ label {
+  cursor: pointer;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range] {
+  flex: 1 1 auto;
+  cursor: pointer;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: transparent;
+  font: var(--auto-font);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]::-webkit-slider-runnable-track {
+  height: 0px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]::-moz-range-track {
+  width: 100%;
+  height: calc(0.5 * var(--auto-font-size));
+  background: var(--auto-theme-color);
+  border: var(--auto-input-border);
+  border-radius: var(--auto-border-radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: var(--auto-font-size);
+  height: var(--auto-font-size);
+  background: var(--auto-primary-color);
+  border: 1px solid white;
+  outline: 1px solid var(--auto-primary-color);
+  border-radius: 50%;
+  cursor: pointer;
+  margin-top: calc(-0.5 * var(--auto-font-size));
+  transition: all 0.2s ease;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]::-webkit-slider-thumb:hover {
+  background: var(--auto-hover-color);
+  transform: scale(1.1);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]::-moz-range-thumb {
+  appearance: none;
+  -moz-appearance: none;
+  width: var(--auto-font-size);
+  height: var(--auto-font-size);
+  background: var(--auto-primary-color);
+  border: 1px solid var(--auto-border-color);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]::-moz-range-thumb:hover {
+  background: var(--auto-hover-color);
+  transform: scale(1.1);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]:focus {
+  outline: none;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+  border-color: var(--auto-selected-border-color);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]:focus::-moz-range-thumb {
+  box-shadow: 0 0 0 2px var(--auto-selected-bgcolor);
+  border-color: var(--auto-selected-border-color);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]:hover::-webkit-slider-runnable-track {
+  border-color: var(--auto-hover-border-color);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]:hover::-moz-range-track {
+  border-color: var(--auto-hover-border-color);
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]:disabled {
+  cursor: not-allowed;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]:disabled::-webkit-slider-thumb,
+.auto-input:not(:is(input, select, textarea)) > input[type=range]:disabled::-moz-range-thumb {
+  background: var(--auto-disable-color);
+  cursor: not-allowed;
+}
+.auto-input:not(:is(input, select, textarea)) > input[type=range]:disabled::-webkit-slider-runnable-track,
+.auto-input:not(:is(input, select, textarea)) > input[type=range]:disabled::-moz-range-track {
+  border-color: var(--auto-disable-border-color);
+  background: var(--auto-disable-bgcolor);
+}
+.auto-input:not(:is(input, select, textarea)):has(> .auto-input-action:first-child) {
+  padding-left: 0;
+}
+.auto-input:not(:is(input, select, textarea)):has(> .auto-input-action:last-child) {
+  padding-right: 0;
+}
+.auto-input:not(:is(input, select, textarea)) .auto-input-action {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  color: var(--auto-secondary-color);
+  white-space: nowrap;
+  margin: calc(-0.5 * var(--auto-input-padding)) 0;
+  padding: calc(0.5 * var(--auto-input-padding)) 0.6em;
+  border-left: 1px solid var(--auto-border-color);
+}
+.auto-input:not(:is(input, select, textarea)) .auto-input-action:first-child {
+  border-left: none;
+  border-right: 1px solid var(--auto-border-color);
+}
+.auto-input:not(:is(input, select, textarea)) .auto-input-action + .auto-input-action {
+  margin-left: -0.4em;
+}
+.auto-input:not(:is(input, select, textarea)) .auto-input-action:first-child:has(+ .auto-input-action) {
+  border-right: none;
+}
+.auto-input:not(:is(input, select, textarea)) .auto-input-action:has(> button) {
+  padding-left: 0;
+  padding-right: 0;
+}
+.auto-input:not(:is(input, select, textarea)) .auto-input-action > button {
+  align-self: stretch;
+  height: auto;
+  width: 100%;
+  box-sizing: border-box;
+  margin: calc(-0.5 * var(--auto-input-padding)) 0;
+  padding: 0 0.8em;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--auto-secondary-color);
+  font: var(--auto-font);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.auto-input:not(:is(input, select, textarea)) .auto-input-action > button:hover {
+  color: var(--auto-hover-color);
+  background: var(--auto-hover-bgcolor);
+}
+.auto-input:not(:is(input, select, textarea)) .auto-input-action > button:active {
+  color: var(--auto-active-color);
+  background: var(--auto-active-bgcolor);
+}
+.auto-input:not(:is(input, select, textarea)) .auto-input-action > button:disabled {
+  color: var(--auto-disable-color);
+  cursor: not-allowed;
+}
+.auto-input:not(:is(input, select, textarea)) .auto-input-action:first-child > button {
+  border-radius: var(--auto-border-radius) 0 0 var(--auto-border-radius);
+}
+.auto-input:not(:is(input, select, textarea)) .auto-input-action:last-child > button {
+  border-radius: 0 var(--auto-border-radius) var(--auto-border-radius) 0;
+}
+.auto-input:not(:is(input, select, textarea)) input[type=checkbox]:checked + label,
+.auto-input:not(:is(input, select, textarea)) input[type=radio]:checked + label {
+  color: var(--auto-selected-color);
+  font-weight: var(--auto-font-weight);
+}
+.auto-input:not(:is(input, select, textarea)) input:hover + label {
+  color: var(--auto-hover-color);
+}
+.auto-input:not(:is(input, select, textarea)) input:disabled + label {
+  color: var(--auto-disable-color);
+  cursor: not-allowed;
+}
+.auto-input:not(:is(input, select, textarea)) label {
+  flex: 0 0 auto;
+  color: var(--auto-secondary-color);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}

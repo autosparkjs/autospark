@@ -1,0 +1,286 @@
+/* 文档站 theme demo 公共样式：布局骨架 + 示例区通用块
+ * 由 docs/demos/theme/*.html 经 <link href="/autospark/theme-demo.css"> 引入。
+ * 只负责「demo 页面怎么排」，主题外观全部来自 autospark-theme.css（静态样式层）。
+ * 对应 packages/theme/examples/index.html 里的内联布局样式（story-intro / 卡片分割）。
+ */
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    display: flex;
+    overflow: hidden;
+    font-size: var(--auto-font-size);
+    color: var(--auto-color);
+    background: var(--auto-workspace-bgcolor);
+    transition: background 0.3s;
+}
+
+/* 中：示例内容区（自适应 + 独立滚动） */
+.demo-main {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    padding: 1.1rem 1.3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    box-sizing: border-box;
+}
+
+/* 右：主题控制面板（<div id="controls"> 由 theme-controls.js 填充） */
+.demo-panel {
+    width: 250px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    padding: 0.9rem;
+    box-sizing: border-box;
+    border-left: var(--auto-border);
+    background: var(--auto-bgcolor);
+}
+
+/* 特性说明块：每个 demo 的首卡片，介绍本 demo 演示的变量与 API */
+.story-intro {
+    padding: 0.9rem 1.1rem;
+    border: var(--auto-border);
+    border-left: 3px solid var(--auto-theme-color);
+    border-radius: var(--auto-border-radius);
+    background: var(--auto-secondary-bgcolor);
+    font-size: 0.85rem;
+    color: var(--auto-secondary-color);
+    line-height: 1.6;
+    display: block;
+}
+
+.story-intro .story-intro-title {
+    font-weight: 600;
+    color: var(--auto-color);
+    margin-bottom: 0.35rem;
+}
+
+.story-intro ul {
+    margin: 0.35rem 0;
+    padding-left: 1.2rem;
+}
+
+.story-intro code {
+    color: var(--auto-theme-color);
+}
+
+.story-intro pre {
+    margin: 0.45rem 0 0;
+    padding: 0.5rem 0.7rem;
+    background: var(--auto-bgcolor);
+    border: var(--auto-border);
+    border-radius: var(--auto-border-radius);
+    overflow-x: auto;
+    font-size: 0.78rem;
+}
+
+/* 示例区块以卡片分割：.auto-card 默认无边框（border 类才显示），补统一边框增强分割 */
+.demo-main > .auto-card {
+    border: var(--auto-border);
+}
+
+/* 卡片体的两种排布（.auto-card-body 默认是 column + gap） */
+.auto-card-body.row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+}
+
+.auto-card-body.row > * {
+    flex: 1 1 14rem;
+    min-width: 14rem;
+}
+
+/* 卡片体内的条目块（示例故事统一用法） */
+.auto-card-body-item {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    border: var(--auto-border);
+    border-radius: var(--auto-border-radius);
+    background: var(--auto-bgcolor);
+    box-sizing: border-box;
+}
+
+/* 横排网格：色卡 / 对比卡通用 */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.8rem;
+}
+
+.grid.tight {
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+    gap: 0.5rem;
+}
+
+/* 十阶主题梯度条（背景色由行内样式指定） */
+.theme-strip {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.theme-strip > span {
+    flex: 1;
+    height: 1.8em;
+    border-radius: calc(var(--auto-border-radius) * 0.5);
+}
+
+/* 变量名标注 */
+.hint {
+    color: var(--auto-third-color);
+    font-size: 0.78rem;
+    line-height: 1.55;
+    margin: 0;
+}
+
+.hint code,
+.demo-main code {
+    color: var(--auto-theme-color);
+}
+
+.caption {
+    color: var(--auto-third-color);
+    font-size: 0.72rem;
+    margin: 0;
+}
+
+/* 交互态演示格：默认态 + 可派生 hover / active / selected / disable 的变体 */
+.cell {
+    padding: 0.7rem 0.9rem;
+    border-radius: var(--auto-border-radius);
+    border: var(--auto-border);
+    color: var(--auto-color);
+    background: var(--auto-bgcolor);
+    font-size: 0.85rem;
+    box-sizing: border-box;
+}
+
+.cell code {
+    font-size: 0.7rem;
+}
+
+.cell.hover {
+    color: var(--auto-hover-color);
+    background: var(--auto-hover-bgcolor);
+    border: var(--auto-hover-border);
+}
+
+.cell.active {
+    color: var(--auto-active-color);
+    background: var(--auto-active-bgcolor);
+    border: var(--auto-active-border);
+}
+
+.cell.selected {
+    color: var(--auto-selected-color);
+    background: var(--auto-selected-bgcolor);
+    border: var(--auto-selected-border);
+}
+
+.cell.disabled {
+    color: var(--auto-disable-color);
+    background: var(--auto-disable-bgcolor);
+    border: var(--auto-disable-border);
+}
+
+/* 真实可交互的列表项（悬停 / 按下 / 选中 / 禁用 实时反馈） */
+.item-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.item-list > .item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.8rem;
+    border: 1px solid transparent;
+    border-radius: var(--auto-border-radius);
+    color: var(--auto-color);
+    background: var(--auto-bgcolor);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s;
+}
+
+.item-list > .item:hover {
+    color: var(--auto-hover-color);
+    background: var(--auto-hover-bgcolor);
+}
+
+.item-list > .item:active {
+    color: var(--auto-active-color);
+    background: var(--auto-active-bgcolor);
+    border: var(--auto-active-border);
+}
+
+.item-list > .item.selected {
+    color: var(--auto-selected-color);
+    background: var(--auto-selected-bgcolor);
+    border: var(--auto-selected-border);
+}
+
+.item-list > .item.disabled {
+    color: var(--auto-disable-color);
+    background: var(--auto-disable-bgcolor);
+    cursor: not-allowed;
+}
+
+/* 局部覆盖对照列（data-* 档位属性容器），主题色虚线框 = 跟随全局 */
+.scope-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.9rem;
+    border: 1px dashed var(--auto-border-color);
+    border-radius: var(--auto-border-radius);
+    box-sizing: border-box;
+}
+
+.scope-box.global {
+    border-color: var(--auto-theme-color);
+}
+
+.scope-box .box-label {
+    font-size: 0.75rem;
+    color: var(--auto-third-color);
+}
+
+.scope-box.global .box-label {
+    color: var(--auto-theme-color);
+}
+
+/* 档位切换按钮组（demo 内手动换档用） */
+.seg {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.seg > button {
+    padding: 0.2rem 0.65rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    color: var(--auto-secondary-color);
+    background: var(--auto-bgcolor);
+    border: var(--auto-border);
+    border-radius: var(--auto-border-radius);
+}
+
+.seg > button:hover {
+    color: var(--auto-hover-color);
+    background: var(--auto-hover-bgcolor);
+}
+
+.seg > button.on {
+    color: var(--auto-selected-color);
+    background: var(--auto-selected-bgcolor);
+    border: var(--auto-selected-border);
+}

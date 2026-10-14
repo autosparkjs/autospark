@@ -100,6 +100,8 @@ export class AutoSparkRouter extends Mixin(
 
     /** 当前正在处理的路由 URL，用于检测重复导航 */
     private _currentNavUrl?: string;
+    /** beforeRoute 改道深度计数（防守卫自身构成无限改道） */
+    private _redirectDepth: number = 0;
     protected _lastViewSlot: HTMLElement | null = null;
     protected _lastMatched: AutoSparkMatchedRouteItem[] | null = null;
 
@@ -378,6 +380,23 @@ export class AutoSparkRouter extends Mixin(
                 this.logger.debug("导航在守卫执行后被中止");
                 return;
             }
+
+            // before 系钩子返回字符串 → 改道（CONTEXT.md：返回 false 拦截导航、返回字符串改道）
+            // replace 不新增历史条目；改道后的新一轮导航会重新走本流程。
+            // 深度上限防御：守卫自身构成 A→B→A 环时不至于把浏览器拖死
+            if (typeof shouldContinue === "string") {
+                if (++this._redirectDepth > 10) {
+                    this._redirectDepth = 0;
+                    this.logger.error("beforeRoute 守卫改道超过 10 次，疑似循环，已取消导航");
+                    this.emit("navigation:cancel", location);
+                    return;
+                }
+                this.logger.debug("beforeRoute 守卫返回路径，改道: {}", shouldContinue);
+                this.replace(shouldContinue);
+                return;
+            }
+            // 非改道路径：重置改道深度
+            this._redirectDepth = 0;
 
             if (!shouldContinue) {
                 this.logger.debug("beforeEach 守卫返回 false，取消导航");

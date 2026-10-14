@@ -1,0 +1,10 @@
+// 文档站 demo 用「全量静态样式层」入口（仅用于生成 docs/public/autospark-theme.css）
+//
+// 与 dist/index.css（只聚合 styles/index.less）不同，文档 demo 需要完整外观：
+//   - styles/index.less  reset / 动画 / 工具类 / 灰阶 / 容器 / 图标
+//   - styles/input.less  Firefox 焦点框微调（未进聚合入口）
+//   - components/*       组件类（auto-card / auto-btn / auto-alert / auto-input / closeable）
+// 对应示例页 main.ts 的三条 import（见 docs/zh/theme/guide/static.md）。
+@import url('./src/styles/index.less');
+@import url('./src/styles/input.less');
+@import url('./src/components/index.less');
