@@ -101,7 +101,6 @@ export class AutoSpark<
      */
     static readonly icons: IconRegistry = iconRegistry;
 
- 
     /**
      * 插件全局组件声明表（ADR-0111 决策 5）：名字 → 模板字符串，**跨 engine 真全局**
      * （对照：`options.components` 是 engine 级注册位）。engine 查找链到顶查询期委托兜底
@@ -121,12 +120,13 @@ export class AutoSpark<
     static readonly actions: Record<string, ActionDecl> = pluginActions;
 
     /**
-     * 注册插件就绪回调（ADR-0111 决策 4）：对**每个 engine 构造完成后**各调一次（回调收
-     * engine 实例，时机 = `engine/ready` 事件发射处）；engine 已存在时注册立即对所有存活
-     * engine 各补调一次（retain 语义）；回调抛错隔离记日志；engine destroy 摘出存活表。
-     * script 场景经 IIFE 全局 `AutoSpark.ready(fn)` 取用（`$` 为插件脚本内形参缩写）。
+     * 注册插件就绪回调（ADR-0111 决策 4，ADR-0114 补第二参）：对**每个 engine 构造完成后**
+     * 各调一次（回调收 `(engine, autospark)`，时机 = `engine/ready` 事件发射处）；engine
+     * 已存在时注册立即对所有存活 engine 各补调一次（retain 语义）；回调抛错隔离记日志；
+     * engine destroy 摘出存活表。script 场景经 IIFE 全局 `AutoSpark.ready(fn)` 取用
+     * （`$` 为插件脚本内形参缩写）。
      */
-    static ready(fn: (engine: AutoSpark<any>) => void): void {
+    static ready(fn: (engine: AutoSpark<any>, autospark: typeof AutoSpark) => void): void {
         registerPluginReady(fn);
     }
 
@@ -230,10 +230,16 @@ export class AutoSpark<
      * @throws {Error} 选择器无命中 / 命中非 HTMLElement；或传入的 el 既非 HTMLElement 亦非串；
      *                 state 为 AutoStore 实例（不再接受借用，ADR-0044）
      */
-    constructor(el: HTMLElement | string, state: State, options?: Partial<AutoSparkOptions<State>>) {
-        const { components: userComponents, builtinComponents: userBuiltins, ...restOptions } = (
-            options ?? {}
-        ) as Partial<AutoSparkOptions<State>>;
+    constructor(
+        el: HTMLElement | string,
+        state: State,
+        options?: Partial<AutoSparkOptions<State>>,
+    ) {
+        const {
+            components: userComponents,
+            builtinComponents: userBuiltins,
+            ...restOptions
+        } = (options ?? {}) as Partial<AutoSparkOptions<State>>;
         // super 前以局部量合成（TS17009），经 init spread 进 super（FastLiteEventOptions 无
         // components/builtinComponents 键——spread 免过剩检查），super 后 this.options 双键可读。
         const builtinComponents: Record<string, string> = {
@@ -250,9 +256,7 @@ export class AutoSpark<
         super({ ...init, ...restOptions });
         // 根元素解析：选择器串经 querySelector 取首个命中（无命中 / 命中非 HTMLElement 即抛）
         const rootEl =
-            typeof el === "string"
-                ? (document.querySelector<HTMLElement>(el) ?? null)
-                : el;
+            typeof el === "string" ? (document.querySelector<HTMLElement>(el) ?? null) : el;
         if (!(rootEl instanceof HTMLElement)) {
             throw new Error(
                 typeof el === "string"
@@ -1078,11 +1082,7 @@ export class AutoSpark<
      * @param content  待投放内容：string（HTML 片段）/ Node（引擎接管移入模板树）/ updater 回调
      * @param options  选项（`mode` 投放模式缺省 `replace`；`ref` 容器内锚点选择器；ADR-0109）
      */
-    patch(
-        selector: string,
-        content: AutoSparkPatchContent,
-        options?: AutoSparkPatchOptions,
-    ): this {
+    patch(selector: string, content: AutoSparkPatchContent, options?: AutoSparkPatchOptions): this {
         const hit = this.template.querySelector(selector);
         if (!hit || !(hit instanceof HTMLElement)) {
             this.logger.warn(`engine.patch: selector "${selector}" 未命中模板元素`);

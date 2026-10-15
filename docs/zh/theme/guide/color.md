@@ -1,8 +1,19 @@
-# 主题色
+# 主题要素 · 颜色
 
 ## 概述
 
-主题色（theme color）是整套界面变量的**种子**。它不直接参与渲染，而是派生出 10 阶主色标尺 `--x-color-theme-0..9`，标尺再向上派生出主色、交互态、背景层次等语义量。本章讲主题色的取值、标尺方向、调色板形态参数与关闭方式。
+颜色是主题库最核心的要素，也是唯一需要「算法」的要素。它的结构在[工作原理](./how-it-works.md)里讲过：
+**一个主题色 → 四份调色板 → 基础调色板 → 派生变量**。本章是颜色要素的总览与第一节「主题色」，
+后续五节分别展开颜色要素的其余部分。
+
+| 小节 | 内容 |
+| --- | --- |
+| **主题色**（本节） | 种子色的取值、算法与调色板形态参数 |
+| [派生颜色](./color-derived.md) | `--auto-*` 用途语义层（文字 / 背景 / 边框 / 交互态 / 面板 / 表单） |
+| [明暗主题](./color-dark.md) | 模式维度：`dark` 属性 / `data-dark` / `data-light` |
+| [多彩模式](./color-colorized.md) | 色彩维度：`colorized` 属性 / `data-colorized` / `data-uncolored` |
+| [背景色](./color-background.md) | 背景层次与 `--x-bgcolor-*` 梯度 |
+| [语义颜色](./color-semantic.md) | primary / success / warning / danger / info 五色 |
 
 ## 快速入门
 
@@ -11,12 +22,25 @@ import { themeManager } from "@autospark/theme";
 
 themeManager.themeColor = "purple"; // 预设名
 themeManager.themeColor = "#13c2c2"; // 任意色值
-themeManager.themeColor = "light"; // 关闭主题色
+themeManager.themeColor = "light"; // 关闭主题色（只用灰阶）
+
+themeManager.dark = true; // 模式维度：暗色
+themeManager.colorized = true; // 色彩维度：多彩（可与暗色叠加）
 ```
 
-## 指南
+<demo html="theme/color-theme.html"/>
 
-### 预设主题 {#presets}
+## 主题色
+
+### 取值与预设
+
+主题色是整套界面变量的**种子**，接受预设名或任意可解析的色值：
+
+```js
+themeManager.themeColor = "purple"; // → #722ed1
+themeManager.themeColor = "rgb(19, 194, 194)" ; // → #13c2c2
+themeManager.themeColor = "light"; // 关闭主题色
+```
 
 `themeManager.presets` 是预设表（`presetThemes`），共 12 个：
 
@@ -41,48 +65,43 @@ Object.entries(themeManager.presets).forEach(([name, { color, title }]) => {
 });
 ```
 
-### 自定义色值
+自定义色值：任何能被解析的颜色都可用（`#RGB` / `#RRGGBB` / `#RRGGBBAA`（忽略 alpha）/ `rgb()` / `rgba()` / 常见命名色）。
+不可解析的输入会回退黑色，建议先自行校验。
 
-任何能被解析的颜色都可用作种子：`#RGB` / `#RRGGBB` / `#RRGGBBAA`（忽略 alpha）/ `rgb()` / `rgba()` / 常见命名色。不可解析的输入会回退黑色（对齐 `@ant-design/fast-color` 的容错行为），因此建议先自行校验。
-
-```js
-themeManager.themeColor = "rgb(19, 194, 194)";
-```
-
-传给 setter 的值会被**规范化**后写入作用域选项：预设名解析为预设 hex，其他色值经 `toRGBString` 归一化为 hex。
+传给 setter 的值会被**规范化**后写入作用域选项（预设名解析为预设 hex，其他色值经 `toRGBString` 归一化为 hex），
+同时给被附着元素写 `data-theme="{解析后的 hex}"`（`"light"` 则移除该属性）。
 
 ```js
 themeManager.themeColor = "purple";
 themeManager.themeColor; // "#722ed1"（预设名已被解析）
 ```
 
-::: tip 同时会写 DOM 属性
-setter 会给被附着的元素写 `data-theme="{解析后的 hex}"`（`"light"` 则移除该属性）。这样「属性通道」与「JS 通道」始终一致，也便于调试与 SSR 输出。
-:::
+### 算法生成的 10 阶标尺
 
-### 主色标尺：方向随模式
-
-`--x-color-theme-0..9` 是主题色派生出的 10 阶标尺，**方向随显示模式翻转**：
+`--x-color-theme-0..9` 由 [Material 风格色板扩散算法](./how-it-works.md) 生成，**方向随显示模式翻转**：
 
 | 模式 | 生成方式 | `theme-0` | `theme-9` |
 | --- | --- | --- | --- |
-| 亮色 | 正常序 | **最浅** | 最深 |
-| 暗色 | `reverse: true` | **最深** | 最浅 |
+| 亮色 | 正常序 | 最浅 | 最深 |
+| 暗色 | `reverse: true` | 最深 | 最浅 |
 
-原因：亮色下背景取浅档、文字取深档；暗色下明度关系反转，同一套映射（`bgcolor-i = theme-i`）才能继续成立。所以「暗色下主色比亮色浅」是设计结果——`darkDerivedVars` 还把 `--auto-theme-color` 从 `theme-5` 提到 `theme-6`，保证深底上的对比度。
+原因：亮色下背景取浅档、文字取深档；暗色下明度关系反转，同一套映射（`bgcolor-i = theme-i`）才能继续成立。
+所以「暗色下主色比亮色浅」是设计结果——暗色还把 `--auto-theme-color` 从 `theme-5` 提到 `theme-6`，保证深底上的对比度。
 
 标尺是**公共资产**，业务可直接引用做自定义层次：
 
 ```css
 .my-panel {
-    background: var(--x-color-theme-2);
+    background: var(--x-color-theme-1);
     border: 1px solid var(--x-color-theme-4);
 }
 ```
 
+常用档：`theme-5` 是中值（`--auto-theme-color` 的来源），浅底取 `0-2`，强调取 `7-9`。
+
 ### 调色板形态参数
 
-两档参数控制标尺的「疏密」与「鲜艳度」，可在构造时传，也可运行时经 `update()` 修改（`in` 判断，传 `undefined` 即重置为默认）：
+两档参数控制标尺的「疏密」与「鲜艳度」，可在构造时传，也可运行时经 `update()` 修改（`in` 判断，传 `undefined` 重置为默认）：
 
 | 参数 | 默认 | 含义 |
 | --- | --- | --- |
@@ -118,18 +137,15 @@ const scope = themeManager.addScope({ id: "preview", themeColor: "green" });
 scope.themeColor = "#13c2c2"; // 只影响本子树
 ```
 
-作用域的标尺规则只由「本作用域选择器 + `[dark]` / `[data-dark]`」构成，**不依赖 DOM 上的 `data-theme` 属性**——所以局部作用域切主题色时不会与全局标尺串味（这是曾经的一个 bug，见 `scope.test.ts` 的回归用例）。
+作用域的标尺规则只由「本作用域选择器 + `[dark]` / `[data-dark]`」构成，**不依赖 DOM 上的 `data-theme` 属性**——
+所以局部作用域切主题色时不会与全局标尺串味。Demo 页里六格预设对照就是六个独立作用域。
 
 ### 静态预设主题（另一条通道）
 
-`src/themes/*.less` 提供不经运行时的静态预设：给元素挂 `data-theme=blue` 即得该套色阶。注意这些文件各自的方向与 `color-scheme` 声明**并不统一**：
-
-| 声明为 light | 声明为 dark |
-| --- | --- |
-| `cyan` / `green` / `lime` / `orange` / `yellow` | `blue` / `dark` / `magenta` / `purple` / `red` / `volcano` |
-
-声明为 light 的按「`theme-0` 最浅」书写，声明为 dark 的按「`theme-0` 最深」书写。与运行时预设表的差异（`gold` / `geekblue` / `techblue` 只在运行时预设里）也值得注意。详见[静态样式层与预设主题](./static.md)。
+`src/themes/*.less` 提供不经运行时的静态预设：给元素挂 `data-theme=blue` 即得该套色阶。
+注意这些文件各自的方向与 `color-scheme` 声明**并不统一**，且清单与运行时预设表不完全一致（有 `yellow` / `dark`，无 `gold` / `geekblue` / `techblue`）。
+详见[静态主题包](./static.md)。
 
 ---
 
-下一步：[语义色](./semantic.md)。
+下一步：[派生颜色](./color-derived.md)。

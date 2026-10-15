@@ -164,7 +164,7 @@ const presetThemes: Record<string, PresetTheme>;
 type ThemeSize = "none" | "x-small" | "small" | "medium" | "large" | "x-large";
 type ThemeVariantType = "primary" | "success" | "warning" | "danger" | "info";
 
-type ThemeOptions = { … }; // 见「主题作用域 · 作用域选项」
+type ThemeOptions = { … }; // 见「局部主题 · 作用域选项」
 type DynamicThemeOptions = Pick<
     ThemeOptions,
     "themeColor" | "primary" | "success" | "warning" | "danger" | "info" | "seedLightnessGap" | "chromaBoostCap"
@@ -209,4 +209,4 @@ bun scripts/check-dark-contrast.ts # 对比度校准（FAIL 退出码 1）
 
 ---
 
-回到[指南总览](./initial.md)，或看[快速入门](../intro/get-started.md)的完整示例。
+回到[初始化](./initial.md)，或看[快速入门](../intro/get-started.md)的完整示例。

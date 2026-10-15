@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 交互反馈</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：组件变量 · 交互反馈（Hover / Active / Selected / Disabled）</div>
+                <p>
+                    四态反馈各有独立的一组变量（<code>-color</code> / <code>-bgcolor</code> / <code>-border</code>），
+                    值由主题色与基础调色板派生，因此换主题色、切模式都自动跟随，组件层不必写任何条件分支。
+                </p>
+                <table class="demo-table">
+                    <thead>
+                        <tr><th>态</th><th>颜色来源</th><th>底色配方</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>hover</td><td><code>--auto-theme-color</code></td><td>主题色 15% 透明叠加</td></tr>
+                        <tr><td>active</td><td><code>--x-color-theme-8</code>（更深一档）</td><td>主题色 15% 透明叠加</td></tr>
+                        <tr><td>selected</td><td><code>--auto-theme-color</code></td><td>主题色 20% 透明叠加（暗色 18%，感知对称）</td></tr>
+                        <tr><td>disable</td><td>文字色混灰（暗色混灰比例更高）</td><td><code>currentColor</code> 20% 透明</td></tr>
+                    </tbody>
+                </table>
+                <pre>.item:hover { color: var(--auto-hover-color); background: var(--auto-hover-bgcolor); border: var(--auto-hover-border); }</pre>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">静态对照 + 真实交互</div>
+                <div class="auto-card-body col">
+                    <div class="grid">
+                        <div class="cell">默认态<br /><code class="caption">--auto-color / -bgcolor</code></div>
+                        <div class="cell hover">hover<br /><code class="caption">--auto-hover-*</code></div>
+                        <div class="cell active">active<br /><code class="caption">--auto-active-*</code></div>
+                        <div class="cell selected">selected<br /><code class="caption">--auto-selected-*</code></div>
+                        <div class="cell disabled">disable<br /><code class="caption">--auto-disable-*</code></div>
+                    </div>
+                    <div class="item-list">
+                        <div class="item">真实交互：悬停 / 按下看动态反馈</div>
+                        <div class="item">真实交互：悬停 / 按下看动态反馈</div>
+                        <div class="item selected">真实选中项（点击下方按钮切换）</div>
+                        <div class="item disabled">真实禁用项</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">边框四态：与交互色同源</div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.45rem;">
+                        <div style="padding:0.6rem;border:var(--auto-border);border-radius:var(--auto-border-radius);">默认 <code class="caption">--auto-border</code></div>
+                        <div style="padding:0.6rem;border:var(--auto-hover-border);border-radius:var(--auto-border-radius);">hover <code class="caption">--auto-hover-border</code></div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.45rem;">
+                        <div style="padding:0.6rem;border:var(--auto-active-border);border-radius:var(--auto-border-radius);">active <code class="caption">--auto-active-border</code></div>
+                        <div style="padding:0.6rem;border:var(--auto-selected-border);border-radius:var(--auto-border-radius);">selected <code class="caption">--auto-selected-border</code></div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.45rem;">
+                        <div style="padding:0.6rem;border:var(--auto-disable-border);border-radius:var(--auto-border-radius);">disable <code class="caption">--auto-disable-border</code></div>
+                        <div class="hint"><code>--auto-border = 尺寸 + 边框色</code>，四态边框取对应交互色——一条声明即得完整边框。</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">四种颜色模式下的反馈（同款列表并排）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box">
+                        <div class="box-label">light</div>
+                        <div class="item-list">
+                            <div class="item selected">选中</div>
+                            <div class="item disabled">禁用</div>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-colorized>
+                        <div class="box-label">light + colorized</div>
+                        <div class="item-list">
+                            <div class="item selected">选中</div>
+                            <div class="item disabled">禁用</div>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-dark>
+                        <div class="box-label">dark（底透明度与亮色对称）</div>
+                        <div class="item-list">
+                            <div class="item selected">选中</div>
+                            <div class="item disabled">禁用</div>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-dark data-colorized>
+                        <div class="box-label">dark + colorized</div>
+                        <div class="item-list">
+                            <div class="item selected">选中</div>
+                            <div class="item disabled">禁用</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        暗色下这四态的<strong>档位与不透明度</strong>被 <code>darkDerivedVars</code> 重算：
+                        主色提一档（<code>theme-5 → theme-6</code>）、底色百分比与亮色保持一致（实测感知对称 +14.5%）。
+                        组件层永远只写 <code>var(--auto-hover-*)</code> 这类引用。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">按钮与提示：语义色 + 反馈态的复合</div>
+                <div class="auto-card-body col">
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <button class="auto-btn primary">primary</button>
+                        <button class="auto-btn success">success</button>
+                        <button class="auto-btn warning">warning</button>
+                        <button class="auto-btn error">error</button>
+                        <button class="auto-btn info">info</button>
+                        <button class="auto-btn" disabled>禁用</button>
+                    </div>
+                    <div class="auto-alert success">
+                        <div class="title">成功<span class="closeable"></span></div>
+                        <div class="description">悬停 / 聚焦时按钮与提示块的反馈色都来自同一组交互变量。</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    </body>
+</html>

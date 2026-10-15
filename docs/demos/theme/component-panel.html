@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 面板</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：组件变量 · 面板（Panel / Card）</div>
+                <p>
+                    面板类变量把「容器」这件事拆成四件可复用的东西：<strong>背景层次</strong>、
+                    <strong>边框</strong>、<strong>圆角</strong>、<strong>阴影</strong>；
+                    标题栏再额外消费一组「头部」变量（字体 / 颜色 / 背景）。
+                </p>
+                <table class="demo-table">
+                    <thead>
+                        <tr><th>变量</th><th>用途</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>--auto-panel-bgcolor</code></td><td>面板 / 区块 / Drawer 背景</td></tr>
+                        <tr><td><code>--auto-panel-header-bgcolor</code></td><td>标题栏 / 标签页头背景</td></tr>
+                        <tr><td><code>--auto-panel-header</code> / <code>--auto-panel-header-color</code></td><td>标题栏字体与文字色</td></tr>
+                        <tr><td><code>--auto-border</code> / <code>--auto-border-radius</code> / <code>--auto-shadow</code></td><td>容器外框三件套</td></tr>
+                        <tr><td><code>--auto-padding</code></td><td>容器内距</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">四种容器形态（同一套变量、不同组合）</div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.4rem;padding:0;">
+                        <div style="padding:0.5rem 0.7rem;background:var(--auto-panel-header-bgcolor);font:var(--auto-panel-header);color:var(--auto-panel-header-color);border-radius:var(--auto-border-radius) var(--auto-border-radius) 0 0;">
+                            面板头
+                        </div>
+                        <div style="padding:var(--auto-padding);background:var(--auto-panel-bgcolor);border:var(--auto-border);border-top:none;border-radius:0 0 var(--auto-border-radius) var(--auto-border-radius);">
+                            面板体（头部 + 主体连通）
+                        </div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.4rem;">
+                        <div class="caption">浮起卡片（阴影，无边框）</div>
+                        <div style="padding:var(--auto-padding);background:var(--auto-panel-bgcolor);border-radius:var(--auto-border-radius);box-shadow:var(--auto-shadow);">
+                            面板体
+                        </div>
+                        <div class="caption">描边卡片（边框，无阴影）</div>
+                        <div style="padding:var(--auto-padding);background:var(--auto-panel-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            面板体
+                        </div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.4rem;">
+                        <div class="caption">次级面板（内嵌分区）</div>
+                        <div style="padding:var(--auto-padding);background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">
+                            分区 / 内嵌块
+                        </div>
+                        <div class="caption">工作区（最外层底）</div>
+                        <div style="padding:var(--auto-padding);background:var(--auto-workspace-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            应用底
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">内置组件类：<code>.auto-card</code></div>
+                <div class="auto-card-body col">
+                    <div class="auto-card" style="border:var(--auto-border);">
+                        <div class="auto-card-header">
+                            <span class="auto-card-title">卡片标题</span>
+                            <span class="closeable"></span>
+                        </div>
+                        <div class="auto-card-body">
+                            卡片体：默认无边框（靠阴影浮起），加 <code>border</code> 类显示边框；
+                            标题栏背景取 <code>--auto-panel-header-bgcolor</code>。
+                        </div>
+                        <div class="auto-card-footer">
+                            <button class="auto-btn primary">确定</button>
+                            <button class="auto-btn">取消</button>
+                        </div>
+                    </div>
+                    <div class="auto-alert info">
+                        <div class="title">提示块也是「面板 + 语义色」的组合<span class="closeable"></span></div>
+                        <div class="description">底色 / 边框取语义色，文字与图标同步。</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">元素域：同一面板在四种颜色模式下的观感</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box">
+                        <div class="box-label">light</div>
+                        <div class="demo-sample">
+                            <div class="demo-sample-header">面板头</div>
+                            <div>面板体</div>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-colorized>
+                        <div class="box-label">light + colorized</div>
+                        <div class="demo-sample">
+                            <div class="demo-sample-header">面板头</div>
+                            <div>面板体</div>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-dark>
+                        <div class="box-label">dark</div>
+                        <div class="demo-sample">
+                            <div class="demo-sample-header">面板头</div>
+                            <div>面板体</div>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-dark data-colorized>
+                        <div class="box-label">dark + colorized</div>
+                        <div class="demo-sample">
+                            <div class="demo-sample-header">面板头</div>
+                            <div>面板体</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        面板变量全部引用派生层，因此四种模式、任意主题色、任意尺寸档位下都自动成立——
+                        业务容器只需 <code>background: var(--auto-panel-bgcolor); border: var(--auto-border);</code>
+                        就与内置组件同族。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">尺寸联动：面板随「尺寸 / 圆角 / 间距 / 阴影」四档变化</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-size="x-small" data-spacing="x-small" data-radius="small" data-shadow="x-small">
+                        <div class="box-label">紧凑面板</div>
+                        <div style="padding:var(--auto-padding);background:var(--auto-panel-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);box-shadow:var(--auto-shadow);font:var(--auto-font);">
+                            小尺寸 + 小内距 + 小圆角 + 轻阴影
+                        </div>
+                    </div>
+                    <div class="scope-box" data-size="x-large" data-spacing="x-large" data-radius="x-large" data-shadow="x-large">
+                        <div class="box-label">宽松面板</div>
+                        <div style="padding:var(--auto-padding);background:var(--auto-panel-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);box-shadow:var(--auto-shadow);font:var(--auto-font);">
+                            大尺寸 + 大内距 + 大圆角 + 重阴影
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    </body>
+</html>

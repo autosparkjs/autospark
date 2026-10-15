@@ -10,15 +10,15 @@
         <h2>🔍 404 页面测试</h2>
         <p>测试未找到路由时的错误页面显示</p>
         <div class="test-links">
-            <autospark-link to="/this-page-does-not-exist">
+            <auto-link to="/this-page-does-not-exist">
                 <span>/this-page-does-not-exist</span>
-            </autospark-link>
-            <autospark-link to="/404-test">
+            </auto-link>
+            <auto-link to="/404-test">
                 <span>/404-test</span>
-            </autospark-link>
-            <autospark-link to="/random-404-page">
+            </auto-link>
+            <auto-link to="/random-404-page">
                 <span>/random-404-page</span>
-            </autospark-link>
+            </auto-link>
         </div>
         <div class="test-explanation">
             <p><strong>预期行为：</strong></p>
@@ -35,12 +35,12 @@
         <h2>💥 500 错误测试</h2>
         <p>模拟服务器内部错误</p>
         <div class="test-links">
-            <autospark-link to="/test-error-500">
+            <auto-link to="/test-error-500">
                 <span>触发 500 错误</span>
-            </autospark-link>
-            <autospark-link to="/test-error-custom">
+            </auto-link>
+            <auto-link to="/test-error-custom">
                 <span>触发自定义错误</span>
-            </autospark-link>
+            </auto-link>
         </div>
         <div class="test-explanation">
             <p><strong>预期行为：</strong></p>
@@ -57,9 +57,9 @@
         <h2>⏱️ 超时测试</h2>
         <p>测试加载超时场景</p>
         <div class="test-links">
-            <autospark-link to="/test-timeout">
+            <auto-link to="/test-timeout">
                 <span>触发超时（3秒）</span>
-            </autospark-link>
+            </auto-link>
         </div>
         <div class="test-explanation">
             <p><strong>预期行为：</strong></p>
@@ -76,9 +76,9 @@
         <h2>🌐 网络错误测试</h2>
         <p>模拟数据加载失败场景</p>
         <div class="test-links">
-            <autospark-link to="/test-network-error">
+            <auto-link to="/test-network-error">
                 <span>触发网络错误</span>
-            </autospark-link>
+            </auto-link>
         </div>
         <div class="test-explanation">
             <p><strong>预期行为：</strong></p>
@@ -95,12 +95,12 @@
         <h2>🔄 嵌套路由 404 测试</h2>
         <p>测试嵌套路由中的 404 处理</p>
         <div class="test-links">
-            <autospark-link to="/products/non-existent-category">
+            <auto-link to="/products/non-existent-category">
                 <span>/products/non-existent-category</span>
-            </autospark-link>
-            <autospark-link to="/docs/missing-doc">
+            </auto-link>
+            <auto-link to="/docs/missing-doc">
                 <span>/docs/missing-doc</span>
-            </autospark-link>
+            </auto-link>
         </div>
         <div class="test-explanation">
             <p><strong>预期行为：</strong></p>
@@ -117,9 +117,9 @@
         <h2>🛡️ 错误边界测试</h2>
         <p>测试组件渲染错误的捕获</p>
         <div class="test-links">
-            <autospark-link to="/test-render-error">
+            <auto-link to="/test-render-error">
                 <span>触发渲染错误</span>
-            </autospark-link>
+            </auto-link>
         </div>
         <div class="test-explanation">
             <p><strong>预期行为：</strong></p>
@@ -202,7 +202,7 @@
         margin-bottom: 16px;
     }
 
-    .test-links autospark-link {
+    .test-links auto-link {
         display: inline-flex;
         align-items: center;
         padding: 8px 14px;
@@ -216,7 +216,7 @@
         cursor: pointer;
     }
 
-    .test-links autospark-link:hover {
+    .test-links auto-link:hover {
         background: #f44336;
         color: white;
         border-color: #f44336;

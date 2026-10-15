@@ -22,7 +22,7 @@
             margin-right: 20px;
         }
 
-        .demo-nav autospark-link,
+        .demo-nav auto-link,
         .demo-nav button {
             padding: 10px 20px;
             background: rgba(255, 255, 255, 0.2);
@@ -35,7 +35,7 @@
             transition: all 0.3s ease;
         }
 
-        .demo-nav autospark-link:hover,
+        .demo-nav auto-link:hover,
         .demo-nav button:hover {
             background: rgba(255, 255, 255, 0.3);
             border-color: rgba(255, 255, 255, 0.5);
@@ -152,10 +152,10 @@
     <div id="app">
         <nav class="demo-nav">
             <h1>错误处理和重试机制演示</h1>
-            <autospark-link href="/error/404">404 错误</autospark-link>
-            <autospark-link href="/error/load-fail">加载失败</autospark-link>
-            <autospark-link href="/error/timeout">超时错误</autospark-link>
-            <autospark-link href="/error/retry">自动重试</autospark-link>
+            <auto-link href="/error/404">404 错误</auto-link>
+            <auto-link href="/error/load-fail">加载失败</auto-link>
+            <auto-link href="/error/timeout">超时错误</auto-link>
+            <auto-link href="/error/retry">自动重试</auto-link>
         </nav>
         <main>
             <div x-component:autospark.outlet></div>
@@ -195,7 +195,7 @@
 
             html += `
                     <button onclick="window.router.retryLoad()">重试</button>
-                    <autospark-link href="/">返回首页</autospark-link>
+                    <auto-link href="/">返回首页</auto-link>
                 </div>
             `;
 

@@ -119,4 +119,4 @@ observer.disconnect();
 
 ---
 
-下一步：[主题作用域](./scope.md)。
+下一步：[工作原理](./how-it-works.md)。

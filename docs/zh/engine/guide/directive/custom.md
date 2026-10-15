@@ -126,6 +126,8 @@ AutoSpark.directive({
 - 每个 engine 构造时全量消费队列（先于首次编译，参与首渲）；建立后再注册的**立即广播给全部存活 engine**——先建引擎还是先装插件均无序可忧；
 - 唯一约定：经 `AutoSpark.directive` 触达，不要绕过它自行拼装安装器。
 
+插件脚本要写在 `autospark.js` **之前**时（script 顺序自由），把定义包进[插件预加载队列](/zh/guide/plugin#前置加载)——队列在首个 engine 构造期、指令安装器循环之前消费，指令照样参与首次编译。
+
 ## 注意事项
 
 - spec 重载的 spec 是**最小键集**：`name`（必填，缺失抛错）、`kind`（缺省 `0`）、`priority`（缺省 `0`）、六个实例钩子（`created` / `compile` / `destroy` / `mounted` / `unmounted` / `attrChanged`）。结构指令（`ownsChildren`）、元素名指令（`elementName`）、类级钩子（`static initialize` / `dispose`）、`singleton` 等高级形态请用类重载 `$.directive(name, Cls)`（示例三）。

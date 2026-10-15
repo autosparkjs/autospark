@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>局部主题</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：局部主题（ThemeScope）</div>
+                <p>
+                    作用域是「<strong>一套完整主题参数 + 一个边界</strong>」：root 作用域覆盖整篇文档，
+                    <code>addScope()</code> 创建的作用域覆盖指定子树，两者参数、注入与持久化链路完全同构。
+                </p>
+                <pre>const scope = ThemePro.addScope({
+    id: "preview",                    // 作用域标识（必填）
+    elements: ["#preview"],           // 自动给命中元素挂 data-theme-scope="preview"
+    themeColor: "magenta",            // 本子树自己的主题色
+});
+scope.dark = true;                    // 模式 / 尺寸经 setter 立即写属性
+scope.radius = "small";</pre>
+                <ul>
+                    <li>每个作用域有自己的主题色、模式、尺寸——互不影响</li>
+                    <li>作用域内仍可用 <code>data-*</code> 做元素级微调（命中被收敛在本作用域子树内）</li>
+                    <li>WebComponent / shadow DOM 场景传 <code>docRoot</code> 与 <code>cssSelector: [":host"]</code></li>
+                </ul>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">四个独立作用域：每块一套主题（面板只影响全局区）</div>
+                <div class="auto-card-body col">
+                    <div class="scope-box" id="ls-global">
+                        <div class="box-label">全局区（root 作用域，面板直接控制）</div>
+                        <div class="theme-strip" data-strip="--x-color-theme-"></div>
+                        <div class="demo-sample">
+                            <div>本区没有自己的作用域，跟随全局主题。</div>
+                            <input class="auto-input" placeholder="表单" />
+                            <button class="auto-btn primary">按钮</button>
+                        </div>
+                    </div>
+                    <div class="grid">
+                        <div class="scope-box" id="ls-sidebar" data-theme-scope="previewSidebar">
+                            <div class="box-label">作用域 previewSidebar（magenta）</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-"></div>
+                            <div class="demo-sample">
+                                <div>侧边栏主题</div>
+                                <input class="auto-input" placeholder="表单" />
+                                <button class="auto-btn primary">按钮</button>
+                            </div>
+                        </div>
+                        <div class="scope-box" id="ls-content" data-theme-scope="previewContent">
+                            <div class="box-label">作用域 previewContent（green + dark）</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-"></div>
+                            <div class="demo-sample">
+                                <div>内容区主题（暗色）</div>
+                                <input class="auto-input" placeholder="表单" />
+                                <button class="auto-btn primary">按钮</button>
+                            </div>
+                        </div>
+                        <div class="scope-box" id="ls-toolbar" data-theme-scope="previewToolbar">
+                            <div class="box-label">作用域 previewToolbar（cyan + colorized）</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-"></div>
+                            <div class="demo-sample">
+                                <div>工具栏主题（多彩）</div>
+                                <input class="auto-input" placeholder="表单" />
+                                <button class="auto-btn primary">按钮</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">运行时改作用域参数（setter 立即写属性）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" id="ls-live" data-theme-scope="previewLive">
+                        <div class="box-label">作用域 previewLive</div>
+                        <div class="theme-strip" data-strip="--x-color-theme-"></div>
+                        <div class="demo-sample">
+                            <div>下面按钮直接改本作用域的参数</div>
+                            <input class="auto-input" placeholder="表单" />
+                        </div>
+                        <div class="seg">
+                            <button data-scope-id="previewLive" data-scope-prop="dark" data-scope-label></button>
+                            <button data-scope-id="previewLive" data-scope-prop="colorized" data-scope-label></button>
+                            <button data-scope-id="previewLive" data-scope-prop="radius">循环圆角档</button>
+                            <button data-scope-id="previewLive" data-scope-prop="size">循环字号档</button>
+                            <button data-scope-id="previewLive" data-scope-prop="themeColor" data-scope-value="volcano">主题色 → volcano</button>
+                            <button data-scope-id="previewLive" data-scope-prop="themeColor" data-scope-value="blue">主题色 → blue</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        按钮走的是 <code>scope.dark = …</code> 这类 setter：更新 options → 同步 DOM 属性（<code>dark</code> /
+                        <code>data-radius</code> 等）→ 持久化参数。<strong>构造选项里的模式与尺寸不会立即生效</strong>
+                        （属性同步只发生在 setter 与水合路径），需要立刻见效时构造后显式赋值一次。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">作用域内仍可用元素域微调（命中被收敛）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" id="ls-mixed" data-theme-scope="previewMixed">
+                        <div class="box-label">作用域 previewMixed（purple）内的元素域</div>
+                        <div class="demo-sample">
+                            <div>本段继承作用域主题（purple）。</div>
+                            <div data-colorized style="margin-top:0.5rem;padding:0.6rem;border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                                <div class="theme-strip" data-strip="--x-color-"></div>
+                                <div>后代 <code>data-colorized</code>：多彩映射取<strong>本作用域</strong>的 purple 梯度，不会错拿根域蓝梯度。</div>
+                            </div>
+                            <div data-dark data-size="x-small" style="margin-top:0.5rem;padding:0.6rem;border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                                后代 <code>data-dark data-size="x-small"</code>：两域叠加，梯度仍是本作用域的 purple 反转。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">WebComponent / shadow DOM</div>
+                <div class="auto-card-body col">
+                    <pre>const scope = new ThemeScope({
+    id: "wc",
+    docRoot: this.shadowRoot,      // 注入与查询都在影子根内进行
+    cssSelector: [":host"],        // 影子根内用 :host
+    themeColor: "green",
+});</pre>
+                    <p class="hint">
+                        <code>docRoot</code> 同时决定注入位置与查询范围；<code>isConnected()</code> 也在
+                        <code>docRoot.ownerDocument</code> 中查找样式标签。本页右侧控制面板自身就是 WebComponent，
+                        它的样式经 Shadow DOM 自包含、配色则从宿主继承 <code>--auto-*</code> 变量。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <script>
+            // 三个局部作用域：magenta / green+dark / cyan+colorized（persistence:false 便于反复试验）
+            var defs = [
+                { id: "previewSidebar", el: "#ls-sidebar", options: { themeColor: "magenta" } },
+                { id: "previewContent", el: "#ls-content", options: { themeColor: "green", dark: true } },
+                { id: "previewToolbar", el: "#ls-toolbar", options: { themeColor: "cyan", colorized: true } },
+                { id: "previewLive", el: "#ls-live", options: { themeColor: "blue" } },
+                { id: "previewMixed", el: "#ls-mixed", options: { themeColor: "purple" } },
+            ];
+            defs.forEach(function (def) {
+                var scope = ThemePro.addScope(
+                    Object.assign({ id: def.id, persistence: false }, def.options),
+                );
+                if (!scope) return;
+                scope.attach(def.el);
+                // 构造选项里的模式 / 尺寸不会立即写属性，这里显式赋值一次
+                if (def.options.dark) scope.dark = true;
+                if (def.options.colorized) scope.colorized = true;
+            });
+        </script>
+    </body>
+</html>

@@ -38,6 +38,14 @@ _Avoid_: 默认子路由（那是 `default` 键的缺省展开语义）
 顶层 `options.routes` 传 URL 的既有能力——取回整表。与远程子表同族但层级不同：前者取整表，后者取某个路由项的子树。
 _Avoid_: 远程子表
 
+**auto-link（路由链接组件）**:
+`<auto-link to="/path">` 声明式导航组件（Light DOM、内层真实 `<a href>`，JS 未执行时即可被爬虫发现与跟随）。内部路由的内层 href 自动带 base 前缀（真实可爬）、外部链接原样输出、`target="_blank"` 自动补 `noopener noreferrer`。自身不绑定点击监听，导航由文档级委托统一接管。**可选便捷层而非导航必需品**——普通 `<a>` 已被全局拦截；组件的不可替代职责是 base 前缀自动化、`replace` 声明与静态 SEO href（ADR-0009）。
+_Avoid_: 导航必需组件（普通 `<a>` 已可 SPA 导航）、`autospark-link`（旧标签名，已废弃）
+
+**全局链接拦截（Plain Anchor Interception）**:
+文档级点击委托对普通 `<a href>` 的 SPA 接管——组件路径优先，无组件命中时接管同源 http(s) 内部路径：统一 `push`（plain `<a>` 无 replace 表达）、pathname 剥 base 后拼接 search/hash、相对 href 按文档 URL 解析。放行矩阵（交还浏览器默认行为）：修饰键、非左键、`target` 非 `_self`、`download`、`rel` 含 external、非 http(s) 协议、纯页内锚点（hash 模式 `#/x` 由 hashchange 自然接管）、跨域、无 href；唯一例外为危险协议（`javascript:`/`data:`）——拦截且不导航（对齐 T-02-01）。锚点须位于本 router 宿主子树内，多 router 并存各管各的子树（ADR-0009）。
+_Avoid_: 全量接管（放行矩阵外的情形必须交还浏览器）、preventDefault 一切点击（危险协议之外的放行项不得阻止默认行为）
+
 ### 加载层
 
 **公共层跳过（Common-Layer Skip）**:
@@ -107,8 +115,24 @@ _Avoid_: 缓存（那是 `cache` 键）、keep-alive 连字符拼写、keepalive
 _Avoid_: 页面数据、props（组件单向注入语义，勿混）、模板变量替换（不做字符串插值）
 
 **渲染器（Renderer）**:
-按内容类型适配视图内容的适配器家族（html/json/image），共同继承自基础渲染器。
-_Avoid_: 模板引擎
+视图内容的加工适配器——决定「加载到的字节 → 出口视图内容」的转换方式。四个内置形态：**模板渲染器**（Template，`.html`/`.htm` 及默认兜底，DOMParser + x-outlet 改写，产物经 engine 编译全响应式）、**raw 渲染器**（零加工原样输出）、**JSON 渲染器**（`<pre>` pretty-print）、**图片渲染器**（`<img src>`）。均继承自基础渲染器（`test` 探测 + `render` 加工），从包入口导出可显式注册（ADR-0008）。
+_Avoid_: 模板引擎、模板（模板渲染器是渲染器的一个形态）
+
+**渲染器选择链（Renderer Resolution）**:
+fetch 之后逐级决定渲染器的固定顺序——URL `!` 前缀强制 raw（最高优先级）> 路由级显式 `view.renderer` > `options.renderers` 自定义渲染器逐个 `test()` > 模板渲染器兜底（`test()` 恒真）。无自动格式判定、无全局渲染器钩子（ADR-0008 修订）。
+_Avoid_: 渲染器注册顺序唯一决定（`!` 前缀优先于一切）、内置格式判定（`.json`/图片扩展名自动分流已移除，Json/Image 渲染器需显式注册）、getRenderer 全局钩子（已取消）
+
+**raw 前缀（Raw Prefix）**:
+视图 URL 以 `!` 开头（如 `!/path/page.html`）——强制该视图跳过一切内容加工、原样输出，优先级最高（高于路由级显式渲染器）；fetch 前剥除前缀（插值与 base 拼接之前），服务器收到干净 URL。前缀独立于查询串，与业务 query（如 `?count=1`）零冲突（ADR-0008 修订）。
+_Avoid_: `?raw` 查询键标记（与业务 query 冲突，已废弃）、`?raw` 导入后缀（Vite 词）、查询参数传参（前缀是给 router 的指令，非业务参数）
+
+**raw 视图（Raw View）**:
+经 raw 通道渲染的视图——内容不经 engine 编译，outlet 模板以普通 `x-html` 直接 innerHTML 挂载。动机是性能（跳过编译成本），非安全隔离。边界：跳过路由数据注入、`selector` 无效、内容中 `<script>` 不执行、内容中 x-outlet 不激活（嵌套路由不可用，子层走出口回退）。keepAlive/tabs 语义与普通视图一致（ADR-0008）。
+_Avoid_: 普通HTML渲染（渲染器层的零加工 ≠ 旁路编译，两者由 raw 标志贯通为一体）、静态视图
+
+**渲染降级链（Renderer Fallback Chain）**:
+选中渲染器加工失败（抛异常或返回 error）后的两级降级——先试模板渲染器（engine 编译），再失败落 raw 通道原样输出；全链失败才落错误页。fetch 本身失败不降级（无内容可原样）。链内去重、每个渲染器至多一次、每次降级 warn（ADR-0008）。
+_Avoid_: 渲染失败即错误页（那是全链失败的终态）、重试（降级不是重试，换的是加工方式）
 
 ### 钩子层
 
@@ -136,6 +160,7 @@ _Avoid_: 依赖注入框架词（provider/injector）、单例 engine
 - **KylinRouterOptiopns**（历史 typo 导出名）→ `AutoSparkRouterOptions`
 - **KylinBits**：非本包词根，属 `packages/theme` 的独立议题，本表仅存目
 - **`autospark-outlet` / `autospark-slot` 自定义元素** → `autospark.outlet` engine 组件（ADR-0002，2026-10-12 渲染载体更换）
+- **`autospark-link` 自定义元素标签名** → `auto-link`（ADR-0009，2026-10-15 命名简化；类名 `AutoSparkLink` 与导出面不变）
 - **Alpine 桥（AutoSparkAlpineStore / AlpineManager）与 x-cssvar / x-inject-data 指令** → engine 响应式体系（ADR-0002）
 - **Outlet 布局 `layout: tabs / collapse`** → ~~stack 先行；tabs/collapse 存目待以 engine 布局件组合重建~~（ADR-0002）→ **tabs 以出口 `mode` prop 内建复活**（ADR-0003 修订：页签需感知路由语义——title/icon 元数据、激活态与 URL 联动，布局件组合做不到）；collapse 仍存目
 - **`data` 选项的 `store` 键**（Alpine.store 全局注册）→ 数据统一走 autospark/data script 注入（ADR-0002）

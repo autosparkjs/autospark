@@ -77,6 +77,8 @@ title: 主题
 
 - 第一次接触？看[关于](./intro/about.md)与[快速入门](./intro/get-started.md)
 - 想了解能做什么？看[特征和优势](./intro/features.md)
+- 想搞懂「一个主题色怎么变成整套变量」？看[工作原理](./guide/how-it-works.md)
 - 上手开发？进入[指南](./guide/initial.md)
-- 查具体用法？[主题色](./guide/color.md)、[显示模式](./guide/mode.md)、[尺寸参数](./guide/size.md)、[变量体系](./guide/variables.md)、[API 参考](./guide/api.md)
-- 想看真实效果？`packages/theme` 下执行 `bun install && bun run dev`（vite，5180 端口）打开示例页，右侧控制面板可实时切换全部主题参数。
+- 查具体要素？[主题要素 · 颜色](./guide/color.md)、[字体](./guide/font.md)、[圆角](./guide/radius.md)、[阴影](./guide/shadow.md)、[间距](./guide/spacing.md)
+- 查组件消费的变量？[组件变量](./guide/component.md)、[元素域](./guide/element-scope.md)、[局部主题](./guide/local-scope.md)、[API 参考](./guide/api.md)
+- 想看真实效果？本页每一章都配了可运行 demo（右侧控制面板可实时切换主题要素）；也可以在 `packages/theme` 下执行 `bun run dev`（vite，5180 端口）打开示例页。

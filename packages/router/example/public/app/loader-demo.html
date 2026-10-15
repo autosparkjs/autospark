@@ -22,7 +22,7 @@
             margin-right: 20px;
         }
 
-        .demo-nav autospark-link,
+        .demo-nav auto-link,
         .demo-nav button {
             padding: 8px 16px;
             background: #007bff;
@@ -34,7 +34,7 @@
             display: inline-block;
         }
 
-        .demo-nav autospark-link:hover,
+        .demo-nav auto-link:hover,
         .demo-nav button:hover {
             background: #0056b3;
         }
@@ -114,13 +114,13 @@
     <div id="app">
         <nav class="demo-nav">
             <h1>组件加载系统演示</h1>
-            <autospark-link to="/loader/local">本地组件</autospark-link>
-            <autospark-link to="/loader/dynamic">动态导入</autospark-link>
-            <autospark-link to="/loader/remote">远程 HTML</autospark-link>
-            <autospark-link to="/loader/nested">嵌套路由</autospark-link>
-            <autospark-link to="/loader/data">数据加载</autospark-link>
-            <autospark-link to="/loader/cache">缓存示例</autospark-link>
-            <autospark-link to="/loader/interpolate">插值变量</autospark-link>
+            <auto-link to="/loader/local">本地组件</auto-link>
+            <auto-link to="/loader/dynamic">动态导入</auto-link>
+            <auto-link to="/loader/remote">远程 HTML</auto-link>
+            <auto-link to="/loader/nested">嵌套路由</auto-link>
+            <auto-link to="/loader/data">数据加载</auto-link>
+            <auto-link to="/loader/cache">缓存示例</auto-link>
+            <auto-link to="/loader/interpolate">插值变量</auto-link>
         </nav>
         <main>
             <div x-component:autospark.outlet></div>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>阴影</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：阴影（Shadow）</div>
+                <p>
+                    阴影表达<strong>层级</strong>：浮起的卡片、弹层、下拉面板靠它拉开与背景的距离。
+                    基础量 <code>--x-shadow-*</code> 六档，档位开关 <code>data-shadow</code>，
+                    派生量 <code>--auto-shadow</code> 供组件消费。
+                </p>
+                <ul>
+                    <li>六档：<code>none</code> / <code>x-small</code> / <code>small</code> / <code>medium</code>（默认）/ <code>large</code> / <code>x-large</code></li>
+                    <li><strong>暗色换配方</strong>：深底上中灰阴影不可见，暗块把 <code>--x-shadow-*</code> 整体替换为黑色系高不透明度</li>
+                    <li>局部换档：容器加 <code>data-shadow="档位"</code></li>
+                </ul>
+                <pre>ThemePro.shadow = "large"    // 全局阴影档
+box-shadow: var(--auto-shadow);</pre>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">六档对比（面板切「阴影」观察整页层级变化）</div>
+                <div class="auto-card-body col">
+                    <div class="grid tight">
+                        <div class="cell" style="box-shadow:var(--x-shadow-none);">none<br /><code class="caption">--x-shadow-none</code></div>
+                        <div class="cell" style="box-shadow:var(--x-shadow-x-small);">x-small<br /><code class="caption">--x-shadow-x-small</code></div>
+                        <div class="cell" style="box-shadow:var(--x-shadow-small);">small<br /><code class="caption">--x-shadow-small</code></div>
+                        <div class="cell" style="box-shadow:var(--x-shadow-medium);">medium<br /><code class="caption">--x-shadow-medium</code></div>
+                        <div class="cell" style="box-shadow:var(--x-shadow-large);">large<br /><code class="caption">--x-shadow-large</code></div>
+                        <div class="cell" style="box-shadow:var(--x-shadow-x-large);">x-large<br /><code class="caption">--x-shadow-x-large</code></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">层级场景：浮起面板与弹层</div>
+                <div class="auto-card-body row">
+                    <div style="flex:1;min-width:14rem;padding:0.9rem;background:var(--auto-bgcolor);border-radius:var(--auto-border-radius);box-shadow:var(--auto-shadow);">
+                        <div class="caption">浮起面板：box-shadow: var(--auto-shadow)</div>
+                        <div>面板内容</div>
+                    </div>
+                    <div style="flex:1;min-width:14rem;padding:0.9rem;background:var(--auto-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                        <div class="caption">仅描边（无阴影）：border: var(--auto-border)</div>
+                        <div>面板内容</div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <div class="auto-card" style="border:var(--auto-border);">
+                        <div class="auto-card-header">卡片默认靠阴影浮起（加 <code>border</code> 类才显示边框）</div>
+                        <div class="auto-card-body">.auto-card 的层级由 --auto-shadow 决定，随面板档位联动。</div>
+                    </div>
+                    <p class="hint">
+                        暗色下面板轮廓容易发虚（约 1.5:1），因此暗色同时提亮了边框色并换上暗阴影配方——
+                        「描边 + 阴影」双信号表达层级。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">暗色换配方：同一档位、两套阴影</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box">
+                        <div class="box-label">亮语境 --x-shadow-medium</div>
+                        <div class="cell" style="box-shadow:var(--x-shadow-medium);">中灰低不透明</div>
+                        <div class="caption">hsl(240 3.8% 46.1% / 12%)</div>
+                    </div>
+                    <div class="scope-box" data-dark>
+                        <div class="box-label">暗语境 --x-shadow-medium（data-dark）</div>
+                        <div class="cell" style="box-shadow:var(--x-shadow-medium);">黑色系高不透明</div>
+                        <div class="caption">hsl(0 0% 0% / 50%)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">元素域：<code>data-shadow</code> 局部换档</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-shadow="none">
+                        <div class="box-label">data-shadow="none"（扁平）</div>
+                        <div class="cell" style="box-shadow:var(--auto-shadow);">--auto-shadow</div>
+                    </div>
+                    <div class="scope-box" data-shadow="x-large">
+                        <div class="box-label">data-shadow="x-large"（浮起）</div>
+                        <div class="cell" style="box-shadow:var(--auto-shadow);">--auto-shadow</div>
+                    </div>
+                    <div class="scope-box" data-dark data-shadow="x-large">
+                        <div class="box-label">data-dark + data-shadow="x-large"</div>
+                        <div class="cell" style="box-shadow:var(--auto-shadow);">--auto-shadow</div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        <code>data-size</code> 也会换 <code>--auto-shadow</code>（尺寸档位含阴影档）——
+                        若同时挂 <code>data-size</code> 与 <code>data-shadow</code>，后者胜出（档位块带 <code>!important</code>）。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <aside class="demo-panel"><theme-controls groups="shadow,mode"></theme-controls></aside>
+    </body>
+</html>

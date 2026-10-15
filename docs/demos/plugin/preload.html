@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>插件前置加载 · 先于 autospark.js + 双引擎</title>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+
+        <!-- ═══ my-plugin.js：插件脚本出现在 autospark.js 之前 ═══
+             拿不到全局 AutoSpark，把脚本体包成函数推进预加载队列；
+             第二个参数 $ 就是命名空间（引擎 drain 时注入）。 -->
+        <script>
+            (globalThis.__AUTOSPARK_PLUGINS__ ??= []).push((engine, $) => {
+                // 全局组件：所有 engine 实例共享（注册一次，跨实例复用编译产物）
+                $.components["hello-card"] = `
+                    <div class="card">
+                        <div class="card-content">
+                            <p class="title is-4">你好，<span x-text="name"></span>！</p>
+                            <p class="subtitle">来自前置加载插件的组件</p>
+                        </div>
+                    </div>`;
+                // 全局 action：经触发 engine 惰性物化
+                $.actions["plugGreet"] = function () {
+                    this.data.greeted = "插件 action 已执行 ✓";
+                };
+                // 全局指令：在指令安装器循环之前消费，照常参与首次编译
+                $.directive({
+                    name: "highlight",
+                    kind: 1,
+                    mounted() {
+                        this.el.style.backgroundColor = this.value || "#fffbe6";
+                    },
+                });
+                // per-engine 行为必须包进 $.ready：队列函数体只执行一次
+                $.ready(function (e) {
+                    e.state.readyLog = "engine/ready ✓（" + e.el.id + "）";
+                });
+            });
+        </script>
+
+        <script src="/autospark/autospark.js"></script>
+    </head>
+
+    <body>
+        <div id="app-a" class="demo-app section">
+            <h5 class="title is-5">引擎 A（首个实例——队列在此消费）</h5>
+            <div class="block">
+                <div x-component:hello-card="{name: 'A'}"></div>
+            </div>
+            <div class="block">
+                <button class="button is-primary" @click="plugGreet">插件 action：plugGreet</button>
+                <span class="ml-2" x-text="greeted"></span>
+            </div>
+            <div class="block">
+                <span x-highlight="#ffe08a">指令 x-highlight（来自前置插件）</span>
+            </div>
+            <div class="block" x-show="readyLog">
+                <code x-text="readyLog"></code>
+            </div>
+        </div>
+
+        <div id="app-b" class="demo-app section">
+            <h5 class="title is-5">引擎 B（后建实例——队列已空，注册照样生效）</h5>
+            <div class="block">
+                <div x-component:hello-card="{name: 'B'}"></div>
+            </div>
+            <div class="block">
+                <button class="button is-primary" @click="plugGreet">插件 action：plugGreet</button>
+                <span class="ml-2" x-text="greeted"></span>
+            </div>
+            <div class="block">
+                <span x-highlight="#ffe08a">指令 x-highlight（来自前置插件）</span>
+            </div>
+            <div class="block" x-show="readyLog">
+                <code x-text="readyLog"></code>
+            </div>
+        </div>
+
+        <!-- ═══ 页面脚本：实例化两个引擎（插件注册的一切对两者同样生效） ═══ -->
+        <script>
+            const a = new AutoSpark(document.querySelector("#app-a"), {
+                greeted: "",
+                readyLog: "",
+            });
+            const b = new AutoSpark(document.querySelector("#app-b"), {
+                greeted: "",
+                readyLog: "",
+            });
+        </script>
+    </body>
+</html>

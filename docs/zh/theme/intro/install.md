@@ -43,7 +43,7 @@ import "@autospark/theme/index.css";
 这份 CSS 包含 reset、工具类与组件类（`.auto-btn` / `.auto-card` / `.auto-alert` / `.auto-input` 等）。若你只想用运行时变量、样式全部自己写，可以跳过它。
 
 ::: tip 组件类不在聚合入口里
-`input.less`（表单微调）与 `src/components/*`（组件类）**未**聚合进 `index.css` 的入口链，需要时按需单独引入；具体见[静态样式层](../guide/static.md)。
+`input.less`（表单微调）与 `src/components/*`（组件类）**未**聚合进 `index.css` 的入口链，需要时按需单独引入；具体见[静态主题包](../guide/static.md)。
 :::
 
 ### 2. 运行时（JS）
@@ -88,7 +88,7 @@ IIFE 产物把单例暴露为 `globalThis.ThemePro`。需用类本身（`ThemeMa
 ```
 
 ::: tip 静态预设 ≠ JS 预设
-静态主题文件与运行时预设表**不是同一份清单**：运行时预设（`themeManager.presets`）另含 `gold` / `geekblue` / `techblue`，且由算法现场派生 10 阶标尺，必然与静态文件的字面值一致。选运行时还是静态层，见[静态样式层与预设主题](../guide/static.md)。
+静态主题文件与运行时预设表**不是同一份清单**：运行时预设（`themeManager.presets`）另含 `gold` / `geekblue` / `techblue`，且由算法现场派生 10 阶标尺，必然与静态文件的字面值一致。选运行时还是静态层，见[静态主题包](../guide/static.md)。
 :::
 
 ## 依赖说明

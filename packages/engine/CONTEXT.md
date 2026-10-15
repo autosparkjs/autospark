@@ -29,19 +29,23 @@ _Avoid_: defineDirective / installDirective（双名已收敛删除，统一 `$.
 ### 插件层
 
 **插件（Plugin）**:
-script/IIFE 场景的第三方能力分发单元：一个纯副作用 js 文件，在 autospark.js 之后加载即生效（jQuery 事实模型）。无插件名、无版本、无注册协议、无插件表——引擎不感知「插件」概念，只暴露全局命名空间；「在插件中编写组件/指令/action」≈「经全局命名空间注册」。重复加载是页面作者的责任，引擎不设防。
+script/IIFE 场景的第三方能力分发单元：一个纯副作用 js 文件（jQuery 事实模型）。无插件名、无版本、无注册协议、无插件表——引擎不感知「插件」概念，只暴露全局命名空间；「在插件中编写组件/指令/action」≈「经全局命名空间注册」。重复加载是页面作者的责任，引擎不设防。两条加载顺序纪律：**后置插件**在 autospark.js 之后加载即生效（闭包拿 `AutoSpark`）；**前置插件**（见下条）先于引擎脚本加载，经预加载队列延后到首个 engine 构造期生效。二者都必须早于 `new AutoSpark()`。
 _Avoid_: 扩展 / addon（泛化）、模块（引擎内部机制域的正名是「特性 / Feature」）、插件对象（无此实体——插件就是脚本文件）
+
+**插件预加载队列（Plugin Preload Queue）**:
+`globalThis.__AUTOSPARK_PLUGINS__: ((engine, autospark) => void)[]`——插件脚本先于 autospark.js 加载时的**投递通道**：把插件脚本体包成函数推进数组，首个 engine 构造期（`setupPluginQueue` 内、指令安装器循环之前）drain 并执行**一次**，回调收 `(engine, autospark)` 双参（先加载的脚本闭包里拿不到 `AutoSpark`，只能靠参数注入）。一次性语义不靠模块级 flag：drain = `splice(0)` 取快照 + `Object.freeze` 原数组，之后队列恒空且冻结（晚到的 push 在严格模式抛错，不静默失效——ADR-0100 静默坑的反面）。队列是通道不是注册表：注册结果落在类静态上，清空队列对后建 engine 零影响。详见 ADR-0114。
+_Avoid_: 插件表 / 插件注册表（那是类静态上的声明表，不是本队列）、window 键注册表（本队列是 window 键没错，但它是**投递通道**不是注册表——ADR-0111 决策 6 否决的是后者）、模块初始化钩子（不构造 engine 即永不消费）
 
 **插件命名空间（Plugin Namespace）**:
 IIFE 全局 `AutoSpark`——**类与命名空间一体**（jQuery `$` 同构）：既是构造类又承载插件 API（`ready` / `components` / `actions` / `icons` / `directive`），库的其他导出成员（AutoStore 等）挂为类静态。ESM 消费者经 `import { AutoSpark }` 取同一后端（API 挂类静态，window 全局只是 IIFE 形态的呈现）。详见 ADR-0111。
-_Avoid_: `AutoSparkSpaces` 作正名（兼容别名，指向同一对象，旧消费面专用）、`$`（插件脚本内的形参缩写习惯，非 API 名）、window 键注册表（`__AUTOSPARK_*__` 全局键方案已否决删除）
+_Avoid_: `AutoSparkSpaces` 作正名（兼容别名，指向同一对象，旧消费面专用）、`$`（插件脚本内的形参缩写习惯，非 API 名）、window 键注册表（`__AUTOSPARK_COMPONENTS__` / `__AUTOSPARK_DIRECTIVES__` 等**注册表**方案已否决删除；唯一存活的 window 键是预加载队列 `__AUTOSPARK_PLUGINS__`，它是通道不是表）
 
 **插件注册表（Plugin Registry）**:
 `AutoSpark.components` / `AutoSpark.actions`——跨 engine 的**真全局**声明表（对照：引擎级 `options.components` / `options.actions` 是 per-engine）。engine 查找链到顶兜底遍历全局表（**查询期委托**：不复制进 engine、无运行时广播，晚注册天然立即生效）。组件命中时惰性预编译入全局 def 缓存（每组件名全局只编译一次，多 engine 共享编译产物）。组件查找链：scope 局部 → `options.components` → 全局表 → `builtinComponents`；action 查找链末端命中全局表时经**触发 engine** 惰性物化（this/生命周期广播绑定触发处 engine）。图标无独立表（`AutoSpark.icons` 的 document 级全局注册表即真全局，ADR-0058 既有）。
 _Avoid_: 全局组件表（与 `options.components` 的 per-engine「全局组件」懒预编译表撞义）、构造期快照合并（委托无复制）、运行时广播（组件/action 靠查询期委托天然生效，只有指令需要广播）
 
 **$.ready（插件就绪回调）**:
-`AutoSpark.ready(fn)`——注册的回调对**每个 engine 构造完成后**各调用一次（回调收 engine 实例）；engine 已存在时注册立即对所有存活 engine 补调（retain 语义）；回调抛错隔离记日志；engine destroy 摘出存活表。回调是「拿 engine 实例做命令式操作 / 引擎级注册」的入口——仅供指定 engine 的资源在回调内走 engine 级注册位（如 `engine.actions[name] = ...`）。
+`AutoSpark.ready(fn)`——注册的回调对**每个 engine 构造完成后**各调用一次（回调收 `(engine, autospark)` 双参，ADR-0114；第二参是命名空间类，前置插件靠它拿到 `$`，既有单参写法兼容）；engine 已存在时注册立即对所有存活 engine 补调（retain 语义）；回调抛错隔离记日志；engine destroy 摘出存活表。回调是「拿 engine 实例做命令式操作 / 引擎级注册」的入口——仅供指定 engine 的资源在回调内走 engine 级注册位（如 `engine.actions[name] = ...`）。
 _Avoid_: DOM ready 语义（jQuery 原义不适用——这里是 per-engine 触发）、onReady（动词化变体，API 名就是 ready）、初始化钩子（它是回调注册面，不是引擎生命周期钩子）
 
 ### 动作层
@@ -1001,7 +1005,8 @@ _Avoid_: AutoSpark.defineDirective、AutoSpark.installDirective（均改写 `Aut
 
 **全局安装队列 / `window.__AUTOSPARK_DIRECTIVES__`（ADR-0111 取代）**:
 已废弃。ADR-0100 的 window 挂载指令安装队列（首个 engine 构造时 Proxy 化 push trap 广播存活 engine）被**插件机制的模块内存队列**取代（ADR-0111）——script 顺序加载保证插件文件后于引擎脚本求值，window 键载体不再必要；`defineDirective` 保留（转发新通道），`window.__AUTOSPARK_DIRECTIVES__` 属性不再被监听（push 进无人消费的数组，静默失效）。`consts.ts` 的 `GLOBAL_COMPONENTS` / `GLOBAL_PLUGINS` window 键预留常量一并删除（插件注册表挂类静态，不采用 window 键方案）。
-_Avoid_: `window.__AUTOSPARK_DIRECTIVES__.push(...)`（改用 `AutoSpark.directive(spec)` / `AutoSpark.defineDirective(spec)`）、`__AUTOSPARK_COMPONENTS__` / `__AUTOSPARK_PLUGINS__`（改用 `AutoSpark.components` / `AutoSpark.actions`）、缓存全局队列数组引用（旧 Proxy 边角约定随机制一同消亡）
+_Avoid_: `window.__AUTOSPARK_DIRECTIVES__.push(...)`（改用 `AutoSpark.directive(spec)`）、`__AUTOSPARK_COMPONENTS__`（改用 `AutoSpark.components` / `AutoSpark.actions`）、缓存全局队列数组引用（旧 Proxy 边角约定随机制一同消亡）
+_例外_: `__AUTOSPARK_PLUGINS__`——本条否决的 `__AUTOSPARK_*__` 是**注册表**载体；ADR-0114 复用了同一个名字作**预加载队列**（只解决脚本求值顺序，注册表仍挂类静态），是唯一存活的 window 键。不要据此条目判定 `__AUTOSPARK_PLUGINS__` 已废弃。
 
 **断点事件 / viewport:change 与档名写回（ADR-0105 废除）**:
 已废弃。ADR-0101 时代的档位跨越事件（`detail = { from, to }`，向下传播经 scope 子树 + 宿主冒泡）与 x-container 值双态写回（`x-container="path"` 档名单向写回）随档位判定收归全局 `$.viewport` 一并废除——响应式订阅是更通用同位替代（`x-show="$viewport==='md'"`、插值 / watch / x-effect 全通），`from/to` 由消费方自行记忆旧值。连带废除：实例级 mql 监听、实例级 `breakpoints` 选项、`options.container` 键。详见 ADR-0105。

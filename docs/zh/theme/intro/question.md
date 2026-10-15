@@ -39,7 +39,7 @@ scope.dark = true;
 scope.size = "small";
 ```
 
-构造选项里的参数仍会被**持久化**，所以下次加载时经水合会补齐属性（表现就是「刷新后才生效」）。颜色类参数（`themeColor` / 语义色）不受影响，可以直接写在构造选项里。详见[尺寸参数 · 现状与注意事项](../guide/size.md#sync-pitfall)。
+构造选项里的参数仍会被**持久化**，所以下次加载时经水合会补齐属性（表现就是「刷新后才生效」）。颜色类参数（`themeColor` / 语义色）不受影响，可以直接写在构造选项里。详见[局部主题 · 构造选项里的模式 / 尺寸不会立即生效](../guide/local-scope.md#sync-pitfall)。
 
 ## 主题色改了，为什么读回来是 hex？
 
@@ -112,12 +112,12 @@ new ThemeManager({ storageKey: "myapp" }); // 读写 myapp-styles / myapp-scope-
 两者**并存**：`dark` 是「这套作用域现在是暗色」，`data-dark` 是「这个元素独立启用暗色」。同样地，`colorized` ↔ `data-colorized`、`data-uncolored`（无彩）、`data-light`（在暗语境里切回亮色）。
 
 ::: warning 组合属性要落在同一元素
-`data-dark` + `data-colorized` 的叠加块要求两个属性在**同一元素**上；`html[dark]` + 后代 `[data-colorized]` 这种跨元素组合不命中叠加块。这是既有语义，降级手段是给该元素挂 `data-uncolored`。详见[显示模式与色彩维度](../guide/mode.md)。
+`data-dark` + `data-colorized` 的叠加块要求两个属性在**同一元素**上；`html[dark]` + 后代 `[data-colorized]` 这种跨元素组合不命中叠加块。这是既有语义，降级手段是给该元素挂 `data-uncolored`。详见[多彩模式](../guide/color-colorized.md)。
 :::
 
 ## 为什么暗色下主色比亮色"浅"了？
 
-有意为之：暗色下主题梯度**方向反转**，且 `--auto-theme-color` 从 `theme-5` 提到 `theme-6`（`darkDerivedVars`）——深底上需要更浅的主色才够对比度。边框、禁用态、输入框背景同理都有一档暗色专属取值。见[显示模式与色彩维度](../guide/mode.md)。
+有意为之：暗色下主题梯度**方向反转**，且 `--auto-theme-color` 从 `theme-5` 提到 `theme-6`（`darkDerivedVars`）——深底上需要更浅的主色才够对比度。边框、禁用态、输入框背景同理都有一档暗色专属取值。见[明暗主题](../guide/color-dark.md)。
 
 ## 如何自定义语义色？
 
@@ -128,7 +128,7 @@ themeManager.addScope({ id: "s", primary: "#722ed1", danger: "#ff4d4f" });
 themeManager.update({ success: "#00b96b" }); // 运行时改（只重注入语义色块）
 ```
 
-传**品牌基准色**，不要传已调浅的颜色——它会被当作梯度种子展开成 10 阶标尺。`var()` 引用会被豁免梯度化（默认 `primary: var(--auto-theme-color)` 即此情形）。见[语义色](../guide/semantic.md)。
+传**品牌基准色**，不要传已调浅的颜色——它会被当作梯度种子展开成 10 阶标尺。`var()` 引用会被豁免梯度化（默认 `primary: var(--auto-theme-color)` 即此情形）。见[语义颜色](../guide/color-semantic.md)。
 
 ## 组件类（`.auto-btn` / `.auto-card` …）没样式？
 
@@ -154,7 +154,7 @@ themeManager.root.download(); // 直接下载为文件
 cd packages/theme && bun scripts/check-dark-contrast.ts
 ```
 
-26 项检查覆盖正文 / 次要文字 / 主色 / 语义色 / 交互态 / 边框 / 禁用态在亮暗与多彩矩阵下的对比度，任一 FAIL 退出码为 1，可直接挂 CI。见[语义色 · 对比度验收](../guide/semantic.md#contrast-check)。
+26 项检查覆盖正文 / 次要文字 / 主色 / 语义色 / 交互态 / 边框 / 禁用态在亮暗与多彩矩阵下的对比度，任一 FAIL 退出码为 1，可直接挂 CI。见[语义颜色 · 对比度验收](../guide/color-semantic.md#contrast-check)。
 
 ## 没有 `document` 的环境（SSR / 单测）会报错吗？
 
@@ -162,4 +162,4 @@ cd packages/theme && bun scripts/check-dark-contrast.ts
 
 ---
 
-还有疑问？按[指南](../guide/initial.md)里的章节顺序逐个参数查阅，或直接读[变量体系](../guide/variables.md)确认某个变量的来源与用途。
+还有疑问？按[指南](../guide/initial.md)里的章节顺序逐个参数查阅，或直接读[工作原理](../guide/how-it-works.md)确认某个变量的来源与用途。

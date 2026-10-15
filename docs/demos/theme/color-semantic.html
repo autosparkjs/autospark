@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>语义颜色</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：语义颜色（Semantic Colors）</div>
+                <p>
+                    语义色是<strong>操作结果的语言</strong>：<code>primary</code>（品牌 / 主操作）、
+                    <code>success</code>、<code>warning</code>、<code>danger</code>、<code>info</code>。
+                    它们的值不是「一个颜色」，而是<strong>梯度种子</strong>——库里会展开成同系 10 阶标尺。
+                </p>
+                <ul>
+                    <li>亮色：直引种子原值（与固定 hex 时代零差异）；暗色：提亮引用浅档（<code>-3</code>）——深底上语义色要更亮而不是更暗</li>
+                    <li><code>primary</code> 默认 <code>var(--auto-theme-color)</code>：跟随主题色，<code>var()</code> 引用豁免梯度化</li>
+                    <li>语义色与调色板形态参数属<strong>宿主级定制</strong>，不进参数持久化</li>
+                </ul>
+                <pre>ThemePro.update({ danger: "#ff4d4f", success: "#00b96b" })</pre>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">五色并排（切主题色观察 primary 跟随）</div>
+                <div class="auto-card-body col">
+                    <div class="grid tight">
+                        <div style="padding:0.7rem;text-align:center;color:#fff;border-radius:var(--auto-border-radius);background:var(--auto-primary-color);">
+                            --auto-primary-color
+                        </div>
+                        <div style="padding:0.7rem;text-align:center;color:#fff;border-radius:var(--auto-border-radius);background:var(--auto-success-color);">
+                            --auto-success-color
+                        </div>
+                        <div style="padding:0.7rem;text-align:center;color:#fff;border-radius:var(--auto-border-radius);background:var(--auto-warning-color);">
+                            --auto-warning-color
+                        </div>
+                        <div style="padding:0.7rem;text-align:center;color:#fff;border-radius:var(--auto-border-radius);background:var(--auto-danger-color);">
+                            --auto-danger-color
+                        </div>
+                        <div style="padding:0.7rem;text-align:center;color:#fff;border-radius:var(--auto-border-radius);background:var(--auto-info-color);">
+                            --auto-info-color
+                        </div>
+                        <div style="padding:0.7rem;text-align:center;color:#fff;border-radius:var(--auto-border-radius);background:var(--auto-theme-color);">
+                            --auto-theme-color
+                        </div>
+                    </div>
+                    <p class="hint">
+                        <code>--auto-theme-color</code> 也列在这里：它是「主题色语义位」，与五个固定语义色同构。
+                        暗色下它从 <code>theme-5</code> 提档到 <code>theme-6</code>。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">梯度种子：每色展开为 10 阶标尺</div>
+                <div class="auto-card-body col">
+                    <div class="hint">success 标尺 <code>--x-color-success-0..9</code></div>
+                    <div class="theme-strip" data-strip="--x-color-success-" data-strip-label></div>
+                    <div class="hint">warning 标尺 <code>--x-color-warning-0..9</code></div>
+                    <div class="theme-strip" data-strip="--x-color-warning-" data-strip-label></div>
+                    <div class="hint">danger 标尺 <code>--x-color-danger-0..9</code></div>
+                    <div class="theme-strip" data-strip="--x-color-danger-" data-strip-label></div>
+                    <p class="hint">
+                        标尺方向恒定（0 浅 → 9 深，不随模式反转）；<code>--x-color-{name}</code> 才是「当前该用的那一档」：
+                        亮色直引种子、暗色指向 <code>-3</code>。业务可引用档位做浅底 / 深字（如 <code>danger-1</code> 底 + <code>danger-8</code> 字）。
+                    </p>
+                    <div class="grid">
+                        <div style="padding:0.6rem;border-radius:var(--auto-border-radius);background:var(--x-color-success-1);color:var(--x-color-success-8);">
+                            success-1 底 / success-8 字
+                        </div>
+                        <div style="padding:0.6rem;border-radius:var(--auto-border-radius);background:var(--x-color-danger-1);color:var(--x-color-danger-8);">
+                            danger-1 底 / danger-8 字
+                        </div>
+                        <div style="padding:0.6rem;border-radius:var(--auto-border-radius);background:var(--x-color-warning-1);color:var(--x-color-warning-8);">
+                            warning-1 底 / warning-8 字
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">组件消费方：<code>.auto-alert</code> 与语义按钮</div>
+                <div class="auto-card-body col">
+                    <div class="auto-alert success">
+                        <div class="title">保存成功<span class="closeable"></span></div>
+                        <div class="description">底色 / 边框 / 文字 / 图标全部取 success 语义色。</div>
+                    </div>
+                    <div class="auto-alert warning">
+                        <div class="title">配额即将用尽</div>
+                        <div class="description">warning 变体；描述用次要文字色。</div>
+                    </div>
+                    <div class="auto-alert danger">
+                        <div class="title">删除失败</div>
+                        <div class="description">danger 变体（<code>error</code> 是它的别名）。</div>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <button class="auto-btn primary">primary</button>
+                        <button class="auto-btn success">success</button>
+                        <button class="auto-btn warning">warning</button>
+                        <button class="auto-btn error">error</button>
+                        <button class="auto-btn info">info</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">运行时覆盖：作用域级定制（本页四个独立作用域）</div>
+                <div class="auto-card-body col">
+                    <div class="grid" id="semantic-grid"></div>
+                    <p class="hint">
+                        每格一个独立作用域：<code>addScope({ id, danger: 色值 })</code> 只影响该子树，
+                        全局语义色不变——适合「某个业务模块需要自己的警示色」这类场景。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">对比度验收</div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        改语义色后建议跑一次校准脚本（与 <code>src/vars</code> 变量同源，变量一改脚本自动跟随）：
+                    </p>
+                    <pre>cd packages/theme &amp;&amp; bun scripts/check-dark-contrast.ts</pre>
+                    <p class="hint">
+                        26 项检查覆盖正文 / 次要文字 / 主色 / 语义色 / 交互态 / 边框 / 禁用态在亮暗与多彩矩阵下的表现，任一 FAIL 退出码为 1。
+                        暗色下语义色实测 4.67 ~ 10.93:1（旧方案混透明只有 1.6 ~ 2.2:1）；
+                        亮色下黄绿 / 黄色系语义色在白底上物理受限（约 2.03 ~ 4.58:1，未达 AA），属已知遗留。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+
+        <script>
+            // 作用域级语义色覆盖：danger / success 各给一个自定义种子
+            var host = document.getElementById("semantic-grid");
+            var cases = [
+                { id: "sem-danger", label: "danger: #ff4d4f", options: { danger: "#ff4d4f" } },
+                { id: "sem-success", label: "success: #00b96b", options: { success: "#00b96b" } },
+                { id: "sem-primary", label: "primary: #722ed1", options: { primary: "#722ed1" } },
+                { id: "sem-multi", label: "info + warning 同时覆盖", options: { info: "#13c2c2", warning: "#faad14" } },
+            ];
+            cases.forEach(function (item) {
+                var box = document.createElement("div");
+                box.className = "scope-box";
+                box.id = item.id;
+                box.innerHTML =
+                    '<div class="box-label">' +
+                    item.label +
+                    '</div><div class="auto-alert danger"><div class="title">danger 提示</div>' +
+                    '<div class="description">本作用域内的语义色</div></div>' +
+                    '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">' +
+                    '<button class="auto-btn primary">primary</button>' +
+                    '<button class="auto-btn success">success</button>' +
+                    '<button class="auto-btn warning">warning</button>' +
+                    '<button class="auto-btn info">info</button></div>';
+                host.appendChild(box);
+                var scope = ThemePro.addScope(
+                    Object.assign({ id: item.id, persistence: false }, item.options),
+                );
+                if (scope) scope.attach(box);
+            });
+        </script>
+    </body>
+</html>

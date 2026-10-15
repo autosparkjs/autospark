@@ -32,7 +32,7 @@ themeManager.update({ danger: "#ff4d4f" }); // 传品牌基准色，而不是调
 - 亮色视觉零变化，升级不破坏既有观感；
 - `var()` 引用（如默认 `primary: var(--auto-theme-color)`）自动豁免梯度化，语义由主题标尺承担。
 
-**入口**：[语义色](../guide/semantic.md)
+**入口**：[语义颜色](../guide/color-semantic.md)
 
 ## 三、模式与色彩双维度、四属性、可局部
 
@@ -49,9 +49,9 @@ themeManager.update({ danger: "#ff4d4f" }); // 传品牌基准色，而不是调
 - 方向随语境——`data-uncolored` 在暗语境回暗灰、亮语境回亮灰；多彩元素自动取所在语境的映射；
 - 局部启用对组件类透明，组件层保持模式无关。
 
-**代价**：叠加态要求两个属性落在**同一元素**（既有语义，见[已知限制](../guide/mode.md#known-limits)）。
+**代价**：叠加态要求两个属性落在**同一元素**（既有语义，见[已知限制](../guide/color-colorized.md#known-limits)）。
 
-**入口**：[显示模式与色彩维度](../guide/mode.md)
+**入口**：[明暗主题](../guide/color-dark.md)、[多彩模式](../guide/color-colorized.md)
 
 ## 四、作用域：全局与局部同构
 
@@ -67,7 +67,7 @@ themeManager.addScope({ id: "preview", elements: ["#preview"], themeColor: "mage
 - 作用域边界显式（写进属性），跨作用域裸命中被收敛到子树内，不会错拿别的作用域的梯度；
 - 支持 `docRoot` 指向 `shadowRoot`，WebComponent 内同样可用。
 
-**入口**：[主题作用域](../guide/scope.md)
+**入口**：[局部主题](../guide/local-scope.md)
 
 ## 五、四维尺寸：密度可调
 
@@ -79,7 +79,7 @@ themeManager.addScope({ id: "preview", elements: ["#preview"], themeColor: "mage
 - 尺寸可局部覆盖，一个页面里可以同时有宽松主区与紧凑侧栏；
 - 尺寸变量（`--x-font-size-*` / `--x-spacing-*` …）本身是公共资产，业务样式可直接引用档位而不是写死数值。
 
-**入口**：[尺寸参数](../guide/size.md)
+**入口**：[字体](../guide/font.md)、[圆角](../guide/radius.md)、[阴影](../guide/shadow.md)、[间距](../guide/spacing.md)
 
 ## 六、持久化与回访零闪
 
@@ -103,7 +103,7 @@ cd packages/theme && bun scripts/check-dark-contrast.ts   # 任一 FAIL 退出�
 
 **优点**：暗色各档（正文 / 次要 / 主色 / 语义色 / 交互态 / 边框 / 禁用）都有数值兜底，颜色调整不必靠肉眼。
 
-**入口**：[语义色 · 对比度验收](../guide/semantic.md#contrast-check)
+**入口**：[语义颜色 · 对比度验收](../guide/color-semantic.md#contrast-check)
 
 ## 八、静态层 + 运行时层可分离
 
@@ -115,7 +115,7 @@ cd packages/theme && bun scripts/check-dark-contrast.ts   # 任一 FAIL 退出�
 - 需要换肤的项目引入运行时，静态层的组件类自动消费新变量，无需改造；
 - 语义色与主题标尺**只**由运行时注入，不存在双真值源竞争。
 
-**入口**：[静态样式层与预设主题](../guide/static.md)
+**入口**：[静态主题包](../guide/static.md)
 
 ## 九、工程性
 

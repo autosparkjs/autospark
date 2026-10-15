@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>圆角</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：圆角（Border Radius）</div>
+                <p>
+                    圆角为面板、按钮、输入框提供统一的圆角语言：基础量 <code>--x-border-radius-*</code> 六档
+                    （另有 <code>pill</code> / <code>circle</code> 两个特殊值），档位开关 <code>data-radius</code>，
+                    派生量 <code>--auto-border-radius</code> 供组件消费。
+                </p>
+                <ul>
+                    <li>六档：<code>none</code>（直角）/ <code>x-small</code> / <code>small</code> / <code>medium</code>（默认）/ <code>large</code> / <code>x-large</code></li>
+                    <li>特殊值：<code>pill</code>（胶囊 9999px）、<code>circle</code>（正圆 50%，需正方形容器）——仅基础量，不参与档位切换</li>
+                    <li>局部换档：任意容器加 <code>data-radius="档位"</code> 即可，无需改全局</li>
+                </ul>
+                <pre>ThemePro.radius = "large"                       // 全局
+&lt;div data-radius="none"&gt;…&lt;/div&gt;              // 元素域局部</pre>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">六档 + 两个特殊值（同尺寸元素，仅圆角不同）</div>
+                <div class="auto-card-body col">
+                    <div style="display:flex;gap:0.9rem;flex-wrap:wrap;align-items:flex-start;">
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;">
+                            <div style="width:4.2rem;height:2.8rem;border-radius:var(--x-border-radius-none);background:var(--x-color-theme-1);border:var(--auto-border);display:flex;align-items:center;justify-content:center;font-size:0.72rem;">none</div>
+                            <code class="caption">--x-border-radius-none</code>
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;">
+                            <div style="width:4.2rem;height:2.8rem;border-radius:var(--x-border-radius-x-small);background:var(--x-color-theme-2);border:var(--auto-border);display:flex;align-items:center;justify-content:center;font-size:0.72rem;">x-small</div>
+                            <code class="caption">x-small</code>
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;">
+                            <div style="width:4.2rem;height:2.8rem;border-radius:var(--x-border-radius-small);background:var(--x-color-theme-3);border:var(--auto-border);display:flex;align-items:center;justify-content:center;font-size:0.72rem;">small</div>
+                            <code class="caption">small</code>
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;">
+                            <div style="width:4.2rem;height:2.8rem;border-radius:var(--x-border-radius-medium);background:var(--x-color-theme-4);border:var(--auto-border);display:flex;align-items:center;justify-content:center;font-size:0.72rem;">medium</div>
+                            <code class="caption">medium（默认）</code>
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;">
+                            <div style="width:4.2rem;height:2.8rem;border-radius:var(--x-border-radius-large);background:var(--x-color-theme-5);border:var(--auto-border);display:flex;align-items:center;justify-content:center;font-size:0.72rem;">large</div>
+                            <code class="caption">large</code>
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;">
+                            <div style="width:4.2rem;height:2.8rem;border-radius:var(--x-border-radius-x-large);background:var(--x-color-theme-6);border:var(--auto-border);display:flex;align-items:center;justify-content:center;font-size:0.72rem;">x-large</div>
+                            <code class="caption">x-large</code>
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;">
+                            <div style="width:4.2rem;height:2.8rem;border-radius:var(--x-border-radius-pill);background:var(--x-color-theme-7);border:var(--auto-border);display:flex;align-items:center;justify-content:center;font-size:0.72rem;">pill</div>
+                            <code class="caption">pill（9999px）</code>
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;">
+                            <div style="width:4.2rem;height:2.8rem;border-radius:var(--x-border-radius-circle);background:var(--x-color-theme-8);border:var(--auto-border);display:flex;align-items:center;justify-content:center;font-size:0.72rem;">circle</div>
+                            <code class="caption">circle（50%）</code>
+                        </div>
+                    </div>
+                    <p class="hint">
+                        <code>pill</code> 在矩形上呈完整胶囊；<code>circle</code> 在矩形上是椭圆——要正圆需搭配正方形容器（头像、图标底座）。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">组件联动：面板切「圆角」观察</div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
+                        <button class="auto-btn primary">主按钮</button>
+                        <button class="auto-btn small pill">胶囊小按钮</button>
+                        <input class="auto-input" placeholder="输入框" />
+                        <div class="auto-alert info">提示块 .auto-alert</div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
+                        <div style="padding:0.6rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">
+                            background: var(--auto-secondary-bgcolor) + border-radius: var(--auto-border-radius)
+                        </div>
+                        <div class="auto-card" style="border:var(--auto-border);">
+                            <div class="auto-card-header">卡片头</div>
+                            <div class="auto-card-body">卡片体随档位改圆角</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">同一圆角在不同尺寸元素上的观感</div>
+                <div class="auto-card-body col">
+                    <div class="auto-card-body-item" style="gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:var(--x-border-radius-medium);background:var(--x-color-theme-2);font-size:0.7rem;">小</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:4rem;height:4rem;border-radius:var(--x-border-radius-medium);background:var(--x-color-theme-3);font-size:0.75rem;">中</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:7rem;height:5rem;border-radius:var(--x-border-radius-medium);background:var(--x-color-theme-4);font-size:0.8rem;">大</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:3rem;height:3rem;border-radius:var(--x-border-radius-circle);background:var(--auto-theme-color);color:#fff;font-size:0.7rem;">circle</span>
+                        <span style="display:inline-flex;align-items:center;padding:0.3em 1em;border-radius:var(--x-border-radius-pill);background:var(--auto-selected-bgcolor);color:var(--auto-selected-color);border:1px solid var(--auto-selected-border-color);">胶囊标签</span>
+                    </div>
+                    <p class="hint">
+                        圆角相同（<code>medium</code>）而尺寸不同：小元素视觉接近直角、大容器更显圆润——
+                        小控件宜选 <code>x-small</code> / <code>small</code>，大面积容器宜选 <code>large</code> / <code>x-large</code>。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">元素域：<code>data-radius</code> 局部换档（含与模式域叠加）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-radius="none">
+                        <div class="box-label">data-radius="none"（直角）</div>
+                        <button class="auto-btn small">按钮</button>
+                        <input class="auto-input" placeholder="输入框" />
+                        <div style="padding:0.5rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">色块</div>
+                    </div>
+                    <div class="scope-box" data-radius="x-large">
+                        <div class="box-label">data-radius="x-large"</div>
+                        <button class="auto-btn small">按钮</button>
+                        <input class="auto-input" placeholder="输入框" />
+                        <div style="padding:0.5rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">色块</div>
+                    </div>
+                    <div class="scope-box" data-dark data-radius="x-large">
+                        <div class="box-label">data-dark + data-radius="x-large"（两域叠加）</div>
+                        <button class="auto-btn small">按钮</button>
+                        <input class="auto-input" placeholder="输入框" />
+                        <div style="padding:0.5rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">色块</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">四角组合：只圆顶部（卡片头形态）</div>
+                <div class="auto-card-body col">
+                    <div style="border:var(--auto-border);border-radius:var(--auto-border-radius);overflow:hidden;">
+                        <div style="padding:0.6em 1em;background:var(--auto-panel-header-bgcolor);font:var(--auto-panel-header);">
+                            顶部两角圆、底部两角直
+                        </div>
+                        <div style="padding:0.8em 1em;background:var(--auto-bgcolor);">
+                            border-radius: var(--auto-border-radius) var(--auto-border-radius) 0 0
+                        </div>
+                    </div>
+                    <div class="auto-card-body-item" style="justify-content:center;height:3rem;border-radius:var(--x-border-radius-large) 0 var(--x-border-radius-large) 0;background:var(--auto-selected-bgcolor);border:1px solid var(--auto-selected-border-color);">
+                        对角圆：large 0 large 0
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <aside class="demo-panel"><theme-controls groups="radius,mode"></theme-controls></aside>
+    </body>
+</html>

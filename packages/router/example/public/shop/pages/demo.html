@@ -68,10 +68,10 @@
         <h2>💾 keepAlive 缓存演示</h2>
         <p>保持页面状态，避免重复渲染</p>
         <div class="demo-buttons">
-            <autospark-link to="/order-form">
+            <auto-link to="/order-form">
                 <span>📝</span>
                 <span>打开订单表单（keepAlive）</span>
-            </autospark-link>
+            </auto-link>
         </div>
         <div class="demo-hint">
             💡 提示：在表单中填写内容后跳转到其他页面，返回时表单内容会保持
@@ -83,22 +83,22 @@
         <h2>⚠️ 错误处理演示</h2>
         <p>测试各种错误场景和自定义错误页面</p>
         <div class="demo-buttons">
-            <autospark-link to="/non-existent-page">
+            <auto-link to="/non-existent-page">
                 <span>🔗</span>
                 <span>访问 404 页面</span>
-            </autospark-link>
-            <autospark-link to="/test-error-500">
+            </auto-link>
+            <auto-link to="/test-error-500">
                 <span>🔗</span>
                 <span>模拟 500 错误</span>
-            </autospark-link>
-            <autospark-link to="/test-timeout">
+            </auto-link>
+            <auto-link to="/test-timeout">
                 <span>🔗</span>
                 <span>模拟超时错误</span>
-            </autospark-link>
-            <autospark-link to="/error-test">
+            </auto-link>
+            <auto-link to="/error-test">
                 <span>🔗</span>
                 <span>错误测试中心</span>
-            </autospark-link>
+            </auto-link>
         </div>
     </section>
 
@@ -107,10 +107,10 @@
         <h2>⚡ 预加载演示</h2>
         <p>预先加载页面，提升用户体验</p>
         <div class="demo-buttons">
-            <autospark-link to="/heavy-page">
+            <auto-link to="/heavy-page">
                 <span>📄</span>
                 <span>访问重型页面（已预加载）</span>
-            </autospark-link>
+            </auto-link>
         </div>
         <div class="demo-hint">
             💡 提示：该页面在路由初始化时已预加载，访问时会立即显示
@@ -122,14 +122,14 @@
         <h2>↪️ 重定向演示</h2>
         <p>自动将旧路由重定向到新路由</p>
         <div class="demo-buttons">
-            <autospark-link to="/old-products">
+            <auto-link to="/old-products">
                 <span>🔗</span>
                 <span>访问旧产品页（重定向到 /products）</span>
-            </autospark-link>
-            <autospark-link to="/p/p1">
+            </auto-link>
+            <auto-link to="/p/p1">
                 <span>🔗</span>
                 <span>访问旧产品详情（重定向到 /product/p1）</span>
-            </autospark-link>
+            </auto-link>
         </div>
     </section>
 
@@ -206,7 +206,7 @@
     }
 
     .demo-buttons button,
-    .demo-buttons autospark-link {
+    .demo-buttons auto-link {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -222,7 +222,7 @@
     }
 
     .demo-buttons button:hover,
-    .demo-buttons autospark-link:hover {
+    .demo-buttons auto-link:hover {
         border-color: var(--primary-color);
         color: var(--primary-color);
         transform: translateY(-1px);

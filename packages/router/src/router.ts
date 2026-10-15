@@ -23,6 +23,8 @@ import {
 } from "./features";
 import { getBaseUrl, getDocumentBase } from "@/utils/getBaseUrl";
 
+import { AutoSparkLink, isDangerousProtocol } from "./components/Link";
+
 import { HookManager } from "./features/hooks";
 import { AutoSparkRouteTable } from "./features/routes";
 import { setupRouterEngine, type RouterEngineBinding } from "./engine/engineHost";
@@ -446,6 +448,137 @@ export class AutoSparkRouter extends Mixin(
     }
 
     /**
+     * 注册文档级链接点击委托（attach 时调用，返回注销函数）
+     *
+     * 导航统一由此处的文档级委托接管：
+     * - `auto-link` 组件自身不绑定点击监听，命中的链接调用其 {@link AutoSparkLink.handleClick}
+     *   （组件提供 base 前缀自动化、`replace` 声明等增强，见 ADR-0009）
+     * - 普通 `<a href>` 指向内部路由时同样接管（SPA 导航，放行矩阵见
+     *   {@link _handlePlainAnchorClick}）
+     *
+     * 运行期才插入 DOM 的链接因此无需逐个注册；`detach` 随 `_cleanups` 一并注销。
+     */
+    protected _attachLinkDelegation(this: AutoSparkRouter): () => void {
+        const handler = (event: MouseEvent) => this._handleDocumentLinkClick(event);
+        document.addEventListener("click", handler);
+        return () => document.removeEventListener("click", handler);
+    }
+
+    /**
+     * 文档级点击委托：组件路径优先，无组件命中时走 plain `<a>` 拦截
+     * - 已被处理（defaultPrevented）则跳过，避免重复导航
+     */
+    protected _handleDocumentLinkClick(this: AutoSparkRouter, event: MouseEvent): void {
+        if (event.defaultPrevented) return;
+        // 组件路径：auto-link 自带 to/replace/base 前缀语义
+        const link = this._findLinkFromEvent(event);
+        if (link) {
+            link.handleClick(event);
+            return;
+        }
+        // plain <a> 路径：指向内部路由的普通锚点由 router 接管
+        this._handlePlainAnchorClick(event);
+    }
+
+    /** 从事件路径（或 target.closest 兜底）中解析被点击的 auto-link */
+    protected _findLinkFromEvent(this: AutoSparkRouter, event: Event): AutoSparkLink | undefined {
+        if (typeof event.composedPath === "function") {
+            for (const node of event.composedPath()) {
+                if (node instanceof AutoSparkLink) return node;
+                if (node === this.host || node === document) break;
+            }
+        }
+        const target = event.target as Element | null;
+        const closest = target?.closest?.("auto-link");
+        return closest instanceof AutoSparkLink ? closest : undefined;
+    }
+
+    /**
+     * 从事件路径（或 target.closest 兜底）中解析被点击的普通锚点，
+     * 且锚点必须位于宿主子树内（多 router 并存时各管各的子树）
+     */
+    protected _findAnchorFromEvent(this: AutoSparkRouter, event: Event): HTMLAnchorElement | undefined {
+        let anchor: HTMLAnchorElement | undefined;
+        if (typeof event.composedPath === "function") {
+            for (const node of event.composedPath()) {
+                if (node instanceof HTMLAnchorElement) {
+                    anchor = node;
+                    break;
+                }
+                if (node === this.host || node === document) break;
+            }
+        }
+        if (!anchor) {
+            const target = event.target as Element | null;
+            const closest = target?.closest?.("a");
+            if (closest instanceof HTMLAnchorElement) anchor = closest;
+        }
+        if (!anchor || !this.host.contains(anchor)) return undefined;
+        return anchor;
+    }
+
+    /**
+     * plain `<a>` 拦截（ADR-0009）：普通锚点指向内部路由时由 router 接管 SPA 导航。
+     * plain `<a>` 无 replace 语义，统一 push；href 内含 base 前缀时剥除后再 push。
+     *
+     * 按业界惯例放行以下情形，交还浏览器默认行为：
+     * 修饰键（meta/ctrl/shift/alt）、非左键（中键/右键）、target 非 `_self`、
+     * `download` 属性、`rel` 含 external（token 级匹配）、非 http(s) 协议
+     * （mailto:/tel:/blob: 等）、纯页内锚点（href 以 `#` 开头，hash 模式下
+     * `#/x` 亦由 hashchange 监听自然接管）、跨域链接。
+     * 唯一例外：危险协议（javascript:/data:）对齐组件侧 T-02-01，preventDefault 且不导航。
+     */
+    protected _handlePlainAnchorClick(this: AutoSparkRouter, event: MouseEvent): void {
+        const anchor = this._findAnchorFromEvent(event);
+        if (!anchor) return;
+        // auto-link 托管的锚点归组件路径处理（正常已在 _findLinkFromEvent 返回，防御性兜底）
+        if (anchor.closest("auto-link")) return;
+
+        // 修饰键 / 非左键：交给浏览器（新标签、辅助菜单等）
+        if (
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey ||
+            event.button !== 0
+        ) {
+            return;
+        }
+        // target 指向非当前窗口（_blank / _top / 命名窗口）
+        const target = anchor.getAttribute("target");
+        if (target && target !== "_self") return;
+        // 声明下载、rel 含 external（token 级匹配，兼容 "external noopener" 等组合）
+        if (anchor.hasAttribute("download")) return;
+        const rel = anchor.getAttribute("rel") ?? "";
+        if (rel.split(/\s+/).includes("external")) return;
+
+        // 无 href（非链接 <a> 浏览器本就不响应）
+        const rawHref = anchor.getAttribute("href");
+        if (!rawHref) return;
+        // 纯页内锚点：滚动行为交给浏览器
+        if (rawHref.startsWith("#")) return;
+        // 危险协议：拦截且不导航
+        if (isDangerousProtocol(rawHref)) {
+            event.preventDefault();
+            return;
+        }
+
+        // 仅接管同源 http(s) 链接
+        let url: URL;
+        try {
+            url = new URL(rawHref, window.location.href);
+        } catch {
+            return; // 无法解析 → 放行
+        }
+        if (url.protocol !== "http:" && url.protocol !== "https:") return;
+        if (url.origin !== window.location.origin) return;
+
+        // 接管：剥 base 前缀后 push（pathname + search + hash）
+        event.preventDefault();
+        this.push(removePathPrefix(url.pathname, this.options.base) + url.search + url.hash);
+    }
+
+    /**
      * 等待结束导航
      */
     async isStopNavigating() {
@@ -564,6 +697,9 @@ export class AutoSparkRouter extends Mixin(
                 this.dataLoader = new DataLoader(this);
                 // 开始监听路由变化
                 this._cleanups.push(this.history.listen(this.onRouteUpdate.bind(this)));
+
+                // 文档级链接点击委托：统一接管 auto-link 与 plain <a> 导航（组件自身不绑定监听）
+                this._cleanups.push(this._attachLinkDelegation());
 
                 // 设置 context provider
                 this.attachContextProvider();

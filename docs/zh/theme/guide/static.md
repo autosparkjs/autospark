@@ -1,20 +1,22 @@
-# 静态样式层与预设主题
+# 静态主题包
 
 ## 概述
 
-主题库的样式分成两层，可以独立使用、也可以叠加：
+主题库的样式分三层，可独立使用也可叠加：
 
-| 层 | 内容 | 产物 |
+| 层 | 内容 | 产物 / 入口 |
 | --- | --- | --- |
-| **静态样式层** | reset、工具类、组件类（`.auto-btn` / `.auto-card` / `.auto-input` …）、灰阶常量、图标、动画 | `dist/index.css`（由 Less 编译） |
+| **静态样式层** | reset、工具类、组件类（`.auto-btn` / `.auto-card` / `.auto-input` …）、灰阶常量、图标、动画 | `dist/index.css`（Less 编译） |
 | **运行时主题层** | 主题标尺、语义色、模式 / 色彩 / 尺寸变量、派生层 `--auto-*` | 由 `ThemeManager` 注入 `<style>` |
-| **静态预设主题** | 若干套写死的主题标尺（`data-theme=blue` 等） | `src/themes/*.less` |
+| **静态主题包** | 11 套写死的主题标尺（`data-theme=blue` 等） | `src/themes/*.less` → `dist/themes/*.css` |
+
+<demo html="theme/static-themes.html"/>
 
 ## 指南
 
 ### 静态样式层的组成
 
-`src/styles/index.less` 是聚合入口，仅聚合以下五个文件：
+`src/styles/index.less` 是聚合入口，仅聚合以下六个文件：
 
 ```less
 @import './reset.less'; // 基础 reset
@@ -33,10 +35,10 @@
 | `src/components/index.less` | 组件类：`card` / `button` / `alert` / `closeable` / `input` |
 
 ```js
-// 全量引入（示例页的做法）
-import "../src/styles/index.less";
-import "../src/styles/input.less";
-import "../src/components/index.less";
+// 全量引入（示例页与文档 demo 的做法）
+import "…/dist/index.css"; // 聚合入口
+import "…/src/styles/input.less";
+import "…/src/components/index.less";
 ```
 
 `package.json` 的 `build:css` 脚本只编译聚合入口：
@@ -56,9 +58,11 @@ lessc src/styles/index.less dist/index.css
 
 > 若静态层再给一份默认值，会在层叠中与运行时注入形成**双真值源竞争**。
 
-### 静态预设主题
+### 静态主题包：11 套预设
 
-`src/themes/*.less` 提供 11 个静态主题文件：`blue` / `cyan` / `dark` / `green` / `lime` / `magenta` / `orange` / `purple` / `red` / `volcano` / `yellow`。用法是给元素挂属性：
+`src/themes/*.less` 提供 11 个静态主题文件：
+`blue` / `cyan` / `dark` / `green` / `lime` / `magenta` / `orange` / `purple` / `red` / `volcano` / `yellow`。
+用法是给元素挂属性：
 
 ```html
 <html data-theme="blue">…</html>
@@ -71,19 +75,21 @@ lessc src/styles/index.less dist/index.css
 | `cyan` / `green` / `lime` / `orange` / `yellow` | `blue` / `dark` / `magenta` / `purple` / `red` / `volcano` |
 
 ::: warning 用前先看方向
-静态主题文件是按各自使用场景生成的历史产物：在亮语境里引一份「`theme-0` 最深」的文件，背景取到的是最深档。使用前请核对它的 `color-scheme` 声明与色阶方向。
+静态主题文件是按各自使用场景生成的历史产物：在亮语境里引一份「`theme-0` 最深」的文件，背景取到的是最深档。
+使用前请核对它的 `color-scheme` 声明与色阶方向。
 :::
 
 ### 静态预设 vs 运行时预设
 
-| | 静态预设文件 | 运行时预设表（`themeManager.presets`） |
+| | 静态主题文件 | 运行时预设表（`themeManager.presets`） |
 | --- | --- | --- |
 | 清单 | 见上（无 `gold` / `geekblue` / `techblue`，多 `yellow` / `dark`） | `blue` / `red` / `volcano` / `orange` / `lime` / `gold` / `green` / `cyan` / `geekblue` / `techblue` / `purple` / `magenta` |
 | 色阶来源 | 构建期写死的 hex | 运行时按算法从种子派生 |
 | 切换方式 | 改 `data-theme` 属性（或加载对应 CSS） | `themeManager.themeColor = name` |
 | 适用 | 完全不经运行时的消费者 | 需要运行时换肤的消费者 |
 
-**两者正交一致**：运行时把 `themeColor` 设为 `"dark"` 时，注入的标尺块特异性更高、接管 `data-theme=dark` 的静态规则，并按暗色规则反转——无需修复，也不会互相干扰。
+**两者正交一致**：运行时把 `themeColor` 设为 `"dark"` 时，注入的标尺块特异性更高、接管 `data-theme=dark` 的静态规则，
+并按暗色规则反转——无需修复，也不会互相干扰。
 
 ### 与运行时层的层叠顺序
 
@@ -95,17 +101,19 @@ lessc src/styles/index.less dist/index.css
 <script type="module" src="/app.js"></script>
 ```
 
-理由：静态层提供的是**布局与外观规则**，运行时提供的是**变量**；让变量规则位于其后，层叠更稳（组件类里的 `.auto-*` 引用会取到最新的变量值）。
+理由：静态层提供的是**布局与外观规则**，运行时提供的是**变量**；让变量规则位于其后，层叠更稳。
 
 ### 只引静态层的场景
 
 不需要动态换肤时，完全可以不引运行时：
 
-- 用静态预设主题固定在某一套标尺；
-- 组件类会消费静态层的灰阶与 `--auto-*` 默认值——注意 `--auto-*` 派生层是由**运行时**注入的，不引运行时时需要自带一份语义变量（或直接使用静态预设 + 自己定义少量 `--auto-*`）。
+- 用静态主题包固定在某一套标尺；
+- 组件类会消费 `--auto-*` 默认值——注意派生层是由**运行时**注入的，不引运行时时需要自带一份语义变量
+  （或直接使用静态主题包 + 自己定义少量 `--auto-*`）。
 
 ::: tip 需要完整外观又不想引运行时？
-用 `ThemeScope.toStyles()` 在构建期把产物取出来落成 CSS 文件（见 [API 参考](./api.md#themescope)），即得「静态化的运行时主题」。
+用 `ThemeScope.toStyles()` 在构建期把产物取出来落成 CSS 文件（见 [API 参考](./api.md#themescope)），
+即得「静态化的运行时主题」——产物与运行时注入的内容同源。
 :::
 
 ---

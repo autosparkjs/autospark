@@ -357,6 +357,16 @@ export abstract class RouteDataLoaderBase<
     ): Promise<AutoSparkRemoteLoadResult>;
 
     /**
+     * fetch URL 预处理钩子（默认原样返回）
+     *
+     * 在插值与 base 前缀**之前**调用；视图通道覆写以剥除 `!` raw 前缀（ADR-0008 修订），
+     * 避免前缀被当作路径字符参与 base 拼接。
+     */
+    protected prepareFetchUrl(url: string, _matched: AutoSparkMatchedRouteItem): string {
+        return url;
+    }
+
+    /**
      * 从远程 URL 加载数据
      * 统一的远程加载逻辑，用于处理 URL 字符串
      * @param url - 远程 URL
@@ -372,7 +382,10 @@ export abstract class RouteDataLoaderBase<
         options: Options,
         navSignal?: AbortSignal,
     ): Promise<Data> {
-        const finalUrl = prefixBaseUrl(url.params(getRouteVars(matched)), this.router.options.base);
+        const finalUrl = prefixBaseUrl(
+            this.prepareFetchUrl(url, matched).params(getRouteVars(matched)),
+            this.router.options.base,
+        );
         const { timeout = 0 } = options;
 
         // 创建用于内部超时控制的 AbortController
@@ -437,6 +450,7 @@ export abstract class RouteDataLoaderBase<
                     return (await this.onResponse(response, matched, {
                         signal: fetchSignal,
                         hash: signal.meta.hash,
+                        url: finalUrl,
                     })) as Data;
                 })
                 .catch((error) => {

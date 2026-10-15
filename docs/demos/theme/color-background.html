@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>背景色</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：背景色（Background）</div>
+                <p>
+                    背景由<strong>基础调色板的背景梯度</strong> <code>--x-bgcolor-0..9</code> 提供原料，
+                    派生层再按用途切成四层：工作区 / 面板 / 次级 / 内嵌。层次不靠「不同颜色」，
+                    而靠<strong>档位 + 不透明度</strong>的单调阶梯。
+                </p>
+                <table class="demo-table">
+                    <thead>
+                        <tr>
+                            <th>派生变量</th>
+                            <th>配方</th>
+                            <th>用途</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>--auto-workspace-bgcolor</code></td><td><code>--x-bgcolor-1</code></td><td>应用底 / 工作区</td></tr>
+                        <tr><td><code>--auto-bgcolor</code></td><td><code>--x-bgcolor-0</code></td><td>面板 / 卡片 / 弹层</td></tr>
+                        <tr><td><code>--auto-secondary-bgcolor</code></td><td><code>bgcolor-2</code> 55% 透明</td><td>次级面板 / 分区</td></tr>
+                        <tr><td><code>--auto-third-bgcolor</code></td><td><code>bgcolor-2</code> 25% 透明</td><td>内嵌块 / 代码块</td></tr>
+                        <tr><td><code>--auto-panel-bgcolor</code></td><td><code>--auto-bgcolor</code></td><td>面板 / Drawer</td></tr>
+                        <tr><td><code>--auto-panel-header-bgcolor</code></td><td><code>--auto-secondary-bgcolor</code></td><td>标题栏 / 标签页头</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">四层剖面：工作区 → 面板 → 次级 → 内嵌</div>
+                <div class="auto-card-body col">
+                    <div style="padding:0.9rem;background:var(--auto-workspace-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                        <div class="caption">--auto-workspace-bgcolor（工作区）</div>
+                        <div style="padding:0.9rem;margin-top:0.4rem;background:var(--auto-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div class="caption">--auto-bgcolor（面板）</div>
+                            <div style="padding:0.8rem;margin-top:0.4rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">
+                                <div class="caption">--auto-secondary-bgcolor（次级）</div>
+                                <div style="padding:0.6rem;margin-top:0.4rem;background:var(--auto-third-bgcolor);border-radius:var(--auto-border-radius);">
+                                    <div class="caption">--auto-third-bgcolor（内嵌）</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="hint">
+                        右侧面板切暗色：暗色的背景映射<strong>前景与背景分离</strong>——<code>bgcolor-0</code>（面板）取
+                        <code>gray-8</code>、<code>bgcolor-1</code>（工作区）取最沉的 <code>gray-9</code>，
+                        于是面板<strong>浮起</strong>在工作区之上，四层阶梯依旧单调。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">背景梯度 <code>--x-bgcolor-0..9</code>（面板 / 工作区 / 扩展档）</div>
+                <div class="auto-card-body col">
+                    <div class="grid">
+                        <div class="scope-box">
+                            <div class="box-label">亮语境</div>
+                            <div class="theme-strip" data-strip="--x-bgcolor-" data-strip-label></div>
+                            <div class="hint">0 最浅（面板）→ 9 最深；1 为工作区（比面板略深）</div>
+                        </div>
+                        <div class="scope-box" data-dark>
+                            <div class="box-label">暗语境（data-dark）</div>
+                            <div class="theme-strip" data-strip="--x-bgcolor-" data-strip-label></div>
+                            <div class="hint">0 = gray-8（面板，浮起）→ 1 = gray-9（工作区，最沉）→ 2..9 递亮</div>
+                        </div>
+                    </div>
+                    <div class="grid">
+                        <div class="scope-box">
+                            <div class="box-label">亮多彩（data-colorized）</div>
+                            <div class="theme-strip" data-strip="--x-bgcolor-"></div>
+                            <div class="hint">bgcolor-i = theme-i：整条幕布被主题色浸染</div>
+                        </div>
+                        <div class="scope-box" data-dark data-colorized>
+                            <div class="box-label">暗多彩（data-dark data-colorized）</div>
+                            <div class="theme-strip" data-strip="--x-bgcolor-"></div>
+                            <div class="hint">bgcolor-1 = theme-0 混黑 30%（彩色梯度无更深档，压暗保色相）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">透明度叠加：次级 / 内嵌为何不另取色</div>
+                <div class="auto-card-body col">
+                    <div style="padding:0.9rem;background:var(--auto-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                        <div class="caption">面板底（实色）</div>
+                        <div style="height:1.6rem;margin-top:0.4rem;border-radius:var(--auto-border-radius);background:var(--auto-secondary-bgcolor);"></div>
+                        <div class="caption" style="margin-top:0.3rem;">secondary = 同一原料 45% 不透明</div>
+                        <div style="height:1.6rem;margin-top:0.4rem;border-radius:var(--auto-border-radius);background:var(--auto-third-bgcolor);"></div>
+                        <div class="caption" style="margin-top:0.3rem;">third = 同一原料 75% 不透明</div>
+                    </div>
+                    <p class="hint">
+                        同一原料（<code>bgcolor-2</code>）用两档不透明度，在亮 / 暗 / 多彩下都落在可辨区间——
+                        好处是次级块叠在任意底色上都自然（不必为每种底色各配一个色值）。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">背景色与组件：整页结构剖面</div>
+                <div class="auto-card-body col">
+                    <div class="demo-sample">
+                        <div class="demo-sample-header">卡片头（--auto-panel-header-bgcolor）</div>
+                        <div>卡片体（--auto-bgcolor）</div>
+                        <div class="auto-card-body-item" style="background:var(--auto-secondary-bgcolor);border:none;">
+                            内嵌块（--auto-secondary-bgcolor）
+                        </div>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                            <button class="auto-btn primary">主按钮</button>
+                            <button class="auto-btn">默认按钮</button>
+                            <input class="auto-input" placeholder="输入框 --auto-input-bgcolor" style="flex:1;min-width:10rem;" />
+                        </div>
+                    </div>
+                    <p class="hint">
+                        业务自定义容器时按「外层用 workspace、容器用 bgcolor、内嵌用 secondary / third」的顺序引用，
+                        即可获得与内置组件一致的空间感；不要写死颜色——写死会让模式切换失效。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    </body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>字体</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：字体（Font）</div>
+                <p>
+                    字体要素是「一套五档基础量 + 一个档位开关 + 一组派生量」的标准结构：
+                    基础量 <code>--x-font-size-*</code> / <code>--x-font-weight-*</code> 给绝对值，
+                    档位开关 <code>data-size</code> 选档，派生量 <code>--auto-font-*</code> 供组件消费。
+                </p>
+                <ul>
+                    <li>分解别名：<code>--auto-font-size</code> / <code>--auto-font-weight</code> / <code>--auto-font-family</code></li>
+                    <li>速写：<code>font: var(--auto-font)</code> = 字重 + 字号 / 行高 + 字体族</li>
+                    <li>标题排版：<code>font: var(--auto-title-font)</code>（在默认字体基础上加大字重与字号）</li>
+                </ul>
+                <pre>ThemePro.size = "large"     // 全局字号档（写 :root 的 data-size 属性）
+&lt;div data-size="x-small"&gt;  // 元素域局部换档</pre>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">字号五档 <code>--x-font-size-*</code></div>
+                <div class="auto-card-body col">
+                    <div class="auto-card-body-item" style="font-size:var(--x-font-size-x-small);">x-small：道可道，非常道；名可名，非常名。</div>
+                    <div class="auto-card-body-item" style="font-size:var(--x-font-size-small);">small：道可道，非常道；名可名，非常名。</div>
+                    <div class="auto-card-body-item" style="font-size:var(--x-font-size-medium);">medium：道可道，非常道；名可名，非常名。</div>
+                    <div class="auto-card-body-item" style="font-size:var(--x-font-size-large);">large：道可道，非常道；名可名，非常名。</div>
+                    <div class="auto-card-body-item" style="font-size:var(--x-font-size-x-large);">x-large：道可道，非常道；名可名，非常名。</div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">字重五档 <code>--x-font-weight-*</code></div>
+                <div class="auto-card-body col">
+                    <div class="auto-card-body-item" style="font-weight:var(--x-font-weight-x-small);">x-small（200）：道可道，非常道。</div>
+                    <div class="auto-card-body-item" style="font-weight:var(--x-font-weight-small);">small（300）：道可道，非常道。</div>
+                    <div class="auto-card-body-item" style="font-weight:var(--x-font-weight-medium);">medium（400）：道可道，非常道。</div>
+                    <div class="auto-card-body-item" style="font-weight:var(--x-font-weight-large);">large（500）：道可道，非常道。</div>
+                    <div class="auto-card-body-item" style="font-weight:var(--x-font-weight-x-large);">x-large（600）：道可道，非常道。</div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">自动字体 vs 固定字体（面板切「尺寸」观察差异）</div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;border-color:var(--auto-theme-color);">
+                        <div class="caption">自动字体：消费 <code>--auto-font</code>，随全局档位联动</div>
+                        <div style="font:var(--auto-font);">
+                            道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。故常无欲，以观其妙；常有欲，以观其徼（jiào）。
+                        </div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;">
+                        <div class="caption">固定字体：写死 <code>--x-font-* medium</code>，不随档位变化</div>
+                        <div style="font-weight:var(--x-font-weight-medium);font-size:var(--x-font-size-medium);line-height:1.5;">
+                            道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。故常无欲，以观其妙；常有欲，以观其徼（jiào）。
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        两者初始观感相同（全局默认 medium）；把面板「尺寸」切到 <code>x-small</code> 或
+                        <code>x-large</code>：左侧整体缩放、右侧不动——这就是消费派生量与写死基础量的本质区别。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">标题字体与排版速写</div>
+                <div class="auto-card-body col">
+                    <div style="font:var(--auto-title-font);">标题字体 var(--auto-title-font)</div>
+                    <div style="font:var(--auto-font);">正文字体 var(--auto-font)</div>
+                    <div class="caption">--auto-font-family: var(--auto-font-family)</div>
+                    <div style="font:var(--auto-font);letter-spacing:var(--auto-letter-spacing);">
+                        字距 --auto-letter-spacing / 行高 --auto-line-height 一并由 <code>--auto-font</code> 聚合。
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">元素域：<code>data-size</code> 局部换档（三卡并排）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-size="x-small">
+                        <div class="box-label">data-size="x-small"</div>
+                        <div style="font:var(--auto-font);">道可道，非常道；名可名，非常名。</div>
+                        <input class="auto-input" placeholder="输入框同步换档" />
+                        <button class="auto-btn primary">按钮</button>
+                    </div>
+                    <div class="scope-box" data-size="medium">
+                        <div class="box-label">data-size="medium"（= 默认态）</div>
+                        <div style="font:var(--auto-font);">道可道，非常道；名可名，非常名。</div>
+                        <input class="auto-input" placeholder="输入框同步换档" />
+                        <button class="auto-btn primary">按钮</button>
+                    </div>
+                    <div class="scope-box" data-size="x-large">
+                        <div class="box-label">data-size="x-large"</div>
+                        <div style="font:var(--auto-font);">道可道，非常道；名可名，非常名。</div>
+                        <input class="auto-input" placeholder="输入框同步换档" />
+                        <button class="auto-btn primary">按钮</button>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        <code>data-size</code> 属<strong>规模维度</strong>，与模式维度（<code>data-dark</code>）、
+                        色彩维度（<code>data-colorized</code>）分属不同域、可同元素叠加——
+                        下面右卡同时挂 <code>data-dark</code> 与 <code>data-size</code>，两域各自生效。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">维度叠加：<code>data-dark</code> × <code>data-size</code></div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-dark data-size="x-small">
+                        <div class="box-label">data-dark + data-size="x-small"</div>
+                        <div style="font:var(--auto-font);">暗色 + 最小字号：两域互不覆盖。</div>
+                    </div>
+                    <div class="scope-box" data-dark data-size="x-large">
+                        <div class="box-label">data-dark + data-size="x-large"</div>
+                        <div style="font:var(--auto-font);">暗色 + 最大字号：两域互不覆盖。</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <aside class="demo-panel"><theme-controls groups="size,mode"></theme-controls></aside>
+    </body>
+</html>

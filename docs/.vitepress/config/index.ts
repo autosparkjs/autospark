@@ -8,6 +8,7 @@ import { context } from "esbuild";
 import { rawAssetsPlugin } from "../../../packages/engine/scripts/esbuild-raw-assets";
 
 export default defineConfig({
+  ignoreDeadLinks: true, // 临时（验证后删除）
   base: "/autospark/",
   title: "AutoSpark",
   description: "声明式响应式模板引擎",
@@ -208,17 +209,49 @@ export default defineConfig({
         },
         {
           text: "指南",
+          collapsed: false,
           items: [
             { text: "初始化", link: "/zh/theme/guide/initial" },
-            { text: "主题作用域", link: "/zh/theme/guide/scope" },
-            { text: "主题色", link: "/zh/theme/guide/color" },
-            { text: "语义色", link: "/zh/theme/guide/semantic" },
-            { text: "显示模式与色彩", link: "/zh/theme/guide/mode" },
-            { text: "尺寸参数", link: "/zh/theme/guide/size" },
-            { text: "变量体系", link: "/zh/theme/guide/variables" },
-            { text: "组件与工具类", link: "/zh/theme/guide/components" },
+            { text: "工作原理", link: "/zh/theme/guide/how-it-works" },
+            {
+              text: "主题要素",
+              link: "/zh/theme/guide/color",
+              collapsed: false,
+              items: [
+                {
+                  text: "颜色",
+                  link: "/zh/theme/guide/color",
+                  collapsed: false,
+                  items: [
+                    { text: "主题色", link: "/zh/theme/guide/color#主题色" },
+                    { text: "派生颜色", link: "/zh/theme/guide/color-derived" },
+                    { text: "明暗主题", link: "/zh/theme/guide/color-dark" },
+                    { text: "多彩模式", link: "/zh/theme/guide/color-colorized" },
+                    { text: "背景色", link: "/zh/theme/guide/color-background" },
+                    { text: "语义颜色", link: "/zh/theme/guide/color-semantic" },
+                  ],
+                },
+                { text: "字体", link: "/zh/theme/guide/font" },
+                { text: "圆角", link: "/zh/theme/guide/radius" },
+                { text: "阴影", link: "/zh/theme/guide/shadow" },
+                { text: "间距", link: "/zh/theme/guide/spacing" },
+              ],
+            },
+            {
+              text: "组件变量",
+              link: "/zh/theme/guide/component",
+              collapsed: false,
+              items: [
+                { text: "段落", link: "/zh/theme/guide/component-paragraph" },
+                { text: "面板", link: "/zh/theme/guide/component-panel" },
+                { text: "表单", link: "/zh/theme/guide/component-form" },
+                { text: "交互反馈", link: "/zh/theme/guide/component-feedback" },
+              ],
+            },
+            { text: "元素域", link: "/zh/theme/guide/element-scope" },
+            { text: "局部主题", link: "/zh/theme/guide/local-scope" },
             { text: "持久化", link: "/zh/theme/guide/persistence" },
-            { text: "静态样式层", link: "/zh/theme/guide/static" },
+            { text: "静态主题包", link: "/zh/theme/guide/static" },
             { text: "API 参考", link: "/zh/theme/guide/api" },
           ],
         },

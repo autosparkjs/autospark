@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>明暗主题</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：明暗主题（dark / light）</div>
+                <p>
+                    显示模式是<strong>独立维度</strong>：亮色是默认态，暗色经 <code>dark</code> 属性（JS 通道）或
+                    <code>data-dark</code> 属性（元素域手动通道）启用。暗色下前景 / 背景明度标尺互换、
+                    主题梯度方向反转，并附带一批暗色专属派生值与暗色阴影配方。
+                </p>
+                <pre>ThemePro.dark = true              // 全局暗色（写 :root 的 dark 属性，参与持久化）
+&lt;div data-dark&gt;…&lt;/div&gt;           // 仅此元素进入暗色（元素域，不进持久化）
+&lt;div data-light&gt;…&lt;/div&gt;          // 暗语境中单独切回亮色（含 color-scheme: light）</pre>
+                <ul>
+                    <li>暗色 <code>color-scheme: dark</code>——滚动条等原生控件一并换暗；<code>data-light</code> 是对偶的完整亮域</li>
+                    <li>主题梯度反转：亮 <code>theme-0</code> 最浅，暗 <code>theme-0</code> 最深（同一套映射才继续成立）</li>
+                    <li>可读性有量化兜底：暗色各档按 WCAG 对比度校准（正文 ≥ 4.5:1、图形 ≥ 3:1）</li>
+                </ul>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">同一段界面在两种模式下的观感（右侧面板切「暗色模式」）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box">
+                        <div class="box-label">亮色（无属性）</div>
+                        <div class="theme-strip" data-strip="--x-color-" data-strip-label></div>
+                        <div class="demo-sample">
+                            <div class="demo-sample-header">面板头部</div>
+                            <div>主要文字 --auto-color</div>
+                            <div class="demo-sample-sub">次要文字 --auto-secondary-color</div>
+                            <div class="demo-sample-third">辅助文字 --auto-third-color</div>
+                            <input class="auto-input" placeholder="表单 --auto-input-*" />
+                            <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                                <button class="auto-btn primary">主按钮</button>
+                                <button class="auto-btn">默认</button>
+                                <span class="auto-alert info" style="flex:1;">提示 --auto-info-color</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="scope-box global" data-dark>
+                        <div class="box-label">暗色（data-dark 固定在本卡，与全局无关）</div>
+                        <div class="theme-strip" data-strip="--x-color-" data-strip-label></div>
+                        <div class="demo-sample">
+                            <div class="demo-sample-header">面板头部</div>
+                            <div>主要文字 --auto-color</div>
+                            <div class="demo-sample-sub">次要文字 --auto-secondary-color</div>
+                            <div class="demo-sample-third">辅助文字 --auto-third-color</div>
+                            <input class="auto-input" placeholder="表单 --auto-input-*" />
+                            <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                                <button class="auto-btn primary">主按钮</button>
+                                <button class="auto-btn">默认</button>
+                                <span class="auto-alert info" style="flex:1;">提示 --auto-info-color</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        左侧无属性（跟随全局，面板切暗色它会一起变暗）；右侧固定 <code>data-dark</code>——
+                        这就是「元素域」：局部暗色不需要建作用域。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">梯度方向反转：同一族变量、两个方向</div>
+                <div class="auto-card-body col">
+                    <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                    <div class="theme-strip" data-strip="--x-plain-color-" data-strip-label></div>
+                    <div class="theme-strip" data-strip="--x-plain-bgcolor-" data-strip-label></div>
+                    <div class="grid">
+                        <div class="scope-box" data-dark>
+                            <div class="box-label">暗语境内的三条同名梯度（继承的是解析后的值 → 方向已反转）</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-"></div>
+                            <div class="theme-strip" data-strip="--x-plain-color-"></div>
+                            <div class="theme-strip" data-strip="--x-plain-bgcolor-"></div>
+                        </div>
+                        <div class="scope-box">
+                            <div class="box-label">亮语境的同一族变量（对照）</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-"></div>
+                            <div class="theme-strip" data-strip="--x-plain-color-"></div>
+                            <div class="theme-strip" data-strip="--x-plain-bgcolor-"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">元素域开关：<code>data-dark</code> 的独立与嵌套</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" id="el-dark">
+                        <div class="box-label">
+                            <button data-toggle-attr="data-dark" data-toggle-target="#el-dark" data-toggle-label></button>
+                        </div>
+                        <div class="demo-sample">
+                            <div>本卡独立启用 / 关闭暗色，页面其余部分不受影响。</div>
+                            <input class="auto-input" placeholder="输入框跟随本卡模式" />
+                        </div>
+                    </div>
+                    <div class="scope-box" data-dark id="el-dark-nested">
+                        <div class="box-label">暗卡内嵌亮卡（data-light 的用途）</div>
+                        <div class="demo-sample">
+                            <div>外层暗色：本段文字与输入框取暗色变量。</div>
+                            <div class="scope-box" id="el-light" data-light style="margin-top:0.5rem;">
+                                <div class="box-label">
+                                    <button data-toggle-attr="data-light" data-toggle-target="#el-light" data-toggle-label></button>
+                                </div>
+                                <div class="demo-sample">
+                                    <div>内层 data-light：完整亮域，连 color-scheme 一并回亮。</div>
+                                    <input class="auto-input" placeholder="亮色输入框" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        注意：<code>data-dark</code> 与 <code>data-colorized</code> 要<strong>落在同一元素</strong>才命中叠加块——
+                        跨元素组合（暗父 + 彩子）不会叠加，此时可用 <code>data-uncolored</code> 让子元素回灰但保留模式。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">暗色专属派生值：变量层吸收模式差异</div>
+                <div class="auto-card-body col">
+                    <table class="demo-table">
+                        <thead>
+                            <tr>
+                                <th>变量</th>
+                                <th>亮色</th>
+                                <th>暗色</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--auto-theme-color</code></td>
+                                <td><code>theme-5</code></td>
+                                <td><code>theme-6</code>（梯度反转后需提档保对比）</td>
+                            </tr>
+                            <tr>
+                                <td><code>--auto-border-color</code></td>
+                                <td><code>--x-color-6</code></td>
+                                <td><code>--x-color-8</code>（面板轮廓提亮）</td>
+                            </tr>
+                            <tr>
+                                <td><code>--auto-input-bgcolor</code></td>
+                                <td>面板色</td>
+                                <td><code>--x-bgcolor-1</code>（工作区色，凹陷流派）</td>
+                            </tr>
+                            <tr>
+                                <td><code>--auto-disable-color</code></td>
+                                <td>文字色混灰 50%</td>
+                                <td>混灰 80%（深底保底可辨）</td>
+                            </tr>
+                            <tr>
+                                <td><code>--x-shadow-*</code></td>
+                                <td>中灰低不透明</td>
+                                <td>黑色系高不透明（深底上灰阴影不可见）</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="hint">
+                        组件层永远保持模式无关——它只写 <code>var(--auto-*)</code>，模式差异全部在变量层完成。
+                        校准脚本 <code>bun scripts/check-dark-contrast.ts</code> 与变量同源，改完可直接跑数值回归。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    </body>
+</html>

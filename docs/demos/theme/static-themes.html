@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>静态主题包</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：静态主题包与静态样式层</div>
+                <p>
+                    主题库的样式分三层，可独立使用也可叠加：
+                </p>
+                <table class="demo-table">
+                    <thead>
+                        <tr><th>层</th><th>内容</th><th>产物 / 入口</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>静态样式层</td><td>reset、工具类、组件类、灰阶常量、图标、动画</td><td><code>dist/index.css</code>（Less 编译）</td></tr>
+                        <tr><td>运行时主题层</td><td>主题标尺、语义色、模式 / 色彩 / 尺寸变量、派生层</td><td>运行时注入 <code>&lt;style&gt;</code></td></tr>
+                        <tr><td>静态主题包</td><td>11 套写死的主题标尺（<code>data-theme=blue</code> 等）</td><td><code>src/themes/*.less</code> → <code>dist/themes/*.css</code></td></tr>
+                    </tbody>
+                </table>
+                <ul>
+                    <li>静态主题包<strong>不经运行时</strong>：给元素挂 <code>data-theme="blue"</code> 即得该套色阶</li>
+                    <li>本页引入的 <code>/autospark/autospark-theme.css</code> 正是静态样式层的全量编译产物（<code>docs.less</code> 聚合）</li>
+                    <li>运行时层与静态层叠加时，运行时注入的标尺特异性更高、按暗色规则反转，两者不冲突</li>
+                </ul>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">11 套静态主题：每格一个 <code>data-theme</code> 属性</div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        每格挂 <code>data-theme="名称"</code>，色条为各自的 <code>--x-color-theme-0..9</code>。
+                        注意各文件的<strong>方向与 <code>color-scheme</code> 声明并不统一</strong>——先用色条核对再决定用法。
+                    </p>
+                    <div class="grid" id="static-grid"></div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">方向对照表</div>
+                <div class="auto-card-body col">
+                    <table class="demo-table">
+                        <thead>
+                            <tr><th>声明</th><th>文件</th><th>方向</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>color-scheme: light</code></td>
+                                <td><code>cyan</code> / <code>green</code> / <code>lime</code> / <code>orange</code> / <code>yellow</code></td>
+                                <td><code>theme-0</code> 最浅 → <code>theme-9</code> 最深</td>
+                            </tr>
+                            <tr>
+                                <td><code>color-scheme: dark</code></td>
+                                <td><code>blue</code> / <code>dark</code> / <code>magenta</code> / <code>purple</code> / <code>red</code> / <code>volcano</code></td>
+                                <td><code>theme-0</code> 最深 → <code>theme-9</code> 最浅</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="hint">
+                        静态主题文件是按各自使用场景生成的历史产物：在亮语境里引一份「<code>theme-0</code> 最深」的文件，
+                        背景取到的会是最深档。使用前请核对它的 <code>color-scheme</code> 与色阶方向。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">静态主题包 vs 运行时预设</div>
+                <div class="auto-card-body col">
+                    <table class="demo-table">
+                        <thead>
+                            <tr><th></th><th>静态主题文件</th><th>运行时预设表</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>清单</td>
+                                <td>11 套（含 <code>yellow</code> / <code>dark</code>，无 <code>gold</code> / <code>geekblue</code> / <code>techblue</code>）</td>
+                                <td>12 套（<code>blue</code> / <code>red</code> / <code>volcano</code> / <code>orange</code> / <code>lime</code> / <code>gold</code> / <code>green</code> / <code>cyan</code> / <code>geekblue</code> / <code>techblue</code> / <code>purple</code> / <code>magenta</code>）</td>
+                            </tr>
+                            <tr><td>色阶来源</td><td>构建期写死的 hex</td><td>运行时按算法从种子派生</td></tr>
+                            <tr><td>切换方式</td><td>改 <code>data-theme</code> 属性（或加载对应 CSS）</td><td><code>ThemePro.themeColor = name</code></td></tr>
+                            <tr><td>适用</td><td>完全不经运行时的消费者</td><td>需要运行时换肤的消费者</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">只引静态样式层：组件类照样可用</div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
+                        <div class="caption">静态层提供的组件类</div>
+                        <button class="auto-btn primary">.auto-btn.primary</button>
+                        <button class="auto-btn">.auto-btn</button>
+                        <input class="auto-input" placeholder=".auto-input" />
+                        <div class="auto-alert info">.auto-alert.info</div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
+                        <div class="caption">引入方式（构建期聚合入口只含 styles/index.less）</div>
+                        <pre style="margin:0;">import "…/dist/index.css";              // reset / 工具类 / 灰阶 / 图标
+import "…/src/styles/input.less";       // Firefox 焦点框微调（未进聚合）
+import "…/src/components/index.less";   // card / button / alert / input（未进聚合）</pre>
+                        <div class="hint">
+                            组件类消费的是 <code>--auto-*</code> 派生变量——不引运行时时需要自带一份语义变量，
+                            或改用静态主题包 + 少量自定义 <code>--auto-*</code>。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">把运行时产物静态化：<code>scope.toStyles()</code></div>
+                <div class="auto-card-body col">
+                    <pre>const css = ThemePro.root.toStyles();  // 基础变量 + 语义色 + 主题标尺
+// 构建期取出落成 .css 文件 → 「静态化的运行时主题」</pre>
+                    <div class="seg">
+                        <button id="btn-styles">在下方打印当前 toStyles() 的头部</button>
+                    </div>
+                    <pre id="styles-out" style="max-height:12rem;overflow:auto;">（点击按钮生成）</pre>
+                    <p class="hint">
+                        这条路径适合「要运行时主题的全部变量、但不想在页面里跑运行时」的构建期方案：
+                        用 <code>toStyles()</code>（或 <code>download()</code>）在构建脚本里生成 CSS，
+                        产物与运行时注入的内容同源。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <script>
+            // 11 套静态主题对照：每格一个 data-theme 属性（色阶来自静态主题包，不依赖运行时）
+            var names = ["blue", "cyan", "dark", "green", "lime", "magenta", "orange", "purple", "red", "volcano", "yellow"];
+            var host = document.getElementById("static-grid");
+            names.forEach(function (name) {
+                var box = document.createElement("div");
+                box.className = "scope-box";
+                box.setAttribute("data-theme", name);
+                box.innerHTML =
+                    '<div class="box-label">data-theme="' +
+                    name +
+                    '"</div><div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>';
+                host.appendChild(box);
+            });
+
+            document.getElementById("btn-styles").addEventListener("click", function () {
+                var css = ThemePro.root.toStyles();
+                document.getElementById("styles-out").textContent =
+                    css.slice(0, 1200) + "\n…（共 " + css.length + " 字符）";
+            });
+        </script>
+    </body>
+</html>

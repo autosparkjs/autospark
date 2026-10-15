@@ -1,9 +1,39 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import type { AutoSparkRouter } from "@/router";
-import { isInternalLink, isDangerousProtocol } from "@/components/Link";
+import { isInternalLink, isDangerousProtocol, AutoSparkLink } from "@/components/Link";
 
 /**
- * 创建测试用的 DOM 环境
+ * 基准 realm 快照（test-setup preload 建立的 happy-dom 全局）。
+ *
+ * auto-link 在模块加载期注册进基准 customElements；下方纯函数用例的 createTestDOM
+ * 会用「每用例新建 Window」替换全局。委托/组件用例依赖基准 realm（customElements
+ * 注册表 + 类原型链一致），beforeEach 里 restoreBaseRealm 切回。
+ */
+const REALM_KEYS = [
+    "window",
+    "document",
+    "history",
+    "location",
+    "Event",
+    "CustomEvent",
+    "MouseEvent",
+    "HTMLElement",
+    "HTMLAnchorElement",
+    "URLSearchParams",
+    "customElements",
+] as const;
+const baseRealm = Object.fromEntries(
+    REALM_KEYS.map((key) => [key, (globalThis as any)[key]]),
+) as Record<(typeof REALM_KEYS)[number], any>;
+
+function restoreBaseRealm() {
+    for (const key of REALM_KEYS) {
+        (globalThis as any)[key] = baseRealm[key];
+    }
+}
+
+/**
+ * 创建测试用的 DOM 环境（每用例独立 Window，供纯函数用例使用）
  */
 function createTestDOM() {
     const { Window } = require("happy-dom");
@@ -22,6 +52,8 @@ function createTestDOM() {
     // @ts-ignore
     globalThis.CustomEvent = win.CustomEvent;
     // @ts-ignore
+    globalThis.MouseEvent = win.MouseEvent;
+    // @ts-ignore
     globalThis.HTMLElement = win.HTMLElement;
     // @ts-ignore
     globalThis.URLSearchParams = win.URLSearchParams;
@@ -33,14 +65,71 @@ function createTestDOM() {
     return host;
 }
 
-async function createRouter(host: HTMLElement, options: any) {
-    const { AutoSparkRouter } = await import("@/router");
-    return new AutoSparkRouter(host, options);
+/** 最小 engine stub：注入模式下跳过自建管线（与 router.core.test.ts 同款） */
+function stubEngine() {
+    return {
+        getComponentDeclaration: () => ({ name: "autospark.outlet" }),
+        getComponent: () => ({
+            data: { views: [], ephemeral: { hash: "", html: "", ready: false }, active: "" },
+        }),
+        data: () => {},
+        destroy() {},
+    } as any;
 }
 
 /**
- * 模拟 handleClick 逻辑的纯函数版本
- * 避免在测试中实例化 LitElement（happy-dom 兼容性问题）
+ * 动态导入 AutoSparkRouter；构造函数自动 attach()，attach 链异步完成——
+ * 渲染链路要求宿主内存在出口元素，注入 stub engine 并等待链路落地。
+ */
+async function createRouter(host: HTMLElement, options: any) {
+    const { AutoSparkRouter } = await import("@/router");
+    if (!host.querySelector("[data-autospark-outlet]")) {
+        const outlet = host.ownerDocument!.createElement("div");
+        outlet.setAttribute("data-autospark-outlet", "");
+        host.appendChild(outlet);
+    }
+    const merged =
+        options && typeof options === "object" && !Array.isArray(options)
+            ? { ...options, engine: stubEngine() }
+            : { routes: options, engine: stubEngine() };
+    const router = new AutoSparkRouter(host, merged);
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    return router;
+}
+
+/** 当前路由名（routes.current 是 matched 数组，末项为最深匹配） */
+function currentRouteName(router: AutoSparkRouter): string | undefined {
+    const current = (router.routes as any).current as any[] | undefined;
+    return current?.[current.length - 1]?.route?.name;
+}
+
+/**
+ * 包装 push/replace 记录调用（保留真实导航行为），断言"哪个方法、什么路径"用
+ */
+function recordNavigation(router: AutoSparkRouter) {
+    const calls: Array<{ method: "push" | "replace"; path: string }> = [];
+    const originalPush = router.push.bind(router);
+    const originalReplace = router.replace.bind(router);
+    (router as any).push = (path: string, state?: any) => {
+        calls.push({ method: "push", path });
+        return originalPush(path, state);
+    };
+    (router as any).replace = (path: string, state?: any) => {
+        calls.push({ method: "replace", path });
+        return originalReplace(path, state);
+    };
+    return calls;
+}
+
+/** 在目标元素上派发一次可冒泡的点击 */
+function click(target: Element, init: MouseEventInit = {}): MouseEvent {
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true, ...init });
+    target.dispatchEvent(event);
+    return event;
+}
+
+/**
+ * 模拟 handleClick 逻辑的纯函数版本（组件 handleClick 的镜像，快速校验分支语义）
  */
 function simulateHandleClick(
     to: string,
@@ -73,7 +162,7 @@ function simulateHandleClick(
     }
 }
 
-describe("AutoSparkLinkElement", () => {
+describe("AutoSparkLink（auto-link）纯函数与点击语义", () => {
     let host: HTMLElement;
     let router: AutoSparkRouter;
 
@@ -91,6 +180,7 @@ describe("AutoSparkLinkElement", () => {
     afterEach(() => {
         if (router) {
             router.detach();
+            router = undefined as any;
         }
         if (host && host.parentElement) {
             host.parentElement.removeChild(host);
@@ -136,33 +226,29 @@ describe("AutoSparkLinkElement", () => {
     });
 
     describe("内部路由导航", () => {
-        it("点击 <autospark-link to=\"/user\"> 应该调用 router.push('/user')", async () => {
+        it('点击 <auto-link to="/user"> 应该调用 router.push(\'/user\')', async () => {
             router = await createRouter(host, { routes });
+            await new Promise((resolve) => setTimeout(resolve, 50));
 
             const clickEvent = new Event("click", { cancelable: true });
             simulateHandleClick("/user", false, router, clickEvent);
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
-            expect(router.routes.current.route).not.toBeNull();
-            expect(router.routes.current.route!.name).toBe("user");
+            expect(currentRouteName(router)).toBe("user");
         });
 
-        it("点击 <autospark-link to=\"/user\" replace> 应该调用 router.replace('/user')", async () => {
+        it('点击 <auto-link to="/user" replace> 应该调用 router.replace(\'/user\')', async () => {
             router = await createRouter(host, { routes });
 
             // 先导航到一个路径建立初始状态
             router.push("/settings");
-
-            // 监听 navigation/start 事件来验证 replace 类型
-            let navType: string | undefined;
-            host.addEventListener("navigation/start", ((event: any) => {
-                navType = event.detail.navigationType;
-            }) as EventListener);
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const clickEvent = new Event("click", { cancelable: true });
             simulateHandleClick("/user", true, router, clickEvent);
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
-            expect(navType).toBe("replace");
-            expect(router.routes.current.route!.name).toBe("user");
+            expect(currentRouteName(router)).toBe("user");
         });
 
         it("内部路由应该阻止默认的链接跳转行为", async () => {
@@ -176,35 +262,39 @@ describe("AutoSparkLinkElement", () => {
     });
 
     describe("外部链接处理", () => {
-        it('点击 <autospark-link to="https://external.com"> 不应使用 router 导航', async () => {
+        it('点击 <auto-link to="https://external.com"> 不应使用 router 导航', async () => {
             router = await createRouter(host, { routes });
 
             router.push("/settings");
-            const routeBefore = router.routes.current.route!.name;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            const routeBefore = currentRouteName(router);
 
             const clickEvent = new Event("click", { cancelable: true });
             simulateHandleClick("https://external.com", false, router, clickEvent);
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
-            expect(router.routes.current.route!.name).toBe(routeBefore);
+            expect(currentRouteName(router)).toBe(routeBefore);
             expect(clickEvent.defaultPrevented).toBe(false);
         });
 
-        it('点击 <autospark-link to="http://example.com"> 不应使用 router 导航', async () => {
+        it('点击 <auto-link to="http://example.com"> 不应使用 router 导航', async () => {
             router = await createRouter(host, { routes });
 
             router.push("/user");
-            const routeBefore = router.routes.current.route!.name;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            const routeBefore = currentRouteName(router);
 
             const clickEvent = new Event("click", { cancelable: true });
             simulateHandleClick("http://example.com", false, router, clickEvent);
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
-            expect(router.routes.current.route!.name).toBe(routeBefore);
+            expect(currentRouteName(router)).toBe(routeBefore);
             expect(clickEvent.defaultPrevented).toBe(false);
         });
     });
 
     describe("降级处理", () => {
-        it("<autospark-link> 在未获取到 router 实例时应该降级为普通链接", () => {
+        it("<auto-link> 在未获取到 router 实例时应该降级为普通链接", () => {
             const clickEvent = new Event("click", { cancelable: true });
             simulateHandleClick("/user", false, undefined, clickEvent);
 
@@ -218,12 +308,14 @@ describe("AutoSparkLinkElement", () => {
             router = await createRouter(host, { routes });
 
             router.push("/user");
-            const routeBefore = router.routes.current.route!.name;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            const routeBefore = currentRouteName(router);
 
             const clickEvent = new Event("click", { cancelable: true });
             simulateHandleClick("javascript:alert('xss')", false, router, clickEvent);
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
-            expect(router.routes.current.route!.name).toBe(routeBefore);
+            expect(currentRouteName(router)).toBe(routeBefore);
             expect(clickEvent.defaultPrevented).toBe(true);
         });
 
@@ -231,13 +323,225 @@ describe("AutoSparkLinkElement", () => {
             router = await createRouter(host, { routes });
 
             router.push("/settings");
-            const routeBefore = router.routes.current.route!.name;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            const routeBefore = currentRouteName(router);
 
             const clickEvent = new Event("click", { cancelable: true });
             simulateHandleClick("data:text/html,<h1>test</h1>", false, router, clickEvent);
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
-            expect(router.routes.current.route!.name).toBe(routeBefore);
+            expect(currentRouteName(router)).toBe(routeBefore);
             expect(clickEvent.defaultPrevented).toBe(true);
+        });
+    });
+});
+
+describe("全局 <a> 拦截（文档级委托，ADR-0009）", () => {
+    let host: HTMLElement;
+    let router: AutoSparkRouter;
+    let calls: Array<{ method: "push" | "replace"; path: string }>;
+
+    const routes = [
+        { name: "home", path: "/" },
+        { name: "user", path: "/user" },
+        { name: "settings", path: "/settings" },
+        { name: "not-found", path: "*" },
+    ];
+
+    beforeEach(async () => {
+        // 委托/组件用例依赖基准 realm（auto-link 注册表 + 类原型链）
+        restoreBaseRealm();
+        // 基准 realm 的 history 跨用例共享：重置 URL，避免 getBaseUrl 的目录推断
+        // 把上一用例 push 过的路径（如 /user → "/user/"）误当 base
+        baseRealm.window.history.replaceState(null, "", "/");
+        host = baseRealm.document.createElement("div");
+        baseRealm.document.body.appendChild(host);
+        router = await createRouter(host, { routes });
+        calls = recordNavigation(router);
+    });
+
+    afterEach(() => {
+        if (router) {
+            router.detach();
+            router = undefined as any;
+        }
+        if (host && host.parentElement) {
+            host.parentElement.removeChild(host);
+        }
+    });
+
+    function anchor(href?: string, attrs: Record<string, string> = {}): HTMLAnchorElement {
+        const el = baseRealm.document.createElement("a");
+        if (href !== undefined) el.setAttribute("href", href);
+        for (const [key, value] of Object.entries(attrs)) {
+            el.setAttribute(key, value);
+        }
+        host.appendChild(el);
+        return el;
+    }
+
+    async function expectNavigated(
+        el: Element,
+        expected: { method: "push" | "replace"; path: string },
+        init: MouseEventInit = {},
+    ) {
+        const event = click(el, init);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(calls).toEqual([expected]);
+        return event;
+    }
+
+    describe("接管与路径归一", () => {
+        it("内部路径点击应被接管为 push", async () => {
+            const el = anchor("/user");
+            const event = await expectNavigated(el, { method: "push", path: "/user" });
+            expect(event.defaultPrevented).toBe(true);
+            expect(currentRouteName(router)).toBe("user");
+        });
+
+        it("href 内含 base 前缀时应剥除后 push", async () => {
+            router.detach();
+            host.parentElement?.removeChild(host);
+            host = baseRealm.document.createElement("div");
+            baseRealm.document.body.appendChild(host);
+            router = await createRouter(host, { routes, base: "/app" });
+            calls = recordNavigation(router);
+
+            const el = anchor("/app/user");
+            const event = await expectNavigated(el, { method: "push", path: "/user" });
+            expect(event.defaultPrevented).toBe(true);
+            expect(currentRouteName(router)).toBe("user");
+        });
+
+        it("search 与 hash 应保留在 push 目标中", async () => {
+            const el = anchor("/user?tab=1#top");
+            await expectNavigated(el, { method: "push", path: "/user?tab=1#top" });
+        });
+
+        it("相对路径应解析为绝对路径后接管", async () => {
+            const el = anchor("user");
+            await expectNavigated(el, { method: "push", path: "/user" });
+        });
+    });
+
+    describe("放行矩阵（交还浏览器默认行为）", () => {
+        const cases: Array<[string, () => HTMLAnchorElement, MouseEventInit]> = [
+            ["ctrl+点击", () => anchor("/user"), { ctrlKey: true }],
+            ["meta+点击", () => anchor("/user"), { metaKey: true }],
+            ["shift+点击", () => anchor("/user"), { shiftKey: true }],
+            ["alt+点击", () => anchor("/user"), { altKey: true }],
+            ["中键点击", () => anchor("/user"), { button: 1 }],
+            ["右键点击", () => anchor("/user"), { button: 2 }],
+            ['target="_blank"', () => anchor("/user", { target: "_blank" }), {}],
+            ['target="_top"', () => anchor("/user", { target: "_top" }), {}],
+            ["download 属性", () => anchor("/user", { download: "" }), {}],
+            ['rel 含 external', () => anchor("/user", { rel: "external noopener" }), {}],
+            ["纯页内锚点", () => anchor("#section"), {}],
+            ["mailto: 协议", () => anchor("mailto:someone@example.com"), {}],
+            ["tel: 协议", () => anchor("tel:+1234567890"), {}],
+            ["跨域链接", () => anchor("https://example.com/user"), {}],
+            ["无 href", () => anchor(undefined), {}],
+        ];
+
+        for (const [label, make, init] of cases) {
+            it(`${label} 不接管、不阻止默认行为`, async () => {
+                const el = make();
+                const event = click(el, init);
+                await new Promise((resolve) => setTimeout(resolve, 100));
+                expect(calls).toEqual([]);
+                expect(event.defaultPrevented).toBe(false);
+            });
+        }
+    });
+
+    describe("边界", () => {
+        it("已被 preventDefault 的事件不再接管", async () => {
+            const el = anchor("/user");
+            const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+            event.preventDefault();
+            el.dispatchEvent(event);
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            expect(calls).toEqual([]);
+        });
+
+        it("宿主子树外的锚点不归本 router 管", async () => {
+            const outside = baseRealm.document.createElement("a");
+            outside.setAttribute("href", "/user");
+            baseRealm.document.body.appendChild(outside);
+            try {
+                const event = click(outside);
+                await new Promise((resolve) => setTimeout(resolve, 100));
+                expect(calls).toEqual([]);
+                expect(event.defaultPrevented).toBe(false);
+            } finally {
+                outside.parentElement?.removeChild(outside);
+            }
+        });
+
+        it("javascript: 危险协议被拦截且不导航", async () => {
+            const el = anchor("javascript:alert(1)");
+            const event = click(el);
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            expect(calls).toEqual([]);
+            expect(event.defaultPrevented).toBe(true);
+            expect(currentRouteName(router)).not.toBe("user");
+        });
+
+        it("data: 危险协议被拦截且不导航", async () => {
+            const el = anchor("data:text/html,<h1>x</h1>");
+            const event = click(el);
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            expect(calls).toEqual([]);
+            expect(event.defaultPrevented).toBe(true);
+        });
+    });
+
+    describe("auto-link 组件路径（委托命中自定义元素）", () => {
+        it("点击 auto-link 内层 <a> 应由组件接管 push", async () => {
+            const link = baseRealm.document.createElement("auto-link") as AutoSparkLink;
+            link.setAttribute("to", "/user");
+            link.textContent = "去用户页";
+            host.appendChild(link);
+            expect(link instanceof AutoSparkLink).toBe(true);
+
+            const inner = link.querySelector("a")!;
+            expect(inner.getAttribute("href")).toBe("/user");
+
+            const event = await expectNavigated(inner, { method: "push", path: "/user" });
+            expect(event.defaultPrevented).toBe(true);
+            expect(currentRouteName(router)).toBe("user");
+        });
+
+        it("auto-link 带 replace 属性时走 replace", async () => {
+            const link = baseRealm.document.createElement("auto-link") as AutoSparkLink;
+            link.setAttribute("to", "/user");
+            link.setAttribute("replace", "");
+            host.appendChild(link);
+
+            const event = await expectNavigated(link.querySelector("a")!, {
+                method: "replace",
+                path: "/user",
+            });
+            expect(event.defaultPrevented).toBe(true);
+        });
+
+        it("auto-link 的 to 渲染内层 href 时带 base 前缀，导航剥回", async () => {
+            router.detach();
+            host.parentElement?.removeChild(host);
+            host = baseRealm.document.createElement("div");
+            baseRealm.document.body.appendChild(host);
+            router = await createRouter(host, { routes, base: "/app" });
+            calls = recordNavigation(router);
+
+            const link = baseRealm.document.createElement("auto-link") as AutoSparkLink;
+            link.setAttribute("to", "/user");
+            host.appendChild(link);
+
+            const inner = link.querySelector("a")!;
+            expect(inner.getAttribute("href")).toBe("/app/user");
+
+            await expectNavigated(inner, { method: "push", path: "/user" });
+            expect(currentRouteName(router)).toBe("user");
         });
     });
 });

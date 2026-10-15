@@ -26,6 +26,8 @@ type RouteSignalReuslt<T = any> = {
     value: T;
     error?: AutoSparkRouterError;
     hash: string;
+    /** 渲染器元数据（如 raw 标志，ADR-0008） */
+    meta?: Record<string, any>;
 };
 
 /** 原始文本元素：无元素子节点、内容按文本处理，不承载视图绑定 */
@@ -53,6 +55,8 @@ interface OutletViewEntry {
     title: string;
     html: string;
     ready: boolean;
+    /** raw 视图：内容经普通 x-html 直挂，不经 engine 编译（ADR-0008） */
+    raw: boolean;
 }
 
 /** 视图挂载载荷（render → outlet 数据域的写入单元） */
@@ -62,6 +66,8 @@ interface ViewPayload {
     title: string;
     html: string;
     ready: boolean;
+    /** raw 视图标志（ADR-0008） */
+    raw: boolean;
 }
 
 /** outlet 组件实例的最小读取面（engine.getComponent 门面的子集；写入一律走 engine.data） */
@@ -91,6 +97,9 @@ export class Render {
             data.value =
                 result && typeof result === "object" && "value" in result ? result.value : result;
             data.hash = signal.meta.hash;
+            // 渲染器元数据（raw 标志等）仅视图通道产生，统一透传
+            data.meta =
+                result && typeof result === "object" && "meta" in result ? result.meta : undefined;
         } catch (e: any) {
             data.error = new AutoSparkRouterError((e as Error).message, e.status || 500);
         }
@@ -119,8 +128,9 @@ export class Render {
         });
         if (!outlet || !outletComp) return;
         // 错误页按所在通道渲染（与原 slot.reject 行为对齐：错误内容挂在视图位置）
+        // 错误页是 engine 组件产物，一律走编译通道（raw: false，ADR-0008）
         const page = this._getErrorPage(error, toRoute);
-        const view: ViewPayload = { ...viewMeta, html: page.outerHTML, ready: true };
+        const view: ViewPayload = { ...viewMeta, html: page.outerHTML, ready: true, raw: false };
         if (keepAlive) {
             this._mountView(outlet, outletComp, view);
         } else {
@@ -251,7 +261,9 @@ export class Render {
         }
         const next: OutletViewEntry[] = found
             ? views.map((v) =>
-                v.hash === view.hash ? { ...v, html: view.html || "", ready: !!view.ready } : v,
+                v.hash === view.hash
+                    ? { ...v, html: view.html || "", ready: !!view.ready, raw: !!view.raw }
+                    : v,
             )
             : [
                 ...views,
@@ -261,6 +273,7 @@ export class Render {
                     title: view.title,
                     html: view.html || "",
                     ready: !!view.ready,
+                    raw: !!view.raw,
                 },
             ];
         this._outletData(outlet, { views: next, active: view.hash });
@@ -269,7 +282,12 @@ export class Render {
     /** 挂载非缓存视图（单一临时容器，整体替换重编译） */
     private _mountEphemeral(this: AutoSparkRouter, outlet: HTMLElement, view: ViewPayload): void {
         this._outletData(outlet, {
-            ephemeral: { hash: view.hash, html: view.html || "", ready: !!view.ready },
+            ephemeral: {
+                hash: view.hash,
+                html: view.html || "",
+                ready: !!view.ready,
+                raw: !!view.raw,
+            },
             active: view.hash,
         });
     }
@@ -442,10 +460,12 @@ export class Render {
                     // KeepAlive 两级优先级（ADR-0003 决策 2：mode=tabs > 路由显式声明 > 出口 prop）
                     const keepAlive = this._resolveKeepAlive(curRouteItem, outletComp);
                     // 页签元数据：标题取路由 title、缺省回退 hash（ADR-0003 决策 3）
+                    // raw 占位 false：渲染器产出后按 meta.raw 覆写（raw 标志渲染后才可知，ADR-0008）
                     const viewMeta = {
                         hash: viewHash,
                         url: matched.url,
                         title: curRouteItem.title || viewHash,
+                        raw: false,
                     };
                     if (hasView) {
                         this._lastViewSlot = currentOutlet;
@@ -515,16 +535,22 @@ export class Render {
                                     if (isReuse) {
                                         this._outletData(currentOutlet, { active: viewHash });
                                     } else {
+                                        // raw 视图跳过路由数据注入（不编译则 autospark/data
+                                        // script 永不消费，ADR-0008）
+                                        const isRaw = view.meta?.raw === true;
                                         // 远程模板 + 动态数据 script 合并（动态覆盖静态，Q6=A）
-                                        const mergedHtml = this._injectRouteData(
-                                            view.value,
-                                            data?.value,
-                                            matched,
-                                        );
+                                        const mergedHtml = isRaw
+                                            ? view.value
+                                            : this._injectRouteData(
+                                                view.value,
+                                                data?.value,
+                                                matched,
+                                            );
                                         const payload: ViewPayload = {
                                             ...viewMeta,
                                             html: mergedHtml,
                                             ready: true,
+                                            raw: isRaw,
                                         };
                                         if (keepAlive) {
                                             this._mountView(currentOutlet, outletComp, payload);

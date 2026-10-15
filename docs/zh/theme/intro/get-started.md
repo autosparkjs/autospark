@@ -82,7 +82,7 @@ themeManager.colorized = true; // 多彩
 <div data-colorized data-uncolored>多彩语境下退灰</div>
 ```
 
-详见[显示模式与色彩维度](../guide/mode.md)。
+详见[明暗主题](../guide/color-dark.md)与[多彩模式](../guide/color-colorized.md)。
 
 ## 第 4 步：调节尺寸
 
@@ -103,7 +103,7 @@ themeManager.shadow = "none"; // 阴影
 <div data-size="x-large" data-radius="none">这块字大、无圆角</div>
 ```
 
-详见[尺寸参数](../guide/size.md)。
+详见[字体](../guide/font.md)、[圆角](../guide/radius.md)、[阴影](../guide/shadow.md)与[间距](../guide/spacing.md)。
 
 ## 第 5 步：局部作用域
 
@@ -122,7 +122,7 @@ preview.radius = "small";
 ```
 
 ::: warning 构造参数 vs setter
-`themeColor` 可以直接写在 `addScope` 的选项里；但 `dark` / `colorized` / 四个尺寸**必须经 setter 赋值**才会立即写元素属性并生效——写在构造选项里需要等下一次水合（刷新）才看到效果。详见[尺寸参数 · 注意事项](../guide/size.md#sync-pitfall)。
+`themeColor` 可以直接写在 `addScope` 的选项里；但 `dark` / `colorized` / 四个尺寸**必须经 setter 赋值**才会立即写元素属性并生效——写在构造选项里需要等下一次水合（刷新）才看到效果。详见[局部主题 · 构造选项](../guide/local-scope.md#sync-pitfall)。
 :::
 
 作用域创建后：
@@ -137,7 +137,7 @@ preview.radius = "small";
 themeManager.removeScope("preview"); // 断开样式并清掉它的参数持久化
 ```
 
-详见[主题作用域](../guide/scope.md)。
+详见[局部主题](../guide/local-scope.md)。
 
 ## 第 6 步：回访零闪（可选）
 
@@ -259,7 +259,7 @@ themeManager.removeScope("preview"); // 断开样式并清掉它的参数持久�
 ## 下一步
 
 - 构造与生命周期：[初始化](../guide/initial.md)
-- 主题色与调色板：[主题色](../guide/color.md)
-- 语义色与对比度：[语义色](../guide/semantic.md)
-- 变量分层全景：[变量体系](../guide/variables.md)
-- 组件类清单与用法：[内置组件与工具类](../guide/components.md)
+- 从种子到变量的全过程：[工作原理](../guide/how-it-works.md)
+- 颜色要素六节：[主题要素 · 颜色](../guide/color.md)
+- 组件变量分组：[组件变量](../guide/component.md)
+- 元素域与局部主题：[元素域](../guide/element-scope.md)、[局部主题](../guide/local-scope.md)

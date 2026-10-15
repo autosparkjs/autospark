@@ -6,4 +6,9 @@ export type ViewRenderOptions = {
     selector?: string;
     hash: string;
     signal: AbortSignal; // 中止信号
+    /**
+     * 最终视图 URL（插值 + base 前缀 + 剥除 `!` raw 前缀后，ADR-0008 及其修订）
+     * 供图片渲染器 `<img src>` 等使用
+     */
+    url?: string;
 };

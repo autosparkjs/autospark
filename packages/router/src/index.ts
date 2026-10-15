@@ -19,6 +19,16 @@ export {
 export { X_OUTLET_ATTR, OUTLET_COMPONENT_ATTR, transformXOutlet } from "./engine/xOutlet";
 export type { RouterEngineBinding } from "./engine/engineHost";
 
+// 渲染器（ADR-0008 及其修订：内置渲染器类 + 基类与类型，可显式实例化注册；
+// `!` 前缀强制 raw；无自动格式判定——Json/Image 渲染器需注册到 options.renderers 生效）
+export { AutoSparkRouterViewRendererBase } from "./renderers/base";
+export type { ViewRenderResult } from "./renderers/base";
+export { AutoSparkTemplateViewRenderer } from "./renderers/template";
+export { AutoSparkRawViewRenderer } from "./renderers/raw";
+export { AutoSparkJsonViewRenderer } from "./renderers/json";
+export { AutoSparkImageViewRenderer, IMAGE_EXTENSIONS } from "./renderers/image";
+export type { ViewRenderOptions } from "./renderers/types";
+
 // 导入 AutoSparkRouter 类以创建工厂函数
 import { AutoSparkRouter } from "./router";
 import type { AutoSparkRouterOptions as AutoSparkRouterOptionsType } from "./types";

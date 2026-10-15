@@ -17,7 +17,9 @@ import { injectStylesheet } from "@/utils/injectStylesheet";
  *   （URL 唯一真相源）；页签可关闭（关闭即销毁视图缓存；关闭 active 导航到相邻页签；
  *   唯一页签不显示关闭按钮）。tabs 模式下全视图常驻，临时通道不启用。
  * - **视图内容**：x-html.compile 编译激活（ADR-0017）——合并了 autospark/data script 的
- *   远程模板经子模板编译，其中的 x-* 指令全部生效。
+ *   远程模板经子模板编译，其中的 x-* 指令全部生效；raw 视图（条目 raw 标志为 true，
+ *   ADR-0008）改用普通 x-html 直接 innerHTML 挂载——不经编译（性能旁路），
+ *   其内容中的 x-* 指令不激活、script 不执行、x-outlet 不生效。
  * - **加载态**：内容未就绪时显示内置 autospark-loading 元素。
  *
  * router 渲染层经 `engine.data(outletEl, …)` 直写数据域驱动（ADR-0003 决策 6，
@@ -54,7 +56,7 @@ export const OUTLET_COMPONENT_CODE = `<div x-define="${OUTLET_COMPONENT_NAME}" c
         data: function () {
             return {
                 views: [],
-                ephemeral: { hash: "", html: "", ready: false },
+                ephemeral: { hash: "", html: "", ready: false, raw: false },
                 active: "",
                 mode: "stack",
                 keepAlive: false
@@ -112,12 +114,15 @@ export const OUTLET_COMPONENT_CODE = `<div x-define="${OUTLET_COMPONENT_NAME}" c
     <div class="autospark-outlet-views" x-for="view of views" :key="view.hash">
         <div class="autospark-outlet-view" x-show="view.hash === active" :data-view-hash="view.hash">
             <autospark-loading x-show="!view.ready"></autospark-loading>
-            <div class="autospark-outlet-view-content" x-html.compile="view.html"></div>
+            <!-- raw 视图走普通 x-html 直挂（不编译，ADR-0008）；两者 x-show 互斥 -->
+            <div class="autospark-outlet-view-content" x-show="!view.raw" x-html.compile="view.html"></div>
+            <div class="autospark-outlet-view-content" x-show="!!view.raw" x-html="view.html"></div>
         </div>
     </div>
     <div class="autospark-outlet-ephemeral" x-show="ephemeral.hash !== '' && active === ephemeral.hash" :data-view-hash="ephemeral.hash">
         <autospark-loading x-show="!ephemeral.ready"></autospark-loading>
-        <div class="autospark-outlet-view-content" x-html.compile="ephemeral.html"></div>
+        <div class="autospark-outlet-view-content" x-show="!ephemeral.raw" x-html.compile="ephemeral.html"></div>
+        <div class="autospark-outlet-view-content" x-show="!!ephemeral.raw" x-html="ephemeral.html"></div>
     </div>
 </div>`;
 

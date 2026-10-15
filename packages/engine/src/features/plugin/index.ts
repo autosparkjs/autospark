@@ -16,10 +16,14 @@
  *   真全局、可变普通对象。engine 查找链到顶**查询期委托**兜底查表：不复制进
  *   engine、无运行时广播，晚注册天然立即生效；
  * - **全局 def 缓存**：插件组件的编译产物跨 engine 共享（每组件名全局只编译
- *   一次，首个消费的 engine 编译，后续 engine 直接取缓存挂账）。
+ *   一次，首个消费的 engine 编译，后续 engine 直接取缓存挂账）；
+ * - **预加载队列**（ADR-0114）：`globalThis.__AUTOSPARK_PLUGINS__`——插件脚本先于
+ *   autospark.js 加载时的投递通道，首个 engine 构造期 drain 并执行一次，回调收
+ *   `(engine, autospark)` 双参（先于引擎加载的脚本闭包里拿不到 `AutoSpark`）。
  *
  * 分层：本模块不运行时引用引擎任何模块（engine 仅 type import）——global-queue
- * （指令域）与 engine 门面（组装根）单向引用本模块。
+ * （指令域）与 engine 门面（组装根）单向引用本模块。命名空间对象由
+ * `engine.constructor` 取得（类即命名空间，ADR-0111 决策 1），不破坏本分层。
  */
 
 import type { AutoSpark } from "../../engine/engine";
@@ -27,7 +31,19 @@ import type { ActionDecl } from "../action/types";
 import type { ComponentDef } from "../component/component-def";
 
 /** 插件就绪回调：每个 engine 构造完成后各调一次（`AutoSpark.ready(fn)` 的元素形态） */
-export type PluginReadyCallback = (engine: AutoSpark<any>) => void;
+export type PluginReadyCallback = (engine: AutoSpark<any>, autospark: typeof AutoSpark) => void;
+
+/**
+ * 预加载队列元素（ADR-0114）：与 `PluginReadyCallback` 签名同形，语义不同——
+ * 只在**首个** engine 构造期执行一次（插件脚本体），而非每 engine 各一次。
+ * 第二参是必需的：插件脚本先于 autospark.js 求值，其闭包内拿不到 `AutoSpark`。
+ */
+export type PluginBootstrap = (engine: AutoSpark<any>, autospark: typeof AutoSpark) => void;
+
+/** 取插件命名空间（类即命名空间，ADR-0111 决策 1）：经 constructor 反查，避免运行时引用 engine 模块 */
+function pluginNamespace(engine: AutoSpark<any>): typeof AutoSpark {
+    return engine.constructor as typeof AutoSpark;
+}
 
 // ── 存活 engine 表（ADR-0100 决策 15 语义沿用：构造入表、destroy 摘除） ──────────
 
@@ -39,9 +55,13 @@ const liveEngines = new Set<AutoSpark<any>>();
 const readyCallbacks = new Set<PluginReadyCallback>();
 
 /** 执行单个就绪回调（抛错隔离：记日志跳过，不中断其他回调与 engine 构造） */
-function runReadyCallback(callback: PluginReadyCallback, engine: AutoSpark<any>): void {
+function runReadyCallback(
+    callback: PluginReadyCallback,
+    engine: AutoSpark<any>,
+    autospark: typeof AutoSpark,
+): void {
     try {
-        callback(engine);
+        callback(engine, autospark);
     } catch (e) {
         console.error(
             `AutoSpark.ready: 就绪回调执行失败，已跳过（ADR-0111）: ${e instanceof Error ? e.message : String(e)}`,
@@ -55,12 +75,15 @@ function runReadyCallback(callback: PluginReadyCallback, engine: AutoSpark<any>)
  */
 export function registerPluginReady(callback: PluginReadyCallback): void {
     readyCallbacks.add(callback);
-    for (const engine of liveEngines) runReadyCallback(callback, engine);
+    for (const engine of liveEngines) {
+        runReadyCallback(callback, engine, pluginNamespace(engine));
+    }
 }
 
 /** engine 构造末尾触发（engine.ts 在 `engine/ready` 事件发射处调用）：全部回调各调一次 */
 export function firePluginReady(engine: AutoSpark<any>): void {
-    for (const callback of readyCallbacks) runReadyCallback(callback, engine);
+    const autospark = pluginNamespace(engine);
+    for (const callback of readyCallbacks) runReadyCallback(callback, engine, autospark);
 }
 
 // ── 指令安装器队列（ADR-0111 决策 5：内存队列取代 ADR-0100 的 window 键队列） ────
@@ -76,9 +99,7 @@ const directiveInstallers: Array<(engine: AutoSpark<any>) => void> = [];
  * 生效——Runtime 指令重扫 / Compile 指令只影响未来编译）。抛错隔离：安装器执行失败
  * 记日志跳过，不中断其它安装器与调用方。
  */
-export function enqueueDirectiveInstaller(
-    installer: (engine: AutoSpark<any>) => void,
-): void {
+export function enqueueDirectiveInstaller(installer: (engine: AutoSpark<any>) => void): void {
     directiveInstallers.push(installer);
     for (const engine of liveEngines) {
         try {
@@ -91,17 +112,72 @@ export function enqueueDirectiveInstaller(
     }
 }
 
+// ── 插件预加载队列（ADR-0114） ────────────────────────────────────────────────
+
+/**
+ * 消费全局预加载队列 `globalThis.__AUTOSPARK_PLUGINS__`：插件脚本先于 autospark.js
+ * 加载时无处注册，改为把「插件脚本体」本身包成函数推进该数组；engine 构造期在此
+ * drain 并执行，回调收 `(engine, autospark)` 双参——其后即可像普通插件一样经
+ * `$` 注册组件/指令/action/图标，需要 per-engine 行为的包进 `$.ready`。
+ *
+ * **一次性语义不靠模块级 flag**：drain = `splice(0)` 全量取出 + `Object.freeze` 原数组，
+ * 之后队列恒为空且冻结——后续 engine 构造再调用本函数时取到空数组，自然什么都不做。
+ * 状态活在全局数组里，本模块无新增可变状态（可测试性：重赋一个新数组即重置）。
+ *
+ * **为什么不静默**：ADR-0100 的 `window.__AUTOSPARK_DIRECTIVES__` 正是「push 进无人
+ * 消费的数组，静默失效」被 ADR-0111 判死。冻结让晚到的 push 在严格模式直接抛
+ * `TypeError`（非严格静默失败但 `Object.isFrozen()` 可检测），误用会响而不是哑。
+ *
+ * 边界：非数组（被别的代码赋脏）→ error 后忽略；非函数元素 → error 跳过；
+ * 单个回调抛错 → 隔离记日志，不中断其余回调与 engine 构造；消费期间再入队的元素
+ * 不参与本次消费（取的是 splice 快照，不是活迭代）。
+ */
+export function drainPluginBootstrapQueue(engine: AutoSpark<any>): void {
+    const queue = globalThis.__AUTOSPARK_PLUGINS__;
+    if (queue == null) return; // 无人预注册（常态）：静默
+    if (!Array.isArray(queue)) {
+        console.error(
+            "AutoSpark: globalThis.__AUTOSPARK_PLUGINS__ 不是数组，预加载队列已忽略（ADR-0114）",
+        );
+        return;
+    }
+    // 已消费：drain 后数组恒为空且冻结，后续 engine 构造走到这里直接短路
+    // （对冻结数组再 splice 会在严格模式抛「assign to readonly property」）
+    if (queue.length === 0) return;
+    // 快照：消费期间再入队的元素不参与本次消费
+    const pending = queue.splice(0, queue.length);
+    Object.freeze(queue);
+    const autospark = pluginNamespace(engine);
+    for (const bootstrap of pending) {
+        if (typeof bootstrap !== "function") {
+            console.error("AutoSpark: 预加载队列含非函数元素，已跳过（ADR-0114）");
+            continue;
+        }
+        try {
+            bootstrap(engine, autospark);
+        } catch (e) {
+            console.error(
+                `AutoSpark: 预加载插件执行失败，已跳过（ADR-0114）: ${e instanceof Error ? e.message : String(e)}`,
+            );
+        }
+    }
+}
+
 // ── 构造期接入 / 摘除 ──────────────────────────────────────────────────────────
 
 /**
  * engine 构造期接入（engine.ts 构造中 `DirectiveManager` 创建后、autostart compile 前
- * 调用——安装器先于首次编译注册，保证参与首次编译）：全量消费现有队列 → 本 engine
- * （消费幂等由 DirectiveManager 的 Map 语义 + initialized 集合保证），并入存活表。
+ * 调用——安装器先于首次编译注册，保证参与首次编译）：先 drain 预加载队列（ADR-0114，
+ * 须在下方安装器循环**之前**——队列里 `$.directive(...)` 的指令要进本数组才能参与首次
+ * 编译；若 drain 晚于循环，engine 尚未入存活表，广播补不上 Compile 指令），再全量
+ * 消费现有队列 → 本 engine（消费幂等由 DirectiveManager 的 Map 语义 + initialized
+ * 集合保证），并入存活表。
  *
  * 活迭代（不快照）：安装器在消费期间再入队时，广播触达不了尚在构造、未入存活表的
  * 本 engine，活迭代补上这条通路。
  */
 export function setupPluginQueue(engine: AutoSpark<any>): void {
+    drainPluginBootstrapQueue(engine);
     for (let i = 0; i < directiveInstallers.length; i++) {
         try {
             directiveInstallers[i](engine);

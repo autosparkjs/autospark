@@ -2,7 +2,9 @@
 
 ## 概述
 
-AutoSpark 提供 jQuery 风格的插件机制：**插件就是一个 js 文件**，在 `autospark.js` 之后引入即生效——无需注册协议、无需构建步骤，与脚本场景（`<script>` 直引）天然契合。插件可注册全局组件、指令、action、图标，也可通过就绪回调拿到引擎实例做命令式操作。
+AutoSpark 提供 jQuery 风格的插件机制：**插件就是一个 js 文件**——无需注册协议、无需构建步骤，与脚本场景（`<script>` 直引）天然契合。插件可注册全局组件、指令、action、图标，也可通过就绪回调拿到引擎实例做命令式操作。
+
+插件有两种加载位置：**后置**（在 `autospark.js` 之后，闭包直接拿 `AutoSpark`）与**前置**（在 `autospark.js` 之前，把脚本体包进预加载队列，见[前置加载](#前置加载)）。两者都必须在 `new AutoSpark()` **之前**。
 
 ```html
 <!-- my-plugin.js -->
@@ -50,10 +52,10 @@ AutoSpark.ready((engine) => { /* ... */ });
 
 ### $.ready(fn)：就绪回调
 
-注册的回调对**每个引擎实例化后**各调用一次（回调收 `engine` 实例）：
+注册的回调对**每个引擎实例化后**各调用一次（回调收 `(engine, autospark)` 双参——第二参是命名空间类，前置插件靠它拿到 `$`；只写第一参依然有效）：
 
 ```javascript
-$.ready((engine) => {
+$.ready((engine, $) => {
     // 仅供本引擎的资源在这里走引擎级注册位
     engine.actions.localOnly = () => { /* ... */ };
     engine.on("engine/ready", ({ el }) => { /* ... */ });
@@ -110,10 +112,36 @@ $.directive("reverse", class extends $.AutoSparkDirectiveBase {
 - 引擎实例化**之后**定义：立即广播所有存活引擎（Runtime 指令即时生效）；
 - spec 键集与类形态的完整说明见[自定义指令](/zh/guide/directive/custom)。
 
+### 前置加载：先于 autospark.js
+
+script 标签顺序不再是契约。插件脚本要写在 `autospark.js` **之前**时，把脚本体包成一个函数推进预加载队列：
+
+```html
+<!-- my-plugin.js：可出现在 autospark.js 之前 -->
+<script>
+    (globalThis.__AUTOSPARK_PLUGINS__ ??= []).push((engine, $) => {
+        $.components["hello-card"] = "<div x-text='title'></div>"; // 全局组件
+        $.actions["greet"] = () => "hello";                        // 全局 action
+        $.directive({ name: "highlight", kind: 1, mounted() {} }); // 全局指令
+        $.ready((e) => { e.actions.localOnly = () => {} });        // per-engine
+    });
+</script>
+<script src="autospark.js"></script>
+<script>
+    new AutoSpark("#app", { title: "demo" });   // 队列在此 drain
+</script>
+```
+
+- **消费时机**：**首个**引擎实例化时 drain 并执行一次（在指令安装器循环之前，故 `$.directive` 定义的指令照常参与首次编译）；
+- **只执行一次**：全局注册落在类静态上，后续引擎实例照常受益（查找链兜底、共享编译产物）；需要**每实例**行为的必须包进 `$.ready`——直接写在队列函数体里的 per-engine 副作用只作用于第一个引擎；
+- **消费后队列冻结清空**：之后再 push 会抛错（`Object.freeze`），不会静默失效。
+
+<demo html="plugin/preload.html"/>
+
 ### 约束与注意事项
 
-::: warning 加载顺序是硬约束
-插件必须在 `autospark.js` **之后**引入（script 标签顺序加载天然保证）。晚于引擎实例化的组件/action 经查询期委托依然立即生效，但**已被查询过且未命中**的组件名会按「编译过且失败」缓存——修正声明后请更换组件名或刷新页面。
+::: warning 顺序约束（只剩一条）
+插件不再要求在 `autospark.js` 之后引入（前置加载已解除该约束），但**必须在 `new AutoSpark()` 之前**：晚于引擎实例化的组件/action 经查询期委托依然立即生效，但**已被查询过且未命中**的组件名会按「编译过且失败」缓存——修正声明后请更换组件名或刷新页面。
 :::
 
 - **无插件卸载**：全局注册表不随 `engine.destroy()` 回滚（全局资源生命周期即页面生命周期）；

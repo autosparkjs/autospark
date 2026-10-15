@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>间距</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：间距（Spacing）</div>
+                <p>
+                    间距控制界面的<strong>稀疏度</strong>：基础量 <code>--x-spacing-*</code> 六档（含 <code>none</code>），
+                    档位开关 <code>data-spacing</code>，派生量 <code>--auto-spacing</code> /
+                    <code>--auto-padding</code> / <code>--auto-margin</code> 供组件消费。
+                </p>
+                <ul>
+                    <li>六档：<code>none</code>（0）/ <code>x-small</code> / <code>small</code> / <code>medium</code>（默认）/ <code>large</code> / <code>x-large</code></li>
+                    <li>字号档 <code>data-size</code> 也会联动间距（<code>sizeVars</code> 同时给出字号与内距），<code>data-spacing</code> 用于<strong>单独</strong>调节稀疏度</li>
+                    <li>行高 / 字距以 <code>--x-spacing-medium</code> 为基准计算——间距梯度是排版的底层标尺</li>
+                </ul>
+                <pre>ThemePro.spacing = "small"     // 全局收紧
+padding: var(--auto-padding);</pre>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">六档对比（同一组卡片，仅内距不同）</div>
+                <div class="auto-card-body col">
+                    <div class="grid tight">
+                        <div style="padding:var(--x-spacing-none);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div style="background:var(--auto-secondary-bgcolor);">none</div>
+                        </div>
+                        <div style="padding:var(--x-spacing-x-small);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div style="background:var(--auto-secondary-bgcolor);">x-small</div>
+                        </div>
+                        <div style="padding:var(--x-spacing-small);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div style="background:var(--auto-secondary-bgcolor);">small</div>
+                        </div>
+                        <div style="padding:var(--x-spacing-medium);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div style="background:var(--auto-secondary-bgcolor);">medium</div>
+                        </div>
+                        <div style="padding:var(--x-spacing-large);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div style="background:var(--auto-secondary-bgcolor);">large</div>
+                        </div>
+                        <div style="padding:var(--x-spacing-x-large);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div style="background:var(--auto-secondary-bgcolor);">x-large</div>
+                        </div>
+                    </div>
+                    <p class="hint">
+                        六档实测值：<code>0 / 0.4rem / 0.6rem / 0.8rem / 1.0rem / 1.2rem</code>——
+                        档距约 0.2rem，肉眼可辨但不过分。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">密度剖面：面板切「间距」观察（左侧全局跟随，右侧固定）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box global">
+                        <div class="box-label">跟随全局 data-spacing</div>
+                        <div class="item-list">
+                            <div class="item">列表项一</div>
+                            <div class="item">列表项二</div>
+                            <div class="item">列表项三</div>
+                        </div>
+                        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                            <button class="auto-btn small">按钮</button>
+                            <button class="auto-btn small">按钮</button>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-spacing="medium">
+                        <div class="box-label">固定 data-spacing="medium"</div>
+                        <div class="item-list">
+                            <div class="item">列表项一</div>
+                            <div class="item">列表项二</div>
+                            <div class="item">列表项三</div>
+                        </div>
+                        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                            <button class="auto-btn small">按钮</button>
+                            <button class="auto-btn small">按钮</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">间距 × 字号：两个规模维度的分工</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-size="small">
+                        <div class="box-label">data-size="small"（字号 + 内距一起收）</div>
+                        <div style="font:var(--auto-font);">字号随档位变小</div>
+                        <input class="auto-input" placeholder="输入框内距同步收窄" />
+                    </div>
+                    <div class="scope-box" data-spacing="x-small">
+                        <div class="box-label">data-spacing="x-small"（只收间距，字号不变）</div>
+                        <div style="font:var(--auto-font);">字号保持全局档位</div>
+                        <input class="auto-input" placeholder="输入框内距明显收窄" />
+                    </div>
+                    <div class="scope-box" data-size="large" data-spacing="none">
+                        <div class="box-label">data-size="large" + data-spacing="none"</div>
+                        <div style="font:var(--auto-font);">大字号 + 零间距</div>
+                        <input class="auto-input" placeholder="紧凑的大字界面" />
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        <code>data-size</code> 是「整体缩放」（字号 / 字重 / 行高 / 字距 / 内距 / 阴影 / 图标一起换），
+                        <code>data-spacing</code> 是「只调稀疏度」。要微调密度而不动排版时用后者。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">间距作为排版基准：行高 / 字距</div>
+                <div class="auto-card-body col">
+                    <div class="theme-strip" data-strip="--x-spacing-" data-strip-count="6" data-strip-label></div>
+                    <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:12rem;line-height:var(--x-line-height-small);">
+                            行高 small：<code>--x-spacing-medium × 1.7</code>。道可道，非常道；名可名，非常名。
+                        </div>
+                        <div style="flex:1;min-width:12rem;line-height:var(--x-line-height-large);letter-spacing:var(--x-letter-spacing-large);">
+                            行高 large + 字距 large：<code>--x-spacing-medium × 2.1</code>。道可道，非常道；名可名，非常名。
+                        </div>
+                    </div>
+                    <p class="hint">
+                        行高与字距都以 <code>--x-spacing-medium</code> 为基准计算，因此改间距梯度会同时影响段落排版的「呼吸感」。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <aside class="demo-panel"><theme-controls groups="spacing,size"></theme-controls></aside>
+    </body>
+</html>

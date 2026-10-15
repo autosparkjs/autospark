@@ -284,3 +284,63 @@ body {
     background: var(--auto-selected-bgcolor);
     border: var(--auto-selected-border);
 }
+
+/* 样例块：同一段结构（面板头 + 文字三档 + 表单）在多种颜色模式下的观感对照 */
+.demo-sample {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.7rem;
+    border: var(--auto-border);
+    border-radius: var(--auto-border-radius);
+    background: var(--auto-bgcolor);
+    color: var(--auto-color);
+    font-size: 0.8rem;
+}
+
+.demo-sample-header {
+    margin: -0.7rem -0.7rem 0;
+    padding: 0.45rem 0.7rem;
+    font: var(--auto-panel-header);
+    color: var(--auto-panel-header-color);
+    background: var(--auto-panel-header-bgcolor);
+    border-bottom: var(--auto-border);
+    border-radius: var(--auto-border-radius) var(--auto-border-radius) 0 0;
+}
+
+.demo-sample-sub {
+    color: var(--auto-secondary-color);
+}
+
+.demo-sample-third {
+    color: var(--auto-third-color);
+}
+
+/* 变量配方表：左侧变量名（等宽） / 右侧含义 */
+.demo-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.demo-table th,
+.demo-table td {
+    padding: 0.45rem 0.6rem;
+    text-align: left;
+    border-bottom: var(--auto-border);
+    vertical-align: top;
+}
+
+.demo-table th {
+    color: var(--auto-third-color);
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.demo-table td {
+    color: var(--auto-secondary-color);
+}
+
+.demo-table code {
+    color: var(--auto-theme-color);
+}

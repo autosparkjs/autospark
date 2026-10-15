@@ -86,7 +86,7 @@ body {
     gap: 2px;
 }
 
-.nav-menu autospark-link {
+.nav-menu auto-link {
     color: rgba(255, 255, 255, 0.68);
     text-decoration: none;
     padding: 8px 14px;
@@ -99,12 +99,12 @@ body {
     transition: color 0.15s ease, background 0.15s ease;
 }
 
-.nav-menu autospark-link:hover {
+.nav-menu auto-link:hover {
     color: #fff;
     background: rgba(34, 211, 238, 0.1);
 }
 
-.nav-menu autospark-link.active {
+.nav-menu auto-link.active {
     color: var(--accent-bright);
     background: rgba(34, 211, 238, 0.14);
 }

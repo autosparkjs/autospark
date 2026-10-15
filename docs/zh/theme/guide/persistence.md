@@ -1,13 +1,16 @@
-# 持久化与回访零闪
+# 持久化
 
 ## 概述
 
-主题 CSS 全部依赖运行时注入，因此**回访用户首帧必然闪一次默认主题**——除非把上次的产物提前还给他。持久化机制做两件事（`ADR-0003`）：
+主题 CSS 全部依赖运行时注入，因此**回访用户首帧必然闪一次默认主题**——除非把上次的产物提前还给他。
+持久化机制做两件事：
 
 1. **样式快照**：全部已连接作用域生成的 CSS 合成一个字符串，存进 localStorage；
 2. **参数持久化**：每个作用域的用户可感参数独立存储。
 
 回访时由宿主粘贴在 `<head>` 的**阻塞内联片段**把快照回插，先于首帧还原主题；运行时启动后重算重写、接管画面。
+
+<demo html="theme/persistence.html"/>
 
 ## 快速入门
 
@@ -83,17 +86,18 @@ const css = sources.filter((s) => s.persistence).flatMap((s) => s.cssChunks).joi
 
 > 库升级改变了生成输出 → 回访用户先看到旧快照（JS 就绪前的几秒窗口）→ 模块执行、注入重算 → 快照被覆盖为新产物。
 
-过期快照的最坏结果与「无持久化」的现状等价（都是闪一次旧主题），因此刻意**不设版本号、不用 JSON 信封**：版本机制只能优化那几秒窗口，复杂度不值。
+过期快照的最坏结果与「无持久化」的现状等价（都是闪一次旧主题），因此刻意**不设版本号、不用 JSON 信封**：
+版本机制只能优化那几秒窗口，复杂度不值。
 
 ### 水合顺序：先参数、后注入
 
 `connect()` 的顺序是刻意设计的：
 
-```
-水合参数（从 {storageKey}-scope-{id} 读） 
-  → 注入（注入值即恢复值） 
-  → 同步 DOM 属性（水合值不经 setter，属性在此补齐） 
-  → root 接管时移除 #autospark-theme-restore 
+```text
+水合参数（从 {storageKey}-scope-{id} 读）
+  → 注入（注入值即恢复值）
+  → 同步 DOM 属性（水合值不经 setter，属性在此补齐）
+  → root 接管时移除 #autospark-theme-restore
   → 持久化参数（以水合结果预填去重基线，一致时零写 IO）
 ```
 
@@ -107,7 +111,8 @@ const css = sources.filter((s) => s.persistence).flatMap((s) => s.cssChunks).joi
 | 样式快照 | `_lastStylesSnapshot`：合成结果未变则跳过 localStorage 写 |
 | 参数 | `_lastParamsJson`：序列化结果未变则跳过写 |
 
-取色器拖动的逐像素 `@input` 与 DOM 观察回环由此收敛为「值真变才写一次」。`disconnect()` 会清空 `_cssMap`——标签已删，重连必须重新注入（去重的失效补偿）。
+取色器拖动的逐像素 `@input` 与 DOM 观察回环由此收敛为「值真变才写一次」。
+`disconnect()` 会清空 `_cssMap`——标签已删，重连必须重新注入（去重的失效补偿）。
 
 ### 关闭持久化
 
@@ -119,7 +124,8 @@ themeManager.addScope({ id: "scratch", persistence: false });
 该作用域照常注入渲染，但**不**读写 localStorage、**不**参与快照合成。
 
 ::: warning root 作用域目前没有关闭入参
-`ThemeManagerOptions` 只暴露 `storageKey`。若确实要关掉 root 的持久化，可改 `storageKey` 落到另一命名空间，或在库外清理对应 key。
+`ThemeManagerOptions` 只暴露 `storageKey`。若确实要关掉 root 的持久化，可改 `storageKey` 落到另一命名空间，
+或在库外清理对应 key。
 :::
 
 ### 清理
@@ -132,7 +138,8 @@ themeManager.removeScope("preview");
 
 ### 环境降级
 
-所有 localStorage 读写都包在 `try/catch` 中：iOS 隐私模式等不可写环境**静默降级为无持久化**，功能不受影响（只是回访会闪）。
+所有 localStorage 读写都包在 `try/catch` 中：iOS 隐私模式等不可写环境**静默降级为无持久化**，
+功能不受影响（只是回访会闪）。
 
 ## 行为矩阵
 
@@ -146,8 +153,10 @@ themeManager.removeScope("preview");
 
 ## 验证
 
-`packages/theme/src/__tests__/persistence.test.ts` 覆盖了全链路：root 连接即写快照、`dark` 变化只写参数不重写快照、`themeColor` 切换重写快照且参数存解析值、同值重设零写入、新实例从参数 key 水合、`persistence: false` 不落盘、`removeScope` 清理参数并摘除片段。
+`packages/theme/src/__tests__/persistence.test.ts` 覆盖了全链路：root 连接即写快照、`dark` 变化只写参数不重写快照、
+`themeColor` 切换重写快照且参数存解析值、同值重设零写入、新实例从参数 key 水合、`persistence: false` 不落盘、
+`removeScope` 清理参数并摘除片段。
 
 ---
 
-下一步：[静态样式层与预设主题](./static.md)。
+下一步：[静态主题包](./static.md)。

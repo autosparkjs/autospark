@@ -9,7 +9,8 @@ import {
 import { mount, nextTick } from "../helpers";
 
 /**
- * 插件机制（ADR-0111）测试：ready 广播 / 组件查询期委托与共享编译 / action 惰性物化。
+ * 插件机制（ADR-0111 / ADR-0114）测试：ready 广播 / 组件查询期委托与共享编译 /
+ * action 惰性物化 / 预加载队列。
  *
  * 断言面守「重型对象禁令」：只断标量（dataset 标记、id 字符串、引用同一性、计数器），
  * 不把 engine / def / 描述符实例放进 toEqual 比较面。
@@ -17,6 +18,8 @@ import { mount, nextTick } from "../helpers";
  * 隔离纪律：pluginComponents / pluginActions / readyCallbacks / liveEngines 均为模块级
  * 进程共享面——本文件注册的资源用 `pl-` 前缀独特命名；ready 回调以 el 标记收集断言
  * （断言目标标记存在/不存在，不断言收集数组长度——他文件的存活 engine 会合法触发）。
+ * `globalThis.__AUTOSPARK_PLUGINS__` 是进程级全局面：预加载队列用例自带
+ * afterEach 清理，避免残留队列被其它用例的 engine 构造意外消费。
  */
 
 const mountedRoots: HTMLElement[] = [];
@@ -202,6 +205,15 @@ describe("AutoSpark.actions - 插件全局 action 表", () => {
         deletePluginActionDecl("pl-bad");
     });
 
+    test("$.ready 回调收双参 (engine, autospark)，第二参即命名空间类", () => {
+        let ns: unknown;
+        AutoSpark.ready((_engine, autospark) => {
+            ns = autospark;
+        });
+        makeEngine(`<i></i>`);
+        expect(ns).toBe(AutoSpark);
+    });
+
     test("options.actions 同名覆盖插件表（引擎级优先）", () => {
         pluginActions["pl-rank-action"] = () => "from-plugin";
         const { engine } = makeEngine(
@@ -213,5 +225,117 @@ describe("AutoSpark.actions - 插件全局 action 表", () => {
         const desc = scope.getAction("pl-rank-action");
         // 引擎级在构造期已注册，查找命中引擎级版本（handle 返回值区分来源）
         expect(desc!.handle()).toBe("from-options");
+    });
+});
+
+describe("globalThis.__AUTOSPARK_PLUGINS__ - 预加载队列（ADR-0114）", () => {
+    /** 装填队列（每次给一个新数组——drain 后原数组被冻结，重赋即重置） */
+    function armQueue(...fns: Array<(engine: any, autospark: any) => void>): void {
+        globalThis.__AUTOSPARK_PLUGINS__ = fns;
+    }
+
+    afterEach(() => {
+        delete globalThis.__AUTOSPARK_PLUGINS__;
+    });
+
+    test("首个 engine 构造期消费一次，第二个 engine 不再执行", () => {
+        const hits: string[] = [];
+        armQueue((engine) => {
+            hits.push((engine.el as HTMLElement).getAttribute("data-pl-tag")!);
+        });
+        const a = makeEngine(`<i></i>`);
+        makeEngine(`<b></b>`);
+        expect(hits).toEqual([a.root.getAttribute("data-pl-tag")]);
+    });
+
+    test("队列注册的资源对后建 engine 同样生效（全局注册，与队列清空无关）", () => {
+        armQueue((_engine, $) => {
+            $.components["pl-pre-card"] = `<div x-define="pl-pre-card"></div>`;
+        });
+        const a = makeEngine(`<i></i>`, {}, { autostart: false });
+        const b = makeEngine(`<i></i>`, {}, { autostart: false });
+        const declA = a.engine.getComponentDeclaration("pl-pre-card");
+        const declB = b.engine.getComponentDeclaration("pl-pre-card");
+        expect(declA).toBeTruthy();
+        // 全局 def 缓存命中：后建 engine 复用同一编译产物（ADR-0111 决策 5）
+        expect(declB).toBe(declA);
+        delete pluginComponents["pl-pre-card"];
+    });
+
+    test("队列内注册的 $.ready 对两个 engine 各调一次（per-engine 走 ready）", () => {
+        const hits: string[] = [];
+        armQueue((_engine, $) => {
+            $.ready((e) => {
+                // 只收带标记者：他用例经 mount() 建且未销毁的存活 engine 会合法触发
+                // retain 补调（无 data-pl-tag），按本文件隔离纪律过滤掉
+                const tag = (e.el as HTMLElement).getAttribute("data-pl-tag");
+                if (tag) hits.push(tag);
+            });
+        });
+        const a = makeEngine(`<i></i>`);
+        const b = makeEngine(`<b></b>`);
+        expect(hits).toEqual([
+            a.root.getAttribute("data-pl-tag"),
+            b.root.getAttribute("data-pl-tag"),
+        ]);
+    });
+
+    test("回调收双参 (engine, autospark)，第二参即命名空间类（先加载脚本拿不到全局）", () => {
+        let ns: unknown;
+        let el: unknown;
+        armQueue((engine, $) => {
+            el = engine.el;
+            ns = $;
+        });
+        const { root } = makeEngine(`<i></i>`);
+        expect(el).toBe(root);
+        expect(ns).toBe(AutoSpark);
+        expect(Object.hasOwn(ns as object, "components")).toBe(true);
+    });
+
+    test("非数组队列被忽略（不抛），非函数元素跳过（不中断其余元素）", () => {
+        (globalThis as any).__AUTOSPARK_PLUGINS__ = "not-an-array";
+        expect(() => makeEngine(`<i></i>`)).not.toThrow();
+
+        let calls = 0;
+        armQueue("not-a-function" as any, () => {
+            calls++;
+        });
+        makeEngine(`<b></b>`);
+        expect(calls).toBe(1);
+    });
+
+    test("单个元素抛错被隔离：其余元素照常执行、engine 构造不受影响", () => {
+        let calls = 0;
+        armQueue(
+            () => {
+                throw new Error("boom");
+            },
+            () => {
+                calls++;
+            },
+        );
+        const { root } = makeEngine(`<i></i>`);
+        expect(calls).toBe(1);
+        expect(root.getAttribute("data-autospark")).toBe("");
+    });
+
+    test("消费后队列被冻结清空：晚到的 push 不再被执行", () => {
+        let late = 0;
+        armQueue(() => {});
+        const queue = globalThis.__AUTOSPARK_PLUGINS__!;
+        makeEngine(`<i></i>`);
+        expect(queue.length).toBe(0);
+        expect(Object.isFrozen(queue)).toBe(true);
+        // 冻结后 push 在严格模式抛 TypeError（非严格静默失败）——误用会响而不是哑
+        try {
+            (queue as any).push(() => {
+                late++;
+            });
+        } catch {
+            /* 严格模式抛错即预期 */
+        }
+        makeEngine(`<b></b>`);
+        expect(late).toBe(0);
     });
 });

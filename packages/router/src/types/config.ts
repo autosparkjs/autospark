@@ -193,7 +193,9 @@ export type AutoSparkRouterOptions = {
      * 注册视图渲染器
      *
      * 在加载视图时会依次执行test方法，如果true则使用方渲染器
-     * 所以渲染器的注册顺序比较重要
+     * 所以渲染器的注册顺序比较重要。
+     * 位于路由级显式 renderer 与模板兜底之间（ADR-0008 修订：
+     * `!` 前缀强制 raw 优先于本列表）。
      */
     renderers?: AutoSparkRouterViewRendererBase[];
 
