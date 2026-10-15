@@ -1,0 +1,10 @@
+下一步插件机制在 engine 侧已收口，接下来想往哪推？
+
+
+组件资产包改插件形态— 给 @autospark/components 增一个插件入口（IIFE 副作用脚本），把种子表灌进 AutoSpark.components，script 场景不再需要手动传 options.components
+
+router 接入插件机制— 填充空的 packages/router/src/plugin.ts：router 以插件形态注册 outlet 组件/指令等资源
+
+先修 x-slot 红灯— 排查 src/utils/slot.ts:536 出口清单校验为何未发出 warn，让全量测试回到 0 失败
+
+写 ADR-0115 扩展插件加载— 如远程插件脚本动态加载（$.use(url)）、插件依赖顺序/加载状态等，先出决策文档再实施
