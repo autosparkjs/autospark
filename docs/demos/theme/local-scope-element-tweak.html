@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>局部主题 · 作用域内的元素域微调</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">作用域内仍可用元素域微调（命中被收敛）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" id="ls-mixed" data-theme-scope="previewMixed">
+                        <div class="box-label">作用域 previewMixed（purple）内的元素域</div>
+                        <div class="demo-sample">
+                            <div>本段继承作用域主题（purple）。</div>
+                            <div data-colorized style="margin-top:0.5rem;padding:0.6rem;border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                                <div class="theme-strip" data-strip="--x-color-"></div>
+                                <div>后代 <code>data-colorized</code>：多彩映射取<strong>本作用域</strong>的 purple 梯度，不会错拿根域蓝梯度。</div>
+                            </div>
+                            <div data-dark data-size="x-small" style="margin-top:0.5rem;padding:0.6rem;border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                                后代 <code>data-dark data-size="x-small"</code>：两域叠加，梯度仍是本作用域的 purple 反转。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+
+        <script>
+            // purple 作用域：演示作用域内的元素域微调（persistence:false 便于反复试验）
+            var defs = [
+                { id: "previewMixed", el: "#ls-mixed", options: { themeColor: "purple" } },
+            ];
+            defs.forEach(function (def) {
+                var scope = ThemePro.addScope(
+                    Object.assign({ id: def.id, persistence: false }, def.options),
+                );
+                if (!scope) return;
+                scope.attach(def.el);
+                // 构造选项里的模式 / 尺寸不会立即写属性，这里显式赋值一次
+                if (def.options.dark) scope.dark = true;
+                if (def.options.colorized) scope.colorized = true;
+            });
+        </script>
+    </body>
+</html>

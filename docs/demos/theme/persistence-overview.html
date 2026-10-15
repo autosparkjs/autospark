@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>持久化 · 概述</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <!-- 回访零闪：head 内的阻塞内联片段（真实项目里就放在这里） -->
+        <script>
+            (function () {
+                try {
+                    var css = localStorage.getItem("autospark-theme-styles");
+                    if (!css) return;
+                    var s = document.createElement("style");
+                    s.id = "autospark-theme-restore";
+                    s.textContent = css;
+                    document.head.appendChild(s);
+                } catch (e) {}
+            })();
+        </script>
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：持久化与回访零闪</div>
+                <p>
+                    主题 CSS 全部由运行时注入，因此回访用户首帧必然闪一次默认主题——除非把上次的产物提前还给他。
+                    持久化做两件事：<strong>样式快照</strong>（全部作用域 CSS 合成一个字符串）与
+                    <strong>参数持久化</strong>（每个作用域的用户可感参数）。
+                </p>
+                <ul>
+                    <li>本页 <code>&lt;head&gt;</code> 里就放着恢复片段：切换主题后<strong>刷新页面</strong>，首帧直接是上次的主题（零闪）</li>
+                    <li>快照 key <code>{storageKey}-styles</code>、参数 key <code>{storageKey}-scope-{id}</code>，默认前缀 <code>autospark-theme</code></li>
+                    <li>运行时每次注入变化都会<strong>全量重写</strong>快照——库升级后旧快照会被新产物覆盖（自愈），因此不需要版本号</li>
+                </ul>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">参数范围：只有用户可感的七个</div>
+                <div class="auto-card-body col">
+                    <pre>{ "themeColor": "#722ed1", "dark": true, "colorized": false,
+  "size": "medium", "radius": "small", "spacing": "medium", "shadow": "medium" }</pre>
+                    <p class="hint">
+                        <strong>语义色与调色板形态参数不入快照</strong>——它们属宿主级定制：若被写进本地，
+                        宿主升级默认值后会被旧参数钉死。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">行为矩阵</div>
+                <div class="auto-card-body col">
+                    <table class="demo-table">
+                        <thead>
+                            <tr><th>场景</th><th>首帧</th><th>稳定后</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>首次访问</td><td>默认主题（FOUC，接受）</td><td>应用参数后的主题</td></tr>
+                            <tr><td>回访（片段 + 快照齐全）</td><td>上次主题（零闪）</td><td>重算重写，与首帧一致</td></tr>
+                            <tr><td>回访（库升级改变了输出）</td><td>旧主题</td><td>新产物覆盖快照（自愈窗口）</td></tr>
+                            <tr><td>回访（localStorage 不可用）</td><td>默认主题</td><td>应用当前参数（不落盘）</td></tr>
+                            <tr><td><code>persistence: false</code> 的作用域</td><td>不参与快照</td><td>照常注入渲染</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="hint">
+                        所有 localStorage 读写都包在 try/catch 中：iOS 隐私模式等不可写环境静默降级为无持久化，功能不受影响（只是回访会闪）。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>局部主题 · WebComponent / shadow DOM</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">WebComponent / shadow DOM</div>
+                <div class="auto-card-body col">
+                    <pre>const scope = new ThemeScope({
+    id: "wc",
+    docRoot: this.shadowRoot,      // 注入与查询都在影子根内进行
+    cssSelector: [":host"],        // 影子根内用 :host
+    themeColor: "green",
+});</pre>
+                    <p class="hint">
+                        <code>docRoot</code> 同时决定注入位置与查询范围；<code>isConnected()</code> 也在
+                        <code>docRoot.ownerDocument</code> 中查找样式标签。本页右侧控制面板自身就是 WebComponent，
+                        它的样式经 Shadow DOM 自包含、配色则从宿主继承 <code>--auto-*</code> 变量。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

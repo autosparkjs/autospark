@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>工作原理 · 概述</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：从「一个主题色」到「整套界面变量」</div>
+                <p>
+                    主题库不存任何一套写死的皮肤：给它<strong>一个主题色</strong>，它在浏览器里按 Material
+                    风格色板扩散算法算出<strong>四份调色板</strong>，再合成「基础调色板」，最后由基础调色板派生出
+                    <code>--auto-*</code> 语义变量供组件消费。
+                </p>
+                <pre>主题色（种子）
+  → ① 主题调色板 + 反转主题调色板        （算法生成，随输入亮度自动适配）
+  → ② 灰度调色板 + 反转灰度调色板        （静态灰原料的两个方向）
+  → ③ 基础调色板 --x-color-0..9 / --x-bgcolor-0..9   （按 dark / colorized 选择上述哪一份）
+  → ④ 派生变量 --auto-*（边框 / 面板 / 表单 / 文字 / 交互态…）</pre>
+                <ul>
+                    <li><strong>只有主题色需要调</strong>：<code>dark</code> / <code>colorized</code> 两个开关切换基础调色板，
+                        即得 light / light+colorized / dark / dark+colorized 四种颜色模式</li>
+                    <li><strong>任意主题色都好看</strong>：梯度按输入色的亮度扩散，亮色种子与暗色种子各自得到单调梯度，
+                        不需要为每个品牌色手工配 10 档</li>
+                    <li>其余主题要素同构：字体 / 圆角 / 阴影 / 间距 也是「一套五档基础量 + 一个
+                        <code>data-*</code> 档位开关 + <code>--auto-*</code> 派生」</li>
+                </ul>
+            </div>
+        </main>
+
+    </body>
+</html>

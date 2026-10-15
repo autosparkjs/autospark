@@ -114,6 +114,24 @@ export function setupTestEnvironment(): void {
     globalThis.location = win.location;
 
     patchHappyDomColonAttributeBug(win);
+
+    // 快照 preload 基准 realm。auto-link 等组件在模块加载期注册进本 realm 的
+    // customElements；各测试文件每用例新建 Window 会替换全局，bun 按文件交错
+    // 「求值模块 → 跑用例」，事后从全局快照拿到的未必是本 realm——经此 stash
+    // 为依赖基准 realm 的测试提供确定性锚点。
+    (globalThis as any).__AUTOSPARK_PRELOAD_REALM__ = {
+        window: win,
+        document: win.document,
+        history: win.history,
+        location: win.location,
+        Event: (globalThis as any).Event,
+        CustomEvent: (globalThis as any).CustomEvent,
+        MouseEvent: (globalThis as any).MouseEvent,
+        HTMLElement: (globalThis as any).HTMLElement,
+        HTMLAnchorElement: (globalThis as any).HTMLAnchorElement,
+        URLSearchParams: (globalThis as any).URLSearchParams,
+        customElements: (globalThis as any).customElements,
+    };
 }
 
 // 自动执行设置（用于 --preload 场景）

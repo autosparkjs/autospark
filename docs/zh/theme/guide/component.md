@@ -12,7 +12,7 @@
 | [表单](./component-form.md) | 输入控件双形态 | `--auto-input-*` |
 | [交互反馈](./component-feedback.md) | 悬停 / 按下 / 选中 / 禁用 | `--auto-{hover,active,selected,disable}-*` |
 
-<demo html="theme/component-panel.html"/>
+<demo html="theme/component-overview.html"/>
 
 ## 指南
 
@@ -33,6 +33,8 @@
 | `.loading` | 旋转动画 |
 | `--auto-icon-{alert,info,success,warning,error,focus}` | 内置 SVG 图标（data URI，可直接 `mask-image`） |
 
+<demo html="theme/component-classes.html"/>
+
 ### 按钮变体
 
 ```html
@@ -50,6 +52,8 @@
 | 语义变体 | `primary` / `success` / `warning` / `error`（与 `danger` 等价）/ `info` |
 
 语义变体的底色来自 `--auto-primary-color` 或 `--x-color-{name}`，因此随主题色与模式变化。
+
+<demo html="theme/component-buttons.html"/>
 
 ### 完整示例
 
@@ -73,6 +77,8 @@
 </div>
 ```
 
+<demo html="theme/component-example.html"/>
+
 ### 自定义组件怎么接
 
 ```css
@@ -87,6 +93,8 @@
     font: var(--auto-font);
 }
 ```
+
+<demo html="theme/component-custom.html"/>
 
 ::: warning 组件层的暗色规则是字面量
 `alert.less` 里针对 `[dark]` / `[data-dark]` 的暗色变体是**写死的** `color-mix` 规则（已为 `data-light` 补对偶反规则），

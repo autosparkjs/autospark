@@ -16,7 +16,7 @@ scope.dark = true; // 模式 / 尺寸经 setter 立即写属性
 scope.radius = "small";
 ```
 
-<demo html="theme/local-scope.html"/>
+<demo html="theme/local-scope-overview.html"/>
 
 ## 指南
 
@@ -35,6 +35,8 @@ themeManager.removeScope("preview"); // 断开 + 删参数 key + 从快照摘除
 2. `new ThemeScope({ storageKey: manager 的 storageKey, ...options })`；
 3. 注入协调器（`coordinator`），使该作用域的 CSS 参与全局样式快照；
 4. 若构造期已连接（`autoConnect: true`，默认），立即补写一次快照。
+
+<demo html="theme/local-scope-create-destroy.html"/>
 
 ### 作用域选项 {#scope-options}
 
@@ -86,6 +88,8 @@ scope.dark = true; // 立即把 dark 属性写到 #preview 上
 `ThemeOptions.border` 有类型定义（注释写「默认 1px」），但运行时并未读取它——
 边框宽度实际来自派生变量 `--auto-border-size: 1px`。要改边框宽度请覆盖该变量。
 :::
+
+<demo html="theme/local-scope-setter.html"/>
 
 ### 选择器与附着：三件事别混
 
@@ -144,6 +148,8 @@ scope.connect(); // 注入样式
 作用域内消费 `--auto-*` 的组件全部跟随；`data-colorized` 因为是「自身式」命中，作用域约束下同样生效，
 且多彩映射取的是**本作用域**的梯度（不会错拿根域的值）。**跨作用域的裸命中不会生效**，这是刻意设计。
 
+<demo html="theme/local-scope-element-tweak.html"/>
+
 ### WebComponent / shadow DOM
 
 ```js
@@ -157,6 +163,8 @@ const scope = new ThemeScope({
 
 `docRoot` 同时决定注入位置与查询范围；`isConnected()` 也在 `docRoot.ownerDocument` 中查找样式标签。
 文档站的 `<theme-controls>` 控制面板就是这类用法：样式经 Shadow DOM 自包含，配色从宿主继承 `--auto-*`。
+
+<demo html="theme/local-scope-webcomponent.html"/>
 
 ### 作用域与持久化
 

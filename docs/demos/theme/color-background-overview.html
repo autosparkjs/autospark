@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>背景色 · 概述</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：背景色（Background）</div>
+                <p>
+                    背景由<strong>基础调色板的背景梯度</strong> <code>--x-bgcolor-0..9</code> 提供原料，
+                    派生层再按用途切成四层：工作区 / 面板 / 次级 / 内嵌。层次不靠「不同颜色」，
+                    而靠<strong>档位 + 不透明度</strong>的单调阶梯。
+                </p>
+                <table class="demo-table">
+                    <thead>
+                        <tr>
+                            <th>派生变量</th>
+                            <th>配方</th>
+                            <th>用途</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>--auto-workspace-bgcolor</code></td><td><code>--x-bgcolor-1</code></td><td>应用底 / 工作区</td></tr>
+                        <tr><td><code>--auto-bgcolor</code></td><td><code>--x-bgcolor-0</code></td><td>面板 / 卡片 / 弹层</td></tr>
+                        <tr><td><code>--auto-secondary-bgcolor</code></td><td><code>bgcolor-2</code> 55% 透明</td><td>次级面板 / 分区</td></tr>
+                        <tr><td><code>--auto-third-bgcolor</code></td><td><code>bgcolor-2</code> 25% 透明</td><td>内嵌块 / 代码块</td></tr>
+                        <tr><td><code>--auto-panel-bgcolor</code></td><td><code>--auto-bgcolor</code></td><td>面板 / Drawer</td></tr>
+                        <tr><td><code>--auto-panel-header-bgcolor</code></td><td><code>--auto-secondary-bgcolor</code></td><td>标题栏 / 标签页头</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+
+    </body>
+</html>

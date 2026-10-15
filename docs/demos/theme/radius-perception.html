@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>圆角 · 尺寸与圆角的观感关系</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">同一圆角在不同尺寸元素上的观感</div>
+                <div class="auto-card-body col">
+                    <div class="auto-card-body-item" style="gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:var(--x-border-radius-medium);background:var(--x-color-theme-2);font-size:0.7rem;">小</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:4rem;height:4rem;border-radius:var(--x-border-radius-medium);background:var(--x-color-theme-3);font-size:0.75rem;">中</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:7rem;height:5rem;border-radius:var(--x-border-radius-medium);background:var(--x-color-theme-4);font-size:0.8rem;">大</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:3rem;height:3rem;border-radius:var(--x-border-radius-circle);background:var(--auto-theme-color);color:#fff;font-size:0.7rem;">circle</span>
+                        <span style="display:inline-flex;align-items:center;padding:0.3em 1em;border-radius:var(--x-border-radius-pill);background:var(--auto-selected-bgcolor);color:var(--auto-selected-color);border:1px solid var(--auto-selected-border-color);">胶囊标签</span>
+                    </div>
+                    <p class="hint">
+                        圆角相同（<code>medium</code>）而尺寸不同：小元素视觉接近直角、大容器更显圆润——
+                        小控件宜选 <code>x-small</code> / <code>small</code>，大面积容器宜选 <code>large</code> / <code>x-large</code>。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

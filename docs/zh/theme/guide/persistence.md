@@ -10,7 +10,7 @@
 
 回访时由宿主粘贴在 `<head>` 的**阻塞内联片段**把快照回插，先于首帧还原主题；运行时启动后重算重写、接管画面。
 
-<demo html="theme/persistence.html"/>
+<demo html="theme/persistence-overview.html"/>
 
 ## 快速入门
 
@@ -35,6 +35,8 @@
 ```js
 themeManager.dark = true; // 参数自动持久化；样式快照自动重写
 ```
+
+<demo html="theme/persistence-quickstart.html"/>
 
 ## 指南
 
@@ -127,6 +129,8 @@ themeManager.addScope({ id: "scratch", persistence: false });
 `ThemeManagerOptions` 只暴露 `storageKey`。若确实要关掉 root 的持久化，可改 `storageKey` 落到另一命名空间，
 或在库外清理对应 key。
 :::
+
+<demo html="theme/persistence-disable.html"/>
 
 ### 清理
 

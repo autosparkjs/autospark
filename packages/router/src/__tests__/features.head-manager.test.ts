@@ -7,10 +7,17 @@
  * 从而同时覆盖阶段 A（路由级声明）与阶段 B（视图级 ViewMeta 覆盖）。
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach, afterAll } from "bun:test";
 import { setupTestEnvironment } from "./test-setup";
 
 setupTestEnvironment();
+
+/** mockView 挂的 fetch mock 在用例间共享，文件结束后必须还原——
+ *  否则泄漏给后续文件（bun 同进程顺序跑），让「视图加载失败」类用例假性成功 */
+const originalFetch = globalThis.fetch;
+afterAll(() => {
+    (globalThis as any).fetch = originalFetch;
+});
 
 const win = (globalThis as any).window;
 (globalThis as any).HTMLElement = win.HTMLElement;

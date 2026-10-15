@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 概述</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：组件变量（Component Variables）</div>
+                <p>
+                    「组件变量」是派生层按<strong>组件类型</strong>重新分组后的视角：颜色与尺寸要素提供原料，
+                    组件类（<code>.auto-card</code> / <code>.auto-btn</code> / <code>.auto-input</code> /
+                    <code>.auto-alert</code>）与业务自定义组件消费同一批 <code>--auto-*</code> 变量。
+                </p>
+                <ul>
+                    <li><strong>段落</strong>：行高 / 字距 / 字体速写——<code>--auto-line-height</code> / <code>--auto-letter-spacing</code> / <code>--auto-font</code></li>
+                    <li><strong>面板</strong>：容器的背景 / 边框 / 圆角 / 阴影 / 标题栏——<code>--auto-panel-*</code> / <code>--auto-border</code> / <code>--auto-shadow</code></li>
+                    <li><strong>表单</strong>：输入控件单类双形态——<code>--auto-input-*</code></li>
+                    <li><strong>交互反馈</strong>：悬停 / 按下 / 选中 / 禁用——<code>--auto-{hover,active,selected,disable}-*</code></li>
+                </ul>
+            </div>
+        </main>
+
+    </body>
+</html>

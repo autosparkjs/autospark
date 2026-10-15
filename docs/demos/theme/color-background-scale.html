@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>背景色 · 基础梯度</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">背景梯度 <code>--x-bgcolor-0..9</code>（面板 / 工作区 / 扩展档）</div>
+                <div class="auto-card-body col">
+                    <div class="grid">
+                        <div class="scope-box">
+                            <div class="box-label">亮语境</div>
+                            <div class="theme-strip" data-strip="--x-bgcolor-" data-strip-label></div>
+                            <div class="hint">0 最浅（面板）→ 9 最深；1 为工作区（比面板略深）</div>
+                        </div>
+                        <div class="scope-box" data-dark>
+                            <div class="box-label">暗语境（data-dark）</div>
+                            <div class="theme-strip" data-strip="--x-bgcolor-" data-strip-label></div>
+                            <div class="hint">0 = gray-8（面板，浮起）→ 1 = gray-9（工作区，最沉）→ 2..9 递亮</div>
+                        </div>
+                    </div>
+                    <div class="grid">
+                        <div class="scope-box">
+                            <div class="box-label">亮多彩（data-colorized）</div>
+                            <div class="theme-strip" data-strip="--x-bgcolor-"></div>
+                            <div class="hint">bgcolor-i = theme-i：整条幕布被主题色浸染</div>
+                        </div>
+                        <div class="scope-box" data-dark data-colorized>
+                            <div class="box-label">暗多彩（data-dark data-colorized）</div>
+                            <div class="theme-strip" data-strip="--x-bgcolor-"></div>
+                            <div class="hint">bgcolor-1 = theme-0 混黑 30%（彩色梯度无更深档，压暗保色相）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

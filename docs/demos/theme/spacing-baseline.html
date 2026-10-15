@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>间距 · 排版的底层标尺</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">间距作为排版基准：行高 / 字距</div>
+                <div class="auto-card-body col">
+                    <div class="theme-strip" data-strip="--x-spacing-" data-strip-count="6" data-strip-label></div>
+                    <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:12rem;line-height:var(--x-line-height-small);">
+                            行高 small：<code>--x-spacing-medium × 1.7</code>。道可道，非常道；名可名，非常名。
+                        </div>
+                        <div style="flex:1;min-width:12rem;line-height:var(--x-line-height-large);letter-spacing:var(--x-letter-spacing-large);">
+                            行高 large + 字距 large：<code>--x-spacing-medium × 2.1</code>。道可道，非常道；名可名，非常名。
+                        </div>
+                    </div>
+                    <p class="hint">
+                        行高与字距都以 <code>--x-spacing-medium</code> 为基准计算，因此改间距梯度会同时影响段落排版的「呼吸感」。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

@@ -18,7 +18,7 @@ themeManager.size = "large"; // 全局字号档（写 :root 的 data-size 属性
 <div data-size="x-small">这个子树整体用小号排版</div>
 ```
 
-<demo html="theme/font.html"/>
+<demo html="theme/font-overview.html"/>
 
 ## 指南
 
@@ -37,6 +37,8 @@ themeManager.size = "large"; // 全局字号档（写 :root 的 data-size 属性
     font-weight: var(--x-font-weight-small);
 }
 ```
+
+<demo html="theme/font-scale.html"/>
 
 ### 派生量与速写
 
@@ -63,6 +65,8 @@ CSS 自定义属性的 `var()` 替换发生在**声明所在元素**的计算值
 `font: var(--auto-font)` 不会联动。这也是「为什么局部换档能生效」的实现前提。
 :::
 
+<demo html="theme/font-shorthand.html"/>
+
 ### 消费派生量 vs 写死基础量
 
 ```css
@@ -75,6 +79,8 @@ font-size: var(--x-font-size-medium);
 ```
 
 两者的初始观感在默认档（`medium`）下完全相同——这正是容易踩的坑：在面板切到 `x-small` 才会暴露差异。
+
+<demo html="theme/font-auto-vs-fixed.html"/>
 
 ### 与其它维度的关系
 

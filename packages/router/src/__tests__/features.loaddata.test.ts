@@ -9,7 +9,8 @@ import type { AutoSparkRouter } from "../router";
 import type { AutoSparkMatchedRouteItem } from "../types/routes";
 
 import { setupTestEnvironment } from "./test-setup";
-import { AutoSparkRouterError, AutoSparkRouterTimeoutError } from "@/errors";
+import { AutoSparkRouterError } from "@/errors";
+import { TimeoutError as AsyncSignalTimeoutError } from "asyncsignal/loader";
 
 // 初始化其他测试环境（window, document 等）
 setupTestEnvironment();
@@ -440,18 +441,12 @@ describe("DataLoader", () => {
                 return { userId: callCount, callCount };
             };
 
-            // 创建两个相同路径但不同 hash 配置的路由
-            // 通过在配置中指定不同的 hash 值来生成不同的缓存键
-            const matchedRoute1 = createMockedRoute("/user", {
-                from: mockDataFn,
-                cache: 10000,
-                hash: "/user/1",
-            });
-            const matchedRoute2 = createMockedRoute("/user", {
-                from: mockDataFn,
-                cache: 10000,
-                hash: "/user/2",
-            });
+            // DataLoader 以 matched.hash 作为缓存键（数据选项中的 hash 不参与缓存键生成），
+            // 相同路径但不同参数对应不同的 matched.hash，应各自独立缓存
+            const matchedRoute1 = createMockedRoute("/user", { from: mockDataFn, cache: 10000 }, 1);
+            matchedRoute1.params = { id: "1" };
+            const matchedRoute2 = createMockedRoute("/user", { from: mockDataFn, cache: 10000 }, 2);
+            matchedRoute2.params = { id: "2" };
 
             await dataLoader.loadDatas([matchedRoute1]);
             await dataLoader.loadDatas([matchedRoute2]);
@@ -488,7 +483,7 @@ describe("DataLoader", () => {
             await new Promise((resolve) => setTimeout(resolve, 30));
 
             const loader2 = matchedRoute.route?._getData;
-            const timestamp2 = signal2?.result?.timestamp;
+            const timestamp2 = loader2?.signal.result?.timestamp;
 
             // 验证获取了新的数据（时间戳应该不同）
             expect(timestamp2).toBeDefined();
@@ -556,7 +551,9 @@ describe("DataLoader", () => {
         });
 
         it("远程URL数据也应该支持缓存", async () => {
+            let fetchCount = 0;
             mockFetch = createFetchMock(() => {
+                fetchCount++;
                 return Promise.resolve({
                     ok: true,
                     status: 200,
@@ -564,11 +561,11 @@ describe("DataLoader", () => {
                 } as Response);
             });
 
-            // 使用相同的路由实例测试远程URL缓存
-            const matchedRoute = createMockedRoute(
-                "/remote-cache",
-                "http://api.example.com/cached.json",
-            );
+            // 远程 URL 数据源通过 from 指定，并开启路由级缓存
+            const matchedRoute = createMockedRoute("/remote-cache", {
+                from: "http://api.example.com/cached.json",
+                cache: 10000,
+            });
 
             // 第一次加载
             await dataLoader.loadDatas([matchedRoute]);
@@ -583,8 +580,10 @@ describe("DataLoader", () => {
             await new Promise((resolve) => setTimeout(resolve, 50));
 
             const loader2 = matchedRoute.route?._getData;
-            expect(signal2?.isFulfilled()).toBe(true);
-            expect(signal2?.result).toEqual({ remote: true, cached: true });
+            expect(loader2?.signal.isFulfilled()).toBe(true);
+            expect(loader2?.signal.result).toEqual({ remote: true, cached: true });
+            // 缓存命中，fetch 只应调用一次
+            expect(fetchCount).toBe(1);
         });
     });
 
@@ -619,7 +618,7 @@ describe("DataLoader", () => {
             // 等待最后请求完成
             await new Promise((resolve) => setTimeout(resolve, 150));
 
-            const signal = matchedRoute3.route?._getData;
+            const loader = matchedRoute3.route?._getData;
             expect(loader).toBeDefined();
             if (loader) {
                 expect(loader.signal.isFulfilled()).toBe(true);
@@ -1002,7 +1001,8 @@ describe("DataLoader", () => {
             expect(loader).toBeDefined();
             if (loader) {
                 expect(loader.signal.isRejected()).toBe(true);
-                expect(loader.signal.error).toBeInstanceOf(AutoSparkRouterTimeoutError);
+                // 超时由 AsyncLoader 内置处理，抛出 asyncsignal 的 TimeoutError
+                expect(loader.signal.error).toBeInstanceOf(AsyncSignalTimeoutError);
             }
         });
     });
@@ -1148,10 +1148,13 @@ describe("DataLoader", () => {
             await new Promise((resolve) => setTimeout(resolve, 150));
 
             const loader = matchedRoute.route?._getData;
+            expect(loader).toBeDefined();
             if (loader) {
-                // AbortError 应该被 resolve 为 undefined 而不是 reject
-                expect(loader.signal.isFulfilled()).toBe(true);
-                expect(loader.result).toBeUndefined();
+                // AbortError 落为 signal rejected，error 为原生 DOMException（name: AbortError），
+                // 结果为 undefined；DataLoader 层对该类错误不写状态标记、不记录日志
+                expect(loader.signal.isRejected()).toBe(true);
+                expect(loader.signal.error?.name).toBe("AbortError");
+                expect(loader.signal.result).toBeUndefined();
             }
         });
     });
@@ -1168,7 +1171,12 @@ describe("DataLoader", () => {
             await new Promise((resolve) => setTimeout(resolve, 0));
 
             const loader = matchedRoute.route?._getData;
-            expect(loader).toBeUndefined();
+            // 数组是 truthy 值会创建 loader，但不是合法数据源，signal 拒绝
+            expect(loader).toBeDefined();
+            if (loader) {
+                expect(loader.signal.isRejected()).toBe(true);
+                expect(loader.signal.error?.message).toBe("Invalid data source");
+            }
         });
 
         it("应该处理 null 值（falsy 值，不创建 signal）", async () => {
@@ -1193,7 +1201,7 @@ describe("DataLoader", () => {
             expect(loader).toBeUndefined();
         });
 
-        it("应该处理函数返回 null（falsy 值，不创建 signal）", async () => {
+        it("应该处理函数返回 null（数据校验拒绝）", async () => {
             const nullFn = () => null;
 
             const matchedRoute = createMockedRoute("/null-fn", { from: nullFn });
@@ -1202,11 +1210,17 @@ describe("DataLoader", () => {
             await new Promise((resolve) => setTimeout(resolve, 0));
 
             const loader = matchedRoute.route?._getData;
-            // null 是 falsy 值，loadRoute 会提前返回
-            expect(loader).toBeUndefined();
-        }, 50000000000);
+            // 函数返回值须为纯对象，null 触发数据校验拒绝
+            expect(loader).toBeDefined();
+            if (loader) {
+                expect(loader.signal.isRejected()).toBe(true);
+                expect(loader.signal.error?.message).toBe(
+                    "Invalid data format: expected plain object",
+                );
+            }
+        });
 
-        it("应该处理函数返回 undefined（falsy 值，不创建 signal）", async () => {
+        it("应该处理函数返回 undefined（数据校验拒绝）", async () => {
             const undefinedFn = () => undefined;
 
             const matchedRoute = createMockedRoute("/undefined-fn", { from: undefinedFn });
@@ -1215,41 +1229,59 @@ describe("DataLoader", () => {
             await new Promise((resolve) => setTimeout(resolve, 0));
 
             const loader = matchedRoute.route?._getData;
-            // undefined 是 falsy 值，loadRoute 会提前返回
-            expect(loader).toBeUndefined();
+            // 函数返回值须为纯对象，undefined 触发数据校验拒绝
+            expect(loader).toBeDefined();
+            if (loader) {
+                expect(loader.signal.isRejected()).toBe(true);
+                expect(loader.signal.error?.message).toBe(
+                    "Invalid data format: expected plain object",
+                );
+            }
         });
 
-        it("应该处理 0 值（falsy 值，不创建 signal）", async () => {
+        it("应该处理 0 值（无效数据源）", async () => {
             const matchedRoute = createMockedRoute("/zero", { from: 0 });
 
             await dataLoader.loadDatas([matchedRoute]);
             await new Promise((resolve) => setTimeout(resolve, 0));
 
             const loader = matchedRoute.route?._getData;
-            // 0 是 falsy 值，loadRoute 会提前返回
-            expect(loader).toBeUndefined();
+            // 0 不是合法数据源（非纯对象/URL/函数），signal 拒绝
+            expect(loader).toBeDefined();
+            if (loader) {
+                expect(loader.signal.isRejected()).toBe(true);
+                expect(loader.signal.error?.message).toBe("Invalid data source");
+            }
         });
 
-        it("应该处理 false 值（布尔值触发 getAutoUrl，没有 view 则不创建 signal）", async () => {
+        it("应该处理 false 值（无效数据源）", async () => {
             const matchedRoute = createMockedRoute("/false", { from: false });
 
             await dataLoader.loadDatas([matchedRoute]);
             await new Promise((resolve) => setTimeout(resolve, 0));
 
             const loader = matchedRoute.route?._getData;
-            // false 是布尔值，会触发 getAutoUrl，但没有 view 所以返回 undefined
-            expect(loader).toBeUndefined();
+            // from 仅认 true（自动 URL），false 不是合法数据源，signal 拒绝
+            expect(loader).toBeDefined();
+            if (loader) {
+                expect(loader.signal.isRejected()).toBe(true);
+                expect(loader.signal.error?.message).toBe("Invalid data source");
+            }
         });
 
-        it("应该处理空字符串（不创建 signal，因为空字符串是 falsy 值）", async () => {
+        it("应该处理空字符串（无效数据源）", async () => {
             const matchedRoute = createMockedRoute("/empty-string", { from: "" });
 
             await dataLoader.loadDatas([matchedRoute]);
             await new Promise((resolve) => setTimeout(resolve, 0));
 
             const loader = matchedRoute.route?._getData;
-            // 空字符串被当作 falsy 值，loadRoute 会提前返回
-            expect(loader).toBeUndefined();
+            // 空字符串不是合法 URL 源，signal 拒绝
+            expect(loader).toBeDefined();
+            if (loader) {
+                expect(loader.signal.isRejected()).toBe(true);
+                expect(loader.signal.error?.message).toBe("Invalid data source");
+            }
         });
     });
 

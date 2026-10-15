@@ -39,14 +39,52 @@ function createTestDOM() {
     return host;
 }
 
+/** 最小 engine stub：注入模式下跳过自建管线 */
+function stubEngine() {
+    return {
+        getComponentDeclaration: () => ({ name: "autospark.outlet" }),
+        getComponent: () => ({
+            data: { views: [], ephemeral: { hash: "", html: "", ready: false }, active: "" },
+        }),
+        data: () => { },
+        destroy() { },
+    } as any;
+}
+
+/** 在未显式提供 engine 时注入 stub */
+function stubEnginePass(options: any) {
+    if (options && typeof options === "object" && !Array.isArray(options) && options.engine) {
+        return options;
+    }
+    if (options && typeof options === "object" && !Array.isArray(options)) {
+        return { ...options, engine: stubEngine() };
+    }
+    // 数组/单对象/字符串/函数格式：包成带 routes 的配置
+    return { routes: options, engine: stubEngine() };
+}
+
 /**
- * 动态导入 AutoSparkRouter 以避免加载时的依赖问题
+ * 动态导入 AutoSparkRouter 以避免加载时的依赖问题。
+ * 构造函数自 89515f9 起自动 attach()，不得重复调用（抛 Already attached）；
+ * attach 链异步完成，需等待路由表加载与初始导航结束。
  */
 async function createRouter(host: HTMLElement, options: any) {
     const { AutoSparkRouter } = await import("@/router");
-    const router = new AutoSparkRouter(host, options);
-    router.attach();
+    // 渲染链路要求宿主内存在出口元素
+    if (!host.querySelector("[data-autospark-outlet]")) {
+        const outlet = document.createElement("div");
+        outlet.setAttribute("data-autospark-outlet", "");
+        host.appendChild(outlet);
+    }
+    const router = new AutoSparkRouter(host, stubEnginePass(options));
+    await new Promise((resolve) => setTimeout(resolve, 80));
     return router;
+}
+
+/** 取 matched 数组末项（最深匹配） */
+function lastMatched(router: AutoSparkRouter) {
+    const current = router.routes.current ?? [];
+    return current[current.length - 1];
 }
 
 describe("Hash mode routing", () => {
@@ -67,7 +105,12 @@ describe("Hash mode routing", () => {
 
     afterEach(() => {
         if (router) {
-            router.detach();
+            try {
+                router.detach();
+            } catch (e) {
+                // 忽略 detach 错误
+            }
+            router = undefined as any;
         }
         if (host && host.parentElement) {
             host.parentElement.removeChild(host);
@@ -81,6 +124,7 @@ describe("Hash mode routing", () => {
         // history 库的 HashHistory 与 BrowserHistory 有相同接口
         // 验证 push 操作后路径正确更新
         router.push("/user");
+        await new Promise((resolve) => setTimeout(resolve, 100));
         expect(router.location.pathname).toBe("/user");
     });
 
@@ -88,9 +132,12 @@ describe("Hash mode routing", () => {
         router = await createRouter(host, { mode: "hash", routes });
 
         router.push("/user");
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
-        expect(router.routes.current.route).not.toBeNull();
-        expect(router.routes.current.route!.name).toBe("user");
+        // current 是 matched 数组，末项为最深匹配
+        const matched = lastMatched(router);
+        expect(matched).toBeDefined();
+        expect(matched!.route!.name).toBe("user");
         expect(router.location.pathname).toBe("/user");
     });
 
@@ -99,19 +146,26 @@ describe("Hash mode routing", () => {
 
         // push
         router.push("/user");
-        expect(router.routes.current.route!.name).toBe("user");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(lastMatched(router)!.route!.name).toBe("user");
 
         // replace
         router.replace("/settings");
-        expect(router.routes.current.route!.name).toBe("settings");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(lastMatched(router)!.route!.name).toBe("settings");
 
-        // params
+        // params（末项携带路径参数）
         router.push("/user/42");
-        expect(router.routes.current.params).toEqual({ id: "42" });
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(lastMatched(router)!.params).toEqual({ id: "42" });
 
-        // query
+        // query（query 解析在匹配链上，逐层传递）
         router.push("/user?tab=profile");
-        expect(router.routes.current.query).toEqual({ tab: "profile" });
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        const current = router.routes.current ?? [];
+        const withQuery = current.find((m) => m.query && Object.keys(m.query).length > 0);
+        expect(withQuery).toBeDefined();
+        expect({ ...withQuery!.query }).toEqual({ tab: "profile" });
     });
 
     it("Hash 模式下导航事件正确触发", async () => {
@@ -120,20 +174,22 @@ describe("Hash mode routing", () => {
         const navStarts: any[] = [];
         const navEnds: any[] = [];
 
-        host.addEventListener("navigation/start", ((event: any) => {
-            navStarts.push(event.detail);
-        }) as EventListener);
-
-        host.addEventListener("navigation/end", ((event: any) => {
-            navEnds.push(event.detail);
-        }) as EventListener);
+        // 导航事件为 router 实例事件（mitt）：navigation:start / navigation:end，
+        // detail 为 history 库的 Update（{ action, location }）
+        router.on("navigation:start", (detail: any) => {
+            navStarts.push(detail);
+        });
+        router.on("navigation:end", (detail: any) => {
+            navEnds.push(detail);
+        });
 
         router.push("/user");
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         expect(navStarts.length).toBe(1);
-        expect(navStarts[0].navigationType).toBe("push");
+        expect(navStarts[0].action.toLowerCase()).toBe("push");
         expect(navEnds.length).toBe(1);
-        expect(navEnds[0].navigationType).toBe("push");
+        expect(navEnds[0].action.toLowerCase()).toBe("push");
     });
 
     it("默认使用 History 模式（mode 未指定时）", async () => {
@@ -141,16 +197,19 @@ describe("Hash mode routing", () => {
 
         // 应该正常工作（BrowserHistory 模式）
         router.push("/user");
-        expect(router.routes.current.route!.name).toBe("user");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(lastMatched(router)!.route!.name).toBe("user");
     });
 
     it("push/replace 支持 state 参数", async () => {
         router = await createRouter(host, { routes });
 
         router.push("/user", { from: "home" });
-        expect(router.routes.current.route!.name).toBe("user");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(lastMatched(router)!.route!.name).toBe("user");
 
         router.replace("/settings", { reason: "redirect" });
-        expect(router.routes.current.route!.name).toBe("settings");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(lastMatched(router)!.route!.name).toBe("settings");
     });
 });

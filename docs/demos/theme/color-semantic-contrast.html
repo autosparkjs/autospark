@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>语义颜色 · 对比度验收</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">对比度验收</div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        改语义色后建议跑一次校准脚本（与 <code>src/vars</code> 变量同源，变量一改脚本自动跟随）：
+                    </p>
+                    <pre>cd packages/theme &amp;&amp; bun scripts/check-dark-contrast.ts</pre>
+                    <p class="hint">
+                        26 项检查覆盖正文 / 次要文字 / 主色 / 语义色 / 交互态 / 边框 / 禁用态在亮暗与多彩矩阵下的表现，任一 FAIL 退出码为 1。
+                        暗色下语义色实测 4.67 ~ 10.93:1（旧方案混透明只有 1.6 ~ 2.2:1）；
+                        亮色下黄绿 / 黄色系语义色在白底上物理受限（约 2.03 ~ 4.58:1，未达 AA），属已知遗留。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

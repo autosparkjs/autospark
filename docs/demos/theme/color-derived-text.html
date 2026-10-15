@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>派生颜色 · 文字三档</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">文字三档：同文同底，仅档位不同</div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.3rem;">
+                        <div style="color:var(--auto-color);font-weight:600;">主要文字 --auto-color</div>
+                        <div style="color:var(--auto-color);">道可道，非常道；名可名，非常名。</div>
+                        <code class="caption">→ var(--x-color-1)</code>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.3rem;">
+                        <div style="color:var(--auto-secondary-color);font-weight:600;">次要文字 --auto-secondary-color</div>
+                        <div style="color:var(--auto-secondary-color);">道可道，非常道；名可名，非常名。</div>
+                        <code class="caption">→ color-mix(主文字, transparent 25%)</code>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.3rem;">
+                        <div style="color:var(--auto-third-color);font-weight:600;">辅助文字 --auto-third-color</div>
+                        <div style="color:var(--auto-third-color);">道可道，非常道；名可名，非常名。</div>
+                        <code class="caption">→ color-mix(主文字, transparent 45%)</code>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

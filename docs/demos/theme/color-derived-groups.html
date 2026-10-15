@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>派生颜色 · 分组清单（边框 / 表单 / 面板 / 排版）</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">边框与表单：<code>--auto-border*</code> / <code>--auto-input-*</code></div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.45rem;">
+                        <div style="padding:0.6rem;border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            默认 <code class="caption">--auto-border</code>
+                        </div>
+                        <div style="padding:0.6rem;border:var(--auto-hover-border);border-radius:var(--auto-border-radius);">
+                            hover <code class="caption">--auto-hover-border</code>
+                        </div>
+                        <div style="padding:0.6rem;border:var(--auto-selected-border);border-radius:var(--auto-border-radius);">
+                            selected <code class="caption">--auto-selected-border</code>
+                        </div>
+                        <div style="padding:0.6rem;border:var(--auto-disable-border);border-radius:var(--auto-border-radius);">
+                            disable <code class="caption">--auto-disable-border</code>
+                        </div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.45rem;">
+                        <input class="auto-input" placeholder=".auto-input（元素形态）" />
+                        <div class="auto-input">
+                            <span class="auto-input-action">¥</span>
+                            <input placeholder="容器形态：前后缀" />
+                            <span class="auto-input-action"><button>清空</button></span>
+                        </div>
+                        <input class="auto-input" placeholder="禁用态" disabled />
+                        <div class="hint">
+                            表单外观全部由 <code>--auto-input-{font,border,bgcolor,placeholder,padding,radius,height}</code>
+                            转发通用派生值，自定义控件逐项引用即可与 <code>.auto-input</code> 观感一致。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">面板与排版</div>
+                <div class="auto-card-body col">
+                    <div class="demo-sample">
+                        <div class="demo-sample-header">面板头部：font(--auto-panel-header) / bg(--auto-panel-header-bgcolor)</div>
+                        <div>面板主体背景 --auto-panel-bgcolor</div>
+                        <div class="demo-sample-sub">字体速写 --auto-font，标题字体 --auto-title-font</div>
+                        <div class="demo-sample-third">辅助文字 --auto-third-color</div>
+                    </div>
+                    <p class="hint">
+                        面板类派生值（<code>--auto-panel-header*</code> / <code>--auto-panel-bgcolor</code>）
+                        与排版类（<code>--auto-font</code> / <code>--auto-title-font</code>）分别服务于「容器」与「文字」两类组件。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

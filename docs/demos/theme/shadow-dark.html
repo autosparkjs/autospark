@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>阴影 · 暗色换配方</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">暗色换配方：同一档位、两套阴影</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box">
+                        <div class="box-label">亮语境 --x-shadow-medium</div>
+                        <div class="cell" style="box-shadow:var(--x-shadow-medium);">中灰低不透明</div>
+                        <div class="caption">hsl(240 3.8% 46.1% / 12%)</div>
+                    </div>
+                    <div class="scope-box" data-dark>
+                        <div class="box-label">暗语境 --x-shadow-medium（data-dark）</div>
+                        <div class="cell" style="box-shadow:var(--x-shadow-medium);">黑色系高不透明</div>
+                        <div class="caption">hsl(0 0% 0% / 50%)</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

@@ -62,7 +62,8 @@
 
 - **任意深度**：中间隔着不建 scope 的纯 `<div>` 不截断归属，直接穿透；
 - **嵌套 scope 归最内层**：多层带 scope 祖先时，挂最近的那层；
-- **必须有祖先 scope**：向上找不到任何带 scope 的祖先（`x-scope` 或任意其他建 scope 的指令 / 插值）时，编译期 `warn` 并丢弃该声明。
+- **必须有祖先 scope**：向上找不到任何带 scope 的祖先（`x-scope` 或任意其他建 scope 的指令 / 插值）时，编译期 `warn` 并丢弃该声明；
+- **`.global` 是例外**：`x-define.global`（≡ `x-define-options="{global:true}"`）跳过归属，直接入全局组件定义表——无祖先 scope 也成立（详见 [x-define 文档「全局组件」](../directives/x-define.md)一节）。
 
 ```html
 <div x-scope>
@@ -90,7 +91,8 @@
 | 与消费处同级（兄弟位） | 共同父 scope | 同容器内消费（**推荐**） |
 | 消费宿主子树内（如按钮内部） | 消费宿主自身的 scope | 仅该宿主自身（见下文边界） |
 | 嵌套 `x-define` 内 | 外层组件的实例 scope | 仅外层组件实例内部（[私有子组件](../directives/x-define.md#嵌套私有子组件)） |
-| 无带 scope 的祖先 | 无处归属 | `warn` + 丢弃 |
+| `x-define.global`（任意位置，含无 scope 祖先） | 不挂 scope，入**全局组件定义表** | 全引擎所有消费（作用域同名仍就近遮蔽；嵌套在外层组件内时随外层首次实例化才注册） |
+| 无带 scope 的祖先的普通 `x-define` | 无处归属 | `warn` + 丢弃 |
 
 #### 推荐形态：声明在消费之外、之前
 
@@ -148,7 +150,7 @@
 
 scope 链到顶未命中时，`getComponentDeclaration` 兜底查全局组件定义表（先查已登记的名，miss 再惰性读构造选项 `options.components` 的字符串模板，自动包装 + 懒预编译）。全局组件与作用域组件经**同一条查找链**取用，消费者无需区分来源；局部同名就近遮蔽全局同名。详见[关于组件 → 全局组件](./index.md#全局组件)与[开发组件 → 全局组件自动包装](./develop.md#全局组件自动包装)。
 
-动态注册（运行时增补组件）不走 `options.components`（构造期配置语义），用 [`engine.registerComponent`](./runtime.md) 或 [`x-import`](./remote.md) 远程加载——x-import 触发的就绪信号正是上表「未命中等待」的唤醒来源。`registerComponent` 的归属三态（`scope` / `el` / 全局）、严格单根契约、覆盖与继承挂起语义详见[运行时创建组件](./runtime.md)。
+全局组件定义表有四个写入来源：构造选项 `options.components` / `builtinComponents`（懒预编译）、**模板内联声明 `x-define.global`**（编译期即时注册，无需 JS 配置，见 [x-define](../directives/x-define.md)）、[`engine.registerComponent`](./runtime.md)（不传作用域即全局）、[`x-import`](./remote.md) / loader 的 `.global` 远程注册。四者同表同兜底；动态注册不回写 `options.components`（构造期配置语义）。x-import 触发的就绪信号正是上表「未命中等待」的唤醒来源。`registerComponent` 的归属三态（`scope` / `el` / 全局）、严格单根契约、声明自带 global 时声明为准、覆盖与继承挂起语义详见[运行时创建组件](./runtime.md)。
 
 ## 获取组件实例
 

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>背景色 · 业务容器引用顺序</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">背景色与组件：整页结构剖面</div>
+                <div class="auto-card-body col">
+                    <div class="demo-sample">
+                        <div class="demo-sample-header">卡片头（--auto-panel-header-bgcolor）</div>
+                        <div>卡片体（--auto-bgcolor）</div>
+                        <div class="auto-card-body-item" style="background:var(--auto-secondary-bgcolor);border:none;">
+                            内嵌块（--auto-secondary-bgcolor）
+                        </div>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                            <button class="auto-btn primary">主按钮</button>
+                            <button class="auto-btn">默认按钮</button>
+                            <input class="auto-input" placeholder="输入框 --auto-input-bgcolor" style="flex:1;min-width:10rem;" />
+                        </div>
+                    </div>
+                    <p class="hint">
+                        业务自定义容器时按「外层用 workspace、容器用 bgcolor、内嵌用 secondary / third」的顺序引用，
+                        即可获得与内置组件一致的空间感；不要写死颜色——写死会让模式切换失效。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

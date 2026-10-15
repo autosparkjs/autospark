@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>明暗主题 · 两条启用通道</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">同一段界面在两种模式下的观感（右侧面板切「暗色模式」）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box">
+                        <div class="box-label">亮色（无属性）</div>
+                        <div class="theme-strip" data-strip="--x-color-" data-strip-label></div>
+                        <div class="demo-sample">
+                            <div class="demo-sample-header">面板头部</div>
+                            <div>主要文字 --auto-color</div>
+                            <div class="demo-sample-sub">次要文字 --auto-secondary-color</div>
+                            <div class="demo-sample-third">辅助文字 --auto-third-color</div>
+                            <input class="auto-input" placeholder="表单 --auto-input-*" />
+                            <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                                <button class="auto-btn primary">主按钮</button>
+                                <button class="auto-btn">默认</button>
+                                <span class="auto-alert info" style="flex:1;">提示 --auto-info-color</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="scope-box global" data-dark>
+                        <div class="box-label">暗色（data-dark 固定在本卡，与全局无关）</div>
+                        <div class="theme-strip" data-strip="--x-color-" data-strip-label></div>
+                        <div class="demo-sample">
+                            <div class="demo-sample-header">面板头部</div>
+                            <div>主要文字 --auto-color</div>
+                            <div class="demo-sample-sub">次要文字 --auto-secondary-color</div>
+                            <div class="demo-sample-third">辅助文字 --auto-third-color</div>
+                            <input class="auto-input" placeholder="表单 --auto-input-*" />
+                            <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                                <button class="auto-btn primary">主按钮</button>
+                                <button class="auto-btn">默认</button>
+                                <span class="auto-alert info" style="flex:1;">提示 --auto-info-color</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        左侧无属性（跟随全局，面板切暗色它会一起变暗）；右侧固定 <code>data-dark</code>——
+                        这就是「元素域」：局部暗色不需要建作用域。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

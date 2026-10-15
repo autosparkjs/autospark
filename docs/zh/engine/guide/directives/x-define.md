@@ -47,6 +47,26 @@
 
 <demo html="component/lookup.html"/>
 
+### 全局组件：`.global`
+
+加 `.global` 修饰符（或等价的 `x-define-options="{global:true}"`）即把组件注册进**全局组件定义表**——全引擎任意位置的 `x-component` / 约定名消费者都能查到，且**不再要求祖先 scope**（在孤立位置声明公共组件的正当方式）：
+
+```html
+<!-- 两种完全等价的写法 -->
+<div x-define.global="brand-card">...</div>
+<div x-define="brand-card" x-define-options="{global:true}">...</div>
+```
+
+规则：
+
+- 与 `options.components`、`engine.registerComponent(code)`、`x-import.global` 注册的全局组件落**同一张表、同一兜底**；作用域为当前 engine（`x-isolate` 子引擎隔离，随 engine 销毁回收）；
+- 作用域内的同名组件仍可**就近遮蔽**全局组件；全局同名重复注册 `warn` 一次 + 后者覆盖（`x-for` 克隆等重复注册幂等不刷屏），**已实例化的实例不热替换**；
+- 全局组件**脱离声明位置**：数据基准恒为消费处（`'host'`），对全局组件声明 `dataContext:'declarer'` 会 `warn` 并忽略；继承（`x-define:inherit`）的父组件也必须是全局组件——父仅在某作用域链可见时直接 `warn` + 拒绝注册（不挂起）；父为尚未就绪的全局组件时，注册挂起、待父全局注册后自动解析；
+- 嵌套在另一组件定义内的 `x-define.global` 在外层组件**首次实例化时**才进入全局表（而非页面初始编译期），请勿在更早位置消费它；
+- 同一份带 `.global` 的组件代码经 `engine.registerComponent(code, { scope })` 或作用域 `x-import` 注册时**声明为准**：改落全局表，调用目标忽略并 `warn` 一次。
+
+<demo html="component/define-global.html"/>
+
 ### 数据与方法（script setup）
 
 `<script setup>`（布尔属性）或 `<script type="autospark/setup">` 声明组件逻辑，对象字面量按段合并；**顶层其余键（非保留键）为私有变量**：
@@ -118,12 +138,15 @@
 
 ## 配置选项
 
-声明侧数据边界开放配置。`x-define-options` 在编译期**手工解析**（组件元素被前置 transformer 拦截，不走通用指令选项机制）——**无宿主 `x-options` 回退、无成员 / 定向形态**：
+声明侧配置（数据边界 + 全局注册）。`x-define-options` 在编译期**手工解析**（组件元素被前置 transformer 拦截，不走通用指令选项机制）——**无宿主 `x-options` 回退、无成员 / 定向形态**：
 
 | 配置项      | 默认值            | 修饰符 | 说明                                                                                                       |
 | ----------- | ----------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
 | `open`      | `false`           | `.open` | 开放数据边界（声明侧作者契约）；显式布尔**优先于修饰符**（`{open:false}` 可关掉 `.open`），非布尔 warn 回落修饰符值 |
-| `dataContext` | `'host'`（消费侧） | —      | 开放状态的数据上下文：`'host'` \| `'declarer'`；仅 `open` 为真生效，声明而无 `open` 时 warn 忽略，非法值 warn 忽略 |
+| `global`    | `false`           | `.global` | 注册为全局组件（跳过归属查找，无祖先 scope 也可声明）；显式布尔**优先于修饰符**（`{global:false}` 可关掉 `.global`），非布尔 warn 回落修饰符值。详见上文「全局组件」 |
+| `dataContext` | `'host'`（消费侧） | —      | 开放状态的数据上下文：`'host'` \| `'declarer'`；仅 `open` 为真生效，声明而无 `open` 时 warn 忽略，非法值 warn 忽略。全局组件不支持 `'declarer'`（warn 忽略） |
+
+修饰符即同名布尔选项的快捷写法（`x-define.global` ≡ `x-define-options="{global:true}"`，与 `.open` 同规则，ADR-0007/0115）。
 
 ```html
 <!-- 两种开放写法等价 -->
@@ -133,7 +156,7 @@
 
 ## 注意事项
 
-- **必须有祖先 scope**：`x-define` 需要至少一个祖先 scope（`x-scope` 或任意指令 / 插值），否则编译期 `warn` 丢弃；
+- **作用域组件必须有祖先 scope**：普通 `x-define` 需要至少一个祖先 scope（`x-scope` 或任意指令 / 插值），否则编译期 `warn` 丢弃；`x-define.global` 是例外——跳过归属、无祖先也注册（见「全局组件」）；
 - **不渲染自身**：`x-define` 元素及其子树不进结果 DOM，同元素的其他指令（如 `x-text`）随组件冻结、待实例化时才编译执行；
 - **旧写法已废弃**：`x-component="名称"` 的定义写法已更名 `x-define`（ADR-0054），旧写法会被读作缺少组件名的 `x-component` 实例化并 `warn`；
 - **继承的父组件须先声明（同步场景）**：父同步在场（文档序在前 / 全局已注册）则编译期立即解析；值空 / 指向自身 / 继承环 `warn` + 拒绝注册。`x-import` 异步父**就绪即解析**（挂起至父注册事件排水，ADR-0083；拼错父名同表现为持续 loading，详见[组件继承](../component/inherit.md)）；

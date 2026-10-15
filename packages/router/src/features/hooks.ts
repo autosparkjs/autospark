@@ -152,10 +152,7 @@ export class HookManager {
         if (mode === "serial") {
             for (const hook of hooks) {
                 try {
-                    const result = await this._runHook.apply(this.router, [
-                        hook as any,
-                        args as any,
-                    ]);
+                    const result = await this._runHook(hook as any, args as any);
                     if (result === false) return false as R;
                     if (typeof result === "string") return result as R;
                 } catch (e: any) {
@@ -168,7 +165,7 @@ export class HookManager {
             return (await Promise.allSettled(
                 // oxlint-disable-next-line typescript/await-thenable
                 hooks.map((hook) => {
-                    return this._runHook.apply(this.router, [hook as any, args as any]);
+                    return this._runHook(hook as any, args as any);
                 }),
             )) as R;
         }

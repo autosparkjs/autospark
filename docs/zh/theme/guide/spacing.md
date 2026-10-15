@@ -15,7 +15,7 @@ themeManager.spacing = "small";
 }
 ```
 
-<demo html="theme/spacing.html"/>
+<demo html="theme/spacing-overview.html"/>
 
 ## 指南
 
@@ -29,6 +29,8 @@ themeManager.spacing = "small";
 | `--x-spacing-medium` | `0.8rem` |
 | `--x-spacing-large` | `1.0rem` |
 | `--x-spacing-x-large` | `1.2rem` |
+
+<demo html="theme/spacing-scale.html"/>
 
 ### 派生量
 
@@ -64,6 +66,8 @@ themeManager.spacing = "small";
 ```
 
 因此改间距梯度会同时影响[段落](./component-paragraph.md)的呼吸感——这是刻意的：间距是「密度」的度量单位。
+
+<demo html="theme/spacing-baseline.html"/>
 
 ---
 

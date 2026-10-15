@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>明暗主题 · data-light 切回亮色</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">元素域开关：<code>data-dark</code> 的独立与嵌套</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" id="el-dark">
+                        <div class="box-label">
+                            <button data-toggle-attr="data-dark" data-toggle-target="#el-dark" data-toggle-label></button>
+                        </div>
+                        <div class="demo-sample">
+                            <div>本卡独立启用 / 关闭暗色，页面其余部分不受影响。</div>
+                            <input class="auto-input" placeholder="输入框跟随本卡模式" />
+                        </div>
+                    </div>
+                    <div class="scope-box" data-dark id="el-dark-nested">
+                        <div class="box-label">暗卡内嵌亮卡（data-light 的用途）</div>
+                        <div class="demo-sample">
+                            <div>外层暗色：本段文字与输入框取暗色变量。</div>
+                            <div class="scope-box" id="el-light" data-light style="margin-top:0.5rem;">
+                                <div class="box-label">
+                                    <button data-toggle-attr="data-light" data-toggle-target="#el-light" data-toggle-label></button>
+                                </div>
+                                <div class="demo-sample">
+                                    <div>内层 data-light：完整亮域，连 color-scheme 一并回亮。</div>
+                                    <input class="auto-input" placeholder="亮色输入框" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        注意：<code>data-dark</code> 与 <code>data-colorized</code> 要<strong>落在同一元素</strong>才命中叠加块——
+                        跨元素组合（暗父 + 彩子）不会叠加，此时可用 <code>data-uncolored</code> 让子元素回灰但保留模式。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

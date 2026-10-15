@@ -13,7 +13,7 @@ p {
 }
 ```
 
-<demo html="theme/component-paragraph.html"/>
+<demo html="theme/paragraph-overview.html"/>
 
 ## 指南
 
@@ -34,6 +34,8 @@ p {
 | `large` | `× 2.1` | `× 0.08` |
 | `x-large` | `× 2.3` | `× 0.1` |
 
+<demo html="theme/paragraph-metrics.html"/>
+
 ### 消费派生量 vs 写死基础量
 
 ```css
@@ -47,6 +49,8 @@ line-height: var(--x-line-height-medium);
 ```
 
 两段初始观感在默认档下相同——切档（`x-small` / `x-large`）才暴露差异。这是排查「段落不跟着变」的第一个检查点。
+
+<demo html="theme/paragraph-auto.html"/>
 
 ### 与间距的关系
 
@@ -80,6 +84,8 @@ line-height: var(--x-line-height-medium);
     color: var(--auto-third-color);
 }
 ```
+
+<demo html="theme/paragraph-usage.html"/>
 
 ---
 

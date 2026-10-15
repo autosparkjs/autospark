@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>语义颜色 · 梯度种子</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">梯度种子：每色展开为 10 阶标尺</div>
+                <div class="auto-card-body col">
+                    <div class="hint">success 标尺 <code>--x-color-success-0..9</code></div>
+                    <div class="theme-strip" data-strip="--x-color-success-" data-strip-label></div>
+                    <div class="hint">warning 标尺 <code>--x-color-warning-0..9</code></div>
+                    <div class="theme-strip" data-strip="--x-color-warning-" data-strip-label></div>
+                    <div class="hint">danger 标尺 <code>--x-color-danger-0..9</code></div>
+                    <div class="theme-strip" data-strip="--x-color-danger-" data-strip-label></div>
+                    <p class="hint">
+                        标尺方向恒定（0 浅 → 9 深，不随模式反转）；<code>--x-color-{name}</code> 才是「当前该用的那一档」：
+                        亮色直引种子、暗色指向 <code>-3</code>。业务可引用档位做浅底 / 深字（如 <code>danger-1</code> 底 + <code>danger-8</code> 字）。
+                    </p>
+                    <div class="grid">
+                        <div style="padding:0.6rem;border-radius:var(--auto-border-radius);background:var(--x-color-success-1);color:var(--x-color-success-8);">
+                            success-1 底 / success-8 字
+                        </div>
+                        <div style="padding:0.6rem;border-radius:var(--auto-border-radius);background:var(--x-color-danger-1);color:var(--x-color-danger-8);">
+                            danger-1 底 / danger-8 字
+                        </div>
+                        <div style="padding:0.6rem;border-radius:var(--auto-border-radius);background:var(--x-color-warning-1);color:var(--x-color-warning-8);">
+                            warning-1 底 / warning-8 字
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

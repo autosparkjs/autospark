@@ -42,6 +42,8 @@ import { recompileSubtree } from "../utils/recompileSubtree";
 import { AutoSparkAnimator } from "../features/animate/animate";
 import {
     buildComponentDef,
+    extractGlobalOption,
+    hasComponentDeclareAttr,
     parseComponentDeclare,
     warnNestedResourceNodes,
 } from "./compile/collect";
@@ -455,6 +457,12 @@ export class AutoSpark<
      */
     private _overrideWarnedScope = new WeakMap<AutoSparkScope, Set<string>>();
     private _overrideWarnedGlobal = new Set<string>();
+    /**
+     * x-import 作用域导入遇到声明自带 global（ADR-0115 决策 8「声明为准」）的冲突 warn
+     * 去重：per 组件名一次（缓存命中重跑注册循环、多个作用域 x-import 重复拉到同一远程文档时
+     * 不刷屏）。
+     */
+    private _declareGlobalWarned = new Set<string>();
 
     // action 管理单元已提炼至 src/actions/（manager.ts + buildAction.ts，承接 ADR-0010 的
     // utils 提炼）；三入口——构造函数 options.actions 扫描、actions Proxy 的 set trap、
@@ -830,7 +838,14 @@ export class AutoSpark<
     private parseComponentCode(
         code: string,
         optsName?: string,
-    ): { root: HTMLElement; name: string; modifierOpen: boolean; inherit: string | null } | null {
+    ): {
+        root: HTMLElement;
+        name: string;
+        modifierOpen: boolean;
+        /** 生效的全局声明（修饰符 / x-define-options 合并后，ADR-0115；options 布尔含 false 优先） */
+        global: boolean;
+        inherit: string | null;
+    } | null {
         const warn = (msg: string) => this.logger.warn(msg);
         if (typeof code !== "string" || code.trim() === "") {
             warn("engine.registerComponent: code 为空或非字符串，未注册");
@@ -872,10 +887,13 @@ export class AutoSpark<
         }
         // 嵌套声明资源节点补 warn（不改变收集行为，见 warnNestedResourceNodes）
         warnNestedResourceNodes(root, warn);
+        // 生效全局声明：.global 修饰符与 x-define-options.global 合并（ADR-0115 决策 2）
+        const declaredGlobal = extractGlobalOption(root, declared.modifierGlobal, warn);
         return {
             root,
             name: declared.name,
             modifierOpen: declared.modifierOpen,
+            global: declaredGlobal,
             inherit: declared.inherit,
         };
     }
@@ -915,6 +933,10 @@ export class AutoSpark<
      * | `el` | 自该元素向上取**最近的 scope 根**（含自身），与 x-define「最近祖先 scope」归属同构；查不到则 warn 后降级为全局 |
      * | `scope` + `el` | 以 `scope` 为准并 warn |
      *
+     * **声明为准**（ADR-0115 决策 8）：code 根元素自带 `x-define.global` 或
+     * `x-define-options="{global:true}"` 时，`scope`/`el` 目标被忽略（warn 一次），
+     * 一律注册为全局组件——global 是定义自身属性；入口本就全局时该标记冗余，静默接受。
+     *
      * **覆盖语义**：同名后注册覆盖先注册（per 名去重 warn）；**已实例化的组件不热替换**——
      * 实例持有自己的克隆，仅后续 `x-component` 实例化取到新定义。
      *
@@ -952,13 +974,22 @@ export class AutoSpark<
                 );
             }
         }
-        const owner = ownerScope; // const 别名：闭包内可安全窄化
-        const global = owner === null;
-
         // ② 归一化 + 声明校验（严格单根、必带 x-define）
         const parsed = this.parseComponentCode(code, opts?.name);
         if (!parsed) return null;
-        const { root, name, modifierOpen, inherit } = parsed;
+        const { root, name, modifierOpen, inherit, global: declaredGlobal } = parsed;
+
+        // ②-b 声明为准（ADR-0115 决策 8）：code 自带 global（x-define.global /
+        // x-define-options.global）时一律落全局表，scope/el 目标被忽略并 warn 一次——
+        // global 是组件**定义自身的属性**，同一份代码不应因注册入口不同而改变作用域。
+        if (declaredGlobal && ownerScope) {
+            warn(
+                `engine.registerComponent: 组件 "${name}" 的声明自带 global（x-define.global / x-define-options.global），以声明为准——已注册为全局组件，scope/el 目标已忽略（ADR-0115）`,
+            );
+            ownerScope = null;
+        }
+        const owner = ownerScope; // const 别名：闭包内可安全窄化
+        const global = owner === null;
 
         // ③ 覆盖 warn（per 注册目标 per 名去重——与 x-import 同款机制，ADR-0065 决策三）
         const existed = global
@@ -1329,6 +1360,26 @@ export class AutoSpark<
         injectGlobalComponentStyles(this as any, def);
     }
 
+    /**
+     * 模板全局声明注册收口（ADR-0115）：编译期 `_collectComponent` 命中 `x-define.global`
+     * （或 `x-define-options="{global:true}"`）时调用。与 {@link registerComponent} 全局路径
+     * 同一语义三件套——覆盖 warn 一次（per 名去重，克隆/多实例重注册不刷屏）、
+     * {@link registerComponentDef}（快照反查 + global 样式注入收口）、入全局组件定义表、
+     * `_afterComponentRegistered(name, true)`（凡注册必发事件、必排水）。区别仅在调用方已直接
+     * 持有 ComponentDef（模板 DOM 收集通道，非字符串严格契约通道），故不复刻字符串归一化。
+     */
+    _registerGlobalDef(name: string, def: ComponentDef): void {
+        if (this._hasGlobalComponentSource(name) && !this._overrideWarnedGlobal.has(name)) {
+            this._overrideWarnedGlobal.add(name);
+            this.logger.warn(
+                `组件注册覆盖："${name}"（全局组件表已有同名组件，已被模板全局声明覆盖，ADR-0115/0086）`,
+            );
+        }
+        this.registerComponentDef(def);
+        this._globalComponentDefs.set(name, def);
+        this._afterComponentRegistered(name, true);
+    }
+
     /** 挂起的继承解析表（ADR-0083）：父名 → 待重试任务队列（父未就绪时压入，注册事件排水） */
     private _pendingInherits = new Map<string, Array<() => boolean>>();
 
@@ -1487,21 +1538,42 @@ export class AutoSpark<
                 return null;
             }
             elements = Array.from(frag.children).filter(
-                (n): n is HTMLElement => n instanceof HTMLElement && n.hasAttribute("x-define"),
+                // 门禁识别全部声明形态（含 x-define.global / x-define:inherit 等修饰符/属性参数
+                // 形态，ADR-0115）——裸 hasAttribute("x-define") 会漏掉修饰符正身
+                (n): n is HTMLElement => n instanceof HTMLElement && hasComponentDeclareAttr(n),
             );
             this._importUrlCache.set(cacheKey, elements);
         }
         // 注册各组件
         const registered: string[] = [];
         for (const el of elements) {
-            const name = (el.getAttribute("x-define") ?? "").trim() || "default";
+            const declared = parseComponentDeclare(el, (msg) => this.logger.warn(msg));
+            if (!declared) continue; // 门禁已保证，防御兜底
+            const { name, inherit } = declared;
+            // 生效注册目标：指令目标（x-import / loader 的 .global）默认；远程声明自带 global
+            // 时**声明为准**（ADR-0115 决策 8）——作用域导入目标被忽略，warn 一次（per 名去重）
+            const elGlobal = extractGlobalOption(
+                el,
+                declared.modifierGlobal,
+                (msg) => this.logger.warn(msg),
+            );
+            let targetGlobal = global;
+            if (elGlobal && !global) {
+                if (!this._declareGlobalWarned.has(name)) {
+                    this._declareGlobalWarned.add(name);
+                    this.logger.warn(
+                        `x-import: 组件 "${name}" 的远程声明自带 global（x-define.global / x-define-options.global），以声明为准——已注册为全局组件，本次作用域导入目标已忽略（ADR-0115）`,
+                    );
+                }
+                targetGlobal = true;
+            }
             // 覆盖 warn（ADR-0065 决策三）：远程版覆盖已注册同名组件时警告（loader「以此 url 为准」
             // 与 x-import 同口径）；per 注册目标 per 名去重——缓存命中重跑注册循环不刷屏
-            const existed = global
+            const existed = targetGlobal
                 ? this._hasGlobalComponentSource(name)
                 : ownerScope?.components?.[name] != null;
             if (existed) {
-                const warned = global
+                const warned = targetGlobal
                     ? this._overrideWarnedGlobal
                     : (this._overrideWarnedScope.get(ownerScope!) ??
                       (() => {
@@ -1512,7 +1584,7 @@ export class AutoSpark<
                 if (!warned.has(name)) {
                     warned.add(name);
                     this.logger.warn(
-                        `远程组件覆盖注册："${name}"（${global ? "全局组件表" : "作用域"}已有同名组件，已被远程版覆盖，ADR-0065）`,
+                        `远程组件覆盖注册："${name}"（${targetGlobal ? "全局组件表" : "作用域"}已有同名组件，已被远程版覆盖，ADR-0065）`,
                     );
                 }
             }
@@ -1521,7 +1593,7 @@ export class AutoSpark<
                 el,
                 name,
                 (msg) => this.logger.warn(msg),
-                global ? null : (ownerScope ?? null),
+                targetGlobal ? null : (ownerScope ?? null),
             );
             // 注册尾巴（解析成功 / 无继承共用）：作用域挂 ownerScope.components；
             // 全局写全局组件定义表（ADR-0086 决策三：不再写 options.components + 清缓存重懒预编译
@@ -1529,7 +1601,7 @@ export class AutoSpark<
             // 无法复原，setup/styles 会在往返中丢失；直接入表既保真又免一次解析）
             const registerResolved = (resolved: ComponentDef): void => {
                 this.registerComponentDef(resolved);
-                if (global) {
+                if (targetGlobal) {
                     this._globalComponentDefs.set(name, resolved);
                 } else if (ownerScope) {
                     if (!ownerScope.components) ownerScope.components = {};
@@ -1541,10 +1613,9 @@ export class AutoSpark<
             // 父未就绪挂起 pending 表（父可能来自其他异步 url），registered 排水重试。
             // 远程路径本就不解析 .open 修饰符，传 false 一致。
             let finalDef: ComponentDef = def;
-            const inherit = readInheritAttr(el);
             if (inherit !== null) {
                 const lookupParent = (pname: string): ComponentDef | null => {
-                    const snap = global
+                    const snap = targetGlobal
                         ? (this._resolveGlobalComponent(pname) ?? null)
                         : (ownerScope?.getComponentDeclaration(pname) ??
                           this._resolveGlobalComponent(pname) ??
@@ -1573,7 +1644,7 @@ export class AutoSpark<
                         if (retry === PENDING_PARENT) return false; // 同名注册不在可见链——继续等
                         if (retry) {
                             registerResolved(retry);
-                            this._afterComponentRegistered(name, global); // 发事件 + 级联排水（ADR-0085）
+                            this._afterComponentRegistered(name, targetGlobal); // 发事件 + 级联排水（ADR-0085）
                         }
                         return true; // 成功或终局失败（已 warn）均出队
                     });
@@ -1585,7 +1656,7 @@ export class AutoSpark<
             registerResolved(finalDef);
             registered.push(name);
             // 发事件 + 排水（ADR-0085）：本组件可能是他处挂起继承等待的异步父
-            this._afterComponentRegistered(name, global);
+            this._afterComponentRegistered(name, targetGlobal);
         }
         return registered;
     }

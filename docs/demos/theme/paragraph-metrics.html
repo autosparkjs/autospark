@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 段落 · 行高与字距</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">行高五档 <code>--x-line-height-*</code></div>
+                <div class="auto-card-body col">
+                    <div class="auto-card-body-item" style="line-height:var(--x-line-height-x-small);">x-small：道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。</div>
+                    <div class="auto-card-body-item" style="line-height:var(--x-line-height-small);">small：道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。</div>
+                    <div class="auto-card-body-item" style="line-height:var(--x-line-height-medium);">medium：道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。</div>
+                    <div class="auto-card-body-item" style="line-height:var(--x-line-height-large);">large：道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。</div>
+                    <div class="auto-card-body-item" style="line-height:var(--x-line-height-x-large);">x-large：道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。</div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">字距五档 <code>--x-letter-spacing-*</code></div>
+                <div class="auto-card-body col">
+                    <div class="auto-card-body-item" style="letter-spacing:var(--x-letter-spacing-x-small);">x-small：道可道，非常道；名可名，非常名。</div>
+                    <div class="auto-card-body-item" style="letter-spacing:var(--x-letter-spacing-medium);">medium：道可道，非常道；名可名，非常名。</div>
+                    <div class="auto-card-body-item" style="letter-spacing:var(--x-letter-spacing-x-large);">x-large：道可道，非常道；名可名，非常名。</div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 表单 · 完整样例</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">完整表单样例</div>
+                <div class="auto-card-body col">
+                    <div class="demo-sample">
+                        <div class="demo-sample-header">新建任务</div>
+                        <div class="auto-input">
+                            <label>任务名</label>
+                            <input placeholder="请输入任务名" />
+                        </div>
+                        <div class="auto-input">
+                            <span class="auto-input-action">优先级</span>
+                            <select>
+                                <option>高</option>
+                                <option>中</option>
+                                <option>低</option>
+                            </select>
+                        </div>
+                        <textarea class="auto-input" rows="2" placeholder="备注（可选）"></textarea>
+                        <div class="auto-input">
+                            <input type="checkbox" id="notify" checked />
+                            <label for="notify">完成后通知我</label>
+                        </div>
+                        <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
+                            <button class="auto-btn">取消</button>
+                            <button class="auto-btn primary">创建</button>
+                        </div>
+                    </div>
+                    <p class="hint">
+                        业务自定义控件时逐项引用 <code>--auto-input-*</code>（而不是自己写颜色），即可与
+                        <code>.auto-input</code> 保持同一观感并自动跟随主题。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

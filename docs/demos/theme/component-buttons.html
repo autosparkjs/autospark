@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 按钮变体</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">尺寸五档：<code>x-small / small / medium / large / x-large</code></div>
+                <div class="auto-card-body col">
+                    <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
+                        <button class="auto-btn x-small">x-small</button>
+                        <button class="auto-btn small">small</button>
+                        <button class="auto-btn medium">medium</button>
+                        <button class="auto-btn large">large</button>
+                        <button class="auto-btn x-large">x-large</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">语义变体：底色来自 <code>--auto-primary-color</code> 与 <code>--x-color-{name}</code></div>
+                <div class="auto-card-body col">
+                    <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
+                        <button class="auto-btn">默认</button>
+                        <button class="auto-btn primary">主操作</button>
+                        <button class="auto-btn success">成功</button>
+                        <button class="auto-btn warning">警告</button>
+                        <button class="auto-btn danger">删除</button>
+                        <button class="auto-btn error">error（等价 danger）</button>
+                        <button class="auto-btn info">信息</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">形状：<code>compact</code> 紧凑 / <code>circle</code> 圆形 / <code>pill</code> 胶囊</div>
+                <div class="auto-card-body col">
+                    <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
+                        <button class="auto-btn compact">compact 紧凑</button>
+                        <button class="auto-btn primary compact">primary compact</button>
+                        <button class="auto-btn small pill">小号胶囊</button>
+                        <button class="auto-btn pill">胶囊</button>
+                        <button class="auto-btn circle">+</button>
+                        <button class="auto-btn primary large circle">＋</button>
+                    </div>
+                    <p class="hint">悬停 / 按下按钮，反馈色自动取自 <code>--auto-hover-*</code> / <code>--auto-active-*</code>。</p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

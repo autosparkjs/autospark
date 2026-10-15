@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>语义颜色 · 概述</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：语义颜色（Semantic Colors）</div>
+                <p>
+                    语义色是<strong>操作结果的语言</strong>：<code>primary</code>（品牌 / 主操作）、
+                    <code>success</code>、<code>warning</code>、<code>danger</code>、<code>info</code>。
+                    它们的值不是「一个颜色」，而是<strong>梯度种子</strong>——库里会展开成同系 10 阶标尺。
+                </p>
+                <ul>
+                    <li>亮色：直引种子原值（与固定 hex 时代零差异）；暗色：提亮引用浅档（<code>-3</code>）——深底上语义色要更亮而不是更暗</li>
+                    <li><code>primary</code> 默认 <code>var(--auto-theme-color)</code>：跟随主题色，<code>var()</code> 引用豁免梯度化</li>
+                    <li>语义色与调色板形态参数属<strong>宿主级定制</strong>，不进参数持久化</li>
+                </ul>
+                <pre>ThemePro.update({ danger: "#ff4d4f", success: "#00b96b" })</pre>
+            </div>
+        </main>
+
+    </body>
+</html>

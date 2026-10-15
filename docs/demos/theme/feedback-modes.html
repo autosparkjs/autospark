@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 交互反馈 · 四模式对照</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">四种颜色模式下的反馈（同款列表并排）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box">
+                        <div class="box-label">light</div>
+                        <div class="item-list">
+                            <div class="item selected">选中</div>
+                            <div class="item disabled">禁用</div>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-colorized>
+                        <div class="box-label">light + colorized</div>
+                        <div class="item-list">
+                            <div class="item selected">选中</div>
+                            <div class="item disabled">禁用</div>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-dark>
+                        <div class="box-label">dark（底透明度与亮色对称）</div>
+                        <div class="item-list">
+                            <div class="item selected">选中</div>
+                            <div class="item disabled">禁用</div>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-dark data-colorized>
+                        <div class="box-label">dark + colorized</div>
+                        <div class="item-list">
+                            <div class="item selected">选中</div>
+                            <div class="item disabled">禁用</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        暗色下这四态的<strong>档位与不透明度</strong>被 <code>darkDerivedVars</code> 重算：
+                        主色提一档（<code>theme-5 → theme-6</code>）、底色百分比与亮色保持一致（实测感知对称 +14.5%）。
+                        组件层永远只写 <code>var(--auto-hover-*)</code> 这类引用。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

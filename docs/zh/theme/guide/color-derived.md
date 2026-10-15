@@ -16,7 +16,7 @@
 }
 ```
 
-<demo html="theme/color-derived.html"/>
+<demo html="theme/color-derived-overview.html"/>
 
 ## 指南
 
@@ -36,6 +36,8 @@
 | **输入框** | `--auto-input-font`、`--auto-input-border`、`--auto-input-bgcolor`、`--auto-input-placeholder`、`--auto-input-padding`、`--auto-input-radius` | 表单外观 |
 | **图标** | `--auto-icon-size`、`--auto-icon-{alert,info,success,warning,error,focus}` | 尺寸 + 内置 SVG 图标（data URI，可直接 `mask-image`） |
 
+<demo html="theme/color-derived-groups.html"/>
+
 ### 文字三档
 
 | 变量 | 配方 | 用途 |
@@ -45,6 +47,8 @@
 | `--auto-third-color` | 主文字色 45% 透明 | 时间戳、辅助信息 |
 
 三档引用文字标尺的相邻档位（亮色下约 59 / 109 / 149），档距均匀且「主要 > 次要 > 辅助」的层级在暗色与多彩下恒成立。
+
+<demo html="theme/color-derived-text.html"/>
 
 ### 背景四层
 
@@ -57,6 +61,8 @@
 
 层次不靠「不同颜色」而靠**档位 + 不透明度**的单调阶梯——所以同一套变量在亮 / 暗 / 多彩下都成立。
 细节见[背景色](./color-background.md)。
+
+<demo html="theme/color-derived-background.html"/>
 
 ### 交互四态
 
@@ -76,6 +82,8 @@
 ```
 
 细节见[交互反馈](./component-feedback.md)。
+
+<demo html="theme/color-derived-states.html"/>
 
 ### 引用建议
 

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>字体 · 概述</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：字体（Font）</div>
+                <p>
+                    字体要素是「一套五档基础量 + 一个档位开关 + 一组派生量」的标准结构：
+                    基础量 <code>--x-font-size-*</code> / <code>--x-font-weight-*</code> 给绝对值，
+                    档位开关 <code>data-size</code> 选档，派生量 <code>--auto-font-*</code> 供组件消费。
+                </p>
+                <ul>
+                    <li>分解别名：<code>--auto-font-size</code> / <code>--auto-font-weight</code> / <code>--auto-font-family</code></li>
+                    <li>速写：<code>font: var(--auto-font)</code> = 字重 + 字号 / 行高 + 字体族</li>
+                    <li>标题排版：<code>font: var(--auto-title-font)</code>（在默认字体基础上加大字重与字号）</li>
+                </ul>
+                <pre>ThemePro.size = "large"     // 全局字号档（写 :root 的 data-size 属性）
+&lt;div data-size="x-small"&gt;  // 元素域局部换档</pre>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">维度叠加：<code>data-dark</code> × <code>data-size</code></div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-dark data-size="x-small">
+                        <div class="box-label">data-dark + data-size="x-small"</div>
+                        <div style="font:var(--auto-font);">暗色 + 最小字号：两域互不覆盖。</div>
+                    </div>
+                    <div class="scope-box" data-dark data-size="x-large">
+                        <div class="box-label">data-dark + data-size="x-large"</div>
+                        <div style="font:var(--auto-font);">暗色 + 最大字号：两域互不覆盖。</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

@@ -15,7 +15,7 @@ themeManager.shadow = "large";
 }
 ```
 
-<demo html="theme/shadow.html"/>
+<demo html="theme/shadow-overview.html"/>
 
 ## 指南
 
@@ -32,6 +32,8 @@ themeManager.shadow = "large";
 
 档位越高，模糊半径与不透明度同时上升——所以 `x-small → x-large` 读起来是「越浮越高」。
 
+<demo html="theme/shadow-scale.html"/>
+
 ### 暗色换配方
 
 深底上中灰阴影几乎不可见，因此暗块（`darkShadowVars`）把整组配方替换为**黑色系高不透明度**：
@@ -47,6 +49,8 @@ themeManager.shadow = "large";
 暗块还会一并**自举** `--auto-shadow`：非根元素上的 `data-dark` 若不重新声明它，继承到的会是根域已替换的亮阴影值，
 暗阴影对组件不可见。尺寸档位块生成在暗阴影块之后（同特异性后者胜出、`data-shadow` 带 `!important`），
 所以「暗色 + 换档」两者都能正常工作。
+
+<demo html="theme/shadow-dark.html"/>
 
 ### 阴影与边框的分工
 
@@ -66,6 +70,8 @@ themeManager.shadow = "large";
 
 `data-size` 也会换 `--auto-shadow`（尺寸档位含阴影档）；同时挂 `data-size` 与 `data-shadow` 时后者胜出
 （档位块带 `!important`）。
+
+<demo html="theme/shadow-local-scope.html"/>
 
 ---
 

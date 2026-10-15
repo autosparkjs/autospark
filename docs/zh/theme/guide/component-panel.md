@@ -15,7 +15,7 @@
 }
 ```
 
-<demo html="theme/component-panel.html"/>
+<demo html="theme/panel-overview.html"/>
 
 ## 指南
 
@@ -54,6 +54,8 @@
 }
 ```
 
+<demo html="theme/panel-shapes.html"/>
+
 ### 内置 `.auto-card`
 
 ```html
@@ -73,10 +75,14 @@
 - `auto-card-header` 背景取 `--auto-panel-header-bgcolor`；`auto-card-body` 无 footer 时自动补下方圆角；
 - `auto-card-footer` 上边框分隔，按钮自动靠右；标题栏里的 `.closeable` 自动靠右。
 
+<demo html="theme/panel-card.html"/>
+
 ### 四种颜色模式下的面板
 
 面板变量全部引用派生层，因此四种颜色模式、任意主题色、任意尺寸档位下都自动成立。
 Demo 页给出四模式并排对照与「紧凑 / 宽松」两套档位组合。
+
+<demo html="theme/panel-modes.html"/>
 
 ---
 

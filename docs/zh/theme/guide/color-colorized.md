@@ -15,7 +15,7 @@ themeManager.colorized = true; // 全局多彩
 <div data-uncolored>色彩回灰、模式随语境</div>
 ```
 
-<demo html="theme/color-colorized.html"/>
+<demo html="theme/color-colorized-overview.html"/>
 
 ## 指南
 
@@ -34,6 +34,8 @@ themeManager.colorized = true; // 全局多彩
 | light + colorized | `data-colorized` | 亮多彩映射 |
 | dark | `dark` / `data-dark` | 暗灰方向 |
 | dark + colorized | `data-dark data-colorized`（同元素） | 暗多彩映射 |
+
+<demo html="theme/color-colorized-modes.html"/>
 
 ### 映射规则
 
@@ -60,6 +62,8 @@ themeManager.colorized = true; // 全局多彩
 `html[dark]` + 后代 `[data-colorized]` 这种**跨元素**组合**不**命中叠加块——后代只会取亮语境的多彩映射，
 看起来像「没跟着暗」。降级手段：给该元素挂 `data-uncolored`（回灰但保留模式）。
 :::
+
+<demo html="theme/color-colorized-combo.html"/>
 
 ### 实现基础：别名层
 

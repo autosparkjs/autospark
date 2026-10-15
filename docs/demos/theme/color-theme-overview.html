@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>主题色 · 概述</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：主题色（Theme Color）</div>
+                <p>
+                    主题色是整套界面的<strong>唯一输入</strong>：给它一个色值，Material 风格色板扩散算法生成 10 阶梯度
+                    <code>--x-color-theme-0..9</code>（亮语境 0 最浅 → 9 最深，暗语境反转）。
+                </p>
+                <ul>
+                    <li>取值：12 个预设名（<code>blue</code> / <code>red</code> / …）或任意可解析色值（hex / <code>rgb()</code> / 命名色）</li>
+                    <li><code>"light"</code> 表示<strong>关闭主题色</strong>：不注入标尺，界面退回纯灰阶</li>
+                    <li>常用档：<code>theme-5</code> 是中值（<code>--auto-theme-color</code>），浅底取 <code>0-2</code>，强调取 <code>7-9</code></li>
+                </ul>
+                <pre>ThemePro.themeColor = "purple"   // 预设名
+ThemePro.themeColor = "#7c3aed"  // 任意色值
+ThemePro.themeColor = "light"    // 关闭主题色</pre>
+            </div>
+        </main>
+
+    </body>
+</html>

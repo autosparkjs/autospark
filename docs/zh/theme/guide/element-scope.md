@@ -10,7 +10,7 @@
 <div data-size="x-small" data-radius="none">这块局部换档</div>
 ```
 
-<demo html="theme/element-scope.html"/>
+<demo html="theme/element-scope-overview.html"/>
 
 ## 指南
 
@@ -34,6 +34,8 @@
 - **规模域**（四个尺寸档位）与模式 / 色彩无关，可任意组合；
 - 组合时「谁的块后生成谁胜出」有明确顺序，见[多彩模式 · 实现基础](./color-colorized.md#实现基础别名层)。
 
+<demo html="theme/element-scope-attrs.html"/>
+
 ### 与 JS 通道的分工
 
 | 通道 | 载体 | 适用 |
@@ -55,6 +57,8 @@ document.querySelector(".preview").dataset.dark = ""; // 元素域：只影响�
 
 **为什么必须收敛**：自定义属性继承的是**解析后的值**——裸属性若全局命中，作用域内的元素会错拿别的作用域的字面量梯度。
 root 作用域则保持裸属性追加（它的子树就是文档，裸命中即正确）。
+
+<demo html="theme/element-scope-converge.html"/>
 
 ### 已知限制
 

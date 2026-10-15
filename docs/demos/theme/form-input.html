@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 表单 · 单类双形态</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">元素形态：类名直接标注在表单元素上</div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
+                        <input class="auto-input" placeholder="文本框" />
+                        <select class="auto-input">
+                            <option>下拉选择</option>
+                            <option>选项二</option>
+                        </select>
+                        <textarea class="auto-input" rows="2" placeholder="多行文本"></textarea>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
+                        <label style="display:flex;align-items:center;gap:0.4rem;">
+                            <input class="auto-input" type="checkbox" checked /> 复选框
+                        </label>
+                        <label style="display:flex;align-items:center;gap:0.4rem;">
+                            <input class="auto-input" type="radio" name="g" checked /> 单选框 A
+                        </label>
+                        <label style="display:flex;align-items:center;gap:0.4rem;">
+                            <input class="auto-input" type="radio" name="g" /> 单选框 B
+                        </label>
+                        <input class="auto-input" type="range" />
+                        <input class="auto-input" placeholder="禁用态" disabled />
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        <code>checkbox</code> / <code>radio</code> / <code>range</code> 的定制<strong>只存在于此形态</strong>
+                        （元素形态与容器形态共用同一套 Less mixin，源码只有一份）。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">容器形态：前后缀 / 字段标签 / 选择类组合</div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
+                        <div class="caption">前后缀（操作件 .auto-input-action）</div>
+                        <div class="auto-input">
+                            <span class="auto-input-action">¥</span>
+                            <input placeholder="金额" />
+                            <span class="auto-input-action"><button>清空</button></span>
+                        </div>
+                        <div class="auto-input">
+                            <span class="auto-input-action">https://</span>
+                            <input placeholder="域名" />
+                            <span class="auto-input-action"><button>前往</button></span>
+                        </div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
+                        <div class="caption">字段标签（容器内 label）</div>
+                        <div class="auto-input">
+                            <label>姓名</label>
+                            <input placeholder="请输入" />
+                        </div>
+                        <div class="caption">选择类组合（容器退去输入框外观，label 与控件联动）</div>
+                        <div class="auto-input">
+                            <input type="checkbox" id="agree" />
+                            <label for="agree">同意服务协议</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        容器内的文本类控件会被<strong>裸化</strong>（去边框 / 背景 / 内距），外观由容器统一承载；
+                        聚焦时容器以 <code>:focus-within</code> 高亮，含禁用控件时整体降调（<code>:has()</code> 渐进增强）。
+                        分工：字段标签回答「这是什么」，操作件回答「能做什么」。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">模式与尺寸联动：输入框在四种颜色模式 × 两档尺寸下</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box">
+                        <div class="box-label">light / medium</div>
+                        <input class="auto-input" placeholder="输入框" />
+                    </div>
+                    <div class="scope-box" data-dark>
+                        <div class="box-label">dark（背景改指工作区色：凹陷）</div>
+                        <input class="auto-input" placeholder="输入框" />
+                    </div>
+                    <div class="scope-box" data-colorized>
+                        <div class="box-label">light + colorized</div>
+                        <input class="auto-input" placeholder="输入框" />
+                    </div>
+                    <div class="scope-box" data-dark data-colorized>
+                        <div class="box-label">dark + colorized</div>
+                        <input class="auto-input" placeholder="输入框" />
+                    </div>
+                </div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-size="x-small" data-spacing="x-small" data-radius="none">
+                        <div class="box-label">紧凑 + 直角</div>
+                        <input class="auto-input" placeholder="输入框" />
+                        <button class="auto-btn primary small">提交</button>
+                    </div>
+                    <div class="scope-box" data-size="x-large" data-spacing="x-large" data-radius="x-large">
+                        <div class="box-label">宽松 + 大圆角</div>
+                        <input class="auto-input" placeholder="输入框" />
+                        <button class="auto-btn primary large">提交</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

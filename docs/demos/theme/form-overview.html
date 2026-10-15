@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 表单 · 概述</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：组件变量 · 表单（Form / Input）</div>
+                <p>
+                    表单外观由 <code>--auto-input-*</code> 一组变量统一承载：字体 / 边框 / 背景 / 占位符 /
+                    内距 / 圆角 / 高度。它们全部<strong>转发</strong>通用派生值，因此主题色、模式、尺寸任一维变化都自动跟随。
+                </p>
+                <table class="demo-table">
+                    <thead>
+                        <tr><th>变量</th><th>转发到</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>--auto-input-font</code></td><td><code>--auto-font</code>（随 size 档）</td></tr>
+                        <tr><td><code>--auto-input-border</code></td><td><code>--auto-border</code></td></tr>
+                        <tr><td><code>--auto-input-bgcolor</code></td><td><code>--auto-bgcolor</code>（暗色改指工作区色，凹陷流派）</td></tr>
+                        <tr><td><code>--auto-input-placeholder</code></td><td>主文字色 40% 不透明</td></tr>
+                        <tr><td><code>--auto-input-padding</code> / <code>-radius</code></td><td><code>--auto-padding</code> / <code>--auto-border-radius</code></td></tr>
+                        <tr><td><code>--auto-input-height</code></td><td><code>--x-input-height-*</code>（当前未定义，解析为空——高度实际由行高决定）</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+
+    </body>
+</html>

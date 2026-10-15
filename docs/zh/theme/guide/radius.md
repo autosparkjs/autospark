@@ -13,7 +13,7 @@ themeManager.radius = "large";
 <div data-radius="none">直角容器</div>
 ```
 
-<demo html="theme/radius.html"/>
+<demo html="theme/radius-overview.html"/>
 
 ## 指南
 
@@ -31,6 +31,8 @@ themeManager.radius = "large";
 | `--x-border-radius-circle` | `50%` | 正圆——**不参与档位切换**，需搭配正方形容器 |
 
 `pill` / `circle` 只作为基础量存在（标签、头像、图标底座这类形状语义），不进入 `data-radius` 档位表。
+
+<demo html="theme/radius-scale.html"/>
 
 ### `medium` 是默认态
 
@@ -51,6 +53,8 @@ themeManager.radius = "medium"; // 元素属性被移除，回到默认
 档位块的选择器是「作用域限定式 + 裸属性式」并列，所以裸 `data-radius` 在任意元素上都生效——
 圆角值与主题色 / 模式无关，全局命中不会产生冲突。
 
+<demo html="theme/radius-local-scope.html"/>
+
 ### 组合四角
 
 `border-radius` 的四角语法可自由组合，常见形态：
@@ -67,10 +71,14 @@ themeManager.radius = "medium"; // 元素属性被移除，回到默认
 }
 ```
 
+<demo html="theme/radius-combine-corners.html"/>
+
 ### 尺寸与圆角的观感关系
 
 圆角相同而元素尺寸不同时，观感差异很大：小元素视觉接近直角、大容器更显圆润。
 选档建议：小控件用 `x-small` / `small`，大面积容器用 `large` / `x-large`，整站统一时用 `medium`。
+
+<demo html="theme/radius-perception.html"/>
 
 ---
 

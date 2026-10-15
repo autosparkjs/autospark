@@ -67,9 +67,6 @@ export class AutoSparkRouter extends Mixin(
     /** 是否正在导航 */
     isNavigating: boolean = false;
 
-    /** 待处理的导航类型，用于在 onRouteUpdate 中判断导航来源 */
-    private _pendingNavigationType?: "push" | "replace" | "pop";
-
     /** 上一个路由，用于 afterLeave 守卫 */
     protected previous?: AutoSparkRouteItem & {
         matchedRoutes?: Array<{
@@ -619,7 +616,6 @@ export class AutoSparkRouter extends Mixin(
     }
     push(path: string, state?: Record<string, any>) {
         this._ensureAttached();
-        this._pendingNavigationType = "push";
         // 检查是否为模态路由（! 前缀）
         if (path.startsWith("!")) {
             const modalPath = path.slice(1); // 移除 ! 前缀
@@ -636,7 +632,6 @@ export class AutoSparkRouter extends Mixin(
     }
     replace(path: string, state?: Record<string, any>) {
         this._ensureAttached();
-        this._pendingNavigationType = "replace";
         if (state !== undefined) {
             this.history.replace(path, state);
         } else {
@@ -656,7 +651,6 @@ export class AutoSparkRouter extends Mixin(
 
     back() {
         this._ensureAttached();
-        this._pendingNavigationType = "pop";
 
         // 如果有打开的模态，先关闭模态（D-20）
         if (this.modalState.stack.length > 0) {
@@ -668,12 +662,10 @@ export class AutoSparkRouter extends Mixin(
     }
     forward() {
         this._ensureAttached();
-        this._pendingNavigationType = "pop";
         this.history.forward();
     }
     go(delta: number) {
         this._ensureAttached();
-        this._pendingNavigationType = "pop";
         this.history.go(delta);
     }
 
@@ -704,8 +696,9 @@ export class AutoSparkRouter extends Mixin(
                 // 设置 context provider
                 this.attachContextProvider();
 
-                // 初始化模态容器
-                // this._initModals();
+                // 初始化模态容器（容器复用、样式注入幂等；不初始化则 openModal 因
+                // modalContainer 为 null 在 _renderModal 崩溃）
+                this._initModals();
 
                 // engine 接管（替代 Alpine 桥）：注入或自建 + outlet 组件注册（ADR-0002）
                 this._engineBinding = setupRouterEngine(this);

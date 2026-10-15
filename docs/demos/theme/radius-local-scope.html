@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>圆角 · 局部换档</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">元素域：<code>data-radius</code> 局部换档（含与模式域叠加）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-radius="none">
+                        <div class="box-label">data-radius="none"（直角）</div>
+                        <button class="auto-btn small">按钮</button>
+                        <input class="auto-input" placeholder="输入框" />
+                        <div style="padding:0.5rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">色块</div>
+                    </div>
+                    <div class="scope-box" data-radius="x-large">
+                        <div class="box-label">data-radius="x-large"</div>
+                        <button class="auto-btn small">按钮</button>
+                        <input class="auto-input" placeholder="输入框" />
+                        <div style="padding:0.5rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">色块</div>
+                    </div>
+                    <div class="scope-box" data-dark data-radius="x-large">
+                        <div class="box-label">data-dark + data-radius="x-large"（两域叠加）</div>
+                        <button class="auto-btn small">按钮</button>
+                        <input class="auto-input" placeholder="输入框" />
+                        <div style="padding:0.5rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">色块</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

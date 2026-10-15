@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 交互反馈 · 禁用态</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">按钮与提示：语义色 + 反馈态的复合</div>
+                <div class="auto-card-body col">
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <button class="auto-btn primary">primary</button>
+                        <button class="auto-btn success">success</button>
+                        <button class="auto-btn warning">warning</button>
+                        <button class="auto-btn error">error</button>
+                        <button class="auto-btn info">info</button>
+                        <button class="auto-btn" disabled>禁用</button>
+                    </div>
+                    <div class="auto-alert success">
+                        <div class="title">成功<span class="closeable"></span></div>
+                        <div class="description">悬停 / 聚焦时按钮与提示块的反馈色都来自同一组交互变量。</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

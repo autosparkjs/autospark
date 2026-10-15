@@ -10,7 +10,7 @@
 | **运行时主题层** | 主题标尺、语义色、模式 / 色彩 / 尺寸变量、派生层 `--auto-*` | 由 `ThemeManager` 注入 `<style>` |
 | **静态主题包** | 11 套写死的主题标尺（`data-theme=blue` 等） | `src/themes/*.less` → `dist/themes/*.css` |
 
-<demo html="theme/static-themes.html"/>
+<demo html="theme/static-overview.html"/>
 
 ## 指南
 
@@ -49,6 +49,8 @@ lessc src/styles/index.less dist/index.css
 
 因此 `dist/index.css` **不含**组件类与 `input.less`；需要它们时在项目侧单独引 Less 源文件，或自行补一条编译命令。
 
+<demo html="theme/static-style-layer.html"/>
+
 ### 语义色与主题标尺只在运行时
 
 这是刻意划的边界：
@@ -78,6 +80,8 @@ lessc src/styles/index.less dist/index.css
 静态主题文件是按各自使用场景生成的历史产物：在亮语境里引一份「`theme-0` 最深」的文件，背景取到的是最深档。
 使用前请核对它的 `color-scheme` 声明与色阶方向。
 :::
+
+<demo html="theme/static-presets.html"/>
 
 ### 静态预设 vs 运行时预设
 

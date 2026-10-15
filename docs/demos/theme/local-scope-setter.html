@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>局部主题 · setter 立即生效</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">运行时改作用域参数（setter 立即写属性）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" id="ls-live" data-theme-scope="previewLive">
+                        <div class="box-label">作用域 previewLive</div>
+                        <div class="theme-strip" data-strip="--x-color-theme-"></div>
+                        <div class="demo-sample">
+                            <div>下面按钮直接改本作用域的参数</div>
+                            <input class="auto-input" placeholder="表单" />
+                        </div>
+                        <div class="seg">
+                            <button data-scope-id="previewLive" data-scope-prop="dark" data-scope-label></button>
+                            <button data-scope-id="previewLive" data-scope-prop="colorized" data-scope-label></button>
+                            <button data-scope-id="previewLive" data-scope-prop="radius">循环圆角档</button>
+                            <button data-scope-id="previewLive" data-scope-prop="size">循环字号档</button>
+                            <button data-scope-id="previewLive" data-scope-prop="themeColor" data-scope-value="volcano">主题色 → volcano</button>
+                            <button data-scope-id="previewLive" data-scope-prop="themeColor" data-scope-value="blue">主题色 → blue</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        按钮走的是 <code>scope.dark = …</code> 这类 setter：更新 options → 同步 DOM 属性（<code>dark</code> /
+                        <code>data-radius</code> 等）→ 持久化参数。<strong>构造选项里的模式与尺寸不会立即生效</strong>
+                        （属性同步只发生在 setter 与水合路径），需要立刻见效时构造后显式赋值一次。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+
+        <script>
+            // 运行时改参数的局部作用域（persistence:false 便于反复试验）
+            var defs = [
+                { id: "previewLive", el: "#ls-live", options: { themeColor: "blue" } },
+            ];
+            defs.forEach(function (def) {
+                var scope = ThemePro.addScope(
+                    Object.assign({ id: def.id, persistence: false }, def.options),
+                );
+                if (!scope) return;
+                scope.attach(def.el);
+                // 构造选项里的模式 / 尺寸不会立即写属性，这里显式赋值一次
+                if (def.options.dark) scope.dark = true;
+                if (def.options.colorized) scope.colorized = true;
+            });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 面板 · 内置 auto-card</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">内置组件类：<code>.auto-card</code></div>
+                <div class="auto-card-body col">
+                    <div class="auto-card" style="border:var(--auto-border);">
+                        <div class="auto-card-header">
+                            <span class="auto-card-title">卡片标题</span>
+                            <span class="closeable"></span>
+                        </div>
+                        <div class="auto-card-body">
+                            卡片体：默认无边框（靠阴影浮起），加 <code>border</code> 类显示边框；
+                            标题栏背景取 <code>--auto-panel-header-bgcolor</code>。
+                        </div>
+                        <div class="auto-card-footer">
+                            <button class="auto-btn primary">确定</button>
+                            <button class="auto-btn">取消</button>
+                        </div>
+                    </div>
+                    <div class="auto-alert info">
+                        <div class="title">提示块也是「面板 + 语义色」的组合<span class="closeable"></span></div>
+                        <div class="description">底色 / 边框取语义色，文字与图标同步。</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

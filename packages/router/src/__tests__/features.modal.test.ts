@@ -69,7 +69,7 @@ class MockRouter {
         this.emitEventCalls.push({ event, detail });
     }
 
-    // 模拟 routes.match 方法
+    // 模拟 routes.match 方法（新 API：返回 matched 数组，末项为最深匹配）
     routes = {
         match: (path: string) => {
             const routes: Record<string, AutoSparkRouteItem> = {
@@ -98,17 +98,16 @@ class MockRouter {
                     },
                 },
             };
-            return { route: routes[path] || null };
+            return routes[path] ? [{ route: routes[path] }] : [];
         },
     };
 
-    // 模拟 viewLoader.loadView 方法
+    // 模拟 viewLoader 新管线（loadViews + _getView signal，ADR-0008）
     viewLoader = {
-        loadView: async (view: any) => {
-            return {
-                success: true,
-                content: "<div>Modal Content</div>",
-            };
+        loadViews: async (matchedList: any[]) => {
+            for (const m of matchedList) {
+                (m.route as any)._getView = async () => "<div>Modal Content</div>";
+            }
         },
     };
 
@@ -403,7 +402,7 @@ describe("Modal Feature", () => {
     });
 
     describe("事件触发", () => {
-        it("应该在打开模态时触发 modal/open 事件", async () => {
+        it("应该在打开模态时触发 modal:open 事件", async () => {
             mockRouter._initModals();
             const route: AutoSparkRouteItem = {
                 name: "test",
@@ -414,12 +413,12 @@ describe("Modal Feature", () => {
 
             await mockRouter.openModal({ route });
 
-            const openEvent = mockRouter.emitEventCalls.find((e) => e.event === "modal/open");
+            const openEvent = mockRouter.emitEventCalls.find((e) => e.event === "modal:open");
             expect(openEvent).toBeDefined();
             expect(openEvent?.detail.route).toBe(route);
         });
 
-        it("应该在关闭模态时触发 modal/close 事件", async () => {
+        it("应该在关闭模态时触发 modal:close 事件", async () => {
             mockRouter._initModals();
 
             // 先打开一个模态
@@ -440,7 +439,7 @@ describe("Modal Feature", () => {
 
             await mockRouter._closeTopModal();
 
-            const closeEvent = mockRouter.emitEventCalls.find((e) => e.event === "modal/close");
+            const closeEvent = mockRouter.emitEventCalls.find((e) => e.event === "modal:close");
             expect(closeEvent).toBeDefined();
         });
     });

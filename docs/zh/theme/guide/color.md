@@ -15,6 +15,8 @@
 | [背景色](./color-background.md) | 背景层次与 `--x-bgcolor-*` 梯度 |
 | [语义颜色](./color-semantic.md) | primary / success / warning / danger / info 五色 |
 
+<demo html="theme/color-theme-overview.html"/>
+
 ## 快速入门
 
 ```js
@@ -27,8 +29,6 @@ themeManager.themeColor = "light"; // 关闭主题色（只用灰阶）
 themeManager.dark = true; // 模式维度：暗色
 themeManager.colorized = true; // 色彩维度：多彩（可与暗色叠加）
 ```
-
-<demo html="theme/color-theme.html"/>
 
 ## 主题色
 
@@ -76,6 +76,8 @@ themeManager.themeColor = "purple";
 themeManager.themeColor; // "#722ed1"（预设名已被解析）
 ```
 
+<demo html="theme/color-theme-presets.html"/>
+
 ### 算法生成的 10 阶标尺
 
 `--x-color-theme-0..9` 由 [Material 风格色板扩散算法](./how-it-works.md) 生成，**方向随显示模式翻转**：
@@ -98,6 +100,8 @@ themeManager.themeColor; // "#722ed1"（预设名已被解析）
 ```
 
 常用档：`theme-5` 是中值（`--auto-theme-color` 的来源），浅底取 `0-2`，强调取 `7-9`。
+
+<demo html="theme/color-theme-scale.html"/>
 
 ### 调色板形态参数
 

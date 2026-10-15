@@ -35,6 +35,7 @@ import {
 } from "../../features/directive/async-source-utils";
 import {
     buildComponentDef,
+    extractGlobalOption,
     hasComponentDeclareAttr,
     parseComponentDeclare,
 } from "./collect";
@@ -384,7 +385,14 @@ export class AutoSparkCompiler {
             warn("x-define: 未命中声明属性，组件已丢弃");
             return null;
         }
-        const { name, modifierOpen, inherit } = declared;
+        const { name, modifierOpen, modifierGlobal, inherit } = declared;
+        // 全局声明（x-define.global ≡ x-define-options="{global:true}"，ADR-0115）：
+        // 跳过 owner 归属查找（无祖先 scope 也允许），直接入 engine 全局组件定义表。
+        const global = extractGlobalOption(componentEl, modifierGlobal, warn);
+        if (global) {
+            this._collectGlobalComponent(componentEl, name, modifierOpen, inherit, warn);
+            return null;
+        }
         // 沿原树向上找最近祖先 scope（与 _linkParent 同构：跨中间无 scope 的纯 div）。
         // walk 是 DFS，祖先元素已先 transform，若建了 scope 必已 templateScopeMap.set。
         // 注：实例化父组件时 compileSubtree 编译其快照子树，内层 x-define 经 transformElement
@@ -480,7 +488,109 @@ export class AutoSparkCompiler {
     }
 
     /**
-     * 元素是否带 x-icons 声明属性（含修饰符形态）。命中形态：`x-icons`（正身）与
+     * 收集 **global 声明**（`x-define.global` ≡ `x-define-options="{global:true}"`，ADR-0115）：
+     * 跳过 owner 归属查找，编译期即时写入 engine 全局组件定义表（与 registerComponent 全局路径、
+     * options.components 懒预编译、x-import.global 同表同生命周期；x-isolate 子引擎隔离）。
+     *
+     * 与局部路径的差异：
+     * - 无祖先 scope 也允许（孤立声明是 global 的正当用途；非 global 孤立仍 warn 丢弃）；
+     * - `declarerScope = null`——全局即脱离声明位置（与其余三条全局路径一致）；
+     * - `dataContext:'declarer'` 对全局无意义：收集期 warn 一次 + 丢弃基准（回退 host）；
+     * - 继承父查找**仅全局表**；父名只在声明处作用域链命中（全局未命中）时 fail-fast
+     *   warn + 拒绝注册，不进 pending（否则永不出队）；全局也未就绪则挂起等全局注册事件；
+     * - 注册尾巴（覆盖 warn / def 反查 / 样式注入 / 事件排水）统一收口 engine._registerGlobalDef。
+     *
+     * 嵌套在另一组件定义内的 global 声明经本收集器时，外层组件正被实例化编译——故注册时机为
+     * 外层首次实例化（懒注册），每次实例化幂等覆盖，时序文档化（ADR-0115 决策 7）。
+     */
+    private _collectGlobalComponent(
+        componentEl: HTMLElement,
+        name: string,
+        modifierOpen: boolean,
+        inherit: string | null,
+        warn: (msg: string) => void,
+    ): void {
+        // owner 探测**仅服务继承 fail-fast**（全局子不得继承作用域父）；探测不到不影响注册。
+        let ownerProbe: AutoSparkScope | undefined;
+        for (let p: HTMLElement | null = componentEl.parentElement; p; p = p.parentElement) {
+            const s = this.templateScopeMap.get(p);
+            if (s) {
+                ownerProbe = s;
+                break;
+            }
+        }
+        // 组装 def：declarerScope 固定 null（全局组件无声明处 scope，ADR-0115 决策 4）。
+        const def = buildComponentDef(componentEl, name, warn, null, modifierOpen);
+        // dataContext:'declarer' 收集期拒绝：warn 一次 + 回退（继承解析会从原始选项重算，
+        // 故对已解析 def 再过一遍，declarerWarned 保证只 warn 一次）。
+        let declarerWarned = false;
+        const rejectDeclarer = (d: ComponentDef): void => {
+            if (d.dataContext !== "declarer") return;
+            if (!declarerWarned) {
+                declarerWarned = true;
+                warn(
+                    `x-define "${name}": 全局组件不支持 dataContext:'declarer'（全局组件无声明处 scope），基准已忽略（实例化按 'host'，ADR-0115）`,
+                );
+            }
+            d.dataContext = undefined;
+        };
+        if (inherit === null) {
+            rejectDeclarer(def);
+            this.engine._registerGlobalDef(name, def);
+            return;
+        }
+        // 父查找仅全局表（含三层声明源懒预编译与 pending 等待，ADR-0115 决策 5）。
+        const lookupParent = (pname: string): ComponentDef | null => {
+            const snap = this.engine._resolveGlobalComponent(pname);
+            if (!snap) return null;
+            return this.engine.getComponentDef(snap) ?? this.engine.getGlobalComponentDef(pname) ?? null;
+        };
+        const attempt = (): InheritResolveResult => {
+            // fail-fast：全局各注册位未命中父名，但声明处作用域链能命中 → 全局子继承作用域父，
+            // 终局拒绝（不挂 pending——作用域父永不会发全局注册事件，挂起即静默失效）。
+            if (
+                this.engine._resolveGlobalComponent(inherit) == null &&
+                ownerProbe?.getComponentDeclaration(inherit)
+            ) {
+                warn(
+                    `x-define "${name}": 全局组件不能继承作用域组件 "${inherit}"（父组件仅在声明处作用域链可见，全局解析未命中），组件未注册（ADR-0115）`,
+                );
+                return null;
+            }
+            return resolveComponentInheritance({
+                componentEl,
+                name,
+                inherit,
+                modifierOpen,
+                childDef: def,
+                lookupParent,
+                warn,
+                deferMissingParent: true,
+            });
+        };
+        const first = attempt();
+        if (first === PENDING_PARENT) {
+            warn(
+                `x-define "${name}": 父组件 "${inherit}" 暂未就绪，已挂起（全局父注册后自动解析，ADR-0083/0115）`,
+            );
+            this.engine.addPendingInherit(inherit, () => {
+                const retry = attempt();
+                if (retry === PENDING_PARENT) return false; // 全局始终无同名注册——继续等
+                if (retry) {
+                    rejectDeclarer(retry);
+                    this.engine._registerGlobalDef(name, retry);
+                }
+                return true; // 成功或终局失败（已 warn）均出队
+            });
+            return; // 本次不注册（元素照常剪枝；使用处 loading 等待）
+        }
+        if (!first) return;
+        rejectDeclarer(first);
+        this.engine._registerGlobalDef(name, first);
+    }
+
+    /**
+     * 元素是否带 x-icons 声明属性（含修饰符）。命中形态：`x-icons`（正身）与
      * `x-icons.global` 等带 `.` 修饰符段的属性名；`x-icons-options`（指令选项属性）
      * **不是**声明形态——不命中（`x-icons-` 前缀与 `x-icons.` 修饰符前缀是两个不同边界，
      * 与 _matchComponentAttr 的边界规则同构）。

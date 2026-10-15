@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>元素域 · 维度正交与叠加</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">模式与色彩：四种组合（点击按钮实时开关）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" id="es-light">
+                        <div class="box-label">
+                            <button data-toggle-attr="data-light" data-toggle-target="#es-light" data-toggle-label></button>
+                        </div>
+                        <div class="theme-strip" data-strip="--x-color-"></div>
+                        <div class="demo-sample">
+                            <div>无属性 / <code>data-light</code>：亮色灰调</div>
+                            <input class="auto-input" placeholder="表单" />
+                        </div>
+                    </div>
+                    <div class="scope-box" id="es-dark">
+                        <div class="box-label">
+                            <button data-toggle-attr="data-dark" data-toggle-target="#es-dark" data-toggle-label></button>
+                        </div>
+                        <div class="theme-strip" data-strip="--x-color-"></div>
+                        <div class="demo-sample">
+                            <div><code>data-dark</code>：暗色灰调</div>
+                            <input class="auto-input" placeholder="表单" />
+                        </div>
+                    </div>
+                    <div class="scope-box" id="es-colorized">
+                        <div class="box-label">
+                            <button data-toggle-attr="data-colorized" data-toggle-target="#es-colorized" data-toggle-label></button>
+                        </div>
+                        <div class="theme-strip" data-strip="--x-color-"></div>
+                        <div class="demo-sample">
+                            <div><code>data-colorized</code>：多彩（模式随语境）</div>
+                            <input class="auto-input" placeholder="表单" />
+                        </div>
+                    </div>
+                    <div class="scope-box" id="es-both" data-dark data-colorized>
+                        <div class="box-label">
+                            <button data-toggle-attr="data-dark" data-toggle-target="#es-both" data-toggle-label></button>
+                            <button data-toggle-attr="data-colorized" data-toggle-target="#es-both" data-toggle-label></button>
+                        </div>
+                        <div class="theme-strip" data-strip="--x-color-"></div>
+                        <div class="demo-sample">
+                            <div><code>data-dark</code> + <code>data-colorized</code> 同元素：叠加态</div>
+                            <input class="auto-input" placeholder="表单" />
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        组合语义：<strong>模式切换会把色彩重置为灰</strong>——两维度要同时生效必须同元素组合；
+                        单独的色彩开关则<strong>保留语境模式</strong>（<code>data-colorized</code> 在暗语境取暗多彩映射）。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">维度独立：暗内亮 / 彩内灰</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-dark>
+                        <div class="box-label">暗卡中的亮元素（data-light）</div>
+                        <div class="demo-sample">外层暗色：本段取暗色变量。</div>
+                        <div class="scope-box" id="es-light-inner" data-light style="margin-top:0.5rem;">
+                            <div class="box-label">
+                                <button data-toggle-attr="data-light" data-toggle-target="#es-light-inner" data-toggle-label></button>
+                            </div>
+                            <div class="theme-strip" data-strip="--x-color-"></div>
+                            <div class="demo-sample">
+                                <div>内层 <code>data-light</code>：完整亮域，原生控件（滚动条等）一并回亮。</div>
+                                <input class="auto-input" placeholder="亮色输入框" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-colorized>
+                        <div class="box-label">彩卡中的灰元素（data-uncolored）</div>
+                        <div class="demo-sample">外层多彩：本段被主题色浸染。</div>
+                        <div class="scope-box" id="es-uncolored-inner" data-uncolored style="margin-top:0.5rem;">
+                            <div class="box-label">
+                                <button data-toggle-attr="data-uncolored" data-toggle-target="#es-uncolored-inner" data-toggle-label></button>
+                            </div>
+                            <div class="theme-strip" data-strip="--x-color-"></div>
+                            <div class="demo-sample">
+                                <div>内层 <code>data-uncolored</code>：色彩回灰、模式随语境。</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">规模维度：字号 / 圆角 / 间距 / 阴影四档同时叠加</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-size="x-small" data-radius="none" data-spacing="x-small" data-shadow="none">
+                        <div class="box-label">紧凑：x-small + 直角 + 无阴影</div>
+                        <div class="demo-sample">
+                            <div>字号 / 内距 / 圆角 / 阴影四域同时收窄</div>
+                            <input class="auto-input" placeholder="表单" />
+                            <button class="auto-btn primary small">提交</button>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-dark data-size="x-large" data-radius="x-large" data-spacing="x-large" data-shadow="x-large">
+                        <div class="box-label">宽松暗色：模式域 + 四个规模域叠加</div>
+                        <div class="demo-sample">
+                            <div>模式域与规模域互不覆盖，各自生效</div>
+                            <input class="auto-input" placeholder="表单" />
+                            <button class="auto-btn primary large">提交</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        注意：规模档位块的选择器是「作用域限定式 + 裸属性式」并列，所以裸 <code>data-*</code> 尺寸属性在任意元素上都生效——
+                        尺寸值与主题色 / 模式无关，全局命中不会产生冲突。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

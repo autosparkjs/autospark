@@ -3,26 +3,46 @@
  * 只负责「demo 页面怎么排」，主题外观全部来自 autospark-theme.css（静态样式层）。
  * 对应 packages/theme/examples/index.html 里的内联布局样式（story-intro / 卡片分割）。
  */
+/* 注意：本样式表服务于 vitepress-demo-plugin 的 iframe 预览——iframe 初始 height:auto，
+   插件每帧按内部 documentElement.offsetHeight 回写高度。因此这里绝不能锁 height:100%
+   或 overflow:hidden：高度百分比链会解析到 iframe 的 0 初值并被插件反复回写，形成
+   「iframe 0 ↔ 内部 100%=0」自锁，demo 整页空白。布局高度必须由内容自然撑开。 */
 html,
 body {
-    height: 100%;
     margin: 0;
+}
+
+/* 独立打开 demo（非 iframe）时给整页一个兜底底色 */
+html {
+    background: var(--auto-workspace-bgcolor);
 }
 
 body {
     display: flex;
-    overflow: hidden;
+    flex-direction: column;
+    align-items: stretch;
     font-size: var(--auto-font-size);
     color: var(--auto-color);
     background: var(--auto-workspace-bgcolor);
     transition: background 0.3s;
 }
 
-/* 中：示例内容区（自适应 + 独立滚动） */
+/* vitepress-demo-plugin 会把整篇 demo 包进 body > div.vp-raw，
+   让包裹层延续纵向布局：上方控制面板、下方示例内容。
+   独立打开 demo 时无此元素，body 规则直接生效。 */
+.vp-raw {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    box-sizing: border-box;
+}
+
+/* 中：示例内容区（宽度自适应；不独立滚动，高度随内容撑开供 iframe 测量） */
 .demo-main {
     flex: 1;
     min-width: 0;
-    overflow-y: auto;
     padding: 1.1rem 1.3rem;
     display: flex;
     flex-direction: column;
@@ -30,15 +50,14 @@ body {
     box-sizing: border-box;
 }
 
-/* 右：主题控制面板（<div id="controls"> 由 theme-controls.js 填充） */
+/* 顶部：主题控制面板容器。组件自带 --auto-border 描边卡片，
+   这里只给外边距与工作区底色衬托卡片，不再加分割线。
+   不设 overflow：一轴非 visible 会把另一轴强制为 auto，任何亚像素溢出都会冒滚动条。 */
 .demo-panel {
-    width: 250px;
     flex-shrink: 0;
-    overflow-y: auto;
-    padding: 0.9rem;
+    padding: 0.6rem 0.8rem;
     box-sizing: border-box;
-    border-left: var(--auto-border);
-    background: var(--auto-bgcolor);
+    background: var(--auto-workspace-bgcolor);
 }
 
 /* 特性说明块：每个 demo 的首卡片，介绍本 demo 演示的变量与 API */
@@ -142,6 +161,9 @@ body {
 .hint code,
 .demo-main code {
     color: var(--auto-theme-color);
+    /* 长变量名（如 --auto-input-{font,border,...}）无断点，窄内容区会撑出横向滚动条；
+       仅在词整体放不下时才断行，短 code 与中英混排不受影响 */
+    overflow-wrap: anywhere;
 }
 
 .caption {

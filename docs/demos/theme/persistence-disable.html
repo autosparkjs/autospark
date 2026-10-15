@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>持久化 · 关闭持久化</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">关闭持久化：局部作用域 <code>persistence: false</code></div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" id="ps-scoped" data-theme-scope="psScoped">
+                        <div class="box-label">本 demo 的预览作用域设了 persistence:false</div>
+                        <div class="demo-sample">
+                            <div>它照常注入渲染，但不读写 localStorage、不参与快照合成。</div>
+                            <div class="seg" style="margin-top:0.5rem;">
+                                <button data-scope-id="previewLive" data-scope-prop="themeColor" data-scope-value="magenta">改 previewLive 主题色</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="scope-box">
+                        <div class="box-label">root 作用域没有关闭入参</div>
+                        <div class="demo-sample">
+                            <div>
+                                <code>ThemeManagerOptions</code> 只暴露 <code>storageKey</code>。
+                                要隔离 root 的持久化请换命名空间：<code>new ThemeManager({ storageKey: "myapp" })</code>。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+
+        <script>
+            // 本卡用于观察 persistence:false：该作用域退出持久化，避免干扰观察
+            var scope = ThemePro.addScope({ id: "previewLive", themeColor: "blue", persistence: false });
+            if (scope) scope.attach("#ps-scoped");
+        </script>
+    </body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>圆角 · 概述</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：圆角（Border Radius）</div>
+                <p>
+                    圆角为面板、按钮、输入框提供统一的圆角语言：基础量 <code>--x-border-radius-*</code> 六档
+                    （另有 <code>pill</code> / <code>circle</code> 两个特殊值），档位开关 <code>data-radius</code>，
+                    派生量 <code>--auto-border-radius</code> 供组件消费。
+                </p>
+                <ul>
+                    <li>六档：<code>none</code>（直角）/ <code>x-small</code> / <code>small</code> / <code>medium</code>（默认）/ <code>large</code> / <code>x-large</code></li>
+                    <li>特殊值：<code>pill</code>（胶囊 9999px）、<code>circle</code>（正圆 50%，需正方形容器）——仅基础量，不参与档位切换</li>
+                    <li>局部换档：任意容器加 <code>data-radius="档位"</code> 即可，无需改全局</li>
+                </ul>
+                <pre>ThemePro.radius = "large"                       // 全局
+&lt;div data-radius="none"&gt;…&lt;/div&gt;              // 元素域局部</pre>
+            </div>
+        </main>
+
+    </body>
+</html>

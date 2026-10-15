@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>主题色 · 预设对照</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">预设对照：同一份算法，不同种子（每格一个独立作用域）</div>
+                <div class="auto-card-body col">
+                    <div class="grid" id="preset-grid"></div>
+                    <p class="hint">
+                        每格是<strong>独立主题作用域</strong>（<code>addScope({ themeColor: 预设名 })</code>），
+                        所以能同屏对照多套梯度；面板里可切换全部 12 个预设。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+
+        <script>
+            // 预设对照：每个预设一个独立作用域（persistence:false，不写 localStorage）
+            function addThemeCard(host, id, label, themeColor) {
+                var box = document.createElement("div");
+                box.className = "scope-box";
+                box.id = id;
+                box.innerHTML =
+                    '<div class="box-label">' +
+                    label +
+                    '</div><div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>';
+                host.appendChild(box);
+                var scope = ThemePro.addScope({ id: id, themeColor: themeColor, persistence: false });
+                if (scope) scope.attach(box);
+            }
+
+            var presetHost = document.getElementById("preset-grid");
+            ["blue", "red", "volcano", "lime", "green", "purple"].forEach(function (name) {
+                var theme = ThemePro.presets[name];
+                addThemeCard(presetHost, "preset-" + name, theme.title + "（" + name + "）" + theme.color, name);
+            });
+        </script>
+    </body>
+</html>

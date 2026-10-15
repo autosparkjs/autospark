@@ -8,7 +8,7 @@ export function getRouteViewOptions(
     return Object.assign(
         {},
         router.options.viewOptions,
-        route.view && typeof route.view === "object" && "form" in route.view
+        route.view && typeof route.view === "object" && "from" in route.view
             ? route.view
             : {
                   from: route.view,

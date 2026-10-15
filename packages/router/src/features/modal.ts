@@ -15,11 +15,16 @@
 import type { AutoSparkRouter } from "@/router";
 import type {
     AutoSparkRouteItem,
+    AutoSparkMatchedRouteItem,
     ModalConfig,
     ModalState,
     ModalStackItem,
     ModalOptions,
 } from "@/types";
+import type { IAsyncSignal } from "asyncsignal";
+
+/** 模态视图加载用的 matched 序号（仅用于日志标识，与 matchRoute 的计数独立） */
+let modalMatchedId = 0;
 
 /**
  * Modal Mixin 类 - 负责模态窗口的所有功能
@@ -82,8 +87,8 @@ export class Modal {
         // 渲染模态内容
         await (this as any)._renderModal(stackItem);
 
-        // 触发事件
-        this.emit("modal/open", {
+        // 触发事件（频道名与 AutoSparkRouterEvents 声明一致）
+        this.emit("modal:open", {
             route,
             stackItem,
         });
@@ -113,9 +118,9 @@ export class Modal {
             // 关闭指定模态
             let targetRoute: AutoSparkRouteItem | null;
             if (typeof route === "string") {
-                // 通过路径查找路由
+                // 通过路径查找路由（match 返回 matched 数组，根在前、最深在后）
                 const matched = this.routes.match(route);
-                targetRoute = matched?.route || null;
+                targetRoute = matched?.[matched.length - 1]?.route || null;
             } else {
                 targetRoute = route;
             }
@@ -836,8 +841,8 @@ export class Modal {
                 // 更新当前模态
                 modalState.current = modalState.stack[modalState.stack.length - 1] || null;
 
-                // 触发事件
-                this.emit("modal/close", {
+                // 触发事件（频道名与 AutoSparkRouterEvents 声明一致）
+                this.emit("modal:close", {
                     route: stackItem.route,
                     stackItem,
                 });
@@ -861,18 +866,35 @@ export class Modal {
         if (route.view) {
             // 处理不同类型的 view
             if (typeof route.view === "string") {
-                // 字符串类型：可能是 URL 或元素名
-                const loadResult = (this as any).viewLoader.loadView(
-                    route.view,
-                    (route as any).remoteOptions,
-                );
-
-                return loadResult.then(async (result: any) => {
-                    if (result.success && result.content) {
-                        // 使用 Render mixin 的 renderToOutlet 方法
-                        await this.renderToOutlet(result, element, {
-                            mode: "replace",
-                        });
+                // 字符串视图经 ViewLoader 管线加载（ADR-0008）：URL 源走 fetch + 渲染器链，
+                // HTML 片段（非 URL 形态）按静态内容直取——分流由 loadRoute 的 isUrlSource 完成
+                const matched: AutoSparkMatchedRouteItem = {
+                    id: ++modalMatchedId,
+                    route,
+                    params: {},
+                    query: {},
+                    state: {},
+                    path: route.path,
+                    url: route.path,
+                    hash: route.path,
+                };
+                return (this as any).viewLoader.loadViews([matched]).then(async () => {
+                    const signal = (route as any)._getView as IAsyncSignal | undefined;
+                    if (signal) {
+                        try {
+                            const result = await signal();
+                            const value =
+                                result && typeof result === "object" && "value" in result
+                                    ? result.value
+                                    : result;
+                            if (typeof value === "string") {
+                                element.innerHTML = value;
+                            } else if (value instanceof HTMLElement) {
+                                element.appendChild(value);
+                            }
+                        } catch {
+                            // 加载失败：模态保留空容器
+                        }
                     }
                     return element;
                 });
@@ -1127,8 +1149,9 @@ export class Modal {
     protected _resolveModalRoute(this: AutoSparkRouter, options: ModalOptions): AutoSparkRouteItem | null {
         if (options.route) {
             if (typeof options.route === "string") {
-                // 通过路径查找路由
-                return this.routes.match(options.route)?.route || null;
+                // 通过路径查找路由（match 返回 matched 数组，根在前、最深在后）
+                const matched = this.routes.match(options.route);
+                return matched?.[matched.length - 1]?.route || null;
             } else {
                 // 直接使用路由配置
                 return options.route;

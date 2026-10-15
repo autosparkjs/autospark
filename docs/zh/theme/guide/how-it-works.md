@@ -22,7 +22,7 @@ themeManager.dark = true; // 换基础调色板：dark 版
 themeManager.colorized = true; // 换基础调色板：多彩映射（可与 dark 叠加）
 ```
 
-<demo html="theme/how-it-works.html"/>
+<demo html="theme/how-it-works-overview.html"/>
 
 ## 指南
 
@@ -66,6 +66,8 @@ themeManager.themeColor = "light"; // 关闭主题色（只用灰阶）
 themeManager.update({ seedLightnessGap: 2.2, chromaBoostCap: 1.1 });
 ```
 
+<demo html="theme/how-it-works-diffusion.html"/>
+
 ### 三、四份调色板
 
 | 调色板 | 变量 | 来源 | 说明 |
@@ -76,6 +78,8 @@ themeManager.update({ seedLightnessGap: 2.2, chromaBoostCap: 1.1 });
 | 反转灰度调色板 | `--x-plain-*`（暗块内） | 静态层常量 + 方向声明 | 暗语境的灰方向（`color-0` 最浅、`bgcolor-0` 浮起） |
 
 「反转」不是把色值倒序，而是**方向语义的互换**：亮色下背景取浅档、文字取深档；暗色下明度关系反过来，同一套映射（`bgcolor-i = theme-i`）才能继续成立。
+
+<demo html="theme/how-it-works-palettes.html"/>
 
 ### 四、基础调色板：`dark` / `colorized` 两个开关
 
@@ -113,6 +117,8 @@ themeManager.update({ seedLightnessGap: 2.2, chromaBoostCap: 1.1 });
 自定义属性继承的是**解析后的值**：直接声明「引用别名」就压过了继承值（直接声明恒胜继承，与 `!important` 无关）。所以 `data-uncolored` / `data-colorized` 的「方向」能自动跟随最近的模式块，不必为四种组合各写一套变量。细节见[明暗主题](./color-dark.md)与[多彩模式](./color-colorized.md)。
 :::
 
+<demo html="theme/how-it-works-modes.html"/>
+
 ### 五、派生层：组件只消费 `--auto-*`
 
 基础调色板之上是**语义命名**层，组件与业务样式只引用它：
@@ -130,6 +136,8 @@ themeManager.update({ seedLightnessGap: 2.2, chromaBoostCap: 1.1 });
 
 这层是「换主题不用改组件」的实现终点：主题色 / 模式 / 色彩 / 尺寸任一维变化，都只改基础量，派生层与组件自动跟随。
 
+<demo html="theme/how-it-works-derived.html"/>
+
 ### 六、其它要素同构
 
 字体 / 段落 / 圆角 / 阴影 / 间距走的是**同一套三层结构**，只是「种子」换成了固定档位、开关换成了 `data-*` 属性：
@@ -146,6 +154,8 @@ themeManager.update({ seedLightnessGap: 2.2, chromaBoostCap: 1.1 });
 <!-- 与颜色模式同款的「元素域」用法：局部换档，不影响全局 -->
 <div data-size="x-small" data-radius="none" data-dark>紧凑的暗色面板</div>
 ```
+
+<demo html="theme/how-it-works-isomorphism.html"/>
 
 ### 小结：主题要素清单
 

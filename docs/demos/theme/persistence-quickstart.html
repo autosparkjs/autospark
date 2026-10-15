@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>持久化 · 快速入门</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <!-- 回访零闪：head 内的阻塞内联片段（真实项目里就放在这里） -->
+        <script>
+            (function () {
+                try {
+                    var css = localStorage.getItem("autospark-theme-styles");
+                    if (!css) return;
+                    var s = document.createElement("style");
+                    s.id = "autospark-theme-restore";
+                    s.textContent = css;
+                    document.head.appendChild(s);
+                } catch (e) {}
+            })();
+        </script>
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">当前 localStorage 内容（切换主题后点「刷新快照」）</div>
+                <div class="auto-card-body col">
+                    <div class="seg">
+                        <button id="btn-refresh">刷新快照</button>
+                        <button id="btn-clear">清空（模拟首次访问）</button>
+                    </div>
+                    <table class="demo-table" id="ls-table">
+                        <thead>
+                            <tr><th>key</th><th>大小</th><th>内容摘要</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <p class="hint">
+                        快照里是完整的 CSS（含基础变量 / 模式块 / 尺寸档位 / 派生层 / 主题标尺 / 语义色）；
+                        参数 key 里是 JSON（<code>themeColor</code> 存的是<strong>解析后的 hex</strong>，
+                        所以预设表改名不会让老用户的主题失效）。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+
+        <script>
+            // 观察 localStorage：刷新快照 / 清空（模拟首次访问）
+            function renderTable() {
+                var body = document.querySelector("#ls-table tbody");
+                body.replaceChildren();
+                var keys = [];
+                try {
+                    for (var i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+                } catch (e) {}
+                keys
+                    .filter(function (k) {
+                        return k && k.indexOf("autospark-theme") === 0;
+                    })
+                    .sort()
+                    .forEach(function (k) {
+                        var value = localStorage.getItem(k) || "";
+                        var row = document.createElement("tr");
+                        var head = value.slice(0, 120).replace(/\s+/g, " ");
+                        row.innerHTML =
+                            "<td><code>" +
+                            k +
+                            "</code></td><td>" +
+                            Math.round(value.length / 1024) +
+                            " KB</td><td><code>" +
+                            head.replace(/</g, "&lt;") +
+                            "…</code></td>";
+                        body.appendChild(row);
+                    });
+                if (!body.children.length) {
+                    body.innerHTML = '<tr><td colspan="3">（当前没有 autospark-theme-* 的 key）</td></tr>';
+                }
+            }
+
+            document.getElementById("btn-refresh").addEventListener("click", renderTable);
+            document.getElementById("btn-clear").addEventListener("click", function () {
+                try {
+                    var keys = [];
+                    for (var i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+                    keys.filter(function (k) {
+                        return k && k.indexOf("autospark-theme") === 0;
+                    }).forEach(function (k) {
+                        localStorage.removeItem(k);
+                    });
+                } catch (e) {}
+                renderTable();
+            });
+            renderTable();
+        </script>
+    </body>
+</html>

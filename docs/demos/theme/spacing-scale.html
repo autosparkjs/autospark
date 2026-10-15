@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>间距 · 六档</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">六档对比（同一组卡片，仅内距不同）</div>
+                <div class="auto-card-body col">
+                    <div class="grid tight">
+                        <div style="padding:var(--x-spacing-none);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div style="background:var(--auto-secondary-bgcolor);">none</div>
+                        </div>
+                        <div style="padding:var(--x-spacing-x-small);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div style="background:var(--auto-secondary-bgcolor);">x-small</div>
+                        </div>
+                        <div style="padding:var(--x-spacing-small);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div style="background:var(--auto-secondary-bgcolor);">small</div>
+                        </div>
+                        <div style="padding:var(--x-spacing-medium);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div style="background:var(--auto-secondary-bgcolor);">medium</div>
+                        </div>
+                        <div style="padding:var(--x-spacing-large);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div style="background:var(--auto-secondary-bgcolor);">large</div>
+                        </div>
+                        <div style="padding:var(--x-spacing-x-large);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div style="background:var(--auto-secondary-bgcolor);">x-large</div>
+                        </div>
+                    </div>
+                    <p class="hint">
+                        六档实测值：<code>0 / 0.4rem / 0.6rem / 0.8rem / 1.0rem / 1.2rem</code>——
+                        档距约 0.2rem，肉眼可辨但不过分。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">密度剖面：面板切「间距」观察（左侧全局跟随，右侧固定）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box global">
+                        <div class="box-label">跟随全局 data-spacing</div>
+                        <div class="item-list">
+                            <div class="item">列表项一</div>
+                            <div class="item">列表项二</div>
+                            <div class="item">列表项三</div>
+                        </div>
+                        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                            <button class="auto-btn small">按钮</button>
+                            <button class="auto-btn small">按钮</button>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-spacing="medium">
+                        <div class="box-label">固定 data-spacing="medium"</div>
+                        <div class="item-list">
+                            <div class="item">列表项一</div>
+                            <div class="item">列表项二</div>
+                            <div class="item">列表项三</div>
+                        </div>
+                        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                            <button class="auto-btn small">按钮</button>
+                            <button class="auto-btn small">按钮</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

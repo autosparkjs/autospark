@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>派生颜色 · 交互四态</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">交互四态：静态对照 + 真实交互</div>
+                <div class="auto-card-body col">
+                    <div class="grid">
+                        <div class="cell hover">hover<br /><code class="caption">--auto-hover-*</code></div>
+                        <div class="cell active">active<br /><code class="caption">--auto-active-*</code></div>
+                        <div class="cell selected">selected<br /><code class="caption">--auto-selected-*</code></div>
+                        <div class="cell disabled">disable<br /><code class="caption">--auto-disable-*</code></div>
+                    </div>
+                    <div class="item-list">
+                        <div class="item">真实交互项：悬停 / 按下体验动态反馈</div>
+                        <div class="item selected">真实选中项</div>
+                        <div class="item disabled">真实禁用项</div>
+                    </div>
+                    <p class="hint">
+                        hover / selected 取主题色（<code>--auto-theme-color</code>），active 取更深一档
+                        （<code>theme-8</code>），disable 由文字色混灰而来；暗色下这四态的参数被
+                        <code>darkDerivedVars</code> 整体重算，组件层保持模式无关。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

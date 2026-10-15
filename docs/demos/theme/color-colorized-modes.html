@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>多彩模式 · 两个维度四个属性</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">灰 vs 多彩：同一份结构、两种色彩维度（面板切「多彩模式」）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box">
+                        <div class="box-label">无彩（无属性 / 跟随全局）</div>
+                        <div class="theme-strip" data-strip="--x-color-"></div>
+                        <div class="theme-strip" data-strip="--x-bgcolor-"></div>
+                        <div class="demo-sample">
+                            <div class="demo-sample-header">面板头部</div>
+                            <div>主要文字 --auto-color</div>
+                            <input class="auto-input" placeholder="表单" />
+                            <button class="auto-btn primary">主按钮</button>
+                        </div>
+                    </div>
+                    <div class="scope-box global" data-colorized>
+                        <div class="box-label">多彩（data-colorized 固定在本卡）</div>
+                        <div class="theme-strip" data-strip="--x-color-"></div>
+                        <div class="theme-strip" data-strip="--x-bgcolor-"></div>
+                        <div class="demo-sample">
+                            <div class="demo-sample-header">面板头部</div>
+                            <div>主要文字 --auto-color</div>
+                            <input class="auto-input" placeholder="表单" />
+                            <button class="auto-btn primary">主按钮</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        左侧跟随全局（面板切多彩它会一起变），右侧固定多彩。两个维度独立：面板切暗色时，
+                        右侧卡因为 <code>data-colorized</code> 落在自己身上，会取到<strong>暗语境的多彩映射</strong>。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">四种颜色模式并排（属性组合决定基础调色板）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box">
+                        <div class="box-label">light</div>
+                        <div class="theme-strip" data-strip="--x-bgcolor-"></div>
+                        <div class="demo-sample">面板 / 文字 / 表单</div>
+                    </div>
+                    <div class="scope-box" data-colorized>
+                        <div class="box-label">light + colorized</div>
+                        <div class="theme-strip" data-strip="--x-bgcolor-"></div>
+                        <div class="demo-sample">面板 / 文字 / 表单</div>
+                    </div>
+                    <div class="scope-box" data-dark>
+                        <div class="box-label">dark</div>
+                        <div class="theme-strip" data-strip="--x-bgcolor-"></div>
+                        <div class="demo-sample">面板 / 文字 / 表单</div>
+                    </div>
+                    <div class="scope-box" data-dark data-colorized>
+                        <div class="box-label">dark + colorized</div>
+                        <div class="theme-strip" data-strip="--x-bgcolor-"></div>
+                        <div class="demo-sample">面板 / 文字 / 表单</div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <table class="demo-table">
+                        <thead>
+                            <tr>
+                                <th>变量</th>
+                                <th>亮多彩</th>
+                                <th>暗多彩</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--x-color-i</code>（前景）</td>
+                                <td><code>theme-{9-i}</code></td>
+                                <td><code>theme-{9-i}</code>（暗梯度已反转，取到的是更亮的档）</td>
+                            </tr>
+                            <tr>
+                                <td><code>--x-bgcolor-0</code>（面板）</td>
+                                <td><code>theme-0</code></td>
+                                <td><code>theme-0</code>（各主题最深档）</td>
+                            </tr>
+                            <tr>
+                                <td><code>--x-bgcolor-1</code>（工作区）</td>
+                                <td><code>theme-1</code></td>
+                                <td><code>theme-0</code> 混黑 30%（彩色梯度无更深档，压暗保色相）</td>
+                            </tr>
+                            <tr>
+                                <td><code>--x-bgcolor-2..9</code></td>
+                                <td><code>theme-2..9</code></td>
+                                <td><code>theme-2..9</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">元素域：多彩 / 无彩的局部开关</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" id="el-colorized">
+                        <div class="box-label">
+                            <button data-toggle-attr="data-colorized" data-toggle-target="#el-colorized" data-toggle-label></button>
+                        </div>
+                        <div class="demo-sample">
+                            <div>本卡独立多彩：灰阶幕布换为主题色浸染。</div>
+                            <input class="auto-input" placeholder="输入框同步换色" />
+                        </div>
+                    </div>
+                    <div class="scope-box" data-colorized id="el-uncolored">
+                        <div class="box-label">多彩卡内嵌无彩块</div>
+                        <div class="demo-sample">
+                            <div>外层多彩：本段文字与输入框都被主题色浸染。</div>
+                            <div class="scope-box" id="el-uncolored-inner" data-uncolored style="margin-top:0.5rem;">
+                                <div class="box-label">
+                                    <button data-toggle-attr="data-uncolored" data-toggle-target="#el-uncolored-inner" data-toggle-label></button>
+                                </div>
+                                <div class="demo-sample">
+                                    <div>内层 data-uncolored：色彩回灰，模式随语境。</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        灰的方向由最近的模式块决定：外层切暗时，内层 <code>data-uncolored</code> 回的是<strong>暗灰</strong>——
+                        这是「暗语境中要多彩、但某元素要退灰」的标准降级手段。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

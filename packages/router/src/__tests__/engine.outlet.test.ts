@@ -152,8 +152,6 @@ describe("autospark.outlet 组件（ADR-0003）", () => {
         await nextTick();
 
         const tabs = outlet.querySelectorAll(".autospark-outlet-tab");
-        console.log("DEBUG tabsBar:", (outlet.querySelector(".autospark-outlet-tabs") as HTMLElement)?.outerHTML);
-        console.log("DEBUG comp.active:", engine.getComponent(outlet)?.data?.active);
         expect(tabs).toHaveLength(2);
         expect(tabs[0].querySelector(".autospark-outlet-tab-title")!.textContent).toBe("A 页");
         expect(tabs[1].querySelector(".autospark-outlet-tab-title")!.textContent).toBe("B 页");
@@ -186,8 +184,9 @@ describe("autospark.outlet 组件（ADR-0003）", () => {
         expect(viewHost(outlet, "hb")).toBeNull();
         expect(pushCalls).toEqual([]);
 
-        // 唯一页签：关闭按钮不渲染
-        expect(outlet.querySelector(".autospark-outlet-tab-close")).toBeNull();
+        // 唯一页签：关闭按钮隐藏（x-show 语义：DOM 常驻 + display:none）
+        const closeBtn = outlet.querySelector(".autospark-outlet-tab-close") as HTMLElement;
+        expect(closeBtn.style.display).toBe("none");
 
         // 重新补一个页签后关闭 active 页签 a：导航到相邻（b）
         engine.data(outlet, {

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>静态主题包 · 11 套预设</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">11 套静态主题：每格一个 <code>data-theme</code> 属性</div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        每格挂 <code>data-theme="名称"</code>，色条为各自的 <code>--x-color-theme-0..9</code>。
+                        注意各文件的<strong>方向与 <code>color-scheme</code> 声明并不统一</strong>——先用色条核对再决定用法。
+                    </p>
+                    <div class="grid">
+                        <div class="scope-box" data-theme="blue">
+                            <div class="box-label">data-theme="blue"</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                        </div>
+                        <div class="scope-box" data-theme="cyan">
+                            <div class="box-label">data-theme="cyan"</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                        </div>
+                        <div class="scope-box" data-theme="dark">
+                            <div class="box-label">data-theme="dark"</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                        </div>
+                        <div class="scope-box" data-theme="green">
+                            <div class="box-label">data-theme="green"</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                        </div>
+                        <div class="scope-box" data-theme="lime">
+                            <div class="box-label">data-theme="lime"</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                        </div>
+                        <div class="scope-box" data-theme="magenta">
+                            <div class="box-label">data-theme="magenta"</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                        </div>
+                        <div class="scope-box" data-theme="orange">
+                            <div class="box-label">data-theme="orange"</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                        </div>
+                        <div class="scope-box" data-theme="purple">
+                            <div class="box-label">data-theme="purple"</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                        </div>
+                        <div class="scope-box" data-theme="red">
+                            <div class="box-label">data-theme="red"</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                        </div>
+                        <div class="scope-box" data-theme="volcano">
+                            <div class="box-label">data-theme="volcano"</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                        </div>
+                        <div class="scope-box" data-theme="yellow">
+                            <div class="box-label">data-theme="yellow"</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">方向对照表</div>
+                <div class="auto-card-body col">
+                    <table class="demo-table">
+                        <thead>
+                            <tr><th>声明</th><th>文件</th><th>方向</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>color-scheme: light</code></td>
+                                <td><code>cyan</code> / <code>green</code> / <code>lime</code> / <code>orange</code> / <code>yellow</code></td>
+                                <td><code>theme-0</code> 最浅 → <code>theme-9</code> 最深</td>
+                            </tr>
+                            <tr>
+                                <td><code>color-scheme: dark</code></td>
+                                <td><code>blue</code> / <code>dark</code> / <code>magenta</code> / <code>purple</code> / <code>red</code> / <code>volcano</code></td>
+                                <td><code>theme-0</code> 最深 → <code>theme-9</code> 最浅</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="hint">
+                        静态主题文件是按各自使用场景生成的历史产物：在亮语境里引一份「<code>theme-0</code> 最深」的文件，
+                        背景取到的会是最深档。使用前请核对它的 <code>color-scheme</code> 与色阶方向。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

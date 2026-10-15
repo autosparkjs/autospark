@@ -17,7 +17,7 @@
 }
 ```
 
-<demo html="theme/color-background.html"/>
+<demo html="theme/color-background-overview.html"/>
 
 ## 指南
 
@@ -32,6 +32,8 @@
 | `--auto-panel-bgcolor` | `--auto-bgcolor` | 面板 / Drawer |
 | `--auto-panel-header-bgcolor` | `--auto-secondary-bgcolor` | 标题栏 / 标签页头 |
 
+<demo html="theme/color-background-layers.html"/>
+
 ### 基础梯度 `--x-bgcolor-0..9`
 
 | 档 | 亮语境 | 暗语境 |
@@ -42,6 +44,8 @@
 
 暗色的背景映射刻意把**前景与背景分离**：`color-i = gray-i`（前景从最沉起），
 而背景让 `bgcolor-0`（面板）浮起于 `bgcolor-1`（工作区）之上——这样「面板浮在工作区上」的层级在两种模式下都成立。
+
+<demo html="theme/color-background-scale.html"/>
 
 ### 为什么次级 / 内嵌用透明度
 
@@ -78,6 +82,8 @@
 ```
 
 不要写死颜色——写死会让模式与多彩切换失效。
+
+<demo html="theme/color-background-usage.html"/>
 
 ---
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+﻿import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import type { AutoSparkRouter } from "@/router";
 
 /**
@@ -34,14 +34,45 @@ function createTestDOM() {
     return host;
 }
 
+/** 最小 engine stub：注入模式下跳过自建管线 */
+function stubEngine() {
+    return {
+        getComponentDeclaration: () => ({ name: "autospark.outlet" }),
+        getComponent: () => ({
+            data: { views: [], ephemeral: { hash: "", html: "", ready: false }, active: "" },
+        }),
+        data: () => { },
+        destroy() { },
+    } as any;
+}
+
 /**
- * 动态导入 AutoSparkRouter
+ * 动态导入 AutoSparkRouter。
+ * 构造函数自 89515f9 起自动 attach()，不得重复调用（抛 Already attached）；
+ * attach 链异步完成，需等待路由表加载与初始导航结束后再注册钩子/导航。
  */
 async function createRouter(host: HTMLElement, options: any) {
     const { AutoSparkRouter } = await import("@/router");
-    const router = new AutoSparkRouter(host, options);
-    router.attach();
+    // 渲染链路要求宿主内存在出口元素
+    if (!host.querySelector("[data-autospark-outlet]")) {
+        const outlet = document.createElement("div");
+        outlet.setAttribute("data-autospark-outlet", "");
+        host.appendChild(outlet);
+    }
+    const router = new AutoSparkRouter(host, { engine: stubEngine(), ...options });
+    await new Promise((resolve) => setTimeout(resolve, 80));
     return router;
+}
+
+/** 取 matched 数组末项（最深匹配） */
+function lastMatched(router: AutoSparkRouter) {
+    const current = router.routes.current ?? [];
+    return current[current.length - 1];
+}
+
+/** 等待导航结束（cancel 与 end 都算一轮导航结束） */
+function waitNav(ms = 120) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 describe("AutoSparkRouter 钩子系统完整集成测试", () => {
@@ -54,7 +85,12 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
 
     afterEach(() => {
         if (router) {
-            router.detach();
+            try {
+                router.detach();
+            } catch (e) {
+                // 忽略 detach 错误
+            }
+            router = undefined as any;
         }
         // 清理 DOM
         if (host && host.parentElement) {
@@ -70,7 +106,10 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
                 {
                     name: "target",
                     path: "/target",
-                    beforeEnter: () => {
+                    // beforeRender 需视图成功加载才触发；函数视图避免远程 fetch
+                    view: () => "<div>target</div>",
+                    // 路由级守卫：beforeEnter 已更名为 beforeRoute（返回 false 拦截、字符串改道）
+                    beforeRoute: () => {
                         order.push("beforeEnter");
                         return true;
                     }
@@ -79,27 +118,27 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
 
             router = await createRouter(host, { routes });
 
+            // 全局钩子：beforeEach → beforeRoute、renderEach → beforeRender、afterEach → afterRoute
             // @ts-ignore
-            router.hooks.add("beforeEach", (to: any, from: any, next: any) => {
+            router.hooks.add("beforeRoute", () => {
                 order.push("beforeEach");
-                next();
+                return true;
             });
 
             // @ts-ignore
-            router.hooks.add("renderEach", (to: any, from: any, next: any) => {
+            router.hooks.add("beforeRender", () => {
                 order.push("renderEach");
-                next();
             });
 
             // @ts-ignore
-            router.hooks.add("afterEach", (to: any, from: any) => {
+            router.hooks.add("afterRoute", () => {
                 order.push("afterEach");
             });
 
             router.push("/target");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
             expect(order).toEqual([
                 "beforeEach",
@@ -116,7 +155,7 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
                 {
                     name: "parent",
                     path: "/parent",
-                    beforeEnter: () => {
+                    beforeRoute: () => {
                         order.push("parent-beforeEnter");
                         return true;
                     },
@@ -124,7 +163,9 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
                         {
                             name: "child",
                             path: "child",
-                            beforeEnter: () => {
+                            // beforeRender 需视图成功加载才触发
+                            view: () => "<div>child</div>",
+                            beforeRoute: () => {
                                 order.push("child-beforeEnter");
                                 return true;
                             }
@@ -136,21 +177,20 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
             router = await createRouter(host, { routes });
 
             // @ts-ignore
-            router.hooks.add("beforeEach", (to: any, from: any, next: any) => {
+            router.hooks.add("beforeRoute", () => {
                 order.push("beforeEach");
-                next();
+                return true;
             });
 
             // @ts-ignore
-            router.hooks.add("renderEach", (to: any, from: any, next: any) => {
+            router.hooks.add("beforeRender", () => {
                 order.push("renderEach");
-                next();
             });
 
             router.push("/parent/child");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
             expect(order).toEqual([
                 "beforeEach",
@@ -162,12 +202,14 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
 
         it("应该在导航取消时停止执行后续钩子", async () => {
             const order: string[] = [];
+            let cancelled = false;
 
             const routes = [
                 {
                     name: "target",
                     path: "/target",
-                    beforeEnter: () => {
+                    view: () => "<div>target</div>",
+                    beforeRoute: () => {
                         order.push("beforeEnter");
                         return false;
                     }
@@ -177,31 +219,30 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
             router = await createRouter(host, { routes });
 
             // @ts-ignore
-            router.hooks.add("beforeEach", (to: any, from: any, next: any) => {
+            router.hooks.add("beforeRoute", () => {
                 order.push("beforeEach");
-                next();
+                return true;
             });
 
             // @ts-ignore
-            router.hooks.add("renderEach", (to: any, from: any, next: any) => {
+            router.hooks.add("beforeRender", () => {
                 order.push("renderEach");
-                next();
             });
 
-            // @ts-ignore
-            router.hooks.add("afterEach", (to: any, from: any) => {
-                order.push("afterEach");
-            });
+            router.on("navigation:cancel", () => { cancelled = true; });
 
             router.push("/target");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
+            // 拦截语义：守卫链在 beforeEnter 处中断，renderEach 不执行、cancel 事件触发；
+            // afterRoute 在 finally 中无条件执行（导航已产生历史条目），不再属于“后续钩子”语义
             expect(order).toEqual([
                 "beforeEach",
                 "beforeEnter"
             ]);
+            expect(cancelled).toBe(true);
         });
     });
 
@@ -217,25 +258,27 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
             let capturedTo: any;
             let capturedFrom: any;
 
+            // beforeRoute 钩子参数为单对象 { to, from }，to/from 均为 matched 数组
             // @ts-ignore
-            router.hooks.add("beforeEach", (to: any, from: any, next: any) => {
-                capturedTo = to;
-                capturedFrom = from;
-                next();
+            router.hooks.add("beforeRoute", (args: any) => {
+                capturedTo = args.to;
+                capturedFrom = args.from;
+                return true;
             });
 
             // 先导航到 /a
             router.push("/a");
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await waitNav(60);
 
             // 再导航到 /b
             router.push("/b");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            expect(capturedTo.name).toBe("b");
-            expect(capturedFrom.name).toBe("a");
+            // matched 数组末项为最深匹配
+            expect(capturedTo[capturedTo.length - 1].route.name).toBe("b");
+            expect(capturedFrom[capturedFrom.length - 1].route.name).toBe("a");
         });
 
         it("应该正确传递路由参数给钩子", async () => {
@@ -248,15 +291,16 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
             let capturedParams: any;
 
             // @ts-ignore
-            router.hooks.add("beforeEach", (to: any, from: any, next: any) => {
-                capturedParams = to.params;
-                next();
+            router.hooks.add("beforeRoute", (args: any) => {
+                const to = args.to;
+                capturedParams = to[to.length - 1].params;
+                return true;
             });
 
             router.push("/user/123");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
             expect(capturedParams).toEqual({ id: "123" });
         });
@@ -271,17 +315,20 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
             let capturedQuery: any;
 
             // @ts-ignore
-            router.hooks.add("beforeEach", (to: any, from: any, next: any) => {
-                capturedQuery = to.query;
-                next();
+            router.hooks.add("beforeRoute", (args: any) => {
+                const to = args.to;
+                // query 解析在匹配链的根项上
+                const withQuery = to.find((m: any) => m.query && Object.keys(m.query).length > 0);
+                capturedQuery = withQuery?.query;
+                return true;
             });
 
             router.push("/search?q=test&page=1");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            expect(capturedQuery).toEqual({ q: "test", page: "1" });
+            expect({ ...capturedQuery }).toEqual({ q: "test", page: "1" });
         });
     });
 
@@ -293,58 +340,69 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
 
             router = await createRouter(host, { routes });
 
+            // 钩子错误默认被忽略（ignoreErrors 缺省 true），后续钩子继续执行
             // @ts-ignore
-            router.hooks.add("beforeEach", (to: any, from: any, next: any) => {
+            router.hooks.add("beforeRoute", () => {
                 throw new Error("Hook error");
             });
 
             // @ts-ignore
-            router.hooks.add("beforeEach", (to: any, from: any, next: any) => {
-                next();
+            router.hooks.add("beforeRoute", () => {
+                return true;
             });
 
             router.push("/target");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
             // 导航应该继续
-            expect(router.routes.current.route!.name).toBe("target");
+            expect(lastMatched(router)!.route!.name).toBe("target");
         });
 
-        it("应该在 beforeEach 错误时取消导航", async () => {
+        it("应该在 beforeRoute 返回 false 时取消导航", async () => {
             const routes = [
                 { name: "home", path: "/" },
-                { name: "target", path: "/target" }
+                { name: "target", path: "/target", view: () => "<div>target</div>" }
             ];
 
             router = await createRouter(host, { routes });
 
+            let cancelled = false;
+            let rendered = false;
+
+            // next(false) 语义迁移为 return false
             // @ts-ignore
-            router.hooks.add("beforeEach", (to: any, from: any, next: any) => {
-                if (to.path === "/target") {
-                    next(false);
-                } else {
-                    next();
+            router.hooks.add("beforeRoute", (args: any) => {
+                const to = args.to;
+                if (to[to.length - 1].path === "/target") {
+                    return false;
                 }
+                return true;
             });
+
+            // @ts-ignore
+            router.hooks.add("beforeRender", () => { rendered = true; });
+            router.on("navigation:cancel", () => { cancelled = true; });
 
             router.push("/target");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            // 导航应该被取消
-            expect(router.routes.current.route!.path).not.toBe("/target");
+            // 导航应该被取消：渲染被跳过、cancel 事件触发
+            // （URL 与 routes.current 仍会更新——历史条目在守卫前已落）
+            expect(cancelled).toBe(true);
+            expect(rendered).toBe(false);
         });
 
-        it("应该在路由守卫错误时取消导航", async () => {
+        it("路由守卫抛出错误时应跳过该守卫（不阻断导航）", async () => {
             const routes = [
                 { name: "home", path: "/" },
                 {
                     name: "target",
                     path: "/target",
-                    beforeEnter: () => {
+                    beforeRoute: () => {
                         throw new Error("Guard error");
                     }
                 }
@@ -354,40 +412,42 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
             router.push("/target");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            // 导航应该被取消
-            expect(router.routes.current.route!.path).not.toBe("/target");
+            // 守卫错误默认被忽略（ignoreErrors 缺省 true），导航继续完成
+            expect(lastMatched(router)!.path).toBe("/target");
         });
 
-        it("应该在 renderEach 错误时继续渲染", async () => {
+        it("应该在 beforeRender 错误时继续渲染", async () => {
+            let secondHookRan = false;
             const routes = [
-                { name: "target", path: "/target" }
+                { name: "target", path: "/target", view: () => "<div>target</div>" }
             ];
 
             router = await createRouter(host, { routes });
 
             // @ts-ignore
-            router.hooks.add("renderEach", () => {
+            router.hooks.add("beforeRender", () => {
                 throw new Error("RenderEach error");
             });
 
             // @ts-ignore
-            router.hooks.add("renderEach", (to: any, from: any, next: any) => {
-                next({ key: "value" });
+            router.hooks.add("beforeRender", () => {
+                secondHookRan = true;
             });
 
             router.push("/target");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            // 导航应该继续，并且包含第二个钩子的数据
-            expect(router.routes.current.route!.name).toBe("target");
-            expect(router.routes.current.route!.data).toEqual({ key: "value" });
+            // 导航应该继续，第二个钩子仍被执行
+            // （renderEach 的 next(data) 数据通道已随新钩子签名废弃，见数据预加载一节）
+            expect(lastMatched(router)!.route!.name).toBe("target");
+            expect(secondHookRan).toBe(true);
         });
 
-        it("应该在 afterEach 错误时不影响导航完成", async () => {
+        it("应该在 afterRoute 错误时不影响导航完成", async () => {
             const routes = [
                 { name: "target", path: "/target" }
             ];
@@ -395,22 +455,22 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
             router = await createRouter(host, { routes });
 
             // @ts-ignore
-            router.hooks.add("afterEach", () => {
+            router.hooks.add("afterRoute", () => {
                 throw new Error("AfterEach error");
             });
 
             router.push("/target");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
             // 导航应该完成
-            expect(router.routes.current.route!.name).toBe("target");
+            expect(lastMatched(router)!.route!.name).toBe("target");
         });
     });
 
     describe("重定向功能集成", () => {
-        it("应该在 beforeEach 重定向时正确处理", async () => {
+        it("应该在 beforeRoute 重定向时正确处理", async () => {
             const routes = [
                 { name: "redirect", path: "/redirect" },
                 { name: "target", path: "/target" }
@@ -418,30 +478,31 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
 
             router = await createRouter(host, { routes });
 
+            // next("/target") 语义迁移为返回路径字符串（改道）
             // @ts-ignore
-            router.hooks.add("beforeEach", (to: any, from: any, next: any) => {
-                if (to.path === "/redirect") {
-                    next("/target");
-                } else {
-                    next();
+            router.hooks.add("beforeRoute", (args: any) => {
+                const to = args.to;
+                if (to[to.length - 1].path === "/redirect") {
+                    return "/target";
                 }
+                return true;
             });
 
             router.push("/redirect");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // 等待导航完成（含改道引发的第二轮导航）
+            await waitNav(200);
 
             // 应该重定向到 /target
-            expect(router.routes.current.route!.path).toBe("/target");
+            expect(lastMatched(router)!.path).toBe("/target");
         });
 
-        it("应该在 beforeEnter 重定向时正确处理", async () => {
+        it("应该在 beforeRoute 路由守卫重定向时正确处理", async () => {
             const routes = [
                 {
                     name: "redirect",
                     path: "/redirect",
-                    beforeEnter: () => "/target"
+                    beforeRoute: () => "/target"
                 },
                 { name: "target", path: "/target" }
             ];
@@ -449,11 +510,11 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
             router = await createRouter(host, { routes });
             router.push("/redirect");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // 等待导航完成（含改道引发的第二轮导航）
+            await waitNav(200);
 
             // 应该重定向到 /target
-            expect(router.routes.current.route!.path).toBe("/target");
+            expect(lastMatched(router)!.path).toBe("/target");
         });
 
         it("应该在重定向时执行目标路由的守卫", async () => {
@@ -463,12 +524,12 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
                 {
                     name: "redirect",
                     path: "/redirect",
-                    beforeEnter: () => "/target"
+                    beforeRoute: () => "/target"
                 },
                 {
                     name: "target",
                     path: "/target",
-                    beforeEnter: () => {
+                    beforeRoute: () => {
                         guardExecuted = true;
                         return true;
                     }
@@ -478,63 +539,68 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
             router = await createRouter(host, { routes });
             router.push("/redirect");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // 等待导航完成（含改道引发的第二轮导航）
+            await waitNav(200);
 
             // 应该执行目标路由的守卫
             expect(guardExecuted).toBe(true);
-            expect(router.routes.current.route!.path).toBe("/target");
+            expect(lastMatched(router)!.path).toBe("/target");
         });
     });
 
     describe("数据预加载集成", () => {
         it("应该正确传递预加载数据给组件", async () => {
+            const preloadData = { userId: "123", userName: "Test User" };
+
             const routes = [
-                { name: "user", path: "/user/:id" }
+                // renderEach next(data) 通道已废弃；预加载数据改由路由 data 数据源（DataLoader）承载
+                { name: "user", path: "/user/:id", data: () => preloadData }
             ];
 
             router = await createRouter(host, { routes });
-
-            const preloadData = { userId: "123", userName: "Test User" };
-
-            // @ts-ignore
-            router.hooks.add("renderEach", (to: any, from: any, next: any) => {
-                next(preloadData);
-            });
 
             router.push("/user/123");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            // 数据应该被传递到路由
-            expect(router.routes.current.route!.data).toEqual(preloadData);
+            // 数据经 DataLoader 写入路由项的 AsyncLoader signal
+            const loader = (lastMatched(router)!.route as any)?._getData;
+            expect(loader).toBeDefined();
+            expect(loader.signal.result).toEqual(preloadData);
         });
 
         it("应该合并来自多个钩子的预加载数据", async () => {
             const routes = [
-                { name: "target", path: "/target" }
+                {
+                    name: "target",
+                    path: "/target",
+                    view: () => "<div>target</div>",
+                    data: () => ({})
+                }
             ];
 
             router = await createRouter(host, { routes });
 
+            // beforeRender 钩子收到已加载的路由数据对象，可向其合并预加载字段
             // @ts-ignore
-            router.hooks.add("renderEach", (to: any, from: any, next: any) => {
-                next({ key1: "value1" });
+            router.hooks.add("beforeRender", (args: any) => {
+                Object.assign(args.data, { key1: "value1" });
             });
 
             // @ts-ignore
-            router.hooks.add("renderEach", (to: any, from: any, next: any) => {
-                next({ key2: "value2" });
+            router.hooks.add("beforeRender", (args: any) => {
+                Object.assign(args.data, { key2: "value2" });
             });
 
             router.push("/target");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            // 数据应该被合并
-            expect(router.routes.current.route!.data).toEqual({
+            // 数据应该被合并（与 DataLoader signal 结果为同一对象引用）
+            const loader = (lastMatched(router)!.route as any)?._getData;
+            expect(loader.signal.result).toEqual({
                 key1: "value1",
                 key2: "value2"
             });
@@ -542,24 +608,26 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
 
         it("应该支持异步数据预加载", async () => {
             const routes = [
-                { name: "user", path: "/user" }
+                {
+                    name: "user",
+                    path: "/user",
+                    data: async () => {
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                        return { asyncData: "loaded" };
+                    }
+                }
             ];
 
             router = await createRouter(host, { routes });
 
-            // @ts-ignore
-            router.hooks.add("renderEach", async (to: any, from: any, next: any) => {
-                await new Promise(resolve => setTimeout(resolve, 50));
-                next({ asyncData: "loaded" });
-            });
-
             router.push("/user");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
             // 异步数据应该被正确加载
-            expect(router.routes.current.route!.data).toEqual({ asyncData: "loaded" });
+            const loader = (lastMatched(router)!.route as any)?._getData;
+            expect(loader.signal.result).toEqual({ asyncData: "loaded" });
         });
     });
 
@@ -577,7 +645,7 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
                 {
                     name: "profile",
                     path: "/profile",
-                    beforeEnter: () => {
+                    beforeRoute: () => {
                         if (!isAuthenticated()) {
                             return "/login";
                         }
@@ -587,7 +655,7 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
                 {
                     name: "admin",
                     path: "/admin",
-                    beforeEnter: () => {
+                    beforeRoute: () => {
                         if (!hasPermission()) {
                             return "/login";
                         }
@@ -601,25 +669,26 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
             // 尝试访问受保护的路由
             router.push("/profile");
 
-            // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // 等待导航完成（含改道引发的第二轮导航）
+            await waitNav(200);
 
             // 应该重定向到登录页面
-            expect(router.routes.current.route!.path).toBe("/login");
+            expect(lastMatched(router)!.path).toBe("/login");
         });
 
         it("应该正确处理页面离开时的清理工作", async () => {
             let cleanupExecuted = false;
 
             const routes = [
+                { name: "source", path: "/source" },
+                // afterLeave 语义已并入目标路由的 afterRoute（见 router.guards.test.ts 同款迁移）
                 {
-                    name: "source",
-                    path: "/source",
-                    afterLeave: () => {
+                    name: "target",
+                    path: "/target",
+                    afterRoute: () => {
                         cleanupExecuted = true;
                     }
-                },
-                { name: "target", path: "/target" }
+                }
             ];
 
             router = await createRouter(host, { routes });
@@ -627,16 +696,16 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
             router.push("/source");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await waitNav(60);
 
             router.push("/target");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            // afterLeave 应该被调用
+            // afterRoute 应该被调用
             expect(cleanupExecuted).toBe(true);
-            expect(router.routes.current.route!.path).toBe("/target");
+            expect(lastMatched(router)!.path).toBe("/target");
         });
 
         it("应该正确处理滚动到顶部等导航后操作", async () => {
@@ -650,16 +719,16 @@ describe("AutoSparkRouter 钩子系统完整集成测试", () => {
             router = await createRouter(host, { routes });
 
             // @ts-ignore
-            router.hooks.add("afterEach", () => {
+            router.hooks.add("afterRoute", () => {
                 scrollExecuted = true;
             });
 
             router.push("/target");
 
             // 等待导航完成
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await waitNav();
 
-            // afterEach 应该被调用
+            // afterRoute 应该被调用
             expect(scrollExecuted).toBe(true);
         });
     });

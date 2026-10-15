@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>明暗主题 · 暗色专属派生值</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">暗色专属派生值：变量层吸收模式差异</div>
+                <div class="auto-card-body col">
+                    <table class="demo-table">
+                        <thead>
+                            <tr>
+                                <th>变量</th>
+                                <th>亮色</th>
+                                <th>暗色</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--auto-theme-color</code></td>
+                                <td><code>theme-5</code></td>
+                                <td><code>theme-6</code>（梯度反转后需提档保对比）</td>
+                            </tr>
+                            <tr>
+                                <td><code>--auto-border-color</code></td>
+                                <td><code>--x-color-6</code></td>
+                                <td><code>--x-color-8</code>（面板轮廓提亮）</td>
+                            </tr>
+                            <tr>
+                                <td><code>--auto-input-bgcolor</code></td>
+                                <td>面板色</td>
+                                <td><code>--x-bgcolor-1</code>（工作区色，凹陷流派）</td>
+                            </tr>
+                            <tr>
+                                <td><code>--auto-disable-color</code></td>
+                                <td>文字色混灰 50%</td>
+                                <td>混灰 80%（深底保底可辨）</td>
+                            </tr>
+                            <tr>
+                                <td><code>--x-shadow-*</code></td>
+                                <td>中灰低不透明</td>
+                                <td>黑色系高不透明（深底上灰阴影不可见）</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="hint">
+                        组件层永远保持模式无关——它只写 <code>var(--auto-*)</code>，模式差异全部在变量层完成。
+                        校准脚本 <code>bun scripts/check-dark-contrast.ts</code> 与变量同源，改完可直接跑数值回归。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

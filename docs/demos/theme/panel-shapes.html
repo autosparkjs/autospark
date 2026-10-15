@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 面板 · 四种容器形态</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">四种容器形态（同一套变量、不同组合）</div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.4rem;padding:0;">
+                        <div style="padding:0.5rem 0.7rem;background:var(--auto-panel-header-bgcolor);font:var(--auto-panel-header);color:var(--auto-panel-header-color);border-radius:var(--auto-border-radius) var(--auto-border-radius) 0 0;">
+                            面板头
+                        </div>
+                        <div style="padding:var(--auto-padding);background:var(--auto-panel-bgcolor);border:var(--auto-border);border-top:none;border-radius:0 0 var(--auto-border-radius) var(--auto-border-radius);">
+                            面板体（头部 + 主体连通）
+                        </div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.4rem;">
+                        <div class="caption">浮起卡片（阴影，无边框）</div>
+                        <div style="padding:var(--auto-padding);background:var(--auto-panel-bgcolor);border-radius:var(--auto-border-radius);box-shadow:var(--auto-shadow);">
+                            面板体
+                        </div>
+                        <div class="caption">描边卡片（边框，无阴影）</div>
+                        <div style="padding:var(--auto-padding);background:var(--auto-panel-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            面板体
+                        </div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.4rem;">
+                        <div class="caption">次级面板（内嵌分区）</div>
+                        <div style="padding:var(--auto-padding);background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">
+                            分区 / 内嵌块
+                        </div>
+                        <div class="caption">工作区（最外层底）</div>
+                        <div style="padding:var(--auto-padding);background:var(--auto-workspace-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            应用底
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

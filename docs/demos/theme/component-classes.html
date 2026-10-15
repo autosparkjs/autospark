@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 内置组件类清单</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">类名即组件：<code>.auto-card</code> / <code>.auto-btn</code> / <code>.auto-input</code> / <code>.auto-alert</code></div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.45rem;">
+                        <div class="caption">.auto-card + -header / -title / -body</div>
+                        <div class="auto-card" style="border:var(--auto-border);">
+                            <div class="auto-card-header">
+                                <span class="auto-card-title">卡片标题</span>
+                                <span class="closeable"></span>
+                            </div>
+                            <div class="auto-card-body">卡片体</div>
+                        </div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.45rem;">
+                        <div class="caption">.auto-btn（尺寸 / 形状 / 语义变体见下）</div>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                            <button class="auto-btn">默认</button>
+                            <button class="auto-btn primary">主操作</button>
+                        </div>
+                        <div class="caption">.auto-input + .auto-input-action</div>
+                        <div class="auto-input">
+                            <span class="auto-input-action">https://</span>
+                            <input placeholder="域名" />
+                            <span class="auto-input-action"><button>前往</button></span>
+                        </div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.45rem;">
+                        <div class="caption">.auto-alert（.title / .description / .closeable）</div>
+                        <div class="auto-alert info">
+                            <div class="title">提示块标题<span class="closeable"></span></div>
+                            <div class="description">提示块描述文字。</div>
+                        </div>
+                        <div class="caption">.autospark-container &gt; .popup（下拉 / 气泡容器）</div>
+                        <div class="autospark-container">
+                            <div class="popup">气泡内容容器</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">工具类：一条声明引用派生值；图标 / 旋转动画</div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.45rem;">
+                        <div class="caption">.auto-border / .auto-radius / .auto-shadow</div>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                            <div class="auto-border" style="padding:0.4rem 0.6rem;background:var(--auto-bgcolor);">边框</div>
+                            <div class="auto-radius" style="padding:0.4rem 0.6rem;background:var(--auto-secondary-bgcolor);">圆角</div>
+                            <div class="auto-shadow" style="padding:0.4rem 0.6rem;background:var(--auto-bgcolor);">阴影</div>
+                        </div>
+                        <div class="caption">.auto-text / .auto-title（排版观感）</div>
+                        <div class="auto-title">标题文字 .auto-title</div>
+                        <div class="auto-text">正文文字 .auto-text</div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.45rem;">
+                        <div class="caption">.auto-selected / .auto-disabled（状态观感）</div>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                            <span class="auto-selected" style="padding:0.3rem 0.6rem;border-radius:var(--auto-border-radius);">选中</span>
+                            <span class="auto-disabled" style="padding:0.3rem 0.6rem;border-radius:var(--auto-border-radius);">禁用</span>
+                        </div>
+                        <div class="caption">.closeable（SVG mask 关闭符）与 .loading（旋转动画）</div>
+                        <div style="display:flex;align-items:center;gap:0.8rem;">
+                            <span class="closeable"></span>
+                            <span class="loading" style="width:1.1em;height:1.1em;display:inline-block;background:var(--auto-color);mask-image:var(--auto-icon-focus);mask-size:cover;-webkit-mask-image:var(--auto-icon-focus);-webkit-mask-size:cover;"></span>
+                        </div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.45rem;">
+                        <div class="caption">--auto-icon-{alert,info,success,warning,error,focus}（data URI，直接 mask-image）</div>
+                        <div style="display:flex;gap:0.7rem;align-items:center;color:var(--auto-theme-color);">
+                            <span style="width:1.2em;height:1.2em;display:inline-block;background:currentColor;mask-image:var(--auto-icon-alert);mask-size:cover;-webkit-mask-image:var(--auto-icon-alert);-webkit-mask-size:cover;"></span>
+                            <span style="width:1.2em;height:1.2em;display:inline-block;background:currentColor;mask-image:var(--auto-icon-info);mask-size:cover;-webkit-mask-image:var(--auto-icon-info);-webkit-mask-size:cover;"></span>
+                            <span style="width:1.2em;height:1.2em;display:inline-block;background:currentColor;mask-image:var(--auto-icon-success);mask-size:cover;-webkit-mask-image:var(--auto-icon-success);-webkit-mask-size:cover;"></span>
+                            <span style="width:1.2em;height:1.2em;display:inline-block;background:currentColor;mask-image:var(--auto-icon-warning);mask-size:cover;-webkit-mask-image:var(--auto-icon-warning);-webkit-mask-size:cover;"></span>
+                            <span style="width:1.2em;height:1.2em;display:inline-block;background:currentColor;mask-image:var(--auto-icon-error);mask-size:cover;-webkit-mask-image:var(--auto-icon-error);-webkit-mask-size:cover;"></span>
+                        </div>
+                        <p class="hint">全部工具类只消费 <code>--auto-*</code>，随主题实时变化。</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

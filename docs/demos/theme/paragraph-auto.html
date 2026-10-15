@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 段落 · 派生量联动</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">自动段落 vs 固定段落（面板切「尺寸」观察差异）</div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;border-color:var(--auto-theme-color);">
+                        <div class="caption">自动段落：随全局档位联动</div>
+                        <div style="font:var(--auto-font);line-height:var(--auto-line-height);letter-spacing:var(--auto-letter-spacing);">
+                            道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。故常无欲，以观其妙；常有欲，以观其徼（jiào）。此两者同出而异名，同谓之玄，玄之又玄，众妙之门。
+                        </div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;">
+                        <div class="caption">固定段落：写死 medium 档，不随档位变化</div>
+                        <div style="font-weight:var(--x-font-weight-medium);font-size:var(--x-font-size-medium);line-height:var(--x-line-height-medium);letter-spacing:var(--x-letter-spacing-medium);">
+                            道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。故常无欲，以观其妙；常有欲，以观其徼（jiào）。此两者同出而异名，同谓之玄，玄之又玄，众妙之门。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">元素域：三档段落并排（<code>data-size</code>）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-size="x-small">
+                        <div class="box-label">data-size="x-small"</div>
+                        <div style="font:var(--auto-font);line-height:var(--auto-line-height);letter-spacing:var(--auto-letter-spacing);">
+                            道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。
+                        </div>
+                    </div>
+                    <div class="scope-box" data-size="medium">
+                        <div class="box-label">data-size="medium"</div>
+                        <div style="font:var(--auto-font);line-height:var(--auto-line-height);letter-spacing:var(--auto-letter-spacing);">
+                            道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。
+                        </div>
+                    </div>
+                    <div class="scope-box" data-size="x-large">
+                        <div class="box-label">data-size="x-large"</div>
+                        <div style="font:var(--auto-font);line-height:var(--auto-line-height);letter-spacing:var(--auto-letter-spacing);">
+                            道可道，非常道；名可名，非常名。无名天地之始，有名万物之母。
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>背景色 · 派生层四层</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">四层剖面：工作区 → 面板 → 次级 → 内嵌</div>
+                <div class="auto-card-body col">
+                    <div style="padding:0.9rem;background:var(--auto-workspace-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                        <div class="caption">--auto-workspace-bgcolor（工作区）</div>
+                        <div style="padding:0.9rem;margin-top:0.4rem;background:var(--auto-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div class="caption">--auto-bgcolor（面板）</div>
+                            <div style="padding:0.8rem;margin-top:0.4rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">
+                                <div class="caption">--auto-secondary-bgcolor（次级）</div>
+                                <div style="padding:0.6rem;margin-top:0.4rem;background:var(--auto-third-bgcolor);border-radius:var(--auto-border-radius);">
+                                    <div class="caption">--auto-third-bgcolor（内嵌）</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="hint">
+                        右侧面板切暗色：暗色的背景映射<strong>前景与背景分离</strong>——<code>bgcolor-0</code>（面板）取
+                        <code>gray-8</code>、<code>bgcolor-1</code>（工作区）取最沉的 <code>gray-9</code>，
+                        于是面板<strong>浮起</strong>在工作区之上，四层阶梯依旧单调。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">透明度叠加：次级 / 内嵌为何不另取色</div>
+                <div class="auto-card-body col">
+                    <div style="padding:0.9rem;background:var(--auto-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                        <div class="caption">面板底（实色）</div>
+                        <div style="height:1.6rem;margin-top:0.4rem;border-radius:var(--auto-border-radius);background:var(--auto-secondary-bgcolor);"></div>
+                        <div class="caption" style="margin-top:0.3rem;">secondary = 同一原料 45% 不透明</div>
+                        <div style="height:1.6rem;margin-top:0.4rem;border-radius:var(--auto-border-radius);background:var(--auto-third-bgcolor);"></div>
+                        <div class="caption" style="margin-top:0.3rem;">third = 同一原料 75% 不透明</div>
+                    </div>
+                    <p class="hint">
+                        同一原料（<code>bgcolor-2</code>）用两档不透明度，在亮 / 暗 / 多彩下都落在可辨区间——
+                        好处是次级块叠在任意底色上都自然（不必为每种底色各配一个色值）。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

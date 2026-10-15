@@ -776,11 +776,11 @@ _Avoid_: 根选择器（它是止步标记不是选择器）、挂载标记（�
 _Avoid_: 作用域容器（泛化）、命名空间（语义不符）、占位符（本表保留给空值渲染，歧义大）
 
 **组件定义 / x-define（Component Definition）**:
-编译期树变换标记，**不是渲染指令**。在 x-scope（或任意带 scope 的祖先）内声明一个命名组件片段，**值承载组件名**（无值取 `default`），编译时被**从渲染树摘除**（不进结果 DOM、不建 scope、不实例化指令），以**深克隆的冻结快照**形态上交给最近祖先 scope 的 `components`。组件上同元素的其他指令（如 `x-define="error" x-text="msg"`）随组件整体冻结，待消费者渲染该组件时才编译执行。**组件根 scope 由消费编译路径（`compiler.compileChild`）内禀保证**——消费者无条件 `new AutoSparkScope`，与根上是否有 `x-scope` 属性无关（原"注入 x-scope"已作废）。详见 ADR-0022（承接 ADR-0021）、ADR-0054。
+编译期树变换标记，**不是渲染指令**。在 x-scope（或任意带 scope 的祖先）内声明一个命名组件片段，**值承载组件名**（无值取 `default`），编译时被**从渲染树摘除**（不进结果 DOM、不建 scope、不实例化指令），以**深克隆的冻结快照**形态上交给最近祖先 scope 的 `components`。组件上同元素的其他指令（如 `x-define="error" x-text="msg"`）随组件整体冻结，待消费者渲染该组件时才编译执行。`.global` 修饰符（≡ `x-define-options="{global:true}"`）使声明跳过归属、直接成为全局组件（见「全局组件」「组件归属」，ADR-0115）。**组件根 scope 由消费编译路径（`compiler.compileChild`）内禀保证**——消费者无条件 `new AutoSparkScope`，与根上是否有 `x-scope` 属性无关（原"注入 x-scope"已作废）。详见 ADR-0022（承接 ADR-0021）、ADR-0054、ADR-0115。
 _Avoid_: 片段（泛化）、插槽出口（那是 x-slot 的出口，不是定义本身；见「插槽出口」）、命名空间组件、x-component（该名已让位给实例化指令，见「组件实例化」）
 
 **组件归属（Component Ownership）**:
-一个 x-define 挂到其**最近的祖先 scope**——任意深度（跨中间无 scope 的纯 `<div>`），与 `_linkParent` 向上找最近 scope 的语义同构。嵌套 scope 时归最内层祖先；**消费宿主自身的 scope 对其子级声明而言亦是最近祖先**（此时声明处与消费处重合，数据视图两基准合一）；x-define 向上找不到任何带 scope 的祖先时，编译期 warn 并丢弃（无处归属）。`engine.registerComponent` 的 `opts.scope` / `opts.el` 是**声明处的显式等价物**（`el` 自该元素含自身向上取最近的 scope 根，与 x-define 同构；整条祖先链都查不到才降级为全局并 warn）——运行时无祖先链可走，须由调用方指明。
+一个 x-define 挂到其**最近的祖先 scope**——任意深度（跨中间无 scope 的纯 `<div>`），与 `_linkParent` 向上找最近 scope 的语义同构。嵌套 scope 时归最内层祖先；**消费宿主自身的 scope 对其子级声明而言亦是最近祖先**（此时声明处与消费处重合，数据视图两基准合一）；x-define 向上找不到任何带 scope 的祖先时，编译期 warn 并丢弃（无处归属）。**例外：全局声明**（`x-define.global` ≡ `x-define-options="{global:true}"`，见「全局组件」）跳过归属查找——无祖先 scope 也成立，组件直接入全局组件定义表（全局即脱离声明位置）；升级全局必须显式，孤立的非全局声明不静默放大。`engine.registerComponent` 的 `opts.scope` / `opts.el` 是**声明处的显式等价物**（`el` 自该元素含自身向上取最近的 scope 根，与 x-define 同构；整条祖先链都查不到才降级为全局并 warn）——运行时无祖先链可走，须由调用方指明；声明自带 global 时**声明为准**，该目标被忽略。
 _Avoid_: 组件归属深度（实现细节）、组件父（用 scope 统一）
 
 **`default` 组件唯一性（Default Component Uniqueness，已放宽）**:
@@ -796,15 +796,15 @@ _Avoid_: 组件解析、组件匹配（查找是按 scope 链就近+全局兜底
 _Avoid_: 降级渲染
 
 **全局组件（Global Component）**:
-经引擎构造选项 `AutoSparkOptions.components`（`Record<string, string>`）声明的、**全引擎复用**的命名组件，字符串入参；亦可由 `x-import` `.global`、loader 或 `engine.registerComponent` **运行时注册**（见「运行时组件注册」）落入全局组件定义表。是 scope 链查找的**终点兜底**（`getComponentDeclaration` 到顶后查此）。与局部组件（x-define 声明、入参为 DOM）相对——二者经同一条 `getComponentDeclaration` 链统一取用，消费者无需区分来源。字符串入参走懒预编译 + 自动包装（见「组件预编译」「组件自动包装」），**构造期配置语义、运行时突变不失效缓存**（与 `actions`/`sanitizer` 等 options 同纪律）。详见 ADR-0022（承接 ADR-0021）决策 9、ADR-0086。
-_Avoid_: 全局模板（泛化）、注册组件（改称运行时组件注册/落入定义表，见下条）
+**全引擎复用**、scope 链查找**终点兜底**的命名组件（`getComponentDeclaration` 到顶后查此）。四个来源：(1) 引擎构造选项 `AutoSparkOptions.components`（`Record<string, string>`，字符串入参，走懒预编译 + 自动包装，见「组件预编译」「组件自动包装」）；(2) 模板内联声明 `x-define.global`（≡ `x-define-options="{global:true}"`，编译期即时注册，无祖先 scope 也可声明；嵌套于组件定义内时随外层首次实例化才注册）；(3) `x-import` `.global`、loader 远程注册；(4) `engine.registerComponent` 不传作用域目标（见「运行时组件注册」；声明自带 global 穿过作用域入口时以声明为准）。与局部组件（x-define 声明、入参为 DOM）相对——二者经同一条 `getComponentDeclaration` 链统一取用，消费者无需区分来源。全局即**脱离声明位置**：`declarerScope` 恒为 null，不支持 `dataContext:'declarer'`；继承父仅查全局（继承作用域父 fail-fast 拒绝）。作用域为**本 engine**（x-isolate 子引擎隔离，随 `destroy()` 回收），非跨 engine 的插件全局表。字符串入参**构造期配置语义、运行时突变不失效缓存**（与 `actions`/`sanitizer` 等 options 同纪律）。详见 ADR-0022（承接 ADR-0021）决策 9、ADR-0086、ADR-0115。
+_Avoid_: 全局模板（泛化）、注册组件（改称运行时组件注册/落入定义表，见下条）、跨 engine 全局（那是插件全局表 ADR-0111，非本词）
 
 **内置组件（Builtin Component）**:
 随引擎发行的**默认全局组件**，模板住 `src/components/`（一组件一 `.html`），经 `components/index.ts` 唯一注册面（模板 `?raw` 导入 + 注册名常量 + 聚合种子表）在构造期落入 **`options.builtinComponents` 注册位**。**裸键注册**（`error`/`notification`/`dialog`/`popover`/`drawer` 及通知族 `autospark.notifications.*`），查找走标准组件链（就近遮蔽即定制）。**双注册位优先级**：`options.components` > `options.builtinComponents`——一般定制内置组件应使用 `components` 同名覆盖；`builtinComponents` 独立保存的目的是**避免内置默认被业务配置流意外覆盖**，供明确接管框架内建件时使用。详见 ADR-0092、ADR-0094。
 _Avoid_: 混入 `options.components`（双注册位分立，ADR-0094）、`engine.builtinComponents` 公开字段（已删）、点前缀 shell 注册名 `autospark.notifications.shell` / `autospark.overlays.panel-shell` 等（已裸键化，ADR-0094）、uiShells（已退役，ADR-0092）
 
 **全局组件定义表（Global Component Definition Table）**:
-engine 私有的 `Map<组件名, ComponentDef | null>`——**全局组件的唯一运行时名册**，查找优先级高于构造选项两注册位（`options.components` > `options.builtinComponents`，均 miss 才惰性读配置并自动包装入表）。三条写入路径：`x-import` `.global`、loader 远程注册、`engine.registerComponent`（ADR-0086 决策四）。**`null` 是负缓存**（两注册位均 miss / 解析失败，只解析一次）。消费者经 `_resolveGlobalComponent` 取快照、`getGlobalComponentDef` 取定义元数据。运行时注册**不回写 `options.components`**——该配置是构造期事实源，回写会造成「配置 + 名册」两处真相。
+engine 私有的 `Map<组件名, ComponentDef | null>`——**全局组件的唯一运行时名册**，查找优先级高于构造选项两注册位（`options.components` > `options.builtinComponents`，均 miss 才惰性读配置并自动包装入表）。四条写入路径：模板 `x-define.global`（编译期收集即写，ADR-0115）、`x-import` `.global`、loader 远程注册、`engine.registerComponent`（ADR-0086 决策四）。**`null` 是负缓存**（两注册位均 miss / 解析失败，只解析一次）。消费者经 `_resolveGlobalComponent` 取快照、`getGlobalComponentDef` 取定义元数据。运行时注册**不回写 `options.components`**——该配置是构造期事实源，回写会造成「配置 + 名册」两处真相。同名覆盖 warn 一次 + 后者覆盖；克隆/多实例的重复注册幂等，已实例化组件不热替换，每次写入发注册事件并为挂起的继承/消费排水。
 _Avoid_: 全局组件缓存（强调单一名册，非某层缓存）、组件缓存表（未说明全局与 scope 的二分）、快照表 + 定义表两张（ADR-0086 前曾并存，已合并）
 
 **运行时组件注册（Runtime Component Registration）**:

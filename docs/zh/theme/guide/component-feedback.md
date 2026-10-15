@@ -13,7 +13,7 @@
 }
 ```
 
-<demo html="theme/component-feedback.html"/>
+<demo html="theme/feedback-overview.html"/>
 
 ## 指南
 
@@ -35,6 +35,8 @@
 
 `--auto-{态}-border` 是 `1px solid {态边框色}` 速写；默认态用 `--auto-border`。
 
+<demo html="theme/feedback-states.html"/>
+
 ### 为什么用透明叠加而不是实色
 
 底色是「主色 + 透明」，因此：
@@ -45,6 +47,8 @@
 
 暗色下这四态的**档位与不透明度**由 `darkDerivedVars` 重算：主色提一档（`theme-5 → theme-6`）、
 底色百分比与亮色保持一致（实测感知对称 +14.5%）。组件层永远只写 `var(--auto-hover-*)` 这类引用。
+
+<demo html="theme/feedback-modes.html"/>
 
 ### 列表项的典型实现
 
@@ -82,6 +86,8 @@
 
 原生 `disabled` 元素（按钮、输入框）由静态样式层处理；自定义控件用 `.disabled` 类 +
 `--auto-disable-*` 变量表达同一观感。`--auto-disable-color` 在暗色下会提高混灰比例，保证深底上仍可辨。
+
+<demo html="theme/feedback-disabled.html"/>
 
 ---
 

@@ -88,9 +88,13 @@ export function hasComponentDeclareAttr(el: HTMLElement): boolean {
  * 解析 x-define 声明属性：组件名（值，无值 `default`）+ 修饰符段（属性名 `.` 后段）+
  * 继承声明（属性参数 `x-define:inherit="父名"`，ADR-0081）。
  *
- * 未知修饰符 / 未知属性参数 warn + 忽略；`open` 修饰符注入边界开关（ADR-0053）。
- * 编译期收集器（`_collectComponent`）与运行时注册（`engine.registerComponent`，ADR-0086）
- * 共用本函数——声明语义只有一处实现，避免两条注册路径对「名 / 修饰符 / 继承」的读法漂移。
+ * 未知修饰符 / 未知属性参数 warn + 忽略；`open` 修饰符注入边界开关（ADR-0053）、
+ * `global` 修饰符注入全局注册开关（ADR-0115）——两者均是同名 x-define-options 布尔键的
+ * 快捷写法（手工解析通道对齐 ADR-0007，options 显式布尔含 false 优先，见
+ * {@link extractBoundaryOptions} / {@link extractGlobalOption}）。
+ * 编译期收集器（`_collectComponent`）与运行时注册（`engine.registerComponent`，ADR-0086；
+ * x-import 远程注册，ADR-0115）共用本函数——声明语义只有一处实现，避免各注册路径对
+ * 「名 / 修饰符 / 继承」的读法漂移。
  *
  * @param el   带声明属性的元素（须已过 {@link hasComponentDeclareAttr} 门禁）
  * @param warn warn 日志函数
@@ -99,7 +103,7 @@ export function hasComponentDeclareAttr(el: HTMLElement): boolean {
 export function parseComponentDeclare(
     el: HTMLElement,
     warn: (msg: string) => void,
-): { name: string; modifierOpen: boolean; inherit: string | null } | null {
+): { name: string; modifierOpen: boolean; modifierGlobal: boolean; inherit: string | null } | null {
     if (!hasComponentDeclareAttr(el)) return null;
     let attrName = "x-define";
     let rawName = el.getAttribute("x-define");
@@ -137,13 +141,14 @@ export function parseComponentDeclare(
         }
     }
     for (const seg of segments) {
-        if (seg !== "open") {
-            warn(`x-define: 未知修饰符 ".${seg}"，已忽略（ADR-0053 仅提供 .open）`);
+        if (seg !== "open" && seg !== "global") {
+            warn(`x-define: 未知修饰符 ".${seg}"，已忽略（仅提供 .open / .global，ADR-0053/0115）`);
         }
     }
     return {
         name: (rawName ?? "").trim() || "default",
         modifierOpen: segments.includes("open"),
+        modifierGlobal: segments.includes("global"),
         inherit,
     };
 }
@@ -230,6 +235,35 @@ export function finalizeBoundaryOptions(
     }
     if (open !== true) dataContext = undefined;
     return { open, dataContext };
+}
+
+/**
+ * 提取组件全局注册声明的**生效布尔值**（ADR-0115）：`x-define.global` 修饰符 ≡
+ * `x-define-options="{global:true}"`——x-define 手工解析通道对 ADR-0007 决策 1
+ * （修饰符即同名布尔选项，显式选项含 false 优先）的对等实现，与 {@link extractBoundaryOptions}
+ * 的 open 读法完全对称。
+ *
+ * - options 显式布尔（含 `false`）优先于修饰符——`{global:false}` 可关掉 `.global`；
+ * - options 值非布尔（且已声明）→ warn + 回退修饰符值；
+ * - 未声明 options 键 → 取修饰符值。
+ *
+ * 编译期收集器（全局分支跳过 owner 归属查找）、运行时 `engine.registerComponent`
+ * （声明为准，ADR-0115 决策 8）与 x-import 远程注册循环共用本函数。
+ */
+export function extractGlobalOption(
+    componentEl: HTMLElement,
+    modifierGlobal: boolean,
+    warn: (msg: string) => void,
+): boolean {
+    const opts = parseComponentOptions(componentEl, warn);
+    const rawGlobal = opts?.global;
+    if (typeof rawGlobal === "boolean") return rawGlobal;
+    if (rawGlobal !== undefined) {
+        warn(
+            `x-define-options.global: 须为布尔值，实际 ${JSON.stringify(rawGlobal)}，已忽略（ADR-0115）`,
+        );
+    }
+    return modifierGlobal;
 }
 
 /**

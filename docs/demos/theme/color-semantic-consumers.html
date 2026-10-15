@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>语义颜色 · 组件消费方</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">组件消费方：<code>.auto-alert</code> 与语义按钮</div>
+                <div class="auto-card-body col">
+                    <div class="auto-alert success">
+                        <div class="title">保存成功<span class="closeable"></span></div>
+                        <div class="description">底色 / 边框 / 文字 / 图标全部取 success 语义色。</div>
+                    </div>
+                    <div class="auto-alert warning">
+                        <div class="title">配额即将用尽</div>
+                        <div class="description">warning 变体；描述用次要文字色。</div>
+                    </div>
+                    <div class="auto-alert danger">
+                        <div class="title">删除失败</div>
+                        <div class="description">danger 变体（<code>error</code> 是它的别名）。</div>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <button class="auto-btn primary">primary</button>
+                        <button class="auto-btn success">success</button>
+                        <button class="auto-btn warning">warning</button>
+                        <button class="auto-btn error">error</button>
+                        <button class="auto-btn info">info</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

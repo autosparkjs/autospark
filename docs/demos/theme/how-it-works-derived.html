@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>工作原理 · 派生层消费</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">派生变量 <code>--auto-*</code>：组件只消费这一层</div>
+                <div class="auto-card-body col">
+                    <table class="demo-table">
+                        <thead>
+                            <tr>
+                                <th>派生变量（组件消费）</th>
+                                <th>配方（引用基础调色板）</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--auto-color</code></td>
+                                <td><code>var(--x-color-1)</code> 主文字</td>
+                            </tr>
+                            <tr>
+                                <td><code>--auto-bgcolor</code></td>
+                                <td><code>var(--x-bgcolor-0)</code> 面板底</td>
+                            </tr>
+                            <tr>
+                                <td><code>--auto-border</code></td>
+                                <td><code>1px solid var(--auto-border-color)</code> ← <code>var(--x-color-6)</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>--auto-panel-header-bgcolor</code></td>
+                                <td><code>var(--auto-secondary-bgcolor)</code>（<code>bgcolor-2</code> 45% 透明）</td>
+                            </tr>
+                            <tr>
+                                <td><code>--auto-input-*</code></td>
+                                <td>转发 <code>--auto-border</code> / <code>--auto-bgcolor</code> / <code>--auto-font</code>…</td>
+                            </tr>
+                            <tr>
+                                <td><code>--auto-theme-color</code></td>
+                                <td><code>var(--x-color-theme-5)</code>（暗色提档到 <code>theme-6</code>）</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="hint">
+                        「换一个主题色，整套界面跟着变」的实现终点就在这里：派生层引用基础调色板，
+                        组件引用派生层。改主题色 → 基础调色板重算 → 派生层自动跟随，不需要改任何组件代码。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

@@ -246,8 +246,12 @@ export abstract class RouteDataLoaderBase<
                 return;
             }
 
-            // 2. 检查是否是静态数据，直接返回
-            if (this.isValidData(options.from) && !isUrlSource(options.from)) {
+            // 2. 检查是否是静态数据，直接返回（函数源不算静态数据，走下方函数加载分支）
+            if (
+                this.isValidData(options.from) &&
+                !isUrlSource(options.from) &&
+                !isFunction(options.from)
+            ) {
                 this._createSuccessSignal(matched, options.from, options);
                 return;
             }

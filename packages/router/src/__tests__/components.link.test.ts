@@ -3,11 +3,15 @@ import type { AutoSparkRouter } from "@/router";
 import { isInternalLink, isDangerousProtocol, AutoSparkLink } from "@/components/Link";
 
 /**
- * 基准 realm 快照（test-setup preload 建立的 happy-dom 全局）。
+ * 基准 realm（test-setup preload 建立的 happy-dom 全局）。
  *
  * auto-link 在模块加载期注册进基准 customElements；下方纯函数用例的 createTestDOM
  * 会用「每用例新建 Window」替换全局。委托/组件用例依赖基准 realm（customElements
  * 注册表 + 类原型链一致），beforeEach 里 restoreBaseRealm 切回。
+ *
+ * 注意：bun 按文件交错「求值模块 → 跑用例」，先跑的文件会把全局替换成它自己的
+ * Window，本文件模块求值时再快照全局拿到的就是被污染的 realm——故从
+ * test-setup 在 preload 期锚定的 __AUTOSPARK_PRELOAD_REALM__ 取（缺省回退即时快照）。
  */
 const REALM_KEYS = [
     "window",
@@ -22,9 +26,11 @@ const REALM_KEYS = [
     "URLSearchParams",
     "customElements",
 ] as const;
-const baseRealm = Object.fromEntries(
-    REALM_KEYS.map((key) => [key, (globalThis as any)[key]]),
-) as Record<(typeof REALM_KEYS)[number], any>;
+const baseRealm = ((globalThis as any).__AUTOSPARK_PRELOAD_REALM__ ??
+    Object.fromEntries(REALM_KEYS.map((key) => [key, (globalThis as any)[key]]))) as Record<
+    (typeof REALM_KEYS)[number],
+    any
+>;
 
 function restoreBaseRealm() {
     for (const key of REALM_KEYS) {

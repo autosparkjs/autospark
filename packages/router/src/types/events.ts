@@ -36,12 +36,6 @@ export type AutoSparkRouterEvents = {
         fromRoute: AutoSparkMatchedRouteItem[] | undefined;
         toRoute: AutoSparkMatchedRouteItem[];
     };
-    "route:updated": {
-        route: AutoSparkRouteItem | undefined;
-        params: Record<string, string>;
-        query: Record<string, string>;
-        location: Update;
-    };
 
     "render:before": { route: AutoSparkMatchedRouteItem[] };
     "render:after": { route: AutoSparkMatchedRouteItem[]; error?: Error; slot?: AutoSparkSlot | null };

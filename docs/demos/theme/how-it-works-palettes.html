@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>工作原理 · 四份调色板</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">四份调色板（左列为默认亮语境，右列为 <code>data-dark</code> 语境）</div>
+                <div class="auto-card-body col">
+                    <div class="grid">
+                        <div class="scope-box">
+                            <div class="box-label">亮语境（无属性）</div>
+                            <div class="hint">主题调色板 <code>--x-color-theme-0..9</code>（0 浅 → 9 深）</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                            <div class="hint">灰阶方向 <code>--x-plain-color-0..9</code>（0 最深文字）</div>
+                            <div class="theme-strip" data-strip="--x-plain-color-"></div>
+                            <div class="hint">灰阶背景方向 <code>--x-plain-bgcolor-0..9</code></div>
+                            <div class="theme-strip" data-strip="--x-plain-bgcolor-"></div>
+                        </div>
+                        <div class="scope-box global" data-dark>
+                            <div class="box-label">暗语境（data-dark）</div>
+                            <div class="hint">同一族变量：主题梯度<strong>反转</strong>（0 深 → 9 浅），灰方向也随之反转</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                            <div class="hint">灰阶方向 <code>--x-plain-color-0..9</code>（暗块声明的另一份方向）</div>
+                            <div class="theme-strip" data-strip="--x-plain-color-"></div>
+                            <div class="hint">灰阶背景方向 <code>--x-plain-bgcolor-0..9</code></div>
+                            <div class="theme-strip" data-strip="--x-plain-bgcolor-"></div>
+                        </div>
+                    </div>
+                    <p class="hint">
+                        固定的灰度原料是 <code>--x-color-gray-0..9</code>（静态层常量，与主题无关）；
+                        主题与灰度的「方向」由亮 / 暗两个模式块各自声明成 <code>--x-plain-*</code>（灰方向）与
+                        <code>--x-tinted-*</code>（多彩映射）别名，基础调色板只负责引用其中一份。
+                    </p>
+                    <p class="hint">
+                        「反转」不是把色值倒序，而是<strong>方向语义的互换</strong>：亮色下背景取浅档、文字取深档；
+                        暗色下明度关系反过来，同一套映射（<code>bgcolor-i = theme-i</code>）才能继续成立。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

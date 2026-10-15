@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>语义颜色 · 五色默认值</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">五色并排（切主题色观察 primary 跟随）</div>
+                <div class="auto-card-body col">
+                    <div class="grid tight">
+                        <div style="padding:0.7rem;text-align:center;color:#fff;border-radius:var(--auto-border-radius);background:var(--auto-primary-color);">
+                            --auto-primary-color
+                        </div>
+                        <div style="padding:0.7rem;text-align:center;color:#fff;border-radius:var(--auto-border-radius);background:var(--auto-success-color);">
+                            --auto-success-color
+                        </div>
+                        <div style="padding:0.7rem;text-align:center;color:#fff;border-radius:var(--auto-border-radius);background:var(--auto-warning-color);">
+                            --auto-warning-color
+                        </div>
+                        <div style="padding:0.7rem;text-align:center;color:#fff;border-radius:var(--auto-border-radius);background:var(--auto-danger-color);">
+                            --auto-danger-color
+                        </div>
+                        <div style="padding:0.7rem;text-align:center;color:#fff;border-radius:var(--auto-border-radius);background:var(--auto-info-color);">
+                            --auto-info-color
+                        </div>
+                        <div style="padding:0.7rem;text-align:center;color:#fff;border-radius:var(--auto-border-radius);background:var(--auto-theme-color);">
+                            --auto-theme-color
+                        </div>
+                    </div>
+                    <p class="hint">
+                        <code>--auto-theme-color</code> 也列在这里：它是「主题色语义位」，与五个固定语义色同构。
+                        暗色下它从 <code>theme-5</code> 提档到 <code>theme-6</code>。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

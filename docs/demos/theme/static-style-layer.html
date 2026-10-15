@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>静态主题包 · 静态样式层的组成</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">只引静态样式层：组件类照样可用</div>
+                <div class="auto-card-body row">
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
+                        <div class="caption">静态层提供的组件类</div>
+                        <button class="auto-btn primary">.auto-btn.primary</button>
+                        <button class="auto-btn">.auto-btn</button>
+                        <input class="auto-input" placeholder=".auto-input" />
+                        <div class="auto-alert info">.auto-alert.info</div>
+                    </div>
+                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
+                        <div class="caption">引入方式（构建期聚合入口只含 styles/index.less）</div>
+                        <pre style="margin:0;">import "…/dist/index.css";              // reset / 工具类 / 灰阶 / 图标
+import "…/src/styles/input.less";       // Firefox 焦点框微调（未进聚合）
+import "…/src/components/index.less";   // card / button / alert / input（未进聚合）</pre>
+                        <div class="hint">
+                            组件类消费的是 <code>--auto-*</code> 派生变量——不引运行时时需要自带一份语义变量，
+                            或改用静态主题包 + 少量自定义 <code>--auto-*</code>。
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>工作原理 · 其它要素同构</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">其它要素同构：五档基础量 + <code>data-*</code> 开关 + <code>--auto-*</code> 派生</div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        字体 / 段落 / 圆角 / 阴影 / 间距与颜色走<strong>同一套三层结构</strong>，只是「种子」换成固定档位、
+                        开关换成 <code>data-size</code> / <code>data-radius</code> / <code>data-spacing</code> /
+                        <code>data-shadow</code>——三卡结构完全相同，只有档位属性不同。
+                    </p>
+                    <div class="grid">
+                        <div class="scope-box">
+                            <div class="box-label">默认档位（medium）</div>
+                            <div class="demo-sample">
+                                <div class="demo-sample-header">面板头部 --auto-panel-header</div>
+                                <div>正文字号 --auto-font-size</div>
+                                <div class="demo-sample-sub">行高 / 字距随 size 档联动</div>
+                                <input class="auto-input" placeholder="圆角 / 内距 / 阴影均为 medium" />
+                                <button class="auto-btn primary">按钮</button>
+                            </div>
+                        </div>
+                        <div class="scope-box" data-size="x-small" data-radius="none" data-spacing="x-small" data-shadow="none">
+                            <div class="box-label">紧凑：size=x-small · radius=none · spacing=x-small · shadow=none</div>
+                            <div class="demo-sample">
+                                <div class="demo-sample-header">面板头部 --auto-panel-header</div>
+                                <div>字号 / 内距 / 圆角 / 阴影四域同时收窄</div>
+                                <div class="demo-sample-sub">派生量 --auto-font / --auto-border-radius / --auto-spacing / --auto-shadow</div>
+                                <input class="auto-input" placeholder="紧凑表单" />
+                                <button class="auto-btn primary small">按钮</button>
+                            </div>
+                        </div>
+                        <div class="scope-box" data-dark data-size="x-large" data-radius="x-large" data-spacing="x-large" data-shadow="x-large">
+                            <div class="box-label">宽松暗色：四个规模域与模式域叠加</div>
+                            <div class="demo-sample">
+                                <div class="demo-sample-header">面板头部 --auto-panel-header</div>
+                                <div>规模档位与主题色 / 模式无关</div>
+                                <div class="demo-sample-sub">暗色下 --auto-shadow 另换配方</div>
+                                <input class="auto-input" placeholder="宽松表单" />
+                                <button class="auto-btn primary large">按钮</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

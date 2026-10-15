@@ -9,7 +9,7 @@
 themeManager.update({ danger: "#ff4d4f", success: "#00b96b" });
 ```
 
-<demo html="theme/color-semantic.html"/>
+<demo html="theme/color-semantic-overview.html"/>
 
 ## 指南
 
@@ -22,6 +22,8 @@ themeManager.update({ danger: "#ff4d4f", success: "#00b96b" });
 | `warning` | `#f59e0b` | 警告 |
 | `danger` | `#ef4444` | 危险 / 错误（组件类里 `error` 是它的别名） |
 | `info` | `#71717a` | 中性信息（`auto-alert` 的默认变体） |
+
+<demo html="theme/color-semantic-colors.html"/>
 
 ### 梯度种子：值会被展开成 10 阶标尺
 
@@ -55,6 +57,8 @@ themeManager.update({ danger: "#ff4d4f", success: "#00b96b" });
 }
 ```
 
+<demo html="theme/color-semantic-scale.html"/>
+
 ### `var()` 引用豁免梯度化
 
 不可解析为颜色字面量的种子（`var(...)` 引用）会被豁免：只注入原值，**不生成标尺、也没有暗色覆盖**。
@@ -86,6 +90,8 @@ themeManager.scopes.report.update({ info: "#13c2c2" });
 `update()` 对语义色的处理是以 `Object.assign` 合并进 `options` 后**重新生成语义色样式块**
 （样式标签 id 为 `autospark-{id}-semantics`）；语义色与调色板参数属于**宿主级定制**，不进参数持久化。
 
+<demo html="theme/color-semantic-override.html"/>
+
 ### 生成的 CSS 结构
 
 ```css
@@ -112,6 +118,8 @@ themeManager.scopes.report.update({ info: "#13c2c2" });
 | `--auto-primary-color` | 主按钮底、复选框 / 单选框选中态、`accent-color`、滑块拇指 |
 | `--auto-success-color` / `--auto-danger-color` / `--auto-warning-color` / `--auto-info-color` | `.auto-alert` 的变体、业务状态色 |
 
+<demo html="theme/color-semantic-consumers.html"/>
+
 ### 对比度验收 {#contrast-check}
 
 ```bash
@@ -135,6 +143,8 @@ cd packages/theme && bun scripts/check-dark-contrast.ts
 亮色下部分语义色（黄绿 / 黄色系）在白底上物理受限：亮色语义色约 2.03 ~ 4.58:1、亮色主色约 2.81:1，**未达 AA**。
 这是既定范围约定下的已知遗留，若需达标可把对应档位整体加深 1~2 档，代价是亮色视觉变化。
 :::
+
+<demo html="theme/color-semantic-contrast.html"/>
 
 ---
 

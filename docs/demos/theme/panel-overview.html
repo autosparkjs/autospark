@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 面板 · 概述</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：组件变量 · 面板（Panel / Card）</div>
+                <p>
+                    面板类变量把「容器」这件事拆成四件可复用的东西：<strong>背景层次</strong>、
+                    <strong>边框</strong>、<strong>圆角</strong>、<strong>阴影</strong>；
+                    标题栏再额外消费一组「头部」变量（字体 / 颜色 / 背景）。
+                </p>
+                <table class="demo-table">
+                    <thead>
+                        <tr><th>变量</th><th>用途</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>--auto-panel-bgcolor</code></td><td>面板 / 区块 / Drawer 背景</td></tr>
+                        <tr><td><code>--auto-panel-header-bgcolor</code></td><td>标题栏 / 标签页头背景</td></tr>
+                        <tr><td><code>--auto-panel-header</code> / <code>--auto-panel-header-color</code></td><td>标题栏字体与文字色</td></tr>
+                        <tr><td><code>--auto-border</code> / <code>--auto-border-radius</code> / <code>--auto-shadow</code></td><td>容器外框三件套</td></tr>
+                        <tr><td><code>--auto-padding</code></td><td>容器内距</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+
+    </body>
+</html>

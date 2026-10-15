@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>间距 · 概述</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：间距（Spacing）</div>
+                <p>
+                    间距控制界面的<strong>稀疏度</strong>：基础量 <code>--x-spacing-*</code> 六档（含 <code>none</code>），
+                    档位开关 <code>data-spacing</code>，派生量 <code>--auto-spacing</code> /
+                    <code>--auto-padding</code> / <code>--auto-margin</code> 供组件消费。
+                </p>
+                <ul>
+                    <li>六档：<code>none</code>（0）/ <code>x-small</code> / <code>small</code> / <code>medium</code>（默认）/ <code>large</code> / <code>x-large</code></li>
+                    <li>字号档 <code>data-size</code> 也会联动间距（<code>sizeVars</code> 同时给出字号与内距），<code>data-spacing</code> 用于<strong>单独</strong>调节稀疏度</li>
+                    <li>行高 / 字距以 <code>--x-spacing-medium</code> 为基准计算——间距梯度是排版的底层标尺</li>
+                </ul>
+                <pre>ThemePro.spacing = "small"     // 全局收紧
+padding: var(--auto-padding);</pre>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">间距 × 字号：两个规模维度的分工</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-size="small">
+                        <div class="box-label">data-size="small"（字号 + 内距一起收）</div>
+                        <div style="font:var(--auto-font);">字号随档位变小</div>
+                        <input class="auto-input" placeholder="输入框内距同步收窄" />
+                    </div>
+                    <div class="scope-box" data-spacing="x-small">
+                        <div class="box-label">data-spacing="x-small"（只收间距，字号不变）</div>
+                        <div style="font:var(--auto-font);">字号保持全局档位</div>
+                        <input class="auto-input" placeholder="输入框内距明显收窄" />
+                    </div>
+                    <div class="scope-box" data-size="large" data-spacing="none">
+                        <div class="box-label">data-size="large" + data-spacing="none"</div>
+                        <div style="font:var(--auto-font);">大字号 + 零间距</div>
+                        <input class="auto-input" placeholder="紧凑的大字界面" />
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        <code>data-size</code> 是「整体缩放」（字号 / 字重 / 行高 / 字距 / 内距 / 阴影 / 图标一起换），
+                        <code>data-spacing</code> 是「只调稀疏度」。要微调密度而不动排版时用后者。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

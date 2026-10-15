@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 段落 · 概述</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">特性说明：组件变量 · 段落（Paragraph）</div>
+                <p>
+                    段落类变量服务于<strong>大段文本的阅读密度</strong>：行高与字距两档基础量，
+                    经 <code>--auto-line-height</code> / <code>--auto-letter-spacing</code> 派生，并被
+                    <code>--auto-font</code> 速写一并聚合。
+                </p>
+                <ul>
+                    <li>行高：文本行间垂直间距，值越大越松弛；字距：字符水平间距，中文排版通常保持默认</li>
+                    <li>两者都以 <code>--x-spacing-medium</code> 为基准计算——间距梯度是排版的底层标尺</li>
+                    <li>消费 <code>--auto-*</code> 的段落随档位联动；写死 <code>--x-*</code> 的段落不联动</li>
+                </ul>
+                <pre>p { font: var(--auto-font); line-height: var(--auto-line-height); letter-spacing: var(--auto-letter-spacing); }</pre>
+            </div>
+        </main>
+
+    </body>
+</html>

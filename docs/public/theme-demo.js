@@ -100,6 +100,48 @@
         buildStrips(root);
         bindAttrToggles(root);
         bindScopeControls(root);
+        syncFrameHeight();
+    }
+
+    /* 4) iframe 自适应高度（自保机制）
+     *    vitepress-demo-plugin 用自身 rAF 循环把内部 documentElement.offsetHeight
+     *    回写到 <iframe> 及其包裹 div 的 style.height；但同一页面放多个 <demo> 时
+     *    该回写会失效（iframe 停在模板默认 height:auto 的 150px，内容被裁掉）。
+     *    srcdoc 同源，iframe 内可访问 window.frameElement，这里独立做一次回写：
+     *    ResizeObserver 即时响应 + 200ms 定时器保底，内容高度变化（换档 / 暗色 /
+     *    字体加载）都会收敛。独立打开 demo（无 frameElement）时跳过。 */
+    function syncFrameHeight() {
+        var frame = global.frameElement;
+        if (!frame || !frame.style) return;
+        var wrapper = frame.parentElement;
+
+        function write() {
+            var h;
+            try {
+                h = global.document.documentElement.offsetHeight;
+            } catch (e) {
+                return;
+            }
+            if (!h) return;
+            var px = h + "px";
+            try {
+                if (frame.style.height !== px) frame.style.height = px;
+                if (wrapper && wrapper.style && wrapper.style.height !== px) wrapper.style.height = px;
+            } catch (e) {
+                /* 跨域或节点被替换时静默：下一拍自然重试 */
+            }
+        }
+
+        /* 主动即时同步：尺寸一旦变化（换档 / 暗色 / 折叠）立即回写 */
+        if (typeof global.ResizeObserver === "function") {
+            new global.ResizeObserver(write).observe(global.document.documentElement);
+        }
+        global.addEventListener("load", write);
+        /* 定时器保底层：requestAnimationFrame 在离屏渲染 / 后台标签中会被暂停
+           （ResizeObserver 也可能漏触发 data-size 这类变量换档），200ms 轮询
+           一次 offsetHeight 足够跟手，且在后台被 clamp 到 1s 时仍能收敛。 */
+        write();
+        global.setInterval(write, 200);
     }
 
     global.ThemeDemo = { enhance: enhance };

@@ -33,6 +33,46 @@ function createTestDOM() {
     win.SyntaxError = SyntaxError;
 }
 
+/** 最小 engine stub：注入模式下跳过自建管线 */
+function stubEngine() {
+    return {
+        getComponentDeclaration: () => ({ name: "autospark.outlet" }),
+        getComponent: () => ({
+            data: { views: [], ephemeral: { hash: "", html: "", ready: false }, active: "" },
+        }),
+        data: () => { },
+        destroy() { },
+    } as any;
+}
+
+/**
+ * 构造 AutoSparkRouter。
+ * 构造函数自 89515f9 起自动 attach()，不得重复调用（抛 Already attached）；
+ * attach 链异步完成，需等待路由表加载与初始导航结束。
+ */
+async function createRouter(host: HTMLElement, options: any) {
+    // 渲染链路要求宿主内存在出口元素
+    if (!host.querySelector("[data-autospark-outlet]")) {
+        const outlet = document.createElement("div");
+        outlet.setAttribute("data-autospark-outlet", "");
+        host.appendChild(outlet);
+    }
+    const router = new AutoSparkRouter(host, { engine: stubEngine(), ...options });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    return router;
+}
+
+/** 取 matched 数组末项（最深匹配） */
+function lastMatched(router: AutoSparkRouter) {
+    const current = router.routes.current ?? [];
+    return current[current.length - 1];
+}
+
+/** 等待导航结束（cancel 与 end 都算一轮导航结束） */
+function waitNav(ms = 120) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 describe("Phase 3 Integration Tests", () => {
     let host: HTMLElement;
     let router: AutoSparkRouter;
@@ -45,7 +85,12 @@ describe("Phase 3 Integration Tests", () => {
 
     afterEach(() => {
         if (router) {
-            router.detach();
+            try {
+                router.detach();
+            } catch (e) {
+                // 忽略 detach 错误
+            }
+            router = undefined as any;
         }
         host.remove();
         // 清理全局状态
@@ -56,7 +101,7 @@ describe("Phase 3 Integration Tests", () => {
 
     describe("组件加载系统集成", () => {
         it("应该正确加载本地组件", async () => {
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "local",
@@ -67,15 +112,16 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
-            await router.push("/local");
+            router.push("/local");
+            await waitNav();
 
-            expect(router.routes.current.route).toBeDefined();
-            expect(router.routes.current.route?.path).toBe("/local");
+            expect(lastMatched(router)).toBeDefined();
+            expect(lastMatched(router)?.route).toBeDefined();
+            expect(lastMatched(router)?.path).toBe("/local");
         });
 
         it("应该正确处理动态导入", async () => {
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "dynamic",
@@ -86,46 +132,57 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
-            await router.push("/dynamic");
+            router.push("/dynamic");
+            await waitNav();
 
-            expect(router.routes.current.route?.path).toBe("/dynamic");
+            expect(lastMatched(router)?.path).toBe("/dynamic");
         });
 
         it("应该正确处理组件加载状态", async () => {
             let loadStarted = false;
 
-            router = new AutoSparkRouter(host, {
-                routes: [
-                    {
-                        name: "async",
-                        path: "/async",
-                        view: async () => {
-                            loadStarted = true;
-                            await new Promise((resolve) => setTimeout(resolve, 10));
-                            return "div";
-                        },
-                        data: { title: "Async Component" },
-                    },
-                ],
-            });
-
-            router.attach();
-            router.on("component-load-start", () => {
+            // 函数视图在新管线中按静态数据处理（不会被调用，见 baseLoader.loadRoute 步骤 2）；
+            // 异步加载语义改由 URL 视图 + fetch 承载，此处 mock fetch 模拟异步视图加载
+            const originalFetch = globalThis.fetch;
+            (globalThis as any).fetch = async () => {
                 loadStarted = true;
-            });
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                return {
+                    ok: true,
+                    status: 200,
+                    statusText: "OK",
+                    text: async () => "<div>async view</div>",
+                    json: async () => ({}),
+                } as any;
+            };
 
-            await router.push("/async");
-            await new Promise((resolve) => setTimeout(resolve, 50));
+            try {
+                router = await createRouter(host, {
+                    routes: [
+                        {
+                            name: "async",
+                            path: "/async",
+                            view: "views/async.html",
+                            data: { title: "Async Component" },
+                        },
+                    ],
+                });
 
-            expect(loadStarted).toBe(true);
-            expect(router.routes.current.route?.path).toBe("/async");
+                // component-load-start/end 事件已移除；fetch 发起即加载开始
+                router.push("/async");
+                await waitNav();
+
+                expect(loadStarted).toBe(true);
+                expect(lastMatched(router)?.path).toBe("/async");
+            } finally {
+                (globalThis as any).fetch = originalFetch;
+            }
         });
     });
 
     describe("渲染系统集成", () => {
         it("应该正确渲染 lit 模板", async () => {
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "render",
@@ -139,15 +196,15 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
-            await router.push("/render");
+            router.push("/render");
+            await waitNav();
 
-            expect(router.routes.current.route?.path).toBe("/render");
-            expect(router.routes.current.route?.data?.content).toBe("This is rendered content");
+            expect(lastMatched(router)?.path).toBe("/render");
+            expect(lastMatched(router)?.route?.data?.content).toBe("This is rendered content");
         });
 
         it("应该正确插值模板变量", async () => {
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "interpolate",
@@ -161,14 +218,14 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
-            await router.push("/interpolate");
+            router.push("/interpolate");
+            await waitNav();
 
-            expect(router.routes.current.route?.data?.name).toBe("Test User");
+            expect(lastMatched(router)?.route?.data?.name).toBe("Test User");
         });
 
         it("应该支持嵌套路由配置", async () => {
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "parent",
@@ -178,7 +235,8 @@ describe("Phase 3 Integration Tests", () => {
                         children: [
                             {
                                 name: "child",
-                                path: "/parent/child",
+                                // 子路径用相对形式（绝对形式在路径树归并后无法匹配）
+                                path: "child",
                                 view: `div`,
                                 data: { title: "Child" },
                             },
@@ -187,47 +245,51 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
-            await router.push("/parent/child");
+            router.push("/parent/child");
+            await waitNav();
 
             // 验证路由匹配成功
-            expect(router.routes.current.route).toBeDefined();
+            expect(lastMatched(router)).toBeDefined();
+            expect(lastMatched(router)?.route).toBeDefined();
             // 子路由应该匹配成功
-            expect(router.routes.current.route?.path).toContain("child");
+            expect(lastMatched(router)?.path).toContain("child");
         });
     });
 
     describe("数据管理系统集成", () => {
-        it("应该正确处理 renderEach 钩子", async () => {
+        it("应该正确处理 beforeRender 钩子（原 renderEach）", async () => {
             let hookExecuted = false;
-            let preloadedData = null;
+            const preloadedData = { userId: 123, userName: "Test User" };
 
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "data",
                         path: "/data",
-                        view: "div",
-                        renderEach: async (to, from, next) => {
+                        // beforeRender 需视图成功加载才触发；函数视图避免远程 fetch
+                        view: () => "<div>data</div>",
+                        // renderEach 已更名为 beforeRender（单对象参数，无 next 回调）；
+                        // 预加载数据改由路由 data 数据源（DataLoader）承载
+                        beforeRender: () => {
                             hookExecuted = true;
-                            preloadedData = { userId: 123, userName: "Test User" };
-                            next(preloadedData);
                         },
-                        data: { title: "Data Test" },
+                        data: () => preloadedData,
                     },
                 ],
             });
 
-            router.attach();
-            await router.push("/data");
-            await new Promise((resolve) => setTimeout(resolve, 50));
+            router.push("/data");
+            await waitNav();
 
             expect(hookExecuted).toBe(true);
-            expect(router.routes.current.route?.data?.userId).toBe(123);
+            // 数据经 DataLoader 写入路由项的 AsyncLoader signal
+            const loader = lastMatched(router)?.route?._getData;
+            expect(loader).toBeDefined();
+            expect(loader.signal.result).toEqual(preloadedData);
         });
 
         it("应该正确处理重试配置", async () => {
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "retry-route",
@@ -243,15 +305,15 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
-            await router.push("/retry-route");
+            router.push("/retry-route");
+            await waitNav();
 
             // 验证路由配置正确加载
-            expect(router.routes.current.route?.path).toBe("/retry-route");
+            expect(lastMatched(router)?.path).toBe("/retry-route");
         });
 
         it("应该正确处理错误边界配置", async () => {
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "error-boundary",
@@ -265,17 +327,17 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
-            await router.push("/error-boundary");
+            router.push("/error-boundary");
+            await waitNav();
 
             // 验证路由配置正确加载
-            expect(router.routes.current.route?.path).toBe("/error-boundary");
+            expect(lastMatched(router)?.path).toBe("/error-boundary");
         });
     });
 
     describe("模态路由系统集成", () => {
         it("应该正确配置模态路由", async () => {
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "modal",
@@ -287,19 +349,17 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
-
-            // 验证模态路由配置正确
-            const currentRoute = router.routes.current.route;
             // 导航到模态路由
-            await router.push("/modal");
+            router.push("/modal");
+            await waitNav();
 
             // 模态路由应该成功配置
-            expect(currentRoute).toBeDefined();
+            expect(lastMatched(router)?.route).toBeDefined();
+            expect(lastMatched(router)?.path).toBe("/modal");
         });
 
         it("应该正确配置模态选项", async () => {
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "modal-options",
@@ -317,15 +377,14 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
-
             // 验证模态配置正确加载
-            await router.push("/modal-options");
-            expect(router.routes.current.route?.path).toBe("/modal-options");
+            router.push("/modal-options");
+            await waitNav();
+            expect(lastMatched(router)?.path).toBe("/modal-options");
         });
 
         it("应该支持 ! 前缀的模态路径", async () => {
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "quick-modal",
@@ -337,12 +396,21 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
+            // 模态路由配置正确且可匹配（match 返回 matched 数组，末项为最深匹配）
+            const matched = router.routes.match("/quick-modal");
+            expect(matched?.[matched.length - 1]?.route?.modal).toBe(true);
 
-            // 验证 ! 前缀路径配置
-            await router.push("!/quick-modal");
-            // 模态路由应该成功处理
-            expect(router.routes.current.route).toBeDefined();
+            // ! 前缀路径会分流到 openModal（不进入 history）。
+            // _resolveModalRoute 已随匹配 API 迁移（matched 数组取末项），
+            // openModal 解析成功：模态入栈、触发 modal:open、不改变主路由状态
+            await router.openModal({ route: "/quick-modal" } as any);
+
+            expect(router.modalState.stack.length).toBe(1);
+            expect(router.hasOpenModals).toBe(true);
+            expect(router.currentModal?.route.name).toBe("quick-modal");
+
+            // 普通路由状态不受模态打开影响
+            expect(lastMatched(router)).toBeDefined();
         });
     });
 
@@ -351,36 +419,39 @@ describe("Phase 3 Integration Tests", () => {
             let guardExecuted = false;
             let dataPreloaded = false;
 
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "complete",
                         path: "/complete",
-                        view: "div",
-                        beforeEach: (to, from, next) => {
+                        // beforeRender 需视图成功加载才触发
+                        view: () => "<div>complete</div>",
+                        // 路由级 beforeEach → beforeRoute、renderEach → beforeRender
+                        beforeRoute: () => {
                             guardExecuted = true;
-                            next();
+                            return true;
                         },
-                        renderEach: async (to, from, next) => {
+                        beforeRender: () => {
                             dataPreloaded = true;
-                            next({ testData: "preloaded" });
                         },
-                        data: { title: "Complete Flow" },
+                        // renderEach next(data) 通道已废弃，预加载数据由 data 数据源承载
+                        data: () => ({ title: "Complete Flow", testData: "preloaded" }),
                     },
                 ],
             });
 
-            router.attach();
-            await router.push("/complete");
-            await new Promise((resolve) => setTimeout(resolve, 50));
+            router.push("/complete");
+            await waitNav();
 
+            expect(guardExecuted).toBe(true);
             expect(dataPreloaded).toBe(true);
-            expect(router.routes.current.route?.path).toBe("/complete");
-            expect(router.routes.current.route?.data?.testData).toBe("preloaded");
+            expect(lastMatched(router)?.path).toBe("/complete");
+            const loader = lastMatched(router)?.route?._getData;
+            expect(loader.signal.result?.testData).toBe("preloaded");
         });
 
         it("应该正确处理路由参数", async () => {
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "params",
@@ -391,15 +462,15 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
-            await router.push("/params/123");
+            router.push("/params/123");
+            await waitNav();
 
-            // 路由参数应该正确解析
-            expect(router.routes.current.route?.params?.id).toBe("123");
+            // 路由参数应该正确解析（params 在 matched 项上）
+            expect(lastMatched(router)?.params?.id).toBe("123");
         });
 
         it("应该正确处理查询参数", async () => {
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "query",
@@ -410,12 +481,15 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
-            await router.push("/query?foo=bar&baz=qux");
+            router.push("/query?foo=bar&baz=qux");
+            await waitNav();
 
-            expect(router.routes.current.route?.path).toBe("/query");
-            expect(router.routes.current.route?.query?.foo).toBe("bar");
-            expect(router.routes.current.route?.query?.baz).toBe("qux");
+            expect(lastMatched(router)?.path).toBe("/query");
+            // query 解析在匹配链的根项上
+            const current = router.routes.current ?? [];
+            const withQuery = current.find((m) => m.query && Object.keys(m.query).length > 0);
+            expect(withQuery?.query?.foo).toBe("bar");
+            expect(withQuery?.query?.baz).toBe("qux");
         });
     });
 
@@ -436,13 +510,13 @@ describe("Phase 3 Integration Tests", () => {
                 },
             ];
 
-            router = new AutoSparkRouter(host, { routes });
+            router = await createRouter(host, { routes });
 
-            router.attach();
-            await router.push("/route1");
+            router.push("/route1");
+            await waitNav();
 
             // 验证路由配置正确加载
-            expect(router.routes.current.route?.name).toBe("route1");
+            expect(lastMatched(router)?.route?.name).toBe("route1");
         });
     });
 
@@ -450,7 +524,7 @@ describe("Phase 3 Integration Tests", () => {
         it("应该正确处理多个路由导航", async () => {
             const navigations: string[] = [];
 
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "route1",
@@ -473,25 +547,31 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
-
-            // 监听导航事件
-            router.on("route/change", (event: any) => {
-                if (event?.detail?.route?.path) {
-                    navigations.push(event.detail.route.path);
+            // route/change 事件已移除；导航事件为 navigation:matched（载荷为 matched 上下文）
+            router.on("navigation:matched", (matched: any) => {
+                const to = matched?.toRoute;
+                const path = to?.[to.length - 1]?.path;
+                if (path) {
+                    navigations.push(path);
                 }
             });
 
-            await router.push("/route1");
-            await router.push("/route2");
-            await router.push("/route3");
+            router.push("/route1");
+            await waitNav(60);
+            router.push("/route2");
+            await waitNav(60);
+            router.push("/route3");
+            await waitNav();
 
             // 验证所有导航都成功
-            expect(router.routes.current.route?.path).toBe("/route3");
+            expect(navigations).toContain("/route1");
+            expect(navigations).toContain("/route2");
+            expect(navigations).toContain("/route3");
+            expect(lastMatched(router)?.path).toBe("/route3");
         });
 
         it("应该正确处理路由数据隔离", async () => {
-            router = new AutoSparkRouter(host, {
+            router = await createRouter(host, {
                 routes: [
                     {
                         name: "isolated1",
@@ -508,13 +588,13 @@ describe("Phase 3 Integration Tests", () => {
                 ],
             });
 
-            router.attach();
+            router.push("/isolated1");
+            await waitNav(60);
+            const data1 = lastMatched(router)?.route?.data;
 
-            await router.push("/isolated1");
-            const data1 = router.routes.current.route?.data;
-
-            await router.push("/isolated2");
-            const data2 = router.routes.current.route?.data;
+            router.push("/isolated2");
+            await waitNav();
+            const data2 = lastMatched(router)?.route?.data;
 
             // 验证数据隔离
             expect(data1?.value).toBe("A");
@@ -527,66 +607,88 @@ describe("Phase 3 Integration Tests", () => {
             let componentLoaded = false;
             let dataRendered = false;
 
-            router = new AutoSparkRouter(host, {
-                routes: [
-                    {
-                        name: "integrated",
-                        path: "/integrated",
-                        view: async () => {
-                            componentLoaded = true;
-                            await new Promise((resolve) => setTimeout(resolve, 10));
-                            return "div";
-                        },
-                        renderEach: async (to, from, next) => {
-                            dataRendered = true;
-                            next({ message: "Data loaded" });
-                        },
-                        data: { title: "Integration Test" },
-                    },
-                ],
-            });
-
-            router.attach();
-
-            // 监听组件加载事件
-            router.on("component-load-end", () => {
+            // 函数视图在新管线中不会被调用（按静态数据处理）；异步组件加载改由
+            // URL 视图 + fetch 承载，此处 mock fetch 模拟异步视图加载
+            const originalFetch = globalThis.fetch;
+            (globalThis as any).fetch = async () => {
                 componentLoaded = true;
-            });
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                return {
+                    ok: true,
+                    status: 200,
+                    statusText: "OK",
+                    text: async () => "<div>integrated</div>",
+                    json: async () => ({}),
+                } as any;
+            };
 
-            await router.push("/integrated");
-            await new Promise((resolve) => setTimeout(resolve, 50));
+            try {
+                router = await createRouter(host, {
+                    routes: [
+                        {
+                            name: "integrated",
+                            path: "/integrated",
+                            view: "views/integrated.html",
+                            // renderEach → beforeRender；component-load-end 事件已移除，
+                            // fetch 视图加载完成即组件加载完成
+                            beforeRender: () => {
+                                dataRendered = true;
+                            },
+                            data: { title: "Integration Test", message: "Data loaded" },
+                        },
+                    ],
+                });
 
-            expect(componentLoaded).toBe(true);
-            expect(dataRendered).toBe(true);
-            expect(router.routes.current.route?.data?.message).toBe("Data loaded");
+                router.push("/integrated");
+                await waitNav();
+
+                expect(componentLoaded).toBe(true);
+                expect(dataRendered).toBe(true);
+                expect(lastMatched(router)?.route?.data?.message).toBe("Data loaded");
+            } finally {
+                (globalThis as any).fetch = originalFetch;
+            }
         });
 
         it("应该正确处理加载失败情况", async () => {
             let errorHandled = false;
 
-            router = new AutoSparkRouter(host, {
-                routes: [
-                    {
-                        name: "fail-route",
-                        path: "/fail-route",
-                        view: "invalid-component",
-                        data: { title: "Fail Test" },
-                    },
-                ],
+            // 自带失败 fetch（隔离运行时是 native fetch 无效 URL 拒绝；
+            // 全量运行时可能有前序文件泄漏的成功 mock——自包含以免疫）
+            const originalFetch = globalThis.fetch;
+            (globalThis as any).fetch = async () => ({
+                ok: false,
+                status: 404,
+                statusText: "Not Found",
+                text: async () => "",
+                json: async () => ({}),
             });
 
-            router.attach();
+            try {
+                router = await createRouter(host, {
+                    routes: [
+                        {
+                            name: "fail-route",
+                            path: "/fail-route",
+                            view: "invalid-component",
+                            data: { title: "Fail Test" },
+                        },
+                    ],
+                });
 
-            // 监听错误事件
-            router.on("component-error", () => {
-                errorHandled = true;
-            });
+                // component-error 事件已移除；视图加载失败经 routeError 钩子暴露
+                router.hooks.add("routeError", () => {
+                    errorHandled = true;
+                });
 
-            await router.push("/fail-route");
-            await new Promise((resolve) => setTimeout(resolve, 50));
+                router.push("/fail-route");
+                await waitNav();
 
-            // 错误应该被正确处理
-            expect(errorHandled).toBe(true);
+                // 错误应该被正确处理
+                expect(errorHandled).toBe(true);
+            } finally {
+                (globalThis as any).fetch = originalFetch;
+            }
         });
     });
 });

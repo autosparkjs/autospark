@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>工作原理 · 色板扩散结果</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">色板扩散结果：一个种子色 → 10 档单调梯度（<code>--x-color-theme-0..9</code>）</div>
+                <div class="auto-card-body col">
+                    <div class="grid">
+                        <div class="scope-box">
+                            <div class="box-label">亮语境（0 最浅 → 9 最深）</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                        </div>
+                        <div class="scope-box global" data-dark>
+                            <div class="box-label">暗语境（同一算法 reverse：0 最深 → 9 最浅）</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                        </div>
+                    </div>
+                    <p class="hint">
+                        算法输出的是 10 个<strong>具体色值</strong>：种子色落在与它 CIEDE2000 色差最小的基准色板档位上，
+                        其余档位按该基准色板的明度 / 彩度系数扩散——所以任意色值的种子都能得到一条单调、均匀的梯度。
+                    </p>
+                    <p class="hint">
+                        用右侧面板切换主题色：梯度整族即时重算；切暗色看到的是同一算法的 <code>reverse</code> 方向，
+                        不是把色值简单倒序。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

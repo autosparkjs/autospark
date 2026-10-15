@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>多彩模式 · 组合与叠加</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">叠加态与已知限制</div>
+                <div class="auto-card-body col">
+                    <div class="scope-box" data-dark data-colorized>
+                        <div class="box-label">data-dark + data-colorized 同元素：暗多彩（厚重暗底）</div>
+                        <div class="theme-strip" data-strip="--x-bgcolor-"></div>
+                        <div class="demo-sample">
+                            <div>命中叠加块 <code>[data-dark][data-colorized]</code>，实际值改引用暗多彩映射。</div>
+                        </div>
+                    </div>
+                    <div class="scope-box" data-dark>
+                        <div class="box-label">暗卡内的 <code>data-colorized</code> 后代（不受支持）</div>
+                        <div class="demo-sample">
+                            <div>外层 <code>data-dark</code>。</div>
+                            <div data-colorized style="margin-top:0.5rem;padding:0.6rem;border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                                这个后代挂了 <code>data-colorized</code>，但跨元素组合<strong>不</strong>命中叠加块——
+                                它会取亮语境的多彩映射，看起来「没跟着暗」。要叠加请把两个属性放到同一元素。
+                            </div>
+                        </div>
+                    </div>
+                    <p class="hint">
+                        非作用域元素上手工挂 <code>dark</code> / <code>colorized</code>（不带 <code>data-</code>）只命中叠加块、不命中普通暗色 / 多彩块——
+                        日常请统一用 <code>data-*</code> 手动通道，或经 <code>scope.dark</code> 这类 setter 写作用域元素。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

@@ -14,7 +14,7 @@ themeManager.dark = true; // 全局暗色
 <div data-light>暗语境里单独切回亮色</div>
 ```
 
-<demo html="theme/color-dark.html"/>
+<demo html="theme/color-dark-overview.html"/>
 
 ## 指南
 
@@ -32,6 +32,8 @@ document.body.dataset.dark = ""; // 元素域：body 独立暗色
 
 两者长期并存、互不干扰：`dark` 表达「这套作用域现在是暗色」，`data-dark` 表达「这个元素独立启用暗色」。
 
+<demo html="theme/color-dark-channels.html"/>
+
 ### `data-light`：在暗语境里切回亮色
 
 JS 通道只有 `dark` 布尔开关，没有 `light`；元素域则两端齐全：
@@ -47,6 +49,8 @@ JS 通道只有 `dark` 布尔开关，没有 `light`；元素域则两端齐全�
 `data-light` 是**完整亮域**：基色块会一并声明 `color-scheme: light`——暗语境中的亮元素连原生控件
 （滚动条、表单控件）也一并回亮。
 
+<demo html="theme/color-dark-light-attr.html"/>
+
 ### 暗色改变了什么
 
 | 方面 | 变化 |
@@ -57,6 +61,8 @@ JS 通道只有 `dark` 布尔开关，没有 `light`；元素域则两端齐全�
 | 背景映射 | 前景与背景分离：面板 `gray-8` 浮起于工作区 `gray-9` |
 | 阴影 | 换黑色系高不透明度配方 |
 | 派生值 | 见下表 |
+
+<demo html="theme/color-dark-gradient.html"/>
 
 ### 暗色专属派生值
 
@@ -70,6 +76,8 @@ JS 通道只有 `dark` 布尔开关，没有 `light`；元素域则两端齐全�
 | `--x-shadow-*` | 中灰低不透明 | 黑色系高不透明 | 深底上灰阴影不可见 |
 
 **组件层永远保持模式无关**——它只写 `var(--auto-*)`，模式差异全部在变量层完成。
+
+<demo html="theme/color-dark-derived.html"/>
 
 ### 可读性有量化兜底
 

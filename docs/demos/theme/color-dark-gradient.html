@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>明暗主题 · 梯度方向反转</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">梯度方向反转：同一族变量、两个方向</div>
+                <div class="auto-card-body col">
+                    <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                    <div class="theme-strip" data-strip="--x-plain-color-" data-strip-label></div>
+                    <div class="theme-strip" data-strip="--x-plain-bgcolor-" data-strip-label></div>
+                    <div class="grid">
+                        <div class="scope-box" data-dark>
+                            <div class="box-label">暗语境内的三条同名梯度（继承的是解析后的值 → 方向已反转）</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-"></div>
+                            <div class="theme-strip" data-strip="--x-plain-color-"></div>
+                            <div class="theme-strip" data-strip="--x-plain-bgcolor-"></div>
+                        </div>
+                        <div class="scope-box">
+                            <div class="box-label">亮语境的同一族变量（对照）</div>
+                            <div class="theme-strip" data-strip="--x-color-theme-"></div>
+                            <div class="theme-strip" data-strip="--x-plain-color-"></div>
+                            <div class="theme-strip" data-strip="--x-plain-bgcolor-"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

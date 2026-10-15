@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>组件变量 · 自定义组件怎么接</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">自定义组件：只消费派生层 <code>--auto-*</code></div>
+                <div class="auto-card-body col">
+                    <!-- .my-widget：外观全部逐项引用派生量（行内 style 等价于文档里的 CSS 写法） -->
+                    <div style="background:var(--auto-bgcolor);color:var(--auto-color);border:var(--auto-border);border-radius:var(--auto-border-radius);box-shadow:var(--auto-shadow);padding:var(--auto-padding);font:var(--auto-font);">
+                        .my-widget：背景 / 文字 / 边框 / 圆角 / 阴影 / 内距 / 字体全部取自派生变量
+                    </div>
+                    <p class="hint">
+                        组件层不硬编码任何颜色或尺寸，就自动获得主题 / 模式 / 色彩 / 尺寸四种联动，
+                        与 <code>.auto-card</code> 等内置组件同族。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">元素域：同一个自定义组件在四种颜色模式 × 两档尺寸下</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box">
+                        <div class="box-label">light</div>
+                        <div style="background:var(--auto-bgcolor);color:var(--auto-color);border:var(--auto-border);border-radius:var(--auto-border-radius);box-shadow:var(--auto-shadow);padding:var(--auto-padding);font:var(--auto-font);">.my-widget</div>
+                    </div>
+                    <div class="scope-box" data-colorized>
+                        <div class="box-label">light + colorized</div>
+                        <div style="background:var(--auto-bgcolor);color:var(--auto-color);border:var(--auto-border);border-radius:var(--auto-border-radius);box-shadow:var(--auto-shadow);padding:var(--auto-padding);font:var(--auto-font);">.my-widget</div>
+                    </div>
+                    <div class="scope-box" data-dark>
+                        <div class="box-label">dark</div>
+                        <div style="background:var(--auto-bgcolor);color:var(--auto-color);border:var(--auto-border);border-radius:var(--auto-border-radius);box-shadow:var(--auto-shadow);padding:var(--auto-padding);font:var(--auto-font);">.my-widget</div>
+                    </div>
+                    <div class="scope-box" data-dark data-colorized>
+                        <div class="box-label">dark + colorized</div>
+                        <div style="background:var(--auto-bgcolor);color:var(--auto-color);border:var(--auto-border);border-radius:var(--auto-border-radius);box-shadow:var(--auto-shadow);padding:var(--auto-padding);font:var(--auto-font);">.my-widget</div>
+                    </div>
+                </div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-size="x-small" data-spacing="x-small" data-radius="small" data-shadow="x-small">
+                        <div class="box-label">紧凑档</div>
+                        <div style="background:var(--auto-bgcolor);color:var(--auto-color);border:var(--auto-border);border-radius:var(--auto-border-radius);box-shadow:var(--auto-shadow);padding:var(--auto-padding);font:var(--auto-font);">.my-widget</div>
+                    </div>
+                    <div class="scope-box" data-size="x-large" data-spacing="x-large" data-radius="x-large" data-shadow="x-large">
+                        <div class="box-label">宽松档</div>
+                        <div style="background:var(--auto-bgcolor);color:var(--auto-color);border:var(--auto-border);border-radius:var(--auto-border-radius);box-shadow:var(--auto-shadow);padding:var(--auto-padding);font:var(--auto-font);">.my-widget</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>

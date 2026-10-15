@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-define.global · 模板内全局组件声明</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!--
+            x-define.global：模板内联声明全局组件（ADR-0115）。
+            - 两种完全等价的写法：
+                <div x-define.global="g-card"> ... </div>
+                <div x-define="g-card" x-define-options="{global:true}"> ... </div>
+            - 声明注册进全局组件定义表：物理位置虽然在面板 A 的 x-scope 内，
+              但与面板 A 互不为祖先的面板 B 同样能消费（局部声明做不到这一点）；
+            - 面板 B 随后声明同名【局部】 g-card：就近遮蔽只对其后的消费生效，
+              遮蔽前的消费仍走全局（且声明在消费前才能被同 scope 命中——文档序规则不变）；
+            - setup(props/data/methods) 与 <style> 与普通组件完全一致。
+        -->
+        <div id="app">
+            <!-- 面板 A：全局声明物理上位于此 scope，但归属被跳过 -->
+            <div class="panel" x-scope>
+                <div class="label">面板 A —— x-define.global 声明所在 scope，本地消费</div>
+                <div x-define.global="g-card">
+                    <div class="g-card">
+                        <b class="g-card-title" x-text="title"></b>
+                        <span class="g-card-desc" x-text="desc"></span>
+                    </div>
+                    <script type="autospark/setup">
+                        {
+                            data: {
+                                title: "全局卡片",
+                                desc: "默认描述（可被 props 覆盖）",
+                            },
+                        }
+                    </script>
+                    <style>
+                        .g-card {
+                            padding: 10px 14px;
+                            border-left: 3px solid #3273dc;
+                            background: #f5f9ff;
+                            border-radius: 4px;
+                        }
+                        .g-card-title {
+                            display: block;
+                            color: #1f3a68;
+                        }
+                        .g-card-desc {
+                            color: #666;
+                            font-size: 0.85rem;
+                        }
+                    </style>
+                </div>
+                <div x-component:g-card></div>
+            </div>
+
+            <!-- 面板 B：与声明所在的面板 A 是兄弟 scope（链互不相交），仍能消费全局组件 -->
+            <div class="panel" x-scope>
+                <div class="label">
+                    面板 B —— 兄弟 scope 消费全局组件（此时局部同名尚未声明，走全局兜底）
+                </div>
+                <div x-component:g-card="{ title: '面板 B 的标题', desc: 'props 注入照常工作' }"></div>
+
+                <!-- 局部同名声明：仅本 scope 生效，就近遮蔽全局；文档序上须在被消费之前 -->
+                <div x-define="g-card">
+                    <div class="g-card local">局部特例卡片（就近遮蔽全局，仅面板 B 可见）</div>
+                </div>
+                <div class="label">局部同名声明之后 —— 就近命中局部</div>
+                <div x-component:g-card></div>
+            </div>
+        </div>
+
+        <script>
+            // 无需 options.components：全局组件直接由模板 x-define.global 注册
+            const engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+        </script>
+
+        <style>
+            .panel {
+                padding: 16px;
+                border: 1px solid #dbdbdb;
+                border-radius: 8px;
+                margin-bottom: 12px;
+            }
+            .label {
+                font-size: 0.8rem;
+                color: #888;
+                margin: 8px 0;
+            }
+            .g-card.local {
+                padding: 10px 14px;
+                border-left: 3px solid #23d160;
+                background: #f4fff8;
+                border-radius: 4px;
+                color: #1b5e30;
+            }
+        </style>
+    </body>
+</html>

@@ -9,7 +9,7 @@
 <input class="auto-input" placeholder="文本框" />
 ```
 
-<demo html="theme/component-form.html"/>
+<demo html="theme/form-overview.html"/>
 
 ## 指南
 
@@ -91,6 +91,8 @@
 - **字段标签**（容器内 `label`）：与选择控件组合时表达选项并联动状态，与文本输入组合时表达字段名。
   分工：字段标签回答「这是什么」，操作件回答「能做什么」。
 
+<demo html="theme/form-input.html"/>
+
 ### 自定义表单控件
 
 ```css
@@ -108,6 +110,8 @@
 ```
 
 逐项引用 `--auto-input-*`（而不是自己写颜色），即可与 `.auto-input` 保持同一观感并自动跟随主题。
+
+<demo html="theme/form-custom.html"/>
 
 ---
 

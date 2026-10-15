@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>字体 · 派生量与速写</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card">
+                <div class="auto-card-header">标题字体与排版速写</div>
+                <div class="auto-card-body col">
+                    <div style="font:var(--auto-title-font);">标题字体 var(--auto-title-font)</div>
+                    <div style="font:var(--auto-font);">正文字体 var(--auto-font)</div>
+                    <div class="caption">--auto-font-family: var(--auto-font-family)</div>
+                    <div style="font:var(--auto-font);letter-spacing:var(--auto-letter-spacing);">
+                        字距 --auto-letter-spacing / 行高 --auto-line-height 一并由 <code>--auto-font</code> 聚合。
+                    </div>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">元素域：<code>data-size</code> 局部换档（三卡并排）</div>
+                <div class="auto-card-body row">
+                    <div class="scope-box" data-size="x-small">
+                        <div class="box-label">data-size="x-small"</div>
+                        <div style="font:var(--auto-font);">道可道，非常道；名可名，非常名。</div>
+                        <input class="auto-input" placeholder="输入框同步换档" />
+                        <button class="auto-btn primary">按钮</button>
+                    </div>
+                    <div class="scope-box" data-size="medium">
+                        <div class="box-label">data-size="medium"（= 默认态）</div>
+                        <div style="font:var(--auto-font);">道可道，非常道；名可名，非常名。</div>
+                        <input class="auto-input" placeholder="输入框同步换档" />
+                        <button class="auto-btn primary">按钮</button>
+                    </div>
+                    <div class="scope-box" data-size="x-large">
+                        <div class="box-label">data-size="x-large"</div>
+                        <div style="font:var(--auto-font);">道可道，非常道；名可名，非常名。</div>
+                        <input class="auto-input" placeholder="输入框同步换档" />
+                        <button class="auto-btn primary">按钮</button>
+                    </div>
+                </div>
+                <div class="auto-card-body col">
+                    <p class="hint">
+                        <code>--auto-font</code> 在每个 <code>[data-size=x]</code> 档位块内都重新声明一遍，
+                        所以局部 <code>data-size</code> 容器里的 <code>font: var(--auto-font)</code> 会同步换档；
+                        <code>data-size</code> 属<strong>规模维度</strong>，与模式维度（<code>data-dark</code>）、
+                        色彩维度（<code>data-colorized</code>）分属不同域、可同元素叠加，两域各自生效。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+    </body>
+</html>
