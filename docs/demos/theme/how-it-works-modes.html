@@ -23,7 +23,9 @@
                         <code>--auto-*</code>），仅容器上挂的 <code>data-*</code> 属性不同——
                         右侧面板切换主题色，四卡同时跟随；切换暗色 / 多彩，只有未固定属性的卡跟随。
                     </p>
-                    <div class="grid">
+                    <!-- 固定 2 列：auto-fit 在滚动条出现/消失时会因宽度抖动重排，
+                         使内容高度依赖视口形成迟滞环，iframe 高度无法稳定收敛 -->
+                    <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));">
                         <div class="scope-box">
                             <div class="box-label">light（无属性）</div>
                             <div class="theme-strip" data-strip="--x-color-"></div>

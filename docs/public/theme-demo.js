@@ -118,7 +118,9 @@
         function write() {
             var h;
             try {
-                h = global.document.documentElement.offsetHeight;
+                /* 根元素 offsetHeight 在 iframe 中返回的是视口高度（靠写回自稳定），
+                   内容先高后缩时会卡在旧视口值；body.scrollHeight 恒等于内容高度 */
+                h = global.document.body ? global.document.body.scrollHeight : 0;
             } catch (e) {
                 return;
             }
@@ -137,10 +139,15 @@
             new global.ResizeObserver(write).observe(global.document.documentElement);
         }
         global.addEventListener("load", write);
-        /* 定时器保底层：requestAnimationFrame 在离屏渲染 / 后台标签中会被暂停
-           （ResizeObserver 也可能漏触发 data-size 这类变量换档），200ms 轮询
-           一次 offsetHeight 足够跟手，且在后台被 clamp 到 1s 时仍能收敛。 */
-        write();
+        /* 常驻 rAF 回写：本回调每帧重新注册、必然排在插件自身 rAF 循环之后，
+           保证每帧最后一次写入是我们的正确值——插件用根元素 offsetHeight
+           （溢出时等于视口高度）做写回，会形成「视口锁死在旧值」的反馈环，
+           只有逐帧后写才能打破。值未变化时是零开销比较。 */
+        (function loop() {
+            write();
+            global.requestAnimationFrame(loop);
+        })();
+        /* 定时器保底层：rAF 在后台标签会被暂停，200ms 轮询保证离屏时仍收敛 */
         global.setInterval(write, 200);
     }
 
