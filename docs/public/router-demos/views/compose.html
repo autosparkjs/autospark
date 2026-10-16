@@ -1,0 +1,10 @@
+<section>
+    <h3 class="title is-4" x-text="$route.title"></h3>
+    <div class="field">
+        <label class="label is-small">草稿（切走再切回，输入内容还在——视图被缓存复用）</label>
+        <div class="control">
+            <textarea class="textarea is-small" rows="2" placeholder="写点什么…"></textarea>
+        </div>
+    </div>
+    <p class="help">本次渲染时间：<code x-text="new Date().toLocaleTimeString()"></code>（keepAlive 生效时切回不变）</p>
+</section>

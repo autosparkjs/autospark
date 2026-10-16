@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>页签模式出口 + 视图缓存</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <script src="/autospark/router-demos/boot.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="buttons mb-2">
+                <auto-link class="button is-small" to="/inbox">收件箱</auto-link>
+                <auto-link class="button is-small" to="/compose">写邮件</auto-link>
+                <auto-link class="button is-small" to="/profile">我的</auto-link>
+            </div>
+
+            <!-- 页签模式：全部视图常驻，页签条由出口组件内建；关闭页签即销毁对应缓存 -->
+            <div x-outlet="{ mode: 'tabs' }"></div>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+                // 完整路由配置对象形态：mode / base 须与路由表同对象声明（数组形态仅承载路由表）。
+                // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
+                routes: {
+                    mode: "hash",
+                    base: "/autospark/router-demos/",
+                    routes: [
+                        { path: "/", redirect: "/inbox" },
+                        { path: "/inbox", title: "收件箱", view: "/autospark/router-demos/views/inbox.html" },
+                        { path: "/compose", title: "写邮件", view: "/autospark/router-demos/views/compose.html" },
+                        { path: "/profile", title: "我的", view: "/autospark/router-demos/views/profile.html" },
+                    ],
+                },
+            });
+        </script>
+    </body>
+</html>

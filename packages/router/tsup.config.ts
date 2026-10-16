@@ -42,6 +42,16 @@ export default defineConfig([
         },
         noExternal: ["asyncsignal", "es-toolkit", "flex-tools", "history", "mitt", "ts-mixer"],
         onSuccess: async () => {
+            // 双配置并行执行（tsup 对数组配置走 Promise.all）：IIFE 先完成时 ESM
+            // 产物可能尚未落盘（且 IIFE 的 clean 已清空 dist），轮询等待而非直读
+            const waitFor = async (file: string, tries = 50): Promise<void> => {
+                for (let i = 0; i < tries; i++) {
+                    if (fs.existsSync(file)) return;
+                    await new Promise((r) => setTimeout(r, 100));
+                }
+                throw new Error(`onSuccess 等待产物超时: ${file}`);
+            };
+            await waitFor("dist/index.js");
             const esmFile = readFileSync("dist/index.js");
             const iifeFile = readFileSync("dist/index.global.js");
             const esmCompressed = await gzipPromise(esmFile);

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>重定向：四种声明形态</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <script src="/autospark/router-demos/boot.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="buttons mb-2">
+                <auto-link class="button is-small is-primary" to="/old-about">① 字符串 → /about</auto-link>
+                <auto-link class="button is-small is-link" to="/go-user">② 命名路由 → /user/1</auto-link>
+                <auto-link class="button is-small is-info" to="/first-login">③ 结果对象（push 模式）</auto-link>
+                <auto-link class="button is-small is-warning" to="/dashboard">④ 函数形态</auto-link>
+            </div>
+
+            <div x-outlet></div>
+
+            <p class="help mt-2">当前落地路由：<code x-text="$.route ? $.route.path : '—'"></code>（重定向发生在匹配阶段，中间路由不可见）</p>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+                // 完整路由配置对象形态：mode / base 须与路由表同对象声明（数组形态仅承载路由表）。
+                // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
+                routes: {
+                    mode: "hash",
+                    base: "/autospark/router-demos/",
+                    routes: [
+                        { path: "/", title: "首页", view: "/autospark/router-demos/views/home.html" },
+                        { path: "/about", title: "关于", view: "/autospark/router-demos/views/about.html" },
+                        { path: "/user/:id", title: "用户", view: "/autospark/router-demos/views/user.html", name: "user" },
+                        { path: "/guide", title: "指南", view: "/autospark/router-demos/views/about.html" },
+
+                        // ① 字符串：默认 replace 模式
+                        { path: "/old-about", redirect: "/about" },
+                        // ② 命名路由：跳到 name 注册的目标，可带参数与查询串
+                        { path: "/go-user", redirect: { name: "user", params: { id: "1" }, query: { tab: "info" } } },
+                        // ③ 结果对象：指定跳转模式与目标窗口
+                        { path: "/first-login", redirect: { path: "/guide", mode: "push" } },
+                        // ④ 函数：动态计算目标
+                        {
+                            path: "/dashboard",
+                            redirect: (route) => "/about",
+                        },
+                    ],
+                },
+            });
+        </script>
+    </body>
+</html>

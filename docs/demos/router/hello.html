@@ -3,9 +3,10 @@
     <head>
         <meta charset="UTF-8" />
         <title>快速入门：第一个 Router 应用</title>
-        <!-- 双加载顺序兼容：先 engine 后 router（预加载队列兜底） -->
+        <!-- 双加载顺序兼容：先 engine 后 router（预加载队列兜底）；boot.js 为文档 demo 环境自举 -->
         <script src="/autospark/autospark.js"></script>
         <script src="/autospark/autospark.router.js"></script>
+        <script src="/autospark/router-demos/boot.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
@@ -27,9 +28,13 @@
         <script>
             const host = document.querySelector(".demo-app");
 
-            // engine 构造第三参声明 routes → router 插件自举挂载（history 模式为默认）
+            // engine 构造第三参声明 routes → router 插件自举挂载
             const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+                // 完整路由配置对象形态：mode / base 须与路由表同对象声明（数组形态仅承载路由表）。
+                // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
                 routes: {
+                    mode: "hash",
+                    base: "/autospark/router-demos/",
                     routes: [
                         { path: "/", title: "首页", view: "/autospark/router-demos/views/home.html" },
                         { path: "/about", title: "关于", view: "/autospark/router-demos/views/about.html" },

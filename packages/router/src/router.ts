@@ -288,12 +288,20 @@ export class AutoSparkRouter extends Mixin(
         for (const matched of toRoute) Object.assign(params, matched.params ?? {});
         const query: Record<string, string> = {};
         for (const [key, value] of new URLSearchParams(location.search)) query[key] = value;
+        // pathname 与匹配语义对齐：剥除 base 后才是路由路径（hash 模式下 history 库
+        // 的 pathname 即 hash 内路径，同样可能带 base 前缀）
+        const path = removePathPrefix(location.pathname, this.options.base);
         meta.route = {
-            path: location.pathname,
-            fullPath: location.pathname + location.search,
+            path,
+            fullPath: path + location.search,
             params,
             query,
         };
+        // autostore 嵌套裸引用写入（state.$.route = ...）不触发订阅通知——以同引用
+        // 回写根容器整体赋值触发：先嵌套写 meta.route，再 state.$ = state.$。
+        // 同引用回写不会换新对象，ViewportManager 等在 _ensureMetaContainer 持有的
+        // meta 引用保持有效（engine/viewport/manager.ts 有同款坑注释）。
+        state.$ = state.$;
     }
 
     /**

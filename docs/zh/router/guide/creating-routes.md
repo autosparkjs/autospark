@@ -67,6 +67,8 @@ const engine = new AutoSpark(host, {}, {
 });
 ```
 
+<demo html="router/routes-array.html"/>
+
 ### 完整配置对象形态
 
 `routes` 也可以是完整的 `AutoSparkRouterOptions` 对象——同时声明路由表与 router 级配置：
@@ -134,6 +136,8 @@ const engine = new AutoSpark(host, {}, {
 ```
 
 访问 `/` 时自动渲染 `home` 子路由——URL 不变，父层 + `home` 双层同时渲染。
+
+<demo html="router/nested.html"/>
 
 ### 直接装配（注入自建 engine）
 

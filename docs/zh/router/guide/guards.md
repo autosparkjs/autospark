@@ -20,23 +20,25 @@ title: 路由守卫
 
 ### 全局守卫
 
-在 router 选项上声明（函数或函数数组）：
+守卫是 router 级选项，须声明在 `routes` **完整配置对象形态**内（engine 第三参顶层仅承载数组表/配置对象，平铺的钩子字段会被忽略）。函数或函数数组皆可：
 
 ```js
 const engine = new AutoSpark(host, {}, {
-    routes: [/* ... */],
-    beforeRoute({ from, to }) {
-        // 返回 false：取消本次导航
-        if (to[0].url === "/admin" && !isAdmin()) return false;
-        // 返回字符串：重定向到该路径
-        if (!isLogin() && to[0].url !== "/login") return "/login";
-    },
-    afterRoute({ to }) {
-        // 导航完成：上报 PV
-        report(to[to.length - 1].url);
-    },
-    routeError({ error, to }) {
-        console.error("导航出错", to, error);
+    routes: {
+        routes: [/* ... */],
+        beforeRoute({ from, to }) {
+            // 返回 false：取消本次导航
+            if (to[0].url === "/admin" && !isAdmin()) return false;
+            // 返回字符串：重定向到该路径
+            if (!isLogin() && to[0].url !== "/login") return "/login";
+        },
+        afterRoute({ to }) {
+            // 导航完成：上报 PV
+            report(to[to.length - 1].url);
+        },
+        routeError({ error, to }) {
+            console.error("导航出错", to, error);
+        }
     }
 });
 ```
@@ -73,6 +75,8 @@ beforeRoute({ to }) {
 }
 ```
 
+<demo html="router/guards.html"/>
+
 ### beforeRender 数据预取
 
 `beforeRender` 在视图与数据加载之后、渲染之前执行，入参含 `{ from, to, view, data }`——可在此补充/修正注入模板的数据：
@@ -103,16 +107,18 @@ afterRender({ el }) {
 
 ```js
 const engine = new AutoSpark(host, {}, {
-    routes: [/* ... */],
-    errorPages: {
-        "404": (error, route) => {
-            const el = document.createElement("autospark-feedback");
-            el.type = "error";
-            el.message = "404 - 页面未找到";
-            return el;
-        },
-        "500": createServerErrorPage,
-        "*": createDefaultErrorPage
+    routes: {
+        routes: [/* ... */],
+        errorPages: {
+            "404": (error, route) => {
+                const el = document.createElement("autospark-feedback");
+                el.type = "error";
+                el.message = "404 - 页面未找到";
+                return el;
+            },
+            "500": createServerErrorPage,
+            "*": createDefaultErrorPage
+        }
     }
 });
 ```

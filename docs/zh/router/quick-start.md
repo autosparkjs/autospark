@@ -110,6 +110,12 @@ python -m http.server 8080
 
 浏览器打开 `http://localhost:3000`（或 8080），点击导航链接即可在两个视图间切换，浏览器前进/后退、刷新直达、深链接均正常工作。
 
+## 在线示例
+
+下面就是本篇最小 demo 的可运行版本（hash 模式运行在文档站沙箱中），点击「关于」链接体验视图切换与 `$.route` 快照：
+
+<demo html="router/hello.html"/>
+
 ## 它是如何工作的
 
 engine 构造时，router 插件按挂载矩阵自动挂载并开始 attach 异步链，依次完成：

@@ -1,0 +1,9 @@
+<section>
+    <h3 class="title is-4">商品列表</h3>
+    <p>数据来源：<strong>远程 URL</strong>（<code>data: "/autospark/router-demos/api/products.json"</code>），渲染前加载完成。</p>
+    <ul>
+        <li x-for="p in products" :key="p.id">
+            <span x-text="p.name"></span>——<span class="has-text-primary" x-text="p.price + ' 元'"></span>
+        </li>
+    </ul>
+</section>

@@ -290,21 +290,30 @@ describe("渲染层数据通道（autospark/data 注入）", () => {
         ).toBeGreaterThan(0);
     });
 
-    it("路由无 data 时不注入数据脚本（保持既有契约）", async () => {
+    it("路由无 data 时仍注入路由上下文脚本（$params/$query/$route，文档契约）", async () => {
         mockFetch = spyOn(globalThis, "fetch").mockImplementation(async () =>
             mockResponse({ data: {} }),
         );
 
         const outlet = document.createElement("div");
         outlet.setAttribute("data-autospark-outlet", "");
-        const created = await createRouter([{ path: "plain", view: "pages/plain.html" }], outlet);
+        const created = await createRouter(
+            [{ path: "plain/:id", title: "详情", view: "pages/plain.html" }],
+            outlet,
+        );
         router = created.router;
 
-        await router.push("/shop/plain");
+        await router.push("/shop/plain/9?tab=info");
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         const current = router.routes.current;
-        const html = mountedHtml(created.mounts, current[current.length - 1].hash);
-        expect(html).not.toContain("autospark/data");
+        const payload = parseDataScript(
+            mountedHtml(created.mounts, current[current.length - 1].hash),
+        )!;
+        // 未声明 data 的路由不再整段跳过注入：路由上下文（文档 data-loading.md 契约）
+        // 与 $route 元信息（quick-start.md $route.title）始终可用
+        expect(payload.$params).toEqual({ id: "9" });
+        expect(payload.$query).toEqual({ tab: "info" });
+        expect(payload.$route?.title).toBe("详情");
     });
 });

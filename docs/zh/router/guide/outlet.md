@@ -61,6 +61,8 @@ title: 路由出口
 
 导航到 `/user/123`：`layout.html` 渲染进根出口，`user.html` 渲染进 layout 内部的出口。某层没有更深的子路由渲染进来时，该出口保持空转（不显示 loading）。
 
+<demo html="router/nested.html"/>
+
 ### 出口 props
 
 出口组件接受两个 props（经简写值或完整形态值注入）：
@@ -90,6 +92,8 @@ title: 路由出口
 - 点击页签走 router 导航（URL 是唯一真相源）
 - 页签可关闭：关闭即销毁该视图缓存；关闭当前激活页签时自动导航到相邻页签；仅剩一个页签时不显示关闭按钮
 - tabs 模式下全部视图常驻，临时视图通道不启用
+
+<demo html="router/outlet-tabs.html"/>
 
 页签条样式可整体定制：组件注册时注入内建样式表（元素 id 为 `autospark-outlet-styles`），应用**提前注入同 id 样式表即可整体替换**；也可用 CSS 自定义属性（`--autospark-outlet-tab-*`）与 `.autospark-outlet-tab` 等类钩子做局部覆盖：
 

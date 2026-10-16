@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
+﻿import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import type { AutoSparkRouter } from "@/router";
 
 /**
@@ -167,6 +167,18 @@ function lastMatched(router: AutoSparkRouter) {
     return current[current.length - 1];
 }
 
+/**
+ * 读视图文本并剔除路由上下文脚本（autospark/data）载荷。
+ * 渲染契约：路由上下文（$route/$params/…）以数据脚本形式注入视图元素根内部，
+ * 脚本载荷会进入 textContent——业务文本断言须先剔除，只比对真实内容。
+ */
+function viewText(el: Element | null | undefined): string {
+    if (!el) return "";
+    const clone = el.cloneNode(true) as Element;
+    clone.querySelectorAll('script[type="autospark/data"]').forEach((s) => s.remove());
+    return (clone.textContent ?? "").trim();
+}
+
 /** 指定 hash 的挂载序列中，加载占位（ready:false）先于就绪内容（ready:true） */
 function expectPlaceholderBeforeReady(hash: string) {
     const mounts = (lastEngineStub?.mounts ?? []).filter((m) => m.hash === hash);
@@ -218,7 +230,7 @@ describe("AutoSparkRouter 递归渲染测试", () => {
 
             const rootElement = host.querySelector(".root");
             expect(rootElement).not.toBeNull();
-            expect(rootElement?.textContent).toBe("根路由内容");
+            expect(viewText(rootElement)).toBe("根路由内容");
         });
 
         it("应该正确渲染一层嵌套路由", async () => {
@@ -248,7 +260,7 @@ describe("AutoSparkRouter 递归渲染测试", () => {
 
             expect(rootElement).not.toBeNull();
             expect(childElement).not.toBeNull();
-            expect(childElement?.textContent).toBe("子路由内容");
+            expect(viewText(childElement)).toBe("子路由内容");
         });
 
         it("应该正确渲染多层嵌套路由", async () => {
@@ -295,7 +307,7 @@ describe("AutoSparkRouter 递归渲染测试", () => {
             expect(level1Element).not.toBeNull();
             expect(level2Element).not.toBeNull();
             expect(level3Element).not.toBeNull();
-            expect(level3Element?.textContent).toBe("三级内容");
+            expect(viewText(level3Element)).toBe("三级内容");
         });
     });
 
@@ -396,7 +408,7 @@ describe("AutoSparkRouter 递归渲染测试", () => {
             // 渲染产物经 engine.data 写出口数据域，视图容器就位即"出口引用"成立
             const rootOutlet = host.querySelector("[data-autospark-outlet]");
             expect(rootOutlet).not.toBeNull();
-            expect(rootOutlet?.querySelector(".root")?.textContent).toBe("内容");
+            expect(viewText(rootOutlet?.querySelector(".root"))).toBe("内容");
         });
 
         it("嵌套路由渲染后各层出口就位（route.el 已随 outlet 数据域架构移除）", async () => {
@@ -431,7 +443,7 @@ describe("AutoSparkRouter 递归渲染测试", () => {
             expect(rootOutlet?.querySelector(".root")).not.toBeNull();
             const nestedOutlet = rootOutlet?.querySelector("[data-autospark-outlet]");
             expect(nestedOutlet).not.toBeNull();
-            expect(nestedOutlet?.querySelector(".child")?.textContent).toBe("子");
+            expect(viewText(nestedOutlet?.querySelector(".child"))).toBe("子");
         });
     });
 
@@ -474,7 +486,7 @@ describe("AutoSparkRouter 递归渲染测试", () => {
 
             const contentElement = host.querySelector(".content");
             expect(contentElement).not.toBeNull();
-            expect(contentElement?.textContent).toBe("加载完成");
+            expect(viewText(contentElement)).toBe("加载完成");
         });
 
         it("应该在嵌套路由中独立显示 loading", async () => {
@@ -524,7 +536,7 @@ describe("AutoSparkRouter 递归渲染测试", () => {
             expect(host.querySelector("autospark-loading[data-role='loading-indicator']")).toBeNull();
             const childElement = host.querySelector(".child");
             expect(childElement).not.toBeNull();
-            expect(childElement?.textContent).toBe("子加载完成");
+            expect(viewText(childElement)).toBe("子加载完成");
         });
     });
 

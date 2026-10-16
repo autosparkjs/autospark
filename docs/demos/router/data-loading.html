@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>数据加载：三种数据来源</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <script src="/autospark/router-demos/boot.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="buttons mb-2">
+                <auto-link class="button is-small is-primary" to="/settings">静态对象</auto-link>
+                <auto-link class="button is-small is-link" to="/products">远程 URL</auto-link>
+                <auto-link class="button is-small is-warning" to="/dashboard">函数</auto-link>
+            </div>
+
+            <div x-outlet></div>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+                // 完整路由配置对象形态：mode / base 须与路由表同对象声明（数组形态仅承载路由表）。
+                // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
+                routes: {
+                    mode: "hash",
+                    base: "/autospark/router-demos/",
+                    routes: [
+                        { path: "/", redirect: "/products" },
+                        // ① 静态对象：直接注入模板上下文
+                        {
+                            path: "/settings",
+                            view: "/autospark/router-demos/views/settings.html",
+                            data: { theme: "dark", locale: "zh-CN" },
+                        },
+                        // ② 远程 URL：渲染前 fetch 完成
+                        {
+                            path: "/products",
+                            view: "/autospark/router-demos/views/products.html",
+                            data: "/autospark/router-demos/api/products.json",
+                        },
+                        // ③ 函数：动态返回（支持异步）
+                        {
+                            path: "/dashboard",
+                            view: "/autospark/router-demos/views/dashboard.html",
+                            data: async (route) => {
+                                const res = await fetch("/autospark/router-demos/api/stats.json");
+                                return res.json();
+                            },
+                        },
+                    ],
+                },
+            });
+        </script>
+    </body>
+</html>

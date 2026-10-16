@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>事件：导航生命周期日志</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <script src="/autospark/router-demos/boot.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="buttons mb-2">
+                <auto-link class="button is-small is-primary" to="/">首页</auto-link>
+                <auto-link class="button is-small" to="/about">关于</auto-link>
+                <auto-link class="button is-small is-danger is-light" to="/secret">/secret（会被守卫取消）</auto-link>
+            </div>
+
+            <div x-outlet></div>
+
+            <!-- 事件日志：router.on 是 mitt 总线监听，不是 DOM 事件 -->
+            <div class="mt-2">
+                <p class="help mb-1">事件日志（navigation:* / 守卫取消）：</p>
+                <div class="log-box" style="max-height:110px;overflow:auto;font-size:12px;background:#f8f9fa;border-radius:6px;padding:8px;"></div>
+            </div>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+                // 完整路由配置对象形态：mode / base 须与路由表同对象声明（数组形态仅承载路由表）。
+                // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
+                routes: {
+                    mode: "hash",
+                    base: "/autospark/router-demos/",
+                    routes: [
+                        { path: "/", title: "首页", view: "/autospark/router-demos/views/home.html" },
+                        { path: "/about", title: "关于", view: "/autospark/router-demos/views/about.html" },
+                        // 路由级守卫返回 false → 导航取消 → navigation:cancel 事件
+                        { path: "/secret", title: "秘密", view: "/autospark/router-demos/views/about.html", beforeRoute: () => false },
+                    ],
+                },
+            });
+
+            const router = host.router;
+            const logBox = host.querySelector(".log-box");
+            const log = (msg) => {
+                const line = document.createElement("div");
+                line.textContent = new Date().toLocaleTimeString() + "  " + msg;
+                logBox.prepend(line);
+                while (logBox.children.length > 8) logBox.lastChild.remove();
+            };
+
+            // navigation:* 事件载荷为 history 库的 Update（{ action, location: { pathname, search } }）
+            router.on("navigation:start", ({ location }) => log("navigation:start  " + location.pathname + location.search));
+            router.on("navigation:matched", ({ toRoute }) => log("navigation:matched  " + toRoute.map((m) => m.path).join(" > ")));
+            router.on("navigation:cancel", ({ location }) => log("navigation:cancel  " + location.pathname + location.search));
+            router.on("navigation:end", ({ location }) => log("navigation:end  " + location.pathname + location.search));
+        </script>
+    </body>
+</html>

@@ -39,6 +39,10 @@ router.on("navigation:end", (location) => {
 
 `location` 为 history 库的 `Update` 对象（含 `pathname`、`search`、`state` 等）。
 
+下面的 demo 把导航事件写入日志面板，点击导航链接观察 `navigation:start` → `navigation:matched` → `navigation:end` 序列：
+
+<demo html="router/events.html"/>
+
 ### 路由表事件
 
 | 事件 | 载荷 | 说明 |
@@ -83,6 +87,10 @@ router.on("modal:open", ({ route, stackItem }) => {
 });
 router.on("modal:close", ({ route, stackItem }) => {});
 ```
+
+下面的 demo 经 `push("!/detail")` 开栈、`closeModal()` 关栈，模态栈深度由 `modal:open` / `modal:close` 事件驱动：
+
+<demo html="router/modal.html"/>
 
 ### 钩子错误
 

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>模态导航：! 前缀</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <script src="/autospark/router-demos/boot.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="buttons mb-2">
+                <auto-link class="button is-small is-primary" to="/">首页</auto-link>
+                <button class="button is-small is-link" @click="openDetail()">打开详情模态</button>
+                <button class="button is-small is-light" @click="closeModal()">关闭模态</button>
+            </div>
+
+            <div x-outlet></div>
+
+            <p class="help mt-2">模态栈深度：<code x-text="modalDepth"></code>（modal:open / modal:close 事件驱动）</p>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            const engine = new AutoSparkSpaces.AutoSpark(
+                host,
+                { modalDepth: 0 },
+                {
+                    actions: {
+                        openDetail() {
+                            // "! 前缀路径分流到 openModal：不进入 history、不改主路由
+                            router.push("!/detail");
+                        },
+                        closeModal() {
+                            router.closeModal();
+                        },
+                    },
+                    routes: {
+                        // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
+                        mode: "hash",
+                        base: "/autospark/router-demos/",
+                        routes: [
+                            { path: "/", title: "首页", view: "/autospark/router-demos/views/home.html" },
+                            { path: "/detail", title: "详情", view: "/autospark/router-demos/views/detail.html", modal: true },
+                        ],
+                    },
+                },
+            );
+
+            const router = host.router;
+
+            // 模态事件：开栈/关栈时更新计数
+            router.on("modal:open", () => (engine.state.modalDepth += 1));
+            router.on("modal:close", () => (engine.state.modalDepth -= 1));
+        </script>
+    </body>
+</html>

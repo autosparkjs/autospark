@@ -5,6 +5,7 @@
         <title>路由守卫：登录拦截</title>
         <script src="/autospark/autospark.js"></script>
         <script src="/autospark/autospark.router.js"></script>
+        <script src="/autospark/router-demos/boot.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
 
@@ -44,8 +45,11 @@
                             router.home();
                         },
                     },
+                    // 需要路由级配置（守卫等）时使用完整配置对象形态；
+                    // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
                     routes: {
                         mode: "hash",
+                        base: "/autospark/router-demos/",
                         routes: [
                             { path: "/", title: "首页", view: "/autospark/router-demos/views/home.html" },
                             { path: "/login", title: "登录", view: "/autospark/router-demos/views/login.html" },

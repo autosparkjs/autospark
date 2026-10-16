@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>嵌套路由 + 默认子路由</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <script src="/autospark/router-demos/boot.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="buttons mb-2">
+                <auto-link class="button is-small is-primary" to="/">进入布局</auto-link>
+                <auto-link class="button is-small" to="/home">/home</auto-link>
+                <auto-link class="button is-small" to="/about">/about</auto-link>
+            </div>
+
+            <div x-outlet></div>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+                // 完整路由配置对象形态：mode / base 须与路由表同对象声明（数组形态仅承载路由表）。
+                // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
+                routes: {
+                    mode: "hash",
+                    base: "/autospark/router-demos/",
+                    routes: [
+                        {
+                            // 父层：布局视图常驻，内部再放一层出口
+                            path: "/",
+                            view: "/autospark/router-demos/views/layout.html",
+                            children: [
+                                // path "home" 声明 default：访问 / 时自动渲染 home，URL 不变
+                                { path: "home", title: "首页", view: "/autospark/router-demos/views/home.html", default: true },
+                                { path: "about", title: "关于", view: "/autospark/router-demos/views/about.html" },
+                            ],
+                        },
+                    ],
+                },
+            });
+        </script>
+    </body>
+</html>

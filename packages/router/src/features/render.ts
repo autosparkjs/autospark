@@ -179,9 +179,13 @@ export class Render {
         data: Record<string, any> | undefined,
         matched: AutoSparkMatchedRouteItem,
     ): string {
-        if (!data || typeof data !== "object") return html;
+        // data 可缺省（未声明 data 的路由）：路由上下文仍按文档契约注入
+        // （data-loading.md「$route / $params / $query 同时可用」、quick-start.md $route.title）。
+        // $route 只取 JSON 安全的路由元字段，避免路由项函数/循环引用进入序列化。
+        const route = matched.route;
         const payload = {
-            ...data,
+            ...(data && typeof data === "object" ? data : {}),
+            $route: { path: route?.path, name: route?.name, title: route?.title },
             $params: matched.params || {},
             $query: matched.query || {},
             $state: matched.state || {},

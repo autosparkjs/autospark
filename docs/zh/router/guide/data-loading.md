@@ -97,6 +97,8 @@ URL 来源（含 `data: true` 生成的地址）支持插值：`:id`、`<id>` �
 
 全局响应式的 `$.route`（`{ path, fullPath, params, query }`）在导航 commit 后写入，任何模板中都可用。
 
+<demo html="router/data-loading.html"/>
+
 ### 数据校验
 
 数据必须是**纯对象**（plain object）——数组、标量视为无效，抛出 `AutoSparkRouterLoadError`。远程 JSON 接口请返回对象形态。
@@ -123,15 +125,17 @@ data: {
 
 ### 全局数据配置
 
-`dataOptions` 为所有路由提供数据加载缺省配置（路由项 `data` 对象形态的字段优先）：
+`dataOptions` 为所有路由提供数据加载缺省配置（路由项 `data` 对象形态的字段优先）。它是 router 级选项，须写在 `routes` **完整配置对象形态**内（engine 第三参顶层仅承载数组表/配置对象，平铺的 `dataOptions` 会被忽略）：
 
 ```js
 const engine = new AutoSpark(host, {}, {
-    routes: [/* ... */],
-    dataOptions: {
-        timeout: 5000,
-        retry: 1,
-        cache: 30_000
+    routes: {
+        routes: [/* ... */],
+        dataOptions: {
+            timeout: 5000,
+            retry: 1,
+            cache: 30_000
+        }
     }
 });
 ```

@@ -44,9 +44,15 @@ router 的缓存体系分三个层次，解决不同的问题：
 <div x-outlet="{ keepAlive: true }"></div>
 ```
 
+下面的 demo 中「写邮件」声明了 `keepAlive: true`：在正文输入一些文字，切走再切回，草稿原样保留：
+
+<demo html="router/keepalive.html"/>
+
 ### 页签模式下的缓存生命周期
 
 `mode="tabs"` 出口中全部视图常驻，页签**关闭即销毁**对应视图缓存（DOM 移除，下次进入重新渲染）；关闭当前激活页签时自动导航到相邻页签。
+
+<demo html="router/outlet-tabs.html"/>
 
 ### cache 网络层缓存
 

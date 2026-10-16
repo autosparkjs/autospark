@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>视图加载：三种视图源 + 加载提示</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <script src="/autospark/router-demos/boot.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- ② HTMLElement 视图源：现成 <template>，无需网络请求 -->
+        <template id="tpl-inline">
+            <section>
+                <h3 class="title is-4">内联模板视图</h3>
+                <p>视图源是本页的 <code>&lt;template&gt;</code> 元素，直接克隆编译渲染。</p>
+            </section>
+        </template>
+
+        <div class="demo-app section">
+            <div class="buttons mb-2">
+                <auto-link class="button is-small is-primary" to="/inline">HTMLElement</auto-link>
+                <auto-link class="button is-small is-link" to="/remote">URL（远程 HTML）</auto-link>
+                <auto-link class="button is-small is-warning" to="/slow">函数（慢视图 + 自定义 loading）</auto-link>
+            </div>
+
+            <div x-outlet></div>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+                // 完整路由配置对象形态：mode / base 须与路由表同对象声明（数组形态仅承载路由表）。
+                // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
+                routes: {
+                    mode: "hash",
+                    base: "/autospark/router-demos/",
+                    routes: [
+                        { path: "/", redirect: "/remote" },
+                        // ① URL：远程 HTML，默认按模板编译渲染
+                        { path: "/remote", title: "远程视图", view: "/autospark/router-demos/views/home.html" },
+                        // ② HTMLElement：现成模板元素
+                        { path: "/inline", title: "内联模板", view: document.getElementById("tpl-inline") },
+                        // ③ 函数：动态返回（支持异步）；loading 声明自定义加载提示
+                        {
+                            path: "/slow",
+                            view: () =>
+                                new Promise((resolve) =>
+                                    setTimeout(() => resolve("/autospark/router-demos/views/slow.html"), 800),
+                                ),
+                            loading: '<span class="tag is-warning">拼命加载中…</span>',
+                        },
+                    ],
+                },
+            });
+        </script>
+    </body>
+</html>
