@@ -235,3 +235,176 @@ describe("远程子表展开", () => {
         expect(emitted.map((e) => e.name)).toContain("routes:expanded");
     });
 });
+
+describe("自动发现（autoDiscoverRoutes，ADR-0010）", () => {
+    let restore: () => void;
+    afterEach(() => {
+        restore?.();
+    });
+
+    /** 安装带状态码/原始体的 fetch 桩：body 为字符串时 json() 以 SyntaxError 拒绝（模拟托管 fallback） */
+    function stubStatusFetch(handler: (url: string) => { status?: number; body?: any }) {
+        const original = globalThis.fetch;
+        const calls: string[] = [];
+        globalThis.fetch = ((url: any) => {
+            const urlStr = String(url);
+            calls.push(urlStr);
+            const res = handler(urlStr);
+            const status = res.status ?? 200;
+            return Promise.resolve({
+                ok: status >= 200 && status < 300,
+                status,
+                statusText:
+                    status === 404 ? "Not Found" : status >= 500 ? "Internal Server Error" : "OK",
+                json: () =>
+                    typeof res.body === "string"
+                        ? Promise.reject(
+                              new SyntaxError(`Unexpected token ${(res.body as string)[0]}`),
+                          )
+                        : Promise.resolve(res.body ?? []),
+            }) as any;
+        }) as any;
+        restore = () => {
+            globalThis.fetch = original;
+        };
+        return calls;
+    }
+
+    it("默认关闭：缺 children 的节点不发起探测", async () => {
+        const calls = stubStatusFetch(() => ({ body: [] }));
+        const { table } = makeTable([{ path: "a" }]);
+        await table.load();
+        await table.whenExpanded();
+        expect(calls).toEqual([]);
+        expect(table.hasPending()).toBe(false);
+        const a = (table.root.children as AutoSparkRouteItem[])[0];
+        expect(a._childrenState).toBeUndefined();
+        expect(a.children).toBeUndefined();
+    });
+
+    it("开启后：缺 children 的节点按累积路径探测并展开（根 → /routes.json）", async () => {
+        const calls = stubStatusFetch((url) =>
+            url === "/routes.json" ? { body: [{ path: "a" }] } : { body: [] },
+        );
+        const { table } = makeTable([{ path: "/" }], { autoDiscoverRoutes: true });
+        await table.load();
+        await table.whenExpanded();
+        // 探测到的子项 "a" 缺 children，同样被递归探测（阴性空表）
+        expect(calls).toEqual(["/routes.json", "/a/routes.json"]);
+        expect(table.hasPending()).toBe(false);
+        const matched = matchRoute("/a", table.root);
+        expect(matched[matched.length - 1].route?.path).toBe("a");
+    });
+
+    it("开启后：父级有静态 children 不探测，其子项缺 children 时递归探测", async () => {
+        const calls = stubStatusFetch((url) =>
+            url === "/a/routes.json" ? { body: [{ path: "b" }] } : { body: [] },
+        );
+        const { table } = makeTable([{ path: "/", children: [{ path: "a" }] }], {
+            autoDiscoverRoutes: true,
+        });
+        await table.load();
+        await table.whenExpanded();
+        // 子项 "b" 缺 children，同样被递归探测（阴性空表）
+        expect(calls).toEqual(["/a/routes.json", "/a/b/routes.json"]);
+        const matched = matchRoute("/a/b", table.root);
+        expect(matched[matched.length - 1].route?.path).toBe("b");
+    });
+
+    it("redirect 节点跳过探测", async () => {
+        const calls = stubStatusFetch(() => ({ body: [] }));
+        const { table } = makeTable(
+            [{ path: "a", redirect: "/b" }, { path: "b" }],
+            { autoDiscoverRoutes: true },
+        );
+        await table.load();
+        await table.whenExpanded();
+        expect(calls).toEqual(["/b/routes.json"]);
+        const a = (table.root.children as AutoSparkRouteItem[]).find((r) => r.path === "a")!;
+        expect(a._childrenState).toBeUndefined();
+    });
+
+    it("显式 children: [] 视为声明无子路由，不探测（单节点 opt-out）", async () => {
+        const calls = stubStatusFetch(() => ({ body: [] }));
+        const { table } = makeTable([{ path: "a", children: [] }, { path: "b" }], {
+            autoDiscoverRoutes: true,
+        });
+        await table.load();
+        await table.whenExpanded();
+        expect(calls).toEqual(["/b/routes.json"]);
+        const a = (table.root.children as AutoSparkRouteItem[]).find((r) => r.path === "a")!;
+        expect(a.children).toEqual([]);
+        expect(a._childrenState).toBeUndefined();
+    });
+
+    it("探测 404 = 阴性：静默落定为无子路由，不进错误通道，阴性结果按 URL 缓存", async () => {
+        stubStatusFetch((url) => (url === "/a/routes.json" ? { status: 404 } : { body: [] }));
+        const { table, emitted } = makeTable([{ path: "a" }], { autoDiscoverRoutes: true });
+        await table.load();
+        await table.whenExpanded();
+        const a = (table.root.children as AutoSparkRouteItem[])[0];
+        expect(a._childrenState).toBe("ok");
+        expect(a.children).toEqual([]);
+        expect(table.hasPending()).toBe(false);
+        expect(emitted.filter((e) => e.name === "routes:error")).toHaveLength(0);
+        expect((table as any)._responseCache.has("/a/routes.json")).toBe(true);
+    });
+
+    it("探测 200 但响应非 JSON（托管 fallback）= 阴性：静默落定 + debug 日志", async () => {
+        const debugCalls: any[] = [];
+        stubStatusFetch((url) =>
+            url === "/a/routes.json" ? { body: "<html><body>index</body></html>" } : { body: [] },
+        );
+        const { table, emitted } = makeTable([{ path: "a" }], { autoDiscoverRoutes: true });
+        table.router.logger.debug = (m: any) => debugCalls.push(m);
+        await table.load();
+        await table.whenExpanded();
+        const a = (table.root.children as AutoSparkRouteItem[])[0];
+        expect(a._childrenState).toBe("ok");
+        expect(a.children).toEqual([]);
+        expect(emitted.filter((e) => e.name === "routes:error")).toHaveLength(0);
+        expect(debugCalls.length).toBeGreaterThan(0);
+    });
+
+    it("探测 5xx 仍走降级并发 routes:error，失败不缓存（瞬时故障不钉死）", async () => {
+        stubStatusFetch((url) => (url === "/a/routes.json" ? { status: 500 } : { body: [] }));
+        const { table, emitted } = makeTable([{ path: "a" }], { autoDiscoverRoutes: true });
+        await table.load();
+        await table.whenExpanded();
+        const a = (table.root.children as AutoSparkRouteItem[])[0];
+        expect(a._childrenState).toBe("error");
+        const error = emitted.find((e) => e.name === "routes:error");
+        expect(error?.payload.url).toBe("/a/routes.json");
+        expect((table as any)._responseCache.has("/a/routes.json")).toBe(false);
+    });
+
+    it("显式 children: true 在自动发现开启时 404 仍报错（断言性请求）", async () => {
+        stubStatusFetch((url) => (url === "/a/routes.json" ? { status: 404 } : { body: [] }));
+        const { table, emitted } = makeTable([{ path: "a", children: true }], {
+            autoDiscoverRoutes: true,
+        });
+        await table.load();
+        await table.whenExpanded();
+        const a = (table.root.children as AutoSparkRouteItem[])[0];
+        expect(a._childrenState).toBe("error");
+        expect(emitted.some((e) => e.name === "routes:error")).toBe(true);
+    });
+
+    it("自动发现同样受 maxChildrenDepth 触顶降级约束", async () => {
+        stubStatusFetch(() => ({ body: [{ path: "next" }] }));
+        const { table } = makeTable([{ path: "/" }], {
+            autoDiscoverRoutes: true,
+            maxChildrenDepth: 3,
+        });
+        await table.load();
+        await table.whenExpanded();
+        expect(table.hasPending()).toBe(false);
+        let depth = 0;
+        let node: AutoSparkRouteItem | undefined = table.root;
+        while (node && Array.isArray(node.children) && node.children.length > 0) {
+            depth++;
+            node = node.children[0];
+        }
+        expect(depth).toBe(3);
+    });
+});

@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | `x-define="name"` | 元素属性 | 声明作用域组件，`name` 为组件名（裸属性取名 `default`） |
 | `x-define.open` | 修饰符 | 开放数据边界（≡ `x-define-options="{open:true}"`，详见[数据边界](./data.md#数据边界默认封闭与-open)） |
-| `x-define-options` | 元素属性 | 组件选项：`open`（开放边界开关）、`dataContext`（`'host'\|'declarer'` 数据上下文，须配合 `open`） |
+| `x-define-options` | 元素属性 | 组件选项：`open`（开放边界开关）、`global`（全局注册）、`dataContext`（`'host'\|'declarer'` 数据上下文，须配合 `open`）、`directive`（注册为元素名组件，详见[元素名组件](./directive.md)） |
 | `x-scope` | 元素属性 | 为纯容器建 scope 锚点，让内部 `x-define` 有归属（详见 [x-scope](../directives/x-scope.md)） |
 | `options.components` | engine 构造选项 | 声明全局组件，`Record<string, string>`（字符串模板，自动包装；`open`/`dataContext` 写在字符串根元素上） |
 

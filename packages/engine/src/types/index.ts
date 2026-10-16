@@ -1,8 +1,6 @@
 import type { AutoStoreOptions, ComputedState, Dict, FastEvent } from "autostore";
 import type { ActionDecl } from "../features/action/types";
 import type { TooltipOptions } from "../features/tooltip/types";
-import type { NotificationOptions } from "../features/notifications/types";
-import type { ComponentInstance } from "../features/component/component-instance";
 import type { AutoSparkScope } from "../engine/scope";
 import type { ViewportOptions, ViewportTier } from "../features/viewport/types";
 
@@ -68,7 +66,7 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      * 全局组件表（ADR-0022）：声明全引擎复用的命名组件（字符串入参，懒预编译缓存）。
      *
      * **日常业务组件注册位**（ADR-0094 双注册位）：查找优先级高于 `options.builtinComponents`
-     * ——一般定制内置组件（如接管 `dialog` / `notification` shell、覆盖 `error`）应在本表写同名
+     * ——一般定制内置组件（如接管 `dialog` shell、覆盖 `error`）应在本表写同名
      * 声明。作为 `scope.getComponentDeclaration` 查找链的终点兜底之一——scope 链无命中时先查
      * 本表、再兜底 `builtinComponents`。与局部组件（x-define 声明、入参为 DOM）经同一条
      * `getComponentDeclaration` 链统一取用。供 x-loading 等内置消费者定制其默认 UI（如
@@ -84,7 +82,7 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      * 覆盖**——供明确接管框架内建件（如全站换 shell）时使用；一般定制请走 `components` 同名
      * 覆盖。构造期配置语义：运行时突变不失效缓存。
      *
-     * @default 内置种子表全量（notification/dialog/popover/drawer/error + autospark.notifications.* 五件）
+     * @default 内置种子表全量（dialog/popover/drawer/error 四件；通知族已随通知插件迁出）
      */
     builtinComponents?: Record<string, string>;
     /**
@@ -115,18 +113,6 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      * @default 开启 + 内置默认（TooltipOptions 各键见 ADR-0061 决策 8）
      */
     tooltip?: false | TooltipOptions;
-    /**
-     * 全局通知（ADR-0071）：引擎级子系统 `engine.notifications` 的全局默认。三态：
-     *
-     * - 缺省：默认开启 + 内置默认（pos top-right / delayClose 3000 / showCount 5 / slide）；
-     * - `false`：**整体关闭**——不建容器、不注样式，`engine.notifications`
-     *   别名与内置 `toast` / `confirm` / `task` action 一并 warn + no-op（死句柄，不给半开状态）；
-     * - 配置对象：全局默认（与单次调用 props 同构，单次覆盖全局；`showCount` / `maxLen` /
-     *   `url` / `headers` / `icons` / `shell` / `kinds` 为管理器级键，仅本层生效）。
-     *
-     * @default 开启 + 内置默认（NotificationOptions 各键见 ADR-0071 决策 4/15）
-     */
-    notifications?: false | NotificationOptions;
     /**
      * 全局视口特性（ADR-0105）：ViewportManager 的引擎级配置。三态：
      *
@@ -204,27 +190,9 @@ export interface AutoSparkEvents {
     /** 工具提示隐藏（一切隐藏路径均广播：移出/聚焦离场/断连/stop/命令式） */
     "tooltip:hide": { el: HTMLElement; tip: HTMLElement };
 
-    // ── notifications/<type>/<id>/<verb> 通知（ADR-0071 决策 20 → **ADR-0102 分层命名升级**；
-    //    双通道：总线具体名广播（订阅面可 `*`/`**` 通配）+ 卡片元素 dispatchEvent 同步广播）──
-    /** 记录创建——订阅模式键即本键（`*` 配一段、`**` 配尾段；payload：notification = 组件实例（ADR-0089），el = 卡片根元素，排队未挂为 null） */
-    "notifications/*/*/add": { notification: ComponentInstance; el: HTMLElement | null };
-    /** 记录级补丁生效 / 同 id 原地更新 / task 运行键（progress·paused·completed）变更 */
-    "notifications/*/*/update": { notification: ComponentInstance; el: HTMLElement | null };
-    /** 展示挂载（进场动画发起时） */
-    "notifications/*/*/show": { notification: ComponentInstance; el: HTMLElement | null };
-    /** 展示关闭（一切移除路径均广播：自动关闭 / hide() / delete() / clear() / destroy） */
-    "notifications/*/*/hide": { notification: ComponentInstance; el: HTMLElement | null };
-    /** 已读置位（卡片任意点击 / markRead / markAllRead） */
-    "notifications/*/*/read": { notification: ComponentInstance; el: HTMLElement | null };
-    /** 业务状态补丁（status 键变更） */
-    "notifications/*/*/status": { notification: ComponentInstance; el: HTMLElement | null };
-    /** action 按钮点击——末段 = action 名（value 应答在此；anchor 存在时以发起子树为根额外派发，决策 14） */
-    "notifications/*/*/actions/*": {
-        notification: ComponentInstance;
-        el: HTMLElement | null;
-        action: { title: string; hide: boolean };
-        value?: any;
-    };
+    // ── notifications/<type>/<id>/<verb> 通知事件键已随通知插件迁出（@autospark/components
+    //    ADR-0001）——由插件的 types/augment.ts 声明合并提供；未装插件时无此键。 ──
+
     // ── directive/** 指令生命周期（<name> 占位，跨主体通配） ──
     // scope 通道（Compile/Hybrid）：带 scope.id
     /** 指令 created（scope 通道） */
@@ -280,7 +248,10 @@ export interface AutoSparkEvents {
  * - `viewport`：当前视口档位，构造期同步写初值、跨档响应式更新（`ViewportTier` 六档）。
  * - `version` / `language`：预留位，**当前无任何运行时写入方**——故为可选。
  */
-export type AutoSparkPresetVars = {
+export type AutoSparkPresetMeta = {
+    name?: string
+    title?: string
+    description?: string
     version?: string;
     language?: string;
     viewport: ViewportTier;
@@ -294,11 +265,11 @@ export type AutoSparkPresetVars = {
  *
  * ```ts
  * declare module "autospark" {
- *     interface AutoSparkVars { tenant: string }
+ *     interface AutoSparkMeta { tenant: string }
  * }
  * ```
  */
-export interface AutoSparkVars extends AutoSparkPresetVars {}
+export interface AutoSparkMeta extends AutoSparkPresetMeta { }
 
 /**
  * engine 根状态的完整类型：`store.state` / `engine.state` / `*.globalState` 共用同一
@@ -315,7 +286,7 @@ export type AutoSparkState<State extends Dict = Record<string, any>> = ComputedS
      *
      * **例外**：`options.viewport === false` 或环境无 `matchMedia` 时不存在（`undefined`）。
      */
-    $: AutoSparkVars;
+    $: AutoSparkMeta;
 };
 
 // `?raw` 静态资源导入的类型声明住 src/types/raw.d.ts（ADR-0091/0094）——本文件是模块

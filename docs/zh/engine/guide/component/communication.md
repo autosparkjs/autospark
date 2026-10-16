@@ -1,6 +1,6 @@
 # 组件间通讯
 
-组件实例各自拥有独立的 data 域，默认互不可见（数据边界默认封闭，见[响应式数据 → 数据边界](./data.md#数据边界默认封闭与-open)）。本引擎没有 Vue 那样的 `provide/inject` 或 React 的 Context 专用机制，但靠下面三种**既有的响应式/事件能力**即可覆盖组件间通讯的全部场景。
+组件实例各自拥有独立的 data 域，默认互不可见（数据边界默认封闭，见[响应式数据 → 数据边界](./data.md#数据边界默认封闭与-open)）。本引擎没有 Vue 那样的 `provide/inject` 或 React 的 Context 专用机制，但靠下面四种**响应式/事件能力**即可覆盖组件间通讯的全部场景。
 
 ## 方式一：props 下传（父 → 子）
 
@@ -80,14 +80,46 @@ engine.on('favorite', (e) => {
 
 事件总线适合「一次性的动作通知」（如收藏、删除、跳转），不适合「持续的状态同步」（那用全局 state 更合适，响应式自动驱动）。
 
-## 三种方式怎么选
+## 方式四：组件事件（子 → 父）
+
+组件方法 / 生命周期钩子内可用 `this.emit(事件名, detail)` 向组件根元素派发冒泡 `CustomEvent`（ADR-0117）；消费侧在**同元素**写 `@事件名`（`x-on` 速记）监听，处理函数经 `$event.detail` 取载荷。方式一 props 走父 → 子，组件事件走子 → 父，合起来是完整的父子通讯闭环：
+
+```html
+<div x-define="counter" x-define-options="{ directive: true }">
+    <button x-on:click="inc">+1</button>
+    <script setup>
+        {
+            data: { count: 0 },
+            methods: {
+                inc() {
+                    this.data.count++;
+                    this.emit('change', { count: this.data.count });
+                },
+            },
+        }
+    </script>
+</div>
+
+<!-- 消费侧：同元素 @change 监听 -->
+<x-counter @change="total = $event.detail.count"></x-counter>
+```
+
+要点：
+
+- 事件沿 DOM 冒泡（`bubbles: true`），所以 `@change` 也可以写在组件宿主的任意**祖先元素**上；
+- 与方式三事件总线的区别：`this.emit` 是 **DOM 事件**（面向宿主 / 祖先的定向汇报），`engine.emit` 是**引擎总线事件**（任意位置广播）；
+- `this.emit` 不是元素名形态专属——经 `x-component` 实例化的组件同样可用（事件派发在宿主元素上）；
+- 持续的状态同步仍推荐全局 state；`emit` 适合「子向父汇报动作 / 数值」。
+
+## 四种方式怎么选
 
 | 通讯场景 | 推荐方式 |
 | --- | --- |
 | 父传子配置/初始数据 | **props 下传**（`x-component` 对象） |
+| 子组件向父汇报动作/数值 | **组件事件**（`this.emit` + `@event`） |
 | 多组件共享/同步一份持续状态（如购物车、登录态） | **全局 state**（`this.globalState` + `watch`） |
 | 无父子关系的动作通知（如收藏、收藏计数） | **事件总线**（`engine.emit/on`） |
-| 子组件通知父组件数据变化 | 子写**全局 state**，父 `watch`；或子 `emit`、父 `on` |
+| 子组件通知父组件数据变化 | 组件事件（方式四）；或子写全局 state、父 `watch` |
 
 下面这个 demo 用购物车场景一次性演示三种方式：商品组件（props 下传 + 改全局 state）、合计组件（订阅全局 state 联动）、收藏侧栏（监听事件总线）。
 

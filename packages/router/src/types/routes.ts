@@ -188,9 +188,9 @@ export interface AutoSparkRouteItem {
      * 兼容旧通道时也可能是可调用的 IAsyncSignal。取值侧见 features/render 的 _loadSignal。
      */
     _getData?:
-        | AsyncLoader<Record<string, any>, DataLoaderMeta>
-        | IAsyncSignal<Record<string, any>>
-        | null;
+    | AsyncLoader<Record<string, any>, DataLoaderMeta>
+    | IAsyncSignal<Record<string, any>>
+    | null;
     _dataOptions?: Required<AutoSparkRouteDataOptions>;
     /**
      * 内部属性：本路由项 view 通道最近一次加载的结果标记
@@ -287,6 +287,16 @@ export interface AutoSparkRouteItem {
      * @internal
      */
     _childrenSource?: string | true;
+    /**
+     * 内部属性：本节点子表是否来自自动发现（ADR-0010）
+     *
+     * `true` = 探测节点（**投机性请求**）：404 / 200 但非 JSON 为阴性结果，静默落定为
+     * 无子路由；网络错误/5xx 仍降级。显式声明（`children: true | string`）为
+     * **断言性请求**，失败一律报错——两类来源的错误分级全凭此标记区分。
+     *
+     * @internal
+     */
+    _autoProbe?: boolean;
     meta?: Record<string, any>;
 
     beforeRoute?: BeforeRouteHook | BeforeRouteHook[];
@@ -351,10 +361,10 @@ export type AutoSparkRoutes =
     | AutoSparkRouteItem
     | string
     | (() =>
-          | AutoSparkRouteItem[]
-          | AutoSparkRouteItem
-          | Promise<AutoSparkRouteItem>
-          | Promise<AutoSparkRouteItem[]>);
+        | AutoSparkRouteItem[]
+        | AutoSparkRouteItem
+        | Promise<AutoSparkRouteItem>
+        | Promise<AutoSparkRouteItem[]>);
 
 export type NormalizedAutoSparkRoutes = {
     path: "/";

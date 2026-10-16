@@ -385,13 +385,11 @@
 
     <script type="module">
         import { AutoSpark } from "autospark";
-        import { createRouter } from '/src/index.js';
+        import '/src/index.js'; // 插件自举（ADR-0011）：注册 precompile/ready 回调
 
-        // 创建路由实例
-        // 注入模式：应用创建并拥有 engine 实例（vite 源码场景无 IIFE 全局，须显式注入）
-        const engine = new AutoSpark(document.body, {});
-        const router = createRouter(document.body, {
-            engine,
+        // 插件模式（ADR-0011）：路由意图经 engine 构造 options 声明——完整路由配置对象形态
+        //（视图工厂函数声明提升，此处求值可用）
+        const routerOptions = {
             mode: 'history',
             routes: [
                 {
@@ -515,10 +513,10 @@
                 }
             ],
             debug: true
-        });
+        };
 
-        // 绑定路由到 DOM
-        router.attach();
+        // 挂载：engine 构造 options 声明路由（ready 回调持 engine 构造 router，构造内自行 attach）
+        new AutoSpark(document.body, {}, { routes: routerOptions });
 
         // 创建模态视图内容的辅助函数
         function createBasicModalView() {
@@ -862,7 +860,8 @@
             }
         }
 
-        // 暴露路由实例到全局（用于调试）
+        // 路由器实例挂于宿主元素，暴露到全局（用于调试）
+        const router = document.body.router;
         window.router = router;
 
         console.log('模态路由演示页面已加载');

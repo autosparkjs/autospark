@@ -66,14 +66,10 @@
 
     <script type="module">
         import { AutoSpark } from "autospark";
-        import { createRouter } from "../src/index.ts";
+        import "../src/index.ts"; // 插件自举（ADR-0011）：注册 precompile/ready 回调
 
-        // 注入模式：应用创建并拥有 engine 实例（host 即路由宿主）
-        const engine = new AutoSpark(document.body, {});
-
-        // 创建路由器实例，启用调试模式（缺省 engine 时 router 会自建）
-        const router = createRouter(document.body, {
-            engine,
+        // 插件模式（ADR-0011）：路由意图经 engine 构造 options 声明——完整路由配置对象形态
+        const routerOptions = {
             routes: [
                 {
                     name: "home",
@@ -108,10 +104,13 @@
                     document.title = to.route.meta.title;
                 }
             },
-        });
+        };
 
-        // 将路由器暴露到全局，方便在控制台测试
-        window.router = router;
+        // 挂载：engine 构造 options 声明路由（ready 回调持 engine 构造 router）
+        new AutoSpark(document.body, {}, { routes: routerOptions });
+
+        // 路由器实例挂于宿主元素，暴露到全局方便在控制台测试
+        window.router = document.body.router;
 
         console.log("%c🚀 AutoSparkRouter 初始化完成", "color: green; font-weight: bold");
         console.log("提示: 点击上方按钮进行导航，查看控制台中的调试日志");

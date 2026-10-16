@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>路由守卫：登录拦截</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="field is-grouped mb-2">
+                <auto-link class="button is-small" to="/">首页（公开）</auto-link>
+                <auto-link class="button is-small" to="/admin">管理后台（受保护）</auto-link>
+                <button
+                    class="button is-small"
+                    :class="isLogin ? 'is-success' : 'is-warning'"
+                    @click="toggleLogin()"
+                    x-text="isLogin ? '已登录（点击退出）' : '未登录（点击登录）'"
+                ></button>
+            </div>
+
+            <div x-outlet></div>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            const engine = new AutoSparkSpaces.AutoSpark(
+                host,
+                { isLogin: false },
+                {
+                    actions: {
+                        toggleLogin() {
+                            engine.state.isLogin = !engine.state.isLogin;
+                        },
+                        login() {
+                            engine.state.isLogin = true;
+                            router.home(); // 登录成功回主页
+                        },
+                        logout() {
+                            engine.state.isLogin = false;
+                            router.home();
+                        },
+                    },
+                    routes: {
+                        mode: "hash",
+                        routes: [
+                            { path: "/", title: "首页", view: "/autospark/router-demos/views/home.html" },
+                            { path: "/login", title: "登录", view: "/autospark/router-demos/views/login.html" },
+                            { path: "/admin", title: "管理后台", view: "/autospark/router-demos/views/admin.html" },
+                        ],
+                        // 全局守卫：未登录访问 /admin 时返回目标路径即改道
+                        beforeRoute({ to }) {
+                            const target = to[to.length - 1].url;
+                            if (target === "/admin" && !engine.state.isLogin) return "/login";
+                        },
+                    },
+                },
+            );
+
+            const router = host.router;
+        </script>
+    </body>
+</html>

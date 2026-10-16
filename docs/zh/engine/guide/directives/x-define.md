@@ -67,6 +67,22 @@
 
 <demo html="component/define-global.html"/>
 
+### 元素名组件：`directive`
+
+`x-define-options` 的 `directive` 键把组件注册为**元素名形态指令**——模板中直接写元素标签即实例化（`<x-counter>` ≡ `<div x-component:counter>`，ADR-0117）：
+
+```html
+<div x-define="counter" x-define-options="{ directive: true }">...</div>
+
+<!-- 标签自动推导为 x-counter；静态属性即 props -->
+<x-counter count="100"></x-counter>
+```
+
+- `true`：标签自动推导为 `x-{组件名}`（小写化）；含连字符的非空字符串：自定义标签；`false` / 未声明不注册，非法值 `warn` 忽略；
+- 静态属性即 props（类型推断）、`:name="expr"` 响应式 props、`@event` + `this.emit` 事件监听、保留属性（`class` / `style` / `id` / `data-*` / `x-*`）不折叠——完整规则见[元素名组件](../component/directive.md)。
+
+<demo html="component/define-directive.html"/>
+
 ### 数据与方法（script setup）
 
 `<script setup>`（布尔属性）或 `<script type="autospark/setup">` 声明组件逻辑，对象字面量按段合并；**顶层其余键（非保留键）为私有变量**：
@@ -145,6 +161,7 @@
 | `open`      | `false`           | `.open` | 开放数据边界（声明侧作者契约）；显式布尔**优先于修饰符**（`{open:false}` 可关掉 `.open`），非布尔 warn 回落修饰符值 |
 | `global`    | `false`           | `.global` | 注册为全局组件（跳过归属查找，无祖先 scope 也可声明）；显式布尔**优先于修饰符**（`{global:false}` 可关掉 `.global`），非布尔 warn 回落修饰符值。详见上文「全局组件」 |
 | `dataContext` | `'host'`（消费侧） | —      | 开放状态的数据上下文：`'host'` \| `'declarer'`；仅 `open` 为真生效，声明而无 `open` 时 warn 忽略，非法值 warn 忽略。全局组件不支持 `'declarer'`（warn 忽略） |
+| `directive` | 未声明（不注册） | — | 注册为元素名组件：`true` → 标签 `x-{组件名}`（小写化）；含连字符的非空字符串 → 自定义标签；非法值 warn 忽略。详见[元素名组件](../component/directive.md) |
 
 修饰符即同名布尔选项的快捷写法（`x-define.global` ≡ `x-define-options="{global:true}"`，与 `.open` 同规则，ADR-0007/0115）。
 

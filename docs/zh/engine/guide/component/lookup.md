@@ -148,7 +148,7 @@
 
 ### 全局组件兜底
 
-scope 链到顶未命中时，`getComponentDeclaration` 兜底查全局组件定义表（先查已登记的名，miss 再惰性读构造选项 `options.components` 的字符串模板，自动包装 + 懒预编译）。全局组件与作用域组件经**同一条查找链**取用，消费者无需区分来源；局部同名就近遮蔽全局同名。详见[关于组件 → 全局组件](./index.md#全局组件)与[开发组件 → 全局组件自动包装](./develop.md#全局组件自动包装)。
+scope 链到顶未命中时，`getComponentDeclaration` 兜底查全局组件定义表（先查已登记的名，miss 再惰性读构造选项 `options.components` 的字符串模板，自动包装 + 懒预编译）。全局组件与作用域组件经**同一条查找链**取用，消费者无需区分来源；局部同名就近遮蔽全局同名。详见[全局组件](./global.md)（五条声明通道与查找兜底）与[开发组件 → 全局组件自动包装](./develop.md#全局组件自动包装)。
 
 全局组件定义表有四个写入来源：构造选项 `options.components` / `builtinComponents`（懒预编译）、**模板内联声明 `x-define.global`**（编译期即时注册，无需 JS 配置，见 [x-define](../directives/x-define.md)）、[`engine.registerComponent`](./runtime.md)（不传作用域即全局）、[`x-import`](./remote.md) / loader 的 `.global` 远程注册。四者同表同兜底；动态注册不回写 `options.components`（构造期配置语义）。x-import 触发的就绪信号正是上表「未命中等待」的唤醒来源。`registerComponent` 的归属三态（`scope` / `el` / 全局）、严格单根契约、声明自带 global 时声明为准、覆盖与继承挂起语义详见[运行时创建组件](./runtime.md)。
 

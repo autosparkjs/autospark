@@ -703,16 +703,16 @@ export class Render {
     /**
      * 确保 host 元素内部有至少一个 outlet
      *
-     * 自建 engine 模式已在 engineHost 兜底（编译前插入，可正常激活）；
-     * 注入模式下宿主已编译，无法再插入激活——仅告警提示应用声明出口。
+     * 插件自举路径（engine options 声明 routes）已在 precompile 阶段于首编译前插入默认出口，
+     * 可正常激活；直接构造 router 时宿主已编译，无法再插入激活——仅告警提示应用声明出口。
      */
     protected _ensureDefaultOutlet(this: AutoSparkRouter): void {
         if (findOutlet(this.host).length > 0) {
             return;
         }
         this.logger.warn(
-            "宿主内未找到 autospark.outlet 出口：注入 engine 模式下请在模板中声明 " +
-            "<div x-component:autospark.outlet>（x-outlet 简写仅对自建模式与远程模板生效）",
+            "宿主内未找到 autospark.outlet 出口：请在模板中声明 " +
+            "<div x-component:autospark.outlet>（x-outlet 简写仅对插件自举路径与远程模板生效）",
         );
     }
 }

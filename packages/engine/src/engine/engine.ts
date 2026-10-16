@@ -1,13 +1,14 @@
 import type {
     AutoSparkEvents,
+    AutoSparkMeta,
     AutoSparkOptions,
     AutoSparkPatchContent,
     AutoSparkPatchMode,
     AutoSparkPatchOptions,
     AutoSparkState,
-    AutoSparkVars,
 } from "../types";
 import type { ComponentDef } from "../features/component/component-def";
+import { installAutoComponentDirective } from "../features/component/auto-component";
 import { DirectiveManager } from "../features/directive/manager";
 import { defineDirective as defineDirectiveImpl } from "../features/directive/global-queue";
 import type { DirectiveSpec } from "../features/directive/global-queue";
@@ -16,7 +17,9 @@ import type { DirectiveSpec } from "../features/directive/global-queue";
 import { AutoSparkDirectiveBase } from "../features/directive/base";
 import {
     deletePluginActionDecl,
+    drainPluginBootstrapQueue,
     enqueueDirectiveInstaller,
+    firePluginPrecompile,
     firePluginReady,
     getPluginActionDecl,
     getPluginComponentRaw,
@@ -24,6 +27,7 @@ import {
     pluginActions,
     pluginComponents,
     putSharedComponentDef,
+    registerPluginPrecompile,
     registerPluginReady,
     setupPluginQueue,
     takeSharedComponentDef,
@@ -60,13 +64,12 @@ import { OverlayHandle } from "../features/overlay/handle";
 import { removeOverlayContainer } from "../features/overlay/container";
 import { TooltipManager } from "../features/tooltip/manager";
 import type { TooltipAPI } from "../features/tooltip/types";
-import { NotificationManager } from "../features/notifications/manager";
 import { ViewportManager } from "../features/viewport/manager";
 import { BUILTIN_COMPONENTS } from "../components";
 import { ComponentInstance } from "../features/component/component-instance";
 
 // 框架保留键已下沉 consts.ts（ADR-0093 解环）；转发保持公共导出面不变
-export { NOTIFICATIONS_KEY, SCOPES_KEY } from "../consts";
+export { SCOPES_KEY } from "../consts";
 import { SCOPES_KEY } from "../consts";
 
 /**
@@ -133,6 +136,17 @@ export class AutoSpark<
     }
 
     /**
+     * 注册预编译回调（ADR-0116）：对**在其注册之后构造**的每个 engine 各调一次，时机 =
+     * 构造开头 el 解析后、template 克隆前——回调对 `engine.el` 的 DOM 预处理（简写
+     * transform、默认出口插入等）进模板、随克隆参与首编译。**无 retain**：对已构造的
+     * engine 不补调（错过即错过——首编译不可重放，晚注册的预处理无处生效）；回调抛错
+     * 隔离记日志。script 场景经 IIFE 全局 `AutoSpark.precompile(fn)` 取用。
+     */
+    static precompile(fn: (engine: AutoSpark<any>, autospark: typeof AutoSpark) => void): void {
+        registerPluginPrecompile(fn);
+    }
+
+    /**
      * 定义外部指令并**立即加入安装队列**（定义即全局安装，ADR-0111 决策 5/8）——
      * 插件侧指令定义的**唯一入口**，双重载按实参形态分派：
      *
@@ -170,7 +184,7 @@ export class AutoSpark<
     /** 挂载容器（编译产物替换其子节点，容器本身保留） */
     readonly el: HTMLElement;
     /** 响应式数据源：engine 在 `_createStore` 内自建并拥有（destroy 时销毁）。ADR-0044 */
-    readonly store: AutoStore<State & { $: AutoSparkVars }>;
+    readonly store: AutoStore<State & { $: AutoSparkMeta }>;
     /**
      * engine 自建的默认 configManager（`_createStore` 补缺省时创建）。
      * destroy 时仅销毁此实例；消费者经 `storeOptions.configManager` 传入的不动（所有权对称，ADR-0044）。
@@ -201,8 +215,6 @@ export class AutoSpark<
     readonly animate: AutoSparkAnimator;
     /** 全局工具提示管理单元（ADR-0061）：data-tooltip 约定消费面 + title 编译期转换开关；公共入口经 `tooltip` getter */
     readonly tooltipManager: TooltipManager;
-    /** 全局通知管理单元（ADR-0071）：`extends Map<string, SessionImpl>`（键恒为 string id，可枚举全部存活记录——`notifications.sessions` 即本表正名视图）；公共入口经 `add/confirm/progressbar/load/save/...` / 本表 */
-    readonly notifications: NotificationManager;
     /** 全局视口档位管理单元（ADR-0105）：跨档写 `state.$.viewport` + 根元素 `data-viewport`；`options.viewport: false` 时整体短路 */
     readonly viewport: ViewportManager;
     /** 原始模板（深克隆根元素，保留指令属性作为编译只读输入） */
@@ -213,7 +225,7 @@ export class AutoSpark<
      * 整个 engine 响应式数据驱动的核心：直接暴露 `store.state`（响应式根状态）。
      * 作为 scope 聚合视图（getContext）的根 fallback、模板表达式求值的最终数据源。
      *
-     * 顶层保留键 `$`（元状态容器，ADR-0105）已类型化为必选 `AutoSparkVars`（ADR-0112）——
+     * 顶层保留键 `$`（元状态容器，ADR-0105）已类型化为必选 `AutoSparkMeta`（ADR-0112）——
      * 例外：`options.viewport === false` 或环境无 matchMedia 时容器不注入（类型已知偏差）。
      */
     get state(): AutoSparkState<State> {
@@ -267,6 +279,13 @@ export class AutoSpark<
             );
         }
         this.el = rootEl;
+        // 预加载队列 drain 前移 + precompile 回调（ADR-0116）：构造开头 el 解析后立即执行，
+        // 位置约束 = template 克隆（下方 rootEl.cloneNode）**之前**——插件体此刻注册的
+        // precompile 与既有 precompile 回调对 engine.el 的 DOM 预处理（x-outlet 简写
+        // transform、默认出口插入等）须进模板，随克隆参与首编译；晚于此的改写不生效。
+        // bootstrap 约束：回调内只能注册/做纯 DOM 预处理，不得触碰 engine.store（尚未建立）
+        drainPluginBootstrapQueue(this);
+        firePluginPrecompile(this);
         // global 样式注入时机（ADR-0092）：内置组件的 `<style global>` 随**首次懒预编译**注入
         // （_resolveGlobalComponent 构建 def 即注册——先于任何实例挂载，无 FOUC），不做构造期
         // 预热：head 容器保持惰性创建（构造期预热会提前建共享容器，破坏「无组件声明则无容器」
@@ -306,10 +325,6 @@ export class AutoSpark<
         this.tooltipManager = new TooltipManager(this);
         // UI 外壳注册表（ADR-0077）已退役（ADR-0092 → ADR-0094）：shell 即组件，裸键注册进
         // builtinComponents 注册位，查找走标准组件链（getComponentDeclaration）。
-        // 全局通知（ADR-0071）：引擎级子系统，容器/样式随首个通知懒建（notifications: false 时
-        // 构造即短路——add() warn + no-op）；配套 action（toast/confirm/task）的 handle 闭包
-        // 经 engine 引用惰性触达本管理器，无初始化顺序约束
-        this.notifications = new NotificationManager(this);
         // 全局视口档位（ADR-0105）：构造期同步求值并写 `state.$.viewport` 初值 + 根元素
         // data-viewport——须早于 autostart compile（x-container 编译期 watch $.viewport、
         // 首值即档位真值，无首渲染空档）；viewport: false 时构造即短路
@@ -347,7 +362,7 @@ export class AutoSpark<
     private _createStore(
         state: State,
         options?: Partial<AutoSparkOptions<State>>,
-    ): AutoStore<State & { $: AutoSparkVars }> {
+    ): AutoStore<State & { $: AutoSparkMeta }> {
         if (isAutoStore(state)) {
             throw new Error(
                 "AutoSpark no longer accepts an AutoStore instance. Pass plain state and configure the store via options.storeOptions instead (ADR-0044).",
@@ -360,11 +375,11 @@ export class AutoSpark<
         }
         storeOptions.configKey = "";
         // 断言点（ADR-0112 决策一）：engine 保证构造期注入 `state.$` 元状态容器，store 的
-        // 状态类型因此在 State 之上恒并 `{$: AutoSparkVars}`。唯一断言位——`AutoSparkOptions`
+        // 状态类型因此在 State 之上恒并 `{$: AutoSparkMeta}`。唯一断言位——`AutoSparkOptions`
         // .storeOptions 等公共面维持 `State`，不外溢（变位未验证，不赌）。`AutoStore` 对 State
         // 不变，双向皆不重叠，故经 unknown 双重断言。
         return new AutoStore(state as State, storeOptions) as unknown as AutoStore<
-            State & { $: AutoSparkVars }
+            State & { $: AutoSparkMeta }
         >;
     }
 
@@ -760,7 +775,7 @@ export class AutoSpark<
      * shell 等需要「快照 + 元数据」双件的包内消费者共用；查找语义即标准链（就近遮蔽、
      * `components` > `builtinComponents` 双注册位回退）。
      *
-     * @param name 组件注册名（内置组件为裸键，如 'notification' / 'dialog'）
+     * @param name 组件注册名（内置组件为裸键，如 'dialog' / 'popover'）
      * @returns { snapshot, def }，或 null（未命中/解析失败——消费者回退其内置默认）
      */
     _resolveGlobalComponentFull(
@@ -866,7 +881,7 @@ export class AutoSpark<
         if (!root) {
             warn(
                 `engine.registerComponent: code 须为恰好一个顶级根元素` +
-                    `（多根 / 元素与文本混排 / 纯文本均不支持），未注册（ADR-0086）`,
+                `（多根 / 元素与文本混排 / 纯文本均不支持），未注册（ADR-0086）`,
             );
             return null;
         }
@@ -874,7 +889,7 @@ export class AutoSpark<
         if (!declared) {
             warn(
                 `engine.registerComponent: 根元素 <${root.tagName.toLowerCase()}> 缺少 x-define 声明，` +
-                    `未注册（ADR-0086）`,
+                `未注册（ADR-0086）`,
             );
             return null;
         }
@@ -882,7 +897,7 @@ export class AutoSpark<
         if (expected !== "" && expected !== declared.name) {
             warn(
                 `engine.registerComponent: name "${expected}" 与 code 内 x-define "${declared.name}" ` +
-                    `不一致，以内联名为准（ADR-0086）`,
+                `不一致，以内联名为准（ADR-0086）`,
             );
         }
         // 嵌套声明资源节点补 warn（不改变收集行为，见 warnNestedResourceNodes）
@@ -999,11 +1014,11 @@ export class AutoSpark<
             const warned = global
                 ? this._overrideWarnedGlobal
                 : (this._overrideWarnedScope.get(owner) ??
-                  (() => {
-                      const s = new Set<string>();
-                      this._overrideWarnedScope.set(owner, s);
-                      return s;
-                  })());
+                    (() => {
+                        const s = new Set<string>();
+                        this._overrideWarnedScope.set(owner, s);
+                        return s;
+                    })());
             if (!warned.has(name)) {
                 warned.add(name);
                 warn(
@@ -1032,8 +1047,8 @@ export class AutoSpark<
             const lookupParent = (pname: string): ComponentDef | null => {
                 const snap = owner
                     ? (owner.getComponentDeclaration(pname) ??
-                      this._resolveGlobalComponent(pname) ??
-                      null)
+                        this._resolveGlobalComponent(pname) ??
+                        null)
                     : (this._resolveGlobalComponent(pname) ?? null);
                 if (!snap) return null;
                 return this.getComponentDef(snap) ?? this.getGlobalComponentDef(pname) ?? null;
@@ -1053,7 +1068,7 @@ export class AutoSpark<
             if (first === PENDING_PARENT) {
                 warn(
                     `x-define "${name}": 父组件 "${inherit}" 暂未就绪，已挂起` +
-                        `（父注册后自动解析，ADR-0083）`,
+                    `（父注册后自动解析，ADR-0083）`,
                 );
                 this.addPendingInherit(inherit, () => {
                     const retry = attempt();
@@ -1358,6 +1373,9 @@ export class AutoSpark<
     registerComponentDef(def: ComponentDef): void {
         this._componentDefs.set(def.snapshot, def);
         injectGlobalComponentStyles(this as any, def);
+        // 元素名组件（ADR-0117）：def 携带 directiveTag 即安装元素名形态指令（五条注册路径
+        // 统一收口，凡注册必安装；撞名规则见 installAutoComponentDirective）
+        if (def.directiveTag) installAutoComponentDirective(this, def.name, def.directiveTag);
     }
 
     /**
@@ -1576,11 +1594,11 @@ export class AutoSpark<
                 const warned = targetGlobal
                     ? this._overrideWarnedGlobal
                     : (this._overrideWarnedScope.get(ownerScope!) ??
-                      (() => {
-                          const s = new Set<string>();
-                          this._overrideWarnedScope.set(ownerScope!, s);
-                          return s;
-                      })());
+                        (() => {
+                            const s = new Set<string>();
+                            this._overrideWarnedScope.set(ownerScope!, s);
+                            return s;
+                        })());
                 if (!warned.has(name)) {
                     warned.add(name);
                     this.logger.warn(
@@ -1618,8 +1636,8 @@ export class AutoSpark<
                     const snap = targetGlobal
                         ? (this._resolveGlobalComponent(pname) ?? null)
                         : (ownerScope?.getComponentDeclaration(pname) ??
-                          this._resolveGlobalComponent(pname) ??
-                          null);
+                            this._resolveGlobalComponent(pname) ??
+                            null);
                     if (!snap) return null;
                     return this.getComponentDef(snap) ?? this.getGlobalComponentDef(pname) ?? null;
                 };
@@ -1752,9 +1770,6 @@ export class AutoSpark<
         removeOverlayContainer(this);
         // 工具提示收口（ADR-0061）：摘委托监听 + tooltip 容器整体移除 + 清计时器/兜底循环
         this.tooltipManager.dispose();
-        // 通知收口（ADR-0071 决策 10/18）：全部立即销毁（无动画——离场的延迟移除已被上方
-        // animate.dispose 同步完成）+ 通知容器整体移除 + 持久化终态 flush（keepalive 兜底）
-        this.notifications.dispose();
         // 视口收口（ADR-0105）：反注册 mql + 摘根元素 data-viewport（$.viewport 残留——destroy 不清保留键）
         this.viewport.dispose();
         this.el.replaceChildren();

@@ -6,7 +6,12 @@ export type { RuntimeDirective } from "./features/directive/base";
 // 插件机制（ADR-0111 / ADR-0114）：$.directive 的 spec 类型 + 安装器/就绪回调/
 // 预加载队列元素类型（运行时机制随 engine 引入）
 export type { DirectiveSpec } from "./features/directive/global-queue";
-export type { DirectiveInstaller, PluginBootstrap, PluginReadyCallback } from "./features/plugin";
+export type {
+    DirectiveInstaller,
+    PluginBootstrap,
+    PluginPrecompileCallback,
+    PluginReadyCallback,
+} from "./features/plugin";
 // 组件实例门面（ADR-0080：engine.getComponent(el) 的返回类型）
 export * from "./features/component/component-instance";
 // 图标注册表（ADR-0046/0047：AutoSpark.icons 同一实例的类型与单例导出）
@@ -21,8 +26,9 @@ export type {
     ComponentDataBasis,
     ComponentDataContext,
 } from "./features/component/component-def";
-// 通知体系类型（ADR-0071 NotificationManager/NotificationTask/ProgressTask/NotificationProps/NotificationOptions，manager 运行时随 engine 引入）
-export * from "./features/notifications/types";
+// 覆盖物容器（@autospark/components ADR-0001：通知插件等 overlay 挂载消费者取用——
+// engine 唯一为插件新增的公开面，此前仅 overlay 家族内部使用）
+export { getOverlayContainer } from "./features/overlay/container";
 // 全量转导出 autostore：消费者仅需安装 autospark 即可获得 AutoStore 完整 API（ADR-0030）
 export * from "autostore";
 export * from "./types";

@@ -1,0 +1,6 @@
+# bun test 的全局环境预载：等价于 package.json 中 `--preload ./src/__tests__/test-setup.ts`。
+# 直接运行 `bun test`（不经 npm script）时，保证 happy-dom 全局（HTMLElement 等）
+# 在所有测试文件模块求值前就位——否则 router.ts 静态引入的 components/Base
+# （`class extends HTMLElement`）会在模块加载期抛 ReferenceError，并污染后续文件。
+[test]
+preload = ["./src/__tests__/test-setup.ts"]

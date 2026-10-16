@@ -5,7 +5,9 @@ import "./utils/params";
 // 重新导出类型和API
 export * from "./components";
 export * from "./utils";
-export * from "./router";
+// ADR-0011：AutoSparkRouter 类不再运行时导出（仅类型）——挂载经插件自举（engine
+// 构造 options 声明 routes / autoDiscoverRoutes）或注入构造（options.engine）
+export type { AutoSparkRouter } from "./router";
 export * from "./logger";
 // 全部类型定义（AutoSparkRouterOptions / HeadConfigOptions / 路由与钩子类型…）
 export * from "./types";
@@ -29,20 +31,7 @@ export { AutoSparkJsonViewRenderer } from "./renderers/json";
 export { AutoSparkImageViewRenderer, IMAGE_EXTENSIONS } from "./renderers/image";
 export type { ViewRenderOptions } from "./renderers/types";
 
-// 导入 AutoSparkRouter 类以创建工厂函数
-import { AutoSparkRouter } from "./router";
-import type { AutoSparkRouterOptions as AutoSparkRouterOptionsType } from "./types";
-
-/**
- * 创建路由器实例的工厂函数
- * @param host - 宿主元素
- * @param options - 路由配置选项
- * @returns AutoSparkRouter 实例
- */
-export function createRouter(
-    host: HTMLElement,
-    options: AutoSparkRouterOptionsType | AutoSparkRouterOptionsType["routes"],
-): AutoSparkRouter {
-    const router = new AutoSparkRouter(host, options);
-    return router;
-}
+// 插件自举（ADR-0011）：模块加载即注册 precompile/ready 双回调——engine 构造 options
+// 声明 routes / autoDiscoverRoutes 时自动挂载路由；双路径见 plugin/bootstrap.ts
+import { bootstrapRouterPlugin } from "./plugin/bootstrap";
+bootstrapRouterPlugin();

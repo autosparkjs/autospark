@@ -15,6 +15,9 @@ export * from "./hooks";
 export * from "./config";
 export * from "./events";
 
+// engine 类型面声明合并（ADR-0011：AutoSparkOptions 路由键 + AutoSparkMeta.route）
+export * from "./augment";
+
 // 模态路由相关类型
 export * from "./modals";
 

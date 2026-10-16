@@ -55,6 +55,12 @@ export interface ComponentMethodContext {
     globalState: AutoSparkState<Record<string, any>>;
     /** 当前 scope */
     scope: AutoSparkScope;
+    /**
+     * 组件事件发射（ADR-0117）：向组件根元素派发 `CustomEvent(event, { detail, bubbles: true })`，
+     * 宿主侧以 `@event`（OnDirective，同元素）监听。methods/hook 的 this 上可用
+     * （`scope.getMethodThis()` Proxy 陷阱承接）。
+     */
+    emit(event: string, detail?: any): void;
     [key: string]: any;
 }
 
@@ -205,4 +211,12 @@ export interface ComponentDef {
      * **精确词法解析**（super = 当前执行方法声明层的下一层）。
      */
     methodLayers?: Array<Record<string, (...args: any[]) => any>>;
+    /**
+     * 元素名形态指令标签（ADR-0117）：`x-define-options.directive` 声明产物——`true` →
+     * `x-{组件名}`（小写）、含连字符非空字符串 → 自定义标签（小写化）；`false` / 未声明 /
+     * 非法值为 undefined。注册收口于 `registerComponentDef`——def 携带本字段即安装元素名
+     * 形态指令（`<x-counter>` 直接写标签即实例化，与 `x-component:counter` 全量同构；
+     * 撞名规则见 installAutoComponentDirective）。继承解析按「声明为准」透传子声明值。
+     */
+    directiveTag?: string;
 }

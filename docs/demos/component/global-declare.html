@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>全局组件 · 四条声明通道</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+    <body>
+        <!--
+            全局组件的声明通道，全部落同一张「全局组件定义表」、同一条查找兜底：
+            - ① options.components：构造期声明（字符串模板，自动包装 + 懒预编译缓存）；
+            - ② x-define.global：模板内联声明（≡ x-define-options="{global:true}"，跳过归属、不要求祖先 scope）；
+            - ③ 同名【局部】声明就近遮蔽全局：面板 ③ 声明了同名局部 → 本面板命中局部，
+              未声明局部的面板 ② 仍走全局（就近遮蔽）；
+            - ④ engine.registerComponent(code)：运行期声明（不传 scope/el 即全局；已实例化的实例不热替换）；
+            - ⑤ x-import.global：远程 HTML 批量注册为全局（异步，就绪前显示 loading 占位）。
+        -->
+        <div id="app" x-scope>
+            <!-- ① 构造选项：多顶级节点自动包一层 <div x-define="g-opt"> -->
+            <div class="panel">
+                <div class="label">① options.components —— 构造期声明（字符串模板，自动包装 + 懒预编译）</div>
+                <div x-component:g-opt="{ title: '构造期声明', desc: 'new AutoSpark(el, {}, { components })' }"></div>
+            </div>
+
+            <!-- ② 模板内联全局声明：物理位置在本面板，但归属被跳过，进全局表 -->
+            <div class="panel" x-scope>
+                <div class="label">② x-define.global —— 模板内联声明（无祖先 scope 也成立）</div>
+                <div x-define.global="g-inline">
+                    <div class="gcard inline">
+                        <b class="gcard-title" x-text="title"></b>
+                        <span class="gcard-desc" x-text="desc"></span>
+                    </div>
+                    <script type="autospark/setup">
+                        {
+                            data: {
+                                title: "全局内联卡片",
+                                desc: "x-define.global 声明，全引擎可查",
+                            },
+                        }
+                    </script>
+                    <style>
+                        .gcard.inline {
+                            border-left-color: #3273dc;
+                            background: #f5f9ff;
+                        }
+                    </style>
+                </div>
+                <div x-component:g-inline></div>
+            </div>
+
+            <!-- ③ 同 scope 声明同名局部：本面板消费命中局部；面板 ② 未声明局部，仍是全局 -->
+            <div class="panel" x-scope>
+                <div class="label">
+                    ③ 同名局部声明 —— 就近遮蔽全局（本面板命中局部；对比面板 ② 未声明局部，仍是全局）
+                </div>
+                <div x-define="g-inline">
+                    <div class="gcard local">局部特例卡片（就近遮蔽全局，仅本面板可见）</div>
+                </div>
+                <div x-component:g-inline></div>
+            </div>
+
+            <!-- ④ 运行期声明：点击前 show.rt 为假，注册后翻真触发编译消费 -->
+            <div class="panel">
+                <div class="label">④ engine.registerComponent —— 运行期声明（不传 scope/el 即全局）</div>
+                <button class="button is-link is-small" id="btn-rt">注册全局组件 rt-card 并实例化</button>
+                <div x-if="show.rt"><div x-component:rt-card></div></div>
+            </div>
+
+            <!-- ⑤ 远程批量声明：widgets.html 内含 stat 与 chip 两个 x-define -->
+            <div class="panel" x-scope>
+                <div class="label">⑤ x-import.global —— 远程 HTML 批量注册为全局（异步就绪后渲染）</div>
+                <div x-import.global="/autospark/components/widgets.html"></div>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center">
+                    <div x-component:stat="{ label: '收入', value: '12,580', tone: 'up' }"></div>
+                    <div x-component:stat="{ label: '支出', value: '3,210', tone: 'down' }"></div>
+                    <div x-component:chip="{ text: '远程全局组件' }"></div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const { AutoSpark } = AutoSparkSpaces;
+            const app = document.getElementById("app");
+            const engine = new AutoSpark(
+                app,
+                { show: { rt: false } },
+                {
+                    // ① 构造期声明：多顶级节点 + <script setup> + <style>，首次使用时自动包装并懒预编译
+                    components: {
+                        "g-opt": `
+                            <div class="gcard opt">
+                                <b class="gcard-title" x-text="title"></b>
+                                <span class="gcard-desc" x-text="desc"></span>
+                            </div>
+                            <script type="autospark/setup">{
+                                data: { title: '默认标题', desc: '默认描述' }
+                            }<\/script>
+                            <style>
+                                .gcard.opt { border-left-color: #23d160; background: #f4fff8; }
+                            </style>
+                        `,
+                    },
+                },
+            );
+
+            // ④ 运行期声明：恰好一个带 x-define 的根元素；不传 opts 即注册进全局表
+            document.getElementById("btn-rt").onclick = () => {
+                if (!engine.state.show.rt) {
+                    engine.registerComponent(`
+                        <div x-define="rt-card">
+                            <div class="gcard rt">
+                                <b class="gcard-title">运行时注册的全局组件</b>
+                                <span class="gcard-desc">engine.registerComponent(code)，opts 省略 = 全局</span>
+                            </div>
+                            <style>
+                                .gcard.rt { border-left-color: #ff3860; background: #fff5f7; }
+                            </style>
+                        </div>
+                    `);
+                    engine.state.show.rt = true; // 翻真 x-if → 编译消费 x-component:rt-card → 命中刚注册的全局组件
+                }
+            };
+        </script>
+
+        <style>
+            #app {
+                padding: 24px 16px;
+            }
+            .panel {
+                padding: 16px;
+                border: 1px solid #dbdbdb;
+                border-radius: 8px;
+                margin-bottom: 12px;
+            }
+            .label {
+                font-size: 0.8rem;
+                color: #888;
+                margin-bottom: 8px;
+            }
+            .gcard {
+                padding: 10px 14px;
+                border-left: 3px solid #3273dc;
+                border-radius: 4px;
+                background: #f5f9ff;
+            }
+            .gcard-title {
+                display: block;
+                color: #1f3a68;
+            }
+            .gcard-desc {
+                color: #666;
+                font-size: 0.85rem;
+            }
+            .gcard.local {
+                border-left-color: #ffdd57;
+                background: #fffdf2;
+                color: #7a5b00;
+            }
+            #btn-rt {
+                margin-bottom: 8px;
+            }
+        </style>
+    </body>
+</html>

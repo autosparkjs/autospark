@@ -720,6 +720,7 @@ export class AutoSparkScope {
             "engine",
             "scope",
             "el",
+            "emit",
             "super",
         ]);
         this._methodThis = new Proxy(scope, {
@@ -737,6 +738,14 @@ export class AutoSparkScope {
                         return scope;
                     case "el":
                         return scope.el;
+                    case "emit":
+                        // 组件事件发射（ADR-0117）：向组件根元素派发冒泡 CustomEvent，
+                        // 宿主侧以同元素 @event（OnDirective）监听
+                        return (event: string, detail?: any) => {
+                            scope.el?.dispatchEvent(
+                                new CustomEvent(event, { detail, bubbles: true }),
+                            );
+                        };
                     case "$parent":
                         // 沿链找最近 isComponent 祖先的 Proxy（链式：其 get 陷阱递归处理 $parent）
                         return scope._parentComponentProxy();

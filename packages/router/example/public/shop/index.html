@@ -75,15 +75,10 @@
 
         <script type="module">
             import { AutoSpark } from "autospark";
-            import { createRouter } from "/src/index.ts";
+            import "/src/index.ts"; // 插件自举（ADR-0011）：注册 precompile/ready 回调
 
-            // 注入模式：应用创建并拥有 engine 实例
-            const app = document.getElementById("app");
-            const engine = new AutoSpark(app, {});
-
-            // 创建路由器
-            const router = createRouter(app, {
-                engine,
+            // 插件模式（ADR-0011）：路由意图经 engine 构造 options 声明——完整路由配置对象形态
+            const routerOptions = {
                 debug: true,
                 base: "/shop", // 配置基础路径
                 home: "/", // 配置首页路径
@@ -325,10 +320,14 @@
                         redirect: "/products/smartphones/:id",
                     },
                 ],
-            });
+            };
 
-            // 暴露路由器实例
-            window.router = router;
+            // 挂载：engine 构造 options 声明路由（ready 回调持 engine 构造 router）
+            const app = document.getElementById("app");
+            new AutoSpark(app, {}, { routes: routerOptions });
+
+            // 路由器实例挂于宿主元素，暴露到全局供模板 @click 与控制台使用
+            window.router = app.router;
 
             // 暴露 login 方法给全局（登录页表单提交回调；状态挂根（x-data.global），
             // 经 engine.state 直写——AutoSpark 无 Alpine 的 _x_dataStack 内部机制）

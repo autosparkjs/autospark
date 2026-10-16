@@ -92,7 +92,7 @@ describe("x-slot 出口与内容投影（ADR-0056）", () => {
         expect(host.querySelector("header")!.textContent).toBe("默认头 T");
     });
 
-    test("内容无对应出口：warn + 丢弃（不再前缀编译）", async () => {
+    test("内容无对应出口：静默丢弃（ADR-0107 决策五，组件路径不 warn）", async () => {
         const { root, warns } = mountSlotCaptureWarn(
             `<div x-scope>
                 <div x-define="card"><span class="c">组件</span></div>
@@ -106,7 +106,8 @@ describe("x-slot 出口与内容投影（ADR-0056）", () => {
         const host = root.querySelector("#h")!;
         expect(host.textContent).not.toInclude("无主内容");
         expect(host.querySelector(".c")).not.toBeNull();
-        expect(warns.some((w) => w.includes("无对应出口"))).toBe(true);
+        // 组件路径全量收集、跳过出口清单校验（动态出口名运行期才可知）——未被消费的段静默闲置
+        expect(warns.some((w) => w.includes("无对应出口"))).toBe(false);
     });
 
     test("同名内容多段：首个胜 + warn", async () => {

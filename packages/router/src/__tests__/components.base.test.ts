@@ -25,6 +25,16 @@ function createTestEnvironment() {
     return { window, document };
 }
 
+/** 最小 engine stub（ADR-0011 仅注入模式）：实例管理用例注入 stub，跳过真实 engine 依赖 */
+function stubEngine() {
+    return {
+        getComponentDeclaration: () => ({ name: "autospark.outlet" }),
+        getComponent: () => null,
+        data: () => {},
+        destroy() {},
+    } as any;
+}
+
 describe("AutoSparkRouterElementBase 核心功能测试", () => {
     describe("AutoSparkRouter 实例管理测试", () => {
         it("AutoSparkRouter 应该在 host 元素上设置 data-autospark-router 属性", () => {
@@ -32,7 +42,7 @@ describe("AutoSparkRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new AutoSparkRouter(host, []);
+            const router = new AutoSparkRouter(host, { routes: [], engine: stubEngine() });
 
             // 验证 data-autospark-router 属性已设置
             expect(host.hasAttribute("data-autospark-router")).toBe(true);
@@ -45,7 +55,7 @@ describe("AutoSparkRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new AutoSparkRouter(host, []);
+            const router = new AutoSparkRouter(host, { routes: [], engine: stubEngine() });
 
             // 创建一个中间元素
             const wrapper = document.createElement("div") as any;
@@ -78,7 +88,7 @@ describe("AutoSparkRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new AutoSparkRouter(host, []);
+            const router = new AutoSparkRouter(host, { routes: [], engine: stubEngine() });
 
             // 创建深层嵌套结构
             const level1 = document.createElement("div") as any;
@@ -113,7 +123,7 @@ describe("AutoSparkRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new AutoSparkRouter(host, []);
+            const router = new AutoSparkRouter(host, { routes: [], engine: stubEngine() });
 
             // 创建多个测试元素
             const element1 = document.createElement("div") as any;
@@ -155,7 +165,7 @@ describe("AutoSparkRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new AutoSparkRouter(host, []);
+            const router = new AutoSparkRouter(host, { routes: [], engine: stubEngine() });
 
             // 验证 router 实例的完整性
             expect(router.host).toBeDefined();
@@ -177,7 +187,7 @@ describe("AutoSparkRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new AutoSparkRouter(host, []);
+            const router = new AutoSparkRouter(host, { routes: [], engine: stubEngine() });
 
             // 验证 location 属性
             expect(router.location).toBeDefined();
@@ -219,8 +229,8 @@ describe("AutoSparkRouterElementBase 核心功能测试", () => {
             document.body.appendChild(host1);
             document.body.appendChild(host2);
 
-            const router1 = new AutoSparkRouter(host1, []);
-            const router2 = new AutoSparkRouter(host2, []);
+            const router1 = new AutoSparkRouter(host1, { routes: [], engine: stubEngine() });
+            const router2 = new AutoSparkRouter(host2, { routes: [], engine: stubEngine() });
 
             // 在第一个 router 下创建元素
             const element1 = document.createElement("div");
@@ -258,7 +268,7 @@ describe("AutoSparkRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new AutoSparkRouter(host, []);
+            const router = new AutoSparkRouter(host, { routes: [], engine: stubEngine() });
 
             // 创建复杂的 DOM 结构
             const header = document.createElement("header") as any;
@@ -297,7 +307,7 @@ describe("AutoSparkRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new AutoSparkRouter(host, []);
+            const router = new AutoSparkRouter(host, { routes: [], engine: stubEngine() });
 
             // 创建多个分支
             const branch1 = document.createElement("div") as any;
@@ -345,7 +355,7 @@ describe("AutoSparkRouterElementBase 核心功能测试", () => {
             const host = document.createElement("div") as any;
             document.body.appendChild(host);
 
-            const router = new AutoSparkRouter(host, []);
+            const router = new AutoSparkRouter(host, { routes: [], engine: stubEngine() });
 
             // 创建深层嵌套结构（100层）
             let currentElement = host;

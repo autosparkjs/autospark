@@ -29,6 +29,10 @@ import { hasDirectives } from "../../features/directive/utils/hasDirectives";
 import { hasMustache, isRawTextElement, parseInterpolation, synthAttrExpr } from "./mustache";
 import { collectDataScripts, isDataScript, type DataScriptStash } from "./dataScript";
 import {
+    isAutoComponentClass,
+    isReservedElementAttr,
+} from "../../features/component/auto-component";
+import {
     getDirectiveAttrValue,
     isAsyncDataValue,
     isAsyncHtmlValue,
@@ -102,6 +106,13 @@ export class AutoSparkCompiler {
      * 每实例编译各写各的，无跨实例共享。
      */
     private dataScriptStash = new WeakMap<AutoSparkScope, DataScriptStash>();
+    /**
+     * 元素名自动组件的响应式 props 剥除暂存（ADR-0117）。compileElement 在 scope 构建前
+     * 把宿主模板上的 `:expr` props 属性临时剥除（防被通用管线误实例化为 bind 指令）并以
+     * 模板元素为 key 暂存；生成类 created() 经 consumeAutoComponentProps 消费折叠进
+     * props 值通道，finally 恢复原树（原模板不留痕，重编译幂等）。
+     */
+    private _autoComponentProps = new WeakMap<HTMLElement, Record<string, string>>();
     /**
      * 覆盖物消费者指令名集合（惰性，来自注册表中 `overlayConsumer=true` 的指令类）。
      * 插槽归属剪枝据以判定「元素是否覆盖物宿主」——晚注册指令后首次调用时重建即可，
@@ -929,6 +940,60 @@ export class AutoSparkCompiler {
                 `<style global> 仅在 x-define 组件根的直接子级生效（注册期全局注入，ADR-0087）；当前位置按普通样式元素处理。`,
             );
         }
+        // 元素名自动组件（ADR-0117）：编译期把宿主模板上的 `:expr` props 属性临时剥除
+        // （防被通用管线误实例化为 bind 指令），finally 恢复原树；剥除产物由生成类
+        // created() 经 consumeAutoComponentProps 消费折叠进 props 值通道。
+        const restoreAutoProps = this._stripAutoComponentExprProps(template);
+        try {
+            return this._compileElementInner(template);
+        } finally {
+            restoreAutoProps();
+        }
+    }
+
+    /** noop 恢复闭包（_stripAutoComponentExprProps 未命中时的零成本返回） */
+    private static readonly _NOOP_RESTORE = () => {};
+
+    /**
+     * 剥除元素名自动组件宿主上的 `:expr` props 属性（ADR-0117 编译期半程）。
+     *
+     * 元素名命中**本机制生成的自动组件类**时，把 `:key="expr"` 形态属性从模板临时剥除并
+     * stash（key 为模板元素）；返回恢复闭包（finally 调用，原样写回 + 清 stash——原树不留痕，
+     * 重编译幂等）。保留属性（`:class`/`:style`/`:id`/`:data-*` 等，isReservedElementAttr）
+     * 不剥不折，留走既有 bind 属性绑定语义。非自动组件元素（含预设元素名指令 x-super）零开销跳过。
+     */
+    private _stripAutoComponentExprProps(template: HTMLElement): () => void {
+        const directiveName = this.engine.directives.findByElementName(template.tagName);
+        if (!directiveName) return AutoSparkCompiler._NOOP_RESTORE;
+        const cls = this.engine.directives.get(directiveName);
+        if (!cls || !isAutoComponentClass(cls)) return AutoSparkCompiler._NOOP_RESTORE;
+        const exprs: Record<string, string> = {};
+        const stripped: Array<[string, string]> = [];
+        for (const attr of Array.from(template.attributes)) {
+            if (!attr.name.startsWith(":")) continue;
+            const key = attr.name.slice(1);
+            if (key === "" || isReservedElementAttr(key)) continue;
+            stripped.push([attr.name, attr.value]);
+            exprs[key] = attr.value;
+        }
+        if (stripped.length === 0) return AutoSparkCompiler._NOOP_RESTORE;
+        for (const [name] of stripped) template.removeAttribute(name);
+        this._autoComponentProps.set(template, exprs);
+        return () => {
+            this._autoComponentProps.delete(template);
+            for (const [name, value] of stripped) template.setAttribute(name, value);
+        };
+    }
+
+    /** 读取元素名自动组件宿主的响应式 props 暂存（生成类 created 一次性消费，读后即删） */
+    consumeAutoComponentProps(template: HTMLElement): Record<string, string> | undefined {
+        const exprs = this._autoComponentProps.get(template);
+        if (exprs) this._autoComponentProps.delete(template);
+        return exprs;
+    }
+
+    /** compileElement 主体（剥除恢复包裹后的原流程，见 compileElement） */
+    private _compileElementInner(template: HTMLElement): HTMLElement | OwnsChildrenResult {
         // 数据脚本预扫（ADR-0032）：直接子级 <script type="autospark/data"> 先于指令求值
         // 收集合成，与 x-data 合成单一数据对象走既有注入管道（desugar：位置无关）
         const dataStash = collectDataScripts(this.engine, template);
@@ -1026,9 +1091,14 @@ export class AutoSparkCompiler {
             // （for/if/switch/isolate/slot/tree…），二者保留在 owners（占用子树信号）
             // 但不参与抛错——自检 warn 留在各自 created 的友好路径（U3 对称让位）。
             // （x-dialog/x-overlay 已不 ownsChildren，不会出现在 owners 中。）
-            const throwers = owners.filter(
-                (d) => d.info.name !== "component" && d.info.name !== "teleport",
-            );
+            // 元素名自动组件（ADR-0117）同此豁免：生成类实例化主体语义与 component 一致
+            //（含 x-for 等同元素冲突时走 ComponentDirective.created 的友好 warn 路径）。
+            const throwers = owners.filter((d) => {
+                if (d.info.name === "component" || d.info.name === "teleport") return false;
+                const dCls = this.engine.directives.get(d.info.name);
+                if (dCls && isAutoComponentClass(dCls)) return false;
+                return true;
+            });
             if (throwers.length > 1) {
                 const names = throwers.map((d) => `x-${d.info.name}`).join(" + ");
                 throw new CompileError(

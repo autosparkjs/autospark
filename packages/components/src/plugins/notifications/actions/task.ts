@@ -1,0 +1,21 @@
+/**
+ * task（ADR-0071 决策 23）：payload → `show({type:'task'})`；Task 会话经返回值与
+ * actions/task/resolved 广播 payload 交付（进度推进仍为编程式）。
+ */
+import { triggerAnchor } from "./_anchor";
+import type { AutoSpark, ActionDecl } from "autospark";
+import type { NotificationProps } from "../runtime/types";
+
+/** 构造 task 执行体（依赖 engine 实例——注册期经 engine 参数绑定） */
+export function createTaskSpec(engine: AutoSpark<any>): ActionDecl {
+    return {
+        title: "任务",
+        handle: function (this: unknown, payload?: any) {
+            const props: NotificationProps =
+                typeof payload === "string" ? { title: payload } : { ...(payload ?? {}) };
+            props.type = "task";
+            if (props.anchor == null) props.anchor = triggerAnchor(this) ?? undefined;
+            return engine.notifications.show(props);
+        },
+    };
+}

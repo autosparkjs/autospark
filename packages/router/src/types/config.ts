@@ -116,7 +116,7 @@ export type AutoSparkRouterOptions = {
     /**
      * 约定子表的默认文件名（ADR-0007）
      *
-     * `children: true` 时的解析地址即为此文件名，默认 `"routes.json"`
+     * `children: true` 与自动发现（ADR-0010）的解析地址均为此文件名，默认 `"routes.json"`
      */
     routesFile?: string;
     /**
@@ -126,6 +126,18 @@ export type AutoSparkRouterOptions = {
      * 其地址因拼祖先路径而无限增长）的最坏情况——本包不做循环检测，仅以此兜底
      */
     maxChildrenDepth?: number;
+    /**
+     * 路由表自动发现（ADR-0010）
+     *
+     * `true` 时路由表遍历中对每个未声明 `children` 且非重定向的节点，按约定探测
+     * `{累积路径}/{routesFile}`（默认 `routes.json`）的远程子表；显式 `children: []`
+     * 视为声明无子路由（单节点 opt-out）。探测为投机性请求：404 与「200 但非 JSON」
+     * （SPA 托管 index fallback）按阴性结果静默落定（仅 logger.debug），网络错误/5xx
+     * 仍降级并发 `routes:error`；缓存成功与阴性结果，不缓存其他失败。
+     *
+     * 默认 `false`——关闭时行为与未引入本选项完全一致。
+     */
+    autoDiscoverRoutes?: boolean;
     /**
      * 错误页面配置
      *

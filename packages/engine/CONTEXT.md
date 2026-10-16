@@ -33,11 +33,11 @@ script/IIFE 场景的第三方能力分发单元：一个纯副作用 js 文件�
 _Avoid_: 扩展 / addon（泛化）、模块（引擎内部机制域的正名是「特性 / Feature」）、插件对象（无此实体——插件就是脚本文件）
 
 **插件预加载队列（Plugin Preload Queue）**:
-`globalThis.__AUTOSPARK_PLUGINS__: ((engine, autospark) => void)[]`——插件脚本先于 autospark.js 加载时的**投递通道**：把插件脚本体包成函数推进数组，首个 engine 构造期（`setupPluginQueue` 内、指令安装器循环之前）drain 并执行**一次**，回调收 `(engine, autospark)` 双参（先加载的脚本闭包里拿不到 `AutoSpark`，只能靠参数注入）。一次性语义不靠模块级 flag：drain = `splice(0)` 取快照 + `Object.freeze` 原数组，之后队列恒空且冻结（晚到的 push 在严格模式抛错，不静默失效——ADR-0100 静默坑的反面）。队列是通道不是注册表：注册结果落在类静态上，清空队列对后建 engine 零影响。详见 ADR-0114。
+`globalThis.__AUTOSPARK_PLUGINS__: ((engine, autospark) => void)[]`——插件脚本先于 autospark.js 加载时的**投递通道**：把插件脚本体包成函数推进数组，首个 engine 构造期（构造开头 el 解析后、template 克隆前——ADR-0116 已自 `setupPluginQueue` 前移至此）drain 并执行**一次**，drain 后立即触发 precompile 回调；回调收 `(engine, autospark)` 双参（先加载的脚本闭包里拿不到 `AutoSpark`，只能靠参数注入）。一次性语义不靠模块级 flag：drain = `splice(0)` 取快照 + `Object.freeze` 原数组，之后队列恒空且冻结（晚到的 push 在严格模式抛错，不静默失效——ADR-0100 静默坑的反面）。队列是通道不是注册表：注册结果落在类静态上，清空队列对后建 engine 零影响。详见 ADR-0114 / ADR-0116。
 _Avoid_: 插件表 / 插件注册表（那是类静态上的声明表，不是本队列）、window 键注册表（本队列是 window 键没错，但它是**投递通道**不是注册表——ADR-0111 决策 6 否决的是后者）、模块初始化钩子（不构造 engine 即永不消费）
 
 **插件命名空间（Plugin Namespace）**:
-IIFE 全局 `AutoSpark`——**类与命名空间一体**（jQuery `$` 同构）：既是构造类又承载插件 API（`ready` / `components` / `actions` / `icons` / `directive`），库的其他导出成员（AutoStore 等）挂为类静态。ESM 消费者经 `import { AutoSpark }` 取同一后端（API 挂类静态，window 全局只是 IIFE 形态的呈现）。详见 ADR-0111。
+IIFE 全局 `AutoSpark`——**类与命名空间一体**（jQuery `$` 同构）：既是构造类又承载插件 API（`ready` / `precompile` / `components` / `actions` / `icons` / `directive`），库的其他导出成员（AutoStore 等）挂为类静态。ESM 消费者经 `import { AutoSpark }` 取同一后端（API 挂类静态，window 全局只是 IIFE 形态的呈现）。详见 ADR-0111。
 _Avoid_: `AutoSparkSpaces` 作正名（兼容别名，指向同一对象，旧消费面专用）、`$`（插件脚本内的形参缩写习惯，非 API 名）、window 键注册表（`__AUTOSPARK_COMPONENTS__` / `__AUTOSPARK_DIRECTIVES__` 等**注册表**方案已否决删除；唯一存活的 window 键是预加载队列 `__AUTOSPARK_PLUGINS__`，它是通道不是表）
 
 **插件注册表（Plugin Registry）**:
@@ -47,6 +47,10 @@ _Avoid_: 全局组件表（与 `options.components` 的 per-engine「全局组�
 **$.ready（插件就绪回调）**:
 `AutoSpark.ready(fn)`——注册的回调对**每个 engine 构造完成后**各调用一次（回调收 `(engine, autospark)` 双参，ADR-0114；第二参是命名空间类，前置插件靠它拿到 `$`，既有单参写法兼容）；engine 已存在时注册立即对所有存活 engine 补调（retain 语义）；回调抛错隔离记日志；engine destroy 摘出存活表。回调是「拿 engine 实例做命令式操作 / 引擎级注册」的入口——仅供指定 engine 的资源在回调内走 engine 级注册位（如 `engine.actions[name] = ...`）。
 _Avoid_: DOM ready 语义（jQuery 原义不适用——这里是 per-engine 触发）、onReady（动词化变体，API 名就是 ready）、初始化钩子（它是回调注册面，不是引擎生命周期钩子）
+
+**$.precompile（插件预编译回调）**:
+`AutoSpark.precompile(fn)`——注册的回调对**每个 engine 构造早期**（el 解析后、template 克隆前、store 建立前）各调用一次（ADR-0116）；**无 retain（刻意区别于 `$.ready`）**：晚注册对已存在的 engine 是 no-op——首编译不可重放，错过即显式错过。用途：插件在首编译前对 `engine.el` 做纯 DOM 预处理（如 router 的 x-outlet 简写 transform 与默认出口插入，ADR-0011），改写随克隆参与首编译。bootstrap 约束：回调内只能注册 / 做 DOM 预处理，不得触碰 `engine.store`（尚未建立——需要 per-engine 状态的包进 `$.ready`）。抛错隔离记日志。
+_Avoid_: DOM ready 语义、retain 语义（那是 `$.ready`——首编译窗口不可重放，retain 只会制造「看似生效实则无效」的假象）、编译期指令（本钩子是 DOM 预处理，不是指令系统）
 
 ### 动作层
 
@@ -810,6 +814,10 @@ _Avoid_: 全局组件缓存（强调单一名册，非某层缓存）、组件�
 **运行时组件注册（Runtime Component Registration）**:
 `engine.registerComponent(code, opts?)` —— 把一段**带 `x-define` 的单根组件模板字符串**在运行期登记为组件。归属三态由 `opts` 决定：`scope` / `el`（声明处锚点，等义；`el` 自该元素向上取最近 scope 根，整条链都查不到才降级全局）/ 都不传（全局）。严格单根契约——多根、元素与文本混排、缺声明一律 warn + `null`，**不套用「组件自动包装」**（那是配置入参的宽松面）。同名后注册覆盖并 warn（per 名去重）；**已实例化的组件不热替换**，仅后续实例化取新定义。`x-define:inherit` 复用编译期/x-import 同一继承管线（父未就绪则挂起待父注册事件排水，本次返回 `null`）。**只注册不注销**：作用域注册随 scope 对象一并失去引用而回收，全局注册随 `destroy()` 丢弃。详见 ADR-0086。
 _Avoid_: 运行时定义组件（注册是登记动作，定义仍由 x-define 承载）、动态组件（那是 x-component 的实例化职责）、parseComponent（解析已私有化，不公开）
+
+**元素名组件（Element-name Component）**:
+`x-define-options="{directive:...}"` 声明后组件自动注册为**元素名形态指令**（ADR-0117）：模板直接写元素标签即实例化——`<x-counter>` 与 `<div x-component:counter>` 完全等价（宿主化身、props、插槽、事件全量同构，继承 `ComponentDirective` 机制零分叉）。值双形态：`true` → 标签自动推导 `x-{组件名}`（小写化）；含连字符的非空字符串 → 自定义标签；`false`/未声明不注册（缺省关闭），非法值 warn + 忽略。props 折叠两段协作：静态属性即 props（类型推断 number / boolean / 宽松 JSON / 字符串），`:name="expr"` 响应式 props 由编译期临时剥除 stash、生成类 created 折叠进值通道（优先级 `:expr` > 静态属性 > `x-{组件名}-options`，`x-component-options` 为兼容别名）；保留属性（`class`/`style`/`id`/`data-*`/`x-*`）不折叠、留给宿主化身。事件：组件方法内 `this.emit(event, detail)` 向根元素派发冒泡 CustomEvent，宿主同元素 `@event`（OnDirective）监听。安装收口于 `registerComponentDef`（def 携带 `directiveTag` 即安装，五条注册路径统一；撞名三态：同名同标签幂等 / 撞预设或自定义指令名、元素名被占用 warn + 跳过 / 同名换标签 warn + 覆盖）；继承**声明为准**（子未声明不注册，父声明不扩散）。已知边界：`options.components` 懒预编译通道首个元素名消费不触发懒解析（无 pending 重试）；无 `.directive` 修饰符形态。
+_Avoid_: 自定义元素（非 native customElements——无 Shadow DOM、不注册 customElements、无升级时序）、元素名指令（泛称——元素名触发是指令系统通用能力（指令类 `static elementName`），元素名组件专指本机制生成的组件形态指令）、等效指令（旧文档用名，已正名）、x-tag / x-use（无此语法）
 
 **组件预编译（Component Precompile）**:
 `options.components` 字符串入参首次被 `getComponentDeclaration` 命中时，经 `parseHtmlFragment` 解析 + 自动包装（见「组件自动包装」）为「恰好一个带 `x-define` 的根元素」，组装为 `ComponentDef` 存入**全局组件定义表**（key=组件名，value=定义；快照由 `def.snapshot` 派生），后续命中只 `cloneNode(true)` 不重复解析。**懒编译**——仅首次使用时预编译，未用的全局组件永不解析；失败以 `null` 负缓存，同样只解析一次。预编译产物形态与局部组件 `_collectComponent` 快照一致（未编译、保留指令属性、**不注入 x-scope**），消费者经同一路径渲染。解析失败/空串 → `logger.warn` + 视为未命中。详见 ADR-0022（承接 ADR-0021）决策 11、ADR-0086 决策四。

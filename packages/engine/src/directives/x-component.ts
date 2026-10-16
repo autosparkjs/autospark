@@ -320,8 +320,12 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     private _hasStructuralConflict(): boolean {
         return this.binding.directives.some((d) => {
             // teleport 同元素不视为冲突（ADR-0059 决策六）：实例化主体优先，x-teleport
-            // 在其自身 created 的自检中检测到本指令（ownsChildren）后对称让位退出
-            if (d.info.name === "component" || d.info.name === "teleport") return false;
+            // 在其自身 created 的自检中检测到本指令（ownsChildren）后对称让位退出；
+            // d === this 自我守卫（ADR-0117）：元素名自动组件等子类的 info.name 是组件名
+            //（如 "counter"），迭代会命中自身——不豁免则误报自身冲突
+            if (d === this || d.info.name === "component" || d.info.name === "teleport") {
+                return false;
+            }
             const cls = this.engine.directives.get(d.info.name);
             return !!cls?.ownsChildren?.(d.info);
         });

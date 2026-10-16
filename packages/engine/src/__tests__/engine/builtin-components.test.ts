@@ -8,8 +8,6 @@ import {
     ERROR_COMPONENT_NAME,
     POPOVER_SHELL_NAME,
     DRAWER_SHELL_NAME,
-    SHELL_PRESET_NAME,
-    presetComponentName,
 } from "../../components";
 
 /**
@@ -18,6 +16,10 @@ import {
  * - 点前缀注册名：全部内置组件统一 `autospark.` 命名空间（与用户业务组件零冲突）；
  * - `getComponentDeclaration(name, el?)`：el 省略或反查失败退纯全局，el 有 scope 走链就近；
  * - `def.builtin` 命中点级标记：模板与内置种子逐字相同才为 true，用户任一侧覆盖即 false。
+ *
+ * 通知族已随 @autospark/components ADR-0001 迁出引擎种子表——其注册位/覆盖/族根语义
+ * 由 components 包 `__tests__/features/notifications-*.test.ts` 承接（插件 ready 时
+ * per-engine 写入 builtinComponents 种子，本表不再含通知键）。
  */
 
 describe("内置组件注册位与查找统一（ADR-0094）", () => {
@@ -41,11 +43,11 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
 
     test("点前缀注册：省略 el 纯全局命中内置组件，def.builtin=true", () => {
         const { engine } = spawn(`<div><span>x</span></div>`, {});
-        const snap = engine.getComponentDeclaration(SHELL_PRESET_NAME);
+        const snap = engine.getComponentDeclaration(DIALOG_SHELL_NAME);
         expect(snap).not.toBeNull(); // 省略 el → 纯全局，内置种子兜底
-        const def = engine.getGlobalComponentDef(SHELL_PRESET_NAME);
+        const def = engine.getGlobalComponentDef(DIALOG_SHELL_NAME);
         expect(def?.builtin).toBe(true); // 内置原版标记
-        expect(def?.name).toBe(SHELL_PRESET_NAME);
+        expect(def?.name).toBe(DIALOG_SHELL_NAME);
     });
 
     test("el 反查失败兜底全局：游离元素等价全局消费者", () => {
@@ -74,17 +76,17 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
             {},
             {
                 builtinComponents: {
-                    [SHELL_PRESET_NAME]: `<div class="my-base" x-define="${SHELL_PRESET_NAME}"></div>`,
+                    [DIALOG_SHELL_NAME]: `<div class="my-base" x-define="${DIALOG_SHELL_NAME}"></div>`,
                 },
             },
         );
-        expect(engine.getComponentDeclaration(SHELL_PRESET_NAME)).not.toBeNull(); // 触发懒预编译
-        const def = engine.getGlobalComponentDef(SHELL_PRESET_NAME);
+        expect(engine.getComponentDeclaration(DIALOG_SHELL_NAME)).not.toBeNull(); // 触发懒预编译
+        const def = engine.getGlobalComponentDef(DIALOG_SHELL_NAME);
         expect(def?.builtin).toBe(false); // 接管后非内置原版
         expect(def?.snapshot.className).toBe("my-base");
         // 未覆盖的内置键不受影响
-        expect(engine.getComponentDeclaration(DIALOG_SHELL_NAME)).not.toBeNull();
-        expect(engine.getGlobalComponentDef(DIALOG_SHELL_NAME)?.builtin).toBe(true);
+        expect(engine.getComponentDeclaration(POPOVER_SHELL_NAME)).not.toBeNull();
+        expect(engine.getGlobalComponentDef(POPOVER_SHELL_NAME)?.builtin).toBe(true);
     });
 
     test("双注册位优先级：components 同名压过 builtinComponents", () => {
@@ -94,15 +96,15 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
             {
                 components: {
                     // 不带 x-define → 自动包装打本键名（一般定制通道）
-                    [SHELL_PRESET_NAME]: `<div class="via-components"></div>`,
+                    [DIALOG_SHELL_NAME]: `<div class="via-components"></div>`,
                 },
                 builtinComponents: {
-                    [SHELL_PRESET_NAME]: `<div class="via-builtin" x-define="${SHELL_PRESET_NAME}"></div>`,
+                    [DIALOG_SHELL_NAME]: `<div class="via-builtin" x-define="${DIALOG_SHELL_NAME}"></div>`,
                 },
             },
         );
-        expect(engine.getComponentDeclaration(SHELL_PRESET_NAME)).not.toBeNull(); // 触发懒预编译
-        const def = engine.getGlobalComponentDef(SHELL_PRESET_NAME);
+        expect(engine.getComponentDeclaration(DIALOG_SHELL_NAME)).not.toBeNull(); // 触发懒预编译
+        const def = engine.getGlobalComponentDef(DIALOG_SHELL_NAME);
         expect(def?.snapshot.className).toBe("via-components"); // components 优先级更高
         expect(def?.builtin).toBe(false);
     });
@@ -115,7 +117,7 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
         for (const k of keys) {
             expect(k.startsWith("autospark.")).toBe(true);
         }
-        // overlay 家族 shell + error
+        // overlay 家族 shell + error（通知族已随 @autospark/components ADR-0001 迁出）
         for (const k of [
             DIALOG_SHELL_NAME,
             POPOVER_SHELL_NAME,
@@ -124,15 +126,6 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
         ]) {
             expect(keys.includes(k)).toBe(true);
         }
-        // 通知族（shell 族根 + 三 type；actions 子组件已随 ADR-0097 退役内联）
-        for (const k of [
-            SHELL_PRESET_NAME,
-            presetComponentName("toast"),
-            presetComponentName("task"),
-            presetComponentName("confirm"),
-        ]) {
-            expect(keys.includes(k)).toBe(true);
-        }
-        expect(keys.length).toBe(8); // 4 overlay 家族 shell + error + 通知族 shell + 三 type
+        expect(keys.length).toBe(4); // 4 overlay 家族 shell + error
     });
 });

@@ -8,6 +8,10 @@
  *
  * - **ready 回调表**：per-engine 构造末尾各调一次（retain 语义——晚注册对存活
  *   engine 立即补调）；抛错隔离；destroy 摘除；
+ * - **precompile 回调表**（ADR-0116）：per-engine 构造早期（template 克隆前）各调
+ *   一次，**无 retain**——晚注册 no-op，错过即错过（首个 engine 的首编译不等人）；
+ *   用途：插件在首编译前对 engine.el 做 DOM 预处理（如 router 的 x-outlet 简写
+ *   transform 与默认出口插入）；抛错隔离；
  * - **存活 engine 表**：广播目标（晚到的指令安装器）；构造入表、destroy 摘除；
  * - **指令安装器队列**：模块内存数组（取代 ADR-0100 的 window 键队列——script
  *   顺序加载保证插件文件后于引擎脚本求值，队列不丢）；构造期全量消费，
@@ -84,6 +88,47 @@ export function registerPluginReady(callback: PluginReadyCallback): void {
 export function firePluginReady(engine: AutoSpark<any>): void {
     const autospark = pluginNamespace(engine);
     for (const callback of readyCallbacks) runReadyCallback(callback, engine, autospark);
+}
+
+// ── precompile 回调表（ADR-0116：fire-once、无 retain） ────────────────────────
+
+/**
+ * 预编译回调：engine 构造早期（template 克隆前、store 建立前）各调一次
+ * （`AutoSpark.precompile(fn)` 的元素形态）。
+ */
+export type PluginPrecompileCallback = (engine: AutoSpark<any>, autospark: typeof AutoSpark) => void;
+
+/** 预编译回调表（数组非 Set：无 retain 语义，晚注册 no-op，不去重） */
+const precompileCallbacks: PluginPrecompileCallback[] = [];
+
+/**
+ * 注册预编译回调（`AutoSpark.precompile(fn)` 后端）：仅入表。
+ *
+ * **无 retain（刻意区别于 ready）**：回调只在「注册先于构造」的 engine 上各调一次；
+ * 晚注册对已存在的 engine 是 no-op——错过即错过。首编译是不可重放的事件：entry 模板
+ * 已编译完的 engine 上再做 DOM 预处理毫无意义（编译产物不回改源模板），retain 只会
+ * 造成「看似生效实则无效」的假象，不如让错过显式可见。
+ *
+ * 执行时机（engine.ts 构造序）：el 解析后、template 克隆前——回调对 engine.el 的
+ * DOM 改写进模板，随克隆参与首编译。bootstrap 约束同 ADR-0114 插件体：回调内
+ * **只能注册与做纯 DOM 预处理**，不得触碰 `engine.store`（此刻尚未建立）。
+ */
+export function registerPluginPrecompile(callback: PluginPrecompileCallback): void {
+    precompileCallbacks.push(callback);
+}
+
+/** engine 构造早期触发（engine.ts 在 drain 预加载队列后立即调用）：快照迭代，注册期新入队者不参与本轮 */
+export function firePluginPrecompile(engine: AutoSpark<any>): void {
+    const autospark = pluginNamespace(engine);
+    for (const callback of [...precompileCallbacks]) {
+        try {
+            callback(engine, autospark);
+        } catch (e) {
+            console.error(
+                `AutoSpark.precompile: 预编译回调执行失败，已跳过（ADR-0116）: ${e instanceof Error ? e.message : String(e)}`,
+            );
+        }
+    }
 }
 
 // ── 指令安装器队列（ADR-0111 决策 5：内存队列取代 ADR-0100 的 window 键队列） ────
@@ -167,17 +212,18 @@ export function drainPluginBootstrapQueue(engine: AutoSpark<any>): void {
 
 /**
  * engine 构造期接入（engine.ts 构造中 `DirectiveManager` 创建后、autostart compile 前
- * 调用——安装器先于首次编译注册，保证参与首次编译）：先 drain 预加载队列（ADR-0114，
- * 须在下方安装器循环**之前**——队列里 `$.directive(...)` 的指令要进本数组才能参与首次
- * 编译；若 drain 晚于循环，engine 尚未入存活表，广播补不上 Compile 指令），再全量
- * 消费现有队列 → 本 engine（消费幂等由 DirectiveManager 的 Map 语义 + initialized
- * 集合保证），并入存活表。
+ * 调用——安装器先于首次编译注册，保证参与首次编译）：全量消费现有队列 → 本 engine
+ * （消费幂等由 DirectiveManager 的 Map 语义 + initialized 集合保证），并入存活表。
+ *
+ * **预加载队列的 drain 已前移**（ADR-0116）：移至 engine 构造开头 el 解析后、template
+ * 克隆前执行，drain 后立即 fire precompile 回调——插件体注册的 precompile 须赶在
+ * template 克隆前对 engine.el 做 DOM 预处理，晚于此的改写不进模板。本函数因此不再
+ * drain（ADR-0114 的 drain 唯一调用点移入 engine 构造序）。
  *
  * 活迭代（不快照）：安装器在消费期间再入队时，广播触达不了尚在构造、未入存活表的
  * 本 engine，活迭代补上这条通路。
  */
 export function setupPluginQueue(engine: AutoSpark<any>): void {
-    drainPluginBootstrapQueue(engine);
     for (let i = 0; i < directiveInstallers.length; i++) {
         try {
             directiveInstallers[i](engine);

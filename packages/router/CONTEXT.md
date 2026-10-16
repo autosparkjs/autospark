@@ -31,8 +31,12 @@ _Avoid_: 子路由（vue-router 词）、多级路由
 _Avoid_: 动态路由表（泛称，亦可指顶层远程整表）、懒加载路由（那是 view 的加载时机）
 
 **约定子表（Convention Children）**:
-远程子表的约定式简写——`children: true`，地址取 `options.routesFile`（默认 `"routes.json"`），解析规则与字符串形态完全一致、无特殊分支。
+远程子表的约定式简写——`children: true`，地址取 `options.routesFile`（默认 `"routes.json"`），解析规则与字符串形态完全一致、无特殊分支。自动发现启用后，未声明 children 的节点按**同一约定**自动探测（见「路由表自动发现」）——节点级显式 opt-in 与选项级全局 opt-in 共用一套地址解析。
 _Avoid_: 默认子路由（那是 `default` 键的缺省展开语义）
+
+**路由表自动发现（Auto Route Discovery）**:
+`options.autoDiscoverRoutes: true`（默认 `false`）启用后，路由表遍历中对每个**未声明 children 且非重定向**的节点，按约定探测 `{累积路径}/{routesFile}`（默认 `routes.json`）的远程子表——显式 `children: []` 视为作者声明无子路由（单节点 opt-out），`view`/`modal` 不参与判定。探测是**投机性请求**，阴性结果（404、200 但非 JSON——SPA 托管 index fallback）静默落定为无子路由（仅 `logger.debug`），与显式声明（**断言性请求**，404/坏 JSON 报错）分级；网络错误/5xx 仍降级并发 `routes:error`。探测地址纯派生（累积路径 + routesFile + base，无插值）；取回子项按同一谓词递归探测，机制复用路由表展开（ADR-0007）。缓存成功与阴性结果，不缓存其他失败——瞬时故障不钉死（ADR-0010）。
+_Avoid_: `remoteRoutes`（评审曾用名，弃）、远程路由表（那是顶层 `options.routes` 传 URL）、约定子表（那是节点级显式 `children: true`）、自动探测全节点（`redirect` 与显式空数组不探测）
 
 **远程路由表（Remote Route Table）**:
 顶层 `options.routes` 传 URL 的既有能力——取回整表。与远程子表同族但层级不同：前者取整表，后者取某个路由项的子树。
@@ -91,7 +95,7 @@ attach 初始导航对「直开应用载体」的自动归位——原始 pathna
 _Avoid_: 默认路由兜底（default 是缺省展开机制，不覆盖 unmatched）、404 兜底（unmatched 静默空白是另一议题，存目）、文件名作目录（`z.html` 不产生 `z` 目录层）
 
 **出口简写（x-outlet）**:
-`<div x-outlet>` 是 `<div x-component:autospark.outlet>` 的别名糖，经编译前 DOM 预处理改写（自建 engine 的宿主首编译前、远程模板 renderer 管线内两处生效）；**简写的值透传为 props 表达式**——`<div x-outlet="{ keepAlive: true, mode: 'tabs' }">` 等价于完整形态带值写法。注入 engine 模式的静态模板须写完整形态。
+`<div x-outlet>` 是 `<div x-component:autospark.outlet>` 的别名糖，经编译前 DOM 预处理改写（插件自举的宿主首编译前、远程模板 renderer 管线内两处生效，ADR-0011）；**简写的值透传为 props 表达式**——`<div x-outlet="{ keepAlive: true, mode: 'tabs' }">` 等价于完整形态带值写法。直接构造（注入 engine）的静态模板须写完整形态。
 _Avoid_: x-outlet 指令（它是指令系统之外的预处理，非 engine 指令）
 
 **视图清单（Views）**:
@@ -149,8 +153,20 @@ _Avoid_: 弹窗（泛称）、对话框（UI 形态词）
 ### 集成层
 
 **engine 绑定（Engine Binding）**:
-router 与 AutoSpark engine 实例的接缝——`options.engine` 注入（应用拥有）或缺省自建（router 拥有，经 `window.AutoSparkSpaces.AutoSpark` 运行时探测，产物零 import engine）。
-_Avoid_: 依赖注入框架词（provider/injector）、单例 engine
+router 与 AutoSpark engine 实例的接缝——**仅注入模式**（ADR-0011）：`options.engine` 注入，应用构造并拥有 engine 生命周期，router 纯消费；缺失即抛错。常规启用走插件自举（见下条），构造面仅供直接装配。
+_Avoid_: 依赖注入框架词（provider/injector）、单例 engine、自建模式（`window.AutoSparkSpaces` 运行时探测自建 engine 的旧分支已删除）
+
+**插件自举（Plugin Bootstrap）**:
+router 以 AutoSpark 插件形态挂载、无独立入口——包入口模块加载即注册 precompile / ready 双回调（ADR-0011）：**precompile**（engine 构造早期、模板克隆前，ADR-0116）做出口预处理（默认出口插入 + x-outlet 简写 transform + outlet 组件全局注册 + 内建样式注入，均幂等）；**ready**（构造末尾）按挂载矩阵构造 router 并开始 attach 异步链。注册双路径（ADR-0114）：`window.AutoSpark` 已存在直接注册；否则推预加载队列，首个 engine 构造开头 drain——注册恰赶在该 engine 的首编译之前。
+_Avoid_: `createRouter` 工厂（已删除）、AutoSparkSpaces 探测自建（已删除）、模块加载即挂载（挂载发生在 engine 构造期，非模块求值期）
+
+**挂载矩阵（Mount Matrix）**:
+ready 回调对 `engine.options` 的 sniff 判定表（engine 零核心改动）：`routes: false` 显式禁用压过一切；`routes` 有值（数组 / 单项 / 字符串 URL / 完整配置对象，判据 `"routes" in routes`）挂载该表且 `autoDiscoverRoutes` 不触发；无 routes + `autoDiscoverRoutes: true` 挂默认壳表 `[{path:"/"}]` 并整表发现（ADR-0010 根节点探测 `{base}/routes.json`）；都没有静默不挂载（纯 engine 应用零影响）。
+_Avoid_: 路由配置校验（矩阵只判启用形态，不校验表内容）、`false` 等价缺省（false 压过 `autoDiscoverRoutes`，与未声明语义不同）
+
+**路由快照（$.route）**:
+导航 commit 后写入 engine 元状态容器 `state.$.route` 的响应式快照——`{ path, fullPath, params, query }` 四字段：path/fullPath 取 history location，params 为各层 matched 自浅到深合并（深层覆盖同名浅层键），query 自 URLSearchParams 解析。经 store 响应式代理写入，模板 `$.route.*` 与状态订阅方随导航更新；被新导航取代/中止的导航不写，错误页经同一 commit 点覆盖（ADR-0011）。视图上下文 `$route` / `$params` / `$query` 变量（per-view 编译期注入）是另一机制，勿混。
+_Avoid_: 视图上下文 `$route`（per-view 变量注入，非全局元状态）、路由元数据（`route.meta` 是声明面，本词是运行时快照）
 
 ## 已废弃词条
 
@@ -161,6 +177,9 @@ _Avoid_: 依赖注入框架词（provider/injector）、单例 engine
 - **KylinBits**：非本包词根，属 `packages/theme` 的独立议题，本表仅存目
 - **`autospark-outlet` / `autospark-slot` 自定义元素** → `autospark.outlet` engine 组件（ADR-0002，2026-10-12 渲染载体更换）
 - **`autospark-link` 自定义元素标签名** → `auto-link`（ADR-0009，2026-10-15 命名简化；类名 `AutoSparkLink` 与导出面不变）
+- **`createRouter` 工厂函数** → engine 构造 options 声明 `routes` / `autoDiscoverRoutes` 由插件自举挂载（ADR-0011，2026-10-16 插件化）
+- **`AutoSparkRouter` 运行时导出 / 自建 engine 模式** → 包入口类仅类型导出；直接装配走注入构造（`options.engine`，缺失抛错）（ADR-0011，2026-10-16）
+- **`autospark-router.js` 产物名** → `autospark.router.js`（ADR-0011，2026-10-16 与 `autospark.js` 命名对仗；IIFE 全局名 `AutoSparkRouter` 不变）
 - **Alpine 桥（AutoSparkAlpineStore / AlpineManager）与 x-cssvar / x-inject-data 指令** → engine 响应式体系（ADR-0002）
 - **Outlet 布局 `layout: tabs / collapse`** → ~~stack 先行；tabs/collapse 存目待以 engine 布局件组合重建~~（ADR-0002）→ **tabs 以出口 `mode` prop 内建复活**（ADR-0003 修订：页签需感知路由语义——title/icon 元数据、激活态与 URL 联动，布局件组合做不到）；collapse 仍存目
 - **`data` 选项的 `store` 键**（Alpine.store 全局注册）→ 数据统一走 autospark/data script 注入（ADR-0002）

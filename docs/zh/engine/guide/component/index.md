@@ -81,7 +81,7 @@ const engine = new AutoSpark(el, {}, {
 
 全局组件字符串入参首次使用时，按顶级节点数**自动包装**为「恰好一个带 `x-define` 的根元素」（详见[开发组件 → 全局组件自动包装](./develop.md#全局组件自动包装)），并懒预编译缓存。
 
-除构造期配置外，全局组件也可在**运行期**登记——代码里按数据/按分支决定注册什么时用 [`engine.registerComponent`](./runtime.md)（与 `x-import` 远程加载同一条登记通道，只是数据来自代码而非网络）。
+除构造期配置外，全局组件也可在**运行期**登记——代码里按数据/按分支决定注册什么时用 [`engine.registerComponent`](./runtime.md)（与 `x-import` 远程加载同一条登记通道，只是数据来自代码而非网络）。模板内联声明 `x-define.global`、远程批量注册 `x-import.global`、插件表 `$.components` 等**全部五条声明通道**，见 [全局组件](./global.md)。
 
 <demo html="component/global.html"/>
 
@@ -108,15 +108,17 @@ engine.on("components/card/registered", (m) => {
 ## 深入阅读
 
 - [开发组件](./develop.md)——从零开发一个组件：快速入门五步走，以及 `x-define` 声明细节
+- [全局组件](./global.md)——五条声明通道：`options.components` / `x-define.global` / `registerComponent` / `x-import.global` / 插件表
 - [组件继承](./inherit.md)——`x-define:inherit` 单继承：插槽出口覆盖、三层优先级与 setup 合并
 - [组件递归](./recursive.md)——组件模板内实例化自身：数据驱动的自相似结构与深度保护
 - [实例化组件](./instantiate.md)——`x-component` 用法、props 传递与更新语义
 - [查找组件](./lookup.md)——查声明（归属与查找协议）与取实例（`engine.getComponent(el)` 门面）
 - [响应式数据](./data.md)——`data` 声明、组件上下文 `this`、顶层私有变量、数据边界
-- [组件间通讯](./communication.md)——props 下传 / 全局 state / 事件总线
+- [组件间通讯](./communication.md)——props 下传 / 全局 state / 事件总线 / 组件事件
 - [生命周期](./lifecycle.md)——四阶段钩子与触发时机
 - [样式](./styles.md)——作用域 CSS 与响应式样式 `bind()`
 - [远程组件](./remote.md)——`x-import` 远程加载与批量注册
 - [配置选项](./options.md)——声明 / 实例化 / 远程加载的全部配置项
 - [注意事项](./notes.md)——使用约束与易错点
+- [元素名组件](./directive.md)——`x-define-options.directive`：`<x-counter>` 标签直写实例化
 - [常见问题](./faq.md)——高频问题排查

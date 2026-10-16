@@ -172,6 +172,9 @@ export function resolveComponentInheritance(input: ComponentInheritInput): Inher
             : parentDef.defaults,
         open,
         dataContext,
+        // 元素名指令标签（ADR-0117）：声明为准——取子自身声明（子未声明则不注册，继承不默认
+        // 扩散父的元素名注册；子要元素名形态需自行声明）
+        directiveTag: childDef.directiveTag,
         declarerScope: childDef.declarerScope,
         slots: parentDef.slots,
         inherit,

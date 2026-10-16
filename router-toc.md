@@ -1,6 +1,8 @@
-编写@autospark/router路由文档
+/grilling 编写@autospark/router路由文档
 
 在docs\zh\router文件夹
+
+在vitepress中挂在导航菜单中
 
 侧边栏结构如下：
 
@@ -20,6 +22,7 @@
     缓存
     重定向
     远程路由
+    自动发现路由              // autoDiscoverRoutes
     预加载
     转场动画    
     路由守卫
@@ -39,7 +42,10 @@ API参考
 指南下，每个章节均需要配套demo,章节结构如下：
 ## 关于 
 
+简要语言介该章节所涉及的概念和功能
+
 ## 指南
 
 与该特性相关的各种说明，按子章节分配，每个子章节均需要配套demo
+
 

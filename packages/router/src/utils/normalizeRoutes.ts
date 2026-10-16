@@ -89,6 +89,9 @@ function treeToArray(node: RouteTreeNode): AutoSparkRouteItem[] {
         } else if (rawChildren !== undefined && !Array.isArray(rawChildren)) {
             // 远程子表地址 / 约定子表简写：原样透传，交由路由表展开处理（ADR-0007）
             route.children = rawChildren;
+        } else if (Array.isArray(rawChildren)) {
+            // 显式空数组 = 作者声明「无子路由」：保留，作为自动发现的单节点 opt-out（ADR-0010）
+            route.children = [];
         }
 
         result.push(route);
@@ -220,6 +223,9 @@ export function normalizeRoutes(routes?: AutoSparkRouteItem | AutoSparkRouteItem
     } else if (existingRoot && !Array.isArray(existingRoot.children) && existingRoot.children !== undefined) {
         // 根路由声明的远程子表 / 约定子表：原样透传（ADR-0007）
         result.children = existingRoot.children;
+    } else if (existingRoot && Array.isArray(existingRoot.children)) {
+        // 根路由显式空数组 = 声明无子路由：保留（自动发现 opt-out，ADR-0010）
+        result.children = [];
     }
 
     return result;

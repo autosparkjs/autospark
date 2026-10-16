@@ -22,6 +22,21 @@
 - **组件名是静态的**（写在属性参数里，编译期可知）——不支持响应式切换组件名；要条件切换组件，把 `x-if` 写在外层包裹元素上，分支内各自实例化。
 - **无属性参数**（如误写 `x-component="counter"`）会 `warn` 缺少组件名并跳过实例化；值恰为纯标识符时警告会附言迁移指引（旧定义写法请改用 `x-define`）。
 
+## 元素名形态
+
+声明侧 `x-define-options="{ directive: true }"` 后，组件可**直接写元素标签实例化**（ADR-0117）——`<x-counter>` 与 `<div x-component:counter>` 完全等价：
+
+```html
+<div x-define="counter" x-define-options="{ directive: true }">...</div>
+
+<!-- 静态属性即 props（类型推断）、:expr 响应式 props、@event 事件监听 -->
+<x-counter count="100" :step="step" @bump="log.push($event.detail)"></x-counter>
+```
+
+保留属性（`class` / `style` / `id` / `data-*` / `x-*`）不折叠为 props，下文属性继承照常生效。自定义标签名、props 优先级、撞名保护等完整规则见[元素名组件](./directive.md)。
+
+<demo html="component/define-directive.html"/>
+
 ## 传递 props
 
 props 注入组件的**同一个 data 域**，合并顺序是 `data` 默认先注入、props 后覆盖（外部优先）。三种形态：

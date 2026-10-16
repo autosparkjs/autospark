@@ -75,12 +75,7 @@ export class ActionManager {
             else delete initActions[k];
         }
         // 内置信号型 action 只补用户未占用的键（用户优先）；表与构造逻辑见 builtins.ts（ADR-0036 决策 7）。
-        // engine 实参供 toast 键的执行体绑定（engine.toast，ADR-0068 决策 15）
-        registerBuiltinActions(
-            initActions,
-            (type, payload) => this.engine.emit(type as any, payload),
-            this.engine,
-        );
+        registerBuiltinActions(initActions, (type, payload) => this.engine.emit(type as any, payload));
     }
 
     /**

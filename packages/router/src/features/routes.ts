@@ -4,6 +4,7 @@
  * 负责：
  * - 路由表初始化和规范化
  * - 远程子表 / 约定子表的后台渐进展开（ADR-0007）
+ * - 自动发现：对未声明 children 的节点按约定探测远程子表（ADR-0010）
  * - 路由匹配和参数提取
  *
  * 不负责：运行时路由表增删改（addRoute / removeRoute / loadRemoteRoutes），
@@ -38,6 +39,23 @@ interface PendingNode {
 const DEFAULT_ROUTES_FILE = "routes.json";
 /** 远程子表默认最大展开深度（ADR-0007） */
 const DEFAULT_MAX_CHILDREN_DEPTH = 10;
+
+/**
+ * 探测类请求的阴性失败（ADR-0010 决策 4）
+ *
+ * 自动探测是**投机性请求**：「没拿到可用的子路由声明」即为阴性结果，不区分阴性原因——
+ * 404 与 SPA 托管 index fallback（200 + HTML，`json()` 解析失败）同权，静默落定为无子路由。
+ * 显式声明（`children: true | string`）是**断言性请求**，同型失败一律走既有降级链报错。
+ */
+class NegativeChildrenError extends Error {
+    /** 阴性类别："not-found" = 404；"parse" = 200 但响应体不是 JSON */
+    readonly kind: "not-found" | "parse";
+    constructor(kind: "not-found" | "parse", url: string, message?: string) {
+        super(message ?? `Negative when load ${url} : ${kind}`);
+        this.name = "NegativeChildrenError";
+        this.kind = kind;
+    }
+}
 
 export class AutoSparkRouteTable {
     /** 根路由 - 规范化后的路由树根节点 */
@@ -153,10 +171,32 @@ export class AutoSparkRouteTable {
             item.children = [];
             item._childrenState = "pending";
             this._pendingCount++;
+        } else if (this._shouldAutoProbe(item)) {
+            // 自动发现（ADR-0010）：缺席 = 未知，按约定探测 {累积路径}/{routesFile}；
+            // 打 _autoProbe 标记与显式声明区分（阴性分级与缓存策略都依赖它）
+            item._childrenSource = true;
+            item.children = [];
+            item._childrenState = "pending";
+            item._autoProbe = true;
+            this._pendingCount++;
         }
         if (Array.isArray(item.children)) {
             item.children.forEach((child) => this._markPending(child, childPath));
         }
+    }
+
+    /**
+     * 自动发现探测谓词（ADR-0010 决策 2）
+     *
+     * `children === undefined`（缺席 = 未知）且非重定向节点；显式 `children: []`
+     * （归一化后仍为数组）= 作者明确声明无子路由，不探测；`view` / `modal` 不参与判定。
+     */
+    private _shouldAutoProbe(item: AutoSparkRouteItem): boolean {
+        return (
+            !!this.router.options.autoDiscoverRoutes &&
+            item.children === undefined &&
+            !item.redirect
+        );
     }
 
     /**
@@ -251,6 +291,17 @@ export class AutoSparkRouteTable {
             });
             return out;
         } catch (e: any) {
+            // 探测类请求的阴性分级（ADR-0010 决策 4）：404 / 200 非 JSON = 阴性结果，
+            // 静默落定为无子路由（ok/空），不进错误通道；parse 阴性落一条 debug 供排查
+            if (item._autoProbe && e instanceof NegativeChildrenError) {
+                if (e.kind === "parse") {
+                    this.router.logger.debug(
+                        `[AutoSparkRouter] 自动探测 ${url} 响应非 JSON（疑似托管 fallback），视为无子路由`,
+                    );
+                }
+                this._settle(item, "ok");
+                return [];
+            }
             this._degrade(item, e instanceof Error ? e : new Error(String(e)), url);
             return [];
         }
@@ -261,6 +312,10 @@ export class AutoSparkRouteTable {
      *
      * 按 URL 缓存响应；带超时信号但**不接导航取消信号**——子表是表结构的一部分，
      * 用户点快了就掐断会让路由表永久缺一块（ADR-0007 决策 3）。
+     *
+     * 失败分类（ADR-0010 决策 4）：404 与「200 但响应体非 JSON」抛阴性错误
+     * {@link NegativeChildrenError}（探测按阴性静默、显式声明仍报错），其余失败
+     * （网络错误/5xx/超时）抛普通错误走降级链。
      */
     private _fetchChildren(url: string, item: AutoSparkRouteItem): Promise<any> {
         const cached = this._responseCache.get(url);
@@ -276,13 +331,37 @@ export class AutoSparkRouteTable {
         const pending = fetch(url, { signal: controller.signal })
             .then(async (response) => {
                 if (!response.ok) {
-                    throw new Error(`Fail when load ${url} : ${response.statusText}`);
+                    throw response.status === 404
+                        ? new NegativeChildrenError(
+                              "not-found",
+                              url,
+                              `Fail when load ${url} : ${response.statusText}`,
+                          )
+                        : new Error(`Fail when load ${url} : ${response.statusText}`);
                 }
-                return await response.json();
+                try {
+                    return await response.json();
+                } catch (e: any) {
+                    // 仅解析失败按阴性计；abort（超时）等非解析失败原样上抛
+                    if (e instanceof SyntaxError) {
+                        throw new NegativeChildrenError("parse", url);
+                    }
+                    throw e;
+                }
             })
             .finally(() => {
                 if (timer) clearTimeout(timer);
             });
+
+        if (item._autoProbe) {
+            // ADR-0010 决策 5：探测仅缓存成功与阴性结果（确定性结果，避免重复探测），
+            // 其他失败不缓存——瞬时网络故障不钉死，后续调用可重试
+            pending.catch((e) => {
+                if (!(e instanceof NegativeChildrenError)) {
+                    this._responseCache.delete(url);
+                }
+            });
+        }
 
         this._responseCache.set(url, pending);
         return pending;

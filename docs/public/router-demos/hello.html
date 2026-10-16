@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>快速入门：第一个 Router 应用</title>
+        <!-- 双加载顺序兼容：先 engine 后 router（预加载队列兜底） -->
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <!-- 导航：auto-link 组件，点击交给 router 接管 -->
+            <div class="buttons mb-2">
+                <auto-link class="button is-small is-primary" to="/">首页</auto-link>
+                <auto-link class="button is-small" to="/about">关于</auto-link>
+            </div>
+
+            <!-- 路由出口：匹配到的视图渲染在这里 -->
+            <div x-outlet></div>
+
+            <!-- 全局响应式路由快照 $.route，导航 commit 后自动更新 -->
+            <p class="help mt-2">当前路由快照 $.route.fullPath：<code x-text="$.route ? $.route.fullPath : '—'"></code></p>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            // engine 构造第三参声明 routes → router 插件自举挂载
+            // demo 运行于 hash 模式（完整配置对象形态）；真实应用默认 history 模式
+            const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+                routes: {
+                    mode: "hash",
+                    routes: [
+                        { path: "/", title: "首页", view: "/autospark/router-demos/views/home.html" },
+                        { path: "/about", title: "关于", view: "/autospark/router-demos/views/about.html" },
+                    ],
+                },
+            });
+
+            // router 实例挂在宿主上，供命令式导航等高级用法
+            const router = host.router;
+        </script>
+    </body>
+</html>

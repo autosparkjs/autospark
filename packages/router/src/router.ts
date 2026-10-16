@@ -33,7 +33,7 @@ import type { AutoSpark } from "autospark";
 import { joinPath, matchRoute } from "./utils";
 import { createLogger, type AutoSparkRouterLogger } from "./logger";
 import { removePathPrefix } from "./utils/removePathPrefix";
-import { errorPages } from "./pages/errors"; 
+import { errorPages } from "./pages/errors";
 
 export class AutoSparkRouter extends Mixin(
     Context,
@@ -218,8 +218,8 @@ export class AutoSparkRouter extends Mixin(
             options && typeof options === "object" && "routes" in options
                 ? options
                 : {
-                      routes: options,
-                  },
+                    routes: options,
+                },
         );
         // base 缺省链（ADR-0006 决策 2a/2b）：显式配置 > 文档 <base href> 标签 > URL 目录推断。
         // base 移出 defaults 由本处条件填充——显式传 undefined 视为未设置（不再覆盖推断值）。
@@ -265,6 +265,35 @@ export class AutoSparkRouter extends Mixin(
      */
     protected _hasRealMatch(toRoute: AutoSparkMatchedRouteItem[]): boolean {
         return toRoute.slice(1).some((matchedItem) => matchedItem.route !== undefined);
+    }
+
+    /**
+     * 导航 commit 后把路由快照写入元状态容器 `state.$.route`（ADR-0011）。
+     *
+     * 经 store 响应式代理写入（`engine.store.state.$` 现读现写），模板 `$.route.*`
+     * 与状态订阅方随导航响应式更新。`$` 为引擎保留键（ADR-0105）：默认由
+     * ViewportManager 注入；`viewport: false` 时此处兜底建空容器（该组合下无框架
+     * 标记冲突——viewport 关闭即无人再写 `$.viewport`）。
+     */
+    protected _syncRouteState(toRoute: AutoSparkMatchedRouteItem[]): void {
+        const engine = this.engine;
+        if (!engine) return;
+        const store = (engine as { store?: { state?: Record<string, any> } }).store;
+        if (!store?.state) return; // 最小 engine 面（测试 stub）无 store：跳过快照
+        const state = store.state;
+        const meta = (state.$ ??= {});
+        const location = this.history.location;
+        // 各层 matched 参数自浅到深合并（深层覆盖同名浅层键）
+        const params: Record<string, string> = {};
+        for (const matched of toRoute) Object.assign(params, matched.params ?? {});
+        const query: Record<string, string> = {};
+        for (const [key, value] of new URLSearchParams(location.search)) query[key] = value;
+        meta.route = {
+            path: location.pathname,
+            fullPath: location.pathname + location.search,
+            params,
+            query,
+        };
     }
 
     /**
@@ -423,6 +452,9 @@ export class AutoSparkRouter extends Mixin(
             if (navVersion === this.currentNavVersion && !navSignal.aborted) {
                 this._headApplyRoutePhase(toRoute);
                 this._headScheduleViewPhase(toRoute, navVersion);
+                // 路由快照写入元状态容器（ADR-0011）：渲染完成即 commit（错误页经
+                // _renderRoutes 内部渲染，同点覆盖）；被新导航取代/中止的路径不写
+                this._syncRouteState(toRoute);
             }
         } finally {
             // 清理导航状态（只有当前导航版本才清理）
@@ -683,61 +715,61 @@ export class AutoSparkRouter extends Mixin(
         // SEO head 管理（捕获种子标题 + 注册内部 routeError 钩子；head:false 时跳过）
         this._headAttach();
         this.routes.load().then(async () => {
-                // 初始化组件加载器，传递全局视图选项
-                this.viewLoader = new ViewLoader(this);
-                // 初始化数据加载器，传递全局数据选项
-                this.dataLoader = new DataLoader(this);
-                // 开始监听路由变化
-                this._cleanups.push(this.history.listen(this.onRouteUpdate.bind(this)));
+            // 初始化组件加载器，传递全局视图选项
+            this.viewLoader = new ViewLoader(this);
+            // 初始化数据加载器，传递全局数据选项
+            this.dataLoader = new DataLoader(this);
+            // 开始监听路由变化
+            this._cleanups.push(this.history.listen(this.onRouteUpdate.bind(this)));
 
-                // 文档级链接点击委托：统一接管 auto-link 与 plain <a> 导航（组件自身不绑定监听）
-                this._cleanups.push(this._attachLinkDelegation());
+            // 文档级链接点击委托：统一接管 auto-link 与 plain <a> 导航（组件自身不绑定监听）
+            this._cleanups.push(this._attachLinkDelegation());
 
-                // 设置 context provider
-                this.attachContextProvider();
+            // 设置 context provider
+            this.attachContextProvider();
 
-                // 初始化模态容器（容器复用、样式注入幂等；不初始化则 openModal 因
-                // modalContainer 为 null 在 _renderModal 崩溃）
-                this._initModals();
+            // 初始化模态容器（容器复用、样式注入幂等；不初始化则 openModal 因
+            // modalContainer 为 null 在 _renderModal 崩溃）
+            this._initModals();
 
-                // engine 接管（替代 Alpine 桥）：注入或自建 + outlet 组件注册（ADR-0002）
-                this._engineBinding = setupRouterEngine(this);
+            // engine 接管（ADR-0002 / ADR-0011）：注入模式绑定 + outlet 组件注册
+            this._engineBinding = setupRouterEngine(this);
 
-                // 出口兜底检查（自建模式已在 engineHost 编译前插入；注入模式仅告警）
-                this._ensureDefaultOutlet();
-                this.attached = true;
-                this.emit("routes:attached", undefined);
-                // 标记为已绑定
-                // 初始导航：按当前 URL 恢复路由状态（直达/刷新/前进后退落地）。
-                // 骨架先匹配、命中即渲染（home 场景零等待）；仅 unmatched 才等路由表
-                // 展开完成后重判一次（ADR-0007 决策 3），使声明在远程子表里的 deep-link
-                // 得以落地——否则表还没长全就被判为 404。
-                // 入口文档直开（ADR-0006 修订版）：原始 pathname 以 .html/.htm 结尾（对齐
-                // getBaseUrl 的扩展名集合）即视为载体直开（如 /public/shop/index.html、
-                // /shop/a.html、/shop/x/y/z.html）——试匹配命中（路由 path 带 .html
-                // 的合法场景）正常渲染，未命中才归位 home（地址栏落 base 根）。
-                // 未显式 base 时 getBaseUrl 构造期已把入口文件所在目录推断为 base，
-                // 归位即落目录根（/shop/x/y/z.html → /shop/x/y/z）
-                const rawPathname = this.history.location.pathname;
-                const currentPath = removePathPrefix(rawPathname, this.options.base);
-                const isEntryDoc =
-                    rawPathname.endsWith(".html") || rawPathname.endsWith(".htm");
-                if (currentPath === "" || currentPath === "/") {
+            // 出口兜底检查（插件自举路径已在 precompile 阶段于首编译前插入；直接构造仅告警）
+            this._ensureDefaultOutlet();
+            this.attached = true;
+            this.emit("routes:attached", undefined);
+            // 标记为已绑定
+            // 初始导航：按当前 URL 恢复路由状态（直达/刷新/前进后退落地）。
+            // 骨架先匹配、命中即渲染（home 场景零等待）；仅 unmatched 才等路由表
+            // 展开完成后重判一次（ADR-0007 决策 3），使声明在远程子表里的 deep-link
+            // 得以落地——否则表还没长全就被判为 404。
+            // 入口文档直开（ADR-0006 修订版）：原始 pathname 以 .html/.htm 结尾（对齐
+            // getBaseUrl 的扩展名集合）即视为载体直开（如 /public/shop/index.html、
+            // /shop/a.html、/shop/x/y/z.html）——试匹配命中（路由 path 带 .html
+            // 的合法场景）正常渲染，未命中才归位 home（地址栏落 base 根）。
+            // 未显式 base 时 getBaseUrl 构造期已把入口文件所在目录推断为 base，
+            // 归位即落目录根（/shop/x/y/z.html → /shop/x/y/z）
+            const rawPathname = this.history.location.pathname;
+            const currentPath = removePathPrefix(rawPathname, this.options.base);
+            const isEntryDoc =
+                rawPathname.endsWith(".html") || rawPathname.endsWith(".htm");
+            if (currentPath === "" || currentPath === "/") {
+                this.home();
+            } else {
+                const matched = await this._matchRouteAfterExpansion(
+                    currentPath,
+                    this.history.location.search,
+                );
+                if (this._hasRealMatch(matched.toRoute)) {
+                    this.replace(rawPathname);
+                } else if (isEntryDoc) {
                     this.home();
                 } else {
-                    const matched = await this._matchRouteAfterExpansion(
-                        currentPath,
-                        this.history.location.search,
-                    );
-                    if (this._hasRealMatch(matched.toRoute)) {
-                        this.replace(rawPathname);
-                    } else if (isEntryDoc) {
-                        this.home();
-                    } else {
-                        this.replace(rawPathname);
-                    }
+                    this.replace(rawPathname);
                 }
-            })
+            }
+        })
             .catch((e) => {
                 this.logger.error("路由表加载失败:{}", e);
             });
@@ -763,10 +795,7 @@ export class AutoSparkRouter extends Mixin(
         // 清理 DataLoader 资源
         this.dataLoader.cleanup();
 
-        // 销毁自建的 engine（注入的 engine 由应用拥有，不处置）
-        if (this._engineBinding?.owned) {
-            this._engineBinding.engine.destroy();
-        }
+        // engine 归应用所有（ADR-0011 仅注入模式），detach 不处置
         this._engineBinding = undefined;
 
         // 清理 AbortController

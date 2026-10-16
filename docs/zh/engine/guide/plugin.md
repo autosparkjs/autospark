@@ -4,6 +4,8 @@
 
 AutoSpark 提供 jQuery 风格的插件机制：**插件就是一个 js 文件**——无需注册协议、无需构建步骤，与脚本场景（`<script>` 直引）天然契合。插件可注册全局组件、指令、action、图标，也可通过就绪回调拿到引擎实例做命令式操作。
 
+类型的那一半见[类型扩展](./plugin/types.md)——插件如何用 `declare module "autospark"` 为宿主应用扩展 `AutoSparkOptions`、状态与事件类型。
+
 插件有两种加载位置：**后置**（在 `autospark.js` 之后，闭包直接拿 `AutoSpark`）与**前置**（在 `autospark.js` 之前，把脚本体包进预加载队列，见[前置加载](#前置加载)）。两者都必须在 `new AutoSpark()` **之前**。
 
 ```html

@@ -1,31 +1,32 @@
 import type { AutoSpark } from "autospark";
 import type { AutoSparkRouter } from "@/router";
-import { registerOutletComponent, OUTLET_COMPONENT_NAME, OUTLET_COMPONENT_CODE } from "./outletComponent";
-import { transformXOutlet } from "./xOutlet";
+import { registerOutletComponent } from "./outletComponent";
 
 /**
- * engine 集成层（ADR-0002）：router 与 AutoSpark engine 的接缝。
+ * engine 集成层（ADR-0002 / ADR-0011）：router 与 AutoSpark engine 的接缝。
  *
- * 产物零耦合契约：router 不打包 engine、运行时经 window.AutoSparkSpaces 探测
- * （兼容别名，ADR-0111 后主全局名为 window.AutoSpark，二者同对象）；
- * 类型面经 devDependencies 的 autospark（file:../engine）提供，import type 零运行时引用。
+ * ADR-0011 起 router 仅支持**注入模式**（options.engine 传入应用自建的 engine 实例）：
+ * 自建模式（运行时探测全局 AutoSparkSpaces.AutoSpark 构造）随独立入口一起退役——
+ * 挂载改由插件自举承担（engine 构造 options 声明 routes / autoDiscoverRoutes，router
+ * 经 `AutoSpark.ready` 回调持 engine 构造 AutoSparkRouter）。类型面经 devDependencies
+ * 的 autospark（file:../engine）提供，import type 零运行时引用。
  */
 
 /**
  * engine 绑定结果
  */
 export interface RouterEngineBinding {
-    /** engine 实例（注入的或 router 自建的） */
+    /** 注入的 engine 实例（生命周期归应用所有，router detach 不处置） */
     engine: AutoSpark;
-    /** 是否由 router 自建（自建时 router 拥有生命周期，detach 时销毁） */
-    owned: boolean;
 }
 
 /**
  * 确保 host 内存在至少一个出口：无 x-outlet / outlet 组件声明时插入默认出口。
  * 须在 engine 创建（首编译）前调用——编译后插入的声明不会被激活。
+ * （ADR-0011：插件自举路径经 `AutoSpark.precompile` 回调在构造早期调用本函数，
+ * 插入的默认出口随 template 克隆参与首编译。）
  */
-function ensureDefaultOutletElement(host: HTMLElement): void {
+export function ensureDefaultOutletElement(host: HTMLElement): void {
     if (host.querySelector("[x-outlet], [x-component\\:autospark\\.outlet], [data-autospark-outlet]")) {
         return;
     }
@@ -35,51 +36,26 @@ function ensureDefaultOutletElement(host: HTMLElement): void {
 }
 
 /**
- * 建立 router 的 engine 绑定（Q8=C 混合所有权）：
+ * 建立 router 的 engine 绑定（仅注入模式，ADR-0011）：应用拥有 engine 生命周期，
+ * router 纯消费。
  *
- * - **注入模式**（options.engine）：应用拥有 engine 生命周期，router 纯消费。应用的静态
- *   模板已编译完成，x-outlet 简写不再生效（须写 x-component:autospark.outlet 完整形态；
- *   远程模板中的 x-outlet 经渲染管线照常生效）。outlet 组件已在 router 入口模块加载期
- *   经 `registerOutletGlobal()` 注入 `AutoSpark.options.components`（先于应用 new AutoSpark，
- *   编译期即命中）；下述实例级注册仅兜底 engine 晚于 router 加载的极端场景。
- * - **自建模式**（缺省）：编译前完成 x-outlet 预处理与默认出口插入，随后经全局
- *   `window.AutoSparkSpaces.AutoSpark` 构造（产物零 import engine——运行时探测，
- *   ADR-0002 产物零耦合契约）——options.data 作为裸状态种子（engine 自建并拥有）。
+ * 时序语义：直接构造 AutoSparkRouter 时应用的静态模板已编译完成，x-outlet 简写
+ * 不再生效（须写 x-component:autospark.outlet 完整形态；远程模板中的 x-outlet 经
+ * 渲染管线照常生效）；插件自举路径下 x-outlet 简写由 precompile 回调在首编译前
+ * transform（plugin/bootstrap.ts）。
  *
- * 两种模式均在绑定后自动注册 autospark.outlet 组件（探测已存在则跳过，Q10）。
+ * 绑定后自动注册 autospark.outlet 组件（已存在则跳过，Q10；注册晚于声明时由
+ * x-component 的 retain 重试机制兜底激活，ADR-0088）。
  */
 export function setupRouterEngine(router: AutoSparkRouter): RouterEngineBinding {
-    const injected = router.options.engine;
-    if (injected) {
-        registerOutletComponent(injected);
-        return { engine: injected, owned: false };
-    }
-
-    // 运行时探测全局 engine（IIFE 产物挂 window.AutoSparkSpaces，ADR-0030）
-    const spaces = (globalThis as unknown as { AutoSparkSpaces?: { AutoSpark?: AutoSparkCtor } })
-        .AutoSparkSpaces;
-    const AutoSparkCtor = spaces?.AutoSpark;
-    if (typeof AutoSparkCtor !== "function") {
+    const engine = router.options.engine;
+    if (!engine) {
         throw new Error(
-            "[AutoSparkRouter] 未找到 window.AutoSparkSpaces.AutoSpark：" +
-                "请先加载 AutoSpark.js 再加载 @autospark/router，或经 options.engine 注入实例",
+            "[AutoSparkRouter] 缺少 options.engine（ADR-0011）：router 仅支持注入模式。" +
+                "请经 options.engine 注入 AutoSpark 实例，或在 engine 构造 options 中声明 " +
+                "routes / autoDiscoverRoutes 由插件自举挂载",
         );
     }
-
-    ensureDefaultOutletElement(router.host);
-    transformXOutlet(router.host);
-    // 裸状态自建（ADR-0044）：router.options.data 作为初始数据种子；outlet 组件经构造期
-    // options.components 注册（构造参数通道——先于编译，编译期即命中，无时序问题）
-    const engine = new AutoSparkCtor(router.host, router.options.data ?? {}, {
-        components: { [OUTLET_COMPONENT_NAME]: OUTLET_COMPONENT_CODE },
-    });
     registerOutletComponent(engine);
-    return { engine, owned: true };
+    return { engine };
 }
-
-/** AutoSpark 构造器的最小类型面（运行时经全局变量取得，不 import engine 产物） */
-type AutoSparkCtor = new (
-    el: HTMLElement,
-    state?: Record<string, any>,
-    options?: Record<string, any>,
-) => AutoSpark;
