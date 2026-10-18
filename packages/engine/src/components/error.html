@@ -7,6 +7,7 @@
             justify-content: center;
             gap: 8px;
             padding: 24px;
+            background: rgba(255, 255, 255, 0.96);
             color: #888;
             font-size: 14px;
         }
@@ -49,8 +50,10 @@
     <span class="as-error-icon" x-show="icon" x-icon="icon" x-slot="icon"></span>
     <div class="as-error-message" x-slot="message">{{ message }}</div>
     <div class="as-error-actions">
-        <button type="button" class="as-error-btn" x-show="hasRetry" @click="retry">重试</button>
-        <button type="button" class="as-error-btn" x-show="hasClose" @click="close">关闭</button>
-        <button type="button" class="as-error-btn" x-show="hasBack" @click="back">返回</button>
+        <button type="button" class="as-error-btn" x-show="retryable" @click="retry()">重试</button>
+        <button type="button" class="as-error-btn" x-show="closeable" @click="close()">关闭</button>
+        <template x-for="a of actions">
+            <button type="button" class="as-error-btn" :data-action="a.name" x-text="a.title"></button>
+        </template>
     </div>
 </div>
