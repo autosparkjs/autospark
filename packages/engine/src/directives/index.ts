@@ -16,6 +16,7 @@ export * from "./x-else";
 export * from "./x-case";
 export * from "./x-show";
 export * from "./x-loading";
+export * from "./x-error";
 export * from "./x-isolate";
 export * from "./x-scope";
 export * from "../features/directive/overlay";
@@ -53,6 +54,7 @@ import { DataDirective } from "./x-data";
 import { BindDirective } from "./x-bind";
 import { OnDirective } from "./x-on";
 import { LoadingDirective } from "./x-loading";
+import { ErrorDirective } from "./x-error";
 import { IsolateDirective } from "./x-isolate";
 import { TeleportDirective } from "./x-teleport";
 import { DialogDirective } from "./x-dialog";
@@ -112,6 +114,9 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     on: OnDirective,
     model: ModelDirective,
     loading: LoadingDirective,
+    // x-error 运行时错误捕获与呈现（ADR-0118）：就近消费 error 事件（action 桥接 / raise），
+    // behavior 三态（none/addErrorClass/overlay），单错误槽新替旧
+    error: ErrorDirective,
     isolate: IsolateDirective,
     // x-teleport 传送（ADR-0059）：一次性静态结构指令（ownsChildren 延迟编译 + dataContext 基准）
     teleport: TeleportDirective,

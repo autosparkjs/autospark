@@ -11,6 +11,7 @@
  */
 import { SIGNAL_ACTIONS } from "./signals";
 import { backAction } from "./back";
+import { raiseAction } from "./raise";
 import type { BuiltinActionSpec } from "../features/action/types";
 
 /**
@@ -20,5 +21,6 @@ export function buildBuiltinActions(): Record<string, BuiltinActionSpec> {
     return {
         ...SIGNAL_ACTIONS,
         back: backAction,
+        raise: raiseAction,
     };
 }

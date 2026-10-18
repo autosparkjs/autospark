@@ -78,6 +78,10 @@ _Avoid_: `$action`（$ 系是引擎注入特殊物，实体引用无前缀）、
 引擎自动注册的信号型全局 action（`yes` / `no` / `cancel` / `close` / `back`）：handle **透传首参**（`close(1)` → resolved 广播 `result:1`），价值在**广播语义**——祖先监听 `action:close` 等 DOM 冒泡事件（`detail.result` 读信号载荷）即可驱动关闭对话框/确认/取消等通用交互。`back` 无信号载荷，点击即 `history.back()`（ADR-0066 随内置 error 组件引入）。用户同名声明覆盖内置。详见 ADR-0036 决策 7。
 _Avoid_: 默认动作（泛化）、系统动作（易与 DOM/浏览器原生事件联想）、公共动作（它们是信号不是共享实现）
 
+**raise（错误触发动作）**:
+内置全局 action（ADR-0118）：在触发元素上同步 dispatch `error` 事件，供 x-error 消费——是「显式抛出运行时错误」的模板侧入口（对照：action 失败的自动桥接见「error 事件」词条）。入参归一化：string → `{message}`、Error → `{name,message,stack}`、普通对象原样保留并注入 `source:"raise"`；第二参 options 可携带 `props` / `closeable` / `retryable` / `actions`（事件层配置，优先于 x-error-options 静态层）。用户同名声明覆盖内置。
+_Avoid_: throw（JS 关键字且非本机制）、报错动作（泛化）、raiseError（API 名就是 raise）
+
 ### 配置层
 
 **修饰符（Modifier）**:
@@ -602,6 +606,40 @@ _Avoid_: 动作绑定（泛化）、action 属性（与广播事件名 `action:<
 **进度条模式 / progressbar（x-loading）**:
 x-loading 的第二种显示形态——不铺加载遮罩，仅在挂载目标顶部呈现一条约 3px 高的**不确定型**无限滚动条，宿主内容保持可见、可交互（条不拦截命中——这是与遮罩的**本质差异**，非尺寸差异，故本形态归「加载指示」而非遮罩家族）。经 `.progressbar` 修饰符启用（v1 仅修饰符入口、模式静态）；`color` 为滚动段色（**默认橙色**——细条以明显性优先，不沿用 loader 默认灰）、`bgColor`+`opacity` 为轨道底色（**缺省为浅轨**，深轨压暗段色），滚动段为 30% 宽实心纯色；`message`/`actions` 在条模式下静默不渲染、自定义 loading 组件不取用（条无内容可替换）。与 `.screen` 并存贴视口顶；`selector` 照常解析（条贴目标顶部）。
 _Avoid_: 百分比进度（不表达完成度）、确定进度、进度指示器（泛化）、顶部进度条（条可经 selector 挂到任意目标，不限「顶部页面」语义）
+
+### 错误呈现（Error Presentation）
+
+**x-error（错误捕获指令）**:
+运行时指令（DirectiveKind.Runtime，ADR-0118）：捕获宿主子树内产生的**运行时错误**并按配置呈现。捕获源二——action 失败的自动桥接 + `raise` 显式触发（编译期错误不归它管，见「scope.errors」）。宿主监听 `error` 事件、捕获后 stopPropagation（见「就近消费」）；单错误槽——新错误替换当前呈现；错误对象不进持久状态，生命周期=呈现期。呈现三态见「behavior」。无 binding（el 注入），全局样式经类级 initialize 注入。
+_Avoid_: 错误处理指令（它只呈现不处理——处理归 action 作者）、异常指令（引擎词汇统一用「错误」）
+
+**error 事件（Error Event）**:
+运行时错误的 DOM 载体：专用 `error` CustomEvent（bubbles+composed），detail 携带归一化错误对象；action 源另带 `action` 描述符与 `args` 原数组。生产点二——buildAction rejected 分支**自动桥接**（全局/局部 action 均桥接；命令式直调无触发元素不桥接）与 `raise` 内置动作（显式触发）。与 action 双通道广播正交并存——总线 `actions/<name>/rejected` 与 DOM `action:<name>` 原样照播，error 事件是**追加**的第三条通道，专供呈现层消费。
+_Avoid_: 错误冒泡（泛化）、异常事件（统一用「错误」）
+
+**就近消费（Nearest Consumption）**:
+x-error 的捕获语义：错误事件冒泡路径上**最近的 x-error 宿主**捕获并 stopPropagation——嵌套 x-error 时内层优先消费、外层不再收到；behavior='none' 同样 stop（纯消费不呈现也是消费）。全程无 x-error 捕获的事件冒泡到顶自然消亡（不产生 uncaught）。
+_Avoid_: 捕获冒泡（泛化）、错误拦截（它是消费不是拦截重抛）
+
+**behavior（x-error 呈现三态）**:
+`x-error-options.behavior`：`'none'`（纯消费不呈现）/ `'addErrorClass'`（宿主加错误 class——默认名 `error`，`errorClass` 自定义，清除时移除）/ `'overlay'`（**默认**——挂载错误覆盖层：append 到目标、absolute inset-0、原内容保留、清除=移除 DOM 重建式；目标须 relative，与 x-loading 覆盖层同款契约）。静态字面量读取（去引号、不走 watch）。
+_Avoid_: mode（泛化）、呈现模式（none 态不呈现——它描述的是「捕获后做什么」）、display
+
+**overlayAt（错误覆盖层挂载目标）**:
+`x-error-options.overlayAt`：指定错误覆盖层挂到哪——默认宿主元素；相对查询经 queryRelElement（`'../'` 父级爬升、`'^'` closest、`'/'` 全局）或 `'@'` 前缀走 document.querySelector；未命中/非法回退宿主。与 x-loading 的 `selector` 选项同机制不同名（各守各的键名空间）。
+_Avoid_: target（泛化）、挂载点（口语）
+
+**错误组件解析链（x-error）**:
+overlay 态的组件名解析优先级：`x-error-options.overlay` 显式 > 指令值简写 `x-error="my.error"` > 内置 `autospark.error` 默认；查找经 `engine.getComponentDeclaration(name, el)`（Runtime 反查）。组件 data 注入契约：保留键 `error`（指令独占——props 同名 warn 忽略）+ `closeable` / `retryable` / `actions` / `props` 合并 + `close` 回调（指令注入——组件 `@click="close"` 直调通知清除）。
+_Avoid_: 默认错误组件（解析链末端才是默认）、错误模板（泛化）
+
+**closeable / retryable / actions（错误呈现配置）**:
+错误覆盖层的三件配置，双通道供给——`x-error-options.*` 静态层 + `raise` options 事件层（**事件层优先**）：closeable（是否提供关闭按钮，默认 true）；retryable（是否提供重试按钮，默认按源分流——action 源 true、raise 源 false，显式优先；raise 源无源可重，显式 true 也不渲染重试按钮并 warn）；actions（额外动作按钮 `(string|ActionDesc)[]`，string 经 getAction 链解析、渲染 `[{name,title,icon?}]`，触发走 data-action 点击委托——x-loading ADR-0038 同款契约）。retry 语义：仅 `source:"action"` 生效——以原 args 重调失败 action，resolved 自动清除呈现、rejected 把呈现更新为新错误。
+_Avoid_: 错误按钮配置（泛化）、操作集（actions 是 action 名/描述符数组，不是任意操作）
+
+**scope.errors（编译诊断缓冲）**:
+AutoSparkScope 上的编译期错误收集字段。收集点二——指令 created/compile 抛错、绑定表达式首次求值抛错；归属=失败元素所属 scope（只当前 scope，不含后代）。生命周期：编译前清空 → 编译结束冻结 → destroy 回收。纯属性暴露（不经 engine.emit 广播），供调试/开发工具消费；与 x-error 零耦合（编译错误不进运行时错误通道）。
+_Avoid_: 编译异常表（泛化）、错误列表（它是诊断缓冲，不是呈现数据源）
 
 ### 表单绑定层
 

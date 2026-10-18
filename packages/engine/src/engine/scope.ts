@@ -55,6 +55,22 @@ export type AutoSparkBindingOptions = {
 export type ScopeWatchListener = (payload: { value: any }) => void;
 
 /**
+ * 编译期错误条目（ADR-0118 决策 1）：收集到失败元素**所属 scope** 的 `errors` 字段
+ * （只当前 scope，不含后代）。纯属性暴露（不经 engine.emit 广播），供调试/开发工具消费。
+ * 与 x-error 管的「运行时错误」（action 桥接 / raise，经 DOM error 事件）正交两轨，互不消费。
+ */
+export interface ScopeErrorEntry {
+    /** 错误来源阶段：指令 created / 指令 compile / 绑定表达式首次求值 */
+    source: "directive-created" | "directive-compile" | "expression";
+    /** 指令名（source 为 directive-* 时携带） */
+    directive?: string;
+    /** 表达式原文（source 为 expression 时携带） */
+    expression?: string;
+    /** 原始错误对象 */
+    error: any;
+}
+
+/**
  * watch 的订阅选项（仅路径支路生效，透传给 `store.watch`，ADR-0043）。
  *
  * - `depth`：向后代钻取的深度（autostore 三档语义：0=仅自身重赋值、1=自身+恰好一级后代、
@@ -158,6 +174,12 @@ export class AutoSparkScope {
     _locals: Record<string, any> | null = null;
     /** 本作用域持有的 watcher（destroy 时统一 off） */
     watchers: Watcher[] = [];
+    /**
+     * 编译期错误收集（ADR-0118 决策 1）：指令 created/compile 抛错、绑定表达式首次求值抛错
+     * 收集于此（只当前 scope 不含后代）。生命周期：compile() 开头清空 → 结束 `Object.freeze`
+     * → destroy 随 scope 回收。纯属性暴露，供调试/开发工具消费。
+     */
+    errors: ScopeErrorEntry[] = [];
     /** 本作用域 watch 注册的 update 闭包（refresh 时同步重跑，destroy 时清空）。
      *  用途见 refresh()：x-for 复用项 locals 原地更新后，驱动项内绑定重新求值并 patch。 */
     private _updates: Array<() => void> = [];
@@ -1032,10 +1054,13 @@ export class AutoSparkScope {
             scope: any,
             args?: any,
         ) => any;
-        const safeEval = (): any => {
+        const safeEval = (report?: (e: any) => void): any => {
             try {
                 return getter(scope);
-            } catch {
+            } catch (e: any) {
+                // 首求值抛错收集进 scope.errors（ADR-0118 决策 1）；update 路径不收集不告警
+                // （首求值已成功、后续因状态漂移抛错属运行时数据形态问题，非编译期诊断数据）
+                report?.(e);
                 //this.engine.logger.warn(`scope.watch: eval "${expr}" failed: ${e?.message ?? e}`);
                 return undefined;
             }
@@ -1045,7 +1070,12 @@ export class AutoSparkScope {
         // （flush 时 update 闭包仍每次重新求值，那是必要的。）
         let firstValue: any;
         let deps = store.collectDependencies(() => {
-            firstValue = safeEval();
+            firstValue = safeEval((e) => {
+                // compile 结束后 errors 已冻结——迟建的 watcher 首求值抛错不入列（容错不抛出）
+                if (!Object.isFrozen(this.errors)) {
+                    this.errors.push({ source: "expression", expression: expr, error: e });
+                }
+            });
         }, "read");
         // 动态依赖重收集：短路（|| / && / ?:）与条件分支使不同分支读不同键，依赖集随实际
         // 走到的分支漂移（如 `a || b` 在 a 真时初收集只含 a）。若只在首求值收集一次，
@@ -1167,12 +1197,18 @@ export class AutoSparkScope {
      * 随后 compile 用 `watch` 返回的当前值做首次 DOM 写入。
      */
     compile() {
-        // 组件实例：created 在指令 created/compile 之前触发（data 已注入、DOM 子树尚未编译）
-        this._runHooks("created");
-        this.runDirectives(this.directives);
-        this.engine.emit("scope/compiled", { id: this.id });
-        // 组件实例：mounted 在 DOM 子树编译完成后触发
-        this._runHooks("mounted");
+        // 编译期错误收集生命周期：开头清空 → 结束冻结（ADR-0118 决策 1；compile 每 scope 仅调一次）
+        this.errors.length = 0;
+        try {
+            // 组件实例：created 在指令 created/compile 之前触发（data 已注入、DOM 子树尚未编译）
+            this._runHooks("created");
+            this.runDirectives(this.directives);
+            this.engine.emit("scope/compiled", { id: this.id });
+            // 组件实例：mounted 在 DOM 子树编译完成后触发
+            this._runHooks("mounted");
+        } finally {
+            Object.freeze(this.errors);
+        }
     }
 
     /**
@@ -1199,21 +1235,39 @@ export class AutoSparkScope {
     /**
      * 串行执行指令生命周期：先全部 created，再全部 compile。
      * 同一阶段的指令按优先级顺序（已由 `_createDirectives` 排好）。
+     *
+     * **容错收集**（ADR-0118 决策 1）：单条指令 created/compile 抛错不再中断整个编译——
+     * 收集进 `scope.errors` + logger.error 后继续后续指令（编译失败半成品树仍尽量呈现）。
+     * 抛错的阶段不广播对应生命周期事件（created 失败即未 created）。
      */
     runDirectives(directives: AutoSparkDirectiveBase[]): void {
         for (const d of directives) {
-            if (typeof d.created === "function") d.created();
-            this.engine.emit(("directive/" + d.info.name + "/created") as any, {
-                name: d.info.name,
-                id: this.id,
-            });
+            try {
+                if (typeof d.created === "function") d.created();
+                this.engine.emit(("directive/" + d.info.name + "/created") as any, {
+                    name: d.info.name,
+                    id: this.id,
+                });
+            } catch (e: any) {
+                this.errors.push({ source: "directive-created", directive: d.info.name, error: e });
+                this.engine.logger.error(
+                    `指令 "${d.info.name}" created 执行失败: ${e?.message ?? e}`,
+                );
+            }
         }
         for (const d of directives) {
-            if (typeof d.compile === "function") d.compile(this.engine.state, this.el!);
-            this.engine.emit(("directive/" + d.info.name + "/compiled") as any, {
-                name: d.info.name,
-                id: this.id,
-            });
+            try {
+                if (typeof d.compile === "function") d.compile(this.engine.state, this.el!);
+                this.engine.emit(("directive/" + d.info.name + "/compiled") as any, {
+                    name: d.info.name,
+                    id: this.id,
+                });
+            } catch (e: any) {
+                this.errors.push({ source: "directive-compile", directive: d.info.name, error: e });
+                this.engine.logger.error(
+                    `指令 "${d.info.name}" compile 执行失败: ${e?.message ?? e}`,
+                );
+            }
         }
     }
 

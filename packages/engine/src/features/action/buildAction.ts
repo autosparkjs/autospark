@@ -45,6 +45,7 @@
  */
 
 import type { AutoSparkAction } from "./types";
+import { normalizeError } from "../../utils/normalizeError";
 
 /** 总线广播函数类型：emit `actions/<name>/<verb>`（调用点绑 engine.emit）。 */
 export type ActionEmit = (type: string, payload: Record<string, any>) => void;
@@ -85,6 +86,23 @@ export function buildAction(emit: ActionEmit, desc: AutoSparkAction, local = fal
         };
         // pending 在执行前（开始执行）；同步/异步统一
         broadcast("pending");
+        // error 事件桥接（ADR-0118 决策 2）：rejected 双通道照发之外，**追加**在触发元素
+        // dispatch `error` CustomEvent（bubbles+composed）——呈现层（x-error）的专用第三通道。
+        // 全局/局部 action 均桥接（同为 DOM 通道无串扰）；detail 带归一化错误对象
+        // （Error 实例不进响应式域，决策 6）+ action 描述符 + args 原数组（重试弹药）。
+        // **命令式直调不桥接**：无触发元素可挂事件，错误归调用方代码自己 catch。
+        const bridgeError = (error: any) => {
+            if (!triggerEl) return;
+            triggerEl.dispatchEvent(
+                new CustomEvent("error", {
+                    bubbles: true,
+                    composed: true,
+                    detail: {
+                        error: { ...normalizeError(error, "action"), action: desc, args },
+                    },
+                }),
+            );
+        };
         // this.action 自引用注入（ADR-0036 决策 4）：一次性 ctx 就地写入，活引用；
         // this === desc（递归 this.action.handle(...)）不注入，防 descriptor 自环
         if (this && typeof this === "object" && this !== desc) {
@@ -96,13 +114,17 @@ export function buildAction(emit: ActionEmit, desc: AutoSparkAction, local = fal
         } catch (error) {
             // 同步抛错：广播 rejected 后 rethrow（保持错误传播：x-on eval.ts catch / 命令式调用者）
             broadcast("rejected", { error });
+            bridgeError(error);
             throw error;
         }
         // 成功完成：同步立即 resolved；异步（thenable）等 then
         if (result && typeof (result as any).then === "function") {
             (result as Promise<any>).then(
                 (value) => broadcast("resolved", { result: value }),
-                (error) => broadcast("rejected", { error }),
+                (error) => {
+                    broadcast("rejected", { error });
+                    bridgeError(error);
+                },
             );
         } else {
             broadcast("resolved", { result });
