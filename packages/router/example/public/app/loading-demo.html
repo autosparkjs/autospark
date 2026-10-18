@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loading 状态演示 - AutoSpark Router</title>
+    <title>Loading 与错误呈现演示 - AutoSpark Router</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -54,39 +54,19 @@
             border-radius: 8px;
             margin-top: 20px;
         }
-
-        .loading-indicator {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            color: #667eea;
-        }
-
-        .nested-outlet {
-            border: 2px dashed #ddd;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-            background: #fafafa;
-        }
-
-        .nested-outlet h3 {
-            margin-top: 0;
-            color: #667eea;
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🚦 Loading 状态演示</h1>
+        <h1>🚦 Loading 与错误呈现演示</h1>
 
         <div class="demo-links">
             <a href="#/">首页</a>
-            <a href="#/slow">慢速加载 (2秒)</a>
-            <a href="#/fast">快速加载 (0.5秒)</a>
-            <a href="#/nested">嵌套路由</a>
-            <a href="#/nested/slow">嵌套慢速加载</a>
+            <a href="#/slow">慢速加载 (2秒，默认遮罩)</a>
+            <a href="#/message">自定义文案</a>
+            <a href="#/no-loading">关闭 loading</a>
+            <a href="#/error">加载失败 (重试/返回)</a>
+            <a href="#/not-exist">404 (未匹配)</a>
         </div>
 
         <div id="app">
@@ -111,87 +91,76 @@
                 view: `
                     <div class="page-content">
                         <h2>欢迎首页</h2>
-                        <p>这是一个快速加载的页面，您可能看不到loading状态。</p>
-                        <p>请尝试点击上方的"慢速加载"链接来体验loading效果。</p>
+                        <p>这是出口内建加载覆盖层（x-loading 门控）与内建错误块的演示。</p>
+                        <p>点击上方链接体验：默认遮罩（200ms 防闪烁）、文案覆盖、关闭指示、错误重试与 404。</p>
                     </div>
                 `,
                 children: [
                     {
                         name: 'slow',
                         path: 'slow',
+                        // 缺省 loading：内置默认（delay 200ms 防闪烁 + 白色 0.6 浅色遮罩）
                         view: {
                             form: async () => {
-                                // 模拟慢速加载
                                 await new Promise(resolve => setTimeout(resolve, 2000));
                                 return `
                                     <div class="page-content">
                                         <h2>🐢 慢速加载页面</h2>
                                         <p>这个页面模拟了2秒的加载时间。</p>
-                                        <p>您应该已经看到了<autospark-loading>组件的loading动画。</p>
-                                        <p>这就是loading状态的实际效果！</p>
+                                        <p>加载期间出口呈现 x-loading 遮罩覆盖层（未声明 loading 时走内置默认）。</p>
                                     </div>
                                 `;
                             }
                         }
                     },
                     {
-                        name: 'fast',
-                        path: 'fast',
+                        name: 'message',
+                        path: 'message',
+                        // string 简写 ≡ { message: string }
+                        loading: '拼命加载中…',
                         view: {
                             form: async () => {
-                                // 模拟快速加载
-                                await new Promise(resolve => setTimeout(resolve, 500));
+                                await new Promise(resolve => setTimeout(resolve, 1500));
                                 return `
                                     <div class="page-content">
-                                        <h2>🐇 快速加载页面</h2>
-                                        <p>这个页面加载很快（0.5秒）。</p>
-                                        <p>您可能只能短暂看到loading状态。</p>
+                                        <h2>💬 自定义文案页面</h2>
+                                        <p>loading: '拼命加载中…' 覆盖了默认文案。</p>
                                     </div>
                                 `;
                             }
                         }
                     },
                     {
-                        name: 'nested',
-                        path: 'nested',
-                        view: `
-                            <div class="page-content">
-                                <h2>📦 嵌套路由父页面</h2>
-                                <p>这是一个包含子路由的页面。</p>
-                                <div class="nested-outlet">
-                                    <h3>子路由区域：</h3>
-                                    <div x-outlet></div>
-                                </div>
-                            </div>
-                        `,
-                        children: [
-                            {
-                                name: 'nested-slow',
-                                path: 'slow',
-                                view: {
-                                    form: async () => {
-                                        // 模拟嵌套路由的慢速加载
-                                        await new Promise(resolve => setTimeout(resolve, 2000));
-                                        return `
-                                            <div class="page-content">
-                                                <h4>🐢 嵌套慢速加载页面</h4>
-                                                <p>这是嵌套在父路由中的慢速加载页面。</p>
-                                                <p>注意上方的loading状态只在子outlet中显示。</p>
-                                            </div>
-                                        `;
-                                    }
-                                }
+                        name: 'no-loading',
+                        path: 'no-loading',
+                        // 显式关闭本路由的加载指示
+                        loading: false,
+                        view: {
+                            form: async () => {
+                                await new Promise(resolve => setTimeout(resolve, 1500));
+                                return `
+                                    <div class="page-content">
+                                        <h2>🔇 关闭 loading 页面</h2>
+                                        <p>loading: false 关闭了本路由的加载指示，加载期间出口无任何提示。</p>
+                                    </div>
+                                `;
                             }
-                        ]
-                    }
+                        }
+                    },
+                    {
+                        name: 'error',
+                        path: 'error',
+                        // 视图地址不存在 → 加载失败 → 内建错误块（重试 + 返回）
+                        view: './views/missing-view.html',
+                    },
                 ]
             }
         });
 
         router.attach();
 
-        console.log('✅ Loading 状态演示页面已加载');
-        console.log('📝 提示：点击不同的链接来体验loading效果');
+        console.log('✅ Loading 与错误呈现演示页面已加载');
+        console.log('📝 提示：点击不同的链接体验 loading 覆盖层、错误重试与 404 呈现');
     </script>
 </body>
 </html>

@@ -82,6 +82,19 @@ export function writeStylesSnapshot(storageKey: string, css: string) {
     }
 }
 
+/**
+ * 删除样式快照（ADR-0004）：静态主题包指纹命中时，静态 <link> 已成为样式的
+ * 永久来源，旧回访快照（可能是另一个主题色）若保留，恢复片段会在下次访问首帧
+ * 画出错误主题。scope 参数不动——其值本就与静态配置一致。
+ */
+export function removeStylesSnapshot(storageKey: string) {
+    try {
+        globalThis.localStorage?.removeItem(stylesSnapshotKey(storageKey));
+    } catch {
+        /* 静默降级 */
+    }
+}
+
 /** 移除恢复片段插入的快照标签（root scope 接管后调用；不存在则静默跳过） */
 export function removeRestoreTag(doc: Document) {
     try {

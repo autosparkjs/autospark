@@ -8,7 +8,7 @@ import type {
     AutoSparkState,
 } from "../types";
 import type { ComponentDef } from "../features/component/component-def";
-import { installAutoComponentDirective } from "../features/component/auto-component";
+import { installAutoComponentTag } from "../features/component/auto-component";
 import { DirectiveManager } from "../features/directive/manager";
 import { defineDirective as defineDirectiveImpl } from "../features/directive/global-queue";
 import type { DirectiveSpec } from "../features/directive/global-queue";
@@ -73,7 +73,7 @@ export { SCOPES_KEY } from "../consts";
 import { SCOPES_KEY } from "../consts";
 
 /**
- * AutoStore Template 渲染引擎核心类
+ * AutoSpark——全功能的响应式前端应用引擎核心类
  *
  * 以外部传入的 `AutoStore` 实例为响应式数据源，编译声明式模板并挂载到 DOM；
  * 状态变化时由各指令自行订阅、经 `scheduler` 微任务合并后做细粒度 patch。
@@ -399,7 +399,7 @@ export class AutoSpark<
      * 无需手动包装。实现委托 actionsManager（src/actions/manager.ts）。
      */
     get actions(): Record<string, AutoSparkAction> {
-        return this.actionsManager.proxy;
+        return this.actionsManager.proxy as Record<string, AutoSparkAction> 
     }
 
     /**
@@ -1373,9 +1373,9 @@ export class AutoSpark<
     registerComponentDef(def: ComponentDef): void {
         this._componentDefs.set(def.snapshot, def);
         injectGlobalComponentStyles(this as any, def);
-        // 元素名组件（ADR-0117）：def 携带 directiveTag 即安装元素名形态指令（五条注册路径
-        // 统一收口，凡注册必安装；撞名规则见 installAutoComponentDirective）
-        if (def.directiveTag) installAutoComponentDirective(this, def.name, def.directiveTag);
+        // 元素名组件（ADR-0117）：def 携带 tag 即安装元素名形态指令（五条注册路径
+        // 统一收口，凡注册必安装；撞名规则见 installAutoComponentTag）
+        if (def.tag) installAutoComponentTag(this, def.name, def.tag);
     }
 
     /**

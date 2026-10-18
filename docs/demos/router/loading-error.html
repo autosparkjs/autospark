@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>错误呈现与重试：加载中指示 + 内建错误块 + retry</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <script src="/autospark/router-demos/boot.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="buttons mb-2">
+                <auto-link class="button is-small is-primary" to="/slow">慢速加载（默认遮罩）</auto-link>
+                <auto-link class="button is-small is-link" to="/message">自定义文案</auto-link>
+                <auto-link class="button is-small is-warning" to="/off">关闭 loading</auto-link>
+                <auto-link class="button is-small is-danger" to="/error">加载失败（重试 / 返回）</auto-link>
+                <auto-link class="button is-small is-dark" to="/not-exist">404（未匹配）</auto-link>
+            </div>
+
+            <div x-outlet></div>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            // from 函数直接返回视图 HTML（内联内容，无网络依赖）；
+            // 抛错即加载失败 → 出口内建错误块
+            const page = (title, body) => `
+                <section class="box">
+                    <h3 class="title is-4">${title}</h3>
+                    <p>${body}</p>
+                </section>`;
+
+            const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+                // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
+                routes: {
+                    mode: "hash",
+                    base: "/autospark/router-demos/",
+                    routes: [
+                        { path: "/", redirect: "/slow" },
+                        {
+                            path: "/slow",
+                            title: "慢速加载",
+                            // 缺省 loading：内置默认（delay 200ms 防闪烁 + 白色 0.6 浅色遮罩）
+                            view: {
+                                from: async () => {
+                                    await sleep(1500);
+                                    return page(
+                                        "🐢 慢速加载页面",
+                                        "加载期间出口呈现 x-loading 门控遮罩（未声明 loading 时走内置默认：200ms 防闪烁延迟 + 白色 0.6 浅色遮罩）。",
+                                    );
+                                },
+                            },
+                        },
+                        {
+                            path: "/message",
+                            title: "自定义文案",
+                            // string 简写 ≡ { message: string }，覆盖默认文案、其余默认项保留
+                            loading: "拼命加载中…",
+                            view: {
+                                from: async () => {
+                                    await sleep(1200);
+                                    return page("💬 自定义文案页面", "loading: '拼命加载中…' 覆盖了默认文案。");
+                                },
+                            },
+                        },
+                        {
+                            path: "/off",
+                            title: "关闭 loading",
+                            // 显式关闭本路由的加载指示：加载期间出口无任何提示
+                            loading: false,
+                            view: {
+                                from: async () => {
+                                    await sleep(1200);
+                                    return page("🔇 关闭 loading 页面", "loading: false 关闭了本路由的加载指示。");
+                                },
+                            },
+                        },
+                        {
+                            path: "/error",
+                            title: "加载失败",
+                            // from 函数抛错 → 加载失败 → errorPages 未配置时落 view.error 走内建错误块
+                            //（重试按钮调 router.retry() 重跑失败层，「返回」走 router.back()）
+                            view: {
+                                from: async () => {
+                                    throw new Error("模拟视图加载失败（HTTP 500）");
+                                },
+                            },
+                        },
+                        // /not-exist 未在路由表声明 → 未匹配 → 所在出口呈现 404 错误块（动作仅「返回」）
+                    ],
+                },
+            });
+        </script>
+    </body>
+</html>

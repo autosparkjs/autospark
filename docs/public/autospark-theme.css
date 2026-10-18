@@ -203,16 +203,16 @@ h6 {
 }
 :host,
 :root {
-  --x-color-gray-0: #FAFAFA;
-  --x-color-gray-1: #f4f4f4;
-  --x-color-gray-2: #ececec;
-  --x-color-gray-3: #dedede;
-  --x-color-gray-4: #bbbbbb;
-  --x-color-gray-5: #9b9b9b;
-  --x-color-gray-6: #727272;
-  --x-color-gray-7: #5f5f5f;
-  --x-color-gray-8: #404040;
-  --x-color-gray-9: #1f1f1f;
+  --x-color-gray-0: #FFFFFF;
+  --x-color-gray-1: #FAFAFA;
+  --x-color-gray-2: #F5F5F5;
+  --x-color-gray-3: #F0F0F0;
+  --x-color-gray-4: #DEDEDE;
+  --x-color-gray-5: #C2C2C2;
+  --x-color-gray-6: #979797;
+  --x-color-gray-7: #818181;
+  --x-color-gray-8: #606060;
+  --x-color-gray-9: #3C3C3C;
 }
 .autospark-container > .popup {
   position: relative;

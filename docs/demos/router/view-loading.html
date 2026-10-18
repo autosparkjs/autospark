@@ -50,7 +50,8 @@
                                 new Promise((resolve) =>
                                     setTimeout(() => resolve("/autospark/router-demos/views/slow.html"), 800),
                                 ),
-                            loading: '<span class="tag is-warning">拼命加载中…</span>',
+                            // string 简写 ≡ { message: string }：覆盖默认文案，其余默认项（delay/bgColor/opacity）保留
+                            loading: "拼命加载中…",
                         },
                     ],
                 },

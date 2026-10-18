@@ -1,6 +1,6 @@
 # AutoSpark
 
-声明式模板渲染引擎：通过宿主元素上的 `x-*` / `@*` / `:*` 属性（指令）把 AutoStore 状态绑定到 DOM。本表固化引擎内部的领域语言，配置体系（指令选项 / 宿主选项）术语于 ADR-0007 引入。
+全功能的响应式前端应用引擎（由响应式模板引擎演进而来）：通过宿主元素上的 `x-*` / `@*` / `:*` 属性（指令）把 AutoStore 状态绑定到 DOM，状态层、指令层、组件层、动作层齐备，可直接从零搭建完整的交互式应用。本表固化引擎内部的领域语言，配置体系（指令选项 / 宿主选项）术语于 ADR-0007 引入。
 
 ## Language
 
@@ -816,8 +816,8 @@ _Avoid_: 全局组件缓存（强调单一名册，非某层缓存）、组件�
 _Avoid_: 运行时定义组件（注册是登记动作，定义仍由 x-define 承载）、动态组件（那是 x-component 的实例化职责）、parseComponent（解析已私有化，不公开）
 
 **元素名组件（Element-name Component）**:
-`x-define-options="{directive:...}"` 声明后组件自动注册为**元素名形态指令**（ADR-0117）：模板直接写元素标签即实例化——`<x-counter>` 与 `<div x-component:counter>` 完全等价（宿主化身、props、插槽、事件全量同构，继承 `ComponentDirective` 机制零分叉）。值双形态：`true` → 标签自动推导 `x-{组件名}`（小写化）；含连字符的非空字符串 → 自定义标签；`false`/未声明不注册（缺省关闭），非法值 warn + 忽略。props 折叠两段协作：静态属性即 props（类型推断 number / boolean / 宽松 JSON / 字符串），`:name="expr"` 响应式 props 由编译期临时剥除 stash、生成类 created 折叠进值通道（优先级 `:expr` > 静态属性 > `x-{组件名}-options`，`x-component-options` 为兼容别名）；保留属性（`class`/`style`/`id`/`data-*`/`x-*`）不折叠、留给宿主化身。事件：组件方法内 `this.emit(event, detail)` 向根元素派发冒泡 CustomEvent，宿主同元素 `@event`（OnDirective）监听。安装收口于 `registerComponentDef`（def 携带 `directiveTag` 即安装，五条注册路径统一；撞名三态：同名同标签幂等 / 撞预设或自定义指令名、元素名被占用 warn + 跳过 / 同名换标签 warn + 覆盖）；继承**声明为准**（子未声明不注册，父声明不扩散）。已知边界：`options.components` 懒预编译通道首个元素名消费不触发懒解析（无 pending 重试）；无 `.directive` 修饰符形态。
-_Avoid_: 自定义元素（非 native customElements——无 Shadow DOM、不注册 customElements、无升级时序）、元素名指令（泛称——元素名触发是指令系统通用能力（指令类 `static elementName`），元素名组件专指本机制生成的组件形态指令）、等效指令（旧文档用名，已正名）、x-tag / x-use（无此语法）
+`x-define-options="{tag:...}"` 键——组件**缺省开启**元素名形态（ADR-0117）：未声明即自动注册为**元素名形态指令**，模板直接写元素标签即实例化——`<x-counter>` 与 `<div x-component:counter>` 完全等价（宿主化身、props、插槽、事件全量同构，继承 `ComponentDirective` 机制零分叉）。值域：未声明 / `true` → 标签自动推导 `x-{组件名}`（小写化）；含连字符的非空字符串 → 自定义标签；仅 `false` 显式关闭；非法值 warn + 回落缺省（自动标签照常注册）。props 折叠两段协作：静态属性即 props（类型推断 number / boolean / 宽松 JSON / 字符串），`:name="expr"` 响应式 props 由编译期临时剥除 stash、生成类 created 折叠进值通道（优先级 `:expr` > 静态属性 > `x-{组件名}-options`，`x-component-options` 为兼容别名）；保留属性（`class`/`style`/`id`/`data-*`/`x-*`）不折叠、留给宿主化身。事件：组件方法内 `this.emit(event, detail)` 向根元素派发冒泡 CustomEvent，宿主同元素 `@event`（OnDirective）监听。安装收口于 `registerComponentDef`（def 携带 `tag` 即安装，五条注册路径统一；撞名三态：同名同标签幂等 / 撞预设或自定义指令名、元素名被占用 warn + 跳过 / 同名换标签 warn + 覆盖）；继承**声明为准**（子缺省注册自身自动标签 `x-{子名}`，父自定义标签不扩散；`tag:false` 关闭子）。已知边界：`options.components` 懒预编译通道首个元素名消费不触发懒解析（无 pending 重试）；无 `.tag` 修饰符形态。
+_Avoid_: 自定义元素（非 native customElements——无 Shadow DOM、不注册 customElements、无升级时序）、元素名指令（泛称——元素名触发是指令系统通用能力（指令类 `static elementName`），元素名组件专指本机制生成的组件形态指令）、等效指令（旧文档用名，已正名）、`directive` 键（旧键名已更名 `tag`，ADR-0117 修订）、x-tag / x-use（无此语法——`x-define-options.tag` 是配置键不是指令）
 
 **组件预编译（Component Precompile）**:
 `options.components` 字符串入参首次被 `getComponentDeclaration` 命中时，经 `parseHtmlFragment` 解析 + 自动包装（见「组件自动包装」）为「恰好一个带 `x-define` 的根元素」，组装为 `ComponentDef` 存入**全局组件定义表**（key=组件名，value=定义；快照由 `def.snapshot` 派生），后续命中只 `cloneNode(true)` 不重复解析。**懒编译**——仅首次使用时预编译，未用的全局组件永不解析；失败以 `null` 负缓存，同样只解析一次。预编译产物形态与局部组件 `_collectComponent` 快照一致（未编译、保留指令属性、**不注入 x-scope**），消费者经同一路径渲染。解析失败/空串 → `logger.warn` + 视为未命中。详见 ADR-0022（承接 ADR-0021）决策 11、ADR-0086 决策四。

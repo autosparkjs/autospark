@@ -11,10 +11,10 @@ import { describe, expect, test } from "bun:test";
 // bun test 单进程共享 globalThis——桩必须完整（scope.test.ts 依赖
 // injectStylesheet 正常走完创建/写入路径），且先于 manager 导入建立
 // （静态 import 被提升，故下方用动态 import）。
-(globalThis as any).HTMLElement ??= class HTMLElement {};
+(globalThis as any).HTMLElement ??= class HTMLElement { };
 (globalThis as any).MutationObserver ??= class {
-    observe() {}
-    disconnect() {}
+    observe() { }
+    disconnect() { }
 };
 // bun test 环境无内置 localStorage：Map 基实现（持久化断言的验证对象）
 const storage = new Map<string, string>();
@@ -27,15 +27,15 @@ const storage = new Map<string, string>();
 (globalThis as any).document ??= {
     documentElement: {
         ownerDocument: null,
-        setAttribute() {},
-        removeAttribute() {},
+        setAttribute() { },
+        removeAttribute() { },
         querySelectorAll: () => [],
     },
     head: {
-        appendChild() {},
+        appendChild() { },
         querySelector: () => null,
     },
-    body: { appendChild() {}, removeChild() {} },
+    body: { appendChild() { }, removeChild() { } },
     getElementById: () => null,
     querySelector: () => null,
     querySelectorAll: () => [],
@@ -43,12 +43,12 @@ const storage = new Map<string, string>();
         id: "",
         innerHTML: "",
         style: { display: "" },
-        appendChild() {},
-        remove() {},
+        appendChild() { },
+        remove() { },
     }),
 };
 
-const { ThemeManager, themeManager } = await import("../manager");
+const { AutoSparkThemeManager, themeManager } = await import("../manager");
 
 const STYLES_KEY = "autospark-theme-styles";
 const ROOT_KEY = "autospark-theme-scope-root";
@@ -89,7 +89,7 @@ describe("持久化（ADR-0003）", () => {
     });
 
     test("新 ThemeManager 实例从参数 key 水合（先水合后注入）", () => {
-        const mgr2 = new ThemeManager();
+        const mgr2 = new AutoSparkThemeManager();
         expect(mgr2.root.dark).toBe(false); // 上一用例已复位
         expect(mgr2.root.themeColor).toBe("#f5222d"); // 水合自参数 key
         mgr2.dark = true;

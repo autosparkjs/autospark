@@ -1,5 +1,5 @@
 import { html } from "lit";
-import { themeManager, type ThemeScope } from "../../../src/index.ts";
+import { themeManager, type AutoSparkThemeScope } from "../../../src/index.ts";
 import type { StoryModule } from "../story";
 
 /**
@@ -21,11 +21,11 @@ const TOGGLE_STYLE =
 /** 作用域主题梯度条 */
 const strip = () => html`<div style="display:flex;gap:0.3rem;">
     ${SWATCHES.map(
-        (i) =>
-            html`<span
+    (i) =>
+        html`<span
                 style="flex:1;height:1.6em;background-color:var(--x-color-theme-${i});border-radius:calc(var(--auto-border-radius) * 0.5);margin:0.5em;"
             ></span>`,
-    )}
+)}
 </div>`;
 
 /** 受模式影响的正文样例：前景/背景/边框全部取自 --auto-* */
@@ -134,8 +134,8 @@ export default {
                         ></span>
                         ${strip()}
                         ${sample(
-                            "开关让作用域把 dark 属性写到本卡——与手动 data-colorized 同元素命中 [dark][data-colorized] 组合块。",
-                        )}
+        "开关让作用域把 dark 属性写到本卡——与手动 data-colorized 同元素命中 [dark][data-colorized] 组合块。",
+    )}
                     </div>
                 </div>
 
@@ -151,8 +151,8 @@ export default {
                         ></span>
                         ${strip()}
                         ${sample(
-                            "开关让作用域把 colorized 属性写到本卡——与手动 data-dark 同元素命中 [data-dark][colorized] 组合块。",
-                        )}
+        "开关让作用域把 colorized 属性写到本卡——与手动 data-dark 同元素命中 [data-dark][colorized] 组合块。",
+    )}
                     </div>
                 </div>
             </div>
@@ -243,8 +243,8 @@ export default {
                         <div data-dark style="padding:0.5rem;border:var(--auto-border);border-radius:var(--auto-border-radius);">
                             ${strip()}
                             ${sample(
-                                "作用域内的 data-dark：命中 S [data-dark]——青色作用域自己的暗色块（梯度为 cyan 反转），而非根域的蓝梯度暗色块。",
-                            )}
+        "作用域内的 data-dark：命中 S [data-dark]——青色作用域自己的暗色块（梯度为 cyan 反转），而非根域的蓝梯度暗色块。",
+    )}
                         </div>
                     </div>
                 </div>
@@ -253,12 +253,12 @@ export default {
     `,
     mounted(host: HTMLElement) {
         // 混合组合卡：各挂一个作用域，setter 经 JS 通道把 dark/colorized 属性写到卡片自身
-        const mixA: ThemeScope | undefined = themeManager.addScope({ id: "mixA" });
+        const mixA: AutoSparkThemeScope | undefined = themeManager.addScope({ id: "mixA" });
         if (mixA) mixA.attach("#mix-a");
-        const mixB: ThemeScope | undefined = themeManager.addScope({ id: "mixB" });
+        const mixB: AutoSparkThemeScope | undefined = themeManager.addScope({ id: "mixB" });
         if (mixB) mixB.attach("#mix-b");
         // 作用域约束卡：teal 梯度作用域
-        const guardA: ThemeScope | undefined = themeManager.addScope({ id: "guardA", themeColor: "teal" });
+        const guardA: AutoSparkThemeScope | undefined = themeManager.addScope({ id: "guardA", themeColor: "teal" });
         if (guardA) guardA.attach("#guard-scope");
 
         const cardOf = (btn: HTMLElement) => host.querySelector<HTMLElement>(`#${btn.dataset.target}`);
@@ -271,8 +271,8 @@ export default {
                 const on = btn.dataset.attr
                     ? card.hasAttribute(btn.dataset.attr)
                     : btn.dataset.toggle === "dark"
-                      ? card.hasAttribute("dark")
-                      : card.hasAttribute("colorized");
+                        ? card.hasAttribute("dark")
+                        : card.hasAttribute("colorized");
                 const name = btn.dataset.attr ?? `scope.${btn.dataset.toggle}`;
                 btn.textContent = `${name}: ${on ? "开" : "关"}`;
                 btn.style.opacity = on ? "1" : "0.55";

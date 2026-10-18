@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
+﻿﻿import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import type { AutoSparkRouter } from "@/router";
 
 /**
@@ -51,11 +51,18 @@ function createTestDOM() {
     return host;
 }
 
+/** 视图错误条目（render 层 ViewErrorEntry 同形） */
+interface StubViewError {
+    status: number;
+    message: string;
+}
+
 /** 视图挂载记录（render 层 ViewPayload 同形） */
 interface MountedView {
     hash: string;
     html: string;
     ready: boolean;
+    error?: StubViewError | null;
 }
 
 /**
@@ -72,7 +79,7 @@ function createEngineStub() {
         return {
             data: {
                 views: [] as MountedView[],
-                ephemeral: { hash: "", html: "", ready: false },
+                ephemeral: { hash: "", html: "", ready: false, error: null },
                 active: "",
             },
         };
@@ -87,7 +94,11 @@ function createEngineStub() {
             outletEl.appendChild(viewHost);
         }
         if (!view.ready) {
-            viewHost.innerHTML = `<autospark-loading data-role="loading-indicator"></autospark-loading>`;
+            // 错误条目（ADR-0012 决策 2）：出口内建错误块呈现，不写 loading 哨兵——
+            // loading 已随错误落下关闭（loading:false），哨兵继续存在即行为错误
+            viewHost.innerHTML = view.error
+                ? `<div class="autospark-outlet-error" data-status="${view.error.status}"></div>`
+                : `<autospark-loading data-role="loading-indicator"></autospark-loading>`;
         } else {
             viewHost.innerHTML = view.html || "";
             // 模拟编译激活：视图内 x-outlet 简写落地为 outlet 宿主
@@ -97,7 +108,7 @@ function createEngineStub() {
                 if (!comps.has(el as HTMLElement)) comps.set(el as HTMLElement, makeComp());
             });
         }
-        mounts.push({ hash: view.hash, html: String(view.html || ""), ready: !!view.ready });
+        mounts.push({ hash: view.hash, html: String(view.html || ""), ready: !!view.ready, error: view.error ?? null });
     }
 
     /** engine.data 直写通道：合并数据域并同步视图容器（对齐真实组件行为） */

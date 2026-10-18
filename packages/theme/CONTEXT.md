@@ -58,12 +58,20 @@ _Avoid_: 行内标签、addon 文本
 
 **样式快照（styles snapshot）**：
 全部已连接主题作用域生成的 CSS 合成的单一字符串，持久化于 localStorage；回访时由恢复片段于首帧前回插，运行时启动重算重写实现自愈——过期快照的最坏结果与无持久化现状等价，故不设版本机制。
-_Avoid_: 版本化快照、JSON 信封、静态主题层
+_Avoid_: 版本化快照、JSON 信封、无指纹静态层（不可校验、与运行时双真值源竞争；带指纹的构建期产物见「静态主题包」，ADR-0004）
+
+**静态主题包（static theme package）**：
+构建期由 `scripts/generate-theme.ts` 生成的单份全量 CSS（基量 + 主题标尺亮/暗块 + 语义色），与运行时注入同源（同一个不 connect 的 root ThemeScope.toStyles()，原名 generate()，ADR-0006 归并更名），文件头部带机器可读指纹（`--x-theme-static`，v2 共 15 字段：schema|生效hex|gap|cap|五语义种子|六维度默认）。宿主在 head 静态引入即可零 JS 正确首帧；运行时 root 作用域水合后比对指纹前 9 个颜色字段，完全一致才跳过三块注入，指纹存在但不一致则告警并回退动态注入。只服务 root 作用域；局部作用域、运行时任意换色仍走注入。浏览器端 `download()` 是同源导出通道：root 作用域产物经同一组装函数（assembleStaticThemeCss，ADR-0006）与 CLI 产物逐字节一致，下载时刻的维度状态一并烘焙。
+_Avoid_: 无指纹静态 CSS、按名裸跳注入、静态化局部作用域、历史静态标尺文件（src/themes/*.less 旧体系，方向不统一，deprecated）
+
+**维度烘焙（baked defaults）**：
+静态主题包的可选形态扩展（ADR-0005）：dark/colorized/size/spacing/shadow/radius 六个纯运行时维度经「守卫块」纯追加在 toStyles() 输出之后——`:root:not([data-X])` 形选择器只在属性缺席的零 JS 首帧窗口命中，使首帧即呈烘焙形态；属性一经物化守卫失效、标准覆盖块以同值接管（幂等）。指纹尾部 6 个维度字段仅供首访（无水合参数）采纳为初始参数并随 connect 自然落盘，不参与失配判定（用户选择恒优先）。烘焙维度下「无属性」语义即烘焙值，回退库默认须显式写 `data-light` / `data-uncolored` / `data-size="medium"` 等。
+_Avoid_: 基块替换（与运行时生成分叉）、维度字段参与指纹匹配（回访告警噪音）、编译期默认（烘焙值是包级首访默认，非编译常量）
 
 **参数持久化（scope params）**：
 每个主题作用域的用户可感参数（主题色/暗色/多彩/四尺寸）按作用域独立持久化；语义色与调色板参数属宿主级定制，不入快照。作用域启动先水合参数再注入，避免「恢复主题→默认主题→恢复主题」的二次闪烁。
 _Avoid_: 全局单份参数、语义色持久化
 
 **恢复片段（restore snippet）**：
-宿主粘贴在 head 的阻塞内联脚本：读样式快照插入 `autospark-theme-restore` 标签，先于首帧还原用户主题；运行时 root 作用域接管后移除该标签。
+宿主粘贴在 head 的阻塞内联脚本：读样式快照插入 `autospark-theme-restore` 标签，先于首帧还原用户主题；运行时 root 作用域接管后移除该标签。与静态主题包共存时必须位于静态 `<link>` 之后（用户最近选择优先）。
 _Avoid_: restore.js 外链、库自动注入

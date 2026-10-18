@@ -1,4 +1,4 @@
-import type { ThemeScope } from './scope'
+import type { AutoSparkThemeScope } from './scope'
 
 const themeAttrs: string[] = [
     'data-theme',
@@ -21,7 +21,7 @@ export class ThemeObserver {
     observer: MutationObserver | null = null
     connected: boolean = false
     constructor(
-        public scope: ThemeScope,
+        public scope: AutoSparkThemeScope,
         public el: HTMLElement,
     ) {
         this.connect()

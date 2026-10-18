@@ -91,7 +91,7 @@ export class ViewportManager {
     private _mqls: MqlEntry[] = [];
     private _enabled = false;
 
-    constructor(engine: AutoSpark) {
+    constructor(engine: AutoSpark<any>) {
         this.engine = engine;
         if (engine.options.viewport === false) return;
         const tables = resolveViewportBreakpoints(engine.options.viewport?.breakpoints, (m) =>

@@ -4,7 +4,7 @@
 
 ## 概述
 
-AutoSpark（原 AutoTemplate Engine，更名决策见 [ADR-0030](docs/adr/0030-rename-to-autospark.md)）是为 [AutoStore](https://github.com/zhangfisher/autostore) 量身打造的声明式模板渲染引擎：在宿主元素上书写 `x-*` / `@*` / `:*` 指令属性，把响应式状态绑定到 DOM（Alpine.js 风格，最小声明 + 细粒度响应式 patch）。
+AutoSpark（原 AutoTemplate Engine，更名决策见 [ADR-0030](docs/adr/0030-rename-to-autospark.md)）是为 [AutoStore](https://github.com/zhangfisher/autostore) 量身打造的**全功能的响应式前端应用引擎**（由响应式模板引擎演进而来）：在宿主元素上书写 `x-*` / `@*` / `:*` 指令属性，把响应式状态绑定到 DOM（Alpine.js 风格，最小声明 + 细粒度响应式 patch）；状态层、指令层、组件层、动作层齐备，可直接从零搭建完整的交互式应用。
 
 **核心价值**：最小声明，最大响应——用最少的 HTML 属性声明，实现完整的响应式 UI 更新。
 

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>下载主题 · root 合规静态包</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark-theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div class="auto-card story-intro">
+                <div class="story-intro-title">root 下载产物的解剖：与 CLI 同一份组装</div>
+                <p>
+                    <code>download()</code> 在 root 作用域的产物经 <code>assembleStaticThemeCss</code>
+                    组装——与 <code>generate-theme</code> CLI 共用同一函数，同参产物<strong>逐字节一致</strong>：
+                </p>
+                <table class="demo-table">
+                    <thead>
+                        <tr><th>段</th><th>内容</th><th>来源</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>指纹规则块</td><td><code>--x-theme-static: 2|…</code>（v2 15 字段）</td><td>构建时写入文件头</td></tr>
+                        <tr><td>三块样式</td><td>基础变量 → 主题标尺 → 语义色</td><td><code>root.toStyles()</code>，与运行时注入同源</td></tr>
+                        <tr><td>维度烘焙守卫块</td><td><code>:root:not([data-X])</code> 形默认值</td><td>下载时刻的 dark / size 等当前状态</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">产物结构实测</div>
+                <div class="auto-card-body col">
+                    <div>
+                        <button class="auto-btn auto-btn-primary" id="btn-download">下载产物</button>
+                        <button class="auto-btn" id="btn-refresh">重新解剖</button>
+                    </div>
+                    <table class="demo-table">
+                        <tbody>
+                            <tr><td>指纹字段（15）</td><td id="seg-fingerprint">-</td></tr>
+                            <tr><td>基础变量段</td><td id="seg-base">-</td></tr>
+                            <tr><td>主题标尺段（/* colors */）</td><td id="seg-colors">-</td></tr>
+                            <tr><td>语义色段（/* Semantic Colors */）</td><td id="seg-semantic">-</td></tr>
+                            <tr><td>守卫块段（/* baked defaults */）</td><td id="seg-guards">-</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="hint">
+                        在左侧控制面板切换暗色或尺寸后「重新解剖」：指纹尾部 6 个维度字段随当前状态变化，
+                        守卫块段出现/消失——这正是「下载时刻状态烘焙为默认」的含义。
+                    </p>
+                </div>
+            </div>
+
+            <div class="auto-card">
+                <div class="auto-card-header">下载后怎么用：作静态层挂 &lt;link&gt;</div>
+                <div class="auto-card-body col">
+                    <pre>&lt;head&gt;
+  &lt;link rel="stylesheet" href="/theme/autospark_root.css" /&gt;  &lt;!-- 静态层在前 --&gt;
+  &lt;script type="module" src="/app.js"&gt;&lt;/script&gt;          &lt;!-- 运行时水合在后 --&gt;
+&lt;/head&gt;</pre>
+                    <p class="hint">
+                        运行时 root 作用域水合后比对指纹前 9 个颜色字段：一致则跳过三块注入
+                        （零 JS 首帧已由静态层保证）；不一致则告警并回退动态注入——
+                        与 <code>generate-theme</code> CLI 产物走完全相同的接管链路（ADR-0004）。
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <script>
+            const root = ThemePro.root;
+            const FIELD_NAMES = [
+                "schema", "hex", "gap", "cap", "primary", "success", "warning", "danger", "info",
+                "dark", "colorized", "size", "spacing", "shadow", "radius",
+            ];
+            function dissect() {
+                const css = root._resolveDownloadCss();
+                const match = css.match(/--x-theme-static:\s*([^;}]+)/);
+                document.getElementById("seg-fingerprint").innerHTML = match
+                    ? "<code>" + match[1].split("|").map((v, i) => FIELD_NAMES[i] + "=" + v).join(" | ") + "</code>"
+                    : "（无）";
+                const iColors = css.indexOf("/* colors */");
+                const iSemantic = css.indexOf("/*  Semantic Colors */");
+                const iGuards = css.indexOf("/* baked defaults");
+                const head = css.indexOf("}", 0) + 1; // 指纹块结束
+                const endBase = iColors > 0 ? iColors : css.length;
+                const endColors = iSemantic > 0 ? iSemantic : css.length;
+                const endSemantic = iGuards > 0 ? iGuards : css.length;
+                document.getElementById("seg-base").textContent = (endBase - head).toLocaleString() + " B";
+                document.getElementById("seg-colors").textContent = iColors > 0 ? (endColors - iColors).toLocaleString() + " B" : "-";
+                document.getElementById("seg-semantic").textContent = iSemantic > 0 ? (endSemantic - iSemantic).toLocaleString() + " B" : "-";
+                document.getElementById("seg-guards").textContent = iGuards > 0
+                    ? (css.length - iGuards).toLocaleString() + " B（当前维度已烘焙）"
+                    : "无（维度全为库默认）";
+            }
+            document.getElementById("btn-download").addEventListener("click", () => root.download());
+            document.getElementById("btn-refresh").addEventListener("click", dissect);
+            new MutationObserver(dissect).observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ["dark", "data-dark", "data-light", "colorized", "data-colorized",
+                    "data-uncolored", "data-size", "data-spacing", "data-shadow", "data-radius"],
+            });
+            dissect();
+        </script>
+    </body>
+</html>

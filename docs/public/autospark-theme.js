@@ -219,6 +219,13 @@
     }
   }
   __name(writeStylesSnapshot, "writeStylesSnapshot");
+  function removeStylesSnapshot(storageKey) {
+    try {
+      globalThis.localStorage?.removeItem(stylesSnapshotKey(storageKey));
+    } catch {
+    }
+  }
+  __name(removeStylesSnapshot, "removeStylesSnapshot");
   function removeRestoreTag(doc) {
     try {
       doc.getElementById(RESTORE_STYLE_ID)?.remove();
@@ -946,6 +953,168 @@ ${toVarStyles(value)}
   }
   __name(getVarsStyles, "getVarsStyles");
 
+  // src/utils/staticFingerprint.ts
+  var STATIC_FINGERPRINT_VAR = "--x-theme-static";
+  var STATIC_SCHEMA = 2;
+  var DEFAULT_SEED_LIGHTNESS_GAP = 1.7;
+  var DEFAULT_CHROMA_BOOST_CAP = 1.25;
+  var STATIC_DEFAULT_DIMENSIONS = {
+    dark: false,
+    colorized: false,
+    size: "medium",
+    spacing: "medium",
+    shadow: "medium",
+    radius: "medium"
+  };
+  var FIELD_LABELS = [
+    "schema",
+    "\u4E3B\u9898\u8272",
+    "\u660E\u5EA6\u95F4\u9694(seedLightnessGap)",
+    "\u5F69\u5EA6\u4E0A\u9650(chromaBoostCap)",
+    "primary",
+    "success",
+    "warning",
+    "danger",
+    "info"
+  ];
+  var COLOR_FIELD_COUNT = 9;
+  var FINGERPRINT_FIELD_COUNT = 15;
+  var isHexLiteral = /* @__PURE__ */ __name((value) => /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(value.trim()), "isHexLiteral");
+  function resolveThemeHex(color) {
+    const source = (color ?? "").trim();
+    if (source in presetThemes) return presetThemes[source].color.toLowerCase();
+    return toRGBString(source).toLowerCase();
+  }
+  __name(resolveThemeHex, "resolveThemeHex");
+  function resolveSeed(value) {
+    const v = (value ?? "").trim();
+    if (!v) return "";
+    if (isHexLiteral(v)) return toRGBString(v).toLowerCase();
+    return v;
+  }
+  __name(resolveSeed, "resolveSeed");
+  function gapField(value) {
+    return String(value ?? DEFAULT_SEED_LIGHTNESS_GAP);
+  }
+  __name(gapField, "gapField");
+  function capField(value) {
+    return String(value ?? DEFAULT_CHROMA_BOOST_CAP);
+  }
+  __name(capField, "capField");
+  var boolField = /* @__PURE__ */ __name((value) => value ? "1" : "0", "boolField");
+  var sizeField = /* @__PURE__ */ __name((value) => value ?? STATIC_DEFAULT_DIMENSIONS.size, "sizeField");
+  function buildStaticFingerprint(options) {
+    return [
+      `v${STATIC_SCHEMA}`,
+      resolveThemeHex(options.themeColor),
+      gapField(options.seedLightnessGap),
+      capField(options.chromaBoostCap),
+      resolveSeed(options.primary),
+      resolveSeed(options.success),
+      resolveSeed(options.warning),
+      resolveSeed(options.danger),
+      resolveSeed(options.info),
+      boolField(options.dark),
+      boolField(options.colorized),
+      sizeField(options.size),
+      sizeField(options.spacing),
+      sizeField(options.shadow),
+      sizeField(options.radius)
+    ].join("|");
+  }
+  __name(buildStaticFingerprint, "buildStaticFingerprint");
+  function staticFingerprintRule(options) {
+    return `:host,:root{${STATIC_FINGERPRINT_VAR}:${buildStaticFingerprint(options)};}
+`;
+  }
+  __name(staticFingerprintRule, "staticFingerprintRule");
+  function parseStaticFingerprint(token) {
+    const parts = (token ?? "").trim().split("|");
+    if (parts.length !== FINGERPRINT_FIELD_COUNT || parts.some((p) => p === "")) return null;
+    return parts;
+  }
+  __name(parseStaticFingerprint, "parseStaticFingerprint");
+  function parseStaticDimensions(token) {
+    const parts = parseStaticFingerprint(token);
+    if (!parts) return null;
+    return {
+      dark: parts[9] === "1",
+      colorized: parts[10] === "1",
+      size: parts[11],
+      spacing: parts[12],
+      shadow: parts[13],
+      radius: parts[14]
+    };
+  }
+  __name(parseStaticDimensions, "parseStaticDimensions");
+  function normalizeField(field) {
+    return /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(field) ? field.toLowerCase() : field;
+  }
+  __name(normalizeField, "normalizeField");
+  function matchStaticFingerprint(token, options) {
+    const actual = parseStaticFingerprint(token);
+    if (!actual) return false;
+    const expected = buildStaticFingerprint(options).split("|");
+    return actual.slice(0, COLOR_FIELD_COUNT).every((field, i) => normalizeField(field) === expected[i]);
+  }
+  __name(matchStaticFingerprint, "matchStaticFingerprint");
+  function describeStaticMismatch(token, options) {
+    const actual = parseStaticFingerprint(token);
+    if (!actual) return "\u9759\u6001\u4E3B\u9898\u5305\u6307\u7EB9\u683C\u5F0F\u975E\u6CD5\uFF08\u5B57\u6BB5\u7F3A\u5931\u6216\u635F\u574F\uFF09";
+    const expected = buildStaticFingerprint(options).split("|").slice(0, COLOR_FIELD_COUNT).map(normalizeField);
+    for (let i = 0; i < expected.length; i++) {
+      if (actual[i] !== expected[i]) {
+        return `${FIELD_LABELS[i]} \u9759\u6001\u503C=${actual[i]}\uFF0C\u751F\u6548\u503C=${expected[i]}`;
+      }
+    }
+    return "\u672A\u77E5\u5931\u914D";
+  }
+  __name(describeStaticMismatch, "describeStaticMismatch");
+  var VAR_REF_RE = /^var\(\s*(--[A-Za-z0-9-]+)\s*(?:,[^)]*)?\)$/;
+  function resolveVarSeeds(options, lookup) {
+    const resolve = /* @__PURE__ */ __name((value) => {
+      const v = (value ?? "").trim();
+      const match = v.match(VAR_REF_RE);
+      if (!match) return value;
+      const resolved = lookup(match[1]).trim();
+      return resolved || value;
+    }, "resolve");
+    return {
+      ...options,
+      primary: resolve(options.primary),
+      success: resolve(options.success),
+      warning: resolve(options.warning),
+      danger: resolve(options.danger),
+      info: resolve(options.info)
+    };
+  }
+  __name(resolveVarSeeds, "resolveVarSeeds");
+  function resolveFingerprintOptions(options, docRoot) {
+    let view;
+    try {
+      view = docRoot.ownerDocument?.defaultView;
+    } catch {
+      return options;
+    }
+    if (!view) return options;
+    return resolveVarSeeds(options, (name) => {
+      try {
+        return view.getComputedStyle(docRoot).getPropertyValue(name);
+      } catch {
+        return "";
+      }
+    });
+  }
+  __name(resolveFingerprintOptions, "resolveFingerprintOptions");
+  function readStaticFingerprint(docRoot) {
+    try {
+      return docRoot.ownerDocument?.defaultView?.getComputedStyle(docRoot).getPropertyValue(STATIC_FINGERPRINT_VAR).trim() ?? "";
+    } catch {
+      return "";
+    }
+  }
+  __name(readStaticFingerprint, "readStaticFingerprint");
+
   // src/vars/base.ts
   var baseVars = {
     "--x-border-radius-none": "none",
@@ -1436,12 +1605,80 @@ ${toVarStyles(value)}
     "--x-bgcolor-9": "var(--x-tinted-bgcolor-9) !important"
   };
 
+  // src/utils/staticThemeCss.ts
+  var MODE_GUARD_ATTRS = {
+    dark: ":not([dark]):not([data-dark]):not([data-light])",
+    colorized: ":not([colorized]):not([data-colorized]):not([data-uncolored])"
+  };
+  var guardSelector = /* @__PURE__ */ __name((nots) => `:host${nots},:root${nots}`, "guardSelector");
+  function bakeDimensionGuards(options) {
+    const blocks = [];
+    if (options.dark) {
+      const { "--auto-shadow": _dropped, ...darkShadowBase } = darkShadowVars;
+      blocks.push(`${guardSelector(MODE_GUARD_ATTRS.dark)}{
+    color-scheme: dark;
+${toVarStyles(darkColorVars)}
+${toVarStyles(darkShadowBase)}
+${toVarStyles(darkDerivedVars)}
+}`);
+    }
+    if (options.colorized) {
+      blocks.push(`${guardSelector(MODE_GUARD_ATTRS.colorized)}{
+${toVarStyles(lightColorizedColorVars)}
+}`);
+    }
+    if (options.dark && options.colorized) {
+      blocks.push(`${guardSelector(`${MODE_GUARD_ATTRS.dark}${MODE_GUARD_ATTRS.colorized}`)}{
+${toVarStyles(darkColorizedColorVars)}
+}`);
+    }
+    const sizeGuards = [
+      [
+        "data-size",
+        sizeVars,
+        options.size
+      ],
+      [
+        "data-spacing",
+        spacingVars,
+        options.spacing
+      ],
+      [
+        "data-shadow",
+        shadowVars,
+        options.shadow
+      ],
+      [
+        "data-radius",
+        radiusVars,
+        options.radius
+      ]
+    ];
+    for (const [attr, table, value] of sizeGuards) {
+      if (value === "medium") continue;
+      const vars = table[value];
+      if (!vars) continue;
+      blocks.push(`${guardSelector(`:not([${attr}])`)}{
+${toVarStyles(vars)}
+}`);
+    }
+    return blocks.length ? `
+/* baked defaults (ADR-0005) */
+${blocks.join("\n")}
+` : "";
+  }
+  __name(bakeDimensionGuards, "bakeDimensionGuards");
+  function assembleStaticThemeCss(css, options) {
+    return `${staticFingerprintRule(options)}${css}${bakeDimensionGuards(options)}`;
+  }
+  __name(assembleStaticThemeCss, "assembleStaticThemeCss");
+
   // src/scope.ts
   var isColorLiteral = /* @__PURE__ */ __name((value) => {
     const normalized = toRGBString(value.trim());
     return /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(normalized);
   }, "isColorLiteral");
-  var _ThemeScope = class _ThemeScope {
+  var _AutoSparkThemeScope = class _AutoSparkThemeScope {
     constructor(options) {
       __publicField(this, "options");
       __publicField(this, "_selectors", []);
@@ -1455,6 +1692,19 @@ ${toVarStyles(value)}
       __publicField(this, "coordinator", null);
       /** 已注入样式内容缓存（styleId → css）：内容未变跳过重解析；也是样式快照的数据源（不查 DOM） */
       __publicField(this, "_cssMap", /* @__PURE__ */ new Map());
+      /**
+       * 静态主题包满足标记（ADR-0004）：root scope 水合后指纹与静态 <link>
+       * 完全一致时为 true，三块运行时注入全部跳过，静态文件即永久样式来源。
+       * 运行时 update() 换色后动态块照常注入并常驻，本标记不回退（刷新回归纯静态路径）。
+       */
+      __publicField(this, "_staticSatisfied", false);
+      /**
+       * 静态包声明的维度默认（ADR-0005）：指纹命中时从指纹解析。两个用途：
+       * 首访（无水合）采纳为初始参数；setter/水合同步的「medium/亮/灰回退」
+       * 显式化判据（烘焙维度下「无属性」= 烘焙值而非库默认，回退须显式写
+       * data-X="medium" / data-light / data-uncolored 命中对应块）。
+       */
+      __publicField(this, "_staticDims", null);
       /** 上次持久化的参数 JSON：值未变跳过 localStorage 写入 */
       __publicField(this, "_lastParamsJson", null);
       this.options = Object.assign({
@@ -1507,15 +1757,7 @@ ${toVarStyles(value)}
     }
     set size(value) {
       this.options.size = value;
-      if (value === "medium") {
-        this._forEachElements((el) => {
-          el.removeAttribute("data-size");
-        });
-      } else {
-        this._forEachElements((el) => {
-          el.dataset.size = value;
-        });
-      }
+      this._forEachElements((el) => this._applySizeAttr(el, "size", value));
       this._persistParams();
     }
     get dark() {
@@ -1523,15 +1765,7 @@ ${toVarStyles(value)}
     }
     set dark(value) {
       this.options.dark = value;
-      if (value === false) {
-        this._forEachElements((el) => {
-          el.removeAttribute("dark");
-        });
-      } else {
-        this._forEachElements((el) => {
-          el.setAttribute("dark", "");
-        });
-      }
+      this._forEachElements((el) => this._applyDarkAttr(el, value));
       this._persistParams();
     }
     get spacing() {
@@ -1539,15 +1773,7 @@ ${toVarStyles(value)}
     }
     set spacing(value) {
       this.options.spacing = value;
-      if (value === "medium") {
-        this._forEachElements((el) => {
-          el.removeAttribute("data-spacing");
-        });
-      } else {
-        this._forEachElements((el) => {
-          el.dataset.spacing = value;
-        });
-      }
+      this._forEachElements((el) => this._applySizeAttr(el, "spacing", value));
       this._persistParams();
     }
     get shadow() {
@@ -1555,15 +1781,7 @@ ${toVarStyles(value)}
     }
     set shadow(value) {
       this.options.shadow = value;
-      if (value === "medium") {
-        this._forEachElements((el) => {
-          el.removeAttribute("data-shadow");
-        });
-      } else {
-        this._forEachElements((el) => {
-          el.dataset.shadow = value;
-        });
-      }
+      this._forEachElements((el) => this._applySizeAttr(el, "shadow", value));
       this._persistParams();
     }
     get colorized() {
@@ -1571,15 +1789,7 @@ ${toVarStyles(value)}
     }
     set colorized(value) {
       this.options.colorized = value;
-      if (value === false) {
-        this._forEachElements((el) => {
-          el.removeAttribute("colorized");
-        });
-      } else {
-        this._forEachElements((el) => {
-          el.setAttribute("colorized", "");
-        });
-      }
+      this._forEachElements((el) => this._applyColorizedAttr(el, value));
       this._persistParams();
     }
     get radius() {
@@ -1587,15 +1797,7 @@ ${toVarStyles(value)}
     }
     set radius(value) {
       this.options.radius = value;
-      if (value === "medium") {
-        this._forEachElements((el) => {
-          el.removeAttribute("data-radius");
-        });
-      } else {
-        this._forEachElements((el) => {
-          el.dataset.radius = value;
-        });
-      }
+      this._forEachElements((el) => this._applySizeAttr(el, "radius", value));
       this._persistParams();
     }
     get themeColor() {
@@ -1624,6 +1826,45 @@ ${toVarStyles(value)}
         }
       });
       this.elements = this.elements.filter((elRef) => elRef.deref());
+    }
+    /**
+     * 规模维度回退 medium 的属性写入（ADR-0005 显式化配套）：静态包烘焙了非
+     * medium 默认档时，「无属性」经守卫块命中烘焙档，回 medium 必须显式写
+     * data-X="medium"（medium 档块本就存在于全量产物中）；否则维持移除语义。
+     */
+    _applySizeAttr(el, attr, value) {
+      if (value === "medium") {
+        if (this._staticDims && this._staticDims[attr] !== STATIC_DEFAULT_DIMENSIONS[attr]) {
+          el.dataset[attr] = "medium";
+        } else {
+          el.removeAttribute(`data-${attr}`);
+        }
+      } else {
+        el.dataset[attr] = value;
+      }
+    }
+    /**
+     * dark 回退亮的属性写入（ADR-0005）：烘焙 dark 时切亮须显式 data-light
+     * （守卫 :not 链出口）；data-light 原为纯手动通道，仅烘焙场景下由本类代管。
+     */
+    _applyDarkAttr(el, value) {
+      if (value) {
+        el.setAttribute("dark", "");
+        if (this._staticDims?.dark) el.removeAttribute("data-light");
+      } else {
+        el.removeAttribute("dark");
+        if (this._staticDims?.dark) el.setAttribute("data-light", "");
+      }
+    }
+    /** colorized 回退灰的属性写入（ADR-0005）：烘焙多彩时切灰须显式 data-uncolored */
+    _applyColorizedAttr(el, value) {
+      if (value) {
+        el.setAttribute("colorized", "");
+        if (this._staticDims?.colorized) el.removeAttribute("data-uncolored");
+      } else {
+        el.removeAttribute("colorized");
+        if (this._staticDims?.colorized) el.setAttribute("data-uncolored", "");
+      }
     }
     /**
      * 本作用域是否为文档根域（:host/:root 选择器，即 manager 的 root scope）。
@@ -1909,34 +2150,15 @@ ${darkDerivedStyles}`;
      */
     _syncPersistedAttrs() {
       this._forEachElements((el) => {
-        if (this.options.dark) el.setAttribute("dark", "");
-        else el.removeAttribute("dark");
-        if (this.options.colorized) el.setAttribute("colorized", "");
-        else el.removeAttribute("colorized");
+        this._applyDarkAttr(el, this.options.dark);
+        this._applyColorizedAttr(el, this.options.colorized);
         if (this.options.themeColor && this.options.themeColor !== "light") {
           el.dataset.theme = this.options.themeColor in presetThemes ? presetThemes[this.options.themeColor].color : toRGBString(this.options.themeColor);
         }
-        for (const [attr, value] of [
-          [
-            "size",
-            this.options.size
-          ],
-          [
-            "radius",
-            this.options.radius
-          ],
-          [
-            "spacing",
-            this.options.spacing
-          ],
-          [
-            "shadow",
-            this.options.shadow
-          ]
-        ]) {
-          if (value === "medium") el.removeAttribute(`data-${attr}`);
-          else el.dataset[attr] = value;
-        }
+        this._applySizeAttr(el, "size", this.options.size);
+        this._applySizeAttr(el, "radius", this.options.radius);
+        this._applySizeAttr(el, "spacing", this.options.spacing);
+        this._applySizeAttr(el, "shadow", this.options.shadow);
       });
     }
     /**
@@ -1958,15 +2180,68 @@ ${darkDerivedStyles}`;
       }
       this._persistParams();
     }
+    /**
+     * 静态主题包指纹校验（ADR-0004）：仅 root 作用域参与——静态包选择器固定
+     * :host,:root，局部作用域即使经继承读到指纹也不代表其样式被覆盖。
+     * 比对发生在 _hydrateParams 之后（拿到的是 localStorage 水合后的生效参数）；
+     * 指纹缺失（未引静态包/SSR 无 DOM）返回 false 走现行注入路径；指纹存在但
+     * 不一致 → warn 一次并返回 false，由动态注入（后注入胜出）接管静态文件。
+     */
+    _satisfiedByStaticLayer() {
+      if (!this._isRootScope) return false;
+      if (typeof globalThis.document === "undefined" || !this.docRoot?.ownerDocument) {
+        return false;
+      }
+      const token = readStaticFingerprint(this.docRoot);
+      if (!token) return false;
+      const rawOptions = {
+        themeColor: this.options.themeColor,
+        seedLightnessGap: this.options.seedLightnessGap,
+        chromaBoostCap: this.options.chromaBoostCap,
+        primary: this.options.primary,
+        success: this.options.success,
+        warning: this.options.warning,
+        danger: this.options.danger,
+        info: this.options.info
+      };
+      const options = resolveFingerprintOptions(rawOptions, this.docRoot);
+      if (matchStaticFingerprint(token, options)) {
+        this._staticDims = parseStaticDimensions(token);
+        return true;
+      }
+      console.warn(`[@autospark/theme] \u9759\u6001\u4E3B\u9898\u5305\u4E0E\u5F53\u524D\u751F\u6548\u4E3B\u9898\u53C2\u6570\u4E0D\u5339\u914D\uFF08${describeStaticMismatch(token, options)}\uFF09\uFF0C\u5DF2\u56DE\u9000\u8FD0\u884C\u65F6\u6CE8\u5165\uFF1B\u8BF7\u7528 generate-theme \u91CD\u65B0\u751F\u6210\u9759\u6001\u4E3B\u9898\u5305\u3002`);
+      return false;
+    }
+    /**
+     * 首访采纳指纹维度默认（ADR-0005）：仅在水合缺失时由 connect 调用——水合态
+     * 恒优先（用户选择 > 包默认）。与库默认有差异才写入 options 并返回 true，
+     * 属性物化由 _syncPersistedAttrs 统一补齐，connect 尾部 _persistParams 随
+     * 基线漂移自然落盘（与首访写默认参数的现行行为一致）。
+     */
+    _adoptStaticDims() {
+      const d = this._staticDims;
+      if (!d) return false;
+      if (d.dark === this.options.dark && d.colorized === this.options.colorized && d.size === this.options.size && d.spacing === this.options.spacing && d.shadow === this.options.shadow && d.radius === this.options.radius) {
+        return false;
+      }
+      Object.assign(this.options, d);
+      return true;
+    }
     connect() {
       if (this.connected) return;
       const hydrated = this._hydrateParams();
-      this._injectBaseStyles();
-      this._injectThemeColorStyles();
-      this._injectSemanticColorStyles();
+      this._staticSatisfied = this._satisfiedByStaticLayer();
+      const adopted = this._staticSatisfied && !hydrated && this._adoptStaticDims();
+      if (this._staticSatisfied) {
+        this.coordinator?.clearStylesSnapshot?.(this);
+      } else {
+        this._injectBaseStyles();
+        this._injectThemeColorStyles();
+        this._injectSemanticColorStyles();
+      }
       this._applyToElements();
       this.connected = true;
-      if (hydrated) this._syncPersistedAttrs();
+      if (hydrated || adopted) this._syncPersistedAttrs();
       if (this.id === "root" && this.docRoot?.ownerDocument) {
         removeRestoreTag(this.docRoot.ownerDocument);
       }
@@ -1995,9 +2270,12 @@ ${darkDerivedStyles}`;
         }
       });
       this._cssMap.clear();
+      this._staticSatisfied = false;
+      this._staticDims = null;
       this.connected = false;
     }
     isConnected() {
+      if (this._staticSatisfied) return true;
       const styleIds = [
         `autospark-${this.id}-vars`,
         `autospark-${this.id}-semantics`,
@@ -2007,21 +2285,41 @@ ${darkDerivedStyles}`;
       return styleIds.some((id) => this.docRoot.ownerDocument.getElementById(id) !== null);
     }
     /**
-     * 生成所有需要注入的css样式
+     * 生成作用域全量 CSS 字符串（base → colors → semantics，与 connect 注入
+     * 顺序一致）。构建期静态产物（ADR-0004，经 generateStaticThemeCss）与
+     * download() 均走本方法——物理上不存在第二套组装路径（ADR-0006）。
      */
     toStyles() {
-      return `${this._generateBaseStyles()}${this._generateSemanticColorStyles()}${this._generateThemeColorStyles()}`;
+      return `${this._generateBaseStyles()}
+/* colors */
+ ${this._generateThemeColorStyles()}
+/*  Semantic Colors */
+${this._generateSemanticColorStyles()}`;
+    }
+    /**
+     * download() 的产物决策（ADR-0006）：root 作用域经 assembleStaticThemeCss
+     * 出合规静态主题包（指纹头 + 三块 + 当前维度烘焙守卫块，与 CLI
+     * generate-theme 产物逐字节一致，挂 <link> 即可被运行时指纹接管）；
+     * 非 root 作用域出 toStyles() 快照——静态层契约只服务 root，局部产物
+     * 挂 <link> 不会被指纹识别，warn 防误用。
+     */
+    _resolveDownloadCss() {
+      if (this._isRootScope) {
+        return assembleStaticThemeCss(this.toStyles(), this.options);
+      }
+      console.warn(`[@autospark/theme] \u5C40\u90E8\u4F5C\u7528\u57DF\uFF08${this.id}\uFF09\u7684 download() \u4EA7\u7269\u662F\u4F5C\u7528\u57DF\u6837\u5F0F\u5FEB\u7167\uFF0C\u4E0D\u53EF\u4F5C\u9759\u6001\u4E3B\u9898\u5305\u4F7F\u7528\uFF08\u9759\u6001\u5C42\u53EA\u670D\u52A1 root \u4F5C\u7528\u57DF\uFF0CADR-0004\uFF09\u3002`);
+      return this.toStyles();
     }
     download() {
       const blob = new Blob([
-        this.toStyles()
+        this._resolveDownloadCss()
       ], {
-        type: "text/plain"
+        type: "text/css"
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `autoaprkd_${this.id}.css`;
+      a.download = `autospark_${this.id}.css`;
       a.style.display = "none";
       document.body.appendChild(a);
       a.click();
@@ -2070,16 +2368,9 @@ ${darkDerivedStyles}`;
         }
       }
     }
-    generate() {
-      return `${this._generateBaseStyles()}
-/* colors */
- ${this._generateThemeColorStyles()}
-/*  Semantic Colors */
-${this._generateSemanticColorStyles()}`;
-    }
   };
-  __name(_ThemeScope, "ThemeScope");
-  var ThemeScope = _ThemeScope;
+  __name(_AutoSparkThemeScope, "AutoSparkThemeScope");
+  var AutoSparkThemeScope = _AutoSparkThemeScope;
 
   // src/observer.ts
   var themeAttrs = [
@@ -2135,7 +2426,7 @@ ${this._generateSemanticColorStyles()}`;
   var ThemeObserver = _ThemeObserver;
 
   // src/manager.ts
-  var _ThemeManager = class _ThemeManager {
+  var _AutoSparkThemeManager = class _AutoSparkThemeManager {
     constructor(options) {
       __publicField(this, "vars", {});
       __publicField(this, "scopes");
@@ -2204,6 +2495,9 @@ ${this._generateSemanticColorStyles()}`;
     update(options) {
       this.root.update(options);
     }
+    download() {
+      this.root.download();
+    }
     /**
      * 合成样式快照并写入 localStorage（ADR-0003）：root 与全部未退出持久化的
      * scope 的 CSS 按注册序 concat（数据源为各 scope 的注入缓存，不查 DOM）；
@@ -2221,8 +2515,17 @@ ${this._generateSemanticColorStyles()}`;
       this._lastStylesSnapshot = css;
       writeStylesSnapshot(this.options.storageKey, css);
     }
+    /**
+     * 清空样式快照（ADR-0004）：root scope 静态主题包指纹命中时回调。
+     * 同时复位去重基线，使随后运行时换色产生的动态块仍能正常重写快照（自愈）。
+     */
+    clearStylesSnapshot(scope) {
+      if (!scope.persistence) return;
+      removeStylesSnapshot(this.options.storageKey);
+      this._lastStylesSnapshot = null;
+    }
     _createRootScope() {
-      const scope = new ThemeScope({
+      const scope = new AutoSparkThemeScope({
         id: "root",
         cssSelector: [
           ":host",
@@ -2254,7 +2557,7 @@ ${this._generateSemanticColorStyles()}`;
       const { id } = options;
       if (this.hasScope(id)) return;
       if (!this.scopes) this.scopes = {};
-      const scope = new ThemeScope({
+      const scope = new AutoSparkThemeScope({
         storageKey: this.options.storageKey,
         ...options
       });
@@ -2273,9 +2576,9 @@ ${this._generateSemanticColorStyles()}`;
       }
     }
   };
-  __name(_ThemeManager, "ThemeManager");
-  var ThemeManager = _ThemeManager;
-  var themeManager = new ThemeManager();
+  __name(_AutoSparkThemeManager, "AutoSparkThemeManager");
+  var AutoSparkThemeManager = _AutoSparkThemeManager;
+  var themeManager = new AutoSparkThemeManager();
   globalThis.ThemePro = themeManager;
 
   // src/errors.ts

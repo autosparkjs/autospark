@@ -20,7 +20,7 @@
       "import": "./dist/index.global.js",
       "require": "./dist/index.global.js"
     },
-    "./plugins/notifications": {
+    "./notifications": {
       "import": "./dist/plugins/notifications/index.js",
       "require": "./dist/plugins/notifications/index.cjs"
     }

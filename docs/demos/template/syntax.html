@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>模板 · 语法要素</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 三种语法要素同屏：{{ }} 文本插值、属性插值（href）、指令（:class / @click.修饰符） -->
+        <div class="demo-app section">
+            <!-- 文本插值：可穿插多段、可写表达式 -->
+            <p class="block">
+                {{ user.name }}（{{ user.age }} 岁），明年 {{ user.age + 1 }} 岁
+            </p>
+            <!-- 属性插值：编译期归一化为属性绑定 -->
+            <p class="block">
+                主页：<a href="/users/{{ user.id }}">/users/{{ user.id }}</a>
+            </p>
+            <!-- :class 是 x-bind:class 简写；@click 是 x-on:click 简写，.once 是修饰符 -->
+            <div class="buttons">
+                <button
+                    class="button"
+                    :class="liked ? 'is-danger' : 'is-primary'"
+                    @click="toggle"
+                >
+                    {{ liked ? "已点赞" : "点赞" }}
+                </button>
+                <button class="button is-light" @click.once="celebrate">
+                    @click.once：只生效一次
+                </button>
+            </div>
+            <p class="block has-text-grey" x-show="celebrated">
+                🎉 once 按钮已触发过（x-show 按状态显隐）
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    user: { id: 101, name: "张三", age: 28 },
+                    liked: false,
+                    celebrated: false,
+                },
+                {
+                    actions: {
+                        toggle() {
+                            this.globalState.liked = !this.globalState.liked;
+                        },
+                        celebrate() {
+                            this.globalState.celebrated = true;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

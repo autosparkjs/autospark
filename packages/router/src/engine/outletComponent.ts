@@ -20,7 +20,12 @@ import { injectStylesheet } from "@/utils/injectStylesheet";
  *   远程模板经子模板编译，其中的 x-* 指令全部生效；raw 视图（条目 raw 标志为 true，
  *   ADR-0008）改用普通 x-html 直接 innerHTML 挂载——不经编译（性能旁路），
  *   其内容中的 x-* 指令不激活、script 不执行、x-outlet 不生效。
- * - **加载态**：内容未就绪时显示内置 autospark-loading 元素。
+ * - **加载态**：内建 x-loading 门控覆盖层（ADR-0012 决策 1）——视图容器内建门控 div，
+ *   `x-if="view.loading"` 显隐（覆盖层建拆由 x-if 增删经 observer 通道驱动）、合并配置
+ *   （JSON 串）经属性绑定注入 x-loading（无 value 字段 ≡ 字面量恒显示，显隐完全归 x-if）；
+ *   视图容器 relative 提供定位上下文。复用 engine x-loading 指令，router 不自研组件。
+ * - **错误呈现**：内建错误块（ADR-0012 决策 2）——`x-if="view.error"`（`{status, message}`）
+ *   驱动，动作按钮走组件方法：404 仅「返回」，其余「重试」（router.retry()）+「返回」。
  *
  * router 渲染层经 `engine.data(outletEl, …)` 直写数据域驱动（ADR-0003 决策 6，
  * methods 驱动面已废弃）。宿主元素带 data-autospark-outlet 标记（findOutlet 的查找锚点）。
@@ -42,7 +47,17 @@ export const OUTLET_COMPONENT_STYLES = `.autospark-outlet-tabs{display:flex;flex
 .autospark-outlet-tab:hover{color:var(--autospark-outlet-tab-hover-color,#1d2129);background:var(--autospark-outlet-tab-hover-bg,rgba(0,0,0,.04))}
 .autospark-outlet-tab.is-active{color:var(--autospark-outlet-tab-active-color,#165dff);background:var(--autospark-outlet-tab-active-bg,#fff);border-color:var(--autospark-outlet-tab-border-color,#e5e6eb)}
 .autospark-outlet-tab-close{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;font-size:12px;line-height:1;color:var(--autospark-outlet-tab-close-color,#86909c);cursor:pointer}
-.autospark-outlet-tab-close:hover{color:var(--autospark-outlet-tab-close-hover-color,#1d2129);background:var(--autospark-outlet-tab-close-hover-bg,rgba(0,0,0,.08))}`;
+.autospark-outlet-tab-close:hover{color:var(--autospark-outlet-tab-close-hover-color,#1d2129);background:var(--autospark-outlet-tab-close-hover-bg,rgba(0,0,0,.08))}
+/* 视图容器：加载覆盖层的定位上下文（ADR-0012 决策 1） */
+.autospark-outlet-view,.autospark-outlet-ephemeral{position:relative}
+/* 内建错误块（ADR-0012 决策 2） */
+.autospark-outlet-error{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--autospark-outlet-error-gap,6px);padding:var(--autospark-outlet-error-padding,56px 24px);text-align:center}
+.autospark-outlet-error-status{font-size:var(--autospark-outlet-error-status-font-size,32px);font-weight:600;line-height:1.2;color:var(--autospark-outlet-error-status-color,#1d2129)}
+.autospark-outlet-error-message{font-size:var(--autospark-outlet-error-message-font-size,14px);line-height:1.6;color:var(--autospark-outlet-error-message-color,#86909c)}
+.autospark-outlet-error-actions{display:flex;align-items:center;gap:var(--autospark-outlet-error-actions-gap,10px);margin-top:var(--autospark-outlet-error-actions-margin-top,10px)}
+.autospark-outlet-error-btn{padding:var(--autospark-outlet-error-btn-padding,6px 18px);border:1px solid var(--autospark-outlet-error-btn-border-color,#e5e6eb);border-radius:var(--autospark-outlet-error-btn-radius,4px);background:var(--autospark-outlet-error-btn-bg,transparent);color:var(--autospark-outlet-error-btn-color,#4e5969);font-size:var(--autospark-outlet-error-btn-font-size,13px);line-height:1.5;cursor:pointer;transition:color .15s ease,border-color .15s ease,background .15s ease}
+.autospark-outlet-error-btn:hover{color:var(--autospark-outlet-error-btn-hover-color,#165dff);border-color:var(--autospark-outlet-error-btn-hover-border-color,#165dff)}
+.autospark-outlet-error-btn:active{background:var(--autospark-outlet-error-btn-active-bg,rgba(22,93,255,.06))}`;
 
 /**
  * 组件模板（registerComponent 契约：严格单根 + x-define）。
@@ -56,7 +71,15 @@ export const OUTLET_COMPONENT_CODE = `<div x-define="${OUTLET_COMPONENT_NAME}" c
         data: function () {
             return {
                 views: [],
-                ephemeral: { hash: "", html: "", ready: false, raw: false },
+                ephemeral: {
+                    hash: "",
+                    html: "",
+                    ready: false,
+                    raw: false,
+                    loading: false,
+                    loadingOptions: "",
+                    error: null
+                },
                 active: "",
                 mode: "stack",
                 keepAlive: false
@@ -73,6 +96,16 @@ export const OUTLET_COMPONENT_CODE = `<div x-define="${OUTLET_COMPONENT_NAME}" c
                     el = el.parentElement;
                 }
                 return null;
+            },
+            /* 内建错误块「重试」（ADR-0012 决策 2/3）：重跑链上 error 层加载 */
+            retry: function () {
+                var router = this._findRouter();
+                if (router) router.retry();
+            },
+            /* 内建错误块「返回」（ADR-0012 决策 2）：复用 router.back() */
+            goBack: function () {
+                var router = this._findRouter();
+                if (router) router.back();
             },
             /* 页签点击：走 router 导航（URL 唯一真相源，ADR-0003 决策 3） */
             tabGo: function (tab) {
@@ -113,14 +146,35 @@ export const OUTLET_COMPONENT_CODE = `<div x-define="${OUTLET_COMPONENT_NAME}" c
     </div>
     <div class="autospark-outlet-views" x-for="view of views" :key="view.hash">
         <div class="autospark-outlet-view" x-show="view.hash === active" :data-view-hash="view.hash">
-            <autospark-loading x-show="!view.ready"></autospark-loading>
+            <!-- 加载覆盖层（ADR-0012 决策 1）：x-if 门控显隐（覆盖层建拆由 x-if 增删经
+                 observer 通道驱动）；合并配置（JSON 串）经属性绑定注入 x-loading——
+                 无 value 字段 ≡ 字面量恒显示，显隐完全归 x-if -->
+            <div class="autospark-outlet-loading" x-if="view.loading" :x-loading="view.loadingOptions"></div>
+            <!-- 内建错误块（ADR-0012 决策 2）：view.error = {status, message} 驱动；
+                 404 仅「返回」，其余「重试」+「返回」 -->
+            <div class="autospark-outlet-error" x-if="view.error">
+                <div class="autospark-outlet-error-status" x-text="view.error.status"></div>
+                <div class="autospark-outlet-error-message" x-text="view.error.message"></div>
+                <div class="autospark-outlet-error-actions">
+                    <button type="button" class="autospark-outlet-error-btn" x-show="view.error.status !== 404" @click="retry()">重试</button>
+                    <button type="button" class="autospark-outlet-error-btn" @click="goBack()">返回</button>
+                </div>
+            </div>
             <!-- raw 视图走普通 x-html 直挂（不编译，ADR-0008）；两者 x-show 互斥 -->
             <div class="autospark-outlet-view-content" x-show="!view.raw" x-html.compile="view.html"></div>
             <div class="autospark-outlet-view-content" x-show="!!view.raw" x-html="view.html"></div>
         </div>
     </div>
     <div class="autospark-outlet-ephemeral" x-show="ephemeral.hash !== '' && active === ephemeral.hash" :data-view-hash="ephemeral.hash">
-        <autospark-loading x-show="!ephemeral.ready"></autospark-loading>
+        <div class="autospark-outlet-loading" x-if="ephemeral.loading" :x-loading="ephemeral.loadingOptions"></div>
+        <div class="autospark-outlet-error" x-if="ephemeral.error">
+            <div class="autospark-outlet-error-status" x-text="ephemeral.error.status"></div>
+            <div class="autospark-outlet-error-message" x-text="ephemeral.error.message"></div>
+            <div class="autospark-outlet-error-actions">
+                <button type="button" class="autospark-outlet-error-btn" x-show="ephemeral.error.status !== 404" @click="retry()">重试</button>
+                <button type="button" class="autospark-outlet-error-btn" @click="goBack()">返回</button>
+            </div>
+        </div>
         <div class="autospark-outlet-view-content" x-show="!ephemeral.raw" x-html.compile="ephemeral.html"></div>
         <div class="autospark-outlet-view-content" x-show="!!ephemeral.raw" x-html="ephemeral.html"></div>
     </div>

@@ -267,31 +267,32 @@ export function extractGlobalOption(
 }
 
 /**
- * 提取组件元素名指令声明（ADR-0117）：`x-define-options.directive` 键，声明后组件自动
- * 注册为元素名形态指令——模板中直接写元素标签（如 `<x-counter>`）即实例化组件。
+ * 提取组件元素名指令声明（ADR-0117）：`x-define-options.tag` 键——组件**缺省即注册**
+ * 为元素名形态指令（标签自动推导 `x-{组件名}`），模板中直接写元素标签（如 `<x-counter>`）
+ * 即实例化组件；`tag: false` 显式关闭。
  *
- * - `true`：标签自动推导为 `x-{组件名}`（小写化——HTML 元素名被 DOM 全量小写化，注册表
- *   以小写为基准，`findByElementName` 的查找归一与之对齐）；
+ * - 未声明 / `true`：标签自动推导为 `x-{组件名}`（小写化——HTML 元素名被 DOM 全量小写化，
+ *   注册表以小写为基准，`findByElementName` 的查找归一与之对齐）——缺省开启；
  * - 非空且含连字符的字符串：自定义元素名（小写化；连字符为自定义元素惯例，防与原生/
  *   语义标签撞车）；
- * - `false` / 未声明：不注册（缺省关闭——显式声明才启用）；
- * - 其余值（数字 / 空串 / 无连字符字符串 / 对象等）：warn + 忽略（不注册）。
+ * - `false`：不注册（显式关闭）；
+ * - 其余值（数字 / 空串 / 无连字符字符串 / 对象等）：warn + 忽略该值，回落缺省（自动推导）。
  */
-export function extractDirectiveOption(
+export function extractTagOption(
     componentEl: HTMLElement,
     name: string,
     warn: (msg: string) => void,
 ): string | undefined {
-    const raw = parseComponentOptions(componentEl, warn)?.directive;
-    if (raw === undefined || raw === false) return undefined;
-    if (raw === true) return `x-${name}`.toLowerCase();
+    const raw = parseComponentOptions(componentEl, warn)?.tag;
+    if (raw === false) return undefined;
+    if (raw === undefined || raw === true) return `x-${name}`.toLowerCase();
     if (typeof raw === "string" && raw.trim() !== "" && raw.includes("-")) {
         return raw.trim().toLowerCase();
     }
     warn(
-        `x-define-options.directive: 无效值 ${JSON.stringify(raw)}（须 true / 含连字符的非空字符串 / false），已忽略（ADR-0117）`,
+        `x-define-options.tag: 无效值 ${JSON.stringify(raw)}（须 true / 含连字符的非空字符串 / false），已忽略并按缺省开启处理（ADR-0117）`,
     );
-    return undefined;
+    return `x-${name}`.toLowerCase();
 }
 
 /**
@@ -426,8 +427,8 @@ export function buildComponentDef(
         warn,
     );
 
-    // 元素名指令声明（ADR-0117）：x-define-options.directive → 自动注册元素名形态指令的标签
-    const directiveTag = extractDirectiveOption(componentEl, name, warn);
+    // 元素名指令声明（ADR-0117）：x-define-options.tag → 自动注册元素名形态指令的标签
+    const tag = extractTagOption(componentEl, name, warn);
 
     // 插槽出口清单（ADR-0056 决策二）：从快照后代自动推断（script/style 已剪枝，出口标记仍在）
     const slots = collectOutletSlots(snapshot, warn);
@@ -442,7 +443,7 @@ export function buildComponentDef(
         defaults: setup?.defaults,
         open,
         dataContext,
-        directiveTag,
+        tag,
         declarerScope,
         slots,
     };

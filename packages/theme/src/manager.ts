@@ -1,29 +1,30 @@
-import { ThemeScope } from './scope'
+import { AutoSparkThemeScope } from './scope'
 import type { DynamicThemeOptions, ThemeOptions, ThemeSize } from './types'
 import { ThemeObserver } from './observer'
 import { presetThemes } from './presets'
 import {
     DEFAULT_STORAGE_KEY,
     removeScopeParams,
+    removeStylesSnapshot,
     writeStylesSnapshot,
 } from './persistence'
 
-export type ThemeManagerOptions = {
+export type AutoSparkThemeManagerOptions = {
     storageKey?: string
 }
-export class ThemeManager {
+export class AutoSparkThemeManager {
     vars: Record<string, string> = {}
-    scopes?: Record<string, ThemeScope>
-    root: ThemeScope
-    options: Required<ThemeManagerOptions>
+    scopes?: Record<string, AutoSparkThemeScope>
+    root: AutoSparkThemeScope
+    options: Required<AutoSparkThemeManagerOptions>
     observer!: ThemeObserver
     /** 上次写入的样式快照内容：合成结果未变时跳过写 IO */
     private _lastStylesSnapshot: string | null = null
-    constructor(options?: ThemeManagerOptions) {
+    constructor(options?: AutoSparkThemeManagerOptions) {
         this.options = Object.assign(
             { storageKey: DEFAULT_STORAGE_KEY },
             options,
-        ) as Required<ThemeManagerOptions>
+        ) as Required<AutoSparkThemeManagerOptions>
         this.root = this._createRootScope()
         this.observer = new ThemeObserver(this.root, document.documentElement)
     }
@@ -81,13 +82,16 @@ export class ThemeManager {
     update(options: Partial<DynamicThemeOptions>) {
         this.root.update(options)
     }
+    download(){
+        this.root.download()
+    }
     /**
      * 合成样式快照并写入 localStorage（ADR-0003）：root 与全部未退出持久化的
      * scope 的 CSS 按注册序 concat（数据源为各 scope 的注入缓存，不查 DOM）；
      * 合成结果未变则跳过写 IO。运行时每次注入变化都会重写全量快照——这就是
      * 自愈：库升级改变输出后，下一次启动即覆盖旧快照。
      */
-    persistStyles(scope: ThemeScope) {
+    persistStyles(scope: AutoSparkThemeScope) {
         if (!scope.persistence) return
         // root 在构造期（this.root 赋值前）经由自身注入回调进入，此时以入参 scope 代位；
         // 不以 connected 为判据：disconnect 已清空注入缓存，cssChunks 为空自然不贡献
@@ -100,8 +104,17 @@ export class ThemeManager {
         this._lastStylesSnapshot = css
         writeStylesSnapshot(this.options.storageKey, css)
     }
+    /**
+     * 清空样式快照（ADR-0004）：root scope 静态主题包指纹命中时回调。
+     * 同时复位去重基线，使随后运行时换色产生的动态块仍能正常重写快照（自愈）。
+     */
+    clearStylesSnapshot(scope: AutoSparkThemeScope) {
+        if (!scope.persistence) return
+        removeStylesSnapshot(this.options.storageKey)
+        this._lastStylesSnapshot = null
+    }
     private _createRootScope() {
-        const scope = new ThemeScope({
+        const scope = new AutoSparkThemeScope({
             id: 'root',
             cssSelector: [':host', ':root'],
             autoAttach: false,
@@ -130,7 +143,7 @@ export class ThemeManager {
         const { id } = options
         if (this.hasScope(id)) return
         if (!this.scopes) this.scopes = {}
-        const scope = new ThemeScope({ storageKey: this.options.storageKey, ...options })
+        const scope = new AutoSparkThemeScope({ storageKey: this.options.storageKey, ...options })
         scope.coordinator = this
         this.scopes[id] = scope
         // autoConnect 在构造函数内先于 coordinator 注入执行，其注入结果未进快照，此处补写
@@ -150,7 +163,7 @@ export class ThemeManager {
 }
 
 // 创建默认的主题应用
-export const themeManager = new ThemeManager()
+export const themeManager = new AutoSparkThemeManager()
 
 globalThis.ThemePro = themeManager
 

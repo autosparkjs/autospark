@@ -20,6 +20,7 @@ engine 已具备全部所需能力：`x-html.compile`（ADR-0017）把绑定值�
 6. **数据契约**：动态路由数据（含 `$params/$query/$state`）由渲染层序列化为 `<script type="autospark/data">` 追加到视图 HTML 尾部——engine 多脚本 deepMerge 文档序后者覆盖，**动态数据自然覆盖远程模板自带的同名静态键**，零自定义合并逻辑。`data` 选项的 `store` 键（Alpine.store）随桥退役。
 7. **Alpine 遗产处置**：AlpineManager / x-cssvar / x-inject-data 删除；CSS `v-bind(expr)` → CSS 变量转换退役（模板改用 engine `:style` / x-bind）；Outlet 的 tabs/collapse 布局退役存目（stack 先行），待 engine 布局件组合重建。
 8. **保留不动**：`autospark-link` / `autospark-loading` / `autospark-feedback` / `autospark-view-meta`（原生实现，样式由 lit css 机械改写为原生 CSSStyleSheet）；导航层语义（嵌套路由 / KeepAlive / 模态路由 / 五类钩子 / 数据预取）全部保留，只换渲染载体。旧语法全退役不留别名。
+   > 2026-10-18 修订（ADR-0012）：~~`autospark-loading` / `autospark-feedback`~~ 退役删除——加载指示改为出口模板内建 x-loading 门控覆盖层（复用 engine x-loading 指令），错误呈现改为出口内建错误块（errorPages 回归纯应用级覆盖入口）；`autospark-link`（→ auto-link）/ `autospark-view-meta` 保留不变。
 
 ## 后果
 

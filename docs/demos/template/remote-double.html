@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>远程模板 · 数据 + 模板双远程</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 数据 + 模板双远程：x-data（异步取 books.json）与 x-html.compile（异步取
+             book-list-tpl.html）同元素，经响应式天然协调——先到者先行渲染，后到者字段级
+             更新（无需重编译）。反馈通道归 x-data 独占：fallback 是编译版，可插值 $loading -->
+        <div class="demo-app section">
+            <div class="card">
+                <div
+                    class="card-content"
+                    x-data="/autospark/api/books.json?delay=2000"
+                    x-data-options="{ path: 'data' }"
+                    x-html.compile="/autospark/api/book-list-tpl.html?delay=800"
+                >
+                    <div class="notification is-warning is-light" x-fallback>
+                        ⏳ 数据加载中…（$loading = {{ $loading }}）
+                    </div>
+                </div>
+            </div>
+            <p class="has-text-grey is-size-7 mt-3">
+                模板来自 <code>book-list-tpl.html</code>，数据来自 <code>books.json</code>
+                ——模板先到先编译，数据到达后字段级细粒度更新。
+            </p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

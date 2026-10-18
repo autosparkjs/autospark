@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>远程模板 · 本地数据 + 远程模板</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- x-html.compile="url"：fetch 取回 book-tpl.html 作为子模板编译——
+             模板内的 x-text 真实建立绑定，改本地 x-data 字段即见响应式更新；
+             x-fallback 在加载中/失败时显示 -->
+        <div class="demo-app section">
+            <div class="card">
+                <div class="card-content" x-data="{ title: '响应式状态管理', price: 59, stock: 12 }">
+                    <div class="block" x-html.compile="/autospark/api/book-tpl.html?delay=800">
+                        <div class="notification is-warning is-light" x-fallback>
+                            ⏳ 正在加载远程模板…
+                        </div>
+                    </div>
+                    <div class="buttons">
+                        <button class="button is-primary is-small" @click="swap">
+                            换一本书（模板内绑定随之更新）
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const BOOKS = [
+                { title: "响应式状态管理", price: 59, stock: 12 },
+                { title: "声明式模板引擎", price: 45, stock: 8 },
+            ];
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {},
+                {
+                    actions: {
+                        // x-data 在 card-content 上，动作在其子树内 → this.data 命中本层私有域
+                        swap: function () {
+                            const d = this.data;
+                            const next = d.title === BOOKS[0].title ? BOOKS[1] : BOOKS[0];
+                            d.title = next.title;
+                            d.price = next.price;
+                            d.stock = next.stock;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

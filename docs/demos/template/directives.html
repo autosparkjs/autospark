@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>模板 · 指令协作</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 一个面板串联多个指令家族：
+             x-data（状态数据）+ x-model（表单）+ x-for/x-show（结构）+ :style/@click（属性与事件） -->
+        <div class="demo-app section">
+            <div class="box" x-data="{ keyword: '', onlyDone: false }">
+                <!-- x-model 双向绑定局部数据；x-data 字段覆盖同名全局状态 -->
+                <div class="field is-grouped">
+                    <input class="input" x-model="keyword" placeholder="筛选任务…" />
+                    <label class="checkbox ml-2 pt-2">
+                        <input type="checkbox" @click="onlyDone = !onlyDone" />
+                        只看已完成
+                    </label>
+                </div>
+
+                <!-- x-for 渲染列表（ul 是容器、li 是项模板）；项上 :style 按状态切换；@click 触发动作 -->
+                <ul
+                    x-for="todo of todos"
+                    :key="todo.id"
+                >
+                    <li
+                        class="mb-1"
+                        x-show="(!onlyDone || todo.done) && todo.text.includes(keyword)"
+                    >
+                        <span
+                            style="cursor: pointer"
+                            :style="todo.done ? 'color:#b5b5b5;text-decoration:line-through' : ''"
+                            @click="todo.done = !todo.done"
+                        >
+                            {{ todo.text }}
+                        </span>
+                    </li>
+                </ul>
+
+                <!-- 插值直接读全局计算属性；局部 keyword 也可读 -->
+                <p class="has-text-grey is-size-7">
+                    共 {{ todos.length }} 项，剩余 {{ remaining }} 项未完成
+                    <span x-show="keyword">（筛选：{{ keyword }}）</span>
+                </p>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    todos: [
+                        { id: 1, text: "阅读模板语法", done: true },
+                        { id: 2, text: "浏览指令索引", done: false },
+                        { id: 3, text: "写一个远程模板 demo", done: false },
+                    ],
+                    remaining: (scope) => scope.todos.filter((t) => !t.done).length,
+                },
+            );
+        </script>
+    </body>
+</html>

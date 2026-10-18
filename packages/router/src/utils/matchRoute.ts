@@ -666,9 +666,16 @@ function processSingleRoute(
 
     // 空路径子路由只承接自身（剩余路径为空）：空 pattern 的前缀正则 `^(?:/(.*))?$`
     // 会匹配任意剩余段，按声明序先于兄弟参数路由（如 :id）时将误抢其路径段
-    // （场景：services 的 "" 列表层 vs :id 详情层）
-    if ((route.path === "" || route.path === "/") && parentMatchedRoute && matchResult.remainingPath) {
-        return null;
+    // （场景：services 的 "" 列表层 vs :id 详情层）。嵌套层由 parentMatchedRoute
+    // 命中守卫；根层子路由匹配时 parentMatchedRoute 为 null（matchRoute 入口传 null），
+    // 守卫覆盖不到——2026-10-18 修订：根层的空/斜杠路径叶子层同样不得吞掉剩余段
+    // （形态 {path:"/",default} + {path:"/about"} 下 /about 曾被 "/" 首页全量截胡，
+    // 匹配链与 / 完全相同，渲染域误判公共层零挂载）；带 children 的空路径父层
+    // 不在此拦截，仍走下方 children 委托。
+    if ((route.path === "" || route.path === "/") && matchResult.remainingPath) {
+        if (parentMatchedRoute || isLeaf) {
+            return null;
+        }
     }
 
     const matchedUrl = normalizeUrl(

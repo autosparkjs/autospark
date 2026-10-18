@@ -9,14 +9,17 @@
  * - keepalive：同 hash 视图复用（仅激活不触碰内容，运行态保留）；非缓存视图走临时容器；
  *   KeepAlive 两级优先级——出口 mode=tabs > 路由显式 keepAlive > 出口 keepAlive prop（ADR-0003）
  * - 驱动面：经 `engine.data(outletEl, …)` 直写出口组件数据域（ADR-0003 决策 6，methods 驱动面已废弃）
- * - 错误处理和降级（错误页按所在通道渲染）
+ * - 加载指示（ADR-0012 决策 1）：加载发起前先落 loading 态占位（网络等待期呈现出口内建
+ *   的 x-loading 门控覆盖层），两层配置（内置默认 → 路由项 loading 覆盖）
+ * - 错误呈现（ADR-0012 决策 2/4）：errorPages 显式命中走错误页处理器（outerHTML 作
+ *   ready 视图）；未命中落 view.error 走出口内建错误块；未匹配 URL（404）落 404 错误条目
  *
  * @module features/render
  */
 
 import { findOutlet } from "@/utils/findOutlet";
 import type { AutoSparkRouter } from "@/router";
-import type { AutoSparkMatchedRouteItem, AutoSparkRouteItem } from "@/types";
+import type { AutoSparkMatchedRouteItem, AutoSparkRouteItem, RouteLoadingConfig } from "@/types";
 import type { IAsyncSignal } from "asyncsignal";
 import type { AsyncLoader } from "asyncsignal/loader";
 import type { DataLoaderMeta } from "./dataLoader";
@@ -32,6 +35,22 @@ type RouteSignalReuslt<T = any> = {
 
 /** 原始文本元素：无元素子节点、内容按文本处理，不承载视图绑定 */
 const RAW_TEXT_TAGS = new Set(["STYLE", "SCRIPT", "TITLE", "TEXTAREA"]);
+
+/**
+ * 内建加载覆盖层默认（ADR-0012 决策 1）：防闪烁 + 浅色遮罩。
+ * 路由项 `loading` 声明覆盖同名字段，其余走 x-loading 指令默认。
+ */
+const LOADING_DEFAULTS: Pick<RouteLoadingConfig, "delay" | "bgColor" | "opacity"> = {
+    delay: 200,
+    bgColor: "white",
+    opacity: 0.6,
+};
+
+/** 视图错误条目（ADR-0012 决策 2：内建错误块数据域载荷） */
+interface ViewErrorEntry {
+    status: number;
+    message?: string;
+}
 
 /**
  * 加载通道载体（`route._getData` / `route._getView` 的实际形态）：
@@ -57,6 +76,12 @@ interface OutletViewEntry {
     ready: boolean;
     /** raw 视图：内容经普通 x-html 直挂，不经 engine 编译（ADR-0008） */
     raw: boolean;
+    /** 加载覆盖层门控（ADR-0012 决策 1） */
+    loading: boolean;
+    /** 加载覆盖层合并配置（两层合并结果的 JSON 串，注入门控 div 的 x-loading 属性值） */
+    loadingOptions: string;
+    /** 错误条目（ADR-0012 决策 2：非 null 时内建错误块呈现，html 恒空） */
+    error: ViewErrorEntry | null;
 }
 
 /** 视图挂载载荷（render → outlet 数据域的写入单元） */
@@ -68,6 +93,9 @@ interface ViewPayload {
     ready: boolean;
     /** raw 视图标志（ADR-0008） */
     raw: boolean;
+    loading: boolean;
+    loadingOptions: string;
+    error: ViewErrorEntry | null;
 }
 
 /** outlet 组件实例的最小读取面（engine.getComponent 门面的子集；写入一律走 engine.data） */
@@ -79,6 +107,8 @@ interface OutletComponentHandle {
         mode?: string;
         /** 出口级 keepAlive 默认值 prop（缺省 false，ADR-0003 决策 2） */
         keepAlive?: boolean;
+        /** 临时视图槽（非缓存视图通道） */
+        ephemeral?: { hash: string; ready: boolean; error?: ViewErrorEntry | null };
     };
 }
 
@@ -113,12 +143,36 @@ export class Render {
         const route = matched.route as Required<AutoSparkRouteItem>;
         return await this._loadSignal(route._getData);
     }
+    /**
+     * 解析路由项的加载覆盖层状态（ADR-0012 决策 1）：两层配置——内置默认
+     * （LOADING_DEFAULTS）→ 路由项 `loading` 声明覆盖。string 为文案简写；
+     * `false` 关闭本路由的加载指示。合并结果序列化为 JSON 串（x-loading 配置绑定、
+     * 无 value 字段 ≡ 字面量恒显示，显隐归出口模板 x-if 门控）。
+     */
+    private _resolveLoadingOptions(
+        this: AutoSparkRouter,
+        route: AutoSparkRouteItem,
+    ): { loading: boolean; loadingOptions: string } {
+        const raw = route.loading;
+        if (raw === false) {
+            return { loading: false, loadingOptions: "" };
+        }
+        let override: RouteLoadingConfig | undefined;
+        if (typeof raw === "string") {
+            override = { message: raw };
+        } else if (raw && typeof raw === "object") {
+            override = raw;
+        }
+        const merged = { ...LOADING_DEFAULTS, ...(override ?? {}) };
+        return { loading: true, loadingOptions: JSON.stringify(merged) };
+    }
+
     private _routeReject(
         this: AutoSparkRouter,
         error: any,
         outlet: HTMLElement | null,
         outletComp: OutletComponentHandle | null,
-        viewMeta: Omit<ViewPayload, "html" | "ready">,
+        viewMeta: Omit<ViewPayload, "html" | "ready" | "loading" | "loadingOptions" | "error">,
         keepAlive: boolean,
         toRoute: AutoSparkMatchedRouteItem[],
     ) {
@@ -127,10 +181,28 @@ export class Render {
             to: toRoute,
         });
         if (!outlet || !outletComp) return;
-        // 错误页按所在通道渲染（与原 slot.reject 行为对齐：错误内容挂在视图位置）
-        // 错误页是 engine 组件产物，一律走编译通道（raw: false，ADR-0008）
+        const status = typeof error?.status === "number" ? error.status : 500;
+        // errorPages 显式命中 → 错误页作 ready 视图挂载（应用级覆盖入口，ADR-0012 决策 4；
+        // 错误页是 engine 组件产物，一律走编译通道 raw: false，ADR-0008）；
+        // 未命中 → view.error 走出口内建错误块（错误不再作为 ready 视图挂载）
         const page = this._getErrorPage(error, toRoute);
-        const view: ViewPayload = { ...viewMeta, html: page.outerHTML, ready: true, raw: false };
+        const view: ViewPayload = page
+            ? {
+                ...viewMeta,
+                html: page.outerHTML,
+                ready: true,
+                loading: false,
+                loadingOptions: "",
+                error: null,
+            }
+            : {
+                ...viewMeta,
+                html: "",
+                ready: false,
+                loading: false,
+                loadingOptions: "",
+                error: { status, message: error?.message },
+            };
         if (keepAlive) {
             this._mountView(outlet, outletComp, view);
         } else {
@@ -259,14 +331,22 @@ export class Render {
     ): void {
         const views = outletComp.data.views;
         const found = views.find((v) => v.hash === view.hash);
-        if (found && found.ready) {
+        if (found && found.ready && !found.error) {
             this._outletData(outlet, { active: view.hash });
             return;
         }
         const next: OutletViewEntry[] = found
             ? views.map((v) =>
                 v.hash === view.hash
-                    ? { ...v, html: view.html || "", ready: !!view.ready, raw: !!view.raw }
+                    ? {
+                        ...v,
+                        html: view.html || "",
+                        ready: !!view.ready,
+                        raw: !!view.raw,
+                        loading: !!view.loading,
+                        loadingOptions: view.loadingOptions ?? "",
+                        error: view.error ?? null,
+                    }
                     : v,
             )
             : [
@@ -278,6 +358,9 @@ export class Render {
                     html: view.html || "",
                     ready: !!view.ready,
                     raw: !!view.raw,
+                    loading: !!view.loading,
+                    loadingOptions: view.loadingOptions ?? "",
+                    error: view.error ?? null,
                 },
             ];
         this._outletData(outlet, { views: next, active: view.hash });
@@ -291,6 +374,9 @@ export class Render {
                 html: view.html || "",
                 ready: !!view.ready,
                 raw: !!view.raw,
+                loading: !!view.loading,
+                loadingOptions: view.loadingOptions ?? "",
+                error: view.error ?? null,
             },
             active: view.hash,
         });
@@ -335,17 +421,24 @@ export class Render {
     }
 
     /**
-     * 激活前提判定（ADR-0005 决策 2）：本层视图是否仍是其出口的当前激活视图。
-     * 公共层跳过的前提——不成立时跳过转为重挂（出口已被更深回退视图置换，或
-     * 后退裁剪后激活态指向其他层）。轻量读取出口数据域，不做组件缺失告警。
+     * 公共层渲染跳过的可复用判定（ADR-0005 激活前提 + ADR-0012）：本层视图仍是其出口的
+     * 当前激活视图，且对应条目已就绪且无错误。error / 未就绪条目（重试恢复场景，
+     * ADR-0012 决策 3）不满足复用前提——跳过转为正常挂载流程，恢复的视图得以重挂。
+     * 轻量读取出口数据域，不做组件缺失告警。
      */
-    private _isOutletActive(
+    private _isCommonLayerReusable(
         this: AutoSparkRouter,
         outlet: HTMLElement,
         viewHash: string,
     ): boolean {
-        const comp = this.engine?.getComponent(outlet);
-        return (comp as unknown as OutletComponentHandle | null)?.data.active === viewHash;
+        const comp = this.engine?.getComponent(outlet) as unknown as OutletComponentHandle | null;
+        if (comp?.data.active !== viewHash) return false;
+        const ephemeral = comp.data.ephemeral;
+        if (ephemeral && ephemeral.hash === viewHash) {
+            return !!ephemeral.ready && !ephemeral.error;
+        }
+        const entry = comp.data.views.find((v) => v.hash === viewHash);
+        return !!entry?.ready && !entry.error;
     }
 
     /**
@@ -433,12 +526,27 @@ export class Render {
                         if (nested) {
                             currentOutlet = nested;
                         } else {
-                            this.logger.warn(
-                                "{} -> 层 {} 未找到嵌套出口，回退沿用上一层出口（路径链 {}）",
-                                toRoute[0].id,
-                                i,
-                                toRoute.map((r) => r.route?.path ?? "?").join(" > "),
-                            );
+                            // 日志分级（ADR-0005 决策 1 修订）：层 1 的回退目标恒为根
+                            // 出口（i=0 钉死 rootOutlet）——扁平单出口应用的常规落点
+                            // （根视图即首页、兄弟页互相置换），非异常，降为 debug；
+                            // i>=2 回退意味中间布局层缺出口（布局模板漏写 x-outlet），
+                            // 保持 warn。
+                            const pathChain = toRoute.map((r) => r.route?.path ?? "?").join(" > ");
+                            if (i === 1) {
+                                this.logger.debug(
+                                    "{} -> 层 {} 未找到嵌套出口，回退沿用上一层出口（路径链 {}）",
+                                    toRoute[0].id,
+                                    i,
+                                    pathChain,
+                                );
+                            } else {
+                                this.logger.warn(
+                                    "{} -> 层 {} 未找到嵌套出口，回退沿用上一层出口（路径链 {}）",
+                                    toRoute[0].id,
+                                    i,
+                                    pathChain,
+                                );
+                            }
                         }
                     }
 
@@ -449,13 +557,14 @@ export class Render {
                     const hasView = !!matched.route?.view;
                     prevHadView = hasView;
 
-                    // 公共路由跳过逻辑（ADR-0005 决策 2「激活前提」）：本层视图仍是其出口的
-                    // 当前激活视图时才跳过——目标链短于当前链（后退裁剪）或出口已被更深回退
-                    // 视图置换时，跳过前提不成立，正常执行挂载（signal 已由加载域备好，零网络
-                    // 成本：keepAlive 视图仅激活不触碰 DOM，ephemeral 视图重挂恢复）
+                    // 公共路由跳过逻辑（ADR-0005 决策 2「激活前提」+ ADR-0012）：本层视图
+                    // 仍是其出口的当前激活视图、且条目已就绪无错误时才跳过——目标链短于当前
+                    // 链（后退裁剪）、出口已被更深回退视图置换、或条目处于 error/未就绪
+                    // （重试恢复场景）时，跳过前提不成立，正常执行挂载（signal 已由加载域
+                    // 备好，零网络成本：keepAlive 视图仅激活不触碰 DOM，ephemeral 视图重挂恢复）
                     if (
                         i < commonRouteIndex &&
-                        (!hasView || this._isOutletActive(currentOutlet, viewHash))
+                        (!hasView || this._isCommonLayerReusable(currentOutlet, viewHash))
                     ) {
                         continue;
                     }
@@ -483,28 +592,24 @@ export class Render {
                             return;
                         }
 
-                        const data = await this._loadData(matched);
-
-                        if (navSignal.aborted) {
-                            this.logger.debug("视图加载前被中止");
-                            return;
-                        }
-
-                        const view = await this._loadView(matched);
-
                         // keepalive 复用判断：同 hash 视图已就绪 → 仅激活，不触碰内容（运行态保留）
                         const existing =
                             outletComp?.data.views.find(
-                                (v) => v.hash === viewHash && v.ready,
+                                (v) => v.hash === viewHash && v.ready && !v.error,
                             ) ?? null;
                         const isReuse = !!(keepAlive && existing);
 
-                        // 非复用：先落加载占位（内容就绪前显示 autospark-loading）
-                        if (!isReuse && outletComp && view) {
+                        // 非复用：加载发起前先落 loading 态占位（ADR-0012 决策 1——
+                        // 网络等待期在出口呈现加载覆盖层；仅 view 通道存在的路由落占位）
+                        if (!isReuse && outletComp && curRouteItem._getView) {
+                            const loadingState = this._resolveLoadingOptions(curRouteItem);
                             const placeholder: ViewPayload = {
                                 ...viewMeta,
                                 html: "",
                                 ready: false,
+                                loading: loadingState.loading,
+                                loadingOptions: loadingState.loadingOptions,
+                                error: null,
                             };
                             if (keepAlive) {
                                 this._mountView(currentOutlet, outletComp, placeholder);
@@ -515,6 +620,15 @@ export class Render {
                         if (outletComp) {
                             this._outletData(currentOutlet, { active: viewHash });
                         }
+
+                        const data = await this._loadData(matched);
+
+                        if (navSignal.aborted) {
+                            this.logger.debug("视图加载前被中止");
+                            return;
+                        }
+
+                        const view = await this._loadView(matched);
 
                         // 如果 view 为 null/undefined，即没有创建
                         if (view) {
@@ -554,6 +668,9 @@ export class Render {
                                             ...viewMeta,
                                             html: mergedHtml,
                                             ready: true,
+                                            loading: false,
+                                            loadingOptions: "",
+                                            error: null,
                                             raw: isRaw,
                                         };
                                         if (keepAlive) {
@@ -580,6 +697,25 @@ export class Render {
                         }
                         break;
                     }
+                } else {
+                    // 未匹配层（route === undefined，ADR-0012 决策 2）：不再静默跳过——
+                    // 所在出口落 404 错误条目，内建错误块呈现（动作仅「返回」）。
+                    // 未匹配即链条终点，写完即止。
+                    const outletComp = this._getOutletComponent(currentOutlet);
+                    if (outletComp) {
+                        this._mountView(currentOutlet, outletComp, {
+                            hash: matched.hash,
+                            url: matched.url,
+                            title: "404",
+                            html: "",
+                            ready: false,
+                            raw: false,
+                            loading: false,
+                            loadingOptions: "",
+                            error: { status: 404, message: `页面未找到: ${matched.url}` },
+                        });
+                    }
+                    break;
                 }
             }
 
@@ -663,31 +799,33 @@ export class Render {
     }
 
     /**
-     * 根据错误对象获取对应的错误页面元素
-     * @param error - 错误对象
-     * @param route - 完整的目标路由数组（用于错误页面处理器获取路由上下文）
-     * @returns 错误页面 HTMLElement
+     * 解析错误页处理器（ADR-0012 决策 4）：errorPages 是纯应用级覆盖入口——仅当用户
+     * 显式配置 errorPages[status] 或 ["*"] 时返回处理器产物（outerHTML 作为 ready 视图
+     * 挂载）；未配置 / 未命中返回 null，调用方落 view.error 走出口内建错误块。
+     * 构造期不再合并内建默认错误页（ADR-0012 决策 4/5）。
+     *
+     * @returns 错误页面 HTMLElement，或 null（无处理器命中，走内建错误块）
      */
     protected _getErrorPage(
         this: AutoSparkRouter,
         error: AutoSparkRouterError,
         route: AutoSparkMatchedRouteItem[],
-    ): HTMLElement {
+    ): HTMLElement | null {
         const statusCode = String(error.status || 500);
-
-        // 查找对应的错误页面处理器（errorPages 在初始化时已设置，必定存在）
-        const errorPages = this.options.errorPages!;
+        const errorPages = this.options.errorPages ?? {};
         const errorHandler = errorPages[statusCode] || errorPages["*"];
+        if (!errorHandler) return null;
 
         try {
             if (typeof errorHandler === "function") {
                 return errorHandler(error, route);
             }
-            return errorHandler!;
+            return errorHandler;
         } catch (handlerError) {
-            // 错误处理器本身出错，使用兜底的 * 处理器
+            // 错误处理器本身出错：回落 "*" 处理器（若非肇事者）；无 "*" 则走内建错误块
             this.logger.error("错误处理器执行失败", handlerError);
-            const fallbackHandler = errorPages["*"]!;
+            const fallbackHandler = errorPages["*"];
+            if (!fallbackHandler || fallbackHandler === errorHandler) return null;
             return typeof fallbackHandler === "function"
                 ? fallbackHandler(handlerError, route)
                 : fallbackHandler;

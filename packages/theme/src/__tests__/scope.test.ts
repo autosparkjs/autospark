@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ThemeScope } from "../scope";
+import { AutoSparkThemeScope } from "../scope";
 
 /**
  * 主题标尺规则生成回归：dark 反转块此前要求 DOM 上存在 data-theme 属性才命中，
@@ -8,7 +8,7 @@ import { ThemeScope } from "../scope";
  * 修复后规则仅由实例选择器 + [dark]/[data-dark] 构成，实例 options.themeColor 即唯一主题源。
  */
 describe("ThemeScope 主题标尺样式生成", () => {
-    const scope = new ThemeScope({ id: "scopeA", autoConnect: false, autoAttach: false });
+    const scope = new AutoSparkThemeScope({ id: "scopeA", autoConnect: false, autoAttach: false });
     const css = scope.toStyles();
 
     test("dark 反转标尺块不依赖 data-theme 属性即命中（data-dark 收敛到作用域子树）", () => {
@@ -23,7 +23,7 @@ describe("ThemeScope 主题标尺样式生成", () => {
     });
 
     test("root scope 仍直接命中 :host/:root（全局通道无回归）", () => {
-        const root = new ThemeScope({
+        const root = new AutoSparkThemeScope({
             id: "root",
             cssSelector: [":host", ":root"],
             autoConnect: false,
@@ -35,7 +35,7 @@ describe("ThemeScope 主题标尺样式生成", () => {
     });
 
     test("update 切换主题色后标尺跟随新值（不再依赖属性形态一致）", () => {
-        const scope = new ThemeScope({ id: "scopeT", autoConnect: false, autoAttach: false });
+        const scope = new AutoSparkThemeScope({ id: "scopeT", autoConnect: false, autoAttach: false });
         const before = scope.toStyles();
         scope.update({ themeColor: "purple" });
         const after = scope.toStyles();
@@ -52,14 +52,14 @@ describe("ThemeScope 主题标尺样式生成", () => {
  * 注入于 -vars 之后、darkColorVars 带 !important——平特异性靠顺序胜出。
  */
 describe("独立样式域 data-* 手动通道", () => {
-    const root = new ThemeScope({
+    const root = new AutoSparkThemeScope({
         id: "root",
         cssSelector: [":host", ":root"],
         autoConnect: false,
         autoAttach: false,
     });
     const rootCss = root.toStyles();
-    const scope = new ThemeScope({ id: "scopeD", autoConnect: false, autoAttach: false });
+    const scope = new AutoSparkThemeScope({ id: "scopeD", autoConnect: false, autoAttach: false });
     const scopeCss = scope.toStyles();
 
     test("暗色块与多彩块均带受限 data-* 替选择器（root 裸追加、作用域收敛）", () => {
@@ -84,9 +84,9 @@ describe("独立样式域 data-* 手动通道", () => {
         // 主题标尺亮色块（-colors 注入内容）
         expect(rootCss).toContain(":host,:root,[data-light]{\n    color-scheme: light;\n");
         // 语义色亮色块（-semantics 注入内容）
-        const scopeB = new ThemeScope({ id: "scopeL", autoConnect: false, autoAttach: false });
+        const scopeB = new AutoSparkThemeScope({ id: "scopeL", autoConnect: false, autoAttach: false });
         scopeB.update({ primary: "#123456" });
-        const css = scopeB.generate();
+        const css = scopeB.toStyles();
         expect(css).toContain(
             "[data-theme-scope='scopeL'],[data-theme-scope='scopeL'][data-light],[data-theme-scope='scopeL'] [data-light]{",
         );

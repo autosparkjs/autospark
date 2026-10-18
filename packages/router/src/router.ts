@@ -33,7 +33,6 @@ import type { AutoSpark } from "autospark";
 import { joinPath, matchRoute } from "./utils";
 import { createLogger, type AutoSparkRouterLogger } from "./logger";
 import { removePathPrefix } from "./utils/removePathPrefix";
-import { errorPages } from "./pages/errors";
 
 export class AutoSparkRouter extends Mixin(
     Context,
@@ -228,7 +227,8 @@ export class AutoSparkRouter extends Mixin(
         if (this.options.base === undefined) {
             this.options.base = getDocumentBase() ?? getBaseUrl();
         }
-        this.options.errorPages = { ...errorPages, ...this.options.errorPages };
+        // errorPages 是纯应用级覆盖入口（ADR-0012 决策 4）：构造期不再合并内建默认
+        // 错误页——未配置的 status 走出口内建错误块（pages/errors/* 已删除）
         return this.options;
     }
     /**
@@ -707,6 +707,40 @@ export class AutoSparkRouter extends Mixin(
     go(delta: number) {
         this._ensureAttached();
         this.history.go(delta);
+    }
+
+    /**
+     * 重试当前匹配链上所有加载失败的层（ADR-0012 决策 3）
+     *
+     * 加载域：重跑 loadState === "error" 层的 view/data 加载（fromIndex = 链长——
+     * ok 层复用既有 signal 零网络成本；loader 失败不落缓存，重试必真实 fetch）。
+     * 渲染域：from === to 全公共，error/未就绪条目不满足激活复用前提，恢复的视图
+     * 得以重挂（ADR-0012 公共层跳过判定）。
+     *
+     * 语义边界：非重新导航——不写历史、不走 beforeRoute/afterRoute 导航钩子链；
+     * 内建错误块「重试」按钮与应用层均可调用。
+     */
+    retry(): void {
+        this._ensureAttached();
+        const current = this.routes?.current;
+        if (!current || current.length === 0) {
+            this.logger.debug("retry: 无当前匹配链，忽略");
+            return;
+        }
+        // 中止在途导航并换代信号，避免与导航流并发写出口数据域
+        if (this._navAbortController) {
+            this.logger.debug("retry: 中止在途导航");
+            this._navAbortController.abort();
+        }
+        this._navAbortController = new AbortController();
+        const navSignal = this._navAbortController.signal;
+
+        // 加载域：fromIndex = 链长 → 跳过全部 ok 层、重跑 error/未加载层
+        this.dataLoader.loadDatas(current, navSignal, current.length);
+        this.viewLoader.loadViews(current, navSignal, current.length);
+
+        // 渲染域：from === to 全公共，error 条目经激活复用判定重挂恢复
+        void this._renderRoutes(current, current, navSignal);
     }
 
     attach(): void {

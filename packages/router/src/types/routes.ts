@@ -102,6 +102,26 @@ export interface AutoSparkRenderOptions {
 // ============================================================================
 
 /**
+ * 路由加载中指示配置（ADR-0012 决策 1）
+ *
+ * x-loading 视觉字段子集，覆盖内置默认（delay 200ms 防闪烁、白色 0.6 浅色遮罩）。
+ * 不含 value/selector/actions——value 显隐归出口模板 x-if 门控、定位归视图容器、
+ * 动作按钮属内建错误块职责。
+ */
+export interface RouteLoadingConfig {
+    /** 加载提示文案（缺省走 x-loading 指令默认：无文案） */
+    message?: string;
+    /** 防闪烁延迟（毫秒），内置默认 200 */
+    delay?: number;
+    /** 遮罩底色，内置默认 white */
+    bgColor?: string;
+    /** loader 颜色（缺省走 x-loading 指令默认） */
+    color?: string;
+    /** 遮罩不透明度，内置默认 0.6 */
+    opacity?: number;
+}
+
+/**
  * 视图加载配置选项
  * 当 view 需要特殊配置时使用
  */
@@ -221,13 +241,16 @@ export interface AutoSparkRouteItem {
     /** 加载超时时间（毫秒） */
     timeout?: number;
     /**
-     * 在load(url)方法加载HTML时，是否显示全局Loading组件，默认为 true
-     * - true：显示全局Loading组件，直到HTML内容加载完成后才隐藏
-     * - false：不显示全局Loading组件，HTML内容加载过程中不会有任何加载提示
-     * - string：显示自定义的HTML内容作为加载提示，直到HTML内容加载完成后才隐藏
-     * - HTMLElement：显示指定的HTMLElement元素作为加载提示，直到HTML内容加载完成后才隐藏
+     * 路由加载中指示（ADR-0012 决策 1）
+     *
+     * 视图加载期间在出口视图容器内呈现 x-loading 遮罩覆盖层（两层配置：
+     * 内置默认 → 本字段覆盖）。
+     * - true（缺省）：显示，使用内置默认
+     * - false：关闭本路由的加载指示
+     * - string：文案简写（≡ { message: string }）
+     * - RouteLoadingConfig：覆盖内置默认的 x-loading 视觉字段子集
      */
-    loading?: boolean | string | HTMLElement;
+    loading?: boolean | string | RouteLoadingConfig;
 
     /**
      * 视图哈希标识

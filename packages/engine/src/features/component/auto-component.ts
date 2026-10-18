@@ -4,9 +4,9 @@ import { ComponentDirective } from "../../directives/x-component";
 import { relaxedToJson } from "../../utils/relaxedToJson";
 
 /**
- * 元素名组件（ADR-0117）：`x-define-options.directive` 声明后，组件自动注册为
- * **元素名形态指令**——`<x-counter>` 直接写元素标签即实例化，与
- * `<div x-component:counter>` 完全等价（宿主化身组件根、插槽/props/事件全量同构）。
+ * 元素名组件（ADR-0117）：组件**缺省注册**为 **元素名形态指令**（`x-define-options.tag`
+ * 缺省 `true` 自动推导 `x-{组件名}`，`false` 显式关闭）——`<x-counter>` 直接写元素标签
+ * 即实例化，与 `<div x-component:counter>` 完全等价（宿主化身组件根、插槽/props/事件全量同构）。
  *
  * ## 机制（编译期剥除 + created 折叠，两段协作）
  *
@@ -196,17 +196,17 @@ export function createAutoComponentClass(componentName: string, tag: string) {
 /**
  * 安装元素名组件指令（ADR-0117，{@link createAutoComponentClass} 产物的注册收口）。
  *
- * 由 `engine.registerComponentDef` 在 def 携带 `directiveTag` 时调用（五条组件注册路径
+ * 由 `engine.registerComponentDef` 在 def 携带 `tag` 时调用（五条组件注册路径
  * 统一收口，凡注册必安装）。撞名规则：
  *
  * - 同注册名 + 同元素名（本机制重复安装，嵌套声明随实例重复收集）：**静默幂等跳过**；
  * - 撞预设指令名 / 用户自定义指令名 / 元素名被其他指令占用：**warn + 跳过**（不覆盖
  *   既有注册，与 install 的预设保护同纪律）；
- * - 同注册名 + 元素名变化（组件重声明且 directive 声明不同）：warn + 覆盖（组件定义
+ * - 同注册名 + 元素名变化（组件重声明且 tag 声明不同）：warn + 覆盖（组件定义
  *   本身已按覆盖语义更新，指令注册随之对齐）。
  */
-export function installAutoComponentDirective(
-    engine: AutoSpark,
+export function installAutoComponentTag(
+    engine: AutoSpark<any>,
     name: string,
     tag: string,
 ): void {
@@ -216,12 +216,12 @@ export function installAutoComponentDirective(
         if (isAutoComponentClass(existing)) {
             if (existing.elementName === tag) return; // 幂等：同名同 tag
             engine.logger.warn(
-                `x-define-options.directive: 组件 "${name}" 重声明元素名为 "${tag}"（原 "${existing.elementName}"），指令注册已覆盖`,
+                `x-define-options.tag: 组件 "${name}" 重声明元素名为 "${tag}"（原 "${existing.elementName}"），指令注册已覆盖`,
             );
         } else {
             const preset = Object.prototype.hasOwnProperty.call(presetDirectives, name);
             engine.logger.warn(
-                `x-define-options.directive: 组件 "${name}" 撞已注册${preset ? "预设" : "自定义"}指令名 "${name}"，元素名 "${tag}" 注册已跳过（ADR-0117）`,
+                `x-define-options.tag: 组件 "${name}" 撞已注册${preset ? "预设" : "自定义"}指令名 "${name}"，元素名 "${tag}" 注册已跳过（ADR-0117）`,
             );
             return;
         }
@@ -229,7 +229,7 @@ export function installAutoComponentDirective(
     const occupant = directives.findByElementName(tag);
     if (occupant !== undefined && occupant !== name) {
         engine.logger.warn(
-            `x-define-options.directive: 元素名 "${tag}" 已被指令 "${occupant}" 占用，组件 "${name}" 的元素名注册已跳过（ADR-0117）`,
+            `x-define-options.tag: 元素名 "${tag}" 已被指令 "${occupant}" 占用，组件 "${name}" 的元素名注册已跳过（ADR-0117）`,
         );
         return;
     }

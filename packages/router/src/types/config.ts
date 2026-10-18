@@ -139,22 +139,24 @@ export type AutoSparkRouterOptions = {
      */
     autoDiscoverRoutes?: boolean;
     /**
-     * 错误页面配置
+     * 错误页面配置（纯应用级覆盖入口，ADR-0012 决策 4）
      *
      * 支持按错误状态码配置不同的错误页面：
      * - '404': 未匹配路由时的页面
      * - '500': 服务器错误页面
      * - '*': 通用错误页面（兜底，当找不到对应状态码时使用）
      *
-     * 每个错误页可以是 HTMLElement 或返回 HTMLElement 的函数
+     * 每个错误页可以是 HTMLElement 或返回 HTMLElement 的函数。
+     * 仅显式配置的 status / "*" 命中时走错误页处理器（outerHTML 作为 ready 视图挂载）；
+     * 未配置 / 未命中的错误落 `view.error` 走出口内建错误块（404 仅「返回」，
+     * 其余「重试」+「返回」），构造期不再合并任何内建默认错误页。
      *
      * @example
      * ```ts
      * errorPages: {
      *   '404': (error, route) => {
-     *     const el = document.createElement('autospark-feedback');
-     *     el.type = 'error';
-     *     el.message = '404 - 页面未找到';
+     *     const el = document.createElement('div');
+     *     el.innerHTML = '<h1>404</h1><p>页面未找到</p>';
      *     return el;
      *   },
      *   '500': document.createElement('div'), // 直接使用元素

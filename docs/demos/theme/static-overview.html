@@ -59,14 +59,16 @@
             </div>
 
             <div class="auto-card">
-                <div class="auto-card-header">把运行时产物静态化：<code>scope.toStyles()</code></div>
+                <div class="auto-card-header">把运行时产物静态化：<code>scope.toStyles()</code> / <code>download()</code></div>
                 <div class="auto-card-body col">
-                    <pre>const css = ThemePro.root.toStyles();  // 基础变量 + 语义色 + 主题标尺
-// 构建期取出落成 .css 文件 → 「静态化的运行时主题」</pre>
+                    <pre>const css = ThemePro.root.toStyles();  // 作用域全量 CSS（基础变量 → 主题标尺 → 语义色）
+ThemePro.root.download();            // 直接下载 .css —— root 产物即合规静态主题包（ADR-0006）</pre>
                     <p class="hint">
                         这条路径适合「要运行时主题的全部变量、但不想在页面里跑运行时」的构建期方案：
                         用 <code>toStyles()</code>（或 <code>download()</code>）在构建脚本里生成 CSS，
-                        产物与运行时注入的内容同源。
+                        产物与运行时注入的内容同源；root 作用域的下载产物带指纹头、与
+                        <code>generate-theme</code> CLI 产物逐字节一致，挂 <code>&lt;link&gt;</code>
+                        即可被运行时指纹接管。
                     </p>
                 </div>
             </div>

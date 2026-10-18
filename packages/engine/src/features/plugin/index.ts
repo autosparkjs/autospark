@@ -31,7 +31,7 @@
  */
 
 import type { AutoSpark } from "../../engine/engine";
-import type { ActionDecl } from "../action/types";
+import type { ActionDecl, AutoSparkAction } from "../action/types";
 import type { ComponentDef } from "../component/component-def";
 
 /** 插件就绪回调：每个 engine 构造完成后各调一次（`AutoSpark.ready(fn)` 的元素形态） */
@@ -226,7 +226,7 @@ export function drainPluginBootstrapQueue(engine: AutoSpark<any>): void {
 export function setupPluginQueue(engine: AutoSpark<any>): void {
     for (let i = 0; i < directiveInstallers.length; i++) {
         try {
-            directiveInstallers[i](engine);
+            directiveInstallers[i]!(engine);
         } catch (e) {
             console.error(
                 `指令安装器执行失败，已跳过（ADR-0111）: ${e instanceof Error ? e.message : String(e)}`,
@@ -285,10 +285,10 @@ export function putSharedComponentDef(name: string, def: ComponentDef | null): v
  * ActionManager 惰性物化（规范化 + buildAction 包装绑定本 engine 的总线与生命周期
  * 广播）——同一声明在多实例中各绑定各的触发上下文，声明无状态即可安全共享。
  */
-export const pluginActions: Record<string, ActionDecl> = {};
+export const pluginActions: Record<string, AutoSparkAction> = {};
 
 /** 查声明表（scope `getAction` 链末端的插件层） */
-export function getPluginActionDecl(name: string): ActionDecl | undefined {
+export function getPluginActionDecl(name: string): AutoSparkAction | undefined {
     return pluginActions[name];
 }
 

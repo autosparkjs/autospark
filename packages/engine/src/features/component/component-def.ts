@@ -212,11 +212,12 @@ export interface ComponentDef {
      */
     methodLayers?: Array<Record<string, (...args: any[]) => any>>;
     /**
-     * 元素名形态指令标签（ADR-0117）：`x-define-options.directive` 声明产物——`true` →
-     * `x-{组件名}`（小写）、含连字符非空字符串 → 自定义标签（小写化）；`false` / 未声明 /
-     * 非法值为 undefined。注册收口于 `registerComponentDef`——def 携带本字段即安装元素名
+     * 元素名形态指令标签（ADR-0117）：**缺省开启**——未声明 / `true` → `x-{组件名}`（小写）、
+     * 含连字符非空字符串 → 自定义标签（小写化）；仅 `false` 显式关闭为 undefined（非法值
+     * warn + 回落缺省）。注册收口于 `registerComponentDef`——def 携带本字段即安装元素名
      * 形态指令（`<x-counter>` 直接写标签即实例化，与 `x-component:counter` 全量同构；
-     * 撞名规则见 installAutoComponentDirective）。继承解析按「声明为准」透传子声明值。
+     * 撞名规则见 installAutoComponentTag）。继承解析按「声明为准」透传子声明值（子缺省
+     * 注册自身自动标签，父的自定义标签不扩散）。
      */
-    directiveTag?: string;
+    tag?: string;
 }

@@ -11,6 +11,92 @@ const rootPathExpect = expect.objectContaining({
     path: "/",
 });
 
+describe("matchRoute - 根层空/斜杠路径叶子层不得吞掉兄弟段（2026-10-18 修订）", () => {
+    it("快速入门形态 {path:\"/\",default} + {path:\"/about\"}：/about 匹配 about 而非被首页截胡", () => {
+        const routes: AutoSparkRouteItem = normalizeRoutes({
+            path: "/",
+            children: [
+                { name: "home", path: "/", title: "首页", view: "home.html", default: true },
+                { name: "about", path: "/about", title: "关于", view: "about.html" },
+            ],
+        });
+
+        const result = matchRoute("/about", routes);
+
+        expect(result).toEqual([
+            rootPathExpect,
+            expect.objectContaining({
+                route: expect.objectContaining({ name: "about" }),
+                url: "/about",
+            }),
+        ]);
+    });
+
+    it("同形态下 / 仍匹配 default 首页（链 [root, home]）", () => {
+        const routes: AutoSparkRouteItem = normalizeRoutes({
+            path: "/",
+            children: [
+                { name: "home", path: "/", title: "首页", view: "home.html", default: true },
+                { name: "about", path: "/about", title: "关于", view: "about.html" },
+            ],
+        });
+
+        const result = matchRoute("/", routes);
+
+        expect(result).toEqual([
+            rootPathExpect,
+            expect.objectContaining({
+                route: expect.objectContaining({ name: "home" }),
+                url: "/",
+            }),
+        ]);
+    });
+
+    it("根层空路径叶子层同样只承接自身（不抢 /about）", () => {
+        const routes: AutoSparkRouteItem = normalizeRoutes({
+            path: "/",
+            children: [
+                { name: "index", path: "", view: "index.html" },
+                { name: "about", path: "about", view: "about.html" },
+            ],
+        });
+
+        const result = matchRoute("/about", routes);
+
+        expect(result).toEqual([
+            rootPathExpect,
+            expect.objectContaining({
+                route: expect.objectContaining({ name: "about" }),
+                url: "/about",
+            }),
+        ]);
+    });
+
+    it("根层空路径父层（带 children）仍向 children 委托剩余段（空路径父层经 normalizeRoutes 上提）", () => {
+        const routes: AutoSparkRouteItem = normalizeRoutes({
+            path: "/",
+            children: [
+                {
+                    name: "services",
+                    path: "",
+                    children: [{ name: "detail", path: ":id", view: "detail.html" }],
+                },
+            ],
+        });
+
+        const result = matchRoute("/x", routes);
+
+        expect(result).toHaveLength(2);
+        expect(result[1]).toEqual(
+            expect.objectContaining({
+                route: expect.objectContaining({ name: "detail" }),
+                url: "/x",
+                params: { id: "x" },
+            }),
+        );
+    });
+});
+
 describe("matchRoute - 基础匹配", () => {
     describe("静态路径匹配", () => {
         it("应该完全匹配静态路径 /user", () => {

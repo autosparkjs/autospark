@@ -1,49 +1,59 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <title>快速入门：第一个 Router 应用</title>
-        <!-- 双加载顺序兼容：先 engine 后 router（预加载队列兜底）；boot.js 为文档 demo 环境自举 -->
-        <script src="/autospark/autospark.js"></script>
-        <script src="/autospark/autospark.router.js"></script>
-        <script src="/autospark/router-demos/boot.js"></script>
-        <link rel="stylesheet" href="/autospark/bulma.min.css" />
-    </head>
 
-    <body>
-        <div class="demo-app section">
-            <!-- 导航：auto-link 组件，点击交给 router 接管 -->
-            <div class="buttons mb-2">
-                <auto-link class="button is-small is-primary" to="/">首页</auto-link>
-                <auto-link class="button is-small" to="/about">关于</auto-link>
-            </div>
+<head>
+    <meta charset="UTF-8" />
+    <title>快速入门：第一个 Router 应用</title>
+    <!-- 双加载顺序兼容：先 engine 后 router（预加载队列兜底）；boot.js 为文档 demo 环境自举 -->
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.router.js"></script>
+    <script src="/autospark/router-demos/boot.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+</head>
 
-            <!-- 路由出口：匹配到的视图渲染在这里 -->
-            <div x-outlet></div>
-
-            <!-- 全局响应式路由快照 $.route，导航 commit 后自动更新 -->
-            <p class="help mt-2">当前路由快照 $.route.fullPath：<code x-text="$.route ? $.route.fullPath : '—'"></code></p>
+<body>
+    <div class="demo-app section">
+        <!-- 导航：auto-link 组件，点击交给 router 接管 -->
+        <div class="buttons mb-2">
+            <auto-link class="button is-small is-primary" to="/">首页</auto-link>
+            <auto-link class="button is-small" to="/about">关于</auto-link>
         </div>
 
-        <script>
-            const host = document.querySelector(".demo-app");
+        <!-- 路由出口：匹配到的视图渲染在这里 -->
+        <div x-outlet></div>
 
-            // engine 构造第三参声明 routes → router 插件自举挂载
-            const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
-                // 完整路由配置对象形态：mode / base 须与路由表同对象声明（数组形态仅承载路由表）。
-                // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
-                routes: {
-                    mode: "hash",
-                    base: "/autospark/router-demos/",
-                    routes: [
-                        { path: "/", title: "首页", view: "/autospark/router-demos/views/home.html" },
-                        { path: "/about", title: "关于", view: "/autospark/router-demos/views/about.html" },
-                    ],
-                },
-            });
+        <!-- 全局响应式路由快照 $.route，导航 commit 后自动更新 -->
+        <p class="help mt-2">当前路由快照 $.route.fullPath：<code x-text="$.route ? $.route.fullPath : '—'"></code></p>
+    </div>
 
-            // router 实例挂在宿主上，供命令式导航等高级用法
-            const router = host.router;
-        </script>
-    </body>
-</html>
+    <script>
+        const host = document.querySelector(".demo-app");
+
+        // engine 构造第三参声明 routes → router 插件自举挂载
+        const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+            // 完整路由配置对象形态：mode / base 须与路由表同对象声明（数组形态仅承载路由表）。
+            // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
+            routes: {
+                mode: "hash",
+                base: "/autospark/router-demos/",
+                routes: [
+                    {
+                        // 根不带 view：「根带 view = 布局」语义下根视图会对每次导航先挂载
+                        // 再被兄弟页置换（双挂载）。扁平页应用 = 无视图根 + default 子路由，
+                        // 兄弟页在同一根出口互相置换（与 quick-start 指南 routes.json 同形）
+                        path: "/",
+                        children: [
+                            { path: "/", title: "首页", view: "/autospark/router-demos/views/home.html", default: true },
+                            { path: "/about", title: "关于", view: "/autospark/router-demos/views/about.html" },
+                        ],
+                    },
+                ],
+            },
+        });
+
+        // router 实例挂在宿主上，供命令式导航等高级用法
+        const router = host.router;
+    </script>
+</body>
+
+</html> 

@@ -8,10 +8,10 @@
 
 | 维度 | Vue 3（Full Build） | Alpine.js v3 | AutoSpark |
 |---|---|---|---|
-| **定位** | 渐进式全功能框架 | 轻量级 DOM 行为增强库 | 声明式模板渲染引擎 |
+| **定位** | 渐进式全功能框架 | 轻量级 DOM 行为增强库 | 全功能的响应式前端应用引擎 |
 | **发布形态** | CDN `<script>` / npm | CDN `<script>` / npm | ESM / CJS / IIFE 三格式 |
 | **最新版本** | 3.5.42 | 3.17.x | 开发中（v0.x） |
-| **适用场景** | 中大型 SPA / 全栈应用 | 服务端渲染页面的轻量增强 | 嵌入式声明式 UI 渲染 |
+| **适用场景** | 中大型 SPA / 全栈应用 | 服务端渲染页面的轻量增强 | 中后台 / SPA / 独立前端应用 |
 
 ---
 
@@ -209,7 +209,7 @@
 |---|---|---|
 | **中大型 SPA 应用** | 🏆 Vue 3 | 内置组件系统 + SFC + Composition API + 插件机制 + SSR |
 | **服务端渲染页面增强** | 🏆 Alpine.js | 零构建、最小侵入、x-data/x-on/x-show 覆盖常见增强需求 |
-| **嵌入式声明式 UI 渲染** | 🏆 AutoSpark | 编译期优化、字段级响应式、内置组件/action/异步数据体系 |
+| **中后台 / 独立前端应用** | 🏆 AutoSpark | 状态层、指令层、组件层、动作层齐备，且编译期优化、字段级响应式、内置组件/action/异步数据体系 |
 | **树形数据交互** | 🏆 AutoSpark | **唯一内置 x-tree**（递归渲染 + 复选 + 拖拽 + 展开折叠） |
 | **轻量级交互表单** | AutoSpark > Alpine.js > Vue 3 | AutoSpark 表单能力最丰富（auto-select / schema 注入 / getter-setter） |
 | **内存敏感场景** | 🏆 AutoSpark | 无 VNode、WeakRef 回收、编译期共享快照 |

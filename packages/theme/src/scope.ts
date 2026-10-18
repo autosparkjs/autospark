@@ -22,6 +22,17 @@ import {
 import { generateThemeColorVars } from "./utils/generateThemeColorVars";
 import { getVarsStyles } from "./utils/getVarsStyles";
 import { injectStylesheet } from "./utils/injectStylesheet";
+import {
+    describeStaticMismatch,
+    matchStaticFingerprint,
+    parseStaticDimensions,
+    readStaticFingerprint,
+    resolveFingerprintOptions,
+    STATIC_DEFAULT_DIMENSIONS,
+    type StaticDimensionDefaults,
+    type StaticFingerprintOptions,
+} from "./utils/staticFingerprint";
+import { assembleStaticThemeCss } from "./utils/staticThemeCss";
 import { toVarStyles } from "./utils/toVarStyles";
 import {
     baseVars,
@@ -48,7 +59,7 @@ const isColorLiteral = (value: string): boolean => {
     const normalized = toRGBString(value.trim());
     return /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(normalized);
 };
-export class ThemeScope {
+export class AutoSparkThemeScope {
     options: Required<ThemeOptions>;
     private _selectors: string[] = [];
     stylesheets: string[] = []; //
@@ -58,9 +69,28 @@ export class ThemeScope {
      * 快照协调器（ADR-0003）：由 ThemeManager 构造后注入，负责把本 scope 的 CSS
      * 合成进全局样式快照；独立使用的 scope 为 null（仅参数持久化，无样式快照）。
      */
-    coordinator: { persistStyles(scope: ThemeScope): void } | null = null;
+    coordinator:
+        | {
+            persistStyles(scope: AutoSparkThemeScope): void;
+            /** 静态主题包指纹命中时清空旧样式快照（ADR-0004），避免回访首帧画错 */
+            clearStylesSnapshot?(scope: AutoSparkThemeScope): void;
+        }
+        | null = null;
     /** 已注入样式内容缓存（styleId → css）：内容未变跳过重解析；也是样式快照的数据源（不查 DOM） */
     private _cssMap = new Map<string, string>();
+    /**
+     * 静态主题包满足标记（ADR-0004）：root scope 水合后指纹与静态 <link>
+     * 完全一致时为 true，三块运行时注入全部跳过，静态文件即永久样式来源。
+     * 运行时 update() 换色后动态块照常注入并常驻，本标记不回退（刷新回归纯静态路径）。
+     */
+    private _staticSatisfied = false;
+    /**
+     * 静态包声明的维度默认（ADR-0005）：指纹命中时从指纹解析。两个用途：
+     * 首访（无水合）采纳为初始参数；setter/水合同步的「medium/亮/灰回退」
+     * 显式化判据（烘焙维度下「无属性」= 烘焙值而非库默认，回退须显式写
+     * data-X="medium" / data-light / data-uncolored 命中对应块）。
+     */
+    private _staticDims: StaticDimensionDefaults | null = null;
     /** 上次持久化的参数 JSON：值未变跳过 localStorage 写入 */
     private _lastParamsJson: string | null = null;
     constructor(options?: ThemeOptions) {
@@ -115,15 +145,7 @@ export class ThemeScope {
     }
     set size(value: ThemeSize) {
         this.options.size = value;
-        if (value === "medium") {
-            this._forEachElements((el) => {
-                el.removeAttribute("data-size");
-            });
-        } else {
-            this._forEachElements((el) => {
-                el.dataset.size = value;
-            });
-        }
+        this._forEachElements((el) => this._applySizeAttr(el, "size", value));
         this._persistParams();
     }
     get dark() {
@@ -131,15 +153,7 @@ export class ThemeScope {
     }
     set dark(value: boolean) {
         this.options.dark = value;
-        if (value === false) {
-            this._forEachElements((el) => {
-                el.removeAttribute("dark");
-            });
-        } else {
-            this._forEachElements((el) => {
-                el.setAttribute("dark", "");
-            });
-        }
+        this._forEachElements((el) => this._applyDarkAttr(el, value));
         this._persistParams();
     }
     get spacing(): ThemeSize {
@@ -147,15 +161,7 @@ export class ThemeScope {
     }
     set spacing(value: ThemeSize) {
         this.options.spacing = value;
-        if (value === "medium") {
-            this._forEachElements((el) => {
-                el.removeAttribute("data-spacing");
-            });
-        } else {
-            this._forEachElements((el) => {
-                el.dataset.spacing = value;
-            });
-        }
+        this._forEachElements((el) => this._applySizeAttr(el, "spacing", value));
         this._persistParams();
     }
     get shadow() {
@@ -163,15 +169,7 @@ export class ThemeScope {
     }
     set shadow(value: ThemeSize) {
         this.options.shadow = value;
-        if (value === "medium") {
-            this._forEachElements((el) => {
-                el.removeAttribute("data-shadow");
-            });
-        } else {
-            this._forEachElements((el) => {
-                el.dataset.shadow = value;
-            });
-        }
+        this._forEachElements((el) => this._applySizeAttr(el, "shadow", value));
         this._persistParams();
     }
     get colorized() {
@@ -179,15 +177,7 @@ export class ThemeScope {
     }
     set colorized(value: boolean) {
         this.options.colorized = value;
-        if (value === false) {
-            this._forEachElements((el) => {
-                el.removeAttribute("colorized");
-            });
-        } else {
-            this._forEachElements((el) => {
-                el.setAttribute("colorized", "");
-            });
-        }
+        this._forEachElements((el) => this._applyColorizedAttr(el, value));
         this._persistParams();
     }
     get radius(): ThemeSize {
@@ -195,15 +185,7 @@ export class ThemeScope {
     }
     set radius(value: ThemeSize) {
         this.options.radius = value;
-        if (value === "medium") {
-            this._forEachElements((el) => {
-                el.removeAttribute("data-radius");
-            });
-        } else {
-            this._forEachElements((el) => {
-                el.dataset.radius = value;
-            });
-        }
+        this._forEachElements((el) => this._applySizeAttr(el, "radius", value));
         this._persistParams();
     }
     get themeColor(): string {
@@ -232,6 +214,49 @@ export class ThemeScope {
         });
         // 清除已失效的元素引用
         this.elements = this.elements.filter((elRef) => elRef.deref());
+    }
+    /**
+     * 规模维度回退 medium 的属性写入（ADR-0005 显式化配套）：静态包烘焙了非
+     * medium 默认档时，「无属性」经守卫块命中烘焙档，回 medium 必须显式写
+     * data-X="medium"（medium 档块本就存在于全量产物中）；否则维持移除语义。
+     */
+    private _applySizeAttr(
+        el: HTMLElement,
+        attr: "size" | "spacing" | "shadow" | "radius",
+        value: ThemeSize,
+    ) {
+        if (value === "medium") {
+            if (this._staticDims && this._staticDims[attr] !== STATIC_DEFAULT_DIMENSIONS[attr]) {
+                el.dataset[attr] = "medium";
+            } else {
+                el.removeAttribute(`data-${attr}`);
+            }
+        } else {
+            el.dataset[attr] = value;
+        }
+    }
+    /**
+     * dark 回退亮的属性写入（ADR-0005）：烘焙 dark 时切亮须显式 data-light
+     * （守卫 :not 链出口）；data-light 原为纯手动通道，仅烘焙场景下由本类代管。
+     */
+    private _applyDarkAttr(el: HTMLElement, value: boolean) {
+        if (value) {
+            el.setAttribute("dark", "");
+            if (this._staticDims?.dark) el.removeAttribute("data-light");
+        } else {
+            el.removeAttribute("dark");
+            if (this._staticDims?.dark) el.setAttribute("data-light", "");
+        }
+    }
+    /** colorized 回退灰的属性写入（ADR-0005）：烘焙多彩时切灰须显式 data-uncolored */
+    private _applyColorizedAttr(el: HTMLElement, value: boolean) {
+        if (value) {
+            el.setAttribute("colorized", "");
+            if (this._staticDims?.colorized) el.removeAttribute("data-uncolored");
+        } else {
+            el.removeAttribute("colorized");
+            if (this._staticDims?.colorized) el.setAttribute("data-uncolored", "");
+        }
     }
     /**
      * 本作用域是否为文档根域（:host/:root 选择器，即 manager 的 root scope）。
@@ -525,25 +550,18 @@ export class ThemeScope {
      */
     private _syncPersistedAttrs() {
         this._forEachElements((el) => {
-            if (this.options.dark) el.setAttribute("dark", "");
-            else el.removeAttribute("dark");
-            if (this.options.colorized) el.setAttribute("colorized", "");
-            else el.removeAttribute("colorized");
+            this._applyDarkAttr(el, this.options.dark);
+            this._applyColorizedAttr(el, this.options.colorized);
             if (this.options.themeColor && this.options.themeColor !== "light") {
                 el.dataset.theme =
                     this.options.themeColor in presetThemes
                         ? presetThemes[this.options.themeColor].color
                         : toRGBString(this.options.themeColor);
             }
-            for (const [attr, value] of [
-                ["size", this.options.size],
-                ["radius", this.options.radius],
-                ["spacing", this.options.spacing],
-                ["shadow", this.options.shadow],
-            ] as const) {
-                if (value === "medium") el.removeAttribute(`data-${attr}`);
-                else el.dataset[attr] = value;
-            }
+            this._applySizeAttr(el, "size", this.options.size);
+            this._applySizeAttr(el, "radius", this.options.radius);
+            this._applySizeAttr(el, "spacing", this.options.spacing);
+            this._applySizeAttr(el, "shadow", this.options.shadow);
         });
     }
     /**
@@ -577,18 +595,89 @@ export class ThemeScope {
         // themeColor 属参数持久化范围；语义色/调色板参数变化时 JSON 不变，去重自然跳过
         this._persistParams();
     }
+    /**
+     * 静态主题包指纹校验（ADR-0004）：仅 root 作用域参与——静态包选择器固定
+     * :host,:root，局部作用域即使经继承读到指纹也不代表其样式被覆盖。
+     * 比对发生在 _hydrateParams 之后（拿到的是 localStorage 水合后的生效参数）；
+     * 指纹缺失（未引静态包/SSR 无 DOM）返回 false 走现行注入路径；指纹存在但
+     * 不一致 → warn 一次并返回 false，由动态注入（后注入胜出）接管静态文件。
+     */
+    private _satisfiedByStaticLayer(): boolean {
+        if (!this._isRootScope) return false;
+        if (typeof globalThis.document === "undefined" || !this.docRoot?.ownerDocument) {
+            return false;
+        }
+        const token = readStaticFingerprint(this.docRoot);
+        if (!token) return false;
+        const rawOptions: StaticFingerprintOptions = {
+            themeColor: this.options.themeColor,
+            seedLightnessGap: this.options.seedLightnessGap,
+            chromaBoostCap: this.options.chromaBoostCap,
+            primary: this.options.primary,
+            success: this.options.success,
+            warning: this.options.warning,
+            danger: this.options.danger,
+            info: this.options.info,
+        };
+        // 浏览器会把指纹值中的 var() 在计算值期替换为解析值（实测：静态文件写
+        // var(--auto-theme-color)，读回 #009AFF），期望侧必须在同一元素同阶段解析。
+        const options = resolveFingerprintOptions(rawOptions, this.docRoot);
+        if (matchStaticFingerprint(token, options)) {
+            // 颜色字段命中：解析维度字段备首访采纳与显式化配套（不参与匹配，ADR-0005）
+            this._staticDims = parseStaticDimensions(token);
+            return true;
+        }
+        console.warn(
+            `[@autospark/theme] 静态主题包与当前生效主题参数不匹配（${describeStaticMismatch(
+                token,
+                options,
+            )}），已回退运行时注入；请用 generate-theme 重新生成静态主题包。`,
+        );
+        return false;
+    }
+    /**
+     * 首访采纳指纹维度默认（ADR-0005）：仅在水合缺失时由 connect 调用——水合态
+     * 恒优先（用户选择 > 包默认）。与库默认有差异才写入 options 并返回 true，
+     * 属性物化由 _syncPersistedAttrs 统一补齐，connect 尾部 _persistParams 随
+     * 基线漂移自然落盘（与首访写默认参数的现行行为一致）。
+     */
+    private _adoptStaticDims(): boolean {
+        const d = this._staticDims;
+        if (!d) return false;
+        if (
+            d.dark === this.options.dark &&
+            d.colorized === this.options.colorized &&
+            d.size === this.options.size &&
+            d.spacing === this.options.spacing &&
+            d.shadow === this.options.shadow &&
+            d.radius === this.options.radius
+        ) {
+            return false;
+        }
+        Object.assign(this.options, d);
+        return true;
+    }
     connect() {
         if (this.connected) return;
         // 先水合参数再注入（ADR-0003）：注入值即恢复值，避免
         // 「恢复主题→默认主题→恢复主题」的二次闪烁
         const hydrated = this._hydrateParams();
-        this._injectBaseStyles();
-        this._injectThemeColorStyles();
-        this._injectSemanticColorStyles();
+        // 指纹命中：静态 <link> 已是三块样式的永久来源，跳过全部运行时注入，
+        // 并清掉可能画错首帧的旧回访快照（恢复片段标签在下方统一移除）。
+        this._staticSatisfied = this._satisfiedByStaticLayer();
+        const adopted = this._staticSatisfied && !hydrated && this._adoptStaticDims();
+        if (this._staticSatisfied) {
+            this.coordinator?.clearStylesSnapshot?.(this);
+        } else {
+            this._injectBaseStyles();
+            this._injectThemeColorStyles();
+            this._injectSemanticColorStyles();
+        }
         this._applyToElements();
         this.connected = true;
-        // 水合值不经 setter（元素未 attach），DOM 属性在此补齐；首访无水合零开销
-        if (hydrated) this._syncPersistedAttrs();
+        // 水合值/首访采纳值不经 setter（元素未 attach），DOM 属性在此补齐；
+        // 首访无水合且无采纳时零开销
+        if (hydrated || adopted) this._syncPersistedAttrs();
         // 运行时接管：移除恢复片段的快照标签（root 是 manager 下首个 connect 的 scope）；
         // docRoot 守卫覆盖 SSR 直接导入（无 DOM）场景
         if (this.id === "root" && this.docRoot?.ownerDocument) {
@@ -620,9 +709,14 @@ export class ThemeScope {
         });
         // 清空内容缓存：标签已被移除，重连时若缓存命中会跳过注入导致样式缺失
         this._cssMap.clear();
+        // 静态满足标记一并复位：重连需重新读取指纹（静态 <link> 是否仍在、参数是否仍匹配）
+        this._staticSatisfied = false;
+        this._staticDims = null;
         this.connected = false;
     }
     isConnected() {
+        // 静态包命中时页面上没有本 scope 的任何 <style> 标签，查 id 必漏判
+        if (this._staticSatisfied) return true;
         const styleIds: string[] = [
             `autospark-${this.id}-vars`,
             `autospark-${this.id}-semantics`,
@@ -632,20 +726,38 @@ export class ThemeScope {
         return styleIds.some((id) => this.docRoot.ownerDocument.getElementById(id) !== null);
     }
     /**
-     * 生成所有需要注入的css样式
+     * 生成作用域全量 CSS 字符串（base → colors → semantics，与 connect 注入
+     * 顺序一致）。构建期静态产物（ADR-0004，经 generateStaticThemeCss）与
+     * download() 均走本方法——物理上不存在第二套组装路径（ADR-0006）。
      */
     toStyles() {
-        return `${this._generateBaseStyles()}${this._generateSemanticColorStyles()}${this._generateThemeColorStyles()}`;
+        return `${this._generateBaseStyles()}\n/* colors */\n ${this._generateThemeColorStyles()}\n/*  Semantic Colors */\n${this._generateSemanticColorStyles()}`;
+    }
+    /**
+     * download() 的产物决策（ADR-0006）：root 作用域经 assembleStaticThemeCss
+     * 出合规静态主题包（指纹头 + 三块 + 当前维度烘焙守卫块，与 CLI
+     * generate-theme 产物逐字节一致，挂 <link> 即可被运行时指纹接管）；
+     * 非 root 作用域出 toStyles() 快照——静态层契约只服务 root，局部产物
+     * 挂 <link> 不会被指纹识别，warn 防误用。
+     */
+    protected _resolveDownloadCss(): string {
+        if (this._isRootScope) {
+            return assembleStaticThemeCss(this.toStyles(), this.options);
+        }
+        console.warn(
+            `[@autospark/theme] 局部作用域（${this.id}）的 download() 产物是作用域样式快照，不可作静态主题包使用（静态层只服务 root 作用域，ADR-0004）。`,
+        );
+        return this.toStyles();
     }
     download() {
         // 创建 Blob 对象
-        const blob = new Blob([this.toStyles()], { type: "text/plain" });
+        const blob = new Blob([this._resolveDownloadCss()], { type: "text/css" });
         // 创建临时 URL
         const url = URL.createObjectURL(blob);
         // 创建隐藏的下载链接
         const a = document.createElement("a");
         a.href = url;
-        a.download = `autoaprkd_${this.id}.css`;
+        a.download = `autospark_${this.id}.css`;
         a.style.display = "none";
         // 添加到文档并触发点击
         document.body.appendChild(a);
@@ -694,8 +806,5 @@ export class ThemeScope {
                 this.elements = this.elements.filter((ref) => ref.deref() !== el);
             }
         }
-    }
-    generate() {
-        return `${this._generateBaseStyles()}\n/* colors */\n ${this._generateThemeColorStyles()}\n/*  Semantic Colors */\n${this._generateSemanticColorStyles()}`;
     }
 }

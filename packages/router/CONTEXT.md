@@ -56,6 +56,14 @@ _Avoid_: 全量接管（放行矩阵外的情形必须交还浏览器）、preve
 导航时 fromRoute 与 toRoute 逐层比较 `matched.url`（完整路径，含 search）得到的公共前缀层级——渲染域跳过公共层渲染，加载域跳过已成功加载层的 data/view 请求（复用既有 signal）。两域前提不同：加载域是该通道加载成功（`_viewLoadState`/`_dataLoadState === "ok"`，挂在持久路由表项上，边界 = 应用生命周期）；渲染域是激活前提（本层视图仍是其出口的激活视图，ADR-0005）。失败/非激活层公共也重渲染或重试。与 loader 的 `cache` TTL（显式配置、默认 0）是两个独立机制。
 _Avoid_: 缓存命中（那是 cache TTL 机制）、已缓存层跳过（跳过判定与缓存无关）
 
+**加载覆盖层（Route Loading Overlay）**:
+路由视图加载期间在出口视图容器内呈现的 x-loading 遮罩——出口模板内建门控 div（`x-if="view.loading"` 显隐、裸 x-loading 字面量恒显示，覆盖层建拆由 x-if 增删经 observer 通道驱动），视图容器 relative 提供定位上下文。复用 engine x-loading 指令，router 不自研组件。两层配置：内置默认（delay 200ms 防闪烁、白色 0.6 浅色遮罩）→ 路由项 `loading` 覆盖（boolean 显式开关 / string 文案简写 / RouteLoadingConfig 五字段 message/delay/bgColor/color/opacity，不含 value/selector/actions）；无 router 全局项，应用级深度定制走 engine 自定义 loading 组件通道（ADR-0012）。加载发起前先落 loading 态条目，完成后按结果落 ready/error。
+_Avoid_: autospark-loading（已退役）、全局 loading（无 router 级配置项）、x-loading 反应式通道（store 路径在此不使用，显隐归出口数据域 x-if）
+
+**路由重试（Retry）**:
+`router.retry()` 公开无参方法——重跑当前匹配链上所有加载状态为 error 层的加载（view/data 两通道，ok 层复用 signal 零网络成本、error 层真实重载，loader 缓存不落失败故重试必真实 fetch），完成后重走渲染域恢复视图（绕公共层跳过——error 视图非就绪视图，复用前提不成立）。非重新导航：不写历史、不走 beforeRoute/afterRoute 导航钩子链。内建错误块的「重试」按钮与应用层均可调用。
+_Avoid_: 重新导航（会写入历史）、重匹配（那是子表展开后的 URL 重判）
+
 **加载状态标记（Load State）**:
 路由项上按通道记录的最近一次加载结果（`_viewLoadState` / `_dataLoadState`，`"ok" | "error"`），由 loader 成功/失败落账点统一写入；导航取消不写。生命周期 = 路由表（页面刷新重置）。
 _Avoid_: 缓存标记（非缓存簿记）、加载中状态（只有终态）
@@ -83,7 +91,7 @@ _Avoid_: 容器、视口、`autospark-outlet` 自定义元素（已退役）
 _Avoid_: layout（旧 `layout: tabs/collapse` 词，决策已修订）
 
 **出口回退（Outlet Fallback）**:
-嵌套渲染时上一层视图未提供子出口（模板无 x-outlet），本层视图不终止渲染而是**沿用上一层出口**挂载（置换上一层视图），更深匹配层继续在同一出口逐级置换、最深者胜；回退挂进的视图自带 x-outlet 时更深层自然向下扎根。检测以挂载后的 DOM 真相为准（有限微任务重试后仍缺失才回退），不做视图 HTML 预判。根出口缺失无处可退，维持 error 终止。
+嵌套渲染时上一层视图未提供子出口（模板无 x-outlet），本层视图不终止渲染而是**沿用上一层出口**挂载（置换上一层视图），更深匹配层继续在同一出口逐级置换、最深者胜；回退挂进的视图自带 x-outlet 时更深层自然向下扎根。检测以挂载后的 DOM 真相为准（有限微任务重试后仍缺失才回退），不做视图 HTML 预判。根出口缺失无处可退，维持 error 终止。日志分级：层 1 回退目标恒为根出口——扁平单出口应用的常规落点（根视图即首页、兄弟页互相置换），非异常，记 debug；i≥2 回退（中间布局层缺出口）记 warn（ADR-0005，2026-10-17 修订）。
 _Avoid_: 找不到出口跳过渲染（已废弃的旧行为）、出口继承、出口穿透
 
 **激活前提（Active-View Precondition）**:
@@ -99,8 +107,12 @@ _Avoid_: 默认路由兜底（default 是缺省展开机制，不覆盖 unmatche
 _Avoid_: x-outlet 指令（它是指令系统之外的预处理，非 engine 指令）
 
 **视图清单（Views）**:
-出口组件数据域的唯一状态——append-only 的已访问视图记录（`{hash, html, ready, title}` 条目 + `active` hash）与临时视图槽，router 经 `engine.data` 直写；tabs 模式页签条 x-for 它渲染，条目的 hash/title 即页签元数据。它是访问记录而非缓存簿记：缓存由 DOM 常驻承担，清单只描述「有哪些视图、哪个激活」。
+出口组件数据域的唯一状态——append-only 的已访问视图记录（`{hash, url, title, html, ready, raw, loading, loadingOptions, error}` 条目 + `active` hash）与临时视图槽，router 经 `engine.data` 直写；tabs 模式页签条 x-for 它渲染，条目的 hash/title 即页签元数据。它是访问记录而非缓存簿记：缓存由 DOM 常驻承担，清单只描述「有哪些视图、哪个激活」。`loading/loadingOptions` 驱动加载覆盖层门控，`error`（`{status, message}`）驱动内建错误块——错误是容器级状态，不进条目 html。
 _Avoid_: 缓存列表、viewCache
+
+**内建错误块（Built-in Error Block）**:
+出口模板内建的错误呈现块（`x-if="view.error"`，缓存条目容器与临时容器同构）——数据域 `view.error = {status, message}` 驱动，动作按钮走组件方法（`_findRouter` 先例）：404 仅「返回」（`router.back()`），其余「重试」（`router.retry()`）+「返回」。呈现兜底位次在 errorPages 之后：用户显式配置 `errorPages[status]`/`["*"]` 命中时错误页仍作 ready 视图挂载，未命中才落 view.error 走内建块；未匹配 URL（404）层同样在其所在出口落 error 条目。错误不再作为 ready 视图挂载（ADR-0012）。
+_Avoid_: 错误页（那是 errorPages 处理器产物）、autospark-feedback（已退役）
 
 **缓存视图 / 临时视图（Ephemeral View）**:
 出口内视图的两种容器通道——缓存视图（keepalive）进入视图清单，切走仅 x-show 隐藏（display:none）、切回原样复用（运行态保留）；临时视图每次重编译、无态可丢。**缓存不是数据概念**——数据域只放视图清单，缓存纯由 DOM 常驻 + display:none 承担。
@@ -180,6 +192,9 @@ _Avoid_: 视图上下文 `$route`（per-view 变量注入，非全局元状态�
 - **`createRouter` 工厂函数** → engine 构造 options 声明 `routes` / `autoDiscoverRoutes` 由插件自举挂载（ADR-0011，2026-10-16 插件化）
 - **`AutoSparkRouter` 运行时导出 / 自建 engine 模式** → 包入口类仅类型导出；直接装配走注入构造（`options.engine`，缺失抛错）（ADR-0011，2026-10-16）
 - **`autospark-router.js` 产物名** → `autospark.router.js`（ADR-0011，2026-10-16 与 `autospark.js` 命名对仗；IIFE 全局名 `AutoSparkRouter` 不变）
+- **`autospark-loading` / `autospark-feedback` 自定义元素** → 出口模板内建 x-loading 门控覆盖层 / 内建错误块（ADR-0012，2026-10-18 复用 engine 指令体系，组件退役）
+- **内建默认错误页（`pages/errors/*`，构造期合并进 errorPages）** → 内建错误块兜底；errorPages 回归纯应用级覆盖入口，构造期不再合并（ADR-0012）
+- **`route.loading` 的 HTMLElement 形态与「HTML 片段」string 语义** → `boolean | string（文案简写） | RouteLoadingConfig`（ADR-0012，原声明为死代码、无消费点）
 - **Alpine 桥（AutoSparkAlpineStore / AlpineManager）与 x-cssvar / x-inject-data 指令** → engine 响应式体系（ADR-0002）
 - **Outlet 布局 `layout: tabs / collapse`** → ~~stack 先行；tabs/collapse 存目待以 engine 布局件组合重建~~（ADR-0002）→ **tabs 以出口 `mode` prop 内建复活**（ADR-0003 修订：页签需感知路由语义——title/icon 元数据、激活态与 URL 联动，布局件组合做不到）；collapse 仍存目
 - **`data` 选项的 `store` 键**（Alpine.store 全局注册）→ 数据统一走 autospark/data script 注入（ADR-0002）

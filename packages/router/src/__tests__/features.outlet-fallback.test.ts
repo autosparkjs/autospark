@@ -3,7 +3,8 @@
  *
  * 决策 1（出口回退）：上一层视图未提供嵌套出口（模板无 x-outlet）时，本层视图沿用
  * 上一层出口挂载（置换），更深匹配层逐级置换、最深者胜；回退视图自带 x-outlet 时
- * 更深层自然向下扎根。
+ * 更深层自然向下扎根。日志分级（修订）：层 1 回退目标恒为根出口（扁平单出口应用的
+ * 常规落点）降为 debug；i>=2 回退（中间布局层缺出口）保持 warn。
  * 决策 2（激活前提 + 裁剪清理）：公共层跳过的前提是「本层视图仍是其出口的激活视图」，
  * 不成立则重挂（keepAlive 仅激活、ephemeral 重挂）；后退裁剪后残留出口的激活态清空。
  *
@@ -116,13 +117,13 @@ function createEngineStub(rootOutlet: HTMLElement) {
     };
 }
 
-async function createRouter(routes: any[], rootOutlet: HTMLElement) {
+async function createRouter(routes: any[], rootOutlet: HTMLElement, options: any = {}) {
     const { AutoSparkRouter } = await import("@/router");
     const host = document.createElement("div");
     host.appendChild(rootOutlet);
     document.body.appendChild(host);
     const { engine, mounts, comps } = createEngineStub(rootOutlet);
-    const router = new AutoSparkRouter(host, { engine, base: "/shop", routes });
+    const router = new AutoSparkRouter(host, { engine, base: "/shop", routes, ...options });
     // 等待 attach 完成（routes.load → loaders → history.listen）
     await new Promise((resolve) => setTimeout(resolve, 50));
     return { router, mounts, comps };
@@ -219,6 +220,13 @@ describe("出口回退与激活前提（ADR-0005）", () => {
         );
     }
 
+    /** 过滤含「未找到嵌套出口」的日志调用（logger 构造期捕获 console 引用，spy 须先于 createRouter 安装） */
+    function fallbackLogs(spy: ReturnType<typeof spyOn>) {
+        return spy.mock.calls.filter((args: any[]) =>
+            args.some((a) => String(a).includes("未找到嵌套出口")),
+        );
+    }
+
     it("决策 1：上层视图无 x-outlet 时，子层视图回退挂进上层出口（置换）", async () => {
         installFetch();
         views.list = LIST_NO_OUTLET;
@@ -273,6 +281,97 @@ describe("出口回退与激活前提（ADR-0005）", () => {
         expect(detailOutlet).not.toBeNull();
         expect(created.comps.get(detailOutlet!).data.active).toBe(subHash);
         expect(created.mounts.filter((m) => m.hash === subHash && m.ready)).toHaveLength(1);
+    });
+
+    it("决策 1（修订）：层 1 回退目标恒为根出口——降为 debug（默认关闭），不报 warn", async () => {
+        installFetch();
+        views.list = LIST_NO_OUTLET;
+        const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+        const debugSpy = spyOn(console, "debug").mockImplementation(() => {});
+        try {
+            const outlet = document.createElement("div");
+            outlet.setAttribute("data-autospark-outlet", "");
+            // 扁平声明：path "/" 的 view 合并为根视图（快速入门 demo 同形），兄弟页互相置换
+            const created = await createRouter(
+                [
+                    { path: "/", view: "pages/product-list.html" },
+                    { path: "about", view: "pages/product-detail.html" },
+                ],
+                outlet,
+            );
+            router = created.router;
+
+            await router.push("/shop/about");
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            // i=1 回退根出口是常规落点：warn 无、debug 默认关闭亦无
+            expect(fallbackLogs(warnSpy)).toHaveLength(0);
+            expect(fallbackLogs(debugSpy)).toHaveLength(0);
+            // 回退行为本身不变：about 置换 home 落进根出口
+            const aboutHash = router.routes.current[1].hash;
+            expect(created.comps.get(outlet).data.active).toBe(aboutHash);
+        } finally {
+            warnSpy.mockRestore();
+            debugSpy.mockRestore();
+        }
+    });
+
+    it("决策 1（修订）：debug 开启时层 1 回退以 debug 输出（仍非 warn）", async () => {
+        installFetch();
+        views.list = LIST_NO_OUTLET;
+        const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+        const debugSpy = spyOn(console, "debug").mockImplementation(() => {});
+        try {
+            const outlet = document.createElement("div");
+            outlet.setAttribute("data-autospark-outlet", "");
+            const created = await createRouter(
+                [
+                    { path: "/", view: "pages/product-list.html" },
+                    { path: "about", view: "pages/product-detail.html" },
+                ],
+                outlet,
+                { debug: true },
+            );
+            router = created.router;
+
+            await router.push("/shop/about");
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            expect(fallbackLogs(warnSpy)).toHaveLength(0);
+            expect(fallbackLogs(debugSpy).length).toBeGreaterThan(0);
+        } finally {
+            warnSpy.mockRestore();
+            debugSpy.mockRestore();
+        }
+    });
+
+    it("决策 1（修订）：i>=2 回退（中间布局层缺出口）保持 warn", async () => {
+        installFetch();
+        views.list = LIST_NO_OUTLET;
+        const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+        try {
+            const outlet = document.createElement("div");
+            outlet.setAttribute("data-autospark-outlet", "");
+            // 链 [根（无视图）, a（有视图无出口）, b]：i=2 回退意味布局层漏写 x-outlet
+            const created = await createRouter(
+                [
+                    {
+                        path: "a",
+                        view: "pages/product-list.html",
+                        children: [{ path: "b", view: "pages/product-detail.html" }],
+                    },
+                ],
+                outlet,
+            );
+            router = created.router;
+
+            await router.push("/shop/a/b");
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            expect(fallbackLogs(warnSpy).length).toBeGreaterThan(0);
+        } finally {
+            warnSpy.mockRestore();
+        }
     });
 
     it("决策 1：URL 深度超过路由表时，unmatched 尾段不产生渲染层（最深匹配层落位）", async () => {

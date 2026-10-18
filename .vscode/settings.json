@@ -1,5 +1,6 @@
 {
     "editor.codeActionsOnSave": {},
     "editor.formatOnSave": true,
-    "js/ts.experimental.useTsgo": false
+    "js/ts.experimental.useTsgo": false,
+    "idf.currentSetup": "C:\\Users\\Administrator\\esp\\v5.5\\esp-idf"
 }
