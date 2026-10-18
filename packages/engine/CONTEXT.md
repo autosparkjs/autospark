@@ -630,7 +630,7 @@ _Avoid_: mode（泛化）、呈现模式（none 态不呈现——它描述的�
 _Avoid_: target（泛化）、挂载点（口语）
 
 **错误组件解析链（x-error）**:
-overlay 态的组件名解析优先级：`x-error-options.overlay` 显式 > 指令值简写 `x-error="my.error"` > 内置 `autospark.error` 默认；查找经 `engine.getComponentDeclaration(name, el)`（Runtime 反查）。组件 data 注入契约：保留键 `error`（指令独占——props 同名 warn 忽略）+ `closeable` / `retryable` / `actions` / `props` 合并 + `close` 回调（指令注入——组件 `@click="close"` 直调通知清除）。
+overlay 态的组件名解析优先级：`x-error-options.overlay` 显式 > 指令值简写 `x-error="my.error"` > 内置 `autospark.error` 默认；查找经 `engine.getComponentDeclaration(name, el)`（Runtime 反查）。组件 data 注入契约：保留键 `error`（指令独占——props 同名 warn 忽略）+ `message`（别名）+ `closeable` / `retryable` / `actions` / `props` 合并；`close` / `retry` 经块 scope actions 通道注入（函数值不进响应式 data 域——会被代理当 computed 吞掉），组件 `@click="close()"` 直调通知清除，块内 close 遮蔽同名内置（就近语义）。
 _Avoid_: 默认错误组件（解析链末端才是默认）、错误模板（泛化）
 
 **closeable / retryable / actions（错误呈现配置）**:

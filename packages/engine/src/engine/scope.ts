@@ -1241,6 +1241,9 @@ export class AutoSparkScope {
      * 抛错的阶段不广播对应生命周期事件（created 失败即未 created）。
      */
     runDirectives(directives: AutoSparkDirectiveBase[]): void {
+        // created 失败的指令处于半初始化态（如 x-model 冲突守卫抛错后 _initSelect 未跑），
+        // 其 compile 依赖 created 完成的初始化，继续执行会原生崩溃——记录并跳过其 compile。
+        const createdFailed = new Set<AutoSparkDirectiveBase>();
         for (const d of directives) {
             try {
                 if (typeof d.created === "function") d.created();
@@ -1249,6 +1252,7 @@ export class AutoSparkScope {
                     id: this.id,
                 });
             } catch (e: any) {
+                createdFailed.add(d);
                 this.errors.push({ source: "directive-created", directive: d.info.name, error: e });
                 this.engine.logger.error(
                     `指令 "${d.info.name}" created 执行失败: ${e?.message ?? e}`,
@@ -1256,6 +1260,7 @@ export class AutoSparkScope {
             }
         }
         for (const d of directives) {
+            if (createdFailed.has(d)) continue;
             try {
                 if (typeof d.compile === "function") d.compile(this.engine.state, this.el!);
                 this.engine.emit(("directive/" + d.info.name + "/compiled") as any, {

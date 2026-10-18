@@ -31,6 +31,16 @@
             margin-top: 4px;
         }
 
+        /* 无 actions 配置（空数组）时容器折叠为零占位——x-for 容器保留但子节点已被清空 */
+        .as-error-more:empty {
+            display: none;
+        }
+
+        .as-error-more {
+            display: flex;
+            gap: 8px;
+        }
+
         .as-error-btn {
             padding: 4px 16px;
             border: 1px solid #dcdfe6;
@@ -52,8 +62,8 @@
     <div class="as-error-actions">
         <button type="button" class="as-error-btn" x-show="retryable" @click="retry()">重试</button>
         <button type="button" class="as-error-btn" x-show="closeable" @click="close()">关闭</button>
-        <template x-for="a of actions">
+        <span class="as-error-more" x-for="a of actions">
             <button type="button" class="as-error-btn" :data-action="a.name" x-text="a.title"></button>
-        </template>
+        </span>
     </div>
 </div>

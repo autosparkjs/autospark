@@ -524,12 +524,15 @@ describe("x-model select：注入白名单与冲突", () => {
         expect(root.querySelector("select")!.getAttribute("name")).toBe("car");
     });
 
-    test(":value 与 x-model 同元素 → 编译期报错（竞写 el.value）", () => {
-        expect(() =>
-            mount(
-                `<select x-model="car" :value="car" x-model-options="{choices:[{value:'A',label:'甲'}]}"></select>`,
-                { car: "A" },
-            ),
-        ).toThrow();
+    test(":value 与 x-model 同元素 → 收集进 scope.errors（竞写 el.value）", () => {
+        const { root, engine } = mount(
+            `<select x-model="car" :value="car" x-model-options="{choices:[{value:'A',label:'甲'}]}"></select>`,
+            { car: "A" },
+        );
+        const scope = engine.findScopeByEl(root.querySelector("select")!)!;
+        const entry = scope.errors.find((e) => e.source === "directive-created");
+        expect(entry).toBeDefined();
+        expect(entry!.directive).toBe("model");
+        expect(entry!.error.message).toContain("竞写");
     });
 });

@@ -70,7 +70,7 @@ overlay 态的组件名解析优先级：
 
 查找经 `engine.getComponentDeclaration(name, el)`（Runtime 反查链：scope 局部 → options.components → 全局表 → builtinComponents）。
 
-**组件 data 注入契约**：保留键 `error`（指令独占——props 传入同名 warn 忽略）+ `closeable` / `retryable` / `actions` / `props` 合并注入 + `close` 回调（指令注入 `() => directive.clear()`——组件 `@click="close"` 直调通知清除，关闭通道零 DOM 事件往返）。
+**组件 data 注入契约**：保留键 `error`（指令独占——props 传入同名 warn 忽略）+ `message`（别名）+ `closeable` / `retryable` / `actions` / `props` 合并注入；`close` / `retry` 经**块 scope actions 通道**注入（实现期修正：函数值进响应式 data 域会被代理当 computed 吞掉——读取即执行返回 undefined）——组件 `@click="close()"` 走 x-on action 解析直调 `directive.clear()`，关闭通道零 DOM 事件往返；块 scope 内 `close` 遮蔽同名内置 action（错误组件子树内 close 即「关闭这个错误呈现」的就近语义）。
 
 ### 决策 6：错误对象归一化——普通对象进响应式域，Error 实例不进
 

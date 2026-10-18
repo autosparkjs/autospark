@@ -683,8 +683,9 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
                 message,
                 url: cfg.url,
                 name: this.componentName,
-                hasRetry: true,
-                hasClose: true,
+                // ADR-0118 决策 8 新契约：retryable/closeable（旧 hasRetry/hasClose 已退役）
+                retryable: true,
+                closeable: true,
             },
         );
         this._placeholderScope = compiled.scope;

@@ -269,12 +269,15 @@ describe("x-bind @ 配置引用：configKey 边界", () => {
 });
 
 describe("x-bind @ 配置引用：冲突", () => {
-    test(":value=x@value 与 x-model 同元素 → 编译期报错", () => {
-        expect(() =>
-            mountWithConfig(`<input x-model="a" :value="a@value"/>`, {
-                a: cfg("", { value: "x" }),
-            }),
-        ).toThrow();
+    test(":value=x@value 与 x-model 同元素 → 收集进 scope.errors", () => {
+        const { root, engine } = mountWithConfig(`<input x-model="a" :value="a@value"/>`, {
+            a: cfg("", { value: "x" }),
+        });
+        const scope = engine.findScopeByEl(root.querySelector("input")!)!;
+        const entry = scope.errors.find((e) => e.source === "directive-created");
+        expect(entry).toBeDefined();
+        expect(entry!.directive).toBe("model");
+        expect(entry!.error.message).toContain("竞写");
     });
 });
 

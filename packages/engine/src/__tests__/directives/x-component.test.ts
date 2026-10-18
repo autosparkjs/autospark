@@ -2165,7 +2165,7 @@ describe("x-component loader 远程直接实例化（ADR-0065）", () => {
         expect(root.querySelector(".ph-txt")?.textContent).toBe("载入@/rc.html");
     });
 
-    test("fetch 失败 → 内置 error 组件呈现（message + retry/close 可见、back 不渲染）", async () => {
+    test("fetch 失败 → 内置 error 组件呈现（message + retry/close 可见）", async () => {
         mockLoaderFetch(() => new Error("网络炸了"));
         const { root } = mount(
             `<div x-scope><div id="h" x-component:rc x-component-options.loader="/rc.html"></div></div>`,
@@ -2174,12 +2174,11 @@ describe("x-component loader 远程直接实例化（ADR-0065）", () => {
         await flushLoader();
         expect(root.querySelector(".as-error-message")?.textContent).toContain("加载失败");
         expect(root.querySelector(".as-error-message")?.textContent).toContain("/rc.html");
+        // ADR-0118 决策 8 新契约：仅 重试/关闭 两按钮（back 契约已退役），actions 空折叠
         const btns = root.querySelectorAll(".as-error-btn");
-        expect(btns.length).toBe(3);
-        // retry/close 注入闭包 → 显示；back 未注入 → x-show 隐藏
-        expect((btns[0] as HTMLElement).style.display).not.toBe("none");
-        expect((btns[1] as HTMLElement).style.display).not.toBe("none");
-        expect((btns[2] as HTMLElement).style.display).toBe("none");
+        expect(btns.length).toBe(2);
+        expect((btns[0] as HTMLElement).style.display).not.toBe("none"); // retryable:true
+        expect((btns[1] as HTMLElement).style.display).not.toBe("none"); // closeable:true
     });
 
     test("retry 点击重新加载成功后替换 error 呈现", async () => {

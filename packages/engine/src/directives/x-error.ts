@@ -38,8 +38,9 @@ import { ERROR_COMPONENT_NAME } from "../components";
  * **错误组件解析链**（决策 5）：`options.overlay` > 指令值简写（`x-error="my.error"`）>
  * 内置 `autospark.error`。查找经 `engine.getComponentDeclaration(name, el)`。组件 data 注入：
  * 保留键 `error`（归一化普通对象，决策 6——Error 实例不进响应式域）+ `message`（别名）+
- * `closeable` / `retryable` / `actions` / `close` / `retry` 回调 + `props` 合并注入
- * （props 传入保留键同名 warn 忽略）。
+ * `closeable` / `retryable` / `actions` + `props` 合并注入（props 传入保留键同名 warn 忽略）；
+ * `close` / `retry` 经**块 scope actions 通道**注入（函数值进响应式 data 域会被代理当 computed
+ * 吞掉）——模板 `@click="close()"` 走 x-on action 解析直调，关闭通道零 DOM 事件往返。
  *
  * **retry 语义**（决策 7，仅 `source:"action"` 生效）：以**原 args** 重调失败 action——
  * resolved → 自动清除呈现；rejected → 桥接派发的新 error 事件经单错误槽自然更新呈现。
@@ -344,15 +345,16 @@ export class ErrorDirective extends AutoSparkDirectiveBase implements RuntimeDir
         }
         const clone = snapshot.cloneNode(true) as HTMLElement;
 
-        // data 注入契约（决策 5）：保留键指令独占 + props 合并（同名 warn 忽略）
+        // data 注入契约（决策 5）：保留键指令独占 + props 合并（同名 warn 忽略）。
+        // 注意 close/retry **不经 data 注入**——函数值进响应式 data 域会被代理当 computed
+        // 求值吞掉（读取即执行、返回 undefined）；改经 scope.actions 通道（见下方注入），
+        // 模板 `@click="close()"` 走 x-on action 解析直调，零 DOM 事件往返。
         const initialData: Record<string, any> = {
             error,
             message: error.message,
             closeable,
             retryable,
             actions: this._actionsData(rawActions),
-            close: () => this.clear(),
-            retry: () => this._retry(),
         };
         for (const [k, v] of Object.entries(props ?? {})) {
             if ((RESERVED_DATA_KEYS as readonly string[]).includes(k)) {
@@ -364,6 +366,12 @@ export class ErrorDirective extends AutoSparkDirectiveBase implements RuntimeDir
 
         const parentScope = this.engine.findScopeByEl(host) ?? null;
         const compiled = this.engine.compiler.compileChild(clone, parentScope, {}, undefined, initialData);
+        // close/retry 注入块 scope 的 actions 通道（覆盖同名内置——错误组件子树内 close 即
+        // 「关闭这个错误呈现」的就近语义；click 时 x-on 惰性解析，compile 后注入即可生效）
+        compiled.scope.actions = {
+            close: { id: "close", title: "关闭", handle: () => this.clear() } as any,
+            retry: { id: "retry", title: "重试", handle: () => this._retry() } as any,
+        };
         const overlay = compiled.el;
 
         // 壳样式（决策 4）：absolute+inset:0 撑满目标（目标须 relative，文档注明）

@@ -217,8 +217,13 @@ describe("x-model 只读降级与冲突", () => {
         expect(engine.state.b).toBe("y");
     });
 
-    test(":value 与 x-model 同元素 → 编译期报错", () => {
-        expect(() => mount(`<input x-model="a" :value="b" />`, { a: "", b: "x" })).toThrow();
+    test(":value 与 x-model 同元素 → 收集进 scope.errors", () => {
+        const { root, engine } = mount(`<input x-model="a" :value="b" />`, { a: "", b: "x" });
+        const scope = engine.findScopeByEl(root.querySelector("input")!)!;
+        const entry = scope.errors.find((e) => e.source === "directive-created");
+        expect(entry).toBeDefined();
+        expect(entry!.directive).toBe("model");
+        expect(entry!.error.message).toContain("竞写");
     });
 });
 
@@ -365,10 +370,16 @@ describe("x-model checkbox 单值布尔", () => {
 });
 
 describe("x-model checkbox 冲突检测", () => {
-    test(":checked 与 x-model 同元素 → 编译期报错", () => {
-        expect(() =>
-            mount(`<input type="checkbox" x-model="a" :checked="b" />`, { a: false, b: true }),
-        ).toThrow();
+    test(":checked 与 x-model 同元素 → 收集进 scope.errors", () => {
+        const { root, engine } = mount(`<input type="checkbox" x-model="a" :checked="b" />`, {
+            a: false,
+            b: true,
+        });
+        const scope = engine.findScopeByEl(root.querySelector("input")!)!;
+        const entry = scope.errors.find((e) => e.source === "directive-created");
+        expect(entry).toBeDefined();
+        expect(entry!.directive).toBe("model");
+        expect(entry!.error.message).toContain("竞写");
     });
 
     test(":value 与 x-model checkbox 同元素 → 放行（不报错，:value 设选项值）", () => {
@@ -672,10 +683,16 @@ describe("x-model radio value 缺失检测", () => {
 });
 
 describe("x-model radio 冲突检测", () => {
-    test(":checked 与 x-model radio 同元素 → 编译期报错", () => {
-        expect(() =>
-            mount(`<input type="radio" value="a" x-model="c" :checked="b" />`, { c: "", b: true }),
-        ).toThrow();
+    test(":checked 与 x-model radio 同元素 → 收集进 scope.errors", () => {
+        const { root, engine } = mount(`<input type="radio" value="a" x-model="c" :checked="b" />`, {
+            c: "",
+            b: true,
+        });
+        const scope = engine.findScopeByEl(root.querySelector("input")!)!;
+        const entry = scope.errors.find((e) => e.source === "directive-created");
+        expect(entry).toBeDefined();
+        expect(entry!.directive).toBe("model");
+        expect(entry!.error.message).toContain("竞写");
     });
 
     test(":value 与 x-model radio 同元素 → 放行（:value 设选项值）", () => {
