@@ -130,6 +130,27 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      * @default 开启 + 内置 Bootstrap 5 断点表
      */
     viewport?: false | ViewportOptions;
+    /**
+     * 应用版本号（ADR-0119）：构造期同步写入元状态 `state.$.version` 初值（消灭首渲染
+     * 空版本），供 `x-version` 版本匹配表达式消费。仅非空 string 生效。
+     *
+     * 与 `versions` 清单并用时：注入值须命中清单，未命中 warn + 回退默认版本（末项）；
+     * 运行时对 `$.version` 赋值是自由入口——响应式更新，无任何导航/重载语义（ADR-0120）。
+     *
+     * @default 未设置（不注入 `$.version`，x-version 静默恒渲染）
+     */
+    version?: string;
+    /**
+     * 版本清单（ADR-0120）：旧到新排列，**末项为默认版本**。非空时构造期把 `$.version`
+     * 归一为清单中的具体值——未设置/空回退末项；预置值（`version` 选项）未命中清单
+     * warn + 回退末项；预置命中尊重原值。
+     *
+     * 清单仅服务于**渲染侧**（保证 `x-version` 拿到具体初值 + 值域约束），不做运行时
+     * 赋值校验、不参与路由——router 版本化 URL 机制已废弃（ADR-0120）。
+     *
+     * @default 未设置（`$.version` 不自动归一）
+     */
+    versions?: string[];
 }
 
 /**

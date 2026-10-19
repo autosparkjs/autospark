@@ -137,6 +137,31 @@ export interface OverlayConfig {
      * `--autospark-expandable-trigger-*`，ADR-0070）。
      */
     expandable?: boolean | { pos?: number | string; [key: string]: any };
+    /**
+     * 整实例保活（覆盖物家族通用，ADR-0119）：true 时关闭 = leave 动画播完后**容器内
+     * display:none 隐藏**（router keepAlive 同款，非摘除）——DOM/实例 scope/shell scope/watcher
+     * 全存活，重开原样恢复（定位 + enter 动画 + 入栈 + 广播 open）。关闭语义零变化：visible
+     * 回写、overlay:close 广播、ESC/遮罩/close action 三触点照常。重开 props 为 Object.assign
+     * 浅合并（仅出现的键）——需完整保留的字段不要声明为 props。回收点：宿主指令销毁 /
+     * engine.destroy；v1 无 LRU、无手动清缓存 API。**命令式通道不生效**（无缓存归属方）。
+     */
+    keepalive?: boolean;
+    /**
+     * 保活缓存命名空间键（ADR-0119）：声明式经 `x-{name}-options.key` 成员表达式注入求值值
+     * （每次打开现读，不 watch）；命令式 `open({key})` 直传值。缓存身份 = `组件名 + key + url`
+     * 复合——无 key → 键 = 组件名；同键且存在存活挂起实例 → 复用（防重复堆叠）；key 对非
+     * keepalive 路径不生效（仅随事件 payload 广播）。
+     */
+    key?: string | number;
+    /**
+     * 远程内容 url（ADR-0119）：attr 名组件的来源提示——组件未注册时首次打开经 x-import 管线
+     * （fetch + 解析 + 注册 + url 缓存 + 循环引用防护）加载，远程须声明同名 `x-define="{name}"`；
+     * 注册到消费处 scope（作用域导入）。时序：**面板先开**（空出口 + x-loading），成功后原位挂
+     * 内容、摘 x-loading；失败 → 面板内错误占位、不自动关（失败不进 url 缓存，重开自然重试）。
+     * 经成员表达式每次打开重求值；url 变 = 新缓存身份 = 重建（旧条目活到回收点）；
+     * keepalive + 同 url = 免重取（命中 x-import url 缓存）。
+     */
+    url?: string;
     /** 其余自由键原样保留（开放配置，供消费者指令/自定义 UI 消费） */
     [key: string]: any;
 }
@@ -170,6 +195,21 @@ export interface OverlayEventDetail {
     instance: OverlayInstance;
     /** 数据视图基准元素（命令式 `dataContext` 传元素时；其余为 undefined） */
     dataContext?: HTMLElement;
+    /** 保活缓存命名空间键（ADR-0119）：消费者声明的 key 求值原值（未声明为 undefined） */
+    key?: string | number;
+}
+
+/**
+ * keepalive 缓存身份（ADR-0119）：`组件名 + key + url` 复合——url 参与（同组件不同 url 是
+ * 不同缓存身份）；无 key 段为空串。key 经 String 归一（42 与 "42" 同身份）。
+ */
+export function buildOverlayCacheKey(
+    name: string,
+    config: { key?: unknown; url?: unknown },
+): string {
+    const key = config.key == null ? "" : String(config.key);
+    const url = typeof config.url === "string" ? config.url.trim() : "";
+    return url !== "" ? `${name}::${key}::${url}` : `${name}::${key}`;
 }
 
 /**

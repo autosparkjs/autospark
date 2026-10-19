@@ -1,0 +1,298 @@
+<!-- 购物车页：读写全局状态 cart / cartCount / cartTotal -->
+<div class="page page-cart">
+    <style>
+        /* ===== 购物车页私有样式 ===== */
+        .cart-wrap {
+            display: grid;
+            grid-template-columns: 1.6fr 1fr;
+            gap: 1.4rem;
+            align-items: start;
+        }
+
+        .cart-list {
+            display: grid;
+            gap: 0.8rem;
+        }
+
+        .cart-row {
+            display: grid;
+            grid-template-columns: 76px 1fr auto auto;
+            gap: 1rem;
+            align-items: center;
+            padding: 0.9rem 1.1rem;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+        }
+
+        .cart-tile {
+            width: 76px;
+            height: 76px;
+            display: grid;
+            place-items: center;
+            font-size: 2.1rem;
+            border-radius: 12px;
+        }
+
+        .cart-info .c-name {
+            font-weight: 700;
+            font-size: 0.98rem;
+        }
+
+        .cart-info .c-unit {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .qty {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .qty button {
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: #f2f4fa;
+            font-size: 1rem;
+            color: var(--ink-2);
+            cursor: pointer;
+        }
+
+        .qty button:hover {
+            background: var(--brand);
+            color: #fff;
+        }
+
+        .qty span {
+            min-width: 38px;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .cart-tail {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.4rem;
+        }
+
+        .cart-sub {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--danger);
+        }
+
+        .cart-remove {
+            border: none;
+            background: none;
+            color: var(--muted);
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .cart-remove:hover {
+            color: var(--danger);
+            text-decoration: underline;
+        }
+
+        .cart-summary {
+            position: sticky;
+            top: 88px;
+            padding: 1.4rem;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .cart-summary h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.9rem;
+        }
+
+        .sum-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.92rem;
+            color: var(--ink-2);
+            padding: 0.35rem 0;
+        }
+
+        .sum-row.total {
+            margin-top: 0.5rem;
+            padding-top: 0.8rem;
+            border-top: 1px dashed var(--line);
+            color: var(--ink);
+            font-weight: 700;
+        }
+
+        .sum-row.total b {
+            font-size: 1.5rem;
+            color: var(--danger);
+        }
+
+        .ship-hint {
+            margin: 0.7rem 0 1rem;
+            padding: 0.55rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            background: rgba(24, 185, 129, 0.1);
+            color: var(--ok);
+        }
+
+        .ship-hint.todo {
+            background: rgba(255, 176, 32, 0.14);
+            color: #a06a00;
+        }
+
+        .cart-actions {
+            display: grid;
+            gap: 0.6rem;
+        }
+
+        .empty-cart {
+            padding: 4rem 1rem;
+            text-align: center;
+            background: var(--surface);
+            border: 1px dashed var(--line);
+            border-radius: var(--radius);
+        }
+
+        .empty-cart .ec-ico {
+            font-size: 3.4rem;
+            display: block;
+            margin-bottom: 0.7rem;
+        }
+
+        .empty-cart h2 {
+            font-size: 1.3rem;
+        }
+
+        .empty-cart p {
+            color: var(--muted);
+            margin: 0.4rem 0 1.3rem;
+        }
+
+        .empty-actions {
+            display: flex;
+            justify-content: center;
+            gap: 0.7rem;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 980px) {
+            .cart-wrap {
+                grid-template-columns: 1fr;
+            }
+
+            .cart-summary {
+                position: static;
+            }
+        }
+
+        @media (max-width: 620px) {
+            .cart-row {
+                grid-template-columns: 60px 1fr;
+                grid-template-areas:
+                    "tile info"
+                    "qty tail";
+            }
+
+            .cart-row .cart-tile {
+                grid-area: tile;
+                width: 60px;
+                height: 60px;
+                font-size: 1.7rem;
+            }
+
+            .cart-row .cart-info {
+                grid-area: info;
+            }
+
+            .cart-row .qty {
+                grid-area: qty;
+                justify-self: start;
+            }
+
+            .cart-row .cart-tail {
+                grid-area: tail;
+                align-items: flex-end;
+            }
+        }
+    </style>
+
+    <header class="page-head">
+        <h1>购物车</h1>
+        <p>数量增减、移除与合计都直接读写全局状态——返回产品页或刷新导航栏角标依然同步。</p>
+    </header>
+
+    <!-- 空购物车 -->
+    <div class="empty-cart" x-show="cart.length === 0">
+        <span class="ec-ico">🛒</span>
+        <h2>购物车还是空的</h2>
+        <p>去产品页挑一台心仪的手机吧，加入后会实时出现在这里。</p>
+        <div class="empty-actions">
+            <auto-link class="btn btn-primary" to="/products">去逛产品</auto-link>
+            <auto-link class="btn btn-ghost" to="/">回首页</auto-link>
+        </div>
+    </div>
+
+    <!-- 有商品 -->
+    <div class="cart-wrap" x-show="cart.length > 0">
+        <div class="cart-list">
+            <template x-for="item of cart" :key="item.id">
+                <div class="cart-row">
+                    <div class="cart-tile" :style="'background-color:' + item.color" x-text="item.emoji"></div>
+                    <div class="cart-info">
+                        <div class="c-name" x-text="item.name"></div>
+                        <div class="c-unit">单价 ¥<span x-text="item.price"></span></div>
+                    </div>
+                    <div class="qty">
+                        <button type="button" @click="changeQty(item.id, -1)" aria-label="减少">−</button>
+                        <span x-text="item.qty"></span>
+                        <button type="button" @click="changeQty(item.id, 1)" aria-label="增加">＋</button>
+                    </div>
+                    <div class="cart-tail">
+                        <div class="cart-sub">¥<span x-text="item.price * item.qty"></span></div>
+                        <button class="cart-remove" type="button" @click="removeFromCart(item.id)">移除</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <aside class="cart-summary">
+            <h3>订单摘要</h3>
+            <div class="sum-row">
+                <span>商品件数</span>
+                <span x-text="cartCount + ' 件'"></span>
+            </div>
+            <div class="sum-row">
+                <span>商品合计</span>
+                <span>¥<span x-text="cartTotal"></span></span>
+            </div>
+            <div class="sum-row">
+                <span>运费</span>
+                <span x-text="cartTotal >= 3000 ? '免运费' : '¥0（满 3000 免）'"></span>
+            </div>
+            <div class="sum-row total">
+                <span>应付合计</span>
+                <b>¥<span x-text="cartTotal"></span></b>
+            </div>
+            <div class="ship-hint" :class="{ todo: cartTotal < 3000 }">
+                <span
+                    x-text="cartTotal >= 3000 ? '已满 ¥3000，本单免运费' : '再买 ¥' + (3000 - cartTotal) + ' 即可免运费'"
+                ></span>
+            </div>
+            <div class="cart-actions">
+                <button class="btn btn-primary btn-block" type="button" @click="checkout">去结算</button>
+                <button class="btn btn-danger btn-block" type="button" @click="clearCart">清空购物车</button>
+            </div>
+        </aside>
+    </div>
+</div>

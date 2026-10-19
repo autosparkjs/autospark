@@ -21,6 +21,7 @@ import {
     Modal,
     HeadManager,
 } from "./features";
+import { LanguageManager } from "./features/language";
 import { getBaseUrl, getDocumentBase } from "@/utils/getBaseUrl";
 
 import { AutoSparkLink, isDangerousProtocol } from "./components/Link";
@@ -53,6 +54,9 @@ export class AutoSparkRouter extends Mixin(
 
     /** 路由表注册器 */
     public routes!: AutoSparkRouteTable;
+
+    /** 多语言管理器（ADR-0013）：清单传递、启动解析、URL 重写调度、$.language 注入与 watch */
+    readonly language: LanguageManager;
 
     /** 钩子管理器 */
     public hooks!: HookManager;
@@ -98,6 +102,12 @@ export class AutoSparkRouter extends Mixin(
 
     /** 当前正在处理的路由 URL，用于检测重复导航 */
     private _currentNavUrl?: string;
+    /**
+     * 元状态切换放行标记（ADR-0013 决策 5）：`$.language` 切换重入当前 fullPath 时
+     * 目标 URL 与在途/上次导航相同，须绕过 `_currentNavUrl` 同 URL 去重短路；
+     * 一次性语义——重入导航落定后复位。
+     */
+    private _metaNavBypass: boolean = false;
     /** beforeRoute 改道深度计数（防守卫自身构成无限改道） */
     private _redirectDepth: number = 0;
     protected _lastViewSlot: HTMLElement | null = null;
@@ -141,6 +151,8 @@ export class AutoSparkRouter extends Mixin(
         this.host.setAttribute("data-autospark-router", "");
         (this.host as any).router = this;
         this.options = this._initOptions(options);
+        // 多语言管理器（ADR-0013）：options 就绪即建——attach 内 bootstrap 须早于路由表加载
+        this.language = new LanguageManager(this);
         this.attach();
     }
     /**
@@ -251,6 +263,15 @@ export class AutoSparkRouter extends Mixin(
         // 当 search 为 "?q=test" 时：pathname + "?q=test" = pathname?q=test
         const fullPath = pathname + search;
         const toRoute = matchRoute(fullPath, this.routes.root, {});
+        // 语言并入路由 hash（ADR-0013 决策 6）：keepAlive/视图条目键（matched.hash）与
+        // loader 缓存键同源隔离——自定义 route.hash 不并入（应用自行纳入，文档提示）
+        const metaSuffix =
+            this.language.enabled && this.language.current ? `@${this.language.current}` : "";
+        if (metaSuffix) {
+            for (const m of toRoute) {
+                if (m.route) m.hash += metaSuffix;
+            }
+        }
         // 将 history state 填充到 matched 路由项中
         if (state) {
             toRoute.forEach((matchedItem) => {
@@ -360,8 +381,10 @@ export class AutoSparkRouter extends Mixin(
         const targetUrl = toRoute.length > 0 ? toRoute[toRoute.length - 1].url : "";
 
         // 防重入检测：对比当前正在处理的路由 URL
-        // 如果目标路由 URL 相同，说明是重复导航，直接忽略
-        if (this._currentNavUrl === targetUrl) {
+        // 如果目标路由 URL 相同，说明是重复导航，直接忽略；
+        // 语言/版本切换重入（ADR-0013 决策 5 / ADR-0014 决策 5）是唯一例外——
+        // 同 URL 须按新元状态完整重载
+        if (this._currentNavUrl === targetUrl && !this._metaNavBypass) {
             this.logger.debug("忽略重复导航: {}", targetUrl);
             // 触发 navigation/start 事件
             this.emit("navigation:cancel", location);
@@ -743,10 +766,45 @@ export class AutoSparkRouter extends Mixin(
         void this._renderRoutes(current, current, navSignal);
     }
 
+    /**
+     * 元状态切换重入（ADR-0013 决策 5）：完整导航管线重跑当前
+     * fullPath，`$.language` 赋值切换专用。
+     *
+     * 语义：guards、`navigation/start` 等事件、渲染链全按既有导航语义执行；不写
+     * history、地址栏不变。与常规导航的两处差异：
+     * 1. 先清当前链各层加载状态——加载状态跨导航持久在路由表项上，不清则公共层
+     *    跳过判定复用旧元状态下的 signal（缓存键已含新元值，跳过的层到不了缓存判定）；
+     * 2. 经 `_metaNavBypass` 放行同 URL 去重短路。
+     */
+    _rerunForMetaChange(): void {
+        if (!this.attached) return;
+        const current = this.routes?.current;
+        if (current) {
+            this.dataLoader.resetLoadStates(current);
+            this.viewLoader.resetLoadStates(current);
+        }
+        // 直接以当前 history location 重入 onRouteUpdate——不经 history.push/replace
+        this._metaNavBypass = true;
+        const rerun = this.onRouteUpdate({
+            action: "REPLACE",
+            location: this.history.location,
+        } as Update);
+        void Promise.resolve(rerun)
+            .catch((e) => this.logger.error("元状态切换重入失败: {}", e))
+            .finally(() => {
+                this._metaNavBypass = false;
+            });
+    }
+
     attach(): void {
         if (this.attached) {
             throw new Error("Already attached to a host element");
         }
+
+        // 多语言层启动（ADR-0013 决策 4）：先归一再写入
+        // $ 元状态——必须早于路由表加载（本地化内容首次 fetch 即需语言）。
+        // 启动首次写入发生在 watch 注册前与首次导航之前，天然不触发重载。
+        this.language.bootstrap();
 
         this.history = this.mode === "hash" ? createHashHistory() : createBrowserHistory();
 
@@ -766,6 +824,9 @@ export class AutoSparkRouter extends Mixin(
 
             // 文档级链接点击委托：统一接管 auto-link 与 plain <a> 导航（组件自身不绑定监听）
             this._cleanups.push(this._attachLinkDelegation());
+
+            // 多语言订阅清理（ADR-0013）：$.language watcher 随 detach 注销
+            this._cleanups.push(() => this.language.dispose());
 
             // 设置 context provider
             this.attachContextProvider();

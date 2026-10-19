@@ -1,0 +1,104 @@
+<!-- 产品页：分类筛选 + 商品网格 + 底部结算条（读取全局购物车状态） -->
+<div class="page page-products">
+    <style>
+        /* ===== 产品页私有样式 ===== */
+        .prod-bar {
+            position: sticky;
+            bottom: 1rem;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-top: 1.4rem;
+            padding: 0.8rem 1.2rem;
+            border-radius: 999px;
+            background: rgba(16, 22, 43, 0.92);
+            color: #fff;
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(8px);
+        }
+
+        .prod-bar .sum {
+            font-size: 0.92rem;
+        }
+
+        .prod-bar .sum b {
+            color: #ffd166;
+            font-size: 1.15rem;
+            margin: 0 0.15rem;
+        }
+
+        @media (max-width: 620px) {
+            .prod-bar {
+                flex-direction: column;
+                border-radius: 16px;
+                text-align: center;
+            }
+        }
+    </style>
+
+    <header class="page-head">
+        <h1>全系产品</h1>
+        <p>
+            共 <b x-text="products.length"></b> 款在售商品，当前展示
+            <b x-text="products.filter((p) => ui.productCat === '全部' || p.category === ui.productCat).length"></b> 款 ·
+            加入购物车后，导航栏角标与购物车页会同步更新
+        </p>
+        <div class="chips">
+            <template x-for="c of categories" :key="c">
+                <button class="chip" :class="{ active: ui.productCat === c }" type="button" @click="ui.productCat = c" x-text="c"></button>
+            </template>
+        </div>
+    </header>
+
+    <div class="card-grid">
+        <template
+            x-for="p of products.filter((p) => ui.productCat === '全部' || p.category === ui.productCat)"
+            :key="p.id"
+        >
+            <article class="p-card">
+                <div class="p-tile" :style="'background-color:' + p.color">
+                    <span class="p-flag" x-text="p.flag"></span>
+                    <span class="p-emoji" x-text="p.emoji"></span>
+                </div>
+                <div class="p-body">
+                    <div class="p-name" x-text="p.name"></div>
+                    <ul class="p-specs">
+                        <template x-for="s of p.specs" :key="s">
+                            <li x-text="s"></li>
+                        </template>
+                    </ul>
+                    <div class="p-meta">
+                        <span class="rate">★ <span x-text="p.rate"></span></span>
+                        <span x-text="p.sold"></span>
+                        <span x-text="p.category"></span>
+                    </div>
+                    <div class="p-buy">
+                        <div class="p-price">
+                            ¥<span x-text="p.price"></span>
+                            <span class="p-old" x-show="p.oldPrice" x-text="p.oldPrice ? '¥' + p.oldPrice : ''"></span>
+                        </div>
+                        <button class="btn btn-primary btn-sm" type="button" @click="addToCart(p)">加入购物车</button>
+                    </div>
+                </div>
+            </article>
+        </template>
+
+        <div
+            class="empty"
+            x-show="products.filter((p) => ui.productCat === '全部' || p.category === ui.productCat).length === 0"
+        >
+            <span class="empty-ico">🔍</span>
+            该分类暂无商品
+        </div>
+    </div>
+
+    <!-- 底部结算条：跨页面共享状态的实时反馈 -->
+    <div class="prod-bar" x-show="cartCount > 0">
+        <span class="sum">
+            已选 <b x-text="cartCount"></b> 件 · 合计<b>¥<span x-text="cartTotal"></span></b>
+        </span>
+        <auto-link class="btn btn-primary btn-sm" to="/cart">去购物车结算 →</auto-link>
+    </div>
+</div>

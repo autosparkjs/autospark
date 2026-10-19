@@ -1,0 +1,264 @@
+<!-- 关于页：品牌简介 + 数据 + 发展历程 + 价值观 + 联系方式 -->
+<div class="page page-about">
+    <style>
+        /* ===== 关于页私有样式 ===== */
+        .about-intro {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 1.4rem;
+            align-items: center;
+            padding: clamp(1.4rem, 3vw, 2.4rem);
+            border-radius: 22px;
+            background: var(--grad);
+            color: #fff;
+            box-shadow: var(--shadow);
+        }
+
+        .about-intro h2 {
+            font-size: clamp(1.4rem, 3vw, 1.9rem);
+            margin-bottom: 0.6rem;
+        }
+
+        .about-intro p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.96rem;
+        }
+
+        .intro-side {
+            display: grid;
+            gap: 0.6rem;
+            font-size: 0.9rem;
+        }
+
+        .intro-side div {
+            padding: 0.6rem 0.9rem;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-top: 1.4rem;
+        }
+
+        .stat {
+            padding: 1.2rem 1rem;
+            text-align: center;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+        }
+
+        .stat b {
+            display: block;
+            font-size: 1.9rem;
+            background: var(--grad);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .stat span {
+            font-size: 0.84rem;
+            color: var(--muted);
+        }
+
+        .timeline {
+            position: relative;
+            display: grid;
+            gap: 1.1rem;
+            padding-left: 1.4rem;
+            border-left: 2px solid var(--line);
+        }
+
+        .tl-item {
+            position: relative;
+        }
+
+        .tl-item::before {
+            content: "";
+            position: absolute;
+            left: calc(-1.4rem - 7px);
+            top: 0.5rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--grad);
+            box-shadow: 0 0 0 4px rgba(79, 107, 255, 0.16);
+        }
+
+        .tl-date {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--brand);
+        }
+
+        .tl-item h4 {
+            font-size: 1.02rem;
+            margin: 0.15rem 0;
+        }
+
+        .tl-item p {
+            font-size: 0.88rem;
+            color: var(--ink-2);
+        }
+
+        .value-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .value {
+            padding: 1.3rem;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+        }
+
+        .value .v-ico {
+            font-size: 1.7rem;
+        }
+
+        .value h3 {
+            margin: 0.5rem 0 0.35rem;
+            font-size: 1.05rem;
+        }
+
+        .value p {
+            font-size: 0.87rem;
+            color: var(--ink-2);
+        }
+
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+        }
+
+        .head-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.7rem;
+        }
+
+        .contact-card {
+            padding: 1.1rem 1.2rem;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-sm);
+        }
+
+        .contact-card .c-label {
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+
+        .contact-card .c-value {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-top: 0.2rem;
+        }
+
+        @media (max-width: 980px) {
+            .about-intro,
+            .value-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+
+    <header class="page-head">
+        <h1>关于我们</h1>
+        <p>一家把「好用的手机」和「贴心的服务」一起交给用户的连锁品牌。</p>
+    </header>
+
+    <!-- 品牌简介 -->
+    <section class="about-intro">
+        <div>
+            <h2 x-text="intro.title"></h2>
+            <p x-text="intro.text"></p>
+        </div>
+        <div class="intro-side">
+            <template x-for="s of intro.side" :key="s">
+                <div x-text="s"></div>
+            </template>
+        </div>
+    </section>
+
+    <!-- 关键数据 -->
+    <section class="stat-grid">
+        <template x-for="st of stats" :key="st.label">
+            <div class="stat">
+                <b x-text="st.value"></b>
+                <span x-text="st.label"></span>
+            </div>
+        </template>
+    </section>
+
+    <!-- 发展历程 -->
+    <section>
+        <div class="section-head">
+            <div>
+                <h2>发展历程</h2>
+                <div class="sub">从 30 平米小店到 120 家门店</div>
+            </div>
+        </div>
+        <div class="timeline">
+            <template x-for="m of milestones" :key="m.date">
+                <div class="tl-item">
+                    <div class="tl-date" x-text="m.date"></div>
+                    <h4 x-text="m.title"></h4>
+                    <p x-text="m.text"></p>
+                </div>
+            </template>
+        </div>
+    </section>
+
+    <!-- 我们的追求 -->
+    <section>
+        <div class="section-head">
+            <div>
+                <h2>我们的追求</h2>
+                <div class="sub">三条写进门店墙上、也写进流程里的原则</div>
+            </div>
+        </div>
+        <div class="value-grid">
+            <template x-for="v of values" :key="v.title">
+                <div class="value">
+                    <div class="v-ico" x-text="v.icon"></div>
+                    <h3 x-text="v.title"></h3>
+                    <p x-text="v.text"></p>
+                </div>
+            </template>
+        </div>
+    </section>
+
+    <!-- 联系我们 -->
+    <section>
+        <div class="section-head">
+            <div>
+                <h2>联系我们</h2>
+                <div class="sub">欢迎到店体验，也欢迎随时来电</div>
+            </div>
+            <div class="head-actions">
+                <auto-link class="btn btn-primary btn-sm" to="/products">去看看产品</auto-link>
+                <auto-link class="btn btn-ghost btn-sm" to="/services">服务支持</auto-link>
+            </div>
+        </div>
+        <div class="contact-grid">
+            <template x-for="c of contact" :key="c.label">
+                <div class="contact-card">
+                    <div class="c-label" x-text="c.label"></div>
+                    <div class="c-value" x-text="c.value"></div>
+                </div>
+            </template>
+        </div>
+    </section>
+</div>

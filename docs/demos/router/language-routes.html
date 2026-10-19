@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>多语言：本地化路由表（routes 通道）</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <script src="/autospark/router-demos/boot.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="buttons mb-2">
+                <button class="button is-small" id="lang-en">English</button>
+                <button class="button is-small" id="lang-zh">简体中文</button>
+                <auto-link class="button is-small is-primary" to="/about">/about</auto-link>
+            </div>
+
+            <p class="help mb-1">当前语言：<strong x-text="$language"></strong>，页面标题来自本地化路由表的 <code>title</code>（$route.title）</p>
+
+            <div x-outlet></div>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+                languages: [
+                    { code: "en", name: "English", nativeName: "English" },
+                    { code: "zh-CN", name: "简体中文", nativeName: "中文" },
+                ],
+                // 不提供钩子：routes 通道走内置文件名后缀规则——
+                // 启动时先解析语言（早于路由表加载），中文环境自动请求
+                // routes_zh-CN.json，英文环境请求 routes.json（默认语言免重写）
+                routes: {
+                    mode: "hash",
+                    base: "/autospark/router-demos/",
+                    // 字符串形态 = fetch 该 URL 作为整站路由表
+                    routes: "/autospark/router-demos/api/routes.json",
+                },
+            });
+
+            // 路由表仅在启动时按已解析语言加载一次：切换语言重入导航管线
+            // 但不重新加载路由表（$route.title 保持初始语言），刷新页面
+            // 回到浏览器语言重新解析。
+            const setLang = (code) => (engine.store.state.$.language = code);
+            document.getElementById("lang-en").addEventListener("click", () => setLang("en"));
+            document.getElementById("lang-zh").addEventListener("click", () => setLang("zh-CN"));
+        </script>
+    </body>
+</html>

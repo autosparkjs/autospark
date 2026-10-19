@@ -858,3 +858,314 @@ describe("at 锚定定位（ADR-0052 决策 21–24）", () => {
         expect(panel.style.position).toBe("fixed");
     });
 });
+
+// ── ADR-0119：keepalive 整实例挂起 / key 缓存身份 / url 远程加载 ──────────────
+
+describe("keepalive 整实例挂起（ADR-0119）", () => {
+    test("修饰符糖 x-dialog:name.keepalive：关闭 = display:none 挂起（DOM/数据存活），重开 = 同实例恢复", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="form"><input x-model="draft"></div>
+                <button x-dialog:form.keepalive="ui.open"></button>
+            </div></div>`,
+            { ui: { open: false }, draft: "" },
+        );
+        engine.state.ui.open = true;
+        await nextTick();
+        const mask1 = maskOf("form")!;
+        expect(mask1.style.display).not.toBe("none");
+        engine.state.draft = "hello"; // 打开期间写数据
+        await nextTick();
+        engine.state.ui.open = false;
+        await nextTick();
+        // 挂起而非销毁：DOM 存活、容器内 display:none
+        expect(maskOf("form")).toBe(mask1);
+        expect(mask1.style.display).toBe("none");
+        engine.state.ui.open = true;
+        await nextTick();
+        // 同实例恢复（DOM 身份不变、数据保留）
+        expect(maskOf("form")).toBe(mask1);
+        expect(mask1.style.display).not.toBe("none");
+        expect(engine.state.draft).toBe("hello");
+    });
+
+    test("正典 x-dialog-options keepalive 等价；关闭触点回写与 overlay:close 广播照常", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="keep"><span>x</span></div>
+                <button x-dialog:keep="ui.open" x-dialog-options="{keepalive: true}"></button>
+            </div></div>`,
+            { ui: { open: true } },
+        );
+        const events: string[] = [];
+        engine.on("overlay:close", (m: any) => {
+            const p = m?.payload ?? m;
+            events.push(`close:${p.name}`);
+        });
+        await nextTick();
+        expect(maskOf("keep")).not.toBeNull();
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        await nextTick();
+        expect(engine.state.ui.open).toBe(false); // 回写语义零变化
+        expect(events).toContain("close:keep"); // 广播语义零变化
+        expect(maskOf("keep")).not.toBeNull(); // 挂起而非销毁
+        expect(maskOf("keep")!.style.display).toBe("none");
+    });
+
+    test("重开 props 浅合并：挂起期间 props 表达式变化，重开合并生效（DOM 不重建）", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="p"><span>{{a}}|{{b}}</span></div>
+                <button x-dialog:p.keepalive="ui.open" x-dialog-options.props="{a: ui.a, b: ui.b}"></button>
+            </div></div>`,
+            { ui: { open: false, a: 1, b: 2 } },
+        );
+        engine.state.ui.open = true;
+        await nextTick();
+        const mask1 = maskOf("p")!;
+        expect(mask1.textContent).toContain("1|2");
+        engine.state.ui.open = false;
+        await nextTick();
+        engine.state.ui.a = 9; // 挂起期间 props 变化
+        engine.state.ui.open = true;
+        await nextTick();
+        expect(maskOf("p")).toBe(mask1); // 恢复非重建
+        expect(mask1.textContent).toContain("9|2"); // a 覆盖、b 保留挂起前值
+    });
+
+    test("指令销毁回收挂起实例（keepalive 缓存整体销毁）", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="keep"><span>x</span></div>
+                <button x-dialog:keep.keepalive="ui.open"></button>
+            </div></div>`,
+            { ui: { open: true } },
+        );
+        await nextTick();
+        engine.state.ui.open = false;
+        await nextTick();
+        const mask = maskOf("keep")!;
+        expect(mask.style.display).toBe("none"); // 已挂起
+        const container = containerOf()!;
+        expect(container.contains(mask)).toBe(true);
+        engine.destroy();
+        expect(container.contains(mask)).toBe(false); // 回收
+    });
+
+    test("命令式通道 keepalive 不生效：open 时 warn（v1 声明式专属）", async () => {
+        const { root, engine } = mountOverlay(
+            `<div id="app"><div x-scope id="host">
+                <div x-define="cmd"><span>x</span></div>
+            </div></div>`,
+            {},
+        );
+        const host = root.querySelector<HTMLElement>("#host")!;
+        const handle = engine.getOverlay(host, "cmd", { animate: false })!;
+        const warns: string[] = [];
+        const orig = engine.logger.warn.bind(engine.logger);
+        (engine.logger as any).warn = (msg: string) => warns.push(msg);
+        try {
+            handle.open({ keepalive: true });
+            await nextTick();
+        } finally {
+            engine.logger.warn = orig;
+        }
+        expect(warns.some((w) => w.includes("keepalive"))).toBe(true);
+        // 命令式实例关闭照常销毁（无缓存身份 → keepalive 不改变生命周期）
+        handle.close();
+        await nextTick();
+        expect(maskOf("cmd")).toBeNull();
+    });
+});
+
+describe("key 缓存身份与事件 payload（ADR-0119）", () => {
+    test("key 参与缓存身份：不同 key 新实例并存；切回原 key 恢复原实例", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="tab"><span>{{title}}</span></div>
+                <button
+                    x-dialog:tab.keepalive="ui.open"
+                    x-dialog-options.key="ui.tab"
+                    x-dialog-options.props="{title: ui.tab}"
+                ></button>
+            </div></div>`,
+            { ui: { open: false, tab: "a" } },
+        );
+        engine.state.ui.open = true; // tab=a → 实例 A
+        await nextTick();
+        const maskA = maskOf("tab")!;
+        expect(maskA.textContent).toContain("a");
+        engine.state.ui.open = false; // A 挂起
+        await nextTick();
+        engine.state.ui.tab = "b";
+        engine.state.ui.open = true; // tab=b → 新实例 B（不同缓存身份）
+        await nextTick();
+        const panels = document.querySelectorAll('.autospark-dialog-mask [data-overlay="tab"]');
+        const maskB = (panels[panels.length - 1] as HTMLElement).parentElement!; // 后开者
+        expect(maskB).not.toBe(maskA);
+        expect(maskA.style.display).toBe("none"); // A 保持挂起
+        expect(maskB.textContent).toContain("b");
+        expect(panels.length).toBe(2); // 并存
+        engine.state.ui.open = false; // B 挂起
+        await nextTick();
+        engine.state.ui.tab = "a";
+        engine.state.ui.open = true; // 切回 a → 恢复原实例 A
+        await nextTick();
+        expect(maskOf("tab")).toBe(maskA);
+        expect(maskA.textContent).toContain("a");
+    });
+
+    test("overlay:open/close payload 带 key；未声明 key 时 undefined", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="k1"><span>x</span></div>
+                <div x-define="k2"><span>x</span></div>
+                <button x-dialog:k1="ui.open1" x-dialog-options.key="ui.tab"></button>
+                <button x-dialog:k2="ui.open2"></button>
+            </div></div>`,
+            { ui: { open1: false, open2: false, tab: "a" } },
+        );
+        const openKeys: any[] = [];
+        engine.on("overlay:open", (m: any) => {
+            const p = m?.payload ?? m;
+            openKeys.push(p.key);
+        });
+        const closeKeys: any[] = [];
+        engine.on("overlay:close", (m: any) => {
+            const p = m?.payload ?? m;
+            closeKeys.push(p.key);
+        });
+        engine.state.ui.open1 = true;
+        engine.state.ui.open2 = true;
+        await nextTick();
+        expect(openKeys).toContain("a"); // key: ui.tab 求值
+        expect(openKeys).toContain(undefined); // 未声明 key
+        engine.state.ui.open1 = false;
+        await nextTick();
+        expect(closeKeys).toContain("a"); // close 通道同样携带
+    });
+});
+
+describe("url 远程加载（ADR-0119）", () => {
+    const realFetch = globalThis.fetch;
+    afterEach(() => {
+        globalThis.fetch = realFetch;
+    });
+
+    test("组件优先：远程 x-define 声明匹配名 → 面板先开（x-loading）→ 组件附加、x-loading 摘除", async () => {
+        let resolveFetch!: (v: Response) => void;
+        globalThis.fetch = (async () => new Promise<Response>((r) => (resolveFetch = r))) as any;
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <button x-dialog:remote="ui.open" x-dialog-options="{url: '/remote-comp.html'}"></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        engine.state.ui.open = true;
+        await nextTick();
+        // 面板先开（shell + x-loading 占位），加载仍在途
+        const mask = maskOf("remote")!;
+        expect(mask).not.toBeNull();
+        const panel = mask.querySelector(".autospark-dialog") as HTMLElement;
+        expect(panel.hasAttribute("x-loading")).toBe(true);
+        expect(panel.querySelector("[data-overlay-remote-pending]")).not.toBeNull();
+        // 放行加载：组件原位附加、x-loading 摘除
+        resolveFetch(new Response(`<div x-define="remote"><span>远程组件</span></div>`));
+        await new Promise((r) => setTimeout(r, 20));
+        expect(panel.hasAttribute("x-loading")).toBe(false);
+        expect(panel.textContent).toContain("远程组件");
+        expect(panel.querySelector("[data-overlay-remote-pending]")).toBeNull();
+    });
+
+    test("片段兜底：无匹配名声明 → 片段子模板编译（指令生效、读消费处 state 响应式）", async () => {
+        globalThis.fetch = (async () =>
+            new Response(
+                `<div x-define="other"><span>其他组件</span></div><div><span>片段: {{label}}</span><b>加粗</b></div>`,
+            )) as any;
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <button x-dialog:remote="ui.open" x-dialog-options="{url: '/frag.html'}"></button>
+            </div></div>`,
+            { ui: { open: false }, label: "本地数据" },
+        );
+        const warns: string[] = [];
+        const orig = engine.logger.warn.bind(engine.logger);
+        (engine.logger as any).warn = (msg: string) => warns.push(msg);
+        try {
+            engine.state.ui.open = true;
+            await new Promise((r) => setTimeout(r, 20));
+        } finally {
+            engine.logger.warn = orig;
+        }
+        const panel = maskOf("remote")!.querySelector(".autospark-dialog") as HTMLElement;
+        expect(panel.hasAttribute("x-loading")).toBe(false);
+        expect(panel.textContent).toContain("片段: 本地数据"); // 消费处 state 可读
+        expect(panel.textContent).toContain("加粗");
+        expect(panel.textContent).not.toContain("其他组件"); // 声明元素剪枝
+        // 名字不匹配提示一次（typo 可发现性，非失败）
+        expect(warns.some((w) => w.includes("已按片段编译渲染"))).toBe(true);
+        // 响应式：消费处 state 变化 → 片段插值更新
+        engine.state.label = "更新";
+        await nextTick();
+        expect(panel.textContent).toContain("片段: 更新");
+    });
+
+    test("加载失败：autospark.error 占位 + retry 原位重载成功；成功后进 keepalive 缓存", async () => {
+        let fail = true;
+        globalThis.fetch = (async () => {
+            if (fail) return new Response("nope", { status: 500 });
+            return new Response(`<div x-define="remote"><span>重试成功</span></div>`);
+        }) as any;
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <button x-dialog:remote.keepalive="ui.open" x-dialog-options="{url: '/fail-retry.html'}"></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        engine.state.ui.open = true;
+        await new Promise((r) => setTimeout(r, 20));
+        const mask = maskOf("remote")!;
+        expect(mask).not.toBeNull(); // 不自动关
+        const panel = mask.querySelector(".autospark-dialog") as HTMLElement;
+        expect(panel.querySelector(".as-error")).not.toBeNull(); // 错误占位
+        // retry 原位重载（本次 mock 成功）
+        fail = false;
+        panel.querySelector(".as-error-btn")!.dispatchEvent(
+            new MouseEvent("click", { bubbles: true }),
+        );
+        await new Promise((r) => setTimeout(r, 20));
+        expect(panel.querySelector(".as-error")).toBeNull();
+        expect(panel.textContent).toContain("重试成功");
+        // 成功后进 keepalive 缓存：关闭 → 挂起（不销毁）
+        engine.state.ui.open = false;
+        await nextTick();
+        expect(maskOf("remote")).toBe(mask);
+        expect(mask.style.display).toBe("none");
+    });
+
+    test("失败态 close 走销毁（不挂起）→ 重开重建面板重新加载", async () => {
+        globalThis.fetch = (async () => new Response("nope", { status: 500 })) as any;
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <button x-dialog:remote.keepalive="ui.open" x-dialog-options="{url: '/fail-reopen.html'}"></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        engine.state.ui.open = true;
+        await new Promise((r) => setTimeout(r, 20));
+        const mask1 = maskOf("remote")!;
+        expect(mask1.querySelector(".as-error")).not.toBeNull();
+        engine.state.ui.open = false; // 失败态 close → 销毁（失败不进 keepalive 缓存）
+        await nextTick();
+        expect(maskOf("remote")).toBeNull();
+        expect(containerOf()!.contains(mask1)).toBe(false);
+        // 重开：全新面板 + 重新加载（mock 转成功）
+        globalThis.fetch = (async () =>
+            new Response(`<div x-define="remote"><span>二次成功</span></div>`)) as any;
+        engine.state.ui.open = true;
+        await new Promise((r) => setTimeout(r, 20));
+        expect(maskOf("remote")).not.toBeNull();
+        expect(maskOf("remote")).not.toBe(mask1);
+        expect(maskOf("remote")!.textContent).toContain("二次成功");
+    });
+});

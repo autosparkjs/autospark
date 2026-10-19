@@ -253,6 +253,81 @@ engine.on("overlay:close", ({ payload }) => {
 
 `delayClose` 缺省 / `0` 不自动关闭；手动关闭（ESC / 遮罩 / close 动作）优先于定时器，二者不冲突。
 
+### 保活（keepalive）
+
+默认语义是**每次打开新实例**——关闭动画播完即销毁，组件内部状态（表单输入、步骤进度）不跨开合保留。`keepalive: true` 改变关闭语义：leave 动画播完后**不销毁**，改为在容器内 `display:none` 隐藏（router keepAlive 同款挂起语义）；重开时**原实例复活**——DOM、数据域、watcher 全部存活，表单填了一半的内容原样还在：
+
+<demo html="dialog/keepalive.html"/>
+
+```html
+<!-- 修饰符糖：x-dialog:名称.keepalive -->
+<button x-dialog:editor="ui.open" x-dialog:editor.keepalive @click="ui.open = true">
+  打开编辑器
+</button>
+
+<!-- 等价的正典写法（整包 / 成员属性均可） -->
+<button x-dialog:editor="ui.open" x-dialog-options="{keepalive: true}" @click="ui.open = true">
+  打开编辑器
+</button>
+```
+
+要点：
+
+- **关闭语义零变化**：visible 照常回写 `false`、`overlay:close` 照常广播、ESC / 遮罩 / close 动作三触点照常——保活只是把「销毁」换成「挂起」；
+- **重开 props 浅合并**：仅出现的键 `Object.assign` 进存活的数据域（未出现的键保留旧值）——需要重置的字段请显式传键；
+- **声明式专属**：命令式通道 `getOverlay(...).open({keepalive: true})` 不生效并 warn（命令式句柄无缓存归属方，挂起实例会孤儿化）；
+- **回收点**：宿主指令销毁时回收其全部挂起实例（含打开中 / 关闭动画中）；`engine.destroy()` 全回收。v1 无 LRU / 数量上限——大量 key 的场景请自行规划容量。
+
+### 多实例与 key
+
+同一组件名默认只有一个保活缓存位——同名重开总是复用同一份挂起实例。`key`（表达式）为缓存**命名空间**：缓存身份 = `组件名 + key + url` 复合——同 key 重开复用挂起实例（防重复堆叠），不同 key 各自独立实例并存（多页签场景）：
+
+```html
+<!-- 每个文档一份独立挂起实例：切文档互不覆盖 -->
+<div
+  x-dialog:editor="ui.open"
+  x-dialog:editor.keepalive
+  x-dialog-options.key="ui.active"
+  x-dialog-options.props="{title: docs[ui.active]}"
+></div>
+
+<button @click="ui.active = 1; ui.open = true">编辑文档一</button>
+<button @click="ui.active = 2; ui.open = true">编辑文档二</button>
+```
+
+- `key` 每次打开求值一次（不 watch）——key 变化即新缓存身份，**下次打开生效**；
+- 无 key 时键退化为单实例位；
+- key 对非 keepalive 路径不生效（无缓存），但会随 `overlay:open` / `overlay:close` 广播 payload（`detail.key`）携带——多实例并存时用于区分事件来源。
+
+### 远程加载（url）
+
+组件**未注册**且配置了 `url` 时，打开走远程路径：面板先开（外壳 + 内容出口占位 + 面板挂 x-loading 遮罩），异步加载完成后原位附加内容、摘遮罩。适合内容体量大 / 使用频率低的对话框——不必预注册，打开时按需取：
+
+<demo html="dialog/remote.html"/>
+
+```html
+<!-- 本地未声明 remote-user 组件——打开时从 url 加载 -->
+<button
+  x-dialog:remote-user="ui.open"
+  x-dialog-options="{url: '/autospark/components/dialog-user.html'}"
+  x-dialog-options.props="{userId: 42}"
+  @click="ui.open = true"
+>
+  查看用户
+</button>
+```
+
+加载语义为**组件优先、片段兜底**的双路径并存：
+
+- **组件优先**：远程 HTML 声明了匹配名的 `x-define` → 按组件编译实例化（与本地构建实例完全同权：data / props / 插槽 / 作用域样式全生效），并经 x-import 的 url 缓存注册——同 url 重开零请求；
+- **片段兜底**：远程 HTML **没有**匹配名声明 → 原始 HTML 按**片段**编译进面板（`x-html.compile` 同语义：可含任意指令、不要求组件声明）——插值读**消费处**状态（响应式）、props 注入响应式数据域（热更新与组件路径同权）。片段里混入的其他名 `x-define` 声明会被正常注册但不渲染（编译期剪枝）；注册了非匹配名组件时 warn 一次名字提示——消费名与远程声明名对不上（typo）时可发现。片段路径不支持插槽内容投影（声明了插槽标记则 warn 丢弃）。
+
+行为要点：
+
+- **本地组件优先于 url**：组件名已可解析（本地声明 / 全局注册）时 url 被忽略——url 只兜底「找不到」的情形；
+- **首次打开才加载**（非指令初始化时）；`url` 支持成员表达式（`x-dialog-options.url="tplFor(tab)"`）每次打开重求值——url 变 = 新缓存身份 = 重建（keepalive 下旧挂起实例保留到回收点）；
+- **失败不自动关**：加载失败（HTTP 非 2xx / 网络错误 / 解析为空）在面板内呈现 `autospark.error` 错误占位——「重试」原位重载（回到加载中形态），「关闭」照常请求关闭；失败实例不进 keepalive 缓存，**重开即重建面板重新加载**——自然的重试通道。
+
 ### 配置合并链
 
 生效配置按两级优先级**深度合并**（数组替换、`undefined` 不覆盖）：
@@ -451,6 +526,9 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 | `animate`     | `"fade"`          | —      | 进出场动画（字符串 / 对象 / 分相 / `false`）                                                                                                |
 | `dataContext` | `"declarer"`      | —      | **数据视图基准**（`declarer` 声明处 / `host` 消费处），挂链即基准；旧键 `scope` 已硬切（现为普通 props 键）                                 |
 | `delayClose`  | `0`               | —      | 自动关闭延迟（ms）：`> 0` 时打开后延时自动「请求关闭」（可回写的 visible 照常回写）；`0` 不自动关                                           |
+| `keepalive`   | `false`           | `keepalive`（修饰符糖） | 关闭不销毁、容器内挂起保活，重开复用实例（声明式专属）；见[保活（keepalive）](#保活keepalive)                                               |
+| `key`         | 无                | —      | 保活缓存命名空间（表达式）：缓存身份 = `组件名 + key + url` 复合，同键复用、异键并存；见[多实例与 key](#多实例与-key)                        |
+| `url`         | 无                | —      | 组件未注册时打开走远程加载（组件优先 / 片段兜底）；见[远程加载（url）](#远程加载url)                                                         |
 | `at`          | 无（居中）        | —      | 贴锚定位（floating-ui）：字符串 / 元素简写（≡ `{selector}`，进链前归一化——只覆盖 selector、保留上层其余锚成员）或完整锚配置对象，成员见下表 |
 | `fit`         | `false`           | —      | 面板尺寸跟随宿主：左右弹出 → 高度与宿主一致、上下弹出 → 宽度与宿主一致（跟随翻转后最终方向）；**仅 `at` 锚定生效**（居中形态忽略），见 ADR-0099 |
 
@@ -472,7 +550,7 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 ## 注意事项
 
 - **宿主是纯声明点**：`x-dialog` 不自动绑定宿主点击——打开请显式 `@click="ui.flag = true"`；宿主可为任意元素，同元素可声明多个 `x-dialog` 消费不同组件（各自由不同状态驱动；props / 配置经[定向](#多对话框定向x-dialog-options名称props)按组件名配对）。
-- **每次打开新实例**：关闭动画播完即销毁（组件内部状态不跨开合保留——需要保活状态请放全局 state 或经 props 重注入）；多实例可并存。
+- **每次打开新实例**：关闭动画播完即销毁（组件内部状态不跨开合保留——表单类场景用 [keepalive](#保活keepalive) 挂起保活）；多实例可并存，keepalive 下同键复用、异键并存（见[多实例与 key](#多实例与-key)）。
 - **表达式形态的重开边界**：关闭只收起 UI，状态仍是唯一驱动源——依赖变化后重求值为真（含多依赖下结果仍真）时会**再次弹出**；状态未变化（同值赋值）不触发重开。需要精确控制请监听 `overlay:close` 自行回写状态。
 - **焦点陷阱与滚动锁定**尚未内置（fast-follow）——对话框打开期间页面滚动未被锁定，键盘 Tab 可移出对话框。
 - **z-index**：层叠 = 容器内 DOM 追加顺序（后开在上）；需要显式层级时经容器 CSS 变量 `--autospark-overlay-z` 全局调整。

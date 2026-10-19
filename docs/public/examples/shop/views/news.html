@@ -1,0 +1,107 @@
+<!-- 新闻页：分类筛选 + 可展开的新闻列表 -->
+<div class="page page-news">
+    <style>
+        /* ===== 新闻页私有样式 ===== */
+        .news-list {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .news-card {
+            padding: 1.25rem 1.4rem;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            transition:
+                border-color 0.18s ease,
+                box-shadow 0.18s ease;
+        }
+
+        .news-card:hover,
+        .news-card.open {
+            border-color: rgba(79, 107, 255, 0.45);
+            box-shadow: var(--shadow);
+        }
+
+        .news-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+
+        .news-card h3 {
+            margin: 0.55rem 0 0.4rem;
+            font-size: 1.12rem;
+        }
+
+        .news-summary {
+            color: var(--ink-2);
+            font-size: 0.92rem;
+        }
+
+        .news-body {
+            margin-top: 0.8rem;
+            padding-top: 0.8rem;
+            border-top: 1px dashed var(--line);
+            color: var(--ink-2);
+            font-size: 0.92rem;
+        }
+
+        .link-more {
+            margin-top: 0.7rem;
+            padding: 0;
+            border: none;
+            background: none;
+            color: var(--brand);
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .link-more:hover {
+            text-decoration: underline;
+        }
+    </style>
+
+    <header class="page-head">
+        <h1>新闻资讯</h1>
+        <p>了解星辰的新品发布、技术解读、线下活动与门店公告，所有内容均为演示数据。</p>
+        <div class="chips">
+            <template x-for="t of tags" :key="t">
+                <button class="chip" :class="{ active: ui.newsTag === t }" type="button" @click="ui.newsTag = t" x-text="t"></button>
+            </template>
+        </div>
+    </header>
+
+    <div class="news-list">
+        <template
+            x-for="n of list.filter((n) => ui.newsTag === '全部' || n.tag === ui.newsTag)"
+            :key="n.id"
+        >
+            <article class="news-card" :class="{ open: ui.openNews === n.id }">
+                <div class="news-meta">
+                    <span class="tag" x-text="n.tag"></span>
+                    <time x-text="n.date"></time>
+                </div>
+                <h3 x-text="n.title"></h3>
+                <p class="news-summary" x-text="n.summary"></p>
+                <div class="news-body" x-show="ui.openNews === n.id">
+                    <p x-text="n.body"></p>
+                </div>
+                <button
+                    class="link-more"
+                    type="button"
+                    @click="ui.openNews = ui.openNews === n.id ? null : n.id"
+                    x-text="ui.openNews === n.id ? '收起全文' : '阅读全文'"
+                ></button>
+            </article>
+        </template>
+
+        <div class="empty" x-show="list.filter((n) => ui.newsTag === '全部' || n.tag === ui.newsTag).length === 0">
+            <span class="empty-ico">📭</span>
+            该分类下暂无内容，换个标签看看
+        </div>
+    </div>
+</div>

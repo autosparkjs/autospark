@@ -150,6 +150,38 @@ _Avoid_: 普通HTML渲染（渲染器层的零加工 ≠ 旁路编译，两者�
 选中渲染器加工失败（抛异常或返回 error）后的两级降级——先试模板渲染器（engine 编译），再失败落 raw 通道原样输出；全链失败才落错误页。fetch 本身失败不降级（无内容可原样）。链内去重、每个渲染器至多一次、每次降级 warn（ADR-0008）。
 _Avoid_: 渲染失败即错误页（那是全链失败的终态）、重试（降级不是重试，换的是加工方式）
 
+### 多语言层
+
+**语言清单（Languages）**:
+`AutoSparkOptions.languages`（`{ code, name, nativeName }[]`）——engine 构造 options 声明的支持语言，**非空即启用**多语言并经挂载矩阵传递为 router options 的 `languages`；首项为默认语言（内置后缀规则免重写）。`name`/`nativeName` 供语言切换 UI 使用，运行时不消费（ADR-0013）。
+_Avoid_: locale、i18n 配置（泛称）
+
+**当前语言（$.language）**:
+engine 元状态容器 `state.$` 上的响应式语言快照——恒为语言清单中的具体 code（完整 BCP 47 连字符风格，如 `zh-CN`），未启用多语言不注入；与路由快照 `$.route` 同一注入机制。`'auto'` 仅是输入值：启动期先解析再写入（早于路由表加载），重新赋值 `'auto'` 触发再解析；解析三级匹配——tag 全等（大小写与 `-`/`_` 归一）→ 主语言子标签相同 → 回退首项（ADR-0013）。
+_Avoid_: `'auto'` 驻留状态（auto 不写入 `$.language`）、locale
+
+**语言化 URL（Language URL Rewrite）**:
+内容 URL 按当前语言的重写——`getLanguageUrl(language, url, type)` 单钩子按 `type` 分流 view/data/routes 三通道。未提供钩子：view/routes 走内置文件名后缀默认规则（默认语言免重写、末段扩展名前插 `_${code}`、query/hash 保留、根与目录形不重写）、data 不重写；提供钩子即三通道完全接管，返回 `null`/`undefined` 视为不重写用原 URL。重写时机：参数插值后、base 前缀前；`!` raw 前缀剥除后同样参与。缓存与 keepAlive 经 hash 模板并入语言自动隔离（ADR-0013）。
+_Avoid_: `getViewLanguageUrl` / `getDataLanguageUrl`（评审中段双钩子方案，已合并）、i18n 路由（路径级 i18n 不在范围）、语言协商（无 Accept-Language 服务端协商，解析仅限 auto 输入值）
+
+**语言切换（Language Switch）**:
+对 `$.language` 的直接赋值触发的当前路由重载——`store.watch` 监听赋值，对当前 `fullPath` 完整重入导航管线（guards、导航事件、渲染链全重跑），经内部放行标记绕过同 URL 去重短路，不写历史、地址栏不变（刷新回初始语言）。无 `setLanguage` 门面——直接赋值是唯一公开入口（ADR-0013）。
+_Avoid_: 重新导航（用户语义上的 push，会写历史）、路由重试（那是 error 层重载）
+
+### 版本层
+
+**版本清单（Versions）**:
+`AutoSparkOptions.versions`（`string[]`）——engine 构造 options 声明的支持版本，**非空即启用**版本机制并经挂载矩阵传递为 router options 的 `versions`；**末项为默认版本**（内置后缀规则免重写；与语言「首项默认」方向相反——版本按旧到新排列，未后缀文件对应最新版）。纯 engine 应用无消费方（x-version 指令解耦，engine ADR-0119）。空/缺省 = 不启用：钩子整体忽略、`$.version` 不注入不 watch（ADR-0014）。
+_Avoid_: 首项默认（那是语言的规则）、semver 区间声明（清单是精确版本号枚举，比较表达式是 x-version 侧能力）
+
+**版本化 URL（Version URL Rewrite）**:
+内容 URL 按当前版本的重写——`getVersionUrl(version, url, type)` 单钩子按 `type` 分流 view/data/routes 三通道。未提供钩子：view/routes 走内置文件名后缀默认规则（默认版本免重写、末段扩展名前插 `_v${version}`、query/hash 保留、根与目录形不重写）、data 不重写；提供钩子即三通道完全接管，返回 `null`/`undefined` 用原 URL。与语言重写复合时**先版本后语言**——`getVersionUrl` 收到未语言化的原 URL，`getLanguageUrl` 收到版本化后的 URL，最终形态 `x_v2_zh.html`。重写时机：参数插值后、base 前缀前；`!` raw 通道同样参与。缓存与 keepAlive 经 hash 模板并入版本自动隔离（ADR-0014）。
+_Avoid_: `getViewVersionUrl` / `getDataVersionUrl` 双钩子（未立项）、语义化版本自动升级（重写只按当前精确版本）
+
+**版本切换（Version Switch）**:
+对 `$.version` 的直接赋值触发的当前路由重载——`store.watch` 监听赋值，值变化且命中清单时对当前 `fullPath` 完整重入导航管线，经放行标记绕过同 URL 去重短路，不写历史、地址栏不变。无 `auto` 输入值（版本无自动探测场景）；未命中清单 warn + 回写当前生效值。启动归一在 attach 早期（早于路由表加载与自建 engine 的宿主首编译，消除 x-version 首帧闪现）：未设/空回退默认版本（末项）；注入 engine 的静态模板先编译完成时闪现窗口由应用负责（`options.version` 构造期给值）。无 `setVersion` 门面——直接赋值是唯一公开入口（ADR-0014）。
+_Avoid_: 重新导航（会写历史）、路由重试（那是 error 层重载）、auto 探测（未引入）
+
 ### 钩子层
 
 **路由钩子（Hook）**:

@@ -372,6 +372,16 @@ _Avoid_: 容器查询 / container-type（CSS 原生方案已否决——`@contai
 视口断点的两张选项表：`breakpoints`（档位阈值表，**engine 级唯一真相**——`options.viewport.breakpoints`，ViewportManager 判定与 x-container media 样式同源消费）与 `maxWidths`（按档 max-width 表，**实例级**——`x-container-options` / 宿主 `x-options`，回退 `options.viewport.maxWidths`）——**两表分离**、各自**整表替换**（回退不合并，ADR-0007 惯例）。值收 number（按 px）与 CSS 长度串双形态。
 _Avoid_: 按档合并（`sm:{min,maxWidth}` 形态，已否决）、按键合并（整表替换）、options.container（ADR-0105 已废——并入 options.viewport）、实例级 breakpoints（已废——阈值收归 engine 级唯一真相，实例自定义会与全局 $.viewport 档位语义打架）
 
+### 版本层
+
+**应用版本状态 / `$.version`（App Version State）**:
+元状态容器 `state.$` 上的响应式应用版本号（engine ADR-0120）：字符串，构造期归一初值——`options.version` 预置（非空串）直接注入；`options.versions` 清单（旧→新排列，末项即默认版本）非空时二次归一：当前值空缺回退末项、预置未命中清单 warn 后回退末项、命中则尊重；无清单不做清单归一。运行时赋值自由（无校验、无导航），`$.version` 只是 x-version 的响应式消费源——router 版本化 URL 机制已废弃（router ADR-0014 由 ADR-0120 取代），版本切换不触发导航重入。
+_Avoid_: 数值版本号（恒字符串，数值相等仅是比较兜底）、路由版本化 / getVersionUrl / versions 归 router（均已废弃——清单归 engine 渲染侧、运行时无导航语义）、运行时清单校验（清单仅在构造期归一初值）
+
+**版本显隐 / x-version（Version Visibility）**:
+版本匹配表达式的声明式显隐糖（engine ADR-0119）：`x-version="2"` 仅版本 2 可见、`x-version="<=3,=1,2"` 任一子句命中即可见（逗号 OR、无 AND）、`!=` 排除、`/re/flags` 正则（斜杠定界、正则内逗号不分割）；裸值 ≡ `=`；有序比较数值优先、点分数字段逐段比较、不可比子句 false。x-show 机制族（可见性）：隐藏 = 挂 `autospark-version-hidden` 类（`display:none !important`）、可见 = 摘类，**不碰 inline display**——与 x-show 同元素**版本隐藏恒胜**；与 x-viewport 两类独立、任一命中即隐；与 x-if/x-for/x-switch 正交可共存（不占子树）。订阅 `$.version` 响应式重算；`$.version` undefined 或表达式为空 → 静默忽略恒渲染；非法子句 → warn + 指令整体忽略。v1 无动画。
+_Avoid_: inline display 直写（与 x-show 冲突——走类）、存在性摘除（那是 x-if）、`.hide` 反向修饰符（未立项——`!=` 与正则覆盖）、x-version-options（无配置项）、AND 组合（v1 无——嵌套元素表达）
+
 ### 展开折叠层
 
 **展开折叠 / x-expandable（Expandable）**:
@@ -499,11 +509,11 @@ _Avoid_: 无限滚动（load-more 是显式触发，不是自动滚动加载）
 _Avoid_: 覆盖层（旧称，随声明指令一起废弃）、弹层模板（泛化）、overlay 组件（无 x-component 参与）、内联弹层
 
 **覆盖物实例（Overlay Instance）**:
-覆盖物被消费者打开渲染出的**活体**：组件快照经独立 scope + watcher 子树编译（data/props、methods、hooks、scoped CSS 全生效），渲染进 body 下本 engine 的覆盖物容器。**每次打开新实例**（singleton 未引入）、关闭动画播完即销毁、多实例可并存；层叠 = DOM 追加顺序。挂链即基准（数据视图基准 `dataContext` 三合一：表达式上下文 / 数据视图 / 生命周期统一由 parentScope 表达，默认 `declarer`）。
+覆盖物被消费者打开渲染出的**活体**：组件快照经独立 scope + watcher 子树编译（data/props、methods、hooks、scoped CSS 全生效），渲染进 body 下本 engine 的覆盖物容器。**每次打开新实例**（singleton 未引入）、关闭动画播完即销毁（keepalive 挂起是唯一例外，见「覆盖物保活」）、多实例可并存；层叠 = DOM 追加顺序。挂链即基准（数据视图基准 `dataContext` 三合一：表达式上下文 / 数据视图 / 生命周期统一由 parentScope 表达，默认 `declarer`）。
 _Avoid_: overlay 对象、弹层实例（泛化）、对话框实例（那是 x-dialog 消费者视角的产物）、单例（机制未引入）
 
 **覆盖物消费者（Overlay Consumer）**:
-把覆盖物组件实例化并驱动其生命周期的指令族（x-dialog / x-popover / x-drawer 已落地，x-popup 预留）：`OverlayDirective` 基座（继承组件实例化基座 `ComponentDirective`，ADR-0054 更名）上的**薄子类**，只叠加形态差异（外壳 / 定位 / 触发 / 关闭行为）；visible 驱动四形态承载于中间抽象基座 `VisibleOverlayDirective`（dialog 与 drawer 平级继承，ADR-0063）。**纯状态驱动**（家族默认；x-popover 的悬浮/点击触发为唯一显式偏离，见「悬浮触发」「点击触发」）——宿主是纯声明点（无隐式交互），值**专职 visible 布尔控制**（简单路径可回写 / 表达式 / 字面量，对象形态已废弃，ADR-0052 v2.3），真值即开；props 经「选项成员属性」`x-dialog-options.props` 注入组件 data 域（表达式求值 + 持续热更新，与 x-component props 同构）。配置两级合并：`内置默认 < x-dialog-options`（可定向到特定组件名实例；组件 def 不携带配置）。形态与模态**正交**：x-dialog 恒模态，x-drawer 默认模态、`mask: false` 可关（ADR-0062 官方 mask 选项的声明式读取面）。
+把覆盖物组件实例化并驱动其生命周期的指令族（x-dialog / x-popover / x-drawer 已落地，x-popup 预留）：`OverlayDirective` 基座（继承组件实例化基座 `ComponentDirective`，ADR-0054 更名）上的**薄子类**，只叠加形态差异（外壳 / 定位 / 触发 / 关闭行为）；visible 驱动四形态承载于中间抽象基座 `VisibleOverlayDirective`（dialog 与 drawer 平级继承，ADR-0063）。**纯状态驱动**（家族默认；x-popover 的悬浮/点击触发为唯一显式偏离，见「悬浮触发」「点击触发」）——宿主是纯声明点（无隐式交互），值**专职 visible 布尔控制**（简单路径可回写 / 表达式 / 字面量，对象形态已废弃，ADR-0052 v2.3），真值即开；props 经「选项成员属性」`x-dialog-options.props` 注入组件 data 域（表达式求值 + 持续热更新，与 x-component props 同构）。配置两级合并：`内置默认 < x-dialog-options`（可定向到特定组件名实例；组件 def 不携带配置）。保活 / 缓存身份 / 远程加载三扩展配置同通道（`keepalive` / `key` / `url`，ADR-0119，详见「覆盖物保活」「保活缓存键」「覆盖物远程内容」）。形态与模态**正交**：x-dialog 恒模态，x-drawer 默认模态、`mask: false` 可关（ADR-0062 官方 mask 选项的声明式读取面）。
 _Avoid_: 触发器（家族默认宿主无隐式交互；悬浮/点击形态例外见「悬浮触发」「点击触发」）、弹出指令（泛化）、调用方（action 语境词汇）、保留键封闭清单（非保留键隐式作 props 的分流已删除，ADR-0052 v2.3）
 
 **贴边抽屉（Drawer）**:
@@ -530,6 +540,18 @@ _Avoid_: manual / 手动模式（未实现——程序化开关是 x-dialog 状�
 **请求关闭（Request Close）**:
 覆盖物关闭动作（ESC / 点遮罩 / close action）的统一语义——关闭是「请求」不是命令：visible 可回写（简单路径）则回写 `false`（状态是唯一真相源）；不可回写（表达式/字面量）仅 UI 关闭 + `overlay:close` 广播由用户善后。已知边界：表达式形态关闭后依赖变化重求值仍真会**重开**。子树内 close action 由消费者在实例根上委托监听（覆盖物 DOM 在 body 下，engine 树收不到冒泡）。
 _Avoid_: 强制关闭（它是请求语义）、自动回写（仅简单路径可回写）、关闭回调（事件广播解耦，非配置函数）
+
+**覆盖物保活（Overlay KeepAlive）**:
+覆盖物关闭语义的**挂起例外**（`keepalive: true`，ADR-0119）：close 的 leave 动画播完后**不销毁**，改为容器内 `display:none` 隐藏（router keepAlive 同款语义，非摘除 DOM）——DOM、instanceScope/shellScope、watcher 全存活，重开走恢复路径（props 浅合并仅出现的键 → 重新定位 + enter 动画 + 入栈 + 广播 open）。关闭语义零变化（visible 回写、`overlay:close` 广播、ESC/遮罩/close action 三触点照常）。**声明式专属**：命令式句柄 `open({keepalive})` 不生效并 warn（命令式无缓存归属方，挂起实例会孤儿化）。回收点：宿主指令 destroy 销毁其全部挂起实例（含打开中/关闭动画中）、`engine.destroy` 全回收；v1 无 LRU、无手动清缓存 API。正典配置 `x-dialog-options="{keepalive: true}"` 或成员属性表达式 `x-dialog-options.keepalive="..."`；修饰符糖 `x-dialog:name.keepalive` 经解析器 modifier 注入同名选项（ADR-0007）自动生效。缓存身份见「保活缓存键」。
+_Avoid_: keep-alive（连字符变体）、缓存组件（挂起的是整实例非组件定义）、visible 保持（关闭时 visible 照常回写归假，保活只是 DOM 挂起）、页面保活（那是 router keepAlive——机制同款语义，归属不同特性）
+
+**保活缓存键（Overlay Cache Key）**:
+keepalive 实例的缓存身份：**`组件名 + key + url` 复合**（`buildOverlayCacheKey`）。同键且有存活挂起实例 → 重开复用（防重复堆叠，对已可见实例 open no-op）；不同键 → 各自独立实例并存（多页签场景）。`key` 为表达式，每次打开求值一次（不 watch——key 变化即新缓存身份，下次打开生效）；无 key 时键退化为单实例位。key 对非 keepalive 路径不生效（无缓存），仅随 `overlay:open`/`overlay:close` 广播 payload（`OverlayEventDetail.key`）携带。
+_Avoid_: 热切换键（key 不 watch，变化即新身份、下次打开生效）、实例 ID（key 是声明方给的缓存命名空间，非系统分配标识）、DOM key（与列表 diff 复用语义无关——这里是缓存身份，无 diff 概念）
+
+**覆盖物远程内容（Overlay Remote Content）**:
+消费者配置 `url` 声明的**打开时按需加载**通道（ADR-0119）：组件未注册时打开走远程路径——**面板先开**（shell + 内容出口占位锚 + 面板挂 x-loading 遮罩），异步加载完成后原位附加内容、摘遮罩。加载经 x-import 管线（fetch + 解析 + 注册到消费处 scope + url 缓存），随后**双路径并存**：远程声明了匹配名 `x-define` → **组件优先**（编译组件实例原位换入，与本地构建实例完全同权，出口清单就绪后插槽分段投影）；无匹配名声明 → **片段兜底**（原始 HTML 作子模板编译进面板出口，x-html.compile 同语义——可含任意指令、以消费处 scope 为父、props 注入响应式数据域热更新同权；片段中的 x-define 声明元素经编译器剪枝不渲染，注册了其他名组件时 warn 一次名字提示）。片段路径不经 x-html 指令委托（shell 面板 rootless 挂 body 容器，委托读不到任何状态——编程式 compileChild，消费处 scope 为父）。失败语义：面板内 `autospark.error` 错误占位（retry 原位重载 / close 关闭），不自动关、不进 keepalive 缓存——重开自然重建面板重新加载。首次打开才加载（非指令初始化时）；url 经成员表达式每次打开重求值，url 变 = 新缓存身份 = 重建（见「保活缓存键」）。
+_Avoid_: x-import 替代（x-import 是预加载后按名消费，本词条是打开时按需加载）、x-html 指令委托（片段走编程式编译，shell 面板 rootless 读不到状态）、远程组件（片段路径无组件概念，直说「片段」）、懒加载（lazy loading 泛化——直说按需加载）
 
 **覆盖物定义句柄（Overlay Handle）**:
 `engine.getOverlay(el, name, options?)` 返回的**定义编程视图**（命令式消费入口）：`open(options?)` 打开、`close()` 关闭该覆盖物当前全部打开实例。查找镜像 `getComponentDeclaration` 协议（`el` 起 scope 链就近 + 全局兜底；省略 `el` 仅查全局）；options 是消费者配置级（与 x-dialog-options 同级），其 `props` 键为**句柄级默认 props**（被 `open({props})` 覆盖）。命令式 props 为**打开时快照**（无热更新，ADR-0052 v2.3）。

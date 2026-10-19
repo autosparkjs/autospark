@@ -74,7 +74,8 @@
 - **事件双通道**：`overlay:open` / `overlay:close` 在实例根（DOM 冒泡）与引擎总线同时广播，payload 收窄为 `{ name, instance, dataContext }`（`dataContext` 为命令式传元素时的基准元素）；
 - **打开栈**：document 级共享，ESC 只关全局栈顶实例——嵌套打开（确认框叠对话框）只关最上层，多 engine 并存不连环关；
 - **at 锚定定位**：`{selector, placement, offset, shift, flip, arrow}`（字符串 / 元素简写 ≡ `{selector}`）经 floating-ui 贴锚定位，`shift` 默认启用（面板溢出视口时自动滑回视口，`at.shift: false` 关闭、对象透传调参；详见 [x-dialog 的 at](./directives/x-dialog.md#弹出定位)）；锚定生效时可开 `fit: true` 让面板单轴尺寸与宿主一致（左右弹出取高、上下弹出取宽，跟随翻转后的最终方向，ADR-0099，消费面见 [x-popover · 尺寸跟随宿主（fit）](./directives/x-popover.md#尺寸跟随宿主fit)）；
-- **进出场动画**：复用 ADR-0039 animate 机制，默认 `fade`，「播完动画再动 DOM」。
+- **进出场动画**：复用 ADR-0039 animate 机制，默认 `fade`，「播完动画再动 DOM」；
+- **保活 / 缓存身份 / 远程加载**（ADR-0119，家族通用）：`keepalive` 关闭不销毁、容器内挂起保活（重开复用实例，声明式专属）；`key` 为保活缓存命名空间（缓存身份 = `组件名 + key + url` 复合，同键复用、异键并存）；`url` 在组件未注册时打开走远程加载（面板先开 + x-loading 遮罩，组件优先 / 片段兜底双路径，失败呈现错误占位可重试）——消费面详见 [x-dialog · 保活](./directives/x-dialog.md#保活keepalive) / [多实例与 key](./directives/x-dialog.md#多实例与-key) / [远程加载](./directives/x-dialog.md#远程加载url)。
 
 ### 面板外壳（shell）：形态可定制
 
@@ -148,4 +149,4 @@ handle.close(); // 关该覆盖物当前全部打开实例
 - **渲染位置在 body 下**：实例**不在 engine 宿主树内**——engine 树内模板元素的 DOM 事件监听收不到覆盖物内部冒泡的事件，跨层通信用引擎事件总线（`engine.on("overlay:close")`）。
 - **组件即内容**：无独立声明指令（旧 `x-overlay` 声明语法已删）——要弹什么，就声明什么组件；`x-overlay` / `.global` 修饰符 / `x-overlay-options` / `params` 键 / `type` 字段均为已废弃旧模型。
 - **配置三级链**：`内置默认 < x-dialog-options（消费处） < 值对象内联保留键`——组件 def 不携带配置，配置只走消费处。
-- **单例未引入**：每次 open 新实例、关闭即销毁；「多消费点驱动同一覆盖物」的场景（关闭只回写触发者）请保持单驱动点，或在 `overlay:close` 中自行善后。
+- **单例未引入**：每次 open 新实例、关闭即销毁（`keepalive` 声明可挂起保活、`key` 可多实例并存——见[公共机制契约](#公共机制契约)）；「多消费点驱动同一覆盖物」的场景（关闭只回写触发者）请保持单驱动点，或在 `overlay:close` 中自行善后。

@@ -102,7 +102,12 @@ export class AutoSparkRouteTable {
             if (typeof arg === "function") {
                 arg = await arg();
             } else if (typeof arg === "string") {
-                arg = await fetch(arg).then((res) => res.json());
+                // 语言化路由表（ADR-0013 决策 2）：type: 'routes' 通道参与重写——
+                // 启动解析早于本方法，首次 fetch 即按已解析语言取内容。
+                // 管理器容缺：无管理器时用原 URL
+                arg = await fetch(
+                    this.router.language?.rewriteUrl(arg, "routes") ?? arg,
+                ).then((res) => res.json());
             }
             return Array.isArray(arg) ? arg : [arg];
         };
@@ -260,7 +265,10 @@ export class AutoSparkRouteTable {
      */
     private async _expandNode(node: PendingNode): Promise<PendingNode[]> {
         const { item, path } = node;
-        const url = resolveChildrenUrl(
+        // 语言化子表（ADR-0013 决策 2）：type: 'routes' 通道参与重写。重写发生在
+        // resolveChildrenUrl 之后（含 base 前缀与插值）；重写后的 URL 即 _responseCache
+        // 的键——子表缓存天然按语言隔离。管理器容缺：无管理器时用原 URL
+        const resolvedUrl = resolveChildrenUrl(
             item._childrenSource!,
             {
                 path,
@@ -270,6 +278,7 @@ export class AutoSparkRouteTable {
             },
             this.router.options.base,
         );
+        const url = this.router.language?.rewriteUrl(resolvedUrl, "routes") ?? resolvedUrl;
         try {
             const data = await this._fetchChildren(url, item);
             const declared = this._toRouteItems(data, url);

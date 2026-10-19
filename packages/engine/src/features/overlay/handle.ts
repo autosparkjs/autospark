@@ -72,6 +72,13 @@ export class OverlayHandle {
             configLayer = rest;
         }
         const resolved = resolveOverlayConfig(this._options, configLayer);
+        // keepalive（ADR-0119）：v1 声明式专属——挂起实例的缓存归属方是消费者指令（回收点在
+        // 指令销毁），命令式句柄无缓存可复用，配置不生效（关照常销毁，防挂起实例孤儿化）
+        if (resolved.keepalive === true) {
+            this.engine.logger.warn(
+                `engine.getOverlay("${this.name}"): keepalive 在命令式通道不生效（v1 声明式专属，ADR-0119），已忽略`,
+            );
+        }
         // 数据视图基准（两栖）：缺省 = rootless（决策 16 命令式缺省）；其余统一经 resolveDataContext 分派
         const { parentScope, scopeEl } =
             resolved.dataContext === undefined

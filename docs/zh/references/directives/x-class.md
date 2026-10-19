@@ -75,6 +75,18 @@
 
 更完整的说明（diff 更新、与静态 class 共存）见 [x-bind · 绑定 class](./x-bind.md)。
 
+## 配置选项
+
+`x-class` 解析期归一化为 `x-bind` + `class`，**没有独立的指令选项**（`x-class-options` 会在解析期被静默丢弃）——bind 家族选项与修饰符照 `x-bind` 同款消费：
+
+| 配置项 | 默认值 | 修饰符 | 说明 |
+| --- | --- | --- | --- |
+| `invert` | `false` | `.invert` | 求值结果取反：可写 `x-class.invert="..."`，或经 `x-bind-options="{invert:true}"` / 宿主 `x-options` 声明（与 [`:class`](./x-bind.md#绑定-class) 完全同款） |
+
+::: info 关于指令配置体系
+指令选项 / 修饰符 / 宿主选项 / 两层回退的通用机制见[指令配置](../../guide/engine/directive/config.md)。
+:::
+
 ## 注意事项
 
 - `x-class` / `:class` / `x-bind:class` 三者**完全等价**，任选其一。

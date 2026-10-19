@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-error · 嵌套就近消费</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .zone {
+                position: relative;
+                border: 1px dashed #dbdbdb;
+                border-radius: 6px;
+                padding: 12px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <!-- 外层 x-error 只收到「内层未认领」的错误：内层（behavior:none）已消费不呈现，外层也不越级 -->
+            <div class="zone" x-error>
+                <p class="is-size-7 has-text-grey mb-3">外层 x-error：仅捕获直接子区域（下述两个区域之外）的错误。</p>
+                <div class="columns">
+                    <div class="column">
+                        <!-- 内层默认 overlay：优先捕获自己的错误并呈现 -->
+                        <div class="zone" x-error>
+                            <p class="is-size-7 has-text-grey mb-3">内层（默认 overlay）：自己的错误自己呈现。</p>
+                            <button class="button is-primary is-small" @click="raise('内层错误（内层呈现）')">触发内层错误</button>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <!-- 内层 none：纯消费认领，不呈现也不外传 -->
+                        <div class="zone" x-error x-error-options.behavior="'none'">
+                            <p class="is-size-7 has-text-grey mb-3">内层（behavior:none）：认领但不呈现——外层也不会收到。</p>
+                            <button class="button is-primary is-small" @click="raise('已认领（无处呈现）')">触发已认领错误</button>
+                        </div>
+                    </div>
+                </div>
+                <button class="button is-warning is-small" @click="raise('外层错误')">直接触发外层错误（外层呈现）</button>
+            </div>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-error · 自定义组件与动作按钮</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="columns">
+                <div class="column">
+                    <h2 class="title is-5">自定义错误组件（指令值简写）</h2>
+                    <!-- 区域 A：x-error="my.error" 走自定义组件；props 经 raise 第二参注入 -->
+                    <div id="zone-a" class="zone" x-error="my.error" style="position: relative; border: 1px dashed #dbdbdb; border-radius: 6px; min-height: 120px; padding: 12px">
+                        <p class="is-size-7 has-text-grey mb-3">错误呈现为自定义卡片，额外显示注入的 requestId。</p>
+                        <button class="button is-primary is-small" @click="check()">发起校验</button>
+                    </div>
+                </div>
+                <div class="column">
+                    <h2 class="title is-5">actions 动作按钮</h2>
+                    <!-- 区域 B：raise 时经第二参 actions 追加「撤销」按钮（data-action 点击委托） -->
+                    <div id="zone-b" class="zone" x-error style="position: relative; border: 1px dashed #dbdbdb; border-radius: 6px; min-height: 120px; padding: 12px">
+                        <p class="is-size-7 has-text-grey mb-3">覆盖层上除关闭外还有「撤销」按钮，点击触发 undo 动作。</p>
+                        <button class="button is-primary is-small" @click="del()">删除（可撤销）</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    seq: 0,
+                },
+                {
+                    actions: {
+                        undo: {
+                            title: "撤销",
+                            handle: () => alert("已撤销删除"),
+                        },
+                        // 校验动作：条件不满足时 raise 显式抛错，props 注入 requestId
+                        check() {
+                            this.data.seq++;
+                            if (this.data.seq % 2 === 0) {
+                                alert("校验通过");
+                            } else {
+                                // action 内命令式触发 raise（ctx 即 raise 的 this）
+                                this.engine.actions.raise.handle.call(this, "校验未通过：用户名已被占用", {
+                                    props: { requestId: "REQ-" + String(1000 + this.data.seq) },
+                                });
+                            }
+                        },
+                        // 删除动作：raise 一个普通对象错误，附带「撤销」动作按钮
+                        del() {
+                            this.engine.actions.raise.handle.call(
+                                this,
+                                { message: "已删除 1 项", code: 410 },
+                                { actions: ["undo"], closeable: true },
+                            );
+                        },
+                    },
+                    components: {
+                        // 全局自定义错误组件：x-error="my.error" 解析命中；message / requestId 为注入 data
+                        "my.error": `
+                            <div class="message is-danger is-light">
+                                <div class="message-header">
+                                    <p>操作失败</p>
+                                </div>
+                                <div class="message-body">
+                                    <p x-text="message"></p>
+                                    <p class="is-size-7 has-text-grey mt-2">请求编号：<span x-text="requestId"></span></p>
+                                    <button class="button is-small mt-3" @click="close()">知道了</button>
+                                </div>
+                            </div>
+                        `,
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

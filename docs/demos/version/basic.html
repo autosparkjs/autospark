@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-version · 版本显隐指令</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .box-ver {
+        border: 1px dashed #b5b5b5;
+        border-radius: 8px;
+        background: #f9fafb;
+        padding: 10px 14px;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body style="overflow:auto">
+    <div class="demo-app section">
+      <div class="block has-text-grey is-size-7">
+        点击下方按钮切换 <code>$.version</code>——各元素的 <code>x-version</code>
+        表达式即时重算显隐（隐藏 = <code>autospark-version-hidden</code> 类，
+        <code>display:none !important</code>）。切到「未知」观察失效语义：
+        <code>$.version</code> 为 undefined 时指令静默短路、全部恒渲染。
+      </div>
+      <div class="tags mb-3">
+        <span class="tag is-dark is-medium">当前版本</span>
+        <span class="tag is-link is-medium">{{ $.version }}</span>
+      </div>
+      <div class="box-ver" x-version="2">
+        <code>x-version="2"</code> —— 仅版本 2 可见（裸值 ≡ 相等）
+      </div>
+      <div class="box-ver" x-version=">1">
+        <code>x-version="&gt;1"</code> —— 大于 1 可见（数值有序比较：2 / 2.1 / 3）
+      </div>
+      <div class="box-ver" x-version="<=2,3">
+        <code>x-version="&lt;=2,3"</code> —— ≤2 或 =3 可见（逗号 OR：1 / 2 / 3，2.1 不可见）
+      </div>
+      <div class="box-ver" x-version="!=2">
+        <code>x-version="!=2"</code> —— 非 2 可见（1 / 2.1 / 3）
+      </div>
+      <div class="box-ver" x-version="/^2\./">
+        <code>x-version="/^2\./"</code> —— 正则匹配：2.x 系列可见（2 / 2.1）
+      </div>
+      <div class="box-ver" x-version="2" x-show="flag">
+        <code>x-version="2"</code> + <code>x-show="flag"</code> —— 组合：版本隐藏恒胜，
+        x-show 只在版本 2 内有话语权（
+        <button class="button is-small is-link is-light" @click="flag = !flag">
+          toggle flag = {{ flag }}
+        </button>）
+      </div>
+    </div>
+
+    <div class="buttons are-small px-4 pb-3">
+      <button class="button is-info is-light" data-v="1">$.version = "1"</button>
+      <button class="button is-info is-light" data-v="2">$.version = "2"</button>
+      <button class="button is-info is-light" data-v="2.1">$.version = "2.1"</button>
+      <button class="button is-info is-light" data-v="3">$.version = "3"</button>
+      <button class="button is-warning is-light" data-v="">$.version = undefined</button>
+    </div>
+
+    <script>
+      const engine = new AutoSparkSpaces.AutoSpark(
+        document.querySelector(".demo-app"),
+        { flag: true },
+        // options.version 构造期写入 $.version 初值（消灭首渲染空版本）
+        { version: "2" },
+      );
+
+      // 运行时直接赋值 $.version 是切换入口——x-version 订阅该值响应式显隐
+      const meta = engine.store.state.$;
+      document.querySelectorAll("button[data-v]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          meta.version = btn.dataset.v === "" ? undefined : btn.dataset.v;
+        });
+      });
+    </script>
+  </body>
+</html>

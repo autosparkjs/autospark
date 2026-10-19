@@ -22,7 +22,7 @@ export default defineConfig({
       { text: "首页", link: "/" },
       { text: "指南", link: "/zh/guide/" },
       { text: "组件", link: "/zh/components/" },
-      { text: "参考", link: "/zh/references/" },      
+      { text: "参考", link: "/zh/references/" },
       { text: "API", link: "/zh/api/" },
       { text: "开源推荐", link: "https://zhangfisher.github.io/repos/" },
     ],
@@ -57,6 +57,7 @@ export default defineConfig({
               ],
             },
             { text: "动作", link: "/zh/guide/engine/action" },
+            { text: "错误处理", link: "/zh/guide/engine/error" },
             {
               text: "指令",
               link: "/zh/guide/engine/directive/",
@@ -119,7 +120,6 @@ export default defineConfig({
                 { text: "安装", link: "/zh/guide/engine/router/installation" },
                 { text: "快速入门", link: "/zh/guide/engine/router/quick-start" },
                 { text: "特征与优势", link: "/zh/guide/engine/router/features" },
-                { text: "名词解释", link: "/zh/guide/engine/router/glossary" },
                 { text: "创建路由", link: "/zh/guide/engine/router/creating-routes" },
                 { text: "路由表", link: "/zh/guide/engine/router/route-table" },
                 { text: "路由出口", link: "/zh/guide/engine/router/outlet" },
@@ -153,6 +153,14 @@ export default defineConfig({
                 { text: "常见问题", link: "/zh/guide/engine/router/faq" },
               ]
             }, {
+              text: "多语言",
+              link: "/zh/guide/engine/language",
+            },
+            {
+              text: "版本",
+              link: "/zh/guide/engine/version",
+            },
+            {
               text: "主题",
               collapsed: true, link: "/zh/guide/engine/theme/index",
               items: [
@@ -242,6 +250,7 @@ export default defineConfig({
                 { text: "x-if", link: "/zh/references/directives/x-if" },
                 { text: "x-show", link: "/zh/references/directives/x-show" },
                 { text: "x-viewport", link: "/zh/references/directives/x-viewport" },
+                { text: "x-version", link: "/zh/references/directives/x-version" },
                 { text: "x-switch", link: "/zh/references/directives/x-switch" },
                 {
                   text: "x-for",
@@ -294,6 +303,7 @@ export default defineConfig({
                 { text: "x-popover", link: "/zh/references/directives/x-popover" },
                 { text: "x-teleport", link: "/zh/references/directives/x-teleport" },
                 { text: "x-loading", link: "/zh/references/directives/x-loading" },
+                { text: "x-error", link: "/zh/references/directives/x-error" },
               ],
             },
             {

@@ -1,0 +1,711 @@
+/* =====================================================================
+ * 星辰手机商店 —— 公共样式
+ * 约定：与具体页面绑定的样式写在各 view html 的 <style> 块内，
+ *       本文件只放跨页面复用的部分（设计令牌 / 按钮 / 导航 / 页面通用骨架）。
+ * ===================================================================== */
+
+:root {
+    --bg: #f4f6fb;
+    --surface: #ffffff;
+    --ink: #10162b;
+    --ink-2: #46506e;
+    --muted: #8a93ad;
+    --line: #e6e9f2;
+    --brand: #4f6bff;
+    --brand-2: #7c5cff;
+    --accent: #17c3d9;
+    --danger: #f0476b;
+    --ok: #18b981;
+    --gold: #ffb020;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 10px 30px rgba(16, 22, 43, 0.08);
+    --shadow-lg: 0 24px 60px rgba(16, 22, 43, 0.16);
+    --grad: linear-gradient(135deg, #4f6bff, #7c5cff 55%, #17c3d9);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+        "Microsoft YaHei", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+.container {
+    width: min(1160px, 100% - 2.5rem);
+    margin-inline: auto;
+}
+
+/* auto-link 归一：内层真实 <a> 继承排版，宿主按行内弹性盒布局 */
+auto-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+auto-link > a {
+    color: inherit;
+    text-decoration: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* =====================================================================
+ * 按钮（跨页面复用）
+ * ===================================================================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.62rem 1.35rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: #eef1f8;
+    color: var(--ink);
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        background 0.18s ease,
+        color 0.18s ease;
+    white-space: nowrap;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-primary {
+    background: var(--grad);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(79, 107, 255, 0.32);
+}
+
+.btn-primary:hover {
+    box-shadow: 0 12px 26px rgba(79, 107, 255, 0.42);
+}
+
+.btn-ghost {
+    background: transparent;
+    border-color: var(--line);
+    color: var(--ink-2);
+}
+
+.btn-ghost:hover {
+    border-color: var(--brand);
+    color: var(--brand);
+    background: rgba(79, 107, 255, 0.06);
+}
+
+.btn-ghost-light {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #fff;
+    backdrop-filter: blur(6px);
+}
+
+.btn-ghost-light:hover {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.btn-danger {
+    background: rgba(240, 71, 107, 0.1);
+    color: var(--danger);
+}
+
+.btn-danger:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+.btn-sm {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+}
+
+.btn-lg {
+    padding: 0.8rem 2rem;
+    font-size: 1rem;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+/* =====================================================================
+ * 顶部导航（首页/新闻/产品/服务/关于 + 购物车 + 登录）
+ * ===================================================================== */
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+}
+
+.nav-inner {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    min-height: 68px;
+    position: relative;
+}
+
+.brand {
+    gap: 0.6rem;
+    flex-shrink: 0;
+}
+
+.brand-logo {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    font-size: 1.25rem;
+    border-radius: 12px;
+    background: var(--grad);
+    box-shadow: 0 6px 16px rgba(79, 107, 255, 0.35);
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.brand-text strong {
+    font-size: 1.02rem;
+    letter-spacing: 0.02em;
+}
+
+.brand-text small {
+    font-size: 0.72rem;
+    color: var(--muted);
+}
+
+.nav-menu {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-inline: auto;
+}
+
+.nav-link {
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ink-2);
+    transition:
+        background 0.18s ease,
+        color 0.18s ease;
+}
+
+.nav-link:hover {
+    background: rgba(79, 107, 255, 0.08);
+    color: var(--brand);
+}
+
+.nav-link.active {
+    background: rgba(79, 107, 255, 0.12);
+    color: var(--brand);
+}
+
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-shrink: 0;
+}
+
+.cart-link {
+    position: relative;
+    padding: 0.5rem 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ink-2);
+    transition:
+        border-color 0.18s ease,
+        color 0.18s ease;
+}
+
+.cart-link:hover,
+.cart-link.active {
+    border-color: var(--brand);
+    color: var(--brand);
+}
+
+.badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    transform: translateY(-9px);
+    margin-left: -0.2rem;
+}
+
+.user-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.35rem 0.25rem 0.25rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+}
+
+.avatar {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--grad);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.uname {
+    font-size: 0.88rem;
+    font-weight: 600;
+    max-width: 9em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nav-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 42px;
+    height: 42px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    cursor: pointer;
+}
+
+.nav-toggle span {
+    display: block;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--ink);
+    transition:
+        transform 0.2s ease,
+        opacity 0.2s ease;
+}
+
+.nav-toggle.open span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+}
+
+.nav-toggle.open span:nth-child(2) {
+    opacity: 0;
+}
+
+.nav-toggle.open span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+}
+
+/* =====================================================================
+ * 页面通用骨架（每个 view 的根元素 .page 共享）
+ * ===================================================================== */
+.site-main {
+    min-height: calc(100vh - 68px - 240px);
+    padding: 2rem 0 3.5rem;
+}
+
+.page {
+    animation: pageIn 0.32s ease both;
+}
+
+@keyframes pageIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.page-head {
+    margin-bottom: 1.6rem;
+}
+
+.page-head h1 {
+    font-size: clamp(1.6rem, 3vw, 2.1rem);
+    letter-spacing: 0.01em;
+}
+
+.page-head > p {
+    color: var(--ink-2);
+    margin-top: 0.35rem;
+    max-width: 72ch;
+}
+
+.section-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 2.6rem 0 1.1rem;
+}
+
+.section-head h2 {
+    font-size: 1.35rem;
+    position: relative;
+    padding-left: 0.8rem;
+}
+
+.section-head h2::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.32em;
+    bottom: 0.32em;
+    width: 4px;
+    border-radius: 4px;
+    background: var(--grad);
+}
+
+.section-head .sub {
+    color: var(--muted);
+    font-size: 0.88rem;
+    margin-top: 0.2rem;
+    font-weight: 400;
+}
+
+.more-link {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--brand);
+    flex-shrink: 0;
+}
+
+.more-link:hover {
+    text-decoration: underline;
+}
+
+/* 筛选 chips */
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.1rem;
+}
+
+.chip {
+    padding: 0.42rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink-2);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.chip:hover {
+    border-color: var(--brand);
+    color: var(--brand);
+}
+
+.chip.active {
+    background: var(--grad);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(79, 107, 255, 0.3);
+}
+
+.tag {
+    display: inline-block;
+    padding: 0.1rem 0.55rem;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: rgba(79, 107, 255, 0.1);
+    color: var(--brand);
+}
+
+.empty {
+    grid-column: 1 / -1;
+    padding: 3rem 1rem;
+    text-align: center;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+}
+
+.empty .empty-ico {
+    font-size: 2.4rem;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+/* =====================================================================
+ * 商品卡片（首页「热销精选」与产品页共用）
+ * ===================================================================== */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1.1rem;
+}
+
+.p-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.p-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-lg);
+}
+
+.p-tile {
+    position: relative;
+    height: 152px;
+    display: grid;
+    place-items: center;
+    font-size: 3.4rem;
+    overflow: hidden;
+}
+
+.p-tile::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(120% 90% at 20% 0%, rgba(255, 255, 255, 0.5), transparent 60%);
+}
+
+.p-tile .p-emoji {
+    position: relative;
+    z-index: 1;
+    filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.25));
+}
+
+.p-flag {
+    position: absolute;
+    z-index: 2;
+    top: 10px;
+    left: 10px;
+    padding: 0.12rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #fff;
+    background: rgba(16, 22, 43, 0.72);
+    backdrop-filter: blur(4px);
+}
+
+.p-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 1rem 1.05rem 1.1rem;
+    flex: 1;
+}
+
+.p-name {
+    font-size: 1.02rem;
+    font-weight: 700;
+}
+
+.p-specs {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+
+.p-meta {
+    display: flex;
+    gap: 0.7rem;
+    font-size: 0.76rem;
+    color: var(--ink-2);
+    flex-wrap: wrap;
+}
+
+.p-meta .rate {
+    color: var(--gold);
+    font-weight: 700;
+}
+
+.p-buy {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: auto;
+    padding-top: 0.55rem;
+}
+
+.p-price {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--danger);
+}
+
+.p-old {
+    margin-left: 0.35rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-decoration: line-through;
+}
+
+/* =====================================================================
+ * 页脚
+ * ===================================================================== */
+.site-footer {
+    background: #0d1224;
+    color: rgba(255, 255, 255, 0.72);
+    padding: 2.6rem 0 1.4rem;
+}
+
+.foot-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1.2fr;
+    gap: 1.6rem;
+}
+
+.foot-col h4 {
+    color: #fff;
+    font-size: 0.98rem;
+    margin-bottom: 0.7rem;
+}
+
+.foot-col p {
+    font-size: 0.85rem;
+    margin-bottom: 0.35rem;
+}
+
+.foot-col auto-link {
+    display: flex;
+    font-size: 0.87rem;
+    padding: 0.22rem 0;
+    color: rgba(255, 255, 255, 0.7);
+    transition: color 0.15s ease;
+}
+
+.foot-col auto-link:hover {
+    color: #fff;
+}
+
+.foot-bottom {
+    margin-top: 2rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+}
+
+/* =====================================================================
+ * 公共响应式
+ * ===================================================================== */
+@media (max-width: 860px) {
+    .nav-toggle {
+        display: flex;
+        margin-left: auto;
+    }
+
+    .nav-menu {
+        position: absolute;
+        top: 68px;
+        left: 0;
+        right: 0;
+        display: none;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.2rem;
+        margin: 0;
+        padding: 0.7rem 1.25rem 1rem;
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+        box-shadow: var(--shadow);
+    }
+
+    .nav-menu.open {
+        display: flex;
+    }
+
+    .nav-link {
+        padding: 0.7rem 0.9rem;
+        border-radius: 10px;
+    }
+
+    .cart-lbl {
+        display: none;
+    }
+
+    .foot-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 620px) {
+    .brand-text small {
+        display: none;
+    }
+
+    .card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .foot-grid {
+        grid-template-columns: 1fr;
+    }
+}

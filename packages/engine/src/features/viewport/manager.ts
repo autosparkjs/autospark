@@ -122,8 +122,11 @@ export class ViewportManager {
      * 元容器注入（ADR-0105 决策 1，严格保留键语义）：state.$ 缺失 → 注入
      * `{ viewport }` 空容器（挂 META_MARK 框架所有物标记）；已有框架标记 → 复用；
      * 用户注入（无标记）→ warn + delete + 重建。
+     *
+     * 公开给 engine 构造期 `options.version` 注入复用同一入口（ADR-0119——`$.version`
+     * 与 `$.viewport` 同住元容器，注入/复用/重建语义唯一）。
      */
-    private _ensureMetaContainer(): Record<string, any> {
+    ensureMetaContainer(): Record<string, any> {
         const state = this.engine.store.state as Record<string, any>;
         const existing = state[META_KEY];
         if (
@@ -157,7 +160,7 @@ export class ViewportManager {
             this.engine.logger.warn("viewport: 当前环境无 matchMedia，视口档位状态不可用");
             return false;
         }
-        const meta = this._ensureMetaContainer();
+        const meta = this.ensureMetaContainer();
         const entries = tables.tiers.map((tier, i) => ({
             tier,
             mql: matchMedia(`(min-width:${tables.thresholds[i]}px)`),

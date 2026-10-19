@@ -160,8 +160,12 @@ export class DataLoader {
                     throw new AutoSparkRouterLoadError("No valid URL found");
                 }
 
+                // 语言重写（ADR-0013 决策 7）：插值之后、base 前缀之前；默认矩阵下
+                // data 通道不重写，提供 getLanguageUrl 钩子时由钩子分流。
+                // language 容缺：无管理器时用原 URL（loader 可脱离完整 router 装配独立使用）
+                const interpolated = url.params(getRouteVars(matched));
                 const finalUrl = prefixBaseUrl(
-                    url.params(getRouteVars(matched)),
+                    this.router.language?.rewriteUrl(interpolated, "data") ?? interpolated,
                     this.router.options.base,
                 );
                 meta.url = finalUrl;
@@ -234,6 +238,20 @@ export class DataLoader {
     private setLoadState(matched: AutoSparkMatchedRouteItem, state: "ok" | "error"): void {
         if (!matched.route) return;
         (matched.route as any)._dataLoadState = state;
+    }
+
+    /**
+     * 重置匹配链上 data 通道的加载状态（ADR-0013 决策 5）
+     *
+     * 语言切换重入时调用：加载状态跨导航持久在路由表项上，不清除则公共层跳过
+     * 判定复用旧语言的既有 loader（缓存键 matched.hash 已含新语言，跳过的层到不了
+     * 缓存判定）。与 baseLoader 的同名方法语义一致（本类独立实现，故各自提供）。
+     */
+    public resetLoadStates(routes: AutoSparkMatchedRouteItem[]): void {
+        for (const matched of routes) {
+            if (!matched.route) continue;
+            delete (matched.route as any)._dataLoadState;
+        }
     }
 
     /**

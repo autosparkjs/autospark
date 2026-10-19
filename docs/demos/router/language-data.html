@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>多语言：数据本地化（getLanguageUrl 钩子）</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <script src="/autospark/router-demos/boot.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="buttons mb-2">
+                <button class="button is-small" id="lang-en">English</button>
+                <button class="button is-small" id="lang-zh">简体中文</button>
+            </div>
+
+            <p class="help mb-1">当前语言：<strong x-text="$language"></strong></p>
+
+            <div x-outlet></div>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+                languages: [
+                    { code: "en", name: "English", nativeName: "English" },
+                    { code: "zh-CN", name: "简体中文", nativeName: "中文" },
+                ],
+                // 提供钩子 = view / data / routes 三通道完全接管。
+                // 本 demo 只本地化 data 通道：视图共用一份，数据按语言取不同文件
+                getLanguageUrl: (language, url, type) => {
+                    if (type !== "data") return url;                    // 视图/路由表不重写
+                    if (language.code === "en") return url;             // 默认语言免重写
+                    // profile.json → profile_zh-CN.json（文件名后缀式）
+                    return url.replace(/(\.\w+)?$/, `_${language.code}$1`);
+                },
+                routes: {
+                    mode: "hash",
+                    base: "/autospark/router-demos/",
+                    routes: [
+                        { path: "/", redirect: "/profile" },
+                        {
+                            path: "/profile",
+                            title: "Profile",
+                            view: "/autospark/router-demos/views/lang-profile.html",
+                            // 默认矩阵下 data 不重写，由上面的钩子分流重写
+                            data: "/autospark/router-demos/api/profile.json",
+                        },
+                    ],
+                },
+            });
+
+            // 切换语言 = 对 $.language 赋值：导航管线重入，数据缓存键含语言分量，
+            // 新语言重新取数（profile.json ↔ profile_zh-CN.json）
+            const setLang = (code) => (engine.store.state.$.language = code);
+            document.getElementById("lang-en").addEventListener("click", () => setLang("en"));
+            document.getElementById("lang-zh").addEventListener("click", () => setLang("zh-CN"));
+        </script>
+    </body>
+</html>

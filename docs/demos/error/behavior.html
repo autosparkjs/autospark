@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-error · behavior 三态</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* addErrorClass 态：宿主自带错误样式，错误 class 命中即变红 */
+            .has-error {
+                border-color: #f14668 !important;
+                box-shadow: 0 0 0 1px #f14668;
+            }
+            .zone {
+                position: relative;
+                border: 1px dashed #dbdbdb;
+                border-radius: 6px;
+                min-height: 110px;
+                padding: 12px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="columns">
+                <div class="column">
+                    <h2 class="title is-5">overlay（默认）</h2>
+                    <div class="zone" x-error>
+                        <p class="is-size-7 has-text-grey mb-3">错误覆盖层铺满本区域，原内容保留。</p>
+                        <button class="button is-primary is-small" @click="raise('加载失败：502')">触发错误</button>
+                    </div>
+                </div>
+                <div class="column">
+                    <h2 class="title is-5">addErrorClass</h2>
+                    <div class="zone" x-error x-error-options.behavior="'addErrorClass'" x-error-options.errorClass="'has-error'">
+                        <p class="is-size-7 has-text-grey mb-3">不弹覆盖层，宿主获得错误 class（自绘红边框）。</p>
+                        <button class="button is-primary is-small" @click="raise('余额不足')">触发错误</button>
+                    </div>
+                </div>
+                <div class="column">
+                    <h2 class="title is-5">none（纯消费）</h2>
+                    <div class="zone" x-error x-error-options.behavior="'none'">
+                        <p class="is-size-7 has-text-grey mb-3">认领子树错误但不呈现（外层不再越级捕获）——点击后无可见变化。</p>
+                        <button class="button is-primary is-small" @click="raise('内部已认领')">触发错误</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-dialog · 远程加载（url）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .log {
+        max-height: 110px;
+        overflow: auto;
+        font-size: 12px;
+        color: #555;
+        background: #f6f8fa;
+        border-radius: 6px;
+        padding: 8px 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- url：组件未注册时打开走远程——面板先开（外壳 + x-loading）→ 内容就绪后原位附加 -->
+    <div class="demo-app section">
+      <div x-data="{ ui: { user: false, note: false, broken: false, seq: 0 }, source: '来自消费处的状态' }">
+        <div class="block">
+          <button
+            class="button is-primary"
+            x-dialog:remote-user="ui.user"
+            x-dialog-options="{url: '/autospark/components/dialog-user.html'}"
+            x-dialog-options.props="{userId: 42}"
+            @click="ui.user = true"
+          >
+            组件路径（远程声明了 x-define）
+          </button>
+          <button
+            class="button is-link"
+            x-dialog:remote-note="ui.note"
+            x-dialog-options="{url: '/autospark/components/dialog-note.html'}"
+            x-dialog-options.props="{topic: '远程片段'}"
+            @click="ui.note = true"
+          >
+            片段兜底（远程无 x-define）
+          </button>
+          <button
+            class="button is-danger is-light"
+            x-dialog:remote-broken="ui.broken"
+            x-dialog-options="{url: '/autospark/components/not-exist.html'}"
+            @click="ui.broken = true"
+          >
+            失败重试（404）
+          </button>
+        </div>
+        <div class="block">
+          <button
+            class="button is-small"
+            @click="ui.seq = ui.seq + 1; source = '来自消费处的状态 · 第 ' + ui.seq + ' 次更新'"
+          >
+            更新消费处状态（片段对话框开着时点）
+          </button>
+        </div>
+        <div class="block has-text-grey">
+          三个对话框的组件名在本地都<b>未声明</b>，url 兜底远程加载：面板先开（外壳 +
+          x-loading 遮罩）、内容就绪后原位附加。<b>组件路径</b>——远程文件声明了匹配名
+          <code>x-define</code>，按组件编译（props 注入 data 域）；<b>片段兜底</b>——远程文件没有匹配名声明，原始
+          HTML 按片段编译（<code>x-html.compile</code> 同语义）：插值读消费处状态（点上方按钮实时可见）、props
+          注入响应式数据域；<b>失败重试</b>——url 404 时面板内呈现错误占位、不自动关：重试原位重载、关闭照常；失败实例不进
+          keepalive 缓存，重开即重新加载。
+        </div>
+        <div class="log block" id="log"><div>（等待事件…）</div></div>
+
+        <!-- remote-user 组件不在本地声明——由 /autospark/components/dialog-user.html 远程提供 -->
+        <!-- 片段兜底文件见 /autospark/components/dialog-note.html（无任何 x-define） -->
+      </div>
+    </div>
+    <script>
+      const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+      const log = document.getElementById("log");
+      const append = (msg) => log.insertAdjacentHTML("beforeend", `<div>· ${msg}</div>`);
+      engine.on("overlay:open", (m) => {
+        const p = m?.payload ?? m;
+        append(`overlay:open name=${p?.name}${p?.key !== undefined ? " key=" + p.key : ""}`);
+      });
+      engine.on("overlay:close", (m) => {
+        const p = m?.payload ?? m;
+        append(`overlay:close name=${p?.name}`);
+      });
+    </script>
+  </body>
+</html>

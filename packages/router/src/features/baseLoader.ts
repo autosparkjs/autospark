@@ -7,6 +7,7 @@
 
 import type { AutoSparkRouter } from "@/router";
 import type { AutoSparkMatchedRouteItem } from "@/types/routes";
+import type { AutoSparkLanguageUrlType } from "@/types/config";
 import { asyncSignal, type IAsyncSignal } from "asyncsignal";
 import { getRouteVars } from "@/utils/getRouteVars";
 import { prefixBaseUrl } from "@/utils/prefixBaseUrl";
@@ -222,6 +223,21 @@ export abstract class RouteDataLoaderBase<
         (matched.route as any)[this.loadStateKey] = state;
     }
 
+    /**
+     * 重置匹配链上本通道的加载状态（ADR-0013 决策 5 / ADR-0014 决策 5）
+     *
+     * 语言/版本切换重入时调用：加载状态落在路由表项上、跨导航持久，不清则公共层
+     * 跳过判定（`loadStateOf === "ok"`）会复用旧元状态下的既有 signal——缓存键虽已
+     * 含新语言/版本，跳过的层根本不会走到缓存判定。清除后加载域全层重跑，按新 hash
+     * 取数。
+     */
+    public resetLoadStates(routes: AutoSparkMatchedRouteItem[]): void {
+        for (const matched of routes) {
+            if (!matched.route) continue;
+            delete (matched.route as any)[this.loadStateKey];
+        }
+    }
+
     private _createErrorSignal(matched: AutoSparkMatchedRouteItem, error: any, options: Options) {
         const signal = this.createSignal(matched, options);
         this.onLoadError(matched, error, signal, options);
@@ -334,11 +350,18 @@ export abstract class RouteDataLoaderBase<
 
     private _getHash(matched: AutoSparkMatchedRouteItem, options: Options) {
         if (options.hash) {
+            // 自定义 hash 模板不含语言分量——须按语言隔离缓存时由应用
+            // 自行纳入（ADR-0013 决策 6）
             return getSignalHash(options.hash, matched);
         }
         // 默认 "{url}"：matched.path 是模式路径（如 /products/:category，不含参数值），
-        // 参数不同的层会坍缩为同一缓存键；matched.url 才是实际完整路径（ADR-0004）
-        return getSignalHash("{url}", matched);
+        // 参数不同的层会坍缩为同一缓存键；matched.url 才是实际完整路径（ADR-0004）。
+        // 并入当前语言（ADR-0013 决策 6）：数据缓存自动按语言隔离。
+        // language 容缺：loader 可脱离完整 router 装配独立使用（既有测试的最小 stub）
+        let hash = getSignalHash("{url}", matched);
+        const language = this.router.language;
+        if (language?.enabled && language.current) hash += `@${language.current}`;
+        return hash;
     }
 
     protected getAutoUrl(_matched: AutoSparkMatchedRouteItem): string | undefined {
@@ -386,8 +409,15 @@ export abstract class RouteDataLoaderBase<
         options: Options,
         navSignal?: AbortSignal,
     ): Promise<Data> {
+        // 语言重写（ADR-0013 决策 2）：时机插值之后、base 前缀之前；
+        // `!` raw 通道经 prepareFetchUrl 剥前缀后同样参与重写。
+        // language 容缺：无管理器时用原 URL（loader 可脱离完整 router 装配独立使用）
+        const interpolated = this.prepareFetchUrl(url, matched).params(getRouteVars(matched));
         const finalUrl = prefixBaseUrl(
-            this.prepareFetchUrl(url, matched).params(getRouteVars(matched)),
+            this.router.language?.rewriteUrl(
+                interpolated,
+                this.loadType as AutoSparkLanguageUrlType,
+            ) ?? interpolated,
             this.router.options.base,
         );
         const { timeout = 0 } = options;

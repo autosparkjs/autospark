@@ -13,7 +13,7 @@
  */
 import type { Dict } from "autospark";
 import type { AutoSparkRoutes } from "./routes";
-import type { AutoSparkRouterOptions } from "./config";
+import type { AutoSparkLanguageItem, AutoSparkRouterOptions } from "./config";
 
 declare module "autospark" {
     interface AutoSparkOptions<State extends Dict = any> {
@@ -40,6 +40,12 @@ declare module "autospark" {
          * 默认 `false`——engine 侧路由挂载静默（纯 engine 应用不受任何影响）。
          */
         autoDiscoverRoutes?: boolean;
+        /**
+         * 支持语言清单（ADR-0013 决策 1）：非空即启用多语言，经插件自举挂载矩阵
+         * 传递为 {@link AutoSparkRouterOptions.languages}（engine 为声明点）。
+         * 空/缺省 = 不启用：钩子整体忽略、`$.language` 不注入。
+         */
+        languages?: AutoSparkLanguageItem[];
     }
 
     interface AutoSparkMeta {
@@ -57,5 +63,12 @@ declare module "autospark" {
             /** 查询参数（search 解析为普通对象） */
             query: Record<string, string>;
         };
+        /**
+         * 当前语言（ADR-0013 决策 4）：router 启动时解析（`auto` 输入先经三级匹配
+         * 归一）写入，恒为语言清单中的具体 code（完整 BCP 47 连字符）；赋值触发
+         * 当前路由的完整导航管线重入（内容按新语言重载，地址栏不变）。未启用
+         * 多语言时无此键。
+         */
+        language?: string;
     }
 }

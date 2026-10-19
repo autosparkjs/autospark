@@ -329,6 +329,32 @@ export class AutoSpark<
         // data-viewport——须早于 autostart compile（x-container 编译期 watch $.viewport、
         // 首值即档位真值，无首渲染空档）；viewport: false 时构造即短路
         this.viewport = new ViewportManager(this);
+        // 版本元状态（ADR-0119 / ADR-0120）：构造期同步写 `state.$.version` 初值（消灭
+        // 首渲染空版本）——与 $.viewport 初值注入同一时期（早于 autostart compile，
+        // x-version 首值即真值）；仅非空 string 时写；元容器注入/复用走 ViewportManager
+        // 的严格保留键语义（ADR-0105），ensure 返回自 state 重读的响应式代理（写本地
+        // 裸引用不触发订阅通知）。
+        // versions 清单（ADR-0120）：仅渲染侧语义——非空时把 $.version 归一为清单值
+        // （未设/空回退末项默认版本；预置未命中 warn + 回退末项；预置命中尊重）。
+        // 运行时赋值自由（响应式显隐），无任何导航/重载语义——router 版本化已废弃。
+        const version = this.options.version;
+        if (typeof version === "string" && version.trim() !== "") {
+            this.viewport.ensureMetaContainer().version = version;
+        }
+        const versions = this.options.versions;
+        if (Array.isArray(versions) && versions.length > 0) {
+            const fallback = versions[versions.length - 1] as string;
+            const meta = this.viewport.ensureMetaContainer();
+            const current = meta.version;
+            if (typeof current !== "string" || current.trim() === "") {
+                meta.version = fallback;
+            } else if (!versions.includes(current)) {
+                this.logger.warn(
+                    `options.version 预置值 "${current}" 不在 versions 清单中，已回退为默认版本 "${fallback}"`,
+                );
+                meta.version = fallback;
+            }
+        }
         if (this.options.autostart) {
             this.compile();
         }
@@ -399,7 +425,7 @@ export class AutoSpark<
      * 无需手动包装。实现委托 actionsManager（src/actions/manager.ts）。
      */
     get actions(): Record<string, AutoSparkAction> {
-        return this.actionsManager.proxy as Record<string, AutoSparkAction> 
+        return this.actionsManager.proxy as Record<string, AutoSparkAction>
     }
 
     /**

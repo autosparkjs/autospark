@@ -1,0 +1,170 @@
+<!-- 服务页：服务卡片 + 常见问题手风琴 -->
+<div class="page page-services">
+    <style>
+        /* ===== 服务页私有样式 ===== */
+        .svc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.1rem;
+        }
+
+        .svc-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+            padding: 1.4rem 1.4rem 1.3rem;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            transition:
+                transform 0.2s ease,
+                box-shadow 0.2s ease;
+        }
+
+        .svc-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow);
+        }
+
+        .svc-icon {
+            width: 52px;
+            height: 52px;
+            display: grid;
+            place-items: center;
+            font-size: 1.6rem;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(79, 107, 255, 0.16), rgba(23, 195, 217, 0.18));
+        }
+
+        .svc-card h3 {
+            font-size: 1.1rem;
+        }
+
+        .svc-desc {
+            font-size: 0.88rem;
+            color: var(--ink-2);
+        }
+
+        .svc-points {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            font-size: 0.84rem;
+            color: var(--muted);
+        }
+
+        .svc-points li::before {
+            content: "✓";
+            color: var(--ok);
+            font-weight: 800;
+            margin-right: 0.45rem;
+        }
+
+        .svc-foot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.8rem;
+            margin-top: auto;
+            padding-top: 0.7rem;
+        }
+
+        .svc-price {
+            font-size: 0.86rem;
+            color: var(--muted);
+        }
+
+        .svc-price b {
+            color: var(--danger);
+            font-size: 1.1rem;
+        }
+
+        .faq-list {
+            display: grid;
+            gap: 0.7rem;
+        }
+
+        .faq-item {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+        }
+
+        .faq-q {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.95rem 1.2rem;
+            border: none;
+            background: none;
+            font-size: 0.98rem;
+            font-weight: 600;
+            color: var(--ink);
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .faq-q .caret {
+            color: var(--brand);
+            transition: transform 0.2s ease;
+        }
+
+        .faq-item.open .caret {
+            transform: rotate(180deg);
+        }
+
+        .faq-a {
+            padding: 0 1.2rem 1.05rem;
+            font-size: 0.9rem;
+            color: var(--ink-2);
+        }
+    </style>
+
+    <header class="page-head">
+        <h1>服务支持</h1>
+        <p>从购机到使用，星辰提供全生命周期的服务保障。点击「预约」可提交演示预约请求。</p>
+    </header>
+
+    <div class="svc-grid">
+        <template x-for="s of services" :key="s.id">
+            <article class="svc-card">
+                <div class="svc-icon" x-text="s.icon"></div>
+                <h3 x-text="s.title"></h3>
+                <p class="svc-desc" x-text="s.desc"></p>
+                <ul class="svc-points">
+                    <template x-for="p of s.points" :key="p">
+                        <li x-text="p"></li>
+                    </template>
+                </ul>
+                <div class="svc-foot">
+                    <span class="svc-price">参考 <b x-text="s.price"></b></span>
+                    <button class="btn btn-ghost btn-sm" type="button" @click="bookService(s.title)">预约服务</button>
+                </div>
+            </article>
+        </template>
+    </div>
+
+    <section>
+        <div class="section-head">
+            <div>
+                <h2>常见问题</h2>
+                <div class="sub">还有疑问？拨打客服热线 400-800-1234</div>
+            </div>
+        </div>
+        <div class="faq-list">
+            <template x-for="f of faq" :key="f.q">
+                <div class="faq-item" :class="{ open: ui.openFaq === $index }">
+                    <button class="faq-q" type="button" @click="ui.openFaq = ui.openFaq === $index ? null : $index">
+                        <span x-text="f.q"></span>
+                        <span class="caret">▾</span>
+                    </button>
+                    <div class="faq-a" x-show="ui.openFaq === $index" x-text="f.a"></div>
+                </div>
+            </template>
+        </div>
+    </section>
+</div>

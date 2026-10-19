@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-dialog · 保活（keepalive）与多实例 key</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .ov-panel {
+        background: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        min-width: 360px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- keepalive：关闭不销毁、容器内挂起；key：缓存身份 = 组件名 + key，同键复用、异键并存 -->
+    <div class="demo-app section">
+      <div
+        x-data="{ ui: { open: false, active: 1 }, docs: {1: '需求评审纪要', 2: '迭代周报'} }"
+        x-dialog:editor="ui.open"
+        x-dialog:editor.keepalive
+        x-dialog-options.key="ui.active"
+        x-dialog-options.props="{title: docs[ui.active]}"
+      >
+        <div class="block">
+          <button class="button is-primary" @click="ui.active = 1; ui.open = true">编辑文档一</button>
+          <button class="button is-link" @click="ui.active = 2; ui.open = true">编辑文档二</button>
+          <span class="tag" x-text="'ui.active = ' + ui.active"></span>
+        </div>
+        <div class="block has-text-grey">
+          两个按钮消费<b>同一个</b> <code>x-dialog:editor</code>，靠
+          <code>x-dialog-options.key="ui.active"</code> 区分缓存身份：在文档一里写点内容并关闭（挂起不销毁），再打开文档二——是<b>全新实例</b>（草稿为空）；再回到文档一——<b>原实例复活</b>，草稿原样还在。去掉
+          <code>.keepalive</code> 修饰符后，每次关闭即销毁、重开全是新实例；去掉 <code>key</code>
+          则两个文档共用一个缓存位（文档一的草稿会「串台」到文档二）。
+        </div>
+
+        <div x-define="editor">
+          <script type="autospark/setup">{ data: { title: '未命名', draft: '' } }</script>
+          <div class="ov-panel">
+            <h3 class="title is-5">编辑：<span x-text="title"></span></h3>
+            <textarea class="textarea" x-model="draft" placeholder="写点内容…关闭后再打开试试"></textarea>
+            <p class="is-size-7 has-text-grey mt-2">
+              草稿 <span x-text="draft.length"></span> 字符 · 重开 props 浅合并：title 更新、draft 保留
+            </p>
+            <button class="button is-fullwidth" @click="close()">关闭（不丢草稿）</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-error · 基础（action 失败与 raise）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- x-error 圈定错误区域：子树内 action 失败 / raise 显式触发即在本区域呈现错误覆盖层 -->
+        <div class="demo-app section">
+            <div class="columns">
+                <div class="column">
+                    <h2 class="title is-5">action 失败（自动桥接）</h2>
+                    <!-- 区域 A：submit 动作首次失败 → 覆盖层呈现；点「重试」以原参重调 -->
+                    <div id="zone-a" x-error style="position: relative; border: 1px dashed #dbdbdb; border-radius: 6px; min-height: 120px">
+                        <div class="p-4">
+                            <p class="is-size-7 has-text-grey mb-3">区域 A：保存动作第一次点击必然失败，可点覆盖层「重试」恢复。</p>
+                            <button class="button is-primary" @click="save('草稿', 1)">保存（首次失败）</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="column">
+                    <h2 class="title is-5">raise 显式触发</h2>
+                    <!-- 区域 B：前置条件不满足时 raise 显式抛错（raise 源无重试按钮） -->
+                    <div id="zone-b" x-error style="position: relative; border: 1px dashed #dbdbdb; border-radius: 6px; min-height: 120px">
+                        <div class="p-4">
+                            <p class="is-size-7 has-text-grey mb-3">区域 B：年龄不足 18 岁时 raise 阻断提交。</p>
+                            <div class="field is-horizontal">
+                                <div class="field-label is-normal">
+                                    <label class="label is-size-7">年龄</label>
+                                </div>
+                                <div class="field-body">
+                                    <div class="field">
+                                        <p class="control">
+                                            <input class="input is-small" type="number" x-model.number="age" style="width: 100px" />
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="button is-primary" @click="submit">提交</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let saved = false;
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    age: 16,
+                },
+                {
+                    actions: {
+                        // 异步动作：首次调用 reject，重试（原 args 重调）成功 → 覆盖层自动清除
+                        save: async (tag, n) => {
+                            await new Promise((r) => setTimeout(r, 400));
+                            if (!saved) {
+                                saved = true;
+                                throw new Error(`保存失败（${tag} #${n}）：网络超时`);
+                            }
+                            alert("保存成功");
+                        },
+                        submit: function () {
+                            if (this.data.age < 18) {
+                                // action 内命令式触发 raise（ctx 即 raise 的 this，携带触发元素）
+                                this.engine.actions.raise.handle.call(this, "未成年不可提交");
+                                return;
+                            }
+                            alert("已提交");
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

@@ -92,6 +92,46 @@ export type HeadConfigOptions = {
 };
 
 /**
+ * 语言清单项（ADR-0013 决策 1）
+ *
+ * `code` 为完整 BCP 47 连字符风格标签（如 `zh-CN`），运行时的唯一功能性字段；
+ * `name` / `nativeName` 供语言切换 UI 使用，router 运行时不消费。
+ */
+export interface AutoSparkLanguageItem {
+    /** 语言标签（完整 BCP 47 连字符风格，如 `zh-CN`、`en`） */
+    code: string;
+    /** 语言名称（如 `简体中文`），供切换 UI 展示 */
+    name?: string;
+    /** 语言自称（如 `中文`），供切换 UI 展示 */
+    nativeName?: string;
+}
+
+/**
+ * 语言化 URL 的通道标识（ADR-0013 决策 2）
+ *
+ * - `view`：视图内容（`_loadFromRemote` 视图通道）
+ * - `data`：路由数据（`_loadFromRemote` 数据通道）
+ * - `routes`：路由表（顶层表与远程子表 fetch）
+ */
+export type AutoSparkLanguageUrlType = "view" | "data" | "routes";
+
+/**
+ * 语言化 URL 钩子（ADR-0013 决策 2）
+ *
+ * 提供即**三通道完全接管**（默认矩阵不再兜底——默认语言豁免、data 不重写等规则
+ * 均由钩子自行分流）。返回 `null` / `undefined` 表示该次不重写、用原 URL
+ * （而非回退内置规则）。
+ */
+export type AutoSparkGetLanguageUrl = (
+    /** 目标语言（`$.language` 当前值对应的清单项） */
+    language: AutoSparkLanguageItem,
+    /** 待重写的 URL（视图/数据通道为插值后的具体 URL，base 前缀之前） */
+    url: string,
+    /** 内容通道 */
+    type: AutoSparkLanguageUrlType,
+) => string | null | undefined;
+
+/**
  * 路由器配置选项
  */
 export type AutoSparkRouterOptions = {
@@ -228,4 +268,33 @@ export type AutoSparkRouterOptions = {
      * ```
      */
     head?: false | HeadConfigOptions;
+
+    /**
+     * 支持语言清单（ADR-0013 决策 1）
+     *
+     * 非空即启用多语言：内容 URL 按语言重写（视图/路由表走内置文件名后缀规则，
+     * 数据通道默认不重写）、`$.language` 注入引擎元状态容器并跟随切换重载当前路由。
+     * 首项为默认语言——免重写，且作为语言解析的最终回退。
+     *
+     * 空/缺省 = 不启用：`getLanguageUrl` 钩子整体忽略、`$.language` 不注入。
+     */
+    languages?: AutoSparkLanguageItem[];
+
+    /**
+     * 语言化 URL 钩子（ADR-0013 决策 2）
+     *
+     * 未提供时 view/routes 走内置文件名后缀规则（默认语言免重写）、data 不重写；
+     * 提供即三通道完全接管（默认规则不再兜底），返回 `null`/`undefined` 表示该次
+     * 用原 URL。
+     *
+     * @example
+     * ```ts
+     * getLanguageUrl: (language, url, type) => {
+     *   if (type === "data") return url;                  // API 不参与语言重写
+     *   if (language.code === "en") return url;           // 默认语言免重写
+     *   return url.replace(/(\.\w+)?$/, `_${language.code}$1`);
+     * }
+     * ```
+     */
+    getLanguageUrl?: AutoSparkGetLanguageUrl;
 };

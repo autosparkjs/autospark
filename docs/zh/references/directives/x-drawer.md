@@ -205,28 +205,34 @@
 
 自定义动画（六类名契约）与时长/缓动配置见 [x-dialog · 进出场动画](./x-dialog.md#进出场动画)。
 
-### 配置
+## 配置选项
 
-| 键 | 默认 | 说明 |
-|---|---|---|
-| `at` | 无（屏幕贴边） | 字符串 / 元素简写 / `{selector, placement, flip, offset, shift}`；`selector` 命中即锚定模式 |
-| `at.placement` | `'right'` | 四主方向（展开起始边）；`auto`/后缀/非法值一律静默归一为 `right` |
-| `at.flip` | — | 内侧展开模型下静默忽略（保留键位仅向后兼容） |
-| `size` | `280px` | 短轴尺寸（方向中立）：number 按 px / CSS 长度字符串；引擎 inline 写入，未配置回退 `--autospark-drawer-size` 变量 |
-| `resize` | 无（不可调） | 面板拖拽调节：`true` / 选项对象（方向自动推导为贴边内侧单边，`handles` 只能收窄；会话内记忆优先于 `size`；详见[拖拽调宽](#拖拽调宽resize)） |
-| `mask` | `true` | 模态遮罩显隐；`false` = 裸面板贴边（无外点关闭） |
-| `closeOnMask` | `true` | 点遮罩请求关闭（无遮罩时静默无效） |
-| `animate` | `'drawer'` | 进出场动画；显式配置整键尊重 |
-| `expandable` | `true` | 抽屉把手（机制组合 x-expandable 共享把手模块，ADR-0070）：骑活动边线的常驻圆形按钮（折叠 ≡ visible 归假）——`true` 居中 / `false` 关闭 / `{pos}` 对象定位（number(px) 与 CSS 长度，负数距对面边、越界钳制）+ `{showTrigger}` 显隐策略（默认 `'hover'`：展开态边线感应显形、折叠态恒显；`'always'` 恒常驻）；字面量/表达式形态不建（详见[抽屉把手](#抽屉把手expandable)） |
-| `shell` | `drawer-shell` | 面板外壳组件名（配置链：成员表达式 > 引擎级 `options.overlay.drawer.shell` > 内置） |
-| `border` | `true` | 面板 1px 边框（外壳承担） |
-| `delayClose` | `0` | 打开后自动关闭延迟（ms） |
-| `dataContext` | `'declarer'` | 数据视图基准（同 x-dialog） |
-| `props`（成员属性） | 无 | `x-drawer-options.props` 表达式注入组件 data 域，持续热更新 |
+两级合并链：`内置默认 < x-drawer-options（消费处）`；读取经三层链——**成员属性表达式 > 指令选项 > 宿主 `x-options`**（缺失才回退、不合并）。声明形态：整包（`x-drawer-options="{...}"`，宽松 JSON）/ 成员属性（`x-drawer-options.键="表达式"`，打开时求值）。
+
+| 配置项 | 默认值 | 修饰符 | 说明 |
+| --- | --- | --- | --- |
+| `at` | 无（屏幕贴边） | — | 字符串 / 元素简写 / `{selector, placement, flip, offset, shift}`；`selector` 命中即锚定模式 |
+| `at.placement` | `'right'` | — | 四主方向（展开起始边）；`auto`/后缀/非法值一律静默归一为 `right` |
+| `at.flip` | — | — | 内侧展开模型下静默忽略（保留键位仅向后兼容） |
+| `size` | `280px` | — | 短轴尺寸（方向中立）：number 按 px / CSS 长度字符串；引擎 inline 写入，未配置回退 `--autospark-drawer-size` 变量 |
+| `resize` | 无（不可调） | — | 面板拖拽调节：`true` / 选项对象（方向自动推导为贴边内侧单边，`handles` 只能收窄；会话内记忆优先于 `size`；详见[拖拽调宽](#拖拽调宽resize)） |
+| `mask` | `true` | — | 模态遮罩显隐；`false` = 裸面板贴边（无外点关闭） |
+| `closeOnMask` | `true` | — | 点遮罩请求关闭（无遮罩时静默无效） |
+| `animate` | `'drawer'` | — | 进出场动画；显式配置整键尊重 || `expandable` | `true` | — | 抽屉把手（机制组合 x-expandable 共享把手模块，ADR-0070）：骑活动边线的常驻圆形按钮（折叠 ≡ visible 归假）——`true` 居中 / `false` 关闭 / `{pos}` 对象定位（number(px) 与 CSS 长度，负数距对面边、越界钳制） + `{showTrigger}` 显隐策略（默认 `'hover'`：展开态边线感应显形、折叠态恒显；`'always'` 恒常驻）；字面量/表达式形态不建（详见[抽屉把手](#抽屉把手expandable)） |
+| `shell` | `drawer-shell` | — | 面板外壳组件名（配置链：成员表达式 > 引擎级 `options.overlay.drawer.shell` > 内置） |
+| `border` | `true` | — | 面板 1px 边框（外壳承担） |
+| `delayClose` | `0` | — | 打开后自动关闭延迟（ms） |
+| `dataContext` | `'declarer'` | — | 数据视图基准（同 x-dialog） |
+| `props`（成员属性） | 无 | — | `x-drawer-options.props` 表达式注入组件 data 域，持续热更新 |
+
+::: info 关于指令配置体系
+指令选项 / 修饰符 / 宿主选项见[指令配置](../../guide/engine/directive/config.md)。
+:::
 
 ## 注意事项
 
 - **visible 是唯一真相源**：ESC / 遮罩 / close action 都会回写 `false`（简单路径形态）；表达式形态关闭后依赖变化重求值仍真会**重开**（家族已知边界，[x-dialog · 请求关闭](./x-dialog.md#请求关闭)）。
+- **家族通用配置**：`keepalive`（关闭挂起保活）/ `key`（保活缓存命名空间）/ `url`（组件未注册时远程加载）为覆盖物家族通用配置，`x-drawer-options` 同通道可用——语义与消费面见 [x-dialog · 保活 / key / url](./x-dialog.md#保活keepalive)。
 - **锚定长轴 = 锚边长**：锚元素高度超过视口时抽屉随之超出（不钳制）——需要视口内滚动请让锚元素自身限制高度。
 - **`mask: false` 没有外点关闭**：outside-click 关闭（dismissable layer）是家族 fast-follow，未实现——无遮罩抽屉请保证状态可归假或提供 close action。
 - **自定义 shell 自担视觉**：替换 shell 后直角等默认视觉不再生效（不带 `.autospark-drawer` 类时）；`size` inline 与贴边定位不受影响。

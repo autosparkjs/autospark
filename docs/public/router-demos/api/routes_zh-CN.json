@@ -1,0 +1,7 @@
+{
+    "path": "/",
+    "children": [
+        { "path": "/", "title": "首页", "view": "/autospark/router-demos/views/lang-page.html", "default": true },
+        { "path": "/about", "title": "关于", "view": "/autospark/router-demos/views/lang-page.html" }
+    ]
+}

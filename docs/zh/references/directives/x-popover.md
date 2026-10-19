@@ -161,7 +161,7 @@ hover 交互在触摸屏上没有对应物（点按会以模拟事件触发 mous
 
 ### 面板外壳（shell）
 
-面板层形态由可替换的外壳组件渲染：内置 `popover-shell`（裸面板 + 箭头载体，贴附宿主 `bottom` + flip）开箱即用；`x-popover-options.shell` 可整体替换（语法与规则与 x-dialog 完全一致，见 [x-dialog · 面板外壳](./x-dialog.md#面板外壳shell自定义面板形态) 与 [覆盖物 · 面板外壳](../overlays.md#面板外壳shell形态可定制)）：
+面板层形态由可替换的外壳组件渲染：内置 `popover-shell`（裸面板 + 箭头载体，贴附宿主 `bottom` + flip）开箱即用；`x-popover-options.shell` 可整体替换（语法与规则与 x-dialog 完全一致，见 [x-dialog · 面板外壳](./x-dialog.md#面板外壳-shell自定义面板形态) 与 [覆盖物 · 面板外壳](../overlays.md#面板外壳-shell形态可定制)）：
 
 <demo html="popover/shell.html"/>
 
@@ -208,6 +208,29 @@ tooltip（[工具提示](../tooltip.md)）是**引擎级零声明**能力（`dat
 
 轻量文字/HTML 提示用 tooltip（零声明、统一样式）；需要组件内容、嵌套链或自定义外壳时用 popover。
 
+## 配置选项
+
+两级合并链：`内置默认 < x-popover-options（消费处）`；读取经三层链——**成员属性表达式 > 指令选项 > 宿主 `x-options`**（缺失才回退、不合并）。声明形态：整包（`x-popover-options="{...}"`，宽松 JSON）/ 成员属性（`x-popover-options.键="表达式"`，可绑定状态热切换）。
+
+| 配置项 | 默认值 | 修饰符 | 说明 |
+| --- | --- | --- | --- |
+| `trigger` | `'hover'` | `.click` | 触发方式：`'hover'` 悬浮开关 / `'click'` 点击开关；显式 `trigger` 恒优先 > `.click` 修饰符 > 默认 hover；非法值 warn 回退 `'hover'`（见[触发方式](#触发方式)） |
+| `delayShow` | `200` | — | 悬浮意图延迟（ms）：移入宿主后延迟打开、计时期间移开取消；`0` 无延迟；仅 hover 生效（click 静默不适用）；非法值 warn 回退默认（见[延迟配置](#延迟配置)） |
+| `delayHide` | `150` | — | 关闭宽限（ms）：指针离开「宿主∪面板」共享域后再宽限 `delayHide` 毫秒才关；生效条件同 `delayShow`（仅 hover） |
+| `at` | 贴附宿主（`bottom` + 箭头） | — | 定位锚：字符串 / 元素简写（≡ `{selector}`）或 `{selector, placement, offset, shift, flip, arrow}` 对象；显式配置与默认锚**成员级合并**（缺省成员回退宿主 / `bottom`）；`placement` 共 12 方向（见[定位](#定位)） |
+| `fit` | `false` | — | 面板尺寸跟随宿主（单轴：左右弹出取高、上下弹出取宽，跟随翻转后最终方向；见[尺寸跟随宿主](#尺寸跟随宿主-fit)） |
+| `padding` | `0` | — | shell 内容区 `.autospark-popover-content` 内边距：`number` 按 px / CSS 长度字符串直写；非法值 warn 回退 `0`；自定义 shell 无该类名内容区静默跳过（见[内容内边距](#内容内边距-padding)） |
+| `animate` | `'fade'` | — | 进出场动画（字符串 / 对象 / 分相 / `false`）——覆盖物家族同款三形态 |
+| `border` | `true` | — | 面板外壳 1px 边框 + 背景 + 圆角（无锚定也生效；`false` 显式关闭） |
+| `shell` | `'popover-shell'` | — | 面板外壳组件名（打开时求值一次，未命中回退内置）；链：指令选项 > 宿主 `x-options` > 引擎级 `options.overlay.popover.shell` > 内置（见[面板外壳](#面板外壳-shell)） |
+| `delayClose` | `0` | — | 自动关闭延迟（ms）：`> 0` 时打开后延时走标准关闭链；`0` 不自动关 |
+| `dataContext` | `'declarer'` | — | 数据视图基准（`declarer` 声明处 / `host` 消费处），挂链即基准；见[覆盖物 · 数据视图基准](../../guide/engine/overlays.md#数据视图基准-datacontext-声明处默认、消费处可选) |
+| `props`（成员属性） | 无 | — | `x-popover-options.props` 表达式注入组件 data 域、持续热更新，见[传递 props 与内容](#传递-props-与内容-插槽) |
+
+::: info 关于指令配置体系
+指令选项 / 修饰符 / 宿主选项见[指令配置](../../guide/engine/directive/config.md)。
+:::
+
 ## 注意事项
 
 - 同宿主声明多个 `x-popover:*` 会收到 warn（触发源重合，同一次触发将同时打开全部面板）——多个入口请分散到不同宿主元素。
@@ -215,3 +238,4 @@ tooltip（[工具提示](../tooltip.md)）是**引擎级零声明**能力（`dat
 - `trigger` 非法值（非 `'hover'`/`'click'`）在触发时 warn 并按默认 `'hover'` 处理；修饰符 `.click` 与显式 `trigger` 同写时显式赢。
 - 触摸设备 hover 无对应物（点按会以模拟事件触发 mouseenter），触屏场景改用 `trigger: 'click'`（见[触发方式](#触发方式)）。
 - 远程锚（`at.selector` 锚向别的元素）距离宿主过远时，指针从宿主到面板的旅程可能超出 `delayHide` 宽限（hover 方式）。
+- **家族通用配置**：`keepalive`（关闭挂起保活）/ `key`（保活缓存命名空间）/ `url`（组件未注册时远程加载）为覆盖物家族通用配置，`x-popover-options` 同通道可用——语义与消费面见 [x-dialog · 保活 / key / url](./x-dialog.md#保活keepalive)。

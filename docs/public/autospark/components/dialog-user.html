@@ -1,0 +1,25 @@
+<!--
+    远程组件测试文件（被 x-dialog url 组件优先路径加载，ADR-0119）。
+    一个文件可含 1-N 个 x-define；此处声明 remote-user——与消费名 x-dialog:remote-user
+    匹配 → 组件路径编译：data / props / 方法 / 作用域样式与本地组件完全等价。
+-->
+<div x-define="remote-user">
+    <style>
+        .remote-user-panel {
+            background: #fff;
+            border-radius: 8px;
+            padding: 24px;
+            min-width: 320px;
+        }
+    </style>
+    <div class="remote-user-panel">
+        <h3 class="title is-5">远程用户资料</h3>
+        <p>ID：<b x-text="userId"></b>（props 注入）</p>
+        <p class="is-size-7 has-text-grey">
+            本文件声明了 <code>x-define="remote-user"</code>，与消费名匹配——按<b>组件路径</b>编译，
+            data / props / 方法 / 作用域样式与本地组件完全等价；同 url 重开零请求（x-import url 缓存）。
+        </p>
+        <button class="button is-fullwidth" @click="close()">关闭</button>
+    </div>
+    <script type="autospark/setup">{ data: { userId: 0 } }</script>
+</div>

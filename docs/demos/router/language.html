@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>多语言：视图 URL 重写与切换</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <script src="/autospark/router-demos/boot.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section">
+            <div class="buttons mb-2">
+                <button class="button is-small" id="lang-en">English</button>
+                <button class="button is-small" id="lang-zh">简体中文</button>
+            </div>
+
+            <p class="help mb-1">
+                当前语言：<strong x-text="$language"></strong>
+                （document.lang：<span data-doc-lang></span>）
+            </p>
+
+            <div x-outlet></div>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+                // languages 非空即启用多语言：languages[0] 为默认语言（免重写）
+                languages: [
+                    { code: "en", name: "English", nativeName: "English" },
+                    { code: "zh-CN", name: "简体中文", nativeName: "中文" },
+                ],
+                routes: {
+                    // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
+                    mode: "hash",
+                    base: "/autospark/router-demos/",
+                    routes: [
+                        {
+                            path: "/",
+                            title: "Home",
+                            // 默认语言（en）请求本 URL 原样；zh-CN 下自动重写为 lang-home_zh-CN.html
+                            view: "/autospark/router-demos/views/lang-home.html",
+                        },
+                    ],
+                },
+            });
+
+            // 切换语言 = 对 $.language 赋值：完整导航管线重入当前路径（不写历史、地址栏不变）
+            const setLang = (code) => (engine.store.state.$.language = code);
+            document.getElementById("lang-en").addEventListener("click", () => setLang("en"));
+            document.getElementById("lang-zh").addEventListener("click", () => setLang("zh-CN"));
+
+            // document.documentElement.lang 跟随当前语言（启用后由 router 自动维护）。
+            // document 不是响应式数据源，借 navigation:end（语言切换重入也会派发）同步展示。
+            const router = host.router;
+            const docLangEl = host.querySelector("[data-doc-lang]");
+            const syncDocLang = () => {
+                if (docLangEl) docLangEl.textContent = document.documentElement.lang;
+            };
+            router.on("navigation:end", syncDocLang);
+            syncDocLang();
+        </script>
+    </body>
+</html>

@@ -151,6 +151,14 @@
 | `data-min-size` / `data-max-size` | 无界 | 拖拽下限/上限；仅定容面板认读（自适应面板声明 warn + 忽略） |
 | `data-expandable` | 未声明 | 启用折叠（**仅定容面板**）：空属性 = 全默认参数；JSON 对象 = 透传 [x-expandable](./x-expandable.md) options（`direction`/`maxSize`/`resize` 由分割器接管、声明无效 warn——面板调节唯一入口 = 分隔条拖拽；`offset` 缺省注入分隔条宽度一半）；把手默认 `showTrigger: 'hover'`（分隔条即感应线） |
 
+## 配置选项
+
+`x-splitter` **没有 `x-splitter-options` 指令选项与修饰符**——方向由指令值（direction 表达式）承载，尺寸 / 约束 / 折叠经**面板契约属性**声明，视觉经 CSS 变量定制：
+
+| 配置项 | 默认值 | 修饰符 | 说明 |
+| --- | --- | --- | --- |
+| — | — | — | 无指令选项、无修饰符；可调项全部走指令值表达式与面板属性——`data-size` / `data-min-size` / `data-max-size` / `data-expandable`（见[面板契约](#面板契约-data-size-家族)与[面板声明](#面板声明-data-契约属性)），折叠参数经 `data-expandable` JSON 透传 [x-expandable](./x-expandable.md) options，CSS 变量见[键盘与样式定制](#键盘与样式定制) |
+
 ## 注意事项
 
 - **`engine.patch` 拒绝落入 splitter 子树**：x-splitter 是结构指令（接管子树编译），与 x-for / eager x-if 同受动态区域防护——面板内动态内容请用 x-if / x-show / x-html.compile 等声明式工具；

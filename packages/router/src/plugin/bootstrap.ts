@@ -94,7 +94,13 @@ function routerPrecompile(engine: AutoSpark<any>, autospark: typeof AutoSpark): 
 function mountRouter(engine: AutoSpark<any>, _autospark: typeof AutoSpark): void {
     const routerOptions = resolveMountOptions(engine.options);
     if (routerOptions === null) return;
-    new AutoSparkRouter(engine.el, { ...routerOptions, engine });
+    new AutoSparkRouter(engine.el, {
+        ...routerOptions,
+        engine,
+        // 语言清单声明在 engine（ADR-0013 决策 1）：engine 声明优先传递；完整路由
+        // 配置对象形态自带 languages 时兜底采用
+        languages: engine.options.languages ?? routerOptions.languages,
+    });
 }
 
 /**
