@@ -305,7 +305,15 @@ export abstract class OverlayDirective extends ComponentDirective {
         props: Record<string, any> | undefined,
         url: string,
     ): void {
-        const { parentScope } = this._resolveParentScope(config, null);
+        // def=null（组件未加载）→ declarer 基准解析必得 null（declarerScope 悬空防御）→ 片段/级联
+        // 全部 rootless 化，消费处局部数据域不可达。远程内容的数据基准取消费处 scope（'host'）：
+        // 远程组件的声明处（x-define 注册点）= x-import ownerScope = 消费者 scope，与其等价；
+        // 显式声明 dataContext 者照旧走 resolveDataContext（保留防御语义）。
+        const resolved =
+            config.dataContext === undefined
+                ? { parentScope: this.binding.parent, scopeEl: null }
+                : this._resolveParentScope(config, null);
+        const { parentScope } = resolved;
         // 插槽内容预收集（原始子节点）：出口清单（def.slots）远程加载后才可知——分段延迟到 attach
         const remoteGroup = this._collectSlotGroup(name);
         const shell = this._resolveShell(config);

@@ -1,5 +1,7 @@
 import type { AutoSparkRouter } from "@/router";
 import { prefixBaseUrl } from "@/utils/prefixBaseUrl";
+import { matchLinkActive } from "@/utils/matchLinkActive";
+import { removePathPrefix } from "@/utils/removePathPrefix";
 import { AutoSparkRouterElementBase } from "../Base";
 
 /**
@@ -44,6 +46,15 @@ export function isDangerousProtocol(path: string): boolean {
  * 亦被同一委托接管（组件的价值在 base 前缀自动化与 `replace` 声明，ADR-0009）。
  * 这样链接无需逐个注册监听，也天然覆盖运行期才插入 DOM 的链接。
  *
+ * ## 激活态（ADR-0121）
+ *
+ * 组件默认参与导航高亮：链接 `to` 与当前 `$.route.path` 匹配时宿主元素自动带
+ * `active` 类，失配移除（`classList` 单 token 增删，不碰用户类名）。匹配为
+ * **段边界前缀**（`/guide` 命中 `/guide/foo`、不命中 `/guides`；query/hash 一律
+ * 忽略；`to="/"` 仅根路径精确命中）；精确命中时内层 `<a>` 附加
+ * `aria-current="page"`（前缀命中不加）。翻转跟随导航 commit
+ * （`navigation:commit`），数据加载期间旧页高亮保持。
+ *
  * ## 样式
  *
  * 内层 `<a>` 会带上浏览器默认的链接样式。需要融入宿主排版时用：
@@ -59,6 +70,9 @@ export class AutoSparkLink extends AutoSparkRouterElementBase {
 
     /** 内层真实锚点 */
     private _anchor: HTMLAnchorElement | null = null;
+
+    /** 导航 commit 订阅退订函数（链接激活态，ADR-0121） */
+    private _offCommit?: () => void;
 
     // 声明观察的属性（`href` 是 `to` 的别名）
     static observedAttributes = ["to", "replace", "target", "rel", "href"];
@@ -115,6 +129,57 @@ export class AutoSparkLink extends AutoSparkRouterElementBase {
     connectedCallback() {
         super.connectedCallback();
         this._render();
+        // 重连场景：context 已请求过、onRouterReady 不会再走，此处幂等补挂订阅
+        this._ensureActiveSubscription();
+        this._updateActiveState();
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        this._offCommit?.();
+        this._offCommit = undefined;
+    }
+
+    /**
+     * router 就绪（同步或异步到位）：挂 commit 订阅并做首次激活评估
+     */
+    protected onRouterReady() {
+        this._ensureActiveSubscription();
+        this._updateActiveState();
+    }
+
+    /** 幂等挂载导航 commit 订阅（链接激活态翻转信号，ADR-0121） */
+    private _ensureActiveSubscription() {
+        if (this._offCommit || !this.router) return;
+        this._offCommit = this.router.on("navigation:commit", () => {
+            this._updateActiveState();
+        });
+    }
+
+    /**
+     * 当前路由路径（`$.route.path` 同源：history pathname 剥 base）
+     * router 未 attach（history 未建）时返回 null——激活态视作失配
+     */
+    private _getCurrentRoutePath(): string | null {
+        const router = this.router;
+        if (!router?.attached) return null;
+        return removePathPrefix(router.location.pathname, router.options.base);
+    }
+
+    /**
+     * 激活态评估：宿主 `active` 类随匹配增删；精确命中时内层 `<a>`
+     * 附 `aria-current="page"`（前缀命中不加——父级链接非当前页）
+     */
+    private _updateActiveState() {
+        const current = this._getCurrentRoutePath();
+        const match = current === null ? false : matchLinkActive(this._to, current);
+        this.classList.toggle("active", match !== false);
+        if (!this._anchor) return;
+        if (match === "exact") {
+            this._anchor.setAttribute("aria-current", "page");
+        } else {
+            this._anchor.removeAttribute("aria-current");
+        }
     }
 
     /**
@@ -178,6 +243,9 @@ export class AutoSparkLink extends AutoSparkRouterElementBase {
         } else {
             anchor.removeAttribute("rel");
         }
+
+        // to 变更即重评激活态（router 未就绪时评估为失配，幂等）
+        this._updateActiveState();
     }
 
     /** 解析最终 href：内部路由加 base 前缀；外部 / 绝对地址原样 */

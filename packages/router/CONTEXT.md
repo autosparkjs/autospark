@@ -50,6 +50,10 @@ _Avoid_: 导航必需组件（普通 `<a>` 已可 SPA 导航）、`autospark-lin
 文档级点击委托对普通 `<a href>` 的 SPA 接管——组件路径优先，无组件命中时接管同源 http(s) 内部路径：统一 `push`（plain `<a>` 无 replace 表达）、pathname 剥 base 后拼接 search/hash、相对 href 按文档 URL 解析。放行矩阵（交还浏览器默认行为）：修饰键、非左键、`target` 非 `_self`、`download`、`rel` 含 external、非 http(s) 协议、纯页内锚点（hash 模式 `#/x` 由 hashchange 自然接管）、跨域、无 href；唯一例外为危险协议（`javascript:`/`data:`）——拦截且不导航（对齐 T-02-01）。锚点须位于本 router 宿主子树内，多 router 并存各管各的子树（ADR-0009）。
 _Avoid_: 全量接管（放行矩阵外的情形必须交还浏览器）、preventDefault 一切点击（危险协议之外的放行项不得阻止默认行为）
 
+**链接激活态（Link Active State）**:
+`auto-link` 的导航高亮机制——链接 `to` 与当前 `$.route.path` 匹配时宿主元素自动带 `active` 类，失配移除（`classList` 单 token 增删，不碰用户类名）。匹配语义为**段边界前缀**：双方规范化（去尾斜杠、不分大小写）后精确相等，或当前 path 以 `to` 为前缀且按 `/` 段对齐；`to="/"` 特例仅根路径精确命中；query/hash 一律忽略。精确命中时内层 `<a>` 附加 `aria-current="page"`（前缀命中不加——父级链接非当前页）。默认开启、翻转时机跟随 `$.route` 写入（commit 后），类即路由快照匹配的镜像（ADR-0121）。
+_Avoid_: active-class 自定义属性（未提供，类名固定 `active`）、plain `<a>` 激活态（范围仅组件）、导航确认前预亮（数据加载期间旧页高亮保持）
+
 ### 加载层
 
 **公共层跳过（Common-Layer Skip）**:

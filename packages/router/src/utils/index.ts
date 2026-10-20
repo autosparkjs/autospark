@@ -5,6 +5,7 @@ export * from "./hashUtils";
 export * from "./isExternalLink";
 export * from "./joinPath";
 export * from "./matchRoute";
+export * from "./matchLinkActive";
 export * from "./normalizeRoutes";
 export * from "./params";
 export * from "./parseParams";

@@ -34,7 +34,9 @@
 
 ### 决策 3：url 远程加载——组件优先、片段兜底（双路径并存）
 
-`config.url` 声明后，组件未注册时打开走远程路径：**面板先开**（shell + 内容出口占位锚 + 面板挂 `x-loading`），异步加载完成后原位附加内容、摘 `x-loading`。
+`config.url` 声明后，组件未注册时打开走远程路径：**面板先开**（shell + 内容出口骨架化占位锚——锚自带最小尺寸并在锚内挂 `x-loading`），异步加载完成后原位附加内容、随锚摘 `x-loading`。
+
+> 实施修正（骨架化占位锚）：初版将 `x-loading` 挂在**面板**上——占位锚无尺寸导致面板塌缩，loading 遮罩盖住整个面板，视觉上「只见 loading 不见骨架 shell」。修正为占位锚骨架化（`min-width/min-height` 经 CSS 变量 `--autospark-overlay-loading-min-width/-min-height` 可定制，默认 240×120，锚自身 `position:relative` 作 overlay 定位基准）并把 `x-loading` 移到**锚上**：shell 骨架先可见、loading 呈现于内容出口内部（自定义 shell 的外壳层不被遮盖），附加/失败换出锚即自动摘除。
 
 加载经 x-import 管线（`importComponentsFromUrl`：fetch + 解析 + 组件注册 + url 缓存 + 循环引用防护），注册到消费处 scope（`this.binding.parent`，x-import 同款）。随后按内容分流：
 

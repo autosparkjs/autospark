@@ -32,8 +32,13 @@ router.on("navigation:matched", ({ fromRoute, toRoute }) => {
     // 匹配完成：fromRoute 首次导航为 undefined
     console.log("匹配结果", toRoute.map((m) => m.path));
 });
+router.on("navigation:commit", (location) => {
+    // 导航 commit（ADR-0121）：$.route 快照写入完成——渲染成功的真实落定点。
+    // 守卫取消/被中止的导航不会发出；链接激活态（auto-link active 类）以此翻转为镜像
+    console.log("已提交", location.pathname);
+});
 router.on("navigation:end", (location) => {
-    console.log("导航完成", location.pathname);
+    console.log("导航完成", location.pathname); // 注意：取消/中止的导航也会发出
 });
 ```
 

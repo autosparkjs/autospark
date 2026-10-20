@@ -30,6 +30,14 @@ export type AutoSparkRouterEvents = {
     "navigation:cancel": NavigationLocation;
     "navigation:end": NavigationLocation;
     /**
+     * 导航 commit（ADR-0121）：路由快照 `$.route` 写入完成——渲染成功后的真实落定点。
+     *
+     * 与 `navigation:end` 的区别：end 在 finally 中对守卫取消/被中止的导航也会发出，
+     * 不可作为「已提交」信号；本事件仅在未被取代/中止且守卫放行的路径发出，
+     * 是链接激活态（auto-link `active` 类）翻转的镜像点。
+     */
+    "navigation:commit": NavigationLocation;
+    /**
      * 当导航匹配后
      */
     "navigation:matched": {

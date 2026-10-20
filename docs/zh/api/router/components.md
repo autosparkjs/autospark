@@ -46,6 +46,36 @@ title: 内置元素
 
 样式：内层 `<a>` 带浏览器默认链接样式，需要融入排版时用 `auto-link > a { color: inherit; text-decoration: inherit }`。
 
+### 激活态（active 类，ADR-0121）
+
+组件默认参与导航高亮：链接 `to` 与当前 `$.route.path` 匹配时，宿主元素自动带 `active` 类；失配时移除。无需声明任何属性。
+
+匹配规则（段边界前缀）：
+
+- 双方按路由匹配语义规范化后比较（去尾斜杠、不分大小写）；query 与 hash 一律忽略，只比较 path 部分
+- 精确命中：`to` 与当前 path 一致 → 加 `active`，内层 `<a>` 附加 `aria-current="page"`
+- 前缀命中：当前 path 以 `to` 为前缀且按 `/` 段对齐（`/guide` 命中 `/guide/foo`，**不**命中 `/guides`）→ 加 `active`，不加 `aria-current`（父级导航高亮场景，父级不是当前页）
+- `to="/"` 特例：仅在根路径精确命中，不做前缀——首页链接不会恒亮
+- 外部链接、无 `href`、危险协议：永不参与
+
+```html
+<nav>
+  <auto-link to="/guide">指南</auto-link>      <!-- /guide/* 下同样高亮（前缀命中） -->
+  <auto-link to="/guide/intro">介绍</auto-link> <!-- 仅 /guide/intro 精确高亮 -->
+</nav>
+```
+
+```css
+/* 类挂在 auto-link 宿主上，不碰用户既有类名 */
+auto-link.active > a { color: var(--brand); font-weight: 600; }
+```
+
+翻转时机跟随导航 commit（`$.route` 写入后）——数据加载期间旧页高亮保持；`to` 属性变更即重评。类名固定 `active`，不提供自定义属性；tab 级高亮等更细粒度需求用 `$.route.query` 配合 `x-class` 自行控制。
+
+::: tip 范围
+激活态仅 `auto-link` 组件具备；被委托接管的普通 `<a>` 不会获得该类（组件有宿主元素承载生命周期与类同步）。
+:::
+
 ## autospark-view-meta
 
 视图级元数据声明组件：不占空间、不参与排版（`display: none`），支持任意自定义属性。这些元数据可被父组件或其他系统读取，用于配置页面行为、SEO、权限控制等；head 管理约定键（`title` / `description` / `canonical` / `robots` / `og` / `jsonLd` / `seo`）的同名属性会覆盖路由 `meta` 声明。

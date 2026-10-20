@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import type { AutoSparkRouter } from "@/router";
 import { isInternalLink, isDangerousProtocol, AutoSparkLink } from "@/components/Link";
+import { matchLinkActive } from "@/utils/matchLinkActive";
 
 /**
  * 基准 realm（test-setup preload 建立的 happy-dom 全局）。
@@ -339,6 +340,181 @@ describe("AutoSparkLink（auto-link）纯函数与点击语义", () => {
             expect(currentRouteName(router)).toBe(routeBefore);
             expect(clickEvent.defaultPrevented).toBe(true);
         });
+    });
+});
+
+describe("matchLinkActive 纯函数（ADR-0121 激活态匹配）", () => {
+    it("精确命中", () => {
+        expect(matchLinkActive("/user", "/user")).toBe("exact");
+        expect(matchLinkActive("/", "/")).toBe("exact");
+    });
+
+    it("段边界前缀命中", () => {
+        expect(matchLinkActive("/guide", "/guide/intro")).toBe("prefix");
+        expect(matchLinkActive("/guide", "/guide/intro/advanced")).toBe("prefix");
+    });
+
+    it("非段边界前缀不命中", () => {
+        expect(matchLinkActive("/guide", "/guides")).toBe(false);
+        expect(matchLinkActive("/guide", "/guide-x")).toBe(false);
+    });
+
+    it('to="/" 仅根路径精确命中，不做前缀', () => {
+        expect(matchLinkActive("/", "/guide")).toBe(false);
+        expect(matchLinkActive("/", "/")).toBe("exact");
+    });
+
+    it("规范化：尾斜杠与大小写（D-07/D-08）", () => {
+        expect(matchLinkActive("/Guide/", "/guide")).toBe("exact");
+        expect(matchLinkActive("/user", "/user/")).toBe("exact");
+    });
+
+    it("to 的 query/hash 只取 path 部分参与比较", () => {
+        expect(matchLinkActive("/user?tab=2", "/user?tab=1")).toBe("exact");
+        expect(matchLinkActive("/guide#top", "/guide")).toBe("exact");
+    });
+
+    it("空 to 与外部链接不参与", () => {
+        expect(matchLinkActive("", "/user")).toBe(false);
+        expect(matchLinkActive("https://example.com/x", "/x")).toBe(false);
+        expect(matchLinkActive("relative", "/relative")).toBe(false);
+    });
+});
+
+describe("auto-link 激活态（ADR-0121）", () => {
+    let host: HTMLElement;
+    let router: AutoSparkRouter;
+
+    const routes = [
+        { name: "home", path: "/" },
+        { name: "guide", path: "/guide" },
+        { name: "guide-intro", path: "/guide/intro" },
+        { name: "guides", path: "/guides" },
+        { name: "user", path: "/user" },
+        { name: "not-found", path: "*" },
+    ];
+
+    beforeEach(async () => {
+        restoreBaseRealm();
+        baseRealm.window.history.replaceState(null, "", "/");
+        host = baseRealm.document.createElement("div");
+        baseRealm.document.body.appendChild(host);
+        router = await createRouter(host, { routes });
+    });
+
+    afterEach(() => {
+        if (router) {
+            router.detach();
+            router = undefined as any;
+        }
+        if (host && host.parentElement) {
+            host.parentElement.removeChild(host);
+        }
+    });
+
+    function makeLink(to: string, attrs: Record<string, string> = {}): AutoSparkLink {
+        const link = baseRealm.document.createElement("auto-link") as AutoSparkLink;
+        link.setAttribute("to", to);
+        for (const [key, value] of Object.entries(attrs)) {
+            link.setAttribute(key, value);
+        }
+        host.appendChild(link);
+        return link;
+    }
+
+    async function pushAndWait(path: string) {
+        router.push(path);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    it("初始 commit 后精确命中：宿主 active + 内层 aria-current", async () => {
+        await pushAndWait("/user");
+        const link = makeLink("/user");
+        expect(link.classList.contains("active")).toBe(true);
+        expect(link.querySelector("a")!.getAttribute("aria-current")).toBe("page");
+    });
+
+    it("导航翻转：前缀命中不加 aria-current，段外与根不命中", async () => {
+        await pushAndWait("/guide/intro");
+        const exact = makeLink("/guide/intro");
+        const parent = makeLink("/guide");
+        const sibling = makeLink("/guides");
+        const root = makeLink("/");
+
+        expect(exact.classList.contains("active")).toBe(true);
+        expect(exact.querySelector("a")!.getAttribute("aria-current")).toBe("page");
+        expect(parent.classList.contains("active")).toBe(true);
+        expect(parent.querySelector("a")!.getAttribute("aria-current")).toBeNull();
+        expect(sibling.classList.contains("active")).toBe(false);
+        expect(root.classList.contains("active")).toBe(false);
+    });
+
+    it("失配移除：离开后 active 与 aria-current 撤下", async () => {
+        await pushAndWait("/user");
+        const link = makeLink("/user");
+        expect(link.classList.contains("active")).toBe(true);
+
+        await pushAndWait("/guide");
+        expect(link.classList.contains("active")).toBe(false);
+        expect(link.querySelector("a")!.hasAttribute("aria-current")).toBe(false);
+    });
+
+    it("query 与 hash 不参与匹配", async () => {
+        await pushAndWait("/user?tab=1#top");
+        const pathOnly = makeLink("/user");
+        const withQuery = makeLink("/user?tab=2");
+        expect(pathOnly.classList.contains("active")).toBe(true);
+        expect(withQuery.classList.contains("active")).toBe(true);
+    });
+
+    it("规范化：to 的大小写与尾斜杠不影响精确命中", async () => {
+        await pushAndWait("/guide");
+        const link = makeLink("/GUIDE/");
+        expect(link.classList.contains("active")).toBe(true);
+    });
+
+    it("不破坏宿主既有类名", async () => {
+        await pushAndWait("/user");
+        const link = makeLink("/user", { class: "foo bar" });
+        expect(link.classList.contains("foo")).toBe(true);
+        expect(link.classList.contains("bar")).toBe(true);
+        expect(link.classList.contains("active")).toBe(true);
+    });
+
+    it("外部链接永不 active", async () => {
+        await pushAndWait("/user");
+        const link = makeLink("https://example.com/user");
+        expect(link.classList.contains("active")).toBe(false);
+    });
+
+    it("to 属性变更即重评激活态", async () => {
+        await pushAndWait("/user");
+        const link = makeLink("/guide");
+        expect(link.classList.contains("active")).toBe(false);
+        link.setAttribute("to", "/user");
+        expect(link.classList.contains("active")).toBe(true);
+    });
+
+    it("断开连接后不再翻转激活态", async () => {
+        await pushAndWait("/user");
+        const link = makeLink("/guide");
+        expect(link.classList.contains("active")).toBe(false);
+        link.remove();
+
+        await pushAndWait("/guide");
+        expect(link.classList.contains("active")).toBe(false);
+    });
+
+    it("base 前缀剥除后参与匹配", async () => {
+        router.detach();
+        host.parentElement?.removeChild(host);
+        host = baseRealm.document.createElement("div");
+        baseRealm.document.body.appendChild(host);
+        router = await createRouter(host, { routes, base: "/app" });
+
+        await pushAndWait("/app/user");
+        const link = makeLink("/user");
+        expect(link.classList.contains("active")).toBe(true);
     });
 });
 

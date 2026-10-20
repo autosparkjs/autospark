@@ -486,6 +486,9 @@ export class AutoSparkRouter extends Mixin(
                 // 路由快照写入元状态容器（ADR-0011）：渲染完成即 commit（错误页经
                 // _renderRoutes 内部渲染，同点覆盖）；被新导航取代/中止的路径不写
                 this._syncRouteState(toRoute);
+                // 链接激活态镜像点（ADR-0121）：$.route 写入完成即发 commit——
+                // navigation:end 在 finally 中对取消/中止导航同样发出，不能作翻转信号
+                this.emit("navigation:commit", location);
             }
         } finally {
             // 清理导航状态（只有当前导航版本才清理）

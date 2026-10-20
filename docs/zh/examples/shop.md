@@ -189,7 +189,9 @@ addToCart(p) {
 | `cart.push(...)` / `cart.splice(...)`（结构变化） | 命中 | ✅ 重算 |
 | `cart[0].qty = 5`（项内字段） | 不命中（路径是 `cart.0.qty`） | ❌ 不重算 |
 
-在最小复现里实测过两种写法（`autostore` 4.x，直接 `new AutoStore({ cart: [], derived: computed(...) })`）：
+要注意**这与 `watch` 无关**：`store.watch("cart", cb)` 同样只订阅 `cart` 这个路径本身，`cart.push()` / `cart.splice()` 会触发，`cart[0].qty = 5` 不会——想监听项内字段得写 `cart.**` 或 `cart.*.qty`。所以“订阅了 `cart` 就能感知数组成员变化”的直觉在 AutoStore 里不成立，不能据此省掉 `computed` 的 `depends`。
+
+在最小复现里实测过两种写法（`autostore@4.7.1`，直接 `new AutoStore({ cart: [], cartCount: computed(...) })`）：
 
 ```text
 默认                      push: 1  | qty=5: 1   | 再 push: 7
@@ -208,7 +210,7 @@ cartCount: computed((s) => s.cart.reduce((t, i) => t + i.qty, 0), { depends: ["c
 
 经验法则：**计算属性读到的依赖里含数组元素内部字段时，用 `**` 把依赖声明到项级**；只依赖顶层标量（如 `s.base * 2`）时默认自动收集就够了。
 
-另一种写法是干脆不声明派生键，直接在模板里写聚合表达式（`x-text="cart.reduce(...)"`）——模板的复合表达式在求值时按**实际读取的路径**收集依赖，`cart.**` 的效果天然具备。但同一份聚合散落到多处模板时会重复且难改，所以本示例选择：**状态上声明一次，模板各处直接用**。
+**为什么模板里写同样的聚合表达式却能跟着变？** 两者用的收集器不同：模板表达式由 engine 经 `store.collectDependencies` 收集（完整代理，能拿到 `cart.0.qty`），而 `computed` 的自动收集发生在 AutoStore 内部、只登记到 `cart` 与 `cart.length`。所以另一种写法是干脆不声明派生键，直接在模板里写聚合表达式（`x-text="cart.reduce(...)"`）——它天然具备 `cart.**` 的效果。但同一份聚合散落到多处模板时会重复且难改，所以本示例选择：**状态上声明一次，模板各处直接用**。
 
 #### 5. 列表、空态与结算
 

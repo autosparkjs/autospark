@@ -277,6 +277,18 @@ describe("x-version 响应式与组合", () => {
         expect(hiddenOf(host)).toBe(true);
     });
 
+    test("响应式：隐藏态切到 undefined（版本未知）→ 摘隐藏类恒渲染", async () => {
+        const m = mountV('<div x-version="2">内容</div>', {}, { version: "3" });
+        const host = m.root.firstElementChild as HTMLElement;
+        expect(hiddenOf(host)).toBe(true); // 版本 3：不匹配 → 隐藏
+        setVersion(m, undefined);
+        await nextTick();
+        expect(hiddenOf(host)).toBe(false); // 未知：静默短路但撤销隐藏（恒渲染不变式）
+        setVersion(m, "3");
+        await nextTick();
+        expect(hiddenOf(host)).toBe(true); // 回到已知版本恢复判定
+    });
+
     test("与 x-show 组合：版本隐藏恒胜（类在即不可见，x-show 通道照常）", async () => {
         const m = mountV(
             '<div x-version="2" x-show="flag">内容</div>',

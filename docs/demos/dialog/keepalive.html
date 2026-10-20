@@ -19,15 +19,14 @@
     <!-- keepalive：关闭不销毁、容器内挂起；key：缓存身份 = 组件名 + key，同键复用、异键并存 -->
     <div class="demo-app section">
       <div
-        x-data="{ ui: { open: false, active: 1 }, docs: {1: '需求评审纪要', 2: '迭代周报'} }"
-        x-dialog:editor="ui.open"
-        x-dialog:editor.keepalive
+        x-data="{ ui: { open: false, active: 1 }, docs: {'1': '需求评审纪要', '2': '迭代周报'} }"
+        x-dialog:editor.keepalive="ui.open"
         x-dialog-options.key="ui.active"
         x-dialog-options.props="{title: docs[ui.active]}"
       >
         <div class="block">
-          <button class="button is-primary" @click="ui.active = 1; ui.open = true">编辑文档一</button>
-          <button class="button is-link" @click="ui.active = 2; ui.open = true">编辑文档二</button>
+          <button class="button is-primary" @click="ui.active = 1, ui.open = true">编辑文档一</button>
+          <button class="button is-link" @click="ui.active = 2, ui.open = true">编辑文档二</button>
           <span class="tag" x-text="'ui.active = ' + ui.active"></span>
         </div>
         <div class="block has-text-grey">

@@ -75,7 +75,7 @@
 - **打开栈**：document 级共享，ESC 只关全局栈顶实例——嵌套打开（确认框叠对话框）只关最上层，多 engine 并存不连环关；
 - **at 锚定定位**：`{selector, placement, offset, shift, flip, arrow}`（字符串 / 元素简写 ≡ `{selector}`）经 floating-ui 贴锚定位，`shift` 默认启用（面板溢出视口时自动滑回视口，`at.shift: false` 关闭、对象透传调参；详见 [x-dialog 的 at](./directives/x-dialog.md#弹出定位)）；锚定生效时可开 `fit: true` 让面板单轴尺寸与宿主一致（左右弹出取高、上下弹出取宽，跟随翻转后的最终方向，ADR-0099，消费面见 [x-popover · 尺寸跟随宿主（fit）](./directives/x-popover.md#尺寸跟随宿主fit)）；
 - **进出场动画**：复用 ADR-0039 animate 机制，默认 `fade`，「播完动画再动 DOM」；
-- **保活 / 缓存身份 / 远程加载**（ADR-0119，家族通用）：`keepalive` 关闭不销毁、容器内挂起保活（重开复用实例，声明式专属）；`key` 为保活缓存命名空间（缓存身份 = `组件名 + key + url` 复合，同键复用、异键并存）；`url` 在组件未注册时打开走远程加载（面板先开 + x-loading 遮罩，组件优先 / 片段兜底双路径，失败呈现错误占位可重试）——消费面详见 [x-dialog · 保活](./directives/x-dialog.md#保活keepalive) / [多实例与 key](./directives/x-dialog.md#多实例与-key) / [远程加载](./directives/x-dialog.md#远程加载url)。
+- **保活 / 缓存身份 / 远程加载**（ADR-0119，家族通用）：`keepalive` 关闭不销毁、容器内挂起保活（重开复用实例，声明式专属）；`key` 为保活缓存命名空间（缓存身份 = `组件名 + key + url` 复合，同键复用、异键并存）；`url` 在组件未注册时打开走远程加载（骨架面板先开、内容出口内呈现 loading，组件优先 / 片段兜底双路径，失败呈现错误占位可重试）——消费面详见 [x-dialog · 保活](./directives/x-dialog.md#保活keepalive) / [多实例与 key](./directives/x-dialog.md#多实例与-key) / [远程加载](./directives/x-dialog.md#远程加载url)。
 
 ### 面板外壳（shell）：形态可定制
 

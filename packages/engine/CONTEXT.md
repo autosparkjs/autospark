@@ -542,7 +542,7 @@ _Avoid_: manual / 手动模式（未实现——程序化开关是 x-dialog 状�
 _Avoid_: 强制关闭（它是请求语义）、自动回写（仅简单路径可回写）、关闭回调（事件广播解耦，非配置函数）
 
 **覆盖物保活（Overlay KeepAlive）**:
-覆盖物关闭语义的**挂起例外**（`keepalive: true`，ADR-0119）：close 的 leave 动画播完后**不销毁**，改为容器内 `display:none` 隐藏（router keepAlive 同款语义，非摘除 DOM）——DOM、instanceScope/shellScope、watcher 全存活，重开走恢复路径（props 浅合并仅出现的键 → 重新定位 + enter 动画 + 入栈 + 广播 open）。关闭语义零变化（visible 回写、`overlay:close` 广播、ESC/遮罩/close action 三触点照常）。**声明式专属**：命令式句柄 `open({keepalive})` 不生效并 warn（命令式无缓存归属方，挂起实例会孤儿化）。回收点：宿主指令 destroy 销毁其全部挂起实例（含打开中/关闭动画中）、`engine.destroy` 全回收；v1 无 LRU、无手动清缓存 API。正典配置 `x-dialog-options="{keepalive: true}"` 或成员属性表达式 `x-dialog-options.keepalive="..."`；修饰符糖 `x-dialog:name.keepalive` 经解析器 modifier 注入同名选项（ADR-0007）自动生效。缓存身份见「保活缓存键」。
+覆盖物关闭语义的**挂起例外**（`keepalive: true`，ADR-0119）：close 的 leave 动画播完后**不销毁**，改为容器内 `display:none` 隐藏（router keepAlive 同款语义，非摘除 DOM）——DOM、instanceScope/shellScope、watcher 全存活，重开走恢复路径（props 浅合并仅出现的键 → 重新定位 + enter 动画 + 入栈 + 广播 open）。关闭语义零变化（visible 回写、`overlay:close` 广播、ESC/遮罩/close action 三触点照常）。**声明式专属**：命令式句柄 `open({keepalive})` 不生效并 warn（命令式无缓存归属方，挂起实例会孤儿化）。回收点：宿主指令 destroy 销毁其全部挂起实例（含打开中/关闭动画中）、`engine.destroy` 全回收；v1 无 LRU、无手动清缓存 API。正典配置 `x-dialog-options="{keepalive: true}"` 或成员属性表达式 `x-dialog-options.keepalive="..."`；修饰符糖 `x-dialog:name.keepalive="值"`（修饰符与 visible 值同声明）经解析器 modifier 注入同名选项（ADR-0007）自动生效。缓存身份见「保活缓存键」。
 _Avoid_: keep-alive（连字符变体）、缓存组件（挂起的是整实例非组件定义）、visible 保持（关闭时 visible 照常回写归假，保活只是 DOM 挂起）、页面保活（那是 router keepAlive——机制同款语义，归属不同特性）
 
 **保活缓存键（Overlay Cache Key）**:
@@ -550,7 +550,7 @@ keepalive 实例的缓存身份：**`组件名 + key + url` 复合**（`buildOve
 _Avoid_: 热切换键（key 不 watch，变化即新身份、下次打开生效）、实例 ID（key 是声明方给的缓存命名空间，非系统分配标识）、DOM key（与列表 diff 复用语义无关——这里是缓存身份，无 diff 概念）
 
 **覆盖物远程内容（Overlay Remote Content）**:
-消费者配置 `url` 声明的**打开时按需加载**通道（ADR-0119）：组件未注册时打开走远程路径——**面板先开**（shell + 内容出口占位锚 + 面板挂 x-loading 遮罩），异步加载完成后原位附加内容、摘遮罩。加载经 x-import 管线（fetch + 解析 + 注册到消费处 scope + url 缓存），随后**双路径并存**：远程声明了匹配名 `x-define` → **组件优先**（编译组件实例原位换入，与本地构建实例完全同权，出口清单就绪后插槽分段投影）；无匹配名声明 → **片段兜底**（原始 HTML 作子模板编译进面板出口，x-html.compile 同语义——可含任意指令、以消费处 scope 为父、props 注入响应式数据域热更新同权；片段中的 x-define 声明元素经编译器剪枝不渲染，注册了其他名组件时 warn 一次名字提示）。片段路径不经 x-html 指令委托（shell 面板 rootless 挂 body 容器，委托读不到任何状态——编程式 compileChild，消费处 scope 为父）。失败语义：面板内 `autospark.error` 错误占位（retry 原位重载 / close 关闭），不自动关、不进 keepalive 缓存——重开自然重建面板重新加载。首次打开才加载（非指令初始化时）；url 经成员表达式每次打开重求值，url 变 = 新缓存身份 = 重建（见「保活缓存键」）。
+消费者配置 `url` 声明的**打开时按需加载**通道（ADR-0119）：组件未注册时打开走远程路径——**面板先开**（shell + 内容出口骨架化占位锚——锚自带最小尺寸并在锚内挂 x-loading，shell 骨架先可见、loading 呈现于 shell 内容出口内部），异步加载完成后原位附加内容、随锚摘除 loading。加载经 x-import 管线（fetch + 解析 + 注册到消费处 scope + url 缓存），随后**双路径并存**：远程声明了匹配名 `x-define` → **组件优先**（编译组件实例原位换入，与本地构建实例完全同权，出口清单就绪后插槽分段投影）；无匹配名声明 → **片段兜底**（原始 HTML 作子模板编译进面板出口，x-html.compile 同语义——可含任意指令、以消费处 scope 为父、props 注入响应式数据域热更新同权；片段中的 x-define 声明元素经编译器剪枝不渲染，注册了其他名组件时 warn 一次名字提示）。片段路径不经 x-html 指令委托（shell 面板 rootless 挂 body 容器，委托读不到任何状态——编程式 compileChild，消费处 scope 为父）。失败语义：面板内 `autospark.error` 错误占位（retry 原位重载 / close 关闭），不自动关、不进 keepalive 缓存——重开自然重建面板重新加载。首次打开才加载（非指令初始化时）；url 经成员表达式每次打开重求值，url 变 = 新缓存身份 = 重建（见「保活缓存键」）。
 _Avoid_: x-import 替代（x-import 是预加载后按名消费，本词条是打开时按需加载）、x-html 指令委托（片段走编程式编译，shell 面板 rootless 读不到状态）、远程组件（片段路径无组件概念，直说「片段」）、懒加载（lazy loading 泛化——直说按需加载）
 
 **覆盖物定义句柄（Overlay Handle）**:

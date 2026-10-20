@@ -1,0 +1,12 @@
+<!--
+    慢网络加载演示片段（被 x-dialog url 片段兜底路径加载，ADR-0119）。
+    经 demo-api 中间件伺服（/autospark/api/*）：请求带 ?delay=<ms> 时延迟响应——模拟慢网络，
+    供观察「外壳骨架面板先开、loading 在 shell 内容出口内呈现 → 内容就绪原位附加」的加载过程。
+    无任何 x-define 声明——按片段编译：插值读消费处状态、props 注入响应式数据域。
+-->
+<div style="padding: 24px; min-width: 320px">
+    <h3 class="title is-5" x-text="topic"></h3>
+    <p>这个响应被 <code>?delay=2500</code> 延迟了约 2.5 秒——打开时面板先开、挂 <code>x-loading</code> 遮罩，内容就绪后原位附加。</p>
+    <p>插值照常读<b>消费处</b>状态：<b x-text="ui.source"></b></p>
+    <button class="button is-fullwidth" @click="close()">关闭</button>
+</div>

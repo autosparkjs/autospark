@@ -260,8 +260,8 @@ engine.on("overlay:close", ({ payload }) => {
 <demo html="dialog/keepalive.html"/>
 
 ```html
-<!-- 修饰符糖：x-dialog:名称.keepalive -->
-<button x-dialog:editor="ui.open" x-dialog:editor.keepalive @click="ui.open = true">
+<!-- 修饰符糖：x-dialog:名称.keepalive="值"——修饰符与 visible 值同一个属性声明 -->
+<button x-dialog:editor.keepalive="ui.open" @click="ui.open = true">
   打开编辑器
 </button>
 
@@ -285,14 +285,13 @@ engine.on("overlay:close", ({ payload }) => {
 ```html
 <!-- 每个文档一份独立挂起实例：切文档互不覆盖 -->
 <div
-  x-dialog:editor="ui.open"
-  x-dialog:editor.keepalive
+  x-dialog:editor.keepalive="ui.open"
   x-dialog-options.key="ui.active"
   x-dialog-options.props="{title: docs[ui.active]}"
 ></div>
 
-<button @click="ui.active = 1; ui.open = true">编辑文档一</button>
-<button @click="ui.active = 2; ui.open = true">编辑文档二</button>
+<button @click="ui.active = 1, ui.open = true">编辑文档一</button>
+<button @click="ui.active = 2, ui.open = true">编辑文档二</button>
 ```
 
 - `key` 每次打开求值一次（不 watch）——key 变化即新缓存身份，**下次打开生效**；
@@ -301,9 +300,11 @@ engine.on("overlay:close", ({ payload }) => {
 
 ### 远程加载（url）
 
-组件**未注册**且配置了 `url` 时，打开走远程路径：面板先开（外壳 + 内容出口占位 + 面板挂 x-loading 遮罩），异步加载完成后原位附加内容、摘遮罩。适合内容体量大 / 使用频率低的对话框——不必预注册，打开时按需取：
+组件**未注册**且配置了 `url` 时，打开走远程路径：外壳骨架面板先开（内容出口内呈现 loading 占位——骨架可见、loading 在 shell 内部），异步加载完成后原位附加内容、摘除 loading。适合内容体量大 / 使用频率低的对话框——不必预注册，打开时按需取：
 
 <demo html="dialog/remote.html"/>
+
+> demo 中「慢网络加载」按钮经 dev 中间件 `?delay=2500` 模拟慢网络响应，可从容观察「面板先开 + 加载中 → 内容就绪原位附加」的完整过程（生产构建后静态伺服忽略该参数）。
 
 ```html
 <!-- 本地未声明 remote-user 组件——打开时从 url 加载 -->
@@ -321,6 +322,41 @@ engine.on("overlay:close", ({ payload }) => {
 
 - **组件优先**：远程 HTML 声明了匹配名的 `x-define` → 按组件编译实例化（与本地构建实例完全同权：data / props / 插槽 / 作用域样式全生效），并经 x-import 的 url 缓存注册——同 url 重开零请求；
 - **片段兜底**：远程 HTML **没有**匹配名声明 → 原始 HTML 按**片段**编译进面板（`x-html.compile` 同语义：可含任意指令、不要求组件声明）——插值读**消费处**状态（响应式）、props 注入响应式数据域（热更新与组件路径同权）。片段里混入的其他名 `x-define` 声明会被正常注册但不渲染（编译期剪枝）；注册了非匹配名组件时 warn 一次名字提示——消费名与远程声明名对不上（typo）时可发现。片段路径不支持插槽内容投影（声明了插槽标记则 warn 丢弃）。
+
+#### 片段兜底示例
+
+消费处——本地**不声明** `remote-note` 组件，url 指向一个无 `x-define` 的纯 HTML 文件：
+
+```html
+<div x-data="{ ui: { open: false, source: '来自消费处的状态' } }">
+  <button
+    x-dialog:remote-note="ui.open"
+    x-dialog-options="{url: '/autospark/components/dialog-note.html'}"
+    x-dialog-options.props="{topic: '远程片段'}"
+    @click="ui.open = true"
+  >
+    打开片段对话框
+  </button>
+</div>
+```
+
+远程文件——没有任何组件声明，就是一段普通 HTML：
+
+```html
+<!-- /autospark/components/dialog-note.html——无 x-define，按片段编译 -->
+<div style="padding: 24px; min-width: 320px">
+  <!-- props（topic）注入响应式数据域：与组件路径的 props 同权，热更新生效 -->
+  <h3 x-text="topic"></h3>
+
+  <!-- 插值读消费处状态：ui.source 声明在消费处 x-data，变化实时同步 -->
+  <p>状态来源：<b x-text="ui.source"></b></p>
+
+  <!-- 任意指令可用：x-if / x-for / x-model / @click 等照常编译 -->
+  <button @click="close()">关闭</button>
+</div>
+```
+
+三个要点：`topic` 来自 `x-dialog-options.props`（注入片段的响应式数据域）；`ui.source` 读的是**消费处**状态（片段以消费处 scope 为父，声明处数据直接可见且响应式）；`close()` 是引擎内置信号 action——广播 `action:close` 被实例根接住，走标准「请求关闭」链。
 
 行为要点：
 

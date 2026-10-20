@@ -177,6 +177,14 @@ const engine = new AutoSpark(el, state, {
 
 重试重放的是 **action 本身**（桥接在 action 层，重试与之对称也在 action 层），不重放触发元素上的 x-on 表达式。`raise` 源错误无源可重——显式 `retryable: true` 也不渲染重试按钮并记 warn。
 
+工作原理要点：
+
+1. **装填弹药**：action 失败时 `buildAction` 桥接派发 `error` 事件，`detail.error` 除归一化错误对象外还内嵌**完整 action 描述符**（`action`，含 handle）与**原参数**（`args`）；x-error 连同原触发元素（`event.target`）一起存进单错误槽——重试所需的一切在失败那一刻冻结，呈现被新错误替换时弹药随之换新。
+2. **按钮装配**：`retryable` 按「`raise` 第二参事件层 > `x-error-options.retryable` 静态层 > 按源默认」回退，作布尔键注入组件 data（内置组件 `x-show` 显隐）；`retry` 闭包经错误组件**块 scope 的 actions 通道**注入（不入 data——函数值会被 autostore 当 computed 吞掉），`@click="retry()"` 点击现查直调，自定义错误组件同契约。
+3. **原样重调**：以 `action.handle.apply(ctx, args)` 按原参数执行；ctx 按原触发元素重建（`findScopeByEl` 取回同一份 `data` / `scope`，`$event` 为 `null`）。handle 是 `buildAction` 包装层，故重调与首调一样广播 `pending → resolved / rejected`、失败照常桥接。
+4. **结果收束**：resolved → `clear()` 自动清除呈现；再次失败 → 桥接的**新** error 事件经单错误槽先清旧再呈新（持续失败恒显示最新一次，重调无互斥，连点即并发）。
+5. **边界**：重放的是 action 本身而非触发元素上的 x-on 表达式（前置语句/条件不重验，想重验就写进 action）；命令式直调无触发元素、不桥接，不进重试通道；raise 源无弹药，显式 `retryable: true` 也拦截置 `false` 并 warn（`retry()` 内以 `source !== "action"` 短路兜底）。
+
 ### 动作按钮
 
 <demo html="error/custom.html"/>
@@ -224,4 +232,6 @@ const engine = new AutoSpark(el, state, {
 - **单错误槽新替旧**：无错误队列/堆叠，最新呈现即最新错误。
 - **Error 实例不进响应式域**：注入组件的 `error` 恒为归一化普通对象，勿在组件 data 中期待原型方法。
 - **重试仅 action 源**：raise 源无源可重，`retryable: true` 被拦截 warn。
+- **重试只重跑 action**：触发元素上 x-on 表达式的前置语句/条件不重放，`$event` 为 `null`；条件重验请写进 action。
+- **重调无互斥**：重试按钮不自带 loading/禁用，连点即并发重调；需要防护请自建。
 - **actions 按钮点击不自动清除**：需要点击即关闭的场景，在 `actions` 里放 `'close'` 或由自定义组件 UI 自行处理。

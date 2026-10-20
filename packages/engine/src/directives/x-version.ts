@@ -283,10 +283,17 @@ export class VersionDirective extends AutoSparkDirectiveBase {
         this._apply(this.binding.read("$.version"));
     }
 
-    /** 应用版本判定：版本未知静默短路（恒渲染零告警）；否则任一子句命中摘类、未命中挂类 */
+    /**
+     * 应用版本判定：任一子句命中摘类、未命中挂类；版本未知（undefined/null）静默
+     * 短路（跳过匹配、零告警）但**必须摘除隐藏类**——恒渲染是每次重算都要维持的
+     * 不变式，「有版本→隐藏」切到「未知」时若不摘类，隐藏态会残留（demo 实测）。
+     */
     private _apply(v: unknown): void {
         if (this._clauses == null) return;
-        if (v == null) return;
+        if (v == null) {
+            this.el.classList.remove(VERSION_HIDDEN_CLASS);
+            return;
+        }
         const hit = matchVersion(v, this._clauses);
         this.el.classList.toggle(VERSION_HIDDEN_CLASS, !hit);
     }

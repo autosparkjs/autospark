@@ -18,9 +18,10 @@
     </style>
   </head>
   <body>
-    <!-- url：组件未注册时打开走远程——面板先开（外壳 + x-loading）→ 内容就绪后原位附加 -->
+    <!-- url：组件未注册时打开走远程——骨架面板先开（出口内 loading）→ 内容就绪后原位附加 -->
     <div class="demo-app section">
-      <div x-data="{ ui: { user: false, note: false, broken: false, seq: 0 }, source: '来自消费处的状态' }">
+      <!-- 状态收在 ui 嵌套路径下：表达式对顶层变量的赋值不写响应式域，嵌套路径才可写 -->
+      <div x-data="{ ui: { user: false, note: false, slow: false, broken: false, seq: 0, source: '来自消费处的状态' } }">
         <div class="block">
           <button
             class="button is-primary"
@@ -40,10 +41,23 @@
           >
             片段兜底（远程无 x-define）
           </button>
+          <!-- 慢网络演示：demo-api 中间件对 /autospark/api/* 支持 ?delay=<ms>（dev-only，
+              生产构建后静态伺服该参数被忽略即瞬时返回）；片段缓存按 url 记——同会话重开免请求即时返回 -->
+          <button
+            class="button is-warning"
+            x-dialog:remote-slow="ui.slow"
+            x-dialog-options="{url: '/autospark/api/slow-note.html?delay=2500'}"
+            x-dialog-options.props="{topic: '慢网络加载'}"
+            @click="ui.slow = true"
+          >
+            慢网络加载（延迟 2.5s 观察加载中）
+          </button>
+          <!-- 404 演示指向 demo-api 中间件路径：其对不存在文件确定性回 404
+              （其余路径下 dev 的 SPA fallback 会把不存在文件回成 200 HTML，失败态无法触发） -->
           <button
             class="button is-danger is-light"
             x-dialog:remote-broken="ui.broken"
-            x-dialog-options="{url: '/autospark/components/not-exist.html'}"
+            x-dialog-options="{url: '/autospark/api/not-exist-404.html'}"
             @click="ui.broken = true"
           >
             失败重试（404）
@@ -52,17 +66,17 @@
         <div class="block">
           <button
             class="button is-small"
-            @click="ui.seq = ui.seq + 1; source = '来自消费处的状态 · 第 ' + ui.seq + ' 次更新'"
+            @click="ui.seq = ui.seq + 1, ui.source = '来自消费处的状态 · 第 ' + ui.seq + ' 次更新'"
           >
             更新消费处状态（片段对话框开着时点）
           </button>
         </div>
         <div class="block has-text-grey">
-          三个对话框的组件名在本地都<b>未声明</b>，url 兜底远程加载：面板先开（外壳 +
-          x-loading 遮罩）、内容就绪后原位附加。<b>组件路径</b>——远程文件声明了匹配名
+          四个对话框的组件名在本地都<b>未声明</b>，url 兜底远程加载：骨架面板先开（出口内呈现
+          loading，骨架 shell 可见）、内容就绪后原位附加。<b>组件路径</b>——远程文件声明了匹配名
           <code>x-define</code>，按组件编译（props 注入 data 域）；<b>片段兜底</b>——远程文件没有匹配名声明，原始
           HTML 按片段编译（<code>x-html.compile</code> 同语义）：插值读消费处状态（点上方按钮实时可见）、props
-          注入响应式数据域；<b>失败重试</b>——url 404 时面板内呈现错误占位、不自动关：重试原位重载、关闭照常；失败实例不进
+          注入响应式数据域；<b>慢网络加载</b>——demo-api 中间件 <code>?delay</code> 延迟 2.5s 响应，可从容观察「加载中」形态；<b>失败重试</b>——url 404 时面板内呈现错误占位、不自动关：重试原位重载、关闭照常；失败实例不进
           keepalive 缓存，重开即重新加载。
         </div>
         <div class="log block" id="log"><div>（等待事件…）</div></div>

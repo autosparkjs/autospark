@@ -122,8 +122,9 @@ export interface OverlayInstanceOptions {
  * 浅合并（仅出现的键）。挂起实例由消费者指令缓存复用与回收（指令销毁/engine.destroy）。
  *
  * **url 远程路径**（ADR-0119，消费者指令编排）：组件未注册且声明 url 时走
- * `openRemote()`（首阶段：仅构建 shell 面板——出口放占位锚 + 面板挂 x-loading + 显示），
- * 加载成功后 `attachRemote()`（第二阶段：编译内容组件原位换入占位、摘 x-loading、接管组件
+ * `openRemote()`（首阶段：仅构建 shell 面板——出口放骨架化占位锚（锚内挂 x-loading，
+ * shell 骨架先可见、loading 在内容出口内部）+ 显示），加载成功后 `attachRemote()`
+ * （第二阶段：编译内容组件原位换入占位锚（loading 随锚移除）、接管组件
  * 身份——此后与本地构建实例完全同权）；失败 `failRemote()`（面板内错误占位、不自动关，
  * 失败不进 keepalive 缓存——重开自然重试；retry action 走 {@link onRemoteRetry} 原位重载）。
  *
@@ -339,8 +340,9 @@ export class OverlayInstance {
     }
 
     /**
-     * 远程路径首阶段（ADR-0119，消费者指令编排）：仅构建 shell 面板——出口放占位锚 +
-     * 面板挂 x-loading + 显示，内容组件延迟到 `attachRemote()` 原位附加。
+     * 远程路径首阶段（ADR-0119，消费者指令编排）：仅构建 shell 面板——出口放骨架化占位锚
+     * （锚内挂 x-loading：shell 骨架先可见、loading 呈现于内容出口内部）+ 显示，内容组件
+     * 延迟到 `attachRemote()` 原位附加。
      * 仅消费者指令在「组件未注册且声明 url」时调用（实例恒新建，不走缓存复用）。
      * shell-only 阶段无内容 scope——级联死亡订阅挂 parentScope（挂链死亡 → 实例强拆），
      * attachRemote 后换轨内容 scope。
@@ -357,7 +359,7 @@ export class OverlayInstance {
     }
 
     /**
-     * 远程路径第二阶段（ADR-0119）：编译内容组件原位换入占位锚、摘 x-loading、接管组件
+     * 远程路径第二阶段（ADR-0119）：编译内容组件原位换入占位锚（loading 随锚移除）、接管组件
      * 身份（snapshot/def/instanceScope 重指向）——此后与本地构建实例完全同权（props 热更新、
      * keepalive 挂起恢复均正常）。级联死亡订阅换轨到内容 scope。
      */
@@ -377,7 +379,6 @@ export class OverlayInstance {
         this._unsubScopeDeath?.();
         this._unsubScopeDeath = onScopeDestroyed(this.engine, compiled.scope, () => this.destroy());
         this._swapRemoteAnchor(compiled.el);
-        this._panel?.removeAttribute("x-loading");
     }
 
     /**
@@ -403,7 +404,6 @@ export class OverlayInstance {
         this._unsubScopeDeath?.();
         this._unsubScopeDeath = onScopeDestroyed(this.engine, compiled.scope, () => this.destroy());
         this._swapRemoteAnchor(compiled.el);
-        this._panel?.removeAttribute("x-loading");
     }
 
     /**
@@ -414,7 +414,6 @@ export class OverlayInstance {
     failRemote(err: Error, url?: string): void {
         if (this._destroyed) return;
         this._remoteFailed = true;
-        this._panel?.removeAttribute("x-loading");
         this._destroyRemoteError();
         const resolved = this.engine._resolveGlobalComponentFull(ERROR_COMPONENT_NAME);
         if (!resolved) {
@@ -451,15 +450,14 @@ export class OverlayInstance {
     }
 
     /**
-     * 远程重载前置（ADR-0119）：清失败旗标、重建占位锚 + 挂 x-loading，随后由指令发起
-     * 加载（成功 attachRemote / 失败再 failRemote）。retry action 经此回到「面板先开」形态。
+     * 远程重载前置（ADR-0119）：清失败旗标、重建骨架化占位锚（锚内挂 x-loading），随后由指令
+     * 发起加载（成功 attachRemote / 失败再 failRemote）。retry action 经此回到「面板先开」形态。
      */
     beginRemoteReload(): void {
         if (this._destroyed || !this._panel) return;
         this._remoteFailed = false;
         this._destroyRemoteError();
         (this._remoteOutlet ?? this._panel).appendChild(this._makeRemoteAnchor());
-        this._panel.setAttribute("x-loading", "true");
     }
 
     /**
@@ -545,10 +543,21 @@ export class OverlayInstance {
         }, delay);
     }
 
-    /** 建远程占位锚（面板先开时出口内的占位元素；attach/fail 原位换入） */
+    /**
+     * 建远程占位锚（面板先开时出口内的占位元素；attach/fail 原位换入）。
+     * 骨架化（ADR-0119）：锚自带最小尺寸（shell 骨架面板先可见——加载中不是塌缩空壳）、
+     * 自身定位（x-loading overlay `absolute inset:0` 的定位基准）并**在锚上**挂 x-loading
+     * ——loading 呈现于 shell 内容出口**内部**（而非覆盖整个面板，自定义 shell 的标题栏等
+     * 外壳层不被遮盖）；attach/fail 换出锚即随锚摘除，无需显式清理。
+     */
     private _makeRemoteAnchor(): HTMLElement {
         const anchor = document.createElement("div");
         anchor.setAttribute("data-overlay-remote-pending", "");
+        anchor.style.cssText =
+            "position:relative;" +
+            "min-width:var(--autospark-overlay-loading-min-width, 240px);" +
+            "min-height:var(--autospark-overlay-loading-min-height, 120px);";
+        anchor.setAttribute("x-loading", "true");
         this._remoteAnchor = anchor;
         return anchor;
     }
@@ -617,7 +626,7 @@ export class OverlayInstance {
     /**
      * 构建 shell 面板 + 挂载容器 + 显示（本地/远程两路径共用，ADR-0119）：
      * - `contentEl` 非空（本地路径）：live 段投影进 shell 默认出口；
-     * - `contentEl` 为 null（远程首阶段）：出口放占位锚 + 面板挂 x-loading，内容延迟附加
+     * - `contentEl` 为 null（远程首阶段）：出口放骨架化占位锚（锚内挂 x-loading），内容延迟附加
      *   （attachRemote 原位换入）。
      */
     private _buildShellAndMount(contentEl: HTMLElement | null): void {
@@ -672,11 +681,8 @@ export class OverlayInstance {
         if (!hasDefaultOutlet && contentEl) {
             panel.appendChild(contentEl);
         }
-        // 远程首阶段：面板挂 x-loading（Runtime 指令契约，x-loading 呈现；附加完成摘除）——
-        // 须在挂载容器（addExtraRoot/appendChild）**之前**，指令随挂载正常建
-        if (contentEl === null) {
-            panel.setAttribute("x-loading", "true");
-        }
+        // 远程首阶段的 loading 由占位锚自身承担（骨架化 _makeRemoteAnchor：锚内挂 x-loading，
+        // 出口内部呈现；随锚换出自动摘除）——面板层不再挂 x-loading
 
         // 外壳两态（修订共识 4）：mask 形态 = 遮罩根（引擎建）> 面板（data-overlay 契约）；
         // bare = 面板（shell 根）直挂容器。行为契约分工：实例根挂 animate/close 委托/遮罩点击；

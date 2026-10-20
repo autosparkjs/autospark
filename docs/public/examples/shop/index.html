@@ -1,292 +1,261 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>星辰手机商店</title>
-        <meta name="description" content="AutoSpark 完整应用示例：engine + @autospark/router 搭建的手机商店" />
-        <link rel="stylesheet" href="/autospark/examples/shop/styles.css" />
-        <!-- 双加载顺序兼容：先 engine 后 router，或先 router 后 engine 皆可 -->
-        <script src="/autospark/autospark.js"></script>
-        <script src="/autospark/autospark.router.js"></script>
-        <!-- 通知模块官方插件：加载即自举，提供 engine.notifications 与全局 toast action -->
-        <script src="/autospark/autospark.notifications.js"></script>
-    </head>
 
-    <body>
-        <div id="app">
-            <!-- ==================== 顶部导航 ==================== -->
-            <header class="site-header">
-                <div class="container nav-inner">
-                    <auto-link class="brand" to="/">
-                        <span class="brand-logo">📱</span>
-                        <span class="brand-text">
-                            <strong x-text="brand.name"></strong>
-                            <small x-text="brand.slogan"></small>
-                        </span>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>星辰手机商店</title>
+    <meta name="description" content="AutoSpark 完整应用示例：engine + @autospark/router 搭建的手机商店" />
+    <link rel="stylesheet" href="/autospark/examples/shop/styles.css" />
+    <!-- 双加载顺序兼容：先 engine 后 router，或先 router 后 engine 皆可 -->
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.router.js"></script>
+    <!-- 通知模块官方插件：加载即自举，提供 engine.notifications 与全局 toast action -->
+    <script src="/autospark/autospark.notifications.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <!-- ==================== 顶部导航 ==================== -->
+        <header class="site-header">
+            <div class="container nav-inner">
+                <auto-link class="brand" to="/">
+                    <span class="brand-logo">📱</span>
+                    <span class="brand-text">
+                        <strong x-text="brand.name"></strong>
+                        <small x-text="brand.slogan"></small>
+                    </span>
+                </auto-link>
+
+                <!-- 移动端开合按钮 -->
+                <button class="nav-toggle" type="button" :class="{ open: ui.navOpen }" @click="ui.navOpen = !ui.navOpen"
+                    aria-label="菜单">
+                    <span></span><span></span><span></span>
+                </button>
+
+                <!-- 主菜单：首页 / 新闻 / 产品 / 服务 / 关于 -->
+                <nav class="nav-menu" :class="{ open: ui.navOpen }">
+                    <auto-link class="nav-link" :class="{ active: $.route && $.route.path === '/' }" to="/"
+                        @click="ui.navOpen = false">首页</auto-link>
+                    <auto-link class="nav-link" :class="{ active: $.route && $.route.path === '/news' }" to="/news"
+                        @click="ui.navOpen = false">新闻</auto-link>
+                    <auto-link class="nav-link" :class="{ active: $.route && $.route.path === '/products' }"
+                        to="/products" @click="ui.navOpen = false">产品</auto-link>
+                    <auto-link class="nav-link" :class="{ active: $.route && $.route.path === '/services' }"
+                        to="/services" @click="ui.navOpen = false">服务</auto-link>
+                    <auto-link class="nav-link" :class="{ active: $.route && $.route.path === '/about' }" to="/about"
+                        @click="ui.navOpen = false">关于</auto-link>
+                </nav>
+
+                <!-- 右侧：购物车 + 登录态 -->
+                <div class="nav-actions">
+                    <auto-link class="cart-link" :class="{ active: $.route && $.route.path === '/cart' }" to="/cart">
+                        <span class="cart-ico">🛒</span>
+                        <span class="cart-lbl">购物车</span>
+                        <span class="badge" x-show="cartCount > 0" x-text="cartCount"></span>
                     </auto-link>
 
-                    <!-- 移动端开合按钮 -->
-                    <button
-                        class="nav-toggle"
-                        type="button"
-                        :class="{ open: ui.navOpen }"
-                        @click="ui.navOpen = !ui.navOpen"
-                        aria-label="菜单"
-                    >
-                        <span></span><span></span><span></span>
-                    </button>
+                    <auto-link class="btn btn-ghost login-btn" to="/login" x-show="!user">登录</auto-link>
 
-                    <!-- 主菜单：首页 / 新闻 / 产品 / 服务 / 关于 -->
-                    <nav class="nav-menu" :class="{ open: ui.navOpen }">
-                        <auto-link
-                            class="nav-link"
-                            :class="{ active: $.route && $.route.path === '/' }"
-                            to="/"
-                            @click="ui.navOpen = false"
-                            >首页</auto-link
-                        >
-                        <auto-link
-                            class="nav-link"
-                            :class="{ active: $.route && $.route.path === '/news' }"
-                            to="/news"
-                            @click="ui.navOpen = false"
-                            >新闻</auto-link
-                        >
-                        <auto-link
-                            class="nav-link"
-                            :class="{ active: $.route && $.route.path === '/products' }"
-                            to="/products"
-                            @click="ui.navOpen = false"
-                            >产品</auto-link
-                        >
-                        <auto-link
-                            class="nav-link"
-                            :class="{ active: $.route && $.route.path === '/services' }"
-                            to="/services"
-                            @click="ui.navOpen = false"
-                            >服务</auto-link
-                        >
-                        <auto-link
-                            class="nav-link"
-                            :class="{ active: $.route && $.route.path === '/about' }"
-                            to="/about"
-                            @click="ui.navOpen = false"
-                            >关于</auto-link
-                        >
-                    </nav>
-
-                    <!-- 右侧：购物车 + 登录态 -->
-                    <div class="nav-actions">
-                        <auto-link
-                            class="cart-link"
-                            :class="{ active: $.route && $.route.path === '/cart' }"
-                            to="/cart"
-                        >
-                            <span class="cart-ico">🛒</span>
-                            <span class="cart-lbl">购物车</span>
-                            <span class="badge" x-show="cartCount > 0" x-text="cartCount"></span>
-                        </auto-link>
-
-                        <auto-link class="btn btn-ghost login-btn" to="/login" x-show="!user">登录</auto-link>
-
-                        <div class="user-chip" x-show="user">
-                            <span class="avatar" x-text="user ? user.name.slice(0, 1) : ''"></span>
-                            <span class="uname" x-text="user ? user.name : ''"></span>
-                            <button class="btn btn-ghost btn-sm" type="button" @click="logout">退出</button>
-                        </div>
+                    <div class="user-chip" x-show="user">
+                        <span class="avatar" x-text="user ? user.name.slice(0, 1) : ''"></span>
+                        <span class="uname" x-text="user ? user.name : ''"></span>
+                        <button class="btn btn-ghost btn-sm" type="button" @click="logout">退出</button>
                     </div>
                 </div>
-            </header>
+            </div>
+        </header>
 
-            <!-- ==================== 路由出口：匹配视图渲染在这里 ==================== -->
-            <main class="site-main">
-                <div class="container">
-                    <div x-outlet></div>
+        <!-- ==================== 路由出口：匹配视图渲染在这里 ==================== -->
+        <main class="site-main">
+            <div class="container">
+                <div x-outlet></div>
+            </div>
+        </main>
+
+        <!-- ==================== 页脚 ==================== -->
+        <footer class="site-footer">
+            <div class="container foot-grid">
+                <div class="foot-col">
+                    <h4 x-text="brand.name"></h4>
+                    <p>AutoSpark 完整应用示例：engine 负责状态与指令，@autospark/router 负责多页面导航。</p>
                 </div>
-            </main>
-
-            <!-- ==================== 页脚 ==================== -->
-            <footer class="site-footer">
-                <div class="container foot-grid">
-                    <div class="foot-col">
-                        <h4 x-text="brand.name"></h4>
-                        <p>AutoSpark 完整应用示例：engine 负责状态与指令，@autospark/router 负责多页面导航。</p>
-                    </div>
-                    <div class="foot-col">
-                        <h4>网站导航</h4>
-                        <auto-link to="/">首页</auto-link>
-                        <auto-link to="/news">新闻</auto-link>
-                        <auto-link to="/products">产品</auto-link>
-                        <auto-link to="/services">服务</auto-link>
-                        <auto-link to="/about">关于</auto-link>
-                    </div>
-                    <div class="foot-col">
-                        <h4>我的</h4>
-                        <auto-link to="/cart">购物车</auto-link>
-                        <auto-link to="/login">登录 / 注册</auto-link>
-                    </div>
-                    <div class="foot-col">
-                        <h4>联系我们</h4>
-                        <p>客服热线：400-800-1234</p>
-                        <p>hello@starphone.example</p>
-                        <p>上海市南京东路 888 号</p>
-                    </div>
+                <div class="foot-col">
+                    <h4>网站导航</h4>
+                    <auto-link to="/">首页</auto-link>
+                    <auto-link to="/news">新闻</auto-link>
+                    <auto-link to="/products">产品</auto-link>
+                    <auto-link to="/services">服务</auto-link>
+                    <auto-link to="/about">关于</auto-link>
                 </div>
-                <div class="container foot-bottom">
-                    © 2026 <span x-text="brand.name"></span> · 本页面为 AutoSpark 示例应用，内容均为演示数据
+                <div class="foot-col">
+                    <h4>我的</h4>
+                    <auto-link to="/cart">购物车</auto-link>
+                    <auto-link to="/login">登录 / 注册</auto-link>
                 </div>
-            </footer>        </div>
+                <div class="foot-col">
+                    <h4>联系我们</h4>
+                    <p>客服热线：400-800-1234</p>
+                    <p>hello@starphone.example</p>
+                    <p>上海市南京东路 888 号</p>
+                </div>
+            </div>
+            <div class="container foot-bottom">
+                © 2026 <span x-text="brand.name"></span> · 本页面为 AutoSpark 示例应用，内容均为演示数据
+            </div>
+        </footer>
+    </div>
 
-        <script>
-            // =====================================================================
-            // 星辰手机商店 —— AutoSpark engine + @autospark/router 示例
-            // 第二参为裸状态：engine 自动建 store，根键全站可见（视图内直接读写）
-            // =====================================================================
-            const host = document.getElementById("app");
+    <script>
+        // =====================================================================
+        // 星辰手机商店 —— AutoSpark engine + @autospark/router 示例
+        // 第二参为裸状态：engine 自动建 store，根键全站可见（视图内直接读写）
+        // =====================================================================
+        const host = document.getElementById("app");
 
-            /** 轻提示：复用通知模块官方插件（engine.notifications） */
-            function toast(title, level = "info") {
-                engine.notifications.toast({ title, level });
-            }
+        /** 轻提示：复用通知模块官方插件（engine.notifications） */
+        function toast(title, level = "info") {
+            engine.notifications.toast({ title, level });
+        }
 
-            const engine = new AutoSparkSpaces.AutoSpark(
-                host,
-                {
-                    brand: { name: "星辰手机商店", slogan: "只做懂你的好手机" },
-                    // 购物车（跨页面共享：产品页加入 → 导航栏角标 → 购物车页结算）
-                    cart: [],
-                    // 计算属性：件数 / 合计声明在状态里，模板各处直接用
-                    // depends 声明到项级字段（cart.**）：默认自动依赖只跟到顶层 cart，
-                    // 数组 push / splice 会重算，但项内 qty、price 的变更不会触发
-                    cartCount: AutoSparkSpaces.computed((s) => s.cart.reduce((t, i) => t + i.qty, 0), {
-                        depends: ["cart.**"],
-                    }),
-                    cartTotal: AutoSparkSpaces.computed((s) => s.cart.reduce((t, i) => t + i.qty * i.price, 0), {
-                        depends: ["cart.**"],
-                    }),
-                    // 登录态
-                    user: null,
-                    loginForm: { username: "", password: "", remember: false, error: "" },
-                    logging: false,
-                    // 界面状态（筛选、展开、移动端导航、轻提示）
-                    ui: {
-                        navOpen: false,
-                        productCat: "全部",
-                        newsTag: "全部",
-                        openNews: null,
-                        openFaq: null,
+        const engine = new AutoSparkSpaces.AutoSpark(
+            host,
+            {
+                brand: { name: "星辰手机商店", slogan: "只做懂你的好手机" },
+                // 购物车（跨页面共享：产品页加入 → 导航栏角标 → 购物车页结算）
+                cart: [],
+                // 计算属性：件数 / 合计声明在状态里，模板各处直接用
+                // depends 必须声明到项级字段（cart.**）：computed 的自动依赖收集只到顶层 cart（含 cart.length），
+                // 数组 push / splice 会重算，但项内 qty、price 的变更不会触发，角标与合计就会停在旧值
+                cartCount: AutoSparkSpaces.computed((s) => s.cart.reduce((t, i) => t + i.qty, 0), {
+                    depends: ["cart.**"],
+                }),
+                cartTotal: AutoSparkSpaces.computed((s) => s.cart.reduce((t, i) => t + i.qty * i.price, 0), {
+                    depends: ["cart.**"],
+                }),
+                // 登录态
+                user: null,
+                loginForm: { username: "", password: "", remember: false, error: "" },
+                logging: false,
+                // 界面状态（筛选、展开、移动端导航、轻提示）
+                ui: {
+                    navOpen: false,
+                    productCat: "全部",
+                    newsTag: "全部",
+                    openNews: null,
+                    openFaq: null,
+                },
+            },
+            {
+                // 通知模块：轻提示停靠右下角（默认 top-right）
+                notifications: { pos: "bottom-right" },
+                actions: {
+                    /** 产品页/首页 → 加入购物车（同款累加数量） */
+                    addToCart(p) {
+                        const s = engine.state;
+                        const item = s.cart.find((i) => i.id === p.id);
+                        if (item) item.qty += 1;
+                        else
+                            s.cart.push({
+                                id: p.id,
+                                name: p.name,
+                                price: p.price,
+                                emoji: p.emoji,
+                                color: p.color,
+                                qty: 1,
+                            });
+                        toast(`已加入购物车：${p.name}（${s.cartCount} 件）`, "success");
+                    },
+                    /** 购物车数量增减（≤0 自动移除） */
+                    changeQty(id, delta) {
+                        const s = engine.state;
+                        const item = s.cart.find((i) => i.id === id);
+                        if (!item) return;
+                        item.qty += delta;
+                        if (item.qty <= 0) s.cart.splice(s.cart.indexOf(item), 1);
+                    },
+                    /** 移除单条 */
+                    removeFromCart(id) {
+                        const s = engine.state;
+                        const idx = s.cart.findIndex((i) => i.id === id);
+                        if (idx < 0) return;
+                        const [removed] = s.cart.splice(idx, 1);
+                        toast(`已移除 ${removed.name}`, "info");
+                    },
+                    /** 清空购物车 */
+                    clearCart() {
+                        engine.state.cart.splice(0);
+                        toast("购物车已清空", "info");
+                    },
+                    /** 结算：未登录跳转登录页，已登录生成演示订单 */
+                    checkout() {
+                        const s = engine.state;
+                        if (!s.user) {
+                            toast("请先登录后再结算", "warn");
+                            host.router && host.router.push("/login");
+                            return;
+                        }
+                        const count = s.cartCount;
+                        const total = s.cartTotal;
+                        s.cart.splice(0);
+                        toast(`下单成功：${count} 件商品，合计 ¥${total}（演示订单）`, "success");
+                        host.router && host.router.push("/");
+                    },
+                    /** 预约服务（服务页） */
+                    bookService(name) {
+                        toast(`已预约「${name}」，客服将尽快与您联系`, "success");
+                    },
+                    /** 登录：空值/短密码校验 → 模拟请求 → 回首页 */
+                    async login() {
+                        const s = engine.state;
+                        const username = s.loginForm.username.trim();
+                        const password = s.loginForm.password;
+                        if (!username) {
+                            s.loginForm.error = "请输入用户名";
+                            return;
+                        }
+                        if (password.length < 6) {
+                            s.loginForm.error = "密码至少 6 位";
+                            return;
+                        }
+                        s.loginForm.error = "";
+                        s.logging = true;
+                        await new Promise((resolve) => setTimeout(resolve, 400));
+                        s.logging = false;
+                        s.user = { name: username };
+                        s.loginForm.password = "";
+                        toast(`欢迎回来，${username}`, "success");
+                        host.router && host.router.push("/");
+                    },
+                    /** 退出登录 */
+                    logout() {
+                        engine.state.user = null;
+                        toast("已退出登录", "info");
+                        host.router && host.router.push("/");
                     },
                 },
-                {
-                    // 通知模块：轻提示停靠右下角（默认 top-right）
-                    notifications: { pos: "bottom-right" },
-                    actions: {
-                        /** 产品页/首页 → 加入购物车（同款累加数量） */
-                        addToCart(p) {
-                            const s = engine.state;
-                            const item = s.cart.find((i) => i.id === p.id);
-                            if (item) item.qty += 1;
-                            else
-                                s.cart.push({
-                                    id: p.id,
-                                    name: p.name,
-                                    price: p.price,
-                                    emoji: p.emoji,
-                                    color: p.color,
-                                    qty: 1,
-                                });
-                            toast(`已加入购物车：${p.name}（${s.cartCount} 件）`, "success");
-                        },
-                        /** 购物车数量增减（≤0 自动移除） */
-                        changeQty(id, delta) {
-                            const s = engine.state;
-                            const item = s.cart.find((i) => i.id === id);
-                            if (!item) return;
-                            item.qty += delta;
-                            if (item.qty <= 0) s.cart.splice(s.cart.indexOf(item), 1);
-                        },
-                        /** 移除单条 */
-                        removeFromCart(id) {
-                            const s = engine.state;
-                            const idx = s.cart.findIndex((i) => i.id === id);
-                            if (idx < 0) return;
-                            const [removed] = s.cart.splice(idx, 1);
-                            toast(`已移除 ${removed.name}`, "info");
-                        },
-                        /** 清空购物车 */
-                        clearCart() {
-                            engine.state.cart.splice(0);
-                            toast("购物车已清空", "info");
-                        },
-                        /** 结算：未登录跳转登录页，已登录生成演示订单 */
-                        checkout() {
-                            const s = engine.state;
-                            if (!s.user) {
-                                toast("请先登录后再结算", "warn");
-                                host.router && host.router.push("/login");
-                                return;
-                            }
-                            const count = s.cartCount;
-                            const total = s.cartTotal;
-                            s.cart.splice(0);
-                            toast(`下单成功：${count} 件商品，合计 ¥${total}（演示订单）`, "success");
-                            host.router && host.router.push("/");
-                        },
-                        /** 预约服务（服务页） */
-                        bookService(name) {
-                            toast(`已预约「${name}」，客服将尽快与您联系`, "success");
-                        },
-                        /** 登录：空值/短密码校验 → 模拟请求 → 回首页 */
-                        async login() {
-                            const s = engine.state;
-                            const username = s.loginForm.username.trim();
-                            const password = s.loginForm.password;
-                            if (!username) {
-                                s.loginForm.error = "请输入用户名";
-                                return;
-                            }
-                            if (password.length < 6) {
-                                s.loginForm.error = "密码至少 6 位";
-                                return;
-                            }
-                            s.loginForm.error = "";
-                            s.logging = true;
-                            await new Promise((resolve) => setTimeout(resolve, 400));
-                            s.logging = false;
-                            s.user = { name: username };
-                            s.loginForm.password = "";
-                            toast(`欢迎回来，${username}`, "success");
-                            host.router && host.router.push("/");
-                        },
-                        /** 退出登录 */
-                        logout() {
-                            engine.state.user = null;
-                            toast("已退出登录", "info");
-                            host.router && host.router.push("/");
-                        },
-                    },
-                    // 路由意图经 engine 构造第三参声明 → router 插件自举挂载（ADR-0011）
-                    routes: {
-                        // hash 模式：静态托管下刷新 / 深链直达均可用；
-                        // base 不显式声明 → 按 URL 目录自动推断为本示例目录
-                        mode: "hash",
-                        routes: [
-                            { path: "/", title: "首页", view: "views/home.html", data: true, default: true },
-                            { path: "/news", title: "新闻", view: "views/news.html", data: true },
-                            { path: "/products", title: "产品", view: "views/products.html", data: true },
-                            { path: "/services", title: "服务", view: "views/services.html", data: true },
-                            { path: "/about", title: "关于", view: "views/about.html", data: true },
-                            { path: "/cart", title: "购物车", view: "views/cart.html" },
-                            { path: "/login", title: "登录", view: "views/login.html", data: true },
-                        ],
-                        head: { titleTemplate: "%s - 星辰手机商店" },
-                    },
+                // 路由意图经 engine 构造第三参声明 → router 插件自举挂载（ADR-0011）
+                routes: {
+                    // hash 模式：静态托管下刷新 / 深链直达均可用；
+                    // base 不显式声明 → 按 URL 目录自动推断为本示例目录
+                    mode: "hash",
+                    routes: [
+                        { path: "/", title: "首页", view: "views/home.html", data: true, default: true },
+                        { path: "/news", title: "新闻", view: "views/news.html", data: true },
+                        { path: "/products", title: "产品", view: "views/products.html", data: true },
+                        { path: "/services", title: "服务", view: "views/services.html", data: true },
+                        { path: "/about", title: "关于", view: "views/about.html", data: true },
+                        { path: "/cart", title: "购物车", view: "views/cart.html" },
+                        { path: "/login", title: "登录", view: "views/login.html", data: true },
+                    ],
+                    head: { titleTemplate: "%s - 星辰手机商店" },
                 },
-            );
+            },
+        );
 
-            // router 实例挂在宿主上，供命令式导航（登录/结算跳转）
-            const router = host.router;
-        </script>
-    </body>
+        // router 实例挂在宿主上，供命令式导航（登录/结算跳转）
+        const router = host.router;
+    </script>
+</body>
+
 </html>

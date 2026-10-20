@@ -1052,7 +1052,7 @@ describe("url 远程加载（ADR-0119）", () => {
         globalThis.fetch = realFetch;
     });
 
-    test("组件优先：远程 x-define 声明匹配名 → 面板先开（x-loading）→ 组件附加、x-loading 摘除", async () => {
+    test("组件优先：远程 x-define 声明匹配名 → 面板先开（骨架锚内 x-loading）→ 组件附加、loading 随锚摘除", async () => {
         let resolveFetch!: (v: Response) => void;
         globalThis.fetch = (async () => new Promise<Response>((r) => (resolveFetch = r))) as any;
         const { engine } = mountOverlay(
@@ -1063,18 +1063,25 @@ describe("url 远程加载（ADR-0119）", () => {
         );
         engine.state.ui.open = true;
         await nextTick();
-        // 面板先开（shell + x-loading 占位），加载仍在途
+        // 面板先开（shell 骨架 + 出口内 loading 占位），加载仍在途。
+        // loading 挂在占位锚上（shell 内容出口内部）——面板层不挂 x-loading（ADR-0119：
+        // 骨架 shell 先可见，loading 在 shell 中呈现，自定义外壳层不被遮盖）
         const mask = maskOf("remote")!;
         expect(mask).not.toBeNull();
         const panel = mask.querySelector(".autospark-dialog") as HTMLElement;
-        expect(panel.hasAttribute("x-loading")).toBe(true);
-        expect(panel.querySelector("[data-overlay-remote-pending]")).not.toBeNull();
-        // 放行加载：组件原位附加、x-loading 摘除
+        expect(panel.hasAttribute("x-loading")).toBe(false);
+        const anchor = panel.querySelector("[data-overlay-remote-pending]") as HTMLElement;
+        expect(anchor).not.toBeNull();
+        expect(anchor.hasAttribute("x-loading")).toBe(true);
+        // 骨架化：锚自带最小尺寸（面板骨架可见，非塌缩空壳）
+        expect(anchor.style.minWidth).toContain("240px");
+        expect(anchor.style.minHeight).toContain("120px");
+        // 放行加载：组件原位附加、占位锚（含 loading）换出
         resolveFetch(new Response(`<div x-define="remote"><span>远程组件</span></div>`));
         await new Promise((r) => setTimeout(r, 20));
-        expect(panel.hasAttribute("x-loading")).toBe(false);
         expect(panel.textContent).toContain("远程组件");
         expect(panel.querySelector("[data-overlay-remote-pending]")).toBeNull();
+        expect(panel.querySelector(".x-loading-overlay")).toBeNull(); // loading 无残留
     });
 
     test("片段兜底：无匹配名声明 → 片段子模板编译（指令生效、读消费处 state 响应式）", async () => {
@@ -1098,7 +1105,7 @@ describe("url 远程加载（ADR-0119）", () => {
             engine.logger.warn = orig;
         }
         const panel = maskOf("remote")!.querySelector(".autospark-dialog") as HTMLElement;
-        expect(panel.hasAttribute("x-loading")).toBe(false);
+        expect(panel.querySelector(".x-loading-overlay")).toBeNull(); // loading 无残留
         expect(panel.textContent).toContain("片段: 本地数据"); // 消费处 state 可读
         expect(panel.textContent).toContain("加粗");
         expect(panel.textContent).not.toContain("其他组件"); // 声明元素剪枝
@@ -1108,6 +1115,27 @@ describe("url 远程加载（ADR-0119）", () => {
         engine.state.label = "更新";
         await nextTick();
         expect(panel.textContent).toContain("片段: 更新");
+    });
+
+    test("片段兜底：插值读消费处 x-data 局部域（parent 链回退——嵌套与顶层字段）", async () => {
+        // ADR-0119 修复回归：_openRemote 以 def=null 走 declarer 解析曾得 null parentScope
+        // （rootless 化，仅全局视图可达）——缺省基准下取消费处 scope 为父（远程组件声明处
+        // = x-import ownerScope = 消费者 scope，'host' 与其等价）。既有片段用例的数据挂在
+        // 全局 state 根，未能暴露此缺口，故本用例数据全部置于 x-data 局部域。
+        globalThis.fetch = (async () =>
+            new Response(`<div><span>frag: {{ui.title}}/{{top}}</span></div>`)) as any;
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-data="{ ui: { title: '局部', open: false }, top: '顶层' }">
+                <button x-dialog:remote="ui.open" x-dialog-options="{url: '/frag-local.html'}"></button>
+            </div></div>`,
+            {},
+        );
+        const scopes = (engine.store.state as any)["$scopes"] as Record<string, any>;
+        const local = Object.values(scopes).find((d: any) => d && d.ui) as any;
+        local.ui.open = true;
+        await new Promise((r) => setTimeout(r, 20));
+        const panel = maskOf("remote")!.querySelector(".autospark-dialog") as HTMLElement;
+        expect(panel.textContent).toContain("frag: 局部/顶层");
     });
 
     test("加载失败：autospark.error 占位 + retry 原位重载成功；成功后进 keepalive 缓存", async () => {
