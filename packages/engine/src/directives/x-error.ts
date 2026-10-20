@@ -94,6 +94,8 @@ interface PresentState {
     overlayScope?: AutoSparkScope | null;
     /** error 事件的 target（action 源 = 原触发元素，retry ctx 的 el） */
     triggerEl?: HTMLElement;
+    /** load 源重试弹药（dispatchLoadError detail.retry，= loader.refresh()） */
+    retryLoad?: () => Promise<unknown>;
 }
 
 /**
@@ -243,7 +245,7 @@ export class ErrorDirective extends AutoSparkDirectiveBase implements RuntimeDir
             error = { message: String(d), source: "unknown" };
         }
         const triggerEl = e.target instanceof HTMLElement ? e.target : undefined;
-        this._present(error, d && typeof d === "object" ? d : {}, triggerEl);
+        this._present(error, d && typeof d === "object" ? d : {}, triggerEl, d?.retry);
     }
 
     /**
@@ -252,26 +254,28 @@ export class ErrorDirective extends AutoSparkDirectiveBase implements RuntimeDir
      * @param error     归一化错误对象
      * @param detail    事件层 detail（含 raise 第二参透传的 props/closeable/retryable/actions）
      * @param triggerEl error 事件 target（retry ctx 的 el）
+     * @param retryLoad load 源重试弹药（dispatchLoadError detail.retry）
      */
     private _present(
         error: NormalizedError,
         detail: Record<string, any>,
         triggerEl?: HTMLElement,
+        retryLoad?: () => Promise<unknown>,
     ): void {
         this.clear();
         const behavior = this._behavior();
         if (behavior === "none") {
             // 纯消费：stopPropagation 已完成，不呈现（外层不应越级呈现内层已认领的错误）
-            this._current = { error, behavior, triggerEl };
+            this._current = { error, behavior, triggerEl, retryLoad };
             return;
         }
         if (behavior === "addErrorClass") {
             const cls = this._staticOption("errorClass") ?? DEFAULT_ERROR_CLASS;
             this.el?.classList.add(cls);
-            this._current = { error, behavior, errorClass: cls, triggerEl };
+            this._current = { error, behavior, errorClass: cls, triggerEl, retryLoad };
             return;
         }
-        this._mountOverlay(error, detail, triggerEl);
+        this._mountOverlay(error, detail, triggerEl, retryLoad);
     }
 
     /**
@@ -315,16 +319,19 @@ export class ErrorDirective extends AutoSparkDirectiveBase implements RuntimeDir
         error: NormalizedError,
         detail: Record<string, any>,
         triggerEl?: HTMLElement,
+        retryLoad?: () => Promise<unknown>,
     ): void {
         const host = this.el;
         if (!host) return;
         // closeable/retryable/actions/props 双通道合并（决策 7：事件层优先于静态层）
         const closeable = detail.closeable ?? this._staticOption("closeable") ?? true;
         let retryable =
-            detail.retryable ?? this._staticOption("retryable") ?? error.source === "action";
-        if (retryable && error.source !== "action") {
+            detail.retryable ??
+            this._staticOption("retryable") ??
+            (error.source === "action" || error.source === "load");
+        if (retryable && error.source !== "action" && error.source !== "load") {
             // raise 源无源可重（决策 7）：显式 retryable:true 也不渲染重试按钮
-            this.warn(`x-error: 非 action 源错误无源可重，重试按钮不渲染（retryable 被忽略）`);
+            this.warn(`x-error: 非 action/load 源错误无源可重，重试按钮不渲染（retryable 被忽略）`);
             retryable = false;
         }
         const rawActions = detail.actions ?? this._exprValues.actions;
@@ -387,7 +394,14 @@ export class ErrorDirective extends AutoSparkDirectiveBase implements RuntimeDir
         // actions 按钮 data-action 点击委托（ADR-0038 同款；监听器随元素生死）
         overlay.addEventListener("click", (e) => this._onOverlayClick(e, compiled.scope));
 
-        this._current = { error, behavior: "overlay", overlay, overlayScope: compiled.scope, triggerEl };
+        this._current = {
+            error,
+            behavior: "overlay",
+            overlay,
+            overlayScope: compiled.scope,
+            triggerEl,
+            retryLoad,
+        };
     }
 
     /**
@@ -417,14 +431,36 @@ export class ErrorDirective extends AutoSparkDirectiveBase implements RuntimeDir
     }
 
     /**
-     * retry 语义（决策 7，仅 `source:"action"`）：以**原 args** 重调失败 action——
-     * resolved → 自动清除呈现；rejected → buildAction 桥接派发的新 error 事件经单错误槽
-     * 自然更新呈现（此处无需处理）。不重放 triggerEl 上的 x-on 表达式（桥接在 action 层，
-     * 重试与之对称也在 action 层）。
+     * retry 语义（决策 7）：action 源以**原 args** 重调失败 action；load 源执行
+     * `detail.retry`（= loader.refresh()）——resolved → 自动清除呈现；rejected →
+     * 桥接/派发的新 error 事件经单错误槽自然更新呈现（此处无需处理）。
      */
     private _retry(): void {
         const cur = this._current;
-        if (!cur || cur.error.source !== "action" || !cur.error.action) return;
+        if (!cur) return;
+        if (cur.error.source === "load" && cur.retryLoad) {
+            try {
+                const result = cur.retryLoad();
+                if (result && typeof result.then === "function") {
+                    result.then(
+                        () => {
+                            // 守卫：重试失败时新错误已 dispatchLoadError 替换单错误槽
+                            // （_current !== cur），不可清掉新呈现；仅当前呈现仍是原错误才清除
+                            if (this._current === cur) this.clear();
+                        },
+                        () => {
+                            /* rejected：新 error 事件经单错误槽自然更新呈现 */
+                        },
+                    );
+                } else {
+                    this.clear();
+                }
+            } catch {
+                /* 同步抛错：呈现将自然更新 */
+            }
+            return;
+        }
+        if (cur.error.source !== "action" || !cur.error.action) return;
         const { action, args } = cur.error;
         const scope = (cur.triggerEl ? this.engine.findScopeByEl(cur.triggerEl) : null) ?? null;
         const ctx: AutoSparkActionContext = {

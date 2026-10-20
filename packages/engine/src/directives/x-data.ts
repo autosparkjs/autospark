@@ -5,6 +5,8 @@ import { SCOPES_KEY } from "../consts";
 import { getVal, shallow, splitPath } from "autostore";
 import type { AutoSparkScope } from "../engine/scope";
 import { AsyncSourceRunner, createAsyncOnError } from "../features/directive/async-source";
+import { dispatchLoadError, type RemoteLoadError } from "../features/directive/remote-load";
+import type { AutoSparkAction } from "../features/action/types";
 import { detectDataForm, getDirectiveAttrValue, isAsyncDataValue, isAsyncHtmlValue, mapResponse } from "../features/directive/async-source-utils";
 import type { DataScriptStash } from "../engine/compile/dataScript";
 
@@ -463,9 +465,27 @@ export class DataDirective extends AutoSparkDirectiveBase {
             onResult: (result) => this.arrive(result),
             onError: createAsyncOnError(
                 (msg) => this.warn(`x-data: ${msg}`),
-                (err) => this.setMeta(false, err),
+                (err) => {
+                    this.setMeta(false, err);
+                    // ADR-0121 决策 5：load 错误源事件派发（元键照写；x-error 在场时接管呈现）
+                    dispatchLoadError(this.el, err as RemoteLoadError, () => this.runner?.retry());
+                },
             ),
         });
+        // retry action 注入（ADR-0121 决策 4）：错误条件渲染块内 `@click="retry"` 经 getAction 链命中；
+        // 执行体恒指向当前 loader 的 refresh（url 变化重建 loader 后弹药自然跟随）。
+        // 用户同名 action 存在时不覆盖（用户声明优先）。
+        const scope = this.binding;
+        if (!scope.actions?.retry) {
+            scope.actions = {
+                ...(scope.actions ?? {}),
+                retry: {
+                    id: "retry",
+                    title: "重试",
+                    handle: () => this.runner?.retry(),
+                } as AutoSparkAction,
+            };
+        }
         this.runner.start(raw);
     }
 

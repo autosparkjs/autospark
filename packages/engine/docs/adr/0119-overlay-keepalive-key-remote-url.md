@@ -1,6 +1,6 @@
 # ADR-0119：覆盖物 keepalive / key 缓存身份 / url 远程加载
 
-- 状态：已接受（2026-10-19）
+- 状态：已接受（2026-10-19）；决策 3/4 实现形态经 [ADR-0123](0123-overlay-content-host-dual-delegation.md) 修订（2026-10-20）
 - 关联：扩展 ADR-0052 修订版（覆盖物组件化消费模型）、复用 ADR-0062（shell 机制）、ADR-0039（动画时序）、ADR-0022 决策六（x-import 远程管线）；ADR-0018 内置 error 组件
 
 ## 背景
@@ -12,6 +12,8 @@
 ### 决策 1：keepalive——整实例挂起，声明式专属
 
 `keepalive: true` 时，close 的 leave 动画播完后**不销毁**，改为容器内 `display:none` 隐藏（router keepAlive 同款语义，非摘除）：DOM、instanceScope/shellScope、watcher 全存活。重开走恢复路径：props 浅合并（仅出现的键 `Object.assign`）→ 重新 `_show()`（定位 + enter 动画 + 入栈 + 广播 open）。
+
+> **修订（ADR-0123，2026-10-20）**：恢复路径的 props 浅合并删除——内容宿主委托 x-component 后，挂起期间其 props watch 存活，恢复时无需补应用。keepalive **打开即准入**：pending 占位 / 加载中实例挂起无害（watcher 存活，恢复后继续）。
 
 关闭语义零变化：visible 回写、`overlay:close` 广播、ESC/遮罩/close action 三触点照常。
 
@@ -34,6 +36,8 @@
 
 ### 决策 3：url 远程加载——组件优先、片段兜底（双路径并存）
 
+> **修订（ADR-0123，2026-10-20）**：「组件优先、片段兜底」的探测分流语义保留，但**实现形态被取代**——overlay 不再自渲染内容（`openRemote`/`attachRemote`/`attachFragment`/`failRemote`/`beginRemoteReload`/占位锚机制/自建 error 占位/`_pendingRemoteProps`/`_fragmentCache`/`_fragmentNameWarned` 全删），改为生成内容宿主元素编译进 shell 出口：组件（含探测命中）委托 `x-component`、片段委托 `x-html.compile`；片段 props 改为程序化注入数据域（x-data 同语义）；错误通道改走 `raise` → x-error 边界（ADR-0118）；url 不缓存（片段重开重新 fetch）。「面板先开」时序保留并推广为全家族（本地/远程/pending 三态一律 shell 先开，pending = x-component pending 占位）。详见 ADR-0123 决策 1–5。
+
 `config.url` 声明后，组件未注册时打开走远程路径：**面板先开**（shell + 内容出口骨架化占位锚——锚自带最小尺寸并在锚内挂 `x-loading`），异步加载完成后原位附加内容、随锚摘 `x-loading`。
 
 > 实施修正（骨架化占位锚）：初版将 `x-loading` 挂在**面板**上——占位锚无尺寸导致面板塌缩，loading 遮罩盖住整个面板，视觉上「只见 loading 不见骨架 shell」。修正为占位锚骨架化（`min-width/min-height` 经 CSS 变量 `--autospark-overlay-loading-min-width/-min-height` 可定制，默认 240×120，锚自身 `position:relative` 作 overlay 定位基准）并把 `x-loading` 移到**锚上**：shell 骨架先可见、loading 呈现于内容出口内部（自定义 shell 的外壳层不被遮盖），附加/失败换出锚即自动摘除。
@@ -50,6 +54,8 @@
 **时序**：首次打开才加载（非指令初始化时）；url 经成员表达式管道每次打开重求值；url 变 = 新缓存身份 = 重建（旧条目活到回收点）。
 
 ### 决策 4：实例层支撑——shell-only 构建 + 延迟内容附加
+
+> **修订（ADR-0123，2026-10-20）**：shell-only 两阶段构建（占位锚 + `replaceWith` 延迟附加）随内容宿主双委托整体退役——内容宿主元素作为 shell 默认出口 live 插槽段**一次编译**进面板，无占位锚、无延迟附加、无级联死亡换轨；props 加载中暂存（`_pendingRemoteProps`）删除——pending/加载态的 props 由 x-component watch 与片段数据域小机器承接。
 
 现行构建是「先编内容组件再编 shell」（内容产物是 shell 默认出口的 live 插槽段）。远程路径需反转：`_buildShellAndMount(contentEl | null)` 统一两路径——`contentEl` 为 null 时出口放占位锚（`data-overlay-remote-pending`）并捕获内容出口（SlotDirective 出口恒留 `data-slot` 属性），附加阶段 `replaceWith` 原位换入。插槽分段延迟：打开时预收集原始子节点（`collectSlotGroups`），出口清单（def.slots）加载后才可知，attach 前按加载产物分段。
 

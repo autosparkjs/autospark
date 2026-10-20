@@ -43,8 +43,18 @@ interface AutoSparkOptions {
     debug?: boolean; // 调试日志，默认 false
     actions?: Record<string, (...args) => any>; // 全局动作表
     sanitizer?: (html: string) => string; // x-html 的 HTML 消毒器
+    fetcher?: (url: string, init: RequestInit) => Promise<Response>; // 远程加载统一出站口（ADR-0121，缺省原生 fetch）
     storeOptions?: AutoStoreOptions; // store 配置（恒消费；configManager 缺省为引擎内存实例，configKey 缺省 ''）
 }
+```
+
+`fetcher` 是全部远程加载场景（异步 x-data / x-html、x-component loader、x-import、x-isolate remote、x-icons 远程源）的统一 fetch 替换点——全局鉴权头注入 / mock / 测试注入单点完成：
+
+```javascript
+const engine = new AutoSpark(el, state, {
+    fetcher: (url, init) =>
+        fetch(url, { ...init, headers: { ...init?.headers, Authorization: `Bearer ${token}` } }),
+});
 ```
 
 ### 生命周期

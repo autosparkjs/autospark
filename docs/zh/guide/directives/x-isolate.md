@@ -80,6 +80,8 @@ engine.state.postUrl = "/posts/2.html";
 
 url 变化时销毁当前子引擎、重新 fetch、重建。加载期间自动复用 [x-loading](./x-loading.md) 显示遮罩，失败显示错误占位（`.x-isolate-error`）。
 
+**统一内核选项**（ADR-0121）：remote 通道经 `x-isolate-options` 支持 `request`（RequestInit 权威整包）/ `retry` / `retryDelay` / `timeout` / `cache`——与 [x-data 同名选项](./x-data.md#异步状态反馈) 语义一致（默认全 0）；请求统一经 `engine.options.fetcher` 出站；失败归一 `source:"load"` 并派发 error 事件，宿主或祖先声明 [x-error](./x-error.md) 时接管错误呈现（含重试按钮），无 x-error 时维持 `.x-isolate-error` 占位。
+
 ::: warning remote 模式忽略宿主内部内容
 `x-isolate="url"` 的宿主内部声明的任何内容都会被**忽略**（编译期 `warn`）——remote 与内部内容互斥，加载占位由 x-loading 遮罩承担。
 :::

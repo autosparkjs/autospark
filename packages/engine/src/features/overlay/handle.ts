@@ -9,6 +9,12 @@ import {
 } from "./types";
 import { OverlayInstance, type OverlayShellDef } from "./instance";
 import { registerInstance, getInstances } from "./registry";
+import {
+    injectErrorBridge,
+    mountComponentHost,
+    probeAndMount,
+    type OverlayHostCtx,
+} from "./contentHost";
 import { DIALOG_SHELL_NAME, POPOVER_SHELL_NAME } from "../../components";
 
 /**
@@ -96,13 +102,80 @@ export class OverlayHandle {
         const inst = new OverlayInstance(this.engine, this.name, this.snapshot, this.def, resolved, {
             parentScope,
             searchRoot: scopeEl,
-            scopeEl,
+            dataContextEl: scopeEl,
             mask,
             shell: resolveCommandShell(this.engine, this._anchorScope, this.name, resolved, mask),
         });
         registerInstance(this.snapshot, inst);
-        inst.open(props);
+        inst.open();
+        // 内容宿主编排（ADR-0123，共享实现见 contentHost.ts）：错误桥 actions 注入 → 三态
+        // 分流生成宿主。props 为打开时快照（open({props}) > 句柄级默认——JS 对象无表达式
+        // 载体，无声明式持续热更新），组件路径 JSON 序列化作 x-component 指令值、片段路径
+        // 经 initialData 注入数据域。
+        // 宿主编译父（决策 2 命令式镜像）：显式 dataContext → 基准 scope；缺省收敛消费处
+        // scope（锚点 el 所属 scope——局部 x-define 声明与内容数据上下文严格对齐）。
+        const hostParent = resolved.dataContext === undefined ? this._anchorScope : parentScope;
+        const ctx = this._hostCtx(hostParent);
+        const url = typeof resolved.url === "string" ? resolved.url.trim() : "";
+        const propsText = this._serializeProps(props);
+        const regenerate = () => {
+            const found = ctx.findComponent(this.name);
+            if (found) {
+                mountComponentHost(ctx, inst, this.name, found.def, propsText, null);
+            } else if (url !== "") {
+                void probeAndMount(ctx, inst, this.name, url, null, propsText, () => props);
+            } else {
+                // pending（ADR-0123 决策 1）：面板已开 + x-component pending 占位（注册后自动挂载）
+                this.engine.logger.warn(
+                    `engine.getOverlay("${this.name}"): 组件当前不可达（锚点 scope 可能已销毁），面板已开并显示加载占位——组件注册后自动挂载（ADR-0123）`,
+                );
+                mountComponentHost(ctx, inst, this.name, null, propsText, null);
+            }
+        };
+        injectErrorBridge(ctx, inst, regenerate);
+        regenerate();
         return inst;
+    }
+
+    /**
+     * 内容宿主共享上下文（ADR-0123）：命令式通道差异注入——warn 前缀、探测注册位
+     * （锚点 scope——x-import 同款语义：注册位在宿主编译父链上可见）、组件查找
+     * （getOverlay 同源查找协议：锚点 scope 链 → 全局兜底）、宿主编译父（常量——命令式
+     * props 为打开时快照，无声明式「表达式基准随 def 就绪变化」问题）。
+     */
+    private _hostCtx(hostParent: AutoSparkScope | null): OverlayHostCtx {
+        return {
+            engine: this.engine,
+            warn: (m) => this.engine.logger.warn(`engine.getOverlay("${this.name}"): ${m}`),
+            registerScope: hostParent,
+            findComponent: (n) => {
+                const snapshot =
+                    this._anchorScope?.getComponentDeclaration(n) ??
+                    this.engine._resolveGlobalComponent(n);
+                if (!snapshot) return null;
+                return {
+                    snapshot,
+                    def:
+                        this.engine.getComponentDef(snapshot) ??
+                        this.engine.getGlobalComponentDef(n) ??
+                        null,
+                };
+            },
+            resolveParentScope: () => hostParent,
+        };
+    }
+
+    /** props 快照 → 对象字面量文本（x-component 指令值；循环引用等序列化失败 warn + 忽略） */
+    private _serializeProps(props: Record<string, any> | undefined): string | null {
+        if (props === undefined) return null;
+        try {
+            return JSON.stringify(props);
+        } catch (e: any) {
+            this.engine.logger.warn(
+                `engine.getOverlay("${this.name}"): props 序列化失败，已忽略: ${e?.message ?? e}`,
+            );
+            return null;
+        }
     }
 
     /** 关闭该覆盖物当前全部打开实例（逐个走「请求关闭」，决策 15） */

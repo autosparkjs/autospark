@@ -222,7 +222,7 @@
 | `shell` | `drawer-shell` | — | 面板外壳组件名（配置链：成员表达式 > 引擎级 `options.overlay.drawer.shell` > 内置） |
 | `border` | `true` | — | 面板 1px 边框（外壳承担） |
 | `delayClose` | `0` | — | 打开后自动关闭延迟（ms） |
-| `dataContext` | `'declarer'` | — | 数据视图基准（同 x-dialog） |
+| `dataContext` | 消费处（声明式） | — | 数据视图基准（同 x-dialog） |
 | `props`（成员属性） | 无 | — | `x-drawer-options.props` 表达式注入组件 data 域，持续热更新 |
 
 ::: info 关于指令配置体系

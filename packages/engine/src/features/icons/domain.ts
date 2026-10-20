@@ -17,6 +17,7 @@
  * 无注入权——网络时序不影响结果（决策 12）。全局远程产物经注册表 `add` 入库（`as-{name}`
  * + has/add/delete/广播全套复用）；全局待定态记于 `globalState`。
  */
+import type { AutoSpark } from "../../engine/engine";
 import type { AutoSparkScope } from "../../engine/scope";
 import { iconRegistry, GLOBAL_SYMBOL_PREFIX } from "./registry";
 import { injectSymbol, normalizeSvgSpec, removeSymbol, type SymbolSpec } from "./symbol";
@@ -75,6 +76,8 @@ export interface RegisterIconDeclInput {
     cache: number;
     /** warn 出口（compiler logger） */
     warn: (msg: string) => void;
+    /** 引擎实例（fetcher 出站口，ADR-0121） */
+    engine?: AutoSpark;
 }
 
 /**
@@ -134,7 +137,7 @@ export function registerIconDecl(input: RegisterIconDeclInput): void {
 
 /** 远程清单落地（局部物种）：fetch → 逐名解引用 → 注入/失败终态 → 变更总线唤醒 */
 function kickRemote(input: RegisterIconDeclInput, token: string): void {
-    fetchIconifySet(input.url, input.cache).then(
+    fetchIconifySet(input.url, input.cache, input.engine).then(
         (json) => {
             const td = tokenTable.get(token);
             if (!td || td.refs <= 0) return; // 归属 scope 已全部销毁（令牌回收）
@@ -185,7 +188,7 @@ function registerGlobalDecl(input: RegisterIconDeclInput): void {
     for (const name of input.remoteNames) {
         globalState.set(name, { owner: seq, state: "pending" });
     }
-    fetchIconifySet(input.url, input.cache).then(
+    fetchIconifySet(input.url, input.cache, input.engine).then(
         (json) => {
             for (const name of input.remoteNames) {
                 const gs = globalState.get(name);

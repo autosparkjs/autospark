@@ -185,6 +185,21 @@ url 形态是声明式幂等取数（GET 为主）；action 形态覆盖命令�
 | `loading` | 自动   | `false` 恒关；`{...}` 直传 x-loading 配置（message/color/delay…）                        |
 | `method`  | `GET`  | url 形态直传 fetch                                                                      |
 | `header`  | —      | url 形态额外 HTTP 头（静态对象）                                                        |
+| `request` | —      | RequestInit 权威整包通道（显式键优先于 `method`/`header` 简写；`signal` 由内核接管）     |
+| `retry`   | `0`    | 失败自动重试次数（除主动 abort 外全错误重试，含 4xx / 解析错误）                          |
+| `retryDelay` | `0` | 重试间隔毫秒（平坦间隔，无退避）                                                          |
+| `timeout` | `0`    | 超时毫秒（0 = 不限）；超时算可重试失败；action 形态语义为「放弃等待」（不能中止执行中的 action） |
+| `cache`   | `0`    | 缓存毫秒 TTL（0 = 不缓存；同 url 跨实例命中）                                            |
+
+**远程加载统一内核**（ADR-0121）：url / action 形态均由 AsyncLoader 内核执行——中止 / 超时 / 重试 / 缓存全家族一致；请求统一经 `engine.options.fetcher`（缺省原生 fetch）出站，全局鉴权 / mock / 测试注入单点替换：
+
+```ts
+new AutoSpark(el, state, {
+  fetcher: (url, init) => fetch(url, { ...init, headers: { ...init?.headers, Authorization: `Bearer ${token}` } }),
+});
+```
+
+**错误呈现与手动重试**：失败归一为 `{ name, message, url?, statusCode?, source:"load" }`（`$error` 元键照写）；宿主或祖先声明 [x-error](./x-error.md) 时由 x-error 接管呈现（含重试按钮）；宿主 scope 自动注入 `retry` action（`@click="retry"` 手动重取，执行体 = 重新加载）。
 
 <demo html="data/async-loading.html"/>
 

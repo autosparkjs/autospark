@@ -566,9 +566,9 @@ describe("IconifyJSON 远程源（ADR-0058 决策 8/9/11，mock fetch）", () =>
         mount(decl, {});
         await nextTick();
         expect(localStorage.getItem(key)).not.toBeNull();
-        // 改写落盘时刻为已过期（ttl=100ms，t 回拨 1s）
+        // 改写落盘时刻为已过期（AsyncLoader CacheItem 格式：{ value, timestamp }）
         const entry = JSON.parse(localStorage.getItem(key)!);
-        entry.t = Date.now() - 1000;
+        entry.timestamp = Date.now() - 1000;
         localStorage.setItem(key, JSON.stringify(entry));
         resetIconCacheForTest();
         const { root } = mount(decl, {});

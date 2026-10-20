@@ -74,7 +74,7 @@
 
 ### 容错
 
-- 网络错误 / HTTP 非 2xx → `warn` + 该 url 组件视为未注册（**不阻断其余 url 的加载**）；
+- 网络错误 / HTTP 非 2xx → `warn` + 该 url 组件视为未注册（**不阻断其余 url 的加载**）；失败归一 `source:"load"` 并向宿主派发 error 事件（ADR-0121）——宿主或祖先声明 [x-error](./x-error.md) 时可捕获（无宿主呈现面，x-error 的 overlay 呈现在 x-error 宿主上）；
 - **url 缓存**：同一 url 重复 import 命中缓存，不重复 fetch；
 - **循环 import 检测**：A import B、B import A 的环被检测并中断该导入链（`warn`）；
 - **覆盖同名组件**：加载的组件与已注册同名时 `warn` + 以远程版覆盖（后续实例化用远程版，已实例化不受影响）——`x-import` 与 `x-component` 的 loader 直接形式同一口径；
@@ -82,11 +82,16 @@
 
 加载管线（fetch / url 缓存 / 循环检测 / 注册 / 广播）由 engine 单一入口 `importComponentsFromUrl` 承担——与 `x-component` 的 loader 直接形式完全共享（ADR-0066），url 缓存跨指令生效。
 
+**统一内核选项**（ADR-0121）：`x-import-options` 支持 `request`（RequestInit 权威整包，`method`/`header` 为便捷简写）/ `retry` / `retryDelay` / `timeout` / `cache`——与 [x-data 同名选项](./x-data.md#异步状态反馈) 语义一致（默认全 0）；请求统一经 `engine.options.fetcher` 出站。
+
 ## 配置选项
 
 | 配置项   | 默认值 | 修饰符   | 说明                                                                                                       |
 | -------- | ------ | -------- | ---------------------------------------------------------------------------------------------------------- |
 | `global` | `false` | `.global` | 注册为全局组件（`engine.options.components`），等价 `x-import-options="{global:true}"` 或宿主 `x-options` |
+| `request` | — | — | RequestInit 权威整包通道（显式键优先于 `method`/`header` 简写） |
+| `method` / `header` | `GET` / — | — | fetch 方法 / 额外请求头便捷简写 |
+| `retry` / `retryDelay` / `timeout` / `cache` | 全 `0` | — | 统一内核选项（ADR-0121）：重试次数 / 平坦间隔毫秒 / 超时毫秒 / 同 url 缓存毫秒 TTL |
 
 `name` 是原生 HTML 属性（非指令选项），见[name 属性校验](#name-属性校验)。
 

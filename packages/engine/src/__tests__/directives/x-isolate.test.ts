@@ -196,11 +196,53 @@ describe("x-isolate 远程子引擎", () => {
         expect(root.querySelector("span")?.textContent).toBe("LATE");
     });
 
-    test("remote：fetch 失败 → 错误占位（不静默）", async () => {
+    test("remote：fetch 失败 → 内置 autospark.error 错误块（ADR-0121 契约注入，不静默）", async () => {
         mockFetch({}); // 所有 url 404
         const { root } = mount(`<div x-isolate="url"></div>`, { url: "/bad" });
         await nextTick();
-        expect(root.querySelector(".x-isolate-error")).not.toBeNull();
+        const block = root.querySelector(".as-error");
+        expect(block).not.toBeNull();
+        // 契约注入：message 含 url 与状态码；retryable/closeable 默认 true → 两按钮渲染
+        expect(block?.querySelector(".as-error-message")?.textContent).toContain("/bad");
+        expect(block?.querySelector(".as-error-message")?.textContent).toContain("404");
+        const buttons = block?.querySelectorAll("button") ?? [];
+        expect(buttons.length).toBe(2);
+    });
+
+    test("remote：错误块重试按钮 → refresh 重取，成功后替换为 child engine 产物", async () => {
+        let ok = false;
+        globalThis.fetch = (async () => {
+            fetchCalls.push("/flaky");
+            if (!ok) return { ok: false, status: 500, text: async () => "" } as any;
+            return { ok: true, status: 200, text: async () => `<span>RETRY-OK</span>` } as any;
+        }) as any;
+        const { root } = mount(`<div x-isolate="url"></div>`, { url: "/flaky" });
+        await nextTick();
+        const retryBtn = root.querySelector(".as-error button") as HTMLButtonElement;
+        expect(retryBtn).not.toBeNull();
+        ok = true;
+        retryBtn.click();
+        await nextTick();
+        expect(root.querySelector(".as-error")).toBeNull(); // 错误块被产物替换
+        expect(root.querySelector("span")?.textContent).toBe("RETRY-OK");
+        expect(fetchCalls.length).toBe(2);
+    });
+
+    test("remote：x-error 在场 → 默认错误块退位，x-error 接管呈现", async () => {
+        mockFetch({}); // 所有 url 404
+        const { root } = mount(
+            `<div x-error><div x-isolate="url"></div></div>`,
+            { url: "/bad" },
+        );
+        await nextTick();
+        // 隔离宿主（编译后 x-isolate 属性已剥除）：root > x-error > host
+        const host = root.querySelector("div > div > div") as HTMLElement | null;
+        // 宿主内不再渲染默认错误块（呈现被 x-error 接管为 overlay）
+        expect(host?.innerHTML).not.toContain("as-error");
+        // x-error overlay 已挂载（宿主父元素上 absolute 覆盖层；message 为归一化错误消息）
+        const overlay = root.querySelector(".as-error");
+        expect(overlay).not.toBeNull();
+        expect(overlay?.textContent).toContain("404");
     });
 
     test("remote：fetch 期间经 x-loading 显示遮罩，完成后移除并替换为产物", async () => {

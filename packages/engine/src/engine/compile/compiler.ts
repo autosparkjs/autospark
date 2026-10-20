@@ -728,6 +728,7 @@ export class AutoSparkCompiler {
             modify,
             cache,
             warn,
+            engine: this.engine,
         });
         return null;
     }

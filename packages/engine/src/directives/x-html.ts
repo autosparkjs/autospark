@@ -3,6 +3,8 @@ import { sanitizeHtml } from "../utils/sanitize";
 import { createEmptyRenderer, resolveEmptyValues } from "../features/directive/utils/emptyPlaceholder";
 import { recompileSubtree } from "../utils/recompileSubtree";
 import { AsyncSourceRunner, createAsyncOnError } from "../features/directive/async-source";
+import { dispatchLoadError, type RemoteLoadError } from "../features/directive/remote-load";
+import type { AutoSparkAction } from "../features/action/types";
 import { isAsyncHtmlValue } from "../features/directive/async-source-utils";
 import { getId } from "../utils/getId";
 import {
@@ -273,9 +275,26 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
             onResult: (value) => this._arrive(value),
             onError: createAsyncOnError(
                 (msg) => this.warn(`x-html: ${msg}`),
-                (err) => { this._fail(err); },
+                (err) => {
+                    this._fail(err);
+                    // ADR-0121 决策 5：load 错误源事件派发（内部态照写；x-error 在场时接管呈现）
+                    dispatchLoadError(this.el, err as RemoteLoadError, () => this.runner?.retry());
+                },
             ),
         });
+        // retry action 注入（ADR-0121 决策 4）：错误条件渲染块内 `@click="retry"` 经 getAction 链命中；
+        // 用户同名 action 存在时不覆盖（用户声明优先）。
+        const scope = this.binding;
+        if (!scope.actions?.retry) {
+            scope.actions = {
+                ...(scope.actions ?? {}),
+                retry: {
+                    id: "retry",
+                    title: "重试",
+                    handle: () => this.runner?.retry(),
+                } as AutoSparkAction,
+            };
+        }
         this.runner.start(raw);
     }
 

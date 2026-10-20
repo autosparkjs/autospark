@@ -8,9 +8,13 @@ import {
 } from "../overlay/instance";
 import { resolveOverlayConfig } from "../overlay/handle";
 import { buildOverlayCacheKey, resolveDataContext, type OverlayConfig } from "../overlay/types";
-import { collectSlotGroups, collectSlotSegments, type SlotContent } from "../../utils/slot";
-import { fetchHtml } from "../../utils/fetchHtml";
-import { parseHtmlFragment } from "../../utils/transformElement";
+import { collectSlotGroups } from "../../utils/slot";
+import {
+    injectErrorBridge,
+    mountComponentHost,
+    probeAndMount,
+    type OverlayHostCtx,
+} from "../overlay/contentHost";
 import {
     DIALOG_SHELL_NAME,
     DRAWER_SHELL_NAME,
@@ -32,8 +36,8 @@ import {
  * （`x-dialog:login` 的 `login`）。本类**不注册 `presetDirectives`**（模板无 `x-overlay` 语法，
  * 旧声明指令与 `.global` 修饰符、engine 全局表已删——共识 1）。
  *
- * 继承 `ComponentDirective`（ADR-0054 更名自 UseDirective）组件实例化全套能力（`getComponentDeclaration` 查找、
- * def 反查、递归深度防护、`_waitForComponent` 等待 x-import、props 注入组件 data 域），仅覆盖三处（共识 3）：
+ * 继承 `ComponentDirective`（ADR-0054 更名自 UseDirective）组件查找能力（`getComponentDeclaration`
+ * 查找、def 反查、递归深度防护），仅覆盖关键分歧（共识 3）：
  *
  * 1. **值语义**：组件名来自 attr（与 x-component 同一载体约定）；值专职 visible 布尔控制
  *    （子类解析，见 DialogDirective；对象形态已删除，ADR-0052 v2.3）；
@@ -41,14 +45,35 @@ import {
  * 3. **目的地**：body 容器新实例（`OverlayInstance`，x-component 为宿主原地化身）——跳过
  *    `_mergeComponentRootAttrs` 属性继承。
  *
+ * **内容宿主双委托（ADR-0123）**：overlay 不再自渲染内容——按组件注册状态生成内容宿主元素
+ * 以消费处 scope 为父 wrapper-compile 编译进 shell 出口的 x-error 边界，渲染全委托：
+ * - **组件已注册 / 探测命中 / pending（未注册无 url）** → 宿主 `x-component:名称="props表达式文本"`
+ *   （指令值 props 通道，ADR-0110——三形态 + 持续热更新契约零变化；pending 占位 +
+ *   component/registered 重试为 x-component 既有能力，ADR-0022 R6=B）；
+ * - **未注册 + 声明 url** → 探测管线（importComponentsFromUrl：fetch + 解析 + 注册到消费处
+ *   scope + url 缓存，x-import 同款）后分流——同名 `x-define` 命中转组件形态（远程模板其余
+ *   内容放弃），未命中转片段宿主 `x-html.compile="url"`（url 形态 fetch → 子模板编译，
+ *   `$loading`/`$error` 元键、竞态丢弃、中止策略全继承，ADR-0035/0017/0122）。
+ *
+ * **props 契约（ADR-0123 决策 3）**：组件路径 props 表达式文本直接作 x-component 指令值；
+ * 片段路径模板没有 props 概念——props 求值快照经 compileChild initialData 注入 wrapper
+ * scope 响应式 data 域（x-data 同语义），`_onPropsChange` 热应用 `Object.assign`（浅值
+ * 比较守卫）。**时序统一「shell 先开」**：三态一律先开面板（x-error 边界兼加载锚呈现
+ * x-loading 骨架），pending 从「不开面板只 warn」改为开面板 + 占位。
+ *
+ * **错误通道（ADR-0123 决策 4）**：探测失败 / 片段加载失败（watch 宿主 scope `$error` 元键）
+ * 统一在 x-error 边界上派发 raise 同款 error 事件（ADR-0118 契约），呈现归边界 x-error 就近
+ * 捕获；retry/close 经 `overlayRetry`/`overlayClose` 自定义 action（注入边界 scope 的
+ * actions 通道）——retry 销毁内容宿主重走探测/生成（原位重载），close 请求关闭面板。
+ *
  * props 通道（ADR-0052 v2.3）：**唯一声明式通道 = 选项成员属性** `x-dialog-options.props`（或定向
  * `x-dialog-options:<组件名>.props`，ADR-0007 修订）——值为表达式，三形态与 x-component 值同构
- * （无属性 = 无 props / 对象字面量（成员任意表达式）/ 纯状态路径按需展开），**持续热更新**：值变
- * 经浅值比较后 `Object.assign` 进活跃实例数据域（组件内部状态不重置）。
+ * （无属性 = 无 props / 对象字面量（成员任意表达式）/ 纯状态路径按需展开），**持续热更新**。
  *
  * 配置两级链（v2.3）：`内置默认（基座） < x-dialog-options`（值对象内联层随对象形态删除）。
- * 数据视图基准 dataContext（共识 8；ADR-0053 修订更名自 `scope`）：`'declarer'`（默认，挂声明处
- * scope=定义闭包）| `'host'`（消费处）；硬切无旧键兼容（开发阶段，ADR-0053 修订）。
+ * 数据视图基准 dataContext（共识 8；ADR-0053 修订更名自 `scope`）：显式声明经
+ * `resolveDataContext` 解析保留；**缺省收敛消费处 scope**（宿主编译父 = `this.binding`——
+ * props 表达式上下文与既有 watch 严格对齐，ADR-0123 决策 2）。
  */
 /**
  * 形态键（`overlayKind`，兼 `options.overlay.{kind}` 配置键）→ 内置 shell 注册名
@@ -86,7 +111,8 @@ export abstract class OverlayDirective extends ComponentDirective {
      * 覆盖物组件名 = 消费 attr 名（x-dialog:login 的 login）。keepalive 修饰符糖（ADR-0119）
      * 无需在此剥离——解析器把 `:` 后首段定为 attr、`.` 后段定为 modifiers（getDirectives），
      * attr 天然不含修饰符段；糖义经 modifier→options 注入（ADR-0007：无参开关等价
-     * options[name]=true，显式选项优先）自动进入配置合并链。
+     * options[name]=true，显式选项优先）自动进入配置合并链。点号组件名（`autospark.*`）
+     * 经 x-component `_resolveComponentName` 升序回溯重建（ADR-0088），宿主 attr 原样写全名。
      */
     protected get overlayName(): string {
         return this.attr ?? "";
@@ -106,22 +132,16 @@ export abstract class OverlayDirective extends ComponentDirective {
 
     /** 当前活跃实例（visible 驱动；声明式单驱动点至多一个活跃实例，关闭后残留引用经 destroyed 守卫） */
     protected _overlayInstance: OverlayInstance | null = null;
-    /** 当前驱动状态（visible 真值；子类 watch 维护——等待的组件就绪后据此决定是否打开） */
+    /** 当前驱动状态（visible 真值；子类 watch 维护） */
     protected _driveOn = false;
-    /** 当前求值 props（选项成员属性 props 的表达式产物；undefined = 无 props） */
+    /** 当前求值 props（选项成员属性 props 的表达式产物；undefined = 无 props）——片段数据域热应用源 */
     protected _props: Record<string, any> | undefined;
-    /** 上次热应用到活跃实例的 props（浅值比较基准，复用 ComponentDirective._propsEqual） */
+    /** 上次热应用到片段数据域的 props（浅值比较基准，复用 ComponentDirective._propsEqual） */
     private _appliedProps: Record<string, any> | undefined;
     /** keepalive 挂起实例缓存（ADR-0119）：cacheKey → 实例——同键复用防重复堆叠；指令销毁统一回收 */
     private _keepaliveCache = new Map<string, OverlayInstance>();
-    /** 进行中的远程加载中止器（ADR-0119：retry 重载/指令销毁抢占旧请求） */
+    /** 进行中的探测中止器（ADR-0119 → ADR-0123 保留：retry 重载/指令销毁抢占旧探测） */
     private _remoteAbort: AbortController | null = null;
-    /** 远程加载中的 props 暂存（ADR-0119：面板已开、内容未附加时段的 _onPropsChange 值，attach 时应用） */
-    private _pendingRemoteProps: Record<string, any> | undefined;
-    /** 片段兜底文本缓存（ADR-0119）：url → 原始 HTML——同 url 重开免重复网络请求；失败不缓存 */
-    private _fragmentCache = new Map<string, string>();
-    /** 片段兜底「名字不匹配」提示去重（per url+name 一次——typo 可发现性，非失败） */
-    private _fragmentNameWarned = new Set<string>();
 
     /** 模态遮罩外壳（DialogDirective 覆盖 true；基座默认裸面板直挂容器——未来形态定制点） */
     protected get _modalMask(): boolean {
@@ -138,6 +158,8 @@ export abstract class OverlayDirective extends ComponentDirective {
         }
         // props 通道（ADR-0052 v2.3）：先于通用管道单独订阅（纯状态路径形态需 depth:2 深层响应，
         // 对齐 x-component props 的订阅参数），通用管道跳过 props 键避免同一表达式双 watcher。
+        // 求值产物（_props）供片段数据域热应用（ADR-0123 决策 3）；组件路径 props 走
+        // x-component 指令值通道自治，本 watcher 求值仅为维护片段热应用源。
         const propsExpr = this.info.optionExprs?.props;
         let skip: string[] | undefined;
         if (propsExpr !== undefined) {
@@ -165,9 +187,9 @@ export abstract class OverlayDirective extends ComponentDirective {
         this._watchOptionExprs(skip);
     }
 
-    /** 打开（visible 真值路径）：查找 → 防护 → 配置链 → 实例化到 body 容器（props 取当前求值值） */
+    /** 打开（visible 真值路径）：查找 → 防护 → 配置链 → 实例化到 body 容器（props 走指令值通道） */
     protected _open(): void {
-        this._instantiate(this.overlayName, this._props);
+        this._instantiate(this.overlayName);
     }
 
     /** 状态归假的关闭路径：直接 UI 关闭（状态已是唯一真相源，不走写回——ADR-0052 决策 7） */
@@ -179,8 +201,9 @@ export abstract class OverlayDirective extends ComponentDirective {
     /**
      * props 值变化（对齐 x-component `_onValueChange` 容错）：对象 → props 集合（v-bind="obj" 心智）；
      * null/undefined → 无 props（绑定的状态对象尚未就绪，静默）；数组/标量 → warn 忽略。
-     * 活跃实例在场 → 浅值比较后**热应用**（`Object.assign` 进实例数据域，只覆盖出现键、组件内部
-     * 状态不被重置——v2.3 唯一热应用成员）；组件 pending 中 → 更新 pendingProps（就绪重试用最新值）。
+     * 片段形态活跃实例在场 → 浅值比较后**热应用**（`Object.assign` 进片段数据域，只覆盖出现键
+     * ——ADR-0123 决策 3）；组件形态 props 走 x-component 指令值通道自治（宿主生成时的表达式
+     * 文本 + x-component watch），此处不双重热应用。
      */
     private _onPropsChange(value: any): void {
         let props: Record<string, any> | undefined;
@@ -197,32 +220,25 @@ export abstract class OverlayDirective extends ComponentDirective {
         }
         this._props = props;
         const inst = this._overlayInstance;
-        if (inst && !inst.destroyed && inst.visible && inst.instanceScope?.data) {
+        if (inst && !inst.destroyed && inst.isFragment && inst.instanceScope?.data) {
             if (!this._propsEqual(props, this._appliedProps)) {
                 if (props) Object.assign(inst.instanceScope.data, props);
                 this._appliedProps = props;
             }
-            return;
         }
-        // 远程加载中（面板已开、内容未附加，ADR-0119）：暂存 props，attachRemote 时应用
-        if (inst && !inst.destroyed && inst.visible && !inst.instanceScope) {
-            this._pendingRemoteProps = props;
-            return;
-        }
-        if (this.pendingName) this.pendingProps = props;
     }
 
     /**
      * 目的地覆盖（共识 3-3）：body 容器新实例（x-component 为宿主原地化身）——跳过 `_mergeComponentRootAttrs`。
-     * 共享 x-component 的查找（`_findComponentDef`）、递归防护（`_recursiveDepth`）、等待
-     * （`_waitForComponent`，组件经 x-import 就绪后自动重试）。
+     * 共享 x-component 的查找（`_findComponentDef`）、递归深度防护（`_recursiveDepth`）。
      *
-     * keepalive（ADR-0119）：配置解析前置——同键（`组件名 + key + url`）有存活挂起实例 → 复用
-     * （open 恢复，防重复堆叠）；keepalive 修饰符糖经解析器 modifier→options 注入（ADR-0007）
-     * 进入配置链。url 远程路径：组件未注册且声明 `config.url` → 面板先开 + 异步加载
-     * （{@link _openRemote}），不走 `_waitForComponent`。
+     * **ADR-0123 统一编排**：keepalive 缓存身份（`组件名 + key + url`）同键挂起实例复用（open
+     * 恢复）；实例创建即写入缓存（**打开即准入**，决策 5——pending 占位挂起无害）。实例 open
+     * （shell 先开 + x-error 边界加载锚）后注入错误桥 actions，再按组件注册状态生成内容宿主
+     * （共享实现见 `overlay/contentHost.ts`）：已注册 → 组件宿主；未注册 + url → 探测分流；
+     * 未注册无 url → pending 宿主（x-component 占位 + registered 重试，warn 保留）。
      */
-    protected override _instantiate(name: string, props: Record<string, any> | undefined): void {
+    protected override _instantiate(name: string): void {
         // 配置两级链（v2.3）：内置默认 < x-dialog-options（静态整包层 + 成员表达式层，各自
         // 归一化后 deepMerge——标量键表达式整键覆盖静态；at 等结构键简写经逐层归一化保留
         // 上层其余成员，v2.1 简写局部覆盖语义不变）。整包内嵌的 props 键已剥离（数据不走配置链）。
@@ -235,219 +251,141 @@ export abstract class OverlayDirective extends ComponentDirective {
             const cached = this._keepaliveCache.get(cacheKey);
             if (cached && !cached.destroyed) {
                 this._overlayInstance = cached;
-                this._appliedProps = props;
-                cached.open(props); // 挂起态 → 恢复；已可见 → no-op（防重复堆叠）
+                cached.open(); // 挂起态 → 恢复；已可见 → no-op（防重复堆叠）
                 return;
             }
             if (cached) this._keepaliveCache.delete(cacheKey); // 已销毁残留：清位
         }
         const url = typeof config.url === "string" ? config.url.trim() : "";
         const found = this._findComponentDef(name);
-        // 远程路径（ADR-0119）：组件未注册且声明 url → 面板先开（shell + x-loading）+ 异步加载
-        if (!found && url !== "") {
-            this._openRemote(name, config, cacheKey, props, url);
-            return;
-        }
-        if (!found) {
-            // 未命中（可能正被 x-import 异步加载）：warn + 等待就绪（visible 仍真则自动打开）
-            this.warn(
-                `${this.directiveLabel}:${this.attr}: 未找到覆盖物组件 "${name}"（scope 链与全局均未命中，等待 x-import 就绪后重试）`,
-            );
-            this._waitForComponent(name, props);
-            return;
-        }
-        // 递归深度防护（T5=A，与 x-component 共享）
-        if (this._recursiveDepth(name) >= ComponentDirective.MAX_DEPTH) {
+        // 递归深度防护（T5=A，与 x-component 共享；未注册组件无递归风险，仅已注册路径前置判定）
+        if (found && this._recursiveDepth(name) >= ComponentDirective.MAX_DEPTH) {
             this.warn(
                 `${this.directiveLabel}:${this.attr}: 组件 "${name}" 递归实例化深度超过上限（${ComponentDirective.MAX_DEPTH}），已停止（疑似无终止条件递归）。`,
             );
             return;
         }
-        const { parentScope, scopeEl } = this._resolveParentScope(config, found.def);
-        // 插槽内容懒收集（ADR-0056 决策十修订）：宿主子节点只属于宿主（按钮标签等不参与），
-        // 内容必须显式声明——带 x-slot 标记的直接子级隐式归属唯一消费者，多消费者须用
-        // x-slots="组件名" 归属容器分组；从只读 template 克隆，宿主子节点保留。
-        const slots = found.def?.slots;
-        const slotContents = this._collectSlotContents(name, slots);
+        // 插槽内容预收集（原始子节点，ADR-0056 决策十修订）：组件宿主克隆移入宿主子级
+        // （x-component 收集分段投影承接）；片段路径无出口概念——生成时 warn 丢弃
+        const group = this._collectSlotGroup(name);
         // shell 解析（ADR-0062）：面板外壳组件（config.shell > 引擎级默认 > 内置默认）
         const shell = this._resolveShell(config);
         // 宿主不清空：ownsChildren=false 下子节点是宿主自身内容（按钮标签等），照常保留
-        const inst = new OverlayInstance(this.engine, name, found.snapshot, found.def, config, {
-            parentScope,
+        const inst = new OverlayInstance(this.engine, name, document.createElement("div"), null, config, {
+            parentScope: this.binding,
             searchRoot: this.el ?? null,
-            scopeEl,
             mask: this._modalMask,
             shell,
             positioner: this._positioner(),
-            slotContents,
-            slotCallerScope: this.binding,
             onPanelReady: (ctx) => this._attachResize(ctx),
             cacheKey,
         });
+        inst.onCloseRequest = this._makeCloseRequest();
         this._overlayInstance = inst;
-        this._appliedProps = props;
+        // keepalive 打开即准入（ADR-0123 决策 5）：pending 占位/加载中挂起无害（watcher 存活）
         if (config.keepalive === true) this._keepaliveCache.set(cacheKey, inst);
-        inst.onCloseRequest = this._makeCloseRequest();
-        inst.open(props);
+        inst.open();
+        // 错误桥 actions 注入 + 三态分流生成内容宿主（ADR-0123，声明式/命令式共享实现见
+        // contentHost.ts）：初始挂载与 retry 重载共用同一三分支选择器
+        const ctx = this._hostCtx(config);
+        const regenerate = () => this._regenerateContent(inst, config, name, url);
+        injectErrorBridge(ctx, inst, regenerate);
+        regenerate();
     }
 
     /**
-     * 远程路径入口（ADR-0119）：组件未注册且声明 url——面板先开（shell + 占位锚 + x-loading），
-     * 经 x-import 管线异步加载（fetch + 解析 + 注册 + url 缓存 + 循环引用防护），成功后
-     * `attachRemote` 原位附加（此后与本地构建实例完全同权），失败 `failRemote` 错误占位
-     * （不自动关；失败不进 keepalive 缓存——重开自然重试）。名字不匹配 warn 双方名字、按
-     * 失败处理（组件已按声明名注册，下次打开重试查找）。
+     * 内容宿主共享上下文（ADR-0123）：声明式通道差异全部注入——warn 前缀、探测注册位
+     * （`this.binding.parent`，x-import 同款）、组件查找（x-component 同源协议）、宿主编译父
+     * 解析（缺省收敛消费处 scope `this.binding`——props 表达式上下文与既有 watch 严格对齐，
+     * 决策 2；显式 dataContext 经 `_resolveParentScope` 两栖分派）、片段 props 热应用守卫
+     * 基线维护。
      */
-    private _openRemote(
-        name: string,
-        config: OverlayConfig,
-        cacheKey: string,
-        props: Record<string, any> | undefined,
-        url: string,
-    ): void {
-        // def=null（组件未加载）→ declarer 基准解析必得 null（declarerScope 悬空防御）→ 片段/级联
-        // 全部 rootless 化，消费处局部数据域不可达。远程内容的数据基准取消费处 scope（'host'）：
-        // 远程组件的声明处（x-define 注册点）= x-import ownerScope = 消费者 scope，与其等价；
-        // 显式声明 dataContext 者照旧走 resolveDataContext（保留防御语义）。
-        const resolved =
-            config.dataContext === undefined
-                ? { parentScope: this.binding.parent, scopeEl: null }
-                : this._resolveParentScope(config, null);
-        const { parentScope } = resolved;
-        // 插槽内容预收集（原始子节点）：出口清单（def.slots）远程加载后才可知——分段延迟到 attach
-        const remoteGroup = this._collectSlotGroup(name);
-        const shell = this._resolveShell(config);
-        // 快照占位（远程路径 registry 不登记，注销 no-op；身份由 attachRemote 重指向）
-        const inst = new OverlayInstance(
-            this.engine,
-            name,
-            document.createElement("div"),
-            null,
-            config,
-            {
-                parentScope,
-                searchRoot: this.el ?? null,
-                mask: this._modalMask,
-                shell,
-                positioner: this._positioner(),
-                slotContents: null,
-                slotCallerScope: this.binding,
-                onPanelReady: (ctx) => this._attachResize(ctx),
-                cacheKey,
+    private _hostCtx(config: OverlayConfig): OverlayHostCtx {
+        return {
+            engine: this.engine,
+            warn: (m) => this.warn(`${this.directiveLabel}:${this.attr}: ${m}`),
+            registerScope: this.binding.parent,
+            findComponent: (n) => this._findComponentDef(n),
+            resolveParentScope: (def) =>
+                config.dataContext === undefined
+                    ? this.binding
+                    : this._resolveParentScope(config, def).parentScope,
+            onFragmentApplied: (p) => {
+                this._appliedProps = p;
             },
-        );
-        inst.onRemoteRetry = () => {
-            inst.beginRemoteReload();
-            void this._loadRemoteFor(inst, name, url, cacheKey, remoteGroup);
         };
-        this._overlayInstance = inst;
-        this._appliedProps = props;
-        inst.onCloseRequest = this._makeCloseRequest();
-        inst.openRemote();
-        void this._loadRemoteFor(inst, name, url, cacheKey, remoteGroup, props);
     }
 
     /**
-     * 远程内容加载（ADR-0119，双路径并存）：先经 x-import 管线注册尝试（fetch + 解析 +
-     * 组件注册 + url 缓存 + 循环引用防护，注册到消费处 scope `this.binding.parent`——
-     * x-import 同款），随后按内容分流：
-     * - **组件优先**：远程声明了匹配名 `x-define` → 组件路径（出口清单就绪后分段插槽、
-     *   `attachRemote`，此后与本地构建实例完全同权）；
-     * - **片段兜底**：无匹配名声明 → 原始 HTML 作为子模板编译进面板出口（`attachFragment`，
-     *   x-html.compile 同语义，可含任意指令；片段文本指令级缓存，失败不缓存）。
-     * 请求经 AbortController 中止（retry 重载/指令销毁抢占旧请求）。失败 → failRemote
-     * 错误占位（不自动关、不进 keepalive 缓存——重开自然重试）。
+     * 探测管线执行（AbortController 归本指令持有）：retry 重载 / 指令销毁抢占旧探测——
+     * 新探测发起先 abort 旧在途，finally 清理句柄。信号与失败分流归共享
+     * {@link probeAndMount}。
      */
-    private async _loadRemoteFor(
+    private _probe(
+        ctx: OverlayHostCtx,
         inst: OverlayInstance,
         name: string,
         url: string,
-        cacheKey: string,
         group: ChildNode[] | null,
-        props?: Record<string, any>,
+        propsText: string | null,
     ): Promise<void> {
         this._remoteAbort?.abort();
         const ctrl = (this._remoteAbort = new AbortController());
-        try {
-            const registered = await this.engine.importComponentsFromUrl(
-                url,
-                this.binding.parent,
-                false,
-                undefined,
-                ctrl.signal,
-            );
-            if (ctrl.signal.aborted || inst.destroyed) return;
-            if (registered === null) {
-                inst.failRemote(new Error(`远程内容加载失败（${url}）`), url);
-                return;
-            }
-            const found = this._findComponentDef(name);
-            if (found) {
-                // 组件优先：远程声明了匹配名组件 → 与本地构建实例完全同权
-                const slotContents = this._segmentRemoteSlots(name, group, found.def);
-                const applied = this._pendingRemoteProps;
-                this._pendingRemoteProps = undefined;
-                inst.attachRemote(found.snapshot, found.def, applied ?? props, slotContents);
-                this._appliedProps = applied ?? props;
-                // 成功才进 keepalive 缓存（失败不进——close 走销毁，重开自然重试）
-                if (inst.config.keepalive === true) this._keepaliveCache.set(cacheKey, inst);
-                return;
-            }
-            // 片段兜底：远程无匹配名组件声明 → HTML 片段子模板编译（x-html.compile 同语义）
-            if (registered.length > 0) {
-                // 注册了其他名组件——提示名字不匹配（typo 可发现性），非失败
-                const warnKey = `${url}::${name}`;
-                if (!this._fragmentNameWarned.has(warnKey)) {
-                    this._fragmentNameWarned.add(warnKey);
-                    this.warn(
-                        `${this.directiveLabel}:${this.attr}: 远程内容（${url}）未声明覆盖物组件 "${name}"（实际注册: ${registered.join(", ")}），已按片段编译渲染——若意图消费组件请核对 x-dialog:${name} 与远程 x-define 名（ADR-0119）`,
-                    );
-                }
-            }
-            let text = this._fragmentCache.get(url);
-            if (text === undefined) {
-                try {
-                    text = await fetchHtml(url, ctrl.signal);
-                } catch (e: any) {
-                    if (ctrl.signal.aborted || inst.destroyed) return;
-                    this.warn(
-                        `${this.directiveLabel}:${this.attr}: 远程片段（${url}）加载失败: ${e?.message ?? e}`,
-                    );
-                    inst.failRemote(new Error(`远程片段加载失败（${url}）`), url);
-                    return;
-                }
-                if (ctrl.signal.aborted || inst.destroyed) return;
-                this._fragmentCache.set(url, text);
-            }
-            const frag = parseHtmlFragment(text);
-            if (!frag) {
-                inst.failRemote(new Error(`远程片段解析为空（${url}）`), url);
-                return;
-            }
-            // 片段编译无组件出口概念——消费处声明的插槽内容无法投影，丢弃 + warn
-            if (group && group.length > 0) {
-                this.warn(
-                    `${this.directiveLabel}:${this.attr}: url 片段路径不支持插槽内容投影，已丢弃（片段编译无组件出口，ADR-0119）`,
-                );
-            }
-            // 多根片段包一层（compileChild 以单元素为编译根；wrapper 无指令属性，剥除无副作用）
-            const wrapper = document.createElement("div");
-            while (frag.firstChild) wrapper.appendChild(frag.firstChild);
-            const applied = this._pendingRemoteProps;
-            this._pendingRemoteProps = undefined;
-            inst.attachFragment(wrapper, applied ?? props);
-            this._appliedProps = applied ?? props;
-            // 成功才进 keepalive 缓存（失败不进——close 走销毁，重开自然重试）
-            if (inst.config.keepalive === true) this._keepaliveCache.set(cacheKey, inst);
-        } catch (e: any) {
-            if (ctrl.signal.aborted || inst.destroyed) return;
+        return probeAndMount(ctx, inst, name, url, group, propsText, () => this._props, ctrl.signal)
+            .finally(() => {
+                if (this._remoteAbort === ctrl) this._remoteAbort = null;
+            });
+    }
+
+    /**
+     * 三态分流选择器（ADR-0123 决策 2）：初始挂载与 retry 重载共用——重查组件注册
+     * （重试间隙组件可能已就绪：x-import 其他入口/手动注册），已注册 → 组件宿主；
+     * 未注册 + url → 探测分流；未注册无 url → pending 宿主（x-component 占位 +
+     * registered 重试，ADR-0022 R6=B）。
+     */
+    private _regenerateContent(
+        inst: OverlayInstance,
+        config: OverlayConfig,
+        name: string,
+        url: string,
+    ): void {
+        const ctx = this._hostCtx(config);
+        const found = ctx.findComponent(name);
+        const group = this._collectSlotGroup(name);
+        const propsText = this._propsValueText();
+        if (found) {
+            mountComponentHost(ctx, inst, name, found.def, propsText, group);
+        } else if (url !== "") {
+            void this._probe(ctx, inst, name, url, group, propsText);
+        } else {
+            // pending（ADR-0123 决策 1）：面板先开 + x-component pending 占位（注册后自动挂载）
             this.warn(
-                `${this.directiveLabel}:${this.attr}: 远程内容（${url}）加载失败: ${e?.message ?? e}`,
+                `${this.directiveLabel}:${this.attr}: 未找到覆盖物组件 "${name}"（scope 链与全局均未命中），面板已开并显示加载占位——组件注册后自动挂载（ADR-0123）`,
             );
-            inst.failRemote(e instanceof Error ? e : new Error(String(e)), url);
-        } finally {
-            if (this._remoteAbort === ctrl) this._remoteAbort = null;
+            mountComponentHost(ctx, inst, name, null, propsText, group);
         }
+    }
+
+    /**
+     * props 指令值文本（ADR-0123 决策 3）：成员表达式原文直作 x-component 指令值（三形态 +
+     * 持续热更新契约由 x-component 通道承接）；整包静态 props 经 JSON 序列化为对象字面量
+     * 文本（求值一次语义等价）。setAttribute 程序化写值天然防表达式内引号截断（注记 7）。
+     */
+    private _propsValueText(): string | null {
+        const expr = this.info.optionExprs?.props;
+        if (expr !== undefined && expr.trim() !== "") return expr;
+        const staticProps = this.options?.props;
+        if (staticProps !== undefined) {
+            try {
+                return JSON.stringify(staticProps);
+            } catch (e: any) {
+                this.warn(
+                    `${this.directiveLabel}:${this.attr}: 静态 props 序列化失败，已忽略: ${e?.message ?? e}`,
+                );
+                return null;
+            }
+        }
+        return null;
     }
 
     /**
@@ -501,55 +439,15 @@ export abstract class OverlayDirective extends ComponentDirective {
     }
 
     /**
-     * 收集本消费者的插槽内容（ADR-0056 决策十修订）：先按归属把宿主直接子节点分组
-     * （{@link collectSlotGroups}），再取本名组按出口清单分段。
-     *
-     * @param name  本次实例化的覆盖物组件名（与 overlayName 一致，等待重试路径同名）
-     * @param slots 组件出口清单（undefined = 组件未声明任何出口）
-     */
-    private _collectSlotContents(
-        name: string,
-        slots: string[] | undefined,
-    ): Map<string, SlotContent> | null {
-        const mine = this._collectSlotGroup(name);
-        if (!mine) return null;
-        return this._segmentRemoteSlots(name, mine, { slots });
-    }
-
-    /**
-     * 宿主直接子节点按归属分组后取本消费者名组（原始 ChildNode[]，ADR-0119）：
-     * 本地路径直接分段（{@link _collectSlotContents}）；远程路径出口清单（def.slots）加载后
-     * 才可知——打开时预收集，attach 前经 {@link _segmentRemoteSlots} 分段。
+     * 宿主直接子节点按归属分组后取本消费者名组（原始 ChildNode[]，ADR-0119 → ADR-0123）：
+     * 组件宿主生成时克隆移入宿主子级（x-component 收集分段投影承接）；片段路径无出口概念
+     * （生成时 warn 丢弃）。分段不再由 overlay 预处理——出口清单的消费归 x-component 编译期。
      */
     private _collectSlotGroup(name: string): ChildNode[] | null {
         if (!this.template) return null;
         const warn = (m: string) => this.warn(`${this.directiveLabel}:${this.attr}: ${m}`);
         const groups = collectSlotGroups(this.template, this._overlayConsumers(), warn);
         return groups.get(name) ?? null;
-    }
-
-    /**
-     * 插槽内容按出口清单分段（本地/远程共用）：无出口（Q13-2）→ warn + 丢弃；无内容 → null。
-     * 远程路径的 def 来自加载产物，出口清单加载后才可知——故与收集拆开两步（ADR-0119）。
-     */
-    private _segmentRemoteSlots(
-        name: string,
-        group: ChildNode[] | null,
-        def: Pick<ComponentDef, "slots"> | null,
-    ): Map<string, SlotContent> | null {
-        if (!group) return null;
-        const slots = def?.slots;
-        if (!slots?.length) {
-            this.warn(
-                `${this.directiveLabel}:${this.attr}: 覆盖物组件 "${name}" 未声明任何 x-slot 出口，已提供的内容无法投影，已丢弃（ADR-0056 决策十修订）`,
-            );
-            return null;
-        }
-        return collectSlotSegments(
-            group,
-            slots,
-            (m) => this.warn(`${this.directiveLabel}:${this.attr}: ${m}`),
-        );
     }
 
     /** 宿主上全部覆盖物消费者的组件名（同宿主多 x-dialog 的归属校验与隐式归属基准） */
@@ -560,23 +458,14 @@ export abstract class OverlayDirective extends ComponentDirective {
             .filter((n) => n !== "");
     }
 
-    /** 等待的组件就绪重试：visible 已归假（等待期间关闭）则放弃打开 */
-    protected override _retryPendingComponent(): void {        if (!this._driveOn) {
-            this._clearPending();
-            return;
-        }
-        super._retryPendingComponent();
-    }
-
     /**
-     * 消费者销毁（ADR-0119）：中止进行中的远程加载 + 回收 keepalive 缓存内全部实例
+     * 消费者销毁（ADR-0119 → ADR-0123）：中止进行中的探测 + 回收 keepalive 缓存内全部实例
      * （挂起中/打开中/关闭动画中—— VisibleOverlayDirective.destroy 已先对活跃可见实例
      * requestClose，keepalive 语义下将挂起回缓存，此处统一销毁兜底）。
      */
     override destroy(): void {
         this._remoteAbort?.abort();
         this._remoteAbort = null;
-        this._pendingRemoteProps = undefined;
         if (this._keepaliveCache.size) {
             for (const inst of [...this._keepaliveCache.values()]) {
                 if (!inst.destroyed) inst.destroy();
@@ -587,14 +476,11 @@ export abstract class OverlayDirective extends ComponentDirective {
     }
 
     /**
-     * 数据视图基准挂链解析（共识 8；`scope` 键已更名 `dataContext`，ADR-0053 修订）：缺省按
-     * `'declarer'` 归一后统一经 `resolveDataContext` 两栖分派——`'declarer'`（默认）挂**声明处**
-     * scope（定义闭包——数据视图沿挂链即声明处上下文；悬空/全局组件无声明 scope → rootless 防御，
-     * 仅全局视图 + 级联守卫兜底）；`'host'` 挂**消费处** scope；元素（声明式理论不可达，防御统一）
-     * 按基准载体分派。
-     *
-     * 挂链即基准（决策 11 三合一）：表达式上下文 / 数据视图 / 生命周期级联统一由 parentScope 表达，
-     * 无需 x-component 的 basis 施加（那是宿主化身场景——scope 留在消费处、数据视图跳声明处的解耦机制）。
+     * 数据视图基准挂链解析（共识 8；`scope` 键已更名 `dataContext`，ADR-0053 修订）：
+     * **仅显式声明路径**（ADR-0123 决策 2——缺省收敛消费处 scope，宿主编译父 = `this.binding`，
+     * props 表达式上下文与既有 watch 严格对齐）。显式声明统一经 `resolveDataContext` 两栖分派
+     * ——`'declarer'` 挂**声明处** scope（定义闭包；def 未知时悬空防御 → rootless，仅全局
+     * 视图 + 级联守卫兜底）；`'host'` 挂**消费处** scope；元素按基准载体分派。
      */
     private _resolveParentScope(
         config: OverlayConfig,

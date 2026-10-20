@@ -141,13 +141,15 @@ methods / 钩子内的 `this` 是组件实例 Proxy：`this.data`（聚合视图
 
 **url 取值优先级：指令值 > `options.loader.url`**；两者并存 `warn`（双声明）。
 
-**平铺归一（ADR-0110）**：`fallback` / `error` / `width` / `height` / `request` 可直接写在 `x-component-options` 顶层（成员属性形态天然响应式），同名键**顶层平铺 > `loader` 对象内嵌**：
+**平铺归一（ADR-0110）**：`fallback` / `error` / `width` / `height` / `request` / `retry` / `retryDelay` / `timeout` / `cache` 可直接写在 `x-component-options` 顶层（成员属性形态天然响应式），同名键**顶层平铺 > `loader` 对象内嵌**：
 
 ```html
 <!-- url 简写 + 顶层平铺 fallback（加载中占位）与占位尺寸 -->
 <div x-component="/components/stat.html"
      x-component-options="{ fallback: '<i>载入中…</i>', width: 160, height: 48 }"></div>
 ```
+
+**统一内核选项**（ADR-0121）：`retry`（失败自动重试次数，默认 0）/ `retryDelay`（平坦间隔毫秒）/ `timeout`（超时毫秒，0 不限）/ `cache`（同 url 缓存毫秒 TTL）——与 [x-data 同名选项](./x-data.md#异步状态反馈) 语义一致；请求统一经 `engine.options.fetcher` 出站。
 
 loader 语义「**以此 url 为准**」：组件已注册仍 fetch 并以远程版覆盖注册（覆盖时 `warn`，已实例化不受影响）；首次渲染**严格等待 fetch**——期间显示 fallback 占位（缺省 = `x-loading`）。
 
@@ -171,8 +173,8 @@ loader 语义「**以此 url 为准**」：组件已注册仍 fetch 并以远程
 | `dataContext` | —      | —       | 数据上下文的**消费侧覆盖**：`'host'` \| `'declarer'`——仅在生效 `open` 下有效；对封闭组件声明 `warn` 忽略 |
 | `props` | — | — | props 选项通道：整包静态对象或成员属性表达式（响应式），与指令值 props 双源合并（指令值覆盖同名键） |
 | `global` | `false` | `.global` | 配合远程加载：加载的组件注册为全局组件（语义同 `x-import.global`） |
-| `loader` | — | — | 远程直接实例化完整配置：string 简写（字面量 url / 表达式）或对象 `{ url, request?, fallback?, error?, width?, height? }`；url 优先级指令值 > `loader.url` |
-| `fallback` / `error` / `width` / `height` / `request` | — | — | loader 附属键**平铺**（ADR-0110）：顶层声明等效 `loader` 对象内嵌，同名键顶层 > 内嵌；成员属性形态天然响应式 |
+| `loader` | — | — | 远程直接实例化完整配置：string 简写（字面量 url / 表达式）或对象 `{ url, request?, fallback?, error?, width?, height?, retry?, retryDelay?, timeout?, cache? }`；url 优先级指令值 > `loader.url` |
+| `fallback` / `error` / `width` / `height` / `request` / `retry` / `retryDelay` / `timeout` / `cache` | — | — | loader 附属键**平铺**（ADR-0110）：顶层声明等效 `loader` 对象内嵌，同名键顶层 > 内嵌；成员属性形态天然响应式；`retry` 等四键为统一内核选项（ADR-0121，默认全 0） |
 
 ```html
 <!-- 组件侧已声明 open，消费处把基准改为声明处上下文 -->

@@ -21,7 +21,7 @@
 
 <demo html="overlay/declare.html"/>
 
-点击按钮 → `ui.loginVisible` 为真 → 消费者沿 scope 链找到 `login` 组件、克隆编译、渲染进 body 容器——组件内表达式默认读**声明处**（`declarer` 基准）的数据。
+点击按钮 → `ui.loginVisible` 为真 → 消费者沿 scope 链找到 `login` 组件、编译内容宿主、渲染进 body 容器——组件内表达式默认读**消费处**（缺省基准挂消费者 scope）的数据。
 
 ## 指南
 
@@ -47,7 +47,7 @@
 <button x-dialog:confirm="ui.showConfirm"></button>
 ```
 
-整条链（含全局）未命中：消费者 warn + 不渲染；组件正在被 `x-import` 加载时消费者会**等待就绪**（`components/<名>/registered` 后自动打开）。
+整条链（含全局）未命中：消费者 warn + 面板先开呈现加载占位——组件注册（`components/<名>/registered`）后自动挂载，等待期间 visible 归假则放弃打开。
 
 ### props 统一：非保留键全部注入组件 data 域
 
@@ -55,16 +55,17 @@
 
 保留键封闭清单：`visible`（驱动键）+ `closeOnMask` / `animate` / `at` / `dataContext`（配置键）。组件 props 应避免使用这些名字（撞名风险由封闭清单文档化）。
 
-### 数据视图基准（dataContext）：声明处默认、消费处可选
+### 数据视图基准（dataContext）：消费处默认、声明处可选
 
 `dataContext` 配置（原 `scope` 已更名——避免与 `x-scope`/`AutoSparkScope` 撞名，与 `x-define-options.dataContext` / `x-component-options.dataContext` 同键同语义）统一为 [ADR-0053](/zh/guide/component/data#数据边界默认封闭与-open) 组件数据基准的家族语义，**挂链即基准**（表达式上下文 / 数据视图 / 生命周期级联三合一）：
 
 | 基准 | 挂链 | 语义 |
 | --- | --- | --- |
-| `'declarer'`（默认） | 声明处 scope | 定义闭包——组件读它声明处所能见的域；免费获得悬空守卫 + 全局组件退化封闭 |
-| `'host'` | 消费处 scope | 实例随消费者 scope 生死（消费者在 `x-if` 内被销毁时，打开中的实例自动关闭） |
+| 缺省（未声明） | 消费处 scope | 声明式 = 消费者指令宿主 scope（模板读消费处数据，实例随消费者 scope 生死，ADR-0123）；命令式 = rootless 全局视图（仅全局 state） |
+| `'declarer'` | 声明处 scope | 定义闭包——组件读它声明处所能见的域；免费获得悬空守卫 + 全局组件退化封闭 |
+| `'host'` | 消费处 scope | 显式声明消费处基准（声明式与缺省同域；命令式挂 `getOverlay` 锚点 scope） |
 
-**两栖键**（与 `at` 键的「字符串/元素」惯例同构）：声明式给**基准名**（`'declarer' | 'host'`）；命令式 `open()` 可给**基准载体**（HTMLElement——元素所属 scope 即挂链目标，并兼作 `at` 相对选择器的查询域）。缺省语义分消费面：声明式缺省 `'declarer'`；命令式缺省 rootless 全局视图。旧键 `scope` 与旧值 `'consumer'` 已随更名**硬切移除**（不再兜底——旧键 `scope` 现在是普通键，会作为 props 注入组件 data 域）。
+**两栖键**（与 `at` 键的「字符串/元素」惯例同构）：声明式给**基准名**（`'declarer' | 'host'`）；命令式 `open()` 可给**基准载体**（HTMLElement——元素所属 scope 即挂链目标，并兼作 `at` 相对选择器的查询域）。缺省语义：**声明式收敛消费处 scope**（ADR-0123 决策 2——内容宿主以消费处 scope 为编译父，等价旧基准挂链的开放语义）；**命令式缺省 rootless 全局视图**。旧键 `scope` 与旧值 `'consumer'` 已随更名**硬切移除**（不再兜底——旧键 `scope` 现在是普通键，会作为 props 注入组件 data 域）。
 
 ### 公共机制契约
 

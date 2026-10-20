@@ -1,4 +1,13 @@
 import { AutoSparkDirectiveBase } from "../features/directive/base";
+import type { AutoSparkAction } from "../features/action/types";
+import type { AsyncLoader } from "asyncsignal/loader";
+import {
+    createRemoteLoader,
+    dispatchLoadError,
+    normalizeLoadError,
+    resolveRequestInit,
+    type RemoteLoadMeta,
+} from "../features/directive/remote-load";
 
 /**
  * 判定 x-import 值是否为**字面量 url**（不经表达式求值，ADR-0022 决策六）。
@@ -43,8 +52,8 @@ export class ImportDirective extends AutoSparkDirectiveBase {
     static override readonly priority = 75;
     static override readonly singleton = true;
 
-    /** 当前在途加载的 AbortController（url 变化 / scope 销毁时 abort 丢弃过期结果） */
-    private abortCtrl?: AbortController;
+    /** 当前加载的 AsyncLoader 实例（ADR-0121：url 变化 / scope 销毁时 abort，落地身份校验丢弃过期结果） */
+    private loader: AsyncLoader<unknown, RemoteLoadMeta> | null = null;
     /** 当前加载的 url（去重 + 变化检测） */
     private currentUrl: string | null = null;
 
@@ -58,6 +67,15 @@ export class ImportDirective extends AutoSparkDirectiveBase {
         if (raw === "") {
             this.warn(`x-import: 缺少 url，已跳过。`);
             return;
+        }
+        // ADR-0121 决策 4：统一注入 retry action（执行体 = loader.refresh()；用户同名 action 不覆盖）。
+        // x-import 无宿主呈现面（决策 5 表格），retry 供 x-error 等捕获方经 getAction 链命中。
+        const scope = this.binding;
+        if (!scope.actions?.retry) {
+            scope.actions = {
+                ...(scope.actions ?? {}),
+                retry: { id: "retry", title: "重试", handle: () => this._retry() } as AutoSparkAction,
+            };
         }
         // 值解析双轨（ADR-0022 决策六）：
         // - 字面量 url（如 `/cmp.html`、`./a.html`、`http://x/c.html`）→ 直接加载，不经表达式求值
@@ -75,45 +93,91 @@ export class ImportDirective extends AutoSparkDirectiveBase {
     }
 
     /**
-     * 加载 url：abort 旧请求 → 调 engine.importComponentsFromUrl 注册组件。
+     * 加载 url（ADR-0121 收编）：abort 旧 loader → 经统一内核编排
+     * `engine.importComponentsFromUrl`（loaderFn 自定义注入——产物是「注册组件名数组」而非
+     * 原始响应，responseParser 不适用）；retry/retryDelay/timeout/cache 与 request/method/header
+     * 由 `x-import-options` 供给。
      *
-     * url 假/空 → 跳过；有效 url → 异步加载注册（url 缓存 + 循环检测由 engine 负责）。
+     * url 假/空或与当前相同 → 跳过。**signal 透传修复**（决策 10①）：内核中止信号直达
+     * importComponentsFromUrl → fetchHtml（此前 AbortController 空转）。
      */
-    private async _load(url: any): Promise<void> {
+    private _load(url: any): void {
         const urlStr = url == null ? "" : String(url).trim();
         if (urlStr === "" || urlStr === this.currentUrl) return;
-        // abort 旧请求（虽 engine 内部有 url 缓存与循环检测，但保留 abort 以防 future 扩展）
-        this.abortCtrl?.abort();
-        const myCtrl = (this.abortCtrl = new AbortController());
         this.currentUrl = urlStr;
-        try {
-            // 作用域组件注册到最近祖先 scope（this.binding.parent），使同层兄弟 x-component 可见；
-            // 全局组件忽略 ownerScope（注册到 engine.options.components）。
-            await this.engine.importComponentsFromUrl(
-                urlStr,
-                this.globalMode ? null : this.binding.parent,
-                this.globalMode,
-            );
-            // 校验 name 属性声明的组件是否注册成功（可选诊断）
-            const expectedName = this.el.getAttribute("name");
-            if (expectedName) {
-                const found = this.binding.getComponentDeclaration(expectedName);
-                if (!found) {
-                    this.warn(
-                        `x-import: url "${urlStr}" 加载完成，但未找到 name 属性声明的组件 "${expectedName}"。`,
-                    );
+        this.loader?.abort();
+        const loader = createRemoteLoader({
+            engine: this.engine,
+            url: urlStr,
+            getOption: (key) => this.options?.[key],
+            loaderFn: async ({ abortSignal }) => {
+                // request 权威整包 + method/header 简写（决策 7）；signal 不进 request
+                // （engine 缓存键含 request 序列化——signal 非可序列化字段，单列透传）
+                const init = resolveRequestInit((key) => this.options?.[key], abortSignal);
+                const { signal: initSignal, ...requestInit } = init;
+                const signal = initSignal ?? undefined;
+                // 仅剩内核默认补的 method:"GET" 时视为无自定义请求——保持 engine 缓存键为裸 url
+                // （与 x-component loader 缺省形态一致，避免同 url 双键双 fetch）
+                const hasCustomRequest =
+                    Object.keys(requestInit).length > 1 || requestInit.method !== "GET";
+                const registered = await this.engine.importComponentsFromUrl(
+                    urlStr,
+                    this.globalMode ? null : this.binding.parent,
+                    this.globalMode,
+                    hasCustomRequest ? requestInit : undefined,
+                    signal,
+                );
+                // null = 加载失败（engine 内已 warn）；抛错交内核归一/重试编排
+                if (registered === null) throw new Error(`远程内容加载失败（${urlStr}）`);
+                return registered;
+            },
+        });
+        this.loader = loader;
+        this._wireLanding(loader, loader.get());
+    }
+
+    /**
+     * 手动重试弹药（决策 4）：执行体 = 当前 loader 的 `refresh()`（在途先中止再重启），
+     * 落地与首取同路径。
+     */
+    private _retry(): void {
+        const loader = this.loader;
+        if (!loader) return;
+        this._wireLanding(loader, loader.refresh());
+    }
+
+    /**
+     * 统一落地点：成功 → 校验 name 属性声明；失败（重试耗尽）→ 错误归一 + warn +
+     * 派发 load 错误事件（x-error 第三错误源，可捕获；x-import 无宿主呈现面，不渲染错误块）。
+     * 主动 abort（AbortError）静默丢弃（决策 3）。
+     */
+    private _wireLanding(loader: AsyncLoader<unknown, RemoteLoadMeta>, p: Promise<unknown>): void {
+        p.then(
+            () => {
+                if (loader !== this.loader) return;
+                // 校验 name 属性声明的组件是否注册成功（可选诊断）
+                const expectedName = this.el.getAttribute("name");
+                if (expectedName) {
+                    const found = this.binding.getComponentDeclaration(expectedName);
+                    if (!found) {
+                        this.warn(
+                            `x-import: url "${loader.meta.url}" 加载完成，但未找到 name 属性声明的组件 "${expectedName}"。`,
+                        );
+                    }
                 }
-            }
-        } catch (e: any) {
-            if (myCtrl.signal.aborted) return;
-            this.warn(`x-import: 加载 "${urlStr}" 失败: ${e?.message ?? e}`);
-        } finally {
-            if (this.abortCtrl === myCtrl) this.abortCtrl = undefined;
-        }
+            },
+            (err: unknown) => {
+                if (loader !== this.loader) return;
+                if ((err as Error)?.name === "AbortError") return; // 主动 abort，非真错误
+                const loadErr = normalizeLoadError(err, loader.meta);
+                this.warn(`x-import: 加载 "${loadErr.url}" 失败: ${loadErr.message}`);
+                dispatchLoadError(this.el, loadErr, () => this._retry());
+            },
+        );
     }
 
     override destroy(): void {
-        this.abortCtrl?.abort();
-        this.abortCtrl = undefined;
+        this.loader?.abort();
+        this.loader = null;
     }
 }

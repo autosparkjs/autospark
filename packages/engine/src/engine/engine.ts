@@ -1570,6 +1570,11 @@ export class AutoSpark<
             try {
                 html = await fetchHtml(url, signal, request);
             } catch (e: any) {
+                // 主动 abort 不算错误（ADR-0121 决策 3）：原样上抛由调用方静默丢弃，不 warn
+                if (e?.name === "AbortError") {
+                    this._importingUrls.delete(cacheKey);
+                    throw e;
+                }
                 this.logger.warn(`x-import: 加载 "${url}" 失败: ${e?.message ?? e}`);
                 this._warnPendingInheritsIfAny(`远程加载 "${url}" 失败`);
                 this._importingUrls.delete(cacheKey);

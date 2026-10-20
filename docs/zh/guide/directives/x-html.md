@@ -150,7 +150,9 @@ engine.state.tpl =
 
 **url 插值与自动重取**：`{表达式}` 单花括号（与 x-data 同构），求值于宿主作用域、自动 `encodeURIComponent`；依赖变化自动重新 fetch——重取期间**旧内容保留不闪断**，过期响应按请求序号丢弃。裸词相对 url 不支持（与 action 名不可判定），相对路径写 `./api/x.html`。
 
-**HTTP 边界**：`method` 选项直传 fetch（默认 GET）、`header` 传额外请求头（静态对象）；`!res.ok` 按加载失败处理（保旧值）。请求体不支持——命令式全能力归 action 形态。
+**HTTP 边界**：`method` 选项直传 fetch（默认 GET）、`header` 传额外请求头（静态对象）；`request` 为 RequestInit 权威整包通道（显式键优先于 `method`/`header` 简写）；`!res.ok` 按加载失败处理（保旧值）。请求体不支持——命令式全能力归 action 形态。
+
+**统一内核选项**（ADR-0121）：`retry` / `retryDelay` / `timeout` / `cache` 与 [x-data 同名选项](./x-data.md#异步状态反馈) 语义一致（默认全 0 不重试 / 不限时 / 不缓存）；请求统一经 `engine.options.fetcher` 出站；失败归一 `source:"load"`，宿主或祖先声明 [x-error](./x-error.md) 时接管呈现（含重试按钮），宿主 scope 自动注入 `retry` action。
 
 ### 动态生成 HTML（action 形态）
 
@@ -201,6 +203,11 @@ x-html 的反馈三件套（ADR-0122）：
 | `loading`     | 自动            | —          | 异步形态覆盖层三态：`false` 恒关 / `{...}` 直传 x-loading 配置（ADR-0035）          |
 | `method`      | `GET`           | —          | url 形态直传 fetch 的方法                                                           |
 | `header`      | —               | —          | url 形态额外 HTTP 头（静态对象）                                                    |
+| `request`     | —               | —          | RequestInit 权威整包通道（显式键优先于 `method`/`header` 简写）                     |
+| `retry`       | `0`             | —          | 失败自动重试次数（除主动 abort 外全错误重试）                                       |
+| `retryDelay`  | `0`             | —          | 重试间隔毫秒（平坦间隔，无退避）                                                    |
+| `timeout`     | `0`             | —          | 超时毫秒（0 = 不限；action 形态语义为「放弃等待」）                                  |
+| `cache`       | `0`             | —          | 缓存毫秒 TTL（0 = 不缓存；同 url 跨实例命中）                                       |
 | `empty`       | `""`            | —          | 空值占位，同 x-text（占位串过消毒）                                                 |
 | `emptyValues` | `[]`            | —          | 追加「也算空」的值，同 x-text                                                       |
 | `hide`        | `false`         | `.hide`    | 空值时隐藏宿主，同 x-text                                                           |

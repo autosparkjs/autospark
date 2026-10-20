@@ -36,7 +36,7 @@
         <span class="tag" x-text="'ui.loginVisible = ' + ui.loginVisible"></span>
       </div>
 
-      <!-- 组件声明处：declarer 基准（默认）——组件读此处 scope 的数据与方法 -->
+      <!-- 组件声明处：与消费处同域——缺省基准（消费处）与 declarer 基准读到同一份数据与方法 -->
       <div x-define="login">
         <div class="ov-panel">
           <h3 class="title is-5">登录 {{appTitle}}</h3>

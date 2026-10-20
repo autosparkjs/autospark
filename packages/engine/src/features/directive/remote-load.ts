@@ -80,9 +80,10 @@ export function resolveRequestInit(
 ): RequestInit {
     const request = getOption("request");
     const init: RequestInit = { ...(request && typeof request === "object" ? request : {}) };
-    const method = getOption("method");
-    if (method !== undefined && init.method === undefined) {
-        init.method = String(method).toUpperCase();
+    // method：request 显式键优先；否则 method 简写（大写）；缺省显式补 "GET"（ADR-0033 旧行为保留）
+    if (init.method === undefined) {
+        const method = getOption("method");
+        init.method = method !== undefined ? String(method).toUpperCase() : "GET";
     }
     const header = getOption("header");
     if (init.headers === undefined && header && typeof header === "object") {

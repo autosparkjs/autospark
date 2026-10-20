@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import "../setup";
 import { AutoSpark } from "../../engine/engine";
 import { AutoSparkDirectiveBase } from "../../features/directive/base";
@@ -523,5 +523,131 @@ describe("x-error actions 按钮", () => {
         (root.querySelector("#b") as HTMLButtonElement).click();
         await nextTick();
         expect(zone.querySelector("[data-action='close']")).not.toBeNull();
+    });
+});
+
+// ── load 错误源（ADR-0121 决策 5：第三错误源 + x-error 接管呈现）────────────
+
+/** fetch 调用记录 + 可编程应答（x-data-async 同款模式） */
+function mockFetchLoad(handler: (url: string) => any) {
+    const calls: string[] = [];
+    (globalThis as any).fetch = async (url: any) => {
+        calls.push(String(url));
+        const res = handler(String(url));
+        if (res instanceof Error) throw res;
+        return {
+            ok: res?.ok ?? true,
+            status: res?.status ?? 200,
+            statusText: res?.statusText ?? "",
+            json: async () => res?.body ?? {},
+            text: async () => res?.text ?? "",
+        };
+    };
+    return calls;
+}
+
+/** 等 fetch 微任务链 + scheduler flush（宏任务一跳） */
+const flushLoad = async () => {
+    await Promise.resolve();
+    await new Promise<void>((r) => setTimeout(r, 0));
+};
+
+const realFetch = globalThis.fetch;
+
+describe("x-error load 错误源（ADR-0121 决策 5）", () => {
+    beforeEach(() => {
+        (globalThis as any).fetch = realFetch;
+    });
+    afterEach(() => {
+        (globalThis as any).fetch = realFetch;
+    });
+
+    test("x-data 远程失败：x-error 接管呈现（retryable 默认 true）+ 元键照写", async () => {
+        mockFetchLoad(() => new Error("接口炸了"));
+        const { root } = mount(
+            `<div id="zone" x-error>
+                <div id="d" x-data="/api/bad"><span class="e" x-text="$error.message"></span></div>
+            </div>`,
+            {},
+        );
+        await flushLoad();
+        const zone = root.querySelector("#zone")!;
+        // x-error 接管呈现
+        expect(overlayOf(zone)).not.toBeNull();
+        expect(zone.querySelector(".as-error-message")!.textContent).toContain("接口炸了");
+        expect(btnByText(zone, "重试")!.style.display).not.toBe("none"); // load 源 retryable 默认 true
+        // 元键照写（数据态不受呈现接管影响）
+        expect(zone.querySelector(".e")!.textContent).toBe("接口炸了");
+    });
+
+    test("点击重试：loader.refresh() 重取成功 → 呈现清除 + 数据落地", async () => {
+        let fail = true;
+        const calls = mockFetchLoad(() =>
+            fail ? new Error("挂了") : { body: { msg: "恢复了" } },
+        );
+        const { root } = mount(
+            `<div id="zone" x-error>
+                <div id="d" x-data="/api/flaky"><span class="v" x-text="msg"></span></div>
+            </div>`,
+            {},
+        );
+        await flushLoad();
+        const zone = root.querySelector("#zone")!;
+        expect(overlayOf(zone)).not.toBeNull();
+        fail = false;
+        btnByText(zone, "重试")!.click();
+        await flushLoad();
+        expect(calls.length).toBe(2); // refresh 真重取
+        expect(overlayOf(zone)).toBeNull(); // resolved 后呈现清除
+        expect(zone.querySelector(".v")!.textContent).toBe("恢复了"); // 数据落地
+    });
+
+    test("重试再次失败：新 error 事件经单错误槽更新呈现", async () => {
+        let n = 0;
+        mockFetchLoad(() => new Error(`失败${++n}次`));
+        const { root } = mount(
+            `<div id="zone" x-error>
+                <div id="d" x-data="/api/always-bad"></div>
+            </div>`,
+            {},
+        );
+        await flushLoad();
+        const zone = root.querySelector("#zone")!;
+        expect(zone.querySelector(".as-error-message")!.textContent).toContain("失败1次");
+        btnByText(zone, "重试")!.click();
+        await flushLoad();
+        expect(zone.querySelectorAll(".as-error").length).toBe(1); // 单错误槽
+        expect(zone.querySelector(".as-error-message")!.textContent).toContain("失败2次");
+    });
+
+    test("无 x-error 时：事件照常派发但无 overlay（默认呈现保持）", async () => {
+        mockFetchLoad(() => new Error("静默"));
+        const { root } = mount(
+            `<div id="d" x-data="/api/no-boundary"><span class="e" x-text="$error.message"></span></div>`,
+            {},
+        );
+        await flushLoad();
+        expect(root.querySelector(".as-error")).toBeNull(); // 无 x-error → 无 overlay
+        expect(root.querySelector(".e")!.textContent).toBe("静默"); // 元键通道照旧
+    });
+
+    test("x-html 远程失败同样接入：x-error 捕获 + 重试成功清除", async () => {
+        let fail = true;
+        mockFetchLoad(() => (fail ? new Error("模板炸了") : { text: `<b>好了</b>` }));
+        const { root } = mount(
+            `<div id="zone" x-error>
+                <div id="h" x-html="/tpl.html"></div>
+            </div>`,
+            {},
+        );
+        await flushLoad();
+        const zone = root.querySelector("#zone")!;
+        expect(overlayOf(zone)).not.toBeNull();
+        expect(zone.querySelector(".as-error-message")!.textContent).toContain("模板炸了");
+        fail = false;
+        btnByText(zone, "重试")!.click();
+        await flushLoad();
+        expect(overlayOf(zone)).toBeNull();
+        expect(zone.querySelector("#h b")!.textContent).toBe("好了");
     });
 });

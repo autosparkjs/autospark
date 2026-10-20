@@ -291,7 +291,7 @@ describe("双 scope 生命周期（ADR-0062）", () => {
         expect(scopedKeys(engine).length).toBe(base + 2); // 内容（setup data）+ shell（config 注入）
         engine.state.on = false;
         await nextTick();
-        expect(scopedKeys(engine).length).toBe(base); // 双 scope 对称回收
+        expect(scopedKeys(engine).length).toBe(base); // 双 scope 对称回收（含组件实例 scope 子树条目）
     });
 
     test("engine.destroy：打开中实例（含 shell scope）随引擎整体摘除", async () => {

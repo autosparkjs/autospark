@@ -1,9 +1,17 @@
 import { AutoSparkDirectiveBase } from "../features/directive/base";
 import type { ComponentDataBasis, ComponentDef } from "../features/component/component-def";
 import type { AutoSparkScope } from "../engine/scope";
+import type { AsyncLoader } from "asyncsignal/loader";
 import { collectSlotContent } from "../utils/slot";
 import { parseHtmlFragment } from "../utils/transformElement";
 import { ERROR_COMPONENT_NAME } from "../components";
+import {
+    createRemoteLoader,
+    dispatchLoadError,
+    normalizeLoadError,
+    resolveRequestInit,
+    type RemoteLoadMeta,
+} from "../features/directive/remote-load";
 
 /**
  * loader 成员属性值的字面量 url 判定（loader 专属，ADR-0065 决策二）：以 `/` `./` `../`
@@ -37,6 +45,14 @@ interface ComponentLoaderConfig {
     /** 加载中宿主临时占位尺寸（防布局跳动，成功与出错均移除） */
     width?: number | string;
     height?: number | string;
+    /** 自动重试次数（ADR-0121，默认 0 = 行为零变化） */
+    retry?: number;
+    /** 重试间隔毫秒（默认 0） */
+    retryDelay?: number;
+    /** 单次请求超时毫秒（默认 0 = 无超时） */
+    timeout?: number;
+    /** 缓存毫秒（默认 0 = 不缓存） */
+    cache?: number;
 }
 
 /**
@@ -151,8 +167,8 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     private _loaderCfg: ComponentLoaderConfig | null = null;
     /** 当前已加载 url（响应式重求值的同 url 去重位） */
     private _loadedUrl: string | null = null;
-    /** 在途加载的 AbortController（url 响应式变化 / destroy 时 abort 丢弃过期结果） */
-    private _loaderAbort: AbortController | null = null;
+    /** 在途加载的 AsyncLoader 实例（ADR-0121：url 变化 / scope 销毁时 abort，落地身份校验丢弃过期结果） */
+    private _loader: AsyncLoader<unknown, RemoteLoadMeta> | null = null;
     /** pending props（loader 加载完成前 props watch 的暂存，完成后随实例化应用） */
     private _pendingProps: Record<string, any> | undefined;
     /** 占位块（fallback/error 组件）编译 scope（随宿主 scope.destroy 递归销毁，此处仅断引用） */
@@ -511,24 +527,32 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         const width = this.getOption("width") as number | string | undefined;
         const height = this.getOption("height") as number | string | undefined;
         const request = this.getOption("request") as RequestInit | undefined;
+        const retry = this.getOption("retry") as number | undefined;
+        const retryDelay = this.getOption("retryDelay") as number | undefined;
+        const timeout = this.getOption("timeout") as number | undefined;
+        const cache = this.getOption("cache") as number | undefined;
         if (fallback !== undefined) merged.fallback = fallback;
         if (error !== undefined) merged.error = error;
         if (width !== undefined) merged.width = width;
         if (height !== undefined) merged.height = height;
         if (request !== undefined) merged.request = request;
+        if (retry !== undefined) merged.retry = retry;
+        if (retryDelay !== undefined) merged.retryDelay = retryDelay;
+        if (timeout !== undefined) merged.timeout = timeout;
+        if (cache !== undefined) merged.cache = cache;
         this._loaderActive = true;
         if (url === this._loadedUrl) return; // 同 url 去重（响应式重求值但 url 未变）
-        void this._runLoader(merged);
+        this._runLoader(merged);
     }
 
     /**
-     * 执行 loader 加载（ADR-0065 决策三/四）：清旧内容 → 占位（fallback/x-loading + 尺寸）→
-     * fetch 注册（已注册仍 fetch，「以此 url 为准」）→ 同名校验 → 实例化；失败 → error 呈现。
-     * url 响应式变化重入本方法：abort 旧请求、销毁旧实例子树（组件内部状态丢失）。
+     * 执行 loader 加载（ADR-0065 决策三/四 + ADR-0121 收编）：清旧内容 → 占位（fallback/x-loading
+     * + 尺寸）→ 经统一内核编排 fetch 注册（已注册仍 fetch，「以此 url 为准」）→ 同名校验 →
+     * 实例化；失败 → 统一错误路径。url 响应式变化重入本方法：abort 旧 loader、销毁旧实例子树
+     * （组件内部状态丢失）。
      */
-    private async _runLoader(cfg: ComponentLoaderConfig): Promise<void> {
-        this._loaderAbort?.abort();
-        const ctrl = (this._loaderAbort = new AbortController());
+    private _runLoader(cfg: ComponentLoaderConfig): void {
+        this._loader?.abort();
         const url = cfg.url;
         this._loadedUrl = url;
         this._loaderCfg = cfg;
@@ -549,52 +573,98 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             // 缺省 fallback：复用 x-loading 占位（R6=B 既有机制）
             this._showLoadingPlaceholder(this.componentName!);
         }
-        try {
-            const registered = await this.engine.importComponentsFromUrl(
-                url,
-                this._globalMode ? null : this.binding.parent,
-                this._globalMode,
-                cfg.request,
-                ctrl.signal,
-            );
-            if (ctrl.signal.aborted) return;
-            // null = 加载失败（fetch/解析错误，原始错误已在 engine 内 warn）
-            if (registered === null) {
-                this._renderLoaderError(new Error(`远程内容加载失败（${url}）`), cfg);
-                return;
-            }
-            // 组件名决策：无参 url 简写（ADR-0110）**每次加载重新决策**——取文档序首个 +
-            // warn（per-url 去重），url 内容变化名字随新清单走；有参走同名校验（决策四）——
-            // 本次加载结果无属性参数指定的组件 → error 呈现（查返回清单而非沿链查找——
-            // 命中祖先 scope 的旧同名组件不算本次加载成功）
-            if (this._anonymousUrl) {
-                if (registered.length === 0) {
-                    this._renderLoaderError(new Error(`远程内容中无组件（${url}）`), cfg);
+        const getOption = (key: string): any => {
+            if (key in cfg) return (cfg as Record<string, any>)[key];
+            return this.getOption(key);
+        };
+        const loader = createRemoteLoader({
+            engine: this.engine,
+            url,
+            getOption,
+            loaderFn: async ({ abortSignal }) => {
+                // request 权威整包 + method/header 简写（决策 7）；signal 不进 request
+                // （engine 缓存键含 request 序列化——signal 非可序列化字段，单列透传）
+                const init = resolveRequestInit(getOption, abortSignal);
+                const { signal: initSignal, ...requestInit } = init;
+                const signal = initSignal ?? undefined;
+                // 仅剩内核默认补的 method:"GET" 时视为无自定义请求——保持 engine 缓存键为裸 url
+                // （与 x-import 缺省形态一致，避免同 url 双键双 fetch）
+                const hasCustomRequest =
+                    Object.keys(requestInit).length > 1 || requestInit.method !== "GET";
+                const registered = await this.engine.importComponentsFromUrl(
+                    url,
+                    this._globalMode ? null : this.binding.parent,
+                    this._globalMode,
+                    hasCustomRequest ? requestInit : undefined,
+                    signal,
+                );
+                // null = 加载失败（engine 内已 warn）；抛错交内核归一/重试编排
+                if (registered === null) throw new Error(`远程内容加载失败（${url}）`);
+                return registered;
+            },
+        });
+        this._loader = loader;
+        this._wireLoaderLanding(loader, cfg, loader.get());
+    }
+
+    /**
+     * 手动重试弹药（ADR-0121 决策 4）：执行体 = 当前 loader 的 `refresh()`（在途先中止再重启），
+     * 落地与首取同路径。
+     */
+    private _retryLoader(): void {
+        const loader = this._loader;
+        if (!loader || !this._loaderCfg) return;
+        this._wireLoaderLanding(loader, this._loaderCfg, loader.refresh());
+    }
+
+    /**
+     * 统一落地点（ADR-0121）：成功 → 组件名决策（anonymous 取首 / 多组件 warn / 同名校验）→
+     * 实例化；失败（重试耗尽）→ 错误归一 + `_renderLoaderError`；校验类失败同样走统一错误路径。
+     * 主动 abort（AbortError）静默丢弃（决策 3）。
+     */
+    private _wireLoaderLanding(
+        loader: AsyncLoader<unknown, RemoteLoadMeta>,
+        cfg: ComponentLoaderConfig,
+        p: Promise<unknown>,
+    ): void {
+        p.then(
+            (registered: unknown) => {
+                if (loader !== this._loader) return;
+                const names = registered as string[];
+                const url = cfg.url;
+                // 组件名决策：无参 url 简写（ADR-0110）**每次加载重新决策**——取文档序首个 +
+                // warn（per-url 去重），url 内容变化名字随新清单走；有参走同名校验（决策四）——
+                // 本次加载结果无属性参数指定的组件 → error 呈现（查返回清单而非沿链查找——
+                // 命中祖先 scope 的旧同名组件不算本次加载成功）
+                if (this._anonymousUrl) {
+                    if (names.length === 0) {
+                        this._renderLoaderError(new Error(`远程内容中无组件（${url}）`), cfg);
+                        return;
+                    }
+                    if (names.length > 1 && this._multiWarnedUrl !== url) {
+                        this._multiWarnedUrl = url;
+                        this.warn(
+                            `x-component: 远程内容含 ${names.length} 个组件，已取文档序首个 "${names[0]}"；` +
+                                `如需显式指定请改写 x-component:${names[0]}="${url}"。`,
+                        );
+                    }
+                    this.componentName = names[0]!; // 上方 length === 0 已早退
+                } else if (!names.includes(this.componentName!)) {
+                    this._renderLoaderError(new Error(`远程内容中无组件 "${this.componentName}"`), cfg);
                     return;
                 }
-                if (registered.length > 1 && this._multiWarnedUrl !== url) {
-                    this._multiWarnedUrl = url;
-                    this.warn(
-                        `x-component: 远程内容含 ${registered.length} 个组件，已取文档序首个 "${registered[0]}"；` +
-                            `如需显式指定请改写 x-component:${registered[0]}="${url}"。`,
-                    );
-                }
-                this.componentName = registered[0]!; // 上方 length === 0 已早退
-            } else if (!registered.includes(this.componentName!)) {
-                this._renderLoaderError(new Error(`远程内容中无组件 "${this.componentName}"`), cfg);
-                return;
-            }
-            this._clearHostContent();
-            this._instantiate(this.componentName!, this._pendingProps);
-        } catch (e: any) {
-            if (ctrl.signal.aborted) return;
-            this._renderLoaderError(
-                e instanceof Error ? e : new Error(String(e?.message ?? e)),
-                cfg,
-            );
-        } finally {
-            if (this._loaderAbort === ctrl) this._loaderAbort = null;
-        }
+                this._clearHostContent();
+                this._instantiate(this.componentName!, this._pendingProps);
+            },
+            (err: unknown) => {
+                if (loader !== this._loader) return;
+                if ((err as Error)?.name === "AbortError") return; // 主动 abort，非真错误
+                this._renderLoaderError(
+                    err instanceof Error ? err : new Error(String(err)),
+                    cfg,
+                );
+            },
+        );
     }
 
     /**
@@ -646,13 +716,17 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     }
 
     /**
-     * 呈现加载失败（ADR-0065 决策六/七）：自定义 error 声明走占位协议；缺省渲染内置 error
-     * 组件（getComponentDeclaration(ERROR_COMPONENT_NAME) 沿链 + 全局兜底 → 构造器默认内置），
-     * 注入 error/message 与 retry/close 闭包（back 按钮走内置 action，无需注入）。error 不自愈
-     * ——恢复途径仅 url 变化（响应式重入）或 retry。
+     * 呈现加载失败（ADR-0065 决策六/七 + ADR-0121 决策 5）：自定义 error 声明走占位协议；
+     * 缺省渲染内置 error 组件（getComponentDeclaration(ERROR_COMPONENT_NAME) 沿链 + 全局兜底
+     * → 构造器默认内置），注入 error/message 与 retry/close 闭包（back 按钮走内置 action，
+     * 无需注入）。error 不自愈——恢复途径仅 url 变化（响应式重入）或 retry。
+     * ADR-0121：错误归一 + dispatchLoadError 派发 + x-error 在场退位；retry 统一走 loader.refresh()。
      */
     private _renderLoaderError(err: Error, cfg: ComponentLoaderConfig): void {
         this._clearHostContent();
+        const loadErr = normalizeLoadError(err, this._loader?.meta);
+        dispatchLoadError(this.el, loadErr, () => this._retryLoader());
+        if (this.el.closest("[x-error]")) return;
         // 无参 url 简写加载失败时 componentName 尚未定格 → 文案退化为「远程组件」
         const label = this.componentName ?? "远程组件";
         const message = `组件 "${label}" 加载失败（${cfg.url}）：${err.message}`;
@@ -660,7 +734,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             this._renderPlaceholder(cfg.error, {
                 url: cfg.url,
                 name: this.componentName,
-                error: err,
+                error: loadErr,
                 message,
             });
             return;
@@ -679,7 +753,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             // state 中的函数值当 computed，依赖收集（watch 读取）时执行函数 → 失败重渲染 →
             // 无限循环（实测抓栈证实）。执行体走 action 通道（下方 scope.actions 注入）。
             {
-                error: err,
+                error: loadErr,
                 message,
                 url: cfg.url,
                 name: this.componentName,
@@ -690,15 +764,12 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         );
         this._placeholderScope = compiled.scope;
         // retry/close 执行体注入实例 scope.actions（@click 经 getAction 命中；`back` 走内置 action）：
-        // retry：重新 fetch 当前 url（重置去重位强制重跑）
+        // retry：统一走 loader.refresh()（ADR-0121 决策 4）
         compiled.scope.actions = {
             ...(compiled.scope.actions ?? {}),
             retry: {
                 name: "retry",
-                handle: () => {
-                    this._loadedUrl = null;
-                    void this._runLoader(cfg);
-                },
+                handle: () => this._retryLoader(),
             },
             // close：清除本实例 error 呈现 + 照常广播 close 信号（嵌套 overlay 场景语义兼容）
             close: {
@@ -1037,8 +1108,8 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         // 此处清理 pending 监听 + loading 占位 + 实例引用 + loader 在途请求。
         // 组件子树/占位块子 scope 随宿主 scope.destroy 递归销毁（置 null 断引用即可）。
         // （组件名静态后无换名重实例化场景，原 x-use 的 _destroyInstance 已随之移除，ADR-0054。）
-        this._loaderAbort?.abort();
-        this._loaderAbort = null;
+        this._loader?.abort();
+        this._loader = null;
         this._clearPending();
         this._hideLoadingPlaceholder();
         this.instanceScope = null;

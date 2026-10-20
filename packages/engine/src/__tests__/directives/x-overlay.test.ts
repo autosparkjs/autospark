@@ -79,7 +79,7 @@ describe("消费模型（组件即覆盖物内容）", () => {
         expect(maskOf("g-confirm")!.textContent).toContain("全局");
     });
 
-    test("未命中（scope 链与全局均无）warn + 不渲染", async () => {
+    test("未命中（scope 链与全局均无）→ pending 面板先开占位 + warn（注册后自动挂载）", async () => {
         const { engine } = mountOverlay(
             `<div id="app"><div x-scope>
                 <button x-dialog:missing="ui.open"></button>
@@ -95,38 +95,46 @@ describe("消费模型（组件即覆盖物内容）", () => {
         } finally {
             engine.logger.warn = orig;
         }
-        expect(maskOf("missing")).toBeNull();
+        // pending（ADR-0123 决策 1 行为变化）：面板先开 + x-component pending 占位，warn 保留
+        expect(!!maskOf("missing")).toBe(true);
         expect(warns.some((w) => w.includes("missing"))).toBe(true);
     });
 
-    test("x-import 延迟就绪：components/<名>/registered 后自动打开；等待期间归假则放弃", async () => {
+    test("x-import 延迟就绪：pending 面板先开占位，components/<名>/registered 后自动挂载；等待期间归假则放弃", async () => {
         const { root, engine } = mountOverlay(
             `<div id="app"><div x-scope id="host">
                 <button x-dialog:late="ui.open"></button>
             </div></div>`,
             { ui: { open: false } },
         );
+        const warns: string[] = [];
+        const orig = engine.logger.warn.bind(engine.logger);
+        engine.logger.warn = (msg: string) => warns.push(msg);
         engine.state.ui.open = true;
         await nextTick();
-        // 未命中：等待中不渲染
-        expect(maskOf("late")).toBeNull();
-        // 模拟 x-import 就绪：注册组件 + 广播 registered
+        // pending（ADR-0123 决策 1 行为变化）：面板先开 + x-component pending 占位（无内容），warn 保留
+        const mask = maskOf("late");
+        expect(!!mask).toBe(true);
+        expect(mask!.textContent.includes("迟到组件")).toBe(false); // 占位无内容
+        expect(warns.some((w) => w.includes("late"))).toBe(true);
+        engine.logger.warn = orig;
+        // 模拟 x-import 就绪：注册组件 + 广播 registered → pending 自动挂载（ADR-0022 R6=B）
         const hostScope = engine.findScopeByEl(root.querySelector("#host")!)!;
         const compEl = document.createElement("div");
         compEl.innerHTML = "<span>迟到组件</span>";
         hostScope.components = { late: compEl };
         engine.emit("components/late/registered" as any, { name: "late", global: false }, true);
         await nextTick();
-        expect(maskOf("late")!.textContent).toContain("迟到组件");
+        expect(maskOf("late")!.textContent.includes("迟到组件")).toBe(true);
 
         // 等待期间 visible 已归假 → 就绪后不打开
         engine.state.ui.open = false;
         await nextTick();
-        expect(maskOf("late")).toBeNull();
+        expect(!!maskOf("late")).toBe(false);
         hostScope.components = {};
         engine.state.ui.open = true;
         await nextTick();
-        expect(maskOf("late")).toBeNull(); // 未命中 → 等待
+        expect(!!maskOf("late")).toBe(true); // 未命中 → pending 面板先开（占位）
         engine.state.ui.open = false;
         await nextTick();
         const compEl2 = document.createElement("div");
@@ -134,7 +142,7 @@ describe("消费模型（组件即覆盖物内容）", () => {
         hostScope.components = { late: compEl2 };
         engine.emit("components/late/registered" as any, { name: "late", global: false }, true);
         await nextTick();
-        expect(maskOf("late")).toBeNull(); // 已归假，放弃打开
+        expect(!!maskOf("late")).toBe(false); // 已归假，放弃打开
     });
 });
 
@@ -613,7 +621,9 @@ describe("嵌套与打开栈", () => {
 });
 
 describe("dataContext 数据视图基准（共识 8：declarer 默认 / host）", () => {
-    // 组件声明须在消费者的祖先链上（getComponentDeclaration 协议）；嵌套 x-data：外层 = 声明处、内层 = 消费处
+    // 组件声明须在消费者的祖先链上（getComponentDeclaration 协议）；嵌套 x-data：外层 = 声明处、内层 = 消费处。
+    // ADR-0123 决策 2：缺省基准收敛消费处 scope（内容宿主编译父 = 指令 binding，props 表达式
+    // 上下文与既有 watch 严格对齐）；显式 dataContext（'declarer'/'host'/元素）经两栖分派保留。
     const html = (options: string) => `<div id="app"><div x-scope>
         <div x-data="{ title: '声明处' }">
             <div x-define="basis"><span>{{title}}</span></div>
@@ -623,16 +633,16 @@ describe("dataContext 数据视图基准（共识 8：declarer 默认 / host）"
         </div>
     </div></div>`;
 
-    test("declarer 默认：实例读声明处数据，消费者销毁仅关闭（实例随声明处 scope）", async () => {
+    test("缺省收敛消费处：实例读消费处数据，关闭再开读数一致", async () => {
         const { engine } = mountOverlay(html(""), { ui: { open: true } });
         await nextTick();
-        expect(maskOf("basis")!.textContent).toContain("声明处");
-        // 关闭再开仍读声明处
+        expect(maskOf("basis")!.textContent).toContain("消费处");
+        // 关闭再开读数一致
         engine.state.ui.open = false;
         await nextTick();
         engine.state.ui.open = true;
         await nextTick();
-        expect(maskOf("basis")!.textContent).toContain("声明处");
+        expect(maskOf("basis")!.textContent).toContain("消费处");
     });
 
     test("host 基准：实例读消费处数据", async () => {
@@ -677,8 +687,8 @@ describe("dataContext 数据视图基准（共识 8：declarer 默认 / host）"
             { ui: { open: true } },
         );
         await nextTick();
-        // scope:'host' 只是普通 prop（基准仍默认 declarer 读声明处，v2.3 保留键清单已删除）
-        expect(maskOf("basis")!.textContent).toContain("声明处/host");
+        // scope:'host' 只是普通 prop（基准缺省收敛消费处，v2.3 保留键清单已删除）
+        expect(maskOf("basis")!.textContent).toContain("消费处/host");
     });
 });
 
@@ -1052,7 +1062,7 @@ describe("url 远程加载（ADR-0119）", () => {
         globalThis.fetch = realFetch;
     });
 
-    test("组件优先：远程 x-define 声明匹配名 → 面板先开（骨架锚内 x-loading）→ 组件附加、loading 随锚摘除", async () => {
+    test("组件优先：远程 x-define 声明匹配名 → 面板先开（边界锚 x-loading 骨架）→ 组件附加、loading 随内容接管摘除", async () => {
         let resolveFetch!: (v: Response) => void;
         globalThis.fetch = (async () => new Promise<Response>((r) => (resolveFetch = r))) as any;
         const { engine } = mountOverlay(
@@ -1063,25 +1073,24 @@ describe("url 远程加载（ADR-0119）", () => {
         );
         engine.state.ui.open = true;
         await nextTick();
-        // 面板先开（shell 骨架 + 出口内 loading 占位），加载仍在途。
-        // loading 挂在占位锚上（shell 内容出口内部）——面板层不挂 x-loading（ADR-0119：
-        // 骨架 shell 先可见，loading 在 shell 中呈现，自定义外壳层不被遮盖）
-        const mask = maskOf("remote")!;
-        expect(mask).not.toBeNull();
-        const panel = mask.querySelector(".autospark-dialog") as HTMLElement;
+        // 面板先开（shell 骨架 + x-error 边界兼加载锚），加载仍在途。
+        // 面板层不挂 x-loading——loading 骨架在边界锚上（ADR-0119/0123：自定义外壳层不被遮盖）
+        const mask = maskOf("remote");
+        expect(!!mask).toBe(true);
+        const panel = mask!.querySelector(".autospark-dialog") as HTMLElement;
         expect(panel.hasAttribute("x-loading")).toBe(false);
-        const anchor = panel.querySelector("[data-overlay-remote-pending]") as HTMLElement;
-        expect(anchor).not.toBeNull();
-        expect(anchor.hasAttribute("x-loading")).toBe(true);
-        // 骨架化：锚自带最小尺寸（面板骨架可见，非塌缩空壳）
-        expect(anchor.style.minWidth).toContain("240px");
-        expect(anchor.style.minHeight).toContain("120px");
-        // 放行加载：组件原位附加、占位锚（含 loading）换出
+        const boundary = panel.querySelector("[x-error]") as HTMLElement | null;
+        expect(!!boundary).toBe(true); // x-error 边界兼加载锚（ADR-0123）
+        expect(boundary!.hasAttribute("x-loading")).toBe(true);
+        // 骨架化：边界锚自带最小尺寸（面板骨架可见，非塌缩空壳）
+        expect(boundary!.style.minWidth.includes("240px")).toBe(true);
+        expect(boundary!.style.minHeight.includes("120px")).toBe(true);
+        // 放行加载：组件原位附加、加载锚形态（x-loading + 最小尺寸）随内容接管摘除
         resolveFetch(new Response(`<div x-define="remote"><span>远程组件</span></div>`));
         await new Promise((r) => setTimeout(r, 20));
-        expect(panel.textContent).toContain("远程组件");
-        expect(panel.querySelector("[data-overlay-remote-pending]")).toBeNull();
-        expect(panel.querySelector(".x-loading-overlay")).toBeNull(); // loading 无残留
+        expect(panel.textContent.includes("远程组件")).toBe(true);
+        expect(boundary!.hasAttribute("x-loading")).toBe(false);
+        expect(boundary!.style.minWidth.includes("240px")).toBe(false);
     });
 
     test("片段兜底：无匹配名声明 → 片段子模板编译（指令生效、读消费处 state 响应式）", async () => {
@@ -1105,12 +1114,12 @@ describe("url 远程加载（ADR-0119）", () => {
             engine.logger.warn = orig;
         }
         const panel = maskOf("remote")!.querySelector(".autospark-dialog") as HTMLElement;
-        expect(panel.querySelector(".x-loading-overlay")).toBeNull(); // loading 无残留
+        expect(panel.querySelectorAll(".x-loading-overlay").length).toBe(0); // loading 无残留
         expect(panel.textContent).toContain("片段: 本地数据"); // 消费处 state 可读
         expect(panel.textContent).toContain("加粗");
-        expect(panel.textContent).not.toContain("其他组件"); // 声明元素剪枝
+        expect(panel.textContent.includes("其他组件")).toBe(false); // 声明元素剪枝
         // 名字不匹配提示一次（typo 可发现性，非失败）
-        expect(warns.some((w) => w.includes("已按片段编译渲染"))).toBe(true);
+        expect(warns.some((w) => w.includes("已按片段渲染"))).toBe(true);
         // 响应式：消费处 state 变化 → 片段插值更新
         engine.state.label = "更新";
         await nextTick();
@@ -1138,7 +1147,7 @@ describe("url 远程加载（ADR-0119）", () => {
         expect(panel.textContent).toContain("frag: 局部/顶层");
     });
 
-    test("加载失败：autospark.error 占位 + retry 原位重载成功；成功后进 keepalive 缓存", async () => {
+    test("加载失败：边界内错误呈现 + overlayRetry 原位重载成功；成功后进 keepalive 缓存", async () => {
         let fail = true;
         globalThis.fetch = (async () => {
             if (fail) return new Response("nope", { status: 500 });
@@ -1152,23 +1161,24 @@ describe("url 远程加载（ADR-0119）", () => {
         );
         engine.state.ui.open = true;
         await new Promise((r) => setTimeout(r, 20));
-        const mask = maskOf("remote")!;
-        expect(mask).not.toBeNull(); // 不自动关
-        const panel = mask.querySelector(".autospark-dialog") as HTMLElement;
-        expect(panel.querySelector(".as-error")).not.toBeNull(); // 错误占位
-        // retry 原位重载（本次 mock 成功）
+        const mask = maskOf("remote");
+        expect(!!mask).toBe(true); // 不自动关
+        const panel = mask!.querySelector(".autospark-dialog") as HTMLElement;
+        expect(panel.querySelectorAll(".as-error").length).toBe(1); // 边界内错误呈现
+        expect(panel.textContent.includes("远程内容加载失败")).toBe(true);
+        // retry 原位重载（本次 mock 成功）——data-action 委托触发 overlayRetry（ADR-0038/0123）
         fail = false;
-        panel.querySelector(".as-error-btn")!.dispatchEvent(
+        panel.querySelector('[data-action="overlayRetry"]')!.dispatchEvent(
             new MouseEvent("click", { bubbles: true }),
         );
-        await new Promise((r) => setTimeout(r, 20));
-        expect(panel.querySelector(".as-error")).toBeNull();
-        expect(panel.textContent).toContain("重试成功");
+        await new Promise((r) => setTimeout(r, 30));
+        expect(panel.querySelectorAll(".as-error").length).toBe(0); // 呈现清零（rebuildBoundary）
+        expect(panel.textContent.includes("重试成功")).toBe(true);
         // 成功后进 keepalive 缓存：关闭 → 挂起（不销毁）
         engine.state.ui.open = false;
         await nextTick();
-        expect(maskOf("remote")).toBe(mask);
-        expect(mask.style.display).toBe("none");
+        expect(maskOf("remote") === mask).toBe(true);
+        expect(mask!.style.display).toBe("none");
     });
 
     test("失败态 close 走销毁（不挂起）→ 重开重建面板重新加载", async () => {
@@ -1181,19 +1191,21 @@ describe("url 远程加载（ADR-0119）", () => {
         );
         engine.state.ui.open = true;
         await new Promise((r) => setTimeout(r, 20));
-        const mask1 = maskOf("remote")!;
-        expect(mask1.querySelector(".as-error")).not.toBeNull();
+        const mask1 = maskOf("remote");
+        expect(!!mask1).toBe(true);
+        expect(mask1!.querySelectorAll(".as-error").length).toBe(1);
         engine.state.ui.open = false; // 失败态 close → 销毁（失败不进 keepalive 缓存）
         await nextTick();
-        expect(maskOf("remote")).toBeNull();
-        expect(containerOf()!.contains(mask1)).toBe(false);
+        expect(!!maskOf("remote")).toBe(false);
+        expect(containerOf()!.contains(mask1!)).toBe(false);
         // 重开：全新面板 + 重新加载（mock 转成功）
         globalThis.fetch = (async () =>
             new Response(`<div x-define="remote"><span>二次成功</span></div>`)) as any;
         engine.state.ui.open = true;
         await new Promise((r) => setTimeout(r, 20));
-        expect(maskOf("remote")).not.toBeNull();
-        expect(maskOf("remote")).not.toBe(mask1);
-        expect(maskOf("remote")!.textContent).toContain("二次成功");
+        const mask2 = maskOf("remote");
+        expect(!!mask2).toBe(true);
+        expect(mask2 !== mask1).toBe(true);
+        expect(mask2!.textContent.includes("二次成功")).toBe(true);
     });
 });

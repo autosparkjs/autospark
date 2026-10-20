@@ -98,6 +98,18 @@ actions: {
 ```
 :::
 
+#### 远程加载失败（load 源）
+
+[x-data](./x-data.md) / [x-html](./x-html.md) / [x-component](./x-component.md) / [x-import](./x-import.md) / [x-isolate](./x-isolate.md) 的远程加载失败（ADR-0121 统一内核）会向宿主派发同款 `error` 事件——`source: "load"` 是与 `raise` / `action` 并列的第三错误源，x-error 一处声明即可统一接管呈现：
+
+```html
+<div x-error>
+    <div x-data="/api/books">...</div>   <!-- 加载失败 → x-error 覆盖层 + 重试按钮 -->
+</div>
+```
+
+归一化错误对象形如 `{ name, message, url?, statusCode?, source: "load" }`（url / statusCode 随请求透出）。**各指令默认呈现保持**（`$error` 元键、x-component error 占位等照写），x-error 在场时引擎主动渲染的错误呈现退位、由 x-error 接管；retryable 默认 `true`，重试按钮执行体 = 重新加载（在途先中止再重启）。
+
 ### 就近消费
 
 <demo html="error/nested.html"/>
@@ -170,10 +182,12 @@ const engine = new AutoSpark(el, state, {
 
 <demo html="error/basic.html"/>
 
-`retryable` 默认值按源分流：**action 源 `true`、raise 源 `false`**。重试按钮点击后以**原 args** 重调失败的 action：
+`retryable` 默认值按源分流：**action 源与 load 源 `true`、raise 源 `false`**。action 源重试按钮点击后以**原 args** 重调失败的 action：
 
 - resolved → 自动清除呈现；
 - 再次 rejected → 桥接派发的新 error 事件经单错误槽自然更新呈现。
+
+load 源（远程加载）重试语义：执行体 = 重新加载（ADR-0121 统一注入的 `loader.refresh()`，在途先中止再重启）——加载成功 → 清除呈现；再次失败 → 新一轮 load 错误事件更新呈现（单错误槽）。
 
 重试重放的是 **action 本身**（桥接在 action 层，重试与之对称也在 action 层），不重放触发元素上的 x-on 表达式。`raise` 源错误无源可重——显式 `retryable: true` 也不渲染重试按钮并记 warn。
 

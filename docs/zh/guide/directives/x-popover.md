@@ -224,7 +224,7 @@ tooltip（[工具提示](../tooltip.md)）是**引擎级零声明**能力（`dat
 | `border` | `true` | — | 面板外壳 1px 边框 + 背景 + 圆角（无锚定也生效；`false` 显式关闭） |
 | `shell` | `'popover-shell'` | — | 面板外壳组件名（打开时求值一次，未命中回退内置）；链：指令选项 > 宿主 `x-options` > 引擎级 `options.overlay.popover.shell` > 内置（见[面板外壳](#面板外壳-shell)） |
 | `delayClose` | `0` | — | 自动关闭延迟（ms）：`> 0` 时打开后延时走标准关闭链；`0` 不自动关 |
-| `dataContext` | `'declarer'` | — | 数据视图基准（`declarer` 声明处 / `host` 消费处），挂链即基准；见[覆盖物 · 数据视图基准](../../guide/engine/overlays.md#数据视图基准-datacontext-声明处默认、消费处可选) |
+| `dataContext` | 消费处（声明式） | — | 数据视图基准（缺省消费处 / `declarer` 声明处 / `host` 消费处显式声明），挂链即基准；见[覆盖物 · 数据视图基准](../../guide/engine/overlays.md#数据视图基准-datacontext-消费处默认、声明处可选) |
 | `props`（成员属性） | 无 | — | `x-popover-options.props` 表达式注入组件 data 域、持续热更新，见[传递 props 与内容](#传递-props-与内容-插槽) |
 
 ::: info 关于指令配置体系

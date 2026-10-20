@@ -224,19 +224,19 @@ engine.on("overlay:close", ({ payload }) => {
 
 ### 数据视图
 
-`dataContext` 配置决定实例的表达式上下文、数据视图与生命周期挂链（**挂链即基准**，详见[覆盖物 · 数据视图基准](../overlays.md#数据视图基准datacontext声明处默认消费处可选)）：
+`dataContext` 配置决定实例的表达式上下文、数据视图与生命周期挂链（**挂链即基准**，详见[覆盖物 · 数据视图基准](../overlays.md#数据视图基准datacontext消费处默认声明处可选)）：
 
 <demo html="dialog/data-context-basis.html"/>
 
 ```html
-<!-- 默认 declarer：模板读声明处数据；实例随声明处 scope -->
+<!-- 默认消费处：模板读消费处数据；实例随消费者 scope 生死 -->
 <button x-dialog:demo="ui.openA"></button>
 
-<!-- host：模板读消费处数据；实例随消费者 scope 生死 -->
-<button x-dialog:demo="ui.openB" x-dialog-options.data-context="'host'"></button>
+<!-- declarer：模板读声明处数据（定义闭包）；悬空/全局组件退化封闭 -->
+<button x-dialog:demo="ui.openB" x-dialog-options.data-context="'declarer'"></button>
 ```
 
-`host` 基准下消费者所在区域被销毁（如 `x-if` 分支收起），打开中的实例会随级联自动关闭摘除——不会留下悬空弹层。旧键 `scope` 与旧值 `'consumer'` 已随更名**硬切移除**（不兜底、不告警；旧键 `scope` 现在是普通 props 键）。
+`declarer` 基准下组件读它声明处所能见的域；消费者所在区域被销毁（如 `x-if` 分支收起）时，打开中的实例同样随级联自动关闭摘除——不会留下悬空弹层。旧键 `scope` 与旧值 `'consumer'` 已随更名**硬切移除**（不兜底、不告警；旧键 `scope` 现在是普通 props 键）。
 
 ### 自动关闭
 
@@ -560,7 +560,7 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 | `shell`       | `"dialog-shell"`  | —      | 面板外壳组件名（打开时求值一次，未命中回退内置）；见[面板外壳](#面板外壳shell自定义面板形态)                                                |
 | `closeOnMask` | `true`            | —      | 点击遮罩请求关闭                                                                                                                            |
 | `animate`     | `"fade"`          | —      | 进出场动画（字符串 / 对象 / 分相 / `false`）                                                                                                |
-| `dataContext` | `"declarer"`      | —      | **数据视图基准**（`declarer` 声明处 / `host` 消费处），挂链即基准；旧键 `scope` 已硬切（现为普通 props 键）                                 |
+| `dataContext` | 消费处（声明式）  | —      | **数据视图基准**（缺省消费处 / `declarer` 声明处 / `host` 消费处显式声明；命令式缺省 rootless），挂链即基准；旧键 `scope` 已硬切（现为普通 props 键） |
 | `delayClose`  | `0`               | —      | 自动关闭延迟（ms）：`> 0` 时打开后延时自动「请求关闭」（可回写的 visible 照常回写）；`0` 不自动关                                           |
 | `keepalive`   | `false`           | `keepalive`（修饰符糖） | 关闭不销毁、容器内挂起保活，重开复用实例（声明式专属）；见[保活（keepalive）](#保活keepalive)                                               |
 | `key`         | 无                | —      | 保活缓存命名空间（表达式）：缓存身份 = `组件名 + key + url` 复合，同键复用、异键并存；见[多实例与 key](#多实例与-key)                        |

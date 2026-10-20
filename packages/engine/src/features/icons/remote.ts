@@ -1,11 +1,9 @@
 /**
- * IconifyJSON 远程源（ADR-0058 决策 8：fetch + in-flight 合并 + 会话内存缓存）。
- *
- * 缓存两层：**会话内存缓存**（同 url 多声明只 fetch 一次）+ **可选 TTL 持久层**
- * （`cache` 选项，声明级 opt-in：正数毫秒时长，取回落 localStorage、过期即弃、
- * 默认 0 不启用）+ 浏览器 HTTP 缓存兜底。并发限流随 per-icon 远程物种移除（批量声明
- * 天然少量请求）。失败不落任何缓存（可重试）。
+ * IconifyJSON 远程源（ADR-0121 收编）：AsyncLoader 统一内核执行 + multiplex:share 合并并发 +
+ * IStorage 适配器持久层。失败不落缓存（AsyncLoader 天然语义）。
  */
+import { AsyncLoader, type CacheItem, type IStorage } from "asyncsignal/loader";
+import type { AutoSpark } from "../../engine/engine";
 import type { IconifyJSON } from "./iconify";
 
 /**
@@ -42,92 +40,71 @@ export function interpolateUrl(tpl: string, icons: string[], modify?: string): s
     });
 }
 
-/** 会话内存缓存：url → in-flight Promise（resolve 后复用同 Promise；失败剔除可重试） */
-const jsonCache = new Map<string, Promise<IconifyJSON>>();
-
-// ── TTL 持久层（cache 选项，ADR-0058 修订）──────────────────────────────────
-// 每 url 一键：`autospark:icon-cache:v1:{url}` → `{ t, ttl, data }`。读写全 try/catch
-// （隐私模式 / 配额超限 / SSR 无 localStorage 静默降级内存缓存）；过期条目读取时即弃。
+// ── IStorage localStorage 适配器（ADR-0121 收编）──────────────────────────
+// AsyncLoader 的 cache 层写入 `{ value, timestamp }`，过期由 AsyncLoader 内部按 `cache` 选项判定。
+// 适配器仅做序列化/反序列化与 try/catch（隐私模式 / 配额超限 / SSR 无 localStorage 静默降级）。
 
 /** localStorage 持久缓存键前缀 */
 const PERSIST_PREFIX = "autospark:icon-cache:v1:";
 
-interface PersistEntry {
-    /** 落盘时刻（Date.now） */
-    t: number;
-    /** 声明时指定的 TTL（毫秒） */
-    ttl: number;
-    /** IconifyJSON 响应体 */
-    data: IconifyJSON;
-}
-
-function persistGet(url: string): PersistEntry | null {
-    let raw: string | null = null;
-    try {
-        raw = localStorage.getItem(PERSIST_PREFIX + url);
-    } catch {
-        return null;
-    }
-    if (!raw) return null;
-    try {
-        const e = JSON.parse(raw) as PersistEntry;
-        if (
-            typeof e?.t !== "number" ||
-            typeof e?.ttl !== "number" ||
-            !e.data ||
-            typeof e.data !== "object"
-        ) {
-            throw new Error("bad entry");
-        }
-        return e;
-    } catch {
-        persistRemove(url); // 损坏条目即弃
-        return null;
-    }
-}
-
-function persistPut(url: string, json: IconifyJSON, ttl: number): void {
-    try {
-        localStorage.setItem(PERSIST_PREFIX + url, JSON.stringify({ t: Date.now(), ttl, data: json } satisfies PersistEntry));
-    } catch {
-        // 配额超限 / 隐私模式：静默降级内存缓存
-    }
-}
-
-function persistRemove(url: string): void {
-    try {
-        localStorage.removeItem(PERSIST_PREFIX + url);
-    } catch {
-        // 忽略
-    }
-}
-
-/** TTL 内的持久命中（过期条目读取时即弃并返回 null） */
-function persistLookup(url: string): IconifyJSON | null {
-    const e = persistGet(url);
-    if (!e) return null;
-    if (Date.now() - e.t >= e.ttl) {
-        persistRemove(url);
-        return null;
-    }
-    return e.data;
+function createLocalStorageAdapter(): IStorage<CacheItem<IconifyJSON>> {
+    return {
+        get: (key) => {
+            try {
+                const raw = localStorage.getItem(PERSIST_PREFIX + key);
+                if (!raw) return undefined;
+                const parsed = JSON.parse(raw) as CacheItem<IconifyJSON>;
+                if (
+                    !parsed ||
+                    typeof parsed.timestamp !== "number" ||
+                    !parsed.value ||
+                    typeof parsed.value !== "object"
+                ) {
+                    throw new Error("bad entry");
+                }
+                return parsed;
+            } catch {
+                return undefined;
+            }
+        },
+        set: (key, value) => {
+            try {
+                localStorage.setItem(PERSIST_PREFIX + key, JSON.stringify(value));
+            } catch {
+                // 配额超限 / 隐私模式：静默降级内存缓存（不写盘）
+            }
+        },
+        delete: (key) => {
+            try {
+                localStorage.removeItem(PERSIST_PREFIX + key);
+            } catch {
+                /* 忽略 */
+            }
+        },
+        clear: () => {
+            try {
+                for (let i = localStorage.length - 1; i >= 0; i--) {
+                    const k = localStorage.key(i);
+                    if (k?.startsWith(PERSIST_PREFIX)) localStorage.removeItem(k);
+                }
+            } catch {
+                /* 忽略 */
+            }
+        },
+    };
 }
 
 /**
- * fetch 图标集 JSON（in-flight 合并：同 url 并发只发一次请求）。
- * `ttl > 0` 时启用 TTL 持久层：先查 localStorage（TTL 内命中零网络），未命中 fetch
- * 成功后落盘（in-flight 共享下以首个触发网络请求的声明的 ttl 写盘）。
- * 非 200 / 非 JSON / 非 IconifyJSON 结构（icons 非对象）按失败 reject；失败不落任何缓存。
+ * fetch 图标集 JSON（ADR-0121 收编）：经 AsyncLoader 统一内核执行。
+ * `multiplex:"share"` 合并同 url 并发请求（替代旧 jsonCache in-flight Map）；
+ * `storage` 适配 localStorage（替代旧手动 TTL 层）；`cache` 映射 TTL（毫秒）。
+ * 失败不落缓存（AsyncLoader 天然语义），非 200 / 非 JSON / 非 IconifyJSON 结构按失败 reject。
  */
-export function fetchIconifySet(url: string, ttl = 0): Promise<IconifyJSON> {
-    if (ttl > 0) {
-        const hit = persistLookup(url);
-        if (hit) return Promise.resolve(hit);
-    }
-    let p = jsonCache.get(url);
-    if (!p) {
-        p = (async () => {
-            const res = await fetch(url);
+export function fetchIconifySet(url: string, ttl = 0, engine?: AutoSpark): Promise<IconifyJSON> {
+    const loader = new AsyncLoader<IconifyJSON>(
+        async ({ abortSignal }) => {
+            const fetcher = engine?.options?.fetcher ?? fetch;
+            const res = await fetcher(url, { signal: abortSignal });
             if (!res.ok) {
                 throw new Error(`HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ""}`);
             }
@@ -136,19 +113,19 @@ export function fetchIconifySet(url: string, ttl = 0): Promise<IconifyJSON> {
                 throw new Error("响应不是有效 IconifyJSON（缺少 icons 对象）");
             }
             return json as IconifyJSON;
-        })();
-        jsonCache.set(url, p);
-        // 副分支仅作失败清理（调用方的 rejection 由其自行处理）
-        p.catch(() => jsonCache.delete(url));
-    }
-    if (ttl > 0) {
-        // 副分支仅作落盘（rejection 已由主链路处理）
-        p.then((json) => persistPut(url, json, ttl)).catch(() => {});
-    }
-    return p;
+        },
+        {
+            hash: url,
+            cache: ttl,
+            storage: ttl > 0 ? createLocalStorageAdapter() : undefined,
+            multiplex: "share",
+            autostart: false,
+        },
+    );
+    return loader.get();
 }
 
-/** 测试专用：清空会话内存缓存（含 in-flight；localStorage 由用例自理），模拟跨会话重载 */
+/** 测试专用：清空 multiplex 实例缓存表（模拟页面重载/跨会话内存清空）。localStorage 持久层由用例自理。 */
 export function resetIconCacheForTest(): void {
-    jsonCache.clear();
+    AsyncLoader.clearLoaderCache();
 }
