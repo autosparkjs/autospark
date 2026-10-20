@@ -24,6 +24,14 @@ export default defineConfig({
       { text: "组件", link: "/zh/components/" },
       { text: "参考", link: "/zh/references/" },
       { text: "API", link: "/zh/api/" },
+      {
+        text: "示例",
+        items: [
+          { text: "商城示例（完整应用）", link: "/zh/examples/shop" },
+          // target=_blank 使 VPLink 判定为外链：整页打开 public 下的裸 HTML 示例，不经 SPA 路由
+          { text: "在线运行（新窗口）", link: "/examples/shop/index.html", target: "_blank" },
+        ],
+      },
       { text: "开源推荐", link: "https://zhangfisher.github.io/repos/" },
     ],
     sidebar: {
@@ -224,6 +232,15 @@ export default defineConfig({
           ],
         },
 
+      ],
+      "/zh/examples/": [
+        {
+          text: "示例",
+          items: [
+            { text: "商城示例", link: "/zh/examples/shop" },
+            { text: "在线运行（新窗口）", link: "/examples/shop/index.html", target: "_blank" },
+          ],
+        },
       ],
       "/zh/references/": [
         {
