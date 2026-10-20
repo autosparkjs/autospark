@@ -12,7 +12,7 @@
         <!-- 异步数据源 · action（ADR-0033）：书店订单管理（与 fetch demo 同款场景）。
              x-data 值为 action 引用 → getAction 链执行取数（本例在 action 内本地生成订单数据，
              体现 action「本地计算 / 命令式全能力」的形态优势）；实参（kind/page/tick）是表达式，
-             依赖变化对称重执行；加载反馈（$loading/$error/x-fallback/x-loading）与 fetch 共用。 -->
+             依赖变化对称重执行；加载反馈（$loading/$error/x-if/x-loading）与 fetch 共用。 -->
         <div class="demo-app section">
             <!-- 块 A：订单表格——实参依赖驱动：翻页（page）、失败注入（kind）、手动重载（tick） -->
             <div class="card">
@@ -66,14 +66,14 @@
                             下一页 →
                         </button>
                     </div>
-                    <!-- x-fallback：首载（非就绪且无数据）替换渲染上方整棵子树；重取/翻页保旧值不闪现 -->
-                    <div class="notification is-warning is-light" x-fallback>
-                        ⏳ 首次加载订单…（$loading = {{ $loading }}）
+                    <!-- 首载占位：$loading=true 时显示；数据到达后自动移除，重取/翻页保旧值不闪现 -->
+                    <div class="notification is-warning is-light" x-if="$loading">
+                        ⏳ 首次加载订单…
                     </div>
                 </div>
             </div>
 
-            <!-- 块 B：订单统计摘要——无 x-fallback → 默认合成 x-loading 覆盖层（loading 选项自定义文案） -->
+            <!-- 块 B：订单统计摘要——默认合成 x-loading 覆盖层（loading 选项自定义文案） -->
             <div class="card" x-data="loadSummary" x-data-options="{loading:{message:'统计中…', color:'#ffffff'}}">
                 <div class="card-content">
                     <div class="heading has-text-grey">订单统计摘要（x-loading 覆盖层默认合成）</div>

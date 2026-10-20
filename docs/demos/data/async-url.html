@@ -9,7 +9,7 @@
     </head>
 
     <body>
-        <!-- 异步数据源 · fetch 最小示例：url 直取 + $loading/$error 元状态 + x-fallback 首载占位。
+        <!-- 异步数据源 · fetch 最小示例：url 直取 + $loading/$error 元状态 + x-if 首载占位。
              ?delay 由文档站 demo 中间件支持（模拟网络延迟）。 -->
         <div class="demo-app section">
             <div class="card">
@@ -23,8 +23,8 @@
                         <span class="tag" :class="$loading ? 'is-warning' : 'is-success'">$loading = {{ $loading }}</span>
                         <span class="tag" :class="$error ? 'is-danger' : 'is-light'">$error = {{ $error ? $error.message : '无' }}</span>
                     </div>
-                    <!-- 首载占位：数据到达后自动移除 -->
-                    <div class="notification is-warning is-light" x-fallback>⏳ 加载中…（$loading = {{ $loading }}）</div>
+                    <!-- 首载占位：数据到达后 $loading=false → x-if 移除 -->
+                    <div class="notification is-warning is-light" x-if="$loading">⏳ 加载中…</div>
                 </div>
             </div>
         </div>

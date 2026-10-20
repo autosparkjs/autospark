@@ -147,20 +147,16 @@ _Avoid_: deep / `.deep` / `deep:true`（被否决的命名体系，该修饰符�
 _Avoid_: 脚本数据（泛化）、x-data 脚本（它是声明源不是指令）、JSON 块（内容是 JS 不是 JSON）
 
 **异步数据源 / Async Data Source（x-data）**:
-**异步源家族**的 x-data 物种（家族骨架：url / action 形态判定、编译期首取、插值/实参依赖变化自动重取、请求序号竞态丢弃、destroy 中止——两物种共用同一执行器 `AsyncSourceRunner`）。x-data 侧：值以 `/`、`//`、`http(s)://`、`./`、`../` 开头经 fetch 取数、`标识符(实参?)` 执行 action 取数——结果（须为对象，或经 **path** 提取）后到 merge 进数据域，mount 三形态/回收语义照常（数据只是「晚点到」）；异步形态在数据域注入 `$loading` / `$error` 元状态键（`$error` 为 Error 实例），同步形态（对象 / 数据脚本）不注入。HTML 侧物种见「异步 HTML 源」。详见 ADR-0033 / 0035。
+**异步源家族**的 x-data 物种（家族骨架：url / action 形态判定、编译期首取、插值/实参依赖变化自动重取、请求序号竞态丢弃、destroy 中止——两物种共用同一执行器 `AsyncSourceRunner`）。x-data 侧：值以 `/`、`//`、`http(s)://`、`./`、`../` 开头经 fetch 取数、`标识符(实参?)` 执行 action 取数——结果（须为对象，或经 **path** 提取）后到 merge 进数据域，mount 三形态/回收语义照常（数据只是「晚点到」）；异步形态在数据域注入 `$loading` / `$error` 元状态键（`$error` 为 Error 实例），同步形态（对象 / 数据脚本）不注入。加载中/失败的条件渲染用 `$loading`/`$error` + x-if/x-else-if/x-else 自行声明（ADR-0122 移除 x-fallback 指令）；同元素双异步（异步 x-data + 异步 x-html）时视觉通道归 x-html 独占（x-data 不合成 overlay，显式 `loading` 选项被忽略并 warn）。HTML 侧物种见「异步 HTML 源」。详见 ADR-0033 / 0035 / 0122。
 _Avoid_: 远程数据（泛化，action 形态不经网络）、异步 x-data（形态不是时态）、fetch 数据源（url 只是载体之一）
 
 **异步 HTML 源 / Async HTML Source（x-html）**:
-**异步源家族**的 x-html 物种：url 前缀集判定与 x-data 相同；action 判定**必须带调用括号**（`loadPartial(lang)`）——裸词恒为表达式读状态键（x-html 的值本就是表达式，与 x-data 数据声明身份的关键判定差异）。响应 **text-only**（`res.text()` 直取，无 path；action 返回非字符串按加载失败处理）；产物按 x-html 既有双通道消费——默认模式写 innerHTML（远程内容**维持默认消毒**）、`.compile` 模式作为远程子模板编译。反馈**只走视觉通道**（合成 x-loading 字面量切换 + x-fallback 静态认领），**不注入元状态键**（x-html 无数据域，元键归 x-data 独有）；同元素双异步时反馈通道归 x-data 独占。详见 ADR-0035。
+**异步源家族**的 x-html 物种：url 前缀集判定与 x-data 相同；action 判定**必须带调用括号**（`loadPartial(lang)`）——裸词恒为表达式读状态键（x-html 的值本就是表达式，与 x-data 数据声明身份的关键判定差异）。响应 **text-only**（`res.text()` 直取，无 path；action 返回非字符串按加载失败处理）；产物按 x-html 既有双通道消费——默认模式写 innerHTML（远程内容**维持默认消毒**）、`.compile` 模式作为远程子模板编译。反馈三件套（ADR-0122）：**元键注入**（`$loading`/`$error` 写宿主 scope 的 locals 普通对象域，仅宿主内部子元素经 scope 链可读——成功态写 innerHTML 会清空宿主内子元素，条件渲染块据此自然消失）+ **恒合成 x-loading overlay**（字面量 `"true"`/`"false"` 切换经 attrChanged 驱动显隐，仅 `loading:false` 恒关、宿主手写 x-loading 不叠加）+ 用户可用 x-if/x-else 对 `$loading`/`$error` 做条件渲染。同元素双异步（异步 x-data + 异步 x-html）时视觉通道归 x-html 独占（x-data 不合成 overlay）。详见 ADR-0035 / 0122。
 _Avoid_: 异步模板（.compile 只是消费通道之一）、远程 HTML 数据（产物是内容不是数据）、html 数据源（泛化，撞数据源物种名）
 
 **提取路径 / path（x-data-options）**:
 异步数据源的响应映射选项：`path:'results'` 经 `getVal` 从响应结构下钻提取子对象作为数据结果；提取失败或提取后仍非对象，按加载失败姿态（`$error` + warn，数据不落地）。**区别于 mount**（挂载点是「数据的家」）与既有「状态路径 / 配置状态路径」术语族——path 是**读响应数据的提取路径**（ADR-0029 否决 mount 用此名时，正是为把这个语义留给提取场景）。
 _Avoid_: result（旧提案名已弃）、字段名（不表达路径下钻）、挂载路径（那是 mount 的值）
-
-**异步兜底 / x-fallback**:
-异步源宿主（异步 x-data / 异步 x-html）的**特例子节点**（x-empty 之于 x-for 同构）：**非就绪态的替换渲染**——非就绪（加载中或失败）且**尚无内容**时显示（x-data 判「域内尚无数据」、x-html 判「宿主无已注入内容」；重取保旧值不闪断；要重取期视觉指示，显式声明 `loading` 选项叠加载遮罩）。x-data 侧 fallback 经编译（可插值读 `$error`）；x-html 侧走**静态通道**（不编译不可插值，注入内容写入前先移除）。与 x-loading 加载遮罩**互斥为默认**（声明 x-fallback 则不合成遮罩；`loading:{...}` 显式开启则并存、`loading:false` 恒关）；同元素双异步时归 x-data 独占。孤立 x-fallback（父元素无异步源）warn + 当普通元素放行。区别于空值占位（x-text 值级空态文案）、组件兜底（消费者未命中组件回退默认 UI）、空值回填（x-model 显示层回填）——三者均非「异步未就绪」语义。
-_Avoid_: fallback 块（裸词歧义）、加载占位（不认领 error 态，窄化语义）、loading 块（与 x-loading 加载遮罩撞义）
 
 ### 内容渲染层
 
@@ -613,6 +609,24 @@ _Avoid_: shell 注册表（泛化）、组件表（那是 options.components）�
 服务器通知 DTO 形态——`id/type/read` 恒有 + `owner/level/title/description/status/result/link` + `createAt/updateAt`（业务十二键封闭）。**三重身份零转换同构**：`$notifications.items` 元素（**只管数据**）/ persist·remote 持久化载荷 / entry 的 record 面。渲染配置与运行态投影**不在此**（ADR-0089：封装在组件中——前者活在实例 props 注水面、后者活在实例 data 域〔`notifications.get(id).data` 直读〕）；在屏观察走 DOM display。
 _Avoid_: NotificationRecord（简称废弃——正式名 AutoSparkNotificationRecord）、AutoSparkMessage（ADR-0089 退役——record+渲染+投影大杂烩镜像类型，其键归组件）、镜像携渲染键 / closed / progress 投影（数据/组件分离的例外条款已清除）、DTO 携渲染键（className 等不跨会话）
 
+### 远程加载（Remote Loading）
+
+**远程加载内核 / AsyncLoader 编排（Remote Load Kernel）**:
+引擎全部远程加载（异步 x-data / 异步 x-html、x-component loader、x-import、x-isolate remote、x-icons 图标集）的统一执行内核：**家族适配层**管「形态判定 + watch 接线 + 产物消费 + 错误归一」，`AsyncLoader`（asyncsignal）管「怎么取」（中止 / 超时 / 重试 / 缓存 / multiplex）。指令实例的每次加载意图 = 一个 AsyncLoader 实例，url 响应式变化 = abort 旧实例 + 新建。详见 ADR-0121。
+_Avoid_: RemoteRequest（自研内核提案名，已否决）、加载管线（router loader 词汇，勿混用）
+
+**load 错误源（source:"load"）**:
+x-error 错误源的第三物种（与 raise / action 并列）：远程加载最终失败（重试耗尽）归一为 `{name, message, url?, statusCode?, source:"load"}`。宿主声明 x-error 时接管呈现（错误组件契约同 ADR-0118，`retryable` 默认 true）；未声明时各指令默认呈现兜底（`$error` 元键 / error 占位 / 错误块 / warn）。主动 abort（url 变化 / 销毁）不是错误——静默丢弃不呈现。
+_Avoid_: 加载错误（泛称，须落到 source 分流词汇）、网络错误（4xx / 解析 / 超时同为 load 源）
+
+**retry 动作（统一重试入口）**:
+远程加载家族统一注入宿主 `scope.actions` 的手动重试 action，执行体 = `loader.refresh()`（正在加载先中止再重启）；错误占位、错误块、自定义错误模板 `@click="retry"` 触发；与自动重试（`retry` 选项）独立并存。
+_Avoid_: 重新加载（泛化）、reload（未采用的命名）
+
+**全局出站口 / fetcher**:
+`engine.options.fetcher: (url, init) => Promise<Response>`：全部远程加载的统一 fetch 替换点（缺省 = 原生 fetch），单点承载 mock / 鉴权头 / 测试注入；与 `sanitizer` 注入先例同构。
+_Avoid_: 拦截器（XHR 时代词汇）、请求中间件（过度工程暗示）
+
 ### 加载遮罩（Loading Mask）
 
 > 旧称「加载覆盖层」已让位更名——「覆盖物」词汇归属弹层消费家族（正式词条见上方「覆盖物」章节，历史沿革见「已废弃」词条）。
@@ -811,7 +825,7 @@ _Avoid_: 异步图标源（旧词条，per-icon 物种已废）、icon-url（不
 
 **待定名（Pending Name）**:
 远程声明收集期登记的「已声明未到达」名字（ADR-0058）：x-icon 遇待定名渲染**空占位**（不闪默认图标），symbol 注入后自动显形（onChange 唤醒兜底浏览器解析差异）；fetch 失败逐名转 warn + 默认图标——「声明了没到」与「根本没声明」两语义分离。
-_Avoid_: 加载占位（与「异步兜底 / x-fallback」撞义）、占位符（歧义大）
+_Avoid_: 加载占位（与「异步兜底 / x-fallback」撞义——x-fallback 已废弃，改用 $loading/$error 条件渲染）、占位符（歧义大）
 
 **图标注册表 / Icon Registry（AutoSpark.icons）**:
 document 级全局共享的 Set 子类（`AutoSpark.icons` 静态暴露，多 engine 共享）——**图标域的全局兜底层**（ADR-0058）：动态增删（`add(name, svg)` 注册（内部注入 `as-{name}` 全局 symbol）/ `delete` 移除，无 remove 别名——严守 Set 契约）、遍历产出**名称字符串**、`onChange` 变更通知（miss 唤醒依赖）。声明入口三通道：模板 `x-icons.global` / 编程 `AutoSpark.icons.add` / 构造 `options.icons` 种子；**局部图标无编程入口**（模板 x-icons 唯一）。`options` 字段——**全局图标默认配置**（配置链第三级：指令选项 > 宿主选项 > 本配置 > 内置默认，承载 strokeWidth/size 等渲染参数键；整体赋值广播重渲染，深修改不广播）。engine destroy 不清理（对齐 document 级共享先例）。图标名受 CSS ident 硬约束（`[A-Za-z0-9_-]`、非数字开头），`as-icon` 为保留名。
@@ -1204,3 +1218,7 @@ _Avoid_: 控制钮走 actions / 以 notification:action 观测控制行为（改
 **base 族根 / autospark.notifications.actions 子组件 / closable 键 / sticky 自动补 ×（ADR-0097 更名与翻转）**:
 已废弃。`autospark.notifications.base` 更名 **`autospark.notifications.shell`**（常量 `BASE_PRESET_NAME` → `SHELL_PRESET_NAME`；文件名 notification-shell.html 不动）——概念正名回归「通知外壳」，族根模板三出口化（`x-slot:header` / 裸 `x-slot` / `x-slot:actions`，纵列布局取代 ADR-0088 横排残留）；`autospark.notifications.actions` 按钮行子组件**退役内联**（注册表项 / `ACTIONS_PRESET_NAME` 导出链删除，点击委托契约类名不变）；props 键 `closable` 更名 **`closeable`** 且默认 false → **true 常显 ×**（含自动关闭 toast），「sticky 自动补 ×」启发式与 `globalDeclared` 构造期显式键快照机制随之删除（零行为增量死代码）；`autospark-notification-type` 类名删除（type 钩子走 `data-notification-type` 属性选择器）。均未发布零迁移。
 _Avoid_: base / BASE_PRESET_NAME（写 shell / SHELL_PRESET_NAME）、closable（写 closeable）、autospark.notifications.actions 同名覆盖（写 shell 覆盖或 type 级 `<template x-slot:actions>` 覆盖段）、sticky 自动补 ×（默认恒显）、autospark-notification-type 类选择器（写 [data-notification-type]）
+
+**异步兜底 / x-fallback（ADR-0122 移除）**:
+已废弃。ADR-0122 彻底移除 x-fallback 指令（指令属性、compiler 剪枝 transformer、x-for 跳过逻辑、物种指令采集/同步代码全删）。替代方案：加载中/失败的条件渲染用 `$loading` / `$error` 元键 + x-if/x-else-if/x-else 自行声明（x-data 元键写数据域、x-html 元键写宿主 scope locals）。双异步（同元素异步 x-data + 异步 x-html）的视觉通道归 x-html 独占（x-data 不合成 overlay）——反转 ADR-0035 决策 6。均未发布零迁移。
+_Avoid_: x-fallback 指令、fallback 块、加载占位（改用 $loading/$error 条件渲染）

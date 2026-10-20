@@ -9,14 +9,14 @@
     </head>
 
     <body>
-        <!-- 异步加载反馈（ADR-0033）：x-loading 覆盖层与 x-fallback 的三种配合关系对照。
+        <!-- 异步加载反馈（ADR-0033 / ADR-0122）：x-loading 覆盖层与 x-if 条件渲染的配合对照。
              每块「重新加载」按钮触发重取（tick 实参依赖变化 → 对称重执行），
              延迟 1.5s——重取期间旧数据保留，加载反馈清晰可见。 -->
         <div class="demo-app section">
-            <!-- 块 A：无 x-fallback → 默认合成 x-loading 覆盖层（盖在旧内容上，旧值保留） -->
+            <!-- 块 A：无 x-if → 默认合成 x-loading 覆盖层（盖在旧内容上，旧值保留） -->
             <div class="card" x-data="loadData(aTick)">
                 <div class="card-content">
-                    <div class="heading has-text-grey">块 A · 默认合成覆盖层（无 x-fallback）</div>
+                    <div class="heading has-text-grey">块 A · 默认合成覆盖层</div>
                     <div class="block">
                         数据 = <b class="has-text-primary">{{ value }}</b>
                         （点「重新加载」，覆盖层盖在旧内容上 1.5 秒）
@@ -27,20 +27,19 @@
                 </div>
             </div>
 
-            <!-- 块 B：x-fallback + loading:{...} 显式并存——首载由 fallback 占位；
-                 重取时 fallback 不闪现（保旧值），覆盖层显式叠加（自定义文案）。
-                 注：x-fallback 须为异步 x-data 宿主的直接子级，故 x-data 声明在 card-content 上 -->
+            <!-- 块 B：x-if 条件渲染 + loading:{...} 显式并存——首载由 x-if 占位；
+                 重取时 x-if 不闪现（保旧值），覆盖层显式叠加（自定义文案）。 -->
             <div class="card">
                 <div class="card-content" x-data="loadData(bTick)" x-data-options="{loading:{message:'双通道并存：覆盖层', color:'#ffffff'}}">
-                    <div class="heading has-text-grey">块 B · x-fallback + loading 显式并存</div>
+                    <div class="heading has-text-grey">块 B · x-if 条件渲染 + loading 显式并存</div>
                     <div class="block">
                         数据 = <b class="has-text-primary">{{ value }}</b>
-                        （首载 fallback 占位；重取时旧值保留 + 覆盖层叠加）
+                        （首载 x-if 占位；重取时旧值保留 + 覆盖层叠加）
                     </div>
                     <div class="buttons">
                         <button class="button is-primary is-small" @click="reloadB">重新加载</button>
                     </div>
-                    <div class="notification is-warning is-light" x-fallback>⏳ 首次加载…（$loading = {{ $loading }}）</div>
+                    <div class="notification is-warning is-light" x-if="$loading">⏳ 首次加载…</div>
                 </div>
             </div>
 
@@ -51,7 +50,7 @@
                     <div class="block">
                         数据 = <b class="has-text-primary">{{ value }}</b>
                         <span class="tag" :class="$loading ? 'is-warning' : 'is-success'">$loading = {{ $loading }}</span>
-                        （无覆盖层无 fallback——元状态仍可用，自行表达）
+                        （无覆盖层无 x-if——元状态仍可用，自行表达）
                     </div>
                     <div class="buttons">
                         <button class="button is-primary is-small" @click="reloadC">重新加载</button>

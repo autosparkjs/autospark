@@ -20,7 +20,7 @@
 ```html
 <div class="card-content" x-data="{ title: '响应式状态管理', price: 59, stock: 12 }">
     <div x-html.compile="/api/book-tpl.html">
-        <div x-fallback>⏳ 正在加载远程模板…</div>
+        <div x-if="$loading">⏳ 正在加载远程模板…</div>
     </div>
     <button @click="swap">换一本书</button>
 </div>
@@ -42,19 +42,19 @@ url 中可用 `{表达式}` **单花括号插值**（求值于宿主作用域、
 ```html
 <!-- lang 变化自动重取对应语言的模板 -->
 <div x-html.compile="/api/card-{lang}.html">
-    <div x-fallback>⏳ 加载中…</div>
+    <div x-if="$loading">⏳ 加载中…</div>
 </div>
 ```
 
-裸词相对 url 不支持（与 action 名不可判定），相对路径写 `./api/x.html`。`method` 选项直传 fetch（默认 GET）、`header` 传额外请求头；`!res.ok` 按加载失败处理（保旧值 + fallback 认领）。
+裸词相对 url 不支持（与 action 名不可判定），相对路径写 `./api/x.html`。`method` 选项直传 fetch（默认 GET）、`header` 传额外请求头；`!res.ok` 按加载失败处理（保旧值）。
 
 ### 加载反馈
 
-`x-html` 没有数据域，不注入 `$loading`/`$error` 元键——反馈只走视觉通道：
+`x-html` 的反馈三件套（ADR-0122）：
 
-- **x-loading 覆盖层**：异步形态默认自动合成（请求中显示、完成撤除）；
-- **x-fallback**：宿主内特例子节点（静态通道，不编译），非就绪且宿主尚无注入内容时显示——首载占位、重取保旧值、失败也认领；
-- 二者**互斥为默认**（声明 `x-fallback` 则不合成覆盖层），`loading:{...}` 显式并存、`loading:false` 恒关。
+- **元键注入**：`$loading` / `$error` 写宿主 scope 的 locals——仅宿主**内部**子元素经 scope 链可读（成功态写 innerHTML 会清空宿主内子元素，条件渲染块据此自然消失）；
+- **x-loading 覆盖层**：异步形态**恒合成**（请求中显示、完成撤除），仅 `loading:false` 恒关、宿主手写 x-loading 不叠加；
+- **条件渲染**：用 `$loading` / `$error` + x-if/x-else-if/x-else 自行声明加载中与失败态的 UI。
 
 ### 数据 + 模板双远程
 
@@ -68,13 +68,13 @@ url 中可用 `{表达式}` **单花括号插值**（求值于宿主作用域、
     x-data-options="{ path: 'data' }"
     x-html.compile="/api/book-list-tpl.html"
 >
-    <!-- 双异步时反馈归 x-data 独占：fallback 是编译版，可插值 $loading -->
-    <div x-fallback>⏳ 数据加载中…（$loading = {{ $loading }}）</div>
+    <!-- 双异步时视觉通道归 x-html 独占：x-data 不合成 overlay -->
+    <div x-if="$loading">⏳ 数据加载中…</div>
 </div>
 ```
 
 ::: warning 双异步的反馈归属
-同元素双异步时反馈通道归 **x-data 独占**——`x-fallback` 是编译版（可插值 `$error.message`），`x-html` 不合成覆盖层（显式 `loading` 被忽略并 warn）。
+同元素双异步时视觉通道归 **x-html 独占**——x-html 合成覆盖层，x-data 不合成（显式 `loading` 被忽略并 warn）。
 :::
 
 ### 与远程组件的分工

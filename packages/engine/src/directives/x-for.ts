@@ -1075,9 +1075,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
         //  - 命中 SPECIAL_CHILDREN.match（如 x-empty）→ specialTemplates（渲染一次的特例，不随项重复）
         //  - 其余 → itemTemplates（复合项模板，随每项重复）
         // tpl.children 仅含 Element 节点，空白/注释/文本节点天然排除。
-        // 数据脚本（ADR-0032）在 compileElement 已 warn 放弃注入；x-fallback 特例子节点
-        //（ADR-0033）由父元素 DataDirective 采集——项成员根以 cloneNode(false) 直建、绕过
-        // transformer 剪枝，故二者均在此跳过采集（不进渲染 DOM、不随项重复）。
+        // 数据脚本（ADR-0032）在 compileElement 已 warn 放弃注入。
         // x-else-if / x-else 分支标记（ADR-0034）与 x-case / x-default 分支标记（ADR-0037）同理
         // 跳过：x-for 容器非 x-if / x-switch 宿主，其直接子级的分支标记是孤儿——且项成员编译
         // 走 compileChild 不经主 walk 剪枝层，不在此拦会被当普通项模板随每项渲染。
@@ -1088,11 +1086,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
             const collectFrom: ParentNode =
                 tpl instanceof HTMLTemplateElement ? tpl.content : tpl;
             for (const child of Array.from(collectFrom.children)) {
-                if (
-                    !(child instanceof HTMLElement) ||
-                    isDataScript(child) ||
-                    child.hasAttribute("x-fallback")
-                ) {
+                if (!(child instanceof HTMLElement) || isDataScript(child)) {
                     continue;
                 }
                 if (child.hasAttribute("x-else-if") || child.hasAttribute("x-else")) {

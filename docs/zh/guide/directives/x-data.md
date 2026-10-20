@@ -109,7 +109,7 @@ x-data 的值以 `/`、`//`、`http://`、`https://`、`./`、`../` 开头即 **
 ```html
 <div x-data="/api/books?order={book.order}">
   <span x-text="title"></span>
-  <div x-fallback>加载中…（{{ $loading }}）</div>
+  <div x-if="$loading">加载中…</div>
 </div>
 ```
 
@@ -131,20 +131,20 @@ x-data 的值以 `/`、`//`、`http://`、`https://`、`./`、`../` 开头即 **
 
 **method / header**：`method` 选项直传 fetch（默认 GET）；`header` 传额外 HTTP 头（静态对象）。请求体（body）不支持——非幂等 / 带体请求用 action 形态。
 
-**分页表格实战**：把 `page` / `size` 写进插值即得响应式数据源——翻页、调整每页条数自动重取；重取期间旧表格保留（`$loading` 可见、不闪断），失败时 `$error` 展示且旧值不丢，首载由 x-fallback 占位：
+**分页表格实战**：把 `page` / `size` 写进插值即得响应式数据源——翻页、调整每页条数自动重取；重取期间旧表格保留（`$loading` 可见、不闪断），失败时 `$error` 展示且旧值不丢，首载用 x-if 条件渲染占位：
 
 <demo html="data/async-fetch.html"/>
 
 ### 从动作获取异步数据
 
-值形如 `标识符` 或 `标识符(实参)` 即 **action 形态**——经 getAction 链（局部 `autospark/actions` → 全局 `engine.actions`）查找执行，返回值 / Promise resolve 经与 fetch 相同的映射（对象-only + `path` 提取）落域；加载状态反馈与 x-fallback / x-loading 机制共用（见上节）。
+值形如 `标识符` 或 `标识符(实参)` 即 **action 形态**——经 getAction 链（局部 `autospark/actions` → 全局 `engine.actions`）查找执行，返回值 / Promise resolve 经与 fetch 相同的映射（对象-only + `path` 提取）落域；加载状态反馈与 $loading/$error 条件渲染 / x-loading 机制共用（见上节）。
 
 **实参是表达式**（宿主作用域求值），依赖变化**对称重执行**（与 url 插值同一套「依赖收集 → 变化重取」机制）；action 内 `this` 与 x-on 调用时一致（`this.data` / `this.globalState` 可用）：
 
 ```html
 <div x-data="loadBooks(page)">
   <span x-text="title"></span>
-  <div x-fallback>失败：{{ $error.message }}</div>
+  <div x-if="$error">失败：{{ $error.message }}</div>
 </div>
 ```
 
@@ -167,21 +167,22 @@ url 形态是声明式幂等取数（GET 为主）；action 形态覆盖命令�
 - **`$loading`**（布尔）：请求进行中为 `true`；
 - **`$error`**（Error 实例）：加载失败时落地，`$error.message` 可读；新一轮请求发起时自动清空。
 
-**x-fallback（可选）**：异步宿主的**特例子节点**（x-empty 之于 x-for 同构），非就绪态（加载中或失败）且**域内尚无数据**时替换渲染正常子树，就绪后自动复原。首载显示、**重取不闪断**（旧值保留）、失败也认领（可读 `$error`）：
+**条件渲染**：用 `$loading` / `$error` + x-if/x-else-if/x-else 自行声明加载中与失败态的 UI。首载显示加载中、**重取不闪断**（旧值保留）、失败可展示 `$error`：
 
 ```html
 <div x-data="/api/books">
   <p x-text="title"></p>
-  <div x-fallback>失败：{{ $error ? $error.message : '加载中…' }}</div>
+  <div x-if="$loading">加载中…</div>
+  <div x-else-if="$error">失败：{{ $error.message }}</div>
 </div>
 ```
 
-**x-loading 覆盖层**：异步形态默认自动合成（绑定 `$loading`）；声明了 `x-fallback` 则默认不合成（避免双重加载指示）。异步专属选项：
+**x-loading 覆盖层**：异步形态默认自动合成（绑定 `$loading`）。异步专属选项：
 
 | 选项      | 默认值 | 说明                                                                                    |
 | --------- | ------ | --------------------------------------------------------------------------------------- |
 | `path`    | —      | 响应提取路径（getVal 下钻，如 `'data'`）                                                |
-| `loading` | 自动   | `false` 恒关；`{...}` 直传 x-loading 配置（message/color/delay…），且与 x-fallback 并存 |
+| `loading` | 自动   | `false` 恒关；`{...}` 直传 x-loading 配置（message/color/delay…）                        |
 | `method`  | `GET`  | url 形态直传 fetch                                                                      |
 | `header`  | —      | url 形态额外 HTTP 头（静态对象）                                                        |
 
@@ -191,7 +192,6 @@ url 形态是声明式幂等取数（GET 为主）；action 形态覆盖命令�
 
 - 裸词相对 url（如 `api/books`）不支持（与 action 名不可判定）——相对路径写 `./api/books`；
 - **响应键遮蔽**：响应体的键落域后优先于全局状态同名键（聚合视图 data 层优先）——若接口回显 `page`/`size` 等参数而全局状态恰有同名控制键，插值重求值会读到域内旧值、依赖重取静默失效（引擎会 warn 提示）。建议控制键改名，或让接口不回显；
-- `x-fallback` 必须是异步 x-data 宿主的**直接子级**；孤立声明按普通元素渲染并 warn；
 - 元素销毁时进行中的请求被中止（AbortController），action 在途结果不落地。
   :::
 

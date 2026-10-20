@@ -11,18 +11,21 @@
     <body>
         <!-- 远程异步 HTML 源（ADR-0035）· url 最小示例：x-html 值以 / 开头即 fetch text 注入。
              {lang} 单括号插值 → 依赖变化自动重取（重取期间旧内容保留，不闪断）；
-             x-fallback 静态认领：首载占位、失败也认领（切到不存在的语言演示 404）。
+             x-if 条件渲染：首载占位、失败也认领（切到不存在的语言演示 404）。
              ?delay=800 由文档站 demo 中间件支持（模拟网络延迟）。 -->
         <div class="demo-app section">
             <div class="card">
                 <div class="card-content">
                     <div class="heading has-text-grey">
-                        远程 HTML 片段（url 形态 + 插值重取 + fallback）
+                        远程 HTML 片段（url 形态 + 插值重取 + 条件渲染）
                     </div>
                     <div class="block" x-html="/autospark/api/card-{lang}.html?delay=800">
-                        <!-- x-fallback：异步 x-html 宿主的特例子节点——不编译（{{}} 显示原文） -->
-                        <div class="notification is-warning is-light" x-fallback>
+                        <!-- x-if 条件渲染：加载中显示，内容到达后被远程 HTML 替换 -->
+                        <div class="notification is-warning is-light" x-if="$loading">
                             ⏳ 正在加载 card-{lang}.html …
+                        </div>
+                        <div class="notification is-danger is-light" x-if="$error">
+                            ❌ {{ $error.message }}
                         </div>
                     </div>
                     <div class="buttons">

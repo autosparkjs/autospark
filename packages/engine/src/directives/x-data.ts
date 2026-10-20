@@ -5,7 +5,7 @@ import { SCOPES_KEY } from "../consts";
 import { getVal, shallow, splitPath } from "autostore";
 import type { AutoSparkScope } from "../engine/scope";
 import { AsyncSourceRunner, createAsyncOnError } from "../features/directive/async-source";
-import { detectDataForm, isAsyncDataValue, mapResponse } from "../features/directive/async-source-utils";
+import { detectDataForm, getDirectiveAttrValue, isAsyncDataValue, isAsyncHtmlValue, mapResponse } from "../features/directive/async-source-utils";
 import type { DataScriptStash } from "../engine/compile/dataScript";
 
 /**
@@ -421,33 +421,24 @@ export class DataDirective extends AutoSparkDirectiveBase {
 
     // ── 异步数据源（ADR-0033：url / action 形态）────────────────────────────
 
-    /** 异步形态（url / action）；null = literal（既有同步管道）。x-html 双异步互斥查询消费（ADR-0035） */
+    /** 异步形态（url / action）；null = literal（既有同步管道） */
     private asyncForm: "url" | "action" | null = null;
     /** 挂载模式缓存（applyData 首次解析后供 setMeta / synthesizeLoading 复用，避免 resolveMode 重复 warn） */
     private modeCache: MountMode | null = null;
     /** 共享取数执行器（ADR-0035 决策 5：形态判定/插值重取/竞态/abort 内聚于此，本指令只消费回调） */
     private runner: AsyncSourceRunner | null = null;
-    /** 首次成功落地图数据——x-fallback 显示条件 = 非就绪 && !hasArrivedData（重取保旧值，Q11） */
-    private hasArrivedData = false;
     /** destroy 后拒收一切在途结果 */
     private destroyed = false;
-    /** x-fallback 特例子节点模板（template.children 中带 x-fallback 的元素，文档序） */
-    private fallbackTpls: HTMLElement[] | null = null;
-    /** 已挂载的 fallback 实体（激活期存在） */
-    private fallbackLive: { els: HTMLElement[]; scopes: AutoSparkScope[] } | null = null;
-    /** fallback 激活期被 detach 保活的正常子树（就绪后按原序复原） */
-    private stashedNodes: ChildNode[] | null = null;
 
-    /** 是否异步形态（url / action）——同元素双异步的反馈互斥查询（HtmlDirective 消费，ADR-0035 决策 6） */
+    /** 是否异步形态（url / action）——同元素双异步时 x-html 独占视觉通道的依据 */
     isAsyncSource(): boolean {
         return this.asyncForm !== null;
     }
 
     /**
-     * 异步形态初始化（ADR-0033）：数据脚本为同步基底先落容器（applyData({}) 同时完成
-     * 挂载解析与容器/attachedKeys 建立）→ 元状态就位 → 采集 x-fallback → 合成 x-loading
-     * （互斥默认）→ 首次取数 + 依赖 watch → scheduler 延迟首次 fallback 同步（编译完成后
-     * 子树就位，detach 才有意义）。
+     * 异步形态初始化（ADR-0033 / ADR-0122）：数据脚本为同步基底先落容器（applyData({}) 同时完成
+     * 挂载解析与容器/attachedKeys 建立）→ 元状态就位 → 合成 x-loading（ADR-0122：双异步时
+     * x-html 独占 overlay，x-data 不合成）→ 首次取数 + 依赖 watch。
      */
     private createdAsync(raw: string, stash: DataScriptStash | undefined): void {
         this.asyncForm = detectDataForm(raw) === "url" ? "url" : "action";
@@ -465,7 +456,6 @@ export class DataDirective extends AutoSparkDirectiveBase {
             this.applyData({});
         }
         this.setMeta(true, undefined);
-        this.collectFallback();
         this.synthesizeLoading();
         this.runner = new AsyncSourceRunner(this.binding, (k) => this.getOption(k), {
             responseParser: (res) => res.json(),
@@ -473,14 +463,10 @@ export class DataDirective extends AutoSparkDirectiveBase {
             onResult: (result) => this.arrive(result),
             onError: createAsyncOnError(
                 (msg) => this.warn(`x-data: ${msg}`),
-                (err) => {
-                    this.setMeta(false, err);
-                    this.engine.scheduler.schedule(() => this.syncFallback());
-                },
+                (err) => this.setMeta(false, err),
             ),
         });
         this.runner.start(raw);
-        this.engine.scheduler.schedule(() => this.syncFallback());
     }
 
     /** 到达映射（决策 2）：mapResponse 对象-only + path 提取；失败与加载失败同级姿态 */
@@ -490,17 +476,14 @@ export class DataDirective extends AutoSparkDirectiveBase {
             this.fail(mapped.error);
             return;
         }
-        this.hasArrivedData = true;
         this.setMeta(false, undefined);
         this.applyFetched(mapped.data);
-        this.engine.scheduler.schedule(() => this.syncFallback());
     }
 
-    /** 加载失败：warn 日志 + $error 落地 + fallback 同步（非就绪态认领） */
+    /** 加载失败：warn 日志 + $error 落地 */
     private fail(err: Error): void {
         this.warn(`x-data: ${err.message}`);
         this.setMeta(false, err);
-        this.engine.scheduler.schedule(() => this.syncFallback());
     }
 
     /**
@@ -568,27 +551,27 @@ export class DataDirective extends AutoSparkDirectiveBase {
         }
     }
 
-    /** 采集 x-fallback 特例子节点（template 直接子级，文档序；walk 到达前采集完毕） */
-    private collectFallback(): void {
-        const tpl = this.template;
-        if (!tpl) return;
-        for (const child of tpl.children) {
-            if (child instanceof HTMLElement && child.hasAttribute("x-fallback")) {
-                (this.fallbackTpls ??= []).push(child);
-            }
-        }
-    }
-
     /**
-     * x-loading 覆盖层合成（决策 4）：给渲染元素注入 `x-loading="<元键全局路径>"` 属性
-     * （Runtime 指令属性保留在结果 DOM，dispatcher 自然拾取；LoadingConfig 经
-     * `x-loading-options` 直传）。互斥默认：有 x-fallback 且未显式声明 loading → 不合成
-     * （避免「fallback 替换内容 + overlay 盖宿主」双重加载指示）；`loading:false` 恒关。
+     * x-loading 覆盖层合成（ADR-0033 决策 4 / ADR-0122 决策 4-5）：给渲染元素注入
+     * `x-loading="<元键全局路径>"` 属性（Runtime 指令属性保留在结果 DOM，dispatcher 自然拾取；
+     * LoadingConfig 经 `x-loading-options` 直传）。ADR-0122 移除「有 x-fallback 不合成」互斥
+     * 默认——恒合成，仅 `loading:false` 恒关；双异步（异步 x-data + 异步 x-html 同元素）时
+     * 视觉通道归 x-html 独占，x-data 不合成 overlay（显式声明 loading 也忽略并 warn）。
      */
     private synthesizeLoading(): void {
         const loadingOpt = this.getOption("loading");
         if (loadingOpt === false) return;
-        if (this.fallbackTpls && loadingOpt === undefined) return;
+        // 双异步：x-html 独占视觉通道（ADR-0122 决策 4）。
+        // 查 template（原模板保留指令属性），el 已被 removeDirectives 剥除。
+        const htmlVal = this.template ? getDirectiveAttrValue(this.template, "x-html") : null;
+        if (htmlVal !== null && isAsyncHtmlValue(htmlVal)) {
+            if (loadingOpt !== undefined) {
+                this.warn(
+                    `x-data: 同元素双异步（异步 x-data + 异步 x-html），视觉通道归 x-html 独占，loading 选项被忽略（ADR-0122 决策 4）`,
+                );
+            }
+            return;
+        }
         const path =
             this.modeCache === "root"
                 ? "$loading"
@@ -599,53 +582,6 @@ export class DataDirective extends AutoSparkDirectiveBase {
         if (loadingOpt && typeof loadingOpt === "object") {
             this.el?.setAttribute("x-loading-options", JSON.stringify(loadingOpt));
         }
-    }
-
-    /**
-     * fallback 状态同步（scheduler 微任务驱动）：显示条件 = 非就绪（$loading 或 $error）
-     * **且域内尚无数据**——首载显示；重取保旧值、不闪断（Q11）。激活 = 正常子树整体
-     * detach 保活（watcher 照常更新 detached 节点，复原即终态）+ 逐模板挂载编译后的
-     * fallback；就绪 = 销毁 fallback scope + 按原序复原子树。
-     */
-    private syncFallback(): void {
-        if (this.destroyed || !this.fallbackTpls) return;
-        const target = this.metaTarget();
-        const notReady = target.$loading === true || target.$error !== undefined;
-        const active = notReady && !this.hasArrivedData;
-        if (active === !!this.fallbackLive) return;
-        if (active) this.activateFallback();
-        else this.deactivateFallback();
-    }
-
-    private activateFallback(): void {
-        const host = this.el;
-        if (!host) return;
-        const stash = document.createDocumentFragment();
-        while (host.firstChild) stash.appendChild(host.firstChild);
-        this.stashedNodes = Array.from(stash.childNodes);
-        this.fallbackLive = { els: [], scopes: [] };
-        for (const tpl of this.fallbackTpls!) {
-            // compileChild 以 template 为只读输入（根浅克隆 + 剥指令属性），fallback 内容
-            // 可引用 $loading/$error（scope 链：fallback scope → 宿主 scope → 域）
-            const { el, scope } = this.engine.compiler.compileChild(tpl, this.binding, {});
-            this.binding.addChild(scope);
-            host.appendChild(el);
-            this.fallbackLive.els.push(el);
-            this.fallbackLive.scopes.push(scope);
-        }
-    }
-
-    private deactivateFallback(): void {
-        const live = this.fallbackLive;
-        if (!live) return;
-        this.fallbackLive = null;
-        for (const s of live.scopes) s.destroy();
-        for (const e of live.els) e.remove();
-        const host = this.el;
-        if (host && this.stashedNodes) {
-            for (const n of this.stashedNodes) host.appendChild(n);
-        }
-        this.stashedNodes = null;
     }
 
     /**
@@ -766,7 +702,6 @@ export class DataDirective extends AutoSparkDirectiveBase {
 
     override destroy() {
         // 异步形态清理（ADR-0033 决策 7）：中止进行中 fetch、序号失效（action 在途结果不落地）。
-        // stashedNodes/fallback 随宿主元素一起消亡，无需复原。
         if (this.asyncForm) {
             this.destroyed = true;
             this.runner?.destroy();

@@ -9,7 +9,7 @@
     </head>
 
     <body>
-        <!-- 异步数据源 · action 最小示例：action 直调取数 + $loading 元状态 + x-fallback 首载占位。
+        <!-- 异步数据源 · action 最小示例：action 直调取数 + $loading 元状态 + x-if 首载占位。
              action 数据源可以是本地计算 / POST / 聚合——只要返回对象。 -->
         <div class="demo-app section">
             <div class="card">
@@ -23,8 +23,8 @@
                         <span class="tag" :class="$loading ? 'is-warning' : 'is-success'">$loading = {{ $loading }}</span>
                         <span class="tag" :class="$error ? 'is-danger' : 'is-light'">$error = {{ $error ? $error.message : '无' }}</span>
                     </div>
-                    <!-- 首载占位：数据到达后自动移除 -->
-                    <div class="notification is-warning is-light" x-fallback>⏳ 加载中…（$loading = {{ $loading }}）</div>
+                    <!-- 首载占位：数据到达后 $loading=false → x-if 移除 -->
+                    <div class="notification is-warning is-light" x-if="$loading">⏳ 加载中…</div>
                 </div>
             </div>
         </div>

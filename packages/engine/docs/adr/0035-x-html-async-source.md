@@ -1,6 +1,6 @@
-# ADR-0035：x-html 远程异步 HTML 源（url / action 形态 + 视觉反馈）
+# ADR-0035：x-html 远程异步 HTML 源（url / action 形态）
 
-- **状态**：Accepted（grill-with-docs，三轮九问）
+- **状态**：Accepted（决策 1「不注入元键」/ 决策 3「x-fallback 静态认领」/ 决策 6「双异步反馈归 x-data 独占」已被 [ADR-0122](0122-remove-x-fallback.md) 反转——x-html 补注入 `$loading`/`$error` 到宿主 localData，x-fallback 退役，双异步反馈归 x-html 独占）
 - **日期**：2026-09-13
 - **关联**：[ADR-0033](0033-x-data-async-source.md)（异步数据源——本 ADR 复用其骨架并做物种分化）、[ADR-0005](0005-x-html-directive.md)（x-html 默认消毒）、[ADR-0017](0017-x-html-compile.md)（`.compile` 子模板编译）、[ADR-0007](0007-directive-options-and-modifiers.md)（`x-html-options` 选项载体）、[CONTEXT.md](../../CONTEXT.md)（「异步数据源」家族词条、「异步 HTML 源」「异步兜底」词条）
 

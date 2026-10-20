@@ -11,7 +11,7 @@
     <body>
         <!-- 数据 + 模板双远程：x-data（异步取 books.json）与 x-html.compile（异步取
              book-list-tpl.html）同元素，经响应式天然协调——先到者先行渲染，后到者字段级
-             更新（无需重编译）。反馈通道归 x-data 独占：fallback 是编译版，可插值 $loading -->
+             更新（无需重编译）。视觉通道归 x-html 独占（x-data 不合成 overlay） -->
         <div class="demo-app section">
             <div class="card">
                 <div
@@ -20,8 +20,8 @@
                     x-data-options="{ path: 'data' }"
                     x-html.compile="/autospark/api/book-list-tpl.html?delay=800"
                 >
-                    <div class="notification is-warning is-light" x-fallback>
-                        ⏳ 数据加载中…（$loading = {{ $loading }}）
+                    <div class="notification is-warning is-light" x-if="$loading">
+                        ⏳ 数据加载中…
                     </div>
                 </div>
             </div>

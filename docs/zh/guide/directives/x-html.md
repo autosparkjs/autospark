@@ -142,7 +142,7 @@ engine.state.tpl =
 
 ```html
 <div x-html="/api/card-{lang}.html">
-  <div x-fallback>⏳ 正在加载…</div>
+  <div x-if="$loading">⏳ 正在加载…</div>
 </div>
 ```
 
@@ -150,7 +150,7 @@ engine.state.tpl =
 
 **url 插值与自动重取**：`{表达式}` 单花括号（与 x-data 同构），求值于宿主作用域、自动 `encodeURIComponent`；依赖变化自动重新 fetch——重取期间**旧内容保留不闪断**，过期响应按请求序号丢弃。裸词相对 url 不支持（与 action 名不可判定），相对路径写 `./api/x.html`。
 
-**HTTP 边界**：`method` 选项直传 fetch（默认 GET）、`header` 传额外请求头（静态对象）；`!res.ok` 按加载失败处理（保旧值 + fallback 认领）。请求体不支持——命令式全能力归 action 形态。
+**HTTP 边界**：`method` 选项直传 fetch（默认 GET）、`header` 传额外请求头（静态对象）；`!res.ok` 按加载失败处理（保旧值）。请求体不支持——命令式全能力归 action 形态。
 
 ### 动态生成 HTML（action 形态）
 
@@ -158,7 +158,7 @@ engine.state.tpl =
 
 <demo html="html/async-action.html"/>
 
-**须返回字符串**：非字符串（对象/数字/null）按加载失败处理（保旧值 + fallback 认领 + warn）——与 x-data「对象-only」姿态对称，不静默注入垃圾内容。
+**须返回字符串**：非字符串（对象/数字/null）按加载失败处理（保旧值 + warn）——与 x-data「对象-only」姿态对称，不静默注入垃圾内容。
 
 ### 远程模板编译
 
@@ -170,17 +170,17 @@ engine.state.tpl =
 
 ### 异步状态反馈
 
-x-html 没有数据域，**不注入** `$loading`/`$error` 元键（那是 x-data 的语义）——反馈只走视觉通道：
+x-html 的反馈三件套（ADR-0122）：
 
-- **x-loading 覆盖层**：异步形态默认自动合成（字面量切换式——请求中显示、完成撤除，无需状态键）；
-- **x-fallback**：异步 x-html 宿主的特例子节点（**静态通道**——不编译、`{{}}` 显示原文）：非就绪（加载中或失败）且宿主尚无注入内容时显示；首载占位、重取保旧值不闪断、失败也认领；
-- 二者**互斥为默认**（声明 x-fallback 则不合成覆盖层），`loading:{...}` 显式并存、`loading:false` 恒关——与 x-data 同款三态（配置见[配置选项](#配置选项)）。
+- **元键注入**：`$loading` / `$error` 写宿主 scope 的 locals——仅宿主**内部**子元素经 scope 链可读（成功态写 innerHTML 会清空宿主内子元素，条件渲染块据此自然消失）；
+- **x-loading 覆盖层**：异步形态**恒合成**（字面量切换式——请求中显示、完成撤除），仅 `loading:false` 恒关、宿主手写 x-loading 不叠加；
+- **条件渲染**：用 `$loading` / `$error` + x-if/x-else-if/x-else 自行声明加载中与失败态的 UI。
 
 <demo html="html/async-loading.html"/>
 
 ::: warning 边界
 
-- **同元素双异步**（异步 x-data + 异步 x-html）：反馈通道归 **x-data 独占**——fallback 是编译版（可插值 `$error.message`），x-html 不合成覆盖层（显式 `loading` 被忽略并 warn）；
+- **同元素双异步**（异步 x-data + 异步 x-html）：视觉通道归 **x-html 独占**——x-html 合成覆盖层，x-data 不合成（显式 `loading` 被忽略并 warn）；
 - 元素销毁时进行中的请求被中止（AbortController），action 在途结果不落地。
 :::
 

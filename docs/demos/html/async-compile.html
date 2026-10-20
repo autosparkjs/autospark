@@ -9,10 +9,10 @@
     </head>
 
     <body>
-        <!-- 远程异步 HTML 源（ADR-0035）· .compile 组合：取回的 text 作为子模板编译——
+        <!-- 远程异步 HTML 源（ADR-0035 / ADR-0122）· .compile 组合：取回的 text 作为子模板编译——
              内部指令/插值生效、继承宿主作用域、watcher 真实建立（改数据即见响应式更新）。
              块 B 演示「数据 + 模板双远程」：x-data（异步）与 x-html.compile（异步）同元素，
-             反馈通道归 x-data 独占（fallback 是编译版、可插值读 $loading）。 -->
+             视觉通道归 x-html 独占（x-data 不合成 overlay）。 -->
         <div class="demo-app section">
             <!-- 块 A：本地数据 + 远程模板——「换一本书」驱动模板内绑定更新（证明编译生效）。
                  x-data 上提到 card-content（按钮与内容块的共同父级）：动作内 this.data 命中本层；
@@ -21,7 +21,7 @@
                 <div class="card-content" x-data="{ title: '响应式状态管理', price: 59, stock: 12 }">
                     <div class="heading has-text-grey">本地数据 + 远程模板（.compile 编译执行）</div>
                     <div class="block" x-html.compile="/autospark/api/book-tpl.html?delay=800">
-                        <div class="notification is-warning is-light" x-fallback>⏳ 正在加载远程模板…</div>
+                        <div class="notification is-warning is-light" x-if="$loading">⏳ 正在加载远程模板…</div>
                     </div>
                     <div class="buttons">
                         <button class="button is-primary is-small" @click="restock">换一本书（模板内绑定随之更新）</button>
@@ -30,15 +30,15 @@
             </div>
 
             <!-- 块 B：数据 + 模板双远程——x-data 与 x-html.compile 同元素；
-                 fallback 归 x-data 独占（编译版，可插值 $loading）；模板先到先编译，
+                 视觉通道归 x-html 独占（x-data 不合成 overlay）；模板先到先编译，
                  数据到达后字段级细粒度更新（无需重编译） -->
             <div class="card">
                 <div class="card-content"
                     x-data="/autospark/api/books.json?delay=2000"
                     x-data-options="{path:'data'}"
                     x-html.compile="/autospark/api/book-list-tpl.html?delay=800">
-                    <div class="notification is-warning is-light" x-fallback>
-                        ⏳ 数据加载中…（$loading = {{ $loading }}，fallback 归 x-data 独占）
+                    <div class="notification is-warning is-light" x-if="$loading">
+                        ⏳ 数据加载中…
                     </div>
                 </div>
             </div>

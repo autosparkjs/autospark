@@ -30,7 +30,7 @@ export interface AutoSparkAction {
      * action id（注册键）。规范化时由 ActionManager 以注册键统一注入/覆盖（决策 3）——
      * descriptor 自知其 id，`Object.values` 遍历不丢 id；用户声明里的 id 不生效。
      */
-    id: string;
+    id?: string;
     /** 文档化约定键：展示标题（如 UI 工具生成菜单、加载提示显示动作标题） */
     title?: string;
     /** 文档化约定键：图标名称 */
@@ -41,7 +41,7 @@ export interface AutoSparkAction {
      * **点击时现读**；其他场景不解释（开放元数据，引擎核心只认 handle）。
      */
     hide?: boolean;
-    
+
     value?: any
     /**
      * 排序号

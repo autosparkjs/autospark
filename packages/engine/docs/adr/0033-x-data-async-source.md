@@ -1,6 +1,6 @@
-# ADR-0033：x-data 异步数据源（url / action 形态 + 异步兜底）
+# ADR-0033：x-data 异步数据源（url / action 形态）
 
-- **状态**：Accepted
+- **状态**：Accepted（决策 4「x-fallback 双态兜底」已被 [ADR-0122](0122-remove-x-fallback.md) 取代——x-fallback 指令退役，反馈收敛为「元键 + x-loading 合成 + x-if/else 三态条件渲染」）
 - **日期**：2026-09-13
 - **关联**：[ADR-0029](0029-x-data-mount.md)（挂载模型——异步数据后到走同一管道）、[ADR-0032](0032-data-script.md)（数据脚本——异步形态与之的合成次序）、[ADR-0007](0007-directive-options-and-modifiers.md)（path / loading / header / method 选项载体）、[ADR-0010](0010-action-dom-bubble-event.md)/[ADR-0011](0011-sync-action-lifecycle.md)（action 三信号复用）、[CONTEXT.md](../../CONTEXT.md)（「异步数据源」「提取路径 path」「异步兜底 x-fallback」词条）
 

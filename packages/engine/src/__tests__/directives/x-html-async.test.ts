@@ -1,13 +1,12 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import "../setup";
 import { mount } from "../helpers";
-import type { AutoSpark } from "../../engine/engine";
 
 /**
- * x-html 远程异步 HTML 源（ADR-0035）：url / action 形态判定（action 必须带括号——裸词
- * 恒为表达式）、text-only 映射（非字符串即失败）、远程内容默认消毒、x-fallback 静态认领
- * （不编译不可插值、重取保旧值）、x-loading 字面量切换合成（互斥默认、三态）、
- * `.compile` 远程模板、同元素双异步反馈互斥、竞态丢弃与 destroy 中止。
+ * x-html 远程异步 HTML 源（ADR-0035 / ADR-0122）：url / action 形态判定（action 必须带括号——裸词
+ * 恒为表达式）、text-only 映射（非字符串即失败）、远程内容默认消毒、$loading/$error 元键注入
+ * （locals 域）、x-loading 字面量切换合成（恒合成、无互斥）、`.compile` 远程模板、
+ * 同元素双异步 x-html 独占视觉通道、竞态丢弃与 destroy 中止。
  */
 
 /** fetch 调用记录 + 可编程应答（body 为 html 字符串，走 res.text()） */
@@ -55,7 +54,7 @@ const overlayOf = (host: Element | null): HTMLElement | null =>
 
 const realFetch = globalThis.fetch;
 
-describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
+describe("x-html 远程异步 HTML 源（ADR-0035 / ADR-0122）", () => {
     beforeEach(() => {
         (globalThis as any).fetch = realFetch;
     });
@@ -128,9 +127,9 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
 
     // ── text-only 映射（决策 2）────────────────────────────────────────
 
-    test("action 返回非字符串 → 失败：不落地、保旧值", async () => {
+    test("action 返回非字符串 → 失败：不落地、$error 注入", async () => {
         const { root } = mount(
-            `<div id="h" x-html="bad()"><div x-fallback>失败中</div></div>`,
+            `<div id="h" x-html="bad()"><span class="e" x-text="$error ? $error.message : ''"></span></div>`,
             {},
             {
                 actions: {
@@ -139,8 +138,8 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
             },
         );
         await flush();
-        // 失败：宿主显示 fallback（认领失败态），innerHTML 未被 "[object Object]" 污染
-        expect(root.querySelector("#h")?.textContent).toContain("失败中");
+        // 失败：$error 元键可读（Error 实例），innerHTML 未被 "[object Object]" 污染
+        expect(root.querySelector(".e")?.textContent).toContain("字符串");
     });
 
     test("空串响应 → 清空宿主（既有同步语义照旧）", async () => {
@@ -176,7 +175,63 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
         expect(root.querySelector("#h")?.innerHTML).toContain("script");
     });
 
-    // ── 反馈通道（决策 3：视觉完整、无元键）───────────────────────────
+    // ── 元键注入（ADR-0122 决策 2）─────────────────────────────────────
+    // 注：$loading/$error 注入宿主 scope locals，仅宿主**内部**子元素经 scope 链可读
+    // （兄弟元素在 scope 树另一分支，读不到）。成功态 x-html 写 innerHTML 会清空宿主内
+    // 子元素，故成功态不再断言内部读取者，改断言宿主内容与 x-loading 属性。
+
+    test("$loading/$error 注入宿主 locals：pending true → 成功 false，模板直读", async () => {
+        const gate = deferred<{ body: string }>();
+        mockFetch(() => gate.promise);
+        const { root } = mount(
+            `<div id="h" x-html="/api/slow.html"><span class="l" x-text="$loading"></span></div>`,
+            {},
+        );
+        await flush();
+        const h = root.querySelector("#h")!;
+        // pending：$loading=true（宿主内子元素经 scope 链读到 locals 层）
+        expect(root.querySelector(".l")?.textContent).toBe("true");
+        gate.resolve({ body: "<b>好了</b>" });
+        await flush();
+        // 成功：内部读取者被远程内容替换清空；宿主内容到达、x-loading 回落 false
+        expect(h.innerHTML).toContain("<b>好了</b>");
+        expect(h.getAttribute("x-loading")).toBe("false");
+    });
+
+    test("失败态：$error 为 Error 实例，$error.message 可插值", async () => {
+        mockFetch(() => new Error("网络炸了"));
+        const { root } = mount(
+            `<div id="h" x-html="/api/bad"><span class="e" x-text="$error ? $error.message : ''"></span></div>`,
+            {},
+        );
+        await flush();
+        // 失败不写 innerHTML，宿主内读取者保留
+        expect(root.querySelector(".e")?.textContent).toContain("网络炸了");
+    });
+
+    test("重取时清 $error：新一轮请求发起时错误清除", async () => {
+        let call = 0;
+        mockFetch(() => {
+            call++;
+            return call === 1 ? new Error("首次失败") : { body: "<b>成功</b>" };
+        });
+        const { root, engine } = mount(
+            `<div id="h" x-html="/api/p-{t}.html"><span class="e" x-text="$error ? $error.message : ''"></span><span class="l" x-text="$loading"></span></div>`,
+            { t: 1 },
+        );
+        await flush();
+        const h = root.querySelector("#h")!;
+        expect(root.querySelector(".e")?.textContent).toContain("首次失败");
+        expect(root.querySelector(".l")?.textContent).toBe("false");
+        // 触发重取：pending 期 $error 清空、$loading 回 true（内部读取者仍在）
+        engine.state.t = 2;
+        await flush();
+        // 第二次成功：宿主内容写入，内部读取者被替换清空
+        expect(h.innerHTML).toBe("<b>成功</b>");
+        expect(h.getAttribute("x-loading")).toBe("false");
+    });
+
+    // ── x-loading 合成（ADR-0122 决策 3：恒合成、无互斥）──────────────
 
     test("x-loading 合成：pending 显示覆盖层、完成后撤除", async () => {
         const gate = deferred<{ body: string }>();
@@ -193,55 +248,6 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
         expect(h.innerHTML).toBe("<b>好了</b>");
     });
 
-    test("x-fallback 静态认领：首载显示、成功后移除、不编译（{{}} 显示原文）", async () => {
-        const gate = deferred<{ body: string }>();
-        mockFetch(() => gate.promise);
-        const { root } = mount(
-            `<div id="h" x-html="/api/slow.html"><div class="fb" x-fallback>加载中… {{ $loading }}</div></div>`,
-            {},
-        );
-        await flush();
-        // 首载：fallback 克隆显示（静态——插值原文，不编译）
-        expect(root.querySelector(".fb")?.textContent).toContain("加载中… {{ $loading }}");
-        gate.resolve({ body: "<b>内容</b>" });
-        await flush();
-        expect(root.querySelector(".fb")).toBeNull();
-        expect(root.querySelector("#h")?.innerHTML).toBe("<b>内容</b>");
-    });
-
-    test("重取保旧值：重取期间旧内容保留、fallback 不闪现", async () => {
-        const gate = deferred<{ body: string }>();
-        mockFetch(() => ({ body: "<b>第一版</b>" }));
-        const { root, engine } = mount(
-            `<div id="h" x-html="/api/p-{t}.html"><div class="fb" x-fallback>占位</div></div>`,
-            { t: 1 },
-        );
-        await flush();
-        expect(root.querySelector("#h")?.innerHTML).toBe("<b>第一版</b>");
-        expect(root.querySelector(".fb")).toBeNull();
-        // 重取挂起：旧值保留、fallback 不闪现、覆盖层出现（无 fallback 合成互斥——已有成功内容，
-        // fallback 已被采集故未合成覆盖层，验证保旧值即可）
-        mockFetch(() => gate.promise);
-        engine.state.t = 2;
-        await flush();
-        expect(root.querySelector("#h")?.innerHTML).toBe("<b>第一版</b>");
-        expect(root.querySelector(".fb")).toBeNull();
-        gate.resolve({ body: "<b>第二版</b>" });
-        await flush();
-        expect(root.querySelector("#h")?.innerHTML).toBe("<b>第二版</b>");
-    });
-
-    test("失败态：HTTP 404 → fallback 认领失败", async () => {
-        mockFetch(() => ({ ok: false, status: 404, statusText: "Not Found" }));
-        const { root } = mount(
-            `<div id="h" x-html="/api/none.html"><div class="fb" x-fallback>出错了</div></div>`,
-            {},
-        );
-        await flush();
-        expect(root.querySelector(".fb")?.textContent).toBe("出错了");
-        expect(root.querySelector("#h")?.innerHTML).not.toContain("not found");
-    });
-
     test("loading:false 恒关：不合成 x-loading 属性", async () => {
         const gate = deferred<{ body: string }>();
         mockFetch(() => gate.promise);
@@ -255,23 +261,18 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
         await flush();
     });
 
-    test("互斥默认：有 x-fallback 不合成覆盖层；loading:{...} 显式并存（带配置）", async () => {
+    test("宿主手写 x-loading → 不叠加（既有规则不变）", async () => {
         const gate = deferred<{ body: string }>();
         mockFetch(() => gate.promise);
         const { root } = mount(
-            `<div id="h" x-html="/api/slow.html" x-html-options="{loading:{message:'加载模板中'}}"><div class="fb" x-fallback>占位</div></div>`,
+            `<div id="h" x-html="/api/slow.html" x-loading="false"></div>`,
             {},
         );
         await flush();
-        const h = root.querySelector("#h")!;
-        // 显式 loading 与 fallback 并存：覆盖层合成 + options 配置直传
-        expect(h.getAttribute("x-loading")).toBe("true");
-        expect(h.getAttribute("x-loading-options")).toContain("加载模板中");
-        expect(root.querySelector(".fb")).not.toBeNull();
-        gate.resolve({ body: "<b>ok</b>" });
+        // 手写 x-loading 存在，x-html 不覆盖合成
+        expect(root.querySelector("#h")?.getAttribute("x-loading")).toBe("false");
+        gate.resolve({ body: "x" });
         await flush();
-        expect(overlayOf(h)).toBeNull();
-        expect(root.querySelector(".fb")).toBeNull();
     });
 
     test("x-loading-options 的 message 经 LoadingDirective 接线进覆盖层文案", async () => {
@@ -282,7 +283,7 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
             {},
         );
         await flush();
-        // 覆盖层块内 x-text="message" 渲染 options 合入的配置（ADR-0035 接线修复的回归）
+        // 覆盖层块内 x-text="message" 渲染 options 合入的配置
         expect(root.querySelector(".x-loading-message")?.textContent).toBe("自定义文案");
         gate.resolve({ body: "x" });
         await flush();
@@ -317,23 +318,19 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
         expect(root.querySelector(".v2")?.textContent).toBe("模板二");
     });
 
-    // ── 同元素双异步：反馈通道归 x-data 独占（决策 6）─────────────────
+    // ── 同元素双异步：x-html 独占视觉通道（ADR-0122 决策 4）────────────
 
-    test("双异步：fallback 归 x-data（编译版可插值）、x-html 不合成覆盖层", async () => {
+    test("双异步：x-html 合成 overlay（字面量 true），x-data 不合成", async () => {
         const gate = deferred<{ body: any }>();
         mockFetch(() => gate.promise);
         const { root } = mount(
-            `<div id="h" x-data="/api/book.json" x-html.compile="/api/tpl.html"><div class="fb" x-fallback>数据加载中… {{ $loading }}</div></div>`,
+            `<div id="h" x-data="/api/book.json" x-html.compile="/api/tpl.html"></div>`,
             {},
         );
         await flush();
         const h = root.querySelector("#h")!;
-        // fallback 由 x-data 认领：编译版（插值求值为 true，而非原文）
-        expect(root.querySelector(".fb")?.textContent).toContain("true");
-        expect(root.querySelector(".fb")?.textContent).not.toContain("{{");
-        // 互斥默认（ADR-0033/0035 一致）：有 x-fallback 则两边都不合成覆盖层；
-        // 归属唯一性由「x-data 的编译版 fallback 生效、x-html 的静态认领退位」体现
-        expect(h.getAttribute("x-loading")).toBeNull();
+        // x-html 合成字面量 "true"；x-data 不合成（无 $loading 路径形态）
+        expect(h.getAttribute("x-loading")).toBe("true");
         gate.resolve({ body: { title: "远程书名" } });
         await flush();
     });
@@ -352,21 +349,20 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
         expect(root.querySelector(".t")?.textContent).toBe("远程书名");
     });
 
-    test("双异步：x-html 显式 loading 选项被忽略并 warn", async () => {
+    test("双异步：x-data 显式 loading 选项被忽略并 warn", async () => {
         const gate = deferred<{ body: any }>();
         mockFetch(() => gate.promise);
-        const { root, engine } = mount(
-            `<div id="h" x-data="/api/book.json" x-html="/api/p.html" x-html-options="{loading:{message:'x'}}"></div>`,
+        const { root } = mount(
+            `<div id="h" x-data="/api/book.json" x-data-options="{loading:{message:'x'}}" x-html="/api/p.html"></div>`,
             {},
         );
         await flush();
         const h = root.querySelector("#h")!;
-        // x-data 的元键绑定式合成独占（非 "true" 字面量）；x-html 的 loading 被忽略
-        expect(h.getAttribute("x-loading")).toMatch(/\$loading$/);
+        // x-html 合成字面量；x-data 的 loading 被忽略（无 x-loading-options 合成）
+        expect(h.getAttribute("x-loading")).toBe("true");
         expect(h.getAttribute("x-loading-options")).toBeNull();
         gate.resolve({ body: { a: 1 } });
         await flush();
-        expect((engine as AutoSpark).logger).toBeTruthy();
     });
 
     // ── 生命周期与竞态（决策 7 沿用清单）───────────────────────────────
@@ -399,11 +395,5 @@ describe("x-html 远程异步 HTML 源（ADR-0035）", () => {
         gate.resolve({ body: "<b>迟到的</b>" });
         await flush();
         expect(h.innerHTML).toBe("");
-    });
-
-    test("孤立 x-fallback（父无异步源）→ warn + 当普通元素渲染", async () => {
-        const { root } = mount(`<div id="h"><div class="fb" x-fallback>静态</div></div>`, {});
-        await flush();
-        expect(root.querySelector(".fb")?.textContent).toBe("静态");
     });
 });

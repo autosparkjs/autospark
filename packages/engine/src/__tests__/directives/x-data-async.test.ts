@@ -4,9 +4,9 @@ import { mount } from "../helpers";
 import type { AutoSpark } from "../../engine/engine";
 
 /**
- * x-data 异步数据源（ADR-0033）：url / action 形态、path 提取、$loading/$error 元状态、
- * x-fallback 双态兜底（重取保旧值）、x-loading 合成（互斥默认）、插值重取与竞态丢弃、
- * method/header、mount 兼容、数据脚本基底合成次序、destroy 中止。
+ * x-data 异步数据源（ADR-0033 / ADR-0122）：url / action 形态、path 提取、$loading/$error 元状态、
+ * x-loading 合成（恒合成、无互斥）、插值重取与竞态丢弃、method/header、mount 兼容、
+ * 数据脚本基底合成次序、destroy 中止。双异步时视觉通道归 x-html 独占（x-data 不合成 overlay）。
  */
 
 /** fetch 调用记录 + 可编程应答 */
@@ -49,7 +49,7 @@ const flush = async () => {
 
 const realFetch = globalThis.fetch;
 
-describe("x-data 异步数据源（ADR-0033）", () => {
+describe("x-data 异步数据源（ADR-0033 / ADR-0122）", () => {
     beforeEach(() => {
         (globalThis as any).fetch = realFetch;
     });
@@ -201,76 +201,9 @@ describe("x-data 异步数据源（ADR-0033）", () => {
         expect(root.querySelector(".e")?.textContent).toContain("nope");
     });
 
-    test("x-fallback：pending 显示（子树隐藏）、到达后复原渲染数据", async () => {
-        const gate = deferred<{ body: any }>();
-        mockFetch(() => gate.promise);
-        const { root } = mount(
-            `<div id="host" x-data="/api/slow">
-  <p class="content" x-text="msg"></p>
-  <div x-fallback><span class="fb">加载中（{{ $loading }}）</span></div>
-</div>`,
-            {},
-        );
-        await flush();
-        // pending：fallback 挂载、正常子树 detach
-        expect(root.querySelector(".fb")?.textContent).toContain("加载中（true）");
-        expect(root.querySelector(".content")).toBeNull();
-        gate.resolve({ body: { msg: "ok" } });
-        await flush();
-        // 到达：fallback 销毁、子树复原
-        expect(root.querySelector(".fb")).toBeNull();
-        expect(root.querySelector(".content")?.textContent).toBe("ok");
-    });
+    // ── x-loading 合成（ADR-0122：恒合成、无互斥）──────────────────────
 
-    test("x-fallback：失败认领（$error 可读）", async () => {
-        mockFetch(() => new Error("500"));
-        const { root } = mount(
-            `<div id="host" x-data="/api/bad">
-  <p class="content">不应出现</p>
-  <div x-fallback><span class="fb">失败：{{ $error.message }}</span></div>
-</div>`,
-            {},
-        );
-        await flush();
-        expect(root.querySelector(".fb")?.textContent).toBe("失败：500");
-        expect(root.querySelector(".content")).toBeNull();
-    });
-
-    test("重取保旧值：已有数据后依赖变化，fallback 不闪现、旧值保留", async () => {
-        let n = 0;
-        const gates = [deferred<{ body: any }>(), deferred<{ body: any }>()];
-        mockFetch(() => gates[n++]!.promise);
-        const { root, engine } = mount(
-            `<div id="host" x-data="/api?o={o}">
-  <p class="content" x-text="v"></p>
-  <div x-fallback><span class="fb">fallback</span></div>
-</div>`,
-            { o: 1 },
-        );
-        gates[0]!.resolve({ body: { v: "old" } });
-        await flush();
-        expect(root.querySelector(".content")?.textContent).toBe("old");
-        expect(root.querySelector(".fb")).toBeNull();
-        // 重取：pending 但有旧值 → 不显示 fallback
-        (engine.state as any).o = 2;
-        await flush();
-        expect(root.querySelector(".fb")).toBeNull();
-        expect(root.querySelector(".content")?.textContent).toBe("old");
-        gates[1]!.resolve({ body: { v: "new" } });
-        await flush();
-        expect(root.querySelector(".content")?.textContent).toBe("new");
-    });
-
-    test("孤立 x-fallback：warn + 当普通元素渲染（保留在 DOM）", async () => {
-        const { root } = mount(
-            `<div id="host" x-data="{a:1}"><div x-fallback><span class="fb">内容</span></div></div>`,
-            {},
-        );
-        await flush();
-        expect(root.querySelector(".fb")?.textContent).toBe("内容");
-    });
-
-    test("x-loading 合成：无 fallback 默认合成（绑 $loading 路径）；有 fallback 互斥不合成", async () => {
+    test("x-loading 合成：无 fallback 也合成（绑 $loading 路径）", async () => {
         const gate = deferred<{ body: any }>();
         mockFetch(() => gate.promise);
         const { root } = mount(`<div id="host" x-data="/api/x"><p>内容</p></div>`, {});
@@ -283,26 +216,39 @@ describe("x-data 异步数据源（ADR-0033）", () => {
         await flush();
     });
 
-    test("x-loading 合成：有 x-fallback 时不合成；loading:false 恒关；loading:{...} 显式并存", async () => {
+    test("x-loading 合成：loading:false 恒关；loading:{...} 显式并存", async () => {
         mockFetch(() => ({ body: { a: 1 } }));
-        const { root: r1 } = mount(
-            `<div id="h1" x-data="/api/a"><div x-fallback>fb</div></div>`,
-            {},
-        );
         const { root: r2 } = mount(
             `<div id="h2" x-data="/api/b" x-data-options="{loading:false}"><p>x</p></div>`,
             {},
         );
         const { root: r3 } = mount(
-            `<div id="h3" x-data="/api/c" x-data-options="{loading:{message:'自定义'}}"><div x-fallback>fb</div></div>`,
+            `<div id="h3" x-data="/api/c" x-data-options="{loading:{message:'自定义'}}"><p>y</p></div>`,
             {},
         );
         await flush();
-        expect(r1.querySelector("#h1")!.getAttribute("x-loading")).toBeNull();
         expect(r2.querySelector("#h2")!.getAttribute("x-loading")).toBeNull();
         const h3 = r3.querySelector("#h3")!;
         expect(h3.getAttribute("x-loading")).toMatch(/\$loading$/);
         expect(h3.getAttribute("x-loading-options")).toContain("自定义");
+    });
+
+    test("双异步：x-data 不合成 overlay（x-html 独占视觉通道），元键仍写数据容器", async () => {
+        const gate = deferred<{ body: any }>();
+        mockFetch(() => gate.promise);
+        const { root } = mount(
+            `<div id="host" x-data="/api/data" x-html="/api/tpl.html"><span class="l" x-text="$loading"></span></div>`,
+            {},
+        );
+        await flush();
+        const host = root.querySelector("#host")!;
+        // x-html 合成字面量 "true"（视觉通道独占）；x-data 不合成（无 $loading 路径形态）
+        expect(host.getAttribute("x-loading")).toBe("true");
+        // x-data 的元键仍写入数据容器（locals 层优先命中，读到的是 x-html 侧 $loading）
+        expect(root.querySelector(".l")?.textContent).toBe("true");
+        gate.resolve({ body: { title: "远程书名" } });
+        await flush();
+        expect(root.querySelector(".l")?.textContent).toBe("false");
     });
 
     test("method / header 选项直传 fetch", async () => {

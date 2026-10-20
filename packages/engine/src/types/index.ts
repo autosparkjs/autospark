@@ -63,6 +63,15 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      */
     sanitizer?: (html: string) => string;
     /**
+     * 全局远程加载出站口（ADR-0121 决策 8）：全部远程加载（异步 x-data / x-html、
+     * x-component loader、x-import、x-isolate remote、x-icons 远程源）的统一 fetch 替换点，
+     * 内核 loaderFn 内单点调用。统一鉴权头 / mock / 测试注入零成本，
+     * 与 `sanitizer` 注入先例同构。缺省 = 原生 fetch。
+     *
+     * @default 原生 fetch
+     */
+    fetcher?: (url: string, init: RequestInit) => Promise<Response>;
+    /**
      * 全局组件表（ADR-0022）：声明全引擎复用的命名组件（字符串入参，懒预编译缓存）。
      *
      * **日常业务组件注册位**（ADR-0094 双注册位）：查找优先级高于 `options.builtinComponents`

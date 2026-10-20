@@ -12,7 +12,7 @@
         <!-- 异步数据源 · fetch（ADR-0033）：分页订单表格实战。
              x-data 值 = 带 page/size 插值的 url——翻页、调整每页条数都自动重取；
              重取期间旧表格保留（$loading 可见、不闪断）；失败时 $error 展示且旧值不丢；
-             首载（域内无数据）由 x-fallback 占位。?delay/?fail 由文档站 demo 中间件支持。 -->
+             首载用 x-if="$loading" 占位。?delay/?fail 由文档站 demo 中间件支持。 -->
         <div class="demo-app section">
             <div class="card">
                 <div
@@ -84,9 +84,9 @@
                         <button class="button is-small is-light" @click="failNext">下次请求失败（保旧值）</button>
                     </div>
 
-                    <!-- 首载占位：非就绪且域内尚无数据时替换渲染上方整棵子树；翻页重取不闪现 -->
-                    <div class="notification is-warning is-light" x-fallback>
-                        ⏳ 首次加载订单列表…（$loading = {{ $loading }}）
+                    <!-- 首载占位：$loading=true 时显示；数据到达后自动移除，翻页重取不闪现 -->
+                    <div class="notification is-warning is-light" x-if="$loading">
+                        ⏳ 首次加载订单列表…
                     </div>
                 </div>
             </div>

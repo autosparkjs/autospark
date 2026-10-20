@@ -33,11 +33,6 @@ import {
     isReservedElementAttr,
 } from "../../features/component/auto-component";
 import {
-    getDirectiveAttrValue,
-    isAsyncDataValue,
-    isAsyncHtmlValue,
-} from "../../features/directive/async-source-utils";
-import {
     buildComponentDef,
     extractGlobalOption,
     hasComponentDeclareAttr,
@@ -167,29 +162,6 @@ export class AutoSparkCompiler {
             // 前置：<script type="autospark/data"> ——内容已在父元素编译期预扫消费
             //（compileElement 调 collectDataScripts，ADR-0032），此处仅剪枝（不进渲染 DOM）
             [(node: Node) => isDataScript(node), () => null],
-            // 前置：x-fallback 特例子节点（ADR-0033 决策 4 / ADR-0035 决策 3-4）——直接父元素为
-            // 异步源宿主（异步 x-data，或异步 x-html 且宿主无双异步 x-data——双异步时 fallback
-            // 归 x-data 独占）时已被物种指令采集（collectFallback），剪枝不进渲染 DOM；
-            // 孤立 x-fallback（父无异步源）→ warn + 当普通元素放行（默认浅克隆继续编译）。
-            // 指令属性值读取兼容修饰符变体（x-data.global / x-html.compile，getDirectiveAttrValue）
-            [
-                (node: Node) => node instanceof HTMLElement && node.hasAttribute("x-fallback"),
-                (el: HTMLElement) => {
-                    const parent = el.parentElement;
-                    if (parent) {
-                        const dataVal = getDirectiveAttrValue(parent, "x-data");
-                        // x-data 侧认领（ADR-0033）；双异步时 x-data 优先独占（ADR-0035 决策 6）
-                        if (dataVal !== null && isAsyncDataValue(dataVal)) return null;
-                        // x-html 侧认领（ADR-0035）：仅宿主无异步 x-data 时（fallback 归属唯一）
-                        const htmlVal = getDirectiveAttrValue(parent, "x-html");
-                        if (htmlVal !== null && isAsyncHtmlValue(htmlVal)) return null;
-                    }
-                    this.engine.logger.warn(
-                        `x-fallback: 父元素未声明异步源（异步 x-data / 异步 x-html），按普通元素渲染（ADR-0033/0035）`,
-                    );
-                    return el.cloneNode(false) as HTMLElement;
-                },
-            ],
             // 前置：x-else-if / x-else 条件分支（ADR-0034）——分支快照由 IfDirective 在宿主 created 期
             // 主动扫描直接子元素克隆收集（模板只读），本层仅负责**剪枝**：分支是备选模板、
             // 永不进结果 DOM（eager 的 compileSubtree 与 keepalive 的主 walk 两条子树编译通道统一拦截）。

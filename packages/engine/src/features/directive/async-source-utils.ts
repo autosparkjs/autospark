@@ -1,14 +1,13 @@
 /**
- * 异步源家族的纯函数层（ADR-0033 / 0035）：值形态判定、url 插值表达式构造、
+ * 异步源家族的纯函数层（ADR-0033 / 0035 / 0122）：值形态判定、url 插值表达式构造、
  * action 引用解析、响应映射（对象-only + path 提取——x-data 物种专用）。
  *
  * 家族两物种共用同一套骨架（`AsyncSourceRunner` 取数执行器），物种差异集中在
  * **值形态判定**（x-data 的值是数据声明；x-html 的值本就是表达式）与**响应消费**
  * （对象落域 vs text 注入）。
  *
- * 编排（元状态 / x-fallback / x-loading 合成）在物种指令内——它们依赖容器 /
- * attachedKeys / 渲染通道等私有状态；本模块只承载可独立复用的判定与变换
- * （compiler 的 x-fallback 剪枝 transformer、data.ts / html.ts 均消费本层）。
+ * 编排（元状态 / x-loading 合成）在物种指令内——它们依赖容器 / attachedKeys /
+ * 渲染通道等私有状态；本模块只承载可独立复用的判定与变换（data.ts / html.ts 均消费本层）。
  */
 import { getVal } from "autostore";
 
@@ -40,7 +39,7 @@ export function isAsyncDataValue(raw: string): boolean {
 }
 
 /**
- * x-html 值是否为异步形态（ADR-0035 决策 1）——compiler 剪枝 transformer 与 html.ts 共用。
+ * x-html 值是否为异步形态（ADR-0035 决策 1）——html.ts 与 data.ts（双异步互斥判定）共用。
  *
  * 与 x-data 判定的关键差异：**action 形态必须带调用括号**（`loadPartial(lang)` /
  * `loadPartial()`）——x-html 的值本就是表达式，裸词（`x-html="content"`）是读状态键的
@@ -58,8 +57,8 @@ export function isAsyncHtmlValue(raw: string): boolean {
 /**
  * 取元素的指令属性值（含修饰符变体）：`x-html` 与 `x-html.compile` 均命中。
  *
- * x-fallback 剪枝 transformer 消费——宿主判定（异步 x-data / 异步 x-html）须兼容
- * 修饰符形态（`x-html.compile="url"` / `x-data.global="/api/x"`）。
+ * 双异步互斥判定消费——data.ts 的 synthesizeLoading 判定宿主是否有异步 x-html，
+ * 须兼容修饰符形态（`x-html.compile="url"`）。
  */
 export function getDirectiveAttrValue(el: HTMLElement, name: string): string | null {
     for (const attr of el.getAttributeNames()) {

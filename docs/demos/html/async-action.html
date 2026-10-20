@@ -17,7 +17,7 @@
                 <div class="card-content">
                     <div class="heading has-text-grey">action 生成 HTML（本地计算 / 动态片段）</div>
                     <div class="block" x-html="renderCard(kind, tick)">
-                        <div class="notification is-warning is-light" x-fallback>⏳ 正在生成…</div>
+                        <div class="notification is-warning is-light" x-if="$loading">⏳ 正在生成…</div>
                     </div>
                     <div class="buttons">
                         <button class="button is-primary is-small" @click="nextStyle">换个样式</button>
