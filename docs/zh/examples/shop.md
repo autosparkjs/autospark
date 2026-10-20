@@ -20,7 +20,7 @@
 
 | 能力 | 在本示例中的体现 |
 | --- | --- |
-| 应用状态 | 根状态 `cart` / `user` / `ui` 全站可见，视图内直接读写 |
+| 应用状态 | 根状态 `cart` / `user` / `ui` 全站可见；购物车件数与合计是状态上的计算属性（`cartCount` / `cartTotal`），各处直接读 |
 | 模板绑定 | 顶部品牌、角标、筛选、空态等全部由 `x-text` / `x-show` / `x-for` / `:class` 驱动 |
 | 路由 | `@autospark/router` 的 hash 模式，7 条路由 + `titleTemplate`，静态托管下深链直达可用 |
 | 视图与数据加载 | 每条路由声明 `view`（`views/*.html`）与 `data`（同名 `*.json`），路由切换时自动加载 |
@@ -98,9 +98,9 @@ const engine = new AutoSpark(host, { cart: [], user: null /* … */ }, {
 
 ### 购物车实现原理
 
-购物车是这个示例里唯一"跨页面且读写频繁"的数据，它的处理方式能代表引擎里状态设计的典型取舍：**状态只存最小事实，派生值在读取时现算**。
+购物车是这个示例里唯一"跨页面且读写频繁"的数据，它的处理方式能代表引擎里状态设计的典型取舍：**状态只存最小事实（明细数组），派生值用计算属性声明，让它们自己跟着算**。
 
-#### 1. 状态里只放"选了什么"
+#### 1. 状态：明细数组 + 计算属性
 
 ```javascript
 // index.html：购物车是根状态的一个普通数组，每个元素就是一条明细
@@ -108,7 +108,17 @@ cart: [],
 // 形如：{ id, name, price, emoji, color, qty }
 ```
 
-没有 `cartCount`、`cartTotal`、`subtotal` 这类派生字段——件数、合计、行小计都能由 `cart` 唯一推出来。少一份派生状态，就少一处"忘了同步"的可能。
+件数、合计这类聚合值**不手工维护**：不用在 action 里加减累加器，也不用在每次变更后手动同步——而是用计算属性声明在状态上，`cart` 一变就自动重算：
+
+```javascript
+cart: [],
+cartCount: computed((s) => s.cart.reduce((t, i) => t + i.qty, 0), { depends: ["cart.**"] }),
+cartTotal: computed((s) => s.cart.reduce((t, i) => t + i.qty * i.price, 0), { depends: ["cart.**"] }),
+```
+
+示例里状态以**裸对象**作为第二个参数传给 engine，因此 `computed` 从命名空间取：`AutoSparkSpaces.computed(...)`。若把状态写在 `<script type="autospark/data">` 里，`computed` / `configurable` / `watch` 由引擎作为形参注入，直接写 `computed(...)` 即可（见 [x-data](/zh/references/directives/x-data)）。
+
+`{ depends: ["cart.**"] }` 不是可有可无的润色，原因见第 4 节。
 
 #### 2. 四个写入口，统一收在 actions 里
 
@@ -143,38 +153,62 @@ actions: {
 
 写入口只有这几个动作，模板里全部按名调用（`@click="changeQty(item.id, 1)"`），不在模板里写赋值语句——业务规则（同款合并、减到 0 移除）集中在一处，视图只负责呈现。
 
-#### 3. 三个读点共用一套表达式
+#### 3. 三个读点直接用计算属性
 
-购物车的"读取"散落在三处，但都是对同一份根状态的同一种聚合：
+购物车的"读取"散落在三处，但三处都只是**读同一个计算属性**，不各自写聚合逻辑：
 
 ```html
 <!-- 外壳：导航栏角标 -->
-<span class="badge" x-show="cart.length > 0" x-text="cart.reduce((t, i) => t + i.qty, 0)"></span>
+<span class="badge" x-show="cartCount > 0" x-text="cartCount"></span>
 
 <!-- 产品页：底部结算条 -->
-<span>已选 <b x-text="cart.reduce((t, i) => t + i.qty, 0)"></b> 件 · 合计 ¥<span x-text="cart.reduce((t, i) => t + i.qty * i.price, 0)"></span></span>
+<span>已选 <b x-text="cartCount"></b> 件 · 合计 ¥<span x-text="cartTotal"></span></span>
 
 <!-- 购物车页：行内小计与订单摘要 -->
 <span x-text="item.price * item.qty"></span>
-<span x-text="cart.reduce((t, i) => t + i.qty * i.price, 0) >= 3000 ? '免运费' : '¥0（满 3000 免）'"></span>
+<span x-text="cartTotal >= 3000 ? '免运费' : '¥0（满 3000 免）'"></span>
 ```
 
-`cart` 定义在 engine 的根状态上，视图编译后沿 scope 链向上查找就能拿到，所以**任何页面都能读写同一份购物车**，不需要逐层传参、也不需要事件总线。产品页加购后返回首页，角标、快捷入口文案、购物车页摘要会同时是对的——它们本来就是同一份数据的三个投影。
+`cart` / `cartCount` / `cartTotal` 都在 engine 的根状态上，视图编译后沿 scope 链向上查找就能拿到，所以**任何页面都能读写同一份购物车**，不需要逐层传参、也不需要事件总线。产品页加购后返回首页，角标、快捷入口文案、购物车页摘要会同时是对的——它们本来就是同一份数据的三个投影。
 
-#### 4. 为什么派生值不写成 `computed`
-
-最初这版示例把件数/合计写成了派生状态：
+action 里同理，不需要重新遍历数组：
 
 ```javascript
-// ⚠️ 反例：item.qty 变化不在这份派生的依赖范围内，角标与合计不会刷新
-cartCount: AutoSparkSpaces.computed((s) => s.cart.reduce((t, i) => t + i.qty, 0)),
+addToCart(p) {
+    /* …加购逻辑… */
+    toast(`已加入购物车：${p.name}（${engine.state.cartCount} 件）`, "success");
+}
 ```
 
-问题出在**依赖粒度**。模板求值分两路：纯路径（如 `user.name`）按路径精准订阅；含运算符 / 函数调用的复合表达式则在求值时**按实际读到的路径收集依赖**再订阅——`cart.reduce(...)` 会读到 `cart`、每个下标、以及每一项的 `qty` / `price`，所以项内字段一变就重算。
+#### 4. 计算属性的依赖颗粒度（为什么要 `depends: ["cart.**"]`）
 
-而把同样的聚合挪进一个独立的派生键后，实测行为是：数组**结构**变化（push 新行、整行替换）会重算，但**项内 `qty` 的变更不会**——角标与合计就停在旧数字上。
+计算属性默认**自动收集依赖**，但粒度只到 `computed` 函数体里读到的**顶层键**：`s.cart` 会把 `cart` 登记为依赖。于是：
 
-因此约定是：**派生值优先写成模板表达式**（读时现算，依赖跟着实际读取走，天然同步）。真到了聚合开销不可忽略的规模，再改成"显式订阅 `cart` 变化 → 自己重算并写回一个字段"，把同步责任摆在明面上，而不是依赖一个看不见的依赖收集。
+| 变更 | 命中依赖 `cart`？ | 默认 computed 是否重算 |
+| --- | --- | --- |
+| `cart.push(...)` / `cart.splice(...)`（结构变化） | 命中 | ✅ 重算 |
+| `cart[0].qty = 5`（项内字段） | 不命中（路径是 `cart.0.qty`） | ❌ 不重算 |
+
+在最小复现里实测过两种写法（`autostore` 4.x，直接 `new AutoStore({ cart: [], derived: computed(...) })`）：
+
+```text
+默认                      push: 1  | qty=5: 1   | 再 push: 7
+{ depends: ["cart.**"] }  push: 1  | qty=5: 5   | 再 push: 7
+```
+
+也就是说：**不加 `depends` 时，加减数量不会让角标与合计刷新，只有整行增删才刷新**——这正是“看起来能跑、点两下就露馅”的典型坑。把依赖显式声明到项级（`cart.**`）后，`qty` / `price` 的变更同样触发重算。
+
+```javascript
+cartCount: computed((s) => s.cart.reduce((t, i) => t + i.qty, 0), { depends: ["cart.**"] }),
+```
+
+::: warning 不写 `depends` 会怎样
+代码不报错、首屏也对，只有“加减数量”时数字不动（新增行、删除行却正常）——这是最容易被漏掉的坑。购物车、清单、订单明细这类“数组元素内部字段频繁变更”的场景，请把依赖声明到 `**`。
+:::
+
+经验法则：**计算属性读到的依赖里含数组元素内部字段时，用 `**` 把依赖声明到项级**；只依赖顶层标量（如 `s.base * 2`）时默认自动收集就够了。
+
+另一种写法是干脆不声明派生键，直接在模板里写聚合表达式（`x-text="cart.reduce(...)"`）——模板的复合表达式在求值时按**实际读取的路径**收集依赖，`cart.**` 的效果天然具备。但同一份聚合散落到多处模板时会重复且难改，所以本示例选择：**状态上声明一次，模板各处直接用**。
 
 #### 5. 列表、空态与结算
 
@@ -190,16 +224,16 @@ checkout() {
         host.router && host.router.push("/login");
         return;
     }
-    const count = s.cart.reduce((t, i) => t + i.qty, 0);
-    const total = s.cart.reduce((t, i) => t + i.qty * i.price, 0);
-    s.cart.splice(0); // 清空 → 所有读点同帧内一起收敛
+    const count = s.cartCount; // 计算属性：清空前取值
+    const total = s.cartTotal;
+    s.cart.splice(0); // 清空 → 计算属性重算为 0，所有读点同帧内一起收敛
     toast(`下单成功：${count} 件商品，合计 ¥${total}（演示订单）`, "success");
     host.router && host.router.push("/");
 }
 ```
 
 ::: tip 想加持久化？
-购物车目前是内存状态，刷新即清空。要持久化，可在 action 里把 `cart` 写进 `localStorage`，并在构造 engine 时用它做初始值——注意初始值仍应是"明细数组"，件数/合计继续由模板现算，别把派生值一起存进存储。
+购物车目前是内存状态，刷新即清空。要持久化，可把 `cart` 写进 `localStorage`，并在构造 engine 时用它做初始值——只存明细数组，别把 `cartCount` / `cartTotal` 一起存：它们是计算属性，恢复明细后会自动算出新值。
 :::
 
 ::: tip 在本地运行

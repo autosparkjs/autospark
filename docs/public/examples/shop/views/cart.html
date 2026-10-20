@@ -268,31 +268,27 @@
 
         <aside class="cart-summary">
             <h3>订单摘要</h3>
-            <!-- 件数与合计均由模板表达式实时聚合（不落派生状态），
-                 项内 qty 变化同样能触发重算 -->
+            <!-- 件数与合计直接用状态里的计算属性（cartCount / cartTotal），
+                 购物车任何变动（含项内 qty）都会自动重算 -->
             <div class="sum-row">
                 <span>商品件数</span>
-                <span x-text="cart.reduce((t, i) => t + i.qty, 0) + ' 件'"></span>
+                <span x-text="cartCount + ' 件'"></span>
             </div>
             <div class="sum-row">
                 <span>商品合计</span>
-                <span>¥<span x-text="cart.reduce((t, i) => t + i.qty * i.price, 0)"></span></span>
+                <span>¥<span x-text="cartTotal"></span></span>
             </div>
             <div class="sum-row">
                 <span>运费</span>
-                <span x-text="cart.reduce((t, i) => t + i.qty * i.price, 0) >= 3000 ? '免运费' : '¥0（满 3000 免）'"></span>
+                <span x-text="cartTotal >= 3000 ? '免运费' : '¥0（满 3000 免）'"></span>
             </div>
             <div class="sum-row total">
                 <span>应付合计</span>
-                <b>¥<span x-text="cart.reduce((t, i) => t + i.qty * i.price, 0)"></span></b>
+                <b>¥<span x-text="cartTotal"></span></b>
             </div>
-            <div class="ship-hint" :class="{ todo: cart.reduce((t, i) => t + i.qty * i.price, 0) < 3000 }">
+            <div class="ship-hint" :class="{ todo: cartTotal < 3000 }">
                 <span
-                    x-text="
-                        cart.reduce((t, i) => t + i.qty * i.price, 0) >= 3000
-                            ? '已满 ¥3000，本单免运费'
-                            : '再买 ¥' + (3000 - cart.reduce((t, i) => t + i.qty * i.price, 0)) + ' 即可免运费'
-                    "
+                    x-text="cartTotal >= 3000 ? '已满 ¥3000，本单免运费' : '再买 ¥' + (3000 - cartTotal) + ' 即可免运费'"
                 ></span>
             </div>
             <div class="cart-actions">

@@ -313,10 +313,7 @@
             <span class="q-ico">🛒</span>
             <span class="q-text">
                 <span class="q-title">我的购物车</span>
-                <span
-                    class="q-desc"
-                    x-text="cart.length > 0 ? '已选 ' + cart.reduce((t, i) => t + i.qty, 0) + ' 件' : '还是空的'"
-                ></span>
+                <span class="q-desc" x-text="cartCount > 0 ? '已选 ' + cartCount + ' 件' : '还是空的'"></span>
             </span>
         </auto-link>
     </section>
