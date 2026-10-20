@@ -84,6 +84,9 @@
         }
 
         .field label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
             font-size: 0.86rem;
             font-weight: 700;
             color: var(--ink-2);
@@ -95,6 +98,7 @@
             border: 1px solid var(--line);
             border-radius: 10px;
             font-size: 0.95rem;
+            font-weight: 400;
             background: #fafbff;
             color: var(--ink);
             outline: none;
@@ -194,24 +198,27 @@
 
         <!-- 表单侧 -->
         <div class="login-main">
-            <!-- 未登录：登录表单 -->
-            <form x-show="!user" @submit.prevent="login">
+            <!-- 未登录：登录表单 —— x-form 恒拦截原生提交（无需 .prevent），校验通过后放行 @submit action -->
+            <form x-show="!user" x-form @submit="login">
                 <h1>账号登录</h1>
-                <p class="lm-sub">使用 x-model 双向绑定全局 loginForm，提交走全局 action。</p>
+                <p class="lm-sub">x-model 双向绑定全局 loginForm，x-form 拦截提交后执行全局 action login。</p>
 
                 <div class="field">
-                    <label for="lg-user">用户名</label>
-                    <input id="lg-user" type="text" x-model="loginForm.username" placeholder="请输入用户名" autocomplete="username" />
+                    <label>
+                        用户名
+                        <input type="text" x-model="loginForm.username" placeholder="请输入用户名" autocomplete="username" />
+                    </label>
                 </div>
                 <div class="field">
-                    <label for="lg-pass">密码</label>
-                    <input
-                        id="lg-pass"
-                        type="password"
-                        x-model="loginForm.password"
-                        placeholder="至少 6 位"
-                        autocomplete="current-password"
-                    />
+                    <label>
+                        密码
+                        <input
+                            type="password"
+                            x-model="loginForm.password"
+                            placeholder="至少 6 位"
+                            autocomplete="current-password"
+                        />
+                    </label>
                 </div>
                 <label class="field-check">
                     <input type="checkbox" x-model="loginForm.remember" />

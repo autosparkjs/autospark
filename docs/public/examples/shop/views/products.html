@@ -95,9 +95,11 @@
     </div>
 
     <!-- 底部结算条：跨页面共享状态的实时反馈 -->
-    <div class="prod-bar" x-show="cartCount > 0">
+    <div class="prod-bar" x-show="cart.length > 0">
         <span class="sum">
-            已选 <b x-text="cartCount"></b> 件 · 合计<b>¥<span x-text="cartTotal"></span></b>
+            已选 <b x-text="cart.reduce((t, i) => t + i.qty, 0)"></b> 件 · 合计<b
+                >¥<span x-text="cart.reduce((t, i) => t + i.qty * i.price, 0)"></span
+            ></b>
         </span>
         <auto-link class="btn btn-primary btn-sm" to="/cart">去购物车结算 →</auto-link>
     </div>

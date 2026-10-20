@@ -85,7 +85,7 @@
                         >
                             <span class="cart-ico">🛒</span>
                             <span class="cart-lbl">购物车</span>
-                            <span class="badge" x-show="cartCount > 0" x-text="cartCount"></span>
+                            <span class="badge" x-show="cart.length > 0" x-text="cart.reduce((t, i) => t + i.qty, 0)"></span>
                         </auto-link>
 
                         <auto-link class="btn btn-ghost login-btn" to="/login" x-show="!user">登录</auto-link>
@@ -155,9 +155,8 @@
                 {
                     brand: { name: "星辰手机商店", slogan: "只做懂你的好手机" },
                     // 购物车（跨页面共享：产品页加入 → 导航栏角标 → 购物车页结算）
+                    // 件数/合计不落派生状态，由模板表达式实时聚合（依赖收集覆盖到项级 qty / price 字段）
                     cart: [],
-                    cartCount: AutoSparkSpaces.computed((s) => s.cart.reduce((t, i) => t + i.qty, 0)),
-                    cartTotal: AutoSparkSpaces.computed((s) => s.cart.reduce((t, i) => t + i.qty * i.price, 0)),
                     // 登录态
                     user: null,
                     loginForm: { username: "", password: "", remember: false, error: "" },
@@ -189,7 +188,8 @@
                                     color: p.color,
                                     qty: 1,
                                 });
-                            toast(`已加入购物车：${p.name}（${s.cartCount} 件）`, "success");
+                            const count = s.cart.reduce((t, i) => t + i.qty, 0);
+                            toast(`已加入购物车：${p.name}（${count} 件）`, "success");
                         },
                         /** 购物车数量增减（≤0 自动移除） */
                         changeQty(id, delta) {
@@ -220,8 +220,8 @@
                                 host.router && host.router.push("/login");
                                 return;
                             }
-                            const count = s.cartCount;
-                            const total = s.cartTotal;
+                            const count = s.cart.reduce((t, i) => t + i.qty, 0);
+                            const total = s.cart.reduce((t, i) => t + i.qty * i.price, 0);
                             s.cart.splice(0);
                             toast(`下单成功：${count} 件商品，合计 ¥${total}（演示订单）`, "success");
                             host.router && host.router.push("/");
