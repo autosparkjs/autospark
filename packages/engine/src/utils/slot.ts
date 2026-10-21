@@ -101,6 +101,48 @@ export function buildSlotsRegistry(map: Map<string, SlotContent> | null | undefi
     return Object.freeze(reg);
 }
 
+/**
+ * 插槽转发声明（ADR-0125）：`x-component-options.slots` 静态清单的一次解析产物，
+ * stash 于被消费组件的实例 scope（出口查找链上的持有者）。出口 SlotDirective 查找时
+ * 按声明翻译名字（显式映射优先于通配）逐级接力上溯；静态一次解析不响应式。
+ */
+export interface SlotForwarding {
+    /** `*` 通配：未命中显式映射的名字原名上溯（运行时动态集合，覆盖动态出口与闲置段） */
+    wildcard: boolean;
+    /** 显式映射：本级出口名 → 对外名（裸名直通 = 同名键值；优先于通配） */
+    map: Map<string, string>;
+}
+
+/**
+ * 解析 slots 转发静态清单（ADR-0125 决策三）：逗号清单，项形态 `*`（通配）/
+ * 裸名（同名直通）/ `出口名:对外名`（ES 解构 rename 惯例重导出）。
+ * 语法非法项（多冒号、空名、项内空白）逐项 warn + 忽略，不拖累整清单。
+ */
+export function parseForwardSlots(raw: string, warn: (msg: string) => void): SlotForwarding {
+    const decl: SlotForwarding = { wildcard: false, map: new Map() };
+    for (const item of raw.split(",")) {
+        const t = item.trim();
+        if (t === "") continue; // 空段（尾逗号等）静默
+        if (t === "*") {
+            decl.wildcard = true;
+            continue;
+        }
+        const parts = t.split(":");
+        if (parts.length > 2) {
+            warn(`slots: 非法清单项 "${t}"（至多一个冒号：裸名 或 出口名:对外名），已忽略（ADR-0125）`);
+            continue;
+        }
+        const inner = (parts[0] ?? "").trim();
+        const outer = parts.length === 2 ? (parts[1] ?? "").trim() : inner;
+        if (inner === "" || outer === "" || /\s/.test(inner) || /\s/.test(outer)) {
+            warn(`slots: 非法清单项 "${t}"（须为非空且不含空白的 裸名 或 出口名:对外名），已忽略（ADR-0125）`);
+            continue;
+        }
+        decl.map.set(inner, outer);
+    }
+    return decl;
+}
+
 /** 属性名是否为插槽标记（裸 / 修饰 / 命名三形态；`x-slot-options` 不命中） */
 function isSlotAttrName(name: string): boolean {
     return name === "x-slot" || name.startsWith("x-slot.") || name.startsWith("x-slot:");
@@ -167,15 +209,24 @@ export function getSlotMarker(el: HTMLElement): SlotMarker | null {
     return carrierFallback;
 }
 
-/** 单个属性名 → 标记（非插槽属性返回 null；名取 `:` 后、`.` 前段，`.` 后修饰符忽略） */
+/**
+ * 单个属性名 → 标记（非插槽属性返回 null）。
+ *
+ * 名段重组（ADR-0124 点分出口名）：修饰符段除 `bind`（绑定载体语义，ADR-0108）外
+ * 以 "." 并回出口名——`x-slot:actions.left` → 出口名 `"actions.left"`；`bind` 段不并入
+ * （`x-slot:actions.left.bind` → 槽名 `"actions.left"`）。冒号后首段恒为名首段
+ * （`x-slot:bind` = 槽名叫 bind，不是载体）。
+ */
 function markerFromAttrName(n: string): SlotMarker | null {
     if (n === "x-slot" || n.startsWith("x-slot.")) {
         return { name: "default", attrName: n };
     }
     if (n.startsWith("x-slot:")) {
-        const rest = n.slice("x-slot:".length);
-        const name = rest.split(".")[0] ?? "";
-        return { name: name === "" ? "default" : name, attrName: n };
+        const segs = n.slice("x-slot:".length).split(".");
+        const head = segs[0] ?? "";
+        if (head === "") return { name: "default", attrName: n };
+        const rest = segs.slice(1).filter((s) => s !== "bind");
+        return { name: [head, ...rest].join("."), attrName: n };
     }
     return null;
 }
@@ -221,7 +272,12 @@ export function getSlotBindingsAttr(el: HTMLElement): SlotBindingsAttr | null {
         const n = attr.name;
         if (!isBindCarrierAttrName(n)) continue;
         const segs = n.slice("x-slot:".length).split(".");
-        const name = n.startsWith("x-slot:") && segs[0] !== "" ? segs[0]! : "default";
+        // 名段重组（ADR-0124）：修饰符段除 bind 外以 "." 并回槽名（x-slot:actions.left.bind → 槽 "actions.left"）
+        const head = segs[0] ?? "";
+        const name =
+            n.startsWith("x-slot:") && head !== ""
+                ? [head, ...segs.slice(1).filter((s) => s !== "bind")].join(".")
+                : "default";
         return { attrName: n, name, value: attr.value };
     }
     return null;

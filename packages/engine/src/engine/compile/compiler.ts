@@ -1363,6 +1363,7 @@ export class AutoSparkCompiler {
     ): void {
         scope.isComponent = true;
         scope.componentName = def.name;
+        scope.componentDef = def;
         const scopes = (this.engine.store.state as Record<string, any>)[SCOPES_KEY] as Record<
             string,
             any

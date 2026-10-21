@@ -1,15 +1,29 @@
 <!--
     远程片段测试文件（被 x-dialog url 片段兜底路径加载，ADR-0119）。
     无任何 x-define 声明——按片段编译（x-html.compile 同语义）：
-    任意指令可用、插值读消费处状态、props 注入响应式数据域。
-    （若混入 x-define 声明：组件照常注册但不渲染——编译期剪枝；注册了非匹配名组件时消费处 warn 一次名字提示。）
+    任意指令可用、插值直接读消费处 x-data 状态（同 scope）、props 注入响应式数据域。
 -->
 <div style="padding: 24px; min-width: 320px">
     <h3 class="title is-5" x-text="topic"></h3>
-    <p>插值读<b>消费处</b>状态：<b x-text="ui.source"></b></p>
-    <p class="is-size-7 has-text-grey">
-        这段 HTML 没有任何 x-define 声明——按<b>片段</b>编译，任意指令可用、无需组件声明；
-        props（<code>topic</code>）注入响应式数据域，热更新与组件路径同权。
+
+    <p>props 注入（topic）：<b x-text="topic"></b></p>
+    <p>直接读消费处 <code>ui.source</code>：<b x-text="ui.source"></b></p>
+    <p>同 scope 共享 <code>ui.shared</code>：<b x-text="ui.shared"></b>
+      <button class="button is-small is-link ml-2" @click="ui.shared++">片段内 +1 → 观察消费处按钮上的数</button>
     </p>
-    <button class="button is-fullwidth" @click="close()">关闭</button>
+
+    <!-- 片段内可写 x-data（局部作用域，遮蔽父 scope 同名键） -->
+    <div x-data="{ localCount: 0 }">
+        <p>片段内 <code>x-data</code> 局部计数：<b x-text="localCount"></b>
+            <button class="button is-small" @click="localCount++">局部 +1</button>
+        </p>
+    </div>
+
+    <p class="is-size-7 has-text-grey mt-3">
+      这段 HTML 没有任何 <code>x-define</code> 声明——按<b>片段</b>编译；
+      与消费处<b>同 scope</b>：<code>ui.source</code> / <code>ui.shared</code> 直接读、写互相同步；
+      <code>topic</code> 来自 <code>x-dialog-options.props</code> 注入的响应式 data 域；
+      片段里可以直接写 <code>x-data</code> 声明局部状态（scope 继承）。
+    </p>
+    <button class="button is-fullwidth mt-3" @click="close()">关闭</button>
 </div>

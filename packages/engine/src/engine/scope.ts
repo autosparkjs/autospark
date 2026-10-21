@@ -1,8 +1,8 @@
 // oxlint-disable typescript/no-this-alias
 import type { AutoSpark } from "./engine";
-import type { ComponentHooks } from "../features/component/component-def";
+import type { ComponentDef, ComponentHooks } from "../features/component/component-def";
 import type { AutoSparkAction } from "../features/action/types";
-import type { SlotContent, SlotRegistry, SuperInlet } from "../utils/slot";
+import type { SlotContent, SlotForwarding, SlotRegistry, SuperInlet } from "../utils/slot";
 import { AutoSparkDirectiveBase } from "../features/directive/base";
 import { getVal, setVal, type Watcher } from "autostore";
 import { getDirectives, getHostOptions } from "../features/directive/utils/getDirectives";
@@ -322,6 +322,18 @@ export class AutoSparkScope {
      * null = 本 scope 无插槽内容（继续沿链查找）。
      */
     slotContents: Map<string, SlotContent> | null = null;
+    /**
+     * 插槽转发声明（ADR-0125）：x-component 消费内层组件时解析 `x-component-options.slots`
+     * 的静态清单，stash 于被消费组件的实例 scope（出口查找链上的持有者）。出口 SlotDirective
+     * 查找时按声明翻译名字（显式映射优先、`*` 通配原名）逐级接力上溯。
+     * null = 无转发声明——「首持有者即停」防穿透不变式对未声明名字 100% 保留。
+     */
+    slotForwarding: SlotForwarding | null = null;
+    /**
+     * 组件实例的 def 引用（injectComponentSemantics 置位）：供插槽转发 warn 纪律等反查
+     * def 级元信息（如声明方 def.slots，ADR-0125）。非组件实例 scope 为 null。
+     */
+    componentDef: ComponentDef | null = null;
     /**
      * `$slots` 插槽注册表（ADR-0107）：组件实例域保留键——本实例收到的全部插槽内容段
      * 的只读冻结快照（`Record<名, { name }>`，default 段在内）。

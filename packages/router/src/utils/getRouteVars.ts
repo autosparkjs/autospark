@@ -7,13 +7,13 @@ import type { AutoSparkMatchedRouteItem } from "@/types";
  */
 export function getRouteVars(route: AutoSparkMatchedRouteItem): Record<string, any> {
     return {
-        name: route.route.name,
+        name: route.route?.name,
         path: route.path,
         curPath: route.path,
         url: route.url,
         timestamp: Date.now(),
         query: new URLSearchParams(route.query).toString(),
-        ...route.route.meta,
+        ...route.route?.meta ,
         ...route.params,
         ...route.state,
     };

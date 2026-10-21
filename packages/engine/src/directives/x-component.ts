@@ -2,7 +2,7 @@ import { AutoSparkDirectiveBase } from "../features/directive/base";
 import type { ComponentDataBasis, ComponentDef } from "../features/component/component-def";
 import type { AutoSparkScope } from "../engine/scope";
 import type { AsyncLoader } from "asyncsignal/loader";
-import { collectSlotContent } from "../utils/slot";
+import { collectSlotContent, parseForwardSlots, type SlotForwarding } from "../utils/slot";
 import { parseHtmlFragment } from "../utils/transformElement";
 import { ERROR_COMPONENT_NAME } from "../components";
 import {
@@ -228,8 +228,9 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         // 无参 url 简写形态：组件名非静态——每次加载从远程清单重新决策（ADR-0110）
         this._anonymousUrl = name === "";
         // 配置成员统一订阅（fallback/error/width/height/request 等，ADR-0110 平铺归一）；
-        // loader/props 自管订阅（loader 沿 ADR-0065 双轨、props 双源合并），skip 防同一表达式双 watcher
-        this._watchOptionExprs(["loader", "props"]);
+        // loader/props 自管订阅（loader 沿 ADR-0065 双轨、props 双源合并），skip 防同一表达式双 watcher；
+        // slots 非表达式（静态清单原文直读，ADR-0125），skip 防 watch 误求值
+        this._watchOptionExprs(["loader", "props", "slots"]);
         // props 选项通道（ADR-0110）：整包静态 / 成员属性表达式——所有形态统一初始化
         this._initOptionsProps();
         // === 通道一：值命中字面量 url（含无参简写）→ url 通道，字面量直载（props 全权归 options.props） ===
@@ -882,6 +883,11 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
                   skipValidation: true,
               })
             : null;
+        // 插槽转发声明（ADR-0125）：x-component-options.slots 静态清单一次解析，
+        // stash 到实例 scope（持有者）——出口 SlotDirective 查找时按声明翻译逐级接力上溯
+        const forwarding = this._parseForwardSlots();
+        this.binding.slotForwarding = forwarding;
+        if (forwarding) this._warnForwardSlotsCollisions(forwarding, found.def);
         // 防御性清空宿主 runtime 子节点（ownsChildren 下 el 为浅克隆本无子节点；
         // 覆盖 pending 占位等异常残留，保证投影/fallback 是唯一内容来源）
         this.el.replaceChildren();
@@ -897,6 +903,89 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         );
         this._appliedProps = props;
         // scoped CSS 注入（ADR-0022 决策四-4）：阶段 5 实现
+    }
+
+    /** 声明方自身 def.slots（warn 纪律用，ADR-0125）：首次判定时缓存——重实例化时宿主 scope
+     * 已被注入内层组件语义（isComponent），届时沿链上溯会误指内层组件 */
+    private _declarerSlots: string[] | null | undefined;
+
+    /**
+     * 解析插槽转发声明（ADR-0125 决策二/三）：`x-component-options.slots`——静态值，
+     * 编译期一次解析不响应式。读取优先级：成员属性原文（`x-component-options.slots="…"`）
+     * > 显式选项值（`x-component-options="{slots:…}"` / 宿主 x-options 回退）> `.slots`
+     * 修饰符开关（显式值在场时被压制，ADR-0007 显式优先）。
+     * 值语义：布尔 true / 字符串 "true" / `*` = **全部转发**快捷方式（≡ 通配）；字符串清单按
+     * 逗号解析；布尔 false = 显式关闭（静默，可压制修饰符）；其余非字符串 / 空值 warn + 忽略。
+     * null = 未声明或声明无效。
+     */
+    private _parseForwardSlots(): SlotForwarding | null {
+        // 全部转发快捷方式（≡ `*`）：布尔 true（修饰符 / 整包）与字符串 "true"（成员属性形态）
+        const ALL: SlotForwarding = { wildcard: true, map: new Map() };
+        const fromValue = (raw: string): SlotForwarding | null => {
+            const t = raw.trim();
+            if (t === "true") return ALL;
+            if (t !== "") return parseForwardSlots(t, (m) => this.warn(`x-component: ${m}`));
+            this.warn(
+                `x-component: x-component-options.slots 须为 true 或非空静态字符串清单（裸名 / 出口名:对外名 / *，逗号分隔），已忽略（ADR-0125）`,
+            );
+            return null;
+        };
+        // 成员属性原文（恒为属性文本 string）最优先
+        const member = this.info.optionExprs?.slots;
+        if (member !== undefined) return fromValue(String(member));
+        // 显式选项值优先于修饰符（ADR-0007：显式声明含 false 压制 modifier 开关）
+        const explicit = this.getOption("slots");
+        if (explicit !== undefined) {
+            if (explicit === true) return ALL;
+            if (explicit === false) return null;
+            if (typeof explicit === "string") return fromValue(explicit);
+            this.warn(
+                `x-component: x-component-options.slots 须为 true 或非空静态字符串清单（裸名 / 出口名:对外名 / *，逗号分隔），已忽略（ADR-0125）`,
+            );
+            return null;
+        }
+        // 修饰符开关：`x-component:名.slots` ≡ slots=true——修饰符匹配大小写不敏感
+        //（HTML 属性名被 DOM 小写化，x-for .paging 先例）
+        if (this.modifiers?.some((m) => m.toLowerCase() === "slots")) {
+            return ALL;
+        }
+        return null;
+    }
+
+    /**
+     * 转发 warn 纪律（ADR-0125 决策五，编译期一次、列出名字、不阻断）：
+     * - 清单模式（含混写显式项）：对外名 ∩ 声明方自身 def.slots → 逐名 warn（同名段将被
+     *   自身出口与转发下游双渲染）；
+     * - `*` 模式：声明方 def.slots ∩ 相邻下一级组件 def.slots → warn 一次列出交集
+     *   （不深扫多级、动态出口场景不追求精确，对齐 ADR-0107 skipValidation 容错哲学）。
+     */
+    private _warnForwardSlotsCollisions(forwarding: SlotForwarding, innerDef: ComponentDef | null): void {
+        // 声明方 = 包装组件：模板内含本 x-component 元素的最近组件实例 scope（首判时缓存）
+        if (this._declarerSlots === undefined) {
+            let declarer: AutoSparkScope | null = this.binding;
+            while (declarer && !declarer.isComponent) declarer = declarer.parent;
+            this._declarerSlots = declarer?.componentDef?.slots ?? null;
+        }
+        const declarerSlots = this._declarerSlots;
+        if (!declarerSlots || declarerSlots.length === 0) return;
+        for (const outer of forwarding.map.values()) {
+            if (declarerSlots.includes(outer)) {
+                this.warn(
+                    `x-component: 插槽转发 "${outer}" 与包装组件自身出口同名——该名段将同时被自身出口与转发下游消费（双渲染，ADR-0125）`,
+                );
+            }
+        }
+        if (forwarding.wildcard) {
+            const innerSlots = innerDef?.slots;
+            if (innerSlots && innerSlots.length > 0) {
+                const inter = innerSlots.filter((n) => declarerSlots.includes(n));
+                if (inter.length > 0) {
+                    this.warn(
+                        `x-component: 通配转发（*）命中与包装组件自身出口同名段：${inter.join("、")}——这些段将同时被自身出口与转发下游消费（双渲染，ADR-0125）`,
+                    );
+                }
+            }
+        }
     }
 
     /**

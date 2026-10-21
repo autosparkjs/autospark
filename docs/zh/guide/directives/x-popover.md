@@ -178,7 +178,113 @@ hover 交互在触摸屏上没有对应物（点按会以模拟事件触发 mous
 
 悬浮行为（共享 hover 域 / 延迟 / 嵌套链）挂在实例与宿主上，与 shell 无关；`at.arrow: false` 或自定义外壳不放箭头元素时静默无箭头，贴附定位照常。引擎级默认走 `options.overlay.popover.shell`（全站换气泡皮一处配置）。
 
-### 与 x-dialog 的取舍
+### 远程加载（url）
+
+远程加载机制为覆盖物家族通用能力（底层与 x-dialog/x-drawer 完全同源），组件**未注册**且配置了 `url` 时，打开走远程路径：面板先开（内容出口内呈现 loading 占位），异步加载完成后原位附加内容。加载语义为**组件优先、片段兜底**的双路径并存——选择哪条完全由远程文件内容决定。
+
+<demo html="popover/remote-component.html"/>
+<demo html="popover/remote-template.html"/>
+
+#### 远程组件
+
+远程 HTML 声明了匹配名的 `x-define` 时，引擎按**组件**编译实例化——与本地构建实例完全同权：data / props / 插槽 / 作用域样式 / 方法全部生效，并经 x-import 的 url 缓存注册到消费处 scope，同 url 重开零请求。远程文件中混入的**其他名** `x-define` 会被正常注册但不渲染（编译期剪枝）。
+
+消费处——本地**不声明**组件，url 指向一个**包含同名 `x-define`** 的远程文件：
+
+```html
+<button
+  x-popover:remote-user.click
+  x-popover-options="{url: '/autospark/components/dialog-user.html'}"
+  x-popover-options.props="{userId: 42}"
+>
+  点击打开远程组件 popover
+</button>
+```
+
+远程文件——声明了匹配消费名的 `x-define`，标准组件模板：
+
+```html
+<!-- /autospark/components/dialog-user.html——匹配消费名 x-popover:remote-user -->
+<div x-define="remote-user">
+  <style>
+    .remote-user-panel { padding: 24px; min-width: 320px; }
+  </style>
+  <div class="remote-user-panel">
+    <!-- props 注入：与本地组件 props 通道同权，持续热更新 -->
+    <p>ID：<b x-text="userId"></b></p>
+
+    <!-- 组件内部 data / 方法 / 作用域样式 / 插槽全部支持 -->
+    <p>内部计数：<b x-text="count"></b></p>
+    <button @click="count++">点我自增</button>
+  </div>
+  <script type="autospark/setup">
+    { data: { userId: 0, count: 0 } }
+  </script>
+</div>
+```
+
+**数据/参数传递方式**：**只走 `x-popover-options.props`**，组件内部 `data` 隔离于外部 `x-data` 作用域，组件模板内无法直接读取消费处声明的状态（作用域隔离）。
+
+#### 远程模板（片段）
+
+远程 HTML **没有**匹配名的 `x-define` 时，原始 HTML 按**片段**编译进面板（`x-html.compile` 同语义）：可含任意指令、不要求组件声明、插值读消费处状态（响应式）、props 注入响应式数据域（热更新与组件路径同权）。片段里混入的其他名 `x-define` 声明会被正常注册但不渲染（编译期剪枝），片段路径不支持插槽内容投影（声明了插槽标记则 warn 丢弃）。
+
+消费处——本地**不声明**组件，url 指向一个**无 `x-define`** 的纯 HTML 文件：
+
+```html
+<!-- x-data 声明在消费处，远程片段共享同一个作用域 -->
+<div x-data="{ ui: { open: false, source: '来自消费处的状态' } }">
+  <button
+    x-popover:remote-note.click
+    x-popover-options="{url: '/autospark/components/dialog-note.html'}"
+    x-popover-options.props="{topic: '远程片段'}"
+  >
+    点击打开远程模板 popover
+  </button>
+</div>
+```
+
+远程文件——没有任何组件声明，就是一段普通 HTML：
+
+```html
+<!-- /autospark/components/dialog-note.html——无 x-define，按片段编译 -->
+<div style="padding: 24px; min-width: 320px">
+  <!-- props（topic）注入片段响应式 data 域 -->
+  <h3 x-text="topic"></h3>
+
+  <!-- 直接读消费处 x-data 的状态（同 scope，响应式同步） -->
+  <p>状态来源：<b x-text="ui.source"></b></p>
+
+  <!-- 片段内可写 x-data（局部作用域） -->
+  <div x-data="{ local: '我是片段里的 x-data' }">
+    <p x-text="local"></p>
+  </div>
+
+  <!-- 任意指令可用 -->
+  <button @click="close()">关闭</button>
+</div>
+```
+
+**数据/参数传递方式**：**消费处 `x-data` + `x-popover-options.props` 双通道，全部同 scope 共享**。片段模板可直接 `x-text="ui.source"` 读消费处状态，无需显式 props 传入；props 仅用于需要**显式声明并独立于外部**的片段内部状态（例如不同 popover 类型共用一个片段、但需要不同标题）。
+
+#### 远程组件 vs 远程模板：数据传递差异
+
+| 维度 | 远程组件（`x-define`） | 远程模板（片段） |
+|---|---|---|
+| **数据来源** | **只走 props** | 消费处 `x-data` 直接可见 + props 注入 |
+| **组件内部状态** | `<script type="autospark/setup">` 的 `data` 声明 | 片段内可写 `x-data`（局部作用域） |
+| **外部 `x-data` 可见性** | **隔离**——组件模板读不到消费处 `x-data` | **共享**——同 scope，消费处状态直接插值 |
+| **props 语义** | 标准组件 props（声明式通道、与组件 setup.data 同权） | props 快照注入片段响应式 data 域（热更新） |
+| **插槽** | ✅ 支持 | ❌ 不支持 |
+| **作用域样式** | ✅ `<style>` 内联，编译期作用域化 | ❌ 纯 HTML，无法带 `<style>` 作用域 |
+
+#### 行为要点
+
+两条路径共享以下规则（与 x-dialog/x-drawer 完全一致）：
+
+- **本地组件优先于 url**：组件名已可解析（本地声明 / 全局注册）时 url 被忽略——url 只兜底「找不到」的情形；
+- **首次打开才加载**（非指令初始化时）；`url` 支持成员表达式（`x-popover-options.url="tplFor(tab)"`）每次打开重求值——url 变 = 新缓存身份 = 重建；
+- **失败不自动关**：加载失败（HTTP 非 2xx / 网络错误 / 解析为空）在面板内呈现错误占位——「重试」原位重载（回到加载中形态），「关闭」照常请求关闭；失败实例不进 keepalive 缓存，重开即重建面板重新加载——自然的重试通道。
 
 | 维度           | x-popover                    | x-dialog                     |
 | -------------- | ---------------------------- | ---------------------------- |
@@ -238,4 +344,4 @@ tooltip（[工具提示](../tooltip.md)）是**引擎级零声明**能力（`dat
 - `trigger` 非法值（非 `'hover'`/`'click'`）在触发时 warn 并按默认 `'hover'` 处理；修饰符 `.click` 与显式 `trigger` 同写时显式赢。
 - 触摸设备 hover 无对应物（点按会以模拟事件触发 mouseenter），触屏场景改用 `trigger: 'click'`（见[触发方式](#触发方式)）。
 - 远程锚（`at.selector` 锚向别的元素）距离宿主过远时，指针从宿主到面板的旅程可能超出 `delayHide` 宽限（hover 方式）。
-- **家族通用配置**：`keepalive`（关闭挂起保活）/ `key`（保活缓存命名空间）/ `url`（组件未注册时远程加载）为覆盖物家族通用配置，`x-popover-options` 同通道可用——语义与消费面见 [x-dialog · 保活 / key / url](./x-dialog.md#保活keepalive)。
+- **家族通用配置**：`keepalive`（关闭挂起保活）/ `key`（保活缓存命名空间）/ `url`（组件未注册时远程加载——**远程组件 vs 远程模板的数据传递差异**见下方）三项为覆盖物家族通用配置，`x-popover-options` 同通道可用，底层机制与 x-dialog/x-drawer 完全一致，语义与消费面见 [x-dialog · 远程加载（url）](./x-dialog.md#远程加载url)（含远程组件 / 远程模板两路径的完整对比表）；`keepalive` 与 `key` 见 [x-dialog · 保活（keepalive）](./x-dialog.md#保活keepalive) 与 [多实例与 key](./x-dialog.md#多实例与-key)。

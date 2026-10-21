@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-drawer · 远程模板（片段）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <!-- x-drawer 形态：visible 驱动（与 dialog 同构） -->
+    <!-- 远程模板：url 指向无 x-define 的纯 HTML → 片段路径编译，与消费处同 scope -->
+    <div class="demo-app section">
+      <div x-data="{ ui: { open: false, topic: '远程片段抽屉', source: '来自消费处 x-data', shared: 0 } }">
+        <div class="block">
+          <button
+            class="button is-link"
+            x-drawer:remote-note="ui.open"
+            x-drawer-options="{url: '/autospark/components/dialog-note.html', mask: false}"
+            x-drawer-options.props="{topic: ui.topic}"
+            @click="ui.open = true"
+          >
+            打开远程模板抽屉（右侧）
+          </button>
+        </div>
+
+        <div class="block">
+          <label class="label">props（topic）热更新 —— 打开后改，片段标题即时变化</label>
+          <input class="input" x-model="ui.topic" />
+        </div>
+
+        <div class="block">
+          <label class="label">消费处 <code>x-data</code> 的 <code>ui.source</code> —— 打开后改即时同步</label>
+          <input class="input" x-model="ui.source" />
+        </div>
+
+        <div class="block">
+          <label class="label">同 scope 共享 <code>ui.shared</code> —— 这里 +1，片段里也变</label>
+          <button class="button is-small" @click="ui.shared++">消费处 shared +1 → </button>
+          <span x-text="ui.shared"></span>
+        </div>
+
+        <div class="block has-text-grey is-size-7">
+          远程模板（片段）路径与 x-dialog 完全同源：远程文件<b>没有</b> <code>x-define</code> → 按片段编译；
+          与消费处<b>同 scope</b>，所以片段模板里可以直接 <code>x-text="ui.source"</code> 读消费处状态（外部改了即时同步）；
+          drawer 是 visible 驱动形态；<b>双通道：消费处 x-data + props 注入，全部共享</b>。
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

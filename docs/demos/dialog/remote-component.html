@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-dialog · 远程组件</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <!-- 远程组件：本地不声明组件，url 指向同名 x-define 的远程文件 → 组件路径编译 -->
+    <!-- 组件内作用域隔离：读不到消费处 x-data → 全部数据走 props 传入 -->
+    <div class="demo-app section">
+      <div x-data="{ ui: { open: false, userId: 42, externalMsg: '我在消费处 x-data 里' } }">
+        <div class="block">
+          <button
+            class="button is-primary"
+            x-dialog:remote-user="ui.open"
+            x-dialog-options="{url: '/autospark/components/dialog-user.html'}"
+            x-dialog-options.props="{userId: ui.userId}"
+            @click="ui.open = true"
+          >
+            打开远程组件对话框
+          </button>
+        </div>
+
+        <div class="block">
+          <label class="label">props 热更新：改 userId 后不关闭再打开（或关闭重开）</label>
+          <div class="field has-addons">
+            <div class="control">
+              <input class="input" type="number" x-model.number="ui.userId" />
+            </div>
+          </div>
+        </div>
+
+        <div class="block">
+          <label class="label">外部 x-data 消息（组件内读不到）：</label>
+          <input class="input" x-model="ui.externalMsg" />
+          <p class="help has-text-grey">
+            消费处 <code>ui.externalMsg</code> 写在这里，但<b>组件模板里读不到</b>（作用域隔离）——
+            组件内看到的只会是 props 传入的 <code>userId</code> 和组件自己 setup.data 的 <code>count</code>。
+          </p>
+        </div>
+
+        <div class="block has-text-grey is-size-7">
+          消费名 <code>x-dialog:remote-user</code> 在本地<b>未声明</b>，
+          <code>url</code> 指向的远程文件内部声明了 <code>&lt;div x-define="remote-user"&gt;</code>——
+          名字匹配，走<b>组件路径</b>编译（data / props / 方法 / 作用域样式与本地组件完全等价）。
+          组件内部 <code>count</code> 是 setup.data 的隔离状态，不受外部影响；外部状态改了组件也看不到——
+          <b>所有跨边界数据传递只走 props</b>。
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

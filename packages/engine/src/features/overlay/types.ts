@@ -3,6 +3,7 @@ import type { AutoSpark } from "../../engine/engine";
 import type { AutoSparkScope } from "../../engine/scope";
 import type { ComponentDef } from "../component/component-def";
 import type { ResizeOptions } from "../../directives/x-resizable";
+import type { AutoSparkAction } from "../action/types";
 
 /**
  * 覆盖物体系类型（ADR-0052 修订版——组件化统一）。
@@ -162,6 +163,33 @@ export interface OverlayConfig {
      * keepalive + 同 url = 免重取（命中 x-import url 缓存）。
      */
     url?: string;
+    /**
+     * 标题文本（ADR-0124 决策 6）：overlay 骨架 header 区渲染；空缺时 header 靠其余
+     * 内容（icon / closeable / chrome 出口）决定显隐。走 options 通道，打开时经
+     * resolveOverlayConfig 现读，重开生效。
+     */
+    title?: string;
+    /**
+     * 标题左侧图标名（ADR-0124，x-icon 域 ADR-0058）；空缺不渲染图标占位。
+     */
+    icon?: string;
+    /**
+     * 是否显示 close 图标按钮（ADR-0124 决策 5，默认 true）：点击触发全局 close 信号
+     * action（SIGNAL_ACTIONS.close）→ requestClose 既有链路。显式 false 关闭；header 出口
+     * 被整块替换时本键失效（出口内容让位 close）。
+     */
+    closeable?: boolean;
+    /**
+     * 动作集（ADR-0124 决策 4/7）：AutoSparkAction 规范化形态数组（handle 必在），按
+     * `pos` 归位渲染（top → actions.top；left → actions.left；right / auto / bottom / 无
+     * pos → actions.right），组内按 `order` 升序稳定排序。与消费处 scope 显式声明
+     * （pos ∈ {top,left,right} 准入）双通道合并，同 id 后进覆盖。
+     */
+    actions?: AutoSparkAction[];
+    /**
+     * body 区内边距（ADR-0124，默认 `'0.5em'`）：`number`（px）或 CSS 长度字符串。
+     */
+    padding?: string | number;
     /** 其余自由键原样保留（开放配置，供消费者指令/自定义 UI 消费） */
     [key: string]: any;
 }

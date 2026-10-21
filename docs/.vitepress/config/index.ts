@@ -85,6 +85,7 @@ export default defineConfig({
                 { text: "关于", link: "/zh/guide/engine/component/" },
                 { text: "开发组件", link: "/zh/guide/engine/component/develop" },
                 { text: "全局组件", link: "/zh/guide/engine/component/global" },
+                { text: "组件插槽", link: "/zh/guide/engine/component/slot" },
                 { text: "组件继承", link: "/zh/guide/engine/component/inherit" },
                 { text: "组件递归", link: "/zh/guide/engine/component/recursive" },
                 { text: "实例化组件", link: "/zh/guide/engine/component/instantiate" },

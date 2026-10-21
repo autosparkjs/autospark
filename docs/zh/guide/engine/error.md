@@ -6,12 +6,12 @@ AutoSpark 把错误按**产生阶段**分为两轨，各走各的通道、互不
 
 | 轨道           | 产生时机                                     | 消费者   | 通道                                          |
 | -------------- | -------------------------------------------- | -------- | --------------------------------------------- |
-| **运行时错误** | action 失败、`raise` 显式触发                | 终端用户 | DOM `error` 事件 → [x-error](../../references/directives/x-error.md) 呈现 |
+| **运行时错误** | action 失败、`raise` 显式触发、远程加载失败 | 终端用户 | DOM `error` 事件 → [x-error](../directives/x-error.md) 呈现 |
 | **编译期错误** | 指令 created/compile 抛错、绑定表达式首求值抛错 | 开发者   | `scope.errors` 属性（调试数据，不呈现）       |
 
-**运行时错误**是呈现数据——用户在页面上点了按钮、操作失败了，页面应当就地告诉用户发生了什么；**编译期错误**是诊断数据——模板写错了、指令抛异常了，消费者是开发者本人，收集在 `scope.errors` 里供排查，不值得也不应该在页面上弹给终端用户。
+**运行时错误**是呈现数据——用户在页面上点了按钮、操作失败了，或者数据没拉下来，页面应当就地告诉用户发生了什么；**编译期错误**是诊断数据——模板写错了、指令抛异常了，消费者是开发者本人，收集在 `scope.errors` 里供排查，不值得也不应该在页面上弹给终端用户。
 
-这个分轨决定了整个错误处理体系的形状：运行时错误走 DOM 事件通道流入 [x-error](../../references/directives/x-error.md) 做**声明式呈现**；编译期错误静默收集为结构化数据，配合日志输出供开发调试。
+这个分轨决定了整个错误处理体系的形状：运行时错误走 DOM 事件通道流入 [x-error](../directives/x-error.md) 做**声明式呈现**；编译期错误静默收集为结构化数据，配合日志输出供开发调试。
 
 ## 快速入门
 
@@ -49,7 +49,7 @@ const engine = new AutoSpark(el, { age: 16 }, {
 
 ### 运行时错误从哪来
 
-运行时错误有两个生产点，都归一到同一个载体——在触发元素上派发的 `error` CustomEvent（`bubbles + composed`）：
+运行时错误有三个生产点，都归一到同一个载体——在触发元素（load 源为宿主元素）上派发的 `error` CustomEvent（`bubbles + composed`）：
 
 #### action 失败自动桥接
 
@@ -98,6 +98,21 @@ actions: {
 ```
 :::
 
+#### 远程加载失败（load 源）
+
+远程加载家族（异步 x-data / x-html、x-component loader、x-import、x-isolate remote，共享同一取数内核）**重试耗尽**后的最终失败归一为 `RemoteLoadError`（Error 实例 + `url` / `statusCode` / `source:"load"`），在宿主元素上派发 `error` 事件——`detail.error` 同为归一化普通对象，`detail.retry` 额外携带重试弹药（`loader.refresh()`，x-error 的重试按钮直接消费）：
+
+```html
+<div x-error>
+    <!-- 远程加载失败由 x-error 接管呈现（含重试按钮），无需写监听代码 -->
+    <div x-data="/api/orders">...</div>
+</div>
+```
+
+- **HTTP 错误带状态码**：`!res.ok` 在内核抛 `HTTP <status>` 错，`statusCode` 经 `detail.error.statusCode` 透出；
+- **主动 abort 静默丢弃**：url 变化重取、销毁、新轮抢占造成的 AbortError **不重试、不呈现、不算错误**；后发先至的过期响应在落地前被竞态守卫丢弃，不会覆盖新一轮结果；
+- **各指令默认呈现退位**：x-data / x-html 失败照写 `$error` 元键（失败态 UI 归模板条件渲染），x-component / x-isolate 会渲染自身 error 占位——宿主或祖先有 `x-error` 时不再自行呈现，由 x-error 统一就近接管；x-import 无宿主呈现面，只派发事件 + warn 日志。
+
 ### 错误对象归一化
 
 注入呈现层的 error **恒为普通对象**——Error 实例不进响应式域（原型链对象进 AutoStore 响应式域无收益且有序列化包袱）。归一规则：
@@ -109,11 +124,15 @@ actions: {
 | 普通对象 `{...}`  | 原样保留 + 注入 `source`                    |
 | 其他（数字/null） | `{ message: String(error), source }`        |
 
-`source` 标记来源：`"action"`（action 失败桥接）或 `"raise"`（显式触发）——它决定重试按钮的默认显隐与 retry 语义是否可用。
+`source` 标记来源：`"action"`（action 失败桥接）、`"raise"`（显式触发）、`"load"`（远程加载失败）——它决定重试按钮的默认显隐与 retry 语义；第三方自行 dispatch 的缺字段 `error` 事件兜底归一为 `"unknown"`。load 源对象额外携带 `url` / `statusCode`（随请求透出，呈现与调试共用）。
+
+::: tip `$error` 元键是 Error 实例（不走归一化）
+呈现层（`error` 事件 / x-error）恒收**普通对象**；但 x-data / x-html 的 `$error` 元键契约为 **Error 实例**（`RemoteLoadError`，带 `url` / `statusCode`），供模板 `$error.message` 直读。两者同源不同形：**元键给模板直读，事件给呈现层**。
+:::
 
 ### x-error 呈现
 
-[x-error](../../references/directives/x-error.md) 是运行时错误的声明式出口：宿主监听 `error` 事件，**就近消费**（捕获即 `stopPropagation`——嵌套 x-error 内层优先，外层不再收到），按 `behavior` 三态呈现：
+[x-error](../directives/x-error.md) 是运行时错误的声明式出口：宿主监听 `error` 事件，**就近消费**（捕获即 `stopPropagation`——嵌套 x-error 内层优先，外层不再收到），按 `behavior` 三态呈现：
 
 <demo html="error/behavior.html"/>
 
@@ -160,15 +179,21 @@ const engine = new AutoSpark(el, state, {
 | --------------------- | ----------------------------------------------- |
 | `error`               | 归一化错误对象（指令独占保留键，props 不可覆盖） |
 | `message`             | `error.message` 别名                            |
-| `closeable` / `retryable` / `actions` | 呈现配置（见[配置选项](../../references/directives/x-error.md#配置选项)） |
+| `closeable` / `retryable` / `actions` | 呈现配置（见[配置选项](../directives/x-error.md#配置选项)） |
 | `close` / `retry`     | 关闭/重试闭包，模板内 `@click="close()"` 直调   |
 | props 合并字段        | `raise` 第二参 / `props` 配置注入的自由字段     |
 
 ### 重试语义
 
-重试按钮（`retryable`）**仅对 action 源错误有意义**：点击后以**原 args** 重调失败的 action——成功则自动清除错误呈现；再次失败则新错误自然替换呈现。`raise` 源错误无源可重，即使显式 `retryable: true` 也不渲染重试按钮（记 warn）。
+重试按钮（`retryable`）默认显隐随 `source` 走：**`action` / `load` 源缺省即 true**，其余源缺省不重。三种源的重试执行体各不相同：
 
-重试重放的是 **action 本身**，不是触发元素上的 x-on 表达式——桥接点在 action 层，重试与之对称也在 action 层。
+| source  | 重试执行体                                                | 完成语义                                                         |
+| ------- | --------------------------------------------------------- | ---------------------------------------------------------------- |
+| `action` | 以**原 args** 重调失败的 action                          | resolved → 自动清除呈现；rejected → 新错误经单错误槽自然替换呈现 |
+| `load`   | 执行事件 `detail.retry`（= `loader.refresh()`，在途先中止再重启） | 同上（resolved 后仅当呈现仍是原错误才清除，不误清已被替换的新错误） |
+| `raise`  | 无源可重——即使显式 `retryable: true` 也不渲染重试按钮（记 warn） | —                                                                |
+
+action 源重试重放的是 **action 本身**，不是触发元素上的 x-on 表达式——桥接点在 action 层，重试与之对称也在 action 层；load 源重试重放的是**整轮取数**（同一 loader 重新 get），落地路径与首取完全相同。
 
 ### 编译期错误（scope.errors）
 
@@ -216,8 +241,8 @@ try {
 - **总线**：`engine.on("actions/*/rejected", ({ payload }) => ...)` —— 全局监听所有 action 失败（如统一上报）；
 - **DOM 冒泡**：`@action:save.rejected="..."` —— 容器聚合后代某 action 的失败；
 - **`.feedback` 修饰符**：`@click.feedback="save"` —— 触发元素级别的 rejected 类名反馈；
-- **x-data 异步源**：`$error` 元键 + `fallback` 呈现（数据加载场景）；
-- **x-component / x-html 远程加载**：加载失败走占位协议呈现（缺省内置 error 组件）。
+- **x-data / x-html 异步源**：`$loading` / `$error` 元键 + x-if 条件渲染自绘失败态（事件通道照发，与 x-error 并行不冲突）；
+- **x-component / x-isolate 远程加载**：x-error 不在场时走占位协议自渲染（自定义 `error` 声明 > 内置 `autospark.error`），在场则退位交 x-error 接管。
 
 需要 **toast 形态**的错误提示？监听 `error` 事件自行调用通知家族：
 
@@ -232,9 +257,10 @@ el.addEventListener("error", (e) => toast.error(e.detail.error.message));
 - **action 内条件触发 raise 记得带 this**：`this.engine.actions.raise.handle.call(this, ...)` —— ctx 提供触发元素，事件才能派发到位；
 - **自定义错误组件放全局**：`options.components["xx.error"]` 全引擎复用一套错误 UI；个别区域特例才用局部 `x-define`；
 - **错误对象保持轻量**：`raise({...})` 的对象会被原样注入响应式呈现链，只带 `message` 与必要业务字段（如 `code`），别把大对象塞进去；
+- **数据面板与操作区一起圈**：远程加载失败（load 源）同样由 x-error 接管且缺省自带重试——把可能加载失败的数据区域圈进就近的 x-error，失败可就地重取；
 - **无 x-error 区域的错误不呈现**：`error` 事件冒泡到顶自然消亡（CustomEvent 不触发 `window.onerror`）——想全局兜底，在最外层再圈一个 `x-error`；
 - **自定义事件避开 `error` 名**：`error` 是通用事件名，页面自行 dispatch 的同名事件会被 x-error 捕获（缺字段时按 `{ message: String(detail) }` 兜底归一）。
 
 ---
 
-错误呈现讲完。x-error 的完整配置见[指令参考](../../references/directives/x-error.md)，动作生命周期见[动作](./action.md)。
+错误呈现讲完。x-error 的完整配置见[指令参考](../directives/x-error.md)，动作生命周期见[动作](./action.md)。

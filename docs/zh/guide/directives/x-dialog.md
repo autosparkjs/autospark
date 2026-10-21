@@ -300,14 +300,24 @@ engine.on("overlay:close", ({ payload }) => {
 
 ### 远程加载（url）
 
-组件**未注册**且配置了 `url` 时，打开走远程路径：外壳骨架面板先开（内容出口内呈现 loading 占位——骨架可见、loading 在 shell 内部），异步加载完成后原位附加内容、摘除 loading。适合内容体量大 / 使用频率低的对话框——不必预注册，打开时按需取：
+组件**未注册**且配置了 `url` 时，打开走远程路径：外壳骨架面板先开（内容出口内呈现 loading 占位——骨架可见、loading 在 shell 内部），异步加载完成后原位附加内容、摘除 loading。适合内容体量大 / 使用频率低的对话框——不必预注册，打开时按需取。加载语义为**组件优先、片段兜底**的双路径并存：
+
+- **组件优先**：远程 HTML 声明了匹配名的 `x-define` → 按组件编译实例化；
+- **片段兜底**：远程 HTML **没有**匹配名声明 → 原始 HTML 按**片段**编译进面板（`x-html.compile` 同语义）。
 
 <demo html="dialog/remote.html"/>
 
-> demo 中「慢网络加载」按钮经 dev 中间件 `?delay=2500` 模拟慢网络响应，可从容观察「面板先开 + 加载中 → 内容就绪原位附加」的完整过程（生产构建后静态伺服忽略该参数）。
+> demo 中「慢网络加载」按钮经 dev 中间件 `?delay=2500` 模拟慢网络响应，可从容观察「面板先开 + 加载中 → 内容就绪原位附加」的完整过程（生产构建后静态伺服忽略该参数）。失败重试按钮指向 demo-api 中间件路径触发确定性 404（dev 的 SPA fallback 会把其他路径下不存在的文件回成 200 HTML，失败态无法触发）。
+
+#### 远程组件
+
+远程 HTML 声明了匹配名的 `x-define` 时，引擎按**组件**编译实例化——与本地构建实例完全同权：data / props / 插槽 / 作用域样式 / 方法全部生效，并经 x-import 的 url 缓存注册到消费处 scope，同 url 重开零请求。远程文件中混入的**其他名** `x-define` 会被正常注册但不渲染（编译期剪枝）。
+
+<demo html="dialog/remote-component.html"/>
+
+消费处——本地**不声明**组件，url 指向一个**包含同名 `x-define`** 的远程文件：
 
 ```html
-<!-- 本地未声明 remote-user 组件——打开时从 url 加载 -->
 <button
   x-dialog:remote-user="ui.open"
   x-dialog-options="{url: '/autospark/components/dialog-user.html'}"
@@ -318,16 +328,48 @@ engine.on("overlay:close", ({ payload }) => {
 </button>
 ```
 
-加载语义为**组件优先、片段兜底**的双路径并存：
-
-- **组件优先**：远程 HTML 声明了匹配名的 `x-define` → 按组件编译实例化（与本地构建实例完全同权：data / props / 插槽 / 作用域样式全生效），并经 x-import 的 url 缓存注册——同 url 重开零请求；
-- **片段兜底**：远程 HTML **没有**匹配名声明 → 原始 HTML 按**片段**编译进面板（`x-html.compile` 同语义：可含任意指令、不要求组件声明）——插值读**消费处**状态（响应式）、props 注入响应式数据域（热更新与组件路径同权）。片段里混入的其他名 `x-define` 声明会被正常注册但不渲染（编译期剪枝）；注册了非匹配名组件时 warn 一次名字提示——消费名与远程声明名对不上（typo）时可发现。片段路径不支持插槽内容投影（声明了插槽标记则 warn 丢弃）。
-
-#### 片段兜底示例
-
-消费处——本地**不声明** `remote-note` 组件，url 指向一个无 `x-define` 的纯 HTML 文件：
+远程文件——声明了匹配消费名的 `x-define`，标准组件模板：
 
 ```html
+<!-- /autospark/components/dialog-user.html——匹配消费名 x-dialog:remote-user -->
+<div x-define="remote-user">
+  <style>
+    .remote-user-panel {
+      padding: 24px;
+      min-width: 320px;
+    }
+  </style>
+
+  <div class="remote-user-panel">
+    <!-- props 注入：与本地组件 props 通道同权，持续热更新 -->
+    <p>ID：<b x-text="userId"></b></p>
+
+    <!-- 组件内部 data / 方法 / 作用域样式 / 插槽全部支持 -->
+    <p>内部计数：<b x-text="count"></b></p>
+    <button @click="count++">点我自增</button>
+    <button @click="close()">关闭</button>
+  </div>
+
+  <script type="autospark/setup">
+    { data: { userId: 0, count: 0 } }
+  </script>
+</div>
+```
+
+几个要点：远程组件的**生命周期、方法、作用域样式、插槽投影**与本地声明组件完全等价（`x-define` 内的 `data/props/computed/methods` 照常走 setup / script / 属性通道）；props 由消费处 `x-dialog-options.props` 注入并持续热更新；远程组件自身也可以声明 `<script type="autospark/setup">` —— 与 props 同属组件内部**隔离**响应式域，外部 `x-data` 状态在组件内**不可见**（读不到），全部数据必须走 props 传入。远程文件只接受**同名**匹配——消费名与远程 `x-define` 名对不上（typo）时组件无法命中，引擎会 warn 一次提示实际注册名并回退到片段路径。
+
+**数据/参数传递方式**：**只走 `x-dialog-options.props`**，组件内部 `data` 隔离于外部 `x-data` 作用域，组件模板内无法直接读取消费处声明的状态。
+
+#### 远程模板（片段）
+
+远程 HTML **没有**匹配名的 `x-define` 时，原始 HTML 按**片段**编译进面板（`x-html.compile` 同语义）：可含任意指令、不要求组件声明、插值读消费处状态（响应式）、props 注入响应式数据域（热更新与组件路径同权）。片段里混入的其他名 `x-define` 声明会被正常注册但不渲染（编译期剪枝），片段路径不支持插槽内容投影（声明了插槽标记则 warn 丢弃）。
+
+<demo html="dialog/remote-template.html"/>
+
+消费处——本地**不声明** `remote-note` 组件，url 指向一个**无 `x-define`** 的纯 HTML 文件：
+
+```html
+<!-- 注意：x-data 声明在消费处，远程片段共享同一个作用域 -->
 <div x-data="{ ui: { open: false, source: '来自消费处的状态' } }">
   <button
     x-dialog:remote-note="ui.open"
@@ -345,20 +387,40 @@ engine.on("overlay:close", ({ payload }) => {
 ```html
 <!-- /autospark/components/dialog-note.html——无 x-define，按片段编译 -->
 <div style="padding: 24px; min-width: 320px">
-  <!-- props（topic）注入响应式数据域：与组件路径的 props 同权，热更新生效 -->
+  <!-- props（topic）注入片段响应式 data 域 -->
   <h3 x-text="topic"></h3>
 
-  <!-- 插值读消费处状态：ui.source 声明在消费处 x-data，变化实时同步 -->
+  <!-- 直接读消费处 x-data 的状态（同 scope，响应式同步） -->
   <p>状态来源：<b x-text="ui.source"></b></p>
+
+  <!-- 片段内声明的局部状态 —— x-data 可以出现在片段内 -->
+  <div x-data="{ local: '我是片段里的 x-data' }">
+    <p x-text="local"></p>
+  </div>
 
   <!-- 任意指令可用：x-if / x-for / x-model / @click 等照常编译 -->
   <button @click="close()">关闭</button>
 </div>
 ```
 
-三个要点：`topic` 来自 `x-dialog-options.props`（注入片段的响应式数据域）；`ui.source` 读的是**消费处**状态（片段以消费处 scope 为父，声明处数据直接可见且响应式）；`close()` 是引擎内置信号 action——广播 `action:close` 被实例根接住，走标准「请求关闭」链。
+三个要点：`topic` 来自 `x-dialog-options.props`（注入片段的响应式 data 域）；`ui.source` 读的是**消费处**状态（片段以消费处 scope 为父，声明处数据直接可见且响应式）；`close()` 是引擎内置信号 action——广播 `action:close` 被实例根接住，走标准「请求关闭」链。片段路径没有**组件内部 data**（无 `x-define`）——远程片段与消费处同 scope，`x-data` 可出现在消费处，也可直接出现在片段内部。
 
-行为要点：
+**数据/参数传递方式**：**消费处 `x-data` + `x-dialog-options.props` 双通道，全部同 scope 共享**。片段模板可直接 `x-text="ui.source"` 读消费处状态，无需显式 props 传入；props 仅用于需要**显式声明并独立于外部**的片段内部状态（例如不同对话框类型共用一个片段、但需要不同标题）。
+
+#### 远程组件 vs 远程模板：数据传递差异
+
+| 维度 | 远程组件（`x-define`） | 远程模板（片段） |
+|---|---|---|
+| **数据来源** | **只走 props** | 消费处 `x-data` 直接可见 + props 注入 |
+| **组件内部状态** | `<script type="autospark/setup">` 的 `data` 声明 | 片段内可写 `x-data`（局部作用域） |
+| **外部 `x-data` 可见性** | **隔离**——组件模板读不到消费处 `x-data` | **共享**——同 scope，消费处状态直接插值 |
+| **props 语义** | 标准组件 props（声明式通道、与组件 setup.data 同权） | props 快照注入片段响应式 data 域（热更新） |
+| **插槽** | ✅ 支持 | ❌ 不支持 |
+| **作用域样式** | ✅ `<style>` 内联，编译期作用域化 | ❌ 纯 HTML，无法带 `<style>` 作用域 |
+
+#### 行为要点
+
+两条路径共享以下规则：
 
 - **本地组件优先于 url**：组件名已可解析（本地声明 / 全局注册）时 url 被忽略——url 只兜底「找不到」的情形；
 - **首次打开才加载**（非指令初始化时）；`url` 支持成员表达式（`x-dialog-options.url="tplFor(tab)"`）每次打开重求值——url 变 = 新缓存身份 = 重建（keepalive 下旧挂起实例保留到回收点）；

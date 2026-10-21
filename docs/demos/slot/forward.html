@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>x-slot · 插槽转发</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <!--
+            插槽转发（ADR-0125）：包装组件把内层组件的出口暴露给自己的消费者——
+            - 声明落点：包装组件模板内、消费内层组件的元素上（x-component-options.slots）；
+            - 语义：名字可翻译（显式映射或 * 通配）→ 译名继续上溯，每级持有者各自翻译逐级接力；
+              已声明转发的名字消费者段胜过包装层直供段（并存降级），未声明名字直供段恒优先、
+              「首持有者即停」不穿透；多级并存无消费者段时最外层候选兜底；
+            - 转发段求值基准与内层出口直接消费同一段完全一致（调用方作用域）。
+        -->
+  </head>
+  <body>
+    <div id="app" x-scope>
+      <!-- 内层组件：卡片（header / 默认 / footer 三个出口） -->
+      <div x-define="inner-card">
+        <div class="card">
+          <header class="card-head" x-slot:header>默认标题</header>
+          <div class="card-body" x-slot>默认正文</div>
+          <footer class="card-foot" x-slot:footer>默认脚注</footer>
+        </div>
+      </div>
+
+      <!-- 包装组件一：精准转发 + 重命名——内层 header 以 card-header 名对外重导出，footer 原名直通 -->
+      <div x-define="card-renamed">
+        <div x-component:inner-card x-component-options.slots="header:card-header, footer"></div>
+      </div>
+
+      <!-- 包装组件二：`*` 通配全转发——内层所有出口原名上溯（含默认出口与将来动态出口） -->
+      <div x-define="card-passthrough">
+        <div x-component:inner-card x-component-options.slots="*"></div>
+      </div>
+
+      <!-- 包装组件三：`.slots` 修饰符——布尔型选项的快捷开关，≡ slots=true（≡ *） -->
+      <div x-define="card-modifier">
+        <div x-component:inner-card.slots></div>
+      </div>
+
+      <!-- 包装链：relay-b 消费 inner-card、relay-c 消费 relay-b，每级各自声明，逐级接力 -->
+      <div x-define="relay-b">
+        <div x-component:inner-card x-component-options.slots="header"></div>
+      </div>
+      <div x-define="relay-c">
+        <div x-component:relay-b x-component-options.slots="header"></div>
+      </div>
+
+      <!-- 包装组件五：并存降级——包装层自己直供 header 段且声明转发，消费者段可覆盖 -->
+      <div x-define="card-coexist">
+        <div x-component:inner-card x-component-options.slots="header:card-header">
+          <template x-slot:header>包装层直供的标题</template>
+        </div>
+      </div>
+
+      <!-- ① 精准转发 + 重命名：消费者写 card-header / footer；默认出口未声明 → 内层 fallback -->
+      <div class="panel">
+        <div class="label">① 精准转发 + 重命名：header 以 card-header 对外重导出，footer 原名直通（正文未声明 → 内层默认文案）</div>
+        <div x-component:card-renamed>
+          <template x-slot:card-header>
+            <h3 class="is-size-5">重命名后的标题</h3>
+          </template>
+          <template x-slot:footer>
+            <b>消费者的脚注</b>
+          </template>
+        </div>
+      </div>
+
+      <!-- ② `*` 全转发：三个段都直达内层对应出口 -->
+      <div class="panel">
+        <div class="label">② `*` 通配全转发：所有段原名直通（默认段也在内）</div>
+        <div x-component:card-passthrough>
+          <template x-slot:header>通配标题</template>
+          <p>这段裸子节点按 <code>default</code> 名转发，填入内层默认出口。</p>
+          <template x-slot:footer>通配脚注</template>
+        </div>
+      </div>
+
+      <!-- ③ 多级接力：relay-c 的消费者内容穿过两级声明直达最内层出口 -->
+      <div class="panel">
+        <div class="label">③ 多级接力 c→b→a：每级各写各的声明，最外层内容直达最内层（未接力名 → 内层 fallback）</div>
+        <div x-component:relay-c>
+          <template x-slot:header>
+            <h3 class="is-size-5">穿过两级声明到达的标题</h3>
+          </template>
+        </div>
+      </div>
+
+      <!-- ④ 修饰符快捷方式：与面板二等价的全转发，写法最短 -->
+      <div class="panel">
+        <div class="label">④ 修饰符快捷方式：<code>x-component:inner-card.slots</code> ≡ slots=true（全部转发）</div>
+        <div x-component:card-modifier>
+          <template x-slot:header>修饰符全转发标题</template>
+          <p>布尔开关一个词全转发，裸子节点按 <code>default</code> 名直达内层默认出口。</p>
+          <template x-slot:footer>修饰符脚注</template>
+        </div>
+      </div>
+
+      <!-- ⑤ 并存降级：消费者段胜过包装层直供段；消费者未提供时直供段回补渲染 -->
+      <div class="panel">
+        <div class="label">⑤ 并存降级：包装层直供标题段且声明转发——左边消费者段胜出，右边无消费者段则直供段回补</div>
+        <div x-component:card-coexist>
+          <template x-slot:card-header>
+            <h3 class="is-size-5">消费者覆盖的标题</h3>
+          </template>
+        </div>
+        <div x-component:card-coexist></div>
+      </div>
+    </div>
+
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+    </script>
+
+    <style>
+      .panel {
+        padding: 16px;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        margin-bottom: 12px;
+      }
+      .label {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 8px;
+      }
+      .card {
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .card-head {
+        padding: 10px 14px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #eee;
+        font-weight: 600;
+      }
+      .card-body {
+        padding: 14px;
+      }
+      .card-foot {
+        padding: 8px 14px;
+        font-size: 0.75rem;
+        color: #888;
+        border-top: 1px solid #eee;
+      }
+    </style>
+  </body>
+</html>

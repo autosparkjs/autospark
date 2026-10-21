@@ -13,8 +13,11 @@ import { SpreadBinder } from "./x-bind-spread";
  * - 有对应内容时由内容侧投影填充，内容在**调用方作用域链**求值（不受 ADR-0053 封闭边界约束）；
  * - 作用域形参（出口值=对象字面量、内容值=解构简式）经共享 `locals` 容器注入 + `refresh` 刷新。
  *
- * 内容 map 沿 parent 链**就近**查找（嵌套组件各持独立 map；找到持有者但无本名段 →
- * fallback，不再上溯）。持有者由 component/overlay 的 `_instantiate` 懒收集后 stash。
+ * 内容 map 沿 parent 链**就近**查找（嵌套组件各持独立 map）。持有者由 component/overlay
+ * 的 `_instantiate` 懒收集后 stash。例外——插槽转发（ADR-0125）：持有者带
+ * `x-component-options.slots` 声明时，名字按声明翻译（显式映射或 `*` 原名）继续上溯，
+ * 每级持有者各自翻译逐级接力；并存降级（决策六）——持有者对本名声明转发时其直供段
+ * 降级为回退候选（走完链无终局命中时最外层候选兜底），未声明名直供段恒优先。
  *
  * `ownsChildren`：出口子树不进通用 walk——由本指令在 compile 中选择「投影内容」或
  * 「fallback 编译」二选一，避免双重编译。
@@ -54,9 +57,18 @@ export class SlotDirective extends AutoSparkDirectiveBase {
     private dynamicResolved: { name: string } | null = null;
     /** 动态名求值结果非法（ADR-0107 决策八）：恒按无内容处理（fallback），不写 data-slot */
     private dynamicInvalid = false;
+    /** 出口名（名段重组后，ADR-0124）：compile 期写 data-slot 用 */
+    private resolvedAttrName = "default";
 
     override created(): void {
-        const attrName = (this.attr ?? "").trim();
+        // 名段重组（ADR-0124 点分出口名）：解析期按 "." 切修饰符，attr 只含首段——冒号形态
+        // 下除 bind（绑定载体语义，ADR-0108，出口侧仅 warn）外的修饰符以 "." 并回出口名
+        //（x-slot:actions.left → 出口名 "actions.left"）；无冒号形态修饰符无出口名语义（维持
+        // 动态名/裸 default 语义不变）
+        const attr = (this.attr ?? "").trim();
+        const mods = attr !== "" ? (this.modifiers ?? []).filter((m) => m !== "bind") : [];
+        const attrName = [attr, ...mods].filter((s) => s !== "").join(".");
+        this.resolvedAttrName = attrName || "default";
         let name = attrName || "default";
         /** 动态名模式：形参取值表达式 = 整个指令值，形参取 value.params（ADR-0107） */
         let dynamic = false;
@@ -97,12 +109,24 @@ export class SlotDirective extends AutoSparkDirectiveBase {
                 );
             }
         }
-        // 沿 parent 链就近找第一个持有 slotContents 的 scope（嵌套组件隔离）
+        // 沿 parent 链就近找持有 slotContents 的 scope（嵌套组件隔离）；插槽转发（ADR-0125）：
+        // 名字按持有者声明（slotForwarding：显式映射优先、`*` 通配原名）翻译后逐级接力上溯；
+        // 并存降级（决策六）——声明转发的持有者其直供段降级为回退候选继续上溯，未声明名
+        // 直供段终局即胜；未声明名字保持「首持有者即停」防穿透不变式（声明落点持有者即使
+        // 无内容也构成边界）
         if (!this.dynamicInvalid) {
             let holder: AutoSparkScope | null = this.binding.parent;
+            let lookup = name;
+            /** 并存降级回退候选（ADR-0125 决策六）：声明转发的持有者集内直供段让位外层，
+             * 走完链无终局命中时由**最后一个候选（最外层）**兜底——多级并存最外层赢 */
+            let candidate: SlotContent | null = null;
+            let candidateScope: AutoSparkScope | null = null;
             while (holder) {
-                if (holder.slotContents) {
-                    const hit = holder.slotContents.get(name);
+                if (holder.slotContents || holder.slotForwarding) {
+                    const hit = holder.slotContents?.get(lookup) ?? null;
+                    const fw = holder.slotForwarding;
+                    // 本级是否声明转发本名（显式映射或 `*` 通配）
+                    const forwardedHere = fw ? fw.map.has(lookup) || fw.wildcard : false;
                     if (hit) {
                         if (dynamic && hit.mode === "live") {
                             // 动态出口不可消费活体段（ADR-0107 决策七）：live 段不可克隆/再编译，
@@ -110,14 +134,32 @@ export class SlotDirective extends AutoSparkDirectiveBase {
                             this.warn(
                                 `x-slot: 动态出口 "${name}" 不可消费活体内容段（live 段仅静态出口可直挂），已按无内容处理（渲染 fallback）（ADR-0107）`,
                             );
-                        } else {
+                            break;
+                        }
+                        if (!forwardedHere) {
+                            // 终局命中：本级未声明转发本名——直供段恒优先（现状不变式）
                             this.content = hit;
                             this.callerScope = holder.slotCallerScope ?? holder;
+                            break;
                         }
+                        // 并存降级：本级声明转发本名 → 直供段降级为回退候选，继续上溯
+                        candidate = hit;
+                        candidateScope = holder.slotCallerScope ?? holder;
                     }
-                    break; // 持有者已定：无本名段 → fallback，不上溯（防穿透到外层组件）
+                    const translated = fw
+                        ? (fw.map.get(lookup) ?? (fw.wildcard ? lookup : null))
+                        : null;
+                    if (translated === null) {
+                        break; // 持有者已定：无本名段且不转发 → 边界（候选兜底或 fallback，防穿透）
+                    }
+                    lookup = translated; // 转发接力：译名在上一级持有者继续查找
                 }
                 holder = holder.parent;
+            }
+            // 链走尽无终局命中：并存降级的候选按「最外层赢」兜底（无候选 → 出口 fallback）
+            if (!this.content && candidate) {
+                this.content = candidate;
+                this.callerScope = candidateScope;
             }
         }
 
@@ -145,8 +187,7 @@ export class SlotDirective extends AutoSparkDirectiveBase {
         // 稳定寻址锚——运行期 DOM 注入通道（如 x-foldable 折叠面板中继）据此定位出口。
         // 动态出口写求值结果名；无效名不写（ADR-0107 决策八）
         if (!this.dynamicInvalid) {
-            this.el.dataset.slot =
-                this.dynamicResolved?.name ?? ((this.attr ?? "").trim() || "default");
+            this.el.dataset.slot = this.dynamicResolved?.name ?? this.resolvedAttrName;
         }
         if (this.content && this.callerScope) {
             // 传递绑定（ADR-0108）：内容侧 x-slot.bind 载体 → 调用方作用域 watch → 出口元素展开

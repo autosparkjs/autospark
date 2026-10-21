@@ -332,8 +332,12 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
     /**
      * 元键注入宿主 scope locals（ADR-0122 决策 2）：`$loading`/`$error` 为普通对象字段，
      * 经 scope 链对子树可见（locals 优先级最高）。原地修改（不替换引用——子 scope 经
-     * _linkParent 共享同一对象，替换会断链）。写入后 invalidateScopeView + refresh
-     * 驱动依赖绑定重求值（x-text/x-if 等直读元键）。
+     * _linkParent 共享同一对象，替换会断链）。写入后 invalidateScopeView 让聚合视图缓存
+     * 失效，再刷新子 scope 驱动依赖绑定重求值（x-text/x-if 等直读元键）。
+     *
+     * 注意：只刷新子 scope，不刷宿主 scope 自身——宿主 scope 上的 AsyncSourceRunner watcher
+     * 监听 args 数据依赖，不应被 $loading/$error 变化触发，否则会形成
+     * _setMeta → refresh → invokeAction → _beginLoad → _setMeta 的死循环。
      */
     private _setMeta(loading: boolean, error: Error | undefined): void {
         const scope = this.binding;
@@ -341,7 +345,7 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
         scope.locals.$loading = loading;
         scope.locals.$error = error;
         scope.invalidateScopeView();
-        scope.refresh();
+        for (const child of scope.children) child.refresh();
     }
 
     /**

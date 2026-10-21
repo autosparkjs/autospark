@@ -33,6 +33,7 @@
 | `x-component="<url>"` | **无参 url 简写**：值专职远程 url——字面量直载，否则按表达式求值（string→url、object→loader 配置），**响应式 url**；返回多组件时取文档序首个 + `warn` |
 | `x-component:<名称>.open` | 修饰符：**消费侧豁免**——打开封闭组件（≡ `x-component-options="{open:true}"`，显式声明即豁免、不 `warn`，ADR-0053 修订） |
 | `x-component:<名称>.global` | 修饰符：把远程加载的组件注册为**全局组件**（语义同 `x-import.global`） |
+| `x-component:<名称>.slots` | 修饰符：**全部插槽转发**开关（≡ `slots=true`，即 `*` 通配），见[插槽转发](#插槽转发-slots) |
 
 组件名**静态、编译期可知**——不支持响应式切换组件名；要条件切换组件，把 `x-if` 写在外层包裹元素上，分支内各自实例化：
 
@@ -163,6 +164,24 @@ loader 语义「**以此 url 为准**」：组件已注册仍 fetch 并以远程
 
 <demo html="component/loader.html"/>
 
+### 插槽转发（slots）
+
+包装组件（模板内又消费了别的组件）可通过 `slots` 选项把**内层组件的插槽出口暴露给自己的消费者**：按声明的清单改名继续向外层查找——支持裸名直通、`原名:对外名` 重命名与 `*` 通配（显式映射优先），多级嵌套逐级接力：
+
+```html
+<!-- 包装组件模板：内层 card 的 footer 原名直通，header 对外重导出为 card-header -->
+<div x-define="wrapper">
+  <div x-component:card x-component-options.slots="footer, header:card-header"></div>
+</div>
+
+<!-- 消费者：写对外名，内容落进内层出口 -->
+<div x-component:wrapper>
+  <template x-slot:card-header><h3>标题</h3></template>
+</div>
+```
+
+要点：静态清单编译期一次解析（不响应式）；**已声明转发的名字消费者段胜过包装层直供段**（直供段降级为回退候选，消费者未提供时回补渲染；未声明名字直供段恒优先）、未声明名字不穿透；转发名与包装组件自身出口同名会双渲染并警告。全部转发有快捷方式——布尔 `true`（`x-component-options="{slots: true}"`）或直接在指令上写**修饰符** `x-component:card.slots`（≡ `slots=true` ≡ `*`），显式值在场时优先于修饰符。完整语法、并存降级、多级接力与 demo 见 [x-slot 的插槽转发](./x-slot.md#插槽转发-slots)。
+
 ## 配置选项
 
 `x-component-options` 与 `x-define-options` 同键兼容（ADR-0110，extends）：`open` / `dataContext` 获得**实例级覆盖**能力——覆盖仅影响本实例，不回写组件定义。
@@ -174,6 +193,7 @@ loader 语义「**以此 url 为准**」：组件已注册仍 fetch 并以远程
 | `props` | — | — | props 选项通道：整包静态对象或成员属性表达式（响应式），与指令值 props 双源合并（指令值覆盖同名键） |
 | `global` | `false` | `.global` | 配合远程加载：加载的组件注册为全局组件（语义同 `x-import.global`） |
 | `loader` | — | — | 远程直接实例化完整配置：string 简写（字面量 url / 表达式）或对象 `{ url, request?, fallback?, error?, width?, height?, retry?, retryDelay?, timeout?, cache? }`；url 优先级指令值 > `loader.url` |
+| `slots` | — | `.slots` | **插槽转发**（ADR-0125）：逗号分隔的名字清单（裸名 / `出口名:对外名` / `*`）或布尔 `true`（≡ `*` 全部转发），把内层组件的插槽出口暴露给包装组件的消费者——静态值，编译期一次解析；修饰符 `.slots` ≡ `true` 开关（显式值在场时被压制）；与 `x-slot`（出口/内容标记）、`x-slots`（覆盖物内容归属容器）是三个不同机制，详见 [x-slot 的插槽转发](./x-slot.md#插槽转发-slots) |
 | `fallback` / `error` / `width` / `height` / `request` / `retry` / `retryDelay` / `timeout` / `cache` | — | — | loader 附属键**平铺**（ADR-0110）：顶层声明等效 `loader` 对象内嵌，同名键顶层 > 内嵌；成员属性形态天然响应式；`retry` 等四键为统一内核选项（ADR-0121，默认全 0） |
 
 ```html
@@ -206,5 +226,6 @@ loader 语义「**以此 url 为准**」：组件已注册仍 fetch 并以远程
 - **旧写法已彻底移除**：`x-use="counter"` / `x-use="{name:'counter',...}"`（ADR-0054 废弃）不再识别——静默失效，请分别改写为 `x-component:counter` / `x-component:counter="{...}"`；
 - **对象内 `name` / `is` / `component` 字段识别已废除**：组件名由属性参数承载，这些键回归普通 prop 名；
 - **props 更新不重置内部状态**：值无变化（浅等）不更新；多次更新只覆盖出现过的键；要「镜像同步」请销毁重建（外层 `x-if` 切换）；
+- **插槽转发默认关闭**：不写 `slots` 时内层出口收不到内容就渲染默认值，绝不向外层查找；声明写在包装组件模板内消费内层组件的元素上，语义与语法详见 [x-slot 的插槽转发](./x-slot.md#插槽转发-slots)；
 - **占位呈现组件的 props 不支持函数值**：`fallback` / `error` 的 `{ name, props }` 中，函数会被引擎自动分流到非响应式通道（重试 / 关闭等执行逻辑由引擎经 action 通道注入）——响应式数据域中的函数值会被 autostore 当 computed 在依赖收集时执行，请传纯数据；
 - **完整教程**：声明、`<script setup>` 段、作用域样式见 [x-define](./x-define.md) 与[组件](../component/)。

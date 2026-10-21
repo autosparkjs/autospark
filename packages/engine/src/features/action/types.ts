@@ -48,9 +48,9 @@ export interface AutoSparkAction {
      */
     order?: number
     /**
-     * 用于控制动作显示在哪里,左对齐右对齐
+     * 用于控制动作显示在哪里
      */
-    align?: 'auto' | 'left' | 'right' | 'top' | 'bottom'
+    pos?: 'auto' | 'left' | 'right' | 'top' | 'bottom'
     /**
      * 工具提示
      */

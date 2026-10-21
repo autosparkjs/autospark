@@ -225,7 +225,7 @@ export type AutoSparkRouterOptions = {
      */
     routeOptions?: Partial<Pick<AutoSparkRouteItem, "cache" | "keepAlive" | "preload" | "timeout">>;
     /**
-     * Alpine.js 全局 store 初始数据
+     * 全局 store 初始数据
      **/
     data?: Record<string, any>;
     /**

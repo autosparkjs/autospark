@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-popover · 远程组件</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <!-- x-popover 形态：宿主触发（click），无需 visible 状态驱动 -->
+    <!-- 远程组件：url 指向同名 x-define 的远程文件 → 组件路径编译，作用域隔离、数据只走 props -->
+    <div class="demo-app section">
+      <div x-data="{ ui: { userId: 42, externalMsg: '我在消费处 x-data 里' } }">
+        <div class="block">
+          <button
+            class="button is-primary"
+            x-popover:remote-user.click
+            x-popover-options="{url: '/autospark/components/dialog-user.html'}"
+            x-popover-options.props="{userId: ui.userId}"
+          >
+            点击打开远程组件 popover
+          </button>
+        </div>
+
+        <div class="block">
+          <label class="label">props 热更新：改 userId 后关掉再点开</label>
+          <input class="input" type="number" x-model.number="ui.userId" />
+        </div>
+
+        <div class="block">
+          <label class="label">外部 x-data 消息（组件内读不到）：</label>
+          <input class="input" x-model="ui.externalMsg" />
+          <p class="help has-text-grey">
+            消费处 <code>ui.externalMsg</code> 写在这里，但<b>组件模板里读不到</b>（作用域隔离）——
+            远程组件内看到的只会是 props 传入的 <code>userId</code> 和 setup.data 的 <code>count</code>。
+          </p>
+        </div>
+
+        <div class="block has-text-grey is-size-7">
+          远程组件路径与 x-dialog 完全同源：组件名走 attr（<code>x-popover:remote-user</code>），本地未声明、
+          <code>url</code> 指向同名 <code>x-define</code> 的远程文件 → 按组件编译；popover/点击触发形态，
+          无需 visible 状态驱动；组件内部 data 与外部隔离，<b>所有跨边界数据只走 props</b>。
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>
