@@ -1,6 +1,25 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import "../setup";
-import { mount, nextTick } from "../helpers";
+import { mount as _mount, nextTick } from "../helpers";
+
+// 测试卫生：本文件大量 mount 且无显式销毁——泄漏的 engine（存活监听/微任务/打开栈
+// 登记）会与后续文件的 popover 用例产生交互拥塞（{x-model, x-on} 组合实测致 hover
+// 用例 hook timeout 100s 级）。统一 afterEach 清场；engine 无 destroyed 标记，
+// 以 __testDestroyed 自打标记防双销毁。
+const engines: any[] = [];
+const mount = ((...args: Parameters<typeof _mount>) => {
+    const m = _mount(...args);
+    engines.push(m.engine);
+    return m;
+}) as typeof _mount;
+afterEach(() => {
+    while (engines.length) {
+        const e = engines.pop() as any;
+        if (e.__testDestroyed) continue;
+        e.__testDestroyed = true;
+        e.destroy();
+    }
+});
 
 /**
  * x-model 双向绑定指令测试（阶段1：text-like + 防循环 + get/set + 修饰符 + 只读降级 + 冲突）。

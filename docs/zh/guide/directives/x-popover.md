@@ -159,6 +159,33 @@ hover 交互在触摸屏上没有对应物（点按会以模拟事件触发 mous
 </button>
 ```
 
+### 结构骨架（chrome）：标题 / 关闭按钮 / 动作区
+
+内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——气泡面板默认自带 header（`closeable: true` 时有关闭按钮）与 body 内边距（`padding: '0.5em'`）。五个骨架键经 `x-popover-options` 配置：
+
+```html
+<button x-popover:preview x-popover-options="{delayShow: 0, title: '详情', icon: 'eye'}">
+  悬停预览
+</button>
+
+<!-- 动作区：配置式 actions 数组按 pos 归位（top/left/right） -->
+<button
+  x-popover:confirm.click
+  x-popover-options="{title: '删除确认', actions: [
+    {id: 'cancel', title: '取消', pos: 'left'},
+    {id: 'ok', title: '删除', pos: 'right', handle: () => doDelete()}
+  ]}"
+>
+  点击确认
+</button>
+```
+
+消费者还能在**宿主子级**用 `x-slot:名` 直接重载骨架的 chrome 出口（`title` / `header` / `footer` / `actions.top` / `actions.left` / `actions.right`，点分名；内容组件声明过的出口名不受影响）——完整契约（条件渲染 / 插槽重载 / 动作双通道 / 视觉变量）见[覆盖物 · 结构骨架](../engine/overlays.md#结构骨架autosparkoverlay通用-header--body--footer)。
+
+::: warning 视觉变化（ADR-0124）
+气泡默认**多出关闭按钮的 header** 与 **body 内边距 0.5em**——还原紧凑气泡（无标题栏、零内边距）设 `closeable: false` 且不提供标题/动作，并 `padding: 0`；自定义 shell 整体替换则完全退出骨架。注意 `padding` 是**双通道键**：显式设置时同时作用于内容区外壳 inline 与骨架 body 区，未声明时 body 走默认 `0.5em`、内容区不写 inline。
+:::
+
 ### 面板外壳（shell）
 
 面板层形态由可替换的外壳组件渲染：内置 `popover-shell`（裸面板 + 箭头载体，贴附宿主 `bottom` + flip）开箱即用；`x-popover-options.shell` 可整体替换（语法与规则与 x-dialog 完全一致，见 [x-dialog · 面板外壳](./x-dialog.md#面板外壳-shell自定义面板形态) 与 [覆盖物 · 面板外壳](../overlays.md#面板外壳-shell形态可定制)）：
@@ -320,12 +347,16 @@ tooltip（[工具提示](../tooltip.md)）是**引擎级零声明**能力（`dat
 
 | 配置项 | 默认值 | 修饰符 | 说明 |
 | --- | --- | --- | --- |
+| `title` | 无 | — | 骨架标题文本（header）；见[结构骨架（chrome）](#结构骨架chrome标题--关闭按钮--动作区) |
+| `icon` | 无 | — | 骨架标题左侧图标名（x-icon 域） |
+| `closeable` | `true` | — | 骨架 header 显示 close 图标按钮（走请求关闭链）；`false` 且标题/图标/动作区全空时 header 消失 |
+| `actions` | 无 | — | 骨架动作集（数组，按 `pos` 归位、`order` 升序）：`top` → 顶区、`left` → 左区、`right`/`auto`/`bottom`/无 pos → 右区 |
 | `trigger` | `'hover'` | `.click` | 触发方式：`'hover'` 悬浮开关 / `'click'` 点击开关；显式 `trigger` 恒优先 > `.click` 修饰符 > 默认 hover；非法值 warn 回退 `'hover'`（见[触发方式](#触发方式)） |
 | `delayShow` | `200` | — | 悬浮意图延迟（ms）：移入宿主后延迟打开、计时期间移开取消；`0` 无延迟；仅 hover 生效（click 静默不适用）；非法值 warn 回退默认（见[延迟配置](#延迟配置)） |
 | `delayHide` | `150` | — | 关闭宽限（ms）：指针离开「宿主∪面板」共享域后再宽限 `delayHide` 毫秒才关；生效条件同 `delayShow`（仅 hover） |
 | `at` | 贴附宿主（`bottom` + 箭头） | — | 定位锚：字符串 / 元素简写（≡ `{selector}`）或 `{selector, placement, offset, shift, flip, arrow}` 对象；显式配置与默认锚**成员级合并**（缺省成员回退宿主 / `bottom`）；`placement` 共 12 方向（见[定位](#定位)） |
 | `fit` | `false` | — | 面板尺寸跟随宿主（单轴：左右弹出取高、上下弹出取宽，跟随翻转后最终方向；见[尺寸跟随宿主](#尺寸跟随宿主-fit)） |
-| `padding` | `0` | — | shell 内容区 `.autospark-popover-content` 内边距：`number` 按 px / CSS 长度字符串直写；非法值 warn 回退 `0`；自定义 shell 无该类名内容区静默跳过（见[内容内边距](#内容内边距-padding)） |
+| `padding` | `0`（body 区 `'0.5em'`） | — | **双通道键**：内容区外壳 `.autospark-popover-content` inline（`number` 按 px / CSS 长度字符串直写，非法值 warn 回退 `0`）+ 骨架 body 区内边距（显式设置时同步生效；未声明时 body 走默认 `'0.5em'`、内容区不写 inline）；自定义 shell 无该类名内容区静默跳过（见[内容内边距](#内容内边距-padding)与[结构骨架（chrome）](#结构骨架chrome标题--关闭按钮--动作区)） |
 | `animate` | `'fade'` | — | 进出场动画（字符串 / 对象 / 分相 / `false`）——覆盖物家族同款三形态 |
 | `border` | `true` | — | 面板外壳 1px 边框 + 背景 + 圆角（无锚定也生效；`false` 显式关闭） |
 | `shell` | `'popover-shell'` | — | 面板外壳组件名（打开时求值一次，未命中回退内置）；链：指令选项 > 宿主 `x-options` > 引擎级 `options.overlay.popover.shell` > 内置（见[面板外壳](#面板外壳-shell)） |

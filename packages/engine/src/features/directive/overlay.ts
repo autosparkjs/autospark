@@ -7,8 +7,13 @@ import {
     type OverlayShellDef,
 } from "../overlay/instance";
 import { resolveOverlayConfig } from "../overlay/handle";
-import { buildOverlayCacheKey, resolveDataContext, type OverlayConfig } from "../overlay/types";
-import { collectSlotGroups } from "../../utils/slot";
+import {
+    buildOverlayCacheKey,
+    resolveDataContext,
+    type OverlayConfig,
+} from "../overlay/types";
+import type { AutoSparkAction } from "../action/types";
+import { collectSlotGroups, collectSlotSegments, getSlotMarker, type SlotContent } from "../../utils/slot";
 import {
     injectErrorBridge,
     mountComponentHost,
@@ -86,6 +91,20 @@ const KIND_SHELL_NAMES: Record<string, string> = {
     drawer: DRAWER_SHELL_NAME,
 };
 
+/**
+ * overlay chrome 出口名集合（ADR-0124 决策 11）：消费侧分段按名裁决的 chrome 判定基准。
+ * 裸 `actions` 先归一为 `actions.right` 再比对；`default` / `body` 及其余名字恒内容组
+ * （body 是 overlay 骨架的内容直通位，default 是面板内容本体）。
+ */
+const OVERLAY_CHROME_SLOT_NAMES: ReadonlySet<string> = new Set([
+    "title",
+    "header",
+    "footer",
+    "actions.top",
+    "actions.left",
+    "actions.right",
+]);
+
 export abstract class OverlayDirective extends ComponentDirective {
     /**
      * 覆盖物宿主是**触发点/声明点**（按钮标签、触发容器），不是组件化身——
@@ -142,6 +161,11 @@ export abstract class OverlayDirective extends ComponentDirective {
     private _keepaliveCache = new Map<string, OverlayInstance>();
     /** 进行中的探测中止器（ADR-0119 → ADR-0123 保留：retry 重载/指令销毁抢占旧探测） */
     private _remoteAbort: AbortController | null = null;
+    /**
+     * 消费侧收集裁决的内容组缓存（ADR-0124 决策 11）：chrome 分段剥离后的原始子组，供
+     * retry 重载复用（重收集会让 chrome 段再入内容宿主）；undefined = 尚未裁决。
+     */
+    private _splitContent: ChildNode[] | null | undefined;
 
     /** 模态遮罩外壳（DialogDirective 覆盖 true；基座默认裸面板直挂容器——未来形态定制点） */
     protected get _modalMask(): boolean {
@@ -268,6 +292,17 @@ export abstract class OverlayDirective extends ComponentDirective {
         // 插槽内容预收集（原始子节点，ADR-0056 决策十修订）：组件宿主克隆移入宿主子级
         // （x-component 收集分段投影承接）；片段路径无出口概念——生成时 warn 丢弃
         const group = this._collectSlotGroup(name);
+        // 消费侧收集裁决（ADR-0124 决策 11）：chrome 分段（title/header/footer/actions.*，
+        // 裸 actions 归一）自内容组剥离 stash 实例（open 前就位，_buildShellAndMount 并入
+        // shell 内容集），其余保持原始子组走内容宿主管线；内容组缓存供 retry 重载复用。
+        // 消费组件已声明的出口名优先（显式优先——同名段归属组件自出口，不入 chrome）。
+        const split = this._splitOverlaySlots(group, found?.def?.slots);
+        this._splitContent = split.content;
+        // actions 双通道合并（ADR-0124 决策 7）：链上声明式（engine.actions + scope 链，
+        // 显式 pos 准入，远→近覆盖）+ config.actions 配置式最后进；回写后随 config 整包
+        // 注入 shell data 域 → 内嵌 overlay 组件 props.actions。
+        const mergedActions = this._mergeOverlayActions(config.actions);
+        if (mergedActions) config.actions = mergedActions;
         // shell 解析（ADR-0062）：面板外壳组件（config.shell > 引擎级默认 > 内置默认）
         const shell = this._resolveShell(config);
         // 宿主不清空：ownsChildren=false 下子节点是宿主自身内容（按钮标签等），照常保留
@@ -280,6 +315,8 @@ export abstract class OverlayDirective extends ComponentDirective {
             onPanelReady: (ctx) => this._attachResize(ctx),
             cacheKey,
         });
+        // chrome 段就位（open 前——_buildShellAndMount 并入 shell 内容集，ADR-0124 决策 11）
+        inst.chromeSlots = split.chrome;
         inst.onCloseRequest = this._makeCloseRequest();
         this._overlayInstance = inst;
         // keepalive 打开即准入（ADR-0123 决策 5）：pending 占位/加载中挂起无害（watcher 存活）
@@ -351,7 +388,10 @@ export abstract class OverlayDirective extends ComponentDirective {
     ): void {
         const ctx = this._hostCtx(config);
         const found = ctx.findComponent(name);
-        const group = this._collectSlotGroup(name);
+        // 内容组用消费侧裁决缓存（ADR-0124 决策 11）：chrome 段已剥离 stash 实例，retry
+        // 重载不得重新收集（会再入内容宿主）；undefined = 尚未裁决（防御回退全量收集）
+        const group =
+            this._splitContent === undefined ? this._collectSlotGroup(name) : this._splitContent;
         const propsText = this._propsValueText();
         if (found) {
             mountComponentHost(ctx, inst, name, found.def, propsText, group);
@@ -456,6 +496,100 @@ export abstract class OverlayDirective extends ComponentDirective {
             .filter((d): d is OverlayDirective => d instanceof OverlayDirective)
             .map((d) => d.overlayName)
             .filter((n) => n !== "");
+    }
+
+    /**
+     * 消费侧收集裁决（ADR-0124 决策 11）：消费者分段按名三分——
+     * - 段名为消费组件**已声明出口**（def.slots 命中）→ 内容组（显式优先：同名段归属
+     *   组件自出口，即使名字撞 chrome 域）；
+     * - 否则名归一（裸 `actions` → `actions.right`）后命中 {@link OVERLAY_CHROME_SLOT_NAMES}
+     *   → chrome 组（键为归一名，经 collectSlotSegments 正式分段产出 SlotContent）；
+     * - 其余（`default` / `body` / 未知名 / 裸子节点与空白注释）→ 内容组。
+     *
+     * 输入是归属分组的**原始子节点**（标记属性未剥）：内容组按原序重组交内容宿主管线
+     * （mountComponentHost 克隆进宿主，x-component 编译期再分段投影）；chrome 组节点经
+     * 分段克隆 + 剥标记，stash OverlayInstance（chromeSlots）。全 chrome 输入时内容组为
+     * null（内容宿主无段可挂）。
+     */
+    private _splitOverlaySlots(
+        group: ChildNode[] | null,
+        declared: readonly string[] | undefined,
+    ): { content: ChildNode[] | null; chrome: Map<string, SlotContent> | null } {
+        if (!group || group.length === 0) return { content: group, chrome: null };
+        const declaredSet = declared && declared.length > 0 ? new Set(declared) : null;
+        const contentNodes: ChildNode[] = [];
+        const chromeNodes: ChildNode[] = [];
+        for (const child of group) {
+            const marker = child instanceof HTMLElement ? getSlotMarker(child) : null;
+            const name = marker ? marker.name : "default";
+            const normalized = name === "actions" ? "actions.right" : name;
+            if (!declaredSet?.has(name) && OVERLAY_CHROME_SLOT_NAMES.has(normalized)) {
+                chromeNodes.push(child);
+            } else {
+                contentNodes.push(child);
+            }
+        }
+        if (chromeNodes.length === 0) return { content: group, chrome: null };
+        const warn = (m: string) => this.warn(`${this.directiveLabel}:${this.attr}: ${m}`);
+        const segments = collectSlotSegments(chromeNodes, undefined, warn, { skipValidation: true });
+        const chrome = new Map<string, SlotContent>();
+        for (const [name, seg] of segments ?? []) {
+            const key = name === "actions" ? "actions.right" : name;
+            if (chrome.has(key)) {
+                warn(`x-slot: chrome 内容 "${key}" 重复（裸 actions 与 actions.right 并存），后者已生效`);
+            }
+            chrome.set(key, seg);
+        }
+        return {
+            content: contentNodes.length > 0 ? contentNodes : null,
+            chrome: chrome.size > 0 ? chrome : null,
+        };
+    }
+
+    /**
+     * actions 双通道合并（ADR-0124 决策 7）：声明式 = engine.actions（getAction 查找链
+     * 终点，最远端）+ 消费处 scope 链局部 action 注册表（`<script type="autospark/actions">`
+     * 注入），**仅显式 pos ∈ {top,left,right} 准入**（全局注册表大量与覆盖物无关的 action，
+     * 无 pos 不上屏）；配置式 = config.actions 最后进，同 id 覆盖声明式。遍历序远→近
+     * （近层同 id 覆盖远层）。无执行体条目剪枝（链上静默——注册期已规范化；配置式 warn）。
+     * 合并产物回写 config.actions（调用方负责）——打开前就位，随 config 整包注入 shell
+     * data 域 → 内嵌 overlay 组件 props.actions（pos 归位渲染归 overlay 组件 regroup）。
+     *
+     * @returns 合并数组；空集返回 null（调用方不动 config.actions——无动作时不注入空数组）
+     */
+    private _mergeOverlayActions(configActions: OverlayConfig["actions"]): AutoSparkAction[] | null {
+        const merged = new Map<string, AutoSparkAction>();
+        const admit = (id: string, a: AutoSparkAction | undefined) => {
+            if (!a || typeof a.handle !== "function") return;
+            if (a.pos !== "top" && a.pos !== "left" && a.pos !== "right") return;
+            merged.set(id, a);
+        };
+        // 全局表（最远端——getAction 查找序 scope 链之后的终点）
+        for (const [id, a] of Object.entries(
+            this.engine.actions as unknown as Record<string, AutoSparkAction>,
+        )) {
+            admit(id, a);
+        }
+        // scope 链远→近（近层同 id 覆盖远层）
+        const chain: AutoSparkScope[] = [];
+        for (let s: AutoSparkScope | null = this.binding; s; s = s.parent) chain.push(s);
+        for (let i = chain.length - 1; i >= 0; i--) {
+            const actions = chain[i]!.actions;
+            if (!actions) continue;
+            for (const [id, a] of Object.entries(actions)) admit(id, a);
+        }
+        // 配置式最后进（同 id 覆盖声明式）；无 pos 条目放行（pos 归位归 overlay 组件 regroup）
+        (configActions ?? []).forEach((a, i) => {
+            if (!a || typeof a.handle !== "function") {
+                this.warn(
+                    `${this.directiveLabel}:${this.attr}: config.actions 第 ${i} 项缺执行体（handle），已忽略（ADR-0124）`,
+                );
+                return;
+            }
+            const id = typeof a.id === "string" && a.id !== "" ? a.id : `__overlay_config_${i}`;
+            merged.set(id, a);
+        });
+        return merged.size > 0 ? Array.from(merged.values()) : null;
     }
 
     /**

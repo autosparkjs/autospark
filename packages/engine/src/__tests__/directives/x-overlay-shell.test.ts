@@ -105,6 +105,30 @@ describe("内置默认 shell", () => {
         engine.state.on = false;
         await nextTick();
     });
+
+    test("内嵌 overlay：活体段直挂 body 直通锚 + chrome fallback 渲染（ADR-0124 决策 8 验证项）", async () => {
+        const { root, engine } = mountShell(
+            `<div id="app"><div x-scope>
+                <div x-define="card"><b>卡片内容</b></div>
+                <button x-dialog:card="on">打开</button>
+            </div></div>`,
+            { on: false },
+        );
+        engine.state.on = true;
+        await nextTick();
+        const panel = panelOf("card")!;
+        // 活体段（内容组件）直挂 overlay body 区直通锚（body fallback 内嵌套的 default 出口）
+        const body = panel.querySelector(".autospark-overlay-body");
+        expect(body).not.toBeNull();
+        expect(body!.querySelector("b")?.textContent).toBe("卡片内容");
+        // chrome fallback：closeable 默认 true → header + close 按钮渲染；未配置 title → 标题文本空
+        const header = panel.querySelector(".autospark-overlay-header");
+        expect(header).not.toBeNull();
+        expect(header!.querySelector(".autospark-overlay-close")).not.toBeNull();
+        expect(header!.querySelector(".autospark-overlay-title")!.textContent!.trim()).toBe("");
+        engine.state.on = false;
+        await nextTick();
+    });
 });
 
 describe("自定义 shell", () => {
@@ -223,6 +247,23 @@ describe("自定义 shell", () => {
         engine.state.on = false;
         await nextTick();
     });
+
+    test("def.slots 嵌套出口统计：template 内容里的出口递归计入（ADR-0124 决策 8 验证项）", async () => {
+        const { engine } = mountShell(
+            `<div id="app"><div x-component:tpl-outlet></div></div>`,
+            {},
+            {
+                components: {
+                    "tpl-outlet": `<div><template x-if="1"><em x-slot:cond></em></template><div x-slot></div></div>`,
+                },
+            },
+        );
+        await nextTick();
+        const def: any = engine.getGlobalComponentDef("tpl-outlet");
+        // `x-slot:cond` 嵌在 x-if 模板内容里——querySelectorAll 不进 .content，递归统计命中
+        expect(def?.slots).toContain("cond");
+        expect(def?.slots).toContain("default");
+    });
 });
 
 describe("箭头显隐分工（渲染归 shell / 显隐定位归引擎）", () => {
@@ -288,7 +329,8 @@ describe("双 scope 生命周期（ADR-0062）", () => {
         engine.state.on = true;
         await nextTick();
         expect(panelOf("card")).not.toBeNull();
-        expect(scopedKeys(engine).length).toBe(base + 2); // 内容（setup data）+ shell（config 注入）
+        // 内容（setup data）+ shell（config 注入）+ 内嵌 overlay 组件实例（ADR-0124 shell 内嵌结构骨架）
+        expect(scopedKeys(engine).length).toBe(base + 3);
         engine.state.on = false;
         await nextTick();
         expect(scopedKeys(engine).length).toBe(base); // 双 scope 对称回收（含组件实例 scope 子树条目）

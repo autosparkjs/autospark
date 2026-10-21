@@ -1,10 +1,16 @@
 <div class="autospark-drawer" x-define="autospark.drawer">
-    <div x-slot></div>
+    <!-- ADR-0124 决策 8：内嵌 overlay 结构骨架（同 dialog-shell 注记）；整壳滚动移除
+         （决策 9：滚动归 overlay body 区）——高度链经宿主化身 100% 闭合（面板 fixed
+         贴边 inset 对拉定高，贴边轴 100% 成立）。属性形态宿主：宿主化身组件根，
+         autospark-overlay class（flex 列布局）并入宿主 -->
+    <div class="autospark-drawer-slot" x-component:autospark.overlay="{ title: title, icon: icon, closeable: closeable, actions: actions, padding: padding }" x-component-options='{ slots: "*" }'></div>
     <style global id="autospark-shell-styles">
         .autospark-drawer {
             border-radius: 0;
             box-sizing: border-box;
-            overflow: auto;
+        }
+        .autospark-drawer > .autospark-drawer-slot {
+            height: 100%;
         }
         .autospark-drawer[data-overlay-placement^="left"],
         .autospark-drawer[data-overlay-placement^="right"] {

@@ -30,6 +30,37 @@ export interface OverlayShellDef {
 }
 
 /**
+ * shell 快照是否内嵌 overlay 结构骨架（ADR-0124 决策 8 形态判定）：扫属性名
+ * `x-component:autospark.overlay`（含修饰符形态）与元素名形态（属性形态宿主
+ * `x-component:autospark.overlay` 元素 / ADR-0117 自动元素名 `x-autospark.overlay`，
+ * 含点分修饰符后缀）。内嵌形态无 default 出口声明是官方契约（边界经 overlay body
+ * 直通锚投递），区别于「无出口失效 shell」（warn + 直挂）。
+ */
+function shellEmbedsOverlay(snapshot: HTMLElement): boolean {
+    for (const el of Array.from(snapshot.querySelectorAll("*"))) {
+        const tag = el.tagName.toLowerCase();
+        if (
+            tag === "x-component:autospark.overlay" ||
+            tag.startsWith("x-component:autospark.overlay.") ||
+            tag === "x-autospark.overlay" ||
+            tag.startsWith("x-autospark.overlay.")
+        ) {
+            return true;
+        }
+        for (const attr of Array.from(el.attributes)) {
+            const n = attr.name;
+            if (
+                n === "x-component:autospark.overlay" ||
+                n.startsWith("x-component:autospark.overlay.")
+            ) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/**
  * 定位策略上下文（{@link OverlayInstanceOptions.positioner} 回调入参，ADR-0063）：
  * 形态特化定位的全部输入——面板、归一 at 配置与解析结果、清理注册与 warn 通道。
  * 提供者**整体接管**定位（含箭头载体显隐、未命中回退与告警措辞）。
@@ -174,6 +205,14 @@ export class OverlayInstance {
     remoteFailed = false;
     /** 内容形态（ADR-0123）：true = 片段宿主（x-html.compile，数据域 props 热应用目标）；false = 组件宿主（props 走 x-component 指令值通道自治） */
     isFragment = false;
+    /**
+     * chrome 插槽段（ADR-0124 决策 11）：消费侧收集裁决切分出的覆盖物 chrome 内容
+     * （title / header / footer / actions.*，键为归一名），由指令在实例创建（open 前）就位。
+     * {@link _buildShellAndMount} 合并进 shell slotContents——shell 内嵌 autospark.overlay
+     * 经 `slots="*"` 通配转发原名上溯命中；出口投影的 callerScope 取持有者（shellScope）
+     * 的 slotCallerScope（= 消费者 binding），chrome 表达式以消费处 scope 求值。
+     */
+    chromeSlots: Map<string, SlotContent> | null = null;
 
     /** 实例根（mask 形态为遮罩外壳；bare 形态为面板；未构建/已销毁为 null） */
     el: HTMLElement | null = null;
@@ -426,7 +465,7 @@ export class OverlayInstance {
         this._clearAnchorCleanup();
         removeOpenInstance(this);
         if (this.instanceScope) {
-            const ids = this._collectContentScopeIds();
+            const ids = this._collectScopeIds(this.instanceScope);
             this.instanceScope.destroy(); // 幂等守卫（scope.destroyed 标志）：级联已销毁时 no-op
             const scopes = (this.engine.store.state as Record<string, any>)[SCOPES_KEY] as
                 | Record<string, any>
@@ -439,14 +478,15 @@ export class OverlayInstance {
         this.boundaryScope?.destroy();
         this.boundaryScope = null;
         // shell scope 统一回收（ADR-0062）：rootless 挂链无级联来源，destroy 显式销毁 +
-        // 回收私有响应式域（scoped 样式页面级常驻，无需对称释放——ADR-0113）
+        // 回收私有响应式域。子树条目一并收集删除——shell 内嵌 overlay 组件实例（ADR-0124）
+        // 的数据域条目属本实例拥有者纪律覆盖面（级联销毁不自清条目）
         if (this._shellScope) {
-            const shellId = this._shellScope.id;
+            const shellIds = this._collectScopeIds(this._shellScope);
             this._shellScope.destroy();
             const scopes = (this.engine.store.state as Record<string, any>)[SCOPES_KEY] as
                 | Record<string, any>
                 | undefined;
-            if (scopes) delete scopes[shellId];
+            if (scopes) for (const id of shellIds) delete scopes[id];
             this._shellScope = null;
         }
         if (this.el) {
@@ -534,18 +574,19 @@ export class OverlayInstance {
     }
 
     /**
-     * 内容子树 $scopes 条目收集（ADR-0123）：级联 destroy 不清 $scopes 条目（拥有者自负
-     * 纪律）——内容 wrapper 下组件实例 scope（x-component 宿主自有 scope）各自持有数据域
-     * 条目，拥有者（本实例）统一按子树收集删除（对齐 x-loading teardown 纪律）。
+     * 子树 $scopes 条目收集（ADR-0123 拥有者自负纪律的通用化）：级联 destroy 不清 $scopes
+     * 条目（拥有者自负）——子树内组件实例 scope（x-component 宿主自有 scope，含 shell 内嵌
+     * 的 autospark.overlay 实例，ADR-0124）各自持有数据域条目，拥有者（本实例）统一按子树
+     * 收集删除（对齐 x-loading teardown 纪律）。
      * 须在 destroy 级联**前**调用（children Set 随销毁清空）。
      */
-    private _collectContentScopeIds(): string[] {
+    private _collectScopeIds(root: AutoSparkScope): string[] {
         const ids: string[] = [];
         const walk = (s: AutoSparkScope) => {
             ids.push(String(s.id));
             for (const c of s.children) walk(c);
         };
-        walk(this.instanceScope!);
+        walk(root);
         return ids;
     }
 
@@ -576,10 +617,15 @@ export class OverlayInstance {
         // 打开时一次，不热更新）；边界以 `mode:"live"` 段投影进 shell 默认出口。
         // shell 未声明默认出口 → warn + 边界直挂 shell 根（弹窗照常工作，失效可发现）。
         const shell = this._shell;
-        // 出口判定：def.slots 无出口时为 undefined——undefined 或不含 "default" 均视为无默认出口
+        // 出口判定：def.slots 无出口时为 undefined——undefined 或不含 "default" 均视为无默认出口。
+        // ADR-0124 决策 8（实现偏差注记）：内嵌 overlay 骨架的 shell 不声明 default 出口
+        //（直通锚内置于 overlay body 出口 fallback——内容收集管线剥离嵌套标记，锚不可经
+        // shell 内容段携带），边界仍以 default 段 stash 经 `slots="*"` 转发链投递，不发 warn；
+        // 既无出口又未内嵌 overlay 才是失效形态——warn + 边界直挂面板根兜底。
         const hasDefaultOutlet = !!shell.def?.slots?.includes("default");
+        const embedsOverlay = !hasDefaultOutlet && shellEmbedsOverlay(shell.snapshot);
         let shellSlots: Map<string, SlotContent> | null = null;
-        if (hasDefaultOutlet) {
+        if (hasDefaultOutlet || embedsOverlay) {
             shellSlots = new Map([
                 [
                     "default",
@@ -597,6 +643,13 @@ export class OverlayInstance {
                 `x-overlay "${this.name}": shell "${shell.name}" 未声明默认出口（x-slot），内容直挂面板根（ADR-0062）`,
             );
         }
+        // chrome 段并入（ADR-0124 决策 11）：shell 内嵌 autospark.overlay 的 `slots="*"`
+        // 通配转发使出口查找 miss 后原名上溯 shellScope 命中消费者分段——并入而非直挂
+        // overlay，是为了同时支持自定义 shell 显式提供/同名覆盖（并存降级语义不变式）。
+        if (this.chromeSlots && this.chromeSlots.size > 0) {
+            shellSlots ??= new Map();
+            for (const [name, seg] of this.chromeSlots) shellSlots.set(name, seg);
+        }
         const shellClone = shell.snapshot.cloneNode(true) as HTMLElement;
         const shellCompiled = this.engine.compiler.instantiateDetachedComponent(
             shellClone,
@@ -605,14 +658,17 @@ export class OverlayInstance {
             this.config as unknown as Record<string, any>,
             undefined,
             shellSlots,
-            null,
+            // slotCallerScope = 消费者 binding（ADR-0124）：chrome 段出口投影时
+            // callerScope 取持有者的 slotCallerScope，表达式以消费处 scope 求值；
+            // live 段（边界）不编译不受影响
+            this.parentScope,
         );
         this._shellScope = shellCompiled.scope;
         const panel = shellCompiled.el;
 
-        // 无默认出口回退：边界直挂面板根（shell 模板契约：出口声明了就须渲染——未渲染的
-        // 条件显隐出口维持 SlotDirective 既有语义，不做隐式回退）
-        if (!hasDefaultOutlet) {
+        // 无默认出口回退：仅「未内嵌 overlay 的失效 shell」直挂面板根（内嵌 overlay 形态
+        // 的边界已入 shell 内容集，经 overlay body 直通锚投递——直挂会双重持有）
+        if (!hasDefaultOutlet && !embedsOverlay) {
             panel.appendChild(boundary);
         }
 

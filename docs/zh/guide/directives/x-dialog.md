@@ -532,6 +532,38 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 `flip` 默认开启（视口放不下时自动翻面）——生产期望行为；上方 demo 的九宫格中显式 `flip: false` 关闭翻转，以展示每个 placement 的**原始**语义。
 :::
 
+### 结构骨架（chrome）：标题 / 关闭按钮 / 动作区
+
+内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——默认自带 header（`closeable: true` 时有关闭按钮）与 body 内边距（`padding: '0.5em'`）。五个骨架键经 `x-dialog-options` 配置：
+
+```html
+<button
+  x-dialog:preview="ui.show"
+  x-dialog-options="{title: '预览', icon: 'eye', closeable: true}"
+  @click="ui.show = true"
+>
+  预览
+</button>
+
+<!-- 动作区：配置式 actions 数组按 pos 归位（top/left/right） -->
+<button
+  x-dialog:confirm="ui.open"
+  x-dialog-options="{title: '删除确认', actions: [
+    {id: 'cancel', title: '取消', pos: 'left'},
+    {id: 'ok', title: '删除', pos: 'right', handle: () => doDelete()}
+  ]}"
+  @click="ui.open = true"
+>
+  删除
+</button>
+```
+
+消费者还能在**宿主子级**用 `x-slot:名` 直接重载骨架的 chrome 出口（`title` / `header` / `footer` / `actions.top` / `actions.left` / `actions.right`，点分名；内容组件声明过的出口名不受影响）——完整契约（条件渲染 / 插槽重载 / 动作双通道 / 视觉变量）见[覆盖物 · 结构骨架](../engine/overlays.md#结构骨架autosparkoverlay通用-header--body--footer)。
+
+::: warning 视觉变化（ADR-0124）
+内置面板默认**多出关闭按钮的 header** 与 **body 内边距 0.5em**——不想要骨架 chrome 时设 `closeable: false` 且不提供标题/动作（header 消失）、`padding: 0` 还原紧凑形态；自定义 shell 整体替换则完全退出骨架。
+:::
+
 ### 面板外壳（shell）：自定义面板形态
 
 面板层的结构与视觉（边框 / 圆角 / 背景 / 箭头 / 内容布局）由一个可替换的**外壳组件（shell）**渲染——内置默认 `dialog-shell` 开箱即用；与你的 UI 环境不匹配时，声明一个带 `x-slot` 默认出口的组件，用 `x-dialog-options.shell` 指定即可整体替换，**内容组件与全部模态行为（遮罩 / 居中 / ESC / 关闭写回）不变**：
@@ -618,6 +650,11 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 
 | 配置项        | 默认值            | 修饰符 | 说明                                                                                                                                        |
 | ------------- | ----------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`       | 无                | —      | 骨架标题文本（header）；见[结构骨架（chrome）](#结构骨架chrome标题--关闭按钮--动作区)                                                        |
+| `icon`        | 无                | —      | 骨架标题左侧图标名（x-icon 域）                                                                                                              |
+| `closeable`   | `true`            | —      | 骨架 header 显示 close 图标按钮（走请求关闭链）；`false` 且标题/图标/动作区全空时 header 消失                                                |
+| `actions`     | 无                | —      | 骨架动作集（数组，按 `pos` 归位、`order` 升序）：`top` → 顶区、`left` → 左区、`right`/`auto`/`bottom`/无 pos → 右区                          |
+| `padding`     | `'0.5em'`         | —      | 骨架 body 区内边距（number 按 px）                                                                                                           |
 | `border`      | `true`            | —      | 面板外壳 1px 边框 + 背景 + 圆角，箭头双层变色自动融合；见[面板边框（border）](#面板边框border)                                              |
 | `shell`       | `"dialog-shell"`  | —      | 面板外壳组件名（打开时求值一次，未命中回退内置）；见[面板外壳](#面板外壳shell自定义面板形态)                                                |
 | `closeOnMask` | `true`            | —      | 点击遮罩请求关闭                                                                                                                            |

@@ -300,6 +300,28 @@
 
 想要「子抽屉贴着父抽屉边缘滑入」（多级侧边栏画面）：给子 drawer 配 `at.selector` 指向父面板内元素 + 对应方向即可。
 
+### 结构骨架（chrome）：标题 / 关闭按钮 / 动作区
+
+内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——抽屉面板默认自带 header（`closeable: true` 时有关闭按钮）与 body 内边距（`padding: '0.5em'`），内容滚动也移入 body 区（原来整壳 `overflow: auto` 随结构迁移）。五个骨架键经 `x-drawer-options` 配置：
+
+```html
+<button
+  x-drawer:panel="ui.open"
+  x-drawer-options="{title: '设置', icon: 'gear', actions: [
+    {id: 'save', title: '保存', pos: 'right', handle: () => save()}
+  ]}"
+  @click="ui.open = true"
+>
+  打开抽屉
+</button>
+```
+
+消费者还能在**宿主子级**用 `x-slot:名` 直接重载骨架的 chrome 出口（`title` / `header` / `footer` / `actions.top` / `actions.left` / `actions.right`，点分名；内容组件声明过的出口名不受影响）——完整契约（条件渲染 / 插槽重载 / 动作双通道 / 视觉变量）见[覆盖物 · 结构骨架](../engine/overlays.md#结构骨架autosparkoverlay通用-header--body--footer)。
+
+::: warning 视觉变化（ADR-0124）
+抽屉默认**多出关闭按钮的 header**、**body 内边距 0.5em**、**滚动移入 body 区**——不想要骨架 chrome 时设 `closeable: false` 且不提供标题/动作（header 消失）、`padding: 0` 还原紧凑形态；自定义 shell 整体替换则完全退出骨架。
+:::
+
 ### 面板外壳（shell）
 
 面板层是可替换组件（[ADR-0062](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0062-overlay-shell.md)）：内置默认为 **`drawer-shell`**（直角、无箭头载体），可用自家组件整体替换——`x-drawer-options="{shell: 'my-shell'}"` 或引擎级 `options.overlay.drawer.shell` 全站换肤。短轴尺寸（`size` inline）与贴边定位契约（placement 属性）不依赖 shell 类名，自定义 shell 照常生效；直角等默认视觉不带 `.autospark-drawer` 类则不继承（完全自由）。完整规则见 [x-dialog · 面板外壳](./x-dialog.md#面板外壳shell自定义面板形态)。
@@ -321,6 +343,11 @@
 
 | 配置项 | 默认值 | 修饰符 | 说明 |
 | --- | --- | --- | --- |
+| `title` | 无 | — | 骨架标题文本（header）；见[结构骨架（chrome）](#结构骨架chrome标题--关闭按钮--动作区) |
+| `icon` | 无 | — | 骨架标题左侧图标名（x-icon 域） |
+| `closeable` | `true` | — | 骨架 header 显示 close 图标按钮（走请求关闭链）；`false` 且标题/图标/动作区全空时 header 消失 |
+| `actions` | 无 | — | 骨架动作集（数组，按 `pos` 归位、`order` 升序）：`top` → 顶区、`left` → 左区、`right`/`auto`/`bottom`/无 pos → 右区 |
+| `padding` | `'0.5em'` | — | 骨架 body 区内边距（number 按 px） |
 | `at` | 无（屏幕贴边） | — | 字符串 / 元素简写 / `{selector, placement, flip, offset, shift}`；`selector` 命中即锚定模式 |
 | `at.placement` | `'right'` | — | 四主方向（展开起始边）；`auto`/后缀/非法值一律静默归一为 `right` |
 | `at.flip` | — | — | 内侧展开模型下静默忽略（保留键位仅向后兼容） |

@@ -200,6 +200,16 @@ export const OVERLAY_DEFAULTS: OverlayConfig = {
     closeOnMask: true,
     animate: "fade",
     delayClose: 0,
+    // 覆盖物 props 五键恒在场（ADR-0124）：undefined 也是合法键——shell 模板对
+    // overlay 的 props 平铺读取（{ title: title, ... }）依赖这些标识符可解析（缺失即
+    // ReferenceError 被宽松求值吞掉 → props 恒 undefined → 组件侧 watch("actions") 等
+    // 键缺位走空 deps watch-all + 回调写新引用 → 自反馈死循环），键在场则 props 落地、
+    // 组件 watch 走精准路径支路
+    title: undefined,
+    icon: undefined,
+    closeable: true,
+    actions: undefined,
+    padding: undefined,
 };
 
 /**

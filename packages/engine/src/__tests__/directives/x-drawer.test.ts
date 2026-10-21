@@ -334,7 +334,7 @@ describe("嵌套（drawer 内再开 drawer）", () => {
             `<div id="app"><div x-scope>
                 <div x-define="parent">
                     <script setup>{ data: { childOpen: false } }</script>
-                    <button @click="childOpen = true">开子抽屉</button>
+                    <button id="open-child" @click="childOpen = true">开子抽屉</button>
                     <div x-drawer:child="childOpen"></div>
                 </div>
                 <div x-define="child"><span>子抽屉</span></div>
@@ -344,7 +344,8 @@ describe("嵌套（drawer 内再开 drawer）", () => {
         );
         expect(panelOf("parent")).not.toBeNull();
         // 父面板内按钮 → 子 drawer 打开（组件 data 域驱动）
-        panelOf("parent")!.querySelector("button")!.dispatchEvent(
+        // 注：面板内首个 button 是内嵌 overlay 的 close 按钮（ADR-0124），须定向选取
+        panelOf("parent")!.querySelector("#open-child")!.dispatchEvent(
             new MouseEvent("click", { bubbles: true }),
         );
         await nextTick();

@@ -1,6 +1,23 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import "../setup";
-import { mount, nextTick } from "../helpers";
+import { mount as _mount, nextTick } from "../helpers";
+
+// 测试卫生：泄漏 engine 会与后续文件的 popover 用例产生交互拥塞（见 x-model.test.ts
+// 同款注释）。统一 afterEach 清场；__testDestroyed 防与本文件显式 destroy 双销毁。
+const engines: any[] = [];
+const mount = ((...args: Parameters<typeof _mount>) => {
+    const m = _mount(...args);
+    engines.push(m.engine);
+    return m;
+}) as typeof _mount;
+afterEach(() => {
+    while (engines.length) {
+        const e = engines.pop() as any;
+        if (e.__testDestroyed) continue;
+        e.__testDestroyed = true;
+        e.destroy();
+    }
+});
 
 /**
  * x-on 事件指令测试。
@@ -342,6 +359,7 @@ describe("x-on wrapper debounce", () => {
             n++;
         };
         root.querySelector("button")!.click();
+        engine.__testDestroyed = true; // afterEach 防双销毁标记
         engine.destroy(); // 销毁应取消 pending timer
         await new Promise((r) => setTimeout(r, 350));
         expect(n).toBe(0);
@@ -388,6 +406,7 @@ describe("x-on destroy 解绑", () => {
             n++;
         };
         const btn = root.querySelector("button")!;
+        engine.__testDestroyed = true; // afterEach 防双销毁标记
         engine.destroy();
         btn.click(); // listener 已 removeEventListener
         expect(n).toBe(0);

@@ -1,5 +1,13 @@
 <div class="autospark-dialog" x-define="autospark.dialog">
-    <div class="autospark-dialog-content" x-slot></div>
+    <!-- ADR-0124 决策 8：内嵌 overlay 结构骨架（chrome 出口 + header/footer + body 区），
+         slots="*" 通配转发消费者 chrome 分段；内容（x-error 边界 live 段）经 overlay body
+         出口的内置直通锚投递（default 段 shell 内容集 stash，见 OverlayInstance）。
+         props 透传 OverlayConfig 骨架五字段（config 整包注入 shell data 域，ADR-0062） -->
+    <!-- 属性形态宿主（元素名形态挂 props 值非法）：宿主化身组件根，模板根 class
+         （autospark-overlay）并入宿主——原内容包装类的定位 CSS 语义保留。props 平铺读取：
+         config 整包注入 shell data 域是字段级散开（ADR-0062 既有机制），无 config 键——
+         点路径读法对 undefined 取成员会抛错（watcher 错误重试死循环） -->
+    <div class="autospark-dialog-content" x-component:autospark.overlay="{ title: title, icon: icon, closeable: closeable, actions: actions, padding: padding }" x-component-options='{ slots: "*" }'></div>
     <div class="autospark-overlay-arrow"></div>
     <style global id="autospark-shell-styles">
         [data-overlay] {

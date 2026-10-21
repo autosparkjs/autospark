@@ -659,13 +659,22 @@ export class FoldableDirective extends AutoSparkDirectiveBase {
                 if (this._trigger) this._trigger.dataset.panelOpen = "1";
                 const panel = (inst as any).panel as HTMLElement | undefined;
                 if (!panel) return;
-                // 出口寻址用编译后标记 data-slot（x-slot 属性已剥除，编译产物不可寻址）
-                const outlet = panel.querySelector("[data-slot]") ?? panel;
-                // 出口挂面板布局类（列堆叠 + gap 兜底——内置/自定义 shell 均不预设折叠
-                // 面板布局；类幂等 add，显式 shell 自带面板类样式时按优先级覆盖）
-                outlet.classList.add(PANEL_CLASS);
-                // stash push 序 = DOM 逆序，倒序挂入即还原文档序
-                for (const el of [...this._stash].reverse()) outlet.appendChild(el);
+                // 注入 defer 到微任务（ADR-0124）：overlay:open 在 _show() 同步派发，而内嵌
+                // autospark.overlay 的 shell 其 overlay 组件实例化 defer 到 scheduler 微任务
+                // （x-component 通道四惯例）——同步寻址时出口尚未编译，子元素会落壳根（overlay
+                // 骨架之外）。schedule 与实例化同轮 FIFO 排后，寻址时出口已就位。
+                this.engine.scheduler.schedule(() => {
+                    if (this._destroyed || this._inst !== inst) return; // 关闭竞态守卫
+                    // 出口寻址用编译后标记 data-slot（x-slot 属性已剥除，编译产物不可寻址）；
+                    // 定名 default——overlay 骨架多出口并存（header/body/footer/...），
+                    // 无名首查 [data-slot] 会命中文档序靠前的 header 出口
+                    const outlet = panel.querySelector('[data-slot="default"]') ?? panel;
+                    // 出口挂面板布局类（列堆叠 + gap 兜底——内置/自定义 shell 均不预设折叠
+                    // 面板布局；类幂等 add，显式 shell 自带面板类样式时按优先级覆盖）
+                    outlet.classList.add(PANEL_CLASS);
+                    // stash push 序 = DOM 逆序，倒序挂入即还原文档序
+                    for (const el of [...this._stash].reverse()) outlet.appendChild(el);
+                });
             }),
         );
         this._unsubClose = unwrap(

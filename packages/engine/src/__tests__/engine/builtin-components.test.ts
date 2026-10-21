@@ -6,6 +6,7 @@ import {
     BUILTIN_COMPONENTS,
     DIALOG_SHELL_NAME,
     ERROR_COMPONENT_NAME,
+    OVERLAY_COMPONENT_NAME,
     POPOVER_SHELL_NAME,
     DRAWER_SHELL_NAME,
 } from "../../components";
@@ -117,15 +118,17 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
         for (const k of keys) {
             expect(k.startsWith("autospark.")).toBe(true);
         }
-        // overlay 家族 shell + error（通知族已随 @autospark/components ADR-0001 迁出）
+        // overlay 家族 shell + overlay 结构骨架 + error（通知族已随 @autospark/components
+        // ADR-0001 迁出）
         for (const k of [
             DIALOG_SHELL_NAME,
             POPOVER_SHELL_NAME,
             DRAWER_SHELL_NAME,
+            OVERLAY_COMPONENT_NAME,
             ERROR_COMPONENT_NAME,
         ]) {
             expect(keys.includes(k)).toBe(true);
         }
-        expect(keys.length).toBe(4); // 4 overlay 家族 shell + error
+        expect(keys.length).toBe(5); // 3 overlay 家族 shell + autospark.overlay + error
     });
 });

@@ -117,6 +117,56 @@ new AutoSpark(el, state, { overlay: { dialog: { shell: "my-dialog" } } });
 泛化旧义 `.autospark-dialog` 基类已退役（该类回归 dialog 形态专属）：popover / drawer / notification 面板不再携带该类。按 `.autospark-dialog` 定制过这些面板 CSS 的代码请改用形态类（如 `.autospark-popover`）或 `[data-overlay]` 属性选择器。
 :::
 
+### 结构骨架（autospark.overlay）：通用 header / body / footer
+
+三个内置 shell 内嵌了一个通用**结构骨架组件** `autospark.overlay`（ADR-0124，内置非面向开发者组件——开发者经覆盖物配置间接使用），为覆盖物家族提供统一的标题栏 / 内容区 / 底部动作区：
+
+```
+┌──────────────────────────────────────┐
+│ [icon] title        actions.top  [×] │  ← header（有内容才渲染）
+├──────────────────────────────────────┤
+│   body（内容出口 + padding）          │  ← 恒渲染
+├──────────────────────────────────────┤
+│ actions.left          actions.right  │  ← footer（有内容才渲染）
+└──────────────────────────────────────┘
+```
+
+五个骨架配置键（走 `x-{name}-options` 配置通道，打开时现读、重开生效）：
+
+| 配置键 | 默认 | 说明 |
+| --- | --- | --- |
+| `title` | 无 | 标题文本 |
+| `icon` | 无 | 标题左侧图标名（x-icon 域） |
+| `closeable` | `true` | header 右侧显示 close 图标按钮，点击走全局 close 信号动作（请求关闭链） |
+| `actions` | 无 | 动作集（`{id, title, icon, tooltip, handle, pos, order}` 数组），按 `pos` 归位：`top` → 顶区、`left` → 左区、`right` / `auto` / `bottom` / 无 pos → 右区，`order` 升序稳定排序 |
+| `padding` | `'0.5em'` | body 区内边距（number 按 px） |
+
+条件渲染：header / footer **有内容才渲染**（`closeable: false` 且标题、图标、动作区全空时 header 消失）；body 恒渲染。视觉定制走 CSS 变量（`--autospark-overlay-*` 家族）。
+
+**骨架插槽重载**：内置 shell 声明了插槽通配转发（`slots: "*"`，ADR-0125）——消费者在**宿主子级**用 `x-slot:名` 标记即可直接重载骨架的 chrome 出口：`title`（替换标题文本区）、`header` / `footer`（**整块替换**，`header` 让位时 close 按钮一并失效）、`actions.top` / `actions.left` / `actions.right`（点分名；裸 `actions` 等价 `actions.right`）。内容组件 `def.slots` **声明过的名字归内容组件**（今日插槽语义 100% 不变），未声明的 chrome 名才进骨架；`default` / `body` 永不转发（body 是内容直通位）：
+
+```html
+<div x-define="confirm">
+  <p>要删除这份草稿吗？</p>
+  <button @click="close()">取消</button>
+</div>
+
+<!-- 消费者：标题 + 底部动作区经宿主子级标记直达骨架 -->
+<button
+  x-dialog:confirm="ui.open"
+  x-dialog-options="{title: '删除确认', closeable: false}"
+  @click="ui.open = true"
+>
+  <template x-slot:actions.right>
+    <button @click="close()">取消</button>
+    <button class="danger" @click="doDelete()">删除</button>
+  </template>
+  删除…
+</button>
+```
+
+自定义 shell（`options.shell`）整体替换后自动退出骨架（自行决定是否内嵌 `autospark.overlay`）；内嵌了骨架的自定义 shell 同样可经 `x-component-options.slots` 声明转发承接消费者重载。骨架动作还有第二声明通道——**消费处 scope 的 actions 表**（显式声明 `pos` ∈ {top, left, right} 即准入），与配置式合并时同 id 后进覆盖先进（配置式在后）。
+
 ### 消费者家族
 
 | 消费者 | 形态 | 状态 |

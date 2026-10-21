@@ -109,6 +109,14 @@ actions 两个声明通道，打开时合并为单一数组注入：
 - **形态 CSS 重排**：dialog 内容层 z-index、popover 显式 `padding: 0px`、drawer 整壳 `overflow: auto` 等样式随结构迁移——滚动归 body 区、padding 归 overlay（决策 9 视觉变化接受）；
 - **自定义 shell 不受影响**：`config.shell` 整壳替换，自动退出 overlay 骨架（自行决定是否内嵌）；shell 契约不变（默认出口仍存在，位置移入 body 出口内容内）。
 
+**实现注记（落地偏差，2026-10-22）**：
+
+1. **props 到达路径修正**：本节草图与决策 6 原文的 `props="{title: config.title, ...}"` 到达路径是设计误写——config 经 `injectComponentSemantics` 注入 shell 是**字段级散开**（`Object.assign` 平铺进 shell data 域，无 `config` 键）。三 shell 模板实际平铺读取：`x-component:autospark.overlay="{ title: title, icon: icon, closeable: closeable, actions: actions, padding: padding }"`；
+2. **宿主形态修正**：`<x-component:autospark.overlay>` 元素名形态带 props 值是**非法混合形态**（HTML 解析器把 `="..."` 撕成垃圾属性），落地用属性形态宿主 `<div x-component:autospark.overlay="...">`（宿主经 `_mergeComponentRootAttrs` 化身组件根，模板根 class `autospark-overlay` 并入宿主，CSS 选择器语义保留）；
+3. **五 props 键恒在场**（`OVERLAY_DEFAULTS` 扩展）：config 恒含 title/icon/closeable/actions/padding 五键（undefined 也是合法键）。缺失后果是实测过的死循环：平铺读取标识符不可解析 → ReferenceError 被 watchExpression 宽松求值吞掉 → props 恒 undefined → props 落地失败 → overlay 组件 `watch("actions")` / `watch("padding")` 键缺位退化为**空 deps watch-all**（任意变更触发）+ 回调无条件写新引用数组 → 写入再触发 → 自反馈死循环。双保险：键在场（props 落地、组件 watch 走精准路径支路）+ overlay 模板 `created()` 变更守卫（组员引用与顺序未变跳过写入，防未来任意 shell 形态复发）；
+4. **验证项结论（嵌套出口）**：`collectOutletSlots` 已递归进 `template.content` 统计（嵌套出口计入 def.slots，有测试）；但最终架构内置 shell **不声明 default 出口**（直通锚写在 overlay 模板 body fallback 内——内容收集管线剥离嵌套 x-slot 标记，锚不可经 shell 内容段携带），shell 默认出口判定由 `embedsOverlay` 探测替代（元素标签 + 属性形态宿主两种形态扫描，`shellEmbedsOverlay`）；
+5. **回收面扩展**：shell 内嵌 overlay 组件实例后，`OverlayInstance.destroy` 的拥有者自负回收面从「shell 自身条目 + 内容子树条目」扩展为「shell 子树全量条目 + 内容子树条目」（级联销毁不自清 `$scopes` 条目，overlay 实例数据域随壳统一回收——双 scope 生命周期测试同步 +1 断言）。
+
 ### 9. 视觉变化接受（「顺手修好」）
 
 默认 `closeable: true`（全家族默认带关闭按钮的 header）、body 默认 `padding: 0.5em`（popover 原 0、dialog 原无）、drawer 滚动移入 body 区——**现有 demo 视觉变化接受**，按新契约修 demo。主题定制继续走 CSS 变量（`--autospark-overlay-*` 家族扩展 body/header/footer 区块变量）。
@@ -160,5 +168,5 @@ shell 内嵌 overlay 引入**层级缺口**：消费者宿主子级的 `x-slot:n
 - ⚠️ **行为变化一**：全家族默认渲染 header（closeable 默认 true）——不想要 header 的存量覆盖物需显式 `closeable: false`；
 - ⚠️ **行为变化二**：body 默认 padding 0.5em、popover 不再 0px、drawer 滚动移 body 区——demo 与文档按新契约修；
 - ⚠️ 配置快照语义：五字段经 config 注入 shell（初始快照），打开中变更不热应用（重开生效）——与家族配置惯例一致，与 overlay 组件 props 响应式（组件路径热更新）并存不矛盾（快照进 props 后仍是响应式数据，只是源不重求值）；
-- ⚠️ 实现期验证项：嵌套出口的 `def.slots` 判定与活体段直挂实测（决策 8）；x-slot 名段重组（`actions.left` 等点分出口名 vs `.bind` 修饰符特例，决策 2 注记）；
+- ⚠️ ~~实现期验证项：嵌套出口的 `def.slots` 判定与活体段直挂实测（决策 8）~~——已实测收口（决策 8 实现注记 3/4）；x-slot 名段重组（`actions.left` 等点分出口名 vs `.bind` 修饰符特例，决策 2 注记）；
 - **交付**：ADR（本文）+ CONTEXT.md 词条 + 源码（`autospark.overlay` 模板组件、OverlayConfig 五字段、resolveOverlayConfig 归一、三 shell 模板重构（内嵌 overlay + body 直通 + `slots="*"`）、OverlayDirective actions 合并、消费侧收集裁决——collectSlotGroups 名字切分 + shell 内容集 stash）+ 测试 + 文档（x-dialog / x-popover / x-drawer 指南与 demo）。

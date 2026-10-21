@@ -17,15 +17,17 @@
     </style>
   </head>
   <body>
-    <!-- padding 选项（默认 0）：应用在 shell 内容区 .autospark-popover-content 的 inline
-             padding——number 按 px、CSS 长度字符串直写（成员属性表达式形态）；重开生效。 -->
+    <!-- padding 选项（双通道，ADR-0124）：显式设置时同时应用于内容区外壳
+             .autospark-popover-content 的 inline padding（number 按 px、CSS 长度字符串直写，
+             成员属性表达式形态；重开生效）与骨架 body 区；未声明时 body 走默认 0.5em、
+             内容区不写 inline。 -->
     <div class="demo-app section">
       <div x-data>
         <div class="block">
           <button class="button is-primary" x-popover:zero x-popover-options="{delayShow: 0}">
             默认 0（悬停我）
           </button>
-          <span class="tag">padding = 0（内容贴边，蓝色区块顶到面板边）</span>
+          <span class="tag">padding = 0（内容区不加内边距；骨架 body 仍有默认 0.5em）</span>
         </div>
         <div class="block">
           <button
@@ -35,7 +37,7 @@
           >
             数字 16（Click我）
           </button>
-          <span class="tag">padding = 16 → 16px 四边</span>
+          <span class="tag">padding = 16 → 内容区与骨架 body 区同步 16px</span>
         </div>
         <div class="block">
           <button

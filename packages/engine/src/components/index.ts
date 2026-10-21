@@ -14,6 +14,7 @@
 import DIALOG_SHELL_TEMPLATE from "./dialog-shell.html?raw";
 import DRAWER_SHELL_TEMPLATE from "./drawer-shell.html?raw";
 import ERROR_TEMPLATE from "./error.html?raw";
+import OVERLAY_TEMPLATE from "./overlay.html?raw";
 import POPOVER_SHELL_TEMPLATE from "./popover-shell.html?raw";
 
 // ── overlay 家族 shell 注册名（ADR-0094 点前缀化：全部内置组件统一 `autospark.` 命名空间，
@@ -25,6 +26,8 @@ export const DIALOG_SHELL_NAME = "autospark.dialog";
 export const POPOVER_SHELL_NAME = "autospark.popover";
 /** 抽屉外壳（drawer-shell.html） */
 export const DRAWER_SHELL_NAME = "autospark.drawer";
+/** 覆盖物结构骨架（overlay.html；header/body/footer + 七出口，ADR-0124） */
+export const OVERLAY_COMPONENT_NAME = "autospark.overlay";
 /** 内置错误呈现组件 */
 export const ERROR_COMPONENT_NAME = "autospark.error";
 
@@ -39,5 +42,6 @@ export const BUILTIN_COMPONENTS: Record<string, string> = {
     [DIALOG_SHELL_NAME]: DIALOG_SHELL_TEMPLATE,
     [POPOVER_SHELL_NAME]: POPOVER_SHELL_TEMPLATE,
     [DRAWER_SHELL_NAME]: DRAWER_SHELL_TEMPLATE,
+    [OVERLAY_COMPONENT_NAME]: OVERLAY_TEMPLATE,
     [ERROR_COMPONENT_NAME]: ERROR_TEMPLATE,
 };
