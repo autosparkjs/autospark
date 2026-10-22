@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-dialog · slots 重载骨架 chrome（title / actions.* / header）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      /* ③ 整块替换 header 的自定义视觉（覆盖物 DOM 在 body 容器内，demo 页全局样式即可达） */
+      .custom-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        padding: 0.6em 0.9em;
+        background: linear-gradient(90deg, #7c3aed, #2563eb);
+        color: #fff;
+        font-weight: 600;
+        border-radius: 8px 8px 0 0;
+      }
+      .custom-header .spacer { flex: 1; }
+      .custom-header button {
+        border: none;
+        background: rgba(255, 255, 255, 0.18);
+        color: #fff;
+        border-radius: 4px;
+        padding: 2px 10px;
+        cursor: pointer;
+      }
+      .custom-header button:hover { background: rgba(255, 255, 255, 0.32); }
+    </style>
+  </head>
+  <body>
+    <div class="demo-app section">
+      <div x-data="{ ui: { rich: false, dotted: false, wholeHeader: false } }">
+
+        <div class="block">
+          <h4 class="title is-6">① x-slot:title 富文本标题（icon / close 保留）+ x-slot:actions.right 自定义按钮</h4>
+          <p class="help has-text-grey is-size-7">
+            <code>title</code> 是局部替换——配置式的 <code>icon</code> 与 close 按钮照常渲染；
+            底部右区按钮完全自定义（样式 / 文案 / 行为）
+          </p>
+          <button
+            class="button is-danger is-light"
+            x-dialog:confirm="ui.rich"
+            x-dialog-options="{icon: 'warn', closeable: true}"
+            @click="ui.rich = true"
+          >
+            <template x-slot:title>
+              <span class="has-text-danger">⚠️ 删除确认</span>
+              <span class="tag is-small is-danger is-light ml-2">不可逆</span>
+            </template>
+            <template x-slot:actions.right>
+              <button class="button is-text" @click="close()">取消</button>
+              <button class="button is-danger" @click="close()">立即删除</button>
+            </template>
+            富文本标题
+          </button>
+        </div>
+
+        <div class="block">
+          <h4 class="title is-6">② 点分名归位：x-slot:actions.top（header 右侧）+ x-slot:actions.left（footer 左区）</h4>
+          <p class="help has-text-grey is-size-7">
+            顶区动作与标题、close 共处 header；左区动作独占 footer 左侧——右区无内容时 footer 右区不渲染
+          </p>
+          <button
+            class="button is-link is-light"
+            x-dialog:confirm="ui.dotted"
+            x-dialog-options="{title: '偏好设置', closeable: true}"
+            @click="ui.dotted = true"
+          >
+            <template x-slot:actions.top>
+              <button class="button is-small is-white" @click="close()">重置</button>
+            </template>
+            <template x-slot:actions.left>
+              <label class="checkbox is-size-7"><input type="checkbox" /> 记住我的选择</label>
+            </template>
+            点分名动作区
+          </button>
+        </div>
+
+        <div class="block">
+          <h4 class="title is-6">③ x-slot:header 整块替换——close 按钮一并消失，消费者自供关闭路径</h4>
+          <p class="help has-text-grey is-size-7">
+            <code>header</code> 出口有内容时默认结构（含 close）整体让位——自定义头部必须自己提供关闭按钮
+          </p>
+          <button
+            class="button is-primary is-light"
+            x-dialog:confirm="ui.wholeHeader"
+            x-dialog-options="{closeable: true}"
+            @click="ui.wholeHeader = true"
+          >
+            <template x-slot:header>
+              <div class="custom-header">
+                <span>升级提醒</span>
+                <span class="spacer"></span>
+                <button @click="close()">知道了</button>
+              </div>
+            </template>
+            整块替换 header
+          </button>
+        </div>
+
+        <div class="block has-text-grey is-size-7">
+          优先级：slots 重载 &gt; 配置式——两者同声明时 slots 胜出；内容组件
+          <code>def.slots</code> 声明过的名字归内容组件，骨架 chrome 名永不抢占
+        </div>
+
+        <!-- 轻量内容组件：只负责正文，骨架 chrome 出口由宿主子级 x-slot:名 重载 -->
+        <div x-define="confirm">
+          <p class="content">
+            这段正文来自内容组件的默认渲染——标题 / 动作区 / 整块 header 都是宿主子级
+            <code>x-slot:名</code> 重载的骨架出口，与本组件正交。
+          </p>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

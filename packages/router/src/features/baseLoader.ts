@@ -10,6 +10,7 @@ import type { AutoSparkMatchedRouteItem } from "@/types/routes";
 import type { AutoSparkLanguageUrlType } from "@/types/config";
 import { asyncSignal, type IAsyncSignal } from "asyncsignal";
 import { getRouteVars } from "@/utils/getRouteVars";
+import { getStateVars } from "@/utils/getStateVars";
 import { prefixBaseUrl } from "@/utils/prefixBaseUrl";
 import { getSignalHash } from "@/utils/getSignalHash";
 import { AutoSparkRouterLoadError, AutoSparkRouterTimeoutError } from "@/errors";
@@ -349,16 +350,18 @@ export abstract class RouteDataLoaderBase<
     }
 
     private _getHash(matched: AutoSparkMatchedRouteItem, options: Options) {
+        // `state.$` 原始值成员进 hash 变量池（ADR-0122），路由侧同名优先
+        const metaVars = getStateVars(this.router);
         if (options.hash) {
             // 自定义 hash 模板不含语言分量——须按语言隔离缓存时由应用
             // 自行纳入（ADR-0013 决策 6）
-            return getSignalHash(options.hash, matched);
+            return getSignalHash(options.hash, matched, metaVars);
         }
         // 默认 "{url}"：matched.path 是模式路径（如 /products/:category，不含参数值），
         // 参数不同的层会坍缩为同一缓存键；matched.url 才是实际完整路径（ADR-0004）。
         // 并入当前语言（ADR-0013 决策 6）：数据缓存自动按语言隔离。
         // language 容缺：loader 可脱离完整 router 装配独立使用（既有测试的最小 stub）
-        let hash = getSignalHash("{url}", matched);
+        let hash = getSignalHash("{url}", matched, metaVars);
         const language = this.router.language;
         if (language?.enabled && language.current) hash += `@${language.current}`;
         return hash;
@@ -412,7 +415,9 @@ export abstract class RouteDataLoaderBase<
         // 语言重写（ADR-0013 决策 2）：时机插值之后、base 前缀之前；
         // `!` raw 通道经 prepareFetchUrl 剥前缀后同样参与重写。
         // language 容缺：无管理器时用原 URL（loader 可脱离完整 router 装配独立使用）
-        const interpolated = this.prepareFetchUrl(url, matched).params(getRouteVars(matched));
+        const interpolated = this.prepareFetchUrl(url, matched).params(
+            getRouteVars(matched, getStateVars(this.router)),
+        );
         const finalUrl = prefixBaseUrl(
             this.router.language?.rewriteUrl(
                 interpolated,

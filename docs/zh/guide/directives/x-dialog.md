@@ -572,6 +572,8 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 
 配置式无法满足富文本标题、自定义按钮样式等场景时，**宿主子级用 `x-slot:名` 直接重载骨架出口**——内置 shell 声明了插槽通配转发（`slots: "*"`，ADR-0125），chrome 出口名直接可达：
 
+<demo html="dialog/chrome-slots.html"/>
+
 ```html
 <button
   x-dialog:confirm="ui.open"
@@ -610,6 +612,8 @@ chrome 可重载的出口名（点分名）：
 #### 视觉定制
 
 不想要骨架 chrome 时设 `closeable: false` + 无标题无动作（header 消失）、`padding: 0` 还原紧凑形态；自定义 shell 整体替换则完全退出骨架。骨架视觉走 CSS 变量（`--autospark-overlay-bg / -border / -radius / -z`），主题系统统一驱动。
+
+<demo html="dialog/chrome-visual.html"/>
 
 ### 面板外壳（shell）：自定义面板形态
 

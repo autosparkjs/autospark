@@ -56,7 +56,7 @@ title: 视图加载
 | 选项 | 默认 | 说明 |
 | --- | --- | --- |
 | `from` | — | 视图源（URL / HTMLElement / 函数） |
-| `selector` | — | 内容提取选择器：模板渲染器从解析后的文档中取该元素的 innerHTML；选择器支持参数插值（`$params`/`$query`/`$state`） |
+| `selector` | — | 内容提取选择器：模板渲染器从解析后的文档中取该元素的 innerHTML；选择器支持插值，变量池仅 `params` / `query` / 导航 `state`（扁平键，如 `#{page}`） |
 | `timeout` | `5000` | 加载超时（毫秒） |
 | `renderer` | — | 路由级显式渲染器实例，绕过选择链探测（优先级仅次于 `!` 前缀） |
 
@@ -64,7 +64,19 @@ title: 视图加载
 
 ### URL 插值与 base 前缀
 
-视图 URL 支持插值——路由参数与查询参数参与地址构造：
+视图 URL 支持插值——路由变量与 `engine.state.$` 的原始值成员参与地址构造：
+
+| 变量 | 含义 |
+| --- | --- |
+| `{name}` | 路由 `name` |
+| `{path}` / `{curPath}` | 路由模式路径（如 `/products/:category`，不含参数值） |
+| `{url}` | 解析后的实际 URL（含参数值） |
+| `{query}` | 序列化后的查询字符串 |
+| `{timestamp}` | 时间戳 |
+| `{路由参数名}` | 如 `{id}`，取自 `params` |
+| `{meta 字段}` | 路由 `meta` 的字段展开 |
+| `{导航 state 字段}` | `push(path, state)` 传入的字段 |
+| `{state.$ 原始值成员}` | 如 `{language}`、`{viewport}`，见下 |
 
 ```js
 {
@@ -73,14 +85,23 @@ title: 视图加载
 }
 ```
 
-配合 `selector` 可以让多个路由共享一个页面文档，按参数提取不同区块：
+::: tip `engine.state.$` 变量
+`engine.state.$` 自有可枚举成员中值为 `string | number | boolean` 的会以**扁平键**并入变量池（`$.language` → `{language}`）：引擎预置的 `viewport` / `version` / `language` / `name` / `title` / `description` 自动可用；消费者经模块增强（`declare module "autospark"`）增补的原始值成员同样自动生效，无需额外注册。
+
+- **路由侧同名优先**：路由 `meta`、路由参数、导航 `state` 中的同名键胜过 `state.$`；
+- **`route` 键除外**：插值发生在加载期（导航提交之前），`$.route` 是**上一次导航**的快照——取本次匹配路径请用 `{path}` / `{url}`；
+- **现读不订阅**：不因这些变量变化自动重载（`$.language` 变化会经语言切换重入导航，自然取到新值；`$.viewport` 跨档不触发重载）；
+- 对象 / 函数 / `null` 成员静默跳过（替换为空串）。
+:::
+
+配合 `selector` 可以让多个路由共享一个页面文档，按参数提取不同区块（`selector` 走独立的小变量池，仅 `params` / `query` / 导航 `state`，不含 `state.$`）：
 
 ```js
 {
     path: "/docs/:page",
     view: {
         from: "/views/docs.html",
-        selector: "#{$query.page}"     // 按查询参数选区块
+        selector: "#{page}"            // 按路由参数选区块
     }
 }
 ```

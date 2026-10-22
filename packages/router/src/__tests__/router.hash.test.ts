@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import type { AutoSparkRouter } from "@/router";
+import { getSignalHash } from "@/utils/getSignalHash";
 
 /**
  * 创建测试用的 DOM 环境
@@ -211,5 +212,64 @@ describe("Hash mode routing", () => {
         router.replace("/settings", { reason: "redirect" });
         await new Promise((resolve) => setTimeout(resolve, 100));
         expect(lastMatched(router)!.route!.name).toBe("settings");
+    });
+});
+
+describe("route.hash 插值（ADR-0122）", () => {
+    let host: HTMLElement;
+    let router: AutoSparkRouter;
+
+    /** 带 store 的 engine stub：提供 state.$ 元容器 */
+    function stubEngineWithMeta(meta: Record<string, any>) {
+        return {
+            getComponentDeclaration: () => ({ name: "autospark.outlet" }),
+            getComponent: () => ({
+                data: { views: [], ephemeral: { hash: "", html: "", ready: false }, active: "" },
+            }),
+            data: () => {},
+            destroy() {},
+            store: {
+                state: { $: meta },
+                watch: () => ({ off: () => {} }),
+            },
+        } as any;
+    }
+
+    beforeEach(async () => {
+        host = createTestDOM();
+    });
+
+    afterEach(() => {
+        if (router) {
+            try {
+                router.detach();
+            } catch (e) {
+                // 忽略 detach 错误
+            }
+            router = undefined as any;
+        }
+        if (host && host.parentElement) {
+            host.parentElement.removeChild(host);
+        }
+    });
+
+    it("自定义 route.hash 可使用 state.$ 原始值成员", async () => {
+        router = await createRouter(host, {
+            routes: [
+                { name: "home", path: "/home", hash: "{language}-{url}" },
+                { name: "user", path: "/user" },
+            ],
+            engine: stubEngineWithMeta({ language: "en", route: { path: "/" } }),
+        });
+
+        router.push("/home");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        const matched = lastMatched(router)!;
+        const withMeta = getSignalHash("{language}-{url}", matched, { language: "en" });
+        const withoutMeta = getSignalHash("{language}-{url}", matched, {});
+        // 语言分量确实参与了 hash 计算（默认语言后缀允许存在，故用前缀断言）
+        expect(matched.hash.startsWith(withMeta)).toBe(true);
+        expect(withMeta).not.toBe(withoutMeta);
     });
 });

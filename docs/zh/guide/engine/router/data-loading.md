@@ -18,7 +18,7 @@ title: 数据加载
 {
     "path": "/user/:id",
     "view": "/views/user.html",
-    "data": "/api/user/:id"          // ① URL：远程 JSON
+    "data": "/api/user/{id}"         // ① URL：远程 JSON
 }
 ```
 
@@ -48,7 +48,7 @@ title: 数据加载
     path: "/user/:id",
     view: "/views/user.html",
     data: {
-        from: "/api/user/:id",
+        from: "/api/user/{id}",
         default: { name: "未知用户" }, // 加载失败时的默认值（Object.assign(default, data) 合并）
         retry: 2,                      // 失败后最多重试 2 次（共 3 次尝试）
         retryDelay: 500,               // 每次重试前等待 500ms
@@ -78,7 +78,7 @@ views/
 ```
 
 ::: tip URL 插值
-URL 来源（含 `data: true` 生成的地址）支持插值：`:id`、`<id>` 会被路由参数替换，`{query}` 形式取查询参数——`/api/user/:id` 导航到 `/user/123` 时实际请求 `/api/user/123`。相对地址自动拼上 `base` 前缀。
+URL 来源（含 `data: true` 生成的地址）支持插值：`{id}` 形式取路由参数，`{query}` 取序列化查询串——`/api/user/{id}` 导航到 `/user/123` 时实际请求 `/api/user/123`。变量池与视图地址一致（路由变量 + `engine.state.$` 原始值成员，路由侧同名优先，`route` 键除外），详见[视图加载 · URL 插值](./view-loading.md#url-插值与-base-前缀)。相对地址自动拼上 `base` 前缀。
 :::
 
 ### 数据注入模板上下文
@@ -109,9 +109,9 @@ URL 来源（含 `data: true` 生成的地址）支持插值：`:id`、`<id>` �
 
 ```js
 data: {
-    from: "/api/user/:id",
+    from: "/api/user/{id}",
     cache: 60_000,
-    hash: "user-{params.id}"     // 每个用户 id 独立缓存
+    hash: "user-{id}"            // 每个用户 id 独立缓存
 }
 ```
 

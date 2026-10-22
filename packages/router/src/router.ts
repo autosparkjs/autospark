@@ -34,6 +34,9 @@ import type { AutoSpark } from "autospark";
 import { joinPath, matchRoute } from "./utils";
 import { createLogger, type AutoSparkRouterLogger } from "./logger";
 import { removePathPrefix } from "./utils/removePathPrefix";
+import { getStateVars } from "@/utils/getStateVars";
+import { getRouteHash } from "@/utils/getRouteHash";
+
 
 export class AutoSparkRouter extends Mixin(
     Context,
@@ -263,6 +266,14 @@ export class AutoSparkRouter extends Mixin(
         // 当 search 为 "?q=test" 时：pathname + "?q=test" = pathname?q=test
         const fullPath = pathname + search;
         const toRoute = matchRoute(fullPath, this.routes.root, {});
+        // `state.$` 原始值成员进 route.hash 变量池（ADR-0122）：matchRoute 是公开纯函数、
+        // 不读 engine，故在匹配后按同一变量池重算。无 meta 变量时零行为变化。
+        const metaVars = getStateVars(this);
+        if (Object.keys(metaVars).length > 0) {
+            for (const m of toRoute) {
+                if (m.route) m.hash = getRouteHash(m, metaVars);
+            }
+        }
         // 语言并入路由 hash（ADR-0013 决策 6）：keepAlive/视图条目键（matched.hash）与
         // loader 缓存键同源隔离——自定义 route.hash 不并入（应用自行纳入，文档提示）
         const metaSuffix =

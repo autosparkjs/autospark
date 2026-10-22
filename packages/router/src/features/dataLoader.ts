@@ -12,6 +12,7 @@ import type { AutoSparkMatchedRouteItem } from "@/types/routes";
 import type { AutoSparkRouteDataOptions } from "@/types/data";
 import { asyncSignal, type IAsyncSignal } from "asyncsignal";
 import { getRouteVars } from "@/utils/getRouteVars";
+import { getStateVars } from "@/utils/getStateVars";
 import { prefixBaseUrl } from "@/utils/prefixBaseUrl";
 import { getSignalHash } from "@/utils/getSignalHash";
 import { getJsonFileFromUrl } from "@/utils/getJsonFileFromUrl";
@@ -163,7 +164,9 @@ export class DataLoader {
                 // 语言重写（ADR-0013 决策 7）：插值之后、base 前缀之前；默认矩阵下
                 // data 通道不重写，提供 getLanguageUrl 钩子时由钩子分流。
                 // language 容缺：无管理器时用原 URL（loader 可脱离完整 router 装配独立使用）
-                const interpolated = url.params(getRouteVars(matched));
+                const interpolated = url.params(
+                    getRouteVars(matched, getStateVars(this.router)),
+                );
                 const finalUrl = prefixBaseUrl(
                     this.router.language?.rewriteUrl(interpolated, "data") ?? interpolated,
                     this.router.options.base,

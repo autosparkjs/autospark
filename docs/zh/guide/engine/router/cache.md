@@ -80,13 +80,18 @@ router 的缓存体系分三个层次，解决不同的问题：
 | `{path}` | 路由模式路径（如 `/products/:category`，不含参数值） |
 | `{basepath}` | 基础路径 |
 | `{timestamp}` | 时间戳（每次导航都产生新视图） |
+| `{路由参数名}` | 如 `{id}` |
+| `{meta 字段}` / `{导航 state 字段}` | 路由 `meta` 与 `push(path, state)` 传入的字段展开 |
+| `{state.$ 原始值成员}` | 如 `{language}`、`{viewport}`（路由侧同名优先；`route` 键除外） |
 
 自定义模板可混用路由变量：
 
 ```js
-{ path: "/user/:id", hash: "user-{params.id}" }      // → "user-123"
-{ path: "/posts", hash: "posts-{query.category}" }   // → "posts-tech"
+{ path: "/user/:id", hash: "user-{id}" }      // → "user-123"
+{ path: "/posts", hash: "posts-{query}" }     // → "posts-tech"
 ```
+
+`engine.state.$` 的原始值成员与地址插值同源并入（见[视图加载 · URL 插值](./view-loading.md#url-插值与-base-前缀)）——两者共用同一变量池、路由侧同名优先。`route` 键同样排除（匹配期读到的是上一导航快照）。
 
 ::: warning 参数坍缩陷阱
 视图缓存/keepAlive 复用按 hash 判定。若把 hash 写成 `{path}`，`/user/1` 与 `/user/2` 会坍缩为同一键——参数变化时被误判为"同视图复用"而跳过重渲染（表现为子路由切换不生效）。参数化路由保持默认 `{url}` 即可，仅在需要**跨参数共享视图实例**时才显式声明。

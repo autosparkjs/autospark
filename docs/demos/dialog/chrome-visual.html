@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-dialog · 视觉定制（紧凑面板 / CSS 变量换肤）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      /* ① 紧凑面板的内容自持视觉（border:false 后面板外壳零视觉，全由内容承担） */
+      .compact-card {
+        padding: 20px 24px;
+        min-width: 280px;
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.28);
+      }
+
+      /* ② CSS 变量换肤：骨架 chrome 保留，视觉走变量——
+           面板挂 data-overlay="<组件名>" 契约属性，按名定向不波及其他对话框 */
+      [data-overlay="themed"] {
+        --autospark-overlay-bg: #1f2933;
+        --autospark-overlay-border: #52606d;
+        --autospark-overlay-radius: 16px;
+        --autospark-overlay-divider: rgba(255, 255, 255, 0.12);
+        --autospark-overlay-hover: rgba(255, 255, 255, 0.08);
+        --autospark-overlay-action-border: rgba(255, 255, 255, 0.25);
+        color: #e4e7eb;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-app section">
+      <div x-data="{ ui: { compact: false, themed: false } }">
+
+        <div class="block">
+          <h4 class="title is-6">① 紧凑面板：closeable:false + 无标题无动作 + padding:0 + border:false</h4>
+          <p class="help has-text-grey is-size-7">
+            骨架 chrome 全部有内容才渲染——header 消失后 close 按钮一并失效，消费者必须自供关闭路径；
+            <code>border:false</code> 卸掉外壳边框 / 背景 / 圆角，面板视觉完全由内容自持
+          </p>
+          <button
+            class="button"
+            x-dialog:compact="ui.compact"
+            x-dialog-options="{closeable: false, padding: 0, border: false}"
+            @click="ui.compact = true"
+          >
+            紧凑面板（无骨架 chrome）
+          </button>
+        </div>
+
+        <div class="block">
+          <h4 class="title is-6">② CSS 变量换肤：保留骨架 chrome，只换视觉</h4>
+          <p class="help has-text-grey is-size-7">
+            骨架视觉走 <code>--autospark-overlay-bg / -border / -radius / -divider / -hover</code> 等变量
+            （主题系统统一驱动）；面板根挂 <code>data-overlay="组件名"</code> 契约属性，可按名定向定制
+          </p>
+          <button
+            class="button is-dark"
+            x-dialog:themed="ui.themed"
+            x-dialog-options="{
+              title: '外观设置', icon: 'gear', closeable: true,
+              actions: [
+                {id: 'cancel', title: '取消', pos: 'left',  handle: () => { ui.themed = false; }},
+                {id: 'ok',     title: '应用', pos: 'right', handle: () => { ui.themed = false; }}
+              ]
+            }"
+            @click="ui.themed = true"
+          >
+            深色面板（CSS 变量）
+          </button>
+        </div>
+
+        <div class="block has-text-grey is-size-7">
+          整体替换面板形态（自定义 shell）见下一节「面板外壳」——视觉定制只调整骨架变量，模态行为不变
+        </div>
+
+        <!-- ① 紧凑内容：外壳零视觉，背景 / 圆角 / 阴影 / 关闭路径全部自持 -->
+        <div x-define="compact">
+          <div class="compact-card">
+            <p class="content has-text-grey">零骨架 chrome 的紧凑面板——没有 header、没有外壳边框与内边距，视觉完全由内容组件承担。</p>
+            <button class="button is-small is-primary" @click="close()">好的</button>
+          </div>
+        </div>
+
+        <!-- ② 换肤内容：普通正文，骨架 chrome（标题 / 图标 / close / 动作区）照常由 overlay 骨架渲染 -->
+        <div x-define="themed">
+          <p class="content">
+            骨架 chrome 完整保留——深色背景、圆角、分割线、按钮描边全部来自
+            <code>[data-overlay="themed"]</code> 上的一组 CSS 变量覆盖。
+          </p>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

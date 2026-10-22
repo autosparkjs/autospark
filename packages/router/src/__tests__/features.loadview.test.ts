@@ -1068,6 +1068,79 @@ describe("ViewLoader", () => {
                 expect(unwrapViewResult(signal)).toContain("comments/456");
             }
         });
+
+        // ADR-0122：state.$ 原始值成员进地址插值（扁平键、路由优先、route 排除）
+        it("应该正确替换 state.$ 的原始值成员", async () => {
+            (mockRouter as any).engine = {
+                state: {
+                    $: {
+                        language: "en",
+                        version: 2,
+                        flags: { theme: "dark" },
+                        route: { path: "/" },
+                    },
+                },
+            };
+            const matchedRoute = createMockedRoute(
+                "/user/123",
+                "http://example.com/{language}/v{version}/{flags}/{route}/{id}.html",
+            );
+            matchedRoute.params = { id: "123" };
+
+            await viewLoader.loadViews([matchedRoute]);
+            await new Promise((resolve) => setTimeout(resolve, 50));
+
+            const signal = matchedRoute.route?._getView;
+            expect(signal).toBeDefined();
+            if (signal) {
+                expect(signal.isFulfilled()).toBe(true);
+                const result = unwrapViewResult(signal);
+                expect(result).toContain("/en/v2//");
+                expect(result).toContain("/123.html");
+                // 对象成员（flags / route）静默跳过，不落成 [object Object]
+                expect(result).not.toContain("[object Object]");
+            }
+        });
+
+        it("state.$ 与路由变量同名时路由侧优先", async () => {
+            (mockRouter as any).engine = { state: { $: { language: "en" } } };
+            const matchedRoute = createMockedRoute(
+                "/user/123",
+                "http://example.com/{language}/{id}.html",
+            );
+            matchedRoute.params = { id: "123", language: "zh" };
+
+            await viewLoader.loadViews([matchedRoute]);
+            await new Promise((resolve) => setTimeout(resolve, 50));
+
+            const signal = matchedRoute.route?._getView;
+            expect(signal).toBeDefined();
+            if (signal) {
+                expect(signal.isFulfilled()).toBe(true);
+                expect(unwrapViewResult(signal)).toContain("/zh/123.html");
+            }
+        });
+
+        it("自定义 hash 模板可使用 state.$ 成员（缓存键按语言隔离）", async () => {
+            (mockRouter as any).engine = { state: { $: { language: "en" } } };
+            const create = (id: number) =>
+                createMockedRoute(
+                    `/cache/${id}`,
+                    { from: "http://example.com/cache.html", cache: 10000, hash: "{language}" },
+                    id,
+                );
+
+            await viewLoader.loadViews([create(1)]);
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            await viewLoader.loadViews([create(2)]);
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            expect(mockFetch.mock.calls.length).toBe(1);
+
+            (mockRouter as any).engine.state.$.language = "zh";
+            await viewLoader.loadViews([create(3)]);
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            expect(mockFetch.mock.calls.length).toBe(2);
+        });
     });
 
     // ========================================

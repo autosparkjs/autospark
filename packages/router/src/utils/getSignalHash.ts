@@ -12,8 +12,12 @@ import { quickHash } from "./quickHash";
     "query"     // 路由查询字符串
     "timestamp";
  */
-export function getSignalHash(hash: string, matched: AutoSparkMatchedRouteItem) {
-    const vars = getRouteVars(matched);
+export function getSignalHash(
+    hash: string,
+    matched: AutoSparkMatchedRouteItem,
+    metaVars?: Record<string, any>,
+) {
+    const vars = getRouteVars(matched, metaVars);
     const result = quickHash(replaceParams(hash, vars));
     const isNotNumPreifx = isNaN(parseInt(result.substring(0, 1)));
     return isNotNumPreifx ? result : "h" + result;

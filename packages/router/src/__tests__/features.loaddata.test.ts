@@ -1394,6 +1394,39 @@ describe("DataLoader", () => {
                 expect(loader.result!.url).toContain("comments/456");
             }
         });
+
+        // ADR-0122：state.$ 原始值成员进数据地址插值，且路由侧同名优先
+        it("应该正确替换 state.$ 的原始值成员", async () => {
+            (mockRouter as any).engine = {
+                state: {
+                    $: {
+                        language: "en",
+                        tenant: "acme",
+                        flags: { theme: "dark" },
+                        route: { path: "/" },
+                    },
+                },
+            };
+            const matchedRoute = createMockedRoute(
+                "/user/123",
+                "http://api.example.com/{tenant}/{language}/{flags}/{route}/{id}.json",
+            );
+            matchedRoute.params = { id: "123", language: "zh" };
+
+            await dataLoader.loadDatas([matchedRoute]);
+            await new Promise((resolve) => setTimeout(resolve, 50));
+
+            const loader = matchedRoute.route?._getData;
+            expect(loader).toBeDefined();
+            if (loader) {
+                expect(loader.signal.isFulfilled()).toBe(true);
+                const url = loader.result!.url as string;
+                expect(url).toContain("/acme/");
+                expect(url).toContain("/zh/");
+                expect(url).toContain("/123.json");
+                expect(url).not.toContain("[object Object]");
+            }
+        });
     });
 
     // ========================================

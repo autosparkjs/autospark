@@ -56,6 +56,10 @@ _Avoid_: active-class 自定义属性（未提供，类名固定 `active`）、p
 
 ### 加载层
 
+**地址插值变量（Interpolation Vars）**:
+视图/数据地址与 hash 模板共用的扁平键值集——路由变量（`name` / `path` / `url` / `query` / `timestamp`、`route.meta`、参数、导航 `state`）叠加 `engine.state.$` 的自有原始值成员（`string | number | boolean`，`route` 键除外）。`$` 成员恒为最底层、路由侧同名优先；在加载（插值）时现读、不做响应式重载；`view.selector` 不适用（ADR-0122）。
+_Avoid_: 全局变量（泛称）、`{$.x}` 点路径（未提供）、把 `$.route` 当本次导航（加载期读到的是上一导航快照）
+
 **公共层跳过（Common-Layer Skip）**:
 导航时 fromRoute 与 toRoute 逐层比较 `matched.url`（完整路径，含 search）得到的公共前缀层级——渲染域跳过公共层渲染，加载域跳过已成功加载层的 data/view 请求（复用既有 signal）。两域前提不同：加载域是该通道加载成功（`_viewLoadState`/`_dataLoadState === "ok"`，挂在持久路由表项上，边界 = 应用生命周期）；渲染域是激活前提（本层视图仍是其出口的激活视图，ADR-0005）。失败/非激活层公共也重渲染或重试。与 loader 的 `cache` TTL（显式配置、默认 0）是两个独立机制。
 _Avoid_: 缓存命中（那是 cache TTL 机制）、已缓存层跳过（跳过判定与缓存无关）

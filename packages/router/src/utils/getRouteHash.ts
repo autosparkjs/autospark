@@ -18,7 +18,10 @@ import { getSignalHash } from "./getSignalHash";
      "timestamp";
 
  */
-export function getRouteHash(matched: AutoSparkMatchedRouteItem) {
+export function getRouteHash(
+    matched: AutoSparkMatchedRouteItem,
+    metaVars?: Record<string, any>,
+) {
     const hash = matched?.route?.hash || "{url}";
-    return getSignalHash(hash, matched);
+    return getSignalHash(hash, matched, metaVars);
 }
