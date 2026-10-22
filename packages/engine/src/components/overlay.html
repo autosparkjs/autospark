@@ -21,40 +21,24 @@
 -->
 <div class="autospark-overlay" x-define="autospark.overlay">
     <!-- header 区：出口整块替换 or 默认结构（title / actions.top / close） -->
-    <div
-        class="autospark-overlay-header"
-        x-slot:header
-        x-show="_chrome.header || !!title || !!icon || _chrome.title || _chrome['actions.top'] || _topActions.length > 0 || closeable !== false"
-    >
+    <div class="autospark-overlay-header" x-slot:header
+        x-show="_chrome.header || !!title || !!icon || _chrome.title || _chrome['actions.top'] || _topActions.length > 0 || closeable !== false">
         <div class="autospark-overlay-title" x-slot:title x-show="_chrome.title || !!title || !!icon">
             <i class="autospark-overlay-icon" x-icon="icon || null"></i>
             <span class="autospark-overlay-title-text" x-text="title"></span>
         </div>
-        <div
-            class="autospark-overlay-actions autospark-overlay-actions-top"
-            x-slot:actions.top
-            x-show="_chrome['actions.top'] || _topActions.length > 0"
-        >
+        <div class="autospark-overlay-actions autospark-overlay-actions-top" x-slot:actions.top
+            x-show="_chrome['actions.top'] || _topActions.length > 0">
             <template x-for="a of _topActions" :key="a.id">
-                <button
-                    class="autospark-overlay-action"
-                    type="button"
-                    x-bind:title="a.tooltip || null"
-                    x-on:click="a.handle($event)"
-                >
+                <button class="autospark-overlay-action" type="button" x-bind:title="a.tooltip || null"
+                    x-on:click="a.handle($event)">
                     <i x-show="!!a.icon" x-icon="a.icon"></i>
                     <span x-show="!a.icon" x-text="a.title"></span>
                 </button>
             </template>
         </div>
-        <button
-            class="autospark-overlay-close"
-            type="button"
-            x-show="closeable !== false"
-            x-on:click="close"
-            x-icon="'no'"
-            aria-label="关闭"
-        ></button>
+        <button class="autospark-overlay-close" type="button" x-show="closeable !== false" x-on:click="close"
+            x-icon="'no'" aria-label="关闭"></button>
     </div>
     <!-- body 区：恒渲染（内容出口的直通位）；padding 归一走 _bodyStyle。
          直通锚（ADR-0124 决策 8 实现偏差注记）：shell 默认出口语义内置于本 fallback——
@@ -66,40 +50,23 @@
         <div class="autospark-overlay-body-anchor" x-slot></div>
     </div>
     <!-- footer 区：出口整块替换 or 默认动作区（左 / 右） -->
-    <div
-        class="autospark-overlay-footer"
-        x-slot:footer
-        x-show="_chrome.footer || _chrome['actions.left'] || _chrome['actions.right'] || _leftActions.length > 0 || _rightActions.length > 0"
-    >
-        <div
-            class="autospark-overlay-actions autospark-overlay-actions-left"
-            x-slot:actions.left
-            x-show="_chrome['actions.left'] || _leftActions.length > 0"
-        >
+    <div class="autospark-overlay-footer" x-slot:footer
+        x-show="_chrome.footer || _chrome['actions.left'] || _chrome['actions.right'] || _leftActions.length > 0 || _rightActions.length > 0">
+        <div class="autospark-overlay-actions autospark-overlay-actions-left" x-slot:actions.left
+            x-show="_chrome['actions.left'] || _leftActions.length > 0">
             <template x-for="a of _leftActions" :key="a.id">
-                <button
-                    class="autospark-overlay-action"
-                    type="button"
-                    x-bind:title="a.tooltip || null"
-                    x-on:click="a.handle($event)"
-                >
+                <button class="autospark-overlay-action" type="button" x-bind:title="a.tooltip || null"
+                    x-on:click="a.handle($event)">
                     <i x-show="!!a.icon" x-icon="a.icon"></i>
                     <span x-show="!a.icon" x-text="a.title"></span>
                 </button>
             </template>
         </div>
-        <div
-            class="autospark-overlay-actions autospark-overlay-actions-right"
-            x-slot:actions.right
-            x-show="_chrome['actions.right'] || _rightActions.length > 0"
-        >
+        <div class="autospark-overlay-actions autospark-overlay-actions-right" x-slot:actions.right
+            x-show="_chrome['actions.right'] || _rightActions.length > 0">
             <template x-for="a of _rightActions" :key="a.id">
-                <button
-                    class="autospark-overlay-action"
-                    type="button"
-                    x-bind:title="a.tooltip || null"
-                    x-on:click="a.handle($event)"
-                >
+                <button class="autospark-overlay-action" type="button" x-bind:title="a.tooltip || null"
+                    x-on:click="a.handle($event)">
                     <i x-show="!!a.icon" x-icon="a.icon"></i>
                     <span x-show="!a.icon" x-text="a.title"></span>
                 </button>
@@ -113,6 +80,7 @@
             min-width: 0;
             min-height: 0;
         }
+
         .autospark-overlay-header {
             display: flex;
             align-items: center;
@@ -121,6 +89,7 @@
             border-bottom: 1px solid var(--autospark-overlay-divider, rgba(0, 0, 0, 0.08));
             flex: none;
         }
+
         .autospark-overlay-title {
             display: flex;
             align-items: center;
@@ -129,20 +98,24 @@
             min-width: 0;
             font-weight: 600;
         }
+
         .autospark-overlay-title-text {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+
         .autospark-overlay-actions {
             display: flex;
             align-items: center;
             gap: 0.375em;
             flex: none;
         }
+
         .autospark-overlay-actions-top {
             margin-left: auto;
         }
+
         .autospark-overlay-close {
             flex: none;
             display: inline-flex;
@@ -157,17 +130,21 @@
             color: inherit;
             cursor: pointer;
         }
+
         .autospark-overlay-close:hover {
             background: var(--autospark-overlay-hover, rgba(0, 0, 0, 0.06));
         }
+
         .autospark-overlay-body {
             flex: 1 1 auto;
             min-height: 0;
             overflow: auto;
         }
+
         .autospark-overlay-body-anchor {
             display: contents;
         }
+
         .autospark-overlay-footer {
             display: flex;
             align-items: center;
@@ -176,9 +153,11 @@
             border-top: 1px solid var(--autospark-overlay-divider, rgba(0, 0, 0, 0.08));
             flex: none;
         }
+
         .autospark-overlay-actions-right {
             margin-left: auto;
         }
+
         .autospark-overlay-action {
             display: inline-flex;
             align-items: center;
@@ -191,102 +170,105 @@
             font: inherit;
             cursor: pointer;
         }
+
         .autospark-overlay-action:hover {
             background: var(--autospark-overlay-hover, rgba(0, 0, 0, 0.06));
         }
     </style>
     <script setup>
-    ({
-        data: () => ({
-            _chrome: {
-                title: false,
-                header: false,
-                footer: false,
-                "actions.top": false,
-                "actions.left": false,
-                "actions.right": false,
-            },
-            _topActions: [],
-            _leftActions: [],
-            _rightActions: [],
-            _bodyStyle: {},
-        }),
-        created() {
-            // ── chrome 出口内容命中（ADR-0124 决策 3，编译期静态）──
-            // 复刻 SlotDirective 持有者链查找（ADR-0125 白名身上溯 + 转发翻译接力），
-            // 起点为自身 scope（与出口元素 parent 链同位）。内置 shell 场景：自身内容集
-            // 仅 body 直通段，转发声明 `*` 使 chrome 名原名上溯命中 shell 内容集（消费者
-            // 分段 stash，OverlayInstance）；自定义 shell 显式提供段时同链命中。
-            const chrome = this.data._chrome;
-            const hasOutlet = (name) => {
-                let holder = this.scope || null;
-                let lookup = name;
-                while (holder) {
-                    if (holder.slotContents || holder.slotForwarding) {
-                        const hit = holder.slotContents?.get(lookup);
-                        if (hit) return true;
-                        const fw = holder.slotForwarding;
-                        const translated = fw
-                            ? fw.map.get(lookup) || (fw.wildcard ? lookup : null)
-                            : null;
-                        if (translated === null) return false; // 持有者已定：无段且不转发 → 边界
-                        lookup = translated;
+        ({
+            data: () => ({
+                _chrome: {
+                    title: false,
+                    header: false,
+                    footer: false,
+                    "actions.top": false,
+                    "actions.left": false,
+                    "actions.right": false,
+                },
+                _topActions: [],
+                _leftActions: [],
+                _rightActions: [],
+                _bodyStyle: {},
+            }),
+            created() {
+                // ── chrome 出口内容命中（ADR-0124 决策 3，编译期静态）──
+                // 复刻 SlotDirective 持有者链查找（ADR-0125 白名身上溯 + 转发翻译接力），
+                // 起点为自身 scope（与出口元素 parent 链同位）。内置 shell 场景：自身内容集
+                // 仅 body 直通段，转发声明 `*` 使 chrome 名原名上溯命中 shell 内容集（消费者
+                // 分段 stash，OverlayInstance）；自定义 shell 显式提供段时同链命中。
+                const chrome = this.data._chrome;
+                const hasOutlet = (name) => {
+                    let holder = this.scope || null;
+                    let lookup = name;
+                    while (holder) {
+                        if (holder.slotContents || holder.slotForwarding) {
+                            const hit = holder.slotContents?.get(lookup);
+                            if (hit) return true;
+                            const fw = holder.slotForwarding;
+                            const translated = fw
+                                ? fw.map.get(lookup) || (fw.wildcard ? lookup : null)
+                                : null;
+                            if (translated === null) return false; // 持有者已定：无段且不转发 → 边界
+                            lookup = translated;
+                        }
+                        holder = holder.parent;
                     }
-                    holder = holder.parent;
-                }
-                return false;
-            };
-            for (const k of Object.keys(chrome)) chrome[k] = hasOutlet(k);
-            // ── actions 分组（ADR-0124 决策 4：pos 归位 + order 升序稳定排序）──
-            // top → 顶区；left → 左区；right / auto / bottom / 无 pos → 右区。
-            // 无 handle 条目剪枝（防御，正常经合并通道到达的条目 handle 必在）；
-            // 无 id 条目补合成键（x-for :key 稳定锚）。
-            const regroup = (list) => {
-                const rows = (Array.isArray(list) ? list : []).filter(
-                    (a) => a && typeof a.handle === "function",
-                );
-                const withId = rows.map((a, i) =>
-                    a.id != null ? a : Object.assign({}, a, { id: "__overlay_action_" + i }),
-                );
-                const top = withId.filter((a) => a.pos === "top");
-                const left = withId.filter((a) => a.pos === "left");
-                const right = withId.filter((a) => a.pos !== "top" && a.pos !== "left");
-                const byOrder = (x, y) =>
-                    (x.order == null ? 0 : x.order) - (y.order == null ? 0 : y.order);
-                top.sort(byOrder);
-                left.sort(byOrder);
-                right.sort(byOrder);
-                // 变更守卫：watch 回调可能因键缺位退化为空 deps watch-all（任意变更触发），
-                // 无条件写新数组引用会自反馈成死循环——组员引用与顺序均未变时跳过写入
-                const same = (key, next) => {
-                    const cur = this.data[key];
-                    return (
-                        Array.isArray(cur) &&
-                        cur.length === next.length &&
-                        next.every((a, i) => a === cur[i])
-                    );
+                    return false;
                 };
-                if (!same("_topActions", top)) this.data._topActions = top;
-                if (!same("_leftActions", left)) this.data._leftActions = left;
-                if (!same("_rightActions", right)) this.data._rightActions = right;
-            };
-            regroup(this.watch("actions", (r) => regroup(r.value)));
-            // ── body 内边距（决策 6：padding props，默认 0.5em；number → px）──
-            const bodyStyle = (p) => {
-                const pad =
-                    typeof p === "number" && p >= 0
-                        ? p + "px"
-                        : typeof p === "string" && p.trim() !== ""
-                          ? p
-                          : "0.5em";
-                // 变更守卫：同 regroup——键缺位退化 watch-all 时避免无条件写新对象自反馈
-                if (this.data._bodyStyle?.padding !== pad) {
-                    this.data._bodyStyle = { padding: pad };
-                }
-            };
-            bodyStyle(this.data.padding);
-            this.watch("padding", (r) => bodyStyle(r.value));
-        },
-    })
+                for (const k of Object.keys(chrome)) chrome[k] = hasOutlet(k);
+                // ── actions 分组（ADR-0124 决策 4：pos 归位 + order 升序稳定排序）──
+                // top → 顶区；left → 左区；right / auto / bottom / 无 pos → 右区。
+                // 无 handle 条目剪枝（防御，正常经合并通道到达的条目 handle 必在）；
+                // 无 id 条目补合成键（x-for :key 稳定锚）。
+                const regroup = (list) => {
+                    const rows = (Array.isArray(list) ? list : []).filter(
+                        (a) => a && typeof a.handle === "function",
+                    );
+                    const withId = rows.map((a, i) =>
+                        a.id != null ? a : Object.assign({}, a, { id: "__overlay_action_" + i }),
+                    );
+                    const top = withId.filter((a) => a.pos === "top");
+                    const left = withId.filter((a) => a.pos === "left");
+                    const right = withId.filter((a) => a.pos !== "top" && a.pos !== "left");
+                    const byOrder = (x, y) =>
+                        (x.order == null ? 0 : x.order) - (y.order == null ? 0 : y.order);
+                    top.sort(byOrder);
+                    left.sort(byOrder);
+                    right.sort(byOrder);
+                    // 变更守卫：watch 回调可能因键缺位退化为空 deps watch-all（任意变更触发），
+                    // 无条件写新数组引用会自反馈成死循环——组员引用与顺序均未变时跳过写入
+                    const same = (key, next) => {
+                        const cur = this.data[key];
+                        return (
+                            Array.isArray(cur) &&
+                            cur.length === next.length &&
+                            next.every((a, i) => a === cur[i])
+                        );
+                    };
+                    // markRaw：组员含 handle 函数——autostore 见函数即求值（计算属性语义），
+                    // 分组数组赋入响应式 data 前须标记豁免，否则点击时读到求值结果而非函数
+                    if (!same("_topActions", top)) this.data._topActions = markRaw(top);
+                    if (!same("_leftActions", left)) this.data._leftActions = markRaw(left);
+                    if (!same("_rightActions", right)) this.data._rightActions = markRaw(right);
+                };
+                regroup(this.watch("actions", (r) => regroup(r.value)));
+                // ── body 内边距（决策 6：padding props，默认 0.5em；number → px）──
+                const bodyStyle = (p) => {
+                    const pad =
+                        typeof p === "number" && p >= 0
+                            ? p + "px"
+                            : typeof p === "string" && p.trim() !== ""
+                                ? p
+                                : "0.5em";
+                    // 变更守卫：同 regroup——键缺位退化 watch-all 时避免无条件写新对象自反馈
+                    if (this.data._bodyStyle?.padding !== pad) {
+                        this.data._bodyStyle = { padding: pad };
+                    }
+                };
+                bodyStyle(this.data.padding);
+                this.watch("padding", (r) => bodyStyle(r.value));
+            },
+        })
     </script>
 </div>

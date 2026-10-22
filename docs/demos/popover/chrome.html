@@ -13,16 +13,17 @@
         <div class="block">
           <h4 class="title is-6">① 配置式 title + icon + actions 多 pos 归位</h4>
           <p class="help has-text-grey is-size-7">
-            popover 同样走骨架；点击触发（<code>.click</code>）而非 hover，否则气泡会在鼠标移动时消失
+            popover 同样走骨架；点击触发（<code>.click</code>）而非 hover，否则气泡会在鼠标移动时消失；
+            动作执行后气泡经面板外点击 / ESC 关闭
           </p>
           <button
             class="button is-primary"
             x-popover:preview.click
             x-popover-options="{delayShow: 0, title: '用户信息', icon: 'user', closeable: true}"
             x-popover-options.actions="[
-              {id: 'edit',  title: '编辑', icon: 'edit',  pos: 'top',    order: 1, handle: () => { ui.doing = '编辑'; close() }},
-              {id: 'share', title: '分享', icon: 'share', pos: 'top',    order: 2, handle: () => { ui.doing = '分享'; close() }},
-              {id: 'remove',title: '移除',                 pos: 'right',           handle: () => { ui.doing = '移除'; close() }}
+              {id: 'edit',  title: '编辑', icon: 'edit',  pos: 'top',    order: 1, handle: () => { ui.doing = '编辑'; }},
+              {id: 'share', title: '分享', icon: 'share', pos: 'top',    order: 2, handle: () => { ui.doing = '分享'; }},
+              {id: 'remove',title: '移除',                 pos: 'right',           handle: () => { ui.doing = '移除'; }}
             ]"
           >
             查看用户气泡（点击）

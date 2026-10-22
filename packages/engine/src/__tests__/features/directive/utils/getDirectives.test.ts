@@ -165,7 +165,6 @@ describe("findDirectives - options 补充参数", () => {
             name: "if",
             value: "xxx",
             options: { a: 1 },
-            optionExprs: { __directiveFull__: "({a:1})" },
         });
     });
 
@@ -179,21 +178,76 @@ describe("findDirectives - options 补充参数", () => {
             name: "for",
             value: "items",
             options: { key: "item", index: "i", conf: { delay: 100 } },
-            optionExprs: { __directiveFull__: "({ key:item, index:i, conf:{ delay:100 } })" },
         });
     });
 
     test("options 合并到同名主指令，且自身不单独占位（顺序保持）", () => {
         const list = getDirectives(elWith({ "x-if": "a", "x-if-options": "{a:1}", "x-text": "b" }));
         expect(list).toEqual([
-            { name: "if", value: "a", options: { a: 1 }, optionExprs: { __directiveFull__: "({a:1})" } },
+            { name: "if", value: "a", options: { a: 1 } },
             { name: "text", value: "b" },
         ]);
     });
 
     test("options 声明在主指令之前也能正确合并", () => {
         const list = getDirectives(elWith({ "x-if-options": "{a:1}", "x-if": "a" }));
-        expect(list).toEqual([{ name: "if", value: "a", options: { a: 1 }, optionExprs: { __directiveFull__: "({a:1})" } }]);
+        expect(list).toEqual([{ name: "if", value: "a", options: { a: 1 } }]);
+    });
+
+    test("整包含箭头函数 → 降级表达式通道（optionExprs.__directiveFull__，静态层留空）", () => {
+        expect(
+            parseOne({
+                "x-dialog": "ui.open",
+                "x-dialog-options": "{actions: [{handle: () => close()}]}",
+            }),
+        ).toEqual({
+            name: "dialog",
+            value: "ui.open",
+            optionExprs: { __directiveFull__: "({actions: [{handle: () => close()}]})" },
+        });
+    });
+
+    test("整包含 function 关键字 / 简写方法同样降级", () => {
+        const r1 = parseOne({ "x-if": "a", "x-if-options": "{handle: function(){ return 1 }}" });
+        expect(r1.options).toBeUndefined();
+        expect(r1.optionExprs).toEqual({
+            __directiveFull__: "({handle: function(){ return 1 }})",
+        });
+    });
+
+    test("定向整包含函数 → 定向目标降级且静态层清空（替换语义）", () => {
+        const list = getDirectives(
+            elWith({
+                "x-dialog:k1": "ui.o1",
+                "x-dialog:k2": "ui.o2",
+                "x-dialog-options:k2": "{closeOnMask: false, handle: () => close()}",
+            }),
+        );
+        expect(list).toEqual([
+            { name: "dialog", attr: "k1", value: "ui.o1" },
+            {
+                name: "dialog",
+                attr: "k2",
+                value: "ui.o2",
+                optionExprs: {
+                    __directiveFull__: "({closeOnMask: false, handle: () => close()})",
+                },
+            },
+        ]);
+    });
+
+    test("定向整包纯静态 → 替换目标 options（不产 optionExprs）", () => {
+        const list = getDirectives(
+            elWith({
+                "x-dialog:k1": "ui.o1",
+                "x-dialog:k2": "ui.o2",
+                "x-dialog-options:k2": "{closeOnMask: false}",
+            }),
+        );
+        expect(list).toEqual([
+            { name: "dialog", attr: "k1", value: "ui.o1" },
+            { name: "dialog", attr: "k2", value: "ui.o2", options: { closeOnMask: false } },
+        ]);
     });
 
     test("找不到同名主指令时 options 被忽略", () => {

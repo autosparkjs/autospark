@@ -23,8 +23,8 @@
             x-dialog-options.actions="[
               {id: 'reload', title: '刷新', icon: 'refresh', pos: 'top',    order: 1, handle: () => { doing = '刷新'; }},
               {id: 'download', title: '下载', icon: 'download', pos: 'top',    order: 2, handle: () => { doing = '下载'; }},
-              {id: 'cancel',  title: '取消',                  pos: 'left',            handle: () => close()},
-              {id: 'ok',      title: '确认',                  pos: 'right',           handle: () => { doing = '确认关闭'; close() }}
+              {id: 'cancel',  title: '取消',                  pos: 'left',            handle: () => { ui.preview = false; }},
+              {id: 'ok',      title: '确认',                  pos: 'right',           handle: () => { doing = '确认关闭'; ui.preview = false; }}
             ]"
             @click="ui.preview = true"
           >

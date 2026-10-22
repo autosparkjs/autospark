@@ -2,28 +2,26 @@ import { relaxedToJson } from "../../../utils/relaxedToJson";
 import { CompileError } from "../../../errors";
 import type { AutoDirectiveInfo } from "../types";
 
-/** 指令整包 options 的解析策略（方案 A：统一 expr + 双通道共存） */
+/** 指令整包 options 的解析策略（方案 A：静态优先，含函数降级表达式通道） */
 interface FullOptionsParseResult {
     /** 静态快照（relaxedToJson → JSON.parse 成功才有；失败且含函数则 undefined） */
     static?: Record<string, any>;
-    /** 表达式文本（套括号后，如 `({title: '预览', actions: [...]})`）——始终有，供运行期 eval + 响应式 */
-    expr: string;
+    /** 表达式文本（套括号后）——仅 degraded 时在场，供运行期 eval + 响应式 */
+    expr?: string;
     /** 是否函数降级（静态解析失败、含函数语法）——仅存表达式层，静态层留空让无 watcher 指令跳过 */
     degraded?: boolean;
 }
 
 /**
- * 解析整包 options（方案 A：静态快照 + 表达式双通道）：
+ * 解析整包 options（方案 A）：
  *
- * 1. 先试 relaxedToJson → JSON.parse（零开销静态快照），成功则静态层 + 表达式层都写；
- * 2. 失败且检测到函数语法（箭头 / function 关键字 / 简写方法） → **降级**：只存表达式层（warn 一次），
- *    静态层留空；无 watcher 的指令此时读不到（但含函数的整包本来就必须走表达式通道，降级后正常工作）；
+ * 1. 先试 relaxedToJson → JSON.parse（零开销静态快照）——成功即纯 JSON 对象
+ *    （JSON 语义保证无状态引用、无表达式），**只写静态层**，不建表达式订阅；
+ * 2. 失败且检测到函数语法（箭头 / function 关键字 / 简写方法） → **降级**：只存表达式层
+ *    （expr 套括号 `(${raw})`，运行期 `new Function` 求值 + 响应式），静态层留空；
  * 3. 其他失败（纯语法错） → 正常抛 CompileError。
- *
- * expr 始终套括号 `(${raw})`——让对象字面量成为合法表达式，便于 `new Function("return ...")` 求值。
  */
 function parseFullOptions(rawValue: string): FullOptionsParseResult {
-    const expr = `(${rawValue})`;
     // 静态解析尝试
     try {
         const parsed: unknown = JSON.parse(relaxedToJson(rawValue));
@@ -33,18 +31,13 @@ function parseFullOptions(rawValue: string): FullOptionsParseResult {
                 `指令 options 必须是对象字符串，实际解析得到：${JSON.stringify(parsed)}`,
             );
         }
-        return { static: parsed as Record<string, any>, expr };
+        return { static: parsed as Record<string, any> };
     } catch (err: any) {
         // 非 JSON.parse 失败 → 继续抛
         if (!(err instanceof SyntaxError)) throw err;
         // 检测是否函数语法（箭头 / function 关键字 / 对象简写方法 `{method(){}}`）
-        const hasFunc =
-            /\(\s*\)\s*=>/.test(rawValue) ||
-            /=>/.test(rawValue) ||
-            /\bfunction\s*\(/.test(rawValue) ||
-            /{\s*\w+\s*\([^)]*\)\s*\{/.test(rawValue);
-        if (hasFunc) {
-            return { expr, degraded: true };
+        if (rawOptionsHasFunc(rawValue)) {
+            return { expr: `(${rawValue})`, degraded: true };
         }
         // 纯语法错，抛原错误
         throw new CompileError(
@@ -54,7 +47,7 @@ function parseFullOptions(rawValue: string): FullOptionsParseResult {
     }
 }
 
-/** 检测函数：原始整包 options 是否含函数语法（供外部 warn） */
+/** 检测原始整包 options 是否含函数语法（箭头 / function 关键字 / 对象简写方法） */
 function rawOptionsHasFunc(rawValue: string): boolean {
     return (
         /\(\s*\)\s*=>/.test(rawValue) ||
@@ -331,11 +324,11 @@ export function getDirectives(el: HTMLElement, prefix = "x-"): AutoDirectiveInfo
         // 其余普通 HTML 属性（class、id 等）忽略
     }
 
-    // 4. 将 -options 补充参数合并到已解析指令（ADR-0007 修订四形态 + 方案 A 统一 expr）：
-    //    - 整包 / 定向整包：parseFullOptions 双通道——静态快照写 target.options（零开销），
-    //      expr 写 target.optionExprs.__directiveFull__（运行期 eval + 响应式）；
-    //      degraded=true（含函数）时静态层留空，仅存表达式层；
-    //    - 成员（含定向/无定向）：写入 optionExprs（既有行为不变）。
+    // 4. 将 -options 补充参数合并到已解析指令（ADR-0007 修订四形态 + 方案 A 函数降级）：
+    //    - 整包 / 定向整包：纯静态 JSON（relaxedToJson 可解析——JSON 语义保证无状态引用）
+    //      只写 target.options（零开销，不建订阅）；含函数（degraded）只写
+    //      target.optionExprs.__directiveFull__（运行期 eval + 响应式），静态层留空；
+    //    - 成员（含定向/无定向）：写入 optionExprs（既有行为不变，成员键优先于整包内嵌同名键）。
     //    消歧同既有：colon 首段匹配同名主指令 attr → 定向；否则 colon 降为无定向成员名。
     //    孤儿（找不到主指令）静默忽略。
     for (const opt of pendingOptions) {
@@ -369,19 +362,19 @@ export function getDirectives(el: HTMLElement, prefix = "x-"): AutoDirectiveInfo
 
         // 分支 1：整包 / 定向整包（fullParse 有值）
         if (fullParse) {
-            // ① expr 进 optionExprs.__directiveFull__（方案 A：统一表达式层，运行期 eval + 响应式）
-            target.optionExprs = {
-                ...target.optionExprs,
-                __directiveFull__: fullParse.expr,
-            };
-            // ② 静态快照进 target.options（零开销 fallback）
-            if (!fullParse.degraded && fullParse.static) {
+            if (fullParse.degraded) {
+                // 含函数 → 只进表达式层（运行期 eval + 响应式；成员键优先守卫在 _watchOptionExprs）
+                target.optionExprs = {
+                    ...target.optionExprs,
+                    __directiveFull__: fullParse.expr!,
+                };
+                // replace=true（定向整包）→ 清空旧静态层（旧值与新值不兼容）
+                if (replace) target.options = undefined;
+            } else if (fullParse.static) {
+                // 纯静态 JSON → 只写静态层（零开销，不建订阅）
                 target.options = replace || !target.options
                     ? fullParse.static
                     : { ...target.options, ...fullParse.static };
-            } else if (replace) {
-                // degraded 且 replace=true → 清空旧静态层（旧值与新值不兼容）
-                target.options = undefined;
             }
             continue;
         }

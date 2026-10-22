@@ -540,18 +540,20 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 
 #### 配置式：title / icon / actions
 
-最常见用法——五个骨架键经 `x-dialog-options` 配置。**整包 attr 走宽松 JSON 解析（relaxedToJson → JSON.parse）**——只解决无引号键 / 尾逗号 / 单引号等语法糖，**不支持箭头函数**。含函数的 `actions` 数组**必须拆成成员属性表达式**（`x-dialog-options.actions`）——该通道走完整 JS 表达式求值（`new Function + with(scope)`），箭头函数合法：
+最常见用法——五个骨架键经 `x-dialog-options` 配置。整包 attr 支持两种形态：**纯静态 JSON**（relaxedToJson → JSON.parse 编译期解析，零开销静态层，不建订阅）；**含函数的对象字面量**（箭头函数 / `function` / 简写方法——自动降级为运行期完整 JS 表达式求值，含响应式）。成员属性通道（`x-dialog-options.键="表达式"`）同样走完整 JS 求值：
 
 ```html
 <button
   x-dialog:preview="ui.open"
-  x-dialog-options="{title: '文件预览', icon: 'eye', closeable: true}"
-  x-dialog-options.actions="[
-    {id: 'reload',  title: '刷新', icon: 'refresh', pos: 'top',    order: 1, handle: () => refresh()},
-    {id: 'download',title: '下载', icon: 'download', pos: 'top',    order: 2, handle: () => download()},
-    {id: 'cancel',  title: '取消',                   pos: 'left',            handle: () => close()},
-    {id: 'ok',      title: '确认',                   pos: 'right',           handle: () => close()}
-  ]"
+  x-dialog-options="{
+    title: '文件预览', icon: 'eye', closeable: true,
+    actions: [
+      {id: 'reload',  title: '刷新', icon: 'refresh', pos: 'top',    order: 1, handle: () => refresh()},
+      {id: 'download',title: '下载', icon: 'download', pos: 'top',    order: 2, handle: () => download()},
+      {id: 'cancel',  title: '取消',                   pos: 'left',            handle: () => { ui.open = false; }},
+      {id: 'ok',      title: '确认',                   pos: 'right',           handle: () => { ui.open = false; }}
+    ]
+  }"
   @click="ui.open = true"
 >
   预览
@@ -560,10 +562,10 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 
 几个要点：
 
-- **两条通道的分工**：整包 `x-dialog-options="{...}"` 写**静态可 JSON** 的键（title / icon / closeable / padding 等）；成员属性 `x-dialog-options.键="表达式"` 走完整 JS 求值——需要函数的键（actions、shell 动态求值等）必须走成员属性；
+- **两条通道的分工与优先级**：整包 `x-dialog-options="{...}"` 一次写全——纯静态 JSON 走零开销静态层；检测到函数语法自动降级为表达式通道（含响应式，无状态引用时不建订阅）。成员属性 `x-dialog-options.键="表达式"` 走完整 JS 求值，且**成员属性整键覆盖整包内嵌同名键**（ADR-0007）；
 - `title` / `icon` / `closeable` 是**头部配置**；`actions` 是**动作数组**——按 `pos` 归位：`top` → header 右侧、`left` → footer 左区、`right` / `auto` / `bottom` / 无 pos → footer 右区，同 `pos` 内 `order` 升序稳定排序；
 - `icon` 走 **x-icon 域**——内置名 `eye` / `gear` / `trash` / `user` / `edit` / `search` / `save` / `close` / `check` / `refresh` / `download` / `lock` / `info` / `warn` 等；自定义图标注册到 x-icon 域后同名可直用；
-- `actions` 每项 `handle` 是**全局作用域函数**（非组件方法），执行时可直接调 `close()` 广播请求关闭链；不想写 `handle` 可把动作 id 绑定到组件方法（消费处 scope 同名 id）——骨架动作双通道语义，见 [覆盖物 · 动作双通道](../engine/overlays.md#骨架动作双通道handle--消费处scope)；
+- `actions` 每项 `handle` 在**消费处作用域**求值（定义处 `with(scope)` 词法链）——可直接读写消费处数据：visible 驱动形态下写回 `ui.open = false` 即关闭面板（面板内模板元素的 `@click="close()"` 信号动作语义不变）；不想写 `handle` 可把动作 id 绑定到组件方法（消费处 scope 同名 id）——骨架动作双通道语义，见 [覆盖物 · 动作双通道](../engine/overlays.md#骨架动作双通道handle--消费处scope)；
 - 条件渲染：header / footer **有内容才渲染**（`closeable: false` 且标题、图标、动作区全空时 header 消失）；body 恒渲染。
 
 #### slots 重载：title / actions / header / footer

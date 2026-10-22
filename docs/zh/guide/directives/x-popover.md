@@ -167,7 +167,7 @@ hover 交互在触摸屏上没有对应物（点按会以模拟事件触发 mous
 
 #### 配置式：title / icon / actions
 
-最常见用法——五个骨架键经 `x-popover-options` 配置。popover 用 `.click` 触发（否则气泡随鼠标消失）。**整包 attr 走宽松 JSON 解析（relaxedToJson → JSON.parse）**——只解决无引号键 / 尾逗号 / 单引号等语法糖，**不支持箭头函数**；含函数的 `actions` 数组必须拆成成员属性表达式（`x-popover-options.actions`），该通道走完整 JS 表达式求值，箭头函数合法：
+最常见用法——五个骨架键经 `x-popover-options` 配置。popover 用 `.click` 触发（否则气泡随鼠标消失）。整包 attr 支持纯静态 JSON（零开销静态层）与含函数对象字面量（自动降级为运行期表达式求值）两种形态，成员属性通道同走完整 JS 求值——通道规则与 x-dialog 完全一致（见 [x-dialog · 配置式](../../directives/x-dialog.md#配置式title--icon--actions)）：
 
 ```html
 <button
@@ -183,7 +183,7 @@ hover 交互在触摸屏上没有对应物（点按会以模拟事件触发 mous
 </button>
 ```
 
-要点与 x-dialog 完全一致：两条通道分工（整包写静态可 JSON 键、成员属性写函数）；`icon` 走 x-icon 域（内置名见 [x-dialog · 配置式](../../directives/x-dialog.md#配置式title--icon--actions)）；`actions` 按 `pos` 归位（top → header 右侧、left → footer 左区、right → footer 右区），`handle` 是全局作用域函数、可直接调 `close()`；header/footer 有内容才渲染。
+要点与 x-dialog 完全一致：`icon` 走 x-icon 域（内置名见 [x-dialog · 配置式](../../directives/x-dialog.md#配置式title--icon--actions)）；`actions` 按 `pos` 归位（top → header 右侧、left → footer 左区、right → footer 右区）；`handle` 在消费处作用域求值（popover 是触发模型、无 visible 写回——动作执行后气泡经面板外点击 / ESC 关闭）；header/footer 有内容才渲染。
 
 #### slots 重载：title / actions / header / footer
 

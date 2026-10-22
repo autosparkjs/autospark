@@ -182,28 +182,56 @@ export class AutoSparkDirectiveBase {
         const exprs = this.info.optionExprs;
         if (!exprs) return;
 
-        // 方案 A：先处理 __directiveFull__（整包 expr）——解包后 Object.assign 进 _optionExprValues
+        // 方案 A：先处理 __directiveFull__（含函数整包的降级表达式）——解包进 _optionExprValues。
+        // 成员属性通道优先（ADR-0007：成员整键覆盖整包内嵌同名项）：整包重求值不得覆盖/删除
+        // 成员键，故以 memberKeys 守卫；整包自身旧键按轮次替换（prevFullKeys 追踪）。
         const fullExpr = exprs["__directiveFull__"];
         if (fullExpr && !skip?.includes("__directiveFull__")) {
+            const memberKeys = new Set(Object.keys(exprs).filter((k) => k !== "__directiveFull__"));
+            let prevFullKeys: string[] = [];
             const updateFull = ({ value }: { value: any }) => {
-                // 整包 expr eval 结果是对象 → Object.assign 各成员；不是对象则整体塞在 __directiveFull__ 占位
+                // 整包 expr eval 结果是对象 → 解包各成员；不是对象则整体塞在 __directiveFull__ 占位
                 if (value && typeof value === "object") {
                     this._optionExprValues ??= {};
-                    // 清除上一轮有、这一轮没有的旧键（整包整体替换语义）
-                    const prevKeys = new Set(Object.keys(this._optionExprValues));
-                    for (const k of Object.keys(value)) prevKeys.delete(k);
-                    for (const k of prevKeys) delete (this._optionExprValues as any)[k];
-                    // 覆盖/新增本轮键
-                    Object.assign(this._optionExprValues, value);
+                    // 清除上一轮整包设置的、本轮消失且非成员通道的键（整包整体替换语义）
+                    for (const k of prevFullKeys) {
+                        if (!(k in value) && !memberKeys.has(k)) {
+                            delete (this._optionExprValues as any)[k];
+                        }
+                    }
+                    // 覆盖/新增本轮键（成员通道键跳过——成员属性优先）
                     for (const [k, v] of Object.entries(value)) {
+                        if (memberKeys.has(k)) continue;
+                        (this._optionExprValues as any)[k] = v;
                         if (!skip?.includes(k)) this._onOptionExprChange(k, v);
                     }
+                    prevFullKeys = Object.keys(value);
                 } else {
                     (this._optionExprValues ??= {})["__directiveFull__"] = value;
                 }
             };
-            const initial = this.binding.watch(fullExpr, updateFull);
-            updateFull({ value: initial });
+            // 空依赖防 watchAll（降级整包的典型态是纯对象字面量——无状态引用）：watch 空依赖
+            // 会退化为 watch-all，任意状态变化重求值产出全新引用，经下游消费再触发状态写入
+            // 形成自反馈微任务风暴（实测单用例 511s）。首求值收集依赖，空依赖只吃初值不订阅；
+            // 有依赖走常规 watch（响应式保留）。
+            const fullGetter = new Function(
+                "scope",
+                `with(scope){ return (${fullExpr}); }`,
+            ) as (scope: any) => any;
+            let initialFull: any;
+            const fullDeps = this.engine.store.collectDependencies(() => {
+                try {
+                    initialFull = fullGetter(this.binding.getContext());
+                } catch {
+                    initialFull = undefined;
+                }
+            }, "read");
+            if (fullDeps.length === 0) {
+                updateFull({ value: initialFull });
+            } else {
+                const initial = this.binding.watch(fullExpr, updateFull);
+                updateFull({ value: initial });
+            }
         }
 
         for (const [key, expr] of Object.entries(exprs)) {

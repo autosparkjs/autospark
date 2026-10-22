@@ -308,7 +308,7 @@
 
 #### 配置式：title / icon / actions
 
-最常见用法——五个骨架键经 `x-drawer-options` 配置。drawer 是 visible 驱动形态（与 dialog 同构）。**整包 attr 走宽松 JSON 解析（relaxedToJson → JSON.parse）**——只解决无引号键 / 尾逗号 / 单引号等语法糖，**不支持箭头函数**；含函数的 `actions` 数组必须拆成成员属性表达式（`x-drawer-options.actions`），该通道走完整 JS 表达式求值，箭头函数合法：
+最常见用法——五个骨架键经 `x-drawer-options` 配置。drawer 是 visible 驱动形态（与 dialog 同构）。整包 attr 支持纯静态 JSON（零开销静态层）与含函数对象字面量（自动降级为运行期表达式求值）两种形态，成员属性通道同走完整 JS 求值——通道规则与 x-dialog 完全一致（见 [x-dialog · 配置式](../../directives/x-dialog.md#配置式title--icon--actions)）：
 
 ```html
 <button
@@ -324,7 +324,7 @@
 </button>
 ```
 
-要点与 x-dialog 完全一致：两条通道分工（整包写静态可 JSON 键、成员属性写函数）；`icon` 走 x-icon 域（内置名见 [x-dialog · 配置式](../../directives/x-dialog.md#配置式title--icon--actions)）；`actions` 按 `pos` 归位（top → header 右侧、left → footer 左区、right → footer 右区），`handle` 是全局作用域函数、可直接调 `close()`；header/footer 有内容才渲染；body 自动滚动、header/footer 保持悬浮可见。
+要点与 x-dialog 完全一致：`icon` 走 x-icon 域（内置名见 [x-dialog · 配置式](../../directives/x-dialog.md#配置式title--icon--actions)）；`actions` 按 `pos` 归位（top → header 右侧、left → footer 左区、right → footer 右区）；`handle` 在消费处作用域求值，visible 驱动下写回 `ui.open = false` 即关闭（见 [x-dialog · 配置式](../../directives/x-dialog.md#配置式title--icon--actions)）；header/footer 有内容才渲染；body 自动滚动、header/footer 保持悬浮可见。
 
 #### slots 重载：title / actions / header / footer
 

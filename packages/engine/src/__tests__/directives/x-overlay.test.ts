@@ -486,6 +486,53 @@ describe("配置两级链（ADR-0052 v2.3：内置默认 < x-dialog-options）",
         finishAnim(mask);
         expect(containerOf()!.contains(mask)).toBe(false);
     });
+
+    test("降级整包：含函数对象字面量运行期求值，actions 按钮渲染且 handle 可触发", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="cfg"><span>body</span></div>
+                <button x-dialog:cfg="ui.open"
+                    x-dialog-options="{title: '预览', actions: [{title: '关闭', handle: () => { ui.open = false; }}]}"></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        engine.state.ui.open = true;
+        await nextTick();
+        const el = document.querySelector(
+            `.autospark-overlays [data-overlay="cfg"]`,
+        ) as HTMLElement;
+        expect(el).not.toBeNull();
+        expect(el.textContent).toContain("预览");
+        // actions 按钮渲染：handle 函数经 markRaw 链跨 shell→overlay 两跳注入存活
+        //（autostore 见函数即求值——未标记的函数值会在响应式 data 注入时被计算属性语义剥除）
+        const btn = [...el.querySelectorAll("button")].find((b) =>
+            b.textContent?.includes("关闭"),
+        );
+        expect(btn).toBeTruthy();
+        (btn as HTMLElement).click();
+        await nextTick();
+        expect(document.querySelector(`.autospark-overlays [data-overlay="cfg"]`)).toBeNull();
+    });
+
+    test("降级整包：纯字面量无状态引用不建订阅（成员键优先不被重放覆盖）", async () => {
+        const { engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="mix3"><span>x</span></div>
+                <button x-dialog:mix3="ui.open"
+                    x-dialog-options="{closeOnMask: false, handle: () => 1}"
+                    x-dialog-options.close-on-mask="true"></button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        engine.state.ui.open = true;
+        await nextTick();
+        // 空依赖整包不订阅（防 watch-all 重放）；任意状态变化后成员通道 closeOnMask: true 恒胜出
+        engine.state.ui.open = true;
+        await nextTick();
+        maskOf("mix3")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await nextTick();
+        expect(maskOf("mix3")).toBeNull();
+    });
 });
 
 describe("命令式 API（engine.getOverlay，共识 10 镜像 getComponentDeclaration）", () => {

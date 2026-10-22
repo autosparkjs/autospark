@@ -20,8 +20,8 @@
             x-drawer:settings="ui.settings"
             x-drawer-options="{title: '系统设置', icon: 'gear', closeable: true}"
             x-drawer-options.actions="[
-              {id: 'save',  title: '保存', icon: 'save', pos: 'right', order: 1, handle: () => { ui.doing = '保存设置'; close() }},
-              {id: 'reset', title: '重置',                 pos: 'right', order: 2, handle: () => { ui.doing = '重置设置'; close() }}
+              {id: 'save',  title: '保存', icon: 'save', pos: 'right', order: 1, handle: () => { ui.doing = '保存设置'; ui.settings = false; }},
+              {id: 'reset', title: '重置',                 pos: 'right', order: 2, handle: () => { ui.doing = '重置设置'; ui.settings = false; }}
             ]"
             @click="ui.settings = true"
           >

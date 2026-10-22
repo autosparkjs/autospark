@@ -1,3 +1,4 @@
+import { markRaw } from "autostore";
 import type {
     ComponentHookPhase,
     ComponentHooks,
@@ -103,7 +104,10 @@ export function evalComponentSetup(
     if (!text) return undefined;
     let result: any;
     try {
-        result = new Function(`return (${text})`)();
+        // 注入 markRaw builder（与数据脚本 computed/configurable 同姿态，ADR-0032 决策 2）：
+        // autostore 见函数即求值（函数值一律视为计算属性），setup data 需持原始函数引用
+        // （如 overlay actions 的 handle 按钮回调）时以 markRaw 包裹豁免响应式转换。
+        result = new Function("markRaw", `return (${text})`)(markRaw);
     } catch (e: any) {
         warn(`x-define "${name}": <script setup> 求值失败，已丢弃: ${e?.message ?? e}`);
         return undefined;

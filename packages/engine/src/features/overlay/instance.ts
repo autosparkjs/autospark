@@ -15,6 +15,7 @@ import {
     type OverlayEventDetail,
 } from "./types";
 import { DIALOG_SHELL_NAME } from "../../components";
+import { markRaw } from "autostore";
 
 /**
  * 面板外壳组件定义（shell 机制，ADR-0062）：消费者/命令式解析后传入。
@@ -651,6 +652,13 @@ export class OverlayInstance {
             for (const [name, seg] of this.chromeSlots) shellSlots.set(name, seg);
         }
         const shellClone = shell.snapshot.cloneNode(true) as HTMLElement;
+        // actions 条目含 handle 函数：autostore 将赋入响应式 state 的函数值视为 computed
+        // 立即求值替换（config 整包 Object.assign 注入 shell data 域时函数被剥离，声明式
+        // 与命令式双通道均经此）。markRaw 标记数组本身——raw 标记随引用跨 shell→overlay
+        // 组件 props 二跳注入存活，handle 以原引用抵达 overlay 组件 data 域。
+        if (Array.isArray(this.config.actions)) {
+            this.config.actions = markRaw(this.config.actions);
+        }
         const shellCompiled = this.engine.compiler.instantiateDetachedComponent(
             shellClone,
             null, // shell rootless 挂链：形态组件不依赖声明上下文，生命周期归本实例
