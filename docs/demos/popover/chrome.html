@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-popover · 结构骨架 title / icon / actions / slots</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <div class="demo-app section">
+      <div x-data="{ ui: { doing: '' } }">
+
+        <div class="block">
+          <h4 class="title is-6">① 配置式 title + icon + actions 多 pos 归位</h4>
+          <p class="help has-text-grey is-size-7">
+            popover 同样走骨架；点击触发（<code>.click</code>）而非 hover，否则气泡会在鼠标移动时消失
+          </p>
+          <button
+            class="button is-primary"
+            x-popover:preview.click
+            x-popover-options="{delayShow: 0, title: '用户信息', icon: 'user', closeable: true}"
+            x-popover-options.actions="[
+              {id: 'edit',  title: '编辑', icon: 'edit',  pos: 'top',    order: 1, handle: () => { ui.doing = '编辑'; close() }},
+              {id: 'share', title: '分享', icon: 'share', pos: 'top',    order: 2, handle: () => { ui.doing = '分享'; close() }},
+              {id: 'remove',title: '移除',                 pos: 'right',           handle: () => { ui.doing = '移除'; close() }}
+            ]"
+          >
+            查看用户气泡（点击）
+          </button>
+          <span class="has-text-grey is-size-7 ml-2" x-show="ui.doing">最近动作：<b x-text="ui.doing"></b></span>
+        </div>
+
+        <div class="block">
+          <h4 class="title is-6">② slots 重载骨架 chrome —— 自定义标题 + 底部按钮</h4>
+          <p class="help has-text-grey is-size-7">popover 面板较紧凑，header/footer 的 slots 重载与 dialog/drawer 完全同协议</p>
+          <button
+            class="button is-link"
+            x-popover:confirm.click
+            x-popover-options="{delayShow: 0, closeable: true}"
+          >
+            <template x-slot:title>
+              <span class="has-text-danger">⚠️ 二次确认</span>
+            </template>
+            <template x-slot:actions.right>
+              <button class="button is-danger is-small" @click="close()">确认</button>
+            </template>
+            自定义骨架 slots（点击）
+          </button>
+        </div>
+
+        <div class="block">
+          <h4 class="title is-6">③ 骨架开关：悬浮提示（hover 触发，closeable: false 无关闭按钮）</h4>
+          <p class="help has-text-grey is-size-7">
+            popover 默认 hover 触发、无 close 按钮、箭头自动 flip——最紧凑形态
+          </p>
+          <button
+            class="button"
+            x-popover:tip
+            x-popover-options="{delayShow: 0, closeable: false, padding: 0, at: {arrow: false}}"
+          >
+            悬停看气泡（hover）
+          </button>
+        </div>
+
+        <div class="block has-text-grey is-size-7">
+          popover 的骨架与 dialog/drawer 完全同源（底层 <code>autospark.overlay</code>），唯一差异是：
+          popover 默认 hover 触发、closeable 默认 false、箭头自动定位。配置键 / slots / actions 归位协议全部共用。
+        </div>
+
+        <!-- 内容组件 -->
+        <div x-define="preview">
+          <p class="content is-size-7">
+            <b>张三</b>（ID: 10086）<br />
+            角色：前端工程师<br />
+            入职：2024-01-15
+          </p>
+        </div>
+
+        <div x-define="confirm">
+          <p class="content is-size-7">确认执行此操作？不可撤销。</p>
+        </div>
+
+        <div x-define="tip">
+          <span class="has-text-grey is-size-7">这是一段紧凑提示——无骨架 chrome，悬浮触发、自动 flip</span>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

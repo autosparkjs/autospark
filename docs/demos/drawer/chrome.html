@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-drawer · 结构骨架 title / icon / actions / slots</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <div class="demo-app section">
+      <div x-data="{ ui: { settings: false, slotCustom: false, doing: '' } }">
+
+        <div class="block">
+          <h4 class="title is-6">① 配置式 title + icon + actions（多 pos 归位）</h4>
+          <p class="help has-text-grey is-size-7">
+            drawer 是 visible 驱动形态（与 dialog 同构），内容更长时 body 区自动滚动、header/footer 保持可见
+          </p>
+          <button
+            class="button is-primary"
+            x-drawer:settings="ui.settings"
+            x-drawer-options="{title: '系统设置', icon: 'gear', closeable: true}"
+            x-drawer-options.actions="[
+              {id: 'save',  title: '保存', icon: 'save', pos: 'right', order: 1, handle: () => { ui.doing = '保存设置'; close() }},
+              {id: 'reset', title: '重置',                 pos: 'right', order: 2, handle: () => { ui.doing = '重置设置'; close() }}
+            ]"
+            @click="ui.settings = true"
+          >
+            打开设置抽屉（右侧）
+          </button>
+          <span class="has-text-grey is-size-7 ml-2" x-show="ui.doing">最近动作：<b x-text="ui.doing"></b></span>
+        </div>
+
+        <div class="block">
+          <h4 class="title is-6">② slots 重载骨架 chrome —— 富文本标题 + 自定义底部按钮</h4>
+          <p class="help has-text-grey is-size-7">
+            drawer 面板较宽，适合重载整个 header/footer 区——用 <code>&lt;template x-slot:title&gt;</code> / <code>actions.right</code>
+          </p>
+          <button
+            class="button is-link"
+            x-drawer:custom="ui.slotCustom"
+            x-drawer-options="{closeable: true}"
+            @click="ui.slotCustom = true"
+          >
+            <template x-slot:title>
+              <span class="icon-text">
+                <span class="has-text-info">📝</span>
+                <span>编辑器</span>
+              </span>
+              <span class="tag is-small is-info is-light ml-2">自动保存中…</span>
+            </template>
+            <template x-slot:actions.right>
+              <button class="button is-small is-text" @click="close()">取消</button>
+              <button class="button is-small is-primary" @click="close()">应用</button>
+            </template>
+            自定义骨架 slots
+          </button>
+        </div>
+
+        <div class="block has-text-grey is-size-7">
+          抽屉的骨架与 dialog/popover 完全同源（底层 <code>autospark.overlay</code>），唯一差异是形态（侧滑遮罩 + 宽度配置）；
+          配置键 / slots / actions 归位协议全部共用。body 区自动滚动——header/footer 保持悬浮可见。
+        </div>
+
+        <!-- 内容组件 -->
+        <div x-define="settings">
+          <div class="content">
+            <h4>基础设置</h4>
+            <label class="checkbox"><input type="checkbox" /> 启用深色模式</label><br />
+            <label class="checkbox"><input type="checkbox" checked /> 自动保存</label><br />
+            <label class="checkbox"><input type="checkbox" /> 发送通知</label>
+            <h4 class="mt-5">语言</h4>
+            <div class="select"><select><option>简体中文</option><option>English</option></select></div>
+            <h4 class="mt-5">滚动内容演示</h4>
+            <p class="is-size-7 has-text-grey">
+              body 区是 overflow: auto，header/footer 保持可见。滚动到底部试试。
+            </p>
+            <div x-for="i in 20" :key="i" class="level is-size-7">
+              <span>项目 <b x-text="i"></b></span>
+              <span class="has-text-grey is-italic">示例条目</span>
+            </div>
+          </div>
+        </div>
+
+        <div x-define="custom">
+          <p class="content">
+            这是一段富文本抽屉正文——标题已被 slots 重载为 emoji + 文本 + tag、底部按钮为自定义「取消」「应用」。
+          </p>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

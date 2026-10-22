@@ -161,26 +161,54 @@ hover 交互在触摸屏上没有对应物（点按会以模拟事件触发 mous
 
 ### 结构骨架（chrome）：标题 / 关闭按钮 / 动作区
 
-内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——气泡面板默认自带 header（`closeable: true` 时有关闭按钮）与 body 内边距（`padding: '0.5em'`）。五个骨架键经 `x-popover-options` 配置：
+内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——气泡面板默认自带 header（`closeable: true` 时有关闭按钮）与 body 内边距（`padding: '0.5em'`）。五个骨架键经 `x-popover-options` 配置。骨架与 x-dialog/x-drawer 完全同源（底层 `autospark.overlay`），唯一差异是 popover 默认 hover 触发、closeable 默认 false。
+
+<demo html="popover/chrome.html"/>
+
+#### 配置式：title / icon / actions
+
+最常见用法——五个骨架键经 `x-popover-options` 配置。popover 用 `.click` 触发（否则气泡随鼠标消失）。**整包 attr 走宽松 JSON 解析（relaxedToJson → JSON.parse）**——只解决无引号键 / 尾逗号 / 单引号等语法糖，**不支持箭头函数**；含函数的 `actions` 数组必须拆成成员属性表达式（`x-popover-options.actions`），该通道走完整 JS 表达式求值，箭头函数合法：
 
 ```html
-<button x-popover:preview x-popover-options="{delayShow: 0, title: '详情', icon: 'eye'}">
-  悬停预览
-</button>
-
-<!-- 动作区：配置式 actions 数组按 pos 归位（top/left/right） -->
 <button
-  x-popover:confirm.click
-  x-popover-options="{title: '删除确认', actions: [
-    {id: 'cancel', title: '取消', pos: 'left'},
-    {id: 'ok', title: '删除', pos: 'right', handle: () => doDelete()}
-  ]}"
+  x-popover:user.click
+  x-popover-options="{delayShow: 0, title: '用户信息', icon: 'user', closeable: true}"
+  x-popover-options.actions="[
+    {id: 'edit',  title: '编辑', icon: 'edit',  pos: 'top',    order: 1, handle: () => openEditor()},
+    {id: 'share', title: '分享', icon: 'share', pos: 'top',    order: 2, handle: () => openShare()},
+    {id: 'remove',title: '移除',                 pos: 'right',           handle: () => removeUser()}
+  ]"
 >
-  点击确认
+  查看用户（点击）
 </button>
 ```
 
-消费者还能在**宿主子级**用 `x-slot:名` 直接重载骨架的 chrome 出口（`title` / `header` / `footer` / `actions.top` / `actions.left` / `actions.right`，点分名；内容组件声明过的出口名不受影响）——完整契约（条件渲染 / 插槽重载 / 动作双通道 / 视觉变量）见[覆盖物 · 结构骨架](../engine/overlays.md#结构骨架autosparkoverlay通用-header--body--footer)。
+要点与 x-dialog 完全一致：两条通道分工（整包写静态可 JSON 键、成员属性写函数）；`icon` 走 x-icon 域（内置名见 [x-dialog · 配置式](../../directives/x-dialog.md#配置式title--icon--actions)）；`actions` 按 `pos` 归位（top → header 右侧、left → footer 左区、right → footer 右区），`handle` 是全局作用域函数、可直接调 `close()`；header/footer 有内容才渲染。
+
+#### slots 重载：title / actions / header / footer
+
+配置式无法满足富文本标题、自定义按钮样式等场景时，**宿主子级用 `x-slot:名` 直接重载骨架出口**——内置 shell 声明了插槽通配转发（`slots: "*"`，ADR-0125），chrome 出口名直接可达：
+
+```html
+<button
+  x-popover:confirm.click
+  x-popover-options="{delayShow: 0, closeable: true}"
+>
+  <!-- 富文本标题 -->
+  <template x-slot:title>
+    <span class="has-text-danger">⚠️ 二次确认</span>
+  </template>
+
+  <!-- footer 右区动作：自定义按钮样式 -->
+  <template x-slot:actions.right>
+    <button class="button is-danger is-small" @click="close()">确认</button>
+  </template>
+
+  二次确认（点击）
+</button>
+```
+
+chrome 可重载的出口名（与 x-dialog/x-drawer 完全一致，完整表见 [x-dialog · slots 重载](../../directives/x-dialog.md#slots-重载title--actions--header--footer)）：`title`（局部替换，icon/close 保留）、`header`（整块替换，close 失效）、`footer`（整块替换）、`actions.top` / `actions.left` / `actions.right`（点分名）。优先级：slots > 配置式。
 
 ::: warning 视觉变化（ADR-0124）
 气泡默认**多出关闭按钮的 header** 与 **body 内边距 0.5em**——还原紧凑气泡（无标题栏、零内边距）设 `closeable: false` 且不提供标题/动作，并 `padding: 0`；自定义 shell 整体替换则完全退出骨架。注意 `padding` 是**双通道键**：显式设置时同时作用于内容区外壳 inline 与骨架 body 区，未声明时 body 走默认 `0.5em`、内容区不写 inline。

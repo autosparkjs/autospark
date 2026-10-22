@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-dialog · 结构骨架 title / icon / actions / slots</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <div class="demo-app section">
+      <div x-data="{ ui: { preview: false, confirm: false, slotCustom: false }, doing: '' }">
+
+        <div class="block">
+          <h4 class="title is-6">① 配置式 title + icon + actions 多 pos 归位</h4>
+          <p class="help has-text-grey is-size-7">
+            配置键直接写进 <code>x-dialog-options</code>；<code>icon</code> 是 x-icon 域内置名；
+            <code>actions</code> 数组按 <code>pos</code> 归位（top → header 右侧、left → footer 左区、right → footer 右区），<code>order</code> 升序稳定
+          </p>
+          <button
+            class="button is-primary"
+            x-dialog:preview="ui.preview"
+            x-dialog-options="{title: '文件预览', icon: 'eye', closeable: true}"
+            x-dialog-options.actions="[
+              {id: 'reload', title: '刷新', icon: 'refresh', pos: 'top',    order: 1, handle: () => { doing = '刷新'; }},
+              {id: 'download', title: '下载', icon: 'download', pos: 'top',    order: 2, handle: () => { doing = '下载'; }},
+              {id: 'cancel',  title: '取消',                  pos: 'left',            handle: () => close()},
+              {id: 'ok',      title: '确认',                  pos: 'right',           handle: () => { doing = '确认关闭'; close() }}
+            ]"
+            @click="ui.preview = true"
+          >
+            打开预览对话框
+          </button>
+          <span class="has-text-grey is-size-7" x-show="doing">最近动作：<b x-text="doing"></b></span>
+        </div>
+
+        <div class="block">
+          <h4 class="title is-6">② slots 重载骨架 chrome —— 富文本标题 + 自定义底部按钮</h4>
+          <p class="help has-text-grey is-size-7">
+            宿主子级用 <code>&lt;template x-slot:title&gt;</code> / <code>&lt;template x-slot:actions.right&gt;</code> 直达骨架出口；
+            点分名 <code>actions.top</code> / <code>actions.left</code> / <code>actions.right</code> 分别归位
+          </p>
+          <button
+            class="button is-link"
+            x-dialog:confirm="ui.slotCustom"
+            x-dialog-options="{closeable: true}"
+            @click="ui.slotCustom = true"
+          >
+            <template x-slot:title>
+              <span class="has-text-danger">⚠️ 删除确认</span>
+              <span class="tag is-small is-danger is-light ml-2">不可逆</span>
+            </template>
+            <template x-slot:actions.left>
+              <button class="button is-text" @click="close()">取消</button>
+            </template>
+            <template x-slot:actions.right>
+              <button class="button is-danger" @click="close()">立即删除</button>
+            </template>
+            自定义骨架 slots
+          </button>
+        </div>
+
+        <div class="block">
+          <h4 class="title is-6">③ closeable: false + 无标题无动作 → header 消失、还原紧凑面板</h4>
+          <p class="help has-text-grey is-size-7">
+            骨架 chrome 全部有内容才渲染；header 消失后 close 按钮也一起失效——消费者必须自己提供关闭路径
+          </p>
+          <button
+            class="button"
+            x-dialog:compact="ui.compact"
+            x-dialog-options="{closeable: false, padding: 0}"
+            @click="ui.compact = true"
+          >
+            紧凑面板（无骨架 chrome）
+          </button>
+        </div>
+
+        <div class="block has-text-grey is-size-7">
+          内部组件：三个覆盖物都复用同一个轻量内容组件，只负责显示占位正文 + 一个内置 <code>close()</code> 按钮；
+          骨架 chrome（title / icon / actions）由 <code>autospark.overlay</code> 骨架组件渲染，与内容组件正交
+        </div>
+
+        <!-- 内容组件：正文 + 内置 close() -->
+        <div x-define="preview">
+          <p class="content">
+            这是一段预览正文——骨架 chrome（标题「文件预览」+ eye 图标 + 刷新/下载顶区动作 + 底部左「取消」右「确认」）由 overlay 骨架渲染，
+            与本组件正交。
+          </p>
+          <button class="button is-text is-small has-text-grey" @click="close()">组件内部也能关</button>
+        </div>
+
+        <div x-define="confirm">
+          <p class="content">
+            这段正文走的是 slots 重载通道——标题用富文本 + 危险 tag、底部按钮完全自定义（左「取消」右「立即删除」）。
+          </p>
+        </div>
+
+        <div x-define="compact">
+          <div style="padding: 24px; min-width: 280px">
+            <p class="content has-text-grey">这是一个零骨架 chrome 的紧凑面板——没有 header、没有 padding，纯内容。</p>
+            <button class="button is-small is-primary" @click="close()">好的</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

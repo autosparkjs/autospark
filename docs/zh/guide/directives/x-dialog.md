@@ -536,33 +536,78 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 
 内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——默认自带 header（`closeable: true` 时有关闭按钮）与 body 内边距（`padding: '0.5em'`）。五个骨架键经 `x-dialog-options` 配置：
 
+<demo html="dialog/chrome.html"/>
+
+#### 配置式：title / icon / actions
+
+最常见用法——五个骨架键经 `x-dialog-options` 配置。**整包 attr 走宽松 JSON 解析（relaxedToJson → JSON.parse）**——只解决无引号键 / 尾逗号 / 单引号等语法糖，**不支持箭头函数**。含函数的 `actions` 数组**必须拆成成员属性表达式**（`x-dialog-options.actions`）——该通道走完整 JS 表达式求值（`new Function + with(scope)`），箭头函数合法：
+
 ```html
 <button
-  x-dialog:preview="ui.show"
-  x-dialog-options="{title: '预览', icon: 'eye', closeable: true}"
-  @click="ui.show = true"
+  x-dialog:preview="ui.open"
+  x-dialog-options="{title: '文件预览', icon: 'eye', closeable: true}"
+  x-dialog-options.actions="[
+    {id: 'reload',  title: '刷新', icon: 'refresh', pos: 'top',    order: 1, handle: () => refresh()},
+    {id: 'download',title: '下载', icon: 'download', pos: 'top',    order: 2, handle: () => download()},
+    {id: 'cancel',  title: '取消',                   pos: 'left',            handle: () => close()},
+    {id: 'ok',      title: '确认',                   pos: 'right',           handle: () => close()}
+  ]"
+  @click="ui.open = true"
 >
   预览
 </button>
+```
 
-<!-- 动作区：配置式 actions 数组按 pos 归位（top/left/right） -->
+几个要点：
+
+- **两条通道的分工**：整包 `x-dialog-options="{...}"` 写**静态可 JSON** 的键（title / icon / closeable / padding 等）；成员属性 `x-dialog-options.键="表达式"` 走完整 JS 求值——需要函数的键（actions、shell 动态求值等）必须走成员属性；
+- `title` / `icon` / `closeable` 是**头部配置**；`actions` 是**动作数组**——按 `pos` 归位：`top` → header 右侧、`left` → footer 左区、`right` / `auto` / `bottom` / 无 pos → footer 右区，同 `pos` 内 `order` 升序稳定排序；
+- `icon` 走 **x-icon 域**——内置名 `eye` / `gear` / `trash` / `user` / `edit` / `search` / `save` / `close` / `check` / `refresh` / `download` / `lock` / `info` / `warn` 等；自定义图标注册到 x-icon 域后同名可直用；
+- `actions` 每项 `handle` 是**全局作用域函数**（非组件方法），执行时可直接调 `close()` 广播请求关闭链；不想写 `handle` 可把动作 id 绑定到组件方法（消费处 scope 同名 id）——骨架动作双通道语义，见 [覆盖物 · 动作双通道](../engine/overlays.md#骨架动作双通道handle--消费处scope)；
+- 条件渲染：header / footer **有内容才渲染**（`closeable: false` 且标题、图标、动作区全空时 header 消失）；body 恒渲染。
+
+#### slots 重载：title / actions / header / footer
+
+配置式无法满足富文本标题、自定义按钮样式等场景时，**宿主子级用 `x-slot:名` 直接重载骨架出口**——内置 shell 声明了插槽通配转发（`slots: "*"`，ADR-0125），chrome 出口名直接可达：
+
+```html
 <button
   x-dialog:confirm="ui.open"
-  x-dialog-options="{title: '删除确认', actions: [
-    {id: 'cancel', title: '取消', pos: 'left'},
-    {id: 'ok', title: '删除', pos: 'right', handle: () => doDelete()}
-  ]}"
+  x-dialog-options="{closeable: true}"
   @click="ui.open = true"
 >
-  删除
+  <!-- 富文本标题：danger tag + 警告 icon -->
+  <template x-slot:title>
+    <span class="has-text-danger">⚠️ 删除确认</span>
+    <span class="tag is-small is-danger is-light ml-2">不可逆</span>
+  </template>
+
+  <!-- footer 右区动作：自定义按钮样式 -->
+  <template x-slot:actions.right>
+    <button class="button is-text" @click="close()">取消</button>
+    <button class="button is-danger" @click="doDelete()">立即删除</button>
+  </template>
+
+  删除…
 </button>
 ```
 
-消费者还能在**宿主子级**用 `x-slot:名` 直接重载骨架的 chrome 出口（`title` / `header` / `footer` / `actions.top` / `actions.left` / `actions.right`，点分名；内容组件声明过的出口名不受影响）——完整契约（条件渲染 / 插槽重载 / 动作双通道 / 视觉变量）见[覆盖物 · 结构骨架](../engine/overlays.md#结构骨架autosparkoverlay通用-header--body--footer)。
+chrome 可重载的出口名（点分名）：
 
-::: warning 视觉变化（ADR-0124）
-内置面板默认**多出关闭按钮的 header** 与 **body 内边距 0.5em**——不想要骨架 chrome 时设 `closeable: false` 且不提供标题/动作（header 消失）、`padding: 0` 还原紧凑形态；自定义 shell 整体替换则完全退出骨架。
-:::
+| 出口名 | 作用 | 说明 |
+|---|---|---|
+| `title` | 标题文本区（局部替换，icon/close 保留） | 富文本标题首选；**不能**重载整块 header——整块替换用 `header` |
+| `header` | 整个头部（**整块替换**） | close 按钮一并消失，消费者自己提供关闭路径 |
+| `footer` | 整个底部（**整块替换**） | `actions.left` / `actions.right` 仍可独立重载；`footer` 让位时两者都不渲染 |
+| `actions.top` | header 右侧动作区（点分名） | 裸 `actions` 等价 `actions.right` |
+| `actions.left` | footer 左区（点分名） | |
+| `actions.right` | footer 右区（点分名） | |
+
+优先级：**slots 重载 > 配置式**——两者同时声明时，slots 胜出；内容组件 `def.slots` **声明过的名字归内容组件**，骨架 chrome 名**永不抢占**（今日插槽语义 100% 不变）。
+
+#### 视觉定制
+
+不想要骨架 chrome 时设 `closeable: false` + 无标题无动作（header 消失）、`padding: 0` 还原紧凑形态；自定义 shell 整体替换则完全退出骨架。骨架视觉走 CSS 变量（`--autospark-overlay-bg / -border / -radius / -z`），主题系统统一驱动。
 
 ### 面板外壳（shell）：自定义面板形态
 

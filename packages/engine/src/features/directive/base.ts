@@ -181,7 +181,33 @@ export class AutoSparkDirectiveBase {
     protected _watchOptionExprs(skip?: string[]): void {
         const exprs = this.info.optionExprs;
         if (!exprs) return;
+
+        // 方案 A：先处理 __directiveFull__（整包 expr）——解包后 Object.assign 进 _optionExprValues
+        const fullExpr = exprs["__directiveFull__"];
+        if (fullExpr && !skip?.includes("__directiveFull__")) {
+            const updateFull = ({ value }: { value: any }) => {
+                // 整包 expr eval 结果是对象 → Object.assign 各成员；不是对象则整体塞在 __directiveFull__ 占位
+                if (value && typeof value === "object") {
+                    this._optionExprValues ??= {};
+                    // 清除上一轮有、这一轮没有的旧键（整包整体替换语义）
+                    const prevKeys = new Set(Object.keys(this._optionExprValues));
+                    for (const k of Object.keys(value)) prevKeys.delete(k);
+                    for (const k of prevKeys) delete (this._optionExprValues as any)[k];
+                    // 覆盖/新增本轮键
+                    Object.assign(this._optionExprValues, value);
+                    for (const [k, v] of Object.entries(value)) {
+                        if (!skip?.includes(k)) this._onOptionExprChange(k, v);
+                    }
+                } else {
+                    (this._optionExprValues ??= {})["__directiveFull__"] = value;
+                }
+            };
+            const initial = this.binding.watch(fullExpr, updateFull);
+            updateFull({ value: initial });
+        }
+
         for (const [key, expr] of Object.entries(exprs)) {
+            if (key === "__directiveFull__") continue; // 已处理
             if (skip?.includes(key)) continue;
             const trimmed = expr.trim();
             if (trimmed === "") {

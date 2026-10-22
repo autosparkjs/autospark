@@ -2,6 +2,68 @@ import { relaxedToJson } from "../../../utils/relaxedToJson";
 import { CompileError } from "../../../errors";
 import type { AutoDirectiveInfo } from "../types";
 
+/** 指令整包 options 的解析策略（方案 A：统一 expr + 双通道共存） */
+interface FullOptionsParseResult {
+    /** 静态快照（relaxedToJson → JSON.parse 成功才有；失败且含函数则 undefined） */
+    static?: Record<string, any>;
+    /** 表达式文本（套括号后，如 `({title: '预览', actions: [...]})`）——始终有，供运行期 eval + 响应式 */
+    expr: string;
+    /** 是否函数降级（静态解析失败、含函数语法）——仅存表达式层，静态层留空让无 watcher 指令跳过 */
+    degraded?: boolean;
+}
+
+/**
+ * 解析整包 options（方案 A：静态快照 + 表达式双通道）：
+ *
+ * 1. 先试 relaxedToJson → JSON.parse（零开销静态快照），成功则静态层 + 表达式层都写；
+ * 2. 失败且检测到函数语法（箭头 / function 关键字 / 简写方法） → **降级**：只存表达式层（warn 一次），
+ *    静态层留空；无 watcher 的指令此时读不到（但含函数的整包本来就必须走表达式通道，降级后正常工作）；
+ * 3. 其他失败（纯语法错） → 正常抛 CompileError。
+ *
+ * expr 始终套括号 `(${raw})`——让对象字面量成为合法表达式，便于 `new Function("return ...")` 求值。
+ */
+function parseFullOptions(rawValue: string): FullOptionsParseResult {
+    const expr = `(${rawValue})`;
+    // 静态解析尝试
+    try {
+        const parsed: unknown = JSON.parse(relaxedToJson(rawValue));
+        if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+            throw new CompileError(
+                "options-invalid-object",
+                `指令 options 必须是对象字符串，实际解析得到：${JSON.stringify(parsed)}`,
+            );
+        }
+        return { static: parsed as Record<string, any>, expr };
+    } catch (err: any) {
+        // 非 JSON.parse 失败 → 继续抛
+        if (!(err instanceof SyntaxError)) throw err;
+        // 检测是否函数语法（箭头 / function 关键字 / 对象简写方法 `{method(){}}`）
+        const hasFunc =
+            /\(\s*\)\s*=>/.test(rawValue) ||
+            /=>/.test(rawValue) ||
+            /\bfunction\s*\(/.test(rawValue) ||
+            /{\s*\w+\s*\([^)]*\)\s*\{/.test(rawValue);
+        if (hasFunc) {
+            return { expr, degraded: true };
+        }
+        // 纯语法错，抛原错误
+        throw new CompileError(
+            "options-invalid-syntax",
+            `指令 options 语法错误：${err.message}`,
+        );
+    }
+}
+
+/** 检测函数：原始整包 options 是否含函数语法（供外部 warn） */
+function rawOptionsHasFunc(rawValue: string): boolean {
+    return (
+        /\(\s*\)\s*=>/.test(rawValue) ||
+        /=>/.test(rawValue) ||
+        /\bfunction\s*\(/.test(rawValue) ||
+        /{\s*\w+\s*\([^)]*\)\s*\{/.test(rawValue)
+    );
+}
+
 /** 事件绑定快捷前缀 */
 const EVENT_PREFIX = "@";
 /** 属性绑定快捷前缀 */
@@ -30,8 +92,8 @@ const STYLE_ALIAS_NAME = "style";
  */
 interface PendingOption {
     name: string;
-    /** 整包解析值（整包 / 定向整包） */
-    value?: Record<string, any>;
+    /** 整包解析结果（方案 A：静态 + expr 双通道） */
+    fullParse?: FullOptionsParseResult;
     /** 冒号后首段原文（消歧候选：定向参数 or 成员名） */
     colon?: string;
     /** 成员名（dot 形态恒有） */
@@ -40,6 +102,8 @@ interface PendingOption {
     expr?: string;
     /** 冒号形态原始值（消歧定型后再 parseOptions 或作表达式文本） */
     rawValue?: string;
+    /** 消歧后确定为「定向整包」形态（替换语义）——合并期 read */
+    replace?: boolean;
 }
 
 /**
@@ -214,8 +278,11 @@ export function getDirectives(el: HTMLElement, prefix = "x-"): AutoDirectiveInfo
                 if (directiveName.length > 0) {
                     const suffix = optMatch[2] ?? "";
                     if (suffix === "") {
-                        // ① 整包（原有形态）：宽松 JSON 静态解析
-                        pendingOptions.push({ name: directiveName, value: parseOptions(rawValue) });
+                        // ① 整包：parseFullOptions（静态快照 + expr 双通道，方案 A）
+                        pendingOptions.push({
+                            name: directiveName,
+                            fullParse: parseFullOptions(rawValue),
+                        });
                     } else if (suffix.startsWith(".")) {
                         // ② 成员属性（无定向）：值 = 表达式文本（指令经 binding.watch 求值）
                         const member = suffix.slice(1);
@@ -264,19 +331,19 @@ export function getDirectives(el: HTMLElement, prefix = "x-"): AutoDirectiveInfo
         // 其余普通 HTML 属性（class、id 等）忽略
     }
 
-    // 4. 将 -options 补充参数合并到已解析指令（ADR-0007 修订四形态；同名无定向取最后一个，
-    //    与"后声明生效"一致）：
-    //    - 整包：浅合并进最后一个同名指令 options（既有行为）；
-    //    - 定向整包（colon 匹配主指令 attr、无成员）：**替换**该指令 options（该参数实例视角的整包）；
-    //    - 成员（含定向/无定向）：写入目标指令 optionExprs（表达式层，优先于 options 同名键）。
-    //    消歧：colon 首段匹配同名主指令 attr → 定向；否则 colon 降为无定向成员名。
-    //    孤儿（找不到主指令）静默忽略（补充参数无主指令则无意义，既有先例）。
+    // 4. 将 -options 补充参数合并到已解析指令（ADR-0007 修订四形态 + 方案 A 统一 expr）：
+    //    - 整包 / 定向整包：parseFullOptions 双通道——静态快照写 target.options（零开销），
+    //      expr 写 target.optionExprs.__directiveFull__（运行期 eval + 响应式）；
+    //      degraded=true（含函数）时静态层留空，仅存表达式层；
+    //    - 成员（含定向/无定向）：写入 optionExprs（既有行为不变）。
+    //    消歧同既有：colon 首段匹配同名主指令 attr → 定向；否则 colon 降为无定向成员名。
+    //    孤儿（找不到主指令）静默忽略。
     for (const opt of pendingOptions) {
         let target: AutoDirectiveInfo | undefined;
         let member = opt.member;
         let expr = opt.expr;
-        let value = opt.value;
-        let replace = false;
+        let replace = opt.replace;
+        let fullParse = opt.fullParse;
         if (opt.colon === undefined) {
             target = findLastByName(results, opt.name);
         } else {
@@ -284,12 +351,12 @@ export function getDirectives(el: HTMLElement, prefix = "x-"): AutoDirectiveInfo
             if (targeted) {
                 target = targeted;
                 if (member === undefined) {
-                    // 定向整包：值定型为宽松 JSON（替换语义）
-                    value = parseOptions(opt.rawValue!);
+                    // 定向整包（替换语义）
+                    fullParse = parseFullOptions(opt.rawValue!);
                     replace = true;
                 }
             } else if (opt.member !== undefined) {
-                // `:a.b` 且 a 不匹配 attr：整段视为成员链（多段）——违背单段约定，丢弃
+                // `:a.b` 且 a 不匹配 attr：多段成员链——丢弃
                 continue;
             } else {
                 // 消歧为无定向成员：colon 即成员名，值 = 表达式文本
@@ -298,11 +365,29 @@ export function getDirectives(el: HTMLElement, prefix = "x-"): AutoDirectiveInfo
                 expr = opt.rawValue!;
             }
         }
-        if (!target) continue; // 孤儿：静默丢弃
+        if (!target) continue; // 孤儿：静默忽略
+
+        // 分支 1：整包 / 定向整包（fullParse 有值）
+        if (fullParse) {
+            // ① expr 进 optionExprs.__directiveFull__（方案 A：统一表达式层，运行期 eval + 响应式）
+            target.optionExprs = {
+                ...target.optionExprs,
+                __directiveFull__: fullParse.expr,
+            };
+            // ② 静态快照进 target.options（零开销 fallback）
+            if (!fullParse.degraded && fullParse.static) {
+                target.options = replace || !target.options
+                    ? fullParse.static
+                    : { ...target.options, ...fullParse.static };
+            } else if (replace) {
+                // degraded 且 replace=true → 清空旧静态层（旧值与新值不兼容）
+                target.options = undefined;
+            }
+            continue;
+        }
+        // 分支 2：成员属性（含定向/无定向）——既有行为不变
         if (member !== undefined && expr !== undefined) {
             target.optionExprs = { ...target.optionExprs, [kebabToCamel(member)]: expr };
-        } else if (value !== undefined) {
-            target.options = replace || !target.options ? value : { ...target.options, ...value };
         }
     }
 

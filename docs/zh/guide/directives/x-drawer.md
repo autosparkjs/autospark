@@ -302,21 +302,60 @@
 
 ### 结构骨架（chrome）：标题 / 关闭按钮 / 动作区
 
-内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——抽屉面板默认自带 header（`closeable: true` 时有关闭按钮）与 body 内边距（`padding: '0.5em'`），内容滚动也移入 body 区（原来整壳 `overflow: auto` 随结构迁移）。五个骨架键经 `x-drawer-options` 配置：
+内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——抽屉面板默认自带 header（`closeable: true` 时有关闭按钮）与 body 内边距（`padding: '0.5em'`），内容滚动也移入 body 区。五个骨架键经 `x-drawer-options` 配置。骨架与 x-dialog/x-popover 完全同源（底层 `autospark.overlay`），唯一差异是 drawer 是 visible 驱动形态（与 dialog 同构）、body 自动滚动。
+
+<demo html="drawer/chrome.html"/>
+
+#### 配置式：title / icon / actions
+
+最常见用法——五个骨架键经 `x-drawer-options` 配置。drawer 是 visible 驱动形态（与 dialog 同构）。**整包 attr 走宽松 JSON 解析（relaxedToJson → JSON.parse）**——只解决无引号键 / 尾逗号 / 单引号等语法糖，**不支持箭头函数**；含函数的 `actions` 数组必须拆成成员属性表达式（`x-drawer-options.actions`），该通道走完整 JS 表达式求值，箭头函数合法：
 
 ```html
 <button
-  x-drawer:panel="ui.open"
-  x-drawer-options="{title: '设置', icon: 'gear', actions: [
-    {id: 'save', title: '保存', pos: 'right', handle: () => save()}
-  ]}"
+  x-drawer:settings="ui.open"
+  x-drawer-options="{title: '系统设置', icon: 'gear', closeable: true}"
+  x-drawer-options.actions="[
+    {id: 'save',  title: '保存', icon: 'save', pos: 'right', order: 1, handle: () => saveAndClose()},
+    {id: 'reset', title: '重置',                 pos: 'right', order: 2, handle: () => resetSettings()}
+  ]"
   @click="ui.open = true"
 >
-  打开抽屉
+  打开设置抽屉
 </button>
 ```
 
-消费者还能在**宿主子级**用 `x-slot:名` 直接重载骨架的 chrome 出口（`title` / `header` / `footer` / `actions.top` / `actions.left` / `actions.right`，点分名；内容组件声明过的出口名不受影响）——完整契约（条件渲染 / 插槽重载 / 动作双通道 / 视觉变量）见[覆盖物 · 结构骨架](../engine/overlays.md#结构骨架autosparkoverlay通用-header--body--footer)。
+要点与 x-dialog 完全一致：两条通道分工（整包写静态可 JSON 键、成员属性写函数）；`icon` 走 x-icon 域（内置名见 [x-dialog · 配置式](../../directives/x-dialog.md#配置式title--icon--actions)）；`actions` 按 `pos` 归位（top → header 右侧、left → footer 左区、right → footer 右区），`handle` 是全局作用域函数、可直接调 `close()`；header/footer 有内容才渲染；body 自动滚动、header/footer 保持悬浮可见。
+
+#### slots 重载：title / actions / header / footer
+
+配置式无法满足富文本标题、自定义按钮样式等场景时，**宿主子级用 `x-slot:名` 直接重载骨架出口**——内置 shell 声明了插槽通配转发（`slots: "*"`，ADR-0125），chrome 出口名直接可达：
+
+```html
+<button
+  x-drawer:editor="ui.open"
+  x-drawer-options="{closeable: true}"
+  @click="ui.open = true"
+>
+  <!-- 富文本标题：emoji + tag 状态 -->
+  <template x-slot:title>
+    <span class="icon-text">
+      <span class="has-text-info">📝</span>
+      <span>编辑器</span>
+    </span>
+    <span class="tag is-small is-info is-light ml-2">自动保存中…</span>
+  </template>
+
+  <!-- footer 右区动作：自定义按钮 -->
+  <template x-slot:actions.right>
+    <button class="button is-small is-text" @click="close()">取消</button>
+    <button class="button is-small is-primary" @click="close()">应用</button>
+  </template>
+
+  打开编辑器抽屉
+</button>
+```
+
+chrome 可重载的出口名（与 x-dialog/x-popover 完全一致，完整表见 [x-dialog · slots 重载](../../directives/x-dialog.md#slots-重载title--actions--header--footer)）：`title`（局部替换，icon/close 保留）、`header`（整块替换，close 失效）、`footer`（整块替换）、`actions.top` / `actions.left` / `actions.right`（点分名）。优先级：slots > 配置式。
 
 ::: warning 视觉变化（ADR-0124）
 抽屉默认**多出关闭按钮的 header**、**body 内边距 0.5em**、**滚动移入 body 区**——不想要骨架 chrome 时设 `closeable: false` 且不提供标题/动作（header 消失）、`padding: 0` 还原紧凑形态；自定义 shell 整体替换则完全退出骨架。
