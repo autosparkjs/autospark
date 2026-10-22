@@ -165,6 +165,7 @@ describe("findDirectives - options 补充参数", () => {
             name: "if",
             value: "xxx",
             options: { a: 1 },
+            optionExprs: { __directiveFull__: "({a:1})" },
         });
     });
 
@@ -178,20 +179,21 @@ describe("findDirectives - options 补充参数", () => {
             name: "for",
             value: "items",
             options: { key: "item", index: "i", conf: { delay: 100 } },
+            optionExprs: { __directiveFull__: "({ key:item, index:i, conf:{ delay:100 } })" },
         });
     });
 
     test("options 合并到同名主指令，且自身不单独占位（顺序保持）", () => {
         const list = getDirectives(elWith({ "x-if": "a", "x-if-options": "{a:1}", "x-text": "b" }));
         expect(list).toEqual([
-            { name: "if", value: "a", options: { a: 1 } },
+            { name: "if", value: "a", options: { a: 1 }, optionExprs: { __directiveFull__: "({a:1})" } },
             { name: "text", value: "b" },
         ]);
     });
 
     test("options 声明在主指令之前也能正确合并", () => {
         const list = getDirectives(elWith({ "x-if-options": "{a:1}", "x-if": "a" }));
-        expect(list).toEqual([{ name: "if", value: "a", options: { a: 1 } }]);
+        expect(list).toEqual([{ name: "if", value: "a", options: { a: 1 }, optionExprs: { __directiveFull__: "({a:1})" } }]);
     });
 
     test("找不到同名主指令时 options 被忽略", () => {
