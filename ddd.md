@@ -8,3 +8,18 @@
 
 
 
+docker run -d --name robustmq \
+  -p 1883:1883 \
+  -p 1885:1885 \
+  -p 8083:8083 \
+  -p 8085:8085 \
+  -p 9092:9092 \
+  -p 1228:1228 \
+  -p 5672:5672 \
+  -p 58080:58080 \
+  -v /home/testadmin/data/robustmq/server.toml:/robustmq/config/server.toml \
+  -v /home/testadmin/data/robustmq:/data \
+  ghcr.io/robustmq/robustmq:latest
+
+
+    
