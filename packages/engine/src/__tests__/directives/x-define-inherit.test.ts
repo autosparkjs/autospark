@@ -646,7 +646,8 @@ describe("x-import 异步父延迟解析（ADR-0083）", () => {
             // 异步父注册 → 排水 → 子解析注册 → 消费侧脱离 loading 正常渲染（继承覆盖 + 合并 data）
             expect(root.querySelector(".inst .hd b")?.textContent).toBe("订单");
             expect(root.querySelector(".inst .bd")?.textContent?.trim()).toBe("count=7");
-            expect(root.querySelector(".inst")?.hasAttribute("x-loading")).toBe(false);
+            // ADR-0126 toggle 协议：完成 hide() 翻 "false"（属性保留、视觉隐藏，与 removeAttribute 不可分辨）
+            expect(root.querySelector(".inst")?.getAttribute("x-loading")).toBe("false");
         } finally {
             restore();
             restoreFetch();

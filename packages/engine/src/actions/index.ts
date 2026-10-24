@@ -6,7 +6,7 @@
  * 机制（buildAction 包装、补齐次序）住 `features/action/builtins.ts`；
  * `BUILTIN_ACTIONS` 旧导出名由 builtins.ts 兼容转发（内部消费本表）。
  *
- * 通知门面三件套（toast/confirm/task）已随通知插件迁出（@autospark/components ADR-0001）
+ * 通知门面三件套（toast/confirm/task）已随通知插件迁出（@autospark/plugins ADR-0001）
  * ——它们是通知类型的 action 门面而非引擎内置，由插件 ready 时注册进 `engine.actions`。
  */
 import { SIGNAL_ACTIONS } from "./signals";

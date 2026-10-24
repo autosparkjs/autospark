@@ -5,6 +5,7 @@ import type { AutoSparkAction } from "../features/action/types";
 import type { SlotContent, SlotForwarding, SlotRegistry, SuperInlet } from "../utils/slot";
 import { AutoSparkDirectiveBase } from "../features/directive/base";
 import { getVal, setVal, type Watcher } from "autostore";
+import { SCOPES_KEY } from "../consts";
 import { getDirectives, getHostOptions } from "../features/directive/utils/getDirectives";
 import { createDirectives } from "../features/directive/utils/createDirectives";
 import { releaseScopeIcons, type ScopeIconEntry } from "../features/icons/domain";
@@ -1313,6 +1314,12 @@ export class AutoSparkScope {
             }
             this.watchers.length = 0;
             this._updates.length = 0;
+            // scope 注册表条目回收（职责归位）：数据存于 store.state[SCOPES_KEY][id]，
+            // 销毁即清条目——注册表与 scope 生死对称，消费方（插件等）不再越权手动 delete
+            const registry = (this.engine.store.state as Record<string, any>)[SCOPES_KEY] as
+                | Record<string, any>
+                | undefined;
+            if (registry) delete registry[this.id];
             for (const d of this.directives) {
                 if (typeof d.destroy === "function") d.destroy(this.el!);
                 this.engine.emit(("directive/" + d.info.name + "/destroyed") as any, {

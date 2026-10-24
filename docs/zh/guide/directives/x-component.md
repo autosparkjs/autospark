@@ -142,7 +142,7 @@ methods / 钩子内的 `this` 是组件实例 Proxy：`this.data`（聚合视图
 
 **url 取值优先级：指令值 > `options.loader.url`**；两者并存 `warn`（双声明）。
 
-**平铺归一（ADR-0110）**：`fallback` / `error` / `width` / `height` / `request` / `retry` / `retryDelay` / `timeout` / `cache` 可直接写在 `x-component-options` 顶层（成员属性形态天然响应式），同名键**顶层平铺 > `loader` 对象内嵌**：
+**平铺归一（ADR-0110）**：`fallback` / `error` / `width` / `height` / `request` / `retry` / `retryDelay` / `timeout` / `cache` / `loading` 可直接写在 `x-component-options` 顶层（成员属性形态天然响应式），同名键**顶层平铺 > `loader` 对象内嵌**：
 
 ```html
 <!-- url 简写 + 顶层平铺 fallback（加载中占位）与占位尺寸 -->
@@ -152,7 +152,11 @@ methods / 钩子内的 `this` 是组件实例 Proxy：`this.data`（聚合视图
 
 **统一内核选项**（ADR-0121）：`retry`（失败自动重试次数，默认 0）/ `retryDelay`（平坦间隔毫秒）/ `timeout`（超时毫秒，0 不限）/ `cache`（同 url 缓存毫秒 TTL）——与 [x-data 同名选项](./x-data.md#异步状态反馈) 语义一致；请求统一经 `engine.options.fetcher` 出站。
 
-loader 语义「**以此 url 为准**」：组件已注册仍 fetch 并以远程版覆盖注册（覆盖时 `warn`，已实例化不受影响）；首次渲染**严格等待 fetch**——期间显示 fallback 占位（缺省 = `x-loading`）。
+loader 语义「**以此 url 为准**」：组件已注册仍 fetch 并以远程版覆盖注册（覆盖时 `warn`，已实例化不受影响）；首次渲染**严格等待 fetch**——期间显示 fallback 占位（缺省 = `x-loading` 遮罩）。
+
+**加载中遮罩（loading 选项，ADR-0126）**：缺省 fallback 时引擎在宿主上合成 `x-loading` 遮罩，`loading` 键定制其呈现——`false` 关闭默认遮罩（自行用条件渲染接管）| 文案字符串（→ 遮罩 `message`）| 配置子集对象（→ `x-loading-options` 透传，如 `{ message, delay }`）。**显式声明 `fallback` 即不合成遮罩**——两种占位形态并存按声明分流（fallback = 置换式流内占位，loading = 覆盖式遮罩）。与 router loading 配置及 [x-html 的 loading 选项](./x-html.md#远程异步-html-源) 同词汇（boolean | 文案 | 配置子集）。
+
+**异步反馈元键（$loading / $error，ADR-0126）**：宿主 scope 注入 `$loading`（发起 true → 落地 false）与 `$error`（失败落地归一错误 `{ name, message, url?, statusCode?, source: "load" }`，重试发起时清空）——与 [x-html 元键](./x-html.md#远程异步-html-源) 同契约，子树与 fallback / error 占位内均可直读（如 `x-if="$loading"` 自定义骨架、`{{ $error.message }}` 展示详情）。物种差异：x-component 加载中**清宿主 + 流内占位**（置换型），x-html 加载中**保旧值 + 遮罩**（内容型）——视觉机制统一、占位语义随物种。
 
 **多组件返回**：url 含多个 `x-define` 时——有属性参数则按参数名取用（其余照常注册备用）；**无参简写取文档序首个 + `warn`**（同 url 重入不重复提示），显式指定请改写 `x-component:名称="<url>"`。
 
@@ -160,7 +164,7 @@ loader 语义「**以此 url 为准**」：组件已注册仍 fetch 并以远程
 
 裸标识符恒按状态路径求值（与 `x-import` 的「标识符 = 文件名」语义相反）；字面量 url 请以 `/`、`./`、`http(s)://` 开头书写——以 `/` 开头的**动态拼接表达式**会被当字面量，须先落到状态再绑定。
 
-**失败呈现**：fetch 失败或加载结果中无同名组件时，宿主渲染**内置 error 组件**（引擎默认注册——错误文案 + 重试按钮（重新 fetch）+ 关闭按钮；用户同名声明可覆盖），亦可 `x-component:error` 显式实例化渲染任意错误。`error` 键可自定义呈现（形态同 fallback：HTML 字符串或 `{ name, props }`）。
+**失败呈现**：fetch 失败或加载结果中无同名组件时，宿主渲染**内置 error 组件**（引擎默认注册——错误文案 + 重试按钮（重新 fetch）+ 关闭按钮；用户同名声明可覆盖），亦可 `x-component:error` 显式实例化渲染任意错误。`error` 键可自定义呈现（形态同 fallback：HTML 字符串或 `{ name, props }`）——同时 `$error` 元键落地、`x-error` 边界在场时接管呈现（详见 [x-error](./x-error.md)）。
 
 <demo html="component/loader.html"/>
 
@@ -192,9 +196,9 @@ loader 语义「**以此 url 为准**」：组件已注册仍 fetch 并以远程
 | `dataContext` | —      | —       | 数据上下文的**消费侧覆盖**：`'host'` \| `'declarer'`——仅在生效 `open` 下有效；对封闭组件声明 `warn` 忽略 |
 | `props` | — | — | props 选项通道：整包静态对象或成员属性表达式（响应式），与指令值 props 双源合并（指令值覆盖同名键） |
 | `global` | `false` | `.global` | 配合远程加载：加载的组件注册为全局组件（语义同 `x-import.global`） |
-| `loader` | — | — | 远程直接实例化完整配置：string 简写（字面量 url / 表达式）或对象 `{ url, request?, fallback?, error?, width?, height?, retry?, retryDelay?, timeout?, cache? }`；url 优先级指令值 > `loader.url` |
+| `loader` | — | — | 远程直接实例化完整配置：string 简写（字面量 url / 表达式）或对象 `{ url, request?, fallback?, error?, width?, height?, retry?, retryDelay?, timeout?, cache?, loading? }`；url 优先级指令值 > `loader.url` |
 | `slots` | — | `.slots` | **插槽转发**（ADR-0125）：逗号分隔的名字清单（裸名 / `出口名:对外名` / `*`）或布尔 `true`（≡ `*` 全部转发），把内层组件的插槽出口暴露给包装组件的消费者——静态值，编译期一次解析；修饰符 `.slots` ≡ `true` 开关（显式值在场时被压制）；与 `x-slot`（出口/内容标记）、`x-slots`（覆盖物内容归属容器）是三个不同机制，详见 [x-slot 的插槽转发](./x-slot.md#插槽转发-slots) |
-| `fallback` / `error` / `width` / `height` / `request` / `retry` / `retryDelay` / `timeout` / `cache` | — | — | loader 附属键**平铺**（ADR-0110）：顶层声明等效 `loader` 对象内嵌，同名键顶层 > 内嵌；成员属性形态天然响应式；`retry` 等四键为统一内核选项（ADR-0121，默认全 0） |
+| `fallback` / `error` / `width` / `height` / `request` / `retry` / `retryDelay` / `timeout` / `cache` / `loading` | — | — | loader 附属键**平铺**（ADR-0110）：顶层声明等效 `loader` 对象内嵌，同名键顶层 > 内嵌；成员属性形态天然响应式；`retry` 等四键为统一内核选项（ADR-0121，默认全 0）；`loading` 为遮罩配置（ADR-0126，`false` \| 文案 \| 配置子集，显式 `fallback` 声明时不合成遮罩） |
 
 ```html
 <!-- 组件侧已声明 open，消费处把基准改为声明处上下文 -->

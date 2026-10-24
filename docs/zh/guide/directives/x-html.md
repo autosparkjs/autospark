@@ -175,7 +175,7 @@ engine.state.tpl =
 x-html 的反馈三件套（ADR-0122）：
 
 - **元键注入**：`$loading` / `$error` 写宿主 scope 的 locals——仅宿主**内部**子元素经 scope 链可读（成功态写 innerHTML 会清空宿主内子元素，条件渲染块据此自然消失）；
-- **x-loading 覆盖层**：异步形态**恒合成**（字面量切换式——请求中显示、完成撤除），仅 `loading:false` 恒关、宿主手写 x-loading 不叠加；
+- **x-loading 覆盖层**：异步形态**恒合成**（字面量切换式——请求中显示、完成撤除；显隐经 ADR-0126 共享协议统一为 toggle `"true"`/`"false"`，视觉与摘除属性不可分辨），仅 `loading:false` 恒关、宿主手写 x-loading 不叠加（合成协议：引擎不合成、不触碰、不删除——手写字面量无翻转驱动会常驻显示，须自行控制显隐）；
 - **条件渲染**：用 `$loading` / `$error` + x-if/x-else-if/x-else 自行声明加载中与失败态的 UI。
 
 <demo html="html/async-loading.html"/>
@@ -200,7 +200,7 @@ x-html 的反馈三件套（ADR-0122）：
 | ------------- | --------------- | ---------- | ----------------------------------------------------------------------------------- |
 | `raw`         | `false`         | `.raw`     | 跳过消毒、原样写入 innerHTML（仅受信内容）                                          |
 | `compile`     | `false`         | `.compile` | 把绑定值作为子模板编译执行（隐式跳过消毒，危险高于 `.raw`，ADR-0017；配 url 即远程模板） |
-| `loading`     | 自动            | —          | 异步形态覆盖层三态：`false` 恒关 / `{...}` 直传 x-loading 配置（ADR-0035）          |
+| `loading`     | 自动            | —          | 异步形态覆盖层三态（ADR-0126，与 router/x-component 同词汇）：`false` 恒关 / 文案字符串（→ 遮罩 `message`）/ `{...}` 直传 x-loading 配置 |
 | `method`      | `GET`           | —          | url 形态直传 fetch 的方法                                                           |
 | `header`      | —               | —          | url 形态额外 HTTP 头（静态对象）                                                    |
 | `request`     | —               | —          | RequestInit 权威整包通道（显式键优先于 `method`/`header` 简写）                     |

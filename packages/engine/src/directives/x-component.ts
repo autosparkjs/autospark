@@ -12,6 +12,12 @@ import {
     resolveRequestInit,
     type RemoteLoadMeta,
 } from "../features/directive/remote-load";
+import {
+    createLoadingMask,
+    injectLoadMeta,
+    type LoadingMaskHandle,
+    type LoadingMaskOptions,
+} from "../features/directive/loading-synthesis";
 
 /**
  * loader 成员属性值的字面量 url 判定（loader 专属，ADR-0065 决策二）：以 `/` `./` `../`
@@ -53,6 +59,12 @@ interface ComponentLoaderConfig {
     timeout?: number;
     /** 缓存毫秒（默认 0 = 不缓存） */
     cache?: number;
+    /**
+     * 加载中遮罩配置（ADR-0126 决策 2）：`false` 关默认遮罩 / 文案字符串（→ message）/
+     * x-loading 配置子集对象（→ `x-loading-options` 透传）。仅缺省 fallback（内建遮罩形态）
+     * 时生效——显式声明 `fallback` 即不合成遮罩（两种占位形态并存按声明分流）。
+     */
+    loading?: LoadingMaskOptions;
 }
 
 /**
@@ -88,6 +100,12 @@ function isLiteralComponentName(raw: string): boolean {
  * + 指令值胜）；`fallback`/`error`/`width`/`height`/`request` 平铺读 `x-component-options` 顶层
  * 同名键（成员属性形态天然响应式），同名键平铺层 > loader 对象内嵌层；loader 对象形态保留兼容。
  * 无参 url 返回多组件：取文档序首个 + warn（per-url 去重），显式指定用 `x-component:名称="<url>"`。
+ *
+ * **loading 合成协议与元键（ADR-0126）**：缺省 fallback 时合成 `x-loading` 遮罩（`loading` 选项
+ * `false` | 文案字符串 | 配置子集，显式 `fallback` 声明即不合成遮罩），显隐走共享层
+ * {@link createLoadingMask}（守卫：宿主手写 x-loading 不合成不触碰；所有权闸 + toggle 协议）；
+ * 元键 `$loading`/`$error` 注入宿主 scope locals（{@link injectLoadMeta}），时序：发起/重试置
+ * `$loading=true` 清 `$error` → 成功/失败落地翻转（失败落 normalizeLoadError 归一错误）。
  *
  * **实例级边界覆盖（ADR-0110，extends x-define-options）**：`x-component-options.open`/`dataContext`
  * 与作者侧 x-define-options 同键——显式布尔 open（含 false）**覆盖** def.open（三级优先级：消费
@@ -169,6 +187,8 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     private _loadedUrl: string | null = null;
     /** 在途加载的 AsyncLoader 实例（ADR-0121：url 变化 / scope 销毁时 abort，落地身份校验丢弃过期结果） */
     private _loader: AsyncLoader<unknown, RemoteLoadMeta> | null = null;
+    /** 合成遮罩句柄（ADR-0126 共享层）：守卫 / 所有权闸 / toggle 显隐状态内聚，宿主元素恒定故惰性创建一次 */
+    private _loadingMask: LoadingMaskHandle | null = null;
     /** pending props（loader 加载完成前 props watch 的暂存，完成后随实例化应用） */
     private _pendingProps: Record<string, any> | undefined;
     /** 占位块（fallback/error 组件）编译 scope（随宿主 scope.destroy 递归销毁，此处仅断引用） */
@@ -532,6 +552,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         const retryDelay = this.getOption("retryDelay") as number | undefined;
         const timeout = this.getOption("timeout") as number | undefined;
         const cache = this.getOption("cache") as number | undefined;
+        const loading = this.getOption("loading") as LoadingMaskOptions | undefined;
         if (fallback !== undefined) merged.fallback = fallback;
         if (error !== undefined) merged.error = error;
         if (width !== undefined) merged.width = width;
@@ -541,6 +562,7 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         if (retryDelay !== undefined) merged.retryDelay = retryDelay;
         if (timeout !== undefined) merged.timeout = timeout;
         if (cache !== undefined) merged.cache = cache;
+        if (loading !== undefined) merged.loading = loading;
         this._loaderActive = true;
         if (url === this._loadedUrl) return; // 同 url 去重（响应式重求值但 url 未变）
         this._runLoader(merged);
@@ -562,6 +584,9 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         this.instanceScope = null;
         this.instanceDef = null;
         this._appliedProps = undefined;
+        // 发起即置元键（ADR-0126 决策 4）：$loading=true + 清 $error——含 fallback 显式声明
+        // 场景（fallback 占位经 compileChild 以宿主 scope 为 parent，可沿 scope 链直读元键）
+        injectLoadMeta(this.binding, true, undefined);
         this._applyPlaceholderSize(cfg);
         if (cfg.fallback !== undefined && cfg.fallback !== "") {
             this._renderPlaceholder(cfg.fallback, {
@@ -615,6 +640,8 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     private _retryLoader(): void {
         const loader = this._loader;
         if (!loader || !this._loaderCfg) return;
+        // 重试发起（ADR-0126 决策 4）：清 $error、$loading 保持 true
+        injectLoadMeta(this.binding, true, undefined);
         this._wireLoaderLanding(loader, this._loaderCfg, loader.refresh());
     }
 
@@ -654,6 +681,8 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
                     this._renderLoaderError(new Error(`远程内容中无组件 "${this.componentName}"`), cfg);
                     return;
                 }
+                // 实例化成功（ADR-0126 决策 4）：$loading=false——组件名决策失败走 _renderLoaderError
+                injectLoadMeta(this.binding, false, undefined);
                 this._clearHostContent();
                 this._instantiate(this.componentName!, this._pendingProps);
             },
@@ -724,8 +753,10 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
      * ADR-0121：错误归一 + dispatchLoadError 派发 + x-error 在场退位；retry 统一走 loader.refresh()。
      */
     private _renderLoaderError(err: Error, cfg: ComponentLoaderConfig): void {
-        this._clearHostContent();
         const loadErr = normalizeLoadError(err, this._loader?.meta);
+        // 失败落地（ADR-0126 决策 4）：$loading=false + $error=归一错误（source:"load"）
+        injectLoadMeta(this.binding, false, loadErr);
+        this._clearHostContent();
         dispatchLoadError(this.el, loadErr, () => this._retryLoader());
         if (this.el.closest("[x-error]")) return;
         // 无参 url 简写加载失败时 componentName 尚未定格 → 文案退化为「远程组件」
@@ -1099,16 +1130,25 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
     /**
      * 显示 loading 占位（R6=B，组件异步加载中）。
      *
-     * 复用 x-loading 运行时指令：宿主加 `x-loading="true"` 属性，dispatcher 自动 mount 覆盖层。
+     * 复用 x-loading 运行时指令：宿主加 `x-loading` 属性，dispatcher 自动 mount 覆盖层。
      * 宿主 x-component 已剥指令属性（Compile 指令），加 x-loading 属性触发 Runtime 指令派发。
+     * ADR-0126 合成协议（共享层 {@link createLoadingMask}）：守卫（宿主手写 x-loading 时
+     * 不合成、不触碰）+ 所有权闸 + loading 选项透传——loader 场景读 merged 配置（平铺层 >
+     * 内嵌层），R6=B 等待本地组件场景无 cfg 走 x-component-options 平铺层。
+     * 元键注入（ADR-0126 决策 4）：占位显示置 `$loading=true`（含 pendingName 等待
+     * `components/<名>/registered` 的 R6=B 路径）。
      */
     private _showLoadingPlaceholder(_name: string): void {
-        this.el.setAttribute("x-loading", "true");
+        this._loadingMask ??= createLoadingMask(this.el);
+        this._loadingMask.show(
+            this._loaderCfg?.loading ?? (this.getOption("loading") as LoadingMaskOptions | undefined),
+        );
+        injectLoadMeta(this.binding, true, undefined);
     }
 
-    /** 移除 loading 占位（组件就绪或卸载时） */
+    /** 隐藏 loading 占位（ADR-0126：toggle `"false"`，仅合成方持有——宿主手写时 no-op） */
     private _hideLoadingPlaceholder(): void {
-        this.el.removeAttribute("x-loading");
+        this._loadingMask?.hide();
     }
 
     /**
@@ -1165,6 +1205,9 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         const resolved = this._resolveComponentName();
         this._clearPending();
         this._hideLoadingPlaceholder();
+        // 就绪重试（ADR-0126 决策 4）：$loading=false——若 _instantiate 回溯重判仍未注册，
+        // 会经 _showLoadingPlaceholder 重新置 true
+        injectLoadMeta(this.binding, false, undefined);
         if (resolved === "") return;
         this._instantiate(resolved, retryProps);
     }
@@ -1200,7 +1243,8 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         this._loader?.abort();
         this._loader = null;
         this._clearPending();
-        this._hideLoadingPlaceholder();
+        // 销毁时摘除合成属性并释放所有权（ADR-0126 release 语义：等价旧 removeAttribute 行为）
+        this._loadingMask?.release();
         this.instanceScope = null;
         this.instanceDef = null;
         this._appliedProps = undefined;

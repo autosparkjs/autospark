@@ -25,7 +25,7 @@ export interface AutoSparkAction {
      * 执行体（唯一必需保留键）。规范化时经 buildAction 包装，获得双通道生命周期广播
      * （ADR-0010 / 0011）；广播与 `this.action` 自引用取到的即包装后版本。
      */
-    handle: (...args: any[]) => any;
+    handle?: (...args: any[]) => any;
     /**
      * action id（注册键）。规范化时由 ActionManager 以注册键统一注入/覆盖（决策 3）——
      * descriptor 自知其 id，`Object.values` 遍历不丢 id；用户声明里的 id 不生效。

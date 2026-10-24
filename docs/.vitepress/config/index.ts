@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs";
+import { execFile } from "node:child_process";
 import { defineConfig } from "vitepress";
 import { vitepressDemoPlugin } from "vitepress-demo-plugin";
 import { context } from "esbuild";
@@ -324,6 +325,16 @@ export default defineConfig({
                 { text: "x-import", link: "/zh/guide/directives/x-import" },
               ],
             },
+            {
+              text: "插件开发",
+              collapsed: true,
+              items: [{ text: "关于", link: "/zh/guide/plugin/" }],
+            },
+            {
+              text: "扩展指令",
+              collapsed: true,
+              items: [{ text: "x-ripple", link: "/zh/guide/directives/x-ripple" }],
+            },
           ],
         }
       ],
@@ -434,6 +445,64 @@ export default defineConfig({
               res.setHeader("Content-Type", "application/javascript");
               res.end(cached);
             });
+          });
+        },
+      },
+      {
+        name: "autospark-plugins-dev-source",
+        // 仅开发期生效：demos 引用的插件闭包产物（/autospark/autospark.<plugin>.js）在 docs
+        // dev 下由本插件接管——dev 启动预热一次、插件源码/构建配置变更后下次请求触发
+        // spawn 插件包全量构建（`bun run build`，产物清单单点在 packages/plugins/vite.config.ts，
+        // 构建即刷新 docs/public 复制件），随后伺服新产物。生产构建不受影响（apply: "serve"，
+        // public 静态产物由部署侧正常伺服）。
+        apply: "serve",
+        configureServer(server: any) {
+          const pluginsRoot = path.resolve(__dirname, "../../../packages/plugins");
+          const publicDir = path.resolve(__dirname, "../../public");
+          // autospark.js（引擎）由上游 autospark-engine-dev-source 精确接管；
+          // 本正则要求产物名含插件段（autospark.<name>.js），天然不匹配引擎名。
+          const PLUGIN_CLOSURE_RE = /^\/autospark\/(autospark\.[\w-]+\.js)$/;
+          // watcher 默认只监听 docs 项目——显式扩展到插件包源码与构建配置
+          const SRC_PATHS = [path.join(pluginsRoot, "src"), path.join(pluginsRoot, "vite.config.ts")];
+          server.watcher.add(SRC_PATHS);
+
+          let dirty = true;
+          const invalidate = (): void => {
+            dirty = true;
+          };
+          server.watcher.on("change", invalidate);
+          server.watcher.on("unlink", invalidate);
+
+          // 构建串行队列：并发请求共享同一次构建；失败保留 dirty（下次请求重试）
+          let building: Promise<void> | null = null;
+          const ensureFresh = (): Promise<void> => {
+            if (!dirty) return Promise.resolve();
+            building ??= new Promise<void>((resolve, reject) => {
+              const bin = process.execPath.includes("bun") ? process.execPath : "bun";
+              execFile(bin, ["run", "build"], { cwd: pluginsRoot, windowsHide: true }, (error) => {
+                building = null;
+                if (error) return reject(error);
+                dirty = false;
+                resolve();
+              });
+            });
+            return building;
+          };
+          void ensureFresh().catch(() => {}); // 启动预热（失败留给首请求重试报错）
+
+          server.middlewares.use((req: any, res: any, next: any) => {
+            const m = PLUGIN_CLOSURE_RE.exec(req.url?.split("?")[0] ?? "");
+            if (!m) return next();
+            const name = m[1];
+            ensureFresh()
+              .then(() => {
+                res.setHeader("Content-Type", "application/javascript");
+                res.end(fs.readFileSync(path.join(publicDir, name)));
+              })
+              .catch((error: any) => {
+                res.statusCode = 500;
+                res.end(`[autospark/docs] 插件闭包产物构建失败：${error?.message ?? error}`);
+              });
           });
         },
       },

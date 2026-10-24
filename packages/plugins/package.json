@@ -1,0 +1,33 @@
+{
+  "name": "@autospark/plugins",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zhangfisher/autospark.git"
+  },
+  "files": [
+    "dist",
+    "readme.md"
+  ],
+  "type": "module",
+  "exports": {
+    "./vite": {
+      "types": "./dist/vite/index.d.ts",
+      "import": "./dist/vite/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:demo": "vite build --mode demo",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^20.10.6",
+    "@types/bun": "1.4.2",
+    "autospark": "workspace:*",
+    "happy-dom": "^20.10.6",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.0"
+  }
+}

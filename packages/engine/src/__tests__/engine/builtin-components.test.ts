@@ -18,8 +18,8 @@ import {
  * - `getComponentDeclaration(name, el?)`：el 省略或反查失败退纯全局，el 有 scope 走链就近；
  * - `def.builtin` 命中点级标记：模板与内置种子逐字相同才为 true，用户任一侧覆盖即 false。
  *
- * 通知族已随 @autospark/components ADR-0001 迁出引擎种子表——其注册位/覆盖/族根语义
- * 由 components 包 `__tests__/features/notifications-*.test.ts` 承接（插件 ready 时
+ * 通知族已随 @autospark/plugins ADR-0001 迁出引擎种子表——其注册位/覆盖/族根语义
+ * 由 plugins 包 `__tests__/features/notifications-*.test.ts` 承接（插件 ready 时
  * per-engine 写入 builtinComponents 种子，本表不再含通知键）。
  */
 
@@ -118,7 +118,7 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
         for (const k of keys) {
             expect(k.startsWith("autospark.")).toBe(true);
         }
-        // overlay 家族 shell + overlay 结构骨架 + error（通知族已随 @autospark/components
+        // overlay 家族 shell + overlay 结构骨架 + error（通知族已随 @autospark/plugins
         // ADR-0001 迁出）
         for (const k of [
             DIALOG_SHELL_NAME,

@@ -1132,11 +1132,12 @@ describe("url 远程加载（ADR-0119）", () => {
         // 骨架化：边界锚自带最小尺寸（面板骨架可见，非塌缩空壳）
         expect(boundary!.style.minWidth.includes("240px")).toBe(true);
         expect(boundary!.style.minHeight.includes("120px")).toBe(true);
-        // 放行加载：组件原位附加、加载锚形态（x-loading + 最小尺寸）随内容接管摘除
+        // 放行加载：组件原位附加、加载锚形态（x-loading + 最小尺寸）随内容接管隐藏
         resolveFetch(new Response(`<div x-define="remote"><span>远程组件</span></div>`));
         await new Promise((r) => setTimeout(r, 20));
         expect(panel.textContent.includes("远程组件")).toBe(true);
-        expect(boundary!.hasAttribute("x-loading")).toBe(false);
+        // ADR-0126：hide 走 toggle "false"（属性保留、视觉隐藏，与 removeAttribute 不可分辨）
+        expect(boundary!.getAttribute("x-loading")).toBe("false");
         expect(boundary!.style.minWidth.includes("240px")).toBe(false);
     });
 

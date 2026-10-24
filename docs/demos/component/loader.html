@@ -16,7 +16,10 @@
             - loader 完整配置（保留兼容）：对象 { url, request, fallback, error, width, height }；
               附属键可平铺到 x-component-options 顶层（同名键顶层 > 内嵌）；url 优先级指令值 > loader.url；
             - .global 修饰符：注册为全局组件（语义同 x-import.global）；
-            - 加载失败或结果中无同名组件 → 渲染内置 error 组件（重试/关闭）。
+            - 加载失败或结果中无同名组件 → 渲染内置 error 组件（重试/关闭）；
+            - loading 选项（ADR-0126）：缺省 fallback 时合成 x-loading 遮罩——false 关闭 /
+              文案字符串（→ message）/ 配置对象（→ x-loading-options 透传）；
+              元键 $loading/$error 注入宿主 scope，占位内可条件渲染（x-if="$loading"）。
             组件文件见 /autospark/components/like-button.html 与 widgets.html。
         -->
         <div id="app" x-scope>
@@ -58,6 +61,26 @@
             <div class="panel">
                 <div class="label">⑥ .global 修饰符 —— 注册为全局组件</div>
                 <div x-component:chip.global="{ text: '全局 chip' }" x-component-options.loader="/autospark/components/chip.html"></div>
+            </div>
+
+            <!-- ⑦ loading 选项（ADR-0126）：文案字符串定制遮罩 message；$loading 元键条件渲染骨架 -->
+            <div class="panel">
+                <div class="label">⑦ loading 选项 —— 文案字符串定制遮罩；元键 $loading 条件渲染</div>
+                <div x-component:chip
+                     x-component-options="{ loader: '/autospark/components/chip.html', loading: '组件载入中…' }">
+                    <template x-if="$loading">
+                        <i>（元键条件渲染：$loading 中…）</i>
+                    </template>
+                </div>
+            </div>
+
+            <!-- ⑧ loading:false + 元键 $loading：关闭默认遮罩，自行用条件渲染接管 -->
+            <div class="panel">
+                <div class="label">⑧ loading:false —— 关默认遮罩，x-if 自定义骨架</div>
+                <div x-component:chip
+                     x-component-options="{ loader: '/autospark/components/chip.html', loading: false }">
+                    <i x-show="$loading">自定义骨架：加载中…</i>
+                </div>
             </div>
         </div>
 

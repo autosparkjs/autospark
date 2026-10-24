@@ -1,57 +1,47 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>插件机制 · 全局注册与 $.ready</title>
-        <script src="/autospark/autospark.js"></script>
-        <link rel="stylesheet" href="/autospark/bulma.min.css" />
-    </head>
+  <head>
+    <meta charset="UTF-8" />
+    <title>插件开发 · 快速入门</title>
+    <!-- 引擎先加载；插件脚本随后（本 demo 的插件内联在下方 script 中） -->
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .card { border: 1px solid #dcdfe6; border-radius: 12px; padding: 20px; background: #fff; }
+      [x-highlight] { background: linear-gradient(transparent 55%, #fff59d 55%); }
+    </style>
+  </head>
+  <body>
+    <!-- my-plugin：IIFE 插件本体——形参 $ 即全局 AutoSpark，加载即注册 -->
+    <script>
+      (function ($) {
+          $.components["hello-card"] = "<div class='card' x-text='title'></div>"; // 全局组件
+          $.actions["greet"] = () => "hello";                        // 全局 action
+          $.directive({                                              // 全局指令（Runtime 通道）
+              name: "highlight",
+              kind: 1,
+              mounted() { this.el.style.fontWeight = "700"; },
+          });
+          $.icons.add("star", "<svg viewBox='0 0 24 24'><path fill='currentColor' d='M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.2 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z'/></svg>"); // 全局图标
+          $.ready((engine) => {                                      // 就绪回调：拿到引擎实例
+              engine.actions["log-ready"] = () => "engine/ready 已触发";
+          });
+      })(AutoSpark);
+    </script>
 
-    <body>
-        <div class="demo-app section">
-            <div class="block">
-                <h5 class="title is-5">插件全局组件（hello-card）</h5>
-                <div x-component:hello-card="{name: 'AutoSpark'}"></div>
-            </div>
-            <div class="block">
-                <button class="button is-primary" @click="plugGreet">插件 action：plugGreet</button>
-                <span class="ml-2" x-text="greeted"></span>
-            </div>
-            <div class="block" x-show="readyLog">
-                <h5 class="title is-5">$.ready 日志</h5>
-                <code x-text="readyLog"></code>
-            </div>
-        </div>
-
-        <!-- ═══ my-plugin.js：插件就是一个 js 文件（此处内联模拟） ═══ -->
-        <script>
-            (function ($) {
-                // 全局组件：所有 engine 实例共享（真全局，查找链兜底）
-                $.components["hello-card"] = `
-                    <div class="card">
-                        <div class="card-content">
-                            <p class="title is-4">你好，<span x-text="name"></span>！</p>
-                            <p class="subtitle">来自插件的组件</p>
-                        </div>
-                    </div>`;
-                // 全局 action：经触发 engine 惰性物化
-                $.actions["plugGreet"] = function () {
-                    this.data.greeted = "插件 action 已执行 ✓";
-                };
-                // 就绪回调：每个 engine 实例化后各调用一次
-                $.ready(function (engine) {
-                    engine.state.readyLog = "engine/ready ✓（el#" + engine.el.className.split(" ")[0] + "）";
-                });
-            })(AutoSpark);
-        </script>
-
-        <!-- ═══ 页面脚本：实例化引擎（插件已在前，注册对实例直接生效） ═══ -->
-        <script>
-            const engine = new AutoSpark(document.querySelector(".demo-app"), {
-                greeted: "",
-                readyLog: "",
-            });
-        </script>
-    </body>
+    <div class="demo-app section" x-data="{ title: '来自插件注册的组件' }">
+      <div class="block">
+        <button class="button is-primary is-small" @click="greet()">调用插件注册的 greet()</button>
+        <span class="tag is-success" x-show="msg" x-text="msg" style="margin-left: 8px"></span>
+      </div>
+      <div class="block">
+        <!-- x-component 实例化插件全局组件；x-highlight 使用插件注册的指令 -->
+        <button x-component:hello-card="{ title }" x-highlight @click="greet()"></button>
+        <span x-icon="star" style="color: #f59f00; vertical-align: middle"></span>
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), { msg: "" });
+    </script>
+  </body>
 </html>

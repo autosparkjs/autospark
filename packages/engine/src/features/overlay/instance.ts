@@ -16,6 +16,7 @@ import {
 } from "./types";
 import { DIALOG_SHELL_NAME } from "../../components";
 import { markRaw } from "autostore";
+import { createLoadingMask, type LoadingMaskHandle } from "../directive/loading-synthesis";
 
 /**
  * 面板外壳组件定义（shell 机制，ADR-0062）：消费者/命令式解析后传入。
@@ -232,6 +233,8 @@ export class OverlayInstance {
     boundary: HTMLElement | null = null;
     /** x-error 边界的轻量 scope（未构建为 null）：rootless 独立（生命周期归本实例） */
     boundaryScope: AutoSparkScope | null = null;
+    /** 边界合成遮罩句柄（ADR-0126 共享层）：随 boundary 创建（_makeBoundary），显隐走所有权闸 */
+    private boundaryMask: LoadingMaskHandle | null = null;
     /** shell 实例 scope（config 注入域；rootless 挂链——销毁由本实例统一回收，ADR-0062） */
     private _shellScope: AutoSparkScope | null = null;
 
@@ -544,7 +547,10 @@ export class OverlayInstance {
     private _makeBoundary(): HTMLElement {
         const boundary = document.createElement("div");
         boundary.setAttribute("x-error", "");
-        boundary.setAttribute("x-loading", "true");
+        // ADR-0126 合成协议（共享层）：boundary 为程序化自建元素（无宿主手写面），守卫恒放行、
+        // 显隐统一走所有权闸（toggle "true"/"false"，与四处远程加载同协议）
+        this.boundaryMask = createLoadingMask(boundary);
+        this.boundaryMask.show();
         boundary.style.cssText =
             "position:relative;" +
             "min-width:var(--autospark-overlay-loading-min-width, 240px);" +
@@ -556,20 +562,20 @@ export class OverlayInstance {
         return boundary;
     }
 
-    /** 边界复位为内容形态（mountContent）：摘 x-loading + 最小尺寸（内容接管视觉） */
+    /** 边界复位为内容形态（mountContent）：遮罩 toggle "false" + 摘最小尺寸（内容接管视觉） */
     private _rearmBoundaryForContent(): void {
         const boundary = this.boundary;
         if (!boundary) return;
-        boundary.removeAttribute("x-loading");
+        this.boundaryMask?.hide();
         boundary.style.minWidth = "";
         boundary.style.minHeight = "";
     }
 
-    /** 边界复位为加载锚形态（destroyContent / 重试）：重挂 x-loading + 最小尺寸 */
+    /** 边界复位为加载锚形态（destroyContent / 重试）：遮罩 toggle "true" + 重挂最小尺寸 */
     private _rearmBoundaryForLoading(): void {
         const boundary = this.boundary;
         if (!boundary) return;
-        boundary.setAttribute("x-loading", "true");
+        this.boundaryMask?.show();
         boundary.style.minWidth = "var(--autospark-overlay-loading-min-width, 240px)";
         boundary.style.minHeight = "var(--autospark-overlay-loading-min-height, 120px)";
     }

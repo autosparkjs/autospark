@@ -105,15 +105,22 @@ URL 来源（含 `data: true` 生成的地址）支持插值：`{id}` 形式取�
 
 ### 缓存与并发复用
 
-数据缓存键默认取路由实际 URL（`{path}` 为模式路径，参数不同的路由会坍缩为同一键，需要按参数区分缓存时显式声明 `hash`）：
+数据缓存键取路由的 `matched.hash`（路由项 `hash` 模板，默认 `{url}`——实际完整路径，参数取值天然区分）：
 
 ```js
-data: {
-    from: "/api/user/{id}",
-    cache: 60_000,
-    hash: "user-{id}"            // 每个用户 id 独立缓存
+{
+    path: "/user/:id",
+    hash: "user-{id}",              // 路由级 hash：视图复用与数据缓存共用
+    data: {
+        from: "/api/user/{id}",
+        cache: 60_000
+    }
 }
 ```
+
+::: warning 已知限制
+`data.hash` 选项当前未被消费（数据加载器的缓存键固定取 `matched.hash`）。需要自定义数据缓存键时，请在**路由项**上声明 `hash`。
+:::
 
 并发复用策略 `multiplex` 控制同 hash 加载的并发行为：
 

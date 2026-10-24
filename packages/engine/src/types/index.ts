@@ -220,7 +220,7 @@ export interface AutoSparkEvents {
     /** 工具提示隐藏（一切隐藏路径均广播：移出/聚焦离场/断连/stop/命令式） */
     "tooltip:hide": { el: HTMLElement; tip: HTMLElement };
 
-    // ── notifications/<type>/<id>/<verb> 通知事件键已随通知插件迁出（@autospark/components
+    // ── notifications/<type>/<id>/<verb> 通知事件键已随通知插件迁出（@autospark/plugins
     //    ADR-0001）——由插件的 types/augment.ts 声明合并提供；未装插件时无此键。 ──
 
     // ── directive/** 指令生命周期（<name> 占位，跨主体通配） ──

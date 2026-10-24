@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-ripple · 涟漪方式</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; }
+      .ripple-card {
+        padding: 32px 24px;
+        border: 1px solid #dcdfe6;
+        border-radius: 12px;
+        background: #fff;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 三种涟漪方式：ring 外扩环 / glow 光晕呼吸 / echo 双环错相 -->
+    <div class="demo-app section">
+      <div class="grid">
+        <div class="ripple-card" x-ripple x-ripple-options="{type: 'ring', speed: 1800}">
+          <strong>ring</strong>
+          <p class="is-size-7 has-text-grey">外扩环</p>
+        </div>
+        <div class="ripple-card" x-ripple x-ripple-options="{type: 'glow', speed: 1800}">
+          <strong>glow</strong>
+          <p class="is-size-7 has-text-grey">边框光晕呼吸</p>
+        </div>
+        <div class="ripple-card" x-ripple x-ripple-options="{type: 'echo', speed: 1800}">
+          <strong>echo</strong>
+          <p class="is-size-7 has-text-grey">回声双环错相位（默认）</p>
+        </div>
+      </div>
+      <div class="block has-text-grey is-size-7">
+        ring / echo 是一圈边框色自边框向外扩散渐隐；glow 是 box-shadow 明暗脉冲不位移；echo
+        以半个周期错相位叠加第二环，一波未平一波又起。
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

@@ -70,7 +70,7 @@
 ## 实施落点
 
 - `src/utils/getRouteVars.ts` —— 增可选 `metaVars` 参数，`$` 成员先展开、路由变量覆盖；
-- 新增 `src/utils/getStateVars.ts` —— 从 `router.engine?.state?.$` 提取「自有可枚举 + 原始值 + 排除 route」；
+- 新增 `src/utils/getStateVars.ts` —— 从 `router.engine?.state?.$`（最小 stub 仅有 `store` 时回退 `engine.store.state.$`）提取「自有可枚举 + 原始值 + 排除 route」；
 - `src/utils/getSignalHash.ts` / `src/utils/getRouteHash.ts` —— 透传 `metaVars`；
 - `src/features/baseLoader.ts` / `src/features/dataLoader.ts` —— 地址插值与 `_getHash` 传入变量池；
 - `src/router.ts` —— `_matchRoute` 匹配后按同一变量池重算 `matched.hash`（仅 `route` 存在的层），再追加语言后缀；

@@ -39,7 +39,7 @@
                     id: `note-${++seq}`,
                     title: `记录 ${seq}（persist=${persist}）`,
                     type: "notice",
-                    persist, // 0|1|2|3（常量 AutoSparkSpaces.NOTIFICATION_PERSIST.* 同义）
+                    persist, // 0|1|2|3（常量 engine.notifications.PERSIST.* 同义）
                     delayClose: 0,
                     pos: persist === 0 ? "bottom-right" : "top-right",
                 });

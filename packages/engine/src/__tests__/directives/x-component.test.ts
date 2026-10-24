@@ -2118,7 +2118,7 @@ describe("x-component loader 远程直接实例化（ADR-0065）", () => {
         expect(root.querySelector("b")?.textContent).toBe("/b.html");
     });
 
-    test("缺省 fallback：加载期间 x-loading 占位，完成后清除", async () => {
+    test("缺省 fallback：加载期间 x-loading 占位，完成后 toggle 隐藏（ADR-0126 toggle 协议）", async () => {
         const gate = loaderDeferred<{ body: string }>();
         mockLoaderFetch(() => gate.promise);
         const { root } = mount(
@@ -2130,7 +2130,8 @@ describe("x-component loader 远程直接实例化（ADR-0065）", () => {
         expect(host?.getAttribute("x-loading")).toBe("true");
         gate.resolve({ body: `<div x-define="rc"><b>ok</b></div>` });
         await flushLoader();
-        expect(host?.getAttribute("x-loading")).toBeNull();
+        // ADR-0126：hide 走 toggle "false"（属性保留、视觉隐藏，与 removeAttribute 不可分辨）
+        expect(host?.getAttribute("x-loading")).toBe("false");
         expect(host?.querySelector("b")?.textContent).toBe("ok");
     });
 
@@ -2406,5 +2407,125 @@ describe("engine.getComponent(el) 组件实例门面（ADR-0080）", () => {
         inst.data.count = 100;
         await nextTick();
         expect(root.querySelector("#cval")?.textContent).toBe("100");
+    });
+});
+
+describe("x-component loading 合成协议与元键注入（ADR-0126）", () => {
+    afterEach(() => {
+        (globalThis as any).fetch = realLoaderFetch;
+    });
+
+    test("loading:false → 不合成遮罩（宿主无 x-loading 属性）", async () => {
+        mockLoaderFetch(() => ({ body: `<div x-define="rc"><b>ok</b></div>` }));
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options="{loader:'/rc.html', loading:false}"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        const host = root.querySelector("#h");
+        expect(host?.hasAttribute("x-loading")).toBe(false);
+        expect(host?.querySelector("b")?.textContent).toBe("ok");
+    });
+
+    test("loading:文案字符串 → x-loading-options 透传 {message}", async () => {
+        const gate = loaderDeferred<{ body: string }>();
+        mockLoaderFetch(() => gate.promise);
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options="{loader:'/rc.html', loading:'组件加载中…'}"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        const host = root.querySelector("#h");
+        expect(host?.getAttribute("x-loading")).toBe("true");
+        expect(host?.getAttribute("x-loading-options")).toBe(
+            JSON.stringify({ message: "组件加载中…" }),
+        );
+        gate.resolve({ body: `<div x-define="rc"><b>ok</b></div>` });
+        await flushLoader();
+        expect(host?.querySelector("b")?.textContent).toBe("ok");
+    });
+
+    test("loading:配置对象 → x-loading-options JSON 透传", async () => {
+        const gate = loaderDeferred<{ body: string }>();
+        mockLoaderFetch(() => gate.promise);
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options="{loader:'/rc.html', loading:{message:'载入中', delay:50}}"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        const host = root.querySelector("#h");
+        expect(host?.getAttribute("x-loading-options")).toBe(
+            JSON.stringify({ message: "载入中", delay: 50 }),
+        );
+        gate.resolve({ body: `<div x-define="rc"><b>ok</b></div>` });
+        await flushLoader();
+    });
+
+    test("fallback 显式声明优先：不合成遮罩（两种占位形态按声明分流）", async () => {
+        const gate = loaderDeferred<{ body: string }>();
+        mockLoaderFetch(() => gate.promise);
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options="{loader:'/rc.html', fallback:'<i>wait</i>'}"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        const host = root.querySelector("#h");
+        expect(host?.hasAttribute("x-loading")).toBe(false);
+        expect(host?.querySelector("i")?.textContent).toBe("wait");
+        gate.resolve({ body: `<div x-define="rc"><b>ok</b></div>` });
+        await flushLoader();
+        expect(host?.querySelector("b")?.textContent).toBe("ok");
+    });
+
+    test("元键时序：发起 $loading=true 清 $error → 成功 $loading=false", async () => {
+        const gate = loaderDeferred<{ body: string }>();
+        mockLoaderFetch(() => gate.promise);
+        const { engine, root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options.loader="/rc.html"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        const host = root.querySelector("#h")!;
+        const scope = engine.findScopeByEl(host as HTMLElement)!;
+        expect(scope.locals?.$loading).toBe(true);
+        expect(scope.locals?.$error).toBeUndefined();
+        gate.resolve({ body: `<div x-define="rc"><b>ok</b></div>` });
+        await flushLoader();
+        expect(scope.locals?.$loading).toBe(false);
+        expect(scope.locals?.$error).toBeUndefined();
+    });
+
+    test("元键失败落地：$error 为归一错误（source:load）+ $loading=false", async () => {
+        mockLoaderFetch(() => new Error("network down"));
+        const { engine, root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-component-options.loader="/rc.html"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        const scope = engine.findScopeByEl(root.querySelector("#h") as HTMLElement)!;
+        const err = scope.locals?.$error as Record<string, any>;
+        expect(scope.locals?.$loading).toBe(false);
+        // fetch 抛错经 engine.importComponentsFromUrl 吞掉 → loaderFn 包装文案（url 在场）
+        expect(String(err?.message)).toContain("/rc.html");
+        expect(err?.source).toBe("load");
+    });
+
+    test("宿主手写 x-loading → 引擎不合成不触碰不删除（守卫 + 所有权闸）", async () => {
+        const gate = loaderDeferred<{ body: string }>();
+        mockLoaderFetch(() => gate.promise);
+        const { root } = mount(
+            `<div x-scope><div id="h" x-component:rc x-loading="true" x-component-options.loader="/rc.html"></div></div>`,
+            {},
+        );
+        await flushLoader();
+        const host = root.querySelector("#h");
+        // 加载中：属性保持手写值；无引擎透传（x-loading-options 未被合成写入）
+        expect(host?.getAttribute("x-loading")).toBe("true");
+        expect(host?.hasAttribute("x-loading-options")).toBe(false);
+        gate.resolve({ body: `<div x-define="rc"><b>ok</b></div>` });
+        await flushLoader();
+        // 完成：hide no-op——手写声明不被删除
+        expect(host?.getAttribute("x-loading")).toBe("true");
+        expect(host?.querySelector("b")?.textContent).toBe("ok");
     });
 });

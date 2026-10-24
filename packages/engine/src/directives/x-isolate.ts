@@ -10,6 +10,7 @@ import {
     type RemoteLoadError,
     type RemoteLoadMeta,
 } from "../features/directive/remote-load";
+import { createLoadingMask, type LoadingMaskHandle } from "../features/directive/loading-synthesis";
 import { parseHtmlFragment } from "../utils/transformElement";
 import { ERROR_COMPONENT_NAME } from "../components";
 import { SCOPES_KEY } from "../consts";
@@ -74,6 +75,8 @@ export class IsolateDirective extends AutoSparkDirectiveBase {
     private childEngine?: AutoSpark;
     /** 当前远程加载的 AsyncLoader 实例（ADR-0121：url 变化 / scope 销毁时 abort，落地身份校验丢弃过期结果） */
     private loader: AsyncLoader<unknown, RemoteLoadMeta> | null = null;
+    /** 合成遮罩句柄（ADR-0126 共享层）：守卫 / 所有权闸 / toggle 显隐状态内聚，宿主元素恒定故惰性创建一次 */
+    private loadingMask: LoadingMaskHandle | null = null;
     /** 默认/自定义错误块的编译 scope（teardown / 新一轮落地前销毁 + 回收 $scopes[id]） */
     private errorScope: AutoSparkScope | null = null;
 
@@ -203,7 +206,9 @@ export class IsolateDirective extends AutoSparkDirectiveBase {
         }
         // 复用 x-loading 运行时指令：宿主加属性即由 dispatcher mount 遮罩（ADR-0006 决策 6）。
         // 宿主自身不在 isolate 盲区内（仅子树盲），故父 dispatcher 能观测到此属性变化。
-        this.el.setAttribute("x-loading", "true");
+        // ADR-0126 合成协议（共享层）：宿主手写 x-loading 时不合成、不触碰（守卫 + 所有权闸）。
+        this.loadingMask ??= createLoadingMask(this.el);
+        this.loadingMask.show();
         const loader = createRemoteLoader({
             engine: this.engine,
             url: urlStr,
@@ -221,7 +226,7 @@ export class IsolateDirective extends AutoSparkDirectiveBase {
     private _retry(): void {
         const loader = this.loader;
         if (!loader) return;
-        this.el.setAttribute("x-loading", "true");
+        this.loadingMask?.show();
         this._wireLanding(loader, loader.refresh());
     }
 
@@ -235,7 +240,7 @@ export class IsolateDirective extends AutoSparkDirectiveBase {
             (value) => {
                 if (loader !== this.loader) return; // 被新 url 取代 / 已销毁
                 this._clearErrorBlock();
-                this.el.removeAttribute("x-loading"); // 移除遮罩（dispatcher unmount）
+                this.loadingMask?.hide(); // ADR-0126：toggle "false"（仅合成方持有）
                 this.el.replaceChildren();
                 this.el.innerHTML = String(value);
                 // 完全独立 child engine：空状态 {} 由 engine 自建 store，fetched HTML 用自身 x-data 自治声明状态。
@@ -250,7 +255,7 @@ export class IsolateDirective extends AutoSparkDirectiveBase {
             (err: unknown) => {
                 if (loader !== this.loader) return;
                 if ((err as Error)?.name === "AbortError") return; // 主动 abort，非真错误
-                this.el.removeAttribute("x-loading");
+                this.loadingMask?.hide();
                 const loadErr = normalizeLoadError(err, loader.meta);
                 this.error(`x-isolate: 加载远程模板失败 "${loadErr.url}": ${loadErr.message}`);
                 this._renderError(loadErr, loader);
@@ -258,14 +263,15 @@ export class IsolateDirective extends AutoSparkDirectiveBase {
         );
     }
 
-    /** 销毁当前 child engine + abort 在途 loader + 清错误块 + 移除 x-loading（url 变化 / scope 销毁时调用） */
+    /** 销毁当前 child engine + abort 在途 loader + 清错误块 + 摘除合成遮罩（url 变化 / scope 销毁时调用） */
     private _teardownEngine(): void {
         this.loader?.abort();
         this.loader = null;
         this.childEngine?.destroy();
         this.childEngine = undefined;
         this._clearErrorBlock();
-        this.el.removeAttribute("x-loading");
+        // ADR-0126 release 语义：摘除合成属性并释放所有权——下一轮 _loadUrl 重新走守卫判定
+        this.loadingMask?.release();
     }
 
     /** 销毁错误块编译 scope + 回收其 $scopes[id] 响应式数据（x-error clear 同款姿势） */

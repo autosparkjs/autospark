@@ -2,7 +2,7 @@
 
 ## 概述
 
-通知是 AutoSpark 的统一信息反馈与管理模块（ADR-0071），以**官方插件**形态随 `@autospark/components` 包分发（ADR-0001：子系统自 engine 迁出，引入即挂载，见[安装](./installation.md)）：数据层收件箱式记录管理 + 屏幕分区栈呈现，一套模型承载轻提示 / 通知 / 业务提醒 / 任务跟踪。命令式（`engine.notifications`）与模板声明（内置全局 `toast` action）双通道发起；状态经保留键 `$notifications` 暴露进 `store.state`（ADR-0072——通知中心面板 / 未读角标模板直绑）：
+通知是 AutoSpark 的统一信息反馈与管理模块（ADR-0071），以**官方插件**形态随 `@autospark/plugins` 包分发（ADR-0001：子系统自 engine 迁出，引入即挂载，见[安装](./installation.md)）：数据层收件箱式记录管理 + 屏幕分区栈呈现，一套模型承载轻提示 / 通知 / 业务提醒 / 任务跟踪。命令式（`engine.notifications`）与模板声明（内置全局 `toast` action）双通道发起；状态经保留键 `$notifications` 暴露进 `store.state`（ADR-0072——通知中心面板 / 未读角标模板直绑）：
 
 ```ts
 // 命令式：任意 JS 代码处
@@ -340,8 +340,7 @@ engine.notifications.markAllRead("notice"); // 按 type 批量已读
 | `3` | `REMOTE` | 同上 + 服务器同步（POST） |
 
 ```ts
-import { NOTIFICATION_PERSIST } from "@autospark/components/notifications";
-engine.notifications.add({ title: "x", persist: NOTIFICATION_PERSIST.SESSION }); // ≡ persist: 1（裸数字同合法）
+engine.notifications.add({ title: "x", persist: engine.notifications.PERSIST.SESSION }); // ≡ persist: 1（裸数字同合法）
 
 engine.notifications.size;            // 存活记录数（展示中 + 已隐藏）
 engine.notifications.get(id);         // 原生 Map.get（≡ sessions.get(id)）
@@ -375,4 +374,4 @@ engine.notifications.clear();         // 清全部存活记录（含隐藏与会
 - **触摸设备**：hover 暂停无专属逻辑；**无障碍**：`role="status"` / `aria-live` 在 fast-follow 清单。
 - **SSR**：显示静默跳过；localStorage 缺失 local 持久化 warn + no-op；load / save 可用。
 
-技术决策与被否决方案详见 [ADR-0071](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0071-messages.md)、[ADR-0072](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0072-messages-state.md)、[ADR-0077](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0077-message-session-dual-shell.md)、[ADR-0079](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0079-message-type-level-rename.md)、[ADR-0083](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0083-message-session-class-presets.md)、[ADR-0088](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0088-message-content-ownership-module-split.md)；插件化迁出决策见 [ADR-0001](https://github.com/autosparkjs/autospark/blob/main/packages/components/docs/adr/0001-notification-plugin.md)（@autospark/components）。
+技术决策与被否决方案详见 [ADR-0071](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0071-messages.md)、[ADR-0072](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0072-messages-state.md)、[ADR-0077](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0077-message-session-dual-shell.md)、[ADR-0079](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0079-message-type-level-rename.md)、[ADR-0083](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0083-message-session-class-presets.md)、[ADR-0088](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0088-message-content-ownership-module-split.md)；插件化迁出决策见 [ADR-0001](https://github.com/autosparkjs/autospark/blob/main/packages/plugins/docs/adr/0001-notification-plugin.md)（@autospark/plugins）。

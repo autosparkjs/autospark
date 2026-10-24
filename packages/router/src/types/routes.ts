@@ -169,7 +169,8 @@ export interface AutoSparkRouteItem {
      * 可以是以下两种类型之一：
      *
      * 1. ViewSource - 视图源：
-     *    - string: 从此路径加载HTML内容，支持相对路径和绝对路径
+     *    - string: 从此路径加载HTML内容，支持相对路径和绝对路径；
+     *      URL 支持插值（路由变量 + `engine.state.$` 原始值成员，路由侧同名优先，ADR-0122）
      *    - HTMLElement: 使用指定的HTMLElement元素作为路由显示组件
      *    - () => Promise<any>: 通过动态导入函数加载组件，支持本地组件和远程HTML内容
      *
@@ -196,6 +197,8 @@ export interface AutoSparkRouteItem {
      * 在导航到此路由时预加载的数据，可以是以下类型：
      *
      * 这些数据会被作为路由视图渲染时使用的变量
+     *
+     * URL 形态的地址支持插值（路由变量 + `engine.state.$` 原始值成员，路由侧同名优先，ADR-0122）
      */
     data?: AutoSparkRouteDataSource | AutoSparkRouteDataOptions | true;
     /**

@@ -4,6 +4,7 @@ import { createEmptyRenderer, resolveEmptyValues } from "../features/directive/u
 import { recompileSubtree } from "../utils/recompileSubtree";
 import { AsyncSourceRunner, createAsyncOnError } from "../features/directive/async-source";
 import { dispatchLoadError, type RemoteLoadError } from "../features/directive/remote-load";
+import { createLoadingMask, injectLoadMeta, type LoadingMaskHandle } from "../features/directive/loading-synthesis";
 import type { AutoSparkAction } from "../features/action/types";
 import { isAsyncHtmlValue } from "../features/directive/async-source-utils";
 import { getId } from "../utils/getId";
@@ -60,6 +61,7 @@ import type { Watcher } from "autostore";
  * 写宿主 scope locals，模板直读）+ 合成 `x-loading` 字面量切换（`"true"`/`"false"`，
  * 经 attrChanged 驱动显隐）+ 用户可用 x-if/x-else-if/x-else 做条件渲染。同元素双异步
  * （异步 x-data + 异步 x-html）时视觉通道归 x-html 独占（x-data 不合成 overlay）。
+ * 合成协议（守卫 / 所有权闸 / options 透传 / 显隐）与元键注入走共享层（ADR-0126）。
  *
  * **与 x-text 同元素**：x-html 确定性胜出（x-text 让步 no-op，见 ADR-0005 决策 6）。
  *
@@ -260,15 +262,18 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
     private hasArrived = false;
     /** destroy 后拒收一切在途结果 */
     private destroyed = false;
-    /** 是否已合成 x-loading 覆盖层（字面量切换式：值在 "true"/"false" 间经 attrChanged 驱动显隐） */
-    private loadingSynth = false;
+    /** 合成遮罩句柄（ADR-0126 共享层）：守卫 / 所有权闸 / toggle 显隐状态内聚 */
+    private loadingMask: LoadingMaskHandle | null = null;
 
     /**
      * 异步形态初始化（ADR-0035 / ADR-0122）：x-loading 合成（ADR-0122：无互斥，恒合成）→
      * runner 首取 + 依赖 watch。元键 $loading/$error 经 runner 回调注入宿主 locals。
      */
     private _createdAsync(raw: string): void {
-        this._synthesizeLoading();
+        if (this.el) {
+            this.loadingMask = createLoadingMask(this.el);
+            this.loadingMask.show(this.getOption("loading"));
+        }
         this.runner = new AsyncSourceRunner(this.binding, (k) => this.getOption(k), {
             responseParser: (res) => res.text(),
             onLoading: () => this._beginLoad(),
@@ -298,54 +303,33 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
         this.runner.start(raw);
     }
 
-    /** 请求发起：在途置位 + 清上一轮失败 + 元键注入（$loading=true, $error=undefined） */
+    /**
+     * 请求发起：在途置位 + 清上一轮失败 + 元键注入（$loading=true, $error=undefined）。
+     *
+     * x-loading 覆盖层合成协议（ADR-0035 决策 3 / ADR-0122 决策 3 / ADR-0126 共享层）：合成
+     * `x-loading` 字面量属性（Runtime 指令属性保留在结果 DOM，值切换 `"true"`/`"false"` 经
+     * attrChanged 驱动显隐）。ADR-0122 移除「有 x-fallback 不合成」互斥默认与双异步让位——
+     * 恒合成，仅 `loading:false` 恒关、宿主手写 x-loading 不叠加（守卫 + 所有权闸状态机见
+     * {@link createLoadingMask}）。字符串形态 → `message` 包装透传（ADR-0126 决策 2 词汇对齐）。
+     */
     private _beginLoad(): void {
         this.loading = true;
         this.lastError = null;
-        this._setLoadingAttr(true);
+        this.loadingMask?.show(this.getOption("loading"));
         this._setMeta(true, undefined);
     }
 
     /**
-     * x-loading 覆盖层合成（ADR-0035 决策 3 / ADR-0122 决策 3）：注入 `x-loading="true"` 字面量属性
-     * （Runtime 指令属性保留在结果 DOM，dispatcher 拾取；字面量模式无订阅，值切换
-     * `"true"`/`"false"` 经 attrChanged 驱动显隐）。ADR-0122 移除「有 x-fallback 不合成」
-     * 互斥默认与双异步让位——恒合成，仅 `loading:false` 恒关、宿主手写 x-loading 不叠加。
-     */
-    private _synthesizeLoading(): void {
-        const loadingOpt = this.getOption("loading");
-        if (loadingOpt === false) return;
-        if (this.el?.hasAttribute("x-loading")) return;
-        this.el?.setAttribute("x-loading", "true");
-        this.loadingSynth = true;
-        if (loadingOpt && typeof loadingOpt === "object") {
-            this.el?.setAttribute("x-loading-options", JSON.stringify(loadingOpt));
-        }
-    }
-
-    /** 切换合成覆盖层显隐（仅合成方持有——未合成时 no-op） */
-    private _setLoadingAttr(on: boolean): void {
-        if (!this.loadingSynth) return;
-        this.el?.setAttribute("x-loading", on ? "true" : "false");
-    }
-
-    /**
-     * 元键注入宿主 scope locals（ADR-0122 决策 2）：`$loading`/`$error` 为普通对象字段，
-     * 经 scope 链对子树可见（locals 优先级最高）。原地修改（不替换引用——子 scope 经
-     * _linkParent 共享同一对象，替换会断链）。写入后 invalidateScopeView 让聚合视图缓存
-     * 失效，再刷新子 scope 驱动依赖绑定重求值（x-text/x-if 等直读元键）。
+     * 元键注入宿主 scope locals（ADR-0122 决策 2，ADR-0126 起走共享层
+     * {@link injectLoadMeta}）：`$loading`/`$error` 为普通对象字段，经 scope 链对子树可见
+     * （locals 优先级最高）。
      *
      * 注意：只刷新子 scope，不刷宿主 scope 自身——宿主 scope 上的 AsyncSourceRunner watcher
      * 监听 args 数据依赖，不应被 $loading/$error 变化触发，否则会形成
      * _setMeta → refresh → invokeAction → _beginLoad → _setMeta 的死循环。
      */
     private _setMeta(loading: boolean, error: Error | undefined): void {
-        const scope = this.binding;
-        if (!scope.locals) scope.locals = {};
-        scope.locals.$loading = loading;
-        scope.locals.$error = error;
-        scope.invalidateScopeView();
-        for (const child of scope.children) child.refresh();
+        injectLoadMeta(this.binding, loading, error);
     }
 
     /**
@@ -362,7 +346,7 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
         }
         this.hasArrived = true;
         this.loading = false;
-        this._setLoadingAttr(false);
+        this.loadingMask?.hide();
         this._setMeta(false, undefined);
         // 产物进入既有双通道（决策 4）：.compile → 远程子模板编译；默认 → innerHTML（远程内容维持默认消毒）
         if (this.getOption("compile")) {
@@ -378,7 +362,7 @@ export class HtmlDirective extends AutoSparkDirectiveBase {
         this.warn(`x-html: ${err.message}`);
         this.loading = false;
         this.lastError = err;
-        this._setLoadingAttr(false);
+        this.loadingMask?.hide();
         this._setMeta(false, err);
     }
 

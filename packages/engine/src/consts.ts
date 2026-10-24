@@ -6,7 +6,7 @@
  * 本文件属最底层：不得 import 引擎任何其他模块——3 处运行时下行 Symbol
  * （SCOPES_KEY / META_KEY / LOCAL_PATHS）抽到此文件即解除了编译器 / 覆盖物 / 通知域
  * 对 engine 门面的运行时环。
- * （NOTIFICATIONS_KEY 已随通知插件迁出——@autospark/components ADR-0001。）
+ * （NOTIFICATIONS_KEY 已随通知插件迁出——@autospark/plugins ADR-0001。）
  */
 
 /** 事件绑定快捷前缀（如 @click） */

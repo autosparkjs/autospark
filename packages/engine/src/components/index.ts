@@ -5,7 +5,7 @@
  *
  * 注册名**统一 `autospark.` 点前缀**（ADR-0094——与用户业务组件零命名冲突，引擎保留命名空间）：
  * - overlay 家族 shell：`autospark.dialog` / `autospark.popover` / `autospark.drawer` / `autospark.error`。
- * - 通知族已随通知插件迁出（@autospark/components ADR-0001）：`autospark.notifications.*`
+ * - 通知族已随通知插件迁出（@autospark/plugins ADR-0001）：`autospark.notifications.*`
  *   组件由插件自举注册，engine 零感知。
  *
  * 懒预编译纪律不变（ADR-0092）：本表只提供字符串模板，构造期经 `options.builtinComponents`
@@ -35,7 +35,7 @@ export const ERROR_COMPONENT_NAME = "autospark.error";
  * 内置组件种子表（ADR-0092 单文件化 → ADR-0094 注册位化 → ADR-0095 通知族单层化 →
  * ADR-0097 base 正名 shell + actions 子组件退役内联）：engine 构造期并入
  * `options.builtinComponents`（用户同名覆盖优先——展开序在后）。通知族组件
- * （autospark.notifications.*）已随通知插件迁出（@autospark/components ADR-0001），
+ * （autospark.notifications.*）已随通知插件迁出（@autospark/plugins ADR-0001），
  * overlay 家族 shell（dialog/popover/drawer 各为一组件一文件）保留。
  */
 export const BUILTIN_COMPONENTS: Record<string, string> = {

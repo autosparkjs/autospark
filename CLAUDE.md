@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Bun monorepo（`bun@1.4.0`），主要工作区：
 
 - `packages/engine`（包名 `autospark`）— **AutoSpark Engine**：全功能的响应式前端应用引擎（由响应式模板引擎演进而来），通过宿主元素上的 `x-*` / `@*` / `:*` 指令属性把 [AutoStore](https://github.com/zhangfisher/autostore) 响应式状态绑定到 DOM（Alpine.js 风格，最小声明 + 细粒度响应式 patch）；状态层、指令层、组件层、动作层齐备，可直接从零搭建完整前端应用。
-- `packages/components`（包名 `@autospark/components`）— **纯 HTML 组件资产包**：每组件一个 `x-define` 资产 html（`src/components/`）+ `?raw` 聚合种子表（`src/index.ts`）；运行时零依赖 engine（仅 devDependencies 供 demo）。组件名沿用 `autospark.` 前缀、经 `options.components` 业务注册位注入（同名覆盖内置）。demo 每组件一页（`demo/`），`bun run dev` 起 vite（5181）。
+- `packages/plugins`（包名 `@autospark/plugins`）— **官方插件包**（插件开发方式载体，ADR-0003）：插件是扩展 autospark 的机制（ADR-0111 jQuery 风格插件机制 + ADR-0114 预加载队列），可以是组件、指令、图标、动作等任意形态。按插件组织（`src/plugins/<name>/` 自包含），现役：notifications（复合）/ ripple（指令）/ autospark.button（组件）+ 包根聚合入口。**产物仅 IIFE**（脚本即契约，无 ESM/CJS、无 exports map），复制 `docs/public/autospark.*.js`；运行时零依赖 engine——经 `src/runtime/bridge.ts` 命名空间解析 + `src/runtime/bootstrap.ts` 的 `installPlugin` 自举单点（`installPlugin` 双路径注册收敛）。demo（`demo/`）`bun run dev` 起 vite（5181）。
 - `docs/` — VitePress 中文文档站；`docs/demos/` 下是纯 HTML 可运行示例，依赖 engine 构建产物 `docs/public/autospark.js`（IIFE，全局变量 `AutoSpark` 即类本身、`AutoSparkSpaces` 为兼容别名，ADR-0111）。
 
 ⚠️ 依赖与发行形态（ADR-0030）：`autostore` 为 devDependencies（registry 安装），构建时经 `noExternal` **打包进三格式产物**；入口 `export * from "autostore"` **全量转导出**——消费者 `import { AutoSpark, AutoStore } from "autospark"` 单包即用。类型解析依赖 `fastevent`/`flex-tools`/`type-fest` 三个小包（dependencies，随包自动安装）。

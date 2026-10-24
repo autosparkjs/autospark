@@ -228,6 +228,30 @@ describe("x-isolate 远程子引擎", () => {
         expect(fetchCalls.length).toBe(2);
     });
 
+    test("remote：宿主手写 x-loading → 引擎不合成不触碰不删除（ADR-0126 守卫 + 所有权闸）", async () => {
+        let resolveFetch!: (v: any) => void;
+        globalThis.fetch = (async () => new Promise((r) => (resolveFetch = r))) as any;
+        const { root, engine } = mount(
+            `<div x-isolate="url" x-loading="true"></div>`,
+            { url: "/hand" },
+        );
+        await nextTick();
+        const host = root.querySelector("[data-view-hash]") ?? root.firstElementChild;
+        const el = (root.querySelector("div") ?? host) as HTMLElement;
+        // 加载中：属性保持手写值；x-loading-options 未被引擎合成写入
+        expect(el.getAttribute("x-loading")).toBe("true");
+        expect(el.hasAttribute("x-loading-options")).toBe(false);
+        resolveFetch({ ok: true, status: 200, text: async () => `<span>HAND</span>` } as any);
+        await nextTick();
+        // 成功落地：hide no-op——手写声明不被删除（旧行为会 removeAttribute）
+        expect(el.getAttribute("x-loading")).toBe("true");
+        expect(root.querySelector("span")?.textContent).toBe("HAND");
+        // url 变化重取（release 后重新守卫判定）依然不触碰手写声明
+        engine.state.url = "/hand2";
+        await nextTick();
+        expect(el.getAttribute("x-loading")).toBe("true");
+    });
+
     test("remote：x-error 在场 → 默认错误块退位，x-error 接管呈现", async () => {
         mockFetch({}); // 所有 url 404
         const { root } = mount(

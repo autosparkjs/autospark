@@ -23,7 +23,7 @@ AutoSpark 提供 jQuery 风格的插件机制：**插件就是一个 js 文件**
 
 ## 快速入门
 
-下方 demo 的第一个 `<script>` 块就是一个完整的插件（内联模拟 `my-plugin.js`）：注册全局组件 `hello-card`、全局 action `plugGreet`，并通过 `$.ready` 在引擎实例化后写入日志。页面随后实例化引擎，插件注册的一切**直接生效**。
+下方 demo 的第一个 `<script>` 块就是一个完整的插件（内联模拟 `my-plugin.js`）：五种注册面各注册一样——全局组件 `hello-card`、全局 action `greet`、Runtime 指令 `highlight`、全局图标 `star`，并在 `$.ready` 中为每个引擎补注册一个引擎级 action。页面随后实例化引擎，插件注册的一切**直接生效**。
 
 <demo html="plugin/basic.html"/>
 
@@ -68,7 +68,7 @@ $.ready((engine, $) => {
 - 回调抛错被隔离（记日志跳过），不影响其余回调与引擎构造；
 - `engine.destroy()` 后的实例不再收到回调。
 
-### 全局注册表：真全局 vs 引擎级
+### 全局注册表：真全局 vs 引擎级 {#全局注册表}
 
 `$.components` / `$.actions` 是**跨引擎的真全局声明表**（可变普通对象）；`options.components` / `options.actions` 是引擎级注册位。引擎查找链到顶后**兜底遍历全局表**——注册不复制进引擎、无运行时广播，晚注册对已建引擎同样立即生效：
 
@@ -112,9 +112,9 @@ $.directive("reverse", class extends $.AutoSparkDirectiveBase {
 
 - 引擎实例化**之前**定义：安装器在首次编译前注册，参与首次编译；
 - 引擎实例化**之后**定义：立即广播所有存活引擎（Runtime 指令即时生效）；
-- spec 键集与类形态的完整说明见[自定义指令](/zh/guide/directive/custom)。
+- spec 键集与类形态的完整说明见[自定义指令](./directive/custom.md)。
 
-### 前置加载：先于 autospark.js
+### 前置加载：先于 autospark.js {#前置加载}
 
 script 标签顺序不再是契约。插件脚本要写在 `autospark.js` **之前**时，把脚本体包成一个函数推进预加载队列：
 
@@ -149,3 +149,7 @@ script 标签顺序不再是契约。插件脚本要写在 `autospark.js` **之�
 - **无插件卸载**：全局注册表不随 `engine.destroy()` 回滚（全局资源生命周期即页面生命周期）；
 - **无插件表**：引擎不感知「插件」概念，重复加载同一插件是页面作者的责任；
 - **不开原型扩展口**：没有 `$.fn` / `$.extend`——「修改引擎」请用 `$.ready` 回调内的公开 API（actions 赋值、事件订阅、`engine.patch` 等）。
+
+---
+
+本页是插件**机制**的权威说明；官方插件包 `@autospark/plugins` 的 API 速查、三形态官方样板与实操守则见[插件开发](/zh/guide/plugin/)。
