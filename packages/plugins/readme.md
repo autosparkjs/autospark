@@ -5,7 +5,8 @@
 | 插件 | 形态 | 注册面 | 产物 |
 | --- | --- | --- | --- |
 | notifications | 复合插件 | `AutoSpark.ready` + 组件表 + actions 三件套 | `autospark.notifications.js` |
-| x-spark | 指令插件 | `AutoSpark.directive(spec)` | `autospark.spark.js` |
+| x-ripple | 指令插件 | `AutoSpark.directive(spec)` | `autospark.ripple.js` |
+| x-spin | 指令插件 | `AutoSpark.directive(spec)` | `autospark.spin.js` |
 | autospark.button | 组件插件 | `AutoSpark.components[name] = 模板` | `autospark.button.js` |
 | 聚合 | 全部官方插件 | — | `autospark.plugins.js` |
 

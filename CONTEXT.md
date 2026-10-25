@@ -6,43 +6,39 @@ AutoSpark 是信号驱动的声明式前端引擎家族：engine 核心、router
 
 ### 指令域
 
-**火花（Spark）**:
-`x-spark` 装饰动效伞形指令：为宿主元素叠加不改变布局与内容的装饰性动画层。效果族经 `type` 声明：`ripple`（涟漪扩散）| `spin`（色环旋转），缺省 `ripple`。
-_Avoid_: 动画、特效（过泛）；以具体效果名指代伞形指令
-
 **涟漪（Ripple）**:
-x-spark 的效果族之一：从宿主边框开始、循环向外扩散渐隐的装饰性动画层。
-_Avoid_: 波纹、水波；x-ripple（旧指令名，已升级为 x-spark）
+`x-ripple` 装饰动效指令：从宿主边框开始、循环向外扩散渐隐的动画层，不改变宿主布局与内容。形态经 `type` 声明（见「涟漪形态」）。
+_Avoid_: 波纹、水波；x-spark（旧伞形指令，已拆分退役）
 
 **涟漪形态（Ripple Mode）**:
-涟漪的视觉形态，经 `rippleMode` 声明，三值：`ring`（外扩环）、`glow`（边框光晕呼吸）、`echo`（双环回声）。
-_Avoid_: 模式、风格；type（type 是外层效果族词汇）
+涟漪的视觉形态，经 `type` 声明，三值：`ring`（外扩环）、`glow`（边框光晕呼吸）、`echo`（双环回声，缺省）。三通道等价声明：`type` 显式键 / 布尔开关键 / 点修饰符速记（`x-ripple.echo`），并存按 `glow > ring > echo` 取先。
+_Avoid_: 模式、风格；rippleMode（伞形时代旧键名，已回归 type）
 
 **色环旋转（Spin）**:
-x-spark 的效果族之二：环绕宿主边界的旋转色环动画，用于进行中指示。形态经 `spinMode` 声明：`rotate`（整环匀速旋转）、`beam`（光段跑边，缺省）、`chase`（双段追逐）。
-_Avoid_: 加载（loading 是状态语义，spin 是装饰动效）、转圈
+`x-spin` 装饰动效指令：环绕宿主边界的旋转色环动画，用于进行中指示。形态经 `type` 声明：`rotate`（整环匀速旋转）、`beam`（光段跑边，缺省）、`chase`（双段追逐），三通道等价声明同涟漪，并存按 `chase > rotate > beam` 取先。
+_Avoid_: 加载（loading 是状态语义，spin 是装饰动效）、转圈；x-spark（旧伞形指令）
 
 **触发器（Trigger）**:
-spark 循环的播放时机（ripple/spin 家族统一）：`always` 持续循环；`hover` 仅悬停期间播放；`click` 每次点击播放一个完整周期后自动停止（ripple = 起一轮波，spin = 转一圈）。三通道等价声明：`trigger` 显式键 / 布尔开关键 / 点修饰符速记（支持级联 `x-spark.spin.click`），并存按 hover > always > click 取先。
+装饰动效（x-ripple / x-spin 通用）的播放时机：`always` 持续循环；`hover` 仅悬停期间播放；`click` 每次点击播放一个完整周期后自动停止（涟漪 = 起一轮波，色环旋转 = 转一圈）。三通道等价声明：`trigger` 显式键 / 布尔开关键 / 点修饰符速记（可与形态段级联 `x-spin.beam.click`，次序无关），并存按 hover > always > click 取先。
 
-**spark 周期（Spark Cycle）**:
-一次完整的循环单元：ripple 为一次扩散-渐隐过程（speed 动画段 + gap 静止段），spin 为一圈旋转（仅 speed，无 gap）。
+**动效周期（Cycle）**:
+一次完整的循环单元：涟漪为一次扩散-渐隐过程（speed 动画段 + gap 静止段），色环旋转为一圈旋转（仅 speed，无 gap）。
 
 **扩散距离（Ripple Size）**:
-涟漪自宿主边框向外扩散的最大距离；与环宽共用 `size` 键按 type 分流语义。
+涟漪自宿主边框向外扩散的最大距离，x-ripple 的 `size` 语义。
 _Avoid_: 大小、半径
 
 **环宽（Spin Size）**:
-spin 色环的绘制宽度，色环贴合宿主 border-radius 自边界向内成环。
+色环旋转的绘制宽度，x-spin 的 `size` 语义，色环贴合宿主 border-radius 自边界向内成环。
 _Avoid_: 厚度、粗细（实现层词汇）
 
-**载体（Spark Carrier）**:
-spark 动画层的 DOM 承载。宿主伪元素优先，宿主伪元素已被占用时自动降级为注入子元素。
+**载体（Carrier）**:
+装饰动效层的 DOM 承载。宿主伪元素优先，宿主伪元素已被占用时自动降级为注入子元素——同宿主声明 x-ripple 与 x-spin 时后挂者经此机制降级共存。
 _Avoid_: 容器、包装层
 
-**徽标火花（Spark Badge）**:
-spark 载体的徽标形态（ripple/spin 家族通用）：载体缩为宿主右上角顶点处的正圆（圆心恰在角点，一半悬于宿主外）——ripple 下波环自圆边向外扩散，spin 下色环在圆内旋转。直径经 `badge` 声明（`true` = 默认直径，正数字 = 自定义直径），启用且未显式 color 时颜色缺省主题语义红。
-_Avoid_: 红点、角标（未限定 spark 载体语义时）
+**徽标动效（Badge）**:
+载体的徽标形态（涟漪/色环旋转通用）：载体缩为宿主右上角顶点处的正圆（圆心恰在角点，一半悬于宿主外）——涟漪下波环自圆边向外扩散，色环旋转下色环在圆内旋转。直径经 `badge` 声明（`true` = 默认直径，正数字 = 自定义直径），启用且未显式 color 时颜色缺省主题语义红。
+_Avoid_: 红点、角标（未限定载体语义时）
 
 ### 插件域
 
@@ -67,7 +63,7 @@ _Avoid_: 自举样板代码（各包内联副本已退役）、整包排队（�
 _Avoid_: per-engine 实例（双 root 冲突）、实例化职责（ready 只挂指针与接线）、双向绑定（manager 回写广播不值得）、只读单向投影（theme 是用户意图非环境事实）、accessor 活视图（autostore watch 断链）
 
 **官方插件包（@autospark/plugins）**:
-官方插件集与插件开发方式的载体：三种扩展形态各有一个官方样板（notifications 复合 / x-spark 指令 / autospark.button 组件），产物仅 IIFE 脚本（脚本即契约）。
+官方插件集与插件开发方式的载体：三种扩展形态各有一个官方样板（notifications 复合 / x-ripple 指令 / autospark.button 组件），产物仅 IIFE 脚本（脚本即契约）。
 _Avoid_: 组件资产包、@autospark/components（旧名，已更名）
 
 **运行时桥（Runtime Bridge）**:
