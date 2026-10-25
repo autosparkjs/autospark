@@ -1,38 +1,41 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>多彩模式 · 概述</title>
-        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
-        <link rel="stylesheet" href="/autospark/theme-demo.css" />
-        <script src="/autospark/autospark-theme.js"></script>
-        <script src="/autospark/theme-controls.js"></script>
-        <script src="/autospark/theme-demo.js"></script>
-    </head>
 
-    <body>
-        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>多彩模式 · 概述</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <script src="/autospark/theme-demo.js"></script>
+</head>
 
-        <main class="demo-main">
-            <div class="auto-card story-intro">
-                <div class="story-intro-title">特性说明：多彩模式（colorized）与无彩（uncolored）</div>
-                <p>
-                    色彩是与显示模式<strong>正交</strong>的第二个维度：灰阶幕布换为主题色浸染的色阶。
-                    它与暗色一样有 JS 通道（<code>colorized</code> 属性）与元素域手动通道
-                    （<code>data-colorized</code> / <code>data-uncolored</code>）。
-                </p>
-                <pre>ThemePro.colorized = true                    // 全局多彩（写 :root 的 colorized 属性）
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+    <main class="demo-main">
+        <div class="auto-card story-intro">
+            <div class="story-intro-title">特性说明：多彩模式（colorized）与无彩（uncolored）</div>
+            <p>
+                色彩是与显示模式<strong>正交</strong>的第二个维度：灰阶幕布换为主题色浸染的色阶。
+                它与暗色一样有 JS 通道（<code>colorized</code> 属性）与元素域手动通道
+                （<code>data-colorized</code> / <code>data-uncolored</code>）。
+            </p>
+            <pre>AutoSparkThemeManager.colorized = true                    // 全局多彩（写 :root 的 colorized 属性）
 &lt;div data-colorized&gt;…&lt;/div&gt;                 // 仅此元素多彩（模式随语境）
 &lt;div data-dark data-colorized&gt;…&lt;/div&gt;       // 叠加：暗色 + 多彩（须同一元素）
 &lt;div data-uncolored&gt;…&lt;/div&gt;                 // 色彩回灰、模式随语境（暗语境回暗灰）</pre>
-                <ul>
-                    <li>映射由<strong>语境模式块</strong>声明：亮 <code>bgcolor-i = theme-i</code>；暗 <code>bgcolor-1 = theme-0 混黑 30%</code></li>
-                    <li>所以「暗语境中的多彩元素」自动取暗多彩映射，不必额外声明</li>
-                    <li>无彩是降级手段：既想留在暗语境、又想让某块回灰时用它</li>
-                </ul>
-            </div>
-        </main>
+            <ul>
+                <li>映射由<strong>语境模式块</strong>声明：亮 <code>bgcolor-i = theme-i</code>；暗
+                    <code>bgcolor-1 = theme-0 混黑 30%</code></li>
+                <li>所以「暗语境中的多彩元素」自动取暗多彩映射，不必额外声明</li>
+                <li>无彩是降级手段：既想留在暗语境、又想让某块回灰时用它</li>
+            </ul>
+        </div>
+    </main>
 
-    </body>
+</body>
+
 </html>

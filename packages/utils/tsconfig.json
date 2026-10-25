@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "target": "es2021",
+        "module": "ESNext",
+        "lib": ["ES2021", "DOM", "DOM.Iterable"],
+        "types": ["bun"],
+        "skipLibCheck": true,
+        "moduleResolution": "bundler",
+        "allowImportingTsExtensions": true,
+        "verbatimModuleSyntax": true,
+        "moduleDetection": "force",
+        "noEmit": true,
+        "strict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "erasableSyntaxOnly": true,
+        "noFallthroughCasesInSwitch": true,
+        "paths": {
+            "autospark": ["../engine/src/index.ts"]
+        }
+    },
+    "include": ["src"]
+}

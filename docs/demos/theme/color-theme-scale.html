@@ -1,89 +1,94 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>主题色 · 10 阶标尺</title>
-        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
-        <link rel="stylesheet" href="/autospark/theme-demo.css" />
-        <script src="/autospark/autospark-theme.js"></script>
-        <script src="/autospark/theme-controls.js"></script>
-        <script src="/autospark/theme-demo.js"></script>
-    </head>
 
-    <body>
-        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>主题色 · 10 阶标尺</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <script src="/autospark/theme-demo.js"></script>
+</head>
 
-        <main class="demo-main">
-            <div class="auto-card">
-                <div class="auto-card-header">主题梯度：右侧面板换主题色，本卡实时跟随</div>
-                <div class="auto-card-body col">
-                    <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
-                    <p class="hint">
-                        10 档全部由算法从种子色扩散而来（种子落在与它色差最小的基准色板档位上，其余档按该骨架的明度 / 彩度系数展开）。
-                        拖动面板的「自定义颜色」可逐像素观察梯度重算。
-                    </p>
-                </div>
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">主题梯度：右侧面板换主题色，本卡实时跟随</div>
+            <div class="auto-card-body col">
+                <div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>
+                <p class="hint">
+                    10 档全部由算法从种子色扩散而来（种子落在与它色差最小的基准色板档位上，其余档按该骨架的明度 / 彩度系数展开）。
+                    拖动面板的「自定义颜色」可逐像素观察梯度重算。
+                </p>
             </div>
+        </div>
 
-            <div class="auto-card">
-                <div class="auto-card-header">主题色消费点：这些位置都读 <code>--auto-theme-color</code></div>
-                <div class="auto-card-body row">
-                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
-                        <button class="auto-btn primary">主按钮</button>
-                        <div class="item-list">
-                            <div class="item selected">选中态（--auto-selected-*）</div>
-                            <div class="item">悬停我（--auto-hover-*）</div>
-                        </div>
-                        <input class="auto-input" placeholder="聚焦看边框与光晕" />
+        <div class="auto-card">
+            <div class="auto-card-header">主题色消费点：这些位置都读 <code>--auto-theme-color</code></div>
+            <div class="auto-card-body row">
+                <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
+                    <button class="auto-btn primary">主按钮</button>
+                    <div class="item-list">
+                        <div class="item selected">选中态（--auto-selected-*）</div>
+                        <div class="item">悬停我（--auto-hover-*）</div>
                     </div>
-                    <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
-                        <div class="hint">档位引用（业务自定义层次时直接用标尺）：</div>
-                        <div style="padding:0.6rem;border-radius:var(--auto-border-radius);background:var(--x-color-theme-1);color:var(--x-color-9)">
-                            background: var(--x-color-theme-1)
-                        </div>
-                        <div style="padding:0.6rem;border-radius:var(--auto-border-radius);background:var(--x-color-theme-5);color:#fff">
-                            background: var(--x-color-theme-5)
-                        </div>
-                        <div style="padding:0.6rem;border-radius:var(--auto-border-radius);background:var(--x-color-theme-8);color:#fff">
-                            background: var(--x-color-theme-8)
-                        </div>
+                    <input class="auto-input" placeholder="聚焦看边框与光晕" />
+                </div>
+                <div class="auto-card-body-item" style="flex-direction:column;gap:0.5rem;">
+                    <div class="hint">档位引用（业务自定义层次时直接用标尺）：</div>
+                    <div
+                        style="padding:0.6rem;border-radius:var(--auto-border-radius);background:var(--x-color-theme-1);color:var(--x-color-9)">
+                        background: var(--x-color-theme-1)
+                    </div>
+                    <div
+                        style="padding:0.6rem;border-radius:var(--auto-border-radius);background:var(--x-color-theme-5);color:#fff">
+                        background: var(--x-color-theme-5)
+                    </div>
+                    <div
+                        style="padding:0.6rem;border-radius:var(--auto-border-radius);background:var(--x-color-theme-8);color:#fff">
+                        background: var(--x-color-theme-8)
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="auto-card">
-                <div class="auto-card-header">任意色值：算法按输入色的亮度自适应</div>
-                <div class="auto-card-body col">
-                    <div class="grid" id="seed-grid"></div>
-                    <p class="hint">
-                        浅色种子（<code>#a0d911</code>）与深色种子（<code>#2f54eb</code>）得到的两条梯度都单调、可读——
-                        种子只决定色相与彩度位置，明暗节奏由基准色板骨架给出。
-                    </p>
-                </div>
+        <div class="auto-card">
+            <div class="auto-card-header">任意色值：算法按输入色的亮度自适应</div>
+            <div class="auto-card-body col">
+                <div class="grid" id="seed-grid"></div>
+                <p class="hint">
+                    浅色种子（<code>#a0d911</code>）与深色种子（<code>#2f54eb</code>）得到的两条梯度都单调、可读——
+                    种子只决定色相与彩度位置，明暗节奏由基准色板骨架给出。
+                </p>
             </div>
-        </main>
+        </div>
+    </main>
 
 
-        <script>
-            // 任意色值：每个种子一个独立作用域（persistence:false，不写 localStorage）
-            function addThemeCard(host, id, label, themeColor) {
-                var box = document.createElement("div");
-                box.className = "scope-box";
-                box.id = id;
-                box.innerHTML =
-                    '<div class="box-label">' +
-                    label +
-                    '</div><div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>';
-                host.appendChild(box);
-                var scope = ThemePro.addScope({ id: id, themeColor: themeColor, persistence: false });
-                if (scope) scope.attach(box);
-            }
+    <script>
+        // 任意色值：每个种子一个独立作用域（persistence:false，不写 localStorage）
+        function addThemeCard(host, id, label, themeColor) {
+            var box = document.createElement("div");
+            box.className = "scope-box";
+            box.id = id;
+            box.innerHTML =
+                '<div class="box-label">' +
+                label +
+                '</div><div class="theme-strip" data-strip="--x-color-theme-" data-strip-label></div>';
+            host.appendChild(box);
+            var scope = AutoSparkThemeManager.addScope({ id: id, themeColor: themeColor, persistence: false });
+            if (scope) scope.attach(box);
+        }
 
-            var seedHost = document.getElementById("seed-grid");
-            addThemeCard(seedHost, "seed-light", "浅色种子 #a0d911", "#a0d911");
-            addThemeCard(seedHost, "seed-dark", "深色种子 #2f54eb", "#2f54eb");
-            addThemeCard(seedHost, "seed-gray", "低彩度种子 #71717a", "#71717a");
-        </script>
-    </body>
+        var seedHost = document.getElementById("seed-grid");
+        addThemeCard(seedHost, "seed-light", "浅色种子 #a0d911", "#a0d911");
+        addThemeCard(seedHost, "seed-dark", "深色种子 #2f54eb", "#2f54eb");
+        addThemeCard(seedHost, "seed-gray", "低彩度种子 #71717a", "#71717a");
+    </script>
+</body>
+
 </html>

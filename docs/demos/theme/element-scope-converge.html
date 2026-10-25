@@ -1,52 +1,56 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>元素域 · 作用域内的收敛</title>
-        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
-        <link rel="stylesheet" href="/autospark/theme-demo.css" />
-        <script src="/autospark/autospark-theme.js"></script>
-        <script src="/autospark/theme-controls.js"></script>
-        <script src="/autospark/theme-demo.js"></script>
-    </head>
 
-    <body>
-        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>元素域 · 作用域内的收敛</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <script src="/autospark/theme-demo.js"></script>
+</head>
 
-        <main class="demo-main">
-            <div class="auto-card">
-                <div class="auto-card-header">作用域收敛：<code>data-*</code> 不跨作用域错拿梯度</div>
-                <div class="auto-card-body row">
-                    <div class="scope-box" id="es-outside">
-                        <div class="box-label">作用域外的宿主（全局蓝梯度）</div>
-                        <div class="demo-sample">
-                            <div>本卡不属于任何局部作用域。</div>
-                            <div data-dark style="margin-top:0.5rem;padding:0.6rem;border:var(--auto-border);border-radius:var(--auto-border-radius);">
-                                <div class="theme-strip" data-strip="--x-color-"></div>
-                                <div>裸 <code>data-dark</code>：命中根域裸暗色块（蓝梯度反转）。</div>
-                            </div>
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">作用域收敛：<code>data-*</code> 不跨作用域错拿梯度</div>
+            <div class="auto-card-body row">
+                <div class="scope-box" id="es-outside">
+                    <div class="box-label">作用域外的宿主（全局蓝梯度）</div>
+                    <div class="demo-sample">
+                        <div>本卡不属于任何局部作用域。</div>
+                        <div data-dark
+                            style="margin-top:0.5rem;padding:0.6rem;border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div class="theme-strip" data-strip="--x-color-"></div>
+                            <div>裸 <code>data-dark</code>：命中根域裸暗色块（蓝梯度反转）。</div>
                         </div>
                     </div>
-                    <div class="scope-box" id="es-guard" data-theme-scope="esGuard">
-                        <div class="box-label">局部作用域 esGuard（青色 cyan 梯度）</div>
-                        <div class="demo-sample">
-                            <div>本卡是 cyan 作用域：字面量梯度与根域不同。</div>
-                            <div data-dark style="margin-top:0.5rem;padding:0.6rem;border:var(--auto-border);border-radius:var(--auto-border-radius);">
-                                <div class="theme-strip" data-strip="--x-color-"></div>
-                                <div>作用域内的 <code>data-dark</code>：命中 <code>S [data-dark]</code>，取青色作用域自己的暗色块。</div>
-                            </div>
+                </div>
+                <div class="scope-box" id="es-guard" data-theme-scope="esGuard">
+                    <div class="box-label">局部作用域 esGuard（青色 cyan 梯度）</div>
+                    <div class="demo-sample">
+                        <div>本卡是 cyan 作用域：字面量梯度与根域不同。</div>
+                        <div data-dark
+                            style="margin-top:0.5rem;padding:0.6rem;border:var(--auto-border);border-radius:var(--auto-border-radius);">
+                            <div class="theme-strip" data-strip="--x-color-"></div>
+                            <div>作用域内的 <code>data-dark</code>：命中 <code>S [data-dark]</code>，取青色作用域自己的暗色块。</div>
                         </div>
                     </div>
                 </div>
             </div>
-        </main>
+        </div>
+    </main>
 
 
-        <script>
-            // 青色作用域：演示「局部作用域的 data-* 收敛」
-            var guard = ThemePro.addScope({ id: "esGuard", themeColor: "cyan", persistence: false });
-            if (guard) guard.attach("#es-guard");
-        </script>
-    </body>
+    <script>
+        // 青色作用域：演示「局部作用域的 data-* 收敛」
+        var guard = AutoSparkThemeManager.addScope({ id: "esGuard", themeColor: "cyan", persistence: false });
+        if (guard) guard.attach("#es-guard");
+    </script>
+</body>
+
 </html>

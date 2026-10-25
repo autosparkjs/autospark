@@ -32,6 +32,9 @@
             "@/*": [
                 "./src/*"
             ],
+            "@autospark/utils": [
+                "../utils/src/index.ts"
+            ],
             "autospark": [
                 "../engine/src/index.ts"
             ]

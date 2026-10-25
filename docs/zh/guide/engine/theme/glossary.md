@@ -143,6 +143,20 @@ _Avoid_：addon、前后缀、附加物。
 
 _Avoid_：行内标签、addon 文本。
 
+## 引擎协同
+
+### 主题插件（Theme Plugin）
+
+`@autospark/theme` 的插件身份（ADR-0007，家族首个**库型插件**）：包体对引擎零运行时引用，模块加载期即创建单例并挂全局 `AutoSparkThemeManager`（引入即生效）；engine 共存时 ready 期自动接驳——注入 `engine.themeManager` 单例引用（多 engine 共享、destroy 不清理），不装引擎则纯库身份零漂移。
+
+_Avoid_：per-engine 实例（root 作用域物理唯一）、手动注册（双路径自举自动接驳）。
+
+### 状态投影（state.$.theme）
+
+engine ready 期播种到根状态的七键普通数据对象（`dark` / `themeColor` / `size` / `spacing` / `shadow` / `radius` / `colorized`）：可写投影视图，写入经 `watch("$.theme.*")` **单向同步**到 manager 同名维度（写入即驱动主题切换）；manager 直改不回写投影，初值以 ready 期 manager 当前值播种。watch 订阅随 engine destroy 摘除。
+
+_Avoid_：双向绑定、accessor 代理直通（autostore watch 断链）、把它当独立状态源（manager 才是真相源）。
+
 ---
 
 术语清楚了，前往[快速入门](./get-started.md)动手实践；需要逐个参数细节时看[指南](../guide/initial.md)。

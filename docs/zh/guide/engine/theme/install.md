@@ -67,16 +67,32 @@ const themeManager = new ThemeManager({ storageKey: "myapp" });
 
 ```html
 <link rel="stylesheet" href="/path/to/@autospark/theme/dist/index.css" />
-<script src="/path/to/@autospark/theme/dist/index.global.js"></script>
+<script src="/path/to/@autospark/theme/dist/autospark.theme.js"></script>
 <script>
-    // 全局单例名为 ThemePro（与库内一致）
-    ThemePro.themeColor = "green";
-    ThemePro.dark = true;
+    // 全局单例名为 AutoSparkThemeManager（与库内一致）
+    AutoSparkThemeManager.themeColor = "green";
+    AutoSparkThemeManager.dark = true;
 </script>
 ```
 
-::: warning 全局名是 `ThemePro`
-IIFE 产物把单例暴露为 `globalThis.ThemePro`。需用类本身（`ThemeManager` / `ThemeScope`）时，请走 ESM 入口。
+::: warning 全局名是 `AutoSparkThemeManager`
+IIFE 产物为**立即执行外壳**（库型插件，引入即生效）：脚本加载即创建单例并暴露为 `globalThis.AutoSparkThemeManager`。需用类本身（`ThemeManager` / `ThemeScope`）时，请走 ESM 入口。
+:::
+
+## 插件形态（与 engine 协同） {#插件形态-与-engine-协同}
+
+`@autospark/theme` 同时是 AutoSpark 家族的**首个库型插件**（ADR-0007）：包体对引擎零运行时引用，上面的纯库消费不受 engine 影响；页面中同时存在 engine 时自动接驳——
+
+- **双路径自举**：脚本先于 engine 加载时经 `__AUTOSPARK_PLUGINS__` 预加载队列在 engine 构造期注册；晚于 engine 加载时经 `AutoSpark.ready` 直取补挂（与官方插件统一机制，见[插件机制](../plugin.md)）；
+- **`engine.themeManager`**：engine ready 期注入全局单例引用——多 engine 共享同一实例（root 作用域物理唯一），engine destroy 不清理；
+- **`state.$.theme` 七键投影**：engine ready 期向根数据域播种 `dark` / `themeColor` / `size` / `spacing` / `shadow` / `radius` / `colorized` 七键，业务侧改状态即驱动主题切换——模板表达式可直接裸访问：
+
+```html
+<button @click="theme.dark = !theme.dark">切换暗色</button>
+```
+
+::: tip manager 是唯一真相源（单向同步）
+`state.$.theme` 是 manager 的可写投影视图，不是独立状态：初值以 engine ready 期 manager 当前值播种；此后写入 `$.theme.*` 经 watch 通配符订阅自动同步到 manager 同名维度，manager 直改**不回写**投影。直接操作 `themeManager`（或经 theme-controls 组件）的变更同样生效，只是不经投影回显。
 :::
 
 ## 预设主题 CSS（可选）

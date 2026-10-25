@@ -5,7 +5,7 @@
 | 插件 | 形态 | 注册面 | 产物 |
 | --- | --- | --- | --- |
 | notifications | 复合插件 | `AutoSpark.ready` + 组件表 + actions 三件套 | `autospark.notifications.js` |
-| ripple | 指令插件 | `AutoSpark.directive(spec)` | `autospark.ripple.js` |
+| x-spark | 指令插件 | `AutoSpark.directive(spec)` | `autospark.spark.js` |
 | autospark.button | 组件插件 | `AutoSpark.components[name] = 模板` | `autospark.button.js` |
 | 聚合 | 全部官方插件 | — | `autospark.plugins.js` |
 
@@ -44,7 +44,7 @@
 ## 构建
 
 ```bash
-bun run build    # tsup 仅 IIFE 单形态；产物复制到 docs/public/autospark.*.js
+bun run build    # vite 闭包构建（ADR-0004）；产物复制到 docs/public/autospark.*.js
 ```
 
 ## 开发 demo

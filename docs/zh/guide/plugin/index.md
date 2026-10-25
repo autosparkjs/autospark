@@ -86,7 +86,7 @@ export default {
 | 样板 | 形态 | 注册面 | 文档 |
 | --- | --- | --- | --- |
 | [autospark.button](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/plugins/button) | 组件插件 | `$.components["autospark.button"] = 模板` | [全局组件](../engine/component/global.md) |
-| [x-ripple](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/plugins/ripple) | 指令插件 | `$.directive(spec)` spec 重载 + 钩子委托 | [x-ripple](../directives/x-ripple.md) |
+| [x-spark](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/plugins/x-spark) | 指令插件 | `$.directive(spec)` spec 重载 + 钩子委托 | [x-spark](../directives/x-spark.md) |
 | [notifications](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/plugins/notifications) | 复合插件 | `$.ready` + 组件表 + actions 三件套 + 事件清理 | [通知](../engine/notifications/) |
 
 <demo html="plugin/forms.html"/>
@@ -113,4 +113,4 @@ export default {
 
 ---
 
-下一步：机制语义的深入阅读见[插件](/zh/guide/engine/plugin)；安装并使用官方插件——[通知](../engine/notifications/installation.md)、[x-ripple](../directives/x-ripple.md)；自定义指令的完整形态见[自定义指令](../engine/directive/custom.md)。
+下一步：机制语义的深入阅读见[插件](/zh/guide/engine/plugin)；安装并使用官方插件——[通知](../engine/notifications/installation.md)、[x-spark](../directives/x-spark.md)；自定义指令的完整形态见[自定义指令](../engine/directive/custom.md)。

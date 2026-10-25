@@ -18,20 +18,20 @@ export default {
                 <li>常用取值：<code>theme-5</code> 为中值（即 <code>--auto-theme-color</code>），浅背景用 <code>0-2</code>，强调用 <code>7-9</code></li>
                 <li>切换后写入 <code>:root</code> 的 <code>data-theme</code> 属性并重注入梯度样式</li>
             </ul>
-            <pre>ThemePro.themeColor = 'red'        // 预设名
-ThemePro.themeColor = '#7c3aed'   // 任意色值</pre>
+            <pre>AutoSparkThemeManager.themeColor = 'red'        // 预设名
+AutoSparkThemeManager.themeColor = '#7c3aed'   // 任意色值</pre>
         </div>
         <div class="auto-card">
             <div class="auto-card-header">主题梯度颜色</div>
             <div class="auto-card-body">
                 <div style="padding:1em;display:flex;gap:0.5rem;align-items:center;">
                     ${repeat(
-                        Array.from({ length: 10 }),
-                        (_, i) => html`<span
+        Array.from({ length: 10 }),
+        (_, i) => html`<span
                             style="text-align:center;flex:1;height:2em;background-color:var(--x-color-theme-${i});"
                             >${i}</span
                         >`,
-                    )}
+    )}
                 </div>
             </div>
         </div>
@@ -40,13 +40,13 @@ ThemePro.themeColor = '#7c3aed'   // 任意色值</pre>
             <div class="auto-card-body col">
                 <div class="auto-card-body-item" style="color:var(--x-color-theme-0)">--x-color-theme-0</div>
                 ${repeat(
-                    Array.from({ length: 10 }),
-                    (_, i) => html`
+        Array.from({ length: 10 }),
+        (_, i) => html`
                         <div class="auto-card-body-item" style="background-color:var(--x-color-theme-${i})">
                             <span style="color:var(--x-color-${i > 3 ? 9 : 0})">--x-color-theme-${i}</span>
                         </div>
                     `,
-                )}
+    )}
             </div>
         </div>
     `,

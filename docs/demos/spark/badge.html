@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-spark · 徽标火花</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.spark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
+      .badge-host {
+        position: relative;
+        padding: 28px 20px;
+        border: 1px solid #dcdfe6;
+        border-radius: 12px;
+        background: #fff;
+        text-align: center;
+      }
+      .hover-hint { cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <!-- badge 载体缩为宿主右上角正圆（圆心恰在角点），家族通用：ripple 圆边扩散 / spin 角标内旋转环 -->
+    <div class="demo-app section">
+      <div class="grid">
+        <div class="badge-host" x-spark x-spark-options="{badge: true, speed: 1800}">
+          <strong>badge: true</strong>
+          <p class="is-size-7 has-text-grey">默认直径 8px · 语义红缺省（涟漪）</p>
+        </div>
+        <div class="badge-host" x-spark x-spark-options="{badge: 16, speed: 1800}">
+          <strong>badge: 16</strong>
+          <p class="is-size-7 has-text-grey">自定义直径 16px</p>
+        </div>
+        <div class="badge-host" x-spark x-spark-options="{type: 'spin', badge: true, speed: 2000}">
+          <strong>badge + spin</strong>
+          <p class="is-size-7 has-text-grey">角标圆内旋转色环（角标加载指示）</p>
+        </div>
+        <div class="badge-host hover-hint" x-spark.click x-spark-options="{badge: 12, speed: 1200}">
+          <strong>badge + click</strong>
+          <p class="is-size-7 has-text-grey">点击播放一个完整周期后自动收口</p>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

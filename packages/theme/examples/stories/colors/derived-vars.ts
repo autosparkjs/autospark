@@ -89,18 +89,18 @@ export default {
             <div class="auto-card-body col">
                 <div style="display:flex;gap:0.7rem;flex-wrap:wrap;">
                     ${["primary", "success", "danger", "warning", "info", "theme"].map(
-                        (name) => html`
+        (name) => html`
                             <div
                                 style="flex:1;min-width:7rem;text-align:center;padding:0.6rem;color:white;border-radius:var(--auto-border-radius);background:var(--auto-${name}-color);"
                             >
                                 --auto-${name}-color
                             </div>
                         `,
-                    )}
+    )}
                 </div>
                 <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
                     五个固定语义 + 一个跟随主题色（<code>--auto-theme-color → theme-5</code> 中值）；
-                    语义色可经 <code>ThemePro.update()</code> 覆盖。
+                    语义色可经 <code>AutoSparkThemeManager.update()</code> 覆盖。
                 </p>
             </div>
         </div>
@@ -134,11 +134,11 @@ export default {
             <div class="auto-card-body col">
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;">
                     ${[
-                        { name: "--auto-color", ref: "var(--x-color-1)", tag: "主要文字" },
-                        { name: "--auto-secondary-color", ref: "var(--x-color-2)", tag: "次要文字" },
-                        { name: "--auto-third-color", ref: "var(--x-color-3)", tag: "辅助文字" },
-                    ].map(
-                        (item) => html`
+            { name: "--auto-color", ref: "var(--x-color-1)", tag: "主要文字" },
+            { name: "--auto-secondary-color", ref: "var(--x-color-2)", tag: "次要文字" },
+            { name: "--auto-third-color", ref: "var(--x-color-3)", tag: "辅助文字" },
+        ].map(
+            (item) => html`
                             <div
                                 style="flex:1;min-width:10rem;padding:0.8rem;background:var(--auto-bgcolor);border:var(--auto-border);border-radius:var(--auto-border-radius);"
                             >
@@ -147,7 +147,7 @@ export default {
                                 <code style="font-size:0.68rem;color:var(--auto-third-color);">${item.name} → ${item.ref.slice(4, -1)}</code>
                             </div>
                         `,
-                    )}
+        )}
                 </div>
             </div>
         </div>

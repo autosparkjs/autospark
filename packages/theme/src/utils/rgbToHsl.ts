@@ -6,7 +6,9 @@ import { toRGB } from "./toRGB";
  * @returns   [H, S, L]，H 为 0-360，S/L 为 0-100
  */
 export function rgbToHsl(color: string | [number, number, number]): [number, number, number] {
-    const [r, g, b] = Array.isArray(color) ? color : toRGB(color);
+    const rgb = Array.isArray(color) ? color : toRGB(color);
+    if (!rgb) throw new Error(`rgbToHsl: unparseable color: ${String(color)}`);
+    const [r, g, b] = rgb;
     // 1. 归一化到 [0,1]
     const rd = r / 255;
     const gd = g / 255;

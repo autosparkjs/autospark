@@ -55,6 +55,44 @@ await build({
 const code = readFileSync(outFile, "utf8");
 process.on("exit", () => rmSync(workDir, { recursive: true, force: true }));
 
+/**
+ * immediate 外壳产物（plugins ADR-0006 决策 2）：独立工作目录二次构建，用例共享。
+ * fixture 用 utils installPlugin 形态（库型插件的源码级自举——immediate 外壳的
+ * 真实消费形态；经 alias 解析 workspace 源码，产物自包含内联）。
+ */
+const IMMEDIATE_FIXTURE_SOURCE = `
+import { installPlugin } from "@autospark/utils";
+installPlugin("fixture", "ready", (autospark) => {
+    autospark.ready(() => {});
+});
+`;
+const IMMEDIATE_UTILS_ENTRY = path.resolve(import.meta.dir, "../../../utils/src/index.ts");
+const immWorkDir = mkdtempSync(path.join(tmpdir(), "autospark-closure-imm-"));
+const immOutFile = path.join(immWorkDir, OUT_FILE);
+writeFileSync(path.join(immWorkDir, "fixture.ts"), IMMEDIATE_FIXTURE_SOURCE);
+await build({
+    configFile: false,
+    root: immWorkDir,
+    logLevel: "warn",
+    plugins: [installAutosparkPlugin({ shell: "immediate" })],
+    resolve: {
+        alias: { "@autospark/utils": IMMEDIATE_UTILS_ENTRY },
+    },
+    build: {
+        outDir: path.join(immWorkDir, "dist"),
+        emptyOutDir: true,
+        sourcemap: false,
+        minify: false,
+            rollupOptions: {
+                treeshake: false,
+                input: { "autospark.fixture": path.join(immWorkDir, "fixture.ts") },
+                output: { entryFileNames: "[name].js" },
+            },
+    },
+});
+const immediateCode = readFileSync(immOutFile, "utf8");
+process.on("exit", () => rmSync(immWorkDir, { recursive: true, force: true }));
+
 describe("外壳契约（ADR-0004 定谳模板）", () => {
     test("头部：闭包参数 + use strict + run 函数体", () => {
         expect(code.startsWith("(function (AutoSpark) {\n")).toBe(true);
@@ -147,5 +185,60 @@ describe("运行时语义（双路径自举）", () => {
             console.error = originalError;
         }
         expect(errors.some((msg) => msg.includes("插件未注册"))).toBe(true);
+    });
+});
+
+describe("immediate 外壳契约（plugins ADR-0006 决策 2，库型插件）", () => {
+    test("头部：闭包参数 + use strict；尾部：globalThis 实参收口", () => {
+        expect(immediateCode.startsWith("(function (AutoSpark) {\n")).toBe(true);
+        expect(immediateCode).toContain('    "use strict";\n');
+        expect(immediateCode.trimEnd().endsWith("})(globalThis.AutoSpark);")).toBe(true);
+    });
+
+    test("无排队形态：无 run 延迟分支、无外壳级队列分支（installPlugin 内联队列语义除外）", () => {
+        expect(immediateCode).not.toContain("var run = function");
+        // 外壳自身队列分支的专属标记：回放体引用 run / ADR-0114 注释——源码级
+        // installPlugin 的入队（__AUTOSPARK_PLUGINS__ / Object.isFrozen）合法内联
+        expect(immediateCode).not.toContain("run(ns)");
+        expect(immediateCode).not.toContain("插件先于引擎加载");
+    });
+
+    test("加载即执行：引擎未加载 → 源码级 installPlugin 仅入队 register 回调", () => {
+        // AutoSpark undefined + 空队列：外壳不排队整包，installPlugin 把 register 推入队列
+        const original = (globalThis as any).AutoSpark;
+        const originalQueue = (globalThis as any).__AUTOSPARK_PLUGINS__;
+        let queue: Array<(engine: any, ns: any) => void> = [];
+        try {
+            (globalThis as any).AutoSpark = undefined;
+            (globalThis as any).__AUTOSPARK_PLUGINS__ = queue;
+            new Function(immediateCode)();
+            queue = (globalThis as any).__AUTOSPARK_PLUGINS__;
+        } finally {
+            (globalThis as any).AutoSpark = original;
+            (globalThis as any).__AUTOSPARK_PLUGINS__ = originalQueue;
+        }
+        expect(queue).toHaveLength(1);
+        // drain 回放：register 收命名空间，ready 注册随之发生
+        const readyCbs: Array<() => void> = [];
+        queue[0]({ engine: 1 }, { ready: (cb: () => void) => readyCbs.push(cb) });
+        expect(readyCbs).toHaveLength(1);
+    });
+
+    test("加载即执行：引擎已加载 → 直取注册（ready 即刻登记）", () => {
+        const readyCbs: Array<() => void> = [];
+        const original = (globalThis as any).AutoSpark;
+        try {
+            (globalThis as any).AutoSpark = { ready: (cb: () => void) => readyCbs.push(cb) };
+            new Function(immediateCode)();
+        } finally {
+            (globalThis as any).AutoSpark = original;
+        }
+        expect(readyCbs).toHaveLength(1);
+    });
+
+    test("导入剥除契约与 queued 外壳一致：无 export/import/autospark 残留", () => {
+        expect(immediateCode).not.toMatch(/\bexport\s*\{/);
+        expect(immediateCode).not.toMatch(/\bimport\s*[{*"\']/);
+        expect(immediateCode).not.toMatch(/from\s*(["'])autospark\1/);
     });
 });

@@ -82,7 +82,7 @@ export class AutoSparkThemeManager {
     update(options: Partial<DynamicThemeOptions>) {
         this.root.update(options)
     }
-    download(){
+    download() {
         this.root.download()
     }
     /**
@@ -160,13 +160,4 @@ export class AutoSparkThemeManager {
             this.persistStyles(scope)
         }
     }
-}
-
-// 创建默认的主题应用
-export const themeManager = new AutoSparkThemeManager()
-
-globalThis.ThemePro = themeManager
-
-declare global {
-    var ThemePro: typeof themeManager
 }

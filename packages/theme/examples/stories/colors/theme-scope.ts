@@ -25,12 +25,12 @@ export default {
                 下方三张卡片各挂一个作用域，可分别控制、互不干扰——右侧全局面板的切换也不影响它们。
             </p>
             <ul>
-                <li><code>ThemePro.addScope({ id })</code> 创建命名作用域；<code>scope.attach(el)</code> 挂载</li>
+                <li><code>AutoSparkThemeManager.addScope({ id })</code> 创建命名作用域；<code>scope.attach(el)</code> 挂载</li>
                 <li>作用域级开关：<code>scope.themeColor / scope.dark / scope.colorized</code>，与全局 API 同构</li>
-                <li><code>ThemePro.removeScope(id)</code> 移除作用域并清理注入的样式</li>
+                <li><code>AutoSparkThemeManager.removeScope(id)</code> 移除作用域并清理注入的样式</li>
                 <li>支持 WebComponent：<code>docRoot</code> 指向 shadowRoot、选择器用 <code>:host</code></li>
             </ul>
-            <pre>const scope = ThemePro.addScope({ id: 'sidebar' })
+            <pre>const scope = AutoSparkThemeManager.addScope({ id: 'sidebar' })
 scope.attach('#sidebar')
 scope.themeColor = 'purple'   // 仅 sidebar 区域变紫</pre>
         </div>
@@ -60,23 +60,23 @@ scope.themeColor = 'purple'   // 仅 sidebar 区域变紫</pre>
         </div>
 
         ${repeat(
-            SCOPES,
-            ({ id, title }) => html`
+        SCOPES,
+        ({ id, title }) => html`
                 <div class="auto-card" id="${id}">
                     <div class="auto-card-header">${title}（data-theme-scope="${id}"）</div>
                     <div class="auto-card-body col">
                         <!-- 本卡专属控制条：色块与开关均携带 data-scope-id 标识归属 -->
                         <div style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center;padding:0.3rem 0;">
                             ${repeat(
-                                Object.entries(themeManager.presets),
-                                ([name, theme]) => html`<span
+            Object.entries(themeManager.presets),
+            ([name, theme]) => html`<span
                                     class="scope-swatch"
                                     data-scope-id="${id}"
                                     data-color="${theme.color}"
                                     title="${theme.title} (${name})"
                                     style="width:1.15rem;height:1.15rem;cursor:pointer;border-radius:var(--auto-border-radius);background-color:${theme.color};border:1px solid var(--auto-border-color);display:inline-block;"
                                 ></span>`,
-                            )}
+        )}
                             <span
                                 class="scope-toggle"
                                 data-scope-id="${id}"
@@ -95,11 +95,11 @@ scope.themeColor = 'purple'   // 仅 sidebar 区域变紫</pre>
                         <!-- 本作用域当前主题梯度 -->
                         <div style="display:flex;gap:0.3rem;">
                             ${repeat(
-                                Array.from({ length: 10 }),
-                                (_, i) => html`<span
+            Array.from({ length: 10 }),
+            (_, i) => html`<span
                                     style="flex:1;height:1.6em;background-color:var(--x-color-theme-${i});border-radius:calc(var(--auto-border-radius) * 0.5);"
                                 ></span>`,
-                            )}
+        )}
                         </div>
                         <div
                             style="padding:0.5rem 0.7rem;border:var(--auto-border);border-radius:var(--auto-border-radius);color:var(--auto-color);background:var(--auto-secondary-bgcolor);font-size:0.85rem;"
@@ -109,7 +109,7 @@ scope.themeColor = 'purple'   // 仅 sidebar 区域变紫</pre>
                     </div>
                 </div>
             `,
-        )}
+    )}
     `,
     mounted(host: HTMLElement) {
         // 为三个卡片各创建独立作用域并挂载（attach 即写入 data-theme-scope 属性并应用变量）

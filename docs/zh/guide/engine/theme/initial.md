@@ -18,7 +18,7 @@ import { themeManager } from "@autospark/theme";
 2. `attach(document.documentElement)` + `connect()` —— 立即注入基础变量、主题标尺、语义色；
 3. 首次注入后写入样式快照（若有 localStorage）。
 
-IIFE 产物下同一对象挂为全局 `ThemePro`。
+IIFE 产物下同一对象挂为全局 `AutoSparkThemeManager`。
 
 ### 构造自己的管理器
 

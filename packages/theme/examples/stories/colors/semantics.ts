@@ -17,12 +17,12 @@ export default {
                 <li>暗色模式下自动提亮：语义色作为梯度种子生成 <code>--x-color-{name}-0..9</code> 标尺，dark 引用第 3 档（ADR-0002）</li>
                 <li>可通过 <code>update()</code> 自定义任意语义色（见下方演示卡片）</li>
             </ul>
-            <pre>ThemePro.update({ primary: '#7c3aed', success: '#16a34a' })  // 运行时覆盖语义色</pre>
+            <pre>AutoSparkThemeManager.update({ primary: '#7c3aed', success: '#16a34a' })  // 运行时覆盖语义色</pre>
         </div>
         <div class="auto-card">
             <div class="auto-card-header">语义颜色</div>
             <div class="auto-card-body col">
-                <pre><code>ThemePro</code> 支持 primary / success / danger / warning / info</pre>
+                <pre><code>AutoSparkThemeManager</code> 支持 primary / success / danger / warning / info</pre>
                 <div class="auto-card-body-item center" style="color:var(--x-color-gray-10);background-color:var(--auto-primary-color)">
                     --auto-primary-color: var(--x-color-primary)
                 </div>
@@ -44,7 +44,7 @@ export default {
             </div>
         </div>
         <div class="auto-card">
-            <div class="auto-card-header">自定义语义色：点击按钮经 ThemePro.update() 覆盖 primary</div>
+            <div class="auto-card-header">自定义语义色：点击按钮经 AutoSparkThemeManager.update() 覆盖 primary</div>
             <div class="auto-card-body col">
                 <div>
                     <button class="auto-btn primary" @click=${() => themeManager.update({ primary: "#7c3aed" })}>

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-spark · 快速入门</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.spark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; }
+      .spark-card {
+        padding: 32px 24px;
+        border: 1px solid #dcdfe6;
+        border-radius: 12px;
+        background: #fff;
+        text-align: center;
+        cursor: default;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 三种指令值形态：无值恒开 / 表达式响应式 / 字面 false 恒关；缺省效果族 ripple -->
+    <div class="demo-app section">
+      <div class="grid">
+        <div class="spark-card" x-spark>
+          <strong>无值恒开</strong>
+          <p class="is-size-7 has-text-grey">挂载后持续循环（缺省 ripple 效果族）</p>
+        </div>
+        <div class="spark-card" x-spark="ui.show">
+          <strong>表达式控制</strong>
+          <p class="is-size-7 has-text-grey">ui.show = <span x-text="ui.show"></span></p>
+        </div>
+        <div class="spark-card" x-spark="false">
+          <strong>恒关</strong>
+          <p class="is-size-7 has-text-grey">永不播放</p>
+        </div>
+      </div>
+      <div class="block has-text-centered">
+        <button class="button is-small" @click="ui.show = !ui.show">切换中间卡片动效</button>
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), { ui: { show: true } });
+    </script>
+  </body>
+</html>

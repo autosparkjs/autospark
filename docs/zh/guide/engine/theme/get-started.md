@@ -4,6 +4,10 @@
 
 > 不熟悉「主题色」「语义色」「作用域」这些词？先花两分钟读一遍[名词解释](./glossary.md)。
 
+<demo html="theme/get-started.html"/>
+
+上面的 demo 就是这条动线的完整落地：卡片 1–5 覆盖第 1–7 步的纯库能力（引入即生效、主题色、暗色多彩、尺寸、局部作用域），卡片 6 额外演示 engine 共存时的插件协同（`state.$.theme` 七键投影单向同步，对应[插件形态](./install.md#插件形态-与-engine-协同)）。
+
 最终效果大致是这样：
 
 ```html
@@ -27,6 +31,20 @@
 
 ## 第 1 步：引入样式与运行时
 
+**主题化 AutoSpark 应用**的基本引入是三件套（`autospark.theme.js` 是一个**插件**，与引擎 script 直引搭配即自动接驳）：
+
+```html
+<link rel="stylesheet" href="/path/to/@autospark/theme/dist/index.css" />
+<script src="/path/to/@autospark/theme/dist/autospark.theme.js"></script>
+<script src="/path/to/autospark.js"></script>
+```
+
+- **静态样式层**（CSS）：reset / 工具类 / 组件类；
+- **主题插件**（`autospark.theme.js`）：立即执行外壳，脚本加载即创建单例并挂 `globalThis.AutoSparkThemeManager`——**引入即生效**，不需要手动 `new`；
+- **引擎**（`autospark.js`）：构造期经预加载队列接驳主题插件——`engine.themeManager` 即单例引用，根状态多出 `state.$.theme` 七键投影（`theme.dark` 等模板表达式直接驱动主题）。
+
+不装引擎时，主题库以纯库身份工作（ESM 形态）：
+
 ```html
 <link rel="stylesheet" href="/path/to/@autospark/theme/dist/index.css" />
 <script type="module">
@@ -34,11 +52,7 @@
 </script>
 ```
 
-`themeManager` 是模块级单例：**引入即初始化**——根作用域挂到 `document.documentElement`，基础变量与主题标尺随之注入 `<head>`。不需要手动 `new`。
-
-::: tip 静态层与运行时层
-CSS 文件负责 reset / 工具类 / 组件类；JS 负责注入主题变量。两者都引，组件类才会随主题变化。详见[静态样式层](../guide/static.md)。
-:::
+两种形态的操作面完全一致（`themeManager` 单例 + CSS 变量 + 组件类），后续步骤通用。加载顺序细节见[安装 · 插件形态](./install.md#插件形态-与-engine-协同)。
 
 ## 第 2 步：换主题色
 
@@ -139,9 +153,26 @@ themeManager.removeScope("preview"); // 断开样式并清掉它的参数持久�
 
 详见[局部主题](../guide/local-scope.md)。
 
-## 第 6 步：回访零闪（可选）
+## 第 6 步：首屏与回访零闪（可选）
 
-主题样式由运行时注入，所以**首访**会闪一次默认主题（FOUC，本轮明确接受）；**回访**则可以零闪烁——在 `<head>` 里粘一段阻塞内联脚本，赶在首帧前把上次的主题样式插回去：
+主题样式由运行时动态合并注入，首访会闪一次默认主题（FOUC），且注入发生在 JS 执行期。要进一步优化首屏，**直接换用静态主题包**——`<link>` 一行，浏览器并行加载 CSS，首帧就是主题色：
+
+```html
+<head>
+    <!-- 静态主题包：构建期从主题色种子派生的完整标尺，与运行时产物同源 -->
+    <link rel="stylesheet" href="/path/to/@autospark/theme/dist/blue.css" />
+    <script src="/path/to/@autospark/theme/dist/autospark.theme.js"></script>
+</head>
+```
+
+要点：
+
+- 产物在 `dist/<色>.css`（12 个预设各一份，`blue` / `red` / `green` …），也可用 CLI 从任意 hex 生成；
+- 静态包**在前**、主题插件在后：运行时 connect 水合后比对指纹（`--x-theme-static`），与静态层完全一致时**跳过注入**——零 IO、零重排，只保留运行时切换能力；
+- 之后改主题色（`themeManager.themeColor = "purple"`）会自动回退动态注入，静态 link 留着无害；
+- 静态包只服务 root 作用域，与恢复片段同用时**静态 link 在前、片段在后**（head 顺序约定）。
+
+不走静态包时，**回访**零闪靠恢复片段——在 `<head>` 里粘一段阻塞内联脚本，赶在首帧前把上次的主题样式从 localStorage 插回去：
 
 ```html
 <head>
@@ -168,7 +199,7 @@ themeManager.removeScope("preview"); // 断开样式并清掉它的参数持久�
 - 运行时**先水合参数、再注入**，避免「恢复 → 默认 → 恢复」的二次闪烁；
 - 同源多应用自定义了 `storageKey` 时，片段里的 key 要同步改成 `{storageKey}-styles`。
 
-详见[持久化与回访零闪](../guide/persistence.md)。
+详见[持久化与回访零闪](../guide/persistence.md)与[静态主题包](../guide/static.md)。
 
 ## 第 7 步：完整示例
 
@@ -178,6 +209,8 @@ themeManager.removeScope("preview"); // 断开样式并清掉它的参数持久�
     <head>
         <meta charset="UTF-8" />
         <link rel="stylesheet" href="/path/to/@autospark/theme/dist/index.css" />
+        <!-- 首屏优化（可选）：换用/加用静态主题包，运行时指纹匹配即跳过注入 -->
+        <!-- <link rel="stylesheet" href="/path/to/@autospark/theme/dist/blue.css" /> -->
         <script>
             (function () {
                 try {
@@ -250,6 +283,7 @@ themeManager.removeScope("preview"); // 断开样式并清掉它的参数持久�
 | 5 | 局部作用域 | `addScope()` / `removeScope()`、`data-theme-scope` |
 | 6 | 回访零闪 | 恢复片段 + 自动持久化 |
 | 7 | 整合成型 | 静态类名 + 运行时开关 |
+| 8 | engine 应用（可选） | `engine.themeManager`、`state.$.theme` 七键投影（见[插件形态](./install.md#插件形态-与-engine-协同)） |
 
 贯穿全程的两条心智模型：
 

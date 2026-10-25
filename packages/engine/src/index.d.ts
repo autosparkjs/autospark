@@ -1,0 +1,15 @@
+export * from "./engine/engine";
+export { AutoSparkDirectiveBase, DirectiveKind } from "./features/directive/base";
+export type { RuntimeDirective } from "./features/directive/base";
+export type { DirectiveSpec } from "./features/directive/global-queue";
+export type { DirectiveInstaller, PluginBootstrap, PluginPrecompileCallback, PluginReadyCallback, } from "./features/plugin";
+export * from "./features/component/component-instance";
+export * from "./features/icons/registry";
+export * from "./features/action/types";
+export type { ComponentDef, ComponentSetup, ComponentHooks, ComponentDataBasis, ComponentDataContext, } from "./features/component/component-def";
+export { getOverlayContainer } from "./features/overlay/container";
+export { SCOPES_KEY } from "./consts";
+export * from "autostore";
+export * from "./types";
+export * from "./engine/scope";
+import "./engine/engine";

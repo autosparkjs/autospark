@@ -30,7 +30,7 @@ export default {
                 <li>局部换档：任意容器加 <code>data-spacing="档位"</code> 属性即可让内部元素局部生效、与全局隔离</li>
                 <li><strong>独立样式域</strong>：<code>data-spacing</code> 属<strong>规模维度</strong>的档位通道，与模式维度（<code>data-dark</code> / <code>data-light</code>）、色彩维度（<code>data-colorized</code> / <code>data-uncolored</code>）分属不同域、可同元素叠加——见底部「维度叠加」卡</li>
             </ul>
-            <pre>ThemePro.spacing = 'large'  // 等价 document.documentElement.dataset.spacing = 'large'</pre>
+            <pre>AutoSparkThemeManager.spacing = 'large'  // 等价 document.documentElement.dataset.spacing = 'large'</pre>
         </div>
 
         <div class="auto-card">
@@ -38,8 +38,8 @@ export default {
             <div class="auto-card-body col">
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;">
                     ${repeat(
-                        SPACINGS,
-                        (level) => html`
+        SPACINGS,
+        (level) => html`
                             <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem;">
                                 <div
                                     style="border:1px dashed var(--auto-border-color);border-radius:var(--auto-border-radius);display:inline-flex;"
@@ -53,7 +53,7 @@ export default {
                                 <code style="font-size:0.68rem;color:var(--auto-third-color);">--x-spacing-${level}</code>
                             </div>
                         `,
-                    )}
+    )}
                 </div>
                 <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
                     外框（虚线）尺寸一致，色块内边距取各档值——色块越大间距越宽松。
@@ -126,8 +126,8 @@ export default {
             <div class="auto-card-body col">
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;">
                     ${["x-small", "global", "large"].map((level) => {
-                        const isGlobal = level === "global";
-                        return html`
+        const isGlobal = level === "global";
+        return html`
                             <div
                                 data-spacing="${isGlobal ? undefined : level}"
                                 style="flex:1;min-width:11rem;display:flex;flex-direction:column;gap:0.5rem;padding:0.9rem;border:1px dashed ${isGlobal ? "var(--auto-theme-color)" : "var(--auto-border-color)"};border-radius:var(--auto-border-radius);"
@@ -143,7 +143,7 @@ export default {
                                 <div class="auto-alert">提示组件留白（--auto-spacing）</div>
                             </div>
                         `;
-                    })}
+    })}
                 </div>
                 <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
                     三列即三种稀疏度并排：左（紧凑）→ 右（宽松），色块留白与提示组件高度逐列放大。
@@ -163,11 +163,11 @@ export default {
                 </p>
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;">
                     ${[
-                        { label: "无属性（跟随全局：亮色 · 全局间距档）", dark: false, spacing: undefined as string | undefined },
-                        { label: "data-dark（仅模式域：暗色，稀疏度随全局）", dark: true, spacing: undefined as string | undefined },
-                        { label: 'data-dark + data-spacing="large"（两域叠加：暗色 + 宽留白）', dark: true, spacing: "large" },
-                    ].map(
-                        (c) => html`
+            { label: "无属性（跟随全局：亮色 · 全局间距档）", dark: false, spacing: undefined as string | undefined },
+            { label: "data-dark（仅模式域：暗色，稀疏度随全局）", dark: true, spacing: undefined as string | undefined },
+            { label: 'data-dark + data-spacing="large"（两域叠加：暗色 + 宽留白）', dark: true, spacing: "large" },
+        ].map(
+            (c) => html`
                             <div
                                 ?data-dark="${c.dark}"
                                 data-spacing="${c.spacing}"
@@ -182,7 +182,7 @@ export default {
                                 <div class="auto-alert">提示组件留白（--auto-spacing）</div>
                             </div>
                         `,
-                    )}
+        )}
                 </div>
             </div>
         </div>

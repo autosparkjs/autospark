@@ -1,83 +1,85 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>局部主题 · 创建与销毁</title>
-        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
-        <link rel="stylesheet" href="/autospark/theme-demo.css" />
-        <script src="/autospark/autospark-theme.js"></script>
-        <script src="/autospark/theme-controls.js"></script>
-        <script src="/autospark/theme-demo.js"></script>
-    </head>
 
-    <body>
-        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>局部主题 · 创建与销毁</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <script src="/autospark/theme-demo.js"></script>
+</head>
 
-        <main class="demo-main">
-            <div class="auto-card">
-                <div class="auto-card-header">四个独立作用域：每块一套主题（面板只影响全局区）</div>
-                <div class="auto-card-body col">
-                    <div class="scope-box" id="ls-global">
-                        <div class="box-label">全局区（root 作用域，面板直接控制）</div>
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">四个独立作用域：每块一套主题（面板只影响全局区）</div>
+            <div class="auto-card-body col">
+                <div class="scope-box" id="ls-global">
+                    <div class="box-label">全局区（root 作用域，面板直接控制）</div>
+                    <div class="theme-strip" data-strip="--x-color-theme-"></div>
+                    <div class="demo-sample">
+                        <div>本区没有自己的作用域，跟随全局主题。</div>
+                        <input class="auto-input" placeholder="表单" />
+                        <button class="auto-btn primary">按钮</button>
+                    </div>
+                </div>
+                <div class="grid">
+                    <div class="scope-box" id="ls-sidebar" data-theme-scope="previewSidebar">
+                        <div class="box-label">作用域 previewSidebar（magenta）</div>
                         <div class="theme-strip" data-strip="--x-color-theme-"></div>
                         <div class="demo-sample">
-                            <div>本区没有自己的作用域，跟随全局主题。</div>
+                            <div>侧边栏主题</div>
                             <input class="auto-input" placeholder="表单" />
                             <button class="auto-btn primary">按钮</button>
                         </div>
                     </div>
-                    <div class="grid">
-                        <div class="scope-box" id="ls-sidebar" data-theme-scope="previewSidebar">
-                            <div class="box-label">作用域 previewSidebar（magenta）</div>
-                            <div class="theme-strip" data-strip="--x-color-theme-"></div>
-                            <div class="demo-sample">
-                                <div>侧边栏主题</div>
-                                <input class="auto-input" placeholder="表单" />
-                                <button class="auto-btn primary">按钮</button>
-                            </div>
+                    <div class="scope-box" id="ls-content" data-theme-scope="previewContent">
+                        <div class="box-label">作用域 previewContent（green + dark）</div>
+                        <div class="theme-strip" data-strip="--x-color-theme-"></div>
+                        <div class="demo-sample">
+                            <div>内容区主题（暗色）</div>
+                            <input class="auto-input" placeholder="表单" />
+                            <button class="auto-btn primary">按钮</button>
                         </div>
-                        <div class="scope-box" id="ls-content" data-theme-scope="previewContent">
-                            <div class="box-label">作用域 previewContent（green + dark）</div>
-                            <div class="theme-strip" data-strip="--x-color-theme-"></div>
-                            <div class="demo-sample">
-                                <div>内容区主题（暗色）</div>
-                                <input class="auto-input" placeholder="表单" />
-                                <button class="auto-btn primary">按钮</button>
-                            </div>
-                        </div>
-                        <div class="scope-box" id="ls-toolbar" data-theme-scope="previewToolbar">
-                            <div class="box-label">作用域 previewToolbar（cyan + colorized）</div>
-                            <div class="theme-strip" data-strip="--x-color-theme-"></div>
-                            <div class="demo-sample">
-                                <div>工具栏主题（多彩）</div>
-                                <input class="auto-input" placeholder="表单" />
-                                <button class="auto-btn primary">按钮</button>
-                            </div>
+                    </div>
+                    <div class="scope-box" id="ls-toolbar" data-theme-scope="previewToolbar">
+                        <div class="box-label">作用域 previewToolbar（cyan + colorized）</div>
+                        <div class="theme-strip" data-strip="--x-color-theme-"></div>
+                        <div class="demo-sample">
+                            <div>工具栏主题（多彩）</div>
+                            <input class="auto-input" placeholder="表单" />
+                            <button class="auto-btn primary">按钮</button>
                         </div>
                     </div>
                 </div>
             </div>
-        </main>
+        </div>
+    </main>
 
 
-        <script>
-            // 三个局部作用域：magenta / green+dark / cyan+colorized（persistence:false 便于反复试验）
-            var defs = [
-                { id: "previewSidebar", el: "#ls-sidebar", options: { themeColor: "magenta" } },
-                { id: "previewContent", el: "#ls-content", options: { themeColor: "green", dark: true } },
-                { id: "previewToolbar", el: "#ls-toolbar", options: { themeColor: "cyan", colorized: true } },
-            ];
-            defs.forEach(function (def) {
-                var scope = ThemePro.addScope(
-                    Object.assign({ id: def.id, persistence: false }, def.options),
-                );
-                if (!scope) return;
-                scope.attach(def.el);
-                // 构造选项里的模式 / 尺寸不会立即写属性，这里显式赋值一次
-                if (def.options.dark) scope.dark = true;
-                if (def.options.colorized) scope.colorized = true;
-            });
-        </script>
-    </body>
+    <script>
+        // 三个局部作用域：magenta / green+dark / cyan+colorized（persistence:false 便于反复试验）
+        var defs = [
+            { id: "previewSidebar", el: "#ls-sidebar", options: { themeColor: "magenta" } },
+            { id: "previewContent", el: "#ls-content", options: { themeColor: "green", dark: true } },
+            { id: "previewToolbar", el: "#ls-toolbar", options: { themeColor: "cyan", colorized: true } },
+        ];
+        defs.forEach(function (def) {
+            var scope = AutoSparkThemeManager.addScope(
+                Object.assign({ id: def.id, persistence: false }, def.options),
+            );
+            if (!scope) return;
+            scope.attach(def.el);
+            // 构造选项里的模式 / 尺寸不会立即写属性，这里显式赋值一次
+            if (def.options.dark) scope.dark = true;
+            if (def.options.colorized) scope.colorized = true;
+        });
+    </script>
+</body>
+
 </html>

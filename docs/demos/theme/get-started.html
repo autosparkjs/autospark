@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>主题 · 快速入门（完整动线）</title>
+    <!-- 主题化 AutoSpark 应用的基本引入三件套：静态样式层 + 主题插件 + 引擎 -->
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <!-- 主题插件（autospark.theme.js）：引入即生效（单例 AutoSparkThemeManager 就绪） -->
+    <script src="/autospark/autospark.theme.js"></script>
+    <!-- 引擎（autospark.js）：构造期经预加载队列接驳主题插件，theme 先加载即可 -->
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <script src="/autospark/theme-demo.js"></script>
+</head>
+
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+    <main class="demo-main">
+        <!-- 1 · 引入即生效 -->
+        <div class="auto-card">
+            <div class="auto-card-header">1 · 引入即生效：两个 script，组件类立刻随主题</div>
+            <div class="auto-card-body col">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <button class="auto-btn primary">主操作</button>
+                    <button class="auto-btn">默认</button>
+                    <button class="auto-btn success">成功</button>
+                    <button class="auto-btn danger">删除</button>
+                    <input class="auto-input" placeholder="文本框" style="max-width:160px;" />
+                    <span class="auto-alert info">右侧面板改任意维度，这里即刻跟随</span>
+                </div>
+                <p class="hint">
+                    本页 <code>&lt;script src="autospark.theme.js"&gt;</code> 加载即创建单例并挂
+                    <code>globalThis.AutoSparkThemeManager</code>——不需要 <code>new</code>，不需要手动初始化。
+                </p>
+            </div>
+        </div>
+
+        <!-- 2 · 换主题色 -->
+        <div class="auto-card">
+            <div class="auto-card-header">2 · 换主题色：一个种子派生整套标尺</div>
+            <div class="auto-card-body col">
+                <div id="preset-row" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+                <p class="hint">
+                    当前：<code id="preset-now">blue（#1677ff）</code> ——预设名写入后读回的是<strong>解析后的 hex</strong>。
+                </p>
+            </div>
+        </div>
+
+        <!-- 3 · 暗色与多彩 -->
+        <div class="auto-card">
+            <div class="auto-card-header">3 · 暗色与多彩：两个独立维度，可局部可叠加</div>
+            <div class="auto-card-body" style="display:flex;gap:12px;flex-wrap:wrap;">
+                <div data-dark style="flex:1;min-width:220px;padding:12px;border-radius:8px;">
+                    <div class="box-label">data-dark 局部暗色</div>
+                    <button class="auto-btn primary">暗色主按钮</button>
+                    <input class="auto-input" placeholder="暗色输入框" style="margin-top:8px;" />
+                </div>
+                <div data-colorized data-dark style="flex:1;min-width:220px;padding:12px;border-radius:8px;">
+                    <div class="box-label">暗色 + 多彩（同元素叠加）</div>
+                    <button class="auto-btn primary">浸染主按钮</button>
+                    <span class="auto-alert warning" style="margin-top:8px;">灰阶幕布换主题色浸染</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4 · 尺寸调节 -->
+        <div class="auto-card">
+            <div class="auto-card-header">4 · 尺寸调节：四维档位，元素属性局部覆盖</div>
+            <div class="auto-card-body" style="display:flex;gap:12px;flex-wrap:wrap;">
+                <div data-size="small" style="flex:1;min-width:200px;padding:12px;border:1px dashed var(--auto-border-color, #ddd);border-radius:8px;">
+                    <div class="box-label">data-size="small"</div>
+                    <button class="auto-btn primary">紧凑按钮</button>
+                    <input class="auto-input" placeholder="紧凑输入" style="margin-top:8px;" />
+                </div>
+                <div data-size="large" style="flex:1;min-width:200px;padding:12px;border:1px dashed var(--auto-border-color, #ddd);border-radius:8px;">
+                    <div class="box-label">data-size="large"</div>
+                    <button class="auto-btn primary">宽松按钮</button>
+                    <input class="auto-input" placeholder="宽松输入" style="margin-top:8px;" />
+                </div>
+            </div>
+        </div>
+
+        <!-- 5 · 局部作用域 -->
+        <div class="auto-card">
+            <div class="auto-card-header">5 · 局部作用域：addScope 独立主题，互不干扰</div>
+            <div class="auto-card-body col">
+                <div id="scope-box" class="scope-box" style="padding:12px;border:1px solid var(--auto-border-color, #ddd);border-radius:8px;">
+                    <div class="box-label">独立作用域：themeColor = magenta</div>
+                    <button class="auto-btn primary">作用域内主按钮</button>
+                    <span class="auto-alert success" style="margin-left:8px;">随局部主题色</span>
+                </div>
+                <p class="hint">
+                    <code>AutoSparkThemeManager.addScope({ id, themeColor, persistence: false })</code> 后
+                    <code>scope.attach(el)</code>——参数、注入链路与 root 完全同构。
+                </p>
+            </div>
+        </div>
+
+        <!-- 6 · engine 协同 -->
+        <div class="auto-card">
+            <div class="auto-card-header">6 · engine 协同：state.$.theme 七键投影（单向同步）</div>
+            <div class="auto-card-body col">
+                <div class="engine-box" x-data>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                        <button class="auto-btn primary" @click="theme.dark = !theme.dark">投影写 dark（驱动主题切换）</button>
+                        <button class="auto-btn" @click="writeManagerDark">manager 直改 dark（对照）</button>
+                    </div>
+                    <p class="hint">
+                        投影读数：dark = <code x-text="theme.dark"></code> · themeColor = <code x-text="theme.themeColor"></code>
+                        <br />
+                        写 <code>state.$.theme.*</code> 经 <code>watch("$.theme.*")</code> <strong>单向同步</strong>到 manager（第一个按钮，主题与读数同步变）；
+                        manager 直改——包括左侧面板与第二个按钮——<strong>不回写投影</strong>（主题变了、读数不动，以 manager 为准）。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 2 · 预设主题色按钮：直改单例（引入即生效的最小演示）
+        var PRESETS = ["blue", "red", "volcano", "orange", "lime", "gold", "green", "cyan", "geekblue", "techblue", "purple", "magenta"];
+        var presetRow = document.getElementById("preset-row");
+        var presetNow = document.getElementById("preset-now");
+        PRESETS.forEach(function (name) {
+            var btn = document.createElement("button");
+            btn.className = "auto-btn compact";
+            btn.textContent = name;
+            btn.addEventListener("click", function () {
+                AutoSparkThemeManager.themeColor = name; // 写入预设名
+                presetNow.textContent = name + "（" + AutoSparkThemeManager.themeColor + "）"; // 读回解析 hex
+            });
+            presetRow.appendChild(btn);
+        });
+
+        // 5 · 局部作用域：独立 magenta 主题（persistence:false 不写 localStorage）
+        var scope = AutoSparkThemeManager.addScope({
+            id: "get-started-local",
+            themeColor: "magenta",
+            persistence: false,
+        });
+        if (scope) scope.attach(document.getElementById("scope-box"));
+
+        // 6 · engine 构造：theme 插件已在加载面（先于 engine 引入），ready 期自动接驳——
+        //    engine.themeManager 指向同一单例 + state.$.theme 七键投影播种完成。
+        var engine = new AutoSpark(document.querySelector(".engine-box"), {}, {
+            actions: {
+                // 对照按钮：manager 直改，单向同步语义下投影读数不动
+                writeManagerDark: function () {
+                    engine.themeManager.dark = !engine.themeManager.dark;
+                },
+            },
+        });
+    </script>
+</body>
+
+</html>

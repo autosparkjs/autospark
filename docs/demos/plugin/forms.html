@@ -3,18 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <title>插件开发 · 三形态官方样板</title>
-    <!-- 引擎 + 三个官方插件脚本（notifications / ripple / button 均自举注册，零手动接线） -->
+    <!-- 引擎 + 三个官方插件脚本（notifications / spark / button 均自举注册，零手动接线） -->
     <script src="/autospark/autospark.js"></script>
     <script src="/autospark/autospark.notifications.js"></script>
-    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/autospark.spark.js"></script>
     <script src="/autospark/autospark.button.js"></script>
     <link rel="stylesheet" href="/autospark/bulma.min.css" />
   </head>
   <body>
     <div class="demo-app section" x-data="{ count: 0 }">
       <div class="block">
-        <!-- 指令插件样板：x-ripple -->
-        <button class="button is-link" x-ripple.hover @click="count++">hover 涟漪（x-ripple）</button>
+        <!-- 指令插件样板：x-spark -->
+        <button class="button is-link" x-spark.hover @click="count++">hover 涟漪（x-spark）</button>
         <!-- 组件插件样板：autospark.button（化身语义，宿主即组件根） -->
         <button x-component:autospark.button="{ label: '组件插件按钮', type: 'primary' }" @click="count++"></button>
         <span class="tag is-info" x-text="'点击计数：' + count" style="margin-left: 8px"></span>

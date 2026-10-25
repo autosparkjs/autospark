@@ -23,6 +23,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@autospark/utils": "workspace:*",
     "@happy-dom/global-registrator": "^20.10.6",
     "@types/bun": "1.4.2",
     "autospark": "workspace:*",

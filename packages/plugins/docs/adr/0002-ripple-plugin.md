@@ -1,6 +1,7 @@
 # ADR-0002: x-ripple 涟漪指令插件化（@autospark/plugins）
 
-- 状态：已接受（Accepted，2026-10-23 实现期修订注册通道与执行通道，见决策 1/2/3 的修订说明；2026-10-24 包更名与产物 IIFE-only 见 ADR-0003）
+- 状态：已被 ADR-0005 取代（Superseded，2026-10-25——x-ripple 升级为 x-spark 装饰动效伞形指令，本文档的注册通道 / 执行通道 / 载体策略 / 停止语义平移继承，视觉契约由 ADR-0005 重组为 type × (rippleMode | spinMode) × trigger 三维模型）
+- 历史状态：已接受（Accepted，2026-10-23 实现期修订注册通道与执行通道，见决策 1/2/3 的修订说明；2026-10-24 包更名与产物 IIFE-only 见 ADR-0003）
 - 日期：2026-10-23
 - 关联：包内 ADR-0001（通知模块插件化，自举形态先例）；engine ADR-0001（指令 kind 体系）、ADR-0007（指令选项回退链）、ADR-0100（受控注册语义）、ADR-0111（插件机制与指令安装器队列）、ADR-0114（插件预加载队列）、ADR-0116（precompile 回调）；先例：x-error（Runtime 通道 findScopeByEl 取 scope）
 
@@ -48,7 +49,7 @@ x-ripple 不进 engine `presetDirectives`，以 AutoSpark 插件形态自举（A
 - **扩散距离（size）**：统一语义 = 自边框向外扩散的最大距离（默认 12px）——ring/echo 是外扩距离，glow 是光晕外扩半径上限；环线粗细由各 type 内部定死，不开放配置面。
 - **徽标涟漪（badge，2026-10-24 增补）**：`badge?: boolean | number` 将涟漪载体从「inset:0 全域」覆盖为「宿主右上角正圆」——圆心恰在宿主 border box 右上角顶点（`top/right = -直径/2`，一半悬于宿主外）。`true` = 默认直径 8px；正数字 = 自定义直径 px；非法值（字符串/0/负数/非有限数）warn 后不启用（宽松策略与其余键一致）。启用且未显式给 color 时 color 缺省联动主题语义红 `var(--auto-danger-color, #ff4d4f)`（显式 color 恒优先）。`type`/`trigger`/`size`/`speed`/`gap` 语义零变化：波环动画完全复用既有 keyframes（box-shadow spread 自圆边起波），echo+click「双环一次起波」定稿语义自动继承；`size` 仍管自圆边向外的扩散距离，与直径是独立两通道。载体 z-index 取 CSS 最大值 `2147483647`，覆盖宿主内容与同上下文定位元素——z-index 只在宿主所在层叠上下文内生效（宿主自带 transform/filter 等创建的上下文构成边界，无法穿透逃逸）；宿主 `overflow: hidden` 会裁剪 badge 与波环（属宿主自身裁剪上下文的正常行为），不强制干预。
 - **颜色（color）**：缺省 `var(--auto-theme-color)`，跟随 ThemeManager 动态主题；显式传值优先（badge 徽标形态缺省联动语义红，见上条）。
-- **涟漪周期**：`speed` = 动画段时长 ms（默认 2000），`gap` = 末尾静止段 ms（默认 0）；静止段烘进 keyframes 百分比（动画段占 speed/(speed+gap) 比例），单 animation 无缝循环，ease-out 曲线。
+- **涟漪周期**：`speed` = 动画段时长 ms（默认 3000，2026-10-24 用户调整——默认节奏放缓，初版 2000），`gap` = 末尾静止段 ms（默认 0）；静止段烘进 keyframes 百分比（动画段占 speed/(speed+gap) 比例），单 animation 无缝循环，ease-out 曲线。
 - **圆角跟随**：载体 `border-radius: inherit`，自动贴合宿主圆角（50% 圆、局部圆角均一致），不开放覆盖配置（badge 徽标形态除外——载体恒 50% 正圆，见徽标条目）。
 - **减弱动效**：`prefers-reduced-motion: reduce` 下停播（装饰性动画的可访问性底线）。
 

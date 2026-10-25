@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-spark · 色环旋转</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.spark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; }
+      .spark-card {
+        padding: 32px 24px;
+        border: 1px solid #dcdfe6;
+        border-radius: 12px;
+        background: #fff;
+        text-align: center;
+      }
+      .hover-hint { cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <!-- 效果族 type:'spin'：环绕宿主边界的旋转色环，spinMode 三形态；size = 环宽 -->
+    <div class="demo-app section">
+      <div class="grid">
+        <div class="spark-card" x-spark.spin x-spark-options="{speed: 2000}">
+          <strong>beam</strong>
+          <p class="is-size-7 has-text-grey">光段跑边（默认）· 修饰符速记 x-spark.spin</p>
+        </div>
+        <div class="spark-card" x-spark x-spark-options="{type: 'spin', spinMode: 'rotate', speed: 2000}">
+          <strong>rotate</strong>
+          <p class="is-size-7 has-text-grey">整环匀速旋转</p>
+        </div>
+        <div class="spark-card" x-spark x-spark-options="{type: 'spin', spinMode: 'chase', speed: 2000}">
+          <strong>chase</strong>
+          <p class="is-size-7 has-text-grey">双段追逐</p>
+        </div>
+        <div class="spark-card hover-hint" x-spark x-spark-options="{type: 'spin', trigger: 'hover', speed: 1500}">
+          <strong>spin + hover</strong>
+          <p class="is-size-7 has-text-grey">悬停转起，移出播完当前圈再停</p>
+        </div>
+      </div>
+      <div class="block has-text-grey is-size-7">
+        spin 色环贴合宿主圆角旋转，环宽经 <code>size</code> 声明（缺省 4px），
+        <code>speed</code> = 旋转一圈时长（匀速）；click 触发下点击转一圈播完即停，与涟漪 click
+        「单周期播放」语义对齐——进行中指示的经典用法。
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

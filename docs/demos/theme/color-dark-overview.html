@@ -1,37 +1,39 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>明暗主题 · 概述</title>
-        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
-        <link rel="stylesheet" href="/autospark/theme-demo.css" />
-        <script src="/autospark/autospark-theme.js"></script>
-        <script src="/autospark/theme-controls.js"></script>
-        <script src="/autospark/theme-demo.js"></script>
-    </head>
 
-    <body>
-        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>明暗主题 · 概述</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <script src="/autospark/theme-demo.js"></script>
+</head>
 
-        <main class="demo-main">
-            <div class="auto-card story-intro">
-                <div class="story-intro-title">特性说明：明暗主题（dark / light）</div>
-                <p>
-                    显示模式是<strong>独立维度</strong>：亮色是默认态，暗色经 <code>dark</code> 属性（JS 通道）或
-                    <code>data-dark</code> 属性（元素域手动通道）启用。暗色下前景 / 背景明度标尺互换、
-                    主题梯度方向反转，并附带一批暗色专属派生值与暗色阴影配方。
-                </p>
-                <pre>ThemePro.dark = true              // 全局暗色（写 :root 的 dark 属性，参与持久化）
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+    <main class="demo-main">
+        <div class="auto-card story-intro">
+            <div class="story-intro-title">特性说明：明暗主题（dark / light）</div>
+            <p>
+                显示模式是<strong>独立维度</strong>：亮色是默认态，暗色经 <code>dark</code> 属性（JS 通道）或
+                <code>data-dark</code> 属性（元素域手动通道）启用。暗色下前景 / 背景明度标尺互换、
+                主题梯度方向反转，并附带一批暗色专属派生值与暗色阴影配方。
+            </p>
+            <pre>AutoSparkThemeManager.dark = true              // 全局暗色（写 :root 的 dark 属性，参与持久化）
 &lt;div data-dark&gt;…&lt;/div&gt;           // 仅此元素进入暗色（元素域，不进持久化）
 &lt;div data-light&gt;…&lt;/div&gt;          // 暗语境中单独切回亮色（含 color-scheme: light）</pre>
-                <ul>
-                    <li>暗色 <code>color-scheme: dark</code>——滚动条等原生控件一并换暗；<code>data-light</code> 是对偶的完整亮域</li>
-                    <li>主题梯度反转：亮 <code>theme-0</code> 最浅，暗 <code>theme-0</code> 最深（同一套映射才继续成立）</li>
-                    <li>可读性有量化兜底：暗色各档按 WCAG 对比度校准（正文 ≥ 4.5:1、图形 ≥ 3:1）</li>
-                </ul>
-            </div>
-        </main>
+            <ul>
+                <li>暗色 <code>color-scheme: dark</code>——滚动条等原生控件一并换暗；<code>data-light</code> 是对偶的完整亮域</li>
+                <li>主题梯度反转：亮 <code>theme-0</code> 最浅，暗 <code>theme-0</code> 最深（同一套映射才继续成立）</li>
+                <li>可读性有量化兜底：暗色各档按 WCAG 对比度校准（正文 ≥ 4.5:1、图形 ≥ 3:1）</li>
+            </ul>
+        </div>
+    </main>
 
-    </body>
+</body>
+
 </html>

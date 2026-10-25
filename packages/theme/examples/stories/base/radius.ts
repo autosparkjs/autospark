@@ -30,15 +30,15 @@ export default {
                 <li>局部换档：任意容器加 <code>data-radius="档位"</code> 属性即可让内部元素局部生效，无需改全局</li>
                 <li><strong>独立样式域</strong>：<code>data-radius</code> 属<strong>规模维度</strong>的档位通道，与模式维度（<code>data-dark</code> / <code>data-light</code>）、色彩维度（<code>data-colorized</code> / <code>data-uncolored</code>）分属不同域、可同元素叠加——见底部「维度叠加」卡</li>
             </ul>
-            <pre>ThemePro.radius = 'large'  // 等价 document.documentElement.dataset.radius = 'large'</pre>
+            <pre>AutoSparkThemeManager.radius = 'large'  // 等价 document.documentElement.dataset.radius = 'large'</pre>
         </div>
         <div class="auto-card">
             <div class="auto-card-header">圆角档位对比（同尺寸元素，仅圆角不同）</div>
             <div class="auto-card-body col">
                 <div style="display:flex;gap:0.9rem;flex-wrap:wrap;align-items:flex-start;">
                     ${repeat(
-                        RADII,
-                        ({ label, radius }, i) => html`
+        RADII,
+        ({ label, radius }, i) => html`
                             <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;">
                                 <div
                                     style="width:4.2rem;height:2.8rem;border-radius:${radius};background:var(--x-color-theme-${i + 1});border:var(--auto-border);display:flex;align-items:center;justify-content:center;font-size:0.72rem;"
@@ -48,7 +48,7 @@ export default {
                                 <code style="font-size:0.68rem;color:var(--auto-third-color);">--x-border-radius-${label}</code>
                             </div>
                         `,
-                    )}
+    )}
                 </div>
                 <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
                     八种取值同尺寸横排对比：<code>none</code> 直角 → <code>x-large</code> 大圆角连续过渡，
@@ -153,11 +153,11 @@ export default {
                 </p>
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;">
                     ${[
-                        { label: "无属性（跟随全局：亮色 · 全局圆角档）", dark: false, radius: undefined as string | undefined },
-                        { label: "data-dark（仅模式域：暗色，圆角仍随全局）", dark: true, radius: undefined as string | undefined },
-                        { label: 'data-dark + data-radius="x-large"（两域叠加：暗色 + 大圆角）', dark: true, radius: "x-large" },
-                    ].map(
-                        (c) => html`
+            { label: "无属性（跟随全局：亮色 · 全局圆角档）", dark: false, radius: undefined as string | undefined },
+            { label: "data-dark（仅模式域：暗色，圆角仍随全局）", dark: true, radius: undefined as string | undefined },
+            { label: 'data-dark + data-radius="x-large"（两域叠加：暗色 + 大圆角）', dark: true, radius: "x-large" },
+        ].map(
+            (c) => html`
                             <div
                                 ?data-dark="${c.dark}"
                                 data-radius="${c.radius}"
@@ -169,14 +169,14 @@ export default {
                                 <div style="padding:0.5rem;background:var(--auto-secondary-bgcolor);border-radius:var(--auto-border-radius);">色块（--auto-border-radius）</div>
                             </div>
                         `,
-                    )}
+        )}
                 </div>
             </div>
         </div>
         <div class="auto-card">
             <div class="auto-card-header">全局圆角大小: <code>var(--auto-border-radius)</code></div>
             <div class="auto-card-body col">
-                <pre>使用 ThemePro.radius='x-small' 设置全局圆角大小</pre>
+                <pre>使用 AutoSparkThemeManager.radius='x-small' 设置全局圆角大小</pre>
                 <div class="list">
                     <div class="item" style="border-radius:var(--auto-border-radius)">--auto-border-radius</div>
                     <div class="item" style="border-radius:var(--auto-border-radius)">--auto-border-radius</div>

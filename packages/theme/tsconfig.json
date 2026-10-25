@@ -33,6 +33,12 @@
         "paths": {
             "@/*": [
                 "./src/*"
+            ],
+            "@autospark/utils": [
+                "../utils/src/index.ts"
+            ],
+            "autospark": [
+                "../engine/src/index.ts"
             ]
         }, /* Specify a set of entries that re-map imports to additional lookup locations. */
         // "rootDirs": [],                                   /* Allow multiple folders to be treated as one when resolving modules. */

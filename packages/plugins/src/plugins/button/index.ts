@@ -15,7 +15,7 @@
  */
 import type { AutoSpark } from "autospark";
 import { captureNamespace } from "../../runtime/bridge";
-import { installPlugin } from "../../runtime/bootstrap";
+import { installPlugin } from "@autospark/utils";
 import buttonTemplate from "./button.html?raw";
 
 /** 组件注册名（autospark. 点前缀命名空间，ADR-0094） */

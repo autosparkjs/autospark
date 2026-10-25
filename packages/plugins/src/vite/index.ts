@@ -150,7 +150,18 @@ export function stripBundleExports(code: string): string {
 }
 
 /**
- * 闭包外壳包裹（定谳模板，ADR-0004）：
+ * 闭包外壳模式（plugins ADR-0006 决策 2）：
+ * - `queued`（缺省）：标准排队外壳——`AutoSpark === undefined` 时插件体整包入
+ *   预加载队列（ADR-0114），engine 构造 drain 回放；
+ * - `immediate`：立即执行闭包——无 `run` 延迟分支与队列分支，打包体加载即执行；
+ *   双路径自举下沉到插件体源码级 `installPlugin`（其队列语义本就只入队 register
+ *   回调）。适用边界：包体对引擎零运行时引用 + 模块加载期副作用需「引入即生效」
+ *   （库型插件，theme 为首个实例，theme ADR-0007 决策 2）。
+ */
+export type PluginShellMode = "queued" | "immediate";
+
+/**
+ * 闭包外壳包裹（定谳模板，ADR-0004；immediate 变体见 {@link PluginShellMode}）：
  * - 直路径：引擎已加载，插件体即刻执行（命名空间经闭包参数落定）；
  * - 队列路径：`AutoSpark === undefined` → 插件体入预加载队列，engine 构造 drain 时
  *   以 `(engine, autospark)` 回放（第二参即命名空间）；冻结队列守卫与 installPlugin
@@ -158,7 +169,19 @@ export function stripBundleExports(code: string): string {
  *
  * 返回 prefixLines 供 sourcemap 行偏移修正（包裹注入的前置行数）。
  */
-export function wrapInPluginClosure(body: string): { code: string; prefixLines: number } {
+export function wrapInPluginClosure(
+    body: string,
+    shell: PluginShellMode = "queued",
+): { code: string; prefixLines: number } {
+    if (shell === "immediate") {
+        const code =
+            `(function (${CLOSURE_PARAM}) {\n` +
+            `    "use strict";\n` +
+            body +
+            `})(globalThis.${CLOSURE_PARAM});\n`;
+        // 前置 2 行：(function …) / "use strict"
+        return { code, prefixLines: 2 };
+    }
     const prefix =
         `(function (${CLOSURE_PARAM}) {\n` +
         `    "use strict";\n` +
@@ -195,8 +218,12 @@ function assertNoAutosparkRefs(code: string, fileName: string): void {
 /**
  * 工厂：注入 vite build 即得单产物闭包打包（一产物一次 `vite build`，入口与输出
  * 文件名由构建配置决定——见包内 vite.config.ts 编排先例）。
+ *
+ * @param options.shell 外壳模式（缺省 queued 标准排队外壳；immediate 见
+ *   {@link PluginShellMode}，plugins ADR-0006 决策 2）
  */
-export function installAutosparkPlugin(): Plugin {
+export function installAutosparkPlugin(options: { shell?: PluginShellMode } = {}): Plugin {
+    const shell = options.shell ?? "queued";
     return {
         name: "autospark-plugin-closure",
         enforce: "pre",
@@ -214,7 +241,7 @@ export function installAutosparkPlugin(): Plugin {
 
                 const stripped = stripBundleExports(body);
                 assertNoAutosparkRefs(stripped, chunk.fileName);
-                const wrapped = wrapInPluginClosure(stripped);
+                const wrapped = wrapInPluginClosure(stripped, shell);
 
                 chunk.code = wrapped.code + (mapComment ? `\n${mapComment}\n` : "");
                 if (chunk.map) {

@@ -1,40 +1,42 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>局部主题 · 概述</title>
-        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
-        <link rel="stylesheet" href="/autospark/theme-demo.css" />
-        <script src="/autospark/autospark-theme.js"></script>
-        <script src="/autospark/theme-controls.js"></script>
-        <script src="/autospark/theme-demo.js"></script>
-    </head>
 
-    <body>
-        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>局部主题 · 概述</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <script src="/autospark/theme-demo.js"></script>
+</head>
 
-        <main class="demo-main">
-            <div class="auto-card story-intro">
-                <div class="story-intro-title">特性说明：局部主题（ThemeScope）</div>
-                <p>
-                    作用域是「<strong>一套完整主题参数 + 一个边界</strong>」：root 作用域覆盖整篇文档，
-                    <code>addScope()</code> 创建的作用域覆盖指定子树，两者参数、注入与持久化链路完全同构。
-                </p>
-                <pre>const scope = ThemePro.addScope({
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+    <main class="demo-main">
+        <div class="auto-card story-intro">
+            <div class="story-intro-title">特性说明：局部主题（ThemeScope）</div>
+            <p>
+                作用域是「<strong>一套完整主题参数 + 一个边界</strong>」：root 作用域覆盖整篇文档，
+                <code>addScope()</code> 创建的作用域覆盖指定子树，两者参数、注入与持久化链路完全同构。
+            </p>
+            <pre>const scope = AutoSparkThemeManager.addScope({
     id: "preview",                    // 作用域标识（必填）
     elements: ["#preview"],           // 自动给命中元素挂 data-theme-scope="preview"
     themeColor: "magenta",            // 本子树自己的主题色
 });
 scope.dark = true;                    // 模式 / 尺寸经 setter 立即写属性
 scope.radius = "small";</pre>
-                <ul>
-                    <li>每个作用域有自己的主题色、模式、尺寸——互不影响</li>
-                    <li>作用域内仍可用 <code>data-*</code> 做元素级微调（命中被收敛在本作用域子树内）</li>
-                    <li>WebComponent / shadow DOM 场景传 <code>docRoot</code> 与 <code>cssSelector: [":host"]</code></li>
-                </ul>
-            </div>
-        </main>
+            <ul>
+                <li>每个作用域有自己的主题色、模式、尺寸——互不影响</li>
+                <li>作用域内仍可用 <code>data-*</code> 做元素级微调（命中被收敛在本作用域子树内）</li>
+                <li>WebComponent / shadow DOM 场景传 <code>docRoot</code> 与 <code>cssSelector: [":host"]</code></li>
+            </ul>
+        </div>
+    </main>
 
-    </body>
+</body>
+
 </html>

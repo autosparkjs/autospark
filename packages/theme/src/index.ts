@@ -5,3 +5,4 @@ export * from "./types";
 export * from "./presets";
 export * from "./errors";
 export * from "./utils";
+export * from "./plugin";

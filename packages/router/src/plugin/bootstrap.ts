@@ -31,7 +31,8 @@
  * precompile 不再生效（须写完整形态）。
  */
 
-import type { AutoSpark, AutoSparkOptions, PluginBootstrap } from "autospark";
+import type { AutoSpark, AutoSparkOptions } from "autospark";
+import { installPlugin } from "@autospark/utils";
 import { AutoSparkRouter } from "@/router";
 import { ensureDefaultOutletElement } from "@/engine/engineHost";
 import { transformXOutlet } from "@/engine/xOutlet";
@@ -104,19 +105,12 @@ function mountRouter(engine: AutoSpark<any>, _autospark: typeof AutoSpark): void
 }
 
 /**
- * 双路径注册（模块加载期执行一次，见模块注释）。
+ * 双路径注册（模块加载期执行一次，单点收敛于 @autospark/utils installPlugin——
+ * utils ADR-0001 / plugins ADR-0006；冻结队列守卫与插件家族一次抹平对齐）。
  */
 export function bootstrapRouterPlugin(): void {
-    const register = (autospark: typeof AutoSpark) => {
+    installPlugin("router", "precompile", (autospark) => {
         autospark.precompile(routerPrecompile);
         autospark.ready(mountRouter);
-    };
-    const existing = (globalThis as { AutoSpark?: typeof AutoSpark }).AutoSpark;
-    if (typeof existing?.precompile === "function") {
-        register(existing);
-        return;
-    }
-    const queue = ((globalThis as { __AUTOSPARK_PLUGINS__?: PluginBootstrap[] })
-        .__AUTOSPARK_PLUGINS__ ??= []);
-    queue.push((_engine, autospark) => register(autospark));
+    });
 }

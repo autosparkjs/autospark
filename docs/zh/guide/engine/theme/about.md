@@ -49,7 +49,7 @@ themeManager.dark = true; // 暗色模式
 
 ## 与 AutoSpark 生态的关系
 
-- **AutoSpark Engine**：负责视图渲染与交互；主题库提供它所需的外观变量。
+- **AutoSpark Engine**：以**库型插件**形态自动接驳（ADR-0007）——engine ready 期注入 `engine.themeManager` 单例引用，多 engine 共享；同时向根状态播种 `state.$.theme` 七键投影（dark / themeColor / size / spacing / shadow / radius / colorized），模板写入即驱动主题切换（单向同步：state → manager，manager 直改不回写投影）。不装引擎时以上接线全部不发生，纯库身份零漂移。
 - **AutoSpark Components**：纯 HTML 组件资产；其外观类直接消费 `--auto-*` 变量。
 - 三者共用同一套变量命名与类名前缀（`--x-*` / `--auto-*` / `auto-*`），组合使用无需适配层。
 

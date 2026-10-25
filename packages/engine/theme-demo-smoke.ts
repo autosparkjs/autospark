@@ -3,7 +3,7 @@
  *
  * 校验点：
  * 1. 页面引用的 /autospark/* 静态资源真实存在于 docs/public；
- * 2. 运行时（autospark-theme.js）能启动：注入 -vars / -colors 样式标签并暴露 ThemePro；
+ * 2. 运行时（autospark-theme.js）能启动：注入 -vars / -colors 样式标签并暴露 AutoSparkThemeManager；
  * 3. 切换主题色后 -colors 产物确实变化（算法真的在跑）；
  * 4. 页内每个 <theme-controls> 都完成升级并渲染出面板内容（groups 过滤生效）；
  * 5. 每个 [data-strip] 梯度条生成 10 个色块。
@@ -79,8 +79,8 @@ for (const file of files) {
         continue;
     }
 
-    const ThemePro = (window as any).ThemePro;
-    check(file, !!ThemePro, "ThemePro 未挂载（themeRuntime 未启动）");
+    const AutoSparkThemeManager = (window as any).AutoSparkThemeManager;
+    check(file, !!AutoSparkThemeManager, "AutoSparkThemeManager 未挂载（themeRuntime 未启动）");
 
     const varsStyle = document.getElementById("autospark-root-vars");
     check(file, !!varsStyle, "缺少注入的 autospark-root-vars 样式标签");
@@ -88,10 +88,10 @@ for (const file of files) {
     check(file, varsCss.includes("--auto-border-radius"), "-vars 未包含派生层 --auto-border-radius");
     check(file, varsCss.includes("--x-plain-color-0"), "-vars 未包含灰方向别名 --x-plain-color-0");
 
-    if (ThemePro) {
+    if (AutoSparkThemeManager) {
         const colorsBefore = document.getElementById("autospark-root-colors")?.innerHTML ?? "";
         check(file, colorsBefore.includes("--x-color-theme-9"), "-colors 未包含主题标尺");
-        ThemePro.themeColor = "purple";
+        AutoSparkThemeManager.themeColor = "purple";
         const colorsAfter = document.getElementById("autospark-root-colors")?.innerHTML ?? "";
         check(file, colorsAfter !== colorsBefore, "切换主题色后 -colors 产物未变化");
         check(

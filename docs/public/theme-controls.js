@@ -1,8 +1,8 @@
 /* 文档站 theme demo 共享控制面板：<theme-controls> 自定义元素（对应 packages/theme/examples/theme-controls.ts 的原生 JS 版）
  *
- * 用法：demo 页面放 <theme-controls></theme-controls>，引入 autospark-theme.js 后引入本文件：
+ * 用法：demo 页面放 <theme-controls></theme-controls>，引入 autospark.theme.js 后引入本文件：
  *   <aside class="demo-panel"><theme-controls></theme-controls></aside>
- *   <script src="/autospark/autospark-theme.js"></script>
+ *   <script src="/autospark/autospark.theme.js"></script>
  *   <script src="/autospark/theme-controls.js"></script>
  *
  * 分组过滤：groups 属性为逗号分隔白名单，可取 color / mode / size / radius / spacing / shadow，
@@ -11,7 +11,7 @@
  * 兼容入口：ThemeControls.mount("#controls") 在容器内创建一个 <theme-controls>（旧写法仍可用）。
  *
  * 面板自身样式经 Shadow DOM 自包含，配色消费从 :host 继承穿透的 --auto-* 变量，主题切换时面板随动；
- * 全局主题状态经 ThemePro（themeManager 单例）作用于整篇 demo 页面。
+ * 全局主题状态经 AutoSparkThemeManager（themeManager 单例）作用于整篇 demo 页面。
  */
 (function (global) {
   "use strict";
@@ -81,7 +81,8 @@
     if (colorRaf) return;
     colorRaf = requestAnimationFrame(function () {
       colorRaf = 0;
-      if (pendingColor !== null) global.ThemePro.themeColor = pendingColor;
+      if (pendingColor !== null)
+        global.AutoSparkThemeManager.themeColor = pendingColor;
     });
   }
 
@@ -107,7 +108,7 @@
   };
 
   ThemeControls.prototype._state = function () {
-    var TP = global.ThemePro;
+    var TP = global.AutoSparkThemeManager;
     return (this.__tc = this.__tc || {
       dark: !!TP.dark,
       colorized: !!TP.colorized,
@@ -153,7 +154,7 @@
       var state = self._state();
       var key = sw.getAttribute("data-switch");
       state[key] = !state[key];
-      global.ThemePro[key] = state[key];
+      global.AutoSparkThemeManager[key] = state[key];
       self.render(); // 重绘以同步开关态
     });
     this.shadowRoot.addEventListener("input", function (e) {
@@ -168,15 +169,18 @@
         })[0];
         var value = def.sizes[Number(target.value)];
         state.sizeValues[key] = value;
-        global.ThemePro[key] = value; // 尺寸走属性通道（写 DOM 属性 + 持久化）
+        global.AutoSparkThemeManager[key] = value; // 尺寸走属性通道（写 DOM 属性 + 持久化）
         self.render();
       }
     });
   };
 
   ThemeControls.prototype.render = function () {
-    var TP = global.ThemePro;
-    if (!TP) throw new Error("ThemePro 未加载：请先引入 autospark-theme.js");
+    var TP = global.AutoSparkThemeManager;
+    if (!TP)
+      throw new Error(
+        "AutoSparkThemeManager 未加载：请先引入 autospark.theme.js",
+      );
     var groups = this._groups();
     var state = this._state();
     var on = function (g) {
@@ -269,7 +273,7 @@
     }
 
     html +=
-      '<div class="hint">面板经 <code>ThemePro</code> 作用于整页：主题色 / 模式写入 :root，' +
+      '<div class="hint">面板经 <code>AutoSparkThemeManager</code> 作用于整页：主题色 / 模式写入 :root，' +
       "尺寸参数写 <code>data-*</code> 属性（medium 即移除属性）。</div>";
 
     this.shadowRoot.innerHTML = html;
@@ -287,8 +291,10 @@
           ? document.querySelector(sel)
           : sel || document.getElementById("controls");
       if (!host) return;
-      if (!global.ThemePro)
-        throw new Error("ThemePro 未加载：请先引入 autospark-theme.js");
+      if (!global.AutoSparkThemeManager)
+        throw new Error(
+          "AutoSparkThemeManager 未加载：请先引入 autospark.theme.js",
+        );
       var el = document.createElement("theme-controls");
       host.replaceChildren(el);
     },

@@ -1,0 +1,16 @@
+{
+    "extends": "./tsconfig.json",
+    // emit 程序垫片映射：autospark / @autospark/utils 收敛到 src/types 垫片
+    // （见 src/types/autospark.d.ts 头注释），emit 产物对两者零类型引用
+    "compilerOptions": {
+        "outDir": "dist",
+        "rootDir": "src",
+        "paths": {
+            "@/*": ["./src/*"],
+            "@autospark/utils": ["./src/types/autospark-utils.d.ts"],
+            "autospark": ["./src/types/autospark.d.ts"]
+        }
+    },
+    "include": ["src"],
+    "exclude": ["src/__tests__"]
+}

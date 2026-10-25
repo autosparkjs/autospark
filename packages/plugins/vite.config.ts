@@ -36,7 +36,7 @@ const ENGINE_IIFE = resolve(pkgRoot, "../engine/dist/index.global.js");
 const CLOSURE_ARTIFACTS = [
   { entry: "src/index.ts", outFile: "autospark.plugins.js", label: "AutoSparkPlugins (aggregate)" },
   { entry: "src/plugins/notifications/index.ts", outFile: "autospark.notifications.js", label: "Notifications" },
-  { entry: "src/plugins/x-ripple/index.ts", outFile: "autospark.ripple.js", label: "Ripple" },
+  { entry: "src/plugins/x-spark/index.ts", outFile: "autospark.spark.js", label: "Spark" },
   { entry: "src/plugins/button/index.ts", outFile: "autospark.button.js", label: "Button" },
 ] as const;
 

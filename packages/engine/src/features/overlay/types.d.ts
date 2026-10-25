@@ -1,0 +1,237 @@
+import type { OverlayInstance } from "./instance";
+import type { AutoSpark } from "../../engine/engine";
+import type { AutoSparkScope } from "../../engine/scope";
+import type { ComponentDef } from "../component/component-def";
+import type { ResizeOptions } from "../../directives/x-resizable";
+import type { AutoSparkAction } from "../action/types";
+/**
+ * 覆盖物体系类型（ADR-0052 修订版——组件化统一）。
+ *
+ * 家族词汇：**覆盖物**（任意组件被渲染到 body 容器的消费方式）/ **覆盖物实例**（消费渲染产物 →
+ * OverlayInstance）/ **覆盖物消费者**（x-dialog 等指令 + 命令式 OverlayHandle）。
+ * 覆盖物**内容**就是普通组件（x-define 声明 / options.components 全局注册 / x-import 加载）——
+ * 无独立声明指令（旧 x-overlay 声明语法已删，ADR-0052 修订共识 1）。
+ */
+/**
+ * 定位锚配置（ADR-0052 决策 21）：与数据视图基准（dataContext）正交——dataContext 管数据视图、
+ * anchor 管显示位置。键名对齐 floating-ui（placement/offset/shift/flip/arrow），减少映射层。
+ */
+export interface OverlayAnchorConfig {
+    /**
+     * 定位锚（两栖，决策 22）：字符串选择器走相对查询（`utils/queryRelElement`——无前缀在
+     * searchRoot 子树内查、`../` 父级爬升、`^` closest、`/` 全局 document，打开时现查，
+     * 未命中 warn + 退屏幕居中）或元素引用（命令式）。与 x-loading 的 `selector` 同语法同基准。
+     */
+    selector?: string | HTMLElement;
+    /**
+     * 面板相对锚点的方向。**默认 `'auto'`**——视口空间自动选位（autoPlacement，与 flip 互斥）；
+     * 显式配置 floating-ui 的 12 个方向值（`top|bottom|left|right` × `''|-start|-end`）则固定方向
+     * + flip 视口翻转（默认开，`flip: false` 关）。
+     */
+    placement?: string;
+    /** 透传 offset 中间件（间距） */
+    offset?: any;
+    /** 视口内滑移：默认启用（keep in view 防溢出）；`false` 关闭；对象透传（padding 等参数） */
+    shift?: any;
+    /** 视口翻转，默认 true（floating-ui 推荐默认）；placement: 'auto' 时无 flip（互斥） */
+    flip?: boolean;
+    /** 箭头：true 时引擎自动注入载体元素 + 伪元素默认视觉（8×8 旋转 45°，决策 24） */
+    arrow?: boolean;
+}
+/**
+ * 覆盖物生效配置：两级深度合并后的形态（ADR-0052 v2.3——值对象内联层随对象形态删除）：
+ *
+ * ```
+ * 内置默认（基座） < x-dialog-options（消费处指令选项，可按组件名定向，ADR-0007 修订）
+ * ```
+ *
+ * 声明式 props 不走本配置（数据，经选项成员属性 `x-dialog-options.props` 的表达式管道注入，
+ * 见 OverlayDirective）；命令式 `内置默认 < getOverlay options < open options`，`props` 键
+ * 在两处均被剥离为 props 通道、不进合并链（v2.3 显式化，旧「非保留键隐式作 props」的
+ * 封闭清单分流已删除）。
+ */
+export interface OverlayConfig {
+    /**
+     * 面板 1px 边框，**默认 true**（`border: false` 显式关闭）。边框画在**外壳**上并配套
+     * 背景 + 圆角（外壳模式，同色背景填平圆角微差），箭头双层自动变色融合：底层菱形变
+     * **边框色**、覆盖层变**面板背景色**并外扩（外向留出 ≈1.17px 边框色斜带与面板 border
+     * 连续，内向仍完整遮蔽嵌入段的边框色与阴影）。颜色经 CSS 变量定制：
+     * `--autospark-overlay-border`（边框色）/ `--autospark-overlay-bg`（面板背景色）。
+     */
+    border: boolean;
+    /** 点击遮罩请求关闭（默认 true；仅模态遮罩形态有意义） */
+    closeOnMask: boolean;
+    /** 进出场动画（ADR-0039 三形态：字符串 | 对象 | false；默认 'fade'，经 resolveAnimate 解析） */
+    animate: any;
+    /**
+     * **数据视图基准**（两栖键，ADR-0053 修订更名自 `scope`——`scope` 与 x-scope/AutoSparkScope
+     * 撞名）：决定实例的表达式上下文/数据视图/生命周期挂链挂谁（挂链即基准）。两形态：
+     * - **基准名**（声明式唯一形态）：`'declarer'`（挂声明处 scope=定义闭包）| `'host'`（挂消费处 scope）；
+     * - **基准载体**（命令式）：HTMLElement——元素所属 scope 即挂链目标，并兼作 `at.selector`
+     *   相对查询的 searchRoot（与 `at` 键的「字符串/元素」两栖惯例同构）。
+     *
+     * 缺省语义分消费面：声明式缺省 `'declarer'`；命令式缺省 rootless 全局视图（ADR-0052 决策 16）。
+     */
+    dataContext?: "declarer" | "host" | HTMLElement;
+    /**
+     * 自动关闭延迟（ms）：**> 0** 时打开后延时自动「请求关闭」（source `'delay'`，走标准
+     * 关闭链——可回写的 visible 照常回写）；0/缺省不自动关。通知/公告类弹层的开箱即用通道。
+     */
+    delayClose?: number;
+    /**
+     * 定位锚（可选；无锚或未命中时 dialog 恒屏幕居中，ADR-0052 决策 21/24）。三态：
+     * **字符串 / 元素简写**（≡ `{ selector }`——进合并链前归一化，只覆盖 selector、
+     * 保留上层 placement/flip/arrow 等其余锚成员）或完整 {@link OverlayAnchorConfig} 对象。
+     */
+    at?: string | HTMLElement | OverlayAnchorConfig;
+    /**
+     * 模态遮罩显隐（ADR-0062 官方实例选项的声明式读取面）：遮罩是引擎结构，本键控制显隐。
+     * 缺省 true（模态）。消费面按形态分派：x-dialog 恒模态（本键无效）、x-drawer 可关
+     * （`mask: false` 裸面板贴边，ADR-0063）、命令式 getOverlay/open 同键可配。
+     */
+    mask?: boolean;
+    /**
+     * 抽屉短轴尺寸（x-drawer 消费，ADR-0063）：左右抽屉的宽 / 上下抽屉的高共用（方向中立）。
+     * `number`（px）或 CSS 长度字符串（`'40%'` / `'20rem'`）；缺省回退 CSS 变量
+     * `--autospark-drawer-size`（默认 280px）。引擎打开时 inline 写入面板——inline 优先级
+     * 天然高于样式表，配置整键生效、不依赖样式表注入时机。
+     */
+    size?: number | string;
+    /**
+     * 面板外壳组件名（shell 机制，ADR-0062）：替换面板层形态（边框/圆角/箭头/内容出口）的
+     * 全局组件名（scope 链 x-define / options.components 全局表均可）。**打开时求值一次**
+     * （不热更新）；未命中 warn + 回退内置默认。与 mask 正交——**shell 不含遮罩**（遮罩是
+     * 引擎结构）。配置链：本键 > 宿主 `x-options` > 引擎级 `options.overlay.{kind}.shell` >
+     * 内置默认（`dialog-shell` / `popover-shell`）。
+     */
+    shell?: string;
+    /**
+     * 面板尺寸拖拽调节（x-drawer / x-dialog 消费，ADR-0064）：`true`（方向按形态自动推导 +
+     * 默认约束）| 对象（字段与 x-resizable 选项表同构——`handles` 只能在形态合法集内**收窄**，
+     * 越界 warn + 忽略）。写路径走 shell 面板（与普通元素 style 直改分离）；**不写回 store**
+     * （`resize:end` 事件 detail 即数据出口）；尺寸**会话内记忆**（重开沿用、优先于声明
+     * `size` / CSS 尺寸）。形态推导：drawer 贴边内侧单边、dialog 四角（`ne,nw,se,sw`）。
+     */
+    resize?: boolean | ResizeOptions;
+    /**
+     * 面板尺寸跟随宿主（x-popover 消费）：`true` 时面板宽度或高度与宿主元素一致——
+     * 按定位主向自动选轴：左右弹出（left/right 系）→ 高度与宿主一致；上下弹出（top/bottom 系）
+     * → 宽度与宿主一致。跟随 flip 翻转后的最终 placement；autoUpdate 重算时持续生效。
+     * 缺省 `false`。
+     */
+    fit?: boolean;
+    /**
+     * 抽屉把手（x-drawer 消费，ADR-0070 组合共享把手模块）：骑面板活动边线的常驻圆形
+     * 按钮，点击折叠/展开——**折叠 ≡ visible 归假**（无第三态，面板销毁、重开重建）。
+     * 把手是覆盖物家族首个**实例外常驻交互元素**（面板销毁后存活，折叠后骑屏幕边/
+     * 锚内侧边露半圆）；生命周期挂指令实例。仅反应式（简单路径）形态生效——字面量
+     * 形态状态不可写，不建把手。取值：
+     * - `true`（默认）：建把手，`pos` 居中（语法糖 ≡ `'50%'`）；
+     * - `false`：不建把手；
+     * - `{pos}`：坐标对象——`number` px / `string` CSS 长度（`'20%'` / `'100px'` /
+     *   `'2rem'`，纯数字字符串按 px），**边缘锚定模型**（正距主边 top/left、负距对面边
+     *   bottom/right 的绝对距离，`'-20%'` = 距对面边 20%）。越界静默钳制到边线内。
+     * 视觉走共享把手契约（`.autospark-expandable-trigger` /
+     * `--autospark-expandable-trigger-*`，ADR-0070）。
+     */
+    expandable?: boolean | {
+        pos?: number | string;
+        [key: string]: any;
+    };
+    /**
+     * 整实例保活（覆盖物家族通用，ADR-0119）：true 时关闭 = leave 动画播完后**容器内
+     * display:none 隐藏**（router keepAlive 同款，非摘除）——DOM/实例 scope/shell scope/watcher
+     * 全存活，重开原样恢复（定位 + enter 动画 + 入栈 + 广播 open）。关闭语义零变化：visible
+     * 回写、overlay:close 广播、ESC/遮罩/close action 三触点照常。重开 props 为 Object.assign
+     * 浅合并（仅出现的键）——需完整保留的字段不要声明为 props。回收点：宿主指令销毁 /
+     * engine.destroy；v1 无 LRU、无手动清缓存 API。**命令式通道不生效**（无缓存归属方）。
+     */
+    keepalive?: boolean;
+    /**
+     * 保活缓存命名空间键（ADR-0119）：声明式经 `x-{name}-options.key` 成员表达式注入求值值
+     * （每次打开现读，不 watch）；命令式 `open({key})` 直传值。缓存身份 = `组件名 + key + url`
+     * 复合——无 key → 键 = 组件名；同键且存在存活挂起实例 → 复用（防重复堆叠）；key 对非
+     * keepalive 路径不生效（仅随事件 payload 广播）。
+     */
+    key?: string | number;
+    /**
+     * 远程内容 url（ADR-0119）：attr 名组件的来源提示——组件未注册时首次打开经 x-import 管线
+     * （fetch + 解析 + 注册 + url 缓存 + 循环引用防护）加载，远程须声明同名 `x-define="{name}"`；
+     * 注册到消费处 scope（作用域导入）。时序：**面板先开**（空出口 + x-loading），成功后原位挂
+     * 内容、摘 x-loading；失败 → 面板内错误占位、不自动关（失败不进 url 缓存，重开自然重试）。
+     * 经成员表达式每次打开重求值；url 变 = 新缓存身份 = 重建（旧条目活到回收点）；
+     * keepalive + 同 url = 免重取（命中 x-import url 缓存）。
+     */
+    url?: string;
+    /**
+     * 标题文本（ADR-0124 决策 6）：overlay 骨架 header 区渲染；空缺时 header 靠其余
+     * 内容（icon / closeable / chrome 出口）决定显隐。走 options 通道，打开时经
+     * resolveOverlayConfig 现读，重开生效。
+     */
+    title?: string;
+    /**
+     * 标题左侧图标名（ADR-0124，x-icon 域 ADR-0058）；空缺不渲染图标占位。
+     */
+    icon?: string;
+    /**
+     * 是否显示 close 图标按钮（ADR-0124 决策 5，默认 true）：点击触发全局 close 信号
+     * action（SIGNAL_ACTIONS.close）→ requestClose 既有链路。显式 false 关闭；header 出口
+     * 被整块替换时本键失效（出口内容让位 close）。
+     */
+    closeable?: boolean;
+    /**
+     * 动作集（ADR-0124 决策 4/7）：AutoSparkAction 规范化形态数组（handle 必在），按
+     * `pos` 归位渲染（top → actions.top；left → actions.left；right / auto / bottom / 无
+     * pos → actions.right），组内按 `order` 升序稳定排序。与消费处 scope 显式声明
+     * （pos ∈ {top,left,right} 准入）双通道合并，同 id 后进覆盖。
+     */
+    actions?: AutoSparkAction[];
+    /**
+     * body 区内边距（ADR-0124，默认 `'0.5em'`）：`number`（px）或 CSS 长度字符串。
+     */
+    padding?: string | number;
+    /** 其余自由键原样保留（开放配置，供消费者指令/自定义 UI 消费） */
+    [key: string]: any;
+}
+/** 内置默认配置（合并链第一层；dataContext 缺省——缺省语义在消费面分派：声明式 declarer、命令式 rootless） */
+export declare const OVERLAY_DEFAULTS: OverlayConfig;
+/**
+ * `at` 键三态归一（Q2/Q3 共识）：字符串 / 元素简写归一为 `{ selector }`，对象原样返回；
+ * null/undefined 返回 null。调用方（resolveOverlayConfig 合并链 / OverlayInstance._show）
+ * 统一经此获得纯 `OverlayAnchorConfig` 形态。
+ */
+export declare function normalizeAtConfig(value: string | HTMLElement | OverlayAnchorConfig | null | undefined): OverlayAnchorConfig | null;
+/** 事件双通道 payload（修订共识 9 收窄：type 删除）：覆盖物打开/关闭广播 */
+export interface OverlayEventDetail {
+    /** 覆盖物名（消费 attr 名） */
+    name: string;
+    /** 实例句柄 */
+    instance: OverlayInstance;
+    /** 数据视图基准元素（命令式 `dataContext` 传元素时；其余为 undefined） */
+    dataContext?: HTMLElement;
+    /** 保活缓存命名空间键（ADR-0119）：消费者声明的 key 求值原值（未声明为 undefined） */
+    key?: string | number;
+}
+/**
+ * keepalive 缓存身份（ADR-0119）：`组件名 + key + url` 复合——url 参与（同组件不同 url 是
+ * 不同缓存身份）；无 key 段为空串。key 经 String 归一（42 与 "42" 同身份）。
+ */
+export declare function buildOverlayCacheKey(name: string, config: {
+    key?: unknown;
+    url?: unknown;
+}): string;
+/**
+ * 数据视图基准两栖解析（ADR-0053 修订：`scope` 键更名 `dataContext` 后的统一分派）。
+ *
+ * - `HTMLElement`（基准载体，命令式）：`findScopeByEl` 挂链，元素兼作 searchRoot 返回；
+ * - `'host'`（基准名）：挂 `hostScope`（声明式=消费处 scope；命令式=getOverlay 锚点 scope）；
+ * - `'declarer'`（基准名）：挂 `def.declarerScope`（悬空/缺失 → rootless 防御，仅全局视图）；
+ * - 其他值：warn + 按 `'declarer'` 缺省处理。
+ *
+ * 「未声明」（undefined）不由本函数处理——缺省语义分消费面（声明式 declarer / 命令式 rootless，
+ * 决策 16），由调用方归一后进入。
+ */
+export declare function resolveDataContext(ctx: unknown, def: ComponentDef | null, hostScope: AutoSparkScope | null, engine: AutoSpark<any>, warn: (msg: string) => void): {
+    parentScope: AutoSparkScope | null;
+    scopeEl: HTMLElement | null;
+};

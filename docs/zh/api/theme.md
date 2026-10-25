@@ -60,7 +60,7 @@ class ThemeManager {
 | 方法 / 属性 | 说明 |
 | --- | --- |
 | `new ThemeManager({ storageKey })` | 创建并立即接管 root 作用域（attach `document.documentElement` + connect） |
-| `themeManager`（单例导出） | 模块加载时自动创建；IIFE 下同名挂到全局 `ThemePro` |
+| `themeManager`（单例导出） | 模块加载时自动创建；IIFE 下同名挂到全局 `AutoSparkThemeManager` |
 | `root` | root 作用域（`cssSelector: [":host", ":root"]`） |
 | `update(options)` | 只处理颜色类参数；按需重注入 `-colors` / `-semantics` |
 | `addScope(options)` | 创建局部作用域；同 `id` 已存在返回 `undefined` |

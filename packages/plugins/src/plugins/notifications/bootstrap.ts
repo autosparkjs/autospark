@@ -30,7 +30,7 @@
 
 import type { ActionDecl, AutoSpark } from "autospark";
 import { captureNamespace } from "../../runtime/bridge";
-import { installPlugin } from "../../runtime/bootstrap";
+import { installPlugin } from "@autospark/utils";
 import { NotificationManager } from "./runtime/manager";
 import { NOTIFICATION_COMPONENTS } from "./components";
 import { createToastSpec } from "./actions/toast";

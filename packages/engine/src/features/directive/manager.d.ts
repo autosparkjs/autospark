@@ -1,0 +1,80 @@
+import type { AutoSpark } from "../../engine/engine";
+import type { AutoSparkDirectiveBase } from "./base";
+/** 指令类的构造器类型（typeof 基类），用于访问静态成员 kind/initialize/dispose 等 */
+type DirectiveClass = typeof AutoSparkDirectiveBase;
+/**
+ * 指令注册表
+ *
+ * 管理指令名 → 指令类 的映射。预设指令来自 `presetDirectives`（显式映射，
+ * 避免类的 `Function.name` 与指令名不一致——例如类名是 "TextDirective" 而指令名是 "text"）。
+ * 亦支持运行时注册自定义指令类以覆盖内置指令。
+ *
+ * ## 类级初始化（initialize/dispose）生命周期
+ *
+ * - `initializeAll()`：engine 构造末尾（autostart 的 compile 之后）调用一次，对**全部注册类**
+ *   （不分 kind）补调 `Cls.initialize(engine)`，跳过已初始化的；随后标记 engine 就绪。
+ * - `set()`（晚注册）：engine 就绪后立即对新类 initialize；就绪前仅注册（待 initializeAll 统一处理）。
+ *   —— 预设指令在构造期用 `super.set` 原样注册、不触发 initialize（此时 compile 未跑、observer 扫描无意义）。
+ * - `disposeAll()`：engine.destroy 调用，对已 initialize 的类 dispose，清空追踪集合。
+ *
+ * 幂等性由 `initialized` 集合保证：同一 (类, engine) 仅 initialize 一次。
+ */
+export declare class DirectiveManager extends Map<string, DirectiveClass> {
+    readonly engine: AutoSpark;
+    /** 已在本 engine 上执行过 initialize 的指令类（幂等保证 + disposeAll 追踪） */
+    readonly initialized: Set<typeof AutoSparkDirectiveBase>;
+    /** engine 是否已就绪（构造完成）：就绪后 set 才立即触发 initialize */
+    private _ready;
+    /**
+     * 元素名 → 指令名 反查索引（ADR-0084，惰性构建）：元素名形态指令（类静态
+     * `elementName` 非 null，如 x-super）的触发通道。set 晚注册后置空重建。
+     */
+    private _elementNameIndex;
+    constructor(engine: AutoSpark<any>);
+    /**
+     * 晚注册自定义指令类（engine 就绪后覆盖/新增）。
+     *
+     * engine 就绪后立即对新类调用 initialize（runtime 指令得以建 observer 生效）；
+     * 就绪前仅注册，由 `initializeAll` 统一处理。
+     *
+     * 覆盖语义（ADR-0100 决策 7）：静默覆盖任何已注册名——包括预设指令名（「运行时注册
+     * 自定义指令类以覆盖内置指令」是本表的文档化特性）。受控注册走 {@link install}。
+     */
+    set(name: string, Cls: DirectiveClass): this;
+    /**
+     * 受控注册（全局安装队列通道，ADR-0100 决策 8）：与 {@link set} 的覆盖语义分叉——
+     *
+     * - 撞**预设**指令名（`presetDirectives` 键）：warn + 跳过（预设原类保留，调用方后续
+     *   代码继续执行——单个越界插件不中断整个安装流程）；
+     * - 撞其他**自定义**名（先装插件等已注册）：warn + 覆盖（对齐 icons 注册表先例）；
+     * - 新名：静默注册。
+     *
+     * 就绪衔接与 set 一致（就绪前待 `initializeAll`、就绪后立即 initialize + Runtime 重扫）。
+     */
+    install(name: string, Cls: DirectiveClass): this;
+    /** 注册共享后处理（set / install 共用，DRY）：索引重建 + 就绪期 initialize / Runtime 重扫 */
+    private _register;
+    /**
+     * 按元素名反查指令名（ADR-0084 元素名形态指令通道）。
+     *
+     * 索引惰性构建（声明 `elementName` 的类 → 指令名），tagName 大小写归一（HTML 元素名
+     * 被 DOM 小写化，`<x-super>` 的 tagName 为 "X-SUPER"）。单次编译内注册表不变，缓存稳定。
+     *
+     * @returns 指令名（如 "super"）；无元素名指令命中返回 undefined
+     */
+    findByElementName(tagName: string): string | undefined;
+    /**
+     * engine 构造末尾调用：对全部注册类补 initialize（跳过已初始化），并标记就绪。
+     *
+     * 须在 autostart compile 之后调用——runtime 指令的 initialize 会扫描已挂载的编译产物。
+     */
+    initializeAll(): void;
+    /**
+     * engine.destroy 调用：对已 initialize 的类调用 dispose（断开 observer、销毁 live 实例），
+     * 随后清空 initialized 追踪集合。
+     */
+    disposeAll(): void;
+    /** 对单个类幂等执行 initialize（已初始化则跳过）。异常吞掉记日志，不中断其它指令。 */
+    private _initOne;
+}
+export {};

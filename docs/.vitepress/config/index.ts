@@ -333,7 +333,7 @@ export default defineConfig({
             {
               text: "扩展指令",
               collapsed: true,
-              items: [{ text: "x-ripple", link: "/zh/guide/directives/x-ripple" }],
+              items: [{ text: "x-spark", link: "/zh/guide/directives/x-spark" }],
             },
           ],
         }

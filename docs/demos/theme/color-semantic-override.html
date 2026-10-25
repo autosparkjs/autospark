@@ -1,62 +1,64 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>语义颜色 · 运行时覆盖</title>
-        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
-        <link rel="stylesheet" href="/autospark/theme-demo.css" />
-        <script src="/autospark/autospark-theme.js"></script>
-        <script src="/autospark/theme-controls.js"></script>
-        <script src="/autospark/theme-demo.js"></script>
-    </head>
 
-    <body>
-        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>语义颜色 · 运行时覆盖</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <script src="/autospark/theme-demo.js"></script>
+</head>
 
-        <main class="demo-main">
-            <div class="auto-card">
-                <div class="auto-card-header">运行时覆盖：作用域级定制（本页四个独立作用域）</div>
-                <div class="auto-card-body col">
-                    <div class="grid" id="semantic-grid"></div>
-                    <p class="hint">
-                        每格一个独立作用域：<code>addScope({ id, danger: 色值 })</code> 只影响该子树，
-                        全局语义色不变——适合「某个业务模块需要自己的警示色」这类场景。
-                    </p>
-                </div>
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">运行时覆盖：作用域级定制（本页四个独立作用域）</div>
+            <div class="auto-card-body col">
+                <div class="grid" id="semantic-grid"></div>
+                <p class="hint">
+                    每格一个独立作用域：<code>addScope({ id, danger: 色值 })</code> 只影响该子树，
+                    全局语义色不变——适合「某个业务模块需要自己的警示色」这类场景。
+                </p>
             </div>
-        </main>
+        </div>
+    </main>
 
 
-        <script>
-            // 作用域级语义色覆盖：danger / success 各给一个自定义种子
-            var host = document.getElementById("semantic-grid");
-            var cases = [
-                { id: "sem-danger", label: "danger: #ff4d4f", options: { danger: "#ff4d4f" } },
-                { id: "sem-success", label: "success: #00b96b", options: { success: "#00b96b" } },
-                { id: "sem-primary", label: "primary: #722ed1", options: { primary: "#722ed1" } },
-                { id: "sem-multi", label: "info + warning 同时覆盖", options: { info: "#13c2c2", warning: "#faad14" } },
-            ];
-            cases.forEach(function (item) {
-                var box = document.createElement("div");
-                box.className = "scope-box";
-                box.id = item.id;
-                box.innerHTML =
-                    '<div class="box-label">' +
-                    item.label +
-                    '</div><div class="auto-alert danger"><div class="title">danger 提示</div>' +
-                    '<div class="description">本作用域内的语义色</div></div>' +
-                    '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">' +
-                    '<button class="auto-btn primary">primary</button>' +
-                    '<button class="auto-btn success">success</button>' +
-                    '<button class="auto-btn warning">warning</button>' +
-                    '<button class="auto-btn info">info</button></div>';
-                host.appendChild(box);
-                var scope = ThemePro.addScope(
-                    Object.assign({ id: item.id, persistence: false }, item.options),
-                );
-                if (scope) scope.attach(box);
-            });
-        </script>
-    </body>
+    <script>
+        // 作用域级语义色覆盖：danger / success 各给一个自定义种子
+        var host = document.getElementById("semantic-grid");
+        var cases = [
+            { id: "sem-danger", label: "danger: #ff4d4f", options: { danger: "#ff4d4f" } },
+            { id: "sem-success", label: "success: #00b96b", options: { success: "#00b96b" } },
+            { id: "sem-primary", label: "primary: #722ed1", options: { primary: "#722ed1" } },
+            { id: "sem-multi", label: "info + warning 同时覆盖", options: { info: "#13c2c2", warning: "#faad14" } },
+        ];
+        cases.forEach(function (item) {
+            var box = document.createElement("div");
+            box.className = "scope-box";
+            box.id = item.id;
+            box.innerHTML =
+                '<div class="box-label">' +
+                item.label +
+                '</div><div class="auto-alert danger"><div class="title">danger 提示</div>' +
+                '<div class="description">本作用域内的语义色</div></div>' +
+                '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">' +
+                '<button class="auto-btn primary">primary</button>' +
+                '<button class="auto-btn success">success</button>' +
+                '<button class="auto-btn warning">warning</button>' +
+                '<button class="auto-btn info">info</button></div>';
+            host.appendChild(box);
+            var scope = AutoSparkThemeManager.addScope(
+                Object.assign({ id: item.id, persistence: false }, item.options),
+            );
+            if (scope) scope.attach(box);
+        });
+    </script>
+</body>
+
 </html>

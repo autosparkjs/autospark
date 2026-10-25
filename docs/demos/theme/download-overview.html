@@ -1,85 +1,113 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>下载主题 · 概述</title>
-        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
-        <link rel="stylesheet" href="/autospark/theme-demo.css" />
-        <script src="/autospark/autospark-theme.js"></script>
-        <script src="/autospark/theme-controls.js"></script>
-        <script src="/autospark/theme-demo.js"></script>
-    </head>
 
-    <body>
-        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>下载主题 · 概述</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <script src="/autospark/theme-demo.js"></script>
+</head>
 
-        <main class="demo-main">
-            <div class="auto-card story-intro">
-                <div class="story-intro-title">两个导出入口，按作用域分叉</div>
-                <table class="demo-table">
-                    <thead>
-                        <tr><th>入口</th><th>返回</th><th>root 作用域</th><th>局部作用域</th></tr>
-                    </thead>
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+    <main class="demo-main">
+        <div class="auto-card story-intro">
+            <div class="story-intro-title">两个导出入口，按作用域分叉</div>
+            <table class="demo-table">
+                <thead>
+                    <tr>
+                        <th>入口</th>
+                        <th>返回</th>
+                        <th>root 作用域</th>
+                        <th>局部作用域</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>toStyles()</code></td>
+                        <td>CSS 字符串</td>
+                        <td colspan="2">作用域全量 CSS（基础变量 → 主题标尺 → 语义色）</td>
+                    </tr>
+                    <tr>
+                        <td><code>download()</code></td>
+                        <td>下载 <code>.css</code> 文件</td>
+                        <td>合规静态主题包（指纹头 + 维度烘焙，ADR-0006）</td>
+                        <td>作用域样式快照（console 告警）</td>
+                    </tr>
+                </tbody>
+            </table>
+            <ul>
+                <li>左侧控制面板改动主题后，下方「产物信息」随之变化——<strong>下载的就是当前看到的</strong></li>
+                <li>切到暗色 / 大尺寸再下载，产物会把该维度烘焙为默认值（守卫块，ADR-0005）</li>
+            </ul>
+        </div>
+
+        <div class="auto-card">
+            <div class="auto-card-header">试一试：下载当前主题</div>
+            <div class="auto-card-body col">
+                <div>
+                    <button class="auto-btn auto-btn-primary" id="btn-download">下载当前主题 CSS</button>
+                    <button class="auto-btn" id="btn-refresh">刷新产物信息</button>
+                </div>
+                <table class="demo-table" id="info-table">
                     <tbody>
-                        <tr><td><code>toStyles()</code></td><td>CSS 字符串</td><td colspan="2">作用域全量 CSS（基础变量 → 主题标尺 → 语义色）</td></tr>
-                        <tr><td><code>download()</code></td><td>下载 <code>.css</code> 文件</td><td>合规静态主题包（指纹头 + 维度烘焙，ADR-0006）</td><td>作用域样式快照（console 告警）</td></tr>
+                        <tr>
+                            <td>产物字节数</td>
+                            <td id="info-bytes">-</td>
+                        </tr>
+                        <tr>
+                            <td>指纹头（--x-theme-static）</td>
+                            <td id="info-fingerprint">-</td>
+                        </tr>
+                        <tr>
+                            <td>指纹字段数</td>
+                            <td id="info-fields">-</td>
+                        </tr>
+                        <tr>
+                            <td>维度烘焙守卫块</td>
+                            <td id="info-guards">-</td>
+                        </tr>
                     </tbody>
                 </table>
-                <ul>
-                    <li>左侧控制面板改动主题后，下方「产物信息」随之变化——<strong>下载的就是当前看到的</strong></li>
-                    <li>切到暗色 / 大尺寸再下载，产物会把该维度烘焙为默认值（守卫块，ADR-0005）</li>
-                </ul>
+                <p class="hint">
+                    指纹 v2 共 15 字段：<code>schema|hex|gap|cap|五语义种子|dark|colorized|size|spacing|shadow|radius</code>；
+                    前 9 个颜色字段是静态层匹配契约，后 6 个维度字段仅供首访采纳（ADR-0005）。
+                </p>
             </div>
+        </div>
+    </main>
 
-            <div class="auto-card">
-                <div class="auto-card-header">试一试：下载当前主题</div>
-                <div class="auto-card-body col">
-                    <div>
-                        <button class="auto-btn auto-btn-primary" id="btn-download">下载当前主题 CSS</button>
-                        <button class="auto-btn" id="btn-refresh">刷新产物信息</button>
-                    </div>
-                    <table class="demo-table" id="info-table">
-                        <tbody>
-                            <tr><td>产物字节数</td><td id="info-bytes">-</td></tr>
-                            <tr><td>指纹头（--x-theme-static）</td><td id="info-fingerprint">-</td></tr>
-                            <tr><td>指纹字段数</td><td id="info-fields">-</td></tr>
-                            <tr><td>维度烘焙守卫块</td><td id="info-guards">-</td></tr>
-                        </tbody>
-                    </table>
-                    <p class="hint">
-                        指纹 v2 共 15 字段：<code>schema|hex|gap|cap|五语义种子|dark|colorized|size|spacing|shadow|radius</code>；
-                        前 9 个颜色字段是静态层匹配契约，后 6 个维度字段仅供首访采纳（ADR-0005）。
-                    </p>
-                </div>
-            </div>
-        </main>
+    <script>
+        const root = AutoSparkThemeManager.root;
+        function resolveCss() {
+            // ADR-0006 的产物决策方法（root 分支 = 合规静态包）
+            return root._resolveDownloadCss();
+        }
+        function refresh() {
+            const css = resolveCss();
+            const match = css.match(/--x-theme-static:\s*([^;}]+)/);
+            document.getElementById("info-bytes").textContent = css.length.toLocaleString() + " B";
+            document.getElementById("info-fingerprint").textContent = match ? match[1] : "（无）";
+            document.getElementById("info-fields").textContent = match ? match[1].split("|").length + " 个" : "-";
+            document.getElementById("info-guards").textContent = css.includes("baked defaults")
+                ? "有（当前维度已烘焙）"
+                : "无（维度全为库默认）";
+        }
+        document.getElementById("btn-download").addEventListener("click", () => root.download());
+        document.getElementById("btn-refresh").addEventListener("click", refresh);
+        // 控制面板改主题后产物同步变化
+        new MutationObserver(refresh).observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ["dark", "data-dark", "data-light", "colorized", "data-colorized",
+                "data-uncolored", "data-size", "data-spacing", "data-shadow", "data-radius"],
+        });
+        refresh();
+    </script>
+</body>
 
-        <script>
-            const root = ThemePro.root;
-            function resolveCss() {
-                // ADR-0006 的产物决策方法（root 分支 = 合规静态包）
-                return root._resolveDownloadCss();
-            }
-            function refresh() {
-                const css = resolveCss();
-                const match = css.match(/--x-theme-static:\s*([^;}]+)/);
-                document.getElementById("info-bytes").textContent = css.length.toLocaleString() + " B";
-                document.getElementById("info-fingerprint").textContent = match ? match[1] : "（无）";
-                document.getElementById("info-fields").textContent = match ? match[1].split("|").length + " 个" : "-";
-                document.getElementById("info-guards").textContent = css.includes("baked defaults")
-                    ? "有（当前维度已烘焙）"
-                    : "无（维度全为库默认）";
-            }
-            document.getElementById("btn-download").addEventListener("click", () => root.download());
-            document.getElementById("btn-refresh").addEventListener("click", refresh);
-            // 控制面板改主题后产物同步变化
-            new MutationObserver(refresh).observe(document.documentElement, {
-                attributes: true,
-                attributeFilter: ["dark", "data-dark", "data-light", "colorized", "data-colorized",
-                    "data-uncolored", "data-size", "data-spacing", "data-shadow", "data-radius"],
-            });
-            refresh();
-        </script>
-    </body>
 </html>

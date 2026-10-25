@@ -22,15 +22,15 @@ export default {
                 <li><strong>独立样式域</strong>：<code>data-shadow</code> 属<strong>规模维度</strong>的档位通道，与模式维度（<code>data-dark</code> / <code>data-light</code>）、色彩维度（<code>data-colorized</code> / <code>data-uncolored</code>）分属不同域、可同元素叠加——见底部「维度叠加」卡</li>
                 <li>暗语境阴影：<code>data-dark</code> 下 <code>--x-shadow-*</code> 自动换成暗底可见的黑色系配方（深底上中灰阴影不可见），<code>--auto-shadow</code> 与档位切换照常联动</li>
             </ul>
-            <pre>ThemePro.shadow = 'small'  // 等价 document.documentElement.dataset.shadow = 'small'</pre>
+            <pre>AutoSparkThemeManager.shadow = 'small'  // 等价 document.documentElement.dataset.shadow = 'small'</pre>
         </div>
         <div class="auto-card">
             <div class="auto-card-header">阴影档位对比（同尺寸元素，仅阴影不同）</div>
             <div class="auto-card-body col">
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;padding:1rem 0.5rem;">
                     ${repeat(
-                        SHADOWS,
-                        (level) => html`
+        SHADOWS,
+        (level) => html`
                             <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem;">
                                 <div
                                     style="width:4.5rem;height:2.8rem;background:var(--auto-bgcolor);border-radius:var(--auto-border-radius);box-shadow:var(--x-shadow-${level});display:flex;align-items:center;justify-content:center;font-size:0.72rem;"
@@ -40,7 +40,7 @@ export default {
                                 <code style="font-size:0.68rem;color:var(--auto-third-color);">--x-shadow-${level}</code>
                             </div>
                         `,
-                    )}
+    )}
                 </div>
             </div>
         </div>
@@ -72,10 +72,10 @@ export default {
             <div class="auto-card-body col">
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;">
                     ${["x-small", "global", "large"].map(
-                        (level) => {
-                            // "global" 表示不加 data-shadow 属性：容器不覆盖变量，内部元素继承 :root 的全局档位
-                            const isGlobal = level === "global";
-                            return html`
+        (level) => {
+            // "global" 表示不加 data-shadow 属性：容器不覆盖变量，内部元素继承 :root 的全局档位
+            const isGlobal = level === "global";
+            return html`
                                 <div
                                     data-shadow="${isGlobal ? undefined : level}"
                                     style="flex:1;min-width:11rem;display:flex;flex-direction:column;gap:0.7rem;padding:0.9rem;border:1px dashed ${isGlobal ? "var(--auto-theme-color)" : "var(--auto-border-color)"};border-radius:var(--auto-border-radius);"
@@ -91,8 +91,8 @@ export default {
                                     </div>
                                 </div>
                             `;
-                        },
-                    )}
+        },
+    )}
                 </div>
                 <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
                     切换全局阴影档位：只有「跟随全局」列（主题色虚线框）变化，左右两列纹丝不动——
@@ -112,11 +112,11 @@ export default {
                 </p>
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;">
                     ${[
-                        { label: "无属性（跟随全局：亮色 · 全局阴影档）", dark: false, shadow: undefined as string | undefined },
-                        { label: "data-dark（仅模式域：暗色配色 + 暗阴影梯度）", dark: true, shadow: undefined as string | undefined },
-                        { label: 'data-dark + data-shadow="x-large"（两域叠加：暗色 + 最强阴影）', dark: true, shadow: "x-large" },
-                    ].map(
-                        (c) => html`
+            { label: "无属性（跟随全局：亮色 · 全局阴影档）", dark: false, shadow: undefined as string | undefined },
+            { label: "data-dark（仅模式域：暗色配色 + 暗阴影梯度）", dark: true, shadow: undefined as string | undefined },
+            { label: 'data-dark + data-shadow="x-large"（两域叠加：暗色 + 最强阴影）', dark: true, shadow: "x-large" },
+        ].map(
+            (c) => html`
                             <div
                                 ?data-dark="${c.dark}"
                                 data-shadow="${c.shadow}"
@@ -131,7 +131,7 @@ export default {
                                 </div>
                             </div>
                         `,
-                    )}
+        )}
                 </div>
             </div>
         </div>

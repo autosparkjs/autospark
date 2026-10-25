@@ -91,6 +91,15 @@ new ThemeManager({ storageKey: "myapp" }); // 读写 myapp-styles / myapp-scope-
 
 前缀是**发布后的公共接口**（宿主恢复片段硬编码默认值 `autospark-theme`），改名属破坏性变更。
 
+## AutoSpark engine 应用里怎么用主题？
+
+什么都不用做：`@autospark/theme` 是插件形态的库型插件（ADR-0007），engine 共存时自动接驳——
+
+- `engine.themeManager` 就是那个全局单例（多 engine 共享同一实例）；
+- 根状态多出 `state.$.theme` 七键投影（`dark` / `themeColor` / `size` / `spacing` / `shadow` / `radius` / `colorized`），模板表达式直写即换肤：`@click="theme.dark = !theme.dark"`。
+
+注意**单向同步**：写 `state.$.theme.*` 会驱动 manager；但直接改 `themeManager`（或经 theme-controls 组件）**不会回写**投影——混用两条通道时以 manager 为准。详见[插件形态](./install.md#插件形态-与-engine-协同)。
+
 ## 为什么 `size` 没有 `none` 档？
 
 字号没有「归零」语义——`size: "none"` 会让整个界面没有字号。所以：

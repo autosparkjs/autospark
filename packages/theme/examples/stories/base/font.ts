@@ -17,7 +17,7 @@ export default {
                 <li>速写：<code>font: var(--auto-font)</code> 等价于 <code>var(--auto-font-weight) var(--auto-font-size)/1.5 var(--auto-font-family)</code></li>
                 <li>标题排版：<code>font: var(--auto-title-font)</code></li>
             </ul>
-            <pre>ThemePro.size = 'large'  // 字号/字重别名随全局尺寸档位联动</pre>
+            <pre>AutoSparkThemeManager.size = 'large'  // 字号/字重别名随全局尺寸档位联动</pre>
         </div>
         <div class="auto-card">
             <div class="auto-card-header">字体大小</div>

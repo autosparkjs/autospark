@@ -1,81 +1,85 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>下载主题 · 局部作用域快照</title>
-        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
-        <link rel="stylesheet" href="/autospark/theme-demo.css" />
-        <script src="/autospark/autospark-theme.js"></script>
-        <script src="/autospark/theme-controls.js"></script>
-        <script src="/autospark/theme-demo.js"></script>
-        <style>
-            #snapshot-preview {
-                padding: 16px;
-                border-radius: var(--auto-radius, 8px);
-                background: var(--auto-bg-color, transparent);
-                border: 1px dashed var(--x-color-gray-3, #d9d9d9);
-            }
-        </style>
-    </head>
 
-    <body>
-        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>下载主题 · 局部作用域快照</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <script src="/autospark/theme-demo.js"></script>
+    <style>
+        #snapshot-preview {
+            padding: 16px;
+            border-radius: var(--auto-radius, 8px);
+            background: var(--auto-bg-color, transparent);
+            border: 1px dashed var(--x-color-gray-3, #d9d9d9);
+        }
+    </style>
+</head>
 
-        <main class="demo-main">
-            <div class="auto-card story-intro">
-                <div class="story-intro-title">局部作用域的产物是「快照」，不是静态包</div>
-                <p>
-                    静态层契约只服务 root 作用域（ADR-0004）：局部作用域的下载产物选择器是该作用域自身的，
-                    挂 <code>&lt;link&gt;</code> 后运行时不会对它做指纹接管——因此 <code>download()</code>
-                    在非 root 作用域会 <code>console.warn</code> 一次，然后导出 <code>toStyles()</code> 快照。
-                </p>
-                <ul>
-                    <li>快照的合法用途：SSR 取数、调试导出、给「不跑运行时」的局部容器做样式交付</li>
-                    <li>要全局静态主题包，请用 <code>ThemePro.root.download()</code> 或 <code>generate-theme</code> CLI</li>
-                </ul>
-            </div>
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
 
-            <div class="auto-card">
-                <div class="auto-card-header">试一试：下载局部作用域快照</div>
-                <div class="auto-card-body col">
-                    <div id="snapshot-preview">
-                        <div class="auto-title">#snapshot-preview</div>
-                        <p class="auto-text">一个挂着独立作用域（<code>id: "snapshot-demo"</code>）的容器。</p>
-                    </div>
-                    <div>
-                        <button class="auto-btn auto-btn-primary" id="btn-download">下载该作用域快照</button>
-                        <button class="auto-btn" id="btn-preview">预览快照头部</button>
-                    </div>
-                    <pre id="snapshot-head" class="hint" style="white-space: pre-wrap; word-break: break-all;">（点击「预览快照头部」）</pre>
-                    <p class="hint" id="warn-log">console.warn 捕获：尚无</p>
+    <main class="demo-main">
+        <div class="auto-card story-intro">
+            <div class="story-intro-title">局部作用域的产物是「快照」，不是静态包</div>
+            <p>
+                静态层契约只服务 root 作用域（ADR-0004）：局部作用域的下载产物选择器是该作用域自身的，
+                挂 <code>&lt;link&gt;</code> 后运行时不会对它做指纹接管——因此 <code>download()</code>
+                在非 root 作用域会 <code>console.warn</code> 一次，然后导出 <code>toStyles()</code> 快照。
+            </p>
+            <ul>
+                <li>快照的合法用途：SSR 取数、调试导出、给「不跑运行时」的局部容器做样式交付</li>
+                <li>要全局静态主题包，请用 <code>AutoSparkThemeManager.root.download()</code> 或 <code>generate-theme</code> CLI
+                </li>
+            </ul>
+        </div>
+
+        <div class="auto-card">
+            <div class="auto-card-header">试一试：下载局部作用域快照</div>
+            <div class="auto-card-body col">
+                <div id="snapshot-preview">
+                    <div class="auto-title">#snapshot-preview</div>
+                    <p class="auto-text">一个挂着独立作用域（<code>id: "snapshot-demo"</code>）的容器。</p>
                 </div>
+                <div>
+                    <button class="auto-btn auto-btn-primary" id="btn-download">下载该作用域快照</button>
+                    <button class="auto-btn" id="btn-preview">预览快照头部</button>
+                </div>
+                <pre id="snapshot-head" class="hint"
+                    style="white-space: pre-wrap; word-break: break-all;">（点击「预览快照头部」）</pre>
+                <p class="hint" id="warn-log">console.warn 捕获：尚无</p>
             </div>
-        </main>
+        </div>
+    </main>
 
-        <script>
-            // 捕获 warn 展示到页面
-            const originalWarn = console.warn;
-            console.warn = function (message) {
-                document.getElementById("warn-log").textContent = "console.warn 捕获：" + message;
-                originalWarn.apply(console, arguments);
-            };
+    <script>
+        // 捕获 warn 展示到页面
+        const originalWarn = console.warn;
+        console.warn = function (message) {
+            document.getElementById("warn-log").textContent = "console.warn 捕获：" + message;
+            originalWarn.apply(console, arguments);
+        };
 
-            // 建一个附着到预览容器的局部作用域
-            let scope = ThemePro.scopes && ThemePro.scopes["snapshot-demo"];
-            if (!scope) {
-                scope = ThemePro.addScope({ id: "snapshot-demo", cssSelector: ["#snapshot-preview"] });
-                scope.attach(document.getElementById("snapshot-preview"));
-                scope.connect();
-            }
+        // 建一个附着到预览容器的局部作用域
+        let scope = AutoSparkThemeManager.scopes && AutoSparkThemeManager.scopes["snapshot-demo"];
+        if (!scope) {
+            scope = AutoSparkThemeManager.addScope({ id: "snapshot-demo", cssSelector: ["#snapshot-preview"] });
+            scope.attach(document.getElementById("snapshot-preview"));
+            scope.connect();
+        }
 
-            document.getElementById("btn-download").addEventListener("click", () => scope.download());
-            document.getElementById("btn-preview").addEventListener("click", () => {
-                const css = scope._resolveDownloadCss();
-                const hasFingerprint = css.includes("--x-theme-static");
-                document.getElementById("snapshot-head").textContent =
-                    css.slice(0, 300) + "\n…\n（指纹头：" + (hasFingerprint ? "有" : "无——快照不含指纹") + "）";
-            });
-        </script>
-    </body>
+        document.getElementById("btn-download").addEventListener("click", () => scope.download());
+        document.getElementById("btn-preview").addEventListener("click", () => {
+            const css = scope._resolveDownloadCss();
+            const hasFingerprint = css.includes("--x-theme-static");
+            document.getElementById("snapshot-head").textContent =
+                css.slice(0, 300) + "\n…\n（指纹头：" + (hasFingerprint ? "有" : "无——快照不含指纹") + "）";
+        });
+    </script>
+</body>
+
 </html>

@@ -124,6 +124,25 @@ cd packages/theme && bun scripts/check-dark-contrast.ts   # 任一 FAIL 退出�
 - **可导出**：`toStyles()` 取 CSS 字符串，`download()` 直接落盘（root 产物即合规静态主题包，ADR-0006），便于 SSR 或交付静态主题；
 - **可观测**：`scope.isConnected()` 检查样式标签是否在位，`scope.cssChunks` 给出该作用域参与快照的 CSS 片段。
 
+## 十、与 Engine 协同：插件形态
+
+**机制**（ADR-0007，家族首个库型插件）：包体对引擎零运行时引用——模块加载期即完成单例创建与全局挂载（纯库消费不受引擎影响）；页面中存在 engine 时自动接驳：engine ready 期注入 `engine.themeManager` 单例引用（多 engine 共享、destroy 不清理），并向根状态播种 `state.$.theme` 七键普通数据对象，经 `watch("$.theme.*")` 通配符订阅**单向同步**到 manager（写入即驱动主题切换；manager 直改不回写投影）。
+
+```html
+<!-- 模板声明式换肤：theme 经根状态裸访问 -->
+<button @click="theme.dark = !theme.dark">切换暗色</button>
+```
+
+**优点**：
+
+- 引擎应用里主题开关进模板：不用写 action，表达式直写状态即换肤；
+- 双路径自举零配置：脚本先于 / 晚于 engine 加载均可（预加载队列 or `AutoSpark.ready` 直取）；
+- `state.$.theme` 是可写投影而非独立状态——初值随 manager 播种，`theme-controls` 组件与模板两条通道操作同一真相源，不会打架。
+
+**代价**：manager 直改不回显到 `state.$.theme`（单向）——混用两条通道时模板读到的投影值可能滞后于 manager 当前值，以 manager 为准。
+
+**入口**：[插件形态](./install.md#插件形态-与-engine-协同)
+
 ---
 
 看完能力清单，接着看[对比评测](./comparison.md)了解它与相邻方案的取舍，或直接[上手](../guide/initial.md)。

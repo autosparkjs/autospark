@@ -7,7 +7,7 @@
  * （engine IIFE 全量导出挂类静态，ADR-0111 决策 1，jQuery $ 同构），先于引擎加载的场景经
  * 预加载队列插件体第二参捕获（engine 构造 drain 时传入，无论引擎加载形态）。
  *
- * ## 双路径捕获（{@link bootstrapRipplePlugin} 等插件自举的 register 内调用）
+ * ## 双路径捕获（{@link bootstrapSparkPlugin} 等插件自举的 register 内调用）
  *
  * - `globalThis.AutoSpark` 已存在（引擎脚本先加载）→ register 直取即捕获；
  * - 否则插件体推 `__AUTOSPARK_PLUGINS__` 预加载队列（ADR-0114），首个 engine 构造 drain 时

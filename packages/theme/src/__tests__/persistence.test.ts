@@ -48,7 +48,9 @@ const storage = new Map<string, string>();
     }),
 };
 
-const { AutoSparkThemeManager, themeManager } = await import("../manager");
+// 单例创建自 manager.ts 迁入 plugin.ts（theme ADR-0007 决策 4）：类与单例分开导入
+const { AutoSparkThemeManager } = await import("../manager");
+const { themeManager } = await import("../plugin");
 
 const STYLES_KEY = "autospark-theme-styles";
 const ROOT_KEY = "autospark-theme-scope-root";
