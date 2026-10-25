@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-ripple · 颜色</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; }
+      .ripple-card {
+        padding: 32px 24px;
+        border: 1px solid #dcdfe6;
+        border-radius: 12px;
+        background: #fff;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- color 缺省跟随主题主色变量 --auto-theme-color，显式传值优先 -->
+    <div class="demo-app section">
+      <div class="grid">
+        <div class="ripple-card" x-ripple x-ripple-options="{speed: 1800}">
+          <strong>主题主色</strong>
+          <p class="is-size-7 has-text-grey">缺省 var(--auto-theme-color)</p>
+        </div>
+        <div
+          class="ripple-card"
+          x-ripple
+          x-ripple-options="{speed: 1800, color: '#10b981'}"
+        >
+          <strong>自定义绿</strong>
+          <p class="is-size-7 has-text-grey">color: '#10b981'</p>
+        </div>
+        <div
+          class="ripple-card"
+          x-ripple
+          x-ripple-options="{type: 'glow', speed: 2000, color: '#f59e0b'}"
+        >
+          <strong>自定义橙（glow）</strong>
+          <p class="is-size-7 has-text-grey">color 全形态通用</p>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>
