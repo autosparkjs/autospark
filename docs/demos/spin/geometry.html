@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-spin · 环宽与转速</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.spin.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; align-items: center; }
+      .spin-card {
+        padding: 32px 24px;
+        border: 1px solid #dcdfe6;
+        border-radius: 12px;
+        background: #fff;
+        text-align: center;
+      }
+      .spin-circle {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+        border-radius: 50%;
+        background: #fff;
+        border: 1px solid #dcdfe6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- size = 环宽（mask 环带 padding）；speed = 一圈时长（匀速 linear）；gap 非本指令键 -->
+    <div class="demo-app section">
+      <div class="grid">
+        <div class="spin-card" x-spin x-spin-options="{speed: 1800}">
+          <strong>缺省环宽</strong>
+          <p class="is-size-7 has-text-grey">size 缺省 4px</p>
+        </div>
+        <div class="spin-card" x-spin x-spin-options="{size: 10, speed: 1800}">
+          <strong>size: 10</strong>
+          <p class="is-size-7 has-text-grey">加粗环带</p>
+        </div>
+        <div class="spin-circle" x-spin x-spin-options="{size: 6, speed: 1600}">
+          <span class="is-size-7 has-text-grey">圆角 50%</span>
+        </div>
+      </div>
+      <div class="block has-text-grey is-size-7">
+        环带 <code>border-radius: inherit</code> 沿宿主轮廓（含圆角）扫描；<code>size</code> = 环宽
+        （缺省 4px），<code>speed</code> = 旋转一圈时长（缺省 3000ms，匀速 linear）；
+        <code>gap</code> 非本指令键——x-spin 恒转无静止段，声明时警告忽略。
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

@@ -2,12 +2,12 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>x-spark · 指令值</title>
+    <title>x-spin · 指令值</title>
     <script src="/autospark/autospark.js"></script>
-    <script src="/autospark/autospark.spark.js"></script>
+    <script src="/autospark/autospark.spin.js"></script>
     <link rel="stylesheet" href="/autospark/bulma.min.css" />
     <style>
-      .spark-box {
+      .spin-box {
         padding: 36px 24px;
         border: 1px solid #dcdfe6;
         border-radius: 12px;
@@ -17,17 +17,17 @@
     </style>
   </head>
   <body>
-    <!-- 转假不打断在播周期：speed 1500ms，关闭后动效播完当前周期才消失 -->
+    <!-- 转假不打断在播周期：speed 1500ms，关闭后色环播完当前圈才消失 -->
     <div class="demo-app section">
-      <div class="spark-box" x-spark="ui.show" x-spark-options="{speed: 1500}">
-        <strong>x-spark="ui.show"</strong>
+      <div class="spin-box" x-spin="ui.show" x-spin-options="{speed: 1500}">
+        <strong>x-spin="ui.show"</strong>
         <p class="is-size-7 has-text-grey">当前值：<span x-text="ui.show"></span></p>
       </div>
       <div class="block has-text-centered">
         <button class="button is-small" @click="toggle()">开 / 关</button>
       </div>
       <div class="block has-text-grey is-size-7">
-        关闭时若正在播周期，动效会<strong>播完当前周期</strong>（最多 1.5 秒）再消失——周期末本就近乎透明，自然收尾无跳变。
+        关闭时若正在旋转，色环会<strong>播完当前圈</strong>（最多 1.5 秒）再消失——自然收尾无跳变。
       </div>
     </div>
     <script>

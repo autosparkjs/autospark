@@ -2,20 +2,20 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>x-spark · 载体与降级</title>
+    <title>x-ripple · 载体与降级</title>
     <script src="/autospark/autospark.js"></script>
-    <script src="/autospark/autospark.spark.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
     <link rel="stylesheet" href="/autospark/bulma.min.css" />
     <style>
       .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
-      .spark-card {
+      .ripple-card {
         padding: 32px 24px;
         border: 1px solid #dcdfe6;
         border-radius: 12px;
         background: #fff;
         text-align: center;
       }
-      /* 宿主自身占用 ::after 伪元素（装饰角标）→ spark 自动降级为子元素载体 */
+      /* 宿主自身占用 ::after 伪元素（装饰角标）→ ripple 自动降级为子元素载体 */
       .occupied { position: relative; }
       .occupied::after {
         content: "NEW";
@@ -31,20 +31,20 @@
     </style>
   </head>
   <body>
-    <!-- 伪元素优先零 DOM 侵入；宿主 ::after 被占用时自动注入 absolute 子元素承载动效 -->
+    <!-- 伪元素优先零 DOM 侵入（echo 占 ::after + ::before）；宿主 ::after 被占用时自动注入 absolute 子元素 -->
     <div class="demo-app section">
       <div class="grid">
-        <div class="spark-card" x-spark x-spark-options="{speed: 1800}">
+        <div class="ripple-card" x-ripple x-ripple-options="{speed: 1800}">
           <strong>伪元素载体</strong>
-          <p class="is-size-7 has-text-grey">默认形态，零 DOM 侵入</p>
+          <p class="is-size-7 has-text-grey">默认形态（echo 双环占 ::after + ::before），零 DOM 侵入</p>
         </div>
-        <div class="spark-card occupied" x-spark x-spark-options="{speed: 1800}">
-          <strong>自动降级</strong>
-          <p class="is-size-7 has-text-grey">宿主 ::after 被占用（角标）→ 注入子元素</p>
+        <div class="ripple-card occupied" x-ripple x-ripple-options="{speed: 1800}">
+          <strong>自动降级（echo）</strong>
+          <p class="is-size-7 has-text-grey">宿主 ::after 被占用（角标）→ 注入两个子环</p>
         </div>
-        <div class="spark-card occupied" x-spark x-spark-options="{type: 'spin', speed: 2000}">
-          <strong>自动降级（spin）</strong>
-          <p class="is-size-7 has-text-grey">降级层同为环带载体，色环照常旋转</p>
+        <div class="ripple-card occupied" x-ripple x-ripple-options="{type: 'ring', speed: 1800}">
+          <strong>自动降级（ring）</strong>
+          <p class="is-size-7 has-text-grey">单环形态降级为单个子元素</p>
         </div>
       </div>
       <div class="block has-text-grey is-size-7">

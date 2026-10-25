@@ -2,9 +2,9 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>x-spark · 徽标火花</title>
+    <title>x-ripple · 徽标</title>
     <script src="/autospark/autospark.js"></script>
-    <script src="/autospark/autospark.spark.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
     <link rel="stylesheet" href="/autospark/bulma.min.css" />
     <style>
       .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
@@ -20,24 +20,24 @@
     </style>
   </head>
   <body>
-    <!-- badge 载体缩为宿主右上角正圆（圆心恰在角点），家族通用：ripple 圆边扩散 / spin 角标内旋转环 -->
+    <!-- badge 载体缩为宿主右上角正圆（圆心恰在角点），波环自角标圆边向外扩散——消息红点脉冲 -->
     <div class="demo-app section">
       <div class="grid">
-        <div class="badge-host" x-spark x-spark-options="{badge: true, speed: 1800}">
+        <div class="badge-host" x-ripple x-ripple-options="{badge: true, speed: 1800}">
           <strong>badge: true</strong>
-          <p class="is-size-7 has-text-grey">默认直径 8px · 语义红缺省（涟漪）</p>
+          <p class="is-size-7 has-text-grey">默认直径 8px · 语义红缺省</p>
         </div>
-        <div class="badge-host" x-spark x-spark-options="{badge: 16, speed: 1800}">
+        <div class="badge-host" x-ripple x-ripple-options="{badge: 16, speed: 1800}">
           <strong>badge: 16</strong>
           <p class="is-size-7 has-text-grey">自定义直径 16px</p>
         </div>
-        <div class="badge-host" x-spark x-spark-options="{type: 'spin', badge: true, speed: 2000}">
-          <strong>badge + spin</strong>
-          <p class="is-size-7 has-text-grey">角标圆内旋转色环（角标加载指示）</p>
-        </div>
-        <div class="badge-host hover-hint" x-spark.click x-spark-options="{badge: 12, speed: 1200}">
+        <div class="badge-host hover-hint" x-ripple.click x-ripple-options="{badge: 12, speed: 1200}">
           <strong>badge + click</strong>
-          <p class="is-size-7 has-text-grey">点击播放一个完整周期后自动收口</p>
+          <p class="is-size-7 has-text-grey">点击播放一个完整周期后自动收口（echo 双环同时起波）</p>
+        </div>
+        <div class="badge-host hover-hint" x-ripple x-ripple-options="{badge: 16, trigger: 'hover', speed: 1500}">
+          <strong>badge + hover</strong>
+          <p class="is-size-7 has-text-grey">悬停播放，移出播完当前周期再停</p>
         </div>
       </div>
     </div>
