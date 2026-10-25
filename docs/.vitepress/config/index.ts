@@ -22,7 +22,7 @@ export default defineConfig({
     nav: [
       { text: "首页", link: "/" },
       { text: "指南", link: "/zh/guide/" },
-      { text: "组件", link: "/zh/components/" },
+      { text: "插件", link: "/zh/plugins/" },
       { text: "API", link: "/zh/api/" },
       {
         text: "示例",
@@ -488,7 +488,7 @@ export default defineConfig({
             });
             return building;
           };
-          void ensureFresh().catch(() => {}); // 启动预热（失败留给首请求重试报错）
+          void ensureFresh().catch(() => { }); // 启动预热（失败留给首请求重试报错）
 
           server.middlewares.use((req: any, res: any, next: any) => {
             const m = PLUGIN_CLOSURE_RE.exec(req.url?.split("?")[0] ?? "");
