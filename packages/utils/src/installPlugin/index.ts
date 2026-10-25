@@ -16,7 +16,7 @@ export type PluginProbe = "ready" | "precompile" | "directive" | "components" | 
 /**
  * 双路径注册（插件入口模块加载期调用一次）。
  *
- * @param tag 插件标识（错误信息前缀，如 "x-spark"）
+ * @param tag 插件标识（错误信息前缀，如 "x-ripple"）
  * @param probe 全局类探测方法名（如 ready/precompile/directive——注册面越窄误报越少）
  * @param register 实际注册体（收命名空间；内部应先 captureNamespace 再注册）
  */

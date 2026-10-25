@@ -38,7 +38,7 @@ bun add @autospark/plugins autospark
 <script src="https://unpkg.com/autospark/dist/index.global.js"></script>
 <!-- 一插件一产物 -->
 <script src="./node_modules/@autospark/plugins/dist/plugins/notifications/index.global.js"></script>
-<!-- 或聚合产物：一个 script 挂全部官方插件（含 x-spark / autospark.button） -->
+<!-- 或聚合产物：一个 script 挂全部官方插件（含 x-ripple / x-spin / autospark.button） -->
 <!-- <script src="./node_modules/@autospark/plugins/dist/index.global.js"></script> -->
 <script>
     const host = document.getElementById("app");
