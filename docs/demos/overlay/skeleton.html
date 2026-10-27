@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>覆盖物 · 结构骨架（家族一致 + 动作双通道）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+  </head>
+  <body>
+    <!-- 结构骨架 autospark.overlay（ADR-0124）：三个内置 shell 内嵌的同一个通用骨架组件。
+             ① 同一内容组件 × 同一份骨架配置，三种消费者形态——chrome 表现一致（家族共用证明）；
+             ② 骨架动作双通道（决策 7）：声明式（消费处 scope 的 actions 表，显式 pos 准入）
+                + 配置式（x-dialog-options.actions），同 id 配置式覆盖声明式。 -->
+    <div class="demo-app section">
+      <div x-data="{ ui: { full: false, quick: false, side: false, duo: false } }">
+        <div class="block">
+          <h4 class="title is-6">① 同一内容组件 × 同一份骨架配置，三种消费者形态</h4>
+          <p class="help has-text-grey is-size-7">
+            三个按钮打开同一个 <code>notice</code> 组件：模态（x-dialog）/ 悬浮（x-popover，
+            <code>.click</code> 点击触发）/ 侧滑（x-drawer）。
+            <code>title</code> / <code>icon</code> / <code>actions</code> 三键字面一致——
+            header（标题 + 顶区动作 + 关闭按钮）与 footer（底部动作区）在三形态中表现一致：
+            三内置 shell 内嵌的是同一个骨架组件 <code>autospark.overlay</code>。
+          </p>
+          <div class="buttons">
+            <button
+              class="button is-primary"
+              x-dialog:notice="ui.full"
+              x-dialog-options="{title: '通知详情', icon: 'info', closeable: true}"
+              x-dialog-options.actions="[
+                {id: 'read', title: '标记已读', icon: 'check', pos: 'top',  handle: () => { last = '已标记已读'; }},
+                {id: 'next', title: '下一条',                    pos: 'right', handle: () => { last = '已切换下一条'; }}
+              ]"
+              @click="ui.full = true"
+            >
+              完整通知（模态）
+            </button>
+            <button
+              class="button is-link"
+              x-popover:notice.click
+              x-popover-options="{delayShow: 0, title: '通知详情', icon: 'info', closeable: true}"
+              x-popover-options.actions="[
+                {id: 'read', title: '标记已读', icon: 'check', pos: 'top',  handle: () => { last = '已标记已读'; }},
+                {id: 'next', title: '下一条',                    pos: 'right', handle: () => { last = '已切换下一条'; }}
+              ]"
+            >
+              快速预览（悬浮）
+            </button>
+            <button
+              class="button is-info"
+              x-drawer:notice="ui.side"
+              x-drawer-options="{title: '通知详情', icon: 'info', closeable: true}"
+              x-drawer-options.actions="[
+                {id: 'read', title: '标记已读', icon: 'check', pos: 'top',  handle: () => { last = '已标记已读'; }},
+                {id: 'next', title: '下一条',                    pos: 'right', handle: () => { last = '已切换下一条'; }}
+              ]"
+              @click="ui.side = true"
+            >
+              通知中心（侧滑）
+            </button>
+          </div>
+        </div>
+
+        <!-- 嵌套 x-data：块② 的声明式 actions 只注册进内层 scope——
+                     块① 按钮（外层）的 scope 链看不到，footer 不被污染 -->
+        <div class="block" x-data="{}">
+          <h4 class="title is-6">② 骨架动作双通道：声明式 scope actions 表 + 配置式合并覆盖</h4>
+          <p class="help has-text-grey is-size-7">
+            声明式通道：<code>&lt;script type="autospark/actions"&gt;</code> 注册进消费处
+            scope 的 actions 表，<b>显式声明 <code>pos</code> ∈ {top, left, right} 才准入</b>
+            （无 pos 的页面级 action 不上屏）；配置式通道：<code>x-dialog-options.actions</code>。
+            两通道打开时合并，同 id <b>后进覆盖先进</b>（配置式在后）——左区「标记已读」是配置式覆盖版，
+            声明式文案被顶掉；<code>pageLevel</code> 无 pos，注册了却不进骨架（下方按钮可点，证明它在表里）。
+          </p>
+          <script type="autospark/actions">
+            {
+              // 显式 pos：准入骨架 footer 左区（会被下方配置式同 id 覆盖）
+              markRead: {
+                title: "标记已读（声明式）",
+                icon: "check",
+                pos: "left",
+                handle() {
+                  this.engine.state.last = "声明式 markRead 执行";
+                },
+              },
+              // 无 pos：页面级 action——不进任何覆盖物骨架
+              pageLevel: {
+                title: "页面级动作",
+                handle() {
+                  this.engine.state.last = "页面级动作执行（不在骨架上）";
+                },
+              },
+            }
+          </script>
+          <div class="buttons">
+            <button
+              class="button is-warning"
+              x-dialog:notice="ui.duo"
+              x-dialog-options="{title: '动作双通道', icon: 'gear'}"
+              x-dialog-options.actions="[
+                {id: 'markRead', title: '标记已读（配置式覆盖）', icon: 'check', pos: 'left',  handle: () => { last = '配置式覆盖版执行'; }},
+                {id: 'next',     title: '下一条',                                   pos: 'right', handle: () => { last = '已切换下一条'; }}
+              ]"
+              @click="ui.duo = true"
+            >
+              打开对话框（双通道合并）
+            </button>
+            <button class="button is-text is-small" @click="pageLevel">
+              pageLevel（无 pos，注册了但不进骨架）
+            </button>
+          </div>
+        </div>
+
+        <div class="block has-text-grey is-size-7">
+          最近动作：<b x-text="last">（无）</b>
+          —— 动作按钮由骨架渲染（与内容组件正交）；popover 额外附形态配置（<code>.click</code> +
+          <code>delayShow: 0</code>），骨架五键不受影响。
+        </div>
+
+        <!-- 内容组件：只负责正文，骨架 chrome（标题/图标/动作区/关闭按钮）全部由 autospark.overlay 渲染 -->
+        <div x-define="notice" style="min-width: 260px">
+          <p><b>构建任务 #1024 已完成</b></p>
+          <p class="has-text-grey is-size-7">autosites · 刚刚</p>
+          <p class="is-size-7">
+            产物 dist/ 已生成（128 个文件，gzip 后 412KB）。点击 header 右上「标记已读」或
+            footer 右区「下一条」体验骨架动作。
+          </p>
+        </div>
+      </div>
+    </div>
+    <script>
+      // last 放根 state：配置式 handle（消费处作用域）与声明式 handle（this.engine.state）都能写回
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), { last: "（无）" });
+    </script>
+  </body>
+</html>

@@ -224,10 +224,10 @@ export default defineConfig({
             },
             {
               text: "插件",
-              link: "/zh/guide/engine/plugin",
               collapsed: true,
               items: [
-                { text: "关于", link: "/zh/guide/engine/plugin" },
+                { text: "关于", link: "/zh/guide/engine/plugin/about" },
+                { text: "开发", link: "/zh/guide/engine/plugin/dev" },
                 { text: "类型扩展", link: "/zh/guide/engine/plugin/types" },
               ],
             }

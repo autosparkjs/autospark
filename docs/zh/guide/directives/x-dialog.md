@@ -565,7 +565,7 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 - **两条通道的分工与优先级**：整包 `x-dialog-options="{...}"` 一次写全——纯静态 JSON 走零开销静态层；检测到函数语法自动降级为表达式通道（含响应式，无状态引用时不建订阅）。成员属性 `x-dialog-options.键="表达式"` 走完整 JS 求值，且**成员属性整键覆盖整包内嵌同名键**（ADR-0007）；
 - `title` / `icon` / `closeable` 是**头部配置**；`actions` 是**动作数组**——按 `pos` 归位：`top` → header 右侧、`left` → footer 左区、`right` / `auto` / `bottom` / 无 pos → footer 右区，同 `pos` 内 `order` 升序稳定排序；
 - `icon` 走 **x-icon 域**——内置名 `eye` / `gear` / `trash` / `user` / `edit` / `search` / `save` / `close` / `check` / `refresh` / `download` / `lock` / `info` / `warn` 等；自定义图标注册到 x-icon 域后同名可直用；
-- `actions` 每项 `handle` 在**消费处作用域**求值（定义处 `with(scope)` 词法链）——可直接读写消费处数据：visible 驱动形态下写回 `ui.open = false` 即关闭面板（面板内模板元素的 `@click="close()"` 信号动作语义不变）；不想写 `handle` 可把动作 id 绑定到组件方法（消费处 scope 同名 id）——骨架动作双通道语义，见 [覆盖物 · 动作双通道](../engine/overlays.md#骨架动作双通道handle--消费处scope)；
+- `actions` 每项 `handle` 在**消费处作用域**求值（定义处 `with(scope)` 词法链）——可直接读写消费处数据：visible 驱动形态下写回 `ui.open = false` 即关闭面板（面板内模板元素的 `@click="close()"` 信号动作语义不变）；不想写 `handle` 可把动作 id 绑定到组件方法（消费处 scope 同名 id）——骨架动作双通道语义，见 [覆盖物 · 动作双通道](../engine/overlays.md#骨架动作双通道handle-与消费处scope)；
 - 条件渲染：header / footer **有内容才渲染**（`closeable: false` 且标题、图标、动作区全空时 header 消失）；body 恒渲染。
 
 #### slots 重载：title / actions / header / footer

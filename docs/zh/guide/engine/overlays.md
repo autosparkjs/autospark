@@ -131,6 +131,8 @@ new AutoSpark(el, state, { overlay: { dialog: { shell: "my-dialog" } } });
 └──────────────────────────────────────┘
 ```
 
+<demo html="overlay/skeleton.html"/>
+
 五个骨架配置键（走 `x-{name}-options` 配置通道，打开时现读、重开生效）：
 
 | 配置键 | 默认 | 说明 |
@@ -165,7 +167,11 @@ new AutoSpark(el, state, { overlay: { dialog: { shell: "my-dialog" } } });
 </button>
 ```
 
-自定义 shell（`options.shell`）整体替换后自动退出骨架（自行决定是否内嵌 `autospark.overlay`）；内嵌了骨架的自定义 shell 同样可经 `x-component-options.slots` 声明转发承接消费者重载。骨架动作还有第二声明通道——**消费处 scope 的 actions 表**（显式声明 `pos` ∈ {top, left, right} 即准入），与配置式合并时同 id 后进覆盖先进（配置式在后）。
+自定义 shell（`options.shell`）整体替换后自动退出骨架（自行决定是否内嵌 `autospark.overlay`）；内嵌了骨架的自定义 shell 同样可经 `x-component-options.slots` 声明转发承接消费者重载。
+
+#### 骨架动作双通道（handle 与消费处 scope）
+
+除配置式（`x-{name}-options.actions`）外，骨架动作还有第二声明通道——**消费处 scope 的 actions 表**（`<script type="autospark/actions">` 局部注册 / `options.actions` 全局注册，显式声明 `pos` ∈ {top, left, right} 即准入——无 pos 的页面级 action 不上屏）。两通道打开时合并为单一动作集：同 id 后进覆盖先进（配置式在后），scope 链上近层覆盖远层。
 
 ### 消费者家族
 
@@ -173,7 +179,7 @@ new AutoSpark(el, state, { overlay: { dialog: { shell: "my-dialog" } } });
 | --- | --- | --- |
 | `x-dialog` | **模态**：遮罩 + 居中面板 + `closeOnMask` | ✅ v1 |
 | `x-popover` | **悬浮**：宿主 mouseenter 触发的贴附浮层 | ✅ 已落地，见 [x-popover](./directives/x-popover.md) |
-| `x-drawer` | 侧滑抽屉 | fast-follow |
+| `x-drawer` | **贴边抽屉** | ✅ 已落地，见 [x-drawer](./directives/x-drawer.md) |
 | `x-popup` | 锚定浮层（无遮罩） | fast-follow |
 
 家族成员是同一基座（`OverlayDirective`）上的**薄子类**——只叠加形态差异（外壳、定位、关闭行为），查找 / props / 配置链 / 数据基准 / 事件全部继承。
