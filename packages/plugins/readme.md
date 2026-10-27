@@ -39,7 +39,7 @@
 实操守则（ADR-0003）：
 
 - **零静态值导入**：对 `autospark` 仅允许编译期 `import type`，运行时能力经 `src/runtime/bridge.ts` 解析（`globalThis.AutoSpark` 直取 / 预加载队列插件体第二参捕获）；
-- **自举单点**：双路径注册统一走 `src/runtime/bootstrap.ts` 的 `installPlugin(tag, probe, register)`；
+- **自举单点**：双路径注册统一走家族共享微包 `@autospark/utils` 的 `installPlugin(register)`（单回调签名）；
 - **一插件一目录**：`src/plugins/<name>/` 自包含（模板 + 逻辑 + 自举），包根 `src/index.ts` 聚合导入全部官方插件。
 
 ## 构建

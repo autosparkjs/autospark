@@ -62,7 +62,7 @@ process.on("exit", () => rmSync(workDir, { recursive: true, force: true }));
  */
 const IMMEDIATE_FIXTURE_SOURCE = `
 import { installPlugin } from "@autospark/utils";
-installPlugin("fixture", "ready", (autospark) => {
+installPlugin((autospark) => {
     autospark.ready(() => {});
 });
 `;

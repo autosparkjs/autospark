@@ -316,7 +316,7 @@ const SPIN_STRATEGY: DecorateStrategy<SpinConfig> = {
  * 首个 engine 构造开头 drain。两路径殊途同归 `AutoSpark.directive(spec)`。
  */
 export function bootstrapSpinPlugin(): void {
-    bootstrapDecoratePlugin("x-spin", createDecorateSpec("spin", SPIN_STRATEGY));
+    bootstrapDecoratePlugin(createDecorateSpec("spin", SPIN_STRATEGY));
 }
 
 // 模块加载即自举（对称 notifications 插件：置于模块尾部）

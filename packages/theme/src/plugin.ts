@@ -7,10 +7,7 @@
  *
  * 1. 创建默认管理器单例（纯库消费与文档 demo 的「引入即生效」语义载体）；
  * 2. 挂 `globalThis.AutoSparkThemeManager`（单例实例全局，与 `AutoSparkTheme`
- *    模块命名空间二元并存的另一半，纯库消费契约不动）；
- * 3. `installPlugin("theme", "ready", ...)` 双路径自举（utils ADR-0001）：
- *    引擎已加载 → 直取注册；未加载 → register 回调入预加载队列（ADR-0114），
- *    首个 engine 构造 drain 时回放。
+ *    模块命名空间二元并存的另一半，纯库消费契约不动）； * 3. `installPlugin(register)` 双路径自举（utils ADR-0001，单回调签名）： *    引擎已加载 → 直取注册；未加载 → register 回调入预加载队列（ADR-0114）， *    首个 engine 构造 drain 时回放。
  *
  * **ready 回调**（每 engine 各一次，retain 语义——晚加载对存活 engine 补挂载）：
  *
@@ -94,11 +91,7 @@ function mountTheme(engine: AutoSpark<any>): void {
     // destroy 摘线（决策 5）：watch 订阅随 engine 生命周期摘除；
     // manager 本体（单例）与 state.$.theme 数据不清理
     engine.on("engine/destroy/before", () => watcher.off());
-}
-
-installPlugin("theme", "ready", (autospark) => {
-    autospark.ready(mountTheme);
-});
+}installPlugin((autospark) => {    autospark.ready(mountTheme);});
 
 // ── 类型增强：装载本模块（源码导入 / 闭包脚本直引）后类型面与运行时一致 ──
 

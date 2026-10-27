@@ -13,25 +13,26 @@ afterEach(() => {
 });
 
 describe("installPlugin（双路径自举）", () => {
-    test("直路径：probe 命中函数 → 立即注册，不入队", () => {
+    test("直路径：identity 探测命中（ready 为函数）→ 立即注册，不入队", () => {
         const marks: string[] = [];
         g.AutoSpark = { ready: (cb: () => void) => { marks.push("ready-registered"); } };
         g.__AUTOSPARK_PLUGINS__ = [];
-        installPlugin("demo", "ready", (ns) => ns.ready(() => {}));
+        installPlugin((ns) => ns.ready(() => {}));
         expect(marks).toEqual(["ready-registered"]);
         expect(g.__AUTOSPARK_PLUGINS__).toEqual([]);
     });
 
-    test("直路径：非函数 probe（components/actions/icons）非空即命中", () => {
+    test("直路径：冒名全局守卫——无 ready 函数的占用对象不入直取（转队列路径）", () => {
         const marks: string[] = [];
-        g.AutoSpark = { components: { "autospark.button": {} } };
-        installPlugin("demo", "components", () => marks.push("hit"));
-        expect(marks).toEqual(["hit"]);
+        g.AutoSpark = { someOtherLib: true }; // 占用全局名但缺最小注册面
+        installPlugin(() => marks.push("hit"));
+        expect(marks).toEqual([]);
+        expect(g.__AUTOSPARK_PLUGINS__).toHaveLength(1); // defer 到预加载队列
     });
 
     test("队列路径：全局未加载 → 仅 register 回调入队（不排整包），drain 时以命名空间回放", () => {
         const marks: string[] = [];
-        installPlugin("demo", "ready", (ns) => marks.push(`register:${ns?.tag}`));
+        installPlugin((ns) => marks.push(`register:${ns?.tag}`));
         expect(g.__AUTOSPARK_PLUGINS__).toHaveLength(1);
         expect(g.__AUTOSPARK_PLUGINS__![0]).toBeTypeOf("function");
         // engine 构造 drain：插件体收 (engine, autospark) 双参——第二参即命名空间
@@ -47,10 +48,10 @@ describe("installPlugin（双路径自举）", () => {
             const frozen: never[] = [];
             Object.freeze(frozen);
             g.__AUTOSPARK_PLUGINS__ = frozen;
-            installPlugin("demo", "ready", () => {});
+            installPlugin(() => {});
         } finally {
             console.error = original;
         }
-        expect(errors.some((m) => m.includes("demo") && m.includes("插件未注册"))).toBe(true);
+        expect(errors.some((m) => m.includes("installPlugin") && m.includes("插件未注册"))).toBe(true);
     });
 });

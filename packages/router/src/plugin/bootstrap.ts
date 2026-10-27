@@ -109,7 +109,7 @@ function mountRouter(engine: AutoSpark<any>, _autospark: typeof AutoSpark): void
  * utils ADR-0001 / plugins ADR-0006；冻结队列守卫与插件家族一次抹平对齐）。
  */
 export function bootstrapRouterPlugin(): void {
-    installPlugin("router", "precompile", (autospark) => {
+    installPlugin((autospark) => {
         autospark.precompile(routerPrecompile);
         autospark.ready(mountRouter);
     });

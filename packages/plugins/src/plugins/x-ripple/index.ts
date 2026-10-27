@@ -349,7 +349,7 @@ const RIPPLE_STRATEGY: DecorateStrategy<RippleConfig> = {
  * 首个 engine 构造开头 drain。两路径殊途同归 `AutoSpark.directive(spec)`。
  */
 export function bootstrapRipplePlugin(): void {
-    bootstrapDecoratePlugin("x-ripple", createDecorateSpec("ripple", RIPPLE_STRATEGY));
+    bootstrapDecoratePlugin(createDecorateSpec("ripple", RIPPLE_STRATEGY));
 }
 
 // 模块加载即自举（对称 notifications 插件：置于模块尾部）

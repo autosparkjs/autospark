@@ -43,7 +43,7 @@ describe("button 组件插件（ADR-0003 组件形态样板）", () => {
 describe("installPlugin 自举单点（ADR-0003）", () => {
     test("直注册路径：全局类可达时同步执行 register（setup 预置时序）", () => {
         let called = 0;
-        installPlugin("test-direct", "directive", () => {
+        installPlugin(() => {
             called++;
         });
         expect(called).toBe(1);
@@ -64,12 +64,12 @@ describe("installPlugin 自举单点（ADR-0003）", () => {
         console.error = (msg: unknown) => errors.push(String(msg));
         try {
             let called = 0;
-            installPlugin("test-frozen", "directive", () => {
+            installPlugin(() => {
                 called++;
             });
             expect(called).toBe(0);
             expect(errors.length).toBe(1);
-            expect(errors[0]).toContain("test-frozen");
+            expect(errors[0]).toContain("installPlugin");
             expect(errors[0]).toContain("插件注册通道已关闭");
         } finally {
             console.error = savedError;

@@ -8,7 +8,7 @@
  * 1. 创建默认管理器单例（纯库消费与文档 demo 的「引入即生效」语义载体）；
  * 2. 挂 `globalThis.AutoSparkThemeManager`（单例实例全局，与 `AutoSparkTheme`
  *    模块命名空间二元并存的另一半，纯库消费契约不动）；
- * 3. `installPlugin("theme", "ready", ...)` 双路径自举（utils ADR-0001）：
+ * 3. `installPlugin(register)` 双路径自举（utils ADR-0001，单回调签名）：
  *    引擎已加载 → 直取注册；未加载 → register 回调入预加载队列（ADR-0114），
  *    首个 engine 构造 drain 时回放。
  *

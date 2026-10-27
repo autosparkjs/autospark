@@ -617,8 +617,8 @@ export function createDecorateSpec<C extends { trigger: DecorateTrigger }>(
  * 两路径殊途同归 `AutoSpark.directive(spec)`——唯一公共入口保证参与首编译（编译器
  * `_runtimeKeepAttr` 保留 x-<name> 属性的前提是指令先注册）。
  */
-export function bootstrapDecoratePlugin(tag: string, spec: DirectiveSpec): void {
-    installPlugin(tag, "directive", (autospark) => {
+export function bootstrapDecoratePlugin(spec: DirectiveSpec): void {
+    installPlugin((autospark) => {
         captureNamespace(autospark); // 运行时桥命名空间捕获（对称 notifications；当前零符号消费，预留统一通道）
         autospark.directive(spec);
     });

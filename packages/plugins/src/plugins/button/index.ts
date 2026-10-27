@@ -34,7 +34,7 @@ bootstrapButtonPlugin();
  * 双路径注册（模块加载期执行一次，经 {@link installPlugin} 单点）。
  */
 function bootstrapButtonPlugin(): void {
-    installPlugin("autospark.button", "components", (autospark) => {
+    installPlugin((autospark) => {
         captureNamespace(autospark); // 运行时桥命名空间捕获（本插件当前零符号消费，预留统一通道）
         mountButtonPlugin(autospark);
     });

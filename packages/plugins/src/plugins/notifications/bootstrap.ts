@@ -78,7 +78,7 @@ function mountNotifications(engine: AutoSpark<any>): void {
  * 双路径注册（模块加载期执行一次，单点收敛于 {@link installPlugin}；见模块注释）。
  */
 export function bootstrapNotificationsPlugin(): void {
-    installPlugin("notifications", "ready", (autospark) => {
+    installPlugin((autospark) => {
         captureNamespace(autospark); // 运行时桥命名空间捕获（脚本场景 globalThis 直取；队列路径插件体注入）
         autospark.ready(mountNotifications);
     });
