@@ -1,6 +1,7 @@
 /**
- * 插件闭包构建漂移锁（ADR-0004）：mini vite build 端到端——fixture 源码经
- * {@link installAutosparkPlugin} 全管线（import 剥除 → exports 剥除 → 闭包包裹）产出
+ * 插件闭包构建漂移锁（plugins ADR-0004；工具本体迁 @autospark/utils/vite，
+ * utils ADR-0002）：mini vite build 端到端——fixture 源码经
+ * {@link buildAutoSparkPlugin} 全管线（import 剥除 → exports 剥除 → 闭包包裹）产出
  * 真实产物文件，断言外壳契约的每一块字节形态；产物再经双路径运行时冒烟（直注册 /
  * 预加载队列回放）验证语义。产物形态漂移（全局名赋值回潮 / export 残留 / 队列分支
  * 缺失）在此即刻响铃。
@@ -10,7 +11,7 @@ import { build } from "vite";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { installAutosparkPlugin } from "../vite/index";
+import { buildAutoSparkPlugin } from "../vite/index";
 
 /** fixture：覆盖创作糖全形态——AutoSpark 本名 + 具名成员 + namespace + default + type + 导出 */
 const FIXTURE_SOURCE = `
@@ -39,7 +40,7 @@ await build({
     configFile: false,
     root: workDir,
     logLevel: "warn",
-    plugins: [installAutosparkPlugin()],
+    plugins: [buildAutoSparkPlugin()],
     build: {
         outDir: path.join(workDir, "dist"), // 与 root 分离，避免 vite outDir==root 告警
         emptyOutDir: true,
@@ -57,8 +58,8 @@ process.on("exit", () => rmSync(workDir, { recursive: true, force: true }));
 
 /**
  * immediate 外壳产物（plugins ADR-0006 决策 2）：独立工作目录二次构建，用例共享。
- * fixture 用 utils installPlugin 形态（库型插件的源码级自举——immediate 外壳的
- * 真实消费形态；经 alias 解析 workspace 源码，产物自包含内联）。
+ * fixture 用本包 installPlugin 形态（库型插件的源码级自举——immediate 外壳的
+ * 真实消费形态；经 alias 解析本包源码入口，产物自包含内联）。
  */
 const IMMEDIATE_FIXTURE_SOURCE = `
 import { installPlugin } from "@autospark/utils";
@@ -66,7 +67,7 @@ installPlugin((autospark) => {
     autospark.ready(() => {});
 });
 `;
-const IMMEDIATE_UTILS_ENTRY = path.resolve(import.meta.dir, "../../../utils/src/index.ts");
+const IMMEDIATE_UTILS_ENTRY = path.resolve(import.meta.dir, "../index.ts");
 const immWorkDir = mkdtempSync(path.join(tmpdir(), "autospark-closure-imm-"));
 const immOutFile = path.join(immWorkDir, OUT_FILE);
 writeFileSync(path.join(immWorkDir, "fixture.ts"), IMMEDIATE_FIXTURE_SOURCE);
@@ -74,7 +75,7 @@ await build({
     configFile: false,
     root: immWorkDir,
     logLevel: "warn",
-    plugins: [installAutosparkPlugin({ shell: "immediate" })],
+    plugins: [buildAutoSparkPlugin({ shell: "immediate" })],
     resolve: {
         alias: { "@autospark/utils": IMMEDIATE_UTILS_ENTRY },
     },
@@ -93,7 +94,7 @@ await build({
 const immediateCode = readFileSync(immOutFile, "utf8");
 process.on("exit", () => rmSync(immWorkDir, { recursive: true, force: true }));
 
-describe("外壳契约（ADR-0004 定谳模板）", () => {
+describe("外壳契约（plugins ADR-0004 定谳模板）", () => {
     test("头部：闭包参数 + use strict + run 函数体", () => {
         expect(code.startsWith("(function (AutoSpark) {\n")).toBe(true);
         expect(code).toContain('    "use strict";\n');
@@ -164,7 +165,7 @@ describe("运行时语义（双路径自举）", () => {
         const queue: Array<(engine: any, ns: any) => void> = [];
         runInSandbox({ AutoSpark: undefined, queue });
         expect(queue.length).toBe(1);
-        // 真实时序回放：drain 时引擎全局已就位（ADR-0114），命名空间经第二参注入
+        // 真实时序回放：drain 时引擎全局已就位（engine ADR-0114），命名空间经第二参注入
         const readyCbs: Array<() => void> = [];
         queue[0]({ engine: 1 }, {
             components: {},

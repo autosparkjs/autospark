@@ -302,7 +302,7 @@
 
 ### 结构骨架（chrome）：标题 / 关闭按钮 / 动作区
 
-内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——抽屉面板默认自带 header（`closeable: true` 时有关闭按钮）与 body 内边距（`padding: '0.5em'`），内容滚动也移入 body 区。五个骨架键经 `x-drawer-options` 配置。骨架与 x-dialog/x-popover 完全同源（底层 `autospark.overlay`），唯一差异是 drawer 是 visible 驱动形态（与 dialog 同构）、body 自动滚动。
+内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——header / body / footer 三段（header 有内容才渲染；`closeable` 双形态：header 有内容 → 行内 x，无内容 → 右上角浮动 x）与 body 内边距（`padding: '0.5em'`），内容滚动也移入 body 区。五个骨架键经 `x-drawer-options` 配置。骨架与 x-dialog/x-popover 完全同源（底层 `autospark.overlay`），形态差异是 drawer 是 visible 驱动形态（与 dialog 同构）、body 自动滚动、`closeable` 缺省 `false`（贴边常驻面板自有关闭路径居多；显式 `true` 开启）。
 
 <demo html="drawer/chrome.html"/>
 
@@ -358,7 +358,7 @@
 chrome 可重载的出口名（与 x-dialog/x-popover 完全一致，完整表见 [x-dialog · slots 重载](../../directives/x-dialog.md#slots-重载title--actions--header--footer)）：`title`（局部替换，icon/close 保留）、`header`（整块替换，close 失效）、`footer`（整块替换）、`actions.top` / `actions.left` / `actions.right`（点分名）。优先级：slots > 配置式。
 
 ::: warning 视觉变化（ADR-0124）
-抽屉默认**多出关闭按钮的 header**、**body 内边距 0.5em**、**滚动移入 body 区**——不想要骨架 chrome 时设 `closeable: false` 且不提供标题/动作（header 消失）、`padding: 0` 还原紧凑形态；自定义 shell 整体替换则完全退出骨架。
+抽屉默认**零 header**（`closeable` 缺省 `false` 且无标题/动作 → header 不渲染、无 x），保留 **body 内边距 0.5em** 与**滚动移入 body 区**——`padding: 0` 还原紧凑形态；提供标题/动作则 header 渲染，显式 `closeable: true` 在无内容时得右上角浮动 x；自定义 shell 整体替换则完全退出骨架。
 :::
 
 ### 面板外壳（shell）
@@ -384,7 +384,7 @@ chrome 可重载的出口名（与 x-dialog/x-popover 完全一致，完整表�
 | --- | --- | --- | --- |
 | `title` | 无 | — | 骨架标题文本（header）；见[结构骨架（chrome）](#结构骨架chrome标题--关闭按钮--动作区) |
 | `icon` | 无 | — | 骨架标题左侧图标名（x-icon 域） |
-| `closeable` | `true` | — | 骨架 header 显示 close 图标按钮（走请求关闭链）；`false` 且标题/图标/动作区全空时 header 消失 |
+| `closeable` | `false` | — | 显示 close 图标按钮（走请求关闭链）——双形态：header 有内容 → 行内 x，无内容 → 右上角浮动 x；缺省 `false`，显式 `true` 开启 |
 | `actions` | 无 | — | 骨架动作集（数组，按 `pos` 归位、`order` 升序）：`top` → 顶区、`left` → 左区、`right`/`auto`/`bottom`/无 pos → 右区 |
 | `padding` | `'0.5em'` | — | 骨架 body 区内边距（number 按 px） |
 | `at` | 无（屏幕贴边） | — | 字符串 / 元素简写 / `{selector, placement, flip, offset, shift}`；`selector` 命中即锚定模式 |

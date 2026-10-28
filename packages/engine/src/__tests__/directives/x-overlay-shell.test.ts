@@ -121,12 +121,149 @@ describe("内置默认 shell", () => {
         const body = panel.querySelector(".autospark-overlay-body");
         expect(body).not.toBeNull();
         expect(body!.querySelector("b")?.textContent).toBe("卡片内容");
-        // chrome fallback：closeable 默认 true → header + close 按钮渲染；未配置 title → 标题文本空
-        const header = panel.querySelector(".autospark-overlay-header");
-        expect(header).not.toBeNull();
-        expect(header!.querySelector(".autospark-overlay-close")).not.toBeNull();
-        expect(header!.querySelector(".autospark-overlay-title")!.textContent!.trim()).toBe("");
+        // 决策 3 修订：closeable 移出 header 判定集——无内容时 header 不渲染（x-show 隐藏），
+        // close 转根级浮动形态（dialog 缺省 ≙ true）；未配置 title → 标题文本空
+        const header = panel.querySelector(".autospark-overlay-header")!;
+        expect(header.style.display).toBe("none");
+        expect(panel.querySelector(".autospark-overlay-close-floating")!.style.display).not.toBe("none");
+        expect(header.querySelector(".autospark-overlay-title")!.textContent!.trim()).toBe("");
         engine.state.on = false;
+        await nextTick();
+    });
+});
+
+/** x-show 显隐判定（隐藏 = display:none，DOM 不摘除；沿父链——父级隐藏即视觉隐藏） */
+const shown = (el: Element | null): boolean => {
+    let n: Element | null = el;
+    while (n && n !== document.body) {
+        if ((n as HTMLElement).style?.display === "none") return false;
+        n = n.parentElement;
+    }
+    return !!el;
+};
+
+describe("close 按钮双形态（ADR-0124 决策 3 修订）", () => {
+    test("dialog 无内容：header 隐藏 + 根级浮动 x 可见（互斥基准）", async () => {
+        const { engine } = mountShell(
+            `<div id="app"><div x-scope>
+                <div x-define="card"><b>正文</b></div>
+                <button x-dialog:card="on">打开</button>
+            </div></div>`,
+            { on: false },
+        );
+        engine.state.on = true;
+        await nextTick();
+        const panel = panelOf("card")!;
+        expect(shown(panel.querySelector(".autospark-overlay-header"))).toBe(false);
+        expect(shown(panel.querySelector(".autospark-overlay-close-floating"))).toBe(true);
+        // header 内行内 x 随 header 隐藏（互斥对偶）
+        expect(shown(panel.querySelector(".autospark-overlay-header .autospark-overlay-close"))).toBe(false);
+        engine.state.on = false;
+        await nextTick();
+    });
+
+    test("dialog 有 title：header 可见 + 行内 x 可见 + 浮动 x 隐藏", async () => {
+        const { engine } = mountShell(
+            `<div id="app"><div x-scope>
+                <div x-define="card"><b>正文</b></div>
+                <button x-dialog:card="on" x-dialog-options="{title: '标题'}">打开</button>
+            </div></div>`,
+            { on: false },
+        );
+        engine.state.on = true;
+        await nextTick();
+        const panel = panelOf("card")!;
+        expect(shown(panel.querySelector(".autospark-overlay-header"))).toBe(true);
+        expect(shown(panel.querySelector(".autospark-overlay-header .autospark-overlay-close"))).toBe(true);
+        expect(shown(panel.querySelector(".autospark-overlay-close-floating"))).toBe(false);
+        engine.state.on = false;
+        await nextTick();
+    });
+
+    test("dialog closeable:false + 无内容：header 隐藏 + 两形态 x 皆隐藏", async () => {
+        const { engine } = mountShell(
+            `<div id="app"><div x-scope>
+                <div x-define="card"><b>正文</b></div>
+                <button x-dialog:card="on" x-dialog-options="{closeable: false}">打开</button>
+            </div></div>`,
+            { on: false },
+        );
+        engine.state.on = true;
+        await nextTick();
+        const panel = panelOf("card")!;
+        expect(shown(panel.querySelector(".autospark-overlay-header"))).toBe(false);
+        expect(shown(panel.querySelector(".autospark-overlay-close-floating"))).toBe(false);
+        expect(shown(panel.querySelector(".autospark-overlay-header .autospark-overlay-close"))).toBe(false);
+        engine.state.on = false;
+        await nextTick();
+    });
+
+    test("header 插槽整块替换：x 让位（两形态皆隐藏，决策 2 保持）", async () => {
+        const { engine } = mountShell(
+            `<div id="app"><div x-scope>
+                <div x-define="card"><b>正文</b></div>
+                <button x-dialog:card="on" x-dialog-options="{closeable: true}">
+                    <template x-slot:header><div class="my-header">自定义头部</div></template>
+                    打开
+                </button>
+            </div></div>`,
+            { on: false },
+        );
+        engine.state.on = true;
+        await nextTick();
+        const panel = panelOf("card")!;
+        expect(shown(panel.querySelector(".autospark-overlay-header"))).toBe(true);
+        expect(panel.querySelector(".autospark-overlay-header .my-header")).not.toBeNull();
+        // 整块替换：行内与浮动 close 全部让位（替换者全权，ADR-0124 决策 2）
+        expect(shown(panel.querySelector(".autospark-overlay-close-floating"))).toBe(false);
+        expect(shown(panel.querySelector(".autospark-overlay-header .autospark-overlay-close"))).toBe(false);
+        engine.state.on = false;
+        await nextTick();
+    });
+
+    test("形态默认：popover / drawer 缺省 closeable=false（未配置无 x，显式 true 浮动）", async () => {
+        // popover：.click 点击触发（hover 在测试环境不可驱动，demo 同款）
+        const { root, engine } = mountShell(
+            `<div id="app"><div x-scope>
+                <div x-define="tip1"><b>悬浮正文</b></div>
+                <div x-define="tip2"><b>悬浮正文</b></div>
+                <button id="p1" x-popover:tip1.click>悬浮</button>
+                <button id="p2" x-popover:tip2.click x-popover-options="{closeable: true}">悬浮</button>
+            </div></div>`,
+            { on: false },
+        );
+        root.querySelector<HTMLButtonElement>("#p1")!.click();
+        await nextTick();
+        let panel = panelOf("tip1")!;
+        // 形态默认 false：两形态 x 皆隐藏（header 无内容本就不渲染）
+        expect(shown(panel.querySelector(".autospark-overlay-close-floating"))).toBe(false);
+        expect(shown(panel.querySelector(".autospark-overlay-header .autospark-overlay-close"))).toBe(false);
+
+        root.querySelector<HTMLButtonElement>("#p2")!.click();
+        await nextTick();
+        panel = panelOf("tip2")!;
+        // 显式 true：无内容 → 浮动形态
+        expect(shown(panel.querySelector(".autospark-overlay-close-floating"))).toBe(true);
+
+        // drawer：状态驱动打开，缺省无 x / 显式 true 浮动
+        const { engine: e2 } = mountShell(
+            `<div id="app2"><div x-scope>
+                <div x-define="pane1"><b>侧栏正文</b></div>
+                <div x-define="pane2"><b>侧栏正文</b></div>
+                <button x-drawer:pane1="a">D1</button>
+                <button x-drawer:pane2="b" x-drawer-options="{closeable: true}">D2</button>
+            </div></div>`,
+            { a: false, b: false },
+        );
+        e2.state.a = true;
+        await nextTick();
+        expect(shown(panelOf("pane1")!.querySelector(".autospark-overlay-close-floating"))).toBe(false);
+        e2.state.a = false;
+        await nextTick();
+        e2.state.b = true;
+        await nextTick();
+        expect(shown(panelOf("pane2")!.querySelector(".autospark-overlay-close-floating"))).toBe(true);
+        e2.state.b = false;
         await nextTick();
     });
 });

@@ -52,7 +52,9 @@ grilling 三轮钉死的关键分歧：组件名收敛为 `autospark.overlay`（
 
 ### 3. header/footer 条件渲染：有内容才渲染
 
-- **header 渲染条件**（任一命中）：`title` 非空 ∥ `icon` 非空 ∥ `title` 出口有内容 ∥ `actions.top` 出口有内容 ∥ actions 中存在 `pos='top'` ∥ `closeable === true`。**`closeable` 默认 true → 默认全家族 header 恒渲染**（一个带关闭按钮的标题栏），`closeable: false` 且其余全空才消失；
+> **修订（close 按钮双形态）**：`closeable` **移出 header 判定集**——header 只看内容；无内容时 header 不渲染，close 按钮转**根级绝对定位浮动形态**（右上角 `0.375em`，与行内形态两份 DOM 互斥对偶）。动机：空 header（仅一个 close 按钮）白占一行高度与一条分隔线——紧凑面板（tip / 快速预览）不该为此付布局税。`closeable` 缺省值同时**分形态**：dialog ≙ `true`（默认表 `undefined`、模板 `!== false` 缺省即开）；popover / drawer 经形态子类 `_resolveConfig` 覆写补 `false`（紧凑悬浮/贴边形态浮动 x 价值低——hover tip 鼠标移开即消失，x 无处服务）。默认表不落硬值 `true` 的原因：硬值会让「显式 true」与「默认 true」在合并产物中不可区分，形态覆写 `??=` 失效。决策 2 不变：`header` 出口整块替换时 x 让位（替换者全权）。视觉配套：顶区动作按钮无边框（与 close 同处 header 行的幽灵图标钮风格），footer 动作保留按钮边框。
+
+- **header 渲染条件**（任一命中）：`title` 非空 ∥ `icon` 非空 ∥ `title` 出口有内容 ∥ `actions.top` 出口有内容 ∥ actions 中存在 `pos='top'`（修订：~~`closeable === true`~~ 移出——closeable 只决定 close 按钮双形态中的呈现方式）；
 - **footer 渲染条件**（任一命中）：`footer` 出口有内容 ∥ actions 中存在 `pos='left'` 或 `pos='right'`（含归位到右区的 `auto`/`bottom`/无 pos）；
 - 条件求值基于 props（响应式——props 热更新联动显隐）+ 出口内容命中（编译期静态——出口有内容与否不响应式，与 slot 机制一致）；`header` 出口有内容时整块替换，条件渲染让位于出口本身。
 

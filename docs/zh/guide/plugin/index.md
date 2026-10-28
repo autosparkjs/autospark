@@ -38,14 +38,14 @@
 })(globalThis.AutoSpark);
 ```
 
-可以直接手写这种形态（上文 demo 即是），也可以用**源码创作糖**：源码里正常写 `import { AutoSpark } from "autospark"`，构建期由官方工具剥除导入、把引用落定到闭包参数——产物依旧零静态导入（脚本即契约，ADR-0003）。工具随官方包分发：
+可以直接手写这种形态（上文 demo 即是），也可以用**源码创作糖**：源码里正常写 `import { AutoSpark } from "autospark"`，构建期由官方工具剥除导入、把引用落定到闭包参数——产物依旧零静态导入（脚本即契约，ADR-0003）。工具随 `@autospark/utils` 分发（utils ADR-0002）：
 
 ```ts
 // vite.config.ts
-import { installAutosparkPlugin } from "@autospark/plugins/vite";
+import { buildAutoSparkPlugin } from "@autospark/utils/vite";
 
 export default {
-    plugins: [installAutosparkPlugin()],
+    plugins: [buildAutoSparkPlugin()],
     build: {
         outDir: "dist",
         rollupOptions: {

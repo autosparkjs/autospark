@@ -161,7 +161,7 @@ hover 交互在触摸屏上没有对应物（点按会以模拟事件触发 mous
 
 ### 结构骨架（chrome）：标题 / 关闭按钮 / 动作区
 
-内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——气泡面板默认自带 header（`closeable: true` 时有关闭按钮）与 body 内边距（`padding: '0.5em'`）。五个骨架键经 `x-popover-options` 配置。骨架与 x-dialog/x-drawer 完全同源（底层 `autospark.overlay`），唯一差异是 popover 默认 hover 触发、closeable 默认 false。
+内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——header / body / footer 三段（header 有内容才渲染；`closeable` 双形态：header 有内容 → 行内 x，无内容 → 右上角浮动 x）与 body 内边距（`padding: '0.5em'`）。五个骨架键经 `x-popover-options` 配置。骨架与 x-dialog/x-drawer 完全同源（底层 `autospark.overlay`），形态差异是 popover 默认 hover 触发、`closeable` 缺省 `false`（紧凑悬浮形态浮动 x 价值低——hover tip 鼠标移开即消失；显式 `true` 开启）。
 
 <demo html="popover/chrome.html"/>
 
@@ -211,7 +211,7 @@ hover 交互在触摸屏上没有对应物（点按会以模拟事件触发 mous
 chrome 可重载的出口名（与 x-dialog/x-drawer 完全一致，完整表见 [x-dialog · slots 重载](../../directives/x-dialog.md#slots-重载title--actions--header--footer)）：`title`（局部替换，icon/close 保留）、`header`（整块替换，close 失效）、`footer`（整块替换）、`actions.top` / `actions.left` / `actions.right`（点分名）。优先级：slots > 配置式。
 
 ::: warning 视觉变化（ADR-0124）
-气泡默认**多出关闭按钮的 header** 与 **body 内边距 0.5em**——还原紧凑气泡（无标题栏、零内边距）设 `closeable: false` 且不提供标题/动作，并 `padding: 0`；自定义 shell 整体替换则完全退出骨架。注意 `padding` 是**双通道键**：显式设置时同时作用于内容区外壳 inline 与骨架 body 区，未声明时 body 走默认 `0.5em`、内容区不写 inline。
+气泡缺省**零骨架 chrome**（`closeable` 缺省 `false` 且无标题/动作 → header 不渲染、无 x，仅 body 内边距 `0.5em`）——`padding: 0` 进一步还原零内边距紧凑气泡；提供标题/顶区动作则 header 渲染，显式 `closeable: true` 在无内容时得右上角浮动 x；自定义 shell 整体替换则完全退出骨架。注意 `padding` 是**双通道键**：显式设置时同时作用于内容区外壳 inline 与骨架 body 区，未声明时 body 走默认 `0.5em`、内容区不写 inline。
 :::
 
 ### 面板外壳（shell）
@@ -377,7 +377,7 @@ tooltip（[工具提示](../tooltip.md)）是**引擎级零声明**能力（`dat
 | --- | --- | --- | --- |
 | `title` | 无 | — | 骨架标题文本（header）；见[结构骨架（chrome）](#结构骨架chrome标题--关闭按钮--动作区) |
 | `icon` | 无 | — | 骨架标题左侧图标名（x-icon 域） |
-| `closeable` | `true` | — | 骨架 header 显示 close 图标按钮（走请求关闭链）；`false` 且标题/图标/动作区全空时 header 消失 |
+| `closeable` | `false` | — | 显示 close 图标按钮（走请求关闭链）——双形态：header 有内容 → 行内 x，无内容 → 右上角浮动 x；缺省 `false`（紧凑悬浮形态默认无 x），显式 `true` 开启 |
 | `actions` | 无 | — | 骨架动作集（数组，按 `pos` 归位、`order` 升序）：`top` → 顶区、`left` → 左区、`right`/`auto`/`bottom`/无 pos → 右区 |
 | `trigger` | `'hover'` | `.click` | 触发方式：`'hover'` 悬浮开关 / `'click'` 点击开关；显式 `trigger` 恒优先 > `.click` 修饰符 > 默认 hover；非法值 warn 回退 `'hover'`（见[触发方式](#触发方式)） |
 | `delayShow` | `200` | — | 悬浮意图延迟（ms）：移入宿主后延迟打开、计时期间移开取消；`0` 无延迟；仅 hover 生效（click 静默不适用）；非法值 warn 回退默认（见[延迟配置](#延迟配置)） |

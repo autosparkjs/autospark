@@ -50,6 +50,27 @@ export interface AutoSparkOptions<State extends Dict = any> extends FastEvent.Fa
      */
     actions?: Record<string, ActionDecl>;
     /**
+     * 指令全局默认表（ADR-0127）：按指令名索引的 engine 级默认配置——选项回退链的
+     * 全局层。完整优先级（高 → 低）：选项成员表达式 > 指令选项 `x-{name}-options`（含
+     * 修饰符注入）> 宿主选项 `x-options` > **本表** > 指令代码内置兜底（`??` 习语，
+     * 不进链、表达式视图不可见）。
+     *
+     * - key 为指令名：带前缀主形态（如 `"x-dialog"`），裸名（`"dialog"`）等价容忍，
+     *   双形态并存带前缀优先；字面 kebab-case 匹配（不做 case 归一）；别名以注册表
+     *   真实指令名为准（`:title` / `x-class` 归一为 bind，写 `"x-bind"`）；无 `*` 通配；
+     *   未注册指令名静默忽略（与孤儿 `-options` 策略一致）。
+     * - 值为普通对象，键级回退、**不深合并**——上面各层任一显式写该键（含 `false`）即
+     *   阻断本层；值非普通对象（`false` / 字符串等）视为缺省。
+     * - **活读**：每次读取现查本表（不快照）——构造后增改对之后的读取生效（含运行时
+     *   `engine.options.directives["x-dialog"] = {...}` 注入），不追溯已渲染结果、不触发
+     *   重渲染；要响应式联动请走 state 而非 options。
+     * - 全部注册指令（含 `installPlugin` / `$.directive` 注册的插件指令）经基类
+     *   `getOption` 与 `$options` 代理统一获能；Runtime 通道指令同样生效（无宿主层）。
+     *
+     * @default {}
+     */
+    directives?: Record<string, Record<string, any>>;
+    /**
      * 自定义 HTML 消毒器（x-html 默认消费，见 ADR-0005 决策 4）。
      *
      * 默认为内置极简 `sanitizeHtml`（剥 `<script>` / `on*` 事件属性 / 危险协议 URL，

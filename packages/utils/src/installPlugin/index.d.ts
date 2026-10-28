@@ -15,3 +15,5 @@ import type { AutoSpark } from "autospark";
  * @param register 实际注册体（收命名空间；内部应先 captureNamespace 再注册）
  */
 export declare function installPlugin(register: (autospark: typeof AutoSpark) => void): void;
+/** 预加载队列全局键（utils 包内单源，vite 闭包外壳工具共用——见 index.ts 注释） */
+export declare const PRELOAD_QUEUE_KEY: "__AUTOSPARK_PLUGINS__";

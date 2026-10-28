@@ -10,12 +10,6 @@
     "readme.md"
   ],
   "type": "module",
-  "exports": {
-    "./vite": {
-      "types": "./dist/vite/index.d.ts",
-      "import": "./dist/vite/index.js"
-    }
-  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

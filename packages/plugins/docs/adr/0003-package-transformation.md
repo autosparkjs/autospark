@@ -35,7 +35,7 @@
 
 ### 决策 4：产物 IIFE-only，脚本即契约
 
-插件只提供 IIFE 产物，**不再提供 ESM/CJS**，`package.json` 的 `exports` map 与 `module` 字段随之退役（jQuery 分发模型，与 ADR-0111 机制哲学一致）。**（ADR-0004 修订：exports 措辞收窄——运行时产物无 exports 面，构建工具子路径 `@autospark/plugins/vite` 是唯一模块导出；下表全局名已全部退役，产物为纯闭包插件闭包，运行时常量改经引擎实例 API 取用，如 `engine.notifications.PERSIST`。）**产物面：
+插件只提供 IIFE 产物，**不再提供 ESM/CJS**，`package.json` 的 `exports` map 与 `module` 字段随之退役（jQuery 分发模型，与 ADR-0111 机制哲学一致）。**（ADR-0004 修订：exports 措辞收窄——运行时产物无 exports 面，构建工具子路径 `@autospark/plugins/vite` 是唯一模块导出；下表全局名已全部退役，产物为纯闭包插件闭包，运行时常量改经引擎实例 API 取用，如 `engine.notifications.PERSIST`。）（2026-10-28 再修订：构建工具迁 `@autospark/utils/vite`（utils ADR-0002），exports map 整体回归退役——本决策原文形态完整复位。）**产物面：
 
 | 产物 | 全局名 | 说明 |
 | --- | --- | --- |

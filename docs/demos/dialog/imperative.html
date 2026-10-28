@@ -1,54 +1,68 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <title>x-dialog · 命令式 API</title>
-        <script src="/autospark/autospark.js"></script>
-        <link rel="stylesheet" href="/autospark/bulma.min.css" />
-        <style>
-            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
-        </style>
-    </head>
-    <body>
-        <!-- engine.getOverlay(el, name, options?) → 定义句柄；open(options?) → 实例句柄（close/el/name/scope） -->
-        <div class="demo-app section">
-            <div class="block">
-                <button class="button is-primary" onclick="openByApi()">overlay.open()</button>
-                <button class="button" onclick="closeByApi()">instance.close()</button>
-                <button class="button is-light" onclick="handleClose()">handle.close()（关全部）</button>
-            </div>
-            <div class="block has-text-grey">
-                本页组件经 <code>options.components</code> 全局注册，<code>engine.getOverlay(null, name)</code>
-                省略查找锚点、仅查全局。带 <code>el</code> 则起 scope 链就近查找（镜像 <code>getComponentDeclaration</code> 协议）。
-                <code>open({...})</code> 的非保留键全部作 props 注入组件 data 域。
-            </div>
-        </div>
-        <script>
-            const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {}, {
-                components: {
-                    task: `<div class="ov-panel">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-dialog · 命令式 API</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .ov-panel {
+        padding: 24px;
+        min-width: 320px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- engine.getOverlay(el, name, options?) → 定义句柄；open(options?) → 实例句柄（close/el/name/scope） -->
+    <div class="demo-app section">
+      <div class="block">
+        <button class="button is-primary" onclick="openByApi()">
+          overlay.open()
+        </button>
+        <button class="button" onclick="closeByApi()">instance.close()</button>
+        <button class="button is-light" onclick="handleClose()">
+          handle.close()（关全部）
+        </button>
+      </div>
+      <div class="block has-text-grey">
+        本页组件经 <code>options.components</code> 全局注册，<code
+          >engine.getOverlay(null, name)</code
+        >
+        省略查找锚点、仅查全局。带 <code>el</code> 则起 scope 链就近查找（镜像
+        <code>getComponentDeclaration</code> 协议）。
+        <code>open({...})</code> 的非保留键全部作 props 注入组件 data 域。
+      </div>
+    </div>
+    <script>
+      const engine = new AutoSparkSpaces.AutoSpark(
+        document.querySelector(".demo-app"),
+        {},
+        {
+          components: {
+            task: `<div class="ov-panel">
                         <h3 class="title is-5">任务详情</h3>
                         <p>任务 ID：<b>{{taskId}}</b>，状态：<b>{{status}}</b></p>
                         <button class="button is-fullwidth" @click="close()">关闭</button>
                     </div>`,
-                },
-            });
-            const handle = engine.getOverlay(null, "task", { animate: false });
-            let inst = null;
+          },
+        },
+      );
+      const handle = engine.getOverlay(null, "task", { animate: false });
+      let inst = null;
 
-            function openByApi() {
-                inst = handle.open({
-                    taskId: "T-" + Math.floor(Math.random() * 1000),
-                    status: "运行中",
-                });
-                console.log("实例句柄:", inst.name, inst.el);
-            }
-            function closeByApi() {
-                if (inst) inst.close(); // 精确关这一个实例
-            }
-            function handleClose() {
-                handle.close(); // 关该覆盖物当前「全部」打开实例（逐个走「请求关闭」）
-            }
-        </script>
-    </body>
+      function openByApi() {
+        inst = handle.open({
+          taskId: "T-" + Math.floor(Math.random() * 1000),
+          status: "运行中",
+        });
+        console.log("实例句柄:", inst.name, inst.el);
+      }
+      function closeByApi() {
+        if (inst) inst.close(); // 精确关这一个实例
+      }
+      function handleClose() {
+        handle.close(); // 关该覆盖物当前「全部」打开实例（逐个走「请求关闭」）
+      }
+    </script>
+  </body>
 </html>

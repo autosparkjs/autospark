@@ -2,6 +2,7 @@ import { AutoSparkDirectiveBase } from "../features/directive/base";
 import { isSimpleStatePath, type AutoSparkScope } from "../engine/scope";
 import type { AutoSparkActionContext } from "./x-on/types";
 import { createDirectiveOptions } from "../features/directive/utils/createDirectiveOptions";
+import { getDirectiveGlobalDefaults } from "../features/directive/utils/getDirectiveGlobalDefaults";
 import { resolveEmptyValues } from "../features/directive/utils/emptyPlaceholder";
 import { TRANSFORM_ABORT, toInputValue, toStateValue } from "../features/directive/utils/schema-fn";
 import type { AutoDirectiveInfo } from "../features/directive/types";
@@ -1150,7 +1151,12 @@ export class ModelDirective extends AutoSparkDirectiveBase {
             store: engine.store,
             globalState: engine.store.state,
             engine,
-            $options: createDirectiveOptions(this.options, this.binding.hostOptions),
+            $options: createDirectiveOptions(
+                this.options,
+                this.binding.hostOptions,
+                // 解析器形态：$options 每次访问活读全局默认（ADR-0127）
+                () => getDirectiveGlobalDefaults(engine, this.info.name),
+            ),
             ...extra,
         };
     }

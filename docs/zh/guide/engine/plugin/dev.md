@@ -9,7 +9,7 @@
 | 适合 | 一两个注册面、单文件、页面内嵌、零构建链 | 多文件、TypeScript、复用 npm 依赖、批量产物 |
 | 写法 | 一个 IIFE，形参 `$` 直取全局 `AutoSpark` | 常规 ESM 源码（可 `import`），构建期剥除导入 |
 | 自举 | 直接注册 / 手写预加载队列判断 | `@autospark/utils` 的 `installPlugin` 单点 |
-| 构建 | 无 | `vite build` + `@autospark/plugins/vite` 剥导入、包闭包外壳 |
+| 构建 | 无 | `vite build` + `@autospark/utils/vite` 剥导入、包闭包外壳 |
 | 参考实现 | [about · 快速入门](./about.md#快速入门) | 官方包 `packages/plugins` |
 
 两条路线的**注册面完全一致**（`$.components` / `$.actions` / `$.directive` / `$.icons` / `$.ready` / `$.precompile`），API 速查见[插件开发方式](/zh/guide/plugin/)；机制语义（全局注册表、查找链、retain、前置加载约束）见[插件](./about.md)，类型扩展见[类型扩展](./types.md)。本页只讲**怎么写、怎么构建、怎么发布**。
@@ -75,7 +75,7 @@
 
 ## 路线二：源码 + 官方工具（大型插件）
 
-大型插件按**插件工程**的方式开发——TypeScript 源码、`?raw` 导入模板、构建出 IIFE 闭包产物。规范以官方包 `packages/plugins` 为先例，三根支柱：**一插件一目录**、**`installPlugin` 自举单点**、**`@autospark/plugins/vite` 闭包构建**。
+大型插件按**插件工程**的方式开发——TypeScript 源码、`?raw` 导入模板、构建出 IIFE 闭包产物。规范以官方包 `packages/plugins` 为先例，三根支柱：**一插件一目录**、**`installPlugin` 自举单点**、**`@autospark/utils/vite` 闭包构建**。
 
 ### 工程结构
 
@@ -94,11 +94,11 @@ my-plugin/
 ### 安装依赖
 
 ```bash
-bun add @autospark/utils                        # 运行时自举基建（installPlugin，体积可忽略）
-bun add -d @autospark/plugins autospark vite    # @autospark/plugins/vite 构建工具 + 引擎类型 + vite
+bun add @autospark/utils               # 插件开发工具箱：installPlugin 自举 + vite 闭包构建（ADR-0002）
+bun add -d autospark vite              # 引擎类型（type-only）+ 构建器
 ```
 
-- `@autospark/utils` 与 `@autospark/plugins/vite` 是插件开发工具（官方插件包同款基建，ADR-0006）；
+- `@autospark/utils` 是插件开发工具箱——`installPlugin` 自举与 `buildAutoSparkPlugin` 闭包构建双工具同包（官方插件包同款基建，ADR-0006/0002）；
 - `autospark` 仅作为 devDependency 提供**类型**（`import type`），对引擎的运行时依赖仍是零——插件产物不打包引擎，消费者自带。
 
 ### 插件源码：installPlugin 自举双路径
@@ -137,12 +137,12 @@ installPlugin((autospark: typeof AutoSpark) => {
 
 ### vite 构建：产物即闭包
 
-`vite.config.ts` 引入 `@autospark/plugins/vite` 的 `installAutosparkPlugin()`，注入 vite build 即得单产物闭包打包：
+`vite.config.ts` 引入 `@autospark/utils/vite` 的 `buildAutoSparkPlugin()`，注入 vite build 即得单产物闭包打包：
 
 ```ts
 // vite.config.ts
 import { defineConfig } from "vite";
-import { installAutosparkPlugin } from "@autospark/plugins/vite";
+import { buildAutoSparkPlugin } from "@autospark/utils/vite";
 
 export default defineConfig({
     build: {
@@ -155,7 +155,7 @@ export default defineConfig({
             output: { entryFileNames: "[name].js" },
         },
     },
-    plugins: [installAutosparkPlugin()],
+    plugins: [buildAutoSparkPlugin()],
 });
 ```
 
@@ -230,4 +230,4 @@ bun run build   # 产物 dist/autospark.my-plugin.js
 - [插件开发方式](/zh/guide/plugin/)——官方包 API 速查、三形态官方样板（组件 / 指令 / 复合）与「插件闭包与构建工具」专页
 - [类型扩展](./types.md)——`declare module "autospark"` 三接缝的声明合并
 - [自定义指令](../directive/custom.md)——spec / 类双重载的完整形态
-- ADR-0111 / ADR-0114 / ADR-0003 / ADR-0004 / ADR-0006（`packages/engine/docs/adr/` 与 `packages/plugins/docs/adr/`）——插件机制、预加载队列、包形态与构建工具的决策由来
+- ADR-0111 / ADR-0114 / ADR-0003 / ADR-0004 / ADR-0006 / utils ADR-0002（`packages/engine/docs/adr/`、`packages/plugins/docs/adr/` 与 `packages/utils/docs/adr/`）——插件机制、预加载队列、包形态与构建工具的决策由来

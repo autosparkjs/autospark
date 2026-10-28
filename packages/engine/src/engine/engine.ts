@@ -264,6 +264,8 @@ export class AutoSpark<
             autostart: true,
             debug: false,
             actions: {},
+            // 指令全局默认表（ADR-0127）：补默认空表使「构造后运行时注入」路径可用（活读）
+            directives: {} as Record<string, Record<string, any>>,
             components: { ...userComponents },
             builtinComponents,
         };

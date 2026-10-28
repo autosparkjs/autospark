@@ -4,7 +4,7 @@
  * 两态分治（沿 plugins 包 command/mode 路由先例）：
  * - `bun run build`（command=build，默认）——包构建：主构建 = ESM lib（src/index.ts →
  *   dist/index.js，npm 库身份保留）；closeBundle 编排 = IIFE 闭包构建（注入
- *   installAutosparkPlugin({ shell: "immediate" })——库型插件立即执行外壳，加载即完成
+ *   buildAutoSparkPlugin({ shell: "immediate" })——库型插件立即执行外壳，加载即完成
  *   单例创建 → 全局挂载 → installPlugin 自举）→ src/themes 资产复制 → 发布面
  *   （gzip 统计 + docs/public 复制）；CSS 链（lessc / generate-theme）与 d.ts
  *   （tsc --emitDeclarationOnly）保持脚本形态，由 package.json build 串行衔接；
@@ -16,7 +16,7 @@ import { resolve } from "path";
 import { copyFileSync, cpSync, readFileSync } from "node:fs";
 import { gzip } from "node:zlib";
 import { promisify } from "node:util";
-import { installAutosparkPlugin } from "@autospark/plugins/vite";
+import { buildAutoSparkPlugin } from "@autospark/utils/vite";
 
 const gzipPromise = promisify(gzip);
 
@@ -44,7 +44,7 @@ function libOrchestrationPlugin(): Plugin {
                 configFile: false,
                 root: pkgRoot,
                 logLevel: "silent",
-                plugins: [installAutosparkPlugin({ shell: "immediate" })],
+                plugins: [buildAutoSparkPlugin({ shell: "immediate" })],
                 build: {
                     outDir: DIST_DIR,
                     emptyOutDir: false, // ESM 主构建产物共存，禁自动清空

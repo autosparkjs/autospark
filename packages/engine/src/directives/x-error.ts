@@ -172,7 +172,8 @@ export class ErrorDirective extends AutoSparkDirectiveBase implements RuntimeDir
 
     /**
      * 静态字面量字段读取（behavior/overlay/errorClass/overlayAt/closeable/retryable）：
-     * 成员形态（optionExprs，表达式文本）去引号取字面量 > 整包形态（options，解析期静态值）。
+     * 成员形态（optionExprs，表达式文本）去引号取字面量 > 整包形态走标准回退链
+     * （`getOption`：指令选项 → 宿主选项 → 指令全局默认，ADR-0127）。
      * 非字面量（表达式）warn 并回退（呈现结构配置不支持状态驱动）。
      */
     private _staticOption(key: string): any {
@@ -184,7 +185,7 @@ export class ErrorDirective extends AutoSparkDirectiveBase implements RuntimeDir
             }
             return v;
         }
-        return this.options?.[key];
+        return this.getOption(key);
     }
 
     /**
@@ -195,7 +196,9 @@ export class ErrorDirective extends AutoSparkDirectiveBase implements RuntimeDir
     private _bindExprOption(key: "props" | "actions"): void {
         const expr = this.info.optionExprs?.[key];
         if (expr === undefined) {
-            if (this.options?.[key] !== undefined) this._exprValues[key] = this.options[key];
+            // 整包静态值走标准回退链（含宿主选项与指令全局默认，ADR-0127）
+            const v = this.getOption(key);
+            if (v !== undefined) this._exprValues[key] = v;
             return;
         }
         const trimmed = expr.trim();

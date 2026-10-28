@@ -465,8 +465,13 @@ export default defineConfig({
           // autospark.js（引擎）由上游 autospark-engine-dev-source 精确接管；
           // 本正则要求产物名含插件段（autospark.<name>.js），天然不匹配引擎名。
           const PLUGIN_CLOSURE_RE = /^\/autospark\/(autospark\.[\w-]+\.js)$/;
-          // watcher 默认只监听 docs 项目——显式扩展到插件包源码与构建配置
-          const SRC_PATHS = [path.join(pluginsRoot, "src"), path.join(pluginsRoot, "vite.config.ts")];
+          // watcher 默认只监听 docs 项目——显式扩展到插件包源码、构建配置与 utils 工具链源码
+          // （闭包构建工具所在 packages/utils/src/vite，utils ADR-0002 迁入）
+          const SRC_PATHS = [
+            path.join(pluginsRoot, "src"),
+            path.join(pluginsRoot, "vite.config.ts"),
+            path.resolve(__dirname, "../../../packages/utils/src"),
+          ];
           server.watcher.add(SRC_PATHS);
 
           let dirty = true;

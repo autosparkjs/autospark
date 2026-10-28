@@ -47,7 +47,7 @@ _Avoid_: 红点、角标（未限定载体语义时）
 _Avoid_: 静态 import 引入（源码级 static import 仅为构建期剥除的创作糖，产物零痕迹）、组件库
 
 **插件闭包（Plugin Closure）**:
-官方插件的产物形态（ADR-0004）：封进以全局命名空间为参数的 IIFE——`(function (AutoSpark) { ... })(globalThis.AutoSpark)`，闭包参数即命名空间本体；源码级 `import { AutoSpark } from "autospark"` 经官方 vite 工具（`installAutosparkPlugin()`）构建期剥除落定到闭包参数。外壳两形态：标准排队外壳（缺省，`AutoSpark === undefined` 时整包入预加载队列，engine 构造 drain 回放）与立即执行外壳（`shell: "immediate"`，库型插件专属，见「库型插件」）。
+官方插件的产物形态（ADR-0004）：封进以全局命名空间为参数的 IIFE——`(function (AutoSpark) { ... })(globalThis.AutoSpark)`，闭包参数即命名空间本体；源码级 `import { AutoSpark } from "autospark"` 经官方 vite 工具（`buildAutoSparkPlugin()`）构建期剥除落定到闭包参数。外壳两形态：标准排队外壳（缺省，`AutoSpark === undefined` 时整包入预加载队列，engine 构造 drain 回放）与立即执行外壳（`shell: "immediate"`，库型插件专属，见「库型插件」）。
 _Avoid_: globalName 全局名赋值（`AutoSparkPlugins` 等已退役）、exports 工厂形态（闭包无 exports 面）
 
 **库型插件（Library Plugin）**:
@@ -58,13 +58,17 @@ _Avoid_: 双产物并存（tsup IIFE 库形态 + 闭包插件形态的分裂）�
 双路径自举基建（收敛于 @autospark/utils，ADR-0006）：probe 探测全局命名空间命中即直取注册，否则仅将 register 回调入预加载队列——排队粒度是注册回调而非插件包体；队列冻结且全局不可达时报错响而不哑。
 _Avoid_: 自举样板代码（各包内联副本已退役）、整包排队（那是外壳的职责，且仅标准外壳）
 
+**插件开发工具箱（@autospark/utils）**:
+家族插件开发公共基建单点（ADR-0001/0002）：源级自举（插件安装器）与构建期闭包打包（vite 工具 buildAutoSparkPlugin）双工具同包，插件作者单依赖即得；对引擎仅 type-only 依赖，运行时零静态依赖。
+_Avoid_: 业务功能承载（基建层纪律）、构建工具随产物包分发（@autospark/plugins/vite 旧形态，已迁出）
+
 **主题插件（Theme Plugin）**:
 @autospark/theme 的插件身份（ADR-0007，Q10 修订）：模块加载期创建默认管理器单例并挂全局 `AutoSparkThemeManager`（引入即尽可能早实例化），ready 回调注入 `engine.themeManager` 引用 + 挂 `state.$.theme` 七维状态（dark/themeColor/size/spacing/shadow/radius/colorized）并**单向同步**（state → manager 经 `watch("$.theme.*")` 回写，manager 直改不回写投影）——模板写入 `theme.dark` 等即驱动主题切换，投影初值以 ready 期 manager 当前值播种；多 engine 共享同一单例（root scope 物理绑定 documentElement），manager 本体不随 engine 清理，watch 订阅随 engine destroy 摘除。
 _Avoid_: per-engine 实例（双 root 冲突）、实例化职责（ready 只挂指针与接线）、双向绑定（manager 回写广播不值得）、只读单向投影（theme 是用户意图非环境事实）、accessor 活视图（autostore watch 断链）
 
 **官方插件包（@autospark/plugins）**:
 官方插件集与插件开发方式的载体：三种扩展形态各有一个官方样板（notifications 复合 / x-ripple 指令 / autospark.button 组件），产物仅 IIFE 脚本（脚本即契约）。
-_Avoid_: 组件资产包、@autospark/components（旧名，已更名）
+_Avoid_: 组件资产包、@autospark/components（旧名，已更名）、构建工具分发（vite 闭包构建工具已迁 @autospark/utils，ADR-0002）
 
 **运行时桥（Runtime Bridge）**:
 官方插件消费 autospark 能力的唯一通道：零静态值导入，运行期经 `globalThis.AutoSpark`（脚本场景）或预加载队列插件体第二参（先于引擎加载场景）解析命名空间成员。

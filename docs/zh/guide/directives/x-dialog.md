@@ -534,7 +534,7 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 
 ### 结构骨架（chrome）：标题 / 关闭按钮 / 动作区
 
-内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——默认自带 header（`closeable: true` 时有关闭按钮）与 body 内边距（`padding: '0.5em'`）。五个骨架键经 `x-dialog-options` 配置：
+内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——header / body / footer 三段（header 有内容才渲染，`closeable: true`（默认）时 close 按钮双形态：header 有内容 → 行内 x，无内容 → 右上角浮动 x）与 body 内边距（`padding: '0.5em'`）。五个骨架键经 `x-dialog-options` 配置：
 
 <demo html="dialog/chrome.html"/>
 
@@ -566,7 +566,7 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 - `title` / `icon` / `closeable` 是**头部配置**；`actions` 是**动作数组**——按 `pos` 归位：`top` → header 右侧、`left` → footer 左区、`right` / `auto` / `bottom` / 无 pos → footer 右区，同 `pos` 内 `order` 升序稳定排序；
 - `icon` 走 **x-icon 域**——内置名 `eye` / `gear` / `trash` / `user` / `edit` / `search` / `save` / `close` / `check` / `refresh` / `download` / `lock` / `info` / `warn` 等；自定义图标注册到 x-icon 域后同名可直用；
 - `actions` 每项 `handle` 在**消费处作用域**求值（定义处 `with(scope)` 词法链）——可直接读写消费处数据：visible 驱动形态下写回 `ui.open = false` 即关闭面板（面板内模板元素的 `@click="close()"` 信号动作语义不变）；不想写 `handle` 可把动作 id 绑定到组件方法（消费处 scope 同名 id）——骨架动作双通道语义，见 [覆盖物 · 动作双通道](../engine/overlays.md#骨架动作双通道handle-与消费处scope)；
-- 条件渲染：header / footer **有内容才渲染**（`closeable: false` 且标题、图标、动作区全空时 header 消失）；body 恒渲染。
+- 条件渲染：header / footer **有内容才渲染**（header 只看内容——标题、图标、顶区动作任一在场；无内容时不渲染，closeable 时 close 转根级浮动形态——右上角绝对定位，紧凑面板不为空 header 付一行高度）；body 恒渲染；`header` 插槽整块替换时 close 让位（替换者全权）。
 
 #### slots 重载：title / actions / header / footer
 
@@ -611,7 +611,7 @@ chrome 可重载的出口名（点分名）：
 
 #### 视觉定制
 
-不想要骨架 chrome 时设 `closeable: false` + 无标题无动作（header 消失）、`padding: 0` 还原紧凑形态；自定义 shell 整体替换则完全退出骨架。骨架视觉走 CSS 变量（`--autospark-overlay-bg / -border / -radius / -z`），主题系统统一驱动。
+不想要骨架 chrome 时设无标题无动作 + `padding: 0`——`closeable: true`（默认）下得**紧凑可关形态**（无 header 行、close 为右上角浮动 x），`closeable: false` 则连浮动 x 一并去除；自定义 shell 整体替换则完全退出骨架。骨架视觉走 CSS 变量（`--autospark-overlay-bg / -border / -radius / -z`），主题系统统一驱动。
 
 <demo html="dialog/chrome-visual.html"/>
 
@@ -703,7 +703,7 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 | ------------- | ----------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `title`       | 无                | —      | 骨架标题文本（header）；见[结构骨架（chrome）](#结构骨架chrome标题--关闭按钮--动作区)                                                        |
 | `icon`        | 无                | —      | 骨架标题左侧图标名（x-icon 域）                                                                                                              |
-| `closeable`   | `true`            | —      | 骨架 header 显示 close 图标按钮（走请求关闭链）；`false` 且标题/图标/动作区全空时 header 消失                                                |
+| `closeable`   | `true`            | —      | 显示 close 图标按钮（走请求关闭链）——双形态：header 有内容 → 行内 x（top actions 最右），无内容 → 右上角浮动 x；`false` 两形态皆关                                                |
 | `actions`     | 无                | —      | 骨架动作集（数组，按 `pos` 归位、`order` 升序）：`top` → 顶区、`left` → 左区、`right`/`auto`/`bottom`/无 pos → 右区                          |
 | `padding`     | `'0.5em'`         | —      | 骨架 body 区内边距（number 按 px）                                                                                                           |
 | `border`      | `true`            | —      | 面板外壳 1px 边框 + 背景 + 圆角，箭头双层变色自动融合；见[面板边框（border）](#面板边框border)                                              |

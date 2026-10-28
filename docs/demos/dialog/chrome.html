@@ -8,7 +8,7 @@
   </head>
   <body>
     <div class="demo-app section">
-      <div x-data="{ ui: { preview: false, slotCustom: false, compact: false }, doing: '' }">
+      <div x-data="{ ui: { preview: false, slotCustom: false, compact: false, float: false }, doing: '' }">
 
         <div class="block">
           <h4 class="title is-6">① 配置式 title + icon + actions 多 pos 归位</h4>
@@ -60,9 +60,11 @@
         </div>
 
         <div class="block">
-          <h4 class="title is-6">③ closeable: false + 无标题无动作 → header 消失、还原紧凑面板</h4>
+          <h4 class="title is-6">③ 无标题无动作：header 不渲染，closeable 决定浮动 x 的去留</h4>
           <p class="help has-text-grey is-size-7">
-            骨架 chrome 全部有内容才渲染；header 消失后 close 按钮也一起失效——消费者必须自己提供关闭路径
+            header 只看内容（标题/图标/顶区动作）——无内容时不渲染，不为空 header 付一行高度；
+            <code>closeable: true</code>（缺省）时 close 转根级浮动形态（右上角绝对定位），
+            <code>false</code> 则连浮动 x 一并去除（消费者自供关闭路径）
           </p>
           <button
             class="button"
@@ -70,7 +72,15 @@
             x-dialog-options="{closeable: false, padding: 0}"
             @click="ui.compact = true"
           >
-            紧凑面板（无骨架 chrome）
+            紧凑面板（无 x）
+          </button>
+          <button
+            class="button is-outlined ml-1"
+            x-dialog:compact="ui.float"
+            x-dialog-options="{padding: 0}"
+            @click="ui.float = true"
+          >
+            紧凑面板（右上角浮动 x）
           </button>
         </div>
 

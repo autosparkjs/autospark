@@ -2,6 +2,7 @@ import type { AutoSpark } from "../../engine/engine";
 import type { AutoSparkScope } from "../../engine/scope";
 import type { AutoSparkActionContext } from "./types";
 import { createDirectiveOptions } from "../../features/directive/utils/createDirectiveOptions";
+import { getDirectiveGlobalDefaults } from "../../features/directive/utils/getDirectiveGlobalDefaults";
 
 /**
  * 匹配"裸标识符"或"标识符(参数)"：^Identifier 可选 (args)
@@ -54,8 +55,13 @@ export function createEvalHandler(
         data: any,
     ) => any;
 
-    // 指令配置聚合视图（ADR-0007）：created 时构造一次，闭包捕获，事件触发时复用
-    const $options = createDirectiveOptions(directiveOptions, hostOptions);
+    // 指令配置聚合视图（ADR-0007 + 全局层 ADR-0127；本文件为 x-on 专用，指令名恒 "on"）：
+    // created 时构造一次，闭包捕获，事件触发时复用；全局层以解析器注入——$options 每次访问活读
+    const $options = createDirectiveOptions(
+        directiveOptions,
+        hostOptions,
+        () => getDirectiveGlobalDefaults(engine, "on"),
+    );
     // 返回值冒泡（ADR-0008）：action/表达式分支的返回值经管道透传，供 .feedback 等 wrapper 捕获
     // （如 async action 返回的 Promise）。同步抛错经 catch logger 后 rethrow，供 .feedback 检测同步失败（ADR-0013）。
     return (event) => {

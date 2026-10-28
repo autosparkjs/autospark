@@ -1,7 +1,7 @@
 (function (AutoSpark) {
     "use strict";
 var run = function (AutoSpark) {
-function e(e,t,n){let r=globalThis.AutoSpark,i=r?.[t];if(typeof i==`function`||t!==`ready`&&t!==`directive`&&i!=null){n(r);return}let a=globalThis.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(a)?console.error(`${e}: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):a.push((e,t)=>n(t))}function t(e){e.components[`autospark.button`]=`<!--
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){e.components[`autospark.button`]=`<!--
     化身路径约束（x-component T4=B）：组件快照根的属性是静态并入宿主（class 拼接 /
     style 合并 / 其他属性复制），根上的动态绑定不会求值——变体绑定须落在编译子树的
     内层元素（插槽出口 span）上，经 :has() 选择器驱动宿主外观；原生 disabled 语义
@@ -78,9 +78,9 @@ function e(e,t,n){let r=globalThis.AutoSpark,i=r?.[t];if(typeof i==`function`||t
          变体数据属性随出口元素承载（见文件头注释） -->
   <span class="asc-button-label" :data-type="type" :data-size="size" x-slot>{{ label }}</span>
 </button>
-`}n();function n(){e(`autospark.button`,`components`,e=>{t(e)})}};
+`}n();function n(){e(e=>{t(e)})}};
     if (AutoSpark === undefined) {
-        // 插件先于引擎加载（ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
+        // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
         var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);
         if (Object.isFrozen(queue)) {
             console.error("插件闭包: 预加载队列已消费且全局 AutoSpark 不可达，插件未注册");

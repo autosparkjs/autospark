@@ -4,8 +4,9 @@
  * 三态分治（vite 无配置数组语义，command/mode 路由）：
  * - `bun run build`（command=build，默认）——包构建：插件闭包产物清单驱动，
  *   主构建承担聚合产物，closeBundle 编排循环构建其余产物（rollup 多入口会提取
- *   共享 chunk，破坏「一产物一自包含闭包」契约，故一产物一次构建）+ 闭包工具
- *   本体（dist/vite，公共子路径 ./vite）+ publish（gzip 日志 + docs/public 复制）；
+ *   共享 chunk，破坏「一产物一自包含闭包」契约，故一产物一次构建）+ publish
+ *   （gzip 日志 + docs/public 复制）。闭包构建工具本体在 @autospark/utils/vite
+ *   （utils ADR-0002 迁出，本包不再产出 dist/vite）；
  * - `bun run build:demo`（mode=demo）——demo 消费现场装配：构建 demo 页面后复制
  *   发布产物与引擎 IIFE 进 dist-demo（自包含 script 直引现场，preview 可验收）；
  * - `bun run dev`（command=serve）——demo 开发服务器：script 直引契约资源，
@@ -18,7 +19,7 @@ import { resolve } from "path";
 import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
 import { gzip } from "node:zlib";
 import { promisify } from "node:util";
-import { installAutosparkPlugin } from "./src/vite/index.ts";
+import { buildAutoSparkPlugin } from "@autospark/utils/vite";
 
 const gzipPromise = promisify(gzip);
 
@@ -41,7 +42,7 @@ const CLOSURE_ARTIFACTS = [
   { entry: "src/plugins/button/index.ts", outFile: "autospark.button.js", label: "Button" },
 ] as const;
 
-/** 插件源码 / 闭包工具源码变化即失效 dev 缓存的路径特征（Windows 分隔符兼容） */
+/** 插件源码（本包）/ 闭包工具源码（utils 包，迁移后路径 packages/utils/src/vite）变化即失效 dev 缓存的路径特征（Windows 分隔符兼容） */
 const INVALIDATE_RE = /[\\/]src[\\/](plugins|runtime|vite)[\\/]/;
 
 /** 单插件闭包产物构建（lib 编排与 dev 即时闭包化共用，注入同一闭包工具） */
@@ -54,7 +55,7 @@ async function buildClosureArtifact(outFile: string, outDir: string, sourcemap: 
     configFile: false,
     root: pkgRoot,
     logLevel: "silent", // 构建失败经 throw 上抛（编排中断 / dev 中间件 500），进度静默
-    plugins: [installAutosparkPlugin()],
+    plugins: [buildAutoSparkPlugin()],
     build: {
       outDir,
       emptyOutDir: false, // 多产物共存，禁自动清空
@@ -67,27 +68,6 @@ async function buildClosureArtifact(outFile: string, outDir: string, sourcemap: 
     },
   });
   return readFileSync(resolve(outDir, outFile));
-}
-
-/** 闭包工具本体：ESM + 手写 d.ts（公共子路径 ./vite；类型面唯一符号见 src/vite/public.d.ts） */
-async function buildViteTool(): Promise<void> {
-  await viteBuild({
-    configFile: false,
-    root: pkgRoot,
-    logLevel: "silent",
-    build: {
-      outDir: resolve(DIST_DIR, "vite"),
-      emptyOutDir: false,
-      sourcemap: true,
-      minify: false, // 公开工具本体保持可读
-      lib: {
-        entry: resolve(pkgRoot, "src/vite/index.ts"),
-        formats: ["es"],
-        fileName: () => "index.js",
-      },
-    },
-  });
-  copyFileSync(resolve(pkgRoot, "src/vite/public.d.ts"), resolve(DIST_DIR, "vite/index.d.ts"));
 }
 
 /** 统计并复制 IIFE 产物到文档站公共资源（消费契约文件名不变） */
@@ -104,7 +84,6 @@ function libOrchestrationPlugin(): Plugin {
     name: "autospark-plugins-orchestration",
     apply: "build",
     closeBundle: async () => {
-      await buildViteTool();
       for (const artifact of CLOSURE_ARTIFACTS.slice(1)) {
         await buildClosureArtifact(artifact.outFile, DIST_DIR, true);
       }
@@ -214,7 +193,7 @@ export default defineConfig(({ command, mode }): UserConfig => {
   const [aggregate] = CLOSURE_ARTIFACTS;
   return {
     root: pkgRoot,
-    plugins: [installAutosparkPlugin(), libOrchestrationPlugin()],
+    plugins: [buildAutoSparkPlugin(), libOrchestrationPlugin()],
     build: {
       outDir: DIST_DIR,
       emptyOutDir: true, // 清除陈旧形态产物（ADR-0004 构建纪律）

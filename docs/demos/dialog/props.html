@@ -1,49 +1,64 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <title>x-dialog · props 传递（x-dialog-options.props）</title>
-        <script src="/autospark/autospark.js"></script>
-        <link rel="stylesheet" href="/autospark/bulma.min.css" />
-        <style>
-            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
-        </style>
-    </head>
-    <body>
-        <!-- 三者正交：visible 走指令值、props 走 x-dialog-options.props（表达式）、配置走 x-dialog-options -->
-        <div class="demo-app section">
-            <div x-data="{ ui: { openA: false, openB: false } }">
-                <div class="block">
-                    <button class="button is-primary"
-                            x-dialog:user="ui.openA"
-                            x-dialog-options.props="{userId: 1, userName: '用户1'}"
-                            x-dialog-options.close-on-mask="false"
-                            @click="ui.openA = true">查看用户 1（遮罩点击已禁用）</button>
-                    <button class="button"
-                            x-dialog:user="ui.openB"
-                            x-dialog-options.props="{userId: 42, userName: '用户42'}"
-                            @click="ui.openB = true">查看用户 42</button>
-                </div>
-                <div class="block has-text-grey">
-                    同一个组件 <code>x-define="user"</code>，两个消费点各自传不同 props——
-                    值专职 visible（<code>x-dialog:user="ui.openA"</code>）、props 走
-                    <code>x-dialog-options.props</code>（表达式，成员可引用状态路径、持续热更新）、
-                    配置走 <code>x-dialog-options</code>（camelCase 键的成员属性用 kebab-case，
-                    如 <code>close-on-mask</code>）。每次打开都是新实例、props 取最新求值值。
-                </div>
-
-                <div x-define="user">
-                    <script type="autospark/setup">{ data: { userId: 0, userName: "未知" } }</script>
-                    <div class="ov-panel">
-                        <h3 class="title is-5">用户资料</h3>
-                        <p>ID：<b x-text="userId"></b>，姓名：<b x-text="userName"></b></p>
-                        <button class="button is-fullwidth" @click="close()">关闭</button>
-                    </div>
-                </div>
-            </div>
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-dialog · props 传递（x-dialog-options.props）</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .ov-panel {
+        padding: 24px;
+        min-width: 320px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 三者正交：visible 走指令值、props 走 x-dialog-options.props（表达式）、配置走 x-dialog-options -->
+    <div class="demo-app section">
+      <div x-data="{ ui: { openA: false, openB: false } }">
+        <div class="block">
+          <button
+            class="button is-primary"
+            x-dialog:user="ui.openA"
+            x-dialog-options.props="{userId: 1, userName: '用户1'}"
+            x-dialog-options.close-on-mask="false"
+            @click="ui.openA = true"
+          >
+            查看用户 1（遮罩点击已禁用）
+          </button>
+          <button
+            class="button"
+            x-dialog:user="ui.openB"
+            x-dialog-options.props="{userId: 42, userName: '用户42'}"
+            @click="ui.openB = true"
+          >
+            查看用户 42
+          </button>
         </div>
-        <script>
-            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
-        </script>
-    </body>
+        <div class="block has-text-grey">
+          同一个组件 <code>x-define="user"</code>，两个消费点各自传不同 props——
+          值专职 visible（<code>x-dialog:user="ui.openA"</code>）、props 走
+          <code>x-dialog-options.props</code
+          >（表达式，成员可引用状态路径、持续热更新）、 配置走
+          <code>x-dialog-options</code>（camelCase 键的成员属性用 kebab-case，
+          如 <code>close-on-mask</code>）。每次打开都是新实例、props
+          取最新求值值。
+        </div>
+
+        <div x-define="user">
+          <script type="autospark/setup">
+            { data: { userId: 0, userName: "未知" } }
+          </script>
+          <div class="ov-panel">
+            <h3 class="title is-5">用户资料</h3>
+            <p>ID：<b x-text="userId"></b>，姓名：<b x-text="userName"></b></p>
+            <button class="button is-fullwidth" @click="close()">关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
 </html>

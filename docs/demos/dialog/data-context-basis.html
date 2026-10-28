@@ -1,45 +1,67 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8" />
-        <title>x-dialog · dataContext 数据视图基准</title>
-        <script src="/autospark/autospark.js"></script>
-        <link rel="stylesheet" href="/autospark/bulma.min.css" />
-        <style>
-            .ov-panel { background: #fff; border-radius: 8px; padding: 24px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
-        </style>
-    </head>
-    <body>
-        <!-- dataContext 数据视图基准决定覆盖物实例的数据视图（挂链即基准）：缺省读消费处；declarer 显式声明读声明处 -->
-        <div class="demo-app section">
-            <!-- 消费处：外层局部域 who = 消费处的数据（缺省基准挂它） -->
-            <div x-data="{ ui: { openA: false, openB: false }, who: '消费处的数据（局部域）' }">
-                <div class="block">
-                    <button class="button" x-dialog:demo="ui.openA" @click="ui.openA = true">打开（默认消费处）</button>
-                    <button class="button" x-dialog:demo="ui.openB" x-dialog-options.data-context="'declarer'"
-                            @click="ui.openB = true">打开（dataContext: 'declarer'）</button>
-                </div>
-                <div class="block has-text-grey">
-                    同一个组件 <code>x-define="demo"</code>，两种基准（挂链即基准）：缺省实例挂<b>消费处</b>
-                    scope，读本域的 <code>who</code>；<code>dataContext: 'declarer'</code> 挂<b>声明处</b>
-                    scope（定义闭包），读声明处局部域的 <code>who</code>。
-                </div>
-
-                <!-- 声明处：内层局部域遮蔽外层 who（declarer 基准的实例挂它；ui 沿祖先链回退外层） -->
-                <div x-data="{ who: '声明处的数据' }">
-                    <div class="block has-text-grey is-size-7">（本区域局部 x-data 声明了同名 who，dataContext: 'declarer' 读它）</div>
-                    <div x-define="demo">
-                        <div class="ov-panel">
-                            <h3 class="title is-5">数据来自</h3>
-                            <p class="title is-4" x-text="who"></p>
-                            <button class="button is-fullwidth" @click="close()">关闭</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-dialog · dataContext 数据视图基准</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .ov-panel {
+        padding: 24px;
+        min-width: 320px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- dataContext 数据视图基准决定覆盖物实例的数据视图（挂链即基准）：缺省读消费处；declarer 显式声明读声明处 -->
+    <div class="demo-app section">
+      <!-- 消费处：外层局部域 who = 消费处的数据（缺省基准挂它） -->
+      <div
+        x-data="{ ui: { openA: false, openB: false }, who: '消费处的数据（局部域）' }"
+      >
+        <div class="block">
+          <button
+            class="button"
+            x-dialog:demo="ui.openA"
+            @click="ui.openA = true"
+          >
+            打开（默认消费处）
+          </button>
+          <button
+            class="button"
+            x-dialog:demo="ui.openB"
+            x-dialog-options.data-context="'declarer'"
+            @click="ui.openB = true"
+          >
+            打开（dataContext: 'declarer'）
+          </button>
         </div>
-        <script>
-            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
-        </script>
-    </body>
+        <div class="block has-text-grey">
+          同一个组件
+          <code>x-define="demo"</code>，两种基准（挂链即基准）：缺省实例挂<b
+            >消费处</b
+          >
+          scope，读本域的 <code>who</code>；<code>dataContext: 'declarer'</code>
+          挂<b>声明处</b> scope（定义闭包），读声明处局部域的 <code>who</code>。
+        </div>
+
+        <!-- 声明处：内层局部域遮蔽外层 who（declarer 基准的实例挂它；ui 沿祖先链回退外层） -->
+        <div x-data="{ who: '声明处的数据' }">
+          <div class="block has-text-grey is-size-7">
+            （本区域局部 x-data 声明了同名 who，dataContext: 'declarer' 读它）
+          </div>
+          <div x-define="demo">
+            <div class="ov-panel">
+              <h3 class="title is-5">数据来自</h3>
+              <p class="title is-4" x-text="who"></p>
+              <button class="button is-fullwidth" @click="close()">关闭</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
 </html>

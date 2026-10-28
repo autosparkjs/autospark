@@ -386,6 +386,8 @@ export class DrawerDirective extends VisibleOverlayDirective {
      * 配置链出口叠加（ADR-0063）：
      * - 默认动画 `'drawer'`：仅当用户未在任一层（静态整包 / 成员表达式）显式配置 animate
      *   时注入——OVERLAY_DEFAULTS.animate='fade' 恒被合入，不能以合并产物判「未配置」；
+     * - 形态默认 closeable 缺省 false（ADR-0124 决策 3 修订）——默认表无硬值（undefined ≙
+     *   家族 true），合并产物 undefined 即未显式配置，可直接 ??=（与 animate 判定不同源）；
      * - stash 生效配置（mask 选项读取源 + 屏幕贴边方向读取源）。
      */
     protected override _resolveConfig(optionLayer: Record<string, any>): OverlayConfig {
@@ -394,6 +396,7 @@ export class DrawerDirective extends VisibleOverlayDirective {
         const config = super._resolveConfig(optionLayer);
         this._config = config;
         if (!userAnimated) config.animate = "drawer";
+        config.closeable ??= false;
         return config;
     }
 

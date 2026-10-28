@@ -7,11 +7,8 @@
     <link rel="stylesheet" href="/autospark/bulma.min.css" />
     <style>
       .ov-panel {
-        background: #fff;
-        border-radius: 8px;
         padding: 20px;
         min-width: 260px;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
       }
       .ov-panel-sm {
         padding: 10px 14px;
@@ -61,7 +58,10 @@
   </head>
   <body>
     <!-- at 命令式换锚：open(options) 的 at 走合并链最顶层；有 at 时贴锚定位（floating-ui），遮罩照常模态 -->
-    <div class="demo-app section" style="padding-top: 150px; padding-bottom: 20px">
+    <div
+      class="demo-app section"
+      style="padding-top: 150px; padding-bottom: 20px"
+    >
       <div class="block" style="display: flex; gap: 8px; flex-wrap: wrap">
         <button id="btn-top" class="button" onclick="openTip('top')">
           从上方按钮弹出（placement: top）
@@ -71,11 +71,16 @@
         </button>
       </div>
       <div class="block has-text-grey">
-        <code>at.selector</code> 相对查询：<code>/</code> 前缀全局选择器（<code>../</code> 父级爬升、<code>^</code> closest）、无前缀 scope
-        子树内查、命令式简写直接传元素（本页）。 锚定模式下箭头<b>默认开启</b>（伪元素实现，模板零约定，
-        <code>arrow: false</code> 显式关闭）。
-        指令选项 <code>x-dialog-options</code> 的 at 是缺省锚（字符串/元素简写 ≡
-        <code>{selector}</code>），命令式 <code>open({at})</code> 在合并链最顶层覆盖它——换锚即换位置。
+        <code>at.selector</code> 相对查询：<code>/</code> 前缀全局选择器（<code
+          >../</code
+        >
+        父级爬升、<code>^</code> closest）、无前缀 scope
+        子树内查、命令式简写直接传元素（本页）。
+        锚定模式下箭头<b>默认开启</b>（伪元素实现，模板零约定，
+        <code>arrow: false</code> 显式关闭）。 指令选项
+        <code>x-dialog-options</code> 的 at 是缺省锚（字符串/元素简写 ≡
+        <code>{selector}</code>），命令式
+        <code>open({at})</code> 在合并链最顶层覆盖它——换锚即换位置。
       </div>
 
       <!-- 覆盖物内容：普通组件声明；x-scope 提供归属 scope，命令式 getOverlay 以该元素起链查找 -->
@@ -84,7 +89,9 @@
           <div class="ov-panel">
             <h3 class="title is-5">贴锚提示</h3>
             <p>本面板贴着触发按钮定位。</p>
-            <button class="button is-small is-fullwidth" @click="close()">关闭</button>
+            <button class="button is-small is-fullwidth" @click="close()">
+              关闭
+            </button>
           </div>
         </div>
       </div>
@@ -232,31 +239,44 @@
           </script>
           <div class="ov-panel ov-panel-sm">
             placement: <b x-text="placement"></b>
-            <div class="has-text-grey is-size-7">ESC / 点遮罩关闭（回写状态位）</div>
+            <div class="has-text-grey is-size-7">
+              ESC / 点遮罩关闭（回写状态位）
+            </div>
           </div>
         </div>
 
         <div class="block has-text-grey is-size-7" style="margin-top: 8px">
-          13 个消费点共享同一组件，值对象差异化 <code>visible</code>（简单路径，关闭自动回写
-          <code>false</code>）/ <code>placement</code>（props）/ <code>at</code>（保留配置键，
-          <code>selector</code> 用 <code>/</code> 全局选择器引用中央锚点；auto 按钮演示
-          <strong>字符串简写</strong> <code>at: '/#anchor-center'</code> ≡ <code>{selector: …}</code>）。
+          13 个消费点共享同一组件，值对象差异化
+          <code>visible</code>（简单路径，关闭自动回写 <code>false</code>）/
+          <code>placement</code>（props）/ <code>at</code>（保留配置键，
+          <code>selector</code> 用 <code>/</code> 全局选择器引用中央锚点；auto
+          按钮演示 <strong>字符串简写</strong>
+          <code>at: '/#anchor-center'</code> ≡ <code>{selector: …}</code>）。
           模态遮罩保证同时只开一个。
-          <code>placement: 'auto'</code>（**默认值**，省略即 auto）经 autoPlacement 按视口空间自动选位；
-          <code>border</code> 同样默认开启（面板 1px 边框 + 箭头双层变色自动融合，最后一个按钮演示
-          <code>border: false</code> 关闭）；
-          演示中 <code>flip: false</code> 关闭视口翻转（生产默认开启，放不下时自动翻面），
-          以展示每个 placement 的原始语义。
+          <code>placement: 'auto'</code>（**默认值**，省略即 auto）经
+          autoPlacement 按视口空间自动选位；
+          <code>border</code> 同样默认开启（面板 1px 边框 +
+          箭头双层变色自动融合，最后一个按钮演示
+          <code>border: false</code> 关闭）； 演示中
+          <code>flip: false</code>
+          关闭视口翻转（生产默认开启，放不下时自动翻面）， 以展示每个 placement
+          的原始语义。
         </div>
       </div>
     </div>
     <script>
-      const engine = new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+      const engine = new AutoSparkSpaces.AutoSpark(
+        document.querySelector(".demo-app"),
+        {},
+      );
       // 命令式 open（顶部换锚演示用）：at 元素简写 ≡ {selector: el}
       // （el 起链查找命中 x-scope 内的 tip 组件声明；placement 保留在锚配置对象里）
       function openTip(pos) {
         engine.getOverlay(document.getElementById("tip-root"), "tip")?.open({
-          at: { selector: document.getElementById("btn-" + pos), placement: pos },
+          at: {
+            selector: document.getElementById("btn-" + pos),
+            placement: pos,
+          },
         });
       }
     </script>

@@ -96,6 +96,7 @@
         "@types/bun": "^1.4.2",
         "autospark": "workspace:*",
         "typescript": "^7.0.2",
+        "vite": "^8.3.5",
       },
     },
   },

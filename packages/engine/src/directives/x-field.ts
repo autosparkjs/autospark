@@ -281,12 +281,11 @@ export class FieldDirective extends AutoSparkDirectiveBase {
         }
     }
 
-    /** 元数据覆盖链读取（决策 9）：x-field-options > configurable schema；不写回 schema 本体 */
+    /** 元数据覆盖链读取（决策 9 + ADR-0127 回退链）：x-field-options（含成员表达式）>
+     *  宿主 x-options > 指令全局默认 > configurable schema；不写回 schema 本体 */
     private _meta(k: string): any {
-        if (this.options && Object.prototype.hasOwnProperty.call(this.options, k)) {
-            return this.options[k];
-        }
-        return this.schema?.[k];
+        const v = this.getOption(k);
+        return v !== undefined ? v : this.schema?.[k];
     }
 
     // ── schema 转换函数应用（ADR-0050）─────────────────────────────

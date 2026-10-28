@@ -12,17 +12,27 @@
     分组进 _topActions/_leftActions/_rightActions，order 升序稳定排序）；
   - header / footer 出口整块替换：出口有内容时 fallback（含 close 按钮）让位，
     closeable 失效（ADR-0124 决策 2）；
-  - header/footer 条件渲染（决策 3）：props（响应式）+ 出口内容命中（编译期
-    静态——created 期沿持有者链复算 _chrome 旗标，重开/重建即重评）；
+  - header/footer 条件渲染（决策 3 修订：closeable 移出 header 判定集——header 只看
+    内容：title ∥ icon ∥ title 出口 ∥ actions.top 出口 ∥ pos=top actions）：props
+    （响应式）+ 出口内容命中（编译期静态——created 期沿持有者链复算 _chrome 旗标，
+    重开/重建即重评）；
+  - close 按钮双形态（决策 3 修订）：header 有内容 → 行内 x（header flex 尾部，
+    top actions 最右）；header 无内容且 closeable !== false → 根级绝对定位浮动 x
+    （右上角 0.375em，两份 DOM 互斥——对偶条件与 header x-show 同构）；
   - body 出口恒渲染，padding props 控制内边距（默认 0.5em）。
 
   close 按钮复用全局 close 信号 action（x-on 裸名 → method miss → getAction 链
   → SIGNAL_ACTIONS.close → action:close 冒泡 → 实例根委托 requestClose，决策 5）。
 -->
 <div class="autospark-overlay" x-define="autospark.overlay">
+    <!-- 浮动 close（决策 3 修订）：header 不渲染且可关时的根级绝对定位 x——
+         条件 = header 判定集取反 ∩ closeable（与 header 行内 x 互斥对偶） -->
+    <button class="autospark-overlay-close autospark-overlay-close-floating" type="button"
+        x-show="closeable !== false && !(_chrome.header || !!title || !!icon || _chrome.title || _chrome['actions.top'] || _topActions.length > 0)"
+        x-on:click="close" x-icon="'no'" aria-label="关闭"></button>
     <!-- header 区：出口整块替换 or 默认结构（title / actions.top / close） -->
     <div class="autospark-overlay-header" x-slot:header
-        x-show="_chrome.header || !!title || !!icon || _chrome.title || _chrome['actions.top'] || _topActions.length > 0 || closeable !== false">
+        x-show="_chrome.header || !!title || !!icon || _chrome.title || _chrome['actions.top'] || _topActions.length > 0">
         <div class="autospark-overlay-title" x-slot:title x-show="_chrome.title || !!title || !!icon">
             <i class="autospark-overlay-icon" x-icon="icon || null"></i>
             <span class="autospark-overlay-title-text" x-text="title"></span>
@@ -79,6 +89,8 @@
             flex-direction: column;
             min-width: 0;
             min-height: 0;
+            /* 浮动 close 的定位基准（决策 3 修订：header 不渲染时 x 绝对定位右上角） */
+            position: relative;
         }
 
         .autospark-overlay-header {
@@ -135,6 +147,15 @@
             background: var(--autospark-overlay-hover, rgba(0, 0, 0, 0.06));
         }
 
+        /* 浮动形态（决策 3 修订）：header 不渲染时绝对定位右上角，压在 body padding 区之上
+           （padding: 0 + 内容贴角时遮挡内容——已知取舍）；z-index 确保浮于 body 内容 */
+        .autospark-overlay-close-floating {
+            position: absolute;
+            top: 0.375em;
+            right: 0.375em;
+            z-index: 1;
+        }
+
         .autospark-overlay-body {
             flex: 1 1 auto;
             min-height: 0;
@@ -173,6 +194,12 @@
 
         .autospark-overlay-action:hover {
             background: var(--autospark-overlay-hover, rgba(0, 0, 0, 0.06));
+        }
+
+        /* 顶区动作与 close 同处 header 行：幽灵图标钮风格（无边框，hover 底色统一）；
+           footer 动作保留按钮边框（取消/确认等决策性操作） */
+        .autospark-overlay-actions-top .autospark-overlay-action {
+            border: none;
         }
     </style>
     <script setup>

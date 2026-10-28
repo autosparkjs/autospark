@@ -165,7 +165,8 @@ export interface OverlayConfig {
     url?: string;
     /**
      * 标题文本（ADR-0124 决策 6）：overlay 骨架 header 区渲染；空缺时 header 靠其余
-     * 内容（icon / closeable / chrome 出口）决定显隐。走 options 通道，打开时经
+     * 内容（icon / chrome 出口 / pos=top 动作）决定显隐（决策 3 修订：closeable 移出
+     * 判定集——无内容时 header 不渲染、close 转根级浮动形态）。走 options 通道，打开时经
      * resolveOverlayConfig 现读，重开生效。
      */
     title?: string;
@@ -174,9 +175,13 @@ export interface OverlayConfig {
      */
     icon?: string;
     /**
-     * 是否显示 close 图标按钮（ADR-0124 决策 5，默认 true）：点击触发全局 close 信号
-     * action（SIGNAL_ACTIONS.close）→ requestClose 既有链路。显式 false 关闭；header 出口
-     * 被整块替换时本键失效（出口内容让位 close）。
+     * 是否显示 close 图标按钮（ADR-0124 决策 5，决策 3 修订双形态）：header 有内容 →
+     * 行内 x（top actions 最右）；header 无内容 → 根级绝对定位浮动 x（右上角）。点击
+     * 触发全局 close 信号 action（SIGNAL_ACTIONS.close）→ requestClose 既有链路。缺省
+     * 值分形态（决策 3 修订）：dialog ≙ true（默认表 undefined、模板 `!== false` 缺省
+     * 即开）；popover / drawer 经形态子类 `_resolveConfig` 覆写补 `false`（紧凑悬浮/
+     * 贴边形态浮动 x 价值低）。显式 false 两形态皆关；header 出口被整块替换时本键失效
+     * （出口内容让位 close，决策 2 保持）。
      */
     closeable?: boolean;
     /**
@@ -207,7 +212,10 @@ export const OVERLAY_DEFAULTS: OverlayConfig = {
     // 组件 watch 走精准路径支路
     title: undefined,
     icon: undefined,
-    closeable: true,
+    // 决策 3 修订：closeable 家族缺省 ≙ true（模板判定 `!== false`，undefined 即开）——
+    // 默认表不落硬值 true，留 undefined 缺口给形态子类覆写 _resolveConfig 补形态默认
+    // （popover / drawer 补 false；硬值 true 会让「显式 true」与「默认 true」不可区分）
+    closeable: undefined,
     actions: undefined,
     padding: undefined,
 };

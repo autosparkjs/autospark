@@ -48,7 +48,7 @@ ADR-0003 定谳产物 IIFE-only（脚本即契约）后，构建链仍由 tsup �
 
 ### 决策 3：源码创作糖——构建工具公开化为 `installAutosparkPlugin()`
 
-vite 插件随包分发，子路径导出 `@autospark/plugins/vite`（`exports` map 中**唯一**的运行时模块面——与「产物 IIFE-only」不冲突，它是构建期工具不是运行时产物）。工厂函数命名 `installAutosparkPlugin()`（与 ADR-0111 机制词汇「插件安装」同构，不引入 `definePlugin` 等第二套插件抽象——ADR-0003 决策 5 沿用）。
+vite 插件随包分发，子路径导出 `@autospark/plugins/vite`（`exports` map 中**唯一**的运行时模块面——与「产物 IIFE-only」不冲突，它是构建期工具不是运行时产物）。工厂函数命名 `installAutosparkPlugin()`（与 ADR-0111 机制词汇「插件安装」同构，不引入 `definePlugin` 等第二套插件抽象——ADR-0003 决策 5 沿用）。（**修订 2026-10-28：工具本体迁 `@autospark/utils/vite`（utils ADR-0002 准入，plugins 包身份纯化），本包 exports map 随之整体退役、`dist/vite` 与 `buildViteTool` 构建步骤退役——「随包分发」形态废止，三项职责定谳处仍在本决策。同日工厂更名 `buildAutoSparkPlugin`：构建期工具用 build 词汇，与运行时 `installPlugin`（真注册安装）消歧——本段「与安装词汇同构」的命名理由随之作废，命名决策记录于 utils ADR-0002。**）
 
 三项职责：
 

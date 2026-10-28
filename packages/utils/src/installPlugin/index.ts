@@ -20,6 +20,13 @@ import type { AutoSpark, PluginBootstrap } from "autospark";
 const IDENTITY_PROBE = "ready";
 
 /**
+ * 预加载队列全局键（engine 构造 drain，engine ADR-0114）——utils 包内单源：
+ * 本模块（源码级入队侧）与 vite 闭包外壳工具（产物外壳发射侧）共用，防双写漂移
+ * （utils ADR-0002 迁移时收敛，原 vite 工具内联副本退役）。
+ */
+export const PRELOAD_QUEUE_KEY = "__AUTOSPARK_PLUGINS__";
+
+/**
  * 双路径注册（插件入口模块加载期调用一次，仅收注册体一份入参）。
  *
  * @param register 实际注册体（收命名空间；内部应先 captureNamespace 再注册）
@@ -30,7 +37,8 @@ export function installPlugin(register: (autospark: typeof AutoSpark) => void): 
         register(existing!);
         return;
     }
-    const queue = ((globalThis as { __AUTOSPARK_PLUGINS__?: PluginBootstrap[] }).__AUTOSPARK_PLUGINS__ ??= []);
+    const globals = globalThis as typeof globalThis & { __AUTOSPARK_PLUGINS__?: PluginBootstrap[] };
+    const queue = (globals[PRELOAD_QUEUE_KEY] ??= []);
     if (Object.isFrozen(queue)) {
         console.error(
             "installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册",

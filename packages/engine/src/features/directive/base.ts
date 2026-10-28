@@ -2,6 +2,7 @@ import type { Watcher } from "autostore";
 import type { AutoSparkScope } from "../../engine/scope";
 import type { AutoSpark } from "../../engine/engine";
 import type { AutoDirectiveInfo } from "./types";
+import { getDirectiveGlobalDefaults } from "./utils/getDirectiveGlobalDefaults";
 
 /**
  * 指令类别（DirectiveKind）
@@ -292,15 +293,17 @@ export class AutoSparkDirectiveBase {
     }
 
     /**
-     * 读取指令配置（ADR-0007 回退链 + 修订：表达式层内嵌）。
+     * 读取指令配置（ADR-0007 回退链 + 修订：表达式层内嵌；全局层 ADR-0127）。
      *
      * 查询顺序：选项成员表达式求值值（`_optionExprValues`，最高——整键覆盖静态同名项）→
      * 指令选项（`this.options`，含解析期注入的 modifier 开关）→ 宿主选项
-     * （`this.binding.hostOptions`，即 `x-options`）。显式写值（含 `false`）即命中、阻断回退；
-     * 三层均无返回 undefined。表达式层与静态层先在指令选项内部收敛出终值，再对外回退。
+     * （`this.binding.hostOptions`，即 `x-options`）→ **指令全局默认**
+     * （`engine.options.directives["x-{name}"]`，活读、键级回退不深合并）。
+     * 显式写值（含 `false`）即命中、阻断回退；四层均无返回 undefined，由指令代码
+     * `?? 内置兜底` 收尾（内置默认不进本链，表达式视图不可见，ADR-0127）。
      *
      * modifier 与指令选项经此方法等价：`.global` 与 `x-{name}-options="{global:true}"` 统一可读。
-     * Runtime 指令（无 binding）仅查指令选项（无宿主选项回退）。
+     * Runtime 指令（无 binding）跳过宿主选项层（无元素 scope），全局默认层照常生效。
      */
     getOption(key: string): any {
         if (this._optionExprValues && Object.prototype.hasOwnProperty.call(this._optionExprValues, key)) {
@@ -312,6 +315,10 @@ export class AutoSparkDirectiveBase {
         const host = this.binding?.hostOptions;
         if (host && Object.prototype.hasOwnProperty.call(host, key)) {
             return host[key];
+        }
+        const global = getDirectiveGlobalDefaults(this.engine, this.info.name);
+        if (global && Object.prototype.hasOwnProperty.call(global, key)) {
+            return global[key];
         }
         return undefined;
     }

@@ -139,11 +139,11 @@ new AutoSpark(el, state, { overlay: { dialog: { shell: "my-dialog" } } });
 | --- | --- | --- |
 | `title` | 无 | 标题文本 |
 | `icon` | 无 | 标题左侧图标名（x-icon 域） |
-| `closeable` | `true` | header 右侧显示 close 图标按钮，点击走全局 close 信号动作（请求关闭链） |
+| `closeable` | dialog `true` / popover、drawer `false` | 是否显示 close 图标按钮（点击走全局 close 信号动作，请求关闭链）——**双形态**：header 有内容 → 行内 x（top actions 最右侧）；header 无内容 → 根级浮动 x（右上角绝对定位）。缺省值分形态：紧凑悬浮 / 贴边形态浮动 x 价值低，默认关 |
 | `actions` | 无 | 动作集（`{id, title, icon, tooltip, handle, pos, order}` 数组），按 `pos` 归位：`top` → 顶区、`left` → 左区、`right` / `auto` / `bottom` / 无 pos → 右区，`order` 升序稳定排序 |
 | `padding` | `'0.5em'` | body 区内边距（number 按 px） |
 
-条件渲染：header / footer **有内容才渲染**（`closeable: false` 且标题、图标、动作区全空时 header 消失）；body 恒渲染。视觉定制走 CSS 变量（`--autospark-overlay-*` 家族）。
+条件渲染：header / footer **有内容才渲染**（header 只看内容——标题、图标、顶区动作任一在场；无内容时 header 不渲染，closeable 时 close 按钮转**根级浮动形态**——右上角绝对定位，紧凑面板不为空 header 付一行高度）；body 恒渲染。`header` 插槽整块替换时 close 让位（替换者全权）。视觉定制走 CSS 变量（`--autospark-overlay-*` 家族）。
 
 **骨架插槽重载**：内置 shell 声明了插槽通配转发（`slots: "*"`，ADR-0125）——消费者在**宿主子级**用 `x-slot:名` 标记即可直接重载骨架的 chrome 出口：`title`（替换标题文本区）、`header` / `footer`（**整块替换**，`header` 让位时 close 按钮一并失效）、`actions.top` / `actions.left` / `actions.right`（点分名；裸 `actions` 等价 `actions.right`）。内容组件 `def.slots` **声明过的名字归内容组件**（今日插槽语义 100% 不变），未声明的 chrome 名才进骨架；`default` / `body` 永不转发（body 是内容直通位）：
 

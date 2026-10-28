@@ -147,6 +147,9 @@ export class PopoverDirective extends OverlayDirective {
         at.selector ??= this.el;
         at.placement ??= "bottom";
         config.at = at;
+        // 形态默认（ADR-0124 决策 3 修订）：紧凑悬浮形态浮动 x 价值低，缺省不显示
+        // close 按钮（家族默认 ≙ true 由模板 `!== false` 承担，显式 true/false 原样通过）
+        config.closeable ??= false;
         return config;
     }
 
