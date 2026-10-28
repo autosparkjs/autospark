@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>指令配置 · 两层回退</title>
+        <title>指令配置 · 回退链</title>
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
     </head>
@@ -25,6 +25,22 @@
             </div>
         </div>
 
+        <!-- 全局默认层（ADR-0127）：独立 engine 实例经 options.directives 注入 x-text 全局默认 -->
+        <div class="demo-global section">
+            <div class="block">
+                仅全局默认：<span x-text="a"></span>
+            </div>
+            <div class="block">
+                宿主压全局：<span x-options="{ empty: '宿主' }" x-text="b"></span>
+            </div>
+            <div class="block">
+                指令压全局：<span x-text="c" x-text-options="{ empty: '指令' }"></span>
+            </div>
+            <div class="buttons">
+                <button class="button is-primary" @click="toggleGlobal">切换 空 / 有值（全局默认组）</button>
+            </div>
+        </div>
+
         <script>
             const engine = new AutoSparkSpaces.AutoSpark(
                 document.querySelector(".demo-app"),
@@ -37,6 +53,22 @@
                             engine.state.stock = empty ? "iPhone" : null;
                             engine.state.score = empty ? 95 : null;
                             engine.state.count = empty ? 3 : null;
+                        },
+                    },
+                },
+            );
+            const engine2 = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-global"),
+                { a: "值 A", b: "值 B", c: "值 C" },
+                {
+                    // 指令全局默认（ADR-0127）：本 engine 内全部 x-text 的 empty 兜底
+                    directives: { "x-text": { empty: "（全局占位）" } },
+                    actions: {
+                        toggleGlobal: () => {
+                            const empty = engine2.state.a == null;
+                            engine2.state.a = empty ? "值 A" : null;
+                            engine2.state.b = empty ? "值 B" : null;
+                            engine2.state.c = empty ? "值 C" : null;
                         },
                     },
                 },
