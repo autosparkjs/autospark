@@ -18,6 +18,8 @@
 <script src="/autospark/autospark.version.js"></script>
 ```
 
+npm 场景：`npm install @autospark/plugins` 后自 `node_modules/@autospark/plugins/dist/` 复制所需产物进项目（本包仅 IIFE 产物，无 ESM import 通道，ADR-0128）；CDN 直引把上例 `src` 换为 `https://unpkg.com/@autospark/plugins/dist/autospark.version.js`。
+
 未加载插件时 `x-version` 属性会被编译器当作普通属性剥除，指令不生效。聚合产物 `autospark.plugins.js` 一个标签包含全部官方插件。
 :::
 
