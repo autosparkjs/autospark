@@ -5,8 +5,8 @@ import {
     matchVersion,
     parseVersionMatch,
     VERSION_HIDDEN_CLASS,
-} from "../../directives/x-version";
-import type { VersionClause } from "../../directives/x-version";
+} from "../../directives/version/index";
+import type { VersionClause } from "../../directives/version/index";
 
 /**
  * x-version 版本显隐测试（ADR-0119）。

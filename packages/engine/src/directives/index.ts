@@ -38,7 +38,6 @@ export * from "./x-pane";
 export * from "./x-foldable";
 export * from "./x-container";
 export * from "./x-viewport";
-export * from "./x-version";
 
 import type { AutoSparkDirectiveBase } from "../features/directive/base";
 import { TextDirective } from "./x-text";
@@ -78,7 +77,6 @@ import { PaneDirective } from "./x-pane";
 import { FoldableDirective } from "./x-foldable";
 import { ContainerDirective } from "./x-container";
 import { ViewportDirective } from "./x-viewport";
-import { VersionDirective } from "./x-version";
 
 /**
  * 预设指令映射：指令名 → 指令类。
@@ -166,5 +164,4 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     // x-version 版本显隐（ADR-0119）：$.version 版本匹配表达式声明式糖——切
     // autospark-version-hidden 类（display:none !important），不碰 inline display
     //（版本隐藏恒胜 x-show）；空值 / $.version 未知静默恒渲染，非法子句 warn 整体忽略
-    version: VersionDirective,
 };
