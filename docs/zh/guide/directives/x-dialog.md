@@ -10,6 +10,17 @@
 
 打开靠改状态；ESC、点遮罩、面板内 close 动作三个触点统一走**「请求关闭」**——可回写（简单路径）自动回写 `false`，状态是唯一真相源。
 
+::: tip 插件指令
+`x-dialog` 由官方插件包 `@autospark/plugins` 提供（ADR-0128 核心集外移），使用前须加载插件脚本，且**先于 engine 实例化**：
+
+```html
+<script src="/autospark/autospark.js"></script>
+<script src="/autospark/autospark.overlay.js"></script>
+```
+
+未加载插件时 `x-dialog` 属性会被编译器当作普通属性剥除，指令不生效。`autospark.overlay.js` 同时包含覆盖物家族全部指令（x-dialog / x-popover / x-drawer / x-foldable），加载一次即全家族可用。聚合产物 `autospark.plugins.js` 一个标签包含全部官方插件。
+:::
+
 ## 快速入门
 
 <demo html="dialog/basic.html"/>

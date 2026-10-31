@@ -12,6 +12,17 @@
 
 分页状态有三条正交的访问通道：项模板内的 `$page` 等 `$*` 变量、容器 scope 上的 `scope.paging` 只读快照、外部 `:data-paging` 双向绑定对象，详见[指南](#指南)。
 
+::: tip 策略插件
+`.paging` 渲染策略由官方插件包 `@autospark/plugins` 提供（ADR-0128——`x-for` 指令本体内置于 engine，渲染策略按需引入），使用前须加载插件脚本，且**先于 engine 实例化**：
+
+```html
+<script src="/autospark/autospark.js"></script>
+<script src="/autospark/autospark.paging.js"></script>
+```
+
+未加载插件时声明 `.paging` 会得到一条 warn 并**退化全量渲染**（降级而非失效，列表功能不受影响）。聚合产物 `autospark.plugins.js` 一个标签包含全部官方插件。
+:::
+
 ## 快速入门
 
 <demo html="for/paging-basic.html"/>

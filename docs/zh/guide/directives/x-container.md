@@ -10,6 +10,17 @@
 
 <demo html="container/basic.html"/>
 
+::: tip 插件指令
+`x-container` 由官方插件包 `@autospark/plugins` 提供（ADR-0128 核心集外移），使用前须加载插件脚本，且**先于 engine 实例化**：
+
+```html
+<script src="/autospark/autospark.js"></script>
+<script src="/autospark/autospark.layout.js"></script>
+```
+
+未加载插件时 `x-container` 属性会被编译器当作普通属性剥除，指令不生效。`autospark.layout.js` 同时包含布局家族全部指令（x-layout / x-pane / x-splitter / x-expandable / x-resizable / x-container / x-viewport），加载一次即全家族可用。聚合产物 `autospark.plugins.js` 一个标签包含全部官方插件。
+:::
+
 ## 快速入门
 
 ```html

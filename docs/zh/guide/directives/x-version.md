@@ -10,6 +10,17 @@
 
 <demo html="version/basic.html"/>
 
+::: tip 插件指令
+`x-version` 由官方插件包 `@autospark/plugins` 提供（ADR-0128 核心集外移），使用前须加载插件脚本，且**先于 engine 实例化**：
+
+```html
+<script src="/autospark/autospark.js"></script>
+<script src="/autospark/autospark.version.js"></script>
+```
+
+未加载插件时 `x-version` 属性会被编译器当作普通属性剥除，指令不生效。聚合产物 `autospark.plugins.js` 一个标签包含全部官方插件。
+:::
+
 ## 快速入门
 
 ```html

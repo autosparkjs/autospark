@@ -4,6 +4,17 @@
 
 溢出折叠容器指令（[ADR-0098](https://github.com/zhangfisher/autospark/blob/main/packages/engine/docs/adr/0098-x-foldable.md)）：`x-foldable` 宿主是一条 **nowrap flex 容器**（`row` / `column`），子元素强制不伸不缩；空间不足时**从主轴末尾起把子元素逐个折入「更多」按钮的弹出面板**，空间恢复时按原序还原。工具栏、面包屑、标签条等「内容多少不确定、宽度受限」的场景。
 
+::: tip 插件指令
+`x-foldable` 由官方插件包 `@autospark/plugins` 提供（ADR-0128 核心集外移），使用前须加载插件脚本，且**先于 engine 实例化**：
+
+```html
+<script src="/autospark/autospark.js"></script>
+<script src="/autospark/autospark.overlay.js"></script>
+```
+
+未加载插件时 `x-foldable` 属性会被编译器当作普通属性剥除，指令不生效。`autospark.overlay.js` 同时包含覆盖物家族全部指令（x-dialog / x-popover / x-drawer / x-foldable），加载一次即全家族可用。聚合产物 `autospark.plugins.js` 一个标签包含全部官方插件。
+:::
+
 ## 快速入门
 
 ```html

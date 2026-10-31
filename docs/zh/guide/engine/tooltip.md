@@ -18,6 +18,17 @@
 模板中直接写 `data-tooltip` 是首选形态（无转换成本）；存量模板的 `title` 无需迁移——编译期自动转换，行为与手写完全一致。
 :::
 
+::: tip 插件特性
+工具提示特性由官方插件包 `@autospark/plugins` 提供（ADR-0128 薄壳化——**选择性引入即开关**），使用前须加载插件脚本，且**先于 engine 实例化**：
+
+```html
+<script src="/autospark/autospark.js"></script>
+<script src="/autospark/autospark.tooltip.js"></script>
+```
+
+未加载插件时 `title` 保持浏览器原生行为、`data-tooltip` 无消费方；`engine.tooltip` 命令式 API 调用得到 warn + no-op。
+:::
+
 ## 快速入门
 
 <demo html="tooltip/basic.html"/>
