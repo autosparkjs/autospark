@@ -20,7 +20,7 @@
 <script src="/autospark/autospark.virtual.js"></script>
 ```
 
-npm 场景：`npm install @autospark/plugins` 后自 `node_modules/@autospark/plugins/dist/` 复制所需产物进项目（本包仅 IIFE 产物，无 ESM import 通道，ADR-0128）；CDN 直引把上例 `src` 换为 `https://unpkg.com/@autospark/plugins/dist/autospark.virtual.js`。
+npm 场景：`npm install @autospark/plugins` 后自 `node_modules/@autospark/plugins/dist/` 复制所需产物进项目；CDN 直引把上例 `src` 换为 `https://unpkg.com/@autospark/plugins/dist/autospark.virtual.js`。
 
 未加载插件时声明 `.virtual` 会得到一条 warn 并**退化全量渲染**（降级而非失效，列表功能不受影响）。聚合产物 `autospark.plugins.js` 一个标签包含全部官方插件。
 :::

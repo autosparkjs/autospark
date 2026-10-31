@@ -109,7 +109,7 @@ bun add @autospark/plugins
 
 ### 引入
 
-本包产物**仅 IIFE**（脚本即契约，ADR-0003）——**无 ESM import 通道**：`import "@autospark/plugins"` 不可用，插件能力一律经 `<script>` 标签加载。npm 安装的意义是取得 `dist/` 下的产物文件复制进项目（或经构建工具 copy）；script 直引场景（CDN / 复制文件）无需安装：
+本包产物为 **IIFE 脚本**（脚本即契约）：插件能力经 `<script>` 标签加载。npm 安装后自 `node_modules/@autospark/plugins/dist/` 取得产物文件复制进项目（或经构建工具 copy）；script 直引场景（CDN / 复制文件）无需安装：
 
 ```html
 <script src="https://unpkg.com/autospark/dist/index.global.js"></script>
@@ -119,10 +119,6 @@ bun add @autospark/plugins
 - 加载顺序：插件与引擎脚本**任意先后**皆可（预加载队列保证，ADR-0114），但都须**早于 `new AutoSpark()`**；
 - 未加载对应产物时：指令属性被编译器剥除（静默失效）；`.virtual` / `.paging` 策略声明得到 warn + **退化全量渲染**；
 - 各指令文档页均有对应的引入说明（如 [x-tree](../directives/x-tree.md)）。
-
-::: tip ESM 消费者
-`import { AutoSpark } from "autospark"` 的 npm ESM 消费者暂无插件补装通道（二等公民，ADR-0128 决策 6）——插件能力须以 script 标签注入页面。未来增设 ESM 产物属纯增量兼容操作，不构成现在的消费承诺。
-:::
 
 ## 依赖说明
 

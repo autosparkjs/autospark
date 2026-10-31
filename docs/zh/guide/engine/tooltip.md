@@ -26,7 +26,7 @@
 <script src="/autospark/autospark.tooltip.js"></script>
 ```
 
-npm 场景：`npm install @autospark/plugins` 后自 `node_modules/@autospark/plugins/dist/` 复制所需产物进项目（本包仅 IIFE 产物，无 ESM import 通道，ADR-0128）；CDN 直引把上例 `src` 换为 `https://unpkg.com/@autospark/plugins/dist/autospark.tooltip.js`。
+npm 场景：`npm install @autospark/plugins` 后自 `node_modules/@autospark/plugins/dist/` 复制所需产物进项目；CDN 直引把上例 `src` 换为 `https://unpkg.com/@autospark/plugins/dist/autospark.tooltip.js`。
 
 未加载插件时 `title` 保持浏览器原生行为、`data-tooltip` 无消费方；`engine.tooltip` 命令式 API 调用得到 warn + no-op。
 :::
