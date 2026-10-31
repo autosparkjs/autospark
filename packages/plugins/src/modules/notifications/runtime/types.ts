@@ -141,6 +141,25 @@ export interface ResolvedNotificationAction {
     /** 是否携带 value（value 可能是 undefined/false，须以标记区分） */
     hasValue: boolean;
     value: any;
+    /**
+     * 语义变体（展示型约定键，ADR-0129 场景化语义色）：渲染为 `data-action-type` 属性，
+     * CSS 按值选 theme 语义色链（primary/success/warning/danger/plain）；缺省 = 无属性，
+     * 按钮色跟随通知 level accent。词表见 {@link NOTIFICATION_ACTION_TYPES}。
+     */
+    type?: NotificationActionType;
+}
+
+/** action 语义变体词表（ADR-0129）：词表对齐 button 组件的 type 词汇；非法值解析期 warn 后忽略（回退 accent） */
+export const NOTIFICATION_ACTION_TYPES = ["primary", "success", "warning", "danger", "plain"] as const;
+
+/** action 语义变体形态 */
+export type NotificationActionType = (typeof NOTIFICATION_ACTION_TYPES)[number];
+
+/** 语义变体归一：词表内原样返回，否则 undefined（warn 由调用方负责） */
+export function normalizeActionType(v: unknown): NotificationActionType | undefined {
+    return (NOTIFICATION_ACTION_TYPES as readonly string[]).includes(v as string)
+        ? (v as NotificationActionType)
+        : undefined;
 }
 
 /**

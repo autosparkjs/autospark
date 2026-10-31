@@ -219,6 +219,7 @@ export default defineConfig({
                 { text: "持久化", link: "/zh/guide/engine/theme/persistence" },
                 { text: "静态主题包", link: "/zh/guide/engine/theme/static" },
                 { text: "下载主题", link: "/zh/guide/engine/theme/download" },
+                { text: "内置组件集成", link: "/zh/guide/engine/theme/integration" },
 
               ]
             },

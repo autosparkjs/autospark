@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>动画 · 内置 expand</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 内置 expand：引擎测量内容高度做 height 0↔auto 过渡，无需任何 CSS。
+             本示例故意踩满 col 配方（grid 0fr/1fr）的三条雷：多子元素 + 子元素带 padding——
+             expand 照常平滑展开/收起 -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button is-primary" @click="toggle">{{ on ? "收起" : "展开" }}</button>
+                <span class="has-text-grey">多子元素 + 直接 padding——零 CSS、零约束</span>
+            </div>
+            <div class="notification is-primary" style="padding: 0">
+                <div x-if="on" x-if-options="{animate:'expand'}">
+                    <div style="padding: 1.25rem">
+                        <p><strong>expand · 内置高度过渡</strong>——高度 0 ↔ 内容高度 + 淡入，布局参与动画。</p>
+                        <p style="padding: 0.75rem; margin-top: 0.75rem; background: rgba(255, 255, 255, 0.35)">
+                            第二个子元素（col 配方要求宿主恰好一个子元素，这里故意放两个）
+                        </p>
+                        <ul style="margin-top: 0.75rem">
+                            <li>子元素带 padding（col 要求 padding 不放直接子元素）</li>
+                            <li>高度完全由内容决定</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <p class="has-text-grey">下方内容（观察被平滑推开 / 收回，无高度跳动）</p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { on: false },
+                {
+                    actions: {
+                        toggle: () => {
+                            engine.state.on = !engine.state.on;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

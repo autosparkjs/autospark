@@ -88,8 +88,11 @@ const FOLDABLE_CSS = `
 /* column 轴：more 图标旋转 90°（横排省略号转竖排——与纵向主轴、底部按钮、右侧弹出
    面板的视觉语义一致；data-direction 是轴的单一真相，换轴经 dataset 写入自动跟随） */
 .autospark-foldable[data-direction="column"]>.${TRIGGER_CLASS}>svg{transform:rotate(90deg);}
-.autospark-foldable>.${TRIGGER_CLASS}:hover{background:rgba(0,0,0,.06);}
-.autospark-foldable>.${TRIGGER_CLASS}:focus-visible{outline:2px solid var(--autospark-foldable-trigger-focus,#94a3b8);outline-offset:-2px;}
+.autospark-foldable>.${TRIGGER_CLASS}:hover{background:var(--auto-hover-bgcolor, var(--autospark-foldable-trigger-hover,rgba(0,154,255,0.15)));}
+.autospark-foldable>.${TRIGGER_CLASS}:focus-visible{outline:2px solid var(--autospark-foldable-trigger-focus,rgba(96,96,96,0.55));outline-offset:-2px;}
+/* 暗色兜底变体（ADR-0129）：focus 色属非映射声明（保持两级），兜底按 theme 校准切换 */
+[dark] .autospark-foldable>.${TRIGGER_CLASS}:hover,[data-dark] .autospark-foldable>.${TRIGGER_CLASS}:hover{background:var(--auto-hover-bgcolor, var(--autospark-foldable-trigger-hover,rgba(86,186,255,0.15)));}
+[dark] .autospark-foldable>.${TRIGGER_CLASS}:focus-visible,[data-dark] .autospark-foldable>.${TRIGGER_CLASS}:focus-visible{outline-color:var(--autospark-foldable-trigger-focus,rgba(250,250,250,0.55));}
 /* 面板出口（中继挂入时打类）：折叠子元素垂直堆叠 + 引擎兜底 gap（内置 popover shell
    不预设内容布局；CSS 变量 --autospark-foldable-panel-gap 定制）。双类自并提权压过
    用户 shell 类的同轴样式。边框/箭头/z-index 归 shell（默认内置 autospark.popover） */

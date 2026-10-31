@@ -22,10 +22,12 @@ import {
     type AutoSparkNotificationsOptions,
     type AutoSparkNotificationsState,
     type AutoSparkAction,
+    NOTIFICATION_ACTION_TYPES,
     type NotificationOptions,
     type NotificationPos,
     type NotificationProps,
     type ResolvedNotificationAction,
+    normalizeActionType,
 } from "./types";
 
 export type { NotificationEntry } from "./entry";
@@ -394,9 +396,19 @@ export class NotificationManager extends Map<string, ComponentInstance> {
         return null;
     }
 
-    /** actions 预解析（决策 13/14）：字符串查 action 表（anchor 沿 scope 链），对象形态解析 value/handle/hide */
+    /** actions 预解析（决策 13/14）：字符串查 action 表（anchor 沿 scope 链），对象形态解析 value/handle/hide/type */
     _resolveActions(items: AutoSparkAction[] | undefined, anchor: HTMLElement | null): ResolvedNotificationAction[] {
         const resolved: ResolvedNotificationAction[] = [];
+        // 语义变体归一（ADR-0129）：非法值 warn 后忽略（按钮回退 level accent 着色）
+        const actionType = (raw: any, label: string) => {
+            const t = normalizeActionType(raw?.type);
+            if (raw?.type !== undefined && t === undefined) {
+                this.engine.logger.warn(
+                    `engine.notifications: action "${label}" 的 type 须为 ${NOTIFICATION_ACTION_TYPES.join("/")}，已忽略（按钮色回退跟随 level）`,
+                );
+            }
+            return t;
+        };
         for (const item of items ?? []) {
             if (typeof item === "string") {
                 const desc = this._resolveActionByName(item, anchor);
@@ -413,6 +425,7 @@ export class NotificationManager extends Map<string, ComponentInstance> {
                     hide: (desc as any).hide !== false,
                     hasValue: false,
                     value: undefined,
+                    type: actionType(desc, item),
                 });
             } else if (item && typeof item === "object") {
                 const hasValue = "value" in item;
@@ -423,6 +436,7 @@ export class NotificationManager extends Map<string, ComponentInstance> {
                     hide: (item as any).hide !== false,
                     hasValue,
                     value: (item as any).value,
+                    type: actionType(item, String((item as any).title ?? "action")),
                 });
             } else {
                 this.engine.logger.warn("engine.notifications: 非法 action 项，已剪枝");
@@ -676,8 +690,9 @@ export class NotificationManager extends Map<string, ComponentInstance> {
             type: "confirm",
             delayClose: base.delayClose ?? 0, // sticky：永不自动关
             actions: (base.actions?.length ? base.actions : undefined) ?? [
-                { title: yes ?? "确定", value: true },
-                { title: no ?? "取消", value: false },
+                // 语义变体（ADR-0129 场景化语义色，同 actions/confirm.ts 封装）：确定 = 主操作、取消 = 中性弱化
+                { title: yes ?? "确定", value: true, type: "primary" },
+                { title: no ?? "取消", value: false, type: "plain" },
             ],
         });
     }

@@ -1,5 +1,7 @@
 <div x-define="autospark.error" class="as-error">
     <style global id="autospark-error">
+        /* 主题化（ADR-0129）：三级样式回退链；字号/间距/布局量不映射（保留组件设计）；
+             暗色兜底变体只切末级字面值。兜底值按 theme 默认浅色校准（specs/theme-token-baseline.md） */
         .as-error {
             display: flex;
             flex-direction: column;
@@ -7,8 +9,8 @@
             justify-content: center;
             gap: 8px;
             padding: 24px;
-            background: rgba(255, 255, 255, 0.96);
-            color: #888;
+            background: var(--auto-bgcolor, var(--autospark-error-bg, #fff));
+            color: var(--auto-color, var(--autospark-error-color, #606060));
             font-size: 14px;
         }
 
@@ -16,7 +18,7 @@
             display: inline-flex;
             width: 28px;
             height: 28px;
-            color: #c0c4cc;
+            color: var(--auto-third-color, var(--autospark-error-icon-color, rgba(96, 96, 96, 0.55)));
         }
 
         .as-error-message {
@@ -43,18 +45,43 @@
 
         .as-error-btn {
             padding: 4px 16px;
-            border: 1px solid #dcdfe6;
-            border-radius: 6px;
-            background: #fff;
-            color: #606266;
+            border: 1px solid var(--auto-border-color, var(--autospark-error-border-color, #f0f0f0));
+            border-radius: var(--auto-border-radius, var(--autospark-error-radius, 0.5rem));
+            background: var(--auto-bgcolor, var(--autospark-error-btn-bg, #fff));
+            color: var(--auto-color, var(--autospark-error-btn-color, #606060));
             font-size: 13px;
             cursor: pointer;
             transition: all 0.15s;
         }
 
         .as-error-btn:hover {
-            border-color: #c0c4cc;
-            color: #409eff;
+            border-color: var(--auto-hover-border-color, var(--autospark-error-btn-hover-border-color, #009aff));
+            color: var(--auto-hover-color, var(--autospark-error-btn-hover-color, #009aff));
+        }
+
+        /* 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值 */
+        [dark] .as-error,
+        [data-dark] .as-error {
+            background: var(--auto-bgcolor, var(--autospark-error-bg, #606060));
+            color: var(--auto-color, var(--autospark-error-color, #fafafa));
+        }
+
+        [dark] .as-error-icon,
+        [data-dark] .as-error-icon {
+            color: var(--auto-third-color, var(--autospark-error-icon-color, rgba(250, 250, 250, 0.55)));
+        }
+
+        [dark] .as-error-btn,
+        [data-dark] .as-error-btn {
+            border-color: var(--auto-border-color, var(--autospark-error-border-color, #606060));
+            background: var(--auto-bgcolor, var(--autospark-error-btn-bg, #606060));
+            color: var(--auto-color, var(--autospark-error-btn-color, #fafafa));
+        }
+
+        [dark] .as-error-btn:hover,
+        [data-dark] .as-error-btn:hover {
+            border-color: var(--auto-hover-border-color, var(--autospark-error-btn-hover-border-color, #56baff));
+            color: var(--auto-hover-color, var(--autospark-error-btn-hover-color, #56baff));
         }
     </style>
     <span class="as-error-icon" x-show="icon" x-icon="icon" x-slot="icon"></span>

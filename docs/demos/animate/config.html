@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>动画 · 配置形态</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- animate 三种形态：字符串（进出同名，见 basic demo）；对象——指定动画名与参数；
+             分相覆盖——enter / leave 各自独立配置（false = 单相禁用） -->
+        <div class="demo-app section">
+            <!-- 对象形态：duration 放慢到 1.2s，缓动差异肉眼可辨（同名 slide，速度与手感完全不同） -->
+            <div class="buttons">
+                <strong>对象参数：</strong>
+                <button class="button is-primary" @click="toggleObj">
+                    {{ onObj ? "离场（1.2s 慢速）" : "进场（1.2s 慢速）" }}
+                </button>
+                <span class="has-text-grey">name + duration + easing 覆盖内置默认</span>
+            </div>
+            <div x-show="onObj" x-show-options="{animate:{name:'slide',duration:1200,easing:'ease-out'}}" class="notification is-primary">
+                slide · 1200ms · ease-out——参数经内联样式同时覆盖 CSS 中的 transition 属性
+            </div>
+
+            <hr />
+
+            <!-- 分相覆盖：进场上滑浮入、离场淡入淡出（两相动画不同，来回切换对比明显） -->
+            <div class="buttons">
+                <strong>分相覆盖：</strong>
+                <button class="button is-info" @click="togglePhase">enter:'slide' / leave:'fade'</button>
+                <span class="has-text-grey">进场是上滑、离场是淡出</span>
+            </div>
+            <div x-show="onPhase" x-show-options="{animate:{enter:'slide',leave:'fade'}}" class="notification is-info">
+                进场上滑浮入、离场淡入淡出——两相各走各的动画
+            </div>
+
+            <hr />
+
+            <!-- 单相禁用：进场淡入、离场瞬时消失（leave:false） -->
+            <div class="buttons">
+                <strong>单相禁用：</strong>
+                <button class="button" @click="toggleOnce">enter:'fade' / leave:false</button>
+                <span class="has-text-grey">离场直接消失、不等动画</span>
+            </div>
+            <div x-if="onOnce" x-if-options="{animate:{enter:'fade',leave:false}}" class="notification is-warning">
+                进场有淡入动画，离场瞬时移除
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { onObj: true, onPhase: true, onOnce: true },
+                {
+                    actions: {
+                        toggleObj: () => {
+                            engine.state.onObj = !engine.state.onObj;
+                        },
+                        togglePhase: () => {
+                            engine.state.onPhase = !engine.state.onPhase;
+                        },
+                        toggleOnce: () => {
+                            engine.state.onOnce = !engine.state.onOnce;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

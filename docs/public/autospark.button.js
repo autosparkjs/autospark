@@ -25,20 +25,23 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     }
   <\/script>
   <style global id="autospark-components-button">
+    /* 主题化（ADR-0129）：三级样式回退链 var(--auto-X, var(--asc-button-X, 校准兜底值))；
+         --asc-button-* 前缀保留（既有覆盖面零改名）；语义色底上的白字非映射（恒定设计）；
+         暗色兜底变体见块尾 */
     .asc-button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 0.4em;
       border: 1px solid transparent;
-      border-radius: var(--asc-button-radius, 6px);
+      border-radius: var(--auto-border-radius, var(--asc-button-radius, 0.5rem));
       cursor: pointer;
       font: inherit;
       line-height: 1.4;
       padding: 0.375rem 0.875rem;
       font-size: 0.875rem;
-      background: var(--asc-button-bg, #f1f3f5);
-      color: var(--asc-button-color, #212529);
+      background: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(245, 245, 245, 0.45)));
+      color: var(--auto-color, var(--asc-button-color, #606060));
       transition: filter 0.15s ease;
     }
     .asc-button:hover:not([disabled]) {
@@ -53,15 +56,15 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     }
     /* type 外观变体（变体数据在内层出口元素上，经 :has() 驱动宿主） */
     .asc-button:has(> .asc-button-label[data-type="primary"]) {
-      background: var(--asc-button-primary-bg, #339af0);
+      background: var(--auto-primary-color, var(--asc-button-primary-bg, #009aff));
       color: var(--asc-button-primary-color, #fff);
     }
     .asc-button:has(> .asc-button-label[data-type="success"]) {
-      background: var(--asc-button-success-bg, #37b24d);
+      background: var(--auto-success-color, var(--asc-button-success-bg, #22c55e));
       color: var(--asc-button-success-color, #fff);
     }
     .asc-button:has(> .asc-button-label[data-type="danger"]) {
-      background: var(--asc-button-danger-bg, #f03e3e);
+      background: var(--auto-danger-color, var(--asc-button-danger-bg, #ef4444));
       color: var(--asc-button-danger-color, #fff);
     }
     /* size 尺寸变体（md 即基础样式） */
@@ -72,6 +75,24 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-button:has(> .asc-button-label[data-size="lg"]) {
       padding: 0.5rem 1.25rem;
       font-size: 1rem;
+    }
+    /* 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） */
+    [dark] .asc-button,
+    [data-dark] .asc-button {
+      background: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(129, 129, 129, 0.45)));
+      color: var(--auto-color, var(--asc-button-color, #fafafa));
+    }
+    [dark] .asc-button:has(> .asc-button-label[data-type="primary"]),
+    [data-dark] .asc-button:has(> .asc-button-label[data-type="primary"]) {
+      background: var(--auto-primary-color, var(--asc-button-primary-bg, #56baff));
+    }
+    [dark] .asc-button:has(> .asc-button-label[data-type="success"]),
+    [data-dark] .asc-button:has(> .asc-button-label[data-type="success"]) {
+      background: var(--auto-success-color, var(--asc-button-success-bg, #5cd07c));
+    }
+    [dark] .asc-button:has(> .asc-button-label[data-type="danger"]),
+    [data-dark] .asc-button:has(> .asc-button-label[data-type="danger"]) {
+      background: var(--auto-danger-color, var(--asc-button-danger-bg, #e6696a));
     }
   </style>
   <!-- 默认插槽出口：未提供内容时显示 {{ label }}（组件自身状态求值）；

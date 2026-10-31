@@ -192,6 +192,10 @@ actions: {
 <div x-if="on" x-if-options="{animate:{enter:'fade',leave:false}}"></div>
 ```
 
+三种形态可交互对比：
+
+<demo html="animate/config.html"/>
+
 ### 自定义动画
 
 自定义动画 = 按约定命名写 CSS 类，传名即用（与 Vue transition 同构的六类名契约）：
@@ -247,6 +251,8 @@ actions: {
 ```html
 <div class="acc-body" x-if="open === item.id" x-if-options="{animate:'expand'}">…</div>
 ```
+
+<demo html="animate/expand.html"/>
 
 与配方三（grid 0fr/1fr）的效果等同，但没有它的三条硬性约束（单子元素 / 内容驱动高度 / padding 分层）——多子元素、任意 padding 都照常工作。[x-tree](./directives/x-tree.md) 的展开/折叠默认即 `expand`。配方三适合坚持纯 CSS 或需要与自定义类动画组合的场景。
 
@@ -349,6 +355,10 @@ actions: {
 }
 ```
 
+col 与 scol 并排对照（右块多一段向上浮入的位移）：
+
+<demo html="animate/scol.html"/>
+
 ### 行为语义
 
 - **首次渲染静默**：引擎初次编译不播动画，只有**状态变化**引起的挂载/卸载才动画（x-for 首渲 N 项不会整队 fade-in）。
@@ -368,6 +378,10 @@ actions: {
   }
 }
 ```
+
+前四条语义可交互验证：
+
+<demo html="animate/behavior.html"/>
 
 ## 内置动画
 

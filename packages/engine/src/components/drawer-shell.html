@@ -49,8 +49,14 @@
             opacity: 1;
         }
         .autospark-overlays > .autospark-expandable-trigger[data-collapsed] {
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+            /* 主题化（ADR-0129）：三级样式回退链；drawer 尺寸/z-index/贴边 radius 0 属功能几何不映射 */
+            box-shadow: var(--auto-shadow, var(--autospark-expandable-trigger-shadow, 0 2px 4px hsl(240 3.8% 46.1% / 12%)));
             opacity: 1;
+        }
+        /* 暗色兜底变体（ADR-0129）：只切末级字面值 */
+        [dark] .autospark-overlays > .autospark-expandable-trigger[data-collapsed],
+        [data-dark] .autospark-overlays > .autospark-expandable-trigger[data-collapsed] {
+            box-shadow: var(--auto-shadow, var(--autospark-expandable-trigger-shadow, 0 2px 4px hsl(0 0% 0% / 50%)));
         }
         @media (hover: none) {
             .autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"] {

@@ -164,6 +164,24 @@
             cursor: pointer;
         }
 
+        /* action 语义变体（ADR-0129 场景化语义色）：按 data-action-type 选 theme 语义色链；
+           无标记 = 跟随通知 level accent（上方缺省色） */
+        .autospark-notification-action[data-action-type="primary"] {
+            color: var(--auto-primary-color, var(--autospark-notification-action-primary, #009aff));
+        }
+        .autospark-notification-action[data-action-type="success"] {
+            color: var(--auto-success-color, var(--autospark-notification-action-success, #22c55e));
+        }
+        .autospark-notification-action[data-action-type="warning"] {
+            color: var(--auto-warning-color, var(--autospark-notification-action-warning, #f59e0b));
+        }
+        .autospark-notification-action[data-action-type="danger"] {
+            color: var(--auto-danger-color, var(--autospark-notification-action-danger, #ef4444));
+        }
+        .autospark-notification-action[data-action-type="plain"] {
+            color: var(--auto-secondary-color, var(--autospark-notification-action-plain, rgba(96, 96, 96, 0.75)));
+        }
+
         /* 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变）；
            语义色混合底只改中转变量一处 */
         [dark] .autospark-notification,
@@ -177,6 +195,28 @@
         [dark] .autospark-notification-close,
         [data-dark] .autospark-notification-close {
             color: var(--auto-color, var(--autospark-notification-fg, #fafafa));
+        }
+
+        /* action 语义变体暗色兜底（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值 */
+        [dark] .autospark-notification-action[data-action-type="primary"],
+        [data-dark] .autospark-notification-action[data-action-type="primary"] {
+            color: var(--auto-primary-color, var(--autospark-notification-action-primary, #56baff));
+        }
+        [dark] .autospark-notification-action[data-action-type="success"],
+        [data-dark] .autospark-notification-action[data-action-type="success"] {
+            color: var(--auto-success-color, var(--autospark-notification-action-success, #5cd07c));
+        }
+        [dark] .autospark-notification-action[data-action-type="warning"],
+        [data-dark] .autospark-notification-action[data-action-type="warning"] {
+            color: var(--auto-warning-color, var(--autospark-notification-action-warning, #f7d352));
+        }
+        [dark] .autospark-notification-action[data-action-type="danger"],
+        [data-dark] .autospark-notification-action[data-action-type="danger"] {
+            color: var(--auto-danger-color, var(--autospark-notification-action-danger, #e6696a));
+        }
+        [dark] .autospark-notification-action[data-action-type="plain"],
+        [data-dark] .autospark-notification-action[data-action-type="plain"] {
+            color: var(--auto-secondary-color, var(--autospark-notification-action-plain, rgba(250, 250, 250, 0.75)));
         }
     </style>
     <div class="autospark-notification-header" x-slot:header>
@@ -224,6 +264,7 @@
                 type="button"
                 x-text="a.title"
                 :data-notification-action="actions.indexOf(a)"
+                :data-action-type="a.type || null"
             ></button>
         </div>
     </div>

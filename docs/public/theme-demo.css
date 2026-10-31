@@ -12,9 +12,14 @@ body {
     margin: 0;
 }
 
-/* 独立打开 demo（非 iframe）时给整页一个兜底底色 */
+/* 独立打开 demo（非 iframe）时给整页一个兜底底色；
+   scrollbar-gutter: stable 断开 iframe 预览的振荡环——插件每帧按内容 offsetHeight（取整）
+   回写 iframe 高度，内容恰在整数临界时滚动条周期性显隐：显 → 吃 16px 内容宽 → 顶部
+   控制面板折行 +16px 高 → 插件调高 iframe → 隐 → 宽度恢复 → 折行恢复 → 插件调矮 →
+   再显……demo 整页随之抖动。槽位常驻使内容宽度恒定，折行不再随滚动条显隐翻转，环断路。 */
 html {
     background: var(--auto-workspace-bgcolor);
+    scrollbar-gutter: stable;
 }
 
 body {

@@ -125,15 +125,15 @@
             gap: 8px;
             margin-top: 6px;
         }
-        /* 主题化（ADR-0129）：accent 由 shell 根的 level 块定义（继承），兜底校准 theme 值；
-             轨道灰非映射（近似属性，校准 theme 灰阶档）；暗色兜底变体见块尾 */
+        /* 主题化（ADR-0129）：进度条是活动指示，第一级挂主题主色（--auto-theme-color），
+             accent 为覆盖位（theme 缺席时跟随 level）；轨道与段同源；暗色兜底变体见块尾 */
         .autospark-notification-progress-track {
             flex: 1;
             height: 6px;
             border-radius: 3px;
             background: color-mix(
                 in srgb,
-                var(--autospark-notification-accent, #979797) 15%,
+                var(--auto-theme-color, var(--autospark-notification-accent, #009aff)) 15%,
                 var(--auto-bgcolor, var(--autospark-overlay-bg, #fff))
             );
             overflow: hidden;
@@ -141,7 +141,7 @@
         .autospark-notification-progress-bar {
             height: 100%;
             border-radius: 3px;
-            background: var(--autospark-notification-accent, #71717a);
+            background: var(--auto-theme-color, var(--autospark-notification-accent, #009aff));
             transition: width 0.2s;
         }
         /* 待启动（pending，ADR-0104 手动门控）：短条呼吸——等待用户点「开始」 */
@@ -183,22 +183,45 @@
             cursor: pointer;
         }
 
+        /* op 语义变体（ADR-0129 场景化语义色，固定控制钮语义恒定）：开始/恢复 = 主操作、
+           停止 = 危险、暂停/取消 = 中性弱化；无标记 = 跟随 level accent（缺省色） */
+        .autospark-notification-op[data-op="start"] {
+            color: var(--auto-primary-color, var(--autospark-notification-op-primary, #009aff));
+        }
+        .autospark-notification-op[data-op="pause"],
+        .autospark-notification-op[data-op="cancel"] {
+            color: var(--auto-secondary-color, var(--autospark-notification-op-plain, rgba(96, 96, 96, 0.75)));
+        }
+        .autospark-notification-op[data-op="stop"] {
+            color: var(--auto-danger-color, var(--autospark-notification-op-danger, #ef4444));
+        }
+
         /* 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） */
         [dark] .autospark-notification-progress-track,
         [data-dark] .autospark-notification-progress-track {
             background: color-mix(
                 in srgb,
-                var(--autospark-notification-accent, #979797) 15%,
+                var(--auto-theme-color, var(--autospark-notification-accent, #56baff)) 15%,
                 var(--auto-bgcolor, var(--autospark-overlay-bg, #606060))
             );
         }
         [dark] .autospark-notification-progress-bar,
         [data-dark] .autospark-notification-progress-bar {
-            background: var(--autospark-notification-accent, #dcdce6);
+            background: var(--auto-theme-color, var(--autospark-notification-accent, #56baff));
         }
-        [dark] .autospark-notification-op,
-        [data-dark] .autospark-notification-op {
-            color: var(--autospark-notification-accent, #dcdce6);
+        [dark] .autospark-notification-op[data-op="start"],
+        [data-dark] .autospark-notification-op[data-op="start"] {
+            color: var(--auto-primary-color, var(--autospark-notification-op-primary, #56baff));
+        }
+        [dark] .autospark-notification-op[data-op="pause"],
+        [data-dark] .autospark-notification-op[data-op="pause"],
+        [dark] .autospark-notification-op[data-op="cancel"],
+        [data-dark] .autospark-notification-op[data-op="cancel"] {
+            color: var(--auto-secondary-color, var(--autospark-notification-op-plain, rgba(250, 250, 250, 0.75)));
+        }
+        [dark] .autospark-notification-op[data-op="stop"],
+        [data-dark] .autospark-notification-op[data-op="stop"] {
+            color: var(--auto-danger-color, var(--autospark-notification-op-danger, #e6696a));
         }
     </style>
     <div class="autospark-notification-progress">
@@ -221,6 +244,7 @@
         <button
             class="autospark-notification-op"
             type="button"
+            data-op="start"
             x-show="canStart && state === 'pending'"
             @click="start()"
         >
@@ -229,6 +253,7 @@
         <button
             class="autospark-notification-op"
             type="button"
+            data-op="pause"
             x-show="canPause && (state === 'running' || state === 'paused')"
             x-text="state === 'paused' ? '恢复' : '暂停'"
             @click="togglePause()"
@@ -236,6 +261,7 @@
         <button
             class="autospark-notification-op"
             type="button"
+            data-op="stop"
             x-show="canStop && state !== 'completed' && state !== 'stopped'"
             @click="stop()"
         >
@@ -244,6 +270,7 @@
         <button
             class="autospark-notification-op"
             type="button"
+            data-op="cancel"
             x-show="canCancel && state !== 'completed' && state !== 'stopped'"
             @click="cancel()"
         >

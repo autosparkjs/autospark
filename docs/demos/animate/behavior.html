@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>动画 · 行为语义</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* 慢速自定义动画：抢占演示需要足够的打断窗口，类 CSS 时长进出两相稳定生效 */
+            .slowfade-enter-active,
+            .slowfade-leave-active {
+                transition: opacity 1.5s ease;
+            }
+            .slowfade-enter-from,
+            .slowfade-leave-to {
+                opacity: 0;
+            }
+
+            /* 无障碍降级：用户系统偏好「减弱动效」时全局关闭过渡（引擎按 0 时长立即完成，天然兼容） */
+            @media (prefers-reduced-motion: reduce) {
+                .fade-enter-active,
+                .fade-leave-active {
+                    transition: none;
+                }
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- 行为语义四则：首次渲染静默 / 抢占 / keepalive 同权 / x-empty 同权 -->
+        <div class="demo-app section">
+            <!-- 首次渲染静默：初始 3 项整队进场无动画，点「增项」新项才播 slide -->
+            <div class="buttons">
+                <strong>首次渲染静默：</strong>
+                <button class="button is-primary" @click="addItem">增项（新项才有动画）</button>
+                <button class="button" @click="removeItem">删项</button>
+            </div>
+            <div class="notification content">
+                <ul x-for="item of items" x-for-options="{animate:'slide'}">
+                    <li x-text="item.name"></li>
+                </ul>
+            </div>
+
+            <hr />
+
+            <!-- 抢占：1.5s 长动画播到一半点切换——在播动画立即取消、反向从头播，快速连点不错乱 -->
+            <div class="buttons">
+                <strong>抢占：</strong>
+                <button class="button is-info" @click="toggleLong">动画播到一半时连点我</button>
+                <span class="has-text-grey">slowfade · 1.5s，故意放慢便于打断</span>
+            </div>
+            <div x-if="onLong" x-if-options="{animate:'slowfade'}" class="notification is-info">
+                1.5s 慢速淡入——播到一半被反向切换会立即取消并从头播新动画
+            </div>
+
+            <hr />
+
+            <!-- keepalive 同权：保活切换播同样的进出场动画；detach 期间输入内容保留 -->
+            <div class="buttons">
+                <strong>keepalive 同权：</strong>
+                <button class="button is-primary" @click="toggleKeep">展开 / 收起</button>
+                <span class="has-text-grey">先在输入框打个字，收起再展开——内容还在</span>
+            </div>
+            <div x-if.keepalive="onKeep" x-if-options="{animate:'fade'}" class="notification is-primary">
+                <div class="field">
+                    <label class="label">保活子树（detach 期间状态保留）</label>
+                    <input class="input" type="text" x-model="keepText" placeholder="输入点什么再收起试试" />
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- x-empty 同权：数组清空 / 回填，空状态的挂载 / 卸载与列表项一样播动画 -->
+            <div class="buttons">
+                <strong>x-empty 同权：</strong>
+                <button class="button is-warning" @click="clearList">清空</button>
+                <button class="button" @click="fillList">回填</button>
+            </div>
+            <div class="notification content">
+                <ul x-for="item of fruits" x-for-options="{animate:'slide'}">
+                    <li x-text="item.name"></li>
+                    <li x-empty>列表为空（空状态同样播动画）</li>
+                </ul>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                {
+                    items: [{ name: "初始项一（首次渲染不播动画）" }, { name: "初始项二" }, { name: "初始项三" }],
+                    onLong: false,
+                    onKeep: false,
+                    keepText: "",
+                    fruits: [{ name: "苹果" }, { name: "香蕉" }],
+                },
+                {
+                    actions: {
+                        addItem: () => {
+                            engine.state.items.push({ name: `新项 ${engine.state.items.length + 1}（slide 进场）` });
+                        },
+                        removeItem: () => {
+                            engine.state.items.pop();
+                        },
+                        toggleLong: () => {
+                            engine.state.onLong = !engine.state.onLong;
+                        },
+                        toggleKeep: () => {
+                            engine.state.onKeep = !engine.state.onKeep;
+                        },
+                        clearList: () => {
+                            engine.state.fruits = [];
+                        },
+                        fillList: () => {
+                            engine.state.fruits = [{ name: "苹果" }, { name: "香蕉" }];
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

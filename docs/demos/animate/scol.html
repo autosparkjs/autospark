@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>动画 · 高度展开 + 视觉滑动</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            /* col：配方三本体——只有高度（grid-template-rows）+ 透明度过渡 */
+            .col-enter-active,
+            .col-leave-active {
+                display: grid;
+                grid-template-rows: 1fr;
+                transition: grid-template-rows 0.3s ease, opacity 0.3s ease;
+            }
+            .col-enter-from,
+            .col-leave-to {
+                grid-template-rows: 0fr;
+                opacity: 0;
+            }
+
+            /* scol：把 transform 并入配方三的 transition——高度展开与上滑浮入同时发生 */
+            .scol-enter-active,
+            .scol-leave-active {
+                display: grid;
+                grid-template-rows: 1fr;
+                transition: grid-template-rows 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
+            }
+            .scol-enter-from,
+            .scol-leave-to {
+                grid-template-rows: 0fr;
+                opacity: 0;
+                transform: translateY(-12px);
+            }
+
+            /* 两种动画共用的裁剪层约束：宿主恰好一个子元素、padding 放最内层 */
+            .col-enter-active > *,
+            .col-leave-active > *,
+            .scol-enter-active > *,
+            .scol-leave-active > * {
+                overflow: hidden;
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- 左右对照：col 只有高度展开；scol 在同一过渡里叠加 translateY 上滑浮入 -->
+        <div class="demo-app section">
+            <div class="buttons">
+                <button class="button is-primary" @click="toggle">同时展开 / 收起</button>
+                <span class="has-text-grey">对比右块的进场多一段向上浮入的位移</span>
+            </div>
+
+            <div class="columns">
+                <div class="column">
+                    <p><strong>col：仅高度过渡</strong></p>
+                    <div class="notification is-primary" style="padding: 0">
+                        <div x-if="on" x-if-options="{animate:'col'}">
+                            <div>
+                                <div style="padding: 1.25rem">
+                                    高度 0 ↔ auto 平滑展开，内容原地淡入。<br /><br />底部
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="column">
+                    <p><strong>scol：高度 + 上滑浮入</strong></p>
+                    <div class="notification is-info" style="padding: 0">
+                        <div x-if="on" x-if-options="{animate:'scol'}">
+                            <div>
+                                <div style="padding: 1.25rem">
+                                    高度展开的同时内容自 -12px 上滑浮入。<br /><br />底部
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <p class="has-text-grey">下方内容（两块同时平滑推开 / 收回）</p>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(
+                document.querySelector(".demo-app"),
+                { on: false },
+                {
+                    actions: {
+                        toggle: () => {
+                            engine.state.on = !engine.state.on;
+                        },
+                    },
+                },
+            );
+        </script>
+    </body>
+</html>

@@ -23,8 +23,9 @@ export function createConfirmSpec(engine: AutoSpark<any>): ActionDecl {
                 type: "confirm",
                 delayClose: (rest as NotificationProps).delayClose ?? 0, // sticky：永不自动关
                 actions: [
-                    { title: (yes as string) ?? "确定", value: true },
-                    { title: (no as string) ?? "取消", value: false },
+                    // 语义变体（ADR-0129 场景化语义色）：确定 = 主操作、取消 = 中性弱化
+                    { title: (yes as string) ?? "确定", value: true, type: "primary" },
+                    { title: (no as string) ?? "取消", value: false, type: "plain" },
                 ],
             });
         },

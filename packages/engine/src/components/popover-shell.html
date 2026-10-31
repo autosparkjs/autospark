@@ -7,18 +7,20 @@
     <div class="autospark-popover-content" x-component:autospark.overlay="{ title: title, icon: icon, closeable: closeable, actions: actions, padding: padding }" x-component-options='{ slots: "*" }'></div>
     <div class="autospark-overlay-arrow"></div>
     <style global id="autospark-popover-styles">
+        /* 主题化（ADR-0129）：三级样式回退链 var(--auto-X, var(--autospark-<feature>-X, 校准兜底值))；
+             z-index 恒两级（永不映射）；暗色兜底变体只切末级字面值、不改变量引用链 */
         [data-overlay] {
             position: relative;
-            border-radius: var(--autospark-overlay-radius, 8px);
+            border-radius: var(--auto-border-radius, var(--autospark-overlay-radius, 0.5rem));
         }
         .autospark-popover > .autospark-popover-content {
             position: relative;
             z-index: var(--autospark-overlay-z, 1000);
         }
         [data-overlay][data-overlay-border] {
-            border: 1px solid var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
-            background: var(--autospark-overlay-bg, #fff);
-            box-shadow: 2px 4px 4px rgba(0, 0, 0, 0.18);
+            border: 1px solid var(--auto-border-color, var(--autospark-overlay-border, #f0f0f0));
+            background: var(--auto-bgcolor, var(--autospark-overlay-bg, #fff));
+            box-shadow: var(--auto-shadow, var(--autospark-overlay-shadow, 0 2px 4px hsl(240 3.8% 46.1% / 12%)));
         }
         .autospark-overlay-arrow {
             position: absolute;
@@ -30,19 +32,19 @@
             content: "";
             position: absolute;
             inset: 0;
-            background: var(--autospark-overlay-bg, #fff);
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+            background: var(--auto-bgcolor, var(--autospark-overlay-bg, #fff));
+            box-shadow: var(--auto-shadow, var(--autospark-overlay-shadow, 0 2px 4px hsl(240 3.8% 46.1% / 12%)));
             transform: rotate(45deg);
         }
         .autospark-overlay-arrow::after {
             content: "";
             position: absolute;
             inset: -1px;
-            background: var(--autospark-overlay-bg, #fff);
+            background: var(--auto-bgcolor, var(--autospark-overlay-bg, #fff));
             transform: rotate(45deg);
         }
         [data-overlay][data-overlay-border] > .autospark-overlay-arrow::before {
-            background: var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
+            background: var(--auto-border-color, var(--autospark-overlay-border, #f0f0f0));
         }
         [data-overlay][data-overlay-border] > .autospark-overlay-arrow::after {
             inset: -2px;
@@ -61,6 +63,17 @@
         }
         [data-autospark-overlays] > [data-overlay] {
             z-index: var(--autospark-overlay-z, 1000);
+        }
+        /* 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值 */
+        [dark] [data-overlay][data-overlay-border],
+        [data-dark] [data-overlay][data-overlay-border] {
+            border-color: var(--auto-border-color, var(--autospark-overlay-border, #606060));
+            background: var(--auto-bgcolor, var(--autospark-overlay-bg, #606060));
+            box-shadow: var(--auto-shadow, var(--autospark-overlay-shadow, 0 2px 4px hsl(0 0% 0% / 50%)));
+        }
+        [dark] [data-overlay][data-overlay-border] > .autospark-overlay-arrow::before,
+        [data-dark] [data-overlay][data-overlay-border] > .autospark-overlay-arrow::before {
+            background: var(--auto-border-color, var(--autospark-overlay-border, #606060));
         }
     </style>
 </div>

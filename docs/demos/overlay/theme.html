@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>覆盖物 × 主题（@autospark/theme 自动换肤）</title>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <script src="/autospark/theme-demo.js"></script>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <main class="demo-main">
+            <div x-data="{ ui: { dialog: false, drawer: false } }">
+                <div class="auto-card">
+                    <div class="auto-card-header">覆盖物 × 主题：弹层开着也能换肤</div>
+                    <div class="auto-card-body col">
+                        <p class="hint">
+                            打开任意弹层后，在右侧面板切换<strong>主题色 / 暗色模式 / 多彩 / 圆角阴影维度</strong>——
+                            覆盖物面板（渲染在 body 容器下）与页面同步实时跟随。这是三级样式回退链的第一级
+                            （<code>--auto-*</code> 派生令牌）在生效；未引入 theme 时回落到
+                            <code>--autospark-overlay-*</code> 覆盖变量与校准兜底值（视觉与默认主题基本一致）。
+                        </p>
+                        <div class="row" style="display: flex; gap: 0.6rem; flex-wrap: wrap">
+                            <button class="auto-btn primary" x-dialog:themed-panel="ui.dialog" @click="ui.dialog = true">
+                                打开对话框（模态）
+                            </button>
+                            <button class="auto-btn" x-drawer:themed-panel="ui.drawer" x-drawer-options.at="{placement: 'right'}" @click="ui.drawer = true">
+                                打开抽屉（贴边）
+                            </button>
+                            <button class="auto-btn" x-popover:themed-tip x-popover-options="{delayShow: 0, at: {placement: 'top'}}">悬浮气泡（悬停我）</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 覆盖物内容 = 普通组件（x-define 编译期剪枝，scope 链可查） -->
+                <div x-define="themed-panel" style="padding: 20px 24px; min-width: 300px">
+                    <h3 style="margin: 0 0 8px">主题化的覆盖物</h3>
+                    <p style="margin: 0 0 12px">
+                        面板底色、边框、圆角、阴影、divider、hover 交互态全部来自主题令牌。
+                        现在去右侧面板切换主题试试——<strong>这个弹层不用关</strong>。
+                    </p>
+                    <div style="display: flex; gap: 0.6rem">
+                        <span class="auto-alert info" style="flex: 1">信息 --auto-info-color</span>
+                        <span class="auto-alert danger">危险 --auto-danger-color</span>
+                    </div>
+                </div>
+                <div x-define="themed-tip" style="padding: 10px 14px">气泡内容也跟随主题令牌 ✨</div>
+            </div>
+        </main>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-main"), {});
+        </script>
+    </body>
+</html>

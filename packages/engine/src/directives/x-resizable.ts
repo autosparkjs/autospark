@@ -592,7 +592,7 @@ const RESIZE_STYLE_ID = "autospark-resize-styles";
 const RESIZE_HANDLE_CSS = `
 [data-autospark-resize-handle]{position:absolute;z-index:10;touch-action:none;user-select:none;}
 [data-autospark-resize-handle]::after{content:"";position:absolute;background:transparent;border-radius:2px;transition:background .15s;}
-[data-autospark-resize-handle]:hover::after,[data-autospark-resize-handle]:focus-visible::after{background:var(--autospark-resize-handle-color,#94a3b8);}
+[data-autospark-resize-handle]:hover::after,[data-autospark-resize-handle]:focus-visible::after{background:var(--autospark-resize-handle-color,rgba(96,96,96,0.55));}
 [data-autospark-resize-handle="n"],[data-autospark-resize-handle="s"]{left:8px;right:8px;height:var(--autospark-resize-handle-thickness,10px);cursor:ns-resize;}
 [data-autospark-resize-handle="n"]{top:calc(-1 * var(--autospark-resize-handle-thickness,10px) / 2);}
 [data-autospark-resize-handle="n"]::after,[data-autospark-resize-handle="s"]::after{left:0;right:0;top:calc(50% - 1px);height:2px;}
@@ -605,10 +605,13 @@ const RESIZE_HANDLE_CSS = `
 [data-autospark-resize-handle="ne"]{top:calc(-1 * var(--autospark-resize-handle-size,12px) / 2);right:calc(-1 * var(--autospark-resize-handle-size,12px) / 2);cursor:nesw-resize;}
 [data-autospark-resize-handle="nw"]{top:calc(-1 * var(--autospark-resize-handle-size,12px) / 2);left:calc(-1 * var(--autospark-resize-handle-size,12px) / 2);cursor:nwse-resize;}
 [data-autospark-resize-handle="se"]{bottom:calc(-1 * var(--autospark-resize-handle-size,12px) / 2);right:calc(-1 * var(--autospark-resize-handle-size,12px) / 2);cursor:nwse-resize;}
-[data-autospark-resize-handle="se"]::after{left:2px;top:2px;width:5px;height:5px;background:var(--autospark-resize-handle-color,#94a3b8);clip-path:polygon(0 100%,100% 100%,100% 0);}
+[data-autospark-resize-handle="se"]::after{left:2px;top:2px;width:5px;height:5px;background:var(--autospark-resize-handle-color,rgba(96,96,96,0.55));clip-path:polygon(0 100%,100% 100%,100% 0);}
 [data-autospark-resize-handle="sw"]{bottom:calc(-1 * var(--autospark-resize-handle-size,12px) / 2);left:calc(-1 * var(--autospark-resize-handle-size,12px) / 2);cursor:nesw-resize;}
-[data-autospark-resize-handle="sw"]::after{right:2px;top:2px;width:5px;height:5px;background:var(--autospark-resize-handle-color,#94a3b8);clip-path:polygon(0 100%,0 0,100% 100%);}
-[data-autospark-resize-handle="ne"]::after,[data-autospark-resize-handle="nw"]::after{width:5px;height:5px;background:var(--autospark-resize-handle-color,#94a3b8);}
+[data-autospark-resize-handle="sw"]::after{right:2px;top:2px;width:5px;height:5px;background:var(--autospark-resize-handle-color,rgba(96,96,96,0.55));clip-path:polygon(0 100%,0 0,100% 100%);}
+[data-autospark-resize-handle="ne"]::after,[data-autospark-resize-handle="nw"]::after{width:5px;height:5px;background:var(--autospark-resize-handle-color,rgba(96,96,96,0.55));}
+/* 暗色兜底变体（ADR-0129）：手柄色属非映射声明（保持两级），兜底按 theme 校准切换 */
+[dark] [data-autospark-resize-handle]::after,[data-dark] [data-autospark-resize-handle]::after{background:var(--autospark-resize-handle-color,rgba(250,250,250,0.55));}
+[dark] [data-autospark-resize-handle]:hover::after,[data-dark] [data-autospark-resize-handle]:focus-visible::after{background:var(--autospark-resize-handle-color,rgba(250,250,250,0.75));}
 [data-autospark-resize-handle="ne"]::after{right:2px;bottom:2px;clip-path:polygon(0 0,100% 0,100% 100%);}
 [data-autospark-resize-handle="nw"]::after{left:2px;bottom:2px;clip-path:polygon(0 0,100% 0,0 100%);}
 `;

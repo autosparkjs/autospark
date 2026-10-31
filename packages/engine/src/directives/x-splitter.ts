@@ -196,7 +196,9 @@ const SPLITTER_CSS = `
 .autospark-splitter[data-direction="horizontal"]>.autospark-splitter-divider::after{top:0;bottom:0;left:calc(50% - var(--autospark-splitter-divider-size,2px)/2);width:var(--autospark-splitter-divider-size,2px);}
 .autospark-splitter[data-direction="vertical"]>.autospark-splitter-divider{height:var(--autospark-splitter-hit-size,4px);cursor:row-resize;}
 .autospark-splitter[data-direction="vertical"]>.autospark-splitter-divider::after{left:0;right:0;top:calc(50% - var(--autospark-splitter-divider-size,2px)/2);height:var(--autospark-splitter-divider-size,2px);}
-.autospark-splitter-divider:hover::after,.autospark-splitter-divider:focus-visible::after{background:var(--autospark-splitter-color-hover,#94a3b8);}
+.autospark-splitter-divider:hover::after,.autospark-splitter-divider:focus-visible::after{background:var(--autospark-splitter-color-hover,rgba(96,96,96,0.55));}
+/* 暗色兜底变体（ADR-0129）：分隔条 hover 色属非映射声明（保持两级），兜底按 theme 校准切换 */
+[dark] .autospark-splitter-divider:hover::after,[dark] .autospark-splitter-divider:focus-visible::after,[data-dark] .autospark-splitter-divider:hover::after,[data-dark] .autospark-splitter-divider:focus-visible::after{background:var(--autospark-splitter-color-hover,rgba(250,250,250,0.55));}
 .autospark-splitter-divider:focus-visible{outline:none;}
 .autospark-splitter-divider[data-static]{cursor:default;}
 /* 组合把手（ADR-0070）：x-expandable 的感应边条在本语境被抑制——24px 边条会整体遮挡

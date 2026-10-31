@@ -50,7 +50,7 @@ export function injectTooltipStyles(): void {
   /* 上下 7px：箭头覆盖层同心嵌入面板 ≈8.5px，须容纳在 padding + 行盒留白（≈3.25px）内
      （7 + 3.25 = 10.25 > 8.49，文字墨迹零遮挡且内容保持居中——勿改回对称性破坏的侧向让位） */
   padding: 7px 10px;
-  border-radius: var(--autospark-tooltip-radius, 6px);
+  border-radius: var(--auto-border-radius, var(--autospark-tooltip-radius, 0.5rem));
   background: var(--autospark-tooltip-bg, #1f2937);
   color: var(--autospark-tooltip-fg, #fff);
   font-size: 13px;

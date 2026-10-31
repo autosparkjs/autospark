@@ -35,7 +35,7 @@ export const derivedVars = {
     /* 背景语义按透明度阶梯区分：面板为实色容器，次级/内嵌为同一原料（bgcolor-2）的不同不透明度叠加
      * （45% / 75%），light 与 dark 下均落在可辨区间；!important 移除（模式覆盖作用于基变量，此处无需） */
     "--auto-bgcolor": "var(--x-bgcolor-0)",
-    "--auto-secondary-bgcolor": "color-mix(in srgb, var(--x-bgcolor-2), transparent 55%)",
+    "--auto-secondary-bgcolor": "color-mix(in srgb, var(--x-bgcolor-2), transparent 85%)",
     "--auto-third-bgcolor": "color-mix(in srgb, var(--x-bgcolor-2), transparent 25%)",
     "--auto-workspace-bgcolor": "var(--x-bgcolor-1)",
 

@@ -128,18 +128,27 @@ export class ForDirective extends AutoSparkDirectiveBase {
 /* x-for 虚拟列表默认滚动条样式 */
 [${VIRTUAL_ATTR}] {
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  scrollbar-color: var(--autospark-scrollbar-color, rgba(96, 96, 96, 0.55)) transparent;
 }
 [${VIRTUAL_ATTR}]::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 [${VIRTUAL_ATTR}]::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--autospark-scrollbar-color, rgba(96, 96, 96, 0.55));
   border-radius: 3px;
 }
 [${VIRTUAL_ATTR}]::-webkit-scrollbar-track {
   background: transparent;
+}
+/* 暗色兜底变体（ADR-0129）：滚动条色属非映射声明（保持两级），兜底按 theme 校准切换 */
+[dark] [${VIRTUAL_ATTR}],
+[data-dark] [${VIRTUAL_ATTR}] {
+  scrollbar-color: var(--autospark-scrollbar-color, rgba(250, 250, 250, 0.55)) transparent;
+}
+[dark] [${VIRTUAL_ATTR}]::-webkit-scrollbar-thumb,
+[data-dark] [${VIRTUAL_ATTR}]::-webkit-scrollbar-thumb {
+  background: var(--autospark-scrollbar-color, rgba(250, 250, 250, 0.55));
 }`,
             { id: VIRTUAL_STYLES_ID },
         );

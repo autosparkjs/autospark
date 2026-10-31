@@ -515,7 +515,8 @@ describe("抽屉把手（expandable 组合共享把手，ADR-0070）", () => {
         );
         expect(css).toContain('.autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"]:hover');
         expect(css).toContain('.autospark-overlays > .autospark-expandable-trigger[data-show-trigger="hover"]:focus-visible');
-        expect(css).toMatch(/\.autospark-overlays > \.autospark-expandable-trigger\[data-collapsed\] \{ box-shadow: 0[^}]*opacity: 1;/);
+        // 主题化后折叠态阴影走三级回退链（ADR-0129）：var(--auto-shadow, var(--autospark-expandable-trigger-shadow, …)) + opacity 恒显
+        expect(css).toMatch(/\.autospark-overlays > \.autospark-expandable-trigger\[data-collapsed\] \{[\s\S]*?box-shadow: var\(--auto-shadow, var\(--autospark-expandable-trigger-shadow,[^}]*opacity: 1;/);
         expect(css).toContain("@media (hover: none)");
     });
 

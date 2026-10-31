@@ -201,10 +201,15 @@ ${SHARED_TRIGGER_CSS}
    关闭不挡交互；z-index 低于边条(4)/把手(5)。厚度经 --as-fade-size（JS 写值 CSS 消费），
    颜色经 --autospark-expandable-fade-color 定制（默认 slate 半透明） */
 .autospark-expandable[data-fade]::before{content:"";position:absolute;z-index:2;pointer-events:none;opacity:0;transition:opacity var(--autospark-expandable-duration,.25s) ease;}
-.autospark-expandable[data-fade][data-direction="left"]::before{right:0;top:0;bottom:0;width:var(--as-fade-size,0px);background:linear-gradient(to left,var(--autospark-expandable-fade-color,white),transparent);}
-.autospark-expandable[data-fade][data-direction="right"]::before{left:0;top:0;bottom:0;width:var(--as-fade-size,0px);background:linear-gradient(to right,var(--autospark-expandable-fade-color,white),transparent);}
-.autospark-expandable[data-fade][data-direction="top"]::before{bottom:0;left:0;right:0;height:var(--as-fade-size,0px);background:linear-gradient(to top,var(--autospark-expandable-fade-color,white),transparent);}
-.autospark-expandable[data-fade][data-direction="bottom"]::before{top:0;left:0;right:0;height:var(--as-fade-size,0px);background:linear-gradient(to bottom,var(--autospark-expandable-fade-color,white),transparent);}
+.autospark-expandable[data-fade][data-direction="left"]::before{right:0;top:0;bottom:0;width:var(--as-fade-size,0px);background:linear-gradient(to left,var(--auto-bgcolor, var(--autospark-expandable-fade-color,#fff)),transparent);}
+.autospark-expandable[data-fade][data-direction="right"]::before{left:0;top:0;bottom:0;width:var(--as-fade-size,0px);background:linear-gradient(to right,var(--auto-bgcolor, var(--autospark-expandable-fade-color,#fff)),transparent);}
+.autospark-expandable[data-fade][data-direction="top"]::before{bottom:0;left:0;right:0;height:var(--as-fade-size,0px);background:linear-gradient(to top,var(--auto-bgcolor, var(--autospark-expandable-fade-color,#fff)),transparent);}
+.autospark-expandable[data-fade][data-direction="bottom"]::before{top:0;left:0;right:0;height:var(--as-fade-size,0px);background:linear-gradient(to bottom,var(--auto-bgcolor, var(--autospark-expandable-fade-color,#fff)),transparent);}
+/* 暗色兜底变体（ADR-0129）：fade 遮罩色兜底切换为 theme 默认暗色校准值（变量链不变） */
+[dark] .autospark-expandable[data-fade][data-direction="left"]::before,[data-dark] .autospark-expandable[data-fade][data-direction="left"]::before{background:linear-gradient(to left,var(--auto-bgcolor, var(--autospark-expandable-fade-color,#606060)),transparent);}
+[dark] .autospark-expandable[data-fade][data-direction="right"]::before,[data-dark] .autospark-expandable[data-fade][data-direction="right"]::before{background:linear-gradient(to right,var(--auto-bgcolor, var(--autospark-expandable-fade-color,#606060)),transparent);}
+[dark] .autospark-expandable[data-fade][data-direction="top"]::before,[data-dark] .autospark-expandable[data-fade][data-direction="top"]::before{background:linear-gradient(to top,var(--auto-bgcolor, var(--autospark-expandable-fade-color,#606060)),transparent);}
+[dark] .autospark-expandable[data-fade][data-direction="bottom"]::before,[data-dark] .autospark-expandable[data-fade][data-direction="bottom"]::before{background:linear-gradient(to bottom,var(--auto-bgcolor, var(--autospark-expandable-fade-color,#606060)),transparent);}
 .autospark-expandable[data-fade][data-shrunk]::before{opacity:1;}
 /* 把手展开态定位（宿主内）：**圆心骑活动边线**（一半突出宿主外）+ 沿边滑轨
    （--as-pos 圆心坐标，负值距对端）——滑出全程圆心恒贴边线，reparent 零跳变。

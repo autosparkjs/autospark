@@ -98,9 +98,11 @@ export function parseRailCoord(raw: unknown): RailCoord | null {
  *   并平移 1/5 圆径移入半圆中心（translate 前置于 rotate——视觉坐标平移，不随旋转载向）。
  */
 export const SHARED_TRIGGER_CSS = `
-.${TRIGGER_CLASS}{position:absolute;z-index:5;width:var(--autospark-expandable-trigger-size,20px);height:var(--autospark-expandable-trigger-size,20px);border-radius:50%;border:1px solid var(--autospark-expandable-trigger-border,#cbd5e1);background:var(--autospark-expandable-trigger-bg,#fff);box-shadow:0 1px 3px rgba(0,0,0,.1);cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;transition:border-color .15s,background .15s,opacity .15s;color:var(--autospark-expandable-trigger-fg,#64748b);}
+/* 主题化（ADR-0129）：三级样式回退链 var(--auto-X, var(--autospark-<feature>-X, 校准兜底值))；
+   尺寸/圆形半径属功能几何不映射；暗色兜底变体见块尾（只切末级字面值） */
+.${TRIGGER_CLASS}{position:absolute;z-index:5;width:var(--autospark-expandable-trigger-size,20px);height:var(--autospark-expandable-trigger-size,20px);border-radius:50%;border:1px solid var(--auto-border-color, var(--autospark-expandable-trigger-border,#f0f0f0));background:var(--auto-bgcolor, var(--autospark-expandable-trigger-bg,#fff));box-shadow:var(--auto-shadow, var(--autospark-expandable-trigger-shadow,0 2px 4px hsl(240 3.8% 46.1% / 12%)));cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;transition:border-color .15s,background .15s,opacity .15s;color:var(--auto-third-color, var(--autospark-expandable-trigger-fg,rgba(96,96,96,0.55)));}
 .${TRIGGER_CLASS}>svg{width:var(--autospark-expandable-trigger-icon-size,12px);height:var(--autospark-expandable-trigger-icon-size,12px);stroke-width:1.5;transition:transform .15s,width .15s,height .15s;}
-.${TRIGGER_CLASS}:hover{border-color:var(--autospark-expandable-trigger-border-hover,#94a3b8);background:var(--autospark-expandable-trigger-bg-hover,#f8fafc);}
+.${TRIGGER_CLASS}:hover{border-color:var(--auto-hover-border-color, var(--autospark-expandable-trigger-border-hover,#009aff));background:var(--auto-hover-bgcolor, var(--autospark-expandable-trigger-bg-hover,rgba(0,154,255,0.15)));}
 /* 滑轨定位基建：圆心半径变量（半圆数学/钳制表达式公共基准） */
 .${TRIGGER_CLASS}{--as-pos-half:calc(var(--autospark-expandable-trigger-size,20px)/2);}
 /* 箭头旋转矩阵（展开态指向收起方向） */
@@ -119,6 +121,9 @@ export const SHARED_TRIGGER_CSS = `
 .${TRIGGER_CLASS}[data-half][data-direction="right"]>svg{transform:translateX(calc(var(--autospark-expandable-trigger-size,20px)*-1/5)) rotate(180deg);}
 .${TRIGGER_CLASS}[data-half][data-direction="top"]>svg{transform:translateY(calc(var(--autospark-expandable-trigger-size,20px)/5)) rotate(90deg);}
 .${TRIGGER_CLASS}[data-half][data-direction="bottom"]>svg{transform:translateY(calc(var(--autospark-expandable-trigger-size,20px)*-1/5)) rotate(-90deg);}
+/* 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值 */
+[dark] .${TRIGGER_CLASS},[data-dark] .${TRIGGER_CLASS}{border-color:var(--auto-border-color, var(--autospark-expandable-trigger-border,#606060));background:var(--auto-bgcolor, var(--autospark-expandable-trigger-bg,#606060));box-shadow:var(--auto-shadow, var(--autospark-expandable-trigger-shadow,0 2px 4px hsl(0 0% 0% / 50%)));color:var(--auto-third-color, var(--autospark-expandable-trigger-fg,rgba(250,250,250,0.55)));}
+[dark] .${TRIGGER_CLASS}:hover,[data-dark] .${TRIGGER_CLASS}:hover{border-color:var(--auto-hover-border-color, var(--autospark-expandable-trigger-border-hover,#56baff));background:var(--auto-hover-bgcolor, var(--autospark-expandable-trigger-bg-hover,rgba(86,186,255,0.15)));}
 `;
 
 /** 共享把手样式注入（幂等；多 engine 共享、destroy 不移除——全局样式惯例） */

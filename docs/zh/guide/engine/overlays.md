@@ -117,6 +117,23 @@ new AutoSpark(el, state, { overlay: { dialog: { shell: "my-dialog" } } });
 泛化旧义 `.autospark-dialog` 基类已退役（该类回归 dialog 形态专属）：popover / drawer / notification 面板不再携带该类。按 `.autospark-dialog` 定制过这些面板 CSS 的代码请改用形态类（如 `.autospark-popover`）或 `[data-overlay]` 属性选择器。
 :::
 
+### 主题集成（@autospark/theme）：引入即自动换肤
+
+内置默认面板的每条视觉声明都是一条**三级样式回退链**（ADR-0129）：
+
+```css
+border: 1px solid var(--auto-border-color, var(--autospark-overlay-border, #f0f0f0));
+background: var(--auto-bgcolor, var(--autospark-overlay-bg, #fff));
+```
+
+- **引入 @autospark/theme**：面板跟随主题色 / 暗色 / 多彩 / 四维度**实时换肤**——覆盖物渲染在 body 容器下，天然处于主题根作用域，弹层开着也能切；
+- **未引入**：`--autospark-overlay-*` 覆盖变量生效（如上节的自定义通道），兜底字面值与主题默认观感基本一致；
+- 两侧都感知暗色：`[dark]` / `[data-dark]` 属性契约同时驱动面板的暗色兜底变体。
+
+<demo html="overlay/theme.html"/>
+
+完整机制（覆盖变量在 theme 在场时的遮蔽语义、定制正道、已知边界）见 [主题 · 内置组件集成](./theme/integration.md)。
+
 ### 结构骨架（autospark.overlay）：通用 header / body / footer
 
 三个内置 shell 内嵌了一个通用**结构骨架组件** `autospark.overlay`（ADR-0124，内置非面向开发者组件——开发者经覆盖物配置间接使用），为覆盖物家族提供统一的标题栏 / 内容区 / 底部动作区：

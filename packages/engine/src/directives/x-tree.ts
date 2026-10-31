@@ -470,7 +470,7 @@ export class TreeDirective extends AutoSparkDirectiveBase {
             `
 .x-tree-node{margin:0}
 .x-tree-row{display:flex;align-items:center;gap:4px;padding:2px 4px;border-radius:4px;cursor:pointer;user-select:none}
-.x-tree-row:hover{background:#f0f0f0}
+.x-tree-row:hover{background:var(--auto-hover-bgcolor, var(--autospark-tree-hover-bgcolor,rgba(0,154,255,0.15)))}
 .x-tree-ico{display:inline-flex;justify-content:center;align-items:center;width:1.2em;flex:none}
 .x-tree-arrow{display:inline-block;width:0;height:0;border-left:5px solid currentColor;border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .2s;opacity:.6}
 .x-tree-arrow--open{transform:rotate(90deg)}
@@ -478,12 +478,18 @@ export class TreeDirective extends AutoSparkDirectiveBase {
 .x-tree-label{flex:1}
 ul.x-tree-children{list-style:none;margin:0;padding-left:20px}
 /* 拖拽三态指示（P3）：before/after 上下边缘线、inside 收纳高亮 */
-li[data-x-tree-row].x-tree-drop-before{box-shadow:inset 0 2px 0 #3273dc}
-li[data-x-tree-row].x-tree-drop-after{box-shadow:inset 0 -2px 0 #3273dc}
-li[data-x-tree-row].x-tree-drop-inside{background:#eef3fc;outline:1px dashed #3273dc;outline-offset:-1px}
+li[data-x-tree-row].x-tree-drop-before{box-shadow:inset 0 2px 0 var(--auto-selected-color, var(--autospark-tree-drop-color,#009aff))}
+li[data-x-tree-row].x-tree-drop-after{box-shadow:inset 0 -2px 0 var(--auto-selected-color, var(--autospark-tree-drop-color,#009aff))}
+li[data-x-tree-row].x-tree-drop-inside{background:var(--auto-selected-bgcolor, var(--autospark-tree-drop-bgcolor,rgba(0,154,255,0.2)));outline:1px dashed var(--auto-selected-color, var(--autospark-tree-drop-color,#009aff));outline-offset:-1px}
 /* 懒加载错误态（ADR-0090 修订）：行挂 data-x-tree-error → 默认模板节点图标变红
    （自定义模板可用同属性自行选样式；错误消息经行 data-tooltip 提示） */
-li[data-x-tree-row][data-x-tree-error] .x-tree-type-ico{color:#e5484d}
+li[data-x-tree-row][data-x-tree-error] .x-tree-type-ico{color:var(--auto-danger-color, var(--autospark-tree-error-color,#ef4444))}
+/* 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） */
+[dark] .x-tree-row:hover,[data-dark] .x-tree-row:hover{background:var(--auto-hover-bgcolor, var(--autospark-tree-hover-bgcolor,rgba(86,186,255,0.15)))}
+[dark] li[data-x-tree-row].x-tree-drop-before,[data-dark] li[data-x-tree-row].x-tree-drop-before{box-shadow:inset 0 2px 0 var(--auto-selected-color, var(--autospark-tree-drop-color,#56baff))}
+[dark] li[data-x-tree-row].x-tree-drop-after,[data-dark] li[data-x-tree-row].x-tree-drop-after{box-shadow:inset 0 -2px 0 var(--auto-selected-color, var(--autospark-tree-drop-color,#56baff))}
+[dark] li[data-x-tree-row].x-tree-drop-inside,[data-dark] li[data-x-tree-row].x-tree-drop-inside{background:var(--auto-selected-bgcolor, var(--autospark-tree-drop-bgcolor,rgba(86,186,255,0.18)));outline-color:var(--auto-selected-color, var(--autospark-tree-drop-color,#56baff))}
+[dark] li[data-x-tree-row][data-x-tree-error] .x-tree-type-ico,[data-dark] li[data-x-tree-row][data-x-tree-error] .x-tree-type-ico{color:var(--auto-danger-color, var(--autospark-tree-error-color,#e6696a))}
 `,
             { id: TREE_STYLES_ID },
         );
