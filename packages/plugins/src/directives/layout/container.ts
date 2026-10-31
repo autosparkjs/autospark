@@ -1,12 +1,22 @@
-import { AutoSparkDirectiveBase } from "../features/directive/base";
-import type { AutoSpark } from "../engine/engine";
-import { injectStylesheet } from "../utils/injectStylesheet";
-import { resolveViewportBreakpoints } from "../features/viewport/manager";
-import {
-    DEFAULT_VIEWPORT_MAX_WIDTHS,
-    VIEWPORT_TIERS,
-    type ViewportTier,
-} from "../features/viewport/types";
+/**
+ * container 指令插件（`autospark.layout.js`，ADR-0128 外移 / plugins ADR-0008）。
+ *
+ * 迁移形态（类重载指令的插件化范式，批次 1 x-tree 确立）：**类工厂**——基类经运行时
+ * 命名空间解析（`autospark.AutoSparkDirectiveBase`），类定义延迟到 installPlugin 的
+ * register 回调内（预加载队列场景下模块加载期 AutoSpark 不可达）。语义零漂移，类体、
+ * 静态特性与生命周期全量平移自 engine src/directives/x-container.ts。
+ */
+import type {
+    AutoSpark,
+    ViewportTier,
+    AutoSparkDirectiveBase,
+} from "autospark";
+import { injectStylesheet } from "../../utils/injectStylesheet";
+import { resolveViewportBreakpoints } from "../../utils/resolveViewportBreakpoints";
+import { DEFAULT_VIEWPORT_MAX_WIDTHS } from "../../utils/viewportTiers";
+import { VIEWPORT_TIERS } from "../../utils/viewportTiers";
+import { installPlugin } from "@autospark/utils";
+
 
 /**
  * x-container：响应式容器（ADR-0101 立，ADR-0105 重写）。
@@ -160,80 +170,100 @@ function releaseCustomStyle(key: string): void {
  * 非结构指令、不 ownsChildren，与 x-if / x-show / x-for 正交。档位真相全局唯一
  * （`$.viewport`），本指令只装配视觉契约与消费档位。
  */
-export class ContainerDirective extends AutoSparkDirectiveBase {
-    static override readonly priority = 0;
-    static override readonly singleton = true;
 
-    /** 类级初始化：注入容器全局样式（幂等） */
-    static override initialize(_engine: AutoSpark): void {
-        registerContainerStyles();
-    }
+/**
+ * container 指令类工厂：基类由调用方注入（命名空间可达时），返回可直接经
+ * `$.directive("container", Cls)` 类重载安装的指令类。
+ */
+export function createContainerDirective(
+    Base: typeof AutoSparkDirectiveBase,
+): typeof AutoSparkDirectiveBase {
+    class ContainerDirective extends Base {
+        static override readonly priority = 0;
+        static override readonly singleton = true;
 
-    /** 实例生效 max-width 表（回退链归一产物） */
-    private _maxWidths: Record<string, string> = {};
-    /** .fluid：关按档 max-width（档位通道照常） */
-    private _fluid = false;
-    /** 当前档（null = 未定——首值必写，此后同档短路） */
-    private _tier: ViewportTier | null = null;
-    /** 自定义表 scoped style 指纹（destroy 减引用） */
-    private _styleKey: string | null = null;
+        /** 类级初始化：注入容器全局样式（幂等） */
+        static override initialize(_engine: AutoSpark): void {
+            registerContainerStyles();
+        }
 
-    override created(): void {
-        this._watchOptionExprs();
-        this._maxWidths = resolveContainerMaxWidths(
-            (key) => this.getOption(key),
-            this.engine.options.viewport?.maxWidths,
-            (m) => this.warn(m),
-        );
-        this._fluid = this.getOption("fluid") === true;
+        /** 实例生效 max-width 表（回退链归一产物） */
+        private _maxWidths: Record<string, string> = {};
+        /** .fluid：关按档 max-width（档位通道照常） */
+        private _fluid = false;
+        /** 当前档（null = 未定——首值必写，此后同档短路） */
+        private _tier: ViewportTier | null = null;
+        /** 自定义表 scoped style 指纹（destroy 减引用） */
+        private _styleKey: string | null = null;
 
-        // 类装配：基础契约类 + .fluid 中立类 + 自定义表指纹类（fluid 恒无约束，不吃 media 规则）
-        this.el.classList.add("autospark-container");
-        if (this._fluid) this.el.classList.add("autospark-container-fluid");
-        if (!this._fluid) {
-            // engine 生效阈值表（与 ViewportManager 同源）× 实例 maxWidths → 指纹身份；
-            // 等值内置表时全局样式已覆盖，无需 scoped
-            const tables = resolveViewportBreakpoints(this.engine.options.viewport?.breakpoints);
-            const cssText = buildTierCss(tables.tiers, tables.thresholds, this._maxWidths, "");
-            if (cssText !== DEFAULT_TIER_CSS) {
-                this._styleKey = hash36(cssText);
-                acquireCustomStyle(
-                    this._styleKey,
-                    buildTierCss(
-                        tables.tiers,
-                        tables.thresholds,
-                        this._maxWidths,
-                        `autospark-container-${this._styleKey}`,
-                    ),
-                );
-                this.el.classList.add(`autospark-container-${this._styleKey}`);
+        override created(): void {
+            this._watchOptionExprs();
+            this._maxWidths = resolveContainerMaxWidths(
+                (key) => this.getOption(key),
+                this.engine.options.viewport?.maxWidths,
+                (m) => this.warn(m),
+            );
+            this._fluid = this.getOption("fluid") === true;
+
+            // 类装配：基础契约类 + .fluid 中立类 + 自定义表指纹类（fluid 恒无约束，不吃 media 规则）
+            this.el.classList.add("autospark-container");
+            if (this._fluid) this.el.classList.add("autospark-container-fluid");
+            if (!this._fluid) {
+                // engine 生效阈值表（与 ViewportManager 同源）× 实例 maxWidths → 指纹身份；
+                // 等值内置表时全局样式已覆盖，无需 scoped
+                const tables = resolveViewportBreakpoints(this.engine.options.viewport?.breakpoints);
+                const cssText = buildTierCss(tables.tiers, tables.thresholds, this._maxWidths, "");
+                if (cssText !== DEFAULT_TIER_CSS) {
+                    this._styleKey = hash36(cssText);
+                    acquireCustomStyle(
+                        this._styleKey,
+                        buildTierCss(
+                            tables.tiers,
+                            tables.thresholds,
+                            this._maxWidths,
+                            `autospark-container-${this._styleKey}`,
+                        ),
+                    );
+                    this.el.classList.add(`autospark-container-${this._styleKey}`);
+                }
+            }
+
+            // 档位消费（ADR-0105）：订阅全局 $.viewport（测量真相，单向读）。初值即时同步
+            // （manager 构造期已写入，首渲染无空档）；非档名值（用户违约写入 $）忽略。
+            const isTier = (v: unknown): v is ViewportTier =>
+                typeof v === "string" && (VIEWPORT_TIERS as readonly string[]).includes(v);
+            this.binding.watch("$.viewport", ({ value }) => {
+                if (isTier(value)) this._applyTier(value);
+            });
+            const initial = this.binding.read("$.viewport");
+            if (isTier(initial)) this._applyTier(initial);
+        }
+
+        override destroy(): void {
+            if (this._styleKey) {
+                releaseCustomStyle(this._styleKey);
+                this._styleKey = null;
             }
         }
 
-        // 档位消费（ADR-0105）：订阅全局 $.viewport（测量真相，单向读）。初值即时同步
-        // （manager 构造期已写入，首渲染无空档）；非档名值（用户违约写入 $）忽略。
-        const isTier = (v: unknown): v is ViewportTier =>
-            typeof v === "string" && (VIEWPORT_TIERS as readonly string[]).includes(v);
-        this.binding.watch("$.viewport", ({ value }) => {
-            if (isTier(value)) this._applyTier(value);
-        });
-        const initial = this.binding.read("$.viewport");
-        if (isTier(initial)) this._applyTier(initial);
-    }
+        // ── 内部 ──────────────────────────────────────────────────────────
 
-    override destroy(): void {
-        if (this._styleKey) {
-            releaseCustomStyle(this._styleKey);
-            this._styleKey = null;
+        /** 应用档位变更：data-breakpoint（同档不动作——档位记忆化；初值 from null 必写）。 */
+        private _applyTier(tier: ViewportTier): void {
+            if (this._tier === tier) return;
+            this._tier = tier;
+            this.el.setAttribute("data-breakpoint", tier);
         }
     }
-
-    // ── 内部 ──────────────────────────────────────────────────────────
-
-    /** 应用档位变更：data-breakpoint（同档不动作——档位记忆化；初值 from null 必写）。 */
-    private _applyTier(tier: ViewportTier): void {
-        if (this._tier === tier) return;
-        this._tier = tier;
-        this.el.setAttribute("data-breakpoint", tier);
-    }
+    return ContainerDirective;
 }
+
+/** 双路径自举（ADR-0114 单点 installPlugin）：register 内命名空间必已可达 */
+export function bootstrapContainerDirective(): void {
+    installPlugin((autospark) => {
+        autospark.directive("container", createContainerDirective(autospark.AutoSparkDirectiveBase));
+    });
+}
+
+// 模块加载即自举（对称 decorate 家族：置于模块尾部）
+bootstrapContainerDirective();

@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import "../setup";
 import { mount, nextTick, finishAnim } from "../helpers";
-import { iconRegistry } from "../../features/icons/registry";
+import { iconRegistry } from "autospark";
+// 显式引入 tree 插件模块（模块加载即双路径自举——原 engine 侧靠 presetDirectives，外移后测试须自挂）
+import "../../directives/tree/index";
 
 /** 默认模板三态图标名（x-icon 取内置图标，图形内容与本用例无关，只断言「名」）。
  *  x-icon.test.ts 会清空全局注册表，用例自备种子以免受测试执行顺序影响 */

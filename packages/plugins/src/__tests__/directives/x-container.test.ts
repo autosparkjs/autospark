@@ -1,8 +1,11 @@
+// 显式引入 layout 家族插件（外移后测试须自挂双路径自举）
+import "../../directives/layout/index";
+
 import { describe, expect, test, afterEach } from "bun:test";
 import "../setup";
 import { mount, nextTick } from "../helpers";
-import { resolveContainerMaxWidths } from "../../directives/x-container";
-import { DEFAULT_VIEWPORT_MAX_WIDTHS } from "../../features/viewport/types";
+import { resolveContainerMaxWidths } from "../../directives/layout/container";
+import { DEFAULT_VIEWPORT_MAX_WIDTHS } from "../../utils/viewportTiers";
 
 /**
  * x-container 响应式容器测试（ADR-0101 立 / ADR-0105 重写）。

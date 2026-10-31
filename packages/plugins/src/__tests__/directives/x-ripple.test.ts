@@ -90,7 +90,9 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
     test("表达式 truthiness：true 激活 → false 播完当前周期再停 → true 重启", async () => {
         const { root, engine } = spawn(
             `<div x-ripple="ui.show" x-ripple-options="{speed:50}"></div>`,
-            { ui: { show: true } },
+            {
+                ui: { show: true },
+            },
         );
         const host = hostOf(root);
         await twoFrames();
@@ -172,14 +174,20 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         expect(bh.classList.contains("x-ripple-on")).toBe(true);
 
         // ③ 并存取先（跨通道统一值序）：hover 胜 click——判别器：click 语义下点击会播，hover 语义下点击无效
-        const c = spawn(`<div x-ripple x-ripple-options="{hover:true,click:true,speed:50}"></div>`, {});
+        const c = spawn(
+            `<div x-ripple x-ripple-options="{hover:true,click:true,speed:50}"></div>`,
+            {},
+        );
         const ch = hostOf(c.root);
         await twoFrames();
         ch.click();
         expect(ch.classList.contains("x-ripple-on")).toBe(false);
 
         // ④ trigger 显式键同样不敌先序值：trigger:'click' + hover:true → hover 胜出
-        const d = spawn(`<div x-ripple x-ripple-options="{trigger:'click',hover:true,speed:50}"></div>`, {});
+        const d = spawn(
+            `<div x-ripple x-ripple-options="{trigger:'click',hover:true,speed:50}"></div>`,
+            {},
+        );
         const dh = hostOf(d.root);
         await twoFrames();
         dh.click();
@@ -206,12 +214,18 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         expect(hostOf(b.root).classList.contains("x-ripple-echo")).toBe(false); // ring 单环
 
         // ③ 并存取先（缺省垫底 + 枚举声明序）：{type:'ring', glow:true} → glow 胜出
-        const c = spawn(`<div x-ripple x-ripple-options="{type:'ring',glow:true,speed:50}"></div>`, {});
+        const c = spawn(
+            `<div x-ripple x-ripple-options="{type:'ring',glow:true,speed:50}"></div>`,
+            {},
+        );
         await twoFrames();
         expect(hostOf(c.root).style.getPropertyValue("--x-ripple-anim")).toBe("x-ripple-glow-50-0");
 
         // ④ {ring:true, echo:true} → ring 胜出（glow 未声明）
-        const d = spawn(`<div x-ripple x-ripple-options="{ring:true,echo:true,speed:50}"></div>`, {});
+        const d = spawn(
+            `<div x-ripple x-ripple-options="{ring:true,echo:true,speed:50}"></div>`,
+            {},
+        );
         await twoFrames();
         expect(hostOf(d.root).style.getPropertyValue("--x-ripple-anim")).toBe("x-ripple-ring-50-0");
 
@@ -239,10 +253,7 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
     });
 
     test("跨指令键 warn 忽略：声明 x-spin 形态词表不中断渲染（缺省 echo 恒开不受影响）", async () => {
-        const { root } = spawn(
-            `<div x-ripple x-ripple-options="{beam:true,speed:50}"></div>`,
-            {},
-        );
+        const { root } = spawn(`<div x-ripple x-ripple-options="{beam:true,speed:50}"></div>`, {});
         const host = hostOf(root);
         await twoFrames();
         // beam 是 x-spin 的形态键：warn 忽略（宽松策略一致），涟漪照常缺省 echo 播放
@@ -252,10 +263,7 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
     });
 
     test("gap 静止段：烘进周期（duration = speed + gap），echo 错相位随之连锁", async () => {
-        const { root } = spawn(
-            `<div x-ripple x-ripple-options="{speed:50,gap:50}"></div>`,
-            {},
-        );
+        const { root } = spawn(`<div x-ripple x-ripple-options="{speed:50,gap:50}"></div>`, {});
         const host = hostOf(root);
         await twoFrames();
         expect(host.classList.contains("x-ripple-on")).toBe(true);
@@ -398,5 +406,213 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         expect(host.classList.contains("x-ripple")).toBe(false);
         expect(host.classList.contains("x-ripple-on")).toBe(false);
         expect(host.querySelector(":scope > .x-ripple-layer")).toBeNull();
+    });
+
+    /* ────────────── 运行时动态挂载（ADR-0010 决策 7：机制已在，本组用例固化契约） ────────────── */
+
+    test("运行时动态加属性：对已存在元素 setAttribute 即生效（options mount 期读取）", async () => {
+        const { root } = spawn(`<div><div id="rt">目标</div></div>`, {});
+        const host = root.querySelector("#rt") as HTMLElement;
+        await new Promise((r) => setTimeout(r, 10)); // MutationObserver 异步派发 mount
+
+        host.setAttribute("x-ripple", "");
+        host.setAttribute("x-ripple-options", "{speed:50}");
+        await twoFrames();
+        expect(host.classList.contains("x-ripple")).toBe(true);
+        expect(host.classList.contains("x-ripple-on")).toBe(true); // always 缺省立即循环
+        expect(host.style.getPropertyValue("--x-ripple-anim")).toBe("x-ripple-echo-50-0"); // options 已读取
+    });
+
+    test("运行时动态删属性：removeAttribute 即失效（类/载体立即清理，不等在播周期）", async () => {
+        const { root } = spawn(
+            `<div><div id="rt" x-ripple x-ripple-options="{speed:5000}"></div></div>`,
+            {},
+        );
+        const host = root.querySelector("#rt") as HTMLElement;
+        await twoFrames();
+        expect(host.classList.contains("x-ripple-on")).toBe(true); // 在播（长周期）
+
+        host.removeAttribute("x-ripple");
+        host.removeAttribute("x-ripple-options");
+        await new Promise((r) => setTimeout(r, 10));
+        expect(host.classList.contains("x-ripple")).toBe(false);
+        expect(host.classList.contains("x-ripple-on")).toBe(false); // 立即失效，非周期末
+    });
+
+    test("运行时插入带属性元素：新节点进观察根即生效", async () => {
+        const { root } = spawn(`<div><span>x</span></div>`, {});
+        const fresh = document.createElement("div");
+        fresh.setAttribute("x-ripple", "");
+        fresh.setAttribute("x-ripple-options", "{speed:50}");
+        root.appendChild(fresh);
+        await twoFrames();
+        expect(fresh.classList.contains("x-ripple")).toBe(true);
+        expect(fresh.classList.contains("x-ripple-on")).toBe(true);
+    });
+
+    /* ────────────── inside 形态（ADR-0010） ────────────── */
+
+    /** mock 宿主几何（happy-dom 无布局引擎，offsetWidth/Height 恒 0）：实例自有属性遮蔽原型 getter */
+    const mockGeom = (
+        el: HTMLElement,
+        w: number,
+        h: number,
+        rect?: { left: number; top: number },
+    ) => {
+        Object.defineProperty(el, "offsetWidth", { value: w, configurable: true });
+        Object.defineProperty(el, "offsetHeight", { value: h, configurable: true });
+        if (rect)
+            Object.defineProperty(el, "getBoundingClientRect", {
+                value: () => ({
+                    left: rect.left,
+                    top: rect.top,
+                    width: w,
+                    height: h,
+                    right: 0,
+                    bottom: 0,
+                    x: 0,
+                    y: 0,
+                    toJSON: () => ({}),
+                }),
+                configurable: true,
+            });
+    };
+
+    test("inside 载体与缺省播放：clip 裁剪三件套 + 宿主类 + 中心起点自动几何 + speed 条件缺省 600ms", async () => {
+        const { root } = spawn(`<div x-ripple x-ripple-options="{inside:true}"></div>`, {});
+        const host = hostOf(root);
+        mockGeom(host, 200, 100);
+        await twoFrames();
+
+        // 宿主标记：形态类在场，伪元素永不激活（无 x-ripple-on）
+        expect(host.classList.contains("x-ripple")).toBe(true);
+        expect(host.classList.contains("x-ripple-inside")).toBe(true);
+        expect(host.classList.contains("x-ripple-on")).toBe(false);
+
+        // 载体结构：clip 为宿主直接子元素、芯/环为 clip 子元素；clip 裁剪契约（不写宿主 overflow）
+        const clip = host.querySelector(":scope > .x-ripple-inside-clip") as HTMLElement;
+        expect(clip).not.toBeNull();
+        expect(clip.style.overflow).toBe("hidden");
+        expect(clip.style.borderRadius).toBe("inherit");
+        expect(host.style.overflow).toBe("");
+        expect(clip.style.display).toBe(""); // 播放期间显示（注入即隐藏，playInside 恢复）
+        const core = clip.querySelector(".x-ripple-inside-core") as HTMLElement;
+        const halo = clip.querySelector(".x-ripple-inside-halo") as HTMLElement;
+        expect(core).not.toBeNull();
+        expect(halo).not.toBeNull();
+
+        // always 缺省播放：中心起点（100,50）、半径 = 到最远角 = hypot(100,50) = 111.8（自动几何，铺满宿主）
+        expect(core.style.left).toBe("-11.8px"); // round1(100 - 111.8)
+        expect(core.style.top).toBe("-61.8px"); // round1(50 - 111.8)
+        expect(core.style.width).toBe("223.6px");
+        expect(halo.style.left).toBe("-11.8px"); // 芯/环同几何（同心同步）
+        // 芯/环动画：双 keyframes + speed 条件缺省 600ms（未显式声明 speed）
+        expect(core.style.animation).toBe("x-ripple-inside-core-600-0 600ms ease-out infinite");
+        expect(halo.style.animation).toBe("x-ripple-inside-halo-600-0 600ms ease-out infinite");
+    });
+
+    test("inside + click：点击坐标起点、单周期自止、连点取消重起（时间窗判别）", async () => {
+        const { root } = spawn(
+            `<div x-ripple x-ripple-options="{inside:true,trigger:'click',speed:80}"></div>`,
+            {},
+        );
+        const host = hostOf(root);
+        mockGeom(host, 200, 100, { left: 10, top: 20 });
+        await twoFrames(); // 预探测注入载体（click 初始不播）
+        const clip = host.querySelector(":scope > .x-ripple-inside-clip") as HTMLElement;
+        const core = clip.querySelector(".x-ripple-inside-core") as HTMLElement;
+        expect(core.style.animation).toBe(""); // 初始静止
+        expect(clip.style.display).toBe("none"); // 注入即隐藏（芯静态底色防显形盖宿主）
+
+        // 击①：点击坐标起点（clientX 60/clientY 40 − rect(10,20) = (50,20)），
+        // 半径 = hypot(max(50,150), max(20,80)) = hypot(150,80) = 170
+        host.dispatchEvent(new MouseEvent("click", { clientX: 60, clientY: 40 }));
+        expect(clip.style.display).toBe(""); // 播放期间显示
+        expect(core.style.left).toBe("-120px"); // round1(50 - 170)
+        expect(core.style.top).toBe("-150px"); // round1(20 - 170)
+        expect(core.style.width).toBe("340px");
+        expect(core.style.animation).toContain("x-ripple-inside-core-80-0");
+
+        // 击②（t≈40ms，第一波在播中）：取消重起——起点换新坐标（(100,50)，r=hypot(100,50)=111.8），
+        // 收口重排至击②后一周期
+        await new Promise((r) => setTimeout(r, 40));
+        host.dispatchEvent(new MouseEvent("click", { clientX: 110, clientY: 70 }));
+        expect(core.style.left).toBe("-11.8px"); // round1(100 - 111.8)
+        expect(core.style.top).toBe("-61.8px"); // round1(50 - 111.8)
+        expect(core.style.animation).not.toBe("");
+
+        // t≈95ms：若未取消（家族连点忽略），第一波已于 80ms 收口——在播即证明取消重起生效
+        await new Promise((r) => setTimeout(r, 55));
+        expect(core.style.animation).not.toBe("");
+        // 击②后一周期（40+80=120ms）末自动收口
+        await new Promise((r) => setTimeout(r, 60));
+        expect(core.style.animation).toBe("");
+        expect(clip.style.display).toBe("none"); // 停止即隐藏（覆盖宿主缺陷的收口）
+    });
+
+    test("inside 互斥族：badge 优先压制 inside；type 词表忽略（echo 类不挂）；size 忽略（自动几何不受 size 声明影响）", async () => {
+        // badge 优先：inside 被 warn 忽略，badge 语义接管
+        const { root: badgeRoot } = spawn(
+            `<div x-ripple x-ripple-options="{inside:true,badge:true,speed:50}"></div>`,
+            {},
+        );
+        const badgeHost = hostOf(badgeRoot);
+        await twoFrames();
+        expect(badgeHost.classList.contains("x-ripple-badge")).toBe(true);
+        expect(badgeHost.classList.contains("x-ripple-inside")).toBe(false);
+        expect(badgeHost.querySelector(".x-ripple-inside-clip")).toBeNull();
+
+        // type 词表 + size 忽略：inside 接管渲染，echo 类不挂、半径仍自动几何
+        const { root } = spawn(
+            `<div x-ripple x-ripple-options="{inside:true,type:'echo',size:5,speed:50}"></div>`,
+            {},
+        );
+        const host = hostOf(root);
+        mockGeom(host, 200, 100);
+        await twoFrames();
+        expect(host.classList.contains("x-ripple-inside")).toBe(true);
+        expect(host.classList.contains("x-ripple-echo")).toBe(false); // type 词表被忽略
+        const core = host.querySelector(".x-ripple-inside-core") as HTMLElement;
+        expect(core.style.width).toBe("223.6px"); // 半径 = hypot(100,50)，非 size 5
+    });
+
+    test("inside 显式 speed 恒优先于条件缺省；hover 悬停播中心、移出周期末停", async () => {
+        const { root } = spawn(
+            `<div x-ripple x-ripple-options="{inside:true,trigger:'hover',speed:60}"></div>`,
+            {},
+        );
+        const host = hostOf(root);
+        mockGeom(host, 200, 100);
+        await twoFrames();
+        const core = host.querySelector(".x-ripple-inside-core") as HTMLElement;
+        const clip = host.querySelector(":scope > .x-ripple-inside-clip") as HTMLElement;
+        expect(core.style.animation).toBe(""); // hover 初始静止
+        expect(clip.style.display).toBe("none"); // 注入即隐藏
+
+        host.dispatchEvent(new Event("mouseenter"));
+        expect(core.style.animation).toBe("x-ripple-inside-core-60-0 60ms ease-out infinite"); // 显式 speed 生效
+        expect(clip.style.display).toBe(""); // 播放期间显示
+        host.dispatchEvent(new Event("mouseleave"));
+        await new Promise((r) => setTimeout(r, 100)); // 播完当前周期（60ms）再停
+        expect(core.style.animation).toBe("");
+        expect(clip.style.display).toBe("none"); // 周期末隐藏
+    });
+
+    test("inside unmounted 清理：移除属性摘 clip 三件套与宿主类", async () => {
+        const { root } = spawn(
+            `<div><div id="rt" x-ripple x-ripple-options="{inside:true,speed:50}"></div></div>`,
+            {},
+        );
+        const host = root.querySelector("#rt") as HTMLElement;
+        mockGeom(host, 200, 100);
+        await twoFrames();
+        expect(host.querySelector(":scope > .x-ripple-inside-clip")).not.toBeNull();
+
+        host.removeAttribute("x-ripple");
+        host.removeAttribute("x-ripple-options");
+        await new Promise((r) => setTimeout(r, 10));
+        expect(host.querySelector(":scope > .x-ripple-inside-clip")).toBeNull();
+        expect(host.classList.contains("x-ripple")).toBe(false);
+        expect(host.classList.contains("x-ripple-inside")).toBe(false);
     });
 });

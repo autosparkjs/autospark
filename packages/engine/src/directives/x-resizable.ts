@@ -1,3 +1,9 @@
+/**
+ * ⚠️ 过渡载体（ADR-0128 批次 3）：x-resizable 指令注册已外移 @autospark/plugins（autospark.layout.js），
+ * 本文件保留仅因 overlay 基座（overlay.ts / types.ts / x-dialog）与 x-drawer 尚未外移（批次 4）——
+ * ResizeSession 等机制符号的 engine 侧供给；批次 4 overlay 家族外移时本文件一并退役（plugins
+ * 侧 family.ts 闭包内已有产物内单份）。
+ */
 import { setVal, getVal } from "autostore";
 import { AutoSparkDirectiveBase } from "../features/directive/base";
 import { isSimpleStatePath } from "../engine/scope";

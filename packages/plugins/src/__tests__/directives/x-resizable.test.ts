@@ -1,3 +1,6 @@
+// 显式引入 layout 家族插件（外移后测试须自挂双路径自举）
+import "../../directives/layout/index";
+
 import { describe, expect, test, afterEach } from "bun:test";
 import "../setup";
 import { mount, nextTick } from "../helpers";
@@ -6,7 +9,7 @@ import {
     resolveHandles,
     resolveResizeConstraints,
     NO_CONSTRAINTS,
-} from "../../directives/x-resizable";
+} from "../../directives/layout/family";
 
 /**
  * x-resizable 尺寸调节指令测试（ADR-0064）。

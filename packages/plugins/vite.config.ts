@@ -45,6 +45,7 @@ const CLOSURE_ARTIFACTS = [
   { entry: "src/components/button/index.ts", outFile: "autospark.button.js", label: "Button" },
   { entry: "src/directives/tree/index.ts", outFile: "autospark.tree.js", label: "Tree" },
   { entry: "src/directives/version/index.ts", outFile: "autospark.version.js", label: "Version" },
+  { entry: "src/directives/layout/index.ts", outFile: "autospark.layout.js", label: "Layout" },
 ] as const;
 
 /** 插件源码（本包）/ 闭包工具源码（utils 包，迁移后路径 packages/utils/src/vite）变化即失效 dev 缓存的路径特征（Windows 分隔符兼容） */

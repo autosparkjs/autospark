@@ -1,3 +1,8 @@
+/**
+ * ⚠️ 过渡载体（ADR-0128 批次 3）：x-expandable 指令注册已外移 @autospark/plugins（autospark.layout.js），
+ * 本文件保留仅因 x-drawer 尚未外移（批次 4）——ExpandableDirective 类引用（compose 程序化组合）；
+ * 批次 4 overlay 家族外移时本文件一并退役（plugins 侧 family.ts 闭包内已有产物内单份）。
+ */
 import { setVal } from "autostore";
 import { AutoSparkDirectiveBase } from "../features/directive/base";
 import { isSimpleStatePath } from "../engine/scope";

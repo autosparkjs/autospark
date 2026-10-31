@@ -1,7 +1,10 @@
+// 显式引入 layout 家族插件（外移后测试须自挂双路径自举）
+import "../../directives/layout/index";
+
 import { describe, expect, test, afterEach } from "bun:test";
 import "../setup";
 import { mount, nextTick } from "../helpers";
-import { parseViewportTiers, VIEWPORT_HIDDEN_CLASS } from "../../directives/x-viewport";
+import { parseViewportTiers, VIEWPORT_HIDDEN_CLASS } from "../../directives/layout/viewport";
 
 /**
  * x-viewport 视口档位显隐测试（ADR-0106）。

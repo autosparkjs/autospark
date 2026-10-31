@@ -43,6 +43,10 @@
  *   `globalThis.AutoSpark` 已存在（引擎脚本先加载）→ 直接入安装器队列；否则推
  *   `__AUTOSPARK_PLUGINS__` 预加载队列，首个 engine 构造开头 drain（早于同构造的
  *   setupPluginQueue 消费与首编译）。
+ * - **inside 形态分支**（ADR-0010，可选钩子 {@link InsideStrategy}，x-ripple 独有）：
+ *   enabled 时恒子元素载体（clipper 裁剪容器 + 芯/环，不写宿主 overflow）、起点/半径
+ *   每次播放按 geometry 动态写入（click 事件坐标 / 几何中心）、click 连点取消重起
+ *   （家族 click「连点忽略」的唯一点特例）——其余状态机（值三态/停止语义/收口）零分叉。
  *
  * ## 结构
  *
@@ -77,7 +81,8 @@ export const RIPPLE_BADGE_COLOR =
     "var(--auto-danger-color, var(--autospark-ripple-badge-color, #ef4444))";
 
 /** 旋噪徽标缺省色链（badge 家族特性）：主题语义红 → --autospark-spin-badge-color → 校准值 */
-export const SPIN_BADGE_COLOR = "var(--auto-danger-color, var(--autospark-spin-badge-color, #ef4444))";
+export const SPIN_BADGE_COLOR =
+    "var(--auto-danger-color, var(--autospark-spin-badge-color, #ef4444))";
 
 /** 徽标火花默认直径 px（badge: true 时） */
 export const BADGE_DEFAULT_SIZE = 8;
@@ -117,7 +122,11 @@ export function normalizeNumber(
 }
 
 /** speed 归一：非负数字 + 正数校验（总周期为 0 将无法产生动画），非法/非正回退 DEFAULT_SPEED */
-export function normalizeSpeed(raw: Record<string, any> | undefined, warn: (msg: string) => void, name: string): number {
+export function normalizeSpeed(
+    raw: Record<string, any> | undefined,
+    warn: (msg: string) => void,
+    name: string,
+): number {
     const v = normalizeNumber(raw, "speed", warn, name) ?? DEFAULT_SPEED;
     if (v <= 0) {
         warn(`${name}: speed 须为正数（总周期为 0 将无法产生动画），已回退 ${DEFAULT_SPEED}`);
@@ -131,7 +140,11 @@ export function normalizeSpeed(raw: Record<string, any> | undefined, warn: (msg:
  * 修饰符经引擎解析期等价注入为布尔键——getDirectives.ts 的 modifier 开关注入，与
  * options JSON 同一落点）。多处并存按 TRIGGER_PRIORITY 取先；均未声明回退默认 always。
  */
-export function normalizeTrigger(raw: Record<string, any> | undefined, warn: (msg: string) => void, name: string): DecorateTrigger {
+export function normalizeTrigger(
+    raw: Record<string, any> | undefined,
+    warn: (msg: string) => void,
+    name: string,
+): DecorateTrigger {
     const seen = new Set<DecorateTrigger>();
     if (raw?.trigger !== undefined) {
         if (TRIGGER_PRIORITY.includes(raw.trigger)) seen.add(raw.trigger);
@@ -176,12 +189,17 @@ export function warnCrossWords(
     if (!raw) return;
     for (const key of words) {
         const v = raw[key];
-        if (v !== undefined && v !== false) warn(`${name}: ${key} 是 ${otherName} 的形态键，已忽略`);
+        if (v !== undefined && v !== false)
+            warn(`${name}: ${key} 是 ${otherName} 的形态键，已忽略`);
     }
 }
 
 /** badge 归一：true = 默认直径；正数字 = 自定义直径 px；false/缺省 = 不启用；非法值 warn 后不启用 */
-export function normalizeBadge(raw: Record<string, any> | undefined, warn: (msg: string) => void, name: string): number {
+export function normalizeBadge(
+    raw: Record<string, any> | undefined,
+    warn: (msg: string) => void,
+    name: string,
+): number {
     const v = raw?.badge;
     if (v === undefined || v === false) return 0;
     if (v === true) return BADGE_DEFAULT_SIZE;
@@ -231,6 +249,26 @@ export function badgeLayerGeometry(badge: number): string {
 /* ────────────────────────── 策略接口 ────────────────────────── */
 
 /**
+ * inside 形态钩子组（ADR-0010，x-ripple 独有——宿主内 Material 式按钮涟漪）：
+ * 在场且 enabled 时控制器走 inside 分支——恒子元素载体（clipper 裁剪）、动态起点、
+ * click 连点取消重起（家族 click「连点忽略」契约的唯一点特例）。x-spin 不提供本钩子。
+ */
+export interface InsideStrategy<C> {
+    /** 配置是否启用 inside（互斥归一已完成——enabled=true 即接管渲染） */
+    enabled(cfg: C): boolean;
+    /**
+     * 创建载体三 span（clip 裁剪容器 + core 芯 + halo 环；芯/环为 clip 子元素）。
+     * 芯/环的 left/top/width/height 与 animation 由控制器每次播放写入——
+     * 此处只给类名与静态样式（色变量引用、环宽等指令命名空间知识）。
+     */
+    createCarrier(): { clip: HTMLElement; core: HTMLElement; halo: HTMLElement };
+    /** 起点半径几何：ev 在场 = click 点击坐标起点；缺省 = 宿主几何中心；r = 起点到 border box 最远角距离 */
+    geometry(el: HTMLElement, cfg: C, ev?: MouseEvent): { x: number; y: number; r: number };
+    /** 芯/环动画简写（keyframes 已由策略注册去重；同心同步——两动画同时长同曲线，ADR-0010 决策 1） */
+    animations(cfg: C): { core: string; halo: string };
+}
+
+/**
  * 指令差异策略面：x-ripple / x-spin 的全部行为差异显式落在此接口（状态机零分叉）。
  * C 为各指令归一后的全量配置类型（至少携带 trigger 供状态机分流）。
  */
@@ -263,6 +301,8 @@ export interface DecorateStrategy<C> {
     applyLayerExtras?(layers: HTMLElement[], cfg: C): void;
     /** 实例级 CSS 变量落位（宿主 style 上，子元素载体经继承读取） */
     applyVars(el: HTMLElement, cfg: C, anim: string): void;
+    /** inside 形态钩子组（可选，ADR-0010）：在场且 enabled 时状态机走 inside 分支 */
+    inside?: InsideStrategy<C>;
 }
 
 /* ────────────────────────── 伪元素占用探测 ────────────────────────── */
@@ -333,6 +373,13 @@ export class DecorateDirective<C extends { trigger: DecorateTrigger }> {
     private offClick: (() => void) | null = null;
     /** 无 scope fallback（engine.store.watch）的 watcher 句柄——unmounted 自行 off */
     private valueOff: (() => void) | null = null;
+    /** inside 形态开关（构造期按策略判定定死；false 时状态机零分支开销） */
+    private insideOn = false;
+    /** inside 载体（clip 裁剪容器——芯/环为其子元素，摘 clip 即全清） */
+    private insideCarrier: { clip: HTMLElement; core: HTMLElement; halo: HTMLElement } | null =
+        null;
+    /** 载体未定时挂起的播放事件（click 坐标随事件透传续播） */
+    private pendingEv: MouseEvent | undefined;
 
     constructor(strategy: DecorateStrategy<C>, engine: AutoSpark<any>, info: Record<string, any>) {
         this.strategy = strategy;
@@ -340,6 +387,7 @@ export class DecorateDirective<C extends { trigger: DecorateTrigger }> {
         this.info = info;
         this.value = info?.value;
         this.config = strategy.normalize(info?.options, (msg) => this.warn(msg));
+        this.insideOn = strategy.inside?.enabled(this.config) ?? false;
     }
 
     /** 指令级 warn 快捷方法（对齐基类纪律；消息前缀由各策略自带指令名） */
@@ -385,6 +433,8 @@ export class DecorateDirective<C extends { trigger: DecorateTrigger }> {
         this.offClick = null;
         for (const layer of this.layers) layer.remove();
         this.layers = [];
+        this.insideCarrier?.clip.remove();
+        this.insideCarrier = null;
         this.el?.classList.remove(
             this.strategy.hostClass,
             this.strategy.activeClass,
@@ -474,25 +524,36 @@ export class DecorateDirective<C extends { trigger: DecorateTrigger }> {
      * click 接线：点击启动（start 内按触发器自动排周期末收口——一个完整周期后停止），
      * 在播中连点忽略（requestStart 的 playing 守卫，不重启不打断）；值关（enabled=false）
      * 点击不播。载体未定时走 requestStart 的挂起探测链（连接后续播 + 自动收口）。
+     * inside 形态特例（ADR-0010 决策 4）：连点取消上次、立即重起（playing 守卫旁路，
+     * 事件透传起点坐标）——家族契约的唯一点例外，x-spin 不受影响。
      */
     private bindClick(): void {
         const el = this.el;
-        const onClick = () => {
-            if (!this.enabled || this.playing) return;
+        const onClick = (ev: MouseEvent) => {
+            if (!this.enabled) return;
+            if (this.insideOn) {
+                this.requestStart(ev);
+                return;
+            }
+            if (this.playing) return;
             this.requestStart();
         };
         el.addEventListener("click", onClick);
         this.offClick = () => el.removeEventListener("click", onClick);
     }
 
-    /** 请求启动：形态已定直接 start；未定则挂起并探测（等待宿主连接文档） */
-    private requestStart(): void {
-        if (this.playing) return;
+    /**
+     * 请求启动：形态已定直接 start；未定则挂起并探测（等待宿主连接文档）。
+     * inside 时不守卫 playing——在播中再请求即取消重起（start 清 stopTimer + 重写 animation）。
+     */
+    private requestStart(ev?: MouseEvent): void {
+        if (this.playing && !this.insideOn) return;
         if (this.carrier != null) {
-            this.start();
+            this.start(ev);
             return;
         }
         this.pendingStart = true;
+        this.pendingEv = ev;
         if (this.probeTimer == null) this.probeCarrier();
     }
 
@@ -511,37 +572,100 @@ export class DecorateDirective<C extends { trigger: DecorateTrigger }> {
                 if (this.pendingStart || this.config.trigger !== "always") this.probeCarrier();
                 return;
             }
-            this.carrier = ((this.constructor as typeof DecorateDirective).probe ?? probePseudoOccupied)(this.el)
-                ? "element"
-                : "pseudo";
-            this.el.classList.add(this.strategy.hostClass, ...this.strategy.hostClasses(this.config));
-            if (this.carrier === "element") this.injectLayers();
+            this.el.classList.add(
+                this.strategy.hostClass,
+                ...this.strategy.hostClasses(this.config),
+            );
+            if (this.insideOn) {
+                // inside 恒子元素载体：clipper 裁剪（伪元素无法被独立裁剪，ADR-0010 决策 6），零探测
+                this.carrier = "element";
+                this.injectInsideCarrier();
+            } else {
+                this.carrier = (
+                    (this.constructor as typeof DecorateDirective).probe ?? probePseudoOccupied
+                )(this.el)
+                    ? "element"
+                    : "pseudo";
+                if (this.carrier === "element") this.injectLayers();
+            }
             if (this.pendingStart) {
                 this.pendingStart = false;
-                this.start();
+                const ev = this.pendingEv;
+                this.pendingEv = undefined;
+                this.start(ev);
             }
         }, 0);
     }
 
-    /** 启动播放：写动画变量 + 加激活类（伪元素）或设置 layer animation（子元素） */
-    private start(): void {
+    /** 启动播放：写动画变量 + 加激活类（伪元素）或设置 layer animation（子元素）/ inside 芯环重起 */
+    private start(ev?: MouseEvent): void {
         if (this.stopTimer != null) {
             clearTimeout(this.stopTimer);
             this.stopTimer = null;
         }
         this.applyVars();
-        const anim = this.strategy.animationCss(this.config, this.strategy.animName(this.config));
-        if (this.carrier === "pseudo") {
-            this.el.classList.add(this.strategy.activeClass, ...this.strategy.activeClasses(this.config));
+        if (this.insideOn) {
+            this.playInside(ev);
         } else {
-            for (const layer of this.layers) layer.style.animation = anim;
-            this.strategy.applyLayerExtras?.(this.layers, this.config);
+            const anim = this.strategy.animationCss(
+                this.config,
+                this.strategy.animName(this.config),
+            );
+            if (this.carrier === "pseudo") {
+                this.el.classList.add(
+                    this.strategy.activeClass,
+                    ...this.strategy.activeClasses(this.config),
+                );
+            } else {
+                for (const layer of this.layers) layer.style.animation = anim;
+                this.strategy.applyLayerExtras?.(this.layers, this.config);
+            }
         }
         this.activatedAt = performance.now();
         this.playing = true;
         // click 触发器单周期收口：启动即排周期末停止（elapsed≈0 → remaining=整周期），
-        // 挂起探测的延迟启动同样经此自动收口，无需调用方分别处理
+        // 挂起探测的延迟启动同样经此自动收口；inside 连点重起时 start 开头已清旧收口定时器
         if (this.config.trigger === "click") this.scheduleStop();
+    }
+
+    /**
+     * inside 播放：按起点（ev 点击坐标 / 缺省几何中心）定位芯环尺寸并硬重起动画。
+     * animation 置空 + reflow 后重写 = CSS 动画从头播放（连点取消重来的重启点）；
+     * 芯环同几何同拍写入（同心同步，ADR-0010 决策 1）。播放期间恢复载体显示
+     * （clip 注入即隐藏——芯带静态底色，动画摘除后以静态样式显形会盖住宿主）。
+     */
+    private playInside(ev?: MouseEvent): void {
+        if (!this.insideCarrier) return;
+        this.insideCarrier.clip.style.display = "";
+        const inside = this.strategy.inside!;
+        const { x, y, r } = inside.geometry(this.el, this.config, ev);
+        const { core, halo } = inside.animations(this.config);
+        // round1 收敛到写入侧统一完成：定位差值与直径的浮点尾数不泄漏进内联样式（输出稳定，测试断言友好）
+        const round1 = (n: number) => Math.round(n * 10) / 10;
+        const place = (span: HTMLElement, anim: string): void => {
+            span.style.left = `${round1(x - r)}px`;
+            span.style.top = `${round1(y - r)}px`;
+            span.style.width = `${round1(r * 2)}px`;
+            span.style.height = `${round1(r * 2)}px`;
+            span.style.animation = "none";
+            void span.offsetWidth; // reflow 复位动画（无渲染泵环境同样安全：读取即同步）
+            span.style.animation = anim;
+        };
+        place(this.insideCarrier.core, core);
+        place(this.insideCarrier.halo, halo);
+    }
+
+    /**
+     * 注入 inside 载体（clip 裁剪容器 + 芯/环；unmounted 摘 clip 即全清）。
+     * 注入即隐藏：芯带静态底色（background 无动画态兜底），载体常驻会在动画摘除后
+     * 以静态样式显形盖住宿主——仅播放期间显示（playInside 恢复 / scheduleStop 隐藏）。
+     */
+    private injectInsideCarrier(): void {
+        if (this.insideCarrier) return;
+        const carrier = this.strategy.inside!.createCarrier();
+        carrier.clip.style.display = "none";
+        this.el.appendChild(carrier.clip);
+        this.insideCarrier = carrier;
     }
 
     /** 播完当前周期再停（决策 6）：剩余 = 周期 - (已播 mod 周期)，到期移除动画复位载体 */
@@ -553,8 +677,18 @@ export class DecorateDirective<C extends { trigger: DecorateTrigger }> {
         this.stopTimer = setTimeout(() => {
             this.stopTimer = null;
             this.playing = false;
-            if (this.carrier === "pseudo") {
-                this.el.classList.remove(this.strategy.activeClass, ...this.strategy.activeClasses(this.config));
+            if (this.insideOn) {
+                if (this.insideCarrier) {
+                    // 停止即隐藏载体：芯静态底色在 animation 摘除后显形会盖住宿主（注入即隐藏的对称收口）
+                    this.insideCarrier.clip.style.display = "none";
+                    this.insideCarrier.core.style.animation = "";
+                    this.insideCarrier.halo.style.animation = "";
+                }
+            } else if (this.carrier === "pseudo") {
+                this.el.classList.remove(
+                    this.strategy.activeClass,
+                    ...this.strategy.activeClasses(this.config),
+                );
             } else {
                 for (const layer of this.layers) layer.style.animation = "";
             }
