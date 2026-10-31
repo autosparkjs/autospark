@@ -3,8 +3,8 @@ import "../setup";
 import { mount, nextTick } from "../helpers";
 import type { AutoSpark } from "autospark";
 // 插件自举（ADR-0002）：模块加载即注册 spin 指令
-import "../../plugins/x-spin/index";
-import { DecorateDirective } from "../../plugins/decorate/index";
+import "../../directives/x-spin/index";
+import { DecorateDirective } from "../../utils/decorate";
 
 /**
  * x-spin 色环旋转指令单测（ADR-0007，自 x-spark 伞形拆分）：

@@ -3,8 +3,8 @@ import "../setup";
 import { mount, nextTick } from "../helpers";
 import type { AutoSpark } from "autospark";
 // 插件自举（ADR-0001）：注册通知组件模板 + ready 挂载 engine.notifications
-import "../../plugins/notifications";
-import { SHELL_PRESET_NAME } from "../../plugins/notifications/preset-names";
+import "../../modules/notifications";
+import { SHELL_PRESET_NAME } from "../../modules/notifications/preset-names";
 
 /**
  * 通知族单层装配（ADR-0095 终态 → ADR-0097 三出口化）：

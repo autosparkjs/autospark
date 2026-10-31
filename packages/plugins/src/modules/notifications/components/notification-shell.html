@@ -24,12 +24,17 @@
         }
     </script>
     <style global id="autospark-notification-styles">
+        /* 主题化（ADR-0129）：三级样式回退链 var(--auto-X, var(--autospark-<feature>-X, 校准兜底值))；
+             语义色命名对齐 theme 侧词汇（warn ↔ warning、error ↔ danger）；
+             --autospark-notification-mix-bg 是内部中转（语义色混合底，暗色变体只改它一处）；
+             字号/间距/排版常量保留组件设计；暗色兜底变体见块尾 */
         .autospark-notification {
             position: relative;
-            border-radius: var(--autospark-overlay-radius, 8px);
-            border: 1px solid var(--autospark-overlay-border, rgba(0, 0, 0, 0.1));
-            background: var(--autospark-overlay-bg, #fff);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            --autospark-notification-mix-bg: var(--auto-bgcolor, var(--autospark-overlay-bg, #fff));
+            border-radius: var(--auto-border-radius, var(--autospark-overlay-radius, 0.5rem));
+            border: 1px solid var(--auto-border-color, var(--autospark-overlay-border, #f0f0f0));
+            background: var(--auto-bgcolor, var(--autospark-overlay-bg, #fff));
+            box-shadow: var(--auto-shadow, var(--autospark-overlay-shadow, 0 2px 4px hsl(240 3.8% 46.1% / 12%)));
             display: flex;
             flex-direction: column;
             padding: 10px 12px;
@@ -37,42 +42,42 @@
             max-width: var(--autospark-notification-max-w, 360px);
             font-size: 14px;
             line-height: 1.5;
-            color: var(--autospark-notification-fg, #1f2329);
+            color: var(--auto-color, var(--autospark-notification-fg, #606060));
         }
         .autospark-notification[data-notification-level="info"] {
-            --autospark-notification-accent: var(--autospark-notification-info-color, #409eff);
+            --autospark-notification-accent: var(--auto-info-color, var(--autospark-notification-info-color, #71717a));
             border-color: var(--autospark-notification-accent);
             background: color-mix(
                 in srgb,
                 var(--autospark-notification-accent) 7%,
-                var(--autospark-overlay-bg, #fff)
+                var(--autospark-notification-mix-bg)
             );
         }
         .autospark-notification[data-notification-level="success"] {
-            --autospark-notification-accent: var(--autospark-notification-success-color, #67c23a);
+            --autospark-notification-accent: var(--auto-success-color, var(--autospark-notification-success-color, #22c55e));
             border-color: var(--autospark-notification-accent);
             background: color-mix(
                 in srgb,
                 var(--autospark-notification-accent) 7%,
-                var(--autospark-overlay-bg, #fff)
+                var(--autospark-notification-mix-bg)
             );
         }
         .autospark-notification[data-notification-level="warn"] {
-            --autospark-notification-accent: var(--autospark-notification-warn-color, #e6a23c);
+            --autospark-notification-accent: var(--auto-warning-color, var(--autospark-notification-warn-color, #f59e0b));
             border-color: var(--autospark-notification-accent);
             background: color-mix(
                 in srgb,
                 var(--autospark-notification-accent) 7%,
-                var(--autospark-overlay-bg, #fff)
+                var(--autospark-notification-mix-bg)
             );
         }
         .autospark-notification[data-notification-level="error"] {
-            --autospark-notification-accent: var(--autospark-notification-error-color, #f56c6c);
+            --autospark-notification-accent: var(--auto-danger-color, var(--autospark-notification-error-color, #ef4444));
             border-color: var(--autospark-notification-accent);
             background: color-mix(
                 in srgb,
                 var(--autospark-notification-accent) 7%,
-                var(--autospark-overlay-bg, #fff)
+                var(--autospark-notification-mix-bg)
             );
         }
         .autospark-notification-header {
@@ -134,7 +139,7 @@
             background: none;
             padding: 2px;
             font-size: 13px;
-            color: var(--autospark-notification-fg, #1f2329);
+            color: var(--auto-color, var(--autospark-notification-fg, #606060));
             opacity: 0.5;
             cursor: pointer;
         }
@@ -155,8 +160,23 @@
             padding: 0;
             font: inherit;
             font-size: 13px;
-            color: var(--autospark-notification-accent, #409eff);
+            color: var(--autospark-notification-accent, #71717a);
             cursor: pointer;
+        }
+
+        /* 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变）；
+           语义色混合底只改中转变量一处 */
+        [dark] .autospark-notification,
+        [data-dark] .autospark-notification {
+            --autospark-notification-mix-bg: var(--auto-bgcolor, var(--autospark-overlay-bg, #606060));
+            border-color: var(--auto-border-color, var(--autospark-overlay-border, #606060));
+            background: var(--auto-bgcolor, var(--autospark-overlay-bg, #606060));
+            box-shadow: var(--auto-shadow, var(--autospark-overlay-shadow, 0 2px 4px hsl(0 0% 0% / 50%)));
+            color: var(--auto-color, var(--autospark-notification-fg, #fafafa));
+        }
+        [dark] .autospark-notification-close,
+        [data-dark] .autospark-notification-close {
+            color: var(--auto-color, var(--autospark-notification-fg, #fafafa));
         }
     </style>
     <div class="autospark-notification-header" x-slot:header>

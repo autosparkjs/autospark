@@ -37,7 +37,7 @@
  * （与涟漪 click「单周期播放」严格对齐）；badge 下色环在角标圆内旋转。
  *
  * 值三态、触发器语义、停止语义（播完当前周期再停）、载体策略（伪元素优先/探测降级）、
- * 徽标契约、注册通道与双路径自举——家族共享契约见 src/plugins/decorate（统一承载，
+ * 徽标契约、注册通道与双路径自举——家族共享契约见 src/utils/decorate.ts（统一承载，
  * 本模块只落形态差异）。
  *
  * 自举：模块加载即执行 {@link bootstrapSpinPlugin}（decorate 的双路径注册）。
@@ -55,10 +55,11 @@ import {
     normalizeTrigger,
     resolveColor,
     warnCrossWords,
-    THEME_COLOR_VAR,
+    SPIN_COLOR_VAR,
+    SPIN_BADGE_COLOR,
     type DecorateStrategy,
     type DecorateTrigger,
-} from "../decorate/index";
+} from "../../utils/decorate";
 
 /** 色环形态：rotate 整环匀速旋转 / beam 光段跑边（缺省）/ chase 双段追逐 */
 export type XSpinMode = "rotate" | "beam" | "chase";
@@ -115,7 +116,7 @@ const DEFAULT_CONFIG: SpinConfig = {
     type: "beam",
     trigger: "always",
     badge: 0,
-    color: THEME_COLOR_VAR,
+    color: SPIN_COLOR_VAR,
     size: 4,
     speed: 3000,
 };
@@ -198,7 +199,7 @@ function ensureStyles(): void {
 @keyframes ${SPIN_KEYFRAMES} { to { --x-spin-angle: 360deg; } }
 :where(.${HOST_CLASS}) { position: relative; }
 .${HOST_CLASS} {
-  --x-spin-color: ${THEME_COLOR_VAR};
+  --x-spin-color: ${SPIN_COLOR_VAR};
   --x-spin-size: 4px;
   --x-spin-duration: 3000ms;
   --x-spin-badge-size: 8px;
@@ -274,7 +275,13 @@ function normalizeConfig(raw: Record<string, any> | undefined, warn: (msg: strin
 
     cfg.trigger = normalizeTrigger(raw, warn, "x-spin");
     cfg.badge = normalizeBadge(raw, warn, "x-spin");
-    cfg.color = resolveColor(raw.color, cfg.badge, warn, "x-spin");
+    cfg.color = resolveColor(
+        raw.color,
+        { color: SPIN_COLOR_VAR, badgeColor: SPIN_BADGE_COLOR },
+        cfg.badge,
+        warn,
+        "x-spin",
+    );
     cfg.size = normalizeNumber(raw, "size", warn, "x-spin") ?? DEFAULT_CONFIG.size;
     cfg.speed = normalizeSpeed(raw, warn, "x-spin");
     return cfg;
@@ -301,7 +308,7 @@ const SPIN_STRATEGY: DecorateStrategy<SpinConfig> = {
             : `${fullLayerGeometry()}${SPIN_LAYER_CSS}background:${spinGradientCss(cfg.type)};`,
     applyVars: (el, cfg) => {
         const style = el.style;
-        style.setProperty("--x-spin-color", cfg.color || THEME_COLOR_VAR);
+        style.setProperty("--x-spin-color", cfg.color || SPIN_COLOR_VAR);
         style.setProperty("--x-spin-size", `${cfg.size}px`);
         style.setProperty("--x-spin-duration", `${cfg.speed}ms`);
         if (cfg.badge > 0) style.setProperty("--x-spin-badge-size", `${cfg.badge}px`);

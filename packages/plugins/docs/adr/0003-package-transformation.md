@@ -30,6 +30,8 @@
 
 `src/components/`、`src/directives/` 种类目录删除，统一 `src/plugins/<name>/` 自包含（模板 + 逻辑 + 自举），一目录 = 一产物入口。共享基建收 `src/runtime/`：
 
+> **修订注记（ADR-0009，2026-10-31）**：随外移迁移扩容（ADR-0008 七产物），顶层回归形态四区（`src/directives/` / `src/components/` / `src/features/` / `src/modules/` + `src/utils/`）。**一插件一文件夹自包含原则不变**——本决策（及备选方案）否决的是「种类散装」（插件文件按种类拆散、破坏自包含交付），四区只是顶层归置、插件盒不可再拆，与功能单元原则兼容。
+
 - `bridge.ts`（既有）：命名空间双捕获（`globalThis.AutoSpark` 直取 / 预加载队列插件体第二参 `captureNamespace`）；
 - `bootstrap.ts`（新增）：**自举单点 `installPlugin(tag, probe, register)`**——notifications / ripple 各自内联的双路径注册收敛于此，消重复；顺带修复 notifications 缺失的冻结队列检查（原实现 push 已冻结队列在严格模式抛未捕获 TypeError，统一为 console.error 响而不哑）。
 

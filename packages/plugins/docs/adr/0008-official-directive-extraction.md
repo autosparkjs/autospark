@@ -26,7 +26,7 @@ engine ADR-0128 定界核心指令集（约 22 名位）并将应用级构造块
 
 ### 决策 2：产物级内联重复的量级边界（ADR-0007 先例放宽）
 
-ADR-0007 确立「共享逻辑源码共享、产物各自内联」先例，量级为 decorate（gzip < 1kB）。本决策明确放宽边界：**纯函数工具（sanitize / floating / injectStylesheet / relaxedToJson 等 utils）与无状态核心（如未来可能出现的跨域小工具）允许跨产物复制，单处上限约 300 行级（ResizeSession 量级）**；有状态机制/领域语义代码（overlay 机制、animate 解析）禁止跨产物复制，一律走运行时桥消费核心公开面。
+ADR-0007 确立「共享逻辑源码共享、产物各自内联」先例，量级为 decorate（gzip < 1kB）。本决策明确放宽边界：**纯函数工具（sanitize / floating / injectStylesheet / relaxedToJson 等 utils）落包内 `src/utils/` 源码单源共享（ADR-0009 决策 3 升级——原「跨产物源码各自复制」方案退役），各产物构建时内联、自包含契约（ADR-0003）不变**；有状态机制/领域语义代码（overlay 机制、animate 解析）禁止跨产物复制，一律走运行时桥消费核心公开面。
 
 ### 决策 3：运行时命名空间消费契约（零静态依赖纪律不变）
 
@@ -63,7 +63,7 @@ ADR-0007 确立「共享逻辑源码共享、产物各自内联」先例，量�
 
 - 产物清单 CLOSURE_ARTIFACTS 扩至 11 条（+聚合），dist 与 docs/public 同步复制；
 - engine `__tests__` 对应目录迁本包 `__tests__`；docs/demos 对应目录迁移；本包 vite demo 增补指令/策略插件示例；
-- 源码目录：`src/plugins/<name>/` 自包含（tree / layout / version / overlay / virtual / paging / tooltip），overlay 机制子目录随 overlay 插件内聚；
+- 源码目录：按 ADR-0009 形态四区落位——`src/directives/`（tree / layout / version / overlay）、`src/features/`（virtual / paging / tooltip），一插件一文件夹自包含，overlay 机制子目录随 overlay 插件内聚；
 - CONTEXT.md（本包新建）：外移指令词条迁入 + 新增词条「指令插件」「策略插件」「选择性引入」（「按需加载」列入 Avoid）；
 - 深相对导入全部重写：运行时桥（nsMember）+ utils 复制——x-for 级源码不迁移（本体留 engine），仅策略段抽出，漂移风险集中于迁移期一次;
 - 第二批遗留（本 ADR 不覆盖）：form/field、icon/icons（编译期插件形态）、tooltip 编译期转换实现路径两候选的定夺。

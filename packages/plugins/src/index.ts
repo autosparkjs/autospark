@@ -12,7 +12,7 @@
  */
 
 // 逐插件副作用导入——顺序即注册顺序（各插件注册面互不冲突，顺序无关）
-import "./plugins/notifications/index";
-import "./plugins/x-ripple/index";
-import "./plugins/x-spin/index";
-import "./plugins/button/index";
+import "./modules/notifications/index";
+import "./directives/x-ripple/index";
+import "./directives/x-spin/index";
+import "./components/button/index";

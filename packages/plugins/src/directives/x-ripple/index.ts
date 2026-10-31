@@ -34,7 +34,7 @@
  *   两遍」），双环区分改走尺寸通道（第二环同心缩小至 0.6×），起波事件严格一个。
  *
  * 值三态、触发器语义、停止语义（播完当前周期再停）、载体策略（伪元素优先/探测降级）、
- * 徽标契约、注册通道与双路径自举——家族共享契约见 src/plugins/decorate（统一承载，
+ * 徽标契约、注册通道与双路径自举——家族共享契约见 src/utils/decorate.ts（统一承载，
  * 本模块只落形态差异）。
  *
  * 自举：模块加载即执行 {@link bootstrapRipplePlugin}（decorate 的双路径注册）。
@@ -52,10 +52,11 @@ import {
     normalizeTrigger,
     resolveColor,
     warnCrossWords,
-    THEME_COLOR_VAR,
+    RIPPLE_COLOR_VAR,
+    RIPPLE_BADGE_COLOR,
     type DecorateStrategy,
     type DecorateTrigger,
-} from "../decorate/index";
+} from "../../utils/decorate";
 
 /** 涟漪形态：ring 外扩环 / glow 边框光晕呼吸 / echo 双环回声（缺省） */
 export type XRippleMode = "ring" | "glow" | "echo";
@@ -115,7 +116,7 @@ const DEFAULT_CONFIG: RippleConfig = {
     type: "echo",
     trigger: "always",
     badge: 0,
-    color: THEME_COLOR_VAR,
+    color: RIPPLE_COLOR_VAR,
     size: 12,
     speed: 3000,
     gap: 0,
@@ -161,7 +162,7 @@ function ensureStyles(): void {
     style.textContent = `
 :where(.${HOST_CLASS}) { position: relative; }
 .${HOST_CLASS} {
-  --x-ripple-color: ${THEME_COLOR_VAR};
+  --x-ripple-color: ${RIPPLE_COLOR_VAR};
   --x-ripple-size: 12px;
   --x-ripple-duration: 3000ms;
   --x-ripple-anim: x-ripple-echo-3000-0;
@@ -295,7 +296,13 @@ function normalizeConfig(raw: Record<string, any> | undefined, warn: (msg: strin
 
     cfg.trigger = normalizeTrigger(raw, warn, "x-ripple");
     cfg.badge = normalizeBadge(raw, warn, "x-ripple");
-    cfg.color = resolveColor(raw.color, cfg.badge, warn, "x-ripple");
+    cfg.color = resolveColor(
+        raw.color,
+        { color: RIPPLE_COLOR_VAR, badgeColor: RIPPLE_BADGE_COLOR },
+        cfg.badge,
+        warn,
+        "x-ripple",
+    );
     cfg.size = normalizeNumber(raw, "size", warn, "x-ripple") ?? DEFAULT_CONFIG.size;
     cfg.speed = normalizeSpeed(raw, warn, "x-ripple");
     cfg.gap = normalizeNumber(raw, "gap", warn, "x-ripple") ?? 0;
@@ -331,7 +338,7 @@ const RIPPLE_STRATEGY: DecorateStrategy<RippleConfig> = {
     },
     applyVars: (el, cfg, anim) => {
         const style = el.style;
-        style.setProperty("--x-ripple-color", cfg.color || THEME_COLOR_VAR);
+        style.setProperty("--x-ripple-color", cfg.color || RIPPLE_COLOR_VAR);
         style.setProperty("--x-ripple-size", `${cfg.size}px`);
         style.setProperty("--x-ripple-duration", `${cfg.speed + cfg.gap}ms`);
         style.setProperty("--x-ripple-anim", anim);

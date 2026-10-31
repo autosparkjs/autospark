@@ -3,9 +3,9 @@ import "../setup";
 import { mount, nextTick } from "../helpers";
 import type { AutoSpark } from "autospark";
 // 插件自举（ADR-0002）：模块加载即注册指令（共存用例需双指令在位）
-import "../../plugins/x-ripple/index";
-import "../../plugins/x-spin/index";
-import { DecorateDirective } from "../../plugins/decorate/index";
+import "../../directives/x-ripple/index";
+import "../../directives/x-spin/index";
+import { DecorateDirective } from "../../utils/decorate";
 
 /**
  * x-ripple 涟漪扩散指令单测（ADR-0007，自 x-spark 伞形拆分）：

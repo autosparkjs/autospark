@@ -12,7 +12,10 @@
  * - `bun run dev`（command=serve）——demo 开发服务器：script 直引契约资源，
  *   插件闭包经即时闭包化 serve（改插件源码刷新页面即取新产物）。
  *
- * 插件入口统一 `src/plugins/<name>/index.ts`（一插件一目录自包含，ADR-0003）。
+ * 插件入口按形态四区落位（ADR-0009）：`src/directives/<name>/index.ts`（指令型）、
+ * `src/components/<name>/index.ts`（组件型）、`src/features/<name>/index.ts`（能力扩展型）、
+ * `src/modules/<name>/index.ts`（复合型）——一插件一文件夹自包含；跨域共享纯函数住
+ * `src/utils/`（一函数一文件，decorate.ts 为强内聚家族模块单文件先例）。
  */
 import { defineConfig, build as viteBuild, type Plugin, type UserConfig } from "vite";
 import { resolve } from "path";
@@ -36,10 +39,10 @@ const ENGINE_IIFE = resolve(pkgRoot, "../engine/dist/index.global.js");
  *  首项（聚合产物）由 lib 主构建承担，其余经 closeBundle 编排循环构建。 */
 const CLOSURE_ARTIFACTS = [
   { entry: "src/index.ts", outFile: "autospark.plugins.js", label: "AutoSparkPlugins (aggregate)" },
-  { entry: "src/plugins/notifications/index.ts", outFile: "autospark.notifications.js", label: "Notifications" },
-  { entry: "src/plugins/x-ripple/index.ts", outFile: "autospark.ripple.js", label: "Ripple" },
-  { entry: "src/plugins/x-spin/index.ts", outFile: "autospark.spin.js", label: "Spin" },
-  { entry: "src/plugins/button/index.ts", outFile: "autospark.button.js", label: "Button" },
+  { entry: "src/modules/notifications/index.ts", outFile: "autospark.notifications.js", label: "Notifications" },
+  { entry: "src/directives/x-ripple/index.ts", outFile: "autospark.ripple.js", label: "Ripple" },
+  { entry: "src/directives/x-spin/index.ts", outFile: "autospark.spin.js", label: "Spin" },
+  { entry: "src/components/button/index.ts", outFile: "autospark.button.js", label: "Button" },
 ] as const;
 
 /** 插件源码（本包）/ 闭包工具源码（utils 包，迁移后路径 packages/utils/src/vite）变化即失效 dev 缓存的路径特征（Windows 分隔符兼容） */

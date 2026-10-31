@@ -125,21 +125,23 @@
             gap: 8px;
             margin-top: 6px;
         }
+        /* 主题化（ADR-0129）：accent 由 shell 根的 level 块定义（继承），兜底校准 theme 值；
+             轨道灰非映射（近似属性，校准 theme 灰阶档）；暗色兜底变体见块尾 */
         .autospark-notification-progress-track {
             flex: 1;
             height: 6px;
             border-radius: 3px;
             background: color-mix(
                 in srgb,
-                var(--autospark-notification-accent, #999) 15%,
-                var(--autospark-overlay-bg, #fff)
+                var(--autospark-notification-accent, #979797) 15%,
+                var(--auto-bgcolor, var(--autospark-overlay-bg, #fff))
             );
             overflow: hidden;
         }
         .autospark-notification-progress-bar {
             height: 100%;
             border-radius: 3px;
-            background: var(--autospark-notification-accent, #409eff);
+            background: var(--autospark-notification-accent, #71717a);
             transition: width 0.2s;
         }
         /* 待启动（pending，ADR-0104 手动门控）：短条呼吸——等待用户点「开始」 */
@@ -177,8 +179,26 @@
             padding: 0;
             font: inherit;
             font-size: 13px;
-            color: var(--autospark-notification-accent, #409eff);
+            color: var(--autospark-notification-accent, #71717a);
             cursor: pointer;
+        }
+
+        /* 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） */
+        [dark] .autospark-notification-progress-track,
+        [data-dark] .autospark-notification-progress-track {
+            background: color-mix(
+                in srgb,
+                var(--autospark-notification-accent, #979797) 15%,
+                var(--auto-bgcolor, var(--autospark-overlay-bg, #606060))
+            );
+        }
+        [dark] .autospark-notification-progress-bar,
+        [data-dark] .autospark-notification-progress-bar {
+            background: var(--autospark-notification-accent, #dcdce6);
+        }
+        [dark] .autospark-notification-op,
+        [data-dark] .autospark-notification-op {
+            color: var(--autospark-notification-accent, #dcdce6);
         }
     </style>
     <div class="autospark-notification-progress">

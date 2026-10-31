@@ -52,7 +52,7 @@
  */
 
 import type { AutoSpark, DirectiveSpec } from "autospark";
-import { captureNamespace } from "../../runtime/bridge";
+import { captureNamespace } from "../runtime/bridge";
 import { installPlugin } from "@autospark/utils";
 
 /* ────────────────────────── 家族共享类型与常量 ────────────────────────── */
@@ -63,11 +63,21 @@ export type DecorateTrigger = "always" | "hover" | "click";
 /** 触发器归一优先序：多处声明并存时取先者（缺省 always 垫底——跨通道统一值序） */
 export const TRIGGER_PRIORITY: readonly DecorateTrigger[] = ["hover", "always", "click"];
 
-/** 主题主色变量（@autospark/theme 标尺，跟随 ThemeManager 动态主题） */
-export const THEME_COLOR_VAR = "var(--auto-theme-color, #1677ff)";
+/* 主题化色链（ADR-0129 三级样式回退链）：theme 派生令牌 → 覆盖变量（按插件独立覆盖位，
+   Q17 决策）→ theme 默认浅色校准值。色链经 inline 变量写入，暗色兜底变体不适用 inline
+   ——theme 缺席 + dark 下主色兜底取浅色校准值（暗底可辨）；theme 在场时第一级自动跟随暗色 */
+/** 涟漪缺省色链（x-ripple）：主题主色 → --autospark-ripple-color → 校准值 */
+export const RIPPLE_COLOR_VAR = "var(--auto-theme-color, var(--autospark-ripple-color, #009aff))";
 
-/** 徽标火花缺省色：主题语义红（跟随 ThemeManager 语义标尺，主题未加载兜底固定红） */
-export const BADGE_COLOR = "var(--auto-danger-color, #ff4d4f)";
+/** 旋噪缺省色链（x-spin）：主题主色 → --autospark-spin-color → 校准值 */
+export const SPIN_COLOR_VAR = "var(--auto-theme-color, var(--autospark-spin-color, #009aff))";
+
+/** 涟漪徽标缺省色链（badge 家族特性）：主题语义红 → --autospark-ripple-badge-color → 校准值 */
+export const RIPPLE_BADGE_COLOR =
+    "var(--auto-danger-color, var(--autospark-ripple-badge-color, #ef4444))";
+
+/** 旋噪徽标缺省色链（badge 家族特性）：主题语义红 → --autospark-spin-badge-color → 校准值 */
+export const SPIN_BADGE_COLOR = "var(--auto-danger-color, var(--autospark-spin-badge-color, #ef4444))";
 
 /** 徽标火花默认直径 px（badge: true 时） */
 export const BADGE_DEFAULT_SIZE = 8;
@@ -180,13 +190,27 @@ export function normalizeBadge(raw: Record<string, any> | undefined, warn: (msg:
     return 0;
 }
 
-/** color 归一：显式非空字符串恒优先；badge 启用且未显式给 color → 主题语义红；其余回退主题主色 */
-export function resolveColor(rawColor: unknown, badge: number, warn: (msg: string) => void, name: string): string {
+/** 插件缺省色对（ADR-0129：覆盖位按插件独立，resolveColor 由各插件传入自己的链常量） */
+export interface DecorateDefaultColors {
+    /** 常态缺省色链（主题主色系） */
+    color: string;
+    /** badge 启用时的缺省色链（主题语义红系） */
+    badgeColor: string;
+}
+
+/** color 归一：显式非空字符串恒优先；badge 启用且未显式给 color → 语义红链；其余回退主色链 */
+export function resolveColor(
+    rawColor: unknown,
+    defaults: DecorateDefaultColors,
+    badge: number,
+    warn: (msg: string) => void,
+    name: string,
+): string {
     if (rawColor !== undefined) {
         if (typeof rawColor === "string" && rawColor.trim() !== "") return rawColor;
         warn(`${name}: color 须为非空字符串，已回退默认色`);
     }
-    return badge > 0 ? BADGE_COLOR : THEME_COLOR_VAR;
+    return badge > 0 ? defaults.badgeColor : defaults.color;
 }
 
 /* ────────────────────────── 降级层几何 helpers ────────────────────────── */

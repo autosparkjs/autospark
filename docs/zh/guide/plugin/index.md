@@ -85,10 +85,10 @@ export default {
 
 | 样板 | 形态 | 注册面 | 文档 |
 | --- | --- | --- | --- |
-| [autospark.button](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/plugins/button) | 组件插件 | `$.components["autospark.button"] = 模板` | [全局组件](../engine/component/global.md) |
-| [x-ripple](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/plugins/x-ripple) | 指令插件 | `$.directive(spec)` spec 重载 + 钩子委托 | [x-ripple](../directives/x-ripple.md) |
-| [x-spin](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/plugins/x-spin) | 指令插件 | `$.directive(spec)` spec 重载 + 钩子委托 | [x-spin](../directives/x-spin.md) |
-| [notifications](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/plugins/notifications) | 复合插件 | `$.ready` + 组件表 + actions 三件套 + 事件清理 | [通知](../engine/notifications/) |
+| [autospark.button](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/components/button) | 组件插件 | `$.components["autospark.button"] = 模板` | [全局组件](../engine/component/global.md) |
+| [x-ripple](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/directives/x-ripple) | 指令插件 | `$.directive(spec)` spec 重载 + 钩子委托 | [x-ripple](../directives/x-ripple.md) |
+| [x-spin](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/directives/x-spin) | 指令插件 | `$.directive(spec)` spec 重载 + 钩子委托 | [x-spin](../directives/x-spin.md) |
+| [notifications](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/modules/notifications) | 复合插件 | `$.ready` + 组件表 + actions 三件套 + 事件清理 | [通知](../engine/notifications/) |
 
 <demo html="plugin/forms.html"/>
 
@@ -109,7 +109,7 @@ export default {
 
 - **不打包 engine**：插件产物零外部运行时依赖（engine 全局除外），消费者自带引擎。
 - **命名空间**：组件 / action 注册名统一 `autospark.` 点前缀或自有前缀（如 `autospark.notifications.*`），与用户业务命名零冲突；同名后注册覆盖先注册（查找链与就近覆盖语义见[全局注册表](/zh/guide/engine/plugin#全局注册表)）。
-- **全局表覆盖通道**：`$.components` 命中走跨 engine 共享 def 缓存（每组件名全局只编译一次）；需要 per-engine 定制覆盖的组件家族（如通知族）应改在 `$.ready` 里写 engine 级种子（`options.builtinComponents`），见 [notifications 自举](https://github.com/zhangfisher/autospark/blob/main/packages/plugins/src/plugins/notifications/bootstrap.ts) 的决策注释。
+- **全局表覆盖通道**：`$.components` 命中走跨 engine 共享 def 缓存（每组件名全局只编译一次）；需要 per-engine 定制覆盖的组件家族（如通知族）应改在 `$.ready` 里写 engine 级种子（`options.builtinComponents`），见 [notifications 自举](https://github.com/zhangfisher/autospark/blob/main/packages/plugins/src/modules/notifications/bootstrap.ts) 的决策注释。
 - **继承家族慎入全局表**：含 `x-define:inherit` 继承链的组件族在全局表按名一次性烘焙，会击穿后续 engine 的覆盖通道（详见通知插件注释）。
 
 ---

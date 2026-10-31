@@ -6,6 +6,12 @@ AutoSpark 官方插件包：以「脚本即契约」的 IIFE 产物分发官方�
 
 ## Language
 
+### 插件形态层
+
+**插件四分类（Plugin Morphology）**:
+官方插件按形态四分，即 src 顶层四区（ADR-0009）：**指令型**（`directives/`，整指令外移，x-ripple / x-spin 及待迁 tree / layout / version / overlay——对齐 engine「指令插件」词条）、**组件型**（`components/`，纯 UI 组件注册，button）、**能力扩展型**（`features/`，指令留核心而策略/特性外移——旗下两个子形态：指令策略（virtual / paging，即 engine「策略插件」词条）与全局特性（tooltip）；对齐 engine「特性插件」表述）、**复合型**（`modules/`，组件 + 指令 + actions 多机制协同，notifications）。一插件一文件夹自包含不变，分类只是顶层归置。
+_Avoid_: 种类目录（ADR-0003 否决的是种类散装；四区归置不拆插件盒）、按需加载（正名「选择性引入」）、装饰动效类（x-ripple/x-spin 是指令型，无独立第五类）
+
 ### 尺寸调节层
 
 **尺寸调节 / x-resizable（Resize）**:

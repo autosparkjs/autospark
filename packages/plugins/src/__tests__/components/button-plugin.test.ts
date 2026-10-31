@@ -7,7 +7,7 @@ import "../setup";
 import { describe, expect, test } from "bun:test";
 import { AutoSpark } from "autospark";
 import { mount, nextTick } from "../helpers";
-import { BUTTON_NAME, bootstrapButtonPlugin } from "../../plugins/button/index";
+import { BUTTON_NAME, bootstrapButtonPlugin } from "../../components/button/index";
 import { installPlugin } from "@autospark/utils";
 
 describe("button 组件插件（ADR-0003 组件形态样板）", () => {

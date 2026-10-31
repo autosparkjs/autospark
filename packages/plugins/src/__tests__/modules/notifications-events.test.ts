@@ -3,7 +3,7 @@ import "../setup";
 import { mount, nextTick } from "../helpers";
 import type { AutoSpark } from "autospark";
 // 插件自举（ADR-0001）：注册通知组件模板 + ready 挂载 engine.notifications
-import "../../plugins/notifications";
+import "../../modules/notifications";
 
 /**
  * 通知事件分层命名 + task 完成语义（ADR-0102）：
