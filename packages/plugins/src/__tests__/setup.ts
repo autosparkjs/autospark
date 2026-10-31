@@ -12,6 +12,7 @@
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { expect } from "bun:test";
 import { AutoSpark } from "autospark";
+import * as autosparkExports from "autospark";
 import { formatHTML } from "./format";
 
 GlobalRegistrator.register();
@@ -21,7 +22,17 @@ GlobalRegistrator.register();
  * `directive(spec)` 直注册」依赖全局类可达。测试进程内首个 engine 构造会 drain 并冻结
  * `__AUTOSPARK_PLUGINS__` 预加载队列（ADR-0114），后加载的插件模块再 push 会抛
  * readonly 错——预置全局类让所有插件模块统一走 directive 通道，与生产 IIFE 主时序一致。
+ *
+ * 类静态挂接（模拟 IIFE 后处理）：IIFE 产物的全量导出挂类静态（ADR-0111 决策 1——
+ * AutoSpark 既是类又是命名空间），插件 nsMember 通道（如 AutoSparkDirectiveBase，
+ * ADR-0128 决策 5）由此可达；ESM 源码形态的类无这些静态，测试把 ESM 导出面挂上以
+ * 保真 IIFE 生产形态（不覆盖类原生静态成员）。
  */
+for (const [key, value] of Object.entries(autosparkExports)) {
+    if (key !== "AutoSpark" && !(key in AutoSpark)) {
+        (AutoSpark as unknown as Record<string, unknown>)[key] = value;
+    }
+}
 (globalThis as { AutoSpark?: typeof AutoSpark }).AutoSpark = AutoSpark;
 
 /**

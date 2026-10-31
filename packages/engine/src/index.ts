@@ -29,6 +29,12 @@ export type {
 // 覆盖物容器（@autospark/plugins ADR-0001：通知插件等 overlay 挂载消费者取用——
 // engine 唯一为插件新增的公开面，此前仅 overlay 家族内部使用）
 export { getOverlayContainer } from "./features/overlay/container";
+// 动画解析（ADR-0128 决策 5：指令插件消费面——外移指令的进出场动画解析依赖，
+// overlay 家族与 tooltip 同款取用）
+export { resolveAnimate } from "./features/animate/animate";
+export type { ResolvedAnimate } from "./features/animate/animate";
+// 指令信息类型（ADR-0128 决策 5：插件结构指令 ownsChildren(info) 的参数类型）
+export type { AutoDirectiveInfo } from "./features/directive/types";
 // scope 注册表键（x-data 数据域容器，store.state[SCOPES_KEY][scope.id]）：插件生态按路径
 // 精准订阅 scope 数据的公开坐标（同步 fire 语义的基石——scope.watch 经 scheduler 微任务
 // 合并会吞连续写入的中间值，契约广播类订阅必须走 store 点路径）

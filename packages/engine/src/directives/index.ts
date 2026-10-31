@@ -10,7 +10,6 @@ export * from "./x-model";
 export * from "./x-switch";
 export * from "./x-teleport";
 export * from "./x-text";
-export * from "./x-tree";
 export * from "./x-if";
 export * from "./x-else";
 export * from "./x-case";
@@ -50,7 +49,6 @@ import { SwitchDirective } from "./x-switch";
 import { CaseDirective } from "./x-case";
 import { ShowDirective } from "./x-show";
 import { ForDirective } from "./x-for";
-import { TreeDirective } from "./x-tree";
 import { DataDirective } from "./x-data";
 import { BindDirective } from "./x-bind";
 import { OnDirective } from "./x-on";
@@ -110,7 +108,6 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     default: CaseDirective,
     show: ShowDirective,
     for: ForDirective,
-    tree: TreeDirective,
     data: DataDirective,
     bind: BindDirective,
     on: OnDirective,
