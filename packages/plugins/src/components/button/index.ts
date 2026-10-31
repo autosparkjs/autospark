@@ -14,7 +14,7 @@
  * {@link installPlugin} 兜底（先于引擎加载推预加载队列，晚于引擎加载直注册）。
  */
 import type { AutoSpark } from "autospark";
-import { captureNamespace } from "../../runtime/bridge";
+import { captureNamespace } from "../../utils/namespace";
 import { installPlugin } from "@autospark/utils";
 import buttonTemplate from "./button.html?raw";
 

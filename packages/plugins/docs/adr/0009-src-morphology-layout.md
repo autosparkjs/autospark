@@ -23,6 +23,12 @@ src/
 └── index.ts       # 聚合入口原位，import 路径随附
 ```
 
+> **修订注记（2026-10-31 同日）**：`runtime/bridge.ts` 随用户裁量拆入 utils——
+> `utils/namespace.ts`（captureNamespace / resolveNamespace / nsMember 三件套共享 captured
+> 状态，强内聚单文件，decorate.ts 同款先例）+ `getOverlayContainer.ts` / `markRaw.ts` /
+> `shallow.ts` / `scopesKey.ts`（nsMember 具名包装，一函数一文件）。`runtime/` 目录消失，
+> 上述结构图中该行作废；双路径捕获与响而不哑纪律全部平移，零语义变化。
+
 **一插件一文件夹自包含**（模板 + 逻辑 + 自举，一目录 = 一产物入口）原样继承 ADR-0003——四区只是顶层归置，插件边界仍是功能单元。
 
 ### 决策 2：对 ADR-0003 决策 3「种类目录否决」的边界澄清

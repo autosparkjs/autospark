@@ -102,7 +102,7 @@ export default {
 - **响而不哑**：注册通道关闭、命名空间成员缺失等集成错误显式 error，不静默失效。
 
 ::: tip 官方包内部基建
-双路径自举收敛为单点 `installPlugin(register)`（家族共享微包 `@autospark/utils`，单回调签名），命名空间捕获收敛于 `@autospark/plugins` 包内 `src/runtime/bridge.ts`——包内新增插件直接复用，零重复。
+双路径自举收敛为单点 `installPlugin(register)`（家族共享微包 `@autospark/utils`，单回调签名），命名空间捕获收敛于 `@autospark/plugins` 包内 `src/utils/namespace.ts`（ADR-0009 拆自 runtime/bridge.ts）——包内新增插件直接复用，零重复。
 :::
 
 ## 注意事项

@@ -1,5 +1,5 @@
 import type { AutoSpark } from "autospark";
-import { getOverlayContainer } from "../../../runtime/bridge";
+import { getOverlayContainer } from "../../../utils/getOverlayContainer";
 import { formatNotificationSize, type NotificationPos } from "./types";
 import { injectNotificationStyles } from "./styles";
 

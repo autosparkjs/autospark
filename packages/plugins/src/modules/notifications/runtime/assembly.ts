@@ -1,4 +1,6 @@
-import { markRaw, nsMember, scopesKey } from "../../../runtime/bridge";
+import { markRaw } from "../../../utils/markRaw";
+import { nsMember } from "../../../utils/namespace";
+import { scopesKey } from "../../../utils/scopesKey";
 import { resolveAnimate } from "../internal/animate";
 import type { ComponentInstance } from "autospark";
 import type { AutoSparkScope } from "autospark";

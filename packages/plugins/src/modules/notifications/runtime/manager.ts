@@ -1,7 +1,7 @@
 import type { AutoSpark } from "autospark";
 import type { ComponentInstance } from "autospark";
 import { NOTIFICATIONS_KEY } from "../internal/consts";
-import { shallow } from "../../../runtime/bridge";
+import { shallow } from "../../../utils/shallow";
 import { resolveAnimate } from "../internal/animate";
 import { removeNotificationContainer } from "./container";
 import { NOTIFICATION_COLUMN_GAP } from "./styles";

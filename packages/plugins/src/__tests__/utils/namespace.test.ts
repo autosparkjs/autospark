@@ -1,6 +1,6 @@
 /**
  * 运行时桥漂移锁（@autospark/plugins ADR-0001 决策 4 修订）：全家族零 autospark 值导入
- * （类型导入编译期剥除），autospark 能力经 src/runtime/bridge.ts 运行时解析——
+ * （类型导入编译期剥除），autospark 能力经 src/utils/namespace.ts 运行时解析——
  * `globalThis.AutoSpark`（脚本场景，IIFE 引擎先加载）或预加载队列插件体第二参（ESM 场景，
  * engine 构造期 drain 注入）。
  *
@@ -9,8 +9,12 @@
  * 表现为插件运行期 nsMember 抛错（响而不哑），此处前置到测试期暴露。
  */
 import { describe, expect, test } from "bun:test";
-import { getOverlayContainer, markRaw, nsMember, resolveNamespace, scopesKey, shallow } from "../runtime/bridge";
-import "./setup";
+import { getOverlayContainer } from "../../utils/getOverlayContainer";
+import { markRaw } from "../../utils/markRaw";
+import { nsMember, resolveNamespace } from "../../utils/namespace";
+import { scopesKey } from "../../utils/scopesKey";
+import { shallow } from "../../utils/shallow";
+import "../setup";
 
 describe("运行时桥（ADR-0001 决策 4 修订）", () => {
     test("命名空间可达：globalThis.AutoSpark（setup 预置，模拟 IIFE 引擎先加载时序）", () => {

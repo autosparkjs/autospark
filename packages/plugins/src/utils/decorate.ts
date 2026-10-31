@@ -52,7 +52,7 @@
  */
 
 import type { AutoSpark, DirectiveSpec } from "autospark";
-import { captureNamespace } from "../runtime/bridge";
+import { captureNamespace } from "./namespace";
 import { installPlugin } from "@autospark/utils";
 
 /* ────────────────────────── 家族共享类型与常量 ────────────────────────── */

@@ -29,7 +29,7 @@
  */
 
 import type { ActionDecl, AutoSpark } from "autospark";
-import { captureNamespace } from "../../runtime/bridge";
+import { captureNamespace } from "../../utils/namespace";
 import { installPlugin } from "@autospark/utils";
 import { NotificationManager } from "./runtime/manager";
 import { NOTIFICATION_COMPONENTS } from "./components";
