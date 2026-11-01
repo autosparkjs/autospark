@@ -28,6 +28,7 @@ import {
 import { hasDirectives } from "../../features/directive/utils/hasDirectives";
 import { hasMustache, isRawTextElement, parseInterpolation, synthAttrExpr } from "./mustache";
 import { collectDataScripts, isDataScript, type DataScriptStash } from "./dataScript";
+import { getScriptTypeHandler, isBuiltinScriptType } from "../../features/script-type";
 import {
     isAutoComponentClass,
     isReservedElementAttr,
@@ -162,6 +163,29 @@ export class AutoSparkCompiler {
             // 前置：<script type="autospark/data"> ——内容已在父元素编译期预扫消费
             //（compileElement 调 collectDataScripts，ADR-0032），此处仅剪枝（不进渲染 DOM）
             [(node: Node) => isDataScript(node), () => null],
+            // 前置：自定义 script type 派发（ADR-0132）——`autospark/*` 命名空间内**非内置**
+            // 类型查 AutoSpark.scriptType 注册表（类静态全局、查询期委托，晚注册天然生效），
+            // handler 收 compiler 解析好的最近 scope（同 extractScript 入参模式）后自行提取注入，
+            // script 统一剪枝；未注册类型 warn + 剪枝（保留命名空间内容不泄漏进渲染 DOM）。
+            // 内置三种（actions/data/setup）由前面条目或专用通道消化，isBuiltinScriptType 跳过。
+            [
+                (node: Node) =>
+                    node instanceof HTMLScriptElement &&
+                    node.type.startsWith("autospark/") &&
+                    !isBuiltinScriptType(node.type),
+                (script: HTMLElement) => {
+                    const el = script as HTMLScriptElement;
+                    const handler = getScriptTypeHandler(el.type);
+                    if (!handler) {
+                        this.engine.logger.warn(
+                            `<script type="${el.type}"> 未注册处理器（AutoSpark.scriptType，ADR-0132），该脚本被丢弃`,
+                        );
+                        return null;
+                    }
+                    handler(el, this._findNearestScope(el), this.engine);
+                    return null;
+                },
+            ],
             // 前置：x-else-if / x-else 条件分支（ADR-0034）——分支快照由 IfDirective 在宿主 created 期
             // 主动扫描直接子元素克隆收集（模板只读），本层仅负责**剪枝**：分支是备选模板、
             // 永不进结果 DOM（eager 的 compileSubtree 与 keepalive 的主 walk 两条子树编译通道统一拦截）。

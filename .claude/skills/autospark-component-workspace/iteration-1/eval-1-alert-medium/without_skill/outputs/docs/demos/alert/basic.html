@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>autospark.alert · 快速入门</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.alert.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 四种语义色 + 标题/描述两行布局；icon 缺省 true（按 type 取语义图标） -->
+    <div class="demo-app section">
+      <div class="stack">
+        <div x-component:autospark.alert="{ type: 'info', title: '信息提示', description: '这是一条信息语义色的警告条。' }"></div>
+        <div x-component:autospark.alert="{ type: 'success', title: '操作成功', description: '数据已保存，随时可以继续后续操作。' }"></div>
+        <div x-component:autospark.alert="{ type: 'warning', title: '注意警告', description: '当前操作存在风险，请确认后继续。' }"></div>
+        <div x-component:autospark.alert="{ type: 'danger', title: '错误危险', description: '提交失败：网络异常，请稍后重试。' }"></div>
+        <div x-component:autospark.alert="{ type: 'info', title: '仅标题（description 缺省不渲染第二行）' }"></div>
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

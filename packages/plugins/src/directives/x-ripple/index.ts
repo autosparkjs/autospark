@@ -8,6 +8,11 @@
  *   天然贴合 border-radius、窗口缩放不失效）；
  * - `glow`：边框光晕呼吸——半周期 blur 达到 size（光晕最大）、整周期归零；
  * - `echo`（缺省）：双环回声——主环之外 ::before 载体负延迟错相第二环。
+ * - `inside:true`：宿主内按钮涟漪（ADR-0010）——双圆一芯一环（芯 = 实心填充圆自起点
+ *   放大渐隐、环 = 芯圆周描边同步渐隐）同心同步，约束在宿主内部（clipper 裁剪，不写
+ *   宿主 overflow）；半径自动几何 = 起点到最远角距离；always/hover 起点几何中心，
+ *   click 起点为点击坐标且连点取消重起；speed 条件缺省 600ms；badge 优先互斥、
+ *   type 词表与 size warn 忽略。
  *
  * ## 三通道等价声明
  *
@@ -79,6 +84,8 @@ export interface XRippleOptions {
     always?: boolean;
     /** click 开关 ≡ trigger:'click' */
     click?: boolean;
+    /** 宿主内按钮涟漪形态（ADR-0010）：双圆一芯一环、半径自动几何、click 连点取消重起；badge 启用时被 badge 压制（warn 忽略） */
+    inside?: boolean;
     /** 徽标（家族通用）：true = 宿主右上角 8px 正圆载体 / 正数字 = 自定义直径 px（启用时 color 缺省主题语义红） */
     badge?: boolean | number;
     /** 颜色，缺省跟随主题主色变量（badge 启用时缺省联动语义红） */
@@ -95,6 +102,8 @@ export interface XRippleOptions {
 interface RippleConfig {
     type: XRippleMode;
     trigger: DecorateTrigger;
+    /** 宿主内按钮涟漪形态开关（ADR-0010） */
+    inside: boolean;
     /** 徽标直径 px（0 = 未启用） */
     badge: number;
     color: string;
@@ -115,6 +124,7 @@ const CROSS_WORDS: readonly string[] = ["rotate", "beam", "chase"];
 const DEFAULT_CONFIG: RippleConfig = {
     type: "echo",
     trigger: "always",
+    inside: false,
     badge: 0,
     color: RIPPLE_COLOR_VAR,
     size: 12,
@@ -132,6 +142,19 @@ const ECHO_CLASS = "x-ripple-echo";
 const LAYER_CLASS = "x-ripple-layer";
 /** 徽标宿主标记类：载体定位覆盖为右上角正圆（伪元素与降级子层同几何） */
 const BADGE_CLASS = "x-ripple-badge";
+/** inside 宿主标记类（ADR-0010）：形态辨识与样式钩子 */
+const INSIDE_HOST_CLASS = "x-ripple-inside";
+/** inside 裁剪容器 / 芯 / 环载体类（芯/环为裁剪容器子元素） */
+const INSIDE_CLIP_CLASS = "x-ripple-inside-clip";
+const INSIDE_CORE_CLASS = "x-ripple-inside-core";
+const INSIDE_HALO_CLASS = "x-ripple-inside-halo";
+/** inside 形态 speed 条件缺省（ADR-0010 决策 5：按钮涟漪节奏；显式声明恒优先） */
+const INSIDE_DEFAULT_SPEED = 600;
+/** inside 环描边宽 px（烘进 CSS 变量 fallback，供主题重载） */
+const INSIDE_HALO_WIDTH = 2;
+/** inside 芯 / 环描边透明度（烘进 keyframes 变量 fallback，供主题重载） */
+const INSIDE_CORE_ALPHA = 0.3;
+const INSIDE_HALO_ALPHA = 0.5;
 
 /* ────────────────────────── 样式注入 ────────────────────────── */
 
@@ -215,6 +238,9 @@ function ensureStyles(): void {
 @media (prefers-reduced-motion: reduce) {
   .${HOST_CLASS}.${ACTIVE_CLASS}::after,
   .${HOST_CLASS}.${ACTIVE_CLASS}.${ECHO_CLASS}::before { animation: none; }
+  /* inside 芯/环动画走内联 style——类规则 !important 压过内联（可访问性底线同家族） */
+  .${INSIDE_CORE_CLASS},
+  .${INSIDE_HALO_CLASS} { animation: none !important; }
 }`;
     document.head.appendChild(style);
 }
@@ -260,6 +286,59 @@ function ensureKeyframes(cfg: RippleConfig): string {
     return name;
 }
 
+/**
+ * 生成/复用 inside 芯/环 keyframes（ADR-0010 决策 1）：scale 0→1 放大 + 透明度渐隐，
+ * 同心同步（芯/环同参数同曲线，仅透明度通道区分）；透明度经变量 fallback 烘死值
+ * （供主题重载、不开配置键——YAGNI 决策见 ADR 备选「透明度/环宽开配置键」）。
+ */
+function ensureInsideKeyframes(cfg: RippleConfig, layer: "core" | "halo"): string {
+    const key = `inside-${layer}|${cfg.speed}|${cfg.gap}`;
+    const cached = keyframesCache.get(key);
+    if (cached) return cached;
+
+    const name = `x-ripple-inside-${layer}-${cfg.speed}-${cfg.gap}`;
+    const period = cfg.speed + cfg.gap;
+    const animPct = period > 0 ? Math.round((cfg.speed / period) * 100) : 100;
+    const alpha = layer === "core" ? INSIDE_CORE_ALPHA : INSIDE_HALO_ALPHA;
+    const frames = `
+  0% { transform: scale(0); opacity: var(--x-ripple-${layer === "core" ? "core" : "halo"}-alpha, ${alpha}); }
+  ${animPct}% { transform: scale(1); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }`;
+
+    if (!keyframesStyleEl) {
+        keyframesStyleEl = document.createElement("style");
+        keyframesStyleEl.setAttribute("data-x-ripple-keyframes", "");
+        document.head.appendChild(keyframesStyleEl);
+    }
+    keyframesStyleEl.textContent += `\n@keyframes ${name} {${frames}\n}`;
+    keyframesCache.set(key, name);
+    return name;
+}
+
+/**
+ * inside 起点半径几何（ADR-0010 决策 3）：ev 在场 = 点击坐标起点（clientX/Y 相对宿主
+ * rect 换算）；缺省 = 宿主几何中心；半径 = 起点到 border box 最远角距离（铺满宿主）。
+ * 返回原始浮点——内联样式写入侧（decorate 控制器）统一 round1 收敛尾数。
+ */
+function insideGeometry(
+    el: HTMLElement,
+    _cfg: RippleConfig,
+    ev?: MouseEvent,
+): { x: number; y: number; r: number } {
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    let x = w / 2;
+    let y = h / 2;
+    if (ev) {
+        const rect = el.getBoundingClientRect();
+        x = ev.clientX - rect.left;
+        y = ev.clientY - rect.top;
+    }
+    const dx = Math.max(x, w - x);
+    const dy = Math.max(y, h - y);
+    return { x, y, r: Math.hypot(dx, dy) };
+}
+
 /* ────────────────────────── 配置归一 ────────────────────────── */
 
 /** echo 第二环相位差：always/hover 恒定错相位 = -周期/2；click = 0（双环同时起波） */
@@ -278,7 +357,10 @@ function echoSize(cfg: RippleConfig): number {
  * `x-ripple.<mode>` 修饰符经引擎解析期等价注入）并存按 MODE_PRIORITY 取先；
  * 跨指令键（x-spin 形态词表）warn 忽略（ADR-0007 决策 2）。
  */
-function normalizeConfig(raw: Record<string, any> | undefined, warn: (msg: string) => void): RippleConfig {
+function normalizeConfig(
+    raw: Record<string, any> | undefined,
+    warn: (msg: string) => void,
+): RippleConfig {
     const cfg: RippleConfig = { ...DEFAULT_CONFIG };
     if (!raw) return cfg;
 
@@ -294,8 +376,19 @@ function normalizeConfig(raw: Record<string, any> | undefined, warn: (msg: strin
     // 跨指令键：x-spin 形态词表 warn 忽略
     warnCrossWords(raw, CROSS_WORDS, "x-spin", warn, "x-ripple");
 
+    // inside 归一（ADR-0002 决策纪律同款）：true 收集、false 压制、非布尔 warn 忽略
+    if (raw.inside !== undefined) {
+        if (raw.inside === true) cfg.inside = true;
+        else if (raw.inside !== false) warn(`x-ripple: inside 开关须为布尔值，已忽略`);
+    }
+
     cfg.trigger = normalizeTrigger(raw, warn, "x-ripple");
     cfg.badge = normalizeBadge(raw, warn, "x-ripple");
+    // badge 优先互斥（ADR-0010 决策 2）：两者对载体理解冲突（角标圆 vs 宿主内部），badge 语义更具体且先成文
+    if (cfg.inside && cfg.badge > 0) {
+        warn(`x-ripple: badge 与 inside 互斥，badge 优先（inside 已忽略）`);
+        cfg.inside = false;
+    }
     cfg.color = resolveColor(
         raw.color,
         { color: RIPPLE_COLOR_VAR, badgeColor: RIPPLE_BADGE_COLOR },
@@ -306,6 +399,14 @@ function normalizeConfig(raw: Record<string, any> | undefined, warn: (msg: strin
     cfg.size = normalizeNumber(raw, "size", warn, "x-ripple") ?? DEFAULT_CONFIG.size;
     cfg.speed = normalizeSpeed(raw, warn, "x-ripple");
     cfg.gap = normalizeNumber(raw, "gap", warn, "x-ripple") ?? 0;
+    // inside 接管渲染的互斥键 warn 忽略 + 条件缺省（ADR-0010 决策 2/5）——置后于
+    // speed/gap 归一：条件缺省须区分「显式声明」与「缺省回退」（raw 侧判定）
+    if (cfg.inside) {
+        if (seen.size > 0) warn(`x-ripple: inside 接管渲染，type 形态词表已忽略`);
+        if (raw.size !== undefined)
+            warn(`x-ripple: inside 半径自动几何（起点到最远角），size 已忽略`);
+        if (raw.speed === undefined) cfg.speed = INSIDE_DEFAULT_SPEED;
+    }
     return cfg;
 }
 
@@ -318,8 +419,12 @@ const RIPPLE_STRATEGY: DecorateStrategy<RippleConfig> = {
     layerClass: LAYER_CLASS,
     ensureStyles,
     normalize: normalizeConfig,
-    hostClasses: (cfg) => (cfg.badge > 0 ? [BADGE_CLASS] : []),
-    activeClasses: (cfg) => (cfg.type === "echo" ? [ECHO_CLASS] : []),
+    hostClasses: (cfg) => [
+        ...(cfg.badge > 0 ? [BADGE_CLASS] : []),
+        ...(cfg.inside ? [INSIDE_HOST_CLASS] : []),
+    ],
+    // inside 接管渲染时 echo 类不挂（type 词表已被忽略，伪元素永不激活）
+    activeClasses: (cfg) => (cfg.type === "echo" && !cfg.inside ? [ECHO_CLASS] : []),
     animName: (cfg) => ensureKeyframes(cfg),
     animationCss: (cfg, anim) => `${anim} ${cfg.speed + cfg.gap}ms ease-out infinite`,
     period: (cfg) => cfg.speed + cfg.gap,
@@ -345,6 +450,33 @@ const RIPPLE_STRATEGY: DecorateStrategy<RippleConfig> = {
         style.setProperty("--x-ripple-echo-delay", `${echoDelay(cfg)}ms`);
         style.setProperty("--x-ripple-echo-size", `${echoSize(cfg)}px`);
         if (cfg.badge > 0) style.setProperty("--x-ripple-badge-size", `${cfg.badge}px`);
+    },
+    // inside 形态钩子组（ADR-0010）：芯/环静态样式在此（色变量/环宽为指令命名空间知识），
+    // 几何与动画启动由 decorate 控制器统一写入
+    inside: {
+        enabled: (cfg) => cfg.inside,
+        createCarrier: () => {
+            const clip = document.createElement("span");
+            clip.className = INSIDE_CLIP_CLASS;
+            // 裁剪容器：铺满宿主、圆角跟随、隐藏溢出——芯/环超界部分被裁（决策 6，不写宿主 overflow）
+            clip.style.cssText =
+                "position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;display:block;";
+            const core = document.createElement("span");
+            core.className = INSIDE_CORE_CLASS;
+            core.style.cssText =
+                "position:absolute;border-radius:50%;background:var(--x-ripple-color);pointer-events:none;display:block;";
+            const halo = document.createElement("span");
+            halo.className = INSIDE_HALO_CLASS;
+            // box-sizing:border-box：环外径恒为 2r（描边内收），与芯同心同尺寸对齐
+            halo.style.cssText = `position:absolute;border-radius:50%;box-sizing:border-box;border:var(--x-ripple-halo-width, ${INSIDE_HALO_WIDTH}px) solid var(--x-ripple-color);pointer-events:none;display:block;`;
+            clip.append(core, halo);
+            return { clip, core, halo };
+        },
+        geometry: insideGeometry,
+        animations: (cfg) => ({
+            core: `${ensureInsideKeyframes(cfg, "core")} ${cfg.speed + cfg.gap}ms ease-out infinite`,
+            halo: `${ensureInsideKeyframes(cfg, "halo")} ${cfg.speed + cfg.gap}ms ease-out infinite`,
+        }),
     },
 };
 

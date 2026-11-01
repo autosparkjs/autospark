@@ -39,6 +39,10 @@
     "packages/plugins": {
       "name": "@autospark/plugins",
       "version": "0.1.0",
+      "dependencies": {
+        "@floating-ui/dom": "^1.8.0",
+        "flex-tools": "^1.6.6",
+      },
       "devDependencies": {
         "@autospark/utils": "workspace:*",
         "@happy-dom/global-registrator": "^21.0.4",

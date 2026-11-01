@@ -1,0 +1,20 @@
+{
+  "eval_id": 2,
+  "eval_name": "dropdown-large-component",
+  "prompt": "给 packages/plugins 新增 dropdown 下拉菜单组件：点击触发元素弹出浮层菜单——浮层要正确定位在触发元素下方（视口边缘自动翻转/滑回）、点击菜单外部或按 Esc 关闭、菜单项支持图标+文字+禁用态。做完要有 demo 和文档，并登记侧边栏。",
+  "assertions": [
+    "入口自举：dropdown 插件入口经 installPlugin 注册组件（autospark.dropdown）",
+    "IIFE 构建登记：vite.config.ts 的 CLOSURE_ARTIFACTS 含 dropdown 条目（outFile 为 autospark.dropdown.js）",
+    "聚合入口：packages/plugins/src/index.ts 含 dropdown 的副作用导入",
+    "demo 可运行：docs/demos/ 下有引用 /autospark/autospark.dropdown.js 的 HTML demo",
+    "文档存在：docs/zh/components/dropdown.md 存在且用 <demo html= 嵌入 demo",
+    "侧边栏登记：docs/.vitepress/config/index.ts 的 /zh/components/ 数组含 dropdown 链接",
+    "浮层定位复用家族工具：import 了 src/utils/floating.ts（或等效复用家族浮层机制），非从零自写定位算法",
+    "关闭交互完整：菜单外部点击与 Esc 键两通道均有实现",
+    "菜单项三要素：图标 + 文字 + 禁用态均可表达",
+    "主题回退链：样式声明含 var(--auto-* 三级回退形态",
+    "暗色兜底变体：样式含 [dark] 或 [data-dark] 选择器",
+    "未新增外部依赖：packages/plugins/package.json 的 dependencies 未变化",
+    "运行时零静态依赖：无 engine 运行时符号的静态值导入（import type 除外）"
+  ]
+}

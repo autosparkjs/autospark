@@ -39,8 +39,12 @@ _Avoid_: 扩展 / addon（泛化）、模块（引擎内部机制域的正名是
 _Avoid_: 插件表 / 插件注册表（那是类静态上的声明表，不是本队列）、window 键注册表（本队列是 window 键没错，但它是**投递通道**不是注册表——ADR-0111 决策 6 否决的是后者）、模块初始化钩子（不构造 engine 即永不消费）
 
 **插件命名空间（Plugin Namespace）**:
-IIFE 全局 `AutoSpark`——**类与命名空间一体**（jQuery `$` 同构）：既是构造类又承载插件 API（`ready` / `precompile` / `components` / `actions` / `icons` / `directive`），库的其他导出成员（AutoStore 等）挂为类静态。ESM 消费者经 `import { AutoSpark }` 取同一后端（API 挂类静态，window 全局只是 IIFE 形态的呈现）。详见 ADR-0111。
+IIFE 全局 `AutoSpark`——**类与命名空间一体**（jQuery `$` 同构）：既是构造类又承载插件 API（`ready` / `precompile` / `components` / `actions` / `icons` / `directive` / `scriptType`），库的其他导出成员（AutoStore 等）挂为类静态。ESM 消费者经 `import { AutoSpark }` 取同一后端（API 挂类静态，window 全局只是 IIFE 形态的呈现）。详见 ADR-0111。
 _Avoid_: `AutoSparkSpaces` 作正名（兼容别名，指向同一对象，旧消费面专用）、`$`（插件脚本内的形参缩写习惯，非 API 名）、window 键注册表（`__AUTOSPARK_COMPONENTS__` / `__AUTOSPARK_DIRECTIVES__` 等**注册表**方案已否决删除；唯一存活的 window 键是预加载队列 `__AUTOSPARK_PLUGINS__`，它是通道不是表）
+
+**$.scriptType（script type 派发注册入口）**:
+`AutoSpark.scriptType(type, handler)`——插件注册自定义 `<script type="autospark/<kebab-name>">` 处理器的唯一入口（ADR-0132）：编译期 transformer 命中非内置的 `autospark/*` 类型时查注册表派发（handler 收 `(script, 最近 scope, engine)`），script 统一剪枝。注册表是**类静态全局 Map、查询期委托**（与指令注册表同构——晚注册对后续编译天然生效）；内置名（actions/data/setup）不开放注册；未注册的 `autospark/*` warn + 剪枝。
+_Avoid_: script 注册表（注册表是机制的载体，API 名是 scriptType）、transformer 注册（那是 compiler 内部概念，插件视角只有本入口）、自定义脚本类型（口语——正名带 `autospark/` 前缀语义）
 
 **插件注册表（Plugin Registry）**:
 `AutoSpark.components` / `AutoSpark.actions`——跨 engine 的**真全局**声明表（对照：引擎级 `options.components` / `options.actions` 是 per-engine）。engine 查找链到顶兜底遍历全局表（**查询期委托**：不复制进 engine、无运行时广播，晚注册天然立即生效）。组件命中时惰性预编译入全局 def 缓存（每组件名全局只编译一次，多 engine 共享编译产物）。组件查找链：scope 局部 → `options.components` → 全局表 → `builtinComponents`；action 查找链末端命中全局表时经**触发 engine** 惰性物化（this/生命周期广播绑定触发处 engine）。图标无独立表（`AutoSpark.icons` 的 document 级全局注册表即真全局，ADR-0058 既有）。
@@ -95,6 +99,10 @@ _Avoid_: 默认动作（泛化）、系统动作（易与 DOM/浏览器原生事
 **raise（错误触发动作）**:
 内置全局 action（ADR-0118）：在触发元素上同步 dispatch `error` 事件，供 x-error 消费——是「显式抛出运行时错误」的模板侧入口（对照：action 失败的自动桥接见「error 事件」词条）。入参归一化：string → `{message}`、Error → `{name,message,stack}`、普通对象原样保留并注入 `source:"raise"`；第二参 options 可携带 `props` / `closeable` / `retryable` / `actions`（事件层配置，优先于 x-error-options 静态层）。用户同名声明覆盖内置。
 _Avoid_: throw（JS 关键字且非本机制）、报错动作（泛化）、raiseError（API 名就是 raise）
+
+**点号名 action / Dotted Action Name**:
+含点号的名字段 action（如 `order.get`）——ACTION_RE 扩展后（ADR-0131）`@click="order.get(1)"` 以**整名**命中 `getAction`，method/action 未命中照常落表达式兜底（行为零破坏）；注册进现有容器即标准 action（三通道广播全继承）。「资源名.方法名」的语义约定属插件层（resource 插件），engine 只认字符串键。调用边界：仅在事件表达式顶层可达，子表达式内嵌（`x-text="a.b().c"`）不可达。
+_Avoid_: 命名空间 action（无此机制——就是单键字符串）、嵌套 action（平铺单键，非对象嵌套）、点号表达式（那是兜底通道的属性访问）
 
 ### 配置层
 
@@ -548,11 +556,19 @@ document 级唯一的隐藏 `<svg>` 容器（`width=0 height=0 position:absolute
 _Avoid_: 图标样式表（mask 时代产物已废）、每处内联 svg（重复体积）
 
 **symbol 归一化（Symbol Normalization）**:
-图标内容的收集期归一化（ADR-0058）：剥离**全部** stroke-width（「宽度不是图标的一部分，是渲染参数」）、缺 stroke 才补 currentColor（作者显式属性不动）；viewBox 提取自 svg 属性（远程侧见「IconifyJSON 远程源」的合成规则）。生效 strokeWidth 经 `.as-icon{stroke-width:var(--as-icon-sw,1.25)}` 基础规则 + 四级链生效值内联变量下发；多笔画异宽图标失去表现力，为已知限制。
+图标内容的收集期**基础**归一化（ADR-0058）：剥离**全部** stroke-width（「宽度不是图标的一部分，是渲染参数」）；viewBox 提取自 svg 属性（远程侧见「IconifyJSON 远程源」的合成规则）。「缺 stroke 补 currentColor」条款经 ADR-0130 收紧为**仅 stroke 型**（类型判定见「图标归一化」——根 fill=none + 内容各自显式 fill 的 fill 型不再被强加描边轮廓，既有误伤修复）；风格对齐层（四件套 / 颜色 / 网格）整体见「图标归一化」。生效 strokeWidth 经 `.as-icon{stroke-width:var(--as-icon-sw,1.25)}` 基础规则 + 四级链生效值内联变量下发；多笔画异宽图标失去表现力，为已知限制。
 _Avoid_: 规范形 SVG（旧词条——data URL 时代产物，xmlns 补齐管线随 mask 下线）
 
+**图标归一化（Icon Normalization）**:
+外来 SVG 与内置规约（`viewBox 0 0 24 24` + `fill=none` + `stroke=currentColor` + 圆线帽/圆拐角）自动对齐的机制（ADR-0130）：单一归一化核心（`SymbolSpec` 进出），三管道汇入——本地串（`normalizeSvgSpec`：add / x-icons 内联 / 全局内联）、远程（`specFromResolved`）、公开工具（`AutoSpark.normalizeIconSvg`，构建期预处理同语义）。规则四件：**类型判定**（stroke 型 = 根 stroke≠none ∨ 内容含 stroke≠none ∨〔根 fill=none 且内容无显式 fill〕，其余 fill 型零接触 stroke 系——fill 体系豁免由判定承载，非路径豁免，修订 ADR-0058 决策 10）；**四件套补齐**（stroke 型且根缺某项才补，只补缺失不覆盖显式声明）；**颜色规约**（全图 fill/stroke 显式色值去重后**唯一**才换 currentColor——黑白也换；多色 / `url()` / `var()` 引用一律保留）；**网格补偿**（见专词条）。`data-raw` 根标志 = 逐图标逃逸阀（跳过本机制全部，不豁免 stroke-width 剥离；标志不落 symbol）。默认开启，`AutoSpark.icons.options.normalize = false` 全局单开关（无细粒度、无反向开窗）；`getSvg` 恒返原始声明串（归一化只作用于派生 spec）；静默 + debug 摘要（按名+变换集去重）。幂等（模板克隆重收集安全）。
+_Avoid_: SVG 压缩 / SVGO（不做路径精简与几何优化）、图标规范化（撞「规范形 SVG」旧词遗留联想）、逐图标 normalize 开关（不存在——只有全局关 + data-raw 逃逸）
+
+**网格补偿（Grid Compensation）**:
+非 24 网格 stroke 图标的描边粗细换算（ADR-0130）：CSS `stroke-width` 按 symbol 用户单位解释，viewBox 越小视觉越粗（16 网格 ×1.5、256 网格 ×1/10.7）。补偿在**渲染期**由 x-icon 算 `生效 sw × grid/24`、非默认值才内联 `--as-icon-sw`（零内联纪律照旧）——symbol 层无法承载（烘焙 stroke-width 会被宿主继承的 CSS 变量值压过，ADR-0058 决策 6 架构不变量）。grid = **max(viewBox 宽, 高)**（`preserveAspectRatio=meet` 等比缩放由较大边决定）；viewBox 缺失 / `data-raw` → 不补偿。
+_Avoid_: viewBox 重写 24（transform 包裹无视觉收益——scale 不改局部单位解释）、取宽边（非方形由较大边决定）、vector-effect=non-scaling-stroke（宽度钉屏幕像素，破坏 1em 缩放）
+
 **IconifyJSON 远程源（Remote Icon Source）**:
-`x-icons` 的远程物种（ADR-0058）：`x-icons-options` 的 `url`（默认 `https://api.iconify.design/material-symbols-light.json?icons={modify-icons}`——清单占位符用 `{modify-icons}`，未声明 modify 退化为原名清单）+ `icons`（逗号清单）+ `modify`（值域 rounded|sharp|outline|outline-rounded|outline-sharp，越界 warn + 忽略）+ `cache`（TTL 持久缓存时长**毫秒**，正数启用、默认 0——fetch 成功落 localStorage、TTL 内跨会话零网络、过期条目读取时即弃；ADR-0058 修订）。url 插值：`{icons}` 原名清单原始直书、`{modify}` 未声明为空串、`{modify-icons}` 未声明退化为 `{icons}`、未知占位符保留原样 + warn。编译期收集即 fetch；会话内存缓存 + in-flight 合并（同 url 一次）+ 可选 TTL 持久层（cache 选项），无限流。**原名注册**——响应键按「后缀名→原名」表回填，symbol 以原名注册（x-icon 不感知 modify）；`not_found` 后缀名按原名失败处理。转换：symbol id = 图标名（不含 prefix）、viewBox 自 JSON 根级默认合成（兜底 0 0 16 16）、rotate/hFlip/vFlip → `<g transform>`、aliases 解引用（循环 warn 丢弃）、body 直塞不补 stroke。
+`x-icons` 的远程物种（ADR-0058）：`x-icons-options` 的 `url`（默认 `https://api.iconify.design/material-symbols-light.json?icons={modify-icons}`——清单占位符用 `{modify-icons}`，未声明 modify 退化为原名清单）+ `icons`（逗号清单）+ `modify`（值域 rounded|sharp|outline|outline-rounded|outline-sharp，越界 warn + 忽略）+ `cache`（TTL 持久缓存时长**毫秒**，正数启用、默认 0——fetch 成功落 localStorage、TTL 内跨会话零网络、过期条目读取时即弃；ADR-0058 修订）。url 插值：`{icons}` 原名清单原始直书、`{modify}` 未声明为空串、`{modify-icons}` 未声明退化为 `{icons}`、未知占位符保留原样 + warn。编译期收集即 fetch；会话内存缓存 + in-flight 合并（同 url 一次）+ 可选 TTL 持久层（cache 选项），无限流。**原名注册**——响应键按「后缀名→原名」表回填，symbol 以原名注册（x-icon 不感知 modify）；`not_found` 后缀名按原名失败处理。转换：symbol id = 图标名（不含 prefix）、viewBox 自 JSON 根级默认合成（兜底 0 0 16 16）、rotate/hFlip/vFlip → `<g transform>`、aliases 解引用（循环 warn 丢弃）、body 直塞后经图标归一化核心（fill 体系豁免由**类型判定**承载，不再是路径豁免——ADR-0130 修订 ADR-0058 决策 10）。
 _Avoid_: 异步图标源（旧词条，per-icon 物种已废）、icon-url（不存在的指令/选项名）、baseUrl（旧协议基址已删）、持久缓存（那是旧词条名——本机制是声明级 TTL 选项）
 
 **待定名（Pending Name）**:

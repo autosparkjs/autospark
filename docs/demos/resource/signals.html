@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>resource · 信号与反馈联动</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.resource.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .demo-app { max-width: 720px; margin: 0 auto; }
+      /* feedback 裸修饰符 = 类名模式：pending/resolved/rejected 三态类由按钮自身承载，样式自定义 */
+      button.pending {
+        opacity: 0.5;
+        outline: 2px solid #3e8ed0;
+      }
+      button.resolved {
+        outline: 2px solid #48c78e;
+      }
+      button.rejected {
+        outline: 2px solid #f14668;
+      }
+      .log-box {
+        font-family: Consolas, monospace;
+        font-size: 12px;
+        background: #1e1e1e;
+        color: #9cdcfe;
+        border-radius: 8px;
+        padding: 12px 16px;
+        min-height: 120px;
+        max-height: 240px;
+        overflow-y: auto;
+      }
+      .log-box .sig { color: #c586c0; font-weight: bold; }
+      .log-box .err { color: #f14668; }
+    </style>
+  </head>
+  <body>
+    <div class="demo-app section">
+      <h1 class="title is-4">信号与反馈联动（资源方法即 action）</h1>
+      <p class="is-size-7 has-text-grey">
+        资源方法每次调用自动广播 <code>actions/order.get/pending|resolved|rejected</code>——按钮的
+        <code>.feedback</code> 三态类、下方信号日志均零资源侧代码。<strong>失败也走信号</strong>：
+        404 → rejected，<code>error</code> 携带 <code>ResourceError</code>（status / url / method）。
+      </p>
+
+      <div class="box">
+        <!-- engine 级声明（script global）：总线信号须 engine 级及以上注册——scope 级资源只 DOM 冒泡 -->
+        <script type="autospark/resources" global>
+          { order: "/api/orders" }
+        </script>
+        <div class="buttons">
+          <button class="button is-small is-primary" @click.feedback="order.get(1)">order.get(1)（成功）</button>
+          <button class="button is-small is-danger" @click.feedback="order.get(99)">order.get(99)（404 → rejected）</button>
+        </div>
+        <p class="is-size-7 has-text-grey" style="margin-top: 6px">
+          裸 <code>.feedback</code> 是类名模式（不设加载遮罩）；要遮罩须
+          <code>x-on-options="{feedback:{loading:true}}"</code>。
+        </p>
+      </div>
+
+      <div class="box">
+        <strong>信号日志（engine.on 订阅三通道）</strong>
+        <div class="log-box" style="margin-top: 8px" x-for="l of logs">
+          <div>
+            <span class="sig" x-text="l.sig"></span> <span x-text="l.msg"></span>
+            <span class="err" x-text="l.err"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const mockFetch = async (url, init) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        await new Promise((r) => setTimeout(r, 300)); // pending 态可见
+        if (method === "GET" && /\/api\/orders\/1$/.test(url)) {
+          return new Response(JSON.stringify({ id: 1, title: "订单 #1" }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ message: "not found" }), { status: 404 });
+      };
+
+      const engine = new AutoSpark(document.querySelector(".demo-app"), { logs: [] }, {
+        resources: { fetch: mockFetch },
+      });
+
+      // 三通道订阅：回调统一收 {type, payload} 信封；rejected 的 payload = {id, action, error}
+      const log = (entry) => {
+        engine.state.logs = [entry, ...engine.state.logs].slice(0, 20);
+      };
+      engine.on("actions/order.get/pending", (e) => log({ sig: "pending", msg: "请求发出…" }));
+      engine.on("actions/order.get/resolved", (e) =>
+        log({ sig: "resolved", msg: "→ " + JSON.stringify(e.payload.value ?? e.payload.result ?? e.payload) }),
+      );
+      engine.on("actions/order.get/rejected", (e) => {
+        const err = e.payload?.error ?? {};
+        log({ sig: "rejected", msg: "ResourceError", err: ` status=${err.status} ${err.method} ${err.url}` });
+      });
+    </script>
+  </body>
+</html>

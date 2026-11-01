@@ -104,8 +104,8 @@ function resolvePhase(v: unknown, base: Partial<PhaseAnim>): PhaseAnim | null {
 const HEIGHT_ANIM_NAMES = new Set(["expand"]);
 
 /** 内置动画样式（决策 12）：transition 型、裸类名（可被用户同名 CSS 覆盖）、无命名空间前缀 */
-const BUILTIN_ANIMATE_CSS = ".fade-enter-active,.fade-leave-active{transition:opacity .3s ease}.fade-enter-from,.fade-leave-to{opacity:0}.fade-enter-to,.fade-leave-from{opacity:1}.slide-enter-active,.slide-leave-active{transition:transform .3s ease,opacity .3s ease}.slide-enter-from,.slide-leave-to{opacity:0;transform:translateY(-12px)}.slide-enter-to,.slide-leave-from{opacity:1;transform:translateY(0)}";
-
+const BUILTIN_ANIMATE_CSS =
+    ".fade-enter-active,.fade-leave-active{transition:opacity .3s ease}.fade-enter-from,.fade-leave-to{opacity:0}.fade-enter-to,.fade-leave-from{opacity:1}.slide-enter-active,.slide-leave-active{transition:transform .3s ease,opacity .3s ease}.slide-enter-from,.slide-leave-to{opacity:0;transform:translateY(-12px)}.slide-enter-to,.slide-leave-from{opacity:1;transform:translateY(0)}";
 
 /** 内置样式 `<style>` 元素 id（幂等注入：多 engine 实例共享 document，防重复） */
 const ANIMATE_STYLE_ID = "autospark-animate-styles";
@@ -230,27 +230,37 @@ export class AutoSparkAnimator {
             // ① 起始帧：from + active + inline 禁过渡。挂类本身产生的「旧值 → from 态」
             //    样式变化会立即被 active 提供的 transition 捕获（面板 append 后才挂类，
             //    before-change 是无类态——先播一场反向 unwanted 过渡，随后的目标过渡起点
-            //    被污染、位移归零），from 帧 inline transition:none 压制之。
+            //    被污染、位移归零），from 帧 inline 压制之。压制须走 longhand
+            //    （transitionProperty:none）：shorthand transition:none 赋值会重置全部
+            //    子属性，冲掉 _applyInline 写入的 duration/delay/easing 覆盖——且
+            //    shorthand getter 不序列化仅经 longhand 设置的值（Chromium 实测），
+            //    经「读 shorthand → 还原」也找不回（enter 相时长配置失效的根因）。
             el.classList.add(fromCls, activeCls);
-            const prevTransition = el.style.transition;
-            inlineBackup.push(["transition", prevTransition]);
-            el.style.transition = "none";
+            const prevProperty = el.style.transitionProperty;
+            inlineBackup.push(["transitionProperty", prevProperty]);
+            el.style.transitionProperty = "none";
             // ② 目标帧切换须等 from 态真实渲染一帧：新插入元素在插入帧内没有
             //    before-change style，同帧切换类不启动 transition（瞬现而非滑入）。
             //    Chromium 会把 rAF 回调内注册的 rAF 追加进同帧队列（双 rAF 不隔帧），
             //    故第二层用宏任务——事件循环保证它在当前帧渲染之后执行。
-            rec.frame = { kind: "raf", id: requestFrame(() => {
-                rec.frame = { kind: "timeout", id: setTimeout(() => {
-                    rec.frame = null;
-                    // ③ 目标帧：还原 transition（active 的过渡由此帧生效）→ 摘 from 挂 to
-                    el.style.transition = prevTransition;
-                    el.classList.remove(fromCls);
-                    el.classList.add(toCls);
-                    // 结束检测注册在切换帧：挂帧探测会被 inline transition:none 骗成
-                    // 0 时长 → 0ms 兜底瞬间收尾（类刚挂即摘）
-                    this._registerEnd(rec, phase);
-                }, 0) };
-            }) };
+            rec.frame = {
+                kind: "raf",
+                id: requestFrame(() => {
+                    rec.frame = {
+                        kind: "timeout",
+                        id: setTimeout(() => {
+                            rec.frame = null;
+                            // ③ 目标帧：还原 transition-property（active 的过渡由此帧生效）→ 摘 from 挂 to
+                            el.style.transitionProperty = prevProperty;
+                            el.classList.remove(fromCls);
+                            el.classList.add(toCls);
+                            // 结束检测注册在切换帧：挂帧探测会被 inline 压制骗成
+                            // 0 时长 → 0ms 兜底瞬间收尾（类刚挂即摘）
+                            this._registerEnd(rec, phase);
+                        }, 0),
+                    };
+                }),
+            };
         } else {
             // leave：元素已在文档且已渲染（有 before-change style），同步 reflow 即启动过渡
             el.classList.add(fromCls, activeCls);
@@ -288,9 +298,13 @@ export class AutoSparkAnimator {
         const easing = phase.easing ?? "ease";
         const delay = phase.delay ?? 0;
         const style = el.style as unknown as Record<string, string>;
-        const inlineBackup: [string, string][] = ["height", "overflow", "opacity", "boxSizing", "transition"].map(
-            (p) => [p, style[p] ?? ""],
-        );
+        const inlineBackup: [string, string][] = [
+            "height",
+            "overflow",
+            "opacity",
+            "boxSizing",
+            "transition",
+        ].map((p) => [p, style[p] ?? ""]);
         const transitionValue = `height ${duration}ms ${easing} ${delay}ms, opacity ${duration}ms ${easing} ${delay}ms`;
         style.overflow = "hidden";
         style.boxSizing = "border-box";

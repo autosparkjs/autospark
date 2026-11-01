@@ -1,0 +1,19 @@
+{
+  "eval_id": 1,
+  "eval_name": "alert-medium-component",
+  "prompt": "往 plugins 包新增 alert 警告条组件插件：语义色四种（info/success/warning/danger）、标题+描述两行布局、closable 关闭（点击收起，父组件状态可控制重新显示）、可选左侧图标。写 demo 和中文文档，进侧边栏。",
+  "assertions": [
+    "入口自举：src/components/alert/index.ts 经 installPlugin 注册 autospark.components[\"autospark.alert\"]",
+    "模板自包含：alert.html 含 x-define=\"autospark.alert\" 与 <style global",
+    "IIFE 构建登记：vite.config.ts 的 CLOSURE_ARTIFACTS 含 alert 条目（entry 指向 src/components/alert/index.ts，outFile 为 autospark.alert.js）",
+    "聚合入口：packages/plugins/src/index.ts 含 import \"./components/alert/index\"",
+    "demo 可运行：docs/demos/ 下有引用 /autospark/autospark.alert.js 的 HTML demo",
+    "文档存在：docs/zh/components/alert.md 存在且用 <demo html= 嵌入 demo",
+    "侧边栏登记：docs/.vitepress/config/index.ts 的 /zh/components/ 数组含 alert 链接",
+    "语义色合规：四种语义色走 --auto-{info,success,warning,danger}-color 变量（三级回退链形态）",
+    "暗色兜底变体：样式含 [dark] 或 [data-dark] 选择器",
+    "化身路径约束：模板根元素上除 class/x-define 外无动态绑定",
+    "closable 关闭逻辑在 script setup 内实现且支持父组件状态控制重新显示（watch 在场）",
+    "标题与描述呈两行布局（独立元素/插槽，非单行拼接）"
+  ]
+}

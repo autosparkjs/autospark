@@ -52,6 +52,11 @@ export interface IconOptions {
     button?: boolean;
     /** 修饰：手型光标（`cursor: pointer`，可点击语义） */
     pointer?: boolean;
+    /**
+     * 图标归一化总开关（ADR-0130）：`false` 关闭全部风格对齐（四件套补齐/颜色规约/网格
+     * 补偿）；默认开启。逐图标逃逸走 svg 根的 `data-raw` 标志（不在此配置）。
+     */
+    normalize?: boolean;
 }
 
 /** 默认描边宽度（`.as-icon` 基础规则 `--as-icon-sw` 变量的兜底值，ADR-0058 决策 6） */
@@ -92,6 +97,8 @@ export class IconRegistry extends Set<string> {
 
     /** name → 原始 svg 串（内部存储，getSvg 外露） */
     private svgs = new Map<string, string>();
+    /** name → 网格宽（ADR-0130 渲染期描边补偿用；声明与产物分离——原始串不带此派生值） */
+    private grids = new Map<string, number | null>();
     /** 变更监听器 */
     private listeners = new Set<IconChangeListener>();
 
@@ -111,12 +118,16 @@ export class IconRegistry extends Set<string> {
             warn(`图标 "${name}" 的 SVG 数据无效（未找到 <svg>），已拒绝注册`);
             return this;
         }
-        const spec = normalizeSvgSpec(svg);
+        const spec = normalizeSvgSpec(svg, {
+            normalize: this._options.normalize !== false,
+            name,
+        });
         if (!spec) {
             warn(`图标 "${name}" 的 SVG 数据无效（无法解析 root 标签），已拒绝注册`);
             return this;
         }
         this.svgs.set(name, svg);
+        this.grids.set(name, spec.grid ?? null);
         super.add(name);
         injectSymbol(GLOBAL_SYMBOL_PREFIX + name, spec);
         this.emitChange(name, "add");
@@ -127,6 +138,7 @@ export class IconRegistry extends Set<string> {
     override delete(name: string): boolean {
         if (typeof name !== "string" || !super.delete(name)) return false;
         this.svgs.delete(name);
+        this.grids.delete(name);
         removeSymbol(GLOBAL_SYMBOL_PREFIX + name);
         this.emitChange(name, "delete");
         return true;
@@ -135,6 +147,11 @@ export class IconRegistry extends Set<string> {
     /** 取原始 svg 串（声明入参原样；symbol 是渲染产物）；不存在返回 undefined */
     getSvg(name: string): string | undefined {
         return this.svgs.get(name);
+    }
+
+    /** 取图标网格宽（ADR-0130 渲染期描边补偿用）；未注册返回 undefined，无补偿语义为 null */
+    getGrid(name: string): number | null | undefined {
+        return this.grids.get(name);
     }
 
     /** 订阅图标域变更（全局 add/delete/options + 局部 symbol 注入/远程到达）；返回退订函数 */

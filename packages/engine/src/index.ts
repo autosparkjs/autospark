@@ -16,6 +16,8 @@ export type {
 export * from "./features/component/component-instance";
 // 图标注册表（ADR-0046/0047：AutoSpark.icons 同一实例的类型与单例导出）
 export * from "./features/icons/registry";
+// 图标归一化公开工具（ADR-0130：构建期预处理与运行时同语义；AutoSpark.normalizeIconSvg 同一函数）
+export { normalizeIconSvg } from "./features/icons/symbol";
 // action 声明/描述符类型（ADR-0036 ActionDesc/ActionDecl，纯类型导出）
 export * from "./features/action/types";
 // 组件定义类型（ADR-0086：`engine.registerComponent` 的返回类型，消费者可指名标注）
@@ -33,8 +35,15 @@ export { getOverlayContainer } from "./features/overlay/container";
 // overlay 家族与 tooltip 同款取用）
 export { resolveAnimate } from "./features/animate/animate";
 export type { ResolvedAnimate } from "./features/animate/animate";
+// loading 遮罩合成（ADR-0128 决策 5：overlay 家族打开期 loading 消费面）
+export { createLoadingMask } from "./features/directive/loading-synthesis";
+// 组件实例化基座指令类（ADR-0128 决策 5：overlay 家族基座 extends 的消费面，插件侧注入）
+export { ComponentDirective } from "./directives/x-component";
+export type { LoadingMaskHandle } from "./features/directive/loading-synthesis";
 // 指令信息类型（ADR-0128 决策 5：插件结构指令 ownsChildren(info) 的参数类型）
 export type { AutoDirectiveInfo } from "./features/directive/types";
+// 自定义 script type 处理器类型（ADR-0132：AutoSpark.scriptType 注册面，纯类型导出）
+export type { AutoSparkScriptHandler } from "./features/script-type";
 // scope 注册表键（x-data 数据域容器，store.state[SCOPES_KEY][scope.id]）：插件生态按路径
 // 精准订阅 scope 数据的公开坐标（同步 fire 语义的基石——scope.watch 经 scheduler 微任务
 // 合并会吞连续写入的中间值，契约广播类订阅必须走 store 点路径）

@@ -2,7 +2,7 @@
 
 ## 概述
 
-`x-ripple` 为宿主元素叠加**涟漪扩散动效层**——一圈边框色自宿主边框循环向外扩散渐隐。不改变宿主布局与内容，指针事件全穿透。装饰动效家族拆分为两条独立指令：本页的 `x-ripple`（涟漪扩散）与 [x-spin](./x-spin.md)（色环旋转）。
+`x-ripple` 为宿主元素叠加**涟漪扩散动效层**——一圈边框色自宿主边框循环向外扩散渐隐。不改变宿主布局与内容，指针事件全穿透。装饰动效家族拆分为两条独立指令：本页的 `x-ripple`（涟漪扩散）与 [x-spin](./x-spin.md)（色环旋转）。`inside: true` 可切换为**宿主内部**的按钮涟漪形态（见[宿主内涟漪](#宿主内涟漪-inside)）。
 
 ```html
 <div x-ripple>内容</div>
@@ -71,13 +71,33 @@
 声明姊妹指令 x-spin 的形态词表（`rotate`/`beam`/`chase`）时警告并忽略，不中断渲染；其余未知键静默处理。
 :::
 
+### 宿主内涟漪（inside）
+
+`inside: true` 切换为**宿主内部**的按钮涟漪（Material 式）——双圆（**芯** = 实心填充圆自起点放大渐隐，**环** = 芯圆周描边同步渐隐）同心同步扩散，被**约束在宿主内部**（注入裁剪子元素承载，不修改宿主 `overflow`）：
+
+- 半径**自动几何**：起点到宿主最远角的距离（一次起波铺满宿主），`size` 声明被忽略；
+- `always` / `hover`：起点固定宿主几何中心，单周期扩散渐隐后循环；
+- `click`：起点为**点击坐标**，单周期自止；**在播中连点取消上次、立即重起**（区别于外扩形态的「连点忽略」）；
+- `speed` 条件缺省 **600ms**（按钮涟漪节奏；显式声明恒优先）。
+
+```html
+<button x-ripple.inside.click>按钮涟漪（点击处起波，连点重起）</button>
+<div x-ripple x-ripple-options="{inside: true}">中心循环扩散</div>
+```
+
+::: warning 互斥
+`inside` 接管渲染：`type` 形态词表（`ring`/`glow`/`echo`）与 `size` 警告忽略；`badge` 优先——同时声明时 `inside` 被忽略，角标形态照常。
+:::
+
+<demo html="ripple/inside.html"/>
+
 ### 触发器
 
 `trigger` 控制播放时机，默认 `always`（挂载后持续循环）：
 
 - `always`：挂载即播，持续循环；
 - `hover`：默认静止，悬停期间播放，移出后播完当前周期再停；
-- `click`：默认静止，每次点击播放一个完整周期后自动停止；在播中连点忽略，周期结束后可再次点击重播。
+- `click`：默认静止，每次点击播放一个完整周期后自动停止；在播中连点忽略，周期结束后可再次点击重播（`inside` 形态例外——连点取消上次、立即重起，见[宿主内涟漪](#宿主内涟漪-inside)）。
 
 触发器有三种等价声明方式：`trigger` 显式键、`hover/always/click` 布尔开关键、点修饰符速记。多处并存时按 **hover > always > click** 取先者；显式 `false` 可压制速记开关。
 
@@ -142,25 +162,45 @@ badge 载体带最高层级 z-index，覆盖宿主内容与同层定位元素（
 
 <demo html="ripple/badge.html"/>
 
+### 运行时动态挂载
+
+`x-ripple` 走运行时通道（MutationObserver），**不经编译也能挂载**——engine 存活期间对观察根内元素动态 `setAttribute("x-ripple")` 即生效，`removeAttribute` 即失效（类与载体立即清理，不打断也在播中一并移除）；动态插入带属性的元素同样生效：
+
+```html
+el.setAttribute("x-ripple", "");              // 挂载即生效（触发器缺省 always 立即循环）
+el.setAttribute("x-ripple-options", "{inside: true, trigger: 'click'}"); // 配置随挂载读取
+el.removeAttribute("x-ripple");               // 移除即失效
+```
+
+边界约定：
+
+- 仅 engine 观察根内生效（`engine.el` 子树与覆盖层容器；x-isolate 子树归子引擎的观察器）；
+- `x-ripple-options` 在挂载时求值一次——运行时改配置值无效，须移除重加 `x-ripple` 属性重挂；
+- 修饰符形式（如 `x-ripple.click`）的**值变化**不触发重求值（增/删属性不受限）；
+- 插件脚本晚于首编译加载时，存量静态属性已被编译器剥除（见[注意事项](#注意事项)加载顺序契约）——运行时动态添加不受此限。
+
+<demo html="ripple/runtime.html"/>
+
 ## 配置选项
 
 `x-ripple-options` 为静态整包配置，**求值一次**——动效参数是设计期配置，改值需重挂宿主。
 
-| 配置项     | 类型                                   | 默认值                    | 说明                                     |
-| ---------- | -------------------------------------- | ------------------------- | ---------------------------------------- |
-| `type`     | `'ring' \| 'glow' \| 'echo'`           | `'echo'`                  | 形态显式键                               |
-| `ring`     | `boolean`                              | `-`                       | 开关 ≡ `type:'ring'`（点修饰符同义）     |
-| `glow`     | `boolean`                              | `-`                       | 开关 ≡ `type:'glow'`（点修饰符同义）     |
-| `echo`     | `boolean`                              | `-`                       | 开关 ≡ `type:'echo'`（点修饰符同义）     |
-| `trigger`  | `'always' \| 'hover' \| 'click'`       | `'always'`                | 触发器显式键                             |
-| `hover`    | `boolean`                              | `-`                       | 开关 ≡ `trigger:'hover'`（点修饰符同义） |
-| `always`   | `boolean`                              | `-`                       | 开关 ≡ `trigger:'always'`（点修饰符同义）|
-| `click`    | `boolean`                              | `-`                       | 开关 ≡ `trigger:'click'`（点修饰符同义） |
-| `badge`    | `boolean \| number`                    | `-`                       | 徽标：`true` = 右上角 8px 圆，正数字 = 自定义直径 px（启用时 color 缺省主题语义红） |
-| `color`    | `string`                               | `var(--auto-theme-color)` | 波色（任意合法 CSS 颜色值）              |
-| `size`     | `number`                               | `12`                      | 扩散距离 px                              |
-| `speed`    | `number`                               | `3000`                    | 单波动画段时长 ms                        |
-| `gap`      | `number`                               | `0`                       | 周期末静止段 ms                          |
+| 配置项    | 默认值                    | 修饰符   | 说明                                     |
+| --------- | ------------------------- | -------- | ---------------------------------------- |
+| `type`    | `'echo'`                  | —        | 形态显式键（`'ring' \| 'glow' \| 'echo'`） |
+| `ring`    | `false`                   | `.ring`  | 布尔开关 ≡ `type:'ring'`                 |
+| `glow`    | `false`                   | `.glow`  | 布尔开关 ≡ `type:'glow'`                 |
+| `echo`    | `false`                   | `.echo`  | 布尔开关 ≡ `type:'echo'`                 |
+| `trigger` | `'always'`                | —        | 触发器显式键（`'always' \| 'hover' \| 'click'`） |
+| `hover`   | `false`                   | `.hover` | 布尔开关 ≡ `trigger:'hover'`             |
+| `always`  | `false`                   | `.always`| 布尔开关 ≡ `trigger:'always'`            |
+| `click`   | `false`                   | `.click` | 布尔开关 ≡ `trigger:'click'`             |
+| `inside`  | `false`                   | `.inside`| 宿主内按钮涟漪（boolean）：接管渲染——`type`/`size` 忽略、`badge` 优先互斥、半径自动几何、`speed` 条件缺省 600ms |
+| `badge`   | `false`                   | —        | 徽标（`boolean \| number`）：`true` = 右上角 8px 圆，正数字 = 直径 px（启用时 color 缺省主题语义红） |
+| `color`   | `var(--auto-theme-color)` | —        | 波色（string，任意合法 CSS 颜色值）      |
+| `size`    | `12`                      | —        | 扩散距离 px（number；`inside` 下忽略）   |
+| `speed`   | `3000`                    | —        | 单波动画段时长 ms（number；`inside` 形态条件缺省 600） |
+| `gap`     | `0`                       | —        | 周期末静止段 ms（number）                |
 
 非法取值不中断渲染：枚举/数值校验失败时警告并回退默认值。
 
@@ -175,7 +215,7 @@ badge 载体带最高层级 z-index，覆盖宿主内容与同层定位元素（
 - **减弱动效**：系统 `prefers-reduced-motion: reduce` 下自动停播（装饰性动画的可访问性底线）。
 - **宿主定位**：宿主需建立定位上下文承载动效层——宿主未声明 `position` 时指令自动兜底 `position: relative`（特异性 0，不覆盖宿主自有定位）。
 - **装饰性语义**：动效纯装饰，不承载交互反馈责任（按钮按下反馈等请用既有组件能力）；指针事件全穿透，不影响宿主子元素交互。
-- **样式钩子**：类钩子 `x-ripple` / `x-ripple-on` / `x-ripple-echo` / `x-ripple-layer` / `x-ripple-badge`，变量 `--x-ripple-color` / `--x-ripple-size` / `--x-ripple-duration` / `--x-ripple-anim` / `--x-ripple-echo-delay` / `--x-ripple-echo-size` / `--x-ripple-badge-size`，供主题与业务层重载。
+- **样式钩子**：类钩子 `x-ripple` / `x-ripple-on` / `x-ripple-echo` / `x-ripple-layer` / `x-ripple-badge` / `x-ripple-inside` / `x-ripple-inside-clip` / `x-ripple-inside-core` / `x-ripple-inside-halo`，变量 `--x-ripple-color` / `--x-ripple-size` / `--x-ripple-duration` / `--x-ripple-anim` / `--x-ripple-echo-delay` / `--x-ripple-echo-size` / `--x-ripple-badge-size` / `--x-ripple-core-alpha` / `--x-ripple-halo-alpha` / `--x-ripple-halo-width`，供主题与业务层重载。
 - **硬切迁移**：`x-ripple` 由 `x-spark` 伞形指令拆分而来（ADR-0007），无别名兼容——效果族通道退役、涟漪形态键 `rippleMode` 更名为 `type`，色环旋转整体迁移至独立指令 [x-spin](./x-spin.md)；产物名（`autospark.ripple.js`）、CSS 变量与类钩子（`--x-ripple-*` / `x-ripple*`）均已更名，存量 `x-spark` 涟漪用法需同步迁移。
 
 ---

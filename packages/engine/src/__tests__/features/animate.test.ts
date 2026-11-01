@@ -91,3 +91,39 @@ describe("Animator expand 高度型动画（决策 13）", () => {
         finishAnim(el);
     });
 });
+
+describe("Animator 类名型动画 enter 相的 inline 覆盖（时长配置存活）", () => {
+    /**
+     * 回归：enter 起始帧的「禁过渡压制」曾走 shorthand transition:none——shorthand 赋值
+     * 重置全部子属性，冲掉 _applyInline 写入的 duration/delay/easing 覆盖（且 shorthand
+     * getter 不序列化仅经 longhand 设置的值，还原也找不回），enter 相时长配置实效失效
+     * （Chromium 实测；leave 相与 expand 不受影响）。压制改走 longhand
+     * transitionProperty:none（无属性可过渡，等效且不重置子属性）。
+     */
+    test("enter：压制期 duration/easing 覆盖存活，目标帧还原 property，结束全还原", async () => {
+        const { root, engine } = mount("<div></div>", {});
+        const el = document.createElement("div");
+        root.appendChild(el);
+        expect(engine.animate.enter(el, { name: "fade", duration: 1500, easing: "ease-out" })).toBe(
+            true,
+        );
+        // ① 起始帧：from+active 已挂、property 压制（none = 无属性可过渡），
+        //    duration/easing 覆盖不被压制冲掉（修复点的行为面）
+        expect(el.className).toContain("fade-enter-from");
+        expect(el.className).toContain("fade-enter-active");
+        expect(el.style.transitionProperty).toBe("none");
+        expect(el.style.transitionDuration).toBe("1500ms");
+        expect(el.style.transitionTimingFunction).toBe("ease-out");
+        // ② 目标帧（rAF + 宏任务，与引擎的帧切换调度一致）：property 还原、from→to 切换，覆盖仍在
+        await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+        expect(el.style.transitionProperty).toBe("");
+        expect(el.className).toContain("fade-enter-to");
+        expect(el.className).not.toContain("fade-enter-from");
+        expect(el.style.transitionDuration).toBe("1500ms");
+        // ③ 结束：inline 覆盖全部还原
+        finishAnim(el);
+        expect(el.style.transitionDuration).toBe("");
+        expect(el.style.transitionTimingFunction).toBe("");
+        expect(el.className).not.toContain("fade-enter-active");
+    });
+});

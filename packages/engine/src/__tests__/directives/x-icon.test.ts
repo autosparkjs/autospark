@@ -68,7 +68,7 @@ describe("x-icons 内联声明与 symbol 归一化（ADR-0058 决策 1/3/6）", 
         expect(symbolIdsByName("menu").length).toBe(1); // 未消费的声明同样注入
     });
 
-    test("归一化：strip 全部 stroke-width；缺 stroke 且 fill=none 才补 currentColor（fill 型不补）", () => {
+    test("归一化：strip 全部 stroke-width；stroke 型补四件套；唯一色值归 currentColor（fill 型不补 stroke）", () => {
         mount(
             iconsTpl(
                 `<svg id="swx" viewBox="0 0 24 24" fill="none"><path stroke-width="2" d="M1"/><rect stroke-width="1.5" x="1"/></svg>` +
@@ -78,13 +78,15 @@ describe("x-icons 内联声明与 symbol 归一化（ADR-0058 决策 1/3/6）", 
             {},
         );
         const sw = document.getElementById(symbolIdsByName("swx")[0]!)!;
-        expect(sw.getAttribute("stroke")).toBe("currentColor"); // fill=none 缺 stroke 才补
+        expect(sw.getAttribute("stroke")).toBe("currentColor"); // stroke 型（根 fill=none 且内容无 fill）补 stroke
+        expect(sw.getAttribute("stroke-linecap")).toBe("round"); // 四件套只补缺失（ADR-0130 决策 3）
+        expect(sw.getAttribute("stroke-linejoin")).toBe("round");
         expect(sw.querySelector("path")!.getAttribute("stroke-width")).toBeNull();
         expect(sw.querySelector("rect")!.getAttribute("stroke-width")).toBeNull();
         const fill = document.getElementById(symbolIdsByName("fillx")[0]!)!;
-        expect(fill.getAttribute("stroke")).toBeNull(); // fill 体系不补 stroke（Iconify 同轨）
+        expect(fill.getAttribute("stroke")).toBeNull(); // fill 体系不补 stroke（类型判定承载豁免，ADR-0130）
         const kept = document.getElementById(symbolIdsByName("keptx")[0]!)!;
-        expect(kept.getAttribute("stroke")).toBe("red"); // 作者显式属性不动
+        expect(kept.getAttribute("stroke")).toBe("currentColor"); // 唯一色值 red → currentColor（ADR-0130 决策 4）
         expect(kept.querySelector("path")!.getAttribute("stroke-width")).toBeNull();
     });
 
@@ -723,5 +725,65 @@ describe("x-icon 修饰选项（badge / pointer / button，ADR-0049 沿用）", 
         expect(el.classList.contains("as-icon-button")).toBe(false);
         iconRegistry.options = { button: true };
         expect(el.classList.contains("as-icon-button")).toBe(true);
+    });
+});
+
+describe("图标归一化集成（ADR-0130：网格补偿渲染期换算）", () => {
+    /** 16 网格 stroke 图标（外来网格，视觉粗 1.5 倍的补偿对象） */
+    const svg16 = (id: string) =>
+        `<svg id="${id}" viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="M1 8h14"/></svg>`;
+    /** 宿主的 --as-icon-sw 生效值（空串 = 零内联） */
+    const swVar = (root: HTMLElement): string =>
+        root.querySelector(".as-icon")!.style.getPropertyValue("--as-icon-sw");
+
+    beforeEach(() => resetIcons());
+
+    test("16 网格 → 内联 --as-icon-sw = 1.25 × 16/24 = 0.8333", () => {
+        iconRegistry.add("n16", svg16("n16"));
+        const { root } = mount('<span x-icon="n16"></span>', {});
+        expect(useHref(root)).toBe("#as-n16");
+        expect(swVar(root)).toBe("0.8333");
+    });
+
+    test("24 网格 → 与默认一致零内联（零内联纪律照旧）", () => {
+        iconRegistry.add("n24", svg("n24", "M9"));
+        const { root } = mount('<span x-icon="n24"></span>', {});
+        expect(swVar(root)).toBe("");
+    });
+
+    test("strokeWidth 选项与网格复合：2 × 16/24 = 1.3333", () => {
+        iconRegistry.add("n16b", svg16("n16b"));
+        const { root } = mount('<span x-icon="n16b" x-icon-options="{strokeWidth:2}"></span>', {});
+        expect(swVar(root)).toBe("1.3333");
+    });
+
+    test("viewBox 缺失（grid null）→ 不补偿；用户显式 sw 照旧内联", () => {
+        iconRegistry.add("nv", '<svg fill="none" stroke="currentColor"><path d="M1 8h14"/></svg>');
+        const { root } = mount('<span x-icon="nv"></span>', {});
+        expect(swVar(root)).toBe("");
+    });
+
+    test("data-raw → 逃逸阀：不补偿 + symbol 不补线帽", () => {
+        iconRegistry.add(
+            "nraw",
+            '<svg viewBox="0 0 16 16" data-raw fill="none" stroke="currentColor"><path d="M1 8h14"/></svg>',
+        );
+        const { root } = mount('<span x-icon="nraw"></span>', {});
+        expect(swVar(root)).toBe("");
+        expect(document.getElementById("as-nraw")!.getAttribute("stroke-linecap")).toBeNull();
+    });
+
+    test("全局 normalize=false → add 零变换：无补偿内联、无四件套", () => {
+        iconRegistry.options = { normalize: false };
+        iconRegistry.add("noff", svg16("noff"));
+        const { root } = mount('<span x-icon="noff"></span>', {});
+        expect(swVar(root)).toBe("");
+        expect(document.getElementById("as-noff")!.getAttribute("stroke-linecap")).toBeNull();
+    });
+
+    test("待定/空占位不残留补偿值（activeGrid 对称清空）", async () => {
+        const { root, engine } = mount('<span x-icon="missing1"></span>', {});
+        expect(swVar(root)).toBe("");
+        engine.destroy();
     });
 });

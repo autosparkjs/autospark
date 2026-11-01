@@ -1,0 +1,66 @@
+{
+  "skill_name": "autospark-component",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "给 @autospark/plugins 加一个 tag 标签组件：用于列表、卡片里的状态标记。要求：type 语义色变体（default/primary/success/danger/warning/info）、三档尺寸（sm/md/lg）、可关闭（closable，点 × 从 DOM 移除）。配上可运行的 demo 和中文文档，登记到组件文档侧边栏。",
+      "expected_output": "小型组件样板：src/components/tag/ 两文件（installPlugin 自举 + x-define 模板自包含）；三级回退链主题样式 + 暗色兜底；CLOSURE_ARTIFACTS + 聚合入口 + demo + 文档 + 侧边栏五处登记齐全；变体绑定落内层元素（化身路径约束）",
+      "files": [],
+      "assertions": [
+        "入口自举：src/components/tag/index.ts 经 installPlugin 注册 autospark.components[\"autospark.tag\"]",
+        "模板自包含：tag.html 含 x-define=\"autospark.tag\" 与 <style global",
+        "IIFE 构建登记：vite.config.ts 的 CLOSURE_ARTIFACTS 含 tag 条目（entry 指向 src/components/tag/index.ts，outFile 为 autospark.tag.js）",
+        "聚合入口：packages/plugins/src/index.ts 含 import \"./components/tag/index\"",
+        "demo 可运行：docs/demos/ 下有引用 /autospark/autospark.tag.js 的 HTML demo",
+        "文档存在：docs/zh/components/tag.md 存在且用 <demo html= 嵌入 demo",
+        "侧边栏登记：docs/.vitepress/config/index.ts 的 /zh/components/ 数组含 tag 链接",
+        "主题回退链：样式声明含 var(--auto-*, var(--asc-tag-* 形态的三级回退",
+        "暗色兜底变体：样式含 [dark] 或 [data-dark] 选择器",
+        "化身路径约束：模板根元素上除 class/x-define 外无动态绑定（:type、:size 等落在内层元素）",
+        "closable 交互在 script setup 内实现（事件/方法），不在根上绑表达式",
+        "新增代码注释为中文"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "往 plugins 包新增 alert 警告条组件插件：语义色四种（info/success/warning/danger）、标题+描述两行布局、closable 关闭（点击收起，父组件状态可控制重新显示）、可选左侧图标。写 demo 和中文文档，进侧边栏。",
+      "expected_output": "中型组件：同 eval-0 的登记面齐全性；交互逻辑（closable 经 watch/事件而非根绑定）；标题+描述用插槽或 props；语义色走 --auto-*-color 变量",
+      "files": [],
+      "assertions": [
+        "入口自举：src/components/alert/index.ts 经 installPlugin 注册 autospark.components[\"autospark.alert\"]",
+        "模板自包含：alert.html 含 x-define=\"autospark.alert\" 与 <style global",
+        "IIFE 构建登记：vite.config.ts 的 CLOSURE_ARTIFACTS 含 alert 条目（entry 指向 src/components/alert/index.ts，outFile 为 autospark.alert.js）",
+        "聚合入口：packages/plugins/src/index.ts 含 import \"./components/alert/index\"",
+        "demo 可运行：docs/demos/ 下有引用 /autospark/autospark.alert.js 的 HTML demo",
+        "文档存在：docs/zh/components/alert.md 存在且用 <demo html= 嵌入 demo",
+        "侧边栏登记：docs/.vitepress/config/index.ts 的 /zh/components/ 数组含 alert 链接",
+        "语义色合规：四种语义色走 --auto-{info,success,warning,danger}-color 变量（三级回退链形态）",
+        "暗色兜底变体：样式含 [dark] 或 [data-dark] 选择器",
+        "化身路径约束：模板根元素上除 class/x-define 外无动态绑定",
+        "closable 关闭逻辑在 script setup 内实现且支持父组件状态控制重新显示（watch 在场）",
+        "标题与描述呈两行布局（独立元素/插槽，非单行拼接）"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "给 packages/plugins 新增 dropdown 下拉菜单组件：点击触发元素弹出浮层菜单——浮层要正确定位在触发元素下方（视口边缘自动翻转/滑回）、点击菜单外部或按 Esc 关闭、菜单项支持图标+文字+禁用态。做完要有 demo 和文档，并登记侧边栏。",
+      "expected_output": "大型组件路径：消费 src/utils/floating.ts 家族工具做浮层定位（而非自写或引入新依赖）；关闭交互（外点/Esc）；nsMember/命名空间纪律（零静态 engine 依赖）；登记面齐全",
+      "files": [],
+      "assertions": [
+        "入口自举：dropdown 插件入口经 installPlugin 注册组件（autospark.dropdown）",
+        "IIFE 构建登记：vite.config.ts 的 CLOSURE_ARTIFACTS 含 dropdown 条目（outFile 为 autospark.dropdown.js）",
+        "聚合入口：packages/plugins/src/index.ts 含 dropdown 的副作用导入",
+        "demo 可运行：docs/demos/ 下有引用 /autospark/autospark.dropdown.js 的 HTML demo",
+        "文档存在：docs/zh/components/dropdown.md 存在且用 <demo html= 嵌入 demo",
+        "侧边栏登记：docs/.vitepress/config/index.ts 的 /zh/components/ 数组含 dropdown 链接",
+        "浮层定位复用家族工具：import 了 src/utils/floating.ts（或等效复用家族浮层机制），非从零自写定位算法",
+        "关闭交互完整：菜单外部点击与 Esc 键两通道均有实现",
+        "菜单项三要素：图标 + 文字 + 禁用态均可表达",
+        "主题回退链：样式声明含 var(--auto-* 三级回退形态",
+        "暗色兜底变体：样式含 [dark] 或 [data-dark] 选择器",
+        "未新增外部依赖：packages/plugins/package.json 的 dependencies 未变化",
+        "运行时零静态依赖：无 engine 运行时符号的静态值导入（import type 除外）"
+      ]
+    }
+  ]
+}

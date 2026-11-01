@@ -40,12 +40,14 @@ const ENGINE_IIFE = resolve(pkgRoot, "../engine/dist/index.global.js");
 const CLOSURE_ARTIFACTS = [
   { entry: "src/index.ts", outFile: "autospark.plugins.js", label: "AutoSparkPlugins (aggregate)" },
   { entry: "src/modules/notifications/index.ts", outFile: "autospark.notifications.js", label: "Notifications" },
+  { entry: "src/modules/resource/index.ts", outFile: "autospark.resource.js", label: "Resource" },
   { entry: "src/directives/x-ripple/index.ts", outFile: "autospark.ripple.js", label: "Ripple" },
   { entry: "src/directives/x-spin/index.ts", outFile: "autospark.spin.js", label: "Spin" },
   { entry: "src/components/button/index.ts", outFile: "autospark.button.js", label: "Button" },
   { entry: "src/directives/tree/index.ts", outFile: "autospark.tree.js", label: "Tree" },
   { entry: "src/directives/version/index.ts", outFile: "autospark.version.js", label: "Version" },
   { entry: "src/directives/layout/index.ts", outFile: "autospark.layout.js", label: "Layout" },
+  { entry: "src/directives/overlay/index.ts", outFile: "autospark.overlay.js", label: "Overlay" },
 ] as const;
 
 /** 插件源码（本包）/ 闭包工具源码（utils 包，迁移后路径 packages/utils/src/vite）变化即失效 dev 缓存的路径特征（Windows 分隔符兼容） */

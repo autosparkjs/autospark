@@ -7,16 +7,6 @@
         <script src="/autospark/autospark.js"></script>
         <link rel="stylesheet" href="/autospark/bulma.min.css" />
         <style>
-            /* 慢速自定义动画：抢占演示需要足够的打断窗口，类 CSS 时长进出两相稳定生效 */
-            .slowfade-enter-active,
-            .slowfade-leave-active {
-                transition: opacity 1.5s ease;
-            }
-            .slowfade-enter-from,
-            .slowfade-leave-to {
-                opacity: 0;
-            }
-
             /* 无障碍降级：用户系统偏好「减弱动效」时全局关闭过渡（引擎按 0 时长立即完成，天然兼容） */
             @media (prefers-reduced-motion: reduce) {
                 .fade-enter-active,
@@ -44,14 +34,14 @@
 
             <hr />
 
-            <!-- 抢占：1.5s 长动画播到一半点切换——在播动画立即取消、反向从头播，快速连点不错乱 -->
+            <!-- 抢占：1.5s 长动画播到一半点切换——在播动画立即取消、立即反向播离场，快速连点不错乱 -->
             <div class="buttons">
                 <strong>抢占：</strong>
                 <button class="button is-info" @click="toggleLong">动画播到一半时连点我</button>
-                <span class="has-text-grey">slowfade · 1.5s，故意放慢便于打断</span>
+                <span class="has-text-grey">fade · 1500ms，duration 参数故意放慢便于打断</span>
             </div>
-            <div x-if="onLong" x-if-options="{animate:'slowfade'}" class="notification is-info">
-                1.5s 慢速淡入——播到一半被反向切换会立即取消并从头播新动画
+            <div x-if="onLong" x-if-options="{animate:{name:'fade',duration:1500}}" class="notification is-info">
+                1.5s 慢速淡入——播到一半被反向切换会立即取消、立即反向播离场（快速连点不错乱）
             </div>
 
             <hr />

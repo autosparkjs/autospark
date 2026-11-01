@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>resource · 映射定制与请求选项</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.resource.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .demo-app { max-width: 720px; margin: 0 auto; }
+      .log-box {
+        font-family: Consolas, monospace;
+        font-size: 12px;
+        background: #1e1e1e;
+        color: #9cdcfe;
+        border-radius: 8px;
+        padding: 12px 16px;
+        min-height: 100px;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .log-box .method { color: #c586c0; font-weight: bold; }
+    </style>
+  </head>
+  <body>
+    <div class="demo-app section">
+      <h1 class="title is-4">映射规则定制与请求选项三层回退</h1>
+      <p class="is-size-7 has-text-grey">
+        本页后端三处非标：分页协议用 <code>p/s</code>（默认是 <code>page/pageSize</code>）→ 按方法覆写
+        <code>getMany</code> 映射；响应包 <code>{code, data}</code> 壳 → <code>unwrap</code> 解包；
+        资源 url 写相对的 <code>orders</code> → <code>baseUrl: "/api"</code> 拼接。请求头统一注入
+        <code>X-Demo-Token</code>（日志可见）。
+      </p>
+
+      <!-- 相对 url "orders"：执行管线按 baseUrl 拼成 /api/orders -->
+      <div class="box" x-resource:order="orders">
+        <div class="buttons">
+          <button class="button is-small is-primary" @click.feedback="loadList">getMany（p/s 协议 + 壳解包）</button>
+          <button class="button is-small" @click.feedback="loadOne">get(1)（默认映射 + 壳解包）</button>
+        </div>
+        <p class="is-size-7" style="margin-top: 8px">
+          单条结果：<strong x-text="one?.title ?? '-'">-</strong>
+          <span class="has-text-grey">（unwrap 后直接是数据本体，无需调用方剥壳）</span>
+        </p>
+        <table class="table is-striped is-narrow is-fullwidth" style="margin-top: 8px">
+          <thead><tr><th>#</th><th>标题</th><th>金额</th></tr></thead>
+          <tbody x-for="o of orders">
+            <tr>
+              <td x-text="o.id"></td>
+              <td x-text="o.title"></td>
+              <td x-text="o.amount"></td>
+            </tr>
+          </tbody>
+        </table>
+        <script type="autospark/actions">
+          {
+            // 组合形态：await 资源方法后自行写 state（unwrap 已解壳，res 即数据本体）
+            async loadList() {
+              const res = await this.scope.getAction("order.getMany").handle.call(this, { page: 1, pageSize: 10 });
+              this.engine.state.orders = res.items;
+            },
+            async loadOne() {
+              this.engine.state.one = await this.scope.getAction("order.get").handle.call(this, 1);
+            },
+          }
+        </script>
+      </div>
+
+      <div class="box">
+        <strong>请求日志（method url ＋ 注入头）</strong>
+        <div class="log-box" style="margin-top: 8px" x-for="l of logs">
+          <div>
+            <span class="method" x-text="l.m"></span> <span x-text="l.u"></span>
+            <span class="has-text-grey" x-text="l.h"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__demoLogs = [];
+      const db = [
+        { id: 1, title: "订单 #1", amount: 99 },
+        { id: 2, title: "订单 #2", amount: 199 },
+      ];
+      // 模拟 {code, data} 包裹壳后端：成功 code:0，数据在 data 键内
+      const shell = (data) => new Response(JSON.stringify({ code: 0, data }), { status: 200 });
+      const mockFetch = async (url, init) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        const token = init?.headers?.["X-Demo-Token"] ?? "?";
+        window.__demoLogs.unshift({ m: method, u: url, h: `  (X-Demo-Token: ${token})` });
+        await new Promise((r) => setTimeout(r, 250));
+        if (method === "GET" && /\/api\/orders\/\d+$/.test(url)) return shell(db[0]);
+        if (method === "GET" && url.startsWith("/api/orders")) {
+          const q = new URL(url, location.origin).searchParams; // 日志核对 p/s 协议
+          return shell({ items: db.map((o) => ({ ...o, title: `${o.title} (p=${q.get("p")}, s=${q.get("s")})` })), total: db.length });
+        }
+        return new Response(JSON.stringify({ code: 1, message: "not found" }), { status: 404 });
+      };
+
+      const engine = new AutoSpark(
+        document.querySelector(".demo-app"),
+        { orders: [], one: null, logs: [] },
+        {
+          resources: {
+            baseUrl: "/api", // 资源 url "orders" → /api/orders
+            headers: { "X-Demo-Token": "demo-123" }, // 逐请求合并
+            unwrap: (d) => d?.data ?? d, // {code, data} 壳剥壳（resolve 直接是数据本体）
+            // 按方法覆盖合并：只换 getMany 的分页协议，get/add/delete 仍走默认映射
+            mapping: {
+              getMany: (url, options = {}) => ({
+                method: "GET",
+                url,
+                query: { p: options.page, s: options.pageSize },
+              }),
+            },
+            fetch: mockFetch,
+          },
+        },
+      );
+      setInterval(() => {
+        engine.state.logs = [...window.__demoLogs];
+      }, 200);
+    </script>
+  </body>
+</html>

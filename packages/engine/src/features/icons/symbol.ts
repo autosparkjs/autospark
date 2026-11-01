@@ -7,10 +7,15 @@
  *
  * **symbol 归一化**：剥离**全部** stroke-width（「宽度不是图标的一部分，是渲染参数」——生效
  * 宽度经 `.as-icon` 基础规则的 `--as-icon-sw` 变量下发，CSS 继承直达 use shadow 内容）；
- * root 缺 stroke 且 `fill="none"`（stroke 型图标）才补 currentColor——fill 体系（Iconify）
- * 零干扰（ADR-0058 决策 10「不补 stroke 系属性」）。xmlns 补齐不再需要（symbol 住 DOM，
- * 不走 data URL 图像解析）。
+ * xmlns 补齐不再需要（symbol 住 DOM，不走 data URL 图像解析）。
+ *
+ * **图标归一化（ADR-0130）**：基础归一化产物再过 `normalizeIconCore` 做风格对齐（类型判定
+ * → 四件套补齐 → 颜色规约 → 网格计算）——fill 体系（Iconify）的零干扰由**类型判定**承载，
+ * 不再是路径豁免（修订 ADR-0058 决策 10）；「缺 stroke 补 currentColor」同经 ADR-0130 收紧
+ * 为仅 stroke 型。根 `data-raw` 标志跳过全部风格对齐（不豁免 stroke-width 剥离）。
  */
+import { logIconNormalize, normalizeIconCore } from "./normalize";
+
 export const SVG_NS = "http://www.w3.org/2000/svg";
 
 /** sprite 容器 id（document 级共享，多 engine 同住） */
@@ -24,6 +29,8 @@ export interface SymbolSpec {
     content: string;
     /** 根级承载属性（viewBox 之外：fill / stroke / stroke-linecap / stroke-linejoin 等） */
     attrs: Record<string, string>;
+    /** 网格宽 = max(viewBox 宽,高)（ADR-0130）：渲染期描边粗细补偿（sw × grid/24）用；缺失/raw/未启用为 null */
+    grid?: number | null;
 }
 
 /** strip 全部 stroke-width 属性（双引号/单引号两种载体，ADR-0046 决策 4 哲学延续） */
@@ -35,7 +42,7 @@ const SVG_ROOT_TAG_RE = /<svg\b[^>]*>/i;
 /** 属性对解析（值支持双/单引号；键保留原大小写——viewBox 是 camelCase） */
 const ATTR_RE = /([:A-Za-z_][-:A-Za-z0-9_.]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 
-/** symbol 归一化时 root 不承载的属性（id 被令牌化重建、宽高对 symbol 无意义） */
+/** symbol 归一化时 root 不承载的属性（id 被令牌化重建、宽高对 symbol 无意义；data-raw 逃逸标志不落 symbol） */
 const ROOT_STRIP = new Set([
     "xmlns",
     "id",
@@ -48,7 +55,11 @@ const ROOT_STRIP = new Set([
     "stroke-width",
     "viewBox",
     "viewbox",
+    "data-raw",
 ]);
+
+/** 根 data-raw 逃逸标志检出（布尔存在性 + 空值/任意值形态；ADR-0130 决策 6） */
+const DATA_RAW_RE = /\sdata-raw\b/i;
 
 function parseAttrs(src: string): Record<string, string> {
     const out: Record<string, string> = {};
@@ -68,12 +79,22 @@ function attrGet(attrs: Record<string, string>, name: string): string | null {
     return null;
 }
 
+/** normalizeSvgSpec 的归一化管道选项 */
+export interface NormalizeSvgOpts {
+    /** 归一化总开关（`icons.options.normalize`，调用侧传入——核心不读全局态）；缺省 true */
+    normalize?: boolean;
+    /** 图标名（debug 摘要标注用；公开工具调用不传则不输出摘要） */
+    name?: string;
+}
+
 /**
  * svg 字符串 → symbol 归一化规格：剥离全部 stroke-width、root 属性白名单承载
- * （xmlns/id/宽高/class/style/stroke-width/viewBox 之外全承载）、缺 stroke 且
- * `fill="none"` 才补 currentColor。非 svg 输入返回 null。
+ * （xmlns/id/宽高/class/style/stroke-width/viewBox/data-raw 之外全承载），再过
+ * `normalizeIconCore` 做风格对齐（四件套补齐/颜色规约/网格计算，ADR-0130——
+ * 「缺 stroke 补 currentColor」已收紧为仅 stroke 型，由核心的类型判定承载）。
+ * 非 svg 输入返回 null。
  */
-export function normalizeSvgSpec(svg: string): SymbolSpec | null {
+export function normalizeSvgSpec(svg: string, opts?: NormalizeSvgOpts): SymbolSpec | null {
     const m = svg.match(SVG_ROOT_TAG_RE);
     if (!m) return null;
     const rootTag = m[0];
@@ -87,10 +108,28 @@ export function normalizeSvgSpec(svg: string): SymbolSpec | null {
         if (ROOT_STRIP.has(k) || ROOT_STRIP.has(k.toLowerCase())) continue;
         carried[k] = v;
     }
-    if (attrGet(attrs, "stroke") == null && attrGet(attrs, "fill") === "none") {
-        carried.stroke = "currentColor";
-    }
-    return { viewBox: attrGet(attrs, "viewBox"), content, attrs: carried };
+    const viewBox = attrGet(attrs, "viewBox");
+    const raw = DATA_RAW_RE.test(rootTag);
+    const norm = normalizeIconCore({ viewBox, content, attrs: carried, raw }, opts?.normalize !== false);
+    if (opts?.name) logIconNormalize(opts.name, norm.changes);
+    return { viewBox, content: norm.content, attrs: norm.attrs, grid: norm.grid };
+}
+
+/**
+ * 图标归一化公开工具（ADR-0130）：svg 串 → 归一化 svg 串——与运行时同一核心同一语义，
+ * 供构建期/脚本预处理图标库（`AutoSpark.normalizeIconSvg` 静态 + 包入口 named export）。
+ * `data-raw` 标志在产物中保留（预处理不吞逃逸声明）；无效输入返回 null（与
+ * `normalizeSvgSpec` 对齐）。
+ */
+export function normalizeIconSvg(svg: string): string | null {
+    const spec = normalizeSvgSpec(svg);
+    if (!spec) return null;
+    const raw = DATA_RAW_RE.test(svg.match(SVG_ROOT_TAG_RE)?.[0] ?? "");
+    const viewBox = spec.viewBox ? ` viewBox="${spec.viewBox}"` : "";
+    const attrs = Object.entries(spec.attrs)
+        .map(([k, v]) => ` ${k}="${v}"`)
+        .join("");
+    return `<svg xmlns="${SVG_NS}"${viewBox}${attrs}${raw ? " data-raw" : ""}>${spec.content}</svg>`;
 }
 
 /** 幂等创建/取回 document 级 sprite（SSR 无 document 守卫；body 缺席退 documentElement） */

@@ -48,6 +48,11 @@ const tokenTable = new Map<string, TokenData>();
 const globalState = new Map<string, { owner: number; state: "pending" | "ready" | "failed" }>();
 let globalSeq = 0;
 
+/** 图标归一化开关现读（ADR-0130：内联收集与远程到达两处的统一读法——registry.options 单一真相） */
+function normalizeEnabled(): boolean {
+    return iconRegistry.options.normalize !== false;
+}
+
 /** 声明内容哈希（fnv-1a 32bit → base36；令牌只需稳定 + 文档内唯一，无密码学要求） */
 function hashSource(s: string): string {
     let h = 0x811c9dc5;
@@ -117,7 +122,7 @@ export function registerIconDecl(input: RegisterIconDeclInput): void {
     // 内联：立即注入（无效数据 warn + 剔除，不进名字表）
     const valid: string[] = [];
     for (const def of input.inline) {
-        const spec = normalizeSvgSpec(def.svg);
+        const spec = normalizeSvgSpec(def.svg, { normalize: normalizeEnabled(), name: def.name });
         if (!spec) {
             input.warn(`图标 "${def.name}" 的 SVG 数据无效（无法解析），已跳过`);
             continue;
@@ -153,7 +158,7 @@ function kickRemote(input: RegisterIconDeclInput, token: string): void {
                     }
                     continue;
                 }
-                const spec = specFromResolved(resolved);
+                const spec = specFromResolved(resolved, { normalize: normalizeEnabled() });
                 injectSymbol(td.prefix + name, spec); // 同 id 覆盖——远程到达替换内联
                 td.names.set(name, spec);
                 td.failed.delete(name);
@@ -221,9 +226,9 @@ function registerGlobalDecl(input: RegisterIconDeclInput): void {
     );
 }
 
-/** 图标名解析结果：就绪（href） / 待定（空占位） / 未命中（默认图标） */
+/** 图标名解析结果：就绪（href + 网格） / 待定（空占位） / 未命中（默认图标） */
 export type IconResolution =
-    | { kind: "href"; href: string }
+    | { kind: "href"; href: string; grid: number | null }
     | { kind: "pending" }
     | { kind: "miss" };
 
@@ -231,6 +236,7 @@ export type IconResolution =
  * 图标域解析（x-icon 消费，决策 2）：自身 scope 沿 parent 链就近（内层遮蔽外层，命中即
  * 终态——待定/失败不穿透到全局：就近声明拥有该名）→ 全局注册表兜底 → 全局待定态。
  * 局部失败终态按未命中处理（默认图标，决策 11）；内联就绪者远程失败不受影响（names 优先）。
+ * href 附带网格宽（ADR-0130 渲染期描边补偿用：局部取 spec.grid，全局取注册表 getGrid）。
  */
 export function resolveIconName(scope: AutoSparkScope | null, name: string): IconResolution {
     let s = scope;
@@ -239,7 +245,13 @@ export function resolveIconName(scope: AutoSparkScope | null, name: string): Ico
         if (entry) {
             const td = tokenTable.get(entry.token);
             if (td) {
-                if (td.names.has(name)) return { kind: "href", href: `#${td.prefix}${name}` };
+                if (td.names.has(name)) {
+                    return {
+                        kind: "href",
+                        href: `#${td.prefix}${name}`,
+                        grid: td.names.get(name)?.grid ?? null,
+                    };
+                }
                 if (td.failed.has(name)) return { kind: "miss" };
                 return { kind: "pending" };
             }
@@ -248,7 +260,7 @@ export function resolveIconName(scope: AutoSparkScope | null, name: string): Ico
         s = s.parent;
     }
     if (iconRegistry.has(name)) {
-        return { kind: "href", href: `#${GLOBAL_SYMBOL_PREFIX}${name}` };
+        return { kind: "href", href: `#${GLOBAL_SYMBOL_PREFIX}${name}`, grid: iconRegistry.getGrid(name) ?? null };
     }
     const gs = globalState.get(name);
     if (gs && gs.state === "pending") return { kind: "pending" };

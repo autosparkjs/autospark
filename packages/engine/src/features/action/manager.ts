@@ -79,6 +79,26 @@ export class ActionManager {
     }
 
     /**
+     * 局部 action 批量注册（public）：规范化包装（buildAction `local=true`，只 DOM 冒泡
+     * 不进总线，ADR-0012）后合并进目标 `scope.actions`。
+     *
+     * `extractScript` 局部分支与插件侧注册（如 resource 插件的 `autospark/resources` handler，
+     * ADR-0132 派发）共用本方法——存储层全量规范化不变量（`scope.actions` 值恒为描述符，
+     * ADR-0036 决策 1）由此单点保证，插件不自行拼装描述符。
+     *
+     * @param scope 目标 scope（局部 action 挂靠点；随 scope 销毁回收，无需手动清理）
+     * @param decls 声明表（函数简写 | 对象写法混用；非法条目 error + 逐条跳过）
+     */
+    registerScoped(scope: AutoSparkScope, decls: Record<string, ActionDecl>): void {
+        const wrapped: Record<string, AutoSparkAction> = {};
+        for (const [k, decl] of Object.entries(decls)) {
+            const desc = this._normalize(k, decl, true);
+            if (desc) wrapped[k] = desc;
+        }
+        scope.actions = { ...scope.actions, ...wrapped };
+    }
+
+    /**
      * 提取 `<script type="autospark/actions">` 内容为 action 并注册（注入目标由 `global` 标志决定）：
      * - 默认（无 global）：**局部 action** → 注入最近祖先 scope.actions（buildAction local=true，只 DOM 冒泡）。
      * - `global` 标志（`<script type="autospark/actions" global>`）：**全局 action** → 注入 engine.actions
@@ -121,12 +141,7 @@ export class ActionManager {
         if (scope) {
             // 默认局部 action：buildAction local=true，只 DOM 冒泡、不进总线（ADR-0012 避免同名串扰）；
             // 祖先聚合经 DOM action:<name> 冒泡隔离作用域
-            const wrapped: Record<string, AutoSparkAction> = {};
-            for (const [k, decl] of Object.entries(parsed)) {
-                const desc = this._normalize(k, decl, true);
-                if (desc) wrapped[k] = desc;
-            }
-            scope.actions = { ...scope.actions, ...wrapped };
+            this.registerScoped(scope, parsed);
         }
         return null;
     }

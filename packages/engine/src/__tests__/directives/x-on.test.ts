@@ -624,3 +624,79 @@ describe("x-on 结合 x-data（含嵌套）", () => {
         expect(root.querySelector("span")!.textContent).toBe("1");
     });
 });
+
+/**
+ * 点号名 action（ADR-0131）：ACTION_RE 扩展支持 `order.add(args)` 形态——资源方法以
+ * 平铺点号名注册（`x-resource` / `autospark/resources` 生成），method/action 查找按整名
+ * 进行；未注册时落表达式兜底，现有行为不变。
+ */
+describe("x-on 点号名 action", () => {
+    test('engine.actions 点号名：@click="order.add(1, 2)" 命中并透传 args', () => {
+        let received: any[] = [];
+        const { root, engine } = mount(`<button @click="order.add(1, 2)">x</button>`, {});
+        engine.actions["order.add"] = (...args: any[]) => {
+            received = args;
+        };
+        root.querySelector("button")!.click();
+        expect(received).toEqual([1, 2]);
+    });
+
+    test("无括号与空括号点号形式均命中", () => {
+        let n = 0;
+        const { root, engine } = mount(
+            `<button @click="order.del">a</button><button @click="order.del()">b</button>`,
+            {},
+        );
+        engine.actions["order.del"] = () => {
+            n++;
+        };
+        const btns = root.querySelectorAll("button");
+        btns[0]!.click();
+        btns[1]!.click();
+        expect(n).toBe(2);
+    });
+
+    test("点号名 action 广播 actions/<id>/pending|resolved 信号", async () => {
+        const events: string[] = [];
+        const { root, engine } = mount(`<button @click="order.save()">x</button>`, {});
+        engine.actions["order.save"] = () => 42;
+        engine.on("actions/order.save/pending" as any, () => events.push("pending"));
+        engine.on("actions/order.save/resolved" as any, () => events.push("resolved"));
+        root.querySelector("button")!.click();
+        await nextTick();
+        expect(events).toEqual(["pending", "resolved"]);
+    });
+
+    test('未注册点号 action 时 @click="obj.tap()" 仍走表达式兜底（行为不变）', () => {
+        // 注：函数不能放 state 验证——AutoStore 将 state 函数视为 computed（读取即求值），
+        // 故经 globalThis 对象承载（与 __spy() 套路同款，仅加点号）
+        let called = 0;
+        (globalThis as any).obj = { tap: () => called++ };
+        const { root } = mount(`<button @click="obj.tap()">x</button>`, {});
+        root.querySelector("button")!.click();
+        expect(called).toBe(1);
+        delete (globalThis as any).obj;
+    });
+
+    test('局部 script 点号名 action：@click="order.incr" 经 scope 链命中', async () => {
+        const { root } = mount(
+            `<div x-data="{}"><button @click="order.incr">+</button><span x-text="count"></span><script type="autospark/actions">{ "order.incr"(){ this.store.state.count++ } }</script></div>`,
+            { count: 0 },
+        );
+        root.querySelector("button")!.click();
+        await nextTick();
+        expect(root.querySelector("span")!.textContent).toBe("1");
+    });
+
+    test("局部 script 点号 action 覆盖全局同名（就近覆盖）", () => {
+        const { root, engine } = mount(
+            `<div x-data="{}"><button @click="order.who">x</button><script type="autospark/actions">{ "order.who"(){ this.store.state.who = "local" } }</script></div>`,
+            { who: "none" },
+        );
+        engine.actions["order.who"] = function (this: any) {
+            this.store.state.who = "global";
+        };
+        root.querySelector("button")!.click();
+        expect(engine.state.who).toBe("local");
+    });
+});

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>resource · 资源域与就近覆盖</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.resource.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .demo-app { max-width: 720px; margin: 0 auto; }
+      .log-box {
+        font-family: Consolas, monospace;
+        font-size: 12px;
+        background: #1e1e1e;
+        color: #9cdcfe;
+        border-radius: 8px;
+        padding: 12px 16px;
+        min-height: 120px;
+        max-height: 240px;
+        overflow-y: auto;
+      }
+      .log-box .layer { color: #c586c0; font-weight: bold; }
+      .log-box .url { color: #9cdcfe; }
+    </style>
+  </head>
+  <body>
+    <div class="demo-app section">
+      <h1 class="title is-4">资源域：三级注册位与逐名就近覆盖</h1>
+      <p class="is-size-7 has-text-grey">
+        同名资源按<strong>点号名逐名</strong>就近（内层只遮蔽它声明的方法名，未声明的名字沿链向外穿透——不是整资源覆盖）；
+        查找链：<code>scope.actions</code> 沿链 → <code>engine.actions</code> → 类静态全局表兜底。
+        本页三级同名共存：<code>user</code> 在 engine 级（url 形态）与内层 scope 级（只手写 get）各有一份，
+        <code>post</code> 只在应用级注册。
+      </p>
+
+      <!-- engine 视野：user.get / user.getMany 均命中 engine 级（url 形态 → 默认映射） -->
+      <div class="box">
+        <strong>① engine 视野（<code>user</code> = engine 级 url 形态）</strong>
+        <div class="buttons" style="margin-top: 8px">
+          <button class="button is-small is-primary" @click="user.get(1)">user.get(1)</button>
+          <button class="button is-small" @click="user.getMany({ page: 1 })">user.getMany({page:1})</button>
+          <button class="button is-small is-info" @click="post.get(1)">post.get(1)（仅应用级）</button>
+        </div>
+        <!-- engine 级声明：script global 属性 → engine.actions，本 engine 任意 scope 可见 -->
+        <script type="autospark/resources" global>
+          { user: "/api/users" }
+        </script>
+      </div>
+
+      <!-- scope 内层：局部 script 只手写 user.get —— getMany 穿透到 engine 级（逐名就近） -->
+      <div class="box" x-data="{}">
+        <strong>② 内层 scope（局部声明<strong>只覆写</strong> <code>user.get</code>）</strong>
+        <div class="buttons" style="margin-top: 8px">
+          <button class="button is-small is-primary" @click="user.get(1)">user.get(1)（命中本层手写）</button>
+          <button class="button is-small" @click="user.getMany({ page: 1 })">user.getMany({page:1})（穿透 → engine 层）</button>
+        </div>
+        <script type="autospark/resources">
+          {
+            user: {
+              // 只声明 get：内层 user.get 到此为止；getMany/add/delete 未声明，沿链向外解析
+              async get(id) {
+                window.__demoLogs.unshift({
+                  layer: "scope 层",
+                  url: `user.get(${id}) → 内层手写方法命中（未发请求）`,
+                });
+              },
+            },
+          }
+        </script>
+      </div>
+
+      <!-- 命中层日志：mock fetch 与手写方法共同书写 -->
+      <div class="box">
+        <strong>③ 命中层日志</strong>
+        <div class="log-box" style="margin-top: 8px" x-for="l of logs">
+          <div>
+            <span class="layer" x-text="l.layer"></span>
+            <span class="url" x-text="l.url"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // 应用级注册（跨 engine 全局表）：post 只有这里有一份——查找链末端兜底命中
+      AutoSpark.resources.add("post", { url: "/api/posts" });
+
+      window.__demoLogs = [];
+      const mockFetch = async (url, init) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        let layer = "engine 层";
+        if (url.startsWith("/api/posts")) layer = "应用级";
+        window.__demoLogs.unshift({ layer, url: `${method} ${url}` });
+        await new Promise((r) => setTimeout(r, 250));
+        if (method === "GET" && /\/api\/users\/\d+$/.test(url)) {
+          return new Response(JSON.stringify({ id: 1, name: "用户 #1" }), { status: 200 });
+        }
+        if (method === "GET" && url.startsWith("/api/users")) {
+          const q = new URL(url, location.origin).searchParams;
+          return new Response(
+            JSON.stringify({ items: [{ id: 1, name: "用户 #1 (page=" + q.get("p") + ")" }], total: 1 }),
+            { status: 200 },
+          );
+        }
+        if (method === "GET" && /\/api\/posts\/\d+$/.test(url)) {
+          return new Response(JSON.stringify({ id: 1, title: "应用级文章" }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ message: "not found" }), { status: 404 });
+      };
+
+      const engine = new AutoSpark(document.querySelector(".demo-app"), { logs: [] }, {
+        resources: { fetch: mockFetch },
+      });
+      setInterval(() => {
+        engine.state.logs = [...window.__demoLogs];
+      }, 200);
+    </script>
+  </body>
+</html>

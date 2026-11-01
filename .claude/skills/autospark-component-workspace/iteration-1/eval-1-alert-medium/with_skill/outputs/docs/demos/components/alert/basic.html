@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>alert · 基础用法</title>
+    <!-- 引擎先加载；插件脚本随后（自举注册，零手动接线） -->
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.alert.js"></script>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .alert-gap {
+        margin-bottom: 0.75rem;
+      }
+      .dark-panel {
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-app section" x-data="{}">
+      <!-- 四种语义类型：标题 + 描述两行布局 + 左侧语义图标（icon 默认开启，随 type 切换） -->
+      <h2 class="title is-5">四种语义类型</h2>
+      <div class="block">
+        <div class="alert-gap" x-component:autospark.alert="{ type: 'info', title: '信息提示', description: '这是一条信息类警告条，用于传递中性的操作反馈与说明。' }"></div>
+        <div class="alert-gap" x-component:autospark.alert="{ type: 'success', title: '操作成功', description: '数据已保存并同步到云端，所有设备将在稍后更新。' }"></div>
+        <div class="alert-gap" x-component:autospark.alert="{ type: 'warning', title: '注意', description: '当前浏览器版本过低，部分高级功能可能无法正常使用。' }"></div>
+        <div class="alert-gap" x-component:autospark.alert="{ type: 'danger', title: '操作失败', description: '网络连接已断开，请检查网络设置后重试。' }"></div>
+      </div>
+
+      <!-- 仅标题单行（description 缺省自然收成单行）与关闭图标按钮 -->
+      <h2 class="title is-5">单行布局与可关闭</h2>
+      <div class="block">
+        <div class="alert-gap" x-component:autospark.alert="{ type: 'info', title: '单行信息条（无描述）' }"></div>
+        <div class="alert-gap" x-component:autospark.alert="{ type: 'success', title: '可关闭的成功条', description: '点击右侧 × 按钮即可收起本条警告。', closable: true }"></div>
+      </div>
+
+      <!-- 左侧图标可选（icon: false 关闭） -->
+      <h2 class="title is-5">关闭左侧图标</h2>
+      <div class="block">
+        <div class="alert-gap" x-component:autospark.alert="{ type: 'warning', title: '无图标警告条', description: 'icon 属性设为 false 时不渲染左侧语义图标。', icon: false }"></div>
+      </div>
+
+      <!-- 默认插槽：宿主子内容投影替换标准两行（图标 / 关闭 / 配色外壳保留） -->
+      <h2 class="title is-5">插槽自定义内容</h2>
+      <div class="block">
+        <div class="alert-gap" x-component:autospark.alert="{ type: 'info' }">
+          <strong>自定义正文</strong>——宿主子内容替换默认的标题 + 描述两行，
+          可包含 <a href="#">链接</a> 与任意行内标记。
+        </div>
+      </div>
+
+      <!-- 暗色态验证：容器裸挂 data-dark（局部样式域），无主题时走暗色兜底校准值 -->
+      <h2 class="title is-5">暗色模式</h2>
+      <div class="block">
+        <div class="dark-panel" data-dark>
+          <div class="alert-gap" x-component:autospark.alert="{ type: 'info', title: '信息提示', description: '暗色环境下的信息类警告条。' }"></div>
+          <div class="alert-gap" x-component:autospark.alert="{ type: 'success', title: '操作成功', description: '暗色环境下的成功类警告条。' }"></div>
+          <div class="alert-gap" x-component:autospark.alert="{ type: 'warning', title: '注意', description: '暗色环境下的警告类警告条。' }"></div>
+          <div class="alert-gap" x-component:autospark.alert="{ type: 'danger', title: '操作失败', description: '暗色环境下的危险类警告条。' }"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-ripple · 宿主内涟漪</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 24px;
+        align-items: center;
+      }
+      .demo-btn {
+        position: relative;
+        border: 1px solid #aaa;
+        cursor: pointer;
+        font-size: 15px;
+        padding: 12px 28px;
+        border-radius: 8px;
+        overflow: visible; /* 指令注入裁剪子元素承载涟漪，不写宿主 overflow */
+      }
+      .demo-btn.round {
+        border-radius: 999px;
+      }
+      .demo-btn.plain {
+        background: #fff;
+        color: #363636;
+        border: 1px solid #dcdfe6;
+      }
+      .inside-card {
+        position: relative;
+        padding: 36px 24px;
+        border: 1px solid #dcdfe6;
+        border-radius: 12px;
+        background: #fff;
+        text-align: center;
+      }
+      .hint {
+        margin-top: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- inside：宿主内按钮涟漪——双圆（芯填充 + 环描边）同心同步，约束在宿主内部；半径自动几何铺满 -->
+    <div class="demo-app section">
+      <div class="grid">
+        <div>
+          <button class="demo-btn" x-ripple.inside.click>连点我试试</button>
+          <p class="is-size-7 has-text-grey hint">
+            click：起点为点击坐标，连点取消上次、立即重起
+          </p>
+        </div>
+        <div>
+          <button class="demo-btn round" x-ripple.inside.click>圆角按钮</button>
+          <p class="is-size-7 has-text-grey hint">
+            clipper 圆角跟随宿主 border-radius
+          </p>
+        </div>
+        <div>
+          <button
+            class="demo-btn plain"
+            x-ripple
+            x-ripple-options="{inside: true, trigger: 'click', color: '#10b981'}"
+          >
+            自定义色
+          </button>
+          <p class="is-size-7 has-text-grey hint">
+            color 显式声明（缺省跟随主题主色）
+          </p>
+        </div>
+        <div>
+          <div
+            class="inside-card"
+            x-ripple
+            x-ripple-options="{inside: true, speed: 1200}"
+          >
+            <strong>always 中心循环</strong>
+            <p class="is-size-7 has-text-grey">
+              起点固定几何中心，单周期扩散渐隐后循环
+            </p>
+          </div>
+        </div>
+        <div>
+          <div
+            class="inside-card"
+            x-ripple
+            x-ripple-options="{inside: true, trigger: 'hover', speed: 900}"
+          >
+            <strong>hover 悬停播放</strong>
+            <p class="is-size-7 has-text-grey">移出后播完当前周期再停</p>
+          </div>
+        </div>
+        <div>
+          <button
+            class="demo-btn"
+            x-ripple.inside.click
+            x-ripple-options="{speed: 300, gap: 150}"
+          >
+            快节奏 + 静止段
+          </button>
+          <p class="is-size-7 has-text-grey hint">
+            speed/gap 沿用家族节奏键（显式声明恒优先）
+          </p>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

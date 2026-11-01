@@ -45,6 +45,8 @@ export class IconDirective extends AutoSparkDirectiveBase {
     private missName: string | null = null;
     /** 当前渲染名（registry delete 联动回退默认图标） */
     private activeName: string | null = null;
+    /** 当前渲染图标的网格宽（ADR-0130 描边补偿：sw × grid/24；null = 不补偿） */
+    private activeGrid: number | null = null;
     /** 最近一次渲染值（全局配置变更广播时重渲染用） */
     private lastRaw = "";
     /** 变更总线退订句柄 */
@@ -101,34 +103,38 @@ export class IconDirective extends AutoSparkDirectiveBase {
     private _render(raw: string): void {
         this.lastRaw = raw;
         if (this.destroyed) return;
-        this._applyStaticStyle();
         if (!raw) {
             this.missName = null;
             this.activeName = null;
+            this.activeGrid = null;
             this._applyHref(null);
+            this._applyStaticStyle();
             return;
         }
         const res = resolveIconName(this.binding, raw);
         if (res.kind === "href") {
             this.missName = null;
             this.activeName = raw;
+            this.activeGrid = res.grid;
             this._applyHref(res.href);
-            return;
-        }
-        if (res.kind === "pending") {
+        } else if (res.kind === "pending") {
             this.missName = raw;
             this.activeName = null;
+            this.activeGrid = null;
             this._applyHref(null);
-            return;
+        } else {
+            if (!missWarned.has(raw)) {
+                missWarned.add(raw);
+            }
+            this.missName = raw;
+            const fallback = iconRegistry.has("default") ? "default" : null;
+            // activeName 记 default：default 被删（含同名覆盖变更）时唤醒本实例重渲染（对称回退空占位）
+            this.activeName = fallback;
+            this.activeGrid = fallback ? (iconRegistry.getGrid(fallback) ?? null) : null;
+            this._applyHref(fallback ? `#${GLOBAL_SYMBOL_PREFIX}${fallback}` : null);
         }
-        if (!missWarned.has(raw)) {
-            missWarned.add(raw);
-        }
-        this.missName = raw;
-        const fallback = iconRegistry.has("default") ? "default" : null;
-        // activeName 记 default：default 被删（含同名覆盖变更）时唤醒本实例重渲染（对称回退空占位）
-        this.activeName = fallback;
-        this._applyHref(fallback ? `#${GLOBAL_SYMBOL_PREFIX}${fallback}` : null);
+        // 静态样式重放置于解析后——网格补偿（ADR-0130）依赖本次解析出的 activeGrid
+        this._applyStaticStyle();
     }
 
     /** 创建 use 渲染载体（宿主内唯一 `<svg><use/></svg>` 子节点；幂等） */
@@ -273,10 +279,15 @@ export class IconDirective extends AutoSparkDirectiveBase {
         // pointer 修饰：可点击语义的手型光标（内联对称写/清）
         if (this._opt("pointer") === true) el.style.cursor = "pointer";
         else el.style.removeProperty("cursor");
-        // strokeWidth：CSS 继承直达 use shadow 内容（收集期已剥离全部 stroke-width）
+        // strokeWidth：CSS 继承直达 use shadow 内容（收集期已剥离全部 stroke-width）。
+        // 网格补偿（ADR-0130）：CSS stroke-width 按 symbol 用户单位解释，非 24 网格图标
+        // 视觉粗细按 grid/24 换算（16 网格 ×2/3、256 网格 ×1/10.67）；取 4 位小数防长尾。
         const sw = this._strokeWidth();
-        if (sw === this._defaultSw()) el.style.removeProperty("--as-icon-sw");
-        else el.style.setProperty("--as-icon-sw", String(sw));
+        const eff = this.activeGrid
+            ? Math.round(((sw * this.activeGrid) / 24) * 1e4) / 1e4
+            : sw;
+        if (eff === this._defaultSw()) el.style.removeProperty("--as-icon-sw");
+        else el.style.setProperty("--as-icon-sw", String(eff));
     }
 
     /**

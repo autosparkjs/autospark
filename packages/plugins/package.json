@@ -16,6 +16,10 @@
     "build:demo": "vite build --mode demo",
     "preview": "vite preview"
   },
+  "dependencies": {
+    "@floating-ui/dom": "^1.8.0",
+    "flex-tools": "^1.6.6"
+  },
   "devDependencies": {
     "@autospark/utils": "workspace:*",
     "@happy-dom/global-registrator": "^21.0.4",

@@ -121,6 +121,43 @@
 - 多笔画故意异宽的图标会被压平为统一宽度（已知限制）
 - fill 型图标集（Iconify 的 material 系）是填充体系，`strokeWidth` 无效——宽度属于描边体系图标（lucide / tabler 风手写 svg）
 - 全局默认：`AutoSpark.icons.options = { strokeWidth: 1.5 }`——生效默认（含全局层）恒走规则零内联，仅指令级覆盖才内联变量
+- **网格补偿**：非 24 网格图标的生效宽度按 `网格 / 24` 自动换算（16 网格 ×2/3、256 网格 ×1/10.7），各家网格视觉粗细一致——见下节「图标归一化」
+
+### 图标归一化（外来图标自动对齐）
+
+从图标站拷贝 / 设计工具导出 / 第三方图标库引入的 SVG，往往与内置规约（`viewBox 0 0 24 24` + `fill="none"` + `stroke="currentColor"` + 圆线帽圆拐角）不一致——线帽是方的、颜色写死、非 24 网格粗细失真。**图标归一化**（ADR-0130）在收集期自动对齐：`icons.add()` 注册、`x-icons` 内联声明、远程 IconifyJSON 到达三条管道走同一核心，无需任何额外代码。
+
+四个维度：
+
+| 维度     | 规则                                                                                                              | 效果                     |
+| -------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| 线帽/拐角 | stroke 型图标缺 `stroke-linecap` / `stroke-linejoin` 时补 `round`（**只补缺失**，显式声明不动）                      | 方头平接 → 圆头圆接      |
+| 属性补齐 | stroke 型图标根缺 `fill="none"` / `stroke="currentColor"` 时补齐                                                    | 缺 fill 的描边图标不再被默认黑填充 |
+| 颜色     | 全图 `fill` / `stroke` 色值去重后**唯一**才换 `currentColor`（黑白也换）——跟随文字色 / 主题；≥2 色视为作者有意多色，原样保留 | `stroke="#333"` → 跟随文字色 |
+| 描边粗细 | 非 24 网格图标按 `生效宽度 × 网格/24` 渲染期换算                                                                     | 各家网格视觉粗细一致     |
+
+<demo html="icon/normalize.html"/>
+
+::: tip 豁免由类型判定承载，不是路径
+**stroke 型**（根或内容携带 `stroke`，或根 `fill="none"` 且内容无显式 `fill`）才补描边系属性；fill 体系（Iconify material 等填充图标）零接触——本地串与远程一视同仁，不存在「远程路径单独豁免」。
+:::
+
+不想要归一化时的两个出口：
+
+- **逐图标逃逸**：根元素写 `<svg data-raw …>`——原样收录（仅保留既有的 `stroke-width` 剥离，那是宽度可控的地基而非「优化」；标志本身不进 symbol）
+- **全局关闭**：`AutoSpark.icons.options = { normalize: false }`（唯一开关位，无细粒度；只影响关闭之后的注册）
+
+构建期批量预处理（把整个图标库规约后再入库）用公开工具，与运行时同一核心同一语义（`data-raw` 标志在产物中保留）：
+
+```ts
+import { normalizeIconSvg } from "autospark"; // IIFE 全局：AutoSpark.normalizeIconSvg
+const normalized = normalizeIconSvg('<svg viewBox="0 0 16 16" fill="none"><path d="…"/></svg>');
+// → <svg … fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">…</svg>
+```
+
+::: warning 不做几何优化
+归一化只做属性级风格对齐，**不是** SVGO 式压缩——不精简路径数据、不改写几何。多色图标（duotone / 品牌双色）与渐变引用（`url()`）原样保留。
+:::
 
 ### 修饰
 
@@ -287,7 +324,8 @@ for (const name of AutoSpark.icons) {
 
 - **sprite**：document 级唯一隐藏 `<svg>`（`width=0 height=0`），全部 symbol 同住其中、靠 id 前缀区分——全局 `as-{name}`、局部 `as-i{声明令牌}-{name}`（令牌按声明内容哈希，克隆同源共享）；`as-` 为引擎保留前缀
 - 输出形态：宿主内注入 `<svg aria-hidden><use href="#as-…"/></svg>`（撑满宿主），无内联数据、无每图标 CSS 规则
-- **symbol 归一化**：收集时剥离全部 `stroke-width`（生效宽度经 `--as-icon-sw` 变量下发）；缺 `stroke` 且 `fill="none"` 才补 `currentColor`——fill 型图标零干扰；`<svg>` 无需手写 `xmlns`（symbol 住 DOM，不走 data URL）
+- **symbol 归一化**：收集时剥离全部 `stroke-width`（生效宽度经 `--as-icon-sw` 变量下发）；`<svg>` 无需手写 `xmlns`（symbol 住 DOM，不走 data URL）
+- **图标归一化**（ADR-0130）：基础归一化之上做风格对齐——stroke 型补齐四件套（只补缺失）、唯一色值换 `currentColor`、非 24 网格渲染期粗细换算（`网格/24`）；fill 体系由**类型判定**豁免（不再按路径豁免）；`data-raw` 逐图标逃逸
 - 图标名约束：CSS ident（`[A-Za-z0-9_-]`、非数字开头），`as-icon` 为保留名；非法名 warn + 剔除
 
 ## 配置选项
@@ -311,6 +349,8 @@ for (const name of AutoSpark.icons) {
 ```ts
 AutoSpark.icons.options = { strokeWidth: 1.5, size: 20, color: "#485fc7", padding: 2 };
 ```
+
+另有**仅全局层**的 `normalize` 开关（图标归一化总开关，默认开启，`false` 关闭——指令选项层不识别，见「图标归一化」）。
 
 ## 注意事项
 

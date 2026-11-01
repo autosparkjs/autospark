@@ -5,13 +5,17 @@ import { createDirectiveOptions } from "../../features/directive/utils/createDir
 import { getDirectiveGlobalDefaults } from "../../features/directive/utils/getDirectiveGlobalDefaults";
 
 /**
- * 匹配"裸标识符"或"标识符(参数)"：^Identifier 可选 (args)
+ * 匹配"标识符"或"标识符(参数)"：^Identifier(.Identifier)* 可选 (args)
  * - `submit`      → name="submit", argsSrc=undefined（无括号）
  * - `submit()`    → name="submit", argsSrc=""（空括号）
  * - `pay(1, x)`   → name="pay",    argsSrc="1, x"
- * - `count++` / `a + b` / `user.name` → 不匹配（含运算符/点），无 name，走表达式兜底
+ * - `order.add(1)` → name="order.add", argsSrc="1"（点号名 action：资源方法平铺点号名，如
+ *   `x-resource`/`autospark/resources` 生成的 `order.get` 等，注册后即可 `@click="order.get(1)"` 调用）
+ * - `count++` / `a + b` → 不匹配（含运算符），无 name，走表达式兜底
+ * - `user.name`（点号属性访问、未注册同名 action）→ 匹配 name="user.name"，method/action
+ *   均未命中后**仍走表达式兜底**（查找顺序不变，无破坏；仅当注册了点号名 action 才分叉）
  */
-const ACTION_RE = /^([A-Za-z_$][\w$]*)\s*(?:\(([\s\S]*)\))?$/;
+const ACTION_RE = /^([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*(?:\(([\s\S]*)\))?$/;
 
 /**
  * 构造事件业务 handler：**Action 优先 + 表达式兜底**。
@@ -38,7 +42,7 @@ export function createEvalHandler(
     const match = trimmed.match(ACTION_RE);
 
     // 预编译（expr 不变，created 时完成）：
-    // - name：ACTION_RE 提取的首标识符；每次触发时据它查 action
+    // - name：ACTION_RE 提取的标识符（可含点号）；每次触发时据它查 action
     // - argsFn：name(args) 的参数求值器，返回数组；无参数时为 null
     // - exprGetter：表达式兜底求值器（action 未命中时用）
     const name = match?.[1];

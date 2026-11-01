@@ -22,7 +22,7 @@ export default defineConfig({
     nav: [
       { text: "首页", link: "/" },
       { text: "指南", link: "/zh/guide/" },
-      { text: "插件", link: "/zh/plugins/" },
+      { text: "组件", link: "/zh/components/" },
       { text: "API", link: "/zh/api/" },
       {
         text: "示例",
@@ -66,6 +66,7 @@ export default defineConfig({
               ],
             },
             { text: "动作", link: "/zh/guide/engine/action" },
+            { text: "资源", link: "/zh/guide/engine/resource" },
             { text: "错误处理", link: "/zh/guide/engine/error" },
             {
               text: "指令",
@@ -337,10 +338,14 @@ export default defineConfig({
               items: [
                 { text: "x-ripple", link: "/zh/guide/directives/x-ripple" },
                 { text: "x-spin", link: "/zh/guide/directives/x-spin" },
+                { text: "x-resource", link: "/zh/guide/directives/x-resource" },
               ],
             },
           ],
         }
+      ],
+      "/zh/components/":[
+        { text: "Button", link: "/zh/components/button" },
       ],
       "/zh/examples/": [
         {

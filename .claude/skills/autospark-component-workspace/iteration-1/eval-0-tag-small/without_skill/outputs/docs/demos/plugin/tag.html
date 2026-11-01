@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>autospark.tag · 状态标签</title>
+    <!-- 引擎 + tag 组件插件脚本（自举注册，零手动接线） -->
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.tag.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .tag-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 10px 0;
+      }
+      .card {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin: 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .card .title {
+        flex: 1 1 auto;
+      }
+      .card .meta {
+        color: #868e96;
+        font-size: 0.8125rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-app section">
+      <h4 class="title is-5">类型变体（type）</h4>
+      <div class="tag-row">
+        <span x-component:autospark.tag="{ label: '默认' }"></span>
+        <span x-component:autospark.tag="{ label: '主要', type: 'primary' }"></span>
+        <span x-component:autospark.tag="{ label: '成功', type: 'success' }"></span>
+        <span x-component:autospark.tag="{ label: '危险', type: 'danger' }"></span>
+        <span x-component:autospark.tag="{ label: '警告', type: 'warning' }"></span>
+        <span x-component:autospark.tag="{ label: '信息', type: 'info' }"></span>
+      </div>
+
+      <h4 class="title is-5">尺寸（size）</h4>
+      <div class="tag-row">
+        <span x-component:autospark.tag="{ label: '小号', size: 'sm' }"></span>
+        <span x-component:autospark.tag="{ label: '中号（默认）' }"></span>
+        <span x-component:autospark.tag="{ label: '大号', size: 'lg' }"></span>
+      </div>
+
+      <h4 class="title is-5">可关闭（closable）</h4>
+      <div class="tag-row" @close="closed = closed + 1">
+        <span x-component:autospark.tag="{ label: '可关闭', closable: true }"></span>
+        <span x-component:autospark.tag="{ label: '可关闭警告', type: 'warning', closable: true }"></span>
+        <span x-component:autospark.tag="{ label: '不可关闭', type: 'info' }"></span>
+        <span class="tag is-light">已关闭 {{ closed }} 个</span>
+      </div>
+
+      <h4 class="title is-5">列表 / 卡片场景</h4>
+      <div
+        @close="articles = articles.filter(a => a.title !== $event.detail.label)"
+        x-for="article of articles"
+        :key="article.title"
+      >
+        <div class="card">
+          <span class="title">{{ article.title }}</span>
+          <span class="meta">{{ article.date }}</span>
+          <span
+            x-component:autospark.tag="{
+                label: article.title,
+                type: article.status,
+                closable: true,
+                size: 'sm',
+            }"
+          ></span>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), {
+        closed: 0,
+        articles: [
+          { title: "响应式状态管理入门", date: "2026-10-28", status: "success" },
+          { title: "细粒度更新机制解析", date: "2026-10-30", status: "primary" },
+          { title: "插件体系设计草案", date: "2026-10-31", status: "warning" },
+        ],
+      });
+    </script>
+  </body>
+</html>

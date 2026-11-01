@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>resource · 服务端资源抽象</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.resource.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .demo-app { max-width: 720px; margin: 0 auto; }
+      .log-box {
+        font-family: Consolas, monospace;
+        font-size: 12px;
+        background: #1e1e1e;
+        color: #9cdcfe;
+        border-radius: 8px;
+        padding: 12px 16px;
+        min-height: 120px;
+        max-height: 240px;
+        overflow-y: auto;
+      }
+      .log-box .method { color: #c586c0; font-weight: bold; }
+      .log-box .url { color: #9cdcfe; }
+      .log-box .body { color: #ce9178; }
+      button.pending { opacity: 0.6; }
+    </style>
+  </head>
+  <body>
+    <div class="demo-app section">
+      <h1 class="title is-4">resource 插件 —— 服务端资源的抽象操作</h1>
+      <p class="is-size-7 has-text-grey">
+        资源方法 = 平铺点号名 action（<code>order.get</code> 等），自动获得
+        <code>actions/&lt;id&gt;/pending|resolved|rejected</code> 信号与 <code>.feedback</code> 联动；纯 RPC 语义——结果由调用方组合写入 state。
+        本页无真实后端：<code>options.resources.fetch</code> 注入 mock（右下日志即默认 REST 映射规则的每次请求形态）。
+      </p>
+
+      <!-- ① x-resource 指令：纯 REST 注册位（默认映射生成 get/getMany/add/update/delete 五方法） -->
+      <div class="box" x-resource:order="/api/orders">
+        <strong>① <code>x-resource:order="/api/orders"</code>（默认 REST 映射）</strong>
+        <div class="buttons" style="margin-top: 8px">
+          <button class="button is-small is-primary" @click.feedback="loadList">getMany（分页）</button>
+          <button class="button is-small is-info" @click.feedback="queryCond">getMany({where,order})</button>
+          <button class="button is-small" @click.feedback="loadOne">get(1)</button>
+          <button class="button is-small is-success" @click.feedback="addOne">add({...})</button>
+          <button class="button is-small is-warning" @click.feedback="updateOne">update({id,...})</button>
+          <button class="button is-small is-danger" @click.feedback="removeTwo">delete([1,2])</button>
+        </div>
+        <table class="table is-striped is-narrow is-fullwidth" style="margin-top: 8px">
+          <thead><tr><th>#</th><th>标题</th><th>金额</th></tr></thead>
+          <tbody x-for="o of orders">
+            <tr>
+              <td x-text="o.id"></td>
+              <td x-text="o.title"></td>
+              <td x-text="o.amount"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ② script 混搭资源：url 打底 + 手写方法覆写（global 属性 = engine 级） -->
+      <div class="box">
+        <strong>② <code>&lt;script type="autospark/resources" global&gt;</code>（混搭：url + 覆写）</strong>
+        <div class="buttons" style="margin-top: 8px">
+          <button class="button is-small is-info" @click.feedback="statTotal">stats.total()</button>
+        </div>
+        <p class="is-size-7">总额（手写方法，不经映射）：<strong x-text="total">-</strong></p>
+        <script type="autospark/resources" global>
+          {
+            stats: {
+              url: "/api/stats",
+              // 覆写示例：仅替换 total 的映射，其余方法（get/getMany/add/update/delete）仍走默认规则
+              total() {
+                return this.engine.state.orders.reduce((s, o) => s + o.amount, 0);
+              },
+            },
+          }
+        </script>
+      </div>
+
+      <!-- ③ 请求日志：mock fetch 记录的映射规则形态 -->
+      <div class="box">
+        <strong>③ 请求日志（默认 REST 映射形态）</strong>
+        <div class="log-box" style="margin-top: 8px" x-for="l of logs">
+          <div><span class="method" x-text="l.m"></span> <span class="url" x-text="l.u"></span> <span class="body" x-text="l.b"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ── mock 后端：内存订单表 + REST 语义应答 + 请求日志 ──────────────────────
+      // 演示 options.resources.fetch 的用法（测试 / 拦截器 / 无后端演示同一路）
+      let db = [
+        { id: 1, title: "订单 #1", amount: 99 },
+        { id: 2, title: "订单 #2", amount: 199 },
+        { id: 3, title: "订单 #3", amount: 59 },
+      ];
+      const mockFetch = async (url, init) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        const logs = window.__demoLogs;
+        logs.unshift({ m: method, u: url, b: init?.body ? "← " + init.body : "" });
+        if (logs.length > 30) logs.pop();
+        await new Promise((r) => setTimeout(r, 300)); // 模拟网络延迟（feedback pending 可见）
+
+        if (method === "GET" && /\/api\/orders\/\d+$/.test(url)) {
+          const id = Number(url.split("/").pop());
+          return json(200, db.find((o) => o.id === id) ?? null);
+        }
+        if (method === "GET" && url.startsWith("/api/orders")) {
+          return json(200, { items: db, total: db.length, page: 1, pageSize: 10 });
+        }
+        if (method === "POST" && url === "/api/orders") {
+          const body = JSON.parse(init.body);
+          db = [...db, ...(Array.isArray(body) ? body : [body])];
+          return json(200, { ok: true });
+        }
+        if (method === "PUT" && /\/api\/orders\/\d+$/.test(url)) {
+          // 默认映射的 update：对象含 id → PUT {url}/{id}，body 原样（批量/条件形态见文档表）
+          const body = JSON.parse(init.body);
+          db = db.map((o) => (o.id === body.id ? { ...o, ...body } : o));
+          return json(200, { ok: true });
+        }
+        if (method === "DELETE" && url.startsWith("/api/orders?ids=")) {
+          const ids = new URL(url, location.origin).searchParams.get("ids").split(",").map(Number);
+          db = db.filter((o) => !ids.includes(o.id));
+          return new Response(null, { status: 204 });
+        }
+        return json(404, { message: "not found" });
+      };
+      const json = (status, data) => new Response(JSON.stringify(data), { status });
+
+      window.__demoLogs = [];
+      const engine = new AutoSpark(document.querySelector(".demo-app"), { orders: [], total: null, logs: [] }, {
+        resources: { fetch: mockFetch },
+        actions: {
+          // 纯 RPC 组合形态：资源方法经 scope.getAction 沿链取到（x-resource 挂宿主 scope），
+          // await 后自行写入 state——资源层不碰状态。action 间互调经 engine.actions（this 无直呼）
+          async loadList() {
+            const res = await this.scope.getAction("order.getMany").handle.call(this, { page: 1, pageSize: 10 });
+            this.store.state.orders = res.items;
+          },
+          async queryCond() {
+            // 通用条件选项：where 对象逐键展开 + order 直传（query 形态见下方日志）
+            const res = await this.scope.getAction("order.getMany").handle.call(this, {
+              where: { amountMin: 100 },
+              order: "amount desc",
+            });
+            this.store.state.orders = res.items.filter((o) => o.amount >= 100);
+          },
+          async loadOne() {
+            const res = await this.scope.getAction("order.get").handle.call(this, 1);
+            this.store.state.orders = [res];
+          },
+          async addOne() {
+            await this.scope.getAction("order.add").handle.call(this, { id: Date.now(), title: "新订单", amount: 42 });
+            await this.engine.actions.loadList.handle.call(this);
+          },
+          async updateOne() {
+            // update({id,...}) → PUT /api/orders/3；批量 [..] 与条件 (data, options) 形态见 REST 映射表
+            await this.scope.getAction("order.update").handle.call(this, { id: 3, amount: 88, title: "订单 #3（已改）" });
+            await this.engine.actions.loadList.handle.call(this);
+          },
+          async removeTwo() {
+            await this.scope.getAction("order.delete").handle.call(this, [1, 2]);
+            await this.engine.actions.loadList.handle.call(this);
+          },
+          async statTotal() {
+            // stats 为 engine 级资源（script global）：engine.actions 直达；手写方法不经映射
+            this.store.state.total = await this.engine.actions["stats.total"].handle.call(this);
+          },
+        },
+      });
+      // 日志区渲染：mock fetch 写 window.__demoLogs，这里同步镜像进响应式 state
+      setInterval(() => {
+        engine.state.logs = [...window.__demoLogs];
+      }, 200);
+    </script>
+  </body>
+</html>

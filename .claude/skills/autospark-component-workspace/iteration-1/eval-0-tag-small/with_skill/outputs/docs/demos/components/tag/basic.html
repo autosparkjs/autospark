@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>autospark.tag · 基础用法</title>
+    <!-- 引擎先加载；插件脚本随后（自举注册，零手动接线）；主题 css 引入后组件吃主题变量 -->
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.tag.js"></script>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .tag-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .hint { color: #868e96; font-size: 0.875rem; margin-top: 4px; }
+    </style>
+  </head>
+  <body>
+    <div class="demo-app section">
+      <h2 class="title is-5">基础用法</h2>
+      <p class="hint">未提供子内容时显示 label 兜底文案；提供子内容时插槽内容优先</p>
+      <div class="tag-row">
+        <span x-component:autospark.tag="{ label: '默认标签' }"></span>
+        <span x-component:autospark.tag>插槽内容文案</span>
+      </div>
+
+      <h2 class="title is-5 mt-5">六种语义色（type）</h2>
+      <div class="tag-row">
+        <span x-component:autospark.tag="{ label: '默认' }"></span>
+        <span x-component:autospark.tag="{ label: '主要', type: 'primary' }"></span>
+        <span x-component:autospark.tag="{ label: '成功', type: 'success' }"></span>
+        <span x-component:autospark.tag="{ label: '危险', type: 'danger' }"></span>
+        <span x-component:autospark.tag="{ label: '警告', type: 'warning' }"></span>
+        <span x-component:autospark.tag="{ label: '信息', type: 'info' }"></span>
+      </div>
+
+      <h2 class="title is-5 mt-5">列表场景（卡片状态标记）</h2>
+      <div class="tag-row">
+        <span x-component:autospark.tag="{ label: '待支付', type: 'warning', size: 'sm' }"></span>
+        <span x-component:autospark.tag="{ label: '已发货', type: 'primary', size: 'sm' }"></span>
+        <span x-component:autospark.tag="{ label: '已完成', type: 'success', size: 'sm' }"></span>
+        <span x-component:autospark.tag="{ label: '已取消', type: 'danger', size: 'sm' }"></span>
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

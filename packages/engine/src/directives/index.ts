@@ -18,11 +18,6 @@ export * from "./x-loading";
 export * from "./x-error";
 export * from "./x-isolate";
 export * from "./x-scope";
-export * from "../features/directive/overlay";
-export * from "../features/directive/visible-overlay";
-export * from "./x-dialog";
-export * from "./x-popover";
-export * from "./x-drawer";
 export * from "./x-component";
 export * from "./x-define";
 export * from "./x-slot";
@@ -30,9 +25,6 @@ export * from "./x-super";
 export * from "./x-icon";
 export * from "./x-icons";
 export * from "./x-import";
-export * from "./x-resizable";
-export * from "./x-expandable";
-export * from "./x-foldable";
 
 import type { AutoSparkDirectiveBase } from "../features/directive/base";
 import { TextDirective } from "./x-text";
@@ -50,9 +42,6 @@ import { LoadingDirective } from "./x-loading";
 import { ErrorDirective } from "./x-error";
 import { IsolateDirective } from "./x-isolate";
 import { TeleportDirective } from "./x-teleport";
-import { DialogDirective } from "./x-dialog";
-import { DrawerDirective } from "./x-drawer";
-import { PopoverDirective } from "./x-popover";
 import { ModelDirective } from "./x-model";
 import { ScopeDirective } from "./x-scope";
 import { ComponentDirective } from "./x-component";
@@ -64,7 +53,6 @@ import { FormDirective } from "./x-form";
 import { FieldDirective } from "./x-field";
 import { IconDirective } from "./x-icon";
 import { IconsDirective } from "./x-icons";
-import { FoldableDirective } from "./x-foldable";
 
 /**
  * 预设指令映射：指令名 → 指令类。
@@ -83,12 +71,12 @@ import { FoldableDirective } from "./x-foldable";
  * `x-scope` 同样是零副作用的 no-op 指令，能让纯静态元素建 scope 进入正向桥，
  * 从而被 `engine.patch` 定位。详见 ADR-0021 和 scope.ts 注释。
  *
- * **核心集定界（ADR-0128）**：tree / version 与布局域七指令（resizable / splitter /
- * expandable / layout / pane / container / viewport）已外移 `@autospark/plugins`
- * （autospark.tree.js / autospark.version.js / autospark.layout.js，选择性引入）；
- * x-resizable.ts / x-expandable.ts 文件保留为机制过渡载体（ResizeSession / Expandable
- * 供 overlay 基座与 x-drawer，批次 4 overlay 家族外移时一并退役）；foldable 随 overlay
- * 批次外移。
+ * **核心集定界（ADR-0128）**：tree / version / 布局域七指令（resizable / splitter /
+ * expandable / layout / pane / container / viewport）与 overlay 家族四指令（dialog /
+ * popover / drawer / foldable）已外移 `@autospark/plugins`（autospark.tree.js /
+ * autospark.version.js / autospark.layout.js / autospark.overlay.js，选择性引入）。
+ * overlay 机制薄层（features/overlay/{container,handle,types}）留核心——getOverlay
+ * 公开 API 与 getOverlayContainer 消费面连续（ADR-0128 决策 2）。
  */
 export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     text: TextDirective,
@@ -113,13 +101,6 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     // x-teleport 传送（ADR-0059）：一次性静态结构指令（ownsChildren 延迟编译 + dataContext 基准）
     teleport: TeleportDirective,
     scope: ScopeDirective,
-    // 覆盖物体系（ADR-0052 修订版）：x-dialog 模态形态消费者（OverlayDirective 基座不注册——
-    // 模板无 x-overlay 语法，覆盖物内容 = 任意组件，消费 attr 名即组件名）
-    dialog: DialogDirective,
-    // x-popover 悬浮形态消费者（ADR-0060）：宿主 mouseenter 触发、共享 hover 域 + hover 链
-    popover: PopoverDirective,
-    // x-drawer 贴边抽屉形态消费者（ADR-0063）：屏幕贴边默认 + 元素贴边锚定（长轴=锚边长）
-    drawer: DrawerDirective,
     component: ComponentDirective,
     define: DefineDirective,
     slot: SlotDirective,
@@ -133,7 +114,4 @@ export const presetDirectives: Record<string, typeof AutoSparkDirectiveBase> = {
     // x-icons 图标集声明（ADR-0058）：经 compiler 前置 transformer 拦截、永不被实例化，
     // 注册仅为合法可发现名位（x-define 同构）。旧 `x-icon-define` 已硬移除（不注册、静默失效）。
     icons: IconsDirective,
-    // x-foldable 溢出折叠容器（ADR-0098 更名版，原名 x-block 已退役）：flex nowrap 布局 +
-    // 溢出子元素折叠进 popover 面板（默认内置 shell，x-popover hover 接管，stash 真实搬移跨开关保态）
-    foldable: FoldableDirective,
 };

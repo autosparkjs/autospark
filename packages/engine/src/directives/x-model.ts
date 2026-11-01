@@ -9,7 +9,9 @@ import type { AutoDirectiveInfo } from "../features/directive/types";
 import type { AutoSpark } from "../engine/engine";
 
 /**
- * 匹配「裸标识符」或「标识符(参数)」，用于 get/set 字符串的 **action 名分派**（复用 x-on 的 ACTION_RE）：
+ * 匹配「裸标识符」或「标识符(参数)」，用于 get/set 字符串的 **action 名分派**（与 x-on 的
+ * ACTION_RE 同源复制；x-on 侧已扩点号名 action，此处**保持裸标识符**——x-model 的 get/set
+ * 是状态绑定语义，无点号 action 用例，不分叉）：
  * - `splitIp`        → name="splitIp", argsSrc=undefined（无括号）
  * - `splitIp(1)`     → name="splitIp", argsSrc="1"
  * - `value.split('.')[0]` / `user.first=$value` → 不匹配（含运算符/点），走表达式分支

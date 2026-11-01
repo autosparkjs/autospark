@@ -172,7 +172,7 @@ _Avoid_: 独立复选开关选项（check:true 之类——启用语义已由「
 
 **拖拽三态定位（Drop Position）**:
 x-tree 拖拽（`draggable: true`）的落点语义：目标行行线上 1/4 → `before`（移到其前）、下 1/4 → `after`（移到其后）、中段 → `inside`（收纳为子 + 自动展开）。分段基于**行线**（行根顶至子容器顶的高度）而非行根（li）全高——li 的 rect 含已展开子树，按全高分段会把 inside / after 区挤进子树区域（孙及更深后代占高时，悬停自身行线只落 before、无法接受拖入；子树区域归子行各自三段）。拖入自身子孙被环检测拒绝；单根数据的根行仅允许 `inside`。数据 splice 写回（同父移动修正索引偏移；收纳叶子目标先建 childrenField 容器）。
-_Avoid_: 拖拽手柄（v1 整行可拖，手柄等真实需求）、FLIP 移动动画（落点即数据重排，watcher 驱动重渲染）、按行根全高分段（已修复的 bug——子树高度不得参与三态分段）
+_Avoid_: 拖拽手柄（v1 整行可拖，手柄等真实需求）、FLIP 移动动画（落点即数据重排，watcher 驱动重渲染）、按行根全高分段（已修复的 bug——子树高度不得参与三态分段）、inside 配置键（同名不同物——x-ripple 的形态开关键与本条落点常量无关）
 
 **树事件 / tree:\*（Tree Events）**:
 树交互的 DOM 冒泡广播事件：`tree:expand` / `tree:collapse` / `tree:select` / `tree:check` / `tree:drop` / `tree:load` / `tree:loaded`，宿主 `dispatchEvent`，`detail` 统一 `{ id, node, level }`（id 取 `idField` 值，无 id 为 undefined；check 另带 `checked`、drop 为 `{source, target, position}` 三段式——source/target 各含 `{id, node, level}`）。懒加载**双事件**（ADR-0090，修正 ADR-0040 决策 11 的 detail 归属）：`tree:load` = 请求（无 children——发出时还不存在；**另带 `fail(err)` 失败回调**）、`tree:loaded` = 完成（**另带 `children`** 到达快照，仅在途结算时广播）。命名对齐 action 广播 `action:<name>` 惯例，外界 `@tree:expand="..."` 监听。
@@ -322,3 +322,27 @@ _Avoid_: data-tips（grilling 过程中的过渡命名，从未实施）、autos
 **浮层（Tip）**:
 tooltip 的**单例浮层元素**（`autospark-tooltip` 类名契约）——每引擎一个、常驻 `autospark-tooltips` body 容器（首个 tooltip 显示时懒创建、`destroy()` 整体移除，overlays 容器先例），显示 = 填充内容 + 定位 + display，隐藏 = 离场动画后 display:none（不反复摘挂 DOM）。内容随悬停目标切换、上一目标的类名/边框/箭头全量重置。显示期间 rAF 兜底「曾连接 → 断开」跳变（x-for 回收 / patch / DOM 移除无事件可感知，立即隐藏）；`engine.stop()` 同步隐藏。
 _Avoid_: tooltip 实例（无实例化概念——单例复用）、每元素独立浮层（单例是防多显的设计决策）
+
+### 装饰动效层
+
+**内部涟漪形态（inside）**:
+x-ripple 的 `inside` 形态开关键（`x-ripple-options` 布尔键 / `x-ripple.inside` 修饰符，三通道等价）：true 时涟漪改为**宿主内部**的 Material 式按钮涟漪——**双圆一芯一环**（芯 = 实心填充圆自起点放大渐隐，环 = 芯圆周描边同步渐隐）**同心同步**（同起点、同半径曲线、同时长收束——错相会呈第二道波峰、观感「执行两遍」，与 echo click「双环一次起波」同源结论）；半径**自动几何** = 起点到宿主 border box 最远角距离（铺满宿主，`size` 键 warn 忽略）。触发器语义：always/hover 起点固定几何中心、单周期循环；click 起点为**点击坐标**、单周期自止且**连点取消重来**——家族 click「在播中连点忽略」契约的唯一点特例（非 inside 的 click 与 x-spin 不变）。`speed` 在此形态下**条件缺省 600ms**（显式声明恒优先；先例 = badge 启用时 color 联动语义红）。**互斥族**：`inside:true` 接管渲染 → type 形态词表（ring/glow/echo）warn 忽略；`badge` 优先于 inside（badge 启用时 inside warn 忽略）。载体恒为注入子元素——clipper span（absolute inset:0 + border-radius:inherit + overflow:hidden）内含芯/环两 span，**不写宿主 overflow**（防裁 dropdown/溢出内容）。运行时动态加/删 `x-ripple` 属性即生效/失效（engine 观察根内；options 改值须移除重加属性重挂）。详见 ADR-0010。
+_Avoid_: inline（撞既有术语——x-isolate 无值形态的 inline 子引擎 / x-loading 的 inline 主声明位）、内联涟漪（同前中文直译）、双环错相（那是 echo 的负延迟语义，inside 双圆恒同拍）、宿主 overflow:hidden 注入（Material 做法已否决——副作用裁内容）、与 x-tree 拖拽落点 inside 混淆（同名不同物——彼为内部落点常量 before/after/inside，非配置键）
+
+### 资源层（Resource）
+
+**资源（Resource）**:
+服务端数据的**命名操作集**（`order` → `order.get` / `order.getMany` / `order.add` / `order.update` / `order.delete`…）：定义展开为**平铺点号名 action**（engine ADR-0131 调用通道）注册进现有 action 容器，三通道广播全继承；**纯 RPC 语义**——方法返回 Promise（resolve = 解包后数据，reject = `ResourceError` 含 status/url/method），不写状态、无本地缓存，结果写入 state 由调用方组合。三级注册位（就近覆盖，点号名**逐名**就近而非整资源覆盖）：scope 级（`x-resource:名="url"` / 局部 `<script type="autospark/resources">`）→ engine 级（script `global` 属性 / `engine.resources.add`）→ 应用级（类静态 `AutoSpark.resources.add`，写插件全局 action 表惰性物化，跨 engine 唯一动态入口）。详见 plugins ADR-0011。
+_Avoid_: 资源对象在 state 中（资源是 action 不是状态——AutoStore 会把 state 函数当 computed，挂 state 必错）、API 服务（无服务概念——就是点号名 action 家族）、数据源（纯 RPC 不做数据缓存，非响应式数据源）
+
+**资源管理器（AutoSparkResourceManager）**:
+资源的管理单元，**一个类双用途**：类静态全局单例 `AutoSpark.resources`（全局定义表 + 全局默认选项 + `add` 同名覆盖 warn）/ engine 级视图 `engine.resources`（ready 挂载，add 进本 engine、options 即 `options.resources` 编程面）。`options.resources` 是纯配置层五项（baseUrl/fetch/headers/unwrap/mapping）——**不含资源定义**（globals 键已移除，全局资源只走 add/script global）。
+_Avoid_: ResourceManager 缩写名（API 面全称 AutoSparkResourceManager）、资源注册表（manager 是容器+选项+注册入口的复合体，非裸表）
+
+**资源定义三形态（ResourceDef）**:
+`<script type="autospark/resources">` 与 `add()` 接受的定义形态：**url 字符串**（纯 REST，默认映射生成五方法 get/getMany/add/update/delete）/ **方法集**（完全自定义，`this` = action 上下文，`this.engine` 可用）/ **混搭对象**（`{url, mapping?, 方法覆写, baseUrl/fetch/headers/unwrap 内联}`——手写方法优先于映射生成，适配「后端只差一个方法协议」）。方法解析优先级：手写函数键 > 合并映射表命中。
+_Avoid_: 资源配置（定义是声明不是配置——配置指 options.resources）、REST 描述符（RequestDesc 才是描述符）
+
+**映射规则（Resource Mapping）与 RequestDesc**:
+资源方法到 HTTP 请求的映射：规则条目 = 函数 `(url, ...args) => RequestDesc`（`{method, url, query?, body?}` 四字段封顶，不发明声明式 DSL）；执行管线共享（`executeRequest` 统一 query 序列化/body JSON 化/headers 合并/非 2xx → `ResourceError`/`unwrap` 解包）。默认 REST 表按方法**覆盖合并**（逐层浅合并，无整表替换）：默认表 → `AutoSpark.resources.options.mapping` → `options.resources.mapping` → 资源定义内联 `mapping`。**通用条件选项（ResourceCondition / conditionQuery）**：条件形态方法（`get(options)` / `getMany(options)` / `update(data, options)` / `delete(options)`）共用 `{where, order, page, pageSize, …任意透传键}`——`where` 双形态（对象逐键展开进 query / 字符串作单一 `where` 参数后端方言直传），其余键原样透传。序列化约定：数组 query 值逗号连接（`ids=1,2,3`）；分页请求字段 `page`/`pageSize` 对齐响应壳 `{items,total,pageSize,pageCount,page}`（仅启用时出现）；请求选项三层回退：资源内联 > engine options > 全局默认。
+_Avoid_: 路由（那是 URL 分发概念）、REST 模板字符串（声明式 DSL 已否决——函数全权掌控）、find 方法（已裁撤——条件过滤经 getMany 的 options 任意键）

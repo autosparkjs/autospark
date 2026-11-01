@@ -12,6 +12,8 @@ import { installAutoComponentTag } from "../features/component/auto-component";
 import { DirectiveManager } from "../features/directive/manager";
 import { defineDirective as defineDirectiveImpl } from "../features/directive/global-queue";
 import type { DirectiveSpec } from "../features/directive/global-queue";
+import { registerScriptType } from "../features/script-type";
+import type { AutoSparkScriptHandler } from "../features/script-type";
 // 运行时 import（非 type）：directive 类重载的 instanceof 校验需要基类本体
 // （engine.ts 为组装根，ADR-0093 分层豁免位）
 import { AutoSparkDirectiveBase } from "../features/directive/base";
@@ -60,7 +62,10 @@ import {
 import { fetchHtml } from "../utils/fetchHtml";
 import { injectGlobalComponentStyles, releaseEngineGlobalStyles } from "../utils/globalStyle";
 import { iconRegistry, type IconRegistry } from "../features/icons/registry";
-import { OverlayHandle } from "../features/overlay/handle";
+import { normalizeIconSvg } from "../features/icons/symbol";
+// getOverlay 实现随 overlay 插件外移（ADR-0128 决策 2 修订）：本类保留薄壳委托——
+// 命名空间函数 autospark.getOverlay(engine, el, name, options) 由 autospark.overlay.js
+// 注册（mechanism/handle 单份状态）；插件未加载时 warn + undefined（响而不哑）
 import { removeOverlayContainer } from "../features/overlay/container";
 import { TooltipManager } from "../features/tooltip/manager";
 import type { TooltipAPI } from "../features/tooltip/types";
@@ -105,6 +110,13 @@ export class AutoSpark<
      * 声明入口三通道：模板 `x-icons.global`（ADR-0058）/ 本表编程注册 / 构造 `options.icons` 种子。
      */
     static readonly icons: IconRegistry = iconRegistry;
+
+    /**
+     * 图标归一化公开工具（ADR-0130）：svg 串 → 归一化 svg 串——与运行时（add / x-icons
+     * 收集管道）同一核心同一语义，供构建期/脚本预处理图标库；`data-raw` 逃逸标志在产物
+     * 中保留。无效输入返回 null。IIFE 场景经 `AutoSpark.normalizeIconSvg(...)` 取用。
+     */
+    static readonly normalizeIconSvg = normalizeIconSvg;
 
     /**
      * 插件全局组件声明表（ADR-0111 决策 5）：名字 → 模板字符串，**跨 engine 真全局**
@@ -179,6 +191,20 @@ export class AutoSpark<
             return;
         }
         return defineDirectiveImpl(specOrName);
+    }
+
+    /**
+     * 注册自定义 script type 处理器（ADR-0130）——插件侧 `<script type="autospark/...">`
+     * 声明处理的**唯一入口**：编译期 transformer 命中非内置的 `autospark/*` 类型时派发给
+     * handler（入参 `(script, 最近 scope, engine)`，同 `extractScript` 模式），script 剪枝
+     * 不进渲染 DOM。
+     *
+     * 注册表是**类静态全局 Map、查询期委托**（与指令注册表同构）：编译时现查，晚注册
+     * （插件后于 engine 加载）对后续编译天然生效。非法形态（非 `autospark/<kebab-name>`、
+     * 内置名 actions/data/setup、handler 非函数）warn + 拒绝；同名重复注册 warn + 后者覆盖。
+     */
+    static scriptType(type: string, handler: AutoSparkScriptHandler): void {
+        registerScriptType(type, handler);
     }
 
     /** 挂载容器（编译产物替换其子节点，容器本身保留） */
@@ -1513,19 +1539,20 @@ export class AutoSpark<
         el: HTMLElement | null | undefined,
         name: string,
         options?: Record<string, any>,
-    ): OverlayHandle | undefined {
-        const scope = el ? this.findScopeByEl(el) : undefined;
-        const snapshot = scope
-            ? scope.getComponentDeclaration(name)
-            : (this._resolveGlobalComponent(name) ?? undefined);
-        if (!snapshot) {
+    ): unknown | undefined {
+        // 薄壳委托（ADR-0128 决策 2 修订）：实现与 OverlayHandle 工厂随 overlay 插件外移
+        // （autospark.overlay.js 的 mechanism/handle 单份状态），经命名空间函数注入；
+        // 插件未加载时响而不哑（warn + undefined）。
+        const impl = (this.constructor as unknown as Record<string, unknown>).getOverlay as
+            | ((engine: unknown, el: HTMLElement | null | undefined, name: string, options?: Record<string, any>) => unknown)
+            | undefined;
+        if (typeof impl !== "function") {
             this.logger.warn(
-                `engine.getOverlay("${name}"): 未找到覆盖物组件（${el ? "scope 链与全局" : "全局"}均未命中，ADR-0052 决策 15）`,
+                `engine.getOverlay("${name}"): overlay 插件未加载——命令式覆盖物入口由 autospark.overlay.js 提供（选择性引入，ADR-0128）`,
             );
             return undefined;
         }
-        const def = this.getComponentDef(snapshot) ?? this.getGlobalComponentDef(name) ?? null;
-        return new OverlayHandle(this, name, snapshot, def, options ?? null, scope ?? null);
+        return impl(this, el, name, options);
     }
 
     /**

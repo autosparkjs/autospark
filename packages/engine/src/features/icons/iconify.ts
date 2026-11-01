@@ -4,10 +4,12 @@
  * 转换规则：viewBox 自「JSON 根级默认 ← 图标级 ← 别名链（就近胜）」合成（兜底 0 0 16 16）；
  * rotate（90°×n）/ hFlip / vFlip → 内容包一层 `<g transform>`（围绕 viewBox 中心，转换期
  * 一次定型）；aliases 解引用（可选属性 alias 覆盖 parent、变换按 Iconify 语义合成——
- * rotate 相加、flip 异或；循环引用返回 null）；body 直塞不加工、不补 stroke 系属性
- * （Iconify 是 fill 体系）。
+ * rotate 相加、flip 异或；循环引用返回 null）；body 直塞后经图标归一化核心做风格对齐
+ * （ADR-0130——fill 体系的零干扰由**类型判定**承载，不再是路径豁免，修订决策 10：bare
+ * path 的 fill 集天然不触发；lucide 等逐元素携带 stroke 系属性的集被内容级判定接住）。
  */
 import type { SymbolSpec } from "./symbol";
+import { normalizeIconCore } from "./normalize";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -118,9 +120,13 @@ function flipRotateTransform(
     return parts.join(" ");
 }
 
-/** 解析产物 → SymbolSpec（viewBox + 内容；根级不补任何 stroke/fill 属性，ADR-0058 决策 10） */
-export function specFromResolved(resolved: ResolvedIconify): SymbolSpec {
-    return { viewBox: resolved.viewBox, content: resolved.content, attrs: {} };
+/** 解析产物 → SymbolSpec（viewBox + 内容；经图标归一化核心——类型判定承载 fill 体系豁免，ADR-0130） */
+export function specFromResolved(resolved: ResolvedIconify, opts?: { normalize?: boolean }): SymbolSpec {
+    const norm = normalizeIconCore(
+        { viewBox: resolved.viewBox, content: resolved.content, attrs: {}, raw: false },
+        opts?.normalize !== false,
+    );
+    return { viewBox: resolved.viewBox, content: norm.content, attrs: norm.attrs, grid: norm.grid };
 }
 
 /** 解析产物 → svg 字符串（全局远程经注册表 add 通道入库的序列化形态） */

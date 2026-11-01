@@ -1,0 +1,190 @@
+(function (AutoSpark) {
+    "use strict";
+var run = function (AutoSpark) {
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){e.components[`autospark.alert`]=`<!--
+    化身路径约束（x-component T4=B，同 button 样板）：组件快照根只承载静态 class——根上的
+    动态绑定不会求值（字面并入宿主）。语义色变体与收起标记均落在内层 body 元素上，经
+    :has() 选择器驱动宿主外观/隐藏；关闭经 methods（this.emit 派发 close 事件冒泡）。
+-->
+<div class="asc-alert" x-define="autospark.alert">
+    <script setup>
+        {
+            data: () => ({
+                type: "info", // 语义色：info | success | warning | danger
+                title: "", // 标题行（纯文本）
+                description: "", // 描述行（可选，空则不渲染第二行）
+                icon: true, // 左侧图标：true=按 type 取语义图标（缺省）/ 字符串=自定义图标名 / false=关闭
+                closable: false, // 关闭钮（false 缺省——显式开启）
+                open: true, // 受控显隐键：父组件绑定后可控制重新显示（true 翻转复位 closed）
+                closed: false, // 内部收起标记（点击关闭置 true；open 转 true 时复位）
+                iconName: "info", // 实际渲染图标名（mounted 同步，避免首帧空闪）
+            }),
+            methods: {
+                close() {
+                    if (this.data.closed) return;
+                    this.data.closed = true;
+                    this.emit("close"); // 关闭事件冒泡，父组件可 @close 同步自有状态
+                },
+            },
+            mounted() {
+                // type → 语义图标映射（warning → warn / danger → error 对齐 engine 内置图标名）
+                const TYPE_ICONS = { info: "info", success: "success", warning: "warn", danger: "error" };
+                const syncIcon = () => {
+                    const v = this.data.icon;
+                    if (v === false) {
+                        this.data.iconName = null;
+                    } else if (typeof v === "string" && v.trim() !== "") {
+                        this.data.iconName = v;
+                    } else {
+                        // true / 缺省：按 type 取语义图标，未知 type 兜底 info
+                        this.data.iconName = TYPE_ICONS[this.data.type] || "info";
+                    }
+                };
+                syncIcon();
+                this.watch("type", syncIcon);
+                this.watch("icon", syncIcon);
+                // 重新显示通道：open 受控转 true（含假→真翻转）复位内部收起标记
+                this.watch("open", (v) => {
+                    if (v) this.data.closed = false;
+                });
+            },
+        }
+    <\/script>
+    <style global id="autospark-components-alert">
+        /* 主题化（ADR-0129）：三级样式回退链 var(--auto-X, var(--asc-alert-X, 校准兜底值))；
+         --asc-alert-mix-bg 是内部中转（语义色混合底，暗色变体只改它一处）；
+         变体数据在内层 body 元素上（化身路径根绑定失效，见文件头注释），经 :has() 驱动宿主 */
+        .asc-alert {
+            --asc-alert-mix-bg: var(--auto-bgcolor, var(--asc-alert-bg, #fff));
+            --asc-alert-accent: var(--auto-secondary-color, var(--asc-alert-accent-color, #71717a));
+            position: relative;
+            border-radius: var(--auto-border-radius, var(--asc-alert-radius, 0.5rem));
+            border: 1px solid var(--auto-border-color, var(--asc-alert-border, #f0f0f0));
+            background: var(--asc-alert-mix-bg);
+            color: var(--auto-color, var(--asc-alert-color, #606060));
+            font-size: 14px;
+            line-height: 1.5;
+            box-sizing: border-box;
+        }
+        /* 语义色变体（body 恒带 data-type，宿主经 :has() 取 accent + 语义描边/底色） */
+        .asc-alert:has(> .asc-alert-body[data-type="info"]) {
+            --asc-alert-accent: var(--auto-info-color, var(--asc-alert-info-color, #71717a));
+        }
+        .asc-alert:has(> .asc-alert-body[data-type="success"]) {
+            --asc-alert-accent: var(--auto-success-color, var(--asc-alert-success-color, #22c55e));
+        }
+        .asc-alert:has(> .asc-alert-body[data-type="warning"]) {
+            --asc-alert-accent: var(--auto-warning-color, var(--asc-alert-warning-color, #f59e0b));
+        }
+        .asc-alert:has(> .asc-alert-body[data-type="danger"]) {
+            --asc-alert-accent: var(--auto-danger-color, var(--asc-alert-danger-color, #ef4444));
+        }
+        .asc-alert:has(> .asc-alert-body[data-type]) {
+            border-color: color-mix(in srgb, var(--asc-alert-accent) 45%, transparent);
+            background: color-mix(in srgb, var(--asc-alert-accent) 8%, var(--asc-alert-mix-bg));
+        }
+        /* 收起（点击关闭 / open=false）：body 置 data-hidden 标记，宿主整块隐藏不留空盒 */
+        .asc-alert:has(> .asc-alert-body[data-hidden]) {
+            display: none;
+        }
+        .asc-alert-body {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 9px 12px;
+        }
+        .asc-alert-icon {
+            flex: none;
+            display: inline-flex;
+            margin-top: 2px; /* 与 14×1.5 标题行视觉居中对齐（(21-16)/2≈2） */
+            font-size: 16px;
+            color: var(--asc-alert-accent, currentColor);
+        }
+        .asc-alert-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .asc-alert-title {
+            font-weight: 600;
+            overflow-wrap: break-word;
+        }
+        .asc-alert-description {
+            font-size: 13px;
+            opacity: 0.78;
+            margin-top: 2px;
+            overflow-wrap: break-word;
+        }
+        .asc-alert-close {
+            position: absolute;
+            /* 与标题首行文字中心对齐：9(body padding-top) + 21/2(标题行 14×1.5) − 17/2(钮高 13+2×2) ≈ 11；
+             推导自本表写死的排版常量，改 padding/字号/行高须同步重算 */
+            top: 11px;
+            right: 8px;
+            display: inline-flex;
+            align-items: center;
+            border: none;
+            background: none;
+            padding: 2px;
+            font-size: 13px;
+            color: var(--auto-color, var(--asc-alert-color, #606060));
+            opacity: 0.5;
+            cursor: pointer;
+        }
+        .asc-alert-close:hover {
+            opacity: 1;
+        }
+        /* 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变）；
+         语义混合底只改中转变量一处；info 沿用 #71717a（对齐 notification 样板无暗色覆写） */
+        [dark] .asc-alert,
+        [data-dark] .asc-alert {
+            --asc-alert-mix-bg: var(--auto-bgcolor, var(--asc-alert-bg, #606060));
+            border-color: var(--auto-border-color, var(--asc-alert-border, #606060));
+            color: var(--auto-color, var(--asc-alert-color, #fafafa));
+        }
+        [dark] .asc-alert:has(> .asc-alert-body[data-type="success"]),
+        [data-dark] .asc-alert:has(> .asc-alert-body[data-type="success"]) {
+            --asc-alert-accent: var(--auto-success-color, var(--asc-alert-success-color, #5cd07c));
+        }
+        [dark] .asc-alert:has(> .asc-alert-body[data-type="warning"]),
+        [data-dark] .asc-alert:has(> .asc-alert-body[data-type="warning"]) {
+            --asc-alert-accent: var(--auto-warning-color, var(--asc-alert-warning-color, #f7d352));
+        }
+        [dark] .asc-alert:has(> .asc-alert-body[data-type="danger"]),
+        [data-dark] .asc-alert:has(> .asc-alert-body[data-type="danger"]) {
+            --asc-alert-accent: var(--auto-danger-color, var(--asc-alert-danger-color, #e6696a));
+        }
+        [dark] .asc-alert-close,
+        [data-dark] .asc-alert-close {
+            color: var(--auto-color, var(--asc-alert-color, #fafafa));
+        }
+    </style>
+    <!-- 收起语义双保险：x-show 藏 body 自身，data-hidden 标记经 :has() 藏宿主整块（不留空盒） -->
+    <div
+        class="asc-alert-body"
+        x-show="open && !closed"
+        :data-type="type"
+        :data-hidden="open && !closed ? null : ''"
+    >
+        <i class="asc-alert-icon" x-show="iconName" x-icon="iconName || ''" aria-hidden="true"></i>
+        <div class="asc-alert-content">
+            <div class="asc-alert-title" x-text="title" x-show="title"></div>
+            <div class="asc-alert-description" x-text="description" x-show="description"></div>
+        </div>
+        <button class="asc-alert-close" type="button" x-show="closable" x-icon="'no'" @click="close" aria-label="关闭"></button>
+    </div>
+</div>
+`}n();function n(){e(e=>{t(e)})}};
+    if (AutoSpark === undefined) {
+        // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
+        var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);
+        if (Object.isFrozen(queue)) {
+            console.error("插件闭包: 预加载队列已消费且全局 AutoSpark 不可达，插件未注册");
+            return;
+        }
+        queue.push(function (engine, ns) { run(ns); });
+    } else {
+        run(AutoSpark);
+    }
+})(globalThis.AutoSpark);
+
+//# sourceMappingURL=autospark.alert.js.map

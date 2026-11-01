@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.alert · 组件演示</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin: 12px 0;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.alert</h1>
+    <p>
+      语义色警告条：type 四种语义色 + 标题/描述两行布局 + 可选左侧图标 + closable 关闭
+      （<code>open</code> 受控键绑定父组件状态可控制重新显示）。
+    </p>
+
+    <!-- 组件封闭域：宿主上的表达式见不到外层状态——受控显隐经包裹元素绑定 props 与事件 -->
+    <div id="app" x-data="{ show: true, warnOn: true }">
+      <h2>语义色（type）</h2>
+      <div class="stack">
+        <div x-component:autospark.alert="{ type: 'info', title: '信息提示', description: '这是一条信息语义色的警告条。' }"></div>
+        <div x-component:autospark.alert="{ type: 'success', title: '操作成功', description: '数据已保存，随时可以继续后续操作。' }"></div>
+        <div x-component:autospark.alert="{ type: 'warning', title: '注意警告', description: '当前操作存在风险，请确认后继续。' }"></div>
+        <div x-component:autospark.alert="{ type: 'danger', title: '错误危险', description: '提交失败：网络异常，请稍后重试。' }"></div>
+      </div>
+
+      <h2>仅标题 / 图标控制（icon）</h2>
+      <div class="stack">
+        <div x-component:autospark.alert="{ type: 'info', title: '仅标题（描述行缺省不渲染）' }"></div>
+        <div x-component:autospark.alert="{ type: 'warning', title: '无图标', description: 'icon: false 关闭左侧图标。', icon: false }"></div>
+        <div x-component:autospark.alert="{ type: 'info', title: '自定义图标', description: 'icon: 传入图标名替换语义图标。', icon: 'file' }"></div>
+      </div>
+      <p class="hint">icon 缺省 <code>true</code>——按 type 取语义图标（info/success/warn/error）。</p>
+
+      <h2>closable 关闭 + 父组件状态控制重新显示</h2>
+      <div @close="show = false">
+        <div x-component:autospark.alert="{ type: 'danger', title: '可关闭的危险警告', description: '点击右侧 × 收起；下方按钮经父状态 open 重新显示。', closable: true, open: show }"></div>
+      </div>
+      <p>
+        <button @click="show = true">重新显示</button>
+        <span class="hint">父状态 show = <b x-text="show"></b>（关闭时经 @close 同步为 false）</span>
+      </p>
+
+      <h2>open 受控显隐</h2>
+      <div class="stack">
+        <div x-component:autospark.alert="{ type: 'warning', title: '受控警告条', description: 'open 绑定父状态，切换下方开关直接显隐。', closable: true, open: warnOn }"></div>
+      </div>
+      <p>
+        <button @click="warnOn = !warnOn">切换显隐（当前 <b x-text="warnOn"></b>）</button>
+      </p>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引是唯一官方消费方式——引擎与插件均经全局
+         命名空间就位；插件先于引擎加载时由闭包外壳推入预加载队列，engine 构造 drain 回放（ADR-0114）。
+         dev 下 /autospark.*.js 由 vite.config.ts 即时闭包化服务（改插件源码刷新即生效），
+         build 后为 dist-demo 装配的正式产物。 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.alert.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

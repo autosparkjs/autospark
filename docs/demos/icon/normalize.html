@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 图标归一化</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <div class="demo-app section" style="max-width: 640px">
+            <h1 class="title is-5">图标归一化（外来图标自动对齐）</h1>
+            <p class="subtitle is-6">
+                收集期自动对齐内置规约——左列自动归一化，右列同源 svg 仅多一个 <code>data-raw</code> 标志作对照
+            </p>
+
+            <template x-icons>
+                <!-- 线帽：24 网格无线帽，归一化补 round -->
+                <svg id="nl" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14"/></svg>
+                <svg id="nlraw" data-raw viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14"/></svg>
+                <!-- 颜色：硬编码 #f03d5e，归一化换 currentColor 跟随文字色 -->
+                <svg id="hc" viewBox="0 0 24 24" fill="none" stroke="#f03d5e"><path d="M12 3v18M3 12h18"/></svg>
+                <svg id="hcraw" data-raw viewBox="0 0 24 24" fill="none" stroke="#f03d5e"><path d="M12 3v18M3 12h18"/></svg>
+                <!-- 网格：16 / 256 网格描边图标，归一化渲染期换算粗细 -->
+                <svg id="s16" viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="m2.5 8.5 3.5 3.5 7-8"/></svg>
+                <svg id="s16raw" data-raw viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="m2.5 8.5 3.5 3.5 7-8"/></svg>
+                <svg id="s256" viewBox="0 0 256 256" fill="none" stroke="currentColor"><path d="m42 128 57 57 115-128"/></svg>
+                <svg id="s256raw" data-raw viewBox="0 0 256 256" fill="none" stroke="currentColor"><path d="m42 128 57 57 115-128"/></svg>
+                <!-- 24 网格对照基准（与内置同规约） -->
+                <svg id="ref24" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m4 13 5 5L20 7"/></svg>
+            </template>
+
+            <table class="table is-fullwidth is-striped" style="font-size: 28px">
+                <thead>
+                    <tr>
+                        <th>场景</th>
+                        <th>自动归一化</th>
+                        <th>data-raw（原样）</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="is-size-7" style="vertical-align: middle">线帽：缺 linecap<br />→ 补圆头圆拐角</td>
+                        <td><span x-icon="nl"></span></td>
+                        <td><span x-icon="nlraw"></span></td>
+                    </tr>
+                    <tr>
+                        <td class="is-size-7" style="vertical-align: middle">颜色：<code>stroke="#f03d5e"</code><br />→ 跟随文字色</td>
+                        <td style="color: #3e8ed0"><span x-icon="hc"></span> 容器文字色</td>
+                        <td style="color: #3e8ed0"><span x-icon="hcraw"></span> 恒为硬编码色</td>
+                    </tr>
+                    <tr>
+                        <td class="is-size-7" style="vertical-align: middle">16 网格：视觉粗 1.5 倍<br />→ 换算 ×2/3（与基准一致）</td>
+                        <td><span x-icon="s16"></span> <span x-icon="ref24"></span></td>
+                        <td><span x-icon="s16raw"></span> <span x-icon="ref24"></span></td>
+                    </tr>
+                    <tr>
+                        <td class="is-size-7" style="vertical-align: middle">256 网格：细到近不可见<br />→ 换算 ×10.7（与基准一致）</td>
+                        <td><span x-icon="s256"></span> <span x-icon="ref24"></span></td>
+                        <td><span x-icon="s256raw"></span> <span x-icon="ref24"></span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="notification is-light is-size-7">
+                <p>
+                    每行右侧小图为 24 网格基准（与内置图标同粗细）。归一化对 <code>icons.add()</code>、<code>x-icons</code>
+                    内联、远程 IconifyJSON 三条管道同一核心；fill 体系（填充图标）由类型判定豁免、零接触。全局关闭：
+                    <code>AutoSpark.icons.options = { normalize: false }</code>；构建期批量预处理：
+                    <code>AutoSpark.normalizeIconSvg(svg)</code>（<code>data-raw</code> 在产物中保留）。
+                </p>
+            </div>
+        </div>
+
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

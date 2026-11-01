@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-ripple · 运行时动态挂载</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
+      .target {
+        padding: 36px 24px;
+        border: 1px dashed #dcdfe6;
+        border-radius: 12px;
+        background: #fff;
+        text-align: center;
+      }
+      .target.on { border-style: solid; border-color: #009aff; }
+      .inserted { margin-top: 12px; padding: 20px; border: 1px solid #dcdfe6; border-radius: 8px; background: #fafafa; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <!-- 运行时动态挂载：engine 存活期间对观察根内元素 setAttribute/removeAttribute 即生效/失效 -->
+    <div class="demo-app section">
+      <div class="buttons are-small" style="margin-bottom: 20px">
+        <button class="button is-primary" id="mount">挂载 x-ripple</button>
+        <button class="button" id="unmount">移除 x-ripple</button>
+        <button class="button is-info is-light" id="insert">动态插入元素</button>
+      </div>
+      <div class="grid">
+        <div class="target" id="t1">
+          <strong>目标元素</strong>
+          <p class="is-size-7 has-text-grey">编译期无任何指令——点击上方按钮动态挂载/移除</p>
+        </div>
+        <div id="insert-zone">
+          <p class="is-size-7 has-text-grey">动态插入的元素（带 x-ripple）挂在此处</p>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), {});
+      const target = document.getElementById("t1");
+      // 动态加属性即生效（配置随挂载读取）；改 options 无效——须移除重加属性重挂
+      document.getElementById("mount").onclick = () => {
+        target.setAttribute("x-ripple-options", "{trigger: 'click', speed: 1200}");
+        target.setAttribute("x-ripple", "");
+        target.classList.add("on");
+      };
+      // 移除即失效（类与载体立即清理）
+      document.getElementById("unmount").onclick = () => {
+        target.removeAttribute("x-ripple");
+        target.classList.remove("on");
+      };
+      // 动态插入带属性的元素同样生效（观察根 childList 增扫）
+      document.getElementById("insert").onclick = () => {
+        const fresh = document.createElement("div");
+        fresh.className = "inserted";
+        fresh.setAttribute("x-ripple", "");
+        fresh.setAttribute("x-ripple-options", "{speed: 1500}");
+        fresh.innerHTML = "<strong>新插入元素</strong><p class='is-size-7 has-text-grey'>进观察根即生效（always 立即循环）</p>";
+        document.getElementById("insert-zone").appendChild(fresh);
+      };
+    </script>
+  </body>
+</html>
