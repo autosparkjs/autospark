@@ -9,7 +9,7 @@ import {
     resolveHandles,
     resolveResizeConstraints,
     NO_CONSTRAINTS,
-} from "../../directives/layout/family";
+} from "../../utils/resizeSession";
 
 /**
  * x-resizable 尺寸调节指令测试（ADR-0064）。
