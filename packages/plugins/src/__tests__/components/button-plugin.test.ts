@@ -25,8 +25,8 @@ describe("button 组件插件（ADR-0003 组件形态样板）", () => {
         await nextTick();
         const host = root.querySelector("button")!;
         expect(host.className).toContain("asc-button");
-        expect(host.querySelector(".asc-button-label")?.getAttribute("data-type")).toBe("primary");
-        expect(host.textContent).toContain("保存");
+        expect(host.querySelector(".asc-button-body")?.getAttribute("data-type")).toBe("primary");
+        expect(host.textContent.replace(/\s/g, "")).toContain("保存"); // 新版模板字距排版，空白归一后断言
         expect(host.hasAttribute("disabled")).toBe(false);
     });
 

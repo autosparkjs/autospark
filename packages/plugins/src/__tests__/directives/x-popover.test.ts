@@ -356,24 +356,26 @@ describe("配置（锚 / 延迟表达式 / props）", () => {
     });
 });
 
-describe("形态样式", () => {
-    test("类级初始化注入 shell 视觉样式（含裸面板 z-index；幂等）", () => {
-        mountPopover(
+    test("shell 视觉样式随首次打开注入（含裸面板 z-index；FOUC 预热退役后语义，ADR-0128 批次 4）", async () => {
+        const { root } = mountPopover(
             `<div id="app"><div x-scope>
                 <div x-define="tip"><span>x</span></div>
                 <button x-popover:tip x-popover-options="{delayShow: 0}">悬停</button>
             </div></div>`,
             {},
         );
-        const style = document.getElementById("autospark-shell-styles");
+        // FOUC 预热退役（ADR-0128 批次 4）：样式注入时机 = shell def 首次构建（首次打开
+        // 触发），不再由指令 initialize 预热——打开后断言（语义等价，注入时机延后）
+        root.querySelector("button")!.dispatchEvent(new MouseEvent("mouseenter", { bubbles: false }));
+        await sleep(30);
+
+        // FOUC 预热退役（ADR-0128 批次 4）：不再预热三 shell——popover 打开仅构建自身 shell，
+        // 样式段注入 popover 独立容器（ADR-0094 拆分后 popover 独立 id）与骨架容器
+        const style = document.getElementById("autospark-popover-styles");
         expect(style).not.toBeNull();
         expect(style!.textContent).toContain("z-index");
-        // 面板视觉随组件文件 <style global id> 注册期注入独立容器（ADR-0092：shell 即组件，
-        // 容器名沿旧注入通道 autospark-shell-styles——指令 initialize 预热触发）
         expect(style!.textContent).toContain("[data-overlay][data-overlay-border]");
     });
-});
-
 describe("fit（面板尺寸跟随宿主）", () => {
     // happy-dom 无真实布局：stub offsetWidth/offsetHeight 模拟宿主尺寸
     function stubHostSize(el: HTMLElement, w: number, h: number) {

@@ -1,6 +1,6 @@
 import type { AutoSpark } from "autospark";
 import { scopesKey as SCOPES_KEY } from "../../../utils/scopesKey";
-import type { AutoSparkScope } from "autospark";
+import { autoSparkScope } from "../../../utils/autoSparkScope";
 import type { ComponentDef } from "../component/component-def";
 import type { SlotContent } from "../../utils/slot";
 import { resolveAnimate } from "../../../utils/resolveAnimate";
@@ -556,7 +556,7 @@ export class OverlayInstance {
             "position:relative;" +
             "min-width:var(--autospark-overlay-loading-min-width, 240px);" +
             "min-height:var(--autospark-overlay-loading-min-height, 120px);";
-        const scope = new AutoSparkScope(this.engine, boundary, boundary);
+        const scope = new (autoSparkScope())(this.engine, boundary, boundary);
         this.engine.scopes.set(new WeakRef(boundary), scope);
         this.boundary = boundary;
         this.boundaryScope = scope;

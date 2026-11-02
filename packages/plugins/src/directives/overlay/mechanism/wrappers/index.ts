@@ -15,10 +15,11 @@
  * 显隐）。抽屉滑入/滑出的动态生成矩阵（buildSlideRules）在 ./drawer-shell.ts。
  */
 import type { AutoSpark } from "autospark";
-import { DIALOG_SHELL_NAME, DRAWER_SHELL_NAME, POPOVER_SHELL_NAME } from "../../../../utils/shellNames";
+import { DIALOG_SHELL_NAME, DRAWER_SHELL_NAME, POPOVER_SHELL_NAME, OVERLAY_COMPONENT_NAME } from "../../../../utils/shellNames";
 import DIALOG_SHELL_TEMPLATE from "../shells/dialog-shell.html?raw";
 import DRAWER_SHELL_TEMPLATE from "../shells/drawer-shell.html?raw";
 import POPOVER_SHELL_TEMPLATE from "../shells/popover-shell.html?raw";
+import OVERLAY_TEMPLATE from "../shells/overlay.html?raw";
 
 /**
  * 注册内置 shell（幂等：用户同名值优先不覆盖）——bootstrap 的 register 回调内调用
@@ -30,4 +31,5 @@ export function registerBuiltinShells(autospark: typeof AutoSpark): void {
     if (table[DIALOG_SHELL_NAME] === undefined) table[DIALOG_SHELL_NAME] = DIALOG_SHELL_TEMPLATE;
     if (table[POPOVER_SHELL_NAME] === undefined) table[POPOVER_SHELL_NAME] = POPOVER_SHELL_TEMPLATE;
     if (table[DRAWER_SHELL_NAME] === undefined) table[DRAWER_SHELL_NAME] = DRAWER_SHELL_TEMPLATE;
+    if (table[OVERLAY_COMPONENT_NAME] === undefined) table[OVERLAY_COMPONENT_NAME] = OVERLAY_TEMPLATE;
 }

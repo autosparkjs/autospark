@@ -7,8 +7,8 @@
  * 本表 → builtinComponents`——业务侧 `options.components` 同名声明优先级高于本表，
  * 覆盖通道完好（button 无继承家族，无 notifications 那样的 per-engine 种子诉求）。
  *
- * 模板自包含：`<script setup>`（type/size/label/disabled 状态与 mounted 同步）+
- * `<style global>`（CSS 变量主题化）随模板整体注册，无独立样式交付通道。
+ * 模板自包含：`<script setup>`（形态/语义色/图标/加载/勾选/tags 等 props 与 mounted
+ * 同步）+ `<style global>`（CSS 变量主题化）随模板整体注册，无独立样式交付通道。
  *
  * IIFE 产物全局名 `AutoSparkButton`（autospark.button.js）；双加载时序由
  * {@link installPlugin} 兜底（先于引擎加载推预加载队列，晚于引擎加载直注册）。

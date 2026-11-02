@@ -30,6 +30,13 @@
         flex-wrap: wrap;
         margin: 12px 0;
       }
+      .colored-bg {
+        background: linear-gradient(135deg, #4a72d8, #7a4ad8);
+        padding: 16px;
+        border-radius: 8px;
+        display: flex;
+        gap: 12px;
+      }
       code {
         background: #f1f3f5;
         padding: 2px 6px;
@@ -45,45 +52,62 @@
   <body>
     <h1>autospark.button</h1>
     <p>
-      props 外观变体 + 默认插槽兜底 + 使用处事件绑定。宿主标签即组件根标签（化身语义）——用
-      <code>button</code> 宿主得到语义化按钮。
+      形态（type）与语义色（color）正交组合；props 外观变体 + 默认插槽兜底 + 事件经冒泡到
+      外层消费。宿主标签即组件根标签（化身语义）——用 <code>button</code> 宿主得到语义化按钮。
     </p>
 
-    <div id="app" x-data="{ clicks: 0 }">
-      <h2>类型变体（type）</h2>
+    <div id="app" x-data="{ clicks: 0, picked: false, btnTags: [{ name: 'settings', icon: 'edit', tooltip: '设置' }] }">
+      <h2>形态（type）</h2>
       <div class="row">
-        <button x-component:autospark.button="{ label: '默认按钮' }"></button>
-        <button x-component:autospark.button="{ label: '主要按钮', type: 'primary' }"></button>
-        <button x-component:autospark.button="{ label: '成功按钮', type: 'success' }"></button>
-        <button x-component:autospark.button="{ label: '危险按钮', type: 'danger' }"></button>
+        <button x-component:autospark.button="{ type: 'primary', label: '主按钮' }"></button>
+        <button x-component:autospark.button="{ type: 'secondary', label: '次按钮' }"></button>
+        <button x-component:autospark.button="{ type: 'dashed', label: '虚线按钮' }"></button>
+        <button x-component:autospark.button="{ type: 'text', label: '文本按钮' }"></button>
+        <button x-component:autospark.button="{ type: 'link', label: '链接按钮' }"></button>
       </div>
 
-      <h2>尺寸变体（size）</h2>
+      <h2>语义色（color）</h2>
       <div class="row">
-        <button x-component:autospark.button="{ label: '小号', size: 'sm' }"></button>
-        <button x-component:autospark.button="{ label: '中号（默认）' }"></button>
-        <button x-component:autospark.button="{ label: '大号', size: 'lg' }"></button>
+        <button x-component:autospark.button="{ color: 'success', label: '成功' }"></button>
+        <button x-component:autospark.button="{ color: 'warning', label: '警告' }"></button>
+        <button x-component:autospark.button="{ color: 'danger', label: '危险' }"></button>
+        <button x-component:autospark.button="{ color: 'info', label: '信息' }"></button>
+        <button x-component:autospark.button="{ type: 'dashed', color: 'danger', label: '危险虚线' }"></button>
       </div>
 
-      <h2>插槽自定义内容（覆盖 label 兜底）</h2>
-      <div class="row">
-        <button x-component:autospark.button="{ type: 'primary' }"><b>加粗</b>插槽内容</button>
+      <h2>幽灵（ghost）</h2>
+      <div class="colored-bg">
+        <button x-component:autospark.button="{ ghost: true, label: '幽灵主钮' }"></button>
+        <button x-component:autospark.button="{ type: 'secondary', ghost: true, label: '幽灵次钮' }"></button>
       </div>
-      <p class="hint">
-        宿主裸子节点填入默认插槽；未提供时显示 <code>{{ label }}</code>（组件状态求值）。
-      </p>
 
-      <h2>禁用与事件</h2>
+      <h2>图标 / 加载 / 禁用 / 纵排 label</h2>
       <div class="row">
-        <button x-component:autospark.button="{ label: '禁用按钮', disabled: true }"></button>
-        <span @click="clicks = clicks + 1">
-          <button x-component:autospark.button="{ label: '点我计数', type: 'primary' }"></button>
+        <button x-component:autospark.button="{ icon: 'menu', label: '图标' }"></button>
+        <button x-component:autospark.button="{ icon: 'menu', label: '加载中', loading: true }"></button>
+        <button x-component:autospark.button="{ label: '禁用', disabled: true }"></button>
+        <button x-component:autospark.button="{ type: 'secondary', icon: 'star', label: '收藏', labelBelow: true, memo: '按 ⌘ + D' }"></button>
+      </div>
+
+      <h2>tags 小圆钮与事件</h2>
+      <div class="row">
+        <span @tag-click="clicks = clicks + 1">
+          <button x-component:autospark.button="{ icon: 'file', label: '文档', tags: btnTags }"></button>
         </span>
-        <span>共点击 <b>{{ clicks }}</b> 次</span>
+        <span>共点击 tag <b>{{ clicks }}</b> 次</span>
       </div>
       <p class="hint">
-        组件默认封闭（宿主上的表达式在组件域求值，见不到外层状态）——事件绑定写在组件外的包裹元素上，点击经冒泡触发。
+        tag-click 冒泡自包裹元素消费（组件默认封闭，宿主上的表达式在组件域求值——事件绑定写在组件外）。
       </p>
+
+      <h2>可勾选（checkable）</h2>
+      <div class="row">
+        <span @change="picked = $event.detail.value">
+          <button x-component:autospark.button="{ type: 'secondary', checkable: true, value: picked, label: '仅看优惠' }"></button>
+        </span>
+        <span>picked = <b>{{ picked }}</b></span>
+      </div>
+      <p class="hint">点击自动翻转并冒泡 change（detail.value）；受控显示经 props 单向注入——两行即双向。</p>
     </div>
 
     <p><a href="./index.html">← 返回组件列表</a></p>
@@ -93,6 +117,7 @@
          dev 下 /autospark.*.js 由 vite.config.ts 即时闭包化服务（改插件源码刷新即生效），
          build 后为 dist-demo 装配的正式产物。 -->
     <script src="/autospark.js"></script>
+    <script src="/autospark.ripple.js"></script>
     <script src="/autospark.button.js"></script>
     <script>
       new AutoSpark(document.getElementById("app"), {});
