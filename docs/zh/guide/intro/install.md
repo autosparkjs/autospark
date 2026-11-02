@@ -100,7 +100,7 @@ bun add @autospark/plugins
 | `autospark.version.js`       | x-version 版本显隐                                                     |
 | `autospark.overlay.js`       | 覆盖物家族：x-dialog / x-popover / x-drawer / x-foldable               |
 | `autospark.virtual.js`       | x-for `.virtual` 渲染策略                                              |
-| `autospark.paging.js`        | x-for `.paging` 渲染策略                                               |
+| ~~`autospark.paging.js`~~    | 已退役：`.paging` 经权衡保留 engine 内置（策略化需 7+ host 通道，成本/收益不成立——ADR-0008 修订记录） |
 | `autospark.tooltip.js`       | 工具提示（data-tooltip / title 自动转换 / engine.tooltip）             |
 | `autospark.ripple.js` / `autospark.spin.js` | x-ripple / x-spin 装饰动效                              |
 | `autospark.notifications.js` | 通知子系统                                                             |

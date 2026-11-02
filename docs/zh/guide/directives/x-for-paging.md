@@ -12,18 +12,11 @@
 
 分页状态有三条正交的访问通道：项模板内的 `$page` 等 `$*` 变量、容器 scope 上的 `scope.paging` 只读快照、外部 `:data-paging` 双向绑定对象，详见[指南](#指南)。
 
-::: tip 策略插件
-`.paging` 渲染策略由官方插件包 `@autospark/plugins` 提供（ADR-0128——`x-for` 指令本体内置于 engine，渲染策略按需引入），使用前须加载插件脚本，且**先于 engine 实例化**：
-
-```html
-<script src="/autospark/autospark.js"></script>
-<script src="/autospark/autospark.paging.js"></script>
-```
-
-npm 场景：`npm install @autospark/plugins` 后自 `node_modules/@autospark/plugins/dist/` 复制所需产物进项目；CDN 直引把上例 `src` 换为 `https://unpkg.com/@autospark/plugins/dist/autospark.paging.js`。
-
-未加载插件时声明 `.paging` 会得到一条 warn 并**退化全量渲染**（降级而非失效，列表功能不受影响）。聚合产物 `autospark.plugins.js` 一个标签包含全部官方插件。
-:::
+::: tip 引擎内置
+`.paging` 分页渲染**内置于 engine 核心**（无需任何插件加载，开箱即用）。原计划的策略插件形态
+（autospark.paging.js）经工程权衡退役：分页是数据层切片逻辑（loader / 状态双向 / 项内 `$page`
+代理），策略化需为 ForStrategyHost 新增 7+ 通道（watch/action/状态追加/scope 值等），接口成本
+远超收益——与 `.virtual` 的窗口几何（renderRange 单接缝）不同构。详见 ADR-0008 修订记录。
 
 ## 快速入门
 

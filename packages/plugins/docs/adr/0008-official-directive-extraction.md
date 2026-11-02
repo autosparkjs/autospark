@@ -67,3 +67,21 @@ ADR-0007 确立「共享逻辑源码共享、产物各自内联」先例，量�
 - CONTEXT.md（本包新建）：外移指令词条迁入 + 新增词条「指令插件」「策略插件」「选择性引入」（「按需加载」列入 Avoid）；
 - 深相对导入全部重写：运行时桥（nsMember）+ utils 复制——x-for 级源码不迁移（本体留 engine），仅策略段抽出，漂移风险集中于迁移期一次;
 - 第二批遗留（本 ADR 不覆盖）：form/field、icon/icons（编译期插件形态）、tooltip 编译期转换实现路径两候选的定夺。
+
+---
+
+## 修订记录（2026-11-03，实施期）
+
+- **`.paging` 策略化退役（保留 engine 内置）**：实施批次 5 时评估——分页是数据层切片
+  逻辑（loader 异步 / `:data-paging` 状态双向 / 项内 `$page` 写代理 / `scope.paging`
+  快照 / 服务端累积写回），策略化需为 ForStrategyHost 新增 7+ 通道（watchState/
+  callAction/appendState/scopeValue/decorateLocals...），接口成本远超收益且每通道
+  皆为回归面；与 `.virtual` 的窗口几何（renderRange 单接缝天然正交）不同构。
+  决策：`.paging` 留 engine 核心，`autospark.paging.js` 产物退役（本 ADR 决策 1
+  七产物清单相应修订为六产物）；x-for-paging 文档页 tip 改「引擎内置」说明。
+- **tooltip 特性插件落地（批次 6）**：manager/container/styles/types 四文件外移
+  `src/features/tooltip/`；engine 保留编译期 title 转换逻辑（compiler._convertTitleEl）
+  + 全局开关 `enableTooltipConvert`（插件注册开启——选择性引入即开关）+ per-engine
+  `tooltip: false` 三态（compiler 复合判据 `全局开关 && engine.tooltip?.enabled`）；
+  `engine.tooltip` getter 薄壳经命名空间工厂（AutoSpark.tooltipFactory）+ ready 双路径
+  构造期就位（保留 hover 委托即时响应语义）。

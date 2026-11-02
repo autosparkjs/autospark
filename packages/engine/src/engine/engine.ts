@@ -68,7 +68,8 @@ import { normalizeIconSvg } from "../features/icons/symbol";
 // 命名空间函数 autospark.getOverlay(engine, el, name, options) 由 autospark.overlay.js
 // 注册（mechanism/handle 单份状态）；插件未加载时 warn + undefined（响而不哑）
 import { removeOverlayContainer } from "../features/overlay/container";
-import { TooltipManager } from "../features/tooltip/manager";
+// tooltip 特性已外移插件（ADR-0128 决策 4）：engine 保留编译期 title 转换开关 + 命令式 getter 薄壳
+import { isTooltipConvertEnabled } from "../features/tooltip/convert-flag";
 import type { TooltipAPI } from "../features/tooltip/types";
 import { ViewportManager } from "../features/viewport/manager";
 import { BUILTIN_COMPONENTS } from "../components";
@@ -252,7 +253,8 @@ export class AutoSpark<
      */
     readonly animate: AutoSparkAnimator;
     /** 全局工具提示管理单元（ADR-0061）：data-tooltip 约定消费面 + title 编译期转换开关；公共入口经 `tooltip` getter */
-    readonly tooltipManager: TooltipManager;
+    /** tooltip 命令式 API 缓存（薄壳 getter 经命名空间工厂惰建——插件注册后可用） */
+    private _tooltipAPI: TooltipAPI | null | undefined;
     /** 全局视口档位管理单元（ADR-0105）：跨档写 `state.$.viewport` + 根元素 `data-viewport`；`options.viewport: false` 时整体短路 */
     readonly viewport: ViewportManager;
     /** 原始模板（深克隆根元素，保留指令属性作为编译只读输入） */
@@ -362,7 +364,8 @@ export class AutoSpark<
         this.animate = new AutoSparkAnimator();
         // 全局工具提示（ADR-0061）：须早于 autostart compile——编译期 title→data-tooltip
         // 转换依赖 manager 的 enabled 开关；委托监听/样式注入在构造内就位（tooltip: false 时全短路）
-        this.tooltipManager = new TooltipManager(this);
+        // tooltip 构造期初始化已外移（ADR-0128 决策 4）：委托监听/样式随插件装配，
+        // 编译期 title 转换经 convert-flag（插件注册开启）
         // UI 外壳注册表（ADR-0077）已退役（ADR-0092 → ADR-0094）：shell 即组件，裸键注册进
         // builtinComponents 注册位，查找走标准组件链（getComponentDeclaration）。
         // 全局视口档位（ADR-0105）：构造期同步求值并写 `state.$.viewport` 初值 + 根元素
@@ -491,11 +494,17 @@ export class AutoSpark<
      * 同构、单次生效。`options.tooltip: false` 时调用 warn + no-op（全关语义，决策 2）。
      */
     get tooltip(): TooltipAPI {
-        return this.tooltipManager;
+        // 薄壳（ADR-0128 决策 4）：实现随 autospark.tooltip.js 外移，经命名空间工厂（插件注册时
+        // 挂 AutoSpark.tooltipFactory）惰建 per-engine 实例；未加载插件 = undefined（调用侧 warn 响而不哑）
+        if (this._tooltipAPI === undefined) {
+            const factory = (this.constructor as unknown as Record<string, unknown>).tooltipFactory as
+                | ((engine: unknown) => TooltipAPI)
+                | undefined;
+            this._tooltipAPI = factory ? factory(this) : null;
+        }
+        return this._tooltipAPI;
     }
-
     /**
-     * 全局组件定义表（ADR-0022 承接 ADR-0021 决策 11；ADR-0086 合并双缓存）：
      * key=组件名，value=ComponentDef（快照 + setup/hooks/styles 等元数据同源同次产出）。
      *
      * **单表**（原 `_globalComponentCache` 快照表与 `_globalComponentDefCache` 定义表合并）：
@@ -601,7 +610,7 @@ export class AutoSpark<
      */
     stop() {
         // 显示中的 tooltip 同步隐藏（挂载 DOM 即将整体移除——断连兜底的事件前主动收口，ADR-0061 决策 13）
-        this.tooltipManager.hideImmediate();
+        this._tooltipAPI?.hideImmediate();
         this.el.replaceChildren();
         this.pending = false;
         return this;
@@ -1841,7 +1850,7 @@ export class AutoSpark<
         // 覆盖物容器整体移除（ADR-0052 决策 13）：实例 scope 已随上方 scope 树级联销毁
         removeOverlayContainer(this);
         // 工具提示收口（ADR-0061）：摘委托监听 + tooltip 容器整体移除 + 清计时器/兜底循环
-        this.tooltipManager.dispose();
+        this._tooltipAPI?.dispose();
         // 视口收口（ADR-0105）：反注册 mql + 摘根元素 data-viewport（$.viewport 残留——destroy 不清保留键）
         this.viewport.dispose();
         this.el.replaceChildren();

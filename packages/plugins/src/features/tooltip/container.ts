@@ -1,4 +1,4 @@
-import type { AutoSpark } from "../../engine/engine";
+import type { AutoSpark } from "autospark";
 
 /**
  * 工具提示容器（ADR-0061 决策 15）：**每 engine 一个**，挂 `document.body` 下。

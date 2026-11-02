@@ -8,6 +8,8 @@ export type { RuntimeDirective } from "./features/directive/base";
 export type { DirectiveSpec } from "./features/directive/global-queue";
 // x-for 渲染策略扩展点（ADR-0128 决策 3）：$.forStrategy 注册面 + host/策略类型
 export { registerForStrategy } from "./features/directive/for-strategy";
+// tooltip 编译期转换开关（ADR-0128 决策 4：插件注册开启——选择性引入即开关）
+export { enableTooltipConvert } from "./features/tooltip/convert-flag";
 export type { ForRenderStrategy, ForStrategyHost, ForStrategyInstance } from "./features/directive/for-strategy";
 export type {
     DirectiveInstaller,

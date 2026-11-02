@@ -12,6 +12,7 @@
  * 并让子作用域继承父的 localData（供 x-for 注入的 item/index 向下传递到嵌套子元素）。
  */
 import { AutoSparkScope } from "../scope";
+import { isTooltipConvertEnabled } from "../../features/tooltip/convert-flag";
 import { SCOPES_KEY } from "../../consts";
 import { CompileError } from "../../errors";
 import { removeDirectives } from "../../features/directive/utils/removeDirectives";
@@ -1006,11 +1007,11 @@ export class AutoSparkCompiler {
             // 必须浅克隆：transformElement 用 live NodeList 遍历原节点子节点并挂到返回的新节点下，
             // 若返回原节点，appendChild 会写回原节点自身、其 childNodes 持续增长，导致 live 遍历无限循环。
             const plain = template.cloneNode(false) as HTMLElement;
-            if (this.engine.tooltipManager.enabled) this._convertTitleEl(plain);
+            if (isTooltipConvertEnabled() && (this.engine.tooltip?.enabled ?? false)) this._convertTitleEl(plain);
             return plain;
         }
         const el = template.cloneNode(false) as HTMLElement;
-        if (this.engine.tooltipManager.enabled) this._convertTitleEl(el);
+        if (isTooltipConvertEnabled() && (this.engine.tooltip?.enabled ?? false)) this._convertTitleEl(el);
         removeDirectives(el, "x-", this._runtimeKeepAttr());
         const scope = new AutoSparkScope(this.engine, el, template);
         this._linkParent(template, scope);
@@ -1725,7 +1726,7 @@ export class AutoSparkCompiler {
         // 非 reuse 分支须做 title 转换 + 指令剥除（项根绕过 transformElement，compileElement
         // 的两步此处手动等价）
         if (!reuseEl) {
-            if (this.engine.tooltipManager.enabled) this._convertTitleEl(el);
+            if (isTooltipConvertEnabled() && (this.engine.tooltip?.enabled ?? false)) this._convertTitleEl(el);
             removeDirectives(el, "x-", this._runtimeKeepAttr());
         }
         // reuseEl：旧 scope 已 destroy，其子树 DOM 残留在 el 上，须清空后重建，否则 compileSubtree

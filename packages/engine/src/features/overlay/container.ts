@@ -56,7 +56,7 @@ export function getOverlayContainer(engine: AutoSpark<any>): HTMLElement | null 
         injectMaskStyles();
         // 容器纳入 tooltip 委托监听（ADR-0061 决策 15）：dialog 内容在 body 下、引擎根之外，
         // 不挂监听则其中的 title/data-tooltip 退回原生 tooltip
-        engine.tooltipManager.attachDelegationRoot(el);
+        // tooltip 委托根追加随插件（ADR-0128 决策 4）：插件 manager 构造期经 getOverlayContainer 渐进挂载
     }
     return el;
 }

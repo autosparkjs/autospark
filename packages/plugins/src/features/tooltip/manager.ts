@@ -1,5 +1,5 @@
-import type { AutoSpark } from "../../engine/engine";
-import { resolveAnimate } from "../animate/animate";
+import type { AutoSpark } from "autospark";
+import { resolveAnimate } from "../../utils/resolveAnimate";
 import { sanitizeHtml } from "../../utils/sanitize";
 import { applyFloatingPosition } from "../../utils/floating";
 import { parseTooltipValue, TOOLTIP_DEFAULTS, type TooltipOptions } from "./types";

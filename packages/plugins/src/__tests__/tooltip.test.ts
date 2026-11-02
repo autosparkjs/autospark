@@ -1,7 +1,10 @@
+// 显式引入 tooltip 特性插件（外移后测试须自挂双路径自举）
+import "../features/tooltip/bootstrap";
+
 import { describe, expect, test, afterEach } from "bun:test";
-import "../setup";
-import { mount, nextTick } from "../helpers";
-import { AutoSpark } from "../../engine/engine";
+import "./setup";
+import { mount, nextTick } from "./helpers";
+import { AutoSpark } from "autospark";
 
 /**
  * 全局工具提示测试（ADR-0061）：data-tooltip 属性约定 + title 编译期转换 + 委托监听 +
