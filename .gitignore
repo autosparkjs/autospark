@@ -39,3 +39,7 @@ node_modules
 .codegraph/
 .archify/
 .claude/sessions/
+
+# Claude Code 本地设施（评估 worktree 副本与 skill 评估工作区，勿入库）
+.claude/worktrees/
+.claude/skills/*-workspace/

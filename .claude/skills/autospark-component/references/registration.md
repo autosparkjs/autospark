@@ -1,6 +1,6 @@
-# 登记面五处（registration）
+# 登记面五处 + 惯例同步（registration）
 
-新增组件须登记五处，缺一处即断链（构建不出产物 / 聚合不挂载 / 文档不可达）。
+新增组件须登记五处，缺一处即断链（构建不出产物 / 聚合不挂载 / 文档不可达）；另有第六组仓库一致性惯例同步——不同步不报错，但清单/词条会失真（评估实证：基线运行 3/3 自发同步，属仓库惯例而非可选项）。
 
 ## 目录
 
@@ -9,6 +9,7 @@
 - [③ demo HTML](#-demo-html)
 - [④ 组件文档 md](#-组件文档-md)
 - [⑤ 侧边栏](#-侧边栏)
+- [⑥ 仓库一致性同步（惯例）](#-仓库一致性同步惯例)
 - [VitePress 陷阱](#vitepress-陷阱)
 
 ## ① 构建清单 CLOSURE_ARTIFACTS
@@ -120,6 +121,17 @@ demo 嵌入语法：`<demo html="路径"/>`，路径相对 `docs/demos/`（不�
 ```
 
 顶栏 nav 已有「组件」入口指向 `/zh/components/`，无需另动。若该数组后续演化出分组结构，跟随既有分组惯例。
+
+## ⑥ 仓库一致性同步（惯例）
+
+四项清单/词条同步，新组件交付时应一并更新（保持仓库自述与实际一致）：
+
+| 文件 | 同步内容 |
+|---|---|
+| `packages/plugins/readme.md` | 插件清单表加一行（名称 / 形态=组件插件 / 注册方式 / 产物名，对照既有 button 行格式） |
+| `packages/plugins/CONTEXT.md` | 领域词条——新术语入 Language 表（含 Avoid 列）；组件型四区描述中的举例列表按需补名 |
+| `packages/plugins/demo/index.html` | dev 演示树（5181）加新组件 demo 链接 |
+| `packages/plugins/vite.config.ts` 的 `build:demo` 入口 | `rollupOptions.input` 加 demo 页面（若为插件包 demo 建了页面） |
 
 ## VitePress 陷阱
 

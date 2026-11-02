@@ -65,7 +65,7 @@ description: 在 autospark monorepo 内创建官方组件（每个组件同时�
 
 ## 第五步：登记面（缺一处即断链）
 
-新增组件须登记**五处**，具体模板与位置见 `references/registration.md`：
+新增组件须登记**五处**（断链级）+ **第六组仓库一致性同步**（惯例级——readme 插件清单表 / CONTEXT 词条 / demo 演示树 / build:demo 入口），具体模板与位置见 `references/registration.md`：
 
 1. `packages/plugins/vite.config.ts` 的 `CLOSURE_ARTIFACTS`（IIFE 产物构建清单）
 2. `packages/plugins/src/index.ts` 聚合入口（副作用导入）
@@ -98,7 +98,7 @@ cd packages/plugins && bun run build
 - [ ] `<name>.html` 含 `x-define` / `<script setup>` / `<style global id="autospark-components-<name>">`
 - [ ] 样式零硬编码语义色；三级回退链；暗色兜底变体在场
 - [ ] 根上无动态绑定；原生属性 mounted 同步
-- [ ] 五处登记面齐全
+- [ ] 五处登记面齐全 + 仓库惯例同步（readme 清单表 / CONTEXT 词条 / demo 演示树）
 - [ ] 交付产物 `autospark.<name>.js`（IIFE）已生成于 `dist/` 并复制到 `docs/public/`
 - [ ] demo 浏览器验证：默认态 / 变体态 / 暗色态均正常
 - [ ] 新代码注释为中文，缩进 4 空格，与周边文件一致
