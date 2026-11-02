@@ -1,6 +1,9 @@
+// 显式引入 virtual 策略插件（外移后测试须自挂双路径自举，ADR-0128 决策 3）
+import "../../features/virtual/index";
+
 import { describe, expect, test, beforeEach } from "bun:test";
-import "../../setup";
-import { mount, nextTick } from "../../helpers";
+import "../setup";
+import { mount, nextTick } from "../helpers";
 
 /** 获取容器内实际项元素数量（排除垫片元素） */
 function countItemChildren(container: Element): number {

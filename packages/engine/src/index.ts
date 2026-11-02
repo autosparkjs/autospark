@@ -6,6 +6,9 @@ export type { RuntimeDirective } from "./features/directive/base";
 // 插件机制（ADR-0111 / ADR-0114）：$.directive 的 spec 类型 + 安装器/就绪回调/
 // 预加载队列元素类型（运行时机制随 engine 引入）
 export type { DirectiveSpec } from "./features/directive/global-queue";
+// x-for 渲染策略扩展点（ADR-0128 决策 3）：$.forStrategy 注册面 + host/策略类型
+export { registerForStrategy } from "./features/directive/for-strategy";
+export type { ForRenderStrategy, ForStrategyHost, ForStrategyInstance } from "./features/directive/for-strategy";
 export type {
     DirectiveInstaller,
     PluginBootstrap,

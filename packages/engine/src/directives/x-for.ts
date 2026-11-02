@@ -7,24 +7,7 @@ import { resolveAnimate } from "../features/animate/animate";
 import { splitPath } from "autostore";
 import type { AutoSpark } from "../engine/engine";
 import { resolveFieldAbsPath } from "./x-form";
-import { injectStylesheet } from "../utils/injectStylesheet";
-
-// ── 虚拟列表常量 ──────────────────────────────────────────────────────────────
-
-/** 默认滚动条样式 <style> 的 id（static initialize 幂等注入） */
-const VIRTUAL_STYLES_ID = "x-for-virtual-styles";
-
-/** 虚拟列表容器属性名（标记 + 选择器） */
-const VIRTUAL_ATTR = "autospark-virtual";
-
-/** 默认 overscan 项数 */
-const DEFAULT_OVERSCAN = 5;
-
-/** 默认回收池倍数（池大小 = visibleCount * POOL_MULTIPLIER） */
-const POOL_MULTIPLIER = 2;
-
-/** data-index 属性名 */
-const DATA_INDEX_ATTR = "data-index";
+import { getForStrategy, type ForStrategyHost, type ForStrategyInstance } from "../features/directive/for-strategy";
 
 /** x-for 单个列表项的运行时实体（v2 key-based 复用） */
 type ForItemEntry = {
@@ -121,39 +104,6 @@ export class ForDirective extends AutoSparkDirectiveBase {
         return true;
     }
 
-    /** 注入默认虚拟列表滚动条样式（幂等；多 engine 实例共享 document） */
-    static override initialize(_engine: AutoSpark): void {
-        injectStylesheet(
-            `
-/* x-for 虚拟列表默认滚动条样式 */
-[${VIRTUAL_ATTR}] {
-  scrollbar-width: thin;
-  scrollbar-color: var(--autospark-scrollbar-color, rgba(96, 96, 96, 0.55)) transparent;
-}
-[${VIRTUAL_ATTR}]::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-[${VIRTUAL_ATTR}]::-webkit-scrollbar-thumb {
-  background: var(--autospark-scrollbar-color, rgba(96, 96, 96, 0.55));
-  border-radius: 3px;
-}
-[${VIRTUAL_ATTR}]::-webkit-scrollbar-track {
-  background: transparent;
-}
-/* 暗色兜底变体（ADR-0129）：滚动条色属非映射声明（保持两级），兜底按 theme 校准切换 */
-[dark] [${VIRTUAL_ATTR}],
-[data-dark] [${VIRTUAL_ATTR}] {
-  scrollbar-color: var(--autospark-scrollbar-color, rgba(250, 250, 250, 0.55)) transparent;
-}
-[dark] [${VIRTUAL_ATTR}]::-webkit-scrollbar-thumb,
-[data-dark] [${VIRTUAL_ATTR}]::-webkit-scrollbar-thumb {
-  background: var(--autospark-scrollbar-color, rgba(250, 250, 250, 0.55));
-}`,
-            { id: VIRTUAL_STYLES_ID },
-        );
-    }
-
     /**
      * "容器内渲染一次的特例子节点"描述符表。
      *
@@ -218,33 +168,17 @@ export class ForDirective extends AutoSparkDirectiveBase {
     /** 动画配置缓存（DRY：避免每次事件重复 resolveAnimate + getOption） */
     private _anim = resolveAnimate(undefined);
 
-    // ── 虚拟列表状态 ──────────────────────────────────────────────────────────
+    // ── 渲染策略实例（ADR-0128 决策 3）───────────────────────────────────────
+    // 几何状态（窗口/项高/滚动监听/data-index 通道）自持在策略侧（autospark.virtual.js）；
+    // 垫片元素归核心——策略经 host.setSpacers 声明高度，元素生命周期随指令。
 
-    /** 是否启用虚拟列表模式 */
-    private _virtual = false;
-    /** 每项高度（像素）。由 x-for-options="{itemHeight:40}" 指定，或自动检测 */
-    private _itemHeight = 0;
-    /** 自动检测的 itemHeight（用户未指定时使用） */
-    private _autoItemHeight = 0;
-    /** 缓冲区项数 */
-    private _overscan = DEFAULT_OVERSCAN;
-    /** 当前第一个可见项索引 */
-    private _firstVisibleIndex = 0;
-    /** 可见项数（含 overscan） */
-    private _visibleCount = 0;
-    /** 滚动事件 rAF 句柄 */
-    private _scrollRafId: number | null = null;
-    /** ResizeObserver 实例 */
-    private _resizeObserver: ResizeObserver | null = null;
-    /** data-index 绑定的状态路径（用户通过 :data-index="xxx" 绑定） */
-    private _dataIndexBinding: string | null = null;
-    /** 是否正在程序化滚动（避免滚动事件循环） */
-    private _isScrollingToIndex = false;
-    /** 是否正在由滚动/渲染更新 data-index（防止 MutationObserver 反馈循环） */
-    private _isUpdatingDataIndex = false;
-    /** 虚拟列表底部垫片元素（撑起总高度使滚动条正确） */
+    /** .virtual 策略实例（装配产物；null = 未启用/配置无效 → 全量渲染） */
+    private _strategyInstance: ForStrategyInstance | null = null;
+    /** 策略注册的数据变化回调（host.onSourceChange 存储，render 时触发） */
+    private _strategySourceCb: (() => void) | null = null;
+    /** 虚拟列表底部垫片元素（撑起总高度使滚动条正确——host.setSpacers 通道管理） */
     private _spacerEl: HTMLElement | null = null;
-    /** 虚拟列表顶部垫片元素（将项推到正确的滚动位置） */
+    /** 虚拟列表顶部垫片元素（将项推到正确的滚动位置——host.setSpacers 通道管理） */
     private _topSpacerEl: HTMLElement | null = null;
 
     // ── 分页状态 ──────────────────────────────────────────────────────────
@@ -291,7 +225,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
             if (this.getOption("virtual") === true) {
                 this.warn("x-for: .paging 与 .virtual 互斥，virtual 已忽略");
             }
-            this._virtual = false;
+
 
             // 读取分页配置
             this._loaderName = this.getOption("loader") ?? null;
@@ -327,11 +261,25 @@ export class ForDirective extends AutoSparkDirectiveBase {
             this._syncPagingState();
         }
 
-        // 检测虚拟列表模式（分页模式下跳过）
+        // 检测虚拟列表模式（分页模式下跳过）——策略扩展点（ADR-0128 决策 3）：
+        // 实现经 AutoSpark.forStrategy("virtual", ...) 注册（autospark.virtual.js，
+        // 选择性引入）；未注册 → warn + 退化全量渲染（降级而非失效）
         if (!this._paging) {
-            this._virtual = this.getOption("virtual") === true;
-            if (this._virtual) {
-                this.setupVirtualOptions();
+            if (this.getOption("virtual") === true) {
+                const strategy = getForStrategy("virtual");
+                if (strategy) {
+                    this._strategyInstance = strategy.setup(
+                        this._buildStrategyHost(),
+                        { itemHeight: this.getOption("itemHeight"), overscan: this.getOption("overscan") },
+                    );
+                    if (!this._strategyInstance) {
+                        this.warn("x-for.virtual: 策略装配未生效（setup 返回空，配置无效），退化全量渲染");
+                    }
+                } else {
+                    this.warn(
+                        "x-for.virtual: 渲染策略未注册——请加载 autospark.virtual.js 插件（选择性引入，ADR-0128），已退化全量渲染",
+                    );
+                }
             }
         }
 
@@ -403,352 +351,92 @@ export class ForDirective extends AutoSparkDirectiveBase {
         }
     }
 
-    // ── 虚拟列表方法 ──────────────────────────────────────────────────────────
+    // ── 渲染策略通道（ADR-0128 决策 3）────────────────────────────────────────
 
-    /** 初始化虚拟列表选项并设置事件监听 */
-    private setupVirtualOptions() {
-        const container = this._renderContainer;
-        if (!container) return;
-
-        // 读取配置
-        const itemHeightOpt = this.getOption("itemHeight");
-        const overscanOpt = this.getOption("overscan");
-
-        // itemHeight 配置验证
-        if (itemHeightOpt !== undefined) {
-            const h = Number(itemHeightOpt);
-            if (!Number.isFinite(h) || h <= 0) {
-                this.warn(
-                    `x-for.virtual: itemHeight 值无效（${JSON.stringify(itemHeightOpt)}），退化为全量渲染`,
-                );
-                this._virtual = false;
-                return;
-            }
-            this._itemHeight = h;
-        }
-
-        // overscan 配置
-        if (overscanOpt !== undefined) {
-            const o = Number(overscanOpt);
-            if (Number.isFinite(o) && o >= 0) {
-                this._overscan = Math.floor(o);
-            }
-        }
-
-        // 添加虚拟列表标记属性
-        container.setAttribute(VIRTUAL_ATTR, "");
-
-        // 创建滚动高度垫片元素（撑起总高度使滚动条正确）
-        this._createSpacers();
-
-        // 检测 :data-index 绑定
-        this._detectDataIndexBinding();
-
-        // 设置滚动事件监听（passive + rAF）
-        this._setupScrollListener();
-
-        // 设置 ResizeObserver 监听容器尺寸变化
-        this._setupResizeObserver();
-
-        // 监听 data-index 属性变化以支持程序化滚动
-        this._observeDataIndex();
+    /**
+     * 构建 host 原语视图（策略唯一通道）：窗口几何/监听归策略，DOM 事务回流本指令。
+     * 生命周期：host 随指令实例（策略 setup 期捕获，引用稳定）。
+     */
+    private _buildStrategyHost(): ForStrategyHost {
+        return {
+            container: this._renderContainer!,
+            items: () => this.readItems(),
+            keyOf: (item, index) => this.evalKey(item, index),
+            renderRange: (from, to) => this._renderWindowRange(from, to),
+            itemHeight: 0,
+            setSpacers: (top, bottom) => this._setSpacers(top, bottom),
+            specialActive: () => this.activeSpecial != null,
+            onSourceChange: (cb) => {
+                this._strategySourceCb = cb;
+            },
+            fallbackToFull: () => {
+                this._strategyInstance?.destroy();
+                this._strategyInstance = null;
+                this._strategySourceCb = null;
+                // 移除策略挂的容器标记（保留无害，但语义干净）
+                this._renderContainer?.removeAttribute("autospark-virtual");
+                this.engine.scheduler.schedule(() => this.render());
+            },
+            writeState: (path, value) => {
+                const state = this.engine.store.state as Record<string, any>;
+                const parts = path.split(".");
+                let target: any = state;
+                for (let i = 0; i < parts.length - 1; i++) {
+                    target = target[parts[i]];
+                    if (target === undefined || target === null) return;
+                }
+                target[parts[parts.length - 1]] = value;
+            },
+            templateAttr: (name) => this.template?.getAttribute(name) ?? null,
+            warn: (m) => this.warn(m),
+        };
     }
 
-    /** 创建/更新滚动高度垫片元素 */
-    private _createSpacers() {
+    /**
+     * 垫片声明（策略经 host.setSpacers）：创建/归位/更新双垫片。
+     * 元素生命周期归指令（destroy 随清），策略只声明高度。
+     */
+    private _setSpacers(top: number, bottom: number): void {
         const container = this._renderContainer;
         if (!container) return;
-
-        const spacerStyle = "margin:0;padding:0;overflow:hidden;pointer-events:none;";
-
+        const style = "margin:0;padding:0;overflow:hidden;pointer-events:none;";
         if (!this._topSpacerEl) {
             this._topSpacerEl = document.createElement("div");
             this._topSpacerEl.setAttribute("aria-hidden", "true");
-            this._topSpacerEl.style.cssText = spacerStyle + "height:0;";
+            this._topSpacerEl.style.cssText = style + "height:0;";
             container.insertBefore(this._topSpacerEl, this._tailAnchor);
         }
-
         if (!this._spacerEl) {
             this._spacerEl = document.createElement("div");
             this._spacerEl.setAttribute("aria-hidden", "true");
-            this._spacerEl.style.cssText = spacerStyle + "height:0;";
+            this._spacerEl.style.cssText = style + "height:0;";
             container.insertBefore(this._spacerEl, this._tailAnchor);
         }
+        this._topSpacerEl.style.height = `${top}px`;
+        this._spacerEl.style.height = `${bottom}px`;
     }
 
-    /** 更新垫片高度以匹配总列表高度 */
-    private _updateSpacerHeights(topHeight: number, visibleEndIndex: number) {
-        if (this._topSpacerEl) {
-            this._topSpacerEl.style.height = `${topHeight}px`;
-        }
-        if (this._spacerEl) {
-            const items = this.readItems();
-            const itemHeight = this._getItemHeight();
-            if (items.length > 0 && itemHeight > 0) {
-                // 底部垫片 = 剩余未渲染项的高度
-                const remaining = Math.max(0, items.length - visibleEndIndex);
-                this._spacerEl.style.height = `${remaining * itemHeight}px`;
-            } else {
-                this._spacerEl.style.height = "0px";
-            }
-        }
-    }
-
-    /** 检测 :data-index 绑定的状态路径 */
-    private _detectDataIndexBinding() {
-        const container = this._renderContainer;
-        if (!container) return;
-
-        // 检查容器上的 :data-index 或 x-bind:data-index 属性
-        // 注意：removeDirectives 已从 el 上移除这些属性，需要检查 template
-        const tpl = this.template;
-        if (tpl) {
-            const bindAttr =
-                tpl.getAttribute(":data-index") ??
-                tpl.getAttribute("x-bind:data-index");
-            if (bindAttr) {
-                this._dataIndexBinding = bindAttr.trim();
-            }
-        }
-    }
-
-    /** 设置滚动事件监听（passive + rAF 节流） */
-    private _setupScrollListener() {
-        const container = this._renderContainer;
-        if (!container) return;
-
-        const onScroll = () => {
-            if (this._isScrollingToIndex) return;
-            if (this._scrollRafId !== null) return;
-            this._scrollRafId = requestAnimationFrame(() => {
-                this._scrollRafId = null;
-                this._onScroll();
-            });
-        };
-
-        container.addEventListener("scroll", onScroll, { passive: true });
-        // 保存引用以便销毁时移除
-        this._scrollListener = onScroll;
-    }
-
-    /** 滚动事件监听器引用（用于销毁时移除） */
-    private _scrollListener: (() => void) | null = null;
-
-    /** 设置 ResizeObserver 监听容器尺寸变化 */
-    private _setupResizeObserver() {
-        if (typeof ResizeObserver === "undefined") return;
-
-        const container = this._renderContainer;
-        if (!container) return;
-
-        this._resizeObserver = new ResizeObserver(() => {
-            this._onResize();
-        });
-        this._resizeObserver.observe(container);
-    }
-
-    /** 滚动事件处理：更新可见项范围 */
-    private _onScroll() {
-        if (!this._virtual || this.activeSpecial) return;
-
-        const container = this._renderContainer;
-        if (!container) return;
-
-        const items = this.readItems();
-        if (items.length === 0) return;
-
-        const itemHeight = this._getItemHeight();
-        if (itemHeight <= 0) return;
-
-        const scrollTop = container.scrollTop;
-        const viewportHeight = container.clientHeight;
-
-        // 计算第一个可见项索引
-        const firstVisible = Math.floor(scrollTop / itemHeight);
-        const clampedFirst = Math.max(0, Math.min(firstVisible, items.length - 1));
-
-        // 如果可见项索引变化，更新并触发重渲染
-        if (clampedFirst !== this._firstVisibleIndex) {
-            this._firstVisibleIndex = clampedFirst;
-            this._updateDataIndex(clampedFirst);
-            this._renderVirtual();
-        }
-    }
-
-    /** ResizeObserver 回调：容器尺寸变化时重新计算 */
-    private _onResize() {
-        if (!this._virtual || this.activeSpecial) return;
-
-        const container = this._renderContainer;
-        if (!container) return;
-
-        const items = this.readItems();
-        if (items.length === 0) return;
-
-        // 重新计算可见项数
-        const itemHeight = this._getItemHeight();
-        if (itemHeight <= 0) return;
-
-        const viewportHeight = container.clientHeight;
-        const newVisibleCount = Math.ceil(viewportHeight / itemHeight) + this._overscan * 2;
-
-        // 如果可见项数变化，触发重渲染
-        if (newVisibleCount !== this._visibleCount) {
-            this._visibleCount = newVisibleCount;
-            this._renderVirtual();
-        }
-    }
-
-    /** 获取当前 itemHeight（优先使用用户配置，否则自动检测） */
-    private _getItemHeight(): number {
-        if (this._itemHeight > 0) return this._itemHeight;
-        if (this._autoItemHeight > 0) return this._autoItemHeight;
-        return 0;
-    }
-
-    /** 自动检测 itemHeight：取第一项的实际高度 */
-    private _autoDetectItemHeight() {
-        if (this._itemHeight > 0 || this._autoItemHeight > 0) return;
-
-        const container = this._renderContainer;
-        if (!container || container.children.length === 0) return;
-
-        // 取第一个子元素的高度（假设项等高）
-        const firstChild = container.firstElementChild;
-        if (firstChild) {
-            const height = firstChild.getBoundingClientRect().height;
-            if (height > 0) {
-                this._autoItemHeight = height;
-            }
-        }
-    }
-
-    /** 更新 data-index 属性和绑定的状态 */
-    private _updateDataIndex(index: number) {
-        const container = this._renderContainer;
-        if (!container) return;
-
-        this._isUpdatingDataIndex = true;
-        try {
-            if (this._dataIndexBinding) {
-                // 有 :data-index 绑定 → 只更新状态，由 BindDirective 响应式更新 DOM 属性
-                try {
-                    const state = this.engine.store.state as Record<string, any>;
-                    const parts = this._dataIndexBinding.split(".");
-                    let target: any = state;
-                    for (let i = 0; i < parts.length - 1; i++) {
-                        target = target[parts[i]];
-                        if (target === undefined || target === null) return;
-                    }
-                    target[parts[parts.length - 1]] = index;
-                } catch {
-                    // 静默忽略写入错误
-                }
-            } else {
-                // 无 :data-index 绑定 → 直接更新 DOM 属性
-                container.setAttribute(DATA_INDEX_ATTR, String(index));
-            }
-        } finally {
-            this._isUpdatingDataIndex = false;
-        }
-    }
-
-    /** 监听 data-index 属性变化以支持程序化滚动 */
-    private _observeDataIndex() {
-        if (!this._virtual || !this._dataIndexBinding) return;
-
-        const container = this._renderContainer;
-        if (!container) return;
-
-        // 使用 MutationObserver 监听 data-index 属性变化
-        this._dataIndexObserver = new MutationObserver((mutations) => {
-            // 正在由滚动/渲染更新 data-index → 跳过，避免反馈循环
-            if (this._isUpdatingDataIndex) return;
-            for (const mutation of mutations) {
-                if (
-                    mutation.type === "attributes" &&
-                    mutation.attributeName === DATA_INDEX_ATTR
-                ) {
-                    const newIndex = Number(container.getAttribute(DATA_INDEX_ATTR));
-                    if (Number.isFinite(newIndex) && newIndex !== this._firstVisibleIndex) {
-                        this.scrollToIndex(newIndex);
-                    }
-                }
-            }
-        });
-        this._dataIndexObserver.observe(container, { attributes: true });
-    }
-
-    /** data-index MutationObserver 实例 */
-    private _dataIndexObserver: MutationObserver | null = null;
-
-    /** 程序化滚动到指定索引 */
-    private scrollToIndex(index: number) {
-        const container = this._renderContainer;
-        if (!container) return;
-
-        const items = this.readItems();
-        if (items.length === 0) return;
-
-        const itemHeight = this._getItemHeight();
-        if (itemHeight <= 0) return;
-
-        const clampedIndex = Math.max(0, Math.min(index, items.length - 1));
-        const scrollTop = clampedIndex * itemHeight;
-
-        this._isScrollingToIndex = true;
-        container.scrollTop = scrollTop;
-        this._firstVisibleIndex = clampedIndex;
-
-        // 延迟重置标志（等滚动事件处理完毕）
-        requestAnimationFrame(() => {
-            this._isScrollingToIndex = false;
-            this._renderVirtual();
-        });
-    }
-
-    /** 虚拟列表渲染：只渲染可见项 + overscan */
-    private _renderVirtual() {
+    /**
+     * 渲染 [from, to) 窗口（host.renderRange 的落点——DOM 事务核心，策略不得绕过）：
+     * 窗口内按 key 复用/重绑/新建（B/C 两阶段事务，ADR-0076 与全量 render 同款），
+     * 销毁窗口外项，DOM 重排为 [topSpacer, item..., bottomSpacer]。
+     */
+    private _renderWindowRange(startIndex: number, visibleEndIndex: number): void {
         const container = this._renderContainer;
         if (!container || this.itemTemplates.length === 0) return;
 
         const items = this.readItems();
         const length = items.length;
+        startIndex = Math.max(0, startIndex);
+        visibleEndIndex = Math.min(length, visibleEndIndex);
+        if (visibleEndIndex <= startIndex) return;
 
-        // 自动检测 itemHeight（首次渲染时）
-        this._autoDetectItemHeight();
-
-        const itemHeight = this._getItemHeight();
-        if (itemHeight <= 0) {
-            // itemHeight 无效，退化为全量渲染
-            this.warn(
-                `x-for.virtual: 无法确定 itemHeight（容器无子元素或高度为 0），退化为全量渲染`,
-            );
-            this._virtual = false;
-            container.removeAttribute(VIRTUAL_ATTR);
-            this.render();
-            return;
-        }
-
-        const viewportHeight = container.clientHeight;
-        this._visibleCount = Math.ceil(viewportHeight / itemHeight) + this._overscan * 2;
-
-        // 计算可见范围
-        const startIndex = Math.max(0, this._firstVisibleIndex - this._overscan);
-        const endIndex = Math.min(length - 1, startIndex + this._visibleCount - 1);
-        const visibleEndIndex = endIndex + 1;
-
-        // 更新垫片：顶部垫片推到正确位置，底部垫片撑起剩余高度
-        this._updateSpacerHeights(startIndex * itemHeight, visibleEndIndex);
-
-        // 创建/复用可见范围内的项（同时收集 key 用于清理）
         const ordered: ForItemEntry[] = [];
         const visibleKeys = new Set<unknown>();
 
-        // (B)/(C) 两阶段（ADR-0076，与主 render 同款事务性）：决策与复用在循环内，
-        // 重编译统一延迟到集中销毁之后——可见窗口内多项 rebind 互换时同路径不交叉。
-        const vRebinds: { old: ForItemEntry; item: any; index: number }[] = [];
-        const vCreates: { item: any; index: number }[] = [];
+        // (B)/(C) 两阶段（ADR-0076）：决策与复用在循环内，重编译延迟到集中销毁之后
+        const rebinds: { old: ForItemEntry; item: any; index: number }[] = [];
+        const creates: { item: any; index: number }[] = [];
         for (let index = startIndex; index < visibleEndIndex; index++) {
             const item = items[index];
             const key = this.evalKey(item, index);
@@ -756,7 +444,6 @@ export class ForDirective extends AutoSparkDirectiveBase {
             const old = this.itemMap.get(key);
 
             if (old && old.index === index) {
-                // 复用
                 const itemChanged = old.item !== item;
                 old.item = item;
                 Object.assign(old.localData, this.buildLocalData(item, index, length));
@@ -765,36 +452,33 @@ export class ForDirective extends AutoSparkDirectiveBase {
                 }
                 ordered.push(old);
             } else if (old) {
-                // 重绑定（收集，两阶段执行）
-                vRebinds.push({ old, item, index });
+                rebinds.push({ old, item, index });
                 ordered.push(null as unknown as ForItemEntry);
             } else {
-                // 新建（收集，两阶段执行）
-                vCreates.push({ item, index });
+                creates.push({ item, index });
                 ordered.push(null as unknown as ForItemEntry);
             }
         }
-        for (const r of vRebinds) this.destroyItemScopes(r.old);
-        for (const r of vRebinds) {
+        for (const r of rebinds) this.destroyItemScopes(r.old);
+        for (const r of rebinds) {
             const entry = this.compileRebound(r.old, r.item, r.index, length);
             this.itemMap.set(this.evalKey(r.item, r.index), entry);
             ordered[r.index - startIndex] = entry;
         }
-        for (const c of vCreates) {
+        for (const c of creates) {
             const entry = this.createItem(c.item, c.index, length);
             this.itemMap.set(this.evalKey(c.item, c.index), entry);
             ordered[c.index - startIndex] = entry;
         }
 
-        // 销毁不在可见范围内的项
+        // 销毁窗口外项
         for (const key of this.itemMap.keys()) {
             if (!visibleKeys.has(key)) {
                 this.destroyItem(key, false);
             }
         }
 
-        // DOM 重排：结构为 [topSpacer, item0, item1, ..., bottomSpacer]
-        // 先确保两个垫片在容器中
+        // 垫片归位（策略可能重挂容器场景）
         if (this._topSpacerEl && this._topSpacerEl.parentNode !== container) {
             container.insertBefore(this._topSpacerEl, this._tailAnchor);
         }
@@ -804,7 +488,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
 
         const flatNodes = ordered.flatMap((e) => e.nodes);
 
-        // 快速检查是否需要重排：只检查首尾节点
+        // 快速重排检查（首尾节点比对），需要时清除非垫片子节点后按序重插
         let needsReorder = flatNodes.length === 0;
         if (!needsReorder) {
             const children = container.children;
@@ -823,9 +507,7 @@ export class ForDirective extends AutoSparkDirectiveBase {
                 firstItem !== flatNodes[0] ||
                 lastItem !== flatNodes[flatNodes.length - 1];
         }
-
         if (needsReorder) {
-            // 清除容器内所有非垫片子节点
             const toRemove: Node[] = [];
             for (const child of Array.from(container.children)) {
                 if (child !== this._topSpacerEl && child !== this._spacerEl) {
@@ -835,14 +517,12 @@ export class ForDirective extends AutoSparkDirectiveBase {
             for (const node of toRemove) {
                 container.removeChild(node);
             }
-            // 按序插入：topSpacer → items → bottomSpacer
+            let ref: Node | null = this._spacerEl;
             for (const node of flatNodes) {
-                container.insertBefore(node, this._spacerEl);
+                container.insertBefore(node, ref);
+                ref = node;
             }
         }
-
-        // 更新 data-index
-        this._updateDataIndex(this._firstVisibleIndex);
     }
 
     // ── 分页方法 ──────────────────────────────────────────────────────────
@@ -1173,7 +853,8 @@ export class ForDirective extends AutoSparkDirectiveBase {
      * Pass 3 重排：DOM 已就位则跳过（P2）；否则从后向前、组内正序 insertBefore。
      * Pass 4 刷新：脏标记筛选后的复用项 refresh（P2：item 引用未变 && length 未变则跳过）。
      *
-     * 虚拟列表模式（.virtual）：只渲染可见项 + overscan，由 _renderVirtual() 处理。
+     * 渲染策略（.virtual，ADR-0128 决策 3）：窗口计算委托策略实例（onSourceChange），
+     * DOM 事务（renderRange 复用/重绑/销毁窗口外 + 垫片归位）保留本指令。
      */
     private render() {
         const container = this._renderContainer;
@@ -1218,9 +899,9 @@ export class ForDirective extends AutoSparkDirectiveBase {
             this.activeSpecial = null;
         }
 
-        // 虚拟列表模式：委托给 _renderVirtual()
-        if (this._virtual) {
-            this._renderVirtual();
+        // 渲染策略模式：几何/窗口委托策略，DOM 事务经 host.renderRange 回流核心
+        if (this._strategyInstance) {
+            this._strategyInstance.onSourceChange();
             return;
         }
 
@@ -1558,54 +1239,19 @@ export class ForDirective extends AutoSparkDirectiveBase {
         }
     }
 
-    override destroy() {
-        // 清理虚拟列表资源
-        this._teardownVirtualScroll();
+    /** 生命周期 destroy：清理渲染策略实例（监听/Observer 归策略自清，ADR-0128 决策 3）+ 垫片元素 */
+    destroy(_el: HTMLElement): void {
+        // 清理渲染策略实例（监听/Observer 归策略自清，ADR-0128 决策 3）+ 垫片元素
+        this._strategyInstance?.destroy();
+        this._strategyInstance = null;
+        this._strategySourceCb = null;
+        if (this._topSpacerEl?.parentNode) this._topSpacerEl.parentNode.removeChild(this._topSpacerEl);
+        this._topSpacerEl = null;
+        if (this._spacerEl?.parentNode) this._spacerEl.parentNode.removeChild(this._spacerEl);
+        this._spacerEl = null;
 
         // 销毁清理不播动画（引擎/作用域拆除期，ADR-0039 决策 6 的镜像：非状态变化不动画）
         this.clearItems(false);
         if (this.activeSpecial) this.destroySpecial(false);
-    }
-
-    /** 清理虚拟列表资源 */
-    private _teardownVirtualScroll() {
-        // 移除滚动事件监听
-        if (this._scrollListener && this.el) {
-            this.el.removeEventListener("scroll", this._scrollListener);
-            this._scrollListener = null;
-        }
-
-        // 取消待执行的 rAF
-        if (this._scrollRafId !== null) {
-            cancelAnimationFrame(this._scrollRafId);
-            this._scrollRafId = null;
-        }
-
-        // 断开 ResizeObserver
-        if (this._resizeObserver) {
-            this._resizeObserver.disconnect();
-            this._resizeObserver = null;
-        }
-
-        // 断开 data-index MutationObserver
-        if (this._dataIndexObserver) {
-            this._dataIndexObserver.disconnect();
-            this._dataIndexObserver = null;
-        }
-
-        // 移除垫片元素
-        if (this._topSpacerEl && this._topSpacerEl.parentNode) {
-            this._topSpacerEl.parentNode.removeChild(this._topSpacerEl);
-        }
-        this._topSpacerEl = null;
-        if (this._spacerEl && this._spacerEl.parentNode) {
-            this._spacerEl.parentNode.removeChild(this._spacerEl);
-        }
-        this._spacerEl = null;
-
-        // 移除虚拟列表标记属性
-        if (this.el) {
-            this.el.removeAttribute(VIRTUAL_ATTR);
-        }
     }
 }

@@ -11,6 +11,7 @@ import type { ComponentDef } from "../features/component/component-def";
 import { installAutoComponentTag } from "../features/component/auto-component";
 import { DirectiveManager } from "../features/directive/manager";
 import { defineDirective as defineDirectiveImpl } from "../features/directive/global-queue";
+import { registerForStrategy, type ForRenderStrategy } from "../features/directive/for-strategy";
 import type { DirectiveSpec } from "../features/directive/global-queue";
 import { registerScriptType } from "../features/script-type";
 import type { AutoSparkScriptHandler } from "../features/script-type";
@@ -156,6 +157,17 @@ export class AutoSpark<
      */
     static precompile(fn: (engine: AutoSpark<any>, autospark: typeof AutoSpark) => void): void {
         registerPluginPrecompile(fn);
+    }
+
+    /**
+     * 注册 x-for 渲染策略（ADR-0128 决策 3——`.virtual` / `.paging` 修饰符的扩展点）：
+     * 指令本体与全量渲染核心内置于 engine，策略（窗口计算/分页状态机）经此注册——
+     * 插件形态分发（autospark.virtual.js / autospark.paging.js，选择性引入）。注册即
+     * 全局（跨 engine 单例）；声明修饰符而策略未注册时 x-for warn + 退化全量渲染
+     * （ADR-0041 决策 15「降级而非失效」延伸）。
+     */
+    static forStrategy(name: string, strategy: ForRenderStrategy): void {
+        registerForStrategy(name, strategy);
     }
 
     /**
