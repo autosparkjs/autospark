@@ -14,7 +14,19 @@
 </head>
 <body>
     <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
-    <main class="demo-main">
+    <!-- 涟漪配置对象一律放外层状态再路径引用——props 字面量嵌套对象存在引用比较层面的更新环
+         缺陷（引擎侧修复中，与 tags 数组同根因），字面量写法会死锁页面 -->
+    <main class="demo-main" x-data="{
+        ripClick: { trigger: 'click' },
+        ripAlways: { trigger: 'always' },
+        ripHover: { inside: false, trigger: 'hover' },
+        ripEcho: { inside: false, type: 'echo', trigger: 'always' },
+        ripRing: { inside: false, type: 'ring', trigger: 'always' },
+        ripGlow: { inside: false, type: 'glow', trigger: 'hover' },
+        ripRed: { color: 'red' },
+        ripFast: { speed: 300 },
+        ripSlow: { speed: 1200 }
+    }">
         <div class="auto-card">
             <div class="auto-card-header">点击涟漪（默认）：ripple: true ≡ { trigger: "click", inside: true }</div>
             <div class="auto-card-body">
@@ -33,9 +45,9 @@
             <div class="auto-card-header">触发器（trigger）：点击 click / 始终 always / 悬停 hover</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ label: '点击触发', ripple: { trigger: 'click' } }"></button>
-                    <button x-component:autospark.button="{ label: '始终涟漪', ripple: { trigger: 'always' } }"></button>
-                    <button x-component:autospark.button="{ label: '悬停触发', ripple: { inside: false, trigger: 'hover' } }"></button>
+                    <button x-component:autospark.button="{ label: '点击触发', ripple: ripClick }"></button>
+                    <button x-component:autospark.button="{ label: '始终涟漪', ripple: ripAlways }"></button>
+                    <button x-component:autospark.button="{ label: '悬停触发', ripple: ripHover }"></button>
                 </div>
                 <p class="hint">
                     <code>click</code> 播一个周期自止（缺省）；<code>always</code> 自中心持续循环；<code>hover</code> 移入播放、移出播完当前周期即停。
@@ -47,10 +59,10 @@
             <div class="auto-card-header">动画形态（type）：inside 内部铺开 / echo 双环回声 / ring 外扩环 / glow 光晕呼吸</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ label: 'inside 内铺', ripple: { trigger: 'click' } }"></button>
-                    <button x-component:autospark.button="{ label: 'echo 回声', ripple: { inside: false, type: 'echo', trigger: 'always' } }"></button>
-                    <button x-component:autospark.button="{ label: 'ring 外扩环', ripple: { inside: false, type: 'ring', trigger: 'always' } }"></button>
-                    <button x-component:autospark.button="{ label: 'glow 光晕', ripple: { inside: false, type: 'glow', trigger: 'hover' } }"></button>
+                    <button x-component:autospark.button="{ label: 'inside 内铺', ripple: ripClick }"></button>
+                    <button x-component:autospark.button="{ label: 'echo 回声', ripple: ripEcho }"></button>
+                    <button x-component:autospark.button="{ label: 'ring 外扩环', ripple: ripRing }"></button>
+                    <button x-component:autospark.button="{ label: 'glow 光晕', ripple: ripGlow }"></button>
                 </div>
                 <p class="hint">
                     <code>inside</code>（缺省）自点击点在按钮内部铺开；<code>inside: false</code> 后切换为外扩族——<code>echo</code> 双环回声 / <code>ring</code> 单环外扩 / <code>glow</code> 光晕呼吸。inside 与外扩形态互斥（同时声明时 type 被 warn 忽略）。
@@ -62,9 +74,9 @@
             <div class="auto-card-header">视觉参数：color / speed 透传</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ label: '红色涟漪', ripple: { color: 'red' } }"></button>
-                    <button x-component:autospark.button="{ label: '快速涟漪', ripple: { speed: 300 } }"></button>
-                    <button x-component:autospark.button="{ label: '缓慢涟漪', ripple: { speed: 1200 } }"></button>
+                    <button x-component:autospark.button="{ label: '红色涟漪', ripple: ripRed }"></button>
+                    <button x-component:autospark.button="{ label: '快速涟漪', ripple: ripFast }"></button>
+                    <button x-component:autospark.button="{ label: '缓慢涟漪', ripple: ripSlow }"></button>
                 </div>
                 <p class="hint">
                     ripple 对象即 <code>x-ripple</code> 的 props 值，全部键面（color / size / speed / gap / badge…）透传——完整词表见 <code>x-ripple</code> 指令文档。

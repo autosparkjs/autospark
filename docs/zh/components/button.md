@@ -147,7 +147,11 @@ Button 是 AutoSpark 的官方按钮组件：**形态（type）与语义色（co
 
 **默认**: `[]`
 
-在按钮最右侧渲染一组小一号的圆形小按钮，具有独立的点击事件（冒泡 `tag-click`，携带 `name`——详见「事件」）。tag 背景按按钮内容色派生（实底上呈淡白、透明底上呈淡灰、幽灵上呈淡语义色），与按钮主背景形成色差；`tooltip` 走原生 title 悬停提示。**数组建议放外层状态再路径引用**（`tags: myTags`）——props 字面量数组存在引用比较层面的更新环缺陷（引擎侧修复中）。
+在按钮最右侧渲染一组小一号的圆形小按钮，具有独立的点击事件（冒泡 `tag-click`，携带 `name`——详见「事件」）。tag 背景按按钮内容色派生（实底上呈淡白、透明底上呈淡灰、幽灵上呈淡语义色），与按钮主背景形成色差；`tooltip` 走原生 title 悬停提示。
+
+::: warning
+**嵌套对象 / 数组 props（tags、ripple 的对象形态）必须放外层状态再路径引用**（`tags: myTags`、`ripple: myRipConf`）——props 字面量嵌套值存在引用比较层面的更新环缺陷（引擎侧修复中），**字面量写法会死锁页面**；原始值（布尔 / 字符串 / 数字）与路径引用不受影响。
+:::
 
 <demo html="components/button/tags.html"/>
 
@@ -185,7 +189,7 @@ Button 是 AutoSpark 的官方按钮组件：**形态（type）与语义色（co
 
 **默认**: `false`
 
-`ripple` 就是 [`x-ripple`](../guide/directives/x-ripple.md) 的 props 值：`false`（默认）不启用；`true` 以缺省配置 **`{ trigger: "click", inside: true }`** 挂载——点击时自点击点在按钮内部铺开（圆角跟随、连点取消重起），播一个完整周期自止。传对象即最终配置、全键可覆盖缺省：
+`ripple` 就是 [`x-ripple`](../guide/directives/x-ripple.md) 的 props 值：`false`（默认）不启用；`true` 以缺省配置 **`{ trigger: "click", inside: true }`** 挂载——点击时自点击点在按钮内部铺开（圆角跟随、连点取消重起），播一个完整周期自止。传对象即最终配置、全键可覆盖缺省（**对象须放外层状态路径引用**，见下方警示）：
 
 - **触发器 `trigger`**：`click`（缺省，点击播一个周期）/ `always`（始终循环播放）/ `hover`（悬停播放、移出播完即停）
 - **动画形态 `type`**：`inside`（缺省，按钮内部铺开）为独立键；`inside: false` 切换为外扩族——`echo` 双环回声 / `ring` 单环外扩 / `glow` 光晕呼吸（inside 与外扩形态互斥）
