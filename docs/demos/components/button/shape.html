@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 形状</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">圆形（shape: circle）——纯图标呈正圆，带文字自动呈胶囊</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <button x-component:autospark.button="{ shape: 'circle', icon: 'edit', label: '' }"></button>
+                    <button x-component:autospark.button="{ type: 'secondary', shape: 'circle', icon: 'menu', label: '' }"></button>
+                    <button x-component:autospark.button="{ color: 'danger', shape: 'circle', icon: 'error', label: '' }"></button>
+                    <button x-component:autospark.button="{ shape: 'circle', icon: 'bell', label: '胶囊' }"></button>
+                    <button x-component:autospark.button="{ type: 'secondary', shape: 'circle', label: '文字胶囊' }"></button>
+                </div>
+                <p class="hint">
+                    纯图标用法须显式 <code>label: ''</code>（label 默认「按钮」非空会占位）；带文字时不报错、自动降级为胶囊形。右侧「圆角」档位对 circle 无效（恒 9999px）。
+                </p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 菜单形态</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+        .menu-box {
+            width: 230px;
+            border: var(--auto-border, 1px solid rgba(128, 128, 128, 0.3));
+            border-radius: 8px;
+            padding: 6px;
+        }
+    </style>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <main class="demo-main" x-data="{ pickedMenu: false }">
+        <div class="auto-card">
+            <div class="auto-card-header">菜单项形态（menu）：占满宽、透明底、左对齐、hover 淡底</div>
+            <div class="auto-card-body" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+                <div class="menu-box">
+                    <button x-component:autospark.button="{ menu: true, icon: 'folder-open', label: '打开文件' }"></button>
+                    <button x-component:autospark.button="{ menu: true, icon: 'copy', label: '复制副本' }"></button>
+                    <button x-component:autospark.button="{ menu: true, icon: 'external', label: '在浏览器打开' }"></button>
+                </div>
+                <div class="menu-box">
+                    <span @change="pickedMenu = $event.detail.value">
+                        <button x-component:autospark.button="{ menu: true, checkable: true, value: pickedMenu, icon: 'star', label: '收藏夹' }"></button>
+                    </span>
+                    <span>pickedMenu = <b>{{ pickedMenu }}</b></span>
+                    <p class="hint" style="margin-top:6px;">menu + checkable：勾选态呈左竖条 + 淡色底（消费 --auto-selected-* 变量）。</p>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 纵排标签</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">纵排标签（labelBelow）：label 显示在图标下方</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+                    <button x-component:autospark.button="{ type: 'secondary', icon: 'folder-open', label: '文件', labelBelow: true }"></button>
+                    <button x-component:autospark.button="{ type: 'secondary', icon: 'star', label: '收藏', labelBelow: true }"></button>
+                    <button x-component:autospark.button="{ icon: 'copy', label: '副本', labelBelow: true }"></button>
+                    <button x-component:autospark.button="{ type: 'dashed', color: 'danger', icon: 'error', label: '删除', labelBelow: true }"></button>
+                </div>
+                <p class="hint">工具栏 / 画布操作区常用形态；图标与文字间距随字号档位（右侧「尺寸」档）自动跟随。</p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

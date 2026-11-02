@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 加载状态</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <main class="demo-main" x-data="{ submitting: false }">
+        <div class="auto-card">
+            <div class="auto-card-header">加载中（loading）：图标位转圈并禁点</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <button x-component:autospark.button="{ icon: 'edit', label: '保存中', loading: true }"></button>
+                    <button x-component:autospark.button="{ type: 'secondary', label: '提交中', loading: true }"></button>
+                    <!-- loading 经状态驱动：点击后异步 1.5s 复位 -->
+                    <span @click="submitting = true; setTimeout(() => submitting = false, 1500)">
+                        <button x-component:autospark.button="{ color: 'success', icon: 'checked', label: '提交', loading: submitting }"></button>
+                    </span>
+                    <span class="hint">submitting = <b>{{ submitting }}</b></span>
+                </div>
+                <p class="hint">
+                    loading 替换左图标位为转圈图标（自带 SMIL 动画），同时按钮禁点（光标 progress、视觉不淡化）——loading 优先于 disabled 的视觉呈现。
+                </p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

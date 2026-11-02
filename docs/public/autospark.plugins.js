@@ -806,10 +806,12 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             this.watch("loading", ({ value }) => { syncDisabled(); });
 
             // 涟漪动态挂载（ADR-0010 运行时契约：不经编译、直接写属性即生效）；
+            // ripple 即 x-ripple 的 props 值：false 不启用；启用时缺省 { trigger: "click", inside: true }
+            // （点击播一个周期自止、约束按钮内部），对象形态即最终配置、全键可覆盖缺省；
             // 需页面已加载 autospark.ripple.js，未加载时属性无人消费、静默无害
             const syncRipple = () => {
                 const conf = this.data.ripple;
-                if (conf) this.el.setAttribute("x-ripple", JSON.stringify(typeof conf === "object" ? { ...conf, inside: true } : { inside: true }));
+                if (conf) this.el.setAttribute("x-ripple", JSON.stringify(typeof conf === "object" ? { trigger: "click", inside: true, ...conf } : { trigger: "click", inside: true }));
                 else this.el.removeAttribute("x-ripple");
             };
             syncRipple();
@@ -1002,6 +1004,10 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       align-items: center;
       min-width: 0;
     }
+    /* 空内容不占位：纯图标用法（label 空）时出口与主文本组整体隐藏，消除 gap/行高占位；
+         插槽有内容时出口非空不命中，不受影响 */
+    .asc-button-label:empty { display: none; }
+    .asc-button-main:has(> .asc-button-label:empty):not(:has(> .asc-button-memo)) { display: none; }
     .asc-button-body[data-align="left"] .asc-button-main { align-items: flex-start; }
     .asc-button-body[data-align="right"] .asc-button-main { align-items: flex-end; }
 
@@ -1018,6 +1024,8 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       gap: 0.25em;
       margin-left: 0.35em;
     }
+    /* x-for 克隆载体盒消失，圆钮直接成为容器 flex 项 */
+    .asc-button-tag-item { display: contents; }
     .asc-button-tag {
       display: inline-flex;
       align-items: center;
@@ -1028,9 +1036,11 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       border-radius: 50%;
       color: var(--asc-ink);
       cursor: pointer;
+      /* 常态即与按钮主背景形成色差：按内容色派生淡底（实底上呈淡白、透明底上呈淡灰/淡语义色） */
+      background: color-mix(in srgb, var(--asc-ink, currentColor) 12%, transparent);
     }
     .asc-button-tag:hover {
-      background: color-mix(in srgb, currentColor 15%, transparent);
+      background: color-mix(in srgb, var(--asc-ink, currentColor) 28%, transparent);
     }
     .asc-button-tag-icon {
       display: inline-flex;
@@ -1098,9 +1108,12 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       <span class="asc-button-memo" x-if="memo">{{ memo }}</span>
     </span>
     <span class="asc-button-tags" x-if="tags && tags.length">
-      <span class="asc-button-tag" x-for="tag of tags" :key="tag.name || tag.icon"
-        :title="tag.tooltip" @click="onTagClick(tag, $event)">
-        <i class="asc-button-tag-icon" x-if="tag.icon" x-icon="tag.icon"></i>
+      <!-- x-for 宿主自身的绑定不被编译（ownsChildren 接管子树编译），故宿主为纯克隆载体，
+             tag 圆钮与绑定（title/点击）在内层元素上，x-for locals（tag）在内层可见 -->
+      <span class="asc-button-tag-item" x-for="tag of tags" :key="tag.name || tag.icon">
+        <i class="asc-button-tag" :title="tag.tooltip" @click="onTagClick(tag, $event)">
+          <i class="asc-button-tag-icon" x-if="tag.icon" x-icon="tag.icon"></i>
+        </i>
       </span>
     </span>
   </span>

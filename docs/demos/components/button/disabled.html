@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 禁用</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <main class="demo-main" x-data="{ off: false }">
+        <div class="auto-card">
+            <div class="auto-card-header">禁用（disabled）：淡化 + 不可点击</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <button x-component:autospark.button="{ label: '禁用主钮', disabled: true }"></button>
+                    <button x-component:autospark.button="{ type: 'dashed', color: 'danger', label: '禁用虚线', disabled: true }"></button>
+                    <button x-component:autospark.button="{ type: 'text', label: '禁用文本', disabled: true }"></button>
+                    <!-- 状态驱动：包裹元素开关 -->
+                    <span @click="off = !off">
+                        <button x-component:autospark.button="{ type: 'secondary', label: '点我切换禁用', disabled: off }"></button>
+                    </span>
+                </div>
+                <p class="hint">disabled 同步为宿主原生属性——表单提交、焦点、键盘激活全链路禁用。</p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

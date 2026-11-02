@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 标签组</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <!-- tags 数组放外层状态再路径引用——props 字面量数组存在引用比较层面的更新环缺陷（引擎侧修复中） -->
+    <main class="demo-main" x-data="{
+        fileTags: [
+            { name: 'settings', icon: 'edit', tooltip: '设置' },
+            { name: 'remove', icon: 'error', tooltip: '移除' }
+        ],
+        oneTag: [{ name: 'more', icon: 'more', tooltip: '更多' }],
+        lastTag: '（未点击）'
+    }">
+        <div class="auto-card">
+            <div class="auto-card-header">标签组（tags）：右侧小一号圆形小按钮，独立点击</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                    <span @tag-click="lastTag = $event.detail.name">
+                        <button x-component:autospark.button="{ icon: 'file', label: '年度报告', tags: fileTags }"></button>
+                    </span>
+                    <span>最近点击 tag：<b>{{ lastTag }}</b></span>
+                </div>
+                <p class="hint">
+                    tags 项为 <code>{icon?, tooltip?, name?}</code>——tooltip 走原生 title 悬停；tag 点击冒泡 <code>tag-click</code>（detail 携带 name），且不触发按钮自身的点击 / 勾选翻转。tag 背景按按钮内容色派生，与主背景形成色差。
+                </p>
+            </div>
+        </div>
+        <div class="auto-card">
+            <div class="auto-card-header">各语义色下的 tags（实底上呈淡白圆钮）</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                    <button x-component:autospark.button="{ color: 'primary', icon: 'file', label: '默认', tags: oneTag }"></button>
+                    <button x-component:autospark.button="{ color: 'success', icon: 'file', label: '成功', tags: oneTag }"></button>
+                    <button x-component:autospark.button="{ color: 'warning', icon: 'file', label: '警告', tags: oneTag }"></button>
+                    <button x-component:autospark.button="{ color: 'danger', icon: 'file', label: '危险', tags: oneTag }"></button>
+                    <button x-component:autospark.button="{ color: 'info', icon: 'file', label: '信息', tags: oneTag }"></button>
+                </div>
+            </div>
+        </div>
+        <div class="auto-card">
+            <div class="auto-card-header">各形态下的 tags（透明底上呈淡灰 / ghost 上呈淡语义色）</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                    <button x-component:autospark.button="{ type: 'secondary', icon: 'file', label: '次底', tags: oneTag }"></button>
+                    <button x-component:autospark.button="{ type: 'dashed', color: 'danger', icon: 'file', label: '虚线', tags: oneTag }"></button>
+                    <button x-component:autospark.button="{ ghost: true, color: 'success', icon: 'file', label: '幽灵', tags: oneTag }"></button>
+                    <button x-component:autospark.button="{ type: 'text', icon: 'file', label: '文本', tags: oneTag }"></button>
+                    <button x-component:autospark.button="{ type: 'secondary', checkable: true, value: true, icon: 'file', label: '勾选实底', tags: oneTag }"></button>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

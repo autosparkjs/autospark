@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 备注信息</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">备注（memo）：label 下方的注释（小一号、淡色）</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                    <button x-component:autospark.button="{ icon: 'star', label: '收藏', memo: '按 ⌘ + D 快速收藏' }"></button>
+                    <button x-component:autospark.button="{ type: 'secondary', label: '导出', memo: '仅支持 PNG 格式' }"></button>
+                    <button x-component:autospark.button="{ type: 'secondary', icon: 'folder', label: '文件夹', labelBelow: true, memo: '共 128 项' }"></button>
+                </div>
+                <p class="hint">
+                    memo 与 labelBelow 自由组合（纵排时 memo 在 label 正下方）；实底上 memo 自动呈淡白（按内容色 color-mix 派生），透明底上呈淡灰。
+                </p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

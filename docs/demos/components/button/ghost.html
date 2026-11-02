@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 幽灵按钮</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+        .colored-bg {
+            background: linear-gradient(135deg, #4a72d8, #7a4ad8);
+            padding: 14px;
+            border-radius: 8px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .warm-bg {
+            background: linear-gradient(135deg, #d84a4a, #d88a4a);
+            margin-top: 10px;
+        }
+        .bg-label { color: rgba(255, 255, 255, 0.85); font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls groups="color"></theme-controls></aside>
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">幽灵（ghost）：背景透明、内容取语义色，常用在有色背景上</div>
+            <div class="auto-card-body">
+                <div class="colored-bg">
+                    <span class="bg-label">冷色背景：</span>
+                    <button x-component:autospark.button="{ ghost: true, label: '幽灵主钮' }"></button>
+                    <button x-component:autospark.button="{ type: 'secondary', ghost: true, label: '幽灵次钮' }"></button>
+                </div>
+                <div class="colored-bg warm-bg">
+                    <span class="bg-label">暖色背景（换语义色）：</span>
+                    <button x-component:autospark.button="{ ghost: true, color: 'danger', label: '危险幽灵' }"></button>
+                    <button x-component:autospark.button="{ ghost: true, color: 'warning', label: '警告幽灵' }"></button>
+                </div>
+                <p class="hint">ghost 可与任意形态 / 语义色组合——内容与描边取当前 color 的语义色。</p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

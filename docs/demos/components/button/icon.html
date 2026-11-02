@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 图标</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">图标（icon，经 x-icon 渲染内置图标）</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <button x-component:autospark.button="{ icon: 'menu', label: '菜单' }"></button>
+                    <button x-component:autospark.button="{ icon: 'bell', label: '通知' }"></button>
+                    <button x-component:autospark.button="{ type: 'secondary', icon: 'folder', label: '文件夹' }"></button>
+                    <button x-component:autospark.button="{ type: 'dashed', color: 'success', icon: 'star', label: '收藏' }"></button>
+                </div>
+                <p class="hint">图标尺寸消费 <code>--auto-icon-size</code>/字号档位（默认 1em 跟随文字），右侧面板调「尺寸」档试试。</p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

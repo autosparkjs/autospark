@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 块级按钮</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">块级（block）：适配父宽度</div>
+            <div class="auto-card-body" style="max-width: 360px;">
+                <button x-component:autospark.button="{ block: true, label: '块级主按钮' }"></button>
+                <div style="height:8px"></div>
+                <button x-component:autospark.button="{ type: 'dashed', block: true, label: '块级虚线按钮' }"></button>
+                <div style="height:8px"></div>
+                <div style="display:flex;gap:8px;">
+                    <button x-component:autospark.button="{ block: true, label: '块级平分' }"></button>
+                    <button x-component:autospark.button="{ type: 'secondary', block: true, label: '块级平分' }"></button>
+                </div>
+                <p class="hint">普通按钮保持 inline 尺寸，block 后 width:100% 撑满父容器。</p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

@@ -70,7 +70,7 @@ description: 在 autospark monorepo 内创建官方组件（每个组件同时�
 1. `packages/plugins/vite.config.ts` 的 `CLOSURE_ARTIFACTS`（IIFE 产物构建清单）
 2. `packages/plugins/src/index.ts` 聚合入口（副作用导入）
 3. demo：`docs/demos/components/<name>/basic.html`（纯 HTML 可运行）
-4. 文档：`docs/zh/components/<name>.md`
+4. 文档：`docs/zh/components/<name>.md`（开发完成后必须编写，统一目录结构：概述 → 快速入门 → 指南（逐属性/特性小节 + 事件）→ 参考（属性/事件/Slots 速查表））
 5. 侧边栏：`docs/.vitepress/config/index.ts` 中 `"/zh/components/": []` 数组
 
 ## 第六步：构建与验证

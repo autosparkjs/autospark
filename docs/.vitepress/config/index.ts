@@ -66,7 +66,6 @@ export default defineConfig({
               ],
             },
             { text: "动作", link: "/zh/guide/engine/action" },
-            { text: "资源", link: "/zh/guide/engine/resource" },
             { text: "错误处理", link: "/zh/guide/engine/error" },
             {
               text: "指令",
@@ -164,10 +163,9 @@ export default defineConfig({
                 { text: "性能优化", link: "/zh/guide/engine/router/performance" },
                 { text: "常见问题", link: "/zh/guide/engine/router/faq" },
               ]
-            }, {
-              text: "多语言",
-              link: "/zh/guide/engine/language",
-            },
+            }, 
+            { text: "资源", link: "/zh/guide/engine/resource" },
+            { text: "多语言",link: "/zh/guide/engine/language"},
             {
               text: "版本",
               link: "/zh/guide/engine/version",

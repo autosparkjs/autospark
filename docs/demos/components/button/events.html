@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 事件</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+        .event-log {
+            font-size: 0.8rem;
+            color: var(--auto-secondary-color, #666);
+            margin: 0.4rem 0;
+            padding: 0;
+            list-style: none;
+        }
+        .event-log code { color: var(--auto-theme-color, #1677ff); }
+    </style>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <main class="demo-main" x-data="{
+        picked: false,
+        logs: ['（暂无事件）'],
+        fileTags: [{ name: 'settings', icon: 'edit', tooltip: '设置' }, { name: 'remove', icon: 'error', tooltip: '移除' }]
+    }">
+        <div class="auto-card">
+            <div class="auto-card-header">change（checkable 翻转）与 tag-click（tags 小圆钮）</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                    <span @change="(picked = $event.detail.value, logs = [...logs.slice(-4), 'change → ' + JSON.stringify($event.detail)])">
+                        <button x-component:autospark.button="{ type: 'secondary', checkable: true, value: picked, label: '仅看优惠' }"></button>
+                    </span>
+                    <span @tag-click="logs = [...logs.slice(-4), 'tag-click → ' + JSON.stringify($event.detail)]">
+                        <button x-component:autospark.button="{ icon: 'file', label: '年度报告', tags: fileTags }"></button>
+                    </span>
+                    <span @click="logs = [...logs.slice(-4), 'click → 外层包裹冒泡']">
+                        <button x-component:autospark.button="{ type: 'text', label: '普通点击' }"></button>
+                    </span>
+                </div>
+                <ul class="event-log">
+                    <li x-for="l of logs"><code>{{ l }}</code></li>
+                </ul>
+                <p class="hint">
+                    组件默认封闭——事件绑定写在<b>组件外的包裹元素</b>上（外层域求值）；tag 点击已阻断宿主（不触发 checkable 翻转与 click）。
+                </p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

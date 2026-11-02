@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 装饰边框</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">装饰边框（border，默认 false）</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <button x-component:autospark.button="{ type: 'secondary', label: '默认无边框' }"></button>
+                    <button x-component:autospark.button="{ type: 'secondary', border: true, label: '加边框' }"></button>
+                    <button x-component:autospark.button="{ type: 'text', label: '文本无边框' }"></button>
+                    <button x-component:autospark.button="{ type: 'text', border: true, label: '文本加边框' }"></button>
+                </div>
+                <p class="hint">
+                    border 只管「装饰性附加边框」，不干预形态固有的边框——dashed 的虚线、ghost 的语义色描边不受它控制；边框颜色消费 <code>--auto-border-color</code>。
+                </p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

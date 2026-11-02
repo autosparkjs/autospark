@@ -81,34 +81,60 @@ import "./components/<name>/index";
 
 ## ④ 组件文档 md
 
-落位 `docs/zh/components/<name>.md`。骨架：
+落位 `docs/zh/components/<name>.md`——组件开发完成后**必须编写**，统一目录结构：
 
 ```markdown
 # <Name> 组件
 
-一句话定位（做什么、何时用）。
+一句话定位（做什么、何时用）+ 引入方式：`<script src="/autospark/autospark.<name>.js"></script>`
+（引擎之后），或聚合产物 `autospark.plugins.js`。
 
-引入方式：`<script src="autospark.autospark.<name>.js"></script>`（引擎之后），
-或聚合产物 `autospark.plugins.js`。
+## 概述
 
-## 基础用法
+## 快速入门
 
-说明 + 属性表（props 名 / 类型 / 默认值 / 说明）。
+最简实例化示例 + demo
 
 <demo html="components/<name>/basic.html"/>
 
-## 变体与尺寸
+## 指南
 
-（type/size 变体、暗色模式等场景，各嵌一个 demo）
+<!-- 逐属性（特性）一节：类型/默认元信息行 + 用途说明 + 场景 demo -->
 
-<demo html="components/<name>/variants.html"/>
+### <属性/特性名>
 
-## 主题化
+**类型**: ``
+**默认**: ``
 
-组件消费的 `--auto-*` 语义变量清单 + 使用者覆盖通道（`--asc-<name>-*`）示例。
+介绍该属性（特性）的用途，附场景 demo：
+
+<demo html="components/<name>/<场景>.html"/>
+
+### 事件
+
+事件说明 + demo
+
+## 参考
+
+### 属性
+
+| 属性 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+
+### 事件
+
+| 事件 | 参数 | 说明 |
+|---|---|---|
+
+### Slots
+
+| 插槽 | 说明 |
+|---|---|
 ```
 
-demo 嵌入语法：`<demo html="路径"/>`，路径相对 `docs/demos/`（不带扩展名的目录路径 + 文件名，如 `components/<name>/basic.html`）。
+结构要点：**概述 → 快速入门 → 指南**（逐属性/特性小节，各带类型/默认/用途/`<demo>`；事件为指南内同层级一节）→ **参考**（属性/事件/Slots 三张速查表）。指南讲「怎么用」、参考供「速查」，两者都要——勿只留其一。主题化说明（`--auto-*` 变量消费与 `--asc-<name>-*` 覆盖通道）并入指南或概述。
+
+demo 嵌入语法：`<demo html="路径"/>`，路径相对 `docs/demos/`（目录路径 + 文件名，如 `components/<name>/basic.html`）。
 
 ## ⑤ 侧边栏
 

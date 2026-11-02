@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 内容对齐</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">内容对齐（align，默认 center）——block 等宽内容时可见</div>
+            <div class="auto-card-body" style="max-width: 360px;display:flex;flex-direction:column;gap:8px;">
+                <button x-component:autospark.button="{ block: true, icon: 'menu', label: '居左内容', align: 'left' }"></button>
+                <button x-component:autospark.button="{ block: true, icon: 'menu', label: '居中内容（默认）' }"></button>
+                <button x-component:autospark.button="{ block: true, icon: 'menu', label: '居右内容', align: 'right' }"></button>
+            </div>
+            <p class="hint" style="padding: 0 1rem 0.8rem;">align 管按钮<b>内部内容</b>的水平对齐；按钮自身在页面中的位置交由父级布局。</p>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>
