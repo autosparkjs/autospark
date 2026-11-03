@@ -8,32 +8,39 @@
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
     <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
 </head>
 <body>
     <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
     <main class="demo-main">
         <div class="auto-card">
-            <div class="auto-card-header">五种语义色（color）</div>
+            <div class="auto-card-header">五种语义色（type，实底形态 variant: primary）</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ color: 'primary', label: '默认' }"></button>
-                    <button x-component:autospark.button="{ color: 'success', label: '成功' }"></button>
-                    <button x-component:autospark.button="{ color: 'warning', label: '警告' }"></button>
-                    <button x-component:autospark.button="{ color: 'danger', label: '危险' }"></button>
-                    <button x-component:autospark.button="{ color: 'info', label: '信息' }"></button>
+                    <x-button variant="primary" type="primary" label="默认"></x-button>
+                    <x-button variant="primary" type="success" label="成功"></x-button>
+                    <x-button variant="primary" type="warning" label="警告"></x-button>
+                    <x-button variant="primary" type="danger" label="危险"></x-button>
+                    <x-button variant="primary" type="info" label="信息"></x-button>
                 </div>
+                <p class="hint">
+                    语义色取 theme 的 <code>--auto-*-color</code> 变量——右侧面板换主题色，primary 系按钮即时跟随；<b>语义色背景须搭配实底形态</b>（<code>variant: 'primary'</code>）。
+                </p>
             </div>
         </div>
         <div class="auto-card">
-            <div class="auto-card-header">与任意形态自由组合</div>
+            <div class="auto-card-header">语义色随形态的呈现差异</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ type: 'dashed', color: 'danger', label: '危险虚线' }"></button>
-                    <button x-component:autospark.button="{ type: 'secondary', color: 'success', label: '成功次底' }"></button>
-                    <button x-component:autospark.button="{ type: 'link', color: 'warning', label: '警告链接' }"></button>
+                    <x-button type="danger" label="危险默认"></x-button>
+                    <x-button variant="dashed" type="danger" label="危险虚线"></x-button>
+                    <x-button variant="secondary" type="success" label="成功次底"></x-button>
+                    <x-button variant="link" type="warning" label="警告链接"></x-button>
                 </div>
-                <p class="hint">语义色取 theme 的 <code>--auto-*-color</code> 变量——右侧面板换主题色，primary 系按钮即时跟随。</p>
+                <p class="hint">
+                    <code>default</code>（缺省形态）下语义色呈<b>描边与文字</b>（危险默认 = 红边红字，对齐 antd outlined）——primary 语义色为缺省值豁免保持中性；其余形态取实底 / 虚线边 / 文字色。
+                </p>
             </div>
         </div>
     </main>

@@ -8,22 +8,24 @@
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
     <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
 </head>
 <body>
     <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
     <main class="demo-main">
         <div class="auto-card">
-            <div class="auto-card-header">五种形态（type）</div>
+            <div class="auto-card-header">六种形态（variant，默认 default）</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ type: 'primary', label: '主按钮' }"></button>
-                    <button x-component:autospark.button="{ type: 'secondary', label: '次按钮' }"></button>
-                    <button x-component:autospark.button="{ type: 'dashed', label: '虚线按钮' }"></button>
-                    <button x-component:autospark.button="{ type: 'text', label: '文本按钮' }"></button>
-                    <button x-component:autospark.button="{ type: 'link', label: '链接按钮' }"></button>
+                    <x-button label="常规按钮"></x-button>
+                    <x-button variant="primary" label="主按钮"></x-button>
+                    <x-button variant="secondary" label="次按钮"></x-button>
+                    <x-button variant="dashed" label="虚线按钮"></x-button>
+                    <x-button variant="text" label="文本按钮"></x-button>
+                    <x-button variant="link" label="链接按钮"></x-button>
                 </div>
-                <p class="hint">形态只决定「长相」（实底 / 次底 / 虚线 / 纯文本 / 链接），颜色归 <code>color</code> 管。</p>
+                <p class="hint">形态只决定「长相」（实底 / 次底 / 虚线 / 纯文本 / 链接），颜色归 <code>type</code> 管。</p>
             </div>
         </div>
     </main>

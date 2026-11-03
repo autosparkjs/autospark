@@ -8,6 +8,7 @@
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
     <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
 </head>
 <body>
@@ -16,13 +17,13 @@
         <div class="auto-card">
             <div class="auto-card-header">块级（block）：适配父宽度</div>
             <div class="auto-card-body" style="max-width: 360px;">
-                <button x-component:autospark.button="{ block: true, label: '块级主按钮' }"></button>
+                <x-button block="true" label="块级主按钮"></x-button>
                 <div style="height:8px"></div>
-                <button x-component:autospark.button="{ type: 'dashed', block: true, label: '块级虚线按钮' }"></button>
+                <x-button variant="dashed" block="true" label="块级虚线按钮"></x-button>
                 <div style="height:8px"></div>
                 <div style="display:flex;gap:8px;">
-                    <button x-component:autospark.button="{ block: true, label: '块级平分' }"></button>
-                    <button x-component:autospark.button="{ type: 'secondary', block: true, label: '块级平分' }"></button>
+                    <x-button block="true" label="块级平分"></x-button>
+                    <x-button variant="secondary" block="true" label="块级平分"></x-button>
                 </div>
                 <p class="hint">普通按钮保持 inline 尺寸，block 后 width:100% 撑满父容器。</p>
             </div>

@@ -8,6 +8,7 @@
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
     <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
 </head>
 <body>
@@ -17,11 +18,11 @@
             <div class="auto-card-header">加载中（loading）：图标位转圈并禁点</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ icon: 'edit', label: '保存中', loading: true }"></button>
-                    <button x-component:autospark.button="{ type: 'secondary', label: '提交中', loading: true }"></button>
+                    <x-button icon="edit" label="保存中" loading="true"></x-button>
+                    <x-button variant="secondary" label="提交中" loading="true"></x-button>
                     <!-- loading 经状态驱动：点击后异步 1.5s 复位 -->
                     <span @click="submitting = true; setTimeout(() => submitting = false, 1500)">
-                        <button x-component:autospark.button="{ color: 'success', icon: 'checked', label: '提交', loading: submitting }"></button>
+                        <x-button type="success" icon="checked" label="提交" :loading="submitting"></x-button>
                     </span>
                     <span class="hint">submitting = <b>{{ submitting }}</b></span>
                 </div>

@@ -8,6 +8,7 @@
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
     <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
 </head>
 <body>
@@ -17,10 +18,10 @@
             <div class="auto-card-header">装饰边框（border，默认 false）</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ type: 'secondary', label: '默认无边框' }"></button>
-                    <button x-component:autospark.button="{ type: 'secondary', border: true, label: '加边框' }"></button>
-                    <button x-component:autospark.button="{ type: 'text', label: '文本无边框' }"></button>
-                    <button x-component:autospark.button="{ type: 'text', border: true, label: '文本加边框' }"></button>
+                    <x-button variant="secondary" label="默认无边框"></x-button>
+                    <x-button variant="secondary" border="true" label="加边框"></x-button>
+                    <x-button variant="text" label="文本无边框"></x-button>
+                    <x-button variant="text" border="true" label="文本加边框"></x-button>
                 </div>
                 <p class="hint">
                     border 只管「装饰性附加边框」，不干预形态固有的边框——dashed 的虚线、ghost 的语义色描边不受它控制；边框颜色消费 <code>--auto-border-color</code>。

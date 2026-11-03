@@ -8,6 +8,7 @@
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
     <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
 </head>
 <body>
@@ -17,9 +18,9 @@
             <div class="auto-card-header">汉字空格（autoInsertSpace，默认 true）</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ label: '提交' }"></button>
-                    <button x-component:autospark.button="{ label: '提交', autoInsertSpace: false }"></button>
-                    <button x-component:autospark.button="{ label: '确定取消' }"></button>
+                    <x-button label="提交"></x-button>
+                    <x-button label="提交" autoInsertSpace="false"></x-button>
+                    <x-button label="确定取消"></x-button>
                 </div>
                 <p class="hint">
                     label 恰为<b>两个汉字</b>时自动在中间插入空格（左：提交 → 「提 交」，视觉更均衡）；设 <code>autoInsertSpace: false</code> 关闭（右一）。三字及以上不受影响（右二）。

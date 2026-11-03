@@ -31,9 +31,9 @@
             <div class="auto-card-header">点击涟漪（默认）：ripple: true ≡ { trigger: "click", inside: true }</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ icon: 'bell', label: '点我出涟漪', ripple: true }"></button>
-                    <button x-component:autospark.button="{ type: 'secondary', icon: 'menu', label: '次底涟漪', ripple: true }"></button>
-                    <button x-component:autospark.button="{ shape: 'circle', icon: 'star', label: '', ripple: true }"></button>
+                    <x-button icon="bell" label="点我出涟漪" ripple="true"></x-button>
+                    <x-button variant="secondary" icon="menu" label="次底涟漪" ripple="true"></x-button>
+                    <x-button shape="circle" icon="star" label="" ripple="true"></x-button>
                 </div>
                 <p class="hint">
                     自点击点铺开、约束在按钮内部、圆角跟随，播一个完整周期自止、连点取消重起——按钮涟漪的缺省形态。
@@ -45,9 +45,9 @@
             <div class="auto-card-header">触发器（trigger）：点击 click / 始终 always / 悬停 hover</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ label: '点击触发', ripple: ripClick }"></button>
-                    <button x-component:autospark.button="{ label: '始终涟漪', ripple: ripAlways }"></button>
-                    <button x-component:autospark.button="{ label: '悬停触发', ripple: ripHover }"></button>
+                    <x-button label="点击触发" :ripple="ripClick"></x-button>
+                    <x-button label="始终涟漪" :ripple="ripAlways"></x-button>
+                    <x-button label="悬停触发" :ripple="ripHover"></x-button>
                 </div>
                 <p class="hint">
                     <code>click</code> 播一个周期自止（缺省）；<code>always</code> 自中心持续循环；<code>hover</code> 移入播放、移出播完当前周期即停。
@@ -59,10 +59,10 @@
             <div class="auto-card-header">动画形态（type）：inside 内部铺开 / echo 双环回声 / ring 外扩环 / glow 光晕呼吸</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ label: 'inside 内铺', ripple: ripClick }"></button>
-                    <button x-component:autospark.button="{ label: 'echo 回声', ripple: ripEcho }"></button>
-                    <button x-component:autospark.button="{ label: 'ring 外扩环', ripple: ripRing }"></button>
-                    <button x-component:autospark.button="{ label: 'glow 光晕', ripple: ripGlow }"></button>
+                    <x-button label="inside 内铺" :ripple="ripClick"></x-button>
+                    <x-button label="echo 回声" :ripple="ripEcho"></x-button>
+                    <x-button label="ring 外扩环" :ripple="ripRing"></x-button>
+                    <x-button label="glow 光晕" :ripple="ripGlow"></x-button>
                 </div>
                 <p class="hint">
                     <code>inside</code>（缺省）自点击点在按钮内部铺开；<code>inside: false</code> 后切换为外扩族——<code>echo</code> 双环回声 / <code>ring</code> 单环外扩 / <code>glow</code> 光晕呼吸。inside 与外扩形态互斥（同时声明时 type 被 warn 忽略）。
@@ -74,9 +74,9 @@
             <div class="auto-card-header">视觉参数：color / speed 透传</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ label: '红色涟漪', ripple: ripRed }"></button>
-                    <button x-component:autospark.button="{ label: '快速涟漪', ripple: ripFast }"></button>
-                    <button x-component:autospark.button="{ label: '缓慢涟漪', ripple: ripSlow }"></button>
+                    <x-button label="红色涟漪" :ripple="ripRed"></x-button>
+                    <x-button label="快速涟漪" :ripple="ripFast"></x-button>
+                    <x-button label="缓慢涟漪" :ripple="ripSlow"></x-button>
                 </div>
                 <p class="hint">
                     ripple 对象即 <code>x-ripple</code> 的 props 值，全部键面（color / size / speed / gap / badge…）透传——完整词表见 <code>x-ripple</code> 指令文档。

@@ -8,6 +8,7 @@
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
     <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
 </head>
 <body>
@@ -18,11 +19,11 @@
             <div class="auto-card-body">
                 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
                     <span @change="picked = $event.detail.value">
-                        <button x-component:autospark.button="{ type: 'secondary', checkable: true, value: picked, label: '仅看优惠' }"></button>
+                        <x-button variant="secondary" checkable="true" :value="picked" label="仅看优惠"></x-button>
                     </span>
                     <span>picked = <b>{{ picked }}</b></span>
                     <span @change="onSale = $event.detail.value">
-                        <button x-component:autospark.button="{ type: 'secondary', color: 'success', checkable: true, value: onSale, label: '仅看现货' }"></button>
+                        <x-button variant="secondary" type="success" checkable="true" :value="onSale" label="仅看现货"></x-button>
                     </span>
                     <span>onSale = <b>{{ onSale }}</b></span>
                 </div>

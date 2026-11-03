@@ -8,6 +8,7 @@
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
     <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
 </head>
 <body>
@@ -17,10 +18,10 @@
             <div class="auto-card-header">图标（icon，经 x-icon 渲染内置图标）</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button x-component:autospark.button="{ icon: 'menu', label: '菜单' }"></button>
-                    <button x-component:autospark.button="{ icon: 'bell', label: '通知' }"></button>
-                    <button x-component:autospark.button="{ type: 'secondary', icon: 'folder', label: '文件夹' }"></button>
-                    <button x-component:autospark.button="{ type: 'dashed', color: 'success', icon: 'star', label: '收藏' }"></button>
+                    <x-button icon="menu" label="菜单"></x-button>
+                    <x-button icon="bell" label="通知"></x-button>
+                    <x-button variant="secondary" icon="folder" label="文件夹"></x-button>
+                    <x-button variant="dashed" type="success" icon="star" label="收藏"></x-button>
                 </div>
                 <p class="hint">图标尺寸消费 <code>--auto-icon-size</code>/字号档位（默认 1em 跟随文字），右侧面板调「尺寸」档试试。</p>
             </div>

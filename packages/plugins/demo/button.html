@@ -52,33 +52,33 @@
   <body>
     <h1>autospark.button</h1>
     <p>
-      形态（type）与语义色（color）正交组合；props 外观变体 + 默认插槽兜底 + 事件经冒泡到
+      形态（variant）与语义色（type）正交组合；props 外观变体 + 默认插槽兜底 + 事件经冒泡到
       外层消费。宿主标签即组件根标签（化身语义）——用 <code>button</code> 宿主得到语义化按钮。
     </p>
 
     <div id="app" x-data="{ clicks: 0, picked: false, btnTags: [{ name: 'settings', icon: 'edit', tooltip: '设置' }] }">
-      <h2>形态（type）</h2>
+      <h2>形态（variant）</h2>
       <div class="row">
-        <button x-component:autospark.button="{ type: 'primary', label: '主按钮' }"></button>
-        <button x-component:autospark.button="{ type: 'secondary', label: '次按钮' }"></button>
-        <button x-component:autospark.button="{ type: 'dashed', label: '虚线按钮' }"></button>
-        <button x-component:autospark.button="{ type: 'text', label: '文本按钮' }"></button>
-        <button x-component:autospark.button="{ type: 'link', label: '链接按钮' }"></button>
+        <button x-component:autospark.button="{ variant: 'primary', label: '主按钮' }"></button>
+        <button x-component:autospark.button="{ variant: 'secondary', label: '次按钮' }"></button>
+        <button x-component:autospark.button="{ variant: 'dashed', label: '虚线按钮' }"></button>
+        <button x-component:autospark.button="{ variant: 'text', label: '文本按钮' }"></button>
+        <button x-component:autospark.button="{ variant: 'link', label: '链接按钮' }"></button>
       </div>
 
-      <h2>语义色（color）</h2>
+      <h2>语义色（type）</h2>
       <div class="row">
-        <button x-component:autospark.button="{ color: 'success', label: '成功' }"></button>
-        <button x-component:autospark.button="{ color: 'warning', label: '警告' }"></button>
-        <button x-component:autospark.button="{ color: 'danger', label: '危险' }"></button>
-        <button x-component:autospark.button="{ color: 'info', label: '信息' }"></button>
-        <button x-component:autospark.button="{ type: 'dashed', color: 'danger', label: '危险虚线' }"></button>
+        <button x-component:autospark.button="{ type: 'success', label: '成功' }"></button>
+        <button x-component:autospark.button="{ type: 'warning', label: '警告' }"></button>
+        <button x-component:autospark.button="{ type: 'danger', label: '危险' }"></button>
+        <button x-component:autospark.button="{ type: 'info', label: '信息' }"></button>
+        <button x-component:autospark.button="{ variant: 'dashed', type: 'danger', label: '危险虚线' }"></button>
       </div>
 
       <h2>幽灵（ghost）</h2>
       <div class="colored-bg">
         <button x-component:autospark.button="{ ghost: true, label: '幽灵主钮' }"></button>
-        <button x-component:autospark.button="{ type: 'secondary', ghost: true, label: '幽灵次钮' }"></button>
+        <button x-component:autospark.button="{ variant: 'secondary', ghost: true, label: '幽灵次钮' }"></button>
       </div>
 
       <h2>图标 / 加载 / 禁用 / 纵排 label</h2>
@@ -86,7 +86,7 @@
         <button x-component:autospark.button="{ icon: 'menu', label: '图标' }"></button>
         <button x-component:autospark.button="{ icon: 'menu', label: '加载中', loading: true }"></button>
         <button x-component:autospark.button="{ label: '禁用', disabled: true }"></button>
-        <button x-component:autospark.button="{ type: 'secondary', icon: 'star', label: '收藏', labelBelow: true, memo: '按 ⌘ + D' }"></button>
+        <button x-component:autospark.button="{ variant: 'secondary', icon: 'star', label: '收藏', labelBelow: true, memo: '按 ⌘ + D' }"></button>
       </div>
 
       <h2>tags 小圆钮与事件</h2>
@@ -103,7 +103,7 @@
       <h2>可勾选（checkable）</h2>
       <div class="row">
         <span @change="picked = $event.detail.value">
-          <button x-component:autospark.button="{ type: 'secondary', checkable: true, value: picked, label: '仅看优惠' }"></button>
+          <button x-component:autospark.button="{ variant: 'secondary', checkable: true, value: picked, label: '仅看优惠' }"></button>
         </span>
         <span>picked = <b>{{ picked }}</b></span>
       </div>

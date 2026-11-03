@@ -2,44 +2,48 @@
 
 ## 概述
 
-Button 是 AutoSpark 的官方按钮组件：**形态（type）与语义色（color）正交组合**，覆盖主/次/虚线/文本/链接五种形态 × 五种语义色，并支持图标、加载、禁用、幽灵、块级、圆形、纵排标签、备注、标签组、菜单项、可勾选、点击涟漪、汉字空格等完整特性面。
+Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色（type）正交组合**，覆盖常规/主/次/虚线/文本/链接六种形态 × 五种语义色，并支持图标、加载、禁用、幽灵、块级、圆形、纵排标签、备注、标签组、菜单项、可勾选、点击涟漪、汉字空格等完整特性面。
 
 组件全盘消费 `@autospark/theme` 语义变量（`--auto-*` 三级回退链，ADR-0129）——调节主题色、切换暗色、换尺寸/圆角档位**即时生效**，且不设组件级尺寸属性（字号/圆角/间距全跟随主题档位）。每个示例右侧均带**主题控制面板**，可现场验证联动。
 
 ## 快速入门
 
-引擎之后加载组件脚本即注册完成，宿主元素经 `x-component` 实例化：
+引擎之后加载组件脚本即注册完成，以元素名 `<x-button>` 直接使用——静态属性即 props（数字 / `true` / `false` / JSON 自动类型推断），`:key="expr"` 为响应式 props，子内容为默认插槽：
 
 ```html
 <script src="autospark.js"></script>
 <script src="autospark.button.js"></script>
 
-<button x-component:autospark.button="{ label: '主要按钮' }"></button>
+<x-button variant="primary" label="主要按钮"></x-button>
+<x-button variant="dashed" type="danger" label="危险虚线" disabled="true"></x-button>
+<x-button checkable="true" :value="picked" label="仅看优惠"></x-button>
 ```
+
+`class` / `style` / `id` / `data-*` 保留给宿主；事件监听（`@change` / `@tag-click`）写在**外层包裹元素**上消费（组件默认封闭，事件经冒泡）；等价的指令值形态 `<button x-component:autospark.button="{ ... }">` 同样受支持。
 
 <demo html="components/button/basic.html"/>
 
 ## 指南
 
-### 形态（type）
+### 形态（variant）
 
-**类型**: `primary | secondary | dashed | text | link`
+**类型**: `default | primary | secondary | dashed | text | link`
 
-**默认**: `primary`
+**默认**: `default`
 
-决定按钮的外观形态：`primary` 实底主按钮、`secondary` 次级底、`dashed` 虚线描边、`text` 纯文本（透明底）、`link` 链接样式（零内距、悬停下划线）。形态只管「长相」，颜色语义归 `color` 属性。
+决定按钮的外观形态：`default` 常规按钮（缺省形态，中性描边——次级底 + 主题边框；配非 primary 语义色时描边与文字取语义色，如 `type: "danger"` 红边红字，primary 色为缺省值豁免保持中性）、`primary` 实底主按钮、`secondary` 次级底（无边框）、`dashed` 虚线描边、`text` 纯文本（透明底）、`link` 链接样式（零内距、悬停下划线）。形态只管「长相」，颜色语义归 `type` 属性。
 
-<demo html="components/button/type.html"/>
+<demo html="components/button/variant.html"/>
 
-### 语义色（color）
+### 语义色（type）
 
 **类型**: `primary | success | warning | danger | info`
 
 **默认**: `primary`
 
-语义色取 theme 的 `--auto-*-color` 变量，可与任意形态自由组合（如危险虚线钮、成功链接钮）。勾选态（checkable）、幽灵（ghost）等特性的取色同样跟随当前 color。
+语义色取 theme 的 `--auto-*-color` 变量，可与任意形态自由组合。**语义色背景须搭配实底形态**（`variant: 'primary'`）；其余形态下的呈现：`default`（缺省）呈**描边与文字**取色（对齐 antd outlined，primary 语义色为缺省值豁免保持中性）、`dashed` 语义色虚线边与文字、`link` / `ghost` 语义色文字与描边。勾选态（checkable）取色同样跟随当前 type。
 
-<demo html="components/button/color.html"/>
+<demo html="components/button/type.html"/>
 
 ### 图标（icon）
 
@@ -77,7 +81,7 @@ Button 是 AutoSpark 的官方按钮组件：**形态（type）与语义色（co
 
 **默认**: `false`
 
-幽灵按钮：背景透明、内容与描边取当前 color 的语义色，常用在有色背景上。可与任意形态、语义色组合。
+幽灵按钮：背景透明、内容与描边取当前 type 的语义色，常用在有色背景上。可与任意形态、语义色组合。
 
 <demo html="components/button/ghost.html"/>
 
@@ -137,7 +141,7 @@ Button 是 AutoSpark 的官方按钮组件：**形态（type）与语义色（co
 
 **默认**: `''`（无备注）
 
-显示在 label 下方的注释文本：小一号（0.75em）且淡化（按内容色 color-mix 派生——实底上呈淡白、透明底上呈淡灰）。
+显示在 label 下方的注释文本：小一号（0.75em）且淡化（按内容色 color-mix 派生——实底上呈淡白、透明底上呈淡灰）。**最多两行**，超出自动截断显示省略号；memo 在场时图标默认 **2 倍大**，与 label+memo 文本块垂直居中。
 
 <demo html="components/button/memo.html"/>
 
@@ -171,11 +175,11 @@ Button 是 AutoSpark 的官方按钮组件：**形态（type）与语义色（co
 
 **默认**: `false` / `false`
 
-`checkable` 开启勾选模式：点击**自动翻转** value 并冒泡 `change` 事件；`value` 为 true 时使用与当前 color 匹配的背景色。表单集成走「受控半双工」——显示方向经 props 单向注入响应，翻转方向经 change 冒泡回写：
+`checkable` 开启勾选模式：点击**自动翻转** value 并冒泡 `change` 事件；`value` 为 true 时使用与当前 type 匹配的背景色。表单集成走「受控半双工」——显示方向经 props 单向注入响应，翻转方向经 change 冒泡回写：
 
 ```html
 <span @change="picked = $event.detail.value">
-    <button x-component:autospark.button="{ checkable: true, value: picked, label: '仅看优惠' }"></button>
+    <x-button checkable="true" :value="picked" label="仅看优惠"></x-button>
 </span>
 ```
 
@@ -187,9 +191,9 @@ Button 是 AutoSpark 的官方按钮组件：**形态（type）与语义色（co
 
 **类型**: `boolean | object`
 
-**默认**: `false`
+**默认**: `true`
 
-`ripple` 就是 [`x-ripple`](../guide/directives/x-ripple.md) 的 props 值：`false`（默认）不启用；`true` 以缺省配置 **`{ trigger: "click", inside: true }`** 挂载——点击时自点击点在按钮内部铺开（圆角跟随、连点取消重起），播一个完整周期自止。传对象即最终配置、全键可覆盖缺省（**对象须放外层状态路径引用**，见下方警示）：
+`ripple` 就是 [`x-ripple`](../guide/directives/x-ripple.md) 的 props 值：**默认开启**（`true` ≡ 缺省配置 **`{ trigger: "click", inside: true }`**——点击时自点击点在按钮内部铺开、圆角跟随、连点取消重起，播一个完整周期自止）；`false` 关闭；传对象即最终配置、全键可覆盖缺省（**对象须放外层状态路径引用**，见下方警示）：
 
 - **触发器 `trigger`**：`click`（缺省，点击播一个周期）/ `always`（始终循环播放）/ `hover`（悬停播放、移出播完即停）
 - **动画形态 `type`**：`inside`（缺省，按钮内部铺开）为独立键；`inside: false` 切换为外扩族——`echo` 双环回声 / `ring` 单环外扩 / `glow` 光晕呼吸（inside 与外扩形态互斥）
@@ -226,8 +230,8 @@ label 恰为**两个汉字**时自动在中间插入空格（「提交」→「�
 
 | 属性 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| type | `primary \| secondary \| dashed \| text \| link` | `primary` | 形态（实底 / 次底 / 虚线 / 文本 / 链接） |
-| color | `primary \| success \| warning \| danger \| info` | `primary` | 语义色（与任意形态组合） |
+| variant | `default \| primary \| secondary \| dashed \| text \| link` | `default` | 形态（常规描边 / 实底 / 次底 / 虚线 / 文本 / 链接） |
+| type | `primary \| success \| warning \| danger \| info` | `primary` | 语义色（与任意形态组合） |
 | label | `string` | `"按钮"` | 兜底文案（插槽无内容时显示） |
 | icon | `string` | `''` | 图标名（x-icon 渲染；loading 时被替换） |
 | loading | `boolean` | `false` | 加载态：图标位转圈并禁点 |
@@ -243,7 +247,7 @@ label 恰为**两个汉字**时自动在中间插入空格（「提交」→「�
 | menu | `boolean` | `false` | 菜单项形态 |
 | checkable | `boolean` | `false` | 可勾选模式（点击翻转 value） |
 | value | `boolean` | `false` | 勾选值（checkable 模式） |
-| ripple | `boolean \| object` | `false` | x-ripple props 值透传：true ≡ `{ trigger: "click", inside: true }`，对象全键可覆盖（trigger / type / color / speed…；需加载 autospark.ripple.js） |
+| ripple | `boolean \| object` | `true` | x-ripple props 值透传（默认开启）：true ≡ `{ trigger: "click", inside: true }`，false 关闭，对象全键可覆盖（trigger / type / color / speed…；需加载 autospark.ripple.js，未加载时静默跳过） |
 | autoInsertSpace | `boolean` | `true` | 两汉字 label 自动插空格 |
 
 ### 事件
@@ -262,5 +266,5 @@ label 恰为**两个汉字**时自动在中间插入空格（「提交」→「�
 
 ```html
 <!-- 插槽内容覆盖 label -->
-<button x-component:autospark.button="{ type: 'primary' }"><b>加粗</b>插槽内容</button>
+<x-button variant="primary"><b>加粗</b>插槽内容</x-button>
 ```
