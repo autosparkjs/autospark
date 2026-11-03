@@ -36,7 +36,7 @@ engine 无组件双向协议（背景②），硬凑存在类型陷阱：x-model
 
 ### 决策 5：ripple prop 消费 ADR-0010 运行时挂载契约
 
-`ripple` 即 `x-ripple` 的 props 值：`false` 不启用（移除属性）；启用时 mounted 对化身根 `setAttribute("x-ripple", JSON.stringify({ trigger: "click", inside: true, …conf }))`——缺省 `{ trigger: "click", inside: true }`（点击播一个周期自止 + 约束按钮内部，按钮场景的自然预期），**对象形态即最终配置、全键可覆盖**（含 inside，可换外扩形态）。属性增删由 ripple 插件 Runtime observer 接管。前置：页面已加载 `autospark.ripple.js`——未加载时属性无人消费、静默无害（不 warn 不报错，文档写明）。
+`ripple` 是组件对外语义；挂载实现走**双属性通道**：`x-ripple-options`（配置）+ 裸 `x-ripple`（开关）——裸属性值只参与三态判定、不承载配置（x-ripple 插件的配置读取面是 `info.options`，实测值对象通道静默丢失、全落 echo+always 缺省）。`ripple: false` 移除两属性；启用时缺省 `{ trigger: "click", inside: true }`（点击播一个周期自止 + 约束按钮内部），**对象形态全键可覆盖**（含 inside，可换外扩形态）。options 运行时改值无效（ADR-0010 决策 7）——变化时先摘 `x-ripple` 触发重挂再重读。前置：页面已加载 `autospark.ripple.js`——未加载时属性无人消费、静默无害。
 
 ### 决策 6：autoInsertSpace 走 computed（插值视图无 methods）
 

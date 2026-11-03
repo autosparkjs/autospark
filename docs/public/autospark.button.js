@@ -57,13 +57,19 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             this.watch("loading", ({ value }) => { syncDisabled(); });
 
             // 涟漪动态挂载（ADR-0010 运行时契约：不经编译、直接写属性即生效）；
-            // ripple 即 x-ripple 的 props 值：false 不启用；启用时缺省 { trigger: "click", inside: true }
-            // （点击播一个周期自止、约束按钮内部），对象形态即最终配置、全键可覆盖缺省；
+            // 配置走 x-ripple-options 通道（裸 x-ripple 的值只参与三态判定、不承载配置）；
+            // ripple 即该配置的 props 值：false 不启用；启用时缺省 { trigger: "click", inside: true }
+            // （点击播一个周期自止、约束按钮内部），对象形态全键可覆盖缺省；
+            // options 运行时改值无效（ADR-0010 决策 7）——变化时先摘 x-ripple 触发重挂再重读；
             // 需页面已加载 autospark.ripple.js，未加载时属性无人消费、静默无害
             const syncRipple = () => {
                 const conf = this.data.ripple;
-                if (conf) this.el.setAttribute("x-ripple", JSON.stringify(typeof conf === "object" ? { trigger: "click", inside: true, ...conf } : { trigger: "click", inside: true }));
-                else this.el.removeAttribute("x-ripple");
+                this.el.removeAttribute("x-ripple");
+                this.el.removeAttribute("x-ripple-options");
+                if (conf) {
+                    this.el.setAttribute("x-ripple-options", JSON.stringify(typeof conf === "object" ? { trigger: "click", inside: true, ...conf } : { trigger: "click", inside: true }));
+                    this.el.setAttribute("x-ripple", "");
+                }
             };
             syncRipple();
             this.watch("ripple", () => { syncRipple(); });

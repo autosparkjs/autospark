@@ -123,7 +123,9 @@ export class BindDirective extends AutoSparkDirectiveBase {
         // 的写回落 `data-tooltip`——运行期写 title 会复活原生浏览器 tooltip，破坏「结果 DOM
         // 无 title」不变量（scope.compile 从只读模板收集指令，clone 侧转换拦不住绑定注册，
         // 故须在 bind 层重定向；天然覆盖主 walk / 项根 / patch 全编译通道）。
-        if (this.attr === "title" && this.engine.tooltipManager.enabled) {
+        // tooltip 特性已外移为 autospark.tooltip.js 插件（#5 批次 6）——插件缺席时
+        // tooltipManager 不在场，按「特性未开启」处理（不重定向，title 正常绑定）。
+        if (this.attr === "title" && this.engine.tooltipManager?.enabled) {
             this.attr = "data-tooltip";
         }
         // 无参形态（x-bind="obj"）：属性展开——整对象摊成 N 个属性（ADR-0043），组合委托 SpreadBinder
