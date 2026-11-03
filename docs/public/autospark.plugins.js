@@ -763,12 +763,14 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     - tag-click：tags 小圆钮点击冒泡，detail = { name, tag }（tag 元素上
       stopPropagation，不触发宿主 checkable 翻转）
 -->
+<!-- 元素名快速写法 <x-button variant="primary" label="..."> 由 index.ts 的 precompile
+     DOM 变换承载（ADR-0117 元名形态对全局表惰性组件有时序缺口，见 index.ts 注释） -->
 <button class="asc-button" x-define="autospark.button">
   <script setup>
     {
         data: () => ({
-            type: "primary",        // 形态：primary 实底 | secondary 次底 | dashed 虚线 | text 文本 | link 链接
-            color: "primary",       // 语义色：primary | success | warning | danger | info
+            variant: "default",     // 形态：default 常规描边 | primary 实底 | secondary 次底 | dashed 虚线 | text 文本 | link 链接
+            type: "primary",        // 语义色：primary | success | warning | danger | info（default 形态不消费，勾选态仍生效）
             label: "按钮",          // 兜底文案（插槽无内容时显示）
             icon: "",               // 图标名（x-icon 渲染；loading 时被 loading 图标替换）
             loading: false,         // 加载态：左图标位转圈并禁点（优先于 disabled 视觉）
@@ -776,11 +778,11 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             border: false,          // 装饰性附加边框（不干预 dashed / ghost 的固有边框形态）
             block: false,           // 适配父宽度
             disabled: false,
-            ripple: false,          // 点击涟漪（页面需已加载 autospark.ripple.js；动态挂载 inside 形态，ADR-0010）
+            ripple: true,           // 点击涟漪（默认开启；页面需已加载 autospark.ripple.js，未加载时静默跳过；ADR-0010）
             autoInsertSpace: true,  // label 恰为两个汉字时自动插入空格
             shape: "default",       // default | circle（纯图标呈正圆，带文字自动呈胶囊）
             labelBelow: false,      // label 显示在图标下方（纵排）
-            value: false,           // 勾选值（checkable 模式；true 时使用与 color 匹配的背景色）
+            value: false,           // 勾选值（checkable 模式；true 时使用与 type 匹配的背景色）
             checkable: false,       // 可勾选模式：点击自动翻转 value 并冒泡 change 事件
             align: "center",        // 内容水平对齐：left | center | right
             memo: "",               // label 下方的备注（小一号、淡色）
@@ -806,13 +808,19 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             this.watch("loading", ({ value }) => { syncDisabled(); });
 
             // 涟漪动态挂载（ADR-0010 运行时契约：不经编译、直接写属性即生效）；
-            // ripple 即 x-ripple 的 props 值：false 不启用；启用时缺省 { trigger: "click", inside: true }
-            // （点击播一个周期自止、约束按钮内部），对象形态即最终配置、全键可覆盖缺省；
+            // 配置走 x-ripple-options 通道（裸 x-ripple 的值只参与三态判定、不承载配置）；
+            // ripple 即该配置的 props 值：false 不启用；启用时缺省 { trigger: "click", inside: true }
+            // （点击播一个周期自止、约束按钮内部），对象形态全键可覆盖缺省；
+            // options 运行时改值无效（ADR-0010 决策 7）——变化时先摘 x-ripple 触发重挂再重读；
             // 需页面已加载 autospark.ripple.js，未加载时属性无人消费、静默无害
             const syncRipple = () => {
                 const conf = this.data.ripple;
-                if (conf) this.el.setAttribute("x-ripple", JSON.stringify(typeof conf === "object" ? { trigger: "click", inside: true, ...conf } : { trigger: "click", inside: true }));
-                else this.el.removeAttribute("x-ripple");
+                this.el.removeAttribute("x-ripple");
+                this.el.removeAttribute("x-ripple-options");
+                if (conf) {
+                    this.el.setAttribute("x-ripple-options", JSON.stringify(typeof conf === "object" ? { trigger: "click", inside: true, ...conf } : { trigger: "click", inside: true }));
+                    this.el.setAttribute("x-ripple", "");
+                }
             };
             syncRipple();
             this.watch("ripple", () => { syncRipple(); });
@@ -834,7 +842,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
 
     /* ---------- 宿主基础：形态中转变量层（--asc-bg/ink/line 由各变体块注入，一处消费） ---------- */
     .asc-button {
-      --asc-tone: var(--auto-primary-color, var(--asc-button-primary, #009aff)); /* 语义色中转（data-color 注入） */
+      --asc-tone: var(--auto-primary-color, var(--asc-button-primary, #009aff)); /* 语义色中转（data-type 注入） */
       --asc-bg: transparent;
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
       --asc-line: transparent;
@@ -858,48 +866,61 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     }
 
     /* ---------- 语义色 → tone 注入（五种） ---------- */
-    .asc-button:has(> .asc-button-body[data-color="primary"]) {
+    .asc-button:has(> .asc-button-body[data-type="primary"]) {
       --asc-tone: var(--auto-primary-color, var(--asc-button-primary, #009aff));
     }
-    .asc-button:has(> .asc-button-body[data-color="success"]) {
+    .asc-button:has(> .asc-button-body[data-type="success"]) {
       --asc-tone: var(--auto-success-color, var(--asc-button-success, #22c55e));
     }
-    .asc-button:has(> .asc-button-body[data-color="warning"]) {
+    .asc-button:has(> .asc-button-body[data-type="warning"]) {
       --asc-tone: var(--auto-warning-color, var(--asc-button-warning, #f59e0b));
     }
-    .asc-button:has(> .asc-button-body[data-color="danger"]) {
+    .asc-button:has(> .asc-button-body[data-type="danger"]) {
       --asc-tone: var(--auto-danger-color, var(--asc-button-danger, #ef4444));
     }
-    .asc-button:has(> .asc-button-body[data-color="info"]) {
+    .asc-button:has(> .asc-button-body[data-type="info"]) {
       --asc-tone: var(--auto-info-color, var(--asc-button-info, #71717a));
     }
 
-    /* ---------- 形态（type）→ 底/字/边注入 ---------- */
+    /* ---------- 形态（variant）→ 底/字/边注入 ---------- */
+    /* default：常规按钮（缺省形态）——面板实色底 + 正文色、无边框（描边完全交 border prop 开关）；
+         与 secondary（次级淡底）以底色层次区分；非 primary 语义色呈语义描边与文字 */
+    .asc-button:has(> .asc-button-body[data-variant="default"]) {
+      --asc-bg: var(--auto-bgcolor, var(--asc-button-bg, #ffffff));
+      --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
+    }
+    .asc-button:has(> .asc-button-body[data-variant="default"][data-type="success"]),
+    .asc-button:has(> .asc-button-body[data-variant="default"][data-type="warning"]),
+    .asc-button:has(> .asc-button-body[data-variant="default"][data-type="danger"]),
+    .asc-button:has(> .asc-button-body[data-variant="default"][data-type="info"]) {
+      --asc-ink: var(--asc-tone);
+      --asc-line: var(--asc-tone);
+    }
     /* primary：实底语义色 + 反白字 */
-    .asc-button:has(> .asc-button-body[data-type="primary"]) {
+    .asc-button:has(> .asc-button-body[data-variant="primary"]) {
       --asc-bg: var(--asc-tone);
       --asc-ink: #fff;
     }
     /* secondary：次级底 + 正文色（描边交给 border 开关） */
-    .asc-button:has(> .asc-button-body[data-type="secondary"]) {
+    .asc-button:has(> .asc-button-body[data-variant="secondary"]) {
       --asc-bg: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(245, 245, 245, 0.45)));
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
     }
     /* dashed：透明底 + 语义色虚线边 + 语义色字 */
-    .asc-button:has(> .asc-button-body[data-type="dashed"]) {
+    .asc-button:has(> .asc-button-body[data-variant="dashed"]) {
       --asc-bg: transparent;
       --asc-ink: var(--asc-tone);
       --asc-line: var(--asc-tone);
       border-style: dashed;
     }
     /* text：透明底 + 正文色 */
-    .asc-button:has(> .asc-button-body[data-type="text"]) {
+    .asc-button:has(> .asc-button-body[data-variant="text"]) {
       --asc-bg: transparent;
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
       padding: 0.45em 0.75em;
     }
     /* link：透明底 + 语义色字、无内距（inline 链接感） */
-    .asc-button:has(> .asc-button-body[data-type="link"]) {
+    .asc-button:has(> .asc-button-body[data-variant="link"]) {
       --asc-bg: transparent;
       --asc-ink: var(--asc-tone);
       padding: 0;
@@ -955,14 +976,14 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       filter: brightness(0.9);
     }
     /* text / link / ghost / menu 淡形态：亮度反馈无感，改用悬停淡底 */
-    .asc-button:has(> .asc-button-body[data-type="text"]):hover:not([disabled]),
-    .asc-button:has(> .asc-button-body[data-type="link"]):hover:not([disabled]),
+    .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not([disabled]),
+    .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not([disabled]),
     .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not([disabled]),
     .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not([disabled]) {
       filter: none;
       background: var(--auto-hover-bgcolor, var(--asc-button-hover-bg, rgba(0, 0, 0, 0.05)));
     }
-    .asc-button:has(> .asc-button-body[data-type="link"]):hover:not([disabled]) {
+    .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not([disabled]) {
       text-decoration: underline;
     }
     .asc-button[disabled] {
@@ -1011,11 +1032,22 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     .asc-button-body[data-align="left"] .asc-button-main { align-items: flex-start; }
     .asc-button-body[data-align="right"] .asc-button-main { align-items: flex-end; }
 
-    /* 备注：小一号 + 相对内容色的淡化（color-mix 跟随 --asc-ink，实底上自然呈淡白） */
+    /* 备注：小一号 + 相对内容色的淡化（color-mix 跟随 --asc-ink，实底上自然呈淡白）；
+         最多两行，超出截断显示省略号（line-clamp） */
     .asc-button-memo {
       font-size: 0.75em;
       line-height: 1.2;
       color: color-mix(in srgb, var(--asc-ink, currentColor) 70%, transparent);
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+    }
+    /* memo 在场时图标默认 2 倍大（与 label+memo 双行文本块视觉配平）；
+         图标与文本块的垂直居中由 body 的 align-items: center 承担 */
+    .asc-button:has(.asc-button-memo) .asc-button-icon {
+      font-size: 2em;
     }
 
     /* tags 小圆钮：右侧小一号圆形，独立 hover 反馈 */
@@ -1038,9 +1070,15 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       cursor: pointer;
       /* 常态即与按钮主背景形成色差：按内容色派生淡底（实底上呈淡白、透明底上呈淡灰/淡语义色） */
       background: color-mix(in srgb, var(--asc-ink, currentColor) 12%, transparent);
+      transition: background-color 0.15s ease, transform 0.1s ease;
     }
     .asc-button-tag:hover {
       background: color-mix(in srgb, var(--asc-ink, currentColor) 28%, transparent);
+    }
+    /* 按压反馈：底色加深 + 轻微缩放（松手经 transition 弹回） */
+    .asc-button-tag:active {
+      background: color-mix(in srgb, var(--asc-ink, currentColor) 45%, transparent);
+      transform: scale(0.88);
     }
     .asc-button-tag-icon {
       display: inline-flex;
@@ -1054,41 +1092,46 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       --asc-ink: var(--auto-color, var(--asc-button-color, #fafafa));
       --asc-bg: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(129, 129, 129, 0.45)));
     }
-    [dark] .asc-button:has(> .asc-button-body[data-type="primary"]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-type="primary"]) {
+    [dark] .asc-button:has(> .asc-button-body[data-variant="primary"]),
+    [data-dark] .asc-button:has(> .asc-button-body[data-variant="primary"]) {
       --asc-bg: var(--auto-primary-color, var(--asc-button-primary, #56baff));
     }
-    [dark] .asc-button:has(> .asc-button-body[data-type="secondary"]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-type="secondary"]) {
+    [dark] .asc-button:has(> .asc-button-body[data-variant="secondary"]),
+    [data-dark] .asc-button:has(> .asc-button-body[data-variant="secondary"]) {
       --asc-bg: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(129, 129, 129, 0.45)));
       --asc-ink: var(--auto-color, var(--asc-button-color, #fafafa));
     }
-    [dark] .asc-button:has(> .asc-button-body[data-color="primary"]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-color="primary"]) {
+    [dark] .asc-button:has(> .asc-button-body[data-variant="default"]),
+    [data-dark] .asc-button:has(> .asc-button-body[data-variant="default"]) {
+      --asc-bg: var(--auto-bgcolor, var(--asc-button-bg, #3a3a3a));
+      --asc-ink: var(--auto-color, var(--asc-button-color, #fafafa));
+    }
+    [dark] .asc-button:has(> .asc-button-body[data-type="primary"]),
+    [data-dark] .asc-button:has(> .asc-button-body[data-type="primary"]) {
       --asc-tone: var(--auto-primary-color, var(--asc-button-primary, #56baff));
     }
-    [dark] .asc-button:has(> .asc-button-body[data-color="success"]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-color="success"]) {
+    [dark] .asc-button:has(> .asc-button-body[data-type="success"]),
+    [data-dark] .asc-button:has(> .asc-button-body[data-type="success"]) {
       --asc-tone: var(--auto-success-color, var(--asc-button-success, #5cd07c));
     }
-    [dark] .asc-button:has(> .asc-button-body[data-color="warning"]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-color="warning"]) {
+    [dark] .asc-button:has(> .asc-button-body[data-type="warning"]),
+    [data-dark] .asc-button:has(> .asc-button-body[data-type="warning"]) {
       --asc-tone: var(--auto-warning-color, var(--asc-button-warning, #f0a03c));
     }
-    [dark] .asc-button:has(> .asc-button-body[data-color="danger"]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-color="danger"]) {
+    [dark] .asc-button:has(> .asc-button-body[data-type="danger"]),
+    [data-dark] .asc-button:has(> .asc-button-body[data-type="danger"]) {
       --asc-tone: var(--auto-danger-color, var(--asc-button-danger, #e6696a));
     }
-    [dark] .asc-button:has(> .asc-button-body[data-color="info"]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-color="info"]) {
+    [dark] .asc-button:has(> .asc-button-body[data-type="info"]),
+    [data-dark] .asc-button:has(> .asc-button-body[data-type="info"]) {
       --asc-tone: var(--auto-info-color, var(--asc-button-info, #a1a1aa));
     }
-    [dark] .asc-button:has(> .asc-button-body[data-type="text"]):hover:not([disabled]),
-    [dark] .asc-button:has(> .asc-button-body[data-type="link"]):hover:not([disabled]),
+    [dark] .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not([disabled]),
+    [dark] .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not([disabled]),
     [dark] .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not([disabled]),
     [dark] .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not([disabled]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-type="text"]):hover:not([disabled]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-type="link"]):hover:not([disabled]),
+    [data-dark] .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not([disabled]),
+    [data-dark] .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not([disabled]),
     [data-dark] .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not([disabled]),
     [data-dark] .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not([disabled]) {
       background: var(--auto-hover-bgcolor, var(--asc-button-hover-bg, rgba(255, 255, 255, 0.08)));
@@ -1096,7 +1139,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   </style>
   <!-- 变体数据属性全部承载在 body（编译子树内层元素，经 :has() 驱动宿主外观——见文件头注释） -->
   <span class="asc-button-body"
-    :data-type="type" :data-color="color" :data-ghost="ghost" :data-border="border"
+    :data-variant="variant" :data-type="type" :data-ghost="ghost" :data-border="border"
     :data-shape="shape" :data-label-below="labelBelow" :data-align="align" :data-menu="menu"
     :data-block="block" :data-checked="checkable && value" :data-loading="loading">
     <!-- loading 图标替换左图标位（字面量须带引号——裸 loading 会命中 data.loading 布尔值） -->

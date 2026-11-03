@@ -1449,8 +1449,8 @@ export class AutoSpark<
         this._componentDefs.set(def.snapshot, def);
         injectGlobalComponentStyles(this as any, def);
         // 元素名组件（ADR-0117）：def 携带 tag 即安装元素名形态指令（五条注册路径
-        // 统一收口，凡注册必安装；撞名规则见 installAutoComponentTag）
-        if (def.tag) installAutoComponentTag(this, def.name, def.tag);
+        // 统一收口，凡注册必安装；撞名规则见 installAutoComponentTag——就近遮蔽 ADR-0133）
+        if (def.tag) installAutoComponentTag(this, def);
     }
 
     /**

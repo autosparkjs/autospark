@@ -38,6 +38,20 @@ describe("button 组件插件（ADR-0003 组件形态样板）", () => {
         await nextTick();
         expect(root.querySelector("button")!.hasAttribute("disabled")).toBe(true);
     });
+
+    test("标签形态（ADR-0133）：<x-button> 经引擎原生元素名通道实例化（无插件自举）", async () => {
+        const { root, engine } = mount(
+            `<div><x-button id="b" label="标签按钮" type="primary"></x-button></div>`,
+            {},
+        );
+        await nextTick();
+        // 归一化推导：autospark.button 剥离官方前缀 → x-button；懒预编译缺口由编译期反查修复
+        expect(engine.directives.findByElementName("x-button")).toBe("autospark.button");
+        const host = root.querySelector("#b") as HTMLElement;
+        expect(engine.getComponent(host)?.name).toBe("autospark.button");
+        expect(host.querySelector(".asc-button-body")?.getAttribute("data-type")).toBe("primary");
+        expect(host.textContent.replace(/\s/g, "")).toContain("标签按钮");
+    });
 });
 
 describe("installPlugin 自举单点（ADR-0003）", () => {

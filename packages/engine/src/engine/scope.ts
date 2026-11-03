@@ -656,6 +656,37 @@ export class AutoSparkScope {
     }
 
     /**
+     * 多候选组件声明**就近**解析（ADR-0133 元素名组件撞名就近遮蔽）：
+     * 与 {@link getComponentDeclaration} 同链（scope 链逐层 + 全局兜底），区别在每层
+     * **层内试全部候选**——不同组件声明派生同一标签（如局部 `counter` 与全局
+     * `autospark.counter` 同归 `<x-counter>`）时，元素标签按**使用处**所在链位解析：
+     * 内层任意候选胜外层（就近遮蔽），官方短标签可被子树局部定义覆盖。
+     *
+     * 层内序：候选清单即声明（注册追加）序，**逆序遍历**——同层多候选后声明胜（与
+     * CSS 后胜直觉一致）；全局兜底段无就近维度，按声明序正序先者胜。
+     *
+     * @param names 候选组件名清单（元素名形态指令类静态候选数组）
+     * @returns 就近命中的候选名；全候选 miss 返回 undefined（调用方回退首候选走 pending 等待）
+     */
+    resolveNearestComponentDeclaration(names: string[]): string | undefined {
+        let s: AutoSparkScope | null = this;
+        while (s) {
+            if (s.components) {
+                for (let i = names.length - 1; i >= 0; i--) {
+                    if (Object.prototype.hasOwnProperty.call(s.components, names[i])) {
+                        return names[i];
+                    }
+                }
+            }
+            s = s.parent;
+        }
+        for (const name of names) {
+            if (this.engine._resolveGlobalComponent(name)) return name;
+        }
+        return undefined;
+    }
+
+    /**
      * 沿 parent 链查找组件内部 method（ADR-0022 决策二-3 修订），**以组件实例 scope 为边界**。
      *
      * 查找规则：从本 scope 向上，每遇到 `isComponent` 的祖先 scope 查其 `methods`（命中即止）；

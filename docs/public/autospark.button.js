@@ -1,7 +1,7 @@
 (function (AutoSpark) {
     "use strict";
 var run = function (AutoSpark) {
-function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}var t=`autospark.button`;function n(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}function r(e){e.components[t]=`<!--
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){e.components[`autospark.button`]=`<!--
     化身路径约束（x-component T4=B）：组件快照根的属性是静态并入宿主（class 拼接 /
     style 合并 / 其他属性复制），根上的动态绑定不会求值——变体绑定须落在编译子树的
     内层元素上：宿主级外观（底色/边框/圆角等）经 body 上的 data-* 变体属性以 :has()
@@ -134,12 +134,11 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     }
 
     /* ---------- 形态（variant）→ 底/字/边注入 ---------- */
-    /* default：常规按钮（缺省形态）——中性描边：次级底 + 正文色 + 主题边框（自带边框，border 开关对它无感）；
-         primary 语义色为缺省值、豁免（否则所有常规钮都变主题色边）；非 primary 语义色呈语义描边与文字 */
+    /* default：常规按钮（缺省形态）——面板实色底 + 正文色、无边框（描边完全交 border prop 开关）；
+         与 secondary（次级淡底）以底色层次区分；非 primary 语义色呈语义描边与文字 */
     .asc-button:has(> .asc-button-body[data-variant="default"]) {
-      --asc-bg: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(245, 245, 245, 0.45)));
+      --asc-bg: var(--auto-bgcolor, var(--asc-button-bg, #ffffff));
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
-      --asc-line: var(--auto-border-color, var(--asc-button-border-color, #d9d9d9));
     }
     .asc-button:has(> .asc-button-body[data-variant="default"][data-type="success"]),
     .asc-button:has(> .asc-button-body[data-variant="default"][data-type="warning"]),
@@ -322,9 +321,15 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       cursor: pointer;
       /* 常态即与按钮主背景形成色差：按内容色派生淡底（实底上呈淡白、透明底上呈淡灰/淡语义色） */
       background: color-mix(in srgb, var(--asc-ink, currentColor) 12%, transparent);
+      transition: background-color 0.15s ease, transform 0.1s ease;
     }
     .asc-button-tag:hover {
       background: color-mix(in srgb, var(--asc-ink, currentColor) 28%, transparent);
+    }
+    /* 按压反馈：底色加深 + 轻微缩放（松手经 transition 弹回） */
+    .asc-button-tag:active {
+      background: color-mix(in srgb, var(--asc-ink, currentColor) 45%, transparent);
+      transform: scale(0.88);
     }
     .asc-button-tag-icon {
       display: inline-flex;
@@ -349,9 +354,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     }
     [dark] .asc-button:has(> .asc-button-body[data-variant="default"]),
     [data-dark] .asc-button:has(> .asc-button-body[data-variant="default"]) {
-      --asc-bg: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(129, 129, 129, 0.45)));
+      --asc-bg: var(--auto-bgcolor, var(--asc-button-bg, #3a3a3a));
       --asc-ink: var(--auto-color, var(--asc-button-color, #fafafa));
-      --asc-line: var(--auto-border-color, var(--asc-button-border-color, rgba(129, 129, 129, 0.6)));
     }
     [dark] .asc-button:has(> .asc-button-body[data-type="primary"]),
     [data-dark] .asc-button:has(> .asc-button-body[data-type="primary"]) {
@@ -408,7 +412,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     </span>
   </span>
 </button>
-`,e.precompile?.(e=>{for(let r of Array.from(e.el.querySelectorAll(`x-button`))){let e=document.createElement(`button`),i=[];for(let t of Array.from(r.attributes))t.name.startsWith(`:`)?i.push(`${JSON.stringify(t.name.slice(1))}: (${t.value})`):t.name===`class`||t.name===`style`||t.name===`id`||t.name.startsWith(`data-`)?e.setAttribute(t.name,t.value):i.push(`${JSON.stringify(t.name)}: ${JSON.stringify(n(t.value))}`);for(e.setAttribute(`x-component:${t}`,`{ ${i.join(`, `)} }`);r.firstChild;)e.appendChild(r.firstChild);r.replaceWith(e)}})}i();function i(){e(e=>{r(e)})}};
+`}n();function n(){e(e=>{t(e)})}};
     if (AutoSpark === undefined) {
         // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
         var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);

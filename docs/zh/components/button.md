@@ -31,7 +31,7 @@ Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色�
 
 **默认**: `default`
 
-决定按钮的外观形态：`default` 常规按钮（缺省形态，中性描边——次级底 + 主题边框；配非 primary 语义色时描边与文字取语义色，如 `type: "danger"` 红边红字，primary 色为缺省值豁免保持中性）、`primary` 实底主按钮、`secondary` 次级底（无边框）、`dashed` 虚线描边、`text` 纯文本（透明底）、`link` 链接样式（零内距、悬停下划线）。形态只管「长相」，颜色语义归 `type` 属性。
+决定按钮的外观形态：`default` 常规按钮（缺省形态，**面板实色底**、无边框——描边由 `border` prop 开关控制；与 `secondary` 以底色层次区分）、`primary` 实底主按钮、`secondary` 次级按钮（**次级淡底**，半透明叠加、更融入背景）、`dashed` 虚线描边、`text` 纯文本（透明底）、`link` 链接样式（零内距、悬停下划线）。形态只管「长相」，颜色语义归 `type` 属性。
 
 <demo html="components/button/variant.html"/>
 
@@ -41,7 +41,7 @@ Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色�
 
 **默认**: `primary`
 
-语义色取 theme 的 `--auto-*-color` 变量，可与任意形态自由组合。**语义色背景须搭配实底形态**（`variant: 'primary'`）；其余形态下的呈现：`default`（缺省）呈**描边与文字**取色（对齐 antd outlined，primary 语义色为缺省值豁免保持中性）、`dashed` 语义色虚线边与文字、`link` / `ghost` 语义色文字与描边。勾选态（checkable）取色同样跟随当前 type。
+语义色取 theme 的 `--auto-*-color` 变量，可与任意形态自由组合。**语义色背景须搭配实底形态**（`variant: 'primary'`）；其余形态下的呈现：`default`（缺省）配非 primary 语义色时呈**描边与文字**取色（如 `type: "danger"` 红边红字——此时描边是语义呈现而非 border 装饰；primary 语义色为缺省值豁免保持中性）、`dashed` 语义色虚线边与文字、`link` / `ghost` 语义色文字与描边。勾选态（checkable）取色同样跟随当前 type。
 
 <demo html="components/button/type.html"/>
 
@@ -230,7 +230,7 @@ label 恰为**两个汉字**时自动在中间插入空格（「提交」→「�
 
 | 属性 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| variant | `default \| primary \| secondary \| dashed \| text \| link` | `default` | 形态（常规描边 / 实底 / 次底 / 虚线 / 文本 / 链接） |
+| variant | `default \| primary \| secondary \| dashed \| text \| link` | `default` | 形态（常规面板底 / 实底 / 次级淡底 / 虚线 / 文本 / 链接） |
 | type | `primary \| success \| warning \| danger \| info` | `primary` | 语义色（与任意形态组合） |
 | label | `string` | `"按钮"` | 兜底文案（插槽无内容时显示） |
 | icon | `string` | `''` | 图标名（x-icon 渲染；loading 时被替换） |

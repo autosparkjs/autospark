@@ -941,11 +941,54 @@ export class AutoSparkCompiler {
         // 元素名自动组件（ADR-0117）：编译期把宿主模板上的 `:expr` props 属性临时剥除
         // （防被通用管线误实例化为 bind 指令），finally 恢复原树；剥除产物由生成类
         // created() 经 consumeAutoComponentProps 消费折叠进 props 值通道。
+        // 前置反查（ADR-0133 时序缺口修复）：形如 x-* 的未知标签触发全局表懒预编译，
+        // 命中注册后下方既有 findByElementName 通道自然命中。
+        this._resolveUnknownElementComponent(template);
         const restoreAutoProps = this._stripAutoComponentExprProps(template);
         try {
             return this._compileElementInner(template);
         } finally {
             restoreAutoProps();
+        }
+    }
+
+    /** 未知 x-* 标签的反查 miss warn 去重（每标签一次，防重复编译刷屏） */
+    private _warnedUnknownTags = new Set<string>();
+
+    /**
+     * 元素名 miss 时反查全局组件表（ADR-0133 懒预编译时序缺口修复）。
+     *
+     * 缺口背景：全局表（`options.components` / 插件全局表）组件走懒预编译——标签安装
+     * （`installAutoComponentTag`）由 def 注册触发，而 def 要等首次消费才生成，晚于
+     * `<x-*>` 元素的首编译 → 元素按普通标签原样输出。修复：编译到形如 `x-*` 的未知
+     * 标签时，按标签反推候选组件名触发 `_resolveGlobalComponent`（命中即预编译 + 注册
+     * + 装标签，索引随 set 重建），本元素随后照常命中元素名通道。
+     *
+     * 候选序（ADR-0133）：`autospark.{rest}` 优先（官方通道）、`{rest}` 兜底；另补
+     * kebab→camel / kebab→dot 还原（归一化多名归一：`autospark.orderCounter` /
+     * `order.counter` 同推导 `x-order-counter`，反向枚举确定形态）。反查 miss（候选全
+     * 未命中）且形如 `x-*` → warn 一次（排错线索；非 x- 前缀元素零开销跳过）。
+     */
+    private _resolveUnknownElementComponent(template: HTMLElement): void {
+        const tag = template.tagName.toLowerCase();
+        if (!tag.startsWith("x-") || tag.length <= 2) return;
+        if (this.engine.directives.findByElementName(tag)) return;
+        const rest = tag.slice(2);
+        const camel = rest.replace(/-([a-z0-9])/g, (_, ch: string) => ch.toUpperCase());
+        const dotted = rest.includes("-") ? rest.replace(/-/g, ".") : rest;
+        const candidates = [
+            ...new Set([`autospark.${rest}`, rest, `autospark.${camel}`, camel, `autospark.${dotted}`, dotted]),
+        ];
+        for (const candidate of candidates) {
+            if (this.engine._resolveGlobalComponent(candidate)) return;
+        }
+        if (!this._warnedUnknownTags.has(tag)) {
+            this._warnedUnknownTags.add(tag);
+            this.engine.logger.warn(
+                `元素 "<${tag}>" 不是已注册组件（已查局部声明与全局组件表候选 ${candidates
+                    .map((c) => `"${c}"`)
+                    .join("、")}），按普通元素处理（ADR-0133）`,
+            );
         }
     }
 

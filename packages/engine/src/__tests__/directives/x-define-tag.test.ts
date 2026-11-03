@@ -8,12 +8,18 @@ import {
 } from "../../features/component/auto-component";
 
 /**
- * x-define-options.tag 元素名组件测试（ADR-0117，缺省开启）。
+ * x-define-options.tag 元素名组件测试（ADR-0117，缺省开启；推导与撞名规则 ADR-0133 修订）。
  *
  * 覆盖：缺省自动标签 / tag: true 显式同义 / 自定义标签 / tag: false 显式关闭 /
  * 静态+表达式 props（类型推断、保留属性、同名覆盖）/ @event + emit / options 通道优先级 /
- * 非法值 warn + 回落缺省 / installAutoComponentTag 撞名规则（幂等 / 撞预设跳过 /
- * 元素名占用 / 换 tag 覆盖）/ registerComponent 运行时注册路径 / 继承透传（声明为准）。
+ * tag 值域（无连字符补 x- 前缀 / 无效字符 warn 回落） / installAutoComponentTag 撞名规则
+ * （幂等 / 撞指令名 warn 跳过 / 组件撞标签合并候选就近遮蔽 / 标签撞指令元素名 error /
+ * 换 tag 覆盖）/ registerComponent 运行时注册路径 / 继承透传（声明为准）。
+ *
+ * ADR-0133 专组：标签归一化（点号 / camelCase / 下划线折叠、同名异写归一） /
+ * autospark. 前缀剥离 / 第三方命名空间完整转换 / 跨 scope 就近遮蔽 / 同 scope 后声明胜 /
+ * 组件名撞指令名（组件可用标签不装） / 标签撞指令元素名 fail-fast /
+ * 懒预编译时序缺口反查 / 反查 miss warn 一次。
  */
 
 /** 挂载并拦截 logger.warn（编译期同步 warn 也可靠捕获） */
@@ -202,10 +208,25 @@ describe("x-define-options.tag 元素名组件（ADR-0117）", () => {
         expect(engine.directives.findByElementName("x-off")).toBeUndefined();
     });
 
-    test("tag 非法值（无连字符字符串）：warn + 回落缺省（自动推导标签）", async () => {
+    test("tag 无连字符字符串：自动补 x- 前缀（ADR-0133，tag:'nolink' → <x-nolink>）", async () => {
         const { root, engine, warns } = mountD(
             `<div x-scope>
-                <div x-define="counter" x-define-options="{tag: 'nolink'}">
+                <div x-define="nolink" x-define-options="{tag: 'nolink'}"><b>N</b></div>
+                <x-nolink id="h"></x-nolink>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        // 无连字符不 warn 不回落：补前缀注册生效
+        expect(warns.some((w) => w.includes("x-define-options.tag"))).toBe(false);
+        expect(engine.directives.findByElementName("x-nolink")).toBe("nolink");
+        expect(root.querySelector("#h")!.textContent).toInclude("N");
+    });
+
+    test("tag 无效字符（空格）：warn + 回落缺省推导", async () => {
+        const { root, warns } = mountD(
+            `<div x-scope>
+                <div x-define="counter" x-define-options="{tag: 'my widget'}">
                     <span x-text="count"></span>
                     <script setup>{ data: { count: 4 } }</script>
                 </div>
@@ -215,37 +236,45 @@ describe("x-define-options.tag 元素名组件（ADR-0117）", () => {
         );
         await nextTick();
         expect(warns.some((w) => w.includes("x-define-options.tag"))).toBe(true);
-        // 非法值被忽略，按缺省开启处理：自动标签照常注册实例化
-        expect(engine.directives.findByElementName("x-counter")).toBe("counter");
+        // 无效值被忽略，按缺省推导处理：自动标签照常注册实例化
         expect(root.querySelector("#h")!.textContent).toInclude("4");
     });
 
-    test("installAutoComponentTag：幂等 / 撞预设跳过 / 元素名占用 / 换 tag 覆盖", () => {
+    test("installAutoComponentTag（ADR-0133）：幂等 / 撞预设 error / 组件撞标签合并候选 / 换 tag 覆盖", () => {
         const engine = new AutoSpark(document.createElement("div"), {}, { autostart: false });
         engines.push(engine);
         const warns: string[] = [];
         (engine.logger as any).warn = (m: any) => warns.push(String(m));
+        const mkDef = (name: string, tag: string) => ({ name, tag, declarerScope: null }) as any;
 
         // 幂等：同名同 tag 静默
-        installAutoComponentTag(engine, "a", "x-elm-a");
+        installAutoComponentTag(engine, mkDef("a", "x-elm-a"));
         const first = engine.directives.get("a");
-        installAutoComponentTag(engine, "a", "x-elm-a");
+        installAutoComponentTag(engine, mkDef("a", "x-elm-a"));
         expect(engine.directives.get("a")).toBe(first);
 
-        // 撞预设指令名：warn + 跳过（预设原类保留）
-        installAutoComponentTag(engine, "for", "x-elm-for");
+        // 撞预设指令名（注册键让位）：warn + 跳过标签安装（组件本身可用，ADR-0113/0133 收窄语义）
+        installAutoComponentTag(engine, mkDef("for", "x-elm-for"));
         expect(warns.some((w) => w.includes("预设") && w.includes('"for"'))).toBe(true);
         expect(isAutoComponentClass(engine.directives.get("for")!)).toBe(false);
 
-        // 元素名被其他指令占用：warn + 跳过
-        installAutoComponentTag(engine, "b", "x-elm-a");
-        expect(warns.some((w) => w.includes("已被指令"))).toBe(true);
-        expect(engine.directives.get("b")).toBeUndefined();
+        // 标签撞非组件指令的元素名（如预设元素名指令 x-super）：CompileError fail-fast
+        expect(() => installAutoComponentTag(engine, mkDef("c", "x-super"))).toThrow(
+            /已被指令.*占用/,
+        );
 
-        // 同注册名 + tag 变化：warn + 覆盖
-        installAutoComponentTag(engine, "a", "x-elm-a2");
+        // 不同组件撞同标签：并入候选（就近遮蔽，ADR-0133）——不跳过、两个注册名都指合并类
+        installAutoComponentTag(engine, mkDef("b", "x-elm-a"));
+        expect(engine.directives.get("b")).toBe(engine.directives.get("a"));
+        expect((engine.directives.get("a") as any).autoComponentCandidates.length).toBe(2);
+
+        // 同注册名 + tag 变化：warn + 覆盖（候选摘除，旧标签只剩 b）
+        installAutoComponentTag(engine, mkDef("a", "x-elm-a2"));
         expect(warns.some((w) => w.includes("重声明元素名"))).toBe(true);
         expect(engine.directives.get("a")!.elementName).toBe("x-elm-a2");
+        expect(engine.directives.findByElementName("x-elm-a")).toBe("b");
+        const left = engine.directives.get("b") as any;
+        expect(left.autoComponentCandidates.map((c: any) => c.name)).toEqual(["b"]);
     });
 
     test("registerComponent 运行时注册路径：元素名即时生效", async () => {
@@ -289,5 +318,175 @@ describe("x-define-options.tag 元素名组件（ADR-0117）", () => {
         expect(root.querySelector("#hm")!.childNodes.length).toBe(0);
         // 父的自定义标签自身可用
         expect(root.querySelector("#hb")!.textContent).toInclude("3");
+    });
+});
+
+describe("标签归一化与撞名就近遮蔽（ADR-0133）", () => {
+    test("点号组件名归一化：order.counter → <x-order-counter>", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="order.counter"><b>ORDER-dot</b></div>
+                <x-order-counter id="h"></x-order-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.name).toBe("order.counter");
+        expect(host.textContent).toInclude("ORDER-dot");
+    });
+
+    test("camelCase 组件名归一化：orderCounter → <x-order-counter>（同名异写同标签）", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="orderCounter"><b>ORDER-camel</b></div>
+                <x-order-counter id="h"></x-order-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.name).toBe("orderCounter");
+        expect(host.textContent).toInclude("ORDER-camel");
+    });
+
+    test("连续无效字符折叠：order_counter → <x-order-counter>", async () => {
+        const { root } = mountD(
+            `<div x-scope>
+                <div x-define="order_counter"><b>US</b></div>
+                <x-order-counter id="h"></x-order-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        expect(root.querySelector("#h")!.textContent).toInclude("US");
+    });
+
+    test("autospark. 前缀剥离：autospark.counter → <x-counter>（官方通道）", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="autospark.counter"><b>OFFICIAL</b></div>
+                <x-counter id="h"></x-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.name).toBe("autospark.counter");
+        expect(host.textContent).toInclude("OFFICIAL");
+    });
+
+    test("第三方命名空间不剥离：mylib.counter → <x-mylib-counter>", async () => {
+        const { root } = mountD(
+            `<div x-scope>
+                <div x-define="mylib.counter"><b>THIRD</b></div>
+                <x-mylib-counter id="h"></x-mylib-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        expect(root.querySelector("#h")!.textContent).toInclude("THIRD");
+    });
+
+    test("跨 scope 就近遮蔽：内层 counter 胜外层 autospark.counter，互不影响", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="autospark.counter"><b>OUTER</b></div>
+                <x-counter id="out"></x-counter>
+                <div x-scope>
+                    <div x-define="counter"><b>INNER</b></div>
+                    <x-counter id="in"></x-counter>
+                </div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        // 外层使用处：解析到外层 autospark.counter
+        expect(engine.getComponent(root.querySelector("#out") as HTMLElement)?.name).toBe(
+            "autospark.counter",
+        );
+        expect(root.querySelector("#out")!.textContent).toInclude("OUTER");
+        // 内层使用处：就近命中内层 counter（官方短标签被局部定义覆盖）
+        expect(engine.getComponent(root.querySelector("#in") as HTMLElement)?.name).toBe("counter");
+        expect(root.querySelector("#in")!.textContent).toInclude("INNER");
+    });
+
+    test("同 scope 撞名（就近失灵）：后声明胜 + warn", async () => {
+        const { root, warns } = mountD(
+            `<div x-scope>
+                <div x-define="order.counter"><b>FIRST</b></div>
+                <div x-define="orderCounter"><b>SECOND</b></div>
+                <x-order-counter id="h"></x-order-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        expect(warns.some((w) => w.includes("就近遮蔽失灵"))).toBe(true);
+        expect(root.querySelector("#h")!.textContent).toInclude("SECOND");
+    });
+
+    test("组件名撞预设指令名：warn + 标签不注册，组件本身可用（x-component: 照常）", async () => {
+        const { root, engine, warns } = mountD(
+            `<div x-scope>
+                <div x-define="text"><b id="t" x-text="1+1"></b></div>
+                <div x-component:text id="h"></div>
+                <x-text id="xt"></x-text>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        // 注册键让位：标签装不上（<x-text> 保持素标签），warn 给线索
+        expect(warns.some((w) => w.includes("撞已注册预设指令名"))).toBe(true);
+        expect(root.querySelector("#xt")!.textContent).toBe("");
+        // 组件本身照常实例化
+        expect(engine.getComponent(root.querySelector("#h") as HTMLElement)?.name).toBe("text");
+        expect(root.querySelector("#h")!.querySelector("#t")!.textContent).toBe("2");
+    });
+
+    test("标签撞非组件指令的元素名：编译期 CompileError（fail-fast，ADR-0133）", () => {
+        const engine = new AutoSpark(
+            (() => {
+                const root = document.createElement("div");
+                root.innerHTML = `<div x-scope><div x-define="mine" x-define-options="{tag: 'x-super'}"><b>M</b></div></div>`;
+                return root;
+            })(),
+            {},
+            { autostart: false },
+        );
+        engines.push(engine);
+        expect(() => engine.compile()).toThrow(/已被指令.*占用/);
+    });
+
+    test("懒预编译时序缺口修复：纯 <x-*> 标签首消费触发全局表反查（ADR-0133）", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope><x-greet id="h" who="W"></x-greet></div>`,
+            {},
+            {
+                components: {
+                    "autospark.greet": `<div x-define="autospark.greet">HELLO <b x-text="props.who"></b></div>`,
+                },
+            },
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.name).toBe("autospark.greet");
+        expect(host.textContent).toInclude("HELLO");
+        // 静态属性照常折叠为 props（类型推断）
+        expect(engine.getComponent(host)?.props.who).toBe("W");
+    });
+
+    test("反查 miss：未知 x-* 标签 warn 一次 + 按普通元素处理", async () => {
+        const { root, engine, warns } = mountD(
+            `<div x-scope>
+                <x-typo id="h"></x-typo>
+                <x-typo id="h2"></x-typo>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(host.tagName.toLowerCase()).toBe("x-typo"); // 原样保留
+        expect(engine.getComponent(host)).toBeUndefined();
+        expect(warns.filter((w) => w.includes("不是已注册组件")).length).toBe(1); // 每标签一次
     });
 });

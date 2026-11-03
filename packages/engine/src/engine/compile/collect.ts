@@ -266,17 +266,52 @@ export function extractGlobalOption(
     return modifierGlobal;
 }
 
+/** 官方组件标签命名空间前缀（ADR-0133）：`autospark.*` 推导标签时剥离开头段 */
+const AUTOSPARK_TAG_NAMESPACE = "autospark.";
+
+/** 合法元素名形态（ADR-0133）：小写字母开头 + 单词段（custom elements 惯例，防撞标准标签） */
+const VALID_TAG_RE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+
 /**
- * 提取组件元素名指令声明（ADR-0117）：`x-define-options.tag` 键——组件**缺省即注册**
- * 为元素名形态指令（标签自动推导 `x-{组件名}`），模板中直接写元素标签（如 `<x-counter>`）
- * 即实例化组件；`tag: false` 显式关闭。
+ * 组件名 → 元素标签的**归一化推导**（ADR-0133）：
  *
- * - 未声明 / `true`：标签自动推导为 `x-{组件名}`（小写化——HTML 元素名被 DOM 全量小写化，
- *   注册表以小写为基准，`findByElementName` 的查找归一与之对齐）——缺省开启；
- * - 非空且含连字符的字符串：自定义元素名（小写化；连字符为自定义元素惯例，防与原生/
- *   语义标签撞车）；
+ * 1. 字面剥离头部 `autospark.`（官方组件专用通道——`autospark.button` → `button`；
+ *    第三方命名空间不剥离，`mylib.counter` → `mylib-counter` 完整转换）；
+ * 2. camelCase 边界插 `-`（先于小写化——HTML 解析器把元素名全量小写化，`x-orderCard`
+ *    到 DOM 已是 `x-ordercard`，不拆分则永远匹配不上）；
+ * 3. 小写化 + 连续无效字符（点 / 下划线 / 空格等非 `[a-z0-9]`）折叠为单个 `-` + 去首尾 `-`。
+ *
+ * 同名异写归一：`order.counter` / `orderCounter` / `order_counter` 同归 `x-order-counter`。
+ * 推导是**单向派生别名**（原名 → 标签）：注册表键与 `x-component:` 查找仍用原名。
+ *
+ * @returns 合法标签（`x-` 前缀）；归一化产物为空或非字母开头（如组件名 `"123"`）时
+ *          返回 undefined（非法定标签，由调用方 warn + 不注册）。
+ */
+export function deriveComponentTag(componentName: string): string | undefined {
+    let base = componentName;
+    if (base.startsWith(AUTOSPARK_TAG_NAMESPACE)) {
+        base = base.slice(AUTOSPARK_TAG_NAMESPACE.length);
+    }
+    const normalized = base
+        .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+        .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    if (normalized === "" || !/^[a-z]/.test(normalized)) return undefined;
+    return `x-${normalized}`;
+}
+
+/**
+ * 提取组件元素名指令声明（ADR-0117；推导规则 ADR-0133 修订）：`x-define-options.tag` 键——
+ * 组件**缺省即注册**为元素名形态指令，模板中直接写元素标签（如 `<x-counter>`）即实例化组件。
+ *
+ * - 未声明 / `true`：标签按 {@link deriveComponentTag} 归一化推导（缺省开启）；
+ * - 非空字符串：小写化后**不含连字符则自动补 `x-` 前缀**（`tag: "div"` → `<x-div>`，
+ *   防与标准元素撞车，ADR-0133）；补前缀后仍不匹配合法元素名域（空格 / 首尾 `-` 等）
+ *   → warn + 回落自动推导；
  * - `false`：不注册（显式关闭）；
- * - 其余值（数字 / 空串 / 无连字符字符串 / 对象等）：warn + 忽略该值，回落缺省（自动推导）。
+ * - 其余值（数字 / 空串 / 对象等）：warn + 回落自动推导。
  */
 export function extractTagOption(
     componentEl: HTMLElement,
@@ -285,14 +320,24 @@ export function extractTagOption(
 ): string | undefined {
     const raw = parseComponentOptions(componentEl, warn)?.tag;
     if (raw === false) return undefined;
-    if (raw === undefined || raw === true) return `x-${name}`.toLowerCase();
-    if (typeof raw === "string" && raw.trim() !== "" && raw.includes("-")) {
-        return raw.trim().toLowerCase();
+    if (raw === undefined || raw === true) {
+        const derived = deriveComponentTag(name);
+        if (derived === undefined) {
+            warn(
+                `x-define-options.tag: 组件名 "${name}" 无法推导合法标签（归一化产物为空或非字母开头），元素名形态未注册（ADR-0133）`,
+            );
+        }
+        return derived;
+    }
+    if (typeof raw === "string" && raw.trim() !== "") {
+        const tag = raw.trim().toLowerCase();
+        const withPrefix = tag.includes("-") ? tag : `x-${tag}`;
+        if (VALID_TAG_RE.test(withPrefix)) return withPrefix;
     }
     warn(
-        `x-define-options.tag: 无效值 ${JSON.stringify(raw)}（须 true / 含连字符的非空字符串 / false），已忽略并按缺省开启处理（ADR-0117）`,
+        `x-define-options.tag: 无效值 ${JSON.stringify(raw)}（须 true / 合法标签字符串 / false），已忽略并按缺省推导处理（ADR-0133）`,
     );
-    return `x-${name}`.toLowerCase();
+    return deriveComponentTag(name);
 }
 
 /**

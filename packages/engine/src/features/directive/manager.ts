@@ -97,6 +97,17 @@ export class DirectiveManager extends Map<string, DirectiveClass> {
     }
 
     /**
+     * 删除注册项（ADR-0133 撞名候选摘除依赖）：与 _register 对称置空元素名索引——
+     * 被删键若是某元素名的唯一声明者，索引残留陈旧映射会让 findByElementName 指向
+     * 已删键。Map 原生 delete 不经 _register，须在此显式失效。
+     */
+    override delete(name: string): boolean {
+        const ok = super.delete(name);
+        if (ok) this._elementNameIndex = null;
+        return ok;
+    }
+
+    /**
      * 按元素名反查指令名（ADR-0084 元素名形态指令通道）。
      *
      * 索引惰性构建（声明 `elementName` 的类 → 指令名），tagName 大小写归一（HTML 元素名

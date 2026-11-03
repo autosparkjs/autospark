@@ -131,12 +131,11 @@
     }
 
     /* ---------- 形态（variant）→ 底/字/边注入 ---------- */
-    /* default：常规按钮（缺省形态）——中性描边：次级底 + 正文色 + 主题边框（自带边框，border 开关对它无感）；
-         primary 语义色为缺省值、豁免（否则所有常规钮都变主题色边）；非 primary 语义色呈语义描边与文字 */
+    /* default：常规按钮（缺省形态）——面板实色底 + 正文色、无边框（描边完全交 border prop 开关）；
+         与 secondary（次级淡底）以底色层次区分；非 primary 语义色呈语义描边与文字 */
     .asc-button:has(> .asc-button-body[data-variant="default"]) {
-      --asc-bg: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(245, 245, 245, 0.45)));
+      --asc-bg: var(--auto-bgcolor, var(--asc-button-bg, #ffffff));
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
-      --asc-line: var(--auto-border-color, var(--asc-button-border-color, #d9d9d9));
     }
     .asc-button:has(> .asc-button-body[data-variant="default"][data-type="success"]),
     .asc-button:has(> .asc-button-body[data-variant="default"][data-type="warning"]),
@@ -319,9 +318,15 @@
       cursor: pointer;
       /* 常态即与按钮主背景形成色差：按内容色派生淡底（实底上呈淡白、透明底上呈淡灰/淡语义色） */
       background: color-mix(in srgb, var(--asc-ink, currentColor) 12%, transparent);
+      transition: background-color 0.15s ease, transform 0.1s ease;
     }
     .asc-button-tag:hover {
       background: color-mix(in srgb, var(--asc-ink, currentColor) 28%, transparent);
+    }
+    /* 按压反馈：底色加深 + 轻微缩放（松手经 transition 弹回） */
+    .asc-button-tag:active {
+      background: color-mix(in srgb, var(--asc-ink, currentColor) 45%, transparent);
+      transform: scale(0.88);
     }
     .asc-button-tag-icon {
       display: inline-flex;
@@ -346,9 +351,8 @@
     }
     [dark] .asc-button:has(> .asc-button-body[data-variant="default"]),
     [data-dark] .asc-button:has(> .asc-button-body[data-variant="default"]) {
-      --asc-bg: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(129, 129, 129, 0.45)));
+      --asc-bg: var(--auto-bgcolor, var(--asc-button-bg, #3a3a3a));
       --asc-ink: var(--auto-color, var(--asc-button-color, #fafafa));
-      --asc-line: var(--auto-border-color, var(--asc-button-border-color, rgba(129, 129, 129, 0.6)));
     }
     [dark] .asc-button:has(> .asc-button-body[data-type="primary"]),
     [data-dark] .asc-button:has(> .asc-button-body[data-type="primary"]) {
