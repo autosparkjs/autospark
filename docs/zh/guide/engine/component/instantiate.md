@@ -3,7 +3,7 @@
 实例化一个已声明组件有两种**完全等价**的形态（宿主化身组件根、props、插槽、事件全量同构）：
 
 - **`x-component` 指令**（ADR-0054 更名自 `x-use`）：`<div x-component:counter>`
-- **元素标签 `x-{组件名}`**（元素名形态，**缺省开启**，ADR-0117）：`<x-counter>`——组件 `x-define` 声明后无需任何选项即可直写标签；自定义标签名与 `tag: false` 关闭见[元素名组件](./tag.md)
+- **元素标签**（元素名形态，**缺省开启**，ADR-0117/0133）：标签由组件名**归一化推导**（camelCase 拆分 / 无效字符折叠 / `autospark.` 前缀剥离）——`counter` → `<x-counter>`、`order.counter` → `<x-order-counter>`、官方 `autospark.button` → `<x-button>`；自定义标签名与 `tag: false` 关闭见[元素名组件](./tag.md)
 
 ## 基础用法
 
@@ -27,16 +27,23 @@
 
 ## 元素名形态
 
-组件**缺省即可直接写元素标签实例化**（ADR-0117）——`<x-counter>` 与 `<div x-component:counter>` 完全等价：
+组件**缺省即可直接写元素标签实例化**（ADR-0117；推导规则 ADR-0133）——标签由组件名归一化推导，与 `<div x-component:counter>` 完全等价：
 
 ```html
 <div x-define="counter">...</div>
 
 <!-- 静态属性即 props（类型推断）、:expr 响应式 props、@event 事件监听 -->
 <x-counter count="100" :step="step" @bump="log.push($event.detail)"></x-counter>
+
+<!-- 点号 / camelCase 组件名归一化：order.counter 与 orderCounter 同归一个标签 -->
+<div x-define="order.counter">...</div>
+<x-order-counter></x-order-counter>
+
+<!-- 官方组件（autospark.* 前缀自动剥离，如插件注册的 autospark.button） -->
+<x-button label="保存" type="primary"></x-button>
 ```
 
-保留属性（`class` / `style` / `id` / `data-*` / `x-*`）不折叠为 props，下文属性继承照常生效。自定义标签名、props 优先级、撞名保护等完整规则见[元素名组件](./tag.md)。
+保留属性（`class` / `style` / `id` / `data-*` / `x-*`）不折叠为 props，下文属性继承照常生效。全局表组件（`options.components` / 插件）的纯标签首消费同样可用（编译期反查自动触发懒预编译）。自定义标签名、props 优先级、撞名就近遮蔽等完整规则见[元素名组件](./tag.md)。
 
 <demo html="component/define-tag.html"/>
 

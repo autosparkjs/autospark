@@ -3,6 +3,7 @@
 - 状态：已接受（2026-10-16）
 - 修订（2026-10-17）：**键名 `directive` → `tag`**。原名指向实现机制（注册成指令类）而非用户读写的东西（标签名），语义错位；更名时 ADR 落地仅一天、无发布包袱，故硬替换不留兼容别名，正文已按新名改写。同步更名：`ComponentDef.directiveTag` → `tag`、`extractDirectiveOption` → `extractTagOption`、`installAutoComponentDirective` → `installAutoComponentTag`；guide 文档 `component/directive.md` → `tag.md`、demo `define-directive.html` → `define-tag.html`、测试 `x-define-directive.test.ts` → `x-define-tag.test.ts`；修饰符保留位相应为 `x-define.tag`（V1 仍不提供）。概念正名「元素名组件（Element-name Component）」不变；命名取舍见「被否决的方案」。
 - 修订（2026-10-17，其二）：**缺省关闭 → 缺省开启**。`tag` 缺省值为 `true`——未声明即注册 `x-{组件名}` 自动标签，`false` 成唯一关闭形态；非法值由「warn + 忽略（不注册）」改为「warn + 忽略该值、回落缺省」（与本仓选项回落纪律一致）。继承语义相应修订为「子缺省注册自身自动标签、父自定义标签不扩散」。理由与取舍见决策 1 与「被否决的方案」。
+- 修订（2026-11-03）：**部分决策已被 [ADR-0133](0133-component-tag-normalization.md) 修订**——决策 1 的缺省推导升级为归一化管线（camelCase 拆分 + 无效字符折叠 + `autospark.` 前缀剥离）、无连字符串值改为补 `x-` 前缀；决策 5 的撞名规则重构（不同组件撞同标签改就近遮蔽候选列表、标签撞非组件指令元素名升 error）；「已知边界」的懒预编译时序缺口已由编译期反查关闭；决策 3 的选项属性改按标签基名读取。本文正文保留为当时的决策记录。
 - 关联：承接 [ADR-0084](0084-x-super-slot-fallback.md)（元素名形态指令通道，本决策把该通道从预设指令专属开放给组件声明）；复用 [ADR-0022](0022-x-component.md)（x-component 实例化全量机制）、[ADR-0054](0054-component-define-instantiation-rename.md)（props 值通道）、[ADR-0110](0110-x-component-value-semantics.md)（值语义三分与 props 双源合并）、[ADR-0007](0007-directive-options-and-modifiers.md)（x-define-options 手工解析通道）；继承联动 [ADR-0081](0081-component-define-inherit.md)；注册收口 [ADR-0085](0085-component-registered-event.md)（五条注册路径统一走 `registerComponentDef`）
 
 ## 背景
@@ -75,7 +76,7 @@ methods / hooks 的 this（`getMethodThis` Proxy）新增 `emit` 框架键：向
 
 ## 已知边界（V1 明确不做）
 
-- **全局懒预编译通道的首个元素名消费不触发懒解析**：`options.components` 字符串声明的组件，其元素名指令在**首次解析**（首个 `x-component:名` 消费或 `registerComponent` 即时注册）后才安装；纯 `<x-名>` 首消费若无任何属性指令触发解析，元素保持素标签（无 pending 重试——pending 机制仅属性参数形态有）。推荐做法：`registerComponent` 即时注册，或首个消费点用 `x-component:名` 暖注册。
+- **全局懒预编译通道的首个元素名消费不触发懒解析**~~（2026-11-03 已由 [ADR-0133](0133-component-tag-normalization.md) 编译期反查关闭）~~：`options.components` 字符串声明的组件，其元素名指令在**首次解析**（首个 `x-component:名` 消费或 `registerComponent` 即时注册）后才安装；纯 `<x-名>` 首消费若无任何属性指令触发解析，元素保持素标签（无 pending 重试——pending 机制仅属性参数形态有）。推荐做法：`registerComponent` 即时注册，或首个消费点用 `x-component:名` 暖注册。
 - **不加 `.tag` 修饰符形态**（`x-define.tag="名"`）：V1 仅 `x-define-options` 键形态，待真实需求再对齐修饰符约定。
 
 ## 被否决的方案
