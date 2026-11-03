@@ -88,6 +88,9 @@ export default {
 | [autospark.button](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/components/button) | 组件插件 | `$.components["autospark.button"] = 模板` | [全局组件](../engine/component/global.md) |
 | [x-ripple](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/directives/x-ripple) | 指令插件 | `$.directive(spec)` spec 重载 + 钩子委托 | [x-ripple](../directives/x-ripple.md) |
 | [x-spin](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/directives/x-spin) | 指令插件 | `$.directive(spec)` spec 重载 + 钩子委托 | [x-spin](../directives/x-spin.md) |
+| [tree / layout / version / overlay](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/directives) | 指令插件（域组合，ADR-0128 外移） | `$.directive(name, Cls)` 类重载（类工厂：基类经命名空间，类定义延迟到 register 回调） | [x-tree](../directives/x-tree.md) 等 |
+| [virtual](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/features/virtual) | 策略插件 | `$.forStrategy("virtual", strategy)`（ForRenderStrategy 扩展点，ADR-0128 决策 3） | [x-for 虚拟列表](../directives/x-for-virtual.md) |
+| [tooltip](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/features/tooltip) | 特性插件 | 命名空间工厂（`AutoSpark.tooltipFactory`）+ `enableTooltipConvert` 编译期开关 | [工具提示](../engine/tooltip.md) |
 | [notifications](https://github.com/zhangfisher/autospark/tree/main/packages/plugins/src/modules/notifications) | 复合插件 | `$.ready` + 组件表 + actions 三件套 + 事件清理 | [通知](../engine/notifications/) |
 
 <demo html="plugin/forms.html"/>

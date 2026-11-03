@@ -78,29 +78,6 @@ describe("x-model 写回落点", () => {
         expect(m.root.querySelector("#out")!.textContent).toBe("9");
     });
 
-    test("radio + x-splitter direction（direction demo 场景）：域写回驱动换轴", async () => {
-        const m = mountWith(
-            `<div id="app"><div x-data="{ dir: 'horizontal' }">
-                <label><input id="r-v" type="radio" value="vertical" x-model="dir" /> 上下</label>
-                <div id="host" x-splitter="dir">
-                    <div id="p1" data-size="140px"><span>a</span></div>
-                    <div id="p2"><span>b</span></div>
-                </div>
-            </div></div>`,
-            {},
-        );
-        await nextTick();
-        const host = m.root.querySelector("#host")!;
-        const radio = m.root.querySelector("#r-v") as HTMLInputElement;
-        radio.checked = true;
-        radio.dispatchEvent(new Event("input", { bubbles: true }));
-        await nextTick();
-        expect(host.getAttribute("data-direction")).toBe("vertical");
-        // 定容尺寸同值换轴重写（width 清、height 140px）
-        expect((m.root.querySelector("#p1") as HTMLElement).style.width).toBe("");
-        expect((m.root.querySelector("#p1") as HTMLElement).style.height).toBe("140px");
-    });
-
     test("嵌套域就近命中：子层输入写子层、父层不受牵连", async () => {
         const m = mountWith(
             `<div id="app"><div x-data="{ user: '张三' }">

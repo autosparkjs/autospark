@@ -220,10 +220,10 @@ _Avoid_: 特殊处理（退化是更简单的策略）
 虚拟列表支持现代浏览器：Chrome 80+、Firefox 80+、Safari 14+、Edge 80+。ResizeObserver 在现代浏览器广泛支持，无需 polyfill；IE11 已停止支持，不提供 polyfill。详见 ADR-0041。
 _Avoid_: 全浏览器支持（IE11 已停止维护）、polyfill 由用户提供（增加包体积）
 
-### 分页层（策略插件）
+### 分页层（引擎内置）
 
 **分页模式 / Paging Mode（x-for）**:
-x-for 的 `.paging` 修饰符启用的分页渲染模式：支持客户端分页（全量数组 slice）和服务端分页（loader action 远程加载）；服务端按总页数是否已知分流渲染——`pageCount>0` 翻页渲染当前页，`pageCount=0`（load-more）累积渲染。语法：`x-for.paging="item of items"`。通过 `x-for-options="{pageSize:10, loader:'actionName'}"` 配置。详见 ADR-0042。**实现载体**：`autospark.paging.js` 策略插件（ADR-0128；未加载插件时 warn + 退化全量渲染）。
+x-for 的 `.paging` 修饰符启用的分页渲染模式：支持客户端分页（全量数组 slice）和服务端分页（loader action 远程加载）；服务端按总页数是否已知分流渲染——`pageCount>0` 翻页渲染当前页，`pageCount=0`（load-more）累积渲染。语法：`x-for.paging="item of items"`。通过 `x-for-options="{pageSize:10, loader:'actionName'}"` 配置。详见 ADR-0042。**实现载体**：engine 核心（ADR-0008 修订：策略化经权衡退役——数据层切片逻辑需 7+ host 通道，成本/收益不成立；与 .virtual 的窗口几何不同构）。
 _Avoid_: 翻页（泛化）、分页加载（paging mode 是标准术语）
 
 **loader（x-for 分页）**:

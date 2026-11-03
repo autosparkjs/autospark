@@ -165,31 +165,6 @@ describe("x-super 插槽 fallback 展开标记（ADR-0084）", () => {
         expect(header.querySelector("x-super")!.textContent).toBe("子覆盖头 · T");
     });
 
-    test("overlay 路径：x-dialog 内容里的 x-super 同语法生效", async () => {
-        const { root, engine } = mountSuper(
-            `<div id="app">
-                <div x-scope>
-                    <div x-define="confirm">
-                        <div class="body"><div class="slot" x-slot>默认正文</div></div>
-                    </div>
-                    <button id="t" x-dialog:confirm="ui.open">
-                        打开
-                        <div x-slot><x-super></x-super>要确认吗？</div>
-                    </button>
-                </div>
-            </div>`,
-            { ui: { open: false } },
-            { animate: false },
-        );
-        engine.state.ui.open = true;
-        await nextTick();
-        const mask = document.querySelector(`.autospark-dialog-mask [data-overlay="confirm"]`)?.parentElement;
-        expect(mask).not.toBeNull();
-        const slot = mask!.querySelector(".slot")!;
-        // 覆盖物出口 fallback 展开进标记 + 内容文本照常投影
-        expect(slot.querySelector("x-super")!.textContent).toBe("默认正文");
-        expect(slot.textContent).toInclude("要确认吗？");
-    });
 
     test("空 fallback 出口：静默展开为空（不 warn）", async () => {
         const { root, warns } = mountSuper(
