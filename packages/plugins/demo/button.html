@@ -57,6 +57,19 @@
     </p>
 
     <div id="app" x-data="{ clicks: 0, picked: false, btnTags: [{ name: 'settings', icon: 'edit', tooltip: '设置' }] }">
+      <h2>标签形态（ADR-0133）</h2>
+      <p class="hint">
+        注册名 <code>autospark.button</code> 的元素标签按归一化推导（官方
+        <code>autospark.</code> 前缀自动剥离）——直接写 <code>&lt;x-button&gt;</code>
+        即实例化：静态属性即 props（类型推断），与 <code>x-component</code> 形态完全等价。
+        注意组件是封闭域——标签上 <code>@event</code> / <code>:expr</code> 引用宿主外的
+        <code>x-data</code> 状态不可见，事件监听写外层包裹元素（见下方「可勾选」节的同款姿势）。
+      </p>
+      <div class="row">
+        <x-button variant="primary" label="标签形态主按钮"></x-button>
+        <x-button variant="dashed" type="info" label="静态 props（类型推断）"></x-button>
+      </div>
+
       <h2>形态（variant）</h2>
       <div class="row">
         <button x-component:autospark.button="{ variant: 'primary', label: '主按钮' }"></button>

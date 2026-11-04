@@ -9,9 +9,11 @@
     </head>
     <body>
         <!--
-            元素名组件（ADR-0117）：组件**缺省开启**元素名形态——定义后即可以元素标签
-            直接实例化，<x-counter> 与 <div x-component:counter> 完全等价；
-            x-define-options.tag 仅用于自定义标签或 false 显式关闭。
+            元素名组件（ADR-0117；推导规则 ADR-0133）：组件**缺省开启**元素名形态——定义后
+            即可以元素标签直接实例化，<x-counter> 与 <div x-component:counter> 完全等价；
+            标签由组件名归一化推导：autospark. 前缀剥离 + camelCase 拆分 + 无效字符折叠
+            （order.counter / orderCounter 同归 <x-order-counter>）；x-define-options.tag
+            仅用于自定义标签或 false 显式关闭。
             - 静态属性即 props：count="100" 类型推断为 number；
             - :step="step" 响应式 props：外部状态 step 变了，组件内随动；
             - @bump 事件监听：组件方法内 this.emit('bump', {...}) 发射，$event.detail 取载荷；
@@ -41,6 +43,13 @@
                 <script setup>{ data: { value: 0 } }</script>
             </div>
 
+            <!-- 组件声明③：点号组件名归一化推导 → <x-order-counter>（camelCase orderCounter 同归此标签） -->
+            <div x-define="order.counter">
+                <span class="tag is-warning is-medium">#<span x-text="no"></span></span>
+                <span x-text="title"></span>
+                <script setup>{ data: { no: 0, title: '（未命名订单）' } }</script>
+            </div>
+
             <!-- A：静态属性即 props（类型推断：count/step 均为 number；class 保留给宿主） -->
             <div class="panel">
                 <div class="label">① 静态属性即 props：<code>&lt;x-counter count="100" step="5"&gt;</code></div>
@@ -62,6 +71,15 @@
             <div class="panel">
                 <div class="label">③ 自定义标签：<code>&lt;my-rating value="4"&gt;</code>（tag: 'my-rating'）</div>
                 <my-rating value="4"></my-rating>
+            </div>
+
+            <!-- D：归一化推导（ADR-0133）——点号/camelCase/下划线组件名同归一个标签 -->
+            <div class="panel">
+                <div class="label">
+                    ④ 归一化推导：<code>&lt;x-order-counter no="7" title="路书订单"&gt;</code>——组件名
+                    <code>order.counter</code>（<code>orderCounter</code> / <code>order_counter</code> 同归此标签）
+                </div>
+                <x-order-counter no="7" title="路书订单"></x-order-counter>
             </div>
         </div>
 

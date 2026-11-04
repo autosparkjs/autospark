@@ -78,7 +78,7 @@
 <x-counter count="100"></x-counter>
 ```
 
-- 未声明 / `true`：缺省开启，标签自动推导为 `x-{组件名}`（小写化）；含连字符的非空字符串：自定义标签；`false` 显式关闭；非法值 `warn` + 回落缺省；
+- 未声明 / `true`：缺省开启，标签按组件名**归一化推导**（ADR-0133：`autospark.` 前缀剥离 + camelCase 边界插 `-` + 小写化 + 连续无效字符折叠——`order.counter`/`orderCounter` 同归 `x-order-counter`）；非空字符串：自定义标签（小写化，不含连字符自动补 `x-` 前缀）；`false` 显式关闭；非法值 `warn` + 回落推导；
 - 静态属性即 props（类型推断）、`:name="expr"` 响应式 props、`@event` + `this.emit` 事件监听、保留属性（`class` / `style` / `id` / `data-*` / `x-*`）不折叠——完整规则见[元素名组件](../component/tag.md)。
 
 <demo html="component/define-tag.html"/>
@@ -177,5 +177,5 @@
 - **不渲染自身**：`x-define` 元素及其子树不进结果 DOM，同元素的其他指令（如 `x-text`）随组件冻结、待实例化时才编译执行；
 - **旧写法已废弃**：`x-component="名称"` 的定义写法已更名 `x-define`（ADR-0054），旧写法会被读作缺少组件名的 `x-component` 实例化并 `warn`；
 - **继承的父组件须先声明（同步场景）**：父同步在场（文档序在前 / 全局已注册）则编译期立即解析；值空 / 指向自身 / 继承环 `warn` + 拒绝注册。`x-import` 异步父**就绪即解析**（挂起至父注册事件排水，ADR-0083；拼错父名同表现为持续 loading，详见[组件继承](../component/inherit.md)）；
-- **组件名建议 kebab-case**：`x-component:名称` 的属性参数会被 DOM 小写化，`x-define="orderCard"` 与 `x-component:orderCard` 因大小写不一致无法命中，请统一小写 / kebab-case（如 `order-card`）；
+- **组件名建议 kebab-case**：`x-component:名称` 的属性参数会被 DOM 小写化，`x-define="orderCard"` 与 `x-component:orderCard` 因大小写不一致无法命中，请统一小写 / kebab-case（如 `order-card`）。此警示仅限 `x-component` 属性参数形态——**元素名标签不受影响**（ADR-0133 归一化推导：`orderCard` 自动标签为 `<x-order-card>`，camelCase 拆分后可正常匹配）；
 - **完整教程**：组件来源、查找链、全局组件、`x-import` 远程加载见[组件](../component/)。
