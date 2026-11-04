@@ -49,6 +49,8 @@ description: 在 autospark monorepo 内创建官方组件（每个组件同时�
 
 ## 第三步：创建文件时的关键约定
 
+- **组合复用优先（DRY）**：动手写新逻辑前先盘点 `@autospark/plugins` 既有资产，能组合复用的尽量复用——①既有组件（`autospark.button`、notifications 等）可在新组件模板内经 `x-component:` 嵌套或继承；②既有指令（`x-ripple` / `x-spin` / overlay 家族等）可直接标注在新组件模板元素上；③家族工具（`src/utils/`，目录见 utils-catalog）import 复用。组合不了的才自实现。注意：模板内组合的指令/组件构成跨插件依赖——按需加载场景使用者须同时引入对应产物，聚合产物（`autospark.plugins.js`）无此问题
+- **必须继承 autospark.base（ADR-0134）**：模板根声明 `x-define:inherit="autospark.base"`——主题档位 props（`data-size` / `data-shadow` / `data-radius` / `data-spacing` / `data-dark` / `data-colorized` 六键，名即通道）经基类自动获得，组件**不得**在自己的 `data()` 里声明这六键（裸名 `size` / `dark` 等留给组件自有语义，声明同名键会静默击穿主题通道）。base 是 engine 内置抽象组件，产物只依赖 engine，无额外引入成本
 - 模板文件经 `?raw` 字符串导入内联进产物：`import template from "./<name>.html?raw"`——模板以字符串形态随 IIFE 交付，无独立模板加载通道
 - **style 段默认 global**：`<style global id="autospark-components-<name>">`——注册期原样注入 head，id 作幂等键，主题变量回退链与暗色兜底选择器全局直命中。scoped 段（无 `global` 属性）仅在需要实例级样式隔离或 `bind()` 响应式样式时使用（ADR-0087 混排自由）
 - 完整样板（index.ts + html 逐段职责）见 `references/template-anatomy.md`
@@ -62,6 +64,7 @@ description: 在 autospark monorepo 内创建官方组件（每个组件同时�
 3. **暗色兜底变体**：`[dark] .asc-<name>, [data-dark] .asc-<name> { ... }` 切换兜底字面值（变量链不变）。
 4. **化身路径约束（T4=B，最常见缺陷）**：组件模板**根上的动态绑定不会求值**（静态并入宿主）。变体绑定（`:data-type` / `:data-size`）必须落在编译子树的内层元素（通常是插槽出口），经 `:has()` 选择器驱动宿主外观；原生属性（如 `disabled`）在 `mounted()` 里同步到 `this.el`。
 5. 尺寸变体惯例：内层元素 `data-size` + `.asc-<name>:has(> .xxx[data-size="sm"])` 模式，尺寸梯度取 `--x-font-size-*` / `--x-spacing-*` 标尺。
+6. **`data-*` 主题通道名保留（ADR-0134）**：`data-size` / `data-shadow` / `data-radius` / `data-spacing` / `data-dark` / `data-colorized` 六个属性名是 theme 手动通道（宿主化身根上由 base 物化）——组件**内部**变体属性禁用这六个名字做自有语义（撞名会在 theme 在场时被档位块意外命中），自有变体用 `data-type` / `data-variant` 等非通道名。
 
 ## 第五步：登记面（缺一处即断链）
 
@@ -98,6 +101,8 @@ cd packages/plugins && bun run build
 - [ ] `<name>.html` 含 `x-define` / `<script setup>` / `<style global id="autospark-components-<name>">`
 - [ ] 样式零硬编码语义色；三级回退链；暗色兜底变体在场
 - [ ] 根上无动态绑定；原生属性 mounted 同步
+- [ ] 组合复用已盘点：既有组件/指令/家族工具可复用的均已复用，无重复实现
+- [ ] 模板根声明 `x-define:inherit="autospark.base"`；`data()` 未声明主题六键；组件内部变体未占用 `data-*` 主题通道名（ADR-0134）
 - [ ] 五处登记面齐全 + 仓库惯例同步（readme 清单表 / CONTEXT 词条 / demo 演示树）
 - [ ] 交付产物 `autospark.<name>.js`（IIFE）已生成于 `dist/` 并复制到 `docs/public/`
 - [ ] demo 浏览器验证：默认态 / 变体态 / 暗色态均正常

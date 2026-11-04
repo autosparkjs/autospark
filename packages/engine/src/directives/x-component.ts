@@ -891,6 +891,14 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
             this._waitForComponent(name, props);
             return;
         }
+        // 抽象组件拦截（ADR-0134）：abstract 组件不可直接实例化——warn + 拒渲染
+        //（宿主原内容保持，与结构指令冲突的让步语义一致）；非 pending 场景，不等待注册
+        if (found.def?.base === true) {
+            this.warn(
+                `x-component: "${name}" 是抽象组件（x-define.abstract），不可实例化——仅可被 x-define:inherit 继承（ADR-0134）。`,
+            );
+            return;
+        }
         // 递归深度保护（T5=A）：沿 parent 链统计同名组件实例化深度
         if (this._recursiveDepth(name) >= ComponentDirective.MAX_DEPTH) {
             this.warn(

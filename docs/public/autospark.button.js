@@ -16,7 +16,13 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
 -->
 <!-- 元素名快速写法 <x-button variant="primary" label="..."> 由 index.ts 的 precompile
      DOM 变换承载（ADR-0117 元名形态对全局表惰性组件有时序缺口，见 index.ts 注释） -->
-<button class="asc-button" x-define="autospark.button">
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：自动获得主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized 六键，
+     名即通道）——宿主化身根物化为同名 data-* 属性，接通 @autospark/theme 手动通道 CSS
+     形成局部主题；base 缺省不写属性（继承祖先档位），theme 不在场静默无效。
+     button 不得在 data() 重复声明这六键（子胜会静默击穿主题通道），裸名 size/dark 等留作
+     组件自有语义；组件内部变体属性亦禁用这六个通道名（theme 在场时会被档位块意外命中） -->
+<button class="asc-button" x-define="autospark.button" x-define:inherit="autospark.base">
   <script setup>
     {
         data: () => ({
@@ -88,8 +94,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   <style global id="autospark-components-button">
     /* 主题化（ADR-0129）：三级回退链 var(--auto-X, var(--asc-button-X, 校准兜底值))；
          --asc-button-* 前缀保留（既有覆盖面零改名）；实底上的白字非映射（恒定设计）；
-         尺寸不设组件级档位——字号/圆角/图标全部消费 theme 变量，padding/gap 以 em 相对
-         字号缩放，data-size 档位切换自动跟随；暗色兜底变体见块尾 */
+         尺寸不设组件级档位——字号/圆角/图标消费 theme 变量，内距以 --auto-padding 为基准（data-spacing 档位
+         全局调节生效），data-size / data-spacing 档位切换自动跟随；暗色兜底变体见块尾 */
 
     /* ---------- 宿主基础：形态中转变量层（--asc-bg/ink/line 由各变体块注入，一处消费） ---------- */
     .asc-button {
@@ -97,6 +103,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       --asc-bg: transparent;
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
       --asc-line: transparent;
+      /* 内距基准：消费 --auto-padding（--auto-spacing 速写族）——容器 data-spacing 档位全局调节生效 */
+      --asc-pad: var(--auto-padding, var(--asc-button-padding, 0.8rem));
       display: inline-flex;
       border: var(--auto-border-size, var(--asc-button-border-size, 1px)) solid var(--asc-line);
       border-radius: var(--auto-border-radius, var(--asc-button-radius, 0.5rem));
@@ -105,7 +113,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       font: inherit;
       font-size: var(--auto-font-size, var(--asc-button-font-size, 0.875rem));
       line-height: 1.4;
-      padding: 0.45em 1em;
+      padding: calc(var(--asc-pad) * 0.55) calc(var(--asc-pad) * 0.8);
       cursor: pointer;
       user-select: none;
       transition: filter 0.15s ease, background-color 0.15s ease;
@@ -168,7 +176,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-button:has(> .asc-button-body[data-variant="text"]) {
       --asc-bg: transparent;
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
-      padding: 0.45em 0.75em;
+      padding: calc(var(--asc-pad) * 0.55) calc(var(--asc-pad) * 0.6);
     }
     /* link：透明底 + 语义色字、无内距（inline 链接感） */
     .asc-button:has(> .asc-button-body[data-variant="link"]) {
@@ -191,7 +199,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       display: flex;
       width: 100%;
       border-radius: var(--auto-border-radius, var(--asc-button-radius, 0.375rem));
-      padding: 0.45em 0.75em;
+      padding: calc(var(--asc-pad) * 0.55) calc(var(--asc-pad) * 0.6);
       text-align: left;
     }
 
@@ -210,7 +218,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     /* ---------- 形状（shape）：circle 恒胶囊半径——纯图标时内容等宽高自然呈正圆，带文字自动胶囊 ---------- */
     .asc-button:has(> .asc-button-body[data-shape="circle"]) {
       border-radius: 9999px;
-      padding: 0.45em;
+      padding: calc(var(--asc-pad) * 0.55);
     }
 
     /* ---------- 适配父宽度 ---------- */
@@ -260,6 +268,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-button-body[data-align="left"] { justify-content: flex-start; }
     .asc-button-body[data-align="right"] { justify-content: flex-end; }
     .asc-button-body[data-menu="true"] { justify-content: flex-start; } /* 菜单项恒左对齐 */
+    .asc-button-body[data-menu="true"] .asc-button-main { align-items: flex-start; } /* label/memo 文本亦居左（与 memo 折行/短 label 对齐左缘） */
     .asc-button-body[data-label-below="true"] { flex-direction: column; gap: 0.15em; } /* label 纵排 */
 
     /* 图标位：尺寸随字号（x-icon 默认 1em），loading 转圈自带 SMIL 动画 */

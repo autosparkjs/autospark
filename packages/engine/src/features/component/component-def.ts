@@ -220,4 +220,12 @@ export interface ComponentDef {
      * 注册自身自动标签，父的自定义标签不扩散）。
      */
     tag?: string;
+    /**
+     * 抽象组件标记（ADR-0134，`x-define.abstract` ≡ `x-define-options="{abstract:true}"`）：
+     * true = 无模板基组件——**快照弃权**（被继承时子模板根胜出，本声明不贡献骨架）、
+     * 不可直接实例化（消费侧 warn + 拒渲染；元素名形态不安装）、只可作继承链根
+     * （声明 inherit 时继承解析拒绝注册）。setup / styles / defaults 照常被子合并。
+     * 内置 `autospark.base` 即本形态。
+     */
+    base?: boolean;
 }

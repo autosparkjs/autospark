@@ -31,6 +31,11 @@
                     <x-button menu="true" icon="external" label="在浏览器打开"></x-button>
                 </div>
                 <div class="menu-box">
+                    <x-button block="true" menu="true" icon="refresh" label="自动保存" memo="每隔 5 分钟自动保存草稿至本地"></x-button>
+                    <x-button block="true" menu="true" icon="bell" label="变更通知" memo="文件被他人编辑时即时提醒，可在偏好设置中按事件类型细分管道"></x-button>
+                    <p class="hint" style="margin-top:6px;">menu + memo：副文本在 label 下方（两行截断），图标取 2 倍尺寸与文本块垂直居中。</p>
+                </div>
+                <div class="menu-box">
                     <span @change="pickedMenu = $event.detail.value">
                         <x-button menu="true" checkable="true" :value="pickedMenu" icon="star" label="收藏夹"></x-button>
                     </span>

@@ -88,6 +88,7 @@ export default defineConfig({
                 { text: "全局组件", link: "/zh/guide/engine/component/global" },
                 { text: "组件插槽", link: "/zh/guide/engine/component/slot" },
                 { text: "组件继承", link: "/zh/guide/engine/component/inherit" },
+                { text: "无模板基组件", link: "/zh/guide/engine/component/abstract" },
                 { text: "组件递归", link: "/zh/guide/engine/component/recursive" },
                 { text: "实例化组件", link: "/zh/guide/engine/component/instantiate" },
                 { text: "查找组件", link: "/zh/guide/engine/component/lookup" },
@@ -343,6 +344,7 @@ export default defineConfig({
         }
       ],
       "/zh/components/":[
+        { text: "Base 基类组件", link: "/zh/components/base" },
         { text: "Button", link: "/zh/components/button" },
       ],
       "/zh/examples/": [

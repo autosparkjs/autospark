@@ -56,6 +56,6 @@
 ## 使用纪律
 
 1. **禁止静态 import engine 运行时符号**——`import type` 可以（编译期剥除），值导入一律经 `nsMember` / 具名包装，否则破坏「IIFE 产物运行时零依赖」契约
-2. **先查后写**——新工具进组件前先扫 `src/utils/` 是否已有同能力实现；复制粘贴 engine utils 属违规（ADR-0008 的教训：整文件复制是历史债务，新代码走引用）
+2. **先查后写（三层盘点）**——自实现任何逻辑前依次查：`src/components/` 既有组件（可经 `x-component:` 嵌套/继承复用）→ `src/directives/` 既有指令（可直接标注在新组件模板元素上）→ `src/utils/` 家族工具（import 复用）；复制粘贴 engine utils 属违规（ADR-0008 的教训：整文件复制是历史债务，新代码走引用）
 3. **跨组件复用才上 `src/utils/`**——单组件私有逻辑留在组件目录内；`src/utils/` 的东西被多产物消费，API 稳定性要求更高
 4. 外部依赖须已在 `packages/plugins/package.json`（现役：`@floating-ui/dom`、`flex-tools`、`@autospark/utils`）——新增依赖是架构决策，先与用户确认

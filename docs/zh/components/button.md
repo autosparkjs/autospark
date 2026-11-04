@@ -4,7 +4,7 @@
 
 Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色（type）正交组合**，覆盖常规/主/次/虚线/文本/链接六种形态 × 五种语义色，并支持图标、加载、禁用、幽灵、块级、圆形、纵排标签、备注、标签组、菜单项、可勾选、点击涟漪、汉字空格等完整特性面。
 
-组件全盘消费 `@autospark/theme` 语义变量（`--auto-*` 三级回退链，ADR-0129）——调节主题色、切换暗色、换尺寸/圆角档位**即时生效**，且不设组件级尺寸属性（字号/圆角/间距全跟随主题档位）。每个示例右侧均带**主题控制面板**，可现场验证联动。
+组件全盘消费 `@autospark/theme` 语义变量（`--auto-*` 三级回退链，ADR-0129）——调节主题色、切换暗色、换尺寸/圆角/间距档位**即时生效**，且不设组件级尺寸属性（字号/圆角跟随主题档位，内距以 `--auto-padding` 为基准——`data-spacing` 档位全局调节即时生效）。每个示例右侧均带**主题控制面板**，可现场验证联动。
 
 ## 快速入门
 
@@ -213,6 +213,27 @@ label 恰为**两个汉字**时自动在中间插入空格（「提交」→「�
 
 <demo html="components/button/auto-insert-space.html"/>
 
+### 主题档位（data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized）
+
+button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134），自动获得六个主题档位 props——**名即通道**：props 物化为宿主上的同名 `data-*` 属性，接通 @autospark/theme 的手动通道 CSS，在按钮局部覆盖祖先 scope 的全局档位（**局部主题**）。
+
+- **静态写法**（元素名散属性，theme CSS 直通）：
+
+```html
+<x-button type="primary" data-size="small" data-shadow="large">保存</x-button>
+<x-button data-dark>局部暗色语境按钮</x-button>
+```
+
+- **动态写法**（指令形态 props，消费方上下文响应式）：
+
+```html
+<button x-component:autospark.button="{ 'data-spacing': dense ? 'x-small' : 'large' }"></button>
+```
+
+值域 `ThemeSize = none | x-small | small | medium | large | x-large`；`data-dark` / `data-colorized` 为布尔；缺省不写属性（继承全局档位）；theme 不在场时静默无效（吃三级回退链兜底值）。完整契约与通道选型见 [Base 基类组件](./base.md)。
+
+<demo html="components/button/theme.html"/>
+
 ### 事件
 
 组件默认封闭（宿主上的表达式在组件域求值），事件经**冒泡**到外层消费——绑定写在组件外的包裹元素上：
@@ -245,6 +266,12 @@ label 恰为**两个汉字**时自动在中间插入空格（「提交」→「�
 | memo | `string` | `''` | label 下方备注（小一号、淡化） |
 | tags | `{icon?, tooltip?, name?}[]` | `[]` | 右侧小圆钮组（点击冒泡 tag-click） |
 | menu | `boolean` | `false` | 菜单项形态 |
+| data-size | `ThemeSize` | `''` | 主题尺寸档（继承 autospark.base，ADR-0134） |
+| data-shadow | `ThemeSize` | `''` | 主题阴影档 |
+| data-radius | `ThemeSize` | `''` | 主题圆角档 |
+| data-spacing | `ThemeSize` | `''` | 主题间距密度档 |
+| data-dark | `boolean` | `false` | 局部暗色语境 |
+| data-colorized | `boolean` | `false` | 局部多彩语境 |
 | checkable | `boolean` | `false` | 可勾选模式（点击翻转 value） |
 | value | `boolean` | `false` | 勾选值（checkable 模式） |
 | ripple | `boolean \| object` | `true` | x-ripple props 值透传（默认开启）：true ≡ `{ trigger: "click", inside: true }`，false 关闭，对象全键可覆盖（trigger / type / color / speed…；需加载 autospark.ripple.js，未加载时静默跳过） |

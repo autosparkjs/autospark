@@ -5,8 +5,7 @@ import type { AutoSpark } from "../../engine/engine";
 import {
     BUILTIN_COMPONENTS,
     ERROR_COMPONENT_NAME,
-
-
+    BASE_COMPONENT_NAME,
 } from "../../components";
 
 /**
@@ -115,11 +114,11 @@ describe("内置组件注册位与查找统一（ADR-0094）", () => {
         for (const k of keys) {
             expect(k.startsWith("autospark.")).toBe(true);
         }
-        // 内置种子表终态（ADR-0128 后）：仅 autospark.error（overlay 家族 shell/骨架已随
-        // 批次 4 外移、通知族已随 ADR-0001 迁出）
-        for (const k of [ERROR_COMPONENT_NAME]) {
+        // 内置种子表终态（ADR-0128 后 + ADR-0134）：autospark.error（overlay 家族 shell/骨架
+        // 已随批次 4 外移、通知族已随 ADR-0001 迁出）+ autospark.base（抽象基组件）
+        for (const k of [ERROR_COMPONENT_NAME, BASE_COMPONENT_NAME]) {
             expect(keys.includes(k)).toBe(true);
         }
-        expect(keys.length).toBe(1);
+        expect(keys.length).toBe(2);
     });
 });

@@ -28,13 +28,14 @@
             </div>
         </div>
         <div class="auto-card">
-            <div class="auto-card-header">label 左对齐 + memo 两行截断</div>
+            <div class="auto-card-header">label 左对齐 + memo 单行与两行截断</div>
             <div class="auto-card-body" style="max-width: 380px;display:flex;flex-direction:column;gap:10px;">
+                <x-button block="true" align="left" icon="bell" label="通知设置" memo="仅提醒未读消息"></x-button>
                 <x-button variant="secondary" block="true" align="left" icon="bell" label="通知设置" memo="接收订单、库存、会员与营销活动的实时提醒，支持按渠道（站内、短信、邮件）分别配置接收偏好，重要事件可开启加急推送"></x-button>
                 <x-button block="true" align="left" icon="folder" label="归档规则" memo="按季度自动归档已完成订单，归档前会再次确认并生成备份清单，备份文件保留 90 天，到期后自动清理且不可恢复"></x-button>
             </div>
             <p class="hint" style="padding: 0 1rem 0.8rem;">
-                align: "left" 使内容左对齐（block 等宽内容时可见）；memo 最多两行，超出自动截断显示省略号。
+                align: "left" 使内容左对齐（block 等宽内容时可见）；短 memo 单行呈现（第一枚），长 memo 最多两行、超出自动截断显示省略号（后两枚）。
             </p>
         </div>
     </main>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-define.abstract · 无模板基组件</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .demo-card {
+                border: 1px solid #dbdbdb;
+                border-radius: 6px;
+                padding: 12px 16px;
+                margin-bottom: 12px;
+                max-width: 480px;
+            }
+            .demo-card .hd {
+                border-bottom: 1px solid #ededed;
+                padding-bottom: 6px;
+                margin-bottom: 8px;
+                font-weight: 600;
+            }
+            button.pet {
+                margin: 4px 6px 4px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container" x-scope style="padding: 20px">
+            <div class="demo-card">
+                <div class="hd">子模板根胜出（快照弃权）</div>
+                <p>两个子组件各自保留自己的 <code>&lt;button&gt;</code> 根元素（原生语义完整）；
+                抽象基类只贡献 <code>data</code>（kind/sound 默认值）——子组件模板零改动即获得行为，
+                子组件同名键（kind）覆盖基类默认值。</p>
+                <div><button class="pet" x-component:animal.dog></button></div>
+                <div><button class="pet" x-component:animal.cat></button></div>
+            </div>
+
+            <div class="demo-card">
+                <div class="hd">消费方内容覆盖子出口（三层优先级不变）</div>
+                <div><button class="pet" x-component:animal.dog><b>自定义内容（覆盖出口 fallback）</b></button></div>
+            </div>
+
+            <div class="demo-card">
+                <div class="hd">直接实例化被拦截（warn + 拒渲染）</div>
+                <p>抽象组件不可直接实例化——打开控制台可见 warn；宿主保持为空：</p>
+                <div style="border: 1px dashed #dbdbdb; padding: 4px 8px">
+                    <div x-component:animal.base>（这里不会有渲染）</div>
+                </div>
+            </div>
+        </div>
+        <script>
+            // 组件定义经 options.components 字符串注册（全局组件表，ADR-0094 懒预编译）。
+            // 模板字符串内的 <\/script>：转义防止外层脚本被提前终止（求值后即正常闭合标签）。
+            new AutoSpark(document.querySelector(".container"), {}, {
+                components: {
+                    // 抽象基类：只声明行为（data 默认值 + methods），不贡献模板骨架
+                    "animal.base": `<div x-define="animal.base" x-define.abstract>
+                        <script setup>{ data: { kind: "动物", sound: "……" }, methods: { speak() { return this.data.kind } } }<\/script>
+                    </div>`,
+                    // 子组件继承：子模板根胜出（button 根保留），父行为经合并自动获得
+                    "animal.dog": `<button x-define="animal.dog" x-define:inherit="animal.base">
+                        <span class="label" x-slot>{{ kind }}说：{{ sound }}</span>
+                        <script setup>{ data: { kind: "小狗", sound: "汪汪" } }<\/script>
+                    </button>`,
+                    "animal.cat": `<button x-define="animal.cat" x-define:inherit="animal.base">
+                        <span class="label" x-slot>{{ kind }}说：{{ sound }}</span>
+                        <script setup>{ data: { kind: "猫咪", sound: "喵～" } }<\/script>
+                    </button>`,
+                },
+            });
+        </script>
+    </body>
+</html>

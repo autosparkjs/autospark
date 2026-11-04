@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 主题档位（autospark.base 继承）</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+        .tier-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .tier-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        .tier-cell code {
+            font-size: 12px;
+            opacity: 0.65;
+        }
+    </style>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls groups="color,mode,size,radius,shadow,spacing"></theme-controls></aside>
+    <main class="demo-main" x-data="{ dense: false }">
+        <div class="auto-card">
+            <div class="auto-card-header">主题档位 props（ADR-0134，继承 autospark.base）：data-size 五档——按钮尺寸自动跟随，缺省不写属性即继承右侧全局档位</div>
+            <div class="auto-card-body">
+                <div class="tier-row">
+                    <div class="tier-cell"><x-button type="primary" data-size="x-small" label="超小"></x-button><code>x-small</code></div>
+                    <div class="tier-cell"><x-button type="primary" data-size="small" label="小"></x-button><code>small</code></div>
+                    <div class="tier-cell"><x-button type="primary" data-size="medium" label="中"></x-button><code>medium</code></div>
+                    <div class="tier-cell"><x-button type="primary" data-size="large" label="大"></x-button><code>large</code></div>
+                    <div class="tier-cell"><x-button type="primary" data-size="x-large" label="超大"></x-button><code>x-large</code></div>
+                    <div class="tier-cell"><x-button type="primary" label="默认"></x-button><code>（缺省 = 继承全局档位）</code></div>
+                </div>
+                <p class="hint">右侧控制台切换全局 size 档位：缺省按钮跟随全局，显式声明档位的按钮保持局部覆盖——「局部主题」即此语义。</p>
+            </div>
+        </div>
+
+        <div class="auto-card">
+            <div class="auto-card-header">圆角 / 间距 / 阴影维度：data-radius、data-spacing、data-shadow 同一契约</div>
+            <div class="auto-card-body">
+                <div class="tier-row">
+                    <div class="tier-cell"><x-button data-radius="none" label="直角"></x-button><code>radius=none</code></div>
+                    <div class="tier-cell"><x-button data-radius="x-large" label="大圆角"></x-button><code>radius=x-large</code></div>
+                    <div class="tier-cell"><x-button data-spacing="x-small" label="紧凑"></x-button><code>spacing=x-small</code></div>
+                    <div class="tier-cell"><x-button data-spacing="x-large" label="宽松"></x-button><code>spacing=x-large</code></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="auto-card">
+            <div class="auto-card-header">布尔两维：data-dark（局部暗色语境）、data-colorized（局部多彩）——可与任意档位组合</div>
+            <div class="auto-card-body">
+                <div class="tier-row">
+                    <x-button label="局部暗色" data-dark></x-button>
+                    <x-button type="primary" label="暗色中的实底" data-dark></x-button>
+                    <x-button label="局部多彩" data-colorized></x-button>
+                    <x-button type="primary" label="小号 + 暗色" data-size="small" data-dark></x-button>
+                </div>
+                <p class="hint">页面保持亮色，仅按钮子树进入暗色语境（color-scheme 与 --auto-* 一并切换）。</p>
+            </div>
+        </div>
+
+        <div class="auto-card">
+            <div class="auto-card-header">响应式档位（props 通道）：x-button-options.props 成员属性表达式绑定消费方状态——props 注入 → data 域 → watch → 属性物化全链响应</div>
+            <div class="auto-card-body">
+                <div class="tier-row">
+                    <!-- 指令形态：值 = props 表达式（消费方上下文响应式求值）——响应式主题档位的正解 -->
+                    <button x-component:autospark.button="{ 'data-spacing': dense ? 'x-small' : 'large', label: dense ? '当前：紧凑' : '当前：宽松' }"></button>
+                    <span @click="dense = !dense">
+                        <x-button type="primary" :label="dense ? '切回宽松' : '切到紧凑'"></x-button>
+                    </span>
+                    <span>dense = <b>{{ dense }}</b></span>
+                </div>
+                <p class="hint">通道选型：静态档位用元素名散属性（<code>&lt;x-button data-size="small"&gt;</code>，theme CSS 直通）；响应式档位用指令形态 props（本例写法，消费方上下文求值 → props 注入 → base 物化）。宿主化身根上的 <code>@click</code> / <code>:data-*</code> 以组件实例上下文求值（封闭数据边界下消费方 x-data 局部域不可见，ADR-0053/T4=B）——事件绑组件外层元素。</p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

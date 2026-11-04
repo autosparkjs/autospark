@@ -1,0 +1,87 @@
+<!--
+  autospark.base —— 无模板基组件（ADR-0134，x-define.abstract）
+
+  官方组件族的抽象基类：所有 @autospark/plugins 组件均应 x-define:inherit 继承本组件，
+  自动获得「主题档位 props → 宿主化身根 data-* 属性」的物化行为，接通 @autospark/theme
+  的手动通道 CSS（根域裸 [data-size] / [data-shadow] / [data-radius] / [data-spacing] /
+  [data-dark] / [data-colorized] 直接覆盖 --auto-* 派生令牌，子树继承）。
+
+  契约要点（ADR-0134 决策三/四）：
+  - 六键名即通道（props 键名 = 物化的 DOM 属性名，零映射表）；裸名空间（size/dark…）
+    留给子组件自有语义——子组件声明同名裸名键不冲突，声明本六键则会覆盖基类默认值；
+  - 值域透传不校验（theme 是唯一真值源）；ThemeSize：none|x-small|small|medium|large|x-large；
+  - 缺省（""/false）不写属性 → 继承祖先 scope 档位；显式传值即写（含 medium，显式优先）；
+  - 布尔走 data- 前缀存在性属性（裸 dark/colorized 仅对 theme scope 元素生效，组件宿主
+    只有 data- 前缀手动通道）；
+  - 首挂物化一次 + watch 六键同步（props 数据流最后一公里：消费方 :data-dark="isDark"
+    绑定全链响应——化身根动态绑定不求值，props→data 域→watch→setAttribute 是唯一稳定通道）；
+  - props 物化后写胜出（压过化身携带的同名散属性）；
+  - 零依赖 theme 代码：本组件只写 DOM 属性，theme 在场时 CSS 命中、不在场时静默无效
+    （组件吃三级回退链的校准兜底值，ADR-0129），不破坏「theme 包独立于 engine」。
+-->
+<div x-define="autospark.base" x-define.abstract>
+    <script setup>
+        {
+            data: () => ({
+                // 四档维（ThemeSize 档位）：缺省 "" = 不写属性（继承祖先 scope 档位）
+                "data-size": "",
+                "data-shadow": "",
+                "data-radius": "",
+                "data-spacing": "",
+                // 两布尔（存在性属性）：true 写 data-xxx=""，false 移除
+                "data-dark": false,
+                "data-colorized": false,
+                // 六键聚合视图（computed，内部保留键）：任一键变化触发重算——物化的
+                // watch 订阅位。连字符键不能直接走 watch 路径订阅（"data-size" 会被
+                // 表达式支路解析为 data - size 减法），经 computed 成员访问
+                // s["data-size"] 收集依赖、顶层标识符订阅，button 的 displayLabel 同款
+                themeAttrs: (s) => [
+                    s["data-size"],
+                    s["data-shadow"],
+                    s["data-radius"],
+                    s["data-spacing"],
+                    s["data-dark"],
+                    s["data-colorized"],
+                ],
+            }),
+            mounted() {
+                // 属性物化（ADR-0134）：键名即属性名，循环零映射表。
+                const KEYS = [
+                    "data-size",
+                    "data-shadow",
+                    "data-radius",
+                    "data-spacing",
+                    "data-dark",
+                    "data-colorized",
+                ];
+                // 首跑快照：宿主化身携带的静态散属性（消费方直接写在元素上的 data-*，
+                // 元素名形态的保留属性通道，走 bind/散属性直通语义）是「外部通道在场」标记。
+                // 三层语义：props 值在场 → 写入（显式 API 通道优先）；props 缺省且外部通道
+                // 在场（散属性 / :data-* bind 直写）→ **不动**（属性面让给外部通道自治，
+                // 物化不与之竞争 flush 顺序）；皆无 → 移除（继承祖先档位）。
+                // 存在性属性（data-dark 无值形态）快照为 true。
+                const external = new Set();
+                for (const key of KEYS) {
+                    if (this.el.getAttribute(key) !== null) external.add(key);
+                }
+                const writeAttr = (key, v) => {
+                    if (v === true) this.el.setAttribute(key, "");
+                    else this.el.setAttribute(key, String(v));
+                };
+                const applyAll = () => {
+                    for (const key of KEYS) {
+                        const v = this.data[key];
+                        if (v) writeAttr(key, v);            // props 值在场（true / 非空档位）→ 写入
+                        else if (external.has(key)) { /* 外部通道在场：不动（bind/散属性自治） */ }
+                        else this.el.removeAttribute(key);   // 皆无 → 继承祖先档位
+                    }
+                };
+                applyAll();
+                // 首挂物化一次 + watch 聚合键同步（props 数据流最后一公里：消费方
+                // :data-dark="isDark" 绑定 → props 注入 → data 域 → watch → 属性；
+                // 回调收 { value } 信封对象——裸值写法恒真，家族惯用法，此处只用作触发信号）
+                this.watch("themeAttrs", () => applyAll());
+            },
+        }
+    </script>
+</div>

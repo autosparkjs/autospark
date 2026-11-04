@@ -141,8 +141,10 @@ export function parseComponentDeclare(
         }
     }
     for (const seg of segments) {
-        if (seg !== "open" && seg !== "global") {
-            warn(`x-define: 未知修饰符 ".${seg}"，已忽略（仅提供 .open / .global，ADR-0053/0115）`);
+        if (seg !== "open" && seg !== "global" && seg !== "abstract") {
+            warn(
+                `x-define: 未知修饰符 ".${seg}"，已忽略（仅提供 .open / .global / .abstract，ADR-0053/0115/0134）`,
+            );
         }
     }
     return {
@@ -264,6 +266,33 @@ export function extractGlobalOption(
         );
     }
     return modifierGlobal;
+}
+
+/**
+ * 提取抽象组件声明的生效布尔值（ADR-0134）：`x-define.abstract` 修饰符 ≡
+ * `x-define-options="{abstract:true}"`——与 {@link extractGlobalOption} 的读法完全对称
+ * （options 显式布尔含 false 优先于修饰符）。
+ *
+ * 在 {@link buildComponentDef} 内部读取（不经调用方传修饰符）——五条注册路径
+ * （编译期局部 / 全局收集、懒预编译、运行时 registerComponent、x-import）的根元素
+ * 均携带原声明属性，abstract 语义对全部注册入口自动生效、单点实现。
+ */
+function extractAbstractOption(componentEl: HTMLElement, warn: (msg: string) => void): boolean {
+    let modifierAbstract = false;
+    for (const attr of Array.from(componentEl.attributes)) {
+        if (attr.name === "x-define.abstract" || attr.name.startsWith("x-define.abstract.")) {
+            modifierAbstract = true;
+            break;
+        }
+    }
+    const rawAbstract = parseComponentOptions(componentEl, warn)?.abstract;
+    if (typeof rawAbstract === "boolean") return rawAbstract;
+    if (rawAbstract !== undefined) {
+        warn(
+            `x-define-options.abstract: 须为布尔值，实际 ${JSON.stringify(rawAbstract)}，已忽略（ADR-0134）`,
+        );
+    }
+    return modifierAbstract;
 }
 
 /** 官方组件标签命名空间前缀（ADR-0133）：`autospark.*` 推导标签时剥离开头段 */
@@ -486,8 +515,30 @@ export function buildComponentDef(
         warn,
     );
 
-    // 元素名指令声明（ADR-0117）：x-define-options.tag → 自动注册元素名形态指令的标签
-    const tag = extractTagOption(componentEl, name, warn);
+    // 抽象组件声明（ADR-0134）：x-define.abstract ≡ x-define-options="{abstract:true}"。
+    // 在此内部读取（非调用方传参）——五条注册路径的根元素均带原声明属性，语义全入口统一。
+    const base = extractAbstractOption(componentEl, warn);
+
+    // 元素名指令声明（ADR-0117）：x-define-options.tag → 自动注册元素名形态指令的标签；
+    // 抽象组件不可直接实例化，元素名形态不安装（ADR-0134）——显式 tag 声明 warn + 忽略
+    let tag: string | undefined;
+    if (base) {
+        if (parseComponentOptions(componentEl, warn)?.tag !== undefined) {
+            warn(
+                `x-define "${name}": 抽象组件（x-define.abstract）不可直接实例化，元素名形态不安装，tag 声明已忽略（ADR-0134）`,
+            );
+        }
+    } else {
+        tag = extractTagOption(componentEl, name, warn);
+    }
+
+    // 抽象组件的模板子节点无意义（ADR-0134）：快照弃权——被继承时子模板根胜出，
+    // 本声明的元素子节点（含 x-slot 出口）永不进实例化 DOM；出口清单以子组件自身为准
+    if (base && snapshot.children.length > 0) {
+        warn(
+            `x-define "${name}": 抽象组件（x-define.abstract）不贡献模板骨架，声明的元素子节点无意义（仅 <script setup> / <style> 资源节点生效），已忽略（ADR-0134）`,
+        );
+    }
 
     // 插槽出口清单（ADR-0056 决策二）：从快照后代自动推断（script/style 已剪枝，出口标记仍在）
     const slots = collectOutletSlots(snapshot, warn);
@@ -505,5 +556,7 @@ export function buildComponentDef(
         tag,
         declarerScope,
         slots,
+        // 抽象标记（ADR-0134）：非抽象不写字段（保持 def 洁净，undefined 语义 = 普通组件）
+        base: base ? true : undefined,
     };
 }

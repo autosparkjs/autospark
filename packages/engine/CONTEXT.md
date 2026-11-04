@@ -805,6 +805,14 @@ _Avoid_: this.state（已更名）、全局数据（泛化）、root state（不
 组件 method / 钩子内调用**继承链父方法**的通道（ADR-0082，修订 ADR-0081 的「无 super」决策）：`this.super.方法名(...)`，仅继承组件可用（非继承 `undefined`）。语义为**精确词法链**——super 指「当前执行方法**声明层**的下一层」方法集，`base ← card ← order-card` 三层同名覆盖时 card 方法内 `this.super` 正确解析到 base，不串层无递归。this 绑定当前组件实例（父子方法同一合并 data 域）；视图**仅 methods**（data/locals 扁平可见、hooks 串行全跑，均无遮蔽问题）。`super` 是 setup 顶层私有变量保留键 + method this 的禁覆盖键；门面 `engine.getComponent(el).super` 对称同源。与 `this.$parent`（运行时嵌套父**实例**，组合关系）正交——super 是定义期继承链（is-a 关系）。
 _Avoid_: $super（未采纳的前缀形态）、$parent 挪用（那是嵌套父实例通道，组合 ≠ 继承）、super.super 套娃（成员是绑定函数非视图）、万能父视图（super 不暴露父 data/locals——扁平合并已可见）
 
+**抽象组件 / x-define.abstract（Abstract Component）**:
+无模板基组件的声明形态（ADR-0134）：`x-define.abstract` 修饰符（≡ `x-define-options="{abstract:true}"`）标记该 def **快照弃权**——不贡献模板骨架，被继承时**子模板根胜出**（与普通继承「父出骨架、子填肉」反向）；setup / styles / defaults 照常继承（合并语义零改动）。**不可直接实例化**（warn + 不渲染，元素名标签不安装）；只可作继承链根（V1 不可再声明 inherit）。概念模型 = OOP 抽象基类：成员活在子实例里、自身不产生 DOM——但**无抽象方法**（不强制子实现，只做「给子自动装上行为」）、**无 protected**（扁平合并全透明）。内置 `autospark.base` 即本形态（engine 数据资产层组件，组件插件继承它获得主题档位 props）。
+_Avoid_: headless 组件（语义偏「无样式」，抽象组件恰恰可携带共享样式）、mixin（ADR-0081 否决的多继承词汇）、抽象方法（本机制无「强制子实现」概念）、基类组件（口语——正名带声明形态与不可实例化语义）
+
+**主题档位 props（data-\* 形态）**:
+`autospark.base` 提供的六个继承 props：`data-size` / `data-shadow` / `data-radius` / `data-spacing`（ThemeSize 档位，透传不校验）+ `data-dark` / `data-colorized`（布尔）。**名即通道**——props 键名 = 物化的宿主化身根 DOM 属性名，base 的 mounted「首挂物化 + watch 同步」把有值键写为同名属性、缺省移除（继承祖先档位）、布尔走存在性属性。生效链路：属性 → theme 手动通道 CSS（根域裸 `[data-*]`）→ 覆盖 `--auto-*` 派生令牌 → 组件三级回退链第一级；theme 不在场时静默无效（同 x-ripple 惯例）。**为什么 data-\* 而非裸名**：裸名空间（size / dark…）保留给子组件自有语义——`mergeSetups` 子胜无警告，同名声明会静默击穿主题通道；且与终端用户裸写 `<div data-size>` 的手动通道单一心智。JS 侧访问须 `this.data["data-size"]`（连字符键）。
+_Avoid_: size / dark 裸名 props（占子组件自有语义空间，禁作基类键）、theme prop（无 CSS 手动通道已否决）、值域白名单校验（theme 是唯一真值源，校验即第二真值源）
+
 **scope.hooks**:
 组件实例的四阶段生命周期钩子（created/mounted/beforeUnmount/unmounted），砍掉 activated/deactivated（引擎无实例缓存层）、beforeUpdate/updated（细粒度无组件整体重渲染）。每个 hook 用 ComponentMethodContext 作 this（data/props/globalState/scope）。
 _Avoid_: 生命周期（泛化）、组件钩子（泛化）

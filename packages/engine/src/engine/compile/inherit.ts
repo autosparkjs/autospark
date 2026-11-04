@@ -15,10 +15,16 @@ import { collectSlotSegments, getSlotMarker, type SlotContent } from "../../util
 /**
  * 组件继承解析（ADR-0081）：`x-define:inherit="父名"` 的编译期一次性展开。
  *
- * 输入子组件的独立 def（`buildComponentDef` 产物——setup/styles 已提取，其快照弃用），
- * 输出**已解析** def：快照 = 父已解析快照的深克隆（出口 fallback 被子覆盖段替换、子根属性并入），
- * setup/hooks 按层合并，styles 拼接，边界子重声明胜否则继承父，出口清单 = 父全量。
- * 解析失败（值空 / 指向自身 / 父未找到 / 继承链成环）warn + 返回 null → 调用方拒绝注册。
+ * 输入子组件的独立 def（`buildComponentDef` 产物——setup/styles 已提取），输出**已解析** def：
+ * 快照 = 父已解析快照的深克隆（出口 fallback 被子覆盖段替换、子根属性并入），setup/hooks
+ * 按层合并，styles 拼接，边界子重声明胜否则继承父，出口清单 = 父全量。
+ * 解析失败（值空 / 指向自身 / 父未找到 / 继承链成环 / 子为抽象组件，ADR-0134）
+ * warn + 返回 null → 调用方拒绝注册。
+ *
+ * **abstract 父形态分叉（ADR-0134）**：父为抽象组件（`def.base`，`x-define.abstract`）时
+ * 快照合成整体反转——**子模板根胜出**（子 def 自身快照即解析后快照），覆盖段收集 /
+ * 出口替换 / 根属性并入跳过，出口清单 = 子自身出口；setup/hooks/styles/defaults 等
+ * 合并语义与普通继承完全一致（复用同一管线，零分叉）。
  *
  * 覆盖段复用既有插槽内容分段规则（ADR-0056，零新规则）：子定义直接子节点剔除
  * `<script setup>` / `<style>` 资源节点后，`<template x-slot:名>`=命名段、裸子节点=默认段，
@@ -91,6 +97,15 @@ export function resolveComponentInheritance(input: ComponentInheritInput): Inher
         warn(`x-define "${name}": 继承声明指向自身，组件未注册（ADR-0081）`);
         return null;
     }
+    // 子为抽象组件（ADR-0134）：abstract 只可作继承链根——声明 abstract 又声明 inherit
+    // 自相矛盾（无模板语义与「继承父模板」冲突），warn + 拒绝注册（对齐 ADR-0081 fail-fast 家族）
+    if (childDef.base) {
+        warn(
+            `x-define "${name}": 抽象组件（x-define.abstract）不可再声明 x-define:inherit` +
+                `（abstract 只可作继承链根），组件未注册（ADR-0134）`,
+        );
+        return null;
+    }
     const parentDef = lookupParent(inherit);
     if (!parentDef) {
         if (input.deferMissingParent) return PENDING_PARENT;
@@ -114,27 +129,40 @@ export function resolveComponentInheritance(input: ComponentInheritInput): Inher
         return null;
     }
 
-    // 1) 覆盖段：子定义直接子节点剔除资源节点后按既有插槽分段规则收集（出口清单 = 父全量）
-    const segChildren = Array.from(componentEl.childNodes).filter(
-        (n) => !isDeclarativeResourceNode(n),
-    );
-    const segments = collectSlotSegments(segChildren, parentDef.slots, warn);
-    // 覆盖段不支持作用域形参（ADR-0081：继承覆盖走 fallback 通道，无形参语义）——warn + 忽略
-    for (const seg of segments?.values() ?? []) {
-        if (seg.params.length > 0) {
-            warn(
-                `x-define "${name}": 覆盖段 "${seg.name}" 的作用域形参不支持` +
-                    `（继承覆盖替换父出口 fallback，无形参语义，ADR-0081），已忽略`,
-            );
+    // 1) + 2) 快照合成（ADR-0134 形态分叉）：abstract 父快照弃权——子模板根胜出；
+    //    普通父走既有管线——子覆盖段替换父快照出口 fallback、子根属性并入父根（ADR-0081）
+    let snapshot: HTMLElement;
+    let slots: string[] | undefined;
+    if (parentDef.base) {
+        // abstract 父分支（ADR-0134）：子的完整模板即快照（childDef.snapshot 为
+        // buildComponentDef 本次新建、无共享，直接引用免克隆），仅需剥净声明族属性；
+        // 覆盖段收集 / 出口替换 / 根属性并入整体跳过；出口清单 = 子自身出口（父无快照无出口）
+        snapshot = childDef.snapshot;
+        stripDeclareFamilyAttrs(snapshot);
+        slots = childDef.slots;
+    } else {
+        // 1) 覆盖段：子定义直接子节点剔除资源节点后按既有插槽分段规则收集（出口清单 = 父全量）
+        const segChildren = Array.from(componentEl.childNodes).filter(
+            (n) => !isDeclarativeResourceNode(n),
+        );
+        const segments = collectSlotSegments(segChildren, parentDef.slots, warn);
+        // 覆盖段不支持作用域形参（ADR-0081：继承覆盖走 fallback 通道，无形参语义）——warn + 忽略
+        for (const seg of segments?.values() ?? []) {
+            if (seg.params.length > 0) {
+                warn(
+                    `x-define "${name}": 覆盖段 "${seg.name}" 的作用域形参不支持` +
+                        `（继承覆盖替换父出口 fallback，无形参语义，ADR-0081），已忽略`,
+                );
+            }
         }
+        // 2) 有效快照：父已解析快照深克隆（父永不被变异，多子继承同一父互不干扰）→
+        //    出口 fallback 替换 → 子根属性并入 → 剥声明族属性
+        snapshot = parentDef.snapshot.cloneNode(true) as HTMLElement;
+        applyOverrides(snapshot, segments);
+        mergeChildRootAttrs(snapshot, componentEl);
+        stripDeclareFamilyAttrs(snapshot);
+        slots = parentDef.slots;
     }
-
-    // 2) 有效快照：父已解析快照深克隆（父永不被变异，多子继承同一父互不干扰）→
-    //    出口 fallback 替换 → 子根属性并入 → 剥声明族属性
-    const snapshot = parentDef.snapshot.cloneNode(true) as HTMLElement;
-    applyOverrides(snapshot, segments);
-    mergeChildRootAttrs(snapshot, componentEl);
-    stripDeclareFamilyAttrs(snapshot);
 
     // 3) setup 合并：[父, 子] 扁平合并（data / methods / locals 子同名胜）、hooks 按 phase
     //    串接（父先子后）。**不**把两侧 def 的 setup 直接喂 mergeComponentSetups——父 def 的
@@ -176,7 +204,7 @@ export function resolveComponentInheritance(input: ComponentInheritInput): Inher
         // 扩散父的元素名注册；子要元素名形态需自行声明）
         tag: childDef.tag,
         declarerScope: childDef.declarerScope,
-        slots: parentDef.slots,
+        slots,
         inherit,
         // 方法声明层表（ADR-0082）：[子声明层, ...父层表]——已解析父自带层表；
         // 独立父（非继承 def / 全局父）以其 setup.methods 为单层
