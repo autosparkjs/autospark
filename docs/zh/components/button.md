@@ -47,11 +47,24 @@ Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色�
 
 ### 图标（icon）
 
-**类型**: `string`
+**类型**: `string | { name: string, size?: number | string, color?: string, strokeWidth?: number, padding?: number | string, badge?: boolean | number | string }`
 
 **默认**: `''`（无图标）
 
-图标名，经 `x-icon` 指令渲染（内置图标表或全局注册的图标均可）。图标尺寸跟随字号档位（默认 1em），颜色继承按钮内容色；`loading` 开启时被加载图标替换。
+两种形态：
+
+- **字符串**：图标名，经 `x-icon` 指令渲染（内置图标表或全局注册的图标均可）。尺寸跟随字号档位（默认 1em）、颜色继承按钮内容色；
+- **对象**：完整图标配置——`name` 必填（图标名），`size`（数字 px 或任意 CSS 值）、`color`（覆盖继承色）、`strokeWidth`（描边粗细，经 `--as-icon-sw` 变量下发、含网格补偿）、`padding`（图标内距留白）、`badge`（右上角角标，x-icon 同款标量三形态：`true` 缺省板距 / 数字 px / 字符串 CSS 值，形态即启用，角标取 danger 语义色）。实现与 x-icon 原生内联等价；`loading` 开启时无论何种形态均被加载图标替换。
+
+```html
+<x-button icon="star" label="字符串形态"></x-button>
+<x-button :icon="iconConf" label="对象形态"></x-button>
+<!-- iconConf: { name: 'star', size: 24, color: '#f59e0b', strokeWidth: 2 } -->
+```
+
+::: warning
+icon 的**对象形态必须放外层状态再路径引用**（`:icon="iconConf"`）——与 tags / ripple 对象一样，props 字面量嵌套对象会触发引擎更新环缺陷死锁页面。
+:::
 
 <demo html="components/button/icon.html"/>
 
@@ -154,7 +167,7 @@ Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色�
 在按钮最右侧渲染一组小一号的圆形小按钮，具有独立的点击事件（冒泡 `tag-click`，携带 `name`——详见「事件」）。tag 背景按按钮内容色派生（实底上呈淡白、透明底上呈淡灰、幽灵上呈淡语义色），与按钮主背景形成色差；`tooltip` 走原生 title 悬停提示。
 
 ::: warning
-**嵌套对象 / 数组 props（tags、ripple 的对象形态）必须放外层状态再路径引用**（`tags: myTags`、`ripple: myRipConf`）——props 字面量嵌套值存在引用比较层面的更新环缺陷（引擎侧修复中），**字面量写法会死锁页面**；原始值（布尔 / 字符串 / 数字）与路径引用不受影响。
+**嵌套对象 / 数组 props（tags、ripple、icon 的对象形态）必须放外层状态再路径引用**（`tags: myTags`、`ripple: myRipConf`、`:icon="iconConf"`）——props 字面量嵌套值存在引用比较层面的更新环缺陷（引擎侧修复中），**字面量写法会死锁页面**；原始值（布尔 / 字符串 / 数字）与路径引用不受影响。
 :::
 
 <demo html="components/button/tags.html"/>
@@ -165,25 +178,55 @@ Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色�
 
 **默认**: `false`
 
-将按钮整体呈现为菜单项：占满容器宽、透明底、内容左对齐、悬停淡底。可与 `checkable` 组合做可勾选菜单项（勾选态呈左竖条 + 淡色底，消费 `--auto-selected-*` 变量）。
+将按钮整体呈现为菜单项：占满容器宽、透明底、内容左对齐、悬停淡底。可与 `checkable` 组合做可勾选菜单项（勾选态按 `checkStyle` 渲染，与普通按钮一致）。
 
 <demo html="components/button/menu.html"/>
 
-### 可勾选（checkable / value）
+### 可勾选（checkable / value / checkValues / checkStyle）
 
-**类型**: `checkable: boolean`、`value: boolean`
+**类型**: `checkable: boolean`、`value: any`、`checkValues: [any, any]`、`checkStyle: solid | icon | corner`
 
-**默认**: `false` / `false`
+**默认**: `false` / `false` / `[true, false]` / `solid`
 
-`checkable` 开启勾选模式：点击**自动翻转** value 并冒泡 `change` 事件；`value` 为 true 时使用与当前 type 匹配的背景色。表单集成走「受控半双工」——显示方向经 props 单向注入响应，翻转方向经 change 冒泡回写：
+`checkable` 开启勾选模式——按钮**化身 checkbox**：内嵌隐藏真 `input[type=checkbox]`（表单提交载体），点击按 `checkValues` 二元组翻转 `value` 并冒泡 `change`。四个子特性：
+
+#### value 通道（受控半双工）
+
+显示方向经 props 单向注入响应，翻转方向经 change 冒泡回写：
 
 ```html
 <span @change="picked = $event.detail.value">
-    <x-button checkable="true" :value="picked" label="仅看优惠"></x-button>
+    <x-button checkable="true" :check-values="['on','off']" :value="picked" label="仅看优惠"></x-button>
 </span>
 ```
 
-> engine 无自定义组件双向绑定协议（x-model 对非表单元素静默按 text 分型），两行即得双向是最简官方通道——详见 ADR-0012 决策 3。
+#### x-model 双向绑定（化身 checkbox）
+
+宿主上 `x-model` 经组件桥转发到内嵌 input——与原生 checkbox 一致的**布尔语域**，配 `x-model.boolean` 类型保真：
+
+```html
+<x-button checkable="true" check-style="icon" x-model.boolean="flag" label="同意条款" name="agree"></x-button>
+```
+
+多枚按钮绑**同一根 state 变量**即「全选组」——任一翻转、全体联动。::: warning
+x-model 绑定的变量须在**根 state**（构造入参），放祖先 `x-data` 局部域会因引擎封闭域写断裂而失联（写入会凭空建根键）。表单提交：勾选时以 `name=String(checkValues[0])` 提交、未勾选不提交（原生语义）。
+:::
+
+<demo html="components/button/checkable.html"/>
+
+#### checkValues 任意值
+
+`[checked 值, unchecked 值]` 二元组（任意类型，严格相等判定）——`"on"/"off"`、`1/0` 均可；决定 value 通道取值、change detail 与表单提交值（对象须外层状态引用）。
+
+#### checkStyle 三种选中渲染
+
+指示色统一取主题色（有 `type` 时语义色）；未勾选均维持原 variant 形态：
+
+| 值 | 选中呈现 |
+| --- | --- |
+| `solid`（默认） | tone 实底 + 反白字 |
+| `icon` | 最左 1.2em 固定占位显示/隐藏打勾（背景不变、无布局跳动） |
+| `corner` | tone 描边 + 右上角小三角（直角边随圆角半径走弦线、紧贴描边右上角）内嵌反白打勾 |
 
 <demo html="components/button/checkable.html"/>
 
@@ -234,6 +277,20 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 
 <demo html="components/button/theme.html"/>
 
+### 缩进（indent）
+
+**类型**: `number | string`
+
+**默认**: `0`
+
+内容的额外左缩进（数字按 px，字符串为任意 CSS 值如 `"2em"`）。加性作用于内容左缘——不影响宿主内距与对齐；菜单/树形层级展开场景配合 em 单位可随字号档位缩放。
+
+```html
+<x-button menu="true" indent="1.5em" icon="folder-open" label="项目文件"></x-button>
+```
+
+<demo html="components/button/indent.html"/>
+
 ### 事件
 
 组件默认封闭（宿主上的表达式在组件域求值），事件经**冒泡**到外层消费——绑定写在组件外的包裹元素上：
@@ -254,13 +311,14 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 | variant | `default \| primary \| secondary \| dashed \| text \| link` | `default` | 形态（常规面板底 / 实底 / 次级淡底 / 虚线 / 文本 / 链接） |
 | type | `primary \| success \| warning \| danger \| info` | `primary` | 语义色（与任意形态组合） |
 | label | `string` | `"按钮"` | 兜底文案（插槽无内容时显示） |
-| icon | `string` | `''` | 图标名（x-icon 渲染；loading 时被替换） |
+| icon | `string \| object` | `''` | 图标名或配置对象 `{ name, size?, color?, strokeWidth?, padding? }`（对象须路径引用；loading 时被替换） |
 | loading | `boolean` | `false` | 加载态：图标位转圈并禁点 |
 | disabled | `boolean` | `false` | 禁用（同步宿主原生属性） |
 | ghost | `boolean` | `false` | 幽灵：透明底、语义色内容 |
 | border | `boolean` | `false` | 装饰性附加边框（默认无） |
 | block | `boolean` | `false` | 适配父宽度 |
 | align | `left \| center \| right` | `center` | 内容水平对齐 |
+| indent | `number \| string` | `0` | 内容额外左缩进（数字 px / CSS 值；菜单层级缩进常用） |
 | shape | `default \| circle` | `default` | 圆形（带文字自动胶囊） |
 | labelBelow | `boolean` | `false` | label 显示在图标下方 |
 | memo | `string` | `''` | label 下方备注（小一号、淡化） |
@@ -272,8 +330,10 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 | data-spacing | `ThemeSize` | `''` | 主题间距密度档 |
 | data-dark | `boolean` | `false` | 局部暗色语境 |
 | data-colorized | `boolean` | `false` | 局部多彩语境 |
-| checkable | `boolean` | `false` | 可勾选模式（点击翻转 value） |
-| value | `boolean` | `false` | 勾选值（checkable 模式） |
+| checkable | `boolean` | `false` | 可勾选模式（化身 checkbox：内嵌真 input、x-model 可绑宿主） |
+| value | `any` | `false` | 勾选值（=== checkValues[0] 即选中态） |
+| checkValues | `[any, any]` | `[true, false]` | 勾选二元组 [checked 值, unchecked 值]（任意类型严格相等；对象须路径引用） |
+| checkStyle | `solid | icon | corner` | `solid` | 选中渲染（实底 / 打勾占位 / 描边三角） |
 | ripple | `boolean \| object` | `true` | x-ripple props 值透传（默认开启）：true ≡ `{ trigger: "click", inside: true }`，false 关闭，对象全键可覆盖（trigger / type / color / speed…；需加载 autospark.ripple.js，未加载时静默跳过） |
 | autoInsertSpace | `boolean` | `true` | 两汉字 label 自动插空格 |
 

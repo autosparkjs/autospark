@@ -1,7 +1,7 @@
 (function (AutoSpark) {
     "use strict";
 var run = function (AutoSpark) {
-function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){e.components[`autospark.button`]=`<!--
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}var t=`autospark.button`;function n(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}function r(e){e.components[t]=`<!--
     化身路径约束（x-component T4=B）：组件快照根的属性是静态并入宿主（class 拼接 /
     style 合并 / 其他属性复制），根上的动态绑定不会求值——变体绑定须落在编译子树的
     内层元素上：宿主级外观（底色/边框/圆角等）经 body 上的 data-* 变体属性以 :has()
@@ -29,7 +29,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             variant: "default",     // 形态：default 常规描边 | primary 实底 | secondary 次底 | dashed 虚线 | text 文本 | link 链接
             type: "primary",        // 语义色：primary | success | warning | danger | info（default 形态不消费，勾选态仍生效）
             label: "按钮",          // 兜底文案（插槽无内容时显示）
-            icon: "",               // 图标名（x-icon 渲染；loading 时被 loading 图标替换）
+            icon: "",               // 图标名或完整 x-icon-options 对象 { name, size, color, strokeWidth, padding, badge, button, pointer }（loading 时被替换）
             loading: false,         // 加载态：左图标位转圈并禁点（优先于 disabled 视觉）
             ghost: false,           // 幽灵：背景透明、内容取语义色（常用在有色背景上）
             border: false,          // 装饰性附加边框（不干预 dashed / ghost 的固有边框形态）
@@ -39,13 +39,16 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             autoInsertSpace: true,  // label 恰为两个汉字时自动插入空格
             shape: "default",       // default | circle（纯图标呈正圆，带文字自动呈胶囊）
             labelBelow: false,      // label 显示在图标下方（纵排）
-            value: false,           // 勾选值（checkable 模式；true 时使用与 type 匹配的背景色）
-            checkable: false,       // 可勾选模式：点击自动翻转 value 并冒泡 change 事件
+            value: false,           // 勾选值（checkable 模式；等于 checkValues[0] 时为选中态）
+            checkable: false,       // 可勾选模式：点击自动翻转 value 并冒泡 change 事件；化身 checkbox（x-model 可绑宿主，见 mounted 桥）
+            checkValues: [true, false], // 勾选二元组 [checked 值, unchecked 值]（任意类型，严格相等判定）
+            checkStyle: "solid",    // 选中渲染：solid 实底 | icon 左侧 yes 图标占位 | corner outline+右上角打勾小三角
             align: "center",        // 内容水平对齐：left | center | right
+            indent: 0,              // 内容额外左缩进（数字 px 或任意 CSS 值如 "2em"）；菜单层级缩进常用
             memo: "",               // label 下方的备注（小一号、淡色）
             tags: [],               // 右侧小圆钮 {icon?,tooltip?,name?}[]；点击冒泡 tag-click 事件
             menu: false,            // 菜单项形态：占满宽、透明底、左对齐、hover 淡底
-            // computed 简写（普通函数值即计算属性，x-data 惯用法）：autoInsertSpace 开启且
+            // computed 简写（普通函数值即计算属性，仅限单表达式）：autoInsertSpace 开启且
             // label 恰为两个汉字时中间插入空格
             displayLabel: (s) => (s.autoInsertSpace && /^[一-龥]{2}$/.test(s.label ?? "")) ? (s.label[0] + " " + s.label[1]) : s.label
         }),
@@ -63,6 +66,70 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             syncDisabled();
             this.watch("disabled", ({ value }) => { syncDisabled(); });
             this.watch("loading", ({ value }) => { syncDisabled(); });
+
+            // icon 对象形态的视觉透传（与 x-icon 原生内联实现等价）：size/color/padding 直写内联样式、
+            // strokeWidth 经 --as-icon-sw 变量、badge 走角标类（CSS 伪元素红点 + 板 padding）；
+            // watch 回调一跳后写（x-if 渲染与回调的 flush 时序不保证先后）
+            const syncIconStyle = () => {
+                const i = this.data.icon;
+                const span = this.el.querySelector(".asc-button-icon");
+                if (!span) return;
+                for (const k of ["width", "height", "color", "padding"]) span.style.removeProperty(k);
+                span.style.removeProperty("--as-icon-sw");
+                span.classList.remove("asc-button-icon-badge");
+                if (typeof i !== "object" || !i) return;
+                if (i.size != null) {
+                    const px = typeof i.size === "number" ? i.size + "px" : i.size;
+                    span.style.width = px;
+                    span.style.height = px;
+                }
+                if (typeof i.color === "string" && i.color.trim() !== "") span.style.color = i.color;
+                if (i.strokeWidth != null) span.style.setProperty("--as-icon-sw", String(i.strokeWidth));
+                if (i.padding != null) span.style.padding = typeof i.padding === "number" ? i.padding + "px" : i.padding;
+                // badge（x-icon 同款标量三形态）：true（缺省板距）/ number 板距 px / string CSS 值——形态即启用
+                if (i.badge === true) { span.classList.add("asc-button-icon-badge"); span.style.padding = "2px"; }
+                else if (typeof i.badge === "number") { span.classList.add("asc-button-icon-badge"); span.style.padding = i.badge + "px"; }
+                else if (typeof i.badge === "string" && i.badge.trim() !== "") { span.classList.add("asc-button-icon-badge"); span.style.padding = i.badge; }
+            };
+            setTimeout(syncIconStyle, 0); // mounted 时化身子树可能尚未挂载（span 不可查），一跳后再同步
+            this.watch("icon", () => { setTimeout(syncIconStyle, 0); });
+
+            // checkable 桥（化身 checkbox）：宿主上 x-model 走 text 分型（读写 el.value + 监听 input）。
+            // x-model 域恒布尔语域——el.value 只取 "true"/"false"（对齐原生 checkbox 的 checked 布尔语义，
+            // 配 x-model.boolean 类型保真）；checkValues 任意值服务于 props value 通道与表单提交值
+            // （内嵌真 input[type=checkbox]：display:none 载体、name 透传宿主、提交值 = String(checkValues[0])、
+            // 未勾选不提交）。点击翻转写布尔语域后派发 input 回写 state。
+            // 布尔语域使默认组与注入组的字符串解释一致——props 晚注入的时序天然免疫。
+            if (this.data.checkable) {
+                const proto = Object.getOwnPropertyDescriptor(HTMLButtonElement.prototype, "value");
+                const real = document.createElement("input");
+                real.type = "checkbox";
+                real.style.display = "none";
+                const vals = () => this.data.checkValues;
+                const nameAttr = this.el.getAttribute("name");
+                if (nameAttr != null) real.name = nameAttr;
+                this.el.appendChild(real);
+                const applyChecked = (on) => { const [onV, offV] = vals(); this.data.value = on ? onV : offV; real.checked = !!on; };
+                Object.defineProperty(this.el, "value", {
+                    get: () => proto.get.call(this.el),
+                    set: (v) => { proto.set.call(this.el, v); applyChecked(v === "true"); },
+                    configurable: true,
+                });
+                // 重对齐：底层 value（x-model 已写，布尔语域）优先、否则按 data.value 对 checkValues 的归属
+                const resync = () => {
+                    real.value = String(vals()[0]);
+                    const raw = proto.get.call(this.el);
+                    if (raw === "true") applyChecked(true);
+                    else if (raw === "false") applyChecked(false);
+                    else if (this.data.value === vals()[0]) applyChecked(true);
+                    else if (this.data.value === vals()[1]) applyChecked(false);
+                };
+                setTimeout(resync, 0); // mounted 时化身子树与 props 均可能未就位，一跳后首对齐
+                this.watch("checkValues", () => { setTimeout(resync, 0); });
+                this.watch("value", ({ value: v }) => { // props value 受控通道（无 x-model 时）
+                    if (v === vals()[0] || v === vals()[1]) resync();
+                });
+            }
 
             // 涟漪动态挂载（ADR-0010 运行时契约：不经编译、直接写属性即生效）；
             // 配置走 x-ripple-options 通道（裸 x-ripple 的值只参与三态判定、不承载配置）；
@@ -82,11 +149,16 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             syncRipple();
             this.watch("ripple", () => { syncRipple(); });
 
-            // checkable 点击翻转：组件内自动取反 + 冒泡 change（受控显示方向经 props 单向注入天然响应）
+            // checkable 点击翻转：按 checkValues 二元组切换，桥值写布尔语域（"true"/"false"）后派发
+            // input（x-model 回写，配 .boolean 类型保真）与 change（detail 携带 checkValues 语域值）
             this.el.addEventListener("click", () => {
                 if (!this.data.checkable || this.el.disabled) return;
-                this.data.value = !this.data.value;
-                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { value: this.data.value } }));
+                const [onVal, offVal] = this.data.checkValues;
+                const next = this.data.value === onVal ? offVal : onVal;
+                const nextOn = next === onVal;
+                this.el.value = String(nextOn); // 劫持 setter 同步视觉与内嵌 input（布尔语域）
+                this.el.dispatchEvent(new Event("input", { bubbles: false })); // x-model 监听在宿主自身
+                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { value: next } }));
             });
         },
     }
@@ -203,16 +275,66 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       text-align: left;
     }
 
-    /* ---------- 勾选态（checkable && value）：与 color 匹配的实底（Q5）；menu 下为左竖条 + 淡底（Q8） ---------- */
-    .asc-button:has(> .asc-button-body[data-checked="true"]) {
+    /* ---------- 勾选渲染（checkStyle）：指示色统一 --asc-tone（theme 主色，type 非默认时语义色） ---------- */
+    /* solid（默认）：勾选 = tone 实底 + 反白字 */
+    .asc-button:has(> .asc-button-body[data-check-style="solid"][data-checked="true"]),
+    .asc-button:has(> .asc-button-body:not([data-check-style])[data-checked="true"]) {
       --asc-bg: var(--asc-tone);
       --asc-ink: #fff;
       --asc-line: transparent;
     }
-    .asc-button:has(> .asc-button-body[data-menu="true"][data-checked="true"]) {
-      --asc-bg: var(--auto-selected-bgcolor, var(--asc-button-selected-bg, color-mix(in srgb, var(--asc-tone) 20%, transparent)));
-      --asc-ink: var(--auto-selected-color, var(--asc-tone));
-      box-shadow: inset 3px 0 0 var(--asc-tone);
+    /* icon：最左 1.2em 固定占位（未勾选留空、无布局跳动），勾选显 tone 色 yes 指示；
+         背景维持原 variant 形态（Q12：仅指示器变化） */
+    .asc-button-body[data-check-style="icon"] {
+      position: relative;
+    }
+    .asc-button-body[data-check-style="icon"]::before {
+      content: "";
+      flex: none;
+      width: 1.2em;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--asc-tone);
+      font-size: 0.9em;
+      font-weight: bold;
+    }
+    .asc-button:has(> .asc-button-body[data-check-style="icon"][data-checked="true"]) .asc-button-body[data-check-style="icon"]::before {
+      content: "✓";
+    }
+    /* corner：勾选 = tone 描边 outline + 右上角 tone 小三角内嵌反白小勾；背景维持原 variant。
+         三角挂宿主伪元素、两直角边长 = 宿主圆角半径（弦线跨过圆角弧——紧贴描边右上角且圆角下不悬空），
+         圆角档位切换自动跟随 */
+    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"]) {
+      outline: 2px solid var(--asc-tone);
+      outline-offset: -2px;
+    }
+    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"])::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 0;
+      height: 0;
+      border-top: var(--auto-border-radius, 0.5rem) solid var(--asc-tone);
+      border-left: var(--auto-border-radius, 0.5rem) solid transparent;
+      z-index: 1;
+    }
+    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"])::before {
+      content: "";
+      position: absolute;
+      top: calc(var(--auto-border-radius, 0.5rem) * 0.22);
+      right: calc(var(--auto-border-radius, 0.5rem) * 0.3);
+      z-index: 2;
+      width: 0.34em;
+      height: 0.18em;
+      border-left: 1.5px solid var(--auto-bgcolor, #fff);
+      border-bottom: 1.5px solid var(--auto-bgcolor, #fff);
+      transform: rotate(-45deg);
+    }
+    /* 三角/描边定位基准（宿主需定位上下文；x-ripple 的 .x-ripple 已有 relative 兜底，此处显式自持） */
+    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"]) {
+      position: relative;
     }
 
     /* ---------- 形状（shape）：circle 恒胶囊半径——纯图标时内容等宽高自然呈正圆，带文字自动胶囊 ---------- */
@@ -276,6 +398,20 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       display: inline-flex;
       align-items: center;
       justify-content: center;
+    }
+    /* 图标角标（icon.badge 标量三形态启用）：板 padding 承载留白，伪元素红点取 danger 语义色 */
+    .asc-button-icon-badge {
+      position: relative;
+    }
+    .asc-button-icon-badge::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 0.4em;
+      height: 0.4em;
+      border-radius: 50%;
+      background: var(--auto-danger-color, var(--asc-button-danger, #ef4444));
     }
 
     /* 主文本组：label 与 memo 恒纵排（memo 在 label 下方） */
@@ -397,14 +533,21 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       background: var(--auto-hover-bgcolor, var(--asc-button-hover-bg, rgba(255, 255, 255, 0.08)));
     }
   </style>
-  <!-- 变体数据属性全部承载在 body（编译子树内层元素，经 :has() 驱动宿主外观——见文件头注释） -->
+  <!-- 变体数据属性全部承载在 body（编译子树内层元素，经 :has() 驱动宿主外观——见文件头注释）；
+         indent（原始值）经 :style 加性内联（body 无 padding，不影响宿主内距） -->
   <span class="asc-button-body"
     :data-variant="variant" :data-type="type" :data-ghost="ghost" :data-border="border"
     :data-shape="shape" :data-label-below="labelBelow" :data-align="align" :data-menu="menu"
-    :data-block="block" :data-checked="checkable && value" :data-loading="loading">
+    :data-block="block" :data-checked="checkable && value === checkValues[0]" :data-loading="loading"
+    :data-check-style="checkable ? checkStyle : undefined"
+    :style="indent ? { paddingLeft: (typeof indent === 'number' ? indent + 'px' : indent) } : undefined">
     <!-- loading 图标替换左图标位（字面量须带引号——裸 loading 会命中 data.loading 布尔值） -->
     <span class="asc-button-icon" x-if="loading" x-icon="'loading'"></span>
-    <span class="asc-button-icon" x-if="!loading && icon" x-icon="icon"></span>
+    <!-- icon 双形态：字符串 = 图标名；对象 = { name, size, color, strokeWidth, padding }——name 经 x-icon 值消费，
+         视觉键由 mounted 的 syncIconStyle 以内联样式透传（与 x-icon 原生内联实现等价；
+         绑定表达式通道对 props 晚注入不重算，故走 JS 同步通道） -->
+    <span class="asc-button-icon" x-if="!loading && typeof icon === 'string' && icon" x-icon="icon"></span>
+    <span class="asc-button-icon" x-if="!loading && typeof icon === 'object' && icon" x-icon="icon.name"></span>
     <span class="asc-button-main">
       <!-- 默认插槽出口：未提供内容时显示 {{ displayLabel }}（组件自身状态求值） -->
       <span class="asc-button-label" x-slot>{{ displayLabel }}</span>
@@ -421,7 +564,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     </span>
   </span>
 </button>
-`}n();function n(){e(e=>{t(e)})}};
+`,e.precompile?.(e=>{for(let r of Array.from(e.el.querySelectorAll(`x-button`))){let e=document.createElement(`button`),i=e=>e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase()),a=e=>/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e),o=[];for(let t of Array.from(r.attributes))t.name.startsWith(`:`)?o.push(`${a(i(t.name.slice(1)))}: (${t.value})`):t.name===`class`||t.name===`style`||t.name===`id`||t.name===`name`||t.name.startsWith(`data-`)||t.name.startsWith(`x-`)||t.name.startsWith(`@`)?e.setAttribute(t.name,t.value):o.push(`${a(i(t.name))}: ${JSON.stringify(n(t.value))}`);for(e.setAttribute(`x-component:${t}`,`{ ${o.join(`, `)} }`);r.firstChild;)e.appendChild(r.firstChild);r.replaceWith(e)}})}i();function i(){e(e=>{r(e)})}};
     if (AutoSpark === undefined) {
         // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
         var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);

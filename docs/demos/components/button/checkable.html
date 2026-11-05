@@ -12,29 +12,71 @@
     <script src="/autospark/theme-controls.js"></script>
 </head>
 <body>
-    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
-    <main class="demo-main" x-data="{ picked: false, onSale: true }">
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{
+        flag: false, flag2: false, flag3: false,
+        picked: 'off', cv: ['on', 'off']
+    }">
         <div class="auto-card">
-            <div class="auto-card-header">可勾选（checkable + value）：点击自动翻转，勾选态用与 color 匹配的背景色</div>
+            <div class="auto-card-header">三种选中渲染（check-style，点击切换）</div>
             <div class="auto-card-body">
-                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-                    <span @change="picked = $event.detail.value">
-                        <x-button variant="secondary" checkable="true" :value="picked" label="仅看优惠"></x-button>
-                    </span>
-                    <span>picked = <b>{{ picked }}</b></span>
-                    <span @change="onSale = $event.detail.value">
-                        <x-button variant="secondary" type="success" checkable="true" :value="onSale" label="仅看现货"></x-button>
-                    </span>
-                    <span>onSale = <b>{{ onSale }}</b></span>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                    <span @change="flag = $event.detail.value"><x-button checkable="true" check-style="solid" :value="flag" label="solid 实底"></x-button></span>
+                    <span @change="flag2 = $event.detail.value"><x-button checkable="true" check-style="icon" :value="flag2" label="icon 打勾占位"></x-button></span>
+                    <span @change="flag3 = $event.detail.value"><x-button checkable="true" check-style="corner" :value="flag3" label="corner 描边三角"></x-button></span>
                 </div>
                 <p class="hint">
-                    受控半双工：显示方向经 props 单向注入（value 变化即跟随），翻转方向点击自动取反并冒泡 change——外层包裹元素一行 <code>@change</code> 回写即得双向（表单集成惯用法，见「事件」一节）。
+                    指示色统一取主题色（有 <code>type</code> 时语义色）：<b>solid</b> 勾选点亮实底（默认）、<b>icon</b> 最左固定占位显示/隐藏打勾（背景不变、无布局跳动）、<b>corner</b> 描边 + 右上角小三角内嵌打勾指示——三角直角边随按钮圆角半径走弦线，紧贴描边右上角、圆角档位切换自动跟随。
                 </p>
+            </div>
+        </div>
+        <div class="auto-card">
+            <div class="auto-card-header">x-model 多按钮绑定同一变量（化身 checkbox）</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                    <x-button checkable="true" check-style="icon" x-model.boolean="all" label="全选 A"></x-button>
+                    <x-button checkable="true" check-style="corner" x-model.boolean="all" label="全选 B"></x-button>
+                    <x-button checkable="true" check-style="solid" x-model.boolean="all" label="全选 C"></x-button>
+                    <span>all = <b class="all-b">{{ all }}</b>（恒布尔，任一按钮点击全体联动）</span>
+                </div>
+                <p class="hint">
+                    与原生 checkbox 一致的布尔语义：多枚按钮 x-model 绑同一变量即「全选组」——任一按钮翻转，其余按钮视觉即时跟随；配 <code>x-model.boolean</code> 类型保真。
+                </p>
+            </div>
+        </div>
+        <div class="auto-card">
+            <div class="auto-card-header">check-values 任意值 + value 通道</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                    <span @change="picked = $event.detail.value"><x-button checkable="true" :check-values="cv" :value="picked" label="仅看优惠" check-style="icon"></x-button></span>
+                    <span>picked = <b class="picked-b">{{ picked }}</b>（"on" / "off"）</span>
+                </div>
+                <p class="hint">
+                    <code>:check-values="['on','off']"</code>（放外层状态引用）定义 checked/unchecked 值——点击经 change 冒泡回写（detail.value 为 checkValues 语域值）；x-model 通道与 value 通道并存、按需选用。
+                </p>
+            </div>
+        </div>
+        <div class="auto-card">
+            <div class="auto-card-header">表单提交（内嵌真 input 的 name/value）</div>
+            <div class="auto-card-body">
+                <form id="frm" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                    <x-button checkable="true" check-style="icon" label="订阅周报" name="weekly" :check-values="cv"></x-button>
+                    <x-button checkable="true" check-style="corner" label="接受隐私条款" name="privacy" :check-values="cv"></x-button>
+                    <button type="submit" class="button is-small is-primary">提交</button>
+                </form>
+                <p class="hint" id="sublog">提交后此处显示表单数据（勾选项以 name=on 提交，未勾选不提交——原生 checkbox 语义）。</p>
             </div>
         </div>
     </main>
     <script>
-        new AutoSpark(document.querySelector(".demo-main"), {});
+        new AutoSpark(document.querySelector(".demo-main"), { all: false });
+        document.getElementById("frm").addEventListener("submit", function (e) {
+            e.preventDefault();
+            var fd = new FormData(e.target);
+            var out = [];
+            fd.forEach(function (v, k) { out.push(k + "=" + v); });
+            document.getElementById("sublog").textContent = "表单数据：" + (out.join(" & ") || "（空）");
+        });
     </script>
 </body>
 </html>

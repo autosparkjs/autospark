@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 缩进</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+        .menu-box { width: 250px; border: var(--auto-border, 1px solid rgba(128, 128, 128, 0.3)); border-radius: 8px; padding: 6px; }
+    </style>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">indent：内容额外左缩进（数字 px 或任意 CSS 值，默认 0）</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                    <x-button icon="menu" label="无缩进"></x-button>
+                    <x-button icon="menu" indent="16" label="16px"></x-button>
+                    <x-button icon="menu" indent="32" label="32px"></x-button>
+                    <x-button variant="secondary" indent="2em" label="2em"></x-button>
+                </div>
+            </div>
+        </div>
+        <div class="auto-card">
+            <div class="auto-card-header">菜单层级缩进（menu + indent 组合，子级逐层递进）</div>
+            <div class="auto-card-body">
+                <div class="menu-box">
+                    <x-button block="true" menu="true" icon="folder" label="工作空间"></x-button>
+                    <x-button block="true" menu="true" indent="1.5em" icon="folder-open" label="项目文件"></x-button>
+                    <x-button block="true" menu="true" indent="3em" icon="copy" label="草稿副本"></x-button>
+                    <x-button block="true" menu="true" indent="4.5em" icon="file" label="年度报告.md"></x-button>
+                </div>
+                <p class="hint">缩进作用于内容左缘（加性，不影响宿主内距与对齐）；菜单/树形层级展开场景配合 em 单位随字号档位缩放。</p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>
