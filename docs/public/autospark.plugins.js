@@ -696,7 +696,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   100% { box-shadow: 0 0 0 var(--x-ripple-size) transparent; }`,q||(q=document.createElement(`style`),q.setAttribute(`data-x-ripple-keyframes`,``),document.head.appendChild(q)),q.textContent+=`\n@keyframes ${r} {${o}\n}`,K.set(t,r),r}function zt(e,t){let n=`inside-${t}|${e.speed}|${e.gap}`,r=K.get(n);if(r)return r;let i=`x-ripple-inside-${t}-${e.speed}-${e.gap}`,a=e.speed+e.gap,o=a>0?Math.round(e.speed/a*100):100,s=`
   0% { transform: scale(0); opacity: var(--x-ripple-${t===`core`?`core`:`halo`}-alpha, ${t===`core`?Pt:Ft}); }
   ${o}% { transform: scale(1); opacity: 0; }
-  100% { transform: scale(1); opacity: 0; }`;return q||(q=document.createElement(`style`),q.setAttribute(`data-x-ripple-keyframes`,``),document.head.appendChild(q)),q.textContent+=`\n@keyframes ${i} {${s}\n}`,K.set(n,i),i}function Bt(e,t,n){let r=e.offsetWidth,i=e.offsetHeight,a=r/2,o=i/2;if(n){let t=e.getBoundingClientRect();a=n.clientX-t.left,o=n.clientY-t.top}let s=Math.max(a,r-a),c=Math.max(o,i-o);return{x:a,y:o,r:Math.hypot(s,c)}}function Vt(e){return e.trigger===`click`?0:-(e.speed+e.gap)/2}function Ht(e){return e.trigger===`click`?Math.round(e.size*.6*10)/10:e.size}function Ut(e,t){let n={...Et};if(!e)return n;let r=pt(e,wt,t,`x-ripple`);e.type!==void 0&&(wt.includes(e.type)?r.add(e.type):t(`x-ripple: type 取值非法（${JSON.stringify(e.type)}），已回退 "echo"`));let i=Ct.find(e=>r.has(e));return i&&(n.type=i),mt(e,Tt,`x-spin`,t,`x-ripple`),e.inside!==void 0&&(e.inside===!0?n.inside=!0:e.inside!==!1&&t(`x-ripple: inside 开关须为布尔值，已忽略`)),n.trigger=ft(e,t,`x-ripple`),n.badge=ht(e,t,`x-ripple`),n.inside&&n.badge>0&&(t(`x-ripple: badge 与 inside 互斥，badge 优先（inside 已忽略）`),n.inside=!1),n.color=gt(e.color,{color:L,badgeColor:ct},n.badge,t,`x-ripple`),n.size=B(e,`size`,t,`x-ripple`)??Et.size,n.speed=dt(e,t,`x-ripple`),n.gap=B(e,`gap`,t,`x-ripple`)??0,n.inside&&(r.size>0&&t(`x-ripple: inside 接管渲染，type 形态词表已忽略`),e.size!==void 0&&t(`x-ripple: inside 半径自动几何（起点到最远角），size 已忽略`),e.speed===void 0&&(n.speed=Mt)),n}var Wt={hostClass:H,activeClass:U,layerClass:Dt,ensureStyles:Lt,normalize:Ut,hostClasses:e=>[...e.badge>0?[G]:[],...e.inside?[Ot]:[]],activeClasses:e=>e.type===`echo`&&!e.inside?[W]:[],animName:e=>Rt(e),animationCss:(e,t)=>`${t} ${e.speed+e.gap}ms ease-out infinite`,period:e=>e.speed+e.gap,layerCount:e=>e.type===`echo`?2:1,layerCssText:e=>e.badge>0?`${vt(e.badge)}background:var(--x-ripple-color);`:_t(),applyLayerExtras:(e,t)=>{let n=e[1];n&&(n.style.animationDelay=`${Vt(t)}ms`,n.style.setProperty(`--x-ripple-size`,`${Ht(t)}px`))},applyVars:(e,t,n)=>{let r=e.style;r.setProperty(`--x-ripple-color`,t.color||`var(--auto-theme-color, var(--autospark-ripple-color, #009aff))`),r.setProperty(`--x-ripple-size`,`${t.size}px`),r.setProperty(`--x-ripple-duration`,`${t.speed+t.gap}ms`),r.setProperty(`--x-ripple-anim`,n),r.setProperty(`--x-ripple-echo-delay`,`${Vt(t)}ms`),r.setProperty(`--x-ripple-echo-size`,`${Ht(t)}px`),t.badge>0&&r.setProperty(`--x-ripple-badge-size`,`${t.badge}px`)},inside:{enabled:e=>e.inside,createCarrier:()=>{let e=document.createElement(`span`);e.className=kt,e.style.cssText=`position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;display:block;`;let t=document.createElement(`span`);t.className=At,t.style.cssText=`position:absolute;border-radius:50%;background:var(--x-ripple-color);pointer-events:none;display:block;`;let n=document.createElement(`span`);return n.className=jt,n.style.cssText=`position:absolute;border-radius:50%;box-sizing:border-box;border:var(--x-ripple-halo-width, ${Nt}px) solid var(--x-ripple-color);pointer-events:none;display:block;`,e.append(t,n),{clip:e,core:t,halo:n}},geometry:Bt,animations:e=>({core:`${zt(e,`core`)} ${e.speed+e.gap}ms ease-out infinite`,halo:`${zt(e,`halo`)} ${e.speed+e.gap}ms ease-out infinite`})}};function Gt(){St(xt(`ripple`,Wt))}Gt();var Kt=[`chase`,`rotate`,`beam`],qt=[`rotate`,`beam`,`chase`],Jt=[`ring`,`glow`,`echo`],Yt={type:`beam`,trigger:`always`,badge:0,color:R,size:4,speed:3e3},J=`x-spin`,Y=`x-spin-on`,Xt=`x-spin-layer`,Zt=`x-spin-badge`,X=e=>`${J}-${e}`,Z=`x-spin-angle`,Qt=!1;function Q(e){switch(e){case`beam`:return`conic-gradient(from var(--x-spin-angle), transparent 0deg, var(--x-spin-color) 30deg, transparent 70deg)`;case`chase`:return`conic-gradient(from var(--x-spin-angle), var(--x-spin-color) 0deg 12deg, transparent 12deg 168deg, var(--x-spin-color) 168deg 180deg, transparent 180deg)`;default:return`conic-gradient(from var(--x-spin-angle), var(--x-spin-color), transparent 75%)`}}var $=`padding:var(--x-spin-size);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;`;function $t(){if(Qt||typeof document>`u`)return;Qt=!0;let e=document.createElement(`style`);e.setAttribute(`data-x-spin`,``),e.textContent=`
+  100% { transform: scale(1); opacity: 0; }`;return q||(q=document.createElement(`style`),q.setAttribute(`data-x-ripple-keyframes`,``),document.head.appendChild(q)),q.textContent+=`\n@keyframes ${i} {${s}\n}`,K.set(n,i),i}function Bt(e,t,n){let r=e.offsetWidth,i=e.offsetHeight,a=r/2,o=i/2;if(n){let t=e.getBoundingClientRect();a=n.clientX-t.left,o=n.clientY-t.top}let s=Math.max(a,r-a),c=Math.max(o,i-o);return{x:a,y:o,r:Math.hypot(s,c)}}function Vt(e){return e.trigger===`click`?0:-(e.speed+e.gap)/2}function Ht(e){return e.trigger===`click`?Math.round(e.size*.6*10)/10:e.size}function Ut(e,t){let n={...Et};if(!e)return n;let r=pt(e,wt,t,`x-ripple`);e.type!==void 0&&(wt.includes(e.type)?r.add(e.type):t(`x-ripple: type 取值非法（${JSON.stringify(e.type)}），已回退 "echo"`));let i=Ct.find(e=>r.has(e));return i&&(n.type=i),mt(e,Tt,`x-spin`,t,`x-ripple`),e.inside!==void 0&&(e.inside===!0?n.inside=!0:e.inside!==!1&&t(`x-ripple: inside 开关须为布尔值，已忽略`)),n.trigger=ft(e,t,`x-ripple`),n.badge=ht(e,t,`x-ripple`),n.inside&&n.badge>0&&(t(`x-ripple: badge 与 inside 互斥，badge 优先（inside 已忽略）`),n.inside=!1),n.color=gt(e.color,{color:L,badgeColor:ct},n.badge,t,`x-ripple`),n.size=B(e,`size`,t,`x-ripple`)??Et.size,n.speed=dt(e,t,`x-ripple`),n.gap=B(e,`gap`,t,`x-ripple`)??0,n.inside&&(r.size>0&&t(`x-ripple: inside 接管渲染，type 形态词表已忽略`),e.size!==void 0&&t(`x-ripple: inside 半径自动几何（起点到最远角），size 已忽略`),e.speed===void 0&&(n.speed=Mt)),n}var Wt={hostClass:H,activeClass:U,layerClass:Dt,ensureStyles:Lt,normalize:Ut,hostClasses:e=>[...e.badge>0?[G]:[],...e.inside?[Ot]:[]],activeClasses:e=>e.type===`echo`&&!e.inside?[W]:[],animName:e=>Rt(e),animationCss:(e,t)=>`${t} ${e.speed+e.gap}ms ease-out infinite`,period:e=>e.speed+e.gap,layerCount:e=>e.type===`echo`?2:1,layerCssText:e=>e.badge>0?`${vt(e.badge)}background:var(--x-ripple-color);`:_t(),applyLayerExtras:(e,t)=>{let n=e[1];n&&(n.style.animationDelay=`${Vt(t)}ms`,n.style.setProperty(`--x-ripple-size`,`${Ht(t)}px`))},applyVars:(e,t,n)=>{let r=e.style;r.setProperty(`--x-ripple-color`,t.color||`var(--auto-theme-color, var(--autospark-ripple-color, #009aff))`),r.setProperty(`--x-ripple-size`,`${t.size}px`),r.setProperty(`--x-ripple-duration`,`${t.speed+t.gap}ms`),r.setProperty(`--x-ripple-anim`,n),r.setProperty(`--x-ripple-echo-delay`,`${Vt(t)}ms`),r.setProperty(`--x-ripple-echo-size`,`${Ht(t)}px`),t.badge>0&&r.setProperty(`--x-ripple-badge-size`,`${t.badge}px`)},inside:{enabled:e=>e.inside,createCarrier:()=>{let e=document.createElement(`span`);e.className=kt,e.style.cssText=`position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;display:block;`;let t=document.createElement(`span`);t.className=At,t.style.cssText=`position:absolute;border-radius:50%;background:var(--x-ripple-color);pointer-events:none;display:block;`;let n=document.createElement(`span`);return n.className=jt,n.style.cssText=`position:absolute;border-radius:50%;box-sizing:border-box;border:var(--x-ripple-halo-width, ${Nt}px) solid var(--x-ripple-color);pointer-events:none;display:block;`,e.append(t,n),{clip:e,core:t,halo:n}},geometry:Bt,animations:e=>({core:`${zt(e,`core`)} ${e.speed+e.gap}ms ease-out infinite`,halo:`${zt(e,`halo`)} ${e.speed+e.gap}ms ease-out infinite`})}};function Gt(){St(xt(`ripple`,Wt))}Gt();var Kt=[`chase`,`rotate`,`beam`],qt=[`rotate`,`beam`,`chase`],Jt=[`ring`,`glow`,`echo`],Yt={type:`beam`,trigger:`always`,badge:0,color:R,size:4,speed:3e3},J=`x-spin`,Y=`x-spin-on`,Xt=`x-spin-layer`,Zt=`x-spin-badge`,X=e=>`${J}-${e}`,Z=`x-spin-angle`,Qt=!1;function Q(e){switch(e){case`beam`:return`conic-gradient(from var(--x-spin-angle), transparent 0deg, var(--x-spin-color) 30deg, transparent 70deg)`;case`chase`:return`conic-gradient(from var(--x-spin-angle), var(--x-spin-color) 0deg 12deg, transparent 12deg 168deg, var(--x-spin-color) 168deg 180deg, transparent 180deg)`;default:return`conic-gradient(from var(--x-spin-angle), var(--x-spin-color), transparent 75%)`}}var $t=`padding:var(--x-spin-size);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;`;function en(){if(Qt||typeof document>`u`)return;Qt=!0;let e=document.createElement(`style`);e.setAttribute(`data-x-spin`,``),e.textContent=`
 @property --x-spin-angle {
   syntax: "<angle>";
   inherits: false;
@@ -750,7 +750,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
 }
 @media (prefers-reduced-motion: reduce) {
   .${J}.${Y}::after { animation: none; }
-}`,document.head.appendChild(e)}function en(e,t){let n={...Yt};if(!e)return n;let r=pt(e,qt,t,`x-spin`);e.type!==void 0&&(qt.includes(e.type)?r.add(e.type):t(`x-spin: type 取值非法（${JSON.stringify(e.type)}），已回退 "beam"`));let i=Kt.find(e=>r.has(e));return i&&(n.type=i),mt(e,Jt,`x-ripple`,t,`x-spin`),e.gap!==void 0&&t(`x-spin: gap 仅涟漪支持（x-spin 恒转无静止段），已忽略`),n.trigger=ft(e,t,`x-spin`),n.badge=ht(e,t,`x-spin`),n.color=gt(e.color,{color:R,badgeColor:lt},n.badge,t,`x-spin`),n.size=B(e,`size`,t,`x-spin`)??Yt.size,n.speed=dt(e,t,`x-spin`),n}var tn={hostClass:J,activeClass:Y,layerClass:Xt,ensureStyles:$t,normalize:en,hostClasses:e=>[X(e.type),...e.badge>0?[Zt]:[]],activeClasses:()=>[],animName:()=>Z,animationCss:(e,t)=>`${t} ${e.speed}ms linear infinite`,period:e=>e.speed,layerCount:()=>1,layerCssText:e=>e.badge>0?`${vt(e.badge)}${$}background:${Q(e.type)};`:`${_t()}${$}background:${Q(e.type)};`,applyVars:(e,t)=>{let n=e.style;n.setProperty(`--x-spin-color`,t.color||`var(--auto-theme-color, var(--autospark-spin-color, #009aff))`),n.setProperty(`--x-spin-size`,`${t.size}px`),n.setProperty(`--x-spin-duration`,`${t.speed}ms`),t.badge>0&&n.setProperty(`--x-spin-badge-size`,`${t.badge}px`)}};function nn(){St(xt(`spin`,tn))}nn();var rn=`<!--
+}`,document.head.appendChild(e)}function tn(e,t){let n={...Yt};if(!e)return n;let r=pt(e,qt,t,`x-spin`);e.type!==void 0&&(qt.includes(e.type)?r.add(e.type):t(`x-spin: type 取值非法（${JSON.stringify(e.type)}），已回退 "beam"`));let i=Kt.find(e=>r.has(e));return i&&(n.type=i),mt(e,Jt,`x-ripple`,t,`x-spin`),e.gap!==void 0&&t(`x-spin: gap 仅涟漪支持（x-spin 恒转无静止段），已忽略`),n.trigger=ft(e,t,`x-spin`),n.badge=ht(e,t,`x-spin`),n.color=gt(e.color,{color:R,badgeColor:lt},n.badge,t,`x-spin`),n.size=B(e,`size`,t,`x-spin`)??Yt.size,n.speed=dt(e,t,`x-spin`),n}var nn={hostClass:J,activeClass:Y,layerClass:Xt,ensureStyles:en,normalize:tn,hostClasses:e=>[X(e.type),...e.badge>0?[Zt]:[]],activeClasses:()=>[],animName:()=>Z,animationCss:(e,t)=>`${t} ${e.speed}ms linear infinite`,period:e=>e.speed,layerCount:()=>1,layerCssText:e=>e.badge>0?`${vt(e.badge)}${$t}background:${Q(e.type)};`:`${_t()}${$t}background:${Q(e.type)};`,applyVars:(e,t)=>{let n=e.style;n.setProperty(`--x-spin-color`,t.color||`var(--auto-theme-color, var(--autospark-spin-color, #009aff))`),n.setProperty(`--x-spin-size`,`${t.size}px`),n.setProperty(`--x-spin-duration`,`${t.speed}ms`),t.badge>0&&n.setProperty(`--x-spin-badge-size`,`${t.badge}px`)}};function rn(){St(xt(`spin`,nn))}rn();var an=`<!--
     化身路径约束（x-component T4=B）：组件快照根的属性是静态并入宿主（class 拼接 /
     style 合并 / 其他属性复制），根上的动态绑定不会求值——变体绑定须落在编译子树的
     内层元素上：宿主级外观（底色/边框/圆角等）经 body 上的 data-* 变体属性以 :has()
@@ -778,7 +778,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             variant: "default",     // 形态：default 常规描边 | primary 实底 | secondary 次底 | dashed 虚线 | text 文本 | link 链接
             type: "primary",        // 语义色：primary | success | warning | danger | info（default 形态不消费，勾选态仍生效）
             label: "按钮",          // 兜底文案（插槽无内容时显示）
-            icon: "",               // 图标名（x-icon 渲染；loading 时被 loading 图标替换）
+            icon: "",               // 图标名或完整 x-icon-options 对象 { name, size, color, strokeWidth, padding, badge, button, pointer }（loading 时被替换）
             loading: false,         // 加载态：左图标位转圈并禁点（优先于 disabled 视觉）
             ghost: false,           // 幽灵：背景透明、内容取语义色（常用在有色背景上）
             border: false,          // 装饰性附加边框（不干预 dashed / ghost 的固有边框形态）
@@ -788,13 +788,16 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             autoInsertSpace: true,  // label 恰为两个汉字时自动插入空格
             shape: "default",       // default | circle（纯图标呈正圆，带文字自动呈胶囊）
             labelBelow: false,      // label 显示在图标下方（纵排）
-            value: false,           // 勾选值（checkable 模式；true 时使用与 type 匹配的背景色）
-            checkable: false,       // 可勾选模式：点击自动翻转 value 并冒泡 change 事件
+            value: false,           // 勾选值（checkable 模式；等于 checkValues[0] 时为选中态）
+            checkable: false,       // 可勾选模式：点击自动翻转 value 并冒泡 change 事件；化身 checkbox（x-model 可绑宿主，见 mounted 桥）
+            checkValues: [true, false], // 勾选二元组 [checked 值, unchecked 值]（任意类型，严格相等判定）
+            checkStyle: "solid",    // 选中渲染：solid 实底 | icon 左侧 yes 图标占位 | corner outline+右上角打勾小三角
             align: "center",        // 内容水平对齐：left | center | right
+            indent: 0,              // 内容额外左缩进（数字 px 或任意 CSS 值如 "2em"）；菜单层级缩进常用
             memo: "",               // label 下方的备注（小一号、淡色）
             tags: [],               // 右侧小圆钮 {icon?,tooltip?,name?}[]；点击冒泡 tag-click 事件
             menu: false,            // 菜单项形态：占满宽、透明底、左对齐、hover 淡底
-            // computed 简写（普通函数值即计算属性，x-data 惯用法）：autoInsertSpace 开启且
+            // computed 简写（普通函数值即计算属性，仅限单表达式）：autoInsertSpace 开启且
             // label 恰为两个汉字时中间插入空格
             displayLabel: (s) => (s.autoInsertSpace && /^[一-龥]{2}$/.test(s.label ?? "")) ? (s.label[0] + " " + s.label[1]) : s.label
         }),
@@ -812,6 +815,70 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             syncDisabled();
             this.watch("disabled", ({ value }) => { syncDisabled(); });
             this.watch("loading", ({ value }) => { syncDisabled(); });
+
+            // icon 对象形态的视觉透传（与 x-icon 原生内联实现等价）：size/color/padding 直写内联样式、
+            // strokeWidth 经 --as-icon-sw 变量、badge 走角标类（CSS 伪元素红点 + 板 padding）；
+            // watch 回调一跳后写（x-if 渲染与回调的 flush 时序不保证先后）
+            const syncIconStyle = () => {
+                const i = this.data.icon;
+                const span = this.el.querySelector(".asc-button-icon");
+                if (!span) return;
+                for (const k of ["width", "height", "color", "padding"]) span.style.removeProperty(k);
+                span.style.removeProperty("--as-icon-sw");
+                span.classList.remove("asc-button-icon-badge");
+                if (typeof i !== "object" || !i) return;
+                if (i.size != null) {
+                    const px = typeof i.size === "number" ? i.size + "px" : i.size;
+                    span.style.width = px;
+                    span.style.height = px;
+                }
+                if (typeof i.color === "string" && i.color.trim() !== "") span.style.color = i.color;
+                if (i.strokeWidth != null) span.style.setProperty("--as-icon-sw", String(i.strokeWidth));
+                if (i.padding != null) span.style.padding = typeof i.padding === "number" ? i.padding + "px" : i.padding;
+                // badge（x-icon 同款标量三形态）：true（缺省板距）/ number 板距 px / string CSS 值——形态即启用
+                if (i.badge === true) { span.classList.add("asc-button-icon-badge"); span.style.padding = "2px"; }
+                else if (typeof i.badge === "number") { span.classList.add("asc-button-icon-badge"); span.style.padding = i.badge + "px"; }
+                else if (typeof i.badge === "string" && i.badge.trim() !== "") { span.classList.add("asc-button-icon-badge"); span.style.padding = i.badge; }
+            };
+            setTimeout(syncIconStyle, 0); // mounted 时化身子树可能尚未挂载（span 不可查），一跳后再同步
+            this.watch("icon", () => { setTimeout(syncIconStyle, 0); });
+
+            // checkable 桥（化身 checkbox）：宿主上 x-model 走 text 分型（读写 el.value + 监听 input）。
+            // x-model 域恒布尔语域——el.value 只取 "true"/"false"（对齐原生 checkbox 的 checked 布尔语义，
+            // 配 x-model.boolean 类型保真）；checkValues 任意值服务于 props value 通道与表单提交值
+            // （内嵌真 input[type=checkbox]：display:none 载体、name 透传宿主、提交值 = String(checkValues[0])、
+            // 未勾选不提交）。点击翻转写布尔语域后派发 input 回写 state。
+            // 布尔语域使默认组与注入组的字符串解释一致——props 晚注入的时序天然免疫。
+            if (this.data.checkable) {
+                const proto = Object.getOwnPropertyDescriptor(HTMLButtonElement.prototype, "value");
+                const real = document.createElement("input");
+                real.type = "checkbox";
+                real.style.display = "none";
+                const vals = () => this.data.checkValues;
+                const nameAttr = this.el.getAttribute("name");
+                if (nameAttr != null) real.name = nameAttr;
+                this.el.appendChild(real);
+                const applyChecked = (on) => { const [onV, offV] = vals(); this.data.value = on ? onV : offV; real.checked = !!on; };
+                Object.defineProperty(this.el, "value", {
+                    get: () => proto.get.call(this.el),
+                    set: (v) => { proto.set.call(this.el, v); applyChecked(v === "true"); },
+                    configurable: true,
+                });
+                // 重对齐：底层 value（x-model 已写，布尔语域）优先、否则按 data.value 对 checkValues 的归属
+                const resync = () => {
+                    real.value = String(vals()[0]);
+                    const raw = proto.get.call(this.el);
+                    if (raw === "true") applyChecked(true);
+                    else if (raw === "false") applyChecked(false);
+                    else if (this.data.value === vals()[0]) applyChecked(true);
+                    else if (this.data.value === vals()[1]) applyChecked(false);
+                };
+                setTimeout(resync, 0); // mounted 时化身子树与 props 均可能未就位，一跳后首对齐
+                this.watch("checkValues", () => { setTimeout(resync, 0); });
+                this.watch("value", ({ value: v }) => { // props value 受控通道（无 x-model 时）
+                    if (v === vals()[0] || v === vals()[1]) resync();
+                });
+            }
 
             // 涟漪动态挂载（ADR-0010 运行时契约：不经编译、直接写属性即生效）；
             // 配置走 x-ripple-options 通道（裸 x-ripple 的值只参与三态判定、不承载配置）；
@@ -831,11 +898,16 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             syncRipple();
             this.watch("ripple", () => { syncRipple(); });
 
-            // checkable 点击翻转：组件内自动取反 + 冒泡 change（受控显示方向经 props 单向注入天然响应）
+            // checkable 点击翻转：按 checkValues 二元组切换，桥值写布尔语域（"true"/"false"）后派发
+            // input（x-model 回写，配 .boolean 类型保真）与 change（detail 携带 checkValues 语域值）
             this.el.addEventListener("click", () => {
                 if (!this.data.checkable || this.el.disabled) return;
-                this.data.value = !this.data.value;
-                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { value: this.data.value } }));
+                const [onVal, offVal] = this.data.checkValues;
+                const next = this.data.value === onVal ? offVal : onVal;
+                const nextOn = next === onVal;
+                this.el.value = String(nextOn); // 劫持 setter 同步视觉与内嵌 input（布尔语域）
+                this.el.dispatchEvent(new Event("input", { bubbles: false })); // x-model 监听在宿主自身
+                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { value: next } }));
             });
         },
     }
@@ -952,16 +1024,66 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       text-align: left;
     }
 
-    /* ---------- 勾选态（checkable && value）：与 color 匹配的实底（Q5）；menu 下为左竖条 + 淡底（Q8） ---------- */
-    .asc-button:has(> .asc-button-body[data-checked="true"]) {
+    /* ---------- 勾选渲染（checkStyle）：指示色统一 --asc-tone（theme 主色，type 非默认时语义色） ---------- */
+    /* solid（默认）：勾选 = tone 实底 + 反白字 */
+    .asc-button:has(> .asc-button-body[data-check-style="solid"][data-checked="true"]),
+    .asc-button:has(> .asc-button-body:not([data-check-style])[data-checked="true"]) {
       --asc-bg: var(--asc-tone);
       --asc-ink: #fff;
       --asc-line: transparent;
     }
-    .asc-button:has(> .asc-button-body[data-menu="true"][data-checked="true"]) {
-      --asc-bg: var(--auto-selected-bgcolor, var(--asc-button-selected-bg, color-mix(in srgb, var(--asc-tone) 20%, transparent)));
-      --asc-ink: var(--auto-selected-color, var(--asc-tone));
-      box-shadow: inset 3px 0 0 var(--asc-tone);
+    /* icon：最左 1.2em 固定占位（未勾选留空、无布局跳动），勾选显 tone 色 yes 指示；
+         背景维持原 variant 形态（Q12：仅指示器变化） */
+    .asc-button-body[data-check-style="icon"] {
+      position: relative;
+    }
+    .asc-button-body[data-check-style="icon"]::before {
+      content: "";
+      flex: none;
+      width: 1.2em;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--asc-tone);
+      font-size: 0.9em;
+      font-weight: bold;
+    }
+    .asc-button:has(> .asc-button-body[data-check-style="icon"][data-checked="true"]) .asc-button-body[data-check-style="icon"]::before {
+      content: "✓";
+    }
+    /* corner：勾选 = tone 描边 outline + 右上角 tone 小三角内嵌反白小勾；背景维持原 variant。
+         三角挂宿主伪元素、两直角边长 = 宿主圆角半径（弦线跨过圆角弧——紧贴描边右上角且圆角下不悬空），
+         圆角档位切换自动跟随 */
+    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"]) {
+      outline: 2px solid var(--asc-tone);
+      outline-offset: -2px;
+    }
+    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"])::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 0;
+      height: 0;
+      border-top: var(--auto-border-radius, 0.5rem) solid var(--asc-tone);
+      border-left: var(--auto-border-radius, 0.5rem) solid transparent;
+      z-index: 1;
+    }
+    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"])::before {
+      content: "";
+      position: absolute;
+      top: calc(var(--auto-border-radius, 0.5rem) * 0.22);
+      right: calc(var(--auto-border-radius, 0.5rem) * 0.3);
+      z-index: 2;
+      width: 0.34em;
+      height: 0.18em;
+      border-left: 1.5px solid var(--auto-bgcolor, #fff);
+      border-bottom: 1.5px solid var(--auto-bgcolor, #fff);
+      transform: rotate(-45deg);
+    }
+    /* 三角/描边定位基准（宿主需定位上下文；x-ripple 的 .x-ripple 已有 relative 兜底，此处显式自持） */
+    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"]) {
+      position: relative;
     }
 
     /* ---------- 形状（shape）：circle 恒胶囊半径——纯图标时内容等宽高自然呈正圆，带文字自动胶囊 ---------- */
@@ -1025,6 +1147,20 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       display: inline-flex;
       align-items: center;
       justify-content: center;
+    }
+    /* 图标角标（icon.badge 标量三形态启用）：板 padding 承载留白，伪元素红点取 danger 语义色 */
+    .asc-button-icon-badge {
+      position: relative;
+    }
+    .asc-button-icon-badge::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 0.4em;
+      height: 0.4em;
+      border-radius: 50%;
+      background: var(--auto-danger-color, var(--asc-button-danger, #ef4444));
     }
 
     /* 主文本组：label 与 memo 恒纵排（memo 在 label 下方） */
@@ -1146,14 +1282,21 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       background: var(--auto-hover-bgcolor, var(--asc-button-hover-bg, rgba(255, 255, 255, 0.08)));
     }
   </style>
-  <!-- 变体数据属性全部承载在 body（编译子树内层元素，经 :has() 驱动宿主外观——见文件头注释） -->
+  <!-- 变体数据属性全部承载在 body（编译子树内层元素，经 :has() 驱动宿主外观——见文件头注释）；
+         indent（原始值）经 :style 加性内联（body 无 padding，不影响宿主内距） -->
   <span class="asc-button-body"
     :data-variant="variant" :data-type="type" :data-ghost="ghost" :data-border="border"
     :data-shape="shape" :data-label-below="labelBelow" :data-align="align" :data-menu="menu"
-    :data-block="block" :data-checked="checkable && value" :data-loading="loading">
+    :data-block="block" :data-checked="checkable && value === checkValues[0]" :data-loading="loading"
+    :data-check-style="checkable ? checkStyle : undefined"
+    :style="indent ? { paddingLeft: (typeof indent === 'number' ? indent + 'px' : indent) } : undefined">
     <!-- loading 图标替换左图标位（字面量须带引号——裸 loading 会命中 data.loading 布尔值） -->
     <span class="asc-button-icon" x-if="loading" x-icon="'loading'"></span>
-    <span class="asc-button-icon" x-if="!loading && icon" x-icon="icon"></span>
+    <!-- icon 双形态：字符串 = 图标名；对象 = { name, size, color, strokeWidth, padding }——name 经 x-icon 值消费，
+         视觉键由 mounted 的 syncIconStyle 以内联样式透传（与 x-icon 原生内联实现等价；
+         绑定表达式通道对 props 晚注入不重算，故走 JS 同步通道） -->
+    <span class="asc-button-icon" x-if="!loading && typeof icon === 'string' && icon" x-icon="icon"></span>
+    <span class="asc-button-icon" x-if="!loading && typeof icon === 'object' && icon" x-icon="icon.name"></span>
     <span class="asc-button-main">
       <!-- 默认插槽出口：未提供内容时显示 {{ displayLabel }}（组件自身状态求值） -->
       <span class="asc-button-label" x-slot>{{ displayLabel }}</span>
@@ -1170,7 +1313,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </span>
   </span>
 </button>
-`,an=`autospark.button`;function on(e){e.components[an]=rn}sn();function sn(){k(e=>{g(e),on(e)})}};
+`,$=`autospark.button`;function on(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}function sn(e){e.components[$]=an,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-button`))){let e=document.createElement(`button`),n=e=>e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase()),r=e=>/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e),i=[];for(let a of Array.from(t.attributes))a.name.startsWith(`:`)?i.push(`${r(n(a.name.slice(1)))}: (${a.value})`):a.name===`class`||a.name===`style`||a.name===`id`||a.name===`name`||a.name.startsWith(`data-`)||a.name.startsWith(`x-`)||a.name.startsWith(`@`)?e.setAttribute(a.name,a.value):i.push(`${r(n(a.name))}: ${JSON.stringify(on(a.value))}`);for(e.setAttribute(`x-component:${$}`,`{ ${i.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}cn();function cn(){k(e=>{g(e),sn(e)})}};
     if (AutoSpark === undefined) {
         // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
         var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);
