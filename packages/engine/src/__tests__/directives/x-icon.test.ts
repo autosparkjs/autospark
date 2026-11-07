@@ -284,14 +284,21 @@ describe("x-icon 渲染语义（ADR-0058 决策 1/2/11）", () => {
         expect(r2.querySelector(".as-icon")!.style.getPropertyValue("--as-icon-sw")).toBe("2");
     });
 
-    test("基础样式表：--as-icon-sw 变量规则 + >svg 撑满规则 + badge/button 修饰规则常驻", () => {
+    test("基础样式表：--as-icon-sw 变量规则 + >svg 撑满规则 + shape/button 修饰规则常驻", () => {
         mount(`${iconsTpl(svg("sheet", "M1"))}<span x-icon="sheet"></span>`, {});
         const sheet = document.getElementById("autospark-icons")!.textContent!;
         expect(sheet).toContain(
             `stroke-width:var(--as-icon-sw,${DEFAULT_ICON_STROKE_WIDTH})`,
         );
         expect(sheet).toContain(".as-icon>svg{width:100%;height:100%;display:block}");
-        expect(sheet).toContain(".as-icon-badge{display:inline-flex;flex:none;aspect-ratio:1;height:fit-content");
+        // size 默认走 --auto-icon-size 令牌（ADR-0135，无 theme 回落 1em）
+        expect(sheet).toContain("width:var(--auto-icon-size,1em);height:var(--auto-icon-size,1em)");
+        // shape 两形态公共板（板距令牌 + 浓度变量）+ 各自圆角（ADR-0135）
+        expect(sheet).toContain(
+            ".as-icon-circle,.as-icon-radius{display:inline-flex;flex:none;aspect-ratio:1;height:fit-content;padding:var(--auto-padding,0.3em)",
+        );
+        expect(sheet).toContain(".as-icon-circle{border-radius:50%}");
+        expect(sheet).toContain(".as-icon-radius{border-radius:var(--auto-border-radius,4px)}");
         expect(sheet).toContain(".as-icon.as-icon-button:hover{filter:brightness(.75)}");
         expect(sheet).toContain("box-sizing:content-box"); // 排版免疫
         expect(sheet).toContain("aspect-ratio:1");
@@ -658,45 +665,106 @@ describe("IconifyJSON 转换规则（resolveIconifyIcon 纯函数，ADR-0058 决
     });
 });
 
-describe("x-icon 修饰选项（badge / pointer / button，ADR-0049 沿用）", () => {
-    test("badge：挂载后包裹 as-icon-badge 底板层；未声明不包裹", async () => {
+describe("x-icon 修饰选项（shape / pointer / button，ADR-0049/0135）", () => {
+    test("shape：circle/radius 挂载后包裹对应形态 wrapper；未声明与 none 不包裹", async () => {
         const { root: r1 } = mount(
-            `${iconsTpl(svg("b1", "M1"))}<span x-icon="b1" x-icon-options="{badge:true}"></span>`,
+            `${iconsTpl(svg("b1", "M1"))}<span x-icon="b1" x-icon-options="{shape:'circle'}"></span>`,
             {},
         );
         await nextTick(); // 包裹在挂载后微任务执行
-        expect(r1.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-badge")).toBe(true);
-        const { root: r2 } = mount(`${iconsTpl(svg("b2", "M2"))}<span x-icon="b2"></span>`, {});
-        await nextTick();
-        expect(r2.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-badge")).toBe(false);
-    });
-
-    test("badge 修饰符快捷（x-icon.badge ≡ options）与三形态板 padding", async () => {
-        const { root: r1 } = mount(`${iconsTpl(svg("b3", "M3"))}<span x-icon.badge="b3"></span>`, {});
-        await nextTick();
-        expect(r1.querySelector(".as-icon")!.parentElement!.style.padding).toBe("0.3em"); // true 默认
+        expect(r1.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-circle")).toBe(true);
         const { root: r2 } = mount(
-            `${iconsTpl(svg("b4", "M4"))}<span x-icon="b4" x-icon-options="{badge:6}"></span>`,
+            `${iconsTpl(svg("b2", "M2"))}<span x-icon="b2" x-icon-options="{shape:'radius'}"></span>`,
             {},
         );
         await nextTick();
-        expect(r2.querySelector(".as-icon")!.parentElement!.style.padding).toBe("6px"); // number → px
-        const { root: r3 } = mount(
-            `${iconsTpl(svg("b5", "M5"))}<span x-icon="b5" x-icon-options="{badge:'1em'}"></span>`,
+        expect(r2.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-radius")).toBe(true);
+        const { root: r3 } = mount(`${iconsTpl(svg("b7", "M7"))}<span x-icon="b7"></span>`, {});
+        await nextTick();
+        expect(r3.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-circle")).toBe(false);
+        const { root: r4 } = mount(
+            `${iconsTpl(svg("b8", "M8"))}<span x-icon="b8" x-icon-options="{shape:'none'}"></span>`,
             {},
         );
         await nextTick();
-        expect(r3.querySelector(".as-icon")!.parentElement!.style.padding).toBe("1em"); // string 直传
+        expect(r4.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-radius")).toBe(false);
     });
 
-    test("badge 走全局配置链（icons.options 整体赋值生效）", async () => {
+    test("修饰符快捷（.circle / .radius ≡ shape 值）；显式 shape 值优先于修饰符", async () => {
+        const { root: r1 } = mount(`${iconsTpl(svg("b3", "M3"))}<span x-icon.circle="b3"></span>`, {});
+        await nextTick();
+        expect(r1.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-circle")).toBe(true);
+        const { root: r2 } = mount(`${iconsTpl(svg("b4", "M4"))}<span x-icon.radius="b4"></span>`, {});
+        await nextTick();
+        expect(r2.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-radius")).toBe(true);
+        // 显式 shape:"none" 压倒 .circle 修饰符（显式声明优先）
+        const { root: r3 } = mount(
+            `${iconsTpl(svg("b5", "M5"))}<span x-icon.circle="b5" x-icon-options="{shape:'none'}"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(r3.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-circle")).toBe(false);
+    });
+
+    test("板距链：显式 padding 声明内联压倒形态类令牌默认；未声明零内联（var 默认由类规则承接）", async () => {
+        const { root: r1 } = mount(
+            `${iconsTpl(svg("c5", "M5"))}<span x-icon.circle="c5" x-icon-options="{padding:6}"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(r1.querySelector(".as-icon")!.parentElement!.style.padding).toBe("6px");
+        const { root: r2 } = mount(`${iconsTpl(svg("c6", "M6"))}<span x-icon.circle="c6"></span>`, {});
+        await nextTick();
+        expect(r2.querySelector(".as-icon")!.parentElement!.style.padding).toBe(""); // 令牌默认走类规则（零内联）
+        expect(r2.querySelector(".as-icon")!.style.padding).toBe(""); // 图形恒 size 无内边距
+    });
+
+    test("非法值 warn 剪枝为未启用（布尔 / 越界拼写）", async () => {
+        const { root: r1 } = mount(
+            `${iconsTpl(svg("c7", "M7"))}<span x-icon="c7" x-icon-options="{shape:true}"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(r1.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-circle")).toBe(false);
+        const { root: r2 } = mount(
+            `${iconsTpl(svg("c8", "M8"))}<span x-icon="c8" x-icon-options="{shape:'round'}"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(r2.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-radius")).toBe(false);
+    });
+
+    test("shape 走全局配置链（icons.options 整体赋值生效）+ 形态切换拆包重包", async () => {
         const { root } = mount(`${iconsTpl(svg("b6", "M6"))}<span x-icon="b6"></span>`, {});
         await nextTick();
-        expect(root.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-badge")).toBe(false);
-        iconRegistry.options = { badge: true, pointer: true };
+        expect(root.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-circle")).toBe(false);
+        iconRegistry.options = { shape: "circle", pointer: true };
         await nextTick();
-        expect(root.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-badge")).toBe(true);
+        expect(root.querySelector(".as-icon")!.parentElement!.classList.contains("as-icon-circle")).toBe(true);
         expect(root.querySelector(".as-icon")!.style.cursor).toBe("pointer");
+        // 形态切换：circle → radius 先拆后包（wrapper 类更替）
+        iconRegistry.options = { shape: "radius" };
+        await nextTick();
+        const parent = root.querySelector(".as-icon")!.parentElement!;
+        expect(parent.classList.contains("as-icon-circle")).toBe(false);
+        expect(parent.classList.contains("as-icon-radius")).toBe(true);
+    });
+
+    test("指定 color 浓板联动：wrapper 内联指定色 + 8% 浓度变量；未指定对称清", async () => {
+        const { root: r1 } = mount(
+            `${iconsTpl(svg("d1", "M1"))}<span x-icon.circle="d1" x-icon-options="{color:'#f03d5e'}"></span>`,
+            {},
+        );
+        await nextTick();
+        const w1 = r1.querySelector(".as-icon")!.parentElement!;
+        expect(r1.querySelector(".as-icon")!.style.color).toBe("#f03d5e"); // 图形色
+        expect(w1.style.color).toBe("#f03d5e"); // 板色相跟随（wrapper 是宿主父级，须单独下发）
+        expect(w1.style.getPropertyValue("--as-icon-mix")).toBe("8%"); // 浓板浓度（ADR-0135 决策三）
+        const { root: r2 } = mount(`${iconsTpl(svg("d2", "M2"))}<span x-icon.circle="d2"></span>`, {});
+        await nextTick();
+        const w2 = r2.querySelector(".as-icon")!.parentElement!;
+        expect(w2.style.color).toBe(""); // 未指定：板色回落类规则 5% currentColor 随文字色
+        expect(w2.style.getPropertyValue("--as-icon-mix")).toBe("");
     });
 
     test("pointer：内联 cursor:pointer（修饰符与选项双通道）；button 挂 as-icon-button 类", () => {
@@ -711,8 +779,8 @@ describe("x-icon 修饰选项（badge / pointer / button，ADR-0049 沿用）", 
         expect(r2.querySelector(".as-icon")!.style.cursor).toBe("");
     });
 
-    test("button + badge：动效载体是板——wrapper 挂 button 类、宿主不挂（载体唯一防双动效）", async () => {
-        const { root } = mount(`${iconsTpl(svg("c3", "M3"))}<span x-icon.badge.button="c3"></span>`, {});
+    test("button + shape：动效载体是板——wrapper 挂 button 类、宿主不挂（载体唯一防双动效）", async () => {
+        const { root } = mount(`${iconsTpl(svg("c3", "M3"))}<span x-icon.circle.button="c3"></span>`, {});
         await nextTick();
         const el = root.querySelector(".as-icon")!;
         expect(el.classList.contains("as-icon-button")).toBe(false);

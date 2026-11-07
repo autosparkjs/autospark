@@ -248,7 +248,6 @@ export default defineConfig({
                 { text: "x-class", link: "/zh/guide/directives/x-class" },
                 { text: "x-style", link: "/zh/guide/directives/x-style" },
                 { text: "x-on", link: "/zh/guide/directives/x-on" },
-                { text: "x-icon", link: "/zh/guide/directives/x-icon" },
               ],
             },
             {
@@ -324,12 +323,8 @@ export default defineConfig({
                 { text: "x-super", link: "/zh/guide/directives/x-super" },
                 { text: "x-slots", link: "/zh/guide/directives/x-slots" },
                 { text: "x-import", link: "/zh/guide/directives/x-import" },
+                { text: "x-icon", link: "/zh/guide/directives/x-icon" },
               ],
-            },
-            {
-              text: "插件开发",
-              collapsed: true,
-              items: [{ text: "关于", link: "/zh/guide/plugin/" }],
             },
             {
               text: "扩展指令",

@@ -8,8 +8,8 @@
  *   天然贴合 border-radius、窗口缩放不失效）；
  * - `glow`：边框光晕呼吸——半周期 blur 达到 size（光晕最大）、整周期归零；
  * - `echo`（缺省）：双环回声——主环之外 ::before 载体负延迟错相第二环。
- * - `inside:true`：宿主内按钮涟漪（ADR-0010）——双圆一芯一环（芯 = 实心填充圆自起点
- *   放大渐隐、环 = 芯圆周描边同步渐隐）同心同步，约束在宿主内部（clipper 裁剪，不写
+ * - `inside:true`：宿主内按钮涟漪（ADR-0010，决策 1 于 2026-11-07 修订单圆化）——
+ *   单圆（实心填充圆自起点放大渐隐，无描边环），约束在宿主内部（clipper 裁剪，不写
  *   宿主 overflow）；半径自动几何 = 起点到最远角距离；always/hover 起点几何中心，
  *   click 起点为点击坐标且连点取消重起；speed 条件缺省 600ms；badge 优先互斥、
  *   type 词表与 size warn 忽略。
@@ -84,7 +84,7 @@ export interface XRippleOptions {
     always?: boolean;
     /** click 开关 ≡ trigger:'click' */
     click?: boolean;
-    /** 宿主内按钮涟漪形态（ADR-0010）：双圆一芯一环、半径自动几何、click 连点取消重起；badge 启用时被 badge 压制（warn 忽略） */
+    /** 宿主内按钮涟漪形态（ADR-0010，2026-11-07 修订单圆化）：单圆填充、半径自动几何、click 连点取消重起；badge 启用时被 badge 压制（warn 忽略） */
     inside?: boolean;
     /** 徽标（家族通用）：true = 宿主右上角 8px 正圆载体 / 正数字 = 自定义直径 px（启用时 color 缺省主题语义红） */
     badge?: boolean | number;
@@ -144,17 +144,13 @@ const LAYER_CLASS = "x-ripple-layer";
 const BADGE_CLASS = "x-ripple-badge";
 /** inside 宿主标记类（ADR-0010）：形态辨识与样式钩子 */
 const INSIDE_HOST_CLASS = "x-ripple-inside";
-/** inside 裁剪容器 / 芯 / 环载体类（芯/环为裁剪容器子元素） */
+/** inside 裁剪容器 / 填充圆载体类（填充圆为裁剪容器子元素） */
 const INSIDE_CLIP_CLASS = "x-ripple-inside-clip";
-const INSIDE_CORE_CLASS = "x-ripple-inside-core";
-const INSIDE_HALO_CLASS = "x-ripple-inside-halo";
+const INSIDE_CIRCLE_CLASS = "x-ripple-inside-circle";
 /** inside 形态 speed 条件缺省（ADR-0010 决策 5：按钮涟漪节奏；显式声明恒优先） */
 const INSIDE_DEFAULT_SPEED = 600;
-/** inside 环描边宽 px（烘进 CSS 变量 fallback，供主题重载） */
-const INSIDE_HALO_WIDTH = 2;
-/** inside 芯 / 环描边透明度（烘进 keyframes 变量 fallback，供主题重载） */
-const INSIDE_CORE_ALPHA = 0.3;
-const INSIDE_HALO_ALPHA = 0.5;
+/** inside 填充圆透明度（烘进 keyframes 变量 fallback，供主题重载） */
+const INSIDE_ALPHA = 0.3;
 
 /* ────────────────────────── 样式注入 ────────────────────────── */
 
@@ -238,9 +234,8 @@ function ensureStyles(): void {
 @media (prefers-reduced-motion: reduce) {
   .${HOST_CLASS}.${ACTIVE_CLASS}::after,
   .${HOST_CLASS}.${ACTIVE_CLASS}.${ECHO_CLASS}::before { animation: none; }
-  /* inside 芯/环动画走内联 style——类规则 !important 压过内联（可访问性底线同家族） */
-  .${INSIDE_CORE_CLASS},
-  .${INSIDE_HALO_CLASS} { animation: none !important; }
+  /* inside 填充圆动画走内联 style——类规则 !important 压过内联（可访问性底线同家族） */
+  .${INSIDE_CIRCLE_CLASS} { animation: none !important; }
 }`;
     document.head.appendChild(style);
 }
@@ -287,21 +282,20 @@ function ensureKeyframes(cfg: RippleConfig): string {
 }
 
 /**
- * 生成/复用 inside 芯/环 keyframes（ADR-0010 决策 1）：scale 0→1 放大 + 透明度渐隐，
- * 同心同步（芯/环同参数同曲线，仅透明度通道区分）；透明度经变量 fallback 烘死值
- * （供主题重载、不开配置键——YAGNI 决策见 ADR 备选「透明度/环宽开配置键」）。
+ * 生成/复用 inside 填充圆 keyframes（ADR-0010 决策 1，2026-11-07 修订单圆化）：
+ * scale 0→1 放大 + 透明度渐隐；透明度经变量 fallback 烘死值（供主题重载、
+ * 不开配置键——YAGNI 决策见 ADR 备选「透明度/环宽开配置键」）。
  */
-function ensureInsideKeyframes(cfg: RippleConfig, layer: "core" | "halo"): string {
-    const key = `inside-${layer}|${cfg.speed}|${cfg.gap}`;
+function ensureInsideKeyframes(cfg: RippleConfig): string {
+    const key = `inside|${cfg.speed}|${cfg.gap}`;
     const cached = keyframesCache.get(key);
     if (cached) return cached;
 
-    const name = `x-ripple-inside-${layer}-${cfg.speed}-${cfg.gap}`;
+    const name = `x-ripple-inside-${cfg.speed}-${cfg.gap}`;
     const period = cfg.speed + cfg.gap;
     const animPct = period > 0 ? Math.round((cfg.speed / period) * 100) : 100;
-    const alpha = layer === "core" ? INSIDE_CORE_ALPHA : INSIDE_HALO_ALPHA;
     const frames = `
-  0% { transform: scale(0); opacity: var(--x-ripple-${layer === "core" ? "core" : "halo"}-alpha, ${alpha}); }
+  0% { transform: scale(0); opacity: var(--x-ripple-inside-alpha, ${INSIDE_ALPHA}); }
   ${animPct}% { transform: scale(1); opacity: 0; }
   100% { transform: scale(1); opacity: 0; }`;
 
@@ -451,31 +445,26 @@ const RIPPLE_STRATEGY: DecorateStrategy<RippleConfig> = {
         style.setProperty("--x-ripple-echo-size", `${echoSize(cfg)}px`);
         if (cfg.badge > 0) style.setProperty("--x-ripple-badge-size", `${cfg.badge}px`);
     },
-    // inside 形态钩子组（ADR-0010）：芯/环静态样式在此（色变量/环宽为指令命名空间知识），
-    // 几何与动画启动由 decorate 控制器统一写入
+    // inside 形态钩子组（ADR-0010，2026-11-07 修订单圆化）：填充圆静态样式在此
+    // （色变量为指令命名空间知识），几何与动画启动由 decorate 控制器统一写入
     inside: {
         enabled: (cfg) => cfg.inside,
         createCarrier: () => {
             const clip = document.createElement("span");
             clip.className = INSIDE_CLIP_CLASS;
-            // 裁剪容器：铺满宿主、圆角跟随、隐藏溢出——芯/环超界部分被裁（决策 6，不写宿主 overflow）
+            // 裁剪容器：铺满宿主、圆角跟随、隐藏溢出——填充圆超界部分被裁（决策 6，不写宿主 overflow）
             clip.style.cssText =
                 "position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;display:block;";
-            const core = document.createElement("span");
-            core.className = INSIDE_CORE_CLASS;
-            core.style.cssText =
+            const circle = document.createElement("span");
+            circle.className = INSIDE_CIRCLE_CLASS;
+            circle.style.cssText =
                 "position:absolute;border-radius:50%;background:var(--x-ripple-color);pointer-events:none;display:block;";
-            const halo = document.createElement("span");
-            halo.className = INSIDE_HALO_CLASS;
-            // box-sizing:border-box：环外径恒为 2r（描边内收），与芯同心同尺寸对齐
-            halo.style.cssText = `position:absolute;border-radius:50%;box-sizing:border-box;border:var(--x-ripple-halo-width, ${INSIDE_HALO_WIDTH}px) solid var(--x-ripple-color);pointer-events:none;display:block;`;
-            clip.append(core, halo);
-            return { clip, core, halo };
+            clip.append(circle);
+            return { clip, circle };
         },
         geometry: insideGeometry,
         animations: (cfg) => ({
-            core: `${ensureInsideKeyframes(cfg, "core")} ${cfg.speed + cfg.gap}ms ease-out infinite`,
-            halo: `${ensureInsideKeyframes(cfg, "halo")} ${cfg.speed + cfg.gap}ms ease-out infinite`,
+            circle: `${ensureInsideKeyframes(cfg)} ${cfg.speed + cfg.gap}ms ease-out infinite`,
         }),
     },
 };

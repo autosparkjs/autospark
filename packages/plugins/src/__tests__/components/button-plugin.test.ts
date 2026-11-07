@@ -98,3 +98,67 @@ describe("installPlugin 自举单点（ADR-0003）", () => {
         expect((AutoSpark as { components: Record<string, string> }).components[BUTTON_NAME]).toBe(before);
     });
 });
+
+describe("wrap 选项（label 换行与截断 title，ADR-0012 决策 7）", () => {
+    test("样式通道：label 基础规则承载单行截断，data-wrap=true 解除折行", () => {
+        // 归一化空白后断言（oxfmt 折行使逐字匹配假红）
+        const tpl = ((AutoSpark as { components: Record<string, string> }).components[BUTTON_NAME] as string).replace(/\s+/g, " ");
+        expect(tpl).toContain(".asc-button-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }");
+        expect(tpl).toContain('.asc-button-body[data-wrap="true"] .asc-button-label { white-space: normal; }');
+    });
+
+    test("data-wrap 属性通道：wrap=true 落 body，缺省（假值）属性移除不命中", async () => {
+        const { root } = mount(
+            `<button x-component:autospark.button="{ label: '换行按钮', wrap: true }"></button>`,
+            {},
+        );
+        await nextTick();
+        expect(root.querySelector(".asc-button-body")!.getAttribute("data-wrap")).toBe("true");
+
+        const plain = mount(`<button x-component:autospark.button="{ label: '常规' }"></button>`, {});
+        await nextTick();
+        expect(plain.root.querySelector(".asc-button-body")!.getAttribute("data-wrap")).toBe(null);
+    });
+
+    test("溢出自动挂 title + label 变化换新文本 + 溢出消失摘自挂的", async () => {
+        const { root, engine } = mount(
+            `<button x-component:autospark.button="{ label: text }"></button>`,
+            { text: "初始长文案" },
+        );
+        await nextTick();
+        const host = root.querySelector("button")!;
+        const span = root.querySelector(".asc-button-label") as HTMLElement;
+        // happy-dom 无布局：mock 几何值模拟截断态（scrollWidth > clientWidth 即溢出）
+        let overflow = true;
+        Object.defineProperty(span, "scrollWidth", { configurable: true, get: () => (overflow ? 200 : 100) });
+        Object.defineProperty(span, "clientWidth", { configurable: true, get: () => 100 });
+        engine.store.state.text = "变更后的长文案"; // label 变化触发重查 → 挂 title（textContent 同源）
+        await nextTick();
+        expect(host.getAttribute("title")).toBe("变更后的长文案");
+        // 溢出消失（label 再变、几何恢复）→ 摘自挂的 title
+        overflow = false;
+        engine.store.state.text = "短";
+        await nextTick();
+        expect(host.getAttribute("title")).toBe(null);
+    });
+
+    test("显式 title 永不覆盖；不溢出（含 wrap 折行态）不挂无残留", async () => {
+        const { root, engine } = mount(
+            `<button title="自定义提示" x-component:autospark.button="{ label: text }"></button>`,
+            { text: "初始文案" },
+        );
+        await nextTick();
+        const host = root.querySelector("button")!;
+        const span = root.querySelector(".asc-button-label") as HTMLElement;
+        let overflow = true;
+        Object.defineProperty(span, "scrollWidth", { configurable: true, get: () => (overflow ? 200 : 100) });
+        Object.defineProperty(span, "clientWidth", { configurable: true, get: () => 100 });
+        engine.store.state.text = "改一下"; // 溢出态重查：显式 title 在场永不覆盖
+        await nextTick();
+        expect(host.getAttribute("title")).toBe("自定义提示");
+        overflow = false; // 折行/宽度充裕态（几何不溢出）→ 从未自挂、无残留
+        engine.store.state.text = "再改一下";
+        await nextTick();
+        expect(host.getAttribute("title")).toBe("自定义提示");
+    });
+});

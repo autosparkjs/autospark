@@ -326,8 +326,8 @@ _Avoid_: tooltip 实例（无实例化概念——单例复用）、每元素独
 ### 装饰动效层
 
 **内部涟漪形态（inside）**:
-x-ripple 的 `inside` 形态开关键（`x-ripple-options` 布尔键 / `x-ripple.inside` 修饰符，三通道等价）：true 时涟漪改为**宿主内部**的 Material 式按钮涟漪——**双圆一芯一环**（芯 = 实心填充圆自起点放大渐隐，环 = 芯圆周描边同步渐隐）**同心同步**（同起点、同半径曲线、同时长收束——错相会呈第二道波峰、观感「执行两遍」，与 echo click「双环一次起波」同源结论）；半径**自动几何** = 起点到宿主 border box 最远角距离（铺满宿主，`size` 键 warn 忽略）。触发器语义：always/hover 起点固定几何中心、单周期循环；click 起点为**点击坐标**、单周期自止且**连点取消重来**——家族 click「在播中连点忽略」契约的唯一点特例（非 inside 的 click 与 x-spin 不变）。`speed` 在此形态下**条件缺省 600ms**（显式声明恒优先；先例 = badge 启用时 color 联动语义红）。**互斥族**：`inside:true` 接管渲染 → type 形态词表（ring/glow/echo）warn 忽略；`badge` 优先于 inside（badge 启用时 inside warn 忽略）。载体恒为注入子元素——clipper span（absolute inset:0 + border-radius:inherit + overflow:hidden）内含芯/环两 span，**不写宿主 overflow**（防裁 dropdown/溢出内容）。运行时动态加/删 `x-ripple` 属性即生效/失效（engine 观察根内；options 改值须移除重加属性重挂）。详见 ADR-0010。
-_Avoid_: inline（撞既有术语——x-isolate 无值形态的 inline 子引擎 / x-loading 的 inline 主声明位）、内联涟漪（同前中文直译）、双环错相（那是 echo 的负延迟语义，inside 双圆恒同拍）、宿主 overflow:hidden 注入（Material 做法已否决——副作用裁内容）、与 x-tree 拖拽落点 inside 混淆（同名不同物——彼为内部落点常量 before/after/inside，非配置键）
+x-ripple 的 `inside` 形态开关键（`x-ripple-options` 布尔键 / `x-ripple.inside` 修饰符，三通道等价）：true 时涟漪改为**宿主内部**的 Material 式按钮涟漪——**单圆（实心填充圆自起点放大渐隐，无描边环）**（2026-11-07 修订：原「双圆一芯一环」移除环，ADR-0010 决策 1）；半径**自动几何** = 起点到宿主 border box 最远角距离（铺满宿主，`size` 键 warn 忽略）。触发器语义：always/hover 起点固定几何中心、单周期循环；click 起点为**点击坐标**、单周期自止且**连点取消重来**——家族 click「在播中连点忽略」契约的唯一点特例（非 inside 的 click 与 x-spin 不变）。`speed` 在此形态下**条件缺省 600ms**（显式声明恒优先；先例 = badge 启用时 color 联动语义红）。**互斥族**：`inside:true` 接管渲染 → type 形态词表（ring/glow/echo）warn 忽略；`badge` 优先于 inside（badge 启用时 inside warn 忽略）。载体恒为注入子元素——clipper span（absolute inset:0 + border-radius:inherit + overflow:hidden）内含单圆 span，**不写宿主 overflow**（防裁 dropdown/溢出内容）。运行时动态加/删 `x-ripple` 属性即生效/失效（engine 观察根内；options 改值须移除重加属性重挂）。详见 ADR-0010。
+_Avoid_: inline（撞既有术语——x-isolate 无值形态的 inline 子引擎 / x-loading 的 inline 主声明位）、内联涟漪（同前中文直译）、双圆一芯一环 / 芯 / 环（2026-11-07 已废——inside 单圆化，环移除；「双环」「错相」语汇属 echo 负延迟语义，与 inside 无关）、宿主 overflow:hidden 注入（Material 做法已否决——副作用裁内容）、与 x-tree 拖拽落点 inside 混淆（同名不同物——彼为内部落点常量 before/after/inside，非配置键）
 
 ### 资源层（Resource）
 

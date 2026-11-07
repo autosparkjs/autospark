@@ -478,7 +478,7 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
             });
     };
 
-    test("inside 载体与缺省播放：clip 裁剪三件套 + 宿主类 + 中心起点自动几何 + speed 条件缺省 600ms", async () => {
+    test("inside 载体与缺省播放：clip 裁剪两件套 + 宿主类 + 中心起点自动几何 + speed 条件缺省 600ms", async () => {
         const { root } = spawn(`<div x-ripple x-ripple-options="{inside:true}"></div>`, {});
         const host = hostOf(root);
         mockGeom(host, 200, 100);
@@ -489,26 +489,24 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         expect(host.classList.contains("x-ripple-inside")).toBe(true);
         expect(host.classList.contains("x-ripple-on")).toBe(false);
 
-        // 载体结构：clip 为宿主直接子元素、芯/环为 clip 子元素；clip 裁剪契约（不写宿主 overflow）
+        // 载体结构：clip 为宿主直接子元素、填充圆为其唯一子元素（单圆，无描边环——2026-11-07 修订）；
+        // clip 裁剪契约（不写宿主 overflow）
         const clip = host.querySelector(":scope > .x-ripple-inside-clip") as HTMLElement;
         expect(clip).not.toBeNull();
         expect(clip.style.overflow).toBe("hidden");
         expect(clip.style.borderRadius).toBe("inherit");
         expect(host.style.overflow).toBe("");
         expect(clip.style.display).toBe(""); // 播放期间显示（注入即隐藏，playInside 恢复）
-        const core = clip.querySelector(".x-ripple-inside-core") as HTMLElement;
-        const halo = clip.querySelector(".x-ripple-inside-halo") as HTMLElement;
-        expect(core).not.toBeNull();
-        expect(halo).not.toBeNull();
+        const circle = clip.querySelector(".x-ripple-inside-circle") as HTMLElement;
+        expect(circle).not.toBeNull();
+        expect(clip.children.length).toBe(1); // 单圆：clip 内无第二载体
 
         // always 缺省播放：中心起点（100,50）、半径 = 到最远角 = hypot(100,50) = 111.8（自动几何，铺满宿主）
-        expect(core.style.left).toBe("-11.8px"); // round1(100 - 111.8)
-        expect(core.style.top).toBe("-61.8px"); // round1(50 - 111.8)
-        expect(core.style.width).toBe("223.6px");
-        expect(halo.style.left).toBe("-11.8px"); // 芯/环同几何（同心同步）
-        // 芯/环动画：双 keyframes + speed 条件缺省 600ms（未显式声明 speed）
-        expect(core.style.animation).toBe("x-ripple-inside-core-600-0 600ms ease-out infinite");
-        expect(halo.style.animation).toBe("x-ripple-inside-halo-600-0 600ms ease-out infinite");
+        expect(circle.style.left).toBe("-11.8px"); // round1(100 - 111.8)
+        expect(circle.style.top).toBe("-61.8px"); // round1(50 - 111.8)
+        expect(circle.style.width).toBe("223.6px");
+        // 填充圆动画：speed 条件缺省 600ms（未显式声明 speed）
+        expect(circle.style.animation).toBe("x-ripple-inside-600-0 600ms ease-out infinite");
     });
 
     test("inside + click：点击坐标起点、单周期自止、连点取消重起（时间窗判别）", async () => {
@@ -520,33 +518,33 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         mockGeom(host, 200, 100, { left: 10, top: 20 });
         await twoFrames(); // 预探测注入载体（click 初始不播）
         const clip = host.querySelector(":scope > .x-ripple-inside-clip") as HTMLElement;
-        const core = clip.querySelector(".x-ripple-inside-core") as HTMLElement;
-        expect(core.style.animation).toBe(""); // 初始静止
-        expect(clip.style.display).toBe("none"); // 注入即隐藏（芯静态底色防显形盖宿主）
+        const circle = clip.querySelector(".x-ripple-inside-circle") as HTMLElement;
+        expect(circle.style.animation).toBe(""); // 初始静止
+        expect(clip.style.display).toBe("none"); // 注入即隐藏（填充圆静态底色防显形盖宿主）
 
         // 击①：点击坐标起点（clientX 60/clientY 40 − rect(10,20) = (50,20)），
         // 半径 = hypot(max(50,150), max(20,80)) = hypot(150,80) = 170
         host.dispatchEvent(new MouseEvent("click", { clientX: 60, clientY: 40 }));
         expect(clip.style.display).toBe(""); // 播放期间显示
-        expect(core.style.left).toBe("-120px"); // round1(50 - 170)
-        expect(core.style.top).toBe("-150px"); // round1(20 - 170)
-        expect(core.style.width).toBe("340px");
-        expect(core.style.animation).toContain("x-ripple-inside-core-80-0");
+        expect(circle.style.left).toBe("-120px"); // round1(50 - 170)
+        expect(circle.style.top).toBe("-150px"); // round1(20 - 170)
+        expect(circle.style.width).toBe("340px");
+        expect(circle.style.animation).toContain("x-ripple-inside-80-0");
 
         // 击②（t≈40ms，第一波在播中）：取消重起——起点换新坐标（(100,50)，r=hypot(100,50)=111.8），
         // 收口重排至击②后一周期
         await new Promise((r) => setTimeout(r, 40));
         host.dispatchEvent(new MouseEvent("click", { clientX: 110, clientY: 70 }));
-        expect(core.style.left).toBe("-11.8px"); // round1(100 - 111.8)
-        expect(core.style.top).toBe("-61.8px"); // round1(50 - 111.8)
-        expect(core.style.animation).not.toBe("");
+        expect(circle.style.left).toBe("-11.8px"); // round1(100 - 111.8)
+        expect(circle.style.top).toBe("-61.8px"); // round1(50 - 111.8)
+        expect(circle.style.animation).not.toBe("");
 
         // t≈95ms：若未取消（家族连点忽略），第一波已于 80ms 收口——在播即证明取消重起生效
         await new Promise((r) => setTimeout(r, 55));
-        expect(core.style.animation).not.toBe("");
+        expect(circle.style.animation).not.toBe("");
         // 击②后一周期（40+80=120ms）末自动收口
         await new Promise((r) => setTimeout(r, 60));
-        expect(core.style.animation).toBe("");
+        expect(circle.style.animation).toBe("");
         expect(clip.style.display).toBe("none"); // 停止即隐藏（覆盖宿主缺陷的收口）
     });
 
@@ -572,8 +570,8 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         await twoFrames();
         expect(host.classList.contains("x-ripple-inside")).toBe(true);
         expect(host.classList.contains("x-ripple-echo")).toBe(false); // type 词表被忽略
-        const core = host.querySelector(".x-ripple-inside-core") as HTMLElement;
-        expect(core.style.width).toBe("223.6px"); // 半径 = hypot(100,50)，非 size 5
+        const circle = host.querySelector(".x-ripple-inside-circle") as HTMLElement;
+        expect(circle.style.width).toBe("223.6px"); // 半径 = hypot(100,50)，非 size 5
     });
 
     test("inside 显式 speed 恒优先于条件缺省；hover 悬停播中心、移出周期末停", async () => {
@@ -584,17 +582,17 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         const host = hostOf(root);
         mockGeom(host, 200, 100);
         await twoFrames();
-        const core = host.querySelector(".x-ripple-inside-core") as HTMLElement;
+        const circle = host.querySelector(".x-ripple-inside-circle") as HTMLElement;
         const clip = host.querySelector(":scope > .x-ripple-inside-clip") as HTMLElement;
-        expect(core.style.animation).toBe(""); // hover 初始静止
+        expect(circle.style.animation).toBe(""); // hover 初始静止
         expect(clip.style.display).toBe("none"); // 注入即隐藏
 
         host.dispatchEvent(new Event("mouseenter"));
-        expect(core.style.animation).toBe("x-ripple-inside-core-60-0 60ms ease-out infinite"); // 显式 speed 生效
+        expect(circle.style.animation).toBe("x-ripple-inside-60-0 60ms ease-out infinite"); // 显式 speed 生效
         expect(clip.style.display).toBe(""); // 播放期间显示
         host.dispatchEvent(new Event("mouseleave"));
         await new Promise((r) => setTimeout(r, 100)); // 播完当前周期（60ms）再停
-        expect(core.style.animation).toBe("");
+        expect(circle.style.animation).toBe("");
         expect(clip.style.display).toBe("none"); // 周期末隐藏
     });
 

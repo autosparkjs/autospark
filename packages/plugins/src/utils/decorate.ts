@@ -257,15 +257,15 @@ export interface InsideStrategy<C> {
     /** 配置是否启用 inside（互斥归一已完成——enabled=true 即接管渲染） */
     enabled(cfg: C): boolean;
     /**
-     * 创建载体三 span（clip 裁剪容器 + core 芯 + halo 环；芯/环为 clip 子元素）。
-     * 芯/环的 left/top/width/height 与 animation 由控制器每次播放写入——
-     * 此处只给类名与静态样式（色变量引用、环宽等指令命名空间知识）。
+     * 创建载体两 span（clip 裁剪容器 + circle 填充圆；填充圆为 clip 子元素）。
+     * 填充圆的 left/top/width/height 与 animation 由控制器每次播放写入——
+     * 此处只给类名与静态样式（色变量引用等指令命名空间知识）。
      */
-    createCarrier(): { clip: HTMLElement; core: HTMLElement; halo: HTMLElement };
+    createCarrier(): { clip: HTMLElement; circle: HTMLElement };
     /** 起点半径几何：ev 在场 = click 点击坐标起点；缺省 = 宿主几何中心；r = 起点到 border box 最远角距离 */
     geometry(el: HTMLElement, cfg: C, ev?: MouseEvent): { x: number; y: number; r: number };
-    /** 芯/环动画简写（keyframes 已由策略注册去重；同心同步——两动画同时长同曲线，ADR-0010 决策 1） */
-    animations(cfg: C): { core: string; halo: string };
+    /** 填充圆动画简写（keyframes 已由策略注册去重，ADR-0010 决策 1——2026-11-07 修订单圆化） */
+    animations(cfg: C): { circle: string };
 }
 
 /**
@@ -375,9 +375,8 @@ export class DecorateDirective<C extends { trigger: DecorateTrigger }> {
     private valueOff: (() => void) | null = null;
     /** inside 形态开关（构造期按策略判定定死；false 时状态机零分支开销） */
     private insideOn = false;
-    /** inside 载体（clip 裁剪容器——芯/环为其子元素，摘 clip 即全清） */
-    private insideCarrier: { clip: HTMLElement; core: HTMLElement; halo: HTMLElement } | null =
-        null;
+    /** inside 载体（clip 裁剪容器——填充圆为其子元素，摘 clip 即全清） */
+    private insideCarrier: { clip: HTMLElement; circle: HTMLElement } | null = null;
     /** 载体未定时挂起的播放事件（click 坐标随事件透传续播） */
     private pendingEv: MouseEvent | undefined;
 
@@ -597,7 +596,7 @@ export class DecorateDirective<C extends { trigger: DecorateTrigger }> {
         }, 0);
     }
 
-    /** 启动播放：写动画变量 + 加激活类（伪元素）或设置 layer animation（子元素）/ inside 芯环重起 */
+    /** 启动播放：写动画变量 + 加激活类（伪元素）或设置 layer animation（子元素）/ inside 单圆重起 */
     private start(ev?: MouseEvent): void {
         if (this.stopTimer != null) {
             clearTimeout(this.stopTimer);
@@ -629,35 +628,32 @@ export class DecorateDirective<C extends { trigger: DecorateTrigger }> {
     }
 
     /**
-     * inside 播放：按起点（ev 点击坐标 / 缺省几何中心）定位芯环尺寸并硬重起动画。
-     * animation 置空 + reflow 后重写 = CSS 动画从头播放（连点取消重来的重启点）；
-     * 芯环同几何同拍写入（同心同步，ADR-0010 决策 1）。播放期间恢复载体显示
-     * （clip 注入即隐藏——芯带静态底色，动画摘除后以静态样式显形会盖住宿主）。
+     * inside 播放：按起点（ev 点击坐标 / 缺省几何中心）定位填充圆尺寸并硬重起动画。
+     * animation 置空 + reflow 后重写 = CSS 动画从头播放（连点取消重来的重启点）。
+     * 播放期间恢复载体显示（clip 注入即隐藏——填充圆带静态底色，动画摘除后以
+     * 静态样式显形会盖住宿主）。
      */
     private playInside(ev?: MouseEvent): void {
         if (!this.insideCarrier) return;
         this.insideCarrier.clip.style.display = "";
         const inside = this.strategy.inside!;
         const { x, y, r } = inside.geometry(this.el, this.config, ev);
-        const { core, halo } = inside.animations(this.config);
+        const { circle } = inside.animations(this.config);
         // round1 收敛到写入侧统一完成：定位差值与直径的浮点尾数不泄漏进内联样式（输出稳定，测试断言友好）
         const round1 = (n: number) => Math.round(n * 10) / 10;
-        const place = (span: HTMLElement, anim: string): void => {
-            span.style.left = `${round1(x - r)}px`;
-            span.style.top = `${round1(y - r)}px`;
-            span.style.width = `${round1(r * 2)}px`;
-            span.style.height = `${round1(r * 2)}px`;
-            span.style.animation = "none";
-            void span.offsetWidth; // reflow 复位动画（无渲染泵环境同样安全：读取即同步）
-            span.style.animation = anim;
-        };
-        place(this.insideCarrier.core, core);
-        place(this.insideCarrier.halo, halo);
+        const span = this.insideCarrier.circle;
+        span.style.left = `${round1(x - r)}px`;
+        span.style.top = `${round1(y - r)}px`;
+        span.style.width = `${round1(r * 2)}px`;
+        span.style.height = `${round1(r * 2)}px`;
+        span.style.animation = "none";
+        void span.offsetWidth; // reflow 复位动画（无渲染泵环境同样安全：读取即同步）
+        span.style.animation = circle;
     }
 
     /**
-     * 注入 inside 载体（clip 裁剪容器 + 芯/环；unmounted 摘 clip 即全清）。
-     * 注入即隐藏：芯带静态底色（background 无动画态兜底），载体常驻会在动画摘除后
+     * 注入 inside 载体（clip 裁剪容器 + 填充圆；unmounted 摘 clip 即全清）。
+     * 注入即隐藏：填充圆带静态底色（background 无动画态兜底），载体常驻会在动画摘除后
      * 以静态样式显形盖住宿主——仅播放期间显示（playInside 恢复 / scheduleStop 隐藏）。
      */
     private injectInsideCarrier(): void {
@@ -679,10 +675,9 @@ export class DecorateDirective<C extends { trigger: DecorateTrigger }> {
             this.playing = false;
             if (this.insideOn) {
                 if (this.insideCarrier) {
-                    // 停止即隐藏载体：芯静态底色在 animation 摘除后显形会盖住宿主（注入即隐藏的对称收口）
+                    // 停止即隐藏载体：填充圆静态底色在 animation 摘除后显形会盖住宿主（注入即隐藏的对称收口）
                     this.insideCarrier.clip.style.display = "none";
-                    this.insideCarrier.core.style.animation = "";
-                    this.insideCarrier.halo.style.animation = "";
+                    this.insideCarrier.circle.style.animation = "";
                 }
             } else if (this.carrier === "pseudo") {
                 this.el.classList.remove(

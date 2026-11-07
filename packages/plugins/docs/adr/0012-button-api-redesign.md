@@ -5,6 +5,8 @@
 - 关联：ADR-0129（engine，三级样式回退链——本组件全量消费范式）、ADR-0010（运行时动态挂载契约——ripple prop 的消费方）、ADR-0094（点前缀命名空间）；不涉 ADR-0003 插件形态（注册结构不变）
 
 > **2026-11-03 修订**：属性更名——原 `type`（形态）→ **`variant`**、原 `color`（语义色）→ **`type`**（对齐 `type` 专属语义色的通用语感，正文保留原始决策名以便对照）；`ripple` 默认值 `false` → **`true`**（点击涟漪默认开启，页面未加载 autospark.ripple.js 时静默跳过）。
+>
+> **2026-11-07 修订**：新增 `wrap`（label 换行控制，决策 7）、`iconPlacement`（图标位置，决策 8）——**默认行为反转**：label 从可折行变为单行溢出省略号 + 溢出时静态检测自动挂 title。
 
 ## 背景
 
@@ -44,6 +46,22 @@ engine 无组件双向协议（背景②），硬凑存在类型陷阱：x-model
 
 模板插值表达式在数据视图求值，**methods 不在数据视图内**（x-on 的 getAction 链可见，插值不可见）——`displayLabel` 以「普通函数值即 computed 简写」（x-data 惯用法）实现：两汉字正则命中时插空格，`autoInsertSpace: false` 关闭。
 
+### 决策 7：wrap（label 换行控制）——默认单行省略号 + 溢出静态挂 title（2026-11-07）
+
+- **默认反转**：`wrap: boolean` 默认 `false` = label 单行 + 溢出省略号（截断三件套进 `.asc-button-label` 基础规则）；此前 label 无 `white-space` 约束、宽度受限时可折行。反转动机：单行省略是按钮 label 主流语义，折行撑高按钮是布局事故源——换行须显式声明（`wrap: true` 回 `normal`，按钮高度随行数增长由使用者担责）。
+- **纯声明通道**：`:data-wrap` 挂 body（布尔 props 惯例）、`[data-wrap="true"]` 解除截断，零 JS 布局参与；截断只在按钮宽度受约束时发生（block / menu / 容器挤压；inline-flex 收缩到内容宽永不触发）。
+- **溢出自动挂 title（纯静态检测）**：mounted 一跳首查 + `watch(label)` / `watch(wrap)` 重查，`scrollWidth > clientWidth` 判定；仅截断态挂、文本取 `.asc-button-label` 的 `textContent`（插槽 / 默认文案同源）、宿主显式 title 永不覆盖、溢出消失只摘自挂的（闭包标记自持）。
+- **正交不特调**：memo 保持 `line-clamp: 2` 独立截断（行数轴语义独立）；`shape: "circle"` 遇 wrap 呈竖长胶囊的组合不特调，责任归使用者。
+
+### 决策 8：iconPlacement——start/end 走 CSS order，组合语义四个子决策（2026-11-07）
+
+`iconPlacement: start | end`（默认 start）：`end` 经 body 的 `data-icon-placement` + `.asc-button-icon { order: 5 }` 实现（纯 CSS 零结构改动）。组合语义（grilling 四问定案）：
+
+- **纵排映射**：labelBelow 下 start/end 映射为上/下（流向语义自然延伸，非失效）；
+- **loading 随行**：loading 是图标位的临时内容，位置语义一致；
+- **yes 占位恒最前**：check-style icon 的勾选占位（body::before）位置稳定（勾选/取消零布局跳动），iconPlacement 只管内容区内的用户图标；
+- **tags 互换**：end 时图标移 tags 之后（图标恒最末，tags 退居其前）。
+
 ## 备选方案
 
 - **antd 风格 type 兼载形态 + danger 布尔**：否决——success 虚线钮等组合表达受限，语义色独立成 color 更干净（grilling Q11 定案）。
@@ -51,9 +69,12 @@ engine 无组件双向协议（背景②），硬凑存在类型陷阱：x-model
 - **保留组件级 size 属性**：否决——与 theme 档位双体系并存，「全面引入 theme」名不副实（Q12）。
 - **:has() 笛卡尔积逐组合写选择器**：否决——5 色 × 5 形态 × ghost × checked 组合爆炸；中转变量层线性化。
 - **tags 用 mounted 全局事件委托**：否决——与 checkable 宿主 listener 同元素竞争顺序（stopPropagation 不阻断同元素监听），需 stopImmediatePropagation + 注册顺序耦合；模板内层绑定无此问题。
+- **ResizeObserver 动态检测 title 挂/摘（决策 7）**：否决——按钮为高频组件，每实例一观察槽与收益不成比例，且组件为纯 HTML 资产（`script setup` 无模块级位置）做共享单例须引入 JS 模块载体；接受容器宽度单独变化后 title 过期的温和妥协（CSS 截断本身自适应不受影响）。
+- **溢出 title 提示整体不做（决策 7 初案 YAGNI）**：修订——hover 补偿可达性价值成立，静态检测成本一段代码；落点收窄为「宿主无显式 title 时才挂、永不覆盖」。
 
 ## 后果
 
 - 破坏性：旧 `type: "success"/"danger"`（语义色）用法失效——迁移动作 `type: "success"` → `type: "primary", color: "success"`；旧 `size` 属性删除。
+- 破坏性（2026-11-07，决策 7）：宽度受限按钮（block / menu / 容器挤压）的长 label 从折行撑高变为单行省略号——需折行的存量用法迁移动作 `wrap: true`。
 - 组件级 CSS 变量中转层（`--asc-tone/--asc-bg/--asc-ink/--asc-line`）是组件内部实现细节，不在 `--asc-button-*` 公开覆盖面承诺内（覆盖通道仍是语义变量与 `--asc-button-*` 兜底位）。
 - 纯图标正圆用法需显式 `label: ''`（label 默认 "按钮" 非空会占位）；空出口经 `:empty` + `:has` 整组隐藏，插槽有内容不受影响。

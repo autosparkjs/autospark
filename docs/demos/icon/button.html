@@ -16,32 +16,34 @@
 
     <body>
         <div class="demo-app section icons-demo">
-            <!-- 载体动效对比：动效作用于既有视觉载体，不新增结构、不改布局占位 -->
+            <!-- 载体动效：动效作用于既有视觉载体，不新增结构、不改布局占位 -->
             <p>
-                普通（无动效）：<span x-icon="bell"></span>
+                <strong>无 button</strong>（对照，无动效）：<span x-icon="bell"></span>
             </p>
             <p style="color: #f03d5e">
-                button（载体 = 图形：hover 加深 / press 缩放）：
+                <strong>button</strong>（载体 = 图形：hover 加深 / press 缩放）：
                 <span x-icon.button="heart"></span>
             </p>
             <p style="color: #485fc7">
-                badge + button（载体 = 底板：hover/press 板加深、按下整体缩放）：
-                <span x-icon.badge.button="star"></span>
+                <strong>button + shape</strong>（载体 = 底板：板色梯度加深 / 按下整体缩放）：
+                <span x-icon.circle.button="star"></span>
             </p>
 
-            <!-- button 隐含手型光标；点击行为归 @click 声明（纯视觉动效，无控件语义） -->
+            <!-- 纯视觉可供性：button 隐含手型光标；点击行为归 @click 声明（无控件语义） -->
             <p>
-                组合 @click：
-                <span x-icon.badge.button="close"
+                <strong>组合 @click</strong>
+                <span x-icon.circle.button="close"
                       @click="alert('已关闭（演示）')"></span>
                 <span x-icon.button="bell"
                       @click="count++"
                       :title="'点击次数：' + count"></span>
-                （悬停加深 + 手型光标，按下有缩放反馈）
+                　（悬停加深 + 手型光标，按下有缩放反馈）
             </p>
+
             <p class="help is-size-6">
-                悬停 / 按下上图标体验动效：button 未开 badge 时动效作用于图形本身（brightness 加深 + scale 缩放）；
-                开 badge 时动效作用于底板（currentColor 5% → hover 10% → press 15% + 整体 scale 0.94），图形不动。
+                悬停 / 按下上图标体验动效：未开 shape 时动效作用于图形本身（brightness 加深 + scale 缩放）；
+                开 shape 时动效作用于底板（浓度基准 5% 依次 +5% / +10%，浓板态 8% 同公式顺延 + 整体 scale 0.94），图形不动。
+                button 只做视觉可供性——无 role / tabindex / 键盘激活，需要真按钮时包 button 元素。
             </p>
         </div>
 

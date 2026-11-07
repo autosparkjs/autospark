@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 换行</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js?v=20261107"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+        <div class="auto-card">
+            <div class="auto-card-header">换行（wrap）：单行截断省略号 ⇄ 自动折行</div>
+            <div class="auto-card-body">
+                <!-- 窄容器 + block：宽度受约束才触发截断 / 折行（宽度充裕的常规按钮收缩到内容宽永不触发） -->
+                <div style="width: 240px; display: flex; flex-direction: column; gap: 12px;">
+                    <x-button block="true" type="primary" label="缺省单行：宽度受限时溢出显示省略号"></x-button>
+                    <x-button block="true" wrap="true" label="wrap 折行：同一文案自动换行，按钮高度随行数增长"></x-button>
+                    <x-button block="true" variant="secondary" label="截断自动挂 title：悬停本按钮可见完整文案提示"></x-button>
+                </div>
+                <p class="hint">宽度受限（block / menu / 容器挤压）时缺省单行截断（悬停第三枚按钮看 title 全文），wrap="true" 折行撑高；wrap 只管 label——memo 保持两行截断不变。</p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

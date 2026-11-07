@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 形状（shape 底板形态）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .icons-demo {
+                font-size: 24px;
+                line-height: 2;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section icons-demo">
+            <!-- 形态枚举：none ≡ 未声明（无背景）/ circle 正圆 / radius 主题圆角；
+                 修饰符快捷 .circle / .radius ≡ 选项写法 shape:'circle' / 'radius' -->
+            <p>
+                <strong>形态</strong>　普通（none）：<span x-icon="bell"></span>
+                　circle：<span x-icon.circle="bell"></span>
+                　radius：<span x-icon.radius="bell"></span>
+                　选项写法 shape:'radius'：<span x-icon="bell" x-icon-options="{shape:'radius'}"></span>
+            </p>
+
+            <!-- 板距链：显式 padding 声明内联压倒 > var(--auto-padding, 0.3em) 令牌默认；
+                 总占位 = size + 2×板距，图形恒 size 不放大 -->
+            <p>
+                <strong>板距</strong>　令牌默认（0.3em）：<span x-icon.circle="bell"></span>
+                　padding:6：<span x-icon.circle="bell" x-icon-options="{padding:6}"></span>
+                　padding:'0.6em'：<span x-icon.radius="bell" x-icon-options="{padding:'0.6em'}"></span>
+            </p>
+
+            <!-- 板色随宿主文字色级联（currentColor 5% 淡板，改 color 即换底板色） -->
+            <p style="color: #f03d5e">
+                <strong>颜色跟随</strong>
+                <span x-icon="heart"></span>
+                <span x-icon.circle="heart"></span>
+                <span x-icon.radius="heart"></span>
+            </p>
+            <p style="color: #485fc7; margin-top: -0.5em">
+                <span x-icon="star"></span>
+                <span x-icon.circle="star"></span>
+                <span x-icon.radius="star"></span>
+            </p>
+
+            <!-- 浓板联动（ADR-0135）：指定 color 选项时底板切该色 8% 浓度（同色相深浅对比） -->
+            <p>
+                <strong>浓板联动</strong>
+                <span x-icon.circle="heart" x-icon-options="{color:'#f03d5e'}"></span>
+                <span x-icon.radius="star" x-icon-options="{color:'#485fc7', padding:6}"></span>
+                <span x-icon.circle="close" x-icon-options="{color:'#8a8a8a'}"></span>
+                　（指定 color，底板同色相 8% 浓度）
+            </p>
+
+            <p class="help is-size-6">
+                底板走包裹层通道（wrapper 承载背景）：板色随宿主文字色级联，指定 color 选项时联动浓板；
+                板距默认 var(--auto-padding, 0.3em)、radius 圆角 var(--auto-border-radius, 4px)——
+                挂 @autospark/theme 时随 data-size / data-radius / data-spacing 档位自动缩放。
+            </p>
+        </div>
+
+        <script>
+            const { iconRegistry } = AutoSparkSpaces;
+            // 注册 demo 图标（bell/heart/star/close——本地图标稳定演示）
+            iconRegistry.add(
+                "bell",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+            );
+            iconRegistry.add(
+                "heart",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>',
+            );
+            iconRegistry.add(
+                "star",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1Z"/></svg>',
+            );
+            iconRegistry.add(
+                "close",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+            );
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

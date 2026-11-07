@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/autospark/theme-demo.css" />
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
-    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.button.js?v=20261107"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
 </head>
@@ -88,6 +88,22 @@
                 <p class="hint">
                     badge 为 x-icon 同款<b>标量三形态</b>——形态即启用：<code>true</code>（缺省板距 2px）/ 数字（板距 px）/ 字符串（任意 CSS 值）；角标圆点取 <code>--auto-danger-color</code> 语义色，板距即角标周围留白。
                 </p>
+            </div>
+        </div>
+
+        <div class="auto-card">
+            <div class="auto-card-header">图标位置（icon-placement：start 默认左 / end 右——纵排映射上/下、与 tags 互换、loading 随行）</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                    <x-button icon="menu" label="start 默认"></x-button>
+                    <x-button icon="menu" icon-placement="end" label="end 右侧"></x-button>
+                    <x-button icon="edit" icon-placement="end" label="loading 随行" loading="true"></x-button>
+                </div>
+                <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-top:10px;">
+                    <x-button icon="star" icon-placement="end" label-below="true" label="纵排 end" memo="图标在 label 下方"></x-button>
+                    <x-button icon="star" label-below="true" label="纵排 start" memo="图标在 label 上方"></x-button>
+                </div>
+                <p class="hint">end 时图标移内容区末尾（横排右 / 纵排下），带 tags 时两者互换（图标恒最末）；check-style icon 的勾选占位恒最前不受影响。</p>
             </div>
         </div>
 

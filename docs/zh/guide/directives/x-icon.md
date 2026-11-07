@@ -95,7 +95,7 @@
 
 ### 图标尺寸
 
-默认 **`1em` 随宿主字号缩放**——与文字同行混排无需任何配置；要固定尺寸用 `size` 选项（数字 → `Npx`、字符串直传 CSS），响应式尺寸绑宿主 `font-size` 即可（默认 1em 模型）：
+默认 **`var(--auto-icon-size, 1em)`**（ADR-0135 theme 令牌对接：挂 @autospark/theme 的页面随 `data-size` 档位自动缩放，无 theme 时回落 `1em` 随宿主字号缩放）——与文字同行混排无需任何配置；要固定尺寸用 `size` 选项（数字 → `Npx`、字符串直传 CSS），响应式尺寸绑宿主 `font-size` 即可：
 
 <demo html="icon/size.html"/>
 
@@ -159,28 +159,65 @@ const normalized = normalizeIconSvg('<svg viewBox="0 0 16 16" fill="none"><path 
 归一化只做属性级风格对齐，**不是** SVGO 式压缩——不精简路径数据、不改写几何。多色图标（duotone / 品牌双色）与渐变引用（`url()`）原样保留。
 :::
 
-### 修饰
-
-三个外观修饰选项（均可作修饰符快捷写法，走四级配置链）：
-
-| 选项      | 修饰符写法       | 效果                                                                                                    |
-| --------- | ---------------- | ------------------------------------------------------------------------------------------------------- |
-| `badge`   | `x-icon.badge`   | 图标底板——**比 currentColor 淡的圆角矩形背景**（`currentColor 5%`，随宿主文字色联动）。标量三形态（形态即启用）：`true` 开关（**默认 `padding: 0.3em` 作用于底板**）、`number` / `string` **自定义板 padding**（如 `{badge:'1em'}`，压倒独立 `padding` 选项）；总占位 = size + 2×板 padding，图形恒 size 不放大 |
-| `button`  | `x-icon.button`  | 图标按钮——hover / press 交互动效（**载体动效**，见下节）；**隐含手型光标**（类规则承载，不经内联）       |
-| `pointer` | `x-icon.pointer` | 手型光标 `cursor: pointer`（可点击语义）                                                                |
-
-<demo html="icon/decorate.html"/>
-
-`badge` 走**包裹层通道**：底板由独立盒承载——指令自动为 badge 实例包裹一层 `<span class="as-icon-badge">`（圆角 + 淡色背景），图标子元素完整渲染居中其中。板色经 `color-mix` 引用 `currentColor`，改宿主 `color` 即换底板色。注意：包裹层会引入一层 DOM——`.parent > .as-icon` 之类**子选择器**在 badge 场景会断开，请用后代选择器。
-
 ### 图标按钮
 
 <demo html="icon/button.html"/>
 
-`button` 声明**纯视觉的图标按钮交互态**：hover / press 动效 + 隐含手型光标。两个设计原则：
+`button` 选项（修饰符 `x-icon.button`）声明**纯视觉的图标按钮交互态**：hover / press 动效 + 隐含手型光标。两个设计原则：
 
-- **载体动效**：不新增任何视觉结构、不改布局占位，动效作用于**既有视觉载体**——未开 `badge` 时载体是图形本身（hover 加深 `brightness(.75)` + press 缩放 `scale(.9)`）；开 `badge` 时载体是底板（板色三梯度加深 `5% → hover 10% → press 15%` + press 整体缩放 `scale(.94)`）。与 `badge`（管「板常驻」）正交
+- **载体动效**：不新增任何视觉结构、不改布局占位，动效作用于**既有视觉载体**——未开 `shape` 时载体是图形本身（hover 加深 `brightness(.75)` + press 缩放 `scale(.9)`）；开 `shape` 时载体是底板（板色三梯度加深——浓度基准依次 `+5%` / `+10%`：默认态 `5% → 10% → 15%`、浓板态 `8% → 13% → 18%` 同公式顺延 + press 整体缩放 `scale(.94)`）。与 `shape`（管「板常驻」，见下节）正交
 - **纯视觉可供性**：不承载控件语义（无 `role` / `tabindex` / 键盘激活）——点击行为归用户 `@click` 声明，需要真按钮时包 `<button>` 元素
+
+```html
+<!-- 载体 = 图形：hover 加深 + press 缩放 -->
+<span x-icon.button="heart"></span>
+
+<!-- 载体 = 底板（shape 见下节）：板色梯度加深 + 整体缩放 -->
+<span x-icon.circle.button="star"></span>
+
+<!-- 点击行为归 @click 声明（button 只做视觉，无控件语义） -->
+<span x-icon.button="close" @click="close()"></span>
+```
+
+### 形状
+
+<demo html="icon/shape.html"/>
+
+`shape` 选项声明图标底板形态（ADR-0135），值域三枚举（启用形态可作修饰符快捷写法，走四级配置链）：
+
+| 值       | 修饰符写法      | 效果                                                |
+| -------- | --------------- | --------------------------------------------------- |
+| `none`   | —               | 无背景（≡ 未声明，显式关闭拼写）                   |
+| `circle` | `x-icon.circle` | 正圆底板（`border-radius: 50%`）                    |
+| `radius` | `x-icon.radius` | 主题圆角底板（`var(--auto-border-radius, 4px)`）    |
+
+板距走「显式 `padding` 声明 > `var(--auto-padding, 0.3em)`」令牌默认；总占位 = size + 2×板距，图形恒 size 不放大。
+
+`shape` 走**包裹层通道**：底板由独立盒承载——指令自动为 shape 实例包裹一层形态类 wrapper（`<span class="as-icon-circle">` / `<span class="as-icon-radius">`，淡色背景 + 形态圆角），图标子元素完整渲染居中其中。板色经 `color-mix` 引用 `currentColor`，改宿主 `color` 即换底板色；**指定 `color` 选项时底板联动浓板**——切换为该色 8% 浓度（同色相深浅对比，经 `--as-icon-mix` 浓度变量承载）。注意：包裹层会引入一层 DOM——`.parent > .as-icon` 之类**子选择器**在 shape 场景会断开，请用后代选择器。
+
+```html
+<!-- 形态：修饰符快捷与选项写法等价 -->
+<span x-icon.circle="bell"></span>
+<span x-icon="bell" x-icon-options="{shape:'radius'}"></span>
+
+<!-- 板距：显式声明压倒令牌默认 var(--auto-padding, 0.3em) -->
+<span x-icon.circle="bell" x-icon-options="{padding:6}"></span>
+
+<!-- 浓板联动：指定 color 时底板切该色 8% 浓度 -->
+<span x-icon.circle="heart" x-icon-options="{color:'#f03d5e'}"></span>
+```
+
+### Pointer
+
+<demo html="icon/pointer.html"/>
+
+`pointer` 选项（修饰符 `x-icon.pointer`）声明手型光标 `cursor: pointer`——可点击语义的视觉可供性（内联对称写/清）。`button` 已隐含手型光标（类规则承载，不经内联），两者同开时无需重复声明。
+
+```html
+<!-- 修饰符与选项双通道（等价） -->
+<span x-icon.pointer="close" @click="close()"></span>
+<span x-icon="close" x-icon-options="{pointer:true}"></span>
+```
 
 ### 动态注册联动
 
@@ -337,10 +374,10 @@ for (const name of AutoSpark.icons) {
 | 配置项      | 默认值       | 修饰符     | 说明                                                                                                        |
 | ----------- | ------------ | ---------- | ----------------------------------------------------------------------------------------------------------- |
 | `strokeWidth` | `1.25`     | —          | number。描边宽度（渲染参数，经 `--as-icon-sw` 变量下发）。与生效默认一致零内联，仅指令级覆盖才内联变量；fill 型图标集无效 |
-| `size`      | `"1em"`      | —          | number \| string。宽高（图形区）。数字 → `Npx`，字符串直传 CSS                                               |
-| `color`     | `currentColor` | —        | string。图标颜色（内联 `color`，currentColor 继承体系）                                                      |
-| `padding`   | —            | —          | number \| string。内边距（图形区之外），单位语义同 `size`，总占位 = size + 2×padding                          |
-| `badge`     | —            | `.badge`   | boolean \| number \| string。图标底板（淡色圆角背景板，包裹层通道）。`true` 开关（板 padding 默认 `0.3em`，显式 `padding` 声明优先）；`number` / `string` 自定义板 padding（数字 → px，值压倒独立 `padding` 选项） |
+| `size`      | `var(--auto-icon-size, 1em)` | — | number \| string。宽高（图形区）。数字 → `Npx`，字符串直传 CSS；默认值走 theme 令牌（ADR-0135）              |
+| `color`     | `currentColor` | —        | string。图标颜色（内联 `color`，currentColor 继承体系；指定时底板联动浓板）                                  |
+| `padding`   | —            | —          | number \| string。内边距（图形区之外），单位语义同 `size`，总占位 = size + 2×padding；shape 态板距默认走 `var(--auto-padding, 0.3em)` 令牌，显式声明压倒 |
+| `shape`     | `none`        | `.circle` / `.radius` | "none" \| "circle" \| "radius"。图标底板形态（包裹层通道，ADR-0135）。`none` ≡ 未声明（无背景）；非法值 warn 剪枝 |
 | `button`    | —            | `.button`  | boolean。图标按钮（hover / press 载体动效，隐含手型光标），见「图标按钮」                                     |
 | `pointer`   | —            | `.pointer` | boolean。手型光标 `cursor: pointer`（可点击语义）                                                             |
 

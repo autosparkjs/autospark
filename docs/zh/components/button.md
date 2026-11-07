@@ -68,6 +68,16 @@ icon 的**对象形态必须放外层状态再路径引用**（`:icon="iconConf"
 
 <demo html="components/button/icon.html"/>
 
+### 图标位置（iconPlacement）
+
+**类型**: `start | end`
+
+**默认**: `start`
+
+图标在内容区的位置：`start` 内容区前（横排左侧、纵排上方）、`end` 内容区末（**横排右侧、纵排 label 下方**，流向语义自然延伸）。组合规则：loading 图标随行；`end` 时与 tags **互换**（图标恒最末）；`check-style: icon` 的勾选占位恒最前不受影响。
+
+<demo html="components/button/icon.html"/>
+
 ### 加载状态（loading）
 
 **类型**: `boolean`
@@ -147,6 +157,20 @@ icon 的**对象形态必须放外层状态再路径引用**（`:icon="iconConf"
 将 label 显示在图标下方（纵排布局），工具栏 / 画布操作区常用形态。可与 memo（备注在 label 正下方）组合。
 
 <demo html="components/button/label-below.html"/>
+
+### 换行（wrap）
+
+**类型**: `boolean`
+
+**默认**: `false`（单行截断）
+
+label 单行显示，宽度受限时（block / menu / 容器挤压）溢出自动显示**省略号**；截断发生时自动在宿主挂 `title` 悬停提示完整文案（宿主已有显式 title 时**不覆盖**）。`wrap: true` 解除截断自动折行——按钮高度随行数增长，可能撑开布局，**显式声明才换行**。
+
+::: tip
+title 检测为静态（挂载与 label / wrap 变化时重查），容器宽度单独变化后 title 提示可能过期（截断本身始终正确）；与 `shape: "circle"` 组合时折行呈竖长胶囊，视觉责任归使用者。
+:::
+
+<demo html="components/button/wrap.html"/>
 
 ### 备注（memo）
 
@@ -312,6 +336,7 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 | type | `primary \| success \| warning \| danger \| info` | `primary` | 语义色（与任意形态组合） |
 | label | `string` | `"按钮"` | 兜底文案（插槽无内容时显示） |
 | icon | `string \| object` | `''` | 图标名或配置对象 `{ name, size?, color?, strokeWidth?, padding? }`（对象须路径引用；loading 时被替换） |
+| iconPlacement | `start | end` | `start` | 图标位置（横排左/右、纵排映射上/下；end 与 tags 互换） |
 | loading | `boolean` | `false` | 加载态：图标位转圈并禁点 |
 | disabled | `boolean` | `false` | 禁用（同步宿主原生属性） |
 | ghost | `boolean` | `false` | 幽灵：透明底、语义色内容 |
@@ -321,6 +346,7 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 | indent | `number \| string` | `0` | 内容额外左缩进（数字 px / CSS 值；菜单层级缩进常用） |
 | shape | `default \| circle` | `default` | 圆形（带文字自动胶囊） |
 | labelBelow | `boolean` | `false` | label 显示在图标下方 |
+| wrap | `boolean` | `false` | label 换行：false 单行溢出省略号（截断时自动挂 title，显式 title 优先）；true 折行（按钮高度随行数增长） |
 | memo | `string` | `''` | label 下方备注（小一号、淡化） |
 | tags | `{icon?, tooltip?, name?}[]` | `[]` | 右侧小圆钮组（点击冒泡 tag-click） |
 | menu | `boolean` | `false` | 菜单项形态 |

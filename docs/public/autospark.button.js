@@ -22,14 +22,19 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
      形成局部主题；base 缺省不写属性（继承祖先档位），theme 不在场静默无效。
      button 不得在 data() 重复声明这六键（子胜会静默击穿主题通道），裸名 size/dark 等留作
      组件自有语义；组件内部变体属性亦禁用这六个通道名（theme 在场时会被档位块意外命中） -->
-<button class="asc-button" x-define="autospark.button" x-define:inherit="autospark.base">
+<button
+  class="asc-button"
+  x-define="autospark.button"
+  x-define:inherit="autospark.base"
+>
   <script setup>
     {
         data: () => ({
             variant: "default",     // 形态：default 常规描边 | primary 实底 | secondary 次底 | dashed 虚线 | text 文本 | link 链接
             type: "primary",        // 语义色：primary | success | warning | danger | info（default 形态不消费，勾选态仍生效）
             label: "按钮",          // 兜底文案（插槽无内容时显示）
-            icon: "",               // 图标名或完整 x-icon-options 对象 { name, size, color, strokeWidth, padding, badge, button, pointer }（loading 时被替换）
+            iconPlacement: "start", // 图标位置：start 内容区前（横排左/纵排上）| end 内容区末（横排右/纵排下，并与 tags 互换）
+            icon: "",               // 图标名或图标选项对象 { name, size, color, strokeWidth, padding, button, pointer }（对齐 x-icon-options 词面，ADR-0135 后不含 shape）+ 自有角标键 badge（伪元素红点，标量三形态控板距；loading 时被替换）
             loading: false,         // 加载态：左图标位转圈并禁点（优先于 disabled 视觉）
             ghost: false,           // 幽灵：背景透明、内容取语义色（常用在有色背景上）
             border: false,          // 装饰性附加边框（不干预 dashed / ghost 的固有边框形态）
@@ -39,6 +44,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             autoInsertSpace: true,  // label 恰为两个汉字时自动插入空格
             shape: "default",       // default | circle（纯图标呈正圆，带文字自动呈胶囊）
             labelBelow: false,      // label 显示在图标下方（纵排）
+            wrap: false,            // label 换行：false 单行溢出省略号（截断时自动挂 title，宿主显式 title 优先）；true 折行（按钮高度随行数增长）
             value: false,           // 勾选值（checkable 模式；等于 checkValues[0] 时为选中态）
             checkable: false,       // 可勾选模式：点击自动翻转 value 并冒泡 change 事件；化身 checkbox（x-model 可绑宿主，见 mounted 桥）
             checkValues: [true, false], // 勾选二元组 [checked 值, unchecked 值]（任意类型，严格相等判定）
@@ -94,6 +100,27 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             setTimeout(syncIconStyle, 0); // mounted 时化身子树可能尚未挂载（span 不可查），一跳后再同步
             this.watch("icon", () => { setTimeout(syncIconStyle, 0); });
 
+            // label 溢出自动挂 title（ADR-0012 补记）：纯静态检测——mounted 一跳首查 + label / wrap
+            // 变化时重查，不引入 ResizeObserver（按钮为高频组件，零观察资源；容器宽度单独变化后
+            // title 可能过期为已知温和妥协，CSS 截断本身自适应不受影响）。挂/摘规则：仅截断态挂
+            // （scrollWidth > clientWidth）、宿主显式 title 永不覆盖、溢出消失只摘自挂的（闭包标记）
+            let selfTitle = false;
+            const syncTitle = () => {
+                const span = this.el.querySelector(".asc-button-label");
+                if (!span) return;
+                if (span.scrollWidth > span.clientWidth) {
+                    if (this.el.title && !selfTitle) return; // 显式 title 在场，永不覆盖
+                    this.el.title = span.textContent; // label 变文本后仍溢出 → 同步换新文本
+                    selfTitle = true;
+                } else if (selfTitle) {
+                    this.el.removeAttribute("title");
+                    selfTitle = false;
+                }
+            };
+            setTimeout(syncTitle, 0);
+            this.watch("label", () => { setTimeout(syncTitle, 0); });
+            this.watch("wrap", () => { setTimeout(syncTitle, 0); });
+
             // checkable 桥（化身 checkbox）：宿主上 x-model 走 text 分型（读写 el.value + 监听 input）。
             // x-model 域恒布尔语域——el.value 只取 "true"/"false"（对齐原生 checkbox 的 checked 布尔语义，
             // 配 x-model.boolean 类型保真）；checkValues 任意值服务于 props value 通道与表单提交值
@@ -101,6 +128,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             // 未勾选不提交）。点击翻转写布尔语域后派发 input 回写 state。
             // 布尔语域使默认组与注入组的字符串解释一致——props 晚注入的时序天然免疫。
             if (this.data.checkable) {
+                this.el.classList.add("asc-check-" + this.data.checkStyle);
                 const proto = Object.getOwnPropertyDescriptor(HTMLButtonElement.prototype, "value");
                 const real = document.createElement("input");
                 real.type = "checkbox";
@@ -109,7 +137,10 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 const nameAttr = this.el.getAttribute("name");
                 if (nameAttr != null) real.name = nameAttr;
                 this.el.appendChild(real);
-                const applyChecked = (on) => { const [onV, offV] = vals(); this.data.value = on ? onV : offV; real.checked = !!on; };
+                // 勾选态同步 JS class（.asc-checked / .asc-check-<style>）：宿主级勾选规则一律 class 驱动——
+                // Chromium :active 粘滞期间 :has(属性变化) 不重算（点击描边延迟到下次交互才现的根因），
+                // class 变化是强失效信号，绕开该失效雷；checkStyle 静态一次性挂
+                const applyChecked = (on) => { const [onV, offV] = vals(); this.data.value = on ? onV : offV; real.checked = !!on; this.el.classList.toggle("asc-checked", !!on); };
                 Object.defineProperty(this.el, "value", {
                     get: () => proto.get.call(this.el),
                     set: (v) => { proto.set.call(this.el, v); applyChecked(v === "true"); },
@@ -164,22 +195,23 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     }
   <\/script>
   <style global id="autospark-components-button">
-    /* 主题化（ADR-0129）：三级回退链 var(--auto-X, var(--asc-button-X, 校准兜底值))；
-         --asc-button-* 前缀保留（既有覆盖面零改名）；实底上的白字非映射（恒定设计）；
-         尺寸不设组件级档位——字号/圆角/图标消费 theme 变量，内距以 --auto-padding 为基准（data-spacing 档位
-         全局调节生效），data-size / data-spacing 档位切换自动跟随；暗色兜底变体见块尾 */
-
-    /* ---------- 宿主基础：形态中转变量层（--asc-bg/ink/line 由各变体块注入，一处消费） ---------- */
     .asc-button {
-      --asc-tone: var(--auto-primary-color, var(--asc-button-primary, #009aff)); /* 语义色中转（data-type 注入） */
+      --asc-tone: var(
+        --auto-primary-color,
+        var(--asc-button-primary, #009aff)
+      ); /* 语义色中转（data-type 注入） */
       --asc-bg: transparent;
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
       --asc-line: transparent;
       /* 内距基准：消费 --auto-padding（--auto-spacing 速写族）——容器 data-spacing 档位全局调节生效 */
       --asc-pad: var(--auto-padding, var(--asc-button-padding, 0.8rem));
       display: inline-flex;
-      border: var(--auto-border-size, var(--asc-button-border-size, 1px)) solid var(--asc-line);
-      border-radius: var(--auto-border-radius, var(--asc-button-radius, 0.5rem));
+      border: var(--auto-border-size, var(--asc-button-border-size, 1px)) solid
+        var(--asc-line);
+      border-radius: var(
+        --auto-border-radius,
+        var(--asc-button-radius, 0.5rem)
+      );
       background: var(--asc-bg);
       color: var(--asc-ink);
       font: inherit;
@@ -188,15 +220,17 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       padding: calc(var(--asc-pad) * 0.55) calc(var(--asc-pad) * 0.8);
       cursor: pointer;
       user-select: none;
-      transition: filter 0.15s ease, background-color 0.15s ease;
+      transition:
+        filter 0.15s ease,
+        background-color 0.15s ease;
     }
-
-    /* ---------- 装饰性边框开关（先于形态/ghost——只落在本就无边的形态上，Q4 语义） ---------- */
     .asc-button:has(> .asc-button-body[data-border="true"]) {
-      --asc-line: var(--auto-border-color, var(--asc-button-border-color, #d9d9d9));
+      --asc-line: var(
+        --auto-border-color,
+        var(--asc-button-border-color, #d9d9d9)
+      );
     }
 
-    /* ---------- 语义色 → tone 注入（五种） ---------- */
     .asc-button:has(> .asc-button-body[data-type="primary"]) {
       --asc-tone: var(--auto-primary-color, var(--asc-button-primary, #009aff));
     }
@@ -212,29 +246,35 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-button:has(> .asc-button-body[data-type="info"]) {
       --asc-tone: var(--auto-info-color, var(--asc-button-info, #71717a));
     }
-
-    /* ---------- 形态（variant）→ 底/字/边注入 ---------- */
-    /* default：常规按钮（缺省形态）——面板实色底 + 正文色、无边框（描边完全交 border prop 开关）；
-         与 secondary（次级淡底）以底色层次区分；非 primary 语义色呈语义描边与文字 */
     .asc-button:has(> .asc-button-body[data-variant="default"]) {
       --asc-bg: var(--auto-bgcolor, var(--asc-button-bg, #ffffff));
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
     }
-    .asc-button:has(> .asc-button-body[data-variant="default"][data-type="success"]),
-    .asc-button:has(> .asc-button-body[data-variant="default"][data-type="warning"]),
-    .asc-button:has(> .asc-button-body[data-variant="default"][data-type="danger"]),
-    .asc-button:has(> .asc-button-body[data-variant="default"][data-type="info"]) {
+    .asc-button:has(
+      > .asc-button-body[data-variant="default"][data-type="success"]
+    ),
+    .asc-button:has(
+      > .asc-button-body[data-variant="default"][data-type="warning"]
+    ),
+    .asc-button:has(
+      > .asc-button-body[data-variant="default"][data-type="danger"]
+    ),
+    .asc-button:has(
+      > .asc-button-body[data-variant="default"][data-type="info"]
+    ) {
       --asc-ink: var(--asc-tone);
       --asc-line: var(--asc-tone);
     }
-    /* primary：实底语义色 + 反白字 */
     .asc-button:has(> .asc-button-body[data-variant="primary"]) {
       --asc-bg: var(--asc-tone);
       --asc-ink: #fff;
     }
     /* secondary：次级底 + 正文色（描边交给 border 开关） */
     .asc-button:has(> .asc-button-body[data-variant="secondary"]) {
-      --asc-bg: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(245, 245, 245, 0.45)));
+      --asc-bg: var(
+        --auto-secondary-bgcolor,
+        var(--asc-button-bg, rgba(245, 245, 245, 0.45))
+      );
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
     }
     /* dashed：透明底 + 语义色虚线边 + 语义色字 */
@@ -270,18 +310,23 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
       display: flex;
       width: 100%;
-      border-radius: var(--auto-border-radius, var(--asc-button-radius, 0.375rem));
+      border-radius: var(
+        --auto-border-radius,
+        var(--asc-button-radius, 0.375rem)
+      );
       padding: calc(var(--asc-pad) * 0.55) calc(var(--asc-pad) * 0.6);
       text-align: left;
     }
 
     /* ---------- 勾选渲染（checkStyle）：指示色统一 --asc-tone（theme 主色，type 非默认时语义色） ---------- */
     /* solid（默认）：勾选 = tone 实底 + 反白字 */
-    .asc-button:has(> .asc-button-body[data-check-style="solid"][data-checked="true"]),
-    .asc-button:has(> .asc-button-body:not([data-check-style])[data-checked="true"]) {
-      --asc-bg: var(--asc-tone);
-      --asc-ink: #fff;
-      --asc-line: transparent;
+    .asc-button.asc-checked.asc-check-solid,
+    .asc-button:has(
+      > .asc-button-body:not([data-check-style])[data-checked="true"]
+    ) {
+      --asc-bg: var(--asc-tone) !important;
+      --asc-ink: #fff !important;
+      --asc-line: transparent !important;
     }
     /* icon：最左 1.2em 固定占位（未勾选留空、无布局跳动），勾选显 tone 色 yes 指示；
          背景维持原 variant 形态（Q12：仅指示器变化） */
@@ -299,42 +344,65 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       font-size: 0.9em;
       font-weight: bold;
     }
-    .asc-button:has(> .asc-button-body[data-check-style="icon"][data-checked="true"]) .asc-button-body[data-check-style="icon"]::before {
+    .asc-button:has(
+        > .asc-button-body[data-check-style="icon"][data-checked="true"]
+      )
+      .asc-button-body[data-check-style="icon"]::before {
       content: "✓";
     }
     /* corner：勾选 = tone 描边 outline + 右上角 tone 小三角内嵌反白小勾；背景维持原 variant。
-         三角挂宿主伪元素、两直角边长 = 宿主圆角半径（弦线跨过圆角弧——紧贴描边右上角且圆角下不悬空），
-         圆角档位切换自动跟随 */
-    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"]) {
-      outline: 2px solid var(--asc-tone);
-      outline-offset: -2px;
+         三角 = 渐变盒（对角线分割、右上半着色）越出盒外 1px 与外描边同色融合（弧线无缝相接）；
+         尺寸 = min(圆角半径 ×2.5, 2.5em, 按钮高 50%)——高度基准 + aspect-ratio 方形推导，
+         超过按钮高一半时以 50% 封顶；圆角档位切换自动跟随 */
+    .asc-button.asc-checked.asc-check-corner {
+      --asc-corner: min(
+        calc(var(--auto-border-radius, 0.5rem) * 2.5),
+        2.5em,
+        50%
+      ) !important;
+      /* 外描边（默认 offset 0，画在盒外）——不受涟漪载体（inset:0 覆盖盒内）播放期色块遮挡 */
+      box-shadow: 0 0 0 1px var(--asc-tone) !important; /* 外描边走 box-shadow（视觉等价 outline、跟随圆角、绘制路径独立，规避 outline 重绘问题 */
     }
-    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"])::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 0;
-      height: 0;
-      border-top: var(--auto-border-radius, 0.5rem) solid var(--asc-tone);
-      border-left: var(--auto-border-radius, 0.5rem) solid transparent;
-      z-index: 1;
+    .asc-button.asc-checked.asc-check-corner::after {
+      content: "" !important;
+      position: absolute !important;
+      top: -1px !important;
+      right: -1px !important;
+      height: calc(var(--asc-corner) + 1px) !important;
+      aspect-ratio: 1 / 1 !important;
+      border-top-right-radius: min(
+        calc(var(--auto-border-radius, 0.5rem) + 1px),
+        1.4em
+      );
+      background: linear-gradient(
+        to bottom left,
+        var(--asc-tone) 49.5%,
+        transparent 50%
+      );
+      z-index: 1 !important;
     }
-    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"])::before {
-      content: "";
-      position: absolute;
-      top: calc(var(--auto-border-radius, 0.5rem) * 0.22);
-      right: calc(var(--auto-border-radius, 0.5rem) * 0.3);
-      z-index: 2;
-      width: 0.34em;
-      height: 0.18em;
-      border-left: 1.5px solid var(--auto-bgcolor, #fff);
-      border-bottom: 1.5px solid var(--auto-bgcolor, #fff);
-      transform: rotate(-45deg);
+    /* 反白小勾：定位于三角重心（对角线中点向直角方向）——系数基准同 --asc-corner（含 50% 高度
+         上限同步缩放），-1px 补偿三角盒越出量，确保落在三角内部 */
+    .asc-button.asc-checked.asc-check-corner::before {
+      content: "" !important;
+      position: absolute !important;
+      top: calc(var(--asc-corner) * 0.24 - 1px) !important;
+      right: calc(var(--asc-corner) * 0.14 - 1px) !important;
+      z-index: 2 !important;
+      width: calc(var(--asc-corner) * 0.36) !important;
+      aspect-ratio: 2 / 1 !important;
+      border-left: 1.5px solid var(--auto-bgcolor, #fff) !important;
+      border-bottom: 1.5px solid var(--auto-bgcolor, #fff) !important;
+      transform: rotate(-45deg) !important;
+    }
+    /* 按压预览（corner 按压即预显描边——松手勾选正式化、按住拖出取消随按压消失；
+         化解「松手才见描边」的迟滞感，涟漪芯在盒内与此描边（盒外）无覆盖冲突） */
+    .asc-button.asc-check-corner:active:not([disabled]):not(.asc-checked) {
+      box-shadow: 0 0 0 1px var(--asc-tone) !important; /* 外描边走 box-shadow（视觉等价 outline、跟随圆角、绘制路径独立，规避 outline 重绘问题 */
     }
     /* 三角/描边定位基准（宿主需定位上下文；x-ripple 的 .x-ripple 已有 relative 兜底，此处显式自持） */
-    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"]) {
-      position: relative;
+    .asc-button.asc-checked.asc-check-corner {
+      position: relative !important;
     }
 
     /* ---------- 形状（shape）：circle 恒胶囊半径——纯图标时内容等宽高自然呈正圆，带文字自动胶囊 ---------- */
@@ -357,14 +425,27 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       filter: brightness(0.9);
     }
     /* text / link / ghost / menu 淡形态：亮度反馈无感，改用悬停淡底 */
-    .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not([disabled]),
-    .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not([disabled]),
-    .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not([disabled]),
-    .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not([disabled]) {
+    .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not(
+        [disabled]
+      ),
+    .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not(
+        [disabled]
+      ),
+    .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not(
+        [disabled]
+      ),
+    .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not(
+        [disabled]
+      ) {
       filter: none;
-      background: var(--auto-hover-bgcolor, var(--asc-button-hover-bg, rgba(0, 0, 0, 0.05)));
+      background: var(
+        --auto-hover-bgcolor,
+        var(--asc-button-hover-bg, rgba(0, 0, 0, 0.05))
+      );
     }
-    .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not([disabled]) {
+    .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not(
+        [disabled]
+      ) {
       text-decoration: underline;
     }
     .asc-button[disabled] {
@@ -387,17 +468,33 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       width: 100%;
       min-width: 0;
     }
-    .asc-button-body[data-align="left"] { justify-content: flex-start; }
-    .asc-button-body[data-align="right"] { justify-content: flex-end; }
-    .asc-button-body[data-menu="true"] { justify-content: flex-start; } /* 菜单项恒左对齐 */
-    .asc-button-body[data-menu="true"] .asc-button-main { align-items: flex-start; } /* label/memo 文本亦居左（与 memo 折行/短 label 对齐左缘） */
-    .asc-button-body[data-label-below="true"] { flex-direction: column; gap: 0.15em; } /* label 纵排 */
+    .asc-button-body[data-align="left"] {
+      justify-content: flex-start;
+    }
+    .asc-button-body[data-align="right"] {
+      justify-content: flex-end;
+    }
+    .asc-button-body[data-menu="true"] {
+      justify-content: flex-start;
+    } /* 菜单项恒左对齐 */
+    .asc-button-body[data-menu="true"] .asc-button-main {
+      align-items: flex-start;
+    } /* label/memo 文本亦居左（与 memo 折行/短 label 对齐左缘） */
+    .asc-button-body[data-label-below="true"] {
+      flex-direction: column;
+      gap: 0.15em;
+    } /* label 纵排 */
 
     /* 图标位：尺寸随字号（x-icon 默认 1em），loading 转圈自带 SMIL 动画 */
     .asc-button-icon {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+    }
+    /* iconPlacement: end——图标（含 loading 位）移内容区末尾并与 tags 互换（icon 恒最末）；
+         横排 = 右侧、纵排（labelBelow）= 下方；checkStyle icon 的 yes 占位（body::before）恒最前不受影响 */
+    .asc-button-body[data-icon-placement="end"] .asc-button-icon {
+      order: 5;
     }
     /* 图标角标（icon.badge 标量三形态启用）：板 padding 承载留白，伪元素红点取 danger 语义色 */
     .asc-button-icon-badge {
@@ -421,12 +518,37 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       align-items: center;
       min-width: 0;
     }
+    /* label 单行截断（wrap 默认 false，ADR-0012 补记）：溢出显示省略号——截断只在按钮
+         宽度受约束时发生（block / menu / 容器挤压；inline-flex 收缩到内容宽永不触发）；
+         max-width 钳制是关键——nowrap 下 min-content 涨至全文宽，column flex 的
+         align-items 非 stretch 使 label 取 fit-content，无钳制会被 min-content 抬出
+         可用宽（截断失效）；截断发生时由 mounted 静态检测自动挂 title；wrap=true 回
+         折行（按钮高度随行数增长，显式声明才换行，防布局被意外撑开） */
+    .asc-button-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+    .asc-button-body[data-wrap="true"] .asc-button-label {
+      white-space: normal;
+    }
     /* 空内容不占位：纯图标用法（label 空）时出口与主文本组整体隐藏，消除 gap/行高占位；
          插槽有内容时出口非空不命中，不受影响 */
-    .asc-button-label:empty { display: none; }
-    .asc-button-main:has(> .asc-button-label:empty):not(:has(> .asc-button-memo)) { display: none; }
-    .asc-button-body[data-align="left"] .asc-button-main { align-items: flex-start; }
-    .asc-button-body[data-align="right"] .asc-button-main { align-items: flex-end; }
+    .asc-button-label:empty {
+      display: none;
+    }
+    .asc-button-main:has(> .asc-button-label:empty):not(
+        :has(> .asc-button-memo)
+      ) {
+      display: none;
+    }
+    .asc-button-body[data-align="left"] .asc-button-main {
+      align-items: flex-start;
+    }
+    .asc-button-body[data-align="right"] .asc-button-main {
+      align-items: flex-end;
+    }
 
     /* 备注：小一号 + 相对内容色的淡化（color-mix 跟随 --asc-ink，实底上自然呈淡白）；
          最多两行，超出截断显示省略号（line-clamp） */
@@ -453,7 +575,9 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       margin-left: 0.35em;
     }
     /* x-for 克隆载体盒消失，圆钮直接成为容器 flex 项 */
-    .asc-button-tag-item { display: contents; }
+    .asc-button-tag-item {
+      display: contents;
+    }
     .asc-button-tag {
       display: inline-flex;
       align-items: center;
@@ -465,15 +589,29 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       color: var(--asc-ink);
       cursor: pointer;
       /* 常态即与按钮主背景形成色差：按内容色派生淡底（实底上呈淡白、透明底上呈淡灰/淡语义色） */
-      background: color-mix(in srgb, var(--asc-ink, currentColor) 12%, transparent);
-      transition: background-color 0.15s ease, transform 0.1s ease;
+      background: color-mix(
+        in srgb,
+        var(--asc-ink, currentColor) 12%,
+        transparent
+      );
+      transition:
+        background-color 0.15s ease,
+        transform 0.1s ease;
     }
     .asc-button-tag:hover {
-      background: color-mix(in srgb, var(--asc-ink, currentColor) 28%, transparent);
+      background: color-mix(
+        in srgb,
+        var(--asc-ink, currentColor) 28%,
+        transparent
+      );
     }
     /* 按压反馈：底色加深 + 轻微缩放（松手经 transition 弹回） */
     .asc-button-tag:active {
-      background: color-mix(in srgb, var(--asc-ink, currentColor) 45%, transparent);
+      background: color-mix(
+        in srgb,
+        var(--asc-ink, currentColor) 45%,
+        transparent
+      );
       transform: scale(0.88);
     }
     .asc-button-tag-icon {
@@ -486,7 +624,10 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     [dark] .asc-button,
     [data-dark] .asc-button {
       --asc-ink: var(--auto-color, var(--asc-button-color, #fafafa));
-      --asc-bg: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(129, 129, 129, 0.45)));
+      --asc-bg: var(
+        --auto-secondary-bgcolor,
+        var(--asc-button-bg, rgba(129, 129, 129, 0.45))
+      );
     }
     [dark] .asc-button:has(> .asc-button-body[data-variant="primary"]),
     [data-dark] .asc-button:has(> .asc-button-body[data-variant="primary"]) {
@@ -494,7 +635,10 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     }
     [dark] .asc-button:has(> .asc-button-body[data-variant="secondary"]),
     [data-dark] .asc-button:has(> .asc-button-body[data-variant="secondary"]) {
-      --asc-bg: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(129, 129, 129, 0.45)));
+      --asc-bg: var(
+        --auto-secondary-bgcolor,
+        var(--asc-button-bg, rgba(129, 129, 129, 0.45))
+      );
       --asc-ink: var(--auto-color, var(--asc-button-color, #fafafa));
     }
     [dark] .asc-button:has(> .asc-button-body[data-variant="default"]),
@@ -522,32 +666,78 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     [data-dark] .asc-button:has(> .asc-button-body[data-type="info"]) {
       --asc-tone: var(--auto-info-color, var(--asc-button-info, #a1a1aa));
     }
-    [dark] .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not([disabled]),
-    [dark] .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not([disabled]),
-    [dark] .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not([disabled]),
-    [dark] .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not([disabled]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not([disabled]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not([disabled]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not([disabled]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not([disabled]) {
-      background: var(--auto-hover-bgcolor, var(--asc-button-hover-bg, rgba(255, 255, 255, 0.08)));
+    [dark]
+      .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not(
+        [disabled]
+      ),
+    [dark]
+      .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not(
+        [disabled]
+      ),
+    [dark]
+      .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not(
+        [disabled]
+      ),
+    [dark]
+      .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not(
+        [disabled]
+      ),
+    [data-dark]
+      .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not(
+        [disabled]
+      ),
+    [data-dark]
+      .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not(
+        [disabled]
+      ),
+    [data-dark]
+      .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not(
+        [disabled]
+      ),
+    [data-dark]
+      .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not(
+        [disabled]
+      ) {
+      background: var(
+        --auto-hover-bgcolor,
+        var(--asc-button-hover-bg, rgba(255, 255, 255, 0.08))
+      );
     }
   </style>
   <!-- 变体数据属性全部承载在 body（编译子树内层元素，经 :has() 驱动宿主外观——见文件头注释）；
          indent（原始值）经 :style 加性内联（body 无 padding，不影响宿主内距） -->
-  <span class="asc-button-body"
-    :data-variant="variant" :data-type="type" :data-ghost="ghost" :data-border="border"
-    :data-shape="shape" :data-label-below="labelBelow" :data-align="align" :data-menu="menu"
-    :data-block="block" :data-checked="checkable && value === checkValues[0]" :data-loading="loading"
-    :data-check-style="checkable ? checkStyle : undefined"
-    :style="indent ? { paddingLeft: (typeof indent === 'number' ? indent + 'px' : indent) } : undefined">
+  <span
+    class="asc-button-body"
+    :data-variant="variant"
+    :data-type="type"
+    :data-ghost="ghost"
+    :data-border="border"
+    :data-shape="shape"
+    :data-label-below="labelBelow"
+    :data-wrap="wrap"
+    :data-align="align"
+    :data-menu="menu"
+    :data-block="block"
+    :data-checked="checkable && value === checkValues[0]"
+    :data-loading="loading"
+    :data-check-style="checkable ? checkStyle : undefined" :data-icon-placement="iconPlacement"
+    :style="indent ? { paddingLeft: (typeof indent === 'number' ? indent + 'px' : indent) } : undefined"
+  >
     <!-- loading 图标替换左图标位（字面量须带引号——裸 loading 会命中 data.loading 布尔值） -->
     <span class="asc-button-icon" x-if="loading" x-icon="'loading'"></span>
     <!-- icon 双形态：字符串 = 图标名；对象 = { name, size, color, strokeWidth, padding }——name 经 x-icon 值消费，
          视觉键由 mounted 的 syncIconStyle 以内联样式透传（与 x-icon 原生内联实现等价；
          绑定表达式通道对 props 晚注入不重算，故走 JS 同步通道） -->
-    <span class="asc-button-icon" x-if="!loading && typeof icon === 'string' && icon" x-icon="icon"></span>
-    <span class="asc-button-icon" x-if="!loading && typeof icon === 'object' && icon" x-icon="icon.name"></span>
+    <span
+      class="asc-button-icon"
+      x-if="!loading && typeof icon === 'string' && icon"
+      x-icon="icon"
+    ></span>
+    <span
+      class="asc-button-icon"
+      x-if="!loading && typeof icon === 'object' && icon"
+      x-icon="icon.name"
+    ></span>
     <span class="asc-button-main">
       <!-- 默认插槽出口：未提供内容时显示 {{ displayLabel }}（组件自身状态求值） -->
       <span class="asc-button-label" x-slot>{{ displayLabel }}</span>
@@ -556,8 +746,16 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     <span class="asc-button-tags" x-if="tags && tags.length">
       <!-- x-for 宿主自身的绑定不被编译（ownsChildren 接管子树编译），故宿主为纯克隆载体，
              tag 圆钮与绑定（title/点击）在内层元素上，x-for locals（tag）在内层可见 -->
-      <span class="asc-button-tag-item" x-for="tag of tags" :key="tag.name || tag.icon">
-        <i class="asc-button-tag" :title="tag.tooltip" @click="onTagClick(tag, $event)">
+      <span
+        class="asc-button-tag-item"
+        x-for="tag of tags"
+        :key="tag.name || tag.icon"
+      >
+        <i
+          class="asc-button-tag"
+          :title="tag.tooltip"
+          @click="onTagClick(tag, $event)"
+        >
           <i class="asc-button-tag-icon" x-if="tag.icon" x-icon="tag.icon"></i>
         </i>
       </span>

@@ -14,8 +14,9 @@
  * 远程到达/失败也经 `emitChange` 广播——x-icon 待定/未命中实例按名唤醒重渲染的统一出口。
  *
  * 样式下发：`<style id="autospark-icons">` 惰性建表（SSR 守卫），内容为**静态常量**——
- * 基础 `.as-icon` 规则（含 `--as-icon-sw` 描边宽度变量）+ badge / button 修饰规则。
- * 无每图标规则、无规则烘焙（symbol 机制下渲染走 `<use>`，零样式表登记）。
+ * 基础 `.as-icon` 规则（含 `--as-icon-sw` 描边宽度变量 + `--auto-icon-size` 令牌默认）+
+ * shape / button 修饰规则（ADR-0135）。无每图标规则、无规则烘焙（symbol 机制下渲染走
+ * `<use>`，零样式表登记）。
  */
 import { injectSymbol, normalizeSvgSpec, removeSymbol } from "./symbol";
 import { injectStylesheet } from "../../utils/injectStylesheet";
@@ -26,12 +27,19 @@ const ICON_STYLE_ID = "autospark-icons";
 export const GLOBAL_SYMBOL_PREFIX = "as-";
 /** 基础类名（保留名，禁作图标名） */
 export const ICON_BASE_CLASS = "as-icon";
-/** badge 修饰类名（保留名——`badge` 选项挂类承载，规则常驻基础样式表） */
-export const ICON_BADGE_CLASS = "as-icon-badge";
+/** circle 底板修饰类名（保留名——`shape:"circle"` / `.circle` 修饰符挂类承载，ADR-0135） */
+export const ICON_CIRCLE_CLASS = "as-icon-circle";
+/** radius 底板修饰类名（保留名——`shape:"radius"` / `.radius` 修饰符挂类承载，ADR-0135） */
+export const ICON_RADIUS_CLASS = "as-icon-radius";
 /** button 修饰类名（保留名——`button` 选项挂类承载，规则常驻基础样式表，ADR-0049） */
 export const ICON_BUTTON_CLASS = "as-icon-button";
 /** 保留名集合（ADR-0046 决策 10 沿用） */
-const RESERVED_NAMES = new Set([ICON_BASE_CLASS, ICON_BADGE_CLASS, ICON_BUTTON_CLASS]);
+const RESERVED_NAMES = new Set([
+    ICON_BASE_CLASS,
+    ICON_CIRCLE_CLASS,
+    ICON_RADIUS_CLASS,
+    ICON_BUTTON_CLASS,
+]);
 
 export type IconChangeAction = "add" | "delete" | "options";
 export type IconChangeListener = (name: string, action: IconChangeAction) => void;
@@ -43,11 +51,11 @@ export interface IconOptions {
     color?: string;
     padding?: number | string;
     /**
-     * 修饰：图标底板——圆角矩形背景（包裹层通道）。标量三形态（形态即启用）：true 开关
-     * （板 padding 走「显式 padding 选项 > 默认 0.3em」）、number 板 padding（→ px，须 ≥ 0）、
-     * string 板 padding（CSS 值直传，空串按 true）。
+     * 修饰：图标底板形态（ADR-0135）——`none`（≡ 未声明，无背景）/ `circle`（正圆）/
+     * `radius`（主题圆角 `var(--auto-border-radius,4px)`）；修饰符快捷 `.circle` / `.radius`。
+     * 板距走「显式 padding 选项 > `var(--auto-padding,0.3em)`」（仅启用态，无板即无板距）。
      */
-    badge?: boolean | number | string;
+    shape?: "none" | "circle" | "radius";
     /** 修饰：图标按钮——hover/press 交互动效（载体动效型，隐含 pointer，ADR-0049） */
     button?: boolean;
     /** 修饰：手型光标（`cursor: pointer`，可点击语义） */
@@ -174,9 +182,11 @@ export class IconRegistry extends Set<string> {
 let iconStyleEl: HTMLStyleElement | null = null;
 
 /**
- * 基础 .as-icon 规则：默认 1em 方寸 + `--as-icon-sw` 描边宽度变量（生效宽度四级链算出，
- * 非默认才内联变量覆盖——CSS stroke-width 继承直达 use shadow 内容，收集期已剥离全部
- * stroke-width 故覆盖永远可靠）。`> svg` 子节点撑满宿主（use 渲染载体）。
+ * 基础 .as-icon 规则：默认方寸走 `--auto-icon-size` theme 令牌 var() 承载（无 theme 回落
+ * 1em；祖先 `data-size` 档位覆盖令牌即自动生效，ADR-0135——显式 size 声明才 JS 内联压倒）
+ * + `--as-icon-sw` 描边宽度变量（生效宽度四级链算出，非默认才内联变量覆盖——CSS
+ * stroke-width 继承直达 use shadow 内容，收集期已剥离全部 stroke-width 故覆盖永远可靠）。
+ * `> svg` 子节点撑满宿主（use 渲染载体）。
  * 排版免疫（显式 width/height 已天然免疫 grid/flex 的 stretch——其只作用于 auto 尺寸）：
  * - `box-sizing:content-box`：免疫全局 `*{border-box}` reset——padding 语义恒定为
  *   「图形区（size）之外加内边距」，总占位 = size + 2×padding；
@@ -184,31 +194,43 @@ let iconStyleEl: HTMLStyleElement | null = null;
  */
 const BASE_RULE =
     `.${ICON_BASE_CLASS}{display:inline-block;box-sizing:content-box;flex:none;aspect-ratio:1;` +
-    `width:1em;height:1em;vertical-align:-.125em;stroke-width:var(--as-icon-sw,${DEFAULT_ICON_STROKE_WIDTH})}` +
+    `width:var(--auto-icon-size,1em);height:var(--auto-icon-size,1em);vertical-align:-.125em;` +
+    `stroke-width:var(--as-icon-sw,${DEFAULT_ICON_STROKE_WIDTH})}` +
     `.${ICON_BASE_CLASS}>svg{width:100%;height:100%;display:block}`;
 
 /**
- * badge 修饰规则（`badge` 选项，常驻基础样式表）：圆角矩形背景板，包裹层通道（指令为
- * badge 实例包裹一层同类名 wrapper，wrapper 自身做板）。板色 `color-mix(currentColor 5%)`
- * 跟随文字色级联；排版免疫与宿主同构（flex:none + height:fit-content 防 stretch + 比例保险）。
+ * shape 底板修饰规则（`shape` 选项，常驻基础样式表，ADR-0135）：两形态 wrapper 公共板
+ * （淡色背景 + 板距 `--auto-padding` 令牌 var 默认）+ 各自圆角（circle 正圆 50% 形态固有值、
+ * radius 主题圆角令牌）。板色浓度经 `--as-icon-mix` 变量：默认 5% currentColor 随宿主文字色
+ * 级联；指定 `color` 选项时指令在 wrapper 内联指定色 + 8% 浓度（浓板联动，决策三）。
+ * 排版免疫与宿主同构（flex:none + height:fit-content 防 stretch + 比例保险）。
  */
-const BADGE_RULE =
-    `.${ICON_BADGE_CLASS}{display:inline-flex;flex:none;aspect-ratio:1;height:fit-content;border-radius:25%;` +
-    "background:color-mix(in srgb,currentColor 5%,transparent)}";
+const SHAPE_COMMON_RULE =
+    `.${ICON_CIRCLE_CLASS},.${ICON_RADIUS_CLASS}{display:inline-flex;flex:none;aspect-ratio:1;` +
+    `height:fit-content;padding:var(--auto-padding,0.3em);` +
+    "background:color-mix(in srgb,currentColor var(--as-icon-mix,5%),transparent)}";
+const SHAPE_CIRCLE_RULE = `.${ICON_CIRCLE_CLASS}{border-radius:50%}`;
+const SHAPE_RADIUS_RULE = `.${ICON_RADIUS_CLASS}{border-radius:var(--auto-border-radius,4px)}`;
 
 /**
  * button 修饰规则（`button` 选项，常驻基础样式表，ADR-0049 载体动效型）：hover/press 纯
- * CSS 交互态，动效作用于既有视觉载体（非 badge = 图形 brightness 加深 + press 缩放；
- * badge = 板色三梯度加深 + wrapper 整体缩放），pointer 隐含。自定义走同名 CSS 覆盖。
+ * CSS 交互态，动效作用于既有视觉载体（无底板 = 图形 brightness 加深 + press 缩放；
+ * shape 底板 = 板色三梯度加深 + wrapper 整体缩放），pointer 隐含。自定义走同名 CSS 覆盖。
+ * 板梯度经 `calc(基准 + 梯度)` 单公式自适应浓度基准（默认态 5→10→15、浓板态 8→13→18，
+ * ADR-0135 决策三——不为浓板特调第二套值）。
  */
 const BUTTON_HOST_RULE =
     `.${ICON_BASE_CLASS}.${ICON_BUTTON_CLASS}{transition:filter .15s ease,transform .15s ease;cursor:pointer}` +
     `.${ICON_BASE_CLASS}.${ICON_BUTTON_CLASS}:hover{filter:brightness(.75)}` +
     `.${ICON_BASE_CLASS}.${ICON_BUTTON_CLASS}:active{transform:scale(.9)}`;
-const BUTTON_BADGE_RULE =
-    `.${ICON_BADGE_CLASS}.${ICON_BUTTON_CLASS}{transition:background .15s ease,transform .15s ease;cursor:pointer}` +
-    `.${ICON_BADGE_CLASS}.${ICON_BUTTON_CLASS}:hover{background:color-mix(in srgb,currentColor 10%,transparent)}` +
-    `.${ICON_BADGE_CLASS}.${ICON_BUTTON_CLASS}:active{background:color-mix(in srgb,currentColor 15%,transparent);transform:scale(.94)}`;
+const BUTTON_SHAPE_RULE =
+    `.${ICON_CIRCLE_CLASS}.${ICON_BUTTON_CLASS},.${ICON_RADIUS_CLASS}.${ICON_BUTTON_CLASS}` +
+    "{transition:background .15s ease,transform .15s ease;cursor:pointer}" +
+    `.${ICON_CIRCLE_CLASS}.${ICON_BUTTON_CLASS}:hover,.${ICON_RADIUS_CLASS}.${ICON_BUTTON_CLASS}:hover` +
+    "{background:color-mix(in srgb,currentColor calc(var(--as-icon-mix,5%) + 5%),transparent)}" +
+    `.${ICON_CIRCLE_CLASS}.${ICON_BUTTON_CLASS}:active,.${ICON_RADIUS_CLASS}.${ICON_BUTTON_CLASS}:active` +
+    "{background:color-mix(in srgb,currentColor calc(var(--as-icon-mix,5%) + 10%),transparent);" +
+    "transform:scale(.94)}";
 
 /** 惰性建表（幂等；SSR 无 document 守卫）。内容为静态常量，建表后不再变更。 */
 export function refreshIconStyle(): void {
@@ -216,7 +238,15 @@ export function refreshIconStyle(): void {
     if (iconStyleEl && iconStyleEl.isConnected) return;
     iconStyleEl =
         injectStylesheet(
-            () => [BASE_RULE, BADGE_RULE, BUTTON_HOST_RULE, BUTTON_BADGE_RULE].join("\n"),
+            () =>
+                [
+                    BASE_RULE,
+                    SHAPE_COMMON_RULE,
+                    SHAPE_CIRCLE_RULE,
+                    SHAPE_RADIUS_RULE,
+                    BUTTON_HOST_RULE,
+                    BUTTON_SHAPE_RULE,
+                ].join("\n"),
             { id: ICON_STYLE_ID, mode: "replace" },
         ) ?? null;
 }

@@ -3,7 +3,8 @@ import {
     iconRegistry,
     refreshIconStyle,
     ICON_BASE_CLASS,
-    ICON_BADGE_CLASS,
+    ICON_CIRCLE_CLASS,
+    ICON_RADIUS_CLASS,
     ICON_BUTTON_CLASS,
     GLOBAL_SYMBOL_PREFIX,
     DEFAULT_ICON_STROKE_WIDTH,
@@ -17,8 +18,8 @@ import { SVG_NS } from "../features/icons/symbol";
 /** 未命中 warn 按 name 去重（响应式重渲染不刷屏） */
 const missWarned = new Set<string>();
 
-/** badge 无效值 warn 按 String(v) 去重（动态重渲染不刷屏） */
-const badgeWarned = new Set<string>();
+/** shape 无效值 warn 按 String(v) 去重（动态重渲染不刷屏） */
+const shapeWarned = new Set<string>();
 
 /**
  * x-icon：图标渲染指令（ADR-0058 symbol 机制，取代 ADR-0046/0047 的 mask 管线）。
@@ -32,7 +33,8 @@ const badgeWarned = new Set<string>();
  * **颜色主权在宿主**：currentColor 经 CSS 继承直达 use 内容——`color` 选项内联 `color`
  * 覆盖（原 `background-color` 语义随 mask 下线，ADR-0058 决策 6）；`strokeWidth` 经
  * `--as-icon-sw` 变量（收集期已剥离全部 stroke-width，CSS 继承覆盖永远可靠）；`size` /
- * `padding` / `badge` / `button` / `pointer` 为盒模型层选项照旧（ADR-0049 不受影响）。
+ * `padding` / `shape` / `button` / `pointer` 为盒模型层选项（`shape` 底板形态枚举 +
+ * `--auto-*` theme 令牌对接，ADR-0135；ADR-0049 载体动效不受影响）。
  */
 export class IconDirective extends AutoSparkDirectiveBase {
     static override readonly priority = 0;
@@ -54,7 +56,7 @@ export class IconDirective extends AutoSparkDirectiveBase {
 
     override created() {
         if (this.value == null || this.value === "") return;
-        // 惰性建表（幂等）：基础 .as-icon 规则（含 --as-icon-sw 变量）+ badge/button 修饰规则
+        // 惰性建表（幂等）：基础 .as-icon 规则（含 --as-icon-sw 变量）+ shape/button 修饰规则
         refreshIconStyle();
         this.el?.classList.add(ICON_BASE_CLASS);
         this._ensureIconSvg();
@@ -177,46 +179,47 @@ export class IconDirective extends AutoSparkDirectiveBase {
     }
 
     /**
-     * badge 选项归一化（标量三形态，**形态即启用**）：boolean true / number 板 padding
-     * （→ px，须 ≥ 0 且有限，否则 warn + 按 true）/ string 板 padding（CSS 值直传，
-     * 空串按布尔 true）。false / null / undefined 未启用；其他类型 warn 剪枝为未启用。
-     * 返回 null = 未启用；pad null = 板 padding 走「显式 padding 选项 > 默认 0.3em」链
-     * （badge 带值时压倒独立 padding 选项——badge 的值就是板 padding 的就近声明）。
+     * shape 选项归一化（ADR-0135 纯枚举）：显式字符串值（`"none" | "circle" | "radius"`，
+     * 空串宽容按 none）优先；未声明 / none / false 时查修饰符快捷形态（`.circle` /
+     * `.radius` 并入选项为 true）；其余类型 / 拼写 warn 剪枝按未启用。
+     * 返回 null = 未启用（≡ none，无背景）。
      */
-    private _badge(): { pad: string | null } | null {
-        const v = this._opt("badge");
-        if (v == null || v === false) return null;
-        if (v === true) return { pad: null };
-        if (typeof v === "number") {
-            if (Number.isFinite(v) && v >= 0) return { pad: `${v}px` };
-            this._warnBadge(v, "板 padding 须为非负数字，按默认 padding 渲染");
-            return { pad: null };
-        }
+    private _shape(): "circle" | "radius" | null {
+        const v = this._opt("shape");
         if (typeof v === "string") {
-            const pad = v.trim();
-            if (pad === "") return { pad: null };
-            return { pad };
+            const s = v.trim();
+            if (s === "circle" || s === "radius") return s;
+            if (s === "none" || s === "") return null;
+            this._warnShape(v, "值域为 none | circle | radius，已忽略");
+            return null;
         }
-        this._warnBadge(v, "仅支持 boolean | number（板 padding px）| string（板 padding 值），已忽略");
+        if (v == null || v === false) {
+            if (this._opt("circle") === true) return "circle";
+            if (this._opt("radius") === true) return "radius";
+            return null;
+        }
+        this._warnShape(v, "仅支持字符串枚举 none | circle | radius（修饰符 .circle / .radius），已忽略");
         return null;
     }
 
-    /** badge 无效值 warn（按 String(v) 去重） */
-    private _warnBadge(v: unknown, why: string): void {
+    /** shape 无效值 warn（按 String(v) 去重） */
+    private _warnShape(v: unknown, why: string): void {
         const key = String(v);
-        if (!badgeWarned.has(key)) {
-            badgeWarned.add(key);
-            this.warn(`badge 选项 "${key}" 无效：${why}`);
+        if (!shapeWarned.has(key)) {
+            shapeWarned.add(key);
+            this.warn(`shape 选项 "${key}" 无效：${why}`);
         }
     }
 
     /**
      * 选项静态样式（每次渲染重放，对称写/清——全局配置变更可回收旧值）：
-     * size 默认 1em 走基础规则、padding 默认无、color 默认 currentColor（继承），均为显式声明才内联。
-     * strokeWidth：与生效默认一致零内联（基础规则 `var(--as-icon-sw,1.25)` 兜底），非默认才
-     * 内联变量覆盖。修饰：badge 挂修饰类（规则常驻基础样式表，标量三形态）；button 挂修饰类
-     * （载体动效，ADR-0049——有板挂 wrapper 作用于板、无板挂宿主作用于图形，载体唯一不双挂）；
-     * pointer 内联 cursor。读取走四级配置链（指令 > 宿主 > 全局 > 内置）。
+     * size 默认 `var(--auto-icon-size,1em)` 走基础规则（theme 令牌，ADR-0135）、padding
+     * 默认无、color 默认 currentColor（继承），均为显式声明才内联。strokeWidth：与生效
+     * 默认一致零内联（基础规则 `var(--as-icon-sw,1.25)` 兜底），非默认才内联变量覆盖。
+     * 修饰：shape 挂形态修饰类（规则常驻基础样式表，板距默认经 `var(--auto-padding,0.3em)`
+     * 令牌承接）；button 挂修饰类（载体动效，ADR-0049——有板挂 wrapper 作用于板、无板
+     * 挂宿主作用于图形，载体唯一不双挂）；pointer 内联 cursor。读取走四级配置链
+     * （指令 > 宿主 > 全局 > 内置）。
      */
     private _applyStaticStyle(): void {
         const el = this.el;
@@ -236,46 +239,52 @@ export class IconDirective extends AutoSparkDirectiveBase {
             el.style.removeProperty("height");
         }
         const padding = this._opt("padding");
-        let paddingCss =
+        const paddingCss =
             typeof padding === "number" && padding >= 0
                 ? `${padding}px`
                 : typeof padding === "string" && padding.trim() !== ""
                   ? padding
                   : null;
-        const badge = this._badge();
+        const shape = this._shape();
         const wantButton = this._opt("button") === true;
-        // badge:true（无内嵌 pad）的内置默认 padding（板与图形的间距，总占位 = size + 2×padding）：
-        // 四级链均未声明时补 0.3em——显式 padding 声明（含 0）优先
-        if (paddingCss === null && badge && badge.pad === null) paddingCss = "0.3em";
-        // padding 落点：badge 时作用于**包裹层**（图形恒 size）；非 badge 照旧内联宿主。
-        // badge 带值时其值压倒独立 padding 选项——badge 的值就是板 padding 的就近声明
-        let wrapPad: string | null = null;
-        if (badge) {
-            wrapPad = badge.pad ?? paddingCss;
-            el.style.removeProperty("padding");
-        } else {
-            if (paddingCss) el.style.padding = paddingCss;
-            else el.style.removeProperty("padding");
-        }
+        // 板距落点（ADR-0135）：shape 启用时作用于**包裹层**（图形恒 size）——显式 padding
+        // 声明内联压倒形态类的 var(--auto-padding,0.3em) 令牌默认（零内联纪律）；未启用
+        // 照旧内联宿主（默认无 padding——无板即无板距）
+        const wrapPad = shape !== null ? paddingCss : null;
+        if (shape !== null) el.style.removeProperty("padding");
+        else if (paddingCss) el.style.padding = paddingCss;
+        else el.style.removeProperty("padding");
+        // color 选项：currentColor 继承体系（内联 color 即换图形颜色）；指定色同时是底板
+        // 浓板联动的触发态（色与浓度在包裹层调度中下到 wrapper，ADR-0135 决策三）
+        const color = this._opt("color");
+        const colorCss = typeof color === "string" && color.trim() !== "" ? color : null;
+        if (colorCss) el.style.color = colorCss;
+        else el.style.removeProperty("color");
         // 包裹层调度（幂等，对称写/清——全局配置变更拆包/重包均收敛）
         this.engine.scheduler.schedule(() => {
             if (this.destroyed) return;
-            this._applyBadgeWrap(badge !== null);
-            if (badge === null) return; // 未启用：拆包还原即收敛
+            this._applyShapeWrap(shape);
+            if (shape === null) return; // 未启用：拆包还原即收敛（wrapper 消亡，浓板变量随之回收）
             const w = this.el?.parentElement;
             if (!w) return;
             if (wrapPad) w.style.padding = wrapPad;
             else w.style.removeProperty("padding");
+            // 浓板联动（ADR-0135 决策三）：指定 color 时底板同色相 8% 浓度——色与浓度都
+            // 下到 wrapper（wrapper 是宿主父级，宿主内联到不了 wrapper 的 background /
+            // currentColor 求值）；未指定对称清（板色回落类规则 5% currentColor 随文字色）
+            if (colorCss) {
+                w.style.color = colorCss;
+                w.style.setProperty("--as-icon-mix", "8%");
+            } else {
+                w.style.removeProperty("color");
+                w.style.removeProperty("--as-icon-mix");
+            }
             // button 载体唯一：有板归板（wrapper 整体动效）
             w.classList.toggle(ICON_BUTTON_CLASS, wantButton);
         });
         // button 载体唯一：有板归板（wrapper 类在回调中挂）、无板归图形——宿主侧同步
         // 对称写/清（挂载即生效，不经微任务）
-        el.classList.toggle(ICON_BUTTON_CLASS, wantButton && badge === null);
-        // color 选项：currentColor 继承体系（内联 color 即换图形颜色）
-        const color = this._opt("color");
-        if (typeof color === "string" && color.trim() !== "") el.style.color = color;
-        else el.style.removeProperty("color");
+        el.classList.toggle(ICON_BUTTON_CLASS, wantButton && shape === null);
         // pointer 修饰：可点击语义的手型光标（内联对称写/清）
         if (this._opt("pointer") === true) el.style.cursor = "pointer";
         else el.style.removeProperty("cursor");
@@ -291,23 +300,39 @@ export class IconDirective extends AutoSparkDirectiveBase {
     }
 
     /**
-     * badge 包裹层挂/拆（幂等）：badge 启用时为宿主包一层同类名 wrapper（wrapper 自身
-     * 做淡色圆角板，图形子元素完整渲染不受板影响）；未启用时拆包还原。拆包用 `replaceWith`
-     * 保留宿主位置；wrapper 随子树消亡（x-if detach 等以子树为单位）。
+     * shape 底板包裹层挂/拆（幂等）：shape 启用时为宿主包一层形态类 wrapper（wrapper 自身
+     * 做淡色板，图形子元素完整渲染不受板影响）；未启用时拆包还原；形态切换（circle ↔
+     * radius）先拆后包。拆包用 `replaceWith` 保留宿主位置；wrapper 随子树消亡（x-if
+     * detach 等以子树为单位）。
      */
-    private _applyBadgeWrap(want: boolean): void {
+    private _applyShapeWrap(want: "circle" | "radius" | null): void {
         const el = this.el;
-        const parent = el?.parentElement;
         if (!el) return;
         if (want) {
+            const cls = want === "circle" ? ICON_CIRCLE_CLASS : ICON_RADIUS_CLASS;
+            let parent = el.parentElement;
             if (!parent) return; // 未挂载（重渲染路径重试）
-            if (parent.classList.contains(ICON_BADGE_CLASS)) return; // 已包
+            if (parent.classList.contains(cls)) return; // 已包同形态
+            if (
+                parent.classList.contains(ICON_CIRCLE_CLASS) ||
+                parent.classList.contains(ICON_RADIUS_CLASS)
+            ) {
+                parent.replaceWith(el); // 异形态 wrapper：拆包（随后按新形态重包）
+                parent = el.parentElement;
+                if (!parent) return;
+            }
             const w = document.createElement("span");
-            w.className = ICON_BADGE_CLASS;
+            w.className = cls;
             parent.insertBefore(w, el);
             w.appendChild(el);
-        } else if (parent?.classList.contains(ICON_BADGE_CLASS)) {
-            parent.replaceWith(el);
+        } else {
+            const parent = el.parentElement;
+            if (
+                parent?.classList.contains(ICON_CIRCLE_CLASS) ||
+                parent?.classList.contains(ICON_RADIUS_CLASS)
+            ) {
+                parent.replaceWith(el);
+            }
         }
     }
 }

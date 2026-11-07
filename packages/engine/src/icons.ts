@@ -29,21 +29,21 @@ export const icon_svgdatas = [
   ["unchecked", `<rect width="18" height="18" x="3" y="3" rx="2"/>`],
   ["checked", `<rect width="18" height="18" x="3" y="3" rx="2"/><path d="m16 9-5.5 5.5L8 12"/>`],
   ["semi-checked", `<rect width="18" height="18" x="3" y="3" rx="2" /><rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor" stroke="none" />`],
-  ["loading", `<g><animateTransform  attributeName="transform"  attributeType="XML"  type="rotate" from="0 12 12" to="360 12 12" dur="1.5s" repeatCount="indefinite"
-        />
-        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
-        <path d="M21 3v5h-5"/>
-      </g>`],
-  // loading2 底圈走 currentColor + stroke-opacity（ADR-0130 颜色规约：全图唯一色值会被归一化为
-  // currentColor——底圈语义本就该跟随主题色，数据侧直接对齐规约）
-  ["loading2", `<g>
+  ["loading", `<g>
     <animateTransform attributeName="transform" attributeType="XML" type="rotate"
       from="0 12 12" to="360 12 12" dur="1.2s" repeatCount="indefinite"/>
     <path d="M12 3 A9 9 0 0 1 21 12" fill="none" stroke="currentColor"
           style="stroke-width:4" vector-effect="non-scaling-stroke"/>
   </g>
   <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-opacity="0.2"
-          style="stroke-width:4" vector-effect="non-scaling-stroke"/>
+          style="stroke-width:4" vector-effect="non-scaling-stroke"/>`],
+  // loading2 底圈走 currentColor + stroke-opacity（ADR-0130 颜色规约：全图唯一色值会被归一化为
+  // currentColor——底圈语义本就该跟随主题色，数据侧直接对齐规约）
+  ["loading2", `<g><animateTransform  attributeName="transform"  attributeType="XML"  type="rotate" from="0 12 12" to="360 12 12" dur="1.5s" repeatCount="indefinite"
+        />
+        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+        <path d="M21 3v5h-5"/>
+      </g>
     `],
   ["unknown", `<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M12 17h.01"/><path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/>`],
   ["folder-open", `<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>`],

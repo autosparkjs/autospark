@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · Pointer（手型光标）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .icons-demo {
+                font-size: 24px;
+                line-height: 2.2;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section icons-demo">
+            <!-- 对照：无 pointer 沿用上下文光标（文本/默认），pointer 悬停即手型 -->
+            <p>
+                <strong>对照</strong>　无 pointer：<span x-icon="bell"></span>
+                　pointer：<span x-icon.pointer="bell"></span>
+                　（悬停到两个图标上对比光标形态）
+            </p>
+
+            <!-- 修饰符与选项双通道：x-icon.pointer ≡ x-icon-options="{pointer:true}" -->
+            <p>
+                <strong>写法</strong>　修饰符 <code>x-icon.pointer</code>：<span x-icon.pointer="close"></span>
+                　选项 <code>{pointer:true}</code>：<span x-icon="close" x-icon-options="{pointer:true}"></span>
+            </p>
+
+            <!-- 纯视觉语义：只换光标、无任何动效——点击行为归 @click 声明 -->
+            <p>
+                <strong>组合 @click</strong>
+                <span x-icon.pointer="close" @click="alert('已关闭（演示）')"></span>
+                <span x-icon.pointer="heart" x-icon-options="{color:'#f03d5e'}"
+                      @click="count++" :title="'点击次数：' + count"></span>
+                　（手型光标 + 点击响应，无 hover/press 动效）
+            </p>
+
+            <p class="help is-size-6">
+                pointer 只声明「可点击」的手型光标（cursor: pointer，内联对称写/清），不产生任何交互动效；
+                <code>button</code> 选项已隐含手型光标（类规则承载）——两者同开时无需重复声明。
+            </p>
+        </div>
+
+        <script>
+            const { iconRegistry } = AutoSparkSpaces;
+            // 注册 demo 图标（bell/close/heart——本地图标稳定演示）
+            iconRegistry.add(
+                "bell",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+            );
+            iconRegistry.add(
+                "close",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+            );
+            iconRegistry.add(
+                "heart",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>',
+            );
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), { count: 0 });
+        </script>
+    </body>
+</html>

@@ -73,7 +73,7 @@
 
 ### 宿主内涟漪（inside）
 
-`inside: true` 切换为**宿主内部**的按钮涟漪（Material 式）——双圆（**芯** = 实心填充圆自起点放大渐隐，**环** = 芯圆周描边同步渐隐）同心同步扩散，被**约束在宿主内部**（注入裁剪子元素承载，不修改宿主 `overflow`）：
+`inside: true` 切换为**宿主内部**的按钮涟漪（Material 式）——**单圆（实心填充圆）自起点放大渐隐**，被**约束在宿主内部**（注入裁剪子元素承载，不修改宿主 `overflow`）：
 
 - 半径**自动几何**：起点到宿主最远角的距离（一次起波铺满宿主），`size` 声明被忽略；
 - `always` / `hover`：起点固定宿主几何中心，单周期扩散渐隐后循环；
@@ -215,7 +215,7 @@ el.removeAttribute("x-ripple");               // 移除即失效
 - **减弱动效**：系统 `prefers-reduced-motion: reduce` 下自动停播（装饰性动画的可访问性底线）。
 - **宿主定位**：宿主需建立定位上下文承载动效层——宿主未声明 `position` 时指令自动兜底 `position: relative`（特异性 0，不覆盖宿主自有定位）。
 - **装饰性语义**：动效纯装饰，不承载交互反馈责任（按钮按下反馈等请用既有组件能力）；指针事件全穿透，不影响宿主子元素交互。
-- **样式钩子**：类钩子 `x-ripple` / `x-ripple-on` / `x-ripple-echo` / `x-ripple-layer` / `x-ripple-badge` / `x-ripple-inside` / `x-ripple-inside-clip` / `x-ripple-inside-core` / `x-ripple-inside-halo`，变量 `--x-ripple-color` / `--x-ripple-size` / `--x-ripple-duration` / `--x-ripple-anim` / `--x-ripple-echo-delay` / `--x-ripple-echo-size` / `--x-ripple-badge-size` / `--x-ripple-core-alpha` / `--x-ripple-halo-alpha` / `--x-ripple-halo-width`，供主题与业务层重载。
+- **样式钩子**：类钩子 `x-ripple` / `x-ripple-on` / `x-ripple-echo` / `x-ripple-layer` / `x-ripple-badge` / `x-ripple-inside` / `x-ripple-inside-clip` / `x-ripple-inside-circle`，变量 `--x-ripple-color` / `--x-ripple-size` / `--x-ripple-duration` / `--x-ripple-anim` / `--x-ripple-echo-delay` / `--x-ripple-echo-size` / `--x-ripple-badge-size` / `--x-ripple-inside-alpha`，供主题与业务层重载。
 - **硬切迁移**：`x-ripple` 由 `x-spark` 伞形指令拆分而来（ADR-0007），无别名兼容——效果族通道退役、涟漪形态键 `rippleMode` 更名为 `type`，色环旋转整体迁移至独立指令 [x-spin](./x-spin.md)；产物名（`autospark.ripple.js`）、CSS 变量与类钩子（`--x-ripple-*` / `x-ripple*`）均已更名，存量 `x-spark` 涟漪用法需同步迁移。
 
 ---

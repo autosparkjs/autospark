@@ -627,7 +627,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     }\r
     <\/script>\r
 </div>\r
-`,Ue={[e]:ze,[t(`toast`)]:Be,[t(`task`)]:Ve,[t(`confirm`)]:He};function A(e){let t=e?.el;return t instanceof HTMLElement?t:null}function We(e){return{title:`提示`,handle:function(t){let n=typeof t==`string`?{title:t}:{...t??{}};return n.type??=`toast`,n.anchor??=A(this)??void 0,e.notifications.add(n)}}}function Ge(e){return{title:`确认`,handle:function(t){let{yes:n,no:r,...i}=typeof t==`string`?{title:t}:{...t??{}};return i.anchor??=A(this)??void 0,e.notifications.show({...i,type:`confirm`,delayClose:i.delayClose??0,actions:[{title:n??`确定`,value:!0,type:`primary`},{title:r??`取消`,value:!1,type:`plain`}]})}}}function Ke(e){return{title:`任务`,handle:function(t){let n=typeof t==`string`?{title:t}:{...t??{}};return n.type=`task`,n.anchor??=A(this)??void 0,e.notifications.show(n)}}}var qe={toast:We,confirm:Ge,task:Ke};function Je(e){let t=e.options.builtinComponents??(e.options.builtinComponents={});for(let[e,n]of Object.entries(Ue))t[e]??(t[e]=n)}function Ye(e){Je(e);let t=new Ie(e);e.notifications=t;for(let[t,n]of Object.entries(qe))t in e.actions||(e.actions[t]=n(e));e.on(`engine/destroy/before`,()=>t.dispose())}function Xe(){k(e=>{g(e),e.ready(Ye)})}Xe();var j=class extends Error{constructor(e,t,n,r){super(e),this.name=`ResourceError`,this.status=t,this.url=n,this.method=r}};function M(e={}){let{where:t,...n}=e,r={...n};return typeof t==`object`&&t?Object.assign(r,t):typeof t==`string`&&t!==``&&(r.where=t),r}var Ze={get:(e,t)=>typeof t==`object`&&t&&!Array.isArray(t)?{method:`GET`,url:e,query:M(t)}:{method:`GET`,url:`${e}/${t}`},getMany:(e,t={})=>({method:`GET`,url:e,query:M(t)}),add:(e,t)=>({method:`POST`,url:e,body:t}),update:(e,t,n)=>{if(typeof n==`object`&&n)return{method:`PUT`,url:e,query:M(n),body:t};if(Array.isArray(t))return{method:`PUT`,url:e,body:t};let r=t?.id;return r==null?{method:`PUT`,url:e,body:t}:{method:`PUT`,url:`${e}/${r}`,body:t}},delete:(e,t)=>typeof t==`object`&&t&&!Array.isArray(t)?{method:`DELETE`,url:e,query:M(t)}:Array.isArray(t)?{method:`DELETE`,url:e,query:{ids:t.join(`,`)}}:{method:`DELETE`,url:`${e}/${t}`}};function Qe(e){let t=[];for(let[n,r]of Object.entries(e)){if(r==null)continue;let e=Array.isArray(r)?r.join(`,`):String(r);t.push(`${encodeURIComponent(n)}=${encodeURIComponent(e)}`)}return t.join(`&`)}async function $e(e,t={}){let n=/^https?:\/\//i.test(e.url)||!t.baseUrl?e.url:`${String(t.baseUrl).replace(/\/+$/,``)}/${e.url.replace(/^\/+/,``)}`,r=e.query?Qe(e.query):``,i=r?`${n}${n.includes(`?`)?`&`:`?`}${r}`:n,a={...t.headers},o;e.body!==void 0&&(o=JSON.stringify(e.body),Object.keys(a).some(e=>e.toLowerCase()===`content-type`)||(a[`Content-Type`]=`application/json`));let s=t.fetch??globalThis.fetch,c;try{c=await s(i,{method:e.method,headers:a,body:o})}catch(t){throw new j(`资源请求网络错误: ${e.method} ${i} (${t?.message??t})`,0,i,e.method)}if(!c.ok)throw new j(`资源请求失败: ${e.method} ${i} → ${c.status} ${c.statusText}`,c.status,i,e.method);if(c.status===204)return null;let l=await c.text(),u=l===``?null:JSON.parse(l);return t.unwrap?t.unwrap(u,e):u}var et=new Set([`url`,`mapping`,`baseUrl`,`fetch`,`headers`,`unwrap`]);function tt(e){if(typeof e==`string`)return{url:e,inlineOptions:{},methods:{},inlineMapping:void 0};let t=typeof e.url==`string`?e.url:null,n={},r={},i;for(let[t,a]of Object.entries(e))t===`mapping`?a&&typeof a==`object`&&(i=a):et.has(t)?a!==void 0&&(n[t]=a):typeof a==`function`&&(r[t]=a);return{url:t,inlineOptions:n,methods:r,inlineMapping:i}}function nt(e,t,n){let r=t?.options?.resources;return{...n,...r,...e}}function rt(e,t,n){return{...Ze,...n,...e?.options?.resources?.mapping,...t}}function N(e,t,n,r={}){let{url:i,inlineOptions:a,methods:o,inlineMapping:s}=tt(t),c=rt(n,s,r.mapping),l={};for(let[t,n]of Object.entries(o))l[`${e}.${t}`]=n;if(i)for(let[t,o]of Object.entries(c))l[`${e}.${t}`]||(l[`${e}.${t}`]=function(...e){return $e(o(i,...e),nt(a,this?.engine??n,r))});else if(Object.keys(l).length===0)return l;return l}var P=class{constructor(e){this._defs=new Map,this._globalOptions={},this.engine=e}get options(){return this.engine?this.engine.options.resources??={}:this._globalOptions}add(e,t){let n=typeof e==`string`?[[e,t]]:Object.entries(e);for(let[e,t]of n){if(t===void 0)continue;(this._defs.has(e)||this._hasAction(`${e}.`))&&console.warn(`[autospark] resources.add: 资源 "${e}" 重复注册，后者覆盖（ADR-0011）`),this._defs.set(e,t);let n=N(e,t,this.engine,this._globalOptions);Object.keys(n).length===0?console.warn(`[autospark] resources.add: 资源 "${e}" 定义为空（无 url 也无方法），已跳过`):this._write(n)}}get(e){return this._defs.get(e)}has(e){return this._defs.has(e)||this._hasAction(`${e}.`)}_write(e){let t=this._actionTable();if(!t)console.warn(`[autospark] resources.add: AutoSpark 命名空间不可用（插件未自举？），全局注册未生效`);else for(let[n,r]of Object.entries(e))t[n]=r}_actionTable(){if(this.engine)return this.engine.actions;let e=te();return e&&typeof e==`function`?e.actions:null}_hasAction(e){let t=this._actionTable();return t?Object.keys(t).some(t=>t.startsWith(e)):!1}},it=null;function F(){return it??=new P}var at=(e,t,n)=>{let r=e.textContent?.trim();if(!r)return;let i;try{let e=Function(`return (${r})`)();if(!e||typeof e!=`object`||Array.isArray(e)){n.logger.error(`<script type="autospark/resources"> 内容须为对象字面量`);return}i=e}catch(e){n.logger.error(`<script type="autospark/resources"> 解析失败: ${e?.message??e}`);return}let a=F().options,o=e.hasAttribute(`global`);for(let[e,r]of Object.entries(i)){let i=N(e,r,n,a);if(Object.keys(i).length===0)n.logger.warn(`资源 "${e}" 定义为空（无 url 也无方法），已跳过（ADR-0011）`);else if(o)for(let[e,t]of Object.entries(i))n.actions[e]=t;else t?n.actionsManager.registerScoped(t,i):n.logger.warn(`资源 "${e}" 局部声明无祖先 scope（顶层游离）——加 global 属性声明 engine 级，或移入任意容器元素内`)}};function ot(){return{name:`resource`,created(){let e=(this.attr??``).trim();if(!e){this.warn(`x-resource: 缺属性参数（形态 x-resource:<资源名>="<url>"），本声明已忽略`);return}let t=String(this.value??``).trim();if(!t){this.warn(`x-resource:${e}: 缺 url 值，本声明已忽略`);return}let n=N(e,t,this.engine,F().options);Object.keys(n).length===0?this.warn(`x-resource:${e}: 资源展开为空（映射表不可用？），本声明已忽略`):this.engine.actionsManager.registerScoped(this.binding,n)}}}function st(){k(e=>{g(e),e.resources||=F(),e.scriptType(`autospark/resources`,at),e.directive(ot()),e.ready(e=>{e.resources=new P(e)})})}st();var I=[`hover`,`always`,`click`],L=`var(--auto-theme-color, var(--autospark-ripple-color, #009aff))`,R=`var(--auto-theme-color, var(--autospark-spin-color, #009aff))`,ct=`var(--auto-danger-color, var(--autospark-ripple-badge-color, #ef4444))`,lt=`var(--auto-danger-color, var(--autospark-spin-badge-color, #ef4444))`,ut=2147483647,z=3e3;function B(e,t,n,r){let i=e?.[t];if(i!==void 0){if(typeof i!=`number`||!Number.isFinite(i)||i<0)n(`${r}: ${t} 须为非负数字，已回退默认值`);else return i}}function dt(e,t,n){let r=B(e,`speed`,t,n)??3e3;return r<=0?(t(`${n}: speed 须为正数（总周期为 0 将无法产生动画），已回退 ${z}`),z):r}function ft(e,t,n){let r=new Set;e?.trigger!==void 0&&(I.includes(e.trigger)?r.add(e.trigger):t(`${n}: trigger 取值非法（${JSON.stringify(e.trigger)}），已忽略`));for(let i of I){let a=e?.[i];a===!0?r.add(i):a!==void 0&&a!==!1&&t(`${n}: ${i} 开关须为布尔值，已忽略`)}return I.find(e=>r.has(e))??`always`}function pt(e,t,n,r){let i=new Set;if(!e)return i;for(let a of t){let t=e[a];t===!0?i.add(a):t!==void 0&&t!==!1&&n(`${r}: ${a} 开关须为布尔值，已忽略`)}return i}function mt(e,t,n,r,i){if(e)for(let a of t){let t=e[a];t!==void 0&&t!==!1&&r(`${i}: ${a} 是 ${n} 的形态键，已忽略`)}}function ht(e,t,n){let r=e?.badge;return r===void 0||r===!1?0:r===!0?8:typeof r==`number`&&Number.isFinite(r)&&r>0?r:(t(`${n}: badge 须为 true 或正数字（直径 px），已忽略`),0)}function gt(e,t,n,r,i){if(e!==void 0){if(typeof e==`string`&&e.trim()!==``)return e;r(`${i}: color 须为非空字符串，已回退默认色`)}return n>0?t.badgeColor:t.color}function _t(){return`position:absolute;inset:0;border-radius:inherit;pointer-events:none;display:block;`}function vt(e){return`position:absolute;top:${-e/2}px;right:${-e/2}px;width:${e}px;height:${e}px;border-radius:50%;pointer-events:none;display:block;z-index:${ut};`}function yt(e){try{let t=getComputedStyle(e,`::after`)?.content;return t!==void 0&&t!==`none`&&t!==`normal`}catch{return!1}}var bt=class{static{this.probe=yt}constructor(e,t,n){this.alive=!0,this.enabled=!0,this.playing=!1,this.carrier=null,this.layers=[],this.stopTimer=null,this.probeTimer=null,this.activatedAt=0,this.pendingStart=!1,this.offHover=null,this.offClick=null,this.valueOff=null,this.insideOn=!1,this.insideCarrier=null,this.strategy=e,this.engine=t,this.info=n,this.value=n?.value,this.config=e.normalize(n?.options,e=>this.warn(e)),this.insideOn=e.inside?.enabled(this.config)??!1}warn(e){this.engine.logger.warn(e)}mounted(){this.el&&(this.strategy.ensureStyles(),this.applyVars(),this.bindValue(),this.config.trigger===`hover`?(this.bindHover(),this.probeCarrier()):this.config.trigger===`click`?(this.bindClick(),this.probeCarrier()):this.enabled&&this.requestStart())}unmounted(){this.alive=!1,this.stopTimer!=null&&clearTimeout(this.stopTimer),this.stopTimer=null,this.probeTimer!=null&&clearTimeout(this.probeTimer),this.probeTimer=null,this.valueOff?.(),this.valueOff=null,this.offHover?.(),this.offHover=null,this.offClick?.(),this.offClick=null;for(let e of this.layers)e.remove();this.layers=[],this.insideCarrier?.clip.remove(),this.insideCarrier=null,this.el?.classList.remove(this.strategy.hostClass,this.strategy.activeClass,...this.strategy.hostClasses(this.config),...this.strategy.activeClasses(this.config)),this.playing=!1}attrChanged(e){this.value=e===``?void 0:e,this.enabled=!0,this.valueOff?.(),this.valueOff=null,this.playing&&this.scheduleStop(),this.bindValue()}bindValue(){if(this.value==null){this.setEnabled(!0);return}let e=this.value,t=({value:e})=>{this.alive&&this.setEnabled(!!e)},n=this.engine.findScopeByEl(this.el);if(n&&typeof n.watch==`function`){let r=n.watch(e,t);this.setEnabled(!!r)}else{let n=this.engine.store.watch(e,t);this.valueOff=()=>n?.off?.(),this.setEnabled(!!this.engine.store.read?.(e))}}setEnabled(e){this.enabled!==e&&(this.enabled=e,e?this.config.trigger===`always`&&this.requestStart():(this.pendingStart=!1,this.playing&&this.scheduleStop()))}bindHover(){let e=this.el,t=()=>{this.enabled&&this.requestStart()},n=()=>{this.playing&&this.scheduleStop()};e.addEventListener(`mouseenter`,t),e.addEventListener(`mouseleave`,n),this.offHover=()=>{e.removeEventListener(`mouseenter`,t),e.removeEventListener(`mouseleave`,n)}}bindClick(){let e=this.el,t=e=>{this.enabled&&(this.insideOn?this.requestStart(e):this.playing||this.requestStart())};e.addEventListener(`click`,t),this.offClick=()=>e.removeEventListener(`click`,t)}requestStart(e){(!this.playing||this.insideOn)&&(this.carrier==null?(this.pendingStart=!0,this.pendingEv=e,this.probeTimer??this.probeCarrier()):this.start(e))}probeCarrier(){this.probeTimer=setTimeout(()=>{if(this.probeTimer=null,!this.el?.isConnected)(this.pendingStart||this.config.trigger!==`always`)&&this.probeCarrier();else if(this.el.classList.add(this.strategy.hostClass,...this.strategy.hostClasses(this.config)),this.insideOn?(this.carrier=`element`,this.injectInsideCarrier()):(this.carrier=(this.constructor.probe??yt)(this.el)?`element`:`pseudo`,this.carrier===`element`&&this.injectLayers()),this.pendingStart){this.pendingStart=!1;let e=this.pendingEv;this.pendingEv=void 0,this.start(e)}},0)}start(e){if(this.stopTimer!=null&&(clearTimeout(this.stopTimer),this.stopTimer=null),this.applyVars(),this.insideOn)this.playInside(e);else{let e=this.strategy.animationCss(this.config,this.strategy.animName(this.config));if(this.carrier===`pseudo`)this.el.classList.add(this.strategy.activeClass,...this.strategy.activeClasses(this.config));else{for(let t of this.layers)t.style.animation=e;this.strategy.applyLayerExtras?.(this.layers,this.config)}}this.activatedAt=performance.now(),this.playing=!0,this.config.trigger===`click`&&this.scheduleStop()}playInside(e){if(!this.insideCarrier)return;this.insideCarrier.clip.style.display=``;let t=this.strategy.inside,{x:n,y:r,r:i}=t.geometry(this.el,this.config,e),{core:a,halo:o}=t.animations(this.config),s=e=>Math.round(e*10)/10,c=(e,t)=>{e.style.left=`${s(n-i)}px`,e.style.top=`${s(r-i)}px`,e.style.width=`${s(i*2)}px`,e.style.height=`${s(i*2)}px`,e.style.animation=`none`,e.offsetWidth,e.style.animation=t};c(this.insideCarrier.core,a),c(this.insideCarrier.halo,o)}injectInsideCarrier(){if(this.insideCarrier)return;let e=this.strategy.inside.createCarrier();e.clip.style.display=`none`,this.el.appendChild(e.clip),this.insideCarrier=e}scheduleStop(){this.stopTimer!=null&&clearTimeout(this.stopTimer);let e=this.strategy.period(this.config),t=performance.now()-this.activatedAt,n=Math.max(0,e-t%e);this.stopTimer=setTimeout(()=>{if(this.stopTimer=null,this.playing=!1,this.insideOn)this.insideCarrier&&(this.insideCarrier.clip.style.display=`none`,this.insideCarrier.core.style.animation=``,this.insideCarrier.halo.style.animation=``);else if(this.carrier===`pseudo`)this.el.classList.remove(this.strategy.activeClass,...this.strategy.activeClasses(this.config));else for(let e of this.layers)e.style.animation=``},n)}applyVars(){this.strategy.applyVars(this.el,this.config,this.strategy.animName(this.config))}injectLayers(){let e=this.strategy.layerCount(this.config);for(let t=0;t<e;t++){let e=document.createElement(`span`);e.className=this.strategy.layerClass,e.style.cssText=this.strategy.layerCssText(this.config),this.el.appendChild(e),this.layers.push(e)}}},V=new WeakMap;function xt(e,t){function n(){if(!this.el)return;let e=new bt(t,this.engine,this.info);e.el=this.el,V.set(this,e),e.mounted()}function r(){let e=V.get(this);V.delete(this),e?.unmounted()}function i(e){V.get(this)?.attrChanged(e)}return{name:e,kind:1,priority:0,mounted:n,unmounted:r,attrChanged:i}}function St(e){k(t=>{g(t),t.directive(e)})}var Ct=[`glow`,`ring`,`echo`],wt=[`ring`,`glow`,`echo`],Tt=[`rotate`,`beam`,`chase`],Et={type:`echo`,trigger:`always`,inside:!1,badge:0,color:L,size:12,speed:3e3,gap:0},H=`x-ripple`,U=`x-ripple-on`,W=`x-ripple-echo`,Dt=`x-ripple-layer`,G=`x-ripple-badge`,Ot=`x-ripple-inside`,kt=`x-ripple-inside-clip`,At=`x-ripple-inside-core`,jt=`x-ripple-inside-halo`,Mt=600,Nt=2,Pt=.3,Ft=.5,It=!1,K=new Map,q=null;function Lt(){if(It||typeof document>`u`)return;It=!0;let e=document.createElement(`style`);e.setAttribute(`data-x-ripple`,``),e.textContent=`
+`,Ue={[e]:ze,[t(`toast`)]:Be,[t(`task`)]:Ve,[t(`confirm`)]:He};function A(e){let t=e?.el;return t instanceof HTMLElement?t:null}function We(e){return{title:`提示`,handle:function(t){let n=typeof t==`string`?{title:t}:{...t??{}};return n.type??=`toast`,n.anchor??=A(this)??void 0,e.notifications.add(n)}}}function Ge(e){return{title:`确认`,handle:function(t){let{yes:n,no:r,...i}=typeof t==`string`?{title:t}:{...t??{}};return i.anchor??=A(this)??void 0,e.notifications.show({...i,type:`confirm`,delayClose:i.delayClose??0,actions:[{title:n??`确定`,value:!0,type:`primary`},{title:r??`取消`,value:!1,type:`plain`}]})}}}function Ke(e){return{title:`任务`,handle:function(t){let n=typeof t==`string`?{title:t}:{...t??{}};return n.type=`task`,n.anchor??=A(this)??void 0,e.notifications.show(n)}}}var qe={toast:We,confirm:Ge,task:Ke};function Je(e){let t=e.options.builtinComponents??(e.options.builtinComponents={});for(let[e,n]of Object.entries(Ue))t[e]??(t[e]=n)}function Ye(e){Je(e);let t=new Ie(e);e.notifications=t;for(let[t,n]of Object.entries(qe))t in e.actions||(e.actions[t]=n(e));e.on(`engine/destroy/before`,()=>t.dispose())}function Xe(){k(e=>{g(e),e.ready(Ye)})}Xe();var j=class extends Error{constructor(e,t,n,r){super(e),this.name=`ResourceError`,this.status=t,this.url=n,this.method=r}};function M(e={}){let{where:t,...n}=e,r={...n};return typeof t==`object`&&t?Object.assign(r,t):typeof t==`string`&&t!==``&&(r.where=t),r}var Ze={get:(e,t)=>typeof t==`object`&&t&&!Array.isArray(t)?{method:`GET`,url:e,query:M(t)}:{method:`GET`,url:`${e}/${t}`},getMany:(e,t={})=>({method:`GET`,url:e,query:M(t)}),add:(e,t)=>({method:`POST`,url:e,body:t}),update:(e,t,n)=>{if(typeof n==`object`&&n)return{method:`PUT`,url:e,query:M(n),body:t};if(Array.isArray(t))return{method:`PUT`,url:e,body:t};let r=t?.id;return r==null?{method:`PUT`,url:e,body:t}:{method:`PUT`,url:`${e}/${r}`,body:t}},delete:(e,t)=>typeof t==`object`&&t&&!Array.isArray(t)?{method:`DELETE`,url:e,query:M(t)}:Array.isArray(t)?{method:`DELETE`,url:e,query:{ids:t.join(`,`)}}:{method:`DELETE`,url:`${e}/${t}`}};function Qe(e){let t=[];for(let[n,r]of Object.entries(e)){if(r==null)continue;let e=Array.isArray(r)?r.join(`,`):String(r);t.push(`${encodeURIComponent(n)}=${encodeURIComponent(e)}`)}return t.join(`&`)}async function $e(e,t={}){let n=/^https?:\/\//i.test(e.url)||!t.baseUrl?e.url:`${String(t.baseUrl).replace(/\/+$/,``)}/${e.url.replace(/^\/+/,``)}`,r=e.query?Qe(e.query):``,i=r?`${n}${n.includes(`?`)?`&`:`?`}${r}`:n,a={...t.headers},o;e.body!==void 0&&(o=JSON.stringify(e.body),Object.keys(a).some(e=>e.toLowerCase()===`content-type`)||(a[`Content-Type`]=`application/json`));let s=t.fetch??globalThis.fetch,c;try{c=await s(i,{method:e.method,headers:a,body:o})}catch(t){throw new j(`资源请求网络错误: ${e.method} ${i} (${t?.message??t})`,0,i,e.method)}if(!c.ok)throw new j(`资源请求失败: ${e.method} ${i} → ${c.status} ${c.statusText}`,c.status,i,e.method);if(c.status===204)return null;let l=await c.text(),u=l===``?null:JSON.parse(l);return t.unwrap?t.unwrap(u,e):u}var et=new Set([`url`,`mapping`,`baseUrl`,`fetch`,`headers`,`unwrap`]);function tt(e){if(typeof e==`string`)return{url:e,inlineOptions:{},methods:{},inlineMapping:void 0};let t=typeof e.url==`string`?e.url:null,n={},r={},i;for(let[t,a]of Object.entries(e))t===`mapping`?a&&typeof a==`object`&&(i=a):et.has(t)?a!==void 0&&(n[t]=a):typeof a==`function`&&(r[t]=a);return{url:t,inlineOptions:n,methods:r,inlineMapping:i}}function nt(e,t,n){let r=t?.options?.resources;return{...n,...r,...e}}function rt(e,t,n){return{...Ze,...n,...e?.options?.resources?.mapping,...t}}function N(e,t,n,r={}){let{url:i,inlineOptions:a,methods:o,inlineMapping:s}=tt(t),c=rt(n,s,r.mapping),l={};for(let[t,n]of Object.entries(o))l[`${e}.${t}`]=n;if(i)for(let[t,o]of Object.entries(c))l[`${e}.${t}`]||(l[`${e}.${t}`]=function(...e){return $e(o(i,...e),nt(a,this?.engine??n,r))});else if(Object.keys(l).length===0)return l;return l}var P=class{constructor(e){this._defs=new Map,this._globalOptions={},this.engine=e}get options(){return this.engine?this.engine.options.resources??={}:this._globalOptions}add(e,t){let n=typeof e==`string`?[[e,t]]:Object.entries(e);for(let[e,t]of n){if(t===void 0)continue;(this._defs.has(e)||this._hasAction(`${e}.`))&&console.warn(`[autospark] resources.add: 资源 "${e}" 重复注册，后者覆盖（ADR-0011）`),this._defs.set(e,t);let n=N(e,t,this.engine,this._globalOptions);Object.keys(n).length===0?console.warn(`[autospark] resources.add: 资源 "${e}" 定义为空（无 url 也无方法），已跳过`):this._write(n)}}get(e){return this._defs.get(e)}has(e){return this._defs.has(e)||this._hasAction(`${e}.`)}_write(e){let t=this._actionTable();if(!t)console.warn(`[autospark] resources.add: AutoSpark 命名空间不可用（插件未自举？），全局注册未生效`);else for(let[n,r]of Object.entries(e))t[n]=r}_actionTable(){if(this.engine)return this.engine.actions;let e=te();return e&&typeof e==`function`?e.actions:null}_hasAction(e){let t=this._actionTable();return t?Object.keys(t).some(t=>t.startsWith(e)):!1}},it=null;function F(){return it??=new P}var at=(e,t,n)=>{let r=e.textContent?.trim();if(!r)return;let i;try{let e=Function(`return (${r})`)();if(!e||typeof e!=`object`||Array.isArray(e)){n.logger.error(`<script type="autospark/resources"> 内容须为对象字面量`);return}i=e}catch(e){n.logger.error(`<script type="autospark/resources"> 解析失败: ${e?.message??e}`);return}let a=F().options,o=e.hasAttribute(`global`);for(let[e,r]of Object.entries(i)){let i=N(e,r,n,a);if(Object.keys(i).length===0)n.logger.warn(`资源 "${e}" 定义为空（无 url 也无方法），已跳过（ADR-0011）`);else if(o)for(let[e,t]of Object.entries(i))n.actions[e]=t;else t?n.actionsManager.registerScoped(t,i):n.logger.warn(`资源 "${e}" 局部声明无祖先 scope（顶层游离）——加 global 属性声明 engine 级，或移入任意容器元素内`)}};function ot(){return{name:`resource`,created(){let e=(this.attr??``).trim();if(!e){this.warn(`x-resource: 缺属性参数（形态 x-resource:<资源名>="<url>"），本声明已忽略`);return}let t=String(this.value??``).trim();if(!t){this.warn(`x-resource:${e}: 缺 url 值，本声明已忽略`);return}let n=N(e,t,this.engine,F().options);Object.keys(n).length===0?this.warn(`x-resource:${e}: 资源展开为空（映射表不可用？），本声明已忽略`):this.engine.actionsManager.registerScoped(this.binding,n)}}}function st(){k(e=>{g(e),e.resources||=F(),e.scriptType(`autospark/resources`,at),e.directive(ot()),e.ready(e=>{e.resources=new P(e)})})}st();var I=[`hover`,`always`,`click`],L=`var(--auto-theme-color, var(--autospark-ripple-color, #009aff))`,R=`var(--auto-theme-color, var(--autospark-spin-color, #009aff))`,ct=`var(--auto-danger-color, var(--autospark-ripple-badge-color, #ef4444))`,lt=`var(--auto-danger-color, var(--autospark-spin-badge-color, #ef4444))`,ut=2147483647,z=3e3;function B(e,t,n,r){let i=e?.[t];if(i!==void 0){if(typeof i!=`number`||!Number.isFinite(i)||i<0)n(`${r}: ${t} 须为非负数字，已回退默认值`);else return i}}function dt(e,t,n){let r=B(e,`speed`,t,n)??3e3;return r<=0?(t(`${n}: speed 须为正数（总周期为 0 将无法产生动画），已回退 ${z}`),z):r}function ft(e,t,n){let r=new Set;e?.trigger!==void 0&&(I.includes(e.trigger)?r.add(e.trigger):t(`${n}: trigger 取值非法（${JSON.stringify(e.trigger)}），已忽略`));for(let i of I){let a=e?.[i];a===!0?r.add(i):a!==void 0&&a!==!1&&t(`${n}: ${i} 开关须为布尔值，已忽略`)}return I.find(e=>r.has(e))??`always`}function pt(e,t,n,r){let i=new Set;if(!e)return i;for(let a of t){let t=e[a];t===!0?i.add(a):t!==void 0&&t!==!1&&n(`${r}: ${a} 开关须为布尔值，已忽略`)}return i}function mt(e,t,n,r,i){if(e)for(let a of t){let t=e[a];t!==void 0&&t!==!1&&r(`${i}: ${a} 是 ${n} 的形态键，已忽略`)}}function ht(e,t,n){let r=e?.badge;return r===void 0||r===!1?0:r===!0?8:typeof r==`number`&&Number.isFinite(r)&&r>0?r:(t(`${n}: badge 须为 true 或正数字（直径 px），已忽略`),0)}function gt(e,t,n,r,i){if(e!==void 0){if(typeof e==`string`&&e.trim()!==``)return e;r(`${i}: color 须为非空字符串，已回退默认色`)}return n>0?t.badgeColor:t.color}function _t(){return`position:absolute;inset:0;border-radius:inherit;pointer-events:none;display:block;`}function vt(e){return`position:absolute;top:${-e/2}px;right:${-e/2}px;width:${e}px;height:${e}px;border-radius:50%;pointer-events:none;display:block;z-index:${ut};`}function yt(e){try{let t=getComputedStyle(e,`::after`)?.content;return t!==void 0&&t!==`none`&&t!==`normal`}catch{return!1}}var bt=class{static{this.probe=yt}constructor(e,t,n){this.alive=!0,this.enabled=!0,this.playing=!1,this.carrier=null,this.layers=[],this.stopTimer=null,this.probeTimer=null,this.activatedAt=0,this.pendingStart=!1,this.offHover=null,this.offClick=null,this.valueOff=null,this.insideOn=!1,this.insideCarrier=null,this.strategy=e,this.engine=t,this.info=n,this.value=n?.value,this.config=e.normalize(n?.options,e=>this.warn(e)),this.insideOn=e.inside?.enabled(this.config)??!1}warn(e){this.engine.logger.warn(e)}mounted(){this.el&&(this.strategy.ensureStyles(),this.applyVars(),this.bindValue(),this.config.trigger===`hover`?(this.bindHover(),this.probeCarrier()):this.config.trigger===`click`?(this.bindClick(),this.probeCarrier()):this.enabled&&this.requestStart())}unmounted(){this.alive=!1,this.stopTimer!=null&&clearTimeout(this.stopTimer),this.stopTimer=null,this.probeTimer!=null&&clearTimeout(this.probeTimer),this.probeTimer=null,this.valueOff?.(),this.valueOff=null,this.offHover?.(),this.offHover=null,this.offClick?.(),this.offClick=null;for(let e of this.layers)e.remove();this.layers=[],this.insideCarrier?.clip.remove(),this.insideCarrier=null,this.el?.classList.remove(this.strategy.hostClass,this.strategy.activeClass,...this.strategy.hostClasses(this.config),...this.strategy.activeClasses(this.config)),this.playing=!1}attrChanged(e){this.value=e===``?void 0:e,this.enabled=!0,this.valueOff?.(),this.valueOff=null,this.playing&&this.scheduleStop(),this.bindValue()}bindValue(){if(this.value==null){this.setEnabled(!0);return}let e=this.value,t=({value:e})=>{this.alive&&this.setEnabled(!!e)},n=this.engine.findScopeByEl(this.el);if(n&&typeof n.watch==`function`){let r=n.watch(e,t);this.setEnabled(!!r)}else{let n=this.engine.store.watch(e,t);this.valueOff=()=>n?.off?.(),this.setEnabled(!!this.engine.store.read?.(e))}}setEnabled(e){this.enabled!==e&&(this.enabled=e,e?this.config.trigger===`always`&&this.requestStart():(this.pendingStart=!1,this.playing&&this.scheduleStop()))}bindHover(){let e=this.el,t=()=>{this.enabled&&this.requestStart()},n=()=>{this.playing&&this.scheduleStop()};e.addEventListener(`mouseenter`,t),e.addEventListener(`mouseleave`,n),this.offHover=()=>{e.removeEventListener(`mouseenter`,t),e.removeEventListener(`mouseleave`,n)}}bindClick(){let e=this.el,t=e=>{this.enabled&&(this.insideOn?this.requestStart(e):this.playing||this.requestStart())};e.addEventListener(`click`,t),this.offClick=()=>e.removeEventListener(`click`,t)}requestStart(e){(!this.playing||this.insideOn)&&(this.carrier==null?(this.pendingStart=!0,this.pendingEv=e,this.probeTimer??this.probeCarrier()):this.start(e))}probeCarrier(){this.probeTimer=setTimeout(()=>{if(this.probeTimer=null,!this.el?.isConnected)(this.pendingStart||this.config.trigger!==`always`)&&this.probeCarrier();else if(this.el.classList.add(this.strategy.hostClass,...this.strategy.hostClasses(this.config)),this.insideOn?(this.carrier=`element`,this.injectInsideCarrier()):(this.carrier=(this.constructor.probe??yt)(this.el)?`element`:`pseudo`,this.carrier===`element`&&this.injectLayers()),this.pendingStart){this.pendingStart=!1;let e=this.pendingEv;this.pendingEv=void 0,this.start(e)}},0)}start(e){if(this.stopTimer!=null&&(clearTimeout(this.stopTimer),this.stopTimer=null),this.applyVars(),this.insideOn)this.playInside(e);else{let e=this.strategy.animationCss(this.config,this.strategy.animName(this.config));if(this.carrier===`pseudo`)this.el.classList.add(this.strategy.activeClass,...this.strategy.activeClasses(this.config));else{for(let t of this.layers)t.style.animation=e;this.strategy.applyLayerExtras?.(this.layers,this.config)}}this.activatedAt=performance.now(),this.playing=!0,this.config.trigger===`click`&&this.scheduleStop()}playInside(e){if(!this.insideCarrier)return;this.insideCarrier.clip.style.display=``;let t=this.strategy.inside,{x:n,y:r,r:i}=t.geometry(this.el,this.config,e),{circle:a}=t.animations(this.config),o=e=>Math.round(e*10)/10,s=this.insideCarrier.circle;s.style.left=`${o(n-i)}px`,s.style.top=`${o(r-i)}px`,s.style.width=`${o(i*2)}px`,s.style.height=`${o(i*2)}px`,s.style.animation=`none`,s.offsetWidth,s.style.animation=a}injectInsideCarrier(){if(this.insideCarrier)return;let e=this.strategy.inside.createCarrier();e.clip.style.display=`none`,this.el.appendChild(e.clip),this.insideCarrier=e}scheduleStop(){this.stopTimer!=null&&clearTimeout(this.stopTimer);let e=this.strategy.period(this.config),t=performance.now()-this.activatedAt,n=Math.max(0,e-t%e);this.stopTimer=setTimeout(()=>{if(this.stopTimer=null,this.playing=!1,this.insideOn)this.insideCarrier&&(this.insideCarrier.clip.style.display=`none`,this.insideCarrier.circle.style.animation=``);else if(this.carrier===`pseudo`)this.el.classList.remove(this.strategy.activeClass,...this.strategy.activeClasses(this.config));else for(let e of this.layers)e.style.animation=``},n)}applyVars(){this.strategy.applyVars(this.el,this.config,this.strategy.animName(this.config))}injectLayers(){let e=this.strategy.layerCount(this.config);for(let t=0;t<e;t++){let e=document.createElement(`span`);e.className=this.strategy.layerClass,e.style.cssText=this.strategy.layerCssText(this.config),this.el.appendChild(e),this.layers.push(e)}}},V=new WeakMap;function xt(e,t){function n(){if(!this.el)return;let e=new bt(t,this.engine,this.info);e.el=this.el,V.set(this,e),e.mounted()}function r(){let e=V.get(this);V.delete(this),e?.unmounted()}function i(e){V.get(this)?.attrChanged(e)}return{name:e,kind:1,priority:0,mounted:n,unmounted:r,attrChanged:i}}function St(e){k(t=>{g(t),t.directive(e)})}var Ct=[`glow`,`ring`,`echo`],wt=[`ring`,`glow`,`echo`],Tt=[`rotate`,`beam`,`chase`],Et={type:`echo`,trigger:`always`,inside:!1,badge:0,color:L,size:12,speed:3e3,gap:0},H=`x-ripple`,U=`x-ripple-on`,W=`x-ripple-echo`,Dt=`x-ripple-layer`,G=`x-ripple-badge`,Ot=`x-ripple-inside`,kt=`x-ripple-inside-clip`,At=`x-ripple-inside-circle`,jt=600,Mt=.3,Nt=!1,K=new Map,q=null;function Pt(){if(Nt||typeof document>`u`)return;Nt=!0;let e=document.createElement(`style`);e.setAttribute(`data-x-ripple`,``),e.textContent=`
 :where(.${H}) { position: relative; }
 .${H} {
   --x-ripple-color: ${L};
@@ -683,34 +683,33 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
 @media (prefers-reduced-motion: reduce) {
   .${H}.${U}::after,
   .${H}.${U}.${W}::before { animation: none; }
-  /* inside 芯/环动画走内联 style——类规则 !important 压过内联（可访问性底线同家族） */
-  .${At},
-  .${jt} { animation: none !important; }
-}`,document.head.appendChild(e)}function Rt(e){let t=`${e.type}|${e.speed}|${e.gap}`,n=K.get(t);if(n)return n;let r=`x-ripple-${e.type}-${e.speed}-${e.gap}`,i=e.speed+e.gap,a=i>0?Math.round(e.speed/i*100):100,o;return o=e.type===`glow`?`
+  /* inside 填充圆动画走内联 style——类规则 !important 压过内联（可访问性底线同家族） */
+  .${At} { animation: none !important; }
+}`,document.head.appendChild(e)}function Ft(e){let t=`${e.type}|${e.speed}|${e.gap}`,n=K.get(t);if(n)return n;let r=`x-ripple-${e.type}-${e.speed}-${e.gap}`,i=e.speed+e.gap,a=i>0?Math.round(e.speed/i*100):100,o;return o=e.type===`glow`?`
   0% { box-shadow: 0 0 0 0 transparent; }
   ${Math.round(a/2)}% { box-shadow: 0 0 var(--x-ripple-size) 0 var(--x-ripple-color); }
   ${a}% { box-shadow: 0 0 0 0 transparent; }
   100% { box-shadow: 0 0 0 0 transparent; }`:`
   0% { box-shadow: 0 0 0 0 var(--x-ripple-color); }
   ${a}% { box-shadow: 0 0 0 var(--x-ripple-size) transparent; }
-  100% { box-shadow: 0 0 0 var(--x-ripple-size) transparent; }`,q||(q=document.createElement(`style`),q.setAttribute(`data-x-ripple-keyframes`,``),document.head.appendChild(q)),q.textContent+=`\n@keyframes ${r} {${o}\n}`,K.set(t,r),r}function zt(e,t){let n=`inside-${t}|${e.speed}|${e.gap}`,r=K.get(n);if(r)return r;let i=`x-ripple-inside-${t}-${e.speed}-${e.gap}`,a=e.speed+e.gap,o=a>0?Math.round(e.speed/a*100):100,s=`
-  0% { transform: scale(0); opacity: var(--x-ripple-${t===`core`?`core`:`halo`}-alpha, ${t===`core`?Pt:Ft}); }
-  ${o}% { transform: scale(1); opacity: 0; }
-  100% { transform: scale(1); opacity: 0; }`;return q||(q=document.createElement(`style`),q.setAttribute(`data-x-ripple-keyframes`,``),document.head.appendChild(q)),q.textContent+=`\n@keyframes ${i} {${s}\n}`,K.set(n,i),i}function Bt(e,t,n){let r=e.offsetWidth,i=e.offsetHeight,a=r/2,o=i/2;if(n){let t=e.getBoundingClientRect();a=n.clientX-t.left,o=n.clientY-t.top}let s=Math.max(a,r-a),c=Math.max(o,i-o);return{x:a,y:o,r:Math.hypot(s,c)}}function Vt(e){return e.trigger===`click`?0:-(e.speed+e.gap)/2}function Ht(e){return e.trigger===`click`?Math.round(e.size*.6*10)/10:e.size}function Ut(e,t){let n={...Et};if(!e)return n;let r=pt(e,wt,t,`x-ripple`);e.type!==void 0&&(wt.includes(e.type)?r.add(e.type):t(`x-ripple: type 取值非法（${JSON.stringify(e.type)}），已回退 "echo"`));let i=Ct.find(e=>r.has(e));return i&&(n.type=i),mt(e,Tt,`x-spin`,t,`x-ripple`),e.inside!==void 0&&(e.inside===!0?n.inside=!0:e.inside!==!1&&t(`x-ripple: inside 开关须为布尔值，已忽略`)),n.trigger=ft(e,t,`x-ripple`),n.badge=ht(e,t,`x-ripple`),n.inside&&n.badge>0&&(t(`x-ripple: badge 与 inside 互斥，badge 优先（inside 已忽略）`),n.inside=!1),n.color=gt(e.color,{color:L,badgeColor:ct},n.badge,t,`x-ripple`),n.size=B(e,`size`,t,`x-ripple`)??Et.size,n.speed=dt(e,t,`x-ripple`),n.gap=B(e,`gap`,t,`x-ripple`)??0,n.inside&&(r.size>0&&t(`x-ripple: inside 接管渲染，type 形态词表已忽略`),e.size!==void 0&&t(`x-ripple: inside 半径自动几何（起点到最远角），size 已忽略`),e.speed===void 0&&(n.speed=Mt)),n}var Wt={hostClass:H,activeClass:U,layerClass:Dt,ensureStyles:Lt,normalize:Ut,hostClasses:e=>[...e.badge>0?[G]:[],...e.inside?[Ot]:[]],activeClasses:e=>e.type===`echo`&&!e.inside?[W]:[],animName:e=>Rt(e),animationCss:(e,t)=>`${t} ${e.speed+e.gap}ms ease-out infinite`,period:e=>e.speed+e.gap,layerCount:e=>e.type===`echo`?2:1,layerCssText:e=>e.badge>0?`${vt(e.badge)}background:var(--x-ripple-color);`:_t(),applyLayerExtras:(e,t)=>{let n=e[1];n&&(n.style.animationDelay=`${Vt(t)}ms`,n.style.setProperty(`--x-ripple-size`,`${Ht(t)}px`))},applyVars:(e,t,n)=>{let r=e.style;r.setProperty(`--x-ripple-color`,t.color||`var(--auto-theme-color, var(--autospark-ripple-color, #009aff))`),r.setProperty(`--x-ripple-size`,`${t.size}px`),r.setProperty(`--x-ripple-duration`,`${t.speed+t.gap}ms`),r.setProperty(`--x-ripple-anim`,n),r.setProperty(`--x-ripple-echo-delay`,`${Vt(t)}ms`),r.setProperty(`--x-ripple-echo-size`,`${Ht(t)}px`),t.badge>0&&r.setProperty(`--x-ripple-badge-size`,`${t.badge}px`)},inside:{enabled:e=>e.inside,createCarrier:()=>{let e=document.createElement(`span`);e.className=kt,e.style.cssText=`position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;display:block;`;let t=document.createElement(`span`);t.className=At,t.style.cssText=`position:absolute;border-radius:50%;background:var(--x-ripple-color);pointer-events:none;display:block;`;let n=document.createElement(`span`);return n.className=jt,n.style.cssText=`position:absolute;border-radius:50%;box-sizing:border-box;border:var(--x-ripple-halo-width, ${Nt}px) solid var(--x-ripple-color);pointer-events:none;display:block;`,e.append(t,n),{clip:e,core:t,halo:n}},geometry:Bt,animations:e=>({core:`${zt(e,`core`)} ${e.speed+e.gap}ms ease-out infinite`,halo:`${zt(e,`halo`)} ${e.speed+e.gap}ms ease-out infinite`})}};function Gt(){St(xt(`ripple`,Wt))}Gt();var Kt=[`chase`,`rotate`,`beam`],qt=[`rotate`,`beam`,`chase`],Jt=[`ring`,`glow`,`echo`],Yt={type:`beam`,trigger:`always`,badge:0,color:R,size:4,speed:3e3},J=`x-spin`,Y=`x-spin-on`,Xt=`x-spin-layer`,Zt=`x-spin-badge`,X=e=>`${J}-${e}`,Z=`x-spin-angle`,Qt=!1;function Q(e){switch(e){case`beam`:return`conic-gradient(from var(--x-spin-angle), transparent 0deg, var(--x-spin-color) 30deg, transparent 70deg)`;case`chase`:return`conic-gradient(from var(--x-spin-angle), var(--x-spin-color) 0deg 12deg, transparent 12deg 168deg, var(--x-spin-color) 168deg 180deg, transparent 180deg)`;default:return`conic-gradient(from var(--x-spin-angle), var(--x-spin-color), transparent 75%)`}}var $t=`padding:var(--x-spin-size);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;`;function en(){if(Qt||typeof document>`u`)return;Qt=!0;let e=document.createElement(`style`);e.setAttribute(`data-x-spin`,``),e.textContent=`
+  100% { box-shadow: 0 0 0 var(--x-ripple-size) transparent; }`,q||(q=document.createElement(`style`),q.setAttribute(`data-x-ripple-keyframes`,``),document.head.appendChild(q)),q.textContent+=`\n@keyframes ${r} {${o}\n}`,K.set(t,r),r}function It(e){let t=`inside|${e.speed}|${e.gap}`,n=K.get(t);if(n)return n;let r=`x-ripple-inside-${e.speed}-${e.gap}`,i=e.speed+e.gap,a=`
+  0% { transform: scale(0); opacity: var(--x-ripple-inside-alpha, ${Mt}); }
+  ${i>0?Math.round(e.speed/i*100):100}% { transform: scale(1); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }`;return q||(q=document.createElement(`style`),q.setAttribute(`data-x-ripple-keyframes`,``),document.head.appendChild(q)),q.textContent+=`\n@keyframes ${r} {${a}\n}`,K.set(t,r),r}function Lt(e,t,n){let r=e.offsetWidth,i=e.offsetHeight,a=r/2,o=i/2;if(n){let t=e.getBoundingClientRect();a=n.clientX-t.left,o=n.clientY-t.top}let s=Math.max(a,r-a),c=Math.max(o,i-o);return{x:a,y:o,r:Math.hypot(s,c)}}function Rt(e){return e.trigger===`click`?0:-(e.speed+e.gap)/2}function zt(e){return e.trigger===`click`?Math.round(e.size*.6*10)/10:e.size}function Bt(e,t){let n={...Et};if(!e)return n;let r=pt(e,wt,t,`x-ripple`);e.type!==void 0&&(wt.includes(e.type)?r.add(e.type):t(`x-ripple: type 取值非法（${JSON.stringify(e.type)}），已回退 "echo"`));let i=Ct.find(e=>r.has(e));return i&&(n.type=i),mt(e,Tt,`x-spin`,t,`x-ripple`),e.inside!==void 0&&(e.inside===!0?n.inside=!0:e.inside!==!1&&t(`x-ripple: inside 开关须为布尔值，已忽略`)),n.trigger=ft(e,t,`x-ripple`),n.badge=ht(e,t,`x-ripple`),n.inside&&n.badge>0&&(t(`x-ripple: badge 与 inside 互斥，badge 优先（inside 已忽略）`),n.inside=!1),n.color=gt(e.color,{color:L,badgeColor:ct},n.badge,t,`x-ripple`),n.size=B(e,`size`,t,`x-ripple`)??Et.size,n.speed=dt(e,t,`x-ripple`),n.gap=B(e,`gap`,t,`x-ripple`)??0,n.inside&&(r.size>0&&t(`x-ripple: inside 接管渲染，type 形态词表已忽略`),e.size!==void 0&&t(`x-ripple: inside 半径自动几何（起点到最远角），size 已忽略`),e.speed===void 0&&(n.speed=jt)),n}var Vt={hostClass:H,activeClass:U,layerClass:Dt,ensureStyles:Pt,normalize:Bt,hostClasses:e=>[...e.badge>0?[G]:[],...e.inside?[Ot]:[]],activeClasses:e=>e.type===`echo`&&!e.inside?[W]:[],animName:e=>Ft(e),animationCss:(e,t)=>`${t} ${e.speed+e.gap}ms ease-out infinite`,period:e=>e.speed+e.gap,layerCount:e=>e.type===`echo`?2:1,layerCssText:e=>e.badge>0?`${vt(e.badge)}background:var(--x-ripple-color);`:_t(),applyLayerExtras:(e,t)=>{let n=e[1];n&&(n.style.animationDelay=`${Rt(t)}ms`,n.style.setProperty(`--x-ripple-size`,`${zt(t)}px`))},applyVars:(e,t,n)=>{let r=e.style;r.setProperty(`--x-ripple-color`,t.color||`var(--auto-theme-color, var(--autospark-ripple-color, #009aff))`),r.setProperty(`--x-ripple-size`,`${t.size}px`),r.setProperty(`--x-ripple-duration`,`${t.speed+t.gap}ms`),r.setProperty(`--x-ripple-anim`,n),r.setProperty(`--x-ripple-echo-delay`,`${Rt(t)}ms`),r.setProperty(`--x-ripple-echo-size`,`${zt(t)}px`),t.badge>0&&r.setProperty(`--x-ripple-badge-size`,`${t.badge}px`)},inside:{enabled:e=>e.inside,createCarrier:()=>{let e=document.createElement(`span`);e.className=kt,e.style.cssText=`position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;display:block;`;let t=document.createElement(`span`);return t.className=At,t.style.cssText=`position:absolute;border-radius:50%;background:var(--x-ripple-color);pointer-events:none;display:block;`,e.append(t),{clip:e,circle:t}},geometry:Lt,animations:e=>({circle:`${It(e)} ${e.speed+e.gap}ms ease-out infinite`})}};function Ht(){St(xt(`ripple`,Vt))}Ht();var Ut=[`chase`,`rotate`,`beam`],Wt=[`rotate`,`beam`,`chase`],Gt=[`ring`,`glow`,`echo`],J={type:`beam`,trigger:`always`,badge:0,color:R,size:4,speed:3e3},Y=`x-spin`,X=`x-spin-on`,Kt=`x-spin-layer`,qt=`x-spin-badge`,Z=e=>`${Y}-${e}`,Q=`x-spin-angle`,Jt=!1;function $(e){switch(e){case`beam`:return`conic-gradient(from var(--x-spin-angle), transparent 0deg, var(--x-spin-color) 30deg, transparent 70deg)`;case`chase`:return`conic-gradient(from var(--x-spin-angle), var(--x-spin-color) 0deg 12deg, transparent 12deg 168deg, var(--x-spin-color) 168deg 180deg, transparent 180deg)`;default:return`conic-gradient(from var(--x-spin-angle), var(--x-spin-color), transparent 75%)`}}var Yt=`padding:var(--x-spin-size);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;`;function Xt(){if(Jt||typeof document>`u`)return;Jt=!0;let e=document.createElement(`style`);e.setAttribute(`data-x-spin`,``),e.textContent=`
 @property --x-spin-angle {
   syntax: "<angle>";
   inherits: false;
   initial-value: 0deg;
 }
-@keyframes ${Z} { to { --x-spin-angle: 360deg; } }
-:where(.${J}) { position: relative; }
-.${J} {
+@keyframes ${Q} { to { --x-spin-angle: 360deg; } }
+:where(.${Y}) { position: relative; }
+.${Y} {
   --x-spin-color: ${R};
   --x-spin-size: 4px;
   --x-spin-duration: 3000ms;
   --x-spin-badge-size: 8px;
 }
-.${J}.${Y}::after {
+.${Y}.${X}::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -726,9 +725,9 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
-  animation: ${Z} var(--x-spin-duration) linear infinite;
+  animation: ${Q} var(--x-spin-duration) linear infinite;
 }
-.${J}.${Zt}.${Y}::after {
+.${Y}.${qt}.${X}::after {
   /* badge 徽标形态：载体缩为宿主右上角正圆（圆心恰在角点），实底圆点 + 色环画在角标圆内 */
   inset: auto;
   top: calc(-1 * var(--x-spin-badge-size) / 2);
@@ -739,18 +738,18 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   background: var(--x-spin-color);
   z-index: 2147483647;
 }
-.${J}.${X(`rotate`)}.${Y}::after {
-  background: ${Q(`rotate`)};
+.${Y}.${Z(`rotate`)}.${X}::after {
+  background: ${$(`rotate`)};
 }
-.${J}.${X(`beam`)}.${Y}::after {
-  background: ${Q(`beam`)};
+.${Y}.${Z(`beam`)}.${X}::after {
+  background: ${$(`beam`)};
 }
-.${J}.${X(`chase`)}.${Y}::after {
-  background: ${Q(`chase`)};
+.${Y}.${Z(`chase`)}.${X}::after {
+  background: ${$(`chase`)};
 }
 @media (prefers-reduced-motion: reduce) {
-  .${J}.${Y}::after { animation: none; }
-}`,document.head.appendChild(e)}function tn(e,t){let n={...Yt};if(!e)return n;let r=pt(e,qt,t,`x-spin`);e.type!==void 0&&(qt.includes(e.type)?r.add(e.type):t(`x-spin: type 取值非法（${JSON.stringify(e.type)}），已回退 "beam"`));let i=Kt.find(e=>r.has(e));return i&&(n.type=i),mt(e,Jt,`x-ripple`,t,`x-spin`),e.gap!==void 0&&t(`x-spin: gap 仅涟漪支持（x-spin 恒转无静止段），已忽略`),n.trigger=ft(e,t,`x-spin`),n.badge=ht(e,t,`x-spin`),n.color=gt(e.color,{color:R,badgeColor:lt},n.badge,t,`x-spin`),n.size=B(e,`size`,t,`x-spin`)??Yt.size,n.speed=dt(e,t,`x-spin`),n}var nn={hostClass:J,activeClass:Y,layerClass:Xt,ensureStyles:en,normalize:tn,hostClasses:e=>[X(e.type),...e.badge>0?[Zt]:[]],activeClasses:()=>[],animName:()=>Z,animationCss:(e,t)=>`${t} ${e.speed}ms linear infinite`,period:e=>e.speed,layerCount:()=>1,layerCssText:e=>e.badge>0?`${vt(e.badge)}${$t}background:${Q(e.type)};`:`${_t()}${$t}background:${Q(e.type)};`,applyVars:(e,t)=>{let n=e.style;n.setProperty(`--x-spin-color`,t.color||`var(--auto-theme-color, var(--autospark-spin-color, #009aff))`),n.setProperty(`--x-spin-size`,`${t.size}px`),n.setProperty(`--x-spin-duration`,`${t.speed}ms`),t.badge>0&&n.setProperty(`--x-spin-badge-size`,`${t.badge}px`)}};function rn(){St(xt(`spin`,nn))}rn();var an=`<!--
+  .${Y}.${X}::after { animation: none; }
+}`,document.head.appendChild(e)}function Zt(e,t){let n={...J};if(!e)return n;let r=pt(e,Wt,t,`x-spin`);e.type!==void 0&&(Wt.includes(e.type)?r.add(e.type):t(`x-spin: type 取值非法（${JSON.stringify(e.type)}），已回退 "beam"`));let i=Ut.find(e=>r.has(e));return i&&(n.type=i),mt(e,Gt,`x-ripple`,t,`x-spin`),e.gap!==void 0&&t(`x-spin: gap 仅涟漪支持（x-spin 恒转无静止段），已忽略`),n.trigger=ft(e,t,`x-spin`),n.badge=ht(e,t,`x-spin`),n.color=gt(e.color,{color:R,badgeColor:lt},n.badge,t,`x-spin`),n.size=B(e,`size`,t,`x-spin`)??J.size,n.speed=dt(e,t,`x-spin`),n}var Qt={hostClass:Y,activeClass:X,layerClass:Kt,ensureStyles:Xt,normalize:Zt,hostClasses:e=>[Z(e.type),...e.badge>0?[qt]:[]],activeClasses:()=>[],animName:()=>Q,animationCss:(e,t)=>`${t} ${e.speed}ms linear infinite`,period:e=>e.speed,layerCount:()=>1,layerCssText:e=>e.badge>0?`${vt(e.badge)}${Yt}background:${$(e.type)};`:`${_t()}${Yt}background:${$(e.type)};`,applyVars:(e,t)=>{let n=e.style;n.setProperty(`--x-spin-color`,t.color||`var(--auto-theme-color, var(--autospark-spin-color, #009aff))`),n.setProperty(`--x-spin-size`,`${t.size}px`),n.setProperty(`--x-spin-duration`,`${t.speed}ms`),t.badge>0&&n.setProperty(`--x-spin-badge-size`,`${t.badge}px`)}};function $t(){St(xt(`spin`,Qt))}$t();var en=`<!--
     化身路径约束（x-component T4=B）：组件快照根的属性是静态并入宿主（class 拼接 /
     style 合并 / 其他属性复制），根上的动态绑定不会求值——变体绑定须落在编译子树的
     内层元素上：宿主级外观（底色/边框/圆角等）经 body 上的 data-* 变体属性以 :has()
@@ -771,14 +770,19 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
      形成局部主题；base 缺省不写属性（继承祖先档位），theme 不在场静默无效。
      button 不得在 data() 重复声明这六键（子胜会静默击穿主题通道），裸名 size/dark 等留作
      组件自有语义；组件内部变体属性亦禁用这六个通道名（theme 在场时会被档位块意外命中） -->
-<button class="asc-button" x-define="autospark.button" x-define:inherit="autospark.base">
+<button
+  class="asc-button"
+  x-define="autospark.button"
+  x-define:inherit="autospark.base"
+>
   <script setup>
     {
         data: () => ({
             variant: "default",     // 形态：default 常规描边 | primary 实底 | secondary 次底 | dashed 虚线 | text 文本 | link 链接
             type: "primary",        // 语义色：primary | success | warning | danger | info（default 形态不消费，勾选态仍生效）
             label: "按钮",          // 兜底文案（插槽无内容时显示）
-            icon: "",               // 图标名或完整 x-icon-options 对象 { name, size, color, strokeWidth, padding, badge, button, pointer }（loading 时被替换）
+            iconPlacement: "start", // 图标位置：start 内容区前（横排左/纵排上）| end 内容区末（横排右/纵排下，并与 tags 互换）
+            icon: "",               // 图标名或图标选项对象 { name, size, color, strokeWidth, padding, button, pointer }（对齐 x-icon-options 词面，ADR-0135 后不含 shape）+ 自有角标键 badge（伪元素红点，标量三形态控板距；loading 时被替换）
             loading: false,         // 加载态：左图标位转圈并禁点（优先于 disabled 视觉）
             ghost: false,           // 幽灵：背景透明、内容取语义色（常用在有色背景上）
             border: false,          // 装饰性附加边框（不干预 dashed / ghost 的固有边框形态）
@@ -788,6 +792,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             autoInsertSpace: true,  // label 恰为两个汉字时自动插入空格
             shape: "default",       // default | circle（纯图标呈正圆，带文字自动呈胶囊）
             labelBelow: false,      // label 显示在图标下方（纵排）
+            wrap: false,            // label 换行：false 单行溢出省略号（截断时自动挂 title，宿主显式 title 优先）；true 折行（按钮高度随行数增长）
             value: false,           // 勾选值（checkable 模式；等于 checkValues[0] 时为选中态）
             checkable: false,       // 可勾选模式：点击自动翻转 value 并冒泡 change 事件；化身 checkbox（x-model 可绑宿主，见 mounted 桥）
             checkValues: [true, false], // 勾选二元组 [checked 值, unchecked 值]（任意类型，严格相等判定）
@@ -843,6 +848,27 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             setTimeout(syncIconStyle, 0); // mounted 时化身子树可能尚未挂载（span 不可查），一跳后再同步
             this.watch("icon", () => { setTimeout(syncIconStyle, 0); });
 
+            // label 溢出自动挂 title（ADR-0012 补记）：纯静态检测——mounted 一跳首查 + label / wrap
+            // 变化时重查，不引入 ResizeObserver（按钮为高频组件，零观察资源；容器宽度单独变化后
+            // title 可能过期为已知温和妥协，CSS 截断本身自适应不受影响）。挂/摘规则：仅截断态挂
+            // （scrollWidth > clientWidth）、宿主显式 title 永不覆盖、溢出消失只摘自挂的（闭包标记）
+            let selfTitle = false;
+            const syncTitle = () => {
+                const span = this.el.querySelector(".asc-button-label");
+                if (!span) return;
+                if (span.scrollWidth > span.clientWidth) {
+                    if (this.el.title && !selfTitle) return; // 显式 title 在场，永不覆盖
+                    this.el.title = span.textContent; // label 变文本后仍溢出 → 同步换新文本
+                    selfTitle = true;
+                } else if (selfTitle) {
+                    this.el.removeAttribute("title");
+                    selfTitle = false;
+                }
+            };
+            setTimeout(syncTitle, 0);
+            this.watch("label", () => { setTimeout(syncTitle, 0); });
+            this.watch("wrap", () => { setTimeout(syncTitle, 0); });
+
             // checkable 桥（化身 checkbox）：宿主上 x-model 走 text 分型（读写 el.value + 监听 input）。
             // x-model 域恒布尔语域——el.value 只取 "true"/"false"（对齐原生 checkbox 的 checked 布尔语义，
             // 配 x-model.boolean 类型保真）；checkValues 任意值服务于 props value 通道与表单提交值
@@ -850,6 +876,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             // 未勾选不提交）。点击翻转写布尔语域后派发 input 回写 state。
             // 布尔语域使默认组与注入组的字符串解释一致——props 晚注入的时序天然免疫。
             if (this.data.checkable) {
+                this.el.classList.add("asc-check-" + this.data.checkStyle);
                 const proto = Object.getOwnPropertyDescriptor(HTMLButtonElement.prototype, "value");
                 const real = document.createElement("input");
                 real.type = "checkbox";
@@ -858,7 +885,10 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
                 const nameAttr = this.el.getAttribute("name");
                 if (nameAttr != null) real.name = nameAttr;
                 this.el.appendChild(real);
-                const applyChecked = (on) => { const [onV, offV] = vals(); this.data.value = on ? onV : offV; real.checked = !!on; };
+                // 勾选态同步 JS class（.asc-checked / .asc-check-<style>）：宿主级勾选规则一律 class 驱动——
+                // Chromium :active 粘滞期间 :has(属性变化) 不重算（点击描边延迟到下次交互才现的根因），
+                // class 变化是强失效信号，绕开该失效雷；checkStyle 静态一次性挂
+                const applyChecked = (on) => { const [onV, offV] = vals(); this.data.value = on ? onV : offV; real.checked = !!on; this.el.classList.toggle("asc-checked", !!on); };
                 Object.defineProperty(this.el, "value", {
                     get: () => proto.get.call(this.el),
                     set: (v) => { proto.set.call(this.el, v); applyChecked(v === "true"); },
@@ -913,22 +943,23 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     }
   <\/script>
   <style global id="autospark-components-button">
-    /* 主题化（ADR-0129）：三级回退链 var(--auto-X, var(--asc-button-X, 校准兜底值))；
-         --asc-button-* 前缀保留（既有覆盖面零改名）；实底上的白字非映射（恒定设计）；
-         尺寸不设组件级档位——字号/圆角/图标消费 theme 变量，内距以 --auto-padding 为基准（data-spacing 档位
-         全局调节生效），data-size / data-spacing 档位切换自动跟随；暗色兜底变体见块尾 */
-
-    /* ---------- 宿主基础：形态中转变量层（--asc-bg/ink/line 由各变体块注入，一处消费） ---------- */
     .asc-button {
-      --asc-tone: var(--auto-primary-color, var(--asc-button-primary, #009aff)); /* 语义色中转（data-type 注入） */
+      --asc-tone: var(
+        --auto-primary-color,
+        var(--asc-button-primary, #009aff)
+      ); /* 语义色中转（data-type 注入） */
       --asc-bg: transparent;
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
       --asc-line: transparent;
       /* 内距基准：消费 --auto-padding（--auto-spacing 速写族）——容器 data-spacing 档位全局调节生效 */
       --asc-pad: var(--auto-padding, var(--asc-button-padding, 0.8rem));
       display: inline-flex;
-      border: var(--auto-border-size, var(--asc-button-border-size, 1px)) solid var(--asc-line);
-      border-radius: var(--auto-border-radius, var(--asc-button-radius, 0.5rem));
+      border: var(--auto-border-size, var(--asc-button-border-size, 1px)) solid
+        var(--asc-line);
+      border-radius: var(
+        --auto-border-radius,
+        var(--asc-button-radius, 0.5rem)
+      );
       background: var(--asc-bg);
       color: var(--asc-ink);
       font: inherit;
@@ -937,15 +968,17 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       padding: calc(var(--asc-pad) * 0.55) calc(var(--asc-pad) * 0.8);
       cursor: pointer;
       user-select: none;
-      transition: filter 0.15s ease, background-color 0.15s ease;
+      transition:
+        filter 0.15s ease,
+        background-color 0.15s ease;
     }
-
-    /* ---------- 装饰性边框开关（先于形态/ghost——只落在本就无边的形态上，Q4 语义） ---------- */
     .asc-button:has(> .asc-button-body[data-border="true"]) {
-      --asc-line: var(--auto-border-color, var(--asc-button-border-color, #d9d9d9));
+      --asc-line: var(
+        --auto-border-color,
+        var(--asc-button-border-color, #d9d9d9)
+      );
     }
 
-    /* ---------- 语义色 → tone 注入（五种） ---------- */
     .asc-button:has(> .asc-button-body[data-type="primary"]) {
       --asc-tone: var(--auto-primary-color, var(--asc-button-primary, #009aff));
     }
@@ -961,29 +994,35 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     .asc-button:has(> .asc-button-body[data-type="info"]) {
       --asc-tone: var(--auto-info-color, var(--asc-button-info, #71717a));
     }
-
-    /* ---------- 形态（variant）→ 底/字/边注入 ---------- */
-    /* default：常规按钮（缺省形态）——面板实色底 + 正文色、无边框（描边完全交 border prop 开关）；
-         与 secondary（次级淡底）以底色层次区分；非 primary 语义色呈语义描边与文字 */
     .asc-button:has(> .asc-button-body[data-variant="default"]) {
       --asc-bg: var(--auto-bgcolor, var(--asc-button-bg, #ffffff));
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
     }
-    .asc-button:has(> .asc-button-body[data-variant="default"][data-type="success"]),
-    .asc-button:has(> .asc-button-body[data-variant="default"][data-type="warning"]),
-    .asc-button:has(> .asc-button-body[data-variant="default"][data-type="danger"]),
-    .asc-button:has(> .asc-button-body[data-variant="default"][data-type="info"]) {
+    .asc-button:has(
+      > .asc-button-body[data-variant="default"][data-type="success"]
+    ),
+    .asc-button:has(
+      > .asc-button-body[data-variant="default"][data-type="warning"]
+    ),
+    .asc-button:has(
+      > .asc-button-body[data-variant="default"][data-type="danger"]
+    ),
+    .asc-button:has(
+      > .asc-button-body[data-variant="default"][data-type="info"]
+    ) {
       --asc-ink: var(--asc-tone);
       --asc-line: var(--asc-tone);
     }
-    /* primary：实底语义色 + 反白字 */
     .asc-button:has(> .asc-button-body[data-variant="primary"]) {
       --asc-bg: var(--asc-tone);
       --asc-ink: #fff;
     }
     /* secondary：次级底 + 正文色（描边交给 border 开关） */
     .asc-button:has(> .asc-button-body[data-variant="secondary"]) {
-      --asc-bg: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(245, 245, 245, 0.45)));
+      --asc-bg: var(
+        --auto-secondary-bgcolor,
+        var(--asc-button-bg, rgba(245, 245, 245, 0.45))
+      );
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
     }
     /* dashed：透明底 + 语义色虚线边 + 语义色字 */
@@ -1019,18 +1058,23 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       --asc-ink: var(--auto-color, var(--asc-button-color, #606060));
       display: flex;
       width: 100%;
-      border-radius: var(--auto-border-radius, var(--asc-button-radius, 0.375rem));
+      border-radius: var(
+        --auto-border-radius,
+        var(--asc-button-radius, 0.375rem)
+      );
       padding: calc(var(--asc-pad) * 0.55) calc(var(--asc-pad) * 0.6);
       text-align: left;
     }
 
     /* ---------- 勾选渲染（checkStyle）：指示色统一 --asc-tone（theme 主色，type 非默认时语义色） ---------- */
     /* solid（默认）：勾选 = tone 实底 + 反白字 */
-    .asc-button:has(> .asc-button-body[data-check-style="solid"][data-checked="true"]),
-    .asc-button:has(> .asc-button-body:not([data-check-style])[data-checked="true"]) {
-      --asc-bg: var(--asc-tone);
-      --asc-ink: #fff;
-      --asc-line: transparent;
+    .asc-button.asc-checked.asc-check-solid,
+    .asc-button:has(
+      > .asc-button-body:not([data-check-style])[data-checked="true"]
+    ) {
+      --asc-bg: var(--asc-tone) !important;
+      --asc-ink: #fff !important;
+      --asc-line: transparent !important;
     }
     /* icon：最左 1.2em 固定占位（未勾选留空、无布局跳动），勾选显 tone 色 yes 指示；
          背景维持原 variant 形态（Q12：仅指示器变化） */
@@ -1048,42 +1092,65 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       font-size: 0.9em;
       font-weight: bold;
     }
-    .asc-button:has(> .asc-button-body[data-check-style="icon"][data-checked="true"]) .asc-button-body[data-check-style="icon"]::before {
+    .asc-button:has(
+        > .asc-button-body[data-check-style="icon"][data-checked="true"]
+      )
+      .asc-button-body[data-check-style="icon"]::before {
       content: "✓";
     }
     /* corner：勾选 = tone 描边 outline + 右上角 tone 小三角内嵌反白小勾；背景维持原 variant。
-         三角挂宿主伪元素、两直角边长 = 宿主圆角半径（弦线跨过圆角弧——紧贴描边右上角且圆角下不悬空），
-         圆角档位切换自动跟随 */
-    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"]) {
-      outline: 2px solid var(--asc-tone);
-      outline-offset: -2px;
+         三角 = 渐变盒（对角线分割、右上半着色）越出盒外 1px 与外描边同色融合（弧线无缝相接）；
+         尺寸 = min(圆角半径 ×2.5, 2.5em, 按钮高 50%)——高度基准 + aspect-ratio 方形推导，
+         超过按钮高一半时以 50% 封顶；圆角档位切换自动跟随 */
+    .asc-button.asc-checked.asc-check-corner {
+      --asc-corner: min(
+        calc(var(--auto-border-radius, 0.5rem) * 2.5),
+        2.5em,
+        50%
+      ) !important;
+      /* 外描边（默认 offset 0，画在盒外）——不受涟漪载体（inset:0 覆盖盒内）播放期色块遮挡 */
+      box-shadow: 0 0 0 1px var(--asc-tone) !important; /* 外描边走 box-shadow（视觉等价 outline、跟随圆角、绘制路径独立，规避 outline 重绘问题 */
     }
-    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"])::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 0;
-      height: 0;
-      border-top: var(--auto-border-radius, 0.5rem) solid var(--asc-tone);
-      border-left: var(--auto-border-radius, 0.5rem) solid transparent;
-      z-index: 1;
+    .asc-button.asc-checked.asc-check-corner::after {
+      content: "" !important;
+      position: absolute !important;
+      top: -1px !important;
+      right: -1px !important;
+      height: calc(var(--asc-corner) + 1px) !important;
+      aspect-ratio: 1 / 1 !important;
+      border-top-right-radius: min(
+        calc(var(--auto-border-radius, 0.5rem) + 1px),
+        1.4em
+      );
+      background: linear-gradient(
+        to bottom left,
+        var(--asc-tone) 49.5%,
+        transparent 50%
+      );
+      z-index: 1 !important;
     }
-    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"])::before {
-      content: "";
-      position: absolute;
-      top: calc(var(--auto-border-radius, 0.5rem) * 0.22);
-      right: calc(var(--auto-border-radius, 0.5rem) * 0.3);
-      z-index: 2;
-      width: 0.34em;
-      height: 0.18em;
-      border-left: 1.5px solid var(--auto-bgcolor, #fff);
-      border-bottom: 1.5px solid var(--auto-bgcolor, #fff);
-      transform: rotate(-45deg);
+    /* 反白小勾：定位于三角重心（对角线中点向直角方向）——系数基准同 --asc-corner（含 50% 高度
+         上限同步缩放），-1px 补偿三角盒越出量，确保落在三角内部 */
+    .asc-button.asc-checked.asc-check-corner::before {
+      content: "" !important;
+      position: absolute !important;
+      top: calc(var(--asc-corner) * 0.24 - 1px) !important;
+      right: calc(var(--asc-corner) * 0.14 - 1px) !important;
+      z-index: 2 !important;
+      width: calc(var(--asc-corner) * 0.36) !important;
+      aspect-ratio: 2 / 1 !important;
+      border-left: 1.5px solid var(--auto-bgcolor, #fff) !important;
+      border-bottom: 1.5px solid var(--auto-bgcolor, #fff) !important;
+      transform: rotate(-45deg) !important;
+    }
+    /* 按压预览（corner 按压即预显描边——松手勾选正式化、按住拖出取消随按压消失；
+         化解「松手才见描边」的迟滞感，涟漪芯在盒内与此描边（盒外）无覆盖冲突） */
+    .asc-button.asc-check-corner:active:not([disabled]):not(.asc-checked) {
+      box-shadow: 0 0 0 1px var(--asc-tone) !important; /* 外描边走 box-shadow（视觉等价 outline、跟随圆角、绘制路径独立，规避 outline 重绘问题 */
     }
     /* 三角/描边定位基准（宿主需定位上下文；x-ripple 的 .x-ripple 已有 relative 兜底，此处显式自持） */
-    .asc-button:has(> .asc-button-body[data-check-style="corner"][data-checked="true"]) {
-      position: relative;
+    .asc-button.asc-checked.asc-check-corner {
+      position: relative !important;
     }
 
     /* ---------- 形状（shape）：circle 恒胶囊半径——纯图标时内容等宽高自然呈正圆，带文字自动胶囊 ---------- */
@@ -1106,14 +1173,27 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       filter: brightness(0.9);
     }
     /* text / link / ghost / menu 淡形态：亮度反馈无感，改用悬停淡底 */
-    .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not([disabled]),
-    .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not([disabled]),
-    .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not([disabled]),
-    .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not([disabled]) {
+    .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not(
+        [disabled]
+      ),
+    .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not(
+        [disabled]
+      ),
+    .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not(
+        [disabled]
+      ),
+    .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not(
+        [disabled]
+      ) {
       filter: none;
-      background: var(--auto-hover-bgcolor, var(--asc-button-hover-bg, rgba(0, 0, 0, 0.05)));
+      background: var(
+        --auto-hover-bgcolor,
+        var(--asc-button-hover-bg, rgba(0, 0, 0, 0.05))
+      );
     }
-    .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not([disabled]) {
+    .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not(
+        [disabled]
+      ) {
       text-decoration: underline;
     }
     .asc-button[disabled] {
@@ -1136,17 +1216,33 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       width: 100%;
       min-width: 0;
     }
-    .asc-button-body[data-align="left"] { justify-content: flex-start; }
-    .asc-button-body[data-align="right"] { justify-content: flex-end; }
-    .asc-button-body[data-menu="true"] { justify-content: flex-start; } /* 菜单项恒左对齐 */
-    .asc-button-body[data-menu="true"] .asc-button-main { align-items: flex-start; } /* label/memo 文本亦居左（与 memo 折行/短 label 对齐左缘） */
-    .asc-button-body[data-label-below="true"] { flex-direction: column; gap: 0.15em; } /* label 纵排 */
+    .asc-button-body[data-align="left"] {
+      justify-content: flex-start;
+    }
+    .asc-button-body[data-align="right"] {
+      justify-content: flex-end;
+    }
+    .asc-button-body[data-menu="true"] {
+      justify-content: flex-start;
+    } /* 菜单项恒左对齐 */
+    .asc-button-body[data-menu="true"] .asc-button-main {
+      align-items: flex-start;
+    } /* label/memo 文本亦居左（与 memo 折行/短 label 对齐左缘） */
+    .asc-button-body[data-label-below="true"] {
+      flex-direction: column;
+      gap: 0.15em;
+    } /* label 纵排 */
 
     /* 图标位：尺寸随字号（x-icon 默认 1em），loading 转圈自带 SMIL 动画 */
     .asc-button-icon {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+    }
+    /* iconPlacement: end——图标（含 loading 位）移内容区末尾并与 tags 互换（icon 恒最末）；
+         横排 = 右侧、纵排（labelBelow）= 下方；checkStyle icon 的 yes 占位（body::before）恒最前不受影响 */
+    .asc-button-body[data-icon-placement="end"] .asc-button-icon {
+      order: 5;
     }
     /* 图标角标（icon.badge 标量三形态启用）：板 padding 承载留白，伪元素红点取 danger 语义色 */
     .asc-button-icon-badge {
@@ -1170,12 +1266,37 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       align-items: center;
       min-width: 0;
     }
+    /* label 单行截断（wrap 默认 false，ADR-0012 补记）：溢出显示省略号——截断只在按钮
+         宽度受约束时发生（block / menu / 容器挤压；inline-flex 收缩到内容宽永不触发）；
+         max-width 钳制是关键——nowrap 下 min-content 涨至全文宽，column flex 的
+         align-items 非 stretch 使 label 取 fit-content，无钳制会被 min-content 抬出
+         可用宽（截断失效）；截断发生时由 mounted 静态检测自动挂 title；wrap=true 回
+         折行（按钮高度随行数增长，显式声明才换行，防布局被意外撑开） */
+    .asc-button-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+    .asc-button-body[data-wrap="true"] .asc-button-label {
+      white-space: normal;
+    }
     /* 空内容不占位：纯图标用法（label 空）时出口与主文本组整体隐藏，消除 gap/行高占位；
          插槽有内容时出口非空不命中，不受影响 */
-    .asc-button-label:empty { display: none; }
-    .asc-button-main:has(> .asc-button-label:empty):not(:has(> .asc-button-memo)) { display: none; }
-    .asc-button-body[data-align="left"] .asc-button-main { align-items: flex-start; }
-    .asc-button-body[data-align="right"] .asc-button-main { align-items: flex-end; }
+    .asc-button-label:empty {
+      display: none;
+    }
+    .asc-button-main:has(> .asc-button-label:empty):not(
+        :has(> .asc-button-memo)
+      ) {
+      display: none;
+    }
+    .asc-button-body[data-align="left"] .asc-button-main {
+      align-items: flex-start;
+    }
+    .asc-button-body[data-align="right"] .asc-button-main {
+      align-items: flex-end;
+    }
 
     /* 备注：小一号 + 相对内容色的淡化（color-mix 跟随 --asc-ink，实底上自然呈淡白）；
          最多两行，超出截断显示省略号（line-clamp） */
@@ -1202,7 +1323,9 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       margin-left: 0.35em;
     }
     /* x-for 克隆载体盒消失，圆钮直接成为容器 flex 项 */
-    .asc-button-tag-item { display: contents; }
+    .asc-button-tag-item {
+      display: contents;
+    }
     .asc-button-tag {
       display: inline-flex;
       align-items: center;
@@ -1214,15 +1337,29 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       color: var(--asc-ink);
       cursor: pointer;
       /* 常态即与按钮主背景形成色差：按内容色派生淡底（实底上呈淡白、透明底上呈淡灰/淡语义色） */
-      background: color-mix(in srgb, var(--asc-ink, currentColor) 12%, transparent);
-      transition: background-color 0.15s ease, transform 0.1s ease;
+      background: color-mix(
+        in srgb,
+        var(--asc-ink, currentColor) 12%,
+        transparent
+      );
+      transition:
+        background-color 0.15s ease,
+        transform 0.1s ease;
     }
     .asc-button-tag:hover {
-      background: color-mix(in srgb, var(--asc-ink, currentColor) 28%, transparent);
+      background: color-mix(
+        in srgb,
+        var(--asc-ink, currentColor) 28%,
+        transparent
+      );
     }
     /* 按压反馈：底色加深 + 轻微缩放（松手经 transition 弹回） */
     .asc-button-tag:active {
-      background: color-mix(in srgb, var(--asc-ink, currentColor) 45%, transparent);
+      background: color-mix(
+        in srgb,
+        var(--asc-ink, currentColor) 45%,
+        transparent
+      );
       transform: scale(0.88);
     }
     .asc-button-tag-icon {
@@ -1235,7 +1372,10 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     [dark] .asc-button,
     [data-dark] .asc-button {
       --asc-ink: var(--auto-color, var(--asc-button-color, #fafafa));
-      --asc-bg: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(129, 129, 129, 0.45)));
+      --asc-bg: var(
+        --auto-secondary-bgcolor,
+        var(--asc-button-bg, rgba(129, 129, 129, 0.45))
+      );
     }
     [dark] .asc-button:has(> .asc-button-body[data-variant="primary"]),
     [data-dark] .asc-button:has(> .asc-button-body[data-variant="primary"]) {
@@ -1243,7 +1383,10 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     }
     [dark] .asc-button:has(> .asc-button-body[data-variant="secondary"]),
     [data-dark] .asc-button:has(> .asc-button-body[data-variant="secondary"]) {
-      --asc-bg: var(--auto-secondary-bgcolor, var(--asc-button-bg, rgba(129, 129, 129, 0.45)));
+      --asc-bg: var(
+        --auto-secondary-bgcolor,
+        var(--asc-button-bg, rgba(129, 129, 129, 0.45))
+      );
       --asc-ink: var(--auto-color, var(--asc-button-color, #fafafa));
     }
     [dark] .asc-button:has(> .asc-button-body[data-variant="default"]),
@@ -1271,32 +1414,78 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     [data-dark] .asc-button:has(> .asc-button-body[data-type="info"]) {
       --asc-tone: var(--auto-info-color, var(--asc-button-info, #a1a1aa));
     }
-    [dark] .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not([disabled]),
-    [dark] .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not([disabled]),
-    [dark] .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not([disabled]),
-    [dark] .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not([disabled]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not([disabled]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not([disabled]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not([disabled]),
-    [data-dark] .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not([disabled]) {
-      background: var(--auto-hover-bgcolor, var(--asc-button-hover-bg, rgba(255, 255, 255, 0.08)));
+    [dark]
+      .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not(
+        [disabled]
+      ),
+    [dark]
+      .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not(
+        [disabled]
+      ),
+    [dark]
+      .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not(
+        [disabled]
+      ),
+    [dark]
+      .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not(
+        [disabled]
+      ),
+    [data-dark]
+      .asc-button:has(> .asc-button-body[data-variant="text"]):hover:not(
+        [disabled]
+      ),
+    [data-dark]
+      .asc-button:has(> .asc-button-body[data-variant="link"]):hover:not(
+        [disabled]
+      ),
+    [data-dark]
+      .asc-button:has(> .asc-button-body[data-ghost="true"]):hover:not(
+        [disabled]
+      ),
+    [data-dark]
+      .asc-button:has(> .asc-button-body[data-menu="true"]):hover:not(
+        [disabled]
+      ) {
+      background: var(
+        --auto-hover-bgcolor,
+        var(--asc-button-hover-bg, rgba(255, 255, 255, 0.08))
+      );
     }
   </style>
   <!-- 变体数据属性全部承载在 body（编译子树内层元素，经 :has() 驱动宿主外观——见文件头注释）；
          indent（原始值）经 :style 加性内联（body 无 padding，不影响宿主内距） -->
-  <span class="asc-button-body"
-    :data-variant="variant" :data-type="type" :data-ghost="ghost" :data-border="border"
-    :data-shape="shape" :data-label-below="labelBelow" :data-align="align" :data-menu="menu"
-    :data-block="block" :data-checked="checkable && value === checkValues[0]" :data-loading="loading"
-    :data-check-style="checkable ? checkStyle : undefined"
-    :style="indent ? { paddingLeft: (typeof indent === 'number' ? indent + 'px' : indent) } : undefined">
+  <span
+    class="asc-button-body"
+    :data-variant="variant"
+    :data-type="type"
+    :data-ghost="ghost"
+    :data-border="border"
+    :data-shape="shape"
+    :data-label-below="labelBelow"
+    :data-wrap="wrap"
+    :data-align="align"
+    :data-menu="menu"
+    :data-block="block"
+    :data-checked="checkable && value === checkValues[0]"
+    :data-loading="loading"
+    :data-check-style="checkable ? checkStyle : undefined" :data-icon-placement="iconPlacement"
+    :style="indent ? { paddingLeft: (typeof indent === 'number' ? indent + 'px' : indent) } : undefined"
+  >
     <!-- loading 图标替换左图标位（字面量须带引号——裸 loading 会命中 data.loading 布尔值） -->
     <span class="asc-button-icon" x-if="loading" x-icon="'loading'"></span>
     <!-- icon 双形态：字符串 = 图标名；对象 = { name, size, color, strokeWidth, padding }——name 经 x-icon 值消费，
          视觉键由 mounted 的 syncIconStyle 以内联样式透传（与 x-icon 原生内联实现等价；
          绑定表达式通道对 props 晚注入不重算，故走 JS 同步通道） -->
-    <span class="asc-button-icon" x-if="!loading && typeof icon === 'string' && icon" x-icon="icon"></span>
-    <span class="asc-button-icon" x-if="!loading && typeof icon === 'object' && icon" x-icon="icon.name"></span>
+    <span
+      class="asc-button-icon"
+      x-if="!loading && typeof icon === 'string' && icon"
+      x-icon="icon"
+    ></span>
+    <span
+      class="asc-button-icon"
+      x-if="!loading && typeof icon === 'object' && icon"
+      x-icon="icon.name"
+    ></span>
     <span class="asc-button-main">
       <!-- 默认插槽出口：未提供内容时显示 {{ displayLabel }}（组件自身状态求值） -->
       <span class="asc-button-label" x-slot>{{ displayLabel }}</span>
@@ -1305,15 +1494,23 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-button-tags" x-if="tags && tags.length">
       <!-- x-for 宿主自身的绑定不被编译（ownsChildren 接管子树编译），故宿主为纯克隆载体，
              tag 圆钮与绑定（title/点击）在内层元素上，x-for locals（tag）在内层可见 -->
-      <span class="asc-button-tag-item" x-for="tag of tags" :key="tag.name || tag.icon">
-        <i class="asc-button-tag" :title="tag.tooltip" @click="onTagClick(tag, $event)">
+      <span
+        class="asc-button-tag-item"
+        x-for="tag of tags"
+        :key="tag.name || tag.icon"
+      >
+        <i
+          class="asc-button-tag"
+          :title="tag.tooltip"
+          @click="onTagClick(tag, $event)"
+        >
           <i class="asc-button-tag-icon" x-if="tag.icon" x-icon="tag.icon"></i>
         </i>
       </span>
     </span>
   </span>
 </button>
-`,$=`autospark.button`;function on(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}function sn(e){e.components[$]=an,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-button`))){let e=document.createElement(`button`),n=e=>e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase()),r=e=>/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e),i=[];for(let a of Array.from(t.attributes))a.name.startsWith(`:`)?i.push(`${r(n(a.name.slice(1)))}: (${a.value})`):a.name===`class`||a.name===`style`||a.name===`id`||a.name===`name`||a.name.startsWith(`data-`)||a.name.startsWith(`x-`)||a.name.startsWith(`@`)?e.setAttribute(a.name,a.value):i.push(`${r(n(a.name))}: ${JSON.stringify(on(a.value))}`);for(e.setAttribute(`x-component:${$}`,`{ ${i.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}cn();function cn(){k(e=>{g(e),sn(e)})}};
+`,tn=`autospark.button`;function nn(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}function rn(e){e.components[tn]=en,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-button`))){let e=document.createElement(`button`),n=e=>e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase()),r=e=>/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e),i=[];for(let a of Array.from(t.attributes))a.name.startsWith(`:`)?i.push(`${r(n(a.name.slice(1)))}: (${a.value})`):a.name===`class`||a.name===`style`||a.name===`id`||a.name===`name`||a.name.startsWith(`data-`)||a.name.startsWith(`x-`)||a.name.startsWith(`@`)?e.setAttribute(a.name,a.value):i.push(`${r(n(a.name))}: ${JSON.stringify(nn(a.value))}`);for(e.setAttribute(`x-component:${tn}`,`{ ${i.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}an();function an(){k(e=>{g(e),rn(e)})}};
     if (AutoSpark === undefined) {
         // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
         var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);
