@@ -68,13 +68,17 @@ icon 的**对象形态必须放外层状态再路径引用**（`:icon="iconConf"
 
 <demo html="components/button/icon.html"/>
 
-### 图标位置（iconPlacement）
+### 标签位置（labelPos）
 
-**类型**: `start | end`
+**类型**: `left | right | top | bottom | none`
 
-**默认**: `start`
+**默认**: `right`
 
-图标在内容区的位置：`start` 内容区前（横排左侧、纵排上方）、`end` 内容区末（**横排右侧、纵排 label 下方**，流向语义自然延伸）。组合规则：loading 图标随行；`end` 时与 tags **互换**（图标恒最末）；`check-style: icon` 的勾选占位恒最前不受影响。
+label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow` 两属性移除，迁移动作 `icon-placement="end"` → `label-pos="left"`、`label-below="true"` → `label-pos="bottom"`）：
+
+- `right`（默认）左图标右文字；`left` 图标移内容区末尾（横排右/纵排下），**并与 tags 互换**（图标恒最末），loading 图标随行；
+- `top` 文字在图标上方 / `bottom` 文字在图标下方（纵排）；`check-style: icon` 的勾选占位恒最前不受影响；
+- `none` **不显示文字区**（label + memo + 插槽内容一并隐藏）——宿主无显式提示时 **label 文本自动转挂悬停提示**（tooltip 插件在场挂 `data-tooltip`、缺席挂原生 `title`，显式提示优先）。
 
 <demo html="components/button/icon.html"/>
 
@@ -148,30 +152,6 @@ icon 的**对象形态必须放外层状态再路径引用**（`:icon="iconConf"
 
 <demo html="components/button/shape.html"/>
 
-### 纵排标签（labelBelow）
-
-**类型**: `boolean`
-
-**默认**: `false`
-
-将 label 显示在图标下方（纵排布局），工具栏 / 画布操作区常用形态。可与 memo（备注在 label 正下方）组合。
-
-<demo html="components/button/label-below.html"/>
-
-### 换行（wrap）
-
-**类型**: `boolean`
-
-**默认**: `false`（单行截断）
-
-label 单行显示，宽度受限时（block / menu / 容器挤压）溢出自动显示**省略号**；截断发生时自动在宿主挂**悬停提示**完整文案（宿主已有显式提示时**不覆盖**）——挂载属性双轨：页面已加载 [tooltip 插件](../guide/autospark-tooltip.md)时挂 `data-tooltip`（autospark tooltip 接管、样式统一），否则挂原生 `title`（浏览器黄框兜底）。`wrap: true` 解除截断自动折行——按钮高度随行数增长，可能撑开布局，**显式声明才换行**。
-
-::: tip
-溢出检测为静态（挂载与 label / wrap 变化时重查），容器宽度单独变化后提示可能过期（截断本身始终正确）；与 `shape: "circle"` 组合时折行呈竖长胶囊，视觉责任归使用者。
-:::
-
-<demo html="components/button/wrap.html"/>
-
 ### 备注（memo）
 
 **类型**: `string`
@@ -182,13 +162,27 @@ label 单行显示，宽度受限时（block / menu / 容器挤压）溢出自�
 
 <demo html="components/button/memo.html"/>
 
+### 文本换行（wrap）
+
+**类型**: `boolean`
+
+**默认**: `false`（单行）
+
+label 的换行控制——**默认单行**：宽度受限时（block / menu / 容器挤压）溢出自动显示**省略号**，按钮高度恒定；`wrap: true` 解除截断自动折行，按钮高度随行数增长（可能撑开布局，**显式声明才换行**）。宽度充裕的常规按钮收缩到内容宽，两种模式无差异。
+
+截断发生时自动在宿主挂**悬停提示**显示完整文案（挂载双轨：页面已加载 tooltip 插件挂 `data-tooltip`、缺席挂原生 `title`；宿主已有显式提示时**不覆盖**）。溢出检测为静态（挂载与 label / wrap 变化时重查），容器宽度单独变化后提示可能过期（截断本身始终正确）。
+
+wrap 只管 label——memo 保持两行截断不变；与 `shape: "circle"` 组合时折行呈竖长胶囊，视觉责任归使用者。
+
+<demo html="components/button/wrap.html"/>
+
 ### 标签组（tags）
 
-**类型**: `{ icon?: string, tooltip?: string, name?: string }[]`
+**类型**: `{ icon?: string, label?: string, tooltip?: string, styles?: string, classes?: string, value?: any, ripple?: boolean | object, shape?: none | circle | radius }[]`
 
 **默认**: `[]`
 
-在按钮最右侧渲染一组小一号的圆形小按钮，具有独立的点击事件（冒泡 `tag-click`，携带 `name`——详见「事件」）。tag 背景按按钮内容色派生（实底上呈淡白、透明底上呈淡灰、幽灵上呈淡语义色），与按钮主背景形成色差；`tooltip` 走原生 title 悬停提示。
+在按钮最右侧渲染一组小按钮，具有独立的点击事件（冒泡 `tag-click`，detail 平铺 `{ name, label, value, tag }`——详见「事件」）。键面：`icon` 图标；`label` 文字标签（在场呈**胶囊**形态）；`tooltip` 悬停提示；`styles` 额外内联样式（**cssText 字符串**）；`classes` 额外类名；`value` 使用者数据（**原样透传**进 detail，对象/数字皆可）；`ripple` tag 级涟漪（默认 false，经 ADR-0010 双属性挂载，未加载 autospark.ripple.js 静默无效）；`shape` 底板——默认 `none` **无背景**，`circle` 圆形底板 / `radius` 主题圆角底板（板色按内容色派生淡底，胶囊 tag 的 9999px 优先）。**图标与 label 恒 1rem**（不随字号档位）；tag 背景按按钮内容色派生（实底上呈淡白、透明底上呈淡灰、幽灵上呈淡语义色），与按钮主背景形成色差。
 
 ::: warning
 **嵌套对象 / 数组 props（tags、ripple、icon 的对象形态）必须放外层状态再路径引用**（`tags: myTags`、`ripple: myRipConf`、`:icon="iconConf"`）——props 字面量嵌套值存在引用比较层面的更新环缺陷（引擎侧修复中），**字面量写法会死锁页面**；原始值（布尔 / 字符串 / 数字）与路径引用不受影响。
@@ -334,9 +328,9 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 | --- | --- | --- | --- |
 | variant | `default \| primary \| secondary \| dashed \| text \| link` | `default` | 形态（常规面板底 / 实底 / 次级淡底 / 虚线 / 文本 / 链接） |
 | type | `primary \| success \| warning \| danger \| info` | `primary` | 语义色（与任意形态组合） |
-| label | `string` | `"按钮"` | 兜底文案（插槽无内容时显示） |
+| label | `string` | `"按钮"` | 兜底文案（插槽无内容时显示；labelPos none 时隐藏并转悬停提示） |
+| labelPos | `left | right | top | bottom | none` | `right` | label 在 icon 哪侧（left 与 tags 互换；none 隐藏文字区、label 转悬停提示） |
 | icon | `string \| object` | `''` | 图标名或配置对象 `{ name, size?, color?, strokeWidth?, padding? }`（对象须路径引用；loading 时被替换） |
-| iconPlacement | `start | end` | `start` | 图标位置（横排左/右、纵排映射上/下；end 与 tags 互换） |
 | loading | `boolean` | `false` | 加载态：图标位转圈并禁点 |
 | disabled | `boolean` | `false` | 禁用（同步宿主原生属性） |
 | ghost | `boolean` | `false` | 幽灵：透明底、语义色内容 |
@@ -345,7 +339,6 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 | align | `left \| center \| right` | `center` | 内容水平对齐 |
 | indent | `number \| string` | `0` | 内容额外左缩进（数字 px / CSS 值；菜单层级缩进常用） |
 | shape | `default \| circle` | `default` | 圆形（带文字自动胶囊） |
-| labelBelow | `boolean` | `false` | label 显示在图标下方 |
 | wrap | `boolean` | `false` | label 换行：false 单行溢出省略号（截断时自动挂悬停提示——tooltip 插件在场挂 data-tooltip、缺席挂原生 title，显式提示优先）；true 折行（按钮高度随行数增长） |
 | memo | `string` | `''` | label 下方备注（小一号、淡化） |
 | tags | `{icon?, tooltip?, name?}[]` | `[]` | 右侧小圆钮组（点击冒泡 tag-click） |

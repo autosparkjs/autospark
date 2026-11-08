@@ -12,9 +12,11 @@
 
 ## 决策
 
-### 决策 1：原生滚动保留的 overlay 路线（内核与参考库分道）
+### 决策 1：原生滚动保留的 overlay 路线（内核与参考库分道；2026-11-08 修订——wheel 接管）
 
-宿主保留原生 `overflow:auto`，经 `scrollbar-width:none`（标准）+ `::-webkit-scrollbar{display:none}`（Chromium/Safari）隐藏原生滚动条，注入 rail/thumb overlay 层；`scroll` 事件 + ResizeObserver 同步位置。滚轮惯性、触摸、键盘滚动、无障碍**全部免费**，零滚动物理补偿参数。「参考 perfect-scrollbar」界定为取其视觉与显隐交互，不取其 `overflow:hidden` 内核。
+宿主保留原生 `overflow:auto`，经 `scrollbar-width:none`（标准）+ `::-webkit-scrollbar{display:none}`（Chromium/Safari）隐藏原生滚动条，注入 rail/thumb overlay 层；`scroll` 事件 + ResizeObserver 同步位置。触摸、键盘滚动、无障碍原生免费。「参考 perfect-scrollbar」界定为取其视觉与显隐交互，不取其 `overflow:hidden` 内核。
+
+> **修订（2026-11-08）**：原决策承诺「滚轮惯性原生免费、零滚动物理补偿」。实测推翻——原生滚动走**合成线程**，轨道补偿经 scroll 事件回**主线程**恒滞后一帧，滚轮每格滚动滑块「先随轨道被内容带走、补偿到达再弹回」（用户实测回跳跳动；`will-change` 提合成层只减重排不减事件延迟）。根治 = **wheel 接管**：`preventDefault` + rAF 平滑逼近目标（每帧收敛 0.25，内置系数不开配置键），滚动写入与轨道补偿**同帧**完成。放行边界：缩放手势（ctrlKey）/ 对应轴未溢出 / 已滚到边界方向（交还父级冒泡滚动，嵌套容器行为不破坏）/ 拖拽中。键盘与程序化滚动仍走原生路径（补偿滞后一帧；键盘滚动时滚动条不显示，无视觉暴露）。e2e 逐帧采样断言滑块视觉位置单调无回跳。
 
 ### 决策 2：交互默认启用、无开关
 

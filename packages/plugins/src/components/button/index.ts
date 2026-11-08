@@ -77,6 +77,7 @@ function mountButtonPlugin(autospark: typeof AutoSpark): void {
                     attr.name === "style" ||
                     attr.name === "id" ||
                     attr.name === "name" ||
+                    attr.name === "title" || // HTML 全局提示属性——保留给宿主（labelPos none / 溢出双轨挂载的「显式提示优先」判定读它）
                     attr.name.startsWith("data-") ||
                     attr.name.startsWith("x-") || // 指令/选项族（x-model、x-on 等）留给引擎编译消费
                     attr.name.startsWith("@"); // 事件绑定（注意：宿主化身封闭域求值，外层状态事件仍应写包裹元素）

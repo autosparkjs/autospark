@@ -32,8 +32,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         data: () => ({
             variant: "default",     // 形态：default 常规描边 | primary 实底 | secondary 次底 | dashed 虚线 | text 文本 | link 链接
             type: "primary",        // 语义色：primary | success | warning | danger | info（default 形态不消费，勾选态仍生效）
-            label: "按钮",          // 兜底文案（插槽无内容时显示）
-            iconPlacement: "start", // 图标位置：start 内容区前（横排左/纵排上）| end 内容区末（横排右/纵排下，并与 tags 互换）
+            label: "按钮",          // 兜底文案（插槽无内容时显示；labelPos none 时隐藏并自动转入悬停提示）
+            labelPos: "right",       // label 在 icon 的哪侧：right 左图标右文字（默认）| left 右图标左文字（与 tags 互换）| top 文字上 | bottom 文字下 | none 不显示文字（label 转悬停提示）
             icon: "",               // 图标名或图标选项对象 { name, size, color, strokeWidth, padding, button, pointer }（对齐 x-icon-options 词面，ADR-0135 后不含 shape）+ 自有角标键 badge（伪元素红点，标量三形态控板距；loading 时被替换）
             loading: false,         // 加载态：左图标位转圈并禁点（优先于 disabled 视觉）
             ghost: false,           // 幽灵：背景透明、内容取语义色（常用在有色背景上）
@@ -43,7 +43,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             ripple: true,           // 点击涟漪（默认开启；页面需已加载 autospark.ripple.js，未加载时静默跳过；ADR-0010）
             autoInsertSpace: true,  // label 恰为两个汉字时自动插入空格
             shape: "default",       // default | circle（纯图标呈正圆，带文字自动呈胶囊）
-            labelBelow: false,      // label 显示在图标下方（纵排）
             wrap: false,            // label 换行：false 单行溢出省略号（截断时自动挂 title，宿主显式 title 优先）；true 折行（按钮高度随行数增长）
             value: false,           // 勾选值（checkable 模式；等于 checkValues[0] 时为选中态）
             checkable: false,       // 可勾选模式：点击自动翻转 value 并冒泡 change 事件；化身 checkbox（x-model 可绑宿主，见 mounted 桥）
@@ -52,17 +51,18 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             align: "center",        // 内容水平对齐：left | center | right
             indent: 0,              // 内容额外左缩进（数字 px 或任意 CSS 值如 "2em"）；菜单层级缩进常用
             memo: "",               // label 下方的备注（小一号、淡色）
-            tags: [],               // 右侧小圆钮 {icon?,tooltip?,name?}[]；点击冒泡 tag-click 事件
+            tags: [],               // 右侧小圆钮 {icon?, label?, tooltip?, styles?(cssText), classes?, value?, ripple?, shape?}[]——label 呈胶囊（图标与文字恒 1rem）；value 原样透传进 tag-click detail；ripple 默认 false；shape 默认 none 无背景，circle/radius 呈底板
             menu: false,            // 菜单项形态：占满宽、透明底、左对齐、hover 淡底
             // computed 简写（普通函数值即计算属性，仅限单表达式）：autoInsertSpace 开启且
             // label 恰为两个汉字时中间插入空格
             displayLabel: (s) => (s.autoInsertSpace && /^[一-龥]{2}$/.test(s.label ?? "")) ? (s.label[0] + " " + s.label[1]) : s.label
         }),
         methods: {
-            // tag 小圆钮点击：阻断冒泡（不触发宿主 checkable 翻转），冒泡 tag-click 携带 name
+            // tag 小圆钮点击：阻断冒泡（不触发宿主 checkable 翻转），冒泡 tag-click——detail 平铺
+            // name（标识）/ label（文字）/ value（使用者数据，原样透传不做处理）+ tag 整对象
             onTagClick(tag, event) {
                 event.stopPropagation();
-                this.el.dispatchEvent(new CustomEvent("tag-click", { bubbles: true, detail: { name: tag.name, tag } }));
+                this.el.dispatchEvent(new CustomEvent("tag-click", { bubbles: true, detail: { name: tag.name, label: tag.label, value: tag.value, tag } }));
             }
         },
         mounted() {
@@ -100,6 +100,24 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             setTimeout(syncIconStyle, 0); // mounted 时化身子树可能尚未挂载（span 不可查），一跳后再同步
             this.watch("icon", () => { setTimeout(syncIconStyle, 0); });
 
+            // tag 级涟漪（默认 false，显式开启）：ADR-0010 双属性通道动态挂载到各 tag 元素——
+            // x-for 渲染后扫挂；ripple 为 true/对象时同宿主缺省 { trigger: "click", inside: true }
+            // 并可被对象覆盖；页面未加载 autospark.ripple.js 时属性无人消费、静默无效
+            const syncTagRipples = () => {
+                const els = this.el.querySelectorAll(".asc-button-tag");
+                els.forEach((el, idx) => {
+                    const conf = (this.data.tags || [])[idx]?.ripple;
+                    el.removeAttribute("x-ripple");
+                    el.removeAttribute("x-ripple-options");
+                    if (conf) {
+                        el.setAttribute("x-ripple-options", JSON.stringify(typeof conf === "object" ? { trigger: "click", inside: true, ...conf } : { trigger: "click", inside: true }));
+                        el.setAttribute("x-ripple", "");
+                    }
+                });
+            };
+            setTimeout(syncTagRipples, 0);
+            this.watch("tags", () => { setTimeout(syncTagRipples, 0); });
+
             // label 溢出自动挂提示（ADR-0012 补记，双轨修订）：纯静态检测——mounted 一跳首查 +
             // label / wrap 变化时重查，不引入 ResizeObserver（按钮为高频组件，零观察资源；容器宽度
             // 单独变化后提示可能过期为已知温和妥协，CSS 截断本身自适应不受影响）。
@@ -110,6 +128,13 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             const tipAttr = this.engine?.tooltip?.enabled ? "data-tooltip" : "title";
             let selfTip = false;
             const syncTip = () => {
+                // labelPos none：label 不渲染（main 整体隐藏）——宿主无显式提示时 label 文本转挂（双轨同 attr）
+                if (this.data.labelPos === "none") {
+                    if (this.el.getAttribute(tipAttr) && !selfTip) return; // 显式提示在场，永不覆盖
+                    this.el.setAttribute(tipAttr, String(this.data.label ?? ""));
+                    selfTip = true;
+                    return;
+                }
                 const span = this.el.querySelector(".asc-button-label");
                 if (!span) return;
                 if (span.scrollWidth > span.clientWidth) {
@@ -124,6 +149,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             setTimeout(syncTip, 0);
             this.watch("label", () => { setTimeout(syncTip, 0); });
             this.watch("wrap", () => { setTimeout(syncTip, 0); });
+            this.watch("labelPos", () => { setTimeout(syncTip, 0); });
 
             // checkable 桥（化身 checkbox）：宿主上 x-model 走 text 分型（读写 el.value + 监听 input）。
             // x-model 域恒布尔语域——el.value 只取 "true"/"false"（对齐原生 checkbox 的 checked 布尔语义，
@@ -484,10 +510,15 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-button-body[data-menu="true"] .asc-button-main {
       align-items: flex-start;
     } /* label/memo 文本亦居左（与 memo 折行/短 label 对齐左缘） */
-    .asc-button-body[data-label-below="true"] {
+    .asc-button-body[data-label-pos="top"],
+    .asc-button-body[data-label-pos="bottom"] {
       flex-direction: column;
       gap: 0.15em;
-    } /* label 纵排 */
+    } /* label 纵排（top = 文字上/图标下；bottom = 图标上/文字下） */
+    /* labelPos top：文字在图标上方（main 排 icon 前） */
+    .asc-button-body[data-label-pos="top"] .asc-button-icon {
+      order: 2;
+    }
 
     /* 图标位：尺寸随字号（x-icon 默认 1em），loading 转圈自带 SMIL 动画 */
     .asc-button-icon {
@@ -495,9 +526,9 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       align-items: center;
       justify-content: center;
     }
-    /* iconPlacement: end——图标（含 loading 位）移内容区末尾并与 tags 互换（icon 恒最末）；
-         横排 = 右侧、纵排（labelBelow）= 下方；checkStyle icon 的 yes 占位（body::before）恒最前不受影响 */
-    .asc-button-body[data-icon-placement="end"] .asc-button-icon {
+    /* labelPos left：图标（含 loading 位）移内容区末尾并与 tags 互换（icon 恒最末）；
+         横排 = 右侧、纵排 = 下方；checkStyle icon 的 yes 占位（body::before）恒最前不受影响 */
+    .asc-button-body[data-label-pos="left"] .asc-button-icon {
       order: 5;
     }
     /* 图标角标（icon.badge 标量三形态启用）：板 padding 承载留白，伪元素红点取 danger 语义色 */
@@ -575,7 +606,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     /* tags 小圆钮：右侧小一号圆形，独立 hover 反馈 */
     .asc-button-tags {
       display: inline-flex;
-      gap: 0.25em;
+      gap: 0.15em;
       margin-left: 0.35em;
     }
     /* x-for 克隆载体盒消失，圆钮直接成为容器 flex 项 */
@@ -586,21 +617,17 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 1.8em;
-      height: 1.8em;
-      font-size: 0.75em;
+      gap: 0.25em;
+      height: 1.8rem;
+      width: 1.8rem; /* 无 label 恒正圆（等宽高）；带 label 被胶囊规则放开 */
+      padding: 0;
+      font-size: 1rem; /* 图标与 label 恒 1rem——不随 data-size 档位（视觉稳定优先） */
       border-radius: 50%;
       color: var(--asc-ink);
       cursor: pointer;
       /* 常态即与按钮主背景形成色差：按内容色派生淡底（实底上呈淡白、透明底上呈淡灰/淡语义色） */
-      background: color-mix(
-        in srgb,
-        var(--asc-ink, currentColor) 12%,
-        transparent
-      );
-      transition:
-        background-color 0.15s ease,
-        transform 0.1s ease;
+      background: transparent; /* 常态无背景（shape 默认 none）；shape 板色见后续规则 */
+      transition: background-color 0.15s ease, transform 0.1s ease;
     }
     .asc-button-tag:hover {
       background: color-mix(
@@ -608,6 +635,25 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         var(--asc-ink, currentColor) 28%,
         transparent
       );
+    }
+    /* shape 底板（默认 none 无背景）：circle 圆形底板 / radius 主题圆角底板——板色按内容色
+         派生淡底（与按钮主背景形成层次）；胶囊 tag 的 9999px 规则后位覆盖 radius 呈胶囊板 */
+    .asc-button-tag[data-shape="circle"],
+    .asc-button-tag[data-shape="radius"] {
+      background: color-mix(in srgb, var(--asc-ink, currentColor) 12%, transparent);
+    }
+    .asc-button-tag[data-shape="radius"] {
+      border-radius: var(--auto-border-radius, 0.25rem);
+    }
+    /* 带 label 的 tag 呈胶囊：放开定宽随内容、横向 padding 撑开；label 恒 1rem 继承 */
+    .asc-button-tag:has(> .asc-button-tag-label) {
+      width: auto;
+      padding: 0 0.6rem;
+      border-radius: 9999px;
+    }
+    .asc-button-tag-label {
+      line-height: 1;
+      white-space: nowrap;
     }
     /* 按压反馈：底色加深 + 轻微缩放（松手经 transition 弹回） */
     .asc-button-tag:active {
@@ -618,24 +664,28 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       );
       transform: scale(0.88);
     }
-    .asc-button-tag-icon {
-      display: inline-flex;
-      width: 1em;
-      height: 1em;
+    /* tag 图标钉死 1rem：不消费 --auto-icon-size（theme 档位 1.2× 会放大）也不随 data-size——
+         tag 为紧凑小圆钮图标恒小；.as-icon 双类选择器（0,2,0）压过引擎 .as-icon 基础规则
+         （同特异性但 icon 样式表惰性后注入），svg 撑满宿主规则一并覆盖 */
+    .asc-button-tag-icon.as-icon,
+    .asc-button-tag-icon.as-icon > svg {
+      width: 1rem;
+      height: 1rem;
     }
 
     /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
     [dark] .asc-button,
     [data-dark] .asc-button {
+      /* 只兜字色——bg 不在此兜底：各 variant 的专属 dark 块已承接（default/secondary 有暗色底、
+         primary 恒 tone）；通配 bg 会以同特异性后位覆盖 primary 形态的 --asc-bg: var(--asc-tone)，
+         dark 下 secondary-bgcolor 派生为主题系色 → 所有语义色实底钮同色（本次修复的回归根因） */
       --asc-ink: var(--auto-color, var(--asc-button-color, #fafafa));
-      --asc-bg: var(
-        --auto-secondary-bgcolor,
-        var(--asc-button-bg, rgba(129, 129, 129, 0.45))
-      );
     }
     [dark] .asc-button:has(> .asc-button-body[data-variant="primary"]),
     [data-dark] .asc-button:has(> .asc-button-body[data-variant="primary"]) {
-      --asc-bg: var(--auto-primary-color, var(--asc-button-primary, #56baff));
+      /* bg 走 tone 中转（与 light 一致）——直引 --auto-primary-color 会无视 data-type 的语义色，
+         dark 下所有语义色实底钮同变主色（本次修复的回归根因之二）；dark 兜底值经 tone 第二级 */
+      --asc-bg: var(--asc-tone);
     }
     [dark] .asc-button:has(> .asc-button-body[data-variant="secondary"]),
     [data-dark] .asc-button:has(> .asc-button-body[data-variant="secondary"]) {
@@ -717,14 +767,13 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     :data-ghost="ghost"
     :data-border="border"
     :data-shape="shape"
-    :data-label-below="labelBelow"
     :data-wrap="wrap"
     :data-align="align"
     :data-menu="menu"
     :data-block="block"
     :data-checked="checkable && value === checkValues[0]"
     :data-loading="loading"
-    :data-check-style="checkable ? checkStyle : undefined" :data-icon-placement="iconPlacement"
+    :data-check-style="checkable ? checkStyle : undefined" :data-label-pos="labelPos"
     :style="indent ? { paddingLeft: (typeof indent === 'number' ? indent + 'px' : indent) } : undefined"
   >
     <!-- loading 图标替换左图标位（字面量须带引号——裸 loading 会命中 data.loading 布尔值） -->
@@ -742,7 +791,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       x-if="!loading && typeof icon === 'object' && icon"
       x-icon="icon.name"
     ></span>
-    <span class="asc-button-main">
+    <span class="asc-button-main" x-show="labelPos !== 'none'">
       <!-- 默认插槽出口：未提供内容时显示 {{ displayLabel }}（组件自身状态求值） -->
       <span class="asc-button-label" x-slot>{{ displayLabel }}</span>
       <span class="asc-button-memo" x-if="memo">{{ memo }}</span>
@@ -757,16 +806,20 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       >
         <i
           class="asc-button-tag"
+          :class="tag.classes"
           :title="tag.tooltip"
+          :style="tag.styles"
+          :data-shape="tag.shape"
           @click="onTagClick(tag, $event)"
         >
           <i class="asc-button-tag-icon" x-if="tag.icon" x-icon="tag.icon"></i>
+          <span class="asc-button-tag-label" x-if="tag.label">{{ tag.label }}</span>
         </i>
       </span>
     </span>
   </span>
 </button>
-`,e.precompile?.(e=>{for(let r of Array.from(e.el.querySelectorAll(`x-button`))){let e=document.createElement(`button`),i=e=>e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase()),a=e=>/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e),o=[];for(let t of Array.from(r.attributes))t.name.startsWith(`:`)?o.push(`${a(i(t.name.slice(1)))}: (${t.value})`):t.name===`class`||t.name===`style`||t.name===`id`||t.name===`name`||t.name.startsWith(`data-`)||t.name.startsWith(`x-`)||t.name.startsWith(`@`)?e.setAttribute(t.name,t.value):o.push(`${a(i(t.name))}: ${JSON.stringify(n(t.value))}`);for(e.setAttribute(`x-component:${t}`,`{ ${o.join(`, `)} }`);r.firstChild;)e.appendChild(r.firstChild);r.replaceWith(e)}})}i();function i(){e(e=>{r(e)})}};
+`,e.precompile?.(e=>{for(let r of Array.from(e.el.querySelectorAll(`x-button`))){let e=document.createElement(`button`),i=e=>e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase()),a=e=>/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e),o=[];for(let t of Array.from(r.attributes))t.name.startsWith(`:`)?o.push(`${a(i(t.name.slice(1)))}: (${t.value})`):t.name===`class`||t.name===`style`||t.name===`id`||t.name===`name`||t.name===`title`||t.name.startsWith(`data-`)||t.name.startsWith(`x-`)||t.name.startsWith(`@`)?e.setAttribute(t.name,t.value):o.push(`${a(i(t.name))}: ${JSON.stringify(n(t.value))}`);for(e.setAttribute(`x-component:${t}`,`{ ${o.join(`, `)} }`);r.firstChild;)e.appendChild(r.firstChild);r.replaceWith(e)}})}i();function i(){e(e=>{r(e)})}};
     if (AutoSpark === undefined) {
         // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
         var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);

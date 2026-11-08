@@ -749,7 +749,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
 }
 @media (prefers-reduced-motion: reduce) {
   .${R}.${z}::after { animation: none; }
-}`,document.head.appendChild(e)}function ln(e,t){let n={...nn};if(!e)return n;let r=Ct(e,en,t,`x-spin`);e.type!==void 0&&(en.includes(e.type)?r.add(e.type):t(`x-spin: type 取值非法（${JSON.stringify(e.type)}），已回退 "beam"`));let i=$t.find(e=>r.has(e));return i&&(n.type=i),wt(e,tn,`x-ripple`,t,`x-spin`),e.gap!==void 0&&t(`x-spin: gap 仅涟漪支持（x-spin 恒转无静止段），已忽略`),n.trigger=St(e,t,`x-spin`),n.badge=Tt(e,t,`x-spin`),n.color=Et(e.color,{color:k,badgeColor:vt},n.badge,t,`x-spin`),n.size=A(e,`size`,t,`x-spin`)??nn.size,n.speed=xt(e,t,`x-spin`),n}var un={hostClass:R,activeClass:z,layerClass:rn,ensureStyles:cn,normalize:ln,hostClasses:e=>[B(e.type),...e.badge>0?[an]:[]],activeClasses:()=>[],animName:()=>V,animationCss:(e,t)=>`${t} ${e.speed}ms linear infinite`,period:e=>e.speed,layerCount:()=>1,layerCssText:e=>e.badge>0?`${Ot(e.badge)}${sn}background:${H(e.type)};`:`${Dt()}${sn}background:${H(e.type)};`,applyVars:(e,t)=>{let n=e.style;n.setProperty(`--x-spin-color`,t.color||`var(--auto-theme-color, var(--autospark-spin-color, #009aff))`),n.setProperty(`--x-spin-size`,`${t.size}px`),n.setProperty(`--x-spin-duration`,`${t.speed}ms`),t.badge>0&&n.setProperty(`--x-spin-badge-size`,`${t.badge}px`)}};function dn(){Mt(jt(`spin`,un))}dn();var U={axis:`both`,width:12,thumbWidth:5,color:`var(--autospark-scrollbar-color, rgba(0,0,0,0.25))`,delay:300,fadeDuration:200,minSize:20},W=`x-scrollbar`,G=`x-scrollbar-visible`,K=`x-scrollbar-active-x`,q=`x-scrollbar-active-y`,J=`x-scrollbar-rail`,Y=`x-scrollbar-rail-x`,X=`x-scrollbar-rail-y`,Z=`x-scrollbar-thumb`,Q=`x-scrollbar-thumb-drag`,fn=!1;function pn(){if(fn||typeof document>`u`)return;fn=!0;let e=document.createElement(`style`);e.setAttribute(`data-x-scrollbar`,``),e.textContent=`
+}`,document.head.appendChild(e)}function ln(e,t){let n={...nn};if(!e)return n;let r=Ct(e,en,t,`x-spin`);e.type!==void 0&&(en.includes(e.type)?r.add(e.type):t(`x-spin: type 取值非法（${JSON.stringify(e.type)}），已回退 "beam"`));let i=$t.find(e=>r.has(e));return i&&(n.type=i),wt(e,tn,`x-ripple`,t,`x-spin`),e.gap!==void 0&&t(`x-spin: gap 仅涟漪支持（x-spin 恒转无静止段），已忽略`),n.trigger=St(e,t,`x-spin`),n.badge=Tt(e,t,`x-spin`),n.color=Et(e.color,{color:k,badgeColor:vt},n.badge,t,`x-spin`),n.size=A(e,`size`,t,`x-spin`)??nn.size,n.speed=xt(e,t,`x-spin`),n}var un={hostClass:R,activeClass:z,layerClass:rn,ensureStyles:cn,normalize:ln,hostClasses:e=>[B(e.type),...e.badge>0?[an]:[]],activeClasses:()=>[],animName:()=>V,animationCss:(e,t)=>`${t} ${e.speed}ms linear infinite`,period:e=>e.speed,layerCount:()=>1,layerCssText:e=>e.badge>0?`${Ot(e.badge)}${sn}background:${H(e.type)};`:`${Dt()}${sn}background:${H(e.type)};`,applyVars:(e,t)=>{let n=e.style;n.setProperty(`--x-spin-color`,t.color||`var(--auto-theme-color, var(--autospark-spin-color, #009aff))`),n.setProperty(`--x-spin-size`,`${t.size}px`),n.setProperty(`--x-spin-duration`,`${t.speed}ms`),t.badge>0&&n.setProperty(`--x-spin-badge-size`,`${t.badge}px`)}};function dn(){Mt(jt(`spin`,un))}dn();var U={axis:`both`,width:12,thumbWidth:5,color:`var(--autospark-scrollbar-color, rgba(0,0,0,0.25))`,delay:300,fadeDuration:200,minSize:20},fn=.25,W=`x-scrollbar`,G=`x-scrollbar-visible`,K=`x-scrollbar-active-x`,q=`x-scrollbar-active-y`,J=`x-scrollbar-rail`,Y=`x-scrollbar-rail-x`,X=`x-scrollbar-rail-y`,Z=`x-scrollbar-thumb`,Q=`x-scrollbar-thumb-drag`,pn=!1;function mn(){if(pn||typeof document>`u`)return;pn=!0;let e=document.createElement(`style`);e.setAttribute(`data-x-scrollbar`,``),e.textContent=`
 :where(.${W}) { position: relative; }
 .${W} {
   scrollbar-width: none;
@@ -821,7 +821,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
 }
 @media (prefers-reduced-motion: reduce) {
   .${W} .${J} { transition: none; }
-}`,document.head.appendChild(e)}function mn(e,t){let n={...U};if(!e)return n;let r=new Set;for(let n of[`x`,`y`]){let i=e[n];i===!0?r.add(n):i!==void 0&&i!==!1&&t(`x-scrollbar: ${n} 开关须为布尔值，已忽略`)}return r.size===1&&(n.axis=r.has(`x`)?`x`:`y`),n.width=A(e,`width`,t,`x-scrollbar`)??U.width,n.thumbWidth=A(e,`thumbWidth`,t,`x-scrollbar`)??U.thumbWidth,n.delay=A(e,`delay`,t,`x-scrollbar`)??U.delay,n.minSize=A(e,`minSize`,t,`x-scrollbar`)??U.minSize,n.fadeDuration=A(e,`fadeDuration`,t,`x-scrollbar`)??U.fadeDuration,e.color!==void 0&&(typeof e.color==`string`&&e.color.trim()!==``?n.color=e.color:t(`x-scrollbar: color 须为非空字符串，已回退默认色`)),n}var hn=class{constructor(e,t){this.alive=!0,this.enabled=!0,this.drag=null,this.railX=null,this.railY=null,this.thumbX=null,this.thumbY=null,this.hideTimer=null,this.ro=null,this.valueOff=null,this.offs=[],this.engine=e,this.info=t,this.value=t?.value,this.config=mn(t?.options,e=>this.warn(e))}warn(e){this.engine.logger.warn(e)}mounted(){this.el&&(pn(),this.applyVars(),this.bindValue(),this.enabled&&this.setup())}unmounted(){this.teardown(),this.alive=!1,this.valueOff?.(),this.valueOff=null}attrChanged(e){this.value=e===``?void 0:e,this.valueOff?.(),this.valueOff=null,this.bindValue()}bindValue(){if(this.value==null){this.setEnabled(!0);return}if(this.value===`false`){this.setEnabled(!1);return}let e=this.value,t=({value:e})=>{this.alive&&this.setEnabled(!!e)},n=this.engine.findScopeByEl(this.el);if(n&&typeof n.watch==`function`){let r=n.watch(e,t);this.setEnabled(!!r)}else{let n=this.engine.store.watch(e,t);this.valueOff=()=>n?.off?.(),this.setEnabled(!!this.engine.store.read?.(e))}}setEnabled(e){this.enabled!==e&&(this.enabled=e,e?this.setup():this.teardown())}setup(){let e=this.el;e&&!this.railY&&(e.classList.add(W),this.applyVars(),this.buildRails(),this.bindEvents(),typeof ResizeObserver<`u`&&(this.ro=new ResizeObserver(()=>this.refresh()),this.ro.observe(e)),setTimeout(()=>this.refresh(),0),this.refresh())}teardown(){this.hideTimer!=null&&clearTimeout(this.hideTimer),this.hideTimer=null,this.ro?.disconnect(),this.ro=null;for(let e of this.offs)e();this.offs=[],this.endDrag(!0),this.railX?.remove(),this.railY?.remove(),this.railX=this.railY=this.thumbX=this.thumbY=null,this.el?.classList.remove(W,G,K,q)}buildRails(){let e=e=>{let t=document.createElement(`span`);t.className=`${J} ${e}`;let n=document.createElement(`span`);return n.className=Z,t.appendChild(n),this.el.appendChild(t),{rail:t,thumb:n}},t=e(X);this.railY=t.rail,this.thumbY=t.thumb;let n=e(Y);this.railX=n.rail,this.thumbX=n.thumb}applyVars(){let e=this.el.style;e.setProperty(`--x-scrollbar-width`,`${this.config.width}px`),e.setProperty(`--x-scrollbar-thumb`,`${this.config.thumbWidth}px`),e.setProperty(`--x-scrollbar-color`,this.config.color),e.setProperty(`--x-scrollbar-fade`,`${this.config.fadeDuration}ms`)}listen(e,t,n){e.addEventListener(t,n),this.offs.push(()=>e.removeEventListener(t,n))}bindEvents(){let e=this.el;this.listen(e,`mouseenter`,()=>{this.refresh(),this.show()}),this.listen(e,`mouseleave`,()=>this.scheduleHide()),this.listen(e,`scroll`,()=>{this.drag||(this.updateThumb(`y`),this.updateThumb(`x`))}),this.bindRail(`y`,this.railY,this.thumbY),this.bindRail(`x`,this.railX,this.thumbX)}bindRail(e,t,n){this.listen(n,`pointerdown`,r=>this.dragStart(e,r,n,t)),this.listen(n,`pointermove`,e=>this.dragMove(e)),this.listen(n,`pointerup`,e=>this.dragEnd(e)),this.listen(n,`pointercancel`,()=>this.endDrag(!0)),this.listen(t,`pointerdown`,r=>{if(r.button!==0||r.target!==t)return;r.preventDefault();let i=this.el,a=t.getBoundingClientRect(),o=e===`y`?r.clientY-a.top:r.clientX-a.left,s=e===`y`?n.offsetTop:n.offsetLeft,c=e===`y`?i.clientHeight:i.clientWidth;e===`y`?i.scrollTop+=o<s?-c:c:i.scrollLeft+=o<s?-c:c,this.updateThumb(e)})}refresh(){if(!this.enabled||!this.el)return;let e=this.el,t=this.config.axis!==`x`&&e.clientHeight>0&&e.scrollHeight>e.clientHeight,n=this.config.axis!==`y`&&e.clientWidth>0&&e.scrollWidth>e.clientWidth;e.classList.toggle(q,t),e.classList.toggle(K,n),t&&this.updateThumb(`y`),n&&this.updateThumb(`x`)}updateThumb(e){let t=this.el,n=e===`y`?this.railY:this.railX,r=e===`y`?this.thumbY:this.thumbX;if(!t||!n||!r)return;let i=e===`y`?t.clientHeight:t.clientWidth,a=e===`y`?t.scrollHeight:t.scrollWidth,o=e===`y`?t.scrollTop:t.scrollLeft;if(a<=i)return;let s=e===`y`?n.offsetHeight:n.offsetWidth;if(s<=0)return;let c=Math.round(Math.min(s,Math.max(this.config.minSize,i/a*s))),l=a-i,u=Math.round(o/l*(s-c));n.style.transform=`translate(${t.scrollLeft}px, ${t.scrollTop}px)`,e===`y`?(r.style.height=`${c}px`,r.style.top=`${u}px`):(r.style.width=`${c}px`,r.style.left=`${u}px`)}show(){this.hideTimer!=null&&(clearTimeout(this.hideTimer),this.hideTimer=null),this.el?.classList.add(G)}scheduleHide(){this.drag||(this.hideTimer!=null&&clearTimeout(this.hideTimer),this.hideTimer=setTimeout(()=>{this.hideTimer=null,this.el?.classList.remove(G)},this.config.delay))}dragStart(e,t,n,r){if(t.button!==0||this.drag)return;t.preventDefault(),this.show();let i=e===`y`?r.offsetHeight:r.offsetWidth;this.drag={axis:e,pointerId:t.pointerId,start:e===`y`?t.clientY:t.clientX,startScroll:e===`y`?this.el.scrollTop:this.el.scrollLeft,railLen:i,thumbLen:e===`y`?n.offsetHeight:n.offsetWidth,thumb:n},n.classList.add(Q);try{n.setPointerCapture(t.pointerId)}catch{}}dragMove(e){let t=this.drag;if(!t||e.pointerId!==t.pointerId)return;let n=this.el,r=t.axis,i=r===`y`?n.clientHeight:n.clientWidth,a=r===`y`?n.scrollHeight:n.scrollWidth,o=t.railLen-t.thumbLen;if(o<=0)return;let s=(r===`y`?e.clientY:e.clientX)-t.start,c=t.startScroll+s/o*(a-i);r===`y`?n.scrollTop=c:n.scrollLeft=c,this.updateThumb(r),this.updateThumb(r===`y`?`x`:`y`)}dragEnd(e){if(!this.drag||e.pointerId!==this.drag.pointerId)return;this.endDrag(!1);let t=this.el.getBoundingClientRect();e.clientX>=t.left&&e.clientX<=t.right&&e.clientY>=t.top&&e.clientY<=t.bottom?this.show():this.scheduleHide()}endDrag(e){let t=this.drag;if(t){this.drag=null,t.thumb.classList.remove(Q);try{t.thumb.releasePointerCapture(t.pointerId)}catch{}e||this.refresh()}}},$=new WeakMap;function gn(){function e(){if(!this.el)return;let e=new hn(this.engine,this.info);e.el=this.el,$.set(this,e),e.mounted()}function t(){let e=$.get(this);$.delete(this),e?.unmounted()}function n(e){$.get(this)?.attrChanged(e)}return{name:`scrollbar`,kind:1,priority:0,mounted:e,unmounted:t,attrChanged:n}}function _n(){Mt(gn())}_n();var vn=`<!--
+}`,document.head.appendChild(e)}function hn(e,t){let n={...U};if(!e)return n;let r=new Set;for(let n of[`x`,`y`]){let i=e[n];i===!0?r.add(n):i!==void 0&&i!==!1&&t(`x-scrollbar: ${n} 开关须为布尔值，已忽略`)}return r.size===1&&(n.axis=r.has(`x`)?`x`:`y`),n.width=A(e,`width`,t,`x-scrollbar`)??U.width,n.thumbWidth=A(e,`thumbWidth`,t,`x-scrollbar`)??U.thumbWidth,n.delay=A(e,`delay`,t,`x-scrollbar`)??U.delay,n.minSize=A(e,`minSize`,t,`x-scrollbar`)??U.minSize,n.fadeDuration=A(e,`fadeDuration`,t,`x-scrollbar`)??U.fadeDuration,e.color!==void 0&&(typeof e.color==`string`&&e.color.trim()!==``?n.color=e.color:t(`x-scrollbar: color 须为非空字符串，已回退默认色`)),n}var gn=class e{static scheduleFrame(e){return requestAnimationFrame(e)}static cancelFrame(e){cancelAnimationFrame(e)}constructor(e,t){this.alive=!0,this.enabled=!0,this.drag=null,this.railX=null,this.railY=null,this.thumbX=null,this.thumbY=null,this.hideTimer=null,this.ro=null,this.valueOff=null,this.offs=[],this.wheel=null,this.engine=e,this.info=t,this.value=t?.value,this.config=hn(t?.options,e=>this.warn(e))}warn(e){this.engine.logger.warn(e)}mounted(){this.el&&(mn(),this.applyVars(),this.bindValue(),this.enabled&&this.setup())}unmounted(){this.teardown(),this.alive=!1,this.valueOff?.(),this.valueOff=null}attrChanged(e){this.value=e===``?void 0:e,this.valueOff?.(),this.valueOff=null,this.bindValue()}bindValue(){if(this.value==null){this.setEnabled(!0);return}if(this.value===`false`){this.setEnabled(!1);return}let e=this.value,t=({value:e})=>{this.alive&&this.setEnabled(!!e)},n=this.engine.findScopeByEl(this.el);if(n&&typeof n.watch==`function`){let r=n.watch(e,t);this.setEnabled(!!r)}else{let n=this.engine.store.watch(e,t);this.valueOff=()=>n?.off?.(),this.setEnabled(!!this.engine.store.read?.(e))}}setEnabled(e){this.enabled!==e&&(this.enabled=e,e?this.setup():this.teardown())}setup(){let e=this.el;e&&!this.railY&&(e.classList.add(W),this.applyVars(),this.buildRails(),this.bindEvents(),typeof ResizeObserver<`u`&&(this.ro=new ResizeObserver(()=>this.refresh()),this.ro.observe(e)),setTimeout(()=>this.refresh(),0),this.refresh())}teardown(){this.hideTimer!=null&&clearTimeout(this.hideTimer),this.hideTimer=null,this.wheel&&=(this.wheel.raf&&e.cancelFrame(this.wheel.raf),null),this.ro?.disconnect(),this.ro=null;for(let e of this.offs)e();this.offs=[],this.endDrag(!0),this.railX?.remove(),this.railY?.remove(),this.railX=this.railY=this.thumbX=this.thumbY=null,this.el?.classList.remove(W,G,K,q)}buildRails(){let e=e=>{let t=document.createElement(`span`);t.className=`${J} ${e}`;let n=document.createElement(`span`);return n.className=Z,t.appendChild(n),this.el.appendChild(t),{rail:t,thumb:n}},t=e(X);this.railY=t.rail,this.thumbY=t.thumb;let n=e(Y);this.railX=n.rail,this.thumbX=n.thumb}applyVars(){let e=this.el.style;e.setProperty(`--x-scrollbar-width`,`${this.config.width}px`),e.setProperty(`--x-scrollbar-thumb`,`${this.config.thumbWidth}px`),e.setProperty(`--x-scrollbar-color`,this.config.color),e.setProperty(`--x-scrollbar-fade`,`${this.config.fadeDuration}ms`)}listen(e,t,n){e.addEventListener(t,n),this.offs.push(()=>e.removeEventListener(t,n))}bindEvents(){let e=this.el;this.listen(e,`mouseenter`,()=>{this.refresh(),this.show()}),this.listen(e,`mouseleave`,()=>this.scheduleHide()),this.listen(e,`scroll`,()=>{this.drag||this.wheel||(this.updateThumb(`y`),this.updateThumb(`x`))}),this.bindWheel(),this.bindRail(`y`,this.railY,this.thumbY),this.bindRail(`x`,this.railX,this.thumbX)}bindWheel(){this.listen(this.el,`wheel`,e=>{if(e.ctrlKey||this.drag)return;let t=this.el,n=e.deltaMode===1?16:1,r=e.deltaY*n,i=e.deltaX*n,a=t.scrollHeight-t.clientHeight,o=t.scrollWidth-t.clientWidth,s=r!==0&&a>0&&!(r<0&&t.scrollTop<=0)&&!(r>0&&t.scrollTop>=a),c=i!==0&&o>0&&!(i<0&&t.scrollLeft<=0)&&!(i>0&&t.scrollLeft>=o);if(!s&&!c)return;e.preventDefault();let l=this.wheel??={tx:t.scrollLeft,ty:t.scrollTop,raf:0};s&&(l.ty=Math.min(Math.max(l.ty+r,0),a)),c&&(l.tx=Math.min(Math.max(l.tx+i,0),o)),l.raf===0&&this.runWheel()})}runWheel(){let t=this.wheel,n=()=>{t.raf=0;let r=this.el;if(!r||!this.enabled||!this.wheel){this.wheel=null;return}let i=!0,a=t.ty-r.scrollTop;Math.abs(a)>=1?(r.scrollTop+=a*fn,i=!1):a!==0&&(r.scrollTop=t.ty);let o=t.tx-r.scrollLeft;Math.abs(o)>=1?(r.scrollLeft+=o*fn,i=!1):o!==0&&(r.scrollLeft=t.tx),this.updateThumb(`y`),this.updateThumb(`x`),i?this.wheel=null:t.raf=e.scheduleFrame(n)};t.raf=e.scheduleFrame(n)}bindRail(e,t,n){this.listen(n,`pointerdown`,r=>this.dragStart(e,r,n,t)),this.listen(n,`pointermove`,e=>this.dragMove(e)),this.listen(n,`pointerup`,e=>this.dragEnd(e)),this.listen(n,`pointercancel`,()=>this.endDrag(!0)),this.listen(t,`pointerdown`,r=>{if(r.button!==0||r.target!==t)return;r.preventDefault();let i=this.el,a=t.getBoundingClientRect(),o=e===`y`?r.clientY-a.top:r.clientX-a.left,s=e===`y`?n.offsetTop:n.offsetLeft,c=e===`y`?i.clientHeight:i.clientWidth;e===`y`?i.scrollTop+=o<s?-c:c:i.scrollLeft+=o<s?-c:c,this.updateThumb(`y`),this.updateThumb(`x`)})}refresh(){if(!this.enabled||!this.el)return;let e=this.el,t=this.config.axis!==`x`&&e.clientHeight>0&&e.scrollHeight>e.clientHeight,n=this.config.axis!==`y`&&e.clientWidth>0&&e.scrollWidth>e.clientWidth;e.classList.toggle(q,t),e.classList.toggle(K,n),t&&this.updateThumb(`y`),n&&this.updateThumb(`x`)}updateThumb(e){let t=this.el,n=e===`y`?this.railY:this.railX,r=e===`y`?this.thumbY:this.thumbX;if(!t||!n||!r)return;let i=e===`y`?t.clientHeight:t.clientWidth,a=e===`y`?t.scrollHeight:t.scrollWidth,o=e===`y`?t.scrollTop:t.scrollLeft;if(a<=i)return;let s=e===`y`?n.offsetHeight:n.offsetWidth;if(s<=0)return;let c=Math.round(Math.min(s,Math.max(this.config.minSize,i/a*s))),l=a-i,u=Math.round(o/l*(s-c));n.style.transform=`translate(${t.scrollLeft}px, ${t.scrollTop}px)`,e===`y`?(r.style.height=`${c}px`,r.style.top=`${u}px`):(r.style.width=`${c}px`,r.style.left=`${u}px`)}show(){this.hideTimer!=null&&(clearTimeout(this.hideTimer),this.hideTimer=null),this.el?.classList.add(G)}scheduleHide(){this.drag||(this.hideTimer!=null&&clearTimeout(this.hideTimer),this.hideTimer=setTimeout(()=>{this.hideTimer=null,this.el?.classList.remove(G)},this.config.delay))}dragStart(e,t,n,r){if(t.button!==0||this.drag)return;t.preventDefault(),this.show();let i=e===`y`?r.offsetHeight:r.offsetWidth;this.drag={axis:e,pointerId:t.pointerId,start:e===`y`?t.clientY:t.clientX,startScroll:e===`y`?this.el.scrollTop:this.el.scrollLeft,railLen:i,thumbLen:e===`y`?n.offsetHeight:n.offsetWidth,thumb:n},n.classList.add(Q);try{n.setPointerCapture(t.pointerId)}catch{}}dragMove(e){let t=this.drag;if(!t||e.pointerId!==t.pointerId)return;let n=this.el,r=t.axis,i=r===`y`?n.clientHeight:n.clientWidth,a=r===`y`?n.scrollHeight:n.scrollWidth,o=t.railLen-t.thumbLen;if(o<=0)return;let s=(r===`y`?e.clientY:e.clientX)-t.start,c=t.startScroll+s/o*(a-i);r===`y`?n.scrollTop=c:n.scrollLeft=c,this.updateThumb(`y`),this.updateThumb(`x`),this.updateThumb(r===`y`?`x`:`y`)}dragEnd(e){if(!this.drag||e.pointerId!==this.drag.pointerId)return;this.endDrag(!1);let t=this.el.getBoundingClientRect();e.clientX>=t.left&&e.clientX<=t.right&&e.clientY>=t.top&&e.clientY<=t.bottom?this.show():this.scheduleHide()}endDrag(e){let t=this.drag;if(t){this.drag=null,t.thumb.classList.remove(Q);try{t.thumb.releasePointerCapture(t.pointerId)}catch{}e||this.refresh()}}},$=new WeakMap;function _n(){function e(){if(!this.el)return;let e=new gn(this.engine,this.info);e.el=this.el,$.set(this,e),e.mounted()}function t(){let e=$.get(this);$.delete(this),e?.unmounted()}function n(e){$.get(this)?.attrChanged(e)}return{name:`scrollbar`,kind:1,priority:0,mounted:e,unmounted:t,attrChanged:n}}function vn(){Mt(_n())}vn();var yn=`<!--
     化身路径约束（x-component T4=B）：组件快照根的属性是静态并入宿主（class 拼接 /
     style 合并 / 其他属性复制），根上的动态绑定不会求值——变体绑定须落在编译子树的
     内层元素上：宿主级外观（底色/边框/圆角等）经 body 上的 data-* 变体属性以 :has()
@@ -852,8 +852,8 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
         data: () => ({
             variant: "default",     // 形态：default 常规描边 | primary 实底 | secondary 次底 | dashed 虚线 | text 文本 | link 链接
             type: "primary",        // 语义色：primary | success | warning | danger | info（default 形态不消费，勾选态仍生效）
-            label: "按钮",          // 兜底文案（插槽无内容时显示）
-            iconPlacement: "start", // 图标位置：start 内容区前（横排左/纵排上）| end 内容区末（横排右/纵排下，并与 tags 互换）
+            label: "按钮",          // 兜底文案（插槽无内容时显示；labelPos none 时隐藏并自动转入悬停提示）
+            labelPos: "right",       // label 在 icon 的哪侧：right 左图标右文字（默认）| left 右图标左文字（与 tags 互换）| top 文字上 | bottom 文字下 | none 不显示文字（label 转悬停提示）
             icon: "",               // 图标名或图标选项对象 { name, size, color, strokeWidth, padding, button, pointer }（对齐 x-icon-options 词面，ADR-0135 后不含 shape）+ 自有角标键 badge（伪元素红点，标量三形态控板距；loading 时被替换）
             loading: false,         // 加载态：左图标位转圈并禁点（优先于 disabled 视觉）
             ghost: false,           // 幽灵：背景透明、内容取语义色（常用在有色背景上）
@@ -863,7 +863,6 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             ripple: true,           // 点击涟漪（默认开启；页面需已加载 autospark.ripple.js，未加载时静默跳过；ADR-0010）
             autoInsertSpace: true,  // label 恰为两个汉字时自动插入空格
             shape: "default",       // default | circle（纯图标呈正圆，带文字自动呈胶囊）
-            labelBelow: false,      // label 显示在图标下方（纵排）
             wrap: false,            // label 换行：false 单行溢出省略号（截断时自动挂 title，宿主显式 title 优先）；true 折行（按钮高度随行数增长）
             value: false,           // 勾选值（checkable 模式；等于 checkValues[0] 时为选中态）
             checkable: false,       // 可勾选模式：点击自动翻转 value 并冒泡 change 事件；化身 checkbox（x-model 可绑宿主，见 mounted 桥）
@@ -872,17 +871,18 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             align: "center",        // 内容水平对齐：left | center | right
             indent: 0,              // 内容额外左缩进（数字 px 或任意 CSS 值如 "2em"）；菜单层级缩进常用
             memo: "",               // label 下方的备注（小一号、淡色）
-            tags: [],               // 右侧小圆钮 {icon?,tooltip?,name?}[]；点击冒泡 tag-click 事件
+            tags: [],               // 右侧小圆钮 {icon?, label?, tooltip?, styles?(cssText), classes?, value?, ripple?, shape?}[]——label 呈胶囊（图标与文字恒 1rem）；value 原样透传进 tag-click detail；ripple 默认 false；shape 默认 none 无背景，circle/radius 呈底板
             menu: false,            // 菜单项形态：占满宽、透明底、左对齐、hover 淡底
             // computed 简写（普通函数值即计算属性，仅限单表达式）：autoInsertSpace 开启且
             // label 恰为两个汉字时中间插入空格
             displayLabel: (s) => (s.autoInsertSpace && /^[一-龥]{2}$/.test(s.label ?? "")) ? (s.label[0] + " " + s.label[1]) : s.label
         }),
         methods: {
-            // tag 小圆钮点击：阻断冒泡（不触发宿主 checkable 翻转），冒泡 tag-click 携带 name
+            // tag 小圆钮点击：阻断冒泡（不触发宿主 checkable 翻转），冒泡 tag-click——detail 平铺
+            // name（标识）/ label（文字）/ value（使用者数据，原样透传不做处理）+ tag 整对象
             onTagClick(tag, event) {
                 event.stopPropagation();
-                this.el.dispatchEvent(new CustomEvent("tag-click", { bubbles: true, detail: { name: tag.name, tag } }));
+                this.el.dispatchEvent(new CustomEvent("tag-click", { bubbles: true, detail: { name: tag.name, label: tag.label, value: tag.value, tag } }));
             }
         },
         mounted() {
@@ -920,6 +920,24 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             setTimeout(syncIconStyle, 0); // mounted 时化身子树可能尚未挂载（span 不可查），一跳后再同步
             this.watch("icon", () => { setTimeout(syncIconStyle, 0); });
 
+            // tag 级涟漪（默认 false，显式开启）：ADR-0010 双属性通道动态挂载到各 tag 元素——
+            // x-for 渲染后扫挂；ripple 为 true/对象时同宿主缺省 { trigger: "click", inside: true }
+            // 并可被对象覆盖；页面未加载 autospark.ripple.js 时属性无人消费、静默无效
+            const syncTagRipples = () => {
+                const els = this.el.querySelectorAll(".asc-button-tag");
+                els.forEach((el, idx) => {
+                    const conf = (this.data.tags || [])[idx]?.ripple;
+                    el.removeAttribute("x-ripple");
+                    el.removeAttribute("x-ripple-options");
+                    if (conf) {
+                        el.setAttribute("x-ripple-options", JSON.stringify(typeof conf === "object" ? { trigger: "click", inside: true, ...conf } : { trigger: "click", inside: true }));
+                        el.setAttribute("x-ripple", "");
+                    }
+                });
+            };
+            setTimeout(syncTagRipples, 0);
+            this.watch("tags", () => { setTimeout(syncTagRipples, 0); });
+
             // label 溢出自动挂提示（ADR-0012 补记，双轨修订）：纯静态检测——mounted 一跳首查 +
             // label / wrap 变化时重查，不引入 ResizeObserver（按钮为高频组件，零观察资源；容器宽度
             // 单独变化后提示可能过期为已知温和妥协，CSS 截断本身自适应不受影响）。
@@ -930,6 +948,13 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             const tipAttr = this.engine?.tooltip?.enabled ? "data-tooltip" : "title";
             let selfTip = false;
             const syncTip = () => {
+                // labelPos none：label 不渲染（main 整体隐藏）——宿主无显式提示时 label 文本转挂（双轨同 attr）
+                if (this.data.labelPos === "none") {
+                    if (this.el.getAttribute(tipAttr) && !selfTip) return; // 显式提示在场，永不覆盖
+                    this.el.setAttribute(tipAttr, String(this.data.label ?? ""));
+                    selfTip = true;
+                    return;
+                }
                 const span = this.el.querySelector(".asc-button-label");
                 if (!span) return;
                 if (span.scrollWidth > span.clientWidth) {
@@ -944,6 +969,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             setTimeout(syncTip, 0);
             this.watch("label", () => { setTimeout(syncTip, 0); });
             this.watch("wrap", () => { setTimeout(syncTip, 0); });
+            this.watch("labelPos", () => { setTimeout(syncTip, 0); });
 
             // checkable 桥（化身 checkbox）：宿主上 x-model 走 text 分型（读写 el.value + 监听 input）。
             // x-model 域恒布尔语域——el.value 只取 "true"/"false"（对齐原生 checkbox 的 checked 布尔语义，
@@ -1304,10 +1330,15 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     .asc-button-body[data-menu="true"] .asc-button-main {
       align-items: flex-start;
     } /* label/memo 文本亦居左（与 memo 折行/短 label 对齐左缘） */
-    .asc-button-body[data-label-below="true"] {
+    .asc-button-body[data-label-pos="top"],
+    .asc-button-body[data-label-pos="bottom"] {
       flex-direction: column;
       gap: 0.15em;
-    } /* label 纵排 */
+    } /* label 纵排（top = 文字上/图标下；bottom = 图标上/文字下） */
+    /* labelPos top：文字在图标上方（main 排 icon 前） */
+    .asc-button-body[data-label-pos="top"] .asc-button-icon {
+      order: 2;
+    }
 
     /* 图标位：尺寸随字号（x-icon 默认 1em），loading 转圈自带 SMIL 动画 */
     .asc-button-icon {
@@ -1315,9 +1346,9 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       align-items: center;
       justify-content: center;
     }
-    /* iconPlacement: end——图标（含 loading 位）移内容区末尾并与 tags 互换（icon 恒最末）；
-         横排 = 右侧、纵排（labelBelow）= 下方；checkStyle icon 的 yes 占位（body::before）恒最前不受影响 */
-    .asc-button-body[data-icon-placement="end"] .asc-button-icon {
+    /* labelPos left：图标（含 loading 位）移内容区末尾并与 tags 互换（icon 恒最末）；
+         横排 = 右侧、纵排 = 下方；checkStyle icon 的 yes 占位（body::before）恒最前不受影响 */
+    .asc-button-body[data-label-pos="left"] .asc-button-icon {
       order: 5;
     }
     /* 图标角标（icon.badge 标量三形态启用）：板 padding 承载留白，伪元素红点取 danger 语义色 */
@@ -1395,7 +1426,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     /* tags 小圆钮：右侧小一号圆形，独立 hover 反馈 */
     .asc-button-tags {
       display: inline-flex;
-      gap: 0.25em;
+      gap: 0.15em;
       margin-left: 0.35em;
     }
     /* x-for 克隆载体盒消失，圆钮直接成为容器 flex 项 */
@@ -1406,21 +1437,17 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 1.8em;
-      height: 1.8em;
-      font-size: 0.75em;
+      gap: 0.25em;
+      height: 1.8rem;
+      width: 1.8rem; /* 无 label 恒正圆（等宽高）；带 label 被胶囊规则放开 */
+      padding: 0;
+      font-size: 1rem; /* 图标与 label 恒 1rem——不随 data-size 档位（视觉稳定优先） */
       border-radius: 50%;
       color: var(--asc-ink);
       cursor: pointer;
       /* 常态即与按钮主背景形成色差：按内容色派生淡底（实底上呈淡白、透明底上呈淡灰/淡语义色） */
-      background: color-mix(
-        in srgb,
-        var(--asc-ink, currentColor) 12%,
-        transparent
-      );
-      transition:
-        background-color 0.15s ease,
-        transform 0.1s ease;
+      background: transparent; /* 常态无背景（shape 默认 none）；shape 板色见后续规则 */
+      transition: background-color 0.15s ease, transform 0.1s ease;
     }
     .asc-button-tag:hover {
       background: color-mix(
@@ -1428,6 +1455,25 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
         var(--asc-ink, currentColor) 28%,
         transparent
       );
+    }
+    /* shape 底板（默认 none 无背景）：circle 圆形底板 / radius 主题圆角底板——板色按内容色
+         派生淡底（与按钮主背景形成层次）；胶囊 tag 的 9999px 规则后位覆盖 radius 呈胶囊板 */
+    .asc-button-tag[data-shape="circle"],
+    .asc-button-tag[data-shape="radius"] {
+      background: color-mix(in srgb, var(--asc-ink, currentColor) 12%, transparent);
+    }
+    .asc-button-tag[data-shape="radius"] {
+      border-radius: var(--auto-border-radius, 0.25rem);
+    }
+    /* 带 label 的 tag 呈胶囊：放开定宽随内容、横向 padding 撑开；label 恒 1rem 继承 */
+    .asc-button-tag:has(> .asc-button-tag-label) {
+      width: auto;
+      padding: 0 0.6rem;
+      border-radius: 9999px;
+    }
+    .asc-button-tag-label {
+      line-height: 1;
+      white-space: nowrap;
     }
     /* 按压反馈：底色加深 + 轻微缩放（松手经 transition 弹回） */
     .asc-button-tag:active {
@@ -1438,24 +1484,28 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       );
       transform: scale(0.88);
     }
-    .asc-button-tag-icon {
-      display: inline-flex;
-      width: 1em;
-      height: 1em;
+    /* tag 图标钉死 1rem：不消费 --auto-icon-size（theme 档位 1.2× 会放大）也不随 data-size——
+         tag 为紧凑小圆钮图标恒小；.as-icon 双类选择器（0,2,0）压过引擎 .as-icon 基础规则
+         （同特异性但 icon 样式表惰性后注入），svg 撑满宿主规则一并覆盖 */
+    .asc-button-tag-icon.as-icon,
+    .asc-button-tag-icon.as-icon > svg {
+      width: 1rem;
+      height: 1rem;
     }
 
     /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
     [dark] .asc-button,
     [data-dark] .asc-button {
+      /* 只兜字色——bg 不在此兜底：各 variant 的专属 dark 块已承接（default/secondary 有暗色底、
+         primary 恒 tone）；通配 bg 会以同特异性后位覆盖 primary 形态的 --asc-bg: var(--asc-tone)，
+         dark 下 secondary-bgcolor 派生为主题系色 → 所有语义色实底钮同色（本次修复的回归根因） */
       --asc-ink: var(--auto-color, var(--asc-button-color, #fafafa));
-      --asc-bg: var(
-        --auto-secondary-bgcolor,
-        var(--asc-button-bg, rgba(129, 129, 129, 0.45))
-      );
     }
     [dark] .asc-button:has(> .asc-button-body[data-variant="primary"]),
     [data-dark] .asc-button:has(> .asc-button-body[data-variant="primary"]) {
-      --asc-bg: var(--auto-primary-color, var(--asc-button-primary, #56baff));
+      /* bg 走 tone 中转（与 light 一致）——直引 --auto-primary-color 会无视 data-type 的语义色，
+         dark 下所有语义色实底钮同变主色（本次修复的回归根因之二）；dark 兜底值经 tone 第二级 */
+      --asc-bg: var(--asc-tone);
     }
     [dark] .asc-button:has(> .asc-button-body[data-variant="secondary"]),
     [data-dark] .asc-button:has(> .asc-button-body[data-variant="secondary"]) {
@@ -1537,14 +1587,13 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     :data-ghost="ghost"
     :data-border="border"
     :data-shape="shape"
-    :data-label-below="labelBelow"
     :data-wrap="wrap"
     :data-align="align"
     :data-menu="menu"
     :data-block="block"
     :data-checked="checkable && value === checkValues[0]"
     :data-loading="loading"
-    :data-check-style="checkable ? checkStyle : undefined" :data-icon-placement="iconPlacement"
+    :data-check-style="checkable ? checkStyle : undefined" :data-label-pos="labelPos"
     :style="indent ? { paddingLeft: (typeof indent === 'number' ? indent + 'px' : indent) } : undefined"
   >
     <!-- loading 图标替换左图标位（字面量须带引号——裸 loading 会命中 data.loading 布尔值） -->
@@ -1562,7 +1611,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       x-if="!loading && typeof icon === 'object' && icon"
       x-icon="icon.name"
     ></span>
-    <span class="asc-button-main">
+    <span class="asc-button-main" x-show="labelPos !== 'none'">
       <!-- 默认插槽出口：未提供内容时显示 {{ displayLabel }}（组件自身状态求值） -->
       <span class="asc-button-label" x-slot>{{ displayLabel }}</span>
       <span class="asc-button-memo" x-if="memo">{{ memo }}</span>
@@ -1577,16 +1626,20 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       >
         <i
           class="asc-button-tag"
+          :class="tag.classes"
           :title="tag.tooltip"
+          :style="tag.styles"
+          :data-shape="tag.shape"
           @click="onTagClick(tag, $event)"
         >
           <i class="asc-button-tag-icon" x-if="tag.icon" x-icon="tag.icon"></i>
+          <span class="asc-button-tag-label" x-if="tag.label">{{ tag.label }}</span>
         </i>
       </span>
     </span>
   </span>
 </button>
-`,yn=`autospark.button`;function bn(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}function xn(e){e.components[yn]=vn,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-button`))){let e=document.createElement(`button`),n=e=>e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase()),r=e=>/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e),i=[];for(let a of Array.from(t.attributes))a.name.startsWith(`:`)?i.push(`${r(n(a.name.slice(1)))}: (${a.value})`):a.name===`class`||a.name===`style`||a.name===`id`||a.name===`name`||a.name.startsWith(`data-`)||a.name.startsWith(`x-`)||a.name.startsWith(`@`)?e.setAttribute(a.name,a.value):i.push(`${r(n(a.name))}: ${JSON.stringify(bn(a.value))}`);for(e.setAttribute(`x-component:${yn}`,`{ ${i.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Sn();function Sn(){S(e=>{h(e),xn(e)})}};
+`,bn=`autospark.button`;function xn(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}function Sn(e){e.components[bn]=yn,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-button`))){let e=document.createElement(`button`),n=e=>e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase()),r=e=>/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e),i=[];for(let a of Array.from(t.attributes))a.name.startsWith(`:`)?i.push(`${r(n(a.name.slice(1)))}: (${a.value})`):a.name===`class`||a.name===`style`||a.name===`id`||a.name===`name`||a.name===`title`||a.name.startsWith(`data-`)||a.name.startsWith(`x-`)||a.name.startsWith(`@`)?e.setAttribute(a.name,a.value):i.push(`${r(n(a.name))}: ${JSON.stringify(xn(a.value))}`);for(e.setAttribute(`x-component:${bn}`,`{ ${i.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Cn();function Cn(){S(e=>{h(e),Sn(e)})}};
     if (AutoSpark === undefined) {
         // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
         var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);

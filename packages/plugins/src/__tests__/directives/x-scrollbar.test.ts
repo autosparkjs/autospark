@@ -346,7 +346,10 @@ describe("x-scrollbar 滚动条皮肤指令（ADR-0013）", () => {
         mockOverflowY(host, railYOf(host));
         host.dispatchEvent(new Event("mouseenter"));
 
-        const ev = new WheelEvent("wheel", { deltaY: 120, ctrlKey: true, cancelable: true });
+        // happy-dom 的 WheelEvent 构造器丢弃 MouseEventInit 的 ctrlKey（环境缺陷，真浏览器
+        // 无此问题——e2e 走真实输入不构造）——实例属性遮蔽注入
+        const ev = new WheelEvent("wheel", { deltaY: 120, cancelable: true });
+        Object.defineProperty(ev, "ctrlKey", { get: () => true });
         host.dispatchEvent(ev);
         expect(ev.defaultPrevented).toBe(false);
     });

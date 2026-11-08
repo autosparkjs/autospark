@@ -6,7 +6,7 @@
 
 > **2026-11-03 修订**：属性更名——原 `type`（形态）→ **`variant`**、原 `color`（语义色）→ **`type`**（对齐 `type` 专属语义色的通用语感，正文保留原始决策名以便对照）；`ripple` 默认值 `false` → **`true`**（点击涟漪默认开启，页面未加载 autospark.ripple.js 时静默跳过）。
 >
-> **2026-11-07 修订**：新增 `wrap`（label 换行控制，决策 7）、`iconPlacement`（图标位置，决策 8）——**默认行为反转**：label 从可折行变为单行溢出省略号 + 溢出时静态检测自动挂 title。
+> **2026-11-07 修订**：新增 `wrap`（label 换行控制，决策 7）、`iconPlacement`（图标位置，决策 8；2026-11-08 决策 9 移除并入 labelPos）——**默认行为反转**：label 从可折行变为单行溢出省略号 + 溢出时静态检测自动挂 title。
 
 ## 背景
 
@@ -61,6 +61,18 @@ engine 无组件双向协议（背景②），硬凑存在类型陷阱：x-model
 - **loading 随行**：loading 是图标位的临时内容，位置语义一致；
 - **yes 占位恒最前**：check-style icon 的勾选占位（body::before）位置稳定（勾选/取消零布局跳动），iconPlacement 只管内容区内的用户图标；
 - **tags 互换**：end 时图标移 tags 之后（图标恒最末，tags 退居其前）。
+
+### 决策 9：labelPos 五值合并——移除 iconPlacement / labelBelow（2026-11-08，破坏性）
+
+`labelPos: left | right | top | bottom | none`（默认 right = label 在 icon 右侧）取代并移除 `iconPlacement` 与 `labelBelow` 两属性（迁移动作：`icon-placement="end"` → `label-pos="left"`、`label-below="true"` → `label-pos="bottom"`）。实现仍走 body `data-label-pos` + CSS order（决策 8 机制等价迁移）。组合语义：
+
+- **left 与 tags 互换**（图标恒最末，loading 随行）——决策 8 语义原样迁移；
+- **top/bottom 纵排**（top = 文字上/图标下）；check-style icon 的勾选占位恒最前不变；
+- **none 不显示文字区**（label + memo + 插槽内容经 main 整体 `x-show` 隐藏——**用 x-show 不用 x-if**：多实例 + x-if 延迟编译命中共享快照 templateScopeMap 串台缺陷，props 跨实例错配）；宿主无显式提示时 **label 文本双轨转挂悬停提示**（tooltip 在场 data-tooltip / 缺席 title，与溢出提示同口径），显式 title / data-tooltip 永不覆盖；元素名写法的 `title` 属性在 precompile 变换的保留清单内（不折入 props，保住「显式提示优先」判定）。
+
+### 决策 10：tags 键面升级——label 胶囊 / cssText / value 原样 / tag 级 ripple（2026-11-08）
+
+tag 结构从 `{ icon?, name?, tooltip? }` 扩展为 `{ icon?, label?, tooltip?, styles?, classes?, value?, ripple? }`（旧键面向后兼容）：`label` 文字标签（在场呈胶囊，图标与文字**恒 1rem** 不随 data-size 档位——视觉稳定优先于档位跟随）；`styles` 为 **cssText 字符串**（`:style` 字符串通道整体写入，拒绝对象——合并语义弱且与引擎字符串惯例不符，grilling Q2 定案）；`value` 使用者数据**原样透传**进 tag-click detail（detail 平铺 `{ name, label, value, tag }`，对象/数字不做任何处理，Q3）；`ripple` 默认 **false**（tag 级显式开启，ADR-0010 双属性挂载经 mounted 扫挂，宿主按钮涟漪已覆盖点击反馈、恒开会双重涟漪，Q4）；未加载 autospark.ripple.js 静默无效。
 
 ## 备选方案
 

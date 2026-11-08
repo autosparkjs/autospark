@@ -137,7 +137,7 @@ el.removeAttribute("x-scrollbar");                           // 移除即失效
 - **静态求值一次**：`x-scrollbar-options` 不响应式，改配置需重挂宿主。
 - **宿主约定**：宿主自带 `overflow: auto/scroll` 与限定尺寸，指令不代设；内容不溢出时轨道静默不激活。
 - **几何刷新边界**：内容尺寸变化经 ResizeObserver（容器变化）+ 鼠标进入时强制重算感知——鼠标悬停**期间**内容大幅变化，滑块尺寸更新滞后到下一次进入/滚动（不上 MutationObserver 观察子树，代价过高）。
-- **轨道补偿滞后**：轨道钉在可视区靠 scroll 事件驱动的 transform 补偿（已提合成层），极快速滚轮下轨道可能有一帧级的先随内容微移再弹回——这是原生滚动路径（编译期不接管滚动）的固有代价。
+- **wheel 接管**：滚轮滚动由指令接管（`preventDefault` + rAF 平滑逼近目标）——滚动写入与轨道补偿**同帧**完成，滑块无回跳跳动。放行边界：缩放手势（Ctrl+滚轮）、已滚到边界方向（交还父级冒泡滚动）、拖拽中；键盘与程序化滚动仍走原生（经 `scroll` 事件同步，补偿滞后一帧一般不可感知——键盘滚动时滚动条本就不显示）。
 - **RTL**：`dir="rtl"` 的横向滚动定位未适配（纵向不受影响），首版明确不支持。
 - **样式钩子**：类钩子 `x-scrollbar` / `x-scrollbar-visible` / `x-scrollbar-active-x` / `x-scrollbar-active-y` / `x-scrollbar-rail(-x/-y)` / `x-scrollbar-thumb` / `x-scrollbar-thumb-drag`，变量 `--x-scrollbar-width` / `--x-scrollbar-thumb` / `--x-scrollbar-color` / `--x-scrollbar-fade`，供主题与业务层重载；全局覆盖位 `--autospark-scrollbar-color`（缺省滑块色）。
 - **子元素选择器**：轨道直挂宿主内部，宿主 `> *` 类选择器可能误中——必要时以 `:not(.x-scrollbar-rail)` 排除。
