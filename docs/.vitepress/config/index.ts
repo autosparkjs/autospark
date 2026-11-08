@@ -332,6 +332,7 @@ export default defineConfig({
               items: [
                 { text: "x-ripple", link: "/zh/guide/directives/x-ripple" },
                 { text: "x-spin", link: "/zh/guide/directives/x-spin" },
+                { text: "x-scrollbar", link: "/zh/guide/directives/x-scrollbar" },
                 { text: "x-resource", link: "/zh/guide/directives/x-resource" },
               ],
             },

@@ -50,7 +50,7 @@ engine 无组件双向协议（背景②），硬凑存在类型陷阱：x-model
 
 - **默认反转**：`wrap: boolean` 默认 `false` = label 单行 + 溢出省略号（截断三件套进 `.asc-button-label` 基础规则）；此前 label 无 `white-space` 约束、宽度受限时可折行。反转动机：单行省略是按钮 label 主流语义，折行撑高按钮是布局事故源——换行须显式声明（`wrap: true` 回 `normal`，按钮高度随行数增长由使用者担责）。
 - **纯声明通道**：`:data-wrap` 挂 body（布尔 props 惯例）、`[data-wrap="true"]` 解除截断，零 JS 布局参与；截断只在按钮宽度受约束时发生（block / menu / 容器挤压；inline-flex 收缩到内容宽永不触发）。
-- **溢出自动挂 title（纯静态检测）**：mounted 一跳首查 + `watch(label)` / `watch(wrap)` 重查，`scrollWidth > clientWidth` 判定；仅截断态挂、文本取 `.asc-button-label` 的 `textContent`（插槽 / 默认文案同源）、宿主显式 title 永不覆盖、溢出消失只摘自挂的（闭包标记自持）。
+- **溢出自动挂提示（纯静态检测，2026-11-08 双轨修订）**：挂载属性随 tooltip 特性分流——`engine.tooltip?.enabled` 在场挂 `data-tooltip`（插件接管；运行时 setAttribute 的原生 title 不在插件消费面，故须显式双轨，与 x-bind title 重定向同判定口径）、缺席挂原生 `title` 兜底；mounted 一跳首查 + `watch(label)` / `watch(wrap)` 重查，`scrollWidth > clientWidth` 判定；仅截断态挂、文本取 `.asc-button-label` 的 `textContent`（插槽 / 默认文案同源）、宿主显式 title 永不覆盖、溢出消失只摘自挂的（闭包标记自持）。
 - **正交不特调**：memo 保持 `line-clamp: 2` 独立截断（行数轴语义独立）；`shape: "circle"` 遇 wrap 呈竖长胶囊的组合不特调，责任归使用者。
 
 ### 决策 8：iconPlacement——start/end 走 CSS order，组合语义四个子决策（2026-11-07）

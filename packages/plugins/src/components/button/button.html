@@ -97,26 +97,30 @@
             setTimeout(syncIconStyle, 0); // mounted 时化身子树可能尚未挂载（span 不可查），一跳后再同步
             this.watch("icon", () => { setTimeout(syncIconStyle, 0); });
 
-            // label 溢出自动挂 title（ADR-0012 补记）：纯静态检测——mounted 一跳首查 + label / wrap
-            // 变化时重查，不引入 ResizeObserver（按钮为高频组件，零观察资源；容器宽度单独变化后
-            // title 可能过期为已知温和妥协，CSS 截断本身自适应不受影响）。挂/摘规则：仅截断态挂
-            // （scrollWidth > clientWidth）、宿主显式 title 永不覆盖、溢出消失只摘自挂的（闭包标记）
-            let selfTitle = false;
-            const syncTitle = () => {
+            // label 溢出自动挂提示（ADR-0012 补记，双轨修订）：纯静态检测——mounted 一跳首查 +
+            // label / wrap 变化时重查，不引入 ResizeObserver（按钮为高频组件，零观察资源；容器宽度
+            // 单独变化后提示可能过期为已知温和妥协，CSS 截断本身自适应不受影响）。
+            // 挂载属性双轨（与 x-bind title 重定向同判定口径）：tooltip 特性在场（engine.tooltip?.enabled，
+            // autospark.tooltip.js 已加载）→ 挂 data-tooltip（插件接管、样式统一）；缺席 → 挂原生 title
+            // （浏览器黄框兜底）。挂/摘规则：仅截断态挂（scrollWidth > clientWidth）、宿主显式
+            // title/data-tooltip 永不覆盖、溢出消失只摘自挂的（闭包标记）
+            const tipAttr = this.engine?.tooltip?.enabled ? "data-tooltip" : "title";
+            let selfTip = false;
+            const syncTip = () => {
                 const span = this.el.querySelector(".asc-button-label");
                 if (!span) return;
                 if (span.scrollWidth > span.clientWidth) {
-                    if (this.el.title && !selfTitle) return; // 显式 title 在场，永不覆盖
-                    this.el.title = span.textContent; // label 变文本后仍溢出 → 同步换新文本
-                    selfTitle = true;
-                } else if (selfTitle) {
-                    this.el.removeAttribute("title");
-                    selfTitle = false;
+                    if (this.el.getAttribute(tipAttr) && !selfTip) return; // 显式提示在场，永不覆盖
+                    this.el.setAttribute(tipAttr, span.textContent); // label 变文本后仍溢出 → 同步换新文本
+                    selfTip = true;
+                } else if (selfTip) {
+                    this.el.removeAttribute(tipAttr);
+                    selfTip = false;
                 }
             };
-            setTimeout(syncTitle, 0);
-            this.watch("label", () => { setTimeout(syncTitle, 0); });
-            this.watch("wrap", () => { setTimeout(syncTitle, 0); });
+            setTimeout(syncTip, 0);
+            this.watch("label", () => { setTimeout(syncTip, 0); });
+            this.watch("wrap", () => { setTimeout(syncTip, 0); });
 
             // checkable 桥（化身 checkbox）：宿主上 x-model 走 text 分型（读写 el.value + 监听 input）。
             // x-model 域恒布尔语域——el.value 只取 "true"/"false"（对齐原生 checkbox 的 checked 布尔语义，

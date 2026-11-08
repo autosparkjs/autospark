@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-scrollbar · 运行时动态挂载</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.scrollbar.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .panel {
+        height: 180px;
+        overflow: auto;
+        border: 1px solid #dcdfe6;
+        border-radius: 8px;
+        padding: 12px 16px;
+      }
+      .panel p { margin-bottom: 10px; }
+    </style>
+  </head>
+  <body>
+    <!-- Runtime 通道：engine 存活期间动态加/删 x-scrollbar 属性即生效/失效（摘除后原生滚动条回归） -->
+    <div class="demo-app section">
+      <div class="block">
+        <button class="button is-small" @click="toggleSkin">切换滚动条皮肤 / 原生滚动条</button>
+      </div>
+      <div class="panel" id="host" x-for="i of rows">
+        <p>列表项 {{ i }} —— 按钮实时换肤</p>
+      </div>
+    </div>
+    <script>
+      new AutoSpark(
+        document.querySelector(".demo-app"),
+        { rows: Array.from({ length: 16 }, (_, i) => i + 1) },
+        {
+          actions: {
+            toggleSkin() {
+              const el = document.querySelector("#host");
+              if (el.hasAttribute("x-scrollbar")) el.removeAttribute("x-scrollbar");
+              else el.setAttribute("x-scrollbar", "");
+            },
+          },
+        },
+      );
+    </script>
+  </body>
+</html>

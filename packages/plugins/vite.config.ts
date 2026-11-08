@@ -43,6 +43,7 @@ const CLOSURE_ARTIFACTS = [
   { entry: "src/modules/resource/index.ts", outFile: "autospark.resource.js", label: "Resource" },
   { entry: "src/directives/x-ripple/index.ts", outFile: "autospark.ripple.js", label: "Ripple" },
   { entry: "src/directives/x-spin/index.ts", outFile: "autospark.spin.js", label: "Spin" },
+  { entry: "src/directives/x-scrollbar/index.ts", outFile: "autospark.scrollbar.js", label: "Scrollbar" },
   { entry: "src/components/button/index.ts", outFile: "autospark.button.js", label: "Button" },
   { entry: "src/directives/tree/index.ts", outFile: "autospark.tree.js", label: "Tree" },
   { entry: "src/directives/version/index.ts", outFile: "autospark.version.js", label: "Version" },

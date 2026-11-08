@@ -164,10 +164,10 @@ icon 的**对象形态必须放外层状态再路径引用**（`:icon="iconConf"
 
 **默认**: `false`（单行截断）
 
-label 单行显示，宽度受限时（block / menu / 容器挤压）溢出自动显示**省略号**；截断发生时自动在宿主挂 `title` 悬停提示完整文案（宿主已有显式 title 时**不覆盖**）。`wrap: true` 解除截断自动折行——按钮高度随行数增长，可能撑开布局，**显式声明才换行**。
+label 单行显示，宽度受限时（block / menu / 容器挤压）溢出自动显示**省略号**；截断发生时自动在宿主挂**悬停提示**完整文案（宿主已有显式提示时**不覆盖**）——挂载属性双轨：页面已加载 [tooltip 插件](../guide/autospark-tooltip.md)时挂 `data-tooltip`（autospark tooltip 接管、样式统一），否则挂原生 `title`（浏览器黄框兜底）。`wrap: true` 解除截断自动折行——按钮高度随行数增长，可能撑开布局，**显式声明才换行**。
 
 ::: tip
-title 检测为静态（挂载与 label / wrap 变化时重查），容器宽度单独变化后 title 提示可能过期（截断本身始终正确）；与 `shape: "circle"` 组合时折行呈竖长胶囊，视觉责任归使用者。
+溢出检测为静态（挂载与 label / wrap 变化时重查），容器宽度单独变化后提示可能过期（截断本身始终正确）；与 `shape: "circle"` 组合时折行呈竖长胶囊，视觉责任归使用者。
 :::
 
 <demo html="components/button/wrap.html"/>
@@ -346,7 +346,7 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 | indent | `number \| string` | `0` | 内容额外左缩进（数字 px / CSS 值；菜单层级缩进常用） |
 | shape | `default \| circle` | `default` | 圆形（带文字自动胶囊） |
 | labelBelow | `boolean` | `false` | label 显示在图标下方 |
-| wrap | `boolean` | `false` | label 换行：false 单行溢出省略号（截断时自动挂 title，显式 title 优先）；true 折行（按钮高度随行数增长） |
+| wrap | `boolean` | `false` | label 换行：false 单行溢出省略号（截断时自动挂悬停提示——tooltip 插件在场挂 data-tooltip、缺席挂原生 title，显式提示优先）；true 折行（按钮高度随行数增长） |
 | memo | `string` | `''` | label 下方备注（小一号、淡化） |
 | tags | `{icon?, tooltip?, name?}[]` | `[]` | 右侧小圆钮组（点击冒泡 tag-click） |
 | menu | `boolean` | `false` | 菜单项形态 |

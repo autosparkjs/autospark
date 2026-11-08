@@ -206,7 +206,7 @@ _Avoid_: scrollTo（那是命令式 API，本机制是声明式绑定）、scrol
 
 **默认滚动条样式（Virtual Scrolling）**:
 虚拟列表容器（`autospark-virtual` 属性）的轻量级滚动条样式：Firefox 用 `scrollbar-width: thin` + `scrollbar-color`，Chrome/Safari 用 `::-webkit-scrollbar` 伪元素。默认细滚动条（6px 宽）、半透明滑块（`rgba(0,0,0,0.3)`）、透明轨道。用户可通过 CSS 覆盖。注入时机：`ForDirective.initialize(engine)` 时一次性注入。详见 ADR-0041。
-_Avoid_: 滚动条主题（那是配置项，本机制是默认样式）、自定义滚动条（泛化）
+_Avoid_: 滚动条主题（那是配置项，本机制是默认样式）、自定义滚动条（泛化；通用自定义滚动条是装饰动效层的 x-scrollbar 滚动条皮肤指令——本条仅为 x-for 容器内置薄样式）
 
 **itemHeight 边界处理（Virtual Scrolling）**:
 虚拟列表的 `itemHeight` 为 0、负数或非数字时的行为：`logger.warn` + 退化为全量渲染（禁用虚拟列表，回退为普通 x-for）。降级而非崩溃，功能不受影响。详见 ADR-0041。
@@ -324,6 +324,10 @@ tooltip 的**单例浮层元素**（`autospark-tooltip` 类名契约）——每
 _Avoid_: tooltip 实例（无实例化概念——单例复用）、每元素独立浮层（单例是防多显的设计决策）
 
 ### 装饰动效层
+
+**滚动条皮肤 / scrollbar overlay（x-scrollbar）**:
+宿主元素的**渐显自定义滚动条**指令（ADR-0013）：隐藏原生滚动条（`scrollbar-width:none` + `::-webkit-scrollbar{display:none}`），注入轨道（rail）+ 滑块（thumb）overlay 层直挂宿主内部（不 reparent）。**原生滚动保留**（overlay 路线——宿主 `overflow:auto` 不动，滚轮惯性/触摸/键盘/无障碍全免费；参考库 perfect-scrollbar 的 `overflow:hidden` 手写 handler 内核已否决）。显隐严格 enter/leave：mouseenter 渐显、mouseleave 延迟（`delay`，默认 300ms）渐隐；键盘滚动不显示；触摸设备永不显示（原生滚动照常的免费降级）。交互默认启用：thumb 拖拽（Pointer Events + capture 反写 `scrollTop/scrollLeft`）+ 轨道点击跳页。方向双向自动按需（溢出才激活，`.x`/`.y` 修饰符限定单向）；几何刷新三件套（ResizeObserver 宿主 + mouseenter 强刷 + scroll 同步，不上 MutationObserver）。约定式（不碰宿主 overflow/尺寸）+ 纯视觉（不写 store、不暴露滚动位置）。值三态 / Runtime 通道 / 双路径自举对齐装饰动效家族契约，控制器独立内聚（持续交互控件与装饰动效生命周期不同构）。
+_Avoid_: 自定义滚动条（泛化——彼指虚拟列表层的默认薄样式时另有词条）、完美滚动条 / perfect-scrollbar 直译名（仅作参考库引称）、scrollbar-width polyfill（本指令是皮肤层不是兼容层）、修改宿主 overflow（约定式——宿主自带滚动容器语义）
 
 **内部涟漪形态（inside）**:
 x-ripple 的 `inside` 形态开关键（`x-ripple-options` 布尔键 / `x-ripple.inside` 修饰符，三通道等价）：true 时涟漪改为**宿主内部**的 Material 式按钮涟漪——**单圆（实心填充圆自起点放大渐隐，无描边环）**（2026-11-07 修订：原「双圆一芯一环」移除环，ADR-0010 决策 1）；半径**自动几何** = 起点到宿主 border box 最远角距离（铺满宿主，`size` 键 warn 忽略）。触发器语义：always/hover 起点固定几何中心、单周期循环；click 起点为**点击坐标**、单周期自止且**连点取消重来**——家族 click「在播中连点忽略」契约的唯一点特例（非 inside 的 click 与 x-spin 不变）。`speed` 在此形态下**条件缺省 600ms**（显式声明恒优先；先例 = badge 启用时 color 联动语义红）。**互斥族**：`inside:true` 接管渲染 → type 形态词表（ring/glow/echo）warn 忽略；`badge` 优先于 inside（badge 启用时 inside warn 忽略）。载体恒为注入子元素——clipper span（absolute inset:0 + border-radius:inherit + overflow:hidden）内含单圆 span，**不写宿主 overflow**（防裁 dropdown/溢出内容）。运行时动态加/删 `x-ripple` 属性即生效/失效（engine 观察根内；options 改值须移除重加属性重挂）。详见 ADR-0010。
