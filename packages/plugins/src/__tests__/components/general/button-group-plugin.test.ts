@@ -11,12 +11,12 @@
  * import 顺序契约：button-group 须先于 button（precompile 注册顺序 = 执行顺序，
  * 组变换需赶在 button 折叠子钮 props 之前 stamp——ADR-0014 决策 1）。
  */
-import "../setup";
+import "../../setup";
 import { describe, expect, test } from "bun:test";
 import { AutoSpark } from "autospark";
-import { mount, nextTick } from "../helpers";
-import { BUTTON_GROUP_NAME, bootstrapButtonGroupPlugin } from "../../components/button-group/index";
-import { BUTTON_NAME } from "../../components/button/index";
+import { mount, nextTick } from "../../helpers";
+import { BUTTON_GROUP_NAME, bootstrapButtonGroupPlugin } from "../../../components/general/button-group/index";
+import { BUTTON_NAME } from "../../../components/general/button/index";
 
 /** 组件模板字符串（空白归一化后断言——oxfmt 折行使逐字匹配假红） */
 const tpl = () =>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>StateButton · WebSocket 连接状态</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.state-button.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">WebSocket 连接状态机（异步拟真：autoswitch=false 外层驱动）</div>
+        <div class="auto-card-body">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+            <span id="ws-wrap">
+              <x-state-button :states="wsStates" :value="ws" autoswitch="false" label="未连接"></x-state-button>
+            </span>
+            <button class="auto-btn" id="drop">模拟服务器断开</button>
+            <span>状态：<b>{{ ws }}</b>　日志：<b>{{ wsLog }}</b></span>
+          </div>
+          <p class="hint">
+            真实连接的切换时机归<b>异步回调</b>而非点击——<code>autoswitch="false"</code> 纯受控，点击只发起动作，
+            <code>ws.onopen / ws.onclose</code>（此处 setTimeout 模拟握手 800ms / 挥手 600ms）到达才写 value。
+            四态各持一套 button props：<b>未连接</b>虚线中性、<b>正在连接</b>warning 实底 +
+            <code>loading: true</code> 转圈<b>自动禁点</b>（连接中物理不可再点，引擎四重判定链的 !loading）、
+            <b>已连接</b>success 实底 + icon + <b>ripple 涟漪指示</b>（呼吸点 + 扩散环随语义绿）、<b>正在断开</b>warning 文本 + loading。
+            「模拟服务器断开」演示<b>外部事件注入 value</b>（onclose 意外触发，不经点击直接落回未连接）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      const app = new AutoSpark(document.querySelector(".demo-main"), {
+        ws: "disconnected",
+        wsLog: "—",
+        wsStates: [
+          { value: "disconnected", label: "未连接", variant: "dashed", icon: "no" },
+          { value: "connecting", label: "正在连接…", variant: "primary", type: "warning", loading: true },
+          { value: "connected", label: "已连接", variant: "primary", type: "success", icon: "yes", decorate: "ripple" },
+          { value: "disconnecting", label: "正在断开…", variant: "text", type: "warning", loading: true },
+        ],
+      });
+      const st = app.store.state;
+      const log = (msg) => { st.wsLog = msg; };
+      // 点击 = 发起动作（不直接切态）；到达回调才写 value —— 对应 ws.onopen / ws.onclose
+      document.getElementById("ws-wrap").addEventListener("click", () => {
+        if (st.ws === "disconnected") {
+          log("ws.connect() → 等待 onopen…");
+          st.ws = "connecting";
+          setTimeout(() => { st.ws = "connected"; log("onopen → 已连接"); }, 800);
+        } else if (st.ws === "connected") {
+          log("ws.close() → 等待 onclose…");
+          st.ws = "disconnecting";
+          setTimeout(() => { st.ws = "disconnected"; log("onclose → 已断开"); }, 600);
+        }
+        // connecting / disconnecting 态按钮 loading 禁点，原生 click 不会到达这里
+      });
+      // 外部事件驱动：服务器意外断开（不经点击，直接注入 value）
+      document.getElementById("drop").addEventListener("click", () => {
+        if (st.ws !== "connected") { log("（须在已连接态模拟）"); return; }
+        st.ws = "disconnected";
+        log("onclose(1006) → 连接被服务器关闭");
+      });
+    </script>
+  </body>
+</html>

@@ -24,7 +24,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     - solid = tone 实底反白 / icon = 最左 yes 占位 / corner = 右上角越界打勾三角 /
       ripple = 最左 CSS 自绘涟漪动画占位（mounted 注入的 DOM 无编译通道，x-icon 不可用，
       视觉对齐内置 ripple 图标动效语言）——宿主 class 通道：asc-d-<x> 当前态佩戴、
-      asc-p-icon / asc-p-ripple 组内任一佩戴即常驻占位（防布局跳动）
+      asc-p-check / asc-p-ripple 组内任一佩戴即常驻占位（防布局跳动）
     - 灰色无匹配态（asc-unmatched）：value 不在 states 值域——中性灰覆盖 variant/type、
       pointer + hover 可点击（与 disabled 的 opacity+not-allowed 明确分野）
 -->
@@ -100,25 +100,33 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             if (nameAttr != null) real.name = nameAttr;
             this.el.appendChild(real);
 
-            // ripple 装饰指示器（CSS 自绘呼吸点 + 扩散环）：mounted 注入的 DOM 无编译通道
-            // （x-icon 不可用），常驻插 body 最前（指示器恒最前纪律，纯 CSS 显隐——不用
-            // x-if 同 labelPos none 的 x-show 纪律，规避共享快照串台缺陷）
-            const check = document.createElement("span");
-            check.className = "asc-state-check";
-            setTimeout(() => this.el.querySelector(".asc-button-body")?.prepend(check), 0);
-
             // —— 全视觉同步（按 data.value 现值求当前态，幂等）——
             const syncVisual = () => {
                 const list = norm();
                 const cur = list.find((s) => s.value === this.data.value) ?? null;
                 const st = cur ?? {};
-                // 1. 装饰 class：当前态佩戴 → asc-d-<x>；组内任一佩戴 icon/ripple → 常驻占位标记
-                for (const k of ["asc-d-solid", "asc-d-icon", "asc-d-corner", "asc-d-ripple", "asc-p-icon", "asc-p-ripple", "asc-unmatched"]) {
+                // 1. 装饰 class：当前态佩戴 → asc-d-<x>；组内任一佩戴 check/ripple → 常驻占位标记
+                for (const k of ["asc-d-solid", "asc-d-check", "asc-d-corner", "asc-d-ripple", "asc-p-check", "asc-p-ripple", "asc-unmatched"]) {
                     this.el.classList.remove(k);
                 }
                 if (typeof st.decorate === "string" && st.decorate) this.el.classList.add("asc-d-" + st.decorate);
-                if (list.some((s) => s.decorate === "icon")) this.el.classList.add("asc-p-icon");
+                if (list.some((s) => s.decorate === "check")) this.el.classList.add("asc-p-check");
                 if (list.some((s) => s.decorate === "ripple")) this.el.classList.add("asc-p-ripple");
+                // 1.5 ripple 指示器在场性 = 组内任一态佩戴（佩戴才注入、无佩戴即移除——运行时
+                //     states 整体替换随本函数重跑自动修正；注入的 DOM 无编译通道（x-icon 不可用），
+                //     CSS 自绘呼吸点 + 扩散环；恒插 body 最前（指示器恒最前纪律））
+                {
+                    const body = this.el.querySelector(".asc-button-body");
+                    const checkEl = body?.querySelector(":scope > .asc-state-check") ?? null;
+                    const hasRipple = list.some((s) => s.decorate === "ripple");
+                    if (hasRipple && body && !checkEl) {
+                        const el = document.createElement("span");
+                        el.className = "asc-state-check";
+                        body.prepend(el);
+                    } else if (!hasRipple && checkEl) {
+                        checkEl.remove();
+                    }
+                }
                 // 2. 灰色无匹配态（无效状态集亦恒无匹配）
                 this.el.classList.toggle("asc-unmatched", cur === null);
                 // 3. dataset 反射（外层 @click 读取当前值的通道——原生 click 无 detail）
@@ -258,9 +266,9 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       --asc-line: transparent !important;
     }
 
-    /* ---------- 装饰 icon：组内任一态佩戴（asc-p-icon）即 body 最前常驻 1.2em 占位
-         （未佩戴态留空、零布局跳动）；当前态佩戴（asc-d-icon）显 tone 色 yes ---------- */
-    .asc-state-button.asc-p-icon > .asc-button-body::before {
+    /* ---------- 装饰 check：组内任一态佩戴（asc-p-check）即 body 最前常驻 1.2em 占位
+         （未佩戴态留空、零布局跳动）；当前态佩戴（asc-d-check）显 tone 色 yes ---------- */
+    .asc-state-button.asc-p-check > .asc-button-body::before {
       content: "";
       flex: none;
       width: 1.2em;
@@ -271,7 +279,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       font-size: 0.9em;
       font-weight: bold;
     }
-    .asc-state-button.asc-d-icon > .asc-button-body::before {
+    .asc-state-button.asc-d-check > .asc-button-body::before {
       content: "✓";
     }
 
@@ -362,6 +370,20 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       border-radius: 50%;
       border: 1.5px solid var(--asc-tone);
       animation: asc-state-check-ring 1.6s ease-out infinite;
+    }
+    /* primary 实底下 --asc-tone 与背景同色（指示器隐形），改取反白内容色保对比
+       （实底反白字语境；default 面板底 / secondary 淡底的 tone 指示器对比充分不受限） */
+    .asc-state-button.asc-d-ripple:has(
+        > .asc-button-body[data-variant="primary"]
+      )
+      .asc-state-check::before {
+      background: var(--asc-ink, #fff);
+    }
+    .asc-state-button.asc-d-ripple:has(
+        > .asc-button-body[data-variant="primary"]
+      )
+      .asc-state-check::after {
+      border-color: var(--asc-ink, #fff);
     }
     @keyframes asc-state-check-dot {
       0%,

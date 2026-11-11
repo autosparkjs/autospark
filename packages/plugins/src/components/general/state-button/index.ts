@@ -15,11 +15,11 @@
  * 由 {@link installPlugin} 兜底。
  */
 import type { AutoSpark } from "autospark";
-import { captureNamespace } from "../../utils/namespace";
+import { captureNamespace } from "../../../utils/namespace";
 import { installPlugin } from "@autospark/utils";
-import { kebabToCamel } from "../../utils/kebabToCamel";
-import { propKey } from "../../utils/propKey";
-import { inferPropValue } from "../../utils/inferPropValue";
+import { kebabToCamel } from "../../../utils/kebabToCamel";
+import { propKey } from "../../../utils/propKey";
+import { inferPropValue } from "../../../utils/inferPropValue";
 import stateButtonTemplate from "./state-button.html?raw";
 
 /** 组件注册名（autospark. 点前缀命名空间，ADR-0094；kebab 免疫 DOM 属性名小写化） */

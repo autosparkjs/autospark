@@ -21,7 +21,7 @@ Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色�
 
 `class` / `style` / `id` / `data-*` 保留给宿主；事件监听（`@tag-click`）写在**外层包裹元素**上消费（组件默认封闭，事件经冒泡）；等价的指令值形态 `<button x-component:autospark.button="{ ... }">` 同样受支持。
 
-<demo html="components/button/basic.html"/>
+<demo html="components/general/button/basic.html"/>
 
 ## 指南
 
@@ -33,7 +33,7 @@ Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色�
 
 决定按钮的外观形态：`default` 常规按钮（缺省形态，**面板实色底**、无边框——描边由 `border` prop 开关控制；与 `secondary` 以底色层次区分）、`primary` 实底主按钮、`secondary` 次级按钮（**次级淡底**，半透明叠加、更融入背景）、`dashed` 虚线描边、`text` 纯文本（透明底）、`link` 链接样式（零内距、悬停下划线）。形态只管「长相」，颜色语义归 `type` 属性。
 
-<demo html="components/button/variant.html"/>
+<demo html="components/general/button/variant.html"/>
 
 ### 语义色（type）
 
@@ -43,7 +43,7 @@ Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色�
 
 语义色取 theme 的 `--auto-*-color` 变量，可与任意形态自由组合。**语义色背景须搭配实底形态**（`variant: 'primary'`）；其余形态下的呈现：`default`（缺省）配非 primary 语义色时呈**描边与文字**取色（如 `type: "danger"` 红边红字——此时描边是语义呈现而非 border 装饰；primary 语义色为缺省值豁免保持中性）、`dashed` 语义色虚线边与文字、`link` / `ghost` 语义色文字与描边。
 
-<demo html="components/button/type.html"/>
+<demo html="components/general/button/type.html"/>
 
 ### 图标（icon）
 
@@ -66,7 +66,7 @@ Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色�
 icon 的**对象形态必须放外层状态再路径引用**（`:icon="iconConf"`）——与 tags / ripple 对象一样，props 字面量嵌套对象会触发引擎更新环缺陷死锁页面。
 :::
 
-<demo html="components/button/icon.html"/>
+<demo html="components/general/button/icon.html"/>
 
 ### 标签位置（labelPos）
 
@@ -80,7 +80,7 @@ label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow
 - `top` 文字在图标上方 / `bottom` 文字在图标下方（纵排）；
 - `none` **不显示文字区**（label + memo + 插槽内容一并隐藏）——宿主无显式提示时 **label 文本自动转挂悬停提示**（tooltip 插件在场挂 `data-tooltip`、缺席挂原生 `title`，显式提示优先）。
 
-<demo html="components/button/icon.html"/>
+<demo html="components/general/button/icon.html"/>
 
 ### 加载状态（loading）
 
@@ -90,7 +90,7 @@ label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow
 
 加载态：左图标位替换为转圈图标（自带 SMIL 动画、无需额外样式），同时按钮**禁点**（光标 progress、视觉不淡化——loading 优先于 disabled 的视觉呈现）。常由外层异步状态驱动。
 
-<demo html="components/button/loading.html"/>
+<demo html="components/general/button/loading.html"/>
 
 ### 禁用（disabled）
 
@@ -100,7 +100,7 @@ label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow
 
 禁用按钮：视觉淡化 + 不可点击。同步为宿主原生 `disabled` 属性——表单提交、焦点、键盘激活全链路禁用。
 
-<demo html="components/button/disabled.html"/>
+<demo html="components/general/button/disabled.html"/>
 
 ### 幽灵（ghost）
 
@@ -110,7 +110,7 @@ label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow
 
 幽灵按钮：背景透明、内容与描边取当前 type 的语义色，常用在有色背景上。可与任意形态、语义色组合。
 
-<demo html="components/button/ghost.html"/>
+<demo html="components/general/button/ghost.html"/>
 
 ### 装饰边框（border）
 
@@ -120,7 +120,7 @@ label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow
 
 装饰性附加边框开关。只落在本身无边的形态上（secondary / text 等）——`dashed` 的虚线与 `ghost` 的语义色描边是形态固有视觉，不受此开关控制。边框颜色消费 `--auto-border-color`。
 
-<demo html="components/button/border.html"/>
+<demo html="components/general/button/border.html"/>
 
 ### 块级（block）
 
@@ -130,7 +130,7 @@ label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow
 
 使按钮适配父宽度（`width: 100%`）。多个 block 按钮并排时按父容器均分。
 
-<demo html="components/button/block.html"/>
+<demo html="components/general/button/block.html"/>
 
 ### 内容对齐（align）
 
@@ -140,7 +140,7 @@ label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow
 
 按钮**内部内容**的水平对齐，在 block 等宽内容时可见效果；按钮自身在页面中的定位交由父级布局。
 
-<demo html="components/button/align.html"/>
+<demo html="components/general/button/align.html"/>
 
 ### 形状（shape）
 
@@ -150,7 +150,7 @@ label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow
 
 `circle` 圆形按钮：纯图标用法呈正圆（须显式 `label: ''`，label 默认「按钮」非空会占位）；带文字时自动降级为胶囊形（不报错、不静默忽略）。圆角档位对 circle 无效（恒胶囊半径）。
 
-<demo html="components/button/shape.html"/>
+<demo html="components/general/button/shape.html"/>
 
 ### 备注（memo）
 
@@ -160,7 +160,7 @@ label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow
 
 显示在 label 下方的注释文本：小一号（0.75em）且淡化（按内容色 color-mix 派生——实底上呈淡白、透明底上呈淡灰）。**最多两行**，超出自动截断显示省略号；memo 在场时图标默认 **2 倍大**，与 label+memo 文本块垂直居中。
 
-<demo html="components/button/memo.html"/>
+<demo html="components/general/button/memo.html"/>
 
 ### 文本换行（wrap）
 
@@ -174,7 +174,7 @@ label 的换行控制——**默认单行**：宽度受限时（block / menu / �
 
 wrap 只管 label——memo 保持两行截断不变；与 `shape: "circle"` 组合时折行呈竖长胶囊，视觉责任归使用者。
 
-<demo html="components/button/wrap.html"/>
+<demo html="components/general/button/wrap.html"/>
 
 ### 标签组（tags）
 
@@ -188,7 +188,7 @@ wrap 只管 label——memo 保持两行截断不变；与 `shape: "circle"` 组
 **嵌套对象 / 数组 props（tags、ripple、icon 的对象形态）必须放外层状态再路径引用**（`tags: myTags`、`ripple: myRipConf`、`:icon="iconConf"`）——props 字面量嵌套值存在引用比较层面的更新环缺陷（引擎侧修复中），**字面量写法会死锁页面**；原始值（布尔 / 字符串 / 数字）与路径引用不受影响。
 :::
 
-<demo html="components/button/tags.html"/>
+<demo html="components/general/button/tags.html"/>
 
 ### 菜单形态（menu）
 
@@ -198,7 +198,7 @@ wrap 只管 label——memo 保持两行截断不变；与 `shape: "circle"` 组
 
 将按钮整体呈现为菜单项：占满容器宽、透明底、内容左对齐、悬停淡底。可勾选菜单项用 [`StateButton`](./state-button.md) `menu` 组合（继承本组件全部形态面）。
 
-<demo html="components/button/menu.html"/>
+<demo html="components/general/button/menu.html"/>
 
 ### 点击涟漪（ripple）
 
@@ -214,7 +214,7 @@ wrap 只管 label——memo 保持两行截断不变；与 `shape: "circle"` 组
 
 经 ADR-0010 运行时挂载契约动态生效；**需页面已加载 `autospark.ripple.js`**——未加载时静默跳过，按钮功能不受影响。
 
-<demo html="components/button/ripple.html"/>
+<demo html="components/general/button/ripple.html"/>
 
 ### 汉字空格（autoInsertSpace）
 
@@ -224,11 +224,11 @@ wrap 只管 label——memo 保持两行截断不变；与 `shape: "circle"` 组
 
 label 恰为**两个汉字**时自动在中间插入空格（「提交」→「提 交」，双字按钮视觉更均衡）；设为 `false` 关闭。三字及以上不受影响。
 
-<demo html="components/button/auto-insert-space.html"/>
+<demo html="components/general/button/auto-insert-space.html"/>
 
 ### 主题档位（data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized）
 
-button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134），自动获得六个主题档位 props——**名即通道**：props 物化为宿主上的同名 `data-*` 属性，接通 @autospark/theme 的手动通道 CSS，在按钮局部覆盖祖先 scope 的全局档位（**局部主题**）。
+button 继承内置抽象基组件 `autospark.base`（ADR-0134，完整契约见[总览](../index.md#主题档位与-autosparkbase)），自动获得六个主题档位 props——**名即通道**：props 物化为宿主上的同名 `data-*` 属性，接通 @autospark/theme 的手动通道 CSS，在按钮局部覆盖祖先 scope 的全局档位（**局部主题**）。
 
 - **静态写法**（元素名散属性，theme CSS 直通）：
 
@@ -243,9 +243,9 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 <button x-component:autospark.button="{ 'data-spacing': dense ? 'x-small' : 'large' }"></button>
 ```
 
-值域 `ThemeSize = none | x-small | small | medium | large | x-large`；`data-dark` / `data-colorized` 为布尔；缺省不写属性（继承全局档位）；theme 不在场时静默无效（吃三级回退链兜底值）。完整契约与通道选型见 [Base 基类组件](./base.md)。
+值域 `ThemeSize = none | x-small | small | medium | large | x-large`；`data-dark` / `data-colorized` 为布尔；缺省不写属性（继承全局档位）；theme 不在场时静默无效（吃三级回退链兜底值）。完整契约与通道选型见 [总览 · 主题档位与 autospark.base](../index.md#主题档位与-autosparkbase)。
 
-<demo html="components/button/theme.html"/>
+<demo html="components/general/button/theme.html"/>
 
 ### 缩进（indent）
 
@@ -259,7 +259,7 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 <x-button menu="true" indent="1.5em" icon="folder-open" label="项目文件"></x-button>
 ```
 
-<demo html="components/button/indent.html"/>
+<demo html="components/general/button/indent.html"/>
 
 ### 事件
 
@@ -269,7 +269,7 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 | --- | --- | --- |
 | `tag-click` | `{ name, label, value, tag }` | tags 小圆钮点击（已阻断冒泡；tag 级 checkable 时 `detail.value` 为切换后新值） |
 
-<demo html="components/button/events.html"/>
+<demo html="components/general/button/events.html"/>
 
 ## 参考
 

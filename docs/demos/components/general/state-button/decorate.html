@@ -23,7 +23,7 @@
               <x-state-button :states="solidStates" :value="a" label="solid 实底"></x-state-button>
             </span>
             <span @change="b = $event.detail.value">
-              <x-state-button :states="iconStates" :value="b" label="icon 打勾占位"></x-state-button>
+              <x-state-button :states="checkStates" :value="b" label="check 打勾占位"></x-state-button>
             </span>
             <span @change="c = $event.detail.value">
               <x-state-button :states="cornerStates" :value="c" label="corner 描边三角"></x-state-button>
@@ -34,8 +34,8 @@
           </div>
           <p class="hint">
             指示色统一取主题色（有 <code>type</code> 时语义色）：<b>solid</b> 勾选态点亮实底反白字（覆盖
-            variant 表达）、<b>icon</b> 最左 1.2em 占位显示打勾 ✓、<b>corner</b> tone 描边 + 右上角小三角内嵌反白打勾（按压即预显描边，松手切换正式化）、<b>ripple</b>
-            占位显示涟漪动画指示（呼吸点 + 扩散环，CSS 自绘）。<b>icon / ripple 为占位型</b>：组内任一态佩戴即全组常驻占位，未佩戴态留空、勾选/取消零布局跳动。
+            variant 表达）、<b>check</b> 最左 1.2em 占位显示打勾 ✓、<b>corner</b> tone 描边 + 右上角小三角内嵌反白打勾（按压即预显描边，松手切换正式化）、<b>ripple</b>
+            占位显示涟漪动画指示（呼吸点 + 扩散环，CSS 自绘）。<b>check / ripple 为占位型</b>：组内任一态佩戴即全组常驻占位，未佩戴态留空、勾选/取消零布局跳动。
           </p>
         </div>
       </div>
@@ -53,7 +53,7 @@
           </div>
           <p class="hint">
             状态项可携带 <code>Button</code> 全部 props（variant / type / label / icon...）与 decorate
-            叠加——左：三态循环各态不同装饰与形态整貌换装；右：双态「同意 ↔ 已同意」文本随态改写 + icon
+            叠加——左：三态循环各态不同装饰与形态整貌换装；右：双态「同意 ↔ 已同意」文本随态改写 + check
             装饰占位恒驻（states 数组一律放外层状态路径引用）。
           </p>
         </div>
@@ -64,7 +64,7 @@
         a: false,
         solidStates: [{ value: false }, { value: true, decorate: "solid" }],
         b: false,
-        iconStates: [{ value: false }, { value: true, decorate: "icon" }],
+        checkStates: [{ value: false }, { value: true, decorate: "check" }],
         c: false,
         cornerStates: [{ value: false }, { value: true, decorate: "corner" }],
         d: false,
@@ -78,7 +78,7 @@
         agree: false,
         agreeStates: [
           { value: false, label: "同意条款" },
-          { value: true, label: "已同意", type: "success", decorate: "icon" },
+          { value: true, label: "已同意", type: "success", decorate: "check" },
         ],
       });
     </script>

@@ -22,11 +22,11 @@
  * {@link installPlugin} 兜底（先于引擎加载推预加载队列，晚于引擎加载直注册）。
  */
 import type { AutoSpark } from "autospark";
-import { captureNamespace } from "../../utils/namespace";
+import { captureNamespace } from "../../../utils/namespace";
 import { installPlugin } from "@autospark/utils";
-import { kebabToCamel } from "../../utils/kebabToCamel";
-import { propKey } from "../../utils/propKey";
-import { inferPropValue } from "../../utils/inferPropValue";
+import { kebabToCamel } from "../../../utils/kebabToCamel";
+import { propKey } from "../../../utils/propKey";
+import { inferPropValue } from "../../../utils/inferPropValue";
 import buttonTemplate from "./button.html?raw";
 
 /** 组件注册名（autospark. 点前缀命名空间，ADR-0094） */

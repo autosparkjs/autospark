@@ -340,11 +340,24 @@ export default defineConfig({
           ],
         }
       ],
+      // 组件按功能域八分类（ADR-0017）：侧边栏登记七个用户可见分组（base 基类不进文档侧边栏，
+      // 其机制说明并入 /zh/components/ 总览「主题档位与 autospark.base」节）；空分组照登记，
+      // 首个组件文档落地时填充。
       "/zh/components/":[
-        { text: "Base 基类组件", link: "/zh/components/base" },
-        { text: "Button", link: "/zh/components/button" },
-        { text: "StateButton", link: "/zh/components/state-button" },
-        { text: "ButtonGroup", link: "/zh/components/button-group" },
+        {
+          text: "常规",
+          items: [
+            { text: "Button 按钮", link: "/zh/components/general/button" },
+            { text: "StateButton 状态按钮", link: "/zh/components/general/state-button" },
+            { text: "ButtonGroup 按钮组", link: "/zh/components/general/button-group" },
+          ],
+        },
+        { text: "布局", items: [] },
+        { text: "反馈", items: [] },
+        { text: "导航", items: [] },
+        { text: "展示", items: [] },
+        { text: "表单", items: [] },
+        { text: "其他", items: [] },
       ],
       "/zh/examples/": [
         {

@@ -13,7 +13,7 @@
  *   插件闭包经即时闭包化 serve（改插件源码刷新页面即取新产物）。
  *
  * 插件入口按形态四区落位（ADR-0009）：`src/directives/<name>/index.ts`（指令型）、
- * `src/components/<name>/index.ts`（组件型）、`src/features/<name>/index.ts`（能力扩展型）、
+ * `src/components/<分类>/<name>/index.ts`（组件型，分类见 ADR-0017）、`src/features/<name>/index.ts`（能力扩展型）、
  * `src/modules/<name>/index.ts`（复合型）——一插件一文件夹自包含；跨域共享纯函数住
  * `src/utils/`（一函数一文件，decorate.ts 为强内聚家族模块单文件先例）。
  */
@@ -45,9 +45,9 @@ const CLOSURE_ARTIFACTS = [
   { entry: "src/directives/x-spin/index.ts", outFile: "autospark.spin.js", label: "Spin" },
   { entry: "src/directives/x-scrollbar/index.ts", outFile: "autospark.scrollbar.js", label: "Scrollbar" },
   { entry: "src/directives/x-badge/index.ts", outFile: "autospark.badge.js", label: "Badge" },
-  { entry: "src/components/button/index.ts", outFile: "autospark.button.js", label: "Button" },
-  { entry: "src/components/stateButton/index.ts", outFile: "autospark.state-button.js", label: "StateButton" },
-  { entry: "src/components/button-group/index.ts", outFile: "autospark.button-group.js", label: "ButtonGroup" },
+  { entry: "src/components/general/button/index.ts", outFile: "autospark.button.js", label: "Button" },
+  { entry: "src/components/general/state-button/index.ts", outFile: "autospark.state-button.js", label: "StateButton" },
+  { entry: "src/components/general/button-group/index.ts", outFile: "autospark.button-group.js", label: "ButtonGroup" },
   { entry: "src/directives/tree/index.ts", outFile: "autospark.tree.js", label: "Tree" },
   { entry: "src/directives/version/index.ts", outFile: "autospark.version.js", label: "Version" },
   { entry: "src/directives/layout/index.ts", outFile: "autospark.layout.js", label: "Layout" },

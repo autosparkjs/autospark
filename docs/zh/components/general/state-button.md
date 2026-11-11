@@ -16,15 +16,36 @@ StateButton 是在 **2-N 个状态间循环切换的单钮组件**（ADR-0016）
 <script src="autospark.js"></script>
 <script src="autospark.button.js"></script>
 <script src="autospark.state-button.js"></script>
-
-<!-- 零配置：双态 check 按钮 -->
-<x-state-button label="仅看优惠" :value="picked"></x-state-button>
-
-<!-- 三态循环：待办 → 进行中 → 已完成 -->
-<x-state-button label="任务状态" :states="todoStates" :value="todo"></x-state-button>
 ```
 
-<demo html="components/stateButton/basic.html"/>
+以一个 **WebSocket 连接按钮**为例——四个状态「未连接 → 正在连接 → 已连接 → 正在断开」（尾态回卷），一个组件表达整条状态机：
+
+```html
+<x-state-button :states="wsStates" :value="ws" label="未连接"></x-state-button>
+```
+
+```js
+// states 须放外层状态再路径引用（字面量数组触发引擎更新环，见「状态集」警示）
+const app = new AutoSpark(el, {
+    ws: "disconnected",
+    wsStates: [
+        { value: "disconnected",  label: "未连接",   variant: "dashed", icon: "no" },
+        { value: "connecting",    label: "正在连接…", variant: "primary", type: "warning", loading: true },
+        { value: "connected",     label: "已连接",    variant: "primary", type: "success", icon: "yes", decorate: "ripple" },
+        { value: "disconnecting", label: "正在断开…", variant: "text", type: "warning", loading: true },
+    ],
+});
+```
+
+三行用法要义：
+
+- **states 定义状态集**——每项 `value` 为状态值，其余键为该态专属的 [button props](./button.md#属性) + 机制键（上例 `loading: true` 让连接/断开中自动转圈禁点、`decorate: 'ripple'` 给已连接佩绿色涟漪指示——呼吸点 + 扩散环随语义色）。点击在四态间循环推进，按钮整貌随态换装；
+- **value 受控**——`:value` 注入当前态（外部状态单向驱动视觉）；点击派发 `change`（`detail.value` 为新态值），外层 `@change="ws = $event.detail.value"` 一行回写；
+- **异步场景**——真实连接的切换时机归回调（`ws.onopen` / `ws.onclose`）而非点击：`autoswitch="false"` 纯受控即此形态，下方 demo 为完整实景。
+
+不传 states 即缺省双态 check 按钮（`[{value:false},{value:true,decorate:'corner'}]`）——零配置即传统勾选按钮，综合示例见[状态集](#状态集-states)。
+
+<demo html="components/general/state-button/websocket.html"/>
 
 ## 指南
 
@@ -44,7 +65,7 @@ StateButton 是在 **2-N 个状态间循环切换的单钮组件**（ADR-0016）
 | --- | --- | --- |
 | `value` | `any` | 状态值（严格相等匹配；缺省回退下标） |
 | `clickable` | `boolean` | 缺省 `true`；`false` = 该态**出边锁**——处于该态时点击零效果（不切换不派发） |
-| `decorate` | `solid \| icon \| corner \| ripple` | 该态**额外装饰**（见下节） |
+| `decorate` | `solid \| check \| corner \| ripple` | 该态**额外装饰**（见下节） |
 | `style` | `string` | cssText 字符串（额外内联样式，对齐 tags.styles 通道） |
 | `class` | `string` | 附加类名（切态摘旧加新） |
 | `tooltip` | `string` | 悬停提示（双轨：tooltip 插件在场挂 `data-tooltip`、缺席挂原生 `title`） |
@@ -63,22 +84,24 @@ StateButton 是在 **2-N 个状态间循环切换的单钮组件**（ADR-0016）
 states **数组一律放外层状态再路径引用**（`:states="myStates"`）——含标量数组 `[1,2]` 与空数组 `[]` 在内，**任何字面量数组都会触发引擎更新环缺陷死锁页面**（与 tags 同款约束，引擎侧修复中）；对象/数字等标量字面量安全。项内 `tags` / `icon` 对象形态同须路径引用。
 :::
 
+<demo html="components/general/state-button/basic.html"/>
+
 ### 装饰（decorate 项键）
 
-**类型**: `solid | icon | corner | ripple`（states 项键，无组件级默认装饰）
+**类型**: `solid | check | corner | ripple`（states 项键，无组件级默认装饰）
 
 为**佩戴该装饰的状态**提供的额外视觉，N 态任意佩戴（每态一个）。指示色统一取主题色（当前态 `type` 键指定语义色时随之）：
 
 | 值 | 佩戴态呈现 |
 | --- | --- |
 | `solid` | tone 实底 + 反白字（覆盖 variant 表达） |
-| `icon` | 最左 1.2em 显示打勾 ✓ |
+| `check` | 最左 1.2em 显示打勾 ✓ |
 | `corner` | tone 描边 + 右上角小三角内嵌反白打勾（缺省组 true 态即此） |
 | `ripple` | 最左 1.2em 显示涟漪动画指示（呼吸点 + 扩散环，CSS 自绘） |
 
-`icon` / `ripple` 为**占位型**：组内任一态佩戴即全组常驻 1.2em 占位，未佩戴态留空——多态循环间对齐、勾选/取消零布局跳动（佩戴按态自由，不要求全组统一）。
+`check` / `ripple` 为**占位型**：组内任一态佩戴即全组常驻 1.2em 占位，未佩戴态留空——多态循环间对齐、勾选/取消零布局跳动（佩戴按态自由，不要求全组统一）。
 
-<demo html="components/stateButton/decorate.html"/>
+<demo html="components/general/state-button/decorate.html"/>
 
 ### 切换语义（autoswitch / 循环）
 
@@ -98,6 +121,10 @@ states **数组一律放外层状态再路径引用**（`:states="myStates"`）�
     <x-state-button :states="pairStates" :value="mode" autoswitch="false" label="受控切换"></x-state-button>
 </div>
 ```
+
+异步状态机（连接握手等切换时机归回调而非点击）的完整实景见 WebSocket 示例——`loading: true` 态自动禁点、外部事件直接注入 value：
+
+<demo html="components/general/state-button/websocket.html"/>
 
 ### 当前值（value）
 
@@ -161,7 +188,7 @@ variant / type / label / labelPos / icon / loading / disabled / ghost / border /
 | *（button props）* | — | [Button 全部属性](./button.md#属性)按名透传（variant/type/ghost/shape/loading/icon/label/ripple...），切态整组注入、未声明回退底值 |
 | value | `any` | 状态值（严格相等匹配，缺省回退下标） |
 | clickable | `boolean` | 缺省 true；false = 该态出边锁（点击零效果） |
-| decorate | `solid \| icon \| corner \| ripple` | 该态额外装饰（icon/ripple 占位型建议组内统一佩戴） |
+| decorate | `solid \| check \| corner \| ripple` | 该态额外装饰（check/ripple 为占位型） |
 | style | `string` | cssText 额外内联样式 |
 | class | `string` | 附加类名（切态摘旧加新） |
 | tooltip | `string` | 悬停提示（双轨） |

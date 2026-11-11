@@ -17,11 +17,11 @@
  * 无选中态、无隐藏 input、无排他协调，ADR-0014 决策 4）。
  */
 import type { AutoSpark } from "autospark";
-import { captureNamespace } from "../../utils/namespace";
+import { captureNamespace } from "../../../utils/namespace";
 import { installPlugin } from "@autospark/utils";
-import { kebabToCamel } from "../../utils/kebabToCamel";
-import { propKey } from "../../utils/propKey";
-import { inferPropValue } from "../../utils/inferPropValue";
+import { kebabToCamel } from "../../../utils/kebabToCamel";
+import { propKey } from "../../../utils/propKey";
+import { inferPropValue } from "../../../utils/inferPropValue";
 import buttonGroupTemplate from "./button-group.html?raw";
 
 /** 组件注册名（autospark. 点前缀命名空间，ADR-0094；kebab——注册名在 x-component 属性名位置被 DOM 全量小写化，camelCase 永不匹配） */

@@ -83,7 +83,7 @@ value 不在 states 值域内 → **专属灰色渲染态**：统一中性灰**�
 
 ## 后果
 
-- **破坏性（button）**：`checkable/checkValues/checkStyle/value` 四 props 失效——迁移动作 `checkable: true` → `<x-state-button>`；`checkStyle: 'icon'` → `states: [{value:假值},{value:真值,decorate:'icon'}]`（路径引用）。button-plugin.test.ts 的 checkable/checkStyle 用例迁往 state-button 测试文件。
+- **破坏性（button）**：`checkable/checkValues/checkStyle/value` 四 props 失效——迁移动作 `checkable: true` → `<x-state-button>`；`checkStyle: 'icon'` → `states: [{value:假值},{value:真值,decorate:'check'}]`（路径引用；2026-11-11 装饰值 icon 更名 check）。button-plugin.test.ts 的 checkable/checkStyle 用例迁往 state-button 测试文件。
 - button.html 大幅减重（纯按钮单一职责）；state-button 自持全套状态机制（setup + styles），依赖 button 同页加载。
 - button-group「选中模式下子钮禁用 checkable」约束语序更新为「禁用状态切换机制」（checkable 词条已亡）。
 - ADR-0012 增补破坏性修订：决策 3（checkable）与 checkStyle 相关段落标记由本 ADR 承接移除。

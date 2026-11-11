@@ -58,7 +58,7 @@
 
 ## 内置 autospark.base
 
-engine 内置了抽象基组件 `autospark.base`（[组件参考](/zh/components/base.md)）——所有官方组件均继承它，获得主题档位 props（`data-size` / `data-shadow` / `data-radius` / `data-spacing` / `data-dark` / `data-colorized`）的宿主属性物化行为，接通 [@autospark/theme](/zh/guide/theme/) 的手动通道 CSS 形成局部主题。自定义组件同样可以直接继承：
+engine 内置了抽象基组件 `autospark.base`（[组件总览 · 主题档位](/zh/components/#主题档位与-autosparkbase)）——所有官方组件均继承它，获得主题档位 props（`data-size` / `data-shadow` / `data-radius` / `data-spacing` / `data-dark` / `data-colorized`）的宿主属性物化行为，接通 [@autospark/theme](/zh/guide/theme/) 的手动通道 CSS 形成局部主题。自定义组件同样可以直接继承：
 
 ```html
 <div x-define="my.panel" x-define:inherit="autospark.base">

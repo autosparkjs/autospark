@@ -9,13 +9,13 @@
  * states 数组一律经状态路径引用（`states: sRef`）——x-component 字面量数组 props 存在
  * 引擎更新环缺陷（与 tags 同款约束、HEAD 未修），字面量写法死锁测试进程。
  */
-import "../setup";
+import "../../setup";
 import { describe, expect, test } from "bun:test";
 import { AutoSpark } from "autospark";
-import { mount, nextTick } from "../helpers";
+import { mount, nextTick } from "../../helpers";
 // 父组件插件须先于子加载（全局表注册面——继承解析查父，ADR-0016 产物依赖同款契约）
-import "../../components/button/index";
-import { STATE_BUTTON_NAME } from "../../components/stateButton/index";
+import "../../../components/general/button/index";
+import { STATE_BUTTON_NAME } from "../../../components/general/state-button/index";
 
 /** 点击宿主（button 原生语义，dispatchEvent MouseEvent 同 button-plugin 惯用法） */
 const click = (root: HTMLElement) =>
@@ -204,18 +204,19 @@ describe("decorate 装饰渲染（ADR-0016 决策 2）", () => {
         expect(host.className).toContain("asc-d-solid");
     });
 
-    test("icon 占位型：组内任一佩戴即常驻占位标记、当前态佩戴显指示", async () => {
+    test("check 占位型：组内任一佩戴即常驻占位标记、当前态佩戴显指示；无 ripple 佩戴零指示 span", async () => {
         const { root } = mount(
-            `<button x-component:autospark.state-button="{ label: '图标', states: sIcon }"></button>`,
-            { sIcon: [{ value: 1 }, { value: 2, decorate: "icon" }] },
+            `<button x-component:autospark.state-button="{ label: '图标', states: sCheck }"></button>`,
+            { sCheck: [{ value: 1 }, { value: 2, decorate: "check" }] },
         );
         await nextTick();
         const host = root.querySelector("button")!;
-        expect(host.className).toContain("asc-p-icon"); // 组内任一佩戴 → 常驻占位（防跳动）
-        expect(host.className).not.toContain("asc-d-icon");
+        expect(host.className).toContain("asc-p-check"); // 组内任一佩戴 → 常驻占位（防跳动）
+        expect(host.className).not.toContain("asc-d-check");
+        expect(root.querySelector(".asc-state-check")).toBeNull(); // ripple 指示 span 仅组内佩戴 ripple 才注入
         click(root);
         await nextTick();
-        expect(host.className).toContain("asc-d-icon");
+        expect(host.className).toContain("asc-d-check");
     });
 
     test("ripple 占位型：指示 span 注入 body 最前、组标记与佩戴态类分置", async () => {

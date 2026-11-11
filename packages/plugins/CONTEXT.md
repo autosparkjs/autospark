@@ -12,6 +12,10 @@ AutoSpark 官方插件包：以「脚本即契约」的 IIFE 产物分发官方�
 官方插件按形态四分，即 src 顶层四区（ADR-0009）：**指令型**（`directives/`，整指令外移，x-ripple / x-spin 及待迁 tree / layout / version / overlay——对齐 engine「指令插件」词条）、**组件型**（`components/`，纯 UI 组件注册，button）、**能力扩展型**（`features/`，指令留核心而策略/特性外移——旗下两个子形态：指令策略（virtual / paging，即 engine「策略插件」词条）与全局特性（tooltip）；对齐 engine「特性插件」表述）、**复合型**（`modules/`，组件 + 指令 + actions 多机制协同，notifications）。一插件一文件夹自包含不变，分类只是顶层归置。
 _Avoid_: 种类目录（ADR-0003 否决的是种类散装；四区归置不拆插件盒）、按需加载（正名「选择性引入」）、装饰动效类（x-ripple/x-spin 是指令型，无独立第五类）
 
+**组件分类（Component Category）**:
+`src/components/` 区内的**二级功能域归置**（ADR-0017）——八分类目录：`base/`（可继承组件基类，预留）、`general/`（常规：button / button-group / state-button）、`layout/`（grid / space / layout）、`feedback/`（modal / message / alert）、`navigation/`（menu / tabs / pagination）、`display/`（table / card / tag）、`form/`（input / select / form）、`other/`（affix / watermark）。与「插件四分类」**正交**：四分类按插件形态分 src 顶层四区，本分类按组件功能域分 components/ 内目录——归置不拆插件盒（一插件一文件夹自包含不变）。空分类目录以 `.gitkeep` 常驻（骨架文件树可见）；目录名 kebab-case（目录 / 产物名 / 注册名三对齐）。**新组件必须归入既有八分类，新增分类需新 ADR**。文档侧边栏七分组（常规/布局/反馈/导航/展示/表单/其他，中文标题，空分组照登记）；文档与 demos 物理按分类分目录。
+_Avoid_: base 与 autospark.base 混淆（同名不同物——彼是 engine 内置抽象基组件（engine ADR-0134），此是 plugins 源码基类分类目录；撞名在文档侧消解：base 不进 docs）、Base 组（侧边栏无此分组——基类不产出面向用户的组件文档）、camelCase 目录名（stateButton 已更名 state-button）、modules/ 纳入分类（notifications / resource 是复合形态，两维度正交互不混入）、指令入分类（分类仅约束 components/）、新增分类随手建（需新 ADR）
+
 ### 尺寸调节层
 
 **尺寸调节 / x-resizable（Resize）**:

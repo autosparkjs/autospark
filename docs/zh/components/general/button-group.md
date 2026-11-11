@@ -22,7 +22,7 @@
 
 ## 快速入门
 
-<demo html="components/button-group/basic.html"/>
+<demo html="components/general/button-group/basic.html"/>
 
 ## 指南
 
@@ -35,7 +35,7 @@
 - 支持 `:gap` 响应式绑定；
 - `shape=circle` 圆钮不宜入融合组（圆角会被清除，文档注记劝退）。
 
-<demo html="components/button-group/gap.html"/>
+<demo html="components/general/button-group/gap.html"/>
 
 ### 垂直组合（vertical）
 
@@ -43,7 +43,7 @@
 
 垂直组合下融合轴自动换为上下边线 / 上下圆角；子钮等宽拉伸（水平融合等高同理）。
 
-<demo html="components/button-group/vertical.html"/>
+<demo html="components/general/button-group/vertical.html"/>
 
 ### 缺省下发（variant / type / disabled）
 
@@ -53,7 +53,7 @@
 
 不做组级 `size` 下发（Button 无组件级尺寸，主题档位全局跟随）；组内等高由融合 CSS 天然保证。
 
-<demo html="components/button-group/propagate.html"/>
+<demo html="components/general/button-group/propagate.html"/>
 
 ### 选中模式（x-model / value）
 
@@ -86,13 +86,13 @@ x-model 在场时组根内嵌 `input[type=hidden]`（`name` 有则透传、`valu
 
 `:value` 单向驱动视觉；点击翻转经 `change` 冒泡由外层一行回写（与 Button 的 checkable 半双工同族惯用法）。
 
-<demo html="components/button-group/selection.html"/>
+<demo html="components/general/button-group/selection.html"/>
 
 ### 主题档位（data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized）
 
 组继承 `autospark.base` 六键（ADR-0134）：组根物化为同名 `data-*` 属性级联整组子钮——「一组统一档位」无需逐钮声明（`<x-button-group data-size="lg">`）。
 
-<demo html="components/button-group/theme.html"/>
+<demo html="components/general/button-group/theme.html"/>
 
 ### 事件
 
