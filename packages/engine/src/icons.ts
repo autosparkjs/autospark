@@ -45,6 +45,20 @@ export const icon_svgdatas = [
         <path d="M21 3v5h-5"/>
       </g>
     `],
+  ["ripple", `<g> 
+    <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none">
+      <animate attributeName="r" values="1.5;2.5;1.5" dur="1.5s" repeatCount="indefinite" />
+      <animate attributeName="opacity" values="1;0.6;1" dur="1.5s" repeatCount="indefinite" />
+    </circle> 
+    <circle cx="12" cy="12" r="2" fill="currentColor" fill-opacity="0.2" stroke="none">
+      <animate attributeName="r" values="2;11" dur="2s" repeatCount="indefinite" />
+      <animate attributeName="fill-opacity" values="0.3;0" dur="2s" repeatCount="indefinite" />
+    </circle> 
+    <circle cx="12" cy="12" r="2" fill="currentColor" fill-opacity="0.2" stroke="none">
+      <animate attributeName="r" values="2;11" dur="2s" begin="1s" repeatCount="indefinite" />
+      <animate attributeName="fill-opacity" values="0.3;0" dur="2s" begin="1s" repeatCount="indefinite" />
+    </circle>
+  </g>`],
   ["unknown", `<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M12 17h.01"/><path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/>`],
   ["folder-open", `<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>`],
   ["folder", `<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>`],

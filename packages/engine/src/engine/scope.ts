@@ -539,7 +539,11 @@ export class AutoSparkScope {
         let s: AutoSparkScope | null = this;
         while (s) {
             if (s.isSlotContent) {
-                if (s.locals) return true; // 形参进视图
+                // T4=B 宿主化身：插槽内容 scope 同时是组件实例 scope（组件 _data 注入其上，
+                // instantiateComponent 的 instanceScope = this.binding）——_data 须计入局部
+                // 上下文，否则模板内简单路径（如 :data-type="type"）误判无局部走 store.state
+                // 直读，组件 data 被绕过读到 undefined（button-group 子钮场景踩中）
+                if (s.locals || s._data) return true; // 形参进视图；化身组件 data 进视图
                 const caller = s.parent;
                 if (!caller) return false;
                 if (caller.isComponent || caller.dataBoundary || caller.declarerDataScope) {

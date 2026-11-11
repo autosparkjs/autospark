@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-badge · 快速入门</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.badge.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .demo-card {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border: 1px solid #dcdfe6;
+        border-radius: 8px;
+      }
+      .demo-grid { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 8px; align-items: flex-start; }
+      .demo-grid > div { display: flex; flex-direction: column; gap: 8px; }
+    </style>
+  </head>
+  <body>
+    <!-- 三种用法：dot 无值恒显 / count 表达式响应式（零值隐藏 + 溢出折叠） / 修饰符糖 -->
+    <div class="demo-app section">
+      <div class="demo-grid">
+        <div>
+          <p class="is-size-7 has-text-grey mb-2">dot（默认形态，无值恒显）</p>
+          <span class="demo-card"><button class="button is-small">消息</button><button class="button is-small" x-badge>消息</button></span>
+        </div>
+        <div>
+          <p class="is-size-7 has-text-grey mb-2">count（unread = <span x-text="unread"></span>，0 时隐藏）</p>
+          <span class="demo-card"><button class="button is-small" x-badge="unread" x-badge-options="{type:'count'}">消息</button></span>
+          <div class="buttons has-addons">
+            <button class="button is-small" @click="unread = unread - 1">− 1</button>
+            <button class="button is-small" @click="unread = 0">清零</button>
+            <button class="button is-small" @click="unread = unread + 1">+ 1</button>
+            <button class="button is-small" @click="unread = unread + 30">+ 30</button>
+          </div>
+        </div>
+        <div>
+          <p class="is-size-7 has-text-grey mb-2">修饰符糖（x-badge.count ≡ type:'count'）</p>
+          <span class="demo-card"><button class="button is-small" x-badge.count="unread">消息</button></span>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSpark(document.querySelector(".demo-app"), {
+        unread: 98, // + 1 → 99（临界不折叠）；再 + 30 → 128 显示 "99+"
+      });
+    </script>
+  </body>
+</html>

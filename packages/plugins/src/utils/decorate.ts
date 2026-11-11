@@ -57,6 +57,7 @@
 
 import type { AutoSpark, DirectiveSpec } from "autospark";
 import { captureNamespace } from "./namespace";
+import { readStorePath } from "./readStorePath";
 import { installPlugin } from "@autospark/utils";
 
 /* ────────────────────────── 家族共享类型与常量 ────────────────────────── */
@@ -481,7 +482,8 @@ export class DecorateDirective<C extends { trigger: DecorateTrigger }> {
         } else {
             const watcher = (this.engine as any).store.watch(expr, listener) as DecorateWatcher;
             this.valueOff = () => watcher?.off?.();
-            this.setEnabled(!!this.engine.store.read?.(expr));
+            // store 无 read 方法（可选链恒 undefined → 动态挂载表达式值恒关）——getVal 直读（ADR-0015 实施期发现）
+            this.setEnabled(!!readStorePath(this.engine, expr));
         }
     }
 

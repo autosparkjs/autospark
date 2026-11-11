@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>StateButton · 状态按钮</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.state-button.js"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">零配置即 check 按钮（缺省组）</div>
+        <div class="auto-card-body">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+            <span @change="picked = $event.detail.value">
+              <x-state-button :value="picked" label="仅看优惠"></x-state-button>
+            </span>
+            <span @change="flag = $event.detail.value">
+              <x-state-button :value="flag" variant="dashed" type="danger" label="危险勾选"></x-state-button>
+            </span>
+          </div>
+          <p class="hint">
+            不传 states 即缺省组 <code>[{value:false},{value:true,decorate:'corner'}]</code>——点击在未勾选 ↔
+            勾选（右上角打勾角标）间循环；受控回写经外层 <code>@change</code>。
+          </p>
+        </div>
+      </div>
+
+      <div class="auto-card">
+        <div class="auto-card-header">三态循环（states + 每态视觉）</div>
+        <div class="auto-card-body">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+            <span @change="todo = $event.detail.value">
+              <x-state-button :states="todoStates" :value="todo" label="任务状态"></x-state-button>
+            </span>
+            <span @change="net = $event.detail.value">
+              <x-state-button :states="netStates" :value="net" label="网络模式"></x-state-button>
+            </span>
+          </div>
+          <p class="hint">
+            点击循环 next（尾态回卷）；每态携带 button props 全集（variant/type/icon/label...）+ decorate 装饰——切换即整貌换装（形态/语义色/图标/文案全变）。
+          </p>
+        </div>
+      </div>
+
+      <div class="auto-card">
+        <div class="auto-card-header">灰色无匹配态 + autoswitch 纯受控</div>
+        <div class="auto-card-body">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+            <span @change="quality = $event.detail.value">
+              <x-state-button :states="qualityStates" :value="quality" label="画质（初始域外→灰）"></x-state-button>
+            </span>
+            <span @click="locked = ($event.currentTarget.querySelector('button').dataset.value === '1') ? 2 : 1">
+              <x-state-button :states="pairStates" :value="locked" autoswitch="false" label="外部驱动"></x-state-button>
+            </span>
+          </div>
+          <p class="hint">
+            左：value 初始为域外值 → 灰色无匹配态（可点击进首态）；右：<code>autoswitch="false"</code>
+            点击不切换，外层经 dataset 反射读当前值自行裁决回写。
+          </p>
+        </div>
+      </div>
+
+      <div class="auto-card">
+        <div class="auto-card-header">表单桥（x-model 布尔保真 + hidden 提交）</div>
+        <div class="auto-card-body">
+          <form id="f">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+              <x-state-button x-model.boolean="agree" name="agree" label="同意条款"></x-state-button>
+              <x-state-button :states="modeStates" :value="mode" name="mode" label="外观模式"></x-state-button>
+              <button type="submit" class="auto-btn">提交（看地址栏 query）</button>
+            </div>
+          </form>
+          <p class="hint">
+            布尔组化身 checkbox（<code>x-model.boolean</code> 保真、未勾选不提交）；三态组内嵌
+            hidden input（提交 <code>mode=当前值</code>）——submit 后观察 URL。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        picked: false,
+        flag: false,
+        todo: "todo",
+        todoStates: [
+          { value: "todo", label: "待办", icon: "circle", decorate: "icon" },
+          { value: "doing", label: "进行中", icon: "loading", type: "warning", variant: "dashed", decorate: "icon" },
+          { value: "done", label: "已完成", icon: "yes", type: "success", variant: "primary", decorate: "corner" },
+        ],
+        net: "wifi",
+        netStates: [
+          { value: "wifi", label: "无线", icon: "signal", decorate: "solid" },
+          { value: "5g", label: "5G", type: "success" },
+          { value: "offline", label: "离线", type: "danger", ghost: true, decorate: "corner" },
+        ],
+        quality: "hd", // 域外初值（值域只有 auto/sd/fhd）→ 首屏呈灰色无匹配态
+        qualityStates: [
+          { value: "auto", label: "自动", icon: "sun" },
+          { value: "sd", label: "标清" },
+          { value: "fhd", label: "全高清", type: "primary" },
+        ],
+        locked: 1,
+        pairStates: [1, 2],
+        agree: false,
+        mode: "auto",
+        modeStates: ["auto", "light", "dark"],
+      });
+      // quality 初值 "hd" 不在值域 → 灰色无匹配态演示
+      document.querySelector("form").addEventListener("submit", (e) => e.preventDefault());
+    </script>
+  </body>
+</html>

@@ -7,26 +7,27 @@
     <link rel="stylesheet" href="/autospark/theme-demo.css" />
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
-    <script src="/autospark/autospark.button.js?v=20261107"></script>
+    <script src="/autospark/autospark.button.js?v=20261109"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
 </head>
 <body>
     <aside class="demo-panel"><theme-controls></theme-controls></aside>
     <main class="demo-main" x-data="{
-        flag: false, flag2: false, flag3: false,
+        flag: false, flag2: false, flag3: false, flag4: false,
         picked: 'off', cv: ['on', 'off']
     }">
         <div class="auto-card">
-            <div class="auto-card-header">三种选中渲染（check-style，点击切换）</div>
+            <div class="auto-card-header">四种选中渲染（check-style，点击切换）</div>
             <div class="auto-card-body">
                 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
                     <span @change="flag = $event.detail.value"><x-button checkable="true" check-style="solid" :value="flag" label="solid 实底"></x-button></span>
                     <span @change="flag2 = $event.detail.value"><x-button checkable="true" check-style="icon" :value="flag2" label="icon 打勾占位"></x-button></span>
                     <span @change="flag3 = $event.detail.value"><x-button checkable="true" check-style="corner" :value="flag3" label="corner 描边三角"></x-button></span>
+                    <span @change="flag4 = $event.detail.value"><x-button checkable="true" check-style="ripple" :value="flag4" label="ripple 涟漪图标"></x-button></span>
                 </div>
                 <p class="hint">
-                    指示色统一取主题色（有 <code>type</code> 时语义色）：<b>solid</b> 勾选点亮实底（默认）、<b>icon</b> 最左固定占位显示/隐藏打勾（背景不变、无布局跳动）、<b>corner</b> 描边 + 右上角小三角内嵌打勾指示——三角直角边随按钮圆角半径走弦线，紧贴描边右上角、圆角档位切换自动跟随。
+                    指示色统一取主题色（有 <code>type</code> 时语义色）：<b>solid</b> 勾选点亮实底（默认）、<b>icon</b> 最左固定占位显示/隐藏打勾（背景不变、无布局跳动）、<b>corner</b> 描边 + 右上角小三角内嵌打勾指示——三角直角边随按钮圆角半径走弦线，紧贴描边右上角、圆角档位切换自动跟随、<b>ripple</b> 最左固定占位显示/隐藏内置涟漪动画图标（呼吸点 + 扩散环，与点击涟漪同源视觉；占位机制同 icon）。
                 </p>
             </div>
         </div>
@@ -37,6 +38,7 @@
                     <x-button checkable="true" check-style="icon" x-model.boolean="all" label="全选 A"></x-button>
                     <x-button checkable="true" check-style="corner" x-model.boolean="all" label="全选 B"></x-button>
                     <x-button checkable="true" check-style="solid" x-model.boolean="all" label="全选 C"></x-button>
+                    <x-button checkable="true" check-style="ripple" x-model.boolean="all" label="全选 D"></x-button>
                     <span>all = <b class="all-b">{{ all }}</b>（恒布尔，任一按钮点击全体联动）</span>
                 </div>
                 <p class="hint">

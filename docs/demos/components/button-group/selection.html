@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ButtonGroup · 选中模式</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button-group.js?v=20261110"></script>
+    <script src="/autospark/autospark.button.js?v=20261110"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">x-model 单选选中（分段选择器，segmented）</div>
+        <div class="auto-card-body">
+          <x-button-group x-model="range">
+            <x-button value="day" label="日"></x-button>
+            <x-button value="week" label="周"></x-button>
+            <x-button value="month" label="月"></x-button>
+            <x-button value="quarter" label="季"></x-button>
+          </x-button-group>
+          <p class="hint">
+            当前 range = <code>{{ range }}</code>——点击子钮切换选中（tone 实底反白），
+            点击已选不反选（radio 语义）；x-model 在场时组内嵌隐藏
+            <code>input[type=hidden]</code>（name 有则透传，表单提交载体）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">受控 value + change 事件（无 x-model 的半双工）</div>
+        <div class="auto-card-body">
+          <div @change="view = $event.detail.value" style="margin-bottom: 12px">
+            <x-button-group :value="view">
+              <x-button value="list" label="列表"></x-button>
+              <x-button value="grid" label="网格"></x-button>
+              <x-button value="chart" label="图表"></x-button>
+            </x-button-group>
+          </div>
+          <p class="hint">
+            当前 view = <code>{{ view }}</code>——<code>:value</code> 单向驱动视觉，
+            点击翻转经 <code>change</code> 冒泡（<code>detail = { value }</code>）由外层一行回写。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">无 x-model 的纯布局组（工具栏用法）</div>
+        <div class="auto-card-body">
+          <x-button-group>
+            <x-button icon="save" label="保存"></x-button>
+            <x-button icon="copy" label="复制"></x-button>
+            <x-button icon="delete" label="删除" type="danger"></x-button>
+          </x-button-group>
+          <p class="hint">无 x-model 且无受控 value 时为纯布局组：无选中态、无隐藏 input，点击各干各的。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), { range: "week", view: "list" });
+    </script>
+  </body>
+</html>

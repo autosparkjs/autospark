@@ -331,7 +331,51 @@ _Avoid_: 自定义滚动条（泛化——彼指虚拟列表层的默认薄样�
 
 **内部涟漪形态（inside）**:
 x-ripple 的 `inside` 形态开关键（`x-ripple-options` 布尔键 / `x-ripple.inside` 修饰符，三通道等价）：true 时涟漪改为**宿主内部**的 Material 式按钮涟漪——**单圆（实心填充圆自起点放大渐隐，无描边环）**（2026-11-07 修订：原「双圆一芯一环」移除环，ADR-0010 决策 1）；半径**自动几何** = 起点到宿主 border box 最远角距离（铺满宿主，`size` 键 warn 忽略）。触发器语义：always/hover 起点固定几何中心、单周期循环；click 起点为**点击坐标**、单周期自止且**连点取消重来**——家族 click「在播中连点忽略」契约的唯一点特例（非 inside 的 click 与 x-spin 不变）。`speed` 在此形态下**条件缺省 600ms**（显式声明恒优先；先例 = badge 启用时 color 联动语义红）。**互斥族**：`inside:true` 接管渲染 → type 形态词表（ring/glow/echo）warn 忽略；`badge` 优先于 inside（badge 启用时 inside warn 忽略）。载体恒为注入子元素——clipper span（absolute inset:0 + border-radius:inherit + overflow:hidden）内含单圆 span，**不写宿主 overflow**（防裁 dropdown/溢出内容）。运行时动态加/删 `x-ripple` 属性即生效/失效（engine 观察根内；options 改值须移除重加属性重挂）。详见 ADR-0010。
-_Avoid_: inline（撞既有术语——x-isolate 无值形态的 inline 子引擎 / x-loading 的 inline 主声明位）、内联涟漪（同前中文直译）、双圆一芯一环 / 芯 / 环（2026-11-07 已废——inside 单圆化，环移除；「双环」「错相」语汇属 echo 负延迟语义，与 inside 无关）、宿主 overflow:hidden 注入（Material 做法已否决——副作用裁内容）、与 x-tree 拖拽落点 inside 混淆（同名不同物——彼为内部落点常量 before/after/inside，非配置键）
+_Avoid_: inline（撞既有术语——x-isolate 无值形态的 inline 子引擎 / x-loading 的 inline 主声明位）、内联涟漪（同前中文直译）、双圆一芯一环 / 芯 / 环（2026-11-07 已废——inside 单圆化，环移除；「双环」「错相」语汇属 echo 负延迟语义，与 inside 无关）、宿主 overflow:hidden 注入（Material 做法已否决——副作用裁内容）、与 x-tree 拖拽落点 inside 混淆（同名不同物——彼为内部落点常量 before/after/inside，非配置键）、badge 与「徽标 / x-badge」混淆（同名不同物——彼为指令名，此处是装饰动效家族的波纹角标载体开关键）
+
+### 徽标层（Badge）
+
+**徽标 / x-badge（Badge）**:
+宿主元素的**内容徽标**指令（ADR-0015）：值 = count 表达式（字面量数字 / 状态路径，响应式重求值；dot 形态可省略），选项走 `x-badge-options`——`type`（`'dot'` 8px 红点缺省 / `'count'` 数字胶囊）、`overflowCount`（默认 99，`count > overflowCount` 显示 `"99+"`——「超过」即严格大于）、`color`（CSS 颜色值，缺省三级回退 `var(--auto-danger-color, var(--autospark-badge-color, #ef4444))`）、`ripple`（常驻脉冲动画，默认 false）。修饰符糖 `.count` / `.dot` / `.ripple` 三通道等价。**零值隐藏**：求值 `0/null/undefined/false/''` 不渲染；dot **无值恒显**（红点不依赖数字——无值与 0 语义正交）。Runtime 通道（observer 三钩子，动态插入 DOM 即生效）；右上角骑跨定位（宿主 static 自动 `position:relative`；空宿主 + dot 即独立徽标形态）；白 1px 分离边 `box-shadow`（暗色下仍白）。ripple 载体按形态分派：dot 用内联 SMIL SVG 复刻内置图标 `ripple`（视觉同源）、count 用数字 + `::after` 扩散环；`prefers-reduced-motion` 停播。独立于装饰动效家族（内容渲染非动效生命周期，decorate.ts 零改动）。
+_消歧_: 本词条是**通用内容徽标指令**——区别于装饰动效家族的 `badge` **选项**（x-ripple / x-spin 的波纹角标载体，波环自圆边扩散）、button 的 `icon.badge` 键（伪元素红点角标）、engine x-icon 已退役 badge 选项（ADR-0135 更名 shape）；`ripple` 键是**常驻脉冲动画**——区别于 x-ripple 指令的点击涟漪扩散。
+_Avoid_: showZero（YAGNI 未立项——零值恒隐藏）、placement 四角（YAGNI——固定右上角）、语义色名（color 是裸 CSS 值——语义色体系是 button 组件的）、outline 属性白边（圆角兼容坑——分离边走 box-shadow）
+
+### 按钮组层（Button Group）
+
+**按钮组 / autospark.button-group（Button Group）**:
+将多个 autospark.button 子钮组织成一排（水平缺省 / `vertical` 垂直）的容器组件（ADR-0014）：`<x-button-group>` 元素名快速写法经 precompile DOM 变换为根元素 + x-component 值形态（button 范式移植；**组 transform 须先于 button 执行**——聚合入口 import 顺序契约）。三职责：布局（`gap` 间隔 / 融合 / 方向）、外观缺省下发（见「缺省下发」）、选中协调（见「选中模式」）。props：`gap` / `vertical` / `block` / `variant?` / `type?` / `value?` + autospark.base 继承六键（组根物化 `data-*` 级联整组 = 统一档位通道）；`block` 只撑容器宽不强制子钮等分（等分需求使用者自行 CSS）。产物 `autospark.button-group.js` 需与 `autospark.button.js` 同页加载（子钮渲染依赖后者）。
+_Avoid_: buttonGroup（camelCase——注册名在 `x-component:` 属性名位置被 DOM 全量小写化，永不匹配）、按钮容器 / toolbar（工具栏是纯布局用法场景不是本体）
+
+**融合（Fusion）**:
+`gap=0`（缺省）时相邻子钮的视觉合体：相邻侧圆角清除 + 边线单线复用，整组呈一体的分段胶囊；`gap>0` 各子钮独立圆角独立边线。垂直组合自动换轴（上下圆角 / 上下边线）。**无独立融合开关**——无 gap 即融合。`shape=circle` 子钮不豁免（圆钮入融合组会被切角，文档注记劝退）。
+_Avoid_: 合并 / 粘连（口语）、边框重叠（实现机制词——负 margin 还是 border 置零归 ADR 实现细节）
+
+**缺省下发（Fallback Propagation）**:
+组级 `variant` / `type` / `disabled` 对子钮的外观继承语义：**子钮未显式声明该属性才继承组的**（声明式继承，类 CSS 继承）；子钮显式声明恒优先（一组 danger 里放一个 text 钮的逃生通道）。机制为 precompile attr-stamp：静态值原样、绑定表达式（`:variant`）原样转发到子钮属性，经 button 自身变换折叠进 props（响应式在同 scope 求值）。
+_Avoid_: 强制覆盖（antd 式 size 下发语义——已否决，堵死单钮差异化）、组级 size 下发（button 无组件级 size，theme 档位全局跟随，ADR-0012 决策 2）
+
+**选中模式（Selection Mode）**:
+组值的受控单选语义（segmented control）：**x-model 在场即激活**——无 x-model 为纯布局组（工具栏用法，点击各干各的、无选中态）。单选不可反选（radio 语义，点击已选钮不取消）；初始值不匹配任何子钮 value 时全不选（不猜首钮——state 是唯一真相源）。组值恒字符串（子钮 value 本是字符串属性；要数字配 `x-model.number`）。
+_Avoid_: 多选 / checkbox 组（已否决——多选场景由多个 checkable button 自行组合承担）、selectable 独立开关（非受控选中 YAGNI 未立项）、反选 / toggle（radio 语义无此操作）
+
+**子钮值（data-value）**:
+选中模式中每个子钮的身份标识：`<x-button value="day">` 的静态 value 属性，经组 precompile 先行落一份为 `data-value`（button 变换的 `data-*` 保留通道存活到运行时，组 JS 由此读取——button 折叠 props 后 DOM 上 value 无痕，stamp 是唯一可读通道）。v1 仅静态值，响应式 `:value` 子钮值不支持（分段选择器的值天然静态）。
+_Avoid_: 组值 / 选中值（那是组整体的 `value` prop——子钮值是各钮身份，同名不同层）、响应式子钮值（未立项）
+
+**组值桥（Group Model Bridge）**:
+组的 x-model 双向桥（ADR-0012 决策 3 checkable 桥范式移植）：组根 `defineProperty` 劫持 `el.value`（字符串语域）+ x-model 在场时内嵌 `input[type=hidden]`（`name` 有则透传、`value = String(选中值)`——表单提交载体）+ 点击子钮派发 `input`（x-model 回写）与 `change`（冒泡，`detail = { value }`）。受控半双工：`value` prop 单向驱动视觉，翻转靠点击 + 外层 `@change="v = $event.detail.value"` 一行回写。选中子钮挂组自有 class（不碰子钮 checkable 的 `asc-checked` 通道，两机制零冲突）；**选中模式下子钮禁用 checkable**（两套勾选机制语义冲突，文档约束不特调）。
+_Avoid_: 组件双向协议（engine 无此协议——el.value 劫持是桥不是协议）、checkable 桥（同构但归属子钮，本桥在组根）、勾选（那是 checkable 语义——组是选中）
+
+### 状态按钮层（State Button）
+
+**状态按钮 / autospark.state-button（State Button）**:
+在 2-N 个状态间**循环切换的单钮**组件（ADR-0016）——**继承 button 骨架 + 机制自治**：经 `x-define:inherit` 复用 button 的纯按钮视觉全套（快照克隆，模板/CSS 骨架单份），状态机制全套自持（桥/翻转/decorate 装饰渲染/灰色态在子组件的 setup 与 styles——**button 已取消 checkable 特性**，勾选视觉按 decorate 佩戴态判定、与位置无关）。props：`states`（**x-button-options（即 `<x-button>` 的选项集 = button props 全集）+ 状态机制键**的数组，或 `(number|string)[]` 标量简写（`x` → `{value:x}`、对象缺 `value` 回退数组下标）——button props 键（variant/type/ghost/border/shape/wrap/loading/disabled/icon/label/memo/ripple/align/indent/menu/tags…）**切态整组注入**，每态完全自定义按钮渲染与形态，未声明键回退底值（2026-11-11 泛化，原白名单 `color` 键废弃对齐 button 原名 `type`）；机制键 `clickable`（缺省 true，`false` = 该态**出边锁**：处于该态时点击零效果）、`decorate`（该态**额外装饰** `solid|icon|corner|ripple`——solid = tone 实底反白 / icon = 最左 yes 占位 / corner = 右上角越界打勾三角 / ripple = 最左 CSS 自绘涟漪动画占位；icon/ripple 为**占位型**，组内不统一佩戴有布局跳动）、`style`（cssText）、`class`（附加类）、`tooltip`（双轨提示））、`value`（缺省 = `states[0].value`，初始态即首态；显式域外值呈「无匹配态」）、`autoswitch`（缺省 true；`false` = 纯受控：点击**不切换不派发 change**，原生 click 照常——受控交互经 dataset 反射读取，视觉暗示由使用者经 states 项自表达）。**states 缺省组 `[{value:false},{value:true,decorate:'corner'}]`**（假值在前）——零配置即传统双态 check 按钮。点击**循环 next** 生效条件 = `autoswitch !== false && 当前态 clickable !== false && !disabled && !loading`（无匹配态恒可点，仍受三锁管）；命中 `states[i] → states[(i+1)%N]`（尾态回卷；无匹配 → `states[0]`），派发 `change`（冒泡，`detail = {value, index, state}` 新态三元组）+ 原生 click；宿主**常驻 dataset 反射** `data-value`（当前值序列化——标量 `String`、对象 `JSON.stringify`；button-group「子钮值」同款家族模式），外层 `@click="v = $event.currentTarget.dataset.value"` 一行读取。states 项视觉键仅当前态生效（color = 语义色名覆盖 type 通道 / label、icon 覆盖同名 props（插槽仍优先）/ style = cssText / class 附加宿主 / tooltip 双轨）。表单桥分叉：≤2 态内嵌 `input[type=checkbox]`（`el.value` 布尔语域配 `x-model.boolean`、按值匹配非位置、未勾选不提交）；N>2 内嵌 `input[type=hidden]`（`value = String(当前值)`、对象 `JSON.stringify`、`name` 透传宿主）——`<x-state-button name="...">` 天然可作表单控件提交当前状态；**N>2 的受控通道是 `@change`（detail.value 原值）**，x-model text 分型字符串化固有语义自担。`<x-state-button>` 元素名快速写法（precompile 变换复用 button 范式）；产物 `autospark.state-button.js` 依赖 `autospark.button.js` 同页加载（或聚合产物）。入 button-group 选中模式时与其他子钮同规：状态切换机制禁用（两套机制冲突，文档约束不特调）。**实施约束**：states 数组一律路径引用（`:states="myStates"`）——任何字面量数组（含标量 `[1,2]` 与空 `[]`）触发 x-component 更新环死锁（tags 同款引擎缺陷，HEAD 未修）。
+_消歧_: 与 button-group「选中模式」正交——**彼为多个钮间选择**（组值受控单选、segmented control），**此为一个钮自身循环**（自带切换语义、单控件表达 N 态）；原生 click 不携带组件数据（`MouseEvent.detail` 是点击计数且原型只读）——state 数据经 dataset 反射读取。
+_Avoid_: stateButton（camelCase——注册名在 `x-component:` 属性名位置被 DOM 全量小写化永不匹配，对齐 button-group 同款教训）、checkable / checkValues / checkStyle（button 已取消的 checkable 特性三键——二元勾选场景 state-button 零配置即得，装饰语义移入 states 项键 `decorate`）、toggle 按钮 / 开关按钮（泛化）、多态按钮（泛化）、分段选择器（那是 button-group 选中模式）
+
+**无匹配态 / asc-unmatched（Unmatched State）**:
+value 不在 states 值域内时的**专属灰色渲染态**（宿主 class 通道，mounted 桥 toggle——JS class 纪律）：统一中性灰**覆盖** variant/type（无匹配是「未处于任何状态」的元语义，不属于任何形态/语义色表达）；icon/label/memo/tags 照常显示仅灰化；`cursor:pointer` + hover 轻反馈（可点击是硬需求，与 disabled 的 `opacity 0.55 + not-allowed` 明确分野）；states 项视觉键全部不生效；hidden input 照写原值（value 是受控真相，域外值原样提交）。**触发场景**：显式传入域外 value、或 states 运行时整体替换后原 value 不在新值域（保持无匹配 → 回灰，value 不被组件擅改）。无效状态集（归一化后 length < 2）静默退化为恒无匹配、不可切态（不 warn 不拒绝）。无匹配态无 states 项可挂 `clickable`、恒可点（仍受 autoswitch/disabled/loading 管——点击进 `states[0]`）。
+_Avoid_: 禁用态（灰色可点击，非 disabled）、空态（无数据语义——states 可以为空数组，那是「无效状态集」）、未选中 / 未勾选（二元勾选语域的词）、首屏缺省观感（value 缺省 = `states[0].value`，缺省不落此态）
 
 ### 资源层（Resource）
 

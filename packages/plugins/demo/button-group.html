@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.button-group · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .row {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.button-group</h1>
+    <p>
+      按钮组容器：gap 间隔 / 无 gap 融合（相邻圆角清除 + 边线单线复用）、垂直组合、
+      variant/type/disabled 缺省下发（子钮显式优先）、x-model 单选选中（分段选择器）。
+      无 x-model 且无受控 value 时为纯布局组（工具栏用法）。
+    </p>
+
+    <div id="app" x-data="{}">
+      <h2>融合与间隔</h2>
+      <div class="row">
+        <x-button-group>
+          <x-button label="日"></x-button>
+          <x-button label="周"></x-button>
+          <x-button label="月"></x-button>
+        </x-button-group>
+        <x-button-group gap="8">
+          <x-button label="8px 间隔"></x-button>
+          <x-button label="独立圆角"></x-button>
+        </x-button-group>
+        <x-button-group type="danger">
+          <x-button label="danger 下发"></x-button>
+          <x-button label="继承"></x-button>
+        </x-button-group>
+      </div>
+
+      <h2>垂直组合</h2>
+      <div class="row" style="align-items: flex-start">
+        <x-button-group vertical>
+          <x-button label="上"></x-button>
+          <x-button label="中"></x-button>
+          <x-button label="下"></x-button>
+        </x-button-group>
+        <x-button-group vertical gap="8">
+          <x-button label="间隔 8"></x-button>
+          <x-button label="独立圆角"></x-button>
+        </x-button-group>
+      </div>
+
+      <h2>x-model 单选选中（分段选择器）</h2>
+      <div class="row">
+        <x-button-group x-model="range">
+          <x-button value="day" label="日"></x-button>
+          <x-button value="week" label="周"></x-button>
+          <x-button value="month" label="月"></x-button>
+          <x-button value="quarter" label="季"></x-button>
+        </x-button-group>
+        <span>range = <b>{{ range }}</b></span>
+      </div>
+      <p class="hint">
+        点击子钮切换选中（tone 实底反白）；点击已选不反选（radio 语义）；初始不匹配全不选。
+      </p>
+
+      <h2>受控 value + change 半双工（无 x-model）</h2>
+      <div class="row" @change="view = $event.detail.value">
+        <x-button-group :value="view">
+          <x-button value="list" label="列表"></x-button>
+          <x-button value="grid" label="网格"></x-button>
+          <x-button value="chart" label="图表"></x-button>
+        </x-button-group>
+        <span>view = <b>{{ view }}</b></span>
+      </div>
+      <p class="hint">
+        <code>:value</code> 单向驱动视觉，点击翻转经 change 冒泡（detail = { value }）由外层一行回写。
+      </p>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引是唯一官方消费方式。加载顺序契约：
+         autospark.button-group.js 须先于 autospark.button.js（组 precompile 变换在子钮上做
+         缺省下发与 data-value stamp，须赶在 button 折叠 props 之前，ADR-0014）。 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.button-group.js"></script>
+    <script src="/autospark.button.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), { range: "week", view: "grid" });
+    </script>
+  </body>
+</html>

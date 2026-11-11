@@ -124,6 +124,18 @@ describe("x-scrollbar 滚动条皮肤指令（ADR-0013）", () => {
         expect(railXOf(host)).toBeFalsy();
     });
 
+    test("无 scope 回退分支：动态插入元素的表达式值经 getVal 直读（store 无 read 方法，ADR-0015 实施期发现）", async () => {
+        const { root } = spawn(`<div><span>锚</span></div>`, { on: true });
+        await twoTicks();
+        // 动态插入元素不在编译期 scopeMap → bindValue 走 engine.store.watch 回退分支
+        const dyn = document.createElement("div");
+        dyn.setAttribute("x-scrollbar", "on");
+        root.appendChild(dyn);
+        await twoTicks();
+        expect(dyn.classList.contains("x-scrollbar")).toBe(true); // truthiness 恒开（旧 read?.() 恒 false = 恒关）
+        expect(dyn.querySelector(".x-scrollbar-rail-y")).toBeTruthy();
+    });
+
     test("表达式 truthiness：转假摘轨道与宿主类（原生条回归）→ 转真重挂", async () => {
         const { root, engine } = spawn(`<div x-scrollbar="ui.on"></div>`, { ui: { on: true } });
         const host = hostOf(root);

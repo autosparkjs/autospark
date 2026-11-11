@@ -162,3 +162,64 @@ describe("wrap 选项（label 换行与截断 title，ADR-0012 决策 7）", () 
         expect(host.getAttribute("title")).toBe("自定义提示");
     });
 });
+
+describe("tag checkable（点击翻转 value，2026-11-09）", () => {
+    const mountTags = (tags: unknown[]) => mount(
+        `<button x-component:autospark.button="{ label: '文档', tags }"></button>`,
+        { tags },
+    );
+
+    test("默认值域 [true,false]：value===true 呈 checked，点击翻转联动 data-checked 且写穿外部状态", async () => {
+        const { root, engine } = mountTags([
+            { name: "like", icon: "star", checkable: true, value: true },
+            { name: "plain", icon: "bell" },
+        ]);
+        await nextTick();
+        const tags = [...root.querySelectorAll(".asc-button-tag")] as HTMLElement[];
+        expect(tags.length).toBe(2);
+        expect(tags[0].hasAttribute("data-checked")).toBe(true); // value true === 真值
+        expect(tags[1].hasAttribute("data-checked")).toBe(false); // 非 checkable 恒无
+
+        let detail: { name: string; value: unknown } | null = null;
+        root.querySelector("button")!.addEventListener("tag-click", (e) => {
+            const d = (e as CustomEvent).detail;
+            detail = { name: d.name, value: d.value };
+        });
+        tags[0].dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await nextTick();
+        expect((engine.store.state.tags as any[])[0].value).toBe(false); // 写穿外部状态
+        expect(tags[0].hasAttribute("data-checked")).toBe(false); // 勾选视觉随绑定重算
+        expect((detail as any)?.name).toBe("like");
+        expect((detail as any)?.value).toBe(false); // detail 携切换后新值
+
+        tags[0].dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await nextTick();
+        expect((engine.store.state.tags as any[])[0].value).toBe(true);
+        expect(tags[0].hasAttribute("data-checked")).toBe(true);
+    });
+
+    test("自定义 checkValues：真值在前判定归属，残缺项逐项回退", async () => {
+        const { root, engine } = mountTags([
+            { name: "a", icon: "star", checkable: true, checkValues: ["on", "off"], value: "off" },
+            { name: "b", icon: "bell", checkable: true, checkValues: ["on"], value: "on" },
+        ]);
+        await nextTick();
+        const tags = [...root.querySelectorAll(".asc-button-tag")] as HTMLElement[];
+        expect(tags[0].hasAttribute("data-checked")).toBe(false); // 'off' === 假值
+        expect(tags[1].hasAttribute("data-checked")).toBe(true); // 真值 'on' 命中（残缺只回退缺的假值项）
+
+        tags[0].dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await nextTick();
+        expect((engine.store.state.tags as any[])[0].value).toBe("on"); // 假值 → 真值
+        expect(tags[0].hasAttribute("data-checked")).toBe(true);
+
+        tags[1].dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await nextTick();
+        expect((engine.store.state.tags as any[])[1].value).toBe(false); // 残缺假值项回退 false
+        expect(tags[1].hasAttribute("data-checked")).toBe(false);
+    });
+});
+
+// 宿主级 checkable / checkStyle / checkValues 已随 ADR-0016 从 button 移除（迁移动作
+// checkable:true → <x-state-button>），相关用例迁往 state-button-plugin.test.ts
+// （decorate 项键语义）；tag 级 checkable 为 tags 速记族独立轴功能，保留在上。

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ButtonGroup · 垂直组合</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button-group.js?v=20261110"></script>
+    <script src="/autospark/autospark.button.js?v=20261110"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">vertical：垂直组合（融合轴自动换上下边线/圆角）</div>
+        <div class="auto-card-body">
+          <div style="display: flex; gap: 32px; align-items: flex-start">
+            <x-button-group vertical>
+              <x-button label="上"></x-button>
+              <x-button label="中"></x-button>
+              <x-button label="下"></x-button>
+            </x-button-group>
+            <x-button-group vertical gap="8">
+              <x-button label="间隔 8"></x-button>
+              <x-button label="独立圆角"></x-button>
+            </x-button-group>
+            <x-button-group vertical :gap="vGap" type="info">
+              <x-button label="响应式"></x-button>
+              <x-button label="间隔"></x-button>
+            </x-button-group>
+          </div>
+          <p class="hint">
+            垂直融合下子钮等宽拉伸（水平融合等高同理）；<code>shape=circle</code> 圆钮
+            不宜入融合组（圆角会被清除）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), { vGap: 12 });
+    </script>
+  </body>
+</html>

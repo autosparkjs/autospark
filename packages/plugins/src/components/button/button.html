@@ -6,10 +6,9 @@
     在 mounted 钩子同步到宿主（this.el 即化身后的组件根）。
 
     事件出口（组件默认封闭，事件经冒泡到外层消费）：
-    - change：checkable 模式点击翻转后冒泡，detail = { value: 新值 }——
-      表单同步惯用法：外层包裹元素 @change="flag = $event.detail.value"
-    - tag-click：tags 小圆钮点击冒泡，detail = { name, tag }（tag 元素上
-      stopPropagation，不触发宿主 checkable 翻转）
+    - tag-click：tags 小圆钮点击冒泡，detail = { name, label, value, tag }（tag 元素上
+      stopPropagation 阻断冒泡）。勾选/多态切换类需求由 autospark.state-button 承接
+    （ADR-0016：button 已取消 checkable 特性，迁移动作见该 ADR 后果节）
 -->
 <!-- 元素名快速写法 <x-button variant="primary" label="..."> 由 index.ts 的 precompile
      DOM 变换承载（ADR-0117 元名形态对全局表惰性组件有时序缺口，见 index.ts 注释） -->
@@ -28,7 +27,7 @@
     {
         data: () => ({
             variant: "default",     // 形态：default 常规描边 | primary 实底 | secondary 次底 | dashed 虚线 | text 文本 | link 链接
-            type: "primary",        // 语义色：primary | success | warning | danger | info（default 形态不消费，勾选态仍生效）
+            type: "primary",        // 语义色：primary | success | warning | danger | info（default 形态不消费）
             label: "按钮",          // 兜底文案（插槽无内容时显示；labelPos none 时隐藏并自动转入悬停提示）
             labelPos: "right",       // label 在 icon 的哪侧：right 左图标右文字（默认）| left 右图标左文字（与 tags 互换）| top 文字上 | bottom 文字下 | none 不显示文字（label 转悬停提示）
             icon: "",               // 图标名或图标选项对象 { name, size, color, strokeWidth, padding, button, pointer }（对齐 x-icon-options 词面，ADR-0135 后不含 shape）+ 自有角标键 badge（伪元素红点，标量三形态控板距；loading 时被替换）
@@ -41,24 +40,34 @@
             autoInsertSpace: true,  // label 恰为两个汉字时自动插入空格
             shape: "default",       // default | circle（纯图标呈正圆，带文字自动呈胶囊）
             wrap: false,            // label 换行：false 单行溢出省略号（截断时自动挂 title，宿主显式 title 优先）；true 折行（按钮高度随行数增长）
-            value: false,           // 勾选值（checkable 模式；等于 checkValues[0] 时为选中态）
-            checkable: false,       // 可勾选模式：点击自动翻转 value 并冒泡 change 事件；化身 checkbox（x-model 可绑宿主，见 mounted 桥）
-            checkValues: [true, false], // 勾选二元组 [checked 值, unchecked 值]（任意类型，严格相等判定）
-            checkStyle: "solid",    // 选中渲染：solid 实底 | icon 左侧 yes 图标占位 | corner outline+右上角打勾小三角
             align: "center",        // 内容水平对齐：left | center | right
             indent: 0,              // 内容额外左缩进（数字 px 或任意 CSS 值如 "2em"）；菜单层级缩进常用
             memo: "",               // label 下方的备注（小一号、淡色）
-            tags: [],               // 右侧小圆钮 {icon?, label?, tooltip?, styles?(cssText), classes?, value?, ripple?, shape?}[]——label 呈胶囊（图标与文字恒 1rem）；value 原样透传进 tag-click detail；ripple 默认 false；shape 默认 none 无背景，circle/radius 呈底板
+            tags: [],               // 右侧小圆钮 {icon?, label?, tooltip?, styles?(cssText), classes?, value?, checkable?, checkValues?, shape?}[]——label 呈胶囊（图标与文字恒 1rem）；value 原样透传进 tag-click detail（checkable 时兼勾选载体：=== 真值即 checked，点击翻转）；checkValues 缺省 [true,false] 真值在前；shape 默认 none 无背景，circle/radius 呈底板
             menu: false,            // 菜单项形态：占满宽、透明底、左对齐、hover 淡底
             // computed 简写（普通函数值即计算属性，仅限单表达式）：autoInsertSpace 开启且
             // label 恰为两个汉字时中间插入空格
             displayLabel: (s) => (s.autoInsertSpace && /^[一-龥]{2}$/.test(s.label ?? "")) ? (s.label[0] + " " + s.label[1]) : s.label
         }),
         methods: {
-            // tag 小圆钮点击：阻断冒泡（不触发宿主 checkable 翻转），冒泡 tag-click——detail 平铺
-            // name（标识）/ label（文字）/ value（使用者数据，原样透传不做处理）+ tag 整对象
+            // tag 勾选值域：checkValues 逐项回退 [true, false]（真值在前）；
+            // ?? 只对 null/undefined 回退——checkValues: [0, 1] 的假值真值 0 不受影响，
+            // 残缺（如仅 [x]）时缺的项单独回退。模板 :data-checked 为内联表达式同款判定：
+            // 属性绑定求值域不含组件 methods（宽松求值 undefined → 静默移除），方法仅供事件通道
+            tagCheckValues(tag) {
+                return [tag.checkValues?.[0] ?? true, tag.checkValues?.[1] ?? false];
+            },
+            // tag 小圆钮点击：阻断冒泡，冒泡 tag-click——detail 平铺
+            // name（标识）/ label（文字）/ value（使用者数据，原样透传不做处理）+ tag 整对象。
+            // checkable：点击翻转 value（真值 ↔ 假值）——tag 为 tags 数组项的响应式代理，
+            // 赋值穿透到外部状态（tags 为引用注入），data-checked 绑定随之重算；tag-click
+            // 的 detail.value 即切换后新值
             onTagClick(tag, event) {
                 event.stopPropagation();
+                if (tag.checkable) {
+                    const vals = this.tagCheckValues(tag);
+                    tag.value = tag.value === vals[0] ? vals[1] : vals[0];
+                }
                 this.el.dispatchEvent(new CustomEvent("tag-click", { bubbles: true, detail: { name: tag.name, label: tag.label, value: tag.value, tag } }));
             }
         },
@@ -97,24 +106,6 @@
             setTimeout(syncIconStyle, 0); // mounted 时化身子树可能尚未挂载（span 不可查），一跳后再同步
             this.watch("icon", () => { setTimeout(syncIconStyle, 0); });
 
-            // tag 级涟漪（默认 false，显式开启）：ADR-0010 双属性通道动态挂载到各 tag 元素——
-            // x-for 渲染后扫挂；ripple 为 true/对象时同宿主缺省 { trigger: "click", inside: true }
-            // 并可被对象覆盖；页面未加载 autospark.ripple.js 时属性无人消费、静默无效
-            const syncTagRipples = () => {
-                const els = this.el.querySelectorAll(".asc-button-tag");
-                els.forEach((el, idx) => {
-                    const conf = (this.data.tags || [])[idx]?.ripple;
-                    el.removeAttribute("x-ripple");
-                    el.removeAttribute("x-ripple-options");
-                    if (conf) {
-                        el.setAttribute("x-ripple-options", JSON.stringify(typeof conf === "object" ? { trigger: "click", inside: true, ...conf } : { trigger: "click", inside: true }));
-                        el.setAttribute("x-ripple", "");
-                    }
-                });
-            };
-            setTimeout(syncTagRipples, 0);
-            this.watch("tags", () => { setTimeout(syncTagRipples, 0); });
-
             // label 溢出自动挂提示（ADR-0012 补记，双轨修订）：纯静态检测——mounted 一跳首查 +
             // label / wrap 变化时重查，不引入 ResizeObserver（按钮为高频组件，零观察资源；容器宽度
             // 单独变化后提示可能过期为已知温和妥协，CSS 截断本身自适应不受影响）。
@@ -148,46 +139,8 @@
             this.watch("wrap", () => { setTimeout(syncTip, 0); });
             this.watch("labelPos", () => { setTimeout(syncTip, 0); });
 
-            // checkable 桥（化身 checkbox）：宿主上 x-model 走 text 分型（读写 el.value + 监听 input）。
-            // x-model 域恒布尔语域——el.value 只取 "true"/"false"（对齐原生 checkbox 的 checked 布尔语义，
-            // 配 x-model.boolean 类型保真）；checkValues 任意值服务于 props value 通道与表单提交值
-            // （内嵌真 input[type=checkbox]：display:none 载体、name 透传宿主、提交值 = String(checkValues[0])、
-            // 未勾选不提交）。点击翻转写布尔语域后派发 input 回写 state。
-            // 布尔语域使默认组与注入组的字符串解释一致——props 晚注入的时序天然免疫。
-            if (this.data.checkable) {
-                this.el.classList.add("asc-check-" + this.data.checkStyle);
-                const proto = Object.getOwnPropertyDescriptor(HTMLButtonElement.prototype, "value");
-                const real = document.createElement("input");
-                real.type = "checkbox";
-                real.style.display = "none";
-                const vals = () => this.data.checkValues;
-                const nameAttr = this.el.getAttribute("name");
-                if (nameAttr != null) real.name = nameAttr;
-                this.el.appendChild(real);
-                // 勾选态同步 JS class（.asc-checked / .asc-check-<style>）：宿主级勾选规则一律 class 驱动——
-                // Chromium :active 粘滞期间 :has(属性变化) 不重算（点击描边延迟到下次交互才现的根因），
-                // class 变化是强失效信号，绕开该失效雷；checkStyle 静态一次性挂
-                const applyChecked = (on) => { const [onV, offV] = vals(); this.data.value = on ? onV : offV; real.checked = !!on; this.el.classList.toggle("asc-checked", !!on); };
-                Object.defineProperty(this.el, "value", {
-                    get: () => proto.get.call(this.el),
-                    set: (v) => { proto.set.call(this.el, v); applyChecked(v === "true"); },
-                    configurable: true,
-                });
-                // 重对齐：底层 value（x-model 已写，布尔语域）优先、否则按 data.value 对 checkValues 的归属
-                const resync = () => {
-                    real.value = String(vals()[0]);
-                    const raw = proto.get.call(this.el);
-                    if (raw === "true") applyChecked(true);
-                    else if (raw === "false") applyChecked(false);
-                    else if (this.data.value === vals()[0]) applyChecked(true);
-                    else if (this.data.value === vals()[1]) applyChecked(false);
-                };
-                setTimeout(resync, 0); // mounted 时化身子树与 props 均可能未就位，一跳后首对齐
-                this.watch("checkValues", () => { setTimeout(resync, 0); });
-                this.watch("value", ({ value: v }) => { // props value 受控通道（无 x-model 时）
-                    if (v === vals()[0] || v === vals()[1]) resync();
-                });
-            }
+            // checkable 桥已随 ADR-0016 整体移除（button 取消 checkable 特性——机制由
+            // autospark.state-button 继承骨架后自持，迁移动作见 ADR-0016 后果节）
 
             // 涟漪动态挂载（ADR-0010 运行时契约：不经编译、直接写属性即生效）；
             // 配置走 x-ripple-options 通道（裸 x-ripple 的值只参与三态判定、不承载配置）；
@@ -206,18 +159,6 @@
             };
             syncRipple();
             this.watch("ripple", () => { syncRipple(); });
-
-            // checkable 点击翻转：按 checkValues 二元组切换，桥值写布尔语域（"true"/"false"）后派发
-            // input（x-model 回写，配 .boolean 类型保真）与 change（detail 携带 checkValues 语域值）
-            this.el.addEventListener("click", () => {
-                if (!this.data.checkable || this.el.disabled) return;
-                const [onVal, offVal] = this.data.checkValues;
-                const next = this.data.value === onVal ? offVal : onVal;
-                const nextOn = next === onVal;
-                this.el.value = String(nextOn); // 劫持 setter 同步视觉与内嵌 input（布尔语域）
-                this.el.dispatchEvent(new Event("input", { bubbles: false })); // x-model 监听在宿主自身
-                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { value: next } }));
-            });
         },
     }
   </script>
@@ -345,92 +286,9 @@
       text-align: left;
     }
 
-    /* ---------- 勾选渲染（checkStyle）：指示色统一 --asc-tone（theme 主色，type 非默认时语义色） ---------- */
-    /* solid（默认）：勾选 = tone 实底 + 反白字 */
-    .asc-button.asc-checked.asc-check-solid,
-    .asc-button:has(
-      > .asc-button-body:not([data-check-style])[data-checked="true"]
-    ) {
-      --asc-bg: var(--asc-tone) !important;
-      --asc-ink: #fff !important;
-      --asc-line: transparent !important;
-    }
-    /* icon：最左 1.2em 固定占位（未勾选留空、无布局跳动），勾选显 tone 色 yes 指示；
-         背景维持原 variant 形态（Q12：仅指示器变化） */
-    .asc-button-body[data-check-style="icon"] {
-      position: relative;
-    }
-    .asc-button-body[data-check-style="icon"]::before {
-      content: "";
-      flex: none;
-      width: 1.2em;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--asc-tone);
-      font-size: 0.9em;
-      font-weight: bold;
-    }
-    .asc-button:has(
-        > .asc-button-body[data-check-style="icon"][data-checked="true"]
-      )
-      .asc-button-body[data-check-style="icon"]::before {
-      content: "✓";
-    }
-    /* corner：勾选 = tone 描边 outline + 右上角 tone 小三角内嵌反白小勾；背景维持原 variant。
-         三角 = 渐变盒（对角线分割、右上半着色）越出盒外 1px 与外描边同色融合（弧线无缝相接）；
-         尺寸 = min(圆角半径 ×2.5, 2.5em, 按钮高 50%)——高度基准 + aspect-ratio 方形推导，
-         超过按钮高一半时以 50% 封顶；圆角档位切换自动跟随 */
-    .asc-button.asc-checked.asc-check-corner {
-      --asc-corner: min(
-        calc(var(--auto-border-radius, 0.5rem) * 2.5),
-        2.5em,
-        50%
-      ) !important;
-      /* 外描边（默认 offset 0，画在盒外）——不受涟漪载体（inset:0 覆盖盒内）播放期色块遮挡 */
-      box-shadow: 0 0 0 1px var(--asc-tone) !important; /* 外描边走 box-shadow（视觉等价 outline、跟随圆角、绘制路径独立，规避 outline 重绘问题 */
-    }
-    .asc-button.asc-checked.asc-check-corner::after {
-      content: "" !important;
-      position: absolute !important;
-      top: -1px !important;
-      right: -1px !important;
-      height: calc(var(--asc-corner) + 1px) !important;
-      aspect-ratio: 1 / 1 !important;
-      border-top-right-radius: min(
-        calc(var(--auto-border-radius, 0.5rem) + 1px),
-        1.4em
-      );
-      background: linear-gradient(
-        to bottom left,
-        var(--asc-tone) 49.5%,
-        transparent 50%
-      );
-      z-index: 1 !important;
-    }
-    /* 反白小勾：定位于三角重心（对角线中点向直角方向）——系数基准同 --asc-corner（含 50% 高度
-         上限同步缩放），-1px 补偿三角盒越出量，确保落在三角内部 */
-    .asc-button.asc-checked.asc-check-corner::before {
-      content: "" !important;
-      position: absolute !important;
-      top: calc(var(--asc-corner) * 0.24 - 1px) !important;
-      right: calc(var(--asc-corner) * 0.14 - 1px) !important;
-      z-index: 2 !important;
-      width: calc(var(--asc-corner) * 0.36) !important;
-      aspect-ratio: 2 / 1 !important;
-      border-left: 1.5px solid var(--auto-bgcolor, #fff) !important;
-      border-bottom: 1.5px solid var(--auto-bgcolor, #fff) !important;
-      transform: rotate(-45deg) !important;
-    }
-    /* 按压预览（corner 按压即预显描边——松手勾选正式化、按住拖出取消随按压消失；
-         化解「松手才见描边」的迟滞感，涟漪芯在盒内与此描边（盒外）无覆盖冲突） */
-    .asc-button.asc-check-corner:active:not([disabled]):not(.asc-checked) {
-      box-shadow: 0 0 0 1px var(--asc-tone) !important; /* 外描边走 box-shadow（视觉等价 outline、跟随圆角、绘制路径独立，规避 outline 重绘问题 */
-    }
-    /* 三角/描边定位基准（宿主需定位上下文；x-ripple 的 .x-ripple 已有 relative 兜底，此处显式自持） */
-    .asc-button.asc-checked.asc-check-corner {
-      position: relative !important;
-    }
+    /* ---------- 勾选渲染（checkStyle 四形态）已随 ADR-0016 整体移除 ----------
+       装饰渲染（solid/icon/corner/ripple）由 autospark.state-button 的 styles 自持
+       （decorate 项键语义，宿主 class 通道），本组件不再携带任何勾选视觉 */
 
     /* ---------- 形状（shape）：circle 恒胶囊半径——纯图标时内容等宽高自然呈正圆，带文字自动胶囊 ---------- */
     .asc-button:has(> .asc-button-body[data-shape="circle"]) {
@@ -524,7 +382,7 @@
       justify-content: center;
     }
     /* labelPos left：图标（含 loading 位）移内容区末尾并与 tags 互换（icon 恒最末）；
-         横排 = 右侧、纵排 = 下方；checkStyle icon 的 yes 占位（body::before）恒最前不受影响 */
+         横排 = 右侧、纵排 = 下方 */
     .asc-button-body[data-label-pos="left"] .asc-button-icon {
       order: 5;
     }
@@ -661,6 +519,24 @@
       );
       transform: scale(0.88);
     }
+    /* checkable 勾选态（data-checked 属性绑定通道）：语义色（--asc-tone 随宿主 type）淡底 +
+         内容色转语义色——与常态 hover（ink 淡灰）形成「点亮」区分；同特异性后位覆盖 shape
+         底板色，hover 加深一档 */
+    .asc-button-tag[data-checked] {
+      color: var(--asc-tone, #009aff);
+      background: color-mix(
+        in srgb,
+        var(--asc-tone, #009aff) 22%,
+        transparent
+      );
+    }
+    .asc-button-tag[data-checked]:hover {
+      background: color-mix(
+        in srgb,
+        var(--asc-tone, #009aff) 34%,
+        transparent
+      );
+    }
     /* tag 图标钉死 1rem：不消费 --auto-icon-size（theme 档位 1.2× 会放大）也不随 data-size——
          tag 为紧凑小圆钮图标恒小；.as-icon 双类选择器（0,2,0）压过引擎 .as-icon 基础规则
          （同特异性但 icon 样式表惰性后注入），svg 撑满宿主规则一并覆盖 */
@@ -768,9 +644,8 @@
     :data-align="align"
     :data-menu="menu"
     :data-block="block"
-    :data-checked="checkable && value === checkValues[0]"
     :data-loading="loading"
-    :data-check-style="checkable ? checkStyle : undefined" :data-label-pos="labelPos"
+    :data-label-pos="labelPos"
     :style="indent ? { paddingLeft: (typeof indent === 'number' ? indent + 'px' : indent) } : undefined"
   >
     <!-- loading 图标替换左图标位（字面量须带引号——裸 loading 会命中 data.loading 布尔值） -->
@@ -795,7 +670,9 @@
     </span>
     <span class="asc-button-tags" x-if="tags && tags.length">
       <!-- x-for 宿主自身的绑定不被编译（ownsChildren 接管子树编译），故宿主为纯克隆载体，
-             tag 圆钮与绑定（title/点击）在内层元素上，x-for locals（tag）在内层可见 -->
+             tag 圆钮与绑定（title/点击）在内层元素上，x-for locals（tag）在内层可见。
+             data-checked 为内联表达式（非方法调用）——属性绑定求值域不含组件 methods，
+             方法形态会宽松求值 undefined 而静默移除；checkValues 逐项 ?? 回退（假值真值如 0 不受影响） -->
       <span
         class="asc-button-tag-item"
         x-for="tag of tags"
@@ -807,6 +684,7 @@
           :title="tag.tooltip"
           :style="tag.styles"
           :data-shape="tag.shape"
+          :data-checked="!tag.checkable ? null : (tag.value === (tag.checkValues?.[0] ?? true) ? '' : null)"
           @click="onTagClick(tag, $event)"
         >
           <i class="asc-button-tag-icon" x-if="tag.icon" x-icon="tag.icon"></i>

@@ -7,6 +7,10 @@
 > **2026-11-03 修订**：属性更名——原 `type`（形态）→ **`variant`**、原 `color`（语义色）→ **`type`**（对齐 `type` 专属语义色的通用语感，正文保留原始决策名以便对照）；`ripple` 默认值 `false` → **`true`**（点击涟漪默认开启，页面未加载 autospark.ripple.js 时静默跳过）。
 >
 > **2026-11-07 修订**：新增 `wrap`（label 换行控制，决策 7）、`iconPlacement`（图标位置，决策 8；2026-11-08 决策 9 移除并入 labelPos）——**默认行为反转**：label 从可折行变为单行溢出省略号 + 溢出时静态检测自动挂 title。
+>
+> **2026-11-09 修订**：`checkStyle` 新增 `ripple` 取值（第 4 值）——最左 1.2em 常驻占位（未勾选留空、零布局跳动，机制对齐 `icon` 取值），勾选显 tone 色 `x-icon` 内置涟漪动画图标（呼吸点 + 双环错峰扩散，与点击涟漪同源视觉 ADR-0010；内置图标同名可被用户覆盖，ADR-0046）；背景维持原 variant（仅指示器变化）。与 `ripple` prop（点击涟漪动效，决策 5）**同词不同面**：一为 `checkStyle` 枚举值、一为独立布尔/对象属性。
+>
+> **2026-11-10 破坏性修订**：**决策 3（checkable）整体退役**——button 取消 checkable 特性（`checkable` / `value` / `checkValues` / `checkStyle` 四 props、化身 checkbox 桥、勾选 CSS 全部移除），由 `autospark.state-button` 状态按钮承接（ADR-0016 继承骨架 + 机制自治；迁移动作 `checkable: true` → `<x-state-button>` 零配置即等价、`checkStyle: 'x'` → states 项键 `decorate: 'x'`）。tags 子钮的 **tag 级 checkable 保留**（tags 速记族独立轴，不受影响）。
 
 ## 背景
 
@@ -70,9 +74,13 @@ engine 无组件双向协议（背景②），硬凑存在类型陷阱：x-model
 - **top/bottom 纵排**（top = 文字上/图标下）；check-style icon 的勾选占位恒最前不变；
 - **none 不显示文字区**（label + memo + 插槽内容经 main 整体 `x-show` 隐藏——**用 x-show 不用 x-if**：多实例 + x-if 延迟编译命中共享快照 templateScopeMap 串台缺陷，props 跨实例错配）；宿主无显式提示时 **label 文本双轨转挂悬停提示**（tooltip 在场 data-tooltip / 缺席 title，与溢出提示同口径），显式 title / data-tooltip 永不覆盖；元素名写法的 `title` 属性在 precompile 变换的保留清单内（不折入 props，保住「显式提示优先」判定）。
 
-### 决策 10：tags 键面升级——label 胶囊 / cssText / value 原样 / tag 级 ripple（2026-11-08）
+### 决策 10：tags 键面升级——label 胶囊 / cssText / value 原样 / checkable（2026-11-08；tag 级 ripple 于 2026-11-09 移除、checkable 同日增补）
 
-tag 结构从 `{ icon?, name?, tooltip? }` 扩展为 `{ icon?, label?, tooltip?, styles?, classes?, value?, ripple? }`（旧键面向后兼容）：`label` 文字标签（在场呈胶囊，图标与文字**恒 1rem** 不随 data-size 档位——视觉稳定优先于档位跟随）；`styles` 为 **cssText 字符串**（`:style` 字符串通道整体写入，拒绝对象——合并语义弱且与引擎字符串惯例不符，grilling Q2 定案）；`value` 使用者数据**原样透传**进 tag-click detail（detail 平铺 `{ name, label, value, tag }`，对象/数字不做任何处理，Q3）；`ripple` 默认 **false**（tag 级显式开启，ADR-0010 双属性挂载经 mounted 扫挂，宿主按钮涟漪已覆盖点击反馈、恒开会双重涟漪，Q4）；未加载 autospark.ripple.js 静默无效。
+tag 结构从 `{ icon?, name?, tooltip? }` 扩展为 `{ icon?, label?, tooltip?, styles?, classes?, value?, checkable?, checkValues?, shape? }`（旧键面向后兼容）：`label` 文字标签（在场呈胶囊，图标与文字**恒 1rem** 不随 data-size 档位——视觉稳定优先于档位跟随）；`styles` 为 **cssText 字符串**（`:style` 字符串通道整体写入，拒绝对象——合并语义弱且与引擎字符串惯例不符，grilling Q2 定案）；`value` 使用者数据**原样透传**进 tag-click detail（detail 平铺 `{ name, label, value, tag }`，对象/数字不做任何处理，Q3）；未加载 autospark.ripple.js 静默无效。
+
+> **修订（2026-11-09）**：移除 `ripple` 键与 `syncTagRipples` 扫挂逻辑。曾两度调整其缺省语义（初版垫 `{ trigger: "click", inside: true }`、同日改裸挂 x-ripple 原生 always 波环常显），终以特性整体裁撤收场——宿主按钮涟漪已覆盖点击反馈，tag 级独立涟漪的收益不抵其语义维护成本（YAGNI）。
+>
+> **修订（2026-11-09）**：增 `checkable: boolean` / `checkValues: [真值, 假值]`（缺省 `[true, false]`，逐项 `??` 回退——假值真值如 `0` 无损）。checkable 在场时 `value` 兼任勾选载体（`=== 真值` 即 checked），点击在 `onTagClick` 内翻转并经响应式代理写穿外部状态，`tag-click` detail.value 为切换后新值；视觉走 `:data-checked` 属性绑定（语义色 `--asc-tone` 淡底点亮）+ CSS。**实现约束**：勾选判定必须内联表达式——属性绑定求值域不含组件 methods（方法形态宽松求值 undefined → 静默移除），方法（`tagCheckValues`）仅供事件通道 `onTagClick` 复用。
 
 ## 备选方案
 

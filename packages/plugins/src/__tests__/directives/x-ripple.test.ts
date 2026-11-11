@@ -79,6 +79,19 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         expect(host.style.getPropertyValue("--x-ripple-duration")).toBe("3000ms");
     });
 
+    test("无 scope 回退分支：动态插入元素的表达式值经 getVal 直读（store 无 read 方法，ADR-0015 实施期发现）", async () => {
+        const m = spawn(`<div><span>锚</span></div>`, { fx: true });
+        await twoFrames();
+        // 动态插入元素不在编译期 scopeMap → bindValue 走 engine.store.watch 回退分支
+        const dyn = document.createElement("div");
+        dyn.setAttribute("x-ripple", "fx");
+        m.root.appendChild(dyn);
+        await twoFrames();
+        await twoFrames(); // 动态宿主的形态探测循环额外两拍
+        expect(dyn.classList.contains("x-ripple")).toBe(true); // truthiness 恒开（旧 read?.() 恒 false = 恒关）
+        expect(dyn.classList.contains("x-ripple-on")).toBe(true);
+    });
+
     test("字面 false 恒关：不激活（标记类也不加——形态未探测定型）", async () => {
         const { root } = spawn(`<div x-ripple="false"></div>`, {});
         const host = hostOf(root);

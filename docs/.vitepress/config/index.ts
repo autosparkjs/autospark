@@ -333,6 +333,7 @@ export default defineConfig({
                 { text: "x-ripple", link: "/zh/guide/directives/x-ripple" },
                 { text: "x-spin", link: "/zh/guide/directives/x-spin" },
                 { text: "x-scrollbar", link: "/zh/guide/directives/x-scrollbar" },
+                { text: "x-badge", link: "/zh/guide/directives/x-badge" },
                 { text: "x-resource", link: "/zh/guide/directives/x-resource" },
               ],
             },
@@ -342,6 +343,8 @@ export default defineConfig({
       "/zh/components/":[
         { text: "Base 基类组件", link: "/zh/components/base" },
         { text: "Button", link: "/zh/components/button" },
+        { text: "StateButton", link: "/zh/components/state-button" },
+        { text: "ButtonGroup", link: "/zh/components/button-group" },
       ],
       "/zh/examples/": [
         {

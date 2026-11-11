@@ -2,7 +2,7 @@
 
 ## 概述
 
-Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色（type）正交组合**，覆盖常规/主/次/虚线/文本/链接六种形态 × 五种语义色，并支持图标、加载、禁用、幽灵、块级、圆形、纵排标签、备注、标签组、菜单项、可勾选、点击涟漪、汉字空格等完整特性面。
+Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色（type）正交组合**，覆盖常规/主/次/虚线/文本/链接六种形态 × 五种语义色，并支持图标、加载、禁用、幽灵、块级、圆形、纵排标签、备注、标签组、菜单项、点击涟漪、汉字空格等完整特性面。可勾选 / 多状态切换需求由 [`StateButton`](./state-button.md) 承接（ADR-0016——button 已取消 checkable 特性）。
 
 组件全盘消费 `@autospark/theme` 语义变量（`--auto-*` 三级回退链，ADR-0129）——调节主题色、切换暗色、换尺寸/圆角/间距档位**即时生效**，且不设组件级尺寸属性（字号/圆角跟随主题档位，内距以 `--auto-padding` 为基准——`data-spacing` 档位全局调节即时生效）。每个示例右侧均带**主题控制面板**，可现场验证联动。
 
@@ -16,10 +16,10 @@ Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色�
 
 <x-button variant="primary" label="主要按钮"></x-button>
 <x-button variant="dashed" type="danger" label="危险虚线" disabled="true"></x-button>
-<x-button checkable="true" :value="picked" label="仅看优惠"></x-button>
+<x-button icon="star" label="图标按钮"></x-button>
 ```
 
-`class` / `style` / `id` / `data-*` 保留给宿主；事件监听（`@change` / `@tag-click`）写在**外层包裹元素**上消费（组件默认封闭，事件经冒泡）；等价的指令值形态 `<button x-component:autospark.button="{ ... }">` 同样受支持。
+`class` / `style` / `id` / `data-*` 保留给宿主；事件监听（`@tag-click`）写在**外层包裹元素**上消费（组件默认封闭，事件经冒泡）；等价的指令值形态 `<button x-component:autospark.button="{ ... }">` 同样受支持。
 
 <demo html="components/button/basic.html"/>
 
@@ -41,7 +41,7 @@ Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色�
 
 **默认**: `primary`
 
-语义色取 theme 的 `--auto-*-color` 变量，可与任意形态自由组合。**语义色背景须搭配实底形态**（`variant: 'primary'`）；其余形态下的呈现：`default`（缺省）配非 primary 语义色时呈**描边与文字**取色（如 `type: "danger"` 红边红字——此时描边是语义呈现而非 border 装饰；primary 语义色为缺省值豁免保持中性）、`dashed` 语义色虚线边与文字、`link` / `ghost` 语义色文字与描边。勾选态（checkable）取色同样跟随当前 type。
+语义色取 theme 的 `--auto-*-color` 变量，可与任意形态自由组合。**语义色背景须搭配实底形态**（`variant: 'primary'`）；其余形态下的呈现：`default`（缺省）配非 primary 语义色时呈**描边与文字**取色（如 `type: "danger"` 红边红字——此时描边是语义呈现而非 border 装饰；primary 语义色为缺省值豁免保持中性）、`dashed` 语义色虚线边与文字、`link` / `ghost` 语义色文字与描边。
 
 <demo html="components/button/type.html"/>
 
@@ -77,7 +77,7 @@ icon 的**对象形态必须放外层状态再路径引用**（`:icon="iconConf"
 label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow` 两属性移除，迁移动作 `icon-placement="end"` → `label-pos="left"`、`label-below="true"` → `label-pos="bottom"`）：
 
 - `right`（默认）左图标右文字；`left` 图标移内容区末尾（横排右/纵排下），**并与 tags 互换**（图标恒最末），loading 图标随行；
-- `top` 文字在图标上方 / `bottom` 文字在图标下方（纵排）；`check-style: icon` 的勾选占位恒最前不受影响；
+- `top` 文字在图标上方 / `bottom` 文字在图标下方（纵排）；
 - `none` **不显示文字区**（label + memo + 插槽内容一并隐藏）——宿主无显式提示时 **label 文本自动转挂悬停提示**（tooltip 插件在场挂 `data-tooltip`、缺席挂原生 `title`，显式提示优先）。
 
 <demo html="components/button/icon.html"/>
@@ -178,11 +178,11 @@ wrap 只管 label——memo 保持两行截断不变；与 `shape: "circle"` 组
 
 ### 标签组（tags）
 
-**类型**: `{ icon?: string, label?: string, tooltip?: string, styles?: string, classes?: string, value?: any, ripple?: boolean | object, shape?: none | circle | radius }[]`
+**类型**: `{ icon?: string, label?: string, tooltip?: string, styles?: string, classes?: string, value?: any, checkable?: boolean, checkValues?: [any, any], shape?: none | circle | radius }[]`
 
 **默认**: `[]`
 
-在按钮最右侧渲染一组小按钮，具有独立的点击事件（冒泡 `tag-click`，detail 平铺 `{ name, label, value, tag }`——详见「事件」）。键面：`icon` 图标；`label` 文字标签（在场呈**胶囊**形态）；`tooltip` 悬停提示；`styles` 额外内联样式（**cssText 字符串**）；`classes` 额外类名；`value` 使用者数据（**原样透传**进 detail，对象/数字皆可）；`ripple` tag 级涟漪（默认 false，经 ADR-0010 双属性挂载，未加载 autospark.ripple.js 静默无效）；`shape` 底板——默认 `none` **无背景**，`circle` 圆形底板 / `radius` 主题圆角底板（板色按内容色派生淡底，胶囊 tag 的 9999px 优先）。**图标与 label 恒 1rem**（不随字号档位）；tag 背景按按钮内容色派生（实底上呈淡白、透明底上呈淡灰、幽灵上呈淡语义色），与按钮主背景形成色差。
+在按钮最右侧渲染一组小按钮，具有独立的点击事件（冒泡 `tag-click`，detail 平铺 `{ name, label, value, tag }`——详见「事件」）。键面：`icon` 图标；`label` 文字标签（在场呈**胶囊**形态）；`tooltip` 悬停提示；`styles` 额外内联样式（**cssText 字符串**）；`classes` 额外类名；`value` 使用者数据（**原样透传**进 detail，对象/数字皆可）；`checkable` 可切换——在场时 `value` 兼任勾选载体（`value === 真值` 即 checked，点击翻转真值 ↔ 假值并**写回外部状态**；`tag-click` 的 `detail.value` 为切换后新值）；`checkValues` `[真值, 假值]` 缺省 `[true, false]`（残缺项逐项回退，`??` 语义对假值真值如 `0` 无损）；checked 呈语义色淡底「点亮」态；`shape` 底板——默认 `none` **无背景**，`circle` 圆形底板 / `radius` 主题圆角底板（板色按内容色派生淡底，胶囊 tag 的 9999px 优先）。**图标与 label 恒 1rem**（不随字号档位）；tag 背景按按钮内容色派生（实底上呈淡白、透明底上呈淡灰、幽灵上呈淡语义色），与按钮主背景形成色差。
 
 ::: warning
 **嵌套对象 / 数组 props（tags、ripple、icon 的对象形态）必须放外层状态再路径引用**（`tags: myTags`、`ripple: myRipConf`、`:icon="iconConf"`）——props 字面量嵌套值存在引用比较层面的更新环缺陷（引擎侧修复中），**字面量写法会死锁页面**；原始值（布尔 / 字符串 / 数字）与路径引用不受影响。
@@ -196,57 +196,9 @@ wrap 只管 label——memo 保持两行截断不变；与 `shape: "circle"` 组
 
 **默认**: `false`
 
-将按钮整体呈现为菜单项：占满容器宽、透明底、内容左对齐、悬停淡底。可与 `checkable` 组合做可勾选菜单项（勾选态按 `checkStyle` 渲染，与普通按钮一致）。
+将按钮整体呈现为菜单项：占满容器宽、透明底、内容左对齐、悬停淡底。可勾选菜单项用 [`StateButton`](./state-button.md) `menu` 组合（继承本组件全部形态面）。
 
 <demo html="components/button/menu.html"/>
-
-### 可勾选（checkable / value / checkValues / checkStyle）
-
-**类型**: `checkable: boolean`、`value: any`、`checkValues: [any, any]`、`checkStyle: solid | icon | corner`
-
-**默认**: `false` / `false` / `[true, false]` / `solid`
-
-`checkable` 开启勾选模式——按钮**化身 checkbox**：内嵌隐藏真 `input[type=checkbox]`（表单提交载体），点击按 `checkValues` 二元组翻转 `value` 并冒泡 `change`。四个子特性：
-
-#### value 通道（受控半双工）
-
-显示方向经 props 单向注入响应，翻转方向经 change 冒泡回写：
-
-```html
-<span @change="picked = $event.detail.value">
-    <x-button checkable="true" :check-values="['on','off']" :value="picked" label="仅看优惠"></x-button>
-</span>
-```
-
-#### x-model 双向绑定（化身 checkbox）
-
-宿主上 `x-model` 经组件桥转发到内嵌 input——与原生 checkbox 一致的**布尔语域**，配 `x-model.boolean` 类型保真：
-
-```html
-<x-button checkable="true" check-style="icon" x-model.boolean="flag" label="同意条款" name="agree"></x-button>
-```
-
-多枚按钮绑**同一根 state 变量**即「全选组」——任一翻转、全体联动。::: warning
-x-model 绑定的变量须在**根 state**（构造入参），放祖先 `x-data` 局部域会因引擎封闭域写断裂而失联（写入会凭空建根键）。表单提交：勾选时以 `name=String(checkValues[0])` 提交、未勾选不提交（原生语义）。
-:::
-
-<demo html="components/button/checkable.html"/>
-
-#### checkValues 任意值
-
-`[checked 值, unchecked 值]` 二元组（任意类型，严格相等判定）——`"on"/"off"`、`1/0` 均可；决定 value 通道取值、change detail 与表单提交值（对象须外层状态引用）。
-
-#### checkStyle 三种选中渲染
-
-指示色统一取主题色（有 `type` 时语义色）；未勾选均维持原 variant 形态：
-
-| 值 | 选中呈现 |
-| --- | --- |
-| `solid`（默认） | tone 实底 + 反白字 |
-| `icon` | 最左 1.2em 固定占位显示/隐藏打勾（背景不变、无布局跳动） |
-| `corner` | tone 描边 + 右上角小三角（直角边随圆角半径走弦线、紧贴描边右上角）内嵌反白打勾 |
-
-<demo html="components/button/checkable.html"/>
 
 ### 点击涟漪（ripple）
 
@@ -315,8 +267,7 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 
 | 事件 | detail | 触发时机 |
 | --- | --- | --- |
-| `change` | `{ value }` | checkable 点击翻转后 |
-| `tag-click` | `{ name, tag }` | tags 小圆钮点击（已阻断宿主翻转与点击） |
+| `tag-click` | `{ name, label, value, tag }` | tags 小圆钮点击（已阻断冒泡；tag 级 checkable 时 `detail.value` 为切换后新值） |
 
 <demo html="components/button/events.html"/>
 
@@ -349,10 +300,6 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 | data-spacing | `ThemeSize` | `''` | 主题间距密度档 |
 | data-dark | `boolean` | `false` | 局部暗色语境 |
 | data-colorized | `boolean` | `false` | 局部多彩语境 |
-| checkable | `boolean` | `false` | 可勾选模式（化身 checkbox：内嵌真 input、x-model 可绑宿主） |
-| value | `any` | `false` | 勾选值（=== checkValues[0] 即选中态） |
-| checkValues | `[any, any]` | `[true, false]` | 勾选二元组 [checked 值, unchecked 值]（任意类型严格相等；对象须路径引用） |
-| checkStyle | `solid | icon | corner` | `solid` | 选中渲染（实底 / 打勾占位 / 描边三角） |
 | ripple | `boolean \| object` | `true` | x-ripple props 值透传（默认开启）：true ≡ `{ trigger: "click", inside: true }`，false 关闭，对象全键可覆盖（trigger / type / color / speed…；需加载 autospark.ripple.js，未加载时静默跳过） |
 | autoInsertSpace | `boolean` | `true` | 两汉字 label 自动插空格 |
 
@@ -360,8 +307,7 @@ button 继承内置抽象基组件 [`autospark.base`](./base.md)（ADR-0134）�
 
 | 事件 | detail | 说明 |
 | --- | --- | --- |
-| change | `{ value: boolean }` | checkable 点击翻转后冒泡；表单同步惯用法 `@change="flag = $event.detail.value"` |
-| tag-click | `{ name: string, tag: object }` | tags 小圆钮点击冒泡；tag 元素已 stopPropagation，不触发宿主翻转 |
+| tag-click | `{ name: string, label: string, value: any, tag: object }` | tags 小圆钮点击冒泡；tag 元素已 stopPropagation 阻断冒泡；tag 级 checkable 时 `value` 为切换后新值 |
 | click | 原生事件 | 原生冒泡点击，外层包裹元素直接 `@click` 消费 |
 
 ### Slots

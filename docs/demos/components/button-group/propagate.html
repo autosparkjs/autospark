@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ButtonGroup · 缺省下发</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button-group.js?v=20261110"></script>
+    <script src="/autospark/autospark.button.js?v=20261110"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">variant / type / disabled 缺省下发（子钮显式优先）</div>
+        <div class="auto-card-body">
+          <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: center">
+            <x-button-group type="danger">
+              <x-button label="继承 danger"></x-button>
+              <x-button label="继承 danger"></x-button>
+              <x-button label="显式 primary" type="primary"></x-button>
+            </x-button-group>
+            <x-button-group variant="dashed" type="warning">
+              <x-button label="虚线钮"></x-button>
+              <x-button label="虚线钮"></x-button>
+            </x-button-group>
+            <x-button-group disabled>
+              <x-button label="组级禁用"></x-button>
+              <x-button label="组级禁用"></x-button>
+            </x-button-group>
+          </div>
+          <p class="hint">
+            组级 <code>variant</code> / <code>type</code> / <code>disabled</code>
+            只填充未显式声明的子钮（声明式继承，类 CSS 继承）——一组语义色里放一个
+            独立变体钮的逃生通道。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">绑定表达式转发（响应式下发）</div>
+        <div class="auto-card-body">
+          <div @change="mode = $event.detail.value" style="margin-bottom: 12px">
+            <x-button-group :type="mode">
+              <x-button label="继承"></x-button>
+              <x-button label="继承"></x-button>
+            </x-button-group>
+          </div>
+          <x-button label="切换 success / danger" @click="mode = (mode === 'success' ? 'danger' : 'success')"></x-button>
+          <p class="hint">当前 mode = <code>{{ mode }}</code>（<code>:type</code> 原样转发子钮，同 scope 响应式）</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), { mode: "success" });
+    </script>
+  </body>
+</html>

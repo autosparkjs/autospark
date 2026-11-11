@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ButtonGroup · 主题档位</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button-group.js?v=20261110"></script>
+    <script src="/autospark/autospark.button.js?v=20261110"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">组级主题档位（autospark.base 继承，级联整组）</div>
+        <div class="auto-card-body">
+          <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: center">
+            <x-button-group data-size="lg">
+              <x-button label="大档"></x-button>
+              <x-button label="大档"></x-button>
+            </x-button-group>
+            <x-button-group data-size="sm">
+              <x-button label="小档"></x-button>
+              <x-button label="小档"></x-button>
+            </x-button-group>
+            <x-button-group data-radius="none">
+              <x-button label="直角档"></x-button>
+              <x-button label="直角档"></x-button>
+            </x-button-group>
+          </div>
+          <p class="hint">
+            组根物化 <code>data-size</code> / <code>data-radius</code> 等六键（ADR-0134），
+            级联整组子钮——「一组统一档位」无需逐钮声明；右侧面板调主题即时跟随。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">暗色态（选中视觉经 tone 变量链自适应）</div>
+        <div class="auto-card-body" data-dark>
+          <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: center">
+            <x-button-group x-model="darkRange">
+              <x-button value="a" label="甲"></x-button>
+              <x-button value="b" label="乙"></x-button>
+              <x-button value="c" label="丙"></x-button>
+            </x-button-group>
+            <x-button-group type="danger">
+              <x-button label="danger"></x-button>
+              <x-button label="danger"></x-button>
+            </x-button-group>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), { darkRange: "b" });
+    </script>
+  </body>
+</html>

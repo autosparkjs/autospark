@@ -11,11 +11,11 @@
  * label="...">` 在 precompile 期（template 克隆前）被纯 DOM 变换为 `x-component` 值形态
  * （宿主替换为真 button 元素）。引擎 ADR-0133 元素名通道的化身**复用 x-button 宿主
  * （HTMLUnknownElement）**——button 原生语义全丢（disabled / loading 禁点 / el.value
- * （checkable 桥前提）/ 表单提交 / Enter+Space 键盘激活），实测全面回归，故恢复本变换
- * 止血；ADR-0133 让位条款（同元素显式 x-component 声明则元素名指令让位）与之兼容。
- * 引擎侧「宿主替换为组件根标签」正确化后本变换可再退役。
+ * （state-button 表单桥前提，ADR-0016）/ 表单提交 / Enter+Space 键盘激活），实测全面回归，
+ * 故恢复本变换止血；ADR-0133 让位条款（同元素显式 x-component 声明则元素名指令让位）
+ * 与之兼容。引擎侧「宿主替换为组件根标签」正确化后本变换可再退役。
  *
- * 模板自包含：`<script setup>`（形态/语义色/图标/加载/勾选/tags 等 props 与 mounted
+ * 模板自包含：`<script setup>`（形态/语义色/图标/加载/tags 等 props 与 mounted
  * 同步）+ `<style global>`（CSS 变量主题化）随模板整体注册，无独立样式交付通道。
  *
  * IIFE 产物全局名 `AutoSparkButton`（autospark.button.js）；双加载时序由
@@ -24,37 +24,20 @@
 import type { AutoSpark } from "autospark";
 import { captureNamespace } from "../../utils/namespace";
 import { installPlugin } from "@autospark/utils";
+import { kebabToCamel } from "../../utils/kebabToCamel";
+import { propKey } from "../../utils/propKey";
+import { inferPropValue } from "../../utils/inferPropValue";
 import buttonTemplate from "./button.html?raw";
 
 /** 组件注册名（autospark. 点前缀命名空间，ADR-0094） */
 export const BUTTON_NAME = "autospark.button";
 
 /**
- * 静态属性值类型推断（对齐引擎元素名形态 ADR-0117 的推断规则）：
- * 数字 / true / false / 宽松 JSON（失败回退原串）/ 原样字符串。
- */
-function inferPropValue(raw: string): unknown {
-    const v = raw.trim();
-    if (v === "") return "";
-    if (/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
-    if (v === "true") return true;
-    if (v === "false") return false;
-    if (v.startsWith("{") || v.startsWith("[")) {
-        try {
-            return JSON.parse(v);
-        } catch {
-            return raw;
-        }
-    }
-    return raw;
-}
-
-/**
  * 插件注册体：写插件全局组件表（普通 Record 赋值即生效，无 API 门面）。
  *
  * precompile 变换：静态属性折叠为 props 字面量（类型推断）、`:key="expr"` 响应式项以
  * 原始表达式拼进值对象字面量（成员本就支持引用状态路径），class/style/id/data-* 保留
- * 给宿主，子内容随迁为默认插槽，name 属性透传（checkable 表单提交载体）。
+ * 给宿主，子内容随迁为默认插槽，name 属性透传（state-button 表单提交载体，ADR-0016）。
  */
 function mountButtonPlugin(autospark: typeof AutoSpark): void {
     autospark.components[BUTTON_NAME] = buttonTemplate;
@@ -63,13 +46,11 @@ function mountButtonPlugin(autospark: typeof AutoSpark): void {
             const btn = document.createElement("button");
             // props 字面量键用裸标识符形态（引擎值解析对「引号键 + 表达式值」组合的成员求值会
             // 静默丢弃——实测 { "checkValues": (cv) } 丢、{ checkValues: (cv) } 注入成功）；
-            // 属性名 kebab-case 归一为 camelCase（HTML 属性名被 DOM 全量小写化，check-style → checkStyle）
-            const camel = (k: string) => k.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-            const key = (k: string) => /^[A-Za-z_$][\w$]*$/.test(k) ? k : JSON.stringify(k);
+            // 属性名 kebab-case 归一为 camelCase（HTML 属性名被 DOM 全量小写化，label-pos → labelPos）
             const parts: string[] = [];
             for (const attr of Array.from(el.attributes)) {
                 if (attr.name.startsWith(":")) {
-                    parts.push(`${key(camel(attr.name.slice(1)))}: (${attr.value})`);
+                    parts.push(`${propKey(kebabToCamel(attr.name.slice(1)))}: (${attr.value})`);
                     continue;
                 }
                 const kept =
@@ -85,7 +66,7 @@ function mountButtonPlugin(autospark: typeof AutoSpark): void {
                     btn.setAttribute(attr.name, attr.value);
                     continue;
                 }
-                parts.push(`${key(camel(attr.name))}: ${JSON.stringify(inferPropValue(attr.value))}`);
+                parts.push(`${propKey(kebabToCamel(attr.name))}: ${JSON.stringify(inferPropValue(attr.value))}`);
             }
             btn.setAttribute(`x-component:${BUTTON_NAME}`, `{ ${parts.join(", ")} }`);
             while (el.firstChild) btn.appendChild(el.firstChild);

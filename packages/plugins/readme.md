@@ -8,6 +8,7 @@
 | x-ripple | 指令插件 | `AutoSpark.directive(spec)` | `autospark.ripple.js` |
 | x-spin | 指令插件 | `AutoSpark.directive(spec)` | `autospark.spin.js` |
 | autospark.button | 组件插件 | `AutoSpark.components[name] = 模板` | `autospark.button.js` |
+| autospark.button-group | 组件插件 | `AutoSpark.components[name] = 模板` + precompile 子钮下发 | `autospark.button-group.js`（须先于 button 加载） |
 | 聚合 | 全部官方插件 | — | `autospark.plugins.js` |
 
 ## 使用

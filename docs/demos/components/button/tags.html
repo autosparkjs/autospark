@@ -30,10 +30,16 @@
         richTags: [
             { name: 'save', icon: 'edit', label: '保存', value: { id: 7 }, tooltip: '保存草稿' },
             { name: 'hot', label: '热门', styles: 'color:#fff;background:#e11d48;', classes: '', value: 42 },
-            { name: 'fav', icon: 'star', label: '收藏', ripple: true, value: ['a','b'] },
+            { name: 'fav', icon: 'star', label: '收藏', value: ['a','b'] },
             { name: 'cfg', icon: 'menu', shape: 'circle', tooltip: '圆形底板' },
             { name: 'opt', icon: 'bell', label: '半径板', shape: 'radius', value: 'r1' }
-        ]
+        ],
+        checkTags: [
+            { name: 'star', icon: 'star', checkable: true, value: true, tooltip: '布尔默认域 [true,false]' },
+            { name: 'pin', icon: 'edit', checkable: true, value: 'pinned', checkValues: ['pinned', 'none'], tooltip: '自定义值域' },
+            { name: 'mute', icon: 'bell', checkable: true, value: false, tooltip: '初始未勾选' }
+        ],
+        checkLog: '（未点击）'
     }"
     >
       <div class="auto-card">
@@ -167,20 +173,69 @@
           </div>
         </div>
       </div>
-        <div class="auto-card">
-            <div class="auto-card-header">tag 键面全景（label 胶囊 / styles cssText / classes / value 原样透传 / tag 级 ripple）</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-                    <span @tag-click="last = $event.detail.name + ' → ' + JSON.stringify($event.detail.value)">
-                        <x-button icon="file" label="文档" :tags="richTags"></x-button>
-                    </span>
-                    <span>最近响应：<b>{{ last }}</b>（detail 平铺 name / label / value）</span>
-                </div>
-                <p class="hint">
-                    <code>{ icon?, label?, tooltip?, styles?(cssText), classes?, value?, ripple?, shape? }</code>——label 在场呈胶囊且图标与文字<b>恒 1rem</b>（不随字号档位）；styles 为 cssText 字符串直写内联；value 为使用者数据<b>原样透传</b>进 tag-click detail（对象/数字皆可）；ripple 默认 false、显式开启经 ADR-0010 双属性挂载（未加载 autospark.ripple.js 静默无效）；shape 底板——默认 <b>none 无背景</b>，<b>circle</b> 圆形底板 / <b>radius</b> 主题圆角底板（板色按内容色派生淡底）。
-                </p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          tag checkable（点击切换：value 真值 ↔ 假值，勾选呈语义色点亮）
         </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <span
+              @tag-click="checkLog = $event.detail.name + ' → ' + JSON.stringify($event.detail.value)"
+            >
+              <x-button icon="file" label="过滤" :tags="checkTags"></x-button>
+            </span>
+            <span>最近切换：<b>{{ checkLog }}</b></span>
+          </div>
+          <p class="hint">
+            tag 项配 <code>checkable: true</code> 即可切换：value === 真值（<code>checkValues[0]</code>，缺省
+            <code>[true, false]</code>）呈勾选点亮态，点击翻转 value 并<b>写回外层状态</b>（上例
+            checkTags 同步变）；tag-click 的 detail.value 为切换后新值。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          tag 键面全景（label 胶囊 / styles cssText / classes / value 原样透传）
+        </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <span
+              @tag-click="last = $event.detail.name + ' → ' + JSON.stringify($event.detail.value)"
+            >
+              <x-button icon="file" label="文档" :tags="richTags"></x-button>
+            </span>
+            <span
+              >最近响应：<b>{{ last }}</b>（detail 平铺 name / label /
+              value）</span
+            >
+          </div>
+          <p class="hint">
+            <code
+              >{ icon?, label?, tooltip?, styles?(cssText), classes?, value?,
+              shape? }</code
+            >——label 在场呈胶囊且图标与文字<b>恒 1rem</b
+            >（不随字号档位）；styles 为 cssText 字符串直写内联；value
+            为使用者数据<b>原样透传</b>进 tag-click
+            detail（对象/数字皆可）；shape 底板——默认
+            <b>none 无背景</b>，<b>circle</b> 圆形底板 /
+            <b>radius</b> 主题圆角底板（板色按内容色派生淡底）。
+          </p>
+        </div>
+      </div>
     </main>
     <script>
       new AutoSpark(document.querySelector(".demo-main"), {});

@@ -1529,11 +1529,12 @@ export class AutoSparkCompiler {
         this.templateScopeMap.set(snapshot, hostScope);
         // 1.5 插槽内容 stash（须早于 compileSubtree——出口 SlotDirective.created 在子树编译时查找）；
         // $slots 注册表恒构建（ADR-0107：无内容为冻结空对象），构建后失效宿主视图缓存——
-        // 宿主指令可能早于实例化建过 _scopeView（不含注册表层）
-        if (slotContents) {
-            hostScope.slotContents = slotContents;
-            hostScope.slotCallerScope = slotCallerScope ?? hostScope;
-        }
+        // 宿主指令可能早于实例化建过 _scopeView（不含注册表层）；
+        // **恒写 map（含空）**：组件实例构成插槽查找边界（ADR-0056「嵌套组件各持独立 map」）——
+        // 插槽内容里再实例化的组件（自身带 default 出口）其出口不得沿链穿透吃到外层收集它
+        // 进来的 map（否则把自身宿主投影进自己的出口 → 无限递归；button-group 子钮场景踩中）
+        hostScope.slotContents = slotContents ?? new Map();
+        hostScope.slotCallerScope = slotCallerScope ?? hostScope;
         hostScope.slotsRegistry = buildSlotsRegistry(slotContents);
         hostScope.invalidateScopeView();
         // 1.6 super 句柄边界遮蔽（ADR-0084）：宿主化身组件根——快照子树（组件模板）不得沿链
@@ -1645,10 +1646,10 @@ export class AutoSparkCompiler {
             def ?? undefined,
             basis,
             (scope) => {
-                if (slotContents) {
-                    scope.slotContents = slotContents;
-                    scope.slotCallerScope = slotCallerScope ?? parentScope;
-                }
+                // 恒写 map（含空）：组件实例构成插槽查找边界（与 instantiateComponent 1.5 步
+                // 同款防穿透——overlay 内容组件自带 default 出口时不得吃到外层收集 map）
+                scope.slotContents = slotContents ?? new Map();
+                scope.slotCallerScope = slotCallerScope ?? parentScope;
                 // $slots 注册表恒构建（ADR-0107）：覆盖物 shell 实例域同样注入（无内容为空对象）
                 scope.slotsRegistry = buildSlotsRegistry(slotContents);
                 // super 句柄边界遮蔽（ADR-0084）：覆盖物组件实例根——shell 模板子树不得沿链

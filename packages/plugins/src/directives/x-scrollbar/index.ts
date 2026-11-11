@@ -71,6 +71,7 @@ import {
     bootstrapDecoratePlugin,
     normalizeNumber,
 } from "../../utils/decorate";
+import { readStorePath } from "../../utils/readStorePath";
 import type { AutoSpark, DirectiveSpec } from "autospark";
 
 /** 方向：both 双向自动按需（缺省）/ x 仅横向 / y 仅纵向（`.x`/`.y` 修饰符限定） */
@@ -412,7 +413,8 @@ export class ScrollbarDirective {
         } else {
             const watcher = (this.engine as any).store.watch(expr, listener) as ScrollbarWatcher;
             this.valueOff = () => watcher?.off?.();
-            this.setEnabled(!!this.engine.store.read?.(expr));
+            // store 无 read 方法（可选链恒 undefined → 动态挂载表达式值恒关）——getVal 直读（ADR-0015 实施期发现）
+            this.setEnabled(!!readStorePath(this.engine, expr));
         }
     }
 

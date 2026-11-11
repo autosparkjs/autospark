@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ButtonGroup · 间隔与融合</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button-group.js?v=20261110"></script>
+    <script src="/autospark/autospark.button.js?v=20261110"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">gap 间隔：number（px）或任意 CSS 值字符串</div>
+        <div class="auto-card-body">
+          <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: center">
+            <x-button-group gap="8">
+              <x-button label="8px"></x-button>
+              <x-button label="间隔"></x-button>
+              <x-button label="独立圆角"></x-button>
+            </x-button-group>
+            <x-button-group gap="0.5em" type="success">
+              <x-button label="0.5em"></x-button>
+              <x-button label="字符串"></x-button>
+            </x-button-group>
+            <x-button-group :gap="gapSize">
+              <x-button label="响应式"></x-button>
+              <x-button label="间隔"></x-button>
+            </x-button-group>
+          </div>
+          <p class="hint">
+            gap&gt;0 时各子钮独立圆角独立边线；gap=0（缺省）即融合——不设独立融合开关。
+            间隔可用 <code>:gap</code> 响应式绑定。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">block：容器占满父宽（子钮不强制等分）</div>
+        <div class="auto-card-body">
+          <x-button-group block>
+            <x-button label="占满父宽"></x-button>
+            <x-button label="第二个"></x-button>
+            <x-button label="第三个"></x-button>
+          </x-button-group>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), { gapSize: 16 });
+    </script>
+  </body>
+</html>
