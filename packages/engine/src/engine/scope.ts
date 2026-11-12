@@ -9,6 +9,7 @@ import { SCOPES_KEY } from "../consts";
 import { getDirectives, getHostOptions } from "../features/directive/utils/getDirectives";
 import { createDirectives } from "../features/directive/utils/createDirectives";
 import { releaseScopeIcons, type ScopeIconEntry } from "../features/icons/domain";
+import { createScopeT, type ScopeT } from "../features/locale/translate";
 
 /**
  * 简单状态路径：仅字母/数字/下划线/$ 组成的段，以点分隔。
@@ -184,6 +185,8 @@ export class AutoSparkScope {
     /** 本作用域 watch 注册的 update 闭包（refresh 时同步重跑，destroy 时清空）。
      *  用途见 refresh()：x-for 复用项 locals 原地更新后，驱动项内绑定重新求值并 patch。 */
     private _updates: Array<() => void> = [];
+    /** 表达式环境内建翻译函数 t 的懒建闭包（ADR-0136，getT 惰建缓存） */
+    private _tFn: ScopeT | null = null;
     /** 子作用域集合（x-if 子树、x-for 各项），destroy 时递归清理 */
     children = new Set<AutoSparkScope>();
     parent: AutoSparkScope | null = null;
@@ -1098,13 +1101,16 @@ export class AutoSparkScope {
         const scope = useCallerView ? this.getCallerContext() : this.getContext();
         // 用 with(scope) 把作用域属性暴露为表达式变量，使 `user.first` 能解析到 scope.user.first。
         // new Function 默认松散模式支持 with；scope 是聚合 Proxy，has/get 陷阱联动 store.state。
-        const getter = new Function("scope", "args", `with(scope){ return (${expr}); }`) as (
+        // `t` 经 getter 函数参数注入表达式环境（ADR-0136）：with 链上无 `t` 标识符才落到
+        // 该参数（用户 data/locals 同名变量天然优先）；闭包动态分派 engine.translate 槽
+        const getter = new Function("scope", "args", "t", `with(scope){ return (${expr}); }`) as (
             scope: any,
             args?: any,
+            t?: ScopeT,
         ) => any;
         const safeEval = (report?: (e: any) => void): any => {
             try {
-                return getter(scope);
+                return getter(scope, undefined, this.getT());
             } catch (e: any) {
                 // 首求值抛错收集进 scope.errors（ADR-0118 决策 1）；update 路径不收集不告警
                 // （首求值已成功、后续因状态漂移抛错属运行时数据形态问题，非编译期诊断数据）
@@ -1192,15 +1198,27 @@ export class AutoSparkScope {
             return getVal(this.engine.store.state, value);
         }
         const scope = this.getContext();
-        const getter = new Function("scope", `with(scope){ return (${value}); }`) as (
+        const getter = new Function("scope", "t", `with(scope){ return (${value}); }`) as (
             scope: any,
+            t?: ScopeT,
         ) => any;
         try {
-            return getter(scope);
+            return getter(scope, this.getT());
         } catch {
             //this.engine.logger.warn(`scope.read: eval "${value}" failed: ${e?.message ?? e}`);
             return undefined;
         }
+    }
+
+    /**
+     * 表达式环境内建翻译函数 t（ADR-0136）：懒建 per-scope 闭包并缓存。
+     * watchExpression / read / x-on 求值器经 getter 函数参数注入——with 链上无 `t`
+     * 标识符才落到该参数（用户 data/locals 同名变量天然优先）。闭包内动态分派
+     * `engine.translate` 槽：核心默认 = 兜底 t（恒等 + 插值），i18n 插件 ready 覆写即升级。
+     */
+    getT(): ScopeT {
+        if (!this._tFn) this._tFn = createScopeT(this.engine, this);
+        return this._tFn;
     }
 
     /**

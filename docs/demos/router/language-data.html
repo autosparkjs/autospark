@@ -25,21 +25,26 @@
             const host = document.querySelector(".demo-app");
 
             const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
-                languages: [
-                    { code: "en", name: "English", nativeName: "English" },
-                    { code: "zh-CN", name: "简体中文", nativeName: "中文" },
-                ],
-                // 提供钩子 = view / data / routes 三通道完全接管。
-                // 本 demo 只本地化 data 通道：视图共用一份，数据按语言取不同文件
-                getLanguageUrl: (language, url, type) => {
-                    if (type !== "data") return url;                    // 视图/路由表不重写
-                    if (language.code === "en") return url;             // 默认语言免重写
-                    // profile.json → profile_zh-CN.json（文件名后缀式）
-                    return url.replace(/(\.\w+)?$/, `_${language.code}$1`);
+                // 语言清单唯一源（ADR-0136）：options.i18n.languages，router 挂载时自动取用
+                i18n: {
+                    languages: [
+                        { code: "en", name: "English", nativeName: "English" },
+                        { code: "zh-CN", name: "简体中文", nativeName: "中文" },
+                    ],
                 },
                 routes: {
                     mode: "hash",
                     base: "/autospark/router-demos/",
+                    // getLanguageUrl 钩子属路由配置面：须写在 routes 配置对象内（与 mode/base
+                    // 同级）——写在 engine options 顶层不经 resolveMountOptions 透传，钩子丢失。
+                    // 提供钩子 = view / data / routes 三通道完全接管；本 demo 只本地化 data
+                    // 通道：视图共用一份，数据按语言取不同文件
+                    getLanguageUrl: (language, url, type) => {
+                        if (type !== "data") return url;                    // 视图/路由表不重写
+                        if (language.code === "en") return url;             // 默认语言免重写
+                        // profile.json → profile_zh-CN.json（文件名后缀式）
+                        return url.replace(/(\.\w+)?$/, `_${language.code}$1`);
+                    },
                     routes: [
                         { path: "/", redirect: "/profile" },
                         {
@@ -55,7 +60,7 @@
 
             // 切换语言 = 对 $.language 赋值：导航管线重入，数据缓存键含语言分量，
             // 新语言重新取数（profile.json ↔ profile_zh-CN.json）
-            const setLang = (code) => (engine.store.state.$.language = code);
+            const setLang = (code) => (engine.store.state.$ = { ...engine.store.state.$, language: code });
             document.getElementById("lang-en").addEventListener("click", () => setLang("en"));
             document.getElementById("lang-zh").addEventListener("click", () => setLang("zh-CN"));
         </script>

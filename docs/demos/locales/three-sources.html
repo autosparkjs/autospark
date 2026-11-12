@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-locales · 三源字典就近覆盖</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.i18n.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 三源就近覆盖（ADR-0136 决策三）：同一原文键 "状态" 在三层各声明不同译文——
+             options.i18n.messages（全局层）/ script 块（最近祖先 scope）/ x-locales（自身 scope）。
+             查表沿调用点 scope 链就近收口：x-locales > script > 全局层；子层命中不再外扩。 -->
+        <div class="demo-app section">
+            <div id="app" class="card">
+                <div class="card-content">
+                    <div class="buttons">
+                        <button class="button is-small" @click="$.language = 'en'">English</button>
+                        <span class="tag is-info">{{ $.language }}</span>
+                    </div>
+
+                    <!-- 全局层：options.i18n.messages（查表链末端兜底） -->
+                    <p>③ 全局层兜底（scope 链上无就近字典时命中 messages）：
+                        <b x-text="t('状态')"></b></p>
+
+                    <!-- script 块：最近祖先 scope（x-data 元素）——就近层① -->
+                    <div class="box mb-2" x-data="{ }">
+                        <script type="autospark/locales">
+                        { "状态": { "en": "Status (script scope)" } }
+                        </script>
+                        <p>① script 块所在作用域（最近祖先 scope 收集）：
+                            <b x-text="t('状态')"></b></p>
+                    </div>
+
+                    <!-- x-locales：自身 scope——就近层②，同链上压过 script 层 -->
+                    <div class="box" x-locales="{ '状态': { 'en': 'Status (x-locales nearest)' } }">
+                        <p>② x-locales 所在元素（自身 scope，就近覆盖 script 层）：
+                            <b x-text="t('状态')"></b></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark("#app", {}, {
+                i18n: {
+                    language: "en",
+                    default: "zh-CN",
+                    messages: { "状态": { "en": "Status (global messages)" } },
+                },
+            });
+        </script>
+    </body>
+</html>

@@ -1,5 +1,6 @@
 import type { AutoSpark } from "../../engine/engine";
 import type { AutoSparkScope } from "../../engine/scope";
+import type { ScopeT } from "../../features/locale/translate";
 import type { AutoSparkActionContext } from "./types";
 import { createDirectiveOptions } from "../../features/directive/utils/createDirectiveOptions";
 import { getDirectiveGlobalDefaults } from "../../features/directive/utils/getDirectiveGlobalDefaults";
@@ -47,16 +48,19 @@ export function createEvalHandler(
     // - exprGetter：表达式兜底求值器（action 未命中时用）
     const name = match?.[1];
     const argsSrc = match?.[2];
+    // `t` 经 getter 函数参数注入表达式环境（ADR-0136）：with 链上无 `t` 标识符才落到该参数
     const argsFn =
         argsSrc != null && argsSrc.trim() !== ""
-            ? (new Function("$event", "data", `with(data){return [${argsSrc}];}`) as (
+            ? (new Function("$event", "data", "t", `with(data){return [${argsSrc}];}`) as (
                   $event: Event,
                   data: any,
+                  t?: ScopeT,
               ) => any[])
             : null;
-    const exprGetter = new Function("$event", "data", `with(data){return (${trimmed});}`) as (
+    const exprGetter = new Function("$event", "data", "t", `with(data){return (${trimmed});}`) as (
         $event: Event,
         data: any,
+        t?: ScopeT,
     ) => any;
 
     // 指令配置聚合视图（ADR-0007 + 全局层 ADR-0127；本文件为 x-on 专用，指令名恒 "on"）：
@@ -78,7 +82,7 @@ export function createEvalHandler(
             const method = scope.getMethod?.(name);
             if (typeof method === "function") {
                 try {
-                    const args = argsFn ? argsFn(event, data) : [];
+                    const args = argsFn ? argsFn(event, data, scope.getT()) : [];
                     // 经当前 scope 的 Proxy get 陷阱取 method（触发 _findMethodOwner + bind owner proxy），
                     // 再调用——比 method.call(scope.getMethodThis()) 更准（后者 this 绑当前 scope 非 owner）。
                     const proxy = scope.getMethodThis();
@@ -105,7 +109,7 @@ export function createEvalHandler(
                     $options,
                 };
                 try {
-                    const args = argsFn ? argsFn(event, data) : [];
+                    const args = argsFn ? argsFn(event, data, scope.getT()) : [];
                     return action.handle.call(ctx, ...args);
                 } catch (e: any) {
                     // logger 后 rethrow（ADR-0013）：让 .feedback 等 wrapper 检测同步失败。
@@ -117,7 +121,7 @@ export function createEvalHandler(
         }
         // 2) 表达式兜底：覆盖 alert(1)、全局/模板函数 pay(1)、count++ 等
         try {
-            return exprGetter(event, data);
+            return exprGetter(event, data, scope.getT());
         } catch (e: any) {
             engine.logger.error(`x-on 表达式 "${expr}" 求值失败: ${e?.message ?? e}`);
         }

@@ -4,6 +4,9 @@ import { readFileSync } from "node:fs";
 import { defineConfig } from "tsup";
 import path from "node:path";
 import fs from "node:fs";
+// ?raw 静态资源导入（ADR-0091 共享插件；engine ADR-0134 后 router IIFE 打包图含 engine
+// 内置组件的 .html?raw 导入，缺本插件构建即失败）——两配置链必装（engine tsup 同款）
+import { rawAssetsPlugin } from "../engine/scripts/esbuild-raw-assets";
 
 const gzipPromise = promisify(gzip);
 
@@ -25,6 +28,7 @@ export default defineConfig([
         // 自包含策略：全部运行时依赖打包进产物（engine ADR-0030 同裁决）；
         // autospark 在 devDependencies（运行时经 window.AutoSparkSpaces 探测），天然不进产物
         noExternal: ["asyncsignal", "es-toolkit", "flex-tools", "history", "mitt", "ts-mixer"],
+        esbuildPlugins: [rawAssetsPlugin],
     },
     {
         entry: ["src/index.ts"],
@@ -33,6 +37,7 @@ export default defineConfig([
         sourcemap: true,
         treeshake: true,
         minify: true,
+        esbuildPlugins: [rawAssetsPlugin],
         // IIFE 全局变量名：window.AutoSparkRouter
         // 使用契约（ADR-0011 插件自举）：先加载 autospark.js 再加载 autospark.router.js 即完成
         // 注册；路由挂载由 engine 构造 options 声明（routes / autoDiscoverRoutes）触发

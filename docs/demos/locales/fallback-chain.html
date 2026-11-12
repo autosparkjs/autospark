@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-locales · 回退链</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.i18n.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 回退链（ADR-0136 决策五）：当前语言全等 → 主子标签 → fallback 全等 → fallback
+             主子标签 → 键本身（键也插值）。本例 language=zh-TW 演示前三阶：
+             ① 主子标签命中（zh-TW 主标签 zh == 字典键 zh-CN 主标签 zh）
+             ② fallback 全等命中（zh 链耗尽 → fallback en）
+             ③ 全链耗尽 → 返回原文键本身（键也照常插值）。 -->
+        <div class="demo-app section">
+            <div id="app" class="card">
+                <div class="card-content">
+                    <script type="autospark/locales">
+                    {
+                        "欢迎回来": { "zh-CN": "欢迎回来，简体中文用户" },
+                        "订单状态": { "fr": "État de la commande", "en": "Order status" },
+                        "余额{}元": { "fr": "{} € restants" }
+                    }
+                    </script>
+                    <div class="buttons">
+                        <button class="button is-small" @click="$.language = 'zh-TW'">zh-TW（固定）</button>
+                        <button class="button is-small" @click="$.language = 'en'">English（对照）</button>
+                        <span class="tag is-info">{{ $.language }}</span>
+                    </div>
+                    <ul class="mt-2">
+                        <li>① <code>欢迎回来</code>：zh-TW 全等未命中 → 主子标签 <code>zh</code> 命中
+                            <code>zh-CN</code> 键 → <b x-text="t('欢迎回来')"></b></li>
+                        <li>② <code>订单状态</code>：zh 链耗尽 → fallback <code>en</code> 全等命中 →
+                            <b x-text="t('订单状态')"></b></li>
+                        <li>③ <code>余额{}元</code>：zh 链与 fallback en 均未命中（仅 fr 有译文）→
+                            返回键本身并插值 → <b x-text="t('余额{}元', 42)"></b></li>
+                    </ul>
+                    <p class="help">切到 English 对照：① 仍走 zh-CN（语言链先于 fallback）② 全等命中 ③ 仍键本身。</p>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark("#app", {}, {
+                i18n: {
+                    language: "zh-TW",
+                    default: "zh-CN",
+                    fallback: "en",
+                    languages: [
+                        { code: "zh-TW", nativeName: "繁體中文" },
+                        { code: "en", name: "English" },
+                    ],
+                },
+            });
+        </script>
+    </body>
+</html>

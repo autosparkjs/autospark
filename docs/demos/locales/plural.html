@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-locales · 插值与复数</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.i18n.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 插值与复数（ADR-0136 决策六）：翻译值为数组即复数模式——第一个数字参数或第一个
+             $ 数字变量选下标 clamp(floor(n), 0, len-1)，无候选取末项；数字/$ 变量兼任插值。
+             三种调用形态并排：位置数字 / 命名对象 + $count / 非复数语言（字符串值）退化。 -->
+        <div class="demo-app section">
+            <div id="app" class="card">
+                <div class="card-content">
+                    <script type="autospark/locales">
+                    {
+                        "我有{}辆车": {
+                            "en": ["I have no car", "I have one car", "I have {} cars"]
+                        },
+                        "{name}有{$count}个任务": {
+                            "en": ["{name} has {$count} task", "{name} has {$count} tasks"]
+                        }
+                    }
+                    </script>
+                    <div class="buttons">
+                        <button class="button is-small" @click="$.language = 'zh-CN'">中文</button>
+                        <button class="button is-small" @click="$.language = 'en'">English</button>
+                        <span class="tag is-info">{{ $.language }}</span>
+                    </div>
+
+                    <p>① 位置形态（数字选复数 + 回填 {}）：<b x-text="t('我有{}辆车', n)"></b></p>
+                    <p>② 命名形态（{$count} 变量兼作选择器与插值）：
+                        <b x-text="t('{name}有{$count}个任务', { name: '张三', $count: n })"></b></p>
+                    <p>③ 非复数语言退化：切到 <b>中文</b>（无译文→键本身）或字典值为字符串的语言，
+                        n 只参与插值、无复数形态切换。</p>
+                    <div class="buttons mt-2">
+                        <button class="button is-small is-light" @click="n--" :disabled="n <= 0">n−−</button>
+                        <button class="button is-small is-light" @click="n = 0">归零</button>
+                        <button class="button is-small is-light" @click="n++">n++</button>
+                        <span class="tag">n = {{ n }}</span>
+                        <span class="tag is-light">0 → 零体 / 1 → 单体 / ≥2 → other（末项）</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark("#app", { n: 1 }, {
+                i18n: {
+                    language: "en",
+                    default: "zh-CN",
+                    messages: { "我有{}辆车": { ja: "車を{}台持っています" } },
+                },
+            });
+        </script>
+    </body>
+</html>

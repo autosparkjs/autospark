@@ -154,6 +154,14 @@ export class AutoSparkRouter extends Mixin(
         this.host.setAttribute("data-autospark-router", "");
         (this.host as any).router = this;
         this.options = this._initOptions(options);
+        // 语言清单自动传递（ADR-0136）：engine 是清单唯一源——未显式传 languages 时
+        // 取 engine.options.i18n.languages（router 只读 options 字段，不依赖 i18n 插件在场）
+        if (!(this.options.languages?.length ?? 0)) {
+            const i18n = (this.options.engine as any)?.options?.i18n as any;
+            if (Array.isArray(i18n?.languages) && i18n.languages.length > 0) {
+                this.options.languages = i18n.languages;
+            }
+        }
         // 多语言管理器（ADR-0013）：options 就绪即建——attach 内 bootstrap 须早于路由表加载
         this.language = new LanguageManager(this);
         this.attach();

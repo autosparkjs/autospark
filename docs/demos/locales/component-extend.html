@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-locales · 为组件补充语言包</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.i18n.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 组件只内置两个语言包 → 使用处 x-locales 注入其他语言（ADR-0136 分层语言链）：
+             组件作者只维护 en/ja 译文（组件内置字典层）；使用方在自己的消费容器上用
+             x-locales 注入 zh-CN——组件内 t() 沿作用域链查表：近层（组件）已有语言优先，
+             近层缺的语言由远层（使用处注入）补。同 key 同语言仍近层胜（就近覆盖不变）。
+             真实组件（x-define + x-component）的内置 script 收集到组件实例作用域，
+             与本例内层 x-data 容器同构。 -->
+        <div class="demo-app section">
+            <div class="card">
+                <div class="card-content">
+                    <div class="buttons">
+                        <button class="button is-small" @click="$.language = 'en'">English</button>
+                        <button class="button is-small" @click="$.language = 'ja'">日本語（组件内置）</button>
+                        <button class="button is-small" @click="$.language = 'zh-CN'">中文（使用处注入）</button>
+                        <span class="tag is-info">{{ $.language }}</span>
+                    </div>
+
+                    <hr />
+                    <p class="help mb-1">组件「lang-card」内部（组件作者只内置 en / ja 译文）：</p>
+
+                    <!-- 使用处注入层：消费容器上声明组件字典未覆盖的语言 -->
+                    <div class="box" x-locales='{ "保存": { "zh-CN": "保存更改" }, "取消": { "zh-CN": "放弃更改" } }'>
+                        <!-- 组件体内置字典层（真实组件为组件模板内的 script，收集到组件实例作用域，
+                             与本内层容器同构） -->
+                        <div x-data="{ }">
+                            <script type="autospark/locales">
+                            {
+                                "保存": { "en": "Save", "ja": "保存する" },
+                                "取消": { "en": "Cancel", "ja": "キャンセル" }
+                            }
+                            </script>
+                            <button class="button is-primary is-small" x-text="t('保存')"></button>
+                            <button class="button is-small" x-text="t('取消')"></button>
+                        </div>
+                    </div>
+                    <p class="help mt-2">
+                        切到「中文」：组件层没有 zh-CN 译文 → 语言链外扩到使用处注入层 → 组件文案按注入的中文渲染。
+                        切回 en / ja：组件近层已有语言，近层优先。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark(".demo-app .card", {}, {
+                i18n: { language: "en", default: "zh-CN" },
+            });
+        </script>
+    </body>
+</html>

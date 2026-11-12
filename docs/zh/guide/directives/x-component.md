@@ -156,7 +156,7 @@ loader 语义「**以此 url 为准**」：组件已注册仍 fetch 并以远程
 
 **加载中遮罩（loading 选项，ADR-0126）**：缺省 fallback 时引擎在宿主上合成 `x-loading` 遮罩，`loading` 键定制其呈现——`false` 关闭默认遮罩（自行用条件渲染接管）| 文案字符串（→ 遮罩 `message`）| 配置子集对象（→ `x-loading-options` 透传，如 `{ message, delay }`）。**显式声明 `fallback` 即不合成遮罩**——两种占位形态并存按声明分流（fallback = 置换式流内占位，loading = 覆盖式遮罩）。与 router loading 配置及 [x-html 的 loading 选项](./x-html.md#远程异步-html-源) 同词汇（boolean | 文案 | 配置子集）。
 
-**异步反馈元键（$loading / $error，ADR-0126）**：宿主 scope 注入 `$loading`（发起 true → 落地 false）与 `$error`（失败落地归一错误 `{ name, message, url?, statusCode?, source: "load" }`，重试发起时清空）——与 [x-html 元键](./x-html.md#远程异步-html-源) 同契约，子树与 fallback / error 占位内均可直读（如 `x-if="$loading"` 自定义骨架、`{{ $error.message }}` 展示详情）。物种差异：x-component 加载中**清宿主 + 流内占位**（置换型），x-html 加载中**保旧值 + 遮罩**（内容型）——视觉机制统一、占位语义随物种。
+**异步反馈元键（$loading / $error，ADR-0126）**：宿主 scope 注入 `$loading`（发起 true → 落地 false）与 `$error`（失败落地归一错误 `{ name, message, url?, statusCode?, source: "load" }`，重试发起时清空）——与 [x-html 元键](./x-html.md#远程异步-html-源) 同契约，子树与 fallback / error 占位内均可直读（如 `x-if="$loading"` 自定义骨架、<span v-pre>`{{ $error.message }}`</span> 展示详情）。物种差异：x-component 加载中**清宿主 + 流内占位**（置换型），x-html 加载中**保旧值 + 遮罩**（内容型）——视觉机制统一、占位语义随物种。
 
 **多组件返回**：url 含多个 `x-define` 时——有属性参数则按参数名取用（其余照常注册备用）；**无参简写取文档序首个 + `warn`**（同 url 重入不重复提示），显式指定请改写 `x-component:名称="<url>"`。
 

@@ -28,11 +28,13 @@
             const host = document.querySelector(".demo-app");
 
             const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
-                // languages 非空即启用多语言：languages[0] 为默认语言（免重写）
-                languages: [
-                    { code: "en", name: "English", nativeName: "English" },
-                    { code: "zh-CN", name: "简体中文", nativeName: "中文" },
-                ],
+                i18n: {
+                    // 语言清单唯一源（ADR-0136）：languages 非空即启用多语言，languages[0] 为默认语言（免重写）
+                    languages: [
+                        { code: "en", name: "English", nativeName: "English" },
+                        { code: "zh-CN", name: "简体中文", nativeName: "中文" },
+                    ],
+                },
                 routes: {
                     // 文档 demo 环境约定：hash 模式 + 显式 base，iframe 沙箱与直连打开行为一致
                     mode: "hash",
@@ -49,7 +51,7 @@
             });
 
             // 切换语言 = 对 $.language 赋值：完整导航管线重入当前路径（不写历史、地址栏不变）
-            const setLang = (code) => (engine.store.state.$.language = code);
+            const setLang = (code) => (engine.store.state.$ = { ...engine.store.state.$, language: code });
             document.getElementById("lang-en").addEventListener("click", () => setLang("en"));
             document.getElementById("lang-zh").addEventListener("click", () => setLang("zh-CN"));
 

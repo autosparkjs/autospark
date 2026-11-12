@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-locales · 启用与配置（options.i18n 五键）</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.i18n.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 启用与配置（ADR-0136 决策二）：options.i18n 五键——language 初值 / default 元数据 /
+             fallback 二级回退 / languages 清单 / messages 全局字典。本例演示 fallback：
+             初值 ja 在多数字典只有部分语言译文，缺 ja 的键经 fallback=en 命中。 -->
+        <div class="demo-app section">
+            <div id="app" class="card">
+                <div class="card-content">
+                    <script type="autospark/locales">
+                    {
+                        "保存成功": { "en": "Saved", "ja": "保存しました" },
+                        "加载中": { "en": "Loading" }
+                    }
+                    </script>
+                    <div class="buttons">
+                        <button class="button is-small" @click="$.language = 'ja'">日本語</button>
+                        <button class="button is-small" @click="$.language = 'en'">English</button>
+                        <button class="button is-small" @click="$.language = 'zh-CN'">中文（无译文→键本身）</button>
+                        <span class="tag is-info">{{ $.language }}</span>
+                    </div>
+                    <ul>
+                        <li><code>保存成功</code>（ja 有译文）：<b x-text="t('保存成功')"></b></li>
+                        <li><code>加载中</code>（ja 缺失 → fallback=en）：<b x-text="t('加载中')"></b></li>
+                        <li><code>删除</code>（全链缺失 → 键本身）：<b x-text="t('删除')"></b></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark("#app", {}, {
+                i18n: {
+                    language: "ja",
+                    default: "zh-CN",
+                    fallback: "en",
+                    languages: [
+                        { code: "ja", nativeName: "日本語" },
+                        { code: "en", name: "English" },
+                        { code: "zh-CN", nativeName: "中文" },
+                    ],
+                },
+            });
+        </script>
+    </body>
+</html>

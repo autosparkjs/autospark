@@ -18,6 +18,7 @@
 // stamp，须赶在 button 变换折叠 props 之前落属性，ADR-0014 决策 1/3/5——顺序契约）
 import "./modules/notifications/index";
 import "./modules/resource/index";
+import "./modules/i18n/index";
 import "./directives/x-ripple/index";
 import "./directives/x-spin/index";
 import "./directives/x-scrollbar/index";

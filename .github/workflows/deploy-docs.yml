@@ -1,0 +1,77 @@
+name: Deploy Docs
+
+# 将 docs（VitePress）构建产物发布到 GitHub Pages。
+# 仓库设置：Settings → Pages → Build and deployment → Source 选择 "GitHub Actions"。
+# 站点地址：https://autosparkjs.github.io/autospark/（与 docs/.vitepress/config 中的 base "/autospark/" 对应）
+
+on:
+  push:
+    branches: [master]
+    paths:
+      # 生产构建只读 docs/（demo 资源 docs/public/*.js 已入库；packages 的构建逻辑均为 apply: "serve"，仅开发期生效）
+      - "docs/**"
+      - ".github/workflows/deploy-docs.yml"
+  workflow_dispatch:
+
+# Pages 部署所需最小权限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时刻只跑一个部署，且不打断进行中的发布
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          # 与本地验证过 docs 构建的版本一致
+          bun-version: 1.4.4
+
+      - name: Restore Bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock', 'docs/bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
+      # docs 独立安装（根 workspaces 仅含 packages/*，不含 docs）
+      - name: Install dependencies
+        working-directory: docs
+        run: bun install --frozen-lockfile
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # 生产构建不依赖 packages 的 tsup/vite 产物：
+      # docs/public/autospark*.js 等 demo 资源已入库；配置里的 engine/plugins 构建逻辑均为 apply: "serve"（仅 dev 生效）
+      - name: Build docs
+        working-directory: docs
+        run: bun run build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

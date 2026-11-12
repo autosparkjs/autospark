@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>多语言：清单唯一源与解析（i18n.languages 自动传递）</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.router.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 语言清单与启用 + 语言解析（ADR-0013 决策 4 + ADR-0136 清单迁位）：
+             清单只声明在 engine 的 options.i18n.languages（唯一源），router options 不传
+             languages——插件挂载时自动取用（显式传入优先）。
+             解析三级：① tag 全等（归一）② 主子标签 ③ 回退 languages[0]。
+             本 demo 预置 $.language = "zh-CN"（免浏览器 auto 解析），
+             "fr" 不在清单——赋值 warn + 回退原值（清单外值语义）。 -->
+        <div class="demo-app section">
+            <div class="buttons mb-2">
+                <button class="button is-small" id="lang-en">English</button>
+                <button class="button is-small" id="lang-zh">简体中文</button>
+                <!-- 清单外值：控制台 warn 并回退原值（$.language 恒为清单内 code） -->
+                <button class="button is-small is-warning" id="lang-fr">fr（清单外）</button>
+            </div>
+
+            <p class="help mb-1">
+                当前语言：<strong x-text="$language"></strong>
+                （document.lang：<span data-doc-lang></span>）
+            </p>
+
+            <div x-outlet></div>
+        </div>
+
+        <script>
+            const host = document.querySelector(".demo-app");
+
+            const engine = new AutoSparkSpaces.AutoSpark(host, {}, {
+                // 语言清单唯一源：router options 未传 languages 时自动取用（ADR-0136）
+                i18n: {
+                    languages: [
+                        { code: "en", name: "English", nativeName: "English" },
+                        { code: "zh-CN", name: "简体中文", nativeName: "中文" },
+                    ],
+                },
+                routes: {
+                    mode: "hash",
+                    base: "/autospark/router-demos/",
+                    routes: [
+                        {
+                            path: "/",
+                            title: "Home",
+                            view: "/autospark/router-demos/views/lang-home.html",
+                        },
+                    ],
+                },
+            });
+
+            // 预置初始语言（早于 router bootstrap 首导航——免浏览器 auto 解析）
+            engine.store.state.$.language = "zh-CN";
+
+            // 切换语言 = 对 $.language 赋值：完整导航管线重入当前路径（不写历史、地址栏不变）
+            const setLang = (code) => (engine.store.state.$ = { ...engine.store.state.$, language: code });
+            document.getElementById("lang-en").addEventListener("click", () => setLang("en"));
+            document.getElementById("lang-zh").addEventListener("click", () => setLang("zh-CN"));
+            // 清单外值：控制台 warn 并回退原值——$.language 恒为清单内的具体 code
+            document.getElementById("lang-fr").addEventListener("click", () => setLang("fr"));
+
+            // document.documentElement.lang 跟随当前语言（启用后由 router 自动维护）。
+            // document 不是响应式数据源，借 navigation:end（语言切换重入也会派发）同步展示。
+            const router = host.router;
+            const docLangEl = host.querySelector("[data-doc-lang]");
+            const syncDocLang = () => {
+                if (docLangEl) docLangEl.textContent = document.documentElement.lang;
+            };
+            router.on("navigation:end", syncDocLang);
+            syncDocLang();
+        </script>
+    </body>
+</html>

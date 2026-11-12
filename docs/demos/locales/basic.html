@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-locales · 字典声明与 t 翻译</title>
+        <script src="/autospark/autospark.js"></script>
+        <!-- i18n 插件（ADR-0136）：须先于 new AutoSpark() 加载——注册 autospark/locales 脚本通道、
+             x-locales 指令，并在 ready 期覆写引擎翻译实现槽（兜底 t → 完整查表/复数）。 -->
+        <script src="/autospark/autospark.i18n.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- 三源字典就近覆盖 + t 表达式翻译 + $.language 响应式切换（ADR-0136）：
+             script 块（全局层）声明基础字典；写 state.$.language 即全页切换（t 绑定经依赖
+             收集自动重渲染）；zh-CN 无译文时回退链耗尽返回原文键（键也插值）。 -->
+        <div class="demo-app section">
+            <div id="app" class="card">
+                <div class="card-content">
+                    <script type="autospark/locales">
+                    {
+                        "你好": { "en": "Hello", "ja": "こんにちは" },
+                        "我有{}辆车": {
+                            "en": ["I have no car", "I have one car", "I have {} cars"],
+                            "ja": "車を{}台持っています"
+                        }
+                    }
+                    </script>
+                    <div class="buttons">
+                        <button class="button is-small" @click="$.language = 'zh-CN'">中文</button>
+                        <button class="button is-small" @click="$.language = 'en'">English</button>
+                        <button class="button is-small" @click="$.language = 'ja'">日本語</button>
+                        <span class="tag is-info">当前语言：{{ $.language }}</span>
+                    </div>
+                    <p class="title is-4" x-text="t('你好')"></p>
+                    <p x-text="t('我有{}辆车', n)"></p>
+                    <p class="mt-2">
+                        <button class="button is-small is-light" @click="n--" :disabled="n <= 0">n−−</button>
+                        <button class="button is-small is-light" @click="n = 0">归零</button>
+                        <button class="button is-small is-light" @click="n++">n++</button>
+                        <span class="tag">n = {{ n }}</span>
+                        <span class="tag is-light">复数随 n 联动：0 → 零体 / 1 → 单体 / ≥2 → other（末项）</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // i18n 配置（ADR-0136）：language 为 $.language 初值；default 仅元数据（标记键的书写语言）；
+            // languages 为只读清单（router 未显式传 languages 时自动取此清单驱动 URL 多语言）。
+            const engine = new AutoSparkSpaces.AutoSpark("#app", { n: 1 }, {
+                i18n: {
+                    language: "zh-CN",
+                    default: "zh-CN",
+                    fallback: "en",
+                    languages: [
+                        { code: "zh-CN", nativeName: "中文" },
+                        { code: "en", name: "English" },
+                        { code: "ja", nativeName: "日本語" },
+                    ],
+                },
+            });
+        </script>
+    </body>
+</html>

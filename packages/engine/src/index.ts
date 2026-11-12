@@ -53,6 +53,10 @@ export type { AutoSparkScriptHandler } from "./features/script-type";
 // 精准订阅 scope 数据的公开坐标（同步 fire 语义的基石——scope.watch 经 scheduler 微任务
 // 合并会吞连续写入的中间值，契约广播类订阅必须走 store 点路径）
 export { SCOPES_KEY } from "./consts";
+/** 字符串插值工具（ADR-0136 自 router 迁入；模块加载即扩展 String.prototype.params） */
+export { params } from "./utils/params";
+/** 翻译实现槽类型（ADR-0136；核心默认兜底 t，i18n 插件覆写升级） */
+export type { TranslateImpl } from "./features/locale/translate";
 // 全量转导出 autostore：消费者仅需安装 autospark 即可获得 AutoStore 完整 API（ADR-0030）
 export * from "autostore";
 export * from "./types";

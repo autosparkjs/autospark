@@ -76,6 +76,22 @@ export class ActionManager {
         }
         // 内置信号型 action 只补用户未占用的键（用户优先）；表与构造逻辑见 builtins.ts（ADR-0036 决策 7）。
         registerBuiltinActions(initActions, (type, payload) => this.engine.emit(type as any, payload));
+        // 翻译函数 t（ADR-0136）：缺省补键（用户同名先占，同 ADR-0036 决策 7），handle 分派
+        // engine.translate 翻译实现槽——核心默认兜底 t（恒等 + 插值），i18n 插件覆写槽后本
+        // 描述符自动升级；表达式通道不走本表（求值器注入 t，渲染热路径零广播），
+        // 命令式直调照常获得 buildAction 生命周期广播。
+        if (!("t" in initActions)) {
+            initActions["t"] = buildAction(
+                (type, payload) => this.engine.emit(type as any, payload),
+                {
+                    id: "t",
+                    title: "翻译",
+                    builtin: true,
+                    handle: (key: string, ...args: any[]) =>
+                        this.engine.translate(undefined, key, ...args),
+                },
+            );
+        }
     }
 
     /**

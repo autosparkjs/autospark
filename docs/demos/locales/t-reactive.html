@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-locales · t() 实时响应式翻译</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.i18n.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    </head>
+
+    <body>
+        <!-- t() 实时响应式（ADR-0136 决策四）：t 内部读 $.language 走响应式代理，经表达式
+             依赖收集自动入集——写 $.language 即所有 t 绑定原地刷新（插值 / :attr / 事件表达式
+             全通），无重载无请求；参数来自状态时状态变化同样驱动重译。 -->
+        <div class="demo-app section">
+            <div id="app" class="card">
+                <div class="card-content">
+                    <script type="autospark/locales">
+                    {
+                        "问候": { "en": "Hello", "ja": "こんにちは" },
+                        "共{}条消息": { "en": "{} messages", "ja": "{}件のメッセージ" }
+                    }
+                    </script>
+                    <div class="buttons">
+                        <button class="button is-small" @click="$.language = 'zh-CN'">中文</button>
+                        <button class="button is-small" @click="$.language = 'en'">English</button>
+                        <button class="button is-small" @click="$.language = 'ja'">日本語</button>
+                    </div>
+
+                    <p>① 插值绑定：<b x-text="t('问候')"></b></p>
+                    <p>② 属性绑定：<button class="button is-small is-link" :title="t('问候')"
+                        @click="msg = t('问候')">hover 看 title，点击写 msg</button>
+                        <span class="tag" x-text="msg"></span></p>
+                    <p>③ 状态参数联动（count 变化即重译）：<b x-text="t('共{}条消息', count)"></b>
+                        <button class="button is-small is-light" @click="count++">count++</button></p>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const engine = new AutoSparkSpaces.AutoSpark("#app", { count: 2, msg: "" }, {
+                i18n: { language: "zh-CN", default: "zh-CN" },
+            });
+        </script>
+    </body>
+</html>

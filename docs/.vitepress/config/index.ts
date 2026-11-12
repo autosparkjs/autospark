@@ -278,6 +278,7 @@ export default defineConfig({
                 { text: "x-data", link: "/zh/guide/directives/x-data" },
                 { text: "x-scope", link: "/zh/guide/directives/x-scope" },
                 { text: "x-isolate", link: "/zh/guide/directives/x-isolate" },
+                { text: "x-locales", link: "/zh/guide/directives/x-locales" },
               ],
             },
             {

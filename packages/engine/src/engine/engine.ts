@@ -18,6 +18,7 @@ import type { AutoSparkScriptHandler } from "../features/script-type";
 // 运行时 import（非 type）：directive 类重载的 instanceof 校验需要基类本体
 // （engine.ts 为组装根，ADR-0093 分层豁免位）
 import { AutoSparkDirectiveBase } from "../features/directive/base";
+import { createFallbackTranslate, type TranslateImpl } from "../features/locale/translate";
 import {
     deletePluginActionDecl,
     drainPluginBootstrapQueue,
@@ -247,6 +248,14 @@ export class AutoSpark<
     /** action 管理单元：全局表注册/包装 + `<script type="autospark/actions">` 模板提取（src/actions/manager.ts） */
     readonly actionsManager: ActionManager;
     /**
+     * 翻译实现槽（ADR-0136）：per-engine 可覆写的翻译实现位，核心默认 = 兜底 t
+     * （恒等 + params 插值，features/locale/translate.ts）。表达式环境的 `t` 标识符
+     * （scope.getT 闭包，求值器经 getter 参数注入）与命令式 `actions.t` 描述符的 handle
+     * 均动态分派到本槽——i18n 插件 `$.ready` 覆写即升级（完整查表/复数/`$.language`
+     * 响应式），槽切换后的绑定经 watchExpression 动态依赖重收集自动重渲染。
+     */
+    translate: TranslateImpl;
+    /**
      * 进出场动画服务（ADR-0039）：`animate.enter/leave/cancel`。**内部 API，不对消费者文档化**
      * （决策 5）——结构指令（x-if/x-show/x-for/x-switch）经挂点调用；后续 x-teleport/x-loading
      * 等接入免费。内置 fade/slide 样式随构造幂等注入 document.head。
@@ -341,6 +350,8 @@ export class AutoSpark<
         // 三入口统一走 _normalize → buildAction，值恒为 ActionDesc 描述符，ADR-0036）
         this.actionsManager = new ActionManager(this);
         this.actionsManager.registerGlobals();
+        // 翻译实现槽默认兜底 t（ADR-0136）：须早于首编译（首渲染的 t 求值即经 scope.getT 分派到此）
+        this.translate = createFallbackTranslate();
         // 图标种子（ADR-0046 决策 3）：构造期并入全局注册表（同名 warn + 覆盖），
         // 先于编译期模板定义生效（模板同名者后到覆盖）
         if (options?.icons) {

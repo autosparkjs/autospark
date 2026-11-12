@@ -98,9 +98,11 @@ function mountRouter(engine: AutoSpark<any>, _autospark: typeof AutoSpark): void
     new AutoSparkRouter(engine.el, {
         ...routerOptions,
         engine,
-        // 语言清单声明在 engine（ADR-0013 决策 1）：engine 声明优先传递；完整路由
-        // 配置对象形态自带 languages 时兜底采用
-        languages: engine.options.languages ?? routerOptions.languages,
+        // 语言清单唯一源在 engine（ADR-0013 决策 1 + ADR-0136 迁位）：旧顶层
+        // options.languages（兼容）> options.i18n.languages（现役正名位）> 完整路由
+        // 配置对象形态自带 languages 兜底
+        languages:
+            engine.options.languages ?? (engine.options as any).i18n?.languages ?? routerOptions.languages,
     });
 }
 

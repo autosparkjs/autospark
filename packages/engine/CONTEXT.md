@@ -793,6 +793,42 @@ _Avoid_: 宽松映射 / 近似映射（已否决——借错令牌产生怪异�
 内置样式中 theme 派生令牌无语义对应、保持**两级链**（覆盖变量 + 校准兜底）的视觉声明：divider、遮罩色、tooltip 暗底、调节手柄色、滚动条色取此位——theme 在场时**不跟随主题色/多彩维度**（兜底是静态校准值），显示模式切换经暗色兜底变体跟随，这是严格映射的剩余代价。与 z-index / 功能尺寸的区别：非映射声明是**视觉属性**因映射洁癖保留两级，后者本就主题无关。
 _Avoid_: 近似属性（访谈期口语，正名非映射声明）、保留样式（泛化）
 
+### 多语言（i18n）
+
+> 完整能力外移官方插件包 `autospark.i18n.js`（ADR-0136，选择性引入）；engine 核心只保留兜底 t 与翻译实现槽。词条留本表：`$.language` 是元状态容器居民、兜底 t 是 getContext 机制词汇。
+
+**i18n 插件（I18n Plugin）**:
+多语言能力的外移载体（ADR-0136）：字典三源收集、查表回退、复数、`$.language` 注入与翻译实现槽升级。须早于 `new AutoSpark()` 加载（选择性引入契约）。
+_Avoid_: locales 模块（配置字段名已定 i18n）、多语言模块（泛化）
+
+**翻译表 / messages**:
+`options.i18n.messages`——全局字典层：以**默认语言原文为键**、语言码为子键（值 = 译文串或复数数组）。与 vue-i18n 按 locale 分组的嵌套形态（`{en:{key:val}}`）不同，本项目是 `{原文:{lang:val}}`。
+_Avoid_: i18n.data（初稿名已弃）、resources（resource 插件词汇）
+
+**翻译函数 / t**:
+表达式环境的内建翻译函数：`getContext` 聚合视图兜底标识符（locals/data/state 均未命中 `t` 才兜底），模板任意表达式与 x-on 可用；查表自调用点 scope 沿 parent 链到全局层；原文键全等、语言码归一（大小写/`_`→`-`）。回退链：当前语言全等 → 主子标签 → fallback 全等 → 主子标签 → 键本身（键也插值）。
+_Avoid_: `$t`（未采用前缀形态）、translate（API 名就是 t）、全局 action t（表达式兜底与 `actions.t` 缺省描述符是双形态，非一物）
+
+**兜底 t（Fallback t）**:
+engine 核心的缺省翻译实现：恒等返回键 + params 插值（无查表/复数/`$.language` 依赖）。保证未装 i18n 插件时 `t(...)` 不报错、不露裸 `{}`，与装插件后「未命中键」输出一致（平滑降级）。
+_Avoid_: 原样输出 t（口语——它带插值）、轻量 t（泛化）
+
+**翻译实现槽（Translate Slot）**:
+per-engine 可覆写的单一翻译实现位：核心默认 = 兜底 t；i18n 插件 `$.ready` 覆写为完整实现（查表 + 复数 + `$.language` 响应式依赖）。表达式闭包与 `actions.t` 的 handle 共同分派到本槽（单实现源）；槽切换后 watchExpression 动态重收集依赖自动生效。
+_Avoid_: manager（无 manager 门面——槽是引擎字段）、策略模式（泛化）
+
+**当前语言 / `$.language`**:
+元状态容器 `state.$` 上的响应式当前语言（ADR-0136）：**唯一运行时真相**，切换 = 直写 `state.$.language`。engine 核心不写；i18n 插件版 t 首次求值惰性注入初值（`options.i18n.language ?? default`）+ `$.ready` 兜底；router bootstrap 的 resolve 结果覆写（URL 驱动优先）。与 `$.viewport` / `$.version` 同族。
+_Avoid_: 根键 `$language`（形态是 `state.$` 容器的 language 成员）、setLanguage API（已否决——直写即切换）、只读约定（那是 `$.viewport` 测量真相的语义；`$.language` 是用户可写切换面，刻意相反）
+
+**字典声明 / x-locales**:
+i18n 插件指令（Compile 静态）：值为**编译期求值一次**的任意表达式（对象字面量 / 状态路径初值），字典挂自身 scope，**就近覆盖**祖先与全局层；同元素与 locales script 并存时 x-locales 胜（后写覆盖）。不订阅后续变化——字典是模板结构性数据非动态 UI 状态。
+_Avoid_: 响应式字典（Compile 静态不订阅）
+
+**语言字典脚本 / Locales Script**:
+`<script type="autospark/locales">`：模板内声明字典的 script 通道（i18n 插件经 `AutoSpark.scriptType` 开放注册表注册处理器，ADR-0132）：对象字面量经 new Function 求值，提取后剪枝。默认挂最近祖先 scope；**顶层游离自动挂全局层**（不静默丢弃）；`global` 属性显式全局（对齐 actions script）。
+_Avoid_: JSON 块（内容是 JS 对象字面量）、动作脚本混写（那是 `autospark/actions`）
+
 ## 组件层
 
 > 组件定义正身词条见上方「结构占位与组件层」的「组件定义 / x-define」——本层曾与其重复，ADR-0054 更名时收敛。
@@ -902,6 +938,7 @@ _Avoid_: autospark-dialog 基类 / 面板基类（泛化旧义——通用视觉
 
 **Message 家族旧名（ADR-0096 全链更名，未发布零迁移）**:
 已废弃。原「消息」子系统全链正名为**通知（Notification）**：目录 `features/messages/` → `notifications/`、`MessageManager` → `NotificationManager`、`engine.messages` → `engine.notifications`、`options.messages` → `options.notifications`、保留键 `$messages` → `$notifications`、全部 `AutoSparkMessage*` / `Message*` 类型与 `MESSAGE_*` 常量 → `Notification*` / `NOTIFICATION_*`、事件 `message:*` → `notification:*`（`toast:show`/`toast:hide` 迁移期双发一并移除）、内置组件键 `autospark.messages.*` → `autospark.notifications.*`、shell 裸键 `message` → `notification`、CSS `autospark-message*` / `data-message-*` / `--autospark-message-*` → `autospark-notification*` / `data-notification-*` / `--autospark-notification-*`、localStorage 键 `autospark-messages` → `autospark-notifications`、自动 id 前缀 `message-N` → `notification-N`。完整映射表见 ADR-0096。
+_辨析_：`options.i18n.messages`（i18n 插件的翻译表字段，ADR-0136）是嵌套于 `i18n` 配置下的**现役**字典字段，与本条废弃的通知顶层旧名 `options.messages` 无涉——勿按本条将其「纠正」；message 一词在翻译表语境合法，在通知语境禁用。
 _Avoid_: engine.messages / $messages / options.messages / AutoSparkMessage* / MessageManager / MESSAGE_* / message:* 事件 / autospark.messages.* / `message` shell 裸键 / autospark-message 类名 / data-message-* 属性（一律按上表写 Notification 形态）；本节以下旧词条内的 Message 时代名目为决策当时记录，现名按本条映射换读
 
 **AutoSparkMessage（镜像混合类型，ADR-0089 退役，实施待启动）**:
