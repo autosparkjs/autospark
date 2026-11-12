@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Slider · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.slider.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{ vol: 30 }">
+      <div class="auto-card">
+        <div class="auto-card-header">最小用法：原生 range 藏起仍可交互（点击 / 拖拽 / 键盘 / 触屏）</div>
+        <div class="auto-card-body">
+          <p>
+            <span x-model.number="vol" x-component:autospark.slider="{ min: 0, max: 100 }"></span>
+          </p>
+          <p class="hint">当前值：{{ vol }} —— 轨道 / 填充段 / 滑块视觉自绘，交互与可访问性原生承载。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

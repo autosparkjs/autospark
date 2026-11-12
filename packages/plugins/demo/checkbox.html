@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.checkbox · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 360px;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .err {
+        color: #ef4444;
+        font-size: 0.8125rem;
+        margin: 2px 0 0;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.checkbox</h1>
+    <p>
+      复选框（原生增强路线：真实 input[type=checkbox] + 自绘勾形视觉）：勾选 / 半选
+      （indeterminate）/ 禁用 / 状态色；值通道走 x-model 兼容协议（宿主 <code>x-model</code>
+      直写，布尔语域配 <code>x-model.boolean</code> 保真）。内嵌真 input 即表单提交载体
+      （勾选提交 name=true）。尺寸档位经主题通道 <code>data-size</code> 全跟随。
+    </p>
+
+    <div id="app" x-data="{ agree: false, fruits: ['apple'], half: true }">
+      <h2>基础用法（x-model 双向 + .boolean 保真）</h2>
+      <div class="col">
+        <span x-model.boolean="agree" x-component:autospark.checkbox="{ label: '我已阅读并同意协议' }"></span>
+        <p class="hint">当前值：<code>{{ agree }}</code>（布尔保真）；点击文字/盒子任一处切换（真实 label 包裹）。</p>
+      </div>
+
+      <h2>半选态（indeterminate，JS 通道）</h2>
+      <div class="col">
+        <span x-component:autospark.checkbox="{ label: '全选（半选视觉）', indeterminate: half }"></span>
+        <span x-model.boolean="half" x-component:autospark.checkbox="{ label: '切半选态' }"></span>
+      </div>
+
+      <h2>多选组（独立状态 + 显式 name 提交载体）</h2>
+      <div class="col">
+        <span x-model.boolean="fruits[0]" name="apple" x-component:autospark.checkbox="{ label: '苹果' }"></span>
+        <span x-model.boolean="agree" x-component:autospark.checkbox="{ label: '香蕉（未勾选不提交）' }"></span>
+      </div>
+
+      <h2>尺寸档位（主题通道 data-size）</h2>
+      <div class="row">
+        <span data-size="x-small"><span x-component:autospark.checkbox="{ label: '超小档' }"></span></span>
+        <span data-size="small"><span x-component:autospark.checkbox="{ label: '小档' }"></span></span>
+        <span data-size="medium"><span x-component:autospark.checkbox="{ label: '中档（缺省）' }"></span></span>
+        <span data-size="large"><span x-component:autospark.checkbox="{ label: '大档' }"></span></span>
+        <span data-size="x-large"><span x-component:autospark.checkbox="{ label: '超大档' }"></span></span>
+      </div>
+      <p class="hint">档位属性挂在任意祖先容器即整片生效（盒子 em 基准随字号联动）。</p>
+
+      <h2>状态色与禁用（status / disabled）</h2>
+      <div class="col">
+        <span x-component:autospark.checkbox="{ label: '校验未通过', status: 'error', checked: true }"></span>
+        <span x-component:autospark.checkbox="{ label: '已确认', status: 'success', checked: true }"></span>
+        <span x-component:autospark.checkbox="{ label: '禁用态', disabled: true }"></span>
+        <span x-component:autospark.checkbox="{ label: '禁用勾选态', disabled: true, checked: true }"></span>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="col">
+          <span x-component:autospark.checkbox="{ label: '暗色常规', checked: true }"></span>
+          <span x-component:autospark.checkbox="{ label: '暗色半选', indeterminate: true }"></span>
+          <span x-component:autospark.checkbox="{ label: '暗色错误态', status: 'error' }"></span>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+    <p class="err"></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.checkbox.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

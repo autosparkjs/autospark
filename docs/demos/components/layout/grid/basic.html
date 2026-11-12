@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Grid · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.grid.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .grid-cell {
+        padding: 0.8rem 1rem;
+        border: 1px solid var(--auto-border-color, #d9d9d9);
+        border-radius: var(--auto-border-radius, 0.5rem);
+        background: var(--auto-third-bgcolor, #fafafa);
+        font-size: var(--auto-font-size, 0.875rem);
+      }
+      .grid-cell b {
+        display: block;
+        margin-bottom: 0.25rem;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <!-- 嵌套数组/对象 props 经状态引用传入（字面量嵌套值在当前引擎有死环缺陷，
+         修复分支待合并；引用写法两种引擎下均正确） -->
+    <main class="demo-main" x-data="{ twoAxisGap: [24, 8] }">
+      <div class="auto-card">
+        <div class="auto-card-header">固定列数（cols: 3）与间隙（gap: medium）</div>
+        <div class="auto-card-body">
+          <div x-component:autospark.grid="{ cols: 3, gap: 'medium' }">
+            <div class="grid-cell"><b>卡片一</b>固定 3 列，minmax(0, 1fr) 等分轨道。</div>
+            <div class="grid-cell"><b>卡片二</b>间隙 medium 档（theme spacing 联动）。</div>
+            <div class="grid-cell"><b>卡片三</b>长文本不撑破轨道（0 下限钳制）。</div>
+            <div class="grid-cell"><b>卡片四</b>第二行自动换行排布。</div>
+            <div class="grid-cell"><b>卡片五</b></div>
+            <div class="grid-cell"><b>卡片六</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">间隙值形态（number / 两轴数组）</div>
+        <div class="auto-card-body">
+          <div x-component:autospark.grid="{ cols: 4, gap: 8 }">
+            <div class="grid-cell">gap: 8（px）</div>
+            <div class="grid-cell">卡片</div>
+            <div class="grid-cell">卡片</div>
+            <div class="grid-cell">卡片</div>
+          </div>
+          <div x-component:autospark.grid="{ cols: 3, gap: twoAxisGap }">
+            <div class="grid-cell">[24, 8]（水平 24 / 垂直 8）</div>
+            <div class="grid-cell">卡片</div>
+            <div class="grid-cell">卡片</div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

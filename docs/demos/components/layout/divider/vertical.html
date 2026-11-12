@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Divider · 垂直与虚线</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.divider.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 12px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">垂直分割线（vertical）</div>
+        <div class="auto-card-body">
+          <div class="toolbar">
+            <span>文字一</span>
+            <span x-component:autospark.divider="{ vertical: true, spacing: 8 }"></span>
+            <span>文字二</span>
+            <span x-component:autospark.divider="{ vertical: true, dashed: true, spacing: 8 }"></span>
+            <span>文字三</span>
+          </div>
+          <p class="hint">垂直态默认高度 0.9em（--asc-divider-length 可覆盖）；flex 容器内满高由容器样式控制；垂直态不支持文字（纯分隔场景）。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">虚线（dashed）与间距（spacing）</div>
+        <div class="auto-card-body">
+          <div x-component:autospark.divider="{ dashed: true }">虚线带文字</div>
+          <p>spacing="8"：上下各 8px 边距（缺省无边距，间距编排交给布局容器/space 组件）。</p>
+          <div x-component:autospark.divider="{ spacing: 8 }"></div>
+          <p>下文内容。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

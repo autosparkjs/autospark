@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Link · 图标与插槽</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.link.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">图标（icon）：字符串与对象双形态</div>
+        <div class="auto-card-body">
+          <p>
+            <a x-component:autospark.link="{ label: '外部链接', href: 'https://example.com', icon: 'external' }"></a>
+            <a x-component:autospark.link="{ label: '文档', href: '#', icon: 'file' }"></a>
+            <a x-component:autospark.link="{ label: '对象形态 { name }', href: '#', icon: starIcon }"></a>
+          </p>
+          <p class="hint">图标经 engine 内置 x-icon 指令渲染（尺寸随字号档位、颜色继承语义色）；对象 props 经状态引用注入（starIcon），字面量对象/数组 props 在当前引擎版本会触发无限更新。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">插槽内容优先于 label 兜底</div>
+        <div class="auto-card-body">
+          <p>
+            <a x-component:autospark.link="{ href: '#' }"><b>插槽内容</b>（富文本均可）</a>
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">新窗口安全默认（target=_blank 自动补 rel="noopener"）</div>
+        <div class="auto-card-body">
+          <p>
+            <a x-component:autospark.link="{ label: '新窗口（自动 noopener）', href: 'https://example.com', target: '_blank' }"></a>
+          </p>
+          <p class="hint">宿主显式 rel 声明优先，自动补全不覆盖。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), { starIcon: { name: "star" } });
+    </script>
+  </body>
+</html>

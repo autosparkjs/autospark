@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.input · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 360px;
+      }
+      .narrow {
+        max-width: 300px;
+        border: 1px dashed #dee2e6;
+        padding: 8px;
+        border-radius: 6px;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .err {
+        color: #ef4444;
+        font-size: 0.8125rem;
+        margin: 2px 0 0;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.input</h1>
+    <p>
+      输入框（原生增强路线：真实 input / textarea + 样式包裹）：type 文本族 / clearable /
+      show-password / prefix·suffix / maxlength 计数 / disabled·readonly；值通道走
+      x-model 兼容协议（宿主 <code>x-model</code> 直写）。尺寸档位经主题通道
+      <code>data-size</code> 全跟随（无自有尺寸属性）。
+    </p>
+
+    <div id="app" x-data="{ name: '', pwd: '', kw: '', bio: '', iconConf: { icon: 'bell' } }">
+      <h2>基础用法（x-model 双向）</h2>
+      <div class="col">
+        <span x-model="name" x-component:autospark.input="{ placeholder: '请输入用户名' }"></span>
+        <p class="hint">当前值：<code>{{ name || '（空）' }}</code></p>
+      </div>
+
+      <h2>type 文本族（password / textarea）</h2>
+      <div class="col">
+        <span x-model="pwd" x-component:autospark.input="{ type: 'password', showPassword: true, placeholder: '密码（眼睛切换可见）' }"></span>
+        <span x-model="bio" x-component:autospark.input="{ type: 'textarea', rows: 3, placeholder: '多行简介（textarea 形态）' }"></span>
+        <p class="hint">密码：<code>{{ pwd || '（空）' }}</code>　简介：<code>{{ bio || '（空）' }}</code></p>
+      </div>
+
+      <h2>clearable / 前后置 / 计数</h2>
+      <div class="col">
+        <span x-model="kw" x-component:autospark.input="{ placeholder: '可清除', clearable: true }"></span>
+        <span x-component:autospark.input="{ prefix: '¥', suffix: 'RMB', placeholder: '文本前后置' }"></span>
+        <span x-component:autospark.input="{ prefix: iconConf, placeholder: '图标前置（对象 props 经状态引用注入）' }"></span>
+        <span x-component:autospark.input="{ maxlength: 20, showCount: true, placeholder: '计数（超限染红）' }"></span>
+      </div>
+
+      <h2>尺寸档位（主题通道 data-size）</h2>
+      <div class="row">
+        <span data-size="x-small"><span x-component:autospark.input="{ placeholder: '超小档' }"></span></span>
+        <span data-size="small"><span x-component:autospark.input="{ placeholder: '小档' }"></span></span>
+        <span data-size="medium"><span x-component:autospark.input="{ placeholder: '中档（缺省）' }"></span></span>
+        <span data-size="large"><span x-component:autospark.input="{ placeholder: '大档' }"></span></span>
+        <span data-size="x-large"><span x-component:autospark.input="{ placeholder: '超大档' }"></span></span>
+      </div>
+      <p class="hint">档位属性挂在任意祖先容器即整片生效（@autospark/theme 手动通道，<code>--auto-input-height</code> 随档联动）。</p>
+
+      <h2>状态色与禁用（status / disabled / readonly）</h2>
+      <div class="col">
+        <span x-component:autospark.input="{ status: 'error', value: '校验未通过' }"></span>
+        <span x-component:autospark.input="{ status: 'warning', value: '长度偏短' }"></span>
+        <span x-component:autospark.input="{ status: 'success', value: '格式正确' }"></span>
+        <span x-component:autospark.input="{ value: '禁用态', disabled: true }"></span>
+        <span x-component:autospark.input="{ value: '只读态', readonly: true }"></span>
+      </div>
+
+      <h2>元素名快速写法（x-input / x-textarea）</h2>
+      <div class="col">
+        <x-input placeholder="元素名写法（可清除）" clearable></x-input>
+        <x-textarea rows="2" placeholder="元素名写法（textarea）"></x-textarea>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="col">
+          <span x-model="kw" x-component:autospark.input="{ placeholder: '暗色输入', clearable: true }"></span>
+          <span x-component:autospark.input="{ status: 'error', value: '暗色错误态' }"></span>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+    <p class="err"></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.input.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

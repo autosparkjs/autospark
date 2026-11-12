@@ -13,8 +13,26 @@ AutoSpark 官方插件包：以「脚本即契约」的 IIFE 产物分发官方�
 _Avoid_: 种类目录（ADR-0003 否决的是种类散装；四区归置不拆插件盒）、按需加载（正名「选择性引入」）、装饰动效类（x-ripple/x-spin 是指令型，无独立第五类）
 
 **组件分类（Component Category）**:
-`src/components/` 区内的**二级功能域归置**（ADR-0017）——八分类目录：`base/`（可继承组件基类，预留）、`general/`（常规：button / button-group / state-button）、`layout/`（grid / space / layout）、`feedback/`（modal / message / alert）、`navigation/`（menu / tabs / pagination）、`display/`（table / card / tag）、`form/`（input / select / form）、`other/`（affix / watermark）。与「插件四分类」**正交**：四分类按插件形态分 src 顶层四区，本分类按组件功能域分 components/ 内目录——归置不拆插件盒（一插件一文件夹自包含不变）。空分类目录以 `.gitkeep` 常驻（骨架文件树可见）；目录名 kebab-case（目录 / 产物名 / 注册名三对齐）。**新组件必须归入既有八分类，新增分类需新 ADR**。文档侧边栏七分组（常规/布局/反馈/导航/展示/表单/其他，中文标题，空分组照登记）；文档与 demos 物理按分类分目录。
+`src/components/` 区内的**二级功能域归置**（ADR-0017）——八分类目录：`base/`（可继承组件基类，预留）、`general/`（常规：button / button-group / state-button / text / link）、`layout/`（divider / grid / space）、`feedback/`（modal / message / alert）、`navigation/`（menu / tabs / pagination）、`display/`（table / card / tag）、`form/`（input / select / form）、`other/`（affix / watermark）。与「插件四分类」**正交**：四分类按插件形态分 src 顶层四区，本分类按组件功能域分 components/ 内目录——归置不拆插件盒（一插件一文件夹自包含不变）。空分类目录以 `.gitkeep` 常驻（骨架文件树可见）；目录名 kebab-case（目录 / 产物名 / 注册名三对齐）。**新组件必须归入既有八分类，新增分类需新 ADR**。文档侧边栏七分组（常规/布局/反馈/导航/展示/表单/其他，中文标题，空分组照登记）；文档与 demos 物理按分类分目录。
 _Avoid_: base 与 autospark.base 混淆（同名不同物——彼是 engine 内置抽象基组件（engine ADR-0134），此是 plugins 源码基类分类目录；撞名在文档侧消解：base 不进 docs）、Base 组（侧边栏无此分组——基类不产出面向用户的组件文档）、camelCase 目录名（stateButton 已更名 state-button）、modules/ 纳入分类（notifications / resource 是复合形态，两维度正交互不混入）、指令入分类（分类仅约束 components/）、新增分类随手建（需新 ADR）
+
+### 组件库层
+
+**组件库路线图（Component Library Roadmap）**:
+`src/components/` 全量推进的**一次定界**（ADR-0018，2026-11-12，同日 antd 对照修订至 56 组件）：56 组件（53 新增 + 3 现有）按八分类归置、P0→P4 五批交付（**依赖链拓扑优先**——被后续组件消费的公共素材先行，同类内价值微调；批次是交付/验收单位非时间承诺）。三条边界：**指令即终态**——指令/模块已覆盖的能力（x-icon、x-dialog、x-popover、x-tree、tooltip、notifications、layout 七指令等）不做组件化外壳，避免双轨维护；**排除域**——图表、富文本编辑器、地图、代码编辑器、完整日历（仅作 date-picker 内部面板）、文件上传后端交互永不进清单，虚拟表并入 table 模式；**内部装配、对外开箱**——组件内部优先装配已有指令/组件/模块，用户拿到的恒是开箱即用的 `x-component:` 标签。四条全局约定（组件 ADR 必须继承）：内置文案走 i18n 词典（无插件回退硬编码）、navigation 类组件不 import router（纯状态驱动，路由联动走配方）、button 范式全库样式基线（type 形态/color 语义色正交 + theme 档位全跟随 + CSS 变量）、表单件原生增强 + x-field 协作（label/校验/域布局归指令，组件专注控件）。`base/` 由 P0 的 BaseField 启用（form 域前瞻唯一例外，其余基类演进式——第三个同类组件出现再抽）。清单增补走组件自身 ADR 声明归类（不改路线图），排除域与四约定变更须修订 ADR-0018。
+_Avoid_: 组件化外壳与「面板外壳（Shell）」混淆（同名异层——彼是 overlay 弹层面板的载体组件，此是被否决的「指令能力包一层组件标签」双轨形态）、批次当进度表（是交付/验收单位）、全量对标=硬凑数（55 宁缺毋滥，边缘件按需增补）、基座批（「基座」已被 overlay 消费者基座类占用——P0 称「基础批」）
+
+**配方（Recipe）**:
+「能力不进组件清单时的交付形态」：用现有指令/组件组合实现某能力的**文档化方案**（demo + 文档），非代码产物。适用边界：组合可得且增量极薄者（popconfirm = x-popover + button + text）、跨包联动不破坏自包含闭包者（router × menu/tabs 的激活态联动）。配方不是 API——不承诺兼容性稳定性，组件化的组装成本由使用者自担；一旦某配方被高频使用且增量变厚，可升级为组件入清单（组件 ADR 声明）。
+_Avoid_: 配方交付为常态（被否决——组装成本转嫁用户，官方组件库定位是开箱即用；仅限增量极薄者）、组合模式（泛化）、preset（无预设概念）
+
+**P0 轻件合批（P0 Lightweight Batch）**:
+纯样式件（divider / space / text 等无独立机制决策的组件）的 **ADR 合批载体**（ADR-0019，状态行「随批追加」）：每件一节（API 面 / 归类声明 / 复用说明），后续 P0 轻件（space/grid/card/tag/alert/empty/checkbox/radio/switch 九件）陆续追加进同一 ADR，不另开；重件（input+BaseField 等）走独立 ADR（ADR-0018 决策 8）。批内沉淀的可复制判据：**「有原生语义损失的根标签才做 precompile 元素名变换」**（link 的 a 语义先例；span/div 根的组件走引擎元素名通道即可）；类切换绑定用 **x-class 指令通道**（`:class` 简写与静态 class 同元素共存时不生效）；对象/数组 props 经**状态引用注入**（引擎字面量对象 props 死循环缺陷在途，button tags 同款规避）。
+_Avoid_: 轻件独立 ADR（决策面薄，文档噪声大于信息量）、P0 全批混装一个 ADR（input+BaseField 是重件含机制决策）、text 自有 size 字号属性（与主题 data-size 档位通道双轨，违反样式基线）
+
+**分割线 / autospark.divider**:
+装饰性视觉分隔组件（layout 分类，ADR-0019）：水平/垂直、虚线、带文字位置、间距——纯 CSS 结构（body flex + 伪元素两段线，空插槽连成整线）。与 **x-splitter 分割器**正交：彼是可拖拽分栏的**布局结构指令**（面板主轴尺寸调节），此是纯视觉分割——同「分」字两物，勿混用词。
+_Avoid_: 分割器 divider（彼的英文词是 splitter）、分隔条（那是 splitter 注入的拖拽把手）
 
 ### 尺寸调节层
 

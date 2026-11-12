@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.card · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.card</h1>
+    <p>
+      卡片容器：header（title / header 槽 / extra 槽）+ body（默认插槽）+ footer 槽、
+      边框 / 悬停浮起 / 可折叠头部。阴影档位走 theme 手动通道
+      <code>data-shadow</code>。
+    </p>
+
+    <div id="app" x-data="{}">
+      <h2>基础卡片（title + body + footer）</h2>
+      <div class="stack">
+        <x-card title="卡片标题">卡片内容：默认插槽即 body 出口，投影内容为直接子级。</x-card>
+        <div x-component:autospark.card="{ title: '带 footer' }">
+          <template x-slot:footer><span>底部动作区</span></template>
+          指令值形态写法（与元素名形态等价）。
+        </div>
+      </div>
+
+      <h2>header / extra 槽</h2>
+      <div x-component:autospark.card="{}">
+        <template x-slot:header><b>自定义头部</b></template>
+        <template x-slot:extra><code>更多</code></template>
+        header 槽整体重载标题区；extra 槽落头部右缘。
+      </div>
+
+      <h2>无边框（bordered=false）与悬停浮起（hoverable）</h2>
+      <div class="row">
+        <div style="flex: 1">
+          <x-card title="无边框" bordered="false">无边框卡片（阴影仍随 data-shadow 档位）。</x-card>
+        </div>
+        <div style="flex: 1">
+          <x-card title="悬停浮起" hoverable="true">鼠标悬停：边框点亮 + 阴影抬升。</x-card>
+        </div>
+      </div>
+
+      <h2>可折叠头部（collapsible）</h2>
+      <x-card title="可折叠卡片" collapsible="true">
+        点击标题区（含箭头）切换折叠：body / footer 随之显隐（x-show 通道，DOM 保留）。
+        <template x-slot:footer><span>折叠时 footer 一并隐藏</span></template>
+      </x-card>
+      <p class="hint">
+        外部可经 <code>@collapse="open = $event.detail.collapsed"</code> 监听翻转（detail = { collapsed }）；
+        collapsed 亦可外部受控驱动。
+      </p>
+
+      <h2>纯头卡片（body 空）与暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="stack">
+          <x-card title="暗色卡片">theme 在场时变量自动跟随暗色；无主题时走暗色兜底字面值。</x-card>
+          <x-card title="纯头卡片（body 隐藏）"></x-card>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.card.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Radio · 快速入门与组语义</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.radio.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{ city: 'sh', plan: 'pro' }">
+      <div class="auto-card">
+        <div class="auto-card-header">最小用法：同 x-model 路径多枚 = 天然同组（原生 name 同名互斥）</div>
+        <div class="auto-card-body">
+          <p style="display: flex; flex-direction: column; gap: 12px; align-items: flex-start">
+            <span x-model="city" x-component:autospark.radio="{ value: 'sh', label: '上海' }"></span>
+            <span x-model="city" x-component:autospark.radio="{ value: 'bj', label: '北京' }"></span>
+            <span x-model="city" x-component:autospark.radio="{ value: 'gz', label: '广州（禁用）', disabled: true }"></span>
+          </p>
+          <p class="hint">当前值：{{ city }} —— 三枚同绑 <code>city</code>，引擎缺省注入 <code>name="city"</code> 落内层原生 radio，同名即组、原生互斥；勾选时写 <code>state = 本钮 value</code>。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">横排组（flex 配方；space 组件同理）</div>
+        <div class="auto-card-body">
+          <p style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap">
+            <span x-model="plan" x-component:autospark.radio="{ value: 'free', label: '免费版' }"></span>
+            <span x-model="plan" x-component:autospark.radio="{ value: 'pro', label: '专业版' }"></span>
+            <span x-model="plan" x-component:autospark.radio="{ value: 'enterprise', label: '企业版' }"></span>
+          </p>
+          <p class="hint">当前套餐：{{ plan }} —— 组样式编排交给 flex / <code>autospark.space</code> 配方（组件不建组容器）。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">尺寸档位（主题通道 data-size，挂任意祖先容器）</div>
+        <div class="auto-card-body">
+          <p style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap">
+            <span data-size="x-small"><span x-component:autospark.radio="{ value: '1', label: 'xs' }"></span></span>
+            <span data-size="small"><span x-component:autospark.radio="{ value: '2', label: 'sm' }"></span></span>
+            <span data-size="medium"><span x-component:autospark.radio="{ value: '3', label: 'md（缺省）' }"></span></span>
+            <span data-size="large"><span x-component:autospark.radio="{ value: '4', label: 'lg' }"></span></span>
+            <span data-size="x-large"><span x-component:autospark.radio="{ value: '5', label: 'xl' }"></span></span>
+          </p>
+          <p class="hint">圆环 em 基准随 <code>--auto-font-size</code> 档位联动，即时生效（右侧面板调节亦同）。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Input · 清除 / 前后置 / 计数</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.input.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{ kw: '', iconConf: { icon: 'bell' } }" style="max-width: 420px">
+      <div class="auto-card">
+        <div class="auto-card-header">clearable（值非空时显形，点击清空 + 焦点回控件）</div>
+        <div class="auto-card-body">
+          <p><span x-model="kw" x-component:autospark.input="{ placeholder: '输入后出现清除钮', clearable: true }"></span></p>
+          <p class="hint">清除经 input 事件冒泡驱动 x-model 回写（当前值：{{ kw || '（空）' }}）。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">prefix / suffix（string 文本 | { icon } 图标）</div>
+        <div class="auto-card-body">
+          <p><span x-component:autospark.input="{ prefix: '¥', suffix: 'RMB', placeholder: '文本前后置' }"></span></p>
+          <p><span x-component:autospark.input="{ prefix: iconConf, placeholder: '图标前置' }"></span></p>
+          <p class="hint">图标对象 props 经状态引用注入（<code>iconConf</code>），避免值对象内字面量对象的引擎缺陷。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">maxlength + showCount（超限染红）</div>
+        <div class="auto-card-body">
+          <p><span x-component:autospark.input="{ maxlength: 20, showCount: true, placeholder: '最多 20 字' }"></span></p>
+          <p class="hint">maxlength 同步原生属性（浏览器原生截断），计数器显示「len / max」。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.radio · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .row {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 360px;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .err {
+        color: #ef4444;
+        font-size: 0.8125rem;
+        margin: 2px 0 0;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.radio</h1>
+    <p>
+      单选钮（原生增强路线：真实 input[type=radio] + 自绘圆点视觉）：<b>组语义走原生 name
+      同名互斥</b>（不建组容器组件）——同 <code>x-model</code> 路径的多枚实例经引擎缺省
+      name 注入天然同组；组样式编排用 flex / space 组件配方。值通道为 checked 值桥
+      （勾选时写 state = 本钮 value）。尺寸档位经主题通道 <code>data-size</code> 全跟随。
+    </p>
+
+    <div id="app" x-data="{ city: 'sh', plan: 'pro' }">
+      <h2>基础用法（同 x-model 路径 = 天然同组，原生互斥）</h2>
+      <div class="col">
+        <span x-model="city" x-component:autospark.radio="{ value: 'sh', label: '上海' }"></span>
+        <span x-model="city" x-component:autospark.radio="{ value: 'bj', label: '北京' }"></span>
+        <span x-model="city" x-component:autospark.radio="{ value: 'gz', label: '广州（禁用）', disabled: true }"></span>
+        <p class="hint">当前值：<code>{{ city }}</code>——三枚同绑 <code>city</code>，name 缺省注入即同名成组。</p>
+      </div>
+
+      <h2>横排组（flex 配方；space 组件同理）</h2>
+      <div class="row">
+        <span x-model="plan" x-component:autospark.radio="{ value: 'free', label: '免费版' }"></span>
+        <span x-model="plan" x-component:autospark.radio="{ value: 'pro', label: '专业版' }"></span>
+        <span x-model="plan" x-component:autospark.radio="{ value: 'enterprise', label: '企业版' }"></span>
+      </div>
+      <p class="hint">当前套餐：<code>{{ plan }}</code></p>
+
+      <h2>尺寸档位（主题通道 data-size）</h2>
+      <div class="row">
+        <span data-size="x-small"><span x-component:autospark.radio="{ value: '1', label: '超小档' }"></span></span>
+        <span data-size="small"><span x-component:autospark.radio="{ value: '2', label: '小档' }"></span></span>
+        <span data-size="medium"><span x-component:autospark.radio="{ value: '3', label: '中档（缺省）' }"></span></span>
+        <span data-size="large"><span x-component:autospark.radio="{ value: '4', label: '大档' }"></span></span>
+        <span data-size="x-large"><span x-component:autospark.radio="{ value: '5', label: '超大档' }"></span></span>
+      </div>
+
+      <h2>状态色与禁用（status / disabled）</h2>
+      <div class="col">
+        <span x-component:autospark.radio="{ value: 'e1', label: '校验未通过', status: 'error' }"></span>
+        <span x-component:autospark.radio="{ value: 'e2', label: '已选中（错误态）', status: 'error', checked: true }"></span>
+        <span x-component:autospark.radio="{ value: 'd1', label: '禁用态', disabled: true }"></span>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="col">
+          <span x-model="city" x-component:autospark.radio="{ value: 'sh', label: '暗色·上海' }"></span>
+          <span x-model="city" x-component:autospark.radio="{ value: 'bj', label: '暗色·北京' }"></span>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+    <p class="err"></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.radio.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

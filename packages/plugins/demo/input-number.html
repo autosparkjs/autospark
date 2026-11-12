@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.input-number · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 320px;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .err {
+        color: #ef4444;
+        font-size: 0.8125rem;
+        margin: 2px 0 0;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.input-number</h1>
+    <p>
+      数字输入框（原生增强）：inputmode=decimal 原生控件 + 步进钮组（上/下，键盘
+      ArrowUp/ArrowDown 同义）；min/max 夹取、step 步长、precision 固定小数位、
+      controls 开关；change（blur/Enter 归位）事件 <code>detail = { value }</code>；
+      值通道走 x-model 兼容协议（宿主 <code>x-model</code> 直写，数字语域）。
+    </p>
+
+    <div id="app" x-data="{ qty: 1, price: 0.5, score: 3 }">
+      <h2>基础用法（x-model 双向 + 步进）</h2>
+      <div class="col">
+        <span x-model.number="qty" x-component:autospark.input-number="{ min: 1, max: 99 }"></span>
+        <p class="hint">当前值：<code>{{ qty }}</code>（点步进钮 / 方向键 / 直接输入）</p>
+      </div>
+
+      <h2>step 步长 + precision 小数位</h2>
+      <div class="col">
+        <span x-model.number="price" x-component:autospark.input-number="{ min: 0, max: 10, step: 0.1, precision: 2 }"></span>
+        <p class="hint">0.1 步进、两位小数：<code>{{ price }}</code>（blur 归位规范文本）</p>
+      </div>
+
+      <h2>controls=false（纯数字输入形态）</h2>
+      <div class="col">
+        <span x-component:autospark.input-number="{ controls: false, placeholder: '无步进钮' }"></span>
+      </div>
+
+      <h2>尺寸档位（主题通道 data-size）</h2>
+      <div class="row">
+        <span data-size="x-small"><span x-component:autospark.input-number="{ value: 1 }"></span></span>
+        <span data-size="small"><span x-component:autospark.input-number="{ value: 2 }"></span></span>
+        <span data-size="medium"><span x-component:autospark.input-number="{ value: 3 }"></span></span>
+        <span data-size="large"><span x-component:autospark.input-number="{ value: 4 }"></span></span>
+        <span data-size="x-large"><span x-component:autospark.input-number="{ value: 5 }"></span></span>
+      </div>
+      <p class="hint">档位属性挂在任意祖先容器即整片生效（高度随档联动，无自有尺寸属性）。</p>
+
+      <h2>状态色与禁用（status / disabled / readonly）</h2>
+      <div class="col">
+        <span x-component:autospark.input-number="{ status: 'error', value: 99, max: 100 }"></span>
+        <span x-component:autospark.input-number="{ status: 'success', value: 66 }"></span>
+        <span x-component:autospark.input-number="{ value: 8, disabled: true }"></span>
+        <span x-component:autospark.input-number="{ value: 8, readonly: true }"></span>
+      </div>
+
+      <h2>change 事件（blur/Enter 归位确认）</h2>
+      <div class="col">
+        <!-- 规避清单：引擎根元素 @事件 失效——监听挂内层包裹元素 -->
+        <div @change="score = $event.detail.value">
+          <span x-model.number="score" x-component:autospark.input-number="{ max: 5 }"></span>
+        </div>
+        <p class="hint">change detail.value：<code>{{ score }}</code>（超界输入 blur 夹取归位）</p>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="col">
+          <span x-model.number="qty" x-component:autospark.input-number="{ min: 1, max: 99 }"></span>
+          <span x-component:autospark.input-number="{ status: 'error', value: 3 }"></span>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+    <p class="err"></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.input-number.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

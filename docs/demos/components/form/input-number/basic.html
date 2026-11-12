@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>InputNumber · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.input-number.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{ qty: 1 }">
+      <div class="auto-card">
+        <div class="auto-card-header">最小用法：宿主元素 + x-component 实例化，x-model 双向绑定</div>
+        <div class="auto-card-body">
+          <p>
+            <span x-model.number="qty" x-component:autospark.input-number="{ min: 1, max: 99 }"></span>
+          </p>
+          <p class="hint">当前值：{{ qty }} —— 步进钮 / ArrowUp·ArrowDown 键盘 / 直接输入三通道同义。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

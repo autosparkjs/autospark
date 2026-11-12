@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Rate · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.rate.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{ score: 3 }">
+      <div class="auto-card">
+        <div class="auto-card-header">最小用法：星形 ×5 悬停预览 + 点击提交，x-model 双向绑定</div>
+        <div class="auto-card-body">
+          <p>
+            <span aria-label="整体评分" x-model.number="score" x-component:autospark.rate></span>
+          </p>
+          <p class="hint">当前值：{{ score }} —— 方向键调分 / Home·End 归位（role=slider 键盘模型）。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

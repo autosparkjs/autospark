@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Text · 复制</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.text.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <!-- copy 监听放内层包裹元素（engine 根元素上的 @事件 绑定不生效）；组件默认封闭，事件经冒泡到外层消费 -->
+      <div @copy="lastCopied = $event.detail.text">
+      <div class="auto-card">
+        <div class="auto-card-header">复制渲染文本（copyable: true）</div>
+        <div class="auto-card-body">
+          <p>
+            <span x-component:autospark.text="{ label: '点右侧图标复制这段展示文本', copyable: true }"></span>
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">复制指定文本（copyable: { text }）——展示文案与剪贴板内容解耦</div>
+        <div class="auto-card-body">
+          <p>
+            <span x-component:autospark.text="{ label: '序列号：8F2A-****-****（点击复制完整值）', copyable: copyConf }"></span>
+          </p>
+          <p class="hint">最近复制内容：<b>{{ lastCopied || '（未复制）' }}</b>（copy 事件冒泡至外层消费，detail.text 即剪贴板文本）；对象 props 经状态引用注入（copyConf），字面量对象/数组 props 在当前引擎版本会触发无限更新。</p>
+        </div>
+      </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), { lastCopied: "", copyConf: { text: "8F2A-91C4-77D3-05E6" } });
+    </script>
+  </body>
+</html>

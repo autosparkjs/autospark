@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Link · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.link.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">最小用法：元素名快速写法（precompile 变换为真 a 元素）</div>
+        <div class="auto-card-body">
+          <p>
+            <x-link href="https://github.com/autosparkjs/autospark" label="AutoSpark 仓库"></x-link>
+            <x-link href="https://example.com" target="_blank" label="新窗口打开"></x-link>
+            <x-link label="非链接态（无 href）"></x-link>
+          </p>
+          <p class="hint">引擎后加载 autospark.link.js 即注册完成；等价的指令值形态 <code>&lt;a x-component:autospark.link="{ ... }"&gt;</code> 同样受支持。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

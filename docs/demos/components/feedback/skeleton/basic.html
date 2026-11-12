@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Skeleton · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.skeleton.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">核心用法：loading 插槽切换（骨架 → 真容）</div>
+        <div class="auto-card-body" style="display: flex; flex-direction: column; gap: 14px; max-width: 420px" x-data="{ fetching: true }">
+          <div
+            x-component:autospark.skeleton="{ loading: fetching, rows: 3 }"
+            style="border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 8px; padding: 14px"
+          >
+            <h3 style="margin: 0 0 6px; font-size: 1rem">订单 #1024</h3>
+            <p style="margin: 0; font-size: 0.875rem; opacity: 0.75">已支付 ¥299.00，预计 3 个工作日内送达。</p>
+          </div>
+          <div>
+            <button
+              x-component:autospark.button="{ label: fetching ? '模拟数据到达' : '回到骨架态', variant: 'primary', size: 'sm' }"
+              @click="fetching = !fetching"
+            ></button>
+          </div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">variant 三形态 + rows 多行</div>
+        <div class="auto-card-body" style="display: flex; flex-direction: column; gap: 16px; max-width: 420px">
+          <div style="display: flex; gap: 12px; align-items: center">
+            <div style="width: 40px" x-component:autospark.skeleton="{ variant: 'circle' }"></div>
+            <div style="flex: 1" x-component:autospark.skeleton="{ variant: 'text', rows: 2 }"></div>
+          </div>
+          <div x-component:autospark.skeleton="{ rows: 5 }"></div>
+          <div style="border-radius: 8px; overflow: hidden" x-component:autospark.skeleton="{ variant: 'rect', animated: false }"></div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">暗色态（容器 data-dark）</div>
+        <div class="auto-card-body">
+          <div style="background: #1a1a1a; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 14px; max-width: 420px" data-dark>
+            <div style="display: flex; gap: 12px; align-items: center">
+              <div style="width: 40px" x-component:autospark.skeleton="{ variant: 'circle' }"></div>
+              <div style="flex: 1" x-component:autospark.skeleton="{ rows: 2 }"></div>
+            </div>
+            <div x-component:autospark.skeleton="{ rows: 3 }"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

@@ -36,5 +36,18 @@ AutoSpark 官方组件（组件型插件，`@autospark/plugins`）——每个�
 | [Button 按钮](./general/button.md) | 常规 | 形态×语义色正交的全功能按钮（图标/加载/tags 子钮） | `autospark.button.js` |
 | [StateButton 状态按钮](./general/state-button.md) | 常规 | 2-N 态循环切换的单钮（继承 button 骨架、decorate 装饰、灰色无匹配态） | `autospark.state-button.js` **须与 button 同页加载** |
 | [ButtonGroup 按钮组](./general/button-group.md) | 常规 | 按钮容器：融合/间隔布局 + 缺省下发 + x-model 单选选中 | `autospark.button-group.js` **须先于 button 加载** |
+| [Text 排版文本](./general/text.md) | 常规 | 层级/语义色 + 溢出省略（单行/多行）+ 复制 | `autospark.text.js` |
+| [Link 链接](./general/link.md) | 常规 | 语义色链接（href/target/disabled/icon，元素名 `<x-link>` 为真 a） | `autospark.link.js` |
+| [Divider 分割线](./layout/divider.md) | 布局 | 装饰性分割线（水平/垂直/虚线/带文字位置/间距） | `autospark.divider.js` |
+| [Space 间距](./layout/space.md) | 布局 | 间距容器（档位/两轴数组、方向、对齐、换行；纯样式容器） | `autospark.space.js` |
+| [Grid 栅格](./layout/grid.md) | 布局 | 通用栅格容器（固定/自适应/响应式档位列数、间隙、分布、对齐） | `autospark.grid.js` |
+| [Alert 警示条](./feedback/alert.md) | 反馈 | 页内警示条（语义色五档/标题描述/关闭/图标映射/通栏） | `autospark.alert.js` |
+| [Card 卡片](./display/card.md) | 展示 | 卡片容器（header/body/footer 三段插槽 + 边框/悬停/可折叠） | `autospark.card.js` |
+| [Tag 标签](./display/tag.md) | 展示 | 行内语义标签（语义色×形态正交 + icon + closable） | `autospark.tag.js` |
+| [Empty 空状态](./display/empty.md) | 展示 | 空状态展示（i18n 内置文案 + image 槽换图 + 附加动作） | `autospark.empty.js` |
+| [Input 输入框](./form/input.md) | 表单 | 原生增强输入框（type 文本族/textarea/clearable/密码切换/前后置/计数，携 BaseField 骨架基座） | `autospark.input.js`（内嵌 base-field 注册，无须另引） |
+| [Checkbox 复选框](./form/checkbox.md) | 表单 | 原生增强复选框（真 input + 自绘勾形/半选视觉，x-model.boolean 布尔语域值桥） | `autospark.checkbox.js`（内嵌 base-field 注册，无须另引） |
+| [Radio 单选钮](./form/radio.md) | 表单 | 原生增强单选钮（真 input + 自绘圆点，原生 name 同名互斥组语义 + checked 值桥） | `autospark.radio.js`（内嵌 base-field 注册，无须另引） |
+| [Switch 开关](./form/switch.md) | 表单 | 自绘开关（role=switch 可访问性自持，loading 态 + hidden 载体表单桥 + change 事件） | `autospark.switch.js`（内嵌 base-field 注册，无须另引） |
 
-其余分类（布局 / 反馈 / 导航 / 展示 / 表单 / 其他）待首个组件落地后补充——分类全集见 ADR-0017。
+其余分类（导航 / 其他）待首个组件落地后补充——分类全集见 ADR-0017。

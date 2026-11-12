@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>InputNumber · 变体</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.input-number.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{ price: 0.5, score: 3 }">
+      <div class="auto-card">
+        <div class="auto-card-header">step 步长 + precision 固定小数位（blur 归位规范文本）</div>
+        <div class="auto-card-body">
+          <p>
+            <span x-model.number="price" x-component:autospark.input-number="{ min: 0, max: 10, step: 0.1, precision: 2 }"></span>
+          </p>
+          <p class="hint">0.1 步进、两位小数：{{ price }} —— 输入超界值 blur 后夹取归位。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">controls=false 纯输入形态 / 状态色 / 禁用只读</div>
+        <div class="auto-card-body">
+          <p><span x-component:autospark.input-number="{ controls: false, placeholder: '无步进钮' }"></span></p>
+          <p><span x-component:autospark.input-number="{ status: 'error', value: 99, max: 100 }"></span></p>
+          <p><span x-component:autospark.input-number="{ value: 8, disabled: true }"></span></p>
+          <p><span x-component:autospark.input-number="{ value: 8, readonly: true }"></span></p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">change 事件（blur/Enter 确认归位，detail = { value }）</div>
+        <div class="auto-card-body">
+          <div @change="score = $event.detail.value">
+            <span x-model.number="score" x-component:autospark.input-number="{ max: 5 }"></span>
+          </div>
+          <p class="hint">detail.value：{{ score }}</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

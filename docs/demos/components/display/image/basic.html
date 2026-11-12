@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Image · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.image.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">基础：加载态转圈 → 加载完成摘圈</div>
+        <div class="auto-card-body">
+          <div x-component:autospark.image="{ src: pic, alt: '山野风景' }"></div>
+          <p class="hint" style="margin-top: 12px">
+            加载完成前居中转圈（内置 loading 图标 SMIL 自转）；fit / width / height 见
+            <code>fit="cover"</code> 与原生属性透传。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">fit 五档（object-fit 通道）</div>
+        <div class="auto-card-body">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+            <div x-component:autospark.image="{ src: pic, fit: 'cover', height: 160 }"></div>
+            <div x-component:autospark.image="{ src: pic, fit: 'contain', height: 160 }"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        pic: "https://picsum.photos/640/360",
+      });
+    </script>
+  </body>
+</html>

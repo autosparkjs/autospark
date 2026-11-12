@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.alert · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin: 12px 0;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.alert</h1>
+    <p>
+      页内警示条（feedback 分类首件）：语义色五档（type）、标题/描述（title/description，插槽可换）、
+      关闭（closable）、图标（icon 覆盖 / 按 type 映射）、通栏形态（banner）。
+      语义色基线在非 button 组件的首个落地（<code>--asc-tone</code> 中转 + <code>:has()</code> 反驱宿主）。
+    </p>
+
+    <div id="app" x-data="{ lastClosed: '' }">
+      <h2>语义色五档（type）</h2>
+      <div class="stack">
+        <div x-component:autospark.alert="{ title: '中性提示（default）', description: '默认档为中性色，用于普通说明性信息。' }"></div>
+        <div x-component:autospark.alert="{ title: '成功（success）', description: '操作已完成，数据已保存。', type: 'success' }"></div>
+        <div x-component:autospark.alert="{ title: '警告（warning）', description: '注意：当前配置将在发布后生效。', type: 'warning' }"></div>
+        <div x-component:autospark.alert="{ title: '危险（danger）', description: '删除操作不可恢复，请谨慎执行。', type: 'danger' }"></div>
+        <div x-component:autospark.alert="{ title: '信息（info）', description: '这是一条普通的信息提示。', type: 'info' }"></div>
+      </div>
+
+      <h2>仅标题 / 仅描述（title 空、description 空）</h2>
+      <div class="stack">
+        <div x-component:autospark.alert="{ title: '仅标题的警示条', type: 'warning' }"></div>
+        <div x-component:autospark.alert="{ description: '仅描述的警示条：标题行不渲染。', type: 'info' }"></div>
+      </div>
+
+      <h2>描述插槽（默认插槽内容优先于 description）</h2>
+      <div class="stack">
+        <div x-component:autospark.alert="{ title: '插槽描述', type: 'success' }">
+          插槽描述内容：<strong>加粗片段</strong>等富内容均可——插槽内容优先于 description 兜底。
+        </div>
+      </div>
+
+      <h2>图标（icon 覆盖 / false 关闭）</h2>
+      <div class="stack">
+        <div x-component:autospark.alert="{ title: '自定义图标', description: 'icon 传图标名覆盖默认映射（warning 档换 bell）。', type: 'warning', icon: 'bell' }"></div>
+        <div x-component:autospark.alert="{ title: '无图标形态', description: 'icon: false 关闭图标位。', type: 'info', icon: false }"></div>
+      </div>
+
+      <h2>关闭（closable）</h2>
+      <div class="stack" @close="lastClosed = $event.target.querySelector('.asc-alert-title')?.textContent || '（无标题）'">
+        <div x-component:autospark.alert="{ title: '可关闭的警示条', description: '点击右侧关闭图标：closed 置位隐藏 + close 事件冒泡。', type: 'success', closable: true }"></div>
+        <div x-component:autospark.alert="{ title: '可关闭的中性条', closable: true }"></div>
+      </div>
+      <p class="hint">close 事件冒泡至外层消费——最近关闭：<code>{{ lastClosed || '（未关闭）' }}</code></p>
+
+      <h2>通栏形态（banner）</h2>
+      <div class="stack">
+        <div x-component:autospark.alert="{ title: '通栏警示条', description: '无圆角满宽，贴容器边缘（页面顶部公告常用）。', type: 'warning', banner: true, closable: true }"></div>
+      </div>
+
+      <h2>字号档位（主题通道 data-size）</h2>
+      <div class="stack">
+        <div data-size="sm">
+          <div x-component:autospark.alert="{ title: '小档警示', type: 'info' }"></div>
+        </div>
+        <div data-size="lg">
+          <div x-component:autospark.alert="{ title: '大档警示', type: 'danger' }"></div>
+        </div>
+      </div>
+      <p class="hint">档位属性挂在任意祖先容器即整片生效（@autospark/theme 手动通道）；theme 不在场时回退兜底字号。</p>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="stack">
+          <div x-component:autospark.alert="{ title: '暗色中性', description: '暗色兜底变体自动切换。' }"></div>
+          <div x-component:autospark.alert="{ title: '暗色成功', type: 'success', closable: true }"></div>
+          <div x-component:autospark.alert="{ title: '暗色危险', type: 'danger', banner: true }"></div>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.alert.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

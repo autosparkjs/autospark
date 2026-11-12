@@ -124,6 +124,10 @@ describe("wrap 选项（label 换行与截断 title，ADR-0012 决策 7）", () 
         const { root, engine } = mount(
             `<button x-component:autospark.button="{ label: text }"></button>`,
             { text: "初始长文案" },
+            // 钉死原生 title 通道：tooltip 特性在场与否取决于进程内是否加载过
+            // autospark.tooltip（全量跑时 tooltip.test.ts 先跑置位、单跑缺席），
+            // 显式关闭使 title 断言与加载序解耦（组件双轨 tipAttr 判定同步收敛到 title）
+            { tooltip: false },
         );
         await nextTick();
         const host = root.querySelector("button")!;
@@ -146,6 +150,7 @@ describe("wrap 选项（label 换行与截断 title，ADR-0012 决策 7）", () 
         const { root, engine } = mount(
             `<button title="自定义提示" x-component:autospark.button="{ label: text }"></button>`,
             { text: "初始文案" },
+            { tooltip: false }, // 同上：钉死原生 title 通道，断言与 tooltip 加载序解耦
         );
         await nextTick();
         const host = root.querySelector("button")!;

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Text · 溢出省略</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.text.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .narrow {
+        max-width: 260px;
+        border: 1px dashed var(--auto-border-color, #d9d9d9);
+        padding: 8px 12px;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">单行省略（ellipsis: true）</div>
+        <div class="auto-card-body">
+          <div class="narrow">
+            <span x-component:autospark.text="{ label: '单行省略：这是一段很长的文案，容器宽度受约束时溢出截断显示省略号，悬停可见完整文本（自动挂 title 提示）', ellipsis: true }"></span>
+          </div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">多行截断（ellipsis: n，line-clamp n 行）</div>
+        <div class="auto-card-body">
+          <div class="narrow">
+            <span x-component:autospark.text="{ label: '多行截断（2 行）：这是一段很长的文案，行数由 ellipsis 数字指定，超出部分以 line-clamp 截断，截断发生时自动挂 title 提示完整文本；把窗口拉窄可以观察截断与提示的联动。', ellipsis: 2 }"></span>
+          </div>
+          <p class="hint">截断只在宽度受约束时发生；tooltip 插件在场时自动改挂 data-tooltip（样式统一）。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

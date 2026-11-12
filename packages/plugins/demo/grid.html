@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.grid · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 860px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .cell {
+        padding: 16px;
+        border: 1px solid #d9d9d9;
+        border-radius: 8px;
+        background: #fafafa;
+        font-size: 0.875rem;
+      }
+      .cell b {
+        display: block;
+        margin-bottom: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.grid</h1>
+    <p>
+      栅格容器组件：列数（cols：固定 / 自适应 / 响应式档位）、间隙（gap）、轨道水平
+      分布（justify）、项块轴对齐（align）。与 x-layout 页面骨架窗格互补——彼管页面
+      结构分割，此管通用内容栅格。
+    </p>
+
+    <!-- 嵌套数组/对象 props 经状态引用传入（字面量嵌套值在当前引擎有死环缺陷，
+         修复分支待合并；引用写法两种引擎下均正确） -->
+    <div id="app" x-data="{ responsiveCols: { xs: 1, sm: 2, md: 3, lg: 4 }, twoAxisGap: [24, 8] }">
+      <h2>固定列数（cols: number）与间隙（gap）</h2>
+      <div x-component:autospark.grid="{ cols: 3, gap: 'medium' }">
+        <div class="cell"><b>卡片一</b>固定 3 列，minmax(0, 1fr) 等分轨道。</div>
+        <div class="cell"><b>卡片二</b>间隙 medium 档（theme spacing 联动）。</div>
+        <div class="cell"><b>卡片三</b>长文本不撑破轨道（0 下限钳制）。</div>
+        <div class="cell"><b>卡片四</b>第二行自动换行排布。</div>
+        <div class="cell"><b>卡片五</b></div>
+        <div class="cell"><b>卡片六</b></div>
+      </div>
+      <p class="hint">
+        gap 同 space 的 size 三形态：<code>8</code> px 数值、<code>'large'</code> 档位名、
+        <code>[16, 8]</code> [水平, 垂直] 两轴；缺省 0。
+      </p>
+
+      <h2>自适应列（cols: "auto"）</h2>
+      <div x-component:autospark.grid="{ cols: 'auto', gap: 'small' }">
+        <div class="cell">自适应项一</div>
+        <div class="cell">自适应项二</div>
+        <div class="cell">自适应项三</div>
+        <div class="cell">自适应项四</div>
+        <div class="cell">自适应项五</div>
+      </div>
+      <p class="hint">
+        auto-fill 按容器宽自动列数，最小列宽 <code>--asc-grid-min</code>（缺省 16rem，
+        可覆盖）；拖动窗口宽度观察列数变化。
+      </p>
+
+      <h2>响应式档位（cols: 对象，视口断点）</h2>
+      <div x-component:autospark.grid="{ cols: responsiveCols, gap: 'small' }">
+        <div class="cell">响应项一</div>
+        <div class="cell">响应项二</div>
+        <div class="cell">响应项三</div>
+        <div class="cell">响应项四</div>
+      </div>
+      <p class="hint">
+        档名对齐 viewport 六档（xs..xxl），断点 Bootstrap 5 min-width（sm 576 / md 768 /
+        lg 992 / xl 1200 / xxl 1400）；窗口跨断点时列数自动重算。
+      </p>
+
+      <h2>轨道分布（justify）与项对齐（align）</h2>
+      <div
+        x-component:autospark.grid="{
+          cols: 'auto',
+          gap: 'small',
+          justify: 'center',
+          align: 'center',
+        }"
+      >
+        <div class="cell" style="width: 8rem">窄项一</div>
+        <div class="cell" style="width: 8rem">窄项二</div>
+        <div class="cell" style="width: 8rem; height: 5rem">高项三（center 居中）</div>
+      </div>
+      <p class="hint">
+        justify 在列宽不满容器时有效（auto 列宽）；align 缺省 stretch 随轨道拉伸。
+      </p>
+
+      <h2>暗色态（零色彩消费，天然无感）</h2>
+      <p class="hint">
+        grid 不消费任何色彩变量，暗色模式下无需变体——栅格结构在任意主题下一致。
+      </p>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.grid.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

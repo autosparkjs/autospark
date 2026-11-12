@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.skeleton · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin: 12px 0;
+      }
+      .card {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 16px;
+        max-width: 420px;
+      }
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 1rem;
+      }
+      .card p {
+        margin: 0;
+        color: #495057;
+        font-size: 0.875rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .profile {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.skeleton</h1>
+    <p>
+      骨架屏（feedback 分类）：variant 三形态（text 行块 / circle 圆 / rect 矩形块）、
+      rows 多行 text（末行半宽）、loading 插槽切换（骨架/真容互斥——核心用法）、
+      animated 闪烁开关（prefers-reduced-motion 停播）。结构占位组件——与 x-loading
+      行为指令正交（彼管动作期反馈，此管数据未到占位）。
+    </p>
+
+    <div id="app" x-data="{ fetching: true }">
+      <h2>核心用法：loading 插槽切换（骨架 → 真容）</h2>
+      <div class="stack">
+        <div class="card" x-component:autospark.skeleton="{ loading: fetching, rows: 3 }">
+          <h3>订单 #1024</h3>
+          <p>已支付 ¥299.00，预计 3 个工作日内送达。</p>
+        </div>
+        <div class="row" style="display: flex; gap: 8px">
+          <button x-component:autospark.button="{ label: fetching ? '模拟数据到达' : '回到骨架态', variant: 'primary', size: 'sm' }" @click="fetching = !fetching"></button>
+        </div>
+        <p class="hint">插槽内容在编译期投影、x-show 只切显隐——真容运行态（如输入焦点）在 loading 往返间保留。</p>
+      </div>
+
+      <h2>variant 三形态</h2>
+      <div class="stack">
+        <div class="profile">
+          <div style="width: 40px" x-component:autospark.skeleton="{ variant: 'circle' }"></div>
+          <div style="flex: 1" x-component:autospark.skeleton="{ variant: 'text', rows: 2 }"></div>
+        </div>
+        <div class="card" style="max-width: 320px; padding: 0; overflow: hidden">
+          <div x-component:autospark.skeleton="{ variant: 'rect', animated: false }"></div>
+        </div>
+        <p class="hint">rect 演示 animated: false（静态淡底）；circle 直径 2.5em 随 data-size 档位缩放。</p>
+      </div>
+
+      <h2>rows 多行 text（末行半宽收尾）</h2>
+      <div class="stack" style="max-width: 420px">
+        <div x-component:autospark.skeleton="{ rows: 1 }"></div>
+        <div x-component:autospark.skeleton="{ rows: 3 }"></div>
+        <div x-component:autospark.skeleton="{ rows: 5 }"></div>
+      </div>
+
+      <h2>字号档位（主题通道 data-size）</h2>
+      <div class="stack" style="max-width: 420px">
+        <div data-size="sm">
+          <div x-component:autospark.skeleton="{ rows: 2 }"></div>
+        </div>
+        <div data-size="lg">
+          <div x-component:autospark.skeleton="{ rows: 2 }"></div>
+        </div>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="stack" style="max-width: 420px">
+          <div x-component:autospark.skeleton="{ rows: 3 }"></div>
+          <div class="profile">
+            <div style="width: 40px" x-component:autospark.skeleton="{ variant: 'circle' }"></div>
+            <div style="flex: 1" x-component:autospark.skeleton="{ rows: 2 }"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.skeleton.js"></script>
+    <script src="/autospark.button.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

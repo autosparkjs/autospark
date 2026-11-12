@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Empty · 插槽与词典</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.i18n.js"></script>
+    <script src="/autospark/autospark.empty.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">image 槽换图 + 默认插槽放附加动作</div>
+        <div class="auto-card-body">
+          <div style="border: 1px dashed rgba(128, 128, 128, 0.35); border-radius: 8px">
+            <div x-component:autospark.empty="{ description: '自定义图片空态' }">
+              <template x-slot:image>
+                <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.2">
+                  <rect x="3" y="5" width="18" height="14" rx="2" />
+                  <path d="M3 15l5-5 4 4 3-3 6 6" />
+                </svg>
+              </template>
+              <button onclick="alert('新建')">新建项目</button>
+            </div>
+          </div>
+          <p class="hint" style="margin-top: 12px">默认插槽落描述下方（附加动作区，常放按钮组）。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">i18n 词典覆译（empty.description 键，按 $.language 取译文）</div>
+        <div class="auto-card-body" x-data="{}">
+          <div style="border: 1px dashed rgba(128, 128, 128, 0.35); border-radius: 8px">
+            <x-empty></x-empty>
+          </div>
+          <p style="margin-top: 12px">
+            <button @click="$.language = 'zh-CN'">中文</button>
+            <button @click="$.language = 'en'">English</button>
+            <span class="hint">当前语言：{{ $.language }}</span>
+          </p>
+          <!-- 顶层游离 locales script 自动全局（ADR-0136）：empty.description 键覆译 -->
+          <script type="autospark/locales">
+            {
+                "empty.description": { "zh-CN": "这里空空如也", "en": "Nothing here yet" }
+            }
+          </script>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {}, { i18n: { language: "zh-CN" } });
+    </script>
+  </body>
+</html>

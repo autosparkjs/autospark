@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Text · 层级与语义色</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.text.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">三中性档（default / secondary / third）+ 加粗（strong）</div>
+        <div class="auto-card-body">
+          <p>
+            <span x-component:autospark.text="{ label: '正文（default）：默认正文色' }"></span>
+          </p>
+          <p>
+            <span x-component:autospark.text="{ label: '次要（secondary）：用于说明性补充文字' }" ></span>
+          </p>
+          <p>
+            <span x-component:autospark.text="{ label: '辅助（third）：用于占位、脚注等最弱层级' }" ></span>
+          </p>
+          <p>
+            <span x-component:autospark.text="{ label: '加粗正文（strong）', strong: true }"></span>
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">语义色档（对齐 button 色板）</div>
+        <div class="auto-card-body">
+          <p>
+            <span x-component:autospark.text="{ label: '主要 primary', type: 'primary' }"></span>
+            <span x-component:autospark.text="{ label: '成功 success', type: 'success' }"></span>
+            <span x-component:autospark.text="{ label: '警告 warning', type: 'warning' }"></span>
+            <span x-component:autospark.text="{ label: '危险 danger', type: 'danger' }"></span>
+            <span x-component:autospark.text="{ label: '信息 info', type: 'info' }"></span>
+          </p>
+          <p class="hint">语义色取 theme 的 --auto-*-color 变量，切主题色 / 暗色即时跟随。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

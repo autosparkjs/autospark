@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.tag · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 8px 0;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.tag</h1>
+    <p>
+      行内语义标签：语义色（type）× 形态（variant）正交 + 前置图标（icon）+ 可关闭
+      （closable）。与 <code>x-badge</code>（内容角标指令）正交。
+    </p>
+
+    <div id="app" x-data="{}">
+      <h2>语义色五档 + 中性档（type，light 淡底缺省）</h2>
+      <div class="row">
+        <x-tag type="primary">进行中</x-tag>
+        <x-tag type="success">已完成</x-tag>
+        <x-tag type="warning">有风险</x-tag>
+        <x-tag type="danger">已失败</x-tag>
+        <x-tag type="info">备注</x-tag>
+        <x-tag>默认</x-tag>
+      </div>
+
+      <h2>形态轴（variant）：solid 实底 / outline 描边</h2>
+      <div class="row">
+        <x-tag type="primary" variant="solid">实底</x-tag>
+        <x-tag type="success" variant="solid">实底</x-tag>
+        <x-tag type="danger" variant="solid">实底</x-tag>
+      </div>
+      <div class="row">
+        <x-tag type="primary" variant="outline">描边</x-tag>
+        <x-tag type="warning" variant="outline">描边</x-tag>
+        <x-tag variant="outline">中性描边</x-tag>
+      </div>
+
+      <h2>前置图标（icon）与尺寸档（theme data-size 通道）</h2>
+      <div class="row">
+        <x-tag icon="star">星标</x-tag>
+        <x-tag type="success" icon="yes">已通过</x-tag>
+        <span data-size="large"><x-tag type="primary" icon="bell">大档标签</x-tag></span>
+        <span data-size="small"><x-tag type="info">小档标签</x-tag></span>
+      </div>
+      <p class="hint">
+        尺寸经主题手动通道 <code>data-size</code>（small / medium / large）全跟随——字号与
+        em 内距自动缩放，无自有尺寸属性。
+      </p>
+
+      <h2>可关闭（closable）：close 事件 + 自动隐藏</h2>
+      <div class="row">
+        <x-tag type="primary" closable="true">点 × 关闭</x-tag>
+        <x-tag type="warning" closable="true" @close="lastClosed = $event.detail.event.type">preventDefault 演示</x-tag>
+      </div>
+      <p class="hint">
+        close 事件可取消：<code>@close="$event.preventDefault()"</code> 交由外部接管关闭时机；
+        缺省未阻止则自动隐藏整枚。closed 受控可回 false 重现。
+      </p>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="row">
+          <x-tag type="primary">进行中</x-tag>
+          <x-tag type="success" variant="solid">已完成</x-tag>
+          <x-tag type="danger" variant="outline">已失败</x-tag>
+          <x-tag closable="true">可关闭</x-tag>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.tag.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

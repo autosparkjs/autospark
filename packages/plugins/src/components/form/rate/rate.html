@@ -1,0 +1,345 @@
+<!--
+    autospark.rate 评分（自绘路线，无原生对应控件）——引擎内置 star 星形图标 ×N
+    （x-for 渲染，max 可配），off 灰星底层 + on 亮星覆盖层（clip-path 百分比裁剪，
+    100% 整星 / 50% 半星）。可访问性自持：role=slider 单焦点键盘模型（tabindex +
+    aria-valuemin/now/max + Arrow 方向调分 + Home/End 归位），switch 的 role=switch
+    同款自持范式（ADR-0018 决策 7 表单基座策略内的自绘例外形态）。继承
+    autospark.base-field 骨架（状态色通道/焦点态/disabled 同步，裸态无盒饰）。
+
+    值桥（x-model 兼容协议）：宿主 el.value 劫持为数字语域（"0".."N"[.5]）——
+    提交（点击/键盘）派发 input（x-model 回写非冒泡）+ change（detail={ value }
+    冒泡供外层 @change="v = $event.detail.value" 一行回写）。value props 为非受控
+    初值 / 单向同步值（受控真相走宿主 x-model）。
+
+    交互面：悬停预览（mousemove 半星粒度判定，mouseleave 恢复）；点击提交
+    （clearable 在场时再次点击同分清零）；disabled/readonly 阻断（readonly 保留
+    预览禁用——值不可变语义）。
+
+    表单提交：内嵌 input[type=hidden] 载体（data-autospark-control 标记——骨架
+    disabled 同步落载体，禁用即出表），value = 当前数字字面串恒提交、name 透传宿主
+    （state-button/switch 自绘控件同款代理——无原生真身，对照 slider 的 range 直
+    提交分叉，ADR-0020 决策 6）。
+-->
+<!-- 根 class 拼接进骨架宿主（.asc-field + .asc-rate——裸态控件不加 .asc-field-box，
+     状态色仍经 --asc-field-tone 消费，ADR-0020 决策 3）；aria/fill 由 mounted JS
+     通道同步，根上无动态绑定（T4=B） -->
+<span
+  class="asc-rate"
+  x-define="autospark.rate"
+  x-define:inherit="autospark.base-field"
+>
+  <script setup>
+    {
+        data: () => ({
+            value: 0,        // number 非受控初值 / 单向同步值（0-N；受控真相走宿主 x-model——el.value 数字语域桥）
+            max: 5,          // 星形总数（>=1，非法归 5）
+            allowHalf: false,// 半星粒度（悬停与提交均按 0.5 步进）
+            clearable: false,// 再次点击同分清零
+            // —— 内部状态 ——
+            stars: [],       // 星形渲染数据源 [1..max]（x-for 消费；max 变化时重建）
+        }),
+        mounted() {
+            // —— 内层元素查询（每查现取，家族纪律）——
+            const starsEl = () => this.el.querySelector(".asc-rate-stars");
+            const carrier = () => this.el.querySelector(".asc-rate-carrier");
+            const items = () => Array.from(this.el.querySelectorAll(".asc-rate-item"));
+
+            // —— 数值工具（NaN 防御：非法归 0）——
+            const num = (v) => {
+                const n = typeof v === "number" ? v : parseFloat(String(v ?? "").trim());
+                return Number.isFinite(n) ? n : null;
+            };
+            const maxNum = () => Math.max(1, Math.floor(num(this.data.max) ?? 5));
+            const half = () => !!this.data.allowHalf;
+            const clamp = (n) => Math.max(0, Math.min(maxNum(), num(n) ?? 0));
+
+            // —— 星形数组重建（响应式赋值驱动 x-for 重渲染）——
+            const rebuild = () => {
+                this.data.stars = Array.from({ length: maxNum() }, (_, i) => i + 1);
+            };
+
+            // —— 合法值缓存（受控语域真相）与悬停预览态 ——
+            let lastValue = 0;
+            let hoverValue = null; // null = 非预览态
+
+            // —— 全视觉同步：aria 语义 + 表单载体 + 逐星点亮（预览态优先于实际值）——
+            const syncVisual = () => {
+                const v = hoverValue != null ? hoverValue : lastValue;
+                const s = starsEl();
+                if (s) {
+                    s.setAttribute("aria-valuenow", String(v));
+                    s.setAttribute("aria-valuemax", String(maxNum()));
+                    // 可访问性：disabled/readonly 均不可交互（aria-disabled 联动）
+                    s.setAttribute("aria-disabled", String(!!(this.data.disabled || this.data.readonly)));
+                    if (this.data.status === "error") s.setAttribute("aria-invalid", "true");
+                    else s.removeAttribute("aria-invalid");
+                }
+                const c = carrier();
+                if (c) {
+                    c.value = String(lastValue); // 提交载体恒随实际值（悬停预览不落载体）
+                    c.disabled = !!this.data.disabled;
+                }
+                this.el.toggleAttribute("data-hover", hoverValue != null);
+                const its = items();
+                for (let idx = 0; idx < its.length; idx++) {
+                    const i = idx + 1;
+                    let fill = 0;
+                    if (v >= i) fill = 100;
+                    else if (half() && v >= i - 0.5) fill = 50;
+                    its[idx].style.setProperty("--asc-rate-fill", `${fill}%`);
+                }
+            };
+
+            // —— 提交（值落定 + 双派发：input→x-model 回写非冒泡；change→外层 detail={value}）——
+            const commit = (v) => {
+                lastValue = clamp(v);
+                hoverValue = null;
+                syncVisual();
+                this.el.dispatchEvent(new Event("input", { bubbles: false }));
+                this.el.dispatchEvent(
+                    new CustomEvent("change", { bubbles: true, detail: { value: lastValue } }),
+                );
+            };
+
+            // —— 指针定位：目标星 + 左右半判定（allowHalf 粒度）——
+            const posTo = (e) => {
+                const t = e.target instanceof Element ? e.target.closest(".asc-rate-item") : null;
+                if (!t || !this.el.contains(t)) return null;
+                const idx = items().indexOf(t);
+                if (idx < 0) return null;
+                const i = idx + 1;
+                if (!half()) return i;
+                const rect = t.getBoundingClientRect();
+                const ratio = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 1;
+                return ratio < 0.5 ? i - 0.5 : i;
+            };
+
+            // —— 指针交互（宿主级事件委托——mounted 时子树可能未挂载，委托恒安全）：
+            //     悬停预览（readonly 保留禁预览——值不可变语义）/ 移出恢复 / 点击提交 ——
+            this.el.addEventListener("mousemove", (e) => {
+                if (this.data.disabled || this.data.readonly) return;
+                const v = posTo(e);
+                if (v == null) {
+                    if (hoverValue != null) {
+                        hoverValue = null;
+                        syncVisual();
+                    }
+                    return;
+                }
+                if (v !== hoverValue) {
+                    hoverValue = v;
+                    syncVisual();
+                }
+            });
+            this.el.addEventListener("mouseleave", () => {
+                if (hoverValue != null) {
+                    hoverValue = null;
+                    syncVisual();
+                }
+            });
+            this.el.addEventListener("click", (e) => {
+                if (this.data.disabled || this.data.readonly) return;
+                const v = posTo(e);
+                if (v == null) return;
+                // clearable：再次点击同分清零（悬停预览值 = 提交值时判定）
+                if (this.data.clearable && v === lastValue) {
+                    commit(0);
+                    return;
+                }
+                commit(v);
+            });
+
+            // —— 键盘交互（role=slider 单焦点模型）：Arrow 调分 + Home/End 归位
+            //     （Space 阻断滚动；半星粒度 0.5 步进）——
+            this.el.addEventListener("keydown", (e) => {
+                const t = e.target instanceof Element ? e.target : null;
+                if (!t || !t.closest(".asc-rate-stars")) return;
+                if (this.data.disabled || this.data.readonly) return;
+                const d = half() ? 0.5 : 1;
+                let v;
+                switch (e.key) {
+                    case "ArrowRight":
+                    case "ArrowUp":
+                        v = lastValue + d;
+                        break;
+                    case "ArrowLeft":
+                    case "ArrowDown":
+                        v = lastValue - d;
+                        break;
+                    case "Home":
+                        v = 0;
+                        break;
+                    case "End":
+                        v = maxNum();
+                        break;
+                    default:
+                        return;
+                }
+                e.preventDefault();
+                commit(clamp(v));
+            });
+
+            // —— 值桥（x-model 兼容协议）：宿主 el.value 劫持为数字语域 ——
+            //     劫持前快照 expando（x-model 编译期可能已写初值）；无 x-model 时回退
+            //     props.value 初值（劫持快照序：expando > props.value，input 同款）
+            const prior = this.el.value;
+            const initV = num(prior) != null ? num(prior) : num(this.data.value);
+            Object.defineProperty(this.el, "value", {
+                get: () => String(lastValue),
+                set: (v) => {
+                    const n = clamp(v);
+                    if (n === lastValue) return; // 等值短路
+                    lastValue = n;
+                    syncVisual();
+                },
+                configurable: true,
+            });
+
+            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）：星形
+            //     渲染（rebuild 赋值 → x-for 重渲染须再一跳）+ 初值落定 + name /
+            //     aria-label 透传（可访问性标注通道——零内置文案的标注出口）——
+            rebuild();
+            setTimeout(() => {
+                lastValue = initV != null ? clamp(initV) : 0;
+                const c = carrier();
+                if (c) {
+                    const nameAttr = this.el.getAttribute("name");
+                    if (nameAttr != null) c.name = nameAttr;
+                }
+                const s = starsEl();
+                if (s) {
+                    const al = this.el.getAttribute("aria-label");
+                    if (al != null) s.setAttribute("aria-label", al);
+                }
+                syncVisual();
+            }, 0);
+
+            // —— props 变化跟随（回调收 { value } 信封对象，此处只用作触发信号）——
+            // value 单向同步（无 x-model 场景）：变化才写（与劫持 setter 等值短路防回环）
+            this.watch("value", ({ value: v }) => {
+                const n = clamp(v);
+                if (n === lastValue) return;
+                lastValue = n;
+                syncVisual();
+            });
+            // max 变化：星形重建（x-for 重渲染须再一跳对齐视觉）+ 当前值夹取
+            this.watch("max", () => {
+                rebuild();
+                lastValue = clamp(lastValue);
+                setTimeout(syncVisual, 0);
+            });
+            this.watch("status", () => { setTimeout(syncVisual, 0); });
+        },
+    }
+  </script>
+  <style global id="autospark-components-rate">
+    /* ---------- 结构：星组（role=slider 交互件，data-autospark-action 点击不转发
+             焦点——骨架空白区点击转发逻辑不干扰）；每星双层（off 灰星底层撑尺寸 +
+             on 亮星覆盖层 clip-path 裁剪） ---------- */
+    .asc-rate-stars {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3em;
+      cursor: pointer;
+      outline: none;
+    }
+    /* x-for 循环容器（渲染一次）：不产生布局层，星项穿透为星组直接 flex 项 */
+    .asc-rate-items {
+      display: contents;
+    }
+    /* 星尺寸 em 基准随主题 data-size 档位字号缩放（不设自有尺寸属性，button 同范式
+       ADR-0012） */
+    .asc-rate-item {
+      position: relative;
+      display: inline-flex;
+      font-size: 1.4em;
+      line-height: 1;
+      --asc-rate-fill: 0%;
+    }
+    .asc-rate-off,
+    .asc-rate-on {
+      display: flex;
+    }
+    .asc-rate-off svg,
+    .asc-rate-on svg {
+      width: 1em;
+      height: 1em;
+      display: block;
+    }
+    /* 灰星底层：中性色（主题在场自动换肤） */
+    .asc-rate-off {
+      color: color-mix(
+        in srgb,
+        var(--auto-color, var(--asc-rate-off, #606060)) 30%,
+        transparent
+      );
+    }
+    /* 亮星覆盖层：tone 色（缺省主色，status 在场随 --asc-field-tone 联动——骨架
+       通道）；clip-path 右侧裁剪承载半星（fill 50% 显左半；不影响布局，svg 恒满宽） */
+    .asc-rate-on {
+      position: absolute;
+      inset: 0;
+      color: var(--asc-field-tone);
+      clip-path: inset(0 calc(100% - var(--asc-rate-fill)) 0 0);
+    }
+
+    /* ---------- 交互态 ---------- */
+    /* 焦点环（data-focus 由骨架 focusin/focusout 同步——星组可聚焦即点亮）；
+       禁用不点环 */
+    .asc-rate[data-focus]:not([data-disabled]) .asc-rate-stars {
+      box-shadow: 0 0 0 2px
+        color-mix(in srgb, var(--asc-field-tone) 22%, transparent);
+      border-radius: 0.25em;
+    }
+    /* 禁用（骨架通道 [data-disabled]）：整体淡化（点亮 tone 保留可辨）+ 禁点光标 */
+    .asc-rate[data-disabled] {
+      opacity: 0.55;
+    }
+    .asc-rate[data-disabled] .asc-rate-stars {
+      cursor: not-allowed;
+    }
+    /* 只读：光标归正文（预览与提交均阻断，无禁用淡化） */
+    .asc-rate[data-readonly] .asc-rate-stars {
+      cursor: default;
+    }
+    /* 悬停预览态（data-hover 由 mounted 同步）：预览粒度跟随光标（含半星） */
+    .asc-rate[data-hover] .asc-rate-stars {
+      cursor: pointer;
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：灰星底层兜底字面值切换为 theme 默认暗色
+             校准（正文色反转自动偏白灰）；点亮 tone 与亮色为骨架通道恒定设计 ---------- */
+    [dark] .asc-rate-off,
+    [data-dark] .asc-rate-off {
+      color: color-mix(
+        in srgb,
+        var(--auto-color, var(--asc-rate-off, #fafafa)) 32%,
+        transparent
+      );
+    }
+  </style>
+  <!-- 默认段（替换 base-field 出口 fallback）：表单载体（hidden，骨架 disabled 同步
+         目标）+ 星组交互件（role=slider 可聚焦）。x-for 宿主为纯克隆载体（自身绑定
+         不编译，:key 例外），星形双层结构在内层；star 为引擎内置图标。注意：嵌套
+         x-slot 出口在继承形态下被忽略（ADR-0056）——消费者内容经 base-field 出口
+         整段替换控件区（逃生通道，input 同款语义），故不开真插槽 -->
+  <input type="hidden" class="asc-rate-carrier" data-autospark-control />
+  <span
+    class="asc-rate-stars"
+    role="slider"
+    tabindex="0"
+    aria-valuemin="0"
+    aria-valuemax="5"
+    aria-valuenow="0"
+    data-autospark-action
+  >
+    <!-- x-for 容器形态（宿主渲染一次、子节点为项模板重复 N 次）：items 容器
+         display:contents 不产生布局层，星项直接成为星组 flex 项 -->
+    <span class="asc-rate-items" x-for="s of stars" :key="s">
+      <span class="asc-rate-item">
+        <i class="asc-rate-off" x-icon="'star'"></i>
+        <i class="asc-rate-on" x-icon="'star'"></i>
+      </span>
+    </span>
+  </span>
+</span>

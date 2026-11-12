@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Avatar · 形态与角标组合</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.avatar.js"></script>
+    <script src="/autospark/autospark.badge.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">shape 形态（circle 缺省 / square）</div>
+        <div class="auto-card-body">
+          <div style="display: flex; gap: 16px; align-items: center">
+            <x-avatar label="圆"></x-avatar>
+            <x-avatar label="方" shape="square"></x-avatar>
+            <x-avatar icon="star" shape="square"></x-avatar>
+          </div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">角标组合（x-badge 指令外挂，组件不内建）</div>
+        <div class="auto-card-body">
+          <div style="display: flex; gap: 24px; align-items: center">
+            <span x-badge="unread"><x-avatar label="王"></x-avatar></span>
+            <span x-badge.count="unread"><x-avatar icon="bell" shape="square"></x-avatar></span>
+            <button @click="unread = unread + 1">unread + 1</button>
+          </div>
+          <p class="hint" style="margin-top: 12px">
+            角标能力由 x-badge 指令承载（<code>&lt;span x-badge="unread"&gt;</code> 外包一层），
+            本组件不建双轨；演示页须同页引入 <code>autospark.badge.js</code>。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">暗色态（容器 data-dark）</div>
+        <div class="auto-card-body">
+          <div data-dark style="background: #1a1a1a; border-radius: 8px; padding: 16px; display: inline-flex; gap: 16px">
+            <x-avatar label="暗"></x-avatar>
+            <x-avatar icon="star" shape="square"></x-avatar>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), { unread: 5 });
+    </script>
+  </body>
+</html>

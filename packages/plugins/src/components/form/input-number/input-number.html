@@ -1,0 +1,371 @@
+<!--
+    autospark.input-number 数字输入框（ADR-0018 决策 7 原生增强）——真实原生 input
+    （inputmode=decimal，键盘/IME/自动填充全保留）+ 盒饰包裹 + 步进钮组。复制 input
+    结构而非嵌套消费（值桥语域分叉 + 自包含产物，见 index.ts 头注释）；继承
+    autospark.base-field 骨架（状态色/焦点态/disabled 同步/盒饰 chrome，ADR-0020）。
+
+    值桥（x-model 兼容协议）：宿主 el.value 劫持为数字语域（""=空）——
+    - 输入过程（原生 input 冒泡，组件 capture 先于 x-model 冒泡监听更新缓存）：
+      合法即缓存（不夹取不修约，"1." / "-" 等中间态自由显示）、清空归 null、
+      其余非法字符保持旧值（antd 同款语义）；
+    - change（原生 change = blur/Enter，capture 归位后阻断重派发）：夹取（min/max）
+      + 修约（precision）+ 规范文本 + 派发 change detail={ value }（冒泡供外层
+      @change="v = $event.detail.value" 一行回写）；
+    - 步进（钮点击 / ArrowUp·ArrowDown）：基值 = 当前值 ?? min ?? 0，按 step 步进
+      后夹取修约，双派发（input→x-model 回写非冒泡 + change detail）；
+    - NaN 防御：一切外部值（props.value / setter / 文本解析）经归一函数，非法得
+      null 保持空态。
+
+    表单提交（ADR-0020 决策 6 同款）：宿主 name 透传到内层原生控件——原生直提交
+    （控件即真身，无须 hidden 代理）。
+-->
+<!-- 根 class 拼接进骨架宿主（.asc-field + .asc-input-number + .asc-field-box 盒饰）；
+     aria/state 属性经 mounted JS 通道同步，根上无动态绑定（T4=B） -->
+<span
+  class="asc-input-number asc-field-box"
+  x-define="autospark.input-number"
+  x-define:inherit="autospark.base-field"
+>
+  <script setup>
+    {
+        data: () => ({
+            value: null,      // number 非受控初值 / 单向同步值（NaN 防御：非法解析忽略保持空；受控真相走宿主 x-model）
+            min: null,        // 下界（null 无界；非数字忽略）
+            max: null,        // 上界（null 无界；非数字忽略）
+            step: 1,          // 步长（<=0 或非法视为 1）
+            precision: -1,    // 小数位（<0 自适应不修约；>=0 固定小数位——显示与修约双通道）
+            controls: true,   // 步进钮组开关（false 时纯数字输入形态）
+            placeholder: "",  // 占位文案（同步原生属性，用户传入无 i18n）
+        }),
+        mounted() {
+            // —— 内层控件查询（每查现取，家族纪律——控件可能随形态重建）——
+            const native = () => this.el.querySelector(".asc-input-number-native");
+
+            // —— 数值工具（NaN 防御核心：一切外部输入经归一，非法得 null）——
+            const num = (v) => {
+                const n = typeof v === "number" ? v : parseFloat(String(v ?? "").trim());
+                return Number.isFinite(n) ? n : null;
+            };
+            const clamp = (n) => {
+                if (n == null) return null;
+                const mn = num(this.data.min), mx = num(this.data.max);
+                if (mn != null && n < mn) return mn;
+                if (mx != null && n > mx) return mx;
+                return n;
+            };
+            // 固定小数位取值（<0 自适应直通）
+            const prec = () => {
+                const p = num(this.data.precision);
+                return p != null && p >= 0 ? Math.floor(Math.min(p, 100)) : null;
+            };
+            const fix = (n) => {
+                const p = prec();
+                return p != null && n != null ? parseFloat(n.toFixed(p)) : n;
+            };
+            const fmt = (n) => {
+                const p = prec();
+                return p != null && n != null ? n.toFixed(p) : n == null ? "" : String(n);
+            };
+
+            // —— 合法值缓存（受控语域真相；null = 空）——
+            let lastValue = null;
+
+            // —— 显示写（等值短路：显示文本已是目标形态不重写——中间态保护）——
+            const show = (n) => {
+                const el = native();
+                if (!el) return;
+                const t = fmt(n);
+                if (el.value !== t) el.value = t;
+            };
+
+            // —— 全视觉同步：role=spinbutton aria 语义 + 宿主状态属性 ——
+            const syncVisual = () => {
+                const el = native();
+                if (el) {
+                    const mn = num(this.data.min), mx = num(this.data.max);
+                    if (mn != null) el.setAttribute("aria-valuemin", String(mn));
+                    else el.removeAttribute("aria-valuemin");
+                    if (mx != null) el.setAttribute("aria-valuemax", String(mx));
+                    else el.removeAttribute("aria-valuemax");
+                    if (lastValue != null) el.setAttribute("aria-valuenow", String(lastValue));
+                    else el.removeAttribute("aria-valuenow");
+                }
+                this.el.toggleAttribute("data-has-value", lastValue != null);
+            };
+
+            // —— 提交（值落定 + 双派发：input→x-model 回写非冒泡；change→外层 detail={value}）——
+            const commit = (n) => {
+                lastValue = n;
+                show(n);
+                syncVisual();
+                this.el.dispatchEvent(new Event("input", { bubbles: false }));
+                this.el.dispatchEvent(
+                    new CustomEvent("change", { bubbles: true, detail: { value: lastValue } }),
+                );
+            };
+
+            // —— 值桥（x-model 兼容协议）：宿主 el.value 劫持为数字语域（""=空）——
+            //     劫持前快照 expando（x-model 编译期可能已写初值）；无 x-model 时回退
+            //     props.value 初值（劫持快照序：expando > props.value，input 同款）。
+            //     初值在劫持安装前同步落定（mounted 时 props 可能晚注入——由 watch("value")
+            //     兜底；不得延后到一跳再赋值，会踩掉外部联动方在 mounted~setTimeout 间
+            //     经劫持 setter 写入的值，slider showInput 联动即此场景）
+            const prior = this.el.value;
+            const initV = num(prior) != null ? num(prior) : num(this.data.value);
+            lastValue = initV != null ? fix(clamp(initV)) : null;
+            Object.defineProperty(this.el, "value", {
+                get: () => (lastValue == null ? "" : String(lastValue)),
+                set: (v) => {
+                    const n = fix(clamp(num(v)));
+                    if (n === lastValue) return; // 等值短路（不动显示——输入中间态保护）
+                    lastValue = n;
+                    show(n);
+                    syncVisual();
+                },
+                configurable: true,
+            });
+
+            // —— 输入跟随（capture 先于 x-model 冒泡监听：缓存先更新，x-model 读到新值）——
+            //     合法即缓存（不夹取不修约）；清空归 null；其余非法保持旧值
+            this.el.addEventListener(
+                "input",
+                (e) => {
+                    if (e.target !== native()) return;
+                    const el = native();
+                    const t = el ? String(el.value ?? "") : "";
+                    const n = num(t);
+                    if (n != null) lastValue = n;
+                    else if (t === "") lastValue = null;
+                    syncVisual();
+                },
+                true,
+            );
+
+            // —— 确认归位（原生 change = blur/Enter）：夹取 + 修约 + 规范文本 + 重派发 detail ——
+            //     capture 阶段先归位再阻断（x-model.lazy 的宿主冒泡监听读到的是归位后
+            //     的劫持 getter；原生 change 不外泄，恒派发自定义 detail 版本）
+            this.el.addEventListener(
+                "change",
+                (e) => {
+                    if (e.target !== native()) return;
+                    e.stopPropagation();
+                    const el = native();
+                    lastValue = fix(clamp(num(el ? el.value : "")));
+                    show(lastValue);
+                    syncVisual();
+                    this.el.dispatchEvent(
+                        new CustomEvent("change", {
+                            bubbles: true,
+                            detail: { value: lastValue },
+                        }),
+                    );
+                },
+                true,
+            );
+
+            // —— 步进（dir: 1 上 / -1 下）：基值空时从 min（无 min 从 0）起；边界顶死不派发 ——
+            const stepBy = (dir) => {
+                if (this.data.disabled || this.data.readonly) return;
+                const st = num(this.data.step);
+                const delta = (st != null && st > 0 ? st : 1) * dir;
+                const base = lastValue != null ? lastValue : (num(this.data.min) ?? 0);
+                const n = fix(clamp(base + delta));
+                if (n === lastValue) return;
+                commit(n);
+            };
+
+            // —— 交互接入（宿主级事件委托——mounted 时子树可能未挂载，委托恒安全）：
+            //     步进钮点击（内部动作件，click 不外泄）+ 键盘 ArrowUp/ArrowDown ——
+            this.el.addEventListener("click", (e) => {
+                const t = e.target instanceof Element ? e.target : null;
+                if (!t) return;
+                const up = t.closest(".asc-input-number-up");
+                if (up) {
+                    e.stopPropagation();
+                    stepBy(1);
+                    return;
+                }
+                if (t.closest(".asc-input-number-down")) {
+                    e.stopPropagation();
+                    stepBy(-1);
+                }
+            });
+            this.el.addEventListener("keydown", (e) => {
+                if (e.target !== native()) return;
+                if (e.key === "ArrowUp") {
+                    e.preventDefault(); // 阻断光标移首行为
+                    stepBy(1);
+                } else if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    stepBy(-1);
+                }
+            });
+
+            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）：属性同步 +
+            //     首次视觉落位（lastValue 已在劫持安装前落定，此处不重算——防踩联动值）——
+            setTimeout(() => {
+                const el = native();
+                if (el) {
+                    el.placeholder = String(this.data.placeholder ?? "");
+                    el.setAttribute("role", "spinbutton");
+                    // 表单提交载体：宿主 name 透传到原生控件（原生直提交，ADR-0020）
+                    const nameAttr = this.el.getAttribute("name");
+                    if (nameAttr != null) el.name = nameAttr;
+                }
+                show(lastValue);
+                syncVisual();
+            }, 0);
+
+            // —— props 变化跟随（回调收 { value } 信封对象，此处只用作触发信号）——
+            // value 单向同步（无 x-model 场景）：变化才写（与劫持 setter 等值短路防回环）
+            this.watch("value", ({ value: v }) => {
+                const n = fix(clamp(num(v)));
+                if (n === lastValue) return;
+                lastValue = n;
+                show(n);
+                syncVisual();
+            });
+            // 边界变化：当前值即时夹取（越界值归位）+ aria 同步
+            const reBound = () => {
+                lastValue = fix(clamp(lastValue));
+                show(lastValue);
+                syncVisual();
+            };
+            this.watch("min", () => { setTimeout(reBound, 0); });
+            this.watch("max", () => { setTimeout(reBound, 0); });
+            this.watch("precision", () => { setTimeout(reBound, 0); });
+            this.watch("placeholder", () => {
+                const el = native();
+                if (el) el.placeholder = String(this.data.placeholder ?? "");
+            });
+        },
+    }
+  </script>
+  <style global id="autospark-components-input-number">
+    /* ---------- 原生控件裸化：外观由骨架盒饰（.asc-field-box）承载，控件本体透明铺满 ---------- */
+    .asc-input-number-native {
+      flex: 1 1 auto;
+      min-width: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      padding: 0;
+      margin: 0;
+      color: inherit;
+      font: inherit;
+      cursor: inherit;
+    }
+    .asc-input-number-native::placeholder {
+      color: var(--auto-input-placeholder, var(--asc-input-number-placeholder, rgba(0, 0, 0, 0.35)));
+    }
+    .asc-input-number-native:disabled {
+      cursor: not-allowed;
+      -webkit-text-fill-color: var(--auto-disable-color, var(--asc-input-number-disable-color, inherit));
+    }
+
+    /* ---------- 步进钮组（controls 由 x-if 控显隐）：竖排双钮撑满盒高，左侧细分隔线；
+             钮为自绘图标钮（内嵌 chevron SVG，非原生 button 不抢焦点——点击焦点留控件） ---------- */
+    .asc-input-number-step {
+      flex: none;
+      display: inline-flex;
+      flex-direction: column;
+      align-self: stretch;
+      margin-left: 0.4em;
+      border-left: var(--auto-border-size, var(--asc-input-number-border-size, 1px)) solid
+        var(--asc-field-line, var(--auto-border-color, var(--asc-input-number-border, #d9d9d9)));
+    }
+    .asc-input-number-btn {
+      flex: 1 1 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.7em;
+      padding: 0 0.3em;
+      cursor: pointer;
+      user-select: none;
+      color: var(--auto-third-color, var(--asc-input-number-step, rgba(0, 0, 0, 0.35)));
+      transition: color 0.15s ease;
+    }
+    .asc-input-number-btn svg {
+      width: 0.85em;
+      height: 0.85em;
+    }
+    .asc-input-number-btn:hover {
+      color: var(--auto-color, var(--asc-input-number-step-hover, #606060));
+    }
+    .asc-input-number-btn:active {
+      transform: scale(0.9);
+    }
+    /* 上下钮夹一条淡分隔线（与组左边线同源淡色） */
+    .asc-input-number-up {
+      border-bottom: var(--auto-border-size, var(--asc-input-number-border-size, 1px)) solid
+        color-mix(in srgb, var(--auto-border-color, var(--asc-input-number-border, #d9d9d9)) 55%, transparent);
+    }
+    /* 禁用（骨架通道 [data-disabled]）：钮禁点 + 光标随盒饰禁用态 */
+    .asc-input-number[data-disabled] .asc-input-number-btn {
+      cursor: not-allowed;
+      color: var(--auto-disable-color, var(--asc-input-number-step-disable, rgba(0, 0, 0, 0.25)));
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-input-number-native::placeholder,
+    [data-dark] .asc-input-number-native::placeholder {
+      color: var(--auto-input-placeholder, var(--asc-input-number-placeholder, rgba(255, 255, 255, 0.4)));
+    }
+    [dark] .asc-input-number-step,
+    [data-dark] .asc-input-number-step {
+      border-left-color: var(--asc-field-line, var(--auto-border-color, var(--asc-input-number-border, #52525b)));
+    }
+    [dark] .asc-input-number-btn,
+    [data-dark] .asc-input-number-btn {
+      color: var(--auto-third-color, var(--asc-input-number-step, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-input-number-btn:hover,
+    [data-dark] .asc-input-number-btn:hover {
+      color: var(--auto-color, var(--asc-input-number-step-hover, #fafafa));
+    }
+    [dark] .asc-input-number[data-disabled] .asc-input-number-btn,
+    [data-dark] .asc-input-number[data-disabled] .asc-input-number-btn {
+      color: var(--auto-disable-color, var(--asc-input-number-step-disable, rgba(255, 255, 255, 0.25)));
+    }
+  </style>
+  <!-- 默认段（替换 base-field 出口 fallback）：原生控件 + 步进钮组。钮上 aria-hidden
+         （纯视觉件，键盘等价通道 ArrowUp/ArrowDown 在控件上承载） -->
+  <input
+    class="asc-input-number-native"
+    data-autospark-control
+    type="text"
+    inputmode="decimal"
+    autocomplete="off"
+  />
+  <span class="asc-input-number-step" x-if="controls !== false">
+    <i class="asc-input-number-btn asc-input-number-up" data-autospark-action aria-hidden="true">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="m18 15-6-6-6 6" />
+      </svg>
+    </i>
+    <i class="asc-input-number-btn asc-input-number-down" data-autospark-action aria-hidden="true">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </i>
+  </span>
+</span>

@@ -351,13 +351,42 @@ export default defineConfig({
             { text: "Button 按钮", link: "/zh/components/general/button" },
             { text: "StateButton 状态按钮", link: "/zh/components/general/state-button" },
             { text: "ButtonGroup 按钮组", link: "/zh/components/general/button-group" },
+            { text: "Text 排版文本", link: "/zh/components/general/text" },
+            { text: "Link 链接", link: "/zh/components/general/link" },
           ],
         },
-        { text: "布局", items: [] },
-        { text: "反馈", items: [] },
+        {
+          text: "布局",
+          items: [
+            { text: "Divider 分割线", link: "/zh/components/layout/divider" },
+            { text: "Space 间距", link: "/zh/components/layout/space" },
+            { text: "Grid 栅格", link: "/zh/components/layout/grid" },
+          ],
+        },
+        {
+          text: "反馈",
+          items: [
+            { text: "Alert 警示条", link: "/zh/components/feedback/alert" },
+          ],
+        },
         { text: "导航", items: [] },
-        { text: "展示", items: [] },
-        { text: "表单", items: [] },
+        {
+          text: "展示",
+          items: [
+            { text: "Card 卡片", link: "/zh/components/display/card" },
+            { text: "Tag 标签", link: "/zh/components/display/tag" },
+            { text: "Empty 空状态", link: "/zh/components/display/empty" },
+          ],
+        },
+        {
+          text: "表单",
+          items: [
+            { text: "Input 输入框", link: "/zh/components/form/input" },
+            { text: "Checkbox 复选框", link: "/zh/components/form/checkbox" },
+            { text: "Radio 单选钮", link: "/zh/components/form/radio" },
+            { text: "Switch 开关", link: "/zh/components/form/switch" },
+          ],
+        },
         { text: "其他", items: [] },
       ],
       "/zh/examples/": [

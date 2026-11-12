@@ -1,0 +1,115 @@
+<!--
+    autospark-select-panel 下拉面板（ADR-0022）——select 的内部组件（非用户直接消费，
+    无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制（trigger:click）
+    渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位/宽度 fit 随触发器）由 popover-shell
+    承载，本组件只贡献选项列表内容。
+
+    与触发器组件（autospark.select）的通信走 scope 链：overlay 内容宿主恒以
+    「open + dataContext:'host'」实例化本组件（ADR-0123 决策 2），聚合视图沿链读写触发器
+    组件 data 域——
+    - 读：filteredOptions（x-for 数据源）/ activeValue（高亮基准）/ value（选中基准）/
+      filterable / virtual / loading（形态与状态呈现）；
+    - 写：filterText（过滤框输入）、哨兵键 pickTick/pickValue（选项点击与过滤框 Enter
+      确认）与 keyTick/keyDir（过滤框上下键导航）——面板模板不能跨组件边界调触发器
+      组件 method（x-on 组件 method 查找不穿透父组件，ADR-0022 决策 3），自增哨兵免疫
+      同值去重；
+    - 开合态：mounted/unmounted 沿链写 open（箭头旋转 / aria-expanded / 过滤词复位）。
+
+    列表渲染双分支：普通 x-for（缺省）与 x-for.virtual（virtual props 开关——长列表
+    虚拟化，项高自动检测；须加载 autospark.virtual.js，缺席时引擎 warn + 降级全量渲染，
+    ADR-0022 决策 4）。空态文案走 i18n 词典 select.empty 键（回退「暂无数据」）。
+-->
+<div class="asc-select-panel" x-define="autospark-select-panel">
+  <script setup>
+    {
+        // 本组件零 props（overlay 宿主以空值实例化）、零自有状态——全部数据经 scope 链
+        // 读写触发器组件域；data() 空对象占位以建立自有 data 层（聚合视图的链上桥点）
+        data: () => ({}),
+        methods: {
+            // 过滤框键盘导航（哨兵沿链写回，ADR-0022 决策 3）：上下键移动高亮 /
+            // Enter 确认当前高亮项；ESC 不拦截（归 popover 打开栈——机制继承）
+            onFilterKeydown(event) {
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                    event.preventDefault();
+                    this.data.keyTick = Number(this.data.keyTick || 0) + 1;
+                    this.data.keyDir = event.key === "ArrowDown" ? 1 : -1;
+                } else if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (this.data.activeValue != null) {
+                        this.data.pickTick = Number(this.data.pickTick || 0) + 1;
+                        this.data.pickValue = this.data.activeValue;
+                    }
+                }
+            },
+        },
+        mounted() {
+            // 开合态沿链写回（触发器侧 watch open 派生箭头旋转 / aria-expanded / 复位）
+            this.data.open = true;
+            // 高亮项滚动跟随（键盘导航可见性；初次打开定位到选中项；列表在面板内现查）
+            const scrollActive = () => {
+                const el = this.el.querySelector(
+                    ".asc-select-option[data-active], .asc-select-option[data-selected]",
+                );
+                el?.scrollIntoView?.({ block: "nearest" });
+            };
+            setTimeout(scrollActive, 0);
+            this.watch("activeValue", () => { setTimeout(scrollActive, 0); });
+        },
+        unmounted() {
+            // 面板每次开合都是新实例（popover 无 keepalive，关闭即销毁）——关闭即复位开合态
+            this.data.open = false;
+        },
+    }
+  </script>
+  <!-- 过滤框（filterable）：本地过滤输入（P1 简实现——对 label 不区分大小写包含匹配，
+         过滤词沿链写触发器域，重建 filteredOptions） -->
+  <div class="asc-select-filter" x-if="filterable">
+    <input
+      class="asc-select-filter-input"
+      type="text"
+      x-on:input="filterText = $event.target.value"
+      x-on:keydown="onFilterKeydown($event)"
+    />
+  </div>
+  <!-- 选项列表·普通分支（缺省）：简单 div 列表非虚拟化 -->
+  <div class="asc-select-list" x-if="!virtual" x-loading="loading">
+    <template x-for="option of filteredOptions" :key="option.value">
+      <div
+        class="asc-select-option"
+        x-bind:data-selected="option.value === value"
+        x-bind:data-active="option.value === activeValue"
+        x-bind:data-disabled="!!option.disabled"
+        x-on:click="pickTick = pickTick + 1; pickValue = option.value"
+      >
+        <span class="asc-select-option-label" x-text="option.label"></span>
+        <i class="asc-select-option-check" x-icon="'yes'" x-if="option.value === value"></i>
+      </div>
+    </template>
+    <div
+      class="asc-select-empty"
+      x-if="!loading && !(filteredOptions && filteredOptions.length > 0)"
+      x-text="t('select.empty') === 'select.empty' ? '暂无数据' : t('select.empty')"
+    ></div>
+  </div>
+  <!-- 选项列表·虚拟分支（virtual 开关）：长列表（>100）只渲染可见窗口——须加载
+         autospark.virtual.js（渐进增强；缺席时引擎 warn + 降级全量渲染） -->
+  <div class="asc-select-list" x-if="virtual" x-loading="loading">
+    <template x-for.virtual="option of filteredOptions" :key="option.value">
+      <div
+        class="asc-select-option"
+        x-bind:data-selected="option.value === value"
+        x-bind:data-active="option.value === activeValue"
+        x-bind:data-disabled="!!option.disabled"
+        x-on:click="pickTick = pickTick + 1; pickValue = option.value"
+      >
+        <span class="asc-select-option-label" x-text="option.label"></span>
+        <i class="asc-select-option-check" x-icon="'yes'" x-if="option.value === value"></i>
+      </div>
+    </template>
+    <div
+      class="asc-select-empty"
+      x-if="!loading && !(filteredOptions && filteredOptions.length > 0)"
+      x-text="t('select.empty') === 'select.empty' ? '暂无数据' : t('select.empty')"
+    ></div>
+  </div>
+</div>

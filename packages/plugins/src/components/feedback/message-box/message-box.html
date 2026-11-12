@@ -1,0 +1,220 @@
+<!--
+    化身路径约束（x-component T4=B）：组件快照根的属性是静态并入宿主（class 拼接 /
+    style 合并 / 其他属性复制），根上的动态绑定不会求值——type 变体绑定（:data-type）
+    落在编译子树的内层 body 上，宿主级语义色（图标色/确认钮色联动）经 body 数据属性
+    以 :has() 驱动。
+
+    组合壳边界（ADR-0018 决策 3——与 x-dialog 的边界声明）：x-dialog 是通用弹层指令
+    （遮罩/居中/ESC/关闭回写等模态机制，内容全自定义）；本组件是 x-dialog 的**确认
+    语义开箱件**——只提供询问内容（type 图标 + 标题/内容 + 确认/取消双钮），弹层机制
+    全部组合消费 x-dialog（勿自建弹层）。消费形态：宿主声明 x-dialog:message-box
+    ="visible 状态"（值通道专职开关），props 经 x-dialog-options.props 注入（与 x-dialog
+    的 props 通道同构）。覆盖物消费用无点别名 message-box（overlay 指令属性参数句点被
+    切为修饰符且无点号候选回溯——autospark.message-box 全名会被截断 miss，别名注册见
+    index.ts MESSAGE_BOX_ALIAS）。
+
+    事件出口（组件默认封闭，事件经冒泡到外层消费）：
+    - confirm / cancel：动作钮点击冒泡，detail 为空——先广播、后关闭（action:close 信号
+      冒泡被 overlay 实例根接住走「请求关闭」链，visible 可回写时自动回写 false）。
+      物理边界（与 overlay:close 同款）：覆盖物 DOM 渲染在 body 容器内、不在 engine
+      宿主树内——消费处用 document.addEventListener("confirm"|"cancel", ...) 或模板外
+      JS 监听（模板里 @confirm 收不到）。
+
+    组合依赖：确认/取消钮组合消费 autospark.button（嵌套 x-component 化身，宿主为真
+    button 元素保原生语义）——按需加载场景须同页加载 autospark.button.js；聚合产物
+    autospark.plugins.js 无此问题。文案走 button 的 label props（继承形态下嵌套插槽
+    出口被忽略的引擎边界，ADR-0019 后果节规避 1 同款纪律），i18n 回退表达式内联在值
+    对象成员（t 经表达式求值器注入，empty 先例）。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized 六键，
+     名即通道）自动获得——字号档位经主题通道 data-size 全跟随（双钮尺寸随档位），
+     message-box 不设自有字号属性；data() 不得声明主题六键，组件内部变体属性亦禁用
+     六个通道名（data-type 为自有变体轴） -->
+<!-- i18n 消费（ADR-0018 决策 6 约定 1）：confirmText/cancelText 缺省走词典
+     message-box.confirm / message-box.cancel 键（回退「确定」「取消」） -->
+<div
+  class="asc-message-box"
+  x-define="autospark.message-box"
+  x-define:inherit="autospark.base"
+  role="alertdialog"
+  aria-modal="true"
+>
+  <script setup>
+    {
+        data: () => ({
+            type: "info",      // info | success | warning | danger：图标映射 + 语义色（alert 同款映射，询问场景无 default 档）
+            title: "",        // 标题（空则不渲染标题行——图标+内容仍成体）
+            content: "",       // 内容文案（默认插槽内容优先——富内容可换）
+            confirmText: "",    // 确认钮文案：空走 i18n 词典 message-box.confirm 键（回退「确定」）
+            cancelText: "",    // 取消钮文案：空走 i18n 词典 message-box.cancel 键（回退「取消」）
+            confirmType: "",    // 确认钮语义色覆盖：空 = 按 type 联动（danger 询问配 danger 色实底、其余 primary）
+            showCancel: true,   // 取消钮开关（纯确认提示可关——取消缺席时确认钮独占动作区）
+            // computed 简写（普通函数值即计算属性，仅限单表达式）：确认钮语义色——
+            // 显式覆盖优先，缺省按 type 联动（danger 询问的确认钮即 danger 色）
+            confirmBtnType: (s) => s.confirmType || (s.type === "danger" ? "danger" : "primary"),
+            // computed：图标名解析——type 映射内置图标（alert 同款：success→success /
+            // warning→warn / danger→error / info→info，经 engine 内置 x-icon 渲染）
+            displayIcon: (s) => (s.type === "success" ? "success" : s.type === "warning" ? "warn" : s.type === "danger" ? "error" : "info"),
+        }),
+        methods: {
+            // 动作钮点击（actions 容器委托）：命中 data-mb-action（confirm | cancel）先广播
+            // 同名事件（detail 空，bubbles——物理边界见文件头注释），后 action:close 信号
+            // 冒泡（内置信号动作的等价广播——overlay 实例根接住走「请求关闭」链，visible
+            // 可回写时自动回写 false）；禁用钮不动作（button 化身宿主 disabled 由其
+            // mounted 同步，原生语义完整）
+            onAction(event) {
+                const btn = event.target instanceof Element ? event.target.closest("[data-mb-action]") : null;
+                if (!btn || btn.disabled) return;
+                const action = btn.getAttribute("data-mb-action");
+                if (action !== "confirm" && action !== "cancel") return;
+                this.el.dispatchEvent(new CustomEvent(action, { bubbles: true }));
+                this.el.dispatchEvent(new CustomEvent("action:close", { bubbles: true }));
+            },
+        },
+    }
+  </script>
+  <style global id="autospark-components-message-box">
+    /* 语义色组织（alert 同款已定型结构，ADR-0018 决策 6.4）：--asc-tone 中转变量 +
+       body data-type 变体属性经 :has() 反驱宿主——图标/确认钮色联动单源 */
+    .asc-message-box {
+      --asc-tone: var(--auto-info-color, var(--asc-message-box-info, #71717a));
+      /* 内距基准：消费 --auto-padding（--auto-spacing 速写族）——容器 data-spacing 档位全局调节生效 */
+      --asc-pad: var(--auto-padding, var(--asc-message-box-padding, 0.8rem));
+      display: flex; /* 显式块级（overlay shell body 内满宽） */
+      box-sizing: border-box;
+      min-width: 22rem;
+      max-width: 32rem;
+      padding: calc(var(--asc-pad) * 0.9) calc(var(--asc-pad) * 1.1);
+      font-size: var(--auto-font-size, var(--asc-message-box-font-size, 0.875rem));
+      line-height: var(--auto-line-height, var(--asc-message-box-line-height, 1.5));
+      color: var(--auto-color, var(--asc-message-box-color, #606060));
+    }
+    .asc-message-box:has(> .asc-message-box-body[data-type="success"]) {
+      --asc-tone: var(--auto-success-color, var(--asc-message-box-success, #22c55e));
+    }
+    .asc-message-box:has(> .asc-message-box-body[data-type="warning"]) {
+      --asc-tone: var(--auto-warning-color, var(--asc-message-box-warning, #f59e0b));
+    }
+    .asc-message-box:has(> .asc-message-box-body[data-type="danger"]) {
+      --asc-tone: var(--auto-danger-color, var(--asc-message-box-danger, #ef4444));
+    }
+
+    /* ---------- body：内容布局载体（编译子树内层，绑定可求值） ---------- */
+    .asc-message-box-body {
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--asc-pad) * 1.1);
+      width: 100%;
+      min-width: 0;
+    }
+    /* 主区：图标 + 文本组横排（图标与首行标题视觉居中对齐） */
+    .asc-message-box-main {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.7em;
+      min-width: 0;
+    }
+    /* 图标位：略大于正文（警示感），色随 tone；不收缩（内容多行时图标恒定） */
+    .asc-message-box-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5em;
+      line-height: 1;
+      color: var(--asc-tone);
+      flex-shrink: 0;
+    }
+    /* 文本组：标题与内容恒纵排 */
+    .asc-message-box-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25em;
+      flex: 1;
+      min-width: 0;
+      padding-top: 0.1em; /* 与图标基线微调（图标 1.5em 的视觉重心） */
+    }
+    /* 标题：medium 字重 + 略大（询问主旨） */
+    .asc-message-box-title {
+      font-size: 1.1em;
+      font-weight: var(--x-font-weight-medium, 500);
+      color: var(--auto-color, var(--asc-message-box-title-color, #303030));
+    }
+    /* 内容：次要文字色（默认插槽出口，富内容同通道） */
+    .asc-message-box-content {
+      color: var(--auto-secondary-color, var(--asc-message-box-content-color, rgba(0, 0, 0, 0.55)));
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* ---------- 动作区：右对齐（取消在左、确认在右——对话框惯例） ---------- */
+    .asc-message-box-actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 0.6em;
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-message-box,
+    [data-dark] .asc-message-box {
+      --asc-tone: var(--auto-info-color, var(--asc-message-box-info, #a1a1aa));
+      color: var(--auto-color, var(--asc-message-box-color, #fafafa));
+    }
+    [dark] .asc-message-box:has(> .asc-message-box-body[data-type="success"]),
+    [data-dark] .asc-message-box:has(> .asc-message-box-body[data-type="success"]) {
+      --asc-tone: var(--auto-success-color, var(--asc-message-box-success, #5cd07c));
+    }
+    [dark] .asc-message-box:has(> .asc-message-box-body[data-type="warning"]),
+    [data-dark] .asc-message-box:has(> .asc-message-box-body[data-type="warning"]) {
+      --asc-tone: var(--auto-warning-color, var(--asc-message-box-warning, #f0a03c));
+    }
+    [dark] .asc-message-box:has(> .asc-message-box-body[data-type="danger"]),
+    [data-dark] .asc-message-box:has(> .asc-message-box-body[data-type="danger"]) {
+      --asc-tone: var(--auto-danger-color, var(--asc-message-box-danger, #e6696a));
+    }
+    [dark] .asc-message-box-title,
+    [data-dark] .asc-message-box-title {
+      color: var(--auto-color, var(--asc-message-box-title-color, #fafafa));
+    }
+    [dark] .asc-message-box-content,
+    [data-dark] .asc-message-box-content {
+      color: var(--auto-secondary-color, var(--asc-message-box-content-color, rgba(255, 255, 255, 0.65)));
+    }
+  </style>
+  <!-- type 变体落 body（编译子树内层元素，宿主经 :has() 驱动——见文件头注释） -->
+  <div class="asc-message-box-body" :data-type="type">
+    <!-- 主区：图标（type 映射）+ 文本组（标题/内容） -->
+    <div class="asc-message-box-main">
+      <i class="asc-message-box-icon" x-icon="displayIcon"></i>
+      <div class="asc-message-box-text">
+        <div class="asc-message-box-title" x-if="title">{{ title }}</div>
+        <!-- 内容出口：插槽内容优先，无内容回退 {{ content }}（组件自身状态求值） -->
+        <div class="asc-message-box-content" x-slot>{{ content }}</div>
+      </div>
+    </div>
+    <!-- 动作区（容器委托点击——文案走 label props 的原因见文件头注释；i18n 回退
+             表达式内联在值对象成员：t 经表达式求值器注入，键等值判定回退硬编码中文） -->
+    <div class="asc-message-box-actions" @click="onAction($event)">
+      <span class="asc-message-box-cancel" x-if="showCancel">
+        <button
+          x-component:autospark.button="{
+            variant: 'default',
+            autoInsertSpace: false,
+            label: cancelText || (t('message-box.cancel') === 'message-box.cancel' ? '取消' : t('message-box.cancel'))
+          }"
+          data-mb-action="cancel"
+        ></button>
+      </span>
+      <button
+        x-component:autospark.button="{
+          variant: 'primary',
+          type: confirmBtnType,
+          autoInsertSpace: false,
+          label: confirmText || (t('message-box.confirm') === 'message-box.confirm' ? '确定' : t('message-box.confirm'))
+        }"
+        data-mb-action="confirm"
+      ></button>
+    </div>
+  </div>
+</div>

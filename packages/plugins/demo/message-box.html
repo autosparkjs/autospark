@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.message-box · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin: 12px 0;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .log {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 10px 14px;
+        font-size: 0.875rem;
+        min-height: 1.5em;
+        color: #495057;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.message-box</h1>
+    <p>
+      确认询问对话（feedback 分类）——<strong>x-dialog 的确认语义组合壳</strong>（弹层机制全组合消费
+      x-dialog 指令，勿自建弹层）：type 图标映射 + 标题/内容 + 确认/取消双钮（组合消费
+      autospark.button）。确认/取消点击广播 confirm/cancel 事件（detail 空）并走请求关闭链
+      （visible 自动回写）。i18n 内置文案：confirmText/cancelText 缺省走词典
+      <code>message-box.confirm/cancel</code> 键（无 i18n 回退「确定/取消」）。
+    </p>
+
+    <div id="app" x-data="{ ui: { open: false, openPure: false, openSlot: false } }">
+      <h2>基础（danger 询问）</h2>
+      <div class="stack">
+        <div class="row">
+          <button
+            x-dialog:message-box="ui.open"
+            x-dialog-options.props="{ title: '删除确认', content: '此操作不可恢复，删除后无法找回。确定要删除这份文档吗？', type: 'danger' }"
+            x-component:autospark.button="{ label: '删除文档', variant: 'primary', type: 'danger' }"
+            @click="ui.open = true"
+          ></button>
+          <button
+            x-dialog:message-box="ui.openPure"
+            x-dialog-options.props="{ title: '发布通知', content: '通知将立即推送给全部成员，发布后不可撤回。', type: 'warning', showCancel: false, confirmText: '立即发布' }"
+            x-component:autospark.button="{ label: '仅确认（无取消钮）' }"
+            @click="ui.openPure = true"
+          ></button>
+        </div>
+        <p class="hint">danger 询问的确认钮自动联动 danger 语义色（confirmType 缺省按 type 联动）；showCancel: false 关闭取消钮。</p>
+      </div>
+
+      <h2>四档 type + 内容插槽</h2>
+      <div class="row">
+        <button
+          x-dialog:message-box="ui.openSlot"
+          x-dialog-options.props="{ title: '开通提醒', type: 'success' }"
+          x-component:autospark.button="{ label: '内容插槽（富内容）' }"
+          @click="ui.openSlot = true"
+        >
+          <div x-slot>
+            已为你开通<strong>实时同步</strong>功能，所有设备数据将自动保持一致——
+            <code>插槽内容优先于 content props</code>。
+          </div>
+        </button>
+      </div>
+      <p class="hint">info / success / warning / danger 四档图标映射（alert 同款）；默认插槽可换富内容。</p>
+
+      <h2>事件消费（confirm / cancel）</h2>
+      <div class="log" id="log">（尚无动作——点上方按钮并在弹层中选择）</div>
+      <p class="hint">
+        事件物理边界（与 overlay:close 同款）：弹层 DOM 渲染在 body 容器内、不在 engine 宿主树内——
+        消费用 <code>document.addEventListener("confirm" | "cancel", ...)</code>（模板里 @confirm 收不到）。
+      </p>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务。
+         加载顺序：overlay（x-dialog 弹层机制）→ button（双钮组合依赖）→ message-box；i18n 可选（文案词典） -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.overlay.js"></script>
+    <script src="/autospark.button.js"></script>
+    <script src="/autospark.message-box.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+      // confirm / cancel 事件消费（document 级——弹层 DOM 在 body 容器内，见页内说明）
+      const log = document.getElementById("log");
+      const stamp = () => new Date().toLocaleTimeString("zh-CN", { hour12: false });
+      document.addEventListener("confirm", () => {
+        log.textContent = `[${stamp()}] confirm：使用者已确认（此时 visible 已被请求关闭链自动回写 false）`;
+      });
+      document.addEventListener("cancel", () => {
+        log.textContent = `[${stamp()}] cancel：使用者已取消`;
+      });
+    </script>
+  </body>
+</html>

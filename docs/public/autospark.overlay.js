@@ -280,306 +280,306 @@ var e=(e=>typeof require<`u`?require:typeof Proxy<`u`?new Proxy(e,{get:(e,t)=>(t
         }\r
     </style>\r
 </div>\r
-`,Bn=`<!--\r
-  autospark.overlay：覆盖物家族通用结构骨架（ADR-0124）。\r
-\r
-  header / body / footer 三段 + 七出口（title / header / body / footer /\r
-  actions.top / actions.left / actions.right；裸 \`actions\` = actions.right 的\r
-  收集侧等价别名，归一在消费侧收集裁决完成）。chrome 出口由消费方投影：\r
-  内置 shell 经 \`x-component-options.slots="*"\` 上行转发消费者分段（ADR-0125），\r
-  自定义 shell 可显式提供或同名覆盖。fallback 承载默认渲染：\r
-\r
-  - title 出口 fallback：icon + title props 文本（x-icon 表达式形态防空值字面量回退）；\r
-  - actions.* 出口 fallback：props.actions 按 pos 归位过滤的按钮组（created 期\r
-    分组进 _topActions/_leftActions/_rightActions，order 升序稳定排序）；\r
-  - header / footer 出口整块替换：出口有内容时 fallback（含 close 按钮）让位，\r
-    closeable 失效（ADR-0124 决策 2）；\r
-  - header/footer 条件渲染（决策 3 修订：closeable 移出 header 判定集——header 只看\r
-    内容：title ∥ icon ∥ title 出口 ∥ actions.top 出口 ∥ pos=top actions）：props\r
-    （响应式）+ 出口内容命中（编译期静态——created 期沿持有者链复算 _chrome 旗标，\r
-    重开/重建即重评）；\r
-  - close 按钮双形态（决策 3 修订）：header 有内容 → 行内 x（header flex 尾部，\r
-    top actions 最右）；header 无内容且 closeable !== false → 根级绝对定位浮动 x\r
-    （右上角 0.375em，两份 DOM 互斥——对偶条件与 header x-show 同构）；\r
-  - body 出口恒渲染，padding props 控制内边距（默认 0.5em）。\r
-\r
-  close 按钮复用全局 close 信号 action（x-on 裸名 → method miss → getAction 链\r
-  → SIGNAL_ACTIONS.close → action:close 冒泡 → 实例根委托 requestClose，决策 5）。\r
--->\r
-<div class="autospark-overlay" x-define="autospark.overlay">\r
-    <!-- 浮动 close（决策 3 修订）：header 不渲染且可关时的根级绝对定位 x——\r
-         条件 = header 判定集取反 ∩ closeable（与 header 行内 x 互斥对偶） -->\r
-    <button class="autospark-overlay-close autospark-overlay-close-floating" type="button"\r
-        x-show="closeable !== false && !(_chrome.header || !!title || !!icon || _chrome.title || _chrome['actions.top'] || _topActions.length > 0)"\r
-        x-on:click="close" x-icon="'no'" aria-label="关闭"></button>\r
-    <!-- header 区：出口整块替换 or 默认结构（title / actions.top / close） -->\r
-    <div class="autospark-overlay-header" x-slot:header\r
-        x-show="_chrome.header || !!title || !!icon || _chrome.title || _chrome['actions.top'] || _topActions.length > 0">\r
-        <div class="autospark-overlay-title" x-slot:title x-show="_chrome.title || !!title || !!icon">\r
-            <i class="autospark-overlay-icon" x-icon="icon || null"></i>\r
-            <span class="autospark-overlay-title-text" x-text="title"></span>\r
-        </div>\r
-        <div class="autospark-overlay-actions autospark-overlay-actions-top" x-slot:actions.top\r
-            x-show="_chrome['actions.top'] || _topActions.length > 0">\r
-            <template x-for="a of _topActions" :key="a.id">\r
-                <button class="autospark-overlay-action" type="button" x-bind:title="a.tooltip || null"\r
-                    x-on:click="a.handle($event)">\r
-                    <i x-show="!!a.icon" x-icon="a.icon"></i>\r
-                    <span x-show="!a.icon" x-text="a.title"></span>\r
-                </button>\r
-            </template>\r
-        </div>\r
-        <button class="autospark-overlay-close" type="button" x-show="closeable !== false" x-on:click="close"\r
-            x-icon="'no'" aria-label="关闭"></button>\r
-    </div>\r
-    <!-- body 区：恒渲染（内容出口的直通位）；padding 归一走 _bodyStyle。\r
-         直通锚（ADR-0124 决策 8 实现偏差注记）：shell 默认出口语义内置于本 fallback——\r
-         内容收集管线剥离嵌套 x-slot 标记（ADR-0056 决策九），直通锚不可经 shell 内容段\r
-         携带（<template x-slot:body><div x-slot> 形态锚会被剥），故锚写在 overlay 模板内：\r
-         body 出口无内容命中时 fallback 渲染，锚（default 出口）沿 slots="*" 转发链上溯\r
-         shell 内容集命中活体边界直挂；自定义 shell 显式提供 body 段时 fallback 让位 -->\r
-    <div class="autospark-overlay-body" x-slot:body x-bind:style="_bodyStyle">\r
-        <div class="autospark-overlay-body-anchor" x-slot></div>\r
-    </div>\r
-    <!-- footer 区：出口整块替换 or 默认动作区（左 / 右） -->\r
-    <div class="autospark-overlay-footer" x-slot:footer\r
-        x-show="_chrome.footer || _chrome['actions.left'] || _chrome['actions.right'] || _leftActions.length > 0 || _rightActions.length > 0">\r
-        <div class="autospark-overlay-actions autospark-overlay-actions-left" x-slot:actions.left\r
-            x-show="_chrome['actions.left'] || _leftActions.length > 0">\r
-            <template x-for="a of _leftActions" :key="a.id">\r
-                <button class="autospark-overlay-action" type="button" x-bind:title="a.tooltip || null"\r
-                    x-on:click="a.handle($event)">\r
-                    <i x-show="!!a.icon" x-icon="a.icon"></i>\r
-                    <span x-show="!a.icon" x-text="a.title"></span>\r
-                </button>\r
-            </template>\r
-        </div>\r
-        <div class="autospark-overlay-actions autospark-overlay-actions-right" x-slot:actions.right\r
-            x-show="_chrome['actions.right'] || _rightActions.length > 0">\r
-            <template x-for="a of _rightActions" :key="a.id">\r
-                <button class="autospark-overlay-action" type="button" x-bind:title="a.tooltip || null"\r
-                    x-on:click="a.handle($event)">\r
-                    <i x-show="!!a.icon" x-icon="a.icon"></i>\r
-                    <span x-show="!a.icon" x-text="a.title"></span>\r
-                </button>\r
-            </template>\r
-        </div>\r
-    </div>\r
-    <style global id="autospark-overlay-styles">\r
-        .autospark-overlay {\r
-            display: flex;\r
-            flex-direction: column;\r
-            min-width: 0;\r
-            min-height: 0;\r
-            /* 浮动 close 的定位基准（决策 3 修订：header 不渲染时 x 绝对定位右上角） */\r
-            position: relative;\r
-        }\r
-\r
-        .autospark-overlay-header {\r
-            display: flex;\r
-            align-items: center;\r
-            gap: 0.5em;\r
-            padding: 0.5em 0.75em;\r
-            border-bottom: 1px solid var(--autospark-overlay-divider, rgba(0, 0, 0, 0.08));\r
-            flex: none;\r
-        }\r
-\r
-        .autospark-overlay-title {\r
-            display: flex;\r
-            align-items: center;\r
-            gap: 0.4em;\r
-            flex: 1 1 auto;\r
-            min-width: 0;\r
-            font-weight: 600;\r
-        }\r
-\r
-        .autospark-overlay-title-text {\r
-            overflow: hidden;\r
-            text-overflow: ellipsis;\r
-            white-space: nowrap;\r
-        }\r
-\r
-        .autospark-overlay-actions {\r
-            display: flex;\r
-            align-items: center;\r
-            gap: 0.375em;\r
-            flex: none;\r
-        }\r
-\r
-        .autospark-overlay-actions-top {\r
-            margin-left: auto;\r
-        }\r
-\r
-        .autospark-overlay-close {\r
-            flex: none;\r
-            display: inline-flex;\r
-            align-items: center;\r
-            justify-content: center;\r
-            width: 1.75em;\r
-            height: 1.75em;\r
-            padding: 0;\r
-            border: none;\r
-            border-radius: 0.375em;\r
-            background: transparent;\r
-            color: inherit;\r
-            cursor: pointer;\r
-        }\r
-\r
-        .autospark-overlay-close:hover {\r
-            background: var(--autospark-overlay-hover, rgba(0, 0, 0, 0.06));\r
-        }\r
-\r
-        /* 浮动形态（决策 3 修订）：header 不渲染时绝对定位右上角，压在 body padding 区之上\r
-           （padding: 0 + 内容贴角时遮挡内容——已知取舍）；z-index 确保浮于 body 内容 */\r
-        .autospark-overlay-close-floating {\r
-            position: absolute;\r
-            top: 0.375em;\r
-            right: 0.375em;\r
-            z-index: 1;\r
-        }\r
-\r
-        .autospark-overlay-body {\r
-            flex: 1 1 auto;\r
-            min-height: 0;\r
-            overflow: auto;\r
-        }\r
-\r
-        .autospark-overlay-body-anchor {\r
-            display: contents;\r
-        }\r
-\r
-        .autospark-overlay-footer {\r
-            display: flex;\r
-            align-items: center;\r
-            gap: 0.5em;\r
-            padding: 0.5em 0.75em;\r
-            border-top: 1px solid var(--autospark-overlay-divider, rgba(0, 0, 0, 0.08));\r
-            flex: none;\r
-        }\r
-\r
-        .autospark-overlay-actions-right {\r
-            margin-left: auto;\r
-        }\r
-\r
-        .autospark-overlay-action {\r
-            display: inline-flex;\r
-            align-items: center;\r
-            gap: 0.3em;\r
-            padding: 0.3em 0.75em;\r
-            border: 1px solid var(--autospark-overlay-action-border, rgba(0, 0, 0, 0.12));\r
-            border-radius: 0.375em;\r
-            background: transparent;\r
-            color: inherit;\r
-            font: inherit;\r
-            cursor: pointer;\r
-        }\r
-\r
-        .autospark-overlay-action:hover {\r
-            background: var(--autospark-overlay-hover, rgba(0, 0, 0, 0.06));\r
-        }\r
-\r
-        /* 顶区动作与 close 同处 header 行：幽灵图标钮风格（无边框，hover 底色统一）；\r
-           footer 动作保留按钮边框（取消/确认等决策性操作） */\r
-        .autospark-overlay-actions-top .autospark-overlay-action {\r
-            border: none;\r
-        }\r
-    </style>\r
-    <script setup>\r
-        ({\r
-            data: () => ({\r
-                _chrome: {\r
-                    title: false,\r
-                    header: false,\r
-                    footer: false,\r
-                    "actions.top": false,\r
-                    "actions.left": false,\r
-                    "actions.right": false,\r
-                },\r
-                _topActions: [],\r
-                _leftActions: [],\r
-                _rightActions: [],\r
-                _bodyStyle: {},\r
-            }),\r
-            created() {\r
-                // ── chrome 出口内容命中（ADR-0124 决策 3，编译期静态）──\r
-                // 复刻 SlotDirective 持有者链查找（ADR-0125 白名身上溯 + 转发翻译接力），\r
-                // 起点为自身 scope（与出口元素 parent 链同位）。内置 shell 场景：自身内容集\r
-                // 仅 body 直通段，转发声明 \`*\` 使 chrome 名原名上溯命中 shell 内容集（消费者\r
-                // 分段 stash，OverlayInstance）；自定义 shell 显式提供段时同链命中。\r
-                const chrome = this.data._chrome;\r
-                const hasOutlet = (name) => {\r
-                    let holder = this.scope || null;\r
-                    let lookup = name;\r
-                    while (holder) {\r
-                        if (holder.slotContents || holder.slotForwarding) {\r
-                            const hit = holder.slotContents?.get(lookup);\r
-                            if (hit) return true;\r
-                            const fw = holder.slotForwarding;\r
-                            const translated = fw\r
-                                ? fw.map.get(lookup) || (fw.wildcard ? lookup : null)\r
-                                : null;\r
-                            if (translated === null) return false; // 持有者已定：无段且不转发 → 边界\r
-                            lookup = translated;\r
-                        }\r
-                        holder = holder.parent;\r
-                    }\r
-                    return false;\r
-                };\r
-                for (const k of Object.keys(chrome)) chrome[k] = hasOutlet(k);\r
-                // ── actions 分组（ADR-0124 决策 4：pos 归位 + order 升序稳定排序）──\r
-                // top → 顶区；left → 左区；right / auto / bottom / 无 pos → 右区。\r
-                // 无 handle 条目剪枝（防御，正常经合并通道到达的条目 handle 必在）；\r
-                // 无 id 条目补合成键（x-for :key 稳定锚）。\r
-                const regroup = (list) => {\r
-                    const rows = (Array.isArray(list) ? list : []).filter(\r
-                        (a) => a && typeof a.handle === "function",\r
-                    );\r
-                    const withId = rows.map((a, i) =>\r
-                        a.id != null ? a : Object.assign({}, a, { id: "__overlay_action_" + i }),\r
-                    );\r
-                    const top = withId.filter((a) => a.pos === "top");\r
-                    const left = withId.filter((a) => a.pos === "left");\r
-                    const right = withId.filter((a) => a.pos !== "top" && a.pos !== "left");\r
-                    const byOrder = (x, y) =>\r
-                        (x.order == null ? 0 : x.order) - (y.order == null ? 0 : y.order);\r
-                    top.sort(byOrder);\r
-                    left.sort(byOrder);\r
-                    right.sort(byOrder);\r
-                    // 变更守卫：watch 回调可能因键缺位退化为空 deps watch-all（任意变更触发），\r
-                    // 无条件写新数组引用会自反馈成死循环——组员引用与顺序均未变时跳过写入\r
-                    const same = (key, next) => {\r
-                        const cur = this.data[key];\r
-                        return (\r
-                            Array.isArray(cur) &&\r
-                            cur.length === next.length &&\r
-                            next.every((a, i) => a === cur[i])\r
-                        );\r
-                    };\r
-                    // markRaw：组员含 handle 函数——autostore 见函数即求值（计算属性语义），\r
-                    // 分组数组赋入响应式 data 前须标记豁免，否则点击时读到求值结果而非函数\r
-                    if (!same("_topActions", top)) this.data._topActions = markRaw(top);\r
-                    if (!same("_leftActions", left)) this.data._leftActions = markRaw(left);\r
-                    if (!same("_rightActions", right)) this.data._rightActions = markRaw(right);\r
-                };\r
-                regroup(this.watch("actions", (r) => regroup(r.value)));\r
-                // ── body 内边距（决策 6：padding props，默认 0.5em；number → px）──\r
-                const bodyStyle = (p) => {\r
-                    const pad =\r
-                        typeof p === "number" && p >= 0\r
-                            ? p + "px"\r
-                            : typeof p === "string" && p.trim() !== ""\r
-                                ? p\r
-                                : "0.5em";\r
-                    // 变更守卫：同 regroup——键缺位退化 watch-all 时避免无条件写新对象自反馈\r
-                    if (this.data._bodyStyle?.padding !== pad) {\r
-                        this.data._bodyStyle = { padding: pad };\r
-                    }\r
-                };\r
-                bodyStyle(this.data.padding);\r
-                this.watch("padding", (r) => bodyStyle(r.value));\r
-            },\r
-        })\r
-    <\/script>\r
+`,Bn=`<!--
+  autospark.overlay：覆盖物家族通用结构骨架（ADR-0124）。
+
+  header / body / footer 三段 + 七出口（title / header / body / footer /
+  actions.top / actions.left / actions.right；裸 \`actions\` = actions.right 的
+  收集侧等价别名，归一在消费侧收集裁决完成）。chrome 出口由消费方投影：
+  内置 shell 经 \`x-component-options.slots="*"\` 上行转发消费者分段（ADR-0125），
+  自定义 shell 可显式提供或同名覆盖。fallback 承载默认渲染：
+
+  - title 出口 fallback：icon + title props 文本（x-icon 表达式形态防空值字面量回退）；
+  - actions.* 出口 fallback：props.actions 按 pos 归位过滤的按钮组（created 期
+    分组进 _topActions/_leftActions/_rightActions，order 升序稳定排序）；
+  - header / footer 出口整块替换：出口有内容时 fallback（含 close 按钮）让位，
+    closeable 失效（ADR-0124 决策 2）；
+  - header/footer 条件渲染（决策 3 修订：closeable 移出 header 判定集——header 只看
+    内容：title ∥ icon ∥ title 出口 ∥ actions.top 出口 ∥ pos=top actions）：props
+    （响应式）+ 出口内容命中（编译期静态——created 期沿持有者链复算 _chrome 旗标，
+    重开/重建即重评）；
+  - close 按钮双形态（决策 3 修订）：header 有内容 → 行内 x（header flex 尾部，
+    top actions 最右）；header 无内容且 closeable !== false → 根级绝对定位浮动 x
+    （右上角 0.375em，两份 DOM 互斥——对偶条件与 header x-show 同构）；
+  - body 出口恒渲染，padding props 控制内边距（默认 0.5em）。
+
+  close 按钮复用全局 close 信号 action（x-on 裸名 → method miss → getAction 链
+  → SIGNAL_ACTIONS.close → action:close 冒泡 → 实例根委托 requestClose，决策 5）。
+-->
+<div class="autospark-overlay" x-define="autospark.overlay">
+    <!-- 浮动 close（决策 3 修订）：header 不渲染且可关时的根级绝对定位 x——
+         条件 = header 判定集取反 ∩ closeable（与 header 行内 x 互斥对偶） -->
+    <button class="autospark-overlay-close autospark-overlay-close-floating" type="button"
+        x-show="closeable !== false && !(_chrome.header || !!title || !!icon || _chrome.title || _chrome['actions.top'] || _topActions.length > 0)"
+        x-on:click="close" x-icon="'no'" aria-label="关闭"></button>
+    <!-- header 区：出口整块替换 or 默认结构（title / actions.top / close） -->
+    <div class="autospark-overlay-header" x-slot:header
+        x-show="_chrome.header || !!title || !!icon || _chrome.title || _chrome['actions.top'] || _topActions.length > 0">
+        <div class="autospark-overlay-title" x-slot:title x-show="_chrome.title || !!title || !!icon">
+            <i class="autospark-overlay-icon" x-icon="icon || null"></i>
+            <span class="autospark-overlay-title-text" x-text="title"></span>
+        </div>
+        <div class="autospark-overlay-actions autospark-overlay-actions-top" x-slot:actions.top
+            x-show="_chrome['actions.top'] || _topActions.length > 0">
+            <template x-for="a of _topActions" :key="a.id">
+                <button class="autospark-overlay-action" type="button" x-bind:title="a.tooltip || null"
+                    x-on:click="a.handle($event)">
+                    <i x-show="!!a.icon" x-icon="a.icon"></i>
+                    <span x-show="!a.icon" x-text="a.title"></span>
+                </button>
+            </template>
+        </div>
+        <button class="autospark-overlay-close" type="button" x-show="closeable !== false" x-on:click="close"
+            x-icon="'no'" aria-label="关闭"></button>
+    </div>
+    <!-- body 区：恒渲染（内容出口的直通位）；padding 归一走 _bodyStyle。
+         直通锚（ADR-0124 决策 8 实现偏差注记）：shell 默认出口语义内置于本 fallback——
+         内容收集管线剥离嵌套 x-slot 标记（ADR-0056 决策九），直通锚不可经 shell 内容段
+         携带（<template x-slot:body><div x-slot> 形态锚会被剥），故锚写在 overlay 模板内：
+         body 出口无内容命中时 fallback 渲染，锚（default 出口）沿 slots="*" 转发链上溯
+         shell 内容集命中活体边界直挂；自定义 shell 显式提供 body 段时 fallback 让位 -->
+    <div class="autospark-overlay-body" x-slot:body x-bind:style="_bodyStyle">
+        <div class="autospark-overlay-body-anchor" x-slot></div>
+    </div>
+    <!-- footer 区：出口整块替换 or 默认动作区（左 / 右） -->
+    <div class="autospark-overlay-footer" x-slot:footer
+        x-show="_chrome.footer || _chrome['actions.left'] || _chrome['actions.right'] || _leftActions.length > 0 || _rightActions.length > 0">
+        <div class="autospark-overlay-actions autospark-overlay-actions-left" x-slot:actions.left
+            x-show="_chrome['actions.left'] || _leftActions.length > 0">
+            <template x-for="a of _leftActions" :key="a.id">
+                <button class="autospark-overlay-action" type="button" x-bind:title="a.tooltip || null"
+                    x-on:click="a.handle($event)">
+                    <i x-show="!!a.icon" x-icon="a.icon"></i>
+                    <span x-show="!a.icon" x-text="a.title"></span>
+                </button>
+            </template>
+        </div>
+        <div class="autospark-overlay-actions autospark-overlay-actions-right" x-slot:actions.right
+            x-show="_chrome['actions.right'] || _rightActions.length > 0">
+            <template x-for="a of _rightActions" :key="a.id">
+                <button class="autospark-overlay-action" type="button" x-bind:title="a.tooltip || null"
+                    x-on:click="a.handle($event)">
+                    <i x-show="!!a.icon" x-icon="a.icon"></i>
+                    <span x-show="!a.icon" x-text="a.title"></span>
+                </button>
+            </template>
+        </div>
+    </div>
+    <style global id="autospark-overlay-styles">
+        .autospark-overlay {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            /* 浮动 close 的定位基准（决策 3 修订：header 不渲染时 x 绝对定位右上角） */
+            position: relative;
+        }
+
+        .autospark-overlay-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+            padding: 0.5em 0.75em;
+            border-bottom: 1px solid var(--autospark-overlay-divider, rgba(0, 0, 0, 0.08));
+            flex: none;
+        }
+
+        .autospark-overlay-title {
+            display: flex;
+            align-items: center;
+            gap: 0.4em;
+            flex: 1 1 auto;
+            min-width: 0;
+            font-weight: 600;
+        }
+
+        .autospark-overlay-title-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .autospark-overlay-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.375em;
+            flex: none;
+        }
+
+        .autospark-overlay-actions-top {
+            margin-left: auto;
+        }
+
+        .autospark-overlay-close {
+            flex: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.75em;
+            height: 1.75em;
+            padding: 0;
+            border: none;
+            border-radius: 0.375em;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+        }
+
+        .autospark-overlay-close:hover {
+            background: var(--autospark-overlay-hover, rgba(0, 0, 0, 0.06));
+        }
+
+        /* 浮动形态（决策 3 修订）：header 不渲染时绝对定位右上角，压在 body padding 区之上
+           （padding: 0 + 内容贴角时遮挡内容——已知取舍）；z-index 确保浮于 body 内容 */
+        .autospark-overlay-close-floating {
+            position: absolute;
+            top: 0.375em;
+            right: 0.375em;
+            z-index: 1;
+        }
+
+        .autospark-overlay-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+        }
+
+        .autospark-overlay-body-anchor {
+            display: contents;
+        }
+
+        .autospark-overlay-footer {
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+            padding: 0.5em 0.75em;
+            border-top: 1px solid var(--autospark-overlay-divider, rgba(0, 0, 0, 0.08));
+            flex: none;
+        }
+
+        .autospark-overlay-actions-right {
+            margin-left: auto;
+        }
+
+        .autospark-overlay-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3em;
+            padding: 0.3em 0.75em;
+            border: 1px solid var(--autospark-overlay-action-border, rgba(0, 0, 0, 0.12));
+            border-radius: 0.375em;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        .autospark-overlay-action:hover {
+            background: var(--autospark-overlay-hover, rgba(0, 0, 0, 0.06));
+        }
+
+        /* 顶区动作与 close 同处 header 行：幽灵图标钮风格（无边框，hover 底色统一）；
+           footer 动作保留按钮边框（取消/确认等决策性操作） */
+        .autospark-overlay-actions-top .autospark-overlay-action {
+            border: none;
+        }
+    </style>
+    <script setup>
+        ({
+            data: () => ({
+                _chrome: {
+                    title: false,
+                    header: false,
+                    footer: false,
+                    "actions.top": false,
+                    "actions.left": false,
+                    "actions.right": false,
+                },
+                _topActions: [],
+                _leftActions: [],
+                _rightActions: [],
+                _bodyStyle: {},
+            }),
+            created() {
+                // ── chrome 出口内容命中（ADR-0124 决策 3，编译期静态）──
+                // 复刻 SlotDirective 持有者链查找（ADR-0125 白名身上溯 + 转发翻译接力），
+                // 起点为自身 scope（与出口元素 parent 链同位）。内置 shell 场景：自身内容集
+                // 仅 body 直通段，转发声明 \`*\` 使 chrome 名原名上溯命中 shell 内容集（消费者
+                // 分段 stash，OverlayInstance）；自定义 shell 显式提供段时同链命中。
+                const chrome = this.data._chrome;
+                const hasOutlet = (name) => {
+                    let holder = this.scope || null;
+                    let lookup = name;
+                    while (holder) {
+                        if (holder.slotContents || holder.slotForwarding) {
+                            const hit = holder.slotContents?.get(lookup);
+                            if (hit) return true;
+                            const fw = holder.slotForwarding;
+                            const translated = fw
+                                ? fw.map.get(lookup) || (fw.wildcard ? lookup : null)
+                                : null;
+                            if (translated === null) return false; // 持有者已定：无段且不转发 → 边界
+                            lookup = translated;
+                        }
+                        holder = holder.parent;
+                    }
+                    return false;
+                };
+                for (const k of Object.keys(chrome)) chrome[k] = hasOutlet(k);
+                // ── actions 分组（ADR-0124 决策 4：pos 归位 + order 升序稳定排序）──
+                // top → 顶区；left → 左区；right / auto / bottom / 无 pos → 右区。
+                // 无 handle 条目剪枝（防御，正常经合并通道到达的条目 handle 必在）；
+                // 无 id 条目补合成键（x-for :key 稳定锚）。
+                const regroup = (list) => {
+                    const rows = (Array.isArray(list) ? list : []).filter(
+                        (a) => a && typeof a.handle === "function",
+                    );
+                    const withId = rows.map((a, i) =>
+                        a.id != null ? a : Object.assign({}, a, { id: "__overlay_action_" + i }),
+                    );
+                    const top = withId.filter((a) => a.pos === "top");
+                    const left = withId.filter((a) => a.pos === "left");
+                    const right = withId.filter((a) => a.pos !== "top" && a.pos !== "left");
+                    const byOrder = (x, y) =>
+                        (x.order == null ? 0 : x.order) - (y.order == null ? 0 : y.order);
+                    top.sort(byOrder);
+                    left.sort(byOrder);
+                    right.sort(byOrder);
+                    // 变更守卫：watch 回调可能因键缺位退化为空 deps watch-all（任意变更触发），
+                    // 无条件写新数组引用会自反馈成死循环——组员引用与顺序均未变时跳过写入
+                    const same = (key, next) => {
+                        const cur = this.data[key];
+                        return (
+                            Array.isArray(cur) &&
+                            cur.length === next.length &&
+                            next.every((a, i) => a === cur[i])
+                        );
+                    };
+                    // markRaw：组员含 handle 函数——autostore 见函数即求值（计算属性语义），
+                    // 分组数组赋入响应式 data 前须标记豁免，否则点击时读到求值结果而非函数
+                    if (!same("_topActions", top)) this.data._topActions = markRaw(top);
+                    if (!same("_leftActions", left)) this.data._leftActions = markRaw(left);
+                    if (!same("_rightActions", right)) this.data._rightActions = markRaw(right);
+                };
+                regroup(this.watch("actions", (r) => regroup(r.value)));
+                // ── body 内边距（决策 6：padding props，默认 0.5em；number → px）──
+                const bodyStyle = (p) => {
+                    const pad =
+                        typeof p === "number" && p >= 0
+                            ? p + "px"
+                            : typeof p === "string" && p.trim() !== ""
+                                ? p
+                                : "0.5em";
+                    // 变更守卫：同 regroup——键缺位退化 watch-all 时避免无条件写新对象自反馈
+                    if (this.data._bodyStyle?.padding !== pad) {
+                        this.data._bodyStyle = { padding: pad };
+                    }
+                };
+                bodyStyle(this.data.padding);
+                this.watch("padding", (r) => bodyStyle(r.value));
+            },
+        })
+    <\/script>
 </div>`;function Vn(e){let t=e.components;t[`autospark.dialog`]===void 0&&(t[c]=Ln),t[`autospark.popover`]===void 0&&(t[u]=zn),t[`autospark.drawer`]===void 0&&(t[l]=Rn),t[`autospark.overlay`]===void 0&&(t[f]=Bn)}function Hn(e){let t={dialog:c,popover:u,drawer:l},n=new Set([`title`,`header`,`footer`,`actions.top`,`actions.left`,`actions.right`]),r=new Set,i=new Set([`top`,`bottom`,`left`,`right`]),a=`right`;class o extends e{constructor(...e){super(...e),this.overlayKind=``,this.directiveLabel=`x-dialog`,this._overlayInstance=null,this._driveOn=!1,this._keepaliveCache=new Map,this._remoteAbort=null,this._resizeMem=null}static ownsChildren(){return!1}static{this.singleton=!1}static{this.overlayConsumer=!0}get overlayName(){return this.attr??``}get _modalMask(){return!1}created(){this.binding?.hostOptions&&`props`in this.binding.hostOptions&&this.warn(`${this.directiveLabel}:${this.attr}: 宿主 x-options 中的 props 键不被接受（props 走 x-dialog-options.props 指令级通道），已忽略`);let e=this.info.optionExprs?.props,t;if(e!==void 0){if(t=[`props`],e.trim()===``)this.warn(`${this.directiveLabel}:${this.attr}: props 成员属性的值为空（须提供表达式：对象字面量或状态路径），已忽略`);else{let t=this.binding.watch(e,({value:e})=>this._onPropsChange(e),{depth:2});this._onPropsChange(t)}}else{let e=this.options?.props;e!==void 0&&this._onPropsChange(e)}this._watchOptionExprs(t)}_open(){this._instantiate(this.overlayName)}_close(){let e=this._overlayInstance;e&&!e.destroyed&&e.visible&&e.close()}_onPropsChange(e){let t;Array.isArray(e)?this.warn(`${this.directiveLabel}:${this.attr}: props 值须为对象（字面量或状态对象），数组已忽略: ${JSON.stringify(e)}`):typeof e==`object`&&e?t=e:e!=null&&this.warn(`${this.directiveLabel}:${this.attr}: props 值须为对象（字面量或状态对象），已忽略: ${JSON.stringify(e)}`),this._props=t;let n=this._overlayInstance;n&&!n.destroyed&&n.isFragment&&n.instanceScope?.data&&(this._propsEqual(t,this._appliedProps)||(t&&Object.assign(n.instanceScope.data,t),this._appliedProps=t))}_instantiate(t){let{props:n,...r}=this.options??{},i=this._resolveConfig(r),a=Mt(t,i);if(i.keepalive===!0){let e=this._keepaliveCache.get(a);if(e&&!e.destroyed){this._overlayInstance=e,e.open();return}e&&this._keepaliveCache.delete(a)}let o=typeof i.url==`string`?i.url.trim():``,s=this._findComponentDef(t);if(s&&this._recursiveDepth(t)>=e.MAX_DEPTH){this.warn(`${this.directiveLabel}:${this.attr}: 组件 "${t}" 递归实例化深度超过上限（${e.MAX_DEPTH}），已停止（疑似无终止条件递归）。`);return}let c=this._collectSlotGroup(t),l=this._splitOverlaySlots(c,s?.def?.slots);this._splitContent=l.content;let u=this._mergeOverlayActions(i.actions);u&&(i.actions=u);let d=this._resolveShell(i),f=new Lt(this.engine,t,document.createElement(`div`),null,i,{parentScope:this.binding,searchRoot:this.el??null,mask:this._modalMask,shell:d,positioner:this._positioner(),onPanelReady:e=>this._attachResize(e),cacheKey:a});f.chromeSlots=l.chrome,f.onCloseRequest=this._makeCloseRequest(),this._overlayInstance=f,i.keepalive===!0&&this._keepaliveCache.set(a,f),f.open();let p=this._hostCtx(i),m=()=>this._regenerateContent(f,i,t,o);Kt(p,f,m),m()}_hostCtx(e){return{engine:this.engine,warn:e=>this.warn(`${this.directiveLabel}:${this.attr}: ${e}`),registerScope:this.binding.parent,findComponent:e=>this._findComponentDef(e),resolveParentScope:t=>e.dataContext===void 0?this.binding:this._resolveParentScope(e,t).parentScope,onFragmentApplied:e=>{this._appliedProps=e}}}_probe(e,t,n,r,i,a){this._remoteAbort?.abort();let o=this._remoteAbort=new AbortController;return Wt(e,t,n,r,i,a,()=>this._props,o.signal).finally(()=>{this._remoteAbort===o&&(this._remoteAbort=null)})}_regenerateContent(e,t,n,r){let i=this._hostCtx(t),a=i.findComponent(n),o=this._splitContent===void 0?this._collectSlotGroup(n):this._splitContent,s=this._propsValueText();a?J(i,e,n,a.def,s,o):r===``?(this.warn(`${this.directiveLabel}:${this.attr}: 未找到覆盖物组件 "${n}"（scope 链与全局均未命中），面板已开并显示加载占位——组件注册后自动挂载（ADR-0123）`),J(i,e,n,null,s,o)):this._probe(i,e,n,r,o,s)}_propsValueText(){let e=this.info.optionExprs?.props;if(e!==void 0&&e.trim()!==``)return e;let t=this.options?.props;if(t!==void 0)try{return JSON.stringify(t)}catch(e){return this.warn(`${this.directiveLabel}:${this.attr}: 静态 props 序列化失败，已忽略: ${e?.message??e}`),null}return null}_resolveConfig(e){return Jt(e,this._optionExprValues)}_positioner(){}_resolveShell(e){let n=this.overlayKind,r=n?this.engine.options.overlay?.[n]?.shell:void 0,i=e.shell??r,a=i==null?``:String(i).trim();if(a!==``){let e=this._findComponentDef(a);if(e)return{name:a,snapshot:e.snapshot,def:e.def};this.warn(`${this.directiveLabel}:${this.attr}: shell "${a}" 未命中（scope 链与全局组件表均无），回退内置默认 shell（若来自 x-import 请先注册再打开）（ADR-0062）`)}let o=n!=null&&t[n]||`autospark.dialog`;return{name:o,...this.engine._resolveGlobalComponentFull(o)}}_collectSlotGroup(e){return this.template?hn(this.template,this._overlayConsumers(),e=>this.warn(`${this.directiveLabel}:${this.attr}: ${e}`)).get(e)??null:null}_overlayConsumers(){return this.binding.directives.filter(e=>e instanceof o).map(e=>e.overlayName).filter(e=>e!==``)}_splitOverlaySlots(e,t){if(!e||e.length===0)return{content:e,chrome:null};let r=t&&t.length>0?new Set(t):null,i=[],a=[];for(let t of e){let e=t instanceof HTMLElement?$t(t):null,o=e?e.name:`default`,s=o===`actions`?`actions.right`:o;!r?.has(o)&&n.has(s)?a.push(t):i.push(t)}if(a.length===0)return{content:e,chrome:null};let o=e=>this.warn(`${this.directiveLabel}:${this.attr}: ${e}`),s=un(a,void 0,o,{skipValidation:!0}),c=new Map;for(let[e,t]of s??[]){let n=e===`actions`?`actions.right`:e;c.has(n)&&o(`x-slot: chrome 内容 "${n}" 重复（裸 actions 与 actions.right 并存），后者已生效`),c.set(n,t)}return{content:i.length>0?i:null,chrome:c.size>0?c:null}}_mergeOverlayActions(e){let t=new Map,n=(e,n)=>{n&&typeof n.handle==`function`&&(n.pos===`top`||n.pos===`left`||n.pos===`right`)&&t.set(e,n)};for(let[e,t]of Object.entries(this.engine.actions))n(e,t);let r=[];for(let e=this.binding;e;e=e.parent)r.push(e);for(let e=r.length-1;e>=0;e--){let t=r[e].actions;if(t)for(let[e,r]of Object.entries(t))n(e,r)}return(e??[]).forEach((e,n)=>{if(!e||typeof e.handle!=`function`){this.warn(`${this.directiveLabel}:${this.attr}: config.actions 第 ${n} 项缺执行体（handle），已忽略（ADR-0124）`);return}let r=typeof e.id==`string`&&e.id!==``?e.id:`__overlay_config_${n}`;t.set(r,e)}),t.size>0?Array.from(t.values()):null}destroy(){if(this._remoteAbort?.abort(),this._remoteAbort=null,this._keepaliveCache.size){for(let e of[...this._keepaliveCache.values()])e.destroyed||e.destroy();this._keepaliveCache.clear()}super.destroy()}_resolveParentScope(e,t){return Nt(e.dataContext===void 0?`declarer`:e.dataContext,t,this.binding,this.engine,e=>this.warn(`${this.directiveLabel}:${this.attr}: ${e}`))}_makeCloseRequest(){return null}_resizeAllowedHandles(){return null}_applyResize(e,t,n,r){e.style.width=`${t}px`,e.style.height=`${n}px`}_attachResize(e){let t=e.config.resize;if(t==null||t===!1)return;let n=e=>this.warn(`${this.directiveLabel}:${this.attr}: ${e}`),r=this._resizeAllowedHandles();if(!r){n(`resize 选项在该形态不受支持，已忽略（ADR-0064）`);return}let i=r,a=null;if(t!==!0){if(typeof t!=`object`){n(`resize 须为 true 或选项对象（与 x-resizable 选项同构），已忽略: ${JSON.stringify(t)}`);return}if(a=t,a.handles!=null){let e=En(a,n);i=e.filter(e=>r.includes(e));let t=e.filter(e=>!r.includes(e));t.length&&n(`resize.handles 方向 ${t.join(`,`)} 不在形态合法集 ${r.join(`,`)} 内，已忽略（handles 只能收窄，ADR-0064）`)}}if(i.length===0){n(`resize 手柄集为空，跳过挂载`);return}let o=new On({target:e.panel,eventTarget:this.el,handles:i,constraints:()=>Cn(a,e.panel,n),apply:(t,n,r)=>this._applyResize(e.panel,t,n,r),onApplied:(e,t)=>{this._resizeMem={width:e,height:t}},warn:n});o.attach(),e.registerCleanup(()=>o.destroy())}}class d extends o{constructor(...e){super(...e),this._visiblePath=null,this._visibleExpr=null}created(){super.created();let e=String(this.value??``).trim();if(e.startsWith(`{`)){this.warn(`${this.directiveLabel}:${this.attr}: 对象形态已删除（ADR-0052 v2.3）——visible 写指令值、props 写 ${this.directiveLabel}-options.props、配置写 ${this.directiveLabel}-options，指令被忽略`);return}if(this._visibleExpr=e,this._visibleExpr===``){this.warn(`${this.directiveLabel}:${this.attr}: 缺少 visible 绑定，恒不打开。请声明状态路径或表达式（ADR-0052 决策 6）`);return}let t=this._resolveLiteral(this._visibleExpr);if(t!==null){t&&(this._driveOn=!0,this._open());return}this._visiblePath=An(this._visibleExpr)?this._visibleExpr:null;let n=this.binding.watch(this._visibleExpr,({value:e})=>this._toggle(!!e));this._toggle(!!n)}destroy(){let e=this._overlayInstance;this._overlayInstance=null,e&&!e.destroyed&&e.visible&&e.requestClose(`consumer-destroyed`),super.destroy()}_makeCloseRequest(){return this._visiblePath?()=>this._writeVisible(!1):null}_toggle(e){this._driveOn=e,e?this._open():this._close()}_resolveLiteral(e){let t=(e??``).trim().toLowerCase();return t===`true`||t!==`false`&&null}_writeVisible(e){let t=this._visiblePath,n=t.split(this.engine.store.delimiter),r=this.binding;for(;r;){let t=r.locals&&n[0]in r.locals?r.locals:r._data&&n[0]in r._data?r._data:null;if(t){let r=t;for(let e=0;e<n.length-1;e++)if(r=r?.[n[e]],r==null)return;r[n[n.length-1]]=e;return}r=r.parent}try{kn(this.engine.store.state,n,e)}catch(e){this.warn(`${this.directiveLabel}:${this.attr}: visible 回写失败（"${t}"）: ${e?.message??e}`)}}}class f extends d{constructor(...e){super(...e),this.overlayKind=`dialog`}static initialize(e){}get _modalMask(){return!0}_resizeAllowedHandles(){return[`ne`,`nw`,`se`,`sw`]}}class p extends o{constructor(...e){super(...e),this.overlayKind=`popover`,this.directiveLabel=`x-popover`,this._showTimer=null,this._hideTimer=null,this._lastPointer=null,this._unsubClose=null,this._unsubDocClick=null,this._onEnter=e=>{if(this._resolveTrigger()!==`hover`||(this._recordPointer(e),this._clearHideTimer(),this._isInstanceAlive()))return;let t=this._resolveDelay(`delayShow`,200);this._clearShowTimer(),t>0?this._showTimer=setTimeout(()=>{this._showTimer=null,this._resolveTrigger()===`hover`&&this._openNow()},t):this._openNow()},this._onLeave=e=>{this._resolveTrigger()===`hover`&&(this._recordPointer(e),this._clearShowTimer(),this._scheduleClose(e))},this._onClick=()=>{this._resolveTrigger()===`click`&&(this._clearShowTimer(),this._clearHideTimer(),this._isInstanceAlive()?this._closeNow():this._openNow())},this._onPanelEnter=e=>{this._resolveTrigger()===`hover`&&(this._recordPointer(e),this._clearHideTimer())},this._onPanelLeave=e=>{this._resolveTrigger()===`hover`&&(this._recordPointer(e),this._scheduleClose(e))},this._onDocClick=e=>{let t=e.target instanceof Element?e.target:null;if(t&&(this.el===t||this.el.contains(t)))return;let n=this._overlayInstance?.el;(!n||n!==t&&!n.contains(t))&&this._closeNow()}}static initialize(e){}created(){if(super.created(),!this.attr){this.warn(`x-popover: 缺少组件名 attr（x-popover:名称），无法查找覆盖物组件，指令被忽略`);return}let e=String(this.value??``).trim();e&&this.warn(`x-popover:${this.attr}: 指令值不参与驱动（触发模型无 visible 真相源，显示由宿主悬浮/点击驱动，见 trigger 选项），已忽略值 "${e}"`);let t=this.binding.directives.filter(e=>e instanceof p);t.length>1&&this.warn(`x-popover:${this.attr}: 同宿主声明了 ${t.length} 个 popover 消费者，触发源重合，同一次触发将同时打开全部面板`),this.el.addEventListener(`mouseenter`,this._onEnter),this.el.addEventListener(`mouseleave`,this._onLeave),this.el.addEventListener(`click`,this._onClick)}destroy(){this._teardownTriggers();let e=this._overlayInstance;this._overlayInstance=null,e&&!e.destroyed&&e.visible&&e.requestClose(`consumer-destroyed`),super.destroy()}_open(){this._unsubInstanceClose(),this._instantiate(this.overlayName,this._props),this._attachInstance()}_retryPendingComponent(){super._retryPendingComponent(),this._attachInstance()}_resolveConfig(e){let t=super._resolveConfig(e),n=jt(t.at)??{};return n.selector??=this.el,n.placement??=`bottom`,t.at=n,t.closeable??=!1,t}_isInstanceAlive(){let e=this._overlayInstance;return!!e&&!e.destroyed&&e.visible}_openNow(){this._driveOn=!0,this._open()}_scheduleClose(e){let t=e.relatedTarget instanceof Element?e.relatedTarget:null;if(t&&this._inZone(t)){this._clearHideTimer();return}let n=this._resolveDelay(`delayHide`,150);this._clearHideTimer(),n>0?this._hideTimer=setTimeout(()=>{this._hideTimer=null,this._closeNow()},n):this._closeNow()}_closeNow(){this._driveOn=!1,this._close()}_inZone(e){if(!e)return!1;let t=new Set;this._collectZone(t);for(let n of t)if(n===e||n.contains(e))return!0;return!1}_collectZone(e){e.add(this.el);let t=this._overlayInstance;t&&!t.destroyed&&t.el&&e.add(t.el);for(let t of r)if(!(t===this||e.has(t.el))){for(let n of e)if(n.contains(t.el)){t._collectZone(e);break}}}_reevaluate(){if(!this._isInstanceAlive())return;let e=this._lastPointer,t=e&&typeof document<`u`?document.elementFromPoint(e.x,e.y):null;t&&this._inZone(t)?this._clearHideTimer():this._closeNow()}_onInstanceClosed(){this._unsubInstanceClose(),this._unsubDocClick?.(),this._unsubDocClick=null,r.delete(this),this._clearHideTimer(),this._clearShowTimer(),this._driveOn=!1,this._overlayInstance=null,this._notifyAncestors()}_notifyAncestors(){for(let e of r){if(e===this||e._resolveTrigger()===`click`)continue;let t=e._overlayInstance?.el;t&&t.contains(this.el)&&e._reevaluate()}}_attachInstance(){let e=this._overlayInstance;if(!e||e.destroyed||!e.el)return;e.el.addEventListener(`mouseenter`,this._onPanelEnter),e.el.addEventListener(`mouseleave`,this._onPanelLeave),this._applyContentPadding(e.el),r.add(this),this._resolveTrigger()===`click`&&(document.addEventListener(`click`,this._onDocClick,!0),this._unsubDocClick=()=>document.removeEventListener(`click`,this._onDocClick,!0));let t=this.engine.on(`overlay:close`,t=>{(t?.payload??t)?.instance===e&&this._onInstanceClosed()});this._unsubClose=typeof t==`function`?t:()=>t.off()}_applyContentPadding(e){let t=this._resolvePadding(),n=e.querySelector(`.autospark-popover-content`);n&&(n.style.padding=t)}_resolvePadding(){let e=this.getOption(`padding`);return e==null||e===``?``:typeof e==`number`?!Number.isFinite(e)||e<0?(this.warn(`x-popover:${this.attr}: padding 须为非负数字（px）或 CSS 长度字符串，已按默认 0 处理`),``):`${e}px`:String(e)}_resolveTrigger(){let e=this.getOption(`trigger`);if(e==null||e===``)return this.getOption(`click`)===!0?`click`:`hover`;let t=String(e).trim();return t===`hover`||t===`click`?t:(this.warn(`x-popover:${this.attr}: trigger 须为 'hover' | 'click'，已按默认 'hover' 处理`),`hover`)}_resolveDelay(e,t){let n=this.getOption(e);if(n==null||n===``)return t;let r=Number(n);return!Number.isFinite(r)||r<0?(this.warn(`x-popover:${this.attr}: ${e} 须为非负数字（ms），已按默认 ${t}ms 处理`),t):r}_recordPointer(e){this._lastPointer={x:e.clientX,y:e.clientY}}_clearShowTimer(){this._showTimer&&=(clearTimeout(this._showTimer),null)}_clearHideTimer(){this._hideTimer&&=(clearTimeout(this._hideTimer),null)}_unsubInstanceClose(){this._unsubClose&&=(this._unsubClose(),null)}_teardownTriggers(){this.el.removeEventListener(`mouseenter`,this._onEnter),this.el.removeEventListener(`mouseleave`,this._onLeave),this.el.removeEventListener(`click`,this._onClick),this._clearShowTimer(),this._clearHideTimer(),this._unsubInstanceClose(),this._unsubDocClick?.(),this._unsubDocClick=null,r.delete(this)}}class m extends d{constructor(...e){super(...e),this.overlayKind=`drawer`,this.directiveLabel=`x-drawer`,this._config=null,this._triggerEl=null,this._triggerOn=!1,this._triggerCleanup=null,this._edgeEl=null,this._triggerFrame=null,this._triggerTimer=null,this._resizeSyncFrame=null,this._suppressTriggerClick=!1}static initialize(e){Nn()}created(){if(super.created(),this.getOption(`expandable`)===!1||!this._visiblePath)return;let e=s(this.engine);if(!e)return;let t=jn({direction:this._screenPlacement(),onActivate:()=>this._onTriggerClick(),label:`抽屉展开/折叠`}),n=this.getOption(`expandable`)?.showTrigger;if(n!=null&&n!==`hover`&&n!==`always`&&this.warn(`x-drawer:${this.attr}: expandable.showTrigger 值 "${n}" 无效（hover/always），已回退 hover`),t.setAttribute(`data-show-trigger`,n===`always`?`always`:`hover`),n!==`always`&&!this.getOption(`resize`)){let e=document.createElement(`div`);e.className=`autospark-expandable-edge`,e.setAttribute(`aria-hidden`,`true`),e.setAttribute(`data-show-trigger`,`hover`),this._edgeEl=e}t.addEventListener(`pointerdown`,e=>this._onTriggerPointerDown(e)),this._triggerEl=t,this._positionTrigger(),this._edgeEl&&e.appendChild(this._edgeEl),e.appendChild(t);let r=()=>this._positionTrigger();window.addEventListener(`resize`,r),window.addEventListener(`scroll`,r,!0),this._triggerCleanup=()=>{window.removeEventListener(`resize`,r),window.removeEventListener(`scroll`,r,!0)}}_onOptionExprChange(e,t){e===`expandable`&&this._positionTrigger()}destroy(){this._triggerCleanup?.(),this._triggerCleanup=null,this._cancelTriggerSync(),this._edgeEl?.remove(),this._edgeEl=null,this._triggerEl?.remove(),this._triggerEl=null,super.destroy()}_open(){super._open(),this._triggerOn=!0,this._cancelTriggerSync(),this._triggerFrame=requestAnimationFrame(()=>{this._triggerTimer=setTimeout(()=>{this._triggerFrame=null,this._triggerTimer=null,this._positionTrigger()},0)})}_close(){super._close(),this._triggerOn=!1,this._cancelTriggerSync(),this._positionTrigger()}_cancelTriggerSync(){this._triggerFrame!=null&&(cancelAnimationFrame(this._triggerFrame),this._triggerFrame=null),this._triggerTimer!=null&&(clearTimeout(this._triggerTimer),this._triggerTimer=null),this._resizeSyncFrame!=null&&(cancelAnimationFrame(this._resizeSyncFrame),this._resizeSyncFrame=null)}_onTriggerPointerDown(e){if(!this._config?.resize||!this._triggerOn)return;let t=this._overlayInstance?.panel?.querySelector(`[data-autospark-resize-handle]`);if(!t)return;let n=t.getBoundingClientRect();n.width+n.height>0&&e.clientX>=n.left&&e.clientX<=n.right&&e.clientY>=n.top&&e.clientY<=n.bottom&&(e.preventDefault(),this._suppressTriggerClick=!0,t.dispatchEvent(new MouseEvent(`pointerdown`,{bubbles:!0,clientX:e.clientX,clientY:e.clientY,button:0})))}_onTriggerClick(){if(this._suppressTriggerClick)this._suppressTriggerClick=!1;else if(this._triggerOn){let e=this._overlayInstance;e&&!e.destroyed&&e.visible&&e.requestClose(`trigger`)}else this._writeVisible(!0)}_positionTrigger(){let e=this._triggerEl;if(!e)return;let t=this._screenPlacement();e.setAttribute(`data-direction`,t),e.toggleAttribute(`data-collapsed`,!this._triggerOn),e.toggleAttribute(`data-half`,!this._triggerOn);let n=t===`left`||t===`right`,r=(n?e.offsetWidth||20:e.offsetHeight||20)/2,i=this._effectiveAt(),a=(i?wt(i.selector,this.el):null)?.getBoundingClientRect(),o=document.documentElement.clientWidth,s=document.documentElement.clientHeight,c=a?t===`right`?a.right:t===`left`?a.left:t===`top`?a.top:a.bottom:t===`right`?o:t===`left`||t===`top`?0:s,l=a?n?a.height:a.width:n?s:o,u=a?n?a.top:a.left:0,d=this._triggerCross(l,r),f=c,p=this._overlayInstance?.panel;this._triggerOn&&p&&(f=t===`right`?p.offsetLeft:t===`left`?p.offsetLeft+p.offsetWidth:t===`top`?p.offsetTop+p.offsetHeight:p.offsetTop),n?(e.style.left=`${f-r}px`,e.style.top=`${u+d-r}px`):(e.style.top=`${f-r}px`,e.style.left=`${u+d-r}px`);let m=this._edgeEl;m&&(n?(m.style.left=`${f-12}px`,m.style.top=`${u}px`,m.style.width=`24px`,m.style.height=`${l}px`):(m.style.top=`${f-12}px`,m.style.left=`${u}px`,m.style.height=`24px`,m.style.width=`${l}px`))}_triggerCross(e,t){let n=this.getOption(`expandable`),r=typeof n==`object`&&n?n.pos:n,i=this._parseTriggerDist(r,e);return i??=(this.warn(`x-drawer:${this.attr}: expandable.pos 须为 true/数字（px）或 CSS 长度字符串（如 '-20%'），已按居中处理`),e/2),Math.min(Math.max(i,t),e-t)}_parseTriggerDist(e,t){if(e==null||e===!0||e===``)return t/2;if(e===!1)return null;let n=e=>e>=0?e:t-Math.min(-e,t);if(typeof e==`number`)return Number.isFinite(e)?n(e):null;if(typeof e!=`string`)return null;let r=/^(-?[\d.]+)\s*(%|px|rem|em|vw|vh)?$/i.exec(e.trim());if(!r)return null;let i=parseFloat(r[1]);if(!Number.isFinite(i))return null;switch((r[2]??`px`).toLowerCase()){case`%`:return n(i/100*t);case`rem`:return n(i*this._rootFontSize());case`em`:return n(i*this._elFontSize());case`vw`:return n(i/100*window.innerWidth);case`vh`:return n(i/100*window.innerHeight);default:return n(i)}}_rootFontSize(){return parseFloat(getComputedStyle(document.documentElement).fontSize)||16}_elFontSize(){let e=this._triggerEl;return e&&parseFloat(getComputedStyle(e).fontSize)||this._rootFontSize()}_resolveConfig(e){let t=e.animate!==void 0||this._optionExprValues?.animate!==void 0,n=super._resolveConfig(e);return this._config=n,t||(n.animate=`drawer`),n.closeable??=!1,n}get _modalMask(){return this._config?.mask!==!1}_positioner(){return e=>this._positionDrawer(e)}_positionDrawer(e){let{panel:t,anchor:n,anchorEl:r,registerCleanup:i,warn:a}=e;n&&r?this._applyAnchorEdge(t,r,this._screenPlacement(),i):(n&&a(`x-drawer:${this.attr}: at "${String(n.selector??``)}" 未命中，退屏幕贴边（方向 ${this._screenPlacement()}，ADR-0063）`),this._applyScreenEdge(t))}_applyAnchorEdge(e,t,n,r){let i=()=>{let r=t.getBoundingClientRect(),i=n===`left`||n===`right`?`${t.offsetHeight}px`:`${t.offsetWidth}px`;e.style.left=e.style.right=e.style.top=e.style.bottom=``,e.style.position=`fixed`,e.style.margin=`0`,n===`left`||n===`right`?(e.style.top=`${r.top}px`,e.style.height=i,e.style.width=this._shortAxisSize(),n===`right`?e.style.right=`${document.documentElement.clientWidth-r.right}px`:e.style.left=`${r.left}px`):(e.style.left=`${r.left}px`,e.style.width=i,e.style.height=this._shortAxisSize(),n===`top`?e.style.top=`${r.top}px`:e.style.bottom=`${document.documentElement.clientHeight-r.bottom}px`),e.setAttribute(`data-overlay-placement`,n)};i();let a=null;typeof ResizeObserver<`u`&&(a=new ResizeObserver(i),a.observe(t));let o=()=>i();window.addEventListener(`resize`,o),window.addEventListener(`scroll`,o,!0),r(()=>{a?.disconnect(),window.removeEventListener(`resize`,o),window.removeEventListener(`scroll`,o,!0)})}_applyScreenEdge(e){let t=this._screenPlacement();e.style.position=`fixed`,e.style.margin=`0`,t===`left`?(e.style.top=`0`,e.style.bottom=`0`,e.style.left=`0`):t===`right`?(e.style.top=`0`,e.style.bottom=`0`,e.style.right=`0`):t===`top`?(e.style.top=`0`,e.style.left=`0`,e.style.right=`0`):(e.style.bottom=`0`,e.style.left=`0`,e.style.right=`0`),t===`left`||t===`right`?e.style.width=this._shortAxisSize():e.style.height=this._shortAxisSize(),e.setAttribute(`data-overlay-placement`,t)}_attachResize(e){let t=e.config.resize;if(t==null||t===!1)return;let n=this._screenPlacement(),r=t===!0?{enable:!1,resize:!0,direction:n}:{enable:!1,resize:{...t},direction:n},i=n===`left`||n===`right`,a=this.engine.directives.get(`expandable`);if(typeof a?.compose!=`function`)return;let o=a.compose(this.engine,this.binding,e.panel,r,{get:()=>!1,set:()=>{},resized:e=>{this._resizeMem=i?{width:e.value,height:this._resizeMem?.height??0}:{width:this._resizeMem?.width??0,height:e.value},this._scheduleTriggerFollow()}},this.el);o.created(),o.compile(void 0,e.panel),e.registerCleanup(()=>o.destroy());let s=e.panel.querySelectorAll(`[data-autospark-resize-handle]`);if(!s.length)return;let c=e=>this._triggerEl?.toggleAttribute(`data-edge-hover`,e);for(let e of s)e.addEventListener(`mouseenter`,()=>c(!0)),e.addEventListener(`mouseleave`,()=>c(!1)),e.addEventListener(`focus`,()=>c(!0)),e.addEventListener(`blur`,()=>c(!1))}_scheduleTriggerFollow(){this._triggerEl!=null&&this._triggerOn&&this._resizeSyncFrame==null&&(this._resizeSyncFrame=requestAnimationFrame(()=>{this._resizeSyncFrame=null,this._positionTrigger()}))}_shortAxisSize(){if(this._resizeMem){let e=this._screenPlacement(),t=e===`left`||e===`right`?this._resizeMem.width:this._resizeMem.height;if(Number.isFinite(t)&&t>0)return`${t}px`}let e=this._config?.size,t=`var(--autospark-drawer-size, 280px)`;if(e==null||e===``)return t;if(typeof e==`number`){if(Number.isFinite(e)&&e>0)return`${e}px`}else if(typeof e==`string`){let t=e.trim();if(/^\d+(\.\d+)?$/.test(t))return`${Number(t)}px`;if(t)return t}return this.warn(`x-drawer:${this.attr}: size 须为正数（px）或 CSS 长度字符串（如 '40%'），已按默认 280px 处理`),t}_effectiveAt(){return jt(this._config?.at??this._optionExprValues?.at??this.options?.at)}_screenPlacement(){let e=this._effectiveAt(),t=String(e?.placement??``).trim();if(t===``||t===`auto`)return a;let n=t.split(`-`)[0];return i.has(n)?n:a}}return{dialog:f,popover:p,drawer:m}}function Un(){In(e=>{Vn(e);let t=Hn(e.ComponentDirective);for(let n of[`dialog`,`popover`,`drawer`])e.directive(n,t[n]);e.getOverlay=(e,t,n,r)=>{let i=t?e.findScopeByEl(t):void 0,a=i?i.getComponentDeclaration(n):e._resolveGlobalComponent(n)??void 0;if(!a)e.logger.warn(`engine.getOverlay("${n}"): 未找到覆盖物组件（${t?`scope 链与全局`:`全局`}均未命中，ADR-0052 决策 15）`);else return new qt(e,n,a,e.getComponentDef(a)??e.getGlobalComponentDef(n)??null,r??null,i??null)}})}Un();function Wn(){return r(`DirectiveKind`)}var Gn=`autospark-foldable`,Kn=`autospark-foldable-panel`,$=`autospark-foldable-trigger`,qn=`autospark-foldable-content`,Jn=`autospark-foldable-styles`,Yn=`
 .autospark-foldable{display:flex;flex-wrap:nowrap;align-items:center;overflow:hidden;}
 .autospark-foldable[data-direction="column"]{flex-direction:column;}

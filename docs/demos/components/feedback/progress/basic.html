@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Progress · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.progress.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">line 形态（受控推进 + 完成自动 success）</div>
+        <div class="auto-card-body" style="display: flex; flex-direction: column; gap: 14px">
+          <div x-data="{ p: 30 }" style="display: flex; align-items: center; gap: 12px">
+            <div style="flex: 1" x-component:autospark.progress="{ percent: p }"></div>
+            <code>{{ p }}%</code>
+            <button x-component:autospark.button="{ label: '+10', variant: 'primary', size: 'sm' }" @click="p = Math.min(100, p + 10)"></button>
+          </div>
+          <div x-component:autospark.progress="{ percent: 100, status: 'success' }"></div>
+          <div x-component:autospark.progress="{ percent: 68, status: 'error' }"></div>
+          <div x-component:autospark.progress="{ percent: 45, status: 'warning' }"></div>
+          <div x-component:autospark.progress="{ percent: 80, showText: false, strokeWidth: 10 }"></div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">circle 形态（SVG 圆环）</div>
+        <div class="auto-card-body" style="display: flex; gap: 28px; flex-wrap: wrap; align-items: center">
+          <div x-component:autospark.progress="{ percent: 75, variant: 'circle' }"></div>
+          <div x-component:autospark.progress="{ percent: 100, variant: 'circle', status: 'success' }"></div>
+          <div x-component:autospark.progress="{ percent: 55, variant: 'circle', status: 'error', strokeWidth: 10 }"></div>
+          <div x-component:autospark.progress="{ percent: 40, variant: 'circle', showText: false, strokeWidth: 3 }"></div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">暗色态（容器 data-dark）</div>
+        <div class="auto-card-body">
+          <div style="background: #1a1a1a; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 14px" data-dark>
+            <div x-component:autospark.progress="{ percent: 65 }"></div>
+            <div x-component:autospark.progress="{ percent: 85, status: 'error' }"></div>
+            <div x-component:autospark.progress="{ percent: 45, variant: 'circle' }"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

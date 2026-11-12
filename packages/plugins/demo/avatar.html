@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.avatar · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .row {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+        color: #868e96;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.avatar</h1>
+    <p>
+      头像：src（图片失败回退）/ icon / label 首字符三源优先级 + shape 形状；尺寸无自有
+      属性——em 基准随主题 <code>data-size</code> 档位全跟随。
+    </p>
+
+    <div id="app">
+      <h2>三源回退链</h2>
+      <div class="row">
+        <div class="cell"><x-avatar src="https://picsum.photos/96/96" label="图片"></x-avatar><span>src 图片</span></div>
+        <div class="cell"><x-avatar icon="star" label="图标"></x-avatar><span>icon 回退</span></div>
+        <div class="cell"><x-avatar label="张三"></x-avatar><span>label 首字符</span></div>
+        <div class="cell"><x-avatar></x-avatar><span>三源皆空兜底</span></div>
+      </div>
+      <p class="hint">
+        图片地址加载失败时自动回退 icon / 首字符（@error 驱动，浏览器可断网验证）。
+      </p>
+
+      <h2>shape 形态（circle 缺省 / square）</h2>
+      <div class="row">
+        <x-avatar label="圆"></x-avatar>
+        <x-avatar label="方" shape="square"></x-avatar>
+        <x-avatar icon="star" shape="square"></x-avatar>
+      </div>
+
+      <h2>尺寸档位（theme data-size 通道）</h2>
+      <div class="row">
+        <div data-size="x-small"><x-avatar label="小"></x-avatar></div>
+        <div data-size="small"><x-avatar label="次"></x-avatar></div>
+        <div data-size="medium"><x-avatar label="中"></x-avatar></div>
+        <div data-size="large"><x-avatar label="大"></x-avatar></div>
+        <div data-size="x-large"><x-avatar label="特大"></x-avatar></div>
+      </div>
+
+      <h2>角标组合（x-badge 指令外挂，组件不内建）</h2>
+      <div class="row">
+        <span x-badge="unread"><x-avatar label="王"></x-avatar></span>
+        <span x-badge.count="unread"><x-avatar icon="bell" shape="square"></x-avatar></span>
+      </div>
+      <p class="hint">
+        角标走 x-badge 指令组合（<code>&lt;span x-badge="unread"&gt;…&lt;/span&gt;</code> 外包一层），
+        须同页引入 <code>autospark.badge.js</code>；unread 状态见页面脚本。
+      </p>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="row">
+          <x-avatar label="暗"></x-avatar>
+          <x-avatar icon="star" label="暗图标" shape="square"></x-avatar>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.avatar.js"></script>
+    <script src="/autospark.badge.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), { unread: 5 });
+    </script>
+  </body>
+</html>

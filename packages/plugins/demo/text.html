@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.text · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      .narrow {
+        max-width: 220px;
+        border: 1px dashed #dee2e6;
+        padding: 8px;
+        border-radius: 6px;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.text</h1>
+    <p>
+      排版文本组件：层级/语义色（type）、加粗（strong）、溢出省略（ellipsis 单行/多行）、
+      复制（copyable）。字号档位经主题通道 <code>data-size</code> 全跟随（无自有字号属性）。
+    </p>
+
+    <div id="app" x-data="{ copied: '', copyConf: { text: 'SECRET-8F2A' } }">
+      <h2>层级 / 语义色（type）</h2>
+      <div class="row">
+        <span x-component:autospark.text="{ label: '正文（default）' }"></span>
+        <span x-component:autospark.text="{ label: '次要（secondary）', type: 'secondary' }"></span>
+        <span x-component:autospark.text="{ label: '辅助（third）', type: 'third' }"></span>
+      </div>
+      <div class="row">
+        <span x-component:autospark.text="{ label: '主要', type: 'primary' }"></span>
+        <span x-component:autospark.text="{ label: '成功', type: 'success' }"></span>
+        <span x-component:autospark.text="{ label: '警告', type: 'warning' }"></span>
+        <span x-component:autospark.text="{ label: '危险', type: 'danger' }"></span>
+        <span x-component:autospark.text="{ label: '信息', type: 'info' }"></span>
+      </div>
+      <div class="row">
+        <span x-component:autospark.text="{ label: '加粗正文', strong: true }"></span>
+      </div>
+
+      <h2>字号档位（主题通道 data-size）</h2>
+      <div class="row">
+        <span data-size="xs"><span x-component:autospark.text="{ label: '超小档' }"></span></span>
+        <span data-size="sm"><span x-component:autospark.text="{ label: '小档' }"></span></span>
+        <span data-size="md"><span x-component:autospark.text="{ label: '中档（缺省）' }"></span></span>
+        <span data-size="lg"><span x-component:autospark.text="{ label: '大档' }"></span></span>
+        <span data-size="xl"><span x-component:autospark.text="{ label: '超大档' }"></span></span>
+      </div>
+      <p class="hint">
+        档位属性挂在任意祖先容器即整片生效（@autospark/theme 手动通道）；theme 不在场时回退兜底字号。
+      </p>
+
+      <h2>溢出省略（ellipsis）</h2>
+      <div class="narrow">
+        <span x-component:autospark.text="{ label: '单行省略：这是一段很长的文案，容器宽度受约束时溢出截断显示省略号并自动挂 title 提示', ellipsis: true }"></span>
+      </div>
+      <div class="narrow">
+        <span x-component:autospark.text="{ label: '多行截断（2 行）：这是一段很长的文案，行数由 ellipsis 数字指定，超出 line-clamp 截断并自动挂 title 提示，验证时把窗口拉窄一点看得更清楚。', ellipsis: 2 }"></span>
+      </div>
+
+      <h2>复制（copyable）</h2>
+      <div class="row" @copy="copied = $event.detail.text">
+        <span x-component:autospark.text="{ label: '点击右侧图标复制这段文本', copyable: true }"></span>
+        <span x-component:autospark.text="{ label: '复制指定值（非显示文本）', copyable: copyConf }"></span>
+      </div>
+      <p class="hint">copy 事件冒泡至外层消费——最近复制：<code>{{ copied || '（未复制）' }}</code>（对象 props 经状态引用注入 copyConf）</p>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="row">
+          <span x-component:autospark.text="{ label: '暗色正文', type: 'default' }"></span>
+          <span x-component:autospark.text="{ label: '暗色次要', type: 'secondary' }"></span>
+          <span x-component:autospark.text="{ label: '暗色主要', type: 'primary' }"></span>
+          <span x-component:autospark.text="{ label: '可复制', copyable: true }"></span>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.text.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

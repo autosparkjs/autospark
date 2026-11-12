@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Rate · 变体</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.rate.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{ half: 2.5, clear: 4 }">
+      <div class="auto-card">
+        <div class="auto-card-header">allowHalf 半星 / clearable 同分清零</div>
+        <div class="auto-card-body">
+          <p>
+            <span aria-label="半星评分" x-model.number="half" x-component:autospark.rate="{ allowHalf: true }"></span>
+          </p>
+          <p>
+            <span aria-label="可清零评分" x-model.number="clear" x-component:autospark.rate="{ clearable: true }"></span>
+          </p>
+          <p class="hint">半星：{{ half }}（0.5 粒度）　清零：{{ clear }}（再次点击同分归 0）</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">max 可配 / 只读 / 禁用 / 状态色</div>
+        <div class="auto-card-body">
+          <p><span x-component:autospark.rate="{ max: 10, value: 7 }"></span></p>
+          <p><span x-component:autospark.rate="{ value: 3, readonly: true }"></span></p>
+          <p><span x-component:autospark.rate="{ value: 3, disabled: true }"></span></p>
+          <p><span x-component:autospark.rate="{ status: 'error', value: 2 }"></span></p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

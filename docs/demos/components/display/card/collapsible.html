@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Card · 可折叠</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">可折叠头部（collapsible + collapse 事件）</div>
+        <div class="auto-card-body" x-data="{ open: true, count: 0 }">
+          <x-card title="可折叠卡片" collapsible="true" @collapse="open = $event.detail.collapsed; count++">
+            点击标题区（含箭头）切换折叠：body / footer 随之显隐（x-show 通道，DOM 保留）。
+            <template x-slot:footer><span>折叠时 footer 一并隐藏</span></template>
+          </x-card>
+          <p class="hint" style="margin-top: 12px">
+            当前状态：{{ open ? '展开' : '折叠' }}（已切换 {{ count }} 次）——collapse 事件
+            detail = { collapsed }（翻转后的新值）；collapsed 亦可外部受控驱动（不广播事件防回环）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

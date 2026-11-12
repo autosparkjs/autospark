@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Grid · 自适应与响应式</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.grid.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .grid-cell {
+        padding: 0.8rem 1rem;
+        border: 1px solid var(--auto-border-color, #d9d9d9);
+        border-radius: var(--auto-border-radius, 0.5rem);
+        background: var(--auto-third-bgcolor, #fafafa);
+        font-size: var(--auto-font-size, 0.875rem);
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <!-- 嵌套数组/对象 props 经状态引用传入（字面量嵌套值在当前引擎有死环缺陷，
+         修复分支待合并；引用写法两种引擎下均正确） -->
+    <main class="demo-main" x-data="{ responsiveCols: { xs: 1, sm: 2, md: 3, lg: 4 } }">
+      <div class="auto-card">
+        <div class="auto-card-header">自适应列（cols: "auto"）</div>
+        <div class="auto-card-body">
+          <div x-component:autospark.grid="{ cols: 'auto', gap: 'small' }">
+            <div class="grid-cell">自适应项一</div>
+            <div class="grid-cell">自适应项二</div>
+            <div class="grid-cell">自适应项三</div>
+            <div class="grid-cell">自适应项四</div>
+            <div class="grid-cell">自适应项五</div>
+          </div>
+          <p class="demo-note">
+            auto-fill 按容器宽自动列数，最小列宽 --asc-grid-min（缺省 16rem，可覆盖）；
+            拖动窗口宽度观察列数变化。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">响应式档位（cols: 对象，视口断点）</div>
+        <div class="auto-card-body">
+          <div x-component:autospark.grid="{ cols: responsiveCols, gap: 'small' }">
+            <div class="grid-cell">响应项一</div>
+            <div class="grid-cell">响应项二</div>
+            <div class="grid-cell">响应项三</div>
+            <div class="grid-cell">响应项四</div>
+          </div>
+          <p class="demo-note">
+            档名对齐 viewport 六档（xs..xxl），断点 Bootstrap 5 min-width（sm 576 /
+            md 768 / lg 992 / xl 1200 / xxl 1400）；窗口跨断点时列数自动重算。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">轨道分布（justify）与项对齐（align）</div>
+        <div class="auto-card-body">
+          <div
+            x-component:autospark.grid="{
+              cols: 'auto',
+              gap: 'small',
+              justify: 'center',
+              align: 'center',
+            }"
+          >
+            <div class="grid-cell" style="width: 8rem">窄项一</div>
+            <div class="grid-cell" style="width: 8rem">窄项二</div>
+            <div class="grid-cell" style="width: 8rem; height: 5rem">高项三（center 居中）</div>
+          </div>
+          <p class="demo-note">
+            justify 在列宽不满容器时有效（auto 列宽）；align 缺省 stretch 随轨道拉伸。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

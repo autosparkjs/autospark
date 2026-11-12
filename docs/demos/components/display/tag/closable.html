@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tag · 可关闭</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.tag.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">可关闭（closable）：close 事件 + 自动隐藏</div>
+        <div class="auto-card-body" x-data="{ log: [] }">
+          <p style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+            <x-tag type="primary" closable="true" @close="log.push('自动关闭一枚')">点 × 关闭</x-tag>
+            <x-tag type="warning" closable="true" @close="$event.preventDefault(); log.push('外部接管（preventDefault，不自动隐藏）')">preventDefault 演示</x-tag>
+          </p>
+          <p class="hint">事件记录：{{ log.length ? log.join('；') : '（暂无）' }}</p>
+          <p class="hint">
+            close 事件 cancelable、detail = { event }（原始点击事件）；未 preventDefault 时组件自动置
+            closed 隐藏整枚，preventDefault 则交由外部接管关闭时机（受控用法惯用法）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

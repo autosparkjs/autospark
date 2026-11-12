@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tag · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.tag.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">语义色五档 + 中性档（type，light 淡底缺省）</div>
+        <div class="auto-card-body">
+          <p style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+            <x-tag type="primary">进行中</x-tag>
+            <x-tag type="success">已完成</x-tag>
+            <x-tag type="warning">有风险</x-tag>
+            <x-tag type="danger">已失败</x-tag>
+            <x-tag type="info">备注</x-tag>
+            <x-tag>默认</x-tag>
+          </p>
+          <p class="hint">引擎后加载 autospark.tag.js 即注册完成；语义色体系对齐 button/link 范式。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">形态轴（variant）与语义色正交：solid 实底 / outline 描边</div>
+        <div class="auto-card-body">
+          <p style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+            <x-tag type="primary" variant="solid">实底</x-tag>
+            <x-tag type="success" variant="solid">实底</x-tag>
+            <x-tag type="danger" variant="solid">实底</x-tag>
+            <x-tag type="primary" variant="outline">描边</x-tag>
+            <x-tag type="warning" variant="outline">描边</x-tag>
+            <x-tag variant="outline">中性描边</x-tag>
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">前置图标（icon）与尺寸档（theme data-size 通道）</div>
+        <div class="auto-card-body">
+          <p style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+            <x-tag icon="star">星标</x-tag>
+            <x-tag type="success" icon="yes">已通过</x-tag>
+            <span data-size="large"><x-tag type="primary" icon="bell">大档标签</x-tag></span>
+            <span data-size="small"><x-tag type="info">小档标签</x-tag></span>
+          </p>
+          <p class="hint">尺寸经主题手动通道 data-size 全跟随——字号与 em 内距自动缩放，无自有尺寸属性。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

@@ -1,0 +1,315 @@
+<!--
+    autospark.tabs 页签（组件库 P1 导航件，ADR-0018 清单权威表 navigation 行 / 决策 3
+    裁定 segmented 并入本件作 variant）：items（{ key, label, icon?, disabled? }[]，
+    状态引用注入）驱动页签头 + 默认插槽承载面板区（消费者以 x-show / x-if 家族切面板，
+    保活走 x-if.keepalive——引擎原生路径，组件不代理面板生命周期）。
+
+    值通道（受控单选，button-group 选中模式同构）：value props 单向驱动视觉 + 点击/
+    键盘激活写组件 data（绑定通道随动迁移 active/aria-selected/tabindex）+ 双派发——
+    input（x-model 回写，监听在宿主自身非冒泡）+ change（冒泡 detail = { value }，
+    外层 @change="v = $event.detail.value" 一行回写）。el.value 劫持桥恒在场
+    （x-model / 程序读写皆经此）。初值落定序：x-model expando > props value >
+    首个可用项（tablist 恒有一项激活的语义缺省）。
+
+    键盘（tablist 语义，WAI-ARIA tabs 模式）：左右移焦 + 自动激活（环形）、Home/End
+    首末直达；焦点漫游 tabindex（激活项 0 / 其余 -1）经绑定通道随动；禁用项被跳过。
+
+    router 隔离（ADR-0018 决策 6 约定 2）：纯状态驱动、不 import router。
+
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
+    不会求值——形态绑定（:data-variant）落在编译子树内层 body 上，bar/content 按
+    body 的 data-variant 命中形态样式块。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得——字号档位经主题通道全跟随；tabs 不在 data() 声明主题六键，
+     内部变体属性（variant）亦禁用六个通道名 -->
+<div
+  class="asc-tabs"
+  x-define="autospark.tabs"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            value: "",       // 受控激活 key（el.value 桥 + change detail={value}；缺省激活首个可用项）
+            items: [],       // 页签项 { key, label, icon?, disabled? }[]——状态引用注入（字面量数组死环规避）；声明形态经 data-items 通道兜底
+            variant: "line", // 形态：line 下划线（缺省）| card 卡片 | segmented 分段控制器（button-group 选中模式视觉近亲）
+        }),
+        methods: {
+            // 页签激活（点击/键盘共用通道）：禁用跳过、同值短路；写组件 data（绑定通道
+            // 随动迁移 active/aria-selected/tabindex）+ 双派发（input→x-model 回写非冒泡；
+            // change→外层消费 detail={value} 冒泡）
+            onTabClick(item) {
+                if (!item || item.disabled) return;
+                const k = String(item.key ?? "");
+                if (k === "" || k === String(this.data.value ?? "")) return;
+                this.data.value = k;
+                this.el.dispatchEvent(new Event("input", { bubbles: false }));
+                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { value: k } }));
+            },
+        },
+        mounted() {
+            // 声明形态兜底（precompile 变换落盘的 data-items JSON 字符串）：items props
+            // 缺席时解析写组件 data（x-for 指令值通道响应，随写随渲染）；props 在场恒优先
+            const raw = this.el.getAttribute("data-items");
+            if ((!this.data.items || !this.data.items.length) && raw) {
+                try { this.data.items = JSON.parse(raw); } catch { /* 非法 JSON 静默忽略（容错缺省空组） */ }
+                this.el.removeAttribute("data-items");
+            }
+
+            // el.value 劫持桥（受控 value 的 DOM 通道：x-model / 程序读写皆经此）——
+            // 劫持前快照 expando（x-model 编译期可能已写初值）
+            const prior = this.el.value;
+            Object.defineProperty(this.el, "value", {
+                get: () => String(this.data.value ?? ""),
+                set: (v) => { this.data.value = String(v ?? ""); },
+                configurable: true,
+            });
+
+            // 一跳首对齐（mounted 时 props 注入可能未落定，家族惯例）：初值落定序 =
+            // x-model expando > props value > 首个可用项（tablist 恒有一项激活）
+            setTimeout(() => {
+                if (!this.data.value && typeof prior === "string" && prior !== "") {
+                    this.data.value = prior;
+                }
+                if (!this.data.value) {
+                    const first = (this.data.items || []).find((it) => it && it.key != null && String(it.key) !== "" && !it.disabled);
+                    if (first) this.data.value = String(first.key);
+                }
+            }, 0);
+
+            // 键盘导航（tablist 语义）：左右移焦环形 + 自动激活、Home/End 首末直达；
+            // 禁用项滤除（原生 disabled 不可聚焦，键盘序列跳过）；焦点漫游 tabindex 由
+            // 绑定通道随动（激活项 0 / 其余 -1），此处只管移焦与激活复用点击通道
+            this.el.addEventListener("keydown", (e) => {
+                if (e.key !== "ArrowRight" && e.key !== "ArrowLeft" && e.key !== "Home" && e.key !== "End") return;
+                const t = e.target instanceof Element ? e.target : null;
+                const tab = t ? t.closest(".asc-tabs-tab") : null;
+                if (!tab || !this.el.contains(tab)) return;
+                e.preventDefault();
+                const tabs = Array.from(this.el.querySelectorAll(".asc-tabs-tab")).filter((b) => !b.disabled);
+                if (!tabs.length) return;
+                const idx = tabs.indexOf(tab);
+                let next = 0;
+                if (e.key === "ArrowRight") next = (idx + 1) % tabs.length;
+                else if (e.key === "ArrowLeft") next = (idx - 1 + tabs.length) % tabs.length;
+                else if (e.key === "Home") next = 0;
+                else next = tabs.length - 1;
+                tabs[next].focus();
+                tabs[next].click();
+            });
+        },
+    }
+  </script>
+  <style global id="autospark-components-tabs">
+    .asc-tabs {
+      /* 排版基线：字号经主题档位通道（data-size → --auto-font-size 全跟随，button 同范式 ADR-0012） */
+      display: block;
+      width: 100%;
+      font-size: var(--auto-font-size, var(--asc-tabs-font-size, 0.875rem));
+      line-height: var(--auto-line-height, 1.5);
+    }
+
+    /* ---------- bar：页签头容器（role=tablist） ---------- */
+    .asc-tabs-bar {
+      display: flex;
+      align-items: stretch;
+      max-width: 100%;
+      min-width: 0;
+    }
+    /* x-for 克隆载体盒不产生布局盒：页签按钮直接成为 bar 的 flex 项（button tags 同款） */
+    .asc-tabs-tab-item {
+      display: contents;
+    }
+    .asc-tabs-tab {
+      /* 语义色中转（形态块按需消费） */
+      --asc-tone: var(--auto-primary-color, var(--asc-tabs-primary, #009aff));
+      appearance: none;
+      border: none;
+      background: transparent;
+      font: inherit;
+      line-height: inherit;
+      color: var(--auto-secondary-color, var(--asc-tabs-tab-color, rgba(0, 0, 0, 0.55)));
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35em;
+      padding: 0.5em 1em;
+      margin: 0;
+      cursor: pointer;
+      position: relative;
+      white-space: nowrap;
+      transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .asc-tabs-tab:focus-visible {
+      outline: none;
+      border-radius: var(--asc-tabs-focus-radius, 0.25em);
+      box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--asc-tone) 28%, transparent);
+    }
+    .asc-tabs-tab:disabled {
+      color: var(--auto-disable-color, var(--asc-tabs-disable-color, rgba(0, 0, 0, 0.25)));
+      cursor: not-allowed;
+    }
+    .asc-tabs-tab-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    /* 图标位：随字号（x-icon 默认 1em） */
+
+    /* ---------- line 形态（缺省）：底线 + 激活下划线 ---------- */
+    .asc-tabs-body[data-variant="line"] .asc-tabs-bar {
+      border-bottom: var(--auto-border-size, var(--asc-tabs-border-size, 1px)) solid
+        var(--auto-border-color, var(--asc-tabs-border, #d9d9d9));
+    }
+    .asc-tabs-body[data-variant="line"] .asc-tabs-tab::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: calc(-1 * var(--auto-border-size, var(--asc-tabs-border-size, 1px)));
+      height: 2px;
+      background: var(--asc-tone);
+      transform: scaleX(0);
+      transition: transform 0.2s ease;
+    }
+    .asc-tabs-body[data-variant="line"] .asc-tabs-tab[data-active] {
+      color: var(--asc-tone);
+      font-weight: var(--x-font-weight-large, 600); /* 语义层无强调字重变量，直取基础标尺 */
+    }
+    .asc-tabs-body[data-variant="line"] .asc-tabs-tab[data-active]::after {
+      transform: scaleX(1);
+    }
+    .asc-tabs-body[data-variant="line"] .asc-tabs-tab:not([data-active]):not(:disabled):hover {
+      color: var(--asc-tone);
+    }
+
+    /* ---------- card 形态：卡片页签 + 内容区连线（激活卡盖底线 + z 抬层） ---------- */
+    .asc-tabs-body[data-variant="card"] .asc-tabs-bar {
+      border-bottom: var(--auto-border-size, var(--asc-tabs-border-size, 1px)) solid
+        var(--auto-border-color, var(--asc-tabs-border, #d9d9d9));
+    }
+    .asc-tabs-body[data-variant="card"] .asc-tabs-tab {
+      border: var(--auto-border-size, var(--asc-tabs-border-size, 1px)) solid transparent;
+      border-bottom: none;
+      border-radius: 0.375em 0.375em 0 0;
+      /* 压叠 bar 底线（激活卡以面板实底盖线，形成与内容区的视觉连线） */
+      margin-bottom: calc(-1 * var(--auto-border-size, var(--asc-tabs-border-size, 1px)));
+    }
+    .asc-tabs-body[data-variant="card"] .asc-tabs-tab:not([data-active]):not(:disabled):hover {
+      color: var(--asc-tone);
+      background: var(--auto-hover-bgcolor, var(--asc-tabs-hover-bg, rgba(0, 0, 0, 0.04)));
+    }
+    .asc-tabs-body[data-variant="card"] .asc-tabs-tab[data-active] {
+      color: var(--asc-tone);
+      background: var(--auto-bgcolor, var(--asc-tabs-bg, #ffffff));
+      border-color: var(--auto-border-color, var(--asc-tabs-border, #d9d9d9));
+      position: relative;
+      z-index: 1; /* 盖住 bar 底线（与内容区上缘连线的关键） */
+    }
+
+    /* ---------- segmented 形态（分段控制器，button-group 选中模式视觉近亲）： ---------- */
+    /* ---------- 浅底容器 + 激活 tone 实底反白（语义色底白字为恒定设计，非变量映射） ---------- */
+    .asc-tabs-body[data-variant="segmented"] .asc-tabs-bar {
+      display: inline-flex;
+      gap: 0.125em;
+      padding: 0.1875em;
+      border-radius: var(--asc-tabs-seg-radius, 0.5em);
+      background: var(--auto-secondary-bgcolor, var(--asc-tabs-seg-bg, rgba(245, 245, 245, 0.45)));
+    }
+    .asc-tabs-body[data-variant="segmented"] .asc-tabs-tab {
+      padding: 0.3125em 0.875em;
+      border-radius: var(--asc-tabs-seg-tab-radius, 0.375em);
+    }
+    .asc-tabs-body[data-variant="segmented"] .asc-tabs-tab:not([data-active]):not(:disabled):hover {
+      color: var(--auto-color, var(--asc-tabs-color, #606060));
+      background: var(--auto-hover-bgcolor, var(--asc-tabs-hover-bg, rgba(0, 0, 0, 0.04)));
+    }
+    .asc-tabs-body[data-variant="segmented"] .asc-tabs-tab[data-active] {
+      color: var(--asc-tabs-seg-ink, #ffffff);
+      background: var(--asc-tone);
+    }
+
+    /* ---------- content：默认插槽面板区（:empty 隐藏——纯页签头用法无空盒占位） ---------- */
+    .asc-tabs-content {
+      padding: 0.75em 0.125em;
+    }
+    .asc-tabs-content:empty {
+      display: none;
+    }
+    /* card 形态内容区：三边线 + 上缘与 bar 底线压叠（连线闭环） */
+    .asc-tabs-body[data-variant="card"] .asc-tabs-content {
+      padding: var(--asc-tabs-content-pad, 0.8em 1em);
+      border: var(--auto-border-size, var(--asc-tabs-border-size, 1px)) solid
+        var(--auto-border-color, var(--asc-tabs-border, #d9d9d9));
+      border-top: none;
+      border-radius: 0 0 0.375em 0.375em;
+      background: var(--auto-bgcolor, var(--asc-tabs-bg, #ffffff));
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-tabs-tab,
+    [data-dark] .asc-tabs-tab {
+      --asc-tone: var(--auto-primary-color, var(--asc-tabs-primary, #56baff));
+      color: var(--auto-secondary-color, var(--asc-tabs-tab-color, rgba(255, 255, 255, 0.65)));
+    }
+    [dark] .asc-tabs-tab:disabled,
+    [data-dark] .asc-tabs-tab:disabled {
+      color: var(--auto-disable-color, var(--asc-tabs-disable-color, rgba(255, 255, 255, 0.25)));
+    }
+    [dark] .asc-tabs-body[data-variant="line"] .asc-tabs-bar,
+    [dark] .asc-tabs-body[data-variant="card"] .asc-tabs-bar,
+    [data-dark] .asc-tabs-body[data-variant="line"] .asc-tabs-bar,
+    [data-dark] .asc-tabs-body[data-variant="card"] .asc-tabs-bar {
+      border-bottom-color: var(--auto-border-color, var(--asc-tabs-border, #52525b));
+    }
+    [dark] .asc-tabs-body[data-variant="card"] .asc-tabs-tab:not([data-active]):not(:disabled):hover,
+    [dark] .asc-tabs-body[data-variant="segmented"] .asc-tabs-tab:not([data-active]):not(:disabled):hover,
+    [data-dark] .asc-tabs-body[data-variant="card"] .asc-tabs-tab:not([data-active]):not(:disabled):hover,
+    [data-dark] .asc-tabs-body[data-variant="segmented"] .asc-tabs-tab:not([data-active]):not(:disabled):hover {
+      background: var(--auto-hover-bgcolor, var(--asc-tabs-hover-bg, rgba(255, 255, 255, 0.08)));
+    }
+    [dark] .asc-tabs-body[data-variant="segmented"] .asc-tabs-tab:not([data-active]):not(:disabled):hover,
+    [data-dark] .asc-tabs-body[data-variant="segmented"] .asc-tabs-tab:not([data-active]):not(:disabled):hover {
+      color: var(--auto-color, var(--asc-tabs-color, #fafafa));
+    }
+    [dark] .asc-tabs-body[data-variant="card"] .asc-tabs-tab[data-active],
+    [dark] .asc-tabs-body[data-variant="card"] .asc-tabs-content,
+    [data-dark] .asc-tabs-body[data-variant="card"] .asc-tabs-tab[data-active],
+    [data-dark] .asc-tabs-body[data-variant="card"] .asc-tabs-content {
+      background: var(--auto-bgcolor, var(--asc-tabs-bg, #3a3a3a));
+      border-color: var(--auto-border-color, var(--asc-tabs-border, #52525b));
+    }
+    [dark] .asc-tabs-body[data-variant="segmented"] .asc-tabs-bar,
+    [data-dark] .asc-tabs-body[data-variant="segmented"] .asc-tabs-bar {
+      background: var(--auto-secondary-bgcolor, var(--asc-tabs-seg-bg, rgba(129, 129, 129, 0.45)));
+    }
+  </style>
+  <!-- 形态绑定落本层（根上动态绑定不求值，T4=B）；激活态/aria/tabindex 全为克隆体内
+         绑定（指令值通道响应，props 晚注入/内部写值随动）；key 归一 String 比较（数字
+         key 语域兼容） -->
+  <div class="asc-tabs-body" :data-variant="variant">
+    <div class="asc-tabs-bar" role="tablist">
+      <span class="asc-tabs-tab-item" x-for="item of items" :key="item.key">
+        <button
+          type="button"
+          class="asc-tabs-tab"
+          role="tab"
+          :data-active="String(item.key) === String(value) ? '' : null"
+          :aria-selected="String(item.key) === String(value) ? 'true' : 'false'"
+          :tabindex="String(item.key) === String(value) ? '0' : '-1'"
+          :disabled="item.disabled"
+          @click="onTabClick(item)"
+        >
+          <!-- 克隆体内条件显隐用 x-show（共享快照多实例 + items 晚注入下 x-if 延迟编译
+                   挂错 scope 链，P0 规避清单第 4 条）；icon 空值 x-icon 渲染默认图标（隐藏不可见） -->
+          <i class="asc-tabs-tab-icon" x-show="item.icon" x-icon="item.icon"></i>
+          <span class="asc-tabs-tab-label">{{ item.label }}</span>
+        </button>
+      </span>
+    </div>
+    <!-- 默认插槽面板区：未提供内容时无空盒占位（:empty 隐藏；出口须紧凑书写）。
+             面板切换由消费者以 x-show / x-if(.keepalive) 承载（组件文档配方） -->
+    <div class="asc-tabs-content" x-slot></div>
+  </div>
+</div>

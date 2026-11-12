@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.switch · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .row {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 360px;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .err {
+        color: #ef4444;
+        font-size: 0.8125rem;
+        margin: 2px 0 0;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.switch</h1>
+    <p>
+      开关（<b>自绘</b>——无原生对应）：role="switch" + aria-checked + 键盘 Space/Enter
+      切换；开/关双态 + loading 态 + disabled。值通道走 x-model 兼容协议（宿主
+      <code>x-model</code> 直写，布尔语域配 <code>x-model.boolean</code> 保真）；切换派发
+      <code>change</code>（detail = { value }）；表单提交经内嵌 hidden 载体（恒提交当前布尔）。
+      开态主色、关态中性；尺寸档位经主题通道 <code>data-size</code> 全跟随。
+    </p>
+
+    <div id="app" x-data="{ wifi: true, sync: false, busy: true }">
+      <h2>基础用法（x-model 双向 + .boolean 保真）</h2>
+      <div class="col">
+        <span x-model.boolean="wifi" x-component:autospark.switch="{ label: '无线网络' }"></span>
+        <p class="hint">当前值：<code>{{ wifi }}</code>（布尔保真）；点击轨道/文案任一处切换，键盘 Space/Enter 同效。</p>
+      </div>
+
+      <h2>loading 态（滑块转圈 + 阻断切换）</h2>
+      <div class="col">
+        <span x-component:autospark.switch="{ label: '同步中…', loading: busy, checked: sync }"></span>
+        <span x-model.boolean="busy" x-component:autospark.switch="{ label: '切 loading 态' }"></span>
+      </div>
+
+      <h2>尺寸档位（主题通道 data-size）</h2>
+      <div class="row">
+        <span data-size="x-small"><span x-component:autospark.switch="{ label: '超小档' }"></span></span>
+        <span data-size="small"><span x-component:autospark.switch="{ label: '小档' }"></span></span>
+        <span data-size="medium"><span x-component:autospark.switch="{ label: '中档（缺省）' }"></span></span>
+        <span data-size="large"><span x-component:autospark.switch="{ label: '大档' }"></span></span>
+        <span data-size="x-large"><span x-component:autospark.switch="{ label: '超大档' }"></span></span>
+      </div>
+      <p class="hint">档位属性挂在任意祖先容器即整片生效（轨道 em 基准随字号联动）。</p>
+
+      <h2>状态色与禁用（status / disabled / readonly）</h2>
+      <div class="col">
+        <span x-component:autospark.switch="{ label: '校验未通过', status: 'error', checked: true }"></span>
+        <span x-component:autospark.switch="{ label: '已确认', status: 'success' }"></span>
+        <span x-component:autospark.switch="{ label: '禁用态', disabled: true, checked: true }"></span>
+        <span x-component:autospark.switch="{ label: '只读态', readonly: true }"></span>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="col">
+          <span x-component:autospark.switch="{ label: '暗色·开', checked: true }"></span>
+          <span x-component:autospark.switch="{ label: '暗色·关' }"></span>
+          <span x-component:autospark.switch="{ label: '暗色错误态', status: 'error', checked: true }"></span>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+    <p class="err"></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.switch.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

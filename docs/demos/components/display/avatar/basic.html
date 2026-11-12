@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Avatar · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.avatar.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">三源回退链：src 图片 → icon 图标 → label 首字符 → 兜底</div>
+        <div class="auto-card-body">
+          <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap">
+            <x-avatar src="https://picsum.photos/96/96" label="图片头像"></x-avatar>
+            <x-avatar icon="star" label="图标头像"></x-avatar>
+            <x-avatar label="张三"></x-avatar>
+            <x-avatar></x-avatar>
+          </div>
+          <p class="hint" style="margin-top: 12px">
+            图片加载失败（断网/地址失效）自动回退 icon / 首字符；右侧面板调节
+            data-size 档位，头像以 em 基准整体缩放。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

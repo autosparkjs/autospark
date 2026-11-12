@@ -1,0 +1,137 @@
+<!--
+    化身路径约束（x-component T4=B）：组件快照根的属性是静态并入宿主（class 拼接 /
+    style 合并 / 其他属性复制），根上的动态绑定不会求值——本组件无宿主级变体（骨架块
+    形态全在内层 body 上按 data-variant 后代选择器驱动），根上零绑定即零风险。
+
+    插槽切换（核心用法）：loading=true 显示骨架块组 / false 显示默认插槽真实内容。
+    投影在编译期发生、显隐走 x-show（不摘 DOM 不重建）——真容内的运行态（输入焦点/
+    滚动位置）在 loading 往返间保留；骨架块组 aria-hidden（纯装饰无语义）。
+
+    与 x-loading 指令的边界（ADR-0018 决策 3 消歧）：x-loading 是 action 通道的就近
+    消费（行为指令——按钮/动作执行期间自动呈现 loading 遮罩或占位），本组件是静态
+    结构占位（数据未到时的骨架结构，loading props 手动驱动、插槽切换骨架/真容）。
+    动作级反馈用 x-loading，数据级占位用 skeleton，两者正交可同用。
+
+    动效纪律（badge 先例）：闪烁动画（渐变扫过）在 prefers-reduced-motion: reduce 下
+    停播（静态淡底直接呈现）；animated=false 逐实例关闭。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized 六键，
+     名即通道）自动获得——字号档位经主题通道 data-size 全跟随（骨架块尺寸随 --auto-font-size
+     以 em 缩放），skeleton 不设自有字号属性；data() 不得声明主题六键，组件内部变体属性
+     亦禁用六个通道名（data-variant/data-animated/data-last 为自有变体轴） -->
+<!-- 无内置文案、不接 i18n（ADR-0018 决策 6.1 通道对本件无消费面）：骨架无文案 -->
+<div
+  class="asc-skeleton"
+  x-define="autospark.skeleton"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            variant: "text",  // 骨架块形态：text 行块（多行）| circle 圆（头像/图标位）| rect 矩形块（媒体/封面位）
+            rows: 0,         // text 形态行数（缺省/0/非法值归 1；circle/rect 恒单块——多行无语义）
+            loading: true,    // true 骨架态 / false 渲染默认插槽真实内容（插槽切换骨架/真容，核心用法）
+            animated: true,   // 闪烁动画开关（false 静态淡底；prefers-reduced-motion 恒停播）
+            // computed 简写（普通函数值即计算属性，仅限单表达式）：行号序列 [1..n]——
+            // x-for 迭代源须为数组（引擎边界：of number 迭代 0 项）；circle/rect 恒单块 [1]，
+            // text 钳正整数（0/非法/缺省归 1）。末行判定 = i === rowList.length
+            rowList: (s) => Array.from({ length: (s.variant === "text" ? Math.max(1, Math.floor(Number(s.rows) || 1)) : 1) }, (_, k) => k + 1),
+        }),
+    }
+  </script>
+  <style global id="autospark-components-skeleton">
+    /* 淡底双色经 --auto-color 派生（color-mix）：主题/暗色自动跟随，单源换色 */
+    .asc-skeleton {
+      --asc-skel-base: color-mix(in srgb, var(--auto-color, var(--asc-skeleton-color, #606060)) 10%, transparent);
+      --asc-skel-hi: color-mix(in srgb, var(--auto-color, var(--asc-skeleton-color, #606060)) 5%, transparent);
+      display: flex; /* 显式块级：元素名写法化身 HTMLUnknownElement 亦满宽 */
+      box-sizing: border-box;
+      width: 100%;
+      font-size: var(--auto-font-size, var(--asc-skeleton-font-size, 0.875rem));
+      line-height: var(--auto-line-height, var(--asc-skeleton-line-height, 1.5));
+    }
+    /* 骨架块组与真容出口：纵向满宽（行块序列自上而下排布） */
+    .asc-skeleton-items,
+    .asc-skeleton-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6em;
+      width: 100%;
+      min-width: 0;
+    }
+
+    /* ---------- 骨架块（形态按 body data-variant 后代选择器分流） ---------- */
+    /* text 行块：行高块满宽，末行（data-last 绑定真值时在场）半宽收尾 */
+    .asc-skeleton-item {
+      display: block;
+      width: 100%;
+      height: 1em;
+      border-radius: var(--auto-border-radius, var(--asc-skeleton-radius, 0.25rem));
+      background: var(--asc-skel-base);
+      flex-shrink: 0;
+    }
+    .asc-skeleton-item[data-last] {
+      width: 60%;
+    }
+    /* circle 圆：正圆（直径 2.5em 随档位缩放——头像/图标位占位） */
+    .asc-skeleton-body[data-variant="circle"] .asc-skeleton-item {
+      width: 2.5em;
+      height: 2.5em;
+      border-radius: 50%;
+    }
+    /* rect 矩形块：大块（高度 5em 满宽——媒体/封面/卡片位占位） */
+    .asc-skeleton-body[data-variant="rect"] .asc-skeleton-item {
+      height: 5em;
+      border-radius: var(--auto-border-radius, var(--asc-skeleton-radius, 0.5rem));
+    }
+
+    /* ---------- 闪烁动画（animated）：渐变扫过（antd 同款观感） ---------- */
+    .asc-skeleton-items[data-animated="true"] .asc-skeleton-item {
+      background: linear-gradient(
+        90deg,
+        var(--asc-skel-base) 25%,
+        var(--asc-skel-hi) 37%,
+        var(--asc-skel-base) 63%
+      );
+      background-size: 400% 100%;
+      animation: asc-skeleton-wave 1.4s ease infinite;
+    }
+    @keyframes asc-skeleton-wave {
+      0% {
+        background-position: 100% 50%;
+      }
+      100% {
+        background-position: 0 50%;
+      }
+    }
+    /* 动效停播（badge 先例）：系统减弱动效偏好恒停播（静态淡底直接呈现） */
+    @media (prefers-reduced-motion: reduce) {
+      .asc-skeleton-items[data-animated="true"] .asc-skeleton-item {
+        animation: none;
+      }
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-skeleton,
+    [data-dark] .asc-skeleton {
+      --asc-skel-base: color-mix(in srgb, var(--auto-color, var(--asc-skeleton-color, #fafafa)) 12%, transparent);
+      --asc-skel-hi: color-mix(in srgb, var(--auto-color, var(--asc-skeleton-color, #fafafa)) 6%, transparent);
+    }
+  </style>
+  <!-- 形态/动画绑定落 body（编译子树内层元素，绑定可求值）；骨架块形态由 body
+         data-variant 的后代选择器驱动（宿主无级变体，无需 :has() 反驱） -->
+  <div class="asc-skeleton-body" :data-variant="variant">
+    <!-- 默认插槽出口：loading=false 渲染真实内容（投影编译期完成，x-show 只切显隐——
+             真容运行态在 loading 往返间保留） -->
+    <span class="asc-skeleton-content" x-show="!loading" x-slot></span>
+    <!-- 骨架块组：loading=true 显示；aria-hidden 纯装饰；animated 经 data-animated
+             驱动动画（绑定假值整个移除属性——缺席即静态淡底）；x-for 宿主为纯克隆载体，
+             行块与末行标记在内层元素上（x-for 宿主自身绑定不被编译的家族纪律） -->
+    <span class="asc-skeleton-items" x-show="loading" aria-hidden="true" :data-animated="animated">
+      <span class="asc-skeleton-row" x-for="i of rowList" :key="i">
+        <i class="asc-skeleton-item" :data-last="(i === rowList.length)"></i>
+      </span>
+    </span>
+  </div>
+</div>

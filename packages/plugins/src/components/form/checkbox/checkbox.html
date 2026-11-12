@@ -1,0 +1,243 @@
+<!--
+    autospark.checkbox 复选框（ADR-0019 合批 / ADR-0020 BaseField 消费契约）——原生增强
+    路线：真实原生 `<input type="checkbox">` + 自绘视觉（勾形 / 半选横线经 CSS 伪元素，
+    选中态由 :checked / :indeterminate 原生伪类驱动——键盘 / 焦点 / 表单提交 / 组语义等
+    原生能力全保留，ADR-0018 决策 7）。
+
+    值通道（x-model 兼容协议）：宿主 el.value 劫持为布尔语域（"true"/"false"，配
+    x-model.boolean 保真——state-button 布尔组桥同款）；原生 change 冒泡过宿主时派发
+    input（x-model 监听在宿主自身回写 state）。checked props 为非受控初值 / 单向同步值
+    （受控真相走宿主 x-model，input value 同款边界）。
+
+    表单提交：内层真 input 即提交载体（勾选提交 name=true、未勾选不提交——原生 checkbox
+    语义，无须代理，ADR-0020 决策 6）；宿主 name 透传（x-model 缺省注入 name=路径亦经
+    此通道落内层）。
+
+    indeterminate 半选：JS 通道设原生 indeterminate 属性（无 HTML 属性形态），视觉经
+    :indeterminate 伪类（真实浏览器支持）；点击半选态 → 勾选（原生行为）。
+-->
+<!-- 根 class 拼接进骨架宿主（.asc-field + .asc-checkbox——裸态控件不加 .asc-field-box，
+     状态色仍经 --asc-field-tone 消费，ADR-0020 决策 3）；勾选/半选视觉由原生伪类 +
+     :has() 驱动，宿主 data-* 状态属性由骨架 / JS 通道同步，根上无动态绑定（T4=B） -->
+<span
+  class="asc-checkbox"
+  x-define="autospark.checkbox"
+  x-define:inherit="autospark.base-field"
+>
+  <script setup>
+    {
+        data: () => ({
+            label: "",            // 兜底文案（默认插槽内容优先；用户传入，无 i18n）
+            checked: false,       // 非受控初值 / 单向同步值（受控真相走宿主 x-model——el.value 布尔语域桥）
+            indeterminate: false, // 半选态（JS 通道设原生 indeterminate 属性；点击后按原生行为转为勾选/未勾）
+        }),
+        mounted() {
+            // —— 内层原生控件查询（mounted 时子树可能未挂载，查询恒延后一跳现取）——
+            const native = () => this.el.querySelector(".asc-checkbox-input");
+            // 当前勾选缓存（劫持 getter 的控件缺位兜底）
+            let lastChecked = false;
+
+            // —— 原生属性同步：提交值恒 "true"（原生 checkbox 语义：勾选提交 name=true、
+            //     未勾选不提交）；宿主 name 透传（x-model 缺省注入 name=路径同经此落内层）——
+            const syncAttrs = () => {
+                const n = native();
+                if (!n) return;
+                n.value = "true";
+                const nameAttr = this.el.getAttribute("name");
+                if (nameAttr != null) n.name = nameAttr;
+            };
+
+            // —— 值桥（x-model 兼容协议）：宿主 el.value 劫持为布尔语域 "true"/"false" ——
+            //     劫持前快照 expando（x-model 编译期可能已写初值）；无 x-model 时回退
+            //     props.checked 初值（劫持快照序：expando > props.checked，input 同款）
+            const prior = this.el.value;
+            lastChecked = typeof prior === "string" && prior !== ""
+                ? prior === "true"
+                : !!this.data.checked;
+            Object.defineProperty(this.el, "value", {
+                get: () => {
+                    const n = native();
+                    return String(!!(n ? n.checked : lastChecked));
+                },
+                set: (v) => {
+                    lastChecked = v === true || v === "true";
+                    const n = native();
+                    if (n) n.checked = lastChecked;
+                },
+                configurable: true,
+            });
+
+            // —— DOM→state 桥：原生 change 冒泡过宿主 → 派发 input（x-model 监听在宿主
+            //     自身，读劫持 el.value 回写；state-button 同款非冒泡形态）。原生 change
+            //     继续冒泡，外层 @change 直接消费；仅认内层控件事件（宿主自身 change 直通）
+            this.el.addEventListener("change", (e) => {
+                if (e.target !== native()) return;
+                const n = native();
+                if (n) lastChecked = n.checked;
+                this.el.dispatchEvent(new Event("input", { bubbles: false }));
+            });
+
+            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）——
+            setTimeout(() => {
+                const n = native();
+                if (n) {
+                    n.checked = lastChecked;
+                    n.indeterminate = !!this.data.indeterminate;
+                }
+                syncAttrs();
+            }, 0);
+
+            // —— props 变化跟随（回调收 { value } 信封对象，解构取值——家族惯用法）——
+            // checked 单向同步（无 x-model 场景）：变化才写（程序赋值不触发原生事件，无回环）。
+            // 已见值比对幂等防御：scope.refresh 等机制会以**当前值**重跑监听（如 i18n 插件
+            // ready 的首渲染换血），无变化重跑若照常落盘，会把 x-model expando 注入的勾选
+            // 初值打回 props 缺省值 false——同值跳过（真实变化才推进）
+            let lastPropsChecked = !!this.data.checked;
+            this.watch("checked", ({ value }) => {
+                const v = !!value;
+                if (v === lastPropsChecked) return;
+                lastPropsChecked = v;
+                lastChecked = v;
+                const n = native();
+                if (n && n.checked !== lastChecked) n.checked = lastChecked;
+            });
+            // indeterminate：JS 通道设原生属性（该属性无 HTML 属性形态，纯 property）
+            this.watch("indeterminate", ({ value }) => {
+                const n = native();
+                if (n) n.indeterminate = !!value;
+            });
+        },
+    }
+  </script>
+  <style global id="autospark-components-checkbox">
+    /* ---------- 结构：真实 label 包裹（点击文字/盒子任一处原生切换 + 焦点转发），
+         内层原生 input 透明铺满盒子（点击命中区 = 盒子，键盘焦点承载者） ---------- */
+    .asc-checkbox-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45em;
+      cursor: pointer;
+    }
+    /* 盒子：裸态控件无 chrome，仅自有细边框（ADR-0020 决策 3）；尺寸 em 基准随主题
+       data-size 档位字号缩放（不设自有尺寸属性，button 同范式 ADR-0012） */
+    .asc-checkbox-box {
+      position: relative;
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      width: 1.15em;
+      height: 1.15em;
+      border: var(--auto-border-size, var(--asc-checkbox-border-size, 1px)) solid
+        var(--auto-border-color, var(--asc-checkbox-border, #d9d9d9));
+      border-radius: var(--asc-checkbox-radius, 0.25em);
+      background: var(--auto-bgcolor, var(--asc-checkbox-bg, #ffffff));
+      transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+    }
+    .asc-checkbox-input {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      border: none;
+      opacity: 0;
+      cursor: inherit;
+    }
+
+    /* ---------- 状态色（骨架通道）：status 在场边框染 tone（裸态控件只消费 tone 不吃 chrome）；
+             勾选 / 半选底色恒 tone（缺省主色，error/success/warning 随动——开态语义色联动） ---------- */
+    .asc-checkbox[data-status] .asc-checkbox-box {
+      border-color: var(--asc-field-tone);
+    }
+    .asc-checkbox-box:has(> .asc-checkbox-input:checked),
+    .asc-checkbox-box:has(> .asc-checkbox-input:indeterminate) {
+      background: var(--asc-field-tone);
+      border-color: var(--asc-field-tone);
+    }
+
+    /* ---------- 勾形（::before 两边框旋转，勾选态 scale 展开）与半选横线（::after） ---------- */
+    .asc-checkbox-box::before {
+      content: "";
+      width: 0.28em;
+      height: 0.58em;
+      border-right: 0.14em solid
+        var(--asc-checkbox-check, #ffffff);
+      border-bottom: 0.14em solid
+        var(--asc-checkbox-check, #ffffff);
+      margin-top: -0.12em;
+      transform: rotate(45deg) scale(0);
+      transition: transform 0.15s ease;
+    }
+    .asc-checkbox-box:has(> .asc-checkbox-input:checked)::before {
+      transform: rotate(45deg) scale(1);
+    }
+    .asc-checkbox-box::after {
+      content: "";
+      position: absolute;
+      width: 0.55em;
+      height: 0;
+      border-top: 0.14em solid var(--asc-checkbox-check, #ffffff);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .asc-checkbox-box:has(> .asc-checkbox-input:indeterminate)::after {
+      opacity: 1;
+    }
+    /* 半选与勾选并置时半选视觉优先（原生呈现惯例：indeterminate 覆盖 checked 勾形） */
+    .asc-checkbox-box:has(> .asc-checkbox-input:indeterminate)::before {
+      transform: rotate(45deg) scale(0);
+    }
+
+    /* ---------- 交互态 ---------- */
+    .asc-checkbox-wrap:hover .asc-checkbox-box:not(:has(> .asc-checkbox-input:checked)):not(:has(> .asc-checkbox-input:disabled)) {
+      border-color: var(--auto-hover-border-color, var(--asc-checkbox-hover-border, #4098fc));
+    }
+    /* 键盘焦点环（data-focus 由骨架 focusin/focusout 同步——鼠标点击聚焦亦点亮，
+         与盒饰类控件的焦点语义一致）；禁用不点环 */
+    .asc-checkbox[data-focus]:not([data-disabled]) .asc-checkbox-box {
+      border-color: var(--asc-field-tone);
+      box-shadow: 0 0 0 2px
+        color-mix(in srgb, var(--asc-field-tone) 22%, transparent);
+    }
+    /* 禁用（骨架通道 [data-disabled]）：整体淡化（勾选 tone 保留可辨）+ 禁点光标 */
+    .asc-checkbox[data-disabled] {
+      opacity: 0.55;
+    }
+    .asc-checkbox[data-disabled] .asc-checkbox-wrap {
+      cursor: not-allowed;
+    }
+
+    /* ---------- 文案：空文案不占位（消 gap 空隙） ---------- */
+    .asc-checkbox-label:empty {
+      display: none;
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-checkbox-box,
+    [data-dark] .asc-checkbox-box {
+      border-color: var(--auto-border-color, var(--asc-checkbox-border, #52525b));
+      background: var(--auto-bgcolor, var(--asc-checkbox-bg, #3a3a3a));
+    }
+    [dark] .asc-checkbox-wrap:hover .asc-checkbox-box:not(:has(> .asc-checkbox-input:checked)):not(:has(> .asc-checkbox-input:disabled)),
+    [data-dark] .asc-checkbox-wrap:hover .asc-checkbox-box:not(:has(> .asc-checkbox-input:checked)):not(:has(> .asc-checkbox-input:disabled)) {
+      border-color: var(--auto-hover-border-color, var(--asc-checkbox-hover-border, #4098fc));
+    }
+  </style>
+  <!-- 默认段（替换 base-field 出口 fallback）：label 包裹的真实 checkbox + 自绘盒子 + 文案。
+         勾形/半选视觉由原生伪类 :checked/:indeterminate 经 :has() 驱动（真实浏览器支持）。
+         注意：嵌套 x-slot 出口在继承形态下被忽略（ADR-0056 内容分段仅认直接子级）——
+         消费者内容经 base-field 出口整段替换控件区（逃生通道，input 同款语义），
+         故文案走 props（{{ label }} 插值兜底）不开真插槽 -->
+  <label class="asc-checkbox-wrap">
+    <span class="asc-checkbox-box">
+      <input type="checkbox" class="asc-checkbox-input" data-autospark-control />
+    </span>
+    <span class="asc-checkbox-label">{{ label }}</span>
+  </label>
+</span>

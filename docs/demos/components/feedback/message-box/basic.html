@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MessageBox · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <!-- 加载顺序契约：overlay（x-dialog 弹层机制）→ button（双钮组合依赖）→ message-box -->
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.message-box.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{ ui: { open: false, openPure: false, openSlot: false } }">
+      <div class="auto-card">
+        <div class="auto-card-header">基础（danger 询问 / 仅确认）</div>
+        <div class="auto-card-body" style="display: flex; gap: 12px; flex-wrap: wrap">
+          <button
+            x-dialog:message-box="ui.open"
+            x-dialog-options.props="{ title: '删除确认', content: '此操作不可恢复，删除后无法找回。确定要删除这份文档吗？', type: 'danger' }"
+            x-component:autospark.button="{ label: '删除文档', variant: 'primary', type: 'danger' }"
+            @click="ui.open = true"
+          ></button>
+          <button
+            x-dialog:message-box="ui.openPure"
+            x-dialog-options.props="{ title: '发布通知', content: '通知将立即推送给全部成员，发布后不可撤回。', type: 'warning', showCancel: false, confirmText: '立即发布' }"
+            x-component:autospark.button="{ label: '仅确认（无取消钮）' }"
+            @click="ui.openPure = true"
+          ></button>
+          <button
+            x-dialog:message-box="ui.openSlot"
+            x-dialog-options.props="{ title: '开通提醒', type: 'success' }"
+            x-component:autospark.button="{ label: '内容插槽（富内容）' }"
+            @click="ui.openSlot = true"
+          >
+            <div x-slot>已为你开通<strong>实时同步</strong>功能，所有设备数据将自动保持一致。</div>
+          </button>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">事件消费（confirm / cancel）</div>
+        <div class="auto-card-body" style="display: flex; flex-direction: column; gap: 10px">
+          <div class="log" id="log" style="background: rgba(0, 0, 0, 0.04); border-radius: 6px; padding: 10px 14px; font-size: 0.875rem; min-height: 1.5em">（尚无动作——点上方按钮并在弹层中选择）</div>
+          <p style="margin: 0; font-size: 0.875rem; opacity: 0.65">
+            弹层 DOM 渲染在 body 容器内、不在 engine 宿主树内——事件消费用 document.addEventListener（模板里 @confirm 收不到，与 overlay:close 同款物理边界）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+      const log = document.getElementById("log");
+      const stamp = () => new Date().toLocaleTimeString("zh-CN", { hour12: false });
+      document.addEventListener("confirm", () => {
+        log.textContent = `[${stamp()}] confirm：使用者已确认（visible 已被请求关闭链自动回写 false）`;
+      });
+      document.addEventListener("cancel", () => {
+        log.textContent = `[${stamp()}] cancel：使用者已取消`;
+      });
+    </script>
+  </body>
+</html>

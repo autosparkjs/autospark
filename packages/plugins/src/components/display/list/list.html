@@ -1,0 +1,167 @@
+<!--
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
+    不会求值——变体绑定（bordered/split/virtual）与 loading 组合全部落在编译子树的
+    内层 inner 元素上（card 同款范式，宿主为透明块壳）。
+
+    内部装配（ADR-0018 决策 2「内部装配、对外开箱」）：
+    - x-for（引擎）：items 渲染——行模板 = row 插槽出口（作用域插槽：出口值
+      `{ name, params }` 动态名对象形态，params `{ item, $index }` 在项 localData
+      作用域求值，调用方经 `<template x-slot:row="{ item, $index }">` 解构消费；
+      无插槽时 fallback 行做 label/title/name/value 四键探测 + 标量兜底）；
+    - x-empty（引擎结构标记）：空数组的 special 空态——empty 插槽可整体重载，
+      fallback 组合 autospark.empty 组件（其 description 走 i18n「暂无数据」通道）；
+    - x-loading（引擎运行时指令）：loading props 经绑定通道写字面量值（"true"/"false"
+      三态），覆盖层铺满 inner；裸属性值变化触发 attrChanged（无修饰符）；
+    - x-for.virtual（features/virtual 插件）：virtual=true 经 x-if 结构分叉启用
+      （x-for 编译期选项无法响应 props，分叉是静态模板的响应式接线形态）；
+      行定高假设由 CSS 行高保证（等高行，策略首项实测项高）。
+
+    出口声明形态（重要）：virtual 分叉与普通分叉各持一份 row/empty 出口（分叉结构
+    所需），而快照收集期的同名出口静态去重会剥除后者标记（ADR-0056「重复声明后者
+    忽略」）——故两份出口统一走**动态名对象形态** `x-slot="{ name, params }"`
+    （ADR-0107）：动态名出口不入静态清单、不参与同名去重，运行期仅活跃分叉（x-if
+    剪枝后）实例化投影，双分叉共享调用方同一份内容段（静态克隆段可多次消费）。
+
+    items 变更通道：props 为调用方状态**引用**注入——整体替换（state.xx = [...]）
+    驱动重渲；调用方对原数组的**原地**增删（push/splice）经全局路径发信号、不经
+    组件域（autostore 路径驱动响应式的跨域边界），不触发重渲（文档披露）。
+
+    事件出口：行内交互经行元素原生冒泡（插槽内容在调用方作用域编译，@click 等
+    直接写在行模板内容上）——组件零内建事件。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得——字号/内距随 data-size 档位缩放（em 基准）；list 不在 data()
+     声明主题六键，内部变体属性亦禁用六个通道名 -->
+<div
+  class="asc-list"
+  x-define="autospark.list"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            items: [],      // 数据源：数组（状态引用注入——字面量数组触发 props 更新死循环，ADR-0019 后果 2）
+            virtual: false, // 虚拟滚动（x-for.virtual 组合；须同页引入 autospark.virtual.js，缺位退化全量渲染）
+            loading: false, // 加载态（引擎 x-loading 覆盖层组合，铺满列表）
+            bordered: true, // 边框开关（false 转透明色，盒模型占位稳定不跳变）
+            split: true,    // 行间分隔线（相邻行 border-top；末行/首行无线）
+        }),
+    }
+  </script>
+  <style global id="autospark-components-list">
+    /* 宿主：块级满宽透明壳，字号基线经 data-size 档位全跟随（行内距/行高以 em 标定缩放） */
+    .asc-list {
+      display: block;
+      width: 100%;
+      font-size: var(--auto-font-size, var(--asc-list-font-size, 0.875rem));
+    }
+
+    /* ---------- 列表盒子：变体数据属性直接命中 inner（编译子树内层） ---------- */
+    .asc-list-inner {
+      --asc-line: var(--auto-border-color, var(--asc-list-border-color, #d9d9d9));
+      position: relative; /* x-loading 覆盖层定位基准 */
+      display: block;
+      background: var(--auto-bgcolor, var(--asc-list-bg, #ffffff));
+      border: var(--auto-border-size, var(--asc-list-border-size, 1px)) solid
+        var(--asc-line);
+      border-radius: var(--auto-border-radius, var(--asc-list-radius, 0.5rem));
+    }
+    .asc-list-inner[data-borderless="true"] {
+      --asc-line: transparent;
+    }
+
+    /* ---------- 行：插槽出口即行容器（投影内容为直接子级；分隔线取相邻行命中——
+         虚拟垫片（div[aria-hidden]）与空态段不参与相邻判定） ---------- */
+    .asc-list-item {
+      display: block;
+      padding: 0.6em 1em;
+      min-height: 2.4em;
+      box-sizing: border-box;
+    }
+    .asc-list-inner[data-split="true"] .asc-list-item + .asc-list-item {
+      border-top: var(--auto-border-size, var(--asc-list-border-size, 1px)) solid
+        color-mix(in srgb, var(--asc-line, #d9d9d9) 60%, transparent);
+    }
+    /* 默认行文本：单行省略（对象字段探测值可能长；自定义行插槽不受此约束） */
+    .asc-list-item-text {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--auto-color, var(--asc-list-color, #606060));
+    }
+
+    /* ---------- 虚拟滚动：定高滚动容器（x-for 容器即滚动宿主，策略监听其 scrollTop） ---------- */
+    .asc-list-inner[data-virtual="true"] .asc-list-body {
+      height: var(--asc-list-virtual-height, 20em);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    /* ---------- 空态段（x-empty special 渲染位） ---------- */
+    .asc-list-empty {
+      padding: 1.2em 1em;
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-list-inner,
+    [data-dark] .asc-list-inner {
+      background: var(--auto-bgcolor, var(--asc-list-bg, #3a3a3a));
+      --asc-line: var(--auto-border-color, var(--asc-list-border-color, #4d4d4d));
+    }
+    [dark] .asc-list-item-text,
+    [data-dark] .asc-list-item-text {
+      color: var(--auto-color, var(--asc-list-color, #fafafa));
+    }
+  </style>
+  <!-- 变体数据属性 + loading 组合承载在 inner（编译子树内层元素）；
+         loading 三态字面量（"true"/"false"）——裸 x-loading 值变化触发 attrChanged，
+         假态显式 "false" 而非移除（增删触发 mounted/unmounted 通道同样有效，取值态
+         让覆盖层重建路径统一走 attrChanged） -->
+  <div
+    class="asc-list-inner"
+    :data-borderless="!bordered"
+    :data-split="split"
+    :data-virtual="virtual"
+    :x-loading="loading ? 'true' : 'false'"
+  >
+    <!-- 虚拟滚动分叉：virtual=true（x-for 的 virtual 是编译期选项，props 响应式经
+             x-if 结构分叉接线；未加载 virtual 插件时策略缺位 warn 退化全量渲染） -->
+    <div x-if="virtual">
+      <div
+        class="asc-list-body"
+        x-for="item of items"
+        x-for-options="{ virtual: true }"
+      >
+        <div class="asc-list-item" x-slot="{ name: 'row', params: { item, $index } }">
+          <span
+            class="asc-list-item-text"
+            x-text="typeof item === 'object' && item !== null ? (item.label ?? item.title ?? item.name ?? item.value ?? '') : item"
+          ></span>
+        </div>
+        <div class="asc-list-empty" x-empty>
+          <div class="asc-list-empty-outlet" x-slot="{ name: 'empty' }">
+            <x-empty></x-empty>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 普通分叉：virtual=false（缺省） -->
+    <div x-if="!virtual">
+      <div class="asc-list-body" x-for="item of items">
+        <div class="asc-list-item" x-slot="{ name: 'row', params: { item, $index } }">
+          <span
+            class="asc-list-item-text"
+            x-text="typeof item === 'object' && item !== null ? (item.label ?? item.title ?? item.name ?? item.value ?? '') : item"
+          ></span>
+        </div>
+        <div class="asc-list-empty" x-empty>
+          <div class="asc-list-empty-outlet" x-slot="{ name: 'empty' }">
+            <x-empty></x-empty>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

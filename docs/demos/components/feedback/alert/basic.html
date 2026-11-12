@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Alert · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.alert.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">语义色五档（type）</div>
+        <div class="auto-card-body" style="display: flex; flex-direction: column; gap: 12px">
+          <div x-component:autospark.alert="{ title: '中性提示（default 缺省）', description: '默认档为中性色，用于普通说明性信息。' }"></div>
+          <div x-component:autospark.alert="{ title: '成功（success）', description: '操作已完成，数据已保存。', type: 'success' }"></div>
+          <div x-component:autospark.alert="{ title: '警告（warning）', description: '注意：当前配置将在发布后生效。', type: 'warning' }"></div>
+          <div x-component:autospark.alert="{ title: '危险（danger）', description: '删除操作不可恢复，请谨慎执行。', type: 'danger' }"></div>
+          <div x-component:autospark.alert="{ title: '信息（info）', description: '这是一条普通的信息提示。', type: 'info' }"></div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">仅标题 / 仅描述 / 描述插槽</div>
+        <div class="auto-card-body" style="display: flex; flex-direction: column; gap: 12px">
+          <div x-component:autospark.alert="{ title: '仅标题的警示条', type: 'warning' }"></div>
+          <div x-component:autospark.alert="{ description: '仅描述：标题行不渲染。', type: 'info' }"></div>
+          <div x-component:autospark.alert="{ title: '描述插槽', type: 'success' }">插槽描述内容：<strong>富内容</strong>优先于 description 兜底。</div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

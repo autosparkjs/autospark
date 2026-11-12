@@ -1,0 +1,132 @@
+<!--
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态
+    绑定不会求值——方向/对齐/换行/间距档位绑定全部落在编译子树的内层 body 上
+    （body 即 flex 容器，变体直接命中 body 选择器，无需 :has() 反驱宿主）；
+    number/字符串/数组形态的间距经 mounted JS 通道写 body 的内联 row-gap/column-gap
+    （元素级样式覆盖档位块）。
+
+    插槽出口 display:contents：子项穿透出口成为 body 的直接 flex 项（出口保留包裹层
+    不剥标签，display:contents 使其布局透明——漏写则子项嵌套在出口层内、flex 项序
+    被破坏，见家族惯例）。子元素正常编译：插槽内容照常走宿主引擎编译。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得；space 不在 data() 声明主题六键，组件内部变体属性亦禁用六个
+     通道名——间距档位属性用 data-gap（非通道名），间距尺寸语义与主题 data-spacing
+     档位正交（medium 档经 --auto-spacing 联动，其余档直取 --x-spacing-* 标尺） -->
+<div
+  class="asc-space"
+  x-define="autospark.space"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            size: "medium",          // 间距：档位名（x-small/small/medium/large/x-large → CSS 变量档）| number（px）| 任意 CSS 值字符串 | [水平, 垂直] 两轴数组
+            direction: "horizontal", // 排列方向：horizontal 水平（缺省）| vertical 垂直
+            align: "center",         // 交叉轴对齐：start | center | end | baseline（horizontal=垂直对齐、vertical=水平对齐；缺省 horizontal 居中 / vertical 起缘）
+            wrap: false,             // 换行（horizontal 态；行距=垂直轴间距，size 两轴数组的第二项）
+        }),
+        mounted() {
+            // 间距值形态同步（化身路径约束：布局值走 JS 通道写内层 body 内联样式）：
+            // 档位名（标尺五档）由 CSS 档位块承接——内联两轴清除即回档位块；number 归一
+            // px、字符串 CSS 值透传、数组 [水平, 垂直] 拆两轴（row-gap=垂直、column-gap=水平，
+            // 第二项缺省同第一项）。mounted 时化身子树可能尚未挂载（body 不可查），一跳后再
+            // 同步（button syncIconStyle 同款时序处理）
+            const TIERS = ["x-small", "small", "medium", "large", "x-large"];
+            const syncSize = () => {
+                const body = this.el.querySelector(".asc-space-body");
+                if (!body) return;
+                body.style.removeProperty("row-gap");
+                body.style.removeProperty("column-gap");
+                const s = this.data.size;
+                if (s == null || (typeof s === "string" && TIERS.includes(s))) return; // 档位名走 CSS 块
+                const norm = (v) => (typeof v === "number" ? v + "px" : String(v));
+                let row, col;
+                if (Array.isArray(s)) {
+                    col = norm(s[0]);         // 水平（column-gap）
+                    row = norm(s[1] ?? s[0]); // 垂直（row-gap），缺省同水平
+                } else {
+                    row = col = norm(s);
+                }
+                body.style.rowGap = row;
+                body.style.columnGap = col;
+            };
+            setTimeout(syncSize, 0);
+            this.watch("size", () => { setTimeout(syncSize, 0); });
+        },
+    }
+  </script>
+  <style global id="autospark-components-space">
+    /* 宿主：块级容器（零色彩消费，暗色模式天然无感——无暗色兜底块） */
+    .asc-space {
+      display: block;
+    }
+    /* body：唯一 flex 容器；缺省间距 medium 档（--auto-spacing 联动 theme spacing
+         档位，theme 档位跟随）；--asc-space-gap 为使用者覆盖通道（压全档） */
+    .asc-space-body {
+      display: flex;
+      flex-direction: row;
+      align-items: center; /* horizontal 缺省居中（antd 观感） */
+      gap: var(--asc-space-gap, var(--auto-spacing, var(--x-spacing-medium)));
+      width: 100%;
+      min-width: 0;
+    }
+    /* 垂直态：纵排 + 缺省起缘（左对齐，antd vertical 观感） */
+    .asc-space-body[data-direction="vertical"] {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    /* 交叉轴对齐（显式声明覆盖方向缺省；flex 交叉轴随 direction 自动换轴） */
+    .asc-space-body[data-align="start"] {
+      align-items: flex-start;
+    }
+    .asc-space-body[data-align="center"] {
+      align-items: center;
+    }
+    .asc-space-body[data-align="end"] {
+      align-items: flex-end;
+    }
+    .asc-space-body[data-align="baseline"] {
+      align-items: baseline;
+    }
+    /* 换行（horizontal 态；行距=row-gap=间距垂直轴） */
+    .asc-space-body[data-wrap="true"] {
+      flex-wrap: wrap;
+    }
+
+    /* ---------- 间距档位（CSS 变量档）：--x-spacing-* 标尺五档直取（语义层无间距
+         梯度派生变量）；medium 档经 --auto-spacing 接通 theme spacing 档位 ---------- */
+    .asc-space-body[data-gap="x-small"] {
+      gap: var(--asc-space-gap, var(--x-spacing-x-small));
+    }
+    .asc-space-body[data-gap="small"] {
+      gap: var(--asc-space-gap, var(--x-spacing-small));
+    }
+    .asc-space-body[data-gap="medium"] {
+      gap: var(--asc-space-gap, var(--auto-spacing, var(--x-spacing-medium)));
+    }
+    .asc-space-body[data-gap="large"] {
+      gap: var(--asc-space-gap, var(--x-spacing-large));
+    }
+    .asc-space-body[data-gap="x-large"] {
+      gap: var(--asc-space-gap, var(--x-spacing-x-large));
+    }
+
+    /* 插槽出口布局透明：子项穿透成为 body 直接 flex 项 */
+    .asc-space-slot {
+      display: contents;
+    }
+  </style>
+  <!-- 变体数据属性承载在 body（编译子树内层元素）；size 档位名经 data-gap 绑定命中
+         CSS 档位块（非档位名值不命中任何块、由 JS 通道内联接管，两通道互补） -->
+  <div
+    class="asc-space-body"
+    :data-direction="direction"
+    :data-align="align"
+    :data-wrap="wrap"
+    :data-gap="size"
+  >
+    <div class="asc-space-slot" x-slot></div>
+  </div>
+</div>

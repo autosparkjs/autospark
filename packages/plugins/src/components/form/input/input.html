@@ -1,0 +1,345 @@
+<!--
+    autospark.input 输入框（ADR-0020）——原生增强路线：真实原生控件（input / textarea）
+    + 样式包裹，不自绘输入面（保原生可访问性：键盘/IME/自动填充/移动端兼容，ADR-0018
+    决策 7）。继承 autospark.base-field 表单域骨架（状态色通道/焦点态/disabled 同步/
+    盒饰 chrome，ADR-0020），本组件专注控件本身。
+
+    值通道（x-model 兼容协议，ADR-0020）：宿主 el.value 劫持 ↔ 内层原生控件——
+    宿主为包裹层元素（无原生 value），x-model 写读都落劫持位；内层原生 input 事件
+    自然冒泡过宿主，x-model 监听直接命中（无需手动派发——原生控件自带 value 语义，
+    桥比 button-group 组值桥更薄）。value props 为非受控初值/单向同步（受控真相走
+    x-model）。
+
+    表单提交（ADR-0020）：宿主 name 透传到内层原生控件——原生直提交（input/textarea
+    自带提名义，含 Enter 提交语义；对照 state-button 的 hidden input 桥分叉，本组件
+    控件即真身无须代理载体）。
+
+    事件出口（组件默认封闭，原生事件经冒泡到外层消费）：
+    - input / change：内层原生控件事件自然冒泡（x-model 与外层 @input/@change 直接消费）
+    - 清除/眼睛切换为内部动作件（data-autospark-action，点击不转发焦点），不派发自定义事件
+-->
+<!-- 根 class 拼接进骨架宿主（.asc-field + .asc-input + .asc-field-box 盒饰选配）；
+     变体与状态属性经 mounted 的 JS 通道同步（data-form / data-over），根上无动态绑定（T4=B） -->
+<span
+  class="asc-input asc-field-box"
+  x-define="autospark.input"
+  x-define:inherit="autospark.base-field"
+>
+  <script setup>
+    {
+        data: () => ({
+            type: "text",          // 文本族：text/password/email/tel/url/search 等（透传原生 input type）| "textarea" 多行形态（元素切换为 textarea；prefix/suffix/清除/计数照常可用，密码切换仅 password 消费）
+            value: "",             // 非受控初值 / 单向同步值（受控真相走宿主 x-model——el.value 桥，ADR-0020）
+            placeholder: "",       // 占位文案（同步原生 placeholder）
+            maxlength: 0,          // >0 同步原生 maxlength（原生输入截断）+ 计数分母
+            rows: 2,               // textarea 行数（仅 textarea 形态消费；原生缺省 2）
+            clearable: false,      // 清除钮（值非空且可交互时可见；点击清空 + 派发 input + 焦点回控件）
+            showPassword: false,   // 密码可见切换眼睛钮（仅 type=password 消费，其余形态忽略）
+            showCount: false,      // 计数器（maxlength 在场显示「len / max」，否则仅 len；超限染 danger）
+            prefix: "",            // 前置装饰：string 文本 | { icon: "图标名" } 图标（对象经状态引用注入）
+            suffix: "",            // 后置装饰：形态同 prefix
+            // —— 内部状态 ——
+            passwordVisible: false, // 密码可见态（眼睛切换，内层 type password ↔ text）
+            hasValue: false,        // 当前有值（清除钮可见性驱动；JS 通道随输入维护）
+            countText: "",          // 计数文本（JS 侧构建——绑定通道对 props 后续注入不重算，ADR-0020）
+        }),
+        methods: {
+            // 清除：清空原生控件 + 手动派发 input（程序赋值不触发原生事件；冒泡过宿主
+            // 驱动 x-model 回写 state）+ 焦点回控件；阻断冒泡（内部动作件，click 不外泄）
+            onClear(event) {
+                event.stopPropagation();
+                if (this.data.disabled || this.data.readonly) return;
+                const n = this.el.querySelector(".asc-input-native");
+                if (!n) return;
+                n.value = "";
+                n.dispatchEvent(new Event("input", { bubbles: true }));
+                n.focus();
+            },
+            // 密码可见切换：翻转 passwordVisible + 内层 type password ↔ text + 焦点回控件
+            onTogglePassword(event) {
+                event.stopPropagation();
+                if (this.data.disabled) return;
+                this.data.passwordVisible = !this.data.passwordVisible;
+                const n = this.el.querySelector(".asc-input-native");
+                if (n instanceof HTMLInputElement) {
+                    n.type = this.data.passwordVisible ? "text" : (this.data.type || "text");
+                }
+                if (n) n.focus();
+            },
+        },
+        mounted() {
+            // —— 内层控件查询（每查现取：type 形态切换 input ↔ textarea 会重建元素）——
+            const native = () => this.el.querySelector(".asc-input-native");
+            // 当前值缓存（劫持 getter 的控件缺位兜底 + 形态切换回填）
+            let lastValue = "";
+
+            // —— 计数与清除可见性同步（len 由原生控件现值读出；超限染色的 data-over
+            //     落宿主属性，CSS 通道消费——JS 直写无 T4=B 约束）——
+            const syncLen = () => {
+                const n = native();
+                const len = n ? String(n.value ?? "").length : 0;
+                this.data.hasValue = len > 0;
+                const max = Number(this.data.maxlength) || 0;
+                this.data.countText = max > 0 ? `${len} / ${max}` : `${len}`;
+                this.el.toggleAttribute("data-over", max > 0 && len > max);
+            };
+
+            // —— 值同步（外部 → 控件）：形态切换重建后回填 lastValue ——
+            const syncValue = () => {
+                const n = native();
+                if (n) n.value = lastValue;
+                syncLen();
+            };
+
+            // —— 原生属性同步（props → 控件；绑定通道对 props 晚注入/后续变化不重算，
+            //     走 JS 通道——button disabled 同款纪律，ADR-0012）——
+            const syncAttrs = () => {
+                const n = native();
+                if (!n) return;
+                const t = String(this.data.type ?? "text");
+                if (n instanceof HTMLInputElement) {
+                    // type 透传（textarea 形态下本元素不渲染，防御性归一 text）；
+                    // 密码可见切换：password + passwordVisible → text
+                    n.type = t === "textarea"
+                        ? "text"
+                        : t === "password" && this.data.passwordVisible ? "text" : (t || "text");
+                }
+                n.placeholder = String(this.data.placeholder ?? "");
+                const ml = Number(this.data.maxlength) || 0;
+                if (ml > 0) n.setAttribute("maxlength", String(ml));
+                else n.removeAttribute("maxlength");
+                if (n instanceof HTMLTextAreaElement) n.rows = Number(this.data.rows) || 2;
+                // 表单提交载体：宿主 name 透传到原生控件（原生直提交，ADR-0020）
+                const nameAttr = this.el.getAttribute("name");
+                if (nameAttr != null) n.name = nameAttr;
+                // 形态标记（CSS 通道：textarea 高度放开，:has() 的 JS 免版）
+                if (t === "textarea") this.el.setAttribute("data-form", "textarea");
+                else this.el.removeAttribute("data-form");
+            };
+
+            // —— 值桥（x-model 兼容协议，ADR-0020）：宿主 el.value 劫持 ↔ 内层原生控件 ——
+            // 劫持前快照 expando（x-model 编译期可能已写初值——宿主无原生 value，
+            // 编译期写入落 expando）；无 x-model 时回退 props.value 初值
+            const prior = this.el.value;
+            if (typeof prior === "string" && prior !== "") lastValue = prior;
+            else if (this.data.value != null) lastValue = String(this.data.value);
+            // 快照归一值 + 初始化窗口标志：编译期初值的**重放识别**。scope.refresh 类机制
+            // （如 i18n 插件 ready 的首渲染换血）会以当前 state 重跑 x-model 监听，把编译期
+            // 初值（尤其空串——快照序里是「模型缺席」信号，props 兜底胜出）经劫持 setter 二次
+            // 落盘，覆盖已按快照序裁定的初值归属。初始化窗口（一跳 setTimeout 前）内与快照
+            // 归一值同值的写入即重放，跳过；真实状态变化（值不同）不受影响
+            const snapshotNorm = String(prior ?? "");
+            let initDone = false;
+            Object.defineProperty(this.el, "value", {
+                get: () => {
+                    const n = native();
+                    return n ? n.value : lastValue;
+                },
+                set: (v) => {
+                    if (!initDone && String(v ?? "") === snapshotNorm) return;
+                    lastValue = String(v ?? "");
+                    const n = native();
+                    if (n) n.value = lastValue;
+                    syncLen();
+                },
+                configurable: true,
+            });
+
+            // —— 输入跟随（原生 input 冒泡经宿主）：len 维护（x-model 回写由宿主监听自理）——
+            this.el.addEventListener("input", () => {
+                const n = native();
+                if (n) lastValue = n.value;
+                syncLen();
+            });
+
+            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）——
+            setTimeout(() => {
+                syncAttrs();
+                syncValue();
+                initDone = true; // 初始化完成：劫持 setter 放开重放识别门闩（此后全量生效）
+            }, 0);
+
+            // —— props 变化跟随（回调收 { value } 信封对象，此处只用作触发信号）——
+            this.watch("type", () => { setTimeout(() => { syncAttrs(); syncValue(); }, 0); });
+            this.watch("placeholder", () => { setTimeout(syncAttrs, 0); });
+            this.watch("maxlength", () => { setTimeout(() => { syncAttrs(); syncLen(); }, 0); });
+            this.watch("rows", () => { setTimeout(syncAttrs, 0); });
+            this.watch("showPassword", () => { setTimeout(syncAttrs, 0); });
+            // value props 单向同步（非受控/外部受控无 x-model 场景）：变化才写（与自身
+            // 桥写不冲突——guard 防回环）。已见值比对幂等防御（checkbox 同款）：scope.refresh
+            // 类无变化重跑（i18n ready 换血等）不得把 x-model expando 注入的初值打回 props
+            // 缺省空串——先比对已见 props 值，同值跳过
+            let lastPropsValue = String(this.data.value ?? "");
+            this.watch("value", ({ value }) => {
+                const v = String(value ?? "");
+                if (v === lastPropsValue) return;
+                lastPropsValue = v;
+                if (v === lastValue) return;
+                lastValue = v;
+                const n = native();
+                if (n) n.value = v;
+                syncLen();
+            });
+        },
+    }
+  </script>
+  <style global id="autospark-components-input">
+    /* ---------- 原生控件裸化：外观由骨架盒饰（.asc-field-box）承载，控件本体透明铺满 ---------- */
+    .asc-input-native {
+      flex: 1 1 auto;
+      min-width: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      padding: 0;
+      margin: 0;
+      color: inherit;
+      font: inherit;
+      cursor: inherit;
+    }
+    .asc-input-native::placeholder {
+      color: var(--auto-input-placeholder, var(--asc-input-placeholder, rgba(0, 0, 0, 0.35)));
+    }
+    .asc-input-native:disabled {
+      cursor: not-allowed;
+      -webkit-text-fill-color: var(--auto-disable-color, var(--asc-input-disable-color, inherit));
+    }
+
+    /* ---------- textarea 形态（data-form 由 mounted 同步）：盒饰高度放开随行数增长，
+             内层控件高度自适应 + 允许纵向拖拽调距 ---------- */
+    .asc-input[data-form="textarea"] {
+      height: auto;
+      min-height: var(
+        --auto-input-height,
+        var(--asc-field-height, calc(var(--auto-font-size, 0.875rem) * 2.57))
+      );
+      align-items: stretch;
+      cursor: text;
+    }
+    .asc-input[data-form="textarea"] .asc-input-native {
+      height: auto;
+      resize: vertical;
+    }
+
+    /* ---------- 前后置装饰：文本/图标混排，次要色 ---------- */
+    .asc-input-prefix,
+    .asc-input-suffix {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35em;
+      flex: none;
+      white-space: nowrap;
+      color: var(--auto-secondary-color, var(--asc-input-affix, rgba(0, 0, 0, 0.55)));
+    }
+    /* 前置与控件间距、后置与动作件间距（互斥场景各留半距，组合场景自然衔接） */
+    .asc-input-prefix {
+      margin-right: 0.4em;
+    }
+    .asc-input-suffix {
+      margin-left: 0.4em;
+    }
+
+    /* ---------- 动作件（清除/眼睛切换）：内部交互钮，淡色常态 + 悬停正文色 ---------- */
+    .asc-input-action {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 0.35em;
+      cursor: pointer;
+      border-radius: var(--auto-border-radius, var(--asc-input-action-radius, 0.25rem));
+      color: var(--auto-third-color, var(--asc-input-action, rgba(0, 0, 0, 0.35)));
+      transition: color 0.15s ease;
+    }
+    .asc-input-action:hover {
+      color: var(--auto-color, var(--asc-input-action-hover, #606060));
+    }
+    .asc-input-action:active {
+      transform: scale(0.92);
+    }
+
+    /* ---------- 计数器：小一号辅助色；超限（data-over 由 mounted 同步）染 danger ---------- */
+    .asc-input-count {
+      flex: none;
+      margin-left: 0.45em;
+      font-size: 0.75em;
+      white-space: nowrap;
+      color: var(--auto-third-color, var(--asc-input-count, rgba(0, 0, 0, 0.35)));
+    }
+    .asc-input[data-over] .asc-input-count {
+      color: var(--auto-danger-color, var(--asc-input-count-over, #ef4444));
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-input-native::placeholder,
+    [data-dark] .asc-input-native::placeholder {
+      color: var(--auto-input-placeholder, var(--asc-input-placeholder, rgba(255, 255, 255, 0.4)));
+    }
+    [dark] .asc-input-prefix,
+    [dark] .asc-input-suffix,
+    [data-dark] .asc-input-prefix,
+    [data-dark] .asc-input-suffix {
+      color: var(--auto-secondary-color, var(--asc-input-affix, rgba(255, 255, 255, 0.65)));
+    }
+    [dark] .asc-input-action,
+    [data-dark] .asc-input-action {
+      color: var(--auto-third-color, var(--asc-input-action, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-input-action:hover,
+    [data-dark] .asc-input-action:hover {
+      color: var(--auto-color, var(--asc-input-action-hover, #fafafa));
+    }
+    [dark] .asc-input-count,
+    [data-dark] .asc-input-count {
+      color: var(--auto-third-color, var(--asc-input-count, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-input[data-over] .asc-input-count,
+    [data-dark] .asc-input[data-over] .asc-input-count {
+      color: var(--auto-danger-color, var(--asc-input-count-over, #e6696a));
+    }
+  </style>
+  <!-- 默认段（替换 base-field 出口 fallback）：input 的全部控件结构，文档序即呈现序
+         [prefix] [控件] [清除] [眼睛] [suffix] [计数]。图标 x-icon 为指令值通道对
+         props 注入响应；文本兜底 {{ }} 为插值通道（初始注入即定，prefix 后续变化走
+         x-if 切换场景，文档已声明对象 props 经状态引用注入） -->
+  <span class="asc-input-prefix" x-if="!!prefix">
+    <i
+      class="asc-input-icon"
+      x-if="typeof prefix === 'object' && prefix && !!prefix.icon"
+      x-icon="prefix.icon"
+    ></i>
+    <span class="asc-input-text" x-if="typeof prefix === 'string' && !!prefix">{{ prefix }}</span>
+  </span>
+  <input class="asc-input-native" data-autospark-control x-if="type !== 'textarea'" />
+  <textarea
+    class="asc-input-native"
+    data-autospark-control
+    x-if="type === 'textarea'"
+    rows="2"
+  ></textarea>
+  <i
+    class="asc-input-action asc-input-clear"
+    data-autospark-action
+    x-if="clearable && hasValue"
+    x-icon="'no'"
+    @click="onClear($event)"
+  ></i>
+  <i
+    class="asc-input-action asc-input-eye"
+    data-autospark-action
+    x-if="showPassword && type === 'password'"
+    x-icon="passwordVisible ? 'input-eye-off' : 'input-eye'"
+    @click="onTogglePassword($event)"
+  ></i>
+  <span class="asc-input-suffix" x-if="!!suffix">
+    <i
+      class="asc-input-icon"
+      x-if="typeof suffix === 'object' && suffix && !!suffix.icon"
+      x-icon="suffix.icon"
+    ></i>
+    <span class="asc-input-text" x-if="typeof suffix === 'string' && !!suffix">{{ suffix }}</span>
+  </span>
+  <span class="asc-input-count" x-if="showCount">{{ countText }}</span>
+</span>

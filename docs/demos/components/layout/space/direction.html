@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Space · 方向与对齐</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.space.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .space-card {
+        padding: 0.8rem 1rem;
+        border: 1px solid var(--auto-border-color, #d9d9d9);
+        border-radius: var(--auto-border-radius, 0.5rem);
+        background: var(--auto-third-bgcolor, #fafafa);
+        font-size: var(--auto-font-size, 0.875rem);
+      }
+      .space-chip {
+        padding: 0.25rem 0.8rem;
+        border: 1px solid var(--auto-border-color, #d9d9d9);
+        border-radius: var(--auto-border-radius, 0.5rem);
+        background: var(--auto-bgcolor, #fff);
+        font-size: var(--auto-font-size, 0.875rem);
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">垂直排列（direction: vertical）</div>
+        <div class="auto-card-body">
+          <div style="max-width: 420px">
+            <div x-component:autospark.space="{ direction: 'vertical', size: 'small' }">
+              <div class="space-card">卡片一：vertical 态交叉轴对齐缺省起缘（左缘）。</div>
+              <div class="space-card">卡片二：间距档位 small。</div>
+              <div class="space-card">卡片三。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">交叉轴对齐（align）</div>
+        <div class="auto-card-body">
+          <div x-component:autospark.space="{ align: 'end' }">
+            <span class="space-chip">底部对齐</span>
+            <span class="space-chip" style="font-size: 1.5rem">大号项</span>
+            <span class="space-chip">基准项</span>
+          </div>
+          <div x-component:autospark.space="{ direction: 'vertical', align: 'end' }">
+            <span class="space-chip">垂直态右缘（align: end）</span>
+            <span class="space-chip">交叉轴随方向换轴</span>
+          </div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">换行（wrap）与两轴间距</div>
+        <div class="auto-card-body" style="max-width: 420px">
+          <div x-component:autospark.space="{ wrap: true, size: [12, 24] }">
+            <span class="space-chip">项一</span>
+            <span class="space-chip">项二</span>
+            <span class="space-chip">项三</span>
+            <span class="space-chip">项四</span>
+            <span class="space-chip">项五</span>
+            <span class="space-chip">项六</span>
+            <span class="space-chip">项七</span>
+          </div>
+          <p class="demo-note">wrap 时行距 = 垂直轴间距（数组第二项 24px，水平 12px）。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

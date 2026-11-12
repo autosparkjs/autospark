@@ -57,11 +57,17 @@ export function createEvalHandler(
                   t?: ScopeT,
               ) => any[])
             : null;
-    const exprGetter = new Function("$event", "data", "t", `with(data){return (${trimmed});}`) as (
-        $event: Event,
-        data: any,
-        t?: ScopeT,
-    ) => any;
+    const compileGetter = (body: string) =>
+        new Function("$event", "data", "t", body) as ($event: Event, data: any, t?: ScopeT) => any;
+    let exprGetter: ReturnType<typeof compileGetter>;
+    try {
+        // 单表达式形态：包 return 取返回值（.feedback 等 wrapper 依赖返回值冒泡，ADR-0008）
+        exprGetter = compileGetter(`with(data){return (${trimmed});}`);
+    } catch {
+        // 多语句退化（Alpine 惯用副作用写法，如 `flag = true; setTimeout(...)`）：
+        // 多语句包 return 是 SyntaxError——整段降级为语句体执行（无返回值，副作用型本就不依赖）
+        exprGetter = compileGetter(`with(data){${trimmed};}`);
+    }
 
     // 指令配置聚合视图（ADR-0007 + 全局层 ADR-0127；本文件为 x-on 专用，指令名恒 "on"）：
     // created 时构造一次，闭包捕获，事件触发时复用；全局层以解析器注入——$options 每次访问活读

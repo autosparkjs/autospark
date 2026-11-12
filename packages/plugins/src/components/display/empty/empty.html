@@ -1,0 +1,95 @@
+<!--
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
+    不会求值——本组件无宿主级变体（视觉全在内层静态结构上），根上零绑定即零风险；
+    description / icon 经内层插值与 x-icon 值通道响应（指令值通道响应式）。
+
+    内置文案（ADR-0018 决策 6 约定 1）：description 缺省走 i18n 词典 empty.description
+    键——i18n 插件在场时按 $.language 查表（scope 链 → engine 全局 → options.i18n.messages，
+    使用者可任意语言覆译，语言切换经响应式重求值即时生效）；未装 i18n / 词典无此键时
+    引擎兜底 t 恒等返回键本身，以键等值判定回退硬编码中文「暂无数据」（依赖松弛不强制）。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得——字号档经主题通道 data-size 全跟随；empty 不在 data() 声明
+     主题六键，内部变体属性亦禁用六个通道名 -->
+<div
+  class="asc-empty"
+  x-define="autospark.empty"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            description: "",  // 描述文案：空时走 i18n 词典 empty.description 键（回退「暂无数据」，见文件头注释）
+            icon: "file",     // 图标：内置图标名或 { name } 对象（image 槽可整体换图；空串不渲染图标）
+        }),
+    }
+  </script>
+  <style global id="autospark-components-empty">
+    /* 宿主：水平居中容器（块级满宽，内容居中） */
+    .asc-empty {
+      display: flex;
+      justify-content: center;
+      padding: var(--auto-padding, var(--asc-empty-padding, 0.8rem));
+      font-size: var(--auto-font-size, var(--asc-empty-font-size, 0.875rem));
+    }
+    /* 主体：纵列居中（图 → 描述 → 附加内容） */
+    .asc-empty-body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      max-width: 100%;
+    }
+    /* 图区：image 槽出口即容器（默认兜底为大号内置图标；换图整体替换） */
+    .asc-empty-image {
+      color: var(--auto-third-color, var(--asc-empty-image-color, rgba(0, 0, 0, 0.35)));
+      font-size: 2.6em; /* 相对字号标定：随 data-size 档位缩放 */
+      line-height: 1;
+    }
+    /* 描述：次要文字色（i18n 兜底文案同通道） */
+    .asc-empty-desc {
+      margin-top: 0.6em;
+      color: var(--auto-secondary-color, var(--asc-empty-desc-color, rgba(0, 0, 0, 0.55)));
+      font-size: 0.875em;
+      line-height: 1.5;
+    }
+    /* 附加内容（默认插槽）：描述下方动作区（常放按钮组）；空插槽不占位 */
+    .asc-empty-extra {
+      margin-top: 1em;
+    }
+    .asc-empty-extra:empty {
+      display: none;
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-empty-image,
+    [data-dark] .asc-empty-image {
+      color: var(--auto-third-color, var(--asc-empty-image-color, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-empty-desc,
+    [data-dark] .asc-empty-desc {
+      color: var(--auto-secondary-color, var(--asc-empty-desc-color, rgba(255, 255, 255, 0.65)));
+    }
+  </style>
+  <div class="asc-empty-body">
+    <!-- image 槽出口：无内容时回退大号内置图标（icon 双形态：字符串 = 图标名；对象 = { name }） -->
+    <div class="asc-empty-image" x-slot:image>
+      <i
+        class="asc-empty-icon"
+        x-if="typeof icon === 'string' && icon"
+        x-icon="icon"
+      ></i>
+      <i
+        class="asc-empty-icon"
+        x-if="typeof icon === 'object' && icon && icon.name"
+        x-icon="icon.name"
+      ></i>
+    </div>
+    <!-- 描述：显式传入优先；缺省走 i18n 词典（键等值判定回退硬编码中文——见文件头注释；
+             t 经表达式求值器注入，i18n ready 覆写槽后经 scope.refresh 重求值换血） -->
+    <div class="asc-empty-desc">{{ description || (t('empty.description') === 'empty.description' ? '暂无数据' : t('empty.description')) }}</div>
+    <!-- 默认插槽出口：附加内容（紧凑书写——:empty 判定纪律） -->
+    <div class="asc-empty-extra" x-slot></div>
+  </div>
+</div>

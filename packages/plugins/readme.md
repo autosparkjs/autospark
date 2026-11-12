@@ -9,6 +9,9 @@
 | x-spin | 指令插件 | `AutoSpark.directive(spec)` | `autospark.spin.js` |
 | autospark.button | 组件插件 | `AutoSpark.components[name] = 模板` | `autospark.button.js` |
 | autospark.button-group | 组件插件 | `AutoSpark.components[name] = 模板` + precompile 子钮下发 | `autospark.button-group.js`（须先于 button 加载） |
+| autospark.text | 组件插件 | `AutoSpark.components[name] = 模板` | `autospark.text.js`（组件库 P0，ADR-0019） |
+| autospark.link | 组件插件 | `AutoSpark.components[name] = 模板` + precompile 元素名变换 | `autospark.link.js`（组件库 P0，ADR-0019） |
+| autospark.divider | 组件插件 | `AutoSpark.components[name] = 模板` | `autospark.divider.js`（组件库 P0 / layout 首件，ADR-0019） |
 | 聚合 | 全部官方插件 | — | `autospark.plugins.js` |
 
 ## 使用

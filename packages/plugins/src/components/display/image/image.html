@@ -1,0 +1,191 @@
+<!--
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
+    不会求值——状态绑定（loaded/failed/fit/lazy/width/height）全部落在编译子树的
+    内层 inner / img 元素上（card 同款范式，宿主为透明块壳）。
+
+    生命周期三态：src 在场未完成 → 加载态（内置 loading 图标 SMIL 自转，零 CSS 动画）；
+    @load → loaded 置位摘转圈；@error → failed 置位切 fallback 占位（图标名或图片 URL
+    双形态，URL 形态以 http(s)://、data:、//、/、./ 开头判定）。src 变化时重置
+    loaded/failed 重试新地址。lazy 走原生 loading=lazy（按简——IntersectionObserver
+    自实现不引入）；width/height 经绑定通道透传 img 原生属性（假值属性移除家族约定）。
+
+    点击预览不做（P2 image-viewer 承接，ADR-0018 清单表边界）：点击原生冒泡，
+    使用者自行挂 @click 接入预览层。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得——加载态/占位字号随 data-size 档位缩放；image 不在 data() 声明
+     主题六键，内部变体属性亦禁用六个通道名 -->
+<div
+  class="asc-image"
+  x-define="autospark.image"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            src: "",             // 图片地址
+            alt: "",             // 替代文本（兼 fallback 占位提示行）
+            lazy: false,         // 懒加载（原生 loading=lazy）
+            fit: "",             // object-fit：fill | contain | cover | none | scale-down（空=浏览器缺省）
+            width: "",           // 宽透传（img 原生属性；空不写）
+            height: "",          // 高透传（img 原生属性；空不写）
+            fallback: "file-error", // 加载失败占位：内置图标名或图片 URL 双形态（URL 以 http(s)://、data:、//、/、./ 开头判定）
+            loaded: false,       // 内部状态：@load 置位（摘加载态；非 props）
+            failed: false,       // 内部状态：@error 置位（切 fallback；非 props）
+        }),
+        methods: {
+            // 图片加载成功：摘加载态（failed 同步复位防陈旧标记）
+            onImgLoad() {
+                this.data.loaded = true;
+                this.data.failed = false;
+            },
+            // 图片加载失败：切 fallback 占位（x-if 通道重建，主图移除）
+            onImgError() {
+                this.data.loaded = false;
+                this.data.failed = true;
+            },
+        },
+        mounted() {
+            // src 变化：重置 loaded/failed 重试新地址（回调收 { value } 信封对象——本回调不取值，重置恒执行）
+            this.watch("src", () => {
+                this.data.loaded = false;
+                this.data.failed = false;
+            });
+        },
+    }
+  </script>
+  <style global id="autospark-components-image">
+    /* 宿主：块级满宽透明壳，字号基线经 data-size 档位跟随（加载态/占位以 em 标定缩放） */
+    .asc-image {
+      display: block;
+      width: 100%;
+      font-size: var(--auto-font-size, var(--asc-image-font-size, 0.875rem));
+    }
+
+    /* ---------- inner：图片盒子（状态数据属性直接命中，编译子树内层） ---------- */
+    .asc-image-inner {
+      position: relative;
+      display: block;
+      width: 100%;
+      overflow: hidden;
+      border-radius: var(--auto-border-radius, var(--asc-image-radius, 0.375rem));
+      background: var(--auto-third-bgcolor, var(--asc-image-bg, rgba(0, 0, 0, 0.04)));
+      /* 无宽高声明时给最小占位防塌陷（宽高透传时 img 原生属性决定盒子尺寸） */
+      min-height: 1em;
+    }
+    /* 主图：铺满盒子 */
+    .asc-image-img {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    /* fit 五档：data-fit 属性选择器（空值属性移除即浏览器缺省 fill） */
+    .asc-image-img[data-fit="fill"] { object-fit: fill; }
+    .asc-image-img[data-fit="contain"] { object-fit: contain; }
+    .asc-image-img[data-fit="cover"] { object-fit: cover; }
+    .asc-image-img[data-fit="none"] { object-fit: none; }
+    .asc-image-img[data-fit="scale-down"] { object-fit: scale-down; }
+
+    /* 加载态：居中转圈（内置 loading 图标 SMIL 自转，容器居中；随字号档位缩放） */
+    .asc-image-spinner {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6em;
+      color: var(--auto-third-color, var(--asc-image-spinner-color, rgba(0, 0, 0, 0.35)));
+      pointer-events: none;
+    }
+    /* fallback 占位：纵列居中（占位图/图标 + alt 提示行） */
+    .asc-image-fallback {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5em;
+      min-height: 4em;
+      padding: 1em;
+      color: var(--auto-third-color, var(--asc-image-fallback-color, rgba(0, 0, 0, 0.35)));
+    }
+    .asc-image-fallback-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .asc-image-fallback-icon {
+      font-size: 2.2em;
+      line-height: 1;
+    }
+    /* alt 提示行：次要文字色（空 alt 不占位——:empty 家族纪律） */
+    .asc-image-fallback-text {
+      font-size: 0.875em;
+      color: var(--auto-secondary-color, var(--asc-image-fallback-hint-color, rgba(0, 0, 0, 0.55)));
+    }
+    .asc-image-fallback-text:empty {
+      display: none;
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-image-inner,
+    [data-dark] .asc-image-inner {
+      background: var(--auto-third-bgcolor, var(--asc-image-bg, rgba(255, 255, 255, 0.1)));
+    }
+    [dark] .asc-image-spinner,
+    [data-dark] .asc-image-spinner {
+      color: var(--auto-third-color, var(--asc-image-spinner-color, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-image-fallback,
+    [data-dark] .asc-image-fallback {
+      color: var(--auto-third-color, var(--asc-image-fallback-color, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-image-fallback-text,
+    [data-dark] .asc-image-fallback-text {
+      color: var(--auto-secondary-color, var(--asc-image-fallback-hint-color, rgba(255, 255, 255, 0.65)));
+    }
+  </style>
+  <!-- 状态数据属性承载在 inner（编译子树内层元素）；width/height/loading 经绑定通道透传 img -->
+  <div class="asc-image-inner">
+    <!-- 主图：src 在场即渲染（failed 经 @error 置位移除；真加载态由浏览器事件驱动） -->
+    <img
+      class="asc-image-img"
+      x-if="src && !failed"
+      :src="src"
+      :alt="alt"
+      :loading="lazy ? 'lazy' : 'eager'"
+      :width="width"
+      :height="height"
+      :data-fit="fit"
+      @load="onImgLoad()"
+      @error="onImgError()"
+    />
+    <!-- 加载态：src 在场未完成未失败（loaded 经 @load 置位移除；图标 SMIL 自转零 CSS 动画） -->
+    <i
+      class="asc-image-spinner"
+      x-if="src && !loaded && !failed"
+      x-icon="'loading'"
+    ></i>
+    <!-- fallback 占位：src 缺席（结构占位）或加载失败时渲染；URL 形态判定 = 根斜杠 /
+             ./ ../ 相对段 / 通用协议前缀（正则内禁斜杠——指令值清洗会破坏 \/ 转义，
+             协议段 [a-z][a-z0-9+.-]*: 无斜杠安全） -->
+    <div
+      class="asc-image-fallback"
+      x-if="!src || failed"
+    >
+      <img
+        class="asc-image-fallback-img"
+        x-if="typeof fallback === 'string' && (fallback.charAt(0) === '/' || fallback.startsWith('./') || fallback.startsWith('../') || /^[a-z][a-z0-9+.-]*:/i.test(fallback))"
+        :src="fallback"
+        :alt="alt"
+      />
+      <i
+        class="asc-image-fallback-icon"
+        x-if="!(typeof fallback === 'string' && (fallback.charAt(0) === '/' || fallback.startsWith('./') || fallback.startsWith('../') || /^[a-z][a-z0-9+.-]*:/i.test(fallback)))"
+        x-icon="fallback"
+      ></i>
+      <!-- alt 提示行（紧凑书写——:empty 判定纪律） -->
+      <span class="asc-image-fallback-text" x-text="alt"></span>
+    </div>
+  </div>
+</div>

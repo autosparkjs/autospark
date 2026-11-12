@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Divider · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.divider.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">水平分割线（缺省）</div>
+        <div class="auto-card-body">
+          <p>上文内容：默认水平实线，块级满宽。</p>
+          <div x-component:autospark.divider="{}"></div>
+          <p>下文内容。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">带文字（默认插槽）与位置（align）</div>
+        <div class="auto-card-body">
+          <div x-component:autospark.divider="{}">分隔标题（居中缺省）</div>
+          <div x-component:autospark.divider="{ align: 'left' }">左侧标题</div>
+          <div x-component:autospark.divider="{ align: 'right' }">右侧标题</div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

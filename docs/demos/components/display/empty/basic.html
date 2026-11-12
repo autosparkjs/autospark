@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Empty · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.empty.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">基础用法：默认图标 + 内置文案「暂无数据」</div>
+        <div class="auto-card-body">
+          <div style="border: 1px dashed rgba(128, 128, 128, 0.35); border-radius: 8px">
+            <x-empty></x-empty>
+          </div>
+          <p class="hint" style="margin-top: 12px">
+            内置文案走 i18n 词典（键 empty.description）；未装 i18n 插件或词典无此键时回退
+            硬编码中文。引擎后加载 autospark.empty.js 即注册完成。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">自定义描述（description）与换图标（icon）</div>
+        <div class="auto-card-body">
+          <div style="border: 1px dashed rgba(128, 128, 128, 0.35); border-radius: 8px">
+            <x-empty description="还没有任何项目" icon="folder"></x-empty>
+          </div>
+          <p class="hint" style="margin-top: 12px">
+            icon 收内置图标名（经 x-icon 值通道）；image 槽可整体换图（见「插槽与词典」示例）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

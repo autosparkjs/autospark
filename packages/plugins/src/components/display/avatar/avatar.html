@@ -1,0 +1,133 @@
+<!--
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
+    不会求值——变体绑定（shape/failed）落在编译子树的内层 inner 元素上，头像盒子
+    样式直接命中 inner 的 data-* 属性选择器（card 同款范式，宿主为透明壳）。
+
+    回退链（三源优先级）：src 在场且未失败 → 图片；icon 在场 → x-icon 图标；
+    label 在场 → 首字符（Array.from 取码点，emoji/扩展区安全）；三源皆空 → 内置
+    default 图标兜底（视觉不空白）。图片加载失败（@error）置 failed 回退，
+    src 变化时重置 failed 重试新地址。
+
+    角标不内建（ADR-0018 决策 3「指令即终态」）：x-badge 已覆盖角标能力，使用者
+    外挂组合（文档配方示例），组件不建双轨。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得——尺寸经主题通道 data-size 全跟随（头像以 em 标定，字号档变即
+     整体缩放，无自有尺寸属性）；avatar 不在 data() 声明主题六键，内部变体属性亦
+     禁用六个通道名 -->
+<span
+  class="asc-avatar"
+  x-define="autospark.avatar"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            src: "",         // 图片地址（加载失败自动回退 icon/label 首字符）
+            icon: "",        // 图标回退：内置图标名或 { name } 对象（x-icon 值通道；src 缺席或失败时生效）
+            label: "",       // 字符回退源（首字符；兼职图片 alt）
+            shape: "circle", // 形状：circle 圆（缺省）| square 方（圆角随 data-radius 档位）
+            failed: false,   // 内部状态：图片加载失败标记（非 props；src 变化时重置重试）
+        }),
+        methods: {
+            // 图片加载失败：置 failed 触发回退链切换（x-if 通道重建，img 移除）
+            onImgError() {
+                this.data.failed = true;
+            },
+        },
+        mounted() {
+            // src 变化：重置 failed 重试新地址（回调收 { value } 信封对象——本回调不取值，重置恒执行）
+            this.watch("src", () => { this.data.failed = false; });
+        },
+    }
+  </script>
+  <style global id="autospark-components-avatar">
+    /* 宿主：行内透明壳，字号基线经 data-size 档位全跟随（--auto-font-size，em 标定的缩放源） */
+    .asc-avatar {
+      display: inline-flex;
+      font-size: var(--auto-font-size, var(--asc-avatar-font-size, 0.875rem));
+      vertical-align: middle;
+    }
+
+    /* ---------- 头像盒子：形状经 data-shape 命中 inner（编译子树内层） ---------- */
+    .asc-avatar-inner {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.6em;
+      height: 2.6em;
+      overflow: hidden;
+      flex: none;
+      background: var(--auto-third-bgcolor, var(--asc-avatar-bg, rgba(0, 0, 0, 0.06)));
+      border-radius: 50%;
+      color: var(--auto-secondary-color, var(--asc-avatar-color, rgba(0, 0, 0, 0.55)));
+      user-select: none;
+    }
+    /* square：方角——圆角走 --auto-border-radius（data-radius 档位通道在场即跟随） */
+    .asc-avatar-inner[data-shape="square"] {
+      border-radius: var(--auto-border-radius, var(--asc-avatar-radius, 0.375rem));
+    }
+
+    /* 图片层：铺满盒子（形状裁切由盒子 overflow:hidden 承担） */
+    .asc-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    /* 图标回退层：约 60% 盒面（1.5em 相对字号，随档位缩放） */
+    .asc-avatar-icon {
+      font-size: 1.5em;
+      line-height: 1;
+    }
+    /* 首字符回退层：正文字号微放大，字重加粗（对齐主题标题字重标尺） */
+    .asc-avatar-char {
+      font-size: 1.1em;
+      font-weight: var(--x-font-weight-large, 600);
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-avatar-inner,
+    [data-dark] .asc-avatar-inner {
+      background: var(--auto-third-bgcolor, var(--asc-avatar-bg, rgba(255, 255, 255, 0.14)));
+      color: var(--auto-secondary-color, var(--asc-avatar-color, rgba(255, 255, 255, 0.65)));
+    }
+  </style>
+  <!-- 变体数据属性承载在 inner（编译子树内层元素）；回退链按三源优先级互斥渲染 -->
+  <span class="asc-avatar-inner" :data-shape="shape">
+    <!-- ① 图片：src 在场且未失败（失败经 @error 置 failed 切回退层） -->
+    <img
+      class="asc-avatar-img"
+      x-if="src && !failed"
+      :src="src"
+      :alt="label"
+      @error="onImgError()"
+    />
+    <!-- ② 图标回退：src 缺席或加载失败时生效（字符串图标名 / { name } 对象双形态，tag 同款） -->
+    <i
+      class="asc-avatar-icon"
+      x-if="(!src || failed) && typeof icon === 'string' && icon"
+      x-icon="icon"
+    ></i>
+    <i
+      class="asc-avatar-icon"
+      x-if="(!src || failed) && typeof icon === 'object' && icon && icon.name"
+      x-icon="icon.name"
+    ></i>
+    <!-- ③ 首字符回退：label 取首个码点（Array.from 防代理对截半） -->
+    <span
+      class="asc-avatar-char"
+      x-if="(!src || failed) && !icon && label"
+      x-text="Array.from(String(label).trim())[0]"
+    ></span>
+    <!-- ④ 三源皆空：内置 default 图标兜底（字面量须带引号——裸 default 会命中 data.default） -->
+    <i
+      class="asc-avatar-icon"
+      x-if="(!src || failed) && !icon && !label"
+      x-icon="'default'"
+    ></i>
+  </span>
+</span>

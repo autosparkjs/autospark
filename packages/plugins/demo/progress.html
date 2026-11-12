@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.progress · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin: 12px 0;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .label {
+        min-width: 5em;
+        color: #495057;
+        font-size: 0.875rem;
+      }
+      .circles {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.progress</h1>
+    <p>
+      进度条（feedback 分类）：line 轨道条 / circle 圆环双形态、percent（0-100 钳制）、
+      showText 百分比文本、status 语义色联动（success/error/warning；完成自动 success）、
+      strokeWidth 线宽。纯展示组件，进度由外部状态单向驱动。
+    </p>
+
+    <div id="app" x-data="{ p: 30 }">
+      <h2>line 形态（基础 + 推进）</h2>
+      <div class="stack">
+        <div class="row">
+          <span class="label">受控推进</span>
+          <div style="flex: 1" x-component:autospark.progress="{ percent: p }"></div>
+          <code>{{ p }}%</code>
+        </div>
+        <div class="row">
+          <button x-component:autospark.button="{ label: '重置', size: 'sm' }" @click="p = 0"></button>
+          <button x-component:autospark.button="{ label: '+10', variant: 'primary', size: 'sm' }" @click="p = Math.min(100, p + 10)"></button>
+          <button x-component:autospark.button="{ label: '跑满', variant: 'primary', type: 'success', size: 'sm' }" @click="p = 100"></button>
+        </div>
+        <p class="hint">跑满后自动升 success（percent>=100 且 status 缺省——antd 同款「完成后自动成功」；填充 width 经 CSS 过渡呈现增量动画）。</p>
+      </div>
+
+      <h2>status 语义色（success / error / warning）</h2>
+      <div class="stack">
+        <div x-component:autospark.progress="{ percent: 100, status: 'success' }"></div>
+        <div x-component:autospark.progress="{ percent: 68, status: 'error' }"></div>
+        <div x-component:autospark.progress="{ percent: 45, status: 'warning', showText: false }"></div>
+        <p class="hint">status 态文本位自动换语义图标；showText: false 关闭文本位。</p>
+      </div>
+
+      <h2>strokeWidth 线宽 + showText</h2>
+      <div class="stack">
+        <div x-component:autospark.progress="{ percent: 30, strokeWidth: 4 }"></div>
+        <div x-component:autospark.progress="{ percent: 60, strokeWidth: 10 }"></div>
+      </div>
+
+      <h2>circle 形态（SVG 圆环）</h2>
+      <div class="stack">
+        <div class="circles">
+          <div x-component:autospark.progress="{ percent: p, variant: 'circle' }"></div>
+          <div x-component:autospark.progress="{ percent: 100, variant: 'circle', status: 'success' }"></div>
+          <div x-component:autospark.progress="{ percent: 75, variant: 'circle', type: 'danger', status: 'error', strokeWidth: 10 }"></div>
+          <div x-component:autospark.progress="{ percent: 40, variant: 'circle', showText: false, strokeWidth: 3 }"></div>
+        </div>
+        <p class="hint">环心文本与条右文本同一出口；stroke-dashoffset 过渡呈现增量动画（prefers-reduced-motion 停播）。</p>
+      </div>
+
+      <h2>字号档位（主题通道 data-size）</h2>
+      <div class="stack">
+        <div data-size="sm">
+          <div x-component:autospark.progress="{ percent: 50 }"></div>
+        </div>
+        <div data-size="lg">
+          <div x-component:autospark.progress="{ percent: 50 }"></div>
+        </div>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="stack">
+          <div x-component:autospark.progress="{ percent: 65 }"></div>
+          <div x-component:autospark.progress="{ percent: 85, status: 'error' }"></div>
+          <div class="circles">
+            <div x-component:autospark.progress="{ percent: 45, variant: 'circle' }"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.progress.js"></script>
+    <script src="/autospark.button.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

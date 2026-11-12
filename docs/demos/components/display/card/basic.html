@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Card · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">基础卡片：title + 默认插槽（body）</div>
+        <div class="auto-card-body">
+          <x-card title="卡片标题">卡片内容：默认插槽即 body 出口，投影内容为直接子级。引擎后加载 autospark.card.js 即注册完成。</x-card>
+          <p class="hint" style="margin-top: 12px">
+            <code>&lt;x-card title="..."&gt;</code> 元素名快速写法与
+            <code>&lt;div x-component:autospark.card="{ ... }"&gt;</code> 指令值形态等价；
+            右侧面板调节主题（暗色 / 阴影档位 data-shadow），卡片即时跟随。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">无边框（bordered=false）与悬停浮起（hoverable）</div>
+        <div class="auto-card-body">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+            <x-card title="无边框" bordered="false">无边框卡片（阴影仍随 data-shadow 档位）。</x-card>
+            <x-card title="悬停浮起" hoverable="true">鼠标悬停：边框点亮主色 + 阴影抬升。</x-card>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

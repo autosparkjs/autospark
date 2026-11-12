@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Input · 状态色 / 禁用 / x-field 协作</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.input.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" style="max-width: 460px">
+      <div class="auto-card">
+        <div class="auto-card-header">status 状态色（error / warning / success）与禁用/只读</div>
+        <div class="auto-card-body">
+          <p><span x-component:autospark.input="{ status: 'error', value: '校验未通过' }"></span></p>
+          <p><span x-component:autospark.input="{ status: 'warning', value: '长度偏短' }"></span></p>
+          <p><span x-component:autospark.input="{ status: 'success', value: '格式正确' }"></span></p>
+          <p><span x-component:autospark.input="{ value: '禁用态', disabled: true }"></span></p>
+          <p><span x-component:autospark.input="{ value: '只读态', readonly: true }"></span></p>
+          <p class="hint">状态色染边框与焦点环（error 态控件同步 aria-invalid）；label/校验文案不归组件管。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">与 x-field 协作（label/校验由指令承担，组件经 status 染色）</div>
+        <div class="auto-card-body">
+          <form x-form="login" style="display: flex; flex-direction: column; gap: 4px">
+            <div x-field="username">
+              <label style="font-size: 0.875rem">{{ $field.label }}</label>
+              <span x-model="login.username" x-component:autospark.input="{ placeholder: '3-12 字符', status: $field.error ? 'error' : '' }"></span>
+              <em style="color: #ef4444; font-size: 0.8125rem; font-style: normal; min-height: 1.2em">{{ $field.error }}</em>
+            </div>
+          </form>
+          <p class="hint">表单域声明与校验在 x-form/x-field 层；input 组件只消费 <code>$field.error</code> 染状态色（不双轨建域），输入 1-2 个字符触发校验看染色。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">暗色态（容器 data-dark）</div>
+        <div class="auto-card-body" data-dark style="background: #1a1a1a; border-radius: 8px; padding: 12px">
+          <p><span x-component:autospark.input="{ placeholder: '暗色输入', clearable: true, value: '内容' }"></span></p>
+          <p><span x-component:autospark.input="{ status: 'error', value: '暗色错误态' }"></span></p>
+        </div>
+      </div>
+    </main>
+    <script>
+      // x-field 协作：schema（label/校验规则）经 AutoStore configurable 声明，$field 聚合注入
+      const { configurable } = AutoSpark;
+      new AutoSpark(document.querySelector(".demo-main"), {
+        login: {
+          username: configurable("", {
+            label: "用户名",
+            required: true,
+            validate: (v) => v.length >= 3 && v.length <= 12,
+            errorMessage: "用户名须 3-12 个字符",
+            onInvalid: "pass",
+          }),
+        },
+      });
+    </script>
+  </body>
+</html>

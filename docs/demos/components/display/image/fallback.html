@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Image · 失败占位与懒加载</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.image.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">fallback 失败占位：图标（缺省）/ 图片 URL 双形态</div>
+        <div class="auto-card-body">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+            <div x-component:autospark.image="{ src: badPic, alt: '图标占位' }"></div>
+            <div x-component:autospark.image="{ src: badPic, fallback: fbPic, alt: '图片占位' }"></div>
+          </div>
+          <p class="hint" style="margin-top: 12px">
+            地址失效触发 @error → fallback 占位（alt 同步提示行）；传 URL 值（以协议/
+            斜杠开头）渲染占位图，否则按内置图标名渲染（缺省 <code>file-error</code>）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">懒加载（lazy：原生 loading=lazy）</div>
+        <div class="auto-card-body">
+          <div style="height: 60vh"></div>
+          <div x-component:autospark.image="{ src: pic2, lazy: true, height: 200, alt: '滚动到视口才加载' }"></div>
+          <p class="hint" style="margin-top: 12px">向下滚动——图片进入视口前不发起请求。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        badPic: "https://example.invalid/broken.png",
+        fbPic: "https://picsum.photos/320/160",
+        pic2: "https://picsum.photos/640/300",
+      });
+    </script>
+  </body>
+</html>

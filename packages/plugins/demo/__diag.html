@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<body>
+  <div id="app" x-data="{ name: '', num: 3 }">
+    <input id="raw" x-model="name" />
+    <p id="echo">{{ name }}</p>
+    <span id="host" x-model="num" x-component:autospark.input></span>
+    <p id="echo2">{{ num }}</p>
+  </div>
+  <script src="/autospark.js"></script>
+  <script src="/autospark.input.js"></script>
+  <script>
+    window.__e = new AutoSpark(document.getElementById("app"), {});
+    setTimeout(() => {
+      const n = document.querySelector(".asc-input-native");
+      if (n) { n.value = "组合值"; n.dispatchEvent(new Event("input", { bubbles: true })); }
+    }, 300);
+  </script>
+</body>
+</html>

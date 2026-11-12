@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.list · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .row-btn {
+        cursor: pointer;
+        border: 1px solid #d9d9d9;
+        background: transparent;
+        border-radius: 4px;
+        padding: 2px 10px;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.list</h1>
+    <p>
+      数据驱动列表容器：items 经内层 x-for 渲染 + row 作用域插槽自定义行 + 空态
+      （autospark.empty 组合）+ loading 覆盖层 + bordered / split + virtual 虚拟滚动。
+    </p>
+
+    <div id="app">
+      <h2>基础（默认行：label/title/name/value 四键探测）</h2>
+      <div x-component:autospark.list="{ items: users }"></div>
+      <p class="hint">items 须状态引用注入（字面量数组触发 props 更新死环——已知引擎缺陷规避）。</p>
+
+      <h2>row 作用域插槽自定义行（{ item, $index } 解构 + 行内事件原生冒泡）</h2>
+      <div x-component:autospark.list="{ items: users }">
+        <template x-slot:row="{ item, $index }">
+          <b x-text="item.name"></b>
+          <span style="color: #868e96" x-text="'#' + ($index + 1)"></span>
+          <span style="margin-left: auto" class="row-btn" @click="picked = item.name">选TA</span>
+        </template>
+      </div>
+      <p class="hint">最近选中：<code x-text="picked || '（未选）'"></code>——行内 @click 在调用方作用域求值。</p>
+
+      <h2>空态（autospark.empty 组合兜底 + empty 插槽重载）</h2>
+      <div x-component:autospark.list="{ items: emptyUsers }"></div>
+      <div x-component:autospark.list="{ items: emptyUsers }">
+        <template x-slot:empty><div style="padding: 12px; text-align: center; color: #868e96">一条都没有（自定义空态）</div></template>
+      </div>
+
+      <h2>loading 覆盖层（引擎 x-loading 组合）</h2>
+      <div x-component:autospark.list="{ items: users, loading: busy }"></div>
+      <p><button @click="busy = !busy" x-text="busy ? '关闭 loading' : '开启 loading'"></button></p>
+
+      <h2>无边框 / 无分隔线</h2>
+      <div x-component:autospark.list="{ items: users, bordered: false, split: false }"></div>
+
+      <h2>virtual 虚拟滚动（10000 项，须同页引入 autospark.virtual.js）</h2>
+      <div x-component:autospark.list="{ items: bigUsers, virtual: true }"></div>
+      <p class="hint">定高滚动容器（<code>--asc-list-virtual-height</code> 可覆盖）；只渲染可见窗口 + 缓冲项。</p>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div x-component:autospark.list="{ items: users }"></div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.empty.js"></script>
+    <script src="/autospark.list.js"></script>
+    <script src="/autospark.virtual.js"></script>
+    <script>
+      const bigUsers = Array.from({ length: 10000 }, (_, i) => ({ label: `第 ${i + 1} 行 · 虚拟滚动长列表项` }));
+      new AutoSpark(document.getElementById("app"), {
+        users: [
+          { name: "张三", label: "张三" },
+          { name: "李四", label: "李四" },
+          { name: "王五", label: "王五" },
+        ],
+        emptyUsers: [],
+        bigUsers,
+        busy: false,
+        picked: "",
+      });
+    </script>
+  </body>
+</html>

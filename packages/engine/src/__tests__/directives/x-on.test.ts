@@ -102,6 +102,27 @@ describe("x-on 函数来源（Action 优先 + 表达式兜底）", () => {
         delete (globalThis as any).__spy;
     });
 
+    test("多语句表达式：退化语句体执行（demo loading 同款写法不再 created 报错）", async () => {
+        // `flag = true; __spy()` 包 return 是 SyntaxError，编译期须退化整段语句体执行；
+        // x-data 域字段写入经聚合视图 set 透传（响应式生效，x-text 联动 patch）
+        let called = 0;
+        (globalThis as any).__spy = () => {
+            called++;
+        };
+        const { root, engine } = mount(
+            `<div x-data="{ flag: false }"><button id="b1" @click="flag = true; __spy()">x</button><b x-text="flag"></b></div>`,
+            {},
+        );
+        root.querySelector("button")!.click();
+        await nextTick();
+        expect(called).toBe(1);
+        expect(root.querySelector("b")!.textContent).toBe("true");
+        // created 容错（ADR-0118）未收集任何错误
+        const scope = engine.findScopeByEl(root.querySelector("#b1")!)!;
+        expect(scope.errors.length).toBe(0);
+        delete (globalThis as any).__spy;
+    });
+
     test("action 内 this.store.state 写入联动响应式", async () => {
         const { root, engine } = mount(
             `<span x-text="count"></span><button @click="incr">+</button>`,

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.link · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .row {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.link</h1>
+    <p>
+      链接组件：href / target / disabled / icon / 语义色（type，对齐 button 范式）/
+      下划线档位（underline）。元素名快速写法 <code>&lt;x-link&gt;</code> 由 precompile
+      变换替换为真 a 元素（原生导航语义保真）。
+    </p>
+
+    <div id="app" x-data="{ ic: { name: 'star' } }">
+      <h2>基础用法（元素名快速写法）</h2>
+      <div class="row">
+        <x-link href="https://github.com/autosparkjs/autospark" label="AutoSpark 仓库"></x-link>
+        <x-link href="https://example.com" target="_blank" label="新窗口打开（自动补 noopener）"></x-link>
+        <x-link label="非链接态（无 href，纯提示）"></x-link>
+      </div>
+
+      <h2>语义色（type）</h2>
+      <div class="row">
+        <a x-component:autospark.link="{ label: '主要（缺省）' }" href="#"></a>
+        <a x-component:autospark.link="{ label: '成功', type: 'success' }" href="#"></a>
+        <a x-component:autospark.link="{ label: '警告', type: 'warning' }" href="#"></a>
+        <a x-component:autospark.link="{ label: '危险', type: 'danger' }" href="#"></a>
+        <a x-component:autospark.link="{ label: '信息', type: 'info' }" href="#"></a>
+        <a x-component:autospark.link="{ label: '中性（default）', type: 'default' }" href="#"></a>
+      </div>
+
+      <h2>图标（icon）</h2>
+      <div class="row">
+        <a x-component:autospark.link="{ label: '外部链接', href: 'https://example.com', icon: 'external' }"></a>
+        <a x-component:autospark.link="{ label: '文档', href: '#', icon: 'file' }"></a>
+        <a x-component:autospark.link="{ label: '对象形态', href: '#', icon: ic }"></a>
+      </div>
+      <p class="hint">对象 props 经状态引用注入（ic）；字面量对象/数组 props 在当前引擎版本会触发无限更新。</p>
+
+      <h2>下划线档位（underline）与禁用（disabled）</h2>
+      <div class="row">
+        <a x-component:autospark.link="{ label: '悬停下划线（缺省）', href: '#' }"></a>
+        <a x-component:autospark.link="{ label: '恒下划线', href: '#', underline: 'always' }"></a>
+        <a x-component:autospark.link="{ label: '无下划线', href: '#', underline: 'none' }"></a>
+        <a x-component:autospark.link="{ label: '禁用链接', href: '#', disabled: true }"></a>
+      </div>
+      <p class="hint">禁用态摘除 href（不可达）+ aria-disabled 标注 + 点击拦截不导航。</p>
+
+      <h2>插槽内容</h2>
+      <div class="row">
+        <a x-component:autospark.link="{ href: '#' }"><b>插槽内容</b>优先于 label 兜底</a>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="row">
+          <a x-component:autospark.link="{ label: '暗色主要', href: '#' }"></a>
+          <a x-component:autospark.link="{ label: '暗色危险', href: '#', type: 'danger' }"></a>
+          <a x-component:autospark.link="{ label: '暗色禁用', href: '#', disabled: true }"></a>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.link.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Input · type 文本族与尺寸档位</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.input.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{ pwd: '', bio: '' }">
+      <div class="auto-card">
+        <div class="auto-card-header">password + show-password（眼睛切换可见）</div>
+        <div class="auto-card-body">
+          <p><span x-model="pwd" x-component:autospark.input="{ type: 'password', showPassword: true, placeholder: '密码' }"></span></p>
+          <p class="hint">密码值：{{ pwd || '（空）' }} —— 切换不改变值，仅内层 input.type 在 password ↔ text 间翻转。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">textarea 形态（type="textarea"，rows 行数）</div>
+        <div class="auto-card-body">
+          <p><span x-model="bio" x-component:autospark.input="{ type: 'textarea', rows: 3, placeholder: '多行简介' }"></span></p>
+          <p class="hint">简介：{{ bio || '（空）' }} —— 前后置 / 清除 / 计数在 textarea 形态照常可用。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">尺寸档位（主题通道 data-size，挂任意祖先容器）</div>
+        <div class="auto-card-body">
+          <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap">
+            <span data-size="x-small"><span x-component:autospark.input="{ placeholder: 'xs' }"></span></span>
+            <span data-size="small"><span x-component:autospark.input="{ placeholder: 'sm' }"></span></span>
+            <span data-size="medium"><span x-component:autospark.input="{ placeholder: 'md（缺省）' }"></span></span>
+            <span data-size="large"><span x-component:autospark.input="{ placeholder: 'lg' }"></span></span>
+            <span data-size="x-large"><span x-component:autospark.input="{ placeholder: 'xl' }"></span></span>
+          </p>
+          <p class="hint">高度/内距消费 <code>--auto-input-height</code> / <code>--auto-input-padding</code>，档位联动即时生效（右侧面板调节亦同）。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

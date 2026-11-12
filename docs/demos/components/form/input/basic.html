@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Input · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.input.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{ name: '' }">
+      <div class="auto-card">
+        <div class="auto-card-header">最小用法：宿主元素 + x-component 实例化，x-model 双向绑定</div>
+        <div class="auto-card-body">
+          <p>
+            <span x-model="name" x-component:autospark.input="{ placeholder: '请输入用户名' }"></span>
+          </p>
+          <p class="hint">当前值：{{ name || '（空）' }} —— 宿主 <code>x-model</code> 直写（值桥协议），或元素名写法 <code>&lt;x-input&gt;</code>。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

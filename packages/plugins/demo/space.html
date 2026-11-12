@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.space · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .chip {
+        padding: 4px 12px;
+        border: 1px solid #d9d9d9;
+        border-radius: 6px;
+        background: #fff;
+        font-size: 0.875rem;
+      }
+      .card {
+        padding: 16px;
+        border: 1px solid #d9d9d9;
+        border-radius: 8px;
+        background: #fafafa;
+        font-size: 0.875rem;
+      }
+      .narrow {
+        max-width: 360px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.space</h1>
+    <p>
+      间距容器组件：间距档位（size）、排列方向（direction）、交叉轴对齐（align）、
+      换行（wrap）。纯样式容器，子元素正常编译。页面骨架窗格分割用 layout 指令族。
+    </p>
+
+    <!-- 嵌套数组/对象 props 经状态引用传入（字面量嵌套值在当前引擎有死环缺陷，
+         修复分支待合并；引用写法两种引擎下均正确） -->
+    <div id="app" x-data="{ twoAxis: [12, 24] }">
+      <h2>水平排列（缺省）与间距档位（size）</h2>
+      <div x-component:autospark.space="{}">
+        <span class="chip">medium（缺省）</span>
+        <span class="chip">按钮</span>
+        <span class="chip">标签</span>
+      </div>
+      <div x-component:autospark.space="{ size: 'x-small' }">
+        <span class="chip">x-small</span>
+        <span class="chip">按钮</span>
+        <span class="chip">标签</span>
+      </div>
+      <div x-component:autospark.space="{ size: 'large' }">
+        <span class="chip">large</span>
+        <span class="chip">按钮</span>
+        <span class="chip">标签</span>
+      </div>
+      <p class="hint">
+        档位名走 CSS 变量档（<code>--x-spacing-*</code> 标尺五档）；<code>size: 24</code>
+        为 px 数值、<code>size: '1.5em'</code> 为任意 CSS 值、<code>size: [24, 8]</code>
+        为 [水平, 垂直] 两轴。
+      </p>
+
+      <h2>垂直排列（direction）</h2>
+      <div class="narrow">
+        <div x-component:autospark.space="{ direction: 'vertical', size: 'small' }">
+          <div class="card">卡片一：vertical 态交叉轴对齐缺省起缘（左缘）。</div>
+          <div class="card">卡片二：间距档位 small。</div>
+          <div class="card">卡片三。</div>
+        </div>
+      </div>
+
+      <h2>对齐（align）</h2>
+      <div x-component:autospark.space="{ align: 'end', size: 'medium' }">
+        <span class="chip">底部对齐</span>
+        <span class="chip" style="font-size: 1.5rem">大号项</span>
+        <span class="chip">基准项</span>
+      </div>
+
+      <h2>换行（wrap）与两轴间距</h2>
+      <div class="narrow">
+        <div x-component:autospark.space="{ wrap: true, size: twoAxis }">
+          <span class="chip">项一</span>
+          <span class="chip">项二</span>
+          <span class="chip">项三</span>
+          <span class="chip">项四</span>
+          <span class="chip">项五</span>
+          <span class="chip">项六</span>
+          <span class="chip">项七</span>
+        </div>
+      </div>
+      <p class="hint">
+        wrap 时行距 = 垂直轴间距（数组第二项 24px，水平 12px）。
+      </p>
+
+      <h2>暗色态（零色彩消费，天然无感）</h2>
+      <p class="hint">
+        space 不消费任何色彩变量，暗色模式下无需变体——间距与对齐在任意主题下一致。
+      </p>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.space.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Space · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.space.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <!-- 嵌套数组/对象 props 经状态引用传入（字面量嵌套值在当前引擎有死环缺陷，
+         修复分支待合并；引用写法两种引擎下均正确） -->
+    <main class="demo-main" x-data="{ twoAxis: [8, 32] }">
+      <div class="auto-card">
+        <div class="auto-card-header">水平排列（缺省）与间距档位（size）</div>
+        <div class="auto-card-body">
+          <div x-component:autospark.space="{}">
+            <button x-component:autospark.button="{}">medium（缺省）</button>
+            <button x-component:autospark.button="{ variant: 'primary' }">按钮</button>
+            <button x-component:autospark.button="{ variant: 'dashed' }">标签</button>
+          </div>
+          <div x-component:autospark.space="{ size: 'x-small' }">
+            <button x-component:autospark.button="{}">x-small</button>
+            <button x-component:autospark.button="{}">按钮</button>
+            <button x-component:autospark.button="{}">标签</button>
+          </div>
+          <div x-component:autospark.space="{ size: 'large' }">
+            <button x-component:autospark.button="{}">large</button>
+            <button x-component:autospark.button="{}">按钮</button>
+            <button x-component:autospark.button="{}">标签</button>
+          </div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">间距值形态（number / CSS 值 / 两轴数组）</div>
+        <div class="auto-card-body">
+          <div x-component:autospark.space="{ size: 24 }">
+            <button x-component:autospark.button="{}">size: 24（px）</button>
+            <button x-component:autospark.button="{}">按钮</button>
+            <button x-component:autospark.button="{}">标签</button>
+          </div>
+          <div x-component:autospark.space="{ size: twoAxis }">
+            <button x-component:autospark.button="{}">[8, 32]（水平 8 / 垂直 32）</button>
+            <button x-component:autospark.button="{}">按钮</button>
+            <button x-component:autospark.button="{}">标签</button>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

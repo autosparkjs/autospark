@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Link · 语义色与下划线</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.link.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">语义色（type，对齐 button 范式）</div>
+        <div class="auto-card-body">
+          <p>
+            <a x-component:autospark.link="{ label: '主要（缺省）', href: '#' }"></a>
+            <a x-component:autospark.link="{ label: '成功', type: 'success', href: '#' }"></a>
+            <a x-component:autospark.link="{ label: '警告', type: 'warning', href: '#' }"></a>
+            <a x-component:autospark.link="{ label: '危险', type: 'danger', href: '#' }"></a>
+            <a x-component:autospark.link="{ label: '信息', type: 'info', href: '#' }"></a>
+            <a x-component:autospark.link="{ label: '中性（default）', type: 'default', href: '#' }"></a>
+          </p>
+          <p class="hint">语义色取 theme 的 --auto-*-color 变量；default 为正文色中性档。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">下划线档位（underline）与禁用（disabled）</div>
+        <div class="auto-card-body">
+          <p>
+            <a x-component:autospark.link="{ label: '悬停下划线（缺省）', href: '#' }"></a>
+            <a x-component:autospark.link="{ label: '恒下划线', href: '#', underline: 'always' }"></a>
+            <a x-component:autospark.link="{ label: '无下划线', href: '#', underline: 'none' }"></a>
+            <a x-component:autospark.link="{ label: '禁用（不可达）', href: '#', disabled: true }"></a>
+          </p>
+          <p class="hint">禁用态摘除 href + aria-disabled 标注 + 点击拦截（视觉淡化、不导航）。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>
