@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>field template 载体专项 e2e（ADR-0020 × ADR-0137）</title>
+<style>
+    body { font-family: sans-serif; margin: 20px; }
+</style>
+<script src="/autospark.js"></script>
+<script src="/autospark.field.js"></script>
+<script src="/autospark.input.js"></script>
+<script src="/autospark.checkbox.js"></script>
+</head>
+<body>
+<div id="app" x-scope>
+    <!-- ① input + 双插槽：template 载体投影 + 类活注入内容根 -->
+    <span id="f1" x-component:autospark.input="{ placeholder: '输入' }">
+        <template x-slot:prefix><span class="mk-pre">¥</span></template>
+        <template x-slot:suffix><button type="button" class="mk-suf" data-autospark-action>清</button></template>
+    </span>
+
+    <!-- ② 无插槽 input：出口静默消失 -->
+    <span id="f2" x-component:autospark.input></span>
+
+    <!-- ③ 裸态继承 checkbox（无盒饰无插槽）：无害 -->
+    <span id="f3" x-component:autospark.checkbox></span>
+</div>
+
+<script>
+    window.engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {});
+    window.__collect = () => {
+        const fieldRoot = (id) => document.querySelector(`#${id} .asc-field`) || document.getElementById(id);
+        const f1 = document.getElementById("f1");
+        const f2 = document.getElementById("f2");
+        const f3 = document.getElementById("f3");
+        const pre = f1.querySelector(".asc-field-prefix");
+        const suf = f1.querySelector(".asc-field-suffix");
+        const cs = (el, prop) => el ? getComputedStyle(el)[prop] : "(none)";
+        return {
+            // ① 投影可见 + 类注入拼接（消费方类保留 + 注入类落内容根）
+            f1_pre_text: pre?.textContent,
+            f1_pre_visible: !!pre && pre.offsetParent !== null,
+            f1_pre_has_mk: pre?.classList.contains("mk-pre"),
+            f1_suf_text: suf?.textContent,
+            // ① 间距/防收缩几何（template 载体规则落内容根）
+            f1_pre_margin_end: cs(pre, "marginInlineEnd"),
+            f1_pre_flex: cs(pre, "flexGrow"),
+            f1_suf_margin_start: cs(suf, "marginInlineStart"),
+            // ① DOM 序 [prefix][body][suffix]
+            f1_seq_ok: (() => {
+                const seq = Array.from(f1.children).map((n) => n.className || n.tagName);
+                return seq.length >= 3 && String(seq[0]).includes("asc-field-prefix")
+                    && String(seq[1]).includes("asc-field-body")
+                    && String(seq[seq.length - 1]).includes("asc-field-suffix");
+            })(),
+            // ① 次要色落在内容根
+            f1_pre_color: cs(pre, "color"),
+            // ② 无插槽：出口消失（无节点、无 template 残留）
+            f2_no_prefix: !f2.querySelector(".asc-field-prefix"),
+            f2_no_suffix: !f2.querySelector(".asc-field-suffix"),
+            f2_no_template: !f2.querySelector("template"),
+            f2_control: !!f2.querySelector("[data-autospark-control]"),
+            // ③ 裸态继承：正常渲染 + 零出口残留
+            f3_checkbox: !!f3.querySelector("input[type=checkbox]"),
+            f3_no_template: !f3.querySelector("template"),
+            f3_no_outlet: !f3.querySelector(".asc-field-prefix") && !f3.querySelector(".asc-field-suffix"),
+        };
+    };
+    // ① 点击转发：装饰点击落控件（动作件 data-autospark-action 不转发）
+    window.__clickDeco = () => {
+        const pre = document.querySelector("#f1 .asc-field-prefix");
+        if (pre) pre.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        return document.activeElement?.dataset.autosparkControl === "";
+    };
+</script>
+</body>
+</html>

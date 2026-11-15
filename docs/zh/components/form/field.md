@@ -69,7 +69,7 @@ input 类控件在宿主上拼 `asc-field-box` 得盒饰 chrome（边框 / 底�
 ```
 
 - **default**：控件位。直接实例化时装消费方内容；被子组件继承时被子组件默认段替换（消费方内容仍可再覆盖）；
-- **prefix / suffix**：具名装饰出口。消费方任意 HTML，默认次要色（`--auto-secondary-color`）、出口子元素逐项 `0.4em` 间距 + 防收缩；空插槽零布局（`display: contents` 出口 + 空 fallback，不产生布局层）；
+- **prefix / suffix**：具名装饰出口。消费方任意 HTML（建议单根），默认次要色（`--auto-secondary-color`）、`0.4em` 间距 + 防收缩（`flex: none`）随出口 class 活注入落内容根；空插槽整出口静默消失（零多余 DOM）；
 - **点击转发焦点**：点击装饰（非控件非动作件）焦点落控件——插槽内放交互件（按钮等）须自标 `data-autospark-action` 自理焦点；
 - **轻装饰 / 重装饰分层**：子组件的 props 前后置（如 Input 的 `prefix` / `suffix` 文本|图标）是轻装饰（贴控件），插槽前后置是重装饰（恒在外侧），两者共存不互斥——呈现序恒为 `[slot:prefix] [props前缀] 控件 [动作件] [props后缀] [slot:suffix]`。
 

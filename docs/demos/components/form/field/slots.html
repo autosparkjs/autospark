@@ -51,7 +51,7 @@
               <template x-slot:suffix><span>元 / 月</span></template>
             </span>
           </p>
-          <p class="hint">当前值：{{ price || '（空）' }} —— 宿主直接子级以 <code>&lt;template x-slot:prefix&gt;</code> / <code>x-slot:suffix</code> 标记分段；空插槽零布局（<code>display: contents</code> 出口）。</p>
+          <p class="hint">当前值：{{ price || '（空）' }} —— 宿主直接子级以 <code>&lt;template x-slot:prefix&gt;</code> / <code>x-slot:suffix</code> 标记分段；空插槽整出口静默消失（template 载体，零多余 DOM）。</p>
         </div>
       </div>
       <div class="auto-card">

@@ -7790,10 +7790,10 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       默认出口（.asc-field-body，display:contents 不产生布局层；子组件全部控件结构\r
       经默认段替换出口 fallback（继承覆盖，ADR-0081），直接实例化时消费方内容同位）\r
       + prefix / suffix 具名装饰出口（body 兄弟位，DOM 序固定\r
-      [slot:prefix][body][slot:suffix]；span 载体 + display:contents + 空 fallback\r
-      ——无内容零布局，裸态控件组件继承亦无害。注：engine ADR-0137 template 载体\r
-      是更优形态（无内容出口静默消失、零多余 DOM），但真浏览器实测不展开（缺陷\r
-      待引擎修复），修复后一行切回 template 载体）；盒饰 chrome 为 .asc-field-box\r
+      [slot:prefix][body][slot:suffix]；template 载体（ADR-0137，2026-11-15 切换）\r
+      ——class 经属性活注入落投影内容首根（间距/防收缩规则随类落内容根本身），\r
+      无内容整出口静默消失、零多余 DOM，裸态控件组件继承亦无害；多根装饰仅首根\r
+      得注入类——装饰出口建议单根，多根后续节点消费方自理）；盒饰 chrome 为 .asc-field-box\r
       选配类（input 类控件用，checkbox/radio/switch 等裸态控件不用）\r
     - 轻装饰/重装饰分层（2026-11-14 修订）：子组件 props 前后置（input 的\r
       prefix/suffix 文本|图标）是轻装饰（组件内贴控件），插槽前后置是重装饰\r
@@ -8026,26 +8026,25 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       cursor: default;\r
     }\r
 \r
-    /* ---------- 具名装饰出口 prefix/suffix（2026-11-14 修订）：display:contents\r
-         出口包裹层不产生布局层——无内容零布局（裸态控件组件继承亦无害）；\r
-         内容默认次要色（消费方设色自然覆盖）+ 出口子元素逐项间距\r
-         （0.4em 镜像 .asc-input-prefix/suffix 惯例，多子项自然连续）。\r
-         注：待 engine ADR-0137 template 载体真浏览器缺陷修复后切换（无内容出口\r
-         静默消失），届时间距/防收缩规则随活注入改落内容根本身 ---------- */\r
+    /* ---------- 具名装饰出口 prefix/suffix（2026-11-15 切 template 载体，ADR-0137）：\r
+         出口无包裹层——类经属性活注入落投影内容首根，内容根即骨架 flex 项：\r
+         次要色设在内容根（消费方设色自然覆盖）+ 防收缩换行（控件 width:100% 会挤压\r
+         装饰至 min-content，flex:none 镜像 .asc-input-prefix 同款保护）与间距（0.4em\r
+         镜像 .asc-input-prefix/suffix 惯例）直接落内容根本身。无内容整出口静默消失\r
+         （零多余 DOM，裸态控件组件继承亦无害）；多根装饰仅首根得注入类——装饰出口\r
+         建议单根，多根后续节点消费方自理 ---------- */\r
     .asc-field-prefix,\r
     .asc-field-suffix {\r
-      display: contents;\r
       color: var(\r
         --auto-secondary-color,\r
         var(--asc-field-affix, rgba(96, 96, 96, 0.75))\r
       );\r
     }\r
-    /* 防收缩换行：控件 width:100% 会挤压装饰至 min-content（flex:none 镜像 .asc-input-prefix 同款保护） */\r
-    .asc-field-prefix > * {\r
+    .asc-field-prefix {\r
       flex: none;\r
       margin-inline-end: 0.4em;\r
     }\r
-    .asc-field-suffix > * {\r
+    .asc-field-suffix {\r
       flex: none;\r
       margin-inline-start: 0.4em;\r
     }\r
@@ -8116,14 +8115,14 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     }\r
   </style>\r
   <!-- 三出口（文档序即呈现序 [slot:prefix][默认段][slot:suffix]，2026-11-14 修订）：\r
-       prefix / suffix 具名装饰出口空 fallback——无内容零布局（display:contents），\r
-       消费方经宿主直接子级标记 <template x-slot:prefix> 投影任意内容（默认次要色，\r
-       恒在子组件 props 轻装饰外侧）；默认出口被子组件默认段替换（继承覆盖，\r
-       ADR-0081）——直接实例化时消费方内容同位，三层优先级：\r
-       消费方内容 > 继承覆盖 > 本空 fallback -->\r
-  <span class="asc-field-prefix" x-slot:prefix></span>\r
+       prefix / suffix 具名装饰出口 template 载体（ADR-0137，2026-11-15 切换）——无\r
+       内容整出口静默消失，消费方经宿主直接子级标记 <template x-slot:prefix> 投影\r
+       任意内容（class 活注入落内容首根：次要色/间距/防收缩随类落根，恒在子组件\r
+       props 轻装饰外侧）；默认出口被子组件默认段替换（继承覆盖，ADR-0081）——\r
+       直接实例化时消费方内容同位，三层优先级：消费方内容 > 继承覆盖 > 本空 fallback -->\r
+  <template class="asc-field-prefix" x-slot:prefix></template>\r
   <span class="asc-field-body" x-slot></span>\r
-  <span class="asc-field-suffix" x-slot:suffix></span>\r
+  <template class="asc-field-suffix" x-slot:suffix></template>\r
 </span>\r
 `,ga=`autospark.field`;function _a(e){e.components[ga]=ha}va();function va(){y(e=>{m(e),_a(e)})}var ya=`<!--\r
     autospark.input 输入框（ADR-0020）——原生增强路线：真实原生控件（input / textarea）\r

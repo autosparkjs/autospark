@@ -372,7 +372,7 @@ describe("装饰插槽（field 具名出口穿透，ADR-0020 2026-11-14 修订�
     const cssx = tplx(FIELD_NAME);
     expect(cssx).toContain(".asc-field-prefix{flex:none;margin-inline-end:0.4em;}");
     expect(cssx).toContain(".asc-field-suffix{flex:none;margin-inline-start:0.4em;}");
-    expect(cssx).not.toContain("display:contents;color:var(--auto-secondary-color");
+    expect(cssx).toContain(".asc-field-prefix,.asc-field-suffix{color:var(--auto-secondary-color");
     // 装饰默认次要色（暗色块成对）
     expect(cssx).toContain("color:var(--auto-secondary-color");
     expect(css.match(/\[dark\] \.asc-field-prefix/g)?.length).toBeGreaterThan(0);

@@ -1,6 +1,7 @@
 # ADR-0137：template 出口载体与出口注入（可选插槽）
 
 - 状态：已采纳（2026-11-14 当日实施：单测 21 例 + 真浏览器 e2e 16 项断言全绿）
+- 修订（2026-11-15）：**缺陷警示误报澄清 + 产物路径复证**。2026-11-14 晚间曾记录「Chromium IIFE 产物下 template 出口不展开」缺陷（症状：出口 template 残留、内容落 `template.content` 不可见）——该症状与本文背景第 4 点的**实施前半残现状**完全一致，实证所用产物为 ADR-0137 实施前构建的陈旧 IIFE，警示系误报。2026-11-15 以实施后源码重建产物（Bun.serve + Playwright 驱动 `template-outlet-e2e.html` 全 15 项断言）复证通过；消费侧 `autospark.field` 的 prefix/suffix 出口已切 template 载体（ADR-0020 注记闭环），专项 18 项断言（投影可见/类注入拼接/几何间距/防收缩/DOM 序/次要色/点击转发/空出口消失/裸态继承零残留）全绿。教训固化：**e2e 断言必须经 runner 驱动且产物须与被测源码同源重建**，陈旧产物 + 无 runner 的「全绿/翻车」双向皆不可信。
 - 日期：2026-11-14
 - 关联：[ADR-0056](0056-x-slot.md)（插槽机制）、[ADR-0062](0062-overlay-shell.md)（live 段 / shell）、[ADR-0081](0081-component-define-inherit.md)（继承覆盖段）、[ADR-0084](0084-x-super-slot-fallback.md)（x-super）、[ADR-0107](0107-slots-registry-and-dynamic-outlets.md)（动态出口名 / $slots）、[ADR-0108](0108-x-slot-bind-caller-bindings.md)（传递绑定）、[ADR-0124](0124-overlay-content-component.md)（点分出口名 / shell 分段）、[ADR-0125](0125-slot-forwarding.md)（插槽转发）
 
