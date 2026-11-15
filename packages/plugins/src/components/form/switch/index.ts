@@ -8,9 +8,9 @@
  * Space/Enter 切换（data-autospark-action 交互件通道，点击不转发焦点）。开/关双态 +
  * loading 态（滑块转 CSS 旋转圈）+ disabled。
  *
- * 继承 autospark.base-field 表单域骨架（状态色通道 / 焦点态 / disabled 同步，裸态无
- * 盒饰）——本产物以副作用导入内嵌 base-field 注册（继承链 switch → base-field →
- * autospark.base，ADR-0020），按需加载场景无须单独引入 autospark.base-field.js。
+ * 继承 autospark.field 表单域骨架（状态色通道 / 焦点态 / disabled 同步，裸态无
+ * 盒饰）——本产物以副作用导入内嵌 field 注册（继承链 switch → field →
+ * autospark.base，ADR-0020），按需加载场景无须单独引入 autospark.field.js。
  *
  * 值通道（x-model 兼容协议）：宿主 el.value 劫持为**布尔语域**（"true"/"false"，配
  * `x-model.boolean` 类型保真）；切换派发 input（x-model 回写）+ change（detail =
@@ -27,7 +27,7 @@
 import type { AutoSpark } from "autospark";
 import { captureNamespace } from "../../../utils/namespace";
 import { installPlugin } from "@autospark/utils";
-import "../../base/base-field/index";
+import "../../base/field/index";
 import switchTemplate from "./switch.html?raw";
 
 /** 组件注册名（autospark. 点前缀命名空间，ADR-0094；kebab 免疫 DOM 属性名小写化） */

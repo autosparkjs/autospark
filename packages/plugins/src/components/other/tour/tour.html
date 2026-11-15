@@ -1,0 +1,410 @@
+<!--
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
+    不会求值——遮罩高亮框与气泡全部落在编译子树的内层元素上，宿主为透明块壳。
+
+    形态裁定（自绘 fixed 遮罩 + 气泡，不组合 x-popover 指令——ADR-0031 选型声明）：
+    x-popover 由宿主 hover/click 驱动（无程序化 visible 通道）且锚定宿主即声明元素，
+    tour 需步进程序驱动 + 锚定组件外动态目标（steps[i].target 选择器），两点结构性
+    不适配——按 image-viewer 自建 fixed 层先例自绘，渲染在 engine 宿主树内（非
+    teleport），事件沿 DOM 冒泡外层 @close / @change 直接可收。已知边界：宿主祖先链
+    transform/filter 时 fixed 相对该祖先（CSS 含有块规则）。
+
+    遮罩高亮选型（box-shadow 大投影，ADR-0031）：高亮框单 fixed 元素，
+    box-shadow 0 0 0 100vmax 半透明黑即全页遮罩（intro.js 同款）——圆角高亮免费、
+    步进过渡走 CSS transition。高亮框 pointer-events:none：遮罩为纯视觉层不拦截
+    页面交互（设计取舍非缺陷，拦截式后续 props 化增补）。
+
+    首开零闪烁协议（ADR-0031）：气泡/高亮框 :not([data-placed]) 时 visibility
+    hidden（display 经 x-show 生效但坐标未写定前不可见），JS 通道写完坐标后落
+    data-placed——首帧直接到位；data-placed 在场后 transition 生效（步进平滑）。
+
+    受控语义：visible（el.value 桥：读 = 当前开关、写 = 开关经 watch 定位，不广播）
+    + current（props 单向驱动 + 内部步进写 data + change detail={current}）。
+    末步自动关：末步「完成」点击即内部写 visible=false + close 广播 + input 非冒泡
+    （x-model 回写通道）——未接线调用方亦能自然关闭，接线方回写状态闭环。
+    打开边沿不重置 current（纯受控；重开从头建议调用方随 close 一并归零）。
+
+    i18n 消费（ADR-0018 决策 6 约定 1）：动作钮文案走词典 tour.prev / next / skip /
+    finish 键，键等值判定（未装 i18n / 词典无键时 t(键)===键）回退硬编码中文。
+
+    目标 miss 跳步：steps[i].target 未命中 → console.warn + 跳下一步（链式重入）；
+    全 miss / 末步 miss → warn + 关闭链。steps 空数组打开为无操作（均不亮相）。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得——气泡字号以 em 标定随 data-size 档位全跟随；本件不在 data()
+     声明主题六键，内部变体属性亦禁用六个通道名 -->
+<div class="asc-tour" x-define="autospark.tour" x-define:inherit="autospark.base">
+  <script setup>
+    {
+        data: () => ({
+            steps: [],     // 步骤 { target（CSS 选择器）, title?, content }[]——状态引用注入（字面量数组死环规避，ADR-0021 规避 5；变更须整体替换）
+            visible: false, // 受控开关（true 打开引导；末步完成/跳过自动关——close 广播 + input 回写）
+            current: 0,    // 当前步（受控缺省 0；props 单向驱动 + 内部步进写 data + change 广播）
+            // computed 简写（普通函数值即计算属性，仅限单表达式，message-box 同款）
+            stepCount: (s) => (s.steps || []).length,
+            curStep: (s) => (s.steps || [])[s.current] || null,
+            isLast: (s) => s.current >= (s.steps || []).length - 1,
+        }),
+        methods: {
+            // 目标解析：document 范围 querySelector（全页引导语境，目标可在任意处）
+            resolveTarget(step) {
+                if (!step || typeof step.target !== "string" || !step.target) return null;
+                try { return document.querySelector(step.target); }
+                catch { return null; } // 非法选择器按 miss 处理（不抛出）
+            },
+            // 定位同步（立即路径：几何重算，scroll/resize 高频通道）：
+            // 高亮框写 rect（呼吸边 pad）→ 气泡下方优先/上翻 + 水平 clamp → data-placed 落位
+            syncPosition() {
+                if (!this.data.visible) return;
+                const steps = this.data.steps || [];
+                if (!steps.length) return; // 空步骤无操作（props 注入未达/纯空——不亮相不关闭，x-show 已兜）
+                const hi = this.el.querySelector(".asc-tour-highlight");
+                const bubble = this.el.querySelector(".asc-tour-bubble");
+                if (!hi || !bubble) return;
+                // —— 目标 miss 跳步（链式重入）：warn + 跳下一步；全 miss / 末步 miss → 关闭 ——
+                const step = steps[this.data.current];
+                const target = this.resolveTarget(step);
+                if (!target) {
+                    console.warn("[autospark.tour] 步骤 " + (this.data.current + 1) + " 的目标选择器未命中："
+                        + (step ? JSON.stringify(step.target) : "(步骤缺席)") + "——已跳过");
+                    if (this.data.current < steps.length - 1) {
+                        this.data.current = this.data.current + 1;
+                        this.emitChange();
+                        return this.syncPosition();
+                    }
+                    this.closeTour();
+                    return;
+                }
+                // —— 高亮框：目标 rect + 呼吸边（fixed 坐标系 = 视口坐标，rect 直读） ——
+                const rect = target.getBoundingClientRect();
+                const pad = 6;
+                hi.style.left = (rect.left - pad) + "px";
+                hi.style.top = (rect.top - pad) + "px";
+                hi.style.width = (rect.width + pad * 2) + "px";
+                hi.style.height = (rect.height + pad * 2) + "px";
+                hi.setAttribute("data-placed", "");
+                // —— 气泡：目标下方优先，视口空间不足上翻（data-side 驱动方向视觉）；
+                //    水平 clamp 视口 8px 边距 ——
+                const bw = bubble.offsetWidth;
+                const bh = bubble.offsetHeight;
+                const gap = 12;
+                const viewW = window.innerWidth || document.documentElement.clientWidth;
+                const viewH = window.innerHeight || document.documentElement.clientHeight;
+                let top = rect.bottom + pad + gap;
+                let side = "bottom";
+                if (top + bh > viewH - 8 && rect.top - pad - gap - bh >= 8) {
+                    top = rect.top - pad - gap - bh;
+                    side = "top";
+                }
+                let left = rect.left - pad;
+                left = Math.max(8, Math.min(left, viewW - bw - 8));
+                bubble.style.left = left + "px";
+                bubble.style.top = top + "px";
+                bubble.setAttribute("data-side", side);
+                bubble.setAttribute("data-placed", "");
+            },
+            // 延迟一跳定位（内容更新通道：visible/current/steps 变化后，气泡内容与
+            // x-show 显隐经调度器微任务落定，setTimeout 0 宏任务必在其后——offsetWidth
+            // 读到真实值）
+            scheduleSync() {
+                setTimeout(() => this.syncPosition(), 0);
+            },
+            // 步切换广播（detail={current}，冒泡——外层 @change 一行回写）
+            emitChange() {
+                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { current: this.data.current } }));
+            },
+            // 关闭链：内部写 visible=false（末步自动关成立——未接线调用方亦能关）+
+            // input 非冒泡（x-model 回写通道）+ close 冒泡（接线方知情）
+            closeTour() {
+                if (!this.data.visible) return;
+                this.data.visible = false;
+                this.el.dispatchEvent(new Event("input", { bubbles: false }));
+                this.el.dispatchEvent(new CustomEvent("close", { bubbles: true }));
+            },
+            // 上一步（首步不动作；disabled 绑定兜底）
+            onPrev() {
+                if (this.data.current <= 0) return;
+                this.data.current = this.data.current - 1;
+                this.emitChange();
+                this.scheduleSync();
+            },
+            // 下一步：末步 = 完成语义 → 自动关；否则步进 + 广播
+            onNext() {
+                const len = (this.data.steps || []).length;
+                if (this.data.current >= len - 1) { this.closeTour(); return; }
+                this.data.current = this.data.current + 1;
+                this.emitChange();
+                this.scheduleSync();
+            },
+            // 跳过引导（关闭链同款）
+            onSkip() {
+                this.closeTour();
+            },
+        },
+        mounted() {
+            // el.value 劫持桥（受控 visible 的 DOM 通道：x-model / 程序读写皆经此）——
+            // 读 = 当前开关；写 = 开关（经 watch 走定位同步，不广播）
+            Object.defineProperty(this.el, "value", {
+                get: () => !!this.data.visible,
+                set: (v) => { this.data.visible = !!v; },
+                configurable: true,
+            });
+
+            // 受控驱动：visible / current / steps 变化 → 延迟一跳定位（内容更新后）
+            this.watch("visible", () => { if (this.data.visible) this.scheduleSync(); });
+            this.watch("current", () => this.scheduleSync());
+            this.watch("steps", () => this.scheduleSync());
+            // 初值打开（props 注入早于 mounted 的 watch 注册，无变化不触发——首挂即开场景补定位）
+            if (this.data.visible) this.scheduleSync();
+
+            // 滚动/resize 跟随：window scroll capture（整页任意滚动容器——子容器滚动
+            // 不冒泡 window，capture 在 window 侧截获）+ resize；仅 visible 时重算
+            const onTrack = () => { if (this.data.visible) this.syncPosition(); };
+            window.addEventListener("scroll", onTrack, true);
+            window.addEventListener("resize", onTrack);
+
+            // 目标尺寸突变跟随（条件渲染/动态内容等；happy-dom 等无 RO 环境静默退化）
+            let ro = null;
+            if (typeof ResizeObserver !== "undefined") {
+                ro = new ResizeObserver(() => { if (this.data.visible) this.syncPosition(); });
+                ro.observe(document.documentElement);
+            }
+
+            // 监听卫生（document/window 级长命对象，防泄漏——image-viewer 同款纪律）：
+            // 清理器落宿主 expando，unmounted 摘除
+            this.el["_ascTourCleanup"] = () => {
+                window.removeEventListener("scroll", onTrack, true);
+                window.removeEventListener("resize", onTrack);
+                if (ro) ro.disconnect();
+            };
+        },
+        unmounted() {
+            // 宿主可能已拆——可选链静默通过
+            this.el?.["_ascTourCleanup"]?.();
+        },
+    }
+  </script>
+  <style global id="autospark-components-tour">
+    /* 宿主：透明块壳（fixed 层在内层），字号基线经 data-size 档位跟随（气泡以 em 标定） */
+    .asc-tour {
+      display: block;
+      width: 100%;
+      font-size: var(--auto-font-size, var(--asc-tour-font-size, 0.875rem));
+      line-height: var(--auto-line-height, 1.5);
+    }
+
+    /* ---------- 高亮框：fixed + box-shadow 大投影遮罩（单元素选型，ADR-0031） ---------- */
+    .asc-tour-highlight {
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: var(--asc-tour-z, 1000);
+      border-radius: var(--auto-border-radius, var(--asc-tour-highlight-radius, 0.375rem));
+      /* 大投影即全页遮罩（100vmax 任意页面尺寸全覆盖）；遮罩色恒半透明黑（明暗通吃，
+         非主题映射——遮罩语境恒暗，image-viewer 同款声明） */
+      box-shadow: 0 0 0 100vmax var(--asc-tour-mask, rgba(0, 0, 0, 0.55));
+      pointer-events: none; /* 纯视觉层不拦截页面交互（ADR-0031 设计取舍） */
+      /* 首开零闪烁协议：定位未落位不可见；落位后步进过渡平滑（四几何属性） */
+      visibility: hidden;
+      transition:
+        left 0.25s ease,
+        top 0.25s ease,
+        width 0.25s ease,
+        height 0.25s ease;
+    }
+    .asc-tour-highlight[data-placed] {
+      visibility: visible;
+    }
+
+    /* ---------- 气泡：fixed 定位（JS 通道写 left/top）+ 面板盒饰 ---------- */
+    .asc-tour-bubble {
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: calc(var(--asc-tour-z, 1000) + 1); /* 恒在高亮框之上 */
+      box-sizing: border-box;
+      width: min(20rem, calc(100vw - 1rem));
+      padding: var(--auto-padding, var(--asc-tour-padding, 0.9rem));
+      background: var(--auto-bgcolor, var(--asc-tour-bg, #ffffff));
+      border-radius: var(--auto-border-radius, var(--asc-tour-radius, 0.5rem));
+      box-shadow: var(--auto-shadow, var(--asc-tour-shadow, 0 4px 16px rgba(0, 0, 0, 0.16)));
+      color: var(--auto-color, var(--asc-tour-color, #606060));
+      visibility: hidden; /* 首开零闪烁协议（同高亮框） */
+      transition:
+        left 0.25s ease,
+        top 0.25s ease;
+    }
+    .asc-tour-bubble[data-placed] {
+      visibility: visible;
+    }
+    .asc-tour-bubble-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6em;
+      min-width: 0;
+    }
+    /* 标题：medium 字重 + 略大（引导主旨，message-box 同款语言）；缺席不占位 */
+    .asc-tour-title {
+      font-size: 1.1em;
+      font-weight: var(--x-font-weight-medium, 500);
+      color: var(--auto-color, var(--asc-tour-title-color, #303030));
+    }
+    .asc-tour-title:empty {
+      display: none;
+    }
+    /* 内容：次要文字色 */
+    .asc-tour-content {
+      color: var(--auto-secondary-color, var(--asc-tour-content-color, rgba(0, 0, 0, 0.55)));
+      word-break: break-word;
+    }
+
+    /* ---------- 动作区：跳过（链接式）+ 步指示 + 上一步/下一步（自绘轻量钮） ---------- */
+    .asc-tour-footer {
+      display: flex;
+      align-items: center;
+      gap: 0.6em;
+    }
+    /* 跳过：链接式文本钮（无边框，次要色弱化） */
+    .asc-tour-skip {
+      appearance: none;
+      border: none;
+      background: transparent;
+      padding: 0.2em 0.1em;
+      font-size: 0.875em;
+      color: var(--auto-secondary-color, var(--asc-tour-skip-color, rgba(0, 0, 0, 0.55)));
+      cursor: pointer;
+    }
+    .asc-tour-skip:hover {
+      color: var(--auto-color, var(--asc-tour-skip-color, #606060));
+    }
+    /* 步指示：当前/总数，辅助色；右钮组推开 */
+    .asc-tour-indicator {
+      flex: 1;
+      text-align: center;
+      font-size: 0.875em;
+      color: var(--auto-third-color, var(--asc-tour-indicator-color, rgba(0, 0, 0, 0.45)));
+      font-variant-numeric: tabular-nums;
+    }
+    /* 自绘轻量钮（page-header 先例：钮盒饰成本低于跨产物依赖，保按需加载自包含） */
+    .asc-tour-btn {
+      appearance: none;
+      border: var(--auto-border-size, var(--asc-tour-btn-border-size, 1px)) solid
+        var(--auto-border-color, var(--asc-tour-btn-border-color, #d9d9d9));
+      background: var(--auto-bgcolor, var(--asc-tour-btn-bg, #ffffff));
+      color: var(--auto-color, var(--asc-tour-btn-color, #606060));
+      border-radius: var(--auto-border-radius, var(--asc-tour-btn-radius, 0.375rem));
+      padding: 0.25em 0.9em;
+      font-size: 0.875em;
+      line-height: 1.5;
+      cursor: pointer;
+      transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease,
+        color 0.15s ease;
+    }
+    .asc-tour-btn:hover:not(:disabled) {
+      border-color: var(--auto-hover-border-color, var(--asc-tour-btn-hover-border, #2563eb));
+      color: var(--auto-hover-color, var(--asc-tour-btn-hover-color, #2563eb));
+    }
+    .asc-tour-btn:disabled {
+      color: var(--auto-disable-color, var(--asc-tour-btn-disable-color, rgba(0, 0, 0, 0.3)));
+      border-color: var(
+        --auto-disable-border-color,
+        var(--asc-tour-btn-disable-border, rgba(0, 0, 0, 0.15))
+      );
+      cursor: not-allowed;
+    }
+    /* 主钮（下一步/完成）：主色实底白字——语义色底上的白字恒定设计（非变量映射） */
+    .asc-tour-btn-primary {
+      border-color: transparent;
+      background: var(--auto-primary-color, var(--asc-tour-primary, #2563eb));
+      color: var(--asc-tour-primary-color, #ffffff);
+    }
+    .asc-tour-btn-primary:hover:not(:disabled) {
+      background: var(--auto-hover-bgcolor, var(--asc-tour-primary-hover, #1d4ed8));
+      color: var(--asc-tour-primary-color, #ffffff);
+    }
+
+    /* ---------- 动效可访问性：reduced-motion 停播（步进过渡） ---------- */
+    @media (prefers-reduced-motion: reduce) {
+      .asc-tour-highlight,
+      .asc-tour-bubble {
+        transition: none;
+      }
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-tour-bubble,
+    [data-dark] .asc-tour-bubble {
+      background: var(--auto-bgcolor, var(--asc-tour-bg, #1f1f1f));
+      box-shadow: var(--auto-shadow, var(--asc-tour-shadow, 0 4px 16px rgba(0, 0, 0, 0.4)));
+      color: var(--auto-color, var(--asc-tour-color, #fafafa));
+    }
+    [dark] .asc-tour-title,
+    [data-dark] .asc-tour-title {
+      color: var(--auto-color, var(--asc-tour-title-color, #fafafa));
+    }
+    [dark] .asc-tour-content,
+    [data-dark] .asc-tour-content {
+      color: var(--auto-secondary-color, var(--asc-tour-content-color, rgba(255, 255, 255, 0.65)));
+    }
+    [dark] .asc-tour-skip,
+    [data-dark] .asc-tour-skip {
+      color: var(--auto-secondary-color, var(--asc-tour-skip-color, rgba(255, 255, 255, 0.65)));
+    }
+    [dark] .asc-tour-skip:hover,
+    [data-dark] .asc-tour-skip:hover {
+      color: var(--auto-color, var(--asc-tour-skip-color, #fafafa));
+    }
+    [dark] .asc-tour-indicator,
+    [data-dark] .asc-tour-indicator {
+      color: var(--auto-third-color, var(--asc-tour-indicator-color, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-tour-btn,
+    [data-dark] .asc-tour-btn {
+      background: var(--auto-bgcolor, var(--asc-tour-btn-bg, #1f1f1f));
+      color: var(--auto-color, var(--asc-tour-btn-color, #fafafa));
+      border-color: var(
+        --auto-border-color,
+        var(--asc-tour-btn-border-color, rgba(255, 255, 255, 0.25))
+      );
+    }
+    [dark] .asc-tour-btn:disabled,
+    [data-dark] .asc-tour-btn:disabled {
+      color: var(--auto-disable-color, var(--asc-tour-btn-disable-color, rgba(255, 255, 255, 0.3)));
+      border-color: var(
+        --auto-disable-border-color,
+        var(--asc-tour-btn-disable-border, rgba(255, 255, 255, 0.15))
+      );
+    }
+  </style>
+  <!-- 高亮框：visible 且有步时亮相（x-show 切 display；坐标 JS 通道写，data-placed 前不可见） -->
+  <div class="asc-tour-highlight" x-show="visible && stepCount > 0"></div>
+  <!-- 气泡：标题/内容/动作区（编译子树内层，绑定可求值）；文案 i18n 键等值判定回退中文 -->
+  <div
+    class="asc-tour-bubble"
+    role="dialog"
+    aria-label="漫游引导"
+    x-show="visible && stepCount > 0"
+  >
+    <div class="asc-tour-bubble-body">
+      <!-- 标题：插值 + :empty 不占位（多实例 x-if 串台缺陷规避，statistic 同款纪律） -->
+      <div class="asc-tour-title">{{ curStep && curStep.title ? curStep.title : '' }}</div>
+      <div class="asc-tour-content">{{ curStep ? (curStep.content || "") : "" }}</div>
+      <div class="asc-tour-footer">
+        <button type="button" class="asc-tour-skip" @click="onSkip()">
+          {{ t('tour.skip') === 'tour.skip' ? '跳过' : t('tour.skip') }}
+        </button>
+        <span class="asc-tour-indicator">{{ (current + 1) + ' / ' + stepCount }}</span>
+        <button type="button" class="asc-tour-btn" :disabled="current <= 0" @click="onPrev()">
+          {{ t('tour.prev') === 'tour.prev' ? '上一步' : t('tour.prev') }}
+        </button>
+        <button type="button" class="asc-tour-btn asc-tour-btn-primary" @click="onNext()">
+          {{ isLast ? (t('tour.finish') === 'tour.finish' ? '完成' : t('tour.finish')) :
+          (t('tour.next') === 'tour.next' ? '下一步' : t('tour.next')) }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

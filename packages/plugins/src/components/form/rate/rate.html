@@ -4,7 +4,7 @@
     100% 整星 / 50% 半星）。可访问性自持：role=slider 单焦点键盘模型（tabindex +
     aria-valuemin/now/max + Arrow 方向调分 + Home/End 归位），switch 的 role=switch
     同款自持范式（ADR-0018 决策 7 表单基座策略内的自绘例外形态）。继承
-    autospark.base-field 骨架（状态色通道/焦点态/disabled 同步，裸态无盒饰）。
+    autospark.field 骨架（状态色通道/焦点态/disabled 同步，裸态无盒饰）。
 
     值桥（x-model 兼容协议）：宿主 el.value 劫持为数字语域（"0".."N"[.5]）——
     提交（点击/键盘）派发 input（x-model 回写非冒泡）+ change（detail={ value }
@@ -26,7 +26,7 @@
 <span
   class="asc-rate"
   x-define="autospark.rate"
-  x-define:inherit="autospark.base-field"
+  x-define:inherit="autospark.field"
 >
   <script setup>
     {
@@ -289,7 +289,7 @@
     .asc-rate[data-focus]:not([data-disabled]) .asc-rate-stars {
       box-shadow: 0 0 0 2px
         color-mix(in srgb, var(--asc-field-tone) 22%, transparent);
-      border-radius: 0.25em;
+      border-radius: var(--auto-border-radius, var(--asc-rate-focus-radius, 0.25em));
     }
     /* 禁用（骨架通道 [data-disabled]）：整体淡化（点亮 tone 保留可辨）+ 禁点光标 */
     .asc-rate[data-disabled] {
@@ -318,10 +318,10 @@
       );
     }
   </style>
-  <!-- 默认段（替换 base-field 出口 fallback）：表单载体（hidden，骨架 disabled 同步
+  <!-- 默认段（替换 field 出口 fallback）：表单载体（hidden，骨架 disabled 同步
          目标）+ 星组交互件（role=slider 可聚焦）。x-for 宿主为纯克隆载体（自身绑定
          不编译，:key 例外），星形双层结构在内层；star 为引擎内置图标。注意：嵌套
-         x-slot 出口在继承形态下被忽略（ADR-0056）——消费者内容经 base-field 出口
+         x-slot 出口在继承形态下被忽略（ADR-0056）——消费者内容经 field 出口
          整段替换控件区（逃生通道，input 同款语义），故不开真插槽 -->
   <input type="hidden" class="asc-rate-carrier" data-autospark-control />
   <span

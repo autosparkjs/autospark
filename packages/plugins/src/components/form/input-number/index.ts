@@ -8,10 +8,10 @@
  * 消费 autospark.input**：①值桥语域分叉——input 是 string 语域、本组件是 number
  * 语域（NaN 防御 / min·max 夹取 / precision 修约），两层劫持嵌套会让中间态输入
  * 被外层夹取破坏；②嵌套消费引入跨插件产物依赖，破坏按需加载自包含；③共享面
- * （盒饰 chrome / 状态色 / 焦点态 / disabled 同步）已由 base-field 骨架继承覆盖。
- * 继承 autospark.base-field（ADR-0020）——本产物以副作用导入内嵌 base-field
- * 注册（继承链 input-number → base-field → autospark.base），按需加载场景无须
- * 单独引入 autospark.base-field.js。
+ * （盒饰 chrome / 状态色 / 焦点态 / disabled 同步）已由 field 骨架继承覆盖。
+ * 继承 autospark.field（ADR-0020）——本产物以副作用导入内嵌 field
+ * 注册（继承链 input-number → field → autospark.base），按需加载场景无须
+ * 单独引入 autospark.field.js。
  *
  * 值通道（x-model 兼容协议）：宿主 el.value 劫持为数字语域（""=空）；输入过程
  * 自由中间态（"1." / "-" 等，capture 先于 x-model 冒泡监听更新缓存），change
@@ -25,7 +25,7 @@
 import type { AutoSpark } from "autospark";
 import { captureNamespace } from "../../../utils/namespace";
 import { installPlugin } from "@autospark/utils";
-import "../../base/base-field/index";
+import "../../base/field/index";
 import inputNumberTemplate from "./input-number.html?raw";
 
 /** 组件注册名（autospark. 点前缀命名空间，ADR-0094；kebab 免疫 DOM 属性名小写化） */

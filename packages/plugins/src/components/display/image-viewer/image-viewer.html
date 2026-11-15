@@ -1,0 +1,323 @@
+<!--
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
+    不会求值——全屏层及其内部绑定全部落在编译子树的内层 layer 元素上，宿主为透明块壳。
+
+    形态裁定（自建 fixed 全屏层，不组合 x-dialog）：image-viewer 是全屏暗色遮罩语境的
+    查看器而非居中对话框——x-dialog 壳的复用面（chrome/header/footer/padding/边框/
+    阴影/居中面板）几乎全数需要反向覆盖，组合成本高于收益；且组合将引入跨插件产物
+    依赖（按需加载须同页 autospark.overlay.js）。ESC / 遮罩点击关闭自实现（各约数行），
+    本件零跨插件产物依赖（工具栏为自绘图标钮，不组合 autospark.button）。
+
+    受控语义：visible / index 均为受控 props——内部动作（切换/键盘）写组件 data 并
+    广播事件，由调用方回写状态闭环：
+    - change：detail = { index }（前后翻页/键盘左右切换；外层 @change 一行回写）
+    - close：detail 空（ESC / 关闭钮 / 遮罩点击请求关闭；调用方回写 visible=false，
+      不监听则保持打开——受控不自行其是）
+    自建层渲染在 engine 宿主树内（非 teleport），事件沿 DOM 树冒泡，外层 @close /
+      @change 可直接收到（区别于渲染进 body 容器的 overlay 家族物理边界）。
+    已知边界：宿主祖先链上有 transform/filter 时 fixed 层会相对该祖先定位（CSS 含有块
+    规则）——避免在变换容器内实例化（文档披露）。
+
+    缩放/旋转为内部状态（scale 步进 0.2 夹取 [0.2, 8]，rotate 步进 90°）：切图或打开
+    时重置 1:1（watch 同值幂等守卫——防无关 refresh 污染，ADR-0021 规避清单第 9 条）；
+    相邻图经 new Image() 预加载（切页零等待）。
+
+    全屏恒暗色声明：遮罩/工具栏/计数器为图上浮层的恒暗设计（全屏预览国际惯例，不随
+    主题明暗切换，ADR-0129 暗色兜底变体不适用——无明色态即无切换）；覆盖通道
+    --asc-image-viewer-*（mask / btn-bg / btn-color / counter-bg / z …）。
+
+    图标：工具栏/翻页钮自绘内联 SVG（stroke currentColor；引擎内置图标集无缩放/旋转
+    图形，SVG 子树不挂指令属性——静态 SVG 仅作结构，规避「SVG 内指令不编译」边界）。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得——计数器/工具栏字号随 data-size 档位缩放（em 基准）；本件不在
+     data() 声明主题六键，内部变体属性亦禁用六个通道名 -->
+<div
+  class="asc-image-viewer"
+  x-define="autospark.image-viewer"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            images: [],     // 图片 url 数组（状态引用注入——字面量数组触发 props 更新死循环，ADR-0021 规避 5）
+            visible: false, // 受控显隐（true 打开全屏层；关闭经 close 事件由调用方回写）
+            index: 0,       // 受控当前图（props 单向驱动 + 内部切换写 data 广播 change）
+            scale: 1,       // 内部状态：缩放倍率（步进 0.2，夹取 [0.2, 8]；切图/打开重置 1）
+            rotate: 0,      // 内部状态：旋转角度（步进 90°；切图/打开重置 0）
+        }),
+        methods: {
+            // 上一张（首页不动作；disabled 绑定兜底 + 键盘通道共用）：
+            // 写 data.index（watch 通道统一重置视图）+ change 广播
+            onPrev() {
+                if (this.data.index <= 0) return;
+                this.data.index = this.data.index - 1;
+                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { index: this.data.index } }));
+            },
+            // 下一张（末页不动作）
+            onNext() {
+                if (this.data.index >= this.data.images.length - 1) return;
+                this.data.index = this.data.index + 1;
+                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { index: this.data.index } }));
+            },
+            // 缩放（delta 正负步进；夹取 [0.2, 8] 防退化与爆表）
+            onZoom(delta) {
+                const next = Math.min(8, Math.max(0.2, Number(this.data.scale) + delta));
+                if (next === this.data.scale) return;
+                this.data.scale = next;
+            },
+            // 旋转（delta 正负 90 步进）
+            onRotate(delta) {
+                this.data.rotate = Number(this.data.rotate) + delta;
+            },
+            // 重置视图（1:1 / 0°）
+            onReset() {
+                this.data.scale = 1;
+                this.data.rotate = 0;
+            },
+            // 请求关闭（ESC / 关闭钮 / 遮罩点击）：close 广播，由调用方回写 visible=false
+            onRequestClose() {
+                this.el.dispatchEvent(new CustomEvent("close", { bubbles: true }));
+            },
+            // 键盘路由（document 级监听转发——仅 visible 响应）：
+            // 左右切换 / ESC 关 / +与=放大 / -缩小
+            onKeydown(e) {
+                if (!this.data.visible) return;
+                if (e.key === "ArrowLeft") { e.preventDefault(); this.onPrev(); }
+                else if (e.key === "ArrowRight") { e.preventDefault(); this.onNext(); }
+                else if (e.key === "Escape") { e.preventDefault(); this.onRequestClose(); }
+                else if (e.key === "+" || e.key === "=") { e.preventDefault(); this.onZoom(0.2); }
+                else if (e.key === "-") { e.preventDefault(); this.onZoom(-0.2); }
+            },
+        },
+        mounted() {
+            // 相邻图预加载（当前页 ±1 经 new Image 预热，切页零等待）
+            const preload = (i) => {
+                const url = (this.data.images || [])[i];
+                if (typeof url === "string" && url !== "") { const img = new Image(); img.src = url; }
+            };
+            const preloadNeighbors = () => { preload(this.data.index - 1); preload(this.data.index + 1); };
+            preloadNeighbors();
+
+            // 切图重置视图：同值幂等守卫（props 重注入/无关 refresh 同值重跑不重置——
+            // ADR-0021 规避清单第 9 条）；重置后预热新相邻图
+            let lastIndex = this.data.index;
+            this.watch("index", ({ value: v }) => {
+                if (v === lastIndex) return;
+                lastIndex = v;
+                this.data.scale = 1;
+                this.data.rotate = 0;
+                preloadNeighbors();
+            });
+
+            // 打开重置视图：仅 false→true 边沿（同值重跑幂等——无关 refresh 污染不
+            // 清用户已缩放视图，ADR-0021 规避清单第 9 条）
+            let wasOpen = !!this.data.visible;
+            this.watch("visible", ({ value }) => {
+                const open = value === true;
+                if (open && !wasOpen) this.onReset();
+                wasOpen = open;
+            });
+
+            // 键盘监听挂 document（全屏语境 Esc/左右全局响应）；清理器落宿主 expando，
+            // unmounted 摘除（grid 断点监听同款纪律）
+            const onDocKey = (e) => this.onKeydown(e);
+            document.addEventListener("keydown", onDocKey);
+            this.el["_ascImageViewerCleanup"] = () => document.removeEventListener("keydown", onDocKey);
+        },
+        unmounted() {
+            // document 级监听摘除（长命对象，防泄漏；宿主可能已拆——可选链静默通过）
+            this.el?.["_ascImageViewerCleanup"]?.();
+        },
+    }
+  </script>
+  <style global id="autospark-components-image-viewer">
+    /* 宿主：透明块壳（全屏层在内层），字号基线经 data-size 档位跟随（计数器以 em 标定） */
+    .asc-image-viewer {
+      display: block;
+      width: 100%;
+      font-size: var(--auto-font-size, var(--asc-image-viewer-font-size, 0.875rem));
+    }
+
+    /* ---------- 全屏层：fixed 遮罩语境（恒暗色设计声明，见文件头注释） ---------- */
+    .asc-image-viewer-layer {
+      position: fixed;
+      inset: 0;
+      z-index: var(--asc-image-viewer-z, 1000);
+      animation: asc-image-viewer-in 0.18s ease; /* display 显现即重播淡入 */
+    }
+    @keyframes asc-image-viewer-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    /* 遮罩：点击请求关闭（@click 在场） */
+    .asc-image-viewer-mask {
+      position: absolute;
+      inset: 0;
+      background: var(--asc-image-viewer-mask, rgba(0, 0, 0, 0.72));
+    }
+    /* 画布：图片居中区（transform 之外的留白由 max-width/max-height 让出） */
+    .asc-image-viewer-canvas {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .asc-image-viewer-img {
+      max-width: calc(100% - 7rem);
+      max-height: calc(100% - 6rem);
+      object-fit: contain;
+      transition: transform 0.2s ease;
+      user-select: none;
+    }
+
+    /* ---------- 控件基座：半透明深底反白钮（图上浮层恒定设计，非主题映射） ---------- */
+    .asc-image-viewer-btn {
+      appearance: none;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.25rem;
+      height: 2.25rem;
+      padding: 0;
+      box-sizing: border-box;
+      border-radius: var(--asc-image-viewer-btn-radius, 0.375rem);
+      background: var(--asc-image-viewer-btn-bg, rgba(0, 0, 0, 0.5));
+      color: var(--asc-image-viewer-btn-color, #ffffff);
+      cursor: pointer;
+      transition: background-color 0.15s ease, opacity 0.15s ease;
+    }
+    .asc-image-viewer-btn:hover {
+      background: var(--asc-image-viewer-btn-hover-bg, rgba(0, 0, 0, 0.72));
+    }
+    .asc-image-viewer-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .asc-image-viewer-btn svg {
+      width: 1.125rem;
+      height: 1.125rem;
+    }
+
+    /* 工具栏：右上（放大/缩小/左旋/右旋/重置/关闭） */
+    .asc-image-viewer-toolbar {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.375rem;
+      z-index: 2;
+    }
+    /* 翻页钮：左右中部大钮（圆形） */
+    .asc-image-viewer-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: var(--asc-image-viewer-nav-radius, 50%);
+      z-index: 2;
+    }
+    .asc-image-viewer-nav svg {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+    .asc-image-viewer-nav[data-nav="prev"] { left: 1rem; }
+    .asc-image-viewer-nav[data-nav="next"] { right: 1rem; }
+    /* 计数器：底部中央（当前页/总数） */
+    .asc-image-viewer-counter {
+      position: absolute;
+      bottom: 1.25rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      padding: 0.25em 0.9em;
+      border-radius: var(--asc-image-viewer-counter-radius, 0.375rem);
+      background: var(--asc-image-viewer-counter-bg, rgba(0, 0, 0, 0.5));
+      color: var(--asc-image-viewer-counter-color, #ffffff);
+      font-size: 0.875em;
+      letter-spacing: 0.08em;
+    }
+
+    /* ---------- 动效可访问性：reduced-motion 停播（淡入与 transform 过渡） ---------- */
+    @media (prefers-reduced-motion: reduce) {
+      .asc-image-viewer-layer { animation: none; }
+      .asc-image-viewer-img { transition: none; }
+      .asc-image-viewer-btn { transition: none; }
+    }
+  </style>
+  <!-- 全屏层：visible 受控显隐（x-show 切 display——display:none↔block 切换天然重播
+         淡入 animation）；images 空时不亮相（空黑屏无意义） -->
+  <div
+    class="asc-image-viewer-layer"
+    role="dialog"
+    aria-modal="true"
+    aria-label="图片预览"
+    x-show="visible && images.length > 0"
+  >
+    <!-- 遮罩：点击请求关闭 -->
+    <div class="asc-image-viewer-mask" @click="onRequestClose()"></div>
+    <!-- 主图：scale/rotate 经 :style 内联（字符串 cssText 整体替换）；max 尺寸为
+             翻页钮/工具栏让位 -->
+    <div class="asc-image-viewer-canvas">
+      <img
+        class="asc-image-viewer-img"
+        :src="images[index] || ''"
+        alt=""
+        draggable="false"
+        :style="'transform: scale(' + scale + ') rotate(' + rotate + 'deg)'"
+      />
+    </div>
+    <!-- 工具栏：缩小/放大/左旋/右旋/重置/关闭（自绘 SVG，stroke currentColor） -->
+    <div class="asc-image-viewer-toolbar">
+      <button type="button" class="asc-image-viewer-btn" title="缩小" aria-label="缩小" @click="onZoom(-0.2)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path><path d="M8 11h6"></path></svg>
+      </button>
+      <button type="button" class="asc-image-viewer-btn" title="放大" aria-label="放大" @click="onZoom(0.2)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path><path d="M11 8v6"></path><path d="M8 11h6"></path></svg>
+      </button>
+      <button type="button" class="asc-image-viewer-btn" title="向左旋转" aria-label="向左旋转" @click="onRotate(-90)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+      </button>
+      <button type="button" class="asc-image-viewer-btn" title="向右旋转" aria-label="向右旋转" @click="onRotate(90)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg>
+      </button>
+      <button type="button" class="asc-image-viewer-btn" title="重置（1:1）" aria-label="重置" @click="onReset()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path></svg>
+      </button>
+      <button type="button" class="asc-image-viewer-btn" title="关闭" aria-label="关闭" @click="onRequestClose()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+      </button>
+    </div>
+    <!-- 翻页钮：首页/末页 disabled（clamp 语义）；单图场景整体隐藏 -->
+    <button
+      type="button"
+      class="asc-image-viewer-btn asc-image-viewer-nav"
+      data-nav="prev"
+      title="上一张"
+      aria-label="上一张"
+      x-show="images.length > 1"
+      :disabled="index <= 0"
+      @click="onPrev()"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+    </button>
+    <button
+      type="button"
+      class="asc-image-viewer-btn asc-image-viewer-nav"
+      data-nav="next"
+      title="下一张"
+      aria-label="下一张"
+      x-show="images.length > 1"
+      :disabled="index >= images.length - 1"
+      @click="onNext()"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+    </button>
+    <!-- 计数器：当前页 / 总数（紧凑书写） --><div class="asc-image-viewer-counter" x-text="(index + 1) + ' / ' + images.length"></div>
+  </div>
+</div>

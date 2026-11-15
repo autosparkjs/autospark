@@ -18,13 +18,13 @@
       <div class="auto-card">
         <div class="auto-card-header">row 作用域插槽自定义行（{ item, $index } + 行内事件冒泡）</div>
         <div class="auto-card-body">
-          <div x-component:autospark.list="{ items: users }">
+          <x-list :items="users">
             <template x-slot:row="{ item, $index }">
               <b x-text="item.name"></b>
               <span style="color: #868e96" x-text="'#' + ($index + 1)"></span>
               <span style="margin-left: auto; color: #009aff; cursor: pointer" @click="picked = item.name">选TA</span>
             </template>
-          </div>
+          </x-list>
           <p class="hint" style="margin-top: 12px">
             最近选中：<code x-text="picked || '（未选）'"></code>——行内 @click 在调用方作用域求值，
             经行元素原生冒泡（组件零内建事件）。
@@ -34,7 +34,7 @@
       <div class="auto-card">
         <div class="auto-card-header">virtual 虚拟滚动（10000 项 · 须同页引入 autospark.virtual.js）</div>
         <div class="auto-card-body">
-          <div x-component:autospark.list="{ items: bigUsers, virtual: true }"></div>
+          <x-list virtual="true" :items="bigUsers"></x-list>
           <p class="hint" style="margin-top: 12px">
             定高滚动容器（<code>--asc-list-virtual-height</code> 可覆盖），只渲染可见窗口 +
             overscan 缓冲；行定高假设由 CSS 行高保证。

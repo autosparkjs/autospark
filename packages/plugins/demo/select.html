@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.select · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 360px;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .err {
+        color: #ef4444;
+        font-size: 0.8125rem;
+        margin: 2px 0 0;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.select</h1>
+    <p>
+      下拉选择器（弹层交互自绘，ADR-0022）：触发器 = Field 盒饰形态（input 同款
+      chrome），下拉面板复用 <code>x-popover</code> 指令机制呈现（点击切换 / 面板外点击
+      / ESC 关闭机制继承）；值通道走 x-model 兼容协议（宿主 <code>x-model</code>
+      直写）+ 内嵌 hidden 载体原生直提交。键盘：上下键移动高亮 / Enter 确认 / ESC 关。
+    </p>
+    <p class="hint">
+      跨插件依赖：面板呈现须同时加载 <code>autospark.overlay.js</code>（x-popover 指令）；
+      长列表虚拟化另需 <code>autospark.virtual.js</code>（渐进增强）。
+    </p>
+
+    <div id="app">
+      <h2>基础用法（x-model 双向 + 选中联动）</h2>
+      <div class="col">
+        <x-select x-model="v1" :options="cities"></x-select>
+        <p class="hint">当前值：<code>{{ v1 || '（空）' }}</code>（options 经状态引用注入）</p>
+      </div>
+
+      <h2>clearable / 禁用选项 / filterable</h2>
+      <div class="col">
+        <x-select x-model="v2" clearable="true" :options="cities"></x-select>
+        <x-select x-model="v3" filterable="true" clearable="true" :options="cities"></x-select>
+        <p class="hint">「广州」为禁用选项（淡化不可选）；过滤框内上下键 + Enter 同触发器键盘导航。</p>
+      </div>
+
+      <h2>change 事件消费（detail = { value }）</h2>
+      
+      <div class="col" @change="picked = $event.detail.value">
+        <x-select name="fruit" value="apple" :options="fruits"></x-select>
+        <p class="hint">最近选择：<code>{{ picked || '（未操作）' }}</code>；name 透传 hidden 载体（原生直提交）。</p>
+      </div>
+
+      <h2>loading 加载态 / virtual 长列表（1000 项）</h2>
+      <div class="col">
+        <x-select x-model="v4" :options="cities" :loading="isLoading"></x-select>
+        <x-select x-model="v5" virtual="true" filterable="true" :options="bigList"></x-select>
+      </div>
+
+      <h2>尺寸档位（主题通道 data-size）</h2>
+      <div class="row">
+        <span data-size="small"><x-select :options="cities"></x-select></span>
+        <span data-size="medium"><x-select :options="cities"></x-select></span>
+        <span data-size="large"><x-select :options="cities"></x-select></span>
+      </div>
+      <p class="hint">档位属性挂在任意祖先容器即整片生效（面板字号与行高随档联动）。</p>
+
+      <h2>状态色与禁用（status / disabled / readonly）</h2>
+      <div class="col">
+        <x-select value="bj" status="error" :options="cities"></x-select>
+        <x-select value="bj" status="warning" :options="cities"></x-select>
+        <x-select value="bj" disabled="true" :options="cities"></x-select>
+        <x-select value="bj" readonly="true" :options="cities"></x-select>
+        <p class="hint">禁用不可开面板；只读可开面板浏览但选项不可选。</p>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="col">
+          <x-select x-model="v6" clearable="true" :options="cities"></x-select>
+          <x-select value="bj" status="error" :options="cities"></x-select>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+    <p class="err"></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.overlay.js"></script>
+    <script src="/autospark.virtual.js"></script>
+    <script src="/autospark.select.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        v1: "sh",
+        v2: "sh",
+        v3: "",
+        v4: "",
+        v5: 7,
+        v6: "gz",
+        picked: "",
+        isLoading: true,
+        bigList: Array.from({ length: 1000 }, (_, i) => ({ label: "选项 " + (i + 1), value: i })),
+        cities: [
+          { label: "北京", value: "bj" },
+          { label: "上海", value: "sh" },
+          { label: "广州", value: "gz", disabled: true },
+          { label: "深圳", value: "sz" },
+        ],
+        fruits: [
+          { label: "苹果", value: "apple" },
+          { label: "香蕉", value: "banana" },
+          { label: "樱桃", value: "cherry" },
+        ],
+      });
+    </script>
+  </body>
+</html>

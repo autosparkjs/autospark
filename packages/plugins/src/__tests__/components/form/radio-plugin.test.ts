@@ -1,8 +1,8 @@
 /**
- * radio 组件插件测试（组件库 P0 form 批轻件，ADR-0019 合批 / ADR-0020 BaseField
+ * radio 组件插件测试（组件库 P0 form 批轻件，ADR-0019 合批 / ADR-0020 Field
  * 消费契约）：
- * - 注册面：radio 模板入全局组件表（副作用导入内嵌 base-field 注册，继承链
- *   radio → base-field → autospark.base）；
+ * - 注册面：radio 模板入全局组件表（副作用导入内嵌 field 注册，继承链
+ *   radio → field → autospark.base）；
  * - 化身渲染：骨架 class 拼接（裸态无盒饰）、真实原生 input[type=radio] +
  *   data-autospark-control 标记、label props 兜底、value/name 透传；
  * - 组语义（原生 name 同名互斥，不建组容器组件）：同 x-model 路径多枚经引擎缺省
@@ -10,7 +10,7 @@
  * - 值桥（checked 值桥）：初始注入（expando 按值匹配）、DOM→state（原生 change →
  *   仅勾选态派发 input → x-model 回写 state = 本钮值）、state→DOM（按值匹配勾选）、
  *   checked props 单向同步；
- * - BaseField 骨架通道（经 radio 实例化消费）：disabled 同步、status 状态色 +
+ * - Field 骨架通道（经 radio 实例化消费）：disabled 同步、status 状态色 +
  *   aria-invalid、焦点态追踪。
  */
 import "../../setup";
@@ -18,7 +18,7 @@ import { describe, expect, test } from "bun:test";
 import { AutoSpark } from "autospark";
 import { mount, nextTick } from "../../helpers";
 import { RADIO_NAME, bootstrapRadioPlugin } from "../../../components/form/radio/index";
-import { BASE_FIELD_NAME } from "../../../components/base/base-field/index";
+import { FIELD_NAME } from "../../../components/base/field/index";
 
 /** 取全局表模板（空白归一——oxfmt 折行使逐字匹配假红） */
 const tpl = (name: string) =>
@@ -34,12 +34,12 @@ const nativesOf = (root: HTMLElement) =>
   Array.from(root.querySelectorAll(".asc-radio-input")) as HTMLInputElement[];
 
 describe("注册面（ADR-0019 合批 / ADR-0020）", () => {
-  test("模块加载即注册：radio 以副作用导入内嵌 base-field，双模板均入全局组件表", () => {
+  test("模块加载即注册：radio 以副作用导入内嵌 field，双模板均入全局组件表", () => {
     const table = (AutoSpark as { components: Record<string, string> }).components;
     expect(typeof table[RADIO_NAME]).toBe("string");
-    expect(typeof table[BASE_FIELD_NAME]).toBe("string");
+    expect(typeof table[FIELD_NAME]).toBe("string");
     expect(tpl(RADIO_NAME)).toContain(`x-define="${RADIO_NAME}"`);
-    expect(tpl(RADIO_NAME)).toContain('x-define:inherit="autospark.base-field"'); // 继承链子端
+    expect(tpl(RADIO_NAME)).toContain('x-define:inherit="autospark.field"'); // 继承链子端
     expect(tpl(RADIO_NAME)).toContain('type="radio"'); // 真实原生控件（原生增强路线）
   });
 
@@ -67,7 +67,7 @@ describe("化身渲染与 props 同步", () => {
     );
     await nextTick();
     const host = field(root);
-    expect(host.classList.contains("asc-field")).toBe(true); // base-field 骨架类
+    expect(host.classList.contains("asc-field")).toBe(true); // field 骨架类
     expect(host.classList.contains("asc-radio")).toBe(true); // 子组件类（根属性并入拼接）
     expect(host.classList.contains("asc-field-box")).toBe(false); // 裸态控件不加盒饰（ADR-0020 决策 3）
     const input = nativesOf(root)[0]!;
@@ -186,7 +186,7 @@ describe("值桥（checked 值桥，与 x-model 原生 radio 语义同构）", (
   });
 });
 
-describe("BaseField 骨架通道（经 radio 实例化消费，ADR-0020）", () => {
+describe("Field 骨架通道（经 radio 实例化消费，ADR-0020）", () => {
   test("disabled：同步原生控件 + 宿主 data-disabled（整体淡化通道）", async () => {
     const { root } = mount(`<span x-component:autospark.radio="{ value: 'a', disabled: true }"></span>`, {});
     await nextTick();

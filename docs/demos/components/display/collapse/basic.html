@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Collapse · 子元素声明形态</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.collapse.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">子元素声明 + 受控 value（@change 一行回写）</div>
+        <div class="auto-card-body">
+          <div @change="open = $event.detail.value">
+            <x-collapse :value="open">
+              <x-collapse-item key="intro" title="产品介绍">
+                AutoSpark 是响应式前端应用引擎：状态层、指令层、组件层、动作层齐备。
+                <b>面板内容支持绑定</b>：当前计数 {{ count }}。
+              </x-collapse-item>
+              <x-collapse-item key="price" title="计费说明">按插件产物独立引入，零打包负担。</x-collapse-item>
+              <x-collapse-item key="faq" title="常见问题" disabled>禁用面板：不可展开。</x-collapse-item>
+            </x-collapse>
+          </div>
+          <p class="hint">
+            当前展开：<code>{{ open.join(', ') || '（无）' }}</code>——value 为展开 key 集（数组受控）；
+            面板内容在消费者作用域编译，绑定照常工作；禁用面板不可展开。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">手风琴互斥（accordion：同时仅一开）</div>
+        <div class="auto-card-body">
+          <x-collapse accordion>
+            <x-collapse-item key="a" title="第一章">互斥模式：开新面板自动关闭已开面板。</x-collapse-item>
+            <x-collapse-item key="b" title="第二章">内容面板垂直展开（grid 高度过渡动画）。</x-collapse-item>
+            <x-collapse-item key="c" title="第三章">DOM 恒保留——表单输入态、滚动位不丢。</x-collapse-item>
+          </x-collapse>
+        </div>
+      </div>
+      <div class="auto-card" data-dark>
+        <div class="auto-card-header">展开图标位置 start（标题左）+ 暗色态</div>
+        <div class="auto-card-body">
+          <x-collapse expand-icon-position="start">
+            <x-collapse-item key="x" title="图标在左">expandIconPosition: "start"。</x-collapse-item>
+            <x-collapse-item key="y" title="默认在右的对照组省略">省略。</x-collapse-item>
+          </x-collapse>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        open: ["intro"],
+        count: 7,
+      });
+    </script>
+  </body>
+</html>

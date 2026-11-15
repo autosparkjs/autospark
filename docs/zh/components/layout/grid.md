@@ -14,7 +14,11 @@ Grid 是 AutoSpark 的官方栅格容器组件（组件库 P0 轻件 / layout �
 <script src="autospark.js"></script>
 <script src="autospark.grid.js"></script>
 
-<div x-component:autospark.grid="{ cols: 3, gap: 'medium' }">   <!-- 固定 3 列 -->
+<x-grid cols="3" gap="medium">   <!-- 固定 3 列 -->
+  <div>卡片一</div>
+  <div>卡片二</div>
+  <div>卡片三</div>
+</x-grid><!-- 固定 3 列 -->
   <div>卡片一</div>
   <div>卡片二</div>
   <div>卡片三</div>

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Affix · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.affix.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      /* 长文档区块：撑出滚动联动面 */
+      .doc section {
+        min-height: 55vh;
+        padding-top: 3rem;
+        border-bottom: 1px dashed rgba(128, 128, 128, 0.3);
+      }
+      .doc h3 {
+        margin: 0 0 0.5em;
+      }
+      /* 吸顶条自带底色（固钉纯定位件——内容底色由使用者内容决定） */
+      .sticky-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.75em;
+        padding: 0.625em 1em;
+        background: var(--auto-bgcolor, #ffffff);
+        border: 1px solid var(--auto-border-color, #e5e5e5);
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        font-weight: 600;
+      }
+      .sticky-bar .state {
+        margin-left: auto;
+        font-weight: 400;
+        font-size: 0.85em;
+        color: var(--auto-secondary-color, rgba(0, 0, 0, 0.55));
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">固钉：滚动过 offset 阈值后吸顶（当前态：{{ fixed ? "已固定" : "随流" }}）</div>
+        <div class="auto-card-body">
+          <div @change="fixed = $event.detail.fixed">
+            <x-affix :offset="80">
+              <div class="sticky-bar">
+                吸顶操作条
+                <span class="state">滚动位置 ≥ 80 即吸附</span>
+              </div>
+            </x-affix>
+          </div>
+          <p class="hint">
+            offset 兼触发线与吸附位（top: 80px）；原位占位撑高防跳动（原位置保留等高占位）；
+            position 缺省 top 吸顶；change 冒泡 detail = { fixed }。
+          </p>
+          <div class="doc">
+            <section>
+              <h3>区块一</h3>
+              <p>向下滚动观察操作条越过 80px 阈值后脱流吸附视口顶；回落即恢复随流。</p>
+            </section>
+            <section>
+              <h3>区块二</h3>
+              <p>固钉内容（本例为操作条）自带底色与投影——affix 是纯定位件，底色由内容决定。</p>
+            </section>
+            <section>
+              <h3>区块三</h3>
+              <p>占位元素撑高原位高度，滚动不跳动（脱流前几何快照）。</p>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        fixed: false,
+      });
+    </script>
+  </body>
+</html>

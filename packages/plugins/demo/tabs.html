@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.tabs · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .row {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .pane {
+        margin: 0;
+        min-height: 80px;
+        padding: 12px;
+        border-radius: 6px;
+        background: #f8f9fa;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.tabs</h1>
+    <p>
+      页签：items（{ key, label, icon?, disabled? }[]，状态引用）或 &lt;x-tab&gt; 子元素
+      声明两形态；受控 value（el.value 桥 + change detail={value}）；variant 三形态
+      （line / card / segmented 分段控制器）；键盘左右移焦（tablist 语义）；面板区为
+      默认插槽（x-show / x-if.keepalive 切换）。
+    </p>
+
+    <div id="app" x-data="{ log: '' }">
+      <h2>基础用法（items 状态引用 + 面板区 + change 回写）</h2>
+      <div @change="log = '激活：' + $event.detail.value">
+        <x-tabs x-model="view" :items="tabs">
+          <p class="pane" x-show="view === 'a'">面板 A：x-show 切换（DOM 保留，输入态不丢）。</p>
+          <p class="pane" x-show="view === 'b'">面板 B：同一默认插槽内以消费者状态切换。</p>
+          <p class="pane" x-if.keepalive="view === 'c'">面板 C：x-if.keepalive 保活形态（离开时摘 DOM 但状态保留）。</p>
+        </x-tabs>
+      </div>
+      <p class="hint"><code>x-model="view"</code> 双向绑定激活项；面板 x-show / x-if.keepalive 绑同一状态。{{ log }}</p>
+
+      <h2>子元素声明（静态页签头）+ 受控 value</h2>
+      <div @change="log = '激活：' + $event.detail.value">
+        <x-tabs :value="view2">
+          <x-tab key="day" label="日"></x-tab>
+          <x-tab key="week" label="周"></x-tab>
+          <x-tab key="month" label="月" disabled></x-tab>
+        </x-tabs>
+      </div>
+      <p class="hint">受控形态：外层 @change 回写 <code>view2</code>；禁用项不可点击不可聚焦。</p>
+
+      <h2>segmented 形态（分段控制器）</h2>
+      <div @change="log = '视图：' + $event.detail.value">
+        <x-tabs variant="segmented" :items="viewTabs" :value="mode"></x-tabs>
+      </div>
+      <p class="hint">分段控制器（button-group 选中模式视觉近亲）：纯切换器用法，无面板区。</p>
+
+      <h2>card 形态</h2>
+      <div>
+        <x-tabs variant="card">
+          <x-tab key="a" label="详情" icon="file"></x-tab>
+          <x-tab key="b" label="规则"></x-tab>
+          <x-tab key="c" label="日志"></x-tab>
+        </x-tabs>
+      </div>
+
+      <h2>键盘导航（tablist 语义）</h2>
+      <div class="row">
+        <x-tabs value="a" :items="tabs"></x-tabs>
+      </div>
+      <p class="hint">
+        聚焦任一页签后按 <code>←</code> / <code>→</code> 环形移焦并自动激活，<code>Home</code> /
+        <code>End</code> 首末直达（焦点漫游 tabindex：激活项 0、其余 -1）。
+      </p>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="row">
+          <x-tabs value="a" :items="tabs"></x-tabs>
+        </div>
+        <div class="row">
+          <x-tabs value="list" variant="segmented" :items="viewTabs"></x-tabs>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.tabs.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        view: "a",
+        view2: "day",
+        mode: "list",
+        tabs: [
+          { key: "a", label: "概览", icon: "file" },
+          { key: "b", label: "设置" },
+          { key: "c", label: "禁用项", disabled: true },
+        ],
+        viewTabs: [
+          { key: "list", label: "列表" },
+          { key: "card", label: "卡片" },
+          { key: "table", label: "表格" },
+        ],
+      });
+    </script>
+  </body>
+</html>

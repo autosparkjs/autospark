@@ -17,18 +17,18 @@
       <div class="auto-card">
         <div class="auto-card-header">核心用法：loading 插槽切换（骨架 → 真容）</div>
         <div class="auto-card-body" style="display: flex; flex-direction: column; gap: 14px; max-width: 420px" x-data="{ fetching: true }">
-          <div
-            x-component:autospark.skeleton="{ loading: fetching, rows: 3 }"
+          <x-skeleton
             style="border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 8px; padding: 14px"
+            rows="3"
+            :loading="fetching"
           >
             <h3 style="margin: 0 0 6px; font-size: 1rem">订单 #1024</h3>
             <p style="margin: 0; font-size: 0.875rem; opacity: 0.75">已支付 ¥299.00，预计 3 个工作日内送达。</p>
-          </div>
+          </x-skeleton>
           <div>
-            <button
-              x-component:autospark.button="{ label: fetching ? '模拟数据到达' : '回到骨架态', variant: 'primary', size: 'sm' }"
-              @click="fetching = !fetching"
-            ></button>
+            <span @click="fetching = !fetching">
+              <x-button variant="primary" size="sm" :label="fetching ? '模拟数据到达' : '回到骨架态'"></x-button>
+            </span>
           </div>
         </div>
       </div>
@@ -36,11 +36,11 @@
         <div class="auto-card-header">variant 三形态 + rows 多行</div>
         <div class="auto-card-body" style="display: flex; flex-direction: column; gap: 16px; max-width: 420px">
           <div style="display: flex; gap: 12px; align-items: center">
-            <div style="width: 40px" x-component:autospark.skeleton="{ variant: 'circle' }"></div>
-            <div style="flex: 1" x-component:autospark.skeleton="{ variant: 'text', rows: 2 }"></div>
+            <x-skeleton style="width: 40px" variant="circle"></x-skeleton>
+            <x-skeleton style="flex: 1" variant="text" rows="2"></x-skeleton>
           </div>
-          <div x-component:autospark.skeleton="{ rows: 5 }"></div>
-          <div style="border-radius: 8px; overflow: hidden" x-component:autospark.skeleton="{ variant: 'rect', animated: false }"></div>
+          <x-skeleton rows="5"></x-skeleton>
+          <x-skeleton style="border-radius: 8px; overflow: hidden" variant="rect" animated="false"></x-skeleton>
         </div>
       </div>
       <div class="auto-card">
@@ -48,10 +48,10 @@
         <div class="auto-card-body">
           <div style="background: #1a1a1a; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 14px; max-width: 420px" data-dark>
             <div style="display: flex; gap: 12px; align-items: center">
-              <div style="width: 40px" x-component:autospark.skeleton="{ variant: 'circle' }"></div>
-              <div style="flex: 1" x-component:autospark.skeleton="{ rows: 2 }"></div>
+              <x-skeleton style="width: 40px" variant="circle"></x-skeleton>
+              <x-skeleton style="flex: 1" rows="2"></x-skeleton>
             </div>
-            <div x-component:autospark.skeleton="{ rows: 3 }"></div>
+            <x-skeleton rows="3"></x-skeleton>
           </div>
         </div>
       </div>

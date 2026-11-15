@@ -2,9 +2,9 @@
 
 ## 概述
 
-StateButton 是在 **2-N 个状态间循环切换的单钮组件**（ADR-0016）——**继承 [`Button`](./button.md) 骨架 + 机制自治**：button 的全部形态面（variant / type / icon / label / tags / menu / 主题档位…）经组件继承原样可用，状态机制（循环切换、装饰渲染、表单桥、灰色无匹配态）自持。
+StateButton 是在 **2-N 个状态间循环切换的单钮组件**（ADR-0016）——**继承 [`Button`](./button.md) 骨架 + 机制自治**：button 的全部形态面（variant / type / icon / label / tags / menu / checkable / 主题档位…）经组件继承原样可用，状态机制（循环切换、装饰渲染、表单桥、灰色无匹配态）自持。
 
-**零配置即传统双态 check 按钮**：缺省 `states = [{value: false}, {value: true, decorate: 'corner'}]`——不传任何状态配置时就是一个「未勾选 ↔ 勾选（右上角打勾角标）」的 check 按钮。
+**分工口径（2026-11-13）**：**二元勾选（true/false 翻转）直接用 button 自身的 [`checkable`](./button.md#可勾选-checkable-value-checkvalues-checkstyle)**（checkStyle 四值与本组件 decorate 同源）；本组件专职 **N(>2) 态循环**——每态可携带不同 button props、图标、文案与装饰。二元场景仍可用（缺省组即 check 按钮），但 button checkable 更轻。
 
 与 [`ButtonGroup`](./button-group.md) 选中模式正交：**彼为多个按钮间选择**（组值受控单选），**此为一个按钮自身循环**（单控件表达 N 态）。
 
@@ -97,7 +97,7 @@ states **数组一律放外层状态再路径引用**（`:states="myStates"`）�
 | `solid` | tone 实底 + 反白字（覆盖 variant 表达） |
 | `check` | 最左 1.2em 显示打勾 ✓ |
 | `corner` | tone 描边 + 右上角小三角内嵌反白打勾（缺省组 true 态即此） |
-| `ripple` | 最左 1.2em 显示涟漪动画指示（呼吸点 + 扩散环，CSS 自绘） |
+| `ripple` | 佩戴时宿主整体恒开 [x-ripple](../guide/directives/x-ripple.md) **echo 双环**涟漪（always 常驻 · 外扩非 inside，优先于态声明的 ripple 键；需加载 autospark.ripple.js） |
 
 `check` / `ripple` 为**占位型**：组内任一态佩戴即全组常驻 1.2em 占位，未佩戴态留空——多态循环间对齐、勾选/取消零布局跳动（佩戴按态自由，不要求全组统一）。
 

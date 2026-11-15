@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/autospark/theme-demo.css" />
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
-    <script src="/autospark/autospark.button.js?v=20261107"></script>
+    <script src="/autospark/autospark.button.js?v=20261114"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
     <style>
@@ -21,7 +21,21 @@
 </head>
 <body>
     <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
-    <main class="demo-main" x-data="{ pickedMenu: false }">
+    <main
+        class="demo-main"
+        x-data="{
+            pickedMenu: false,
+            docTags: [
+                { name: 'pin', icon: 'star', checkable: true, value: true, tooltip: '置顶' },
+                { name: 'share', icon: 'external', tooltip: '分享', value: 'share' }
+            ],
+            imgTags: [
+                { name: 'sync', label: '已同步', value: 'synced' },
+                { name: 'remove', icon: 'error', tooltip: '移除', value: 'remove' }
+            ],
+            lastTag: '（未点击）'
+        }"
+    >
         <div class="auto-card">
             <div class="auto-card-header">菜单项形态（menu）：占满宽、透明底、左对齐、hover 淡底</div>
             <div class="auto-card-body" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
@@ -41,6 +55,14 @@
                     </span>
                     <span>pickedMenu = <b>{{ pickedMenu }}</b></span>
                     <p class="hint" style="margin-top:6px;">menu + checkable：勾选态呈左竖条 + 淡色底（消费 --auto-selected-* 变量）。</p>
+                </div>
+                <div class="menu-box" style="width:300px;">
+                    <span @tag-click="lastTag = $event.detail.name + ': ' + JSON.stringify($event.detail.value)">
+                        <x-button menu="true" icon="file" label="季度报告.docx" :tags="docTags"></x-button>
+                        <x-button menu="true" icon="image" label="封面设计稿.png" :tags="imgTags"></x-button>
+                    </span>
+                    <p class="hint" style="margin-top:6px;">最近点击 tag：<b>{{ lastTag }}</b></p>
+                    <p class="hint">menu + tags：菜单项右端的小圆钮 / 胶囊标签，点击冒泡 <code>tag-click</code>（不触发菜单项自身）；tag 级 <code>checkable</code> 亦可切换并写回外部状态。</p>
                 </div>
             </div>
         </div>

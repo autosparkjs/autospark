@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Anchor · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.anchor.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      /* 长文档区块：撑出滚动联动面 */
+      .doc section {
+        min-height: 55vh;
+        padding-top: 3rem;
+        border-bottom: 1px dashed rgba(128, 128, 128, 0.3);
+      }
+      .doc h3 {
+        margin: 0 0 0.5em;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">affix 固定侧栏：滚动联动高亮 + 点击平滑滚动（当前锚：{{ cur }}）</div>
+        <div class="auto-card-body">
+          <div @change="cur = $event.detail.key">
+            <x-anchor affix :items="secs"></x-anchor>
+          </div>
+          <p class="hint">
+            items（{ key, label, href? }[]）恒经状态引用注入（secs 为页面状态）；href 缺省
+            key 作锚 id（#key）；滚动到哪高亮哪，点击平滑回到该区块（不写 hash——纯滚动语义）。
+          </p>
+          <div class="doc">
+            <section id="intro">
+              <h3>概述</h3>
+              <p>锚点导航适用于长文档页：侧边列出各区块入口，滚动位置实时联动高亮。</p>
+            </section>
+            <section id="usage">
+              <h3>用法</h3>
+              <p>向下滚动观察右侧锚点高亮迁移；点击任一锚点平滑滚回对应区块。</p>
+            </section>
+            <section id="api">
+              <h3>API 参考</h3>
+              <p>props：items / offset / affix；事件：change（冒泡，detail = { key }）。</p>
+            </section>
+            <section id="faq">
+              <h3>常见问题</h3>
+              <p>页顶（全未达线）不高亮——antd 缺省语义；判定线可用 offset 偏移补偿吸顶条高度。</p>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        cur: "",
+        secs: [
+          { key: "intro", label: "概述" },
+          { key: "usage", label: "用法" },
+          { key: "api", label: "API 参考" },
+          { key: "faq", label: "常见问题" },
+        ],
+      });
+    </script>
+  </body>
+</html>

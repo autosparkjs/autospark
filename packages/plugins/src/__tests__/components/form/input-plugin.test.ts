@@ -1,13 +1,13 @@
 /**
- * input + base-field 组件插件测试（组件库 P0 form 基座，ADR-0020）：
- * - 注册面：input / base-field 双模板入全局组件表（input 以副作用导入内嵌 base-field
- *   注册，继承链 input → base-field → autospark.base）+ 组件自有图标注册；
+ * input + field 组件插件测试（组件库 P0 form 基座，ADR-0020）：
+ * - 注册面：input / field 双模板入全局组件表（input 以副作用导入内嵌 field
+ *   注册，继承链 input → field → autospark.base）+ 组件自有图标注册；
  * - 化身渲染：骨架 class 拼接（.asc-field + .asc-input + .asc-field-box）、原生控件
  *   props 同步（placeholder/maxlength/rows/type）、textarea 形态分叉；
  * - 值桥（x-model 兼容协议）：宿主 el.value 劫持 ↔ 内层原生控件——初始注入、
  *   DOM→state（input 冒泡）、state→DOM（劫持 setter）三向；
  * - clearable / showPassword / prefix·suffix / showCount 交互件；
- * - BaseField 骨架通道（经 input 实例化消费）：status 状态色 + aria-invalid、
+ * - Field 骨架通道（经 input 实例化消费）：status 状态色 + aria-invalid、
  *   data-focus 焦点态、disabled/readonly 同步、name 透传（原生直提交载体）；
  * - precompile 元素名变换（x-input / x-textarea → span + props 折叠，布尔裸属性归一）。
  */
@@ -17,9 +17,9 @@ import { AutoSpark } from "autospark";
 import { mount, nextTick } from "../../helpers";
 import { INPUT_NAME, bootstrapInputPlugin } from "../../../components/form/input/index";
 import {
-  BASE_FIELD_NAME,
-  bootstrapBaseFieldPlugin,
-} from "../../../components/base/base-field/index";
+  FIELD_NAME,
+  bootstrapFieldPlugin,
+} from "../../../components/base/field/index";
 
 /** 取全局表模板（空白归一——oxfmt 折行使逐字匹配假红） */
 const tpl = (name: string) =>
@@ -27,6 +27,8 @@ const tpl = (name: string) =>
     /\s+/g,
     " ",
   );
+/** 全脱空格形态（var() 链内折行免疫——结构性子串断言用） */
+const tplx = (name: string) => tpl(name).replace(/\s+/g, "");
 
 /** 取实例化后的宿主（.asc-field 骨架根） */
 const field = (root: HTMLElement) => root.querySelector(".asc-field") as HTMLElement;
@@ -35,15 +37,15 @@ const nativeOf = (root: HTMLElement) =>
   root.querySelector(".asc-input-native") as HTMLInputElement | HTMLTextAreaElement | null;
 
 describe("注册面（ADR-0020）", () => {
-  test("模块加载即注册：input 以副作用导入内嵌 base-field，双模板均入全局组件表", () => {
+  test("模块加载即注册：input 以副作用导入内嵌 field，双模板均入全局组件表", () => {
     const table = (AutoSpark as { components: Record<string, string> }).components;
     expect(typeof table[INPUT_NAME]).toBe("string");
-    expect(typeof table[BASE_FIELD_NAME]).toBe("string");
+    expect(typeof table[FIELD_NAME]).toBe("string");
     expect(tpl(INPUT_NAME)).toContain(`x-define="${INPUT_NAME}"`);
-    expect(tpl(INPUT_NAME)).toContain('x-define:inherit="autospark.base-field"'); // 继承链子端
-    expect(tpl(BASE_FIELD_NAME)).toContain(`x-define="${BASE_FIELD_NAME}"`);
-    expect(tpl(BASE_FIELD_NAME)).toContain('x-define:inherit="autospark.base"'); // 继承链中端（主题档位通道下传）
-    expect(tpl(BASE_FIELD_NAME)).toContain("x-slot"); // 单默认出口（子组件默认段注入位）
+    expect(tpl(INPUT_NAME)).toContain('x-define:inherit="autospark.field"'); // 继承链子端
+    expect(tpl(FIELD_NAME)).toContain(`x-define="${FIELD_NAME}"`);
+    expect(tpl(FIELD_NAME)).toContain('x-define:inherit="autospark.base"'); // 继承链中端（主题档位通道下传）
+    expect(tpl(FIELD_NAME)).toContain("x-slot"); // 单默认出口（子组件默认段注入位）
   });
 
   test("组件自有图标注册：input-eye / input-eye-off 入全局图标表", () => {
@@ -55,16 +57,18 @@ describe("注册面（ADR-0020）", () => {
   test("bootstrap 幂等：重复调用不覆盖（同键赋值幂等）", () => {
     const table = (AutoSpark as { components: Record<string, string> }).components;
     const beforeInput = table[INPUT_NAME];
-    const beforeBase = table[BASE_FIELD_NAME];
+    const beforeBase = table[FIELD_NAME];
     bootstrapInputPlugin();
-    bootstrapBaseFieldPlugin();
+    bootstrapFieldPlugin();
     expect(table[INPUT_NAME]).toBe(beforeInput);
-    expect(table[BASE_FIELD_NAME]).toBe(beforeBase);
+    expect(table[FIELD_NAME]).toBe(beforeBase);
   });
 
   test("样式通道：状态色三级回退链与暗色兜底变体均在模板中（ADR-0129）", () => {
-    const base = tpl(BASE_FIELD_NAME);
-    expect(base).toContain("--asc-field-tone: var(--auto-primary-color, var(--asc-field-primary,");
+    const base = tpl(FIELD_NAME);
+    expect(tplx(FIELD_NAME)).toContain(
+      "--asc-field-tone:var(--auto-primary-color,var(--asc-field-primary,",
+    );
     expect(base).toContain('.asc-field[data-status="error"] {');
     expect(base).toContain(".asc-field-box[data-focus] {");
     // 暗色兜底块 :not([data-status]) 守卫——状态在场时边框让位状态色（防高特异性兜底压掉染色）
@@ -83,7 +87,7 @@ describe("化身渲染与 props 同步", () => {
     );
     await nextTick();
     const host = field(root);
-    expect(host.classList.contains("asc-field")).toBe(true); // base-field 骨架类
+    expect(host.classList.contains("asc-field")).toBe(true); // field 骨架类
     expect(host.classList.contains("asc-input")).toBe(true); // 子组件类（根属性并入拼接）
     expect(host.classList.contains("asc-field-box")).toBe(true); // 盒饰选配类
     const input = nativeOf(root) as HTMLInputElement;
@@ -258,7 +262,7 @@ describe("交互件", () => {
   });
 });
 
-describe("BaseField 骨架通道（经 input 实例化消费，ADR-0020）", () => {
+describe("Field 骨架通道（经 input 实例化消费，ADR-0020）", () => {
   test("status 状态色：宿主 data-status + error 态控件 aria-invalid", async () => {
     const { root, engine } = mount(`<span x-component:autospark.input="{ status: st }"></span>`, {
       st: "",
@@ -320,6 +324,107 @@ describe("BaseField 骨架通道（经 input 实例化消费，ADR-0020）", () 
     }; // mock（happy-dom 无真实焦点布局语义）
     host.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(focused).toBe(true); // 点击宿主空白 → 转发控件
+  });
+});
+
+describe("装饰插槽（field 具名出口穿透，ADR-0020 2026-11-14 修订）", () => {
+  test("三插槽穿透 + DOM 序：slot 内容落 field 出口，恒在 props 轻装饰外侧", async () => {
+    const { root } = mount(
+      [
+        `<span x-component:autospark.input="{ prefix: '轻前', suffix: '轻后' }">`,
+        `<template x-slot:prefix><span class="mk">槽前</span></template>`,
+        `<template x-slot:suffix><span class="mk">槽后</span></template>`,
+        `</span>`,
+      ].join(""),
+      {},
+    );
+    await nextTick();
+    const host = field(root);
+    // template 载体（ADR-0137，2026-11-15 切换）：无包裹层——类活注入落投影内容首根
+    //（消费方自有类 mk 与注入类拼接），内容根直接成为骨架子级
+    const prefixOutlet = host.querySelector(".asc-field-prefix");
+    const suffixOutlet = host.querySelector(".asc-field-suffix");
+    expect(prefixOutlet).toBeTruthy();
+    expect(suffixOutlet).toBeTruthy();
+    expect(prefixOutlet!.textContent).toContain("槽前");
+    expect(suffixOutlet!.textContent).toContain("槽后");
+    expect(prefixOutlet!.classList.contains("mk")).toBe(true); // 消费方类保留（拼接非替换）
+    // DOM 序固定：[slot:prefix][body: props前缀/控件/props后缀][slot:suffix]
+    const seq = Array.from(host.children).map((n) => n.className);
+    expect(seq[0]).toContain("asc-field-prefix");
+    expect(seq[1]).toContain("asc-field-body");
+    expect(seq[seq.length - 1]).toContain("asc-field-suffix");
+    // body 内 props 轻装饰仍在控件两侧
+    const body = host.querySelector(".asc-field-body")!;
+    expect(body.querySelector(".asc-input-prefix")!.textContent).toContain("轻前");
+    expect(body.querySelector(".asc-input-suffix")!.textContent).toContain("轻后");
+  });
+
+  test("空插槽零布局：template 载体无内容出口静默消失（载体通道断言）", async () => {
+    const { root } = mount(`<span x-component:autospark.input></span>`, {});
+    await nextTick();
+    const host = field(root);
+    // 未提供插槽内容：template 载体整出口静默消失（结果 DOM 无残留、零多余节点）
+    expect(host.querySelector(".asc-field-prefix")).toBeNull();
+    expect(host.querySelector(".asc-field-suffix")).toBeNull();
+    // CSS 通道：类落内容根——次要色合并选择器 + 间距/防收缩直接落根（无 display:contents）
+    const css = tpl(FIELD_NAME);
+    const cssx = tplx(FIELD_NAME);
+    expect(cssx).toContain(".asc-field-prefix{flex:none;margin-inline-end:0.4em;}");
+    expect(cssx).toContain(".asc-field-suffix{flex:none;margin-inline-start:0.4em;}");
+    expect(cssx).not.toContain("display:contents;color:var(--auto-secondary-color");
+    // 装饰默认次要色（暗色块成对）
+    expect(cssx).toContain("color:var(--auto-secondary-color");
+    expect(css.match(/\[dark\] \.asc-field-prefix/g)?.length).toBeGreaterThan(0);
+  });
+
+  test("插槽内容点击转发焦点：装饰点击落控件（动作件标记不转发）", async () => {
+    const { root } = mount(
+      [
+        `<span x-component:autospark.input>`,
+        `<template x-slot:prefix><span class="mk-deco">装饰</span></template>`,
+        `<template x-slot:suffix`,
+        `><button type="button" class="mk-act" data-autospark-action>钮</button></template`,
+        `></span>`,
+      ].join(""),
+      {},
+    );
+    await nextTick();
+    const input = nativeOf(root)!;
+    let focused = false;
+    input.focus = () => {
+      focused = true;
+    };
+    // 装饰（非控件非动作件）→ 转发
+    field(root)
+      .querySelector(".mk-deco")!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(focused).toBe(true);
+    // 动作件标记 → 自理不转发
+    focused = false;
+    field(root)
+      .querySelector(".mk-act")!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(focused).toBe(false);
+  });
+
+  test("field 直接实例化：默认段装消费方控件，骨架通道照常接管", async () => {
+    const { root } = mount(
+      [
+        `<span class="asc-field-box" x-component:autospark.field="{ status: 'error' }">`,
+        `<input class="my-native" data-autospark-control value="自定义控件" />`,
+        `</span>`,
+      ].join(""),
+      {},
+    );
+    await nextTick();
+    const host = field(root);
+    // 宿主 class 拼接：骨架基座 + 消费方盒饰类
+    expect(host.className).toContain("asc-field-box");
+    // 状态色 + aria 同步到消费方控件（data-autospark-control 标记协议）
+    expect(host.getAttribute("data-status")).toBe("error");
+    const custom = host.querySelector(".my-native") as HTMLInputElement;
+    expect(custom.getAttribute("aria-invalid")).toBe("true");
   });
 });
 

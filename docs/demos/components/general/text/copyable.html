@@ -19,7 +19,7 @@
         <div class="auto-card-header">复制渲染文本（copyable: true）</div>
         <div class="auto-card-body">
           <p>
-            <span x-component:autospark.text="{ label: '点右侧图标复制这段展示文本', copyable: true }"></span>
+            <x-text label="点右侧图标复制这段展示文本" copyable="true"></x-text>
           </p>
         </div>
       </div>
@@ -27,7 +27,7 @@
         <div class="auto-card-header">复制指定文本（copyable: { text }）——展示文案与剪贴板内容解耦</div>
         <div class="auto-card-body">
           <p>
-            <span x-component:autospark.text="{ label: '序列号：8F2A-****-****（点击复制完整值）', copyable: copyConf }"></span>
+            <x-text label="序列号：8F2A-****-****（点击复制完整值）" :copyable="copyConf"></x-text>
           </p>
           <p class="hint">最近复制内容：<b>{{ lastCopied || '（未复制）' }}</b>（copy 事件冒泡至外层消费，detail.text 即剪贴板文本）；对象 props 经状态引用注入（copyConf），字面量对象/数组 props 在当前引擎版本会触发无限更新。</p>
         </div>

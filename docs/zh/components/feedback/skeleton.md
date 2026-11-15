@@ -21,13 +21,13 @@ Skeleton 是 AutoSpark 的官方骨架屏组件（组件库 P1，feedback 分类
 <script src="autospark.skeleton.js"></script>
 
 <!-- 骨架态（缺省 loading: true） -->
-<div x-component:autospark.skeleton="{ rows: 3 }"></div>
+<x-skeleton rows="3"></x-skeleton>
 
 <!-- 核心用法：loading 插槽切换骨架/真容 -->
-<div x-component:autospark.skeleton="{ loading: fetching, rows: 3 }">
+<x-skeleton rows="3" :loading="fetching">
   <h3>订单 #1024</h3>
   <p>已支付 ¥299.00，预计 3 个工作日内送达。</p>
-</div>
+</x-skeleton>
 ```
 
 <demo html="components/feedback/skeleton/basic.html"/>

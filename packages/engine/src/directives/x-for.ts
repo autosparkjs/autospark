@@ -517,10 +517,13 @@ export class ForDirective extends AutoSparkDirectiveBase {
             for (const node of toRemove) {
                 container.removeChild(node);
             }
-            let ref: Node | null = this._spacerEl;
+            // 定位锚固定为底部垫片、正序一次性前插：insertBefore(node, anchor) 恒把 node 落在
+            // 已插入项之后（紧贴垫片之前），窗口按数据序自然排列。
+            // （P0 修复：旧实现 ref = node 逐项推进锚点，正向遍历 + 前插等效头插法——
+            // 每项插入后自身成为新锚点，整窗视觉顺序颠倒，首行显示窗口末项。）
+            const anchor: Node | null = this._spacerEl;
             for (const node of flatNodes) {
-                container.insertBefore(node, ref);
-                ref = node;
+                container.insertBefore(node, anchor);
             }
         }
     }

@@ -1,8 +1,8 @@
 /**
- * switch 组件插件测试（组件库 P0 form 批轻件，ADR-0019 合批 / ADR-0020 BaseField
+ * switch 组件插件测试（组件库 P0 form 批轻件，ADR-0019 合批 / ADR-0020 Field
  * 消费契约）：
- * - 注册面：switch 模板入全局组件表（副作用导入内嵌 base-field 注册，继承链
- *   switch → base-field → autospark.base）；
+ * - 注册面：switch 模板入全局组件表（副作用导入内嵌 field 注册，继承链
+ *   switch → field → autospark.base）；
  * - 化身渲染：骨架 class 拼接（裸态无盒饰）、自绘轨道可访问性面（role=switch +
  *   aria-checked + tabindex + data-autospark-action 交互件标记）、表单载体
  *   input[type=hidden]（data-autospark-control，disabled 同步目标）；
@@ -10,7 +10,7 @@
  *   键盘 Space/Enter 切换、loading 阻断、disabled/readonly 阻断；
  * - 值桥（x-model 兼容协议，布尔语域）：初始注入（expando 快照）、DOM→state
  *   （派发 input → x-model.boolean 保真回写）、state→DOM（劫持 setter）；
- * - BaseField 骨架通道（经 switch 实例化消费）：disabled 载体出表、status 状态色
+ * - Field 骨架通道（经 switch 实例化消费）：disabled 载体出表、status 状态色
  *   （轨道 aria-invalid）、焦点态追踪。
  */
 import "../../setup";
@@ -18,7 +18,7 @@ import { describe, expect, test } from "bun:test";
 import { AutoSpark } from "autospark";
 import { mount, nextTick } from "../../helpers";
 import { SWITCH_NAME, bootstrapSwitchPlugin } from "../../../components/form/switch/index";
-import { BASE_FIELD_NAME } from "../../../components/base/base-field/index";
+import { FIELD_NAME } from "../../../components/base/field/index";
 
 /** 取全局表模板（空白归一——oxfmt 折行使逐字匹配假红） */
 const tpl = (name: string) =>
@@ -36,12 +36,12 @@ const carrierOf = (root: HTMLElement) =>
   root.querySelector(".asc-switch-carrier") as HTMLInputElement | null;
 
 describe("注册面（ADR-0019 合批 / ADR-0020）", () => {
-  test("模块加载即注册：switch 以副作用导入内嵌 base-field，双模板均入全局组件表", () => {
+  test("模块加载即注册：switch 以副作用导入内嵌 field，双模板均入全局组件表", () => {
     const table = (AutoSpark as { components: Record<string, string> }).components;
     expect(typeof table[SWITCH_NAME]).toBe("string");
-    expect(typeof table[BASE_FIELD_NAME]).toBe("string");
+    expect(typeof table[FIELD_NAME]).toBe("string");
     expect(tpl(SWITCH_NAME)).toContain(`x-define="${SWITCH_NAME}"`);
-    expect(tpl(SWITCH_NAME)).toContain('x-define:inherit="autospark.base-field"'); // 继承链子端
+    expect(tpl(SWITCH_NAME)).toContain('x-define:inherit="autospark.field"'); // 继承链子端
     expect(tpl(SWITCH_NAME)).toContain('role="switch"'); // 自绘控件可访问性自持
     expect(tpl(SWITCH_NAME)).toContain('type="hidden"'); // 表单载体
   });
@@ -67,7 +67,7 @@ describe("化身渲染与可访问性面", () => {
     const { root } = mount(`<span x-component:autospark.switch="{ label: '通知' }"></span>`, {});
     await nextTick();
     const host = field(root);
-    expect(host.classList.contains("asc-field")).toBe(true); // base-field 骨架类
+    expect(host.classList.contains("asc-field")).toBe(true); // field 骨架类
     expect(host.classList.contains("asc-switch")).toBe(true);
     expect(host.classList.contains("asc-field-box")).toBe(false); // 裸态控件不加盒饰
     const track = trackOf(root)!;
@@ -220,7 +220,7 @@ describe("值桥（x-model 兼容协议，布尔语域）", () => {
   });
 });
 
-describe("BaseField 骨架通道（经 switch 实例化消费，ADR-0020）", () => {
+describe("Field 骨架通道（经 switch 实例化消费，ADR-0020）", () => {
   test("disabled：载体随禁用出表（原生表单语义）+ 宿主 data-disabled", async () => {
     const { root } = mount(`<span x-component:autospark.switch="{ disabled: true }"></span>`, {});
     await nextTick();

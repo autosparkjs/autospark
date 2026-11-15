@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/autospark/theme-demo.css" />
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
-    <script src="/autospark/autospark.button.js?v=20261107"></script>
+    <script src="/autospark/autospark.button.js?v=20261115"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
 </head>
@@ -25,7 +25,14 @@
         full:     { name: 'star', size: 24, color: '#f59e0b', strokeWidth: 2 },
         badgeOn:  { name: 'bell', badge: true },
         badgePad: { name: 'menu', badge: 4 },
-        badgeCss: { name: 'star', badge: '6px', color: '#0f766e' }
+        badgeCss: { name: 'star', badge: '6px', color: '#0f766e' },
+        shapeCircle: { name: 'bell', shape: 'circle', size: 20, padding: 5 },
+        shapeRadius: { name: 'star', shape: 'radius', size: 20, padding: 5, button: true, color: '#0f766e' },
+        ptrIcon: { name: 'external', pointer: true, size: 18, color: '#2563eb' },
+        rot90:   { name: 'arrow', rotate: 90, size: 20 },
+        rot180:  { name: 'arrow', rotate: 180, size: 20 },
+        rotTurn: { name: 'refresh', rotate: '0.5turn', size: 20 },
+        spinConf: { name: 'arrow', rotate: 0, size: 20 }
     }">
         <div class="auto-card">
             <div class="auto-card-header">图标名（字符串形态）</div>
@@ -49,7 +56,7 @@
                     <x-button :icon="star28" label="size: 28"></x-button>
                     <x-button variant="secondary" shape="circle" :icon="full" label=""></x-button>
                 </div>
-                <p class="hint">对象形态 <code>{ name, size, color, strokeWidth, padding }</code>——name 必填；size 数字（px）或任意 CSS 值。</p>
+                <p class="hint">对象形态 <code>{ name, size, color, strokeWidth, padding, … }</code>——name 必填；其余键即 x-icon 选项（见下方「x-icon 选项透传」）。size 数字（px）或任意 CSS 值。</p>
             </div>
         </div>
 
@@ -74,6 +81,30 @@
                     <x-button variant="secondary" :icon="padIcon" label="padding: 8"></x-button>
                 </div>
                 <p class="hint">strokeWidth 经 <code>--as-icon-sw</code> 变量下发（含网格补偿）；padding 为图标与文字间距留白。</p>
+            </div>
+        </div>
+
+        <div class="auto-card">
+            <div class="auto-card-header">对象形态 · x-icon 选项透传（shape / button / pointer / rotate）</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                    <x-button variant="secondary" :icon="shapeCircle" label="shape: circle"></x-button>
+                    <x-button variant="secondary" :icon="shapeRadius" label="shape: radius + button"></x-button>
+                    <x-button variant="text" :icon="ptrIcon" label="pointer 手型光标"></x-button>
+                </div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:10px;">
+                    <x-button :icon="rot90" label="rotate: 90"></x-button>
+                    <x-button :icon="rot180" label="rotate: 180"></x-button>
+                    <x-button :icon="rotTurn" label="rotate: '0.5turn'"></x-button>
+                    <span @click="spinConf = { ...spinConf, rotate: spinConf.rotate + 90 }">
+                        <x-button type="primary" :icon="spinConf" label="点击旋转 90°"></x-button>
+                    </span>
+                </div>
+                <p class="hint">
+                    对象里除 <code>name</code> 外的视觉键<b>就是 x-icon 选项</b>——按钮经 <code>x-icon-options:&lt;成员&gt;</code> 逐键透传：
+                    <code>shape</code> 自动创建底板包裹层（<code>button</code> 动效随板作用于包裹层）、<code>pointer</code> 写手型光标、
+                    <code>rotate</code> 落在 svg 载体并带 transition（点击示例更新对象即从当前角度续转）。
+                </p>
             </div>
         </div>
 

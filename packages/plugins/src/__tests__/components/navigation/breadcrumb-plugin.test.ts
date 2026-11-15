@@ -17,6 +17,19 @@ import { BREADCRUMB_NAME, bootstrapBreadcrumbPlugin } from "../../../components/
 const tpl = () =>
     ((AutoSpark as { components: Record<string, string> }).components[BREADCRUMB_NAME] as string).replace(/\s+/g, " ");
 
+/**
+ * 可见元素过滤：克隆体内互补双分支经 x-show 显隐（display:none 元素仍在 DOM，
+ * P0 规避清单第 4 条的 x-show 形态），存在性断言须沿祖先链过滤隐藏分支
+ * （分支隐藏时其内部的可见子元素亦不可见）。
+ */
+const visible = (sel: string, root: Element): Element[] =>
+    Array.from(root.querySelectorAll(sel)).filter((el) => {
+        for (let n: Element | null = el; n && n !== root.parentElement; n = n.parentElement) {
+            if ((n as HTMLElement).style.display === "none") return false;
+        }
+        return true;
+    });
+
 describe("注册面（组件形态官方样板）", () => {
     test("模块加载即注册：插件全局组件表含 autospark.breadcrumb 模板字符串 + 主题档位继承", () => {
         const template = (AutoSpark as { components: Record<string, string> }).components[BREADCRUMB_NAME];
@@ -46,14 +59,14 @@ describe("items 数据驱动渲染（状态引用注入）", () => {
         );
         await nextTick();
         expect(root.querySelectorAll(".asc-breadcrumb-item").length).toBe(3);
-        const links = root.querySelectorAll(".asc-breadcrumb-link");
-        expect(links.length).toBe(2); // 前两项带 href → a 分支
+        const links = visible(".asc-breadcrumb-link", root);
+        expect(links.length).toBe(2); // 前两项带 href → a 分支可见（末项 a 分支 x-show 隐藏）
         expect(links[0]!.getAttribute("href")).toBe("/");
         expect(links[1]!.getAttribute("href")).toBe("/orders");
         expect(links[0]!.textContent).toContain("首页");
-        const current = root.querySelector(".asc-breadcrumb-current")!;
-        expect(current).toBeTruthy(); // 末项无 href → 纯文本分支
-        expect(current.textContent).toContain("订单详情");
+        const current = visible(".asc-breadcrumb-current", root);
+        expect(current.length).toBe(1); // 末项无 href → 纯文本分支可见
+        expect(current[0]!.textContent).toContain("订单详情");
     });
 
     test("末项当前页语义：末项恒 aria-current=page（含 href 形态），非末项无该属性", async () => {
@@ -63,25 +76,30 @@ describe("items 数据驱动渲染（状态引用注入）", () => {
         );
         await nextTick();
         const items = root.querySelectorAll(".asc-breadcrumb-item");
-        expect(items[0]!.querySelector("[aria-current]")).toBe(null); // 非末项无标注
+        expect(items[0]!.querySelector("[aria-current]")).toBe(null); // 非末项无标注（双分支均无）
         const lastCrumb = items[1]!.querySelector(".asc-breadcrumb-link")!; // 带 href 的末项走 a 分支
         expect(lastCrumb.getAttribute("aria-current")).toBe("page");
     });
 
-    test("items 状态变化跟随：push 新项后渲染追加（x-for 指令值通道响应）", async () => {
+    test("items 状态变化跟随：数组整体替换后渲染重建（x-for 指令值通道响应）", async () => {
         const { root, engine } = mount(
             `<nav x-component:autospark.breadcrumb="{ items: crumbs }"></nav>`,
             { crumbs: [{ label: "首页", href: "/" }, { label: "列表", href: "/list" }] },
         );
         await nextTick();
         expect(root.querySelectorAll(".asc-breadcrumb-item").length).toBe(2);
-        engine.store.state.crumbs.push({ label: "详情" });
+        // 受控数据惯例：数组整体替换（引用变化触发 props 重注入→重渲染；原地 push 不换引用）
+        engine.store.state.crumbs = [
+            { label: "首页", href: "/" },
+            { label: "列表", href: "/list" },
+            { label: "详情" },
+        ];
         await nextTick();
         expect(root.querySelectorAll(".asc-breadcrumb-item").length).toBe(3);
         // 末项语义迁移：新末项（无 href）承接 aria-current
-        const current = root.querySelector(".asc-breadcrumb-current")!;
-        expect(current.getAttribute("aria-current")).toBe("page");
-        expect(current.textContent).toContain("详情");
+        const current = visible(".asc-breadcrumb-current", root);
+        expect(current[0]!.getAttribute("aria-current")).toBe("page");
+        expect(current[0]!.textContent).toContain("详情");
     });
 
     test("项级 icon：x-icon 值通道渲染图标位", async () => {
@@ -90,7 +108,8 @@ describe("items 数据驱动渲染（状态引用注入）", () => {
             { crumbs: [{ label: "收藏", href: "/fav", icon: "star" }, { label: "详情" }] },
         );
         await nextTick();
-        expect(root.querySelector(".asc-breadcrumb-icon")).toBeTruthy();
+        expect(visible(".asc-breadcrumb-icon", root).length).toBe(1); // 仅 icon 项可见
+        expect(visible(".asc-breadcrumb-icon", root)[0]!.closest("a")).toBeTruthy(); // 落在链接项内
     });
 });
 
@@ -101,10 +120,10 @@ describe("分隔符（separator）", () => {
             { crumbs: [{ label: "首页", href: "/" }, { label: "库", href: "/lib" }, { label: "组件" }] },
         );
         await nextTick();
-        const texts = root.querySelectorAll(".asc-breadcrumb-sep-text");
-        expect(texts.length).toBe(3); // 每项一枚（末项 CSS 隐藏不摘 DOM）
+        const texts = visible(".asc-breadcrumb-sep-text", root);
+        expect(texts.length).toBe(3); // 每项一枚可见（末项 CSS :last-child 隐藏视觉、DOM 仍在）
         expect(texts[0]!.textContent).toBe("/");
-        expect(root.querySelector(".asc-breadcrumb-sep-icon")).toBe(null); // 图标形态未启用
+        expect(visible(".asc-breadcrumb-sep-icon", root).length).toBe(0); // 图标形态未启用（x-show 隐藏）
     });
 
     test("arrow 形态：x-icon 内置箭头在场、文本形态退场", async () => {
@@ -113,8 +132,8 @@ describe("分隔符（separator）", () => {
             { crumbs: [{ label: "首页", href: "/" }, { label: "详情" }] },
         );
         await nextTick();
-        expect(root.querySelector(".asc-breadcrumb-sep-icon")).toBeTruthy();
-        expect(root.querySelector(".asc-breadcrumb-sep-text")).toBe(null);
+        expect(visible(".asc-breadcrumb-sep-icon", root).length).toBe(2); // 每项一枚箭头
+        expect(visible(".asc-breadcrumb-sep-text", root).length).toBe(0); // 文本形态退场
     });
 
     test("自定义字符：任意字符串原样渲染", async () => {
@@ -123,7 +142,7 @@ describe("分隔符（separator）", () => {
             { crumbs: [{ label: "首页", href: "/" }, { label: "详情" }] },
         );
         await nextTick();
-        expect(root.querySelector(".asc-breadcrumb-sep-text")!.textContent).toBe("·");
+        expect(visible(".asc-breadcrumb-sep-text", root)[0]!.textContent).toBe("·");
     });
 
     test("末项分隔符隐藏规则（模板断言）", () => {
@@ -161,9 +180,9 @@ describe("元素名快速写法（precompile 变换）", () => {
         expect(host).toBeTruthy();
         expect(root.querySelector("x-breadcrumb-item")).toBe(null); // 声明元素不残留
         expect(root.querySelectorAll(".asc-breadcrumb-item").length).toBe(3);
-        expect(root.querySelectorAll(".asc-breadcrumb-link").length).toBe(2);
-        expect(root.querySelector(".asc-breadcrumb-current")!.textContent).toContain("Breadcrumb");
-        expect(root.querySelector(".asc-breadcrumb-icon")).toBeTruthy(); // icon 折叠进 JSON 通道
+        expect(visible(".asc-breadcrumb-link", root).length).toBe(2);
+        expect(visible(".asc-breadcrumb-current", root)[0]!.textContent).toContain("Breadcrumb");
+        expect(visible(".asc-breadcrumb-icon", root).length).toBe(1); // icon 折叠进 JSON 通道
     });
 
     test(":items 状态引用在场：data-items 不落盘（props 优先）+ 声明子元素仍摘除", async () => {

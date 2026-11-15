@@ -1,6 +1,6 @@
 import { AutoSparkDirectiveBase } from "../features/directive/base";
 import type { AutoSparkScope } from "../engine/scope";
-import type { SlotContent, SuperInlet } from "../utils/slot";
+import { isBlankSlotCarrier, type SlotContent, type SuperInlet } from "../utils/slot";
 import { SpreadBinder } from "./x-bind-spread";
 
 /**
@@ -32,6 +32,15 @@ import { SpreadBinder } from "./x-bind-spread";
  * 在**调用方作用域** watch 并以 x-bind 展开语义应用到出口元素（调用方赢：出口静态
  * 属性不做 reservedKeys 恒赢）。`.bind` 修饰符写在出口侧无意义 → warn 引导；
  * 裸 `x-slot.bind` 的值仍按动态出口名消费（ADR-0107 向后兼容）。
+ *
+ * template 出口载体（ADR-0137）：`<template x-slot:名>` 是出口标记的第二载体——
+ * template 不进运行 DOM（无包裹层，产物经 fragment 原位展开、`data-slot` 锚点由首个
+ * 元素根承接），按空/非空分流：有实质内容（纯空白/注释不算）= fallback 出口；空 =
+ * 可选出口（未填充整出口不渲染）。载体上的属性（除 `x-slot` 标记与宿主配置家族）
+ * 是**出口注入**集——在内容编译前写入每个元素根（`:class`/`@click`/`x-show` 原文
+ * 随内容编译作为活指令生效），冲突调用方赢、class/style token 级合并；fallback 根
+ * 同样注入；live 活体段豁免（跳过 + warn）。元素出口不受影响（包裹层 + fallback +
+ * 不注入三不变）。
  */
 export class SlotDirective extends AutoSparkDirectiveBase {
     /**
@@ -59,6 +68,19 @@ export class SlotDirective extends AutoSparkDirectiveBase {
     private dynamicInvalid = false;
     /** 出口名（名段重组后，ADR-0124）：compile 期写 data-slot 用 */
     private resolvedAttrName = "default";
+    /**
+     * 出口注入集（ADR-0137）：template 载体上的属性原文（静态 + 指令属性，`x-slot`
+     * 标记与宿主配置家族已排除），created 期经 `consumeOutletInjectAttrs` 一次性抄录。
+     * 元素载体恒 null——元素自身属性是自身样式，与注入意图不可区分，不注入。
+     */
+    private injectAttrs: Array<[string, string]> | null = null;
+    /**
+     * template 载体编译产物（ADR-0137）：投影 / fallback / live 段的最终节点列表 +
+     * 锚点（首个元素根，承接 `data-slot`）。compile 期构建，编译器 ownsChildren
+     * 返回点经 {@link takeOutletFragment} 组 fragment 原位展开挂入新父——template
+     * 自身不进运行 DOM（无包裹层）。元素载体恒 null（走既有 el 内挂载路径）。
+     */
+    private outlet: { nodes: Node[]; anchor: HTMLElement | null } | null = null;
 
     override created(): void {
         // 名段重组（ADR-0124 点分出口名）：解析期按 "." 切修饰符，attr 只含首段——冒号形态
@@ -180,9 +202,24 @@ export class SlotDirective extends AutoSparkDirectiveBase {
                 this._applyParams(extract(initial));
             }
         }
+
+        // 出口注入集抄录（ADR-0137 决策二）：template 载体的注入集已在编译期剥除并
+        // stash（`compiler._stripOutletInjectAttrs`——指令属性若不剥会在 `display:none`
+        // 载体上按通用管线实例化空转），此处一次性取走（生命周期均在 compileElement
+        // 的 try 块内执行，时序安全）。
+        if (this.template instanceof HTMLTemplateElement) {
+            this.injectAttrs = this.engine.compiler.consumeOutletInjectAttrs(this.template) ?? [];
+        }
     }
 
     override compile(): void {
+        const tpl = this.template;
+        // template 出口载体（ADR-0137）：独立分流——无包裹层（产物经 fragment 原位展开，
+        // template 不进运行 DOM）+ 出口注入 + 空=可选出口；元素出口走既有路径零改动。
+        if (tpl instanceof HTMLTemplateElement) {
+            this._compileTemplateOutlet(tpl);
+            return;
+        }
         // 出口运行态标记：`x-slot` 属性随编译剥除，出口元素留 `data-slot`（=出口名）作
         // 稳定寻址锚——运行期 DOM 注入通道（如 x-foldable 折叠面板中继）据此定位出口。
         // 动态出口写求值结果名；无效名不写（ADR-0107 决策八）
@@ -215,18 +252,184 @@ export class SlotDirective extends AutoSparkDirectiveBase {
             return;
         }
         // fallback：出口子树在组件作用域编译（出口 scope 链上即组件 data）
-        const tpl = this.template;
-        if (!tpl) return;
-        if (tpl instanceof HTMLTemplateElement) {
-            // template 出口：fallback 子节点在 .content（light childNodes 恒空），逐个编译挂载
-            const nodes = this.engine.compiler.compileChildNodes(
-                Array.from(tpl.content.childNodes),
-                this.binding,
+        const tplEl = this.template;
+        if (!tplEl) return;
+        this.engine.compiler.compileSubtree(this.el, tplEl, this.binding);
+    }
+
+    /**
+     * 取走 template 载体编译产物（编译器 ownsChildren 返回点专用，ADR-0137）：
+     * 产物组 DocumentFragment，transformElement 经 `appendChild(fragment)` 原位展开
+     * 挂入新父——template 自身不进运行 DOM。空产物（可选出口未填充）= 空 fragment =
+     * 出口静默消失。读后即清（幂等）；非 template 载体恒 null（走既有 el 内挂载）。
+     */
+    takeOutletFragment(): DocumentFragment | null {
+        if (!this.outlet) return null;
+        const frag = document.createDocumentFragment();
+        for (const n of this.outlet.nodes) frag.appendChild(n);
+        this.outlet = null;
+        return frag;
+    }
+
+    /**
+     * template 出口载体的编译分流（ADR-0137 决策一/二）。
+     *
+     * 与元素出口的三点差异：
+     * - **无包裹层**：template 不进运行 DOM——产物（投影 / fallback / live 段）暂存
+     *   {@link outlet}，由编译器经 fragment 原位展开；`data-slot` 锚点由首个元素根承接；
+     * - **空 / 非空分流**：非空 = fallback 出口（未填充渲染 `.content` 子树，fallback 根
+     *   同样注入——防「填充有样式、未填充裸奔」的跳变）；空（纯空白 / 注释）= 可选出口
+     *   （未填充整出口不渲染，无锚点）；
+     * - **出口注入**：created 期抄录的注入集在内容编译**前**写入每个元素根——`:class` /
+     *   `@click` / `x-show` 等指令属性原文随内容编译管线作为活指令生效（调用方作用域求值）。
+     */
+    private _compileTemplateOutlet(tpl: HTMLTemplateElement): void {
+        const slotName = this.dynamicInvalid
+            ? null
+            : (this.dynamicResolved?.name ?? this.resolvedAttrName);
+        // 投影：内容段在调用方基准编译
+        if (this.content && this.callerScope) {
+            // 活体段（ADR-0062）：直挂产物、不克隆不再编译；出口注入跳过（活体元素生死归
+            // 构造方，注入属性无人清理——ADR-0137 决策二 live 豁免）
+            if (this.content.mode === "live") {
+                if (this.injectAttrs && this.injectAttrs.length > 0) {
+                    this.warn(
+                        `x-slot: 活体内容段不参与出口注入（活体元素归构造方管理），注入属性已忽略（ADR-0137）`,
+                    );
+                }
+                this._finishOutlet(
+                    [...this.content.nodes],
+                    this._firstElementRoot(this.content.nodes),
+                    slotName,
+                );
+                return;
+            }
+            // 注入（活注入：先写属性原文、后编译）→ detached 容器编译 → 产物暂存。
+            // 锚点取**编译产物**首根（编译是克隆语义，编译前节点的 dataset/绑定会随克隆丢弃；
+            // 注入属性得以幸存正因 setAttribute 先于 cloneNode）
+            this._applyOutletInjection(this.content.nodes);
+            const holder = document.createElement("div");
+            const inlet = this._makeSuperInlet();
+            this.contentScopes = this.engine.compiler.compileSlotNodes(
+                this.content.nodes,
+                this.callerScope,
+                this.paramData,
+                holder,
+                (s) => {
+                    s.superInlet = inlet;
+                },
             );
-            for (const n of nodes) this.el.appendChild(n as ChildNode);
+            const produced = Array.from(holder.childNodes);
+            this._finishOutlet(produced, this._firstElementRoot(produced), slotName);
+            // 传递绑定（ADR-0108）：template 出口无包裹层，出口的 DOM 代表 = 内容首根
+            //（锚点）——绑定应用到锚点而非被替换的 template（方向语义不变：内容 → 出口）
+            this._applyCallerBindings();
             return;
         }
-        this.engine.compiler.compileSubtree(this.el, tpl, this.binding);
+        // 可选出口：无内容 + 空载体（纯空白 / 注释）→ 整出口不渲染（空产物、无锚点）
+        if (isBlankSlotCarrier(tpl)) {
+            this.outlet = { nodes: [], anchor: null };
+            return;
+        }
+        // fallback：`.content` 子树在组件作用域编译——先克隆到中间 fragment（模板只读
+        // 契约，ADR-0002）、注入 fallback 每个元素根，再经 compileSuperFallback 同款管线
+        // 编译（元素走 compileChild 显式 parentScope——detached 克隆的 _linkParent 摸不到
+        // 祖先 scope，直接 transformElement 会断链致插值读不到组件 data；注入的指令属性
+        // 原文随编译生效）。锚点同样取编译产物首根。
+        const staging = document.createDocumentFragment();
+        for (const n of Array.from(tpl.content.childNodes)) staging.appendChild(n.cloneNode(true));
+        this._applyOutletInjection(Array.from(staging.childNodes));
+        const compiled = this.engine.compiler.compileSuperFallback(staging, this.binding);
+        this.contentScopes = compiled.scopes; // destroy 回收（同时由出口 binding 级联，幂等）
+        this._finishOutlet(compiled.nodes, this._firstElementRoot(compiled.nodes), slotName);
+    }
+
+    /** 固化 template 载体编译产物：锚点承接 `data-slot`、产物暂存待编译器组 fragment */
+    private _finishOutlet(
+        nodes: Node[],
+        anchor: HTMLElement | null,
+        slotName: string | null,
+    ): void {
+        if (slotName && anchor) anchor.dataset.slot = slotName;
+        this.outlet = { nodes, anchor };
+    }
+
+    /** 节点序列中的首个元素节点（template 载体内容可多根，锚点取首元素根） */
+    private _firstElementRoot(nodes: Node[]): HTMLElement | null {
+        for (const n of nodes) {
+            if (n instanceof HTMLElement) return n;
+        }
+        return null;
+    }
+
+    /**
+     * 出口注入执行（ADR-0137 决策二）：注入集写入**每个元素根**（多根对称、无首根特判），
+     * 返回首元素根（锚点候选）。纯文本 / 插值段无元素根可注入 → warn + 丢弃属性
+     * （绝不静默造包裹层，守「最小 DOM」取舍）。
+     */
+    private _applyOutletInjection(nodes: Node[]): HTMLElement | null {
+        const anchor = this._firstElementRoot(nodes);
+        if (!this.injectAttrs || this.injectAttrs.length === 0) return anchor;
+        let injectedAny = false;
+        for (const n of nodes) {
+            if (!(n instanceof HTMLElement)) continue;
+            for (const [name, value] of this.injectAttrs) this._mergeInjectAttr(n, name, value);
+            injectedAny = true;
+        }
+        if (!injectedAny) {
+            this.warn(
+                `x-slot: 出口 "${this.dynamicResolved?.name ?? this.resolvedAttrName}" 的注入属性无处安放（内容段无元素根），已丢弃（ADR-0137）`,
+            );
+        }
+        return anchor;
+    }
+
+    /**
+     * 单属性注入的冲突合并（ADR-0137）：**调用方赢**——内容根已有同名属性不被覆盖
+     * （与传递绑定 ADR-0108 跨机制方向一致）；`class` / `style` 走 token / 声明级合并
+     * （内容根已有保留 + 声明侧追加，语义对齐 SpreadBinder 的 diff 合并）。
+     */
+    private _mergeInjectAttr(target: Element, name: string, value: string): void {
+        if (name === "class") {
+            const base = target.getAttribute("class");
+            if (!base) {
+                target.setAttribute("class", value);
+                return;
+            }
+            const tokens = new Set(base.split(/\s+/).filter(Boolean));
+            for (const t of value.split(/\s+/).filter(Boolean)) tokens.add(t);
+            target.setAttribute("class", Array.from(tokens).join(" "));
+            return;
+        }
+        if (name === "style") {
+            const base = target.getAttribute("style");
+            if (!base) {
+                target.setAttribute("style", value);
+                return;
+            }
+            // 声明级合并：同名属性内容根赢（先写在场），声明侧仅补充新属性
+            const decls = new Map<string, string>();
+            for (const decl of base
+                .split(";")
+                .map((s) => s.trim())
+                .filter(Boolean)) {
+                const idx = decl.indexOf(":");
+                if (idx > 0) decls.set(decl.slice(0, idx).trim().toLowerCase(), decl);
+            }
+            for (const decl of value
+                .split(";")
+                .map((s) => s.trim())
+                .filter(Boolean)) {
+                const idx = decl.indexOf(":");
+                if (idx <= 0) continue;
+                const prop = decl.slice(0, idx).trim().toLowerCase();
+                if (!decls.has(prop)) decls.set(prop, decl);
+            }
+            target.setAttribute("style", Array.from(decls.values()).join("; "));
+            return;
+        }
+        if (target.hasAttribute(name)) return; // 调用方赢：内容根同名属性不被覆盖
+        target.setAttribute(name, value);
     }
 
     /**
@@ -265,7 +468,9 @@ export class SlotDirective extends AutoSparkDirectiveBase {
         if (!expr || !caller) return;
         const binder = new SpreadBinder({
             engine: this.engine,
-            el: this.el,
+            // template 载体（ADR-0137）：出口的 DOM 代表 = 内容首根（锚点）——绑定应用到
+            // 锚点而非被替换的 template；元素载体照旧出口元素自身
+            el: this.outlet?.anchor ?? this.el,
             template: null,
             getOption: () => undefined,
         });
@@ -311,5 +516,7 @@ export class SlotDirective extends AutoSparkDirectiveBase {
         this.paramData = null;
         this.dynamicResolved = null;
         this.dynamicInvalid = false;
+        this.injectAttrs = null;
+        this.outlet = null;
     }
 }

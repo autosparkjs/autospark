@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Breadcrumb · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.breadcrumb.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">items 数据驱动（状态引用注入）+ 子元素声明（静态路径）</div>
+        <div class="auto-card-body">
+          <p><x-breadcrumb :items="crumbs"></x-breadcrumb></p>
+          <p class="hint">items 恒经状态引用注入（字面量数组 props 在当前引擎版本会触发无限更新）。</p>
+          <p>
+            <x-breadcrumb>
+              <x-breadcrumb-item label="首页" href="/"></x-breadcrumb-item>
+              <x-breadcrumb-item label="组件库" href="/zh/components/"></x-breadcrumb-item>
+              <x-breadcrumb-item label="Breadcrumb 面包屑"></x-breadcrumb-item>
+            </x-breadcrumb>
+          </p>
+          <p class="hint">
+            元素名快速写法：<code>&lt;x-breadcrumb-item&gt;</code> 经 precompile 变换折叠为 items JSON（宿主替换为真
+            nav 元素）；末项恒为当前页（aria-current="page"）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        crumbs: [
+          { label: "首页", href: "/" },
+          { label: "组件库", href: "/zh/components/" },
+          { label: "导航", href: "/zh/components/navigation/breadcrumb" },
+          { label: "当前页" },
+        ],
+      });
+    </script>
+  </body>
+</html>

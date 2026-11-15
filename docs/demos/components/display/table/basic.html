@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Table · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.empty.js"></script>
+    <script src="/autospark/autospark.table.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">基础：columns × rows 数据驱动（默认单元格 + 斑马纹）</div>
+        <div class="auto-card-body">
+          <x-table striped="true" :columns="cols" :rows="users"></x-table>
+          <p class="hint" style="margin-top: 12px">
+            columns/rows 须<b>状态引用</b>注入（字面量数组触发 props 更新死环——引擎已知缺陷规避）；
+            默认单元格 null 收敛 / 标量直出 / 对象 JSON 兜底；width 支持数字（px）与字符串两形态。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">col-name 作用域插槽：自定义单元格</div>
+        <div class="auto-card-body">
+          <x-table :columns="cols" :rows="users">
+            <template x-slot:col-name="{ row, rowIndex }">
+              <b x-text="row.name"></b>
+              <span style="color: var(--auto-third-color, #868e96)" x-text="'第 ' + (rowIndex + 1) + ' 位'"></span>
+            </template>
+          </x-table>
+          <p class="hint" style="margin-top: 12px">
+            插槽名 = <code>col-&lt;列 key&gt;</code>；形参 <code>{ row, column, rowIndex, colIndex }</code>
+            解构消费，内容在调用方作用域求值（可读调用方状态、可挂行内事件）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        cols: [
+          { key: "name", title: "名称" },
+          { key: "age", title: "年龄", align: "right" },
+          { key: "city", title: "城市" },
+        ],
+        users: [
+          { id: 1, name: "张三", age: 30, city: "北京" },
+          { id: 2, name: "李四", age: 24, city: "上海" },
+          { id: 3, name: "王五", age: 28, city: "广州" },
+        ],
+      });
+    </script>
+  </body>
+</html>

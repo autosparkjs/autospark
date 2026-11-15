@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>TimePicker · 键盘与状态</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.time-picker.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" style="max-width: 460px">
+      <div class="auto-card">
+        <div class="auto-card-header">键盘（按简）</div>
+        <div class="auto-card-body">
+          <p><x-time-picker x-model="kb"></x-time-picker></p>
+          <p class="hint">
+            <code>Enter / ↓</code> 开面板、再按 <code>Enter</code> 收起确认；面板关闭走面板外点击 / <code>ESC</code>（机制继承）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">状态色与禁用 / 只读（骨架通道）</div>
+        <div class="auto-card-body">
+          <p><x-time-picker value="09:30" status="warning"></x-time-picker></p>
+          <p><x-time-picker value="09:30" disabled="true"></x-time-picker></p>
+          <p><x-time-picker value="09:30" readonly="true"></x-time-picker></p>
+          <p class="hint">只读可开面板浏览但点选被阻断。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">尺寸档位（主题通道 data-size 挂祖先容器）</div>
+        <div class="auto-card-body">
+          <p><span data-size="small"><x-time-picker value="09:30"></x-time-picker></span></p>
+          <p><span data-size="large"><x-time-picker value="09:30"></x-time-picker></span></p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), { kb: "" });
+    </script>
+  </body>
+</html>

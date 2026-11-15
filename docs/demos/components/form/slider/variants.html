@@ -18,10 +18,10 @@
         <div class="auto-card-header">showInput 数值输入联动（双向同步，须同引 autospark.input-number.js）</div>
         <div class="auto-card-body">
           <p>
-            <span x-model.number="rate" x-component:autospark.slider="{ min: 0, max: 10, step: 0.5, showInput: true }"></span>
+            <x-slider x-model.number="rate" min="0" max="10" step="0.5" x-slider-options="{ props: { showInput: true } }"></x-slider>
           </p>
           <p>
-            <span x-model.number="temp" x-component:autospark.slider="{ min: -10, max: 40, showInput: true }"></span>
+            <x-slider x-model.number="temp" min="-10" max="40" x-slider-options="{ props: { showInput: true } }"></x-slider>
           </p>
           <p class="hint">拖动滑块同步输入框；输入框 blur 确认同步滑块。</p>
         </div>
@@ -29,10 +29,10 @@
       <div class="auto-card">
         <div class="auto-card-header">状态色 / 禁用 / 只读</div>
         <div class="auto-card-body">
-          <p><span x-component:autospark.slider="{ status: 'error', value: 85 }"></span></p>
-          <p><span x-component:autospark.slider="{ status: 'success', value: 40 }"></span></p>
-          <p><span x-component:autospark.slider="{ value: 60, disabled: true }"></span></p>
-          <p><span x-component:autospark.slider="{ value: 60, readonly: true }"></span></p>
+          <p><x-slider status="error" value="85"></x-slider></p>
+          <p><x-slider status="success" value="40"></x-slider></p>
+          <p><x-slider value="60" disabled="true"></x-slider></p>
+          <p><x-slider value="60" readonly="true"></x-slider></p>
         </div>
       </div>
     </main>

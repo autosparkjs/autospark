@@ -18,7 +18,7 @@
         <div class="auto-card-header">image 槽换图 + 默认插槽放附加动作</div>
         <div class="auto-card-body">
           <div style="border: 1px dashed rgba(128, 128, 128, 0.35); border-radius: 8px">
-            <div x-component:autospark.empty="{ description: '自定义图片空态' }">
+            <x-empty description="自定义图片空态">
               <template x-slot:image>
                 <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.2">
                   <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -26,7 +26,7 @@
                 </svg>
               </template>
               <button onclick="alert('新建')">新建项目</button>
-            </div>
+            </x-empty>
           </div>
           <p class="hint" style="margin-top: 12px">默认插槽落描述下方（附加动作区，常放按钮组）。</p>
         </div>

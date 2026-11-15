@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Table · 虚拟滚动</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.empty.js"></script>
+    <script src="/autospark/autospark.virtual.js"></script>
+    <script src="/autospark/autospark.table.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">virtual 万行虚拟滚动（10000 行，只渲染可见窗口）</div>
+        <div class="auto-card-body">
+          <x-table virtual="true" striped="true" :columns="bigCols" :rows="bigRows"></x-table>
+          <p class="hint" style="margin-top: 12px">
+            长表走网格分叉（CSS grid + x-for.virtual，行定高 40px 与字号档位解耦）；
+            须同页引入 <code>autospark.virtual.js</code>（缺位 warn 退化全量渲染，降级不失效）；
+            容器高度经 <code>--asc-table-virtual-height</code> 覆盖（缺省 20em）；
+            排序/斑马纹照常可用。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      const bigRows = Array.from({ length: 10000 }, (_, i) => ({
+        id: i + 1,
+        name: `成员 ${i + 1}`,
+        age: 18 + (i % 60),
+        city: ["北京", "上海", "广州", "深圳", "杭州"][i % 5],
+      }));
+      new AutoSpark(document.querySelector(".demo-main"), {
+        bigCols: [
+          { key: "id", title: "ID", width: 80 },
+          { key: "name", title: "名称", sortable: true },
+          { key: "age", title: "年龄", align: "right", sortable: true },
+          { key: "city", title: "城市" },
+        ],
+        bigRows,
+      });
+    </script>
+  </body>
+</html>

@@ -4,11 +4,11 @@
 
 Slider 是 AutoSpark 的官方滑动条组件（组件库 P1 form 批，ADR-0018），走**原生增强路线**：内层是真实的原生 `<input type="range">`，以 `opacity: 0` 覆盖层形态**藏起仍可交互**——点击跳值 / 拖拽跟随 / 键盘方向键 / 触屏手势等原生行为与可访问性全保留（ADR-0018 决策 7）；轨道 / 已填充段 / 滑块视觉自绘（填充与滑块位置同源于 CSS 变量 `--asc-slider-pos`）。
 
-能力面：**min / max / step**（原生刻度语义）、**showInput 数值输入联动**（内嵌 InputNumber 双向同步）、**disabled / readonly**。组件继承 `autospark.base-field` 表单域骨架（状态色通道 / 焦点态 / disabled 同步，裸态无盒饰，ADR-0020）；表单提交走**原生直提交**（range 是原生表单控件自带提名义，宿主 `name` 透传，无须 hidden 代理）。range 双滑块（区间选择）P3 按需。
+能力面：**min / max / step**（原生刻度语义）、**showInput 数值输入联动**（内嵌 InputNumber 双向同步）、**disabled / readonly**。组件继承 `autospark.field` 表单域骨架（状态色通道 / 焦点态 / disabled 同步，裸态无盒饰，ADR-0020）；表单提交走**原生直提交**（range 是原生表单控件自带提名义，宿主 `name` 透传，无须 hidden 代理）。range 双滑块（区间选择）P3 按需。
 
 视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129）；**不设自有尺寸属性**——轨道 / 滑块 em 基准随主题 `data-size` 档位字号缩放（button 同范式 ADR-0012）；暗色态容器裸挂 `data-dark`。无内置文案、不接 i18n（ADR-0018 决策 1）。
 
-引入方式：引擎之后加载 `<script src="/autospark/autospark.slider.js"></script>`（自举注册，产物已内嵌 base-field 注册），或聚合产物 `autospark.plugins.js`。
+引入方式：引擎之后加载 `<script src="/autospark/autospark.slider.js"></script>`（自举注册，产物已内嵌 field 注册），或聚合产物 `autospark.plugins.js`。
 
 ## 快速入门
 
@@ -18,7 +18,7 @@ Slider 是 AutoSpark 的官方滑动条组件（组件库 P1 form 批，ADR-0018
 <script src="autospark.js"></script>
 <script src="autospark.slider.js"></script>
 
-<span x-model.number="form.volume" x-component:autospark.slider="{ min: 0, max: 100 }"></span>
+<x-slider x-model.number="form.volume" min="0" max="100"></x-slider>
 ```
 
 <demo html="components/form/slider/basic.html"/>
@@ -40,9 +40,9 @@ Slider 是 AutoSpark 的官方滑动条组件（组件库 P1 form 批，ADR-0018
 
 ```html
 <!-- 双向绑定（推荐，.number 保真数字类型） -->
-<span x-model.number="form.volume" x-component:autospark.slider></span>
+<x-slider x-model.number="form.volume"></x-slider>
 <!-- 单向同步（无回写） -->
-<span x-component:autospark.slider="{ value: form.volume }"></span>
+<x-slider :value="form.volume"></x-slider>
 ```
 
 ### showInput 数值输入联动
@@ -60,7 +60,7 @@ Slider 是 AutoSpark 的官方滑动条组件（组件库 P1 form 批，ADR-0018
 
 ```html
 <div @change="form.volume = $event.detail.value">
-  <span x-model.number="form.volume" x-component:autospark.slider></span>
+  <x-slider x-model.number="form.volume"></x-slider>
 </div>
 ```
 
@@ -76,7 +76,7 @@ Slider 是 AutoSpark 的官方滑动条组件（组件库 P1 form 批，ADR-0018
 **类型**: `"" | "error" | "success" | "warning"`
 **默认**: `""`
 
-表单域状态色通道（base-field 骨架）：填充段与滑块描边消费 `--asc-field-tone`（status 在场随语义色联动）；`error` 态同步 `aria-invalid`。校验结果来自 x-field（组件不做校验，ADR-0020 决策 1）。
+表单域状态色通道（field 骨架）：填充段与滑块描边消费 `--asc-field-tone`（status 在场随语义色联动）；`error` 态同步 `aria-invalid`。校验结果来自 x-field（组件不做校验，ADR-0020 决策 1）。
 
 ### 表单提交（原生直提交）
 
@@ -97,7 +97,7 @@ Slider 是 AutoSpark 的官方滑动条组件（组件库 P1 form 批，ADR-0018
 | max | `number` | `100` | 上界（<= min 时按 min+1 防御） |
 | step | `number` | `1` | 步长（同步原生 step 刻度语义；<=0 视为 1） |
 | showInput | `boolean` | `false` | 数值输入联动（内嵌 autospark.input-number 双向同步；须同引其产物） |
-| status | `"" \| error \| success \| warning` | `""` | 状态色通道（base-field 骨架；tone 联动填充段与滑块） |
+| status | `"" \| error \| success \| warning` | `""` | 状态色通道（field 骨架；tone 联动填充段与滑块） |
 | disabled | `boolean` | `false` | 禁用（骨架同步 range 原生阻断 + 淡化） |
 | readonly | `boolean` | `false` | 只读（pointer-events 阻断交互，无淡化） |
 

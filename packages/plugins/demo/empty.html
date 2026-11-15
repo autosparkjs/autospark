@@ -73,19 +73,19 @@
         <x-empty icon="folder" description="文件夹为空"></x-empty>
       </div>
       <div class="frame">
-        <div x-component:autospark.empty="{ description: '自定义图片空态' }">
+        <x-empty description="自定义图片空态">
           <template x-slot:image>
             <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.2">
               <rect x="3" y="5" width="18" height="14" rx="2" />
               <path d="M3 15l5-5 4 4 3-3 6 6" />
             </svg>
           </template>
-        </div>
+        </x-empty>
       </div>
 
       <h2>i18n 词典覆译（empty.description 键）</h2>
       <div class="frame" id="i18n-box">
-        <div x-component:autospark.empty="{}"></div>
+        <x-empty></x-empty>
       </div>
       <p class="hint">
         本页注入了 <code>&lt;script type="autospark/locales"&gt;</code> 词典（zh-CN 覆译

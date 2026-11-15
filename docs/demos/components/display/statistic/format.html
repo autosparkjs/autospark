@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Statistic · 格式化与主题</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.statistic.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">precision / grouping / groupSeparator / valueStyle</div>
+        <div class="auto-card-body">
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+            <x-statistic title="precision 修约（4 位）" precision="4" :value="pi"></x-statistic>
+            <x-statistic title="grouping=false（无千分位）" grouping="false" :value="total"></x-statistic>
+            <x-statistic title="自定义分组符（下划线）" :value="total" x-statistic-options="{ props: { groupSeparator: '_' } }"></x-statistic>
+            <!-- 保留值形态：valueStyle 动态对象（状态引用）——camelCase 动态键在元素名形态无 :绑定通道（DOM 属性名小写化失配） -->
+            <div
+              x-component:autospark.statistic="{
+                value: delta,
+                title: 'valueStyle 语义色（红涨）',
+                valueStyle: vs,
+                precision: 2,
+              }"
+            ></div>
+          </div>
+          <p class="hint" style="margin-top: 12px">
+            groupSeparator 替换当前语言环境的缺省分组符；valueStyle 为内联样式对象（状态引用注入）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">语言环境联动（i18n `$.language`，未装回退 zh）</div>
+        <div class="auto-card-body">
+          <x-statistic title="点击切换语言环境（zh ↔ de）" :value="amount"></x-statistic>
+          <p style="margin-top: 8px">
+            <button @click="$.language = ($.language === 'de' ? 'zh' : 'de')" x-text="'当前语言：' + ($.language || 'zh') + '（点击切换）'"></button>
+          </p>
+          <p class="hint">de 语区点分组 + 逗号小数（1.234.567,89）——i18n 插件在场时随词典语言自动联动。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">暗色态（容器裸挂 data-dark）</div>
+        <div class="auto-card-body" data-dark>
+          <x-statistic title="今日成交" prefix="¥" :value="amount"></x-statistic>
+        </div>
+      </div>
+    </main>
+    <script>
+      const engine = new AutoSpark(document.querySelector(".demo-main"), {
+        pi: 3.14159265,
+        total: 9876543,
+        delta: 1234.56,
+        amount: 1234567.89,
+        vs: { color: "#ff4d4f" },
+      });
+      // 经代理写创建 $ 容器（$ 是框架保留键，mount 状态里的用户 $ 数据被剥除——ADR-0105；
+      // i18n ensureLanguage 同款通道，i18n 插件在场时由其词典通道驱动同一状态）
+      engine.store.state.$ = { language: "zh" };
+    </script>
+  </body>
+</html>

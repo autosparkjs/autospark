@@ -16,30 +16,30 @@
       <div class="auto-card">
         <div class="auto-card-header">关闭（closable）——close 事件冒泡</div>
         <div class="auto-card-body" style="display: flex; flex-direction: column; gap: 12px" @close="lastClosed = $event.target.querySelector('.asc-alert-title')?.textContent || '（无标题）'">
-          <div x-component:autospark.alert="{ title: '可关闭的警示条', description: '点击右侧关闭图标：closed 置位隐藏 + close 事件冒泡。', type: 'success', closable: true }"></div>
-          <div x-component:autospark.alert="{ title: '可关闭的中性条', closable: true }"></div>
+          <x-alert title="可关闭的警示条" description="点击右侧关闭图标：closed 置位隐藏 + close 事件冒泡。" type="success" closable="true"></x-alert>
+          <x-alert title="可关闭的中性条" closable="true"></x-alert>
           <p class="auto-hint">最近关闭：{{ lastClosed || '（未关闭）' }}</p>
         </div>
       </div>
       <div class="auto-card">
         <div class="auto-card-header">图标（icon 覆盖 / false 关闭）</div>
         <div class="auto-card-body" style="display: flex; flex-direction: column; gap: 12px">
-          <div x-component:autospark.alert="{ title: '自定义图标', description: 'icon 传图标名覆盖默认映射（warning 档换 bell）。', type: 'warning', icon: 'bell' }"></div>
-          <div x-component:autospark.alert="{ title: '无图标形态', description: 'icon: false 关闭图标位。', type: 'info', icon: false }"></div>
+          <x-alert title="自定义图标" description="icon 传图标名覆盖默认映射（warning 档换 bell）。" type="warning" icon="bell"></x-alert>
+          <x-alert title="无图标形态" description="icon: false 关闭图标位。" type="info" icon="false"></x-alert>
         </div>
       </div>
       <div class="auto-card">
         <div class="auto-card-header">通栏形态（banner）</div>
         <div class="auto-card-body" style="display: flex; flex-direction: column; gap: 12px">
-          <div x-component:autospark.alert="{ title: '通栏警示条', description: '无圆角满宽，贴容器边缘（页面顶部公告常用）。', type: 'warning', banner: true, closable: true }"></div>
+          <x-alert title="通栏警示条" description="无圆角满宽，贴容器边缘（页面顶部公告常用）。" type="warning" banner="true" closable="true"></x-alert>
         </div>
       </div>
       <div class="auto-card" data-dark style="background: #1a1a1a">
         <div class="auto-card-header">暗色态（容器 data-dark）</div>
         <div class="auto-card-body" style="display: flex; flex-direction: column; gap: 12px">
-          <div x-component:autospark.alert="{ title: '暗色中性', description: '暗色兜底变体自动切换。' }"></div>
-          <div x-component:autospark.alert="{ title: '暗色成功', type: 'success', closable: true }"></div>
-          <div x-component:autospark.alert="{ title: '暗色危险通栏', type: 'danger', banner: true }"></div>
+          <x-alert title="暗色中性" description="暗色兜底变体自动切换。"></x-alert>
+          <x-alert title="暗色成功" type="success" closable="true"></x-alert>
+          <x-alert title="暗色危险通栏" type="danger" banner="true"></x-alert>
         </div>
       </div>
     </main>

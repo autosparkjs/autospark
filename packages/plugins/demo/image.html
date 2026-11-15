@@ -57,7 +57,7 @@
     <div id="app">
       <h2>基础（加载态转圈 → @load 摘圈）</h2>
       <div class="stack">
-        <div x-component:autospark.image="{ src: pic, alt: '山野风景' }"></div>
+        <x-image alt="山野风景" :src="pic"></x-image>
         <p class="hint">
           加载完成前居中转圈（内置 loading 图标自转）；慢速网络下更明显。
         </p>
@@ -65,8 +65,8 @@
 
       <h2>失败回退（fallback 图标 / 图片 URL 双形态）</h2>
       <div class="grid2">
-        <div x-component:autospark.image="{ src: badPic, alt: '图标占位' }"></div>
-        <div x-component:autospark.image="{ src: badPic, fallback: fbPic, alt: '图片占位' }"></div>
+        <x-image alt="图标占位" :src="badPic"></x-image>
+        <x-image alt="图片占位" :src="badPic" :fallback="fbPic"></x-image>
       </div>
       <p class="hint">
         缺省 fallback 为内置 file-error 图标；传 URL（以协议/斜杠开头）则渲染占位图。
@@ -74,16 +74,16 @@
 
       <h2>fit 五档 + width/height 透传</h2>
       <div class="grid2">
-        <div x-component:autospark.image="{ src: pic, fit: 'cover', height: 160 }"></div>
-        <div x-component:autospark.image="{ src: pic, fit: 'contain', height: 160 }"></div>
+        <x-image fit="cover" height="160" :src="pic"></x-image>
+        <x-image fit="contain" height="160" :src="pic"></x-image>
       </div>
 
       <h2>懒加载（lazy，原生 loading=lazy）</h2>
-      <div x-component:autospark.image="{ src: pic2, lazy: true, height: 200, alt: '滚动到视口才加载' }"></div>
+      <x-image lazy="true" height="200" alt="滚动到视口才加载" :src="pic2"></x-image>
 
       <h2>暗色态（容器 data-dark）</h2>
       <div class="dark-box" data-dark>
-        <div x-component:autospark.image="{ src: badPic, alt: '暗色占位' }"></div>
+        <x-image alt="暗色占位" :src="badPic"></x-image>
       </div>
     </div>
 

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Collapse · items 数据形态</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.collapse.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .demo-btn {
+        font: inherit;
+        padding: 4px 12px;
+        margin-right: 8px;
+        border: 1px solid #d9d9d9;
+        border-radius: 6px;
+        background: transparent;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">items 状态引用驱动（content 为 HTML 字符串）</div>
+        <div class="auto-card-body">
+          <div @change="log = '展开：' + $event.detail.value.join('、')">
+            <x-collapse value="['a']" :items="panels"></x-collapse>
+          </div>
+          <p class="hint">{{ log || '面板集合来自状态（服务端数据直驱）；动态增删走数组整体替换。' }}</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">运行时动态增删（整体替换驱动——原地变异不发信号）</div>
+        <div class="auto-card-body">
+          <x-collapse :items="dynamic"></x-collapse>
+          <p class="hint">
+            <button class="demo-btn" @click="dynamic = dynamic.concat([{ key: 'd' + (dynamic.length + 1), title: '动态面板 ' + (dynamic.length + 1), content: '整体替换驱动' }])">追加面板</button>
+            <button class="demo-btn" @click="dynamic = dynamic.length > 1 ? dynamic.slice(0, -1) : dynamic">移除末项</button>
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        log: "",
+        panels: [
+          { key: "a", title: "服务条款", content: "<p>本服务条款自 2026 年 11 月起生效……</p>" },
+          { key: "b", title: "隐私政策", content: "<p>我们仅收集必要信息……</p>" },
+          { key: "c", title: "免责声明", disabled: true, content: "禁用面板" },
+        ],
+        dynamic: [{ key: "d1", title: "动态面板 1", content: "内容 1" }],
+      });
+    </script>
+  </body>
+</html>

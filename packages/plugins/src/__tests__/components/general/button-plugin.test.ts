@@ -168,6 +168,136 @@ describe("wrap 选项（label 换行与截断 title，ADR-0012 决策 7）", () 
     });
 });
 
+describe("caret 尾部方向箭头（none | left | top | right | bottom）", () => {
+    test("none 缺省不渲染；方向落 data-caret，同一枚 arrow 经 rotate 选项转到对应角度", async () => {
+        const plain = mount(`<button x-component:autospark.button="{ label: '无箭头' }"></button>`, {});
+        await nextTick();
+        expect(plain.root.querySelector(".asc-button-caret")).toBeNull();
+
+        const cases = [
+            ["right", ""], // 基准姿态不写 transform（rotate 0 不启用）
+            ["bottom", "rotate(90deg)"],
+            ["left", "rotate(180deg)"],
+            ["top", "rotate(-90deg)"],
+        ] as const;
+        for (const [caret, transform] of cases) {
+            const { root } = mount(
+                `<button x-component:autospark.button="{ label: '箭头', caret: '${caret}' }"></button>`,
+                {},
+            );
+            await nextTick();
+            const caretEl = root.querySelector(".asc-button-caret") as HTMLElement;
+            expect(caretEl).not.toBeNull();
+            expect(caretEl.getAttribute("data-caret")).toBe(caret);
+            const svg = caretEl.querySelector("svg") as SVGElement;
+            expect(svg).not.toBeNull();
+            expect(svg.style.getPropertyValue("transform")).toBe(transform);
+        }
+    });
+
+    test("响应式切换方向：图标节点复用（只旋转），切回 none 即移除", async () => {
+        const { root, engine } = mount(
+            `<button x-component:autospark.button="{ label: '切换', caret }"></button>`,
+            { caret: "right" },
+        );
+        await nextTick();
+        const caretEl = root.querySelector(".asc-button-caret") as HTMLElement;
+        const svg = caretEl.querySelector("svg") as SVGElement;
+        const use = svg.querySelector("use")!;
+        const href = use.getAttribute("href");
+        expect(href).toBeTruthy();
+
+        engine.store.state.caret = "bottom";
+        await nextTick();
+        expect(caretEl.querySelector("svg")).toBe(svg); // 同一枚 arrow 载体
+        expect(use.getAttribute("href")).toBe(href);
+        expect(svg.style.getPropertyValue("transform")).toBe("rotate(90deg)");
+
+        engine.store.state.caret = "none";
+        await nextTick();
+        expect(root.querySelector(".asc-button-caret")).toBeNull();
+    });
+});
+
+describe("icon 对象透传 x-icon-options（string | 选项对象）", () => {
+    const mountIcon = (icon: Record<string, unknown>) => mount(
+        `<button x-component:autospark.button="buttonProps"></button>`,
+        { buttonProps: { label: "图标", icon } },
+    );
+
+    test("视觉键全量透传：size / color / strokeWidth / padding / shape / button / pointer / rotate", async () => {
+        const { root } = mountIcon({
+            name: "star",
+            size: 20,
+            color: "red",
+            strokeWidth: 2,
+            shape: "circle",
+            button: true,
+            pointer: true,
+            rotate: 90,
+        });
+        await nextTick();
+        const span = root.querySelector(".asc-button-icon") as HTMLElement;
+        expect(span).not.toBeNull();
+        expect(span.style.width).toBe("20px");
+        expect(span.style.height).toBe("20px");
+        expect(span.style.color).toBe("red");
+        expect(span.style.getPropertyValue("--as-icon-sw")).toBe("2");
+        expect(span.style.cursor).toBe("pointer");
+        // shape 启用：底板包裹层由 x-icon 建于宿主父级，button 动效随板落在包裹层
+        const wrap = span.parentElement as HTMLElement;
+        expect(wrap.classList.contains("as-icon-circle")).toBe(true);
+        expect(wrap.classList.contains("as-icon-button")).toBe(true);
+        // rotate 作用于常驻 svg 载体
+        const svg = span.querySelector("svg") as SVGElement;
+        expect(svg.style.getPropertyValue("transform")).toBe("rotate(90deg)");
+    });
+
+    test("padding 选项：无板内联宿主，有板落到包裹层（与 x-icon 原生一致）", async () => {
+        const plain = mountIcon({ name: "star", padding: 4 });
+        await nextTick();
+        const plainSpan = plain.root.querySelector(".asc-button-icon") as HTMLElement;
+        expect(plainSpan.style.padding).toBe("4px");
+
+        const shaped = mountIcon({ name: "star", padding: 6, shape: "radius" });
+        await nextTick();
+        const shapedSpan = shaped.root.querySelector(".asc-button-icon") as HTMLElement;
+        expect(shapedSpan.style.padding).toBe("");
+        expect((shapedSpan.parentElement as HTMLElement).style.padding).toBe("6px");
+    });
+
+    test("响应式更新：icon 对象换新即重放样式与角度（svg 载体复用）", async () => {
+        const { root, engine } = mountIcon({ name: "star", size: 20, rotate: 0 });
+        await nextTick();
+        const span = root.querySelector(".asc-button-icon") as HTMLElement;
+        const svg = span.querySelector("svg") as SVGElement;
+        expect(span.style.width).toBe("20px");
+        expect(svg.style.getPropertyValue("transform")).toBe("");
+
+        const props = (engine.store.state as any).buttonProps;
+        props.icon = { name: "star", size: 32, color: "blue", rotate: 180 };
+        await nextTick();
+        expect(root.querySelector(".asc-button-icon")).toBe(span); // 同一图标位
+        expect(span.style.width).toBe("32px");
+        expect(span.style.color).toBe("blue");
+        expect(svg.style.getPropertyValue("transform")).toBe("rotate(180deg)");
+    });
+
+    test("按钮自有 badge 保留：true 挂角标类（板距走 CSS 缺省），数值/字符串写内联板距", async () => {
+        const on = mountIcon({ name: "bell", badge: true });
+        await nextTick();
+        const onSpan = on.root.querySelector(".asc-button-icon") as HTMLElement;
+        expect(onSpan.classList.contains("asc-button-icon-badge")).toBe(true);
+        expect(onSpan.style.padding).toBe(""); // 缺省板距由 .asc-button-icon-badge 规则承载
+
+        const custom = mountIcon({ name: "bell", badge: 6 });
+        await nextTick();
+        const customSpan = custom.root.querySelector(".asc-button-icon") as HTMLElement;
+        expect(customSpan.classList.contains("asc-button-icon-badge")).toBe(true);
+        expect(customSpan.style.padding).toBe("6px");
+    });
+});
+
 describe("tag checkable（点击翻转 value，2026-11-09）", () => {
     const mountTags = (tags: unknown[]) => mount(
         `<button x-component:autospark.button="{ label: '文档', tags }"></button>`,
@@ -228,3 +358,100 @@ describe("tag checkable（点击翻转 value，2026-11-09）", () => {
 // 宿主级 checkable / checkStyle / checkValues 已随 ADR-0016 从 button 移除（迁移动作
 // checkable:true → <x-state-button>），相关用例迁往 state-button-plugin.test.ts
 // （decorate 项键语义）；tag 级 checkable 为 tags 速记族独立轴功能，保留在上。
+
+describe("checkable 回归（化身 checkbox 表单字段，2026-11-13 / ADR-0016 修订记）", () => {
+    const mountCheck = (props: string, state: any = {}) =>
+        mount(`<button x-component:autospark.button="{ label: '勾选', ${props} }"></button>`, state);
+
+    test("缺省非表单字段：不内嵌 input、无勾选类", async () => {
+        const { root } = mountCheck("label: '普通'");
+        await nextTick();
+        expect(root.querySelector("button")!.querySelector("input")).toBeNull();
+        expect(root.querySelector("button")!.className.includes("asc-check-")).toBe(false);
+    });
+
+    test("内嵌 checkbox：name 透传、未勾选不提交（提交值 = String(checkValues[0])）", async () => {
+        const { root } = mountCheck("checkable: true", {});
+        await nextTick();
+        const real = root.querySelector("button")!.querySelector("input")!;
+        expect(real.type).toBe("checkbox");
+        expect(real.style.display).toBe("none");
+        const named = mount(`<button name="agree" x-component:autospark.button="{ label: '同意', checkable: true }"></button>`, {});
+        await nextTick();
+        expect(named.root.querySelector("button")!.querySelector("input")!.name).toBe("agree");
+    });
+
+    test("点击翻转：value 真假循环 + asc-checked 类 + change detail 新值；默认 checkStyle=corner", async () => {
+        const { root } = mountCheck("checkable: true");
+        await nextTick();
+        const host = root.querySelector("button")!;
+        expect(host.className).toContain("asc-check-corner"); // 缺省渲染类（静态挂载）
+        expect(host.className).not.toContain("asc-checked");
+        const details: any[] = [];
+        host.addEventListener("change", (e) => details.push((e as CustomEvent).detail));
+        host.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await nextTick();
+        expect(host.className).toContain("asc-checked");
+        expect(details.length).toBe(1);
+        expect(details[0].value).toBe(true);
+        host.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await nextTick();
+        expect(host.className).not.toContain("asc-checked");
+        expect(details[1]?.value).toBe(false);
+    });
+
+    test("checkValues 任意值：翻转在二元组内循环（路径引用注入）", async () => {
+        const { root, engine } = mountCheck("checkable: true, checkValues: cv, value: 'off'", { cv: ["on", "off"] });
+        await nextTick();
+        const host = root.querySelector("button")!;
+        expect(host.className).not.toContain("asc-checked"); // 'off' === 假值
+        host.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await nextTick();
+        expect(host.className).toContain("asc-checked");
+        expect(engine.store.state.cv).toEqual(["on", "off"]); // checkValues 不被擅改
+    });
+
+    test("checkStyle 热切换：watch 摘旧类挂新类", async () => {
+        const { root, engine } = mountCheck("checkable: true, checkStyle: style", { style: "solid" });
+        await nextTick();
+        const host = root.querySelector("button")!;
+        expect(host.className).toContain("asc-check-solid");
+        engine.store.state.style = "ripple";
+        await nextTick();
+        expect(host.className).not.toContain("asc-check-solid");
+        expect(host.className).toContain("asc-check-ripple");
+    });
+
+    test("ripple 形态勾选视觉由 x-ripple 承载：勾选宿主恒开 echo 双环、取消回退原配置", async () => {
+        const { root } = mountCheck("checkable: true, checkStyle: 'ripple'");
+        await nextTick();
+        const host = root.querySelector("button")!;
+        expect(host.querySelector(".asc-button-check")).toBeNull(); // 无占位指示器（宿主整体承载）
+        const opts = () => host.getAttribute("x-ripple-options") ?? "";
+        expect(opts()).not.toContain("always"); // 未勾选：保持 ripple prop 原配置（click）
+        expect(opts()).toContain('"click"');
+        host.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await nextTick();
+        expect(opts()).toContain('"always"'); // 勾选：恒开
+        expect(opts()).toContain('"echo"'); // echo 双环（外扩形态非 inside）
+        expect(opts()).toContain('"inside":false');
+        host.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await nextTick();
+        expect(opts()).toContain('"click"'); // 取消：回退用户 ripple 原值
+        expect(opts()).not.toContain('"always"');
+    });
+
+    test("x-model 布尔桥：宿主 x-model.boolean 点击回写 state 真布尔", async () => {
+        const { root, engine } = mount(
+            `<button x-model.boolean="flag" x-component:autospark.button="{ label: '桥', checkable: true }"></button>`,
+            { flag: false },
+        );
+        await nextTick();
+        const host = root.querySelector("button")!;
+        expect(host.className).not.toContain("asc-checked");
+        host.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await nextTick();
+        expect(engine.store.state.flag).toBe(true);
+        expect(host.className).toContain("asc-checked");
+    });
+});

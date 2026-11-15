@@ -111,16 +111,12 @@
       line-height: var(--auto-line-height, 1.5);
     }
 
-    /* ---------- bar：页签头容器（role=tablist） ---------- */
+    /* ---------- bar：页签头容器（role=tablist，x-for 容器宿主——子按钮逐项克隆） ---------- */
     .asc-tabs-bar {
       display: flex;
       align-items: stretch;
       max-width: 100%;
       min-width: 0;
-    }
-    /* x-for 克隆载体盒不产生布局盒：页签按钮直接成为 bar 的 flex 项（button tags 同款） */
-    .asc-tabs-tab-item {
-      display: contents;
     }
     .asc-tabs-tab {
       /* 语义色中转（形态块按需消费） */
@@ -143,7 +139,7 @@
     }
     .asc-tabs-tab:focus-visible {
       outline: none;
-      border-radius: var(--asc-tabs-focus-radius, 0.25em);
+      border-radius: var(--auto-border-radius, var(--asc-tabs-focus-radius, 0.25em));
       box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--asc-tone) 28%, transparent);
     }
     .asc-tabs-tab:disabled {
@@ -214,12 +210,12 @@
       display: inline-flex;
       gap: 0.125em;
       padding: 0.1875em;
-      border-radius: var(--asc-tabs-seg-radius, 0.5em);
+      border-radius: var(--auto-border-radius, var(--asc-tabs-seg-radius, 0.5em));
       background: var(--auto-secondary-bgcolor, var(--asc-tabs-seg-bg, rgba(245, 245, 245, 0.45)));
     }
     .asc-tabs-body[data-variant="segmented"] .asc-tabs-tab {
       padding: 0.3125em 0.875em;
-      border-radius: var(--asc-tabs-seg-tab-radius, 0.375em);
+      border-radius: var(--auto-border-radius, var(--asc-tabs-seg-tab-radius, 0.375em));
     }
     .asc-tabs-body[data-variant="segmented"] .asc-tabs-tab:not([data-active]):not(:disabled):hover {
       color: var(--auto-color, var(--asc-tabs-color, #606060));
@@ -289,24 +285,24 @@
          绑定（指令值通道响应，props 晚注入/内部写值随动）；key 归一 String 比较（数字
          key 语域兼容） -->
   <div class="asc-tabs-body" :data-variant="variant">
-    <div class="asc-tabs-bar" role="tablist">
-      <span class="asc-tabs-tab-item" x-for="item of items" :key="item.key">
-        <button
-          type="button"
-          class="asc-tabs-tab"
-          role="tab"
-          :data-active="String(item.key) === String(value) ? '' : null"
-          :aria-selected="String(item.key) === String(value) ? 'true' : 'false'"
-          :tabindex="String(item.key) === String(value) ? '0' : '-1'"
-          :disabled="item.disabled"
-          @click="onTabClick(item)"
-        >
-          <!-- 克隆体内条件显隐用 x-show（共享快照多实例 + items 晚注入下 x-if 延迟编译
-                   挂错 scope 链，P0 规避清单第 4 条）；icon 空值 x-icon 渲染默认图标（隐藏不可见） -->
-          <i class="asc-tabs-tab-icon" x-show="item.icon" x-icon="item.icon"></i>
-          <span class="asc-tabs-tab-label">{{ item.label }}</span>
-        </button>
-      </span>
+    <!-- x-for 容器宿主形态（engine 惯用语义）：bar 为容器（不克隆），其子 button 才是
+             逐项克隆模板（:key 在容器上）；克隆体内条件显隐用 x-show（共享快照多实例 +
+             items 晚注入下 x-if 延迟编译挂错 scope 链，P0 规避清单第 4 条）——icon 空值
+             x-icon 渲染默认图标（x-show 隐藏不可见） -->
+    <div class="asc-tabs-bar" role="tablist" x-for="item of items" :key="item.key">
+      <button
+        type="button"
+        class="asc-tabs-tab"
+        role="tab"
+        :data-active="String(item.key) === String(value) ? '' : null"
+        :aria-selected="String(item.key) === String(value) ? 'true' : 'false'"
+        :tabindex="String(item.key) === String(value) ? '0' : '-1'"
+        :disabled="item.disabled"
+        @click="onTabClick(item)"
+      >
+        <i class="asc-tabs-tab-icon" x-show="item.icon" x-icon="item.icon"></i>
+        <span class="asc-tabs-tab-label">{{ item.label }}</span>
+      </button>
     </div>
     <!-- 默认插槽面板区：未提供内容时无空盒占位（:empty 隐藏；出口须紧凑书写）。
              面板切换由消费者以 x-show / x-if(.keepalive) 承载（组件文档配方） -->

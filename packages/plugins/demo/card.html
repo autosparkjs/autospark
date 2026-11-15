@@ -60,18 +60,18 @@
       <h2>基础卡片（title + body + footer）</h2>
       <div class="stack">
         <x-card title="卡片标题">卡片内容：默认插槽即 body 出口，投影内容为直接子级。</x-card>
-        <div x-component:autospark.card="{ title: '带 footer' }">
+        <x-card title="带 footer">
           <template x-slot:footer><span>底部动作区</span></template>
           指令值形态写法（与元素名形态等价）。
-        </div>
+        </x-card>
       </div>
 
       <h2>header / extra 槽</h2>
-      <div x-component:autospark.card="{}">
+      <x-card>
         <template x-slot:header><b>自定义头部</b></template>
         <template x-slot:extra><code>更多</code></template>
         header 槽整体重载标题区；extra 槽落头部右缘。
-      </div>
+      </x-card>
 
       <h2>无边框（bordered=false）与悬停浮起（hoverable）</h2>
       <div class="row">

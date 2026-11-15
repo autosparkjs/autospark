@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.pagination · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .card {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 12px 0;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.pagination</h1>
+    <p>
+      分页器：受控 page（el.value 桥 + change detail={page,pageSize}）；页码窗口省略号折叠；
+      上/下一页与首/末页按钮；pageSizes 条数切换（原生 select）；simple 极简形态；内置文案走
+      i18n 词典（未装回退中文）。与 x-for.paging 的配方：change 一行回写 paging.page。
+    </p>
+
+    <div id="app" x-data="{ log: '' }">
+      <h2>受控翻页（页码窗口折叠 + 边界禁用）</h2>
+      <div class="card">
+        <div @change="log = '第 ' + $event.detail.page + ' 页 / 每页 ' + $event.detail.pageSize + ' 条'">
+          <x-pagination total="200" page="5" x-pagination-options="{ props: { pageSize: 10 } }"></x-pagination>
+        </div>
+        <p class="hint">{{ log || '总页数 > 7 时五宽窗口 + 省略号；首/末/上/下页边界自动禁用。' }}</p>
+      </div>
+
+      <h2>每页条数切换（pageSizes 状态引用）</h2>
+      <div class="card">
+        <!-- 保留值形态：pageSizes 状态引用注入演示（动态 camelCase 键在元素名形态无 :绑定通道——DOM 属性名小写化失配，静态形态可走 page-sizes="JSON" 改道） -->
+        <div @change="log = '第 ' + $event.detail.page + ' 页 / 每页 ' + $event.detail.pageSize + ' 条'">
+          <div x-component:autospark.pagination="{ total: 305, pageSize: 10, page: 1, pageSizes: sizes }"></div>
+        </div>
+        <p class="hint">切换条数自动重置第 1 页；共 N 条 / N 条/页 文案走 i18n 键（回退中文）。</p>
+      </div>
+
+      <h2>x-for.paging 配方（:data-paging 状态打通）</h2>
+      <div class="card">
+        <ul style="list-style: none; padding: 0; margin: 0 0 12px" x-for.paging="item of goods" :data-paging="paging" x-for-options="{pageSize:5}">
+          <li style="padding: 4px 10px; border-radius: 4px" x-text="item.name"></li>
+        </ul>
+        <!-- 保留值形态：pageSize 受控双向（paging.pageSize 双写）——动态 camelCase 键在元素名形态无 :绑定通道 -->
+        <div @change="paging.page = $event.detail.page">
+          <div x-component:autospark.pagination="{ total: 37, pageSize: paging.pageSize, page: paging.page }"></div>
+        </div>
+        <p class="hint">x-for.paging（引擎内置切片）+ <code>:data-paging</code> 双向 + 分页器 change 回写——一条状态链。</p>
+      </div>
+
+      <h2>极简形态（simple）+ 暗色态</h2>
+      <div class="card">
+        <x-pagination total="200" page="3" simple="true" x-pagination-options="{ props: { pageSize: 10 } }"></x-pagination>
+      </div>
+      <div class="dark-box">
+        <x-pagination total="100" page="4" x-pagination-options="{ props: { pageSize: 10 } }"></x-pagination>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.pagination.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        log: "",
+        sizes: [10, 20, 50, 100],
+        paging: { page: 1, pageSize: 5 },
+        goods: Array.from({ length: 37 }, (_, i) => ({ name: "商品 " + (i + 1) })),
+      });
+    </script>
+  </body>
+</html>

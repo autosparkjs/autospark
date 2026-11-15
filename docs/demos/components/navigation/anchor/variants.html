@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Anchor · 声明形态与判定线</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.anchor.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">子元素声明（静态锚点路径）</div>
+        <div class="auto-card-body">
+          <x-anchor>
+            <x-anchor-item key="intro" label="概述"></x-anchor-item>
+            <x-anchor-item key="usage" label="用法"></x-anchor-item>
+            <x-anchor-item key="api" label="API 参考" href="#api"></x-anchor-item>
+          </x-anchor>
+          <p class="hint">
+            <code>&lt;x-anchor-item key label href&gt;</code> 由 precompile 变换折叠为 items JSON
+            （data-items 通道，规避字面量数组 props 死环）；href 显式声明原样生效
+            （支持 #id 与任意选择器）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">offset 判定线（吸顶导航高度补偿）</div>
+        <div class="auto-card-body">
+          <x-anchor :items="secs" offset="120"></x-anchor>
+          <p class="hint">
+            锚顶越过「offset 线」即视为当前区块——页面顶部有固定吸顶条时用 offset 抵消其高度
+            （判定线同时作用于滚动高亮与点击滚动目标）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card" data-dark>
+        <div class="auto-card-header">暗色态（容器 data-dark）</div>
+        <div class="auto-card-body">
+          <x-anchor :items="secs"></x-anchor>
+          <p class="hint">暗色兜底变体：容器裸挂 data-dark 即切换样式域（主题在场时自动跟随）。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        secs: [
+          { key: "intro", label: "概述" },
+          { key: "usage", label: "用法" },
+          { key: "api", label: "API 参考" },
+        ],
+      });
+    </script>
+  </body>
+</html>

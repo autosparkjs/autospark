@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Button · 尾部箭头</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js?v=20261114"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+</head>
+<body>
+    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <main
+        class="demo-main"
+        x-data="{
+            dir: 'bottom',
+            dirs: ['none', 'left', 'top', 'right', 'bottom'],
+            oneTag: [{ name: 'share', icon: 'external', tooltip: '分享' }]
+        }"
+    >
+        <div class="auto-card">
+            <div class="auto-card-header">尾部箭头（caret）：最右端 x-icon arrow，按方向旋转——切换时同一图标连续转动</div>
+            <div class="auto-card-body">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                    <x-button label="none" caret="none"></x-button>
+                    <x-button label="left" caret="left"></x-button>
+                    <x-button label="top" caret="top"></x-button>
+                    <x-button label="right" caret="right"></x-button>
+                    <x-button label="bottom" caret="bottom"></x-button>
+                </div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:12px;">
+                    <span @click="dir = dirs[(dirs.indexOf(dir) + 1) % dirs.length]">
+                        <x-button type="primary" label="点击切换方向" :caret="dir"></x-button>
+                    </span>
+                    <span>caret = <b>{{ dir }}</b></span>
+                    <span @click="dir = 'none'">
+                        <x-button variant="text" label="重置为 none"></x-button>
+                    </span>
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;">
+                    <x-button variant="secondary" icon="file" label="导出" caret="bottom" :tags="oneTag"></x-button>
+                    <x-button variant="dashed" label="更多操作" caret="right"></x-button>
+                </div>
+                <p class="hint">
+                    caret 只做方向指示，不改变点击语义；与 tags 并存时恒居最右端。方向切换复用同一枚
+                    <code>arrow</code> 的 <code>x-icon</code> 旋转（默认 0.3s，可经
+                    <code>--as-icon-rotate-duration</code> 调整）。
+                </p>
+            </div>
+        </div>
+    </main>
+    <script>
+        new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Breadcrumb · router 配方</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.breadcrumb.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .route-state {
+        margin-top: 8px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.04);
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">router 配方：激活态由状态表达 + 点击拦截接管导航</div>
+        <div class="auto-card-body">
+          
+          <div id="crumb-wrap">
+            <x-breadcrumb :items="route.crumbs"></x-breadcrumb>
+          </div>
+          <div class="route-state" id="route-log">当前路由状态：/user/list（点击面包屑链接切换）</div>
+          <p class="hint">
+            配方要点：① items 绑定路由状态（当前路径映射 { label, href }[]，末项即当前页）；② 外层
+            click.capture 拦截 a[href] 默认导航，改调 router.push —— 组件与 router 互不感知。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      const ROUTES = {
+        "/": { label: "首页" },
+        "/user": { label: "用户管理" },
+        "/user/list": { label: "用户列表" },
+        "/user/detail": { label: "用户详情" },
+      };
+      new AutoSpark(document.querySelector(".demo-main"), {
+        route: {
+          path: "/user/list",
+          crumbs: [
+            { label: "首页", href: "/" },
+            { label: "用户管理", href: "/user" },
+            { label: "用户列表" },
+          ],
+        },
+      });
+      // 拦截示例（真实项目替换为 router.push(href)）
+      document.getElementById("crumb-wrap").addEventListener(
+        "click",
+        (e) => {
+          const a = e.target instanceof Element ? e.target.closest("a[href]") : null;
+          if (!a) return;
+          e.preventDefault();
+          const href = a.getAttribute("href");
+          document.getElementById("route-log").textContent = `已拦截导航 → ${href}（交由 router.push 接管）`;
+        },
+        true,
+      );
+    </script>
+  </body>
+</html>

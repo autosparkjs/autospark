@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ColorPicker · 预设色板与状态</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.color-picker.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" style="max-width: 460px">
+      <div class="auto-card">
+        <div class="auto-card-header">presets 预设色板（状态引用注入）+ 简写值归一</div>
+        <div class="auto-card-body">
+          <p>
+            <x-color-picker :value="brand" :presets="palette"></x-color-picker>
+          </p>
+          <p class="hint">
+            预设点击即应用（<code>data-active</code> 高亮当前色、<b>不关面板</b>——连续试色语义）；props 值 <code>#09f</code> 简写自动归一 <code>#0099ff</code>。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">状态色 / 禁用 / 尺寸档位 / 暗色态</div>
+        <div class="auto-card-body">
+          <p style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center">
+            <x-color-picker :value="brand" status="error"></x-color-picker>
+            <x-color-picker :value="brand" disabled="true"></x-color-picker>
+            <span data-size="small"><x-color-picker :value="brand"></x-color-picker></span>
+            <span data-size="large"><x-color-picker :value="brand"></x-color-picker></span>
+          </p>
+          <div data-dark style="margin-top: 12px; padding: 12px; border-radius: 8px; background: #1a1a1a">
+            <x-color-picker :value="brand" :presets="palette"></x-color-picker>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        brand: "#009aff",
+        palette: [
+          "#009aff", "#22c55e", "#f59e0b", "#ef4444",
+          "#71717a", "#111827", "#ffffff", "#a855f7",
+        ],
+      });
+    </script>
+  </body>
+</html>

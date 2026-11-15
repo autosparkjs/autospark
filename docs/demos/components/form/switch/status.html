@@ -17,10 +17,10 @@
         <div class="auto-card-header">status 状态色（x-field 校验结果染色入口）与 disabled / readonly</div>
         <div class="auto-card-body">
           <p style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap">
-            <span x-component:autospark.switch="{ label: '校验未通过', status: 'error', checked: true }"></span>
-            <span x-component:autospark.switch="{ label: '已确认', status: 'success' }"></span>
-            <span x-component:autospark.switch="{ label: '禁用', disabled: true, checked: true }"></span>
-            <span x-component:autospark.switch="{ label: '只读', readonly: true }"></span>
+            <x-switch label="校验未通过" status="error" checked="true"></x-switch>
+            <x-switch label="已确认" status="success"></x-switch>
+            <x-switch label="禁用" disabled="true" checked="true"></x-switch>
+            <x-switch label="只读" readonly="true"></x-switch>
           </p>
           <p class="hint">开态底色染 <code>--asc-field-tone</code>（status 在场随动语义色）；<code>error</code> 态轨道同步 <code>aria-invalid="true"</code>；disabled 时表单载体随禁用出表。</p>
         </div>
@@ -29,7 +29,7 @@
         <div class="auto-card-header">动态状态（绑定通道：校验结果染色）</div>
         <div class="auto-card-body">
           <p>
-            <span x-component:autospark.switch="{ label: '必须开启', status: flag ? 'success' : 'error', checked: flag }"></span>
+            <x-switch label="必须开启" :status="flag ? 'success' : 'error'" :checked="flag"></x-switch>
           </p>
           <p><button x-on:click="flag = !flag" style="padding: 4px 12px">切换校验状态</button></p>
           <p class="hint">关闭染 error、开启染 success——status 经绑定通道消费 <code>$field.error</code> 类校验结果的惯用法演示。</p>
@@ -39,9 +39,9 @@
         <div class="auto-card-header">暗色态（容器裸挂 data-dark）</div>
         <div class="auto-card-body">
           <div data-dark style="display: inline-flex; gap: 20px; align-items: center; padding: 12px 16px; border-radius: 8px; background: #1a1a1a">
-            <span x-component:autospark.switch="{ label: '暗色·开', checked: true }"></span>
-            <span x-component:autospark.switch="{ label: '暗色·关' }"></span>
-            <span x-component:autospark.switch="{ label: '暗色错误态', status: 'error', checked: true }"></span>
+            <x-switch label="暗色·开" checked="true"></x-switch>
+            <x-switch label="暗色·关"></x-switch>
+            <x-switch label="暗色错误态" status="error" checked="true"></x-switch>
           </div>
         </div>
       </div>

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Field · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.field.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      /* 消费方自带控件裸化（field 只提供盒饰 chrome，控件本体归消费方） */
+      .bf-native {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        outline: none;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+        color: inherit;
+        font: inherit;
+      }
+      .bf-field {
+        width: 280px;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{ name: '' }">
+      <div class="auto-card">
+        <div class="auto-card-header">最小用法：默认出口装原生控件 + 盒饰选配类，x-model 直达内层</div>
+        <div class="auto-card-body">
+          <p>
+            <span class="asc-field-box bf-field" x-component:autospark.field>
+              <input class="bf-native" data-autospark-control placeholder="请输入用户名" x-model="name" />
+            </span>
+          </p>
+          <p class="hint">当前值：{{ name || '（空）' }} —— 宿主挂 <code>asc-field-box</code> 得盒饰 chrome，内层控件标 <code>data-autospark-control</code> 接管禁用/焦点/aria 同步。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">状态色通道（status：error / warning / success）</div>
+        <div class="auto-card-body">
+          <p>
+            <span class="asc-field-box bf-field" x-component:autospark.field="{ status: 'error' }">
+              <input class="bf-native" data-autospark-control value="校验未通过" />
+            </span>
+          </p>
+          <p>
+            <span class="asc-field-box bf-field" x-component:autospark.field="{ status: 'warning' }">
+              <input class="bf-native" data-autospark-control value="长度偏短" />
+            </span>
+          </p>
+          <p>
+            <span class="asc-field-box bf-field" x-component:autospark.field="{ status: 'success' }">
+              <input class="bf-native" data-autospark-control value="格式正确" />
+            </span>
+          </p>
+          <p class="hint">status 染 <code>--asc-field-tone</code> 中转变量：未聚焦即染边框，聚焦补同色光晕；error 态自动同步控件 <code>aria-invalid</code>。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">disabled / readonly（同步原生控件 + 宿主反射）</div>
+        <div class="auto-card-body">
+          <p>
+            <span class="asc-field-box bf-field" x-component:autospark.field="{ disabled: true }">
+              <input class="bf-native" data-autospark-control value="禁用态" />
+            </span>
+          </p>
+          <p>
+            <span class="asc-field-box bf-field" x-component:autospark.field="{ readonly: true }">
+              <input class="bf-native" data-autospark-control value="只读态" />
+            </span>
+          </p>
+          <p class="hint">props 同步到 <code>data-autospark-control</code> 标记控件（disabled / readOnly）+ 宿主 <code>data-disabled</code> / <code>data-readonly</code> 反射（CSS 淡化/光标通道）。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">尺寸档位（主题通道 data-size，挂任意祖先容器）</div>
+        <div class="auto-card-body">
+          <p style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap">
+            <span data-size="x-small"
+              ><span class="asc-field-box" style="width: 150px" x-component:autospark.field
+                ><input class="bf-native" data-autospark-control placeholder="超小档" /></span></span
+            >
+            <span data-size="small"
+              ><span class="asc-field-box" style="width: 150px" x-component:autospark.field
+                ><input class="bf-native" data-autospark-control placeholder="小档" /></span></span
+            >
+            <span data-size="medium"
+              ><span class="asc-field-box" style="width: 150px" x-component:autospark.field
+                ><input class="bf-native" data-autospark-control placeholder="中档（缺省）" /></span></span
+            >
+            <span data-size="large"
+              ><span class="asc-field-box" style="width: 150px" x-component:autospark.field
+                ><input class="bf-native" data-autospark-control placeholder="大档" /></span></span
+            >
+            <span data-size="x-large"
+              ><span class="asc-field-box" style="width: 150px" x-component:autospark.field
+                ><input class="bf-native" data-autospark-control placeholder="超大档" /></span></span
+            >
+          </p>
+          <p class="hint">字号/字体族/内距/圆角经 <code>--auto-*</code> 主题变量全跟随（三级回退链，无 theme 环境吃校准兜底字面值）；试试右上角控制面板切档位/暗色。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

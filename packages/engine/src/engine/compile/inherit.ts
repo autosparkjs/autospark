@@ -10,7 +10,12 @@ import {
     finalizeBoundaryOptions,
     isDeclarativeResourceNode,
 } from "./collect";
-import { collectSlotSegments, getSlotMarker, type SlotContent } from "../../utils/slot";
+import {
+    collectSlotSegments,
+    getSlotMarker,
+    isSlotAttrName,
+    type SlotContent,
+} from "../../utils/slot";
 
 /**
  * 组件继承解析（ADR-0081）：`x-define:inherit="父名"` 的编译期一次性展开。
@@ -223,8 +228,8 @@ function buildMethodLayers(
     childDef: ComponentDef,
     parentDef: ComponentDef,
 ): Array<Record<string, (...args: any[]) => any>> | undefined {
-    const parentLayers = parentDef.methodLayers ??
-        (parentDef.setup?.methods ? [parentDef.setup.methods] : []);
+    const parentLayers =
+        parentDef.methodLayers ?? (parentDef.setup?.methods ? [parentDef.setup.methods] : []);
     const ownLayer = childDef.setup?.methods;
     if (ownLayer) return [ownLayer, ...parentLayers];
     return parentLayers.length > 0 ? parentLayers : undefined;
@@ -245,6 +250,9 @@ function isDeclareFamilyAttr(attrName: string): boolean {
  *
  * 出口标记元素**保留为包裹层**（`x-slot` 属性不动，实例化时 SlotDirective 照常实例化、
  * 消费方内容仍可再覆盖）；`<template>` 出口的 fallback 在 `.content`，普通出口在子节点。
+ * template 出口的**注入属性集随段整段替换**（ADR-0137 决策三-b：覆盖段就是新声明，
+ * 不与父合并——覆盖段没写的属性即不存在；空 / 非空的可选性翻转由替换后的最终快照
+ * 自然成立，运行期 SlotDirective 对 `.content` 判定）。
  */
 function applyOverrides(snapshot: HTMLElement, segments: Map<string, SlotContent> | null): void {
     if (!segments) return;
@@ -256,10 +264,24 @@ function applyOverrides(snapshot: HTMLElement, segments: Map<string, SlotContent
         if (!seg) continue;
         if (el instanceof HTMLTemplateElement) {
             el.content.replaceChildren(...seg.nodes);
+            replaceTemplateInjectAttrs(el, seg.carrierAttrs ?? []);
         } else {
             el.replaceChildren(...seg.nodes);
         }
     }
+}
+
+/** template 出口注入集整段替换（ADR-0137 决策三-b）：剥既有注入集后写覆盖段载体属性 */
+function replaceTemplateInjectAttrs(
+    tpl: HTMLTemplateElement,
+    attrs: Array<[string, string]>,
+): void {
+    for (const attr of Array.from(tpl.attributes)) {
+        if (isSlotAttrName(attr.name)) continue;
+        if (attr.name === "x-options" || attr.name === "x-slot-options") continue;
+        tpl.removeAttribute(attr.name);
+    }
+    for (const [name, value] of attrs) tpl.setAttribute(name, value);
 }
 
 /**

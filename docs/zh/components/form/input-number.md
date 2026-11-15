@@ -4,11 +4,11 @@
 
 InputNumber 是 AutoSpark 的官方数字输入框组件（组件库 P1 form 批，ADR-0018），走**原生增强路线**：内层是真实的原生 `<input>`（`inputmode="decimal"`，数字键盘联动 / IME / 自动填充全保留）+ 盒饰包裹 + 步进钮组（上/下自绘 chevron 图标钮），不自绘输入面（ADR-0018 决策 7）。
 
-能力面：**min / max 夹取**、**step 步长**（步进钮与 ArrowUp / ArrowDown 键盘同义）、**precision 固定小数位**、**controls 步进钮开关**、**NaN 防御**（非法输入保持旧值、清空归空态）。组件**复制 input 的结构而非嵌套消费**——值桥语域分叉（string ↔ number）与产物自包含是分叉理由，共享面（盒饰 chrome / 状态色 / 焦点态 / disabled 同步）经继承 `autospark.base-field` 骨架完整获得（ADR-0020）。
+能力面：**min / max 夹取**、**step 步长**（步进钮与 ArrowUp / ArrowDown 键盘同义）、**precision 固定小数位**、**controls 步进钮开关**、**NaN 防御**（非法输入保持旧值、清空归空态）。组件**复制 input 的结构而非嵌套消费**——值桥语域分叉（string ↔ number）与产物自包含是分叉理由，共享面（盒饰 chrome / 状态色 / 焦点态 / disabled 同步）经继承 `autospark.field` 骨架完整获得（ADR-0020）。
 
 视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129）；**不设自有尺寸属性**——高度消费 `--auto-input-height`，经主题通道 `data-size` 挂任意祖先容器全档位跟随（button 同范式 ADR-0012）；暗色态容器裸挂 `data-dark` 即局部切换。无内置文案、不接 i18n（ADR-0018 决策 1）。
 
-引入方式：引擎之后加载 `<script src="/autospark/autospark.input-number.js"></script>`（自举注册，产物已内嵌 base-field 注册，无须单独引入），或聚合产物 `autospark.plugins.js`。
+引入方式：引擎之后加载 `<script src="/autospark/autospark.input-number.js"></script>`（自举注册，产物已内嵌 field 注册，无须单独引入），或聚合产物 `autospark.plugins.js`。
 
 ## 快速入门
 
@@ -18,7 +18,7 @@ InputNumber 是 AutoSpark 的官方数字输入框组件（组件库 P1 form 批
 <script src="autospark.js"></script>
 <script src="autospark.input-number.js"></script>
 
-<span x-model.number="form.qty" x-component:autospark.input-number="{ min: 1, max: 99 }"></span>
+<x-input-number x-model.number="form.qty" min="1" max="99"></x-input-number>
 ```
 
 <demo html="components/form/input-number/basic.html"/>
@@ -61,9 +61,9 @@ InputNumber 是 AutoSpark 的官方数字输入框组件（组件库 P1 form 批
 
 ```html
 <!-- 双向绑定（推荐，.number 保真数字类型） -->
-<span x-model.number="form.qty" x-component:autospark.input-number></span>
+<x-input-number x-model.number="form.qty"></x-input-number>
 <!-- 单向同步（无回写） -->
-<span x-component:autospark.input-number="{ value: form.qty }"></span>
+<x-input-number :value="form.qty"></x-input-number>
 ```
 
 **输入中间态**：输入过程（`"1."` / `"-"` 等暂态）显示自由、不夹取不修约；blur / Enter 归位时才夹取 + 修约 + 规范文本。**NaN 防御**：非法字符输入不改变当前值（保持旧值），清空归空态（`el.value` 为 `""`）。
@@ -74,7 +74,7 @@ InputNumber 是 AutoSpark 的官方数字输入框组件（组件库 P1 form 批
 
 ```html
 <div @change="form.qty = $event.detail.value">
-  <span x-model.number="form.qty" x-component:autospark.input-number></span>
+  <x-input-number x-model.number="form.qty"></x-input-number>
 </div>
 ```
 
@@ -89,14 +89,14 @@ InputNumber 是 AutoSpark 的官方数字输入框组件（组件库 P1 form 批
 **类型**: `boolean`
 **默认**: `false`
 
-由 base-field 骨架统一同步到内层原生控件（`disabled` / `readOnly` 属性）+ 宿主 `data-disabled` / `data-readonly` 反射（禁用淡化 / 光标通道）；readonly 可聚焦可复制，仅阻步进与归位写入。
+由 field 骨架统一同步到内层原生控件（`disabled` / `readOnly` 属性）+ 宿主 `data-disabled` / `data-readonly` 反射（禁用淡化 / 光标通道）；readonly 可聚焦可复制，仅阻步进与归位写入。
 
 ### status 状态色（x-field 协作）
 
 **类型**: `"" | "error" | "success" | "warning"`
 **默认**: `""`
 
-表单域状态色通道（base-field 骨架）：染边框与焦点环，`error` 态内层控件同步 `aria-invalid="true"`。**校验结果来自 x-field**——组件不做校验，经绑定消费指令注入的 `$field.error`（与 input 同款协作形态，ADR-0020 决策 1）。
+表单域状态色通道（field 骨架）：染边框与焦点环，`error` 态内层控件同步 `aria-invalid="true"`。**校验结果来自 x-field**——组件不做校验，经绑定消费指令注入的 `$field.error`（与 input 同款协作形态，ADR-0020 决策 1）。
 
 ### 表单提交（原生直提交）
 
@@ -119,7 +119,7 @@ InputNumber 是 AutoSpark 的官方数字输入框组件（组件库 P1 form 批
 | precision | `number` | `-1` | 固定小数位（>=0 修约与显示；<0 自适应） |
 | controls | `boolean` | `true` | 步进钮组开关（false 纯输入形态，键盘步进仍可用） |
 | placeholder | `string` | `""` | 占位文案（同步原生属性） |
-| status | `"" \| error \| success \| warning` | `""` | 状态色通道（base-field 骨架；x-field 校验结果染色入口） |
+| status | `"" \| error \| success \| warning` | `""` | 状态色通道（field 骨架；x-field 校验结果染色入口） |
 | disabled | `boolean` | `false` | 禁用（骨架同步原生控件） |
 | readonly | `boolean` | `false` | 只读（骨架同步原生控件；阻步进与归位写入） |
 

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FloatButton · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.float-button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">常规形态：icon 必选 + click 原生冒泡事件出口（点击计数：{{ hits }}）</div>
+        <div class="auto-card-body">
+          <div @click="hits += 1">
+            <x-float-button icon="bell">在线客服</x-float-button>
+          </div>
+          <p class="hint">
+            icon 经 x-icon 渲染；label 写在默认插槽（非空时宽幅胶囊形态）；
+            事件出口为原生 click 冒泡——外层 <code>@click</code> 一行消费（组件默认封闭）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">square 形状 + 自定义定位</div>
+        <div class="auto-card-body">
+          <x-float-button icon="edit" shape="square" right="130" bottom="40"></x-float-button>
+          <p class="hint">
+            shape 双形状（circle 缺省 / square 圆角方——圆角走 --auto-border-radius 档位）；
+            right/bottom 定位偏移（number 按 px，string 带单位原样）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card" data-dark>
+        <div class="auto-card-header">暗色态（容器 data-dark）</div>
+        <div class="auto-card-body">
+          <x-float-button icon="bell" right="220" bottom="40">夜间客服</x-float-button>
+          <p class="hint">暗色兜底变体：容器裸挂 data-dark 即切换样式域（fixed 定位不吃容器布局）。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), { hits: 0 });
+    </script>
+  </body>
+</html>

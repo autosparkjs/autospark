@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tour · 受控与跳步</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.tour.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">受控 current：外部步进器驱动</div>
+        <div class="auto-card-body">
+          <p id="ctl-target-1" style="margin: 0 0 12px">第一目标段落——步进器控制当前高亮步。</p>
+          <p id="ctl-target-2" style="margin: 0 0 12px">
+            第二目标段落——current 直达（props 单向驱动）。
+          </p>
+          <p id="ctl-target-3" style="margin: 0 0 12px">
+            第三目标段落——内部「下一步」写 data + change 广播。
+          </p>
+          <p>
+            <button class="demo-btn" @click="cur = Math.max(0, cur - 1)">← 上一步</button>
+            <button class="demo-btn" style="margin: 0 8px" @click="cur = Math.min(2, cur + 1)">
+              下一步 →
+            </button>
+            <button class="demo-btn" @click="on = true">打开（第 {{ cur + 1 }} 步）</button>
+          </p>
+          <x-tour :steps="steps" :visible="on" :current="cur" @close="on = false"></x-tour>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">目标 miss 跳步（步骤 2 选择器故意不命中）</div>
+        <div class="auto-card-body">
+          <p id="miss-target-1" style="margin: 0 0 12px">正常目标——第一步正常展示。</p>
+          <p id="miss-target-3" style="margin: 0 0 12px">跳达目标——失步被跳过后直接到达这里。</p>
+          <p><button class="demo-btn" @click="missOn = true">打开（观察控制台 warn）</button></p>
+          <x-tour :steps="missSteps" :visible="missOn" @close="missOn = false"></x-tour>
+          <p class="hint" style="margin-top: 12px">
+            steps[1].target 故意指向不存在的选择器：console.warn 提示后自动跳下一步； 全部 miss /
+            末步 miss 时走关闭链（close 广播）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        on: false,
+        cur: 0,
+        missOn: false,
+        steps: [
+          { target: "#ctl-target-1", title: "受控步 1", content: "current=0 时高亮这里。" },
+          { target: "#ctl-target-2", title: "受控步 2", content: "外部步进器写 current 即直达。" },
+          {
+            target: "#ctl-target-3",
+            title: "受控步 3",
+            content: "内部步进与受控注入同 data 通道。",
+          },
+        ],
+        missSteps: [
+          { target: "#miss-target-1", title: "正常步", content: "目标命中，正常展示。" },
+          { target: ".no-such-target", title: "失步", content: "目标不存在——warn 后自动跳过。" },
+          { target: "#miss-target-3", title: "跳达步", content: "越过失步，直接到达这里。" },
+        ],
+      });
+    </script>
+  </body>
+</html>

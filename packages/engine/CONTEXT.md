@@ -642,8 +642,12 @@ _Avoid_: 全局组件缓存（强调单一名册，非某层缓存）、组件�
 _Avoid_: 运行时定义组件（注册是登记动作，定义仍由 x-define 承载）、动态组件（那是 x-component 的实例化职责）、parseComponent（解析已私有化，不公开）
 
 **元素名组件（Element-name Component）**:
-`x-define-options="{tag:...}"` 键——组件**缺省开启**元素名形态（ADR-0117；推导与撞名规则 ADR-0133 修订）：未声明即自动注册为**元素名形态指令**，模板直接写元素标签即实例化——`<x-counter>` 与 `<div x-component:counter>` 完全等价（宿主化身、props、插槽、事件全量同构，继承 `ComponentDirective` 机制零分叉）。值域：未声明 / `true` → 标签按**归一化推导**（ADR-0133）：字面剥离头部 `autospark.`（官方组件通道，第三方命名空间完整转换）→ camelCase 边界插 `-` → 小写化 + 连续无效字符折叠单个 `-`（`order.counter`/`orderCounter` 同归 `x-order-counter`）；非空字符串 → 自定义标签（小写化，不含连字符自动补 `x-` 前缀）；仅 `false` 显式关闭；非法值 warn + 回落推导。推导是**单向派生别名**——注册表键与 `x-component:` 查找保持原名。props 折叠两段协作：静态属性即 props（类型推断 number / boolean / 宽松 JSON / 字符串），`:name="expr"` 响应式 props 由编译期临时剥除 stash、生成类 created 折叠进值通道（优先级 `:expr` > 静态属性 > `x-{标签基名}-options`，`x-component-options` 为兼容别名）；保留属性（`class`/`style`/`id`/`data-*`/`x-*`）不折叠、留给宿主化身。事件：组件方法内 `this.emit(event, detail)` 向根元素派发冒泡 CustomEvent，宿主同元素 `@event`（OnDirective）监听。安装收口于 `registerComponentDef`（def 携带 `tag` 即安装，五条注册路径统一；撞名规则 ADR-0133：同名同标签幂等 / **不同组件撞同标签就近遮蔽**（候选名列表沿使用处 scope 链逐层取最近命中——内层胜外层、同层后声明胜 + warn） / 组件名撞指令名 warn + 跳过标签（组件可用） / 标签撞非组件指令元素名 CompileError / 同名换标签 warn + 覆盖）；懒预编译时序缺口已由编译期反查关闭（未知 `x-*` 标签触发全局表反查注册，miss warn 一次）；继承**声明为准**（子缺省注册自身自动标签，父自定义标签不扩散；`tag:false` 关闭子）。已知边界：反查候选枚举有限（六种确定形态）；无 `.tag` 修饰符形态。
+`x-define-options="{tag:...}"` 键——组件**缺省开启**元素名形态（ADR-0117；推导与撞名规则 ADR-0133 修订）：未声明即自动注册为**元素名形态指令**，模板直接写元素标签即实例化——`<x-counter>` 与 `<div x-component:counter>` 完全等价（宿主化身、props、插槽、事件全量同构，继承 `ComponentDirective` 机制零分叉）。值域：未声明 / `true` → 标签按**归一化推导**（ADR-0133）：字面剥离头部 `autospark.`（官方组件通道，第三方命名空间完整转换）→ camelCase 边界插 `-` → 小写化 + 连续无效字符折叠单个 `-`（`order.counter`/`orderCounter` 同归 `x-order-counter`）；非空字符串 → 自定义标签（小写化，不含连字符自动补 `x-` 前缀）；仅 `false` 显式关闭；非法值 warn + 回落推导。推导是**单向派生别名**——注册表键与 `x-component:` 查找保持原名。props 折叠两段协作：静态属性即 props（类型推断 number / boolean / 宽松 JSON / 字符串；空值对 boolean 声明键经注入点归一为 true，见「裸布尔属性」），`:name="expr"` 响应式 props 由编译期临时剥除 stash、生成类 created 折叠进值通道（优先级 `:expr` > 静态属性 > `x-{标签基名}-options`，`x-component-options` 为兼容别名）；保留属性（`class`/`style`/`id`/`data-*`/`x-*`）不折叠、留给宿主化身。事件：组件方法内 `this.emit(event, detail)` 向根元素派发冒泡 CustomEvent，宿主同元素 `@event`（OnDirective）监听。安装收口于 `registerComponentDef`（def 携带 `tag` 即安装，五条注册路径统一；撞名规则 ADR-0133：同名同标签幂等 / **不同组件撞同标签就近遮蔽**（候选名列表沿使用处 scope 链逐层取最近命中——内层胜外层、同层后声明胜 + warn） / 组件名撞指令名 warn + 跳过标签（组件可用） / 标签撞非组件指令元素名 CompileError / 同名换标签 warn + 覆盖）；懒预编译时序缺口已由编译期反查关闭（未知 `x-*` 标签触发全局表反查注册，miss warn 一次）；继承**声明为准**（子缺省注册自身自动标签，父自定义标签不扩散；`tag:false` 关闭子）。已知边界：反查候选枚举有限（六种确定形态）；无 `.tag` 修饰符形态。
 _Avoid_: 自定义元素（非 native customElements——无 Shadow DOM、不注册 customElements、无升级时序）、元素名指令（泛称——元素名触发是指令系统通用能力（指令类 `static elementName`），元素名组件专指本机制生成的组件形态指令）、等效指令（旧文档用名，已正名）、`directive` 键（旧键名已更名 `tag`，ADR-0117 修订）、x-tag / x-use（无此语法——`x-define-options.tag` 是配置键不是指令）、标签命名空间泛化剥离（只剥字面 `autospark.`，第三方首段不剥——ADR-0133）
+
+**裸布尔属性（Bare Boolean Attribute）**:
+HTML 布尔属性惯例（`<input disabled>` 存在即开启）在组件 props 上的归一语义（ADR-0117 2026-11-14 修订）：DOM 层裸属性与 `=""` 的 attr.value 同为空串、不可区分，声明侧类型为 boolean 的键（`def.defaults`（ADR-0092）∪ 实例 data 域初始值，任一为 boolean 即是）空串注入为 `true`——`<x-counter expanded>` ≡ `<x-counter expanded="true">`；非 boolean 键维持 ""（空串 props 通道完整保留，`label=""` 不受害）；`"0"` / `"no"` 等其他假值字符串不归一（不引入 HTML 属性枚举语义）。收敛在注入点（首注入与更新流同规则），三通道（元素名静态折叠 / `x-component-options.props` / 值通道求值产物）统一——表达式产物空串同样归一（注入层无从区分来源，boolean 契约的空串本就无意义值）。
+_Avoid_: 布尔属性推断（指静态类型推断的 `true`/`false` 字面量通道——显式 `="true"`/`="false"` 走推断，裸属性走注入归一，层次不同）、属性枚举语义（`"0"`/`"no"` 不参与归一）、空值布尔属性 / 布尔简写（非 canonical 名——词条定名「裸布尔属性」，定义内已写明含 `=""` 等价形态）
 
 **组件预编译（Component Precompile）**:
 `options.components` 字符串入参首次被 `getComponentDeclaration` 命中时，经 `parseHtmlFragment` 解析 + 自动包装（见「组件自动包装」）为「恰好一个带 `x-define` 的根元素」，组装为 `ComponentDef` 存入**全局组件定义表**（key=组件名，value=定义；快照由 `def.snapshot` 派生），后续命中只 `cloneNode(true)` 不重复解析。**懒编译**——仅首次使用时预编译，未用的全局组件永不解析；失败以 `null` 负缓存，同样只解析一次。预编译产物形态与局部组件 `_collectComponent` 快照一致（未编译、保留指令属性、**不注入 x-scope**），消费者经同一路径渲染。解析失败/空串 → `logger.warn` + 视为未命中。详见 ADR-0022（承接 ADR-0021）决策 11、ADR-0086 决策四。
@@ -662,11 +666,11 @@ x-define 收集时 `cloneNode(true)` 产出的、独立于 template 事实源的
 _Avoid_: 组件克隆（强调的是冻结独立事实，非单纯克隆操作）
 
 **插槽 / x-slot（Slot）**:
-组件模板的声明式内容投影机制（ADR-0056）：`x-define` 在组件模板内声明**出口**（Outlet），`x-component` 在调用方宿主子级提供**内容**（Content），实例化时内容按名投影进对应出口；无内容则渲染出口内的 fallback。出口清单编译期从模板自动推断（`ComponentDef.slots`），命名靠属性参数（`x-slot:header`），裸 `x-slot`=默认出口/默认内容。内容在**调用方作用域链**求值（不受 ADR-0053 组件封闭边界约束），fallback 在**组件作用域**求值。覆盖物消费者家族（x-dialog 等）用同一套出口/内容/形参语法，但宿主侧内容归属规则不同（裸子节点永不参与，须显式声明，见「归属容器」）。
+组件模板的声明式内容投影机制（ADR-0056）：`x-define` 在组件模板内声明**出口**（Outlet），`x-component` 在调用方宿主子级提供**内容**（Content），实例化时内容按名投影进对应出口；无内容则渲染出口内的 fallback（例外：**空 template 出口=可选出口**，未填充整个出口不渲染，ADR-0137）。出口清单编译期从模板自动推断（`ComponentDef.slots`），命名靠属性参数（`x-slot:header`），裸 `x-slot`=默认出口/默认内容。内容在**调用方作用域链**求值（不受 ADR-0053 组件封闭边界约束），fallback 在**组件作用域**求值。覆盖物消费者家族（x-dialog 等）用同一套出口/内容/形参语法，但宿主侧内容归属规则不同（裸子节点永不参与，须显式声明，见「归属容器」）。
 _Avoid_: 槽（单字生歧义）、Vue slot 撞名不加说明（本引擎指令为 x-slot）、内容插槽/模板插槽（泛化——就叫插槽）、`x-slots`（那是覆盖物宿主的归属容器，不是插槽标记本身——多一个 s，出口名与归属是两个概念）
 
 **插槽出口（Outlet）**:
-组件模板内声明「内容可替换到这里」的 `x-slot` 标记元素（定义侧）。标记元素**始终保留为真实包裹层**（出口位置即 DOM 位置，fallback 有宿主）；任意深度合法；无对应内容时渲染出口子树 fallback（组件作用域求值）。同名多出口 → 首个胜 + warn。
+组件模板内声明「内容可替换到这里」的 `x-slot` 标记（定义侧）。载体两形态（ADR-0137）：**元素出口**——标记元素**始终保留为真实包裹层**（出口位置即 DOM 位置，fallback 有宿主），自身属性是自身样式、不注入；**template 出口**——`<template x-slot:名>` 无包裹层（template 消失、内容 / fallback 的元素根直接上位，`data-slot` 锚点由首个元素根承接），按**空/非空**分流：有实质内容（纯空白/注释不算）= fallback 出口（未填充渲染 `.content` 子树，组件作用域求值，fallback 根享受出口注入）；空 = **可选出口**（未填充整个出口不渲染，填充照常）——可选与注入正交，空载体带注入属性合法。任意深度合法；无对应内容时元素出口渲染出口子树 fallback。同名多出口 → 首个胜 + warn。动态名（裸 `x-slot="表达式"` 值非空，ADR-0107）两载体通用。
 _Avoid_: 出口点、插槽定义（那是 x-define 的职责，出口只是其中的标记）、slot outlet 英文混用
 
 **插槽内容（Content）**:
@@ -679,7 +683,11 @@ _Avoid_: `x-slot-for`（早期命名，已废弃为 x-slots）、插槽容器（
 
 **传递绑定 / x-slot.bind（Slot Bindings）**:
 内容侧传递给出口元素的属性展开（ADR-0108）：`x-slot.bind="对象表达式"` 写在槽标记元素自身（正典与 `x-slot:名` 合写；别名 `x-slot:名.bind`），表达式在**调用方作用域**响应式求值（depth:2），以 x-bind 展开语义应用到**出口元素**（`SlotContent.bindingsExpr` → `SlotDirective._applyCallerBindings` → `SpreadBinder`）。优先级**调用方赢**（覆盖出口静态属性与出口侧 x-bind；class/style 合并，组件在前、调用方追加）。空 `<template x-slot.bind>` 只贡献绑定不构成内容；载体无内容 warn+丢弃；出口侧（组件内）写 `.bind` → warn 引导用 x-bind。绑定只可见调用方状态，引用不到插槽形参。
-_Avoid_: 属性透传/fallthrough（不转移包裹层静态属性，只认显式 x-slot.bind）、`x-slot-options.bind`（-options 通道是指令自身配置，作用域与方向都不对）、透传绑定（就叫传递绑定）
+_Avoid_: 属性透传/fallthrough（不转移包裹层静态属性，只认显式 x-slot.bind）、`x-slot-options.bind`（-options 通道是指令自身配置，作用域与方向都不对）、透传绑定（就叫传递绑定）、出口注入（那是方向相反的反向机制——出口→内容根，ADR-0137，勿混）
+
+**出口注入 / Outlet Injection**:
+声明侧 template 出口标记上的属性注入到投影内容根的反向传递机制（ADR-0137；与「传递绑定」方向相反互补：注入=出口→内容根、绑定=内容侧→出口元素）。注入集 = template 上除 `x-slot` 标记家族与宿主配置家族（`x-options` / `x-slot-options`）外的**全部属性**，且是**活注入**——`:class` / `@click` / `x-show` 等指令属性注入后随内容编译管线在内容根作为活指令生效（调用方作用域求值），声明侧可向使用方内容根植入样式与行为。注入目标：template 载体内容（可多根）→ **每个元素根**；元素载体 → 载体元素自身；纯文本/插值根无元素可注入 → warn + 丢弃属性（不造包裹层）；fallback 根同样注入（防填充/未填充样式跳变）。冲突**调用方赢**（与传递绑定跨机制一致）；class/style token 级合并（内容根已有保留 + 声明侧追加，复用 SpreadBinder）。**元素出口不注入**（元素自身属性与注入意图不可区分——template 不进 DOM、属性唯一去处即注入，故为 template 载体专属）。live 活体段（ADR-0062）跳过注入 + warn（活体元素生死归构造方）。继承覆盖段的 template 属性集随段**整段替换**父注入集（ADR-0081 同逻辑：覆盖段就是新声明）。
+_Avoid_: 属性透传/fallthrough（「传递绑定」词条已定为歧义词）、反向绑定（绑定专指 x-bind 展开语义值通道）、出口透传（透传已废）、包裹层属性转移（元素出口属性恒不转移——注入要排除的歧义形态）、slot props（那是「作用域形参」的数据面词汇）
 
 **作用域形参（Slot Params）**:
 作用域插槽（scoped slot）的双向数据面：出口侧值承载对象字面量 `x-slot:header="{ item: row }"`（组件作用域经 watch 求值，注入变化→形参容器 `Object.assign` + `scope.refresh()` 刷新）；内容侧值承载**解构形参** `x-slot:header="{ item, index }"`（自定义 `{ 键, 键 }` 解析，非 JSON）。形参挂内容作用域 `locals`（进聚合视图）。裸子节点=默认插槽无形参；默认内容要形参须显式 `<div x-slot="{ item }">`。
@@ -702,7 +710,7 @@ _Avoid_: 双别名同元素并写（应二选一，首个胜 + warn）、多继�
 _Avoid_: component/registered（旧单数全局事件已废弃）、注册回调、组件就绪事件（就绪判定归查找协议）
 
 **继承覆盖（Inherit Override）**:
-子定义直接子节点（非 `<script setup>` / `<style>`）按**插槽内容分段规则**原样收集的覆盖段（`<template x-slot:名>`=命名段、裸子节点=默认段；无对应父出口 warn+丢弃、未提及出口保留父 fallback）——解析期**替换父快照中该出口的 fallback 子树**，故在组件实例作用域（合并后 data 域）求值。实例化时三层优先级：**消费方内容 > 继承覆盖 > 父 fallback**——继承只改默认，不锁死出口。覆盖段声明作用域形参 → warn + 忽略。详见 ADR-0081。
+子定义直接子节点（非 `<script setup>` / `<style>`）按**插槽内容分段规则**原样收集的覆盖段（`<template x-slot:名>`=命名段、裸子节点=默认段；无对应父出口 warn+丢弃、未提及出口保留父 fallback）——解析期**替换父快照中该出口的 fallback 子树**，故在组件实例作用域（合并后 data 域）求值。实例化时三层优先级：**消费方内容 > 继承覆盖 > 父 fallback**——继承只改默认，不锁死出口。覆盖段声明作用域形参 → warn + 忽略。template 出口的空/非空以**替换后最终快照**为准（覆盖段可翻转可选性），覆盖段 template 属性集随段整段替换父注入集（ADR-0137）。详见 ADR-0081。
 _Avoid_: 覆盖插槽（那是消费方内容侧词汇）、默认内容覆盖（与 fallback 混淆——覆盖动作发生在定义期，覆盖产物成为新 fallback）
 
 ### 引擎结构层

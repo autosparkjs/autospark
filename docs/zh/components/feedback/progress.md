@@ -18,8 +18,8 @@ Progress 是 AutoSpark 的官方进度条组件（组件库 P1，feedback 分类
 <script src="autospark.js"></script>
 <script src="autospark.progress.js"></script>
 
-<div x-component:autospark.progress="{ percent: 30 }"></div>
-<div x-component:autospark.progress="{ percent: 75, variant: 'circle' }"></div>
+<x-progress percent="30"></x-progress>
+<x-progress percent="75" variant="circle"></x-progress>
 ```
 
 <demo html="components/feedback/progress/basic.html"/>

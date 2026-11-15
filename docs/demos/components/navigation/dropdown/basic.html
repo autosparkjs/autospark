@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Dropdown · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <!-- 菜单面板复用 x-popover 指令机制——按需加载场景须同时引入 overlay 产物 -->
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.dropdown.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" style="max-width: 560px">
+      <div class="auto-card">
+        <div class="auto-card-header">最小用法：:items 状态引用 + 默认插槽触发区 + select 事件</div>
+        <div class="auto-card-body">
+          <!-- engine 根元素上 @事件 绑定不生效——消费监听挂内层包裹元素 -->
+          <div @select="picked = $event.detail.item.label">
+            <p>
+              <x-dropdown :items="actions" trigger="click">
+                <button type="button">更多操作 ▾</button>
+              </x-dropdown>
+            </p>
+          </div>
+          <p class="hint">最近触发：<code>{{ picked || '（未操作）' }}</code> —— detail = { key, item }；触发区是默认插槽（button / 文本 / 图标均可）。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">子元素声明形态 + hover 触发（缺省）+ icon / divided / danger / disabled</div>
+        <div class="auto-card-body">
+          <div @select="picked = $event.detail.item.label">
+            <p>
+              <x-dropdown>
+                <span style="cursor: pointer; color: #009aff">悬停展开 ▾</span>
+                <x-dropdown-item key="refresh" label="刷新" icon="refresh"></x-dropdown-item>
+                <x-dropdown-item key="edit" label="编辑" icon="edit"></x-dropdown-item>
+                <x-dropdown-item key="export" label="导出" divided></x-dropdown-item>
+                <x-dropdown-item key="remove" label="删除" danger disabled></x-dropdown-item>
+              </x-dropdown>
+            </p>
+          </div>
+          <p class="hint">键盘：聚焦触发区后上下漫游（跳过禁用项）/ Enter 触发 / ESC 关。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        picked: "",
+        actions: [
+          { key: "new", label: "新建", icon: "file" },
+          { key: "copy", label: "复制" },
+          { key: "cut", label: "剪切", divided: true },
+          { key: "del", label: "删除", danger: true },
+        ],
+      });
+    </script>
+  </body>
+</html>

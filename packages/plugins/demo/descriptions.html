@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.descriptions · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 860px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .two-col {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.descriptions</h1>
+    <p>
+      描述列表：items / 子元素声明两形态 + columns 列数 + span 跨项位 + bordered
+      表格形态 + layout 标签排布 + title 标题。纯展示无事件。
+    </p>
+
+    <div id="app">
+      <h2>基础（简洁形态，3 列缺省 + span 跨项位）</h2>
+      <x-descriptions title="订单信息" :items="rows"></x-descriptions>
+      <p class="hint">items 须状态引用注入（字面量数组触发 props 更新死环——已知引擎缺陷规避）。</p>
+
+      <h2>bordered 表格形态（label 格灰底 + 间隙显线）</h2>
+      <x-descriptions title="订单信息" bordered="true" :items="rows"></x-descriptions>
+
+      <h2>vertical 标签在上（简洁 / bordered 双形态，columns=2）</h2>
+      <div class="two-col">
+        <x-descriptions layout="vertical" columns="2" :items="rows"></x-descriptions>
+        <x-descriptions layout="vertical" columns="2" bordered="true" :items="rows"></x-descriptions>
+      </div>
+
+      <h2>子元素声明形态（静态描述 + 属性折叠）</h2>
+      <x-descriptions columns="2" title="包信息">
+        <x-descriptions-item label="版本">2.4.0</x-descriptions-item>
+        <x-descriptions-item label="协议">MIT</x-descriptions-item>
+        <x-descriptions-item label="运行时">零依赖 engine</x-descriptions-item>
+        <x-descriptions-item label="产物">IIFE 单文件</x-descriptions-item>
+      </x-descriptions>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <x-descriptions title="订单信息" bordered="true" :items="rows"></x-descriptions>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.descriptions.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        rows: [
+          { label: "订单号", value: "ORD-20261113-0001" },
+          { label: "收货人", value: "张三" },
+          { label: "联系电话", value: "138****8888" },
+          { label: "收货地址", value: "上海市静安区某某路 88 号", span: 2 },
+          { label: "备注", value: "工作日配送" },
+        ],
+      });
+    </script>
+  </body>
+</html>

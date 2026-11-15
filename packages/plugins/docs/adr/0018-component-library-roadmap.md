@@ -3,6 +3,7 @@
 - 状态：已接受（Accepted，2026-11-12）
 - 日期：2026-11-12
 - 修订：2026-11-12 antd 全量对照增补——transfer 补入 form/P3、float-button 补入 other/P3 并吸收 backtop 为其 `back-to-top` 形态（antd 5 同款路线），总量 55→56；mentions / qrcode / navbar 列入配方或观望（见决策 1 备注）
+- 修订：2026-11-14 **cascader / tree-select 裁撤**（用户裁决）——x-tree 指令已覆盖树形渲染/复选/懒加载能力，两件按决策 3「指令即终态」原则回归指令 + select 组合承接，总量 56→**54**；实施中半成品已清理，无登记残留
 - 关联：ADR-0017（八分类骨架——本路线图往八类里填充）、ADR-0009（插件四形态）、ADR-0003（一插件一文件夹）、ADR-0012（button 范式——全库样式基线）、ADR-0014/0016（继承家族先例）、ADR-0011（resource——RPC 语义与组件层正交）
 
 ## 背景
@@ -26,8 +27,8 @@
 | feedback | alert（P0）、progress（P1）、skeleton（P1）、message-box（P1）、result（P2） | x-icon、x-dialog、button、i18n、语义色 |
 | navigation | tabs 含 segmented variant（P1）、breadcrumb（P1）、menu（P2）、steps（P2）、pagination（P2）、page-header（P2）、anchor（P3）、dropdown（P3） | x-icon、state-button、i18n、x-for.paging |
 | display | card（P0）、tag（P0）、empty（P0）、avatar（P1）、image（P1）、list（P1）、table 含 virtual 模式（P2）、descriptions（P2）、timeline（P2）、statistic（P2）、image-viewer（P2）、carousel（P2）、collapse（P2） | x-for、virtual、x-loading、tooltip、x-scrollbar、tag/card/checkbox（跨组件）、语义色 |
-| form | input 含 textarea/password 形态 + **BaseField**（P0）、checkbox（P0）、radio（P0）、switch（P0）、select（P1）、input-number（P1）、slider（P1）、rate（P1）、autocomplete（P3）、date-picker（P3）、time-picker（P3）、time-select（P3）、cascader（P3）、tree-select（P3）、color-picker（P3）、transfer（P3） | x-model、x-field、x-popover、x-tree、x-icon、checkbox/button/list（transfer 装配）、BaseField |
-| other | float-button 含 back-to-top 形态（P3，吸收原 backtop 独立条目——antd 5 同款路线）、affix（P4）、watermark（P4）、tour（P4）、countdown（P4） | scroll 监听、expandable 共享把手、x-popover、i18n |
+| form | input 含 textarea/password 形态 + **BaseField**（P0）、checkbox（P0）、radio（P0）、switch（P0）、select（P1）、input-number（P1）、slider（P1）、rate（P1）、autocomplete（P3）、date-picker（P3）、time-picker（P3）、time-select（P3）、color-picker（P3）、transfer（P3） | x-model、x-field、x-popover、x-icon、checkbox/button/list（transfer 装配）、BaseField |
+| other | ~~float-button 含 back-to-top 形态（P3）~~（2026-11-13 改归 general，ADR-0029 修订——用户裁决）、affix（P4）、watermark（P4）、tour（P4）、countdown（P4） | scroll 监听、expandable 共享把手、x-popover、i18n |
 | base | BaseField（P0，**基类不计入清单数**） | 演进式抽取，见决策 7 |
 
 ### 决策 3：指令即终态——已覆盖能力不做组件化外壳
@@ -51,7 +52,7 @@
 - **P0 基础批（13）**：text、link、space、grid、divider、card、tag、alert、empty、input（携 BaseField，启用 base/）、checkbox、radio、switch——后续所有批次都消费这批素材；同时验证全库基线（button 范式 / i18n / 语义色）。
 - **P1 表单+反馈主力（12）**：select、input-number、slider、rate、progress、skeleton、message-box、avatar、image、list、breadcrumb、tabs。
 - **P2 展示+导航主力（13）**：table、descriptions、timeline、statistic、image-viewer、carousel、menu、steps、pagination、page-header、result、collapse、container。
-- **P3 重件深水区（11）**：date-picker、time-picker、time-select、autocomplete、cascader、tree-select、color-picker、transfer、anchor、dropdown、float-button（含 back-to-top 形态）。
+- **P3 重件深水区（9）**：date-picker、time-picker、time-select、autocomplete、color-picker、transfer、anchor、dropdown、float-button（含 back-to-top 形态）。（cascader/tree-select 原列于此，2026-11-14 用户裁决裁撤——x-tree 指令覆盖，决策 3 回归。）
 - **P4 长尾（4）**：affix、watermark、tour、countdown。
 
 ### 决策 6：四条全局约定（组件 ADR 必须继承）

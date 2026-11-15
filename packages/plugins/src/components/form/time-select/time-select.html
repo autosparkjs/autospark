@@ -1,0 +1,486 @@
+<!--
+    autospark.time-select 时间点下拉（ADR-0025）——触发器组件：select 范式直系克隆
+    （ADR-0022）：Field 盒饰形态 + 选中值展示 + 时钟图标；起止/步长生成离散时间
+    点列表作 options。列表面板不自建弹层，复用 x-popover 指令机制呈现（trigger:click
+    形态——点击切换 / 面板外点击 / ESC 关闭均机制继承）：内层触发器元素即 popover
+    宿主，面板组件 autospark-time-select-panel（同插件注册，panel.html）渲染进 body
+    覆盖物容器；**fit 宽度匹配 + uid 配对 min-width 两段合成**（select 决策 1 同款：
+    fit 基准是触发器内容区，面板 mounted 按 uid 配对测盒饰宽补 min-width——面板与
+    select 下拉同款观感）。
+
+    面板 ↔ 触发器通信走 scope 链：面板经聚合视图沿链读写本组件 data 域——读
+    options/activeValue/value 呈现，写哨兵键（pickTick/pickValue 选项点击、keyTick/
+    keyDir 键盘导航）回传交互；面板 mounted/unmounted 沿链写 open 开合态。
+
+    值桥（x-model 兼容协议，"HH:mm" 字符串语域）：宿主 el.value 劫持 ↔ data.value；
+    选中 / 清除路径手动派发 input（非冒泡）+ change（冒泡 detail = { value }）；内嵌
+    input[type=hidden] 表单载体（name 透传，原生直提交）。
+
+    键盘（select 同款）：上下移动高亮（首尾环绕）/ Enter 确认（未开先开）/ ESC 归
+    popover 打开栈（机制继承）不拦截 / Tab 自然移焦。
+
+    离散列表生成（ADR-0025 决策 3）：start（"00:00"）→ end（"23:00"）含端按 step
+    （"00:30"）分钟步进；非法步长（≤0 分钟）回退 30；列表长度防御上限 2000（病态
+    配置兜底）；start>end 之类空区间渲染空态（i18n time-select.empty 回退「暂无数据」）。
+-->
+<!-- 根 class 拼接进骨架宿主；data-open / data-has-value 由 mounted JS 通道同步，
+     根上无动态绑定（T4=B） -->
+<span
+  class="asc-time-select asc-field-box"
+  x-define="autospark.time-select"
+  x-define:inherit="autospark.field"
+>
+  <script setup>
+    {
+        data: () => ({
+            value: "",       // 当前值（"HH:mm" 字符串语域，""=空；落在列表内才有选中标记；受控真相走宿主 x-model）
+            placeholder: "", // 占位文案（空时走 i18n 词典 time-select.placeholder 键，回退「请选择时间」）
+            clearable: false, // 清除钮（有值且可交互时可见：清空 + input/change 双派发 + 焦点回触发器）
+            start: "00:00",  // 起始时间（含端）
+            end: "23:00",    // 结束时间（含端）
+            step: "00:30",   // 步长（"HH:mm"，分钟粒度解析）
+            name: "",        // 表单载体名（元素名写法下 name 属性折叠为 props——与宿主属性双通道，mounted 合取）
+            // —— 内部状态（JS 通道维护——绑定通道对 props 晚注入不重算，家族纪律）——
+            uid: "",               // 实例唯一标识（根 data-asc-time-select-uid 属性载体——面板宽度匹配的
+                                   // 配对键，select 决策 1 两段合成同款）
+            hasValue: false,       // 当前有值（清除钮可见性 / 占位切换）
+            open: false,           // 面板开合态（面板 mounted/unmounted 沿链写回）
+            options: [],           // 离散时间点列表 [{ label, value }]（start/end/step 变化时重建）
+            activeIndex: -1,       // 键盘高亮索引（options 内；-1 无高亮）
+            activeValue: null,     // 高亮项值（面板 :data-active 比较基准——索引对模板不可见，值通道免疫重建）
+            pickTick: 0,           // 选中哨兵（选项点击写：自增必变免疫同值去重；触发本组件选中流程）
+            pickValue: null,       // 选中哨兵携带值
+            keyTick: 0,            // 键盘导航哨兵（触发器键盘经方法直调，键位预留 select 协议对称）
+            keyDir: 0,             // 键盘导航方向（1 下 / -1 上）
+        }),
+        methods: {
+            // 触发器元素（popover 宿主 / 焦点受让者；每查现取不缓存，家族惯用法）
+            triggerEl() {
+                return this.el.querySelector(".asc-time-select-trigger");
+            },
+            // 表单载体（hidden input；每查现取）
+            carrierEl() {
+                return this.el.querySelector(".asc-time-select-carrier");
+            },
+            // 两位补零
+            pad2(n) {
+                return String(n).padStart(2, "0");
+            },
+            // "HH:mm" 解析为分钟数（h*60+mi；非法形态回 null）
+            parseHmMinutes(s) {
+                if (typeof s !== "string") return null;
+                const p = s.split(":");
+                if (p.length !== 2) return null;
+                const h = Number(p[0]), mi = Number(p[1]);
+                if (!Number.isFinite(h) || !Number.isFinite(mi)) return null;
+                if (h < 0 || mi < 0) return null;
+                return h * 60 + mi;
+            },
+            // 分钟数 → "HH:mm"（>23 时不进位截断到日内——起止语域本就该在 0-23 时内，防御归一）
+            fmtMinutes(total) {
+                const t = ((total % 1440) + 1440) % 1440;
+                return this.pad2(Math.floor(t / 60)) + ":" + this.pad2(t % 60);
+            },
+            // 离散列表重建：起止含端按步长生成；非法步长（≤0 分钟）回退 30；长度防御
+            //     上限 2000；activeIndex 越界时回落当前选中项
+            rebuildOptions() {
+                const s = this.parseHmMinutes(this.data.start);
+                const e = this.parseHmMinutes(this.data.end);
+                if (s == null || e == null || s > e) {
+                    this.data.options = [];
+                } else {
+                    const stepRaw = this.parseHmMinutes(this.data.step);
+                    const stepMin = stepRaw != null && stepRaw > 0 ? stepRaw : 30;
+                    const list = [];
+                    for (let t = s; t <= e && list.length < 2000; t += stepMin) {
+                        const label = this.fmtMinutes(t);
+                        list.push({ label: label, value: label });
+                    }
+                    this.data.options = list;
+                }
+                this.setActiveToValue();
+            },
+            // 高亮同步（activeValue 为面板比较基准）
+            syncActive() {
+                const list = this.data.options ?? [];
+                const i = this.data.activeIndex;
+                if (i >= 0 && i < list.length) this.data.activeValue = list[i].value ?? null;
+                else this.data.activeValue = null;
+            },
+            // 高亮落当前选中项（打开面板时的定位基准；无选中回落首项——键盘起步可达）
+            setActiveToValue() {
+                const list = this.data.options ?? [];
+                let i = list.findIndex((o) => o && String(o.value) === String(this.data.value));
+                if (i < 0 && list.length > 0) i = 0;
+                this.data.activeIndex = i;
+                this.syncActive();
+            },
+            // 选中呈现同步（JS 通道：值即展示——"HH:mm" 直出，无 label 解析层）
+            syncValue() {
+                const has = this.data.value != null && this.data.value !== "";
+                this.data.hasValue = has;
+                const c = this.carrierEl();
+                if (c) {
+                    c.value = has ? String(this.data.value) : "";
+                    c.disabled = !!this.data.disabled;
+                }
+            },
+            // 开合态副作用：aria-expanded / data-open 同步 + 打开时高亮落当前选中项
+            syncOpen() {
+                const on = !!this.data.open;
+                this.el.toggleAttribute("data-open", on);
+                const t = this.triggerEl();
+                if (t) t.setAttribute("aria-expanded", String(on));
+                if (on) this.setActiveToValue();
+            },
+            // 可交互同步：禁用时触发器退出焦点序（tabindex -1）+ 载体出表 + 关面板
+            syncInteractive() {
+                const t = this.triggerEl();
+                if (t) t.tabIndex = this.data.disabled ? -1 : 0;
+                const c = this.carrierEl();
+                if (c) c.disabled = !!this.data.disabled;
+                if (this.data.disabled && this.data.open) this.closePanel();
+            },
+            // 值变更出口（选中/清除共用）：input 非冒泡（x-model 监听在宿主自身）+
+            //     change 冒泡 detail={value}（外层消费）
+            emitChange() {
+                this.el.dispatchEvent(new Event("input", { bubbles: false }));
+                this.el.dispatchEvent(
+                    new CustomEvent("change", { bubbles: true, detail: { value: this.data.value } }),
+                );
+            },
+            // 开面板：程序化派发点击（popover click 触发模型 toggle；readonly 可开浏览
+            //     但选中被 pick guard 阻断）
+            openPanel() {
+                if (this.data.disabled) return;
+                this.triggerEl()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            },
+            // 关面板：程序化派发点击走 popover 自有 toggle 通道（声明式面板不入 overlay
+            //     实例注册表，ADR-0022 同款绕行）；open 守卫防已关态误开
+            closePanel() {
+                if (!this.data.open) return;
+                this.triggerEl()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            },
+            // 高亮移动（dir = 1 下 / -1 上）：首尾环绕（生成物无禁用项，环找直通）
+            moveActive(dir) {
+                const list = this.data.options ?? [];
+                if (list.length === 0) return;
+                const i = this.data.activeIndex;
+                this.data.activeIndex = (i + dir + list.length) % list.length;
+                this.syncActive();
+            },
+            // Enter 确认当前高亮项
+            confirmActive() {
+                if (this.data.activeValue != null) this.pick(this.data.activeValue);
+            },
+            // 选中流程（选项哨兵 / 触发器键盘汇聚点）：禁用与只读阻断；同值仅关面板；
+            //     写值 + 双派发 + 关面板 + 焦点回触发器（选中即关——单列离散选项语义，
+            //     与 time-picker 两列部分提交分叉）
+            pick(v) {
+                if (this.data.disabled || this.data.readonly) return;
+                const list = this.data.options ?? [];
+                const opt = list.find((o) => o && String(o.value) === String(v));
+                if (!opt) return;
+                if (String(opt.value) === String(this.data.value)) { this.closePanel(); return; }
+                this.data.value = opt.value;
+                this.syncValue();
+                this.emitChange();
+                this.closePanel();
+                this.triggerEl()?.focus();
+            },
+            // 清除（内部动作件，点击不转发焦点）：清空 + 双派发 + 焦点回触发器 +
+            //     阻断冒泡（防途经触发器 popover 宿主引发 toggle 开面板）
+            onClear(event) {
+                event.stopPropagation();
+                if (this.data.disabled || this.data.readonly) return;
+                if (!this.data.hasValue) return;
+                this.data.value = "";
+                this.syncValue();
+                this.emitChange();
+                this.triggerEl()?.focus();
+            },
+            // 触发器键盘导航（select 同款）：上下移动高亮（未开先开）/ Enter 确认
+            //     （未开先开）/ ESC 与 Tab 不拦截
+            onTriggerKeydown(event) {
+                if (this.data.disabled) return;
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                    event.preventDefault();
+                    if (!this.data.open) { this.openPanel(); return; }
+                    this.moveActive(event.key === "ArrowDown" ? 1 : -1);
+                } else if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (this.data.open) this.confirmActive();
+                    else this.openPanel();
+                }
+            },
+        },
+        mounted() {
+            // —— 值桥（x-model 兼容协议，"HH:mm" 字符串语域）：宿主 el.value 劫持——
+            //     劫持前快照 expando；无 x-model 回退 props.value 初值；setter 等值守卫
+            //     防 x-model 回写环（guard 值经闭包持有——watch 侧同步维护）
+            const prior = this.el.value;
+            let lastValue = undefined;
+            if (prior !== undefined && prior !== null && prior !== "") lastValue = prior;
+            else if (this.data.value != null && this.data.value !== "") lastValue = this.data.value;
+            const self = this;
+            Object.defineProperty(this.el, "value", {
+                get: () => {
+                    const v = self.data.value;
+                    return v == null ? "" : v;
+                },
+                set: (v) => {
+                    const norm = v == null ? "" : String(v);
+                    if (norm === lastValue) return;
+                    lastValue = norm;
+                    self.data.value = norm;
+                    self.syncValue();
+                },
+                configurable: true,
+            });
+            if (lastValue !== undefined) this.data.value = lastValue;
+
+            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）：布尔 props
+            //     元素名写法归一（裸属性折叠为空串——"" → true，ADR-0025）+ 载体 name
+            //     双通道 + 实例 uid（面板宽度配对键）+ 列表构建 + 全量首同步
+            setTimeout(() => {
+                if (this.data.clearable === "") this.data.clearable = true;
+                if (this.data.disabled === "") this.data.disabled = true;
+                if (this.data.readonly === "") this.data.readonly = true;
+                const nameProp = this.data.name;
+                const nameAttr = typeof nameProp === "string" && nameProp !== ""
+                    ? nameProp
+                    : this.el.getAttribute("name");
+                const c = this.carrierEl();
+                if (c && nameAttr != null && nameAttr !== "") c.name = nameAttr;
+                this.data.uid = "asc-time-select-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e6).toString(36);
+                this.el.setAttribute("data-asc-time-select-uid", this.data.uid);
+                this.rebuildOptions();
+                this.syncValue();
+                this.syncOpen();
+                this.syncInteractive();
+            }, 0);
+
+            // —— props / 哨兵 / 内部状态跟随（回调收 { value } 信封对象，此处只用作
+            //     触发信号，家族惯用法）——
+            this.watch("value", () => { lastValue = this.data.value; this.syncValue(); });
+            this.watch("start", () => setTimeout(() => this.rebuildOptions(), 0));
+            this.watch("end", () => setTimeout(() => this.rebuildOptions(), 0));
+            this.watch("step", () => setTimeout(() => this.rebuildOptions(), 0));
+            this.watch("open", () => this.syncOpen());
+            this.watch("disabled", () => setTimeout(() => this.syncInteractive(), 0));
+            // 面板哨兵：选中（pickTick）/ 键盘导航（keyTick——协议对称预留）
+            this.watch("pickTick", () => { this.pick(this.data.pickValue); });
+            this.watch("keyTick", () => { this.moveActive(Number(this.data.keyDir) || 1); });
+        },
+    }
+  </script>
+  <style global id="autospark-components-time-select">
+    /* ---------- 触发器：盒饰 chrome 由 .asc-field-box 承载（input/select 同款），光标手型 ---------- */
+    .asc-time-select {
+      cursor: pointer;
+    }
+    .asc-time-select[data-disabled] {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+    .asc-time-select[data-disabled] .asc-time-select-trigger {
+      pointer-events: none;
+    }
+    .asc-time-select[data-readonly] {
+      cursor: default;
+    }
+
+    /* ---------- 触发器热区：负 margin 全铺盒饰内距（点击 toggle 覆盖整个盒面） ---------- */
+    .asc-time-select-trigger {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35em;
+      margin-inline: calc(
+        -1 * var(--auto-input-padding, var(--asc-field-padding, 0.6rem))
+      );
+      padding-inline: var(--auto-input-padding, var(--asc-field-padding, 0.6rem));
+      align-self: stretch;
+      outline: none;
+    }
+    .asc-time-select-value {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--auto-color, var(--asc-time-select-color, #333333));
+    }
+    .asc-time-select-placeholder {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--auto-input-placeholder, var(--asc-time-select-placeholder, rgba(0, 0, 0, 0.35)));
+    }
+
+    /* ---------- 尾部动作件：清除钮与时钟图标（开面板染 tone） ---------- */
+    .asc-time-select-clear {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 0.35em;
+      cursor: pointer;
+      border-radius: var(--auto-border-radius, var(--asc-time-select-action-radius, 0.25rem));
+      color: var(--auto-third-color, var(--asc-time-select-action, rgba(0, 0, 0, 0.35)));
+      transition: color 0.15s ease;
+    }
+    .asc-time-select-clear:hover {
+      color: var(--auto-color, var(--asc-time-select-action-hover, #606060));
+    }
+    .asc-time-select-clear:active {
+      transform: scale(0.92);
+    }
+    .asc-time-select-icon {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 0.35em;
+      color: var(--auto-third-color, var(--asc-time-select-icon, rgba(0, 0, 0, 0.35)));
+      transition: color 0.15s ease;
+    }
+    .asc-time-select[data-open] .asc-time-select-icon {
+      color: var(--asc-field-tone, var(--auto-primary-color, var(--asc-time-select-primary, #009aff)));
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换（变量链不变） ---------- */
+    [dark] .asc-time-select-value,
+    [data-dark] .asc-time-select-value {
+      color: var(--auto-color, var(--asc-time-select-color, #fafafa));
+    }
+    [dark] .asc-time-select-placeholder,
+    [data-dark] .asc-time-select-placeholder {
+      color: var(--auto-input-placeholder, var(--asc-time-select-placeholder, rgba(255, 255, 255, 0.4)));
+    }
+    [dark] .asc-time-select-clear,
+    [dark] .asc-time-select-icon,
+    [data-dark] .asc-time-select-clear,
+    [data-dark] .asc-time-select-icon {
+      color: var(--auto-third-color, var(--asc-time-select-action, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-time-select-clear:hover,
+    [data-dark] .asc-time-select-clear:hover {
+      color: var(--auto-color, var(--asc-time-select-action-hover, #fafafa));
+    }
+
+    /* ══════════ 时间点列表面板（autospark-time-select-panel，渲染进 body 覆盖物
+       容器）——select 下拉面板同款观感（fit + uid 配对 min-width + 同 hover/选中
+       token，ADR-0025 视觉对齐）══════════ */
+    .asc-time-select-panel {
+      display: block;
+      min-width: 100%;
+      font-size: var(--auto-font-size, var(--asc-time-select-panel-font-size, 0.875rem));
+      line-height: var(--auto-line-height, var(--asc-time-select-panel-line-height, 1.4));
+      color: var(--auto-color, var(--asc-time-select-panel-color, #333333));
+    }
+    /* 选项列表：最大高度限档 + 纵向滚动（select 列表同款） */
+    .asc-time-select-list {
+      max-height: var(--asc-time-select-max-height, 15em);
+      overflow-y: auto;
+      padding: 0.25em 0;
+      box-sizing: border-box;
+    }
+    /* 选项：行式热区（select 选项同款）；悬停/高亮/选中态经 data-* 属性选择器驱动
+       （x-bind 假值整属性移除 = 无态）；选中标记 check 图标纯 CSS 父选择器驱动
+       （克隆体内零 x-if——共享快照串台规避，ADR-0021 边界 3） */
+    .asc-time-select-option {
+      display: flex;
+      align-items: center;
+      gap: 0.4em;
+      min-height: 2.2em;
+      padding: 0.3em 0.75em;
+      cursor: pointer;
+      transition: background-color 0.12s ease;
+    }
+    .asc-time-select-option-label {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    /* 选中标记 check 图标：DOM 恒渲染（克隆体内零 x-if），显隐走 :not(data-selected)
+       高特异性选择器——压制 x-icon 注入的 .as-icon 基类 display（同为单类特异性时
+       运行时注入序在后者胜出，实证） */
+    .asc-time-select-option:not([data-selected]) .asc-time-select-option-check {
+      display: none;
+    }
+    .asc-time-select-option[data-selected] .asc-time-select-option-check {
+      display: inline-flex;
+    }
+    .asc-time-select-option-check {
+      flex: none;
+      color: var(--auto-primary-color, var(--asc-time-select-panel-primary, #009aff));
+    }
+    .asc-time-select-option[data-selected] {
+      color: var(--auto-primary-color, var(--asc-time-select-panel-primary, #009aff));
+    }
+    .asc-time-select-option[data-selected] .asc-time-select-option-check {
+      display: inline-flex;
+    }
+    .asc-time-select-option[data-active]:not([data-selected]) {
+      background: var(--auto-hover-bgcolor, var(--asc-time-select-option-hover-bg, rgba(0, 0, 0, 0.045)));
+    }
+    /* 空态（病态起止配置兜底）：居中辅助色文案 */
+    .asc-time-select-empty {
+      padding: 0.9em 0.75em;
+      text-align: center;
+      color: var(--auto-third-color, var(--asc-time-select-empty, rgba(0, 0, 0, 0.35)));
+    }
+    /* 面板暗色兜底变体：兜底字面值切换（shell 边框/底色/阴影已由 popover-shell 暗色块覆盖） */
+    [dark] .asc-time-select-panel,
+    [data-dark] .asc-time-select-panel {
+      color: var(--auto-color, var(--asc-time-select-panel-color, #fafafa));
+    }
+    [dark] .asc-time-select-option[data-active]:not([data-selected]),
+    [data-dark] .asc-time-select-option[data-active]:not([data-selected]) {
+      background: var(--auto-hover-bgcolor, var(--asc-time-select-option-hover-bg, rgba(255, 255, 255, 0.08)));
+    }
+    [dark] .asc-time-select-option[data-selected],
+    [data-dark] .asc-time-select-option[data-selected] {
+      color: var(--auto-primary-color, var(--asc-time-select-panel-primary, #56baff));
+    }
+    [dark] .asc-time-select-empty,
+    [data-dark] .asc-time-select-empty {
+      color: var(--auto-third-color, var(--asc-time-select-empty, rgba(255, 255, 255, 0.45)));
+    }
+  </style>
+  <!-- 默认段（替换 field 出口 fallback）：表单载体 + 触发器（popover 宿主 /
+         combobox 语义，fit 面板宽随触发器）+ 清除钮 + 时钟图标 -->
+  <input type="hidden" class="asc-time-select-carrier" />
+  <span
+    class="asc-time-select-trigger"
+    x-popover:autospark-time-select-panel
+    x-popover-options="{ trigger: 'click', fit: true, padding: 0, closeable: false, at: { placement: 'bottom-start', arrow: false, offset: 4 } }"
+    tabindex="0"
+    role="combobox"
+    aria-haspopup="listbox"
+    aria-expanded="false"
+    data-autospark-control
+    @keydown="onTriggerKeydown($event)"
+  >
+    <span class="asc-time-select-value" x-if="hasValue" x-text="value"></span>
+    <span
+      class="asc-time-select-placeholder"
+      x-if="!hasValue"
+      x-text="placeholder || (t('time-select.placeholder') === 'time-select.placeholder' ? '请选择时间' : t('time-select.placeholder'))"
+    ></span>
+  </span>
+  <i
+    class="asc-time-select-clear"
+    data-autospark-action
+    x-if="clearable && hasValue"
+    x-icon="'no'"
+    @click="onClear($event)"
+  ></i>
+  <i class="asc-time-select-icon" data-autospark-action x-icon="'time-clock'"></i>
+</span>

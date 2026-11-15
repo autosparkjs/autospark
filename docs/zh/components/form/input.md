@@ -6,9 +6,9 @@ Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020�
 
 能力面：**type 文本族**（text / password / email / tel / url / search 等透传 + `textarea` 多行形态）、**clearable**（清除钮）、**show-password**（眼睛切换）、**prefix / suffix**（文本或图标前后置）、**maxlength 计数**、**disabled / readonly**。label、校验文案、域布局由 engine 的 [x-form / x-field 指令](/zh/guide/engine/form/) 承担——组件只经 `status` 属性消费校验结果染色，**不双轨建域**。
 
-组件继承 `autospark.base-field` 表单域骨架（状态色通道 / 焦点态 / 盒饰 chrome，内部基类无文档页），视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129）；**不设自有尺寸属性**——高度/内距消费 `--auto-input-height` / `--auto-input-padding`，经主题通道 `data-size` 挂任意祖先容器全档位跟随（button 同范式 ADR-0012）；暗色态容器裸挂 `data-dark` 即局部切换。无内置文案、不接 i18n（ADR-0018 决策 1）。
+组件继承 [`autospark.field` 表单域骨架](/zh/components/form/field)（状态色通道 / 焦点态 / 盒饰 chrome / prefix·suffix 装饰出口），视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129）；**不设自有尺寸属性**——高度/内距消费 `--auto-input-height` / `--auto-input-padding`，经主题通道 `data-size` 挂任意祖先容器全档位跟随（button 同范式 ADR-0012）；暗色态容器裸挂 `data-dark` 即局部切换。无内置文案、不接 i18n（ADR-0018 决策 1）。
 
-引入方式：引擎之后加载 `<script src="/autospark/autospark.input.js"></script>`（自举注册，产物已内嵌 base-field 注册，无须单独引入），或聚合产物 `autospark.plugins.js`。
+引入方式：引擎之后加载 `<script src="/autospark/autospark.input.js"></script>`（自举注册，产物已内嵌 field 注册，无须单独引入），或聚合产物 `autospark.plugins.js`。
 
 ## 快速入门
 
@@ -18,7 +18,7 @@ Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020�
 <script src="autospark.js"></script>
 <script src="autospark.input.js"></script>
 
-<span x-model="user.name" x-component:autospark.input="{ placeholder: '请输入用户名' }"></span>
+<x-input x-model="user.name" placeholder="请输入用户名"></x-input>
 <!-- 元素名快速写法（等价，属性自动折叠为 props） -->
 <x-input placeholder="请输入用户名" x-model="user.name"></x-input>
 ```
@@ -53,9 +53,9 @@ Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020�
 
 ```html
 <!-- 双向绑定（推荐） -->
-<span x-model="form.name" x-component:autospark.input></span>
+<x-input x-model="form.name"></x-input>
 <!-- 单向同步（无回写） -->
-<span x-component:autospark.input="{ value: form.name }"></span>
+<x-input :value="form.name"></x-input>
 ```
 
 ### clearable
@@ -81,6 +81,8 @@ Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020�
 
 > **对象 props 注入提示**：`{ icon }` 对象形态请经**状态引用**注入（`prefix: myConf`）——当前引擎版本对值对象内的字面量对象/数组 props 存在无限更新缺陷（修复在途），字面量写法会触发死循环；标量 props 不受影响。
 
+需要更重的装饰（任意 HTML / 按钮）时用 [field 装饰插槽](/zh/components/form/field#插槽)——props 是轻装饰（贴控件），插槽是重装饰（恒在外侧），两者共存不互斥。
+
 <demo html="components/form/input/addons.html"/>
 
 ### showCount 计数器
@@ -95,20 +97,19 @@ Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020�
 **类型**: `boolean`
 **默认**: `false`
 
-由 base-field 骨架统一同步到内层原生控件（`disabled` / `readOnly` 属性）+ 宿主 `data-disabled` / `data-readonly` 反射（禁用淡化 / 光标通道）。readonly 可聚焦可复制，仅阻输入。
+由 field 骨架统一同步到内层原生控件（`disabled` / `readOnly` 属性）+ 宿主 `data-disabled` / `data-readonly` 反射（禁用淡化 / 光标通道）。readonly 可聚焦可复制，仅阻输入。
 
 ### status 状态色（x-field 协作）
 
 **类型**: `"" | "error" | "success" | "warning"`
 **默认**: `""`
 
-表单域状态色通道（base-field 骨架）：染边框与焦点环（`error`=danger / `success`=success / `warning`=warning），`error` 态内层控件同步 `aria-invalid="true"`。**校验结果来自 x-field**——组件不做校验，经绑定消费指令注入的 `$field.error`：
+表单域状态色通道（field 骨架）：染边框与焦点环（`error`=danger / `success`=success / `warning`=warning），`error` 态内层控件同步 `aria-invalid="true"`。**校验结果来自 x-field**——组件不做校验，经绑定消费指令注入的 `$field.error`：
 
 ```html
 <form x-form="login">
   <div x-field="username">
-    <span x-model="login.username"
-      x-component:autospark.input="{ status: $field.error ? 'error' : '' }"></span>
+    <x-input x-model="login.username" :status="$field.error ? 'error' : ''"></x-input>
     <em>{{ $field.error }}</em>
   </div>
 </form>
@@ -148,7 +149,7 @@ Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020�
 | showCount | `boolean` | `false` | 计数器（len / max，超限染 danger） |
 | prefix | `string \| { icon: string }` | `""` | 前置装饰（文本 / 图标，对象经状态引用注入） |
 | suffix | `string \| { icon: string }` | `""` | 后置装饰（形态同 prefix） |
-| status | `"" \| error \| success \| warning` | `""` | 状态色通道（base-field 骨架；x-field 校验结果染色入口） |
+| status | `"" \| error \| success \| warning` | `""` | 状态色通道（field 骨架；x-field 校验结果染色入口） |
 | disabled | `boolean` | `false` | 禁用（骨架同步原生控件） |
 | readonly | `boolean` | `false` | 只读（骨架同步原生控件） |
 
@@ -163,3 +164,5 @@ Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020�
 | 插槽 | 说明 |
 |---|---|
 | 默认 | 整段控件区覆盖（一般不用——传入内容会替换内层控件结构，属逃生通道） |
+| prefix | 前置装饰出口（经 field 骨架继承）：任意 HTML，默认次要色，恒在 props 轻装饰外侧；交互件须标 `data-autospark-action` 自理焦点 |
+| suffix | 后置装饰出口（经 field 骨架继承）：形态同 prefix |

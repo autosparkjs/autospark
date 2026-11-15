@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tour · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.statistic.js"></script>
+    <script src="/autospark/autospark.tour.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <!-- 引导目标：标题栏 / 卡片 / 动作钮 -->
+      <div class="auto-card" id="tour-card1">
+        <div class="auto-card-header" id="tour-target-card">核心指标（引导目标 2）</div>
+        <div class="auto-card-body">
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px">
+            <x-statistic title="商品总数" :value="total"></x-statistic>
+            <x-statistic title="今日成交" prefix="¥" :value="amount"></x-statistic>
+            <x-statistic title="好评率" precision="1" suffix="%" :value="rate"></x-statistic>
+          </div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header" id="tour-target-actions">
+          基础：三步引导（steps + visible 受控）
+        </div>
+        <div class="auto-card-body">
+          <p style="margin: 0 0 12px">
+            <strong id="tour-target-title">顶部标题行</strong
+            >是引导第一步的高亮目标——点击开始体验分步高亮与气泡步进。
+          </p>
+          <button class="demo-btn" @click="tourOn = true">开始引导</button>
+          <span class="hint" style="margin-left: 8px"
+            >当前步：{{ tourCur + 1 }} / 3（@change 回写）</span
+          >
+          <!-- 元素名写法：steps 状态引用注入 + visible 受控 + 事件沿 DOM 冒泡模板监听 -->
+          <x-tour
+            :steps="steps"
+            :visible="tourOn"
+            @close="tourOn = false; tourCur = 0"
+            @change="tourCur = $event.detail.current"
+          ></x-tour>
+          <p class="hint" style="margin-top: 12px">
+            高亮遮罩为 box-shadow 大投影（单元素，不拦截页面交互）；末步「完成」自动关 （close 广播
+            + input 回写）；上一步 / 下一步 / 跳过 / 完成文案走 i18n tour.prev / next / skip /
+            finish 键（无词典回退中文）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        total: 128960,
+        amount: 98765.5,
+        rate: 99.62,
+        tourOn: false,
+        tourCur: 0,
+        steps: [
+          {
+            target: "#tour-target-title",
+            title: "标题行",
+            content: "这里是业务区标题——说明本区块承载的内容。",
+          },
+          {
+            target: "#tour-target-card",
+            title: "核心指标",
+            content: "三列统计数值——日常运营数据一屏速览。",
+          },
+          {
+            target: "#tour-target-actions",
+            title: "开始 / 重看引导",
+            content: "随时可以从这里重新开始漫游引导——祝使用愉快！",
+          },
+        ],
+      });
+    </script>
+  </body>
+</html>

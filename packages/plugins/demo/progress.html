@@ -71,38 +71,45 @@
       <div class="stack">
         <div class="row">
           <span class="label">受控推进</span>
-          <div style="flex: 1" x-component:autospark.progress="{ percent: p }"></div>
+          <x-progress style="flex: 1" :percent="p"></x-progress>
           <code>{{ p }}%</code>
         </div>
         <div class="row">
-          <button x-component:autospark.button="{ label: '重置', size: 'sm' }" @click="p = 0"></button>
-          <button x-component:autospark.button="{ label: '+10', variant: 'primary', size: 'sm' }" @click="p = Math.min(100, p + 10)"></button>
-          <button x-component:autospark.button="{ label: '跑满', variant: 'primary', type: 'success', size: 'sm' }" @click="p = 100"></button>
+          <!-- @click 挂包裹元素（化身宿主是封闭组件域，外层状态事件须绑组件外） -->
+          <span @click="p = 0"><x-button label="重置" size="sm"></x-button></span>
+          <span @click="p = Math.min(100, p + 10)"><x-button label="+10" variant="primary" size="sm"></x-button></span>
+          <span @click="p = 100"><x-button label="跑满" variant="primary" type="success" size="sm"></x-button></span>
         </div>
         <p class="hint">跑满后自动升 success（percent>=100 且 status 缺省——antd 同款「完成后自动成功」；填充 width 经 CSS 过渡呈现增量动画）。</p>
       </div>
 
       <h2>status 语义色（success / error / warning）</h2>
       <div class="stack">
-        <div x-component:autospark.progress="{ percent: 100, status: 'success' }"></div>
-        <div x-component:autospark.progress="{ percent: 68, status: 'error' }"></div>
-        <div x-component:autospark.progress="{ percent: 45, status: 'warning', showText: false }"></div>
+        <x-progress percent="100" status="success"></x-progress>
+        <x-progress percent="68" status="error"></x-progress>
+        <x-progress percent="45" status="warning" x-progress-options="{ props: { showText: false } }"></x-progress>
         <p class="hint">status 态文本位自动换语义图标；showText: false 关闭文本位。</p>
       </div>
 
       <h2>strokeWidth 线宽 + showText</h2>
       <div class="stack">
-        <div x-component:autospark.progress="{ percent: 30, strokeWidth: 4 }"></div>
-        <div x-component:autospark.progress="{ percent: 60, strokeWidth: 10 }"></div>
+        <x-progress percent="30" x-progress-options="{ props: { strokeWidth: 4 } }"></x-progress>
+        <x-progress percent="60" x-progress-options="{ props: { strokeWidth: 10 } }"></x-progress>
       </div>
 
       <h2>circle 形态（SVG 圆环）</h2>
       <div class="stack">
         <div class="circles">
-          <div x-component:autospark.progress="{ percent: p, variant: 'circle' }"></div>
-          <div x-component:autospark.progress="{ percent: 100, variant: 'circle', status: 'success' }"></div>
-          <div x-component:autospark.progress="{ percent: 75, variant: 'circle', type: 'danger', status: 'error', strokeWidth: 10 }"></div>
-          <div x-component:autospark.progress="{ percent: 40, variant: 'circle', showText: false, strokeWidth: 3 }"></div>
+          <x-progress variant="circle" :percent="p"></x-progress>
+          <x-progress percent="100" variant="circle" status="success"></x-progress>
+          <x-progress
+            percent="75"
+            variant="circle"
+            type="danger"
+            status="error"
+            x-progress-options="{ props: { strokeWidth: 10 } }"
+          ></x-progress>
+          <x-progress percent="40" variant="circle" x-progress-options="{ props: { showText: false, strokeWidth: 3 } }"></x-progress>
         </div>
         <p class="hint">环心文本与条右文本同一出口；stroke-dashoffset 过渡呈现增量动画（prefers-reduced-motion 停播）。</p>
       </div>
@@ -110,20 +117,20 @@
       <h2>字号档位（主题通道 data-size）</h2>
       <div class="stack">
         <div data-size="sm">
-          <div x-component:autospark.progress="{ percent: 50 }"></div>
+          <x-progress percent="50"></x-progress>
         </div>
         <div data-size="lg">
-          <div x-component:autospark.progress="{ percent: 50 }"></div>
+          <x-progress percent="50"></x-progress>
         </div>
       </div>
 
       <h2>暗色态（容器 data-dark）</h2>
       <div class="dark-box" data-dark>
         <div class="stack">
-          <div x-component:autospark.progress="{ percent: 65 }"></div>
-          <div x-component:autospark.progress="{ percent: 85, status: 'error' }"></div>
+          <x-progress percent="65"></x-progress>
+          <x-progress percent="85" status="error"></x-progress>
           <div class="circles">
-            <div x-component:autospark.progress="{ percent: 45, variant: 'circle' }"></div>
+            <x-progress percent="45" variant="circle"></x-progress>
           </div>
         </div>
       </div>

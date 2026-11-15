@@ -1,7 +1,7 @@
 <!--
     autospark.slider 滑动条（ADR-0018 决策 7 原生增强）——真实原生 <input type=range>
     藏起仍可交互（opacity:0 覆盖层：点击跳值/拖拽跟随/键盘方向键/触屏原生行为与
-    可访问性全保留），轨道/已填充段/滑块视觉自绘。继承 autospark.base-field 骨架
+    可访问性全保留），轨道/已填充段/滑块视觉自绘。继承 autospark.field 骨架
     （状态色通道/焦点态/disabled 同步，裸态无盒饰，ADR-0020）。
 
     值桥（x-model 兼容协议）：宿主 el.value 劫持为数字语域——原生 input 事件自然
@@ -24,7 +24,7 @@
 <!-- 根 class 拼接进骨架宿主（.asc-field + .asc-slider——裸态控件不加 .asc-field-box，
      状态色仍经 --asc-field-tone 消费，ADR-0020 决策 3）；data-readonly/data-disabled
      由骨架反射，--asc-slider-pos 由 mounted JS 通道同步，根上无动态绑定（T4=B） -->
-<span class="asc-slider" x-define="autospark.slider" x-define:inherit="autospark.base-field">
+<span class="asc-slider" x-define="autospark.slider" x-define:inherit="autospark.field">
   <script setup>
     {
         data: () => ({
@@ -240,7 +240,7 @@
       border-radius: 50%;
       border: 0.125em solid var(--asc-field-tone);
       background: var(--asc-slider-thumb, #ffffff);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+      box-shadow: var(--asc-slider-thumb-shadow, 0 1px 2px rgba(0, 0, 0, 0.25));
       transform: translate(-50%, -50%);
       transition: box-shadow 0.15s ease;
       pointer-events: none; /* 命中交给覆盖层原生 range（拖拽语义原生承载） */
@@ -292,9 +292,9 @@
       );
     }
   </style>
-  <!-- 默认段（替换 base-field 出口 fallback）：轨道（自绘视觉 + 原生覆盖层）+
+  <!-- 默认段（替换 field 出口 fallback）：轨道（自绘视觉 + 原生覆盖层）+
          可选联动输入框。注意：嵌套 x-slot 出口在继承形态下被忽略（ADR-0056）——
-         文案/刻度等消费方内容经 base-field 出口整段替换控件区（逃生通道，input 同款） -->
+         文案/刻度等消费方内容经 field 出口整段替换控件区（逃生通道，input 同款） -->
   <span class="asc-slider-wrap">
     <span class="asc-slider-track">
       <span class="asc-slider-fill"></span>

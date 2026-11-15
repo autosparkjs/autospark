@@ -1,0 +1,254 @@
+(function (AutoSpark) {
+    "use strict";
+var run = function (AutoSpark) {
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){return e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase())}function n(e){return/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e)}function r(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}var i=`autospark.watermark`;function a(e){e.components[i]=`<!--
+    autospark.watermark 水印（组件库 P4 other 长尾件，ADR-0018 清单权威表 other 行 /
+    ADR-0030 轻件对 ADR）：容器形态（缺省，absolute 覆盖默认插槽内容）或全页形态
+    （fullPage，水印层挂 body fixed 铺满视口）；canvas 离屏绘制旋转文本单元 →
+    data URL 作 background-image 平铺（技术路线声明见 ADR-0030）。
+
+    props 变化签名比对幂等重绘（pagination 同款纪律：同值不重绘防 watcher 抖动）；
+    无 canvas 2D 上下文环境静默降级（层透明，不炸）。
+
+    内容保护（pointer-events 拦截层）与 MutationObserver 防删除按简不做
+    （ADR-0030 边界声明）——水印层恒 pointer-events: none。
+
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态
+    绑定不会求值——fullPage 形态绑定落编译子树内层 body 上（宿主 display: contents
+    经 :has() 驱动）；水印层全部样式走 JS 通道内联（canvas dataURL 本就 JS 产物）。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得；水印是覆盖装饰件（色值经水印层 color 三级回退链解析进 canvas），
+     不在 data() 声明主题六键，内部变体属性（fullPage）亦禁用六个通道名 -->
+<div
+  class="asc-watermark"
+  x-define="autospark.watermark"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            content: "",   // 水印文案：string 单行 | string[] 多行（数组走状态引用 / data-content JSON 通道）
+            font: "",      // CSS font 速写（完整覆盖，如 "bold 20px serif"）；空 = fontSize + 主题字体族合成
+            fontSize: 16,  // 字号（px，font 缺省时的合成档）
+            color: "",     // 色（空 = 水印层 computed color——主题 secondary 三级回退；显式值 JS 内联覆盖）
+            opacity: 1,    // 水印层整体不透明度（0-1，叠加在 color 之上）
+            rotate: -22,   // 旋转角（度，负值逆时针）
+            gap: null,     // 平铺间隙 [x, y] | number（等两轴）；null = [100, 100]
+            zIndex: 9,     // 层级（fullPage 全页形态常需压到内容之上）
+            fullPage: false, // 全页形态：水印层挂 body fixed 铺满视口（缺省容器覆盖形态）
+        }),
+        mounted() {
+            const el = this.el;
+            let layer = null;      // 水印层元素引用（fullPage 时被挪挂 body——unmounted 须收）
+            let layerInBody = false; // 层当前是否挂在 body（fullPage 形态旗）
+            let lastSign = null;   // 上次绘制签名（幂等：同值不重绘）
+
+            // —— 文案归一：string[] 直收 / string 单行 / JSON 数组字符串（[ 开头）拆多行 ——
+            const normLines = (v) => {
+                if (Array.isArray(v)) return v.map((x) => String(x ?? "")).filter((s) => s !== "");
+                if (typeof v === "string" && v.trim() !== "") {
+                    const t = v.trim();
+                    if (t.startsWith("[")) {
+                        try {
+                            const parsed = JSON.parse(t);
+                            if (Array.isArray(parsed)) {
+                                return parsed.map((x) => String(x ?? "")).filter((s) => s !== "");
+                            }
+                        } catch { /* 非法 JSON 当普通文本 */ }
+                    }
+                    return [v];
+                }
+                return [];
+            };
+
+            // —— 间隙归一：number 等两轴 / [x, y] 直收 / 缺省 [100, 100] ——
+            const normGap = (v) => {
+                if (typeof v === "number" && isFinite(v)) return [v, v];
+                if (Array.isArray(v) && v.length === 2) {
+                    const gx = Number(v[0]), gy = Number(v[1]);
+                    return [isFinite(gx) ? gx : 100, isFinite(gy) ? gy : 100];
+                }
+                return [100, 100];
+            };
+
+            // —— 声明形态兜底（precompile 数组面标量分流落盘的 data-content/data-gap）——
+            const seedDeclared = () => {
+                const rawContent = el.getAttribute("data-content");
+                if (rawContent != null && (this.data.content == null || this.data.content === "")) {
+                    try { this.data.content = JSON.parse(rawContent); } catch { /* 非法 JSON 静默忽略 */ }
+                    el.removeAttribute("data-content");
+                }
+                const rawGap = el.getAttribute("data-gap");
+                if (rawGap != null && this.data.gap == null) {
+                    try { this.data.gap = JSON.parse(rawGap); } catch { /* 非法 JSON 静默忽略 */ }
+                    el.removeAttribute("data-gap");
+                }
+            };
+
+            // —— 层定位：fullPage 挂 body（内联 fixed 铺满）/ 缺省归位组件树
+            //    （position 走 CSS 声明的 absolute——JS 内联仅覆写全页形态）——
+            const syncContainer = () => {
+                if (!layer) return;
+                const wantFull = !!this.data.fullPage;
+                if (wantFull && !layerInBody) {
+                    document.body.appendChild(layer);
+                    layerInBody = true;
+                } else if (!wantFull && layerInBody) {
+                    el.appendChild(layer);
+                    layerInBody = false;
+                }
+                if (wantFull) layer.style.setProperty("position", "fixed");
+                else layer.style.removeProperty("position");
+            };
+
+            // —— 绘制管线：canvas 离屏单元 → data URL 平铺；签名幂等；宿主脱树
+            //    （engine 销毁清 DOM）后自短路——watch 回调在域销毁信号下仍可能
+            //    晚触发一跳（isConnected 自卫使残留触发无害）——
+            const draw = () => {
+                if (!layer || !el.isConnected) return;
+                const lines = normLines(this.data.content);
+                const rotate = Number(this.data.rotate);
+                const rot = isFinite(rotate) ? rotate : 0;
+                const [gx, gy] = normGap(this.data.gap);
+                const fontSize = Number(this.data.fontSize);
+                const fs = isFinite(fontSize) && fontSize > 0 ? fontSize : 16;
+                const sign = JSON.stringify([lines, String(this.data.font ?? ""), fs, String(this.data.color ?? ""), this.data.opacity, rot, gx, gy, !!this.data.fullPage]);
+                if (sign === lastSign) return; // 同值短路（watcher 抖动防御）
+                lastSign = sign;
+
+                syncContainer();
+                // 覆盖样式通道：color 显式值内联（缺省走 CSS 回退链 computed 值——主题在场自动跟随）
+                if (this.data.color) layer.style.setProperty("color", String(this.data.color));
+                else layer.style.removeProperty("color");
+                const op = Number(this.data.opacity);
+                layer.style.opacity = String(isFinite(op) ? op : 1);
+                const z = Number(this.data.zIndex);
+                layer.style.zIndex = String(isFinite(z) ? z : 9);
+
+                // —— canvas 单元绘制（无 2D 上下文环境静默降级：层透明，不炸）——
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext ? canvas.getContext("2d") : null;
+                if (!ctx || !lines.length) {
+                    layer.style.backgroundImage = "";
+                    layer.style.backgroundSize = "";
+                    return;
+                }
+                const computed = getComputedStyle(layer);
+                // 字体：font 速写优先；缺省 fontSize + 层 computed 字体族（主题对齐免费）
+                const family = (computed.fontFamily && String(computed.fontFamily).trim()) || "sans-serif";
+                const font = this.data.font
+                    ? String(this.data.font)
+                    : \`\${fs}px \${family}\`;
+                ctx.font = font;
+                const widths = lines.map((line) => ctx.measureText(line).width);
+                const textW = Math.ceil(Math.max(...widths, 1));
+                const lineH = Math.ceil(fs * 1.3);
+                const textH = lineH * lines.length;
+                // 单元尺寸 = 旋转外接矩形（文字块对角扩展）+ 余量
+                const rad = (rot * Math.PI) / 180;
+                const cos = Math.abs(Math.cos(rad));
+                const sin = Math.abs(Math.sin(rad));
+                const w = Math.ceil(textW * cos + textH * sin) + 8;
+                const h = Math.ceil(textW * sin + textH * cos) + 8;
+                canvas.width = w;
+                canvas.height = h;
+                ctx.font = font; // 尺寸重设清空画布状态（font 需重写）
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = (computed.color && String(computed.color).trim()) || "rgba(0, 0, 0, 0.15)";
+                ctx.translate(w / 2, h / 2);
+                ctx.rotate(rad);
+                lines.forEach((line, i) => {
+                    ctx.fillText(line, 0, (i - (lines.length - 1) / 2) * lineH);
+                });
+                layer.style.backgroundImage = \`url(\${canvas.toDataURL("image/png")})\`;
+                layer.style.backgroundRepeat = "repeat";
+                layer.style.backgroundSize = \`\${w + gx}px \${h + gy}px\`;
+                layer.style.backgroundPosition = "0 0";
+            };
+
+            // props 变化统一重绘（签名幂等；watch 回调收 { value } 信封——本件读全量 data 不解构）；
+            // 注册与层引用/首绘统一移一跳 setTimeout（x-define:inherit 试挂域时序下
+            // mounted 同步段的副作用会随试挂域错拆——float-button 同款既有规避）
+            const redraw = () => { draw(); };
+            setTimeout(() => {
+                if (!el.isConnected) return; // 试挂域拆除后不再接线（重建域自会接）
+                seedDeclared();
+                layer = el.querySelector(":scope > .asc-watermark-layer");
+                this.watch("content", redraw);
+                this.watch("font", redraw);
+                this.watch("fontSize", redraw);
+                this.watch("color", redraw);
+                this.watch("opacity", redraw);
+                this.watch("rotate", redraw);
+                this.watch("gap", redraw);
+                this.watch("zIndex", redraw);
+                this.watch("fullPage", redraw);
+                draw();
+            }, 0);
+
+            el["_ascWatermarkCleanup"] = () => {
+                if (layer && layerInBody) layer.remove(); // body 残留收除（fullPage 形态）
+            };
+        },
+        unmounted() {
+            // 清理：fullPage 水印层挂 body（组件树外），组件拆卸须显式收除；
+            // this.el 可能已拆（可选链静默通过）
+            const cleanup = this.el?.["_ascWatermarkCleanup"];
+            if (typeof cleanup === "function") cleanup();
+            if (this.el) this.el["_ascWatermarkCleanup"] = null;
+        },
+    }
+  <\/script>
+  <style global id="autospark-components-watermark">
+    .asc-watermark {
+      position: relative; /* 容器形态的水印层定位锚 */
+      display: block;
+    }
+    /* fullPage 形态：宿主不占布局（水印层已挂 body，内容出口空不渲染） */
+    .asc-watermark:has(> .asc-watermark-body[data-full-page]) {
+      display: contents;
+    }
+
+    /* ---------- 水印层：缺省 absolute 覆盖容器（fullPage 时 JS 内联改 fixed + 挂 body） ---------- */
+    .asc-watermark-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none; /* 水印恒不拦交互（内容保护 v1 不做——ADR-0030 边界声明） */
+      overflow: hidden;
+      /* 取色源（canvas fillStyle 消费 computed 值）：主题在场吃 --auto-*，暗色自动跟随 */
+      color: var(--auto-secondary-color, var(--asc-watermark-color, rgba(0, 0, 0, 0.15)));
+      font-family: var(--auto-font-family, var(--asc-watermark-font-family, sans-serif));
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变）。
+       fullPage 层挂 body 时仅 [dark] 全局通道命中（data-dark 局部容器域不覆盖 body 子树——边界声明） */
+    [dark] .asc-watermark-layer,
+    [data-dark] .asc-watermark-layer {
+      color: var(--auto-secondary-color, var(--asc-watermark-color, rgba(255, 255, 255, 0.18)));
+    }
+  </style>
+  <!-- 内容出口先行（水印层覆盖其上）；fullPage 形态绑定落本层（根上动态绑定不求值，T4=B）；
+         默认插槽承载被覆盖内容（fullPage 时通常空——层已全页） -->
+  <div class="asc-watermark-body" :data-full-page="fullPage ? '' : null">
+    <div class="asc-watermark-content" x-slot></div>
+  </div>
+  <div class="asc-watermark-layer"></div>
+</div>
+`,e.precompile?.(e=>{for(let a of Array.from(e.el.querySelectorAll(`x-watermark`))){let e=document.createElement(`div`),o=[];for(let i of Array.from(a.attributes))i.name.startsWith(`:`)?o.push(`${n(t(i.name.slice(1)))}: (${i.value})`):(i.name===`content`||i.name===`gap`)&&i.value.trim().startsWith(`[`)?e.setAttribute(`data-${i.name}`,i.value):i.name===`class`||i.name===`style`||i.name===`id`||i.name.startsWith(`data-`)||i.name.startsWith(`x-`)||i.name.startsWith(`@`)?e.setAttribute(i.name,i.value):o.push(`${n(t(i.name))}: ${JSON.stringify(i.value===``||r(i.value))}`);for(e.setAttribute(`x-component:${i}`,`{ ${o.join(`, `)} }`);a.firstChild;)e.appendChild(a.firstChild);a.replaceWith(e)}})}o();function o(){e(e=>{a(e)})}};
+    if (AutoSpark === undefined) {
+        // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
+        var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);
+        if (Object.isFrozen(queue)) {
+            console.error("插件闭包: 预加载队列已消费且全局 AutoSpark 不可达，插件未注册");
+            return;
+        }
+        queue.push(function (engine, ns) { run(ns); });
+    } else {
+        run(AutoSpark);
+    }
+})(globalThis.AutoSpark);
+
+//# sourceMappingURL=autospark.watermark.js.map

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Steps · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.steps.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">基础用法（受控 current + clickable 点击切换）</div>
+        <div class="auto-card-body">
+          <div @change="step = $event.detail.current">
+            <x-steps clickable="true" :items="flow" :current="step"></x-steps>
+          </div>
+          <p class="hint">
+            items（{ title, description?, icon? }[]，状态引用注入）驱动步骤；先行步自动打勾、
+            连接线随完成染色；clickable 开启后点击步切换（change 冒泡 detail = { current }，
+            外层一行回写——当前步 <code>{{ step + 1 }}</code> / 共 3 步）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">子元素声明（静态步骤）</div>
+        <div class="auto-card-body">
+          <x-steps current="1">
+            <x-step title="填写信息" description="准备基础资料"></x-step>
+            <x-step title="验证身份" description="短信或邮箱验证"></x-step>
+            <x-step title="完成"></x-step>
+          </x-steps>
+          <p class="hint">
+            <code>&lt;x-step title description icon&gt;</code> 经 precompile 变换折叠为 items JSON
+            （data-items 通道，规避字面量数组 props）；current 静态折叠（数字类型推断）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        step: 1,
+        flow: [
+          { title: "填写信息", description: "准备基础资料" },
+          { title: "验证身份", description: "短信或邮箱验证" },
+          { title: "完成", description: "开通完成" },
+        ],
+      });
+    </script>
+  </body>
+</html>

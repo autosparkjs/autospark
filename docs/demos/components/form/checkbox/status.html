@@ -17,11 +17,11 @@
         <div class="auto-card-header">status 状态色（x-field 校验结果染色入口）与 disabled</div>
         <div class="auto-card-body">
           <p style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap">
-            <span x-component:autospark.checkbox="{ label: '校验未通过', status: 'error', checked: true }"></span>
-            <span x-component:autospark.checkbox="{ label: '已确认', status: 'success', checked: true }"></span>
-            <span x-component:autospark.checkbox="{ label: '注意项', status: 'warning', indeterminate: true }"></span>
-            <span x-component:autospark.checkbox="{ label: '禁用', disabled: true }"></span>
-            <span x-component:autospark.checkbox="{ label: '禁用勾选', disabled: true, checked: true }"></span>
+            <x-checkbox label="校验未通过" status="error" checked="true"></x-checkbox>
+            <x-checkbox label="已确认" status="success" checked="true"></x-checkbox>
+            <x-checkbox label="注意项" status="warning" indeterminate="true"></x-checkbox>
+            <x-checkbox label="禁用" disabled="true"></x-checkbox>
+            <x-checkbox label="禁用勾选" disabled="true" checked="true"></x-checkbox>
           </p>
           <p class="hint">状态在场边框/勾选底色染 <code>--asc-field-tone</code>（error=danger 等）；<code>error</code> 态内层控件同步 <code>aria-invalid="true"</code>。</p>
         </div>
@@ -30,7 +30,7 @@
         <div class="auto-card-header">动态状态（绑定通道：校验结果染色）</div>
         <div class="auto-card-body">
           <p>
-            <span x-component:autospark.checkbox="{ label: '必须勾选', status: flag ? 'error' : 'success', checked: flag }"></span>
+            <x-checkbox label="必须勾选" :status="flag ? 'error' : 'success'" :checked="flag"></x-checkbox>
           </p>
           <p><button x-on:click="flag = !flag" style="padding: 4px 12px">切换校验状态</button></p>
           <p class="hint">未勾选染 error、勾选染 success——status 经绑定通道消费 <code>$field.error</code> 类校验结果的惯用法演示。</p>
@@ -40,9 +40,9 @@
         <div class="auto-card-header">暗色态（容器裸挂 data-dark）</div>
         <div class="auto-card-body">
           <div data-dark style="display: inline-flex; gap: 20px; align-items: center; padding: 12px 16px; border-radius: 8px; background: #1a1a1a">
-            <span x-component:autospark.checkbox="{ label: '暗色常规', checked: true }"></span>
-            <span x-component:autospark.checkbox="{ label: '暗色半选', indeterminate: true }"></span>
-            <span x-component:autospark.checkbox="{ label: '暗色错误态', status: 'error' }"></span>
+            <x-checkbox label="暗色常规" checked="true"></x-checkbox>
+            <x-checkbox label="暗色半选" indeterminate="true"></x-checkbox>
+            <x-checkbox label="暗色错误态" status="error"></x-checkbox>
           </div>
         </div>
       </div>

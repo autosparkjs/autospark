@@ -8,9 +8,9 @@
  * （不建组容器组件）：同 x-model 路径的多枚实例经引擎缺省 name 注入（name=路径）天然
  * 同组，或显式写 name 属性——组样式编排用 space 组件 / flex 容器配方（组件文档给出）。
  *
- * 继承 autospark.base-field 表单域骨架（状态色通道 / 焦点态 / disabled 同步，裸态无盒饰）
- * ——本产物以副作用导入内嵌 base-field 注册（继承链 radio → base-field →
- * autospark.base，ADR-0020），按需加载场景无须单独引入 autospark.base-field.js。
+ * 继承 autospark.field 表单域骨架（状态色通道 / 焦点态 / disabled 同步，裸态无盒饰）
+ * ——本产物以副作用导入内嵌 field 注册（继承链 radio → field →
+ * autospark.base，ADR-0020），按需加载场景无须单独引入 autospark.field.js。
  *
  * 值通道（x-model 兼容协议）：宿主 el.value 劫持为 checked 值桥——读 = 本钮 value
  * （勾选时派发 input，x-model 写 state = 本钮值；取消态不派发，被勾选的另一枚接管——
@@ -26,7 +26,7 @@
 import type { AutoSpark } from "autospark";
 import { captureNamespace } from "../../../utils/namespace";
 import { installPlugin } from "@autospark/utils";
-import "../../base/base-field/index";
+import "../../base/field/index";
 import radioTemplate from "./radio.html?raw";
 
 /** 组件注册名（autospark. 点前缀命名空间，ADR-0094；kebab 免疫 DOM 属性名小写化） */

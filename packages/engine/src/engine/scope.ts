@@ -36,6 +36,85 @@ export function isSimpleStatePath(value: string): boolean {
     return SIMPLE_PATH_RE.test(value);
 }
 
+/**
+ * refresh 重跑的「已见值」等价判定（一层浅比较）：
+ *
+ * - 标量：Object.is（含 NaN 等值）；
+ * - **同引用对象/数组视为不等（可能已变，照常重跑）**——refresh 的一个既定消费形态是
+ *   「非 store 响应式通道的数据源变更」（x-form 桥接 configManager 的 schema、包装对象
+ *   内部替换等）：这类对象的内部变更 watcher 看不见、全靠 refresh 重放，同引用跳过会
+ *   吞掉它们；响应式对象（engine.store 上的状态）的内部变更本就有正常触发通道兜底
+ *   （watcher 触发即 run，seen 同步为最新），refresh 多跑一次仅是同值幂等 patch；
+ * - 不同引用的纯对象/数组：键集合相同 + 每键 Object.is（**仅一层**——字面量对象/数组
+ *   表达式每次求值产生键值相同的新引用，浅比较即可判「未变」；嵌套对象保守视为已变 →
+ *   照常重跑，无正确性损失——深层结构比较的开销与语义留给消费端，如 x-component
+ *   props 的 `_propsEqual` 深比较）；
+ * - 函数 / Date / RegExp / Map / Set / 类实例等：按引用（不同引用视为已变，保守重跑）。
+ *
+ * 工程取舍：refresh 是低频路径（i18n ready 后批量 / 显式调用），一层浅比较覆盖主形态
+ * （t() 字符串、路径标量、一层字面量）且零递归开销；对象/嵌套保守重跑的代价只是多一次
+ * 幂等 patch，方向安全。
+ */
+function seenValueEquals(a: unknown, b: unknown): boolean {
+    if (a === null || b === null || typeof a !== "object" || typeof b !== "object") {
+        return Object.is(a, b);
+    }
+    // 同引用可变容器：可能已变（非响应式通道的数据源靠 refresh 重放）→ 视为不等
+    if (Object.is(a, b)) return false;
+    const isArr = Array.isArray(a);
+    if (isArr !== Array.isArray(b)) return false;
+    const pa = Object.getPrototypeOf(a);
+    const pb = Object.getPrototypeOf(b);
+    if ((pa !== Object.prototype && pa !== null) || (pb !== Object.prototype && pb !== null)) {
+        return false;
+    }
+    if (isArr) {
+        if (a.length !== (b as unknown[]).length) return false;
+        return a.every((v, i) => Object.is(v, (b as unknown[])[i]));
+    }
+    const ka = Object.keys(a);
+    const kb = Object.keys(b);
+    if (ka.length !== kb.length) return false;
+    return ka.every(
+        (k) =>
+            Object.prototype.hasOwnProperty.call(b, k) &&
+            Object.is((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]),
+    );
+}
+
+/**
+ * locals 浅快照比较（refresh 的 scope 级 force 判定）：键集合相同 + 每键 Object.is。
+ *
+ * x-for 复用项经 `Object.assign(scope.locals, ...)` 原地更新 item/`$*` 派生变量（普通
+ * 对象、非响应式，store 不会发信号）——其变更正是 refresh 必须全量重跑的信号（DOM
+ * 副作用型监听——如项根 eager x-if 的 detach 重放——值未变也须重放）。无 locals 或
+ * 快照缺失视为未变（走 entry 级值 diff）。
+ */
+function localsChanged(
+    locals: Record<string, any> | null,
+    snapshot: Record<string, any> | null | undefined,
+): boolean {
+    if (!locals) return false;
+    if (!snapshot) return true; // 有 locals 而无快照（首次 refresh 前）：保守 force 一次
+    const kl = Object.keys(locals);
+    if (kl.length !== Object.keys(snapshot).length) return true;
+    return kl.some((k) => !Object.prototype.hasOwnProperty.call(snapshot, k) || !Object.is(locals[k], snapshot[k]));
+}
+
+/**
+ * scope 持有的 update 记录（watch 双轨注册，refresh/destroy 消费）：
+ *
+ * - `run`：常规执行体——scheduler flush（状态变更）与不可 diff 场景的 refresh 共用，
+ *   内部含求值 + listener patch +（表达式支路）依赖漂移重订；
+ * - `refresh`：**按值 diff 的智能重跑**入口（可 diff 时非空）——求值/重订照做，仅当求值
+ *   结果与「上次执行时的已见值」不等时才调 listener（未变零通知）。不可 diff 的保守
+ *   场景（depth 订阅 / 通配路径）为 null → refresh 恒走全量 run，保持旧行为。
+ */
+interface ScopeUpdateEntry {
+    run: () => void;
+    refresh: (() => void) | null;
+}
+
 // 载体键已下沉 consts.ts（ADR-0093 解环）；转发保持公共导出面不变
 export { LOCAL_PATHS } from "../consts";
 
@@ -182,11 +261,19 @@ export class AutoSparkScope {
      * → destroy 随 scope 回收。纯属性暴露，供调试/开发工具消费。
      */
     errors: ScopeErrorEntry[] = [];
-    /** 本作用域 watch 注册的 update 闭包（refresh 时同步重跑，destroy 时清空）。
-     *  用途见 refresh()：x-for 复用项 locals 原地更新后，驱动项内绑定重新求值并 patch。 */
-    private _updates: Array<() => void> = [];
+    /** 本作用域 watch 注册的 update 记录（refresh 时智能重跑，destroy 时清空）。
+     *  用途见 refresh()：x-for 复用项 locals 原地更新后驱动项内绑定重求值 patch；
+     *  i18n 等外部批量刷新（AutoSpark.ready 后对全部 scopes 调 refresh）经
+     *  `entry.refresh` 按值 diff 跳过未变化的监听（幂等要求消解，ADR 见 refresh()）。 */
+    private _updates: ScopeUpdateEntry[] = [];
     /** 表达式环境内建翻译函数 t 的懒建闭包（ADR-0136，getT 惰建缓存） */
     private _tFn: ScopeT | null = null;
+    /**
+     * locals 浅快照（compile 末尾初拍、refresh 收尾复拍）：refresh 的 scope 级 force 判定
+     * 基准——locals 原地变更（x-for 复用项 assign item/$*）= 非响应式输入已换，本 scope
+     * 全部 update 恒重跑（DOM 副作用型监听重放）；未变走 entry 级值 diff（零重跑）。
+     */
+    private _localsSnapshot: Record<string, any> | null | undefined = undefined;
     /** 子作用域集合（x-if 子树、x-for 各项），destroy 时递归清理 */
     children = new Set<AutoSparkScope>();
     parent: AutoSparkScope | null = null;
@@ -1045,10 +1132,33 @@ export class AutoSparkScope {
     watchPath(path: string, listener: ScopeWatchListener, options?: ScopeWatchOptions): any {
         const store = this.engine.store;
         const read = () => getVal(store.state, path);
-        const update = () => listener({ value: read() });
-        this._updates.push(update);
+        // diff 能力判定：depth 订阅（后代键变更不改根引用——值 diff 会漏更新，见
+        // ScopeWatchOptions.depth）与通配路径（getVal 取不到通配段值）→ 恒全量重跑。
+        // 其余路径订阅的可见变更必然改写路径值本身（引用替换/标量赋值），diff 与订阅
+        // 语义对齐、无盲区。
+        const diffable = options?.depth == null && !path.includes("*");
+        let seen: { ready: boolean; value: any } = diffable
+            ? { ready: true, value: read() }
+            : { ready: false, value: undefined };
+        const run = () => {
+            const value = read();
+            listener({ value });
+            seen = { ready: true, value };
+        };
+        const entry: ScopeUpdateEntry = {
+            run,
+            refresh: diffable
+                ? () => {
+                      const value = read();
+                      if (seen.ready && seenValueEquals(value, seen.value)) return; // 未变零重跑
+                      listener({ value });
+                      seen = { ready: true, value };
+                  }
+                : null,
+        };
+        this._updates.push(entry);
         this.watchers.push(
-            store.watch(path, () => this.engine.scheduler.schedule(update), options),
+            store.watch(path, () => this.engine.scheduler.schedule(entry.run), options),
         );
         return read();
     }
@@ -1137,32 +1247,67 @@ export class AutoSparkScope {
         // `:disabled="page <= 1 || $loading"`（page 同时是重取触发器时短路键永远收不到回落）。
         // 故 update 重求值时重新收集，漂移则重订 watcher（Vue effect 同款策略；同一状态同一
         // 分支的 deps 稳定，重订自然收敛，无循环风险）。
-        let watcher: Watcher = store.watch(deps, () => this.engine.scheduler.schedule(update));
-        const update = () => {
+        /** 求值 + 依赖重收集（run / refresh 共用；不改任何状态） */
+        const evaluate = (): { value: any; nextDeps: any } => {
             let value: any;
             const nextDeps = store.collectDependencies(() => {
                 value = safeEval();
             }, "read");
-            listener({ value });
-            if (!depsEqual(deps, nextDeps)) {
-                watcher.off();
-                const idx = this.watchers.indexOf(watcher);
-                if (idx >= 0) this.watchers.splice(idx, 1);
-                deps = nextDeps;
-                watcher = store.watch(deps, () => this.engine.scheduler.schedule(update));
-                this.watchers.push(watcher);
-            }
+            return { value, nextDeps };
         };
-        this._updates.push(update);
+        /** 依赖漂移重订（evaluate 之后无条件调用——求值已发生，deps 必须与之一致） */
+        const resubscribe = (nextDeps: any): void => {
+            if (depsEqual(deps, nextDeps)) return;
+            watcher.off();
+            const idx = this.watchers.indexOf(watcher);
+            if (idx >= 0) this.watchers.splice(idx, 1);
+            deps = nextDeps;
+            watcher = store.watch(deps, () => this.engine.scheduler.schedule(entry.run));
+            this.watchers.push(watcher);
+        };
+        // 已见值（上次执行 listener 时的求值结果）：refresh 按值 diff 的基准。
+        // 首求值即已见（watch 返回值给指令做首渲染，语义上「已通知」）。
+        let seen: { ready: boolean; value: any } = { ready: true, value: firstValue };
+        const entry: ScopeUpdateEntry = {
+            run: () => {
+                const { value, nextDeps } = evaluate();
+                listener({ value });
+                seen = { ready: true, value };
+                resubscribe(nextDeps);
+            },
+            // refresh 智能重跑（i18n ready 批量刷新等外部全量重跑场景的幂等化）：
+            // 求值与依赖重订照做（locals 驱动的重跑语义保留——x-for 复用项的项内绑定
+            // 经求值捕获新 locals 值；deps 漂移重订保证后续变更不漏），仅当求值结果与
+            // 已见值不等时才通知 listener——未变化的监听零重跑（非幂等 listener 不再被
+            // 缺省值打掉初值；真实变化的依赖照常重跑，词典切换正路不受损）。
+            refresh: () => {
+                const { value, nextDeps } = evaluate();
+                resubscribe(nextDeps);
+                if (seen.ready && seenValueEquals(value, seen.value)) return; // 未变零通知
+                listener({ value });
+                seen = { ready: true, value };
+            },
+        };
+        let watcher: Watcher = store.watch(deps, () => this.engine.scheduler.schedule(entry.run));
+        this._updates.push(entry);
         this.watchers.push(watcher);
         return firstValue;
     }
 
     /**
-     * 同步重跑本作用域注册的全部 update 闭包，并递归刷新所有子作用域。
+     * 同步重跑本作用域注册的全部 update 记录，并递归刷新所有子作用域。
      *
-     * 用途：x-for 复用项时，项内 locals 字段（item / $index / $end 等）已原地更新，
-     * 需让项内全部绑定（含 `$end` 这类订阅为空、store 不会自动触发的 watcher）重新求值并 patch DOM。
+     * 用途一（x-for 复用项）：项内 locals 字段（item / $index / $end 等）已原地更新，
+     * 需让项内全部绑定（含 `$end` 这类订阅为空、store 不会自动触发的 watcher）重新求值
+     * 并 patch DOM——表达式支路的 refresh 求值照做（捕获新 locals 值），值变即通知。
+     *
+     * 用途二（外部批量刷新，如 i18n 插件在 `AutoSpark.ready` 后对每个 engine 的全部
+     * scopes 调用）：**按值 diff 的智能重跑**——每个 watcher 先求值，与「上次执行时的
+     * 已见值」比较（`seenValueEquals`），同值跳过 listener（未变化监听**零重跑**，不再
+     * 要求监听幂等——此前以当前值全量重跑会把非幂等监听以缺省值打掉初值）；真实变化
+     * 的依赖照常重跑（i18n 词典切换的正路：watcher 正常触发通道 + refresh diff 不等
+     * 双保险）。不可 diff 的保守场景（路径支路带 depth / 通配；locals 原地变更的 scope 级
+     * force——x-for 复用项等「非响应式输入已换」必须重放 DOM 副作用）保持全量重跑。
      *
      * 同步直跑、不进 scheduler：render 自身已在 scheduler flush 内执行，update 闭包内的 listener
      * 直接 patch DOM，避免双重调度；同步也保证 render 返回时 DOM 已是最新。
@@ -1171,13 +1316,19 @@ export class AutoSparkScope {
      * 已 destroy 的子作用域已从 children 移除，自然跳过。
      */
     refresh(): void {
-        for (const update of this._updates) {
+        // scope 级 force 判定：locals 原地变更（x-for 复用项 assign item/$* 派生变量——
+        // 普通对象非响应式、store 不发信号）= 非响应式输入已换，本 scope 全部 update 恒
+        // 重跑——DOM 副作用型监听（如项根 eager x-if 的 detach 重放）值未变也须重放；
+        // 未变则走 entry 级值 diff（未变化监听零重跑）。
+        const force = localsChanged(this.locals, this._localsSnapshot);
+        for (const entry of this._updates) {
             try {
-                update();
+                (force ? entry.run : (entry.refresh ?? entry.run))();
             } catch (e: any) {
                 this.engine.logger.error(e);
             }
         }
+        this._localsSnapshot = this.locals ? { ...this.locals } : null;
         for (const child of this.children) {
             child.refresh();
         }
@@ -1274,6 +1425,10 @@ export class AutoSparkScope {
             this._runHooks("mounted");
         } finally {
             Object.freeze(this.errors);
+            // locals 浅快照初拍（refresh 的 force 判定基准）：此后 locals 的原地变更
+            // （x-for 复用项 assign 等）可被 refresh 检出（编译期快照在场，首次 refresh
+            // 即能判「未变」走值 diff——外部批量刷新零重跑）
+            this._localsSnapshot = this.locals ? { ...this.locals } : null;
         }
     }
 

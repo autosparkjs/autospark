@@ -12,12 +12,14 @@
     - 写：filterText（过滤框输入）、哨兵键 pickTick/pickValue（选项点击与过滤框 Enter
       确认）与 keyTick/keyDir（过滤框上下键导航）——面板模板不能跨组件边界调触发器
       组件 method（x-on 组件 method 查找不穿透父组件，ADR-0022 决策 3），自增哨兵免疫
-      同值去重；
+      同值去重；事件表达式用逗号运算符单表达式形态（分号多语句依赖新版引擎回退，旧产物
+      不可用）；
     - 开合态：mounted/unmounted 沿链写 open（箭头旋转 / aria-expanded / 过滤词复位）。
 
-    列表渲染双分支：普通 x-for（缺省）与 x-for.virtual（virtual props 开关——长列表
-    虚拟化，项高自动检测；须加载 autospark.virtual.js，缺席时引擎 warn + 降级全量渲染，
-    ADR-0022 决策 4）。空态文案走 i18n 词典 select.empty 键（回退「暂无数据」）。
+    列表渲染双分支（ADR-0022 决策 4）：普通分支 template 形态 x-for（缺省）；虚拟分支
+    **容器形态** x-for.virtual 直接挂列表容器（规范用法——template 形态下惰性内容让
+    itemHeight 自动检测取 0 退化全量），须加载 autospark.virtual.js（渐进增强，缺席时
+    引擎 warn + 降级全量渲染）。空态文案走 i18n 词典 select.empty 键（回退「暂无数据」）。
 -->
 <div class="asc-select-panel" x-define="autospark-select-panel">
   <script setup>
@@ -45,6 +47,18 @@
         mounted() {
             // 开合态沿链写回（触发器侧 watch open 派生箭头旋转 / aria-expanded / 复位）
             this.data.open = true;
+            // 宽度匹配触发器盒饰（ADR-0022 决策 2 注记）：popover 的 fit 基准是触发器
+            // 内容区（popover 宿主元素，不含盒饰 padding）——按 uid 配对测盒饰宽，补写
+            // shell 面板 min-width（fit 持续写 width，min-width 抬到盒宽；每次打开新
+            // 实例重测，盒宽变化随重开自适应）
+            const uid = this.data.uid;
+            if (uid) {
+                const box = document.querySelector('[data-asc-select-uid="' + uid + '"]');
+                const shellPanel = this.el.closest("[data-overlay]");
+                if (box && shellPanel) {
+                    shellPanel.style.minWidth = box.getBoundingClientRect().width + "px";
+                }
+            }
             // 高亮项滚动跟随（键盘导航可见性；初次打开定位到选中项；列表在面板内现查）
             const scrollActive = () => {
                 const el = this.el.querySelector(
@@ -71,18 +85,18 @@
       x-on:keydown="onFilterKeydown($event)"
     />
   </div>
-  <!-- 选项列表·普通分支（缺省）：简单 div 列表非虚拟化 -->
+  <!-- 选项列表·普通分支（缺省）：template 形态 x-for（容器内追加空态行） -->
   <div class="asc-select-list" x-if="!virtual" x-loading="loading">
     <template x-for="option of filteredOptions" :key="option.value">
       <div
         class="asc-select-option"
-        x-bind:data-selected="option.value === value"
+        x-bind:data-selected="String(option.value) === String(value)"
         x-bind:data-active="option.value === activeValue"
         x-bind:data-disabled="!!option.disabled"
-        x-on:click="pickTick = pickTick + 1; pickValue = option.value"
+        x-on:click="pickTick = pickTick + 1, pickValue = option.value"
       >
         <span class="asc-select-option-label" x-text="option.label"></span>
-        <i class="asc-select-option-check" x-icon="'yes'" x-if="option.value === value"></i>
+        <i class="asc-select-option-check" x-icon="'yes'" x-if="String(option.value) === String(value)"></i>
       </div>
     </template>
     <div
@@ -91,21 +105,30 @@
       x-text="t('select.empty') === 'select.empty' ? '暂无数据' : t('select.empty')"
     ></div>
   </div>
-  <!-- 选项列表·虚拟分支（virtual 开关）：长列表（>100）只渲染可见窗口——须加载
-         autospark.virtual.js（渐进增强；缺席时引擎 warn + 降级全量渲染） -->
-  <div class="asc-select-list" x-if="virtual" x-loading="loading">
-    <template x-for.virtual="option of filteredOptions" :key="option.value">
+  <!-- 选项列表·虚拟分支（virtual 开关）：容器形态 x-for.virtual 直接挂列表容器（规范
+         用法）+ **固定行高 32px 显式声明**（首渲染前无子元素可测，自动检测是鸡生蛋问题
+         ——规范用法恒显式传 itemHeight，ADR-0022 决策 4）——长列表（>100）只渲染可见窗口，
+         须加载 autospark.virtual.js（渐进增强；缺席时引擎 warn + 降级全量渲染）。
+         x-if 分叉包一层避免与 x-for 同元素互斥（结构指令独占宿主） -->
+  <div class="asc-select-virtual" x-if="virtual">
+    <div
+      class="asc-select-list"
+      x-for.virtual="option of filteredOptions"
+      :key="option.value"
+      x-for-options="{ itemHeight: 32 }"
+      x-loading="loading"
+    >
       <div
         class="asc-select-option"
-        x-bind:data-selected="option.value === value"
+        x-bind:data-selected="String(option.value) === String(value)"
         x-bind:data-active="option.value === activeValue"
         x-bind:data-disabled="!!option.disabled"
-        x-on:click="pickTick = pickTick + 1; pickValue = option.value"
+        x-on:click="pickTick = pickTick + 1, pickValue = option.value"
       >
         <span class="asc-select-option-label" x-text="option.label"></span>
-        <i class="asc-select-option-check" x-icon="'yes'" x-if="option.value === value"></i>
+        <i class="asc-select-option-check" x-icon="'yes'" x-if="String(option.value) === String(value)"></i>
       </div>
-    </template>
+    </div>
     <div
       class="asc-select-empty"
       x-if="!loading && !(filteredOptions && filteredOptions.length > 0)"

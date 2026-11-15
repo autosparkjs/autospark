@@ -53,39 +53,39 @@
 
     <div id="app">
       <h2>基础（默认行：label/title/name/value 四键探测）</h2>
-      <div x-component:autospark.list="{ items: users }"></div>
+      <x-list :items="users"></x-list>
       <p class="hint">items 须状态引用注入（字面量数组触发 props 更新死环——已知引擎缺陷规避）。</p>
 
       <h2>row 作用域插槽自定义行（{ item, $index } 解构 + 行内事件原生冒泡）</h2>
-      <div x-component:autospark.list="{ items: users }">
+      <x-list :items="users">
         <template x-slot:row="{ item, $index }">
           <b x-text="item.name"></b>
           <span style="color: #868e96" x-text="'#' + ($index + 1)"></span>
           <span style="margin-left: auto" class="row-btn" @click="picked = item.name">选TA</span>
         </template>
-      </div>
+      </x-list>
       <p class="hint">最近选中：<code x-text="picked || '（未选）'"></code>——行内 @click 在调用方作用域求值。</p>
 
       <h2>空态（autospark.empty 组合兜底 + empty 插槽重载）</h2>
-      <div x-component:autospark.list="{ items: emptyUsers }"></div>
-      <div x-component:autospark.list="{ items: emptyUsers }">
+      <x-list :items="emptyUsers"></x-list>
+      <x-list :items="emptyUsers">
         <template x-slot:empty><div style="padding: 12px; text-align: center; color: #868e96">一条都没有（自定义空态）</div></template>
-      </div>
+      </x-list>
 
       <h2>loading 覆盖层（引擎 x-loading 组合）</h2>
-      <div x-component:autospark.list="{ items: users, loading: busy }"></div>
+      <x-list :items="users" :loading="busy"></x-list>
       <p><button @click="busy = !busy" x-text="busy ? '关闭 loading' : '开启 loading'"></button></p>
 
       <h2>无边框 / 无分隔线</h2>
-      <div x-component:autospark.list="{ items: users, bordered: false, split: false }"></div>
+      <x-list bordered="false" split="false" :items="users"></x-list>
 
       <h2>virtual 虚拟滚动（10000 项，须同页引入 autospark.virtual.js）</h2>
-      <div x-component:autospark.list="{ items: bigUsers, virtual: true }"></div>
+      <x-list virtual="true" :items="bigUsers"></x-list>
       <p class="hint">定高滚动容器（<code>--asc-list-virtual-height</code> 可覆盖）；只渲染可见窗口 + 缓冲项。</p>
 
       <h2>暗色态（容器 data-dark）</h2>
       <div class="dark-box" data-dark>
-        <div x-component:autospark.list="{ items: users }"></div>
+        <x-list :items="users"></x-list>
       </div>
     </div>
 

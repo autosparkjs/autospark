@@ -1,0 +1,275 @@
+(function (AutoSpark) {
+    "use strict";
+var run = function (AutoSpark) {
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){return e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase())}function n(e){return/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e)}function r(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}var i=`autospark.timeline`;function a(e){e.components[i]=`<!--
+    autospark.timeline 时间线（组件库 P2 展示轻件，ADR-0018 清单权威表 display 行）：
+    内部装配引擎 x-for 渲染 items（{ content, time?, icon?, type?, hollow? }[]）——
+    每项 = 轴线段（tail，末项隐藏）+ 节点（head：语义色圆点 / 空心 / 自定义图标）+
+    内容区（time 弱化行 + content 正文行）。
+
+    两形态（mounted 统一收敛到 items 数据面渲染，breadcrumb 同款）：
+    - items 状态引用注入：<div x-component:autospark.timeline="{ items: steps }">——
+      引擎对值对象内的字面量数组 props 存在 _propsEqual 引用比较死环缺陷（P0 固化
+      规避清单第 1 条），items 恒走状态引用；
+    - 子元素声明（静态时间线）：<x-timeline-item time icon type hollow> 由 index.ts
+      的 precompile 变换折叠为 items JSON 落 data-* 通道（字符串标量），mounted
+      解析写组件 data → x-for 响应渲染。
+
+    mode（标签侧，左/交错/右三形态）经 JS 通道同步到 body 容器 data-mode——x-for
+    容器宿主的 :attr/@event 绑定不被编译（ownsChildren 静默失效，:key 例外）；
+    alternate 交错经 nth-child 奇偶纯 CSS 分流，right 为 left 的镜像。
+
+    克隆体纪律（P0 固化规避清单第 4 条）：x-for 克隆体内条件显隐一律 x-show
+    （共享快照多实例 + items 晚注入下 x-if 延迟编译会挂错 scope 链）。
+
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
+    不会求值——本组件无宿主级变体外观，绑定全落在编译子树内层（克隆体自身即内层）。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得——字号档位经主题通道全跟随（间距以 em 标定自动缩放）；timeline
+     不在 data() 声明主题六键，内部变体属性亦禁用六个通道名 -->
+<div
+  class="asc-timeline"
+  x-define="autospark.timeline"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            items: [],   // 时间线项 { content, time?, icon?, type?, hollow? }[]——状态引用注入（字面量数组死环规避）；声明形态经 data-items 通道兜底
+            mode: "left", // 标签侧：left 缺省（内容在轴右）| alternate（奇偶交错）| right（内容在轴左）
+        }),
+        methods: {
+            // 模式同步：data-mode 写 body 容器（x-for 宿主绑定不编译，JS 通道是唯一稳定通道）
+            syncMode() {
+                const body = this.el.querySelector(".asc-timeline-body");
+                if (!body) return;
+                const m = this.data.mode;
+                body.setAttribute("data-mode", m === "alternate" || m === "right" ? m : "left");
+            },
+        },
+        mounted() {
+            // 声明形态兜底（precompile 变换落盘的 data-items JSON 字符串）：items props
+            // 缺席时解析写组件 data（x-for 指令值通道响应）；props 在场恒优先
+            const raw = this.el.getAttribute("data-items");
+            if ((!this.data.items || !this.data.items.length) && raw) {
+                try { this.data.items = JSON.parse(raw); } catch { /* 非法 JSON 静默忽略（容错缺省空线） */ }
+                this.el.removeAttribute("data-items");
+            }
+            this.syncMode();
+            this.watch("mode", () => this.syncMode());
+        },
+    }
+  <\/script>
+  <style global id="autospark-components-timeline">
+    .asc-timeline {
+      display: block;
+      width: 100%;
+      font-size: var(--auto-font-size, var(--asc-timeline-font-size, 0.875rem));
+      line-height: var(--auto-line-height, 1.5);
+    }
+    .asc-timeline-body {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ---------- 项：轴线段 + 节点 + 内容区（left 缺省——内容在轴右） ---------- */
+    .asc-timeline-item {
+      position: relative;
+      padding: 0 0 1.4em 1.9em; /* 左侧留节点/轴线空间；底部段距衔接轴线 */
+      min-height: 1em;
+    }
+    /* 轴线段：贯穿到下一项（负 bottom 衔接段距）；末项隐藏（时间线终止） */
+    .asc-timeline-item-tail {
+      position: absolute;
+      left: 0.5em;
+      top: 1.3em;
+      bottom: -0.1em;
+      width: var(--asc-timeline-tail-width, 1px);
+      background: var(--auto-border-color, var(--asc-timeline-line, #d9d9d9));
+    }
+    .asc-timeline-item:last-child .asc-timeline-item-tail {
+      display: none;
+    }
+
+    /* ---------- 节点圆点：--asc-dot 语义色中转（tag 同款范式）；hollow 空心 / icon 自定义 ---------- */
+    .asc-timeline-item-head {
+      --asc-dot: var(--auto-primary-color, var(--asc-timeline-primary, #009aff));
+      position: absolute;
+      left: 0;
+      top: 0.22em;
+      box-sizing: border-box;
+      width: 1em;
+      height: 1em;
+      border-radius: 50%;
+      background: var(--asc-dot);
+      z-index: 1;
+    }
+    /* 语义色轴（type）：default 中性档取边框灰 */
+    .asc-timeline-item-head[data-type="default"] {
+      --asc-dot: var(--auto-border-color, var(--asc-timeline-default, #d9d9d9));
+    }
+    .asc-timeline-item-head[data-type="primary"] {
+      --asc-dot: var(--auto-primary-color, var(--asc-timeline-primary, #009aff));
+    }
+    .asc-timeline-item-head[data-type="success"] {
+      --asc-dot: var(--auto-success-color, var(--asc-timeline-success, #22c55e));
+    }
+    .asc-timeline-item-head[data-type="warning"] {
+      --asc-dot: var(--auto-warning-color, var(--asc-timeline-warning, #f59e0b));
+    }
+    .asc-timeline-item-head[data-type="danger"] {
+      --asc-dot: var(--auto-danger-color, var(--asc-timeline-danger, #ef4444));
+    }
+    /* 空心节点：面板底 + 语义色描边 */
+    .asc-timeline-item-head[data-hollow="true"] {
+      background: var(--auto-bgcolor, var(--asc-timeline-dot-bg, #ffffff));
+      border: 2px solid var(--asc-dot);
+    }
+    /* 自定义节点（icon）：图标替代圆点（尺寸随字号，色随语义色中转） */
+    .asc-timeline-item-head[data-icon="true"] {
+      width: auto;
+      height: auto;
+      top: -0.12em;
+      left: -0.2em;
+      background: transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4em;
+      color: var(--asc-dot);
+    }
+    .asc-timeline-item-icon {
+      display: inline-flex;
+    }
+
+    /* ---------- 内容区：time 弱化行 + content 正文行 ---------- */
+    .asc-timeline-item-content {
+      min-width: 0;
+    }
+    .asc-timeline-item-time {
+      color: var(--auto-third-color, var(--asc-timeline-time-color, rgba(0, 0, 0, 0.35)));
+      font-size: 0.875em;
+      line-height: 1.4;
+    }
+    .asc-timeline-item-body {
+      color: var(--auto-color, var(--asc-timeline-color, #606060));
+    }
+
+    /* ---------- alternate 交错：轴居中，奇偶内容分侧 ---------- */
+    .asc-timeline-body[data-mode="alternate"] .asc-timeline-item {
+      padding: 0 2.2em 1.4em 50%; /* 奇数项：内容在轴右 */
+    }
+    .asc-timeline-body[data-mode="alternate"] .asc-timeline-item:nth-child(even) {
+      padding: 0 50% 1.4em 2.2em; /* 偶数项：内容在轴左（右对齐） */
+      text-align: right;
+    }
+    .asc-timeline-body[data-mode="alternate"] .asc-timeline-item-tail {
+      left: 50%;
+    }
+    .asc-timeline-body[data-mode="alternate"] .asc-timeline-item-head {
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .asc-timeline-body[data-mode="alternate"] .asc-timeline-item-head[data-icon="true"] {
+      transform: translateX(-50%);
+    }
+
+    /* ---------- right 右侧：left 的镜像（内容在轴左，右对齐） ---------- */
+    .asc-timeline-body[data-mode="right"] .asc-timeline-item {
+      padding: 0 1.9em 1.4em 0;
+      text-align: right;
+    }
+    .asc-timeline-body[data-mode="right"] .asc-timeline-item-tail {
+      left: auto;
+      right: 0.5em;
+    }
+    .asc-timeline-body[data-mode="right"] .asc-timeline-item-head {
+      left: auto;
+      right: 0;
+    }
+    .asc-timeline-body[data-mode="right"] .asc-timeline-item-head[data-icon="true"] {
+      left: auto;
+      right: -0.2em;
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-timeline-item-tail,
+    [data-dark] .asc-timeline-item-tail {
+      background: var(--auto-border-color, var(--asc-timeline-line, #52525b));
+    }
+    [dark] .asc-timeline-item-head,
+    [data-dark] .asc-timeline-item-head {
+      --asc-dot: var(--auto-primary-color, var(--asc-timeline-primary, #56baff));
+    }
+    [dark] .asc-timeline-item-head[data-type="default"],
+    [data-dark] .asc-timeline-item-head[data-type="default"] {
+      --asc-dot: var(--auto-border-color, var(--asc-timeline-default, #52525b));
+    }
+    [dark] .asc-timeline-item-head[data-type="primary"],
+    [data-dark] .asc-timeline-item-head[data-type="primary"] {
+      --asc-dot: var(--auto-primary-color, var(--asc-timeline-primary, #56baff));
+    }
+    [dark] .asc-timeline-item-head[data-type="success"],
+    [data-dark] .asc-timeline-item-head[data-type="success"] {
+      --asc-dot: var(--auto-success-color, var(--asc-timeline-success, #5cd07c));
+    }
+    [dark] .asc-timeline-item-head[data-type="warning"],
+    [data-dark] .asc-timeline-item-head[data-type="warning"] {
+      --asc-dot: var(--auto-warning-color, var(--asc-timeline-warning, #f0a03c));
+    }
+    [dark] .asc-timeline-item-head[data-type="danger"],
+    [data-dark] .asc-timeline-item-head[data-type="danger"] {
+      --asc-dot: var(--auto-danger-color, var(--asc-timeline-danger, #e6696a));
+    }
+    [dark] .asc-timeline-item-head[data-hollow="true"],
+    [data-dark] .asc-timeline-item-head[data-hollow="true"] {
+      background: var(--auto-bgcolor, var(--asc-timeline-dot-bg, #3a3a3a));
+    }
+    [dark] .asc-timeline-item-time,
+    [data-dark] .asc-timeline-item-time {
+      color: var(--auto-third-color, var(--asc-timeline-time-color, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-timeline-item-body,
+    [data-dark] .asc-timeline-item-body {
+      color: var(--auto-color, var(--asc-timeline-color, #fafafa));
+    }
+  </style>
+  <!-- 项模板 = x-for 克隆体（ul 容器不克隆，li 为克隆模板）：克隆体内条件显隐一律
+         x-show（x-if 串台缺陷规避）；节点变体绑定（type/hollow/icon）在克隆体 head
+         上可求值；mode 由 mounted + watch 写 body 容器 data-mode（容器宿主绑定不编译） -->
+  <ul class="asc-timeline-body" x-for="item of items">
+    <li class="asc-timeline-item">
+      <div class="asc-timeline-item-tail" aria-hidden="true"></div>
+      <div
+        class="asc-timeline-item-head"
+        :data-type="item.type || 'default'"
+        :data-hollow="item.hollow"
+        :data-icon="item.icon ? 'true' : 'false'"
+      >
+        <i class="asc-timeline-item-icon" x-show="item.icon" x-icon="item.icon"></i>
+      </div>
+      <div class="asc-timeline-item-content">
+        <div class="asc-timeline-item-time" x-show="item.time">{{ item.time }}</div>
+        <div class="asc-timeline-item-body">{{ item.content }}</div>
+      </div>
+    </li>
+  </ul>
+</div>
+`,e.precompile?.(e=>{for(let a of Array.from(e.el.querySelectorAll(`x-timeline`))){let e=document.createElement(`div`),o=Array.from(a.children).filter(e=>e.tagName.toLowerCase()===`x-timeline-item`),s=a.getAttribute(`items`),c=a.hasAttribute(`:items`);if(a.removeAttribute(`items`),(o.length>0||s!=null&&s!==``)&&!c){let t=null;if(o.length)t=o.map(e=>{let t={content:(e.textContent??``).trim()};for(let n of[`time`,`icon`,`type`]){let r=e.getAttribute(n);r!=null&&r!==``&&(t[n]=r)}let n=e.getAttribute(`hollow`);return n!=null&&n!==``&&(t.hollow=r(n)),t});else try{let e=JSON.parse(s);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of o)e.remove();let l=[];for(let i of Array.from(a.attributes))i.name.startsWith(`:`)?l.push(`${n(t(i.name.slice(1)))}: (${i.value})`):i.name===`class`||i.name===`style`||i.name===`id`||i.name.startsWith(`data-`)||i.name.startsWith(`x-`)||i.name.startsWith(`@`)?e.setAttribute(i.name,i.value):l.push(`${n(t(i.name))}: ${JSON.stringify(r(i.value))}`);for(e.setAttribute(`x-component:${i}`,`{ ${l.join(`, `)} }`);a.firstChild;)e.appendChild(a.firstChild);a.replaceWith(e)}})}o();function o(){e(e=>{a(e)})}};
+    if (AutoSpark === undefined) {
+        // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
+        var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);
+        if (Object.isFrozen(queue)) {
+            console.error("插件闭包: 预加载队列已消费且全局 AutoSpark 不可达，插件未注册");
+            return;
+        }
+        queue.push(function (engine, ns) { run(ns); });
+    } else {
+        run(AutoSpark);
+    }
+})(globalThis.AutoSpark);
+
+//# sourceMappingURL=autospark.timeline.js.map

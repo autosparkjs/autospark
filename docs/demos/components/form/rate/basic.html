@@ -17,7 +17,7 @@
         <div class="auto-card-header">最小用法：星形 ×5 悬停预览 + 点击提交，x-model 双向绑定</div>
         <div class="auto-card-body">
           <p>
-            <span aria-label="整体评分" x-model.number="score" x-component:autospark.rate></span>
+            <x-rate aria-label="整体评分" x-model.number="score"></x-rate>
           </p>
           <p class="hint">当前值：{{ score }} —— 方向键调分 / Home·End 归位（role=slider 键盘模型）。</p>
         </div>

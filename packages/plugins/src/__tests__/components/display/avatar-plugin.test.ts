@@ -12,6 +12,10 @@ import { AutoSpark } from "autospark";
 import { mount, nextTick } from "../../helpers";
 import { AVATAR_NAME, bootstrapAvatarPlugin } from "../../../components/display/avatar/index";
 
+/** x-show 隐藏不摘 DOM（display:none 内联）——可见性断言走 display 通道（家族惯例） */
+const isHidden = (el: Element | null): boolean => !!el && (el as HTMLElement).style.display === "none";
+const isVisible = (el: Element | null): boolean => !!el && (el as HTMLElement).style.display !== "none";
+
 describe("avatar 组件插件（ADR-0018 P1 display）", () => {
     test("模块加载即注册：插件全局组件表含 autospark.avatar 模板字符串", () => {
         const template = (AutoSpark as { components: Record<string, string> }).components[AVATAR_NAME];
@@ -32,7 +36,7 @@ describe("avatar 组件插件（ADR-0018 P1 display）", () => {
         expect(img).toBeTruthy();
         expect(img.getAttribute("src")).toBe("a.png");
         expect(img.getAttribute("alt")).toBe("张三");
-        expect(root.querySelector(".asc-avatar-char")).toBeNull(); // 图片在场不渲染字符回退
+        expect(isHidden(root.querySelector(".asc-avatar-char"))).toBe(true); // 图片在场字符回退隐藏（x-show）
     });
 
     test("图片失败回退：@error → img 移除 + label 首字符（码点截取）", async () => {
@@ -45,8 +49,10 @@ describe("avatar 组件插件（ADR-0018 P1 display）", () => {
         expect(img).toBeTruthy();
         img.dispatchEvent(new Event("error"));
         await nextTick();
-        expect(root.querySelector(".asc-avatar-img")).toBeNull(); // 失败切回退层
-        expect(root.querySelector(".asc-avatar-char")!.textContent).toBe("李");
+        expect(isHidden(root.querySelector(".asc-avatar-img"))).toBe(true); // 失败切回退层（x-show 隐藏）
+        const char = root.querySelector(".asc-avatar-char")!;
+        expect(isVisible(char)).toBe(true);
+        expect(char.textContent).toBe("李");
     });
 
     test("src 变化重置失败态：换地址重试新图（回退层让位）", async () => {
@@ -57,13 +63,14 @@ describe("avatar 组件插件（ADR-0018 P1 display）", () => {
         await nextTick();
         (root.querySelector(".asc-avatar-img") as HTMLElement).dispatchEvent(new Event("error"));
         await nextTick();
+        expect(isVisible(root.querySelector(".asc-avatar-char"))).toBe(true);
         expect(root.querySelector(".asc-avatar-char")!.textContent).toBe("王");
         engine.store.state.pic = "good.png"; // 外部状态驱动 src 变化
         await nextTick();
         const img = root.querySelector(".asc-avatar-img") as HTMLElement;
-        expect(img).toBeTruthy(); // failed 重置 → 图片层回归
+        expect(isVisible(img)).toBe(true); // failed 重置 → 图片层回归
         expect(img.getAttribute("src")).toBe("good.png");
-        expect(root.querySelector(".asc-avatar-char")).toBeNull();
+        expect(isHidden(root.querySelector(".asc-avatar-char"))).toBe(true);
     });
 
     test("icon 回退：无 src 时内置图标渲染（字符串名形态）", async () => {
@@ -72,9 +79,9 @@ describe("avatar 组件插件（ADR-0018 P1 display）", () => {
             {},
         );
         await nextTick();
-        expect(root.querySelector(".asc-avatar-img")).toBeNull();
-        expect(root.querySelector(".asc-avatar-icon")).toBeTruthy(); // x-icon 值通道渲染
-        expect(root.querySelector(".asc-avatar-char")).toBeNull(); // icon 优先于 label 首字符
+        expect(isHidden(root.querySelector(".asc-avatar-img"))).toBe(true);
+        expect(isVisible(root.querySelector(".asc-avatar-icon"))).toBe(true); // x-icon 值通道渲染
+        expect(isHidden(root.querySelector(".asc-avatar-char"))).toBe(true); // icon 优先于 label 首字符
     });
 
     test("icon 对象形态：{ name } 引用注入同样生效", async () => {
@@ -89,9 +96,11 @@ describe("avatar 组件插件（ADR-0018 P1 display）", () => {
     test("三源皆空：内置 default 图标兜底（视觉不空白）", async () => {
         const { root } = mount(`<div x-component:autospark.avatar="{}"></div>`, {});
         await nextTick();
-        expect(root.querySelector(".asc-avatar-icon")).toBeTruthy();
-        expect(root.querySelector(".asc-avatar-char")).toBeNull();
-        expect(root.querySelector(".asc-avatar-img")).toBeNull();
+        // icon 类名有 ②图标/④兜底多层（互斥 x-show），存在任一可见层即兜底生效
+        const icons = Array.from(root.querySelectorAll(".asc-avatar-icon"));
+        expect(icons.some((n) => isVisible(n))).toBe(true);
+        expect(isHidden(root.querySelector(".asc-avatar-char"))).toBe(true);
+        expect(isHidden(root.querySelector(".asc-avatar-img"))).toBe(true);
     });
 
     test("shape 变体：square 落 inner data-shape，缺省 circle", async () => {
@@ -129,6 +138,7 @@ describe("元素名快速写法（ADR-0117 自动组件 / ADR-0133 反查）", (
         await nextTick();
         const host = root.querySelector(".asc-avatar")!;
         expect(host).toBeTruthy();
+        expect(isVisible(host.querySelector(".asc-avatar-char"))).toBe(true);
         expect(host.querySelector(".asc-avatar-char")!.textContent).toBe("陈");
         expect(host.hasAttribute("label")).toBe(false); // 静态属性已折叠进 props
     });

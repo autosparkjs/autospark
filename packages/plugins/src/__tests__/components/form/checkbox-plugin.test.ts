@@ -1,8 +1,8 @@
 /**
- * checkbox 组件插件测试（组件库 P0 form 批轻件，ADR-0019 合批 / ADR-0020 BaseField
+ * checkbox 组件插件测试（组件库 P0 form 批轻件，ADR-0019 合批 / ADR-0020 Field
  * 消费契约）：
- * - 注册面：checkbox 模板入全局组件表（副作用导入内嵌 base-field 注册，继承链
- *   checkbox → base-field → autospark.base）；
+ * - 注册面：checkbox 模板入全局组件表（副作用导入内嵌 field 注册，继承链
+ *   checkbox → field → autospark.base）；
  * - 化身渲染：骨架 class 拼接（.asc-field + .asc-checkbox，裸态无 .asc-field-box）、
  *   真实原生 input[type=checkbox] + data-autospark-control 标记、label 插槽兜底/覆盖、
  *   name 透传（原生直提交载体）；
@@ -10,7 +10,7 @@
  *   change → 宿主 input 派发 → x-model 回写，.boolean 类型保真）、state→DOM（劫持
  *   setter 按值勾选）、checked props 单向同步；
  * - indeterminate 半选态（JS 通道设原生属性）；
- * - BaseField 骨架通道（经 checkbox 实例化消费）：disabled 同步 + data-disabled、
+ * - Field 骨架通道（经 checkbox 实例化消费）：disabled 同步 + data-disabled、
  *   status 状态色 + aria-invalid、焦点态追踪、原生 change 冒泡供外层 @change。
  */
 import "../../setup";
@@ -18,7 +18,7 @@ import { describe, expect, test } from "bun:test";
 import { AutoSpark } from "autospark";
 import { mount, nextTick } from "../../helpers";
 import { CHECKBOX_NAME, bootstrapCheckboxPlugin } from "../../../components/form/checkbox/index";
-import { BASE_FIELD_NAME } from "../../../components/base/base-field/index";
+import { FIELD_NAME } from "../../../components/base/field/index";
 
 /** 取全局表模板（空白归一——oxfmt 折行使逐字匹配假红） */
 const tpl = (name: string) =>
@@ -34,12 +34,12 @@ const nativeOf = (root: HTMLElement) =>
   root.querySelector(".asc-checkbox-input") as HTMLInputElement | null;
 
 describe("注册面（ADR-0019 合批 / ADR-0020）", () => {
-  test("模块加载即注册：checkbox 以副作用导入内嵌 base-field，双模板均入全局组件表", () => {
+  test("模块加载即注册：checkbox 以副作用导入内嵌 field，双模板均入全局组件表", () => {
     const table = (AutoSpark as { components: Record<string, string> }).components;
     expect(typeof table[CHECKBOX_NAME]).toBe("string");
-    expect(typeof table[BASE_FIELD_NAME]).toBe("string");
+    expect(typeof table[FIELD_NAME]).toBe("string");
     expect(tpl(CHECKBOX_NAME)).toContain(`x-define="${CHECKBOX_NAME}"`);
-    expect(tpl(CHECKBOX_NAME)).toContain('x-define:inherit="autospark.base-field"'); // 继承链子端
+    expect(tpl(CHECKBOX_NAME)).toContain('x-define:inherit="autospark.field"'); // 继承链子端
     expect(tpl(CHECKBOX_NAME)).toContain('type="checkbox"'); // 真实原生控件（原生增强路线）
   });
 
@@ -68,7 +68,7 @@ describe("化身渲染与 props 同步", () => {
     );
     await nextTick();
     const host = field(root);
-    expect(host.classList.contains("asc-field")).toBe(true); // base-field 骨架类
+    expect(host.classList.contains("asc-field")).toBe(true); // field 骨架类
     expect(host.classList.contains("asc-checkbox")).toBe(true); // 子组件类（根属性并入拼接）
     expect(host.classList.contains("asc-field-box")).toBe(false); // 裸态控件不加盒饰（ADR-0020 决策 3）
     const input = nativeOf(root) as HTMLInputElement;
@@ -78,7 +78,7 @@ describe("化身渲染与 props 同步", () => {
     expect(input.value).toBe("true"); // 提交值（原生 checkbox 语义：勾选提交 name=true）
   });
 
-  test("label props 兜底渲染；消费者内容经 base-field 出口整段替换控件区（逃生通道）", async () => {
+  test("label props 兜底渲染；消费者内容经 field 出口整段替换控件区（逃生通道）", async () => {
     const { root } = mount(
       `<div><span x-component:autospark.checkbox="{ label: '苹果' }"></span><span x-component:autospark.checkbox>自定义内容</span></div>`,
       {},
@@ -187,7 +187,7 @@ describe("indeterminate 半选态", () => {
   });
 });
 
-describe("BaseField 骨架通道（经 checkbox 实例化消费，ADR-0020）", () => {
+describe("Field 骨架通道（经 checkbox 实例化消费，ADR-0020）", () => {
   test("disabled：同步原生控件 + 宿主 data-disabled（整体淡化通道）", async () => {
     const { root } = mount(`<span x-component:autospark.checkbox="{ disabled: true }"></span>`, {});
     await nextTick();

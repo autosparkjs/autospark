@@ -71,6 +71,13 @@ export interface SlotContent {
      */
     bindingsExpr?: string | null;
     /**
+     * 内容载体自身的注入集属性（ADR-0137）：载体为 `<template>` 时经
+     * {@link collectTemplateCarrierAttrs} 抄录（含指令属性原文），普通元素载体 null。
+     * 仅继承覆盖路径消费（`applyOverrides` 命中 template 出口时整段替换父注入集）；
+     * 消费方内容路径不读（template 载体属性本就无 DOM 去处，不注入使用方元素）。
+     */
+    carrierAttrs?: Array<[string, string]> | null;
+    /**
      * 段形态（ADR-0062）：`"template"`（缺省）= 模板态克隆（投影时全量编译建 scope）；
      * `"live"` = 活体组件实例（出口直挂，见 nodes 注记）。收集管道（collectSlotSegments）
      * 恒产出 template 态；live 段仅由引擎编程式构造（shell 机制）。
@@ -129,13 +136,17 @@ export function parseForwardSlots(raw: string, warn: (msg: string) => void): Slo
         }
         const parts = t.split(":");
         if (parts.length > 2) {
-            warn(`slots: 非法清单项 "${t}"（至多一个冒号：裸名 或 出口名:对外名），已忽略（ADR-0125）`);
+            warn(
+                `slots: 非法清单项 "${t}"（至多一个冒号：裸名 或 出口名:对外名），已忽略（ADR-0125）`,
+            );
             continue;
         }
         const inner = (parts[0] ?? "").trim();
         const outer = parts.length === 2 ? (parts[1] ?? "").trim() : inner;
         if (inner === "" || outer === "" || /\s/.test(inner) || /\s/.test(outer)) {
-            warn(`slots: 非法清单项 "${t}"（须为非空且不含空白的 裸名 或 出口名:对外名），已忽略（ADR-0125）`);
+            warn(
+                `slots: 非法清单项 "${t}"（须为非空且不含空白的 裸名 或 出口名:对外名），已忽略（ADR-0125）`,
+            );
             continue;
         }
         decl.map.set(inner, outer);
@@ -144,7 +155,7 @@ export function parseForwardSlots(raw: string, warn: (msg: string) => void): Slo
 }
 
 /** 属性名是否为插槽标记（裸 / 修饰 / 命名三形态；`x-slot-options` 不命中） */
-function isSlotAttrName(name: string): boolean {
+export function isSlotAttrName(name: string): boolean {
     return name === "x-slot" || name.startsWith("x-slot.") || name.startsWith("x-slot:");
 }
 
@@ -351,6 +362,30 @@ function isWhitespaceOnlyCarrier(el: HTMLElement): boolean {
     );
 }
 
+/** {@link isWhitespaceOnlyCarrier} 的导出别名（出口侧空/非空分流判定，ADR-0137） */
+export const isBlankSlotCarrier = isWhitespaceOnlyCarrier;
+
+/**
+ * 抄录 template 载体上的**注入集属性**（ADR-0137 出口注入 / 继承覆盖属性整段替换的材料）：
+ * 剥除 `x-slot` 标记与宿主配置（`x-options` / `x-slot-options`）外的全部属性原文
+ * （含 `:*` / `@*` / `x-*` 指令属性——活注入语义要求原文保留、由内容侧编译管线执行）。
+ *
+ * 出口侧（组件模板内 template 载体）：抄录产物即出口注入集；
+ * 内容侧（继承覆盖段 template 载体）：抄录产物经 `SlotContent.carrierAttrs` 随段携带，
+ * `applyOverrides` 命中 template 出口时**整段替换**父声明的注入集（ADR-0137 决策三-b）。
+ * 普通元素载体返回 null（元素属性是内容自身形态，非注入意图）。
+ */
+export function collectTemplateCarrierAttrs(el: HTMLElement): Array<[string, string]> | null {
+    if (!(el instanceof HTMLTemplateElement)) return null;
+    const attrs: Array<[string, string]> = [];
+    for (const attr of Array.from(el.attributes)) {
+        if (isSlotAttrName(attr.name)) continue;
+        if (attr.name === "x-options" || attr.name === "x-slot-options") continue;
+        attrs.push([attr.name, attr.value]);
+    }
+    return attrs;
+}
+
 /**
  * 收集标记元素的内容节点（深克隆、剥根标记、剥深层嵌套标记）。
  *
@@ -500,13 +535,15 @@ export function collectSlotSegments(
                 params,
                 paramsExpr: params.length > 0 ? (rawVal ?? "").trim() || null : null,
                 bindingsExpr: bindAttr ? bindAttr.value.trim() || null : null,
+                carrierAttrs: collectTemplateCarrierAttrs(child),
             });
             continue;
         }
         // 裸 `x-slot` 标记 → 默认段（标记形态）
         const bindAttr = getSlotBindingsAttr(child);
         // 传递绑定载体（ADR-0108 决策六）：标记属性即绑定属性且无 plain `x-slot` 形参属性
-        const bindOnly = !!bindAttr && bindAttr.attrName === marker.attrName && !child.hasAttribute("x-slot");
+        const bindOnly =
+            !!bindAttr && bindAttr.attrName === marker.attrName && !child.hasAttribute("x-slot");
         if (bindOnly) {
             const expr = bindAttr!.value.trim();
             if (expr !== "") {
@@ -528,7 +565,8 @@ export function collectSlotSegments(
             : child.getAttribute(marker.attrName);
         let params = parseSlotParams(rawVal);
         if (params === null) {
-            if (rawVal !== null) warn(`x-slot: 默认插槽标记的形参须为简单解构形（{ item }），已按无形参处理`);
+            if (rawVal !== null)
+                warn(`x-slot: 默认插槽标记的形参须为简单解构形（{ item }），已按无形参处理`);
             params = [];
         }
         markerDefault = {
@@ -537,6 +575,7 @@ export function collectSlotSegments(
             params,
             paramsExpr: params.length > 0 ? (rawVal ?? "").trim() || null : null,
             bindingsExpr: bindAttr ? bindAttr.value.trim() || null : null,
+            carrierAttrs: collectTemplateCarrierAttrs(child),
         };
     }
 

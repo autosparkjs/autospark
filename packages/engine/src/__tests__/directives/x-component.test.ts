@@ -847,6 +847,57 @@ describe("x-component 组件实例化（ADR-0022 决策五）", () => {
         expect(root.querySelector(".count")?.textContent).toBe("100");
     });
 
+    test("字面量对象/数组 props 不触发更新环（_propsEqual 深比较，ADR-0054 决策三）", async () => {
+        const { root, engine } = mount(
+            `<div x-scope>
+                <div id="host" x-component:c="{ icon: { name: 'star' }, states: [1, 2] }"></div>
+                <div x-define="c">
+                    <span class="n" x-text="n"></span>
+                    <button class="b" x-on:click="inc">+</button>
+                    <script setup>{
+                        data: { n: 0 },
+                        methods: { inc(){ this.data.n++ } }
+                    }</script>
+                </div>
+             </div>`,
+            { other: 1 },
+        );
+        await nextTick();
+        await nextTick(); // 组件实例化 defer 到 microtask，等两 tick
+        expect(root.querySelector(".n")?.textContent).toBe("0");
+        // 组件内部交互状态就位
+        root.querySelector<HTMLButtonElement>(".b")!.click();
+        await nextTick();
+        expect(root.querySelector(".n")?.textContent).toBe("1");
+        // 无关状态变化触发字面量 props watcher 重求值（表达式支路空 deps = 任意变化触发）：
+        // 每次求值产生键值相同的新对象/数组引用——深比较相等须跳过 _updateProps。
+        // 修复前（引用比较恒不等）：assign 写组件响应式 data 域 → 又触发字面量 watcher →
+        // 再重求值再 assign…… 无限更新环，本用例在 microtask 饥饿中挂死超时，且 n 被打回 0。
+        engine.state.other = 2;
+        await nextTick();
+        expect(root.querySelector(".n")?.textContent).toBe("1"); // 不重置、不死环
+        expect(engine.state.other).toBe(2);
+    });
+
+    test("字面量 props 嵌套值真实变化照常注入（深比较不吞变更）", async () => {
+        const { root, engine } = mount(
+            `<div x-scope>
+                <div id="host" x-component:c="{ icon: { name: iconName } }"></div>
+                <div x-define="c">
+                    <span class="icon" x-text="icon.name"></span>
+                </div>
+             </div>`,
+            { iconName: "star" },
+        );
+        await nextTick();
+        await nextTick();
+        expect(root.querySelector(".icon")?.textContent).toBe("star");
+        // 表达式内状态引用变化 → 新字面量对象嵌套键值不同 → 深比较不等 → 照常 assign 注入
+        engine.state.iconName = "moon";
+        await nextTick();
+        expect(root.querySelector(".icon")?.textContent).toBe("moon");
+    });
+
     test("methods 注入：x-on 调用组件方法", async () => {
         const { root } = mount(
             `<div x-scope>
@@ -1013,6 +1064,65 @@ describe("x-component 组件实例化（ADR-0022 决策五）", () => {
         await nextTick();
         expect(host().querySelector(".n")?.textContent).toBe("42");
         expect((globalThis as any).__mt_mounted).toBe(1);
+    });
+
+    test("结构指令销毁同批 props 更新不在僵尸域复活实例化（destroy 后 unmounted 清理、全局监听不泄漏）", async () => {
+        // 组件库 affix/watermark 实证的监听泄漏根因（memory 待修清单第 10 条）：
+        // 消费元素在 eager x-if 子树内 + props 表达式引用驱动 x-if 的同一状态 →
+        // flag=false 一次变更产生同批两个 update（订阅序 = 编译序：x-if 销毁先跑、
+        // props 更新后跑）——修复前 props update 发现 instanceScope 已被指令 destroy
+        // 置空，误判「从未实例化」在 destroyed=true 的宿主 scope 上重新实例化（mounted
+        // 二次跑在僵尸域），engine.destroy() 时 scope.destroy 被幂等守卫挡回 → 重建域
+        // unmounted 漏触发 → mounted 中挂的 window 监听残留。
+        const g = globalThis as any;
+        g.__zm_hooks = [];
+        g.__zm_hit = false;
+        g.__zm_onResize = () => {
+            g.__zm_hit = true;
+        };
+        const { engine } = mount(
+            `<div x-scope>
+                <div x-if="flag">
+                    <div id="host" x-component:c="{ v: flag }"></div>
+                </div>
+                <div x-define="my-base"><script setup>{}</script><b>base</b></div>
+                <div x-define="c" x-define:inherit="my-base">
+                    <span class="n" x-text="v"></span>
+                    <script setup>{
+                        mounted(){
+                            globalThis.__zm_hooks.push("mounted");
+                            window.addEventListener("resize", globalThis.__zm_onResize);
+                        },
+                        unmounted(){
+                            globalThis.__zm_hooks.push("unmounted");
+                            window.removeEventListener("resize", globalThis.__zm_onResize);
+                        }
+                    }</script>
+                </div>
+             </div>`,
+            { flag: true },
+        );
+        await nextTick();
+        await nextTick(); // 实例化 defer 到 microtask
+        expect(g.__zm_hooks).toEqual(["mounted"]); // 正常首挂（监听已挂）
+        window.dispatchEvent(new Event("resize"));
+        expect(g.__zm_hit).toBe(true); // 监听在位
+        g.__zm_hit = false;
+        // flag=false：x-if 销毁消费子树（同批 props update 不得在僵尸域复活实例化）
+        engine.state.flag = false;
+        await nextTick();
+        await nextTick();
+        expect(g.__zm_hooks).toEqual(["mounted", "unmounted"]); // 拆域即清监听，无二次 mounted
+        window.dispatchEvent(new Event("resize"));
+        expect(g.__zm_hit).toBe(false); // 监听已摘（修复前：僵尸域复活重挂 → 此处为 true）
+        // engine.destroy 后仍不残留
+        engine.destroy();
+        window.dispatchEvent(new Event("resize"));
+        expect(g.__zm_hit).toBe(false);
+        expect(g.__zm_hooks).toEqual(["mounted", "unmounted"]); // unmounted 不重复不漏发
+        delete g.__zm_hooks;
+        delete g.__zm_hit;
+        delete g.__zm_onResize;
     });
 
     test("组件内嵌套使用组件：嵌套实例化", async () => {

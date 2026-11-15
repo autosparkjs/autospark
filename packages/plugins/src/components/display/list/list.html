@@ -98,6 +98,15 @@
       overflow-y: auto;
       overscroll-behavior: contain;
     }
+    /* 等高行假设：行定高与 x-for-options 的 itemHeight 同值（虚拟列表等高约束——
+         autoDetect 在首渲染容器空时自败，显式声明是唯一稳定通道；自定义行高须同时
+         覆盖 --asc-list-item-height 与 x-for-options，文档披露）。border-box 含分隔线 */
+    .asc-list-inner[data-virtual="true"] .asc-list-item {
+      height: var(--asc-list-item-height, 36px);
+      min-height: 0;
+      padding: 0 1em;
+      line-height: 35px;
+    }
 
     /* ---------- 空态段（x-empty special 渲染位） ---------- */
     .asc-list-empty {
@@ -108,7 +117,7 @@
     [dark] .asc-list-inner,
     [data-dark] .asc-list-inner {
       background: var(--auto-bgcolor, var(--asc-list-bg, #3a3a3a));
-      --asc-line: var(--auto-border-color, var(--asc-list-border-color, #4d4d4d));
+      --asc-line: var(--auto-border-color, var(--asc-list-border-color, #52525b));
     }
     [dark] .asc-list-item-text,
     [data-dark] .asc-list-item-text {
@@ -132,7 +141,7 @@
       <div
         class="asc-list-body"
         x-for="item of items"
-        x-for-options="{ virtual: true }"
+        x-for-options="{ virtual: true, itemHeight: 36 }"
       >
         <div class="asc-list-item" x-slot="{ name: 'row', params: { item, $index } }">
           <span

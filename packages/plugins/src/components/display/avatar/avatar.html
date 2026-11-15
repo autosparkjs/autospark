@@ -10,6 +10,10 @@
 
     角标不内建（ADR-0018 决策 3「指令即终态」）：x-badge 已覆盖角标能力，使用者
     外挂组合（文档配方示例），组件不建双轨。
+
+    回退层显隐一律用 x-show（display 切换，勿用 x-if）：共享快照多实例场景下
+    x-if 的延迟编译（假→真切换时才编译子树）会挂错 scope 链致跨实例 props 串台
+    （engine 已知缺陷，记忆 templateScopeMap 串台），x-show 无编译期回避之。
 -->
 <!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
      （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
@@ -29,16 +33,40 @@
             label: "",       // 字符回退源（首字符；兼职图片 alt）
             shape: "circle", // 形状：circle 圆（缺省）| square 方（圆角随 data-radius 档位）
             failed: false,   // 内部状态：图片加载失败标记（非 props；src 变化时重置重试）
+            errorArmed: false, // 内部状态：@error 武装位（一跳后置 true，见 mounted——非 props）
         }),
         methods: {
-            // 图片加载失败：置 failed 触发回退链切换（x-if 通道重建，img 移除）
+            // 图片加载失败：置 failed 触发回退链切换（x-if 通道重建，img 移除）。
+            // 武装位守卫：构造窗口内（scope.refresh 等机制重跑 :src 绑定 → 同值
+            // setAttribute('src') → happy-dom **同步**派发 error）的伪 error 不接——
+            // 真实浏览器网络失败恒在构造同步块之后（fetch 异步 + 任务队列），一跳后
+            // 武装不丢真失败
             onImgError() {
+                if (!this.data.errorArmed) return;
                 this.data.failed = true;
             },
         },
         mounted() {
-            // src 变化：重置 failed 重试新地址（回调收 { value } 信封对象——本回调不取值，重置恒执行）
-            this.watch("src", () => { this.data.failed = false; });
+            // @error 一跳后武装：挂起一个宏任务置位（mounted 时化身子树可能未挂载，
+            // 家族同款一跳；期间到达的 error 均为构造窗口伪 error——scope.refresh 等
+            // 机制重跑 :src 绑定 → 同值 setAttribute('src') → happy-dom **同步**派发）
+            setTimeout(() => { this.data.errorArmed = true; }, 0);
+            // src 变化：解除武装 + 重置 failed 重试新地址（回调收 { value } 信封对象——
+            // 解构取值），一跳后对新地址重新武装。真实新值写入引发的伪 error（happy-dom
+            // 对任何 src 写都同步派发）无论落在本回调前后：落在前 → 先置 failed 再被
+            // 本重置清掉；落在后 → 未武装直接忽略——两序净效果一致。
+            // 已见值比对幂等防御：scope.refresh 类无变化重跑（i18n ready 换血等）同值
+            // 跳过，不解除武装、不误重置 failed（真实浏览器网络失败恒晚于构造同步块）
+            const rearm = () => setTimeout(() => { this.data.errorArmed = true; }, 0);
+            let lastSrc = String(this.data.src ?? "");
+            this.watch("src", ({ value }) => {
+                const v = String(value ?? "");
+                if (v === lastSrc) return;
+                lastSrc = v;
+                this.data.errorArmed = false;
+                this.data.failed = false;
+                rearm();
+            });
         },
     }
   </script>
@@ -78,6 +106,7 @@
     }
     /* 图标回退层：约 60% 盒面（1.5em 相对字号，随档位缩放） */
     .asc-avatar-icon {
+      display: inline-flex;
       font-size: 1.5em;
       line-height: 1;
     }
@@ -101,7 +130,7 @@
     <!-- ① 图片：src 在场且未失败（失败经 @error 置 failed 切回退层） -->
     <img
       class="asc-avatar-img"
-      x-if="src && !failed"
+      x-show="src && !failed"
       :src="src"
       :alt="label"
       @error="onImgError()"
@@ -109,24 +138,24 @@
     <!-- ② 图标回退：src 缺席或加载失败时生效（字符串图标名 / { name } 对象双形态，tag 同款） -->
     <i
       class="asc-avatar-icon"
-      x-if="(!src || failed) && typeof icon === 'string' && icon"
+      x-show="(!src || failed) && typeof icon === 'string' && icon"
       x-icon="icon"
     ></i>
     <i
       class="asc-avatar-icon"
-      x-if="(!src || failed) && typeof icon === 'object' && icon && icon.name"
+      x-show="(!src || failed) && typeof icon === 'object' && icon && icon.name"
       x-icon="icon.name"
     ></i>
     <!-- ③ 首字符回退：label 取首个码点（Array.from 防代理对截半） -->
     <span
       class="asc-avatar-char"
-      x-if="(!src || failed) && !icon && label"
+      x-show="(!src || failed) && !icon && label"
       x-text="Array.from(String(label).trim())[0]"
     ></span>
     <!-- ④ 三源皆空：内置 default 图标兜底（字面量须带引号——裸 default 会命中 data.default） -->
     <i
       class="asc-avatar-icon"
-      x-if="(!src || failed) && !icon && !label"
+      x-show="(!src || failed) && !icon && !label"
       x-icon="'default'"
     ></i>
   </span>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.float-button · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .tall {
+        min-height: 55vh;
+        border-bottom: 1px dashed #dee2e6;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+        width: fit-content;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.float-button</h1>
+    <p>
+      悬浮按钮：fixed 右下悬浮钮。type 双形态——default 常规（icon 必选 + click 原生冒泡
+      事件出口）| back-to-top 回顶（滚动超 visibilityHeight 阈值渐显 + 点击回顶）；
+      shape 双形状（circle 缺省 / square）；right/bottom 定位偏移；reduced-motion 停播过渡。
+    </p>
+
+    <div id="app" x-data="{}">
+      <h2>常规形态（icon + click 事件出口）</h2>
+      <p class="hint">
+        点击计数：<code>{{ hits }}</code>（外层 @click 消费原生冒泡——组件默认封闭）。
+      </p>
+      <div @click="hits += 1">
+        <x-float-button icon="bell">在线客服</x-float-button>
+      </div>
+
+      <h2>square 形状 + 自定义定位（right / bottom）</h2>
+      <x-float-button icon="edit" shape="square" right="120" bottom="40"></x-float-button>
+      <p class="hint">定位偏移 number 按 px；string 带单位原样（如 right="6rem"）。</p>
+
+      <h2>back-to-top 形态（滚动渐显 + 点击回顶）</h2>
+      <p class="hint">
+        向下滚动超过 400px（visibilityHeight 缺省阈值）右下角渐显回顶钮；点击平滑回顶。
+        本页下方的高区块用于触发滚动。
+      </p>
+      <x-float-button back-to-top></x-float-button>
+
+      <h2>暗色态（容器 data-dark）+ label 宽幅形态</h2>
+      <div class="dark-box" data-dark>
+        <x-float-button back-to-top shape="square" right="130" bottom="120">回到顶部</x-float-button>
+      </div>
+      <p class="hint">
+        label 非空时宽幅胶囊形态（默认插槽承载文案）；暗色态经容器 data-dark 样式域命中。
+      </p>
+
+      <div class="tall"><h2>区块一</h2><p>滚动到此处观察 back-to-top 渐显。</p></div>
+      <div class="tall"><h2>区块二</h2><p>继续向下。</p></div>
+      <div class="tall"><h2>区块三</h2><p>点击右下角回顶钮平滑回到顶部。</p></div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.float-button.js"></script>
+    <script>
+      const state = { hits: 0 };
+      new AutoSpark(document.getElementById("app"), state);
+    </script>
+  </body>
+</html>

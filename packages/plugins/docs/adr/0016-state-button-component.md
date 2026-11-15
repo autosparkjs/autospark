@@ -7,6 +7,8 @@
 > **修订记**（同日 grilling 八轮收敛，架构经历一次翻转）：初版定「机制驻父泛化」（button 保留 checkable 二元速记、state-button 薄壳继承）；后续修订链——`checkStyle` 取消 → 移入 states 项键 `decorate` → **button 整体取消 checkable 特性**——逐步掏空「机制驻父」的存在理由（父不再消费机制），终态翻转为**继承骨架 + 机制自治**。事件模型同链修订：受控目标态 detail → 原生 click + dataset 反射；states 缺省组与 value 缺省两度反转后定稿。
 >
 > **2026-11-11 修订**：**x-button-options 泛化为 button props 透传**——状态项可携带 button 全部属性（variant/type/ghost/shape/loading/ripple/...），切态经显式键清单（`BUTTON_PROPS`）整组注入 data（未声明键回退底值快照），每态完全自定义按钮渲染与形态；原白名单视觉键 `color` **废弃**、对齐 button 原名 `type`（迁移动作 `color: 'danger'` → `type: 'danger'`）。theme 档位六键不在注入面（不在 data 域）。**实现约束**：注入键清单必须**显式硬编码**——`Object.keys(this.data)` 枚举出的是挂链根 state 键（含 `$scopes`/`$` 框架保留键），误枚举会把保留键写穿引发连锁回归。
+>
+> **2026-11-13 修订（部分回摆）**：**checkable 以新形态回归 button**——`checkable / value / checkValues / checkStyle` 四 props 恢复（checkStyle 四值 `solid | check | corner | ripple`，即 decorate 四值下沉为组件级渲染；缺省 `corner`；`icon` 值更名 `check` 对齐），内嵌真 `input[type=checkbox]` 化身标准 checkbox 表单字段（checkable=false 缺省非表单字段）、`el.value` 布尔语域桥（x-model.boolean）、点击翻转 + change 冒泡——决策 1 的「button 取消 checkable」就此收窄为「**二元勾选归 button、N(>2) 态循环归 state-button**」；勾选视觉宿主 class 通道（.asc-checked + .asc-check-\<style\>），state-button 的 decorate 项键机制不变（N 态装饰）。
 
 ## 背景
 
@@ -93,6 +95,6 @@ value 不在 states 值域内 → **专属灰色渲染态**：统一中性灰**�
 
 - **继承管线验证**：engine `_resolveGlobalComponent` 对字符串模板的 `x-define:inherit` 原生支持（`_globalDefForInherit` 沿全局表递归懒预编译父 def，ADR-0083）——插件全局表注册的模板继承开箱即用；唯一时序约束是**父组件表项须先注册**（测试/页面先加载 button 插件模块）。
 - **字面量数组 props 死环（引擎既有缺陷）**：x-component 值对象含**任何字面量数组**（含标量 `[1,2]` 与空 `[]`）即触发更新环死锁（`_propsEqual` 对数组键引用比较 + 重求值新引用，微任务风暴吞掉宏任务——setTimeout 永不排上，进程挂死无输出）。**states 数组一律路径引用**（`:states="myStates"`），文档警示与 tags 同口径；引擎侧修复在独立分支未合入 HEAD。
-- **ripple 装饰指示器降级为 CSS 自绘**：mounted 注入的 DOM 无编译通道（x-icon 是编译期指令），呼吸点 + 扩散环改 keyframes 自绘（视觉对齐内置 ripple 图标动效语言，非 x-icon 同源）。
+- **ripple 装饰指示器改由 x-ripple 承载**（2026-11-13 调整，取代 CSS 自绘）：勾选/佩戴态向左侧指示器 span 挂 `x-ripple` + `x-ripple-options`（`{ trigger: "always", inside: true }` 常驻脉冲），未勾选摘除（属性移除即 unmount，ADR-0010 运行时挂载契约）；挂载目标是指示器子元素，与宿主点击涟漪（ripple prop）互不冲突；未加载 autospark.ripple.js 时属性无人消费静默（退空占位）。初版 CSS 自绘（呼吸点 + 扩散环 keyframes）已移除。
 - x-model 修饰符为单属性写法 `x-model.boolean="flag"`（误写双属性会让空值属性被解析为独立绑定）。
 - **`Object.keys(this.data)` 不可枚举组件 props 面**（2026-11-11 泛化实施实证）：mounted 内 `this.data` 是挂链数据视图——**读取**穿透组件域可用，**枚举**（ownKeys）却列出根 state 键（含 `$scopes`/`$` 框架保留键）——按 keys 遍历会把框架保留键写穿，引发跨用例连锁回归（绑定断链、原生 click 冒泡计数失效等怪象）。态注入/底值快照一律走**显式键清单**（`BUTTON_PROPS`，与 button data 键面同步维护）。

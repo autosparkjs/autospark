@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.countdown · 组件演示</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        max-width: 860px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .row-btn {
+        cursor: pointer;
+        border: 1px solid #d9d9d9;
+        background: transparent;
+        border-radius: 4px;
+        padding: 4px 12px;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.countdown</h1>
+    <p>
+      倒计时：time（毫秒时长，变化即重启新一轮）+ format token 模板（{d}{h}{m}{s}， 缺省
+      "{h}:{m}:{s}"）。计时引擎 = 递归 setTimeout + 绝对 deadline 真值（节流免疫 ——visibilitychange
+      回页补触发）。归零一次性派发 finish（detail 空）。样式复用 statistic
+      数值排版语言（tabular-nums）。语域与边界见 ADR-0031。
+    </p>
+
+    <div id="app">
+      <h2>基础（缺省 format：时:分:秒）</h2>
+      <div class="grid-2">
+        <div>
+          <x-countdown :time="t1"></x-countdown>
+          <p class="hint">秒杀场次 90 秒（time=90000）</p>
+        </div>
+        <div>
+          <x-countdown :time="t2" @finish="done = true"></x-countdown>
+          <p class="hint">
+            {{ done ? '已归零（@finish 触发）' : '短倒计时 5 秒（finish 事件演示）' }}
+          </p>
+        </div>
+      </div>
+
+      <h2>format 变体（token 模板）</h2>
+      <div class="grid-2">
+        <div>
+          <x-countdown :time="t3" format="{d} 天 {h}:{m}:{s}"></x-countdown>
+          <p class="hint">含 {d}：{h} 为日内余时（1 天 10:20:30 起）</p>
+        </div>
+        <div>
+          <x-countdown :time="t3" format="{h} 小时 {m} 分"></x-countdown>
+          <p class="hint">不含 {d}：{h} 为总小时（可超 24）</p>
+        </div>
+      </div>
+
+      <h2>重启（time 变化即新一轮——验证码 60s 重发）</h2>
+      <div>
+        <x-countdown :time="code" format="{m} 分 {s} 秒后可重发"></x-countdown>
+        <p style="margin-top: 8px">
+          <button class="row-btn" @click="code = 60000; sent = sent + 1">
+            重新发送（已发 {{ sent }} 次）
+          </button>
+        </p>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <x-countdown :time="t1"></x-countdown>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.countdown.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        t1: 90000,
+        t2: 5000,
+        t3: 24 * 3600 * 1000 + 10 * 3600 * 1000 + 20 * 60 * 1000 + 30 * 1000, // 1d 10h 20m 30s
+        code: 60000,
+        done: false,
+        sent: 0,
+      });
+    </script>
+  </body>
+</html>

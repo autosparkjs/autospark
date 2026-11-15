@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ImageViewer · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.image.js"></script>
+    <script src="/autospark/autospark.image-viewer.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .viewer-demo-thumbs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .viewer-demo-thumb {
+        cursor: zoom-in;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">与 image 组件联动（点击缩略图打开全屏查看器）</div>
+        <div class="auto-card-body">
+          <div class="viewer-demo-thumbs" x-for="pic of pics">
+            <div class="viewer-demo-thumb" @click="viewer.idx = $index; viewer.open = true">
+              <x-image fit="cover" height="96" :src="pic"></x-image>
+            </div>
+          </div>
+          <p class="hint" style="margin-top: 12px">
+            联动配方：缩略图 <code>@click</code> 写入 <code>viewer.idx / viewer.open</code>；
+            查看器 <code>change / close</code> 事件经包裹层回写状态（受控闭环）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">操作面（打开后）</div>
+        <div class="auto-card-body">
+          <p class="hint">
+            工具栏（右上）：放大 / 缩小 / 左旋 / 右旋 / 重置（1:1）/ 关闭；翻页钮（左右中部，
+            首末页收起）；计数器（底部中央）；遮罩点击请求关闭。键盘：<code>← / →</code> 切换、
+            <code>ESC</code> 请求关闭、<code>+ / -</code> 缩放。全屏层为恒暗色设计（不随主题明暗切换）。
+          </p>
+        </div>
+      </div>
+      
+      <div @change="viewer.idx = $event.detail.index" @close="viewer.open = false">
+        <x-image-viewer :images="pics" :visible="viewer.open" :index="viewer.idx"></x-image-viewer>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+          pics: [
+              "/autospark/a.png",
+              "/autospark/a.png",
+              "/autospark/a.png",
+              "/autospark/a.png",
+              "/autospark/a.png",
+          ],
+          viewer: { open: false, idx: 0 },
+      });
+    </script>
+  </body>
+</html>

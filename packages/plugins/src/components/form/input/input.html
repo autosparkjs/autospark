@@ -1,7 +1,7 @@
 <!--
     autospark.input 输入框（ADR-0020）——原生增强路线：真实原生控件（input / textarea）
     + 样式包裹，不自绘输入面（保原生可访问性：键盘/IME/自动填充/移动端兼容，ADR-0018
-    决策 7）。继承 autospark.base-field 表单域骨架（状态色通道/焦点态/disabled 同步/
+    决策 7）。继承 autospark.field 表单域骨架（状态色通道/焦点态/disabled 同步/
     盒饰 chrome，ADR-0020），本组件专注控件本身。
 
     值通道（x-model 兼容协议，ADR-0020）：宿主 el.value 劫持 ↔ 内层原生控件——
@@ -23,7 +23,7 @@
 <span
   class="asc-input asc-field-box"
   x-define="autospark.input"
-  x-define:inherit="autospark.base-field"
+  x-define:inherit="autospark.field"
 >
   <script setup>
     {
@@ -300,7 +300,7 @@
       color: var(--auto-danger-color, var(--asc-input-count-over, #e6696a));
     }
   </style>
-  <!-- 默认段（替换 base-field 出口 fallback）：input 的全部控件结构，文档序即呈现序
+  <!-- 默认段（替换 field 出口 fallback）：input 的全部控件结构，文档序即呈现序
          [prefix] [控件] [清除] [眼睛] [suffix] [计数]。图标 x-icon 为指令值通道对
          props 注入响应；文本兜底 {{ }} 为插值通道（初始注入即定，prefix 后续变化走
          x-if 切换场景，文档已声明对象 props 经状态引用注入） -->

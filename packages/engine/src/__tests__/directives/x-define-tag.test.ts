@@ -490,3 +490,196 @@ describe("标签归一化与撞名就近遮蔽（ADR-0133）", () => {
         expect(warns.filter((w) => w.includes("不是已注册组件")).length).toBe(1); // 每标签一次
     });
 });
+
+describe("裸布尔属性 coerce（ADR-0117 2026-11-14 修订）", () => {
+    test("裸属性：boolean 声明键空值归一为 true（data 字面量初始值）", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="counter" x-define-options="{tag: true}">
+                    <span id="v" x-text="expanded"></span>
+                    <script setup>{ data: { expanded: false } }</script>
+                </div>
+                <x-counter id="h" expanded></x-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.data.expanded).toBe(true);
+        expect(root.querySelector("#v")?.textContent).toBe("true");
+    });
+
+    test("=\"\" 与裸属性同权（DOM 层同为空串）→ true", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="counter" x-define-options="{tag: true}">
+                    <script setup>{ data: { expanded: false } }</script>
+                </div>
+                <x-counter id="h" expanded=""></x-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.data.expanded).toBe(true);
+    });
+
+    test("显式 \"true\"/\"false\" 维持既有 boolean 推断", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="counter" x-define-options="{tag: true}">
+                    <script setup>{ data: { expanded: false } }</script>
+                </div>
+                <x-counter id="h1" expanded="true"></x-counter>
+                <x-counter id="h2" expanded="false"></x-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        expect(engine.getComponent(root.querySelector("#h1") as HTMLElement)?.data.expanded).toBe(true);
+        expect(engine.getComponent(root.querySelector("#h2") as HTMLElement)?.data.expanded).toBe(false);
+    });
+
+    test("非 boolean 键空串维持 \"\"（空串 props 通道完整保留）", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="counter" x-define-options="{tag: true}">
+                    <script setup>{ data: { label: "x" } }</script>
+                </div>
+                <x-counter id="h" label=""></x-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.data.label).toBe("");
+    });
+
+    test("data() 工厂形态初始值同为类型源", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="counter" x-define-options="{tag: true}">
+                    <script setup>{ data: () => ({ expanded: false }) }</script>
+                </div>
+                <x-counter id="h" expanded></x-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.data.expanded).toBe(true);
+    });
+
+    test("defaults（ADR-0092）单独声明亦为类型源（data 无该键）", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="counter" x-define-options="{tag: true}">
+                    <script setup>{ defaults: { expanded: false }, data: { label: "x" } }</script>
+                </div>
+                <x-counter id="h" expanded></x-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.data.expanded).toBe(true);
+    });
+
+    test("其他假值字符串（\"0\"/\"no\"）不归一（不引入 HTML 属性枚举语义）", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="counter" x-define-options="{tag: true}">
+                    <script setup>{ data: { expanded: false } }</script>
+                </div>
+                <x-counter id="h1" expanded="0"></x-counter>
+                <x-counter id="h2" expanded="no"></x-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        expect(engine.getComponent(root.querySelector("#h1") as HTMLElement)?.data.expanded).toBe(0); // "0" 命中纯数字推断 → number，非空串不归一
+        expect(engine.getComponent(root.querySelector("#h2") as HTMLElement)?.data.expanded).toBe("no");
+    });
+
+    test("未声明键裸属性维持 \"\"（无类型源不归一）", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="counter" x-define-options="{tag: true}">
+                    <script setup>{ data: { expanded: false } }</script>
+                </div>
+                <x-counter id="h" oops></x-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.data.oops).toBe("");
+    });
+
+    test("表达式产物空串统一归一（注入层无从区分来源，ADR-0117 修订取舍）", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="counter" x-define-options="{tag: true}">
+                    <script setup>{ data: { expanded: false } }</script>
+                </div>
+                <x-counter id="h" :expanded="flag"></x-counter>
+            </div>`,
+            { flag: "" },
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.data.expanded).toBe(true);
+        (engine.state as any).flag = false; // 表达式产物 false 原样（非空串不触发）
+        await nextTick();
+        expect(engine.getComponent(host)?.data.expanded).toBe(false);
+    });
+
+    test("更新流：表达式键重求值整包 assign 不打回已归一的 true", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="counter" x-define-options="{tag: true}">
+                    <script setup>{ data: { expanded: false, count: 0 } }</script>
+                </div>
+                <x-counter id="h" expanded :count="n"></x-counter>
+            </div>`,
+            { n: 1 },
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.data.expanded).toBe(true);
+        (engine.state as any).n = 2; // 无关表达式键变化 → 静态 "" 随整包重求值回流
+        await nextTick();
+        expect(engine.getComponent(host)?.data.expanded).toBe(true);
+        expect(engine.getComponent(host)?.data.count).toBe(2);
+    });
+
+    test("options.props 通道空串同归一（三通道统一）", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="counter" x-define-options="{tag: true}">
+                    <script setup>{ data: { expanded: false } }</script>
+                </div>
+                <x-counter id="h" x-counter-options="{props: {expanded: ''}}"></x-counter>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.data.expanded).toBe(true);
+    });
+
+    test("属性形态值通道字面量空串同归一（x-component 全通道统一）", async () => {
+        const { root, engine } = mountD(
+            `<div x-scope>
+                <div x-define="counter">
+                    <script setup>{ data: { expanded: false } }</script>
+                </div>
+                <div id="h" x-component:counter="{expanded: ''}"></div>
+            </div>`,
+            {},
+        );
+        await nextTick();
+        const host = root.querySelector("#h") as HTMLElement;
+        expect(engine.getComponent(host)?.data.expanded).toBe(true);
+    });
+});

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.timeline · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 860px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .two-col {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.timeline</h1>
+    <p>
+      时间线：items / 子元素声明两形态 + mode 标签侧（left / alternate / right）+
+      节点语义色（primary / success / warning / danger / default）+ hollow 空心 +
+      icon 自定义节点。纯展示无事件。
+    </p>
+
+    <div id="app">
+      <h2>基础（left 缺省 + 节点语义色）</h2>
+      <x-timeline :items="steps"></x-timeline>
+      <p class="hint">items 须状态引用注入（字面量数组触发 props 更新死环——已知引擎缺陷规避）。</p>
+
+      <h2>mode 标签侧：alternate 交错 / right 右侧</h2>
+      <div class="two-col">
+        <x-timeline mode="alternate" :items="steps"></x-timeline>
+        <x-timeline mode="right" :items="steps"></x-timeline>
+      </div>
+
+      <h2>自定义节点（icon 经 x-icon）+ 空心节点</h2>
+      <x-timeline :items="iconSteps"></x-timeline>
+
+      <h2>子元素声明形态（静态时间线）</h2>
+      <x-timeline>
+        <x-timeline-item time="09:00" type="primary">创建项目</x-timeline-item>
+        <x-timeline-item time="11:30" type="success" hollow="true">开发联调（空心节点）</x-timeline-item>
+        <x-timeline-item time="16:00">发布上线</x-timeline-item>
+      </x-timeline>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <x-timeline :items="steps"></x-timeline>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.timeline.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        steps: [
+          { content: "订单已提交，等待支付", time: "2026-11-12 20:31", type: "primary" },
+          { content: "支付成功，商家备货中", time: "2026-11-12 20:35", type: "success" },
+          { content: "包裹已从上海转运中心发出", time: "2026-11-13 06:02" },
+          { content: "派送中，请保持电话畅通", time: "2026-11-13 09:41", type: "warning" },
+          { content: "已签收", type: "danger" },
+        ],
+        iconSteps: [
+          { content: "创建仓库", icon: "add", type: "primary" },
+          { content: "持续集成通过", icon: "check", type: "success" },
+          { content: "里程碑达成（空心）", type: "success", hollow: true },
+          { content: "归档发布", icon: "file" },
+        ],
+      });
+    </script>
+  </body>
+</html>

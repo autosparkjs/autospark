@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.container · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .stage {
+        height: 320px;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 12px 0;
+      }
+      .nav a {
+        display: block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        color: inherit;
+        text-decoration: none;
+      }
+      .nav a.active {
+        background: rgba(0, 154, 255, 0.12);
+        color: #009aff;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.container</h1>
+    <p>
+      页面容器壳：header / aside / main / footer 四区 grid 版式（纯样式结构壳）+ 侧栏位置
+      （asidePosition）。三方边界消歧：本组件 = 四区版式壳；<code>&lt;div x-container&gt;</code>
+      （属性形态）= 响应式断点容器指令；x-layout 指令 = grid 窗格布局——三者可叠用。
+    </p>
+
+    <div id="app">
+      <h2>四区版式（子元素声明）</h2>
+      <div class="stage">
+        <x-container>
+          <x-container-header>工作台 · 订单管理</x-container-header>
+          <x-container-aside>
+            <nav class="nav">
+              <a href="javascript:void(0)" class="active">全部订单</a>
+              <a href="javascript:void(0)">待付款</a>
+              <a href="javascript:void(0)">已发货</a>
+            </nav>
+          </x-container-aside>
+          <x-container-main>主区：滚动收敛在本区（overflow: auto），高度由四区 grid 分配。</x-container-main>
+          <x-container-footer>共 37 条 · 第 1 页</x-container-footer>
+        </x-container>
+      </div>
+      <p class="hint">容器壳满父高（外层给定高度）；未提供的区段自动退场（grid 轨道塌缩）。</p>
+
+      <h2>侧栏位置 end + 暗色态</h2>
+      <div class="stage" style="height: 240px">
+        <x-container aside-position="end">
+          <x-container-header>设置中心</x-container-header>
+          <x-container-aside>
+            <nav class="nav">
+              <a href="javascript:void(0)">个人资料</a>
+              <a href="javascript:void(0)" class="active">安全设置</a>
+            </nav>
+          </x-container-aside>
+          <x-container-main>侧栏换到右侧（区域模板对调）。</x-container-main>
+        </x-container>
+      </div>
+      <div class="dark-box" style="height: 220px">
+        <x-container>
+          <x-container-header>暗色态工作台</x-container-header>
+          <x-container-aside>侧栏</x-container-aside>
+          <x-container-main>暗色兜底变体（ADR-0129）。</x-container-main>
+        </x-container>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.container.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

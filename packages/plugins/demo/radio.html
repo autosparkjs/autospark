@@ -67,41 +67,41 @@
     <div id="app" x-data="{ city: 'sh', plan: 'pro' }">
       <h2>基础用法（同 x-model 路径 = 天然同组，原生互斥）</h2>
       <div class="col">
-        <span x-model="city" x-component:autospark.radio="{ value: 'sh', label: '上海' }"></span>
-        <span x-model="city" x-component:autospark.radio="{ value: 'bj', label: '北京' }"></span>
-        <span x-model="city" x-component:autospark.radio="{ value: 'gz', label: '广州（禁用）', disabled: true }"></span>
+        <x-radio x-model="city" value="sh" label="上海"></x-radio>
+        <x-radio x-model="city" value="bj" label="北京"></x-radio>
+        <x-radio x-model="city" value="gz" label="广州（禁用）" disabled="true"></x-radio>
         <p class="hint">当前值：<code>{{ city }}</code>——三枚同绑 <code>city</code>，name 缺省注入即同名成组。</p>
       </div>
 
       <h2>横排组（flex 配方；space 组件同理）</h2>
       <div class="row">
-        <span x-model="plan" x-component:autospark.radio="{ value: 'free', label: '免费版' }"></span>
-        <span x-model="plan" x-component:autospark.radio="{ value: 'pro', label: '专业版' }"></span>
-        <span x-model="plan" x-component:autospark.radio="{ value: 'enterprise', label: '企业版' }"></span>
+        <x-radio x-model="plan" value="free" label="免费版"></x-radio>
+        <x-radio x-model="plan" value="pro" label="专业版"></x-radio>
+        <x-radio x-model="plan" value="enterprise" label="企业版"></x-radio>
       </div>
       <p class="hint">当前套餐：<code>{{ plan }}</code></p>
 
       <h2>尺寸档位（主题通道 data-size）</h2>
       <div class="row">
-        <span data-size="x-small"><span x-component:autospark.radio="{ value: '1', label: '超小档' }"></span></span>
-        <span data-size="small"><span x-component:autospark.radio="{ value: '2', label: '小档' }"></span></span>
-        <span data-size="medium"><span x-component:autospark.radio="{ value: '3', label: '中档（缺省）' }"></span></span>
-        <span data-size="large"><span x-component:autospark.radio="{ value: '4', label: '大档' }"></span></span>
-        <span data-size="x-large"><span x-component:autospark.radio="{ value: '5', label: '超大档' }"></span></span>
+        <span data-size="x-small"><x-radio value="1" label="超小档"></x-radio></span>
+        <span data-size="small"><x-radio value="2" label="小档"></x-radio></span>
+        <span data-size="medium"><x-radio value="3" label="中档（缺省）"></x-radio></span>
+        <span data-size="large"><x-radio value="4" label="大档"></x-radio></span>
+        <span data-size="x-large"><x-radio value="5" label="超大档"></x-radio></span>
       </div>
 
       <h2>状态色与禁用（status / disabled）</h2>
       <div class="col">
-        <span x-component:autospark.radio="{ value: 'e1', label: '校验未通过', status: 'error' }"></span>
-        <span x-component:autospark.radio="{ value: 'e2', label: '已选中（错误态）', status: 'error', checked: true }"></span>
-        <span x-component:autospark.radio="{ value: 'd1', label: '禁用态', disabled: true }"></span>
+        <x-radio value="e1" label="校验未通过" status="error"></x-radio>
+        <x-radio value="e2" label="已选中（错误态）" status="error" checked="true"></x-radio>
+        <x-radio value="d1" label="禁用态" disabled="true"></x-radio>
       </div>
 
       <h2>暗色态（容器 data-dark）</h2>
       <div class="dark-box" data-dark>
         <div class="col">
-          <span x-model="city" x-component:autospark.radio="{ value: 'sh', label: '暗色·上海' }"></span>
-          <span x-model="city" x-component:autospark.radio="{ value: 'bj', label: '暗色·北京' }"></span>
+          <x-radio x-model="city" value="sh" label="暗色·上海"></x-radio>
+          <x-radio x-model="city" value="bj" label="暗色·北京"></x-radio>
         </div>
       </div>
     </div>

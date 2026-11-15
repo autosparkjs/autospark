@@ -4,6 +4,7 @@
 - 修订（2026-10-17）：**键名 `directive` → `tag`**。原名指向实现机制（注册成指令类）而非用户读写的东西（标签名），语义错位；更名时 ADR 落地仅一天、无发布包袱，故硬替换不留兼容别名，正文已按新名改写。同步更名：`ComponentDef.directiveTag` → `tag`、`extractDirectiveOption` → `extractTagOption`、`installAutoComponentDirective` → `installAutoComponentTag`；guide 文档 `component/directive.md` → `tag.md`、demo `define-directive.html` → `define-tag.html`、测试 `x-define-directive.test.ts` → `x-define-tag.test.ts`；修饰符保留位相应为 `x-define.tag`（V1 仍不提供）。概念正名「元素名组件（Element-name Component）」不变；命名取舍见「被否决的方案」。
 - 修订（2026-10-17，其二）：**缺省关闭 → 缺省开启**。`tag` 缺省值为 `true`——未声明即注册 `x-{组件名}` 自动标签，`false` 成唯一关闭形态；非法值由「warn + 忽略（不注册）」改为「warn + 忽略该值、回落缺省」（与本仓选项回落纪律一致）。继承语义相应修订为「子缺省注册自身自动标签、父自定义标签不扩散」。理由与取舍见决策 1 与「被否决的方案」。
 - 修订（2026-11-03）：**部分决策已被 [ADR-0133](0133-component-tag-normalization.md) 修订**——决策 1 的缺省推导升级为归一化管线（camelCase 拆分 + 无效字符折叠 + `autospark.` 前缀剥离）、无连字符串值改为补 `x-` 前缀；决策 5 的撞名规则重构（不同组件撞同标签改就近遮蔽候选列表、标签撞非组件指令元素名升 error）；「已知边界」的懒预编译时序缺口已由编译期反查关闭；决策 3 的选项属性改按标签基名读取。本文正文保留为当时的决策记录。
+- 修订（2026-11-14）：**决策 3 补「空值布尔属性 coerce」**——HTML 布尔属性惯例（`<input disabled>` 存在即开启）在 DOM 层 attr.value 恒为空串，裸属性与 `=""` 不可区分，静态折叠原样保留空串会使布尔键**静默落空**（空串 falsy → 表现为关，与惯例正好相反）。归一规则：声明侧类型为 boolean 的键（`def.defaults`（ADR-0092）∪ 实例 data 域初始值，任一为 boolean 即是）空串注入为 `true`；非 boolean 键维持 ""（空串 props 通道完整保留）；`"0"` / `"no"` 等其他假值字符串不归一（不引入 HTML 属性枚举语义）。收敛在注入点（`coerceBareBooleanProps`：首注入 `injectComponentSemantics` + 更新流 `_updateProps` 同规则——否则静态字面量空串随表达式重求值整包 assign 打回已归一的 true），三通道（元素名静态折叠 / `x-component-options.props` / 值通道求值产物）统一，含表达式产物空串——注入层无从区分空串来源，boolean 契约的空串本就无意义值（键级来源元数据贯通的取舍见「被否决的方案」）。
 - 关联：承接 [ADR-0084](0084-x-super-slot-fallback.md)（元素名形态指令通道，本决策把该通道从预设指令专属开放给组件声明）；复用 [ADR-0022](0022-x-component.md)（x-component 实例化全量机制）、[ADR-0054](0054-component-define-instantiation-rename.md)（props 值通道）、[ADR-0110](0110-x-component-value-semantics.md)（值语义三分与 props 双源合并）、[ADR-0007](0007-directive-options-and-modifiers.md)（x-define-options 手工解析通道）；继承联动 [ADR-0081](0081-component-define-inherit.md)；注册收口 [ADR-0085](0085-component-registered-event.md)（五条注册路径统一走 `registerComponentDef`）
 
 ## 背景
@@ -50,7 +51,8 @@
 
 - **保留属性**（不折叠，留给宿主化身/既有指令）：`class` / `style` / `id` / `data-*` / `x-*` 前缀、`@event`（事件本就是同元素 OnDirective 承接）、`:class` / `:style` / `:id` / `:data-*`（留走 bind 属性绑定语义——宿主化身的布局/标识属性不应被吃进 props）；
 - `:name="expr"`：表达式条目（binding.watch 响应式），同名**覆盖**静态条目；
-- 其余静态属性：类型推断——纯数字 → number、`true`/`false` → boolean、`{`/`[` 开头 → 宽松 JSON（失败回退原字符串）、否则原样字符串；
+- 其余静态属性：类型推断——纯数字 → number、`true`/`false` → boolean、`{`/`[` 开头 → 宽松 JSON（失败回退原字符串）、否则原样字符串（空串原样保留，归一在注入点）；
+- **空值布尔属性 coerce（2026-11-14 修订）**：声明侧类型为 boolean 的键（`def.defaults`（ADR-0092）∪ 实例 data 域初始值，任一为 boolean 即是——同键两处类型相异属组件作者错误，不设仲裁）收到空串（裸属性 / `=""`，DOM 层同一物）注入为 `true`；非 boolean 键维持 ""（`label=""` 不受害）；`"0"` / `"no"` 等其他假值字符串维持原样。实现收敛在注入点（`bare-boolean.ts` 的 `coerceBareBooleanProps`，首注入与更新流同规则），三通道统一——含值通道表达式产物空串（注入层无从区分来源，取舍见头部修订条目与「被否决的方案」）；
 - 优先级：`:expr` > 静态属性 > `x-{组件名}-options.props`（兼容 `x-component-options` 别名）——由值通道覆盖 options 通道的既有合并序（`{...optionsProps, ...directiveProps}`）天然保证。
 
 ### 决策 4：`this.emit(event, detail)` 组件事件发射
@@ -87,6 +89,8 @@ methods / hooks 的 this（`getMethodThis` Proxy）新增 `emit` 框架键：向
 - **元素名形态绕过 x-component、独立实现实例化管线**：props/loader/插槽/边界/pending 全量机制零复制是硬要求——生成类继承 ComponentDirective 只特化 created 前置注入，机制面单点。
 - **`directive` / `tagName` / `elementName` / `as` / `alias` / `expose` / `inline` / `customElement` 键名**（2026-10-17 更名时评估）：`directive` 是机制词（注册成指令类）而非值义（标签名）；`tagName` 布尔档语义错位（`true` 不是 name）且 DOM `tagName` 返回大写；`elementName` 与指令基类词族一致但用户面冗长、`x-define.element-name` 修饰符不可写；`as` / `alias` / `expose` 别名轴撑不起 `true` 自动推导档（`alias: true` 缺宾语），且把与 `x-component` 平行的实例化通道矮化为昵称；`inline` 命名不了字符串值；`customElement` 与 native customElements 心智冲突（本机制刻意无 Shadow DOM、无升级时序）。`tag` 胜出：值即标签名、布尔档读作「启用标签」自然、与 `open` / `global` 短键同格、修饰符形态最短。
 - **缺省关闭（原决策，2026-10-17 翻转）**：显式声明才启用与 `open` / `global` 缺省关闭同纪律，但标签化是元素名组件的主打消费形态，逐组件写 `{tag: true}` 样板噪音大；撞名风险已由安装三态（幂等 / warn 跳过 / warn 覆盖）兜底，`tag: false` 保留显式出口，故翻转为缺省开启。
+- **表达式键集元数据贯通**（2026-11-14 修订时评估）：若要区分「静态折叠空串」与「表达式求值产物空串」（前者归一、后者原样），须把表达式键集从 fold 层 stash 贯穿 pending / loader 各实例化路径到注入层——侵入面大，且仅服务边缘场景（boolean 键的表达式恰求值为空串；对 boolean 契约而言空串本就无意义值），弃——统一归一。
+- **无差别空值 → true（HTML 惯例直译）**（2026-11-14 修订时评估）：任何空值属性一律 `true` 最简，但 `label=""` 这类合法空串 props 会被静默改写为 `true`，空串 props 通道被破坏，弃——类型驱动（声明侧 boolean 键限定）。
 
 ## 后果
 
@@ -99,6 +103,7 @@ methods / hooks 的 this（`getMethodThis` Proxy）新增 `emit` 框架键：向
 ## 实现注记（非架构决策，落地时遵循）
 
 - `features/component/auto-component.ts`（新增）：`isAutoComponentClass`（静态标记判定）、`isReservedElementAttr`、`inferStaticPropValue`、`foldElementProps`、`readElementComponentOptions`（`x-{名}-options` 打底 + `x-component-options` 别名合并，孤儿属性原始读取——getDirectives 对无主指令的 -options 静默丢弃，须由生成类自行解析）、`createAutoComponentClass`（工厂；让位三态：info.attr/value 在场或同元素显式 `x-component` 声明时不注入不折叠）、`installAutoComponentTag`（撞名规则）。
+- `features/component/bare-boolean.ts`（2026-11-14 修订新增）：`coerceBareBooleanProps`——空值布尔属性归一，`injectComponentSemantics`（首注入）与 `ComponentDirective._updateProps`（更新流）两收口共用；`_appliedProps` 存 coerce 前原始源（与求值产物同基深等比较，防抖不被归一破坏）。
 - `collect.ts`：`extractTagOption`（决策 1 值域校验）→ `buildComponentDef` 返回 `tag`。
 - `inherit.ts`：merged def 补 `tag: childDef.tag`。
 - `engine.ts`：`registerComponentDef` 末尾 `if (def.tag) installAutoComponentTag(...)`。

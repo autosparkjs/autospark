@@ -17,7 +17,7 @@
       <div class="auto-card">
         <div class="auto-card-header">基础：items 数据驱动（默认行四键探测）</div>
         <div class="auto-card-body">
-          <div x-component:autospark.list="{ items: users }"></div>
+          <x-list :items="users"></x-list>
           <p class="hint" style="margin-top: 12px">
             items 须<b>状态引用</b>注入（字面量数组触发 props 更新死环——引擎已知缺陷规避）；
             默认行按 label / title / name / value 依次探测 + 标量直出。
@@ -27,9 +27,9 @@
       <div class="auto-card">
         <div class="auto-card-header">空态（autospark.empty 组合兜底）与 loading 覆盖层</div>
         <div class="auto-card-body">
-          <div x-component:autospark.list="{ items: emptyUsers }"></div>
+          <x-list :items="emptyUsers"></x-list>
           <div style="margin-top: 12px">
-            <div x-component:autospark.list="{ items: users, loading: busy }"></div>
+            <x-list :items="users" :loading="busy"></x-list>
             <p style="margin-top: 8px">
               <button @click="busy = !busy" x-text="busy ? '关闭 loading' : '开启 loading'"></button>
             </p>

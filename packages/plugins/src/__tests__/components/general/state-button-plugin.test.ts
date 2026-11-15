@@ -219,18 +219,23 @@ describe("decorate 装饰渲染（ADR-0016 决策 2）", () => {
         expect(host.className).toContain("asc-d-check");
     });
 
-    test("ripple 占位型：指示 span 注入 body 最前、组标记与佩戴态类分置", async () => {
+    test("ripple 佩戴视觉（2026-11-13 二调）：宿主整体恒开 echo 双环、无占位指示器", async () => {
         const { root } = mount(
             `<button x-component:autospark.state-button="{ label: '涟漪', states: sRipple }"></button>`,
             { sRipple: [{ value: 1, decorate: "ripple" }, { value: 2 }] },
         );
         await nextTick();
+        await nextTick(); // 装饰接管经 data.ripple 单通道（父 syncRipple watch 消费，一跳后挂载）
         const host = root.querySelector("button")!;
-        const body = root.querySelector(".asc-button-body")!;
-        expect(host.className).toContain("asc-p-ripple");
         expect(host.className).toContain("asc-d-ripple"); // 首态佩戴（value 缺省落首态）
-        const check = body.querySelector(":scope > .asc-state-check");
-        expect(check).not.toBeNull(); // mounted 注入的指示器（body 最前）
+        expect(host.querySelector(".asc-state-check")).toBeNull(); // 指示器已废弃（宿主整体承载）
+        const opts = host.getAttribute("x-ripple-options") ?? "";
+        expect(opts).toContain('"always"'); // 恒开
+        expect(opts).toContain('"echo"'); // echo 双环（外扩形态非 inside）
+        expect(opts).toContain('"inside":false');
+        root.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await nextTick();
+        expect((host.getAttribute("x-ripple-options") ?? "")).toContain('"click"'); // 未佩戴态回退注入原配置
     });
 
     test("态视觉键：type 覆盖语义色通道、label 覆盖兜底文案（插槽优先不在此测）", async () => {

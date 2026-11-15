@@ -1,0 +1,143 @@
+<!--
+    化身路径约束（x-component T4=B）：组件快照根的属性是静态并入宿主（class 拼接 /
+    style 合并 / 其他属性复制），根上的动态绑定不会求值——type 语义色绑定（:data-type）
+    落在编译子树的内层 body 上，宿主级语义色（大图标色）经 body 数据属性以 :has() 驱动。
+
+    与 alert 的边界（见 index.ts 文件头）：alert 是页内警示条（行内横条）；本组件是
+    操作终态页（居中纵排：大图标 + 标题 + 描述 + 动作区）。无状态无事件（纯展示）。
+
+    插槽出口：icon 插槽整体换图（缺省按 type 映射内置图标经 x-icon 渲染）；默认插槽
+    为动作区（button 组合配方位，未提供时无占位）。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized 六键，
+     名即通道）自动获得——字号档位经主题通道 data-size 全跟随（图标/标题/间距随档缩放），
+     result 不设自有字号属性；data() 不得声明主题六键，组件内部变体属性亦禁用
+     六个通道名（data-type 为自有变体轴） -->
+<!-- 无内置文案、不接 i18n（ADR-0018 决策 6 约定 1 通道对本件无消费面）：title/description
+     均使用者传入 -->
+<div
+  class="asc-result"
+  x-define="autospark.result"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            type: "info",       // 语义色四档：success | error | warning | info（缺省 info）
+            title: "",         // 标题文案（操作结果主旨，空则不渲染标题行）
+            description: "",    // 描述文案（补充说明，次要文字色，空则不渲染）
+            // computed 简写（普通函数值即计算属性，仅限单表达式）：图标名解析——
+            // type 映射内置图标（success→success / error→error / warning→warn / info→info，
+            // 经 engine 内置 x-icon 渲染；icon 插槽在场时整体换图、本映射不消费）
+            displayIcon: (s) => (s.type === "success" ? "success" : s.type === "error" ? "error" : s.type === "warning" ? "warn" : "info"),
+        }),
+    }
+  </script>
+  <style global id="autospark-components-result">
+    /* 语义色组织（alert 同款定型结构，ADR-0018 决策 6.4）：--asc-tone 中转变量 +
+       body data-type 变体属性经 :has() 反驱宿主——大图标色单源 */
+    .asc-result {
+      --asc-tone: var(--auto-info-color, var(--asc-result-info, #71717a));
+      /* 内距基准：消费 --auto-padding（--auto-spacing 速写族）——容器 data-spacing 档位全局调节生效 */
+      --asc-pad: var(--auto-padding, var(--asc-result-padding, 0.8rem));
+      display: flex; /* 显式块级：元素名写法化身 HTMLUnknownElement 亦满宽 */
+      justify-content: center; /* 终态页居中语义：内容列水平居中（垂直定位由容器承载） */
+      box-sizing: border-box;
+      width: 100%;
+      padding: calc(var(--asc-pad) * 1.5) var(--asc-pad);
+      font-size: var(--auto-font-size, var(--asc-result-font-size, 0.875rem));
+      line-height: var(--auto-line-height, 1.5);
+      color: var(--auto-color, var(--asc-result-color, #606060));
+    }
+    .asc-result:has(> .asc-result-body[data-type="success"]) {
+      --asc-tone: var(--auto-success-color, var(--asc-result-success, #22c55e));
+    }
+    .asc-result:has(> .asc-result-body[data-type="error"]) {
+      --asc-tone: var(--auto-danger-color, var(--asc-result-danger, #ef4444));
+    }
+    .asc-result:has(> .asc-result-body[data-type="warning"]) {
+      --asc-tone: var(--auto-warning-color, var(--asc-result-warning, #f59e0b));
+    }
+
+    /* ---------- body：居中纵排布局载体（编译子树内层，绑定可求值） ---------- */
+    .asc-result-body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 0.6em;
+      max-width: 100%;
+      min-width: 0;
+    }
+    /* 大图标位：终态页视觉锚（4em 大图标，色随 tone）；icon 插槽整体换图同位同尺寸 */
+    .asc-result-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 4em;
+      line-height: 1;
+      color: var(--asc-tone);
+    }
+    /* 标题：操作结果主旨（1.25em + medium 字重） */
+    .asc-result-title {
+      font-size: 1.25em;
+      font-weight: var(--x-font-weight-medium, 500);
+      color: var(--auto-color, var(--asc-result-title-color, #303030));
+    }
+    /* 描述：次要文字色（长文案自动换行） */
+    .asc-result-desc {
+      max-width: 36em;
+      color: var(--auto-secondary-color, var(--asc-result-desc-color, rgba(0, 0, 0, 0.55)));
+      word-break: break-word;
+    }
+    /* 动作区（默认插槽）：横排居中 + 顶部留白；未提供内容时无占位（出口紧凑书写纪律） */
+    .asc-result-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6em;
+      margin-top: 0.6em;
+    }
+    .asc-result-actions:empty {
+      display: none;
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-result,
+    [data-dark] .asc-result {
+      --asc-tone: var(--auto-info-color, var(--asc-result-info, #a1a1aa));
+      color: var(--auto-color, var(--asc-result-color, #fafafa));
+    }
+    [dark] .asc-result:has(> .asc-result-body[data-type="success"]),
+    [data-dark] .asc-result:has(> .asc-result-body[data-type="success"]) {
+      --asc-tone: var(--auto-success-color, var(--asc-result-success, #5cd07c));
+    }
+    [dark] .asc-result:has(> .asc-result-body[data-type="error"]),
+    [data-dark] .asc-result:has(> .asc-result-body[data-type="error"]) {
+      --asc-tone: var(--auto-danger-color, var(--asc-result-danger, #e6696a));
+    }
+    [dark] .asc-result:has(> .asc-result-body[data-type="warning"]),
+    [data-dark] .asc-result:has(> .asc-result-body[data-type="warning"]) {
+      --asc-tone: var(--auto-warning-color, var(--asc-result-warning, #f0a03c));
+    }
+    [dark] .asc-result-title,
+    [data-dark] .asc-result-title {
+      color: var(--auto-color, var(--asc-result-title-color, #fafafa));
+    }
+    [dark] .asc-result-desc,
+    [data-dark] .asc-result-desc {
+      color: var(--auto-secondary-color, var(--asc-result-desc-color, rgba(255, 255, 255, 0.65)));
+    }
+  </style>
+  <!-- type 变体落 body（编译子树内层元素，宿主经 :has() 驱动——见文件头注释） -->
+  <div class="asc-result-body" :data-type="type">
+    <!-- 大图标位：icon 插槽整体换图，缺省按 type 映射内置图标（displayIcon computed） -->
+    <span class="asc-result-icon" x-slot:icon><i class="asc-result-glyph" x-icon="displayIcon"></i></span>
+    <!-- 标题行：空 title 不渲染 -->
+    <div class="asc-result-title" x-if="title">{{ title }}</div>
+    <!-- 描述行：空 description 不渲染 -->
+    <div class="asc-result-desc" x-if="description">{{ description }}</div>
+    <!-- 动作区：默认插槽（button 组合配方位，出口紧凑书写——:empty 隐藏纪律） -->
+    <div class="asc-result-actions" x-slot></div>
+  </div>
+</div>

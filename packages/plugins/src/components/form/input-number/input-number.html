@@ -2,7 +2,7 @@
     autospark.input-number 数字输入框（ADR-0018 决策 7 原生增强）——真实原生 input
     （inputmode=decimal，键盘/IME/自动填充全保留）+ 盒饰包裹 + 步进钮组。复制 input
     结构而非嵌套消费（值桥语域分叉 + 自包含产物，见 index.ts 头注释）；继承
-    autospark.base-field 骨架（状态色/焦点态/disabled 同步/盒饰 chrome，ADR-0020）。
+    autospark.field 骨架（状态色/焦点态/disabled 同步/盒饰 chrome，ADR-0020）。
 
     值桥（x-model 兼容协议）：宿主 el.value 劫持为数字语域（""=空）——
     - 输入过程（原生 input 冒泡，组件 capture 先于 x-model 冒泡监听更新缓存）：
@@ -24,7 +24,7 @@
 <span
   class="asc-input-number asc-field-box"
   x-define="autospark.input-number"
-  x-define:inherit="autospark.base-field"
+  x-define:inherit="autospark.field"
 >
   <script setup>
     {
@@ -217,9 +217,14 @@
             }, 0);
 
             // —— props 变化跟随（回调收 { value } 信封对象，此处只用作触发信号）——
-            // value 单向同步（无 x-model 场景）：变化才写（与劫持 setter 等值短路防回环）
+            // value 单向同步（无 x-model 场景）：变化才写（与劫持 setter 等值短路防回环）。
+            // 已见值比对幂等防御（input 同款）：scope.refresh 类无变化重跑（i18n ready
+            // 换血等）不得把 x-model expando 注入的初值打回 props 缺省 null
+            let lastPropsN = fix(clamp(num(this.data.value)));
             this.watch("value", ({ value: v }) => {
                 const n = fix(clamp(num(v)));
+                if (n === lastPropsN) return;
+                lastPropsN = n;
                 if (n === lastValue) return;
                 lastValue = n;
                 show(n);
@@ -331,7 +336,7 @@
       color: var(--auto-disable-color, var(--asc-input-number-step-disable, rgba(255, 255, 255, 0.25)));
     }
   </style>
-  <!-- 默认段（替换 base-field 出口 fallback）：原生控件 + 步进钮组。钮上 aria-hidden
+  <!-- 默认段（替换 field 出口 fallback）：原生控件 + 步进钮组。钮上 aria-hidden
          （纯视觉件，键盘等价通道 ArrowUp/ArrowDown 在控件上承载） -->
   <input
     class="asc-input-number-native"

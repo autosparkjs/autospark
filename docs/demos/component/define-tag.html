@@ -17,7 +17,9 @@
             - 静态属性即 props：count="100" 类型推断为 number；
             - :step="step" 响应式 props：外部状态 step 变了，组件内随动；
             - @bump 事件监听：组件方法内 this.emit('bump', {...}) 发射，$event.detail 取载荷；
-            - 保留属性（class/style/id/data-*/x-*）不折叠为 props，留给宿主化身。
+            - 保留属性（class/style/id/data-*/x-*）不折叠为 props，留给宿主化身；
+            - 裸布尔属性（ADR-0117 修订）：声明侧 boolean 键（data 初始值 / defaults）裸属性
+              与 ="" 均等价 "true"，对齐 HTML 布尔属性惯例；非 boolean 键空串维持 ""。
         -->
         <div id="app" x-data="{ step: 5, bumpLog: [] }">
             <!-- 组件声明①：缺省开启——无需任何选项，标签自动推导为 <x-counter>（编译后声明从 DOM 消失） -->
@@ -50,6 +52,12 @@
                 <script setup>{ data: { no: 0, title: '（未命名订单）' } }</script>
             </div>
 
+            <!-- 组件声明④：boolean 键组件（data 初始值即裸布尔属性的类型源） -->
+            <div x-define="lamp">
+                <span class="tag" :class="on ? 'is-success is-medium' : 'is-light is-medium'" x-text="on ? '💡 已开启' : '已关闭'"></span>
+                <script setup>{ data: { on: false } }</script>
+            </div>
+
             <!-- A：静态属性即 props（类型推断：count/step 均为 number；class 保留给宿主） -->
             <div class="panel">
                 <div class="label">① 静态属性即 props：<code>&lt;x-counter count="100" step="5"&gt;</code></div>
@@ -80,6 +88,17 @@
                     <code>order.counter</code>（<code>orderCounter</code> / <code>order_counter</code> 同归此标签）
                 </div>
                 <x-order-counter no="7" title="路书订单"></x-order-counter>
+            </div>
+
+            <!-- E：裸布尔属性（ADR-0117 修订）——裸属性 / ="" ≡ "true"；="false" 显式关闭 -->
+            <div class="panel">
+                <div class="label">
+                    ⑤ 裸布尔属性：boolean 声明键 <code>&lt;x-lamp on&gt;</code> ≡ <code>on="true"</code>；
+                    <code>on=""</code> 同权；<code>on="false"</code> 显式关闭（"0"/"no" 等假值字符串不转换）
+                </div>
+                <x-lamp on class="counter-row"></x-lamp>
+                <x-lamp on="" class="counter-row"></x-lamp>
+                <x-lamp on="false" class="counter-row"></x-lamp>
             </div>
         </div>
 

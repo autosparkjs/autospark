@@ -17,16 +17,16 @@
         <div class="auto-card-header">水平分割线（缺省）</div>
         <div class="auto-card-body">
           <p>上文内容：默认水平实线，块级满宽。</p>
-          <div x-component:autospark.divider="{}"></div>
+          <x-divider></x-divider>
           <p>下文内容。</p>
         </div>
       </div>
       <div class="auto-card">
         <div class="auto-card-header">带文字（默认插槽）与位置（align）</div>
         <div class="auto-card-body">
-          <div x-component:autospark.divider="{}">分隔标题（居中缺省）</div>
-          <div x-component:autospark.divider="{ align: 'left' }">左侧标题</div>
-          <div x-component:autospark.divider="{ align: 'right' }">右侧标题</div>
+          <x-divider>分隔标题（居中缺省）</x-divider>
+          <x-divider align="left">左侧标题</x-divider>
+          <x-divider align="right">右侧标题</x-divider>
         </div>
       </div>
     </main>

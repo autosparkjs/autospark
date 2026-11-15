@@ -62,7 +62,7 @@ object-fit 五档，经 `data-fit` 变体属性驱动 CSS 档位块。
 
 ### 主题化
 
-占位底色走 `--auto-third-bgcolor`、转圈/占位图标 `--auto-third-color`、提示行 `--auto-secondary-color`（三级回退链，ADR-0129）；暗色：容器裸挂 `data-dark`。使用者覆盖通道 `--asc-image-*`（如 `--asc-image-bg` 占位底色、`--asc-image-radius` 圆角、`--asc-image-virtual-` 之外的 `--asc-image-spinner-color` 转圈色）。
+占位底色走 `--auto-third-bgcolor`、转圈/占位图标 `--auto-third-color`、提示行 `--auto-secondary-color`（三级回退链，ADR-0129）；暗色：容器裸挂 `data-dark`。使用者覆盖通道 `--asc-image-*`（如 `--asc-image-bg` 占位底色、`--asc-image-radius` 圆角、`--asc-image-spinner-color` 转圈色）。
 
 ## 参考
 

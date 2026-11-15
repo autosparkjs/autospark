@@ -72,40 +72,46 @@
 
       <h2>形态（variant）</h2>
       <div class="row">
-        <button x-component:autospark.button="{ variant: 'primary', label: '主按钮' }"></button>
-        <button x-component:autospark.button="{ variant: 'secondary', label: '次按钮' }"></button>
-        <button x-component:autospark.button="{ variant: 'dashed', label: '虚线按钮' }"></button>
-        <button x-component:autospark.button="{ variant: 'text', label: '文本按钮' }"></button>
-        <button x-component:autospark.button="{ variant: 'link', label: '链接按钮' }"></button>
+        <x-button variant="primary" label="主按钮"></x-button>
+        <x-button variant="secondary" label="次按钮"></x-button>
+        <x-button variant="dashed" label="虚线按钮"></x-button>
+        <x-button variant="text" label="文本按钮"></x-button>
+        <x-button variant="link" label="链接按钮"></x-button>
       </div>
 
       <h2>语义色（type）</h2>
       <div class="row">
-        <button x-component:autospark.button="{ type: 'success', label: '成功' }"></button>
-        <button x-component:autospark.button="{ type: 'warning', label: '警告' }"></button>
-        <button x-component:autospark.button="{ type: 'danger', label: '危险' }"></button>
-        <button x-component:autospark.button="{ type: 'info', label: '信息' }"></button>
-        <button x-component:autospark.button="{ variant: 'dashed', type: 'danger', label: '危险虚线' }"></button>
+        <x-button type="success" label="成功"></x-button>
+        <x-button type="warning" label="警告"></x-button>
+        <x-button type="danger" label="危险"></x-button>
+        <x-button type="info" label="信息"></x-button>
+        <x-button variant="dashed" type="danger" label="危险虚线"></x-button>
       </div>
 
       <h2>幽灵（ghost）</h2>
       <div class="colored-bg">
-        <button x-component:autospark.button="{ ghost: true, label: '幽灵主钮' }"></button>
-        <button x-component:autospark.button="{ variant: 'secondary', ghost: true, label: '幽灵次钮' }"></button>
+        <x-button ghost="true" label="幽灵主钮"></x-button>
+        <x-button variant="secondary" ghost="true" label="幽灵次钮"></x-button>
       </div>
 
       <h2>图标 / 加载 / 禁用 / 纵排 label</h2>
       <div class="row">
-        <button x-component:autospark.button="{ icon: 'menu', label: '图标' }"></button>
-        <button x-component:autospark.button="{ icon: 'menu', label: '加载中', loading: true }"></button>
-        <button x-component:autospark.button="{ label: '禁用', disabled: true }"></button>
-        <button x-component:autospark.button="{ variant: 'secondary', icon: 'star', label: '收藏', labelBelow: true, memo: '按 ⌘ + D' }"></button>
+        <x-button icon="menu" label="图标"></x-button>
+        <x-button icon="menu" label="加载中" loading="true"></x-button>
+        <x-button label="禁用" disabled="true"></x-button>
+        <x-button
+          variant="secondary"
+          icon="star"
+          label="收藏"
+          memo="按 ⌘ + D"
+          x-button-options="{ props: { labelBelow: true } }"
+        ></x-button>
       </div>
 
       <h2>tags 小圆钮与事件</h2>
       <div class="row">
         <span @tag-click="clicks = clicks + 1">
-          <button x-component:autospark.button="{ icon: 'file', label: '文档', tags: btnTags }"></button>
+          <x-button icon="file" label="文档" :tags="btnTags"></x-button>
         </span>
         <span>共点击 tag <b>{{ clicks }}</b> 次</span>
       </div>
@@ -116,7 +122,7 @@
       <h2>可勾选（checkable）</h2>
       <div class="row">
         <span @change="picked = $event.detail.value">
-          <button x-component:autospark.button="{ variant: 'secondary', checkable: true, value: picked, label: '仅看优惠' }"></button>
+          <x-button variant="secondary" checkable="true" label="仅看优惠" :value="picked"></x-button>
         </span>
         <span>picked = <b>{{ picked }}</b></span>
       </div>
@@ -125,10 +131,7 @@
 
     <p><a href="./index.html">← 返回组件列表</a></p>
 
-    <!-- 消费契约（ADR-0003 决策 4）：script 直引是唯一官方消费方式——引擎与插件均经全局
-         命名空间就位；插件先于引擎加载时由闭包外壳推入预加载队列，engine 构造 drain 回放（ADR-0114）。
-         dev 下 /autospark.*.js 由 vite.config.ts 即时闭包化服务（改插件源码刷新即生效），
-         build 后为 dist-demo 装配的正式产物。 -->
+    
     <script src="/autospark.js"></script>
     <script src="/autospark.ripple.js"></script>
     <script src="/autospark.button.js"></script>

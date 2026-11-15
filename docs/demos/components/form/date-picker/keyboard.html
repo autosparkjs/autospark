@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DatePicker · 键盘与状态</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.date-picker.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" style="max-width: 460px">
+      <div class="auto-card">
+        <div class="auto-card-header">键盘漫游（触发器聚焦后）</div>
+        <div class="auto-card-body">
+          <p><x-date-picker x-model="kb"></x-date-picker></p>
+          <p class="hint">
+            <code>←/→/↑/↓</code> 日间漫游（跨月自动翻页）、<code>PageUp/PageDown</code> 切月、<code>Enter</code> 确认选中、<code>ESC</code> 关闭。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">状态色与禁用 / 只读（骨架通道）</div>
+        <div class="auto-card-body">
+          <p><x-date-picker value="2026-11-13" status="error"></x-date-picker></p>
+          <p><x-date-picker value="2026-11-13" disabled="true"></x-date-picker></p>
+          <p><x-date-picker value="2026-11-13" readonly="true"></x-date-picker></p>
+          <p class="hint">禁用不可开面板（CSS 拦截点击）；只读可开面板浏览但日期不可选。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">尺寸档位（主题通道 data-size 挂祖先容器）</div>
+        <div class="auto-card-body">
+          <p><span data-size="small"><x-date-picker value="2026-11-13"></x-date-picker></span></p>
+          <p><span data-size="large"><x-date-picker value="2026-11-13"></x-date-picker></span></p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), { kb: "" });
+    </script>
+  </body>
+</html>

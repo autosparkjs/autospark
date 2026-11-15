@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Select · 可清除 / 过滤 / 加载 / 虚拟化</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.select.js"></script>
+    
+    <script src="/autospark/autospark.virtual.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    
+    <main class="demo-main" style="max-width: 460px">
+      <div class="auto-card">
+        <div class="auto-card-header">clearable 可清除 + 禁用选项 + filterable 本地过滤</div>
+        <div class="auto-card-body">
+          <p><x-select x-model="v1" clearable="true" :options="cities"></x-select></p>
+          <p><x-select x-model="v2" filterable="true" clearable="true" :options="cities"></x-select></p>
+          <p class="hint">清除钮非空显形（点击清空 + input/change 双派发）；过滤框对 label 不区分大小写包含匹配，面板内上下键移动高亮、Enter 确认；「广州」为禁用选项（淡化不可选）。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">loading 加载态</div>
+        <div class="auto-card-body">
+          <p><x-select x-model="v3" :options="cities" :loading="isLoading"></x-select></p>
+          <p class="hint">触发器箭头转旋转图标 + 面板列表 x-loading 遮罩（engine 内置指令）。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">virtual 长列表虚拟化（1000 项只渲染可见窗口）</div>
+        <div class="auto-card-body">
+          <p><x-select x-model="v4" virtual="true" filterable="true" :options="bigList"></x-select></p>
+          <p class="hint">须加载 <code>autospark.virtual.js</code>（渐进增强）；项高自动检测，缺席时引擎 warn + 降级全量渲染。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        v1: "sh",
+        v2: "",
+        v3: "",
+        v4: 7,
+        isLoading: true,
+        cities: [
+          { label: "北京", value: "bj" },
+          { label: "上海", value: "sh" },
+          { label: "广州", value: "gz", disabled: true },
+          { label: "深圳", value: "sz" },
+        ],
+        bigList: Array.from({ length: 1000 }, (_, i) => ({ label: "选项 " + (i + 1), value: i })),
+      });
+    </script>
+  </body>
+</html>

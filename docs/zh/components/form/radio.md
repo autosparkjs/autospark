@@ -6,9 +6,9 @@ Radio 是 AutoSpark 的官方单选钮组件（组件库 P0 form 批，ADR-0019 
 
 **组语义走原生 name 同名互斥，不建组容器组件**：同 `x-model` 路径的多枚实例经引擎缺省 name 注入（`name=路径`）天然同组；或宿主显式写 `name` 属性。组样式编排（纵排 / 横排 / 间距）用 flex 容器或 [Space 间距组件](/zh/components/layout/space) 配方（见下方指南）。受控单选组（按钮形态）由 [ButtonGroup 选中模式](/zh/components/general/button-group) 承接。
 
-组件继承 `autospark.base-field` 表单域骨架（状态色通道 / 焦点态 / disabled 同步，内部基类无文档页），**裸态无盒饰**；视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129），选中圆点经骨架 `--asc-field-tone` 消费（缺省主色，status 在场随动语义色）；**不设自有尺寸属性**——圆环 em 基准随主题通道 `data-size` 挂任意祖先容器全档位跟随（button 同范式 ADR-0012）；暗色态容器裸挂 `data-dark` 即局部切换。无内置文案、不接 i18n（ADR-0018 决策 1）。
+组件继承 `autospark.field` 表单域骨架（状态色通道 / 焦点态 / disabled 同步，内部基类无文档页），**裸态无盒饰**；视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129），选中圆点经骨架 `--asc-field-tone` 消费（缺省主色，status 在场随动语义色）；**不设自有尺寸属性**——圆环 em 基准随主题通道 `data-size` 挂任意祖先容器全档位跟随（button 同范式 ADR-0012）；暗色态容器裸挂 `data-dark` 即局部切换。无内置文案、不接 i18n（ADR-0018 决策 1）。
 
-引入方式：引擎之后加载 `<script src="/autospark/autospark.radio.js"></script>`（自举注册，产物已内嵌 base-field 注册，无须单独引入），或聚合产物 `autospark.plugins.js`。
+引入方式：引擎之后加载 `<script src="/autospark/autospark.radio.js"></script>`（自举注册，产物已内嵌 field 注册，无须单独引入），或聚合产物 `autospark.plugins.js`。
 
 ## 快速入门
 
@@ -18,8 +18,8 @@ Radio 是 AutoSpark 的官方单选钮组件（组件库 P0 form 批，ADR-0019 
 <script src="autospark.js"></script>
 <script src="autospark.radio.js"></script>
 
-<span x-model="form.city" x-component:autospark.radio="{ value: 'sh', label: '上海' }"></span>
-<span x-model="form.city" x-component:autospark.radio="{ value: 'bj', label: '北京' }"></span>
+<x-radio x-model="form.city" value="sh" label="上海"></x-radio>
+<x-radio x-model="form.city" value="bj" label="北京"></x-radio>
 ```
 
 <demo html="components/form/radio/basic.html"/>
@@ -31,7 +31,7 @@ Radio 是 AutoSpark 的官方单选钮组件（组件库 P0 form 批，ADR-0019 
 **类型**: `string` / `string`
 **默认**: `""` / `""`
 
-`value` 是本钮的组内唯一标识：勾选时写 `state = 本钮 value`、外部状态按值匹配勾选（`state === value`）——与 x-model 原生 radio 语义同构。`label` 是钮旁文案（点击**文字或圆环任一处**切换——真实 `<label>` 包裹）。文案走 props 通道（继承形态下消费者子内容经 base-field 出口**整段替换控件区**，属逃生通道，与 Input 同款语义）。
+`value` 是本钮的组内唯一标识：勾选时写 `state = 本钮 value`、外部状态按值匹配勾选（`state === value`）——与 x-model 原生 radio 语义同构。`label` 是钮旁文案（点击**文字或圆环任一处**切换——真实 `<label>` 包裹）。文案走 props 通道（继承形态下消费者子内容经 field 出口**整段替换控件区**，属逃生通道，与 Input 同款语义）。
 
 ### 组语义（原生 name 同名互斥）
 
@@ -44,15 +44,15 @@ Radio 是 AutoSpark 的官方单选钮组件（组件库 P0 form 批，ADR-0019 
 ```html
 <!-- 纵排组：flex 容器配方 -->
 <div style="display: flex; flex-direction: column; gap: 12px">
-  <span x-model="form.city" x-component:autospark.radio="{ value: 'sh', label: '上海' }"></span>
-  <span x-model="form.city" x-component:autospark.radio="{ value: 'bj', label: '北京' }"></span>
+  <x-radio x-model="form.city" value="sh" label="上海"></x-radio>
+  <x-radio x-model="form.city" value="bj" label="北京"></x-radio>
 </div>
 
 <!-- Space 组件配方（间距档位化） -->
-<div x-component:autospark.space="{ direction: 'vertical', size: 'small' }">
-  <span x-model="form.city" x-component:autospark.radio="{ value: 'sh', label: '上海' }"></span>
-  <span x-model="form.city" x-component:autospark.radio="{ value: 'bj', label: '北京' }"></span>
-</div>
+<x-space direction="vertical" size="small">
+  <x-radio x-model="form.city" value="sh" label="上海"></x-radio>
+  <x-radio x-model="form.city" value="bj" label="北京"></x-radio>
+</x-space>
 ```
 
 ### 值通道（x-model 桥）
@@ -73,22 +73,20 @@ Radio 是 AutoSpark 的官方单选钮组件（组件库 P0 form 批，ADR-0019 
 **类型**: `boolean`
 **默认**: `false`
 
-由 base-field 骨架统一同步到内层原生控件（`disabled` / `readOnly` 属性）+ 宿主 `data-disabled` / `data-readonly` 反射（禁用整体淡化 + 禁点光标；选中 tone 保留可辨）。
+由 field 骨架统一同步到内层原生控件（`disabled` / `readOnly` 属性）+ 宿主 `data-disabled` / `data-readonly` 反射（禁用整体淡化 + 禁点光标；选中 tone 保留可辨）。
 
 ### status 状态色（x-field 协作）
 
 **类型**: `"" | "error" | "success" | "warning"`
 **默认**: `""`
 
-表单域状态色通道（base-field 骨架）：状态在场边框与选中圆点染对应语义色，`error` 态内层控件同步 `aria-invalid="true"`。**校验结果来自 x-field**——组件不做校验，经绑定消费指令注入的 `$field.error`：
+表单域状态色通道（field 骨架）：状态在场边框与选中圆点染对应语义色，`error` 态内层控件同步 `aria-invalid="true"`。**校验结果来自 x-field**——组件不做校验，经绑定消费指令注入的 `$field.error`：
 
 ```html
 <form x-form="survey">
   <div x-field="city">
-    <span x-model="survey.city"
-      x-component:autospark.radio="{ value: 'sh', label: '上海', status: $field.error ? 'error' : '' }"></span>
-    <span x-model="survey.city"
-      x-component:autospark.radio="{ value: 'bj', label: '北京', status: $field.error ? 'error' : '' }"></span>
+    <x-radio x-model="survey.city" value="sh" label="上海" :status="$field.error ? 'error' : ''"></x-radio>
+    <x-radio x-model="survey.city" value="bj" label="北京" :status="$field.error ? 'error' : ''"></x-radio>
     <em>{{ $field.error }}</em>
   </div>
 </form>
@@ -117,7 +115,7 @@ Radio 是 AutoSpark 的官方单选钮组件（组件库 P0 form 批，ADR-0019 
 | value | `string` | `""` | 本钮值（组内唯一标识；勾选写 state、按值匹配勾选的锚点） |
 | label | `string` | `""` | 钮旁文案（点击文字/圆环任一处切换） |
 | checked | `boolean` | `false` | 非受控初值 / 单向同步值（受控真相走宿主 x-model） |
-| status | `"" \| error \| success \| warning` | `""` | 状态色通道（base-field 骨架；x-field 校验结果染色入口） |
+| status | `"" \| error \| success \| warning` | `""` | 状态色通道（field 骨架；x-field 校验结果染色入口） |
 | disabled | `boolean` | `false` | 禁用（骨架同步原生控件） |
 | readonly | `boolean` | `false` | 只读（骨架同步原生控件） |
 

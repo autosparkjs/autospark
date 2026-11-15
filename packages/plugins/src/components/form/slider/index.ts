@@ -6,9 +6,9 @@
  * 滑动条（原生增强路线，ADR-0018 决策 7）：真实原生 `<input type=range>` 藏起仍可
  * 交互（opacity:0 覆盖层模式——点击/拖拽/键盘/触屏原生行为全保留），轨道 / 已填充
  * 段 / 滑块视觉自绘（百分比经 CSS 变量 --asc-slider-pos 驱动）。继承
- * autospark.base-field 表单域骨架（状态色通道 / 焦点态 / disabled 同步，裸态无盒饰）
- * ——本产物以副作用导入内嵌 base-field 注册（继承链 slider → base-field →
- * autospark.base，ADR-0020），按需加载场景无须单独引入 autospark.base-field.js。
+ * autospark.field 表单域骨架（状态色通道 / 焦点态 / disabled 同步，裸态无盒饰）
+ * ——本产物以副作用导入内嵌 field 注册（继承链 slider → field →
+ * autospark.base，ADR-0020），按需加载场景无须单独引入 autospark.field.js。
  *
  * 值通道（x-model 兼容协议）：宿主 el.value 劫持为数字语域——原生 input 事件自然
  * 冒泡过宿主被 x-model 直接监听（无须手动派发）；change（松手）capture 归位后阻断
@@ -25,7 +25,7 @@
 import type { AutoSpark } from "autospark";
 import { captureNamespace } from "../../../utils/namespace";
 import { installPlugin } from "@autospark/utils";
-import "../../base/base-field/index";
+import "../../base/field/index";
 import sliderTemplate from "./slider.html?raw";
 
 /** 组件注册名（autospark. 点前缀命名空间，ADR-0094；kebab 免疫 DOM 属性名小写化） */

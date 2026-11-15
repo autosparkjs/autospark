@@ -284,6 +284,44 @@ describe("x-icon 渲染语义（ADR-0058 决策 1/2/11）", () => {
         expect(r2.querySelector(".as-icon")!.style.getPropertyValue("--as-icon-sw")).toBe("2");
     });
 
+    test("选项成员表达式热应用：size/color/padding/strokeWidth 变化即重放静态样式", async () => {
+        const { root, engine } = mount(
+            `${iconsTpl(svg("hot", "M1"))}<span x-icon="hot" x-icon-options:size="size" x-icon-options:color="color" x-icon-options:padding="pad" x-icon-options:stroke-width="sw" x-icon-options:shape="shape"></span>`,
+            { size: 24, color: "red", pad: 2, sw: 1.5, shape: "none" },
+        );
+        const el = root.querySelector(".as-icon") as HTMLElement;
+        expect(el.style.width).toBe("24px");
+        expect(el.style.color).toBe("red");
+        expect(el.style.padding).toBe("2px");
+        expect(el.style.getPropertyValue("--as-icon-sw")).toBe("1.5");
+
+        const state = engine.store.state as any;
+        state.size = 32;
+        state.color = "blue";
+        state.pad = 6;
+        state.sw = 2;
+        await nextTick();
+        expect(el.style.width).toBe("32px");
+        expect(el.style.height).toBe("32px");
+        expect(el.style.color).toBe("blue");
+        expect(el.style.padding).toBe("6px");
+        expect(el.style.getPropertyValue("--as-icon-sw")).toBe("2");
+
+        state.pad = 0; // 归零：0 是合法 CSS 值（0px）
+        state.sw = 1.25; // 回到生效默认：清变量
+        await nextTick();
+        expect(el.style.padding).toBe("0px");
+        expect(el.style.getPropertyValue("--as-icon-sw")).toBe("");
+
+        // shape 成员表达式：启用即包裹底板层，关闭即拆包还原
+        state.shape = "circle";
+        await nextTick();
+        expect((el.parentElement as HTMLElement).classList.contains("as-icon-circle")).toBe(true);
+        state.shape = "none";
+        await nextTick();
+        expect((el.parentElement as HTMLElement).classList.contains("as-icon-circle")).toBe(false);
+    });
+
     test("基础样式表：--as-icon-sw 变量规则 + >svg 撑满规则 + shape/button 修饰规则常驻", () => {
         mount(`${iconsTpl(svg("sheet", "M1"))}<span x-icon="sheet"></span>`, {});
         const sheet = document.getElementById("autospark-icons")!.textContent!;
@@ -853,5 +891,132 @@ describe("图标归一化集成（ADR-0130：网格补偿渲染期换算）", ()
         const { root, engine } = mount('<span x-icon="missing1"></span>', {});
         expect(swVar(root)).toBe("");
         engine.destroy();
+    });
+});
+
+describe("x-icon rotate 旋转选项（设计共识 2026-11-14）", () => {
+    /** 宿主内 svg 载体的内联 transform（空串 = 未启用/已归零） */
+    const tf = (root: HTMLElement): string =>
+        root.querySelector(".as-icon svg")!.style.getPropertyValue("transform");
+    /** 宿主内 svg 载体的内联 transition（rotate 常驻声明） */
+    const tr = (root: HTMLElement): string =>
+        root.querySelector(".as-icon svg")!.style.getPropertyValue("transition");
+
+    beforeEach(() => resetIcons());
+
+    test("入场：number→deg / string 原样透传；transition 常驻（时长令牌可覆盖）", () => {
+        const { root: r1 } = mount(
+            `${iconsTpl(svg("rt1", "M1"))}<span x-icon="rt1" x-icon-options="{rotate:90}"></span>`,
+            {},
+        );
+        expect(tf(r1)).toBe("rotate(90deg)");
+        expect(tr(r1)).toContain("transform");
+        expect(tr(r1)).toContain("var(--as-icon-rotate-duration, 0.3s)");
+        const { root: r2 } = mount(
+            `${iconsTpl(svg("rt2", "M2"))}<span x-icon="rt2" x-icon-options="{rotate:'0.5turn'}"></span>`,
+            {},
+        );
+        expect(tf(r2)).toBe("rotate(0.5turn)");
+        // 纯数字字符串宽容按 deg（表单 / x-model 通道形态——直传 CSS 成无单位角度被丢弃）
+        const { root: r3 } = mount(
+            `${iconsTpl(svg("rt14", "M14"))}<span x-icon="rt14" x-icon-options:rotate="angleStr"></span>`,
+            { angleStr: "120" },
+        );
+        expect(tf(r3)).toBe("rotate(120deg)");
+        const { root: r4, engine } = mount(
+            `${iconsTpl(svg("rt15", "M15"))}<span x-icon="rt15" x-icon-options:rotate="angleStr"></span>`,
+            { angleStr: "-45.5" },
+        );
+        expect(tf(r4)).toBe("rotate(-45.5deg)"); // 含负数与小数的数字字符串
+        engine.destroy();
+    });
+
+    test("未声明 / 0 / 空串零内联（零内联纪律——svg 载体不写任何样式）", () => {
+        const { root: r1 } = mount(`${iconsTpl(svg("rt3", "M3"))}<span x-icon="rt3"></span>`, {});
+        expect(tf(r1)).toBe("");
+        expect(tr(r1)).toBe("");
+        const { root: r2 } = mount(
+            `${iconsTpl(svg("rt4", "M4"))}<span x-icon="rt4" x-icon-options="{rotate:0}"></span>`,
+            {},
+        );
+        expect(tf(r2)).toBe("");
+        expect(tr(r2)).toBe("");
+        const { root: r3 } = mount(
+            `${iconsTpl(svg("rt5", "M5"))}<span x-icon="rt5" x-icon-options="{rotate:''}"></span>`,
+            {},
+        );
+        expect(tf(r3)).toBe("");
+        expect(tr(r3)).toBe("");
+    });
+
+    test("表达式热应用：更新即写新角度；0 归零移除 transform（transition 保留）；再启用从 0° 起步", async () => {
+        const { root, engine } = mount(
+            `${iconsTpl(svg("rt6", "M6"))}<span x-icon="rt6" x-icon-options:rotate="angle"></span>`,
+            { angle: 45 },
+        );
+        expect(tf(root)).toBe("rotate(45deg)");
+        (engine.store.state as any).angle = 180;
+        await nextTick(); // 选项表达式 watch 回调经微任务批处理
+        expect(tf(root)).toBe("rotate(180deg)"); // 从当前角度 transition 续转（终值断言）
+        (engine.store.state as any).angle = 0;
+        await nextTick();
+        expect(tf(root)).toBe(""); // 归零：移除 transform，none 参与插值动画归零
+        expect(tr(root)).not.toBe(""); // transition 常驻不摘
+        (engine.store.state as any).angle = 270;
+        await nextTick();
+        expect(tf(root)).toBe("rotate(270deg)"); // 再启用：0° 起步重新入场
+        engine.destroy();
+    });
+
+    test("无效值 warn 剪枝为未启用（true / NaN / Infinity——不写 transition 不写 transform）", async () => {
+        const { root: r1 } = mount(
+            `${iconsTpl(svg("rt7", "M7"))}<span x-icon="rt7" x-icon-options="{rotate:true}"></span>`,
+            {},
+        );
+        expect(tf(r1)).toBe("");
+        expect(tr(r1)).toBe("");
+        const { root: r2, engine } = mount(
+            `${iconsTpl(svg("rt8", "M8"))}<span x-icon="rt8" x-icon-options:rotate="bad"></span>`,
+            { bad: NaN },
+        );
+        expect(tf(r2)).toBe("");
+        (engine.store.state as any).bad = 90; // 剪枝后状态修复 → 正常启用（剪枝不锁死）
+        await nextTick();
+        expect(tf(r2)).toBe("rotate(90deg)");
+        engine.destroy();
+    });
+
+    test("负数与超 360 合法（绝对姿态语义：-90 逆时针、540 = 1.5 圈）", () => {
+        const { root: r1 } = mount(
+            `${iconsTpl(svg("rt9", "M9"))}<span x-icon="rt9" x-icon-options="{rotate:-90}"></span>`,
+            {},
+        );
+        expect(tf(r1)).toBe("rotate(-90deg)");
+        const { root: r2 } = mount(
+            `${iconsTpl(svg("rt10", "M10"))}<span x-icon="rt10" x-icon-options="{rotate:540}"></span>`,
+            {},
+        );
+        expect(tf(r2)).toBe("rotate(540deg)");
+    });
+
+    test("图标名切换重渲染幂等（角度缓存——不闪变不重入场）", async () => {
+        const { root, engine } = mount(
+            `${iconsTpl(svg("rt11", "M11") + svg("rt12", "M12"))}<span x-icon="iconName" x-icon-options="{rotate:90}"></span>`,
+            { iconName: "rt11" },
+        );
+        expect(tf(root)).toBe("rotate(90deg)");
+        (engine.store.state as any).iconName = "rt12";
+        await nextTick();
+        expect(useHref(root)).toBe("#as-rt12"); // 图标确已切换
+        expect(tf(root)).toBe("rotate(90deg)"); // 角度原值保持（重放经缓存跳过）
+        engine.destroy();
+    });
+
+    test("全局层：icons.options.rotate 初始生效 + 后续变更热应用（广播重放路径）", async () => {
+        iconRegistry.options = { rotate: 45 };
+        const { root } = mount(`${iconsTpl(svg("rt13", "M13"))}<span x-icon="rt13"></span>`, {});
+        expect(tf(root)).toBe("rotate(45deg)");
+        iconRegistry.options = { rotate: 120 };
+        expect(tf(root)).toBe("rotate(120deg)"); // options setter 广播 → 重渲染 → 重放热应用
     });
 });

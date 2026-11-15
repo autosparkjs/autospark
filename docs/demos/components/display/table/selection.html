@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Table · 排序与行选择</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.empty.js"></script>
+    <script src="/autospark/autospark.checkbox.js"></script>
+    <script src="/autospark/autospark.table.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">排序（三态轮转：升 → 降 → 取消）+ 行选择（全选/半选）</div>
+        <div class="auto-card-body">
+          
+          <div
+            @sort-change="lastSort = $event.detail.key + ' / ' + ($event.detail.order || '取消')"
+            @selection-change="picked = $event.detail.keys"
+          >
+            <x-table selectable="true" :columns="cols" :rows="users" :selection="sel"></x-table>
+          </div>
+          <p class="hint" style="margin-top: 12px">
+            最近排序：<code x-text="lastSort || '（未排）'"></code>；
+            已选键：<code x-text="JSON.stringify(picked)"></code>（selection-change detail.keys）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">loading 覆盖层 / 空态（empty 插槽重载）</div>
+        <div class="auto-card-body">
+          <x-table :columns="cols" :rows="users" :loading="busy"></x-table>
+          <p style="margin-top: 8px">
+            <button @click="busy = !busy" x-text="busy ? '关闭 loading' : '开启 loading'"></button>
+          </p>
+          <x-table :columns="cols" :rows="emptyUsers">
+            <template x-slot:empty>
+              <div style="padding: 16px; text-align: center; color: #868e96">一条数据都没有（自定义空态）</div>
+            </template>
+          </x-table>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        cols: [
+          { key: "name", title: "名称", sortable: true },
+          { key: "age", title: "年龄", align: "right", sortable: true },
+          { key: "city", title: "城市" },
+        ],
+        users: [
+          { id: 1, name: "张三", age: 30, city: "北京" },
+          { id: 2, name: "李四", age: 24, city: "上海" },
+          { id: 3, name: "王五", age: 28, city: "广州" },
+          { id: 4, name: "赵六", age: 35, city: "深圳" },
+        ],
+        emptyUsers: [],
+        sel: [2],
+        busy: false,
+        lastSort: "",
+        picked: [2],
+      });
+    </script>
+  </body>
+</html>

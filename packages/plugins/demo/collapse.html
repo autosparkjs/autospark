@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.collapse · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .card {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 12px 0;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.collapse</h1>
+    <p>
+      折叠面板组：面板元信息双形态（items 数据 / &lt;x-collapse-item&gt; 子元素声明）；展开 key 集
+      受控（value 数组 + el.value 桥 + change detail={value}）；accordion 手风琴互斥；
+      expand-icon-position 图标位置；开合自实现 CSS 高度过渡（x-foldable 行内溢出折叠语义不适配）。
+    </p>
+
+    <div id="app" x-data="{ log: '' }">
+      <h2>子元素声明 + 受控 value（@change 一行回写）</h2>
+      <div class="card">
+        <div @change="log = '展开：' + $event.detail.value.join('、')">
+          <x-collapse :value="open">
+            <x-collapse-item key="intro" title="产品介绍">
+              面板内容支持绑定：当前计数 <b>{{ count }}</b>（消费者作用域编译）。
+            </x-collapse-item>
+            <x-collapse-item key="price" title="计费说明">按插件产物独立引入，零打包负担。</x-collapse-item>
+            <x-collapse-item key="faq" title="常见问题" disabled>禁用面板不可展开。</x-collapse-item>
+          </x-collapse>
+        </div>
+        <p class="hint">{{ log || 'value 为展开 key 集（数组受控）；DOM 恒保留——表单态不丢。' }}</p>
+      </div>
+
+      <h2>手风琴互斥（accordion）+ 图标位置 start</h2>
+      <div class="card">
+        <x-collapse accordion>
+          <x-collapse-item key="a" title="第一章">开新面板自动关闭已开面板。</x-collapse-item>
+          <x-collapse-item key="b" title="第二章">内容面板垂直展开（grid 高度过渡）。</x-collapse-item>
+          <x-collapse-item key="c" title="第三章">第三章内容。</x-collapse-item>
+        </x-collapse>
+      </div>
+      <div class="card">
+        <x-collapse expand-icon-position="start">
+          <x-collapse-item key="x" title="图标在左">expandIconPosition: "start"。</x-collapse-item>
+          <x-collapse-item key="y" title="默认在右">end（缺省）。</x-collapse-item>
+        </x-collapse>
+      </div>
+
+      <h2>items 数据形态（content HTML 字符串）+ 暗色态</h2>
+      <div class="card">
+        <x-collapse value="['a']" :items="panels"></x-collapse>
+        <p class="hint">服务端数据直驱；动态增删走数组整体替换（原地变异不发信号）。</p>
+      </div>
+      <div class="dark-box">
+        <x-collapse>
+          <x-collapse-item key="d" title="暗色面板">暗色兜底变体（ADR-0129）。</x-collapse-item>
+          <x-collapse-item key="e" title="另一面板">内容二。</x-collapse-item>
+        </x-collapse>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.collapse.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        open: ["intro"],
+        count: 7,
+        panels: [
+          { key: "a", title: "服务条款", content: "<p>条款内容（x-html 通道）……</p>" },
+          { key: "b", title: "隐私政策", content: "<p>隐私内容……</p>" },
+        ],
+      });
+    </script>
+  </body>
+</html>

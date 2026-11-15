@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.transfer · 组件演示</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 760px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #212529;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin: 12px 0;
+      }
+      code {
+        background: #f1f3f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .hint {
+        color: #868e96;
+        font-size: 0.875rem;
+      }
+      .err {
+        color: #ef4444;
+        font-size: 0.8125rem;
+        margin: 2px 0 0;
+      }
+      .dark-box {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>autospark.transfer</h1>
+    <p>
+      穿梭框（ADR-0028）：双列表（源/目标）+ 中间穿梭钮；复选项组合
+      <code>autospark.checkbox</code>（产物内嵌注册，无须另引）；值通道走 x-model 兼容
+      协议（宿主 <code>x-model</code> 直写，数组语域）+ hidden 载体逗号拼接直提交。
+      头部全选按过滤视图派生半选态；按钮态与选中集联动（有选中才可穿梭）。
+    </p>
+    <p class="hint">示例统一元素名组件写法（ADR-0117）：静态属性直写、绑定走 <code>:属性</code>。</p>
+
+    <div id="app">
+      <h2>基础用法（x-model 双向 + titles）</h2>
+      <div class="col">
+        <x-transfer x-model="picked" :data="cities" :titles="titles"></x-transfer>
+        <p class="hint">目标侧 key：<code>{{ picked.join(', ') || '（空）' }}</code>（data 经状态引用注入）</p>
+      </div>
+
+      <h2>filterable 本地搜索 + 禁用项</h2>
+      <div class="col">
+        <x-transfer :data="cities" :value="v2" :titles="titles" filterable="true"></x-transfer>
+        <p class="hint">「广州」为禁用项（不可选中/穿梭）；过滤词不清选中集（隐藏选中仍可穿梭）。</p>
+      </div>
+
+      <h2>change 事件消费（detail = { value }）</h2>
+      <!-- engine 根元素上 @事件 绑定不生效——监听挂内层包裹元素 -->
+      <div class="col" @change="lastMove = $event.detail.value.join(' → ')">
+        <x-transfer name="cities" :data="cities"></x-transfer>
+        <p class="hint">最近穿梭：<code>{{ lastMove || '（未操作）' }}</code>；name 透传 hidden 载体（逗号拼接直提交）。</p>
+      </div>
+
+      <h2>尺寸档位（主题通道 data-size）与整体禁用</h2>
+      <div class="col">
+        <div data-size="small">
+          <x-transfer :data="cities"></x-transfer>
+        </div>
+        <div data-size="large">
+          <x-transfer :data="cities"></x-transfer>
+        </div>
+        <x-transfer :data="cities" disabled="true"></x-transfer>
+        <p class="hint">档位属性挂任意祖先容器整片生效（em 基准缩放）。</p>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <x-transfer :data="cities" :titles="titles" filterable="true"></x-transfer>
+      </div>
+    </div>
+
+    <p class="err"></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；transfer 无跨产物运行时依赖 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.transfer.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        picked: ["sz", "hz"],
+        v2: [],
+        lastMove: "",
+        titles: ["可选城市", "已选城市"],
+        cities: [
+          { key: "bj", label: "北京" },
+          { key: "sh", label: "上海" },
+          { key: "gz", label: "广州", disabled: true },
+          { key: "sz", label: "深圳" },
+          { key: "hz", label: "杭州" },
+          { key: "cd", label: "成都" },
+        ],
+      });
+    </script>
+  </body>
+</html>

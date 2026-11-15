@@ -1,0 +1,138 @@
+<!--
+    autospark-color-panel 取色面板（ADR-0028）——color-picker 的内部组件（非用户直接
+    消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制（trigger:click）
+    渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位/关闭触点）由 popover-shell 承载，
+    本组件只贡献取色内容：SV 面板（div 双层 CSS 渐变 + thumb 百分比定位）+ H 条（七色谱
+    恒定渐变）+ 预设色板 + hex 输入行。
+
+    与触发器组件（autospark.color-picker）的通信走 scope 链（ADR-0123 决策 2，select
+    面板同款）：overlay 内容宿主恒以「open + dataContext:'host'」实例化本组件，聚合视图
+    沿链读写触发器组件 data 域——
+    - 读：h/s/v（thumb 定位）/ hueColor（SV 底色，内联绑定）/ liveHex（hex 输入与色板
+      回显，:value 绑定——归一后写回输入框）/ presets / disabled；
+    - 写·直写键：拖拽连续写 h/s/v（连续值每步互异，无同值去重面——AutoStore 同值写入
+      不通知 watcher，离散交互才需要哨兵）；
+    - 写·哨兵键：pickTick/pickValue（预设点击）、applyTick/applyHex（hex 输入应用）、
+      commitTick（拖拽结束提交——提交恒在 pointerup）；
+    - 开合态：mounted/unmounted 沿链写 open。
+
+    拖拽交互（真浏览器重点验证面）：pointerdown 在面板元素上 setPointerCapture（缺席
+    环境降级为元素直挂监听——直派事件仍达）+ pointermove 连续写编辑值 + pointerup 写
+    commitTick 提交。SVG 规避（ADR-0021 后果 1）：零 SVG 节点，thumb/渐变全 CSS。
+
+    hex 输入：简式校验（#rgb/#rrggbb/无 # 前缀），非法回显当前色不应用；合法沿链写
+    applyTick/applyHex（触发器侧完整归一）。
+-->
+<div class="asc-color-panel" x-define="autospark-color-panel">
+  <script setup>
+    {
+        // 本组件零 props（overlay 宿主以空值实例化）、零自有状态——全部数据经 scope 链
+        // 读写触发器组件域；data() 空对象占位以建立自有 data 层（聚合视图的链上桥点）
+        data: () => ({}),
+        methods: {
+            // 拖拽会话接线：捕获指针（缺席降级）+ move 连续写 + up 提交（写哨兵沿链）
+            //   target 面板元素 / apply(ev) 写入函数 / done 提交哨兵键名
+            bindDrag(e, selector, apply, doneKey) {
+                const el = e.target instanceof Element ? e.target.closest(selector) : null;
+                if (!el) return;
+                e.preventDefault();
+                const move = (ev) => { apply(ev, el); };
+                const up = () => {
+                    el.removeEventListener("pointermove", move);
+                    el.removeEventListener("pointerup", up);
+                    el.removeEventListener("pointercancel", up);
+                    this.data[doneKey] = Number(this.data[doneKey] || 0) + 1;
+                };
+                el.setPointerCapture?.(e.pointerId);
+                el.addEventListener("pointermove", move);
+                el.addEventListener("pointerup", up);
+                el.addEventListener("pointercancel", up);
+                apply(e, el); // 按下即吸附到当前点位
+            },
+            // SV 面板按下：横向 → s（0-1 左起）、纵向 → v（1 顶 → 0 底）
+            onSvDown(e) {
+                if (this.data.disabled) return;
+                this.bindDrag(e, ".asc-color-sv", (ev, el) => {
+                    const rect = el.getBoundingClientRect();
+                    const x = rect.width > 0 ? (ev.clientX - rect.left) / rect.width : 0;
+                    const y = rect.height > 0 ? (ev.clientY - rect.top) / rect.height : 0;
+                    this.data.s = Math.min(1, Math.max(0, x));
+                    this.data.v = 1 - Math.min(1, Math.max(0, y));
+                }, "commitTick");
+            },
+            // H 条按下：横向 → h（0-360 左起）
+            onHueDown(e) {
+                if (this.data.disabled) return;
+                this.bindDrag(e, ".asc-color-hue", (ev, el) => {
+                    const rect = el.getBoundingClientRect();
+                    const x = rect.width > 0 ? (ev.clientX - rect.left) / rect.width : 0;
+                    this.data.h = Math.min(1, Math.max(0, x)) * 360;
+                }, "commitTick");
+            },
+            // 预设色点击：哨兵沿链写回（不关面板——连续试色语义，ADR-0028 决策 7）
+            onPresetClick(color) {
+                if (this.data.disabled) return;
+                this.data.pickTick = Number(this.data.pickTick || 0) + 1;
+                this.data.pickValue = color;
+            },
+            // hex 输入应用（原生 change = Enter/blur）：简式校验，非法回显当前色不应用
+            onHexChange(e) {
+                if (this.data.disabled) return;
+                const input = e.target instanceof Element ? e.target : null;
+                const t = String(input?.value ?? "").trim();
+                const raw = t.replace(/^#/, "");
+                const ok = /^[0-9a-fA-F]{3}$/.test(raw) || /^[0-9a-fA-F]{6}$/.test(raw);
+                if (!ok) {
+                    if (input) input.value = this.data.liveHex;
+                    return;
+                }
+                this.data.applyTick = Number(this.data.applyTick || 0) + 1;
+                this.data.applyHex = t;
+            },
+        },
+        mounted() {
+            // 开合态沿链写回（触发器侧 watch open 派生 aria-expanded）
+            this.data.open = true;
+        },
+        unmounted() {
+            // 面板每次开合都是新实例（popover 无 keepalive，关闭即销毁）——关闭即复位开合态
+            this.data.open = false;
+        },
+    }
+  </script>
+  <!-- SV 面板：底色 hueColor 内联绑定 + 双层渐变（白→透明横 / 透明→黑纵）经样式表叠加；
+         thumb 百分比定位（s 横 / 1-v 纵，绑定通道读链上编辑值） -->
+  <div class="asc-color-sv" :style="'background-color:' + hueColor" @pointerdown="onSvDown($event)">
+    <span
+      class="asc-color-sv-thumb"
+      :style="'left:' + (s * 100) + '%;top:' + ((1 - v) * 100) + '%'"
+    ></span>
+  </div>
+  <!-- H 条：七色谱恒定渐变（样式表）；thumb 百分比定位（h/360） -->
+  <div class="asc-color-hue" @pointerdown="onHueDown($event)">
+    <span class="asc-color-hue-thumb" :style="'left:' + (h / 360 * 100) + '%'"></span>
+  </div>
+  <!-- 预设色板（presets 在场）：色值直出（背景内联绑定）；当前色 data-active 高亮 -->
+  <div class="asc-color-presets" x-if="presets && presets.length > 0">
+    <template x-for="color of presets" :key="color">
+      <button
+        type="button"
+        class="asc-color-preset"
+        :style="'background-color:' + color"
+        :data-active="String(color).toLowerCase() === liveHex"
+        @click="onPresetClick(color)"
+      ></button>
+    </template>
+  </div>
+  <!-- hex 输入行：当前色块回显 + 输入框（:value 绑定归一回写；@change = Enter/blur 应用） -->
+  <div class="asc-color-hexrow">
+    <span class="asc-color-hex-swatch" :style="'background-color:' + liveHex"></span>
+    <input
+      class="asc-color-hex-input"
+      type="text"
+      spellcheck="false"
+      :value="liveHex"
+      @change="onHexChange($event)"
+    />
+  </div>
+</div>

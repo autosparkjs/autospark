@@ -1,7 +1,7 @@
 /**
  * slider 组件插件测试（组件库 P1 form 批轻件，ADR-0018 决策 7 原生增强）：
- * - 注册面：slider 模板入全局组件表（副作用导入内嵌 base-field 注册，继承链
- *   slider → base-field → autospark.base）+ 原生 range 覆盖层形态；
+ * - 注册面：slider 模板入全局组件表（副作用导入内嵌 field 注册，继承链
+ *   slider → field → autospark.base）+ 原生 range 覆盖层形态；
  * - 化身渲染：骨架 class 拼接（裸态无盒饰）、原生 range（data-autospark-control +
  *   min/max/step 属性同步）、自绘轨道/滑块结构；
  * - 值桥（x-model 兼容协议，数字语域）：初始注入（expando 快照）、DOM→state
@@ -10,14 +10,14 @@
  * - change 归位：clamp 防御 + 阻断重派发 detail={value}；
  * - showInput 联动（可选实现）：内嵌 autospark.input-number 双向同步（slider→输入框
  *   写值、输入框输入→slider 取值）；
- * - BaseField 骨架通道：disabled 同步 range（原生阻断）+ 宿主反射。
+ * - Field 骨架通道：disabled 同步 range（原生阻断）+ 宿主反射。
  */
 import "../../setup";
 import { describe, expect, test } from "bun:test";
 import { AutoSpark } from "autospark";
 import { mount, nextTick } from "../../helpers";
 import { SLIDER_NAME, bootstrapSliderPlugin } from "../../../components/form/slider/index";
-import { BASE_FIELD_NAME } from "../../../components/base/base-field/index";
+import { FIELD_NAME } from "../../../components/base/field/index";
 import "../../../components/form/input-number/index"; // showInput 联动组件（跨产物组合，测试内注册）
 
 /** 取全局表模板（空白归一——oxfmt 折行使逐字匹配假红） */
@@ -39,12 +39,12 @@ const numHostOf = (root: HTMLElement) =>
   root.querySelector(".asc-input-number") as HTMLElement | null;
 
 describe("注册面（ADR-0018 / ADR-0020）", () => {
-  test("模块加载即注册：slider 以副作用导入内嵌 base-field，双模板均入全局组件表", () => {
+  test("模块加载即注册：slider 以副作用导入内嵌 field，双模板均入全局组件表", () => {
     const table = (AutoSpark as { components: Record<string, string> }).components;
     expect(typeof table[SLIDER_NAME]).toBe("string");
-    expect(typeof table[BASE_FIELD_NAME]).toBe("string");
+    expect(typeof table[FIELD_NAME]).toBe("string");
     expect(tpl(SLIDER_NAME)).toContain(`x-define="${SLIDER_NAME}"`);
-    expect(tpl(SLIDER_NAME)).toContain('x-define:inherit="autospark.base-field"');
+    expect(tpl(SLIDER_NAME)).toContain('x-define:inherit="autospark.field"');
     expect(tpl(SLIDER_NAME)).toContain('type="range"'); // 原生真身（覆盖层模式）
     expect(tpl(SLIDER_NAME)).not.toContain('class="asc-field-box"'); // 裸态无盒饰
   });
@@ -245,7 +245,7 @@ describe("showInput 联动（可选实现，跨产物组合）", () => {
   });
 });
 
-describe("BaseField 骨架通道（经 slider 实例化消费，ADR-0020）", () => {
+describe("Field 骨架通道（经 slider 实例化消费，ADR-0020）", () => {
   test("disabled：同步原生 range（原生阻断）+ 宿主 data-disabled；readonly 反射", async () => {
     const { root } = mount(
       `<span x-component:autospark.slider="{ disabled: true }"></span>`,

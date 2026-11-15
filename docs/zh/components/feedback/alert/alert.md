@@ -18,8 +18,8 @@ Alert 是 AutoSpark 的官方页内警示条组件（组件库 P0 轻件 / **fee
 <script src="autospark.js"></script>
 <script src="autospark.alert.js"></script>
 
-<div x-component:autospark.alert="{ title: '警告', description: '注意：当前配置将在发布后生效。', type: 'warning' }"></div>
-<div x-component:autospark.alert="{}">仅描述（默认插槽）</div>
+<x-alert title="警告" description="注意：当前配置将在发布后生效。" type="warning"></x-alert>
+<x-alert>仅描述（默认插槽）</x-alert>
 ```
 
 <demo html="components/feedback/alert/basic.html"/>

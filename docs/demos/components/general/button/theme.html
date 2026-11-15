@@ -77,7 +77,7 @@
             <div class="auto-card-body">
                 <div class="tier-row">
                     <!-- 指令形态：值 = props 表达式（消费方上下文响应式求值）——响应式主题档位的正解 -->
-                    <button x-component:autospark.button="{ 'data-spacing': dense ? 'x-small' : 'large', label: dense ? '当前：紧凑' : '当前：宽松' }"></button>
+                    <x-button :data-spacing="dense ? 'x-small' : 'large'" :label="dense ? '当前：紧凑' : '当前：宽松'"></x-button>
                     <span @click="dense = !dense">
                         <x-button type="primary" :label="dense ? '切回宽松' : '切到紧凑'"></x-button>
                     </span>

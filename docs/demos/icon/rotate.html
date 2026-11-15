@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · rotate（旋转）</title>
+        <script src="/autospark/autospark.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .icons-demo {
+                font-size: 24px;
+                line-height: 2.2;
+            }
+            .icons-demo input[type="range"] {
+                vertical-align: middle;
+                width: 220px;
+            }
+            /* 时长令牌覆盖：主题侧经 --as-icon-rotate-duration 调整动画时长（无选项键） */
+            .icons-demo .slow {
+                --as-icon-rotate-duration: 1s;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-app section icons-demo">
+            <!-- 响应式续转：成员属性通道（x-icon-options:rotate="angle"），滑杆拖动即从当前角度动画到新角度 -->
+            <p>
+                <strong>实时角度</strong>
+                <span x-icon="arrow-right" x-icon-options="{size:32}" x-icon-options:rotate="angle"></span>
+                <input type="range" min="0" max="360" step="5" x-model.number="angle" />
+                <code>{{ angle }}°</code>
+            </p>
+
+            <!-- 预设角：绝对姿态语义——350 → 10 反转 340°，想再顺转 20° 显式写 370 -->
+            <p>
+                <strong>预设</strong>
+                <button class="button is-small" @click="angle=90">90°</button>
+                <button class="button is-small" @click="angle=180">180°</button>
+                <button class="button is-small" @click="angle=350">350°</button>
+                <button class="button is-small" @click="angle=370">370°（+20 续转）</button>
+                <button class="button is-small" @click="angle=0">归零（动画复位）</button>
+            </p>
+
+            <!-- 静态双栖：number 按 deg / string 原样透传 CSS 单位 -->
+            <p>
+                <strong>静态</strong>
+                <code>{rotate:90}</code>：<span x-icon="arrow-right" x-icon-options="{rotate:90}"></span>
+                　<code>{rotate:-45}</code>：<span x-icon="arrow-right" x-icon-options="{rotate:-45}"></span>
+                　<code>{rotate:'0.5turn'}</code>：<span x-icon="arrow-right" x-icon-options="{rotate:'0.5turn'}"></span>
+            </p>
+
+            <!-- 令牌覆盖：--as-icon-rotate-duration 调慢动画（对照默认 0.3s） -->
+            <p class="slow">
+                <strong>时长令牌</strong>
+                <code>--as-icon-rotate-duration: 1s</code>：
+                <span x-icon="arrow-right" x-icon-options:rotate="angle"></span>
+                　（同 angle 联动，动画放慢）
+            </p>
+
+            <p class="help is-size-6">
+                rotate 是绝对姿态语义（值即最终角度，无最短路径换算）；0 / 空值 / 未声明不启用（更新到 0
+                动画归零）；应用点为 svg 载体，与 button / shape 动效互不干扰。
+            </p>
+        </div>
+
+        <script>
+            const { iconRegistry } = AutoSparkSpaces;
+            // 注册 demo 图标（箭头——旋转方向直观可见）
+            iconRegistry.add(
+                "arrow-right",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>',
+            );
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), { angle: 0 });
+        </script>
+    </body>
+</html>

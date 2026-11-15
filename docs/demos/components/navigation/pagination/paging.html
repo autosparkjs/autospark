@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pagination · x-for.paging 配方</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.pagination.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .pager-list {
+        margin: 0 0 12px;
+        padding: 0;
+        list-style: none;
+      }
+      .pager-list li {
+        padding: 6px 10px;
+        border-radius: 6px;
+      }
+      .pager-list li:nth-child(odd) {
+        background: rgba(0, 0, 0, 0.04);
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">客户端分页：:data-paging 状态对象打通（一条状态链）</div>
+        <div class="auto-card-body">
+          <!-- x-for.paging 切片渲染 + :data-paging 双向绑定同一个状态对象；
+               pagination 的 change 一行回写 paging.page 即完成翻页联动 -->
+          <ul class="pager-list" x-for.paging="item of goods" :data-paging="paging" x-for-options="{pageSize:5}">
+            <li>{{ $index + 1 }}. {{ item.name }}（¥{{ item.price }}）</li>
+          </ul>
+          <div @change="paging.page = $event.detail.page">
+            <!-- 保留值形态：pageSize 受控双向（paging.pageSize 双写）+ pageSizes 状态引用——动态 camelCase 键在元素名形态无 :绑定通道 -->
+            <div x-component:autospark.pagination="{ total: 37, pageSize: paging.pageSize, page: paging.page, pageSizes: sizes }"></div>
+          </div>
+          <p class="hint">
+            <code>x-for.paging</code> 引擎内置（数据层切片），分页器组件只消费/回写
+            <code>paging.page</code>；切条数时组件回写 page=1，pageSize 同步到 x-for（:data-paging 可写字段）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        paging: { page: 1, pageSize: 5 },
+        sizes: [5, 10, 20],
+        goods: Array.from({ length: 37 }, (_, i) => ({
+          name: "商品 " + String(i + 1).padStart(2, "0"),
+          price: (i + 1) * 8,
+        })),
+      });
+    </script>
+  </body>
+</html>

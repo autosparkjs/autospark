@@ -1,5 +1,5 @@
 <!--
-    autospark.switch 开关（ADR-0019 合批 / ADR-0020 BaseField 消费契约）——**自绘开关**
+    autospark.switch 开关（ADR-0019 合批 / ADR-0020 Field 消费契约）——**自绘开关**
     （无原生对应控件）：轨道 + 滑块纯 CSS 自绘，可访问性自持——role="switch" +
     aria-checked + tabindex + 键盘 Space/Enter 切换（原生 checkbox 方案的对照：彼保真
     原生语义、此自持语义，ADR-0018 决策 7 表单基座策略内的例外形态）。
@@ -22,7 +22,7 @@
 <span
   class="asc-switch"
   x-define="autospark.switch"
-  x-define:inherit="autospark.base-field"
+  x-define:inherit="autospark.field"
 >
   <script setup>
     {
@@ -153,7 +153,7 @@
       height: calc(var(--asc-switch-h) - 0.375em);
       border-radius: 50%;
       background: var(--asc-switch-thumb, #ffffff);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      box-shadow: var(--asc-switch-thumb-shadow, 0 1px 2px rgba(0, 0, 0, 0.25));
       transform: translateX(0);
       transition: transform 0.2s ease;
       box-sizing: border-box;
@@ -224,9 +224,9 @@
       background: var(--asc-switch-thumb, #ffffff);
     }
   </style>
-  <!-- 默认段（替换 base-field 出口 fallback）：表单载体（hidden，骨架 disabled 同步目标）+
+  <!-- 默认段（替换 field 出口 fallback）：表单载体（hidden，骨架 disabled 同步目标）+
          轨道交互件（role=switch 可聚焦）+ 文案。开态/loading 视觉由宿主 data-* 属性驱动。
-         注意：嵌套 x-slot 出口在继承形态下被忽略（ADR-0056）——消费者内容经 base-field
+         注意：嵌套 x-slot 出口在继承形态下被忽略（ADR-0056）——消费者内容经 field
          出口整段替换控件区（逃生通道，input 同款语义），文案走 props 兜底不开真插槽 -->
   <span class="asc-switch-wrap">
     <input type="hidden" class="asc-switch-carrier" data-autospark-control />

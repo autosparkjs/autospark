@@ -116,6 +116,56 @@ describe("title → data-tooltip 编译期转换（ADR-0061 决策 4/5）", () =
     });
 });
 
+describe("title 转换的组件宿主豁免（P1：title 吞噬温床根治）", () => {
+    const CARD = `<div x-define="card" class="card-root"><div class="card-title">{{ title }}</div></div>`;
+
+    test("元素名组件宿主：<x-card title> 不转换，title 正常折叠进 props", async () => {
+        const { root } = mountTip(
+            `<div id="app"><x-card id="c" title="卡片标题">X</x-card></div>`,
+            {},
+            { components: { card: CARD } },
+        );
+        await nextTick();
+        const host = root.querySelector("#c")!;
+        // title 是 props 注入通道（ADR-0117 静态属性折叠）：折叠后按设计从宿主剥除
+        //（props 不泄漏 DOM），data-tooltip 不在场 = 未被转换吞值（旧缺陷：data-tooltip
+        // 在场且组件模板读不到 title——data-* 属保留属性不折叠）
+        expect(host.hasAttribute("title")).toBe(false);
+        expect(host.hasAttribute("data-tooltip")).toBe(false);
+        // props 注入生效：组件模板读到 title
+        expect(root.querySelector(".card-title")!.textContent).toContain("卡片标题");
+    });
+
+    test("x-component 属性形态宿主：title 不转换（两种实例化形态双态一致）", async () => {
+        const { root } = mountTip(
+            `<div id="app"><div id="host" x-component:card title="属性形态标题">X</div></div>`,
+            {},
+            { components: { card: CARD } },
+        );
+        await nextTick();
+        const host = root.querySelector("#host")!;
+        expect(root.querySelector(".card-root")).toBeTruthy(); // 实例化确已发生
+        expect(host.getAttribute("title")).toBe("属性形态标题");
+        expect(host.hasAttribute("data-tooltip")).toBe(false);
+    });
+
+    test("边界对照：同树普通元素 title 照常转换（ADR-0061 正路不变）", async () => {
+        const { root } = mountTip(
+            `<div id="app"><button id="plain" title="普通提示">B</button><x-card id="c" title="卡片标题">X</x-card></div>`,
+            {},
+            { components: { card: CARD } },
+        );
+        await nextTick();
+        // 普通元素：title → data-tooltip 原有行为完全不变
+        expect(root.querySelector("#plain")!.hasAttribute("title")).toBe(false);
+        expect(root.querySelector("#plain")!.getAttribute("data-tooltip")).toBe("普通提示");
+        // 组件宿主：豁免（title 折叠进 props 后从宿主剥除，无 data-tooltip 残留）
+        expect(root.querySelector("#c")!.hasAttribute("title")).toBe(false);
+        expect(root.querySelector("#c")!.hasAttribute("data-tooltip")).toBe(false);
+        expect(root.querySelector(".card-title")!.textContent).toContain("卡片标题");
+    });
+});
+
 describe("委托监听与单例浮层（决策 10/11）", () => {
     test("悬停显示：容器懒创建 + 内容渲染 + placement 默认 top 写回", async () => {
         const { root } = mountTip(

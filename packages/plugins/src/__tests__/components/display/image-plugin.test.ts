@@ -12,6 +12,10 @@ import { AutoSpark } from "autospark";
 import { mount, nextTick } from "../../helpers";
 import { IMAGE_NAME, bootstrapImagePlugin } from "../../../components/display/image/index";
 
+/** x-show 隐藏不摘 DOM（display:none 内联）——可见性断言走 display 通道（家族惯例） */
+const isHidden = (el: Element | null): boolean => !!el && (el as HTMLElement).style.display === "none";
+const isVisible = (el: Element | null): boolean => !!el && (el as HTMLElement).style.display !== "none";
+
 describe("image 组件插件（ADR-0018 P1 display）", () => {
     test("模块加载即注册：插件全局组件表含 autospark.image 模板字符串", () => {
         const template = (AutoSpark as { components: Record<string, string> }).components[IMAGE_NAME];
@@ -32,8 +36,8 @@ describe("image 组件插件（ADR-0018 P1 display）", () => {
         expect(img).toBeTruthy();
         expect(img.getAttribute("src")).toBe("a.png");
         expect(img.getAttribute("alt")).toBe("风景");
-        expect(inner.querySelector(".asc-image-spinner")).toBeTruthy(); // 未完成即加载态
-        expect(inner.querySelector(".asc-image-fallback")).toBeNull(); // 未失败无占位
+        expect(isVisible(inner.querySelector(".asc-image-spinner"))).toBe(true); // 未完成即加载态
+        expect(isHidden(inner.querySelector(".asc-image-fallback"))).toBe(true); // 未失败占位隐藏
     });
 
     test("@load 摘加载态：loaded 置位转圈移除（主图留存）", async () => {
@@ -44,8 +48,8 @@ describe("image 组件插件（ADR-0018 P1 display）", () => {
         await nextTick();
         (root.querySelector(".asc-image-img") as HTMLElement).dispatchEvent(new Event("load"));
         await nextTick();
-        expect(root.querySelector(".asc-image-img")).toBeTruthy();
-        expect(root.querySelector(".asc-image-spinner")).toBeNull(); // 完成摘圈
+        expect(isVisible(root.querySelector(".asc-image-img"))).toBe(true);
+        expect(isHidden(root.querySelector(".asc-image-spinner"))).toBe(true); // 完成摘圈
     });
 
     test("@error 切 fallback：默认内置图标 + alt 提示行（主图与转圈让位）", async () => {
@@ -56,12 +60,12 @@ describe("image 组件插件（ADR-0018 P1 display）", () => {
         await nextTick();
         (root.querySelector(".asc-image-img") as HTMLElement).dispatchEvent(new Event("error"));
         await nextTick();
-        expect(root.querySelector(".asc-image-img")).toBeNull();
-        expect(root.querySelector(".asc-image-spinner")).toBeNull();
+        expect(isHidden(root.querySelector(".asc-image-img"))).toBe(true);
+        expect(isHidden(root.querySelector(".asc-image-spinner"))).toBe(true);
         const fb = root.querySelector(".asc-image-fallback")!;
-        expect(fb).toBeTruthy();
-        expect(fb.querySelector(".asc-image-fallback-icon")).toBeTruthy(); // 缺省 file-error 图标
-        expect(fb.querySelector(".asc-image-fallback-img")).toBeNull();
+        expect(isVisible(fb)).toBe(true);
+        expect(isVisible(fb.querySelector(".asc-image-fallback-icon"))).toBe(true); // 缺省 file-error 图标
+        expect(isHidden(fb.querySelector(".asc-image-fallback-img"))).toBe(true);
         expect(fb.querySelector(".asc-image-fallback-text")!.textContent).toBe("图片加载失败");
     });
 
@@ -74,17 +78,17 @@ describe("image 组件插件（ADR-0018 P1 display）", () => {
         (root.querySelector(".asc-image-img") as HTMLElement).dispatchEvent(new Event("error"));
         await nextTick();
         const fbImg = root.querySelector(".asc-image-fallback-img")!;
-        expect(fbImg).toBeTruthy();
+        expect(isVisible(fbImg)).toBe(true);
         expect(fbImg.getAttribute("src")).toBe("/placeholders/broken.png");
-        expect(root.querySelector(".asc-image-fallback-icon")).toBeNull();
+        expect(isHidden(root.querySelector(".asc-image-fallback-icon"))).toBe(true);
     });
 
     test("src 缺席：主图与加载态不渲染，结构占位（fallback 区在场）", async () => {
         const { root } = mount(`<div x-component:autospark.image="{}"></div>`, {});
         await nextTick();
-        expect(root.querySelector(".asc-image-img")).toBeNull();
-        expect(root.querySelector(".asc-image-spinner")).toBeNull();
-        expect(root.querySelector(".asc-image-fallback")).toBeTruthy();
+        expect(isHidden(root.querySelector(".asc-image-img"))).toBe(true);
+        expect(isHidden(root.querySelector(".asc-image-spinner"))).toBe(true);
+        expect(isVisible(root.querySelector(".asc-image-fallback"))).toBe(true);
     });
 
     test("src 变化重置三态：换地址重试（failed/loaded 清零，加载态回归）", async () => {
@@ -95,12 +99,12 @@ describe("image 组件插件（ADR-0018 P1 display）", () => {
         await nextTick();
         (root.querySelector(".asc-image-img") as HTMLElement).dispatchEvent(new Event("error"));
         await nextTick();
-        expect(root.querySelector(".asc-image-fallback")).toBeTruthy();
+        expect(isVisible(root.querySelector(".asc-image-fallback"))).toBe(true);
         engine.store.state.pic = "good.png"; // 外部状态驱动 src 变化
         await nextTick();
         expect(root.querySelector(".asc-image-img")!.getAttribute("src")).toBe("good.png");
-        expect(root.querySelector(".asc-image-fallback")).toBeNull(); // failed 重置
-        expect(root.querySelector(".asc-image-spinner")).toBeTruthy(); // loaded 重置 → 加载态回归
+        expect(isHidden(root.querySelector(".asc-image-fallback"))).toBe(true); // failed 重置
+        expect(isVisible(root.querySelector(".asc-image-spinner"))).toBe(true); // loaded 重置 → 加载态回归
     });
 
     test("透传通道：lazy 原生 loading / width·height 原生属性 / fit 五档 data-fit", async () => {

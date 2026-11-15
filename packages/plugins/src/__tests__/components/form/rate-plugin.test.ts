@@ -1,7 +1,7 @@
 /**
  * rate 组件插件测试（组件库 P1 form 批轻件，ADR-0018 自绘路线）：
- * - 注册面：rate 模板入全局组件表（副作用导入内嵌 base-field 注册，继承链
- *   rate → base-field → autospark.base）+ 自绘可访问性面（role=slider 单焦点
+ * - 注册面：rate 模板入全局组件表（副作用导入内嵌 field 注册，继承链
+ *   rate → field → autospark.base）+ 自绘可访问性面（role=slider 单焦点
  *   键盘模型）+ hidden 表单载体；
  * - 化身渲染：星形 ×N（max 可配，x-for 渲染引擎内置 star 图标）、点亮层 fill
  *   同步（整星/半星）、aria 语义随动；
@@ -10,14 +10,14 @@
  *   disabled/readonly 阻断；
  * - 值桥（x-model 兼容协议，数字语域）：初始注入（expando 快照）、DOM→state、
  *   state→DOM（劫持 setter）、value props 单向同步；
- * - BaseField 骨架通道：disabled 载体出表、status aria-invalid、name 透传。
+ * - Field 骨架通道：disabled 载体出表、status aria-invalid、name 透传。
  */
 import "../../setup";
 import { describe, expect, test } from "bun:test";
 import { AutoSpark } from "autospark";
 import { mount, nextTick } from "../../helpers";
 import { RATE_NAME, bootstrapRatePlugin } from "../../../components/form/rate/index";
-import { BASE_FIELD_NAME } from "../../../components/base/base-field/index";
+import { FIELD_NAME } from "../../../components/base/field/index";
 
 /** 取全局表模板（空白归一——oxfmt 折行使逐字匹配假红） */
 const tpl = (name: string) =>
@@ -42,12 +42,12 @@ const fillOf = (root: HTMLElement, i: number) =>
   itemsOf(root)[i - 1]?.style.getPropertyValue("--asc-rate-fill") ?? "";
 
 describe("注册面（ADR-0018 / ADR-0020）", () => {
-  test("模块加载即注册：rate 以副作用导入内嵌 base-field，双模板均入全局组件表", () => {
+  test("模块加载即注册：rate 以副作用导入内嵌 field，双模板均入全局组件表", () => {
     const table = (AutoSpark as { components: Record<string, string> }).components;
     expect(typeof table[RATE_NAME]).toBe("string");
-    expect(typeof table[BASE_FIELD_NAME]).toBe("string");
+    expect(typeof table[FIELD_NAME]).toBe("string");
     expect(tpl(RATE_NAME)).toContain(`x-define="${RATE_NAME}"`);
-    expect(tpl(RATE_NAME)).toContain('x-define:inherit="autospark.base-field"');
+    expect(tpl(RATE_NAME)).toContain('x-define:inherit="autospark.field"');
     expect(tpl(RATE_NAME)).toContain('role="slider"'); // 自绘控件可访问性自持
     expect(tpl(RATE_NAME)).toContain('type="hidden"'); // 表单载体（自绘控件代理）
     expect(tpl(RATE_NAME)).toContain('x-icon="\'star\'"'); // 引擎内置星形图标
@@ -286,7 +286,7 @@ describe("值桥（x-model 兼容协议，数字语域）", () => {
   });
 });
 
-describe("BaseField 骨架通道（经 rate 实例化消费，ADR-0020）", () => {
+describe("Field 骨架通道（经 rate 实例化消费，ADR-0020）", () => {
   test("disabled：载体随禁用出表（原生表单语义）+ 宿主 data-disabled", async () => {
     const { root } = mount(`<span x-component:autospark.rate="{ disabled: true }"></span>`, {});
     await nextTick();

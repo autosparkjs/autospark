@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Autocomplete · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <!-- 建议面板复用 x-popover 指令机制——按需加载场景须同时引入 overlay 产物 -->
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.autocomplete.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <!-- 状态经构造器全局状态注入（x-model 绑定值走全局路径；suggestions 同为状态引用） -->
+    <main class="demo-main" style="max-width: 460px">
+      <div class="auto-card">
+        <div class="auto-card-header">最小用法：元素名形态 + :suggestions 状态引用 + x-model 双向</div>
+        <div class="auto-card-body">
+          <p>
+            <x-autocomplete x-model="city" :suggestions="cities" clearable></x-autocomplete>
+          </p>
+          <p class="hint">当前值：<code>{{ city || '（空）' }}</code> —— 聚焦展开全量，输入即包含过滤；键盘上下选 / Enter 确认 / ESC 关。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">对象建议源（label 呈现 / value 落值）与 select 事件</div>
+        <div class="auto-card-body">
+          <!-- engine 根元素上 @事件 绑定不生效——消费监听挂内层包裹元素 -->
+          <div @select="picked = $event.detail.value">
+            <x-autocomplete :suggestions="fruits" placeholder="挑个水果"></x-autocomplete>
+          </div>
+          <p class="hint">最近选中：<code>{{ picked || '（未操作）' }}</code> —— select 仅在选中建议时触发（detail = { value }），change 同形。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        city: "",
+        picked: "",
+        cities: ["北京", "上海", "广州", "深圳", "杭州", "成都", "武汉", "西安"],
+        fruits: [
+          { value: "apple", label: "苹果 Apple" },
+          { value: "banana", label: "香蕉 Banana" },
+          { value: "cherry", label: "樱桃 Cherry" },
+        ],
+      });
+    </script>
+  </body>
+</html>

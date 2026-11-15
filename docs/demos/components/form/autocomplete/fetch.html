@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Autocomplete · 异步建议</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <!-- 建议面板复用 x-popover 指令机制——按需加载场景须同时引入 overlay 产物 -->
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.autocomplete.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" style="max-width: 460px">
+      <div class="auto-card">
+        <div class="auto-card-header">fetch = action 名（防抖 200ms + 在途 loading + 过期回包丢弃）</div>
+        <div class="auto-card-body">
+          <p>
+            <x-autocomplete x-model="lang" fetch="searchLang" debounce="200" clearable></x-autocomplete>
+          </p>
+          <p class="hint">
+            连续输入防抖合流为最终词单次请求；在途显示 loading 指示；期间又有新输入时旧回包静默丢弃。
+            action 经构造器 <code>options.actions</code> 注册（三入口之一，见文档）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">状态色与禁用（status / disabled / readonly，骨架通道）</div>
+        <div class="auto-card-body">
+          <p><x-autocomplete :suggestions="cities" value="bj" status="error"></x-autocomplete></p>
+          <p><x-autocomplete :suggestions="cities" value="bj" disabled></x-autocomplete></p>
+          <p><x-autocomplete :suggestions="cities" value="bj" readonly></x-autocomplete></p>
+        </div>
+      </div>
+    </main>
+    <script>
+      const LANGS = [
+        "TypeScript", "JavaScript", "Java", "Python", "Golang",
+        "Rust", "Kotlin", "Swift", "Dart", "Ruby",
+      ];
+      new AutoSpark(
+        document.querySelector(".demo-main"),
+        {
+          lang: "",
+          cities: ["北京", "上海", "广州", "深圳"],
+        },
+        {
+          // fetch 通道 = action 名（ADR-0027 决策 3）：状态树函数见函数即求值，
+          // 函数引用不可达——action 是引擎既有的函数外置通道
+          actions: {
+            searchLang(query) {
+              return new Promise((resolve) => {
+                setTimeout(() => {
+                  const kw = String(query ?? "").toLowerCase();
+                  resolve(LANGS.filter((s) => s.toLowerCase().includes(kw)));
+                }, 300); // 模拟网络延迟
+              });
+            },
+          },
+        },
+      );
+    </script>
+  </body>
+</html>

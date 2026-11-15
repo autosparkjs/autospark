@@ -16,23 +16,45 @@
       <div class="auto-card">
         <div class="auto-card-header">clearable（值非空时显形，点击清空 + 焦点回控件）</div>
         <div class="auto-card-body">
-          <p><span x-model="kw" x-component:autospark.input="{ placeholder: '输入后出现清除钮', clearable: true }"></span></p>
+          <p><x-input x-model="kw" placeholder="输入后出现清除钮" clearable="true"></x-input></p>
           <p class="hint">清除经 input 事件冒泡驱动 x-model 回写（当前值：{{ kw || '（空）' }}）。</p>
         </div>
       </div>
       <div class="auto-card">
         <div class="auto-card-header">prefix / suffix（string 文本 | { icon } 图标）</div>
         <div class="auto-card-body">
-          <p><span x-component:autospark.input="{ prefix: '¥', suffix: 'RMB', placeholder: '文本前后置' }"></span></p>
-          <p><span x-component:autospark.input="{ prefix: iconConf, placeholder: '图标前置' }"></span></p>
+          <p><x-input prefix="¥" suffix="RMB" placeholder="文本前后置"></x-input></p>
+          <p><x-input placeholder="图标前置" :prefix="iconConf"></x-input></p>
           <p class="hint">图标对象 props 经状态引用注入（<code>iconConf</code>），避免值对象内字面量对象的引擎缺陷。</p>
         </div>
       </div>
       <div class="auto-card">
         <div class="auto-card-header">maxlength + showCount（超限染红）</div>
         <div class="auto-card-body">
-          <p><span x-component:autospark.input="{ maxlength: 20, showCount: true, placeholder: '最多 20 字' }"></span></p>
+          <p><x-input maxlength="20" placeholder="最多 20 字" x-input-options="{ props: { showCount: true } }"></x-input></p>
           <p class="hint">maxlength 同步原生属性（浏览器原生截断），计数器显示「len / max」。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">装饰插槽（重装饰层，与 props 轻装饰共存）</div>
+        <div class="auto-card-body">
+          <p>
+            <span x-component:autospark.input="{ prefix: 'props前', clearable: true }">
+              <template x-slot:prefix><span>[插槽前]</span></template>
+              <template x-slot:suffix
+                ><button
+                  type="button"
+                  data-autospark-action
+                  style="border: none; background: none; cursor: pointer; font: inherit; color: inherit; padding: 0"
+                >
+                  搜索
+                </button></template
+              >
+            </span>
+          </p>
+          <p class="hint">
+            呈现序恒为 <code>[插槽前] [props前缀] 控件 [清除] [插槽后]</code>——插槽（任意 HTML）恒在 props 轻装饰外侧；插槽内交互件标 <code>data-autospark-action</code> 自理焦点（详见 <a href="/zh/components/form/field">Field</a>）。
+          </p>
         </div>
       </div>
     </main>

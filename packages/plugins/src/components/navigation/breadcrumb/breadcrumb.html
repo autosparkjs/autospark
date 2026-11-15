@@ -130,14 +130,15 @@
       color: var(--auto-third-color, var(--asc-breadcrumb-sep, rgba(255, 255, 255, 0.45)));
     }
   </style>
-  <!-- 绑定全在 x-for 克隆体内部（载体 li 自身绑定不被编译，ownsChildren——:key 例外）。
-         克隆体内条件显隐一律 x-show（不用 x-if）：共享快照多实例 + items 晚注入下
-         x-if 延迟编译会挂错 scope 链（P0 固化规避清单第 4 条，button-group 同款纪律）——
-         href 在场 → 真 a 链接，缺席 → 纯文本当前项（互补双分支）；末项恒 aria-current
-         （$index 判位）；分隔符双形态（arrow 图标 / 文本字符），末项经 :last-child 隐藏；
-         icon 空值时 x-icon 渲染默认图标（x-show 隐藏不可见） -->
-  <ol class="asc-breadcrumb-list">
-    <li class="asc-breadcrumb-item" x-for="item of items" :key="item.label">
+  <!-- x-for 容器宿主形态（engine 惯用语义）：ol 为容器（不克隆），其子 li 才是逐项
+         克隆模板（:key 在容器上）；克隆体内条件显隐一律 x-show（不用 x-if）：共享快照
+         多实例 + items 晚注入下 x-if 延迟编译会挂错 scope 链（P0 固化规避清单第 4 条，
+         button-group 同款纪律）——href 在场 → 真 a 链接，缺席 → 纯文本当前项（互补双
+         分支）；末项恒 aria-current（$index 判位）；分隔符双形态（arrow 图标 / 文本
+         字符），末项经 :last-child 隐藏；icon 空值时 x-icon 渲染默认图标（x-show 隐藏
+         不可见） -->
+  <ol class="asc-breadcrumb-list" x-for="item of items" :key="item.label">
+    <li class="asc-breadcrumb-item">
       <a class="asc-breadcrumb-link" x-show="item.href" :href="item.href" :aria-current="$index === items.length - 1 ? 'page' : null">
         <i class="asc-breadcrumb-icon" x-show="item.icon" x-icon="item.icon"></i>
         <span class="asc-breadcrumb-label">{{ item.label }}</span>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Timeline · 模式与节点变体</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.timeline.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">mode 标签侧：alternate 交错 / right 右侧（left 见基础页）</div>
+        <div class="auto-card-body">
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+            <x-timeline mode="alternate" :items="steps"></x-timeline>
+            <x-timeline mode="right" :items="steps"></x-timeline>
+          </div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">自定义节点（icon 经 x-icon）+ 空心节点</div>
+        <div class="auto-card-body">
+          <x-timeline :items="iconSteps"></x-timeline>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">暗色态（容器裸挂 data-dark）</div>
+        <div class="auto-card-body" data-dark>
+          <x-timeline :items="steps"></x-timeline>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        steps: [
+          { content: "需求评审", time: "周一 09:30", type: "primary" },
+          { content: "开发完成，提交测试", time: "周三 18:00", type: "success" },
+          { content: "回归发现缺陷 2 个", time: "周四 14:20", type: "warning" },
+          { content: "修复验证通过", time: "周四 17:45", type: "success" },
+          { content: "发布上线", time: "周五 10:00" },
+        ],
+        iconSteps: [
+          { content: "创建仓库", icon: "add", type: "primary" },
+          { content: "持续集成通过", icon: "check", type: "success" },
+          { content: "里程碑达成（空心）", type: "success", hollow: true },
+          { content: "归档发布", icon: "file" },
+        ],
+      });
+    </script>
+  </body>
+</html>

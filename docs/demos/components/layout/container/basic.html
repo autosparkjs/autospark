@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Container · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.container.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .layout-stage {
+        height: 360px;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+      }
+      .demo-nav a {
+        display: block;
+        padding: 6px 10px;
+        border-radius: 6px;
+        color: inherit;
+        text-decoration: none;
+      }
+      .demo-nav a:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+      .demo-nav a.active {
+        background: rgba(0, 154, 255, 0.12);
+        color: #009aff;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">四区版式（子元素声明：header / aside / main / footer）</div>
+        <div class="auto-card-body">
+          <div class="layout-stage">
+            <x-container>
+              <x-container-header>工作台 · 订单管理</x-container-header>
+              <x-container-aside>
+                <nav class="demo-nav">
+                  <a href="javascript:void(0)" class="active">全部订单</a>
+                  <a href="javascript:void(0)">待付款</a>
+                  <a href="javascript:void(0)">已发货</a>
+                  <a href="javascript:void(0)">已完成</a>
+                </nav>
+              </x-container-aside>
+              <x-container-main>
+                主区（默认插槽）：滚动收敛在本区，高度由容器壳的四区 grid 分配。
+              </x-container-main>
+              <x-container-footer>共 37 条 · 第 1 页</x-container-footer>
+            </x-container>
+          </div>
+          <p class="hint">
+            容器壳满父高（外层给定高度）；未提供的区段自动退场（grid 轨道塌缩）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card" data-dark>
+        <div class="auto-card-header">侧栏位置 end（aside-position）+ 暗色态</div>
+        <div class="auto-card-body">
+          <div class="layout-stage" style="height: 260px">
+            <x-container aside-position="end">
+              <x-container-header>设置中心</x-container-header>
+              <x-container-aside>
+                <nav class="demo-nav">
+                  <a href="javascript:void(0)">个人资料</a>
+                  <a href="javascript:void(0)" class="active">安全设置</a>
+                </nav>
+              </x-container-aside>
+              <x-container-main>侧栏换到右侧（asidePosition: "end"，区域模板对调）。</x-container-main>
+            </x-container>
+          </div>
+          <p class="hint">
+            边界消歧：本组件是四区版式结构壳；<code>&lt;div x-container&gt;</code>（属性形态）是
+            响应式断点容器指令；x-layout 指令是 grid 窗格布局——三者可叠用。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Transfer · 过滤与状态</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.transfer.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" style="max-width: 620px">
+      <div class="auto-card">
+        <div class="auto-card-header">filterable 本地搜索（每侧独立过滤框 + 禁用项）</div>
+        <div class="auto-card-body">
+          <x-transfer :data="cities" :titles="titles" filterable="true"></x-transfer>
+          <p class="hint">
+            「广州」为禁用项（不可选中/穿梭）；过滤词按 label 包含匹配；<b>过滤不清选中集</b>——被过滤隐藏的选中仍可穿梭；底部计数恒全量「N / M 项」。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">整体禁用与暗色态</div>
+        <div class="auto-card-body">
+          <x-transfer :data="cities" disabled="true"></x-transfer>
+          <div data-dark style="margin-top: 12px; padding: 12px; border-radius: 8px; background: #1a1a1a">
+            <x-transfer :data="cities" :titles="titles" filterable="true"></x-transfer>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        titles: ["可选", "已选"],
+        cities: [
+          { key: "bj", label: "北京" },
+          { key: "sh", label: "上海" },
+          { key: "gz", label: "广州", disabled: true },
+          { key: "sz", label: "深圳" },
+          { key: "hz", label: "杭州" },
+        ],
+      });
+    </script>
+  </body>
+</html>

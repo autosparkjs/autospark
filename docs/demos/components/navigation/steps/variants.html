@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Steps · 状态与排向</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.steps.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .col {
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .col > div {
+        flex: 1 1 260px;
+        min-width: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">status：process（缺省）/ error 当前步异常 / finish 收尾</div>
+        <div class="auto-card-body">
+          <div class="col">
+            <x-steps current="1" :items="flow"></x-steps>
+            <x-steps current="1" status="error" :items="flow"></x-steps>
+            <x-steps current="2" status="finish" :items="flow"></x-steps>
+          </div>
+          <p class="hint">
+            status 描述<b>当前步</b>状态：process 进行中（实底序号）/ error 异常（danger 叉号 +
+            标题染色）/ finish 已完成（当前步也打勾，全流程收尾）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">direction 纵排 + icon 自定义图标</div>
+        <div class="auto-card-body">
+          <div class="col">
+            <x-steps current="1" direction="vertical" :items="flow2"></x-steps>
+            <x-steps current="1" :items="flow3"></x-steps>
+          </div>
+          <p class="hint">
+            vertical 纵排（连接线转为步下竖线）；item.icon 在场时未完成步渲染自定义图标
+            （先行步恒打勾——完成语义优先）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">暗色态（容器 data-dark）</div>
+        <div class="auto-card-body">
+          <div class="col" data-dark style="padding: 12px; border-radius: 8px; background: #1a1a1a">
+            <x-steps current="1" :items="flow"></x-steps>
+            <x-steps current="1" status="error" direction="vertical" :items="flow"></x-steps>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        flow: [
+          { title: "填写信息", description: "准备基础资料" },
+          { title: "验证身份", description: "短信或邮箱验证" },
+          { title: "完成" },
+        ],
+        flow2: [
+          { title: "下单", description: "选择商品与数量" },
+          { title: "支付", description: "选择支付方式" },
+          { title: "发货" },
+        ],
+        flow3: [
+          { title: "提交", icon: "file" },
+          { title: "审核", icon: "bell" },
+          { title: "发布", icon: "success" },
+        ],
+      });
+    </script>
+  </body>
+</html>

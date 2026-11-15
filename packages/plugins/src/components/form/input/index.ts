@@ -4,10 +4,10 @@
  * 立即生效，同名后注册覆盖先注册。
  *
  * 输入框（原生增强路线，ADR-0018 决策 7）：真实原生 input / textarea 控件 + 骨架
- * 样式包裹，不自绘输入面。继承 autospark.base-field 表单域骨架（状态色/焦点态/
- * disabled 同步/盒饰 chrome）——本产物以副作用导入内嵌 base-field 注册（继承链
- * input → base-field → autospark.base，ADR-0020），按需加载场景无须单独引入
- * autospark.base-field.js。
+ * 样式包裹，不自绘输入面。继承 autospark.field 表单域骨架（状态色/焦点态/
+ * disabled 同步/盒饰 chrome）——本产物以副作用导入内嵌 field 注册（继承链
+ * input → field → autospark.base，ADR-0020），按需加载场景无须单独引入
+ * autospark.field.js。
  *
  * 值通道 = x-model 兼容协议（宿主 el.value 劫持 ↔ 内层原生控件，ADR-0020）；表单
  * 提交 = 原生直提交（宿主 name 透传到原生控件）。无内置文案、不接 i18n
@@ -28,7 +28,7 @@ import { installPlugin } from "@autospark/utils";
 import { kebabToCamel } from "../../../utils/kebabToCamel";
 import { propKey } from "../../../utils/propKey";
 import { inferPropValue } from "../../../utils/inferPropValue";
-import "../../base/base-field/index";
+import "../../base/field/index";
 import inputTemplate from "./input.html?raw";
 
 /** 组件注册名（autospark. 点前缀命名空间，ADR-0094；kebab 免疫 DOM 属性名小写化） */

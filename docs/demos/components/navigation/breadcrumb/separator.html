@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Breadcrumb · 分隔符</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.breadcrumb.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">分隔符（separator）：arrow 图标 / 任意文本字符（缺省 "/"）</div>
+        <div class="auto-card-body">
+          <p><x-breadcrumb :items="crumbs"></x-breadcrumb></p>
+          <p><x-breadcrumb separator="arrow" :items="crumbs"></x-breadcrumb></p>
+          <p><x-breadcrumb separator="·" :items="crumbs"></x-breadcrumb></p>
+          <p><x-breadcrumb separator=">" :items="crumbs"></x-breadcrumb></p>
+          <p class="hint">"arrow" 渲染 x-icon 内置箭头；其他任意字符串原样文本渲染；末项分隔符恒隐藏。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">项级图标（icon）</div>
+        <div class="auto-card-body">
+          <p><x-breadcrumb :items="favCrumbs"></x-breadcrumb></p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        crumbs: [
+          { label: "首页", href: "/" },
+          { label: "组件库", href: "/zh/components/" },
+          { label: "Breadcrumb" },
+        ],
+        favCrumbs: [
+          { label: "首页", href: "/", icon: "folder" },
+          { label: "收藏夹", href: "/", icon: "star" },
+          { label: "当前项" },
+        ],
+      });
+    </script>
+  </body>
+</html>

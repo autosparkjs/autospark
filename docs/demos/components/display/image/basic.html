@@ -16,7 +16,7 @@
       <div class="auto-card">
         <div class="auto-card-header">基础：加载态转圈 → 加载完成摘圈</div>
         <div class="auto-card-body">
-          <div x-component:autospark.image="{ src: pic, alt: '山野风景' }"></div>
+          <x-image alt="山野风景" :src="pic"></x-image>
           <p class="hint" style="margin-top: 12px">
             加载完成前居中转圈（内置 loading 图标 SMIL 自转）；fit / width / height 见
             <code>fit="cover"</code> 与原生属性透传。
@@ -27,8 +27,8 @@
         <div class="auto-card-header">fit 五档（object-fit 通道）</div>
         <div class="auto-card-body">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
-            <div x-component:autospark.image="{ src: pic, fit: 'cover', height: 160 }"></div>
-            <div x-component:autospark.image="{ src: pic, fit: 'contain', height: 160 }"></div>
+            <x-image fit="cover" height="160" :src="pic"></x-image>
+            <x-image fit="contain" height="160" :src="pic"></x-image>
           </div>
         </div>
       </div>

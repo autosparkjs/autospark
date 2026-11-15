@@ -16,11 +16,11 @@
       <div class="auto-card">
         <div class="auto-card-header">status 状态色（error / warning / success）与禁用/只读</div>
         <div class="auto-card-body">
-          <p><span x-component:autospark.input="{ status: 'error', value: '校验未通过' }"></span></p>
-          <p><span x-component:autospark.input="{ status: 'warning', value: '长度偏短' }"></span></p>
-          <p><span x-component:autospark.input="{ status: 'success', value: '格式正确' }"></span></p>
-          <p><span x-component:autospark.input="{ value: '禁用态', disabled: true }"></span></p>
-          <p><span x-component:autospark.input="{ value: '只读态', readonly: true }"></span></p>
+          <p><x-input status="error" value="校验未通过"></x-input></p>
+          <p><x-input status="warning" value="长度偏短"></x-input></p>
+          <p><x-input status="success" value="格式正确"></x-input></p>
+          <p><x-input value="禁用态" disabled="true"></x-input></p>
+          <p><x-input value="只读态" readonly="true"></x-input></p>
           <p class="hint">状态色染边框与焦点环（error 态控件同步 aria-invalid）；label/校验文案不归组件管。</p>
         </div>
       </div>
@@ -30,7 +30,7 @@
           <form x-form="login" style="display: flex; flex-direction: column; gap: 4px">
             <div x-field="username">
               <label style="font-size: 0.875rem">{{ $field.label }}</label>
-              <span x-model="login.username" x-component:autospark.input="{ placeholder: '3-12 字符', status: $field.error ? 'error' : '' }"></span>
+              <x-input x-model="login.username" placeholder="3-12 字符" :status="$field.error ? 'error' : ''"></x-input>
               <em style="color: #ef4444; font-size: 0.8125rem; font-style: normal; min-height: 1.2em">{{ $field.error }}</em>
             </div>
           </form>
@@ -40,8 +40,8 @@
       <div class="auto-card">
         <div class="auto-card-header">暗色态（容器 data-dark）</div>
         <div class="auto-card-body" data-dark style="background: #1a1a1a; border-radius: 8px; padding: 12px">
-          <p><span x-component:autospark.input="{ placeholder: '暗色输入', clearable: true, value: '内容' }"></span></p>
-          <p><span x-component:autospark.input="{ status: 'error', value: '暗色错误态' }"></span></p>
+          <p><x-input placeholder="暗色输入" clearable="true" value="内容"></x-input></p>
+          <p><x-input status="error" value="暗色错误态"></x-input></p>
         </div>
       </div>
     </main>

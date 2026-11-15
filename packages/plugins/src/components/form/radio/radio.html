@@ -1,5 +1,5 @@
 <!--
-    autospark.radio 单选钮（ADR-0019 合批 / ADR-0020 BaseField 消费契约）——原生增强
+    autospark.radio 单选钮（ADR-0019 合批 / ADR-0020 Field 消费契约）——原生增强
     路线：真实原生 `<input type="radio">` + 自绘视觉（选中圆点经 CSS 伪元素，选中态由
     :checked 原生伪类驱动——键盘 / 焦点 / 表单提交 / 组互斥等原生能力全保留）。
 
@@ -22,7 +22,7 @@
 <span
   class="asc-radio"
   x-define="autospark.radio"
-  x-define:inherit="autospark.base-field"
+  x-define:inherit="autospark.field"
 >
   <script setup>
     {
@@ -205,9 +205,9 @@
       border-color: var(--auto-hover-border-color, var(--asc-radio-hover-border, #4098fc));
     }
   </style>
-  <!-- 默认段（替换 base-field 出口 fallback）：label 包裹的真实 radio + 自绘圆环 + 文案。
+  <!-- 默认段（替换 field 出口 fallback）：label 包裹的真实 radio + 自绘圆环 + 文案。
          选中圆点视觉由原生伪类 :checked 经 :has() 驱动（真实浏览器支持）。
-         注意：嵌套 x-slot 出口在继承形态下被忽略（ADR-0056）——消费者内容经 base-field
+         注意：嵌套 x-slot 出口在继承形态下被忽略（ADR-0056）——消费者内容经 field
          出口整段替换控件区（逃生通道，input 同款语义），文案走 props 兜底不开真插槽 -->
   <label class="asc-radio-wrap">
     <span class="asc-radio-box">

@@ -121,6 +121,67 @@ describe("x-for.virtual 虚拟列表", () => {
         });
     });
 
+    describe("窗口行序（P0 回归：倒置修复）", () => {
+        /** 解析容器内项行的数据索引序（x-text 写入 item-N 文本；排除垫片） */
+        function rowIndexes(container: Element): number[] {
+            return getItemChildren(container).map((el) =>
+                Number((el.textContent ?? "").trim().replace("item-", "")),
+            );
+        }
+
+        /** 行序不变量：严格 +1 递增（= 数据序，无逆序、无跳号） */
+        function expectAscending(idx: number[]): void {
+            for (let i = 1; i < idx.length; i++) {
+                expect(idx[i]).toBe(idx[i - 1]! + 1);
+            }
+        }
+
+        test("初始窗口：DOM 行序与数据序一致，首行 = 窗口首项 item-0", async () => {
+            const items = Array.from({ length: 1000 }, (_, i) => ({ id: i, name: `item-${i}` }));
+            const { root } = mount(
+                `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto" x-for-options="{itemHeight:40, overscan:2}">
+                    <div x-text="item.name" style="height:40px"></div>
+                </div>`,
+                { items },
+            );
+
+            await nextTick();
+
+            const container = root.querySelector("[autospark-virtual]")!;
+            const idx = rowIndexes(container);
+            expect(idx.length).toBeGreaterThan(0);
+            expect(idx[0]).toBe(0); // 旧缺陷：首行显示窗口末项（整窗头插逆序）
+            expectAscending(idx);
+        });
+
+        test("滚动到中间位置：窗口首行 DOM = 数据窗口首项（firstVisible - overscan）", async () => {
+            const items = Array.from({ length: 1000 }, (_, i) => ({ id: i, name: `item-${i}` }));
+            const { root } = mount(
+                `<div x-for.virtual="item of items" :key="item.id" style="height:200px;overflow:auto" x-for-options="{itemHeight:40, overscan:2}">
+                    <div x-text="item.name" style="height:40px"></div>
+                </div>`,
+                { items },
+            );
+
+            await nextTick();
+
+            const container = root.querySelector("[autospark-virtual]")! as HTMLElement;
+            // 滚动到第 500 项：firstVisible = 500，窗口首项 = 500 - overscan(2) = 498
+            container.scrollTop = 500 * 40;
+            container.dispatchEvent(new Event("scroll"));
+
+            await nextTick();
+
+            const idx = rowIndexes(container);
+            expect(idx.length).toBeGreaterThan(0);
+            expect(idx[0]).toBe(498); // 旧缺陷：首行显示窗口末项
+            expectAscending(idx);
+            expect(idx[idx.length - 1]!).toBeLessThan(1000);
+            // data-index 反射与几何垫片逻辑不受本修复影响
+            expect(container.getAttribute("data-index")).toBe("500");
+        });
+    });
+
     describe("动态容器高度", () => {
         test("不指定 height 的容器（内容撑开）", async () => {
             const items = Array.from({ length: 100 }, (_, i) => ({ id: i, name: `item-${i}` }));

@@ -1,7 +1,7 @@
 /**
  * select 组件插件测试（组件库 P1 form 批重件，ADR-0022）：
- * - 注册面：select / select-panel 双模板入全局组件表（内嵌 base-field 注册，继承链
- *   select → base-field → autospark.base）+ 组件自有图标注册 + 面板 x-popover 消费声明；
+ * - 注册面：select / select-panel 双模板入全局组件表（内嵌 field 注册，继承链
+ *   select → field → autospark.base）+ 组件自有图标注册 + 面板 x-popover 消费声明；
  * - 化身渲染：骨架 class 拼接、触发器 combobox 语义、hidden 表单载体、占位文案
  *   （props 覆盖与 i18n 词典回退「请选择」）；
  * - 值桥（x-model 兼容协议，对齐 ADR-0020）：宿主 el.value 劫持、carrier 跟随、
@@ -23,7 +23,7 @@ import {
   SELECT_PANEL_NAME,
   bootstrapSelectPlugin,
 } from "../../../components/form/select/index";
-import { BASE_FIELD_NAME } from "../../../components/base/base-field/index";
+import { FIELD_NAME } from "../../../components/base/field/index";
 
 /** 取全局表模板（空白归一——oxfmt 折行使逐字匹配假红） */
 const tpl = (name: string) =>
@@ -64,13 +64,13 @@ const CITIES = [
 ];
 
 describe("注册面（ADR-0022）", () => {
-  test("模块加载即注册：select / select-panel 双模板均入全局组件表（内嵌 base-field）", () => {
+  test("模块加载即注册：select / select-panel 双模板均入全局组件表（内嵌 field）", () => {
     const table = (AutoSpark as { components: Record<string, string> }).components;
     expect(typeof table[SELECT_NAME]).toBe("string");
     expect(typeof table[SELECT_PANEL_NAME]).toBe("string");
-    expect(typeof table[BASE_FIELD_NAME]).toBe("string");
+    expect(typeof table[FIELD_NAME]).toBe("string");
     expect(tpl(SELECT_NAME)).toContain(`x-define="${SELECT_NAME}"`);
-    expect(tpl(SELECT_NAME)).toContain('x-define:inherit="autospark.base-field"'); // 继承链子端
+    expect(tpl(SELECT_NAME)).toContain('x-define:inherit="autospark.field"'); // 继承链子端
     expect(tpl(SELECT_NAME)).toContain(`x-popover:${SELECT_PANEL_NAME}`); // 面板消费声明（x-popover 机制复用）
     expect(tpl(SELECT_PANEL_NAME)).toContain(`x-define="${SELECT_PANEL_NAME}"`);
   });
@@ -106,7 +106,7 @@ describe("化身渲染与 props 同步", () => {
     );
     await nextTick();
     const host = field(root);
-    expect(host.classList.contains("asc-field")).toBe(true); // base-field 骨架类
+    expect(host.classList.contains("asc-field")).toBe(true); // field 骨架类
     expect(host.classList.contains("asc-select")).toBe(true);
     expect(host.classList.contains("asc-field-box")).toBe(true); // 盒饰选配类
     const trigger = triggerOf(root) as HTMLElement;

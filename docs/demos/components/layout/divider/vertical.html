@@ -26,9 +26,9 @@
         <div class="auto-card-body">
           <div class="toolbar">
             <span>文字一</span>
-            <span x-component:autospark.divider="{ vertical: true, spacing: 8 }"></span>
+            <x-divider vertical="true" spacing="8"></x-divider>
             <span>文字二</span>
-            <span x-component:autospark.divider="{ vertical: true, dashed: true, spacing: 8 }"></span>
+            <x-divider vertical="true" dashed="true" spacing="8"></x-divider>
             <span>文字三</span>
           </div>
           <p class="hint">垂直态默认高度 0.9em（--asc-divider-length 可覆盖）；flex 容器内满高由容器样式控制；垂直态不支持文字（纯分隔场景）。</p>
@@ -37,9 +37,9 @@
       <div class="auto-card">
         <div class="auto-card-header">虚线（dashed）与间距（spacing）</div>
         <div class="auto-card-body">
-          <div x-component:autospark.divider="{ dashed: true }">虚线带文字</div>
+          <x-divider dashed="true">虚线带文字</x-divider>
           <p>spacing="8"：上下各 8px 边距（缺省无边距，间距编排交给布局容器/space 组件）。</p>
-          <div x-component:autospark.divider="{ spacing: 8 }"></div>
+          <x-divider spacing="8"></x-divider>
           <p>下文内容。</p>
         </div>
       </div>

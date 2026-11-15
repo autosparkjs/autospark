@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DatePicker · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <!-- 日历面板复用 x-popover 指令机制——按需加载场景须同时引入 overlay 产物 -->
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.date-picker.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <!-- 状态经构造器全局状态注入（x-model 绑定值走全局路径） -->
+    <main class="demo-main" style="max-width: 460px">
+      <div class="auto-card">
+        <div class="auto-card-header">最小用法：元素名写法 + x-model 双向绑定</div>
+        <div class="auto-card-body">
+          <p>
+            <x-date-picker x-model="date"></x-date-picker>
+          </p>
+          <p class="hint">当前值：<code>{{ date || '（空）' }}</code> —— 值桥协议（el.value 劫持 + input 派发回写），值语域 "YYYY-MM-DD"。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">clearable 可清除 + change 事件消费（detail = { value }）</div>
+        <div class="auto-card-body">
+          <!-- engine 根元素上 @事件 绑定不生效——消费监听挂内层包裹元素 -->
+          <div @change="picked = $event.detail.value">
+            <x-date-picker :value="init" clearable></x-date-picker>
+          </div>
+          <p class="hint">最近选择：<code>{{ picked || '（未操作）' }}</code>；清除钮清空后 detail = { value: '' }。</p>
+        </div>
+      </div>
+      <div class="auto-card" data-dark>
+        <div class="auto-card-header">暗色态（容器 data-dark）</div>
+        <div class="auto-card-body">
+          <x-date-picker :value="init" clearable></x-date-picker>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        date: "",
+        init: "2026-11-13",
+        picked: "",
+      });
+    </script>
+  </body>
+</html>

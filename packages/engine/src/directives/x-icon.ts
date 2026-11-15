@@ -21,6 +21,28 @@ const missWarned = new Set<string>();
 /** shape 无效值 warn 按 String(v) 去重（动态重渲染不刷屏） */
 const shapeWarned = new Set<string>();
 
+/** rotate 无效值 warn 按 String(v) 去重（动态重渲染不刷屏） */
+const rotateWarned = new Set<string>();
+
+/** rotate 动画 transition（常驻 svg 载体；时长经 --as-icon-rotate-duration 令牌可覆盖，不新增选项键） */
+const ICON_ROTATE_TRANSITION = "transform var(--as-icon-rotate-duration, 0.3s) ease";
+
+/**
+ * 静态样式型选项键：成员表达式值变化时重放 `_applyStaticStyle`（表达式通道热应用）。
+ * `circle` / `radius` 为修饰符快捷形态键（并入选项层后与 shape 等价）。
+ */
+const ICON_STYLE_OPTION_KEYS = new Set([
+    "size",
+    "color",
+    "padding",
+    "strokeWidth",
+    "shape",
+    "button",
+    "pointer",
+    "circle",
+    "radius",
+]);
+
 /**
  * x-icon：图标渲染指令（ADR-0058 symbol 机制，取代 ADR-0046/0047 的 mask 管线）。
  *
@@ -34,7 +56,8 @@ const shapeWarned = new Set<string>();
  * 覆盖（原 `background-color` 语义随 mask 下线，ADR-0058 决策 6）；`strokeWidth` 经
  * `--as-icon-sw` 变量（收集期已剥离全部 stroke-width，CSS 继承覆盖永远可靠）；`size` /
  * `padding` / `shape` / `button` / `pointer` 为盒模型层选项（`shape` 底板形态枚举 +
- * `--auto-*` theme 令牌对接，ADR-0135；ADR-0049 载体动效不受影响）。
+ * `--auto-*` theme 令牌对接，ADR-0135；ADR-0049 载体动效不受影响）；`rotate` 旋转选项
+ * （svg 载体应用 + transition 动画，见 `_applyRotate`）。
  */
 export class IconDirective extends AutoSparkDirectiveBase {
     static override readonly priority = 0;
@@ -43,6 +66,10 @@ export class IconDirective extends AutoSparkDirectiveBase {
     private destroyed = false;
     /** use 元素（created 期随载体 svg 一次性创建；SSR 无 document 为 null） */
     private useEl: SVGUseElement | null = null;
+    /** svg 载体（rotate 旋转应用点；SSR 无 document 为 null） */
+    private svgEl: SVGSVGElement | null = null;
+    /** 最近应用的 rotate CSS 值（幂等缓存，null = 从未/当前未启用） */
+    private lastRotateCss: string | null = null;
     /** 待定/未命中的请求名（变更总线按名唤醒重渲染） */
     private missName: string | null = null;
     /** 当前渲染名（registry delete 联动回退默认图标） */
@@ -61,6 +88,8 @@ export class IconDirective extends AutoSparkDirectiveBase {
         this.el?.classList.add(ICON_BASE_CLASS);
         this._ensureIconSvg();
         this.offChange = iconRegistry.onChange((name, action) => this._onIconChange(name, action));
+        // 选项成员表达式订阅（rotate 热应用通道，ADR-0007 修订；须在初次应用前建立）
+        this._watchOptionExprs();
         // 值两栖（表达式优先，字面量回退）：裸图标名不是合法 JS 表达式——求值抛错时原值作
         // 字面量；求值为空（null/undefined/NaN/""）时原值**形匹配**（图标名）才回退字面量
         //（含点形态不回退，维持空占位，避免误导性未注册 warn）。状态命中优先，字面量只是空值兜底。
@@ -148,6 +177,7 @@ export class IconDirective extends AutoSparkDirectiveBase {
         const use = document.createElementNS(SVG_NS, "use");
         svg.appendChild(use);
         el.appendChild(svg);
+        this.svgEl = svg;
         this.useEl = use;
     }
 
@@ -297,6 +327,9 @@ export class IconDirective extends AutoSparkDirectiveBase {
             : sw;
         if (eff === this._defaultSw()) el.style.removeProperty("--as-icon-sw");
         else el.style.setProperty("--as-icon-sw", String(eff));
+        // rotate 挂尾部（幂等缓存：图标名重渲染同值跳过；全局配置变更广播经本重放路径
+        //热应用全局层 rotate）
+        this._applyRotate();
     }
 
     /**
@@ -333,6 +366,77 @@ export class IconDirective extends AutoSparkDirectiveBase {
             ) {
                 parent.replaceWith(el);
             }
+        }
+    }
+
+    /**
+     * 选项成员表达式变化钩子（ADR-0007 修订）：热应用两类成员——`rotate` 走 svg 载体
+     * （`_applyRotate`，幂等缓存）；静态样式键（size / color / padding / strokeWidth /
+     * shape / button / pointer）重放 `_applyStaticStyle`，使组件把 x-icon 选项对象经
+     * 成员表达式透传后仍随状态响应（应用入口二通道——本钩子即时热应用 +
+     * `_applyStaticStyle` 尾部重放承接全局配置变更广播）。
+     */
+    protected override _onOptionExprChange(key: string, _value: unknown): void {
+        if (this.destroyed) return;
+        if (key === "rotate") {
+            this._applyRotate();
+            return;
+        }
+        if (ICON_STYLE_OPTION_KEYS.has(key)) this._applyStaticStyle();
+    }
+
+    /**
+     * rotate 选项归一化（绝对姿态语义——值即最终角度，跨圈显式 370/730，无最短路
+     * 径换算）：有限 number（≠0）→ `${n}deg`；纯数字 string（"90" / "-45.5"）宽容
+     * 同按 deg（表单 / x-model 通道形态，直传 CSS 成无单位角度被静默丢弃）；其余非空
+     * string → 原样透传 CSS（"0.5turn"，非法单位由浏览器丢弃，与 size 同病同治）；
+     * 0 / 空 / 未声明 / false → null（不启用）；其余类型（true / 对象 / NaN /
+     * Infinity）warn 剪枝（按 String(v) 去重，对齐 shape 先例）。负数、超 360 合法。
+     */
+    private _rotateCss(): string | null {
+        const v = this._opt("rotate");
+        if (v == null || v === "" || v === 0 || v === false) return null;
+        if (typeof v === "number") {
+            if (Number.isFinite(v)) return `${v}deg`;
+        } else if (typeof v === "string" && v.trim() !== "") {
+            const s = v.trim();
+            // 纯数字字符串（"90" / "-45.5"）宽容按 deg——表单 / x-model 通道的天然形态，
+            // 直传 CSS 会成无单位 rotate(90) 被浏览器静默丢弃
+            if (/^-?\d+(\.\d+)?$/.test(s)) return `${s}deg`;
+            return s;
+        }
+        const key = String(v);
+        if (!rotateWarned.has(key)) {
+            rotateWarned.add(key);
+            this.warn(
+                `rotate 选项 "${key}" 无效：须为 number（按 deg）或非空 string（CSS 角度值），已忽略`,
+            );
+        }
+        return null;
+    }
+
+    /**
+     * 旋转应用（幂等，角度未变跳过）：应用点为 svg 载体——指令私有节点，不占宿主样式
+     * 面、与 button/shape 动效（宿主/wrapper 层）完全隔离；图标名重渲染同值经缓存跳过
+     * （svg 载体持久，不闪变）。启用时 transition 常驻 + transform 写目标角度；0° 起
+     * 步（当前无 transform）先强制布局再写值——入场/再启用从 0° 动画到目标；更新走
+     * transition 数值插值从当前角度续转（中断续转浏览器天然支持）；关闭（0/空）移除
+     * transform，none 参与插值动画归零。从未声明前不写任何样式（零内联纪律）。
+     */
+    private _applyRotate(): void {
+        const svg = this.svgEl;
+        if (!svg || this.destroyed) return; // SSR 无载体（与 useEl 同姿态）
+        const css = this._rotateCss();
+        if (css === this.lastRotateCss) return; // 幂等双保险（watch 同值不回调，此处兜底）
+        this.lastRotateCss = css;
+        if (css) {
+            svg.style.setProperty("transition", ICON_ROTATE_TRANSITION);
+            if (!svg.style.getPropertyValue("transform")) {
+                svg.getBoundingClientRect(); // 强制布局：确保 0° 起步（前值确立）触发 transition
+            }
+            svg.style.setProperty("transform", `rotate(${css})`);
+        } else {
+            svg.style.removeProperty("transform");
         }
     }
 }

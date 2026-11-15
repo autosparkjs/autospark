@@ -1,0 +1,290 @@
+<!--
+    autospark.steps 步骤条（组件库 P2 导航件，ADR-0018 清单权威表 navigation 行）：
+    items（{ title, description?, icon? }[]，状态引用注入）或 <x-step> 子元素声明
+    （data-items 通道，字面量数组 props 死环规避，P0 固化规避清单第 1 条）双形态。
+
+    状态机（每步 data-state，克隆体内联表达式驱动——绑定表达式不含组件方法，
+    全部内联）：序号 < current → finish（打勾）；=== current → status 取值
+    （process 缺省 / finish 打勾 / error 叉号 danger 色）；> current → wait。
+    连接线（.asc-step-line）随所属步 finish 染主色（进度染色）。
+
+    值通道（受控，tabs 同构）：current props 单向驱动 + clickable 开启时点击步
+    切换写组件 data + 双派发——input（x-model 回写，非冒泡）+ change（冒泡
+    detail = { current }）。el.value 劫持桥恒在场（number 语域，负值/NaN 归 0）。
+
+    direction：horizontal 缺省（横排 + 步后横线）/ vertical（纵排 + 步下竖线）。
+
+    取舍（v1 按简）：键盘漫游不做（步为 li 载体 + clickable 时 cursor 指引）；
+    current 越界不钳制上界（> 末序 → 全部 finish，视觉合法）。
+
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态
+    绑定不会求值——形态绑定（:data-direction / :data-status / :data-clickable）
+    落在编译子树内层 body 上。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得——字号档位经主题通道全跟随；steps 不在 data() 声明主题六键，
+     内部变体属性（direction）亦禁用六个通道名 -->
+<div
+  class="asc-steps"
+  x-define="autospark.steps"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            current: 0,        // 当前步序号（0 起，受控缺省 0；el.value 桥 number 语域）
+            items: [],         // 步骤项 { title, description?, icon? }[]——状态引用注入；声明形态经 data-items 通道兜底
+            status: "process", // 当前步状态：process 进行中（缺省）| finish 已完成（当前步打勾）| error 异常（danger 色）
+            direction: "horizontal", // 排向：horizontal 横排（缺省）| vertical 纵排
+            clickable: false,  // 可点切换：开启后点击步切换 current + change 冒泡 detail={current}
+        }),
+        methods: {
+            // 步点击（clickable 开启时）：同值短路；写组件 data + 双派发
+            // （input→x-model 回写非冒泡；change→外层消费 detail={current} 冒泡）
+            onStepClick(i) {
+                if (!this.data.clickable) return;
+                const n = Math.max(0, Math.round(Number(i) || 0));
+                if (n === this.data.current) return;
+                this.data.current = n;
+                this.el.dispatchEvent(new Event("input", { bubbles: false }));
+                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { current: n } }));
+            },
+        },
+        mounted() {
+            // 声明形态兜底（precompile 变换落盘的 data-items JSON 字符串）：items props
+            // 缺席时解析写组件 data（x-for 指令值通道响应，随写随渲染）；props 在场恒优先
+            const raw = this.el.getAttribute("data-items");
+            if ((!this.data.items || !this.data.items.length) && raw) {
+                try { this.data.items = JSON.parse(raw); } catch { /* 非法 JSON 静默忽略（容错缺省空组） */ }
+                this.el.removeAttribute("data-items");
+            }
+
+            // current 归一（number 语域：负值/NaN/字符串数字收敛为非负整数）
+            const normalize = (v) => {
+                const n = Math.round(Number(v));
+                return Number.isFinite(n) && n > 0 ? n : 0;
+            };
+            this.data.current = normalize(this.data.current);
+
+            // el.value 劫持桥（受控 current 的 DOM 通道：x-model / 程序读写皆经此，
+            // number 语域）；劫持前快照 expando（x-model 编译期可能已写初值）
+            const prior = this.el.value;
+            Object.defineProperty(this.el, "value", {
+                get: () => normalize(this.data.current),
+                set: (v) => { this.data.current = normalize(v); },
+                configurable: true,
+            });
+
+            // 一跳首对齐（mounted 时 props 注入可能未落定，家族惯例）：初值落定序 =
+            // x-model expando > props current（缺省 0）；受控变化持续归一（同值幂等，
+            // 字符串数字注入收敛，规避清单第 9 条）
+            setTimeout(() => {
+                if (normalize(this.data.current) === 0 && typeof prior === "string" && prior !== "" && Number(prior) > 0) {
+                    this.data.current = normalize(prior);
+                }
+            }, 0);
+            this.watch("current", ({ value }) => {
+                if (typeof value !== "number") this.data.current = normalize(value);
+            });
+        },
+    }
+  </script>
+  <style global id="autospark-components-steps">
+    .asc-steps {
+      /* 排版基线：字号经主题档位通道（data-size → --auto-font-size 全跟随，button 同范式 ADR-0012） */
+      display: block;
+      width: 100%;
+      font-size: var(--auto-font-size, var(--asc-steps-font-size, 0.875rem));
+      line-height: var(--auto-line-height, 1.5);
+    }
+    .asc-steps-body {
+      --asc-tone: var(--auto-primary-color, var(--asc-steps-primary, #009aff));
+      --asc-danger: var(--auto-danger-color, var(--asc-steps-danger, #ef4444));
+    }
+    .asc-steps-list {
+      display: flex;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .asc-steps-body[data-clickable] .asc-step {
+      cursor: pointer;
+    }
+    .asc-steps-body[data-clickable] .asc-step:hover .asc-step-title {
+      color: var(--asc-tone);
+    }
+
+    /* ---------- 节点圆：状态四态（process 实底反白 / finish 描边主色打勾 / error 实底 danger 叉 / wait 描边灰） ---------- */
+    .asc-step {
+      /* 横排缺省布局：等宽步（flex 1），节点圆 + 信息块 + 步后横线（线填满剩余宽到下一点） */
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5em;
+    }
+    .asc-step-dot {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.75em;
+      height: 1.75em;
+      border-radius: 50%;
+      border: var(--asc-steps-dot-border, 1px) solid var(--auto-border-color, var(--asc-steps-border, #d9d9d9));
+      color: var(--auto-third-color, var(--asc-steps-wait-color, rgba(0, 0, 0, 0.45)));
+      font-weight: var(--x-font-weight-large, 600); /* 语义层无强调字重变量，直取基础标尺 */
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    /* 进行中：主色实底反白（语义色底白字为恒定设计，非变量映射） */
+    .asc-step[data-state="process"] .asc-step-dot {
+      border-color: var(--asc-tone);
+      background: var(--asc-tone);
+      color: var(--asc-steps-dot-ink, #ffffff);
+    }
+    /* 已完成：主色描边 + 主色对勾 */
+    .asc-step[data-state="finish"] .asc-step-dot {
+      border-color: var(--asc-tone);
+      color: var(--asc-tone);
+    }
+    /* 异常：danger 实底反白叉号 */
+    .asc-step[data-state="error"] .asc-step-dot {
+      border-color: var(--asc-danger);
+      background: var(--asc-danger);
+      color: var(--asc-steps-dot-ink, #ffffff);
+    }
+    /* 图标位尺寸随节点圆（x-show 承载状态显隐——display 基线由 x-show 内联接管） */
+    .asc-step-check,
+    .asc-step-error,
+    .asc-step-custom {
+      font-size: 0.9em;
+    }
+
+    /* ---------- 信息块 ---------- */
+    .asc-step-info {
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+    .asc-step-title {
+      font-weight: var(--x-font-weight-large, 600); /* 语义层无强调字重变量，直取基础标尺 */
+      color: var(--auto-color, var(--asc-steps-title-color, #303133));
+      transition: color 0.2s ease;
+    }
+    /* 未达步标题弱化；当前步主色；异常步 danger */
+    .asc-step[data-state="wait"] .asc-step-title {
+      color: var(--auto-secondary-color, var(--asc-steps-wait-title, rgba(0, 0, 0, 0.55)));
+      font-weight: var(--auto-font-weight, var(--x-font-weight-medium, 400));
+    }
+    .asc-step[data-state="process"] .asc-step-title {
+      color: var(--asc-tone);
+    }
+    .asc-step[data-state="error"] .asc-step-title {
+      color: var(--asc-danger);
+    }
+    .asc-step-desc {
+      margin-top: 0.125em;
+      font-size: 0.85em;
+      color: var(--auto-third-color, var(--asc-steps-desc-color, rgba(0, 0, 0, 0.45)));
+    }
+
+    /* ---------- 连接线：随所属步 finish 染主色（进度染色）；末步无线 ---------- */
+    .asc-step-line {
+      flex: 1 1 1em;
+      align-self: flex-start;
+      margin-top: calc((1.75em - 1px) / 2); /* 对齐节点圆心高度 */
+      height: 1px;
+      background: var(--auto-border-color, var(--asc-steps-border, #d9d9d9));
+      transition: background-color 0.3s ease;
+    }
+    .asc-step[data-state="finish"] .asc-step-line {
+      background: var(--asc-tone);
+    }
+    .asc-step:last-child .asc-step-line {
+      display: none;
+    }
+
+    /* ---------- vertical 排向：纵排 + 步下竖线（绝对定位于节点圆正下方延至下一步） ---------- */
+    .asc-steps-body[data-direction="vertical"] .asc-steps-list {
+      flex-direction: column;
+    }
+    .asc-steps-body[data-direction="vertical"] .asc-step {
+      flex: 0 0 auto;
+      position: relative;
+      gap: 0.75em;
+      padding-bottom: 1.25em;
+    }
+    .asc-steps-body[data-direction="vertical"] .asc-step:last-child {
+      padding-bottom: 0;
+    }
+    .asc-steps-body[data-direction="vertical"] .asc-step-line {
+      position: absolute;
+      left: calc(1.75em / 2);
+      top: calc(1.75em + 0.375em);
+      bottom: -0.625em; /* 跨步间距延至下一步节点圆上缘 */
+      width: 1px;
+      height: auto;
+      margin: 0;
+      flex: none;
+      align-self: auto; /* 解除基础规则的 flex-start（abspos 子项对齐参与高度解析，flex-start 退化为内容高 0） */
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-steps-body,
+    [data-dark] .asc-steps-body {
+      --asc-tone: var(--auto-primary-color, var(--asc-steps-primary, #56baff));
+      --asc-danger: var(--auto-danger-color, var(--asc-steps-danger, #e6696a));
+    }
+    [dark] .asc-step-dot,
+    [data-dark] .asc-step-dot {
+      border-color: var(--auto-border-color, var(--asc-steps-border, #52525b));
+      color: var(--auto-third-color, var(--asc-steps-wait-color, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-step-title,
+    [data-dark] .asc-step-title {
+      color: var(--auto-color, var(--asc-steps-title-color, #fafafa));
+    }
+    [dark] .asc-step[data-state="wait"] .asc-step-title,
+    [data-dark] .asc-step[data-state="wait"] .asc-step-title {
+      color: var(--auto-secondary-color, var(--asc-steps-wait-title, rgba(255, 255, 255, 0.55)));
+    }
+    [dark] .asc-step-desc,
+    [data-dark] .asc-step-desc {
+      color: var(--auto-third-color, var(--asc-steps-desc-color, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-step-line,
+    [data-dark] .asc-step-line {
+      background: var(--auto-border-color, var(--asc-steps-border, #52525b));
+    }
+    [dark] .asc-step[data-state="finish"] .asc-step-line,
+    [data-dark] .asc-step[data-state="finish"] .asc-step-line {
+      background: var(--asc-tone);
+    }
+  </style>
+  <!-- 形态/状态绑定落本层与克隆体（根上动态绑定不求值，T4=B）；状态机全内联表达式
+         （绑定表达式不含组件 methods）；克隆体内条件显隐一律 x-show（P0 规避清单第 4 条）；
+         图标三态互斥：finish 打勾（yes）/ error 叉号（no）/ 自定义 icon / 序号缺省 -->
+  <div class="asc-steps-body" :data-direction="direction" :data-clickable="clickable ? '' : null">
+    <!-- x-for 容器宿主形态：ol 为容器（不克隆），其子 li 才是逐项克隆模板（:key 在容器上） -->
+    <ol class="asc-steps-list" x-for="item of items" :key="item.title">
+      <li
+        class="asc-step"
+        :data-state="$index < current ? 'finish' : ($index === current ? (status === 'error' ? 'error' : (status === 'finish' ? 'finish' : 'process')) : 'wait')"
+        :aria-current="$index === current ? 'step' : null"
+        @click="onStepClick($index)"
+      >
+        <div class="asc-step-dot">
+          <i class="asc-step-check" x-show="$index < current || ($index === current && status === 'finish')" x-icon="'yes'"></i>
+          <i class="asc-step-error" x-show="$index === current && status === 'error'" x-icon="'no'"></i>
+          <i class="asc-step-custom" x-show="item.icon && ($index > current || ($index === current && status === 'process'))" x-icon="item.icon"></i>
+          <span class="asc-step-num" x-show="!item.icon && ($index > current || ($index === current && status === 'process'))">{{ $index + 1 }}</span>
+        </div>
+        <div class="asc-step-info">
+          <div class="asc-step-title">{{ item.title }}</div>
+          <div class="asc-step-desc" x-show="item.description">{{ item.description }}</div>
+        </div>
+        <div class="asc-step-line" aria-hidden="true"></div>
+      </li>
+    </ol>
+  </div>
+</div>

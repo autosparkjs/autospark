@@ -17,10 +17,10 @@
         <div class="auto-card-header">allowHalf 半星 / clearable 同分清零</div>
         <div class="auto-card-body">
           <p>
-            <span aria-label="半星评分" x-model.number="half" x-component:autospark.rate="{ allowHalf: true }"></span>
+            <x-rate aria-label="半星评分" x-model.number="half" x-rate-options="{ props: { allowHalf: true } }"></x-rate>
           </p>
           <p>
-            <span aria-label="可清零评分" x-model.number="clear" x-component:autospark.rate="{ clearable: true }"></span>
+            <x-rate aria-label="可清零评分" x-model.number="clear" clearable="true"></x-rate>
           </p>
           <p class="hint">半星：{{ half }}（0.5 粒度）　清零：{{ clear }}（再次点击同分归 0）</p>
         </div>
@@ -28,10 +28,10 @@
       <div class="auto-card">
         <div class="auto-card-header">max 可配 / 只读 / 禁用 / 状态色</div>
         <div class="auto-card-body">
-          <p><span x-component:autospark.rate="{ max: 10, value: 7 }"></span></p>
-          <p><span x-component:autospark.rate="{ value: 3, readonly: true }"></span></p>
-          <p><span x-component:autospark.rate="{ value: 3, disabled: true }"></span></p>
-          <p><span x-component:autospark.rate="{ status: 'error', value: 2 }"></span></p>
+          <p><x-rate max="10" value="7"></x-rate></p>
+          <p><x-rate value="3" readonly="true"></x-rate></p>
+          <p><x-rate value="3" disabled="true"></x-rate></p>
+          <p><x-rate status="error" value="2"></x-rate></p>
         </div>
       </div>
     </main>

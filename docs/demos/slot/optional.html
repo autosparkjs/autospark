@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>x-slot · 可选插槽与出口注入</title>
+    <script src="/autospark/autospark.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <!--
+            template 出口载体（ADR-0137）三特性：
+            - 空/非空分流：<template x-slot:名> 有实质内容 = fallback 出口（未填充渲染 template 内默认）；
+              空（纯空白/注释不算）= 可选出口（未填充整出口不渲染，无占位无包裹层）；
+            - 无包裹层：template 不进运行 DOM，内容/默认的元素根直接上位（对照：元素出口保留包裹层）；
+            - 出口注入：template 上的属性（除 x-slot 标记与 x-options/x-slot-options）注入到填充内容的
+              每个元素根——含 :class 等指令属性原文，随内容编译作为活指令生效（调用方作用域求值）；
+              fallback 根同样注入（填充/未填充样式一致）；冲突调用方赢、class token 合并。
+        -->
+  </head>
+  <body>
+    <div id="app" x-scope>
+      <!-- 组件一：title = template 出口（有内容 → fallback + 注入）；extra = template 出口（空 → 可选 + 注入）；
+           body = 元素出口（包裹层保留、不注入——对照用） -->
+      <div x-define="notice">
+        <div class="card">
+          <template class="notice-head" x-slot:title><b>默认标题</b></template>
+          <div class="card-body" x-slot>默认正文</div>
+          <template class="extra-zone" x-slot:extra></template>
+        </div>
+      </div>
+
+      <!-- ① 可选出口 + fallback 注入对照：不填 title/extra → 标题走 fallback（已注入 notice-head）、附加区整体消失 -->
+      <div class="panel">
+        <div class="label">① 未填充 → 标题 = fallback（带注入样式），附加区整体消失（无占位）</div>
+        <div x-component:notice>
+          <p>只填了正文。</p>
+        </div>
+      </div>
+
+      <!-- ② 填充 title/extra → 内容根获得注入样式；正文出口仍是元素包裹层（class 未被注入） -->
+      <div class="panel">
+        <div class="label">② 填充 → h3 与「附加操作」获得注入样式；正文包裹层不受注入影响</div>
+        <div x-component:notice>
+          <template x-slot:title><h3 class="is-size-5">自定义标题</h3></template>
+          <p>正文填入默认插槽。</p>
+          <template x-slot:extra><b>附加操作</b><a>详情</a></template>
+        </div>
+      </div>
+
+      <!-- 组件二：活注入——:class 指令属性注入填充内容根，随全局状态响应式 -->
+      <div x-define="status">
+        <div class="card">
+          <template :class="tone" x-slot:badge>默认徽章</template>
+        </div>
+        <script type="autospark/setup">
+          {
+              data: {},
+          }
+        </script>
+      </div>
+
+      <!-- ③ 活注入：注入的 :class 在内容根作为绑定生效（调用方作用域），点按钮整段变色 -->
+      <div class="panel">
+        <div class="label">③ 活注入 → :class 注入后随状态响应式（点按钮切换色调）</div>
+        <button class="button is-small" x-on:click="tone = tone === 'tag is-danger' ? 'tag is-success' : 'tag is-danger'">
+          切换 tone
+        </button>
+        <span x-text="tone" class="is-size-7 has-text-grey"></span>
+        <div x-component:status>
+          <template x-slot:badge><span>运行中</span></template>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.getElementById("app"), {
+          tone: "tag is-danger",
+      });
+    </script>
+
+    <style>
+      .panel {
+        padding: 16px;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        margin-bottom: 12px;
+      }
+      .label {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 8px;
+      }
+      .card {
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      /* 出口注入的样式：写在声明侧 template 上，落到使用方内容根 */
+      .notice-head {
+        padding: 8px 14px;
+        background: #f0f7ff;
+        border-bottom: 1px solid #cfe5ff;
+        font-weight: 600;
+      }
+      .extra-zone {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 14px;
+        background: #fffbe6;
+        border-top: 1px dashed #e8d48b;
+        font-size: 0.85rem;
+      }
+      .extra-zone a {
+        color: #0066cc;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      .card-body {
+        padding: 14px;
+      }
+    </style>
+  </body>
+</html>

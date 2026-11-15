@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Transfer · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.transfer.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <!-- 状态经构造器全局状态注入（data/value 均为状态引用注入——字面量数组有 props 死环） -->
+    <main class="demo-main" style="max-width: 620px">
+      <div class="auto-card">
+        <div class="auto-card-header">最小用法：元素名实例化 + x-model 双向绑定 + 双列表标题</div>
+        <div class="auto-card-body">
+          <x-transfer x-model="picked" :data="cities" :titles="titles"></x-transfer>
+          <p class="hint">
+            目标侧 key：<code>{{ picked.join(', ') || '（空）' }}</code> —— 宿主 <code>x-model</code> 直写（值桥协议：el.value 数组语域 + input 派发回写）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">change 事件消费（detail = { value }）与 name 表单提交</div>
+        <div class="auto-card-body">
+          <!-- engine 根元素上 @事件 绑定不生效——消费监听挂内层包裹元素 -->
+          <div @change="lastMove = $event.detail.value.join(' → ')">
+            <x-transfer name="cities" :data="cities"></x-transfer>
+          </div>
+          <p class="hint">
+            最近穿梭：<code>{{ lastMove || '（未操作）' }}</code>；宿主 <code>name="cities"</code> 透传内嵌 hidden 载体（key 逗号拼接，原生表单提交 / FormData 直接生效）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        picked: ["sz"],
+        lastMove: "",
+        titles: ["可选城市", "已选城市"],
+        cities: [
+          { key: "bj", label: "北京" },
+          { key: "sh", label: "上海" },
+          { key: "gz", label: "广州", disabled: true },
+          { key: "sz", label: "深圳" },
+          { key: "hz", label: "杭州" },
+        ],
+      });
+    </script>
+  </body>
+</html>

@@ -33,10 +33,10 @@ export const icon_svgdatas = [
     <animateTransform attributeName="transform" attributeType="XML" type="rotate"
       from="0 12 12" to="360 12 12" dur="1.2s" repeatCount="indefinite"/>
     <path d="M12 3 A9 9 0 0 1 21 12" fill="none" stroke="currentColor"
-          style="stroke-width:4" vector-effect="non-scaling-stroke"/>
+          style="stroke-width:3" vector-effect="non-scaling-stroke"/>
   </g>
   <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-opacity="0.2"
-          style="stroke-width:4" vector-effect="non-scaling-stroke"/>`],
+          style="stroke-width:3" vector-effect="non-scaling-stroke"/>`],
   // loading2 底圈走 currentColor + stroke-opacity（ADR-0130 颜色规约：全图唯一色值会被归一化为
   // currentColor——底圈语义本就该跟随主题色，数据侧直接对齐规约）
   ["loading2", `<g><animateTransform  attributeName="transform"  attributeType="XML"  type="rotate" from="0 12 12" to="360 12 12" dur="1.5s" repeatCount="indefinite"

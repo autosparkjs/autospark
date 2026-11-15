@@ -14,8 +14,8 @@ Divider 是 AutoSpark 的官方分割线组件（组件库 P0 轻件 / **layout 
 <script src="autospark.js"></script>
 <script src="autospark.divider.js"></script>
 
-<div x-component:autospark.divider="{}"></div>            <!-- 水平实线 -->
-<div x-component:autospark.divider="{}">分隔标题</div>     <!-- 带文字（默认插槽） -->
+<x-divider></x-divider>            <!-- 水平实线 -->
+<x-divider>分隔标题</x-divider>     <!-- 带文字（默认插槽） -->
 <x-divider vertical="true" spacing="8"></x-divider>       <!-- 等价元素名写法 -->
 ```
 

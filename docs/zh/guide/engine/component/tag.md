@@ -70,6 +70,7 @@
 规则：
 
 - **类型推断**（静态属性）：纯数字 → `number`、`true`/`false` → `boolean`、`{`/`[` 开头 → 宽松 JSON（解析失败回退原字符串）、否则原样字符串；
+- **裸布尔属性**（ADR-0117 修订）：组件声明侧类型为 `boolean` 的键（`data` 初始值或 `defaults`），裸属性与 `=""` 均等价于 `"true"`——`<x-counter expanded>` ≡ `<x-counter expanded="true">`（对齐 HTML 布尔属性惯例）；非 boolean 键的空串维持 `""`（`label=""` 不受影响）；`"0"` / `"no"` 等其他假值字符串不做转换；
 - **优先级**：`:expr` 响应式条目 > 静态属性 > `x-{标签基名}-options`（标签去 `x-` 前缀，ADR-0133）——同名条目高频者覆盖低者；
 - **响应式**：`:step="step"` 随外部状态实时更新（同 `x-component` 值通道语义：更新只覆盖出现的键，组件内部状态不被重置；静态属性被同名 `:expr` 覆盖后以表达式为准）；
 - **保留属性**（不折叠为 props）：`class` / `style` / `id` / `data-*` / `x-*` 留给宿主化身——属性继承（class 拼接、style 合并等）照常生效；`:class` / `:style` / `:data-*` 同样保留，走属性绑定。

@@ -1,7 +1,7 @@
 /**
  * input-number 组件插件测试（组件库 P1 form 批轻件，ADR-0018 决策 7 原生增强）：
- * - 注册面：input-number 模板入全局组件表（副作用导入内嵌 base-field 注册，继承链
- *   input-number → base-field → autospark.base）+ 复制 input 结构（非嵌套消费）；
+ * - 注册面：input-number 模板入全局组件表（副作用导入内嵌 field 注册，继承链
+ *   input-number → field → autospark.base）+ 复制 input 结构（非嵌套消费）；
  * - 化身渲染：骨架 class 拼接（.asc-field + .asc-input-number + 盒饰 .asc-field-box）、
  *   原生控件（inputmode=decimal + role=spinbutton + data-autospark-control）、
  *   步进钮组（controls 开关）；
@@ -12,7 +12,7 @@
  *   单向同步、等值短路（输入中间态保护）；
  * - change 归位：blur/Enter 夹取 + 修约 + 规范文本 + 重派发 detail；NaN 防御
  *   （非法字符保持旧值、清空归 null）；
- * - BaseField 骨架通道（经 input-number 实例化消费）：disabled/readonly 同步、
+ * - Field 骨架通道（经 input-number 实例化消费）：disabled/readonly 同步、
  *   name 透传（原生直提交载体）。
  */
 import "../../setup";
@@ -23,7 +23,7 @@ import {
   INPUT_NUMBER_NAME,
   bootstrapInputNumberPlugin,
 } from "../../../components/form/input-number/index";
-import { BASE_FIELD_NAME } from "../../../components/base/base-field/index";
+import { FIELD_NAME } from "../../../components/base/field/index";
 
 /** 取全局表模板（空白归一——oxfmt 折行使逐字匹配假红） */
 const tpl = (name: string) =>
@@ -39,12 +39,12 @@ const nativeOf = (root: HTMLElement) =>
   root.querySelector(".asc-input-number-native") as HTMLInputElement | null;
 
 describe("注册面（ADR-0018 / ADR-0020）", () => {
-  test("模块加载即注册：input-number 以副作用导入内嵌 base-field，双模板均入全局组件表", () => {
+  test("模块加载即注册：input-number 以副作用导入内嵌 field，双模板均入全局组件表", () => {
     const table = (AutoSpark as { components: Record<string, string> }).components;
     expect(typeof table[INPUT_NUMBER_NAME]).toBe("string");
-    expect(typeof table[BASE_FIELD_NAME]).toBe("string");
+    expect(typeof table[FIELD_NAME]).toBe("string");
     expect(tpl(INPUT_NUMBER_NAME)).toContain(`x-define="${INPUT_NUMBER_NAME}"`);
-    expect(tpl(INPUT_NUMBER_NAME)).toContain('x-define:inherit="autospark.base-field"'); // 继承链子端
+    expect(tpl(INPUT_NUMBER_NAME)).toContain('x-define:inherit="autospark.field"'); // 继承链子端
     expect(tpl(INPUT_NUMBER_NAME)).not.toContain("x-component:autospark.input"); // 复制结构而非嵌套消费
   });
 
@@ -71,7 +71,7 @@ describe("化身渲染与 props 同步", () => {
     );
     await nextTick();
     const host = field(root);
-    expect(host.classList.contains("asc-field")).toBe(true); // base-field 骨架类
+    expect(host.classList.contains("asc-field")).toBe(true); // field 骨架类
     expect(host.classList.contains("asc-input-number")).toBe(true);
     expect(host.classList.contains("asc-field-box")).toBe(true); // 盒饰选配类（input 类控件 chrome）
     const input = nativeOf(root)!;
@@ -343,7 +343,7 @@ describe("change 归位与 NaN 防御", () => {
   });
 });
 
-describe("BaseField 骨架通道（经 input-number 实例化消费，ADR-0020）", () => {
+describe("Field 骨架通道（经 input-number 实例化消费，ADR-0020）", () => {
   test("disabled：同步原生控件 + 宿主 data-disabled；readonly 同理", async () => {
     const { root } = mount(
       `<span x-component:autospark.input-number="{ readonly: true }"></span>`,

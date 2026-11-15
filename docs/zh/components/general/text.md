@@ -16,7 +16,7 @@ Text 是 AutoSpark 的官方排版文本组件（组件库 P0 轻件，ADR-0019�
 <script src="autospark.js"></script>
 <script src="autospark.text.js"></script>
 
-<span x-component:autospark.text="{ label: '一段正文' }"></span>
+<x-text label="一段正文"></x-text>
 <x-text label="等价元素名写法" type="secondary"></x-text>
 ```
 

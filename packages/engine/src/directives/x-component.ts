@@ -1,5 +1,6 @@
 import { AutoSparkDirectiveBase } from "../features/directive/base";
 import type { ComponentDataBasis, ComponentDef } from "../features/component/component-def";
+import { coerceBareBooleanProps } from "../features/component/bare-boolean";
 import type { AutoSparkScope } from "../engine/scope";
 import type { AsyncLoader } from "asyncsignal/loader";
 import { collectSlotContent, parseForwardSlots, type SlotForwarding } from "../utils/slot";
@@ -449,10 +450,11 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
      * 打底、指令值覆盖同名键；单源缺失时另一源独走。合并结果经既有防抖/更新协议应用：
      *
      * 已实例化 → 仅更新 props（覆盖声明键，组件内部状态不被重置）。
-     * props 与上次应用值浅等则跳过：静态字面量 props（无状态路径）的表达式支路 watcher
-     * 订阅为空 deps（autostore watch([]) = 任意状态变化触发），每次重求值产生键值相同的
-     * 新对象——若照常 assign 会把组件内部交互状态重置回 props 字面量（counter demo 场景：
-     * 点击 + 后 count=105 被打回 100）。值没变就不是更新（ADR-0054 决策三）。
+     * props 与上次应用值深等（{@link _propsEqual}）则跳过：静态字面量 props（无状态路径）的
+     * 表达式支路 watcher 订阅为空 deps（autostore watch([]) = 任意状态变化触发），每次重求值
+     * 产生键值相同的新对象——若照常 assign 会把组件内部交互状态重置回 props 字面量（counter
+     * demo 场景：点击 + 后 count=105 被打回 100），嵌套字面量对象/数组更会因引用比较恒不等
+     * 陷入无限更新环。值没变就不是更新（ADR-0054 决策三）。
      */
     private _commitProps(): void {
         let props: Record<string, any> | undefined;
@@ -884,6 +886,18 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
      * 4. 手动触发 created/mounted hooks（宿主 scope 的 compile() 已早于组件注入跑过，hooks 须补触发）。
      */
     protected _instantiate(name: string, props: Record<string, any> | undefined): void {
+        // 僵尸域守卫：宿主 scope 已销毁时拒绝实例化。触发链——消费元素位于 ownsChildren
+        // 结构指令（eager x-if / x-for）子树内且 props 表达式引用了驱动该指令销毁/重建的
+        // 同一状态：一次状态变更产生同批两个 update（scheduler flush 按订阅序执行），
+        // 销毁 update 先跑（scope.destroy 置 destroyed=true + 指令 destroy 置空
+        // instanceScope/instanceDef），已入队的 props update 后跑——_commitProps 的
+        // 「已实例化」守卫因引用被置空而失效，误判「从未实例化」在**已销毁的宿主 scope
+        // 上重新实例化**：mounted 二次跑在僵尸域（el 已脱树），engine.destroy() 时
+        // scope.destroy 被幂等守卫（destroyed=true）挡回，重建域的 unmounted 永不触发
+        // ——mounted 中注册的全局监听泄漏（组件库 affix/watermark 实证，曾被迫
+        // isConnected 自卫 + 一跳延迟注册规避）。静默返回：销毁竞态是引擎内部时序，
+        // 非用户错误（flush 窗口内 el.isConnected 亦为 false，挂载无意义）。
+        if (this.binding.destroyed) return;
         const found = this._findComponentDef(name);
         if (!found) {
             // 组件未注册（可能正在被 x-import 异步加载）：显示 loading 占位 + 监听就绪后重试（R6=B）
@@ -1102,15 +1116,69 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         }
     }
 
-    /** 上次实际应用到组件数据域的 props（浅值比较基准；destroy 时清空） */
+    /** 上次实际应用到组件数据域的 props（深值比较基准；destroy 时清空） */
     private _appliedProps: Record<string, any> | undefined;
 
+    /** 值深比较最大深度（防循环引用/超深嵌套的递归爆炸；超限保守视为不等 → 照常更新） */
+    private static readonly PROPS_EQUAL_MAX_DEPTH = 8;
+
     /**
-     * props 浅值比较（键集合相同 + 每键 Object.is）。overlay 基座热更新复用（protected）。
+     * 值等价判定（props 深比较的核心谓词，「值没变就不是更新」ADR-0054 决策三的精确化）：
+     *
+     * - 标量：Object.is（NaN 等值、+0/-0 区分——后者保守导向更新，无正确性损失）；
+     * - 函数：按引用（函数无「内部键变更」语义，同引用即等价）；
+     * - 对象/数组：**同引用视为不等**——绑定状态对象形态每次重求值返回同一响应式引用，
+     *   其内部键可能已被外部原地修改，须照常 assign 把最新键值拷入（与 `_propsEqual`
+     *   顶层语义一致，推广到嵌套层）；**不同引用**的纯对象/数组递归深比较——字面量 props
+     *   每次求值产生全新嵌套对象/数组（引用比较恒不等 → 无限更新环），结构相同即等价；
+     * - Date/RegExp/Map/Set/类实例等非纯对象：按引用（不可变约定下引用同即等；不同引用
+     *   保守导向更新，无正确性损失）；
+     * - 深度超限（循环引用/超深嵌套）：保守视为不等 → 照常更新。
+     */
+    private static _valueEquals(a: any, b: any, depth: number): boolean {
+        if (typeof a === "function" || typeof b === "function") return Object.is(a, b);
+        if (a === null || b === null || typeof a !== "object" || typeof b !== "object") {
+            return Object.is(a, b);
+        }
+        // 同引用可变容器：内部键可能已原地变 → 视为不等（照常更新）
+        if (a === b) return false;
+        if (depth <= 0) return false;
+        const isArr = Array.isArray(a);
+        if (isArr !== Array.isArray(b)) return false;
+        if (!isArr) {
+            // 仅纯对象深比较（数组分支无原型约束）；其余对象类型按引用（上方 a === b 已否）
+            const pa = Object.getPrototypeOf(a);
+            const pb = Object.getPrototypeOf(b);
+            if ((pa !== Object.prototype && pa !== null) || (pb !== Object.prototype && pb !== null)) {
+                return false;
+            }
+        }
+        if (isArr) {
+            if (a.length !== b.length) return false;
+            for (let i = 0; i < a.length; i++) {
+                if (!ComponentDirective._valueEquals(a[i], b[i], depth - 1)) return false;
+            }
+            return true;
+        }
+        const ka = Object.keys(a);
+        if (ka.length !== Object.keys(b).length) return false;
+        for (const k of ka) {
+            if (!Object.prototype.hasOwnProperty.call(b, k)) return false;
+            if (!ComponentDirective._valueEquals(a[k], (b as Record<string, any>)[k], depth - 1)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * props 深值比较（键集合相同 + 每键 {@link _valueEquals} 深比较）。overlay 基座热更新复用（protected）。
      *
      * **同引用视为不等**：绑定状态对象形态（`x-component:box="order"`）重求值返回的是同一
      * 响应式引用，其内部键可能已被外部原地修改，必须照常 assign 把最新键值拷入。
-     * 仅不同引用（静态字面量每次重求值产生新对象）才比较键值。
+     * 仅不同引用（静态/字面量 props 每次重求值产生新对象）才比较键值——顶层键与嵌套的
+     * 对象/数组键均走深比较（嵌套字面量曾因引用比较恒不等 → 无限更新环，全库被迫
+     * 「状态引用注入」的根治点；深比较上限与语义见 {@link _valueEquals}）。
      */
     protected _propsEqual(
         a: Record<string, any> | undefined,
@@ -1120,7 +1188,9 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
         if (!a || !b) return false;
         const ka = Object.keys(a);
         if (ka.length !== Object.keys(b).length) return false;
-        return ka.every((k) => Object.is(a[k], b[k]));
+        return ka.every((k) =>
+            ComponentDirective._valueEquals(a[k], b[k], ComponentDirective.PROPS_EQUAL_MAX_DEPTH),
+        );
     }
 
     /**
@@ -1131,7 +1201,13 @@ export class ComponentDirective extends AutoSparkDirectiveBase {
      */
     private _updateProps(props: Record<string, any> | undefined): void {
         if (!props || !this.instanceScope?.data) return;
-        Object.assign(this.instanceScope.data, props);
+        // 空值布尔属性 coerce（ADR-0117 修订）：与 injectComponentSemantics 同规则——否则静态
+        // 字面量里的 "" 随表达式重求值整包 assign 打回已归一的 true。_appliedProps 存 coerce 前
+        // 原始源：与求值产物同基深等比较（_propsEqual），防抖不被归一破坏。
+        const applied = this.instanceDef
+            ? coerceBareBooleanProps(this.instanceDef, this.instanceScope._data ?? {}, props)
+            : props;
+        Object.assign(this.instanceScope.data, applied);
         this._appliedProps = props;
     }
 

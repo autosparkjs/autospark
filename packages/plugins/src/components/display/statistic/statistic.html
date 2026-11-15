@@ -1,0 +1,166 @@
+<!--
+    autospark.statistic 统计数值（组件库 P2 展示轻件，ADR-0018 清单权威表 display 行）：
+    title（标题）+ value（数值区：prefix 前缀 + 格式化数值 + suffix 后缀）。
+
+    格式化通道（mounted + watch JS 直写）：value 为 number 且有限时经
+    Intl.NumberFormat 按语言环境格式化（precision 修约 / grouping 千分位 /
+    groupSeparator 自定义分组符替换）；string 原样直出；null/undefined 渲染空。
+    绑定表达式不含组件 methods（引擎求值域边界），数值文本经 methods 格式化后
+    span 直写（button label 同款纪律）。
+
+    语言环境联动：locale 取全局状态 `$.language`（i18n 插件在场时的当前语言）——
+    组件封闭域的 parentView 即全局 state（ADR-0053），watch 表达式 `$ && $.language`
+    经聚合视图求值并收集依赖（`$` 容器缺席时短路安全），语言切换即时重算；
+    未装 i18n / 未设置时回退 zh 缺省（依赖松弛不强制，ADR-0018 决策 6 精神）。
+
+    倒计时形态不做——countdown 独立件 P4（边界声明，见合批 ADR）。
+
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
+    不会求值——本组件无宿主级变体外观，数值文本/样式全经 JS 通道直写内层元素。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得——数值区字号以 em 标定（1.5em），随 data-size 档位全跟随；
+     statistic 不在 data() 声明主题六键，内部变体属性亦禁用六个通道名 -->
+<div
+  class="asc-statistic"
+  x-define="autospark.statistic"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            value: 0,         // 数值：number 经 Intl 格式化 | string 原样直出
+            precision: null,  // 小数位数（>=0 整数时修约；null/负数/非整数忽略——保留原精度）
+            grouping: true,   // 千分位开关（false 时 useGrouping:false 纯数字串）
+            groupSeparator: "", // 自定义分组符（空 = 按语言环境缺省符；非空时替换 Intl 分组符，如 "_" / " "）
+            prefix: "",       // 前缀文本（prefix 槽可重载；如货币符号 "¥"）
+            suffix: "",       // 后缀文本（suffix 槽可重载；如单位 "个"）
+            title: "",        // 标题（title 槽可重载；空时整行不占位）
+            valueStyle: null, // 数值区内联样式对象（{ color: "red", fontWeight: 600 }；状态引用注入——字面量对象 props 死环规避）
+        }),
+        methods: {
+            // 当前语言：i18n 在场取 $.language（BCP 47 语言码即 Intl locale），缺席回退 zh
+            currentLanguage() {
+                const g = this.globalState;
+                return (g && g.$ && g.$.language) || "zh";
+            },
+            // 数值格式化：number → Intl.NumberFormat(locale)；string 原样直出
+            formatValue() {
+                const v = this.data.value;
+                if (typeof v === "number" && isFinite(v)) {
+                    const opts = { useGrouping: !!this.data.grouping };
+                    // null（缺省）与非数字/负数/非整数忽略——保留 locale 缺省精度
+                    //（注意 Number(null) === 0，须先判空再转数）
+                    const p = this.data.precision == null ? NaN : Number(this.data.precision);
+                    if (isFinite(p) && p >= 0 && Math.floor(p) === p) {
+                        opts.minimumFractionDigits = p;
+                        opts.maximumFractionDigits = p;
+                    }
+                    let nf;
+                    try { nf = new Intl.NumberFormat(this.currentLanguage(), opts); }
+                    catch { nf = new Intl.NumberFormat("zh", opts); } // 非法语言码兜底
+                    let text = nf.format(v);
+                    const sep = this.data.groupSeparator;
+                    if (sep) {
+                        // 自定义分组符：按 locale 实际分组符全量替换（formatToParts 定位）
+                        const groupPart = nf.formatToParts(v).find((x) => x.type === "group");
+                        if (groupPart) text = text.split(groupPart.value).join(sep);
+                    }
+                    return text;
+                }
+                return v == null ? "" : String(v);
+            },
+            // 数值文本直写（幂等：重算 + 覆写，watcher 同值重跑安全——i18n refresh 防污染加固）
+            syncValue() {
+                const el = this.el.querySelector(".asc-statistic-value-text");
+                if (el) el.textContent = this.formatValue();
+            },
+            // 数值区样式应用：valueStyle 对象展开为内联样式（先清后写，幂等）；
+            // 自定义属性 --x 走 setProperty（Chromium style["--x"]=v 赋值静默失效的规避）
+            syncStyle() {
+                const el = this.el.querySelector(".asc-statistic-value");
+                if (!el) return;
+                el.removeAttribute("style");
+                const s = this.data.valueStyle;
+                if (s && typeof s === "object") {
+                    for (const key of Object.keys(s)) {
+                        if (key.startsWith("--")) el.style.setProperty(key, String(s[key]));
+                        else el.style[key] = s[key];
+                    }
+                }
+            },
+        },
+        mounted() {
+            this.syncValue();
+            this.syncStyle();
+            this.watch("value", () => this.syncValue());
+            this.watch("precision", () => this.syncValue());
+            this.watch("grouping", () => this.syncValue());
+            this.watch("groupSeparator", () => this.syncValue());
+            // 语言联动：`$ && $.language` 短路安全（$ 容器缺席时求值 undefined 不抛错），
+            // 经聚合视图收集 $.language 依赖——i18n 语言切换即时重算（未装则恒不触发）
+            this.watch("$ && $.language", () => this.syncValue());
+            this.watch("valueStyle", () => this.syncStyle());
+        },
+    }
+  </script>
+  <style global id="autospark-components-statistic">
+    .asc-statistic {
+      display: block;
+      width: 100%;
+      font-size: var(--auto-font-size, var(--asc-statistic-font-size, 0.875rem));
+      line-height: var(--auto-line-height, 1.5);
+    }
+    /* 标题：次要色弱化引导；空值不占位（:empty 判定纪律——出口内容紧凑书写） */
+    .asc-statistic-title {
+      color: var(--auto-secondary-color, var(--asc-statistic-title-color, rgba(0, 0, 0, 0.55)));
+    }
+    .asc-statistic-title:empty {
+      display: none;
+    }
+    /* 数值区：大号字重数值（em 标定随 data-size 档位缩放）+ 等宽数字（数值对齐惯例） */
+    .asc-statistic-value {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.15em;
+      font-size: 1.5em;
+      font-weight: var(--x-font-weight-large, 600); /* 语义层无大号字重变量，直取基础标尺 */
+      font-variant-numeric: tabular-nums;
+      line-height: 1.2;
+      color: var(--auto-color, var(--asc-statistic-value-color, #303030));
+    }
+    /* 前后缀：随数值缩放略小一号；空值不占位（gap 消除） */
+    .asc-statistic-prefix,
+    .asc-statistic-suffix {
+      font-size: 0.667em; /* 相对 1.5em 数值区 = 宿主基准字号 */
+    }
+    .asc-statistic-prefix:empty,
+    .asc-statistic-suffix:empty {
+      display: none;
+    }
+    .asc-statistic-value-text {
+      min-width: 0;
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-statistic-title,
+    [data-dark] .asc-statistic-title {
+      color: var(--auto-secondary-color, var(--asc-statistic-title-color, rgba(255, 255, 255, 0.65)));
+    }
+    [dark] .asc-statistic-value,
+    [data-dark] .asc-statistic-value {
+      color: var(--auto-color, var(--asc-statistic-value-color, #fafafa));
+    }
+  </style>
+  <!-- 标题/前后缀出口（槽优先，props 兜底——紧凑书写，:empty 判定纪律）；
+         数值文本由 mounted + watch JS 直写（绑定表达式不含 methods 的引擎边界规避） -->
+  <div class="asc-statistic-inner">
+    <div class="asc-statistic-title" x-slot:title>{{ title }}</div>
+    <div class="asc-statistic-value">
+      <span class="asc-statistic-prefix" x-slot:prefix>{{ prefix }}</span>
+      <span class="asc-statistic-value-text"></span>
+      <span class="asc-statistic-suffix" x-slot:suffix>{{ suffix }}</span>
+    </div>
+  </div>
+</div>

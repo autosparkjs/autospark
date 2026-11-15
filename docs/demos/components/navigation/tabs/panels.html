@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tabs · 面板切换三形态</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.tabs.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .pane {
+        margin: 0;
+        min-height: 72px;
+        padding: 12px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.04);
+      }
+      .pane input {
+        margin-top: 8px;
+        padding: 4px 8px;
+      }
+      .meta {
+        margin-top: 8px;
+        font-size: 0.8125rem;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">x-show（DOM 保留）</div>
+        <div class="auto-card-body">
+          <div @change="v1 = $event.detail.value">
+            <x-tabs :items="tabs" :value="v1">
+              <p class="pane" x-show="v1 === 'a'">面板 A：<input placeholder="输入点什么，切走再切回，内容还在" /></p>
+              <p class="pane" x-show="v1 === 'b'">面板 B：宿主永留 DOM，仅变可见性。</p>
+            </x-tabs>
+          </div>
+          <p class="meta">受控形态：外层 @change 回写状态，面板绑同一状态。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">x-if.keepalive（摘 DOM 保活）</div>
+        <div class="auto-card-body">
+          <div @change="v2 = $event.detail.value">
+            <x-tabs :items="tabs" :value="v2">
+              <p class="pane" x-if.keepalive="v2 === 'a'">面板 A：<input placeholder="离开时摘 DOM，状态保留（保活）" /></p>
+              <p class="pane" x-if.keepalive="v2 === 'b'">面板 B：不被命中时不占 DOM（querySelector 不可见）。</p>
+            </x-tabs>
+          </div>
+          <p class="meta">重型面板推荐：不渲染不占资源，切回原宿主 reattach 状态保留。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">x-if（缺省 eager，销毁重建）</div>
+        <div class="auto-card-body">
+          <div @change="v3 = $event.detail.value">
+            <x-tabs :items="tabs" :value="v3">
+              <p class="pane" x-if="v3 === 'a'">面板 A：每次切入重建（表单等内容不保留）。</p>
+              <p class="pane" x-if="v3 === 'b'">面板 B：轻量静态面板的缺省选择。</p>
+            </x-tabs>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        v1: "a",
+        v2: "a",
+        v3: "a",
+        tabs: [
+          { key: "a", label: "面板 A" },
+          { key: "b", label: "面板 B" },
+        ],
+      });
+    </script>
+  </body>
+</html>

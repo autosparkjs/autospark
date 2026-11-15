@@ -5,9 +5,9 @@
  *
  * 复选框（原生增强路线，ADR-0018 决策 7）：真实原生 `<input type="checkbox">` + 自绘
  * 视觉（勾形 / 半选横线 CSS，选中态经 `:checked` / `:indeterminate` 原生伪类驱动）。
- * 继承 autospark.base-field 表单域骨架（状态色通道 / 焦点态 / disabled 同步，裸态无盒饰）
- * ——本产物以副作用导入内嵌 base-field 注册（继承链 checkbox → base-field →
- * autospark.base，ADR-0020），按需加载场景无须单独引入 autospark.base-field.js。
+ * 继承 autospark.field 表单域骨架（状态色通道 / 焦点态 / disabled 同步，裸态无盒饰）
+ * ——本产物以副作用导入内嵌 field 注册（继承链 checkbox → field →
+ * autospark.base，ADR-0020），按需加载场景无须单独引入 autospark.field.js。
  *
  * 值通道（x-model 兼容协议）：宿主 el.value 劫持为**布尔语域**（"true"/"false"，配
  * `x-model.boolean` 类型保真——state-button 布尔组桥同款惯用法）；原生 change 冒泡过
@@ -24,7 +24,7 @@
 import type { AutoSpark } from "autospark";
 import { captureNamespace } from "../../../utils/namespace";
 import { installPlugin } from "@autospark/utils";
-import "../../base/base-field/index";
+import "../../base/field/index";
 import checkboxTemplate from "./checkbox.html?raw";
 
 /** 组件注册名（autospark. 点前缀命名空间，ADR-0094；kebab 免疫 DOM 属性名小写化） */

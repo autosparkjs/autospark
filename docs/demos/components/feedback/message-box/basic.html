@@ -19,26 +19,29 @@
       <div class="auto-card">
         <div class="auto-card-header">基础（danger 询问 / 仅确认）</div>
         <div class="auto-card-body" style="display: flex; gap: 12px; flex-wrap: wrap">
-          <button
+          
+          <span
             x-dialog:message-box="ui.open"
             x-dialog-options.props="{ title: '删除确认', content: '此操作不可恢复，删除后无法找回。确定要删除这份文档吗？', type: 'danger' }"
-            x-component:autospark.button="{ label: '删除文档', variant: 'primary', type: 'danger' }"
             @click="ui.open = true"
-          ></button>
-          <button
+          >
+            <x-button label="删除文档" variant="primary" type="danger"></x-button>
+          </span>
+          <span
             x-dialog:message-box="ui.openPure"
             x-dialog-options.props="{ title: '发布通知', content: '通知将立即推送给全部成员，发布后不可撤回。', type: 'warning', showCancel: false, confirmText: '立即发布' }"
-            x-component:autospark.button="{ label: '仅确认（无取消钮）' }"
             @click="ui.openPure = true"
-          ></button>
-          <button
+          >
+            <x-button label="仅确认（无取消钮）"></x-button>
+          </span>
+          <span
             x-dialog:message-box="ui.openSlot"
             x-dialog-options.props="{ title: '开通提醒', type: 'success' }"
-            x-component:autospark.button="{ label: '内容插槽（富内容）' }"
             @click="ui.openSlot = true"
           >
-            <div x-slot>已为你开通<strong>实时同步</strong>功能，所有设备数据将自动保持一致。</div>
-          </button>
+            <x-button label="内容插槽（富内容）"></x-button>
+            <template x-slot>已为你开通<strong>实时同步</strong>功能，所有设备数据将自动保持一致。</template>
+          </span>
         </div>
       </div>
       <div class="auto-card">

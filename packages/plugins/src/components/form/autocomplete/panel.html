@@ -1,0 +1,73 @@
+<!--
+    autospark-autocomplete-panel 建议面板（ADR-0027）——autocomplete 的内部组件
+    （非用户直接消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令
+    机制（trigger:click）渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位/宽度 fit
+    随触发器）由 popover-shell 承载，本组件只贡献建议列表内容。
+
+    与触发器组件（autospark.autocomplete）的通信走 scope 链（ADR-0022 决策 2 同款）：
+    overlay 内容宿主恒以「open + dataContext:'host'」实例化本组件，聚合视图沿链读写
+    触发器组件 data 域——
+    - 读：items（x-for 数据源）/ activeValue（高亮基准）/ loading（x-loading 遮罩）；
+    - 写：哨兵键 pickTick/pickValue（建议项点击）、hoverTick/hoverValue（悬停高亮
+      回传）——面板模板不能跨组件边界调触发器组件 method（x-on 组件 method 查找不
+      穿透父组件），自增哨兵免疫同值去重；事件表达式用逗号运算符单表达式形态（分号
+      多语句依赖新版引擎回退，旧产物不可用）；
+    - 开合态：mounted/unmounted 沿链写 open（触发器侧 data-open 同步）。
+
+    宽度匹配触发器盒饰（select 同款两段合成）：popover 的 fit 基准是触发器内容区
+    （popover 宿主元素，不含盒饰 padding）——按根属性 data-asc-autocomplete-uid 配对
+    测盒饰宽，补写 shell 面板 min-width（fit 持续写 width，min-width 抬到盒宽；每次
+    打开新实例重测）。空态文案走 i18n 词典 autocomplete.empty 键（回退「暂无建议」）。
+-->
+<div class="asc-autocomplete-panel" x-define="autospark-autocomplete-panel">
+  <script setup>
+    {
+        // 本组件零 props（overlay 宿主以空值实例化）、零自有状态——全部数据经 scope 链
+        // 读写触发器组件域；data() 空对象占位以建立自有 data 层（聚合视图的链上桥点）
+        data: () => ({}),
+        mounted() {
+            // 开合态沿链写回（触发器侧 watch open 派生 data-open）
+            this.data.open = true;
+            // 宽度匹配触发器盒饰：按 uid 配对测盒饰宽补 shell 面板 min-width
+            const uid = this.data.uid;
+            if (uid) {
+                const box = document.querySelector('[data-asc-autocomplete-uid="' + uid + '"]');
+                const shellPanel = this.el.closest("[data-overlay]");
+                if (box && shellPanel) {
+                    shellPanel.style.minWidth = box.getBoundingClientRect().width + "px";
+                }
+            }
+            // 高亮项滚动跟随（键盘导航可见性；列表在面板内现查）
+            const scrollActive = () => {
+                const el = this.el.querySelector(".asc-autocomplete-option[data-active]");
+                el?.scrollIntoView?.({ block: "nearest" });
+            };
+            setTimeout(scrollActive, 0);
+            this.watch("activeValue", () => { setTimeout(scrollActive, 0); });
+        },
+        unmounted() {
+            // 面板每次开合都是新实例（popover 无 keepalive，关闭即销毁）——关闭即复位开合态
+            this.data.open = false;
+        },
+    }
+  </script>
+  <!-- 建议列表：x-loading 遮罩（fetch 在途）+ template 形态 x-for（空态行随容器） -->
+  <div class="asc-autocomplete-list" x-loading="loading">
+    <template x-for="option of items" :key="option.value">
+      <div
+        class="asc-autocomplete-option"
+        x-bind:data-active="activeValue != null && String(option.value) === String(activeValue)"
+        x-bind:data-disabled="!!option.disabled"
+        x-on:click="pickTick = pickTick + 1, pickValue = option.value"
+        x-on:mouseenter="hoverTick = hoverTick + 1, hoverValue = option.value"
+      >
+        <span class="asc-autocomplete-option-label" x-text="option.label"></span>
+      </div>
+    </template>
+    <div
+      class="asc-autocomplete-empty"
+      x-if="!loading && !(items && items.length > 0)"
+      x-text="t('autocomplete.empty') === 'autocomplete.empty' ? '暂无建议' : t('autocomplete.empty')"
+    ></div>
+  </div>
+</div>

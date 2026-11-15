@@ -6,10 +6,10 @@
  * 评分（自绘路线，无原生对应控件）：引擎内置 `star` 星形图标 ×N（x-for 渲染，
  * max 可配），点亮层 clip-path 百分比裁剪承载半星；可访问性自持——role=slider
  * 单焦点键盘模型（Arrow 方向调分 + Home/End 归位 + aria-valuenow 随动，switch
- * role=switch 同款自持范式）。继承 autospark.base-field 表单域骨架（状态色通道 /
- * 焦点态 / disabled 同步，裸态无盒饰）——本产物以副作用导入内嵌 base-field 注册
- * （继承链 rate → base-field → autospark.base，ADR-0020），按需加载场景无须单独
- * 引入 autospark.base-field.js。
+ * role=switch 同款自持范式）。继承 autospark.field 表单域骨架（状态色通道 /
+ * 焦点态 / disabled 同步，裸态无盒饰）——本产物以副作用导入内嵌 field 注册
+ * （继承链 rate → field → autospark.base，ADR-0020），按需加载场景无须单独
+ * 引入 autospark.field.js。
  *
  * 值通道（x-model 兼容协议）：宿主 el.value 劫持为数字语域（"0".."N"[.5]）；提交
  * （点击 / 键盘）派发 input（x-model 回写，非冒泡）+ change（detail={ value } 冒泡
@@ -27,7 +27,7 @@
 import type { AutoSpark } from "autospark";
 import { captureNamespace } from "../../../utils/namespace";
 import { installPlugin } from "@autospark/utils";
-import "../../base/base-field/index";
+import "../../base/field/index";
 import rateTemplate from "./rate.html?raw";
 
 /** 组件注册名（autospark. 点前缀命名空间，ADR-0094；kebab 免疫 DOM 属性名小写化） */

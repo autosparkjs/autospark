@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Countdown · format 模板</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.countdown.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">format token 模板（{d}{h}{m}{s}）</div>
+        <div class="auto-card-body">
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+            <div>
+              <x-countdown :time="t3" format="{d} 天 {h}:{m}:{s}"></x-countdown>
+              <p class="hint" style="margin-top: 4px">含 {d}：{h} 为日内余时（0-23）</p>
+            </div>
+            <div>
+              <x-countdown :time="t3" format="{h} 小时 {m} 分 {s} 秒"></x-countdown>
+              <p class="hint" style="margin-top: 4px">
+                不含 {d}：{h} 为总小时（可超 24）——antd 同款语义
+              </p>
+            </div>
+          </div>
+          <p class="hint" style="margin-top: 12px">
+            {h} / {m} / {s} 补零两位、{d} 不补零；token 替换与任意文本混排自由组合。 起始时长 1 天
+            10 小时 20 分 30 秒。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card" data-dark>
+        <div class="auto-card-header">暗色态（容器 data-dark）</div>
+        <div class="auto-card-body">
+          <x-countdown :time="t3" format="{d} 天 {h}:{m}:{s}"></x-countdown>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        t3: 24 * 3600 * 1000 + 10 * 3600 * 1000 + 20 * 60 * 1000 + 30 * 1000, // 1d 10h 20m 30s
+      });
+    </script>
+  </body>
+</html>

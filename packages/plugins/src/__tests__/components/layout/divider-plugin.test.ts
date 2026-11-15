@@ -58,7 +58,7 @@ describe("divider 组件插件（ADR-0019 P0 轻件）", () => {
         expect(t).toContain("--asc-line: var(--auto-border-color, var(--asc-divider-color, #d9d9d9));");
         expect(t).toContain('.asc-divider-body[data-dashed="true"]::before, .asc-divider-body[data-dashed="true"]::after { border-top-style: dashed; }');
         expect(t).toContain('.asc-divider:has(> .asc-divider-body[data-vertical="true"]) { display: inline-block;');
-        expect(t).toContain('[dark] .asc-divider, [data-dark] .asc-divider { --asc-line: var(--auto-border-color, var(--asc-divider-color, #4d4d4d)); }');
+        expect(t).toContain('[dark] .asc-divider, [data-dark] .asc-divider { --asc-line: var(--auto-border-color, var(--asc-divider-color, #52525b)); }');
     });
 });
 

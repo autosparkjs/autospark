@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>ADR-0137 template 出口 e2e</title>
+<style>
+    body { font-family: sans-serif; margin: 20px; }
+    .mark-x { outline: 2px solid red; }
+    #result li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div id="app" x-scope>
+    <!-- ① 有内容未填充：fallback 渲染 + fallback 根注入 + 无包裹层 -->
+    <div x-define="card1">
+        <template class="mark-x" enable x-slot:header><h1>默认标题</h1></template>
+        <div x-slot>默认正文</div>
+    </div>
+    <div id="c1" x-component:card1></div>
+
+    <!-- ② 空载体未填充：可选出口整出口不渲染 -->
+    <div x-define="card2">
+        <template x-slot:extra></template>
+        <p>固定</p>
+    </div>
+    <div id="c2" x-component:card2></div>
+
+    <!-- ③ 空载体 + 填充 + 注入 + 活注入 -->
+    <div x-define="card3">
+        <template class="mark-x" :title="tip" x-slot:extra></template>
+    </div>
+    <div id="c3" x-component:card3>
+        <template x-slot:extra><b>附加</b>纯文本尾</template>
+    </div>
+
+    <!-- ④ 元素载体：保留包裹层 + 注入载体自身 -->
+    <div x-define="card4">
+        <template class="mark-x" x-slot:header>默认</template>
+    </div>
+    <div id="c4" x-component:card4>
+        <span x-slot:header><h2>span 内标题</h2></span>
+    </div>
+</div>
+
+<!-- 真浏览器渲染结果采集（可见性由浏览器决定，非 happy-dom 结构断言） -->
+<ul id="result"></ul>
+<script>
+    window.__waitEngine = new Promise((resolve) => {
+        const t = setInterval(() => {
+            if (window.__collect) { clearInterval(t); resolve(); }
+        }, 30);
+    });
+</script>
+<script type="module">
+    // 占位：由 Bun.serve 注入产物路径（本文件直接引用 ../dist 由 serve 路由改写）
+</script>
+<script src="/autospark.js"></script>
+<script>
+    const engine = new AutoSpark(document.getElementById("app"), { tip: "动态提示" });
+    window.__collect = () => {
+        const q = (s) => document.querySelector(s);
+        const c1h1 = q("#c1 h1");
+        const c3b = q("#c3 b");
+        return {
+            // ① fallback 可见渲染（offsetParent 非 null = 真渲染，非 display:none template 内）
+            c1_fallback_visible: !!c1h1 && c1h1.offsetParent !== null,
+            c1_fallback_text: c1h1?.textContent,
+            c1_injected_class: c1h1?.classList.contains("mark-x"),
+            c1_injected_enable: c1h1?.hasAttribute("enable"),
+            c1_no_template: !q("#c1 template"),
+            c1_anchor: c1h1?.dataset.slot === "header",
+            c1_default_outlet: q("#c1 [data-slot='default']")?.textContent === "默认正文",
+            // ② 可选出口零痕迹
+            c2_text: document.getElementById("c2").textContent.trim(),
+            c2_no_extra: !q("#c2 [data-slot='extra']"),
+            // ③ 填充 + 注入 + 活注入（:title 求值）
+            c3_text: document.getElementById("c3").textContent.trim(),
+            c3_injected: c3b?.classList.contains("mark-x"),
+            c3_live_bind: c3b?.getAttribute("title") === "动态提示",
+            // ④ 元素载体
+            c4_span_kept: !!q("#c4 span"),
+            c4_span_injected: q("#c4 span")?.classList.contains("mark-x"),
+            c4_h2_text: q("#c4 h2")?.textContent,
+        };
+    };
+    // 渲染采集到 #result（Playwright 侧断言 DOM）
+    setTimeout(() => {
+        const data = window.__collect();
+        const ul = document.getElementById("result");
+        for (const [k, v] of Object.entries(data)) {
+            const li = document.createElement("li");
+            li.textContent = k + " = " + JSON.stringify(v);
+            li.dataset.key = k;
+            li.dataset.value = String(v);
+            ul.appendChild(li);
+        }
+        document.title = "E2E-READY";
+    }, 100);
+</script>
+</body>
+</html>

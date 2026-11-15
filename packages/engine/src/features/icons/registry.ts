@@ -61,6 +61,12 @@ export interface IconOptions {
     /** 修饰：手型光标（`cursor: pointer`，可点击语义） */
     pointer?: boolean;
     /**
+     * 旋转（ADR-0007 修订热应用成员）：number（≠0）→ `${n}deg`；非空字符串原样作 CSS 角度
+     * （`"0.5turn"`）；0 / 空 / 未声明不启用。作用于 svg 载体并常驻 transition（时长经
+     * `--as-icon-rotate-duration` 覆盖）。
+     */
+    rotate?: number | string;
+    /**
      * 图标归一化总开关（ADR-0130）：`false` 关闭全部风格对齐（四件套补齐/颜色规约/网格
      * 补偿）；默认开启。逐图标逃逸走 svg 根的 `data-raw` 标志（不在此配置）。
      */

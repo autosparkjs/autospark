@@ -12,13 +12,14 @@
  * 并让子作用域继承父的 localData（供 x-for 注入的 item/index 向下传递到嵌套子元素）。
  */
 import { AutoSparkScope } from "../scope";
-import { isTooltipConvertEnabled } from "../../features/tooltip/convert-flag";
+import { isTooltipConvertEnabled, isComponentTitleHost } from "../../features/tooltip/convert-flag";
 import { SCOPES_KEY } from "../../consts";
 import { CompileError } from "../../errors";
 import { removeDirectives } from "../../features/directive/utils/removeDirectives";
 import { isDirectiveAttr } from "../../features/directive/utils/isDirectiveAttr";
 import { DirectiveKind } from "../../features/directive/base";
 import { ModelDirective } from "../../directives/x-model";
+import { SlotDirective } from "../../directives/x-slot";
 import type { AutoDirectiveInfo } from "../../features/directive/types";
 import type { AutoSpark } from "../engine";
 import {
@@ -34,6 +35,7 @@ import {
     isAutoComponentClass,
     isReservedElementAttr,
 } from "../../features/component/auto-component";
+import { coerceBareBooleanProps } from "../../features/component/bare-boolean";
 import {
     buildComponentDef,
     extractGlobalOption,
@@ -47,11 +49,16 @@ import {
     buildSlotsRegistry,
     getSlotMarker,
     getSlotsContainer,
+    isSlotAttrName,
     stripOwnSlotAttrs,
     type SlotContent,
     type SuperFallback,
 } from "../../utils/slot";
-import { mountComponentScopedAttr, injectComponentStyle, componentScopedId } from "../../utils/scopedStyle";
+import {
+    mountComponentScopedAttr,
+    injectComponentStyle,
+    componentScopedId,
+} from "../../utils/scopedStyle";
 import { bindStyleVars, type StyleBind } from "../../utils/styleBind";
 import { registerIconDecl } from "../../features/icons/domain";
 import { DEFAULT_REMOTE_URL, MODIFY_VALUES, interpolateUrl } from "../../features/icons/remote";
@@ -110,6 +117,8 @@ export class AutoSparkCompiler {
      * props 值通道，finally 恢复原树（原模板不留痕，重编译幂等）。
      */
     private _autoComponentProps = new WeakMap<HTMLElement, Record<string, string>>();
+    /** template 出口载体注入集暂存（ADR-0137）：编译期剥除时 stash、SlotDirective.created 消费 */
+    private _outletInjectAttrs = new WeakMap<HTMLElement, Array<[string, string]>>();
     /**
      * 覆盖物消费者指令名集合（惰性，来自注册表中 `overlayConsumer=true` 的指令类）。
      * 插槽归属剪枝据以判定「元素是否覆盖物宿主」——晚注册指令后首次调用时重建即可，
@@ -126,10 +135,15 @@ export class AutoSparkCompiler {
      * 模板只读契约）：title 值转移、data-tooltip 已存在则仅剥 title（原生 tooltip 与自定义
      * 浮层同屏双显是 bug）；特性关闭（`options.tooltip: false`）时 title 原样保留（全关语义）。
      * 绑定形态 `:title` / `x-bind:title` 的重定向不在此处——由 BindDirective.created 承担。
+     *
+     * 组件宿主豁免（P1 修复）：即将被组件化折叠的宿主（元素名自动组件 / x-component 属性
+     * 形态，判定见 {@link isComponentTitleHost}）其静态 title 是 props 注入通道——转换先于
+     * ADR-0117 静态属性折叠执行会吞值（data-* 属保留属性不折叠），跳过转换。
      */
     private _convertTitleEl(el: HTMLElement): void {
         const title = el.getAttribute("title");
         if (title === null) return;
+        if (isComponentTitleHost(el, this.engine.directives)) return;
         el.removeAttribute("title");
         if (!el.hasAttribute("data-tooltip")) el.setAttribute("data-tooltip", title);
     }
@@ -551,7 +565,11 @@ export class AutoSparkCompiler {
         const lookupParent = (pname: string): ComponentDef | null => {
             const snap = this.engine._resolveGlobalComponent(pname);
             if (!snap) return null;
-            return this.engine.getComponentDef(snap) ?? this.engine.getGlobalComponentDef(pname) ?? null;
+            return (
+                this.engine.getComponentDef(snap) ??
+                this.engine.getGlobalComponentDef(pname) ??
+                null
+            );
         };
         const attempt = (): InheritResolveResult => {
             // fail-fast：全局各注册位未命中父名，但声明处作用域链能命中 → 全局子继承作用域父，
@@ -945,9 +963,11 @@ export class AutoSparkCompiler {
         // 命中注册后下方既有 findByElementName 通道自然命中。
         this._resolveUnknownElementComponent(template);
         const restoreAutoProps = this._stripAutoComponentExprProps(template);
+        const restoreOutletInject = this._stripOutletInjectAttrs(template);
         try {
             return this._compileElementInner(template);
         } finally {
+            restoreOutletInject();
             restoreAutoProps();
         }
     }
@@ -977,7 +997,14 @@ export class AutoSparkCompiler {
         const camel = rest.replace(/-([a-z0-9])/g, (_, ch: string) => ch.toUpperCase());
         const dotted = rest.includes("-") ? rest.replace(/-/g, ".") : rest;
         const candidates = [
-            ...new Set([`autospark.${rest}`, rest, `autospark.${camel}`, camel, `autospark.${dotted}`, dotted]),
+            ...new Set([
+                `autospark.${rest}`,
+                rest,
+                `autospark.${camel}`,
+                camel,
+                `autospark.${dotted}`,
+                dotted,
+            ]),
         ];
         for (const candidate of candidates) {
             if (this.engine._resolveGlobalComponent(candidate)) return;
@@ -1033,6 +1060,46 @@ export class AutoSparkCompiler {
         return exprs;
     }
 
+    /**
+     * 剥除 template 出口载体上的注入集指令属性（ADR-0137 编译期半程）。
+     *
+     * template 载体不进运行 DOM，其属性是**出口注入**的材料——指令属性（`:*` / `@*` /
+     * `x-*`）若不在解析前剥除，会按通用管线在 template 元素上实例化（`display:none`
+     * 元素上空转 watcher）。本函数把**完整注入集**（静态 + 指令属性，排除 `x-slot`
+     * 标记与宿主配置家族）stash 后仅剥除指令性属性；返回恢复闭包（finally 调用，
+     * 原树无痕、重编译幂等——与 `_stripAutoComponentExprProps` 同模式）。
+     *
+     * SlotDirective 在 `created` 期经 `consumeOutletInjectAttrs` 一次性取走 stash
+     * （生命周期均在 `compileElement` 的 try 块内执行，时序安全）。
+     */
+    private _stripOutletInjectAttrs(template: HTMLElement): () => void {
+        if (!(template instanceof HTMLTemplateElement)) return AutoSparkCompiler._NOOP_RESTORE;
+        if (getSlotMarker(template) === null) return AutoSparkCompiler._NOOP_RESTORE;
+        const injectAttrs: Array<[string, string]> = [];
+        const stripped: Array<[string, string]> = [];
+        for (const attr of Array.from(template.attributes)) {
+            if (isSlotAttrName(attr.name)) continue;
+            if (attr.name === "x-options" || attr.name === "x-slot-options") continue;
+            injectAttrs.push([attr.name, attr.value]);
+            // 仅指令性属性需要剥除（防实例化）；静态属性留在 template 上无害（载体即将移出运行树）
+            if (isDirectiveAttr(attr.name)) stripped.push([attr.name, attr.value]);
+        }
+        if (injectAttrs.length === 0) return AutoSparkCompiler._NOOP_RESTORE;
+        this._outletInjectAttrs.set(template, injectAttrs);
+        for (const [name] of stripped) template.removeAttribute(name);
+        return () => {
+            this._outletInjectAttrs.delete(template);
+            for (const [name, value] of stripped) template.setAttribute(name, value);
+        };
+    }
+
+    /** 读取 template 出口载体的注入集暂存（SlotDirective.created 一次性消费，读后即删） */
+    consumeOutletInjectAttrs(template: HTMLElement): Array<[string, string]> | undefined {
+        const attrs = this._outletInjectAttrs.get(template);
+        if (attrs) this._outletInjectAttrs.delete(template);
+        return attrs;
+    }
+
     /** compileElement 主体（剥除恢复包裹后的原流程，见 compileElement） */
     private _compileElementInner(template: HTMLElement): HTMLElement | OwnsChildrenResult {
         // 数据脚本预扫（ADR-0032）：直接子级 <script type="autospark/data"> 先于指令求值
@@ -1050,11 +1117,13 @@ export class AutoSparkCompiler {
             // 必须浅克隆：transformElement 用 live NodeList 遍历原节点子节点并挂到返回的新节点下，
             // 若返回原节点，appendChild 会写回原节点自身、其 childNodes 持续增长，导致 live 遍历无限循环。
             const plain = template.cloneNode(false) as HTMLElement;
-            if (isTooltipConvertEnabled() && (this.engine.tooltip?.enabled ?? false)) this._convertTitleEl(plain);
+            if (isTooltipConvertEnabled() && (this.engine.tooltip?.enabled ?? false))
+                this._convertTitleEl(plain);
             return plain;
         }
         const el = template.cloneNode(false) as HTMLElement;
-        if (isTooltipConvertEnabled() && (this.engine.tooltip?.enabled ?? false)) this._convertTitleEl(el);
+        if (isTooltipConvertEnabled() && (this.engine.tooltip?.enabled ?? false))
+            this._convertTitleEl(el);
         removeDirectives(el, "x-", this._runtimeKeepAttr());
         const scope = new AutoSparkScope(this.engine, el, template);
         this._linkParent(template, scope);
@@ -1080,9 +1149,28 @@ export class AutoSparkCompiler {
         this._synthesizeModelSchemaBindings(el, scope);
         // 结构指令占有子树：返回 ownsChildren 信号，跳过子节点自动递归（由指令自行编译）。
         if (ownsChildren) {
+            // template 出口载体（ADR-0137）：SlotDirective 的编译产物（投影 / 注入 / fallback，
+            // 可多根）经 fragment 原位展开挂入新父——transformElement 对 fragment 的
+            // appendChild 自动展开子节点，template 自身不进运行 DOM（无包裹层）；
+            // 空产物（可选出口未填充）= 空 fragment = 出口静默消失。
+            const outletFragment = this._takeOutletFragment(scope);
+            if (outletFragment) return { node: outletFragment, ownsChildren: true };
             return { node: el, ownsChildren: true };
         }
         return el;
+    }
+
+    /**
+     * 取走 template 出口载体的编译产物 fragment（ADR-0137）。
+     *
+     * scope 上无 SlotDirective 实例、或出口为元素载体（产物恒 null，走 el 内挂载
+     * 既有路径）时返回 null——x-for / x-if 等其他 ownsChildren 指令不受影响。
+     */
+    private _takeOutletFragment(scope: AutoSparkScope): DocumentFragment | null {
+        for (const d of scope.directives) {
+            if (d instanceof SlotDirective) return d.takeOutletFragment();
+        }
+        return null;
     }
 
     /**
@@ -1452,8 +1540,8 @@ export class AutoSparkCompiler {
                     );
                 }
             }
-            // 2) x-component props（后覆盖同名键，R1=A）
-            if (props) Object.assign(data, props);
+            // 2) x-component props（后覆盖同名键，R1=A；空值布尔属性 coerce，ADR-0117 修订）
+            if (props) Object.assign(data, coerceBareBooleanProps(def, data, props));
             // 失效 scope 的 _scopeView 缓存：宿主 scope 可能已缓存了 data 注入前的聚合视图
             // （如 x-component 宿主在 compileElement 阶段构建 _scopeView），注入 data 后须重建，否则
             // 后代 watch 经 getContext 读不到新 data 字段（与 DataDirective.invalidateScopeView 同理）。
@@ -1770,8 +1858,16 @@ export class AutoSparkCompiler {
         // 非 reuse 分支须做 title 转换 + 指令剥除（项根绕过 transformElement，compileElement
         // 的两步此处手动等价）
         if (!reuseEl) {
-            if (isTooltipConvertEnabled() && (this.engine.tooltip?.enabled ?? false)) this._convertTitleEl(el);
+            if (isTooltipConvertEnabled() && (this.engine.tooltip?.enabled ?? false))
+                this._convertTitleEl(el);
             removeDirectives(el, "x-", this._runtimeKeepAttr());
+            // 项根为 template 载体出口（深度病态：出口应写在组件模板内，不在结构指令项根上）
+            // ——本通道不经 compileElement，产物无 fragment 接管点（ADR-0137 挂载路径不达），warn 引导
+            if (itemTemplate instanceof HTMLTemplateElement && getSlotMarker(itemTemplate)) {
+                this.engine.logger.warn(
+                    `x-slot: template 出口载体不支持写在结构指令项模板根上（产物无法原位展开、内容不会渲染），请移入项模板内部（ADR-0137）`,
+                );
+            }
         }
         // reuseEl：旧 scope 已 destroy，其子树 DOM 残留在 el 上，须清空后重建，否则 compileSubtree
         // 的 appendChild 会导致子节点重复。

@@ -189,7 +189,13 @@ describe("变体与 loading 通道", () => {
         expect(root.querySelector(".asc-list-inner")!.getAttribute("data-virtual")).toBe("true");
         const items = Array.from(root.querySelectorAll(".asc-list-item"));
         expect(items.length).toBe(5); // 未加载 virtual 插件 → 策略缺位 warn 退化全量渲染（降级不失效）
-        expect(items[4].querySelector(".asc-list-item-text")!.textContent).toBe("行5");
+        // 行内容序不可感断言：行序不是 list 的契约——virtual 插件在场时（全量跑时
+        // directives/x-for-virtual.test.ts 先加载注册策略）行序由引擎虚拟窗口机制决定
+        // （happy-dom 无布局退化全量但逆序渲染），缺席时退化全量按源序——两态均须通过
+        const texts = items
+            .map((it) => it.querySelector(".asc-list-item-text")!.textContent ?? "")
+            .sort();
+        expect(texts).toEqual(["行1", "行2", "行3", "行4", "行5"]);
     });
 
     test("loading=true：经绑定通道组合引擎 x-loading 覆盖层（铺满列表）", async () => {

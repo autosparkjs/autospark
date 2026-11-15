@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Timeline · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.timeline.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">基础：items 状态引用（left 缺省 + 节点语义色）</div>
+        <div class="auto-card-body">
+          <x-timeline :items="steps"></x-timeline>
+          <p class="hint" style="margin-top: 12px">
+            items 须<b>状态引用</b>注入（字面量数组触发 props 更新死环——引擎已知缺陷规避）；
+            type 语义色 primary / success / warning / danger / default（缺省）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">子元素声明形态（静态时间线）</div>
+        <div class="auto-card-body">
+          <x-timeline>
+            <x-timeline-item time="09:00" type="primary">创建项目</x-timeline-item>
+            <x-timeline-item time="11:30" type="success" hollow="true">开发联调（空心节点）</x-timeline-item>
+            <x-timeline-item time="16:00">发布上线</x-timeline-item>
+          </x-timeline>
+          <p class="hint" style="margin-top: 12px">
+            静态时间线直接写 &lt;x-timeline-item&gt; 子元素（precompile 折叠为 data-items 通道）；
+            hollow 空心节点 / icon 自定义节点见变体页。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        steps: [
+          { content: "订单已提交，等待支付", time: "2026-11-12 20:31", type: "primary" },
+          { content: "支付成功，商家备货中", time: "2026-11-12 20:35", type: "success" },
+          { content: "包裹已从上海转运中心发出", time: "2026-11-13 06:02" },
+          { content: "派送中，请保持电话畅通", time: "2026-11-13 09:41", type: "warning" },
+          { content: "已签收", type: "danger" },
+        ],
+      });
+    </script>
+  </body>
+</html>

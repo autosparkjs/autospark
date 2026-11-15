@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Watermark · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.watermark.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .wm-doc {
+        padding: 1.5rem;
+        line-height: 1.8;
+        border: 1px solid var(--auto-border-color, #e5e5e5);
+        border-radius: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">容器水印：内容区平铺（rotate -22° / 间隙 100）</div>
+        <div class="auto-card-body">
+          <x-watermark content="AutoSpark 机密">
+            <div class="wm-doc">
+              <p>被水印覆盖的内容区：watermark 缺省为容器形态——水印层 absolute 铺满组件、覆盖在默认插槽内容之上。</p>
+              <p>水印恒 pointer-events: none——下层内容照常交互（选中文本、点击按钮均不受阻）。</p>
+              <p>canvas 离屏绘制旋转文本单元 → data URL 平铺背景；文案色取主题次要色（暗色自动跟随提亮）。</p>
+            </div>
+          </x-watermark>
+          <p class="hint">
+            content 文案 / rotate 旋转（缺省 -22）/ gap 间隙（缺省 100）/ opacity / zIndex
+            均可调；多行文案传数组（见形态页）。
+          </p>
+        </div>
+      </div>
+
+      <div class="auto-card">
+        <div class="auto-card-header">全页水印（full-page 裸属性糖）：铺满视口</div>
+        <div class="auto-card-body">
+          <label>
+            <input type="checkbox" x-model="on" />
+            开启全页水印
+          </label>
+          <p class="hint">fullPage 时水印层挂 body、fixed 铺满视口（zIndex 默认 9）；关闭即收除。</p>
+          <div x-if="on">
+            <x-watermark content="全页水印 · 仅演示" :z-index="50" full-page></x-watermark>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        on: false,
+      });
+    </script>
+  </body>
+</html>

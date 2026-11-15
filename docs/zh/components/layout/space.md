@@ -14,7 +14,11 @@ Space 是 AutoSpark 的官方间距容器组件（组件库 P0 轻件 / layout �
 <script src="autospark.js"></script>
 <script src="autospark.space.js"></script>
 
-<div x-component:autospark.space="{}">              <!-- 水平排列，medium 间距（缺省） -->
+<x-space>              <!-- 水平排列，medium 间距（缺省） -->
+  <button>按钮一</button>
+  <button>按钮二</button>
+  <button>按钮三</button>
+</x-space><!-- 水平排列，medium 间距（缺省） -->
   <button>按钮一</button>
   <button>按钮二</button>
   <button>按钮三</button>

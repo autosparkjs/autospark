@@ -1,472 +1,597 @@
 (function (AutoSpark) {
     "use strict";
 var run = function (AutoSpark) {
-function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){e.components[`autospark.base-field`]=`<!--
-    BaseField 表单域骨架（ADR-0020）——base/ 目录首个产物（ADR-0018 决策 7：form 前瞻
-    唯一例外，其余基类演进式抽取）。内部基类、非用户直接消费（无文档页/侧边栏/元素名
-    形态，实例化仅得空壳——控件结构由子组件默认段注入）。
-
-    骨架职责（宁薄勿胖——只承担 form 域家族共性，控件本体与装饰一概留给子组件）：
-    - 结构：宿主级包裹层（.asc-field 布局基座，class 拼接进子组件宿主）+ 单默认出口
-      （.asc-field-body，display:contents 不产生布局层）——子组件全部控件结构经默认段
-      替换出口 fallback（继承覆盖，ADR-0081）；盒饰 chrome 为 .asc-field-box 选配类
-      （input 类控件用，checkbox/radio/switch 等裸态控件不用）
-    - 状态色通道：status（"" | error | success | warning）→ 宿主 data-status 属性 →
-      --asc-field-tone 中转变量派生（焦点环/边框色统一消费）；error 态同步 aria-invalid
-    - 焦点态追踪：focusin/focusout（焦点在骨架内元素间移动不闪烁）→ 宿主 data-focus
-    - disabled / readonly：同步到 [data-autospark-control] 原生控件 + 宿主 data-disabled /
-      data-readonly 反射（CSS 淡化与光标通道）
-    - 尺寸档位：经 autospark.base 继承链消费主题 data-size 通道（--auto-input-height /
-      --auto-input-padding 随档位联动），骨架不设自有尺寸属性（button 同范式 ADR-0012）
-    - 与 x-field 分工（ADR-0018 决策 7：不双轨建域）：label/校验/域布局由 engine
-      x-form/x-field 指令承担；校验结果经子组件 status props 染色进入（x-field 容器
-      形态后代绑定 status: $field.error ? "error" : ""），骨架不感知 x-field
-
-    data-* 标记协议（子组件挂点约定，ADR-0020）：
-    - data-autospark-control：原生控件标记——disabled/readonly/aria-invalid 同步目标、
-      点击转发焦点的受让者
-    - data-autospark-action：交互动作件标记（清除/切换钮等）——点击不转发焦点（自理）
--->
-<!-- 继承 autospark.base（ADR-0134）须为非抽象继承：abstract 组件不能再声明
-     x-define:inherit（ADR-0134 抽象根约束），而主题档位六键物化必须沿继承链下传——
-     故本骨架贡献真实模板（包裹层 + 出口），子组件快照 = 本骨架克隆 + 子默认段替换 +
-     子根属性并入（class 拼接：宿主恒得 .asc-field + 子自有类），继承链
-     子组件 → base-field → autospark.base 三层（ADR-0020 决策 2） -->
-<span
-  class="asc-field"
-  x-define="autospark.base-field"
-  x-define:inherit="autospark.base"
->
-  <script setup>
-    {
-        data: () => ({
-            status: "",       // 状态色通道："" 无 | error 危险 | success 成功 | warning 警告（tone 中转变量随动，焦点环/边框消费）
-            disabled: false,  // 禁用：同步 [data-autospark-control] 原生控件 + 宿主 data-disabled（CSS 淡化/光标）
-            readonly: false,  // 只读：同步 [data-autospark-control]（readOnly 语义）+ 宿主 data-readonly
-        }),
-        mounted() {
-            // —— 控件查询（data-autospark-control 标记协议）：每查现取不缓存——运行时
-            //     控件可能随形态切换重建（input ↔ textarea 等），缓存引用会指向已摘除节点
-            const control = () => this.el.querySelector("[data-autospark-control]");
-
-            // —— 状态色通道：status → 宿主 data-status（CSS 派生 --asc-field-tone）——
-            const applyStatus = () => {
-                const v = this.data.status;
-                if (typeof v === "string" && v !== "") this.el.setAttribute("data-status", v);
-                else this.el.removeAttribute("data-status");
-            };
-
-            // —— 控件同步：disabled/readonly 落原生控件 + 宿主反射 + error 态 aria-invalid
-            //     （可访问性：组件级状态归一到 aria，与原生约束校验互补）——
-            const syncControl = () => {
-                const c = control();
-                if (c) {
-                    c.disabled = !!this.data.disabled;
-                    if ("readOnly" in c) c.readOnly = !!this.data.readonly;
-                    if (this.data.status === "error") c.setAttribute("aria-invalid", "true");
-                    else c.removeAttribute("aria-invalid");
-                }
-                this.el.toggleAttribute("data-disabled", !!this.data.disabled);
-                this.el.toggleAttribute("data-readonly", !!this.data.readonly);
-            };
-
-            // —— 焦点态追踪：focusin/focusout 冒泡承接（骨架内任意可聚焦元素）——
-            //     焦点在骨架内部元素间移动（如 input → 清除钮）时 relatedTarget 仍在
-            //     骨架内，跳过摘除防闪烁
-            this.el.addEventListener("focusin", () => {
-                this.el.setAttribute("data-focus", "");
-            });
-            this.el.addEventListener("focusout", (e) => {
-                const to = e.relatedTarget;
-                if (to instanceof Node && this.el.contains(to)) return;
-                this.el.removeAttribute("data-focus");
-            });
-
-            // —— 点击转发焦点：点击盒饰空白区/前后置装饰（非控件非动作件）时焦点落控件
-            //     （原生 label 包裹的近似体验；动作件 data-autospark-action 自理不转发）——
-            this.el.addEventListener("click", (e) => {
-                const t = e.target instanceof Element ? e.target : null;
-                if (!t) return;
-                if (this.data.disabled) return;
-                if (t.closest("[data-autospark-control]")) return;
-                if (t.closest("[data-autospark-action]")) return;
-                const c = control();
-                if (c && typeof c.focus === "function") c.focus();
-            });
-
-            // —— 初始化与跟随（mounted 时化身子树与 props 注入均可能未就位，一跳后
-            //     首同步；后续 props 变化经 watch 保持——回调收 { value } 信封对象，
-            //     此处只用作触发信号，家族惯用法）——
-            const syncAll = () => { applyStatus(); syncControl(); };
-            setTimeout(syncAll, 0);
-            this.watch("status", () => { setTimeout(syncAll, 0); });
-            this.watch("disabled", () => { setTimeout(syncAll, 0); });
-            this.watch("readonly", () => { setTimeout(syncAll, 0); });
-        },
-    }
-  <\/script>
-  <style global id="autospark-components-base-field">
-    /* ---------- .asc-field 布局基座（无盒饰——chrome 由 .asc-field-box 选配类承担）：
-         tone 为状态色中转变量（缺省 primary，data-status 派生），焦点环/边框统一消费；
-         尺寸档位经主题 data-size 通道全跟随（字号消费 --auto-font-size 基线） ---------- */
-    .asc-field {
-      --asc-field-tone: var(--auto-primary-color, var(--asc-field-primary, #009aff));
-      display: inline-flex;
-      align-items: center;
-      font-size: var(--auto-font-size, var(--asc-field-font-size, 0.875rem));
-      line-height: var(--auto-line-height, var(--asc-field-line-height, 1.4));
-      color: var(--auto-color, var(--asc-field-color, #606060));
-    }
-    /* 状态色派生（data-status 由 mounted 同步）：tone 切语义色，未聚焦也染边框 */
-    .asc-field[data-status="error"] {
-      --asc-field-tone: var(--auto-danger-color, var(--asc-field-danger, #ef4444));
-    }
-    .asc-field[data-status="success"] {
-      --asc-field-tone: var(--auto-success-color, var(--asc-field-success, #22c55e));
-    }
-    .asc-field[data-status="warning"] {
-      --asc-field-tone: var(--auto-warning-color, var(--asc-field-warning, #f59e0b));
-    }
-
-    /* ---------- .asc-field-box 盒饰选配类（input 类控件 chrome；裸态控件不加）：
-         高度/内距消费 --auto-input-*（theme data-size/data-spacing 档位联动）；
-         边框色经 --asc-field-line 中转（hover/focus/状态/禁用多级覆盖） ---------- */
-    .asc-field-box {
-      --asc-field-line: var(--auto-border-color, var(--asc-field-border-color, #d9d9d9));
-      border: var(--auto-border-size, var(--asc-field-border-size, 1px)) solid
-        var(--asc-field-line);
-      border-radius: var(--auto-input-radius, var(--asc-field-radius, 0.375rem));
-      background: var(--auto-input-bgcolor, var(--asc-field-bg, #ffffff));
-      /* 高度兜底随字号自适应（≈字号 × 2.57）：theme 档位块引用的 --x-input-height-* 标尺
-         未定义（theme 侧缺陷），档位容器上 --auto-input-height 失效落此级时仍随档位缩放 */
-      height: var(
-        --auto-input-height,
-        var(--asc-field-height, calc(var(--auto-font-size, 0.875rem) * 2.57))
-      );
-      padding-inline: var(--auto-input-padding, var(--asc-field-padding, 0.6rem));
-      transition:
-        border-color 0.15s ease,
-        box-shadow 0.15s ease,
-        background-color 0.15s ease;
-      cursor: text;
-    }
-    .asc-field-box:hover:not([data-disabled]):not([data-readonly]):not([data-status]) {
-      --asc-field-line: var(--auto-hover-border-color, var(--asc-field-hover-border, #4098fc));
-    }
-    /* 焦点态（data-focus 由 focusin/focusout 同步）：边框取 tone + 同色淡晕 */
-    .asc-field-box[data-focus] {
-      --asc-field-line: var(--asc-field-tone);
-      box-shadow: 0 0 0 2px
-        color-mix(in srgb, var(--asc-field-tone) 22%, transparent);
-    }
-    /* 状态在场：未聚焦也染状态色边框（聚焦规则同色调、仅补光晕） */
-    .asc-field-box[data-status="error"],
-    .asc-field-box[data-status="success"],
-    .asc-field-box[data-status="warning"] {
-      --asc-field-line: var(--asc-field-tone);
-    }
-    /* 禁用：边框/底色取禁用语义变量 + 禁点光标（控件字色由 opacity 整体淡化）；
-         状态在场时边框让位状态色（status 是显式意图，禁用仅接管底色/光标） */
-    .asc-field-box[data-disabled]:not([data-status]) {
-      --asc-field-line: var(
-        --auto-disable-border-color,
-        var(--asc-field-disable-border, #d9d9d9)
-      );
-      background: var(--auto-disable-bgcolor, var(--asc-field-disable-bg, rgba(0, 0, 0, 0.04)));
-      cursor: not-allowed;
-    }
-    .asc-field-box[data-disabled][data-status] {
-      background: var(--auto-disable-bgcolor, var(--asc-field-disable-bg, rgba(0, 0, 0, 0.04)));
-      cursor: not-allowed;
-    }
-    /* 只读：光标归正文（无禁用淡化） */
-    .asc-field-box[data-readonly] {
-      cursor: default;
-    }
-
-    /* ---------- 默认出口包裹层：不产生布局层（子组件控件直接成为骨架 flex 项） ---------- */
-    .asc-field-body {
-      display: contents;
-    }
-
-    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
-    [dark] .asc-field,
-    [data-dark] .asc-field {
-      --asc-field-tone: var(--auto-primary-color, var(--asc-field-primary, #56baff));
-      color: var(--auto-color, var(--asc-field-color, #fafafa));
-    }
-    [dark] .asc-field[data-status="error"],
-    [data-dark] .asc-field[data-status="error"] {
-      --asc-field-tone: var(--auto-danger-color, var(--asc-field-danger, #e6696a));
-    }
-    [dark] .asc-field[data-status="success"],
-    [data-dark] .asc-field[data-status="success"] {
-      --asc-field-tone: var(--auto-success-color, var(--asc-field-success, #5cd07c));
-    }
-    [dark] .asc-field[data-status="warning"],
-    [data-dark] .asc-field[data-status="warning"] {
-      --asc-field-tone: var(--auto-warning-color, var(--asc-field-warning, #f0a03c));
-    }
-    /* 暗色兜底让位状态色：状态在场时边框取 tone（:not 守卫防高特异性兜底块压掉状态染色） */
-    [dark] .asc-field-box:not([data-status]),
-    [data-dark] .asc-field-box:not([data-status]) {
-      --asc-field-line: var(--auto-border-color, var(--asc-field-border-color, #52525b));
-      background: var(--auto-input-bgcolor, var(--asc-field-bg, #3a3a3a));
-    }
-    [dark] .asc-field-box[data-disabled]:not([data-status]),
-    [data-dark] .asc-field-box[data-disabled]:not([data-status]) {
-      --asc-field-line: var(--auto-disable-border-color, var(--asc-field-disable-border, #52525b));
-      background: var(--auto-disable-bgcolor, var(--asc-field-disable-bg, rgba(255, 255, 255, 0.08)));
-    }
-  </style>
-  <!-- 单默认出口（display:contents）：子组件（input 等）经继承默认段注入全部控件结构；
-       消费方实例化内容仍可再覆盖（三层优先级：消费方内容 > 继承覆盖 > 本空 fallback） -->
-  <span class="asc-field-body" x-slot></span>
-</span>
-`}n();function n(){e(e=>{t(e)})}var r=`<!--
-    autospark.switch 开关（ADR-0019 合批 / ADR-0020 BaseField 消费契约）——**自绘开关**
-    （无原生对应控件）：轨道 + 滑块纯 CSS 自绘，可访问性自持——role="switch" +
-    aria-checked + tabindex + 键盘 Space/Enter 切换（原生 checkbox 方案的对照：彼保真
-    原生语义、此自持语义，ADR-0018 决策 7 表单基座策略内的例外形态）。
-
-    值通道（x-model 兼容协议）：宿主 el.value 劫持为布尔语域 "true"/"false"（配
-    x-model.boolean 保真——state-button 布尔组桥同款）；切换派发 input（x-model 回写，
-    监听在宿主自身非冒泡形态）+ change（detail = { value } 新布尔值，冒泡供外层消费）。
-    checked props 为非受控初值 / 单向同步值（受控真相走宿主 x-model）。
-
-    表单提交：内嵌 input[type=hidden] 载体（data-autospark-control 标记——骨架 disabled
-    同步落载体，禁用即出表），value = 当前布尔字面串恒提交、name 透传宿主（state-button
-    N>2 表单桥同构——value 是受控真相原样提交，true/false 值域服务端约定）。
-
-    交互面：整组热区（轨道 + 文案都触发切换，宿主级事件委托）；loading 态滑块转 CSS
-    旋转圈并阻断切换；disabled（骨架通道）阻断 + 淡化；readonly 亦阻断（值不可变语义）。
--->
-<!-- 根 class 拼接进骨架宿主（.asc-field + .asc-switch——裸态控件不加 .asc-field-box，
-     状态色仍经 --asc-field-tone 消费，ADR-0020 决策 3）；data-checked / data-loading
-     由 mounted JS 通道同步（无 T4=B 约束），根上无动态绑定 -->
-<span
-  class="asc-switch"
-  x-define="autospark.switch"
-  x-define:inherit="autospark.base-field"
->
-  <script setup>
-    {
-        data: () => ({
-            label: "",     // 兜底文案（默认插槽内容优先；用户传入，无 i18n）
-            checked: false,// 非受控初值 / 单向同步值（受控真相走宿主 x-model——el.value 布尔语域桥）
-            loading: false,// 加载态：滑块转 CSS 旋转圈 + 阻断切换（视觉优先于 disabled，不淡化）
-        }),
-        mounted() {
-            // —— 内层元素查询（mounted 时子树可能未挂载，查询恒延后一跳现取）——
-            const track = () => this.el.querySelector(".asc-switch-track");
-            const carrier = () => this.el.querySelector(".asc-switch-carrier");
-
-            // —— 全视觉同步（按 data 现值求值，幂等）：aria 语义 + 宿主状态属性 + 表单载体 ——
-            const syncVisual = () => {
-                const on = !!this.data.checked;
-                const t = track();
-                if (t) {
-                    t.setAttribute("aria-checked", String(on));
-                    // 可访问性：loading 亦不可交互（aria-disabled 联动 disabled/loading）
-                    t.setAttribute("aria-disabled", String(!!(this.data.disabled || this.data.loading)));
-                    if (this.data.status === "error") t.setAttribute("aria-invalid", "true");
-                    else t.removeAttribute("aria-invalid");
-                }
-                const c = carrier();
-                if (c) {
-                    // 提交载体恒随（hidden 恒提交当前布尔；禁用出表由骨架同步，此处双保险）
-                    c.value = String(on);
-                    c.disabled = !!this.data.disabled;
-                }
-                this.el.toggleAttribute("data-checked", on);
-                this.el.toggleAttribute("data-loading", !!this.data.loading);
-            };
-
-            // —— 值桥（x-model 兼容协议）：宿主 el.value 劫持为布尔语域 "true"/"false" ——
-            //     劫持前快照 expando（x-model 编译期可能已写初值）；无 x-model 时回退
-            //     props.checked 初值（劫持快照序：expando > props.checked，input 同款）
-            const prior = this.el.value;
-            const initChecked = typeof prior === "string" && prior !== ""
-                ? prior === "true"
-                : !!this.data.checked;
-            Object.defineProperty(this.el, "value", {
-                get: () => String(!!this.data.checked),
-                set: (v) => {
-                    this.data.checked = v === true || v === "true";
-                    syncVisual();
-                },
-                configurable: true,
-            });
-
-            // —— 切换动作：可交互判定（disabled / readonly / loading 均阻断）→ 翻转 →
-            //     双派发（input→x-model 回写非冒泡；change→外层消费 detail={value}）——
-            const toggle = () => {
-                if (this.data.disabled || this.data.readonly || this.data.loading) return;
-                this.data.checked = !this.data.checked;
-                syncVisual();
-                this.el.dispatchEvent(new Event("input", { bubbles: false }));
-                this.el.dispatchEvent(
-                    new CustomEvent("change", { bubbles: true, detail: { value: this.data.checked } }),
-                );
-            };
-
-            // —— 交互接入（宿主级事件委托——mounted 时子树可能未挂载，委托恒安全）：
-            //     整组热区（轨道 + 文案都触发）；键盘 Space/Enter（自绘控件自持，
-            //     role=switch 交互约定；Space 阻断页面滚动）——
-            this.el.addEventListener("click", (e) => {
-                const t = e.target instanceof Element ? e.target : null;
-                if (t && t.closest(".asc-switch-wrap")) toggle();
-            });
-            this.el.addEventListener("keydown", (e) => {
-                if (e.key !== " " && e.key !== "Enter") return;
-                const t = e.target instanceof Element ? e.target : null;
-                if (!t || !t.closest(".asc-switch-track")) return;
-                e.preventDefault();
-                toggle();
-            });
-
-            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）：初值落定 +
-            //     宿主 name 透传到表单载体 + 首次视觉同步 ——
-            setTimeout(() => {
-                this.data.checked = initChecked;
-                const c = carrier();
-                const nameAttr = this.el.getAttribute("name");
-                if (c && nameAttr != null) c.name = nameAttr;
-                syncVisual();
-            }, 0);
-
-            // —— props 变化跟随（回调收 { value } 信封对象，此处只用作触发信号）——
-            this.watch("checked", () => { syncVisual(); });
-            this.watch("loading", () => { syncVisual(); });
-            this.watch("status", () => { setTimeout(syncVisual, 0); });
-        },
-    }
-  <\/script>
-  <style global id="autospark-components-switch">
-    /* ---------- 结构：纯 span 包裹（自绘控件无原生语义可包——不用 label 防表单载体
-         转发点击双触发）；轨道 = 交互件（data-autospark-action，点击不转发焦点） ---------- */
-    .asc-switch-wrap {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45em;
-      cursor: pointer;
-    }
-    /* 轨道：尺寸 em 基准随主题 data-size 档位字号缩放（不设自有尺寸属性，button 同范式
-       ADR-0012）；关态中性色（正文色派生淡灰，主题在场自动换肤） */
-    .asc-switch-track {
-      --asc-switch-w: 2.6em;
-      --asc-switch-h: 1.4em;
-      flex: none;
-      display: inline-flex;
-      align-items: center;
-      box-sizing: border-box;
-      width: var(--asc-switch-w);
-      height: var(--asc-switch-h);
-      padding: 0.1875em;
-      border-radius: 9999px;
-      background: color-mix(
-        in srgb,
-        var(--auto-color, var(--asc-switch-off, #606060)) 28%,
-        transparent
-      );
-      transition: background-color 0.2s ease, box-shadow 0.15s ease;
-    }
-    /* 滑块：白色恒定设计（暗色不换——与背景形成恒定对比）；位移 = 轨道宽 - 高（对称内距） */
-    .asc-switch-thumb {
-      flex: none;
-      width: calc(var(--asc-switch-h) - 0.375em);
-      height: calc(var(--asc-switch-h) - 0.375em);
-      border-radius: 50%;
-      background: var(--asc-switch-thumb, #ffffff);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-      transform: translateX(0);
-      transition: transform 0.2s ease;
-      box-sizing: border-box;
-    }
-
-    /* ---------- 开态（data-checked 由 mounted JS 通道同步）：主色实底（status 在场随
-             --asc-field-tone 联动——开态语义色，骨架通道） ---------- */
-    .asc-switch[data-checked] .asc-switch-track {
-      background: var(--asc-field-tone);
-    }
-    .asc-switch[data-checked] .asc-switch-thumb {
-      transform: translateX(calc(var(--asc-switch-w) - var(--asc-switch-h)));
-    }
-
-    /* ---------- loading 态（data-loading 由 mounted 同步）：滑块转 CSS 旋转圈（阻断
-             切换由 JS 判定；视觉优先于 disabled 不淡化，button loading 同款语义） ---------- */
-    .asc-switch[data-loading] .asc-switch-thumb {
-      background: transparent;
-      box-shadow: none;
-      border: 0.125em solid var(--asc-field-tone);
-      border-top-color: transparent;
-      animation: asc-switch-spin 0.7s linear infinite;
-    }
-    @keyframes asc-switch-spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-    .asc-switch[data-loading][data-checked] .asc-switch-thumb {
-      transform: none;
-    }
-
-    /* ---------- 交互态 ---------- */
-    /* 焦点环（data-focus 由骨架 focusin/focusout 同步——轨道可聚焦即点亮）；禁用不点环 */
-    .asc-switch[data-focus]:not([data-disabled]) .asc-switch-track {
-      box-shadow: 0 0 0 2px
-        color-mix(in srgb, var(--asc-field-tone) 22%, transparent);
-    }
-    /* 禁用（骨架通道 [data-disabled]）：整体淡化 + 禁点光标 */
-    .asc-switch[data-disabled] {
-      opacity: 0.55;
-    }
-    .asc-switch[data-disabled] .asc-switch-wrap {
-      cursor: not-allowed;
-    }
-    /* loading 光标进度态（不淡化） */
-    .asc-switch[data-loading] .asc-switch-wrap {
-      cursor: progress;
-    }
-
-    /* ---------- 文案：空文案不占位（消 gap 空隙） ---------- */
-    .asc-switch-label:empty {
-      display: none;
-    }
-
-    /* ---------- 暗色兜底变体（ADR-0129）：关态中性色换暗色校准（正文色反转自动偏白灰，
-             兜底字面值切换；开态 tone 与滑块白色为恒定设计不变） ---------- */
-    [dark] .asc-switch-track,
-    [data-dark] .asc-switch-track {
-      background: color-mix(
-        in srgb,
-        var(--auto-color, var(--asc-switch-off, #fafafa)) 32%,
-        transparent
-      );
-    }
-    [dark] .asc-switch-thumb,
-    [data-dark] .asc-switch-thumb {
-      background: var(--asc-switch-thumb, #ffffff);
-    }
-  </style>
-  <!-- 默认段（替换 base-field 出口 fallback）：表单载体（hidden，骨架 disabled 同步目标）+
-         轨道交互件（role=switch 可聚焦）+ 文案。开态/loading 视觉由宿主 data-* 属性驱动。
-         注意：嵌套 x-slot 出口在继承形态下被忽略（ADR-0056）——消费者内容经 base-field
-         出口整段替换控件区（逃生通道，input 同款语义），文案走 props 兜底不开真插槽 -->
-  <span class="asc-switch-wrap">
-    <input type="hidden" class="asc-switch-carrier" data-autospark-control />
-    <span
-      class="asc-switch-track"
-      role="switch"
-      tabindex="0"
-      aria-checked="false"
-      data-autospark-action
-    >
-      <span class="asc-switch-thumb"></span>
-    </span>
-    <span class="asc-switch-label">{{ label }}</span>
-  </span>
-</span>
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){e.components[`autospark.field`]=`<!--\r
+    Field 表单域骨架（ADR-0020）——base/ 目录首个产物（ADR-0018 决策 7：form 前瞻\r
+    唯一例外，其余基类演进式抽取）。2026-11-14 修订：转公开文档组件（侧边栏「表单」组\r
+    + demo + 文档页）——可直接实例化（默认出口装任意控件内容即得骨架能力：状态色/\r
+    焦点态/禁用只读同步/盒饰），同时仍是 form 域家族（input/checkbox/radio/switch/\r
+    select/input-number…）的继承基座。\r
+\r
+    骨架职责（宁薄勿胖——只承担 form 域家族共性，控件本体与装饰一概留给子组件）：\r
+    - 结构：宿主级包裹层（.asc-field 布局基座，class 拼接进子组件宿主）+ 三出口——\r
+      默认出口（.asc-field-body，display:contents 不产生布局层；子组件全部控件结构\r
+      经默认段替换出口 fallback（继承覆盖，ADR-0081），直接实例化时消费方内容同位）\r
+      + prefix / suffix 具名装饰出口（body 兄弟位，DOM 序固定\r
+      [slot:prefix][body][slot:suffix]；span 载体 + display:contents + 空 fallback\r
+      ——无内容零布局，裸态控件组件继承亦无害。注：engine ADR-0137 template 载体\r
+      是更优形态（无内容出口静默消失、零多余 DOM），但真浏览器实测不展开（缺陷\r
+      待引擎修复），修复后一行切回 template 载体）；盒饰 chrome 为 .asc-field-box\r
+      选配类（input 类控件用，checkbox/radio/switch 等裸态控件不用）\r
+    - 轻装饰/重装饰分层（2026-11-14 修订）：子组件 props 前后置（input 的\r
+      prefix/suffix 文本|图标）是轻装饰（组件内贴控件），插槽前后置是重装饰\r
+      （消费方任意 HTML，恒在轻装饰外侧），两者共存不互斥；插槽内容默认次要色、\r
+      点击转发焦点到控件（消费方放交互件须自标 data-autospark-action 自理）；\r
+      disabled/readonly 不对插槽内容做专门处理（与 props 装饰对齐）\r
+    - 状态色通道：status（"" | error | success | warning）→ 宿主 data-status 属性 →\r
+      --asc-field-tone 中转变量派生（焦点环/边框色统一消费）；error 态同步 aria-invalid\r
+    - 焦点态追踪：focusin/focusout（焦点在骨架内元素间移动不闪烁）→ 宿主 data-focus\r
+    - disabled / readonly：同步到 [data-autospark-control] 原生控件 + 宿主 data-disabled /\r
+      data-readonly 反射（CSS 淡化与光标通道）\r
+    - 尺寸档位：经 autospark.base 继承链消费主题 data-size 通道（--auto-input-height /\r
+      --auto-input-padding 随档位联动），骨架不设自有尺寸属性（button 同范式 ADR-0012）\r
+    - 与 x-field 分工（ADR-0018 决策 7：不双轨建域）：label/校验/域布局由 engine\r
+      x-form/x-field 指令承担；校验结果经子组件 status props 染色进入（x-field 容器\r
+      形态后代绑定 status: $field.error ? "error" : ""），骨架不感知 x-field\r
+\r
+    data-* 标记协议（子组件挂点约定，ADR-0020）：\r
+    - data-autospark-control：原生控件标记——disabled/readonly/aria-invalid 同步目标、\r
+      点击转发焦点的受让者\r
+    - data-autospark-action：交互动作件标记（清除/切换钮等）——点击不转发焦点（自理）\r
+-->\r
+<!-- 继承 autospark.base（ADR-0134）须为非抽象继承：abstract 组件不能再声明\r
+     x-define:inherit（ADR-0134 抽象根约束），而主题档位六键物化必须沿继承链下传——\r
+     故本骨架贡献真实模板（包裹层 + 三出口），子组件快照 = 本骨架克隆 + 子默认段替换 +\r
+     子根属性并入（class 拼接：宿主恒得 .asc-field + 子自有类），继承链\r
+     子组件 → field → autospark.base 三层（ADR-0020 决策 2） -->\r
+<span\r
+  class="asc-field"\r
+  x-define="autospark.field"\r
+  x-define:inherit="autospark.base"\r
+>\r
+  <script setup>\r
+    {\r
+        data: () => ({\r
+            status: "",       // 状态色通道："" 无 | error 危险 | success 成功 | warning 警告（tone 中转变量随动，焦点环/边框消费）\r
+            disabled: false,  // 禁用：同步 [data-autospark-control] 原生控件 + 宿主 data-disabled（CSS 淡化/光标）\r
+            readonly: false,  // 只读：同步 [data-autospark-control]（readOnly 语义）+ 宿主 data-readonly\r
+        }),\r
+        mounted() {\r
+            // —— 控件查询（data-autospark-control 标记协议）：每查现取不缓存——运行时\r
+            //     控件可能随形态切换重建（input ↔ textarea 等），缓存引用会指向已摘除节点\r
+            const control = () => this.el.querySelector("[data-autospark-control]");\r
+\r
+            // —— 状态色通道：status → 宿主 data-status（CSS 派生 --asc-field-tone）——\r
+            const applyStatus = () => {\r
+                const v = this.data.status;\r
+                if (typeof v === "string" && v !== "") this.el.setAttribute("data-status", v);\r
+                else this.el.removeAttribute("data-status");\r
+            };\r
+\r
+            // —— 控件同步：disabled/readonly 落原生控件 + 宿主反射 + error 态 aria-invalid\r
+            //     （可访问性：组件级状态归一到 aria，与原生约束校验互补）——\r
+            const syncControl = () => {\r
+                const c = control();\r
+                if (c) {\r
+                    c.disabled = !!this.data.disabled;\r
+                    if ("readOnly" in c) c.readOnly = !!this.data.readonly;\r
+                    if (this.data.status === "error") c.setAttribute("aria-invalid", "true");\r
+                    else c.removeAttribute("aria-invalid");\r
+                }\r
+                this.el.toggleAttribute("data-disabled", !!this.data.disabled);\r
+                this.el.toggleAttribute("data-readonly", !!this.data.readonly);\r
+            };\r
+\r
+            // —— 焦点态追踪：focusin/focusout 冒泡承接（骨架内任意可聚焦元素）——\r
+            //     焦点在骨架内部元素间移动（如 input → 清除钮）时 relatedTarget 仍在\r
+            //     骨架内，跳过摘除防闪烁\r
+            this.el.addEventListener("focusin", () => {\r
+                this.el.setAttribute("data-focus", "");\r
+            });\r
+            this.el.addEventListener("focusout", (e) => {\r
+                const to = e.relatedTarget;\r
+                if (to instanceof Node && this.el.contains(to)) return;\r
+                this.el.removeAttribute("data-focus");\r
+            });\r
+\r
+            // —— 点击转发焦点：点击盒饰空白区/前后置装饰（非控件非动作件）时焦点落控件\r
+            //     （原生 label 包裹的近似体验；动作件 data-autospark-action 自理不转发；\r
+            //     插槽装饰内容同此——消费方放交互件须自标 data-autospark-action）——\r
+            this.el.addEventListener("click", (e) => {\r
+                const t = e.target instanceof Element ? e.target : null;\r
+                if (!t) return;\r
+                if (this.data.disabled) return;\r
+                if (t.closest("[data-autospark-control]")) return;\r
+                if (t.closest("[data-autospark-action]")) return;\r
+                const c = control();\r
+                if (c && typeof c.focus === "function") c.focus();\r
+            });\r
+\r
+            // —— 初始化与跟随（mounted 时化身子树与 props 注入均可能未就位，一跳后\r
+            //     首同步；后续 props 变化经 watch 保持——回调收 { value } 信封对象，\r
+            //     此处只用作触发信号，家族惯用法）——\r
+            const syncAll = () => { applyStatus(); syncControl(); };\r
+            setTimeout(syncAll, 0);\r
+            this.watch("status", () => { setTimeout(syncAll, 0); });\r
+            this.watch("disabled", () => { setTimeout(syncAll, 0); });\r
+            this.watch("readonly", () => { setTimeout(syncAll, 0); });\r
+        },\r
+    }\r
+  <\/script>\r
+  <style global id="autospark-components-field">\r
+    /* ---------- .asc-field 布局基座（无盒饰——chrome 由 .asc-field-box 选配类承担）：\r
+         tone 为状态色中转变量（缺省 primary，data-status 派生），焦点环/边框统一消费；\r
+         尺寸档位经主题 data-size 通道全跟随（字号/行高/字体族消费 --auto-font-* 基线，\r
+         字面级校准 theme-token-baseline.md：无 theme 环境与 theme 默认档观感归一） ---------- */\r
+    .asc-field {\r
+      --asc-field-tone: var(\r
+        --auto-primary-color,\r
+        var(--asc-field-primary, #009aff)\r
+      );\r
+      display: inline-flex;\r
+      align-items: center;\r
+      font-family: var(\r
+        --auto-font-family,\r
+        var(--asc-field-font-family, inherit)\r
+      );\r
+      font-size: var(--auto-font-size, var(--asc-field-font-size, 1rem));\r
+      line-height: var(--auto-line-height, var(--asc-field-line-height, 1.5));\r
+      color: var(--auto-color, var(--asc-field-color, #606060));\r
+    }\r
+    /* 状态色派生（data-status 由 mounted 同步）：tone 切语义色，未聚焦也染边框 */\r
+    .asc-field[data-status="error"] {\r
+      --asc-field-tone: var(\r
+        --auto-danger-color,\r
+        var(--asc-field-danger, #ef4444)\r
+      );\r
+    }\r
+    .asc-field[data-status="success"] {\r
+      --asc-field-tone: var(\r
+        --auto-success-color,\r
+        var(--asc-field-success, #22c55e)\r
+      );\r
+    }\r
+    .asc-field[data-status="warning"] {\r
+      --asc-field-tone: var(\r
+        --auto-warning-color,\r
+        var(--asc-field-warning, #f59e0b)\r
+      );\r
+    }\r
+\r
+    /* ---------- .asc-field-box 盒饰选配类（input 类控件 chrome；裸态控件不加）：\r
+         高度/内距消费 --auto-input-*（theme data-size/data-spacing 档位联动）；\r
+         边框色经 --asc-field-line 中转（hover/focus/状态/禁用多级覆盖）。\r
+         边框维持 size + color 拆分消费（ADR-0020 决策 7 口径②）——组合令牌\r
+         --auto-input-border 无法只换色，状态重染色机制依赖拆分 ---------- */\r
+    .asc-field-box {\r
+      --asc-field-line: var(\r
+        --auto-border-color,\r
+        var(--asc-field-border-color, #f0f0f0)\r
+      );\r
+      box-sizing: border-box;\r
+      border: var(--auto-border-size, var(--asc-field-border-size, 1px)) solid\r
+        var(--asc-field-line);\r
+      border-radius: var(--auto-input-radius, var(--asc-field-radius, 0.5rem));\r
+      background: var(--auto-input-bgcolor, var(--asc-field-bg, #ffffff));\r
+      /* 高度兜底随字号自适应（≈字号 × 2.57）：theme 档位块引用的 --x-input-height-* 标尺\r
+         未定义（theme 侧缺陷），档位容器上 --auto-input-height 失效落此级时仍随档位缩放 */\r
+      height: var(\r
+        --auto-input-height,\r
+        var(--asc-field-height, calc(var(--auto-font-size, 1rem) * 2.57))\r
+      );\r
+      /* 最小高度守卫（max）：theme 基值 --auto-input-height 实为行高（24px，未含内距预算），\r
+         纵向内距在场时固定高度会把控件压扁——令牌不足时以「行内容高 + 纵向距×2 + 边框×2」\r
+         兜底（token 为盒高语义保持，theme 补标尺后天然让位；--auto-line-height 为 rem 制\r
+         长度，直接作行内容高消费，勿与 font-size 相乘） */\r
+      min-height: max(\r
+        var(\r
+          --auto-input-height,\r
+          var(--asc-field-height, calc(var(--auto-font-size, 1rem) * 2.57))\r
+        ),\r
+        calc(\r
+          var(--auto-line-height, 1.5rem) + var(--auto-border-size, 1px) * 2 +\r
+            var(--auto-input-padding, var(--asc-field-padding, 0.8rem))\r
+        )\r
+      );\r
+      /* 四向内距（纵向取横向半距——输入框惯例；固定高度形态（border-box）纵向被\r
+         高度+flex 居中吸收，height:auto 形态（textarea / theme 在场标尺缺陷回退）\r
+         由纵向半距撑起呼吸感，全档位随 --auto-input-padding 联动） */\r
+      padding: calc(var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2)\r
+        var(--auto-input-padding, var(--asc-field-padding, 0.8rem));\r
+      transition:\r
+        border-color 0.15s ease,\r
+        box-shadow 0.15s ease,\r
+        background-color 0.15s ease;\r
+      cursor: text;\r
+    }\r
+    .asc-field-box:hover:not([data-disabled]):not([data-readonly]):not(\r
+        [data-status]\r
+      ) {\r
+      --asc-field-line: var(\r
+        --auto-hover-border-color,\r
+        var(--asc-field-hover-border, #009aff)\r
+      );\r
+    }\r
+    /* 焦点态（data-focus 由 focusin/focusout 同步）：边框取 tone + 同色淡晕 */\r
+    .asc-field-box[data-focus] {\r
+      --asc-field-line: var(--asc-field-tone);\r
+      box-shadow: 0 0 0 2px\r
+        color-mix(in srgb, var(--asc-field-tone) 22%, transparent);\r
+    }\r
+    /* 状态在场：未聚焦也染状态色边框（聚焦规则同色调、仅补光晕） */\r
+    .asc-field-box[data-status="error"],\r
+    .asc-field-box[data-status="success"],\r
+    .asc-field-box[data-status="warning"] {\r
+      --asc-field-line: var(--asc-field-tone);\r
+    }\r
+    /* 禁用：边框/底色取禁用语义变量 + 禁点光标（控件字色由 opacity 整体淡化）；\r
+         状态在场时边框让位状态色（status 是显式意图，禁用仅接管底色/光标） */\r
+    .asc-field-box[data-disabled]:not([data-status]) {\r
+      --asc-field-line: var(\r
+        --auto-disable-border-color,\r
+        var(--asc-field-disable-border, #bdbdbd)\r
+      );\r
+      background: var(\r
+        --auto-disable-bgcolor,\r
+        var(--asc-field-disable-bg, rgba(96, 96, 96, 0.2))\r
+      );\r
+      cursor: not-allowed;\r
+    }\r
+    .asc-field-box[data-disabled][data-status] {\r
+      background: var(\r
+        --auto-disable-bgcolor,\r
+        var(--asc-field-disable-bg, rgba(96, 96, 96, 0.2))\r
+      );\r
+      cursor: not-allowed;\r
+    }\r
+    /* 只读：光标归正文（无禁用淡化） */\r
+    .asc-field-box[data-readonly] {\r
+      cursor: default;\r
+    }\r
+\r
+    /* ---------- 具名装饰出口 prefix/suffix（2026-11-14 修订）：display:contents\r
+         出口包裹层不产生布局层——无内容零布局（裸态控件组件继承亦无害）；\r
+         内容默认次要色（消费方设色自然覆盖）+ 出口子元素逐项间距\r
+         （0.4em 镜像 .asc-input-prefix/suffix 惯例，多子项自然连续）。\r
+         注：待 engine ADR-0137 template 载体真浏览器缺陷修复后切换（无内容出口\r
+         静默消失），届时间距/防收缩规则随活注入改落内容根本身 ---------- */\r
+    .asc-field-prefix,\r
+    .asc-field-suffix {\r
+      display: contents;\r
+      color: var(\r
+        --auto-secondary-color,\r
+        var(--asc-field-affix, rgba(96, 96, 96, 0.75))\r
+      );\r
+    }\r
+    /* 防收缩换行：控件 width:100% 会挤压装饰至 min-content（flex:none 镜像 .asc-input-prefix 同款保护） */\r
+    .asc-field-prefix > * {\r
+      flex: none;\r
+      margin-inline-end: 0.4em;\r
+    }\r
+    .asc-field-suffix > * {\r
+      flex: none;\r
+      margin-inline-start: 0.4em;\r
+    }\r
+\r
+    /* ---------- 默认出口包裹层：不产生布局层（子组件控件直接成为骨架 flex 项） ---------- */\r
+    .asc-field-body {\r
+      display: contents;\r
+    }\r
+\r
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */\r
+    [dark] .asc-field,\r
+    [data-dark] .asc-field {\r
+      --asc-field-tone: var(\r
+        --auto-primary-color,\r
+        var(--asc-field-primary, #56baff)\r
+      );\r
+      color: var(--auto-color, var(--asc-field-color, #fafafa));\r
+    }\r
+    [dark] .asc-field[data-status="error"],\r
+    [data-dark] .asc-field[data-status="error"] {\r
+      --asc-field-tone: var(\r
+        --auto-danger-color,\r
+        var(--asc-field-danger, #e6696a)\r
+      );\r
+    }\r
+    [dark] .asc-field[data-status="success"],\r
+    [data-dark] .asc-field[data-status="success"] {\r
+      --asc-field-tone: var(\r
+        --auto-success-color,\r
+        var(--asc-field-success, #5cd07c)\r
+      );\r
+    }\r
+    [dark] .asc-field[data-status="warning"],\r
+    [data-dark] .asc-field[data-status="warning"] {\r
+      --asc-field-tone: var(\r
+        --auto-warning-color,\r
+        var(--asc-field-warning, #f7d352)\r
+      );\r
+    }\r
+    /* 暗色兜底让位状态色：状态在场时边框取 tone（:not 守卫防高特异性兜底块压掉状态染色） */\r
+    [dark] .asc-field-box:not([data-status]),\r
+    [data-dark] .asc-field-box:not([data-status]) {\r
+      --asc-field-line: var(\r
+        --auto-border-color,\r
+        var(--asc-field-border-color, #606060)\r
+      );\r
+      background: var(--auto-input-bgcolor, var(--asc-field-bg, #3c3c3c));\r
+    }\r
+    [dark] .asc-field-box[data-disabled]:not([data-status]),\r
+    [data-dark] .asc-field-box[data-disabled]:not([data-status]) {\r
+      --asc-field-line: var(\r
+        --auto-disable-border-color,\r
+        var(--asc-field-disable-border, #7a7a7a)\r
+      );\r
+      background: var(\r
+        --auto-disable-bgcolor,\r
+        var(--asc-field-disable-bg, rgba(250, 250, 250, 0.2))\r
+      );\r
+    }\r
+    [dark] .asc-field-prefix,\r
+    [dark] .asc-field-suffix,\r
+    [data-dark] .asc-field-prefix,\r
+    [data-dark] .asc-field-suffix {\r
+      color: var(\r
+        --auto-secondary-color,\r
+        var(--asc-field-affix, rgba(250, 250, 250, 0.75))\r
+      );\r
+    }\r
+  </style>\r
+  <!-- 三出口（文档序即呈现序 [slot:prefix][默认段][slot:suffix]，2026-11-14 修订）：\r
+       prefix / suffix 具名装饰出口空 fallback——无内容零布局（display:contents），\r
+       消费方经宿主直接子级标记 <template x-slot:prefix> 投影任意内容（默认次要色，\r
+       恒在子组件 props 轻装饰外侧）；默认出口被子组件默认段替换（继承覆盖，\r
+       ADR-0081）——直接实例化时消费方内容同位，三层优先级：\r
+       消费方内容 > 继承覆盖 > 本空 fallback -->\r
+  <span class="asc-field-prefix" x-slot:prefix></span>\r
+  <span class="asc-field-body" x-slot></span>\r
+  <span class="asc-field-suffix" x-slot:suffix></span>\r
+</span>\r
+`}n();function n(){e(e=>{t(e)})}var r=`<!--\r
+    autospark.switch 开关（ADR-0019 合批 / ADR-0020 Field 消费契约）——**自绘开关**\r
+    （无原生对应控件）：轨道 + 滑块纯 CSS 自绘，可访问性自持——role="switch" +\r
+    aria-checked + tabindex + 键盘 Space/Enter 切换（原生 checkbox 方案的对照：彼保真\r
+    原生语义、此自持语义，ADR-0018 决策 7 表单基座策略内的例外形态）。\r
+\r
+    值通道（x-model 兼容协议）：宿主 el.value 劫持为布尔语域 "true"/"false"（配\r
+    x-model.boolean 保真——state-button 布尔组桥同款）；切换派发 input（x-model 回写，\r
+    监听在宿主自身非冒泡形态）+ change（detail = { value } 新布尔值，冒泡供外层消费）。\r
+    checked props 为非受控初值 / 单向同步值（受控真相走宿主 x-model）。\r
+\r
+    表单提交：内嵌 input[type=hidden] 载体（data-autospark-control 标记——骨架 disabled\r
+    同步落载体，禁用即出表），value = 当前布尔字面串恒提交、name 透传宿主（state-button\r
+    N>2 表单桥同构——value 是受控真相原样提交，true/false 值域服务端约定）。\r
+\r
+    交互面：整组热区（轨道 + 文案都触发切换，宿主级事件委托）；loading 态滑块转 CSS\r
+    旋转圈并阻断切换；disabled（骨架通道）阻断 + 淡化；readonly 亦阻断（值不可变语义）。\r
+-->\r
+<!-- 根 class 拼接进骨架宿主（.asc-field + .asc-switch——裸态控件不加 .asc-field-box，\r
+     状态色仍经 --asc-field-tone 消费，ADR-0020 决策 3）；data-checked / data-loading\r
+     由 mounted JS 通道同步（无 T4=B 约束），根上无动态绑定 -->\r
+<span\r
+  class="asc-switch"\r
+  x-define="autospark.switch"\r
+  x-define:inherit="autospark.field"\r
+>\r
+  <script setup>\r
+    {\r
+        data: () => ({\r
+            label: "",     // 兜底文案（默认插槽内容优先；用户传入，无 i18n）\r
+            checked: false,// 非受控初值 / 单向同步值（受控真相走宿主 x-model——el.value 布尔语域桥）\r
+            loading: false,// 加载态：滑块转 CSS 旋转圈 + 阻断切换（视觉优先于 disabled，不淡化）\r
+        }),\r
+        mounted() {\r
+            // —— 内层元素查询（mounted 时子树可能未挂载，查询恒延后一跳现取）——\r
+            const track = () => this.el.querySelector(".asc-switch-track");\r
+            const carrier = () => this.el.querySelector(".asc-switch-carrier");\r
+\r
+            // —— 全视觉同步（按 data 现值求值，幂等）：aria 语义 + 宿主状态属性 + 表单载体 ——\r
+            const syncVisual = () => {\r
+                const on = !!this.data.checked;\r
+                const t = track();\r
+                if (t) {\r
+                    t.setAttribute("aria-checked", String(on));\r
+                    // 可访问性：loading 亦不可交互（aria-disabled 联动 disabled/loading）\r
+                    t.setAttribute("aria-disabled", String(!!(this.data.disabled || this.data.loading)));\r
+                    if (this.data.status === "error") t.setAttribute("aria-invalid", "true");\r
+                    else t.removeAttribute("aria-invalid");\r
+                }\r
+                const c = carrier();\r
+                if (c) {\r
+                    // 提交载体恒随（hidden 恒提交当前布尔；禁用出表由骨架同步，此处双保险）\r
+                    c.value = String(on);\r
+                    c.disabled = !!this.data.disabled;\r
+                }\r
+                this.el.toggleAttribute("data-checked", on);\r
+                this.el.toggleAttribute("data-loading", !!this.data.loading);\r
+            };\r
+\r
+            // —— 值桥（x-model 兼容协议）：宿主 el.value 劫持为布尔语域 "true"/"false" ——\r
+            //     劫持前快照 expando（x-model 编译期可能已写初值）；无 x-model 时回退\r
+            //     props.checked 初值（劫持快照序：expando > props.checked，input 同款）\r
+            const prior = this.el.value;\r
+            const initChecked = typeof prior === "string" && prior !== ""\r
+                ? prior === "true"\r
+                : !!this.data.checked;\r
+            Object.defineProperty(this.el, "value", {\r
+                get: () => String(!!this.data.checked),\r
+                set: (v) => {\r
+                    this.data.checked = v === true || v === "true";\r
+                    syncVisual();\r
+                },\r
+                configurable: true,\r
+            });\r
+\r
+            // —— 切换动作：可交互判定（disabled / readonly / loading 均阻断）→ 翻转 →\r
+            //     双派发（input→x-model 回写非冒泡；change→外层消费 detail={value}）——\r
+            const toggle = () => {\r
+                if (this.data.disabled || this.data.readonly || this.data.loading) return;\r
+                this.data.checked = !this.data.checked;\r
+                syncVisual();\r
+                this.el.dispatchEvent(new Event("input", { bubbles: false }));\r
+                this.el.dispatchEvent(\r
+                    new CustomEvent("change", { bubbles: true, detail: { value: this.data.checked } }),\r
+                );\r
+            };\r
+\r
+            // —— 交互接入（宿主级事件委托——mounted 时子树可能未挂载，委托恒安全）：\r
+            //     整组热区（轨道 + 文案都触发）；键盘 Space/Enter（自绘控件自持，\r
+            //     role=switch 交互约定；Space 阻断页面滚动）——\r
+            this.el.addEventListener("click", (e) => {\r
+                const t = e.target instanceof Element ? e.target : null;\r
+                if (t && t.closest(".asc-switch-wrap")) toggle();\r
+            });\r
+            this.el.addEventListener("keydown", (e) => {\r
+                if (e.key !== " " && e.key !== "Enter") return;\r
+                const t = e.target instanceof Element ? e.target : null;\r
+                if (!t || !t.closest(".asc-switch-track")) return;\r
+                e.preventDefault();\r
+                toggle();\r
+            });\r
+\r
+            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）：初值落定 +\r
+            //     宿主 name 透传到表单载体 + 首次视觉同步 ——\r
+            setTimeout(() => {\r
+                this.data.checked = initChecked;\r
+                const c = carrier();\r
+                const nameAttr = this.el.getAttribute("name");\r
+                if (c && nameAttr != null) c.name = nameAttr;\r
+                syncVisual();\r
+            }, 0);\r
+\r
+            // —— props 变化跟随（回调收 { value } 信封对象，此处只用作触发信号）——\r
+            this.watch("checked", () => { syncVisual(); });\r
+            this.watch("loading", () => { syncVisual(); });\r
+            this.watch("status", () => { setTimeout(syncVisual, 0); });\r
+        },\r
+    }\r
+  <\/script>\r
+  <style global id="autospark-components-switch">\r
+    /* ---------- 结构：纯 span 包裹（自绘控件无原生语义可包——不用 label 防表单载体\r
+         转发点击双触发）；轨道 = 交互件（data-autospark-action，点击不转发焦点） ---------- */\r
+    .asc-switch-wrap {\r
+      display: inline-flex;\r
+      align-items: center;\r
+      gap: 0.45em;\r
+      cursor: pointer;\r
+    }\r
+    /* 轨道：尺寸 em 基准随主题 data-size 档位字号缩放（不设自有尺寸属性，button 同范式\r
+       ADR-0012）；关态中性色（正文色派生淡灰，主题在场自动换肤） */\r
+    .asc-switch-track {\r
+      --asc-switch-w: 2.6em;\r
+      --asc-switch-h: 1.4em;\r
+      flex: none;\r
+      display: inline-flex;\r
+      align-items: center;\r
+      box-sizing: border-box;\r
+      width: var(--asc-switch-w);\r
+      height: var(--asc-switch-h);\r
+      padding: 0.1875em;\r
+      border-radius: 9999px;\r
+      background: color-mix(\r
+        in srgb,\r
+        var(--auto-color, var(--asc-switch-off, #606060)) 28%,\r
+        transparent\r
+      );\r
+      transition: background-color 0.2s ease, box-shadow 0.15s ease;\r
+    }\r
+    /* 滑块：白色恒定设计（暗色不换——与背景形成恒定对比）；位移 = 轨道宽 - 高（对称内距） */\r
+    .asc-switch-thumb {\r
+      flex: none;\r
+      width: calc(var(--asc-switch-h) - 0.375em);\r
+      height: calc(var(--asc-switch-h) - 0.375em);\r
+      border-radius: 50%;\r
+      background: var(--asc-switch-thumb, #ffffff);\r
+      box-shadow: var(--asc-switch-thumb-shadow, 0 1px 2px rgba(0, 0, 0, 0.25));\r
+      transform: translateX(0);\r
+      transition: transform 0.2s ease;\r
+      box-sizing: border-box;\r
+    }\r
+\r
+    /* ---------- 开态（data-checked 由 mounted JS 通道同步）：主色实底（status 在场随\r
+             --asc-field-tone 联动——开态语义色，骨架通道） ---------- */\r
+    .asc-switch[data-checked] .asc-switch-track {\r
+      background: var(--asc-field-tone);\r
+    }\r
+    .asc-switch[data-checked] .asc-switch-thumb {\r
+      transform: translateX(calc(var(--asc-switch-w) - var(--asc-switch-h)));\r
+    }\r
+\r
+    /* ---------- loading 态（data-loading 由 mounted 同步）：滑块转 CSS 旋转圈（阻断\r
+             切换由 JS 判定；视觉优先于 disabled 不淡化，button loading 同款语义） ---------- */\r
+    .asc-switch[data-loading] .asc-switch-thumb {\r
+      background: transparent;\r
+      box-shadow: none;\r
+      border: 0.125em solid var(--asc-field-tone);\r
+      border-top-color: transparent;\r
+      animation: asc-switch-spin 0.7s linear infinite;\r
+    }\r
+    @keyframes asc-switch-spin {\r
+      to {\r
+        transform: rotate(360deg);\r
+      }\r
+    }\r
+    .asc-switch[data-loading][data-checked] .asc-switch-thumb {\r
+      transform: none;\r
+    }\r
+\r
+    /* ---------- 交互态 ---------- */\r
+    /* 焦点环（data-focus 由骨架 focusin/focusout 同步——轨道可聚焦即点亮）；禁用不点环 */\r
+    .asc-switch[data-focus]:not([data-disabled]) .asc-switch-track {\r
+      box-shadow: 0 0 0 2px\r
+        color-mix(in srgb, var(--asc-field-tone) 22%, transparent);\r
+    }\r
+    /* 禁用（骨架通道 [data-disabled]）：整体淡化 + 禁点光标 */\r
+    .asc-switch[data-disabled] {\r
+      opacity: 0.55;\r
+    }\r
+    .asc-switch[data-disabled] .asc-switch-wrap {\r
+      cursor: not-allowed;\r
+    }\r
+    /* loading 光标进度态（不淡化） */\r
+    .asc-switch[data-loading] .asc-switch-wrap {\r
+      cursor: progress;\r
+    }\r
+\r
+    /* ---------- 文案：空文案不占位（消 gap 空隙） ---------- */\r
+    .asc-switch-label:empty {\r
+      display: none;\r
+    }\r
+\r
+    /* ---------- 暗色兜底变体（ADR-0129）：关态中性色换暗色校准（正文色反转自动偏白灰，\r
+             兜底字面值切换；开态 tone 与滑块白色为恒定设计不变） ---------- */\r
+    [dark] .asc-switch-track,\r
+    [data-dark] .asc-switch-track {\r
+      background: color-mix(\r
+        in srgb,\r
+        var(--auto-color, var(--asc-switch-off, #fafafa)) 32%,\r
+        transparent\r
+      );\r
+    }\r
+    [dark] .asc-switch-thumb,\r
+    [data-dark] .asc-switch-thumb {\r
+      background: var(--asc-switch-thumb, #ffffff);\r
+    }\r
+  </style>\r
+  <!-- 默认段（替换 field 出口 fallback）：表单载体（hidden，骨架 disabled 同步目标）+\r
+         轨道交互件（role=switch 可聚焦）+ 文案。开态/loading 视觉由宿主 data-* 属性驱动。\r
+         注意：嵌套 x-slot 出口在继承形态下被忽略（ADR-0056）——消费者内容经 field\r
+         出口整段替换控件区（逃生通道，input 同款语义），文案走 props 兜底不开真插槽 -->\r
+  <span class="asc-switch-wrap">\r
+    <input type="hidden" class="asc-switch-carrier" data-autospark-control />\r
+    <span\r
+      class="asc-switch-track"\r
+      role="switch"\r
+      tabindex="0"\r
+      aria-checked="false"\r
+      data-autospark-action\r
+    >\r
+      <span class="asc-switch-thumb"></span>\r
+    </span>\r
+    <span class="asc-switch-label">{{ label }}</span>\r
+  </span>\r
+</span>\r
 `,i=`autospark.switch`;function a(e){e.components[i]=r}o();function o(){e(e=>{a(e)})}};
     if (AutoSpark === undefined) {
         // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放

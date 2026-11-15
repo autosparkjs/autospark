@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Descriptions · 变体形态</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.descriptions.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">bordered 表格形态（label 格灰底 + 间隙显线）</div>
+        <div class="auto-card-body">
+          <x-descriptions title="订单信息" bordered="true" :items="rows"></x-descriptions>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">vertical 标签在上（简洁与 bordered 双形态）</div>
+        <div class="auto-card-body">
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+            <x-descriptions layout="vertical" columns="2" :items="rows"></x-descriptions>
+            <x-descriptions layout="vertical" columns="2" bordered="true" :items="rows"></x-descriptions>
+          </div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">暗色态（容器裸挂 data-dark）</div>
+        <div class="auto-card-body" data-dark>
+          <x-descriptions title="订单信息" bordered="true" :items="rows"></x-descriptions>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        rows: [
+          { label: "订单号", value: "ORD-20261113-0002" },
+          { label: "状态", value: "已发货" },
+          { label: "下单时间", value: "2026-11-13 09:41" },
+          { label: "支付方式", value: "在线支付" },
+          { label: "商品金额", value: "¥ 1,288.00" },
+          { label: "运费", value: "¥ 0.00" },
+        ],
+      });
+    </script>
+  </body>
+</html>

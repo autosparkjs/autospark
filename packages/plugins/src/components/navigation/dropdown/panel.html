@@ -1,0 +1,67 @@
+<!--
+    autospark-dropdown-panel 菜单面板（ADR-0027）——dropdown 的内部组件（非用户直接
+    消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制渲染进
+    body 覆盖物容器，面板外壳（边框/阴影/定位）由 popover-shell 承载，本组件只贡献
+    菜单列表内容（菜单项语义自持——不嵌套消费 autospark.menu，动作菜单一层平铺）。
+
+    与触发器组件（autospark.dropdown）的通信走 scope 链（ADR-0022 决策 2 同款）：
+    overlay 内容宿主恒以「open + dataContext:'host'」实例化本组件，聚合视图沿链读写
+    触发器组件 data 域——
+    - 读：items（x-for 数据源）/ activeKey（高亮基准）；
+    - 写：哨兵键 pickTick/pickKey（菜单项点击）、hoverTick/hoverKey（悬停高亮回传）
+      ——面板模板不能跨组件边界调触发器组件 method（x-on 组件 method 查找不穿透父
+      组件），自增哨兵免疫同值去重；事件表达式用逗号运算符单表达式形态（分号多语句
+      依赖新版引擎回退，旧产物不可用）；
+    - 开合态：mounted/unmounted 沿链写 open（触发器侧 aria-expanded / data-open 同步）。
+
+    列表渲染：x-for 容器宿主形态（engine 惯用语义——ul 为容器，li 为逐项克隆模板，
+    :key 在容器上，menu 同款）；克隆体内条件显隐一律 x-show（共享快照多实例 x-if
+    串台规避，P0 清单第 4 条——icon 空值 x-icon 渲染默认图标，x-show 隐藏不可见）。
+    空态文案走 i18n 词典 dropdown.empty 键（回退「暂无数据」）。
+-->
+<div class="asc-dropdown-panel" x-define="autospark-dropdown-panel">
+  <script setup>
+    {
+        // 本组件零 props（overlay 宿主以空值实例化）、零自有状态——全部数据经 scope 链
+        // 读写触发器组件域；data() 空对象占位以建立自有 data 层（聚合视图的链上桥点）
+        data: () => ({}),
+        mounted() {
+            // 开合态沿链写回（触发器侧 watch open 派生 aria-expanded / data-open / 高亮复位）
+            this.data.open = true;
+            // 高亮项滚动跟随（键盘导航可见性；列表在面板内现查）
+            const scrollActive = () => {
+                const el = this.el.querySelector(".asc-dropdown-item[data-active]");
+                el?.scrollIntoView?.({ block: "nearest" });
+            };
+            setTimeout(scrollActive, 0);
+            this.watch("activeKey", () => { setTimeout(scrollActive, 0); });
+        },
+        unmounted() {
+            // 面板每次开合都是新实例（popover 无 keepalive，关闭即销毁）——关闭即复位开合态
+            this.data.open = false;
+        },
+    }
+  </script>
+  <!-- 菜单列表：x-for 容器宿主形态（ul 容器 + li 克隆模板）+ 空态行随容器 -->
+  <ul class="asc-dropdown-menu" role="menu" x-for="item of items" :key="item.key">
+    <li
+      class="asc-dropdown-item"
+      role="menuitem"
+      x-bind:data-active="activeKey != null && String(item.key) === String(activeKey)"
+      x-bind:data-disabled="!!item.disabled"
+      x-bind:data-divided="!!item.divided"
+      x-bind:data-danger="!!item.danger"
+      x-bind:aria-disabled="item.disabled ? 'true' : null"
+      x-on:click="pickTick = pickTick + 1, pickKey = item.key"
+      x-on:mouseenter="hoverTick = hoverTick + 1, hoverKey = item.key"
+    >
+      <i class="asc-dropdown-item-icon" x-show="item.icon" x-icon="item.icon"></i>
+      <span class="asc-dropdown-item-label">{{ item.label }}</span>
+    </li>
+  </ul>
+  <div
+    class="asc-dropdown-empty"
+    x-if="!(items && items.length > 0)"
+    x-text="t('dropdown.empty') === 'dropdown.empty' ? '暂无数据' : t('dropdown.empty')"
+  ></div>
+</div>

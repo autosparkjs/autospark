@@ -5,9 +5,13 @@
 
     生命周期三态：src 在场未完成 → 加载态（内置 loading 图标 SMIL 自转，零 CSS 动画）；
     @load → loaded 置位摘转圈；@error → failed 置位切 fallback 占位（图标名或图片 URL
-    双形态，URL 形态以 http(s)://、data:、//、/、./ 开头判定）。src 变化时重置
-    loaded/failed 重试新地址。lazy 走原生 loading=lazy（按简——IntersectionObserver
-    自实现不引入）；width/height 经绑定通道透传 img 原生属性（假值属性移除家族约定）。
+    双形态，URL 形态以协议/根斜杠/相对段开头判定）。src 变化时重置 loaded/failed
+    重试新地址。lazy 走原生 loading=lazy（按简——IntersectionObserver 自实现不引入）；
+    width/height 经绑定通道透传 img 原生属性（假值属性移除家族约定）。
+
+    三态层显隐一律用 x-show（display 切换，勿用 x-if）：共享快照多实例场景下
+    x-if 的延迟编译（假→真切换时才编译子树）会挂错 scope 链致跨实例 props 串台
+    （engine 已知缺陷，记忆 templateScopeMap 串台），x-show 无编译期回避之。
 
     点击预览不做（P2 image-viewer 承接，ADR-0018 清单表边界）：点击原生冒泡，
     使用者自行挂 @click 接入预览层。
@@ -33,6 +37,7 @@
             fallback: "file-error", // 加载失败占位：内置图标名或图片 URL 双形态（URL 以 http(s)://、data:、//、/、./ 开头判定）
             loaded: false,       // 内部状态：@load 置位（摘加载态；非 props）
             failed: false,       // 内部状态：@error 置位（切 fallback；非 props）
+            errorArmed: false,   // 内部状态：@error 武装位（一跳后置 true，见 mounted——非 props）
         }),
         methods: {
             // 图片加载成功：摘加载态（failed 同步复位防陈旧标记）
@@ -40,17 +45,35 @@
                 this.data.loaded = true;
                 this.data.failed = false;
             },
-            // 图片加载失败：切 fallback 占位（x-if 通道重建，主图移除）
+            // 图片加载失败：切 fallback 占位（x-if 通道重建，主图移除）。
+            // 武装位守卫（avatar 同款）：构造窗口内（scope.refresh 等机制重跑 :src 绑定 →
+            // 同值 setAttribute('src') → happy-dom **同步**派发 error）的伪 error 不接——
+            // 真实浏览器网络失败恒在构造同步块之后，一跳后武装不丢真失败
             onImgError() {
+                if (!this.data.errorArmed) return;
                 this.data.loaded = false;
                 this.data.failed = true;
             },
         },
         mounted() {
-            // src 变化：重置 loaded/failed 重试新地址（回调收 { value } 信封对象——本回调不取值，重置恒执行）
-            this.watch("src", () => {
+            // @error 一跳后武装：挂起一个宏任务置位（mounted 时化身子树可能未挂载，
+            // 家族同款一跳；期间到达的 error 均为构造窗口伪 error）
+            setTimeout(() => { this.data.errorArmed = true; }, 0);
+            // src 变化：解除武装 + 重置 loaded/failed 重试新地址（回调收 { value } 信封
+            // 对象——解构取值），一跳后对新地址重新武装——新值写入引发的伪 error 无论
+            // 落在本回调前后净效果一致（avatar 同款两序分析）。
+            // 已见值比对幂等防御：scope.refresh 类无变化重跑（i18n ready 换血等）同值
+            // 跳过，不解除武装、不误重置已置位的三态
+            const rearm = () => setTimeout(() => { this.data.errorArmed = true; }, 0);
+            let lastSrc = String(this.data.src ?? "");
+            this.watch("src", ({ value }) => {
+                const v = String(value ?? "");
+                if (v === lastSrc) return;
+                lastSrc = v;
+                this.data.errorArmed = false;
                 this.data.loaded = false;
                 this.data.failed = false;
+                rearm();
             });
         },
     }
@@ -89,6 +112,7 @@
 
     /* 加载态：居中转圈（内置 loading 图标 SMIL 自转，容器居中；随字号档位缩放） */
     .asc-image-spinner {
+      display: flex;
       position: absolute;
       inset: 0;
       display: flex;
@@ -110,6 +134,7 @@
       color: var(--auto-third-color, var(--asc-image-fallback-color, rgba(0, 0, 0, 0.35)));
     }
     .asc-image-fallback-img {
+      display: block;
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
@@ -150,7 +175,7 @@
     <!-- 主图：src 在场即渲染（failed 经 @error 置位移除；真加载态由浏览器事件驱动） -->
     <img
       class="asc-image-img"
-      x-if="src && !failed"
+      x-show="src && !failed"
       :src="src"
       :alt="alt"
       :loading="lazy ? 'lazy' : 'eager'"
@@ -163,7 +188,7 @@
     <!-- 加载态：src 在场未完成未失败（loaded 经 @load 置位移除；图标 SMIL 自转零 CSS 动画） -->
     <i
       class="asc-image-spinner"
-      x-if="src && !loaded && !failed"
+      x-show="src && !loaded && !failed"
       x-icon="'loading'"
     ></i>
     <!-- fallback 占位：src 缺席（结构占位）或加载失败时渲染；URL 形态判定 = 根斜杠 /
@@ -171,17 +196,17 @@
              协议段 [a-z][a-z0-9+.-]*: 无斜杠安全） -->
     <div
       class="asc-image-fallback"
-      x-if="!src || failed"
+      x-show="!src || failed"
     >
       <img
         class="asc-image-fallback-img"
-        x-if="typeof fallback === 'string' && (fallback.charAt(0) === '/' || fallback.startsWith('./') || fallback.startsWith('../') || /^[a-z][a-z0-9+.-]*:/i.test(fallback))"
-        :src="fallback"
+        x-show="typeof fallback === 'string' && (fallback.charAt(0) === '/' || fallback.startsWith('./') || fallback.startsWith('../') || /^[a-z][a-z0-9+.-]*:/i.test(fallback))"
+        :src="(typeof fallback === 'string' && (fallback.charAt(0) === '/' || fallback.startsWith('./') || fallback.startsWith('../') || /^[a-z][a-z0-9+.-]*:/i.test(fallback))) ? fallback : ''"
         :alt="alt"
       />
       <i
         class="asc-image-fallback-icon"
-        x-if="!(typeof fallback === 'string' && (fallback.charAt(0) === '/' || fallback.startsWith('./') || fallback.startsWith('../') || /^[a-z][a-z0-9+.-]*:/i.test(fallback)))"
+        x-show="!(typeof fallback === 'string' && (fallback.charAt(0) === '/' || fallback.startsWith('./') || fallback.startsWith('../') || /^[a-z][a-z0-9+.-]*:/i.test(fallback)))"
         x-icon="fallback"
       ></i>
       <!-- alt 提示行（紧凑书写——:empty 判定纪律） -->

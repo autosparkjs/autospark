@@ -3,10 +3,10 @@
  * ADR-0022）：经插件全局组件表注册（ADR-0111 决策 5），跨 engine 真全局——晚注册立即
  * 生效，同名后注册覆盖先注册。
  *
- * 下拉选择器（弹层交互自绘，ADR-0018 决策 7）：触发器 = BaseField 盒饰形态（继承
- * autospark.base-field 骨架，input 同款 chrome——本产物以副作用导入内嵌 base-field
- * 注册，继承链 select → base-field → autospark.base，按需加载场景无须单独引入
- * autospark.base-field.js）；下拉面板**不自建弹层**——复用 x-popover 指令机制
+ * 下拉选择器（弹层交互自绘，ADR-0018 决策 7）：触发器 = Field 盒饰形态（继承
+ * autospark.field 骨架，input 同款 chrome——本产物以副作用导入内嵌 field
+ * 注册，继承链 select → field → autospark.base，按需加载场景无须单独引入
+ * autospark.field.js）；下拉面板**不自建弹层**——复用 x-popover 指令机制
  * （trigger:click 形态）呈现，面板组件 autospark-select-panel（内部组件，随本插件注册，
  * 连字符注册名免疫 attr 参数点号切分——见 SELECT_PANEL_NAME 注注）渲染进 body 覆盖物容器。
  *
@@ -29,7 +29,7 @@
 import type { AutoSpark } from "autospark";
 import { captureNamespace } from "../../../utils/namespace";
 import { installPlugin } from "@autospark/utils";
-import "../../base/base-field/index";
+import "../../base/field/index";
 import selectTemplate from "./select.html?raw";
 import panelTemplate from "./panel.html?raw";
 

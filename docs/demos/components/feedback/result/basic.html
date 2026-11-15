@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Result · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.result.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .big-emoji {
+        font-size: 3.5rem;
+        font-style: normal;
+        line-height: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">语义色四档（type 大图标 + 标题 + 描述）</div>
+        <div class="auto-card-body">
+          <x-result
+            type="success"
+            title="提交成功"
+            description="预计 3 个工作日内完成审核，结果将发送至你的邮箱。"
+          ></x-result>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">动作区（默认插槽，button 组合配方）</div>
+        <div class="auto-card-body">
+          <x-result type="error" title="支付失败" description="网络连接超时，请检查网络后重试。">
+            <x-button variant="primary" type="primary" label="重新支付"></x-button>
+            <x-button variant="default" label="返回订单"></x-button>
+          </x-result>
+        </div>
+      </div>
+      <div class="auto-card" data-dark>
+        <div class="auto-card-header">icon 插槽换图 + 暗色态</div>
+        <div class="auto-card-body">
+          <x-result type="warning" title="账号待激活">
+            <template x-slot:icon><i class="big-emoji">🔔</i></template>
+            <span>验证邮件已发送，请在 24 小时内完成激活。</span>
+          </x-result>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

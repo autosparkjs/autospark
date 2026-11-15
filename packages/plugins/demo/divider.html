@@ -53,29 +53,29 @@
     <div id="app" x-data="{}">
       <h2>水平分割线</h2>
       <p>上文内容：默认水平实线，块级满宽。</p>
-      <div x-component:autospark.divider="{}"></div>
+      <x-divider></x-divider>
       <p>下文内容。</p>
 
       <h2>带文字（默认插槽）与位置（align）</h2>
-      <div x-component:autospark.divider="{}">分隔标题</div>
-      <div x-component:autospark.divider="{ align: 'left' }">左侧标题</div>
-      <div x-component:autospark.divider="{ align: 'right' }">右侧标题</div>
+      <x-divider>分隔标题</x-divider>
+      <x-divider align="left">左侧标题</x-divider>
+      <x-divider align="right">右侧标题</x-divider>
 
       <h2>虚线（dashed）</h2>
-      <div x-component:autospark.divider="{ dashed: true }">虚线带文字</div>
-      <div x-component:autospark.divider="{ dashed: true }"></div>
+      <x-divider dashed="true">虚线带文字</x-divider>
+      <x-divider dashed="true"></x-divider>
 
       <h2>间距（spacing）</h2>
       <p>spacing="8"：上下各 8px 边距（缺省无边距，间距编排交给布局容器）。</p>
-      <div x-component:autospark.divider="{ spacing: 8 }"></div>
+      <x-divider spacing="8"></x-divider>
       <p>下文内容。</p>
 
       <h2>垂直分割线（vertical）</h2>
       <div class="toolbar">
         <span>文字一</span>
-        <span x-component:autospark.divider="{ vertical: true, spacing: 8 }"></span>
+        <x-divider vertical="true" spacing="8"></x-divider>
         <span>文字二</span>
-        <span x-component:autospark.divider="{ vertical: true, dashed: true, spacing: 8 }"></span>
+        <x-divider vertical="true" dashed="true" spacing="8"></x-divider>
         <span>文字三</span>
       </div>
       <p class="hint">
@@ -85,10 +85,10 @@
 
       <h2>暗色态（容器 data-dark）</h2>
       <div class="dark-box" data-dark>
-        <div x-component:autospark.divider="{}">暗色分隔标题</div>
+        <x-divider>暗色分隔标题</x-divider>
         <div class="toolbar">
           <span>暗色文字</span>
-          <span x-component:autospark.divider="{ vertical: true, spacing: 8 }"></span>
+          <x-divider vertical="true" spacing="8"></x-divider>
           <span>暗色文字二</span>
         </div>
       </div>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Menu · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.menu.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .stage {
+        max-width: 240px;
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">items 状态引用 + x-model 双向 + 子菜单点击展开</div>
+        <div class="auto-card-body">
+          <div class="stage">
+            <x-menu x-model="active" :items="menu"></x-menu>
+          </div>
+          <p class="hint">
+            菜单项 { key, label, icon?, disabled?, children?[]（一层子菜单嵌套）} 恒经<b>状态引用</b>注入
+            （字面量数组 props 死环规避）；带 children 的父项点击展开/收起，叶子项激活；
+            激活值指向子项时祖先链自动展开。等价受控形态：<code>:value="active"</code> +
+            外层 <code>@change="active = $event.detail.value"</code>。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">子元素声明（静态菜单树，含嵌套 children）</div>
+        <div class="auto-card-body">
+          <div class="stage">
+            <x-menu value="g1">
+              <x-menu-item key="home" label="首页" icon="file"></x-menu-item>
+              <x-menu-item key="g" label="组件">
+                <x-menu-item key="g1" label="导航"></x-menu-item>
+                <x-menu-item key="g2" label="表单" disabled></x-menu-item>
+              </x-menu-item>
+            </x-menu>
+          </div>
+          <p class="hint">
+            <code>&lt;x-menu-item&gt;</code> 声明经 precompile 变换折叠为 items JSON（data-items 通道，
+            规避字面量数组 props）；嵌套声明子项折叠为 children；value 静态折叠激活。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        active: "",
+        menu: [
+          { key: "home", label: "首页", icon: "file" },
+          {
+            key: "g",
+            label: "组件",
+            icon: "folder",
+            children: [
+              { key: "g1", label: "导航" },
+              { key: "g2", label: "表单", disabled: true },
+            ],
+          },
+          { key: "api", label: "API", icon: "bell" },
+        ],
+      });
+    </script>
+  </body>
+</html>

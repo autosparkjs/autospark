@@ -6,9 +6,9 @@ Checkbox 是 AutoSpark 的官方复选框组件（组件库 P0 form 批，ADR-00
 
 能力面：**勾选双态**（布尔语域值桥）、**indeterminate 半选**（JS 通道设原生属性）、**disabled**、**状态色**。label、校验文案、域布局由 engine 的 [x-form / x-field 指令](/zh/guide/engine/form/) 承担——组件只经 `status` 属性消费校验结果染色，**不双轨建域**。
 
-组件继承 `autospark.base-field` 表单域骨架（状态色通道 / 焦点态 / disabled 同步，内部基类无文档页），**裸态无盒饰**（不加 `.asc-field-box`）；视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129），勾选底色经骨架 `--asc-field-tone` 消费（缺省主色，status 在场随动语义色）；**不设自有尺寸属性**——盒子 em 基准随主题通道 `data-size` 挂任意祖先容器全档位跟随（button 同范式 ADR-0012）；暗色态容器裸挂 `data-dark` 即局部切换。无内置文案、不接 i18n（ADR-0018 决策 1）。
+组件继承 `autospark.field` 表单域骨架（状态色通道 / 焦点态 / disabled 同步，内部基类无文档页），**裸态无盒饰**（不加 `.asc-field-box`）；视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129），勾选底色经骨架 `--asc-field-tone` 消费（缺省主色，status 在场随动语义色）；**不设自有尺寸属性**——盒子 em 基准随主题通道 `data-size` 挂任意祖先容器全档位跟随（button 同范式 ADR-0012）；暗色态容器裸挂 `data-dark` 即局部切换。无内置文案、不接 i18n（ADR-0018 决策 1）。
 
-引入方式：引擎之后加载 `<script src="/autospark/autospark.checkbox.js"></script>`（自举注册，产物已内嵌 base-field 注册，无须单独引入），或聚合产物 `autospark.plugins.js`。
+引入方式：引擎之后加载 `<script src="/autospark/autospark.checkbox.js"></script>`（自举注册，产物已内嵌 field 注册，无须单独引入），或聚合产物 `autospark.plugins.js`。
 
 ## 快速入门
 
@@ -18,7 +18,7 @@ Checkbox 是 AutoSpark 的官方复选框组件（组件库 P0 form 批，ADR-00
 <script src="autospark.js"></script>
 <script src="autospark.checkbox.js"></script>
 
-<span x-model.boolean="form.agree" x-component:autospark.checkbox="{ label: '我已阅读并同意协议' }"></span>
+<x-checkbox x-model.boolean="form.agree" label="我已阅读并同意协议"></x-checkbox>
 ```
 
 <demo html="components/form/checkbox/basic.html"/>
@@ -30,7 +30,7 @@ Checkbox 是 AutoSpark 的官方复选框组件（组件库 P0 form 批，ADR-00
 **类型**: `string`
 **默认**: `""`
 
-勾选框旁的文案（用户传入，无 i18n）。点击**文字或盒子任一处**切换——结构是真实 `<label>` 包裹，原生点击转发无需配置。文案走 props 通道（继承形态下组件内嵌套插槽出口不可用，消费者子内容经 base-field 出口**整段替换控件区**，属逃生通道，与 Input 同款语义）。
+勾选框旁的文案（用户传入，无 i18n）。点击**文字或盒子任一处**切换——结构是真实 `<label>` 包裹，原生点击转发无需配置。文案走 props 通道（继承形态下组件内嵌套插槽出口不可用，消费者子内容经 field 出口**整段替换控件区**，属逃生通道，与 Input 同款语义）。
 
 ### 值通道（x-model 桥）
 
@@ -40,9 +40,9 @@ Checkbox 是 AutoSpark 的官方复选框组件（组件库 P0 form 批，ADR-00
 
 ```html
 <!-- 双向绑定（推荐，.boolean 类型保真） -->
-<span x-model.boolean="form.agree" x-component:autospark.checkbox="{ label: '同意协议' }"></span>
+<x-checkbox x-model.boolean="form.agree" label="同意协议"></x-checkbox>
 <!-- 单向同步（无回写） -->
-<span x-component:autospark.checkbox="{ checked: form.agree, label: '只读展示' }"></span>
+<x-checkbox label="只读展示" :checked="form.agree"></x-checkbox>
 ```
 
 ### indeterminate 半选
@@ -61,20 +61,19 @@ Checkbox 是 AutoSpark 的官方复选框组件（组件库 P0 form 批，ADR-00
 **类型**: `boolean`
 **默认**: `false`
 
-由 base-field 骨架统一同步到内层原生控件（`disabled` / `readOnly` 属性）+ 宿主 `data-disabled` / `data-readonly` 反射（禁用整体淡化 + 禁点光标；勾选 tone 保留可辨）。
+由 field 骨架统一同步到内层原生控件（`disabled` / `readOnly` 属性）+ 宿主 `data-disabled` / `data-readonly` 反射（禁用整体淡化 + 禁点光标；勾选 tone 保留可辨）。
 
 ### status 状态色（x-field 协作）
 
 **类型**: `"" | "error" | "success" | "warning"`
 **默认**: `""`
 
-表单域状态色通道（base-field 骨架）：状态在场边框与勾选底色染对应语义色（`error`=danger / `success`=success / `warning`=warning），`error` 态内层控件同步 `aria-invalid="true"`。**校验结果来自 x-field**——组件不做校验，经绑定消费指令注入的 `$field.error`：
+表单域状态色通道（field 骨架）：状态在场边框与勾选底色染对应语义色（`error`=danger / `success`=success / `warning`=warning），`error` 态内层控件同步 `aria-invalid="true"`。**校验结果来自 x-field**——组件不做校验，经绑定消费指令注入的 `$field.error`：
 
 ```html
 <form x-form="survey">
   <div x-field="agree">
-    <span x-model.boolean="survey.agree"
-      x-component:autospark.checkbox="{ label: '同意协议', status: $field.error ? 'error' : '' }"></span>
+    <x-checkbox x-model.boolean="survey.agree" label="同意协议" :status="$field.error ? 'error' : ''"></x-checkbox>
     <em>{{ $field.error }}</em>
   </div>
 </form>
@@ -103,7 +102,7 @@ Checkbox 是 AutoSpark 的官方复选框组件（组件库 P0 form 批，ADR-00
 | label | `string` | `""` | 勾选框文案（点击文字/盒子任一处切换） |
 | checked | `boolean` | `false` | 非受控初值 / 单向同步值（受控真相走宿主 x-model） |
 | indeterminate | `boolean` | `false` | 半选态（JS 通道设原生属性；与勾选正交） |
-| status | `"" \| error \| success \| warning` | `""` | 状态色通道（base-field 骨架；x-field 校验结果染色入口） |
+| status | `"" \| error \| success \| warning` | `""` | 状态色通道（field 骨架；x-field 校验结果染色入口） |
 | disabled | `boolean` | `false` | 禁用（骨架同步原生控件） |
 | readonly | `boolean` | `false` | 只读（骨架同步原生控件） |
 

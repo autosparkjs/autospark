@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FloatButton · 回顶形态</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.float-button.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      /* 高区块：撑出滚动渐显面 */
+      .tall {
+        min-height: 55vh;
+        padding-top: 2rem;
+        border-bottom: 1px dashed rgba(128, 128, 128, 0.3);
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">back-to-top 形态：滚动渐显 + 点击回顶</div>
+        <div class="auto-card-body">
+          <p class="hint">
+            向下滚动超过 400px（visibilityHeight 缺省阈值）右下角渐显回顶钮（icon 缺省内置
+            arrow 上旋指顶）；点击平滑回顶（reduced-motion 环境瞬时归位、过渡停播）。
+          </p>
+          <x-float-button back-to-top></x-float-button>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">自定义阈值 + square + label</div>
+        <div class="auto-card-body">
+          <p class="hint">
+            visibilityHeight 阈值可调（本例 120px）；与 square / label 形态自由组合
+            （定位偏移错开避免叠放）。
+          </p>
+          <x-float-button back-to-top shape="square" right="130" visibility-height="120">回到顶部</x-float-button>
+        </div>
+      </div>
+      <div class="tall"><h3>区块一</h3><p>滚动到此处观察右下角渐显。</p></div>
+      <div class="tall"><h3>区块二</h3><p>继续向下。</p></div>
+      <div class="tall"><h3>区块三</h3><p>点击回顶钮平滑回到顶部。</p></div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

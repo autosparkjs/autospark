@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Carousel · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.carousel.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .carousel-demo-promo {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        gap: 0.5rem;
+        background: linear-gradient(135deg, rgba(0, 154, 255, 0.08), rgba(0, 154, 255, 0.02));
+      }
+      .carousel-demo-promo strong { font-size: 1.6rem; }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">基础（scroll 档：原生滚动惯性 + loop + 箭头 + 指示点）</div>
+        <div class="auto-card-body">
+          <div @change="page = $event.detail.index + 1">
+            <x-carousel style="--asc-carousel-height: 14rem" loop="true" :items="slides"></x-carousel>
+          </div>
+          <p class="hint" style="margin-top: 12px">
+            当前页：<code>{{ page }}</code>——change 事件回显（拖动 / 箭头 / 指示点 / 键盘殊途同归）。
+            箭头悬停显影（触屏恒显）；stage 聚焦后 <code>← / →</code> 翻页。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">autoplay + fade 淡入淡出（指示器置顶）</div>
+        <div class="auto-card-body">
+          <x-carousel effect="fade" autoplay="3000" loop="true" indicator="top" :items="slides"></x-carousel>
+          <p class="hint" style="margin-top: 12px">
+            fade 档纯 CSS 叠放透明度切换（stage 定高 <code>--asc-carousel-height</code>，缺省 16rem）；
+            系统开启「减少动态效果」时 autoplay 自动停播；非循环模式到末页自然停播。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">子元素声明 + 内容幻灯（&lt;x-carousel-item&gt;）</div>
+        <div class="auto-card-body">
+          <x-carousel loop>
+            <x-carousel-item src="/autospark/a.png" alt="山"></x-carousel-item>
+            <x-carousel-item>
+              <div class="carousel-demo-promo">
+                <strong>内容幻灯</strong>
+                <span>子内容随迁为 html 字段（x-html 直出）</span>
+              </div>
+            </x-carousel-item>
+            <x-carousel-item src="/autospark/a.png" caption="说明条：海边日落"></x-carousel-item>
+          </x-carousel>
+          <p class="hint" style="margin-top: 12px">
+            声明形态折叠为 data-items JSON（规避字面量数组 props 死环）；静态声明语义——动态内容
+            走 items 状态引用（整体替换驱动）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">收起浮层（arrows: false + indicator: false）</div>
+        <div class="auto-card-body">
+          <x-carousel
+            style="--asc-carousel-height: 10rem"
+            autoplay="2500"
+            loop="true"
+            arrows="false"
+            indicator="false"
+            effect="fade"
+            :items="slides"
+          ></x-carousel>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+          slides: [
+              "/autospark/a.png",
+              "/autospark/a.png",
+              "/autospark/a.png",
+              "/autospark/a.png",
+          ],
+          page: 1,
+      });
+    </script>
+  </body>
+</html>

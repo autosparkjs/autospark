@@ -75,12 +75,13 @@
     <div id="app" x-data="{ fetching: true }">
       <h2>核心用法：loading 插槽切换（骨架 → 真容）</h2>
       <div class="stack">
-        <div class="card" x-component:autospark.skeleton="{ loading: fetching, rows: 3 }">
+        <x-skeleton class="card" rows="3" :loading="fetching">
           <h3>订单 #1024</h3>
           <p>已支付 ¥299.00，预计 3 个工作日内送达。</p>
-        </div>
+        </x-skeleton>
         <div class="row" style="display: flex; gap: 8px">
-          <button x-component:autospark.button="{ label: fetching ? '模拟数据到达' : '回到骨架态', variant: 'primary', size: 'sm' }" @click="fetching = !fetching"></button>
+          
+          <span @click="fetching = !fetching"><x-button variant="primary" size="sm" :label="fetching ? '模拟数据到达' : '回到骨架态'"></x-button></span>
         </div>
         <p class="hint">插槽内容在编译期投影、x-show 只切显隐——真容运行态（如输入焦点）在 loading 往返间保留。</p>
       </div>
@@ -88,39 +89,39 @@
       <h2>variant 三形态</h2>
       <div class="stack">
         <div class="profile">
-          <div style="width: 40px" x-component:autospark.skeleton="{ variant: 'circle' }"></div>
-          <div style="flex: 1" x-component:autospark.skeleton="{ variant: 'text', rows: 2 }"></div>
+          <x-skeleton style="width: 40px" variant="circle"></x-skeleton>
+          <x-skeleton style="flex: 1" variant="text" rows="2"></x-skeleton>
         </div>
         <div class="card" style="max-width: 320px; padding: 0; overflow: hidden">
-          <div x-component:autospark.skeleton="{ variant: 'rect', animated: false }"></div>
+          <x-skeleton variant="rect" animated="false"></x-skeleton>
         </div>
         <p class="hint">rect 演示 animated: false（静态淡底）；circle 直径 2.5em 随 data-size 档位缩放。</p>
       </div>
 
       <h2>rows 多行 text（末行半宽收尾）</h2>
       <div class="stack" style="max-width: 420px">
-        <div x-component:autospark.skeleton="{ rows: 1 }"></div>
-        <div x-component:autospark.skeleton="{ rows: 3 }"></div>
-        <div x-component:autospark.skeleton="{ rows: 5 }"></div>
+        <x-skeleton rows="1"></x-skeleton>
+        <x-skeleton rows="3"></x-skeleton>
+        <x-skeleton rows="5"></x-skeleton>
       </div>
 
       <h2>字号档位（主题通道 data-size）</h2>
       <div class="stack" style="max-width: 420px">
         <div data-size="sm">
-          <div x-component:autospark.skeleton="{ rows: 2 }"></div>
+          <x-skeleton rows="2"></x-skeleton>
         </div>
         <div data-size="lg">
-          <div x-component:autospark.skeleton="{ rows: 2 }"></div>
+          <x-skeleton rows="2"></x-skeleton>
         </div>
       </div>
 
       <h2>暗色态（容器 data-dark）</h2>
       <div class="dark-box" data-dark>
         <div class="stack" style="max-width: 420px">
-          <div x-component:autospark.skeleton="{ rows: 3 }"></div>
+          <x-skeleton rows="3"></x-skeleton>
           <div class="profile">
-            <div style="width: 40px" x-component:autospark.skeleton="{ variant: 'circle' }"></div>
-            <div style="flex: 1" x-component:autospark.skeleton="{ rows: 2 }"></div>
+            <x-skeleton style="width: 40px" variant="circle"></x-skeleton>
+            <x-skeleton style="flex: 1" rows="2"></x-skeleton>
           </div>
         </div>
       </div>

@@ -1,0 +1,387 @@
+<!--
+    autospark.menu 导航菜单（组件库 P2 导航件，ADR-0018 清单权威表 navigation 行）：
+    items（{ key, label, icon?, disabled?, children?[]（一层子菜单嵌套）}[]，状态引用
+    注入）驱动菜单树，<x-menu-item> 子元素声明（含一层嵌套 children）经 data-items
+    通道兜底（字面量数组 props 死环规避，P0 固化规避清单第 1 条）。
+
+    值通道（受控单选，tabs 同构）：value props 单向驱动视觉 + 点击叶子项写组件 data
+    （绑定通道随动迁移 data-active）+ 双派发——input（x-model 回写，非冒泡）+ change
+    （冒泡 detail = { value }）。el.value 劫持桥恒在场。初值落定序：x-model expando >
+    props value > 空（菜单缺省无激活项——与 tablist 恒有一项激活不同）。
+
+    子菜单展开：openKeys 组件内部维护（{ [父项 key]: true }，整体替换驱动——原地变异
+    不发信号，规避清单第 2 条），点击父项切换；激活值落定（初值/受控变化）时祖先链
+    自动展开（antd 同款体验）。vertical 形态经 grid-rows 动画收张；horizontal 形态
+    子菜单为 hover 浮层下拉（CSS 悬停驱动，openKeys 点击切换对横向无效）；collapsed
+    （vertical 专属）收起为图标条，子菜单右飞浮层。
+
+    取舍（v1 按简）：inline 内联形态不做（vertical + 展开常驻即近似形态）；children
+    嵌套仅一层（模板静态结构，深层 grandchildren 不渲染）；键盘漫游不做（叶子项为真
+    button，原生 Tab 序聚焦可用）。
+
+    router 隔离（ADR-0018 决策 6 约定 2）：纯状态驱动、不 import router——配方见组件文档。
+
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
+    不会求值——形态绑定（:data-mode / :data-collapsed）落在编译子树内层 body 上，
+    各形态按 body 的数据属性命中样式块。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得——字号档位经主题通道全跟随；menu 不在 data() 声明主题六键，
+     内部变体属性（mode / collapsed）亦禁用六个通道名 -->
+<div
+  class="asc-menu"
+  x-define="autospark.menu"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            value: "",      // 受控激活 key（el.value 桥 + change detail={value}；缺省无激活项）
+            items: [],      // 菜单项 { key, label, icon?, disabled?, children?[] }[]——状态引用注入；声明形态经 data-items 通道兜底
+            mode: "vertical",   // 形态：vertical 垂直（缺省）| horizontal 横向（子菜单 hover 浮层）
+            collapsed: false,   // 垂直收起为图标条（vertical 专属；子菜单右飞浮层）
+            openKeys: {},   // 子菜单展开态 { [父项 key]: true }——内部维护（整体替换驱动）；也可经状态引用注入初始展开
+        }),
+        methods: {
+            // 菜单项点击（叶子与父项共用通道）：禁用跳过；父项（有 children）切换展开，
+            // 叶子项激活 + 双派发（input→x-model 回写非冒泡；change→外层消费 detail={value} 冒泡）
+            onItemClick(item) {
+                if (!item || item.disabled) return;
+                const kids = Array.isArray(item.children) ? item.children : [];
+                if (kids.length) {
+                    this.toggleSub(item);
+                    return;
+                }
+                const k = String(item.key ?? "");
+                if (k === "" || k === String(this.data.value ?? "")) return;
+                this.data.value = k;
+                this.el.dispatchEvent(new Event("input", { bubbles: false }));
+                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { value: k } }));
+            },
+            // 子菜单展开切换：openKeys 整体替换（原地变异不发信号，规避清单第 2 条）
+            toggleSub(item) {
+                const k = String(item.key ?? "");
+                if (k === "") return;
+                const open = { ...this.data.openKeys };
+                if (open[k]) delete open[k];
+                else open[k] = true;
+                this.data.openKeys = open;
+            },
+            // 激活值祖先链自动展开：定位目标项的父项链并逐一置开（同值幂等——链上已全开
+            // 则不写，防 watcher 同值重跑抖动，规避清单第 9 条）
+            expandTo(key) {
+                const target = String(key ?? "");
+                if (target === "") return;
+                const chain = [];
+                const walk = (list, parents) => {
+                    for (const it of list) {
+                        if (!it) continue;
+                        const kids = Array.isArray(it.children) ? it.children : [];
+                        if (!kids.length && String(it.key ?? "") === target) {
+                            chain.push(...parents);
+                            return true;
+                        }
+                        if (kids.length && walk(kids, parents.concat(String(it.key ?? "")))) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+                if (!walk(this.data.items || [], [])) return;
+                const open = { ...this.data.openKeys };
+                let dirty = false;
+                for (const k of chain) {
+                    if (!open[k]) {
+                        open[k] = true;
+                        dirty = true;
+                    }
+                }
+                if (dirty) this.data.openKeys = open;
+            },
+        },
+        mounted() {
+            // 声明形态兜底（precompile 变换落盘的 data-items JSON 字符串）：items props
+            // 缺席时解析写组件 data（x-for 指令值通道响应，随写随渲染）；props 在场恒优先
+            const raw = this.el.getAttribute("data-items");
+            if ((!this.data.items || !this.data.items.length) && raw) {
+                try { this.data.items = JSON.parse(raw); } catch { /* 非法 JSON 静默忽略（容错缺省空组） */ }
+                this.el.removeAttribute("data-items");
+            }
+
+            // el.value 劫持桥（受控 value 的 DOM 通道：x-model / 程序读写皆经此）——
+            // 劫持前快照 expando（x-model 编译期可能已写初值）；写值同时祖先链跟随展开
+            const prior = this.el.value;
+            Object.defineProperty(this.el, "value", {
+                get: () => String(this.data.value ?? ""),
+                set: (v) => {
+                    this.data.value = String(v ?? "");
+                    this.expandTo(v);
+                },
+                configurable: true,
+            });
+
+            // 一跳首对齐（mounted 时 props 注入可能未落定，家族惯例）：初值落定序 =
+            // x-model expando > props value（menu 缺省无激活项）；落定后祖先链自动展开
+            setTimeout(() => {
+                if (!this.data.value && typeof prior === "string" && prior !== "") {
+                    this.data.value = prior;
+                }
+                if (this.data.value) this.expandTo(this.data.value);
+            }, 0);
+
+            // 受控 value 变化：祖先链跟随展开（props 驱动不广播 change，防回环）
+            this.watch("value", ({ value }) => { this.expandTo(value); });
+        },
+    }
+  </script>
+  <style global id="autospark-components-menu">
+    .asc-menu {
+      /* 排版基线：字号经主题档位通道（data-size → --auto-font-size 全跟随，button 同范式 ADR-0012） */
+      display: block;
+      width: 100%;
+      font-size: var(--auto-font-size, var(--asc-menu-font-size, 0.875rem));
+      line-height: var(--auto-line-height, 1.5);
+    }
+    .asc-menu-body {
+      --asc-tone: var(--auto-primary-color, var(--asc-menu-primary, #009aff));
+    }
+    .asc-menu-list,
+    .asc-menu-sub {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    /* 菜单项载体（叶子与父项同构）：父项经 :data-sub 标记（展开箭头/浮层定位消费） */
+    .asc-menu-item {
+      position: relative;
+    }
+    .asc-menu-link {
+      appearance: none;
+      border: none;
+      background: transparent;
+      font: inherit;
+      line-height: inherit;
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      width: 100%;
+      padding: 0.5em 0.75em;
+      margin: 0;
+      border-radius: var(--auto-border-radius, var(--asc-menu-radius, 0.375em));
+      color: var(--auto-color, var(--asc-menu-color, #606060));
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s ease, background-color 0.15s ease;
+    }
+    .asc-menu-link:focus-visible {
+      outline: none;
+      box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--asc-tone) 28%, transparent);
+    }
+    .asc-menu-link:disabled {
+      color: var(--auto-disable-color, var(--asc-menu-disable-color, rgba(0, 0, 0, 0.25)));
+      cursor: not-allowed;
+    }
+    .asc-menu-link:not(:disabled):hover {
+      color: var(--asc-tone);
+      background: var(--auto-hover-bgcolor, var(--asc-menu-hover-bg, rgba(0, 0, 0, 0.04)));
+    }
+    /* 激活项：主色文字 + 主色浅底（10% tint 为恒定视觉设计，非变量映射） */
+    .asc-menu-link[data-active] {
+      color: var(--asc-tone);
+      font-weight: var(--x-font-weight-large, 600); /* 语义层无强调字重变量，直取基础标尺 */
+      background: color-mix(in srgb, var(--asc-tone) 10%, transparent);
+    }
+    .asc-menu-icon {
+      display: inline-flex;
+      flex: none;
+    }
+    .asc-menu-label {
+      flex: 1 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: left;
+    }
+    /* 展开箭头：内置 arrow 图标指右，垂直/横向形态统一闭态朝下（rotate 90°）、开态朝上 */
+    .asc-menu-arrow {
+      display: inline-flex;
+      flex: none;
+      color: var(--auto-third-color, var(--asc-menu-arrow-color, rgba(0, 0, 0, 0.35)));
+      transform: rotate(90deg);
+      transition: transform 0.2s ease;
+    }
+
+    /* ---------- vertical 形态（缺省）：子菜单点击展开（grid-rows 动画收张） ---------- */
+    .asc-menu-subwrap {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.2s ease;
+    }
+    .asc-menu-subwrap[data-open] {
+      grid-template-rows: 1fr;
+    }
+    .asc-menu-subwrap > .asc-menu-sub {
+      overflow: hidden;
+      min-height: 0;
+    }
+    /* 子项缩进：图标位 + 一档留白 */
+    .asc-menu-subitem .asc-menu-link {
+      padding-inline-start: 2.25em;
+    }
+    /* 开态箭头朝上（subwrap 与 link 为兄弟，经 :has() 反查） */
+    .asc-menu-item:has(> .asc-menu-subwrap[data-open]) > .asc-menu-link .asc-menu-arrow {
+      transform: rotate(-90deg);
+    }
+
+    /* ---------- 浮层形态公共面板体：horizontal 下拉 / collapsed 右飞（位置各定，面板样式共享） ---------- */
+    .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub] > .asc-menu-subwrap,
+    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub] > .asc-menu-subwrap {
+      position: absolute;
+      z-index: 10;
+      display: block;
+      grid-template-rows: none;
+      min-width: max(100%, 10em);
+      padding: 0.25em;
+      border: var(--auto-border-size, var(--asc-menu-border-size, 1px)) solid
+        var(--auto-border-color, var(--asc-menu-border, #d9d9d9));
+      border-radius: var(--auto-border-radius, var(--asc-menu-radius, 0.375em));
+      background: var(--auto-bgcolor, var(--asc-menu-panel-bg, #ffffff));
+      box-shadow: var(--auto-shadow, var(--asc-menu-shadow, 0 6px 16px rgba(0, 0, 0, 0.08)));
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.15s ease, visibility 0.15s ease;
+    }
+    .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub] > .asc-menu-subwrap {
+      top: 100%;
+      left: 0;
+      margin-top: 0.25em;
+    }
+    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub] > .asc-menu-subwrap {
+      left: 100%;
+      top: 0;
+      margin-left: 0.25em;
+    }
+    /* 悬停/子树聚焦展开（键盘 Tab 进子项时 focus-within 维持可见） */
+    .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub]:hover > .asc-menu-subwrap,
+    .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub]:focus-within > .asc-menu-subwrap,
+    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub]:hover > .asc-menu-subwrap,
+    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub]:focus-within > .asc-menu-subwrap {
+      visibility: visible;
+      opacity: 1;
+    }
+    /* 浮层内箭头朝右（层级指引，不旋转） */
+    .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub] > .asc-menu-link .asc-menu-arrow,
+    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub] > .asc-menu-link .asc-menu-arrow {
+      transform: rotate(0deg);
+    }
+
+    /* ---------- horizontal 形态：横向排布（子菜单 hover 浮层，箭头朝下） ---------- */
+    .asc-menu-body[data-mode="horizontal"] .asc-menu-list {
+      display: flex;
+      align-items: stretch;
+      max-width: 100%;
+      min-width: 0;
+      row-gap: 0.125em;
+      flex-wrap: wrap;
+    }
+    .asc-menu-body[data-mode="horizontal"] .asc-menu-link {
+      width: auto;
+    }
+    .asc-menu-body[data-mode="horizontal"] .asc-menu-item + .asc-menu-item {
+      margin-left: 0.125em;
+    }
+
+    /* ---------- collapsed 形态（vertical 专属）：图标条——顶层文字/箭头隐藏 ---------- */
+    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-list {
+      width: 3.25em;
+    }
+    .asc-menu-body[data-mode="vertical"][data-collapsed] > .asc-menu-list > .asc-menu-item > .asc-menu-link {
+      justify-content: center;
+      padding-inline: 0;
+    }
+    .asc-menu-body[data-mode="vertical"][data-collapsed] > .asc-menu-list > .asc-menu-item > .asc-menu-link > .asc-menu-label,
+    .asc-menu-body[data-mode="vertical"][data-collapsed] > .asc-menu-list > .asc-menu-item > .asc-menu-link > .asc-menu-arrow {
+      display: none;
+    }
+    /* 右飞浮层内子项恢复常规缩进与文字 */
+    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-subitem .asc-menu-link {
+      padding-inline-start: 0.75em;
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-menu-link,
+    [data-dark] .asc-menu-link {
+      color: var(--auto-color, var(--asc-menu-color, rgba(255, 255, 255, 0.75)));
+    }
+    [dark] .asc-menu-body,
+    [data-dark] .asc-menu-body {
+      --asc-tone: var(--auto-primary-color, var(--asc-menu-primary, #56baff));
+    }
+    [dark] .asc-menu-link:disabled,
+    [data-dark] .asc-menu-link:disabled {
+      color: var(--auto-disable-color, var(--asc-menu-disable-color, rgba(255, 255, 255, 0.25)));
+    }
+    [dark] .asc-menu-link:not(:disabled):hover,
+    [data-dark] .asc-menu-link:not(:disabled):hover {
+      background: var(--auto-hover-bgcolor, var(--asc-menu-hover-bg, rgba(255, 255, 255, 0.08)));
+    }
+    [dark] .asc-menu-arrow,
+    [data-dark] .asc-menu-arrow {
+      color: var(--auto-third-color, var(--asc-menu-arrow-color, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub] > .asc-menu-subwrap,
+    [dark] .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub] > .asc-menu-subwrap,
+    [data-dark] .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub] > .asc-menu-subwrap,
+    [data-dark] .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub] > .asc-menu-subwrap {
+      border-color: var(--auto-border-color, var(--asc-menu-border, #52525b));
+      background: var(--auto-bgcolor, var(--asc-menu-panel-bg, #3a3a3a));
+      box-shadow: var(--auto-shadow, var(--asc-menu-shadow, 0 6px 16px rgba(0, 0, 0, 0.4)));
+    }
+  </style>
+  <!-- 形态绑定落本层（根上动态绑定不求值，T4=B）；激活态/aria/禁用全为克隆体内绑定
+         （指令值通道响应，props 晚注入/内部写值随动）；key 归一 String 比较（数字
+         key 语域兼容）；克隆体内条件显隐一律 x-show（共享快照多实例 + items 晚注入
+         下 x-if 延迟编译挂错 scope 链，P0 规避清单第 4 条）——icon 空值 x-icon 渲染
+         默认图标（x-show 隐藏不可见） -->
+  <div class="asc-menu-body" :data-mode="mode" :data-collapsed="collapsed ? '' : null">
+    <!-- x-for 容器宿主形态（engine 惯用语义）：list 为容器（不克隆），其子 li 才是
+             逐项克隆模板（:key 在容器上）；嵌套 x-for（子菜单）为 engine 既有支持路径 -->
+    <ul class="asc-menu-list" role="menu" x-for="item of items" :key="item.key">
+      <li class="asc-menu-item" :data-sub="item.children && item.children.length ? '' : null">
+        <button
+          type="button"
+          class="asc-menu-link"
+          role="menuitem"
+          :data-active="String(item.key) === String(value) ? '' : null"
+          :aria-expanded="item.children && item.children.length ? (openKeys[item.key] ? 'true' : 'false') : null"
+          :disabled="item.disabled"
+          @click="onItemClick(item)"
+        >
+          <i class="asc-menu-icon" x-show="item.icon" x-icon="item.icon"></i>
+          <span class="asc-menu-label">{{ item.label }}</span>
+          <i class="asc-menu-arrow" x-show="item.children && item.children.length" x-icon="'arrow'"></i>
+        </button>
+        <!-- 子菜单出口：x-show 判有 children（克隆体内禁 x-if）；:data-open 随
+                 openKeys 命中（vertical 收张动画 / 箭头朝向消费）；horizontal/collapsed
+                 形态下被浮层面板样式覆写（hover 驱动，忽略 openKeys） -->
+        <div class="asc-menu-subwrap" x-show="item.children && item.children.length" :data-open="openKeys[item.key] ? '' : null">
+          <ul class="asc-menu-sub" role="menu" x-for="child of item.children" :key="child.key">
+            <li class="asc-menu-subitem">
+              <button
+                type="button"
+                class="asc-menu-link"
+                role="menuitem"
+                :data-active="String(child.key) === String(value) ? '' : null"
+                :disabled="child.disabled"
+                @click="onItemClick(child)"
+              >
+                <i class="asc-menu-icon" x-show="child.icon" x-icon="child.icon"></i>
+                <span class="asc-menu-label">{{ child.label }}</span>
+              </button>
+            </li>
+          </ul>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>

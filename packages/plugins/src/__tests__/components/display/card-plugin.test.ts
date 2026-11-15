@@ -140,7 +140,7 @@ describe("样式通道（button 范式 ADR-0012）", () => {
         expect(t).toContain('.asc-card-inner[data-borderless="true"] { --asc-line: transparent; }');
         expect(t).toContain('.asc-card-inner[data-hoverable="true"]:hover {');
         expect(t).toContain('[dark] .asc-card-inner, [data-dark] .asc-card-inner {');
-        expect(t).toContain("--asc-line: var(--auto-border-color, var(--asc-card-border-color, #4d4d4d));");
+        expect(t).toContain("--asc-line: var(--auto-border-color, var(--asc-card-border-color, #52525b));");
     });
 });
 

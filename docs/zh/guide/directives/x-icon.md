@@ -219,6 +219,31 @@ const normalized = normalizeIconSvg('<svg viewBox="0 0 16 16" fill="none"><path 
 <span x-icon="close" x-icon-options="{pointer:true}"></span>
 ```
 
+### 旋转（rotate）
+
+<demo html="icon/rotate.html"/>
+
+`rotate` 选项声明图标旋转角度——**绝对姿态语义**：值即最终角度，无「最短路径」换算（`350` → `10` 反转 340°，想再顺转 20° 显式写 `370`）。初次渲染从 0° 入场动画到目标角度，后续更新从当前角度动画续转到新角度：
+
+```html
+<!-- 静态：number 按 deg（负数逆时针、超 360 合法，540 = 1.5 圈） -->
+<span x-icon="arrow-right" x-icon-options="{rotate:90}"></span>
+
+<!-- string 原样透传 CSS 角度单位 -->
+<span x-icon="arrow-right" x-icon-options="{rotate:'0.5turn'}"></span>
+
+<!-- 响应式：成员属性通道，angle 变化即从当前角度动画到新值 -->
+<span x-icon="arrow-right" x-icon-options:rotate="angle"></span>
+```
+
+要点：
+
+- **值双栖**：number → `Ndeg`，非空 string 原样透传 CSS（`"0.5turn"` / `"90deg"`）；纯数字字符串（`"90"`，表单 / `x-model` 通道形态）宽容同按 deg；`0` / 空值 / 未声明不启用（更新到 0 动画归零，transition 保留）
+- **动画**：transition 数值插值续转（快速连续更新从当前插值位置转向新目标）；时长默认 `0.3s`，经 `--as-icon-rotate-duration` CSS 变量覆盖（主题令牌，无选项键）
+- **应用点**：svg 载体（指令私有节点）——不占宿主样式面，与 `button` / `shape` 动效（宿主 / 包裹层）互不干扰
+- 无效值（`true` / `NaN` / `Infinity` / 对象等）warn + 按未启用剪枝
+- 与 IconifyJSON 远程源的同名 `rotate` 无关——那是**源数据变换键**（编译期转 `<g transform>` 进 symbol），本选项是**渲染期 CSS 旋转**（叠加于任何 symbol 之上）
+
 ### 动态注册联动
 
 全局注册表的增删与已渲染实例**实时联动**：
@@ -380,6 +405,9 @@ for (const name of AutoSpark.icons) {
 | `shape`     | `none`        | `.circle` / `.radius` | "none" \| "circle" \| "radius"。图标底板形态（包裹层通道，ADR-0135）。`none` ≡ 未声明（无背景）；非法值 warn 剪枝 |
 | `button`    | —            | `.button`  | boolean。图标按钮（hover / press 载体动效，隐含手型光标），见「图标按钮」                                     |
 | `pointer`   | —            | `.pointer` | boolean。手型光标 `cursor: pointer`（可点击语义）                                                             |
+| `rotate`    | —            | —          | number \| string。旋转角度（svg 载体 CSS transform，绝对姿态）：数字按 deg（负数逆时针、超 360 合法），纯数字字符串（"90"）宽容同按 deg，其余字符串原样透传 CSS；更新从当前角度动画续转（初次从 0° 入场），`0` / 空 = 不启用（动画归零）；时长经 `--as-icon-rotate-duration` 变量覆盖，见「旋转」 |
+
+**选项成员表达式热应用**：`x-icon-options:<成员>="表达式"` 随状态变化即时生效——`size` / `color` / `padding` / `strokeWidth` / `shape` / `button` / `pointer` 重放静态样式（含 shape 包裹层的动态挂 / 拆），`rotate` 从当前角度续转。组件把 x-icon 选项对象经成员表达式透传时（如 Button 的 `icon` 对象），改选项即改渲染，无需重挂载。
 
 **全局默认**（应用级默认配置，document 级全局、多 engine 共享）：**整体赋值**会**即时重渲染已渲染的图标**（主题切换场景）；深修改（`options.size = 48`）不广播，仅影响后续渲染：
 

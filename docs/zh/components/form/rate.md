@@ -6,11 +6,11 @@ Rate 是 AutoSpark 的官方评分组件（组件库 P1 form 批，ADR-0018）�
 
 可访问性自持：星组挂 `role="slider"` 单焦点键盘模型（`tabindex` + `aria-valuemin/now/max` 随动 + 方向键调分 + Home / End 归位）——与 Switch 的 `role="switch"` 同款自持范式（ADR-0018 决策 7 表单基座策略内的自绘例外形态）。零内置文案的可访问性标注经宿主 `aria-label` 透传。
 
-能力面：**悬停预览**（半星粒度判定）、**allowHalf 半星**、**clearable 同分清零**、**readonly / disabled**。组件继承 `autospark.base-field` 表单域骨架（状态色通道 / 焦点态 / disabled 同步，裸态无盒饰，ADR-0020）；表单提交走 hidden 载体（自绘控件无原生真身的代理形态，Switch 同款）。
+能力面：**悬停预览**（半星粒度判定）、**allowHalf 半星**、**clearable 同分清零**、**readonly / disabled**。组件继承 `autospark.field` 表单域骨架（状态色通道 / 焦点态 / disabled 同步，裸态无盒饰，ADR-0020）；表单提交走 hidden 载体（自绘控件无原生真身的代理形态，Switch 同款）。
 
 视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129）；**不设自有尺寸属性**——星形 em 基准随主题 `data-size` 档位字号缩放（button 同范式 ADR-0012）；暗色态容器裸挂 `data-dark`。无内置文案、不接 i18n（ADR-0018 决策 1）。
 
-引入方式：引擎之后加载 `<script src="/autospark/autospark.rate.js"></script>`（自举注册，产物已内嵌 base-field 注册），或聚合产物 `autospark.plugins.js`。
+引入方式：引擎之后加载 `<script src="/autospark/autospark.rate.js"></script>`（自举注册，产物已内嵌 field 注册），或聚合产物 `autospark.plugins.js`。
 
 ## 快速入门
 
@@ -20,7 +20,7 @@ Rate 是 AutoSpark 的官方评分组件（组件库 P1 form 批，ADR-0018）�
 <script src="autospark.js"></script>
 <script src="autospark.rate.js"></script>
 
-<span aria-label="整体评分" x-model.number="form.score" x-component:autospark.rate></span>
+<x-rate aria-label="整体评分" x-model.number="form.score"></x-rate>
 ```
 
 <demo html="components/form/rate/basic.html"/>
@@ -56,9 +56,9 @@ Rate 是 AutoSpark 的官方评分组件（组件库 P1 form 批，ADR-0018）�
 
 ```html
 <!-- 双向绑定（推荐） -->
-<span x-model.number="form.score" x-component:autospark.rate></span>
+<x-rate x-model.number="form.score"></x-rate>
 <!-- 单向同步（无回写） -->
-<span x-component:autospark.rate="{ value: form.score }"></span>
+<x-rate :value="form.score"></x-rate>
 ```
 
 ### change 事件（提交确认）
@@ -67,7 +67,7 @@ Rate 是 AutoSpark 的官方评分组件（组件库 P1 form 批，ADR-0018）�
 
 ```html
 <div @change="form.score = $event.detail.value">
-  <span x-model.number="form.score" x-component:autospark.rate></span>
+  <x-rate x-model.number="form.score"></x-rate>
 </div>
 ```
 
@@ -93,7 +93,7 @@ Rate 是 AutoSpark 的官方评分组件（组件库 P1 form 批，ADR-0018）�
 **类型**: `"" | "error" | "success" | "warning"`
 **默认**: `""`
 
-表单域状态色通道（base-field 骨架）：亮星色消费 `--asc-field-tone`（status 在场随语义色联动——error 评分红显等）；`error` 态同步星组 `aria-invalid`。校验结果来自 x-field（组件不做校验，ADR-0020 决策 1）。
+表单域状态色通道（field 骨架）：亮星色消费 `--asc-field-tone`（status 在场随语义色联动——error 评分红显等）；`error` 态同步星组 `aria-invalid`。校验结果来自 x-field（组件不做校验，ADR-0020 决策 1）。
 
 ### 表单提交（hidden 载体）
 
@@ -117,7 +117,7 @@ Rate 是 AutoSpark 的官方评分组件（组件库 P1 form 批，ADR-0018）�
 | max | `number` | `5` | 星形总数（>=1；运行时变化重建星组） |
 | allowHalf | `boolean` | `false` | 半星粒度（悬停 / 点击 / 键盘均 0.5 步进） |
 | clearable | `boolean` | `false` | 再次点击同分清零 |
-| status | `"" \| error \| success \| warning` | `""` | 状态色通道（base-field 骨架；tone 联动亮星色） |
+| status | `"" \| error \| success \| warning` | `""` | 状态色通道（field 骨架；tone 联动亮星色） |
 | disabled | `boolean` | `false` | 禁用（载体出表 + 淡化；预览与提交阻断） |
 | readonly | `boolean` | `false` | 只读（预览与提交阻断，无淡化） |
 

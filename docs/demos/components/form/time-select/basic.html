@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>TimeSelect · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <!-- 下拉面板复用 x-popover 指令机制——按需加载场景须同时引入 overlay 产物 -->
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.time-select.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <!-- 状态经构造器全局状态注入（x-model 绑定值走全局路径） -->
+    <main class="demo-main" style="max-width: 460px">
+      <div class="auto-card">
+        <div class="auto-card-header">最小用法：元素名写法 + x-model 双向绑定（缺省 00:00–23:00 步 30 分）</div>
+        <div class="auto-card-body">
+          <p>
+            <x-time-select x-model="time"></x-time-select>
+          </p>
+          <p class="hint">当前值：<code>{{ time || '（空）' }}</code> —— 离散时间点下拉（select 同款交互：点选即关 / 上下键 + Enter）。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">自定义起止步长（start / end / step 静态属性）</div>
+        <div class="auto-card-body">
+          <div @change="picked = $event.detail.value">
+            <p><x-time-select start="08:00" end="12:00" step="00:15" clearable></x-time-select></p>
+          </div>
+          <p class="hint">最近选择：<code>{{ picked || '（未操作）' }}</code>；起止含端、步长分钟粒度（非法步长回退 30 分）。</p>
+        </div>
+      </div>
+      <div class="auto-card" data-dark>
+        <div class="auto-card-header">暗色态（容器 data-dark）</div>
+        <div class="auto-card-body">
+          <x-time-select start="08:00" end="12:00" step="01:00" clearable></x-time-select>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        time: "",
+        picked: "",
+      });
+    </script>
+  </body>
+</html>

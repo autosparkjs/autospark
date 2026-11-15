@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PageHeader · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.page-header.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .stage {
+        padding: 0 12px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        margin-bottom: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">基础用法：title / subtitle / back 返回钮</div>
+        <div class="auto-card-body">
+          <div class="stage" @back="log = 'back 事件（接管动作由消费者决定：history.back / router.back）'">
+            <x-page-header title="订单详情" subtitle="单号 #1024" back="返回列表">
+              <p>页面内容写在默认插槽（内容区），空则不占位。</p>
+            </x-page-header>
+          </div>
+          <div class="stage">
+            <x-page-header title="数据报表"></x-page-header>
+          </div>
+          <p class="hint">
+            back 三态：false 缺省不渲染 / true 图标钮（无文案）/ 文案字符串 = 图标 + 文案；
+            点击派发 <code>back</code> 冒泡事件（组件不执行 history.back——接管动作由消费者
+            <code>@back</code> 决定）。{{ log }}
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">slots：extra 右侧动作区 + 默认内容区</div>
+        <div class="auto-card-body">
+          <div class="stage" @back="log = 'back 事件'">
+            <x-page-header title="组件总览" back="true">
+              <template x-slot:extra>
+                <button type="button" x-on:click="log = 'extra 动作点击'">刷新</button>
+                <button type="button" x-on:click="log = 'extra 动作点击 2'">导出</button>
+              </template>
+              <p>extra 命名插槽投影到头行右缘动作区；本段为默认插槽内容区。</p>
+            </x-page-header>
+          </div>
+          <p class="hint">extra 未提供时不占位（:empty 隐藏）；back=true 为纯图标钮（aria-label 以标题自描述）。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        log: "",
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Statistic · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.statistic.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">基础：title + value + prefix / suffix</div>
+        <div class="auto-card-body">
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px">
+            <x-statistic title="商品总数" :value="total"></x-statistic>
+            <x-statistic title="今日成交" prefix="¥" :value="amount"></x-statistic>
+            <x-statistic title="好评率" precision="1" suffix="%" :value="rate"></x-statistic>
+          </div>
+          <p class="hint" style="margin-top: 12px">
+            value 为 number 时经 Intl.NumberFormat 按语言环境格式化（千分位缺省开启）；
+            prefix / suffix 走 props 或插槽双通道。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">元素名快速写法 + 插槽重载前后缀</div>
+        <div class="auto-card-body">
+          <x-statistic value="1024" title="静态数值（元素名写法）"></x-statistic>
+          <div style="margin-top: 12px">
+            <x-statistic title="余额（插槽前后缀）" :value="amount">
+              <template x-slot:prefix><b style="color: var(--auto-success-color, #22c55e)">余额</b></template>
+              <template x-slot:suffix><span style="font-size: 0.8em">CNY</span></template>
+            </x-statistic>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        total: 128960,
+        amount: 98765.5,
+        rate: 99.62,
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Affix · 形态与变体</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.affix.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .doc section {
+        min-height: 50vh;
+        padding-top: 3rem;
+        border-bottom: 1px dashed rgba(128, 128, 128, 0.3);
+      }
+      .doc h3 {
+        margin: 0 0 0.5em;
+      }
+      .sticky-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.75em;
+        padding: 0.625em 1em;
+        background: var(--auto-bgcolor, #ffffff);
+        border: 1px solid var(--auto-border-color, #e5e5e5);
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        font-weight: 600;
+      }
+      .sticky-bar .tag {
+        font-weight: 400;
+        font-size: 0.8em;
+        padding: 0.1em 0.6em;
+        border-radius: 999px;
+        background: var(--auto-primary-color, #009aff);
+        color: #fff;
+      }
+      .dark-box {
+        margin-top: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" id="app">
+      <div class="auto-card">
+        <div class="auto-card-header">吸底形态（position="bottom"）+ 偏移触发线（offset）</div>
+        <div class="auto-card-body">
+          <div class="doc">
+            <section>
+              <h3>区块一</h3>
+              <p>本例演示 position="bottom"：滚过 120px 后操作条吸附视口底（bottom: 0）。</p>
+            </section>
+            <section>
+              <h3>区块二</h3>
+              <p>position 决定吸附边（top 缺省 / bottom）；offset 兼触发线与吸附偏移。</p>
+            </section>
+            <section>
+              <h3>区块三</h3>
+              <p>继续滚动感受吸底操作条的脱离/吸附切换（change 事件同步计数）。</p>
+            </section>
+          </div>
+          <div @change="count += 1">
+            <x-affix :offset="120" position="bottom">
+              <div class="sticky-bar">
+                吸底操作条<span class="tag">bottom</span>
+                <span class="tag">{{ count }} 次翻转</span>
+              </div>
+            </x-affix>
+          </div>
+        </div>
+      </div>
+
+      <div class="auto-card dark-box" data-dark>
+        <div class="auto-card-header">暗色态（容器裸挂 data-dark）</div>
+        <div class="auto-card-body">
+          <div class="doc" style="min-height: 30vh">
+            <section style="min-height: 20vh">
+              <h3>暗色场景</h3>
+              <p>固钉是纯定位件——暗色下定位语义不变，内容底色跟随主题/暗色变量。</p>
+            </section>
+          </div>
+          <x-affix :offset="60">
+            <div class="sticky-bar">暗色吸顶条</div>
+          </x-affix>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        count: 0,
+      });
+    </script>
+  </body>
+</html>
