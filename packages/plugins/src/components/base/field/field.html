@@ -372,12 +372,13 @@
       );
     }
     /* 钮组与控件位间距（2026-11-16）：贴盒边融合保留（首/尾钮负距吃盒内距+边框，
-       控件与钮零距贴死）——组靠控件侧一钮留 0.4em 缝（镜像装饰出口间距标尺），
-       DOM 序中 prefix/suffix 出口为空时同样成立 */
-    .asc-field-box .asc-field-actions-before .asc-field-action:last-child {
+       控件与钮零距贴死）——组靠控件侧一钮留 0.4em 缝（镜像装饰出口间距标尺）。
+       伪类须 *-of-type：x-for 的 template 锚点追加在项后（同款坑见上方贴边规则），
+       :last-child 永不命中（template 在最后） */
+    .asc-field-box .asc-field-actions-before .asc-field-action:last-of-type {
       margin-inline-end: 0.4em;
     }
-    .asc-field-box .asc-field-actions-after .asc-field-action:first-child {
+    .asc-field-box .asc-field-actions-after .asc-field-action:first-of-type {
       margin-inline-start: 0.4em;
     }
 

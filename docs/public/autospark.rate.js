@@ -375,12 +375,13 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       );\r
     }\r
     /* 钮组与控件位间距（2026-11-16）：贴盒边融合保留（首/尾钮负距吃盒内距+边框，\r
-       控件与钮零距贴死）——组靠控件侧一钮留 0.4em 缝（镜像装饰出口间距标尺），\r
-       DOM 序中 prefix/suffix 出口为空时同样成立 */\r
-    .asc-field-box .asc-field-actions-before .asc-field-action:last-child {\r
+       控件与钮零距贴死）——组靠控件侧一钮留 0.4em 缝（镜像装饰出口间距标尺）。\r
+       伪类须 *-of-type：x-for 的 template 锚点追加在项后（同款坑见上方贴边规则），\r
+       :last-child 永不命中（template 在最后） */\r
+    .asc-field-box .asc-field-actions-before .asc-field-action:last-of-type {\r
       margin-inline-end: 0.4em;\r
     }\r
-    .asc-field-box .asc-field-actions-after .asc-field-action:first-child {\r
+    .asc-field-box .asc-field-actions-after .asc-field-action:first-of-type {\r
       margin-inline-start: 0.4em;\r
     }\r
 \r
