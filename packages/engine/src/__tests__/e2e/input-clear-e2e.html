@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>input props 装饰上提 field 出口 e2e（ADR-0020 修订）</title>
+<script src="/autospark.js"></script>
+<script src="/autospark.input.js"></script>
+</head>
+<body>
+<div id="app" x-scope>
+    <!-- ① 文本前缀 + 文本后缀 + clearable + 值 -->
+    <p><x-input id="a1" prefix="¥" suffix="元" clearable="true" value="100"></x-input></p>
+    <!-- ② 图标形态（对象 props 经状态引用注入） -->
+    <p><x-input id="a2" :prefix="iconConf" clearable="true" value="200"></x-input></p>
+    <!-- ③ 无任何装饰 + clearable + 值（出口零 DOM + 清除钮在） -->
+    <p><x-input id="a3" clearable="true" value="300"></x-input></p>
+    <!-- ④ 消费方投影 suffix 重装饰：props 装饰让位 + 清除钮必须仍在（Q1-B 核心） -->
+    <p>
+        <x-input id="a4" suffix="props后缀" clearable="true" value="400">
+            <template x-slot:suffix><b class="proj">投影后缀</b></template>
+        </x-input>
+    </p>
+</div>
+<script>
+    window.engine = new AutoSparkSpaces.AutoSpark(document.getElementById("app"), { iconConf: { icon: "bell" } });
+    window.__collect = () => {
+        const out = {};
+        for (const id of ["a1", "a2", "a3", "a4"]) {
+            const host = document.getElementById(id);
+            const affixPre = host.querySelector(".asc-field-prefix");
+            const affixSuf = host.querySelector(".asc-field-suffix");
+            const clear = host.querySelector(".asc-input-clear");
+            const native = host.querySelector(".asc-input-native");
+            out[id] = {
+                pre_text: affixPre?.textContent ?? null,
+                pre_has_field_class: !!affixPre,           // 出口注入类落在 props 装饰容器上
+                pre_classes: affixPre?.className ?? "-",
+                pre_margin: affixPre ? getComputedStyle(affixPre).marginInlineEnd : "-",
+                pre_flex_none: affixPre ? getComputedStyle(affixPre).flexGrow === "0" : false,
+                pre_icon: !!affixPre?.querySelector("use"),
+                suf_text: affixSuf?.textContent ?? null,
+                suf_classes: affixSuf?.className ?? "-",
+                clear_in_body: !!clear && !!host.querySelector(".asc-field-body")?.contains(clear),
+                clear_visible: !!clear && clear.offsetParent !== null,
+                value: native?.value,
+                // DOM 序：prefix 出口 → body → suffix 出口
+                seq: Array.from(host.children).map((n) => n.className?.split(" ")[0] || n.tagName).join(" | "),
+            };
+        }
+        return out;
+    };
+</script>
+</body>
+</html>

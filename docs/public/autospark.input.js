@@ -572,22 +572,15 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       resize: vertical;\r
     }\r
 \r
-    /* ---------- 前后置装饰：文本/图标混排，次要色 ---------- */\r
-    .asc-input-prefix,\r
-    .asc-input-suffix {\r
+    /* ---------- 前后置装饰容器（2026-11-16 装饰上提，ADR-0020 修订）：props 装饰经\r
+         template 覆盖段上提 field 出口——次要色/间距/防收缩由出口注入类\r
+         .asc-field-prefix/.asc-field-suffix 落本容器（活注入取首个元素根，单根容器\r
+         承接防多根裸奔）；容器只管混排内距（图标 + 文本 0.35em）与不换行 ---------- */\r
+    .asc-input-affix {\r
       display: inline-flex;\r
       align-items: center;\r
       gap: 0.35em;\r
-      flex: none;\r
       white-space: nowrap;\r
-      color: var(--auto-secondary-color, var(--asc-input-affix, rgba(0, 0, 0, 0.55)));\r
-    }\r
-    /* 前置与控件间距、后置与动作件间距（互斥场景各留半距，组合场景自然衔接） */\r
-    .asc-input-prefix {\r
-      margin-right: 0.4em;\r
-    }\r
-    .asc-input-suffix {\r
-      margin-left: 0.4em;\r
     }\r
 \r
     /* ---------- 动作件（清除/眼睛切换）：内部交互钮，淡色常态 + 悬停正文色 ---------- */\r
@@ -626,10 +619,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     [data-dark] .asc-input-native::placeholder {\r
       color: var(--auto-input-placeholder, var(--asc-input-placeholder, rgba(255, 255, 255, 0.4)));\r
     }\r
-    [dark] .asc-input-prefix,\r
-    [dark] .asc-input-suffix,\r
-    [data-dark] .asc-input-prefix,\r
-    [data-dark] .asc-input-suffix {\r
+    [dark] .asc-input-affix,\r
+    [data-dark] .asc-input-affix {\r
       color: var(--auto-secondary-color, var(--asc-input-affix, rgba(255, 255, 255, 0.65)));\r
     }\r
     [dark] .asc-input-action,\r
@@ -649,18 +640,29 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       color: var(--auto-danger-color, var(--asc-input-count-over, #e6696a));\r
     }\r
   </style>\r
-  <!-- 默认段（替换 field 出口 fallback）：input 的全部控件结构，文档序即呈现序\r
-         [prefix] [控件] [清除] [眼睛] [suffix] [计数]。图标 x-icon 为指令值通道对\r
-         props 注入响应；文本兜底 {{ }} 为插值通道（初始注入即定，prefix 后续变化走\r
-         x-if 切换场景，文档已声明对象 props 经状态引用注入） -->\r
-  <span class="asc-input-prefix" x-if="!!prefix">\r
-    <i\r
-      class="asc-input-icon"\r
-      x-if="typeof prefix === 'object' && prefix && !!prefix.icon"\r
-      x-icon="prefix.icon"\r
-    ></i>\r
-    <span class="asc-input-text" x-if="typeof prefix === 'string' && !!prefix">{{ prefix }}</span>\r
-  </span>\r
+  <!-- 命名覆盖段（2026-11-16 装饰上提，ADR-0020 修订）：props 前后置装饰经 template\r
+         覆盖段上提 field 的 prefix/suffix 出口（继承覆盖链中间层：消费方投影 > 本段\r
+         > field 空载体）。注入属性集随段整段替换（ADR-0137 决策三-b：覆盖段即新声明、\r
+         不与父合并）——故 class="asc-field-*" 须在本段重声明（次要色/间距/防收缩的\r
+         规则载体），落单根容器 .asc-input-affix（活注入取首个元素根，多根裸奔防御）；\r
+         装饰缺席容器不渲染 → 出口零 DOM。图标 x-icon 为指令值通道对 props 注入响应；\r
+         文本兜底 {{ }} 为插值通道（对象 props 经状态引用注入，文档已声明） -->\r
+  <template x-slot:prefix class="asc-field-prefix">\r
+    <span class="asc-input-affix" x-if="!!prefix">\r
+      <i class="asc-input-icon" x-if="typeof prefix === 'object' && prefix && !!prefix.icon" x-icon="prefix.icon"></i>\r
+      <span class="asc-input-text" x-if="typeof prefix === 'string' && !!prefix">{{ prefix }}</span>\r
+    </span>\r
+  </template>\r
+  <template x-slot:suffix class="asc-field-suffix">\r
+    <span class="asc-input-affix" x-if="!!suffix">\r
+      <i class="asc-input-icon" x-if="typeof suffix === 'object' && suffix && !!suffix.icon" x-icon="suffix.icon"></i>\r
+      <span class="asc-input-text" x-if="typeof suffix === 'string' && !!suffix">{{ suffix }}</span>\r
+    </span>\r
+  </template>\r
+  <!-- 默认段（替换 field 出口 fallback）：控件本体与功能动作件，文档序即呈现序\r
+         [控件] [清除] [眼睛] [计数]——props 前后置装饰已上提 field 出口（见上方命名\r
+         覆盖段）；功能件（清除/眼睛/计数）刻意留 body：不进可被消费方投影顶掉的\r
+         出口 fallback 位（ADR-0020 修订取舍） -->\r
   <input class="asc-input-native" data-autospark-control x-if="type !== 'textarea'" />\r
   <textarea\r
     class="asc-input-native"\r
@@ -682,14 +684,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     x-icon="passwordVisible ? 'input-eye-off' : 'input-eye'"\r
     @click="onTogglePassword($event)"\r
   ></i>\r
-  <span class="asc-input-suffix" x-if="!!suffix">\r
-    <i\r
-      class="asc-input-icon"\r
-      x-if="typeof suffix === 'object' && suffix && !!suffix.icon"\r
-      x-icon="suffix.icon"\r
-    ></i>\r
-    <span class="asc-input-text" x-if="typeof suffix === 'string' && !!suffix">{{ suffix }}</span>\r
-  </span>\r
   <span class="asc-input-count" x-if="showCount">{{ countText }}</span>\r
 </span>\r
 `,s=`autospark.input`,c=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>`,l=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>`,u=new Set([`disabled`,`readonly`,`clearable`,`show-password`,`show-count`]);function d(e){let i=e.icons;i?.add?.(`input-eye`,c),i?.add?.(`input-eye-off`,l),e.components[s]=o,e.precompile?.(e=>{for(let i of Array.from(e.el.querySelectorAll(`x-input, x-textarea`))){let e=document.createElement(`span`),a=[],o=i.tagName===`X-TEXTAREA`;o&&a.push(`type: "textarea"`);for(let s of Array.from(i.attributes)){if(s.name.startsWith(`:`)){a.push(`${n(t(s.name.slice(1)))}: (${s.value})`);continue}if(s.name===`class`||s.name===`style`||s.name===`id`||s.name===`name`||s.name===`title`||s.name.startsWith(`data-`)||s.name.startsWith(`x-`)||s.name.startsWith(`@`)){e.setAttribute(s.name,s.value);continue}let i=t(s.name);i===`type`&&o?a[0]=`type: ${JSON.stringify(r(s.value))}`:s.value===``&&u.has(s.name)?a.push(`${n(i)}: true`):a.push(`${n(i)}: ${JSON.stringify(r(s.value))}`)}let c=i.textContent?.trim()??``,l=a.some(e=>e.startsWith(`value:`)),d=i.children.length>0;for(c!==``&&!l&&!d&&(a.push(`value: ${JSON.stringify(c)}`),i.textContent=``),e.setAttribute(`x-component:${s}`,`{ ${a.join(`, `)} }`);i.firstChild;)e.appendChild(i.firstChild);i.replaceWith(e)}})}f();function f(){e(e=>{d(e)})}};

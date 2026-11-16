@@ -1,7 +1,7 @@
 # ADR-0020: 输入框 input 与表单域骨架 Field
 
 - 状态：已接受（Accepted，2026-11-12；2026-11-14 修订——决策 2/3/7 增补 `prefix`/`suffix` 具名装饰出口与主题令牌对齐口径、决策 2/后果改投影为公开文档组件，备选方案「三命名出口」条目同步消歧；**同日更名 `autospark.base-field` → `autospark.field`**——「BaseField」名不副实（它不是「基础字段」而是表单域的壳），本体名 `field` 与 CSS 类 `.asc-field-*` / 覆盖变量 `--asc-field-*` 天然对齐（视觉契约零改动），与 engine `x-field` 指令的消歧经 CONTEXT 词条承载；本 ADR 文件名保留旧称（编号稳定））
-- 日期：2026-11-12（修订 2026-11-14）
+- 日期：2026-11-12（修订 2026-11-14；修订 2026-11-16——**装饰上提**：子组件 props 前后置装饰（input 的 `prefix`/`suffix` 文本|图标）经 template 覆盖段上提 field 的 prefix/suffix 出口（继承覆盖链中间层：消费方投影 > 子覆盖段 > field 空载体），覆盖段须重声明 `class="asc-field-*"` 注入类（ADR-0137 决策三-b 整段替换、不与父合并）；**功能动作件（清除/眼睛/计数）刻意留 body 默认段**——不进可被消费方投影顶掉的出口 fallback 位。轻/重装饰分层语义相应修订：两者同轨出口位、按覆盖链叠层（消费方重装饰接管时 props 装饰让位——显式接管语义），呈现序 `[slot:prefix] [控件] [动作件] [slot:suffix]`。首例 input，家族组件按需跟进）
 - 关联：ADR-0018（组件库路线图——form 批与决策 7 表单基座策略的上位依据）、ADR-0017（八分类骨架——base 不投影）、ADR-0012（button 范式——样式基线）、ADR-0014（button-group 组值桥——值桥先例）、ADR-0016（state-button——表单桥分叉先例）、ADR-0034/0081（组件继承机制）、ADR-0134（autospark.base 抽象基组件与 abstract 根约束）、ADR-0129（主题三级回退链）
 
 ## 背景

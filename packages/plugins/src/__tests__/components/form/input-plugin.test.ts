@@ -225,15 +225,20 @@ describe("交互件", () => {
     expect(field(root).querySelector(".asc-input-eye")).toBeNull();
   });
 
-  test("prefix/suffix 文本与图标双形态（对象 props 经状态引用注入）", async () => {
+  test("prefix/suffix 文本与图标双形态（对象 props 经状态引用注入；装饰上提 field 出口）", async () => {
     const { root } = mount(
       `<span x-component:autospark.input="{ prefix: '¥', suffix: iconConf }"></span>`,
       { iconConf: { icon: "bell" } },
     );
     await nextTick();
     const host = field(root);
-    expect(host.querySelector(".asc-input-prefix .asc-input-text")!.textContent).toBe("¥");
-    expect(host.querySelector(".asc-input-suffix .asc-input-icon")).toBeTruthy(); // x-icon 渲染图标载体
+    // 装饰上提（ADR-0020 修订）：容器落 field 出口位 + 出口注入类拼接（field 的间距/防收缩载体）
+    const pre = host.querySelector(".asc-field-prefix")!;
+    const suf = host.querySelector(".asc-field-suffix")!;
+    expect(pre.classList.contains("asc-input-affix")).toBe(true);
+    expect(suf.classList.contains("asc-input-affix")).toBe(true);
+    expect(pre.querySelector(".asc-input-text")!.textContent).toBe("¥");
+    expect(suf.querySelector(".asc-input-icon")).toBeTruthy(); // x-icon 渲染图标载体
   });
 
   test("showCount：maxlength 在场显示 len/max，输入跟随更新，超限挂 data-over", async () => {
@@ -349,15 +354,18 @@ describe("装饰插槽（field 具名出口穿透，ADR-0020 2026-11-14 修订�
     expect(prefixOutlet!.textContent).toContain("槽前");
     expect(suffixOutlet!.textContent).toContain("槽后");
     expect(prefixOutlet!.classList.contains("mk")).toBe(true); // 消费方类保留（拼接非替换）
-    // DOM 序固定：[slot:prefix][body: props前缀/控件/props后缀][slot:suffix]
+    // DOM 序固定：[slot:prefix][body][slot:suffix]
     const seq = Array.from(host.children).map((n) => n.className);
     expect(seq[0]).toContain("asc-field-prefix");
     expect(seq[1]).toContain("asc-field-body");
     expect(seq[seq.length - 1]).toContain("asc-field-suffix");
-    // body 内 props 轻装饰仍在控件两侧
-    const body = host.querySelector(".asc-field-body")!;
-    expect(body.querySelector(".asc-input-prefix")!.textContent).toContain("轻前");
-    expect(body.querySelector(".asc-input-suffix")!.textContent).toContain("轻后");
+    // 装饰上提（ADR-0020 修订）：消费方投影整体接管出口位——props 轻装饰让位（不出场）；
+    // 但 props 装饰未投影侧（本用例双侧都投影）与功能件不受影响
+    expect(prefixOutlet!.textContent).toContain("槽前");
+    expect(suffixOutlet!.textContent).toContain("槽后");
+    expect(prefixOutlet!.querySelector(".asc-input-text")).toBeNull(); // props 装饰被顶掉
+    // 功能件留 body：不被投影顶掉
+    expect(host.querySelector(".asc-field-body")!.querySelector(".asc-input-native")).toBeTruthy();
   });
 
   test("空插槽零布局：template 载体无内容出口静默消失（载体通道断言）", async () => {
@@ -376,6 +384,29 @@ describe("装饰插槽（field 具名出口穿透，ADR-0020 2026-11-14 修订�
     // 装饰默认次要色（暗色块成对）
     expect(cssx).toContain("color:var(--auto-secondary-color");
     expect(css.match(/\[dark\] \.asc-field-prefix/g)?.length).toBeGreaterThan(0);
+  });
+
+  test("装饰上提（ADR-0020 2026-11-16 修订）：props 装饰落 field 出口位，消费方投影顶掉装饰但功能件仍在", async () => {
+    const { root } = mount(
+      [
+        `<span x-component:autospark.input="{ prefix: '轻前', clearable: true, value: 'abc' }">`,
+        `<template x-slot:suffix><b class="proj">投影</b></template>`,
+        `</span>`,
+      ].join(""),
+      {},
+    );
+    await nextTick();
+    const host = field(root);
+    // props 前缀装饰落出口位（注入类与容器类拼接）
+    const pre = host.querySelector(".asc-field-prefix")!;
+    expect(pre.classList.contains("asc-input-affix")).toBe(true);
+    expect(pre.textContent).toContain("轻前");
+    // 消费方投影整体接管 suffix 出口——props 后缀装饰让位（覆盖链：消费方 > 继承覆盖）
+    const suf = host.querySelector(".asc-field-suffix")!;
+    expect(suf.classList.contains("proj")).toBe(true);
+    expect(suf.querySelector(".asc-input-affix")).toBeNull();
+    // 功能件（清除钮）留 body：不被消费方投影顶掉（Q1-B 取舍）
+    expect(host.querySelector(".asc-field-body .asc-input-clear")).toBeTruthy();
   });
 
   test("插槽内容点击转发焦点：装饰点击落控件（动作件标记不转发）", async () => {

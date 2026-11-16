@@ -81,7 +81,7 @@ Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020�
 
 > **对象 props 注入提示**：`{ icon }` 对象形态请经**状态引用**注入（`prefix: myConf`）——当前引擎版本对值对象内的字面量对象/数组 props 存在无限更新缺陷（修复在途），字面量写法会触发死循环；标量 props 不受影响。
 
-需要更重的装饰（任意 HTML / 按钮）时用 [field 装饰插槽](/zh/components/form/field#插槽)——props 是轻装饰（贴控件），插槽是重装饰（恒在外侧），两者共存不互斥。
+需要更重的装饰（任意 HTML / 按钮）时用 [field 装饰插槽](/zh/components/form/field#插槽)——props 装饰与插槽同轨出口位、按覆盖链叠层（投影接管出口时 props 装饰让位）；功能件（清除/眼睛/计数）恒在控件侧不受投影影响。
 
 <demo html="components/form/input/addons.html"/>
 
@@ -164,5 +164,5 @@ Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020�
 | 插槽 | 说明 |
 |---|---|
 | 默认 | 整段控件区覆盖（一般不用——传入内容会替换内层控件结构，属逃生通道） |
-| prefix | 前置装饰出口（经 field 骨架继承）：任意 HTML，默认次要色，恒在 props 轻装饰外侧；交互件须标 `data-autospark-action` 自理焦点 |
+| prefix | 前置装饰出口（经 field 骨架继承）：任意 HTML，默认次要色（投影接管时 props 装饰让位）；交互件须标 `data-autospark-action` 自理焦点 |
 | suffix | 后置装饰出口（经 field 骨架继承）：形态同 prefix |
