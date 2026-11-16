@@ -14,7 +14,7 @@ Field 是 AutoSpark 的**表单域骨架**（组件库 base 目录，ADR-0020）
 
 label、校验文案、域布局由 engine 的 [x-form / x-field 指令](/zh/guide/engine/form/) 承担——骨架只经 `status` 属性消费校验结果染色，**不双轨建域**。视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129）；不设自有尺寸属性，经主题通道 `data-size` 挂任意祖先容器全档位跟随；暗色态容器裸挂 `data-dark` 即局部切换。
 
-引入方式：引擎之后加载 `<script src="/autospark/autospark.field.js"></script>`（自举注册），或聚合产物 `autospark.plugins.js`。子组件产物（如 `autospark.input.js`）已内嵌本注册——用现成表单组件时无须单独引入。
+引入方式：引擎之后加载 `<script src="/autospark/autospark.field.js"></script>`（自举注册），或聚合产物 `autospark.plugins.js`。子组件产物（如 `autospark.input.js`）已内嵌本注册——用现成表单组件时无须单独引入。**使用 [actions 融合动作](#actions-融合动作) 须同页加载 `autospark.button.js`**（组合复用 button 组件，2026-11-16 修订二）。
 
 ## 快速入门
 
@@ -75,6 +75,45 @@ input 类控件在宿主上拼 `asc-field-box` 得盒饰 chrome（边框 / 底�
 
 <demo html="components/form/field/slots.html"/>
 
+### actions 融合动作
+
+**类型**: `Array<button props & { pos?, name?, value? }>`
+**默认**: `[]`
+
+融合动作按钮：在输入域前后增加 1-N 个与盒饰**融合**的按钮（antd addon 形态）——共享边框线（按钮与盒饰、按钮与按钮之间一条线，不叠双线）、首/尾钮外侧圆角匹配盒饰、等高拉伸（textarea 形态随盒高）。
+
+- 项 = **button props 全集**（label / icon / variant / type / loading / memo / tags / caret…整包透传，等效 `x-button-options`）+ 自有键：
+  - `pos`: `"before" | "after"` 前后分侧，缺省 `"after"`；
+  - `name`: 标识（透传进 `action-click` detail）；
+  - `value`: 使用者数据，**原样透传**（不做处理，tags 同款惯例）；
+- **事件双通道**：按钮点击组包派发 `action-click`（冒泡，`detail = { index, name, value, item }`——index 为侧内序号）；原生 `click` 照常冒泡；
+- **状态联动**：field `disabled` → 按钮同步禁用（与项自身 `disabled` 合并）；按钮自动标 `data-autospark-action`（点击不转发焦点到控件）；`status` 染共享接缝线（整组跟随）、不染按钮本体；
+- 融合仅在盒饰层生效（`.asc-field-box` 后代——裸态控件无融合线）；按钮有上下边框时与盒上下边框线**重合**（等高拉伸 + 纵向负距贴边）；钮组与控件位之间留 `0.4em` 缝（首/尾钮贴盒边融合保留）；消费方经 prefix/suffix 插槽自放的按钮是重装饰、样式自理（不自动获得融合）。
+
+```html
+<!-- 数组 props 经状态引用注入（:actions="myActions"）——值对象内字面量数组
+     会触发引擎更新环缺陷（修复在途），字面量写法勿用 -->
+<x-input :actions="myActions" x-model="kw"></x-input>
+```
+
+```js
+// state
+myActions: [
+  { label: "https://", pos: "before" },
+  { label: "搜索", name: "search", value: "go", pos: "after" },
+]
+```
+
+```html
+<!-- 事件消费（双通道之一：组包 detail）——实例化宿主默认封闭，
+     @ 监听写外层包裹元素（事件经冒泡，button tag-click 同款惯例） -->
+<span @action-click="onAct($event.detail)">
+  <x-input :actions="myActions" x-model="kw"></x-input>
+</span>
+```
+
+<demo html="components/form/field/actions.html"/>
+
 ### 作为继承基座
 
 子组件经 `x-define:inherit="autospark.field"` 继承骨架（继承链 子组件 → field → autospark.base 三层）：子模板控件结构作默认段替换出口 fallback，根 class 拼接（宿主恒得 `.asc-field` + 子自有类），setup / hooks / styles 三通道父子合并。官方表单组件均走此通道——日常直接用 [Input](/zh/components/form/input) 等成品件即可，仅自研表单控件时才需要直接消费骨架。
@@ -103,10 +142,15 @@ input 类控件在宿主上拼 `asc-field-box` 得盒饰 chrome（边框 / 底�
 | status | `string` | `""` | 状态色通道：`""` 无 \| `error` 危险 \| `success` 成功 \| `warning` 警告；染 `--asc-field-tone`，error 态同步控件 `aria-invalid` |
 | disabled | `boolean` | `false` | 禁用：同步 `data-autospark-control` 控件 + 宿主 `data-disabled`（淡化 / 禁点光标） |
 | readonly | `boolean` | `false` | 只读：同步控件 `readOnly` + 宿主 `data-readonly`（光标归正文） |
+| actions | `Array` | `[]` | 融合动作按钮：button props 数组 + 自有键 `pos`（before \| after 分侧，缺省 after）/ `name` / `value`；**经状态引用注入**（`:actions="myActions"`） |
 
 ### 事件
 
-无自定义事件——内层控件的原生事件（`input` / `change` / `focus` 等）自然冒泡，外层直接消费。
+| 事件 | 参数 | 说明 |
+|---|---|---|
+| action-click | `detail = { index, name, value, item }` | 融合动作按钮点击组包（冒泡）：index 为侧内序号、name/value 取自项自有键、item 为 actions 原始项；原生 click 照常冒泡（双通道） |
+
+其余无自定义事件——内层控件的原生事件（`input` / `change` / `focus` 等）自然冒泡，外层直接消费。
 
 ### Slots
 

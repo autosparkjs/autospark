@@ -36,7 +36,7 @@
         </div>
       </div>
       <div class="auto-card">
-        <div class="auto-card-header">装饰插槽（重装饰层，与 props 轻装饰共存）</div>
+        <div class="auto-card-header">装饰插槽（重装饰层，投影接管出口位）</div>
         <div class="auto-card-body">
           <p>
             <span x-component:autospark.input="{ prefix: 'props前', clearable: true }">
@@ -53,7 +53,7 @@
             </span>
           </p>
           <p class="hint">
-            呈现序恒为 <code>[插槽前] [props前缀] 控件 [清除] [插槽后]</code>——插槽（任意 HTML）恒在 props 轻装饰外侧；插槽内交互件标 <code>data-autospark-action</code> 自理焦点（详见 <a href="/zh/components/form/field">Field</a>）。
+            呈现序恒为 <code>[插槽前] 控件 [清除][眼睛][计数] [插槽后]</code>——props 前后缀装饰与插槽同轨出口位（消费方投影接管时 props 装饰让位，显式接管语义；装饰上提见 <a href="/zh/components/form/field">Field</a>）；插槽内交互件标 <code>data-autospark-action</code> 自理焦点（详见 <a href="/zh/components/form/field">Field</a>）。
           </p>
         </div>
       </div>

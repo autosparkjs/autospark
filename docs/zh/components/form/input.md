@@ -6,7 +6,7 @@ Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020�
 
 能力面：**type 文本族**（text / password / email / tel / url / search 等透传 + `textarea` 多行形态）、**clearable**（清除钮）、**show-password**（眼睛切换）、**prefix / suffix**（文本或图标前后置）、**maxlength 计数**、**disabled / readonly**。label、校验文案、域布局由 engine 的 [x-form / x-field 指令](/zh/guide/engine/form/) 承担——组件只经 `status` 属性消费校验结果染色，**不双轨建域**。
 
-组件继承 [`autospark.field` 表单域骨架](/zh/components/form/field)（状态色通道 / 焦点态 / 盒饰 chrome / prefix·suffix 装饰出口），视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129）；**不设自有尺寸属性**——高度/内距消费 `--auto-input-height` / `--auto-input-padding`，经主题通道 `data-size` 挂任意祖先容器全档位跟随（button 同范式 ADR-0012）；暗色态容器裸挂 `data-dark` 即局部切换。无内置文案、不接 i18n（ADR-0018 决策 1）。
+组件继承 [`autospark.field` 表单域骨架](/zh/components/form/field)（状态色通道 / 焦点态 / 盒饰 chrome / prefix·suffix 装饰出口 / [actions 融合动作](/zh/components/form/field#actions-融合动作)），视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129）；**不设自有尺寸属性**——高度/内距消费 `--auto-input-height` / `--auto-input-padding`，经主题通道 `data-size` 挂任意祖先容器全档位跟随（button 同范式 ADR-0012）；暗色态容器裸挂 `data-dark` 即局部切换。无内置文案、不接 i18n（ADR-0018 决策 1）。
 
 引入方式：引擎之后加载 `<script src="/autospark/autospark.input.js"></script>`（自举注册，产物已内嵌 field 注册，无须单独引入），或聚合产物 `autospark.plugins.js`。
 

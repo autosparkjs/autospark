@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Field · 融合动作</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.field.js"></script>
+    <script src="/autospark/autospark.input.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      /* 消费方自带控件裸化（field 只提供盒饰 chrome，控件本体归消费方） */
+      .bf-native {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        outline: none;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+        color: inherit;
+        font: inherit;
+      }
+      .bf-field {
+        width: 320px;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main
+      class="demo-main"
+      x-data="{
+        kw: '',
+        acts1: [{ label: 'https://', pos: 'before' }, { label: '.com', pos: 'before' }, { label: '搜索', name: 'search', value: 'go' }],
+        acts2: [{ icon: 'bell', label: '上一步', pos: 'before' }, { label: '下一步', name: 'next', variant: 'primary',title:'点击进入下一步' }],
+        last: '（未触发）',
+      }"
+    >
+      <div class="auto-card">
+        <div class="auto-card-header">
+          前后融合按钮：共享边框线 + 多按钮侧线压叠（button props 全透传）
+        </div>
+        <div class="auto-card-body">
+          <p>
+            <span
+              class="bf-field"
+              x-component:autospark.input="{ actions: acts1 }"
+            >
+              <input
+                class="bf-native"
+                data-autospark-control
+                placeholder="输入域名主体"
+                x-model="kw"
+              />
+            </span>
+          </p>
+          <p class="hint">
+            呈现序
+            <code>[https://][.com][控件][搜索]</code
+            >——按钮与盒饰、按钮与按钮共享一条边框线（负距压叠），首/尾钮外侧圆角匹配盒饰；<code
+              >variant: 'primary'</code
+            >
+            等任意 button props 均可配。当前值：{{ kw || '（空）' }}
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          action-click 组包事件（detail 四元组 + 原生 click 双通道）
+        </div>
+        <div class="auto-card-body">
+          <p>
+            <span
+              @action-click="last = $event.detail.name + ' #' + $event.detail.index"
+            >
+              <span
+                class="bf-field"
+                x-component:autospark.input="{ actions: acts2 }"
+              ></span>
+            </span>
+          </p>
+          <p class="hint">
+            最近动作：<code>{{ last }}</code>——detail =
+            <code>{ index, name, value, item }</code>（index 侧内序号、item 为
+            actions 原始项）；原生 click 照常冒泡可另行消费。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          disabled 联动（field 禁用 → 按钮同步禁用）与直接实例化
+        </div>
+        <div class="auto-card-body">
+          <p>
+            <span
+              class="asc-field-box bf-field"
+              x-component:autospark.field="{ actions: acts1, disabled: true }"
+            >
+              <input
+                class="bf-native"
+                data-autospark-control
+                value="禁用态（按钮同步）"
+              />
+            </span>
+          </p>
+          <p class="hint">
+            直接实例化 field 同样获得融合动作；按钮自动标
+            <code>data-autospark-action</code>（点击自理不转发焦点）。actions
+            为空时整段不渲染（零多余 DOM）。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

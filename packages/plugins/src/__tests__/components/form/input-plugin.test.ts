@@ -20,6 +20,8 @@ import {
   FIELD_NAME,
   bootstrapFieldPlugin,
 } from "../../../components/base/field/index";
+// 融合动作组合依赖：button 组件注册（actions 渲染段内嵌实例化，ADR-0020 修订二）
+import "../../../components/general/button/index";
 
 /** 取全局表模板（空白归一——oxfmt 折行使逐字匹配假红） */
 const tpl = (name: string) =>
@@ -456,6 +458,104 @@ describe("装饰插槽（field 具名出口穿透，ADR-0020 2026-11-14 修订�
     expect(host.getAttribute("data-status")).toBe("error");
     const custom = host.querySelector(".my-native") as HTMLInputElement;
     expect(custom.getAttribute("aria-invalid")).toBe("true");
+  });
+});
+
+describe("融合动作 actions（field props 驱动渲染段，ADR-0020 2026-11-16 修订二）", () => {
+  test("渲染与分侧：pos 过滤 + DOM 序在装饰出口外侧 + button 实例化 + 自动标动作件", async () => {
+    const { root } = mount(
+      `<span x-component:autospark.input="{ actions: acts }"></span>`,
+      {
+        acts: [
+          { label: "前置一", pos: "before" },
+          { label: "前置二", pos: "before" },
+          { label: "后置", name: "go", value: 42 },
+        ],
+      },
+    );
+    await nextTick();
+    const host = field(root);
+    const before = host.querySelector(".asc-field-actions-before");
+    const after = host.querySelector(".asc-field-actions-after");
+    expect(before!.querySelectorAll(".asc-field-action").length).toBe(2);
+    expect(after!.querySelectorAll(".asc-field-action").length).toBe(1);
+    // button 化身类拼接（组合复用 autospark.button）+ 按钮文案经 props 注入
+    const goBtn = after!.querySelector(".asc-field-action") as HTMLElement;
+    expect(goBtn.classList.contains("asc-button")).toBe(true);
+    expect(goBtn.textContent).toContain("后 置"); // button autoInsertSpace 两字插空——props 全透传实证
+    // 自动标 data-autospark-action（点击自理，不转发焦点到控件）
+    expect(goBtn.hasAttribute("data-autospark-action")).toBe(true);
+    // DOM 序：[before actions][prefix?][body][suffix?][after actions]——动作按钮最外层包壳
+    const seq = Array.from(host.children).map((n) => n.className);
+    expect(seq[0]).toContain("asc-field-actions-before");
+    expect(seq[seq.length - 1]).toContain("asc-field-actions-after");
+    const bodyIdx = seq.findIndex((c) => c.includes("asc-field-body"));
+    expect(bodyIdx).toBeGreaterThan(0);
+    expect(bodyIdx).toBeLessThan(seq.length - 1);
+  });
+
+  test("空数组零 DOM：x-if 整段不渲染（无 actions 容器残留）", async () => {
+    const { root } = mount(`<span x-component:autospark.input></span>`, {});
+    await nextTick();
+    const host = field(root);
+    expect(host.querySelector(".asc-field-actions")).toBeNull();
+    expect(host.querySelector(".asc-field-action")).toBeNull();
+  });
+
+  test("action-click 组包：detail 四元组（index/name/value/item）+ 原生 click 双通道", async () => {
+    const { root } = mount(
+      `<span x-component:autospark.input="{ actions: acts }"></span>`,
+      {
+        acts: [
+          { label: "前", pos: "before" },
+          { label: "A", name: "add", value: { x: 1 } },
+          { label: "B", name: "del" },
+        ],
+      },
+    );
+    await nextTick();
+    const host = field(root);
+    const fired: unknown[] = [];
+    host.addEventListener("action-click", (e) => fired.push((e as CustomEvent).detail));
+    const btns = Array.from(host.querySelectorAll(".asc-field-actions-after .asc-field-action"));
+    expect(btns.length).toBe(2);
+    btns[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await nextTick();
+    expect(fired.length).toBe(1);
+    const d = fired[0] as { index: number; name?: string; value?: unknown; item: { label: string } };
+    expect(d.index).toBe(1); // 侧内序（after 组第 2 个）
+    expect(d.name).toBe("del");
+    expect(d.item.label).toBe("B");
+    // 原生 click 照常冒泡（双通道）——宿主 click 计数
+    let nativeClicks = 0;
+    host.addEventListener("click", () => nativeClicks++);
+    btns[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await nextTick();
+    expect(nativeClicks).toBe(1);
+  });
+
+  test("disabled 联动：field disabled → 按钮同步禁用（Object.assign 值合并）", async () => {
+    const { root, engine } = mount(
+      `<span x-component:autospark.input="{ actions: acts, disabled: lock }"></span>`,
+      { acts: [{ label: "搜" }], lock: false },
+    );
+    await nextTick();
+    const host = field(root);
+    const btn = host.querySelector(".asc-field-action") as HTMLButtonElement;
+    expect(btn.disabled ?? btn.getAttribute("disabled")).toBeFalsy(); // 未禁用
+    engine.store.state.lock = true;
+    await nextTick();
+    await new Promise((r) => setTimeout(r, 0)); // 值通道重算 + button 同步一跳
+    expect(btn.disabled === true || btn.hasAttribute("disabled")).toBe(true);
+  });
+
+  test("样式通道：融合选择器与共享线变量在模板中（负 margin 边线复用 ADR-0014 范式）", () => {
+    const cssx = tplx(FIELD_NAME);
+    expect(cssx).toContain(".asc-field-actions{display:contents;}");
+    expect(cssx).toContain(".asc-field-box.asc-field-action{border-color:var(--asc-field-line);");
+    expect(cssx).toContain(".asc-field-action+.asc-field-action{");
+    expect(cssx).toContain("margin-inline-start:calc(-1*var(--auto-border-size,");
+    expect(cssx).toContain("align-self:stretch;");
   });
 });
 

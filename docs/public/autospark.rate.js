@@ -23,6 +23,12 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       （消费方任意 HTML，恒在轻装饰外侧），两者共存不互斥；插槽内容默认次要色、\r
       点击转发焦点到控件（消费方放交互件须自标 data-autospark-action 自理）；\r
       disabled/readonly 不对插槽内容做专门处理（与 props 装饰对齐）\r
+    - 融合动作 actions（2026-11-16 修订二，ADR-0020 决策 3）：props 驱动渲染段\r
+      （非插槽出口——数据→视图）——button props 数组 + 自有键 pos（before|after\r
+      分侧，缺省 after）/name/value；组合复用 autospark.button（产物依赖其同页\r
+      加载），融合复用 button-group 负 margin 边线复用范式（ADR-0014）；field\r
+      disabled 联动合并项 disabled；点击组包派发 action-click（detail =\r
+      {index,name,value,item}）+ 原生 click 双通道；空数组整段不渲染零 DOM\r
     - 状态色通道：status（"" | error | success | warning）→ 宿主 data-status 属性 →\r
       --asc-field-tone 中转变量派生（焦点环/边框色统一消费）；error 态同步 aria-invalid\r
     - 焦点态追踪：focusin/focusout（焦点在骨架内元素间移动不闪烁）→ 宿主 data-focus\r
@@ -53,8 +59,9 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     {\r
         data: () => ({\r
             status: "",       // 状态色通道："" 无 | error 危险 | success 成功 | warning 警告（tone 中转变量随动，焦点环/边框消费）\r
-            disabled: false,  // 禁用：同步 [data-autospark-control] 原生控件 + 宿主 data-disabled（CSS 淡化/光标）\r
+            disabled: false,  // 禁用：同步 [data-autospark-control] 原生控件 + 宿主 data-disabled（CSS 淡化/光标）+ 融合动作按钮联动\r
             readonly: false,  // 只读：同步 [data-autospark-control]（readOnly 语义）+ 宿主 data-readonly\r
+            actions: [],      // 融合动作（2026-11-16 修订二）：button props 数组 + 自有键 pos（"before"|"after" 分侧，缺省 after）/ name（标识）/ value（原样透传 action-click detail）——数组 props 经状态引用注入（:actions="myActions"，引擎字面量数组死环缺陷 HEAD 未修）\r
         }),\r
         mounted() {\r
             // —— 控件查询（data-autospark-control 标记协议）：每查现取不缓存——运行时\r
@@ -110,6 +117,30 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             // —— 初始化与跟随（mounted 时化身子树与 props 注入均可能未就位，一跳后\r
             //     首同步；后续 props 变化经 watch 保持——回调收 { value } 信封对象，\r
             //     此处只用作触发信号，家族惯用法）——\r
+            // —— 融合动作组包（ADR-0020 修订二）：按钮原生 click 冒泡经宿主——按\r
+            //     DOM 序（容器内 .asc-field-action 集合的 indexOf）回查 actions\r
+            //     原始项，组包派发 action-click（bubbles，detail =\r
+            //     {index, name, value, item}）；原生 click 照常冒泡（双通道）；\r
+            //     禁用按钮原生阻断、不到达此处 ——\r
+            this.el.addEventListener("click", (e) => {\r
+                const t = e.target instanceof Element ? e.target : null;\r
+                if (!t) return;\r
+                const btn = t.closest(".asc-field-action");\r
+                if (!btn || !this.el.contains(btn)) return;\r
+                const wrap = btn.closest(".asc-field-actions");\r
+                if (!wrap) return;\r
+                const side = wrap.classList.contains("asc-field-actions-before") ? "before" : "after";\r
+                const list = (Array.isArray(this.data.actions) ? this.data.actions : [])\r
+                    .filter((a) => a && (a.pos || "after") === side);\r
+                const i = Array.from(wrap.querySelectorAll(".asc-field-action")).indexOf(btn);\r
+                const item = list[i];\r
+                if (!item) return;\r
+                this.el.dispatchEvent(new CustomEvent("action-click", {\r
+                    bubbles: true,\r
+                    detail: { index: i, name: item.name, value: item.value, item },\r
+                }));\r
+            });\r
+\r
             const syncAll = () => { applyStatus(); syncControl(); };\r
             setTimeout(syncAll, 0);\r
             this.watch("status", () => { setTimeout(syncAll, 0); });\r
@@ -277,6 +308,82 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       display: contents;\r
     }\r
 \r
+    /* ---------- 融合动作 actions（2026-11-16 修订二）：渲染段容器 display:contents\r
+         （按钮直接成盒饰 flex 项）；融合仅在盒饰层（.asc-field-box 后代——裸态控件\r
+         无盒饰融合线不生效）——复用 button-group 负 margin 边线复用范式（ADR-0014\r
+         决策 2）：按钮边框色让位 --asc-field-line 共享线（status/disabled 联动天然\r
+         继承——变量定义在 box 上随状态覆盖），相邻按钮侧线压叠单线、组首/尾与盒\r
+         边框重合（负距吃掉单侧内距+边框）；首/尾钮外侧圆角匹配盒饰、其余清除；\r
+         stretch 等高 + 纵向负距全高贴上下边框（textarea 形态照常随盒高） ---------- */\r
+    .asc-field-actions {\r
+      display: contents;\r
+    }\r
+    .asc-field-box .asc-field-action {\r
+      border-color: var(--asc-field-line);\r
+      border-radius: 0;\r
+      align-self: stretch;\r
+      margin-block: calc(\r
+        -1 *\r
+          (\r
+            var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2 +\r
+              var(--auto-border-size, var(--asc-field-border-size, 1px))\r
+          )\r
+      );\r
+    }\r
+    /* before 组首钮左贴盒左线（负距吃左内距+边框）+ 外侧圆角匹配盒饰。\r
+       首尾用 *-of-type：x-for 的 template 宿主渲染后追加在项元素之后（DOM 序\r
+       [钮…, template]），:last-child 会误中 template */\r
+    .asc-field-box .asc-field-actions-before .asc-field-action:first-of-type {\r
+      margin-inline-start: calc(\r
+        -1 *\r
+          (\r
+            var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) +\r
+              var(--auto-border-size, var(--asc-field-border-size, 1px))\r
+          )\r
+      );\r
+      border-start-start-radius: var(\r
+        --auto-input-radius,\r
+        var(--asc-field-radius, 0.5rem)\r
+      );\r
+      border-end-start-radius: var(\r
+        --auto-input-radius,\r
+        var(--asc-field-radius, 0.5rem)\r
+      );\r
+    }\r
+    /* after 组尾钮右贴盒右线 + 外侧圆角匹配盒饰 */\r
+    .asc-field-box .asc-field-actions-after .asc-field-action:last-of-type {\r
+      margin-inline-end: calc(\r
+        -1 *\r
+          (\r
+            var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) +\r
+              var(--auto-border-size, var(--asc-field-border-size, 1px))\r
+          )\r
+      );\r
+      border-start-end-radius: var(\r
+        --auto-input-radius,\r
+        var(--asc-field-radius, 0.5rem)\r
+      );\r
+      border-end-end-radius: var(\r
+        --auto-input-radius,\r
+        var(--asc-field-radius, 0.5rem)\r
+      );\r
+    }\r
+    /* 组内相邻按钮：侧线压叠单线（每钮压前邻右线，共享一条 --asc-field-line） */\r
+    .asc-field-box .asc-field-action + .asc-field-action {\r
+      margin-inline-start: calc(\r
+        -1 * var(--auto-border-size, var(--asc-field-border-size, 1px))\r
+      );\r
+    }\r
+    /* 钮组与控件位间距（2026-11-16）：贴盒边融合保留（首/尾钮负距吃盒内距+边框，\r
+       控件与钮零距贴死）——组靠控件侧一钮留 0.4em 缝（镜像装饰出口间距标尺），\r
+       DOM 序中 prefix/suffix 出口为空时同样成立 */\r
+    .asc-field-box .asc-field-actions-before .asc-field-action:last-child {\r
+      margin-inline-end: 0.4em;\r
+    }\r
+    .asc-field-box .asc-field-actions-after .asc-field-action:first-child {\r
+      margin-inline-start: 0.4em;\r
+    }\r
+\r
     /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */\r
     [dark] .asc-field,\r
     [data-dark] .asc-field {\r
@@ -343,9 +450,34 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
        任意内容（class 活注入落内容首根：次要色/间距/防收缩随类落根，恒在子组件\r
        props 轻装饰外侧）；默认出口被子组件默认段替换（继承覆盖，ADR-0081）——\r
        直接实例化时消费方内容同位，三层优先级：消费方内容 > 继承覆盖 > 本空 fallback -->\r
+  <!-- 融合动作渲染段（2026-11-16 修订二，ADR-0020 决策 3）：props 驱动非插槽出口——\r
+       空 actions 整段 x-if 不渲染（零 DOM）；双段按 pos 过滤分侧，DOM 序恒\r
+       [before actions][prefix][body][suffix][after actions]（动作按钮最外层包壳）。\r
+       值 = Object.assign 全键透传项（button props 全集 + disabled 与 field 联动合并，\r
+       自有键 pos/name/value 入 button data 域被忽略无害）；按钮宿主自动标\r
+       data-autospark-action（点击自理）；x-for 值表达式 = 官方 filter 形态\r
+       （引擎 x-for 测试覆盖，with 求值通道响应 actions 注入） -->\r
+  <span class="asc-field-actions asc-field-actions-before" x-if="!!(actions && actions.length)">\r
+    <template x-for="item of actions.filter(a => a && a.pos === 'before')">\r
+      <span\r
+        class="asc-field-action"\r
+        data-autospark-action\r
+        x-component:autospark.button="Object.assign({}, item, { disabled: item.disabled || !!disabled })"\r
+      ></span>\r
+    </template>\r
+  </span>\r
   <template class="asc-field-prefix" x-slot:prefix></template>\r
   <span class="asc-field-body" x-slot></span>\r
   <template class="asc-field-suffix" x-slot:suffix></template>\r
+  <span class="asc-field-actions asc-field-actions-after" x-if="!!(actions && actions.length)">\r
+    <template x-for="item of actions.filter(a => !a || a.pos !== 'before')">\r
+      <span\r
+        class="asc-field-action"\r
+        data-autospark-action\r
+        x-component:autospark.button="Object.assign({}, item, { disabled: item.disabled || !!disabled })"\r
+      ></span>\r
+    </template>\r
+  </span>\r
 </span>\r
 `}n();function n(){e(e=>{t(e)})}var r=`<!--\r
     autospark.rate 评分（自绘路线，无原生对应控件）——引擎内置 star 星形图标 ×N\r

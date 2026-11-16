@@ -42,44 +42,98 @@
     <aside class="demo-panel"><theme-controls></theme-controls></aside>
     <main class="demo-main" x-data="{ price: '' }">
       <div class="auto-card">
-        <div class="auto-card-header">prefix / suffix 具名插槽：消费方任意内容，默认次要色</div>
+        <div class="auto-card-header">无 prefix / suffix 具名插槽</div>
+        <div class="auto-card-body">
+          <p>
+            <span class="asc-field-box bf-field" x-component:autospark.field>
+              <input
+                class="bf-native"
+                data-autospark-control
+                placeholder="金额"
+                x-model="price"
+              />
+            </span>
+          </p>
+          <p class="hint">prefix/suffix内部插槽不占用DOM元素</p>
+        </div>
+      </div>
+
+      <div class="auto-card">
+        <div class="auto-card-header">
+          prefix / suffix 具名插槽：消费方任意内容，默认次要色
+        </div>
         <div class="auto-card-body">
           <p>
             <span class="asc-field-box bf-field" x-component:autospark.field>
               <template x-slot:prefix><span>¥</span></template>
-              <input class="bf-native" data-autospark-control placeholder="金额" x-model="price" />
+              <input
+                class="bf-native"
+                data-autospark-control
+                placeholder="金额"
+                x-model="price"
+              />
               <template x-slot:suffix><span>元 / 月</span></template>
             </span>
           </p>
-          <p class="hint">当前值：{{ price || '（空）' }} —— 宿主直接子级以 <code>&lt;template x-slot:prefix&gt;</code> / <code>x-slot:suffix</code> 标记分段；空插槽整出口静默消失（template 载体，零多余 DOM）。</p>
+          <p class="hint">
+            当前值：{{ price || '（空）' }} —— 宿主直接子级以
+            <code>&lt;template x-slot:prefix&gt;</code> /
+            <code>x-slot:suffix</code> 标记分段；空插槽整出口静默消失（template
+            载体，零多余 DOM）。
+          </p>
         </div>
       </div>
       <div class="auto-card">
-        <div class="auto-card-header">插槽内交互件：data-autospark-action 自理焦点</div>
+        <div class="auto-card-header">
+          插槽内交互件：data-autospark-action 自理焦点
+        </div>
         <div class="auto-card-body">
           <p>
             <span class="asc-field-box bf-field" x-component:autospark.field>
               <template x-slot:prefix><span>🔍</span></template>
-              <input class="bf-native" data-autospark-control placeholder="搜索关键词" />
+              <input
+                class="bf-native"
+                data-autospark-control
+                placeholder="搜索关键词"
+              />
               <template x-slot:suffix
-                ><button type="button" class="bf-slot-btn" data-autospark-action>搜索</button></template
+                ><button
+                  type="button"
+                  class="bf-slot-btn"
+                  data-autospark-action
+                >
+                  搜索
+                </button></template
               >
             </span>
           </p>
-          <p class="hint">点击装饰（🔍 / 空白区）焦点落控件；标记 <code>data-autospark-action</code> 的按钮点击不转发焦点（动作件自理）。</p>
+          <p class="hint">
+            点击装饰（🔍 / 空白区）焦点落控件；标记
+            <code>data-autospark-action</code>
+            的按钮点击不转发焦点（动作件自理）。
+          </p>
         </div>
       </div>
       <div class="auto-card">
-        <div class="auto-card-header">轻装饰 / 重装饰分层：input 的 props 前后置 + 插槽前后置共存</div>
+        <div class="auto-card-header">
+          轻装饰 / 重装饰分层：input 的 props 前后置 + 插槽前后置共存
+        </div>
         <div class="auto-card-body">
           <p>
-            <span x-component:autospark.input="{ prefix: 'props前', suffix: 'props后', clearable: true }">
+            <span
+              x-component:autospark.input="{ prefix: 'props前', suffix: 'props后', clearable: true }"
+            >
               <template x-slot:prefix><span>[槽前]</span></template>
               <template x-slot:suffix><span>[槽后]</span></template>
             </span>
           </p>
           <p class="hint">
-            呈现序固定 <code>[slot:prefix] [props前缀] 控件 [动作件] [props后缀] [slot:suffix]</code>——props 轻装饰贴控件（文本/图标），插槽重装饰恒在外侧（任意 HTML），两者共存不互斥（ADR-0020 修订）。
+            呈现序固定
+            <code
+              >[slot:prefix] [props前缀] 控件 [动作件] [props后缀]
+              [slot:suffix]</code
+            >——props 轻装饰贴控件（文本/图标），插槽重装饰恒在外侧（任意
+            HTML），两者共存不互斥（ADR-0020 修订）。
           </p>
         </div>
       </div>
