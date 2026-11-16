@@ -85,6 +85,15 @@ Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020�
 
 <demo html="components/form/input/addons.html"/>
 
+### actions 融合动作
+
+**类型**: `Array<button props & { pos?, name?, value? }>`
+**默认**: `[]`
+
+在输入框前后增加 1-N 个与盒饰**融合**的按钮（共享边框线、等高、首尾圆角匹配）——field 骨架层能力（继承即得，完整说明见 [BaseField · actions 融合动作](/zh/components/form/field#actions-融合动作)）。要点：项为 **button props 全集** + 自有键 `pos`（before | after 分侧，缺省 after）/ `name` / `value`；数组**经状态引用注入**（`:actions="myActions"`——字面量数组触发引擎死环缺陷勿用）；点击组包派发 `action-click`（`detail = { index, name, value, item }`，`@` 监听写外层包裹元素）+ 原生 click 双通道；**须同页加载 `autospark.button.js`**（组合依赖）。
+
+<demo html="components/form/input/actions.html"/>
+
 ### showCount 计数器
 
 **类型**: `boolean`

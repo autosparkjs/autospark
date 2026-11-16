@@ -1134,7 +1134,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             type: "primary",        // 语义色：primary | success | warning | danger | info（default 形态不消费）\r
             label: "按钮",          // 兜底文案（插槽无内容时显示；labelPos none 时隐藏并自动转入悬停提示）\r
             labelPos: "right",       // label 在 icon 的哪侧：right 左图标右文字（默认）| left 右图标左文字（与 tags 互换，caret 恒在其后）| top 文字上 | bottom 文字下 | none 不显示文字（label 转悬停提示）\r
-            icon: "",               // 图标名（string）或图标选项对象 { name, ...x-icon-options }：视觉键 size / color / strokeWidth / padding / shape / button / pointer / rotate 经 x-icon-options 成员表达式逐键透传（等价 x-icon 原生能力）+ 自有角标键 badge（伪元素红点，标量三形态控板距；loading 时被替换）\r
+            icon: "",               // 图标名（string）或图标选项对象 { name, ...x-icon-options }：视觉键 size / color / strokeWidth / padding / shape / button / pointer / rotate 经 x-icon-options 成员表达式逐键透传（等价 x-icon 原生能力）+ 自有键 badge（伪元素红点，标量三形态控板距；loading 时被替换）与 scale（图标放大倍率，ADR-0138 修订：图标放大场景（纵排 top/bottom 或 memo 在场）参与、其余静默忽略；缺省 1.5 由 CSS 内建承载（memo 场景同值复用）；与 size 叠加（size × scale 经内联乘积）、显式即接管压过内建 1.5；非法值（0/负/NaN）静默剪枝；字符串 icon 形态无此通道仅吃内建）\r
             loading: false,         // 加载态：左图标位转圈并禁点（优先于 disabled 视觉）\r
             ghost: false,           // 幽灵：背景透明、内容取语义色（常用在有色背景上）\r
             border: false,          // 装饰性附加边框（不干预 dashed / ghost 的固有边框形态）\r
@@ -1638,6 +1638,17 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     .asc-button-body[data-label-pos="top"] .asc-button-icon {\r
       order: 2;\r
     }\r
+    /* 图标放大内建 1.5×（ADR-0138，2026-11-16 修订：memo 并入统一倍率）：纵排（top/bottom）\r
+         或 memo 在场即放大，倍率乘在 --auto-icon-size 上（width/height 覆盖载体，theme 档位\r
+         绝对值与 1em 回落两态一致生效——font-size 载体在 theme 在场时撑不动绝对宽高，勿用；\r
+         svg 恒 100% 撑满宿主自动跟随）；loading 位同容器天然吃内建 1.5×；caret / tag 独立\r
+         容器不命中；显式 size / size×scale 乘积走 x-icon 内联恒压本规则（显式即接管） */\r
+    .asc-button-body[data-label-pos="top"] .asc-button-icon.as-icon,\r
+    .asc-button-body[data-label-pos="bottom"] .asc-button-icon.as-icon,\r
+    .asc-button:has(.asc-button-memo) .asc-button-icon.as-icon {\r
+      width: calc(var(--auto-icon-size, 1em) * 1.5);\r
+      height: calc(var(--auto-icon-size, 1em) * 1.5);\r
+    }\r
 \r
     /* 图标位：尺寸随字号（x-icon 默认 1em），loading 转圈自带 SMIL 动画 */\r
     .asc-button-icon {\r
@@ -1718,11 +1729,8 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       line-clamp: 2;\r
       overflow: hidden;\r
     }\r
-    /* memo 在场时图标默认 2 倍大（与 label+memo 双行文本块视觉配平）；\r
-         图标与文本块的垂直居中由 body 的 align-items: center 承担 */\r
-    .asc-button:has(.asc-button-memo) .asc-button-icon {\r
-      font-size: 2em;\r
-    }\r
+    /* memo 视觉配平：图标放大已并入上方统一 1.5× 规则（ADR-0138 修订，原独立 2× 规则废除）；\r
+         图标与 label+memo 文本块的垂直居中由 body 的 align-items: center 承担 */\r
 \r
     /* tags 小圆钮：恒贴内容区右端（margin-left:auto 吸收剩余空间；按钮收缩到内容宽时\r
          退化为紧跟主文本，最小间距由 body 的 gap 保证），独立 hover 反馈 */\r
@@ -1931,7 +1939,13 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-button-icon" x-if="loading" x-icon="'loading'"></span>\r
     <!-- icon 双形态：字符串 = 图标名；对象 = { name, ...x-icon-options }——name 经 x-icon 值消费，\r
          其余视觉选项经 **成员表达式** 逐键透传（x-icon-options="icon" 整包按 relaxed-JSON 解析，\r
-         无法消费状态路径）；badge 为按钮自有键，由 mounted 的 syncIconBadge 维护 -->\r
+         无法消费状态路径）；badge 为按钮自有键，由 mounted 的 syncIconBadge 维护；scale 为\r
+         按钮自有倍率键（ADR-0138，修订后），乘入 size 通道——图标放大场景（纵排 top/bottom\r
+         或 memo 在场）参与：size 有值 → 乘积（number×scale 出 px / 字符串 size 包\r
+         calc()），size 缺省 → 仅 scale 显式合法时输出 calc 接管（否则 undefined 交 CSS 内建\r
+         1.5×）；非放大场景原样透传 icon.size（scale 静默忽略）。显式乘积为内联宽高、恒压\r
+         CSS 放大规则（显式即接管）；loading 位独立分支无此通道、只吃 CSS 内建；表达式须\r
+         内联（绑定通道天然响应式，且求值域不含组件 methods） -->\r
     <span\r
       class="asc-button-icon"\r
       x-if="!loading && typeof icon === 'string' && icon"\r
@@ -1941,7 +1955,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       class="asc-button-icon"\r
       x-if="!loading && typeof icon === 'object' && icon"\r
       x-icon="icon.name"\r
-      x-icon-options:size="icon.size"\r
+      x-icon-options:size="(labelPos==='top'||labelPos==='bottom'||!!memo) ? (icon.size==null ? (typeof icon.scale==='number'&&icon.scale>0 ? 'calc(var(--auto-icon-size, 1em) * '+icon.scale+')' : undefined) : (typeof icon.size==='number' ? icon.size*(typeof icon.scale==='number'&&icon.scale>0?icon.scale:1.5)+'px' : 'calc('+icon.size+' * '+(typeof icon.scale==='number'&&icon.scale>0?icon.scale:1.5)+')')) : icon.size"\r
       x-icon-options:color="icon.color"\r
       x-icon-options:stroke-width="icon.strokeWidth"\r
       x-icon-options:padding="icon.padding"\r
@@ -7800,6 +7814,12 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       （消费方任意 HTML，恒在轻装饰外侧），两者共存不互斥；插槽内容默认次要色、\r
       点击转发焦点到控件（消费方放交互件须自标 data-autospark-action 自理）；\r
       disabled/readonly 不对插槽内容做专门处理（与 props 装饰对齐）\r
+    - 融合动作 actions（2026-11-16 修订二，ADR-0020 决策 3）：props 驱动渲染段\r
+      （非插槽出口——数据→视图）——button props 数组 + 自有键 pos（before|after\r
+      分侧，缺省 after）/name/value；组合复用 autospark.button（产物依赖其同页\r
+      加载），融合复用 button-group 负 margin 边线复用范式（ADR-0014）；field\r
+      disabled 联动合并项 disabled；点击组包派发 action-click（detail =\r
+      {index,name,value,item}）+ 原生 click 双通道；空数组整段不渲染零 DOM\r
     - 状态色通道：status（"" | error | success | warning）→ 宿主 data-status 属性 →\r
       --asc-field-tone 中转变量派生（焦点环/边框色统一消费）；error 态同步 aria-invalid\r
     - 焦点态追踪：focusin/focusout（焦点在骨架内元素间移动不闪烁）→ 宿主 data-focus\r
@@ -7830,8 +7850,9 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     {\r
         data: () => ({\r
             status: "",       // 状态色通道："" 无 | error 危险 | success 成功 | warning 警告（tone 中转变量随动，焦点环/边框消费）\r
-            disabled: false,  // 禁用：同步 [data-autospark-control] 原生控件 + 宿主 data-disabled（CSS 淡化/光标）\r
+            disabled: false,  // 禁用：同步 [data-autospark-control] 原生控件 + 宿主 data-disabled（CSS 淡化/光标）+ 融合动作按钮联动\r
             readonly: false,  // 只读：同步 [data-autospark-control]（readOnly 语义）+ 宿主 data-readonly\r
+            actions: [],      // 融合动作（2026-11-16 修订二）：button props 数组 + 自有键 pos（"before"|"after" 分侧，缺省 after）/ name（标识）/ value（原样透传 action-click detail）——数组 props 经状态引用注入（:actions="myActions"，引擎字面量数组死环缺陷 HEAD 未修）\r
         }),\r
         mounted() {\r
             // —— 控件查询（data-autospark-control 标记协议）：每查现取不缓存——运行时\r
@@ -7887,6 +7908,30 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             // —— 初始化与跟随（mounted 时化身子树与 props 注入均可能未就位，一跳后\r
             //     首同步；后续 props 变化经 watch 保持——回调收 { value } 信封对象，\r
             //     此处只用作触发信号，家族惯用法）——\r
+            // —— 融合动作组包（ADR-0020 修订二）：按钮原生 click 冒泡经宿主——按\r
+            //     DOM 序（容器内 .asc-field-action 集合的 indexOf）回查 actions\r
+            //     原始项，组包派发 action-click（bubbles，detail =\r
+            //     {index, name, value, item}）；原生 click 照常冒泡（双通道）；\r
+            //     禁用按钮原生阻断、不到达此处 ——\r
+            this.el.addEventListener("click", (e) => {\r
+                const t = e.target instanceof Element ? e.target : null;\r
+                if (!t) return;\r
+                const btn = t.closest(".asc-field-action");\r
+                if (!btn || !this.el.contains(btn)) return;\r
+                const wrap = btn.closest(".asc-field-actions");\r
+                if (!wrap) return;\r
+                const side = wrap.classList.contains("asc-field-actions-before") ? "before" : "after";\r
+                const list = (Array.isArray(this.data.actions) ? this.data.actions : [])\r
+                    .filter((a) => a && (a.pos || "after") === side);\r
+                const i = Array.from(wrap.querySelectorAll(".asc-field-action")).indexOf(btn);\r
+                const item = list[i];\r
+                if (!item) return;\r
+                this.el.dispatchEvent(new CustomEvent("action-click", {\r
+                    bubbles: true,\r
+                    detail: { index: i, name: item.name, value: item.value, item },\r
+                }));\r
+            });\r
+\r
             const syncAll = () => { applyStatus(); syncControl(); };\r
             setTimeout(syncAll, 0);\r
             this.watch("status", () => { setTimeout(syncAll, 0); });\r
@@ -8054,6 +8099,86 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       display: contents;\r
     }\r
 \r
+    /* ---------- 融合动作 actions（2026-11-16 修订二）：渲染段容器 display:contents\r
+         （按钮直接成盒饰 flex 项）；融合仅在盒饰层（.asc-field-box 后代——裸态控件\r
+         无盒饰融合线不生效）——复用 button-group 负 margin 边线复用范式（ADR-0014\r
+         决策 2）：按钮边框色让位 --asc-field-line 共享线（status/disabled 联动天然\r
+         继承——变量定义在 box 上随状态覆盖），相邻按钮侧线压叠单线、组首/尾与盒\r
+         边框重合（负距吃掉单侧内距+边框）；首/尾钮外侧圆角匹配盒饰、其余清除。\r
+         **上下边框单线让位（2026-11-16 修订三）**：按钮不画自己的上下边框、纵向\r
+         负距不吃盒边框（从线内缘起）——盒线独享、连续穿过按钮段。此前「两线对齐」\r
+         形态（按钮自带上下线 + 负距全高贴边）在非整数缩放下两条各自取整的 1px 线\r
+         会差出 1 物理像素（重合不严），且实心/无边框 variant 的按钮背景会盖住盒线\r
+         段；单线让位结构性消灭两类缺陷（线只有一个绘制者）。左右侧线照常由按钮\r
+         绘制（--asc-field-line） ---------- */\r
+    .asc-field-actions {\r
+      display: contents;\r
+    }\r
+    .asc-field-box .asc-field-action {\r
+      border-color: var(--asc-field-line);\r
+      border-top-width: 0;\r
+      border-bottom-width: 0;\r
+      border-radius: 0;\r
+      align-self: stretch;\r
+      margin-block: calc(\r
+        -1 * var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2\r
+      );\r
+    }\r
+    /* before 组首钮左贴盒左线（负距吃左内距+边框）+ 外侧圆角匹配盒饰。\r
+       首尾用 *-of-type：x-for 的 template 宿主渲染后追加在项元素之后（DOM 序\r
+       [钮…, template]），:last-child 会误中 template */\r
+    .asc-field-box .asc-field-actions-before .asc-field-action:first-of-type {\r
+      margin-inline-start: calc(\r
+        -1 *\r
+          (\r
+            var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) +\r
+              var(--auto-border-size, var(--asc-field-border-size, 1px))\r
+          )\r
+      );\r
+      border-start-start-radius: var(\r
+        --auto-input-radius,\r
+        var(--asc-field-radius, 0.5rem)\r
+      );\r
+      border-end-start-radius: var(\r
+        --auto-input-radius,\r
+        var(--asc-field-radius, 0.5rem)\r
+      );\r
+    }\r
+    /* after 组尾钮右贴盒右线 + 外侧圆角匹配盒饰 */\r
+    .asc-field-box .asc-field-actions-after .asc-field-action:last-of-type {\r
+      margin-inline-end: calc(\r
+        -1 *\r
+          (\r
+            var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) +\r
+              var(--auto-border-size, var(--asc-field-border-size, 1px))\r
+          )\r
+      );\r
+      border-start-end-radius: var(\r
+        --auto-input-radius,\r
+        var(--asc-field-radius, 0.5rem)\r
+      );\r
+      border-end-end-radius: var(\r
+        --auto-input-radius,\r
+        var(--asc-field-radius, 0.5rem)\r
+      );\r
+    }\r
+    /* 组内相邻按钮：侧线压叠单线（每钮压前邻右线，共享一条 --asc-field-line） */\r
+    .asc-field-box .asc-field-action + .asc-field-action {\r
+      margin-inline-start: calc(\r
+        -1 * var(--auto-border-size, var(--asc-field-border-size, 1px))\r
+      );\r
+    }\r
+    /* 钮组与控件位间距（2026-11-16）：贴盒边融合保留（首/尾钮负距吃盒内距+边框，\r
+       控件与钮零距贴死）——组靠控件侧一钮留 0.4em 缝（镜像装饰出口间距标尺）。\r
+       伪类须 *-of-type：x-for 的 template 锚点追加在项后（同款坑见上方贴边规则），\r
+       :last-child 永不命中（template 在最后） */\r
+    .asc-field-box .asc-field-actions-before .asc-field-action:last-of-type {\r
+      margin-inline-end: 0.4em;\r
+    }\r
+    .asc-field-box .asc-field-actions-after .asc-field-action:first-of-type {\r
+      margin-inline-start: 0.4em;\r
+    }\r
+\r
     /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */\r
     [dark] .asc-field,\r
     [data-dark] .asc-field {\r
@@ -8120,9 +8245,34 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
        任意内容（class 活注入落内容首根：次要色/间距/防收缩随类落根，恒在子组件\r
        props 轻装饰外侧）；默认出口被子组件默认段替换（继承覆盖，ADR-0081）——\r
        直接实例化时消费方内容同位，三层优先级：消费方内容 > 继承覆盖 > 本空 fallback -->\r
+  <!-- 融合动作渲染段（2026-11-16 修订二，ADR-0020 决策 3）：props 驱动非插槽出口——\r
+       空 actions 整段 x-if 不渲染（零 DOM）；双段按 pos 过滤分侧，DOM 序恒\r
+       [before actions][prefix][body][suffix][after actions]（动作按钮最外层包壳）。\r
+       值 = Object.assign 全键透传项（button props 全集 + disabled 与 field 联动合并，\r
+       自有键 pos/name/value 入 button data 域被忽略无害）；按钮宿主自动标\r
+       data-autospark-action（点击自理）；x-for 值表达式 = 官方 filter 形态\r
+       （引擎 x-for 测试覆盖，with 求值通道响应 actions 注入） -->\r
+  <span class="asc-field-actions asc-field-actions-before" x-if="!!(actions && actions.length)">\r
+    <template x-for="item of actions.filter(a => a && a.pos === 'before')">\r
+      <span\r
+        class="asc-field-action"\r
+        data-autospark-action\r
+        x-component:autospark.button="Object.assign({}, item, { disabled: item.disabled || !!disabled })"\r
+      ></span>\r
+    </template>\r
+  </span>\r
   <template class="asc-field-prefix" x-slot:prefix></template>\r
   <span class="asc-field-body" x-slot></span>\r
   <template class="asc-field-suffix" x-slot:suffix></template>\r
+  <span class="asc-field-actions asc-field-actions-after" x-if="!!(actions && actions.length)">\r
+    <template x-for="item of actions.filter(a => !a || a.pos !== 'before')">\r
+      <span\r
+        class="asc-field-action"\r
+        data-autospark-action\r
+        x-component:autospark.button="Object.assign({}, item, { disabled: item.disabled || !!disabled })"\r
+      ></span>\r
+    </template>\r
+  </span>\r
 </span>\r
 `,ga=`autospark.field`;function _a(e){e.components[ga]=ha}va();function va(){y(e=>{m(e),_a(e)})}var ya=`<!--\r
     autospark.input 输入框（ADR-0020）——原生增强路线：真实原生控件（input / textarea）\r
@@ -8349,22 +8499,15 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       resize: vertical;\r
     }\r
 \r
-    /* ---------- 前后置装饰：文本/图标混排，次要色 ---------- */\r
-    .asc-input-prefix,\r
-    .asc-input-suffix {\r
+    /* ---------- 前后置装饰容器（2026-11-16 装饰上提，ADR-0020 修订）：props 装饰经\r
+         template 覆盖段上提 field 出口——次要色/间距/防收缩由出口注入类\r
+         .asc-field-prefix/.asc-field-suffix 落本容器（活注入取首个元素根，单根容器\r
+         承接防多根裸奔）；容器只管混排内距（图标 + 文本 0.35em）与不换行 ---------- */\r
+    .asc-input-affix {\r
       display: inline-flex;\r
       align-items: center;\r
       gap: 0.35em;\r
-      flex: none;\r
       white-space: nowrap;\r
-      color: var(--auto-secondary-color, var(--asc-input-affix, rgba(0, 0, 0, 0.55)));\r
-    }\r
-    /* 前置与控件间距、后置与动作件间距（互斥场景各留半距，组合场景自然衔接） */\r
-    .asc-input-prefix {\r
-      margin-right: 0.4em;\r
-    }\r
-    .asc-input-suffix {\r
-      margin-left: 0.4em;\r
     }\r
 \r
     /* ---------- 动作件（清除/眼睛切换）：内部交互钮，淡色常态 + 悬停正文色 ---------- */\r
@@ -8403,10 +8546,8 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     [data-dark] .asc-input-native::placeholder {\r
       color: var(--auto-input-placeholder, var(--asc-input-placeholder, rgba(255, 255, 255, 0.4)));\r
     }\r
-    [dark] .asc-input-prefix,\r
-    [dark] .asc-input-suffix,\r
-    [data-dark] .asc-input-prefix,\r
-    [data-dark] .asc-input-suffix {\r
+    [dark] .asc-input-affix,\r
+    [data-dark] .asc-input-affix {\r
       color: var(--auto-secondary-color, var(--asc-input-affix, rgba(255, 255, 255, 0.65)));\r
     }\r
     [dark] .asc-input-action,\r
@@ -8426,18 +8567,29 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       color: var(--auto-danger-color, var(--asc-input-count-over, #e6696a));\r
     }\r
   </style>\r
-  <!-- 默认段（替换 field 出口 fallback）：input 的全部控件结构，文档序即呈现序\r
-         [prefix] [控件] [清除] [眼睛] [suffix] [计数]。图标 x-icon 为指令值通道对\r
-         props 注入响应；文本兜底 {{ }} 为插值通道（初始注入即定，prefix 后续变化走\r
-         x-if 切换场景，文档已声明对象 props 经状态引用注入） -->\r
-  <span class="asc-input-prefix" x-if="!!prefix">\r
-    <i\r
-      class="asc-input-icon"\r
-      x-if="typeof prefix === 'object' && prefix && !!prefix.icon"\r
-      x-icon="prefix.icon"\r
-    ></i>\r
-    <span class="asc-input-text" x-if="typeof prefix === 'string' && !!prefix">{{ prefix }}</span>\r
-  </span>\r
+  <!-- 命名覆盖段（2026-11-16 装饰上提，ADR-0020 修订）：props 前后置装饰经 template\r
+         覆盖段上提 field 的 prefix/suffix 出口（继承覆盖链中间层：消费方投影 > 本段\r
+         > field 空载体）。注入属性集随段整段替换（ADR-0137 决策三-b：覆盖段即新声明、\r
+         不与父合并）——故 class="asc-field-*" 须在本段重声明（次要色/间距/防收缩的\r
+         规则载体），落单根容器 .asc-input-affix（活注入取首个元素根，多根裸奔防御）；\r
+         装饰缺席容器不渲染 → 出口零 DOM。图标 x-icon 为指令值通道对 props 注入响应；\r
+         文本兜底 {{ }} 为插值通道（对象 props 经状态引用注入，文档已声明） -->\r
+  <template x-slot:prefix class="asc-field-prefix">\r
+    <span class="asc-input-affix" x-if="!!prefix">\r
+      <i class="asc-input-icon" x-if="typeof prefix === 'object' && prefix && !!prefix.icon" x-icon="prefix.icon"></i>\r
+      <span class="asc-input-text" x-if="typeof prefix === 'string' && !!prefix">{{ prefix }}</span>\r
+    </span>\r
+  </template>\r
+  <template x-slot:suffix class="asc-field-suffix">\r
+    <span class="asc-input-affix" x-if="!!suffix">\r
+      <i class="asc-input-icon" x-if="typeof suffix === 'object' && suffix && !!suffix.icon" x-icon="suffix.icon"></i>\r
+      <span class="asc-input-text" x-if="typeof suffix === 'string' && !!suffix">{{ suffix }}</span>\r
+    </span>\r
+  </template>\r
+  <!-- 默认段（替换 field 出口 fallback）：控件本体与功能动作件，文档序即呈现序\r
+         [控件] [清除] [眼睛] [计数]——props 前后置装饰已上提 field 出口（见上方命名\r
+         覆盖段）；功能件（清除/眼睛/计数）刻意留 body：不进可被消费方投影顶掉的\r
+         出口 fallback 位（ADR-0020 修订取舍） -->\r
   <input class="asc-input-native" data-autospark-control x-if="type !== 'textarea'" />\r
   <textarea\r
     class="asc-input-native"\r
@@ -8459,14 +8611,6 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     x-icon="passwordVisible ? 'input-eye-off' : 'input-eye'"\r
     @click="onTogglePassword($event)"\r
   ></i>\r
-  <span class="asc-input-suffix" x-if="!!suffix">\r
-    <i\r
-      class="asc-input-icon"\r
-      x-if="typeof suffix === 'object' && suffix && !!suffix.icon"\r
-      x-icon="suffix.icon"\r
-    ></i>\r
-    <span class="asc-input-text" x-if="typeof suffix === 'string' && !!suffix">{{ suffix }}</span>\r
-  </span>\r
   <span class="asc-input-count" x-if="showCount">{{ countText }}</span>\r
 </span>\r
 `,ba=`autospark.input`,xa=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>`,Sa=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>`,Ca=new Set([`disabled`,`readonly`,`clearable`,`show-password`,`show-count`]);function wa(e){let t=e.icons;t?.add?.(`input-eye`,xa),t?.add?.(`input-eye-off`,Sa),e.components[ba]=ya,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-input, x-textarea`))){let e=document.createElement(`span`),n=[],r=t.tagName===`X-TEXTAREA`;r&&n.push(`type: "textarea"`);for(let i of Array.from(t.attributes)){if(i.name.startsWith(`:`)){n.push(`${Q(Z(i.name.slice(1)))}: (${i.value})`);continue}if(i.name===`class`||i.name===`style`||i.name===`id`||i.name===`name`||i.name===`title`||i.name.startsWith(`data-`)||i.name.startsWith(`x-`)||i.name.startsWith(`@`)){e.setAttribute(i.name,i.value);continue}let t=Z(i.name);t===`type`&&r?n[0]=`type: ${JSON.stringify($(i.value))}`:i.value===``&&Ca.has(i.name)?n.push(`${Q(t)}: true`):n.push(`${Q(t)}: ${JSON.stringify($(i.value))}`)}let i=t.textContent?.trim()??``,a=n.some(e=>e.startsWith(`value:`)),o=t.children.length>0;for(i!==``&&!a&&!o&&(n.push(`value: ${JSON.stringify(i)}`),t.textContent=``),e.setAttribute(`x-component:${ba}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Ta();function Ta(){y(e=>{m(e),wa(e)})}var Ea=`<!--\r

@@ -47,19 +47,20 @@ Button 是 AutoSpark 的官方按钮组件：**形态（variant）与语义色�
 
 ### 图标（icon）
 
-**类型**: `string | { name: string, size?: number | string, color?: string, strokeWidth?: number | string, padding?: number | string, shape?: none | circle | radius, button?: boolean, pointer?: boolean, rotate?: number | string, badge?: boolean | number | string }`
+**类型**: `string | { name: string, size?: number | string, scale?: number, color?: string, strokeWidth?: number | string, padding?: number | string, shape?: none | circle | radius, button?: boolean, pointer?: boolean, rotate?: number | string, badge?: boolean | number | string }`
 
 **默认**: `''`（无图标）
 
 两种形态：
 
 - **字符串**：图标名，经 `x-icon` 指令渲染（内置图标表或全局注册的图标均可）。尺寸跟随字号档位（默认 1em）、颜色继承按钮内容色；
-- **对象**：`name` 必填（图标名），其余键即 **x-icon 选项**——按钮把 `size` / `color` / `strokeWidth` / `padding` / `shape` / `button` / `pointer` / `rotate` 经 `x-icon-options:<成员>` 逐键透传，行为与 [`x-icon` 指令](../guide/directives/x-icon.md)完全一致（含描边网格补偿、`shape` 底板包裹层、`rotate` 旋转动画）；选项随状态响应式热应用。另加按钮自有键 `badge`（右上角标，标量三形态：`true` 缺省板距 / 数字 px / 字符串 CSS 值，形态即启用，角标取 danger 语义色）。`loading` 开启时无论何种形态均被加载图标替换。
+- **对象**：`name` 必填（图标名），其余键即 **x-icon 选项**——按钮把 `size` / `color` / `strokeWidth` / `padding` / `shape` / `button` / `pointer` / `rotate` 经 `x-icon-options:<成员>` 逐键透传，行为与 [`x-icon` 指令](../guide/directives/x-icon.md)完全一致（含描边网格补偿、`shape` 底板包裹层、`rotate` 旋转动画）；选项随状态响应式热应用。另加按钮自有键 `badge`（右上角标，标量三形态：`true` 缺省板距 / 数字 px / 字符串 CSS 值，形态即启用，角标取 danger 语义色）与 `scale`（**图标放大倍率**，在图标放大场景——`labelPos: 'top' | 'bottom'` 纵排**或 memo 在场**——参与，其余场景静默忽略；缺省 1.5 由内建承载（两场景同值）；与 `size` **叠加**——放大场景实际大小 = `size × scale`；显式给值即接管倍率、内建 1.5 失效；非法值（0 / 负数 / NaN）静默剪枝；字符串 icon 形态无此通道）。`loading` 开启时无论何种形态均被加载图标替换（loading 圈只吃内建 1.5 倍，不吃 `scale`）。
 
 | 键 | 类型 | 等价 x-icon 写法 | 说明 |
 | --- | --- | --- | --- |
 | `name` | `string` | `x-icon="name"` | 图标名（必填） |
 | `size` | `number \| string` | `x-icon-options="{size}"` | 数字 → px；字符串直传 CSS；缺省 `var(--auto-icon-size,1em)` |
+| `scale` | `number` | —（按钮自有） | 图标放大倍率（纵排 top/bottom 或 memo 在场时参与，缺省 1.5；与 `size` 叠加：放大场景实际大小 = `size × scale`；显式即接管内建 1.5；其余场景忽略、非法值剪枝） |
 | `color` | `string` | `x-icon-options="{color}"` | 覆盖继承色；同时联动 `shape` 底板浓板 |
 | `strokeWidth` | `number \| string` | `x-icon-options="{strokeWidth}"` | 描边粗细（含网格补偿） |
 | `padding` | `number \| string` | `x-icon-options="{padding}"` | 图形区外内距（`shape` 启用时落到底板包裹层） |
@@ -92,7 +93,7 @@ icon 的**对象形态必须放外层状态再路径引用**（`:icon="iconConf"
 label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow` 两属性移除，迁移动作 `icon-placement="end"` → `label-pos="left"`、`label-below="true"` → `label-pos="bottom"`）：
 
 - `right`（默认）左图标右文字；`left` 图标移内容区末尾（横排右/纵排下），**并与 tags 互换**（caret 在场时图标居 caret 之前），loading 图标随行；
-- `top` 文字在图标上方 / `bottom` 文字在图标下方（纵排）；
+- `top` 文字在图标上方 / `bottom` 文字在图标下方（纵排）——**纵排时图标内建放大 1.5 倍**（图标作主视觉与文字块配平；theme 档位与无 theme 两态一致生效，倍率可经 [`icon.scale`](#图标-icon) 接管）；
 - `none` **不显示文字区**（label + memo + 插槽内容一并隐藏）——宿主无显式提示时 **label 文本自动转挂悬停提示**（tooltip 插件在场挂 `data-tooltip`、缺席挂原生 `title`，显式提示优先）。
 
 <demo html="components/general/button/icon.html"/>
@@ -173,7 +174,7 @@ label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow
 
 **默认**: `''`（无备注）
 
-显示在 label 下方的注释文本：小一号（0.75em）且淡化（按内容色 color-mix 派生——实底上呈淡白、透明底上呈淡灰）。**最多两行**，超出自动截断显示省略号；memo 在场时图标默认 **2 倍大**，与 label+memo 文本块垂直居中。
+显示在 label 下方的注释文本：小一号（0.75em）且淡化（按内容色 color-mix 派生——实底上呈淡白、透明底上呈淡灰）。**最多两行**，超出自动截断显示省略号；memo 在场时图标默认放大 **1.5 倍**（与纵排同一内建倍率，可经 `icon.scale` 接管），与 label+memo 文本块垂直居中。
 
 <demo html="components/general/button/memo.html"/>
 

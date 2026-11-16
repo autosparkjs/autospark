@@ -35,7 +35,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             type: "primary",        // 语义色：primary | success | warning | danger | info（default 形态不消费）\r
             label: "按钮",          // 兜底文案（插槽无内容时显示；labelPos none 时隐藏并自动转入悬停提示）\r
             labelPos: "right",       // label 在 icon 的哪侧：right 左图标右文字（默认）| left 右图标左文字（与 tags 互换，caret 恒在其后）| top 文字上 | bottom 文字下 | none 不显示文字（label 转悬停提示）\r
-            icon: "",               // 图标名（string）或图标选项对象 { name, ...x-icon-options }：视觉键 size / color / strokeWidth / padding / shape / button / pointer / rotate 经 x-icon-options 成员表达式逐键透传（等价 x-icon 原生能力）+ 自有角标键 badge（伪元素红点，标量三形态控板距；loading 时被替换）\r
+            icon: "",               // 图标名（string）或图标选项对象 { name, ...x-icon-options }：视觉键 size / color / strokeWidth / padding / shape / button / pointer / rotate 经 x-icon-options 成员表达式逐键透传（等价 x-icon 原生能力）+ 自有键 badge（伪元素红点，标量三形态控板距；loading 时被替换）与 scale（图标放大倍率，ADR-0138 修订：图标放大场景（纵排 top/bottom 或 memo 在场）参与、其余静默忽略；缺省 1.5 由 CSS 内建承载（memo 场景同值复用）；与 size 叠加（size × scale 经内联乘积）、显式即接管压过内建 1.5；非法值（0/负/NaN）静默剪枝；字符串 icon 形态无此通道仅吃内建）\r
             loading: false,         // 加载态：左图标位转圈并禁点（优先于 disabled 视觉）\r
             ghost: false,           // 幽灵：背景透明、内容取语义色（常用在有色背景上）\r
             border: false,          // 装饰性附加边框（不干预 dashed / ghost 的固有边框形态）\r
@@ -539,6 +539,17 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-button-body[data-label-pos="top"] .asc-button-icon {\r
       order: 2;\r
     }\r
+    /* 图标放大内建 1.5×（ADR-0138，2026-11-16 修订：memo 并入统一倍率）：纵排（top/bottom）\r
+         或 memo 在场即放大，倍率乘在 --auto-icon-size 上（width/height 覆盖载体，theme 档位\r
+         绝对值与 1em 回落两态一致生效——font-size 载体在 theme 在场时撑不动绝对宽高，勿用；\r
+         svg 恒 100% 撑满宿主自动跟随）；loading 位同容器天然吃内建 1.5×；caret / tag 独立\r
+         容器不命中；显式 size / size×scale 乘积走 x-icon 内联恒压本规则（显式即接管） */\r
+    .asc-button-body[data-label-pos="top"] .asc-button-icon.as-icon,\r
+    .asc-button-body[data-label-pos="bottom"] .asc-button-icon.as-icon,\r
+    .asc-button:has(.asc-button-memo) .asc-button-icon.as-icon {\r
+      width: calc(var(--auto-icon-size, 1em) * 1.5);\r
+      height: calc(var(--auto-icon-size, 1em) * 1.5);\r
+    }\r
 \r
     /* 图标位：尺寸随字号（x-icon 默认 1em），loading 转圈自带 SMIL 动画 */\r
     .asc-button-icon {\r
@@ -619,11 +630,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       line-clamp: 2;\r
       overflow: hidden;\r
     }\r
-    /* memo 在场时图标默认 2 倍大（与 label+memo 双行文本块视觉配平）；\r
-         图标与文本块的垂直居中由 body 的 align-items: center 承担 */\r
-    .asc-button:has(.asc-button-memo) .asc-button-icon {\r
-      font-size: 2em;\r
-    }\r
+    /* memo 视觉配平：图标放大已并入上方统一 1.5× 规则（ADR-0138 修订，原独立 2× 规则废除）；\r
+         图标与 label+memo 文本块的垂直居中由 body 的 align-items: center 承担 */\r
 \r
     /* tags 小圆钮：恒贴内容区右端（margin-left:auto 吸收剩余空间；按钮收缩到内容宽时\r
          退化为紧跟主文本，最小间距由 body 的 gap 保证），独立 hover 反馈 */\r
@@ -832,7 +840,13 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     <span class="asc-button-icon" x-if="loading" x-icon="'loading'"></span>\r
     <!-- icon 双形态：字符串 = 图标名；对象 = { name, ...x-icon-options }——name 经 x-icon 值消费，\r
          其余视觉选项经 **成员表达式** 逐键透传（x-icon-options="icon" 整包按 relaxed-JSON 解析，\r
-         无法消费状态路径）；badge 为按钮自有键，由 mounted 的 syncIconBadge 维护 -->\r
+         无法消费状态路径）；badge 为按钮自有键，由 mounted 的 syncIconBadge 维护；scale 为\r
+         按钮自有倍率键（ADR-0138，修订后），乘入 size 通道——图标放大场景（纵排 top/bottom\r
+         或 memo 在场）参与：size 有值 → 乘积（number×scale 出 px / 字符串 size 包\r
+         calc()），size 缺省 → 仅 scale 显式合法时输出 calc 接管（否则 undefined 交 CSS 内建\r
+         1.5×）；非放大场景原样透传 icon.size（scale 静默忽略）。显式乘积为内联宽高、恒压\r
+         CSS 放大规则（显式即接管）；loading 位独立分支无此通道、只吃 CSS 内建；表达式须\r
+         内联（绑定通道天然响应式，且求值域不含组件 methods） -->\r
     <span\r
       class="asc-button-icon"\r
       x-if="!loading && typeof icon === 'string' && icon"\r
@@ -842,7 +856,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       class="asc-button-icon"\r
       x-if="!loading && typeof icon === 'object' && icon"\r
       x-icon="icon.name"\r
-      x-icon-options:size="icon.size"\r
+      x-icon-options:size="(labelPos==='top'||labelPos==='bottom'||!!memo) ? (icon.size==null ? (typeof icon.scale==='number'&&icon.scale>0 ? 'calc(var(--auto-icon-size, 1em) * '+icon.scale+')' : undefined) : (typeof icon.size==='number' ? icon.size*(typeof icon.scale==='number'&&icon.scale>0?icon.scale:1.5)+'px' : 'calc('+icon.size+' * '+(typeof icon.scale==='number'&&icon.scale>0?icon.scale:1.5)+')')) : icon.size"\r
       x-icon-options:color="icon.color"\r
       x-icon-options:stroke-width="icon.strokeWidth"\r
       x-icon-options:padding="icon.padding"\r

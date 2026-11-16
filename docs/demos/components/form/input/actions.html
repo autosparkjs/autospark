@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Input · 融合动作</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <!-- actions 组合依赖：button 组件须同页加载（field 产物不含其注册） -->
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.input.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main
+      class="demo-main"
+      x-data="{
+        kw: '',
+        url: '',
+        acts: [
+          { label: 'https://', pos: 'before' },
+          { label: '.com', pos: 'before' },
+          { label: '搜索', name: 'search', value: 'go', variant: 'primary' },
+        ],
+        last: '（未触发）',
+      }"
+    >
+      <div class="auto-card">
+        <div class="auto-card-header">融合搜索框：前后按钮共享边框线，x-model 照常双向</div>
+        <div class="auto-card-body">
+          <p style="max-width: 380px">
+            <span @action-click="last = $event.detail.name + ' #' + $event.detail.index">
+              <x-input :actions="acts" x-model="kw" placeholder="输入搜索关键词"></x-input>
+            </span>
+          </p>
+          <p class="hint">当前值：{{ kw || '（空）' }} —— actions 是 field 骨架层 props（[详见 BaseField](/zh/components/form/field#actions-融合动作)）：数组经状态引用注入（<code>:actions="acts"</code>），按钮 props 全透传（<code>variant: 'primary'</code> 等）；<code>@action-click</code> 写外层包裹元素（实例化宿主默认封闭，事件经冒泡）。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">action-click 组包事件（detail = { index, name, value, item }）</div>
+        <div class="auto-card-body">
+          <p class="hint">最近动作：<code>{{ last }}</code> —— 原生 click 照常冒泡（双通道），按钮自动标 <code>data-autospark-action</code>（点击不抢控件焦点）。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

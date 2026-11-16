@@ -298,6 +298,109 @@ describe("icon 对象透传 x-icon-options（string | 选项对象）", () => {
     });
 });
 
+describe("图标放大倍率（icon.scale，ADR-0138 修订：纵排或 memo 在场）", () => {
+    // 对象 props 一律路径引用（字面量嵌套对象触发引擎更新环缺陷，家族惯用法）
+    const mountIconAt = (labelPos: string, icon: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
+        mount(`<button x-component:autospark.button="buttonProps"></button>`, {
+            buttonProps: { label: "图标", labelPos, icon, ...extra },
+        });
+    const iconWidth = (root: HTMLElement | Document) => (root.querySelector(".asc-button-icon") as HTMLElement)?.style.width ?? "<无图标位>";
+
+    test("CSS 载体（theme 两态一致）：纵排与 memo 合并为单一 1.5× 规则，独立 memo 2× 与旧 font-size 已废除", () => {
+        const tpl = ((AutoSpark as { components: Record<string, string> }).components[BUTTON_NAME] as string).replace(/\s+/g, " ");
+        // 三选择器合并同值 ×1.5：倍率乘在 --auto-icon-size 上（theme 档位绝对值与 1em 回落两态一致生效）
+        expect(tpl).toContain('.asc-button-body[data-label-pos="top"] .asc-button-icon.as-icon, .asc-button-body[data-label-pos="bottom"] .asc-button-icon.as-icon, .asc-button:has(.asc-button-memo) .asc-button-icon.as-icon { width: calc(var(--auto-icon-size, 1em) * 1.5); height: calc(var(--auto-icon-size, 1em) * 1.5); }');
+        expect(tpl).not.toContain("* 2)");
+        expect(tpl).not.toContain(".asc-button-icon { font-size: 2em");
+    });
+
+    test("缺省链：纵排/横排 + size/scale 均缺省 → 零内联（交 CSS：纵排 1.5×、横排 1×）", async () => {
+        const vertical = mountIconAt("bottom", { name: "star" });
+        await nextTick();
+        expect(iconWidth(vertical.root)).toBe("");
+        const horizontal = mountIconAt("right", { name: "star" });
+        await nextTick();
+        expect(iconWidth(horizontal.root)).toBe("");
+    });
+
+    test("scale 显式（size 缺省）：纵排输出 calc 接管内联；非法值（0/负/字符串）静默剪枝回退内建", async () => {
+        const on = mountIconAt("top", { name: "star", scale: 2 });
+        await nextTick();
+        expect(iconWidth(on.root)).toBe("calc(var(--auto-icon-size, 1em) * 2)");
+        for (const bad of [0, -1, "big"]) {
+            const off = mountIconAt("bottom", { name: "star", scale: bad });
+            await nextTick();
+            expect(iconWidth(off.root)).toBe("");
+        }
+    });
+
+    test("size × scale 叠加：number 直乘出 px（scale 缺省 1.5 参与乘），字符串 size 包 calc()", async () => {
+        const mul = mountIconAt("bottom", { name: "star", size: 20, scale: 2 });
+        await nextTick();
+        expect(iconWidth(mul.root)).toBe("40px");
+
+        const byDefault = mountIconAt("top", { name: "star", size: 20 });
+        await nextTick();
+        expect(iconWidth(byDefault.root)).toBe("30px"); // scale 缺省 1.5 纵排参与
+
+        const css = mountIconAt("bottom", { name: "star", size: "2rem", scale: 2 });
+        await nextTick();
+        expect(iconWidth(css.root)).toBe("calc(2rem * 2)");
+
+        const badScale = mountIconAt("bottom", { name: "star", size: 20, scale: 0 });
+        await nextTick();
+        expect(iconWidth(badScale.root)).toBe("30px"); // 非法剪枝 → 回退 1.5
+    });
+
+    test("横排 scale 静默忽略：size 原样透传（不乘），scale-only 不产生内联", async () => {
+        const withSize = mountIconAt("right", { name: "star", size: 20, scale: 3 });
+        await nextTick();
+        expect(iconWidth(withSize.root)).toBe("20px");
+        const scaleOnly = mountIconAt("left", { name: "star", scale: 2 });
+        await nextTick();
+        expect(iconWidth(scaleOnly.root)).toBe("");
+    });
+
+    test("响应式切换 labelPos：乘积随绑定重求值（right 20px → bottom 30px）", async () => {
+        const { root, engine } = mountIconAt("right", { name: "star", size: 20 });
+        await nextTick();
+        expect(iconWidth(root)).toBe("20px");
+        (engine.store.state as any).buttonProps.labelPos = "bottom";
+        await nextTick();
+        expect(iconWidth(root)).toBe("30px");
+    });
+
+    test("loading 位只吃 CSS 内建 1.5×：无 scale 通道、不内联（icon 的 size/scale 均不转移）", async () => {
+        const { root, engine } = mountIconAt("bottom", { name: "star", size: 24, scale: 2 }, { loading: false });
+        await nextTick();
+        expect(iconWidth(root)).toBe("48px"); // icon 位正常乘积（24 × 2）
+        (engine.store.state as any).buttonProps.loading = true;
+        await nextTick();
+        expect(iconWidth(root)).toBe(""); // 转圈位零内联（放大由纵排 CSS 规则承载）
+    });
+
+    test("纵排 + memo：无显式零内联（CSS 1.5× 统一承载）；显式 scale 恒赢（内联压过内建）", async () => {
+        const byDefault = mountIconAt("bottom", { name: "star" }, { memo: "备注" });
+        await nextTick();
+        expect(iconWidth(byDefault.root)).toBe("");
+        const explicit = mountIconAt("bottom", { name: "star", scale: 1.2 }, { memo: "备注" });
+        await nextTick();
+        expect(iconWidth(explicit.root)).toBe("calc(var(--auto-icon-size, 1em) * 1.2)");
+    });
+
+    test("横排 + memo（修订：memo 即放大场景，scale 生效域扩展）：size 参与叠加、scale-only 接管、无显式零内联", async () => {
+        const byDefault = mountIconAt("right", { name: "star" }, { memo: "备注" });
+        await nextTick();
+        expect(iconWidth(byDefault.root)).toBe(""); // CSS 1.5× 承载（不再原样 1×）
+        const withSize = mountIconAt("right", { name: "star", size: 20 }, { memo: "备注" });
+        await nextTick();
+        expect(iconWidth(withSize.root)).toBe("30px"); // size × 内建 1.5（原「横排 size 原样」在 memo 场景让位叠加）
+        const scaleOnly = mountIconAt("right", { name: "star", scale: 2 }, { memo: "备注" });
+        await nextTick();
+        expect(iconWidth(scaleOnly.root)).toBe("calc(var(--auto-icon-size, 1em) * 2)");
+    });
+});
+
 describe("tag checkable（点击翻转 value，2026-11-09）", () => {
     const mountTags = (tags: unknown[]) => mount(
         `<button x-component:autospark.button="{ label: '文档', tags }"></button>`,
