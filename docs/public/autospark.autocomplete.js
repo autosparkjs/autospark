@@ -313,21 +313,24 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
          无盒饰融合线不生效）——复用 button-group 负 margin 边线复用范式（ADR-0014\r
          决策 2）：按钮边框色让位 --asc-field-line 共享线（status/disabled 联动天然\r
          继承——变量定义在 box 上随状态覆盖），相邻按钮侧线压叠单线、组首/尾与盒\r
-         边框重合（负距吃掉单侧内距+边框）；首/尾钮外侧圆角匹配盒饰、其余清除；\r
-         stretch 等高 + 纵向负距全高贴上下边框（textarea 形态照常随盒高） ---------- */\r
+         边框重合（负距吃掉单侧内距+边框）；首/尾钮外侧圆角匹配盒饰、其余清除。\r
+         **上下边框单线让位（2026-11-16 修订三）**：按钮不画自己的上下边框、纵向\r
+         负距不吃盒边框（从线内缘起）——盒线独享、连续穿过按钮段。此前「两线对齐」\r
+         形态（按钮自带上下线 + 负距全高贴边）在非整数缩放下两条各自取整的 1px 线\r
+         会差出 1 物理像素（重合不严），且实心/无边框 variant 的按钮背景会盖住盒线\r
+         段；单线让位结构性消灭两类缺陷（线只有一个绘制者）。左右侧线照常由按钮\r
+         绘制（--asc-field-line） ---------- */\r
     .asc-field-actions {\r
       display: contents;\r
     }\r
     .asc-field-box .asc-field-action {\r
       border-color: var(--asc-field-line);\r
+      border-top-width: 0;\r
+      border-bottom-width: 0;\r
       border-radius: 0;\r
       align-self: stretch;\r
       margin-block: calc(\r
-        -1 *\r
-          (\r
-            var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2 +\r
-              var(--auto-border-size, var(--asc-field-border-size, 1px))\r
-          )\r
+        -1 * var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2\r
       );\r
     }\r
     /* before 组首钮左贴盒左线（负距吃左内距+边框）+ 外侧圆角匹配盒饰。\r
