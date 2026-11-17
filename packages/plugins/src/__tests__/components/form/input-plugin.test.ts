@@ -549,10 +549,15 @@ describe("融合动作 actions（field props 驱动渲染段，ADR-0020 2026-11-
     expect(btn.disabled === true || btn.hasAttribute("disabled")).toBe(true);
   });
 
-  test("样式通道：融合选择器与共享线变量在模板中（负 margin 边线复用 ADR-0014 范式）", () => {
+  test("样式通道：融合选择器与分隔线变量在模板中（负 margin 边线复用 ADR-0014 范式）", () => {
     const cssx = tplx(FIELD_NAME);
     expect(cssx).toContain(".asc-field-actions{display:contents;}");
-    expect(cssx).toContain(".asc-field-box.asc-field-action{border-color:var(--asc-field-line);");
+    // 内侧分隔线独立于盒线（divider 中转变量，亮 #f0f0f0/暗 #2c2c2c 分档——暗色下
+    // 盒线 #606060 与按钮底同色湮灭）；上下线不画（单线让位）+ 外侧竖线让位盒线
+    expect(cssx).toContain("--asc-field-divider:var(--auto-border-color,#f0f0f0);border-color:var(--asc-field-divider);border-top-width:0;border-bottom-width:0;");
+    expect(cssx).toContain(".asc-field-box.asc-field-actions-before.asc-field-action:first-of-type{border-left-width:0;}");
+    expect(cssx).toContain(".asc-field-box.asc-field-actions-after.asc-field-action:last-of-type{border-right-width:0;}");
+    expect(cssx).toContain("--asc-field-divider-dark,#2c2c2c"); // 暗色分档兜底
     expect(cssx).toContain(".asc-field-action+.asc-field-action{");
     expect(cssx).toContain("margin-inline-start:calc(-1*var(--auto-border-size,");
     expect(cssx).toContain("align-self:stretch;");
