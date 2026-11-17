@@ -230,7 +230,9 @@
       /* 四向内距（纵向取横向半距——输入框惯例；固定高度形态（border-box）纵向被
          高度+flex 居中吸收，height:auto 形态（textarea / theme 在场标尺缺陷回退）
          由纵向半距撑起呼吸感，全档位随 --auto-input-padding 联动） */
-      padding: calc(var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2)
+      padding: calc(
+          var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2
+        )
         var(--auto-input-padding, var(--asc-field-padding, 0.8rem));
       transition:
         border-color 0.15s ease,
@@ -487,28 +489,35 @@
   <!-- 融合动作渲染段（2026-11-16 修订二，ADR-0020 决策 3）：props 驱动非插槽出口——
        空 actions 整段 x-if 不渲染（零 DOM）；双段按 pos 过滤分侧，DOM 序恒
        [before actions][prefix][body][suffix][after actions]（动作按钮最外层包壳）。
-       值 = Object.assign 全键透传项（button props 全集 + disabled 与 field 联动合并，
-       自有键 pos/name/value 入 button data 域被忽略无害）；按钮宿主自动标
+       值 = Object.assign 全键透传项（默认 variant: 'secondary' 打底——项显式
+       variant 胜；button props 全集 + disabled 与 field 联动合并，自有键
+       pos/name/value 入 button data 域被忽略无害）；按钮宿主自动标
        data-autospark-action（点击自理）；x-for 值表达式 = 官方 filter 形态
        （引擎 x-for 测试覆盖，with 求值通道响应 actions 注入） -->
-  <span class="asc-field-actions asc-field-actions-before" x-if="!!(actions && actions.length)">
+  <span
+    class="asc-field-actions asc-field-actions-before"
+    x-if="!!(actions && actions.length)"
+  >
     <template x-for="item of actions.filter(a => a && a.pos === 'before')">
       <span
         class="asc-field-action"
         data-autospark-action
-        x-component:autospark.button="Object.assign({}, item, { disabled: item.disabled || !!disabled })"
+        x-component:autospark.button="Object.assign({ variant: 'secondary' }, item, { disabled: item.disabled || !!disabled })"
       ></span>
     </template>
   </span>
   <template class="asc-field-prefix" x-slot:prefix></template>
   <span class="asc-field-body" x-slot></span>
   <template class="asc-field-suffix" x-slot:suffix></template>
-  <span class="asc-field-actions asc-field-actions-after" x-if="!!(actions && actions.length)">
+  <span
+    class="asc-field-actions asc-field-actions-after"
+    x-if="!!(actions && actions.length)"
+  >
     <template x-for="item of actions.filter(a => !a || a.pos !== 'before')">
       <span
         class="asc-field-action"
         data-autospark-action
-        x-component:autospark.button="Object.assign({}, item, { disabled: item.disabled || !!disabled })"
+        x-component:autospark.button="Object.assign({ variant: 'secondary' }, item, { disabled: item.disabled || !!disabled })"
       ></span>
     </template>
   </span>

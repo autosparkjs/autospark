@@ -233,7 +233,9 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       /* 四向内距（纵向取横向半距——输入框惯例；固定高度形态（border-box）纵向被\r
          高度+flex 居中吸收，height:auto 形态（textarea / theme 在场标尺缺陷回退）\r
          由纵向半距撑起呼吸感，全档位随 --auto-input-padding 联动） */\r
-      padding: calc(var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2)\r
+      padding: calc(\r
+          var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2\r
+        )\r
         var(--auto-input-padding, var(--asc-field-padding, 0.8rem));\r
       transition:\r
         border-color 0.15s ease,\r
@@ -490,28 +492,35 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   <!-- 融合动作渲染段（2026-11-16 修订二，ADR-0020 决策 3）：props 驱动非插槽出口——\r
        空 actions 整段 x-if 不渲染（零 DOM）；双段按 pos 过滤分侧，DOM 序恒\r
        [before actions][prefix][body][suffix][after actions]（动作按钮最外层包壳）。\r
-       值 = Object.assign 全键透传项（button props 全集 + disabled 与 field 联动合并，\r
-       自有键 pos/name/value 入 button data 域被忽略无害）；按钮宿主自动标\r
+       值 = Object.assign 全键透传项（默认 variant: 'secondary' 打底——项显式\r
+       variant 胜；button props 全集 + disabled 与 field 联动合并，自有键\r
+       pos/name/value 入 button data 域被忽略无害）；按钮宿主自动标\r
        data-autospark-action（点击自理）；x-for 值表达式 = 官方 filter 形态\r
        （引擎 x-for 测试覆盖，with 求值通道响应 actions 注入） -->\r
-  <span class="asc-field-actions asc-field-actions-before" x-if="!!(actions && actions.length)">\r
+  <span\r
+    class="asc-field-actions asc-field-actions-before"\r
+    x-if="!!(actions && actions.length)"\r
+  >\r
     <template x-for="item of actions.filter(a => a && a.pos === 'before')">\r
       <span\r
         class="asc-field-action"\r
         data-autospark-action\r
-        x-component:autospark.button="Object.assign({}, item, { disabled: item.disabled || !!disabled })"\r
+        x-component:autospark.button="Object.assign({ variant: 'secondary' }, item, { disabled: item.disabled || !!disabled })"\r
       ></span>\r
     </template>\r
   </span>\r
   <template class="asc-field-prefix" x-slot:prefix></template>\r
   <span class="asc-field-body" x-slot></span>\r
   <template class="asc-field-suffix" x-slot:suffix></template>\r
-  <span class="asc-field-actions asc-field-actions-after" x-if="!!(actions && actions.length)">\r
+  <span\r
+    class="asc-field-actions asc-field-actions-after"\r
+    x-if="!!(actions && actions.length)"\r
+  >\r
     <template x-for="item of actions.filter(a => !a || a.pos !== 'before')">\r
       <span\r
         class="asc-field-action"\r
         data-autospark-action\r
-        x-component:autospark.button="Object.assign({}, item, { disabled: item.disabled || !!disabled })"\r
+        x-component:autospark.button="Object.assign({ variant: 'secondary' }, item, { disabled: item.disabled || !!disabled })"\r
       ></span>\r
     </template>\r
   </span>\r

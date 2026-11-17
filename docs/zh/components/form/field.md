@@ -82,7 +82,7 @@ input 类控件在宿主上拼 `asc-field-box` 得盒饰 chrome（边框 / 底�
 
 融合动作按钮：在输入域前后增加 1-N 个与盒饰**融合**的按钮（antd addon 形态）——共享边框线（按钮与盒饰、按钮与按钮之间一条线，不叠双线）、首/尾钮外侧圆角匹配盒饰、等高拉伸（textarea 形态随盒高）。
 
-- 项 = **button props 全集**（label / icon / variant / type / loading / memo / tags / caret…整包透传，等效 `x-button-options`）+ 自有键：
+- 项 = **button props 全集**（label / icon / variant / type / loading / memo / tags / caret…整包透传，等效 `x-button-options`；`variant` 缺省 **`"secondary"`**——融合态默认弱化衬底与输入域主次分明，显式指定胜）+ 自有键：
   - `pos`: `"before" | "after"` 前后分侧，缺省 `"after"`；
   - `name`: 标识（透传进 `action-click` detail）；
   - `value`: 使用者数据，**原样透传**（不做处理，tags 同款惯例）；
