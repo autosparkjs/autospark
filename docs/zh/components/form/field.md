@@ -126,12 +126,12 @@ myActions: [
 |---|---|---|
 | 字体族 / 字号 / 行高 | `--auto-font-family` / `--auto-font-size` / `--auto-line-height` | `--asc-field-font-family` 等 |
 | 正文 / 装饰色 | `--auto-color` / `--auto-secondary-color` | `--asc-field-color` / `--asc-field-affix` |
-| 边框（拆分消费） | `--auto-border-size` + `--auto-border-color` | `--asc-field-border-size` / `--asc-field-border-color` |
+| 边框（组合令牌打底 + border-color 色通道） | `--auto-input-border`（size+color 成对）；色状态经 `--auto-border-color` / `--auto-hover-border-color` / `--auto-disable-border-color` | `--asc-field-border-size` / `--asc-field-border-color`（缺席回退拆分链） |
 | hover / 禁用边框 | `--auto-hover-border-color` / `--auto-disable-border-color` | `--asc-field-hover-border` / `--asc-field-disable-border` |
 | 盒饰底色 / 内距 / 圆角 | `--auto-input-bgcolor` / `--auto-input-padding` / `--auto-input-radius` | `--asc-field-bg` / `--asc-field-padding` / `--asc-field-radius` |
 | 状态色（tone 上游） | `--auto-primary-color` / `--auto-danger-color` / `--auto-success-color` / `--auto-warning-color` | `--asc-field-primary` 等 |
 
-边框维持 size + color **拆分**消费（状态重染色机制依赖拆分，组合令牌 `--auto-input-border` 不消费）；尺寸档位经主题通道 `data-size` / `data-spacing` 挂任意祖先容器全档位联动。
+边框 = 组合令牌 `--auto-input-border` 打底 + `border-color` 经 `--asc-field-line` 色通道（hover/focus/status/disabled 只换色不动粗；theme 缺席回退拆分链）；尺寸档位经主题通道 `data-size` / `data-spacing` 挂任意祖先容器全档位联动。
 
 ## 参考
 

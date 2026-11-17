@@ -191,17 +191,23 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
 \r
     /* ---------- .asc-field-box 盒饰选配类（input 类控件 chrome；裸态控件不加）：\r
          高度/内距消费 --auto-input-*（theme data-size/data-spacing 档位联动）；\r
-         边框色经 --asc-field-line 中转（hover/focus/状态/禁用多级覆盖）。\r
-         边框维持 size + color 拆分消费（ADR-0020 决策 7 口径②）——组合令牌\r
-         --auto-input-border 无法只换色，状态重染色机制依赖拆分 ---------- */\r
+         边框 = 组合令牌打底 + border-color longhand 色通道（ADR-0020 决策 7\r
+         2026-11-17 修订）：shorthand 消费 --auto-input-border（theme input 域\r
+         组合令牌，size+color 成对校准；缺省回退拆分链保持无 theme 观感），\r
+         随后 border-color 接 --asc-field-line 中转（hover/focus/状态/禁用只换\r
+         色不动粗——longhand 覆盖 shorthand 色分量，状态重染色机制完整保留） ---------- */\r
     .asc-field-box {\r
       --asc-field-line: var(\r
         --auto-border-color,\r
         var(--asc-field-border-color, #f0f0f0)\r
       );\r
       box-sizing: border-box;\r
-      border: var(--auto-border-size, var(--asc-field-border-size, 1px)) solid\r
-        var(--asc-field-line);\r
+      border: var(\r
+        --auto-input-border,\r
+        var(--asc-field-border-size, 1px) solid\r
+          var(--asc-field-border-color, #f0f0f0)\r
+      );\r
+      border-color: var(--asc-field-line);\r
       border-radius: var(--auto-input-radius, var(--asc-field-radius, 0.5rem));\r
       background: var(--auto-input-bgcolor, var(--asc-field-bg, #ffffff));\r
       /* 高度兜底随字号自适应（≈字号 × 2.57）：theme 档位块引用的 --x-input-height-* 标尺\r

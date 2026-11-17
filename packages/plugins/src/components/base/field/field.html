@@ -188,17 +188,23 @@
 
     /* ---------- .asc-field-box 盒饰选配类（input 类控件 chrome；裸态控件不加）：
          高度/内距消费 --auto-input-*（theme data-size/data-spacing 档位联动）；
-         边框色经 --asc-field-line 中转（hover/focus/状态/禁用多级覆盖）。
-         边框维持 size + color 拆分消费（ADR-0020 决策 7 口径②）——组合令牌
-         --auto-input-border 无法只换色，状态重染色机制依赖拆分 ---------- */
+         边框 = 组合令牌打底 + border-color longhand 色通道（ADR-0020 决策 7
+         2026-11-17 修订）：shorthand 消费 --auto-input-border（theme input 域
+         组合令牌，size+color 成对校准；缺省回退拆分链保持无 theme 观感），
+         随后 border-color 接 --asc-field-line 中转（hover/focus/状态/禁用只换
+         色不动粗——longhand 覆盖 shorthand 色分量，状态重染色机制完整保留） ---------- */
     .asc-field-box {
       --asc-field-line: var(
         --auto-border-color,
         var(--asc-field-border-color, #f0f0f0)
       );
       box-sizing: border-box;
-      border: var(--auto-border-size, var(--asc-field-border-size, 1px)) solid
-        var(--asc-field-line);
+      border: var(
+        --auto-input-border,
+        var(--asc-field-border-size, 1px) solid
+          var(--asc-field-border-color, #f0f0f0)
+      );
+      border-color: var(--asc-field-line);
       border-radius: var(--auto-input-radius, var(--asc-field-radius, 0.5rem));
       background: var(--auto-input-bgcolor, var(--asc-field-bg, #ffffff));
       /* 高度兜底随字号自适应（≈字号 × 2.57）：theme 档位块引用的 --x-input-height-* 标尺
