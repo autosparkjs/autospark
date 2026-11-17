@@ -6,7 +6,7 @@ Textarea 是 AutoSpark 的官方多行文本框组件（ADR-0032），走**原�
 
 能力面：**autosize 自动增高**（默认开启，`minRows` / `maxRows` 夹取，到顶内部滚动）、**resize 原生拖拽**（关闭 autosize 后生效）、**maxlength 计数**、**clearable**（清除钮）、**disabled / readonly**。不提供 `prefix` / `suffix` **props**（单行 affix 习惯，多行盒内布局成本高；重装饰仍可走 field 的具名插槽）；label、校验文案、域布局由 engine 的 [x-form / x-field 指令](/zh/guide/engine/form/) 承担——组件只经 `status` 属性消费校验结果染色，**不双轨建域**。
 
-组件继承 [`autospark.field` 表单域骨架](/zh/components/form/field)（状态色通道 / 焦点态 / 盒饰 chrome / [actions 融合动作](/zh/components/form/field#actions-融合动作)），视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129）；**不设自有尺寸属性**——高度/内距消费 `--auto-input-height` / `--auto-input-padding`，经主题通道 `data-size` 挂任意祖先容器全档位跟随；暗色态容器裸挂 `data-dark` 即局部切换。无内置文案、不接 i18n（ADR-0018 决策 1）。
+组件继承 [`autospark.field` 表单域骨架](/zh/components/form/field)（状态色通道 / 焦点态 / 盒饰 chrome），视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129）；**不设自有尺寸属性**——高度/内距消费 `--auto-input-height` / `--auto-input-padding`，经主题通道 `data-size` 挂任意祖先容器全档位跟随；暗色态容器裸挂 `data-dark` 即局部切换。无内置文案、不接 i18n（ADR-0018 决策 1）。
 
 > **与 Input 的分工**（ADR-0032）：`autospark.input` 不再内置 textarea 形态，`<x-input type="textarea">` 已下线——`type` 会在原生 input 上被浏览器归一为 `text`，静默退化为单行输入（多行专属属性 `rows` 等被忽略）。多行输入请改用本组件。
 
@@ -101,17 +101,6 @@ Textarea 是 AutoSpark 的官方多行文本框组件（ADR-0032），走**原�
 
 <demo html="components/form/textarea/count.html"/>
 
-### actions 融合动作
-
-**类型**: `Array<button props & { pos?, name?, value? }>`
-**默认**: `[]`
-
-在控件上方 / 下方增加 1-N 个动作按钮——field 骨架层能力（继承即得，完整说明见 [BaseField · actions 融合动作](/zh/components/form/field#actions-融合动作)）。与 Input 的横向融合不同，**本组件把按钮段改为整行排布**：`pos: "before"` 在上、`after`（缺省）在下，右对齐，不与文本抢行宽；按钮恢复自有描边与圆角。
-
-项为 **button props 全集** + 自有键 `pos` / `name` / `value`；数组**经状态引用注入**（`:actions="myActions"`——字面量数组触发引擎死环缺陷勿用）；点击组包派发 `action-click`（`detail = { index, name, value, item }`，`@` 监听写外层包裹元素）+ 原生 click 双通道；**须同页加载 `autospark.button.js`**（组合依赖）。
-
-<demo html="components/form/textarea/actions.html"/>
-
 ### disabled / readonly
 
 **类型**: `boolean`
@@ -170,7 +159,6 @@ Textarea 是 AutoSpark 的官方多行文本框组件（ADR-0032），走**原�
 | status | `"" \| error \| success \| warning` | `""` | 状态色通道（field 骨架；x-field 校验结果染色入口） |
 | disabled | `boolean` | `false` | 禁用（骨架同步原生控件） |
 | readonly | `boolean` | `false` | 只读（骨架同步原生控件） |
-| actions | `Array<button props & { pos?, name?, value? }>` | `[]` | 控件上 / 下动作按钮（状态引用注入；须同页加载 autospark.button.js） |
 
 ### 事件
 

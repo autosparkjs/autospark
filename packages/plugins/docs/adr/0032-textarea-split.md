@@ -57,7 +57,7 @@ autospark.textarea → autospark.field → autospark.base
 | `clearable` | `boolean` | `false` | 清除钮（右上角浮层） |
 | `showCount` | `boolean` | `false` | 计数显式开关（`maxlength > 0` 时无须开启） |
 | `status` / `disabled` / `readonly` | — | — | 由 field 骨架继承 |
-| `actions` | `button props[] & { pos?, name?, value? }` | `[]` | 由 field 骨架继承；布局调整为控件上 / 下 |
+| ~~`actions`~~ | — | — | **不支持（2026-11-17 修订取消）**：注入静默忽略 + warn，渲染段 CSS 整段屏蔽；曾实施的「上/下整行布局」方案废止 |
 
 **不提供** `prefix` / `suffix`：单行 affix 的交互习惯，迁入多行盒会造成布局复杂度，且与「多行文本 + 浮层计数」的排版目标冲突。这是相对旧 textarea 形态的一处**有意收缩**（旧形态支持前后置）。
 
@@ -73,7 +73,7 @@ autospark.textarea → autospark.field → autospark.base
 - **计数器**：绝对定位于盒内右下角，不占文本行宽；`maxlength > 0` 自动显示 `当前 / 上限`（超限整组染 danger），`showCount` 允许无上限时只显示当前字数；
 - **清除钮**：绝对定位于盒内右上角；
 - 两个浮层在场时，控件经 `:has()` 预留对应侧的 `padding`，避免文字压在浮层下。`padding` 参与 autosize 的行高夹取计算（读取 computed style），不会破坏高度。
-- 保留 field 的 `actions`，但**布局改为控件上 / 下**：`pos: "before"` 在上、`after`（缺省）在下，右对齐；按钮恢复自有描边与圆角（field 的横向融合规则在本组件以 `!important` 让位——跨产物样式顺序不稳定，显式解除最稳）。多行文本需要整行宽度，横向融合按钮会持续压缩折行宽度。
+- ~~保留 field 的 `actions`，但**布局改为控件上 / 下**~~ **2026-11-17 修订：取消 actions 支持**——多行形态不再提供融合动作（曾以上/下整行布局承载，实施后取消；注入静默忽略 + mounted warn，渲染段经 `.asc-textarea .asc-field-actions { display: none }` 整段屏蔽）。多行动作需求走 field 直实例化或消费方自理。
 
 ### 6. 兼容策略（`<x-input type="textarea">` 下线）
 

@@ -7,7 +7,8 @@
  * - autosize：默认开启（resize:none + 高度通道），关闭后尊重 resize；
  * - 值桥（x-model 兼容协议）：宿主 el.value 劫持 ↔ 内层原生控件——初始注入、
  *   DOM→state、state→DOM 三向 + value props 单向同步；
- * - clearable / 计数（maxlength 自动显示 / showCount）/ actions 上下分侧；
+ * - clearable / 计数（maxlength 自动显示 / showCount）/ actions 不支持（ADR-0032 修订
+ *   取消：注入静默忽略 + warn）；
  * - Field 骨架通道（经 textarea 实例化消费）：status + aria-invalid、disabled/readonly、
  *   name 透传（原生直提交载体）；
  * - precompile 元素名变换（x-textarea → span + props 折叠 + 子文本折叠 value）。
@@ -18,7 +19,7 @@ import { AutoSpark } from "autospark";
 import { mount, nextTick } from "../../helpers";
 import { TEXTAREA_NAME, bootstrapTextareaPlugin } from "../../../components/form/textarea/index";
 import { FIELD_NAME, bootstrapFieldPlugin } from "../../../components/base/field/index";
-// 融合动作组合依赖：button 组件注册（actions 渲染段内嵌实例化，ADR-0020 修订二）
+// button 组件注册：field 的 actions 渲染段继承在场（textarea 已屏蔽但结构实例化仍需 button 表）
 import "../../../components/general/button/index";
 
 /** 取全局表模板（空白归一——oxfmt 折行使逐字匹配假红） */
@@ -55,14 +56,15 @@ describe("注册面（ADR-0032）", () => {
     expect(table[FIELD_NAME]).toBe(beforeField);
   });
 
-  test("样式通道：组件覆盖变量 + 暗色兜底变体 + actions 上下布局均在模板中", () => {
+  test("样式通道：组件覆盖变量 + 暗色兜底变体 + actions 屏蔽均在模板中", () => {
     const css = tpl(TEXTAREA_NAME);
     expect(css).toContain("var(--auto-input-placeholder, var(--asc-textarea-placeholder,");
     expect(css).toContain("[dark] .asc-textarea-native::placeholder,");
-    // 纵向排布：控件 + actions 段（field 的横向融合让位）
+    // 纵向排布（控件 + 浮层）
     expect(css).toContain("flex-direction: column;");
-    expect(css).toContain(".asc-textarea .asc-field-actions-before {");
-    expect(css).toContain("order: -1;");
+    // actions 不支持：渲染段整段屏蔽（ADR-0032 修订）
+    expect(css).toContain(".asc-textarea .asc-field-actions {");
+    expect(css).toContain("display: none;");
     // 计数器浮层右下角
     expect(css).toContain(".asc-textarea-count {");
     expect(css).toContain("position: absolute;");
@@ -218,42 +220,19 @@ describe("交互件", () => {
   });
 });
 
-describe("actions 上下分侧（field 渲染段，ADR-0032 布局调整）", () => {
-  test("pos=before 在上、after 在下；button 实例化 + 自动标动作件", async () => {
+describe("actions 不支持（ADR-0032 修订，2026-11-17 取消）", () => {
+  test("注入静默忽略：渲染段继承在场但被模板样式整段屏蔽（display:none 交样式通道断言）", async () => {
     const { root } = mount(`<span x-component:autospark.textarea="{ actions: acts }"></span>`, {
-      acts: [
-        { label: "取消", pos: "before" },
-        { label: "保存", name: "save", value: 1 },
-      ],
+      acts: [{ label: "保存", pos: "before" }],
     });
     await nextTick();
     const host = field(root);
-    const before = host.querySelector(".asc-field-actions-before")!;
-    const after = host.querySelector(".asc-field-actions-after")!;
-    expect(before.querySelectorAll(".asc-field-action").length).toBe(1);
-    expect(after.querySelectorAll(".asc-field-action").length).toBe(1);
-    // DOM 序：[before actions][body][after actions]——纵向排布下即「上 / 下」
-    const seq = Array.from(host.children).map((n) => n.className);
-    expect(seq[0]).toContain("asc-field-actions-before");
-    expect(seq[seq.length - 1]).toContain("asc-field-actions-after");
-    const btn = after.querySelector(".asc-field-action") as HTMLElement;
-    expect(btn.classList.contains("asc-button")).toBe(true);
-    expect(btn.hasAttribute("data-autospark-action")).toBe(true);
-  });
-
-  test("action-click 组包：detail 四元组 + 原生 click 双通道", async () => {
-    const { root } = mount(`<span x-component:autospark.textarea="{ actions: acts }"></span>`, {
-      acts: [{ label: "保存", name: "save", value: 7 }],
-    });
-    await nextTick();
-    const host = field(root);
-    const fired: unknown[] = [];
-    host.addEventListener("action-click", (e) => fired.push((e as CustomEvent).detail));
-    const btn = host.querySelector(".asc-field-action") as HTMLElement;
-    btn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await nextTick();
-    expect(fired.length).toBe(1);
-    expect((fired[0] as { name: string }).name).toBe("save");
+    // field 渲染段继承在场（结构实例化）——可见性由模板 .asc-textarea .asc-field-actions
+    // { display: none } 屏蔽（样式通道用例断言；happy-dom getComputedStyle 不解析样式表）
+    expect(host.querySelector(".asc-field-actions")).toBeTruthy();
+    // 不产出可见按钮行布局类残留（上下行方案已废止：order/justify 复位规则不在模板）
+    const cssx = tplx(TEXTAREA_NAME);
+    expect(cssx).not.toContain(".asc-textarea.asc-field-actions-before{order:-1;");
   });
 });
 

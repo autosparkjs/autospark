@@ -208,7 +208,7 @@
                 // actions 不支持（ADR-0032 修订）：非空注入 warn 一次（渲染段已被
                 // CSS 整段屏蔽，静默忽略——多行形态不提供融合动作）
                 if (Array.isArray(this.data.actions) && this.data.actions.length > 0) {
-                    console.warn("autospark.textarea: 不支持 actions（ADR-0032 修订，多行形态已取消融合动作），注入已忽略");
+                    this.engine?.logger?.warn("autospark.textarea: 不支持 actions（ADR-0032 修订，多行形态已取消融合动作），注入已忽略");
                 }
             }, 0);
 
