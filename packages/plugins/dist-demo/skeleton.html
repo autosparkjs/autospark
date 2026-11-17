@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.skeleton · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}.stack{flex-direction:column;gap:16px;margin:12px 0;display:flex}.card{border:1px solid #e9ecef;border-radius:8px;max-width:420px;padding:16px}.card h3{margin:0 0 8px;font-size:1rem}.card p{color:#495057;margin:0;font-size:.875rem}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}.profile{align-items:center;gap:12px;display:flex}.dark-box{background:#1a1a1a;border-radius:8px;margin-top:12px;padding:12px 16px}</style>
+  </head>
+  <body>
+    <h1>autospark.skeleton</h1>
+    <p>
+      骨架屏（feedback 分类）：variant 三形态（text 行块 / circle 圆 / rect 矩形块）、
+      rows 多行 text（末行半宽）、loading 插槽切换（骨架/真容互斥——核心用法）、
+      animated 闪烁开关（prefers-reduced-motion 停播）。结构占位组件——与 x-loading
+      行为指令正交（彼管动作期反馈，此管数据未到占位）。
+    </p>
+
+    <div id="app" x-data="{ fetching: true }">
+      <h2>核心用法：loading 插槽切换（骨架 → 真容）</h2>
+      <div class="stack">
+        <x-skeleton class="card" rows="3" :loading="fetching">
+          <h3>订单 #1024</h3>
+          <p>已支付 ¥299.00，预计 3 个工作日内送达。</p>
+        </x-skeleton>
+        <div class="row" style="display: flex; gap: 8px">
+          
+          <span @click="fetching = !fetching"><x-button variant="primary" size="sm" :label="fetching ? '模拟数据到达' : '回到骨架态'"></x-button></span>
+        </div>
+        <p class="hint">插槽内容在编译期投影、x-show 只切显隐——真容运行态（如输入焦点）在 loading 往返间保留。</p>
+      </div>
+
+      <h2>variant 三形态</h2>
+      <div class="stack">
+        <div class="profile">
+          <x-skeleton style="width: 40px" variant="circle"></x-skeleton>
+          <x-skeleton style="flex: 1" variant="text" rows="2"></x-skeleton>
+        </div>
+        <div class="card" style="max-width: 320px; padding: 0; overflow: hidden">
+          <x-skeleton variant="rect" animated="false"></x-skeleton>
+        </div>
+        <p class="hint">rect 演示 animated: false（静态淡底）；circle 直径 2.5em 随 data-size 档位缩放。</p>
+      </div>
+
+      <h2>rows 多行 text（末行半宽收尾）</h2>
+      <div class="stack" style="max-width: 420px">
+        <x-skeleton rows="1"></x-skeleton>
+        <x-skeleton rows="3"></x-skeleton>
+        <x-skeleton rows="5"></x-skeleton>
+      </div>
+
+      <h2>字号档位（主题通道 data-size）</h2>
+      <div class="stack" style="max-width: 420px">
+        <div data-size="sm">
+          <x-skeleton rows="2"></x-skeleton>
+        </div>
+        <div data-size="lg">
+          <x-skeleton rows="2"></x-skeleton>
+        </div>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="stack" style="max-width: 420px">
+          <x-skeleton rows="3"></x-skeleton>
+          <div class="profile">
+            <x-skeleton style="width: 40px" variant="circle"></x-skeleton>
+            <x-skeleton style="flex: 1" rows="2"></x-skeleton>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.skeleton.js"></script>
+    <script src="/autospark.button.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

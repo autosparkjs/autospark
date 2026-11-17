@@ -7856,7 +7856,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
         }),\r
         mounted() {\r
             // —— 控件查询（data-autospark-control 标记协议）：每查现取不缓存——运行时\r
-            //     控件可能随形态切换重建（input ↔ textarea 等），缓存引用会指向已摘除节点\r
+            //     控件可能被重建（x-if 条件渲染等），缓存引用会指向已摘除节点\r
             const control = () => this.el.querySelector("[data-autospark-control]");\r
 \r
             // —— 状态色通道：status → 宿主 data-status（CSS 派生 --asc-field-tone）——\r
@@ -7982,17 +7982,23 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
 \r
     /* ---------- .asc-field-box 盒饰选配类（input 类控件 chrome；裸态控件不加）：\r
          高度/内距消费 --auto-input-*（theme data-size/data-spacing 档位联动）；\r
-         边框色经 --asc-field-line 中转（hover/focus/状态/禁用多级覆盖）。\r
-         边框维持 size + color 拆分消费（ADR-0020 决策 7 口径②）——组合令牌\r
-         --auto-input-border 无法只换色，状态重染色机制依赖拆分 ---------- */\r
+         边框 = 组合令牌打底 + border-color longhand 色通道（ADR-0020 决策 7\r
+         2026-11-17 修订）：shorthand 消费 --auto-input-border（theme input 域\r
+         组合令牌，size+color 成对校准；缺省回退拆分链保持无 theme 观感），\r
+         随后 border-color 接 --asc-field-line 中转（hover/focus/状态/禁用只换\r
+         色不动粗——longhand 覆盖 shorthand 色分量，状态重染色机制完整保留） ---------- */\r
     .asc-field-box {\r
       --asc-field-line: var(\r
         --auto-border-color,\r
         var(--asc-field-border-color, #f0f0f0)\r
       );\r
       box-sizing: border-box;\r
-      border: var(--auto-border-size, var(--asc-field-border-size, 1px)) solid\r
-        var(--asc-field-line);\r
+      border: var(\r
+        --auto-input-border,\r
+        var(--asc-field-border-size, 1px) solid\r
+          var(--asc-field-border-color, #f0f0f0)\r
+      );\r
+      border-color: var(--asc-field-line);\r
       border-radius: var(--auto-input-radius, var(--asc-field-radius, 0.5rem));\r
       background: var(--auto-input-bgcolor, var(--asc-field-bg, #ffffff));\r
       /* 高度兜底随字号自适应（≈字号 × 2.57）：theme 档位块引用的 --x-input-height-* 标尺\r
@@ -8016,9 +8022,11 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
         )\r
       );\r
       /* 四向内距（纵向取横向半距——输入框惯例；固定高度形态（border-box）纵向被\r
-         高度+flex 居中吸收，height:auto 形态（textarea / theme 在场标尺缺陷回退）\r
-         由纵向半距撑起呼吸感，全档位随 --auto-input-padding 联动） */\r
-      padding: calc(var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2)\r
+         高度+flex 居中吸收，height:auto 形态（多行控件 autospark.textarea / theme\r
+         在场标尺缺陷回退）由纵向半距撑起呼吸感，全档位随 --auto-input-padding 联动） */\r
+      padding: calc(\r
+          var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2\r
+        )\r
         var(--auto-input-padding, var(--asc-field-padding, 0.8rem));\r
       transition:\r
         border-color 0.15s ease,\r
@@ -8115,6 +8123,11 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       display: contents;\r
     }\r
     .asc-field-box .asc-field-action {\r
+      /* 内侧分隔线（钮↔钮、钮↔控件）与盒边框同色（--asc-field-line 共享线，随\r
+         hover/focus/status/disabled 状态同步染——2026-11-17 回归：variant 缺省\r
+         secondary 的半透明衬底（叠盒底成浅罩）已保证与线色的对比，此前「暗色\r
+         湮灭」前提（plain 实底与盒线同色）不复存在，独立 divider 分档退役）；\r
+         上下线不画（单线让位） */\r
       border-color: var(--asc-field-line);\r
       border-top-width: 0;\r
       border-bottom-width: 0;\r
@@ -8123,6 +8136,14 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       margin-block: calc(\r
         -1 * var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2\r
       );\r
+    }\r
+    /* 外侧竖线让位盒线（首钮左 / 尾钮右不画——盒线独享整圈外框，同上下线单线让位\r
+       哲学：防按钮线与状态染色的盒线在贴边处双色并排） */\r
+    .asc-field-box .asc-field-actions-before .asc-field-action:first-of-type {\r
+      border-left-width: 0;\r
+    }\r
+    .asc-field-box .asc-field-actions-after .asc-field-action:last-of-type {\r
+      border-right-width: 0;\r
     }\r
     /* before 组首钮左贴盒左线（负距吃左内距+边框）+ 外侧圆角匹配盒饰。\r
        首尾用 *-of-type：x-for 的 template 宿主渲染后追加在项元素之后（DOM 序\r
@@ -8248,37 +8269,45 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   <!-- 融合动作渲染段（2026-11-16 修订二，ADR-0020 决策 3）：props 驱动非插槽出口——\r
        空 actions 整段 x-if 不渲染（零 DOM）；双段按 pos 过滤分侧，DOM 序恒\r
        [before actions][prefix][body][suffix][after actions]（动作按钮最外层包壳）。\r
-       值 = Object.assign 全键透传项（button props 全集 + disabled 与 field 联动合并，\r
-       自有键 pos/name/value 入 button data 域被忽略无害）；按钮宿主自动标\r
+       值 = Object.assign 全键透传项（默认 variant: 'secondary' 打底——项显式\r
+       variant 胜；button props 全集 + disabled 与 field 联动合并，自有键\r
+       pos/name/value 入 button data 域被忽略无害）；按钮宿主自动标\r
        data-autospark-action（点击自理）；x-for 值表达式 = 官方 filter 形态\r
        （引擎 x-for 测试覆盖，with 求值通道响应 actions 注入） -->\r
-  <span class="asc-field-actions asc-field-actions-before" x-if="!!(actions && actions.length)">\r
+  <span\r
+    class="asc-field-actions asc-field-actions-before"\r
+    x-if="!!(actions && actions.length)"\r
+  >\r
     <template x-for="item of actions.filter(a => a && a.pos === 'before')">\r
       <span\r
         class="asc-field-action"\r
         data-autospark-action\r
-        x-component:autospark.button="Object.assign({}, item, { disabled: item.disabled || !!disabled })"\r
+        x-component:autospark.button="Object.assign({ variant: 'secondary' }, item, { disabled: item.disabled || !!disabled })"\r
       ></span>\r
     </template>\r
   </span>\r
   <template class="asc-field-prefix" x-slot:prefix></template>\r
   <span class="asc-field-body" x-slot></span>\r
   <template class="asc-field-suffix" x-slot:suffix></template>\r
-  <span class="asc-field-actions asc-field-actions-after" x-if="!!(actions && actions.length)">\r
+  <span\r
+    class="asc-field-actions asc-field-actions-after"\r
+    x-if="!!(actions && actions.length)"\r
+  >\r
     <template x-for="item of actions.filter(a => !a || a.pos !== 'before')">\r
       <span\r
         class="asc-field-action"\r
         data-autospark-action\r
-        x-component:autospark.button="Object.assign({}, item, { disabled: item.disabled || !!disabled })"\r
+        x-component:autospark.button="Object.assign({ variant: 'secondary' }, item, { disabled: item.disabled || !!disabled })"\r
       ></span>\r
     </template>\r
   </span>\r
 </span>\r
 `,ga=`autospark.field`;function _a(e){e.components[ga]=ha}va();function va(){y(e=>{m(e),_a(e)})}var ya=`<!--\r
-    autospark.input 输入框（ADR-0020）——原生增强路线：真实原生控件（input / textarea）\r
-    + 样式包裹，不自绘输入面（保原生可访问性：键盘/IME/自动填充/移动端兼容，ADR-0018\r
-    决策 7）。继承 autospark.field 表单域骨架（状态色通道/焦点态/disabled 同步/\r
-    盒饰 chrome，ADR-0020），本组件专注控件本身。\r
+    autospark.input 输入框（ADR-0020；2026-11-17 修订 ADR-0032——多行能力拆出\r
+    autospark.textarea，本组件不再内置 textarea 形态）——原生增强路线：真实原生\r
+    input 控件 + 样式包裹，不自绘输入面（保原生可访问性：键盘/IME/自动填充/移动端\r
+    兼容，ADR-0018 决策 7）。继承 autospark.field 表单域骨架（状态色通道/焦点态/\r
+    disabled 同步/盒饰 chrome，ADR-0020），本组件专注控件本身。\r
 \r
     值通道（x-model 兼容协议，ADR-0020）：宿主 el.value 劫持 ↔ 内层原生控件——\r
     宿主为包裹层元素（无原生 value），x-model 写读都落劫持位；内层原生 input 事件\r
@@ -8286,8 +8315,8 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     桥比 button-group 组值桥更薄）。value props 为非受控初值/单向同步（受控真相走\r
     x-model）。\r
 \r
-    表单提交（ADR-0020）：宿主 name 透传到内层原生控件——原生直提交（input/textarea\r
-    自带提名义，含 Enter 提交语义；对照 state-button 的 hidden input 桥分叉，本组件\r
+    表单提交（ADR-0020）：宿主 name 透传到内层原生控件——原生直提交（input 自带\r
+    提名义，含 Enter 提交语义；对照 state-button 的 hidden input 桥分叉，本组件\r
     控件即真身无须代理载体）。\r
 \r
     事件出口（组件默认封闭，原生事件经冒泡到外层消费）：\r
@@ -8295,7 +8324,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     - 清除/眼睛切换为内部动作件（data-autospark-action，点击不转发焦点），不派发自定义事件\r
 -->\r
 <!-- 根 class 拼接进骨架宿主（.asc-field + .asc-input + .asc-field-box 盒饰选配）；\r
-     变体与状态属性经 mounted 的 JS 通道同步（data-form / data-over），根上无动态绑定（T4=B） -->\r
+     变体与状态属性经 mounted 的 JS 通道同步（data-over），根上无动态绑定（T4=B） -->\r
 <span\r
   class="asc-input asc-field-box"\r
   x-define="autospark.input"\r
@@ -8304,11 +8333,10 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   <script setup>\r
     {\r
         data: () => ({\r
-            type: "text",          // 文本族：text/password/email/tel/url/search 等（透传原生 input type）| "textarea" 多行形态（元素切换为 textarea；prefix/suffix/清除/计数照常可用，密码切换仅 password 消费）\r
+            type: "text",          // 文本族：text/password/email/tel/url/search 等（透传原生 input type）\r
             value: "",             // 非受控初值 / 单向同步值（受控真相走宿主 x-model——el.value 桥，ADR-0020）\r
             placeholder: "",       // 占位文案（同步原生 placeholder）\r
             maxlength: 0,          // >0 同步原生 maxlength（原生输入截断）+ 计数分母\r
-            rows: 2,               // textarea 行数（仅 textarea 形态消费；原生缺省 2）\r
             clearable: false,      // 清除钮（值非空且可交互时可见；点击清空 + 派发 input + 焦点回控件）\r
             showPassword: false,   // 密码可见切换眼睛钮（仅 type=password 消费，其余形态忽略）\r
             showCount: false,      // 计数器（maxlength 在场显示「len / max」，否则仅 len；超限染 danger）\r
@@ -8344,9 +8372,9 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             },\r
         },\r
         mounted() {\r
-            // —— 内层控件查询（每查现取：type 形态切换 input ↔ textarea 会重建元素）——\r
+            // —— 内层控件查询（每查现取：运行时控件可能被重建）——\r
             const native = () => this.el.querySelector(".asc-input-native");\r
-            // 当前值缓存（劫持 getter 的控件缺位兜底 + 形态切换回填）\r
+            // 当前值缓存（劫持 getter 的控件缺位兜底）\r
             let lastValue = "";\r
 \r
             // —— 计数与清除可见性同步（len 由原生控件现值读出；超限染色的 data-over\r
@@ -8360,7 +8388,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
                 this.el.toggleAttribute("data-over", max > 0 && len > max);\r
             };\r
 \r
-            // —— 值同步（外部 → 控件）：形态切换重建后回填 lastValue ——\r
+            // —— 值同步（外部 → 控件）——\r
             const syncValue = () => {\r
                 const n = native();\r
                 if (n) n.value = lastValue;\r
@@ -8374,23 +8402,16 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
                 if (!n) return;\r
                 const t = String(this.data.type ?? "text");\r
                 if (n instanceof HTMLInputElement) {\r
-                    // type 透传（textarea 形态下本元素不渲染，防御性归一 text）；\r
-                    // 密码可见切换：password + passwordVisible → text\r
-                    n.type = t === "textarea"\r
-                        ? "text"\r
-                        : t === "password" && this.data.passwordVisible ? "text" : (t || "text");\r
+                    // type 透传（密码可见切换：password + passwordVisible → text）\r
+                    n.type = t === "password" && this.data.passwordVisible ? "text" : (t || "text");\r
                 }\r
                 n.placeholder = String(this.data.placeholder ?? "");\r
                 const ml = Number(this.data.maxlength) || 0;\r
                 if (ml > 0) n.setAttribute("maxlength", String(ml));\r
                 else n.removeAttribute("maxlength");\r
-                if (n instanceof HTMLTextAreaElement) n.rows = Number(this.data.rows) || 2;\r
                 // 表单提交载体：宿主 name 透传到原生控件（原生直提交，ADR-0020）\r
                 const nameAttr = this.el.getAttribute("name");\r
                 if (nameAttr != null) n.name = nameAttr;\r
-                // 形态标记（CSS 通道：textarea 高度放开，:has() 的 JS 免版）\r
-                if (t === "textarea") this.el.setAttribute("data-form", "textarea");\r
-                else this.el.removeAttribute("data-form");\r
             };\r
 \r
             // —— 值桥（x-model 兼容协议，ADR-0020）：宿主 el.value 劫持 ↔ 内层原生控件 ——\r
@@ -8439,7 +8460,6 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             this.watch("type", () => { setTimeout(() => { syncAttrs(); syncValue(); }, 0); });\r
             this.watch("placeholder", () => { setTimeout(syncAttrs, 0); });\r
             this.watch("maxlength", () => { setTimeout(() => { syncAttrs(); syncLen(); }, 0); });\r
-            this.watch("rows", () => { setTimeout(syncAttrs, 0); });\r
             this.watch("showPassword", () => { setTimeout(syncAttrs, 0); });\r
             // value props 单向同步（非受控/外部受控无 x-model 场景）：变化才写（与自身\r
             // 桥写不冲突——guard 防回环）。已见值比对幂等防御（checkbox 同款）：scope.refresh\r
@@ -8481,22 +8501,6 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     .asc-input-native:disabled {\r
       cursor: not-allowed;\r
       -webkit-text-fill-color: var(--auto-disable-color, var(--asc-input-disable-color, inherit));\r
-    }\r
-\r
-    /* ---------- textarea 形态（data-form 由 mounted 同步）：盒饰高度放开随行数增长，\r
-             内层控件高度自适应 + 允许纵向拖拽调距 ---------- */\r
-    .asc-input[data-form="textarea"] {\r
-      height: auto;\r
-      min-height: var(\r
-        --auto-input-height,\r
-        var(--asc-field-height, calc(var(--auto-font-size, 0.875rem) * 2.57))\r
-      );\r
-      align-items: stretch;\r
-      cursor: text;\r
-    }\r
-    .asc-input[data-form="textarea"] .asc-input-native {\r
-      height: auto;\r
-      resize: vertical;\r
     }\r
 \r
     /* ---------- 前后置装饰容器（2026-11-16 装饰上提，ADR-0020 修订）：props 装饰经\r
@@ -8590,13 +8594,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
          [控件] [清除] [眼睛] [计数]——props 前后置装饰已上提 field 出口（见上方命名\r
          覆盖段）；功能件（清除/眼睛/计数）刻意留 body：不进可被消费方投影顶掉的\r
          出口 fallback 位（ADR-0020 修订取舍） -->\r
-  <input class="asc-input-native" data-autospark-control x-if="type !== 'textarea'" />\r
-  <textarea\r
-    class="asc-input-native"\r
-    data-autospark-control\r
-    x-if="type === 'textarea'"\r
-    rows="2"\r
-  ></textarea>\r
+  <input class="asc-input-native" data-autospark-control />\r
   <i\r
     class="asc-input-action asc-input-clear"\r
     data-autospark-action\r
@@ -8613,7 +8611,391 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   ></i>\r
   <span class="asc-input-count" x-if="showCount">{{ countText }}</span>\r
 </span>\r
-`,ba=`autospark.input`,xa=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>`,Sa=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>`,Ca=new Set([`disabled`,`readonly`,`clearable`,`show-password`,`show-count`]);function wa(e){let t=e.icons;t?.add?.(`input-eye`,xa),t?.add?.(`input-eye-off`,Sa),e.components[ba]=ya,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-input, x-textarea`))){let e=document.createElement(`span`),n=[],r=t.tagName===`X-TEXTAREA`;r&&n.push(`type: "textarea"`);for(let i of Array.from(t.attributes)){if(i.name.startsWith(`:`)){n.push(`${Q(Z(i.name.slice(1)))}: (${i.value})`);continue}if(i.name===`class`||i.name===`style`||i.name===`id`||i.name===`name`||i.name===`title`||i.name.startsWith(`data-`)||i.name.startsWith(`x-`)||i.name.startsWith(`@`)){e.setAttribute(i.name,i.value);continue}let t=Z(i.name);t===`type`&&r?n[0]=`type: ${JSON.stringify($(i.value))}`:i.value===``&&Ca.has(i.name)?n.push(`${Q(t)}: true`):n.push(`${Q(t)}: ${JSON.stringify($(i.value))}`)}let i=t.textContent?.trim()??``,a=n.some(e=>e.startsWith(`value:`)),o=t.children.length>0;for(i!==``&&!a&&!o&&(n.push(`value: ${JSON.stringify(i)}`),t.textContent=``),e.setAttribute(`x-component:${ba}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Ta();function Ta(){y(e=>{m(e),wa(e)})}var Ea=`<!--\r
+`,ba=`autospark.input`,xa=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>`,Sa=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>`,Ca=new Set([`disabled`,`readonly`,`clearable`,`show-password`,`show-count`]);function wa(e){let t=e.icons;t?.add?.(`input-eye`,xa),t?.add?.(`input-eye-off`,Sa),e.components[ba]=ya,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-input`))){let e=document.createElement(`span`),n=[];for(let r of Array.from(t.attributes)){if(r.name.startsWith(`:`)){n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`);continue}if(r.name===`class`||r.name===`style`||r.name===`id`||r.name===`name`||r.name===`title`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)){e.setAttribute(r.name,r.value);continue}let t=Z(r.name);r.value===``&&Ca.has(r.name)?n.push(`${Q(t)}: true`):n.push(`${Q(t)}: ${JSON.stringify($(r.value))}`)}let r=t.textContent?.trim()??``,i=n.some(e=>e.startsWith(`value:`)),a=t.children.length>0;for(r!==``&&!i&&!a&&(n.push(`value: ${JSON.stringify(r)}`),t.textContent=``),e.setAttribute(`x-component:${ba}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Ta();function Ta(){y(e=>{m(e),wa(e)})}var Ea=`<!--
+    autospark.textarea 多行文本框（ADR-0032）——原生增强路线：真实原生 <textarea>
+    + 样式包裹，不自绘输入面（保原生可访问性：键盘 / IME / 自动填充 / 移动端兼容，
+    ADR-0018 决策 7）。继承 autospark.field 表单域骨架（状态色通道 / 焦点态 /
+    disabled 同步 / 盒饰 chrome，ADR-0020），本组件专注多行控件本身。
+
+    与 autospark.input 的分工（ADR-0032 推翻 ADR-0020 决策 4「textarea 是 type 变体」）：
+    多行能力独立成件，input 不再内置 textarea 形态。两者共享表单域骨架与主题令牌，
+    但控件实现、样式细节、测试各自持有——值桥 / 计数 / 清除逻辑按「复制而非嵌套」
+    先例在组件内自持（ADR-0021 方法论），避免 textarea → input 的依赖链与单行专属
+    逻辑渗透。
+
+    autosize（默认开启）：控件高度随内容自动增长，minRows（缺省取 rows）/ maxRows
+    （默认 8，0 = 不限高）夹取，到顶后内部滚动；宽度变化经 ResizeObserver 重算。
+    autosize 开启时强制 resize:none；关闭后尊重 resize 属性（缺省 vertical）。
+
+    值通道（x-model 兼容协议，ADR-0020）：宿主 el.value 劫持 ↔ 内层原生控件——
+    宿主为包裹层元素（无原生 value），x-model 写读都落劫持位；内层原生 textarea 的
+    input 事件自然冒泡过宿主，x-model 监听直接命中。value props 为非受控初值 /
+    单向同步（受控真相走 x-model）。
+
+    表单提交（ADR-0020）：宿主 name 透传到内层原生 textarea——原生直提交。
+
+    事件出口（组件默认封闭，原生事件经冒泡到外层消费）：
+    - input / change：内层原生控件事件自然冒泡（x-model 与外层 @input/@change 直接消费）
+    - 清除为内部动作件（data-autospark-action，点击不转发焦点），不派发自定义事件
+
+    装饰面（ADR-0032）：不提供 prefix / suffix（单行 affix 习惯，多行盒内布局成本高）；
+    actions 由 field 骨架继承，但本组件把融合按钮段由横向改排到控件上方 / 下方
+    （pos: before 在上、after 在下），不与文本抢行宽。
+-->
+<!-- 根 class 拼接进骨架宿主（.asc-field + .asc-textarea + .asc-field-box 盒饰）；
+     状态属性经 mounted 的 JS 通道同步（data-over），根上无动态绑定（T4=B） -->
+<span
+  class="asc-textarea asc-field-box"
+  x-define="autospark.textarea"
+  x-define:inherit="autospark.field"
+>
+  <script setup>
+    {
+        data: () => ({
+            value: "",             // 非受控初值 / 单向同步值（受控真相走宿主 x-model——el.value 桥）
+            placeholder: "",       // 占位文案（同步原生 placeholder）
+            maxlength: 0,          // >0 同步原生 maxlength（原生输入截断）+ 计数分母（自动显示计数）
+            rows: 2,               // 初始行数（原生 rows；同时作为 minRows 缺省值）
+            minRows: 0,            // autosize 最小行数（0 = 取 rows）
+            maxRows: 8,            // autosize 最大行数（0 = 不限高，到顶后内部滚动）
+            autosize: true,        // 自动增高（默认开启；开启时强制 resize:none）
+            resize: "",            // autosize 关闭时的原生拖拽："" 取 vertical ｜ none | vertical | horizontal | both
+            clearable: false,      // 清除钮（值非空且可交互时可见；点击清空 + 派发 input + 焦点回控件）
+            showCount: false,      // 计数显式开关（maxlength > 0 时无需开启即显示「len / max」）
+            // —— 内部状态 ——
+            hasValue: false,       // 当前有值（清除钮可见性驱动）
+            countText: "",         // 计数文本（JS 侧构建——绑定通道对 props 后续注入不重算）
+            countVisible: false,   // 计数可见性（showCount 或 maxlength > 0）
+        }),
+        methods: {
+            // 清除：清空原生控件 + 手动派发 input（程序赋值不触发原生事件；冒泡过宿主
+            // 驱动 x-model 回写 state）+ 焦点回控件；阻断冒泡（内部动作件，click 不外泄）
+            onClear(event) {
+                event.stopPropagation();
+                if (this.data.disabled || this.data.readonly) return;
+                const n = this.el.querySelector(".asc-textarea-native");
+                if (!n) return;
+                n.value = "";
+                n.dispatchEvent(new Event("input", { bubbles: true }));
+                n.focus();
+            },
+        },
+        mounted() {
+            // —— 内层控件查询（每查现取，家族惯例）——
+            const native = () => this.el.querySelector(".asc-textarea-native");
+            // 当前值缓存（劫持 getter 的控件缺位兜底）
+            let lastValue = "";
+
+            // —— 自动增高：行高 × 行数夹取，内容超高时转内部滚动 ——
+            // 宽度变化会改变折行数，故除 value 外还经 ResizeObserver 监听宽度
+            const autoResize = () => {
+                const n = native();
+                if (!n) return;
+                if (!this.data.autosize) {
+                    // 交还原生拖拽：清内联高度 + 溢出转 auto（基类样式为 autosize
+                    // 场景预设 overflow-y:hidden，关闭后须显式放开，否则内容被裁）
+                    n.style.height = "";
+                    n.style.overflowY = "auto";
+                    return;
+                }
+                const cs = getComputedStyle(n);
+                const lineHeight = parseFloat(cs.lineHeight) || 0;
+                const padY =
+                    (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+                const borderY =
+                    (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+                const minRows = Math.max(
+                    1,
+                    Number(this.data.minRows) || Number(this.data.rows) || 2,
+                );
+                const maxRows = Math.max(0, Number(this.data.maxRows) || 0);
+                // 行高不可读（consumer 把 line-height 设为 normal 等 → parseFloat 得 NaN）
+                // 时放弃行数夹取：只随内容增高，避免 maxHeight 退化成内距高而误裁内容
+                const minHeight = lineHeight > 0 ? lineHeight * minRows + padY + borderY : 0;
+                const maxHeight =
+                    lineHeight > 0 && maxRows > 0
+                        ? lineHeight * maxRows + padY + borderY
+                        : Infinity;
+                n.style.height = "auto"; // 先归零再量内容（scrollHeight 才反映真实内容高）
+                const contentHeight = n.scrollHeight + borderY;
+                n.style.height = \`\${Math.min(Math.max(contentHeight, minHeight), maxHeight)}px\`;
+                n.style.overflowY = contentHeight > maxHeight ? "auto" : "hidden";
+            };
+
+            // —— 计数与清除可见性同步（len 由原生控件现值读出；超限染色的 data-over
+            //     落宿主属性，CSS 通道消费——JS 直写无 T4=B 约束）——
+            const syncLen = () => {
+                const n = native();
+                const len = n ? String(n.value ?? "").length : 0;
+                this.data.hasValue = len > 0;
+                const max = Number(this.data.maxlength) || 0;
+                this.data.countText = max > 0 ? \`\${len} / \${max}\` : \`\${len}\`;
+                this.data.countVisible = !!this.data.showCount || max > 0;
+                this.el.toggleAttribute("data-over", max > 0 && len > max);
+            };
+
+            // —— 值同步（外部 → 控件）——
+            const syncValue = () => {
+                const n = native();
+                if (n) n.value = lastValue;
+                syncLen();
+                autoResize();
+            };
+
+            // —— 原生属性同步（props → 控件；绑定通道对 props 晚注入/后续变化不重算，
+            //     走 JS 通道——button disabled 同款纪律，ADR-0012）——
+            const syncAttrs = () => {
+                const n = native();
+                if (!n) return;
+                n.placeholder = String(this.data.placeholder ?? "");
+                const ml = Number(this.data.maxlength) || 0;
+                if (ml > 0) n.setAttribute("maxlength", String(ml));
+                else n.removeAttribute("maxlength");
+                n.rows = Math.max(1, Number(this.data.rows) || 2);
+                // 表单提交载体：宿主 name 透传到原生控件（原生直提交，ADR-0020）
+                const nameAttr = this.el.getAttribute("name");
+                if (nameAttr != null) n.name = nameAttr;
+                // autosize 与原生拖拽互斥：开启时强制 none，关闭后尊重 resize 属性
+                n.style.resize = this.data.autosize
+                    ? "none"
+                    : String(this.data.resize) || "vertical";
+                autoResize();
+            };
+
+            // —— 值桥（x-model 兼容协议，ADR-0020）：宿主 el.value 劫持 ↔ 内层原生控件 ——
+            // 劫持前快照 expando（x-model 编译期可能已写初值——宿主无原生 value，
+            // 编译期写入落 expando）；无 x-model 时回退 props.value 初值
+            const prior = this.el.value;
+            if (typeof prior === "string" && prior !== "") lastValue = prior;
+            else if (this.data.value != null) lastValue = String(this.data.value);
+            // 快照归一值 + 初始化窗口标志：编译期初值的**重放识别**。scope.refresh 类机制
+            // （如 i18n 插件 ready 的首渲染换血）会以当前 state 重跑 x-model 监听，把编译期
+            // 初值（尤其空串——快照序里是「模型缺席」信号，props 兜底胜出）经劫持 setter 二次
+            // 落盘，覆盖已按快照序裁定的初值归属。初始化窗口（一跳 setTimeout 前）内与快照
+            // 归一值同值的写入即重放，跳过；真实状态变化（值不同）不受影响
+            const snapshotNorm = String(prior ?? "");
+            let initDone = false;
+            Object.defineProperty(this.el, "value", {
+                get: () => {
+                    const n = native();
+                    return n ? n.value : lastValue;
+                },
+                set: (v) => {
+                    if (!initDone && String(v ?? "") === snapshotNorm) return;
+                    lastValue = String(v ?? "");
+                    const n = native();
+                    if (n) n.value = lastValue;
+                    syncLen();
+                    autoResize();
+                },
+                configurable: true,
+            });
+
+            // —— 输入跟随（原生 input 冒泡经宿主）：值缓存 / 计数 / 自动增高 ——
+            this.el.addEventListener("input", () => {
+                const n = native();
+                if (n) lastValue = n.value;
+                syncLen();
+                autoResize();
+            });
+
+            // —— 宽度变化重算（侧栏展开 / 窗口缩放改变折行数；只认宽度变化，避免
+            //     自身写高度触发回环）——
+            if (typeof ResizeObserver !== "undefined") {
+                let lastWidth = 0;
+                const ro = new ResizeObserver((entries) => {
+                    const width = entries[0]?.contentRect?.width ?? 0;
+                    if (Math.abs(width - lastWidth) < 1) return;
+                    lastWidth = width;
+                    autoResize();
+                });
+                const n = native();
+                if (n) ro.observe(n);
+            }
+
+            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）——
+            setTimeout(() => {
+                syncAttrs();
+                syncValue();
+                initDone = true; // 初始化完成：劫持 setter 放开重放识别门闩（此后全量生效）
+            }, 0);
+
+            // —— props 变化跟随（回调收 { value } 信封对象，此处只用作触发信号）——
+            this.watch("placeholder", () => { setTimeout(syncAttrs, 0); });
+            this.watch("maxlength", () => { setTimeout(() => { syncAttrs(); syncLen(); }, 0); });
+            this.watch("showCount", () => { setTimeout(syncLen, 0); });
+            this.watch("rows", () => { setTimeout(() => { syncAttrs(); autoResize(); }, 0); });
+            this.watch("minRows", () => { setTimeout(autoResize, 0); });
+            this.watch("maxRows", () => { setTimeout(autoResize, 0); });
+            this.watch("autosize", () => { setTimeout(syncAttrs, 0); });
+            this.watch("resize", () => { setTimeout(syncAttrs, 0); });
+            // value props 单向同步（非受控/外部受控无 x-model 场景）：变化才写（与自身
+            // 桥写不冲突——guard 防回环）。已见值比对幂等防御（checkbox 同款）：scope.refresh
+            // 类无变化重跑（i18n ready 换血等）不得把 x-model expando 注入的初值打回 props
+            // 缺省空串——先比对已见 props 值，同值跳过
+            let lastPropsValue = String(this.data.value ?? "");
+            this.watch("value", ({ value }) => {
+                const v = String(value ?? "");
+                if (v === lastPropsValue) return;
+                lastPropsValue = v;
+                if (v === lastValue) return;
+                lastValue = v;
+                const n = native();
+                if (n) n.value = v;
+                syncLen();
+                autoResize();
+            });
+        },
+    }
+  <\/script>
+  <style global id="autospark-components-textarea">
+    /* ---------- 满宽惯例：多行输入默认占满可用宽（field 基座 inline-flex 收缩内容宽，
+         input 等单行形态靠消费方给宽；textarea 惯例块级满宽——子样式拼接序在骨架后，胜） ---------- */
+    .asc-textarea {
+      width: 100%;
+    }
+
+    /* ---------- 原生控件裸化：外观由骨架盒饰（.asc-field-box）承载，控件本体透明铺满 ---------- */
+    .asc-textarea-native {
+      box-sizing: border-box;
+      flex: 1 1 auto;
+      min-width: 0;
+      width: 100%;
+      height: auto;
+      border: none;
+      outline: none;
+      background: transparent;
+      padding: 0;
+      margin: 0;
+      color: inherit;
+      font: inherit;
+      line-height: inherit;
+      cursor: inherit;
+      resize: none;
+      overflow-y: hidden;
+    }
+    .asc-textarea-native::placeholder {
+      color: var(--auto-input-placeholder, var(--asc-textarea-placeholder, rgba(0, 0, 0, 0.35)));
+    }
+    .asc-textarea-native:disabled {
+      cursor: not-allowed;
+      -webkit-text-fill-color: var(--auto-disable-color, var(--asc-textarea-disable-color, inherit));
+    }
+
+    /* ---------- 宿主布局：纵向排布（控件 + 计数浮层 + actions 段），高度随内容放开 ---------- */
+    .asc-textarea.asc-field-box {
+      position: relative;
+      height: auto;
+      flex-direction: column;
+      align-items: stretch;
+      cursor: text;
+    }
+
+    /* ---------- 清除钮：绝对定位右上角（不占文本行宽；控件右侧预留内距避免压字） ---------- */
+    .asc-textarea-clear {
+      position: absolute;
+      top: calc(var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2);
+      inset-inline-end: calc(var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2);
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: var(--auto-border-radius, var(--asc-textarea-action-radius, 0.25rem));
+      color: var(--auto-third-color, var(--asc-textarea-action, rgba(0, 0, 0, 0.35)));
+      transition: color 0.15s ease;
+    }
+    .asc-textarea-clear:hover {
+      color: var(--auto-color, var(--asc-textarea-action-hover, #606060));
+    }
+    .asc-textarea-clear:active {
+      transform: scale(0.92);
+    }
+
+    /* ---------- 计数器：绝对定位右下角（不占文本行宽；控件底部预留内距避免压字）；
+         超限（data-over 由 mounted 同步）染 danger ---------- */
+    .asc-textarea-count {
+      position: absolute;
+      inset-block-end: calc(var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 4);
+      inset-inline-end: var(--auto-input-padding, var(--asc-field-padding, 0.8rem));
+      font-size: 0.75em;
+      line-height: 1;
+      white-space: nowrap;
+      pointer-events: none;
+      color: var(--auto-third-color, var(--asc-textarea-count, rgba(0, 0, 0, 0.35)));
+    }
+    .asc-textarea[data-over] .asc-textarea-count {
+      color: var(--auto-danger-color, var(--asc-textarea-count-over, #ef4444));
+    }
+
+    /* 浮层在场时预留内距（:has 驱动，形态与 field 既有 :has 用法一致） */
+    .asc-textarea:has(.asc-textarea-clear) .asc-textarea-native {
+      padding-inline-end: 1.5em;
+    }
+    .asc-textarea:has(.asc-textarea-count) .asc-textarea-native {
+      padding-block-end: 1.25em;
+    }
+
+    /* ---------- actions 段：field 的横向融合在本组件改为控件上 / 下整行（pos: before 在上、
+         after 在下，右对齐）——按钮恢复自有描边与圆角，不与文本抢行宽。field 的融合规则
+         用 !important 解除（选择器特异性跨产物顺序不稳定，显式让位最稳） ---------- */
+    .asc-textarea .asc-field-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4em;
+      justify-content: flex-end;
+      width: 100%;
+    }
+    .asc-textarea .asc-field-actions-before {
+      order: -1;
+      margin-block-end: 0.4em;
+    }
+    .asc-textarea .asc-field-actions-after {
+      margin-block-start: 0.4em;
+    }
+    .asc-textarea .asc-field-actions .asc-field-action {
+      align-self: center !important;
+      margin: 0 !important;
+      border-width: var(--auto-border-size, var(--asc-field-border-size, 1px)) !important;
+      border-style: solid !important;
+      border-radius: var(--auto-border-radius, var(--asc-field-radius, 0.5rem)) !important;
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-textarea-native::placeholder,
+    [data-dark] .asc-textarea-native::placeholder {
+      color: var(--auto-input-placeholder, var(--asc-textarea-placeholder, rgba(255, 255, 255, 0.4)));
+    }
+    [dark] .asc-textarea-clear,
+    [data-dark] .asc-textarea-clear {
+      color: var(--auto-third-color, var(--asc-textarea-action, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-textarea-clear:hover,
+    [data-dark] .asc-textarea-clear:hover {
+      color: var(--auto-color, var(--asc-textarea-action-hover, #fafafa));
+    }
+    [dark] .asc-textarea-count,
+    [data-dark] .asc-textarea-count {
+      color: var(--auto-third-color, var(--asc-textarea-count, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-textarea[data-over] .asc-textarea-count,
+    [data-dark] .asc-textarea[data-over] .asc-textarea-count {
+      color: var(--auto-danger-color, var(--asc-textarea-count-over, #e6696a));
+    }
+  </style>
+  <!-- 默认段（替换 field 出口 fallback）：控件本体 + 功能动作件。计数与清除为浮层
+       （不占文本行宽）；actions 由 field 渲染段承载，位置由上方 CSS 改为控件上 / 下 -->
+  <textarea class="asc-textarea-native" data-autospark-control rows="2"></textarea>
+  <i
+    class="asc-textarea-clear"
+    data-autospark-action
+    x-if="clearable && hasValue"
+    x-icon="'no'"
+    @click="onClear($event)"
+  ></i>
+  <span class="asc-textarea-count" x-if="countVisible">{{ countText }}</span>
+</span>
+`,Da=`autospark.textarea`,Oa=new Set([`disabled`,`readonly`,`clearable`,`show-count`,`autosize`]);function ka(e){e.components[Da]=Ea,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-textarea`))){let e=document.createElement(`span`),n=[];for(let r of Array.from(t.attributes)){if(r.name.startsWith(`:`)){n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`);continue}if(r.name===`class`||r.name===`style`||r.name===`id`||r.name===`name`||r.name===`title`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)){e.setAttribute(r.name,r.value);continue}let t=Z(r.name);r.value===``&&Oa.has(r.name)?n.push(`${Q(t)}: true`):n.push(`${Q(t)}: ${JSON.stringify($(r.value))}`)}let r=t.textContent?.trim()??``,i=n.some(e=>e.startsWith(`value:`)),a=t.children.length>0;for(r!==``&&!i&&!a&&(n.push(`value: ${JSON.stringify(r)}`),t.textContent=``),e.setAttribute(`x-component:${Da}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Aa();function Aa(){y(e=>{m(e),ka(e)})}var ja=`<!--\r
     autospark.checkbox 复选框（ADR-0019 合批 / ADR-0020 Field 消费契约）——原生增强\r
     路线：真实原生 \`<input type="checkbox">\` + 自绘视觉（勾形 / 半选横线经 CSS 伪元素，\r
     选中态由 :checked / :indeterminate 原生伪类驱动——键盘 / 焦点 / 表单提交 / 组语义等\r
@@ -8856,7 +9238,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-checkbox-label">{{ label }}</span>\r
   </label>\r
 </span>\r
-`,Da=`autospark.checkbox`;function Oa(e){e.components[Da]=Ea}ka();function ka(){y(e=>{m(e),Oa(e)})}var Aa=`<!--\r
+`,Ma=`autospark.checkbox`;function Na(e){e.components[Ma]=ja}Pa();function Pa(){y(e=>{m(e),Na(e)})}var Fa=`<!--\r
     autospark.radio 单选钮（ADR-0019 合批 / ADR-0020 Field 消费契约）——原生增强\r
     路线：真实原生 \`<input type="radio">\` + 自绘视觉（选中圆点经 CSS 伪元素，选中态由\r
     :checked 原生伪类驱动——键盘 / 焦点 / 表单提交 / 组互斥等原生能力全保留）。\r
@@ -9074,7 +9456,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-radio-label">{{ label }}</span>\r
   </label>\r
 </span>\r
-`,ja=`autospark.radio`;function Ma(e){e.components[ja]=Aa}Na();function Na(){y(e=>{m(e),Ma(e)})}var Pa=`<!--\r
+`,Ia=`autospark.radio`;function La(e){e.components[Ia]=Fa}Ra();function Ra(){y(e=>{m(e),La(e)})}var za=`<!--\r
     autospark.switch 开关（ADR-0019 合批 / ADR-0020 Field 消费契约）——**自绘开关**\r
     （无原生对应控件）：轨道 + 滑块纯 CSS 自绘，可访问性自持——role="switch" +\r
     aria-checked + tabindex + 键盘 Space/Enter 切换（原生 checkbox 方案的对照：彼保真\r
@@ -9318,7 +9700,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-switch-label">{{ label }}</span>\r
   </span>\r
 </span>\r
-`,Fa=`autospark.switch`;function Ia(e){e.components[Fa]=Pa}La();function La(){y(e=>{m(e),Ia(e)})}var Ra=`<!--\r
+`,Ba=`autospark.switch`;function Va(e){e.components[Ba]=za}Ha();function Ha(){y(e=>{m(e),Va(e)})}var Ua=`<!--\r
     autospark.input-number 数字输入框（ADR-0018 决策 7 原生增强）——真实原生 input\r
     （inputmode=decimal，键盘/IME/自动填充全保留）+ 盒饰包裹 + 步进钮组。复制 input\r
     结构而非嵌套消费（值桥语域分叉 + 自包含产物，见 index.ts 头注释）；继承\r
@@ -9694,7 +10076,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </i>\r
   </span>\r
 </span>\r
-`,za=`autospark.input-number`;function Ba(e){e.components[za]=Ra}Va();function Va(){y(e=>{m(e),Ba(e)})}var Ha=`<!--\r
+`,Wa=`autospark.input-number`;function Ga(e){e.components[Wa]=Ua}Ka();function Ka(){y(e=>{m(e),Ga(e)})}var qa=`<!--\r
     autospark.slider 滑动条（ADR-0018 决策 7 原生增强）——真实原生 <input type=range>\r
     藏起仍可交互（opacity:0 覆盖层：点击跳值/拖拽跟随/键盘方向键/触屏原生行为与\r
     可访问性全保留），轨道/已填充段/滑块视觉自绘。继承 autospark.field 骨架\r
@@ -10002,7 +10384,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span x-component:autospark.input-number></span>\r
   </span>\r
 </span>\r
-`,Ua=`autospark.slider`;function Wa(e){e.components[Ua]=Ha}Ga();function Ga(){y(e=>{m(e),Wa(e)})}var Ka=`<!--\r
+`,Ja=`autospark.slider`;function Ya(e){e.components[Ja]=qa}Xa();function Xa(){y(e=>{m(e),Ya(e)})}var Za=`<!--\r
     autospark.rate 评分（自绘路线，无原生对应控件）——引擎内置 star 星形图标 ×N\r
     （x-for 渲染，max 可配），off 灰星底层 + on 亮星覆盖层（clip-path 百分比裁剪，\r
     100% 整星 / 50% 半星）。可访问性自持：role=slider 单焦点键盘模型（tabindex +\r
@@ -10347,7 +10729,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </span>\r
   </span>\r
 </span>\r
-`,qa=`autospark.rate`;function Ja(e){e.components[qa]=Ka}Ya();function Ya(){y(e=>{m(e),Ja(e)})}var Xa=`<!--\r
+`,Qa=`autospark.rate`;function $a(e){e.components[Qa]=Za}eo();function eo(){y(e=>{m(e),$a(e)})}var to=`<!--\r
     autospark.select 下拉选择器（ADR-0022）——触发器组件：Field 盒饰形态\r
     （.asc-field-box，input 同款 chrome）+ 选中值展示 + 下拉箭头。下拉面板不自建弹层，\r
     复用 x-popover 指令机制呈现（trigger:click 形态——点击切换 / 面板外点击 / ESC 关闭\r
@@ -10869,7 +11251,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     x-icon="loading ? 'loading' : 'select-down'"\r
   ></i>\r
 </span>\r
-`,Za=`<!--\r
+`,no=`<!--\r
     autospark-select-panel 下拉面板（ADR-0022）——select 的内部组件（非用户直接消费，\r
     无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制（trigger:click）\r
     渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位/宽度 fit 随触发器）由 popover-shell\r
@@ -11007,7 +11389,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     ></div>\r
   </div>\r
 </div>\r
-`,Qa=`autospark.select`,$a=`autospark-select-panel`,eo=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;function to(e){e.icons?.add?.(`select-down`,eo),e.components[Qa]=Xa,e.components[$a]=Za}no();function no(){y(e=>{m(e),to(e)})}var ro=`<!--
+`,ro=`autospark.select`,io=`autospark-select-panel`,ao=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;function oo(e){e.icons?.add?.(`select-down`,ao),e.components[ro]=to,e.components[io]=no}so();function so(){y(e=>{m(e),oo(e)})}var co=`<!--
     autospark.transfer 穿梭框（ADR-0028）——双列表（源/目标）+ 中间穿梭钮复合控件。
 
     内部装配（ADR-0018 决策 2「内部装配、对外开箱」，取舍见 ADR-0028）：
@@ -11643,7 +12025,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </div>
   </div>
 </div>
-`,io=`autospark.transfer`;function ao(e){e.components[io]=ro}oo();function oo(){y(e=>{m(e),ao(e)})}var so=`<!--
+`,lo=`autospark.transfer`;function uo(e){e.components[lo]=co}fo();function fo(){y(e=>{m(e),uo(e)})}var po=`<!--
     autospark.color-picker 颜色选择器（ADR-0028）——触发器组件：Field 盒饰形态
     （.asc-field-box，select 同款 chrome）+ 色块预览 + hex 文案。取色面板不自建弹层，
     复用 x-popover 指令机制呈现（trigger:click，ADR-0060）：内层触发器元素即 popover
@@ -12124,7 +12506,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-color-picker-hex" x-text="liveHex"></span>
   </span>
 </span>
-`,co=`<!--
+`,mo=`<!--
     autospark-color-panel 取色面板（ADR-0028）——color-picker 的内部组件（非用户直接
     消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制（trigger:click）
     渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位/关闭触点）由 popover-shell 承载，
@@ -12262,7 +12644,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     />
   </div>
 </div>
-`,lo=`autospark.color-picker`,uo=`autospark-color-panel`;function fo(e){e.components[lo]=so,e.components[uo]=co}po();function po(){y(e=>{m(e),fo(e)})}var mo=`<!--
+`,ho=`autospark.color-picker`,go=`autospark-color-panel`;function _o(e){e.components[ho]=po,e.components[go]=mo}vo();function vo(){y(e=>{m(e),_o(e)})}var yo=`<!--
     autospark.date-picker 日期选择器（ADR-0025）——触发器组件：Field 盒饰形态
     （.asc-field-box，input/select 同款 chrome）+ 选中值展示 + 日历图标。日历面板
     不自建弹层，复用 x-popover 指令机制呈现（trigger:click 形态——点击切换 / 面板
@@ -12890,7 +13272,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   ></i>
   <i class="asc-date-picker-icon" data-autospark-action x-icon="'date-calendar'"></i>
 </span>
-`,ho=`<!--
+`,bo=`<!--
     autospark-date-picker-panel 日历面板（ADR-0025）——date-picker 的内部组件（非用户
     直接消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制
     （trigger:click）渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位）由 popover-shell
@@ -12975,7 +13357,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     ></button>
   </div>
 </div>
-`,go=`autospark.date-picker`,_o=`autospark-date-picker-panel`,vo=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>`;function yo(e){e.icons?.add?.(`date-calendar`,vo),e.components[go]=mo,e.components[_o]=ho}bo();function bo(){y(e=>{m(e),yo(e)})}var xo=`<!--
+`,xo=`autospark.date-picker`,So=`autospark-date-picker-panel`,Co=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>`;function wo(e){e.icons?.add?.(`date-calendar`,Co),e.components[xo]=yo,e.components[So]=bo}To();function To(){y(e=>{m(e),wo(e)})}var Eo=`<!--
     autospark.time-picker 时间选择器（ADR-0025）——触发器组件：Field 盒饰形态
     （.asc-field-box，input/select 同款 chrome）+ 选中值展示 + 时钟图标。时间面板
     不自建弹层，复用 x-popover 指令机制呈现（trigger:click 形态——点击切换 / 面板
@@ -13397,7 +13779,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   ></i>
   <i class="asc-time-picker-icon" data-autospark-action x-icon="'time-clock'"></i>
 </span>
-`,So=`<!--
+`,Do=`<!--
     autospark-time-picker-panel 时间面板（ADR-0025）——time-picker 的内部组件（非用户
     直接消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制
     （trigger:click）渲染进 body 覆盖物容器，面板外壳由 popover-shell 承载，本组件
@@ -13467,7 +13849,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </div>
   </div>
 </div>
-`,Co=`autospark.time-picker`,wo=`autospark-time-picker-panel`,To=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`;function Eo(e){e.icons?.add?.(`time-clock`,To),e.components[Co]=xo,e.components[wo]=So}Do();function Do(){y(e=>{m(e),Eo(e)})}var Oo=`<!--
+`,Oo=`autospark.time-picker`,ko=`autospark-time-picker-panel`,Ao=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`;function jo(e){e.icons?.add?.(`time-clock`,Ao),e.components[Oo]=Eo,e.components[ko]=Do}Mo();function Mo(){y(e=>{m(e),jo(e)})}var No=`<!--
     autospark.time-select 时间点下拉（ADR-0025）——触发器组件：select 范式直系克隆
     （ADR-0022）：Field 盒饰形态 + 选中值展示 + 时钟图标；起止/步长生成离散时间
     点列表作 options。列表面板不自建弹层，复用 x-popover 指令机制呈现（trigger:click
@@ -13953,7 +14335,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   ></i>
   <i class="asc-time-select-icon" data-autospark-action x-icon="'time-clock'"></i>
 </span>
-`,ko=`<!--
+`,Po=`<!--
     autospark-time-select-panel 时间点列表面板（ADR-0025）——time-select 的内部组件
     （非用户直接消费，无文档页；连字符注册名的成因见 index.ts）：select 下拉面板的
     直系克隆（非 filter/virtual 子集，ADR-0022 范式）——经 x-popover 指令机制
@@ -14031,7 +14413,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     ></div>
   </div>
 </div>
-`,Ao=`autospark.time-select`,jo=`autospark-time-select-panel`,Mo=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`;function No(e){e.icons?.add?.(`time-clock`,Mo),e.components[Ao]=Oo,e.components[jo]=ko}Po();function Po(){y(e=>{m(e),No(e)})}var Fo=`<!--
+`,Fo=`autospark.time-select`,Io=`autospark-time-select-panel`,Lo=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`;function Ro(e){e.icons?.add?.(`time-clock`,Lo),e.components[Fo]=No,e.components[Io]=Po}zo();function zo(){y(e=>{m(e),Ro(e)})}var Bo=`<!--
     autospark.autocomplete 自动补全输入（ADR-0027）——触发器组件：**复制 input 结构
     而非嵌套消费**（input-number 先例：输入事件被建议管道消费，嵌套则两层语义互渗 +
     跨插件产物依赖；共享面已由 field 骨架继承覆盖，ADR-0020）。真原生 input +
@@ -14635,7 +15017,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     x-icon="'loading'"
   ></i>
 </span>
-`,Io=`<!--
+`,Vo=`<!--
     autospark-autocomplete-panel 建议面板（ADR-0027）——autocomplete 的内部组件
     （非用户直接消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令
     机制（trigger:click）渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位/宽度 fit
@@ -14708,7 +15090,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     ></div>
   </div>
 </div>
-`,Lo=`autospark.autocomplete`,Ro=`autospark-autocomplete-panel`,zo=new Set([`disabled`,`readonly`,`clearable`]);function Bo(e){e.components[Lo]=Fo,e.components[Ro]=Io,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-autocomplete`))){let e=document.createElement(`span`),n=[];for(let r of Array.from(t.attributes))r.name.startsWith(`:`)?n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`):r.name===`class`||r.name===`style`||r.name===`id`||r.name===`name`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)?e.setAttribute(r.name,r.value):r.value===``&&zo.has(r.name)?n.push(`${Q(Z(r.name))}: true`):n.push(`${Q(Z(r.name))}: ${JSON.stringify($(r.value))}`);for(e.setAttribute(`x-component:${Lo}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Vo();function Vo(){y(e=>{m(e),Bo(e)})}var Ho=`<!--\r
+`,Ho=`autospark.autocomplete`,Uo=`autospark-autocomplete-panel`,Wo=new Set([`disabled`,`readonly`,`clearable`]);function Go(e){e.components[Ho]=Bo,e.components[Uo]=Vo,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-autocomplete`))){let e=document.createElement(`span`),n=[];for(let r of Array.from(t.attributes))r.name.startsWith(`:`)?n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`):r.name===`class`||r.name===`style`||r.name===`id`||r.name===`name`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)?e.setAttribute(r.name,r.value):r.value===``&&Wo.has(r.name)?n.push(`${Q(Z(r.name))}: true`):n.push(`${Q(Z(r.name))}: ${JSON.stringify($(r.value))}`);for(e.setAttribute(`x-component:${Ho}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Ko();function Ko(){y(e=>{m(e),Go(e)})}var qo=`<!--\r
     autospark.breadcrumb 面包屑（组件库 P1 导航件，ADR-0018 清单权威表 navigation 行）：\r
     数据驱动 items（{ label, href?, icon? }[]）渲染层级路径——末项恒为「当前页」\r
     （aria-current="page"）；有 href 的项渲染为真 a 链接（primary 色，原生导航语义\r
@@ -14864,7 +15246,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </li>\r
   </ol>\r
 </nav>\r
-`,Uo=`autospark.breadcrumb`;function Wo(e){e.components[Uo]=Ho,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-breadcrumb`))){let e=document.createElement(`nav`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-breadcrumb-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={label:e.getAttribute(`label`)??``},n=e.getAttribute(`href`);n!=null&&(t.href=n);let r=e.getAttribute(`icon`);return r!=null&&(t.icon=r),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${Uo}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Go();function Go(){y(e=>{m(e),Wo(e)})}var Ko=`<!--\r
+`,Jo=`autospark.breadcrumb`;function Yo(e){e.components[Jo]=qo,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-breadcrumb`))){let e=document.createElement(`nav`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-breadcrumb-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={label:e.getAttribute(`label`)??``},n=e.getAttribute(`href`);n!=null&&(t.href=n);let r=e.getAttribute(`icon`);return r!=null&&(t.icon=r),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${Jo}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Xo();function Xo(){y(e=>{m(e),Yo(e)})}var Zo=`<!--\r
     autospark.tabs 页签（组件库 P1 导航件，ADR-0018 清单权威表 navigation 行 / 决策 3\r
     裁定 segmented 并入本件作 variant）：items（{ key, label, icon?, disabled? }[]，\r
     状态引用注入）驱动页签头 + 默认插槽承载面板区（消费者以 x-show / x-if 家族切面板，\r
@@ -15175,7 +15557,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <div class="asc-tabs-content" x-slot></div>\r
   </div>\r
 </div>\r
-`,qo=`autospark.tabs`;function Jo(e){e.components[qo]=Ko,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-tabs`))){let e=document.createElement(`div`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-tab`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`icon`);return n!=null&&(t.icon=n),e.hasAttribute(`disabled`)&&(t.disabled=!0),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${qo}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Yo();function Yo(){y(e=>{m(e),Jo(e)})}var Xo=`<!--
+`,Qo=`autospark.tabs`;function $o(e){e.components[Qo]=Zo,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-tabs`))){let e=document.createElement(`div`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-tab`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`icon`);return n!=null&&(t.icon=n),e.hasAttribute(`disabled`)&&(t.disabled=!0),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${Qo}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}es();function es(){y(e=>{m(e),$o(e)})}var ts=`<!--
     autospark.menu 导航菜单（组件库 P2 导航件，ADR-0018 清单权威表 navigation 行）：
     items（{ key, label, icon?, disabled?, children?[]（一层子菜单嵌套）}[]，状态引用
     注入）驱动菜单树，<x-menu-item> 子元素声明（含一层嵌套 children）经 data-items
@@ -15562,7 +15944,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </ul>
   </div>
 </div>
-`,Zo=`autospark.menu`;function Qo(e){let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`icon`);n!=null&&(t.icon=n),e.hasAttribute(`disabled`)&&(t.disabled=!0);let r=Array.from(e.children).filter(e=>e.tagName.toLowerCase()===`x-menu-item`);return r.length&&(t.children=r.map(Qo)),t}function $o(e){e.components[Zo]=Xo,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-menu`))){let e=document.createElement(`div`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-menu-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(Qo);else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``?a.push(`${Q(Z(n.name))}: true`):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${Zo}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}es();function es(){y(e=>{m(e),$o(e)})}var ts=`<!--
+`,ns=`autospark.menu`;function rs(e){let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`icon`);n!=null&&(t.icon=n),e.hasAttribute(`disabled`)&&(t.disabled=!0);let r=Array.from(e.children).filter(e=>e.tagName.toLowerCase()===`x-menu-item`);return r.length&&(t.children=r.map(rs)),t}function is(e){e.components[ns]=ts,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-menu`))){let e=document.createElement(`div`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-menu-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(rs);else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``?a.push(`${Q(Z(n.name))}: true`):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${ns}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}as();function as(){y(e=>{m(e),is(e)})}var os=`<!--
     autospark.steps 步骤条（组件库 P2 导航件，ADR-0018 清单权威表 navigation 行）：
     items（{ title, description?, icon? }[]，状态引用注入）或 <x-step> 子元素声明
     （data-items 通道，字面量数组 props 死环规避，P0 固化规避清单第 1 条）双形态。
@@ -15852,7 +16234,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </ol>
   </div>
 </div>
-`,ns=`autospark.steps`;function rs(e){e.components[ns]=ts,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-steps`))){let e=document.createElement(`div`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-step`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={title:e.getAttribute(`title`)??``},n=e.getAttribute(`description`);n!=null&&(t.description=n);let r=e.getAttribute(`icon`);return r!=null&&(t.icon=r),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``?a.push(`${Q(Z(n.name))}: true`):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${ns}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}is();function is(){y(e=>{m(e),rs(e)})}var as=`<!--
+`,ss=`autospark.steps`;function cs(e){e.components[ss]=os,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-steps`))){let e=document.createElement(`div`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-step`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={title:e.getAttribute(`title`)??``},n=e.getAttribute(`description`);n!=null&&(t.description=n);let r=e.getAttribute(`icon`);return r!=null&&(t.icon=r),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``?a.push(`${Q(Z(n.name))}: true`):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${ss}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}ls();function ls(){y(e=>{m(e),cs(e)})}var us=`<!--
     autospark.page-header 页头（组件库 P2 导航件，ADR-0018 清单权威表 navigation 行）：
     title / subtitle 标题对 + back 返回钮 + extra（右侧动作区）/ 默认（内容区）双插槽。
     纯结构件。
@@ -16044,7 +16426,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   <!-- 内容区：默认插槽出口（出口须紧凑书写——:empty 判定） -->
   <div class="asc-page-header-content" x-slot></div>
 </div>
-`,os=`autospark.page-header`;function ss(e){e.components[os]=as}cs();function cs(){y(e=>{m(e),ss(e)})}var ls=`<!--
+`,ds=`autospark.page-header`;function fs(e){e.components[ds]=us}ps();function ps(){y(e=>{m(e),fs(e)})}var ms=`<!--
     autospark.pagination 分页器（组件库 P2 导航件，ADR-0018 清单权威表 navigation 行）：
     受控 page（el.value 桥 + change detail={page,pageSize} + input 回写 x-model）+
     pageSize / total / pageSizes（条数切换 select）/ simple（极简形态）。
@@ -16430,7 +16812,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </span>
   </div>
 </div>
-`,us=`autospark.pagination`;function ds(e){e.components[us]=ls,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-pagination`))){let e=t.getAttribute(`page-sizes`);e!=null&&e!==``&&!t.hasAttribute(`:page-sizes`)&&t.setAttribute(`data-page-sizes`,e),t.removeAttribute(`page-sizes`)}})}fs();function fs(){y(e=>{m(e),ds(e)})}var ps=`<!--
+`,hs=`autospark.pagination`;function gs(e){e.components[hs]=ms,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-pagination`))){let e=t.getAttribute(`page-sizes`);e!=null&&e!==``&&!t.hasAttribute(`:page-sizes`)&&t.setAttribute(`data-page-sizes`,e),t.removeAttribute(`page-sizes`)}})}_s();function _s(){y(e=>{m(e),gs(e)})}var vs=`<!--
     autospark.anchor 锚点导航（组件库 P3 导航轻件，ADR-0018 清单权威表 navigation 行 /
     ADR-0029 轻件对 ADR）：items（{ key, label, href? }[]，状态引用注入——href 缺省
     key 作锚 id #key）驱动侧边文字列表；scroll + getBoundingClientRect 监听高亮当前锚
@@ -16626,7 +17008,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </div>
   </div>
 </nav>
-`,ms=`autospark.anchor`;function hs(e){e.components[ms]=ps,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-anchor`))){let e=document.createElement(`nav`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-anchor-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`href`);return n!=null&&(t.href=n),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):a.push(`${Q(Z(n.name))}: ${JSON.stringify(n.value===``||$(n.value))}`);for(e.setAttribute(`x-component:${ms}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}gs();function gs(){y(e=>{m(e),hs(e)})}var _s=`<!--
+`,ys=`autospark.anchor`;function bs(e){e.components[ys]=vs,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-anchor`))){let e=document.createElement(`nav`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-anchor-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`href`);return n!=null&&(t.href=n),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):a.push(`${Q(Z(n.name))}: ${JSON.stringify(n.value===``||$(n.value))}`);for(e.setAttribute(`x-component:${ys}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}xs();function xs(){y(e=>{m(e),bs(e)})}var Ss=`<!--
     autospark.dropdown 下拉菜单（ADR-0027）——触发器组件：动作触发型轻量菜单（与
     autospark.menu 的边界：menu = 页面导航区常驻组件——路由激活态 / 子菜单展开态 /
     自身状态域；本组件 = 按钮旁弹出的动作菜单，即点即走、select 后即复位，菜单项
@@ -16969,7 +17351,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     x-slot
   ></span>
 </div>
-`,vs=`<!--
+`,Cs=`<!--
     autospark-dropdown-panel 菜单面板（ADR-0027）——dropdown 的内部组件（非用户直接
     消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制渲染进
     body 覆盖物容器，面板外壳（边框/阴影/定位）由 popover-shell 承载，本组件只贡献
@@ -17036,7 +17418,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     x-text="t('dropdown.empty') === 'dropdown.empty' ? '暂无数据' : t('dropdown.empty')"
   ></div>
 </div>
-`,ys=`autospark.dropdown`,bs=`autospark-dropdown-panel`,xs=new Set([`disabled`]);function Ss(e){let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`icon`);return n!=null&&(t.icon=n),e.hasAttribute(`disabled`)&&(t.disabled=!0),e.hasAttribute(`divided`)&&(t.divided=!0),e.hasAttribute(`danger`)&&(t.danger=!0),t}function Cs(e){e.components[ys]=_s,e.components[bs]=vs,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-dropdown`))){let e=document.createElement(`span`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-dropdown-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(Ss);else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``&&xs.has(n.name)?a.push(`${Q(Z(n.name))}: true`):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${ys}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}ws();function ws(){y(e=>{m(e),Cs(e)})}var Ts=`<!--
+`,ws=`autospark.dropdown`,Ts=`autospark-dropdown-panel`,Es=new Set([`disabled`]);function Ds(e){let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`icon`);return n!=null&&(t.icon=n),e.hasAttribute(`disabled`)&&(t.disabled=!0),e.hasAttribute(`divided`)&&(t.divided=!0),e.hasAttribute(`danger`)&&(t.danger=!0),t}function Os(e){e.components[ws]=Ss,e.components[Ts]=Cs,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-dropdown`))){let e=document.createElement(`span`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-dropdown-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(Ds);else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``&&Es.has(n.name)?a.push(`${Q(Z(n.name))}: true`):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${ws}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}ks();function ks(){y(e=>{m(e),Os(e)})}var As=`<!--
     autospark.float-button 悬浮按钮（组件库 P3 other 分类首件，ADR-0018 清单权威表
     other 行 / 修订吸收原 backtop 独立条目——antd 5 同款路线 / ADR-0029 轻件对 ADR）：
     fixed 右下悬浮钮。type 双形态：default 常规（icon 必选 + click 原生冒泡事件出口）|
@@ -17246,7 +17628,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-float-button-label" x-slot></span>
   </span>
 </button>
-`,Es=`autospark.float-button`;function Ds(e){e.components[Es]=Ts,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-float-button`))){let e=document.createElement(`button`);e.setAttribute(`type`,`button`);let n=t.hasAttribute(`back-to-top`);t.removeAttribute(`back-to-top`);let r=t.hasAttribute(`type`)||t.hasAttribute(`:type`),i=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?i.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):i.push(`${Q(Z(n.name))}: ${JSON.stringify(n.value===``||$(n.value))}`);for(n&&!r&&i.push(`type: ${JSON.stringify(`back-to-top`)}`),e.setAttribute(`x-component:${Es}`,`{ ${i.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Os();function Os(){y(e=>{m(e),Ds(e)})}var ks=`<!--
+`,js=`autospark.float-button`;function Ms(e){e.components[js]=As,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-float-button`))){let e=document.createElement(`button`);e.setAttribute(`type`,`button`);let n=t.hasAttribute(`back-to-top`);t.removeAttribute(`back-to-top`);let r=t.hasAttribute(`type`)||t.hasAttribute(`:type`),i=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?i.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):i.push(`${Q(Z(n.name))}: ${JSON.stringify(n.value===``||$(n.value))}`);for(n&&!r&&i.push(`type: ${JSON.stringify(`back-to-top`)}`),e.setAttribute(`x-component:${js}`,`{ ${i.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Ns();function Ns(){y(e=>{m(e),Ms(e)})}var Ps=`<!--
     autospark.affix 固钉（组件库 P4 other 长尾件，ADR-0018 清单权威表 other 行 /
     ADR-0030 轻件对 ADR）：滚动过 offset 阈值后内容 fixed 吸附视口（position=top
     吸顶缺省 / bottom 吸底）；原位占位撑高防跳动（脱流前几何快照：宿主写 height
@@ -17397,7 +17779,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <div class="asc-affix-inner" x-slot></div>
   </div>
 </div>
-`,As=`autospark.affix`;function js(e){e.components[As]=ks,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-affix`))){let e=document.createElement(`div`),n=[];for(let r of Array.from(t.attributes))r.name.startsWith(`:`)?n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`):r.name===`class`||r.name===`style`||r.name===`id`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)?e.setAttribute(r.name,r.value):n.push(`${Q(Z(r.name))}: ${JSON.stringify(r.value===``||$(r.value))}`);for(e.setAttribute(`x-component:${As}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Ms();function Ms(){y(e=>{m(e),js(e)})}var Ns=`<!--
+`,Fs=`autospark.affix`;function Is(e){e.components[Fs]=Ps,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-affix`))){let e=document.createElement(`div`),n=[];for(let r of Array.from(t.attributes))r.name.startsWith(`:`)?n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`):r.name===`class`||r.name===`style`||r.name===`id`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)?e.setAttribute(r.name,r.value):n.push(`${Q(Z(r.name))}: ${JSON.stringify(r.value===``||$(r.value))}`);for(e.setAttribute(`x-component:${Fs}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Ls();function Ls(){y(e=>{m(e),Is(e)})}var Rs=`<!--
     autospark.watermark 水印（组件库 P4 other 长尾件，ADR-0018 清单权威表 other 行 /
     ADR-0030 轻件对 ADR）：容器形态（缺省，absolute 覆盖默认插槽内容）或全页形态
     （fullPage，水印层挂 body fixed 铺满视口）；canvas 离屏绘制旋转文本单元 →
@@ -17633,7 +18015,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   </div>
   <div class="asc-watermark-layer"></div>
 </div>
-`,Ps=`autospark.watermark`;function Fs(e){e.components[Ps]=Ns,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-watermark`))){let e=document.createElement(`div`),n=[];for(let r of Array.from(t.attributes))r.name.startsWith(`:`)?n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`):(r.name===`content`||r.name===`gap`)&&r.value.trim().startsWith(`[`)?e.setAttribute(`data-${r.name}`,r.value):r.name===`class`||r.name===`style`||r.name===`id`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)?e.setAttribute(r.name,r.value):n.push(`${Q(Z(r.name))}: ${JSON.stringify(r.value===``||$(r.value))}`);for(e.setAttribute(`x-component:${Ps}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Is();function Is(){y(e=>{m(e),Fs(e)})}var Ls=`<!--
+`,zs=`autospark.watermark`;function Bs(e){e.components[zs]=Rs,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-watermark`))){let e=document.createElement(`div`),n=[];for(let r of Array.from(t.attributes))r.name.startsWith(`:`)?n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`):(r.name===`content`||r.name===`gap`)&&r.value.trim().startsWith(`[`)?e.setAttribute(`data-${r.name}`,r.value):r.name===`class`||r.name===`style`||r.name===`id`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)?e.setAttribute(r.name,r.value):n.push(`${Q(Z(r.name))}: ${JSON.stringify(r.value===``||$(r.value))}`);for(e.setAttribute(`x-component:${zs}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Vs();function Vs(){y(e=>{m(e),Bs(e)})}var Hs=`<!--
     化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
     不会求值——遮罩高亮框与气泡全部落在编译子树的内层元素上，宿主为透明块壳。
 
@@ -18043,7 +18425,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </div>
   </div>
 </div>
-`,Rs=`autospark.tour`;function zs(e){e.components[Rs]=Ls}Bs();function Bs(){y(e=>{m(e),zs(e)})}var Vs=`<!--
+`,Us=`autospark.tour`;function Ws(e){e.components[Us]=Hs}Gs();function Gs(){y(e=>{m(e),Ws(e)})}var Ks=`<!--
     化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
     不会求值——本组件无宿主级变体外观，数值文本经 JS 通道直写内层元素（statistic
     同款纪律：绑定表达式不含组件 methods）。
@@ -18209,7 +18591,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-countdown-value"></span>
   </div>
 </div>
-`,Hs=`autospark.countdown`;function Us(e){e.components[Hs]=Vs}Ws();function Ws(){y(e=>{m(e),Us(e)})}};
+`,qs=`autospark.countdown`;function Js(e){e.components[qs]=Ks}Ys();function Ys(){y(e=>{m(e),Js(e)})}};
     if (AutoSpark === undefined) {
         // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
         var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);

@@ -1,0 +1,174 @@
+(function (AutoSpark) {
+    "use strict";
+var run = function (AutoSpark) {
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){e.components[`autospark.divider`]=`<!--\r
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态\r
+    绑定不会求值——方向/虚线/对齐变体绑定落在编译子树的内层 body 上，宿主的\r
+    块级/行内切换经 :has() 驱动；spacing（宿主 margin）在 mounted 钩子经 JS 通道\r
+    同步（vertical 切换会换 margin 轴，故 vertical 变化时一并重同步）。\r
+\r
+    布局结构：body 为 flex 线容器，两段线由 body 的 ::before / ::after 伪元素\r
+    承担（flex:1 满铺）；文字（默认插槽）居中嵌入，空插槽时出口隐藏、两段线\r
+    自然连成整线，无文字态与带文字态共用同一结构。垂直态不带文字（文字被忽略\r
+    不渲染——对齐 antd 5 边界，垂直分割线场景为纯分隔）。\r
+-->\r
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props\r
+     （data-size / data-shadow / data-radius / data-spacing / data-dark /\r
+     data-colorized 六键）自动获得；divider 不在 data() 声明主题六键——间距走\r
+     自有 spacing prop（JS 通道写 margin，不占用 data-spacing 主题通道名） -->\r
+<div\r
+  class="asc-divider"\r
+  x-define="autospark.divider"\r
+  x-define:inherit="autospark.base"\r
+>\r
+  <script setup>\r
+    {\r
+        data: () => ({\r
+            vertical: false,   // 垂直分割线（缺省水平）；垂直态文字不渲染（纯分隔场景）\r
+            dashed: false,     // 虚线（缺省实线）\r
+            align: "center",   // 文字位置（水平态带文字时生效）：left | center | right\r
+            spacing: "",       // 与相邻内容的间距：number px 或任意 CSS 值；水平态 = 上下 margin、垂直态 = 左右 margin（缺省无边距）\r
+        }),\r
+        mounted() {\r
+            // 间距同步（化身路径约束：宿主级样式走 JS 通道）：number 归一为 px 字符串，\r
+            // 按方向写宿主 margin 对应轴；vertical 切换换轴重写（watch 回调收 { value }\r
+            // 信封对象，此处读整组状态无需解构）\r
+            const syncSpacing = () => {\r
+                const el = this.el;\r
+                el.style.removeProperty("margin-top");\r
+                el.style.removeProperty("margin-bottom");\r
+                el.style.removeProperty("margin-left");\r
+                el.style.removeProperty("margin-right");\r
+                const s = this.data.spacing;\r
+                if (s === "" || s == null) return;\r
+                const v = typeof s === "number" ? s + "px" : s;\r
+                if (this.data.vertical) {\r
+                    el.style.marginLeft = v;\r
+                    el.style.marginRight = v;\r
+                } else {\r
+                    el.style.marginTop = v;\r
+                    el.style.marginBottom = v;\r
+                }\r
+            };\r
+            syncSpacing();\r
+            this.watch("spacing", () => { syncSpacing(); });\r
+            this.watch("vertical", () => { syncSpacing(); });\r
+        },\r
+    }\r
+  <\/script>\r
+  <style global id="autospark-components-divider">\r
+    /* 线色基准（--auto-* 语义变量三级回退链，ADR-0129；兜底值对齐 button 边框校准值） */\r
+    .asc-divider {\r
+      --asc-line: var(--auto-border-color, var(--asc-divider-color, #d9d9d9));\r
+      border: 0;\r
+      margin: 0;\r
+      font-size: var(--auto-font-size, var(--asc-divider-font-size, 0.875rem));\r
+    }\r
+    /* 水平态（缺省）：块级满宽，body 承载 flex 线容器 */\r
+    .asc-divider {\r
+      display: block;\r
+      width: 100%;\r
+    }\r
+    .asc-divider-body {\r
+      display: flex;\r
+      align-items: center;\r
+      width: 100%;\r
+    }\r
+    /* 两段线：伪元素 border-top 承担（dashed 切 border-style），flex:1 满铺 */\r
+    .asc-divider-body::before,\r
+    .asc-divider-body::after {\r
+      content: "";\r
+      flex: 1;\r
+      border-top: var(--auto-border-size, var(--asc-divider-border-size, 1px)) solid var(--asc-line);\r
+    }\r
+    .asc-divider-body[data-dashed="true"]::before,\r
+    .asc-divider-body[data-dashed="true"]::after {\r
+      border-top-style: dashed;\r
+    }\r
+\r
+    /* ---------- 文字位置（align，带文字时生效）：短线侧 flex 收窄 ---------- */\r
+    /* left：文字靠左（首段短线 0.5em，尾段满铺） */\r
+    .asc-divider-body[data-align="left"]::before {\r
+      flex: 0 0 0.5em;\r
+    }\r
+    .asc-divider-body[data-align="right"]::after {\r
+      flex: 0 0 0.5em;\r
+    }\r
+\r
+    /* 文字出口：插槽内容；空插槽隐藏（两段线连成整线，无 gap 占位） */\r
+    .asc-divider-text {\r
+      margin: 0 1em;\r
+      color: var(--auto-color, var(--asc-divider-text-color, #606060));\r
+      white-space: nowrap;\r
+    }\r
+    .asc-divider-text:empty {\r
+      display: none;\r
+    }\r
+\r
+    /* ---------- 垂直态（vertical）：宿主行内化、body 纵排、线段换 border-left；\r
+         高度默认 0.9em（--asc-divider-length 可覆盖；flex 容器内由使用者以\r
+         class/样式控制满高）---------- */\r
+    .asc-divider:has(> .asc-divider-body[data-vertical="true"]) {\r
+      display: inline-block;\r
+      width: auto;\r
+      height: var(--asc-divider-length, 0.9em);\r
+      vertical-align: middle;\r
+    }\r
+    .asc-divider-body[data-vertical="true"] {\r
+      display: inline-flex;\r
+      flex-direction: column;\r
+      align-items: center;\r
+      width: auto;\r
+      height: 100%;\r
+    }\r
+    .asc-divider-body[data-vertical="true"]::before,\r
+    .asc-divider-body[data-vertical="true"]::after {\r
+      flex: 1;\r
+      width: 0;\r
+      border-top: 0;\r
+      border-left: var(--auto-border-size, var(--asc-divider-border-size, 1px)) solid var(--asc-line);\r
+    }\r
+    .asc-divider-body[data-vertical="true"][data-dashed="true"]::before,\r
+    .asc-divider-body[data-vertical="true"][data-dashed="true"]::after {\r
+      border-left-style: dashed;\r
+    }\r
+    /* 垂直态文字不渲染（对齐 antd 5 边界：垂直分割线为纯分隔） */\r
+    .asc-divider-body[data-vertical="true"] .asc-divider-text {\r
+      display: none;\r
+    }\r
+\r
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */\r
+    [dark] .asc-divider,\r
+    [data-dark] .asc-divider {\r
+      --asc-line: var(--auto-border-color, var(--asc-divider-color, #52525b));\r
+    }\r
+    [dark] .asc-divider-text,\r
+    [data-dark] .asc-divider-text {\r
+      color: var(--auto-color, var(--asc-divider-text-color, #fafafa));\r
+    }\r
+  </style>\r
+  <!-- 变体数据属性承载在 body（编译子树内层元素）；spacing 经 mounted JS 通道写宿主 margin -->\r
+  <span\r
+    class="asc-divider-body"\r
+    :data-vertical="vertical"\r
+    :data-dashed="dashed"\r
+    :data-align="align"\r
+  >\r
+    <span class="asc-divider-text" x-slot></span>\r
+  </span>\r
+</div>\r
+`}n();function n(){e(e=>{t(e)})}};
+    if (AutoSpark === undefined) {
+        // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
+        var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);
+        if (Object.isFrozen(queue)) {
+            console.error("插件闭包: 预加载队列已消费且全局 AutoSpark 不可达，插件未注册");
+            return;
+        }
+        queue.push(function (engine, ns) { run(ns); });
+    } else {
+        run(AutoSpark);
+    }
+})(globalThis.AutoSpark);
+
+//# sourceMappingURL=autospark.divider.js.map

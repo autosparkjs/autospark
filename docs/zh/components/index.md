@@ -61,7 +61,8 @@ AutoSpark 官方组件（组件型插件，`@autospark/plugins`）——每个�
 | [Carousel 轮播](./display/carousel.md) | 展示 | 轮播（items 双形态 + autoplay/loop/indicator/arrows + scroll-snap 真滚动/fade 双档 + change/el.value） | `autospark.carousel.js` |
 | [Table 数据表格](./display/table.md) | 展示 | 数据表格（columns×rows 双循环 + col-\<key\> 插槽 + 排序/行选择/斑马纹 + virtual 万行网格分叉） | `autospark.table.js` **须与 empty 同页加载**（selectable 另需 `autospark.checkbox.js`、virtual 另需 `autospark.virtual.js`） |
 | [Collapse 折叠面板](./display/collapse.md) | 展示 | 折叠面板组（items/子元素声明双形态 + 受控展开集 + 手风琴互斥 + grid 高度过渡） | `autospark.collapse.js` |
-| [Input 输入框](./form/input.md) | 表单 | 原生增强输入框（type 文本族/textarea/clearable/密码切换/前后置/计数，携 Field 骨架基座） | `autospark.input.js`（内嵌 field 注册，无须另引） |
+| [Input 输入框](./form/input.md) | 表单 | 原生增强输入框（type 文本族/clearable/密码切换/前后置/计数，携 Field 骨架基座） | `autospark.input.js`（内嵌 field 注册，无须另引） |
+| [Textarea 多行文本框](./form/textarea.md) | 表单 | 原生增强多行输入（autosize/minRows/maxRows + resize/清除/计数/上下 actions，携 Field 骨架基座） | `autospark.textarea.js`（内嵌 field 注册，无须另引；actions 另需 `autospark.button.js`） |
 | [Checkbox 复选框](./form/checkbox.md) | 表单 | 原生增强复选框（真 input + 自绘勾形/半选视觉，x-model.boolean 布尔语域值桥） | `autospark.checkbox.js`（内嵌 field 注册，无须另引） |
 | [Radio 单选钮](./form/radio.md) | 表单 | 原生增强单选钮（真 input + 自绘圆点，原生 name 同名互斥组语义 + checked 值桥） | `autospark.radio.js`（内嵌 field 注册，无须另引） |
 | [Switch 开关](./form/switch.md) | 表单 | 自绘开关（role=switch 可访问性自持，loading 态 + hidden 载体表单桥 + change 事件） | `autospark.switch.js`（内嵌 field 注册，无须另引） |

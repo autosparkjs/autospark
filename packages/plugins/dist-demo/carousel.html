@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.carousel · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}.block{margin:12px 0}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}.promo{background:linear-gradient(135deg,#e6f4ff,#f0f7ff);flex-direction:column;justify-content:center;align-items:center;gap:8px;height:100%;display:flex}.promo strong{font-size:1.6rem}</style>
+  </head>
+  <body>
+    <h1>autospark.carousel</h1>
+    <p>
+      轮播（display 分类）——items 双形态（状态引用 / <code>&lt;x-carousel-item&gt;</code>
+      子元素声明）+ autoplay（prefers-reduced-motion 停播）+ loop + indicator（位置/开关）+
+      arrows（前后箭头，x-icon）+ effect（<strong>scroll 真滚动 scroll-snap</strong> /
+      fade 淡入淡出）；切换广播 <code>change</code>（detail = { index }）+
+      <code>el.value</code> 值桥；键盘左右（stage 焦点域）。
+    </p>
+
+    <div id="app">
+      <h2>基础（scroll 档：原生滚动惯性 + loop + 箭头 + 指示点）</h2>
+      <div class="block" @change="page = $event.detail.index + 1">
+        <x-carousel style="--asc-carousel-height: 14rem" loop="true" :items="slides"></x-carousel>
+      </div>
+      <p class="hint">当前页：<code>{{ page }}</code>——change 事件回显（拖动/箭头/指示点/键盘殊途同归）。</p>
+
+      <h2>autoplay + fade 淡入淡出</h2>
+      <div class="block">
+        <x-carousel effect="fade" autoplay="3000" loop="true" indicator="top" :items="slides"></x-carousel>
+      </div>
+      <p class="hint">
+        fade 档纯 CSS 叠放透明度切换（stage 定高 <code>--asc-carousel-height</code>，缺省 16rem）；
+        系统开启「减少动态效果」时 autoplay 自动停播。
+      </p>
+
+      <h2>子元素声明 + 内容幻灯（&lt;x-carousel-item&gt;）</h2>
+      <div class="block">
+        <x-carousel loop>
+          <x-carousel-item src="https://picsum.photos/seed/asc-car-a/640/300" alt="山"></x-carousel-item>
+          <x-carousel-item>
+            <div class="promo">
+              <strong>内容幻灯</strong>
+              <span>子内容随迁为 html 字段（<code>x-html</code> 直出）</span>
+            </div>
+          </x-carousel-item>
+          <x-carousel-item src="https://picsum.photos/seed/asc-car-b/640/300" caption="说明条：海边日落"></x-carousel-item>
+        </x-carousel>
+      </div>
+      <p class="hint">
+        声明形态折叠为 <code>data-items</code> JSON（规避字面量数组 props 死环）；静态声明语义——
+        动态内容走 items 状态引用（整体替换驱动）。
+      </p>
+
+      <h2>收起浮层（arrows: false + indicator: false）</h2>
+      <div class="block">
+        <x-carousel
+          style="--asc-carousel-height: 10rem"
+          autoplay="2500"
+          loop="true"
+          arrows="false"
+          indicator="false"
+          effect="fade"
+          :items="slides"
+        ></x-carousel>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.carousel.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+          slides: [
+              "https://picsum.photos/seed/asc-car-1/640/300",
+              "https://picsum.photos/seed/asc-car-2/640/300",
+              "https://picsum.photos/seed/asc-car-3/640/300",
+              "https://picsum.photos/seed/asc-car-4/640/300",
+          ],
+          page: 1,
+      });
+    </script>
+  </body>
+</html>

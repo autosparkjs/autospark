@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.steps · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}.col{flex-wrap:wrap;align-items:flex-start;gap:24px;margin:12px 0;display:flex}.col>div{flex:240px;min-width:0}.dark-box{background:#1a1a1a;border-radius:8px;margin-top:12px;padding:12px 16px}</style>
+  </head>
+  <body>
+    <h1>autospark.steps</h1>
+    <p>
+      步骤条：items（{ title, description?, icon? }[]，状态引用）或 &lt;x-step&gt; 子元素
+      声明双形态；受控 current（el.value 桥 + clickable 点击切换 change
+      detail={current}）；status 三态（process / finish / error 当前步异常）；direction
+      双排向；已完成步打勾 + 连接线进度染色。
+    </p>
+
+    <div id="app" x-data="{ log: '' }">
+      <h2>基础用法（clickable 点击切换 + 受控回写）</h2>
+      <div @change="log = '当前步：' + ($event.detail.current + 1)">
+        <x-steps clickable="true" :items="flow" :current="step"></x-steps>
+      </div>
+      <p class="hint">先行步自动打勾、连接线随完成染色；点击步切换（current 索引 0 起）。</p>
+
+      <h2>status 三态</h2>
+      <div class="col">
+        <x-steps current="1" :items="flow"></x-steps>
+        <x-steps current="1" status="error" :items="flow"></x-steps>
+        <x-steps current="2" status="finish" :items="flow"></x-steps>
+      </div>
+      <p class="hint">process 进行中（实底序号）/ error 当前步异常（danger 叉号）/ finish 收尾（当前步也打勾）。</p>
+
+      <h2>direction 纵排 + icon 自定义图标</h2>
+      <div class="col">
+        <x-steps current="1" direction="vertical" :items="flow"></x-steps>
+        <x-steps current="1" :items="flow3"></x-steps>
+      </div>
+
+      <h2>子元素声明（静态步骤）</h2>
+      <x-steps current="1">
+        <x-step title="填写信息" description="准备基础资料"></x-step>
+        <x-step title="验证身份" description="短信或邮箱验证"></x-step>
+        <x-step title="完成"></x-step>
+      </x-steps>
+      <p class="hint">{{ log }}</p>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="col">
+          <x-steps current="1" :items="flow"></x-steps>
+          <x-steps current="1" status="error" direction="vertical" :items="flow"></x-steps>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.steps.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        step: 1,
+        flow: [
+          { title: "填写信息", description: "准备基础资料" },
+          { title: "验证身份", description: "短信或邮箱验证" },
+          { title: "完成", description: "开通完成" },
+        ],
+        flow3: [
+          { title: "提交", icon: "file" },
+          { title: "审核", icon: "bell" },
+          { title: "发布", icon: "success" },
+        ],
+      });
+    </script>
+  </body>
+</html>

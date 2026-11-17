@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Textarea · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.textarea.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{ bio: '' }">
+      <div class="auto-card">
+        <div class="auto-card-header">最小用法：宿主元素 + x-model 双向绑定，autosize 默认开启</div>
+        <div class="auto-card-body">
+          <p>
+            <x-textarea x-model="bio" rows="2" placeholder="请输入简介（输入换行看自动增高）"></x-textarea>
+          </p>
+          <p class="hint">当前值：{{ bio || '（空）' }} —— 高度随内容增长，默认上限 8 行，到顶后内部滚动。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">元素名写法的纯文本子内容 = 初值</div>
+        <div class="auto-card-body">
+          <p><x-textarea name="memo" rows="2">这段文字是元素子内容，被折叠为 value 初值。</x-textarea></p>
+          <p class="hint">显式 value 声明优先；有元素子节点时不折叠（走默认插槽覆盖逃生通道）。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Textarea · actions 上下分侧</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.textarea.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main
+      class="demo-main"
+      x-data="{ acts: [{ label: '取消', pos: 'before' }, { label: '保存', name: 'save', value: 1 }], log: '' }"
+    >
+      <div class="auto-card">
+        <div class="auto-card-header">actions：pos=before 排在控件上方、after（缺省）排在下方</div>
+        <div class="auto-card-body">
+          <p
+            @action-click="log = `点击 ${$event.detail.name ?? $event.detail.item.label}`"
+          >
+            <x-textarea :actions="acts" rows="3" placeholder="多行内容 + 上下动作按钮"></x-textarea>
+          </p>
+          <p class="hint">{{ log || '点击按钮查看 action-click 事件' }} —— actions 由 field 骨架继承，本组件把融合按钮段改为上下整行，不与文本抢行宽；须同页加载 <code>autospark.button.js</code>。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

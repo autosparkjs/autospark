@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.page-header · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}.stage{border:1px solid #00000014;border-radius:8px;margin:12px 0;padding:0 12px 12px}.stage button{font:inherit;cursor:pointer;background:#fff;border:1px solid #d9d9d9;border-radius:6px;padding:4px 12px}.stage button:hover{color:#009aff;border-color:#009aff}.dark-box{background:#1a1a1a;border-radius:8px;margin-top:12px;padding:0 12px 12px}</style>
+  </head>
+  <body>
+    <h1>autospark.page-header</h1>
+    <p>
+      页头：title / subtitle 标题对 + back 返回钮（false 缺省 / true 图标钮 / 文案字符串
+      = 图标 + 文案，click 派发 back 冒泡事件）；slots：extra（右侧动作区）/ 默认（内容
+      区）。纯结构件，无 i18n 文案。
+    </p>
+
+    <div id="app" x-data="{ log: '' }">
+      <h2>基础用法（back 文案形态）</h2>
+      <div class="stage" @back="log = 'back 事件（接管动作由消费者决定）'">
+        <x-page-header title="订单详情" subtitle="单号 #1024" back="返回列表">
+          <p>页面内容写在默认插槽（内容区），空则不占位。</p>
+        </x-page-header>
+      </div>
+
+      <h2>back=true 图标钮 + extra 右侧动作区</h2>
+      <div class="stage" @back="log = 'back 事件（图标钮）'">
+        <x-page-header title="组件总览" back="true">
+          <template x-slot:extra>
+            <button type="button" x-on:click="log = 'extra：刷新'">刷新</button>
+            <button type="button" x-on:click="log = 'extra：导出'">导出</button>
+          </template>
+          <p>extra 命名插槽投影到头行右缘；back=true 为纯图标钮（aria-label 以标题自描述）。</p>
+        </x-page-header>
+      </div>
+
+      <h2>无 back / 无插槽（最简页头）</h2>
+      <div class="stage">
+        <x-page-header title="数据报表" subtitle="每日 00:00 更新"></x-page-header>
+      </div>
+      <p class="hint">{{ log }}</p>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div @back="log = 'back 事件（暗色）'">
+          <x-page-header title="订单详情" subtitle="单号 #1024" back="true">
+            <p style="color: rgba(255, 255, 255, 0.65)">暗色态内容区。</p>
+          </x-page-header>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.page-header.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        log: "",
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.image · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}.stack{flex-direction:column;gap:16px;display:flex}.grid2{grid-template-columns:1fr 1fr;gap:12px;display:grid}.dark-box{background:#1a1a1a;border-radius:8px;margin-top:12px;padding:16px}</style>
+  </head>
+  <body>
+    <h1>autospark.image</h1>
+    <p>
+      图片：src / alt / lazy（原生 loading=lazy）/ fit（object-fit 五档）/ width·height 透传
+      + fallback 失败占位（图标或图片 URL）+ 加载态转圈。点击预览不做——P2 image-viewer 承接。
+    </p>
+
+    <div id="app">
+      <h2>基础（加载态转圈 → @load 摘圈）</h2>
+      <div class="stack">
+        <x-image alt="山野风景" :src="pic"></x-image>
+        <p class="hint">
+          加载完成前居中转圈（内置 loading 图标自转）；慢速网络下更明显。
+        </p>
+      </div>
+
+      <h2>失败回退（fallback 图标 / 图片 URL 双形态）</h2>
+      <div class="grid2">
+        <x-image alt="图标占位" :src="badPic"></x-image>
+        <x-image alt="图片占位" :src="badPic" :fallback="fbPic"></x-image>
+      </div>
+      <p class="hint">
+        缺省 fallback 为内置 file-error 图标；传 URL（以协议/斜杠开头）则渲染占位图。
+      </p>
+
+      <h2>fit 五档 + width/height 透传</h2>
+      <div class="grid2">
+        <x-image fit="cover" height="160" :src="pic"></x-image>
+        <x-image fit="contain" height="160" :src="pic"></x-image>
+      </div>
+
+      <h2>懒加载（lazy，原生 loading=lazy）</h2>
+      <x-image lazy="true" height="200" alt="滚动到视口才加载" :src="pic2"></x-image>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <x-image alt="暗色占位" :src="badPic"></x-image>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.image.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        pic: "https://picsum.photos/640/360",
+        pic2: "https://picsum.photos/640/300",
+        badPic: "https://example.invalid/broken.png",
+        fbPic: "https://picsum.photos/320/160",
+      });
+    </script>
+  </body>
+</html>

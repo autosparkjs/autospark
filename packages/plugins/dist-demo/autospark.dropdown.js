@@ -1,0 +1,428 @@
+(function (AutoSpark) {
+    "use strict";
+var run = function (AutoSpark) {
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){return e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase())}function n(e){return/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e)}function r(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}var i=`autospark.dropdown`,a=new Set([`disabled`]);function o(e){let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`icon`);return n!=null&&(t.icon=n),e.hasAttribute(`disabled`)&&(t.disabled=!0),e.hasAttribute(`divided`)&&(t.divided=!0),e.hasAttribute(`danger`)&&(t.danger=!0),t}function s(e){e.components[i]=`<!--
+    autospark.dropdown 下拉菜单（ADR-0027）——触发器组件：动作触发型轻量菜单（与
+    autospark.menu 的边界：menu = 页面导航区常驻组件——路由激活态 / 子菜单展开态 /
+    自身状态域；本组件 = 按钮旁弹出的动作菜单，即点即走、select 后即复位，菜单项
+    语义自持不嵌套消费 menu，ADR-0027 决策 6）。
+
+    触发区 = 默认插槽：任意内容（button / 文本 / 图标）经插槽出口投影进触发器包裹
+    span（display:contents 出口不产生布局层）；包裹 span 即 popover 宿主 + 键盘监听
+    点 + tabindex=0 聚焦位（文本触发区键盘可达；button 内容时多一个停靠点，文档已
+    注记）+ aria-haspopup="menu" / aria-expanded（JS 通道随开合同步）。
+
+    菜单面板（panel.html，内部组件 autospark-dropdown-panel）复用 x-popover 指令机制：
+    trigger（hover 缺省 | click）/ placement 经 x-popover-options 成员属性表达式通道
+    透传（热切换；打开中的面板不重估，切换自下一次触发生效——机制语义）；面板经
+    scope 链哨兵键回传（pickTick/pickKey 选中、hoverTick/hoverKey 悬停高亮），
+    mounted/unmounted 沿链写 open。
+
+    程序化开合按触发模型分派（决策 7）：click 模型派宿主 click（toggle 通道）；
+    hover 模型派宿主 mouseenter / mouseleave（relatedTarget 空 → 离开共享 hover 域
+    → delayHide 宽限后关闭——两模型各有原生关闭链，不绕开机制自建关闭）。
+
+    键盘（WAI-ARIA menu 模式，select 同款高亮漫游模型——焦点恒留触发区）：上下移动
+    高亮（跳过禁用项、首尾环绕、未开先开）/ Enter 开态触发当前高亮（preventDefault
+    防误触发表单提交；无高亮关面板；关态原生放行）/ ESC 归 popover 打开栈（机制继承
+    不拦截）/ Tab 自然移焦。select 事件 detail = { key, item }（触发即关面板 + 高亮
+    复位，动作菜单无激活态持久语义）。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得——字号档位经主题通道全跟随；dropdown 不在 data() 声明主题六键，
+     内部无自有变体属性（trigger / placement 不占通道名） -->
+<div
+  class="asc-dropdown"
+  x-define="autospark.dropdown"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            items: [],           // 菜单项 { key, label, icon?, disabled?, divided?, danger? }[]——状态引用注入；声明形态经 data-items 通道兜底
+            trigger: "hover",    // 触发方式：hover 悬浮（缺省，antd 同款）| click 点击开关——透传 popover 触发模型
+            placement: "bottom-start", // 定位方向（popover at.placement 12 方向透传；缺省左对齐下拉惯例）
+            disabled: false,     // 禁用：触发器退出焦点序 + CSS 拦截开面板（popover 宿主监听不知禁用态）
+            // —— 内部状态（JS 通道维护）——
+            open: false,         // 面板开合态（面板 mounted/unmounted 沿链写回；aria-expanded / data-open 驱动）
+            activeKey: null,     // 键盘/悬停高亮项 key（面板 :data-active 比较基准——值通道；开面板即复位，select 后归 null）
+            pickTick: 0,         // 选中哨兵（面板菜单项点击写：自增必变免疫同值去重，ADR-0022 决策 2）
+            pickKey: null,       // 选中哨兵携带 key
+            hoverTick: 0,        // 悬停高亮哨兵（面板 mouseenter 写——高亮跟随指针）
+            hoverKey: null,      // 悬停哨兵携带 key
+        }),
+        methods: {
+            // 触发器包裹 span（popover 宿主 / 键盘监听点；每查现取不缓存，家族惯用法）
+            triggerEl() {
+                return this.el.querySelector(".asc-dropdown-trigger");
+            },
+            // 当前触发模型（缺省 hover；非法值交由 popover warn 回退，此处只归一判定）
+            triggerMode() {
+                return String(this.data.trigger ?? "hover") === "click" ? "click" : "hover";
+            },
+            // 开面板（键盘路径）：按触发模型分派（ADR-0027 决策 7）——click 派宿主点击
+            // （toggle 通道）；hover 派 mouseenter（含 delayShow 悬浮延迟，原生打开链）
+            openPanel() {
+                if (this.data.disabled) return;
+                if (this.data.open) return;
+                const t = this.triggerEl();
+                if (!t) return;
+                if (this.triggerMode() === "click") {
+                    t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+                } else {
+                    t.dispatchEvent(new MouseEvent("mouseenter"));
+                }
+            },
+            // 关面板（选中 / 禁用联动）：click 派宿主点击（toggle）；hover 派 mouseleave
+            // （relatedTarget 空 → 离开共享 hover 域 → delayHide 宽限后关闭）
+            closePanel() {
+                if (!this.data.open) return;
+                const t = this.triggerEl();
+                if (!t) return;
+                if (this.triggerMode() === "click") {
+                    t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+                } else {
+                    t.dispatchEvent(new MouseEvent("mouseleave"));
+                }
+            },
+            // 高亮定位（key 值通道；未命中或禁用项不动）
+            setActive(key) {
+                const list = this.data.items ?? [];
+                const i = list.findIndex((o) => o && String(o.key) === String(key));
+                if (i >= 0 && !list[i].disabled) this.data.activeKey = list[i].key;
+            },
+            // 高亮移动（dir = 1 下 / -1 上）：环找下一个非禁用项（首尾环绕；全禁用不动）
+            moveActive(dir) {
+                const list = this.data.items ?? [];
+                if (list.length === 0) return;
+                let i = list.findIndex((o) => o && String(o.key) === String(this.data.activeKey));
+                for (let step = 0; step < list.length; step++) {
+                    i = (i + dir + list.length) % list.length;
+                    if (!list[i].disabled) { this.data.activeKey = list[i].key; return; }
+                }
+            },
+            // 选中流程（面板点击哨兵 / 键盘 Enter 汇聚点）：禁用跳过；select 事件
+            // detail = { key, item }（冒泡供外层消费）+ 关面板 + 高亮复位（动作菜单
+            // 无激活态持久语义——select 后归 null，重开从头漫游）
+            pick(key) {
+                if (this.data.disabled) return;
+                const list = this.data.items ?? [];
+                const item = list.find((o) => o && String(o.key) === String(key));
+                if (!item || item.disabled) return;
+                this.emit("select", { key: item.key, item: { ...item } });
+                this.data.activeKey = null;
+                this.closePanel();
+            },
+            // 触发器键盘导航（WAI-ARIA menu 模式，高亮漫游）：上下移动高亮（未开先开）/
+            //     Enter 开态触发当前高亮（preventDefault 防误触发表单提交；无高亮关
+            //     面板；关态原生放行——触发内容自身的按钮语义归使用者）；ESC 与 Tab
+            //     不拦截（ESC 归 popover 打开栈——机制继承；Tab 自然移焦）
+            onTriggerKeydown(event) {
+                if (this.data.disabled) return;
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                    event.preventDefault();
+                    if (!this.data.open) { this.openPanel(); return; }
+                    this.moveActive(event.key === "ArrowDown" ? 1 : -1);
+                } else if (event.key === "Enter") {
+                    if (this.data.open) {
+                        event.preventDefault();
+                        if (this.data.activeKey != null) this.pick(this.data.activeKey);
+                        else this.closePanel();
+                    }
+                }
+            },
+        },
+        mounted() {
+            // 声明形态兜底（precompile 变换落盘的 data-items JSON 字符串）：items props
+            // 缺席时解析写组件 data（x-for 指令值通道响应，随写随渲染）；props 在场恒优先
+            const raw = this.el.getAttribute("data-items");
+            if ((!this.data.items || !this.data.items.length) && raw) {
+                try { this.data.items = JSON.parse(raw); } catch { /* 非法 JSON 静默忽略（容错缺省空组） */ }
+                this.el.removeAttribute("data-items");
+            }
+
+            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）：可交互同步
+            //     （data-disabled 根反射 = CSS 拦截开面板的通道，select 同款）——
+            setTimeout(() => {
+                const t = this.triggerEl();
+                if (t) t.tabIndex = this.data.disabled ? -1 : 0;
+                this.el.toggleAttribute("data-disabled", !!this.data.disabled);
+            }, 0);
+
+            // —— 状态跟随（回调收 { value } 信封对象，此处只用作触发信号）——
+            // 开合态：aria-expanded（触发器）+ data-open（根，使用者 CSS 钩子）；
+            // 打开时高亮复位（动作菜单无激活态持久语义）
+            this.watch("open", () => {
+                const on = !!this.data.open;
+                this.el.toggleAttribute("data-open", on);
+                const t = this.triggerEl();
+                if (t) t.setAttribute("aria-expanded", String(on));
+                if (on) this.data.activeKey = null;
+            });
+            // 禁用联动：根反射（CSS 拦截）+ 退出焦点序 + 关面板
+            this.watch("disabled", () => {
+                setTimeout(() => {
+                    const t = this.triggerEl();
+                    if (t) t.tabIndex = this.data.disabled ? -1 : 0;
+                    this.el.toggleAttribute("data-disabled", !!this.data.disabled);
+                }, 0);
+                if (this.data.disabled) this.closePanel();
+            });
+            // 面板哨兵：选中（pickTick）/ 悬停高亮（hoverTick）
+            this.watch("pickTick", () => { this.pick(this.data.pickKey); });
+            this.watch("hoverTick", () => { this.setActive(this.data.hoverKey); });
+        },
+    }
+  <\/script>
+  <style global id="autospark-components-dropdown">
+    .asc-dropdown {
+      display: inline-flex;
+      font-size: var(--auto-font-size, var(--asc-dropdown-font-size, 0.875rem));
+      line-height: var(--auto-line-height, 1.5);
+    }
+    /* 触发器包裹层（popover 宿主 + 键盘监听点）：紧贴插槽内容；tabindex 聚焦位（文本
+       触发区键盘可达——JS 通道维护禁用态退出焦点序） */
+    .asc-dropdown-trigger {
+      display: inline-flex;
+      align-items: center;
+      outline: none;
+      border-radius: var(--auto-border-radius, var(--asc-dropdown-trigger-radius, 0.375rem));
+    }
+    .asc-dropdown-trigger:focus-visible {
+      box-shadow: inset 0 0 0 2px
+        color-mix(in srgb, var(--auto-primary-color, var(--asc-dropdown-primary, #009aff)) 28%, transparent);
+    }
+    /* 出口即触发器本体：使用者内容直接成为宿主子级（出口与宿主同元素的成因见
+       模板尾注——ADR-0056 决策十的覆盖物内容标记判定），无须额外包裹层 */
+    /* 禁用：整体淡化 + 触发器 pointer-events 阻断开面板（popover 宿主监听不知禁用态，
+       CSS 层拦截——click 与 hover 两模型一并阻断） */
+    .asc-dropdown[data-disabled] {
+      opacity: 0.55;
+    }
+    .asc-dropdown[data-disabled] .asc-dropdown-trigger {
+      pointer-events: none;
+    }
+
+    /* ══════════ 菜单面板（autospark-dropdown-panel，渲染进 body 覆盖物容器；外壳
+       边框/阴影/定位归 popover-shell；菜单项语义色 token 与 menu 同源、面板结构与
+       select 下拉面板同款，ADR-0027 决策 9 ══════════ */
+    .asc-dropdown-panel {
+      display: block;
+      min-width: max-content;
+      font-size: var(--auto-font-size, var(--asc-dropdown-panel-font-size, 0.875rem));
+      line-height: var(--auto-line-height, var(--asc-dropdown-panel-line-height, 1.4));
+      color: var(--auto-color, var(--asc-dropdown-panel-color, #333333));
+    }
+    .asc-dropdown-menu {
+      list-style: none;
+      margin: 0;
+      padding: 0.25em 0;
+      max-height: var(--asc-dropdown-max-height, 15em);
+      overflow-y: auto;
+      box-sizing: border-box;
+    }
+    /* 菜单项：行式热区；高亮/禁用/分隔线/危险态经 data-* 属性选择器驱动（绑定通道写
+       属性——假值整个移除即无态，绑定语义天然契合）；语义色 token 与 menu 同源 */
+    .asc-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      min-height: 2.2em;
+      padding: 0.3em 0.75em;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background-color 0.12s ease, color 0.12s ease;
+    }
+    .asc-dropdown-item[data-active] {
+      background: var(--auto-hover-bgcolor, var(--asc-dropdown-item-hover-bg, rgba(0, 0, 0, 0.045)));
+    }
+    .asc-dropdown-item-icon {
+      display: inline-flex;
+      flex: none;
+      color: var(--auto-third-color, var(--asc-dropdown-item-icon, rgba(0, 0, 0, 0.35)));
+    }
+    .asc-dropdown-item[data-active] .asc-dropdown-item-icon {
+      color: var(--auto-secondary-color, var(--asc-dropdown-item-icon-active, rgba(0, 0, 0, 0.55)));
+    }
+    .asc-dropdown-item-label {
+      flex: 1 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: left;
+    }
+    /* 分隔线（divided）：顶部分隔（首项 divided 也画——显式意图直书） */
+    .asc-dropdown-item[data-divided] {
+      border-top: var(--auto-border-size, var(--asc-dropdown-item-border-size, 1px)) solid
+        var(--auto-border-color, var(--asc-dropdown-item-border, #f0f0f0));
+    }
+    /* 危险项（danger）：danger 语义色 + 悬停红染（menu 激活 10% tint 同手法） */
+    .asc-dropdown-item[data-danger] {
+      color: var(--auto-danger-color, var(--asc-dropdown-item-danger, #ef4444));
+    }
+    .asc-dropdown-item[data-danger]:not([data-disabled])[data-active] {
+      background: color-mix(
+        in srgb,
+        var(--auto-danger-color, var(--asc-dropdown-item-danger, #ef4444)) 8%,
+        transparent
+      );
+    }
+    .asc-dropdown-item[data-disabled] {
+      color: var(--auto-disable-color, var(--asc-dropdown-item-disabled, rgba(0, 0, 0, 0.28)));
+      cursor: not-allowed;
+      background: transparent;
+    }
+    .asc-dropdown-item[data-disabled]:hover {
+      background: transparent;
+    }
+    /* 空态：居中辅助色文案 */
+    .asc-dropdown-empty {
+      padding: 0.9em 0.75em;
+      text-align: center;
+      color: var(--auto-third-color, var(--asc-dropdown-empty, rgba(0, 0, 0, 0.35)));
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
+    [dark] .asc-dropdown,
+    [data-dark] .asc-dropdown {
+      color: var(--auto-color, var(--asc-dropdown-color, #fafafa));
+    }
+    [dark] .asc-dropdown-trigger:focus-visible,
+    [data-dark] .asc-dropdown-trigger:focus-visible {
+      box-shadow: inset 0 0 0 2px
+        color-mix(in srgb, var(--auto-primary-color, var(--asc-dropdown-primary, #56baff)) 28%, transparent);
+    }
+    [dark] .asc-dropdown-panel,
+    [data-dark] .asc-dropdown-panel {
+      color: var(--auto-color, var(--asc-dropdown-panel-color, #fafafa));
+    }
+    [dark] .asc-dropdown-item[data-active],
+    [data-dark] .asc-dropdown-item[data-active] {
+      background: var(--auto-hover-bgcolor, var(--asc-dropdown-item-hover-bg, rgba(255, 255, 255, 0.08)));
+    }
+    [dark] .asc-dropdown-item-icon,
+    [data-dark] .asc-dropdown-item-icon {
+      color: var(--auto-third-color, var(--asc-dropdown-item-icon, rgba(255, 255, 255, 0.45)));
+    }
+    [dark] .asc-dropdown-item[data-active] .asc-dropdown-item-icon,
+    [data-dark] .asc-dropdown-item[data-active] .asc-dropdown-item-icon {
+      color: var(--auto-secondary-color, var(--asc-dropdown-item-icon-active, rgba(255, 255, 255, 0.65)));
+    }
+    [dark] .asc-dropdown-item[data-divided],
+    [data-dark] .asc-dropdown-item[data-divided] {
+      border-top-color: var(--auto-border-color, var(--asc-dropdown-item-border, #52525b));
+    }
+    [dark] .asc-dropdown-item[data-danger],
+    [data-dark] .asc-dropdown-item[data-danger] {
+      color: var(--auto-danger-color, var(--asc-dropdown-item-danger, #e6696a));
+    }
+    [dark] .asc-dropdown-item[data-disabled],
+    [data-dark] .asc-dropdown-item[data-disabled] {
+      color: var(--auto-disable-color, var(--asc-dropdown-item-disabled, rgba(255, 255, 255, 0.25)));
+    }
+    [dark] .asc-dropdown-empty,
+    [data-dark] .asc-dropdown-empty {
+      color: var(--auto-third-color, var(--asc-dropdown-empty, rgba(255, 255, 255, 0.45)));
+    }
+  </style>
+  <!-- 触发器 = 默认插槽出口本体（popover 宿主 + 键盘监听 + 聚焦位合一）：出口标记
+         不能落在覆盖物宿主的**子树内**（ADR-0056 决策十：宿主子树内的 x-slot 会被判
+         为覆盖物内容标记而剪枝——出口与宿主同元素则不命中该判定，consumer 内容直接
+         成为宿主子级，点击即 toggle）。trigger / placement 经 x-popover-options 成员
+         属性表达式透传（热切换；at 结构键跨层成员级合并，selector 恒回退宿主）；
+         aria-expanded 由 mounted JS 通道随 open 同步 -->
+  <span
+    class="asc-dropdown-trigger"
+    tabindex="0"
+    aria-haspopup="menu"
+    aria-expanded="false"
+    x-popover:autospark-dropdown-panel
+    x-popover-options="{ padding: 0, closeable: false, at: { arrow: false, offset: 4 } }"
+    x-popover-options.trigger="trigger"
+    x-popover-options.at="{ placement: placement }"
+    @keydown="onTriggerKeydown($event)"
+    x-slot
+  ></span>
+</div>
+`,e.components[`autospark-dropdown-panel`]=`<!--
+    autospark-dropdown-panel 菜单面板（ADR-0027）——dropdown 的内部组件（非用户直接
+    消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制渲染进
+    body 覆盖物容器，面板外壳（边框/阴影/定位）由 popover-shell 承载，本组件只贡献
+    菜单列表内容（菜单项语义自持——不嵌套消费 autospark.menu，动作菜单一层平铺）。
+
+    与触发器组件（autospark.dropdown）的通信走 scope 链（ADR-0022 决策 2 同款）：
+    overlay 内容宿主恒以「open + dataContext:'host'」实例化本组件，聚合视图沿链读写
+    触发器组件 data 域——
+    - 读：items（x-for 数据源）/ activeKey（高亮基准）；
+    - 写：哨兵键 pickTick/pickKey（菜单项点击）、hoverTick/hoverKey（悬停高亮回传）
+      ——面板模板不能跨组件边界调触发器组件 method（x-on 组件 method 查找不穿透父
+      组件），自增哨兵免疫同值去重；事件表达式用逗号运算符单表达式形态（分号多语句
+      依赖新版引擎回退，旧产物不可用）；
+    - 开合态：mounted/unmounted 沿链写 open（触发器侧 aria-expanded / data-open 同步）。
+
+    列表渲染：x-for 容器宿主形态（engine 惯用语义——ul 为容器，li 为逐项克隆模板，
+    :key 在容器上，menu 同款）；克隆体内条件显隐一律 x-show（共享快照多实例 x-if
+    串台规避，P0 清单第 4 条——icon 空值 x-icon 渲染默认图标，x-show 隐藏不可见）。
+    空态文案走 i18n 词典 dropdown.empty 键（回退「暂无数据」）。
+-->
+<div class="asc-dropdown-panel" x-define="autospark-dropdown-panel">
+  <script setup>
+    {
+        // 本组件零 props（overlay 宿主以空值实例化）、零自有状态——全部数据经 scope 链
+        // 读写触发器组件域；data() 空对象占位以建立自有 data 层（聚合视图的链上桥点）
+        data: () => ({}),
+        mounted() {
+            // 开合态沿链写回（触发器侧 watch open 派生 aria-expanded / data-open / 高亮复位）
+            this.data.open = true;
+            // 高亮项滚动跟随（键盘导航可见性；列表在面板内现查）
+            const scrollActive = () => {
+                const el = this.el.querySelector(".asc-dropdown-item[data-active]");
+                el?.scrollIntoView?.({ block: "nearest" });
+            };
+            setTimeout(scrollActive, 0);
+            this.watch("activeKey", () => { setTimeout(scrollActive, 0); });
+        },
+        unmounted() {
+            // 面板每次开合都是新实例（popover 无 keepalive，关闭即销毁）——关闭即复位开合态
+            this.data.open = false;
+        },
+    }
+  <\/script>
+  <!-- 菜单列表：x-for 容器宿主形态（ul 容器 + li 克隆模板）+ 空态行随容器 -->
+  <ul class="asc-dropdown-menu" role="menu" x-for="item of items" :key="item.key">
+    <li
+      class="asc-dropdown-item"
+      role="menuitem"
+      x-bind:data-active="activeKey != null && String(item.key) === String(activeKey)"
+      x-bind:data-disabled="!!item.disabled"
+      x-bind:data-divided="!!item.divided"
+      x-bind:data-danger="!!item.danger"
+      x-bind:aria-disabled="item.disabled ? 'true' : null"
+      x-on:click="pickTick = pickTick + 1, pickKey = item.key"
+      x-on:mouseenter="hoverTick = hoverTick + 1, hoverKey = item.key"
+    >
+      <i class="asc-dropdown-item-icon" x-show="item.icon" x-icon="item.icon"></i>
+      <span class="asc-dropdown-item-label">{{ item.label }}</span>
+    </li>
+  </ul>
+  <div
+    class="asc-dropdown-empty"
+    x-if="!(items && items.length > 0)"
+    x-text="t('dropdown.empty') === 'dropdown.empty' ? '暂无数据' : t('dropdown.empty')"
+  ></div>
+</div>
+`,e.precompile?.(e=>{for(let s of Array.from(e.el.querySelectorAll(`x-dropdown`))){let e=document.createElement(`span`),c=Array.from(s.children).filter(e=>e.tagName.toLowerCase()===`x-dropdown-item`),l=s.getAttribute(`items`),u=s.hasAttribute(`:items`);if(s.removeAttribute(`items`),(c.length>0||l!=null&&l!==``)&&!u){let t=null;if(c.length)t=c.map(o);else try{let e=JSON.parse(l);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of c)e.remove();let d=[];for(let i of Array.from(s.attributes))i.name.startsWith(`:`)?d.push(`${n(t(i.name.slice(1)))}: (${i.value})`):i.name===`class`||i.name===`style`||i.name===`id`||i.name.startsWith(`data-`)||i.name.startsWith(`x-`)||i.name.startsWith(`@`)?e.setAttribute(i.name,i.value):i.value===``&&a.has(i.name)?d.push(`${n(t(i.name))}: true`):d.push(`${n(t(i.name))}: ${JSON.stringify(r(i.value))}`);for(e.setAttribute(`x-component:${i}`,`{ ${d.join(`, `)} }`);s.firstChild;)e.appendChild(s.firstChild);s.replaceWith(e)}})}c();function c(){e(e=>{s(e)})}};
+    if (AutoSpark === undefined) {
+        // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
+        var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);
+        if (Object.isFrozen(queue)) {
+            console.error("插件闭包: 预加载队列已消费且全局 AutoSpark 不可达，插件未注册");
+            return;
+        }
+        queue.push(function (engine, ns) { run(ns); });
+    } else {
+        run(AutoSpark);
+    }
+})(globalThis.AutoSpark);
+
+//# sourceMappingURL=autospark.dropdown.js.map

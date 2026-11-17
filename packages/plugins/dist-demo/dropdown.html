@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.dropdown · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}.row{flex-wrap:wrap;align-items:flex-start;gap:16px;margin:12px 0;display:flex}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}.err{color:#ef4444;margin:2px 0 0;font-size:.8125rem}.dark-box{background:#1a1a1a;border-radius:8px;margin-top:12px;padding:12px 16px}</style>
+  </head>
+  <body>
+    <h1>autospark.dropdown</h1>
+    <p>
+      下拉菜单（ADR-0027）：动作触发型轻量菜单——触发区 = 默认插槽（任意内容，包裹交互），
+      面板复用 <code>x-popover</code> 机制呈现；菜单项语义自持（不嵌套 menu：menu 是页面
+      导航区常驻组件，本件即点即走）。items 双形态（<code>:items</code> 状态引用 /
+      <code>&lt;x-dropdown-item&gt;</code> 声明）；键盘：上下漫游 + Enter 触发 + ESC 关。
+    </p>
+    <p class="hint">
+      跨插件依赖：菜单面板呈现须同时加载 <code>autospark.overlay.js</code>（x-popover 指令）。
+    </p>
+
+    <div id="app">
+      <h2>基础用法（:items 状态引用 + 默认插槽触发区 + select 事件）</h2>
+      <!-- engine 根元素上 @事件 绑定不生效——监听挂内层包裹元素 -->
+      <div class="row" @select="picked = $event.detail.item.label">
+        <x-dropdown :items="actions" trigger="click">
+          <button type="button">更多操作 ▾</button>
+        </x-dropdown>
+        <p class="hint">最近触发：<code>{{ picked || '（未操作）' }}</code>（detail = { key, item }）</p>
+      </div>
+
+      <h2>子元素声明形态（&lt;x-dropdown-item&gt;，含 icon / divided / danger / disabled）</h2>
+      <div class="row" @select="picked = $event.detail.item.label">
+        <x-dropdown>
+          <span style="cursor: pointer; color: #009aff">文字触发区（hover）▾</span>
+          <x-dropdown-item key="refresh" label="刷新" icon="refresh"></x-dropdown-item>
+          <x-dropdown-item key="edit" label="编辑" icon="edit"></x-dropdown-item>
+          <x-dropdown-item key="export" label="导出" divided></x-dropdown-item>
+          <x-dropdown-item key="remove" label="删除" danger disabled></x-dropdown-item>
+        </x-dropdown>
+      </div>
+      <p class="hint">缺省 trigger = hover（antd 同款）；分隔线 / 危险色 / 禁用逐项声明。</p>
+
+      <h2>placement 定位（popover at.placement 12 方向透传）</h2>
+      <div class="row">
+        <x-dropdown :items="actions" placement="top-start" trigger="click">
+          <button type="button">top-start ▴</button>
+        </x-dropdown>
+        <x-dropdown :items="actions" placement="right-start" trigger="click">
+          <button type="button">right-start ▸</button>
+        </x-dropdown>
+        <x-dropdown :items="actions" placement="bottom-end" trigger="click">
+          <button type="button">bottom-end ▾</button>
+        </x-dropdown>
+      </div>
+
+      <h2>尺寸档位（主题通道 data-size）</h2>
+      <div class="row">
+        <span data-size="small">
+          <x-dropdown :items="actions" trigger="click"><button type="button">small ▾</button></x-dropdown>
+        </span>
+        <span data-size="large">
+          <x-dropdown :items="actions" trigger="click"><button type="button">large ▾</button></x-dropdown>
+        </span>
+      </div>
+      <p class="hint">档位属性挂在任意祖先容器即触发区整片生效；面板在 body 容器渲染，跟随页面级主题档位（局部容器档位不覆盖弹层——与暗色边界同构）。</p>
+
+      <h2>禁用（整体退出交互）</h2>
+      <div class="row">
+        <x-dropdown :items="actions" trigger="click" disabled>
+          <button type="button">禁用态 ▾</button>
+        </x-dropdown>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="row" @select="picked = $event.detail.item.label">
+          <x-dropdown :items="actions" trigger="click">
+            <button type="button">暗色面板 ▾</button>
+          </x-dropdown>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+    <p class="err"></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；面板呈现依赖 overlay 产物 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.overlay.js"></script>
+    <script src="/autospark.dropdown.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        picked: "",
+        actions: [
+          { key: "new", label: "新建", icon: "file" },
+          { key: "copy", label: "复制" },
+          { key: "cut", label: "剪切", divided: true },
+          { key: "del", label: "删除", danger: true },
+        ],
+      });
+    </script>
+  </body>
+</html>

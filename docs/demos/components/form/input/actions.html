@@ -18,13 +18,17 @@
       class="demo-main"
       x-data="{
         kw: '',
-        url: '',
         acts: [
           { label: 'https://', pos: 'before' },
           { label: '.com', pos: 'before' },
           { label: '搜索', name: 'search', value: 'go', variant: 'primary' },
         ],
+        acts2: [
+          { label: '保存草稿', name: 'save', value: { mode: 'draft', auto: true }, pos: 'after' },
+          { label: '发布', name: 'publish', value: 'online', variant: 'primary', pos: 'after' },
+        ],
         last: '（未触发）',
+        detail: { index: -1, name: '（未触发）', value: null, item: { label: '' } },
       }"
     >
       <div class="auto-card">
@@ -35,13 +39,21 @@
               <x-input :actions="acts" x-model="kw" placeholder="输入搜索关键词"></x-input>
             </span>
           </p>
-          <p class="hint">当前值：{{ kw || '（空）' }} —— actions 是 field 骨架层 props（[详见 BaseField](/zh/components/form/field#actions-融合动作)）：数组经状态引用注入（<code>:actions="acts"</code>），按钮 props 全透传（<code>variant: 'primary'</code> 等）；<code>@action-click</code> 写外层包裹元素（实例化宿主默认封闭，事件经冒泡）。</p>
+          <p class="hint">当前值：{{ kw || '（空）' }} —— actions 是 field 骨架层 props（详见 BaseField 文档「actions 融合动作」）：数组经状态引用注入（<code>:actions="acts"</code>），按钮 props 全透传（<code>variant: 'primary'</code> 等）；<code>@action-click</code> 写外层包裹元素（实例化宿主默认封闭，事件经冒泡）。</p>
         </div>
       </div>
       <div class="auto-card">
-        <div class="auto-card-header">action-click 组包事件（detail = { index, name, value, item }）</div>
+        <div class="auto-card-header">action-click 组包事件（detail 四元组 + 原生 click 双通道）</div>
         <div class="auto-card-body">
-          <p class="hint">最近动作：<code>{{ last }}</code> —— 原生 click 照常冒泡（双通道），按钮自动标 <code>data-autospark-action</code>（点击不抢控件焦点）。</p>
+          <p style="max-width: 380px">
+            <span @action-click="detail = $event.detail">
+              <x-input :actions="acts2" placeholder="文章标题"></x-input>
+            </span>
+          </p>
+          <p class="hint">
+            最近 detail——index：<code>{{ detail.index }}</code>　name：<code>{{ detail.name }}</code>　value：<code>{{ JSON.stringify(detail.value) }}</code>　item.label：<code>{{ detail.item.label }}</code>
+          </p>
+          <p class="hint">value <strong>原样透传</strong>（保存草稿=对象、发布=字符串，不做处理）；index 为侧内序号；原生 click 照常冒泡（双通道），按钮自动标 <code>data-autospark-action</code>（点击不抢控件焦点）。</p>
         </div>
       </div>
     </main>

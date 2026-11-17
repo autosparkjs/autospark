@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.image-viewer · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}.thumbs{grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0;display:grid}.thumb{cursor:zoom-in;border:1px solid #e9ecef;border-radius:6px;overflow:hidden}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}</style>
+  </head>
+  <body>
+    <h1>autospark.image-viewer</h1>
+    <p>
+      全屏图片查看器（display 分类）——<strong>自建 fixed 全屏层</strong>（不组合 x-dialog：
+      全屏暗色遮罩语境的查看器非居中对话框，自实现 ESC / 遮罩点击零跨插件依赖）：
+      images / visible（受控显隐）/ index（受控当前图）+ 缩放/旋转/重置工具栏 + 键盘
+      （左右切换、ESC 关、±缩放）+ 前后翻页钮与计数器。全屏层为<strong>恒暗色设计</strong>
+      （不随主题明暗切换）。
+    </p>
+
+    <div id="app">
+      <h2>与 image 组件联动（点击缩略图打开）</h2>
+      <div class="thumbs" x-for="pic of pics">
+        <div class="thumb" @click="viewer.idx = $index; viewer.open = true">
+          <x-image fit="cover" height="96" :src="pic"></x-image>
+        </div>
+      </div>
+      <p class="hint">
+        联动配方：缩略图 <code>@click</code> 写入 <code>viewer.idx / viewer.open</code>；
+        查看器的 <code>change / close</code> 事件经包裹层回写状态（受控闭环）。
+      </p>
+
+      <h2>受控打开（编程式）</h2>
+      <div>
+        <x-button
+          @click="viewer.idx = 2; viewer.open = true"
+          label="从第 3 张打开"
+          variant="primary"
+          x-button-options="{ props: { autoInsertSpace: false } }"
+        ></x-button>
+      </div>
+      <p class="hint">
+        键盘：<code>← / →</code> 切换、<code>ESC</code> 请求关闭、<code>+ / -</code> 缩放；
+        工具栏：放大 / 缩小 / 左旋 / 右旋 / 重置（1:1）/ 关闭；遮罩点击同样请求关闭。
+      </p>
+
+      
+      <div @change="viewer.idx = $event.detail.index" @close="viewer.open = false">
+        <x-image-viewer :images="pics" :visible="viewer.open" :index="viewer.idx"></x-image-viewer>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.image.js"></script>
+    <script src="/autospark.button.js"></script>
+    <script src="/autospark.image-viewer.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+          pics: [
+              "https://picsum.photos/seed/asc-view-1/640/360",
+              "https://picsum.photos/seed/asc-view-2/480/640",
+              "https://picsum.photos/seed/asc-view-3/640/400",
+              "https://picsum.photos/seed/asc-view-4/560/560",
+              "https://picsum.photos/seed/asc-view-5/640/360",
+          ],
+          viewer: { open: false, idx: 0 },
+      });
+    </script>
+  </body>
+</html>

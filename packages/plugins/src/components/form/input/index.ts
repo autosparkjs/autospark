@@ -3,8 +3,10 @@
  * ADR-0020）：经插件全局组件表注册（ADR-0111 决策 5），跨 engine 真全局——晚注册
  * 立即生效，同名后注册覆盖先注册。
  *
- * 输入框（原生增强路线，ADR-0018 决策 7）：真实原生 input / textarea 控件 + 骨架
- * 样式包裹，不自绘输入面。继承 autospark.field 表单域骨架（状态色/焦点态/
+ * 输入框（原生增强路线，ADR-0018 决策 7）：真实原生 input 控件 + 骨架样式包裹，
+ * 不自绘输入面。多行能力已拆为独立组件 autospark.textarea（ADR-0032：推翻 ADR-0020
+ * 决策 4 的「textarea 是 type 变体」，本组件不再内置多行形态与 rows / data-form）。
+ * 继承 autospark.field 表单域骨架（状态色/焦点态/
  * disabled 同步/盒饰 chrome）——本产物以副作用导入内嵌 field 注册（继承链
  * input → field → autospark.base，ADR-0020），按需加载场景无须单独引入
  * autospark.field.js。
@@ -14,10 +16,11 @@
  * （ADR-0018 决策 1）；尺寸档位经主题 data-size 通道全跟随（不设自有尺寸属性，
  * button 同范式 ADR-0012）。
  *
- * 元素名快速写法 `<x-input placeholder="...">` / `<x-textarea>` 由本文件的 precompile
- * DOM 变换承载（宿主替换为 span 包裹层——原生 input 是内层真身，宿主无须原生语义，
- * 与 button/link 的「宿主即真身」变换动机不同：此处仅为语义化标签与属性折叠，
- * ADR-0117 元名形态对全局表惰性组件的时序缺口同款止血）。
+ * 元素名快速写法 `<x-input placeholder="...">` 由本文件的 precompile DOM 变换承载
+ * （宿主替换为 span 包裹层——原生 input 是内层真身，宿主无须原生语义，与 button/link
+ * 的「宿主即真身」变换动机不同：此处仅为语义化标签与属性折叠，ADR-0117 元名形态对
+ * 全局表惰性组件的时序缺口同款止血）。`<x-textarea>` 归 autospark.textarea 独占
+ * （ADR-0032），本文件不再匹配。
  *
  * IIFE 产物全局名 `AutoSparkInput`（autospark.input.js）；双加载时序由
  * {@link installPlugin} 兜底（先于引擎加载推预加载队列，晚于引擎加载直注册）。
@@ -58,7 +61,7 @@ const INPUT_BOOL_PROPS = new Set([
  * - precompile 变换（与 button/link 同款折叠规则）：静态属性折叠为 props 字面量
  *   （类型推断）、`:key="expr"` 响应式项以原始表达式拼进值对象字面量，class / style /
  *   id / name（表单桥——mounted 透传到原生控件）/ data- 前缀 / x- 前缀 / @ 前缀属性
- *   保留给宿主；`<x-textarea>` 变换时缺省补 `type: "textarea"`（显式声明优先）。
+ *   保留给宿主；纯文本子内容折叠为 `value` 初值（元素名语义写法）。
  */
 function mountInputPlugin(autospark: typeof AutoSpark): void {
   const icons = (autospark as { icons?: { add?: (name: string, svg: string) => unknown } }).icons;
@@ -66,14 +69,12 @@ function mountInputPlugin(autospark: typeof AutoSpark): void {
   icons?.add?.("input-eye-off", ICON_EYE_OFF);
   autospark.components[INPUT_NAME] = inputTemplate;
   autospark.precompile?.((engine: InstanceType<typeof AutoSpark>) => {
-    for (const el of Array.from(engine.el.querySelectorAll("x-input, x-textarea"))) {
+    for (const el of Array.from(engine.el.querySelectorAll("x-input"))) {
       const host = document.createElement("span");
       // props 字面量键用裸标识符形态（引擎值解析对「引号键 + 表达式值」组合的成员
       // 求值会静默丢弃——button 实测结论）；属性名 kebab-case 归一 camelCase
       // （HTML 属性名被 DOM 全量小写化，show-password → showPassword）
       const parts: string[] = [];
-      const isTextarea = el.tagName === "X-TEXTAREA";
-      if (isTextarea) parts.push(`type: "textarea"`);
       for (const attr of Array.from(el.attributes)) {
         if (attr.name.startsWith(":")) {
           parts.push(`${propKey(kebabToCamel(attr.name.slice(1)))}: (${attr.value})`);
@@ -92,21 +93,16 @@ function mountInputPlugin(autospark: typeof AutoSpark): void {
           host.setAttribute(attr.name, attr.value);
           continue;
         }
-        // 布尔键无值形态归一 true（裸 disabled/clearable 等）；x-textarea 的
-        // 显式 type 声明优先于缺省补入（后者不覆盖已声明键）
+        // 布尔键无值形态归一 true（裸 disabled/clearable 等）
         const camel = kebabToCamel(attr.name);
-        if (camel === "type" && isTextarea) {
-          parts[0] = `type: ${JSON.stringify(inferPropValue(attr.value))}`;
-          continue;
-        }
         if (attr.value === "" && INPUT_BOOL_PROPS.has(attr.name)) {
           parts.push(`${propKey(camel)}: true`);
           continue;
         }
         parts.push(`${propKey(camel)}: ${JSON.stringify(inferPropValue(attr.value))}`);
       }
-      // 子文本内容折叠：纯文本子内容 = 原生初值语义（`<x-textarea>初始值</x-textarea>`
-      // 的直觉写法）；显式 value 声明优先、元素子内容（插槽覆盖逃生通道）不折叠随迁。
+      // 子文本内容折叠：纯文本子内容 = 原生初值语义（`<x-input>初始值</x-input>` 的
+      // 元素名语义写法）；显式 value 声明优先、元素子内容（插槽覆盖逃生通道）不折叠随迁。
       // 不折叠则会随迁为默认插槽内容、整段替换控件区（出口三层覆盖语义）
       const text = el.textContent?.trim() ?? "";
       const hasValuePart = parts.some((p) => p.startsWith("value:"));

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.result · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}.hint{color:#868e96;font-size:.875rem}.card{border:1px solid #e9ecef;border-radius:8px;margin:12px 0;padding:16px}.dark-box{background:#1a1a1a;border-radius:8px;margin-top:12px;padding:12px 16px}.row{justify-content:center;align-items:center;gap:12px;margin-top:12px;display:flex}.row button{font:inherit;cursor:pointer;background:0 0;border:1px solid #d9d9d9;border-radius:6px;padding:6px 16px}.row button.primary{color:#fff;background:#009aff;border-color:#009aff}</style>
+  </head>
+  <body>
+    <h1>autospark.result</h1>
+    <p>
+      结果页：语义色大图标（type：success/error/warning/info）+ 标题 + 描述 + 动作区（默认
+      插槽，button 组合）；icon 插槽整体换图。纯展示——与 alert（页内警示条）正交。
+    </p>
+
+    <div id="app">
+      <h2>四档语义色</h2>
+      <div class="card">
+        <x-result type="success" title="提交成功" description="预计 3 个工作日完成审核。"></x-result>
+      </div>
+      <div class="card">
+        <x-result type="error" title="支付失败" description="网络连接超时，请重试。">
+          <div class="row">
+            <button class="primary">重新支付</button>
+            <button>返回订单</button>
+          </div>
+        </x-result>
+      </div>
+
+      <h2>icon 插槽换图 + 暗色态</h2>
+      <div class="card">
+        <x-result type="warning" title="账号待激活">
+          <template x-slot:icon><span style="font-size: 3.5rem; line-height: 1">🔔</span></template>
+          <span>验证邮件已发送，请在 24 小时内完成激活。</span>
+        </x-result>
+      </div>
+      <div class="dark-box">
+        <x-result type="info" title="维护通知" description="系统将于今晚 02:00-04:00 升级。"></x-result>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.result.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

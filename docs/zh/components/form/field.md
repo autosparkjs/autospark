@@ -2,7 +2,7 @@
 
 ## 概述
 
-Field 是 AutoSpark 的**表单域骨架**（组件库 base 目录，ADR-0020）——form 域家族（[Input](/zh/components/form/input) / Checkbox / Radio / Switch / Select / InputNumber …）的继承基座，也可以**直接实例化**：默认出口装任意控件内容，即获得骨架能力（状态色通道 / 焦点态 / disabled·readonly 同步 / 盒饰 chrome，ADR-0020 2026-11-14 修订转公开文档组件）。
+Field 是 AutoSpark 的**表单域骨架**（组件库 base 目录，ADR-0020）——form 域家族（[Input](/zh/components/form/input) / [Textarea](/zh/components/form/textarea) / Checkbox / Radio / Switch / Select / InputNumber …）的继承基座，也可以**直接实例化**：默认出口装任意控件内容，即获得骨架能力（状态色通道 / 焦点态 / disabled·readonly 同步 / 盒饰 chrome，ADR-0020 2026-11-14 修订转公开文档组件）。
 
 骨架职责「宁薄勿胖」——只承担 form 域家族共性，控件本体与轻装饰一概留给子组件 / 消费方：
 
@@ -80,7 +80,7 @@ input 类控件在宿主上拼 `asc-field-box` 得盒饰 chrome（边框 / 底�
 **类型**: `Array<button props & { pos?, name?, value? }>`
 **默认**: `[]`
 
-融合动作按钮：在输入域前后增加 1-N 个与盒饰**融合**的按钮（antd addon 形态）——共享边框线（按钮与盒饰、按钮与按钮之间一条线，不叠双线）、首/尾钮外侧圆角匹配盒饰、等高拉伸（textarea 形态随盒高）。
+融合动作按钮：在输入域前后增加 1-N 个与盒饰**融合**的按钮（antd addon 形态）——共享边框线（按钮与盒饰、按钮与按钮之间一条线，不叠双线）、首/尾钮外侧圆角匹配盒饰、等高拉伸。多行控件（[Textarea](/zh/components/form/textarea)）把该段改为控件上 / 下整行布局（ADR-0032）。
 
 - 项 = **button props 全集**（label / icon / variant / type / loading / memo / tags / caret…整包透传，等效 `x-button-options`；`variant` 缺省 **`"secondary"`**——融合态默认弱化衬底与输入域主次分明，显式指定胜）+ 自有键：
   - `pos`: `"before" | "after"` 前后分侧，缺省 `"after"`；

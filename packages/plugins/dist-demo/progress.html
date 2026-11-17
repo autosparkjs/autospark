@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.progress · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}.stack{flex-direction:column;gap:16px;margin:12px 0;display:flex}.row{align-items:center;gap:12px;display:flex}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}.label{color:#495057;min-width:5em;font-size:.875rem}.circles{flex-wrap:wrap;gap:24px;display:flex}.dark-box{background:#1a1a1a;border-radius:8px;margin-top:12px;padding:12px 16px}</style>
+  </head>
+  <body>
+    <h1>autospark.progress</h1>
+    <p>
+      进度条（feedback 分类）：line 轨道条 / circle 圆环双形态、percent（0-100 钳制）、
+      showText 百分比文本、status 语义色联动（success/error/warning；完成自动 success）、
+      strokeWidth 线宽。纯展示组件，进度由外部状态单向驱动。
+    </p>
+
+    <div id="app" x-data="{ p: 30 }">
+      <h2>line 形态（基础 + 推进）</h2>
+      <div class="stack">
+        <div class="row">
+          <span class="label">受控推进</span>
+          <x-progress style="flex: 1" :percent="p"></x-progress>
+          <code>{{ p }}%</code>
+        </div>
+        <div class="row">
+          <!-- @click 挂包裹元素（化身宿主是封闭组件域，外层状态事件须绑组件外） -->
+          <span @click="p = 0"><x-button label="重置" size="sm"></x-button></span>
+          <span @click="p = Math.min(100, p + 10)"><x-button label="+10" variant="primary" size="sm"></x-button></span>
+          <span @click="p = 100"><x-button label="跑满" variant="primary" type="success" size="sm"></x-button></span>
+        </div>
+        <p class="hint">跑满后自动升 success（percent>=100 且 status 缺省——antd 同款「完成后自动成功」；填充 width 经 CSS 过渡呈现增量动画）。</p>
+      </div>
+
+      <h2>status 语义色（success / error / warning）</h2>
+      <div class="stack">
+        <x-progress percent="100" status="success"></x-progress>
+        <x-progress percent="68" status="error"></x-progress>
+        <x-progress percent="45" status="warning" x-progress-options="{ props: { showText: false } }"></x-progress>
+        <p class="hint">status 态文本位自动换语义图标；showText: false 关闭文本位。</p>
+      </div>
+
+      <h2>strokeWidth 线宽 + showText</h2>
+      <div class="stack">
+        <x-progress percent="30" x-progress-options="{ props: { strokeWidth: 4 } }"></x-progress>
+        <x-progress percent="60" x-progress-options="{ props: { strokeWidth: 10 } }"></x-progress>
+      </div>
+
+      <h2>circle 形态（SVG 圆环）</h2>
+      <div class="stack">
+        <div class="circles">
+          <x-progress variant="circle" :percent="p"></x-progress>
+          <x-progress percent="100" variant="circle" status="success"></x-progress>
+          <x-progress
+            percent="75"
+            variant="circle"
+            type="danger"
+            status="error"
+            x-progress-options="{ props: { strokeWidth: 10 } }"
+          ></x-progress>
+          <x-progress percent="40" variant="circle" x-progress-options="{ props: { showText: false, strokeWidth: 3 } }"></x-progress>
+        </div>
+        <p class="hint">环心文本与条右文本同一出口；stroke-dashoffset 过渡呈现增量动画（prefers-reduced-motion 停播）。</p>
+      </div>
+
+      <h2>字号档位（主题通道 data-size）</h2>
+      <div class="stack">
+        <div data-size="sm">
+          <x-progress percent="50"></x-progress>
+        </div>
+        <div data-size="lg">
+          <x-progress percent="50"></x-progress>
+        </div>
+      </div>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="stack">
+          <x-progress percent="65"></x-progress>
+          <x-progress percent="85" status="error"></x-progress>
+          <div class="circles">
+            <x-progress percent="45" variant="circle"></x-progress>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    <!-- 消费契约（ADR-0003 决策 4）：script 直引全局命名空间；dev 下即时闭包化服务 -->
+    <script src="/autospark.js"></script>
+    <script src="/autospark.progress.js"></script>
+    <script src="/autospark.button.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

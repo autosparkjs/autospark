@@ -3,13 +3,13 @@
  * - 注册面：input / field 双模板入全局组件表（input 以副作用导入内嵌 field
  *   注册，继承链 input → field → autospark.base）+ 组件自有图标注册；
  * - 化身渲染：骨架 class 拼接（.asc-field + .asc-input + .asc-field-box）、原生控件
- *   props 同步（placeholder/maxlength/rows/type）、textarea 形态分叉；
+ *   props 同步（placeholder/maxlength/type）；多行能力已拆出独立组件（ADR-0032）；
  * - 值桥（x-model 兼容协议）：宿主 el.value 劫持 ↔ 内层原生控件——初始注入、
  *   DOM→state（input 冒泡）、state→DOM（劫持 setter）三向；
  * - clearable / showPassword / prefix·suffix / showCount 交互件；
  * - Field 骨架通道（经 input 实例化消费）：status 状态色 + aria-invalid、
  *   data-focus 焦点态、disabled/readonly 同步、name 透传（原生直提交载体）；
- * - precompile 元素名变换（x-input / x-textarea → span + props 折叠，布尔裸属性归一）。
+ * - precompile 元素名变换（x-input → span + props 折叠，布尔裸属性归一）。
  */
 import "../../setup";
 import { describe, expect, test } from "bun:test";
@@ -78,6 +78,10 @@ describe("注册面（ADR-0020）", () => {
     const input = tpl(INPUT_NAME);
     expect(input).toContain("var(--auto-input-placeholder, var(--asc-input-placeholder,");
     expect(input).toContain("[dark] .asc-input-native::placeholder,");
+    // ADR-0032：多行能力已拆出 autospark.textarea——input 模板零 textarea 残留
+    expect(input).not.toContain("<textarea");
+    expect(input).not.toContain('data-form="textarea"');
+    expect(input).not.toContain("rows");
   });
 });
 
@@ -99,21 +103,6 @@ describe("化身渲染与 props 同步", () => {
     expect(input.getAttribute("maxlength")).toBe("10");
     expect(input.value).toBe("初始值"); // 非受控初值
     expect(input.hasAttribute("data-autospark-control")).toBe(true); // 标记协议挂点
-  });
-
-  test("textarea 形态分叉：type=textarea 渲染 textarea 元素（rows 同步），不渲染 input", async () => {
-    const { root } = mount(
-      `<span x-component:autospark.input="{ type: 'textarea', value: '多行内容', rows: 4 }"></span>`,
-      {},
-    );
-    await nextTick();
-    const host = field(root);
-    const ta = nativeOf(root) as HTMLTextAreaElement;
-    expect(ta.tagName).toBe("TEXTAREA");
-    expect(ta.getAttribute("rows")).toBe("4"); // 属性通道断言（happy-dom rows property 返回串）
-    expect(ta.value).toBe("多行内容");
-    expect(root.querySelector("input.asc-input-native")).toBeNull(); // input 形态不渲染
-    expect(host.getAttribute("data-form")).toBe("textarea"); // 形态标记（CSS 高度放开通道）
   });
 
   test("type 透传：password 落原生 type", async () => {
@@ -565,7 +554,7 @@ describe("融合动作 actions（field props 驱动渲染段，ADR-0020 2026-11-
   });
 });
 
-describe("precompile 元素名变换（x-input / x-textarea）", () => {
+describe("precompile 元素名变换（x-input）", () => {
   test("x-input → span + props 折叠（布尔裸属性归一 true、响应式项原样拼入）", () => {
     const { root } = mount(
       `<div><x-input placeholder="静态" :placeholder="ph" clearable disabled maxlength="8"></x-input></div>`,
@@ -582,27 +571,6 @@ describe("precompile 元素名变换（x-input / x-textarea）", () => {
     expect(v).toContain("clearable: true"); // 裸布尔归一
     expect(v).toContain("disabled: true");
     expect(v).toContain("maxlength: 8"); // 数字推断
-  });
-
-  test("x-textarea → span + 缺省补 type: textarea（显式声明优先）", () => {
-    const { root } = mount(
-      `<div><x-textarea rows="4"></x-textarea></div>`,
-      {},
-      { autostart: false },
-    );
-    const host = root.children[0]!.children[0]!;
-    const v = [...host.attributes].find((a) => a.name === "x-component:autospark.input")!.value;
-    expect(v).toContain('type: "textarea"');
-    expect(v).toContain("rows: 4");
-  });
-
-  test("纯文本子内容折叠为 value 初值（textarea 原生直觉写法；显式 value 优先）", async () => {
-    const { root } = mount(`<div><x-textarea name="memo" rows="2">备注内容</x-textarea></div>`, {});
-    await nextTick();
-    const ta = nativeOf(root) as HTMLTextAreaElement;
-    expect(ta.tagName).toBe("TEXTAREA");
-    expect(ta.value).toBe("备注内容"); // 文本子内容未随迁为插槽内容覆盖控件区
-    expect(ta.getAttribute("name")).toBe("memo");
   });
 
   test("name/class/x-/@ 属性保留给宿主（表单桥与指令族不折叠）", () => {

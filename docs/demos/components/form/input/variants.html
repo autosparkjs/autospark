@@ -12,19 +12,12 @@
   </head>
   <body>
     <aside class="demo-panel"><theme-controls></theme-controls></aside>
-    <main class="demo-main" x-data="{ pwd: '', bio: '' }">
+    <main class="demo-main" x-data="{ pwd: '' }">
       <div class="auto-card">
         <div class="auto-card-header">password + show-password（眼睛切换可见）</div>
         <div class="auto-card-body">
           <p><x-input x-model="pwd" type="password" placeholder="密码" x-input-options="{ props: { showPassword: true } }"></x-input></p>
           <p class="hint">密码值：{{ pwd || '（空）' }} —— 切换不改变值，仅内层 input.type 在 password ↔ text 间翻转。</p>
-        </div>
-      </div>
-      <div class="auto-card">
-        <div class="auto-card-header">textarea 形态（type="textarea"，rows 行数）</div>
-        <div class="auto-card-body">
-          <p><x-input x-model="bio" type="textarea" rows="3" placeholder="多行简介"></x-input></p>
-          <p class="hint">简介：{{ bio || '（空）' }} —— 前后置 / 清除 / 计数在 textarea 形态照常可用。</p>
         </div>
       </div>
       <div class="auto-card">

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Textarea · autosize 与 resize</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.textarea.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data="{}">
+      <div class="auto-card">
+        <div class="auto-card-header">minRows / maxRows：夹取高度，到顶转内部滚动</div>
+        <div class="auto-card-body">
+          <p><x-textarea rows="2" min-rows="2" max-rows="4" placeholder="最少 2 行、最多 4 行"></x-textarea></p>
+          <p><x-textarea rows="1" max-rows="0" placeholder="最多 0 = 不限高"></x-textarea></p>
+          <p class="hint"><code>rows</code> 是初始行数，未声明 <code>minRows</code> 时同时充当最小行数；<code>maxRows</code> 默认 8，<code>0</code> 表示不限高。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">关闭 autosize：交给原生拖拽手柄</div>
+        <div class="auto-card-body">
+          <p><x-textarea rows="3" autosize="false" placeholder="默认 resize=vertical"></x-textarea></p>
+          <p><x-textarea rows="3" autosize="false" resize="both" placeholder="resize=both（双向拖拽）"></x-textarea></p>
+          <p class="hint">autosize 开启时强制 <code>resize: none</code>（自动高度与手动拖拽互斥）；关闭后 <code>resize</code> 取 <code>none | vertical | horizontal | both</code>，缺省 <code>vertical</code>。</p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

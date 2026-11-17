@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.menu · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}.stage{vertical-align:top;border:1px solid #00000014;border-radius:8px;min-width:200px;padding:8px;display:inline-block}.rail{min-width:0}.dark-box{background:#1a1a1a;border-radius:8px;margin-top:12px;padding:12px 16px;display:inline-block}</style>
+  </head>
+  <body>
+    <h1>autospark.menu</h1>
+    <p>
+      导航菜单：items（{ key, label, icon?, disabled?, children?[] }[]，状态引用）或
+      &lt;x-menu-item&gt; 子元素声明（含一层嵌套 children）双形态；受控 value
+      （el.value 桥 + change detail={value}）；子菜单点击展开（祖先链自动展开）；
+      mode 双形态 + collapsed 图标条。
+    </p>
+
+    <div id="app" x-data="{ log: '' }">
+      <h2>基础用法（vertical 缺省：子菜单点击展开 + x-model 双向）</h2>
+      <div @change="log = '激活：' + $event.detail.value">
+        <div class="stage">
+          <x-menu x-model="active" :items="menu"></x-menu>
+        </div>
+      </div>
+      <p class="hint">带 children 的父项点击展开/收起；激活值指向子项时祖先链自动展开。</p>
+
+      <h2>horizontal 横向形态（子菜单 hover 浮层下拉）</h2>
+      <div @change="log = '激活：' + $event.detail.value">
+        <div class="stage">
+          <x-menu mode="horizontal" value="home" :items="menu"></x-menu>
+        </div>
+      </div>
+
+      <h2>collapsed 垂直收起为图标条（子菜单右飞浮层）</h2>
+      <div @change="log = '激活：' + $event.detail.value">
+        <div class="stage rail">
+          <x-menu collapsed="true" value="g1" :items="menu"></x-menu>
+        </div>
+      </div>
+
+      <h2>子元素声明（静态菜单树）</h2>
+      <div class="stage">
+        <x-menu value="g1">
+          <x-menu-item key="home" label="首页" icon="file"></x-menu-item>
+          <x-menu-item key="g" label="组件">
+            <x-menu-item key="g1" label="导航"></x-menu-item>
+            <x-menu-item key="g2" label="表单" disabled></x-menu-item>
+          </x-menu-item>
+          <x-menu-item key="api" label="API" icon="bell"></x-menu-item>
+        </x-menu>
+      </div>
+      <p class="hint">{{ log }}</p>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="stage" style="border-color: rgba(255, 255, 255, 0.15)">
+          <x-menu value="home" :items="menu"></x-menu>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.menu.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        active: "",
+        menu: [
+          { key: "home", label: "首页", icon: "file" },
+          {
+            key: "g",
+            label: "组件",
+            icon: "folder",
+            children: [
+              { key: "g1", label: "导航" },
+              { key: "g2", label: "表单", disabled: true },
+            ],
+          },
+          { key: "api", label: "API", icon: "bell" },
+        ],
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@autospark/plugins · 插件演示</title>
+    <style>*{box-sizing:border-box}html,body{height:100%}body{color:#212529;background:#fff;margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;display:flex}.sidebar{background:#f8f9fa;border-right:1px solid #dee2e6;flex:0 0 220px;width:220px;height:100%;padding:12px 0;overflow-y:auto}.sidebar .brand{padding:4px 16px 12px;font-size:.95rem;font-weight:600}.sidebar .brand code{color:#339af0}.tree,.tree ul{margin:0;padding:0;list-style:none}.tree ul{padding-left:14px}.tree .group{color:#868e96;letter-spacing:.04em;padding:8px 16px 4px;font-size:.75rem}.tree a{color:#212529;border-left:3px solid #0000;flex-direction:column;gap:2px;padding:7px 16px;font-size:.875rem;text-decoration:none;display:flex}.tree a:hover{background:#e9ecef}.tree a.active{color:#1971c2;background:#e7f5ff;border-left-color:#339af0}.tree a .desc{color:#868e96;font-size:.75rem}.demo{flex-direction:column;flex:auto;min-width:0;height:100%;display:flex}.demo-bar{background:#fff;border-bottom:1px solid #dee2e6;align-items:baseline;gap:12px;padding:10px 16px;display:flex}.demo-bar h1{margin:0;font-size:1rem}.demo-bar .hint{color:#868e96;font-size:.8125rem}.demo-bar a{color:#868e96;margin-left:auto;font-size:.8125rem;text-decoration:none}.demo-bar a:hover{color:#339af0}.demo-frame{background:#fff;border:0;flex:auto;width:100%}</style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand"><code>@autospark/plugins</code></div>
+      <nav>
+        <ul class="tree" id="tree"></ul>
+      </nav>
+    </aside>
+
+    <main class="demo">
+      <div class="demo-bar">
+        <h1 id="demo-title">组件演示</h1>
+        <span class="hint" id="demo-hint">选择左侧组件查看演示</span>
+        <a id="demo-open" href="#" target="_blank" rel="noopener">在新窗口打开 ↗</a>
+      </div>
+      <iframe class="demo-frame" id="demo-frame" title="组件演示"></iframe>
+    </main>
+
+    <script>
+      /**
+       * 组件树：新增演示页时在 groups 下补一项即可（path 相对本页）。
+       * 树按 group 分组，渲染为可折叠层级导航，右侧 iframe 加载对应演示页。
+       */
+      const COMPONENT_TREE = [
+        {
+          group: "基础",
+          items: [
+            {
+              id: "button",
+              name: "autospark.button",
+              desc: "按钮：type/size 变体 + 插槽兜底 + 事件绑定",
+              path: "./button.html",
+            },
+            {
+              id: "button-group",
+              name: "autospark.button-group",
+              desc: "按钮组：融合/间隔布局 + 缺省下发 + x-model 单选选中",
+              path: "./button-group.html",
+            },
+            {
+              id: "text",
+              name: "autospark.text",
+              desc: "排版文本：层级/语义色 + 溢出省略（单行/多行）+ 复制",
+              path: "./text.html",
+            },
+            {
+              id: "link",
+              name: "autospark.link",
+              desc: "链接：href/target/disabled/icon + 语义色 + 下划线档位",
+              path: "./link.html",
+            },
+            {
+              id: "float-button",
+              name: "autospark.float-button",
+              desc: "悬浮按钮：back-to-top 回顶渐显 + shape/定位 + label 胶囊",
+              path: "./float-button.html",
+            },
+          ],
+        },
+        {
+          group: "布局",
+          items: [
+            {
+              id: "divider",
+              name: "autospark.divider",
+              desc: "分割线：水平/垂直 + 虚线 + 带文字位置 + 间距",
+              path: "./divider.html",
+            },
+            {
+              id: "space",
+              name: "autospark.space",
+              desc: "间距容器：档位/两轴数组 + 方向/对齐/换行",
+              path: "./space.html",
+            },
+            {
+              id: "grid",
+              name: "autospark.grid",
+              desc: "栅格容器：固定/自适应/响应式列数 + 间隙/分布/对齐",
+              path: "./grid.html",
+            },
+            {
+              id: "container",
+              name: "autospark.container",
+              desc: "页面容器壳：四区版式 + 侧栏位置（与 x-layout/x-container 指令消歧）",
+              path: "./container.html",
+            },
+          ],
+        },
+        {
+          group: "反馈",
+          items: [
+            {
+              id: "alert",
+              name: "autospark.alert",
+              desc: "警示条：语义色五档 + 标题描述 + 关闭/图标/通栏",
+              path: "./alert.html",
+            },
+            {
+              id: "progress",
+              name: "autospark.progress",
+              desc: "进度条：line/circle 双形态 + 完成自动 success + 语义色",
+              path: "./progress.html",
+            },
+            {
+              id: "skeleton",
+              name: "autospark.skeleton",
+              desc: "骨架屏：三形态 + rows 多行 + loading 插槽切换",
+              path: "./skeleton.html",
+            },
+            {
+              id: "message-box",
+              name: "autospark.message-box",
+              desc: "确认询问对话：x-dialog 组合壳 + i18n 双钮 + confirm/cancel 事件",
+              path: "./message-box.html",
+            },
+            {
+              id: "result",
+              name: "autospark.result",
+              desc: "结果页：语义色大图标 + 标题描述 + 动作区插槽",
+              path: "./result.html",
+            },
+          ],
+        },
+        {
+          group: "展示",
+          items: [
+            {
+              id: "card",
+              name: "autospark.card",
+              desc: "卡片：三段插槽 + 边框/悬停/可折叠",
+              path: "./card.html",
+            },
+            {
+              id: "tag",
+              name: "autospark.tag",
+              desc: "标签：语义色×形态正交 + icon + closable",
+              path: "./tag.html",
+            },
+            {
+              id: "empty",
+              name: "autospark.empty",
+              desc: "空状态：i18n 内置文案 + image 槽换图 + 附加动作",
+              path: "./empty.html",
+            },
+            {
+              id: "avatar",
+              name: "autospark.avatar",
+              desc: "头像：src/icon/label 三源回退 + shape，角标经 x-badge 外挂",
+              path: "./avatar.html",
+            },
+            {
+              id: "image",
+              name: "autospark.image",
+              desc: "图片：lazy/fit/fallback 双形态占位 + 加载转圈",
+              path: "./image.html",
+            },
+            {
+              id: "list",
+              name: "autospark.list",
+              desc: "列表：row 作用域插槽 + 空态/loading/virtual 组合",
+              path: "./list.html",
+            },
+            {
+              id: "descriptions",
+              name: "autospark.descriptions",
+              desc: "描述列表：items/子元素声明两形态 + columns/span + bordered 表格",
+              path: "./descriptions.html",
+            },
+            {
+              id: "timeline",
+              name: "autospark.timeline",
+              desc: "时间线：三 mode + 节点语义色/空心/自定义图标",
+              path: "./timeline.html",
+            },
+            {
+              id: "statistic",
+              name: "autospark.statistic",
+              desc: "统计数值：Intl 语言环境格式化 + precision/千分位 + 前后缀插槽",
+              path: "./statistic.html",
+            },
+            {
+              id: "image-viewer",
+              name: "autospark.image-viewer",
+              desc: "图片查看器：全屏自建层 + 缩放旋转键盘 + image 联动",
+              path: "./image-viewer.html",
+            },
+            {
+              id: "carousel",
+              name: "autospark.carousel",
+              desc: "轮播：items 双形态 + autoplay/loop + scroll/fade 双档",
+              path: "./carousel.html",
+            },
+            {
+              id: "table",
+              name: "autospark.table",
+              desc: "数据表格：col-<key> 插槽 + 排序/行选择 + virtual 万行",
+              path: "./table.html",
+            },
+            {
+              id: "collapse",
+              name: "autospark.collapse",
+              desc: "折叠面板组：双形态声明 + 手风琴互斥 + 高度过渡",
+              path: "./collapse.html",
+            },
+          ],
+        },
+        {
+          group: "导航",
+          items: [
+            {
+              id: "breadcrumb",
+              name: "autospark.breadcrumb",
+              desc: "面包屑：items/子元素声明两形态 + 分隔符 + 末项当前页",
+              path: "./breadcrumb.html",
+            },
+            {
+              id: "tabs",
+              name: "autospark.tabs",
+              desc: "页签：受控 value + 三形态（含 segmented）+ tablist 键盘导航",
+              path: "./tabs.html",
+            },
+            {
+              id: "menu",
+              name: "autospark.menu",
+              desc: "导航菜单：items/子元素声明双形态 + 子菜单展开 + vertical/horizontal + collapsed",
+              path: "./menu.html",
+            },
+            {
+              id: "steps",
+              name: "autospark.steps",
+              desc: "步骤条：受控 current + 状态机三态 + clickable + 双排向",
+              path: "./steps.html",
+            },
+            {
+              id: "page-header",
+              name: "autospark.page-header",
+              desc: "页头：title/subtitle + back 事件 + extra/默认双插槽",
+              path: "./page-header.html",
+            },
+            {
+              id: "pagination",
+              name: "autospark.pagination",
+              desc: "分页器：受控 page + 窗口省略号折叠 + 条数切换 + x-for.paging 配方",
+              path: "./pagination.html",
+            },
+            {
+              id: "anchor",
+              name: "autospark.anchor",
+              desc: "锚点导航：items 双形态 + scroll 判定线高亮 + affix 固定侧栏",
+              path: "./anchor.html",
+            },
+            {
+              id: "dropdown",
+              name: "autospark.dropdown",
+              desc: "下拉菜单：插槽触发区 + hover/click + 键盘漫游动作菜单",
+              path: "./dropdown.html",
+            },
+          ],
+        },
+        {
+          group: "其他",
+          items: [
+            {
+              id: "affix",
+              name: "autospark.affix",
+              desc: "固钉：滚动过阈值吸附视口顶/底 + 占位撑高 + change 事件",
+              path: "./affix.html",
+            },
+            {
+              id: "watermark",
+              name: "autospark.watermark",
+              desc: "水印：canvas 平铺 + 容器/全页双形态 + 多行文案",
+              path: "./watermark.html",
+            },
+            {
+              id: "tour",
+              name: "autospark.tour",
+              desc: "漫游引导：分步高亮 + 气泡步进 + 受控 current + miss 跳步",
+              path: "./tour.html",
+            },
+            {
+              id: "countdown",
+              name: "autospark.countdown",
+              desc: "倒计时：time 时长 + format token 模板 + finish 事件",
+              path: "./countdown.html",
+            },
+          ],
+        },
+        {
+          group: "表单",
+          items: [
+            {
+              id: "field",
+              name: "autospark.field",
+              desc: "表单域骨架：form 家族继承基座 + 直接实例化（状态色/焦点/禁用只读/盒饰/前后置插槽）",
+              path: "./field.html",
+            },
+            {
+              id: "input",
+              name: "autospark.input",
+              desc: "输入框：type 文本族 + 清除/密码切换/前后置/计数",
+              path: "./input.html",
+            },
+            {
+              id: "textarea",
+              name: "autospark.textarea",
+              desc: "多行文本框：autosize/minRows/maxRows + 清除/计数/actions",
+              path: "./textarea.html",
+            },
+            {
+              id: "checkbox",
+              name: "autospark.checkbox",
+              desc: "复选框：真 input 勾形/半选视觉 + x-model.boolean 布尔语域",
+              path: "./checkbox.html",
+            },
+            {
+              id: "radio",
+              name: "autospark.radio",
+              desc: "单选钮：原生 name 同名互斥组语义 + checked 值桥",
+              path: "./radio.html",
+            },
+            {
+              id: "switch",
+              name: "autospark.switch",
+              desc: "自绘开关：loading 态 + hidden 载体表单桥 + change 事件",
+              path: "./switch.html",
+            },
+            {
+              id: "input-number",
+              name: "autospark.input-number",
+              desc: "数字输入框：步进钮+键盘、min/max 夹取、precision 修约、NaN 防御",
+              path: "./input-number.html",
+            },
+            {
+              id: "slider",
+              name: "autospark.slider",
+              desc: "滑动条：原生 range 藏起仍可交互 + 自绘轨道，showInput 配 input-number 联动",
+              path: "./slider.html",
+            },
+            {
+              id: "rate",
+              name: "autospark.rate",
+              desc: "评分：内置 star ×N、半星/清零、role=slider 键盘模型、hidden 载体表单桥",
+              path: "./rate.html",
+            },
+            {
+              id: "select",
+              name: "autospark.select",
+              desc: "下拉选择器：x-popover 面板 + 键盘导航/过滤/虚拟化 + hidden 表单桥",
+              path: "./select.html",
+            },
+            {
+              id: "transfer",
+              name: "autospark.transfer",
+              desc: "穿梭框：双列表+穿梭钮，checkbox 组合，全选/过滤/禁用",
+              path: "./transfer.html",
+            },
+            {
+              id: "color-picker",
+              name: "autospark.color-picker",
+              desc: "颜色选择器：x-popover 面板 + 自绘 HSV 取色",
+              path: "./color-picker.html",
+            },
+            {
+              id: "date-picker",
+              name: "autospark.date-picker",
+              desc: "日期选择器：x-popover 日历面板 + 切月/今天快捷/键盘跨月漫游 + hidden 表单桥",
+              path: "./date-picker.html",
+            },
+            {
+              id: "time-picker",
+              name: "autospark.time-picker",
+              desc: "时间选择器：两列时/分滚动列表，部分提交面板保持开 + hidden 表单桥",
+              path: "./time-picker.html",
+            },
+            {
+              id: "time-select",
+              name: "autospark.time-select",
+              desc: "时间点下拉：起止/步长离散列表，select 面板克隆 + 键盘导航 + hidden 表单桥",
+              path: "./time-select.html",
+            },
+            {
+              id: "autocomplete",
+              name: "autospark.autocomplete",
+              desc: "自动补全：本地/异步双通道建议 + 防抖 + 键盘导航",
+              path: "./autocomplete.html",
+            },
+          ],
+        },
+      ];
+
+      const treeEl = document.getElementById("tree");
+      const frameEl = document.getElementById("demo-frame");
+      const titleEl = document.getElementById("demo-title");
+      const hintEl = document.getElementById("demo-hint");
+      const openEl = document.getElementById("demo-open");
+
+      /** 展平全部组件项，供查找与默认选中 */
+      const flat = COMPONENT_TREE.flatMap((g) => g.items);
+
+      function render() {
+        treeEl.innerHTML = COMPONENT_TREE.map(
+          (g) => `
+            <li>
+              <div class="group">${g.group}</div>
+              <ul>
+                ${g.items
+                  .map(
+                    (it) => `
+                  <li>
+                    <a href="#${it.id}" data-id="${it.id}" data-path="${it.path}">
+                      <span>${it.name}</span>
+                      <span class="desc">${it.desc}</span>
+                    </a>
+                  </li>`,
+                  )
+                  .join("")}
+              </ul>
+            </li>`,
+        ).join("");
+      }
+
+      /** 按 hash 选中组件并加载演示；无 hash 时回落到第一个 */
+      function activate() {
+        const id = location.hash.slice(1);
+        const item = flat.find((it) => it.id === id) ?? flat[0];
+        if (!item) return;
+
+        treeEl.querySelectorAll("a").forEach((a) => {
+          a.classList.toggle("active", a.dataset.id === item.id);
+        });
+
+        titleEl.textContent = item.name;
+        hintEl.textContent = item.desc;
+        openEl.href = item.path;
+        if (!frameEl.src.endsWith(item.path.replace("./", ""))) {
+          frameEl.src = item.path;
+        }
+      }
+
+      render();
+      activate();
+      window.addEventListener("hashchange", activate);
+    </script>
+  </body>
+</html>

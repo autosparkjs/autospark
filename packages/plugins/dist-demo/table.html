@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.table · 组件演示</title>
+    <style>body{color:#212529;max-width:960px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}.age-tag{color:#009aff;font-weight:600}.dark-box{background:#1a1a1a;border-radius:8px;margin-top:12px;padding:16px}</style>
+  </head>
+  <body>
+    <h1>autospark.table</h1>
+    <p>
+      数据表格：columns/rows 状态引用注入 + col-&lt;key&gt; 作用域插槽自定义单元格 +
+      sortable 三态排序 + selectable 行选择（组合 autospark.checkbox）+ loading/空态 +
+      virtual 万行虚拟滚动（长表网格分叉）。
+    </p>
+
+    <div id="app">
+      <h2>基础（columns × rows + 排序 + 斑马纹）</h2>
+      <x-table striped="true" :columns="cols" :rows="users"></x-table>
+      <p class="hint">
+        columns/rows 须<b>状态引用</b>注入（字面量数组触发 props 更新死环——已知引擎缺陷规避）；
+        点击「年龄」表头：升 → 降 → 取消三态轮转。
+      </p>
+
+      <h2>col-age 作用域插槽（自定义单元格 + 行内事件原生冒泡）</h2>
+      <div @sort-change="lastSort = $event.detail.key + ' / ' + ($event.detail.order || '取消')">
+        <x-table :columns="cols" :rows="users">
+          <template x-slot:col-age="{ row, rowIndex }">
+            <b class="age-tag" x-text="'%' + row.age"></b>
+            <span style="color: #868e96" x-text="'#' + (rowIndex + 1)"></span>
+          </template>
+        </x-table>
+      </div>
+      <p class="hint">最近排序：<code x-text="lastSort || '（未排）'"></code>（sort-change 事件冒泡，监听挂内层包裹——engine 根元素 @事件 失效边界）。</p>
+
+      <h2>行选择（selectable + 全选/半选 + selection-change）</h2>
+      <div @selection-change="pickedCount = $event.detail.keys.length">
+        <x-table selectable="true" :columns="cols" :rows="users" :selection="sel"></x-table>
+      </div>
+      <p class="hint">
+        已选 <code x-text="pickedCount"></code> 行（selection 受控单向内同步 + selection-change 事件出口）；
+        按需加载须同页引入 <code>autospark.checkbox.js</code>。
+      </p>
+
+      <h2>空态 / loading</h2>
+      <x-table :columns="cols" :rows="emptyUsers"></x-table>
+      <div style="margin-top: 12px">
+        <x-table :columns="cols" :rows="users" :loading="busy"></x-table>
+        <p><button @click="busy = !busy" x-text="busy ? '关闭 loading' : '开启 loading'"></button></p>
+      </div>
+
+      <h2>virtual 万行虚拟滚动（10000 行，须同页引入 autospark.virtual.js）</h2>
+      <x-table virtual="true" striped="true" :columns="bigCols" :rows="bigRows"></x-table>
+      <p class="hint">
+        长表网格分叉（CSS grid + x-for.virtual，行定高 40px）；只渲染可见窗口 + 缓冲；
+        <code>--asc-table-virtual-height</code> 可覆盖容器高度。
+      </p>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <x-table striped="true" selectable="true" :columns="cols" :rows="users"></x-table>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.empty.js"></script>
+    <script src="/autospark.checkbox.js"></script>
+    <script src="/autospark.virtual.js"></script>
+    <script src="/autospark.table.js"></script>
+    <script>
+      const bigRows = Array.from({ length: 10000 }, (_, i) => ({
+        id: i + 1,
+        name: `成员 ${i + 1}`,
+        age: 18 + (i % 60),
+        city: ["北京", "上海", "广州", "深圳", "杭州"][i % 5],
+      }));
+      new AutoSpark(document.getElementById("app"), {
+        cols: [
+          { key: "name", title: "名称", sortable: true },
+          { key: "age", title: "年龄", align: "right", sortable: true },
+          { key: "city", title: "城市" },
+        ],
+        bigCols: [
+          { key: "id", title: "ID", width: 80 },
+          { key: "name", title: "名称", sortable: true },
+          { key: "age", title: "年龄", align: "right", sortable: true },
+          { key: "city", title: "城市" },
+        ],
+        users: [
+          { id: 1, name: "张三", age: 30, city: "北京" },
+          { id: 2, name: "李四", age: 24, city: "上海" },
+          { id: 3, name: "王五", age: 28, city: "广州" },
+          { id: 4, name: "赵六", age: 35, city: "深圳" },
+        ],
+        emptyUsers: [],
+        bigRows,
+        sel: [2],
+        busy: false,
+        lastSort: "",
+        pickedCount: 1,
+      });
+    </script>
+  </body>
+</html>

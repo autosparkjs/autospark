@@ -1,6 +1,6 @@
 # ADR-0020: 输入框 input 与表单域骨架 Field
 
-- 状态：已接受（Accepted，2026-11-12；2026-11-14 修订——决策 2/3/7 增补 `prefix`/`suffix` 具名装饰出口与主题令牌对齐口径、决策 2/后果改投影为公开文档组件，备选方案「三命名出口」条目同步消歧；**同日更名 `autospark.base-field` → `autospark.field`**——「BaseField」名不副实（它不是「基础字段」而是表单域的壳），本体名 `field` 与 CSS 类 `.asc-field-*` / 覆盖变量 `--asc-field-*` 天然对齐（视觉契约零改动），与 engine `x-field` 指令的消歧经 CONTEXT 词条承载；本 ADR 文件名保留旧称（编号稳定））
+- 状态：已接受（Accepted，2026-11-12；2026-11-14 修订——决策 2/3/7 增补 `prefix`/`suffix` 具名装饰出口与主题令牌对齐口径、决策 2/后果改投影为公开文档组件，备选方案「三命名出口」条目同步消歧；**同日更名 `autospark.base-field` → `autospark.field`**——「BaseField」名不副实（它不是「基础字段」而是表单域的壳），本体名 `field` 与 CSS 类 `.asc-field-*` / 覆盖变量 `--asc-field-*` 天然对齐（视觉契约零改动），与 engine `x-field` 指令的消歧经 CONTEXT 词条承载；本 ADR 文件名保留旧称（编号稳定）；**2026-11-17 修订（ADR-0032）**——多行能力拆出独立 `autospark.textarea`，决策 4「textarea 是 type 变体」与备选方案「textarea 独立组件：否决」废止，input 不再内置 textarea 形态）
 - 日期：2026-11-12（修订 2026-11-14；修订 2026-11-16——**装饰上提**：子组件 props 前后置装饰（input 的 `prefix`/`suffix` 文本|图标）经 template 覆盖段上提 field 的 prefix/suffix 出口（继承覆盖链中间层：消费方投影 > 子覆盖段 > field 空载体），覆盖段须重声明 `class="asc-field-*"` 注入类（ADR-0137 决策三-b 整段替换、不与父合并）；**功能动作件（清除/眼睛/计数）刻意留 body 默认段**——不进可被消费方投影顶掉的出口 fallback 位。轻/重装饰分层语义相应修订：两者同轨出口位、按覆盖链叠层（消费方重装饰接管时 props 装饰让位——显式接管语义），呈现序 `[slot:prefix] [控件] [动作件] [slot:suffix]`。首例 input，家族组件按需跟进；修订 2026-11-16（二）——**融合动作 actions**：props 驱动渲染段（非插槽出口），详见决策 3 表）
 - 关联：ADR-0018（组件库路线图——form 批与决策 7 表单基座策略的上位依据）、ADR-0017（八分类骨架——base 不投影）、ADR-0012（button 范式——样式基线）、ADR-0014（button-group 组值桥——值桥先例）、ADR-0016（state-button——表单桥分叉先例）、ADR-0034/0081（组件继承机制）、ADR-0134（autospark.base 抽象基组件与 abstract 根约束）、ADR-0129（主题三级回退链）
 
@@ -26,7 +26,7 @@ ADR-0018 决策 7 的落地边界：
 **`autospark.field` 注册为普通（非 abstract）组件**，模板 = 宿主级包裹层（`.asc-field` 布局基座）+ 单默认出口（`.asc-field-body`，`display: contents`）+ 两个具名**装饰出口** `prefix` / `suffix`（2026-11-14 修订：body 兄弟位，`display: contents` + 空 fallback——无内容时零布局，裸态控件组件继承亦无害）。继承链：
 
 ```
-input / checkbox / radio / switch / select / input-number
+input / textarea / checkbox / radio / switch / select / input-number
         └─ x-define:inherit → autospark.field（骨架：状态色/焦点/禁用同步/盒饰选配）
                   └─ x-define:inherit → autospark.base（ADR-0134：主题档位六键物化）
 ```
@@ -48,16 +48,15 @@ input / checkbox / radio / switch / select / input-number
 | 尺寸档位 | 经继承链消费主题 `data-size` 通道（`--auto-input-height` / `--auto-input-padding` 档位联动），骨架不设尺寸属性 | 全 form 族 |
 | 具名装饰出口 `prefix` / `suffix`（2026-11-14 修订；2026-11-15 切 template 载体） | body 兄弟位（DOM 序 `[slot:prefix] [body] [slot:suffix]` 固定），template 载体（ADR-0137）——**无内容整出口静默消失、零多余 DOM**，载体 class 经属性活注入落投影内容首根（次要色 `--auto-secondary-color` + `0.4em` 尾/首距 + 防收缩 `flex:none` 随类落根，镜像 props 装饰惯例）；多根装饰仅首根得注入类——装饰出口建议单根，多根后续节点消费方自理；与子组件 props 轻装饰（input 的 `prefix`/`suffix` 文本\|图标）**共存不互斥，插槽恒在 props 装饰外侧**（重装饰/轻装饰分层）；插槽内容点击转发焦点到控件（消费方放交互件须自标 `data-autospark-action` 自理）；disabled/readonly 不对插槽内容做专门处理（与 props 装饰对齐）。**载体注记（已闭环）**：2026-11-14 曾因「真浏览器不展开」缺陷警示暂用 span 载体，2026-11-15 查明系陈旧产物误报（ADR-0137 修订条目），产物路径复证后切回 template | 全 form 族（继承即得，含裸态控件——空出口零残留） |
 
-| 融合动作 `actions`（2026-11-16 修订二） | props `actions`：**button props 数组**（项 = x-button-options 全集——**variant 缺省 `'secondary'`**（2026-11-17 补：渲染段 assign 打底，项显式 variant 胜——融合态默认弱化衬底与输入域主次分明）+ 自有键 `pos: "before" \| "after"`（缺省 after，前后分侧）、`name`（标识）、`value`（使用者数据原样透传，tags 同款））；**props 驱动渲染段非插槽出口**（数据→视图，非内容投影——不开出口、不可插槽覆盖，要自定义按钮就用 prefix/suffix 插槽自理）：`x-if` 空数组整段不渲染（零 DOM）+ 双 `x-for` 按 pos 过滤分侧，DOM 序 `[before actions][slot:prefix][body][slot:suffix][after actions]`（动作按钮最外层包壳）。**融合视觉复用 button-group 范式（ADR-0014 决策 2）**：同侧相邻按钮侧圆角清除 + 负 margin 边线复用（按钮与盒饰、按钮与按钮共享一条 `--asc-field-line` 边框线不叠双线）+ `align-items: stretch` 等高 + 首/尾钮外侧圆角匹配盒饰；接缝线染色联动——status 染整组含按钮线、hover/焦点环仅 box 段；按钮本体 variant/type 不约束（status 不染按钮本体）。**组合复用 autospark.button**（内嵌 `x-component:` 实例化，不自绘）——field 产物由此依赖 `autospark.button.js` 同页加载（聚合无碍；子组件产物连带）。**事件**：field 组包派发 `action-click`（冒泡，`detail = { index, name, value, item }`）+ 原生 click 照常冒泡（双通道）。**状态联动**：field `disabled` → 按钮同步禁用（项 disabled 合并）；readonly 不影响；按钮自动标 `data-autospark-action`（点击不转发焦点）。**实施约束**：数组 props 经**状态引用注入**（`:actions="myActions"`——引擎值对象字面量数组死环缺陷 HEAD 未修）；textarea 形态照常可用（按钮等高随盒高） | 全 form 族（继承即得）；裸态控件不加 `.asc-field-box` 时融合线不生效（动作按钮是盒饰层的融合） |
-
+| 融合动作 `actions`（2026-11-16 修订二） | props `actions`：**button props 数组**（项 = x-button-options 全集——**variant 缺省 `'secondary'`**（2026-11-17 补：渲染段 assign 打底，项显式 variant 胜——融合态默认弱化衬底与输入域主次分明）+ 自有键 `pos: "before" \| "after"`（缺省 after，前后分侧）、`name`（标识）、`value`（使用者数据原样透传，tags 同款））；**props 驱动渲染段非插槽出口**（数据→视图，非内容投影——不开出口、不可插槽覆盖，要自定义按钮就用 prefix/suffix 插槽自理）：`x-if` 空数组整段不渲染（零 DOM）+ 双 `x-for` 按 pos 过滤分侧，DOM 序 `[before actions][slot:prefix][body][slot:suffix][after actions]`（动作按钮最外层包壳）。**融合视觉复用 button-group 范式（ADR-0014 决策 2）**：同侧相邻按钮侧圆角清除 + 负 margin 边线复用（按钮与盒饰、按钮与按钮共享一条 `--asc-field-line` 边框线不叠双线）+ `align-items: stretch` 等高 + 首/尾钮外侧圆角匹配盒饰；接缝线染色联动——status 染整组含按钮线、hover/焦点环仅 box 段；按钮本体 variant/type 不约束（status 不染按钮本体）。**组合复用 autospark.button**（内嵌 `x-component:` 实例化，不自绘）——field 产物由此依赖 `autospark.button.js` 同页加载（聚合无碍；子组件产物连带）。**事件**：field 组包派发 `action-click`（冒泡，`detail = { index, name, value, item }`）+ 原生 click 照常冒泡（双通道）。**状态联动**：field `disabled` → 按钮同步禁用（项 disabled 合并）；readonly 不影响；按钮自动标 `data-autospark-action`（点击不转发焦点）。**实施约束**：数组 props 经**状态引用注入**（`:actions="myActions"`——引擎值对象字面量数组死环缺陷 HEAD 未修）；多行场景由 `autospark.textarea` 继承并改为控件上 / 下整行布局（ADR-0032） | 全 form 族（继承即得）；裸态控件不加 `.asc-field-box` 时融合线不生效（动作按钮是盒饰层的融合） |
 **P0-F 消费指引（checkbox / radio / switch）**：`x-define:inherit="autospark.field"`；根 class 写 `asc-<name>`（**不加** `asc-field-box`——裸态无盒饰，状态色仍经 `--asc-field-tone` 消费可加自有细边框）；控件结构作默认段，原生控件挂 `data-autospark-control`（勾选态同步/禁用/焦点追踪全由骨架接管），自绘部分（如 switch 轨道）按 `data-autospark-action` 标记交互件。骨架 API 面**只增不改**：后续加 props/标记先在本 ADR 修订。
 
 ### 决策 4：原生增强路线——真实控件 + 包裹，不自绘
 
-- 内层是**真实的** `<input>` / `<textarea>`（挂 `data-autospark-control`），外观裸化由骨架盒饰承载；不自绘输入面——键盘、IME、自动填充、移动端兼容、原生约束校验全保留；
+- 内层是**真实的** `<input>`（挂 `data-autospark-control`），外观裸化由骨架盒饰承载；不自绘输入面——键盘、IME、自动填充、移动端兼容、原生约束校验全保留。多行输入由独立组件 `autospark.textarea` 承接（ADR-0032，同一原生增强路线）；
 - 宿主为包裹层元素（span）——组件根 span 化身后与宿主合并，原生语义在内层真身上（与 button/link 的「宿主替换为真身」变换动机不同：此处宿主无须原生语义）；
-- 元素名快速写法 `<x-input>` / `<x-textarea>` 经 precompile DOM 变换折叠（静态属性→props 字面量含类型推断、`:key` 响应式项原样拼入、布尔裸属性归一 true、name/class/x-/@ 保留给宿主），ADR-0117 时序缺口同款止血；
-- **textarea 是 type 变体**（`type: "textarea"`），不独立成件：值桥 / 计数 / 清除 / 前后置全形态共用一套逻辑，仅内层元素切换（`x-if` 分叉）+ 盒饰高度放开（宿主 `data-form="textarea"` 属性通道）。独立模板形态（antd Input.TextArea 分件）被否决——机制重复度高、注册面翻倍，props 一键切换的迁移成本更低。
+- 元素名快速写法 `<x-input>` 经 precompile DOM 变换折叠（静态属性→props 字面量含类型推断、`:key` 响应式项原样拼入、布尔裸属性归一 true、name/class/x-/@ 保留给宿主），ADR-0117 时序缺口同款止血；
+- ~~**textarea 是 type 变体**（`type: "textarea"`），不独立成件……独立模板形态（antd Input.TextArea 分件）被否决——机制重复度高、注册面翻倍，props 一键切换的迁移成本更低。~~ **2026-11-17 修订（ADR-0032）：本段废止**——多行能力拆为独立组件 `autospark.textarea`（继承 field、值桥逻辑复制自持）。原判低估了「职责过载」与「运行时形态切换重建控件」的长期成本；`<x-input type="textarea">` 硬移除、静默降级为单行输入，`<x-textarea>` 归新组件独占。
 
 ### 决策 5：值桥协议（x-model 兼容）
 
@@ -89,7 +88,7 @@ input / checkbox / radio / switch / select / input-number
 
 - **Field 为 abstract 基类（纯行为+CSS 约定，子组件全权持模板）**：否决——engine abstract 根约束（ADR-0134）下不能再继承 autospark.base，主题档位六键物化在 form 族断链；骨架亦有真实 DOM 贡献，非抽象是自然形态。
 - **骨架出口开三个命名出口（prefix/control/suffix 固定序）**：否决——对 checkbox/switch 等裸态控件的结构挤压（**control 具名化**即顺序被钉死、label 归属尴尬）；单默认出口给子组件全权结构自由，共享面收敛到状态通道与 CSS 约定（宁薄勿胖）。**2026-11-14 消歧**：本条否决的仅是 control 具名化形态；修订后的 `prefix`/`suffix` 是**装饰出口**——默认出口仍是结构全权所有者，装饰出口空 fallback + `display: contents` 零布局，不挤压裸态控件结构，两案正交。
-- **textarea 独立组件（autospark.textarea）**：否决——见决策 4；机制全形态共用，独立件是注册面翻倍无增量。
+- ~~**textarea 独立组件（autospark.textarea）**：否决——见决策 4；机制全形态共用，独立件是注册面翻倍无增量。~~ **2026-11-17 修订（ADR-0032）：本条目废止**——改判独立成件，理由与取舍见 ADR-0032。
 - **自绘输入面（contenteditable / 受控重渲）**：否决——可访问性与 IME 成本高（ADR-0018 决策 7 已定原生增强路线）。
 - **值通道走 props 双向（value + @input 自定义协议）**：否决——绕开 x-model 生态（修饰符/schema/get-set 管道全失）；el.value 劫持让 x-model 原生语义直通。
 - **表单提交走 hidden input 代理（state-button 同款）**：否决——控件即真身，代理多余（见决策 6）。
@@ -97,10 +96,10 @@ input / checkbox / radio / switch / select / input-number
 
 ## 后果
 
-- `autospark.input` 交付：注册名 `autospark.input`，产物 `autospark.input.js`（内嵌 field 注册，自包含）；测试 `src/__tests__/components/form/input-plugin.test.ts`（26 用例，Field 通道经 input 实例化覆盖，无独立 field 测试文件）。
+- `autospark.input` 交付：注册名 `autospark.input`，产物 `autospark.input.js`（内嵌 field 注册，自包含）；测试 `src/__tests__/components/form/input-plugin.test.ts`（Field 通道经 input 实例化覆盖，无独立 field 测试文件；多行能力测试归 `textarea-plugin.test.ts`，ADR-0032）。`autospark.textarea`（2026-11-17，ADR-0032）同构：产物 `autospark.textarea.js`（内嵌 field），测试 `textarea-plugin.test.ts`。
 - `base/` 目录转入现役（首个产物 field）；~~文档侧不投影（无文档页/侧边栏条目，ADR-0017 决策 4）~~ **2026-11-14 修订：转公开投影**（侧边栏「表单」组 + `docs/zh/components/form/field.md` + demo 双页 `basic.html`/`slots.html` + 独立产物登记 + readme/demo 树惯例同步）。
 - P0-F（checkbox/radio/switch）按决策 3 消费指引继承骨架；骨架 API 面**只增不改**，变更须修订本 ADR。
 - 对象 props（prefix/suffix 的 `{ icon }`）须状态引用注入（引擎值对象字面量缺陷修复在途，text 同款备注）。
-- **已知边界**：①运行时切换 `type` 进出 textarea 形态会重建控件（值经 lastValue 缓存回填，焦点不保）；②原生约束校验（required/pattern）的 `:user-invalid` 自动染色未做（status 是唯一染色通道，需要时后续演进）；③~~append/prepend 组合槽（按钮内嵌）未做~~（2026-11-14 修订：`prefix`/`suffix` 装饰出口可承载任意内容含按钮，内嵌按钮场景即插槽用法，剩余差距仅 props 形态无组合语义）；④password 形态的浏览器原生「显示密码」控件的样式协调未处理。
+- **已知边界**：①~~运行时切换 `type` 进出 textarea 形态会重建控件（值经 lastValue 缓存回填，焦点不保）~~（2026-11-17 修订：多行能力拆件后本边界消失，ADR-0032；input 仅剩单行形态）；②原生约束校验（required/pattern）的 `:user-invalid` 自动染色未做（status 是唯一染色通道，需要时后续演进）；③~~append/prepend 组合槽（按钮内嵌）未做~~（2026-11-14 修订：`prefix`/`suffix` 装饰出口可承载任意内容含按钮，内嵌按钮场景即插槽用法，剩余差距仅 props 形态无组合语义）；④password 形态的浏览器原生「显示密码」控件的样式协调未处理。
 - **theme 侧缺陷（本批发现的跨包问题，非本组件文件可修）**：`packages/theme/src/vars/size.ts` 的档位块引用 `--x-input-height-${size}` 标尺，但该标尺在全 theme 无定义（derived 层 `--auto-input-height` 实为 `var(--auto-line-height)`）——档位容器上 `--auto-input-height` 失效落组件兜底。本组件以**随字号自适应兜底**（`calc(var(--auto-font-size) * 2.57)`）防御，档位高度仍随字号缩放；theme 补标尺后 `--auto-input-height` 即恢复权威。
 - 遗留：值对象内字面量对象/数组 props 的引擎死循环缺陷（`_propsEqual` 引用比较）修复后，本文档的「状态引用注入」提示可撤。

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.breadcrumb · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}.row{flex-wrap:wrap;align-items:center;gap:16px;margin:12px 0;display:flex}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}.dark-box{background:#1a1a1a;border-radius:8px;margin-top:12px;padding:12px 16px}</style>
+  </head>
+  <body>
+    <h1>autospark.breadcrumb</h1>
+    <p>
+      面包屑：items 数据驱动（{ label, href?, icon? }[]，状态引用注入）或子元素声明
+      （&lt;x-breadcrumb-item&gt; 静态标量）两形态；末项恒为当前页（aria-current）；
+      分隔符 separator（"arrow" 图标 / 任意文本字符，缺省 "/"）。
+    </p>
+
+    <div id="app" x-data="{}">
+      <h2>items 数据驱动（状态引用注入）</h2>
+      <div class="row">
+        <x-breadcrumb :items="crumbs"></x-breadcrumb>
+      </div>
+      <p class="hint">
+        字面量数组 props 在当前引擎版本会触发无限更新——items 恒经状态引用注入（crumbs 为页面状态）。
+      </p>
+
+      <h2>子元素声明（静态路径）</h2>
+      <div class="row">
+        <x-breadcrumb>
+          <x-breadcrumb-item label="首页" href="/"></x-breadcrumb-item>
+          <x-breadcrumb-item label="组件库" href="/components"></x-breadcrumb-item>
+          <x-breadcrumb-item label="Breadcrumb"></x-breadcrumb-item>
+        </x-breadcrumb>
+      </div>
+      <p class="hint">
+        &lt;x-breadcrumb-item&gt; 由 precompile 变换折叠为 items JSON 落 data-items 通道（宿主替换为真 nav）。
+      </p>
+
+      <h2>分隔符（separator）</h2>
+      <div class="row">
+        <x-breadcrumb separator="arrow" :items="crumbs"></x-breadcrumb>
+      </div>
+      <div class="row">
+        <x-breadcrumb separator="·" :items="crumbs"></x-breadcrumb>
+      </div>
+
+      <h2>带图标（icon）</h2>
+      <div class="row">
+        <x-breadcrumb :items="favCrumbs"></x-breadcrumb>
+      </div>
+
+      <h2>router 拦截配方（纯状态驱动，不耦合 router 包）</h2>
+      <div class="row" id="router-demo">
+        
+        <x-breadcrumb id="nav-demo" :items="crumbs"></x-breadcrumb>
+      </div>
+      <p class="hint" id="router-log">点击面包屑链接：默认导航被拦截（示例仅记录，不真跳转）。</p>
+
+      <h2>暗色态（容器 data-dark）</h2>
+      <div class="dark-box" data-dark>
+        <div class="row">
+          <x-breadcrumb :items="crumbs"></x-breadcrumb>
+          <x-breadcrumb separator="arrow" :items="crumbs"></x-breadcrumb>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.breadcrumb.js"></script>
+    <script>
+      const state = {
+        crumbs: [
+          { label: "首页", href: "/" },
+          { label: "组件库", href: "/components" },
+          { label: "导航", href: "/components/navigation" },
+          { label: "Breadcrumb 面包屑" },
+        ],
+        favCrumbs: [
+          { label: "首页", href: "/", icon: "folder" },
+          { label: "收藏夹", href: "/fav", icon: "star" },
+          { label: "当前项" },
+        ],
+      };
+      new AutoSpark(document.getElementById("app"), state);
+      // router 拦截配方（捕获阶段拦截面包屑链接默认导航）
+      document.getElementById("router-demo").addEventListener(
+        "click",
+        (e) => {
+          const a = e.target instanceof Element ? e.target.closest("a[href]") : null;
+          if (!a) return;
+          e.preventDefault();
+          document.getElementById("router-log").textContent = `已拦截导航：${a.getAttribute("href")}（交由路由/状态接管）`;
+        },
+        true,
+      );
+    </script>
+  </body>
+</html>

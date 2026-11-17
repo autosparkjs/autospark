@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.button · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}.row{flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0;display:flex}.colored-bg{background:linear-gradient(135deg,#4a72d8,#7a4ad8);border-radius:8px;gap:12px;padding:16px;display:flex}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}</style>
+  </head>
+  <body>
+    <h1>autospark.button</h1>
+    <p>
+      形态（variant）与语义色（type）正交组合；props 外观变体 + 默认插槽兜底 + 事件经冒泡到
+      外层消费。宿主标签即组件根标签（化身语义）——用 <code>button</code> 宿主得到语义化按钮。
+    </p>
+
+    <div id="app" x-data="{ clicks: 0, picked: false, btnTags: [{ name: 'settings', icon: 'edit', tooltip: '设置' }] }">
+      <h2>标签形态（ADR-0133）</h2>
+      <p class="hint">
+        注册名 <code>autospark.button</code> 的元素标签按归一化推导（官方
+        <code>autospark.</code> 前缀自动剥离）——直接写 <code>&lt;x-button&gt;</code>
+        即实例化：静态属性即 props（类型推断），与 <code>x-component</code> 形态完全等价。
+        注意组件是封闭域——标签上 <code>@event</code> / <code>:expr</code> 引用宿主外的
+        <code>x-data</code> 状态不可见，事件监听写外层包裹元素（见下方「可勾选」节的同款姿势）。
+      </p>
+      <div class="row">
+        <x-button variant="primary" label="标签形态主按钮"></x-button>
+        <x-button variant="dashed" type="info" label="静态 props（类型推断）"></x-button>
+      </div>
+
+      <h2>形态（variant）</h2>
+      <div class="row">
+        <x-button variant="primary" label="主按钮"></x-button>
+        <x-button variant="secondary" label="次按钮"></x-button>
+        <x-button variant="dashed" label="虚线按钮"></x-button>
+        <x-button variant="text" label="文本按钮"></x-button>
+        <x-button variant="link" label="链接按钮"></x-button>
+      </div>
+
+      <h2>语义色（type）</h2>
+      <div class="row">
+        <x-button type="success" label="成功"></x-button>
+        <x-button type="warning" label="警告"></x-button>
+        <x-button type="danger" label="危险"></x-button>
+        <x-button type="info" label="信息"></x-button>
+        <x-button variant="dashed" type="danger" label="危险虚线"></x-button>
+      </div>
+
+      <h2>幽灵（ghost）</h2>
+      <div class="colored-bg">
+        <x-button ghost="true" label="幽灵主钮"></x-button>
+        <x-button variant="secondary" ghost="true" label="幽灵次钮"></x-button>
+      </div>
+
+      <h2>图标 / 加载 / 禁用 / 纵排 label</h2>
+      <div class="row">
+        <x-button icon="menu" label="图标"></x-button>
+        <x-button icon="menu" label="加载中" loading="true"></x-button>
+        <x-button label="禁用" disabled="true"></x-button>
+        <x-button
+          variant="secondary"
+          icon="star"
+          label="收藏"
+          memo="按 ⌘ + D"
+          x-button-options="{ props: { labelBelow: true } }"
+        ></x-button>
+      </div>
+
+      <h2>tags 小圆钮与事件</h2>
+      <div class="row">
+        <span @tag-click="clicks = clicks + 1">
+          <x-button icon="file" label="文档" :tags="btnTags"></x-button>
+        </span>
+        <span>共点击 tag <b>{{ clicks }}</b> 次</span>
+      </div>
+      <p class="hint">
+        tag-click 冒泡自包裹元素消费（组件默认封闭，宿主上的表达式在组件域求值——事件绑定写在组件外）。
+      </p>
+
+      <h2>可勾选（checkable）</h2>
+      <div class="row">
+        <span @change="picked = $event.detail.value">
+          <x-button variant="secondary" checkable="true" label="仅看优惠" :value="picked"></x-button>
+        </span>
+        <span>picked = <b>{{ picked }}</b></span>
+      </div>
+      <p class="hint">点击自动翻转并冒泡 change（detail.value）；受控显示经 props 单向注入——两行即双向。</p>
+    </div>
+
+    <p><a href="./index.html">← 返回组件列表</a></p>
+
+    
+    <script src="/autospark.js"></script>
+    <script src="/autospark.ripple.js"></script>
+    <script src="/autospark.button.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {});
+    </script>
+  </body>
+</html>

@@ -411,6 +411,7 @@ export default defineConfig({
           items: [
             { text: "表单域骨架 Field", link: "/zh/components/form/field" },
             { text: "输入框 Input", link: "/zh/components/form/input" },
+            { text: "多行文本框 Textarea", link: "/zh/components/form/textarea" },
             { text: "复选框 Checkbox", link: "/zh/components/form/checkbox" },
             { text: "单选钮 Radio", link: "/zh/components/form/radio" },
             { text: "开关 Switch", link: "/zh/components/form/switch" },

@@ -2,9 +2,9 @@
 
 ## 概述
 
-Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020），走**原生增强路线**：内层是真实的原生 `<input>` / `<textarea>` 控件 + 骨架样式包裹，不自绘输入面——原生可访问性（键盘 / IME 输入法 / 自动填充 / 移动端兼容）全保留（ADR-0018 决策 7）。
+Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020），走**原生增强路线**：内层是真实的原生 `<input>` 控件 + 骨架样式包裹，不自绘输入面——原生可访问性（键盘 / IME 输入法 / 自动填充 / 移动端兼容）全保留（ADR-0018 决策 7）。多行输入请用独立的 [Textarea 多行文本框](/zh/components/form/textarea)（ADR-0032：`input` 不再内置 textarea 形态）。
 
-能力面：**type 文本族**（text / password / email / tel / url / search 等透传 + `textarea` 多行形态）、**clearable**（清除钮）、**show-password**（眼睛切换）、**prefix / suffix**（文本或图标前后置）、**maxlength 计数**、**disabled / readonly**。label、校验文案、域布局由 engine 的 [x-form / x-field 指令](/zh/guide/engine/form/) 承担——组件只经 `status` 属性消费校验结果染色，**不双轨建域**。
+能力面：**type 文本族**（text / password / email / tel / url / search 等透传）、**clearable**（清除钮）、**show-password**（眼睛切换）、**prefix / suffix**（文本或图标前后置）、**maxlength 计数**、**disabled / readonly**。label、校验文案、域布局由 engine 的 [x-form / x-field 指令](/zh/guide/engine/form/) 承担——组件只经 `status` 属性消费校验结果染色，**不双轨建域**。
 
 组件继承 [`autospark.field` 表单域骨架](/zh/components/form/field)（状态色通道 / 焦点态 / 盒饰 chrome / prefix·suffix 装饰出口 / [actions 融合动作](/zh/components/form/field#actions-融合动作)），视觉全走 `--auto-*` 语义变量三级回退链（ADR-0129）；**不设自有尺寸属性**——高度/内距消费 `--auto-input-height` / `--auto-input-padding`，经主题通道 `data-size` 挂任意祖先容器全档位跟随（button 同范式 ADR-0012）；暗色态容器裸挂 `data-dark` 即局部切换。无内置文案、不接 i18n（ADR-0018 决策 1）。
 
@@ -33,17 +33,17 @@ Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020�
 **默认**: `text`
 
 - 文本族值（`text` / `password` / `email` / `tel` / `url` / `search` 等）**透传为原生 input type**（原生校验语义、移动端键盘联动随之生效）；
-- `"textarea"` 是**多行形态**：内层元素切换为 `<textarea>`（`rows` 行数可配），前后置 / 清除 / 计数照常可用；
-- `type="password"` 配合 [`show-password`](#show-password-密码可见切换) 使用。
+- `type="password"` 配合 [`show-password`](#show-password-密码可见切换) 使用；
+- 多行输入不在本组件：请用 [Textarea](/zh/components/form/textarea)。
 
 <demo html="components/form/input/variants.html"/>
 
-### placeholder / maxlength / rows
+### placeholder / maxlength
 
-**类型**: `string` / `number` / `number`
-**默认**: `""` / `0` / `2`
+**类型**: `string` / `number`
+**默认**: `""` / `0`
 
-`placeholder` 同步原生占位文案；`maxlength > 0` 同步原生 maxlength 属性（浏览器原生输入截断）并作为计数分母；`rows` 仅 textarea 形态消费。
+`placeholder` 同步原生占位文案；`maxlength > 0` 同步原生 maxlength 属性（浏览器原生输入截断）并作为计数分母。
 
 ### 值通道（x-model 桥）
 
@@ -148,11 +148,10 @@ Input 是 AutoSpark 的官方输入框组件（组件库 P0 form 批，ADR-0020�
 
 | 属性 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| type | `string` | `text` | 文本族透传原生 input type；`textarea` 切多行形态 |
+| type | `string` | `text` | 文本族透传原生 input type |
 | value | `string` | `""` | 非受控初值 / 单向同步值（受控真相走宿主 x-model） |
 | placeholder | `string` | `""` | 占位文案（同步原生属性） |
 | maxlength | `number` | `0` | >0 同步原生 maxlength（原生截断）+ 计数分母 |
-| rows | `number` | `2` | textarea 行数（仅 textarea 形态） |
 | clearable | `boolean` | `false` | 清除钮（非空显形，点击清空 + input 派发 + 焦点回控件） |
 | showPassword | `boolean` | `false` | 密码可见切换眼睛钮（仅 type=password） |
 | showCount | `boolean` | `false` | 计数器（len / max，超限染 danger） |

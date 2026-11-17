@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.affix · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}.doc section{border-bottom:1px dashed #dee2e6;min-height:60vh;padding-top:4rem}.sticky-bar{background:#fff;border:1px solid #dee2e6;border-radius:8px;align-items:center;gap:.75em;padding:.625em 1em;font-weight:600;display:flex;box-shadow:0 2px 8px #00000014}.sticky-bar .state{color:#868e96;margin-left:auto;font-size:.85em;font-weight:400}</style>
+  </head>
+  <body>
+    <h1>autospark.affix</h1>
+    <p>
+      固钉（组件库 P4 other 件，ADR-0030）：滚动过 offset 阈值后内容 fixed 吸附视口
+      （position=top 吸顶缺省 / bottom 吸底）；原位占位撑高防跳动 +
+      <code>change</code> 冒泡 <code>detail = { fixed }</code>。与 float-button
+      （fixed 悬浮动作钮）/ anchor（滚动高亮导航）正交——本件是内容区固钉吸附。
+    </p>
+
+    <h2>吸顶（offset=80）</h2>
+    <div id="app">
+      <div @change="fixed = $event.detail.fixed">
+        <x-affix :offset="80">
+          <div class="sticky-bar">
+            吸顶操作条
+            <span class="state">{{ fixed ? "已固定" : "随流" }}</span>
+          </div>
+        </x-affix>
+      </div>
+      <h2>吸底（position="bottom"，offset=120）</h2>
+      <div @change="count += 1">
+        <x-affix :offset="120" position="bottom">
+          <div class="sticky-bar">
+            吸底操作条<span class="state">{{ count }} 次翻转</span>
+          </div>
+        </x-affix>
+      </div>
+      <p class="hint">
+        元素名写法 <code>&lt;x-affix :offset="80"&gt;</code> 经 precompile 变换折叠 props；
+        数值/字符串静态属性直写、响应式走 <code>:属性</code> 绑定。
+      </p>
+      <div class="doc">
+        <section>
+          <h3>区块一</h3>
+          <p>向下滚动：顶条越过 80px 吸附视口顶、底条越过 120px 吸附视口底。</p>
+        </section>
+        <section>
+          <h3>区块二</h3>
+          <p>占位元素撑高原位高度（脱流前几何快照），滚动不跳动。</p>
+        </section>
+        <section>
+          <h3>区块三</h3>
+          <p>回落即恢复随流；change 事件同步翻转计数。</p>
+        </section>
+      </div>
+    </div>
+
+    <script src="/autospark.js"></script>
+    <script src="/autospark.affix.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        fixed: false,
+        count: 0,
+      });
+    </script>
+  </body>
+</html>

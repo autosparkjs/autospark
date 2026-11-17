@@ -205,6 +205,11 @@
                 syncAttrs();
                 syncValue();
                 initDone = true; // 初始化完成：劫持 setter 放开重放识别门闩（此后全量生效）
+                // actions 不支持（ADR-0032 修订）：非空注入 warn 一次（渲染段已被
+                // CSS 整段屏蔽，静默忽略——多行形态不提供融合动作）
+                if (Array.isArray(this.data.actions) && this.data.actions.length > 0) {
+                    console.warn("autospark.textarea: 不支持 actions（ADR-0032 修订，多行形态已取消融合动作），注入已忽略");
+                }
             }, 0);
 
             // —— props 变化跟随（回调收 { value } 信封对象，此处只用作触发信号）——
@@ -323,29 +328,11 @@
       padding-block-end: 1.25em;
     }
 
-    /* ---------- actions 段：field 的横向融合在本组件改为控件上 / 下整行（pos: before 在上、
-         after 在下，右对齐）——按钮恢复自有描边与圆角，不与文本抢行宽。field 的融合规则
-         用 !important 解除（选择器特异性跨产物顺序不稳定，显式让位最稳） ---------- */
+    /* ---------- actions 不支持（ADR-0032 修订，2026-11-17 取消）：多行形态取消融合
+         动作——field 渲染段整段屏蔽（display:none，注入静默忽略；mounted 对非空
+         actions warn 一次）。此前「上/下整行布局」方案废止 ---------- */
     .asc-textarea .asc-field-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4em;
-      justify-content: flex-end;
-      width: 100%;
-    }
-    .asc-textarea .asc-field-actions-before {
-      order: -1;
-      margin-block-end: 0.4em;
-    }
-    .asc-textarea .asc-field-actions-after {
-      margin-block-start: 0.4em;
-    }
-    .asc-textarea .asc-field-actions .asc-field-action {
-      align-self: center !important;
-      margin: 0 !important;
-      border-width: var(--auto-border-size, var(--asc-field-border-size, 1px)) !important;
-      border-style: solid !important;
-      border-radius: var(--auto-border-radius, var(--asc-field-radius, 0.5rem)) !important;
+      display: none;
     }
 
     /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */

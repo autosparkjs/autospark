@@ -52,6 +52,7 @@ import "./components/display/table/index";
 import "./components/display/collapse/index";
 import "./components/base/field/index";
 import "./components/form/input/index";
+import "./components/form/textarea/index";
 import "./components/form/checkbox/index";
 import "./components/form/radio/index";
 import "./components/form/switch/index";

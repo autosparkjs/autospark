@@ -27,7 +27,7 @@
 | feedback | alert（P0）、progress（P1）、skeleton（P1）、message-box（P1）、result（P2） | x-icon、x-dialog、button、i18n、语义色 |
 | navigation | tabs 含 segmented variant（P1）、breadcrumb（P1）、menu（P2）、steps（P2）、pagination（P2）、page-header（P2）、anchor（P3）、dropdown（P3） | x-icon、state-button、i18n、x-for.paging |
 | display | card（P0）、tag（P0）、empty（P0）、avatar（P1）、image（P1）、list（P1）、table 含 virtual 模式（P2）、descriptions（P2）、timeline（P2）、statistic（P2）、image-viewer（P2）、carousel（P2）、collapse（P2） | x-for、virtual、x-loading、tooltip、x-scrollbar、tag/card/checkbox（跨组件）、语义色 |
-| form | input 含 textarea/password 形态 + **BaseField**（P0）、checkbox（P0）、radio（P0）、switch（P0）、select（P1）、input-number（P1）、slider（P1）、rate（P1）、autocomplete（P3）、date-picker（P3）、time-picker（P3）、time-select（P3）、color-picker（P3）、transfer（P3） | x-model、x-field、x-popover、x-icon、checkbox/button/list（transfer 装配）、BaseField |
+| form | input 含 password 等文本族形态 + **BaseField**（P0）、textarea（2026-11-17 由 input 的 type 变体拆出，ADR-0032）、checkbox（P0）、radio（P0）、switch（P0）、select（P1）、input-number（P1）、slider（P1）、rate（P1）、autocomplete（P3）、date-picker（P3）、time-picker（P3）、time-select（P3）、color-picker（P3）、transfer（P3） | x-model、x-field、x-popover、x-icon、checkbox/button/list（transfer 装配）、BaseField |
 | other | ~~float-button 含 back-to-top 形态（P3）~~（2026-11-13 改归 general，ADR-0029 修订——用户裁决）、affix（P4）、watermark（P4）、tour（P4）、countdown（P4） | scroll 监听、expandable 共享把手、x-popover、i18n |
 | base | BaseField（P0，**基类不计入清单数**） | 演进式抽取，见决策 7 |
 

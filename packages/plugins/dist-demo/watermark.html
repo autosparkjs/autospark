@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>autospark.watermark · 组件演示</title>
+    <style>body{color:#212529;max-width:720px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,sans-serif}h1{font-size:1.5rem}h2{margin-top:2rem;font-size:1.1rem}code{background:#f1f3f5;border-radius:4px;padding:2px 6px;font-size:.85em}.hint{color:#868e96;font-size:.875rem}.wm-box{border:1px solid #dee2e6;border-radius:8px;margin-bottom:1rem;padding:1.25rem;line-height:1.8}</style>
+  </head>
+  <body>
+    <h1>autospark.watermark</h1>
+    <p>
+      水印（组件库 P4 other 件，ADR-0030）：容器形态（缺省，absolute 覆盖插槽内容）
+      或全页形态（<code>full-page</code>，层挂 body fixed 铺满）；canvas 离屏绘制旋转
+      文本单元 → data URL 平铺。内容保护（pointer-events 拦截）与防删除监听按简不做。
+    </p>
+
+    <h2>容器水印 + 多行 + 自定义样式</h2>
+    <div id="app">
+      <x-watermark :content="lines" :rotate="-30" :font-size="14" :gap="[120, 80]" color="rgba(0, 120, 255, 0.18)">
+        <div class="wm-box">
+          <p>多行文案（content 状态引用注入 string[]）+ rotate/fontSize/gap/color 自定义。</p>
+        </div>
+      </x-watermark>
+
+      <x-watermark content='["声明行一", "声明行二"]' gap="60">
+        <div class="wm-box">
+          <p>声明形态：裸 content JSON 数组字符串（data-content 标量通道）。</p>
+        </div>
+      </x-watermark>
+
+      <h2>全页水印（开关）</h2>
+      <label>
+        <input type="checkbox" x-model="on" />
+        开启全页水印
+      </label>
+      <div x-if="on">
+        <x-watermark content="全页水印 · 仅演示" :z-index="50" full-page></x-watermark>
+      </div>
+      <p class="hint">
+        元素名写法 <code>&lt;x-watermark content="文案"&gt;</code>；数组面
+        （content/gap 的 JSON 字符串）自动分流 data-* 标量通道（字面量数组 props 死环规避）。
+      </p>
+    </div>
+
+    <script src="/autospark.js"></script>
+    <script src="/autospark.watermark.js"></script>
+    <script>
+      new AutoSpark(document.getElementById("app"), {
+        lines: ["第一行业务系统", "第二行安全声明"],
+        on: false,
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,481 @@
+(function (AutoSpark) {
+    "use strict";
+var run = function (AutoSpark) {
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){return e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase())}function n(e){return/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e)}function r(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}var i=`autospark.carousel`;function a(e){e.components[i]=`<!--
+    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
+    不会求值——形态/指示器绑定（:data-effect / :data-indicator）落在编译子树的内层
+    body 上，宿主为透明块壳。
+
+    实现取舍（scroll-snap 真滚动 vs transform 位移）：scroll 档走 CSS scroll-snap
+    （原生滚动/触摸惯性免费；切换经 track.scrollTo 驱动——程序滚动的 smooth 中间态
+    以 settleTarget 旗吞掉（到达目标页即收旗），用户拖动实时反推同步）；fade 档纯
+    CSS 叠放透明度切换（stage 定高 --asc-carousel-height，缺省 16rem——绝对叠放项
+    不撑高容器，定高是 fade 档的结构前提，文档披露）。两档共用同一切换通道
+    （goTo：写 data.index + change 广播 + scroll 档 applyScroll）。
+
+    x-for 容器宿主纪律：track / dots 为 x-for 容器（宿主上动态绑定不编译——记忆
+    xfor-host-bindings），项级绑定（:data-active / :src / x-show / @click）全部落在
+    克隆体内；克隆体内条件显隐一律 x-show（共享快照多实例 + items 晚注入下 x-if
+    延迟编译挂错 scope 链，ADR-0021 规避清单第 3 条）。键盘监听挂 stage（非 x-for
+    宿主，tabindex=0 焦点域——focus 后左右翻页）。
+
+    items 双形态：状态引用注入（items props——字面量数组触发 props 更新死循环，
+    ADR-0021 规避清单第 5 条；调用方对原数组的原地变异不发信号，变更须整体替换）
+    或子元素声明（<x-carousel-item>，index.ts precompile 折叠为 data-items JSON，
+    mounted 解析写 data；props 在场恒优先）。项形态：string（图片 url）|
+    { src?, alt?, caption?, html? }（src 图片幻灯 / html 内容幻灯 / caption 底部
+    说明条——绑定表达式内联（绑定通道不含组件方法，方法仅事件通道），克隆体内
+    item 四键探测与 list 默认行同款纪律）。
+
+    事件出口：change（detail = { index }，切换广播——箭头/指示点/键盘/autoplay/
+    用户拖动殊途同归）；el.value 劫持桥（读当前页 / 写 goTo）。
+
+    autoplay：间隔毫秒（0 关）；prefers-reduced-motion 停播（reduce 用户不被自动
+    动效打扰——CSS 过渡同步停播）；非循环末页自然停播。
+
+    图上浮层（箭头/指示点/说明条）：半透明深底反白的恒定设计（同 image-viewer 恒暗
+    语义——浮在任意图片明暗之上均成立，不随主题明暗切换）；容器级样式（背景/圆角/
+    内容文字色）走主题变量链 + 暗色兜底（ADR-0129）。
+-->
+<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
+     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
+     六键）自动获得——说明条/内容文字随 data-size 档位缩放（em 基准）；本件不在
+     data() 声明主题六键，内部变体属性（effect/indicator）亦禁用六个通道名 -->
+<div
+  class="asc-carousel"
+  x-define="autospark.carousel"
+  x-define:inherit="autospark.base"
+>
+  <script setup>
+    {
+        data: () => ({
+            items: [],          // 幻灯项：string（图片 url）| { src?, alt?, caption?, html? }——状态引用注入；声明形态经 data-items 通道
+            autoplay: 0,        // 自动播放间隔毫秒（0 关；prefers-reduced-motion 停播；非循环末页停播）
+            loop: false,        // 循环（末页 next 回首页；false 首末页箭头 disabled）
+            indicator: "bottom", // 指示器位置："top" | "bottom" | false（关）
+            arrows: true,       // 前后箭头开关（图上浮层，悬停显影——触屏恒显）
+            effect: "scroll",   // 切换效果：scroll 真滚动（scroll-snap）| fade 淡入淡出
+            current: 0,        // 内部状态：当前页（change 广播 detail={index}；el.value 桥读写）——键名避开 x-for 缺省循环索引名 index（克隆体内 localData 注入的 index 会遮蔽组件 data 同名键）
+            settleTarget: -1,   // 内部状态：程序滚动目标页（-1 空闲；scroll 档滚动同步吞 smooth 中间态）
+        }),
+        methods: {
+            // 上一页 / 下一页（goTo 统一夹取/环形/去重/广播）
+            prev() { this.goTo(this.data.current - 1); },
+            next() { this.goTo(this.data.current + 1); },
+            // 切页统一通道：loop 环形归一 / 非 loop 夹取；同值短路；写 data.index +
+            // change 广播 + scroll 档 applyScroll（settleTarget 置位）
+            goTo(i) {
+                const len = (this.data.items || []).length;
+                if (!len) return;
+                let t = Math.round(Number(i) || 0);
+                if (this.data.loop) t = ((t % len) + len) % len;
+                else t = Math.min(len - 1, Math.max(0, t));
+                if (t === this.data.current) return;
+                this.data.current = t;
+                this.emitChange(t);
+                if (this.data.effect === "scroll") this.applyScroll(t);
+            },
+            // change 广播（箭头/指示点/键盘/autoplay/用户拖动殊途同归的出口）
+            emitChange(i) {
+                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { index: i } }));
+            },
+            // scroll 档位置应用：settleTarget 置位（滚动同步吞中间态）；reduce 用户
+            // 关平滑（behavior auto）
+            applyScroll(i) {
+                const track = this.el.querySelector(".asc-carousel-track");
+                if (!track) return;
+                this.data.settleTarget = i;
+                const reduce = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+                track.scrollTo({ left: i * track.clientWidth, behavior: reduce ? "auto" : "smooth" });
+            },
+            // 键盘路由（stage 焦点域）：左右翻页
+            onKeydown(e) {
+                if (e.key === "ArrowLeft") { e.preventDefault(); this.prev(); }
+                else if (e.key === "ArrowRight") { e.preventDefault(); this.next(); }
+            },
+        },
+        mounted() {
+            // 声明形态兜底（precompile 变换落盘的 data-items JSON 字符串）：items props
+            // 缺席时解析写组件 data（x-for 指令值通道响应，随写随渲染）；props 在场恒优先
+            const raw = this.el.getAttribute("data-items");
+            if ((!this.data.items || !this.data.items.length) && raw) {
+                try { this.data.items = JSON.parse(raw); } catch { /* 非法 JSON 静默忽略（容错缺省空组） */ }
+                this.el.removeAttribute("data-items");
+            }
+
+            // el.value 劫持桥（当前页的 DOM 通道：读 index / 写 goTo）
+            Object.defineProperty(this.el, "value", {
+                get: () => this.data.current,
+                set: (v) => { this.goTo(Number(v)); },
+                configurable: true,
+            });
+
+            // —— scroll 档滚动同步：程序滚动（settleTarget >= 0）吞 smooth 中间态、
+            // 到达目标页即收旗；用户拖动（settleTarget = -1）实时反推同步并广播 ——
+            const track = this.el.querySelector(".asc-carousel-track");
+            const onScroll = () => {
+                const w = track ? track.clientWidth : 0;
+                if (!track || w <= 0) return; // 无布局（测试环境）静默跳过
+                const idx = Math.round(track.scrollLeft / w);
+                if (this.data.settleTarget >= 0) {
+                    if (idx === this.data.settleTarget) this.data.settleTarget = -1; // 到达收旗
+                    return; // 中间态吞掉（防路过页误同步/误广播）
+                }
+                if (idx !== this.data.current) {
+                    this.data.current = idx;
+                    this.emitChange(idx);
+                }
+            };
+            track?.addEventListener("scroll", onScroll);
+
+            // 容器尺寸变化重定位（scroll 档：页宽变化后按当前页重贴齐，instant 无动画）
+            const onResize = () => {
+                if (this.data.effect !== "scroll" || !track) return;
+                this.data.settleTarget = this.data.current;
+                track.scrollTo({ left: this.data.current * track.clientWidth, behavior: "auto" });
+            };
+            window.addEventListener("resize", onResize);
+
+            // —— autoplay：间隔毫秒（0 关）；reduce 停播；非循环末页自然停播 ——
+            let timer = null;
+            const stopAuto = () => { if (timer) { clearInterval(timer); timer = null; } };
+            const startAuto = () => {
+                stopAuto();
+                const ms = Number(this.data.autoplay) || 0;
+                if (ms <= 0) return;
+                if (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+                timer = setInterval(() => {
+                    const len = (this.data.items || []).length;
+                    if (!len) return;
+                    let n = this.data.current + 1;
+                    if (n > len - 1) {
+                        if (this.data.loop) n = 0;
+                        else { stopAuto(); return; }
+                    }
+                    this.goTo(n);
+                }, ms);
+            };
+            startAuto();
+            this.watch("autoplay", () => startAuto()); // 间隔调整热重启（0 即停）
+
+            // 清理器落宿主 expando（unmounted 摘除——grid 断点监听同款纪律）
+            this.el["_ascCarouselCleanup"] = () => {
+                stopAuto();
+                track?.removeEventListener("scroll", onScroll);
+                window.removeEventListener("resize", onResize);
+            };
+        },
+        unmounted() {
+            // 定时器与全局监听摘除（长命对象防泄漏；宿主可能已拆——可选链静默通过）
+            this.el?.["_ascCarouselCleanup"]?.();
+        },
+    }
+  <\/script>
+  <style global id="autospark-components-carousel">
+    /* 宿主：块级满宽透明壳，字号基线经 data-size 档位跟随（说明条/内容以 em 标定缩放） */
+    .asc-carousel {
+      display: block;
+      width: 100%;
+      font-size: var(--auto-font-size, var(--asc-carousel-font-size, 0.875rem));
+    }
+
+    /* ---------- body：形态/指示器数据属性载体（编译子树内层，绑定可求值） ---------- */
+    .asc-carousel-body {
+      position: relative; /* 指示器定位基准 */
+    }
+    .asc-carousel-stage {
+      position: relative; /* 箭头定位基准 */
+      overflow: hidden;
+      border-radius: var(--auto-border-radius, var(--asc-carousel-radius, 0.5rem));
+      background: var(--auto-third-bgcolor, var(--asc-carousel-bg, rgba(0, 0, 0, 0.04)));
+    }
+    .asc-carousel-stage:focus-visible {
+      outline: none;
+      box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--auto-primary-color, var(--asc-carousel-primary, #009aff)) 30%, transparent);
+    }
+
+    /* ---------- track：x-for 容器（幻灯项逐项克隆；本元素是容器宿主——动态绑定禁上） ---------- */
+    /* scroll 档（缺省）：横向真滚动 + scroll-snap（原生滚动/触摸惯性免费） */
+    .asc-carousel-body[data-effect="scroll"] .asc-carousel-track {
+      display: flex;
+      width: 100%;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none; /* 滚动条隐藏（指示点即位置反馈） */
+      overscroll-behavior-x: contain;
+    }
+    .asc-carousel-body[data-effect="scroll"] .asc-carousel-track::-webkit-scrollbar {
+      display: none;
+    }
+    /* fade 档：叠放透明度切换（stage 定高是结构前提——绝对叠放项不撑高容器） */
+    .asc-carousel-body[data-effect="fade"] .asc-carousel-stage {
+      height: var(--asc-carousel-height, 16rem);
+    }
+    .asc-carousel-body[data-effect="fade"] .asc-carousel-track {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    .asc-carousel-body[data-effect="fade"] .asc-carousel-item {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    .asc-carousel-body[data-effect="fade"] .asc-carousel-item[data-active] {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* ---------- 幻灯项（x-for 克隆体） ---------- */
+    .asc-carousel-item {
+      position: relative; /* 说明条定位基准 */
+      box-sizing: border-box;
+    }
+    .asc-carousel-body[data-effect="scroll"] .asc-carousel-item {
+      flex: 0 0 100%;
+      scroll-snap-align: start;
+      scroll-snap-stop: always; /* 一次手势一页（防连滑跨页） */
+    }
+    .asc-carousel-item-img {
+      display: block;
+      width: 100%;
+      object-fit: var(--asc-carousel-fit, cover); /* 图片填充形态可覆盖 */
+      user-select: none;
+    }
+    /* scroll 档无定高链（stage 高度由内容撑）：图片高度缺省随内容，可经
+         --asc-carousel-height 统一定高（与 fade 档同一变量） */
+    .asc-carousel-body[data-effect="scroll"] .asc-carousel-item-img {
+      height: var(--asc-carousel-height, auto);
+    }
+    /* fade 档：stage 定高 → 满高填充 */
+    .asc-carousel-body[data-effect="fade"] .asc-carousel-item-img {
+      height: 100%;
+    }
+    /* 内容幻灯（html 项）：可滚动留白容器，文字色走主题链 */
+    .asc-carousel-item-html {
+      width: 100%;
+      height: 100%;
+      padding: var(--asc-carousel-html-pad, 1.25em);
+      box-sizing: border-box;
+      overflow: auto;
+      color: var(--auto-color, var(--asc-carousel-color, #606060));
+    }
+    /* 说明条：底部渐变反白（图上浮层恒定设计——见文件头声明；底部让出指示器位） */
+    .asc-carousel-item-caption {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 1.6em 1em 0.7em;
+      background: linear-gradient(transparent, var(--asc-carousel-caption-veil, rgba(0, 0, 0, 0.55)));
+      color: var(--asc-carousel-caption-color, #ffffff);
+      font-size: 0.875em;
+      line-height: 1.5;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ---------- 前后箭头：图上浮层（悬停显影，触屏恒显；disabled 隐藏） ---------- */
+    .asc-carousel-arrow {
+      appearance: none;
+      border: none;
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2.25rem;
+      height: 2.25rem;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      border-radius: var(--asc-carousel-arrow-radius, 50%);
+      background: var(--asc-carousel-arrow-bg, rgba(0, 0, 0, 0.4));
+      color: var(--asc-carousel-arrow-color, #ffffff);
+      cursor: pointer;
+      z-index: 2;
+      opacity: 0; /* 悬停显影（focus 兜底键盘通道） */
+      transition: opacity 0.2s ease, background-color 0.15s ease;
+    }
+    .asc-carousel-stage:hover .asc-carousel-arrow,
+    .asc-carousel-arrow:focus-visible {
+      opacity: 1;
+    }
+    @media (hover: none) {
+      .asc-carousel-arrow { opacity: 1; } /* 触屏无 hover——恒显 */
+    }
+    .asc-carousel-arrow:hover {
+      background: var(--asc-carousel-arrow-hover-bg, rgba(0, 0, 0, 0.65));
+    }
+    .asc-carousel-arrow:disabled {
+      opacity: 0;
+      cursor: not-allowed;
+      pointer-events: none; /* 非循环首末页收箭头 */
+    }
+    .asc-carousel-arrow[data-arrow="prev"] { left: 0.75rem; }
+    .asc-carousel-arrow[data-arrow="next"] { right: 0.75rem; }
+    /* 左箭头 = 内置 arrow 图标旋转 180°（引擎图标集无独立左箭头） */
+    .asc-carousel-arrow[data-arrow="prev"] .asc-carousel-arrow-icon {
+      display: inline-block;
+      transform: rotate(180deg);
+    }
+    .asc-carousel-arrow-icon {
+      font-size: 1.25rem;
+      color: inherit;
+    }
+
+    /* ---------- 指示器：图上浮层（恒白点设计——见文件头声明） ---------- */
+    .asc-carousel-indicator {
+      position: absolute;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      padding: 0.55em 0;
+      z-index: 2;
+      pointer-events: none; /* 容器透传，点钮恢复可点 */
+    }
+    .asc-carousel-body[data-indicator="bottom"] .asc-carousel-indicator { bottom: 0; }
+    .asc-carousel-body[data-indicator="top"] .asc-carousel-indicator { top: 0; }
+    .asc-carousel-dots {
+      display: inline-flex;
+      gap: 0.4em;
+      pointer-events: auto;
+    }
+    .asc-carousel-dot {
+      appearance: none;
+      border: none;
+      width: 0.5em;
+      height: 0.5em;
+      min-width: 6px;
+      min-height: 6px;
+      padding: 0;
+      margin: 0;
+      border-radius: var(--asc-carousel-dot-radius, 999px);
+      background: var(--asc-carousel-dot-bg, rgba(255, 255, 255, 0.55));
+      cursor: pointer;
+      transition: width 0.2s ease, background-color 0.2s ease;
+    }
+    .asc-carousel-dot:hover {
+      background: var(--asc-carousel-dot-hover-bg, rgba(255, 255, 255, 0.85));
+    }
+    /* 激活点：胶囊拉长 + 实白（图上浮层恒定设计） */
+    .asc-carousel-dot[data-active] {
+      width: 1.2em;
+      background: var(--asc-carousel-dot-active-bg, #ffffff);
+    }
+
+    /* ---------- 暗色兜底变体（ADR-0129）：容器级字面值切换（图上浮层恒定不参与） ---------- */
+    [dark] .asc-carousel-stage,
+    [data-dark] .asc-carousel-stage {
+      background: var(--auto-third-bgcolor, var(--asc-carousel-bg, rgba(255, 255, 255, 0.1)));
+    }
+    [dark] .asc-carousel-item-html,
+    [data-dark] .asc-carousel-item-html {
+      color: var(--auto-color, var(--asc-carousel-color, #fafafa));
+    }
+
+    /* ---------- 动效可访问性：reduced-motion 停播（fade 过渡/点钮拉伸） ---------- */
+    @media (prefers-reduced-motion: reduce) {
+      .asc-carousel-body[data-effect="fade"] .asc-carousel-item { transition: none; }
+      .asc-carousel-body[data-effect="scroll"] .asc-carousel-track { scroll-behavior: auto; }
+      .asc-carousel-dot,
+      .asc-carousel-arrow { transition: none; }
+    }
+  </style>
+  <!-- 形态绑定落本层（根上动态绑定不求值，T4=B）；effect 归一 fade/scroll 双态、
+         indicator 归一 top/bottom/off 三态 -->
+  <div
+    class="asc-carousel-body"
+    :data-effect="effect === 'fade' ? 'fade' : 'scroll'"
+    :data-indicator="indicator === false ? 'off' : (indicator === 'top' ? 'top' : 'bottom')"
+  >
+    <!-- 舞台：键盘焦点域（tabindex——非 x-for 宿主，绑定可求值） -->
+    <div
+      class="asc-carousel-stage"
+      tabindex="0"
+      role="region"
+      aria-roledescription="carousel"
+      @keydown="onKeydown($event)"
+    >
+      <!-- 幻灯轨道：x-for 容器宿主（静态属性保留；项级绑定全在克隆体） -->
+      <div class="asc-carousel-track" x-for="item of items">
+        <div class="asc-carousel-item" :data-active="$index === current ? '' : null">
+          <!-- 图片幻灯：string 项或对象项 src 字段（克隆体内显隐一律 x-show） -->
+          <img
+            class="asc-carousel-item-img"
+            x-show="typeof item === 'string' || (item && !!item.src)"
+            :src="typeof item === 'string' ? item : (item && item.src) || ''"
+            :alt="typeof item === 'object' && item !== null ? (item.alt ?? '') : ''"
+            draggable="false"
+          />
+          <!-- 内容幻灯：对象项 html 字段（x-html 直出——内容安全由调用方数据自负） -->
+          <div
+            class="asc-carousel-item-html"
+            x-show="typeof item === 'object' && item !== null && !item.src && !!item.html"
+            x-html="typeof item === 'object' && item !== null ? (item.html ?? '') : ''"
+          ></div>
+          <!-- 说明条：对象项 caption 字段（紧凑书写——渐变底不留缝） -->
+          <div
+            class="asc-carousel-item-caption"
+            x-show="typeof item === 'object' && item !== null && !!item.caption"
+            x-text="typeof item === 'object' && item !== null ? (item.caption ?? '') : ''"
+          ></div>
+        </div>
+      </div>
+      <!-- 前后箭头：非循环首末页 disabled（x-icon 内置 arrow，prev 经 CSS 旋转） -->
+      <button
+        type="button"
+        class="asc-carousel-arrow"
+        data-arrow="prev"
+        x-show="arrows"
+        aria-label="上一页"
+        :disabled="!loop && current <= 0"
+        @click="prev()"
+      >
+        <i class="asc-carousel-arrow-icon" x-icon="'arrow'"></i>
+      </button>
+      <button
+        type="button"
+        class="asc-carousel-arrow"
+        data-arrow="next"
+        x-show="arrows"
+        aria-label="下一页"
+        :disabled="!loop && current >= items.length - 1"
+        @click="next()"
+      >
+        <i class="asc-carousel-arrow-icon" x-icon="'arrow'"></i>
+      </button>
+    </div>
+    <!-- 指示器：dots 为 x-for 容器（宿主动态绑定禁上）；点钮激活态在克隆体 -->
+    <div class="asc-carousel-indicator" x-show="indicator !== false">
+      <div class="asc-carousel-dots" x-for="item of items">
+        <button
+          type="button"
+          class="asc-carousel-dot"
+          :data-active="$index === current ? '' : null"
+          :aria-label="'第 ' + ($index + 1) + ' 页'"
+          @click="goTo($index)"
+        ></button>
+      </div>
+    </div>
+  </div>
+</div>
+`,e.precompile?.(e=>{for(let a of Array.from(e.el.querySelectorAll(`x-carousel`))){let e=document.createElement(`div`),o=Array.from(a.children).filter(e=>e.tagName.toLowerCase()===`x-carousel-item`),s=a.getAttribute(`items`),c=a.hasAttribute(`:items`);if(a.removeAttribute(`items`),(o.length>0||s!=null&&s!==``)&&!c){let t=null;if(o.length)t=o.map(e=>{let t={},n=e.getAttribute(`src`),r=e.getAttribute(`alt`),i=e.getAttribute(`caption`);n!=null&&(t.src=n),r!=null&&(t.alt=r),i!=null&&(t.caption=i);let a=(e.innerHTML||``).trim();return a!==``&&(t.html=a),t});else try{let e=JSON.parse(s);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of o)e.remove();let l=[];for(let i of Array.from(a.attributes))i.name.startsWith(`:`)?l.push(`${n(t(i.name.slice(1)))}: (${i.value})`):i.name===`class`||i.name===`style`||i.name===`id`||i.name.startsWith(`data-`)||i.name.startsWith(`x-`)||i.name.startsWith(`@`)?e.setAttribute(i.name,i.value):i.value===``?l.push(`${n(t(i.name))}: true`):l.push(`${n(t(i.name))}: ${JSON.stringify(r(i.value))}`);e.setAttribute(`x-component:${i}`,`{ ${l.join(`, `)} }`),a.replaceWith(e)}})}o();function o(){e(e=>{a(e)})}};
+    if (AutoSpark === undefined) {
+        // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
+        var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);
+        if (Object.isFrozen(queue)) {
+            console.error("插件闭包: 预加载队列已消费且全局 AutoSpark 不可达，插件未注册");
+            return;
+        }
+        queue.push(function (engine, ns) { run(ns); });
+    } else {
+        run(AutoSpark);
+    }
+})(globalThis.AutoSpark);
+
+//# sourceMappingURL=autospark.carousel.js.map
