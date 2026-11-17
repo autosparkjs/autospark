@@ -327,7 +327,12 @@
       display: contents;
     }
     .asc-field-box .asc-field-action {
-      border-color: var(--asc-field-line);
+      /* 内侧分隔线（钮↔钮、钮↔控件）独立于盒线：盒线随状态染（focus/hover 变色），
+         分隔线恒定中性色（亮 #f0f0f0 / 暗 #2c2c2c——须与两侧底色亮暗双态都可辨：
+         暗色下盒线 #606060 与按钮底同色会湮灭，故不挂 --asc-field-line）；
+         status 态随 tone 染整组（决策 3 接缝线染色联动）；上下线不画（单线让位） */
+      --asc-field-divider: var(--auto-border-color, #f0f0f0);
+      border-color: var(--asc-field-divider);
       border-top-width: 0;
       border-bottom-width: 0;
       border-radius: 0;
@@ -335,6 +340,18 @@
       margin-block: calc(
         -1 * var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2
       );
+    }
+    /* 外侧竖线让位盒线（首钮左 / 尾钮右不画——盒线独享整圈外框，同上下线单线让位
+       哲学：防 divider 与状态染色的盒线在贴边处双色并排） */
+    .asc-field-box .asc-field-actions-before .asc-field-action:first-of-type {
+      border-left-width: 0;
+    }
+    .asc-field-box .asc-field-actions-after .asc-field-action:last-of-type {
+      border-right-width: 0;
+    }
+    /* status 态：分隔线随 tone 染整组（接缝线染色联动，决策 3） */
+    .asc-field-box[data-status] .asc-field-action {
+      --asc-field-divider: var(--asc-field-tone);
     }
     /* before 组首钮左贴盒左线（负距吃左内距+边框）+ 外侧圆角匹配盒饰。
        首尾用 *-of-type：x-for 的 template 宿主渲染后追加在项元素之后（DOM 序
@@ -440,6 +457,16 @@
         --auto-disable-bgcolor,
         var(--asc-field-disable-bg, rgba(250, 250, 250, 0.2))
       );
+    }
+    /* 暗色分隔线兜底：--auto-border-color（#606060）与 plain 按钮底同色湮灭——
+       divider 取更深字面（比盒底 #3c3c3c 深一档，与钮底 #606060 成三阶可辨） */
+    [dark] .asc-field-box .asc-field-action,
+    [data-dark] .asc-field-box .asc-field-action {
+      --asc-field-divider: var(--asc-field-divider-dark, #2c2c2c);
+    }
+    [dark] .asc-field-box[data-status] .asc-field-action,
+    [data-dark] .asc-field-box[data-status] .asc-field-action {
+      --asc-field-divider: var(--asc-field-tone);
     }
     [dark] .asc-field-prefix,
     [dark] .asc-field-suffix,

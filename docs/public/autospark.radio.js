@@ -330,7 +330,12 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       display: contents;\r
     }\r
     .asc-field-box .asc-field-action {\r
-      border-color: var(--asc-field-line);\r
+      /* 内侧分隔线（钮↔钮、钮↔控件）独立于盒线：盒线随状态染（focus/hover 变色），\r
+         分隔线恒定中性色（亮 #f0f0f0 / 暗 #2c2c2c——须与两侧底色亮暗双态都可辨：\r
+         暗色下盒线 #606060 与按钮底同色会湮灭，故不挂 --asc-field-line）；\r
+         status 态随 tone 染整组（决策 3 接缝线染色联动）；上下线不画（单线让位） */\r
+      --asc-field-divider: var(--auto-border-color, #f0f0f0);\r
+      border-color: var(--asc-field-divider);\r
       border-top-width: 0;\r
       border-bottom-width: 0;\r
       border-radius: 0;\r
@@ -338,6 +343,18 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       margin-block: calc(\r
         -1 * var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2\r
       );\r
+    }\r
+    /* 外侧竖线让位盒线（首钮左 / 尾钮右不画——盒线独享整圈外框，同上下线单线让位\r
+       哲学：防 divider 与状态染色的盒线在贴边处双色并排） */\r
+    .asc-field-box .asc-field-actions-before .asc-field-action:first-of-type {\r
+      border-left-width: 0;\r
+    }\r
+    .asc-field-box .asc-field-actions-after .asc-field-action:last-of-type {\r
+      border-right-width: 0;\r
+    }\r
+    /* status 态：分隔线随 tone 染整组（接缝线染色联动，决策 3） */\r
+    .asc-field-box[data-status] .asc-field-action {\r
+      --asc-field-divider: var(--asc-field-tone);\r
     }\r
     /* before 组首钮左贴盒左线（负距吃左内距+边框）+ 外侧圆角匹配盒饰。\r
        首尾用 *-of-type：x-for 的 template 宿主渲染后追加在项元素之后（DOM 序\r
@@ -443,6 +460,16 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         --auto-disable-bgcolor,\r
         var(--asc-field-disable-bg, rgba(250, 250, 250, 0.2))\r
       );\r
+    }\r
+    /* 暗色分隔线兜底：--auto-border-color（#606060）与 plain 按钮底同色湮灭——\r
+       divider 取更深字面（比盒底 #3c3c3c 深一档，与钮底 #606060 成三阶可辨） */\r
+    [dark] .asc-field-box .asc-field-action,\r
+    [data-dark] .asc-field-box .asc-field-action {\r
+      --asc-field-divider: var(--asc-field-divider-dark, #2c2c2c);\r
+    }\r
+    [dark] .asc-field-box[data-status] .asc-field-action,\r
+    [data-dark] .asc-field-box[data-status] .asc-field-action {\r
+      --asc-field-divider: var(--asc-field-tone);\r
     }\r
     [dark] .asc-field-prefix,\r
     [dark] .asc-field-suffix,\r
