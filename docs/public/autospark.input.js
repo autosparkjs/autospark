@@ -65,7 +65,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         }),\r
         mounted() {\r
             // —— 控件查询（data-autospark-control 标记协议）：每查现取不缓存——运行时\r
-            //     控件可能随形态切换重建（input ↔ textarea 等），缓存引用会指向已摘除节点\r
+            //     控件可能被重建（x-if 条件渲染等），缓存引用会指向已摘除节点\r
             const control = () => this.el.querySelector("[data-autospark-control]");\r
 \r
             // —— 状态色通道：status → 宿主 data-status（CSS 派生 --asc-field-tone）——\r
@@ -231,8 +231,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         )\r
       );\r
       /* 四向内距（纵向取横向半距——输入框惯例；固定高度形态（border-box）纵向被\r
-         高度+flex 居中吸收，height:auto 形态（textarea / theme 在场标尺缺陷回退）\r
-         由纵向半距撑起呼吸感，全档位随 --auto-input-padding 联动） */\r
+         高度+flex 居中吸收，height:auto 形态（多行控件 autospark.textarea / theme\r
+         在场标尺缺陷回退）由纵向半距撑起呼吸感，全档位随 --auto-input-padding 联动） */\r
       padding: calc(\r
           var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2\r
         )\r
@@ -512,10 +512,11 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   </span>\r
 </span>\r
 `}a();function a(){e(e=>{i(e)})}var o=`<!--\r
-    autospark.input 输入框（ADR-0020）——原生增强路线：真实原生控件（input / textarea）\r
-    + 样式包裹，不自绘输入面（保原生可访问性：键盘/IME/自动填充/移动端兼容，ADR-0018\r
-    决策 7）。继承 autospark.field 表单域骨架（状态色通道/焦点态/disabled 同步/\r
-    盒饰 chrome，ADR-0020），本组件专注控件本身。\r
+    autospark.input 输入框（ADR-0020；2026-11-17 修订 ADR-0032——多行能力拆出\r
+    autospark.textarea，本组件不再内置 textarea 形态）——原生增强路线：真实原生\r
+    input 控件 + 样式包裹，不自绘输入面（保原生可访问性：键盘/IME/自动填充/移动端\r
+    兼容，ADR-0018 决策 7）。继承 autospark.field 表单域骨架（状态色通道/焦点态/\r
+    disabled 同步/盒饰 chrome，ADR-0020），本组件专注控件本身。\r
 \r
     值通道（x-model 兼容协议，ADR-0020）：宿主 el.value 劫持 ↔ 内层原生控件——\r
     宿主为包裹层元素（无原生 value），x-model 写读都落劫持位；内层原生 input 事件\r
@@ -523,8 +524,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     桥比 button-group 组值桥更薄）。value props 为非受控初值/单向同步（受控真相走\r
     x-model）。\r
 \r
-    表单提交（ADR-0020）：宿主 name 透传到内层原生控件——原生直提交（input/textarea\r
-    自带提名义，含 Enter 提交语义；对照 state-button 的 hidden input 桥分叉，本组件\r
+    表单提交（ADR-0020）：宿主 name 透传到内层原生控件——原生直提交（input 自带\r
+    提名义，含 Enter 提交语义；对照 state-button 的 hidden input 桥分叉，本组件\r
     控件即真身无须代理载体）。\r
 \r
     事件出口（组件默认封闭，原生事件经冒泡到外层消费）：\r
@@ -532,7 +533,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     - 清除/眼睛切换为内部动作件（data-autospark-action，点击不转发焦点），不派发自定义事件\r
 -->\r
 <!-- 根 class 拼接进骨架宿主（.asc-field + .asc-input + .asc-field-box 盒饰选配）；\r
-     变体与状态属性经 mounted 的 JS 通道同步（data-form / data-over），根上无动态绑定（T4=B） -->\r
+     变体与状态属性经 mounted 的 JS 通道同步（data-over），根上无动态绑定（T4=B） -->\r
 <span\r
   class="asc-input asc-field-box"\r
   x-define="autospark.input"\r
@@ -541,11 +542,10 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   <script setup>\r
     {\r
         data: () => ({\r
-            type: "text",          // 文本族：text/password/email/tel/url/search 等（透传原生 input type）| "textarea" 多行形态（元素切换为 textarea；prefix/suffix/清除/计数照常可用，密码切换仅 password 消费）\r
+            type: "text",          // 文本族：text/password/email/tel/url/search 等（透传原生 input type）\r
             value: "",             // 非受控初值 / 单向同步值（受控真相走宿主 x-model——el.value 桥，ADR-0020）\r
             placeholder: "",       // 占位文案（同步原生 placeholder）\r
             maxlength: 0,          // >0 同步原生 maxlength（原生输入截断）+ 计数分母\r
-            rows: 2,               // textarea 行数（仅 textarea 形态消费；原生缺省 2）\r
             clearable: false,      // 清除钮（值非空且可交互时可见；点击清空 + 派发 input + 焦点回控件）\r
             showPassword: false,   // 密码可见切换眼睛钮（仅 type=password 消费，其余形态忽略）\r
             showCount: false,      // 计数器（maxlength 在场显示「len / max」，否则仅 len；超限染 danger）\r
@@ -581,9 +581,9 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             },\r
         },\r
         mounted() {\r
-            // —— 内层控件查询（每查现取：type 形态切换 input ↔ textarea 会重建元素）——\r
+            // —— 内层控件查询（每查现取：运行时控件可能被重建）——\r
             const native = () => this.el.querySelector(".asc-input-native");\r
-            // 当前值缓存（劫持 getter 的控件缺位兜底 + 形态切换回填）\r
+            // 当前值缓存（劫持 getter 的控件缺位兜底）\r
             let lastValue = "";\r
 \r
             // —— 计数与清除可见性同步（len 由原生控件现值读出；超限染色的 data-over\r
@@ -597,7 +597,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 this.el.toggleAttribute("data-over", max > 0 && len > max);\r
             };\r
 \r
-            // —— 值同步（外部 → 控件）：形态切换重建后回填 lastValue ——\r
+            // —— 值同步（外部 → 控件）——\r
             const syncValue = () => {\r
                 const n = native();\r
                 if (n) n.value = lastValue;\r
@@ -611,23 +611,16 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 if (!n) return;\r
                 const t = String(this.data.type ?? "text");\r
                 if (n instanceof HTMLInputElement) {\r
-                    // type 透传（textarea 形态下本元素不渲染，防御性归一 text）；\r
-                    // 密码可见切换：password + passwordVisible → text\r
-                    n.type = t === "textarea"\r
-                        ? "text"\r
-                        : t === "password" && this.data.passwordVisible ? "text" : (t || "text");\r
+                    // type 透传（密码可见切换：password + passwordVisible → text）\r
+                    n.type = t === "password" && this.data.passwordVisible ? "text" : (t || "text");\r
                 }\r
                 n.placeholder = String(this.data.placeholder ?? "");\r
                 const ml = Number(this.data.maxlength) || 0;\r
                 if (ml > 0) n.setAttribute("maxlength", String(ml));\r
                 else n.removeAttribute("maxlength");\r
-                if (n instanceof HTMLTextAreaElement) n.rows = Number(this.data.rows) || 2;\r
                 // 表单提交载体：宿主 name 透传到原生控件（原生直提交，ADR-0020）\r
                 const nameAttr = this.el.getAttribute("name");\r
                 if (nameAttr != null) n.name = nameAttr;\r
-                // 形态标记（CSS 通道：textarea 高度放开，:has() 的 JS 免版）\r
-                if (t === "textarea") this.el.setAttribute("data-form", "textarea");\r
-                else this.el.removeAttribute("data-form");\r
             };\r
 \r
             // —— 值桥（x-model 兼容协议，ADR-0020）：宿主 el.value 劫持 ↔ 内层原生控件 ——\r
@@ -676,7 +669,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             this.watch("type", () => { setTimeout(() => { syncAttrs(); syncValue(); }, 0); });\r
             this.watch("placeholder", () => { setTimeout(syncAttrs, 0); });\r
             this.watch("maxlength", () => { setTimeout(() => { syncAttrs(); syncLen(); }, 0); });\r
-            this.watch("rows", () => { setTimeout(syncAttrs, 0); });\r
             this.watch("showPassword", () => { setTimeout(syncAttrs, 0); });\r
             // value props 单向同步（非受控/外部受控无 x-model 场景）：变化才写（与自身\r
             // 桥写不冲突——guard 防回环）。已见值比对幂等防御（checkbox 同款）：scope.refresh\r
@@ -718,22 +710,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-input-native:disabled {\r
       cursor: not-allowed;\r
       -webkit-text-fill-color: var(--auto-disable-color, var(--asc-input-disable-color, inherit));\r
-    }\r
-\r
-    /* ---------- textarea 形态（data-form 由 mounted 同步）：盒饰高度放开随行数增长，\r
-             内层控件高度自适应 + 允许纵向拖拽调距 ---------- */\r
-    .asc-input[data-form="textarea"] {\r
-      height: auto;\r
-      min-height: var(\r
-        --auto-input-height,\r
-        var(--asc-field-height, calc(var(--auto-font-size, 0.875rem) * 2.57))\r
-      );\r
-      align-items: stretch;\r
-      cursor: text;\r
-    }\r
-    .asc-input[data-form="textarea"] .asc-input-native {\r
-      height: auto;\r
-      resize: vertical;\r
     }\r
 \r
     /* ---------- 前后置装饰容器（2026-11-16 装饰上提，ADR-0020 修订）：props 装饰经\r
@@ -827,13 +803,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
          [控件] [清除] [眼睛] [计数]——props 前后置装饰已上提 field 出口（见上方命名\r
          覆盖段）；功能件（清除/眼睛/计数）刻意留 body：不进可被消费方投影顶掉的\r
          出口 fallback 位（ADR-0020 修订取舍） -->\r
-  <input class="asc-input-native" data-autospark-control x-if="type !== 'textarea'" />\r
-  <textarea\r
-    class="asc-input-native"\r
-    data-autospark-control\r
-    x-if="type === 'textarea'"\r
-    rows="2"\r
-  ></textarea>\r
+  <input class="asc-input-native" data-autospark-control />\r
   <i\r
     class="asc-input-action asc-input-clear"\r
     data-autospark-action\r
@@ -850,7 +820,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   ></i>\r
   <span class="asc-input-count" x-if="showCount">{{ countText }}</span>\r
 </span>\r
-`,s=`autospark.input`,c=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>`,l=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>`,u=new Set([`disabled`,`readonly`,`clearable`,`show-password`,`show-count`]);function d(e){let i=e.icons;i?.add?.(`input-eye`,c),i?.add?.(`input-eye-off`,l),e.components[s]=o,e.precompile?.(e=>{for(let i of Array.from(e.el.querySelectorAll(`x-input, x-textarea`))){let e=document.createElement(`span`),a=[],o=i.tagName===`X-TEXTAREA`;o&&a.push(`type: "textarea"`);for(let s of Array.from(i.attributes)){if(s.name.startsWith(`:`)){a.push(`${n(t(s.name.slice(1)))}: (${s.value})`);continue}if(s.name===`class`||s.name===`style`||s.name===`id`||s.name===`name`||s.name===`title`||s.name.startsWith(`data-`)||s.name.startsWith(`x-`)||s.name.startsWith(`@`)){e.setAttribute(s.name,s.value);continue}let i=t(s.name);i===`type`&&o?a[0]=`type: ${JSON.stringify(r(s.value))}`:s.value===``&&u.has(s.name)?a.push(`${n(i)}: true`):a.push(`${n(i)}: ${JSON.stringify(r(s.value))}`)}let c=i.textContent?.trim()??``,l=a.some(e=>e.startsWith(`value:`)),d=i.children.length>0;for(c!==``&&!l&&!d&&(a.push(`value: ${JSON.stringify(c)}`),i.textContent=``),e.setAttribute(`x-component:${s}`,`{ ${a.join(`, `)} }`);i.firstChild;)e.appendChild(i.firstChild);i.replaceWith(e)}})}f();function f(){e(e=>{d(e)})}};
+`,s=`autospark.input`,c=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>`,l=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>`,u=new Set([`disabled`,`readonly`,`clearable`,`show-password`,`show-count`]);function d(e){let i=e.icons;i?.add?.(`input-eye`,c),i?.add?.(`input-eye-off`,l),e.components[s]=o,e.precompile?.(e=>{for(let i of Array.from(e.el.querySelectorAll(`x-input`))){let e=document.createElement(`span`),a=[];for(let o of Array.from(i.attributes)){if(o.name.startsWith(`:`)){a.push(`${n(t(o.name.slice(1)))}: (${o.value})`);continue}if(o.name===`class`||o.name===`style`||o.name===`id`||o.name===`name`||o.name===`title`||o.name.startsWith(`data-`)||o.name.startsWith(`x-`)||o.name.startsWith(`@`)){e.setAttribute(o.name,o.value);continue}let i=t(o.name);o.value===``&&u.has(o.name)?a.push(`${n(i)}: true`):a.push(`${n(i)}: ${JSON.stringify(r(o.value))}`)}let o=i.textContent?.trim()??``,c=a.some(e=>e.startsWith(`value:`)),l=i.children.length>0;for(o!==``&&!c&&!l&&(a.push(`value: ${JSON.stringify(o)}`),i.textContent=``),e.setAttribute(`x-component:${s}`,`{ ${a.join(`, `)} }`);i.firstChild;)e.appendChild(i.firstChild);i.replaceWith(e)}})}f();function f(){e(e=>{d(e)})}};
     if (AutoSpark === undefined) {
         // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
         var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);

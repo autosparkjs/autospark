@@ -65,7 +65,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         }),\r
         mounted() {\r
             // —— 控件查询（data-autospark-control 标记协议）：每查现取不缓存——运行时\r
-            //     控件可能随形态切换重建（input ↔ textarea 等），缓存引用会指向已摘除节点\r
+            //     控件可能被重建（x-if 条件渲染等），缓存引用会指向已摘除节点\r
             const control = () => this.el.querySelector("[data-autospark-control]");\r
 \r
             // —— 状态色通道：status → 宿主 data-status（CSS 派生 --asc-field-tone）——\r
@@ -231,8 +231,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         )\r
       );\r
       /* 四向内距（纵向取横向半距——输入框惯例；固定高度形态（border-box）纵向被\r
-         高度+flex 居中吸收，height:auto 形态（textarea / theme 在场标尺缺陷回退）\r
-         由纵向半距撑起呼吸感，全档位随 --auto-input-padding 联动） */\r
+         高度+flex 居中吸收，height:auto 形态（多行控件 autospark.textarea / theme\r
+         在场标尺缺陷回退）由纵向半距撑起呼吸感，全档位随 --auto-input-padding 联动） */\r
       padding: calc(\r
           var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2\r
         )\r
