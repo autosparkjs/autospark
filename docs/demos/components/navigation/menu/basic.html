@@ -1,76 +1,60 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
-  <head>
+<head>
     <meta charset="UTF-8" />
-    <title>Menu · 快速入门</title>
-    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
-    <link rel="stylesheet" href="/autospark/theme-demo.css" />
-    <script src="/autospark/autospark.theme.js"></script>
-    <script src="/autospark/autospark.js"></script>
-    <script src="/autospark/autospark.menu.js"></script>
-    <script src="/autospark/theme-controls.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>menu v2 基础</title>
     <style>
-      .stage {
-        max-width: 240px;
-        padding: 8px;
-        border-radius: 8px;
-        border: 1px solid rgba(0, 0, 0, 0.08);
-      }
+        body { font-family: system-ui, sans-serif; margin: 24px; background: #fff; }
+        .wrap { display: flex; gap: 40px; align-items: flex-start; }
+        .panel { width: 260px; border: 1px solid #eee; border-radius: 8px; padding: 8px; }
+        h3 { margin: 4px 0 12px; font-size: 14px; color: #666; }
     </style>
-  </head>
-  <body>
-    <aside class="demo-panel"><theme-controls></theme-controls></aside>
-    <main class="demo-main">
-      <div class="auto-card">
-        <div class="auto-card-header">items 状态引用 + x-model 双向 + 子菜单点击展开</div>
-        <div class="auto-card-body">
-          <div class="stage">
-            <x-menu x-model="active" :items="menu"></x-menu>
-          </div>
-          <p class="hint">
-            菜单项 { key, label, icon?, disabled?, children?[]（一层子菜单嵌套）} 恒经<b>状态引用</b>注入
-            （字面量数组 props 死环规避）；带 children 的父项点击展开/收起，叶子项激活；
-            激活值指向子项时祖先链自动展开。等价受控形态：<code>:value="active"</code> +
-            外层 <code>@change="active = $event.detail.value"</code>。
-          </p>
+</head>
+<body>
+    <div class="wrap">
+        <div class="panel">
+            <h3>基础（缩进域 + expandLevel + 勾选）</h3>
+            <x-menu :items="menu" :value="picked"></x-menu>
         </div>
-      </div>
-      <div class="auto-card">
-        <div class="auto-card-header">子元素声明（静态菜单树，含嵌套 children）</div>
-        <div class="auto-card-body">
-          <div class="stage">
-            <x-menu value="g1">
-              <x-menu-item key="home" label="首页" icon="file"></x-menu-item>
-              <x-menu-item key="g" label="组件">
-                <x-menu-item key="g1" label="导航"></x-menu-item>
-                <x-menu-item key="g2" label="表单" disabled></x-menu-item>
-              </x-menu-item>
-            </x-menu>
-          </div>
-          <p class="hint">
-            <code>&lt;x-menu-item&gt;</code> 声明经 precompile 变换折叠为 items JSON（data-items 通道，
-            规避字面量数组 props）；嵌套声明子项折叠为 children；value 静态折叠激活。
-          </p>
+        <div class="panel">
+            <h3>popLevel=1（缩进+弹层混合）</h3>
+            <x-menu :items="menu2" :pop-level="1" :value="active" trigger="click"></x-menu>
         </div>
-      </div>
-    </main>
+    </div>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.menu.js"></script>
     <script>
-      new AutoSpark(document.querySelector(".demo-main"), {
-        active: "",
-        menu: [
-          { key: "home", label: "首页", icon: "file" },
-          {
-            key: "g",
-            label: "组件",
-            icon: "folder",
-            children: [
-              { key: "g1", label: "导航" },
-              { key: "g2", label: "表单", disabled: true },
+        const state = {
+            picked: ["a1"],
+            active: "home",
+            menu: [
+                { key: "home", label: "首页", icon: "file" },
+                { type: "group", title: "组件", icon: "bell" },
+                { key: "a1", label: "可勾选一", icon: "edit", checkable: true },
+                { key: "a2", label: "可勾选二", icon: "copy", checkable: true },
+                { key: "a3", label: "无图标占位", checkable: true },
+                "-",
+                { key: "nav", label: "导航", children: [
+                    { key: "n1", label: "指令" },
+                    { key: "n2", label: "组件" },
+                ] },
             ],
-          },
-          { key: "api", label: "API", icon: "bell" },
-        ],
-      });
+            menu2: [
+                { key: "home", label: "首页", icon: "file" },
+                { key: "grp", label: "折叠组", children: [
+                    { key: "g1", label: "二级项" },
+                    { key: "g2", label: "二级组", children: { title: "三级弹层", children: [
+                        { key: "g2a", label: "三级项" },
+                        { key: "g2b", label: "更深层", children: [{ key: "g2b1", label: "四级级联" }] },
+                    ] } },
+                ] },
+            ],
+        };
+        new AutoSpark(document.body, state);
+        document.querySelectorAll(".asc-menu").forEach((m) => m.addEventListener("change", (e) => console.log("change", e.detail)));
     </script>
-  </body>
+</body>
 </html>

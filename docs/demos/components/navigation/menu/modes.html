@@ -1,88 +1,71 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
-  <head>
+<head>
     <meta charset="UTF-8" />
-    <title>Menu · 形态（horizontal / collapsed）</title>
-    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
-    <link rel="stylesheet" href="/autospark/theme-demo.css" />
-    <script src="/autospark/autospark.theme.js"></script>
-    <script src="/autospark/autospark.js"></script>
-    <script src="/autospark/autospark.menu.js"></script>
-    <script src="/autospark/theme-controls.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>menu v2 形态</title>
     <style>
-      .stage {
-        padding: 8px;
-        border-radius: 8px;
-        border: 1px solid rgba(0, 0, 0, 0.08);
-        margin-bottom: 12px;
-      }
-      .rail {
-        max-width: 96px;
-      }
+        body { font-family: system-ui, sans-serif; margin: 24px; background: #fff; }
+        .row { display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; }
+        .panel { border: 1px solid #eee; border-radius: 8px; padding: 8px; }
+        .wide { width: 480px; }
+        .rail { width: 120px; }
+        h3 { margin: 4px 0 12px; font-size: 14px; color: #666; }
+        button.ctrl { margin: 4px 4px 12px 0; padding: 4px 10px; cursor: pointer; }
     </style>
-  </head>
-  <body>
-    <aside class="demo-panel"><theme-controls></theme-controls></aside>
-    <main class="demo-main">
-      <div class="auto-card">
-        <div class="auto-card-header">horizontal 横向形态：子菜单 hover 浮层下拉</div>
-        <div class="auto-card-body">
-          <div class="stage">
-            <div @change="log = '激活：' + $event.detail.value">
-              <x-menu mode="horizontal" value="home" :items="menu"></x-menu>
-            </div>
-          </div>
-          <p class="hint">横向形态下带 children 的父项悬停展开浮层下拉（focus-within 维持可见，键盘可达）。{{ log }}</p>
+</head>
+<body>
+    <div class="row">
+        <div class="panel">
+            <h3>collapsed 三档（响应式切换）</h3>
+            <button class="ctrl" data-c="0">0 常规</button>
+            <button class="ctrl" data-c="1">1 图标条</button>
+            <button class="ctrl" data-c="2">2 单按钮</button>
+            <x-menu :items="menu" :collapsed="mode" :value="active" trigger="click"></x-menu>
         </div>
-      </div>
-      <div class="auto-card">
-        <div class="auto-card-header">collapsed 垂直收起为图标条：子菜单右飞浮层</div>
-        <div class="auto-card-body">
-          <div class="stage rail">
-            <div @change="log = '激活：' + $event.detail.value">
-              <x-menu collapsed="true" value="g1" :items="menu"></x-menu>
-            </div>
-          </div>
-          <p class="hint">collapsed 仅对 vertical 形态生效（横向下被忽略）：顶层文字收起、悬停父项右飞浮层展开子菜单。</p>
+        <div class="panel wide">
+            <h3>horizontal（横排 + 向下弹出 + header/footer 上下分区）</h3>
+            <x-menu :items="hmenu" mode="horizontal" :value="hactive">
+                <template header><b>AutoSpark</b></template>
+                <template footer><span style="font-size:12px;color:#999">v2 · ADR-0033</span></template>
+            </x-menu>
         </div>
-      </div>
-      <div class="auto-card">
-        <div class="auto-card-header">router 联动配方（纯状态驱动，不耦合 router）</div>
-        <div class="auto-card-body">
-          <div class="stage">
-            <div id="route-wrap">
-              <x-menu :items="menu" :value="active"></x-menu>
-            </div>
-          </div>
-          <p class="hint">
-            路由切换时把当前路径映射为激活 key 写回状态（active）；点击接管在外层
-            <code>change</code> 事件里改调 <code>router.push</code>——组件零 router 依赖，详见组件文档。
-          </p>
-        </div>
-      </div>
-    </main>
+    </div>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.menu.js"></script>
     <script>
-      const app = new AutoSpark(document.querySelector(".demo-main"), {
-        log: "",
-        active: "home",
-        menu: [
-          { key: "home", label: "首页", icon: "file" },
-          {
-            key: "g",
-            label: "组件",
-            icon: "folder",
-            children: [
-              { key: "g1", label: "导航" },
-              { key: "g2", label: "表单", disabled: true },
+        const state = {
+            mode: 0,
+            active: "home",
+            hactive: "home",
+            menu: [
+                { key: "home", label: "首页", icon: "file" },
+                { key: "nav", label: "导航", icon: "bell", children: [
+                    { key: "n1", label: "指令" },
+                    { key: "n2", label: "组件" },
+                ] },
+                { key: "form", label: "表单", icon: "edit", children: [
+                    { key: "f1", label: "输入框" },
+                    { key: "f2", label: "选择器", children: [{ key: "f2a", label: "级联" }] },
+                ] },
+                "-",
+                { key: "set", label: "设置", icon: "copy" },
             ],
-          },
-          { key: "api", label: "API", icon: "bell" },
-        ],
-      });
-      // 配方示意：把 change 交给「路由」而不是直接改状态（此处以 log 模拟 router.push）
-      document.getElementById("route-wrap").addEventListener("change", (e) => {
-        app.store.state.log = "router.push(" + e.detail.value + ")";
-      });
+            hmenu: [
+                { key: "home", label: "首页" },
+                { key: "guide", label: "指南", children: [
+                    { key: "g1", label: "快速入门" },
+                    { key: "g2", label: "引擎", children: [{ key: "g2a", label: "深层级联" }] },
+                ] },
+                { key: "api", label: "API" },
+            ],
+        };
+        const engine = new AutoSpark(document.body, state);
+        document.querySelectorAll("button.ctrl").forEach((b) => {
+            b.addEventListener("click", () => { engine.store.state.mode = Number(b.dataset.c); });
+        });
     </script>
-  </body>
+</body>
 </html>

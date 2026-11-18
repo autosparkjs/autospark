@@ -55,6 +55,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             value: false,           // 勾选值（checkable 模式；=== checkValues[0] 即选中态）\r
             checkValues: [true, false], // 勾选二元组 [checked 值, unchecked 值]（任意类型，严格相等判定；对象须路径引用）\r
             checkStyle: "corner",   // 选中渲染：solid 实底 | check 最左打勾占位 | corner 右上角打勾三角 | ripple 最左涟漪动画占位（四值语义同 state-button 的 decorate 项键）\r
+            checkMark: false,       // check 占位列（纯视觉，menu v2 ADR-0033 决策 6）：true 时挂 asc-check-<checkStyle> 形态类但**不启用** checkable 行为桥——勾选态由外部 asc-marked 类驱动（显 ✓）；为「同级统一 check 占位」而设（占位项与勾选项同列对齐），checkable 在场时忽略\r
             // computed 简写（普通函数值即计算属性，仅限单表达式）：autoInsertSpace 开启且\r
             // label 恰为两个汉字时中间插入空格\r
             displayLabel: (s) => (s.autoInsertSpace && /^[一-龥]{2}$/.test(s.label ?? "")) ? (s.label[0] + " " + s.label[1]) : s.label\r
@@ -163,6 +164,16 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             // 保真）；checkValues 任意值服务 props value 通道与表单提交值。勾选视觉 JS class\r
             // 驱动（.asc-checked / .asc-check-<style>）——Chromium :active 粘滞期间 :has(属性\r
             // 变化) 不重算（点击描边延迟到下次交互才现的根因），class 变化是强失效信号\r
+            // check 占位列（纯视觉，menu v2 ADR-0033 决策 6）：只挂形态类不启行为桥——勾选态由\r
+            // 外部 asc-marked 类驱动（CSS 显影）；checkable 在场时忽略（真勾选走上方行为桥）\r
+            if (!this.data.checkable && this.data.checkMark) {\r
+                this.el.classList.add("asc-check-" + (this.data.checkStyle || "check"));\r
+                this.watch("checkStyle", ({ value: s }) => { // 渲染样式热切换：摘旧类挂新类（行为桥同款）\r
+                    for (const k of ["solid", "check", "corner", "ripple"]) this.el.classList.remove("asc-check-" + k);\r
+                    this.el.classList.add("asc-check-" + (s || "check"));\r
+                });\r
+            }\r
+\r
             if (this.data.checkable) {\r
                 this.el.classList.add("asc-check-" + this.data.checkStyle);\r
                 const proto = Object.getOwnPropertyDescriptor(HTMLButtonElement.prototype, "value");\r
@@ -396,7 +407,10 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       font-size: 0.9em;\r
       font-weight: bold;\r
     }\r
-    .asc-button.asc-checked.asc-check-check > .asc-button-body::before {\r
+    /* asc-marked：外部 class 驱动的勾选显影（checkMark 占位列的勾选态，menu v2 写入——\r
+       不走 checkable 行为桥，避免与宿主组件的点击处理双写） */\r
+    .asc-button.asc-checked.asc-check-check > .asc-button-body::before,\r
+    .asc-button.asc-marked.asc-check-check > .asc-button-body::before {\r
       content: "✓";\r
     }\r
     /* corner：勾选 = tone 外描边（box-shadow，视觉等价 outline 且跟随圆角）+ 右上角 tone 小三角\r

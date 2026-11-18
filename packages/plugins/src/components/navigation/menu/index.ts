@@ -3,24 +3,26 @@
  * 经插件全局组件表注册（ADR-0111 决策 5），跨 engine 真全局——晚注册立即生效，
  * 同名后注册覆盖先注册。
  *
- * 导航菜单：items（{ key, label, icon?, disabled?, children?[]（一层子菜单嵌套）}[]，
- * 状态引用注入）或子元素声明（<x-menu-item> 静态标量，支持一层嵌套 children）两形态；
- * mode 双形态（vertical 缺省 / horizontal——子菜单 hover 浮层下拉）+ collapsed
- * （垂直收起为图标条，子菜单右飞浮层）；受控 value（el.value 劫持桥 + change 冒泡
- * detail = { value } + input 回写 x-model）；子菜单点击展开收起（openKeys 内部维护，
- * 整体替换驱动）+ 激活值祖先链自动展开。
+ * v2 数据驱动重设计（ADR-0033）：items 数据描述驱动（MenuEntry——item 透传 button
+ * 全 props / group 分组标题 / separator 分隔线（≡ '-'）/ children 数组|SubmenuOptions
+ * 配置对象，递归任意层）；expandLevel 初始展开 + popLevel 缩进/弹层分界 + openKeys
+ * 全受控双绑；value 形态即语义（string 单选激活 / string[] checkable 勾选集合）；
+ * collapsed 三档（0 常规 / 1 图标条 / 2 单按钮+整菜单弹层）；trigger（hover 缺省 |
+ * click）透传 popover；同级 check / icon 统一占位；完整键盘导航（roving tabindex）。
  *
- * 元素名快速写法 `<x-menu>` 由本文件的 precompile DOM 变换承载（tabs/breadcrumb 同款）：
- * - 静态属性折叠为 props 字面量（类型推断）、`:key="expr"` 响应式项以原始表达式拼进
- *   值对象字面量，class/style/id 与 data-、x-、@ 前缀属性保留给宿主（x-model 在场
- *   即经此激活值桥），子内容随迁为默认插槽；
- * - `<x-menu-item key label icon disabled>` 子元素声明（含嵌套子 x-menu-item 折叠为
- *   children）折叠为 items JSON 落 data-items 属性（字符串标量通道——规避值对象内
- *   字面量数组 props 的死环缺陷，P0 固化规避清单第 1 条），组件 mounted 解析写 data
- *   响应渲染；裸 items 属性（JSON 字符串）同经此通道（不进 props 值对象）。
+ * 旧 `<x-menu-item>` 组合式**硬移除不警告**（ADR-0033 决策 1，0.x breaking 惯例）：
+ * 声明子元素静默摘除；裸 `items='[…]'` JSON 字符串走 data-items 通道延续（字面量数组
+ * props 死环规避，P0 固化规避清单第 1 条）。
  *
- * router 隔离（ADR-0018 决策 6 约定 2）：纯状态驱动、不 import router——激活态映射
- * 路由与点击接管以配方文档交付（组件文档 router 配方节，breadcrumb 同款）。
+ * 三模板注册：主组件 autospark.menu + 内部递归节点 autospark-menu-node + 弹层面板
+ * autospark-menu-panel（连字符注册名免疫 popover attr 参数点号切分，dropdown 同款
+ * 成因，ADR-0022 决策 1）——后两者不对用户暴露。
+ *
+ * 跨插件依赖：弹层呈现须同引 `autospark.overlay.js`（x-popover，ADR-0128）与
+ * `autospark.button.js`（项渲染载体），聚合产物无此问题；overlay 缺席时缩进域照常、
+ * 弹层域无效（家族口径同 dropdown）。
+ *
+ * router 隔离（ADR-0018 决策 6 约定 2）：纯状态驱动、不 import router——配方文档交付。
  *
  * IIFE 产物全局名 `AutoSparkMenu`（autospark.menu.js）；双加载时序由
  * {@link installPlugin} 兜底（先于引擎加载推预加载队列，晚于引擎加载直注册）。
@@ -32,60 +34,51 @@ import { kebabToCamel } from "../../../utils/kebabToCamel";
 import { propKey } from "../../../utils/propKey";
 import { inferPropValue } from "../../../utils/inferPropValue";
 import menuTemplate from "./menu.html?raw";
+import nodeTemplate from "./node.html?raw";
+import panelTemplate from "./panel.html?raw";
 
-/** 组件注册名（autospark. 点前缀命名空间，ADR-0094；kebab 免疫 DOM 属性名小写化——注册名/产物/目录三对齐 kebab） */
+/** 组件注册名（autospark. 点前缀命名空间，ADR-0094；kebab 免疫 DOM 属性名小写化） */
 export const MENU_NAME = "autospark.menu";
+/** 递归节点内部组件注册名（级列表渲染，非用户直接消费） */
+export const MENU_NODE_NAME = "autospark-menu-node";
+/** 弹层面板内部组件注册名（x-popover 内容，非用户直接消费） */
+export const MENU_PANEL_NAME = "autospark-menu-panel";
 
 /**
- * 递归收集 <x-menu-item> 声明子树为 items 数据：key/label 必收，icon/disabled 可选
- * （裸 disabled 归一 true），嵌套子 x-menu-item 折叠为 children（v1 一层嵌配）。
- */
-function collectMenuItem(el: Element): Record<string, unknown> {
-    const entry: Record<string, unknown> = {
-        key: el.getAttribute("key") ?? "",
-        label: el.getAttribute("label") ?? "",
-    };
-    const icon = el.getAttribute("icon");
-    if (icon != null) entry.icon = icon;
-    if (el.hasAttribute("disabled")) entry.disabled = true;
-    const children = Array.from(el.children).filter((c) => c.tagName.toLowerCase() === "x-menu-item");
-    if (children.length) entry.children = children.map(collectMenuItem);
-    return entry;
-}
-
-/**
- * 插件注册体：写插件全局组件表（普通 Record 赋值即生效，无 API 门面）。
+ * 插件注册体：写插件全局组件表（主组件 + 递归节点 + 弹层面板三模板）+ precompile
+ * 元素名变换。
+ *
+ * precompile 变换（tabs/breadcrumb/dropdown 同款折叠规则）：静态属性折叠为 props
+ * 字面量（类型推断）、`:key="expr"` 响应式项以原始表达式拼进值对象字面量，
+ * class/style/id 与 data-、x-、@ 前缀属性保留给宿主（x-model 在场即经此激活值桥），
+ * 子内容（含 template header/footer 具名插槽声明）随迁为插槽内容；`<x-menu-item>`
+ * 旧组合式子元素静默摘除（ADR-0033 决策 1 硬移除）。
  */
 function mountMenuPlugin(autospark: typeof AutoSpark): void {
     autospark.components[MENU_NAME] = menuTemplate;
+    autospark.components[MENU_NODE_NAME] = nodeTemplate;
+    autospark.components[MENU_PANEL_NAME] = panelTemplate;
     autospark.precompile?.((engine: InstanceType<typeof AutoSpark>) => {
         for (const el of Array.from(engine.el.querySelectorAll("x-menu"))) {
             const host = document.createElement("div");
-            // —— 子元素声明形态：<x-menu-item> 静量（含嵌套 children）折叠为 items JSON 落 data-items ——
-            // 声明子元素恒摘除（其语法载体非内容）；JSON 序列化仅在 items 未声明时落盘
-            // （props 状态引用优先）。裸 items 属性（JSON 字符串）同通道分流，不进 props 值对象
-            const itemEls = Array.from(el.children).filter((c) => c.tagName.toLowerCase() === "x-menu-item");
+            // —— 旧组合式子元素硬移除（不警告、不转换——ADR-0033 决策 1）——
+            for (const it of Array.from(el.children)) {
+                if (it.tagName.toLowerCase() === "x-menu-item") it.remove();
+            }
+            // —— 裸 items 属性（JSON 字符串）走 data-items 通道（不进 props 值对象）——
             const bareItems = el.getAttribute("items");
             const boundItems = el.hasAttribute(":items");
-            el.removeAttribute("items"); // JSON 字符串语义走 data-items 通道（不折进 props）
-            const declared = itemEls.length > 0 || (bareItems != null && bareItems !== "");
-            if (declared && !boundItems) {
-                let items: unknown = null;
-                if (itemEls.length) {
-                    items = itemEls.map(collectMenuItem);
-                } else {
-                    // 裸 items 属性：期望 JSON 数组字符串，非法形态静默忽略（容错缺省空组）
-                    try {
-                        const parsed = JSON.parse(bareItems!);
-                        if (Array.isArray(parsed)) items = parsed;
-                    } catch {
-                        /* 非法 JSON 忽略 */
-                    }
+            el.removeAttribute("items");
+            if (bareItems != null && bareItems !== "" && !boundItems) {
+                // 期望 JSON 数组字符串，非法形态静默忽略（容错缺省空组）
+                try {
+                    const parsed = JSON.parse(bareItems);
+                    if (Array.isArray(parsed)) host.setAttribute("data-items", JSON.stringify(parsed));
+                } catch {
+                    /* 非法 JSON 忽略 */
                 }
-                if (items) host.setAttribute("data-items", JSON.stringify(items));
             }
-            for (const it of itemEls) it.remove();
-            // —— 属性折叠（tabs/breadcrumb 变换同款规则）——
+            // —— 属性折叠（dropdown 变换同款规则）——
             const parts: string[] = [];
             for (const attr of Array.from(el.attributes)) {
                 if (attr.name.startsWith(":")) {
@@ -103,8 +96,9 @@ function mountMenuPlugin(autospark: typeof AutoSpark): void {
                     host.setAttribute(attr.name, attr.value);
                     continue;
                 }
+                // 裸属性 = 开（布尔开关语义，carousel 惯例；collapsed 裸属性 ≡ 1，模板侧 Number 归一）
                 if (attr.value === "") {
-                    parts.push(`${propKey(kebabToCamel(attr.name))}: true`); // 裸属性 = 开（布尔开关语义，carousel 同款惯例——collapsed 写裸属性即启用）
+                    parts.push(`${propKey(kebabToCamel(attr.name))}: true`);
                     continue;
                 }
                 parts.push(`${propKey(kebabToCamel(attr.name))}: ${JSON.stringify(inferPropValue(attr.value))}`);
