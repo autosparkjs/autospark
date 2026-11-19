@@ -1,7 +1,7 @@
 # ADR-0020: 输入框 input 与表单域骨架 Field
 
 - 状态：已接受（Accepted，2026-11-12；2026-11-14 修订——决策 2/3/7 增补 `prefix`/`suffix` 具名装饰出口与主题令牌对齐口径、决策 2/后果改投影为公开文档组件，备选方案「三命名出口」条目同步消歧；**同日更名 `autospark.base-field` → `autospark.field`**——「BaseField」名不副实（它不是「基础字段」而是表单域的壳），本体名 `field` 与 CSS 类 `.asc-field-*` / 覆盖变量 `--asc-field-*` 天然对齐（视觉契约零改动），与 engine `x-field` 指令的消歧经 CONTEXT 词条承载；本 ADR 文件名保留旧称（编号稳定）；**2026-11-17 修订（ADR-0032）**——多行能力拆出独立 `autospark.textarea`，决策 4「textarea 是 type 变体」与备选方案「textarea 独立组件：否决」废止，input 不再内置 textarea 形态）
-- 日期：2026-11-12（修订 2026-11-14；修订 2026-11-16——**装饰上提**：子组件 props 前后置装饰（input 的 `prefix`/`suffix` 文本|图标）经 template 覆盖段上提 field 的 prefix/suffix 出口（继承覆盖链中间层：消费方投影 > 子覆盖段 > field 空载体），覆盖段须重声明 `class="asc-field-*"` 注入类（ADR-0137 决策三-b 整段替换、不与父合并）；**功能动作件（清除/眼睛/计数）刻意留 body 默认段**——不进可被消费方投影顶掉的出口 fallback 位。轻/重装饰分层语义相应修订：两者同轨出口位、按覆盖链叠层（消费方重装饰接管时 props 装饰让位——显式接管语义），呈现序 `[slot:prefix] [控件] [动作件] [slot:suffix]`。首例 input，家族组件按需跟进；修订 2026-11-16（二）——**融合动作 actions**：props 驱动渲染段（非插槽出口），详见决策 3 表）
+- 日期：2026-11-12（修订 2026-11-14；修订 2026-11-16——**装饰上提**：子组件 props 前后置装饰（input 的 `prefix`/`suffix` 文本|图标）经 template 覆盖段上提 field 的 prefix/suffix 出口（继承覆盖链中间层：消费方投影 > 子覆盖段 > field 空载体），覆盖段须重声明 `class="asc-field-*"` 注入类（ADR-0137 决策三-b 整段替换、不与父合并）；**功能动作件（清除/眼睛/计数）刻意留 body 默认段**——不进可被消费方投影顶掉的出口 fallback 位。轻/重装饰分层语义相应修订：两者同轨出口位、按覆盖链叠层（消费方重装饰接管时 props 装饰让位——显式接管语义），呈现序 `[slot:prefix] [控件] [动作件] [slot:suffix]`。首例 input，家族组件按需跟进；修订 2026-11-16（二）——**融合动作 actions**：props 驱动渲染段（非插槽出口），详见决策 3 表；修订 2026-11-18（三）——**移除 `showPassword` / `showCount`**（API 删减，破坏性）：input 不再支持密码可见切换与计数器——props / 眼睛钮与计数渲染段 / `onTogglePassword` / `passwordVisible`·`countText` 内部态 / `data-over` 超限染色通道 / 决策 8 的 `input-eye`·`input-eye-off` 图标注册**整链移除**；`maxlength` 保留（原生截断语义，不再兼计数分母）。textarea 拆分见 ADR-0032；移除的明文可见能力由独立组件 `autospark.password` 承接，见 ADR-0034）
 - 关联：ADR-0018（组件库路线图——form 批与决策 7 表单基座策略的上位依据）、ADR-0017（八分类骨架——base 不投影）、ADR-0012（button 范式——样式基线）、ADR-0014（button-group 组值桥——值桥先例）、ADR-0016（state-button——表单桥分叉先例）、ADR-0034/0081（组件继承机制）、ADR-0134（autospark.base 抽象基组件与 abstract 根约束）、ADR-0129（主题三级回退链）
 
 ## 背景
@@ -82,7 +82,7 @@ input / textarea / checkbox / radio / switch / select / input-number
 
 ### 决策 8：组件自有图标注册
 
-`show-password` 的眼睛图标经全局图标表编程通道注册（`AutoSpark.icons.add`，ADR-0058）：名字空间化前缀 `input-eye` / `input-eye-off`（图标名不支持点号），同名静默覆盖（ADR-0058 决策 12）——使用者可后注册同名图标定制视觉；清除钮复用内置 `no`（X 造型）。注册随插件 mount（幂等），晚于引擎/早于引擎双路径均可。
+~~`show-password` 的眼睛图标经全局图标表编程通道注册（`AutoSpark.icons.add`，ADR-0058）：名字空间化前缀 `input-eye` / `input-eye-off`（图标名不支持点号），同名静默覆盖（ADR-0058 决策 12）——使用者可后注册同名图标定制视觉；清除钮复用内置 `no`（X 造型）。注册随插件 mount（幂等），晚于引擎/早于引擎双路径均可。~~ **2026-11-18 修订三：随 `showPassword` 移除整条废弃**——`input-eye` / `input-eye-off` 注册与图标资产删除；清除钮仍复用内置 `no`。
 
 ## 备选方案
 
@@ -100,6 +100,6 @@ input / textarea / checkbox / radio / switch / select / input-number
 - `base/` 目录转入现役（首个产物 field）；~~文档侧不投影（无文档页/侧边栏条目，ADR-0017 决策 4）~~ **2026-11-14 修订：转公开投影**（侧边栏「表单」组 + `docs/zh/components/form/field.md` + demo 双页 `basic.html`/`slots.html` + 独立产物登记 + readme/demo 树惯例同步）。
 - P0-F（checkbox/radio/switch）按决策 3 消费指引继承骨架；骨架 API 面**只增不改**，变更须修订本 ADR。
 - 对象 props（prefix/suffix 的 `{ icon }`）须状态引用注入（引擎值对象字面量缺陷修复在途，text 同款备注）。
-- **已知边界**：①~~运行时切换 `type` 进出 textarea 形态会重建控件（值经 lastValue 缓存回填，焦点不保）~~（2026-11-17 修订：多行能力拆件后本边界消失，ADR-0032；input 仅剩单行形态）；②原生约束校验（required/pattern）的 `:user-invalid` 自动染色未做（status 是唯一染色通道，需要时后续演进）；③~~append/prepend 组合槽（按钮内嵌）未做~~（2026-11-14 修订：`prefix`/`suffix` 装饰出口可承载任意内容含按钮，内嵌按钮场景即插槽用法，剩余差距仅 props 形态无组合语义）；④password 形态的浏览器原生「显示密码」控件的样式协调未处理。
+- **已知边界**：①~~运行时切换 `type` 进出 textarea 形态会重建控件（值经 lastValue 缓存回填，焦点不保）~~（2026-11-17 修订：多行能力拆件后本边界消失，ADR-0032；input 仅剩单行形态）；②原生约束校验（required/pattern）的 `:user-invalid` 自动染色未做（status 是唯一染色通道，需要时后续演进）；③~~append/prepend 组合槽（按钮内嵌）未做~~（2026-11-14 修订：`prefix`/`suffix` 装饰出口可承载任意内容含按钮，内嵌按钮场景即插槽用法，剩余差距仅 props 形态无组合语义）；④~~password 形态的浏览器原生「显示密码」控件的样式协调未处理~~（2026-11-18：由 ADR-0034 的 `autospark.password` 经 `::-ms-reveal` / `::-ms-clear` 抑制收口）。
 - **theme 侧缺陷（本批发现的跨包问题，非本组件文件可修）**：`packages/theme/src/vars/size.ts` 的档位块引用 `--x-input-height-${size}` 标尺，但该标尺在全 theme 无定义（derived 层 `--auto-input-height` 实为 `var(--auto-line-height)`）——档位容器上 `--auto-input-height` 失效落组件兜底。本组件以**随字号自适应兜底**（`calc(var(--auto-font-size) * 2.57)`）防御，档位高度仍随字号缩放；theme 补标尺后 `--auto-input-height` 即恢复权威。
 - 遗留：值对象内字面量对象/数组 props 的引擎死循环缺陷（`_propsEqual` 引用比较）修复后，本文档的「状态引用注入」提示可撤。

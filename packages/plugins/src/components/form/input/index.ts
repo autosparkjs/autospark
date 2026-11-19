@@ -37,36 +37,23 @@ import inputTemplate from "./input.html?raw";
 /** 组件注册名（autospark. 点前缀命名空间，ADR-0094；kebab 免疫 DOM 属性名小写化） */
 export const INPUT_NAME = "autospark.input";
 
-/** 密码可见切换图标（lucide eye / eye-off 造型，与 engine 内置图标同族描边风格） */
-const ICON_EYE =
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>';
-const ICON_EYE_OFF =
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>';
-
 /** 布尔 props（无值裸属性形态归一 true——HTML 布尔属性惯例，button-group 同款） */
 const INPUT_BOOL_PROPS = new Set([
   "disabled",
   "readonly",
   "clearable",
-  "show-password",
-  "show-count",
 ]);
 
 /**
- * 插件注册体：写插件全局组件表 + 组件自有图标注册 + precompile 元素名变换。
+ * 插件注册体：写插件全局组件表 + precompile 元素名变换。
+ * （组件自有图标注册已随 show-password 移除——ADR-0020 修订三，2026-11-18 API 删减）
  *
- * - 图标注册走全局图标表编程通道（`AutoSpark.icons.add`，ADR-0058）：名字空间化前缀
- *   `input-`（图标名不支持点号），同名静默覆盖（ADR-0058 决策 12）——使用者可后注册
- *   同名图标定制视觉；幂等注册无重复注入；
  * - precompile 变换（与 button/link 同款折叠规则）：静态属性折叠为 props 字面量
  *   （类型推断）、`:key="expr"` 响应式项以原始表达式拼进值对象字面量，class / style /
  *   id / name（表单桥——mounted 透传到原生控件）/ data- 前缀 / x- 前缀 / @ 前缀属性
  *   保留给宿主；纯文本子内容折叠为 `value` 初值（元素名语义写法）。
  */
 function mountInputPlugin(autospark: typeof AutoSpark): void {
-  const icons = (autospark as { icons?: { add?: (name: string, svg: string) => unknown } }).icons;
-  icons?.add?.("input-eye", ICON_EYE);
-  icons?.add?.("input-eye-off", ICON_EYE_OFF);
   autospark.components[INPUT_NAME] = inputTemplate;
   autospark.precompile?.((engine: InstanceType<typeof AutoSpark>) => {
     for (const el of Array.from(engine.el.querySelectorAll("x-input"))) {

@@ -530,7 +530,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
 \r
     事件出口（组件默认封闭，原生事件经冒泡到外层消费）：\r
     - input / change：内层原生控件事件自然冒泡（x-model 与外层 @input/@change 直接消费）\r
-    - 清除/眼睛切换为内部动作件（data-autospark-action，点击不转发焦点），不派发自定义事件\r
+    - 清除为内部动作件（data-autospark-action，点击不转发焦点），不派发自定义事件\r
 -->\r
 <!-- 根 class 拼接进骨架宿主（.asc-field + .asc-input + .asc-field-box 盒饰选配）；\r
      变体与状态属性经 mounted 的 JS 通道同步（data-over），根上无动态绑定（T4=B） -->\r
@@ -545,16 +545,12 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             type: "text",          // 文本族：text/password/email/tel/url/search 等（透传原生 input type）\r
             value: "",             // 非受控初值 / 单向同步值（受控真相走宿主 x-model——el.value 桥，ADR-0020）\r
             placeholder: "",       // 占位文案（同步原生 placeholder）\r
-            maxlength: 0,          // >0 同步原生 maxlength（原生输入截断）+ 计数分母\r
+            maxlength: 0,          // >0 同步原生 maxlength（原生输入截断）\r
             clearable: false,      // 清除钮（值非空且可交互时可见；点击清空 + 派发 input + 焦点回控件）\r
-            showPassword: false,   // 密码可见切换眼睛钮（仅 type=password 消费，其余形态忽略）\r
-            showCount: false,      // 计数器（maxlength 在场显示「len / max」，否则仅 len；超限染 danger）\r
             prefix: "",            // 前置装饰：string 文本 | { icon: "图标名" } 图标（对象经状态引用注入）\r
             suffix: "",            // 后置装饰：形态同 prefix\r
             // —— 内部状态 ——\r
-            passwordVisible: false, // 密码可见态（眼睛切换，内层 type password ↔ text）\r
             hasValue: false,        // 当前有值（清除钮可见性驱动；JS 通道随输入维护）\r
-            countText: "",          // 计数文本（JS 侧构建——绑定通道对 props 后续注入不重算，ADR-0020）\r
         }),\r
         methods: {\r
             // 清除：清空原生控件 + 手动派发 input（程序赋值不触发原生事件；冒泡过宿主\r
@@ -568,17 +564,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 n.dispatchEvent(new Event("input", { bubbles: true }));\r
                 n.focus();\r
             },\r
-            // 密码可见切换：翻转 passwordVisible + 内层 type password ↔ text + 焦点回控件\r
-            onTogglePassword(event) {\r
-                event.stopPropagation();\r
-                if (this.data.disabled) return;\r
-                this.data.passwordVisible = !this.data.passwordVisible;\r
-                const n = this.el.querySelector(".asc-input-native");\r
-                if (n instanceof HTMLInputElement) {\r
-                    n.type = this.data.passwordVisible ? "text" : (this.data.type || "text");\r
-                }\r
-                if (n) n.focus();\r
-            },\r
         },\r
         mounted() {\r
             // —— 内层控件查询（每查现取：运行时控件可能被重建）——\r
@@ -586,15 +571,10 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             // 当前值缓存（劫持 getter 的控件缺位兜底）\r
             let lastValue = "";\r
 \r
-            // —— 计数与清除可见性同步（len 由原生控件现值读出；超限染色的 data-over\r
-            //     落宿主属性，CSS 通道消费——JS 直写无 T4=B 约束）——\r
+            // —— 清除可见性同步（len 由原生控件现值读出）——\r
             const syncLen = () => {\r
                 const n = native();\r
-                const len = n ? String(n.value ?? "").length : 0;\r
-                this.data.hasValue = len > 0;\r
-                const max = Number(this.data.maxlength) || 0;\r
-                this.data.countText = max > 0 ? \`\${len} / \${max}\` : \`\${len}\`;\r
-                this.el.toggleAttribute("data-over", max > 0 && len > max);\r
+                this.data.hasValue = n ? String(n.value ?? "").length > 0 : false;\r
             };\r
 \r
             // —— 值同步（外部 → 控件）——\r
@@ -611,8 +591,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 if (!n) return;\r
                 const t = String(this.data.type ?? "text");\r
                 if (n instanceof HTMLInputElement) {\r
-                    // type 透传（密码可见切换：password + passwordVisible → text）\r
-                    n.type = t === "password" && this.data.passwordVisible ? "text" : (t || "text");\r
+                    // type 透传\r
+                    n.type = t || "text";\r
                 }\r
                 n.placeholder = String(this.data.placeholder ?? "");\r
                 const ml = Number(this.data.maxlength) || 0;\r
@@ -668,8 +648,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             // —— props 变化跟随（回调收 { value } 信封对象，此处只用作触发信号）——\r
             this.watch("type", () => { setTimeout(() => { syncAttrs(); syncValue(); }, 0); });\r
             this.watch("placeholder", () => { setTimeout(syncAttrs, 0); });\r
-            this.watch("maxlength", () => { setTimeout(() => { syncAttrs(); syncLen(); }, 0); });\r
-            this.watch("showPassword", () => { setTimeout(syncAttrs, 0); });\r
+            this.watch("maxlength", () => { setTimeout(syncAttrs, 0); });\r
             // value props 单向同步（非受控/外部受控无 x-model 场景）：变化才写（与自身\r
             // 桥写不冲突——guard 防回环）。已见值比对幂等防御（checkbox 同款）：scope.refresh\r
             // 类无变化重跑（i18n ready 换血等）不得把 x-model expando 注入的初值打回 props\r
@@ -723,7 +702,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       white-space: nowrap;\r
     }\r
 \r
-    /* ---------- 动作件（清除/眼睛切换）：内部交互钮，淡色常态 + 悬停正文色 ---------- */\r
+    /* ---------- 动作件（清除钮）：内部交互钮，淡色常态 + 悬停正文色 ---------- */\r
     .asc-input-action {\r
       flex: none;\r
       display: inline-flex;\r
@@ -742,18 +721,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       transform: scale(0.92);\r
     }\r
 \r
-    /* ---------- 计数器：小一号辅助色；超限（data-over 由 mounted 同步）染 danger ---------- */\r
-    .asc-input-count {\r
-      flex: none;\r
-      margin-left: 0.45em;\r
-      font-size: 0.75em;\r
-      white-space: nowrap;\r
-      color: var(--auto-third-color, var(--asc-input-count, rgba(0, 0, 0, 0.35)));\r
-    }\r
-    .asc-input[data-over] .asc-input-count {\r
-      color: var(--auto-danger-color, var(--asc-input-count-over, #ef4444));\r
-    }\r
-\r
     /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */\r
     [dark] .asc-input-native::placeholder,\r
     [data-dark] .asc-input-native::placeholder {\r
@@ -770,14 +737,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     [dark] .asc-input-action:hover,\r
     [data-dark] .asc-input-action:hover {\r
       color: var(--auto-color, var(--asc-input-action-hover, #fafafa));\r
-    }\r
-    [dark] .asc-input-count,\r
-    [data-dark] .asc-input-count {\r
-      color: var(--auto-third-color, var(--asc-input-count, rgba(255, 255, 255, 0.45)));\r
-    }\r
-    [dark] .asc-input[data-over] .asc-input-count,\r
-    [data-dark] .asc-input[data-over] .asc-input-count {\r
-      color: var(--auto-danger-color, var(--asc-input-count-over, #e6696a));\r
     }\r
   </style>\r
   <!-- 命名覆盖段（2026-11-16 装饰上提，ADR-0020 修订）：props 前后置装饰经 template\r
@@ -800,9 +759,10 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     </span>\r
   </template>\r
   <!-- 默认段（替换 field 出口 fallback）：控件本体与功能动作件，文档序即呈现序\r
-         [控件] [清除] [眼睛] [计数]——props 前后置装饰已上提 field 出口（见上方命名\r
-         覆盖段）；功能件（清除/眼睛/计数）刻意留 body：不进可被消费方投影顶掉的\r
-         出口 fallback 位（ADR-0020 修订取舍） -->\r
+         [控件] [清除]——props 前后置装饰已上提 field 出口（见上方命名覆盖段）；\r
+         功能件（清除）刻意留 body：不进可被消费方投影顶掉的出口 fallback 位\r
+         （ADR-0020 修订取舍）。眼睛切换/计数已随 show-password/show-count 一并移除\r
+         （2026-11-18 API 删减，ADR-0020 修订三） -->\r
   <input class="asc-input-native" data-autospark-control />\r
   <i\r
     class="asc-input-action asc-input-clear"\r
@@ -811,16 +771,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     x-icon="'no'"\r
     @click="onClear($event)"\r
   ></i>\r
-  <i\r
-    class="asc-input-action asc-input-eye"\r
-    data-autospark-action\r
-    x-if="showPassword && type === 'password'"\r
-    x-icon="passwordVisible ? 'input-eye-off' : 'input-eye'"\r
-    @click="onTogglePassword($event)"\r
-  ></i>\r
-  <span class="asc-input-count" x-if="showCount">{{ countText }}</span>\r
 </span>\r
-`,s=`autospark.input`,c=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>`,l=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>`,u=new Set([`disabled`,`readonly`,`clearable`,`show-password`,`show-count`]);function d(e){let i=e.icons;i?.add?.(`input-eye`,c),i?.add?.(`input-eye-off`,l),e.components[s]=o,e.precompile?.(e=>{for(let i of Array.from(e.el.querySelectorAll(`x-input`))){let e=document.createElement(`span`),a=[];for(let o of Array.from(i.attributes)){if(o.name.startsWith(`:`)){a.push(`${n(t(o.name.slice(1)))}: (${o.value})`);continue}if(o.name===`class`||o.name===`style`||o.name===`id`||o.name===`name`||o.name===`title`||o.name.startsWith(`data-`)||o.name.startsWith(`x-`)||o.name.startsWith(`@`)){e.setAttribute(o.name,o.value);continue}let i=t(o.name);o.value===``&&u.has(o.name)?a.push(`${n(i)}: true`):a.push(`${n(i)}: ${JSON.stringify(r(o.value))}`)}let o=i.textContent?.trim()??``,c=a.some(e=>e.startsWith(`value:`)),l=i.children.length>0;for(o!==``&&!c&&!l&&(a.push(`value: ${JSON.stringify(o)}`),i.textContent=``),e.setAttribute(`x-component:${s}`,`{ ${a.join(`, `)} }`);i.firstChild;)e.appendChild(i.firstChild);i.replaceWith(e)}})}f();function f(){e(e=>{d(e)})}};
+`,s=`autospark.input`,c=new Set([`disabled`,`readonly`,`clearable`]);function l(e){e.components[s]=o,e.precompile?.(e=>{for(let i of Array.from(e.el.querySelectorAll(`x-input`))){let e=document.createElement(`span`),a=[];for(let o of Array.from(i.attributes)){if(o.name.startsWith(`:`)){a.push(`${n(t(o.name.slice(1)))}: (${o.value})`);continue}if(o.name===`class`||o.name===`style`||o.name===`id`||o.name===`name`||o.name===`title`||o.name.startsWith(`data-`)||o.name.startsWith(`x-`)||o.name.startsWith(`@`)){e.setAttribute(o.name,o.value);continue}let i=t(o.name);o.value===``&&c.has(o.name)?a.push(`${n(i)}: true`):a.push(`${n(i)}: ${JSON.stringify(r(o.value))}`)}let o=i.textContent?.trim()??``,l=a.some(e=>e.startsWith(`value:`)),u=i.children.length>0;for(o!==``&&!l&&!u&&(a.push(`value: ${JSON.stringify(o)}`),i.textContent=``),e.setAttribute(`x-component:${s}`,`{ ${a.join(`, `)} }`);i.firstChild;)e.appendChild(i.firstChild);i.replaceWith(e)}})}u();function u(){e(e=>{l(e)})}};
     if (AutoSpark === undefined) {
         // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
         var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Password · 长度约束 / autocomplete</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.password.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" style="max-width: 460px">
+      <div class="auto-card">
+        <div class="auto-card-header">maxlength（原生截断）与 minlength（原生约束校验）</div>
+        <div class="auto-card-body">
+          <p><x-password maxlength="20" placeholder="最多 20 字符（超出无法继续输入）"></x-password></p>
+          <p><x-password minlength="8" placeholder="至少 8 字符"></x-password></p>
+          <p><x-password minlength="8" maxlength="20" autocomplete="new-password" placeholder="8-20 字符，新密码提示"></x-password>
+          <p class="hint">
+            两者都是<strong>原生属性透传</strong>：<code>maxlength</code> 由浏览器直接截断输入；<code>minlength</code> 只在表单提交 / 原生约束校验时给出
+            <code>tooShort</code>，<strong>组件不做前瞻提示、不显示计数</strong>（需要即时反馈请用 x-field 校验 + status 染色）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">autocomplete：密码管理器提示</div>
+        <div class="auto-card-body">
+          <p><x-password autocomplete="current-password" placeholder="登录：current-password"></x-password></p>
+          <p><x-password autocomplete="new-password" placeholder="注册 / 改密：new-password"></x-password></p>
+          <p class="hint">
+            宿主元素上的 <code>autocomplete</code> 不会自动流到内层原生控件（input 只透传 name），所以本组件开放该 prop——空值不写属性，交浏览器启发式判断。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

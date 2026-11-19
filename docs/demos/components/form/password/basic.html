@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Password · 快速入门</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.password.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" style="max-width: 460px">
+      <div class="auto-card" x-data="{ pwd: '' }">
+        <div class="auto-card-header">最小用法：前缀钥匙 + 眼睛钮（点击切换明文态）</div>
+        <div class="auto-card-body">
+          <p><x-password x-model="pwd" placeholder="请输入密码"></x-password></p>
+          <p class="hint">
+            当前值：<code>{{ pwd || '（空）' }}</code> —— 眼睛钮只改原生 input 的 type（掩码 ↔ 明文），不改值、不派发事件；值通道照走
+            <code>x-model</code>。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">能力开关与装饰</div>
+        <div class="auto-card-body">
+          <p><x-password value="secret" clearable="true"></x-password></p>
+          <p><x-password value="secret" viewable="false"></x-password></p>
+          <p><x-password value="secret" prefix="账号"></x-password></p>
+          <p><x-password value="secret" autocomplete="current-password"></x-password></p>
+          <p class="hint">
+            第 1 行：清除钮 + 眼睛钮（清空会复位为掩码态）；第 2 行：<code>viewable="false"</code> 不渲染眼睛钮——需要「无眼睛的密码框」也可直接用
+            <code>&lt;x-input type="password"&gt;</code>；第 3 行：钥匙恒在消费方 <code>prefix</code> 装饰之前。
+          </p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

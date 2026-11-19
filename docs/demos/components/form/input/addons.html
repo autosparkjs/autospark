@@ -29,10 +29,10 @@
         </div>
       </div>
       <div class="auto-card">
-        <div class="auto-card-header">maxlength + showCount（超限染红）</div>
+        <div class="auto-card-header">maxlength（原生输入截断）</div>
         <div class="auto-card-body">
-          <p><x-input maxlength="20" placeholder="最多 20 字" x-input-options="{ props: { showCount: true } }"></x-input></p>
-          <p class="hint">maxlength 同步原生属性（浏览器原生截断），计数器显示「len / max」。</p>
+          <p><x-input maxlength="20" placeholder="最多 20 字"></x-input></p>
+          <p class="hint">maxlength 同步原生属性（浏览器原生截断）。计数器已随 showCount 移除（2026-11-18 API 删减）。</p>
         </div>
       </div>
       <div class="auto-card">

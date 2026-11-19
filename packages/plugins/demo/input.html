@@ -65,7 +65,7 @@
     <h1>autospark.input</h1>
     <p>
       输入框（原生增强路线：真实 input + 样式包裹）：type 文本族 / clearable /
-      show-password / prefix·suffix / maxlength 计数 / disabled·readonly；值通道走
+      prefix·suffix / maxlength / disabled·readonly；值通道走
       x-model 兼容协议（宿主 <code>x-model</code> 直写）。尺寸档位经主题通道
       <code>data-size</code> 全跟随（无自有尺寸属性）。多行输入见
       <a href="./textarea.html">autospark.textarea</a>。
@@ -83,18 +83,17 @@
         <x-input
           x-model="pwd"
           type="password"
-          placeholder="密码（眼睛切换可见）"
-          x-input-options="{ props: { showPassword: true } }"
+          placeholder="密码（type 透传原生掩码）"
         ></x-input>
         <p class="hint">密码：<code>{{ pwd || '（空）' }}</code></p>
       </div>
 
-      <h2>clearable / 前后置 / 计数</h2>
+      <h2>clearable / 前后置</h2>
       <div class="col">
         <x-input x-model="kw" placeholder="可清除" clearable="true"></x-input>
         <x-input prefix="¥" suffix="RMB" placeholder="文本前后置"></x-input>
         <x-input placeholder="图标前置（对象 props 经状态引用注入）" :prefix="iconConf"></x-input>
-        <x-input maxlength="20" placeholder="计数（超限染红）" x-input-options="{ props: { showCount: true } }"></x-input>
+        <x-input maxlength="20" placeholder="最多 20 字（原生截断）"></x-input>
       </div>
 
       <h2>尺寸档位（主题通道 data-size）</h2>

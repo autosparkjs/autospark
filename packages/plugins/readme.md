@@ -13,6 +13,7 @@
 | autospark.link | 组件插件 | `AutoSpark.components[name] = 模板` + precompile 元素名变换 | `autospark.link.js`（组件库 P0，ADR-0019） |
 | autospark.divider | 组件插件 | `AutoSpark.components[name] = 模板` | `autospark.divider.js`（组件库 P0 / layout 首件，ADR-0019） |
 | autospark.field | 组件插件 | `AutoSpark.components[name] = 模板` | `autospark.field.js`（表单域骨架，form 族继承基座，ADR-0020） |
+| autospark.password | 组件插件 | `AutoSpark.components[name] = 模板` + precompile 元素名变换 | `autospark.password.js`（密码框，继承 input，ADR-0034） |
 | 聚合 | 全部官方插件 | — | `autospark.plugins.js` |
 
 ## 使用

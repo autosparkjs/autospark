@@ -175,8 +175,11 @@ export const darkDerivedVars = {
      * 提至中灰档保底可辨（≈4.3:1，仍明显弱于正文 13.5） */
     "--auto-disable-color": "color-mix(in srgb, var(--x-color-8), gray 80%)!important",
 
-    /* 边框提亮（覆盖后 --auto-border 等引用自动跟随） */
-    "--auto-border-color": "var(--x-color-8)",
+    /* 边框派生：面板底混白恒定偏移（保色相），不挂前景标尺档——面板底随标尺重排/
+     * 彩色暗底（theme-0）变化时边框自动跟随错开，恒不与面板融合；固定档方案曾于
+     * 39ca7a1 标尺迁移中被错映射为 color-8、与面板 gray-8 同色 1:1 失效，此为防复发
+     * 的设计动机。25% 实测灰/彩两域均为 1.77:1（阈值 1.7，恒定偏移的结构特性） */
+    "--auto-border-color": "color-mix(in srgb, var(--auto-panel-bgcolor), white 25%)",
 
     /* 输入框凹陷：dark 下 --x-bgcolor-1 为工作区最沉色 */
     "--auto-input-bgcolor": "var(--x-bgcolor-1)",

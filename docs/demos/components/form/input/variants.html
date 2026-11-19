@@ -14,10 +14,10 @@
     <aside class="demo-panel"><theme-controls></theme-controls></aside>
     <main class="demo-main" x-data="{ pwd: '' }">
       <div class="auto-card">
-        <div class="auto-card-header">password + show-password（眼睛切换可见）</div>
+        <div class="auto-card-header">password 密码形态（type 透传）</div>
         <div class="auto-card-body">
-          <p><x-input x-model="pwd" type="password" placeholder="密码" x-input-options="{ props: { showPassword: true } }"></x-input></p>
-          <p class="hint">密码值：{{ pwd || '（空）' }} —— 切换不改变值，仅内层 input.type 在 password ↔ text 间翻转。</p>
+          <p><x-input x-model="pwd" type="password" placeholder="密码"></x-input></p>
+          <p class="hint">密码值：{{ pwd || '（空）' }} —— type 透传原生 input type（原生密码掩码语义）。</p>
         </div>
       </div>
       <div class="auto-card">

@@ -125,7 +125,7 @@
     --auto-secondary-color:color-mix(in srgb, var(--x-color-1), transparent 25%);
     --auto-third-color:color-mix(in srgb, var(--x-color-1), transparent 45%);
     --auto-bgcolor:var(--x-bgcolor-0);
-    --auto-secondary-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 55%);
+    --auto-secondary-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 70%);
     --auto-third-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 25%);
     --auto-workspace-bgcolor:var(--x-bgcolor-1);
     --auto-border-size:1px;
@@ -475,7 +475,7 @@
     --auto-secondary-color:color-mix(in srgb, var(--x-color-1), transparent 25%);
     --auto-third-color:color-mix(in srgb, var(--x-color-1), transparent 45%);
     --auto-bgcolor:var(--x-bgcolor-0);
-    --auto-secondary-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 55%);
+    --auto-secondary-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 70%);
     --auto-third-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 25%);
     --auto-workspace-bgcolor:var(--x-bgcolor-1);
     --auto-border-color:var(--x-color-6);
@@ -502,7 +502,7 @@
     --auto-hover-bgcolor:color-mix(in srgb, var(--auto-hover-color), transparent 85%)!important;
     --auto-active-bgcolor:color-mix(in srgb, var(--auto-active-color), transparent 85%)!important;
     --auto-disable-color:color-mix(in srgb, var(--x-color-8), gray 80%)!important;
-    --auto-border-color:var(--x-color-8);
+    --auto-border-color:color-mix(in srgb, var(--auto-panel-bgcolor), white 25%);
     --auto-input-bgcolor:var(--x-bgcolor-1);
 }
 

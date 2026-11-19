@@ -6,7 +6,8 @@
  *   props 同步（placeholder/maxlength/type）；多行能力已拆出独立组件（ADR-0032）；
  * - 值桥（x-model 兼容协议）：宿主 el.value 劫持 ↔ 内层原生控件——初始注入、
  *   DOM→state（input 冒泡）、state→DOM（劫持 setter）三向；
- * - clearable / showPassword / prefix·suffix / showCount 交互件；
+ * - clearable / prefix·suffix 交互件（showPassword/showCount 已移除——2026-11-18
+ *   API 删减，ADR-0020 修订三）；
  * - Field 骨架通道（经 input 实例化消费）：status 状态色 + aria-invalid、
  *   data-focus 焦点态、disabled/readonly 同步、name 透传（原生直提交载体）；
  * - precompile 元素名变换（x-input → span + props 折叠，布尔裸属性归一）。
@@ -48,12 +49,6 @@ describe("注册面（ADR-0020）", () => {
     expect(tpl(FIELD_NAME)).toContain(`x-define="${FIELD_NAME}"`);
     expect(tpl(FIELD_NAME)).toContain('x-define:inherit="autospark.base"'); // 继承链中端（主题档位通道下传）
     expect(tpl(FIELD_NAME)).toContain("x-slot"); // 单默认出口（子组件默认段注入位）
-  });
-
-  test("组件自有图标注册：input-eye / input-eye-off 入全局图标表", () => {
-    const icons = (AutoSpark as { icons: Set<string> }).icons;
-    expect(icons.has("input-eye")).toBe(true);
-    expect(icons.has("input-eye-off")).toBe(true);
   });
 
   test("bootstrap 幂等：重复调用不覆盖（同键赋值幂等）", () => {
@@ -182,40 +177,6 @@ describe("交互件", () => {
     expect(field(root).querySelector(".asc-input-clear")).toBeNull();
   });
 
-  test("showPassword：password 形态显眼睛钮，点击切 type text↔password（图标随动）", async () => {
-    const { root } = mount(
-      `<span x-component:autospark.input="{ type: 'password', showPassword: true, value: 'secret' }"></span>`,
-      {},
-    );
-    await nextTick();
-    const host = field(root);
-    const eye = host.querySelector(".asc-input-eye")!;
-    expect(eye).toBeTruthy();
-    const input = nativeOf(root) as HTMLInputElement;
-    expect(input.type).toBe("password");
-    eye.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-    await nextTick();
-    expect(input.type).toBe("text"); // 可见态
-    // 图标随动经渲染产物断言（x-icon 属性编译期剥除，落 symbol use 引用）
-    expect(host.querySelector(".asc-input-eye use")!.getAttribute("href")).toContain(
-      "input-eye-off",
-    );
-    host
-      .querySelector(".asc-input-eye")!
-      .dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-    await nextTick();
-    expect(input.type).toBe("password"); // 还原
-  });
-
-  test("showPassword 非 password 形态忽略（无眼睛钮）", async () => {
-    const { root } = mount(
-      `<span x-component:autospark.input="{ showPassword: true }"></span>`,
-      {},
-    );
-    await nextTick();
-    expect(field(root).querySelector(".asc-input-eye")).toBeNull();
-  });
-
   test("prefix/suffix 文本与图标双形态（对象 props 经状态引用注入；装饰上提 field 出口）", async () => {
     const { root } = mount(
       `<span x-component:autospark.input="{ prefix: '¥', suffix: iconConf }"></span>`,
@@ -232,29 +193,18 @@ describe("交互件", () => {
     expect(suf.querySelector(".asc-input-icon")).toBeTruthy(); // x-icon 渲染图标载体
   });
 
-  test("showCount：maxlength 在场显示 len/max，输入跟随更新，超限挂 data-over", async () => {
+  test("showPassword/showCount 已移除（2026-11-18 API 删减，ADR-0020 修订三）：props 不再有渲染面", async () => {
     const { root } = mount(
-      `<span x-component:autospark.input="{ maxlength: 5, showCount: true, value: 'abc' }"></span>`,
+      `<span x-component:autospark.input="{ type: 'password', showPassword: true, showCount: true, value: 'secret' }"></span>`,
       {},
     );
     await nextTick();
     const host = field(root);
-    expect(host.querySelector(".asc-input-count")!.textContent!.trim()).toBe("3 / 5");
-    const input = nativeOf(root)!;
-    input.value = "abcdef"; // 超限（测试直写绕过原生截断）
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    await nextTick();
-    expect(host.querySelector(".asc-input-count")!.textContent!.trim()).toBe("6 / 5");
-    expect(host.hasAttribute("data-over")).toBe(true); // 超限染色通道
-  });
-
-  test("showCount 无 maxlength：仅显示 len", async () => {
-    const { root } = mount(
-      `<span x-component:autospark.input="{ showCount: true, value: '四字' }"></span>`,
-      {},
-    );
-    await nextTick();
-    expect(field(root).querySelector(".asc-input-count")!.textContent!.trim()).toBe("2");
+    expect(host.querySelector(".asc-input-eye")).toBeNull(); // 眼睛钮不再渲染
+    expect(host.querySelector(".asc-input-count")).toBeNull(); // 计数器不再渲染
+    expect(host.hasAttribute("data-over")).toBe(false); // 超限染色通道随计数一并移除
+    const input = nativeOf(root) as HTMLInputElement;
+    expect(input.type).toBe("password"); // type 透传不受影响
   });
 });
 

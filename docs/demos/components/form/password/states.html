@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Password · 状态色 / 禁用 / 尺寸档位</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.password.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" style="max-width: 460px">
+      <div class="auto-card">
+        <div class="auto-card-header">status 状态色与禁用 / 只读</div>
+        <div class="auto-card-body">
+          <p><x-password status="error" value="secret"></x-password></p>
+          <p><x-password status="warning" value="secret"></x-password></p>
+          <p><x-password status="success" value="secret"></x-password></p>
+          <p><x-password value="secret" disabled="true"></x-password></p>
+          <p><x-password value="secret" readonly="true"></x-password></p>
+          <p class="hint">
+            状态色 / 禁用同步由 field 骨架继承；<strong>只读仍可切换明文</strong>（允许查看），<strong>禁用下眼睛钮点击零效果</strong>（钮不隐藏，避免布局跳动）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">尺寸档位（主题通道 data-size，无自有尺寸属性）</div>
+        <div class="auto-card-body">
+          <p data-size="small"><x-password value="secret" placeholder="小档"></x-password></p>
+          <p data-size="medium"><x-password value="secret" placeholder="中档（缺省）"></x-password></p>
+          <p data-size="large"><x-password value="secret" placeholder="大档"></x-password></p>
+          <p class="hint">档位属性挂任意祖先容器即整片生效（<code>--auto-input-height</code> 随档联动）。</p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">暗色态（容器 data-dark）</div>
+        <div class="auto-card-body" data-dark style="background: #1a1a1a; border-radius: 8px; padding: 12px">
+          <p><x-password value="secret" clearable="true"></x-password></p>
+          <p><x-password status="error" value="secret"></x-password></p>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

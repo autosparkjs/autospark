@@ -328,7 +328,7 @@ const normalized = normalizeIconSvg('<svg viewBox="0 0 16 16" fill="none"><path 
 
 ### 内置图标
 
-引擎**随包自带一组常用图标**（共 15 枚），以条目形式驻在全局注册表 `AutoSpark.icons` 中（模块加载即注入全局 sprite）——**零声明直接可用**：`x-icon="info"` 无需 `<template x-icons>` 声明、无需远程请求。
+引擎**随包自带一组常用图标**（共 30 枚），以条目形式驻在全局注册表 `AutoSpark.icons` 中（模块加载即注入全局 sprite）——**零声明直接可用**：`x-icon="info"` 无需 `<template x-icons>` 声明、无需远程请求。
 
 <demo html="icon/builtin.html"/>
 
@@ -341,11 +341,14 @@ const normalized = normalizeIconSvg('<svg viewBox="0 0 16 16" fill="none"><path 
 
 | 类别     | 图标名                                                                          |
 | -------- | ------------------------------------------------------------------------------- |
-| 兜底     | `default`（未命中回退图形）                                                       |
+| 兜底     | `default`（未命中回退图形）· `unknown`（未知态）                                  |
 | 状态语义 | `yes` · `no` · `warn` · `error` · `info` · `success`                              |
-| 交互     | `arrow`（折叠箭头）· `refresh`（刷新）· `copy`（复制）· `external`（外链）        |
+| 操作     | `arrow`（折叠箭头）· `refresh`（刷新）· `copy`（复制）· `edit`（编辑）· `external`（外链）· `more`（更多）· `menu`（菜单）· `star`（收藏） |
+| 文件目录 | `file` · `file-error` · `folder` · `folder-open`                                  |
 | 选择态   | `unchecked` · `checked` · `semi-checked`                                          |
-| 其他     | `file`                                                                            |
+| 表单安全 | `key`（密码框前缀）· `eye`（明文）· `eye-off`（掩码）                             |
+| 加载动效 | `loading` · `loading2` · `ripple`                                                  |
+| 其他     | `bell`（通知）                                                                    |
 
 三条规则：
 
@@ -354,7 +357,7 @@ const normalized = normalizeIconSvg('<svg viewBox="0 0 16 16" fill="none"><path 
 - **全局共享**：`engine.destroy()` **不清理**内置图标与 sprite（document 级资产纪律）
 
 ::: warning 命名避让
-这 15 个名字占用全局命名空间——业务图标请避开同名（如需自绘关闭叉，请用 `close` 而非 `no`），否则会覆盖内置条目并连带改变引擎自身部件的图形。
+这 30 个名字占用全局命名空间——业务图标请避开同名（如需自绘关闭叉，请用 `close` 而非 `no`），否则会覆盖内置条目并连带改变引擎自身部件的图形。
 :::
 
 ::: tip `file` 与 `arrow` 同形

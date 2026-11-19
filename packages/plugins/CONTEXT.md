@@ -408,7 +408,12 @@ _Avoid_: base-field / BaseField（2026-11-14 已更名旧称，ADR-0020 修订�
 
 **多行文本框 / autospark.textarea（Textarea）**:
 form 域的多行输入组件（ADR-0032，2026-11-17 自 input 的 `type="textarea"` 变体拆出独立成件）：继承 `autospark.field`（不继承 input），真实原生 `<textarea>` + 盒饰；`autosize` 默认开启（`minRows` 缺省取 `rows`、`maxRows` 默认 8、到顶内部滚动），开启时强制 `resize:none`，关闭后尊重 `resize`（缺省 vertical）；计数器（`maxlength` 在场自动显示 / `showCount` 显式开启）与清除钮为盒内浮层（右下 / 右上），不占文本行宽；`actions` 由 field 继承但改为控件上 / 下整行（`pos: before` 在上、`after` 在下）；不提供 `prefix` / `suffix`。值桥 / 计数 / 清除逻辑按「复制而非嵌套」自持（ADR-0021）。
-_Avoid_: 文本域（泛化）、多行输入框（与单行 input 混淆）、autospark.textarea 继承 input（被否决——单行专属逻辑渗透 + 依赖链）、`<x-input type="textarea">`（已下线，静默降级为单行输入，不警告）、textarea 的 prefix/suffix（有意不提供，重装饰走 field 具名插槽）
+_Avoid_: 文本域（泛化）、多行输入框（与单行 input 混淆）、autospark.textarea 继承 input（被否决——多行件判据：单行专属逻辑渗透 + 依赖链；反向单行件继承 input 的判据见 ADR-0034）、`<x-input type="textarea">`（已下线，静默降级为单行输入，不警告）、textarea 的 prefix/suffix（有意不提供，重装饰走 field 具名插槽）
+
+**密码框 / autospark.password（Password）**:
+form 域的密码输入组件（ADR-0034，2026-11-18）：**真继承 autospark.input**（继承链 password → input → field → autospark.base）——值桥（宿主 `el.value` 劫持）、原生属性同步（placeholder / maxlength / name）、清除钮、`prefix` / `suffix` props、`actions` 融合动作、`status` 状态色全部继承；本组件增量三件：①前缀钥匙装饰（内置图标 `key`，恒在消费方 `prefix` 装饰之前，消费方投影 `prefix` 插槽时整段让位）；②明文可见切换（眼睛钮，`viewable` 缺省 `true`；掩码态 `eye` / 明文态 `eye-off`）；③密码场景原生属性 `minlength` / `autocomplete` 透传（原生语义，无内置提示/校验/计数）。`type` **冻结**为 `password`（外部传值静默丢弃）。明文态（内部 `revealed`）只改原生 `input.type`，不改值、不派发事件、不参与值通道；清空与 `viewable` 翻假均强制复位隐藏。眼睛钮是 body 功能动作件（`data-autospark-action`，不进可被投影顶掉的出口）、`role="button"` + 中文 `aria-label`（显示/隐藏密码）+ `aria-pressed`，键盘可达性缺口与清除钮同轨（已知边界）。
+_消歧_: **明文态**（`revealed`，表现状态：当前是否以 text 呈现）≠ **`viewable`**（能力开关：眼睛钮在不在）；`visible` 是两者混称，禁用。与 `autospark.input` 的 `type="password"` 分工：后者只有原生掩码，没有钥匙装饰与可见切换；反之需要非密码 type 请回 input。
+_Avoid_: `visible`（与 viewable 同形不同义）、`showPassword`（input 已于 2026-11-18 移除，回归形态是独立组件而非 input props）、眼睛钮放 suffix 出口（可被消费方投影顶掉，否决）、`toggleable`（能力开关正名 `viewable`）、把明文态写进值通道或状态机（纯表现，不改值）、受控明文态 props（受控可见 = 明文常驻安全隐患，未提供）
 
 ### 资源层（Resource）
 

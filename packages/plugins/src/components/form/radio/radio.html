@@ -129,7 +129,7 @@
       width: 1.15em;
       height: 1.15em;
       border: var(--auto-border-size, var(--asc-radio-border-size, 1px)) solid
-        var(--auto-border-color, var(--asc-radio-border, #d9d9d9));
+        var(--auto-input-border-color, var(--asc-radio-border, #d9d9d9));
       border-radius: 50%;
       background: var(--auto-bgcolor, var(--asc-radio-bg, #ffffff));
       transition:
@@ -147,9 +147,6 @@
       opacity: 0;
       cursor: inherit;
     }
-
-    /* ---------- 状态色（骨架通道）：status 在场边框染 tone（裸态控件只消费 tone 不吃 chrome）；
-             选中底色恒 tone（缺省主色，error/success/warning 随动——选中态语义色联动） ---------- */
     .asc-radio[data-status] .asc-radio-box {
       border-color: var(--asc-field-tone);
     }
@@ -172,8 +169,14 @@
     }
 
     /* ---------- 交互态 ---------- */
-    .asc-radio-wrap:hover .asc-radio-box:not(:has(> .asc-radio-input:checked)):not(:has(> .asc-radio-input:disabled)) {
-      border-color: var(--auto-hover-border-color, var(--asc-radio-hover-border, #4098fc));
+    .asc-radio-wrap:hover
+      .asc-radio-box:not(:has(> .asc-radio-input:checked)):not(
+        :has(> .asc-radio-input:disabled)
+      ) {
+      border-color: var(
+        --auto-hover-border-color,
+        var(--asc-radio-hover-border, #4098fc)
+      );
     }
     /* 键盘焦点环（data-focus 由骨架 focusin/focusout 同步——鼠标点击聚焦亦点亮，
          与盒饰类控件的焦点语义一致）；禁用不点环 */
@@ -200,9 +203,20 @@
       border-color: var(--auto-border-color, var(--asc-radio-border, #52525b));
       background: var(--auto-bgcolor, var(--asc-radio-bg, #3a3a3a));
     }
-    [dark] .asc-radio-wrap:hover .asc-radio-box:not(:has(> .asc-radio-input:checked)):not(:has(> .asc-radio-input:disabled)),
-    [data-dark] .asc-radio-wrap:hover .asc-radio-box:not(:has(> .asc-radio-input:checked)):not(:has(> .asc-radio-input:disabled)) {
-      border-color: var(--auto-hover-border-color, var(--asc-radio-hover-border, #4098fc));
+    [dark]
+      .asc-radio-wrap:hover
+      .asc-radio-box:not(:has(> .asc-radio-input:checked)):not(
+        :has(> .asc-radio-input:disabled)
+      ),
+    [data-dark]
+      .asc-radio-wrap:hover
+      .asc-radio-box:not(:has(> .asc-radio-input:checked)):not(
+        :has(> .asc-radio-input:disabled)
+      ) {
+      border-color: var(
+        --auto-hover-border-color,
+        var(--asc-radio-hover-border, #4098fc)
+      );
     }
   </style>
   <!-- 默认段（替换 field 出口 fallback）：label 包裹的真实 radio + 自绘圆环 + 文案。

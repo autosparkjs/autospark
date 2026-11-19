@@ -1154,6 +1154,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             value: false,           // 勾选值（checkable 模式；=== checkValues[0] 即选中态）\r
             checkValues: [true, false], // 勾选二元组 [checked 值, unchecked 值]（任意类型，严格相等判定；对象须路径引用）\r
             checkStyle: "corner",   // 选中渲染：solid 实底 | check 最左打勾占位 | corner 右上角打勾三角 | ripple 最左涟漪动画占位（四值语义同 state-button 的 decorate 项键）\r
+            checkMark: false,       // check 占位列（纯视觉，menu v2 ADR-0033 决策 6）：true 时挂 asc-check-<checkStyle> 形态类但**不启用** checkable 行为桥——勾选态由外部 asc-marked 类驱动（显 ✓）；为「同级统一 check 占位」而设（占位项与勾选项同列对齐），checkable 在场时忽略\r
             // computed 简写（普通函数值即计算属性，仅限单表达式）：autoInsertSpace 开启且\r
             // label 恰为两个汉字时中间插入空格\r
             displayLabel: (s) => (s.autoInsertSpace && /^[一-龥]{2}$/.test(s.label ?? "")) ? (s.label[0] + " " + s.label[1]) : s.label\r
@@ -1262,6 +1263,16 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             // 保真）；checkValues 任意值服务 props value 通道与表单提交值。勾选视觉 JS class\r
             // 驱动（.asc-checked / .asc-check-<style>）——Chromium :active 粘滞期间 :has(属性\r
             // 变化) 不重算（点击描边延迟到下次交互才现的根因），class 变化是强失效信号\r
+            // check 占位列（纯视觉，menu v2 ADR-0033 决策 6）：只挂形态类不启行为桥——勾选态由\r
+            // 外部 asc-marked 类驱动（CSS 显影）；checkable 在场时忽略（真勾选走上方行为桥）\r
+            if (!this.data.checkable && this.data.checkMark) {\r
+                this.el.classList.add("asc-check-" + (this.data.checkStyle || "check"));\r
+                this.watch("checkStyle", ({ value: s }) => { // 渲染样式热切换：摘旧类挂新类（行为桥同款）\r
+                    for (const k of ["solid", "check", "corner", "ripple"]) this.el.classList.remove("asc-check-" + k);\r
+                    this.el.classList.add("asc-check-" + (s || "check"));\r
+                });\r
+            }\r
+\r
             if (this.data.checkable) {\r
                 this.el.classList.add("asc-check-" + this.data.checkStyle);\r
                 const proto = Object.getOwnPropertyDescriptor(HTMLButtonElement.prototype, "value");\r
@@ -1495,7 +1506,10 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       font-size: 0.9em;\r
       font-weight: bold;\r
     }\r
-    .asc-button.asc-checked.asc-check-check > .asc-button-body::before {\r
+    /* asc-marked：外部 class 驱动的勾选显影（checkMark 占位列的勾选态，menu v2 写入——\r
+       不走 checkable 行为桥，避免与宿主组件的点击处理双写） */\r
+    .asc-button.asc-checked.asc-check-check > .asc-button-body::before,\r
+    .asc-button.asc-marked.asc-check-check > .asc-button-body::before {\r
       content: "✓";\r
     }\r
     /* corner：勾选 = tone 外描边（box-shadow，视觉等价 outline 且跟随圆角）+ 右上角 tone 小三角\r
@@ -8321,7 +8335,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
 \r
     事件出口（组件默认封闭，原生事件经冒泡到外层消费）：\r
     - input / change：内层原生控件事件自然冒泡（x-model 与外层 @input/@change 直接消费）\r
-    - 清除/眼睛切换为内部动作件（data-autospark-action，点击不转发焦点），不派发自定义事件\r
+    - 清除为内部动作件（data-autospark-action，点击不转发焦点），不派发自定义事件\r
 -->\r
 <!-- 根 class 拼接进骨架宿主（.asc-field + .asc-input + .asc-field-box 盒饰选配）；\r
      变体与状态属性经 mounted 的 JS 通道同步（data-over），根上无动态绑定（T4=B） -->\r
@@ -8336,16 +8350,12 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             type: "text",          // 文本族：text/password/email/tel/url/search 等（透传原生 input type）\r
             value: "",             // 非受控初值 / 单向同步值（受控真相走宿主 x-model——el.value 桥，ADR-0020）\r
             placeholder: "",       // 占位文案（同步原生 placeholder）\r
-            maxlength: 0,          // >0 同步原生 maxlength（原生输入截断）+ 计数分母\r
+            maxlength: 0,          // >0 同步原生 maxlength（原生输入截断）\r
             clearable: false,      // 清除钮（值非空且可交互时可见；点击清空 + 派发 input + 焦点回控件）\r
-            showPassword: false,   // 密码可见切换眼睛钮（仅 type=password 消费，其余形态忽略）\r
-            showCount: false,      // 计数器（maxlength 在场显示「len / max」，否则仅 len；超限染 danger）\r
             prefix: "",            // 前置装饰：string 文本 | { icon: "图标名" } 图标（对象经状态引用注入）\r
             suffix: "",            // 后置装饰：形态同 prefix\r
             // —— 内部状态 ——\r
-            passwordVisible: false, // 密码可见态（眼睛切换，内层 type password ↔ text）\r
             hasValue: false,        // 当前有值（清除钮可见性驱动；JS 通道随输入维护）\r
-            countText: "",          // 计数文本（JS 侧构建——绑定通道对 props 后续注入不重算，ADR-0020）\r
         }),\r
         methods: {\r
             // 清除：清空原生控件 + 手动派发 input（程序赋值不触发原生事件；冒泡过宿主\r
@@ -8359,17 +8369,6 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
                 n.dispatchEvent(new Event("input", { bubbles: true }));\r
                 n.focus();\r
             },\r
-            // 密码可见切换：翻转 passwordVisible + 内层 type password ↔ text + 焦点回控件\r
-            onTogglePassword(event) {\r
-                event.stopPropagation();\r
-                if (this.data.disabled) return;\r
-                this.data.passwordVisible = !this.data.passwordVisible;\r
-                const n = this.el.querySelector(".asc-input-native");\r
-                if (n instanceof HTMLInputElement) {\r
-                    n.type = this.data.passwordVisible ? "text" : (this.data.type || "text");\r
-                }\r
-                if (n) n.focus();\r
-            },\r
         },\r
         mounted() {\r
             // —— 内层控件查询（每查现取：运行时控件可能被重建）——\r
@@ -8377,15 +8376,10 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             // 当前值缓存（劫持 getter 的控件缺位兜底）\r
             let lastValue = "";\r
 \r
-            // —— 计数与清除可见性同步（len 由原生控件现值读出；超限染色的 data-over\r
-            //     落宿主属性，CSS 通道消费——JS 直写无 T4=B 约束）——\r
+            // —— 清除可见性同步（len 由原生控件现值读出）——\r
             const syncLen = () => {\r
                 const n = native();\r
-                const len = n ? String(n.value ?? "").length : 0;\r
-                this.data.hasValue = len > 0;\r
-                const max = Number(this.data.maxlength) || 0;\r
-                this.data.countText = max > 0 ? \`\${len} / \${max}\` : \`\${len}\`;\r
-                this.el.toggleAttribute("data-over", max > 0 && len > max);\r
+                this.data.hasValue = n ? String(n.value ?? "").length > 0 : false;\r
             };\r
 \r
             // —— 值同步（外部 → 控件）——\r
@@ -8402,8 +8396,8 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
                 if (!n) return;\r
                 const t = String(this.data.type ?? "text");\r
                 if (n instanceof HTMLInputElement) {\r
-                    // type 透传（密码可见切换：password + passwordVisible → text）\r
-                    n.type = t === "password" && this.data.passwordVisible ? "text" : (t || "text");\r
+                    // type 透传\r
+                    n.type = t || "text";\r
                 }\r
                 n.placeholder = String(this.data.placeholder ?? "");\r
                 const ml = Number(this.data.maxlength) || 0;\r
@@ -8459,8 +8453,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             // —— props 变化跟随（回调收 { value } 信封对象，此处只用作触发信号）——\r
             this.watch("type", () => { setTimeout(() => { syncAttrs(); syncValue(); }, 0); });\r
             this.watch("placeholder", () => { setTimeout(syncAttrs, 0); });\r
-            this.watch("maxlength", () => { setTimeout(() => { syncAttrs(); syncLen(); }, 0); });\r
-            this.watch("showPassword", () => { setTimeout(syncAttrs, 0); });\r
+            this.watch("maxlength", () => { setTimeout(syncAttrs, 0); });\r
             // value props 单向同步（非受控/外部受控无 x-model 场景）：变化才写（与自身\r
             // 桥写不冲突——guard 防回环）。已见值比对幂等防御（checkbox 同款）：scope.refresh\r
             // 类无变化重跑（i18n ready 换血等）不得把 x-model expando 注入的初值打回 props\r
@@ -8514,7 +8507,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       white-space: nowrap;\r
     }\r
 \r
-    /* ---------- 动作件（清除/眼睛切换）：内部交互钮，淡色常态 + 悬停正文色 ---------- */\r
+    /* ---------- 动作件（清除钮）：内部交互钮，淡色常态 + 悬停正文色 ---------- */\r
     .asc-input-action {\r
       flex: none;\r
       display: inline-flex;\r
@@ -8533,18 +8526,6 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       transform: scale(0.92);\r
     }\r
 \r
-    /* ---------- 计数器：小一号辅助色；超限（data-over 由 mounted 同步）染 danger ---------- */\r
-    .asc-input-count {\r
-      flex: none;\r
-      margin-left: 0.45em;\r
-      font-size: 0.75em;\r
-      white-space: nowrap;\r
-      color: var(--auto-third-color, var(--asc-input-count, rgba(0, 0, 0, 0.35)));\r
-    }\r
-    .asc-input[data-over] .asc-input-count {\r
-      color: var(--auto-danger-color, var(--asc-input-count-over, #ef4444));\r
-    }\r
-\r
     /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */\r
     [dark] .asc-input-native::placeholder,\r
     [data-dark] .asc-input-native::placeholder {\r
@@ -8561,14 +8542,6 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     [dark] .asc-input-action:hover,\r
     [data-dark] .asc-input-action:hover {\r
       color: var(--auto-color, var(--asc-input-action-hover, #fafafa));\r
-    }\r
-    [dark] .asc-input-count,\r
-    [data-dark] .asc-input-count {\r
-      color: var(--auto-third-color, var(--asc-input-count, rgba(255, 255, 255, 0.45)));\r
-    }\r
-    [dark] .asc-input[data-over] .asc-input-count,\r
-    [data-dark] .asc-input[data-over] .asc-input-count {\r
-      color: var(--auto-danger-color, var(--asc-input-count-over, #e6696a));\r
     }\r
   </style>\r
   <!-- 命名覆盖段（2026-11-16 装饰上提，ADR-0020 修订）：props 前后置装饰经 template\r
@@ -8591,9 +8564,10 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </span>\r
   </template>\r
   <!-- 默认段（替换 field 出口 fallback）：控件本体与功能动作件，文档序即呈现序\r
-         [控件] [清除] [眼睛] [计数]——props 前后置装饰已上提 field 出口（见上方命名\r
-         覆盖段）；功能件（清除/眼睛/计数）刻意留 body：不进可被消费方投影顶掉的\r
-         出口 fallback 位（ADR-0020 修订取舍） -->\r
+         [控件] [清除]——props 前后置装饰已上提 field 出口（见上方命名覆盖段）；\r
+         功能件（清除）刻意留 body：不进可被消费方投影顶掉的出口 fallback 位\r
+         （ADR-0020 修订取舍）。眼睛切换/计数已随 show-password/show-count 一并移除\r
+         （2026-11-18 API 删减，ADR-0020 修订三） -->\r
   <input class="asc-input-native" data-autospark-control />\r
   <i\r
     class="asc-input-action asc-input-clear"\r
@@ -8602,16 +8576,168 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     x-icon="'no'"\r
     @click="onClear($event)"\r
   ></i>\r
-  <i\r
-    class="asc-input-action asc-input-eye"\r
-    data-autospark-action\r
-    x-if="showPassword && type === 'password'"\r
-    x-icon="passwordVisible ? 'input-eye-off' : 'input-eye'"\r
-    @click="onTogglePassword($event)"\r
-  ></i>\r
-  <span class="asc-input-count" x-if="showCount">{{ countText }}</span>\r
 </span>\r
-`,ba=`autospark.input`,xa=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>`,Sa=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>`,Ca=new Set([`disabled`,`readonly`,`clearable`,`show-password`,`show-count`]);function wa(e){let t=e.icons;t?.add?.(`input-eye`,xa),t?.add?.(`input-eye-off`,Sa),e.components[ba]=ya,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-input`))){let e=document.createElement(`span`),n=[];for(let r of Array.from(t.attributes)){if(r.name.startsWith(`:`)){n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`);continue}if(r.name===`class`||r.name===`style`||r.name===`id`||r.name===`name`||r.name===`title`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)){e.setAttribute(r.name,r.value);continue}let t=Z(r.name);r.value===``&&Ca.has(r.name)?n.push(`${Q(t)}: true`):n.push(`${Q(t)}: ${JSON.stringify($(r.value))}`)}let r=t.textContent?.trim()??``,i=n.some(e=>e.startsWith(`value:`)),a=t.children.length>0;for(r!==``&&!i&&!a&&(n.push(`value: ${JSON.stringify(r)}`),t.textContent=``),e.setAttribute(`x-component:${ba}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Ta();function Ta(){y(e=>{m(e),wa(e)})}var Ea=`<!--
+`,ba=`autospark.input`,xa=new Set([`disabled`,`readonly`,`clearable`]);function Sa(e){e.components[ba]=ya,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-input`))){let e=document.createElement(`span`),n=[];for(let r of Array.from(t.attributes)){if(r.name.startsWith(`:`)){n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`);continue}if(r.name===`class`||r.name===`style`||r.name===`id`||r.name===`name`||r.name===`title`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)){e.setAttribute(r.name,r.value);continue}let t=Z(r.name);r.value===``&&xa.has(r.name)?n.push(`${Q(t)}: true`):n.push(`${Q(t)}: ${JSON.stringify($(r.value))}`)}let r=t.textContent?.trim()??``,i=n.some(e=>e.startsWith(`value:`)),a=t.children.length>0;for(r!==``&&!i&&!a&&(n.push(`value: ${JSON.stringify(r)}`),t.textContent=``),e.setAttribute(`x-component:${ba}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Ca();function Ca(){y(e=>{m(e),Sa(e)})}var wa=`<!--
+    autospark.password 密码框（ADR-0034）——真继承 autospark.input（继承链
+    password → input → field → autospark.base）：值桥（宿主 el.value 劫持）、原生
+    属性同步（placeholder / maxlength / name）、清除钮、prefix / suffix props、
+    styles 拼接全部复用；本组件只贡献密码场景的两个附加件——前缀钥匙装饰（key）
+    与明文可见切换（眼睛钮）。
+
+    默认段整段重声明（继承覆盖 ADR-0081：出口 fallback 不随父模板传导）：
+    [input][clear][eye]。功能动作件刻意留 body——不进可被消费方投影顶掉的出口位
+    （ADR-0020 装饰上提纪律），眼睛钮若落 suffix 出口会被消费方投影顶掉、密码框
+    失去核心能力（ADR-0034 决策 3）。
+
+    明文态（内部 revealed，ADR-0034 决策 2）：只改原生 input.type（password ↔ text），
+    不改值、不派发事件、不参与 x-model 通道。type 由组件冻结为 password——外部注入
+    的 type 经 data 归一压回，任何路径下都不会停留在非密码形态。
+
+    无内置文案、不接 i18n（ADR-0018 决策 1）；动作件的 aria-label 为可访问性语义
+    文案（「显示密码」/「隐藏密码」），非可见 UI 文案。
+-->
+<span class="asc-password" x-define="autospark.password" x-define:inherit="autospark.input">
+  <script setup>
+    {
+        data: () => ({
+            type: "password",      // 冻结：组件身份即密码框（外部传值被压回，ADR-0034 决策 2）
+            viewable: true,        // 明文可见切换能力开关：false = 不渲染眼睛钮（ADR-0034 决策 3）
+            minlength: 0,          // >0 同步原生 minlength（仅原生约束校验，无内置提示/计数）
+            autocomplete: "",      // 原生 autocomplete 提示（current-password / new-password 等）
+            // —— 内部状态 ——
+            revealed: false,       // 明文态：true = 原生 type 为 text（仅表现，不落值通道）
+        }),
+        methods: {
+            // 明文态落原生控件（含选区保位）：切换 input.type 会丢失/移动选区，
+            // 切前暂存、切后复原（password / text 均支持选区通道）
+            applyRevealed() {
+                const n = this.el.querySelector(".asc-input-native");
+                if (!(n instanceof HTMLInputElement)) return;
+                const start = n.selectionStart;
+                const end = n.selectionEnd;
+                n.type = this.data.revealed ? "text" : "password";
+                if (start != null && end != null) {
+                    try {
+                        n.setSelectionRange(start, end);
+                    } catch {
+                        // type 不支持选区时静默跳过（当前两态均支持，防御未来扩展）
+                    }
+                }
+            },
+            // 眼睛钮：翻转明文态 + 焦点回控件（点击动作件本身不获焦；aria-label 随态经绑定通道换）
+            onToggleReveal() {
+                if (this.data.disabled) return; // 禁用态零效果（与清除钮一致）
+                this.data.revealed = !this.data.revealed;
+                this.applyRevealed();
+                const n = this.el.querySelector(".asc-input-native");
+                if (n && typeof n.focus === "function") n.focus();
+            },
+        },
+        mounted() {
+            // —— 内层控件查询（每查现取：控件可能被运行时重建）——
+            const native = () => this.el.querySelector(".asc-input-native");
+
+            // —— type 归一：父层 data.type 缺省 text，外部经 props 注入的任意值一律压回
+            //     password（组件身份冻结）。写 data 触发父层 type watcher 的 syncAttrs，
+            //     下游原生 type 由本层 applyRevealed 最终裁定（子层 setTimeout 注册于父层
+            //     之后，宏任务序保证后手）
+            const normalizeType = () => {
+                if (this.data.type !== "password") this.data.type = "password";
+            };
+
+            // —— 密码场景专属原生属性透传：父层 syncAttrs 只管 placeholder / maxlength /
+            //     type / name（ADR-0020）；minlength / autocomplete 在本层补齐 ——
+            const syncOwnAttrs = () => {
+                const n = native();
+                if (!n) return;
+                const min = Number(this.data.minlength) || 0;
+                if (min > 0) n.setAttribute("minlength", String(min));
+                else n.removeAttribute("minlength");
+                const ac = String(this.data.autocomplete ?? "");
+                if (ac) n.setAttribute("autocomplete", ac);
+                else n.removeAttribute("autocomplete");
+            };
+
+            // —— 明文态复位（清空 / 能力关闭共用）：回掩码形态并撤状态 ——
+            const hide = () => {
+                if (!this.data.revealed) return;
+                this.data.revealed = false;
+                this.applyRevealed();
+            };
+
+            // —— 清空即复位：清除钮的清空会派发原生 input 冒泡经宿主（ADR-0020 值桥），
+            //     手输到空同样命中——值空了就回到掩码态，避免后续输入裸奔 ——
+            this.el.addEventListener("input", () => {
+                const n = native();
+                if (!n || String(n.value ?? "") === "") hide();
+            });
+
+            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）——
+            setTimeout(() => {
+                normalizeType();
+                syncOwnAttrs();
+                this.applyRevealed();
+            }, 0);
+
+            // —— props 变化跟随（回调收 { value } 信封对象）——
+            this.watch("minlength", () => { setTimeout(syncOwnAttrs, 0); });
+            this.watch("autocomplete", () => { setTimeout(syncOwnAttrs, 0); });
+            // 能力关闭：强制复位隐藏（防「明文但无钮可关」悬空态，ADR-0034 决策 3）
+            this.watch("viewable", ({ value }) => { if (!value) hide(); });
+            // type 兜底：外部注入触发父层 syncAttrs 后重新归一 + 重裁定明文态
+            this.watch("type", () => {
+                setTimeout(() => {
+                    normalizeType();
+                    this.applyRevealed();
+                }, 0);
+            });
+        },
+    }
+  <\/script>
+  <style global id="autospark-components-password">
+    /* ---------- 抑制浏览器原生密码显露钮（Edge/IE ::-ms-reveal / ::-ms-clear）：
+        本组件的眼睛钮 / 清除钮是唯一动作面，若放任 UA 钮并排会出现两套语义相同的
+        控件（ADR-0034 决策 3；旧 input 的「原生显示密码钮未协调」边界在此收口） ---------- */
+    .asc-password .asc-input-native::-ms-reveal,
+    .asc-password .asc-input-native::-ms-clear {
+      display: none;
+    }
+  </style>
+  <!-- 前缀装饰覆盖段（整段替换 input 的同名段，ADR-0137 决策三-b 不合并）：key 恒在
+       最左、消费方 prefix props 装饰紧随其后；单根容器承接出口注入类（次要色/间距/
+       防收缩落首根），多根裸奔防御。消费方投影 prefix 插槽时整段让位（显式接管） -->
+  <template x-slot:prefix class="asc-field-prefix">
+    <span class="asc-input-affix">
+      <i class="asc-input-icon asc-password-key" x-icon="'key'"></i>
+      <i class="asc-input-icon" x-if="typeof prefix === 'object' && prefix && !!prefix.icon" x-icon="prefix.icon"></i>
+      <span class="asc-input-text" x-if="typeof prefix === 'string' && !!prefix">{{ prefix }}</span>
+    </span>
+  </template>
+  <!-- 默认段（替换 field 出口 fallback）：[控件][清除][眼睛]——功能动作件留 body；
+       suffix props 装饰仍走继承来的 suffix 覆盖段（眼睛恒在其内侧） -->
+  <input class="asc-input-native" data-autospark-control />
+  <i
+    class="asc-input-action asc-input-clear"
+    data-autospark-action
+    x-if="clearable && hasValue"
+    x-icon="'no'"
+    @click="onClear($event)"
+  ></i>
+  <!-- 眼睛钮：viewable 关闭时整钮零 DOM；aria-pressed 表达明文态（动作件键盘可达性
+       缺口与清除钮同轨，文档「已知边界」有档）；点击照常冒泡（不 stopPropagation——
+       与清除钮的阻断语义有意不同，ADR-0034 决策 3） -->
+  <i
+    class="asc-input-action asc-password-eye"
+    data-autospark-action
+    role="button"
+    x-if="viewable"
+    :aria-label="revealed ? '隐藏密码' : '显示密码'"
+    :aria-pressed="revealed ? 'true' : 'false'"
+    x-icon="revealed ? 'eye-off' : 'eye'"
+    @click="onToggleReveal()"
+  ></i>
+</span>
+`,Ta=`autospark.password`,Ea=new Set([`disabled`,`readonly`,`clearable`,`viewable`]);function Da(e){e.components[Ta]=wa,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-password`))){let e=document.createElement(`span`),n=[];for(let r of Array.from(t.attributes)){if(r.name.startsWith(`:`)){n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`);continue}if(r.name===`type`)continue;if(r.name===`class`||r.name===`style`||r.name===`id`||r.name===`name`||r.name===`title`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)){e.setAttribute(r.name,r.value);continue}let t=Z(r.name);r.value===``&&Ea.has(r.name)?n.push(`${Q(t)}: true`):n.push(`${Q(t)}: ${JSON.stringify($(r.value))}`)}let r=t.textContent?.trim()??``,i=n.some(e=>e.startsWith(`value:`)),a=t.children.length>0;for(r!==``&&!i&&!a&&(n.push(`value: ${JSON.stringify(r)}`),t.textContent=``),e.setAttribute(`x-component:${Ta}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Oa();function Oa(){y(e=>{m(e),Da(e)})}var ka=`<!--
     autospark.textarea 多行文本框（ADR-0032）——原生增强路线：真实原生 <textarea>
     + 样式包裹，不自绘输入面（保原生可访问性：键盘 / IME / 自动填充 / 移动端兼容，
     ADR-0018 决策 7）。继承 autospark.field 表单域骨架（状态色通道 / 焦点态 /
@@ -8818,6 +8944,11 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
                 syncAttrs();
                 syncValue();
                 initDone = true; // 初始化完成：劫持 setter 放开重放识别门闩（此后全量生效）
+                // actions 不支持（ADR-0032 修订）：非空注入 warn 一次（渲染段已被
+                // CSS 整段屏蔽，静默忽略——多行形态不提供融合动作）
+                if (Array.isArray(this.data.actions) && this.data.actions.length > 0) {
+                    this.engine?.logger?.warn("autospark.textarea: 不支持 actions（ADR-0032 修订，多行形态已取消融合动作），注入已忽略");
+                }
             }, 0);
 
             // —— props 变化跟随（回调收 { value } 信封对象，此处只用作触发信号）——
@@ -8936,29 +9067,11 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       padding-block-end: 1.25em;
     }
 
-    /* ---------- actions 段：field 的横向融合在本组件改为控件上 / 下整行（pos: before 在上、
-         after 在下，右对齐）——按钮恢复自有描边与圆角，不与文本抢行宽。field 的融合规则
-         用 !important 解除（选择器特异性跨产物顺序不稳定，显式让位最稳） ---------- */
+    /* ---------- actions 不支持（ADR-0032 修订，2026-11-17 取消）：多行形态取消融合
+         动作——field 渲染段整段屏蔽（display:none，注入静默忽略；mounted 对非空
+         actions warn 一次）。此前「上/下整行布局」方案废止 ---------- */
     .asc-textarea .asc-field-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4em;
-      justify-content: flex-end;
-      width: 100%;
-    }
-    .asc-textarea .asc-field-actions-before {
-      order: -1;
-      margin-block-end: 0.4em;
-    }
-    .asc-textarea .asc-field-actions-after {
-      margin-block-start: 0.4em;
-    }
-    .asc-textarea .asc-field-actions .asc-field-action {
-      align-self: center !important;
-      margin: 0 !important;
-      border-width: var(--auto-border-size, var(--asc-field-border-size, 1px)) !important;
-      border-style: solid !important;
-      border-radius: var(--auto-border-radius, var(--asc-field-radius, 0.5rem)) !important;
+      display: none;
     }
 
     /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
@@ -8995,7 +9108,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   ></i>
   <span class="asc-textarea-count" x-if="countVisible">{{ countText }}</span>
 </span>
-`,Da=`autospark.textarea`,Oa=new Set([`disabled`,`readonly`,`clearable`,`show-count`,`autosize`]);function ka(e){e.components[Da]=Ea,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-textarea`))){let e=document.createElement(`span`),n=[];for(let r of Array.from(t.attributes)){if(r.name.startsWith(`:`)){n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`);continue}if(r.name===`class`||r.name===`style`||r.name===`id`||r.name===`name`||r.name===`title`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)){e.setAttribute(r.name,r.value);continue}let t=Z(r.name);r.value===``&&Oa.has(r.name)?n.push(`${Q(t)}: true`):n.push(`${Q(t)}: ${JSON.stringify($(r.value))}`)}let r=t.textContent?.trim()??``,i=n.some(e=>e.startsWith(`value:`)),a=t.children.length>0;for(r!==``&&!i&&!a&&(n.push(`value: ${JSON.stringify(r)}`),t.textContent=``),e.setAttribute(`x-component:${Da}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Aa();function Aa(){y(e=>{m(e),ka(e)})}var ja=`<!--\r
+`,Aa=`autospark.textarea`,ja=new Set([`disabled`,`readonly`,`clearable`,`show-count`,`autosize`]);function Ma(e){e.components[Aa]=ka,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-textarea`))){let e=document.createElement(`span`),n=[];for(let r of Array.from(t.attributes)){if(r.name.startsWith(`:`)){n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`);continue}if(r.name===`class`||r.name===`style`||r.name===`id`||r.name===`name`||r.name===`title`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)){e.setAttribute(r.name,r.value);continue}let t=Z(r.name);r.value===``&&ja.has(r.name)?n.push(`${Q(t)}: true`):n.push(`${Q(t)}: ${JSON.stringify($(r.value))}`)}let r=t.textContent?.trim()??``,i=n.some(e=>e.startsWith(`value:`)),a=t.children.length>0;for(r!==``&&!i&&!a&&(n.push(`value: ${JSON.stringify(r)}`),t.textContent=``),e.setAttribute(`x-component:${Aa}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Na();function Na(){y(e=>{m(e),Ma(e)})}var Pa=`<!--\r
     autospark.checkbox 复选框（ADR-0019 合批 / ADR-0020 Field 消费契约）——原生增强\r
     路线：真实原生 \`<input type="checkbox">\` + 自绘视觉（勾形 / 半选横线经 CSS 伪元素，\r
     选中态由 :checked / :indeterminate 原生伪类驱动——键盘 / 焦点 / 表单提交 / 组语义等\r
@@ -9238,7 +9351,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-checkbox-label">{{ label }}</span>\r
   </label>\r
 </span>\r
-`,Ma=`autospark.checkbox`;function Na(e){e.components[Ma]=ja}Pa();function Pa(){y(e=>{m(e),Na(e)})}var Fa=`<!--\r
+`,Fa=`autospark.checkbox`;function Ia(e){e.components[Fa]=Pa}La();function La(){y(e=>{m(e),Ia(e)})}var Ra=`<!--\r
     autospark.radio 单选钮（ADR-0019 合批 / ADR-0020 Field 消费契约）——原生增强\r
     路线：真实原生 \`<input type="radio">\` + 自绘视觉（选中圆点经 CSS 伪元素，选中态由\r
     :checked 原生伪类驱动——键盘 / 焦点 / 表单提交 / 组互斥等原生能力全保留）。\r
@@ -9369,7 +9482,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       width: 1.15em;\r
       height: 1.15em;\r
       border: var(--auto-border-size, var(--asc-radio-border-size, 1px)) solid\r
-        var(--auto-border-color, var(--asc-radio-border, #d9d9d9));\r
+        var(--auto-input-border-color, var(--asc-radio-border, #d9d9d9));\r
       border-radius: 50%;\r
       background: var(--auto-bgcolor, var(--asc-radio-bg, #ffffff));\r
       transition:\r
@@ -9387,9 +9500,6 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       opacity: 0;\r
       cursor: inherit;\r
     }\r
-\r
-    /* ---------- 状态色（骨架通道）：status 在场边框染 tone（裸态控件只消费 tone 不吃 chrome）；\r
-             选中底色恒 tone（缺省主色，error/success/warning 随动——选中态语义色联动） ---------- */\r
     .asc-radio[data-status] .asc-radio-box {\r
       border-color: var(--asc-field-tone);\r
     }\r
@@ -9412,8 +9522,14 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     }\r
 \r
     /* ---------- 交互态 ---------- */\r
-    .asc-radio-wrap:hover .asc-radio-box:not(:has(> .asc-radio-input:checked)):not(:has(> .asc-radio-input:disabled)) {\r
-      border-color: var(--auto-hover-border-color, var(--asc-radio-hover-border, #4098fc));\r
+    .asc-radio-wrap:hover\r
+      .asc-radio-box:not(:has(> .asc-radio-input:checked)):not(\r
+        :has(> .asc-radio-input:disabled)\r
+      ) {\r
+      border-color: var(\r
+        --auto-hover-border-color,\r
+        var(--asc-radio-hover-border, #4098fc)\r
+      );\r
     }\r
     /* 键盘焦点环（data-focus 由骨架 focusin/focusout 同步——鼠标点击聚焦亦点亮，\r
          与盒饰类控件的焦点语义一致）；禁用不点环 */\r
@@ -9440,9 +9556,20 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       border-color: var(--auto-border-color, var(--asc-radio-border, #52525b));\r
       background: var(--auto-bgcolor, var(--asc-radio-bg, #3a3a3a));\r
     }\r
-    [dark] .asc-radio-wrap:hover .asc-radio-box:not(:has(> .asc-radio-input:checked)):not(:has(> .asc-radio-input:disabled)),\r
-    [data-dark] .asc-radio-wrap:hover .asc-radio-box:not(:has(> .asc-radio-input:checked)):not(:has(> .asc-radio-input:disabled)) {\r
-      border-color: var(--auto-hover-border-color, var(--asc-radio-hover-border, #4098fc));\r
+    [dark]\r
+      .asc-radio-wrap:hover\r
+      .asc-radio-box:not(:has(> .asc-radio-input:checked)):not(\r
+        :has(> .asc-radio-input:disabled)\r
+      ),\r
+    [data-dark]\r
+      .asc-radio-wrap:hover\r
+      .asc-radio-box:not(:has(> .asc-radio-input:checked)):not(\r
+        :has(> .asc-radio-input:disabled)\r
+      ) {\r
+      border-color: var(\r
+        --auto-hover-border-color,\r
+        var(--asc-radio-hover-border, #4098fc)\r
+      );\r
     }\r
   </style>\r
   <!-- 默认段（替换 field 出口 fallback）：label 包裹的真实 radio + 自绘圆环 + 文案。\r
@@ -9456,7 +9583,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-radio-label">{{ label }}</span>\r
   </label>\r
 </span>\r
-`,Ia=`autospark.radio`;function La(e){e.components[Ia]=Fa}Ra();function Ra(){y(e=>{m(e),La(e)})}var za=`<!--\r
+`,za=`autospark.radio`;function Ba(e){e.components[za]=Ra}Va();function Va(){y(e=>{m(e),Ba(e)})}var Ha=`<!--\r
     autospark.switch 开关（ADR-0019 合批 / ADR-0020 Field 消费契约）——**自绘开关**\r
     （无原生对应控件）：轨道 + 滑块纯 CSS 自绘，可访问性自持——role="switch" +\r
     aria-checked + tabindex + 键盘 Space/Enter 切换（原生 checkbox 方案的对照：彼保真\r
@@ -9700,7 +9827,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-switch-label">{{ label }}</span>\r
   </span>\r
 </span>\r
-`,Ba=`autospark.switch`;function Va(e){e.components[Ba]=za}Ha();function Ha(){y(e=>{m(e),Va(e)})}var Ua=`<!--\r
+`,Ua=`autospark.switch`;function Wa(e){e.components[Ua]=Ha}Ga();function Ga(){y(e=>{m(e),Wa(e)})}var Ka=`<!--\r
     autospark.input-number 数字输入框（ADR-0018 决策 7 原生增强）——真实原生 input\r
     （inputmode=decimal，键盘/IME/自动填充全保留）+ 盒饰包裹 + 步进钮组。复制 input\r
     结构而非嵌套消费（值桥语域分叉 + 自包含产物，见 index.ts 头注释）；继承\r
@@ -10076,7 +10203,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </i>\r
   </span>\r
 </span>\r
-`,Wa=`autospark.input-number`;function Ga(e){e.components[Wa]=Ua}Ka();function Ka(){y(e=>{m(e),Ga(e)})}var qa=`<!--\r
+`,qa=`autospark.input-number`;function Ja(e){e.components[qa]=Ka}Ya();function Ya(){y(e=>{m(e),Ja(e)})}var Xa=`<!--\r
     autospark.slider 滑动条（ADR-0018 决策 7 原生增强）——真实原生 <input type=range>\r
     藏起仍可交互（opacity:0 覆盖层：点击跳值/拖拽跟随/键盘方向键/触屏原生行为与\r
     可访问性全保留），轨道/已填充段/滑块视觉自绘。继承 autospark.field 骨架\r
@@ -10384,7 +10511,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span x-component:autospark.input-number></span>\r
   </span>\r
 </span>\r
-`,Ja=`autospark.slider`;function Ya(e){e.components[Ja]=qa}Xa();function Xa(){y(e=>{m(e),Ya(e)})}var Za=`<!--\r
+`,Za=`autospark.slider`;function Qa(e){e.components[Za]=Xa}$a();function $a(){y(e=>{m(e),Qa(e)})}var eo=`<!--\r
     autospark.rate 评分（自绘路线，无原生对应控件）——引擎内置 star 星形图标 ×N\r
     （x-for 渲染，max 可配），off 灰星底层 + on 亮星覆盖层（clip-path 百分比裁剪，\r
     100% 整星 / 50% 半星）。可访问性自持：role=slider 单焦点键盘模型（tabindex +\r
@@ -10729,7 +10856,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </span>\r
   </span>\r
 </span>\r
-`,Qa=`autospark.rate`;function $a(e){e.components[Qa]=Za}eo();function eo(){y(e=>{m(e),$a(e)})}var to=`<!--\r
+`,to=`autospark.rate`;function no(e){e.components[to]=eo}ro();function ro(){y(e=>{m(e),no(e)})}var io=`<!--\r
     autospark.select 下拉选择器（ADR-0022）——触发器组件：Field 盒饰形态\r
     （.asc-field-box，input 同款 chrome）+ 选中值展示 + 下拉箭头。下拉面板不自建弹层，\r
     复用 x-popover 指令机制呈现（trigger:click 形态——点击切换 / 面板外点击 / ESC 关闭\r
@@ -11251,7 +11378,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     x-icon="loading ? 'loading' : 'select-down'"\r
   ></i>\r
 </span>\r
-`,no=`<!--\r
+`,ao=`<!--\r
     autospark-select-panel 下拉面板（ADR-0022）——select 的内部组件（非用户直接消费，\r
     无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制（trigger:click）\r
     渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位/宽度 fit 随触发器）由 popover-shell\r
@@ -11389,7 +11516,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     ></div>\r
   </div>\r
 </div>\r
-`,ro=`autospark.select`,io=`autospark-select-panel`,ao=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;function oo(e){e.icons?.add?.(`select-down`,ao),e.components[ro]=to,e.components[io]=no}so();function so(){y(e=>{m(e),oo(e)})}var co=`<!--
+`,oo=`autospark.select`,so=`autospark-select-panel`,co=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;function lo(e){e.icons?.add?.(`select-down`,co),e.components[oo]=io,e.components[so]=ao}uo();function uo(){y(e=>{m(e),lo(e)})}var fo=`<!--
     autospark.transfer 穿梭框（ADR-0028）——双列表（源/目标）+ 中间穿梭钮复合控件。
 
     内部装配（ADR-0018 决策 2「内部装配、对外开箱」，取舍见 ADR-0028）：
@@ -12025,7 +12152,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </div>
   </div>
 </div>
-`,lo=`autospark.transfer`;function uo(e){e.components[lo]=co}fo();function fo(){y(e=>{m(e),uo(e)})}var po=`<!--
+`,po=`autospark.transfer`;function mo(e){e.components[po]=fo}ho();function ho(){y(e=>{m(e),mo(e)})}var go=`<!--
     autospark.color-picker 颜色选择器（ADR-0028）——触发器组件：Field 盒饰形态
     （.asc-field-box，select 同款 chrome）+ 色块预览 + hex 文案。取色面板不自建弹层，
     复用 x-popover 指令机制呈现（trigger:click，ADR-0060）：内层触发器元素即 popover
@@ -12506,7 +12633,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-color-picker-hex" x-text="liveHex"></span>
   </span>
 </span>
-`,mo=`<!--
+`,_o=`<!--
     autospark-color-panel 取色面板（ADR-0028）——color-picker 的内部组件（非用户直接
     消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制（trigger:click）
     渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位/关闭触点）由 popover-shell 承载，
@@ -12644,7 +12771,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     />
   </div>
 </div>
-`,ho=`autospark.color-picker`,go=`autospark-color-panel`;function _o(e){e.components[ho]=po,e.components[go]=mo}vo();function vo(){y(e=>{m(e),_o(e)})}var yo=`<!--
+`,vo=`autospark.color-picker`,yo=`autospark-color-panel`;function bo(e){e.components[vo]=go,e.components[yo]=_o}xo();function xo(){y(e=>{m(e),bo(e)})}var So=`<!--
     autospark.date-picker 日期选择器（ADR-0025）——触发器组件：Field 盒饰形态
     （.asc-field-box，input/select 同款 chrome）+ 选中值展示 + 日历图标。日历面板
     不自建弹层，复用 x-popover 指令机制呈现（trigger:click 形态——点击切换 / 面板
@@ -13272,7 +13399,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   ></i>
   <i class="asc-date-picker-icon" data-autospark-action x-icon="'date-calendar'"></i>
 </span>
-`,bo=`<!--
+`,Co=`<!--
     autospark-date-picker-panel 日历面板（ADR-0025）——date-picker 的内部组件（非用户
     直接消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制
     （trigger:click）渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位）由 popover-shell
@@ -13357,7 +13484,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     ></button>
   </div>
 </div>
-`,xo=`autospark.date-picker`,So=`autospark-date-picker-panel`,Co=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>`;function wo(e){e.icons?.add?.(`date-calendar`,Co),e.components[xo]=yo,e.components[So]=bo}To();function To(){y(e=>{m(e),wo(e)})}var Eo=`<!--
+`,wo=`autospark.date-picker`,To=`autospark-date-picker-panel`,Eo=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>`;function Do(e){e.icons?.add?.(`date-calendar`,Eo),e.components[wo]=So,e.components[To]=Co}Oo();function Oo(){y(e=>{m(e),Do(e)})}var ko=`<!--
     autospark.time-picker 时间选择器（ADR-0025）——触发器组件：Field 盒饰形态
     （.asc-field-box，input/select 同款 chrome）+ 选中值展示 + 时钟图标。时间面板
     不自建弹层，复用 x-popover 指令机制呈现（trigger:click 形态——点击切换 / 面板
@@ -13779,7 +13906,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   ></i>
   <i class="asc-time-picker-icon" data-autospark-action x-icon="'time-clock'"></i>
 </span>
-`,Do=`<!--
+`,Ao=`<!--
     autospark-time-picker-panel 时间面板（ADR-0025）——time-picker 的内部组件（非用户
     直接消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制
     （trigger:click）渲染进 body 覆盖物容器，面板外壳由 popover-shell 承载，本组件
@@ -13849,7 +13976,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </div>
   </div>
 </div>
-`,Oo=`autospark.time-picker`,ko=`autospark-time-picker-panel`,Ao=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`;function jo(e){e.icons?.add?.(`time-clock`,Ao),e.components[Oo]=Eo,e.components[ko]=Do}Mo();function Mo(){y(e=>{m(e),jo(e)})}var No=`<!--
+`,jo=`autospark.time-picker`,Mo=`autospark-time-picker-panel`,No=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`;function Po(e){e.icons?.add?.(`time-clock`,No),e.components[jo]=ko,e.components[Mo]=Ao}Fo();function Fo(){y(e=>{m(e),Po(e)})}var Io=`<!--
     autospark.time-select 时间点下拉（ADR-0025）——触发器组件：select 范式直系克隆
     （ADR-0022）：Field 盒饰形态 + 选中值展示 + 时钟图标；起止/步长生成离散时间
     点列表作 options。列表面板不自建弹层，复用 x-popover 指令机制呈现（trigger:click
@@ -14335,7 +14462,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   ></i>
   <i class="asc-time-select-icon" data-autospark-action x-icon="'time-clock'"></i>
 </span>
-`,Po=`<!--
+`,Lo=`<!--
     autospark-time-select-panel 时间点列表面板（ADR-0025）——time-select 的内部组件
     （非用户直接消费，无文档页；连字符注册名的成因见 index.ts）：select 下拉面板的
     直系克隆（非 filter/virtual 子集，ADR-0022 范式）——经 x-popover 指令机制
@@ -14413,7 +14540,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     ></div>
   </div>
 </div>
-`,Fo=`autospark.time-select`,Io=`autospark-time-select-panel`,Lo=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`;function Ro(e){e.icons?.add?.(`time-clock`,Lo),e.components[Fo]=No,e.components[Io]=Po}zo();function zo(){y(e=>{m(e),Ro(e)})}var Bo=`<!--
+`,Ro=`autospark.time-select`,zo=`autospark-time-select-panel`,Bo=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`;function Vo(e){e.icons?.add?.(`time-clock`,Bo),e.components[Ro]=Io,e.components[zo]=Lo}Ho();function Ho(){y(e=>{m(e),Vo(e)})}var Uo=`<!--
     autospark.autocomplete 自动补全输入（ADR-0027）——触发器组件：**复制 input 结构
     而非嵌套消费**（input-number 先例：输入事件被建议管道消费，嵌套则两层语义互渗 +
     跨插件产物依赖；共享面已由 field 骨架继承覆盖，ADR-0020）。真原生 input +
@@ -15017,7 +15144,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     x-icon="'loading'"
   ></i>
 </span>
-`,Vo=`<!--
+`,Wo=`<!--
     autospark-autocomplete-panel 建议面板（ADR-0027）——autocomplete 的内部组件
     （非用户直接消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令
     机制（trigger:click）渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位/宽度 fit
@@ -15090,7 +15217,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     ></div>
   </div>
 </div>
-`,Ho=`autospark.autocomplete`,Uo=`autospark-autocomplete-panel`,Wo=new Set([`disabled`,`readonly`,`clearable`]);function Go(e){e.components[Ho]=Bo,e.components[Uo]=Vo,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-autocomplete`))){let e=document.createElement(`span`),n=[];for(let r of Array.from(t.attributes))r.name.startsWith(`:`)?n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`):r.name===`class`||r.name===`style`||r.name===`id`||r.name===`name`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)?e.setAttribute(r.name,r.value):r.value===``&&Wo.has(r.name)?n.push(`${Q(Z(r.name))}: true`):n.push(`${Q(Z(r.name))}: ${JSON.stringify($(r.value))}`);for(e.setAttribute(`x-component:${Ho}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Ko();function Ko(){y(e=>{m(e),Go(e)})}var qo=`<!--\r
+`,Go=`autospark.autocomplete`,Ko=`autospark-autocomplete-panel`,qo=new Set([`disabled`,`readonly`,`clearable`]);function Jo(e){e.components[Go]=Uo,e.components[Ko]=Wo,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-autocomplete`))){let e=document.createElement(`span`),n=[];for(let r of Array.from(t.attributes))r.name.startsWith(`:`)?n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`):r.name===`class`||r.name===`style`||r.name===`id`||r.name===`name`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)?e.setAttribute(r.name,r.value):r.value===``&&qo.has(r.name)?n.push(`${Q(Z(r.name))}: true`):n.push(`${Q(Z(r.name))}: ${JSON.stringify($(r.value))}`);for(e.setAttribute(`x-component:${Go}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Yo();function Yo(){y(e=>{m(e),Jo(e)})}var Xo=`<!--\r
     autospark.breadcrumb 面包屑（组件库 P1 导航件，ADR-0018 清单权威表 navigation 行）：\r
     数据驱动 items（{ label, href?, icon? }[]）渲染层级路径——末项恒为「当前页」\r
     （aria-current="page"）；有 href 的项渲染为真 a 链接（primary 色，原生导航语义\r
@@ -15246,7 +15373,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </li>\r
   </ol>\r
 </nav>\r
-`,Jo=`autospark.breadcrumb`;function Yo(e){e.components[Jo]=qo,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-breadcrumb`))){let e=document.createElement(`nav`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-breadcrumb-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={label:e.getAttribute(`label`)??``},n=e.getAttribute(`href`);n!=null&&(t.href=n);let r=e.getAttribute(`icon`);return r!=null&&(t.icon=r),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${Jo}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Xo();function Xo(){y(e=>{m(e),Yo(e)})}var Zo=`<!--\r
+`,Zo=`autospark.breadcrumb`;function Qo(e){e.components[Zo]=Xo,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-breadcrumb`))){let e=document.createElement(`nav`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-breadcrumb-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={label:e.getAttribute(`label`)??``},n=e.getAttribute(`href`);n!=null&&(t.href=n);let r=e.getAttribute(`icon`);return r!=null&&(t.icon=r),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${Zo}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}$o();function $o(){y(e=>{m(e),Qo(e)})}var es=`<!--\r
     autospark.tabs 页签（组件库 P1 导航件，ADR-0018 清单权威表 navigation 行 / 决策 3\r
     裁定 segmented 并入本件作 variant）：items（{ key, label, icon?, disabled? }[]，\r
     状态引用注入）驱动页签头 + 默认插槽承载面板区（消费者以 x-show / x-if 家族切面板，\r
@@ -15557,37 +15684,40 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <div class="asc-tabs-content" x-slot></div>\r
   </div>\r
 </div>\r
-`,Qo=`autospark.tabs`;function $o(e){e.components[Qo]=Zo,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-tabs`))){let e=document.createElement(`div`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-tab`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`icon`);return n!=null&&(t.icon=n),e.hasAttribute(`disabled`)&&(t.disabled=!0),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${Qo}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}es();function es(){y(e=>{m(e),$o(e)})}var ts=`<!--
-    autospark.menu 导航菜单（组件库 P2 导航件，ADR-0018 清单权威表 navigation 行）：
-    items（{ key, label, icon?, disabled?, children?[]（一层子菜单嵌套）}[]，状态引用
-    注入）驱动菜单树，<x-menu-item> 子元素声明（含一层嵌套 children）经 data-items
-    通道兜底（字面量数组 props 死环规避，P0 固化规避清单第 1 条）。
+`,ts=`autospark.tabs`;function ns(e){e.components[ts]=es,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-tabs`))){let e=document.createElement(`div`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-tab`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`icon`);return n!=null&&(t.icon=n),e.hasAttribute(`disabled`)&&(t.disabled=!0),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${ts}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}rs();function rs(){y(e=>{m(e),ns(e)})}var is=`<!--
+    autospark.menu 导航菜单 v2（ADR-0033 数据驱动重设计，废弃 v1 x-menu-item 组合式）：
+    items（MenuEntry[]——item 透传 button 全 props / group 分组标题 / separator（≡ '-'）/
+    children 数组|SubmenuOptions 配置对象）驱动任意层嵌套；value 形态即语义（string 单选
+    激活 / string[] checkable 勾选集合）；expandLevel 初始展开 + popLevel 缩进/弹层分界 +
+    openKeys 全受控双绑；collapsed 三档；trigger 透传 popover（缩进域折叠组恒 click）；
+    完整键盘导航（roving tabindex）。
 
-    值通道（受控单选，tabs 同构）：value props 单向驱动视觉 + 点击叶子项写组件 data
-    （绑定通道随动迁移 data-active）+ 双派发——input（x-model 回写，非冒泡）+ change
-    （冒泡 detail = { value }）。el.value 劫持桥恒在场。初值落定序：x-model expando >
-    props value > 空（菜单缺省无激活项——与 tablist 恒有一项激活不同）。
+    结构（ADR-0033 决策 7）：本组件 = shell（header/footer slot + 全局状态 + 键盘），
+    级列表渲染在内部递归组件 autospark-menu-node（node.html），弹层内容在
+    autospark-menu-panel（panel.html，经 x-popover:autospark-menu-panel 消费——须同引
+    autospark.overlay.js + autospark.button.js，聚合产物无此问题）。
 
-    子菜单展开：openKeys 组件内部维护（{ [父项 key]: true }，整体替换驱动——原地变异
-    不发信号，规避清单第 2 条），点击父项切换；激活值落定（初值/受控变化）时祖先链
-    自动展开（antd 同款体验）。vertical 形态经 grid-rows 动画收张；horizontal 形态
-    子菜单为 hover 浮层下拉（CSS 悬停驱动，openKeys 点击切换对横向无效）；collapsed
-    （vertical 专属）收起为图标条，子菜单右飞浮层。
+    items 经影子树归一（normalize）：children 对象拆平（kids + conf）、'-' 归一、disabled
+    整支传播、同级 hasIcon/hasCheck 占位标注一次算好——外部受控数据不被变异，node 模板
+    纯消费影子树。openView = openKeys 显式 ∪ expandLevel 默认（watch 重算，模板唯一
+    读取面——expandLevel 运行时变更/外部 openKeys 替换/items 重建均收敛到 recomputeView）。
 
-    取舍（v1 按简）：inline 内联形态不做（vertical + 展开常驻即近似形态）；children
-    嵌套仅一层（模板静态结构，深层 grandchildren 不渲染）；键盘漫游不做（叶子项为真
-    button，原生 Tab 序聚焦可用）。
+    跨组件通信（克隆体求值域铁律——x-for 重编译域只能读 locals 与自身 props）：
+    node 点击经 menu-pick / menu-toggle 自定义事件冒泡到 body（DOM 冒泡穿化身）；
+    弹层面板（overlay 家族恒 open+host 实例化，JS 通道沿链）经 closeTick 哨兵广播
+    叶选关整链、wantFocusAt 时间戳驱动键盘开面板后焦点入首项。
+
+    化身路径约束（T4=B）：形态绑定（:data-mode / :data-collapsed / :data-slot-dir）落在
+    编译子树内层 body 上；克隆体内条件显隐一律 x-show（共享快照多实例串台规避，P0 清单
+    第 4 条）。button 实例化的宿主 div 外包 btnwrap（普通 div）——事件/状态绑定挂
+    btnwrap（x-component 宿主上的绑定不经化身编译，家族规避惯例）。
 
     router 隔离（ADR-0018 决策 6 约定 2）：纯状态驱动、不 import router——配方见组件文档。
-
-    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
-    不会求值——形态绑定（:data-mode / :data-collapsed）落在编译子树内层 body 上，
-    各形态按 body 的数据属性命中样式块。
 -->
 <!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
      （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
-     六键）自动获得——字号档位经主题通道全跟随；menu 不在 data() 声明主题六键，
-     内部变体属性（mode / collapsed）亦禁用六个通道名 -->
+     六键）自动获得——menu 不在 data() 声明主题六键，内部变体属性（mode / collapsed /
+     slotDir）亦禁用六个通道名 -->
 <div
   class="asc-menu"
   x-define="autospark.menu"
@@ -15596,107 +15726,342 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   <script setup>
     {
         data: () => ({
-            value: "",      // 受控激活 key（el.value 桥 + change detail={value}；缺省无激活项）
-            items: [],      // 菜单项 { key, label, icon?, disabled?, children?[] }[]——状态引用注入；声明形态经 data-items 通道兜底
-            mode: "vertical",   // 形态：vertical 垂直（缺省）| horizontal 横向（子菜单 hover 浮层）
-            collapsed: false,   // 垂直收起为图标条（vertical 专属；子菜单右飞浮层）
-            openKeys: {},   // 子菜单展开态 { [父项 key]: true }——内部维护（整体替换驱动）；也可经状态引用注入初始展开
+            value: "",          // 受控值：string 单选激活 key | string[] checkable 勾选集合（形态即语义，ADR-0033 决策 3）
+            items: [],          // MenuEntry[]——状态引用注入；声明 JSON 经 data-items 通道兜底
+            expandLevel: 1,     // 初始展开到第 N 级（缩进域默认策略；0 全折叠；层级从 1 起数）
+            popLevel: 0,        // level > popLevel 的子菜单走 popover（0 全缩进折叠）
+            openKeys: {},       // Record<key, boolean> 全受控展开态（显式 true/false 优先于 expandLevel 默认）
+            collapsed: 0,       // 0 常规 | 1 图标条（宽度动画+tooltip，children 全弹层）| 2 单按钮+整菜单弹层
+            trigger: "hover",   // 弹层触发：hover（缺省）| click——透传 popover；缩进域折叠组恒 click
+            mode: "vertical",   // vertical（缺省）| horizontal（横排，子级全弹层——expandLevel/popLevel/openKeys/collapsed 静默不适用）
+            slotDir: "vertical", // header/footer 分区方向：vertical 上下（缺省）| horizontal 左右（SubmenuOptions.slotDir 逐层覆盖弹层）
+            // —— 内部状态（JS 通道维护，不对外）——
+            tree: [],           // items 归一影子树（kind/kids/conf/iconPh/checkPh/disabled 整支传播）
+            openView: {},       // 展开视图（openKeys 显式 ∪ expandLevel 默认，模板唯一读取面）
+            activeKey: "",      // 激活 key 归一（单值形态；数组形态恒 ""）
+            markedMap: {},      // 勾选 key 集合 map（数组形态；单值形态恒空）
+            closeTick: 0,       // 弹层整链关闭广播（叶选关整链——各打开面板 watch 后自关）
+            wantFocusAt: 0,     // 键盘开弹层的时间戳（面板 mounted 时判定覆盖 hover delayShow 时序，焦点入首项）
+            // computed 简写：collapsed=2 整菜单弹层的伪子菜单根（依赖 tree 响应式）
+            railRoot: (s) => ({ kids: s.tree, conf: {} }),
         }),
         methods: {
-            // 菜单项点击（叶子与父项共用通道）：禁用跳过；父项（有 children）切换展开，
-            // 叶子项激活 + 双派发（input→x-model 回写非冒泡；change→外层消费 detail={value} 冒泡）
-            onItemClick(item) {
+            // ══════════ 影子树归一（ADR-0033 决策 7）══════════
+            // children 对象拆平（kids + conf）/ '-' 与 separator 归一 / disabled 整支传播 /
+            // 同级 hasIcon/hasCheck 占位标注 / 首尾分隔线修剪；外部 items 不被变异
+            normalize(list, parentDisabled) {
+                const raw = Array.isArray(list) ? list.filter((x) => x != null) : [];
+                const entries = [];
+                for (const entry of raw) {
+                    if (entry === "-" || (entry && entry.type === "separator")) {
+                        entries.push({ kind: "sep" });
+                        continue;
+                    }
+                    if (entry && entry.type === "group") {
+                        entries.push({ kind: "group", title: String(entry.title ?? ""), icon: entry.icon ?? "" });
+                        continue;
+                    }
+                    const it = entry && typeof entry === "object" ? entry : {};
+                    const kidsRaw = Array.isArray(it.children)
+                        ? it.children
+                        : (it.children && Array.isArray(it.children.children) ? it.children.children : []);
+                    const conf = Array.isArray(it.children) ? {} : (it.children ?? {});
+                    const disabled = !!it.disabled || !!parentDisabled;
+                    const key = it.key == null ? null : String(it.key);
+                    if (key == null && (kidsRaw.length > 0 || it.checkable) && typeof console !== "undefined") {
+                        console.warn("[autospark.menu] 无 key 的项不可被 value/openKeys 引用：", it.label ?? it);
+                    }
+                    entries.push({ ...it, kind: "item", key, disabled, kids: this.normalize(kidsRaw, disabled), conf });
+                }
+                // 同级占位标注（ADR-0033 决策 6）：iconPh = 级内有 icon 而自身无；checkPh = 级内有 checkable
+                const items = entries.filter((e) => e.kind === "item");
+                const hasIcon = items.some((e) => !!e.icon);
+                const hasCheck = items.some((e) => !!e.checkable);
+                for (const e of entries) {
+                    if (e.kind !== "item") continue;
+                    e.iconPh = hasIcon && !e.icon;
+                    e.checkPh = hasCheck;
+                }
+                while (entries.length && entries[0].kind === "sep") entries.shift();
+                while (entries.length && entries[entries.length - 1].kind === "sep") entries.pop();
+                return entries;
+            },
+            // 展开视图重算：openKeys 显式（含 false 折叠覆盖）优先，未覆盖组按 depth <= expandLevel 默认。
+            // 同时物化进影子树（item._open）——克隆体模板绑定对 props 热更新不响应（指令值才响应），
+            // 经 data 域（影子树代理字段）承载以获得响应性（v1 openKeys 同机制）
+            // 当前生效 popFrom（collapsed=1 全弹层=2；popLevel=0 哨兵全缩进=Infinity）
+            popFromNow() {
+                if (Number(this.data.collapsed) === 1) return 1; // 图标条：顶级项 children 全弹层
+                const pl = Number(this.data.popLevel);
+                return pl > 0 ? pl + 1 : Infinity;
+            },
+            // 展开视图 + 分支意图物化：openKeys 显式优先、未覆盖组按 depth <= expandLevel 默认；
+            // 三分支意图（_fold/_pop/_leaf）按当前 popFrom 物化进影子树——克隆体 x-show 读
+            // data 域字段获得响应性（模板绑定不响应 props 热更新，collapsed 运行时切换依赖此物化）
+            recomputeView() {
+                const open = this.data.openKeys ?? {};
+                const popFrom = this.popFromNow();
+                const view = {};
+                const walk = (list, depth) => {
+                    for (const e of list) {
+                        if (e.kind !== "item") { e._fold = false; e._pop = false; e._leaf = false; continue; }
+                        const hasKids = !!(e.kids && e.kids.length);
+                        e._fold = hasKids && depth < popFrom;
+                        e._pop = hasKids && depth >= popFrom;
+                        e._leaf = !hasKids;
+                        if (!hasKids || e.key == null) continue;
+                        view[e.key] = e.key in open ? !!open[e.key] : depth <= Number(this.data.expandLevel ?? 1);
+                        e._open = !!view[e.key];
+                        walk(e.kids, depth + 1);
+                    }
+                };
+                walk(this.data.tree || [], 1);
+                this.data.openView = view;
+            },
+            // 值域派生：activeKey / markedMap（值对象短判定面）+ 物化进影子树（_active/_marked，
+            // 克隆体模板绑定消费——同 recomputeView 物化注记）
+            recomputeMarks() {
+                const v = this.data.value;
+                const tree = this.data.tree || [];
+                if (Array.isArray(v)) {
+                    this.data.activeKey = "";
+                    const m = {};
+                    for (const k of v) m[String(k)] = true;
+                    this.data.markedMap = m;
+                    const walk = (list) => {
+                        for (const e of list) {
+                            if (e.kind !== "item") continue;
+                            e._marked = !!m[e.key];
+                            e._active = false;
+                            if (e.kids && e.kids.length) walk(e.kids);
+                        }
+                    };
+                    walk(tree);
+                } else {
+                    const active = v == null ? "" : String(v);
+                    this.data.activeKey = active;
+                    this.data.markedMap = {};
+                    const walk = (list) => {
+                        for (const e of list) {
+                            if (e.kind !== "item") continue;
+                            e._active = e.key != null && e.key === active && active !== "";
+                            e._marked = false;
+                            if (e.kids && e.kids.length) walk(e.kids);
+                        }
+                    };
+                    walk(tree);
+                }
+            },
+            // 影子树按键查项（哨兵消费入口）
+            findItem(key) {
+                if (key == null) return null;
+                const target = String(key);
+                let found = null;
+                const walk = (list) => {
+                    for (const e of list) {
+                        if (found) return;
+                        if (e.kind === "item" && e.key === target) { found = e; return; }
+                        if (e.kids && e.kids.length) walk(e.kids);
+                    }
+                };
+                walk(this.data.tree || []);
+                return found;
+            },
+            // 中继消费（node 实例 mounted watch 转发的 DOM 冒泡——两域克隆体统一入口）
+            onRelay(event) {
+                const d = event.detail || {};
+                if (d.kind === "toggle") this.onToggle(d.key);
+                else if (d.kind === "pick") this.onPick(d.key);
+            },
+            // 关闭全部打开面板（叶选关整链）：派生 body 点击走 popover 原生「外点关闭」链
+            // （click 模型即刻全关；hover 模型无 click 监听零副作用——面板随指针离开自然收起，
+            // 行为差异文档注明）
+            closeAllPanels() {
+                document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            },
+            // ══════════ 事件消费 ══════════
+            // 项点击（叶子/勾选分流）：单值激活同值短路 + 叶选关整链；数组勾选 toggle
+            // 不关弹层（调参非导航，ADR-0033 决策 5）
+            onPick(key) {
+                const item = this.findItem(key);
                 if (!item || item.disabled) return;
-                const kids = Array.isArray(item.children) ? item.children : [];
-                if (kids.length) {
-                    this.toggleSub(item);
+                if (Array.isArray(this.data.value)) {
+                    if (!item.checkable || item.key == null) return;
+                    const arr = (this.data.value || []).map(String);
+                    const next = arr.indexOf(item.key) >= 0 ? arr.filter((k) => k !== item.key) : arr.concat(item.key);
+                    this.data.value = next;
+                    this.recomputeMarks();
+                    this.el.dispatchEvent(new Event("input", { bubbles: false }));
+                    this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { value: next } }));
                     return;
                 }
-                const k = String(item.key ?? "");
-                if (k === "" || k === String(this.data.value ?? "")) return;
-                this.data.value = k;
+                if (item.kids.length || item.key == null || item.key === String(this.data.value ?? "")) return;
+                this.data.value = item.key;
+                this.recomputeMarks();
                 this.el.dispatchEvent(new Event("input", { bubbles: false }));
-                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { value: k } }));
+                this.el.dispatchEvent(new CustomEvent("change", { bubbles: true, detail: { value: item.key } }));
+                this.closeAllPanels(); // 叶选关整链（统一走面板实例 close，两触发模型通吃）
             },
-            // 子菜单展开切换：openKeys 整体替换（原地变异不发信号，规避清单第 2 条）
-            toggleSub(item) {
-                const k = String(item.key ?? "");
-                if (k === "") return;
-                const open = { ...this.data.openKeys };
-                if (open[k]) delete open[k];
-                else open[k] = true;
+            // 折叠组展开切换：openKeys 整体替换 + expand 事件（内部切换点派发，外部替换不广播防回环）
+            onToggle(key) {
+                if (key == null) return;
+                const open = { ...(this.data.openKeys ?? {}) };
+                const expanded = !open[key];
+                if (expanded) open[key] = true; else delete open[key];
                 this.data.openKeys = open;
+                this.el.dispatchEvent(new CustomEvent("expand", { bubbles: true, detail: { key, expanded } }));
             },
-            // 激活值祖先链自动展开：定位目标项的父项链并逐一置开（同值幂等——链上已全开
-            // 则不写，防 watcher 同值重跑抖动，规避清单第 9 条）
+            // 祖先链自动展开（单值形态，antd 同款）：目标叶子的父项链显式置开（幂等写防抖动）
             expandTo(key) {
                 const target = String(key ?? "");
-                if (target === "") return;
-                const chain = [];
+                if (target === "" || Array.isArray(this.data.value)) return;
+                let chain = null;
                 const walk = (list, parents) => {
-                    for (const it of list) {
-                        if (!it) continue;
-                        const kids = Array.isArray(it.children) ? it.children : [];
-                        if (!kids.length && String(it.key ?? "") === target) {
-                            chain.push(...parents);
-                            return true;
-                        }
-                        if (kids.length && walk(kids, parents.concat(String(it.key ?? "")))) {
-                            return true;
-                        }
+                    for (const e of list) {
+                        if (chain) return true;
+                        if (e.kind !== "item") continue;
+                        if (e.key === target && !e.kids.length) { chain = parents.slice(); return true; }
+                        if (e.kids.length && walk(e.kids, parents.concat(e.key))) return true;
                     }
                     return false;
                 };
-                if (!walk(this.data.items || [], [])) return;
-                const open = { ...this.data.openKeys };
+                if (!walk(this.data.tree || [], [])) return;
+                const open = { ...(this.data.openKeys ?? {}) };
                 let dirty = false;
                 for (const k of chain) {
-                    if (!open[k]) {
-                        open[k] = true;
-                        dirty = true;
-                    }
+                    if (!open[k]) { open[k] = true; dirty = true; }
                 }
                 if (dirty) this.data.openKeys = open;
             },
+            // ══════════ 键盘导航（roving tabindex，ADR-0033 决策 9）══════════
+            // ↑↓ 同级环绕（跳禁用）/ Home/End 首末 / → 缩进域展开入子级·弹层域开面板 /
+            // ← 收起回父项；Enter/Space 原生 button；Esc 归 popover 栈不拦截
+            onKeydown(event) {
+                const k = event.key;
+                if (k !== "ArrowDown" && k !== "ArrowUp" && k !== "ArrowRight" && k !== "ArrowLeft" && k !== "Home" && k !== "End") return;
+                const btn = event.target && event.target.closest ? event.target.closest(".asc-menu-entry .asc-menu-btnwrap > .asc-button") : null;
+                const currentLi = btn ? btn.closest(".asc-menu-entry") : null;
+                const focusables = (ul) => Array.from(ul.querySelectorAll(":scope > .asc-menu-entry > div > .asc-menu-btnwrap > .asc-button:not([disabled])"));
+                if (k === "ArrowDown" || k === "ArrowUp" || k === "Home" || k === "End") {
+                    // 同级集合：焦点项所在 list（li 的父即所属 ul）；容器态取首个顶级 list
+                    const list = currentLi ? currentLi.parentElement : this.el.querySelector("ul.asc-menu-list");
+                    const arr = list ? focusables(list) : [];
+                    if (!arr.length) return;
+                    event.preventDefault();
+                    let next = null;
+                    if (k === "Home") next = arr[0];
+                    else if (k === "End") next = arr[arr.length - 1];
+                    else {
+                        const i = arr.indexOf(btn);
+                        const dir = k === "ArrowDown" ? 1 : -1;
+                        next = i < 0 ? arr[0] : arr[(i + dir + arr.length) % arr.length];
+                    }
+                    if (next) next.focus();
+                    return;
+                }
+                if (!btn || !currentLi) return;
+                if (k === "ArrowRight") {
+                    const fold = currentLi.querySelector(":scope > .asc-menu-fold");
+                    if (fold && getComputedStyle(fold).display !== "none") {
+                        // 缩进域：展开（未开先开）+ 焦点入子级首项（x-show 恒在 DOM，display 切换即聚焦）
+                        event.preventDefault();
+                        const pkey = currentLi.getAttribute("data-key");
+                        if (pkey && !this.data.openView[pkey]) this.onToggle(pkey);
+                        setTimeout(() => {
+                            const first = currentLi.querySelector(".asc-menu-sub .asc-menu-btnwrap > .asc-button:not([disabled])");
+                            if (first) first.focus();
+                        }, 0);
+                        return;
+                    }
+                    const pop = currentLi.querySelector(":scope > .asc-menu-pop");
+                    if (pop && getComputedStyle(pop).display !== "none") {
+                        // 弹层域：按触发模型分派宿主事件（dropdown 决策 7 同款）+ 焦点请求时间戳
+                        event.preventDefault();
+                        this.openPophost(pop);
+                        this.data.wantFocusAt = Date.now();
+                    }
+                    return;
+                }
+                // ArrowLeft：子级收起回父项（顶级不动）
+                const sub = currentLi.closest(".asc-menu-sub");
+                if (sub) {
+                    event.preventDefault();
+                    const parentLi = sub.closest(".asc-menu-entry");
+                    const pkey = parentLi ? parentLi.getAttribute("data-key") : null;
+                    if (pkey && this.data.openView[pkey]) this.onToggle(pkey);
+                    const pbtn = parentLi ? parentLi.querySelector(":scope > .asc-menu-fold > .asc-menu-btnwrap > .asc-button") : null;
+                    if (pbtn) pbtn.focus();
+                }
+            },
+            // 弹层宿主程序化打开：click 模型派宿主 click（toggle 通道）；hover 模型派
+            // mouseenter（含 delayShow 悬浮延迟，原生打开链）
+            openPophost(popEl) {
+                if (String(this.data.trigger) === "click") {
+                    popEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+                } else {
+                    popEl.dispatchEvent(new MouseEvent("mouseenter", { bubbles: false }));
+                }
+            },
         },
         mounted() {
-            // 声明形态兜底（precompile 变换落盘的 data-items JSON 字符串）：items props
-            // 缺席时解析写组件 data（x-for 指令值通道响应，随写随渲染）；props 在场恒优先
+
+            // data-items 兜底（precompile 落盘 JSON 字符串）：items props 在场恒优先
             const raw = this.el.getAttribute("data-items");
             if ((!this.data.items || !this.data.items.length) && raw) {
                 try { this.data.items = JSON.parse(raw); } catch { /* 非法 JSON 静默忽略（容错缺省空组） */ }
                 this.el.removeAttribute("data-items");
             }
 
-            // el.value 劫持桥（受控 value 的 DOM 通道：x-model / 程序读写皆经此）——
-            // 劫持前快照 expando（x-model 编译期可能已写初值）；写值同时祖先链跟随展开
+            // 影子树 + 派生首算
+            this.data.tree = this.normalize(this.data.items, false);
+            this.recomputeMarks();
+            this.recomputeView();
+
+            // el.value 劫持桥（单值语域：x-model / 程序读写皆经此；数组消费走 :value + @change 惯用法）
             const prior = this.el.value;
             Object.defineProperty(this.el, "value", {
-                get: () => String(this.data.value ?? ""),
+                get: () => (Array.isArray(this.data.value) ? this.data.value.join(",") : String(this.data.value ?? "")),
                 set: (v) => {
                     this.data.value = String(v ?? "");
+                    this.recomputeMarks();
                     this.expandTo(v);
                 },
                 configurable: true,
             });
 
-            // 一跳首对齐（mounted 时 props 注入可能未落定，家族惯例）：初值落定序 =
-            // x-model expando > props value（menu 缺省无激活项）；落定后祖先链自动展开
+            // 一跳首对齐（props 注入落定家族惯例）：x-model expando > props value；落定后祖先链自动展开
             setTimeout(() => {
-                if (!this.data.value && typeof prior === "string" && prior !== "") {
+                if ((this.data.value === "" || this.data.value == null) && typeof prior === "string" && prior !== "") {
                     this.data.value = prior;
                 }
-                if (this.data.value) this.expandTo(this.data.value);
+                this.recomputeMarks();
+                this.expandTo(this.data.value);
             }, 0);
 
-            // 受控 value 变化：祖先链跟随展开（props 驱动不广播 change，防回环）
-            this.watch("value", ({ value }) => { this.expandTo(value); });
+            // —— 状态跟随（回调收 { value } 信封对象，此处只用作触发信号）——
+            // items 替换：影子树重建 + 物化重算（openKeys 显式键天然保留——按 key 状态锚点，ADR-0033 决策 2）
+            this.watch("items", () => {
+                this.data.tree = this.normalize(this.data.items, false);
+                this.recomputeMarks();
+                this.recomputeView();
+            });
+            // value 受控变化：值域派生 + 祖先链展开（单值形态；数组不触发展开）
+            this.watch("value", () => {
+                this.recomputeMarks();
+                this.expandTo(this.data.value);
+            });
+            // openKeys 全受控：外部替换即应用（recomputeView 收敛）
+            this.watch("openKeys", () => { this.recomputeView(); });
+            // expandLevel / popLevel / collapsed 运行时变更：默认集与分支意图重算（显式键保留）
+            this.watch("expandLevel", () => { this.recomputeView(); });
+            this.watch("popLevel", () => { this.recomputeView(); });
+            this.watch("collapsed", () => { this.recomputeView(); });
         },
     }
   <\/script>
   <style global id="autospark-components-menu">
     .asc-menu {
-      /* 排版基线：字号经主题档位通道（data-size → --auto-font-size 全跟随，button 同范式 ADR-0012） */
+      /* 排版基线：字号经主题档位通道（data-size → --auto-font-size 全跟随，button 同范式） */
       display: block;
       width: 100%;
       font-size: var(--auto-font-size, var(--asc-menu-font-size, 0.875rem));
@@ -15704,73 +16069,92 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     }
     .asc-menu-body {
       --asc-tone: var(--auto-primary-color, var(--asc-menu-primary, #009aff));
+      display: flex;
+      flex-direction: column;
+      outline: none;
+      min-width: 0;
     }
-    .asc-menu-list,
-    .asc-menu-sub {
+    /* 容器聚焦（roving tabindex 的停靠点） */
+    .asc-menu-body:focus-visible {
+      box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--asc-tone) 28%, transparent);
+    }
+    .asc-menu-header,
+    .asc-menu-footer {
+      padding: 0.4em 0.25em;
+      color: var(--auto-third-color, var(--asc-menu-aux-color, rgba(0, 0, 0, 0.35)));
+      min-width: 0;
+    }
+    /* 出口包裹层不产生布局层（x-slot 出口保留包裹层惯例，ADR-0056） */
+    .asc-menu-slot {
+      display: block;
+      min-width: 0;
+    }
+    .asc-menu-main {
+      min-width: 0;
+      transition: width 0.2s ease;
+    }
+
+    /* ══════════ 级列表（node.html 渲染，类名同源本样式表）══════════ */
+    .asc-menu-list {
       list-style: none;
       margin: 0;
       padding: 0;
+      min-width: 0;
     }
-    /* 菜单项载体（叶子与父项同构）：父项经 :data-sub 标记（展开箭头/浮层定位消费） */
-    .asc-menu-item {
+    .asc-menu-entry {
       position: relative;
+      min-width: 0;
     }
-    .asc-menu-link {
-      appearance: none;
-      border: none;
-      background: transparent;
-      font: inherit;
-      line-height: inherit;
+    /* 分隔线：'-' 与 {type:'separator'} 归一态 */
+    .asc-menu-sep {
+      margin: 0.35em 0.75em;
+      border-top: var(--auto-border-size, var(--asc-menu-border-size, 1px)) solid
+        var(--auto-border-color, var(--asc-menu-border, #f0f0f0));
+    }
+    /* 分组标题：纯视觉（不可点、不产生层级），小字淡色 */
+    .asc-menu-group {
       display: flex;
       align-items: center;
-      gap: 0.5em;
-      width: 100%;
-      padding: 0.5em 0.75em;
-      margin: 0;
-      border-radius: var(--auto-border-radius, var(--asc-menu-radius, 0.375em));
-      color: var(--auto-color, var(--asc-menu-color, #606060));
-      cursor: pointer;
+      gap: 0.4em;
+      padding: 0.6em 0.75em 0.25em;
+      font-size: 0.85em;
+      color: var(--auto-third-color, var(--asc-menu-aux-color, rgba(0, 0, 0, 0.35)));
       white-space: nowrap;
-      transition: color 0.15s ease, background-color 0.15s ease;
     }
-    .asc-menu-link:focus-visible {
-      outline: none;
-      box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--asc-tone) 28%, transparent);
-    }
-    .asc-menu-link:disabled {
-      color: var(--auto-disable-color, var(--asc-menu-disable-color, rgba(0, 0, 0, 0.25)));
-      cursor: not-allowed;
-    }
-    .asc-menu-link:not(:disabled):hover {
-      color: var(--asc-tone);
-      background: var(--auto-hover-bgcolor, var(--asc-menu-hover-bg, rgba(0, 0, 0, 0.04)));
-    }
-    /* 激活项：主色文字 + 主色浅底（10% tint 为恒定视觉设计，非变量映射） */
-    .asc-menu-link[data-active] {
-      color: var(--asc-tone);
-      font-weight: var(--x-font-weight-large, 600); /* 语义层无强调字重变量，直取基础标尺 */
-      background: color-mix(in srgb, var(--asc-tone) 10%, transparent);
-    }
-    .asc-menu-icon {
+    .asc-menu-group-icon {
       display: inline-flex;
       flex: none;
     }
-    .asc-menu-label {
-      flex: 1 1 auto;
+    .asc-menu-group-title {
       overflow: hidden;
       text-overflow: ellipsis;
-      text-align: left;
-    }
-    /* 展开箭头：内置 arrow 图标指右，垂直/横向形态统一闭态朝下（rotate 90°）、开态朝上 */
-    .asc-menu-arrow {
-      display: inline-flex;
-      flex: none;
-      color: var(--auto-third-color, var(--asc-menu-arrow-color, rgba(0, 0, 0, 0.35)));
-      transform: rotate(90deg);
-      transition: transform 0.2s ease;
     }
 
-    /* ---------- vertical 形态（缺省）：子菜单点击展开（grid-rows 动画收张） ---------- */
+    /* 项载体（button 外包裹层）：事件/状态绑定挂点（x-component 宿主绑定不经化身编译） */
+    .asc-menu-btnwrap {
+      display: block;
+      min-width: 0;
+    }
+    /* 激活项（单值形态）：主色文字 + 主色浅底（10% tint 恒定视觉设计） */
+    .asc-menu-btnwrap[data-active] > .asc-button {
+      color: var(--asc-tone);
+      font-weight: var(--x-font-weight-large, 600);
+      background: color-mix(in srgb, var(--asc-tone) 10%, transparent);
+    }
+    /* 勾选项（数组形态，checkMark 占位列的显影——button 自有 ✓ 规则需 asc-marked 类，
+       menu 侧经包裹层同款规则命中，不经 class 通道） */
+    .asc-menu-btnwrap[data-marked] > .asc-button.asc-check-check > .asc-button-body::before {
+      content: "✓";
+    }
+    /* icon 占位（级内有 icon 而自身无）：占位图标不可见但保宽（列对齐） */
+    .asc-menu-entry[data-icon-ph] .asc-button-icon {
+      visibility: hidden;
+    }
+
+    /* 缩进域折叠块：grid-rows 动画收张（v1 同款手法） */
+    .asc-menu-fold {
+      min-width: 0;
+    }
     .asc-menu-subwrap {
       display: grid;
       grid-template-rows: 0fr;
@@ -15782,169 +16166,700 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     .asc-menu-subwrap > .asc-menu-sub {
       overflow: hidden;
       min-height: 0;
+      /* 缩进量默认 0.4em（SubmenuOptions.indent 可逐级覆盖，node 模板 :style 内联） */
+      padding-inline-start: var(--asc-menu-indent, 0.4em);
     }
-    /* 子项缩进：图标位 + 一档留白 */
-    .asc-menu-subitem .asc-menu-link {
-      padding-inline-start: 2.25em;
-    }
-    /* 开态箭头朝上（subwrap 与 link 为兄弟，经 :has() 反查） */
-    .asc-menu-item:has(> .asc-menu-subwrap[data-open]) > .asc-menu-link .asc-menu-arrow {
-      transform: rotate(-90deg);
-    }
-
-    /* ---------- 浮层形态公共面板体：horizontal 下拉 / collapsed 右飞（位置各定，面板样式共享） ---------- */
-    .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub] > .asc-menu-subwrap,
-    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub] > .asc-menu-subwrap {
-      position: absolute;
-      z-index: 10;
+    /* 弹层域宿主（popover 宿主=行包裹层，热区整行） */
+    .asc-menu-pop {
       display: block;
-      grid-template-rows: none;
-      min-width: max(100%, 10em);
-      padding: 0.25em;
-      border: var(--auto-border-size, var(--asc-menu-border-size, 1px)) solid
-        var(--auto-border-color, var(--asc-menu-border, #d9d9d9));
-      border-radius: var(--auto-border-radius, var(--asc-menu-radius, 0.375em));
-      background: var(--auto-bgcolor, var(--asc-menu-panel-bg, #ffffff));
-      box-shadow: var(--auto-shadow, var(--asc-menu-shadow, 0 6px 16px rgba(0, 0, 0, 0.08)));
-      visibility: hidden;
-      opacity: 0;
-      transition: opacity 0.15s ease, visibility 0.15s ease;
-    }
-    .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub] > .asc-menu-subwrap {
-      top: 100%;
-      left: 0;
-      margin-top: 0.25em;
-    }
-    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub] > .asc-menu-subwrap {
-      left: 100%;
-      top: 0;
-      margin-left: 0.25em;
-    }
-    /* 悬停/子树聚焦展开（键盘 Tab 进子项时 focus-within 维持可见） */
-    .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub]:hover > .asc-menu-subwrap,
-    .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub]:focus-within > .asc-menu-subwrap,
-    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub]:hover > .asc-menu-subwrap,
-    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub]:focus-within > .asc-menu-subwrap {
-      visibility: visible;
-      opacity: 1;
-    }
-    /* 浮层内箭头朝右（层级指引，不旋转） */
-    .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub] > .asc-menu-link .asc-menu-arrow,
-    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub] > .asc-menu-link .asc-menu-arrow {
-      transform: rotate(0deg);
-    }
-
-    /* ---------- horizontal 形态：横向排布（子菜单 hover 浮层，箭头朝下） ---------- */
-    .asc-menu-body[data-mode="horizontal"] .asc-menu-list {
-      display: flex;
-      align-items: stretch;
-      max-width: 100%;
       min-width: 0;
-      row-gap: 0.125em;
-      flex-wrap: wrap;
-    }
-    .asc-menu-body[data-mode="horizontal"] .asc-menu-link {
-      width: auto;
-    }
-    .asc-menu-body[data-mode="horizontal"] .asc-menu-item + .asc-menu-item {
-      margin-left: 0.125em;
     }
 
-    /* ---------- collapsed 形态（vertical 专属）：图标条——顶层文字/箭头隐藏 ---------- */
-    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-list {
+    /* ══════════ collapsed 三档（ADR-0033 决策 4）══════════ */
+    /* 档 1：图标条——宽度动画收窄、文字/备注/箭头隐藏、占位列隐藏（勾选与激活改图标染色） */
+    .asc-menu-body[data-collapsed="1"] .asc-menu-main {
       width: 3.25em;
     }
-    .asc-menu-body[data-mode="vertical"][data-collapsed] > .asc-menu-list > .asc-menu-item > .asc-menu-link {
+    .asc-menu-body[data-collapsed="1"] .asc-menu-btnwrap > .asc-button {
       justify-content: center;
       padding-inline: 0;
     }
-    .asc-menu-body[data-mode="vertical"][data-collapsed] > .asc-menu-list > .asc-menu-item > .asc-menu-link > .asc-menu-label,
-    .asc-menu-body[data-mode="vertical"][data-collapsed] > .asc-menu-list > .asc-menu-item > .asc-menu-link > .asc-menu-arrow {
+    .asc-menu-body[data-collapsed="1"] .asc-menu-btnwrap > .asc-button .asc-button-label,
+    .asc-menu-body[data-collapsed="1"] .asc-menu-btnwrap > .asc-button .asc-button-memo,
+    .asc-menu-body[data-collapsed="1"] .asc-menu-btnwrap > .asc-button .asc-button-caret,
+    .asc-menu-body[data-collapsed="1"] .asc-menu-btnwrap > .asc-button .asc-button-main,
+    .asc-menu-body[data-collapsed="1"] .asc-menu-btnwrap > .asc-button.asc-check-check > .asc-button-body::before {
       display: none;
     }
-    /* 右飞浮层内子项恢复常规缩进与文字 */
-    .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-subitem .asc-menu-link {
-      padding-inline-start: 0.75em;
+    /* 图标条下的激活/勾选视觉：图标染激活色（Q18：染色即反馈，tooltip 由 button labelPos=none 承载） */
+    .asc-menu-body[data-collapsed="1"] .asc-menu-btnwrap[data-active] > .asc-button .asc-button-icon,
+    .asc-menu-body[data-collapsed="1"] .asc-menu-btnwrap[data-marked] > .asc-button .asc-button-icon {
+      color: var(--asc-tone);
+    }
+    /* 档 2：单按钮（整菜单弹层的指示钮） */
+    .asc-menu-body[data-collapsed="2"] .asc-menu-main,
+    .asc-menu-body[data-collapsed="2"] .asc-menu-header,
+    .asc-menu-body[data-collapsed="2"] .asc-menu-footer {
+      display: none;
+    }
+    .asc-menu-rail {
+      display: block;
+    }
+    .asc-menu-railbtn {
+      appearance: none;
+      border: none;
+      background: transparent;
+      font: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.6em;
+      height: 2.2em;
+      border-radius: var(--auto-border-radius, var(--asc-menu-radius, 0.375em));
+      color: var(--auto-color, var(--asc-menu-color, #606060));
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    .asc-menu-railbtn:hover {
+      background: var(--auto-hover-bgcolor, var(--asc-menu-hover-bg, rgba(0, 0, 0, 0.05)));
+    }
+    .asc-menu-railbtn:focus-visible {
+      outline: none;
+      box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--asc-tone) 28%, transparent);
     }
 
-    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
-    [dark] .asc-menu-link,
-    [data-dark] .asc-menu-link {
-      color: var(--auto-color, var(--asc-menu-color, rgba(255, 255, 255, 0.75)));
+    /* ══════════ horizontal（横排：子级全弹层，无缩进域）══════════ */
+    .asc-menu-body[data-mode="horizontal"] {
+      flex-direction: column;
     }
+    .asc-menu-body[data-mode="horizontal"] .asc-menu-list {
+      display: flex;
+      align-items: stretch;
+      flex-wrap: wrap;
+      row-gap: 0.125em;
+      column-gap: 0.125em;
+    }
+    .asc-menu-body[data-mode="horizontal"] .asc-menu-entry + .asc-menu-entry {
+      margin-left: 0.125em;
+    }
+    .asc-menu-body[data-mode="horizontal"] .asc-menu-sep {
+      margin: 0.35em 0.25em;
+      border-top: none;
+      border-left: var(--auto-border-size, var(--asc-menu-border-size, 1px)) solid
+        var(--auto-border-color, var(--asc-menu-border, #f0f0f0));
+      align-self: stretch;
+    }
+    .asc-menu-body[data-mode="horizontal"] .asc-menu-group {
+      align-items: center;
+      padding: 0.6em 0.5em 0.25em;
+    }
+
+    /* ══════════ slotDir：本体 header/footer 分区方向（vertical 上下缺省 | horizontal 左右）══════════ */
+    .asc-menu-body[data-slot-dir="horizontal"] {
+      flex-direction: row;
+      align-items: stretch;
+    }
+    .asc-menu-body[data-slot-dir="horizontal"] > .asc-menu-header {
+      order: 0;
+      align-self: center;
+      padding-inline: 0.5em;
+    }
+    .asc-menu-body[data-slot-dir="horizontal"] > .asc-menu-main,
+    .asc-menu-body[data-slot-dir="horizontal"] > .asc-menu-rail {
+      order: 1;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .asc-menu-body[data-slot-dir="horizontal"] > .asc-menu-footer {
+      order: 2;
+      align-self: center;
+      padding-inline: 0.5em;
+    }
+
+    /* ══════════ 弹层面板（panel.html 渲染，popover-shell 承载边框/阴影/定位）══════════ */
+    .asc-menu-panel {
+      display: flex;
+      flex-direction: column;
+      min-width: max-content;
+      max-width: 18em;
+      font-size: var(--auto-font-size, var(--asc-menu-font-size, 0.875rem));
+      line-height: var(--auto-line-height, 1.5);
+      color: var(--auto-color, var(--asc-menu-color, #606060));
+      --asc-tone: var(--auto-primary-color, var(--asc-menu-primary, #009aff));
+      outline: none;
+    }
+    .asc-menu-panel-head,
+    .asc-menu-panel-foot {
+      padding: 0.4em 0.75em;
+      color: var(--auto-third-color, var(--asc-menu-aux-color, rgba(0, 0, 0, 0.35)));
+      min-width: 0;
+    }
+    .asc-menu-panel-title {
+      padding: 0.4em 0.75em;
+      font-size: 0.85em;
+      color: var(--auto-third-color, var(--asc-menu-aux-color, rgba(0, 0, 0, 0.35)));
+      border-bottom: var(--auto-border-size, var(--asc-menu-border-size, 1px)) solid
+        var(--auto-border-color, var(--asc-menu-border, #f0f0f0));
+    }
+    .asc-menu-panel-body {
+      padding: 0.25em;
+      min-width: 0;
+    }
+    /* 面板 slotDir：vertical 上下缺省（flex 列已承载）| horizontal 左右（header 左 / footer 右） */
+    .asc-menu-panel[data-slot-dir="horizontal"] {
+      flex-direction: row;
+      align-items: stretch;
+    }
+    .asc-menu-panel[data-slot-dir="horizontal"] > .asc-menu-panel-head {
+      order: 0;
+      align-self: center;
+    }
+    .asc-menu-panel[data-slot-dir="horizontal"] > .asc-menu-panel-body {
+      order: 1;
+      flex: 1 1 auto;
+    }
+    .asc-menu-panel[data-slot-dir="horizontal"] > .asc-menu-panel-foot {
+      order: 2;
+      align-self: center;
+    }
+    /* 面板内 header/footer 模板引用内容 */
+    .asc-menu-panel-tpl {
+      display: block;
+      min-width: 0;
+    }
+
+    /* ══════════ 暗色兜底变体（ADR-0129）：兜底字面值切换（变量链不变）══════════ */
     [dark] .asc-menu-body,
     [data-dark] .asc-menu-body {
       --asc-tone: var(--auto-primary-color, var(--asc-menu-primary, #56baff));
     }
-    [dark] .asc-menu-link:disabled,
-    [data-dark] .asc-menu-link:disabled {
-      color: var(--auto-disable-color, var(--asc-menu-disable-color, rgba(255, 255, 255, 0.25)));
+    /* 项化身色（button menu 形态无 dark 块——menu 侧兜底字色切换） */
+    [dark] .asc-menu .asc-menu-btnwrap > .asc-button,
+    [data-dark] .asc-menu .asc-menu-btnwrap > .asc-button {
+      color: var(--auto-color, var(--asc-menu-color, #fafafa));
     }
-    [dark] .asc-menu-link:not(:disabled):hover,
-    [data-dark] .asc-menu-link:not(:disabled):hover {
+    [dark] .asc-menu-sep,
+    [data-dark] .asc-menu-sep,
+    [dark] .asc-menu-panel-title,
+    [data-dark] .asc-menu-panel-title {
+      border-color: var(--auto-border-color, var(--asc-menu-border, #52525b));
+    }
+    [dark] .asc-menu-group,
+    [dark] .asc-menu-header,
+    [dark] .asc-menu-footer,
+    [dark] .asc-menu-panel,
+    [dark] .asc-menu-panel-head,
+    [dark] .asc-menu-panel-foot,
+    [dark] .asc-menu-panel-title,
+    [data-dark] .asc-menu-group,
+    [data-dark] .asc-menu-header,
+    [data-dark] .asc-menu-footer,
+    [data-dark] .asc-menu-panel,
+    [data-dark] .asc-menu-panel-head,
+    [data-dark] .asc-menu-panel-foot,
+    [data-dark] .asc-menu-panel-title {
+      color: var(--auto-color, var(--asc-menu-color, #fafafa));
+    }
+    [dark] .asc-menu-railbtn,
+    [data-dark] .asc-menu-railbtn {
+      color: var(--auto-color, var(--asc-menu-color, #fafafa));
+    }
+    [dark] .asc-menu-railbtn:hover,
+    [data-dark] .asc-menu-railbtn:hover {
       background: var(--auto-hover-bgcolor, var(--asc-menu-hover-bg, rgba(255, 255, 255, 0.08)));
     }
-    [dark] .asc-menu-arrow,
-    [data-dark] .asc-menu-arrow {
-      color: var(--auto-third-color, var(--asc-menu-arrow-color, rgba(255, 255, 255, 0.45)));
-    }
-    [dark] .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub] > .asc-menu-subwrap,
-    [dark] .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub] > .asc-menu-subwrap,
-    [data-dark] .asc-menu-body[data-mode="horizontal"] .asc-menu-item[data-sub] > .asc-menu-subwrap,
-    [data-dark] .asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-item[data-sub] > .asc-menu-subwrap {
-      border-color: var(--auto-border-color, var(--asc-menu-border, #52525b));
-      background: var(--auto-bgcolor, var(--asc-menu-panel-bg, #3a3a3a));
-      box-shadow: var(--auto-shadow, var(--asc-menu-shadow, 0 6px 16px rgba(0, 0, 0, 0.4)));
-    }
   </style>
-  <!-- 形态绑定落本层（根上动态绑定不求值，T4=B）；激活态/aria/禁用全为克隆体内绑定
-         （指令值通道响应，props 晚注入/内部写值随动）；key 归一 String 比较（数字
-         key 语域兼容）；克隆体内条件显隐一律 x-show（共享快照多实例 + items 晚注入
-         下 x-if 延迟编译挂错 scope 链，P0 规避清单第 4 条）——icon 空值 x-icon 渲染
-         默认图标（x-show 隐藏不可见） -->
-  <div class="asc-menu-body" :data-mode="mode" :data-collapsed="collapsed ? '' : null">
-    <!-- x-for 容器宿主形态（engine 惯用语义）：list 为容器（不克隆），其子 li 才是
-             逐项克隆模板（:key 在容器上）；嵌套 x-for（子菜单）为 engine 既有支持路径 -->
-    <ul class="asc-menu-list" role="menu" x-for="item of items" :key="item.key">
-      <li class="asc-menu-item" :data-sub="item.children && item.children.length ? '' : null">
-        <button
-          type="button"
-          class="asc-menu-link"
-          role="menuitem"
-          :data-active="String(item.key) === String(value) ? '' : null"
-          :aria-expanded="item.children && item.children.length ? (openKeys[item.key] ? 'true' : 'false') : null"
-          :disabled="item.disabled"
-          @click="onItemClick(item)"
-        >
-          <i class="asc-menu-icon" x-show="item.icon" x-icon="item.icon"></i>
-          <span class="asc-menu-label">{{ item.label }}</span>
-          <i class="asc-menu-arrow" x-show="item.children && item.children.length" x-icon="'arrow'"></i>
-        </button>
-        <!-- 子菜单出口：x-show 判有 children（克隆体内禁 x-if）；:data-open 随
-                 openKeys 命中（vertical 收张动画 / 箭头朝向消费）；horizontal/collapsed
-                 形态下被浮层面板样式覆写（hover 驱动，忽略 openKeys） -->
-        <div class="asc-menu-subwrap" x-show="item.children && item.children.length" :data-open="openKeys[item.key] ? '' : null">
-          <ul class="asc-menu-sub" role="menu" x-for="child of item.children" :key="child.key">
-            <li class="asc-menu-subitem">
-              <button
-                type="button"
-                class="asc-menu-link"
-                role="menuitem"
-                :data-active="String(child.key) === String(value) ? '' : null"
-                :disabled="child.disabled"
-                @click="onItemClick(child)"
-              >
-                <i class="asc-menu-icon" x-show="child.icon" x-icon="child.icon"></i>
-                <span class="asc-menu-label">{{ child.label }}</span>
-              </button>
-            </li>
-          </ul>
-        </div>
-      </li>
-    </ul>
+  <!-- 形态绑定落本层（T4=B：根上动态绑定不求值）；keydown 承接 roving tabindex 容器监听；
+         menu-pick / menu-toggle 承接 node 克隆体冒泡的交互事件（DOM 冒泡穿化身直达） -->
+  <div
+    class="asc-menu-body"
+    :data-mode="mode"
+    :data-collapsed="Number(collapsed) === 1 ? '1' : Number(collapsed) === 2 ? '2' : null"
+    :data-slot-dir="slotDir"
+    tabindex="0"
+    @keydown="onKeydown($event)"
+    @menu-relay="onRelay($event)"
+  >
+    <!-- header 具名插槽出口（collapsed=2 隐藏；slotDir 左右形态经 CSS order 归位） -->
+    <div class="asc-menu-header" x-show="Number(collapsed) !== 2">
+      <div class="asc-menu-slot" x-slot:header></div>
+    </div>
+    <!-- 正常 / 图标条：主体列表（递归节点；collapsed=1 下 popFrom=2——children 全弹层；
+         全 props 下传——克隆体求值域只能读 locals 与自身 props） -->
+    <div class="asc-menu-main" x-show="Number(collapsed) !== 2">
+      <div
+        x-component:autospark-menu-node="{
+            list: tree,
+            depth: 1,
+            expandMax: Number(expandLevel),
+            popFrom: Number(collapsed) === 1 ? 2 : (Number(popLevel) > 0 ? Number(popLevel) + 1 : Infinity),
+            mode: mode,
+            trigger: trigger,
+            collapsed: collapsed,
+            expandLevel: Number(expandLevel),
+            popLevel: Number(popLevel)
+        }"
+      ></div>
+    </div>
+    <!-- collapsed=2：单一指示按钮 + 整菜单弹层（不含 header/footer；层级以弹层首层为 1 重计） -->
+    <div class="asc-menu-rail" x-show="Number(collapsed) === 2">
+      <button
+        type="button"
+        class="asc-menu-railbtn"
+        aria-haspopup="menu"
+        x-popover:autospark-menu-panel
+        x-popover-options="{ padding: 0, at: { arrow: false, offset: 4 } }"
+        x-popover-options.trigger="trigger"
+        x-popover-options.at="{ placement: 'bottom-start' }"
+        x-popover-options.props="{
+            submenu: railRoot,
+            depth: 1,
+            expandMax: Number(expandLevel),
+            popFrom: Number(popLevel) > 0 ? Number(popLevel) + 1 : Infinity,
+            mode: mode,
+            trigger: trigger,
+            collapsed: 0,
+            expandLevel: Number(expandLevel),
+            popLevel: Number(popLevel)
+        }"
+      >
+        <i class="asc-menu-railicon" x-icon="'menu'"></i>
+      </button>
+    </div>
+    <!-- footer 具名插槽出口 -->
+    <div class="asc-menu-footer" x-show="Number(collapsed) !== 2">
+      <div class="asc-menu-slot" x-slot:footer></div>
+    </div>
   </div>
 </div>
-`,ns=`autospark.menu`;function rs(e){let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`icon`);n!=null&&(t.icon=n),e.hasAttribute(`disabled`)&&(t.disabled=!0);let r=Array.from(e.children).filter(e=>e.tagName.toLowerCase()===`x-menu-item`);return r.length&&(t.children=r.map(rs)),t}function is(e){e.components[ns]=ts,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-menu`))){let e=document.createElement(`div`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-menu-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(rs);else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``?a.push(`${Q(Z(n.name))}: true`):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${ns}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}as();function as(){y(e=>{m(e),is(e)})}var os=`<!--
+`,as=`<!--
+    autospark-menu-node 递归节点（menu v2 内部组件，ADR-0033 决策 7——非用户直接消费）：
+    渲染一级列表（x-for 容器宿主形态：ul 容器、li 克隆模板），逐项分流——
+    - sep：'-' / {type:'separator'} 归一态（分隔线）；
+    - group：纯视觉分组标题（不可点、不产生层级）；
+    - item × 缩进域（depth < popFrom）：button 组件（caret 随 openView 转 bottom/right）
+      + subwrap（grid-rows 收张动画）+ 递归自身渲染子级；
+    - item × 弹层域（depth >= popFrom）：行包裹层即 x-popover 宿主（hover 域整行），
+      弹层面板 autospark-menu-panel 经 props 收 submenu（归一化 item：kids+conf）——
+      popLevel 触发的级联绝对延续；collapsed=1 的面板层级重计（depth=1 / expandLevel /
+      popLevel 基准重换算，ADR-0033 决策 2）；
+    - item × 叶子：button 组件，点击经 menu-pick 事件冒泡到根组件。
+
+    求值域边界（克隆体铁律）：x-for ownsChildren 重编译的克隆体内，表达式（绑定 /
+    事件 / x-component 值对象）**只能读 x-for locals（item）与自身 props**——沿链外层
+    键（含 open 开放链）与组件 methods（绑定通道）均不可见。因此：
+    - 根组件的全部状态（activeKey / markedMap / openView / collapsed / expandLevel /
+      popLevel 原始值）经消费处值对象**全 props 下传**，逐层透传（递归实例化原样转传）；
+    - 点击交互走**事件冒泡**：本组件 methods（事件通道可调）派发 menu-pick /
+      menu-toggle 自定义事件（bubbles），根组件在 body 上监听（DOM 冒泡穿化身）；
+    - button 实例化的宿主 div 外包 btnwrap（普通 div）承载事件/状态绑定（化身宿主上
+      的绑定不经编译，家族规避惯例）。
+
+    checkable 不透传 button（勾选走根 markedMap + checkMark 占位——避免与 button 行为
+    桥双处理，ADR-0033 决策 6）；克隆体内条件显隐一律 x-show（共享快照多实例 x-if 串台
+    规避，P0 清单第 4 条）——三分支（fold/pop/leaf）恒渲染由 display 切换互斥，弹层域
+    popover 宿主 display:none 时不响应触发（hover/click 无事件）。
+-->
+<!-- x-define.open：开放数据边界（ADR-0053）——**仅供 JS 聚合链通道**：弹层面板（popover
+     宿主为本组件克隆体内元素）沿链写哨兵时经本组件透视到 menu 根域（dropdown panel
+     写触发器域同构——其哨兵键声明在宿主组件 data；本组件零自有状态故开放透视）。
+     克隆体表达式不受 open 影响，仍只读 locals（item）与自身 props（铁律见下） -->
+<div class="asc-menu-node" x-define.open="autospark-menu-node">
+  <script setup>
+    {
+        data: () => ({
+            list: [],           // 归一化级列表（影子树片段）
+            depth: 1,           // 本级层级号（level 从 1 起数）
+            expandMax: 1,       // 默认展开截止 depth（depth <= expandMax 的折叠组默认开）
+            popFrom: 1,         // 弹层起始 depth（depth >= popFrom 的 children 走弹层）
+            mode: "vertical",
+            trigger: "hover",
+            // —— 根组件结构参数下传（逐层透传不变值；激活/勾选/展开态经影子树
+            //     item._active/_marked/_open 物化承载——克隆体模板绑定对 props 热更新不响应）——
+            collapsed: 0,       // 折叠三档原始值
+            expandLevel: 1,     // 重计基准原值（collapsed=1 面板内换算用）
+            popLevel: 0,        // 重计基准原值（collapsed=1 面板内换算用）
+            // —— 交互中继哨兵（本层声明——克隆体直写沿链落「最近声明层」：主体克隆体与
+            //     弹层面板克隆体（经面板桥）都落此处；node 实例恒在 menu 树内，mounted
+            //     watch 后经 DOM 冒泡转发到根——两域统一单通道，规避跨层写直达的边界）——
+            relayTick: 0,
+            relayKey: null,
+            relayKind: "",   // "pick" | "toggle"
+        }),
+        mounted() {
+            // 中继消费：克隆体直写（主体/面板两域）→ 本实例 data 中继键 → watch 转发为
+            // DOM 冒泡事件（node 恒在 menu 树内，body 监听可达——K 系实证链）
+            this.watch("relayTick", () => {
+                this.el.dispatchEvent(new CustomEvent("menu-relay", {
+                    bubbles: true,
+                    detail: { key: this.data.relayKey, kind: this.data.relayKind },
+                }));
+            });
+        },
+    }
+  <\/script>
+  <ul class="asc-menu-list" role="menu" x-for="item of list">
+    <li
+      class="asc-menu-entry"
+      :data-kind="item.kind"
+      :data-key="item.key != null ? String(item.key) : null"
+      :data-sub="item.kind === 'item' && item.kids && item.kids.length ? '' : null"
+      :data-disabled="item.disabled ? '' : null"
+      :data-icon-ph="item.iconPh ? '' : null"
+    >
+      <!-- 分隔线 -->
+      <div class="asc-menu-sep" x-show="item.kind === 'sep'"></div>
+
+      <!-- 分组标题（纯视觉） -->
+      <div class="asc-menu-group" x-show="item.kind === 'group'">
+        <i class="asc-menu-group-icon" x-show="item.icon" x-icon="item.icon"></i>
+        <span class="asc-menu-group-title">{{ item.title }}</span>
+      </div>
+
+      <!-- ═══ item × 缩进域折叠组（depth < popFrom）：caret 随 openView 转、subwrap 收张、递归子级 ═══ -->
+      <div class="asc-menu-fold" x-show="item._fold">
+        <div
+          class="asc-menu-btnwrap"
+          :data-active="item._active ? '' : null"
+          :data-marked="item._marked ? '' : null"
+          @click="relayTick = relayTick + 1, relayKey = item.key, relayKind = 'toggle'"
+        >
+          <div
+            x-component:autospark.button="{
+                menu: true,
+                label: item.label,
+                icon: item.iconPh ? 'default' : (item.icon || ''),
+                disabled: item.disabled,
+                caret: item._open ? 'bottom' : 'right',
+                checkMark: item.checkPh,
+                checkStyle: item.checkStyle || 'check',
+                memo: item.memo,
+                loading: item.loading,
+                type: item.type,
+                variant: item.variant,
+                indent: item.indent,
+                labelPos: Number(collapsed) === 1 ? 'none' : 'right',
+                tags: item.tags
+            }"
+          ></div>
+        </div>
+        <div class="asc-menu-subwrap" :data-open="item._open ? '' : null">
+          <!-- 缩进量默认 0.4em；SubmenuOptions.indent 逐级覆盖（number 按 px / 字符串 CSS 值直写） -->
+          <div
+            class="asc-menu-sub"
+            :style="item.conf && item.conf.indent != null ? { paddingInlineStart: (typeof item.conf.indent === 'number' ? item.conf.indent + 'px' : item.conf.indent) } : null"
+          >
+            <div
+              x-component:autospark-menu-node="{
+                  list: item.kids,
+                  depth: depth + 1,
+                  expandMax: expandMax,
+                  popFrom: popFrom,
+                  mode: mode,
+                  trigger: trigger,
+                  collapsed: collapsed,
+                  expandLevel: expandLevel,
+                  popLevel: popLevel
+              }"
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ item × 弹层域（depth >= popFrom）：行包裹层即 popover 宿主 ═══
+           级联绝对延续（depth+1 / 基准原值）；collapsed=1 的面板层级重计（ADR-0033 决策 2：
+           弹层首层=1、expandLevel/popLevel 基准重换算）——表达式全读自身 props（克隆体铁律） -->
+      <div
+        class="asc-menu-pop"
+        x-show="item._pop"
+        x-popover:autospark-menu-panel
+        x-popover-options="{ padding: 0, at: { arrow: false, offset: 4 } }"
+        x-popover-options.trigger="trigger"
+        x-popover-options.at="{ placement: (mode === 'horizontal' && depth === 1) ? 'bottom-start' : 'right-start' }"
+        x-popover-options.padding="item.conf && item.conf.padding != null ? item.conf.padding : 0"
+      >
+        <div
+          class="asc-menu-btnwrap"
+          :data-active="item._active ? '' : null"
+          :data-marked="item._marked ? '' : null"
+        >
+          <div
+            x-component:autospark.button="{
+                menu: true,
+                label: item.label,
+                icon: item.iconPh ? 'default' : (item.icon || ''),
+                disabled: item.disabled,
+                caret: (mode === 'horizontal' && depth === 1) ? 'bottom' : 'right',
+                checkMark: item.checkPh,
+                checkStyle: item.checkStyle || 'check',
+                memo: item.memo,
+                loading: item.loading,
+                type: item.type,
+                variant: item.variant,
+                indent: item.indent,
+                labelPos: Number(collapsed) === 1 ? 'none' : 'right',
+                tags: item.tags
+            }"
+          ></div>
+        </div>
+      </div>
+
+      <!-- ═══ item × 叶子：点击经 menu-pick 事件冒泡到根组件 ═══ -->
+      <div
+        class="asc-menu-btnwrap"
+        x-show="item._leaf"
+        :data-active="item._active ? '' : null"
+        :data-marked="item._marked ? '' : null"
+        @click="relayTick = relayTick + 1, relayKey = item.key, relayKind = 'pick'"
+      >
+        <div
+          x-component:autospark.button="{
+              menu: true,
+              label: item.label,
+              icon: item.iconPh ? 'default' : (item.icon || ''),
+              disabled: item.disabled,
+              caret: item.caret || 'none',
+              checkMark: item.checkPh,
+              checkStyle: item.checkStyle || 'check',
+              memo: item.memo,
+              loading: item.loading,
+              type: item.type,
+              variant: item.variant,
+              indent: item.indent,
+              labelPos: Number(collapsed) === 1 ? 'none' : 'right',
+              tags: item.tags
+          }"
+        ></div>
+      </div>
+    </li>
+  </ul>
+</div>
+`,os=`<!--
+    autospark-menu-panel 弹层面板（menu v2 内部组件，ADR-0033 决策 7——非用户直接消费）：
+    经 x-popover:autospark-menu-panel 消费渲染进 body 覆盖物容器，面板外壳（边框/阴影/
+    定位）由 popover-shell 承载，本组件贡献菜单列表内容。
+
+    纯透传桥架构（dropdown panel 同构，实测边界归零）：**零 props、data() 空对象**——
+    有键 data 的惰性面板直层指令值（x-component 值对象 / @ 事件）求值失效（实测），
+    全部数据沿宿主链读（overlay 家族恒 open+dataContext:'host' 实例化，链 = 宿主
+    node 实例域 + 其克隆体 x-for local item + 经 node 的 open 链直达 menu 根域）：
+    - item：弹层父项（归一化 item——kids/conf 直读，数组不经 overlay props 传输——
+      该通道丢数组字段，实测）；
+    - depth / popFrom / mode / trigger / slotDir / closeTick / wantFocusAt：
+      宿主 node props 或 menu 根域键；
+    - conf（SubmenuOptions 归一态）：header / footer（字符串 | '#模板id' 引用，mounted
+      静态注入）、title（弹层标题行）、slotDir（逐层覆盖根 slotDir）、padding（消费处
+      经 x-popover-options.padding 透传）。
+
+    面板内列表为 node.html 的同构内联（宿主链直读 item.kids 经 x-for 渲染）；面板内
+    深层级弹层父项继续声明 x-popover:本面板名（面板里面板递归，新面板沿新宿主链读新
+    item——多级级联天然成立）；面板内的缩进域折叠组（collapsed 重计下 popFrom > depth
+    的层）以折叠组形态呈现，子级列表受桥面板表达式域限制不再深层递归（已知边界，常规
+    popLevel 级联不受影响）。
+
+    关闭通道（叶选关整链，ADR-0033 决策 5）：根 closeTick 哨兵 → watch 后自关——
+    close() 优先（scope 注入请求关闭链），overlay:open 实例捕获兜底。键盘（面板内
+    roving 收窄版）：↑↓→← Home/End / Enter 原生 / Esc 归 popover 栈。化身路径约束
+    （T4=B）：分区方向绑定落内层载体。
+-->
+<div x-define="autospark-menu-panel">
+  <script setup>
+    {
+        // 零 props（消费处不传 props——面板沿宿主链读）、零自有状态——data() 空对象
+        // 占位建立链桥点（有键 data 会让惰性面板直层指令值求值失效，实测）
+        data: () => ({}),
+        methods: {
+            // 自关（closeTick 广播 / 面板内 ← 键）：close() scope 注入优先，overlay 实例兜底
+            closeSelf() {
+                if (typeof this.close === "function") { this.close(); return; }
+                if (this._instClose) this._instClose();
+            },
+            // conf.header/footer 的 '#模板id' 引用注入（mounted 一次，静态 innerHTML 承载）
+            injectRefs() {
+                const conf = (typeof item !== "undefined" && item && item.conf) || {};
+                for (const side of ["header", "footer"]) {
+                    const v = conf[side];
+                    if (typeof v !== "string" || v.charAt(0) !== "#") continue;
+                    const ref = document.querySelector(v);
+                    const host = this.el.querySelector(side === "header" ? ".asc-menu-panel-head" : ".asc-menu-panel-foot");
+                    if (!ref || !host) continue;
+                    host.innerHTML = ref.innerHTML;
+                }
+            },
+            // 焦点入首项（键盘打开路径；一跳后面板子树挂载稳定）
+            focusFirst() {
+                setTimeout(() => {
+                    const first = this.el.querySelector(".asc-menu-btnwrap > .asc-button:not([disabled])");
+                    if (first) first.focus();
+                }, 30);
+            },
+            // 弹层宿主程序化打开（trigger 沿宿主链读；模型分派，menu 主体同款）
+            openPophost(popEl) {
+                if (String(trigger) === "click") {
+                    popEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+                } else {
+                    popEl.dispatchEvent(new MouseEvent("mouseenter", { bubbles: false }));
+                }
+            },
+            // 面板内键盘导航（↑↓→← Home/End；Enter 原生 button；Esc 归 popover 栈）
+            onKeydown(event) {
+                const k = event.key;
+                if (k !== "ArrowDown" && k !== "ArrowUp" && k !== "ArrowRight" && k !== "ArrowLeft" && k !== "Home" && k !== "End") return;
+                const btn = event.target && event.target.closest ? event.target.closest(".asc-menu-entry .asc-menu-btnwrap > .asc-button") : null;
+                const currentLi = btn ? btn.closest(".asc-menu-entry") : null;
+                const focusables = (ul) => Array.from(ul.querySelectorAll(":scope > .asc-menu-entry > div > .asc-menu-btnwrap > .asc-button:not([disabled])"));
+                if (k === "ArrowDown" || k === "ArrowUp" || k === "Home" || k === "End") {
+                    const list = currentLi ? currentLi.parentElement : this.el.querySelector("ul.asc-menu-list");
+                    const arr = list ? focusables(list) : [];
+                    if (!arr.length) return;
+                    event.preventDefault();
+                    let next = null;
+                    if (k === "Home") next = arr[0];
+                    else if (k === "End") next = arr[arr.length - 1];
+                    else {
+                        const i = arr.indexOf(btn);
+                        const dir = k === "ArrowDown" ? 1 : -1;
+                        next = i < 0 ? arr[0] : arr[(i + dir + arr.length) % arr.length];
+                    }
+                    if (next) next.focus();
+                    return;
+                }
+                if (!btn || !currentLi) return;
+                if (k === "ArrowRight") {
+                    const pop = currentLi.querySelector(":scope > .asc-menu-pop");
+                    if (pop && getComputedStyle(pop).display !== "none") {
+                        event.preventDefault();
+                        this.openPophost(pop);
+                        this.data.wantFocusAt = Date.now(); // 沿链写根域：子面板 mounted 后焦点入首项
+                    }
+                    return;
+                }
+                // ArrowLeft：关自己（焦点回落主体容器 tabindex 停靠点）
+                event.preventDefault();
+                this.closeSelf();
+            },
+        },
+        mounted() {
+            // '#模板id' 引用注入（一跳后子树挂载稳定）
+            setTimeout(() => this.injectRefs(), 0);
+            // 键盘打开路径的焦点请求（wantFocusAt 时间戳：mounted 时判定覆盖 hover delayShow
+            // 时序 + watch 承接面板存活期内的后续请求）
+            if (Date.now() - Number(this.data.wantFocusAt || 0) < 600) this.focusFirst();
+            this.watch("wantFocusAt", () => { this.focusFirst(); });
+            // 叶选关整链广播：根 closeTick 哨兵 → 自关
+            this.watch("closeTick", () => { this.closeSelf(); });
+            // overlay 实例关闭兜底：实例根冒泡 overlay:open（payload.instance.close）——
+            // 事件可能先于 mounted 发出（错过即放弃该通道，close() 主通道兜底）
+            this.el.addEventListener("overlay:open", (e) => {
+                const inst = e.detail && e.detail.instance;
+                if (inst && typeof inst.close === "function") this._instClose = () => inst.close();
+            });
+        },
+    }
+  <\/script>
+  <!-- 面板载体：分区方向绑定落本层（根上动态绑定不求值，T4=B）；tabindex 焦点停靠；
+         列表 = 宿主链直读 item.kids 经 x-for 容器宿主形态渲染（dropdown panel 同款） -->
+  <div
+    class="asc-menu-panel"
+    tabindex="0"
+    :data-slot-dir="(item && item.conf && item.conf.slotDir) ? item.conf.slotDir : slotDir"
+    @keydown="onKeydown($event)"
+  >
+    <!-- 弹层头部：字符串直渲染（'#' 引用由 mounted 注入覆盖） -->
+    <div class="asc-menu-panel-head" x-show="item && item.conf && item.conf.header">
+      <div class="asc-menu-panel-tpl" x-text="(item && item.conf && typeof item.conf.header === 'string' && item.conf.header.charAt(0) !== '#') ? item.conf.header : ''"></div>
+    </div>
+    <!-- 弹层标题行（仅弹层域显示；缩进域父项 label 已承担） -->
+    <div class="asc-menu-panel-title" x-show="item && item.conf && item.conf.title">{{ item && item.conf ? item.conf.title : '' }}</div>
+    <!-- 列表主体：宿主链直读 item.kids -->
+    <div class="asc-menu-panel-body">
+      <ul class="asc-menu-list" role="menu" x-for="child of (item && item.kids ? item.kids : (tree || []))">
+        <li
+          class="asc-menu-entry"
+          :data-kind="child.kind"
+          :data-key="child.key != null ? String(child.key) : null"
+          :data-sub="child.kind === 'item' && child.kids && child.kids.length ? '' : null"
+          :data-disabled="child.disabled ? '' : null"
+          :data-icon-ph="child.iconPh ? '' : null"
+        >
+          <!-- 分隔线 / 分组标题（纯视觉） -->
+          <div class="asc-menu-sep" x-show="child.kind === 'sep'"></div>
+          <div class="asc-menu-group" x-show="child.kind === 'group'">
+            <i class="asc-menu-group-icon" x-show="child.icon" x-icon="child.icon"></i>
+            <span class="asc-menu-group-title">{{ child.title }}</span>
+          </div>
+          <!-- 子级弹层宿主（面板里面板递归：新面板沿新宿主链读新 item，级联天然成立） -->
+          <div
+            class="asc-menu-pop"
+            x-show="child._pop"
+            x-popover:autospark-menu-panel
+            x-popover-options="{ padding: 0, at: { arrow: false, offset: 4 } }"
+            x-popover-options.trigger="trigger"
+            x-popover-options.at="{ placement: 'right-start' }"
+            x-popover-options.padding="child.conf && child.conf.padding != null ? child.conf.padding : 0"
+          >
+            <div
+              class="asc-menu-btnwrap"
+              :data-active="child._active ? '' : null"
+              :data-marked="child._marked ? '' : null"
+            >
+              <div
+                x-component:autospark.button="{
+                    menu: true,
+                    label: child.label,
+                    icon: child.iconPh ? 'default' : (child.icon || ''),
+                    disabled: child.disabled,
+                    caret: 'right',
+                    checkMark: child.checkPh,
+                    checkStyle: child.checkStyle || 'check',
+                    memo: child.memo,
+                    loading: child.loading,
+                    type: child.type,
+                    variant: child.variant,
+                    indent: child.indent,
+                    labelPos: 'right',
+                    tags: child.tags
+                }"
+              ></div>
+            </div>
+          </div>
+          <!-- 叶子 / 面板内折叠组（重计域）：点击经 menu-pick / menu-toggle 冒泡 + mounted 原生监听转发 -->
+          <div
+            class="asc-menu-btnwrap"
+            x-show="!child._pop"
+            :data-active="child._active ? '' : null"
+            :data-marked="child._marked ? '' : null"
+            @click="child.kids && child.kids.length ? (relayTick = relayTick + 1, relayKey = child.key, relayKind = 'toggle') : (relayTick = relayTick + 1, relayKey = child.key, relayKind = 'pick')"
+          >
+            <div
+              x-component:autospark.button="{
+                  menu: true,
+                  label: child.label,
+                  icon: child.iconPh ? 'default' : (child.icon || ''),
+                  disabled: child.disabled,
+                  caret: child.kids && child.kids.length ? (child._open ? 'bottom' : 'right') : (child.caret || 'none'),
+                  checkMark: child.checkPh,
+                  checkStyle: child.checkStyle || 'check',
+                  memo: child.memo,
+                  loading: child.loading,
+                  type: child.type,
+                  variant: child.variant,
+                  indent: child.indent,
+                  labelPos: 'right',
+                  tags: child.tags
+              }"
+            ></div>
+          </div>
+        </li>
+      </ul>
+    </div>
+    <!-- 弹层尾部 -->
+    <div class="asc-menu-panel-foot" x-show="item && item.conf && item.conf.footer">
+      <div class="asc-menu-panel-tpl" x-text="(item && item.conf && typeof item.conf.footer === 'string' && item.conf.footer.charAt(0) !== '#') ? item.conf.footer : ''"></div>
+    </div>
+  </div>
+</div>
+`,ss=`autospark.menu`,cs=`autospark-menu-node`,ls=`autospark-menu-panel`;function us(e){e.components[ss]=is,e.components[cs]=as,e.components[ls]=os,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-menu`))){let e=document.createElement(`div`);for(let e of Array.from(t.children))e.tagName.toLowerCase()===`x-menu-item`&&e.remove();let n=t.getAttribute(`items`),r=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),n!=null&&n!==``&&!r)try{let t=JSON.parse(n);Array.isArray(t)&&e.setAttribute(`data-items`,JSON.stringify(t))}catch{}let i=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?i.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``?i.push(`${Q(Z(n.name))}: true`):i.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${ss}`,`{ ${i.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}ds();function ds(){y(e=>{m(e),us(e)})}var fs=`<!--
     autospark.steps 步骤条（组件库 P2 导航件，ADR-0018 清单权威表 navigation 行）：
     items（{ title, description?, icon? }[]，状态引用注入）或 <x-step> 子元素声明
     （data-items 通道，字面量数组 props 死环规避，P0 固化规避清单第 1 条）双形态。
@@ -16234,7 +17149,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </ol>
   </div>
 </div>
-`,ss=`autospark.steps`;function cs(e){e.components[ss]=os,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-steps`))){let e=document.createElement(`div`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-step`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={title:e.getAttribute(`title`)??``},n=e.getAttribute(`description`);n!=null&&(t.description=n);let r=e.getAttribute(`icon`);return r!=null&&(t.icon=r),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``?a.push(`${Q(Z(n.name))}: true`):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${ss}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}ls();function ls(){y(e=>{m(e),cs(e)})}var us=`<!--
+`,ps=`autospark.steps`;function ms(e){e.components[ps]=fs,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-steps`))){let e=document.createElement(`div`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-step`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={title:e.getAttribute(`title`)??``},n=e.getAttribute(`description`);n!=null&&(t.description=n);let r=e.getAttribute(`icon`);return r!=null&&(t.icon=r),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``?a.push(`${Q(Z(n.name))}: true`):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${ps}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}hs();function hs(){y(e=>{m(e),ms(e)})}var gs=`<!--
     autospark.page-header 页头（组件库 P2 导航件，ADR-0018 清单权威表 navigation 行）：
     title / subtitle 标题对 + back 返回钮 + extra（右侧动作区）/ 默认（内容区）双插槽。
     纯结构件。
@@ -16426,7 +17341,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   <!-- 内容区：默认插槽出口（出口须紧凑书写——:empty 判定） -->
   <div class="asc-page-header-content" x-slot></div>
 </div>
-`,ds=`autospark.page-header`;function fs(e){e.components[ds]=us}ps();function ps(){y(e=>{m(e),fs(e)})}var ms=`<!--
+`,_s=`autospark.page-header`;function vs(e){e.components[_s]=gs}ys();function ys(){y(e=>{m(e),vs(e)})}var bs=`<!--
     autospark.pagination 分页器（组件库 P2 导航件，ADR-0018 清单权威表 navigation 行）：
     受控 page（el.value 桥 + change detail={page,pageSize} + input 回写 x-model）+
     pageSize / total / pageSizes（条数切换 select）/ simple（极简形态）。
@@ -16812,7 +17727,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </span>
   </div>
 </div>
-`,hs=`autospark.pagination`;function gs(e){e.components[hs]=ms,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-pagination`))){let e=t.getAttribute(`page-sizes`);e!=null&&e!==``&&!t.hasAttribute(`:page-sizes`)&&t.setAttribute(`data-page-sizes`,e),t.removeAttribute(`page-sizes`)}})}_s();function _s(){y(e=>{m(e),gs(e)})}var vs=`<!--
+`,xs=`autospark.pagination`;function Ss(e){e.components[xs]=bs,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-pagination`))){let e=t.getAttribute(`page-sizes`);e!=null&&e!==``&&!t.hasAttribute(`:page-sizes`)&&t.setAttribute(`data-page-sizes`,e),t.removeAttribute(`page-sizes`)}})}Cs();function Cs(){y(e=>{m(e),Ss(e)})}var ws=`<!--
     autospark.anchor 锚点导航（组件库 P3 导航轻件，ADR-0018 清单权威表 navigation 行 /
     ADR-0029 轻件对 ADR）：items（{ key, label, href? }[]，状态引用注入——href 缺省
     key 作锚 id #key）驱动侧边文字列表；scroll + getBoundingClientRect 监听高亮当前锚
@@ -17008,7 +17923,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </div>
   </div>
 </nav>
-`,ys=`autospark.anchor`;function bs(e){e.components[ys]=vs,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-anchor`))){let e=document.createElement(`nav`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-anchor-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`href`);return n!=null&&(t.href=n),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):a.push(`${Q(Z(n.name))}: ${JSON.stringify(n.value===``||$(n.value))}`);for(e.setAttribute(`x-component:${ys}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}xs();function xs(){y(e=>{m(e),bs(e)})}var Ss=`<!--
+`,Ts=`autospark.anchor`;function Es(e){e.components[Ts]=ws,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-anchor`))){let e=document.createElement(`nav`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-anchor-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(e=>{let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`href`);return n!=null&&(t.href=n),t});else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):a.push(`${Q(Z(n.name))}: ${JSON.stringify(n.value===``||$(n.value))}`);for(e.setAttribute(`x-component:${Ts}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Ds();function Ds(){y(e=>{m(e),Es(e)})}var Os=`<!--
     autospark.dropdown 下拉菜单（ADR-0027）——触发器组件：动作触发型轻量菜单（与
     autospark.menu 的边界：menu = 页面导航区常驻组件——路由激活态 / 子菜单展开态 /
     自身状态域；本组件 = 按钮旁弹出的动作菜单，即点即走、select 后即复位，菜单项
@@ -17351,7 +18266,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     x-slot
   ></span>
 </div>
-`,Cs=`<!--
+`,ks=`<!--
     autospark-dropdown-panel 菜单面板（ADR-0027）——dropdown 的内部组件（非用户直接
     消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制渲染进
     body 覆盖物容器，面板外壳（边框/阴影/定位）由 popover-shell 承载，本组件只贡献
@@ -17418,7 +18333,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     x-text="t('dropdown.empty') === 'dropdown.empty' ? '暂无数据' : t('dropdown.empty')"
   ></div>
 </div>
-`,ws=`autospark.dropdown`,Ts=`autospark-dropdown-panel`,Es=new Set([`disabled`]);function Ds(e){let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`icon`);return n!=null&&(t.icon=n),e.hasAttribute(`disabled`)&&(t.disabled=!0),e.hasAttribute(`divided`)&&(t.divided=!0),e.hasAttribute(`danger`)&&(t.danger=!0),t}function Os(e){e.components[ws]=Ss,e.components[Ts]=Cs,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-dropdown`))){let e=document.createElement(`span`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-dropdown-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(Ds);else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``&&Es.has(n.name)?a.push(`${Q(Z(n.name))}: true`):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${ws}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}ks();function ks(){y(e=>{m(e),Os(e)})}var As=`<!--
+`,As=`autospark.dropdown`,js=`autospark-dropdown-panel`,Ms=new Set([`disabled`]);function Ns(e){let t={key:e.getAttribute(`key`)??``,label:e.getAttribute(`label`)??``},n=e.getAttribute(`icon`);return n!=null&&(t.icon=n),e.hasAttribute(`disabled`)&&(t.disabled=!0),e.hasAttribute(`divided`)&&(t.divided=!0),e.hasAttribute(`danger`)&&(t.danger=!0),t}function Ps(e){e.components[As]=Os,e.components[js]=ks,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-dropdown`))){let e=document.createElement(`span`),n=Array.from(t.children).filter(e=>e.tagName.toLowerCase()===`x-dropdown-item`),r=t.getAttribute(`items`),i=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),(n.length>0||r!=null&&r!==``)&&!i){let t=null;if(n.length)t=n.map(Ns);else try{let e=JSON.parse(r);Array.isArray(e)&&(t=e)}catch{}t&&e.setAttribute(`data-items`,JSON.stringify(t))}for(let e of n)e.remove();let a=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?a.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``&&Ms.has(n.name)?a.push(`${Q(Z(n.name))}: true`):a.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${As}`,`{ ${a.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Fs();function Fs(){y(e=>{m(e),Ps(e)})}var Is=`<!--
     autospark.float-button 悬浮按钮（组件库 P3 other 分类首件，ADR-0018 清单权威表
     other 行 / 修订吸收原 backtop 独立条目——antd 5 同款路线 / ADR-0029 轻件对 ADR）：
     fixed 右下悬浮钮。type 双形态：default 常规（icon 必选 + click 原生冒泡事件出口）|
@@ -17628,7 +18543,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-float-button-label" x-slot></span>
   </span>
 </button>
-`,js=`autospark.float-button`;function Ms(e){e.components[js]=As,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-float-button`))){let e=document.createElement(`button`);e.setAttribute(`type`,`button`);let n=t.hasAttribute(`back-to-top`);t.removeAttribute(`back-to-top`);let r=t.hasAttribute(`type`)||t.hasAttribute(`:type`),i=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?i.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):i.push(`${Q(Z(n.name))}: ${JSON.stringify(n.value===``||$(n.value))}`);for(n&&!r&&i.push(`type: ${JSON.stringify(`back-to-top`)}`),e.setAttribute(`x-component:${js}`,`{ ${i.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Ns();function Ns(){y(e=>{m(e),Ms(e)})}var Ps=`<!--
+`,Ls=`autospark.float-button`;function Rs(e){e.components[Ls]=Is,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-float-button`))){let e=document.createElement(`button`);e.setAttribute(`type`,`button`);let n=t.hasAttribute(`back-to-top`);t.removeAttribute(`back-to-top`);let r=t.hasAttribute(`type`)||t.hasAttribute(`:type`),i=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?i.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):i.push(`${Q(Z(n.name))}: ${JSON.stringify(n.value===``||$(n.value))}`);for(n&&!r&&i.push(`type: ${JSON.stringify(`back-to-top`)}`),e.setAttribute(`x-component:${Ls}`,`{ ${i.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}zs();function zs(){y(e=>{m(e),Rs(e)})}var Bs=`<!--
     autospark.affix 固钉（组件库 P4 other 长尾件，ADR-0018 清单权威表 other 行 /
     ADR-0030 轻件对 ADR）：滚动过 offset 阈值后内容 fixed 吸附视口（position=top
     吸顶缺省 / bottom 吸底）；原位占位撑高防跳动（脱流前几何快照：宿主写 height
@@ -17779,7 +18694,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <div class="asc-affix-inner" x-slot></div>
   </div>
 </div>
-`,Fs=`autospark.affix`;function Is(e){e.components[Fs]=Ps,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-affix`))){let e=document.createElement(`div`),n=[];for(let r of Array.from(t.attributes))r.name.startsWith(`:`)?n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`):r.name===`class`||r.name===`style`||r.name===`id`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)?e.setAttribute(r.name,r.value):n.push(`${Q(Z(r.name))}: ${JSON.stringify(r.value===``||$(r.value))}`);for(e.setAttribute(`x-component:${Fs}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Ls();function Ls(){y(e=>{m(e),Is(e)})}var Rs=`<!--
+`,Vs=`autospark.affix`;function Hs(e){e.components[Vs]=Bs,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-affix`))){let e=document.createElement(`div`),n=[];for(let r of Array.from(t.attributes))r.name.startsWith(`:`)?n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`):r.name===`class`||r.name===`style`||r.name===`id`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)?e.setAttribute(r.name,r.value):n.push(`${Q(Z(r.name))}: ${JSON.stringify(r.value===``||$(r.value))}`);for(e.setAttribute(`x-component:${Vs}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Us();function Us(){y(e=>{m(e),Hs(e)})}var Ws=`<!--
     autospark.watermark 水印（组件库 P4 other 长尾件，ADR-0018 清单权威表 other 行 /
     ADR-0030 轻件对 ADR）：容器形态（缺省，absolute 覆盖默认插槽内容）或全页形态
     （fullPage，水印层挂 body fixed 铺满视口）；canvas 离屏绘制旋转文本单元 →
@@ -18015,7 +18930,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   </div>
   <div class="asc-watermark-layer"></div>
 </div>
-`,zs=`autospark.watermark`;function Bs(e){e.components[zs]=Rs,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-watermark`))){let e=document.createElement(`div`),n=[];for(let r of Array.from(t.attributes))r.name.startsWith(`:`)?n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`):(r.name===`content`||r.name===`gap`)&&r.value.trim().startsWith(`[`)?e.setAttribute(`data-${r.name}`,r.value):r.name===`class`||r.name===`style`||r.name===`id`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)?e.setAttribute(r.name,r.value):n.push(`${Q(Z(r.name))}: ${JSON.stringify(r.value===``||$(r.value))}`);for(e.setAttribute(`x-component:${zs}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}Vs();function Vs(){y(e=>{m(e),Bs(e)})}var Hs=`<!--
+`,Gs=`autospark.watermark`;function Ks(e){e.components[Gs]=Ws,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-watermark`))){let e=document.createElement(`div`),n=[];for(let r of Array.from(t.attributes))r.name.startsWith(`:`)?n.push(`${Q(Z(r.name.slice(1)))}: (${r.value})`):(r.name===`content`||r.name===`gap`)&&r.value.trim().startsWith(`[`)?e.setAttribute(`data-${r.name}`,r.value):r.name===`class`||r.name===`style`||r.name===`id`||r.name.startsWith(`data-`)||r.name.startsWith(`x-`)||r.name.startsWith(`@`)?e.setAttribute(r.name,r.value):n.push(`${Q(Z(r.name))}: ${JSON.stringify(r.value===``||$(r.value))}`);for(e.setAttribute(`x-component:${Gs}`,`{ ${n.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}qs();function qs(){y(e=>{m(e),Ks(e)})}var Js=`<!--
     化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
     不会求值——遮罩高亮框与气泡全部落在编译子树的内层元素上，宿主为透明块壳。
 
@@ -18425,7 +19340,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </div>
   </div>
 </div>
-`,Us=`autospark.tour`;function Ws(e){e.components[Us]=Hs}Gs();function Gs(){y(e=>{m(e),Ws(e)})}var Ks=`<!--
+`,Ys=`autospark.tour`;function Xs(e){e.components[Ys]=Js}Zs();function Zs(){y(e=>{m(e),Xs(e)})}var Qs=`<!--
     化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
     不会求值——本组件无宿主级变体外观，数值文本经 JS 通道直写内层元素（statistic
     同款纪律：绑定表达式不含组件 methods）。
@@ -18591,7 +19506,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     <span class="asc-countdown-value"></span>
   </div>
 </div>
-`,qs=`autospark.countdown`;function Js(e){e.components[qs]=Ks}Ys();function Ys(){y(e=>{m(e),Js(e)})}};
+`,$s=`autospark.countdown`;function ec(e){e.components[$s]=Qs}tc();function tc(){y(e=>{m(e),ec(e)})}};
     if (AutoSpark === undefined) {
         // 插件先于引擎加载（engine ADR-0114）：入预加载队列，engine 构造 drain 时以命名空间回放
         var queue = (globalThis.__AUTOSPARK_PLUGINS__ ??= []);
