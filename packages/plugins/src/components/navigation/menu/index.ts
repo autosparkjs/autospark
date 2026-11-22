@@ -7,8 +7,10 @@
  * 全 props / group 分组标题 / separator 分隔线（≡ '-'）/ children 数组|SubmenuOptions
  * 配置对象，递归任意层）；expandLevel 初始展开 + popLevel 缩进/弹层分界 + openKeys
  * 全受控双绑；value 形态即语义（string 单选激活 / string[] checkable 勾选集合）；
- * collapsed 三档（0 常规 / 1 图标条 / 2 单按钮+整菜单弹层）；trigger（hover 缺省 |
- * click）透传 popover；同级 check / icon 统一占位；完整键盘导航（roving tabindex）。
+ * collapsed 布尔折叠（垂直 = 整菜单收窄为 collapsedWidth + 子级全弹层 / 水平 = 仅一级项
+ * 只显示图标，ADR-0033 修订）；width / collapsedWidth 宽度 props（0 = 自适应填充）；
+ * trigger（hover 缺省 | click）透传 popover；同级 check / icon 统一占位；完整键盘导航
+ * （roving tabindex）；header / footer 插槽为作用域插槽（slotParams 形参，按需解构）。
  *
  * 旧 `<x-menu-item>` 组合式**硬移除不警告**（ADR-0033 决策 1，0.x breaking 惯例）：
  * 声明子元素静默摘除；裸 `items='[…]'` JSON 字符串走 data-items 通道延续（字面量数组
@@ -51,7 +53,8 @@ export const MENU_PANEL_NAME = "autospark-menu-panel";
  * precompile 变换（tabs/breadcrumb/dropdown 同款折叠规则）：静态属性折叠为 props
  * 字面量（类型推断）、`:key="expr"` 响应式项以原始表达式拼进值对象字面量，
  * class/style/id 与 data-、x-、@ 前缀属性保留给宿主（x-model 在场即经此激活值桥），
- * 子内容（含 template header/footer 具名插槽声明）随迁为插槽内容；`<x-menu-item>`
+ * 子内容随迁为插槽内容（直接子级 `<template header>` / `<template footer>` 快捷形态归一为
+ * 正典 `x-slot:header` / `x-slot:footer`，形参声明原值保留）；`<x-menu-item>`
  * 旧组合式子元素静默摘除（ADR-0033 决策 1 硬移除）。
  */
 function mountMenuPlugin(autospark: typeof AutoSpark): void {
@@ -64,6 +67,18 @@ function mountMenuPlugin(autospark: typeof AutoSpark): void {
             // —— 旧组合式子元素硬移除（不警告、不转换——ADR-0033 决策 1）——
             for (const it of Array.from(el.children)) {
                 if (it.tagName.toLowerCase() === "x-menu-item") it.remove();
+            }
+            // —— header / footer 插槽声明快捷形态归一：`<template header>` / `<template footer>`
+            // → 正典 `<template x-slot:header>`（属性值原值保留，即形参声明）——引擎只认 x-slot
+            // 标记，未标记的 template 会落入默认段而不渲染；仅认宿主直接子级，正典写法已在场则不动 ——
+            for (const it of Array.from(el.children)) {
+                if (it.tagName.toLowerCase() !== "template") continue;
+                for (const name of ["header", "footer"]) {
+                    if (!it.hasAttribute(name)) continue;
+                    const declared = it.getAttribute(name);
+                    it.removeAttribute(name);
+                    if (!it.hasAttribute(`x-slot:${name}`)) it.setAttribute(`x-slot:${name}`, declared ?? "");
+                }
             }
             // —— 裸 items 属性（JSON 字符串）走 data-items 通道（不进 props 值对象）——
             const bareItems = el.getAttribute("items");
@@ -96,7 +111,7 @@ function mountMenuPlugin(autospark: typeof AutoSpark): void {
                     host.setAttribute(attr.name, attr.value);
                     continue;
                 }
-                // 裸属性 = 开（布尔开关语义，carousel 惯例；collapsed 裸属性 ≡ 1，模板侧 Number 归一）
+                // 裸属性 = 开（布尔开关语义，carousel 惯例；裸 collapsed 即折叠，旧数值 1/2 亦归一为 true）
                 if (attr.value === "") {
                     parts.push(`${propKey(kebabToCamel(attr.name))}: true`);
                     continue;

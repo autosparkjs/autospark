@@ -7,7 +7,7 @@
     <style>
       body {
         font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-        max-width: 720px;
+        max-width: 1120px;
         margin: 40px auto;
         padding: 0 16px;
         color: #212529;
@@ -29,6 +29,12 @@
         color: #868e96;
         font-size: 0.875rem;
       }
+      .row {
+        display: flex;
+        gap: 32px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
       .stage {
         display: inline-block;
         min-width: 200px;
@@ -37,8 +43,22 @@
         border: 1px solid rgba(0, 0, 0, 0.08);
         vertical-align: top;
       }
-      .rail {
-        min-width: 0;
+      /* width="0" 填满演示：容器定宽，菜单随容器 */
+      .stage.fill {
+        width: 360px;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 6px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      button.ctrl {
+        margin: 0 6px 10px 0;
+        padding: 4px 10px;
+        cursor: pointer;
       }
       .dark-box {
         margin-top: 12px;
@@ -52,76 +72,129 @@
   <body>
     <h1>autospark.menu</h1>
     <p>
-      导航菜单：items（{ key, label, icon?, disabled?, children?[] }[]，状态引用）或
-      &lt;x-menu-item&gt; 子元素声明（含一层嵌套 children）双形态；受控 value
-      （el.value 桥 + change detail={value}）；子菜单点击展开（祖先链自动展开）；
-      mode 双形态 + collapsed 图标条。
+      导航菜单：<code>items</code> 数据驱动任意层嵌套（<code>key</code> / <code>label</code> /
+      <code>icon</code> / <code>children</code>，透传 button 全 props）；<code>value</code> 形态即语义
+      （单选激活 / 勾选集合）；<code>width</code> 缺省 260；<code>collapsed</code> 布尔折叠
+      （垂直收窄为图标条，水平只留一级图标）；子菜单点击展开 / 折叠。
     </p>
 
-    <div id="app" x-data="{ log: '' }">
-      <h2>基础用法（vertical 缺省：子菜单点击展开 + x-model 双向）</h2>
+    <div id="app">
+      <h2>基础（缺省宽度 260 · 子菜单点击展开 / 折叠 · x-model 双向）</h2>
       <div @change="log = '激活：' + $event.detail.value">
         <div class="stage">
           <x-menu x-model="active" :items="menu"></x-menu>
         </div>
       </div>
-      <p class="hint">带 children 的父项点击展开/收起；激活值指向子项时祖先链自动展开。</p>
+      <p class="hint">带 children 的父项点击展开 / 折叠（默认展开到第 1 级，可收起）；激活值指向子项时祖先链自动展开。</p>
+      <p class="hint">{{ log }}</p>
 
-      <h2>horizontal 横向形态（子菜单 hover 浮层下拉）</h2>
-      <div @change="log = '激活：' + $event.detail.value">
+      <h2>宽度（<code>width</code> 缺省 260 · 定制 200 / 320 · <code>width="0"</code> 填满容器）</h2>
+      <div class="row">
         <div class="stage">
-          <x-menu mode="horizontal" value="home" :items="menu"></x-menu>
+          <x-menu width="200" :items="menu"></x-menu>
+        </div>
+        <div class="stage">
+          <x-menu width="320" :items="menu"></x-menu>
+        </div>
+        <div class="stage fill">
+          <x-menu width="0" :items="menu"></x-menu>
         </div>
       </div>
 
-      <h2>collapsed 垂直收起为图标条（子菜单右飞浮层）</h2>
-      <div @change="log = '激活：' + $event.detail.value">
-        <div class="stage rail">
-          <x-menu collapsed="true" value="g1" :items="menu"></x-menu>
-        </div>
-      </div>
-
-      <h2>子元素声明（静态菜单树）</h2>
+      <h2>折叠（垂直：收窄为 <code>collapsed-width</code> 图标条 · 插槽形参切换 header / footer）</h2>
+      <button class="ctrl" type="button" @click="fold = !fold">{{ fold ? "展开" : "折叠" }}</button>
       <div class="stage">
-        <x-menu value="g1">
-          <x-menu-item key="home" label="首页" icon="file"></x-menu-item>
-          <x-menu-item key="g" label="组件">
-            <x-menu-item key="g1" label="导航"></x-menu-item>
-            <x-menu-item key="g2" label="表单" disabled></x-menu-item>
-          </x-menu-item>
-          <x-menu-item key="api" label="API" icon="bell"></x-menu-item>
+        <x-menu :items="menu" :collapsed="fold" collapsed-width="56" :value="active">
+          <template header="{ collapsed, width, activeItem }">
+            <div class="logo">
+              <i x-icon="'menu'"></i>
+              <span x-show="!collapsed">AutoSpark · {{ width }}px</span>
+            </div>
+          </template>
+          <template footer="{ collapsed, activeItem }">
+            <div class="logo">
+              <i x-icon="'bell'"></i>
+              <span x-show="!collapsed">{{ activeItem ? activeItem.label : "未选择" }}</span>
+            </div>
+          </template>
         </x-menu>
       </div>
-      <p class="hint">{{ log }}</p>
+      <p class="hint">header / footer 是作用域插槽：<code>&lt;template header="{ collapsed, width, activeItem }"&gt;</code> 按需解构，随折叠态与激活项刷新。</p>
+
+      <h2>horizontal 横排（子级向下弹出 · 折叠时一级只留图标）</h2>
+      <button class="ctrl" type="button" @click="hfold = !hfold">{{ hfold ? "展开" : "折叠" }}</button>
+      <div class="stage" style="min-width: 420px">
+        <x-menu mode="horizontal" :items="menu" :collapsed="hfold" :value="active" trigger="click"></x-menu>
+      </div>
+
+      <h2>popLevel=1（缩进 + 弹层混合 · trigger=click）</h2>
+      <div class="stage">
+        <x-menu :items="deep" :pop-level="1" value="d1" trigger="click"></x-menu>
+      </div>
 
       <h2>暗色态（容器 data-dark）</h2>
       <div class="dark-box" data-dark>
         <div class="stage" style="border-color: rgba(255, 255, 255, 0.15)">
-          <x-menu value="home" :items="menu"></x-menu>
+          <x-menu :items="menu" value="home"></x-menu>
         </div>
       </div>
     </div>
 
     <p><a href="./index.html">← 返回组件列表</a></p>
 
-    
     <script src="/autospark.js"></script>
+    <script src="/autospark.overlay.js"></script>
+    <script src="/autospark.button.js"></script>
     <script src="/autospark.menu.js"></script>
     <script>
       new AutoSpark(document.getElementById("app"), {
+        log: "",
+        fold: false,
+        hfold: false,
         active: "",
         menu: [
           { key: "home", label: "首页", icon: "file" },
+          { type: "group", title: "组件", icon: "folder" },
           {
-            key: "g",
-            label: "组件",
-            icon: "folder",
+            key: "nav",
+            label: "导航",
             children: [
-              { key: "g1", label: "导航" },
-              { key: "g2", label: "表单", disabled: true },
+              { key: "n1", label: "指令" },
+              { key: "n2", label: "组件" },
             ],
           },
+          {
+            key: "form",
+            label: "表单",
+            children: [
+              { key: "f1", label: "输入框" },
+              { key: "f2", label: "选择器", children: [{ key: "f2a", label: "级联" }] },
+            ],
+          },
+          "-",
           { key: "api", label: "API", icon: "bell" },
+          { key: "set", label: "无图标项" },
+        ],
+        deep: [
+          { key: "d1", label: "首页", icon: "file" },
+          {
+            key: "grp",
+            label: "折叠组",
+            children: [
+              { key: "g1", label: "二级项" },
+              {
+                key: "g2",
+                label: "二级组",
+                children: {
+                  title: "三级弹层",
+                  children: [
+                    { key: "g2a", label: "三级项" },
+                    { key: "g2b", label: "更深层", children: [{ key: "g2b1", label: "四级级联" }] },
+                  ],
+                },
+              },
+            ],
+          },
         ],
       });
     </script>

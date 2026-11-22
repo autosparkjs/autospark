@@ -3,23 +3,29 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>menu v2 基础</title>
+    <title>menu 基础</title>
     <style>
         body { font-family: system-ui, sans-serif; margin: 24px; background: #fff; }
-        .wrap { display: flex; gap: 40px; align-items: flex-start; }
-        .panel { width: 260px; border: 1px solid #eee; border-radius: 8px; padding: 8px; }
+        .wrap { display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; }
+        .panel { border: 1px solid #eee; border-radius: 8px; padding: 8px; }
+        /* width="0" 填满演示：容器定宽（菜单缺省宽 260，不设容器宽即由菜单自带宽度决定） */
+        .panel.fill { width: 340px; }
         h3 { margin: 4px 0 12px; font-size: 14px; color: #666; }
     </style>
 </head>
 <body>
     <div class="wrap">
         <div class="panel">
-            <h3>基础（缩进域 + expandLevel + 勾选）</h3>
+            <h3>基础（缺省宽 260 · 子菜单点击展开 / 折叠 · 勾选）</h3>
             <x-menu :items="menu" :value="picked"></x-menu>
         </div>
         <div class="panel">
-            <h3>popLevel=1（缩进+弹层混合）</h3>
+            <h3>popLevel=1（缩进 + 弹层混合）</h3>
             <x-menu :items="menu2" :pop-level="1" :value="active" trigger="click"></x-menu>
+        </div>
+        <div class="panel fill">
+            <h3>width=0（填满容器 340）</h3>
+            <x-menu width="0" :items="menu" :value="active"></x-menu>
         </div>
     </div>
     <script src="/autospark/autospark.js"></script>
@@ -54,7 +60,6 @@
             ],
         };
         new AutoSpark(document.body, state);
-        document.querySelectorAll(".asc-menu").forEach((m) => m.addEventListener("change", (e) => console.log("change", e.detail)));
     </script>
 </body>
 </html>

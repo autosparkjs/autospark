@@ -1,60 +1,30 @@
 <!--
-    autospark-menu-node 递归节点（menu v2 内部组件，ADR-0033 决策 7——非用户直接消费）：
-    渲染一级列表（x-for 容器宿主形态：ul 容器、li 克隆模板），逐项分流——
-    - sep：'-' / {type:'separator'} 归一态（分隔线）；
-    - group：纯视觉分组标题（不可点、不产生层级）；
-    - item × 缩进域（depth < popFrom）：button 组件（caret 随 openView 转 bottom/right）
-      + subwrap（grid-rows 收张动画）+ 递归自身渲染子级；
-    - item × 弹层域（depth >= popFrom）：行包裹层即 x-popover 宿主（hover 域整行），
-      弹层面板 autospark-menu-panel 经 props 收 submenu（归一化 item：kids+conf）——
-      popLevel 触发的级联绝对延续；collapsed=1 的面板层级重计（depth=1 / expandLevel /
-      popLevel 基准重换算，ADR-0033 决策 2）；
-    - item × 叶子：button 组件，点击经 menu-pick 事件冒泡到根组件。
+    autospark.menu 级列表渲染节点（autospark-menu-node，ADR-0033 决策 7）：本节点 = shell（header/footer slot + 全局状态 + 键盘），
+    经 x-for 逐项分流 separator / group / item（缩进折叠 fold / 弹层 pop / 叶子 leaf 三分支，
+    x-show 互斥——克隆体内禁 x-if）。本节点不对用户暴露。
 
-    求值域边界（克隆体铁律）：x-for ownsChildren 重编译的克隆体内，表达式（绑定 /
-    事件 / x-component 值对象）**只能读 x-for locals（item）与自身 props**——沿链外层
-    键（含 open 开放链）与组件 methods（绑定通道）均不可见。因此：
-    - 根组件的全部状态（activeKey / markedMap / openView / collapsed / expandLevel /
-      popLevel 原始值）经消费处值对象**全 props 下传**，逐层透传（递归实例化原样转传）；
-    - 点击交互走**事件冒泡**：本组件 methods（事件通道可调）派发 menu-pick /
-      menu-toggle 自定义事件（bubbles），根组件在 body 上监听（DOM 冒泡穿化身）；
-    - button 实例化的宿主 div 外包 btnwrap（普通 div）承载事件/状态绑定（化身宿主上
-      的绑定不经编译，家族规避惯例）。
+    项按钮（autospark.button 化身）：block 撑满行；折叠态（collapsed prop）经 button
+    collapsed 接管——只显示图标 + 悬停提示。值对象同时给出与 button 折叠预设一致的值
+    （menu / labelPos / indent / caret / hideTags）：值对象重算即整组重注入，等值使结果
+    不依赖注入时序。caret / checkMark 折叠态由本节点置空（button 折叠预设不含二者）。
 
-    checkable 不透传 button（勾选走根 markedMap + checkMark 占位——避免与 button 行为
-    桥双处理，ADR-0033 决策 6）；克隆体内条件显隐一律 x-show（共享快照多实例 x-if 串台
-    规避，P0 清单第 4 条）——三分支（fold/pop/leaf）恒渲染由 display 切换互斥，弹层域
-    popover 宿主 display:none 时不响应触发（hover/click 无事件）。
+    克隆体求值域：绑定 / 事件 / 值对象只能读 x-for locals（item）与自身 props；跨层交互
+    经 relayTick 中继哨兵（→ menu-relay 冒泡到 menu 本体）。
 -->
-<!-- x-define.open：开放数据边界（ADR-0053）——**仅供 JS 聚合链通道**：弹层面板（popover
-     宿主为本组件克隆体内元素）沿链写哨兵时经本组件透视到 menu 根域（dropdown panel
-     写触发器域同构——其哨兵键声明在宿主组件 data；本组件零自有状态故开放透视）。
-     克隆体表达式不受 open 影响，仍只读 locals（item）与自身 props（铁律见下） -->
 <div class="asc-menu-node" x-define.open="autospark-menu-node">
   <script setup>
     {
         data: () => ({
-            list: [],           // 归一化级列表（影子树片段）
-            depth: 1,           // 本级层级号（level 从 1 起数）
-            expandMax: 1,       // 默认展开截止 depth（depth <= expandMax 的折叠组默认开）
-            popFrom: 1,         // 弹层起始 depth（depth >= popFrom 的 children 走弹层）
+            list: [],
+            depth: 1,
             mode: "vertical",
             trigger: "hover",
-            // —— 根组件结构参数下传（逐层透传不变值；激活/勾选/展开态经影子树
-            //     item._active/_marked/_open 物化承载——克隆体模板绑定对 props 热更新不响应）——
-            collapsed: 0,       // 折叠三档原始值
-            expandLevel: 1,     // 重计基准原值（collapsed=1 面板内换算用）
-            popLevel: 0,        // 重计基准原值（collapsed=1 面板内换算用）
-            // —— 交互中继哨兵（本层声明——克隆体直写沿链落「最近声明层」：主体克隆体与
-            //     弹层面板克隆体（经面板桥）都落此处；node 实例恒在 menu 树内，mounted
-            //     watch 后经 DOM 冒泡转发到根——两域统一单通道，规避跨层写直达的边界）——
+            collapsed: false,
             relayTick: 0,
             relayKey: null,
-            relayKind: "",   // "pick" | "toggle"
+            relayKind: "",
         }),
         mounted() {
-            // 中继消费：克隆体直写（主体/面板两域）→ 本实例 data 中继键 → watch 转发为
-            // DOM 冒泡事件（node 恒在 menu 树内，body 监听可达——K 系实证链）
             this.watch("relayTick", () => {
                 this.el.dispatchEvent(new CustomEvent("menu-relay", {
                     bubbles: true,
@@ -73,16 +43,13 @@
       :data-disabled="item.disabled ? '' : null"
       :data-icon-ph="item.iconPh ? '' : null"
     >
-      <!-- 分隔线 -->
       <div class="asc-menu-sep" x-show="item.kind === 'sep'"></div>
 
-      <!-- 分组标题（纯视觉） -->
-      <div class="asc-menu-group" x-show="item.kind === 'group'">
+      <div class="asc-menu-group" x-show="item.kind === 'group'" :data-icon="item.icon ? '' : null">
         <i class="asc-menu-group-icon" x-show="item.icon" x-icon="item.icon"></i>
         <span class="asc-menu-group-title">{{ item.title }}</span>
       </div>
 
-      <!-- ═══ item × 缩进域折叠组（depth < popFrom）：caret 随 openView 转、subwrap 收张、递归子级 ═══ -->
       <div class="asc-menu-fold" x-show="item._fold">
         <div
           class="asc-menu-btnwrap"
@@ -92,25 +59,27 @@
         >
           <div
             x-component:autospark.button="{
-                menu: true,
+                block: true,
+                menu: !collapsed,
+                collapsed: !!collapsed,
                 label: item.label,
                 icon: item.iconPh ? 'default' : (item.icon || ''),
                 disabled: item.disabled,
-                caret: item._open ? 'bottom' : 'right',
-                checkMark: item.checkPh,
+                caret: collapsed ? 'none' : (item._open ? 'bottom' : 'right'),
+                checkMark: collapsed ? false : item.checkPh,
                 checkStyle: item.checkStyle || 'check',
                 memo: item.memo,
                 loading: item.loading,
                 type: item.type,
                 variant: item.variant,
-                indent: item.indent,
-                labelPos: Number(collapsed) === 1 ? 'none' : 'right',
+                indent: collapsed ? 0 : item.indent,
+                labelPos: collapsed ? 'none' : 'right',
+                hideTags: !!collapsed,
                 tags: item.tags
             }"
           ></div>
         </div>
         <div class="asc-menu-subwrap" :data-open="item._open ? '' : null">
-          <!-- 缩进量默认 0.4em；SubmenuOptions.indent 逐级覆盖（number 按 px / 字符串 CSS 值直写） -->
           <div
             class="asc-menu-sub"
             :style="item.conf && item.conf.indent != null ? { paddingInlineStart: (typeof item.conf.indent === 'number' ? item.conf.indent + 'px' : item.conf.indent) } : null"
@@ -119,22 +88,15 @@
               x-component:autospark-menu-node="{
                   list: item.kids,
                   depth: depth + 1,
-                  expandMax: expandMax,
-                  popFrom: popFrom,
                   mode: mode,
                   trigger: trigger,
-                  collapsed: collapsed,
-                  expandLevel: expandLevel,
-                  popLevel: popLevel
+                  collapsed: collapsed
               }"
             ></div>
           </div>
         </div>
       </div>
 
-      <!-- ═══ item × 弹层域（depth >= popFrom）：行包裹层即 popover 宿主 ═══
-           级联绝对延续（depth+1 / 基准原值）；collapsed=1 的面板层级重计（ADR-0033 决策 2：
-           弹层首层=1、expandLevel/popLevel 基准重换算）——表达式全读自身 props（克隆体铁律） -->
       <div
         class="asc-menu-pop"
         x-show="item._pop"
@@ -151,26 +113,28 @@
         >
           <div
             x-component:autospark.button="{
-                menu: true,
+                block: true,
+                menu: !collapsed,
+                collapsed: !!collapsed,
                 label: item.label,
                 icon: item.iconPh ? 'default' : (item.icon || ''),
                 disabled: item.disabled,
-                caret: (mode === 'horizontal' && depth === 1) ? 'bottom' : 'right',
-                checkMark: item.checkPh,
+                caret: collapsed ? 'none' : ((mode === 'horizontal' && depth === 1) ? 'bottom' : 'right'),
+                checkMark: collapsed ? false : item.checkPh,
                 checkStyle: item.checkStyle || 'check',
                 memo: item.memo,
                 loading: item.loading,
                 type: item.type,
                 variant: item.variant,
-                indent: item.indent,
-                labelPos: Number(collapsed) === 1 ? 'none' : 'right',
+                indent: collapsed ? 0 : item.indent,
+                labelPos: collapsed ? 'none' : 'right',
+                hideTags: !!collapsed,
                 tags: item.tags
             }"
           ></div>
         </div>
       </div>
 
-      <!-- ═══ item × 叶子：点击经 menu-pick 事件冒泡到根组件 ═══ -->
       <div
         class="asc-menu-btnwrap"
         x-show="item._leaf"
@@ -180,19 +144,22 @@
       >
         <div
           x-component:autospark.button="{
-              menu: true,
+              block: true,
+              menu: !collapsed,
+              collapsed: !!collapsed,
               label: item.label,
               icon: item.iconPh ? 'default' : (item.icon || ''),
               disabled: item.disabled,
-              caret: item.caret || 'none',
-              checkMark: item.checkPh,
+              caret: collapsed ? 'none' : (item.caret || 'none'),
+              checkMark: collapsed ? false : item.checkPh,
               checkStyle: item.checkStyle || 'check',
               memo: item.memo,
               loading: item.loading,
               type: item.type,
               variant: item.variant,
-              indent: item.indent,
-              labelPos: Number(collapsed) === 1 ? 'none' : 'right',
+              indent: collapsed ? 0 : item.indent,
+              labelPos: collapsed ? 'none' : 'right',
+              hideTags: !!collapsed,
               tags: item.tags
           }"
         ></div>

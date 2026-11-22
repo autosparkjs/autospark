@@ -388,11 +388,18 @@ _Avoid_: 组值 / 选中值（那是组整体的 `value` prop——子钮值是�
 组的 x-model 双向桥（ADR-0012 决策 3 checkable 桥范式移植）：组根 `defineProperty` 劫持 `el.value`（字符串语域）+ x-model 在场时内嵌 `input[type=hidden]`（`name` 有则透传、`value = String(选中值)`——表单提交载体）+ 点击子钮派发 `input`（x-model 回写）与 `change`（冒泡，`detail = { value }`）。受控半双工：`value` prop 单向驱动视觉，翻转靠点击 + 外层 `@change="v = $event.detail.value"` 一行回写。选中子钮挂组自有 class（不碰子钮 checkable 的 `asc-checked` 通道，两机制零冲突）；**选中模式下子钮禁用 checkable**（两套勾选机制语义冲突，文档约束不特调）。
 _Avoid_: 组件双向协议（engine 无此协议——el.value 劫持是桥不是协议）、checkable 桥（同构但归属子钮，本桥在组根）、勾选（那是 checkable 语义——组是选中）
 
+### 按钮层（Button）
+
+**命名状态覆盖 / state·states（autospark.button）**:
+button 的**命名形态切换机制**（2026-11-22 共识）：`states`（`Record<键, props 覆盖集>`）定义一组命名形态，`state`（激活键，**唯一真相**）命中即把该键的覆盖集**整组 assign 进 data 接管**渲染，切走按快照**守卫还原**（激活期间被外部改过的键外部值赢——仅还原「当前值仍严格等于写入值」的键）。**双层合并**：表与内置预设浅合并（缺省恒有 `collapsed: { labelPos:'none', indent:0, hideTags:true, menu:false }`——menu 压回 false 使折叠图标条退出菜单形态的占满宽/左对齐，宽度收窄归消费方 data-state CSS），用户 `collapsed` 键再与预设浅合并（部分定制保留默认形态），**自定义键所见即所得**（值对象整体生效、未写键不碰顶层值）。`collapsed` 是 state 的**快捷写入糖**（单向数据流：初始 state 显式声明赢、运行时翻转恒写 state）；`hideTags` 顶层只在无状态激活时生效（渲染显隐，与 `tags:[]` 数据替换两通道并存）。miss 口径：`null`/`''` 合法取消静默恢复；非空不在表 **warn 一次**（per 实例 per 键）按无状态渲染。激活挂宿主 `data-state="<键>"`（消费方 CSS 钩子，**按钮零几何内建**——收窄宽度等归消费方）；`states` 非纯对象（数组等）机制整体静默跳过。键域开放不设黑白名单——行为键（loading/checkable/value…）被覆盖会真实触发行为桥，后果文档自担。
+_消歧_: 三向——与 **state-button 的 `states`**（数组：按序循环的覆盖集序列，键 `value`）同名异形、语义同构（均为 props 覆盖集定义集合，家族同名如 button-group 的 value），继承场景由「子 setup 替换父 mounted」+ 纯对象守卫双重豁免；与 **menu 的 `collapsed`**（菜单折叠：排列级形态，连带宽度 / 子级呈现 / 分区，见「菜单折叠」词条——menu 消费 button 的折叠形态来呈现折叠态的项）不同——button 的是单个按钮的纯布尔视觉形态；与 **x-drawer/x-splitter 词条 Avoid 的「collapsed 状态」**（反对显隐布尔的冗余派生词）不冲突——彼无新信息、此有覆盖层真实形态语义。
+_Avoid_: collapsedState（v1 提案名，已并入 states.collapsed）、折叠态/collapsed state 作泛称（本组件语境用「命名状态覆盖」或具体键名）、`tags:[]` 隐藏 tags（数据替换丢 checkable 状态——显隐走 hideTags）、顶层 hideTags 在激活态生效（激活态由覆盖集全权决定）、恢复快照无条件回滚（守卫语义——外部值赢）
+
 ### 状态按钮层（State Button）
 
 **状态按钮 / autospark.state-button（State Button）**:
 在 2-N 个状态间**循环切换的单钮**组件（ADR-0016）——**继承 button 骨架 + 机制自治**：经 `x-define:inherit` 复用 button 的纯按钮视觉全套（快照克隆，模板/CSS 骨架单份），状态机制全套自持（桥/翻转/decorate 装饰渲染/灰色态在子组件的 setup 与 styles——**button 已取消 checkable 特性**，勾选视觉按 decorate 佩戴态判定、与位置无关）。props：`states`（**x-button-options（即 `<x-button>` 的选项集 = button props 全集）+ 状态机制键**的数组，或 `(number|string)[]` 标量简写（`x` → `{value:x}`、对象缺 `value` 回退数组下标）——button props 键（variant/type/ghost/border/shape/wrap/loading/disabled/icon/label/memo/ripple/align/indent/menu/tags…）**切态整组注入**，每态完全自定义按钮渲染与形态，未声明键回退底值（2026-11-11 泛化，原白名单 `color` 键废弃对齐 button 原名 `type`）；机制键 `clickable`（缺省 true，`false` = 该态**出边锁**：处于该态时点击零效果）、`decorate`（该态**额外装饰** `solid|icon|corner|ripple`——solid = tone 实底反白 / icon = 最左 yes 占位 / corner = 右上角越界打勾三角 / ripple = 最左 CSS 自绘涟漪动画占位；icon/ripple 为**占位型**，组内不统一佩戴有布局跳动）、`style`（cssText）、`class`（附加类）、`tooltip`（双轨提示））、`value`（缺省 = `states[0].value`，初始态即首态；显式域外值呈「无匹配态」）、`autoswitch`（缺省 true；`false` = 纯受控：点击**不切换不派发 change**，原生 click 照常——受控交互经 dataset 反射读取，视觉暗示由使用者经 states 项自表达）。**states 缺省组 `[{value:false},{value:true,decorate:'corner'}]`**（假值在前）——零配置即传统双态 check 按钮。点击**循环 next** 生效条件 = `autoswitch !== false && 当前态 clickable !== false && !disabled && !loading`（无匹配态恒可点，仍受三锁管）；命中 `states[i] → states[(i+1)%N]`（尾态回卷；无匹配 → `states[0]`），派发 `change`（冒泡，`detail = {value, index, state}` 新态三元组）+ 原生 click；宿主**常驻 dataset 反射** `data-value`（当前值序列化——标量 `String`、对象 `JSON.stringify`；button-group「子钮值」同款家族模式），外层 `@click="v = $event.currentTarget.dataset.value"` 一行读取。states 项视觉键仅当前态生效（color = 语义色名覆盖 type 通道 / label、icon 覆盖同名 props（插槽仍优先）/ style = cssText / class 附加宿主 / tooltip 双轨）。表单桥分叉：≤2 态内嵌 `input[type=checkbox]`（`el.value` 布尔语域配 `x-model.boolean`、按值匹配非位置、未勾选不提交）；N>2 内嵌 `input[type=hidden]`（`value = String(当前值)`、对象 `JSON.stringify`、`name` 透传宿主）——`<x-state-button name="...">` 天然可作表单控件提交当前状态；**N>2 的受控通道是 `@change`（detail.value 原值）**，x-model text 分型字符串化固有语义自担。`<x-state-button>` 元素名快速写法（precompile 变换复用 button 范式）；产物 `autospark.state-button.js` 依赖 `autospark.button.js` 同页加载（或聚合产物）。入 button-group 选中模式时与其他子钮同规：状态切换机制禁用（两套机制冲突，文档约束不特调）。**实施约束**：states 数组一律路径引用（`:states="myStates"`）——任何字面量数组（含标量 `[1,2]` 与空 `[]`）触发 x-component 更新环死锁（tags 同款引擎缺陷，HEAD 未修）。
-_消歧_: 与 button-group「选中模式」正交——**彼为多个钮间选择**（组值受控单选、segmented control），**此为一个钮自身循环**（自带切换语义、单控件表达 N 态）；原生 click 不携带组件数据（`MouseEvent.detail` 是点击计数且原型只读）——state 数据经 dataset 反射读取。
+_消歧_: 与 button-group「选中模式」正交——**彼为多个钮间选择**（组值受控单选、segmented control），**此为一个钮自身循环**（自带切换语义、单控件表达 N 态）；原生 click 不携带组件数据（`MouseEvent.detail` 是点击计数且原型只读）——state 数据经 dataset 反射读取；本组件 `states`（数组：按序循环覆盖集）与 button 的 `states`（键表：命名命中覆盖集，见「命名状态覆盖」词条）**同名异形、语义同构**——继承场景子 setup 替换父 mounted，两机制零交集。
 _Avoid_: stateButton（camelCase——注册名在 `x-component:` 属性名位置被 DOM 全量小写化永不匹配，对齐 button-group 同款教训）、多态按钮（泛化）、分段选择器（那是 button-group 选中模式）。分工口径（ADR-0016 2026-11-13 修订）：**二元勾选归 button 自身的 checkable**（checkStyle 四值即 decorate 下沉），本组件专职 **N(>2) 态循环**——二元场景勿用 states 数组绕路
 
 **无匹配态 / asc-unmatched（Unmatched State）**:
@@ -414,6 +421,27 @@ _Avoid_: 文本域（泛化）、多行输入框（与单行 input 混淆）、a
 form 域的密码输入组件（ADR-0034，2026-11-18）：**真继承 autospark.input**（继承链 password → input → field → autospark.base）——值桥（宿主 `el.value` 劫持）、原生属性同步（placeholder / maxlength / name）、清除钮、`prefix` / `suffix` props、`actions` 融合动作、`status` 状态色全部继承；本组件增量三件：①前缀钥匙装饰（内置图标 `key`，恒在消费方 `prefix` 装饰之前，消费方投影 `prefix` 插槽时整段让位）；②明文可见切换（眼睛钮，`viewable` 缺省 `true`；掩码态 `eye` / 明文态 `eye-off`）；③密码场景原生属性 `minlength` / `autocomplete` 透传（原生语义，无内置提示/校验/计数）。`type` **冻结**为 `password`（外部传值静默丢弃）。明文态（内部 `revealed`）只改原生 `input.type`，不改值、不派发事件、不参与值通道；清空与 `viewable` 翻假均强制复位隐藏。眼睛钮是 body 功能动作件（`data-autospark-action`，不进可被投影顶掉的出口）、`role="button"` + 中文 `aria-label`（显示/隐藏密码）+ `aria-pressed`，键盘可达性缺口与清除钮同轨（已知边界）。
 _消歧_: **明文态**（`revealed`，表现状态：当前是否以 text 呈现）≠ **`viewable`**（能力开关：眼睛钮在不在）；`visible` 是两者混称，禁用。与 `autospark.input` 的 `type="password"` 分工：后者只有原生掩码，没有钥匙装饰与可见切换；反之需要非密码 type 请回 input。
 _Avoid_: `visible`（与 viewable 同形不同义）、`showPassword`（input 已于 2026-11-18 移除，回归形态是独立组件而非 input props）、眼睛钮放 suffix 出口（可被消费方投影顶掉，否决）、`toggleable`（能力开关正名 `viewable`）、把明文态写进值通道或状态机（纯表现，不改值）、受控明文态 props（受控可见 = 明文常驻安全隐患，未提供）
+
+### 菜单层（Menu）
+
+**导航菜单 / autospark.menu（Menu）**:
+`items` 数据驱动的任意层嵌套导航菜单（ADR-0033 v2；2026-11-22 修订）：`value` 形态即语义（单值 = **激活**当前项，数组 = **勾选**集合），子级两种呈现——**缩进域**（父项下展开 / 折叠 + 缩进，`expandLevel` 管默认策略、`openKeys` 管精确展开态，显式 `true` / `false` 优先）与**弹层域**（popover 级联弹出，`popLevel` 划界）。header / footer 为**作用域插槽**（出口注入菜单状态，调用方按需解构）。
+_消歧_: **菜单折叠 ≠ 子菜单折叠**——前者是整个菜单的形态（`collapsed`，双向），后者是某个父项 children 的开合（折叠组，`expand` 事件）；「图标条」只是菜单折叠在垂直模式下的形态描述语，不是独立的模式或状态。与 select 的 `group`（按字段聚合的 optgroup）同名不同义——菜单的 group 是纯视觉分组标题。
+_Avoid_: 折叠三档 / collapsed=2 / 单按钮档（2026-11-22 已移除的旧形态）、收起（单向词——折叠是双向翻转）、侧栏模式 / rail（泛化场景词，菜单折叠不预设容器）、菜单项声明式写法（`<x-menu-item>` 组合式已于 v2 硬移除）、toggle 子菜单（缩进域是展开 / 折叠，弹层域是打开 / 关闭）
+
+**菜单折叠 / collapsed（Menu Collapse）**:
+布尔，两种排列模式下作用面不同：**垂直**——整菜单收窄为折叠宽度、全部项只显示图标、子级一律经弹层呈现、header / footer 保留并裁剪、分区强制纵向；**水平**——仅一级项只显示图标，容器尺寸与分区不变。项的折叠形态由 button 的命名状态覆盖承载；激活 / 勾选以图标染色表达。
+_消歧_: 与 button 的 `collapsed`（单个按钮只显示图标的视觉形态）同向不同层——菜单的是**排列级形态**并连带宽度、子级呈现与分区，button 的只是项的呈现；与 splitter / expandable / drawer 词条 Avoid 的「collapsed 状态」（反对显隐布尔的冗余派生词）不冲突——菜单折叠不改变可见性，是真实形态切换。
+_Avoid_: 收起态（单向词）、迷你模式 / compact（未定义的第三形态）、图标条模式（图标条是形态描述语，模式只有垂直 / 水平）
+
+**菜单宽度 / 折叠宽度 / width·collapsedWidth（Menu Width）**:
+`width` 是菜单自身的宽度（缺省 260），`0` 表示**填充父容器**（不设自身宽度）；`collapsedWidth` 是垂直折叠态的宽度（缺省 48）。两者只对垂直模式有意义——水平菜单随内容伸展。
+_Avoid_: 自适应宽度作为独立开关（`0` 即填充，不另设 prop）、百分比 / em 宽度（需要随容器时用 `0` 填充，由容器定宽）、collapsedWidth 用于水平模式（水平折叠不改宽度）
+
+**插槽形参 / slotParams（Slot Params）**:
+菜单 header / footer 作用域插槽注入调用方的只读状态：折叠态、生效宽度、激活项（key / 对象 / 祖先链）与各 props 原值。调用方**按需解构**——未解构的键不产生遮蔽；形参只读，切换折叠应改调用方自己绑定的状态。
+_消歧_: `activeItem` 是激活项**自身**，`activePath` 是其**祖先链**（含自身，根在前）；数组勾选形态下无激活项（分别为空串 / null / 空数组）。`activeItem` 是归一化后的内部条目，`_` 前缀字段是内部状态。
+_Avoid_: 插槽 props（与组件 props 混称）、具名插槽内容（那是插槽本身，形参是出口注入的状态）、`<template header>` 直接写在 x-component 宿主下（引擎只认 `x-slot:header` 标记，快捷形态仅 `<x-menu>` 归一）
 
 ### 资源层（Resource）
 

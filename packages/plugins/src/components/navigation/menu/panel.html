@@ -1,44 +1,12 @@
-<!--
-    autospark-menu-panel 弹层面板（menu v2 内部组件，ADR-0033 决策 7——非用户直接消费）：
-    经 x-popover:autospark-menu-panel 消费渲染进 body 覆盖物容器，面板外壳（边框/阴影/
-    定位）由 popover-shell 承载，本组件贡献菜单列表内容。
-
-    纯透传桥架构（dropdown panel 同构，实测边界归零）：**零 props、data() 空对象**——
-    有键 data 的惰性面板直层指令值（x-component 值对象 / @ 事件）求值失效（实测），
-    全部数据沿宿主链读（overlay 家族恒 open+dataContext:'host' 实例化，链 = 宿主
-    node 实例域 + 其克隆体 x-for local item + 经 node 的 open 链直达 menu 根域）：
-    - item：弹层父项（归一化 item——kids/conf 直读，数组不经 overlay props 传输——
-      该通道丢数组字段，实测）；
-    - depth / popFrom / mode / trigger / slotDir / closeTick / wantFocusAt：
-      宿主 node props 或 menu 根域键；
-    - conf（SubmenuOptions 归一态）：header / footer（字符串 | '#模板id' 引用，mounted
-      静态注入）、title（弹层标题行）、slotDir（逐层覆盖根 slotDir）、padding（消费处
-      经 x-popover-options.padding 透传）。
-
-    面板内列表为 node.html 的同构内联（宿主链直读 item.kids 经 x-for 渲染）；面板内
-    深层级弹层父项继续声明 x-popover:本面板名（面板里面板递归，新面板沿新宿主链读新
-    item——多级级联天然成立）；面板内的缩进域折叠组（collapsed 重计下 popFrom > depth
-    的层）以折叠组形态呈现，子级列表受桥面板表达式域限制不再深层递归（已知边界，常规
-    popLevel 级联不受影响）。
-
-    关闭通道（叶选关整链，ADR-0033 决策 5）：根 closeTick 哨兵 → watch 后自关——
-    close() 优先（scope 注入请求关闭链），overlay:open 实例捕获兜底。键盘（面板内
-    roving 收窄版）：↑↓→← Home/End / Enter 原生 / Esc 归 popover 栈。化身路径约束
-    （T4=B）：分区方向绑定落内层载体。
--->
 <div x-define="autospark-menu-panel">
   <script setup>
     {
-        // 零 props（消费处不传 props——面板沿宿主链读）、零自有状态——data() 空对象
-        // 占位建立链桥点（有键 data 会让惰性面板直层指令值求值失效，实测）
         data: () => ({}),
         methods: {
-            // 自关（closeTick 广播 / 面板内 ← 键）：close() scope 注入优先，overlay 实例兜底
             closeSelf() {
                 if (typeof this.close === "function") { this.close(); return; }
                 if (this._instClose) this._instClose();
             },
-            // conf.header/footer 的 '#模板id' 引用注入（mounted 一次，静态 innerHTML 承载）
             injectRefs() {
                 const conf = (typeof item !== "undefined" && item && item.conf) || {};
                 for (const side of ["header", "footer"]) {
@@ -50,14 +18,12 @@
                     host.innerHTML = ref.innerHTML;
                 }
             },
-            // 焦点入首项（键盘打开路径；一跳后面板子树挂载稳定）
             focusFirst() {
                 setTimeout(() => {
                     const first = this.el.querySelector(".asc-menu-btnwrap > .asc-button:not([disabled])");
                     if (first) first.focus();
                 }, 30);
             },
-            // 弹层宿主程序化打开（trigger 沿宿主链读；模型分派，menu 主体同款）
             openPophost(popEl) {
                 if (String(trigger) === "click") {
                     popEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -65,7 +31,6 @@
                     popEl.dispatchEvent(new MouseEvent("mouseenter", { bubbles: false }));
                 }
             },
-            // 面板内键盘导航（↑↓→← Home/End；Enter 原生 button；Esc 归 popover 栈）
             onKeydown(event) {
                 const k = event.key;
                 if (k !== "ArrowDown" && k !== "ArrowUp" && k !== "ArrowRight" && k !== "ArrowLeft" && k !== "Home" && k !== "End") return;
@@ -94,26 +59,18 @@
                     if (pop && getComputedStyle(pop).display !== "none") {
                         event.preventDefault();
                         this.openPophost(pop);
-                        this.data.wantFocusAt = Date.now(); // 沿链写根域：子面板 mounted 后焦点入首项
+                        this.data.wantFocusAt = Date.now();
                     }
                     return;
                 }
-                // ArrowLeft：关自己（焦点回落主体容器 tabindex 停靠点）
                 event.preventDefault();
                 this.closeSelf();
             },
         },
         mounted() {
-            // '#模板id' 引用注入（一跳后子树挂载稳定）
             setTimeout(() => this.injectRefs(), 0);
-            // 键盘打开路径的焦点请求（wantFocusAt 时间戳：mounted 时判定覆盖 hover delayShow
-            // 时序 + watch 承接面板存活期内的后续请求）
             if (Date.now() - Number(this.data.wantFocusAt || 0) < 600) this.focusFirst();
             this.watch("wantFocusAt", () => { this.focusFirst(); });
-            // 叶选关整链广播：根 closeTick 哨兵 → 自关
-            this.watch("closeTick", () => { this.closeSelf(); });
-            // overlay 实例关闭兜底：实例根冒泡 overlay:open（payload.instance.close）——
-            // 事件可能先于 mounted 发出（错过即放弃该通道，close() 主通道兜底）
             this.el.addEventListener("overlay:open", (e) => {
                 const inst = e.detail && e.detail.instance;
                 if (inst && typeof inst.close === "function") this._instClose = () => inst.close();
@@ -121,23 +78,18 @@
         },
     }
   </script>
-  <!-- 面板载体：分区方向绑定落本层（根上动态绑定不求值，T4=B）；tabindex 焦点停靠；
-         列表 = 宿主链直读 item.kids 经 x-for 容器宿主形态渲染（dropdown panel 同款） -->
   <div
     class="asc-menu-panel"
     tabindex="0"
     :data-slot-dir="(item && item.conf && item.conf.slotDir) ? item.conf.slotDir : slotDir"
     @keydown="onKeydown($event)"
   >
-    <!-- 弹层头部：字符串直渲染（'#' 引用由 mounted 注入覆盖） -->
     <div class="asc-menu-panel-head" x-show="item && item.conf && item.conf.header">
       <div class="asc-menu-panel-tpl" x-text="(item && item.conf && typeof item.conf.header === 'string' && item.conf.header.charAt(0) !== '#') ? item.conf.header : ''"></div>
     </div>
-    <!-- 弹层标题行（仅弹层域显示；缩进域父项 label 已承担） -->
     <div class="asc-menu-panel-title" x-show="item && item.conf && item.conf.title">{{ item && item.conf ? item.conf.title : '' }}</div>
-    <!-- 列表主体：宿主链直读 item.kids -->
     <div class="asc-menu-panel-body">
-      <ul class="asc-menu-list" role="menu" x-for="child of (item && item.kids ? item.kids : (tree || []))">
+      <ul class="asc-menu-list" role="menu" x-for="child of (item && item.kids ? item.kids : [])">
         <li
           class="asc-menu-entry"
           :data-kind="child.kind"
@@ -146,13 +98,11 @@
           :data-disabled="child.disabled ? '' : null"
           :data-icon-ph="child.iconPh ? '' : null"
         >
-          <!-- 分隔线 / 分组标题（纯视觉） -->
           <div class="asc-menu-sep" x-show="child.kind === 'sep'"></div>
           <div class="asc-menu-group" x-show="child.kind === 'group'">
             <i class="asc-menu-group-icon" x-show="child.icon" x-icon="child.icon"></i>
             <span class="asc-menu-group-title">{{ child.title }}</span>
           </div>
-          <!-- 子级弹层宿主（面板里面板递归：新面板沿新宿主链读新 item，级联天然成立） -->
           <div
             class="asc-menu-pop"
             x-show="child._pop"
@@ -169,6 +119,7 @@
             >
               <div
                 x-component:autospark.button="{
+                    block: true,
                     menu: true,
                     label: child.label,
                     icon: child.iconPh ? 'default' : (child.icon || ''),
@@ -187,7 +138,6 @@
               ></div>
             </div>
           </div>
-          <!-- 叶子 / 面板内折叠组（重计域）：点击经 menu-pick / menu-toggle 冒泡 + mounted 原生监听转发 -->
           <div
             class="asc-menu-btnwrap"
             x-show="!child._pop"
@@ -197,6 +147,7 @@
           >
             <div
               x-component:autospark.button="{
+                  block: true,
                   menu: true,
                   label: child.label,
                   icon: child.iconPh ? 'default' : (child.icon || ''),
@@ -217,7 +168,6 @@
         </li>
       </ul>
     </div>
-    <!-- 弹层尾部 -->
     <div class="asc-menu-panel-foot" x-show="item && item.conf && item.conf.footer">
       <div class="asc-menu-panel-tpl" x-text="(item && item.conf && typeof item.conf.footer === 'string' && item.conf.footer.charAt(0) !== '#') ? item.conf.footer : ''"></div>
     </div>

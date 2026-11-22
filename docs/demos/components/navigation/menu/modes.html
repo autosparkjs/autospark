@@ -3,31 +3,41 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>menu v2 形态</title>
+    <title>menu 折叠与形态</title>
     <style>
         body { font-family: system-ui, sans-serif; margin: 24px; background: #fff; }
         .row { display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; }
         .panel { border: 1px solid #eee; border-radius: 8px; padding: 8px; }
         .wide { width: 480px; }
-        .rail { width: 120px; }
         h3 { margin: 4px 0 12px; font-size: 14px; color: #666; }
         button.ctrl { margin: 4px 4px 12px 0; padding: 4px 10px; cursor: pointer; }
+        .logo { display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-weight: 600; white-space: nowrap; }
     </style>
 </head>
 <body>
     <div class="row">
         <div class="panel">
-            <h3>collapsed 三档（响应式切换）</h3>
-            <button class="ctrl" data-c="0">0 常规</button>
-            <button class="ctrl" data-c="1">1 图标条</button>
-            <button class="ctrl" data-c="2">2 单按钮</button>
-            <x-menu :items="menu" :collapsed="mode" :value="active" trigger="click"></x-menu>
+            <h3>折叠（collapsed 布尔 · collapsed-width=56 · 插槽形参切换 header）</h3>
+            <button class="ctrl" id="foldBtn" type="button">折叠 / 展开</button>
+            <x-menu :items="menu" :collapsed="fold" collapsed-width="56" :value="active" trigger="click">
+                <template header="{ collapsed, width, activeItem }">
+                    <div class="logo">
+                        <i x-icon="'menu'"></i>
+                        <span x-show="!collapsed">AutoSpark · {{ width }}px</span>
+                    </div>
+                </template>
+            </x-menu>
+        </div>
+        <div class="panel">
+            <h3>宽度（width=200）</h3>
+            <x-menu :items="menu" width="200" :value="active"></x-menu>
         </div>
         <div class="panel wide">
-            <h3>horizontal（横排 + 向下弹出 + header/footer 上下分区）</h3>
-            <x-menu :items="hmenu" mode="horizontal" :value="hactive">
+            <h3>horizontal（横排 + 向下弹出 + header/footer 上下分区 · 折叠只留一级图标）</h3>
+            <button class="ctrl" id="hfoldBtn" type="button">折叠 / 展开</button>
+            <x-menu :items="hmenu" mode="horizontal" :collapsed="hfold" :value="hactive" trigger="click">
                 <template header><b>AutoSpark</b></template>
-                <template footer><span style="font-size:12px;color:#999">v2 · ADR-0033</span></template>
+                <template footer><span style="font-size:12px;color:#999">ADR-0033</span></template>
             </x-menu>
         </div>
     </div>
@@ -37,7 +47,8 @@
     <script src="/autospark/autospark.menu.js"></script>
     <script>
         const state = {
-            mode: 0,
+            fold: false,
+            hfold: false,
             active: "home",
             hactive: "home",
             menu: [
@@ -54,18 +65,17 @@
                 { key: "set", label: "设置", icon: "copy" },
             ],
             hmenu: [
-                { key: "home", label: "首页" },
-                { key: "guide", label: "指南", children: [
+                { key: "home", label: "首页", icon: "file" },
+                { key: "guide", label: "指南", icon: "folder", children: [
                     { key: "g1", label: "快速入门" },
                     { key: "g2", label: "引擎", children: [{ key: "g2a", label: "深层级联" }] },
                 ] },
-                { key: "api", label: "API" },
+                { key: "api", label: "API", icon: "bell" },
             ],
         };
         const engine = new AutoSpark(document.body, state);
-        document.querySelectorAll("button.ctrl").forEach((b) => {
-            b.addEventListener("click", () => { engine.store.state.mode = Number(b.dataset.c); });
-        });
+        document.getElementById("foldBtn").addEventListener("click", () => { engine.store.state.fold = !engine.store.state.fold; });
+        document.getElementById("hfoldBtn").addEventListener("click", () => { engine.store.state.hfold = !engine.store.state.hfold; });
     </script>
 </body>
 </html>

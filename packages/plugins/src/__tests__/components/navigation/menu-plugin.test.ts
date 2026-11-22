@@ -5,13 +5,14 @@
  *   载体、首尾分隔线修剪；
  * - children 双形态：数组 / SubmenuOptions 配置对象（kids + conf 拆平）+ 任意层递归；
  * - 缩进域：expandLevel 默认展开、openKeys 显式覆盖（含 false 折叠）、点击 toggle +
- *   expand 事件、items 整体替换按 key 保留展开态；
+ *   expand 事件、默认档位下收起不回弹（显式 false 三态）、items 整体替换按 key 保留展开态；
  * - value 单选：点击激活 + change/input 双派发 + el.value 劫持桥 + props 受控单向 +
  *   祖先链自动展开 + 同值短路；
  * - value 数组勾选：toggle + marked 视觉 + checkPh 同级占位（checkMark 类）；
  * - disabled 整支锁定：子级传播渲染禁用；
  * - 同级占位：iconPh（data-icon-ph 载体 + 占位图标注入）；
- * - 形态：collapsed 三档（0/1/2 data 属性 + rail 指示钮）/ horizontal / slotDir；
+ * - 形态：collapsed 布尔折叠（垂直 / 水平两种作用面，ADR-0033 修订）/ width 与
+ *   collapsedWidth 宽度 / horizontal / slotDir / header·footer 作用域插槽形参；
  * - precompile：x-menu 属性折叠 + items JSON 通道 + x-menu-item 硬移除；
  * - 弹层冒烟：popLevel 弹层经 x-popover 打开 + 级联内容渲染 + 叶选关链（overlay 插件在场）。
  *
@@ -194,6 +195,30 @@ describe("缩进域展开（expandLevel / openKeys）", () => {
         expect(expands).toEqual([{ key: "g", expanded: true }, { key: "g", expanded: false }]);
     });
 
+    // 回归：收起曾写 delete open[key]，删键后落入 expandLevel 回退分支回弹——默认档位下
+    // 全部一级父项收不起；上方用例的 expandLevel: 0 恰好落在回退为 false 的区间（假绿）
+    test("默认 expandLevel=1：一级父项点击折叠后不回弹（收起写显式 false），再点展开；他组不受影响", async () => {
+        const expands: Array<Record<string, unknown>> = [];
+        const { root } = mountMenu(
+            `<div @expand="expands.push($event.detail)"><div x-component:autospark.menu="{ items: menu }"></div></div>`,
+            { menu: TREE(), expands },
+        );
+        await settle();
+        expect(wrapOf(root, "g")!.hasAttribute("data-open")).toBe(true); // 默认展开
+        expect(wrapOf(root, "g3")!.hasAttribute("data-open")).toBe(true);
+        topButtons(root)[0]!.click(); // g：默认展开 → 折叠
+        await settle();
+        expect(wrapOf(root, "g")!.hasAttribute("data-open")).toBe(false); // 不回弹
+        expect(wrapOf(root, "g3")!.hasAttribute("data-open")).toBe(true); // 他组仍默认展开
+        topButtons(root)[0]!.click(); // g：折叠 → 展开
+        await settle();
+        expect(wrapOf(root, "g")!.hasAttribute("data-open")).toBe(true);
+        expect(expands).toEqual([
+            { key: "g", expanded: false },
+            { key: "g", expanded: true },
+        ]);
+    });
+
     test("items 整体替换：openKeys 显式键的展开态保留（按 key 状态锚点）", async () => {
         const { root, engine } = mountMenu(
             `<div x-component:autospark.menu="{ items: menu, openKeys: { g: true } }"></div>`,
@@ -343,21 +368,212 @@ describe("disabled 整支锁定（ADR-0033 决策 16）", () => {
     });
 });
 
-describe("形态（collapsed 三档 / horizontal / slotDir）", () => {
-    test("collapsed 落 body 数据属性（T4=B）：0 缺省 / 1 图标条 / 2 单按钮（rail）", async () => {
-        const m0 = mountMenu(`<div x-component:autospark.menu="{ items: menu }"></div>`, { menu: [{ key: "a", label: "A", icon: "file" }] });
-        await settle();
-        expect(m0.root.querySelector(".asc-menu-body")!.getAttribute("data-collapsed")).toBe(null);
+describe("形态（collapsed 折叠 / 宽度 / horizontal / slotDir / 插槽形参）", () => {
+    const bodyOf = (root: Element) => root.querySelector(".asc-menu-body") as HTMLElement;
+    const labelOf = (btn: Element) => btn.querySelector(".asc-button-label") as HTMLElement;
+    const LEAF = () => [{ key: "a", label: "首页", icon: "file" }];
+    // 钉死原生 title 通道：tooltip 特性在场时 button 改挂 data-tooltip，全量套件下其加载序
+    // 不可控（跨文件全局态污染）——悬停提示断言与加载序解耦（button 测试同款防御）
+    const NO_TIP = { tooltip: false };
+    /** 折叠态项按钮的共同形态：button collapsed 接管 + node 值对象等值 */
+    const expectFolded = (btn: Element) => {
+        expect(btn.getAttribute("data-state")).toBe("collapsed"); // button 折叠钩子
+        expect(btn.querySelector(".asc-button-caret")).toBeNull(); // 箭头由 node 值对象置 none
+        expect(labelOf(btn).style.display).toBe("none"); // 只显示图标
+        expect(btn.hasAttribute("title")).toBe(true); // 悬停提示（labelPos none 联动）
+        expect(btn.querySelector(".asc-button-body")!.getAttribute("data-label-pos")).toBe("none");
+    };
 
-        const m1 = mountMenu(`<div x-component:autospark.menu="{ items: menu, collapsed: 1 }"></div>`, { menu: [{ key: "a", label: "A", icon: "file" }] });
+    test("collapsed 布尔：缺省不落 data-collapsed；true 与旧值 1 / 2 归一为折叠；档 2 rail 已移除", async () => {
+        const off = mountMenu(`<div x-component:autospark.menu="{ items: menu }"></div>`, { menu: LEAF() });
         await settle();
-        expect(m1.root.querySelector(".asc-menu-body")!.getAttribute("data-collapsed")).toBe("1");
+        expect(bodyOf(off.root).hasAttribute("data-collapsed")).toBe(false);
+        for (const literal of ["true", "1", "2"]) {
+            const m = mountMenu(`<div x-component:autospark.menu="{ items: menu, collapsed: ${literal} }"></div>`, { menu: LEAF() }, NO_TIP);
+            await settle();
+            expect(bodyOf(m.root).hasAttribute("data-collapsed")).toBe(true);
+            expect(m.root.querySelector(".asc-menu-rail, .asc-menu-railbtn")).toBeNull();
+            expectFolded(topButtons(m.root)[0]!);
+        }
+    });
 
-        const m2 = mountMenu(`<div x-component:autospark.menu="{ items: menu, collapsed: 2 }"></div>`, { menu: [{ key: "a", label: "A" }] });
+    test("垂直折叠：全部项只显示图标，有子菜单的项改走弹层分支（缩进域不渲染）", async () => {
+        const { root } = mountMenu(
+            `<div x-component:autospark.menu="{ items: menu, collapsed: true }"></div>`,
+            { menu: [{ key: "a", label: "首页", icon: "file" }, { key: "g", label: "组", icon: "folder", children: [{ key: "g1", label: "子" }] }] },
+            NO_TIP,
+        );
         await settle();
-        expect(m2.root.querySelector(".asc-menu-body")!.getAttribute("data-collapsed")).toBe("2");
-        expect(m2.root.querySelector(".asc-menu-railbtn")).toBeTruthy(); // 指示钮在场
-        expect((m2.root.querySelector(".asc-menu-header") as HTMLElement).style.display).toBe("none"); // header/footer 隐藏
+        expect(topButtons(root).length).toBe(2);
+        for (const btn of topButtons(root)) expectFolded(btn);
+        expect(shown(root.querySelector('.asc-menu-entry[data-key="g"] > .asc-menu-pop')!)).toBe(true); // 弹层触发分支
+        expect(shown(root.querySelector('.asc-menu-entry[data-key="g"] > .asc-menu-fold')!)).toBe(false);
+    });
+
+    test("运行时切换：collapsed 翻转 → 项按钮折叠态与宽度跟随，展开后箭头恢复（值对象通道响应 props 热更新）", async () => {
+        const { root, engine } = mountMenu(
+            `<div x-component:autospark.menu="{ items: menu, collapsed: fold, width: 300 }"></div>`,
+            {
+                menu: [
+                    { key: "a", label: "首页", icon: "file" },
+                    { key: "g", label: "组", children: [{ key: "g1", label: "子" }], tags: [{ name: "t", icon: "edit" }] },
+                ],
+                fold: false,
+            },
+            NO_TIP,
+        );
+        await settle();
+        const body = bodyOf(root);
+        const gBtn = topButtons(root)[1]!;
+        expect(body.style.width).toBe("300px");
+        expect(gBtn.getAttribute("data-state")).toBeNull();
+        expect(labelOf(gBtn).style.display).not.toBe("none");
+        expect(gBtn.querySelector(".asc-button-caret")).toBeTruthy(); // 展开态：折叠组箭头在场
+        (engine.store.state as { fold: boolean }).fold = true;
+        await settle();
+        expect(body.style.width).toBe("48px");
+        expectFolded(gBtn);
+        expect(gBtn.querySelector(".asc-button-tag")).toBeNull(); // tags 不渲染
+        (engine.store.state as { fold: boolean }).fold = false;
+        await settle();
+        expect(body.style.width).toBe("300px");
+        expect(gBtn.getAttribute("data-state")).toBeNull();
+        expect(labelOf(gBtn).style.display).not.toBe("none");
+        expect(gBtn.querySelector(".asc-button-caret")).toBeTruthy(); // 守卫恢复：箭头回来
+    });
+
+    test("width：缺省 260px；正数生效；0 / 负 / NaN 不写 inline（回落 width:100%）；水平模式不适用", async () => {
+        const cases: Array<[string, string]> = [
+            ["", "260px"],
+            ["width: 320", "320px"],
+            ["width: 0", ""],
+            ["width: -1", ""],
+            ["width: NaN", ""],
+        ];
+        for (const [props, expected] of cases) {
+            const m = mountMenu(`<div x-component:autospark.menu="{ items: menu${props ? ", " + props : ""} }"></div>`, { menu: LEAF() });
+            await settle();
+            expect(bodyOf(m.root).style.width).toBe(expected);
+        }
+        const h = mountMenu(`<div x-component:autospark.menu="{ items: menu, mode: 'horizontal', width: 320 }"></div>`, { menu: LEAF() });
+        await settle();
+        expect(bodyOf(h.root).style.width).toBe("");
+    });
+
+    test("collapsedWidth：折叠态生效（缺省 48 / 定制 64 / 非法回落 48）；水平模式不适用", async () => {
+        const cases: Array<[string, string]> = [
+            ["collapsed: true", "48px"],
+            ["collapsed: true, collapsedWidth: 64", "64px"],
+            ["collapsed: true, collapsedWidth: 0", "48px"],
+            ["collapsed: true, collapsedWidth: NaN", "48px"],
+        ];
+        for (const [props, expected] of cases) {
+            const m = mountMenu(`<div x-component:autospark.menu="{ items: menu, ${props} }"></div>`, { menu: LEAF() });
+            await settle();
+            expect(bodyOf(m.root).style.width).toBe(expected);
+        }
+        const h = mountMenu(`<div x-component:autospark.menu="{ items: menu, collapsed: true, mode: 'horizontal', collapsedWidth: 64 }"></div>`, { menu: LEAF() });
+        await settle();
+        expect(bodyOf(h.root).style.width).toBe("");
+    });
+
+    test("水平折叠：仅一级项只显示图标（二级在弹层面板内）；容器宽度不变、slotDir 不强制", async () => {
+        const { root } = mountMenu(
+            `<div x-component:autospark.menu="{ items: menu, mode: 'horizontal', collapsed: true, width: 320, slotDir: 'horizontal' }"></div>`,
+            { menu: [{ key: "g", label: "组", icon: "folder", children: [{ key: "g1", label: "子" }] }, { key: "a", label: "甲", icon: "file" }] },
+            NO_TIP,
+        );
+        await settle();
+        const body = bodyOf(root);
+        expect(body.hasAttribute("data-collapsed")).toBe(true);
+        expect(body.style.width).toBe(""); // 水平：不切 collapsedWidth，也不套 width
+        expect(body.getAttribute("data-slot-dir")).toBe("horizontal"); // 水平下分区不强制纵向
+        const btns = topButtons(root);
+        expect(btns.length).toBe(2);
+        for (const btn of btns) expectFolded(btn);
+        expect(shown(root.querySelector('.asc-menu-entry[data-key="g"] > .asc-menu-pop')!)).toBe(true);
+        expect(tpl(MENU_NODE_NAME)).toContain("(mode === 'horizontal' && depth === 1) ? 'bottom-start' : 'right-start'");
+    });
+
+    test("水平模式子级全弹层：一级父项不渲染缩进折叠分支（展开态同样）", async () => {
+        const { root } = mountMenu(
+            `<div x-component:autospark.menu="{ items: menu, mode: 'horizontal' }"></div>`,
+            { menu: [{ key: "g", label: "组", children: [{ key: "g1", label: "子" }] }] },
+        );
+        await settle();
+        expect(shown(root.querySelector('.asc-menu-entry[data-key="g"] > .asc-menu-pop')!)).toBe(true);
+        expect(shown(root.querySelector('.asc-menu-entry[data-key="g"] > .asc-menu-fold')!)).toBe(false);
+    });
+
+    test("垂直折叠：slotDir 强制纵向；展开态尊重 slotDir", async () => {
+        const mk = (props: string) =>
+            mountMenu(`<div x-component:autospark.menu="{ items: menu, slotDir: 'horizontal'${props ? ", " + props : ""} }"></div>`, { menu: LEAF() });
+        const plain = mk("");
+        await settle();
+        expect(bodyOf(plain.root).getAttribute("data-slot-dir")).toBe("horizontal");
+        const folded = mk("collapsed: true");
+        await settle();
+        expect(bodyOf(folded.root).getAttribute("data-slot-dir")).toBe("vertical");
+        // header/footer 保留（裁剪由样式承担）且不隐藏
+        expect((folded.root.querySelector(".asc-menu-header") as HTMLElement).style.display).not.toBe("none");
+    });
+
+    test("折叠态数据标记：分组标题带 data-icon（无 icon 则无标记）；占位图标项 data-icon-ph 保留", async () => {
+        const { root } = mountMenu(
+            `<div x-component:autospark.menu="{ items: menu, collapsed: true }"></div>`,
+            {
+                menu: [
+                    { type: "group", title: "有图标分组", icon: "bell" },
+                    { type: "group", title: "纯文字分组" },
+                    { key: "a", label: "有图标", icon: "file" },
+                    { key: "b", label: "无图标" },
+                ],
+            },
+        );
+        await settle();
+        const groups = Array.from(root.querySelectorAll(".asc-menu-group"));
+        expect(groups[0]!.hasAttribute("data-icon")).toBe(true);
+        expect(groups[1]!.hasAttribute("data-icon")).toBe(false);
+        expect(root.querySelector('.asc-menu-entry[data-key="b"]')!.hasAttribute("data-icon-ph")).toBe(true);
+        expect(buttons(root)[1]!.querySelector(".asc-button-icon")).toBeTruthy(); // 折叠态占位图标在场（可见性由样式承担）
+        // 样式口径：占位隐藏限定非折叠态；分组标题折叠规则限定折叠态；裁剪限定垂直折叠
+        const t = tpl(MENU_NAME);
+        expect(t).toContain(".asc-menu-body:not([data-collapsed]) .asc-menu-entry[data-icon-ph] .asc-button-icon");
+        expect(t).toContain(".asc-menu-body[data-collapsed] .asc-menu-group:not([data-icon])");
+        expect(t).toContain('.asc-menu-body[data-mode="vertical"][data-collapsed] .asc-menu-header,');
+    });
+
+    test("插槽形参：header / footer 按需解构、随折叠态与激活项刷新；声明了的键遮蔽调用方同名变量", async () => {
+        const { root, engine } = mountMenu(
+            `<div><x-menu :items="menu" :collapsed="fold">
+                <template header="{ collapsed, width, activeItem }"><span class="hd" x-text="(collapsed ? '折叠' : '展开') + ':' + width + ':' + (activeItem ? activeItem.label : '无')"></span></template>
+                <template footer="{ activeKey }"><span class="ft" x-text="activeKey || '空'"></span></template>
+            </x-menu></div>`,
+            {
+                menu: [{ key: "a", label: "首页" }, { key: "g", label: "组", children: [{ key: "g1", label: "子" }] }],
+                fold: false,
+                width: "调用方的width", // 调用方同名 state：header 解构了 width → 被形参遮蔽
+            },
+        );
+        await settle();
+        expect(root.querySelector(".hd")!.textContent).toBe("展开:260:无"); // 缺省宽 260 形参遮蔽调用方 width
+        expect(root.querySelector(".ft")!.textContent).toBe("空");
+        topButtons(root)[0]!.click(); // 激活「首页」
+        await settle();
+        expect(root.querySelector(".hd")!.textContent).toBe("展开:260:首页");
+        expect(root.querySelector(".ft")!.textContent).toBe("a");
+        (engine.store.state as { fold: boolean }).fold = true;
+        await settle();
+        expect(root.querySelector(".hd")!.textContent).toBe("折叠:48:首页"); // 折叠态形参刷新
+    });
+
+    test("<x-menu> 裸 collapsed 折叠为 true；width / collapsed-width 静态属性折叠为数值 props", () => {
+        const { root } = mountMenu(`<div><x-menu collapsed width="320" collapsed-width="64"></x-menu></div>`, {}, { autostart: false });
+        const host = root.children[0]!.children[0]!;
+        const props = [...host.attributes].find((a) => a.name === "x-component:autospark.menu")!.value;
+        expect(props).toContain("collapsed: true");
+        expect(props).toContain("width: 320");
+        expect(props).toContain("collapsedWidth: 64");
     });
 
     test("horizontal / slotDir 落 body 数据属性", async () => {
@@ -371,13 +587,35 @@ describe("形态（collapsed 三档 / horizontal / slotDir）", () => {
         expect(body.getAttribute("data-slot-dir")).toBe("horizontal");
     });
 
-    test("popFrom 公式与 rail popover 声明（模板断言）：popLevel=0 哨兵全缩进（Infinity）；collapsed=1 全弹层", () => {
+    test("模板断言：档 2 移除无残留；项按钮 block 全 5 处 + 折叠态等值键；插槽出口带 13 键形参", () => {
         const t = tpl(MENU_NAME);
-        expect(t).toContain("popFrom: Number(collapsed) === 1 ? 2 : (Number(popLevel) > 0 ? Number(popLevel) + 1 : Infinity)"); // popLevel=0 全缩进哨兵
-        expect(t).toContain("x-popover:autospark-menu-panel"); // rail 整菜单弹层
-        // 三档 CSS：图标条宽度收窄 + rail 显隐
-        expect(t).toContain('.asc-menu-body[data-collapsed="1"] .asc-menu-main { width: 3.25em; }');
-        expect(t).toContain('.asc-menu-body[data-collapsed="2"] .asc-menu-main,');
+        const n = tpl(MENU_NODE_NAME);
+        const p = tpl(MENU_PANEL_NAME);
+        expect(t).not.toContain("asc-menu-rail"); // rail 模板与样式
+        expect(t).not.toContain('data-collapsed="1"]');
+        expect(t).not.toContain('data-collapsed="2"]');
+        expect(t).not.toContain("closeTick"); // 死通道
+        expect(p).not.toContain("closeTick");
+        expect(p).not.toContain("tree || []"); // rail 整菜单回退分支
+        expect(t).toContain("closeAllPanels()"); // 常规弹层叶选关链路径保留
+        expect(n.match(/block: true/g)!.length).toBe(3); // node：fold / pop / leaf
+        expect(p.match(/block: true/g)!.length).toBe(2); // panel：pop / 常规行
+        expect(n.match(/collapsed: !!collapsed/g)!.length).toBe(3); // button collapsed 通道
+        // 与 button 折叠预设等值（抗 props 整组重注入冲回）
+        expect(n.match(/menu: !collapsed/g)!.length).toBe(3);
+        expect(n.match(/labelPos: collapsed \? 'none' : 'right'/g)!.length).toBe(3);
+        expect(n.match(/caret: collapsed \? 'none'/g)!.length).toBe(3);
+        expect(n.match(/checkMark: collapsed \? false : item\.checkPh/g)!.length).toBe(3);
+        // 插槽出口：形参全集（13 键）
+        expect(t).toContain('x-slot:header="slotParams"');
+        expect(t).toContain('x-slot:footer="slotParams"');
+        expect(t).toContain("collapsed: !!s.collapsed");
+        expect(t).toContain("width: s.effWidth");
+        for (const key of ["activeKey", "activeItem", "activePath", "mode", "value", "items", "openKeys", "expandLevel", "popLevel", "trigger", "slotDir"]) {
+            expect(t).toContain(`${key}: s.${key}`);
+        }
+        // 弹层触发仍经内置 popover
+        expect(n).toContain("x-popover:autospark-menu-panel");
     });
 });
 
@@ -393,6 +631,26 @@ describe("元素名快速写法（precompile 变换）", () => {
         const props = [...host.attributes].find((a) => a.name === "x-component:autospark.menu")!.value;
         expect(props).toContain('mode: "horizontal"');
         expect(host.querySelector("template") !== null).toBe(true); // header 插槽声明随迁
+        // 快捷形态归一：属性名形态 → 正典 x-slot 标记（引擎只认后者，未归一则落入默认段不渲染）
+        expect(host.querySelector("template")!.hasAttribute("x-slot:header")).toBe(true);
+        expect(host.querySelector("template")!.hasAttribute("header")).toBe(false);
+    });
+
+    test("<x-menu> 插槽快捷形态：形参声明原值保留；正典写法已在场则不覆盖；非直接子级不归一", () => {
+        const { root } = mountMenu(
+            `<div><x-menu>
+                <template header="{ collapsed, width }"><span>头部</span></template>
+                <template footer x-slot:footer="正典值"><span>底部</span></template>
+                <div><template header><span>深层</span></template></div>
+            </x-menu></div>`,
+            {},
+            { autostart: false },
+        );
+        const host = root.children[0]!.children[0]!;
+        const [header, footer] = [host.children[0]!, host.children[1]!];
+        expect(header.getAttribute("x-slot:header")).toBe("{ collapsed, width }"); // 形参声明原值
+        expect(footer.getAttribute("x-slot:footer")).toBe("正典值"); // 正典在场优先
+        expect((host.children[2]!.children[0] as Element).hasAttribute("x-slot:header")).toBe(false); // 仅认直接子级
     });
 
     test("<x-menu-item> 硬移除：声明子元素静默摘除（不转换不渲染）", async () => {
@@ -486,7 +744,7 @@ describe("弹层域冒烟（popLevel / x-popover，ADR-0033 决策 5）", () => 
         expect(panels().length).toBe(1);
         const panel = panels()[0]!;
         const leaf = panel.querySelector(".asc-menu-btnwrap > .asc-button") as HTMLElement;
-        leaf.click(); // 叶选：menu-pick 冒泡 → closeTick 广播 → 面板自关
+        leaf.click(); // 叶选：menu-pick 冒泡 → closeAllPanels（body click）→ 面板外点关闭链自关
         await sleep(30);
         expect(changes).toEqual(["leaf"]); // change 已派发
         expect(panels().length).toBe(0); // 叶选关整链
