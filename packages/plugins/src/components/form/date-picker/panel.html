@@ -1,42 +1,15 @@
-<!--
-    autospark-date-picker-panel 日历面板（ADR-0025）——date-picker 的内部组件（非用户
-    直接消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制
-    （trigger:click）渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位）由 popover-shell
-    承载，本组件只贡献日历内容（头部月份导航 + 星期表头 + 6×7 日格 + 今天快捷钮）。
-    面板宽度由内容自定（popover 无 fit——日历面板宽度与触发器解耦）。
-
-    与触发器组件（autospark.date-picker）的通信走 scope 链：overlay 内容宿主恒以
-    「open + dataContext:'host'」实例化本组件（ADR-0123 决策 2），聚合视图沿链读写
-    触发器组件 data 域——
-    - 读：days（日格数据源）/ weekdayLabels（星期表头）/ headerText（年月标题）/
-      value（选中基准）/ activeValue（键盘高亮基准）/ todayValue / todayText（今天钮）；
-    - 写：哨兵键 pickTick/pickValue（日格点击与今天快捷）、monthTick/monthDelta（月份
-      前后钮）——面板模板不能跨组件边界调触发器组件 method（x-on 组件 method 查找不
-      穿透父组件，ADR-0022 决策 3），自增哨兵免疫同值去重；事件表达式用逗号运算符
-      单表达式形态（分号多语句依赖新版引擎回退，旧产物不可用）；
-    - 开合态：mounted/unmounted 沿链写 open（图标染色 / aria-expanded / 视图归位）。
-
-    日格克隆体内零 x-if/x-show（共享快照多实例串台规避，ADR-0021 边界 3）——状态全走
-    x-bind 布尔属性（假值整属性移除 = 无态，绑定语义天然契合）。月份导航用 engine 内置
-    arrow 图标（上月钮 CSS 旋转 180° 复用，page-header 同款纪律）。
--->
 <div class="asc-date-picker-panel" x-define="autospark-date-picker-panel">
   <script setup>
     {
-        // 本组件零 props（overlay 宿主以空值实例化）、零自有状态——全部数据经 scope 链
-        // 读写触发器组件域；data() 空对象占位以建立自有 data 层（聚合视图的链上桥点）
         data: () => ({}),
         mounted() {
-            // 开合态沿链写回（触发器侧 watch open 派生图标染色 / aria-expanded / 视图归位）
             this.data.open = true;
         },
         unmounted() {
-            // 面板每次开合都是新实例（popover 无 keepalive，关闭即销毁）——关闭即复位开合态
             this.data.open = false;
         },
     }
   </script>
-  <!-- 头部：月份前后钮（哨兵沿链写回，触发器侧 shiftMonth 做年 rollover）+ 年月标题 -->
   <div class="asc-date-picker-header">
     <i
       class="asc-date-picker-nav asc-date-picker-nav-prev"
@@ -50,15 +23,11 @@
       x-icon="'arrow'"
     ></i>
   </div>
-  <!-- 星期表头：七列（i18n date-picker.weekdays 逗号串 split 产物，触发器域维护） -->
   <div class="asc-date-picker-weekdays">
     <template x-for="w of weekdayLabels" :key="w">
       <span class="asc-date-picker-weekday" x-text="w"></span>
     </template>
   </div>
-  <!-- 日格：42 格扁平数组单层 x-for（不嵌套——内层渲染晚一跳边界规避），CSS 七列
-         自然分行；状态 x-bind 布尔属性驱动（假值整属性移除 = 无态）——data-out 邻月
-         淡化 / data-today 今天 / data-selected 选中 / data-active 键盘高亮 -->
   <div class="asc-date-picker-grid" role="grid">
     <template x-for="day of days" :key="day.value">
       <span
@@ -73,7 +42,6 @@
       ></span>
     </template>
   </div>
-  <!-- 底部：今天快捷钮（哨兵携带 todayValue——点击即选中今天，触发器侧视图随值归位） -->
   <div class="asc-date-picker-footer">
     <button
       type="button"

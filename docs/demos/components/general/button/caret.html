@@ -1,59 +1,146 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>Button · 尾部箭头</title>
     <link rel="stylesheet" href="/autospark/autospark-theme.css" />
     <link rel="stylesheet" href="/autospark/theme-demo.css" />
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
-    <script src="/autospark/autospark.button.js?v=20261114"></script>
+    <script src="/autospark/autospark.button.js?v=20261123"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
-</head>
-<body>
-    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <script src="/autospark/autospark.tooltip.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel">
+      <theme-controls groups="color,mode"></theme-controls>
+    </aside>
     <main
-        class="demo-main"
-        x-data="{
+      class="demo-main"
+      x-data="{
             dir: 'bottom',
             dirs: ['none', 'left', 'top', 'right', 'bottom'],
-            oneTag: [{ name: 'share', icon: 'external', tooltip: '分享' }]
+            oneTag: [{ name: 'share', icon: 'external', tooltip: '分享' }],
+            floatOn: false
         }"
     >
-        <div class="auto-card">
-            <div class="auto-card-header">尾部箭头（caret）：最右端 x-icon arrow，按方向旋转——切换时同一图标连续转动</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-                    <x-button label="none" caret="none"></x-button>
-                    <x-button label="left" caret="left"></x-button>
-                    <x-button label="top" caret="top"></x-button>
-                    <x-button label="right" caret="right"></x-button>
-                    <x-button label="bottom" caret="bottom"></x-button>
-                </div>
-                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:12px;">
-                    <span @click="dir = dirs[(dirs.indexOf(dir) + 1) % dirs.length]">
-                        <x-button type="primary" label="点击切换方向" :caret="dir"></x-button>
-                    </span>
-                    <span>caret = <b>{{ dir }}</b></span>
-                    <span @click="dir = 'none'">
-                        <x-button variant="text" label="重置为 none"></x-button>
-                    </span>
-                </div>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;">
-                    <x-button variant="secondary" icon="file" label="导出" caret="bottom" :tags="oneTag"></x-button>
-                    <x-button variant="dashed" label="更多操作" caret="right"></x-button>
-                </div>
-                <p class="hint">
-                    caret 只做方向指示，不改变点击语义；与 tags 并存时恒居最右端。方向切换复用同一枚
-                    <code>arrow</code> 的 <code>x-icon</code> 旋转（默认 0.3s，可经
-                    <code>--as-icon-rotate-duration</code> 调整）。
-                </p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          尾部箭头（caret）：最右端 x-icon
+          arrow，按方向旋转——切换时同一图标连续转动
         </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button label="none" caret="none"></x-button>
+            <x-button label="left" caret="left"></x-button>
+            <x-button label="top" caret="top"></x-button>
+            <x-button label="right" caret="right"></x-button>
+            <x-button label="bottom" caret="bottom"></x-button>
+          </div>
+          <div
+            style="
+              display: flex;
+              gap: 12px;
+              flex-wrap: wrap;
+              align-items: center;
+              margin-top: 12px;
+            "
+          >
+            <span @click="dir = dirs[(dirs.indexOf(dir) + 1) % dirs.length]">
+              <x-button
+                type="primary"
+                label="点击切换方向"
+                :caret="dir"
+              ></x-button>
+            </span>
+            <span>caret = <b>{{ dir }}</b></span>
+            <span @click="dir = 'none'">
+              <x-button variant="text" label="重置为 none"></x-button>
+            </span>
+          </div>
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+              margin-top: 12px;
+            "
+          >
+            <x-button
+              variant="secondary"
+              icon="file"
+              label="导出"
+              caret="bottom"
+              :tags="oneTag"
+            ></x-button>
+            <x-button
+              variant="dashed"
+              label="更多操作"
+              caret="right"
+            ></x-button>
+          </div>
+          <p class="hint">
+            caret 只做方向指示，不改变点击语义；与 tags
+            并存时恒居最右端。方向切换复用同一枚
+            <code>arrow</code> 的 <code>x-icon</code> 旋转（默认 0.3s，可经
+            <code>--as-icon-rotate-duration</code> 调整）。
+          </p>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          浮动箭头（float-caret）：脱离标签行流，绝对定位到按钮右上角（top / right
+          等距）、尺寸减半——叠加指示形态（默认 false）
+        </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <span @click="floatOn = !floatOn">
+              <x-button
+                variant="secondary"
+                :label="floatOn ? '恢复常规' : '切到浮动'"
+              ></x-button>
+            </span>
+            <x-button
+              icon="folder"
+              label="资源面板"
+              caret="bottom"
+              :float-caret="floatOn"
+              label-pos="bottom"
+            ></x-button>
+            <x-button
+              icon="star"
+              label="收藏夹"
+              caret="right"
+              float-caret
+              label-pos="bottom"
+            ></x-button>
+            <span>floatCaret = <b>{{ floatOn }}</b></span>
+          </div>
+          <p class="hint">
+            浮动态不占标签行空间（label 截断可用宽不含它，尾部可能被叠压）；与
+            tags 并存时 caret 叠于其上——组合视觉按需取舍。
+          </p>
+        </div>
+      </div>
     </main>
     <script>
-        new AutoSpark(document.querySelector(".demo-main"), {});
+      new AutoSpark(document.querySelector(".demo-main"), {});
     </script>
-</body>
+  </body>
 </html>

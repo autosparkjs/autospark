@@ -1,6 +1,6 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>Button · 纵排标签</title>
     <link rel="stylesheet" href="/autospark/autospark-theme.css" />
@@ -10,41 +10,104 @@
     <script src="/autospark/autospark.button.js?v=20261116"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
-</head>
-<body>
+    <script src="/autospark/autospark.tooltip.js"></script>
+  </head>
+  <body>
     <aside class="demo-panel"><theme-controls></theme-controls></aside>
     <main class="demo-main">
-        <div class="auto-card">
-            <div class="auto-card-header">纵排标签（labelBelow）：label 显示在图标下方</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
-                    <x-button variant="secondary" icon="folder-open" label="文件" label-pos="bottom"></x-button>
-                    <x-button variant="secondary" icon="star" label="收藏" label-pos="bottom"></x-button>
-                    <x-button icon="copy" label="副本" label-pos="bottom"></x-button>
-                    <x-button variant="dashed" type="danger" icon="error" label="删除" label-pos="bottom"></x-button>
-                </div>
-                <p class="hint">工具栏 / 画布操作区常用形态；图标与文字间距随字号档位（右侧「尺寸」档）自动跟随。</p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          纵排标签（labelBelow）：label 显示在图标下方
         </div>
-        <div class="auto-card">
-            <div class="auto-card-header">纵排图标放大：内建 1.5 倍 与 icon.scale 倍率</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
-                    <x-button variant="secondary" icon="home" label="内建 1.5x" label-pos="bottom"></x-button>
-                    <x-button variant="secondary" :icon="iconScale2" label="scale 2" label-pos="bottom"></x-button>
-                    <x-button variant="secondary" :icon="iconSize24" label="size 24 叠加" label-pos="bottom"></x-button>
-                    <x-button variant="secondary" :icon="iconScale1" label="scale 1 接管" label-pos="bottom"></x-button>
-                </div>
-                <p class="hint">纵排时图标内建放大 1.5 倍（theme 档位与字号联动）；icon 对象的 <code>scale</code> 键仅纵排参与——与 size 叠加（size × scale），显式给值即接管内建倍率（scale 1 即还原原始大小）；横排给 scale 静默忽略。</p>
-            </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 14px;
+              flex-wrap: wrap;
+              align-items: flex-start;
+            "
+          >
+            <x-button
+              variant="secondary"
+              icon="folder-open"
+              label="文件"
+              label-pos="bottom"
+            ></x-button>
+            <x-button
+              variant="secondary"
+              icon="star"
+              label="收藏"
+              label-pos="bottom"
+            ></x-button>
+            <x-button icon="copy" label="副本" label-pos="bottom"></x-button>
+            <x-button
+              variant="dashed"
+              type="danger"
+              icon="error"
+              label="删除"
+              label-pos="bottom"
+            ></x-button>
+          </div>
+          <p class="hint">
+            工具栏 /
+            画布操作区常用形态；图标与文字间距随字号档位（右侧「尺寸」档）自动跟随。
+          </p>
         </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          纵排图标放大：内建 1.5 倍 与 icon.scale 倍率
+        </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 14px;
+              flex-wrap: wrap;
+              align-items: flex-start;
+            "
+          >
+            <x-button
+              variant="secondary"
+              icon="home"
+              label="内建 1.5x"
+              label-pos="bottom"
+            ></x-button>
+            <x-button
+              variant="secondary"
+              :icon="iconScale2"
+              label="scale 2"
+              label-pos="bottom"
+            ></x-button>
+            <x-button
+              variant="secondary"
+              :icon="iconSize24"
+              label="size 24 叠加"
+              label-pos="bottom"
+            ></x-button>
+            <x-button
+              variant="secondary"
+              :icon="iconScale1"
+              label="scale 1 接管"
+              label-pos="bottom"
+            ></x-button>
+          </div>
+          <p class="hint">
+            纵排时图标内建放大 1.5 倍（theme 档位与字号联动）；icon 对象的
+            <code>scale</code> 键仅纵排参与——与 size 叠加（size ×
+            scale），显式给值即接管内建倍率（scale 1 即还原原始大小）；横排给
+            scale 静默忽略。
+          </p>
+        </div>
+      </div>
     </main>
     <script>
-        new AutoSpark(document.querySelector(".demo-main"), {
-            iconScale2: { name: "star", scale: 2 },
-            iconSize24: { name: "copy", size: 24 },
-            iconScale1: { name: "error", scale: 1 },
-        });
+      new AutoSpark(document.querySelector(".demo-main"), {
+        iconScale2: { name: "star", scale: 2 },
+        iconSize24: { name: "copy", size: 24 },
+        iconScale1: { name: "error", scale: 1 },
+      });
     </script>
-</body>
+  </body>
 </html>

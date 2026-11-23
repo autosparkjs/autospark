@@ -487,7 +487,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-menu-subwrap > .asc-menu-sub {
       overflow: hidden;
       min-height: 0;
-      padding-inline-start: var(--asc-menu-indent, 0.4em);
+      /* 子级缩进基准 = 父项内容起点：1.5em 使子项文字与父项图标列起点对齐，逐级累计 */
+      padding-inline-start: var(--asc-menu-indent, 1.5em);
     }
     .asc-menu-pop {
       display: block;
@@ -639,7 +640,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             depth: 1,
             mode: mode,
             trigger: trigger,
-            collapsed: !!collapsed
+            collapsed: !!collapsed,
+            effWidth: effWidth
         }"
       ></div>
     </div>
@@ -670,6 +672,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             mode: "vertical",
             trigger: "hover",
             collapsed: false,
+            effWidth: 0,
             relayTick: 0,
             relayKey: null,
             relayKind: "",
@@ -740,7 +743,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                   depth: depth + 1,
                   mode: mode,
                   trigger: trigger,
-                  collapsed: collapsed
+                  collapsed: collapsed,
+                  effWidth: effWidth
               }"
             ></div>
           </div>
@@ -897,10 +901,13 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         },
     }
   <\/script>
+  <!-- 弹层面板宽度与菜单本体一致（垂直展开且 width 生效时，三键同值钳制以免被样式表
+       18em 上限截断）；折叠 / 水平 / 自适应（width=0）回落内容自适应 -->
   <div
     class="asc-menu-panel"
     tabindex="0"
     :data-slot-dir="(item && item.conf && item.conf.slotDir) ? item.conf.slotDir : slotDir"
+    :style="mode !== 'horizontal' && !collapsed && effWidth > 0 ? { width: effWidth + 'px', minWidth: effWidth + 'px', maxWidth: effWidth + 'px' } : null"
     @keydown="onKeydown($event)"
   >
     <div class="asc-menu-panel-head" x-show="item && item.conf && item.conf.header">

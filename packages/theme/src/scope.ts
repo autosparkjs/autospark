@@ -107,10 +107,12 @@ export class AutoSparkThemeScope {
                 shadow: "medium",
                 border: "1px",
                 primary: "var(--auto-theme-color)",
-                success: "#22c55e",
-                warning: "#f59e0b",
-                danger: "#ef4444",
-                info: "#71717a",
+                // 语义色种子（GitHub Primer light 系，dark 提亮第 3 档后趋近 VSCode/GitHub
+                // dark 观感：#F85149/#3FB950/#D29922/#58A6FF；VSCode Modern 仅定义 error）
+                success: "#1A7F37",
+                warning: "#9A6700",
+                danger: "#CF222E",
+                info: "#0969DA",
                 autoConnect: true,
                 autoAttach: true,
                 persistence: true,

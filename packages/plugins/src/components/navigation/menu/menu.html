@@ -484,7 +484,8 @@
     .asc-menu-subwrap > .asc-menu-sub {
       overflow: hidden;
       min-height: 0;
-      padding-inline-start: var(--asc-menu-indent, 0.4em);
+      /* 子级缩进基准 = 父项内容起点：1.5em 使子项文字与父项图标列起点对齐，逐级累计 */
+      padding-inline-start: var(--asc-menu-indent, 1.5em);
     }
     .asc-menu-pop {
       display: block;
@@ -636,7 +637,8 @@
             depth: 1,
             mode: mode,
             trigger: trigger,
-            collapsed: !!collapsed
+            collapsed: !!collapsed,
+            effWidth: effWidth
         }"
       ></div>
     </div>

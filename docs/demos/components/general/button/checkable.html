@@ -10,25 +10,48 @@
     <script src="/autospark/autospark.button.js"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
+    <script src="/autospark/autospark.tooltip.js"></script>
   </head>
   <body>
     <aside class="demo-panel"><theme-controls></theme-controls></aside>
-    <main class="demo-main" x-data="{ picked: false, urgent: false, v1: false, v2: false, v3: false, v4: false, agree: false, promo: false }">
+    <main
+      class="demo-main"
+      x-data="{ picked: false, urgent: false, v1: false, v2: false, v3: false, v4: false, agree: false, promo: false }"
+    >
       <div class="auto-card">
         <div class="auto-card-header">化身 checkbox 表单字段（受控半双工）</div>
         <div class="auto-card-body">
-          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+          <div
+            style="
+              display: flex;
+              gap: 8px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
             <span @change="picked = $event.detail.value">
-              <x-button checkable="true" :value="picked" label="仅看优惠"></x-button>
+              <x-button
+                checkable="true"
+                :value="picked"
+                label="仅看优惠"
+              ></x-button>
             </span>
             <span @change="urgent = $event.detail.value">
-              <x-button checkable="true" :value="urgent" variant="dashed" type="danger" label="紧急" check-style="solid"></x-button>
+              <x-button
+                checkable="true"
+                :value="urgent"
+                variant="dashed"
+                type="danger"
+                label="紧急"
+                check-style="solid"
+              ></x-button>
             </span>
           </div>
           <p class="hint">
-            内嵌隐藏真 input[type=checkbox]——<code>checkable="true"</code> 即标准 checkbox 表单字段；
-            默认渲染 <code>checkStyle: 'corner'</code>（右上角打勾角标），点击翻转 value 并冒泡 change
-            （外层 <code>@change</code> 回写受控）。
+            内嵌隐藏真 input[type=checkbox]——<code>checkable="true"</code>
+            即标准 checkbox 表单字段； 默认渲染
+            <code>checkStyle: 'corner'</code>（右上角打勾角标），点击翻转 value
+            并冒泡 change （外层 <code>@change</code> 回写受控）。
           </p>
         </div>
       </div>
@@ -36,40 +59,106 @@
       <div class="auto-card">
         <div class="auto-card-header">checkStyle 四种选中渲染（点击切换）</div>
         <div class="auto-card-body">
-          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
-            <span @change="v1 = $event.detail.value"><x-button checkable="true" check-style="solid" :value="v1" label="solid 实底"></x-button></span>
-            <span @change="v2 = $event.detail.value"><x-button checkable="true" check-style="check" :value="v2" label="check 打勾占位"></x-button></span>
-            <span @change="v3 = $event.detail.value"><x-button checkable="true" check-style="corner" :value="v3" label="corner 描边三角"></x-button></span>
-            <span @change="v4 = $event.detail.value"><x-button checkable="true" check-style="ripple" :value="v4" label="ripple 涟漪指示"></x-button></span>
+          <div
+            style="
+              display: flex;
+              gap: 8px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <span @change="v1 = $event.detail.value"
+              ><x-button
+                checkable="true"
+                check-style="solid"
+                :value="v1"
+                label="solid 实底"
+              ></x-button
+            ></span>
+            <span @change="v2 = $event.detail.value"
+              ><x-button
+                checkable="true"
+                check-style="check"
+                :value="v2"
+                label="check 打勾占位"
+              ></x-button
+            ></span>
+            <span @change="v3 = $event.detail.value"
+              ><x-button
+                checkable="true"
+                check-style="corner"
+                :value="v3"
+                label="corner 描边三角"
+              ></x-button
+            ></span>
+            <span @change="v4 = $event.detail.value"
+              ><x-button
+                checkable="true"
+                check-style="ripple"
+                :value="v4"
+                label="ripple 涟漪指示"
+              ></x-button
+            ></span>
           </div>
           <p class="hint">
-            指示色统一取主题色（type 非默认时语义色）：<b>solid</b> 勾选点亮实底、<b>check</b> 最左 1.2em
-            常驻占位显示打勾（背景不变、零布局跳动）、<b>corner</b>（默认）描边 + 右上角小三角内嵌反白
-            打勾（按压即预显描边）、<b>ripple</b> 勾选时宿主整体恒开 x-ripple echo 双环涟漪（always 常驻、外扩形态；取消回退点击涟漪）。
+            指示色统一取主题色（type 非默认时语义色）：<b>solid</b>
+            勾选点亮实底、<b>check</b> 最左 1.2em
+            常驻占位显示打勾（背景不变、零布局跳动）、<b>corner</b>（默认）描边
+            + 右上角小三角内嵌反白 打勾（按压即预显描边）、<b>ripple</b>
+            勾选时宿主整体恒开 x-ripple echo 双环涟漪（always
+            常驻、外扩形态；取消回退点击涟漪）。
           </p>
         </div>
       </div>
 
       <div class="auto-card">
-        <div class="auto-card-header">x-model 双向（.boolean 保真）+ 表单提交</div>
+        <div class="auto-card-header">
+          x-model 双向（.boolean 保真）+ 表单提交
+        </div>
         <div class="auto-card-body">
           <form id="f">
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
-              <x-button checkable="true" x-model.boolean="agree" name="agree" check-style="check" label="同意条款"></x-button>
-              <x-button checkable="true" x-model.boolean="promo" name="promo" label="订阅优惠" variant="text" type="success"></x-button>
-              <button type="submit" class="auto-btn">提交（看地址栏 query）</button>
+            <div
+              style="
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+                align-items: center;
+              "
+            >
+              <x-button
+                checkable="true"
+                x-model.boolean="agree"
+                name="agree"
+                check-style="check"
+                label="同意条款"
+              ></x-button>
+              <x-button
+                checkable="true"
+                x-model.boolean="promo"
+                name="promo"
+                label="订阅优惠"
+                variant="text"
+                type="success"
+              ></x-button>
+              <button type="submit" class="auto-btn">
+                提交（看地址栏 query）
+              </button>
             </div>
           </form>
           <p class="hint">
-            宿主 x-model 走组件桥布尔语域（配 <code>.boolean</code> 保真，变量须在根 state / x-data 域）；
-            勾选以 <code>name=String(checkValues[0])</code> 提交、未勾选不提交（原生 checkbox 语义）。
+            宿主 x-model 走组件桥布尔语域（配
+            <code>.boolean</code> 保真，变量须在根 state / x-data 域）； 勾选以
+            <code>name=String(checkValues[0])</code> 提交、未勾选不提交（原生
+            checkbox 语义）。
           </p>
         </div>
       </div>
     </main>
     <script>
       new AutoSpark(document.querySelector(".demo-main"), {});
-      document.querySelector("form").addEventListener("submit", (e) => e.preventDefault());
+      document
+        .querySelector("form")
+        .addEventListener("submit", (e) => e.preventDefault());
     </script>
   </body>
 </html>

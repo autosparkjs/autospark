@@ -1,67 +1,34 @@
-<!--
-    autospark.transfer 穿梭框（ADR-0028）——双列表（源/目标）+ 中间穿梭钮复合控件。
-
-    内部装配（ADR-0018 决策 2「内部装配、对外开箱」，取舍见 ADR-0028）：
-    - 列表区**复制** list 结构（非嵌套消费）：视觉同源经 CSS 变量达成（边框/圆角/行距/
-      hover 同档），结构四段（头部全选 + 过滤框 + 滚动体 + 底部计数）与 list 单段行容器
-      不同构（ADR-0028 决策 1）；
-    - 复选项**组合** autospark.checkbox（table 行选择先例直承）：checked props 绑定
-      pickedKeys.includes（**整体替换驱动全行重求值**），@change 事件通道回写选中集；
-      头部全选额外消费 indeterminate 半选（ADR-0028 决策 2/4）；
-    - 穿梭钮自绘原生 button（button 同档 chrome + 亮度反馈，组合 autospark.button 的
-      props 接线收益为负，ADR-0028 决策 4 备选节）。
-
-    值桥（x-model 兼容协议，ADR-0028 决策 3）：宿主 el.value 劫持为**数组语域**（目标侧
-    key 数组，value 顺序恒为 data 声明序——canonical 重建）；穿梭路径派发 input（非冒泡，
-    x-model 回写）+ change（冒泡 detail={ value }，外层消费）；内嵌 input[type=hidden]
-    载体 value = key 逗号拼接（表单提交字符串域）、name 透传（元素名形态折叠 props /
-    值对象形态宿主属性双通道，props 优先）、禁用出表。
-
-    选中集单集制（ADR-0028 决策 4）：pickedKeys 跨两侧共用（key 任一时刻只在一侧）；
-    全选作用于当前过滤视图的可用项；canRight/canLeft 由「选中集 ∩ 侧全集（跨过滤
-    维度）」派生——过滤词不清选中集（antd 同款语义）。
-
-    items/value 变更通道：props 为调用方状态**引用**注入——整体替换驱动重渲；原地
-    增删不发信号（autostore 跨域边界，文档披露）。
--->
-<!-- 继承 autospark.base（ADR-0134）：主题档位六键自动获得；transfer 是复合控件不继承
-     field（无盒饰/焦点环语义面，disabled 自持，ADR-0028 决策 2）；data-disabled
-     由 mounted JS 通道同步，根上无动态绑定（T4=B） -->
 <div class="asc-transfer" x-define="autospark.transfer" x-define:inherit="autospark.base">
   <script setup>
     {
         data: () => ({
-            data: [],        // 数据源 [{ key, label, disabled? }]（经状态引用注入——字面量数组触发 props 更新死循环，ADR-0019 后果 2）
-            value: [],       // 目标侧 key 数组（非受控初值 / 单向同步值；受控真相走宿主 x-model——el.value 数组语域桥）
-            titles: [],      // 双列表标题 [源标题, 目标题]（缺省无标题）
-            filterable: false, // 本地搜索（每侧独立过滤框，label 不区分大小写包含匹配）
-            disabled: false, // 整体禁用（选中/穿梭/搜索全阻断 + 载体出表）
-            name: "",        // 表单提交名（元素名形态经属性折叠为 props；值对象形态走宿主 name 属性——props 优先）
-            // —— 内部状态（JS 通道维护——绑定通道对 props 晚注入不重算，家族纪律）——
-            sourceItems: [],   // 源侧全集（data 按 value 划分）
-            targetItems: [],   // 目标侧全集
-            sourceView: [],    // 源侧过滤视图（行渲染数据源）
-            targetView: [],    // 目标侧过滤视图
-            sourceFilter: "",  // 源侧过滤词（过滤框写回；关闭不清——过滤词非开合态）
-            targetFilter: "",  // 目标侧过滤词
-            pickedKeys: [],    // 选中集（字符串归一 key，跨两侧共用单集制；整体替换驱动全行重求值）
-            sourceAll: false,  // 源侧全选态（按过滤视图可用项派生）
-            sourceHalf: false, // 源侧半选态
-            targetAll: false,  // 目标侧全选态
-            targetHalf: false, // 目标侧半选态
-            canRight: false,   // 穿梭钮态：选中集 ∩ 源侧非空且未禁用
-            canLeft: false,    // 穿梭钮态：选中集 ∩ 目标侧非空且未禁用
+            data: [],
+            value: [],
+            titles: [],
+            filterable: false,
+            disabled: false,
+            name: "",
+            sourceItems: [],
+            targetItems: [],
+            sourceView: [],
+            targetView: [],
+            sourceFilter: "",
+            targetFilter: "",
+            pickedKeys: [],
+            sourceAll: false,
+            sourceHalf: false,
+            targetAll: false,
+            targetHalf: false,
+            canRight: false,
+            canLeft: false,
         }),
         methods: {
-            // 数据源归一（props 晚注入/异常形态防御）
             items() {
                 return Array.isArray(this.data.data) ? this.data.data : [];
             },
-            // 值数组归一
             valueKeys() {
                 return Array.isArray(this.data.value) ? this.data.value : [];
             },
-            // 全量重建：按 value 划分两侧 + 过滤视图 + 选中派生态（幂等，一切变更的收口）
             rebuild() {
                 const valSet = new Set(this.valueKeys().map((k) => String(k)));
                 const src = [];
@@ -82,7 +49,6 @@
                     : tgt.filter((i) => String(i.label ?? "").toLowerCase().includes(kwT));
                 this.syncSelection();
             },
-            // 选中派生态：选中集合法化（剔除不在 data 的 key）+ 全选/半选 + 穿梭钮联动
             syncSelection() {
                 const valid = new Set(this.items().map((i) => String(i?.key)));
                 const pickedArr = [...new Set((this.data.pickedKeys ?? []).map(String))]
@@ -91,7 +57,6 @@
                     this.data.pickedKeys = pickedArr;
                 }
                 const pickSet = new Set(pickedArr);
-                // 全选/半选：按过滤视图可用项（disabled 项跳过）
                 const calc = (view) => {
                     const enabled = (view ?? []).filter((i) => i && !i.disabled);
                     const n = enabled.filter((i) => pickSet.has(String(i.key))).length;
@@ -103,15 +68,12 @@
                 const [ta, th] = calc(this.data.targetView);
                 this.data.targetAll = ta;
                 this.data.targetHalf = th;
-                // 穿梭钮联动：选中集 ∩ 侧全集（跨过滤维度——被过滤隐藏的选中仍可穿梭）
                 const srcKeys = new Set((this.data.sourceItems ?? []).map((i) => String(i.key)));
                 const tgtKeys = new Set((this.data.targetItems ?? []).map((i) => String(i.key)));
                 const dis = !!this.data.disabled;
                 this.data.canRight = !dis && pickedArr.some((k) => srcKeys.has(k));
                 this.data.canLeft = !dis && pickedArr.some((k) => tgtKeys.has(k));
             },
-            // 行勾选切换（checkbox @change 与行点击汇聚点；disabled 项 guard）。
-            //     原生 change 在此拦截不外泄（外层 @change 只应收到本组件 detail={value} 派发）
             togglePick(key, event) {
                 if (event && typeof event.stopPropagation === "function") event.stopPropagation();
                 if (this.data.disabled) return;
@@ -124,14 +86,11 @@
                     : [...picked, k];
                 this.syncSelection();
             },
-            // 行点击切换（点行文字与点 checkbox 等价；checkbox 区内点击自理不双触发）
             onRowClick(item, event) {
                 if (event && event.target instanceof Element && event.target.closest(".asc-checkbox")) return;
                 if (!item || item.disabled) return;
                 this.togglePick(item.key);
             },
-            // 头部全选切换（作用于当前过滤视图可用项；半选态点击 → 全选，原生行为对齐；
-            //     原生 change 同样拦截不外泄）
             onToggleSourceAll(event) {
                 if (event && typeof event.stopPropagation === "function") event.stopPropagation();
                 this.toggleAll(this.data.sourceView);
@@ -140,8 +99,6 @@
                 if (event && typeof event.stopPropagation === "function") event.stopPropagation();
                 this.toggleAll(this.data.targetView);
             },
-            // 过滤框输入（原生 input 在此拦截不外泄——宿主 x-model 监听 input，原生冒泡
-            //     会触发无谓回读）
             onSourceFilterInput(event) {
                 this.data.sourceFilter = event?.target?.value ?? "";
                 if (event && typeof event.stopPropagation === "function") event.stopPropagation();
@@ -165,8 +122,6 @@
                 this.data.pickedKeys = [...picked];
                 this.syncSelection();
             },
-            // 穿梭（dir: "right" 移入目标 / "left" 移回源）：选中集 ∩ 侧并入/剔除 +
-            // canonical 重建（value 顺序恒为 data 声明序）+ 仅清移动侧选中 + 双派发
             moveRight() { this.moveTo("right"); },
             moveLeft() { this.moveTo("left"); },
             moveTo(dir) {
@@ -194,28 +149,23 @@
                 this.syncCarrier();
                 this.emitChange();
             },
-            // 表单载体同步（value 逗号拼接字符串域 + 禁用出表）
             syncCarrier() {
                 const c = this.el.querySelector(".asc-transfer-carrier");
                 if (!c) return;
                 c.value = this.valueKeys().map((k) => String(k)).join(",");
                 c.disabled = !!this.data.disabled;
             },
-            // 提交名同步（props.name 优先，回退宿主属性——元素名/值对象双形态通道）
             syncName() {
                 const c = this.el.querySelector(".asc-transfer-carrier");
                 if (!c) return;
                 const n = this.data.name || this.el.getAttribute("name");
                 if (n) c.name = n;
             },
-            // 可交互同步：宿主禁用反射 + 载体 + 穿梭钮派生态
             syncInteractive() {
                 this.el.toggleAttribute("data-disabled", !!this.data.disabled);
                 this.syncCarrier();
                 this.syncSelection();
             },
-            // 值变更出口：input 非冒泡（x-model 监听在宿主自身，checkbox/select 同款）+
-            // change 冒泡 detail={ value }（外层消费）
             emitChange() {
                 this.el.dispatchEvent(new Event("input", { bubbles: false }));
                 this.el.dispatchEvent(
@@ -224,13 +174,6 @@
             },
         },
         mounted() {
-            // —— 值桥（x-model 兼容协议，ADR-0028 决策 3）：宿主 el.value 劫持为数组语域 ——
-            //     x-model 对 text-like 控件的 state→DOM 写入恒 String() 归一（引擎语义，
-            //     ADR-0023 决策 1 同族）——数组经 x-model 通道往返呈逗号拼接字符串形态，
-            //     桥须双向兼容：setter 解析逗号串（key 域约束：不含逗号——hidden 载体
-            //     提交本就是逗号拼接域，约束一致）；劫持前快照 expando（x-model 编译期
-            //     可能已写初值）；无 x-model 时回退 props.value 初值（快照序：
-            //     expando > props.value，input 同款）
             const toArr = (v) => {
                 if (Array.isArray(v)) return v;
                 if (v == null || v === "") return [];
@@ -244,7 +187,7 @@
                 get: () => (Array.isArray(self.data.value) ? self.data.value : []),
                 set: (v) => {
                     const arr = toArr(v);
-                    if (arr === self.data.value) return; // 引用等值（x-model 回写环守卫）
+                    if (arr === self.data.value) return;
                     self.data.value = arr;
                     self.rebuild();
                 },
@@ -252,15 +195,12 @@
             });
             this.data.value = initV;
 
-            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）——
             setTimeout(() => {
                 this.syncName();
                 this.rebuild();
                 this.syncInteractive();
             }, 0);
 
-            // —— props / 内部状态跟随（回调收 { value } 信封对象，此处只用作触发信号，
-            //     家族惯用法）——
             this.watch("data", () => { setTimeout(() => this.rebuild(), 0); });
             this.watch("value", () => { this.rebuild(); this.syncCarrier(); });
             this.watch("sourceFilter", () => { this.rebuild(); });
@@ -280,7 +220,6 @@
       width: 100%;
       font-size: var(--auto-font-size, var(--asc-transfer-font-size, 0.875rem));
     }
-    /* 禁用：整体淡化 + 行/钮禁点（各元素 cursor 自理） */
     .asc-transfer[data-disabled] {
       opacity: 0.55;
     }
@@ -301,7 +240,6 @@
       overflow: hidden;
     }
 
-    /* ---------- 头部：全选 checkbox + 标题 ---------- */
     .asc-transfer-header {
       flex: none;
       display: flex;
@@ -324,7 +262,6 @@
       display: none;
     }
 
-    /* ---------- 过滤框（filterable）：裸 input 复制（input-number 复制先例，ADR-0028） ---------- */
     .asc-transfer-search {
       flex: none;
       padding: 0.4em 0.6em;
@@ -352,14 +289,12 @@
       cursor: not-allowed;
     }
 
-    /* ---------- 体：滚动窗口 ---------- */
     .asc-transfer-body {
       flex: 1 1 auto;
       overflow-y: auto;
       overscroll-behavior: contain;
     }
 
-    /* ---------- 行：checkbox + 文案；hover 同 list 档（淡底轻反馈） ---------- */
     .asc-transfer-item {
       display: flex;
       align-items: center;
@@ -393,14 +328,12 @@
       color: var(--auto-disable-color, var(--asc-transfer-item-disable, rgba(0, 0, 0, 0.28)));
     }
 
-    /* ---------- 空态（含过滤无匹配） ---------- */
     .asc-transfer-empty {
       padding: 1.2em 0.85em;
       text-align: center;
       color: var(--auto-third-color, var(--asc-transfer-empty, rgba(0, 0, 0, 0.35)));
     }
 
-    /* ---------- 底部计数「N / M 项」 ---------- */
     .asc-transfer-footer {
       flex: none;
       padding: 0.45em 0.85em;
@@ -451,7 +384,6 @@
       cursor: not-allowed;
     }
 
-    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
     [dark] .asc-transfer-list,
     [data-dark] .asc-transfer-list {
       --asc-line: var(--auto-border-color, var(--asc-transfer-border-color, #52525b));
@@ -498,10 +430,7 @@
       color: var(--auto-color, var(--asc-transfer-btn-color, #fafafa));
     }
   </style>
-  <!-- 表单载体（hidden——提交值 = key 逗号拼接字符串域，禁用出表由 JS 同步） -->
   <input type="hidden" class="asc-transfer-carrier" />
-  <!-- 源列表（data 划分左侧）：行模板 = template 形态 x-for（克隆体禁 x-if / 宿主绑定
-         不编译——行绑定全部落克隆体内层元素，家族纪律） -->
   <div class="asc-transfer-list">
     <div class="asc-transfer-header">
       <span
@@ -546,7 +475,6 @@
       ></span>
     </div>
   </div>
-  <!-- 穿梭钮（自绘原生 button，button 同档视觉；:disabled 由选中集联动派生态驱动） -->
   <div class="asc-transfer-actions">
     <button
       type="button"
@@ -587,8 +515,6 @@
       </svg>
     </button>
   </div>
-  <!-- 目标列表（value 侧）：与源列表镜像（标题 titles[1] / 过滤词 targetFilter /
-         视图 targetView / 全选 targetAll） -->
   <div class="asc-transfer-list">
     <div class="asc-transfer-header">
       <span

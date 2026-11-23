@@ -51,8 +51,9 @@ const darkColorized = buildVars("dark" as Mode, true);
 
 /* --- light：达标验证 + 基准记录 --- */
 check({ label: "正文 / 面板", mode: "light", table: light, fg: "--auto-color", bg: "--auto-bgcolor", min: 4.5 });
+/* light 次要文字：70% 不透明 ≈#767676，对白底 ≈4.55:1 回到 AA 口径 */
 check({ label: "次要文字 / 面板", mode: "light", table: light, fg: "--auto-secondary-color", bg: "--auto-bgcolor", min: 4.5 });
-check({ label: "主色(theme-5) / 面板", mode: "light", table: light, fg: "--auto-theme-color", bg: "--auto-bgcolor", recordAs: "light-theme" });
+check({ label: "主色(theme-8) / 面板", mode: "light", table: light, fg: "--auto-theme-color", bg: "--auto-bgcolor", recordAs: "light-theme" });
 check({ label: "hover 底 / 面板（感知基准）", mode: "light", table: light, fg: "--auto-hover-bgcolor", bg: "--auto-bgcolor", recordAs: "hover-bg" });
 check({ label: "selected 底 / 面板（感知基准）", mode: "light", table: light, fg: "--auto-selected-bgcolor", bg: "--auto-bgcolor", recordAs: "selected-bg" });
 check({ label: "边框 / 面板（基准）", mode: "light", table: light, fg: "--auto-border-color", bg: "--auto-bgcolor", recordAs: "border" });
@@ -60,12 +61,12 @@ check({ label: "边框 / 面板（基准）", mode: "light", table: light, fg: "
 /* --- dark：达标验证 + 与 light 对称 --- */
 check({ label: "正文 / 面板", mode: "dark", table: dark, fg: "--auto-color", bg: "--auto-bgcolor", min: 4.5 });
 check({ label: "次要文字 / 面板", mode: "dark", table: dark, fg: "--auto-secondary-color", bg: "--auto-bgcolor", min: 4.5 });
-check({ label: "主色(theme-6) / 面板", mode: "dark", table: dark, fg: "--auto-theme-color", bg: "--auto-bgcolor", min: 4.5 });
+check({ label: "主色(theme-5) / 面板", mode: "dark", table: dark, fg: "--auto-theme-color", bg: "--auto-bgcolor", min: 4.5 });
 check({ label: "hover 文字 / 面板", mode: "dark", table: dark, fg: "--auto-hover-color", bg: "--auto-bgcolor", min: 4.5 });
 check({ label: "hover 底 / 面板", mode: "dark", table: dark, fg: "--auto-hover-bgcolor", bg: "--auto-bgcolor", benchmarkOf: "hover-bg" });
 check({ label: "selected 底 / 面板", mode: "dark", table: dark, fg: "--auto-selected-bgcolor", bg: "--auto-bgcolor", benchmarkOf: "selected-bg" });
 check({ label: "禁用文字 / 面板", mode: "dark", table: dark, fg: "--auto-disable-color", bg: "--auto-bgcolor", min: 3 });
-check({ label: "边框(提档后) / 面板", mode: "dark", table: dark, fg: "--auto-border-color", bg: "--auto-bgcolor", min: 1.7 });
+check({ label: "边框(派生) / 面板", mode: "dark", table: dark, fg: "--auto-border-color", bg: "--auto-bgcolor", min: 1.2 });
 check({ label: "输入底(凹陷) / 面板（记录）", mode: "dark", table: dark, fg: "--auto-input-bgcolor", bg: "--auto-bgcolor", recordAs: "input-recessed" });
 check({ label: "正文 / 工作区底", mode: "dark", table: dark, fg: "--auto-color", bg: "--auto-workspace-bgcolor", min: 4.5 });
 
@@ -79,8 +80,9 @@ check({ label: "正文 / 面板", mode: "dark+colorized", table: darkColorized, 
 check({ label: "次要文字 / 面板", mode: "dark+colorized", table: darkColorized, fg: "--auto-secondary-color", bg: "--auto-bgcolor", min: 4.5 });
 check({ label: "正文 / 工作区（theme-0 混黑）", mode: "dark+colorized", table: darkColorized, fg: "--auto-color", bg: "--auto-workspace-bgcolor", min: 4.5 });
 check({ label: "面板浮起 / 工作区", mode: "dark+colorized", table: darkColorized, fg: "--auto-bgcolor", bg: "--auto-workspace-bgcolor", min: 1.2 });
-/* 边框派生对彩色暗底自适应：面板 theme-0 混白恒错开（固定档方案的相邻档融合风险由派生消除） */
-check({ label: "边框(派生) / 面板", mode: "dark+colorized", table: darkColorized, fg: "--auto-border-color", bg: "--auto-bgcolor", min: 1.7 });
+/* 边框派生对彩色暗底自适应：面板 theme-0 混白恒错开（固定档方案的相邻档融合风险由派生消除）。
+ * 阈值 1.2：VSCode 弱边框流派（#2B2B2B/#1F1F1F = 1.19），混白 12% 实测灰域 1.45 / 彩域 1.31 */
+check({ label: "边框(派生) / 面板", mode: "dark+colorized", table: darkColorized, fg: "--auto-border-color", bg: "--auto-bgcolor", min: 1.2 });
 
 /* --- 语义色 --- */
 /* light 直引种子（既有现状，黄绿系白底物理限制普遍 <4.5，范围约定 light 不调，仅记录基准） */

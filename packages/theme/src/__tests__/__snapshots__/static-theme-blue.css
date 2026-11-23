@@ -1,4 +1,4 @@
-:host,:root{--x-theme-static:v2|#1677ff|1.7|1.25|var(--auto-theme-color)|#22c55e|#f59e0b|#ef4444|#71717a|0|0|medium|medium|medium|medium;}
+:host,:root{--x-theme-static:v2|#0078d4|1.7|1.25|var(--auto-theme-color)|#1a7f37|#9a6700|#cf222e|#0969da|0|0|medium|medium|medium|medium;}
 :host,:root,[data-light]{
     color-scheme: light;
     --x-border-radius-none:none;
@@ -111,22 +111,22 @@
     --auto-danger-color:var(--x-color-danger);
     --auto-warning-color:var(--x-color-warning);
     --auto-info-color:var(--x-color-info);
-    --auto-theme-color:var(--x-color-theme-5);
-    --auto-selected-color:var(--x-color-theme-5)!important;
+    --auto-theme-color:var(--x-color-theme-8);
+    --auto-selected-color:var(--auto-theme-color)!important;
     --auto-selected-bgcolor:color-mix(in srgb, var(--auto-selected-color), transparent 80% )!important;
     --auto-hover-color:var(--auto-theme-color)!important;
     --auto-hover-bgcolor:color-mix(in srgb, var(--auto-hover-color), transparent 85%)!important;
-    --auto-active-color:var(--x-color-theme-8)!important;
+    --auto-active-color:var(--x-color-theme-9)!important;
     --auto-active-bgcolor:color-mix(in srgb, var(--auto-active-color), transparent 85%)!important;
     --auto-disable-color:color-mix(in srgb, var(--x-color-8), gray 50%)!important;
     --auto-disable-bgcolor:color-mix(in srgb, currentColor, transparent 80%)!important;
     --auto-color:var(--x-color-1);
     --auto-text-color:var(--auto-color);
-    --auto-secondary-color:color-mix(in srgb, var(--x-color-1), transparent 25%);
-    --auto-third-color:color-mix(in srgb, var(--x-color-1), transparent 45%);
+    --auto-secondary-color:color-mix(in srgb, var(--x-color-1), transparent 30%);
+    --auto-third-color:color-mix(in srgb, var(--x-color-1), transparent 60%);
     --auto-bgcolor:var(--x-bgcolor-0);
-    --auto-secondary-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 70%);
-    --auto-third-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 25%);
+    --auto-secondary-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 65%);
+    --auto-third-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 45%);
     --auto-workspace-bgcolor:var(--x-bgcolor-1);
     --auto-border-size:1px;
     --auto-border-color:var(--x-color-6);
@@ -168,26 +168,26 @@
 
 :host,:root[dark],[data-dark]{
     color-scheme: dark;
-    --x-plain-color-0:var(--x-color-gray-0) !important;
-    --x-plain-color-1:var(--x-color-gray-1) !important;
-    --x-plain-color-2:var(--x-color-gray-2) !important;
-    --x-plain-color-3:var(--x-color-gray-3) !important;
-    --x-plain-color-4:var(--x-color-gray-4) !important;
-    --x-plain-color-5:var(--x-color-gray-5) !important;
-    --x-plain-color-6:var(--x-color-gray-6) !important;
-    --x-plain-color-7:var(--x-color-gray-7) !important;
-    --x-plain-color-8:var(--x-color-gray-8) !important;
-    --x-plain-color-9:var(--x-color-gray-9) !important;
-    --x-plain-bgcolor-0:var(--x-color-gray-8) !important;
-    --x-plain-bgcolor-1:var(--x-color-gray-9) !important;
-    --x-plain-bgcolor-2:var(--x-color-gray-7) !important;
-    --x-plain-bgcolor-3:var(--x-color-gray-6) !important;
-    --x-plain-bgcolor-4:var(--x-color-gray-5) !important;
-    --x-plain-bgcolor-5:var(--x-color-gray-4) !important;
-    --x-plain-bgcolor-6:var(--x-color-gray-3) !important;
-    --x-plain-bgcolor-7:var(--x-color-gray-2) !important;
-    --x-plain-bgcolor-8:var(--x-color-gray-1) !important;
-    --x-plain-bgcolor-9:var(--x-color-gray-0) !important;
+    --x-plain-color-0:var(--x-color-dgray-0) !important;
+    --x-plain-color-1:var(--x-color-dgray-1) !important;
+    --x-plain-color-2:var(--x-color-dgray-2) !important;
+    --x-plain-color-3:var(--x-color-dgray-3) !important;
+    --x-plain-color-4:var(--x-color-dgray-4) !important;
+    --x-plain-color-5:var(--x-color-dgray-5) !important;
+    --x-plain-color-6:var(--x-color-dgray-6) !important;
+    --x-plain-color-7:var(--x-color-dgray-7) !important;
+    --x-plain-color-8:var(--x-color-dgray-8) !important;
+    --x-plain-color-9:var(--x-color-dgray-9) !important;
+    --x-plain-bgcolor-0:var(--x-color-dgray-8) !important;
+    --x-plain-bgcolor-1:var(--x-color-dgray-9) !important;
+    --x-plain-bgcolor-2:var(--x-color-dgray-7) !important;
+    --x-plain-bgcolor-3:var(--x-color-dgray-6) !important;
+    --x-plain-bgcolor-4:var(--x-color-dgray-5) !important;
+    --x-plain-bgcolor-5:var(--x-color-dgray-4) !important;
+    --x-plain-bgcolor-6:var(--x-color-dgray-3) !important;
+    --x-plain-bgcolor-7:var(--x-color-dgray-2) !important;
+    --x-plain-bgcolor-8:var(--x-color-dgray-1) !important;
+    --x-plain-bgcolor-9:var(--x-color-dgray-0) !important;
     --x-tinted-color-0:var(--x-color-theme-9) !important;
     --x-tinted-color-1:var(--x-color-theme-8) !important;
     --x-tinted-color-2:var(--x-color-theme-7) !important;
@@ -461,22 +461,22 @@
     --auto-danger-color:var(--x-color-danger);
     --auto-warning-color:var(--x-color-warning);
     --auto-info-color:var(--x-color-info);
-    --auto-theme-color:var(--x-color-theme-5);
-    --auto-selected-color:var(--x-color-theme-5)!important;
+    --auto-theme-color:var(--x-color-theme-8);
+    --auto-selected-color:var(--auto-theme-color)!important;
     --auto-selected-bgcolor:color-mix(in srgb, var(--auto-selected-color), transparent 80% )!important;
     --auto-hover-color:var(--auto-theme-color)!important;
     --auto-hover-bgcolor:color-mix(in srgb, var(--auto-hover-color), transparent 85%)!important;
-    --auto-active-color:var(--x-color-theme-8)!important;
+    --auto-active-color:var(--x-color-theme-9)!important;
     --auto-active-bgcolor:color-mix(in srgb, var(--auto-active-color), transparent 85%)!important;
     --auto-disable-color:color-mix(in srgb, var(--x-color-8), gray 50%)!important;
     --auto-disable-bgcolor:color-mix(in srgb, currentColor, transparent 80%)!important;
     --auto-color:var(--x-color-1);
     --auto-text-color:var(--auto-color);
-    --auto-secondary-color:color-mix(in srgb, var(--x-color-1), transparent 25%);
-    --auto-third-color:color-mix(in srgb, var(--x-color-1), transparent 45%);
+    --auto-secondary-color:color-mix(in srgb, var(--x-color-1), transparent 30%);
+    --auto-third-color:color-mix(in srgb, var(--x-color-1), transparent 60%);
     --auto-bgcolor:var(--x-bgcolor-0);
-    --auto-secondary-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 70%);
-    --auto-third-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 25%);
+    --auto-secondary-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 65%);
+    --auto-third-bgcolor:color-mix(in srgb, var(--x-bgcolor-2), transparent 45%);
     --auto-workspace-bgcolor:var(--x-bgcolor-1);
     --auto-border-color:var(--x-color-6);
     --auto-border:var(--auto-border-size) solid var(--auto-border-color);
@@ -496,98 +496,101 @@
     --auto-input-placeholder:color-mix(in srgb, var(--auto-color), transparent 60%);}
 
 :host,:root[dark],[data-dark]{
-    --auto-theme-color:var(--x-color-theme-6);
+    --auto-theme-color:var(--x-color-theme-5);
+    --auto-secondary-color:color-mix(in srgb, var(--x-color-1), transparent 12%);
     --auto-selected-color:var(--auto-theme-color)!important;
     --auto-selected-bgcolor:color-mix(in srgb, var(--auto-selected-color), transparent 82%)!important;
     --auto-hover-bgcolor:color-mix(in srgb, var(--auto-hover-color), transparent 85%)!important;
     --auto-active-bgcolor:color-mix(in srgb, var(--auto-active-color), transparent 85%)!important;
     --auto-disable-color:color-mix(in srgb, var(--x-color-8), gray 80%)!important;
-    --auto-border-color:color-mix(in srgb, var(--auto-panel-bgcolor), white 25%);
-    --auto-input-bgcolor:var(--x-bgcolor-1);
+    --auto-border-color:color-mix(in srgb, var(--auto-panel-bgcolor), white 12%);
+    --auto-input-bgcolor:var(--x-bgcolor-3);
+    --auto-secondary-bgcolor:color-mix(in srgb, var(--x-bgcolor-3), transparent 60%);
+    --auto-third-bgcolor:color-mix(in srgb, var(--x-bgcolor-3), transparent 25%);
 }
 
 /* colors */
  :host,:root,[data-light]{
     color-scheme: light;
-    --x-color-theme-0:#E3F3FF;
-    --x-color-theme-1:#BBE0FF;
-    --x-color-theme-2:#8CCEFF;
-    --x-color-theme-3:#56BAFF;
-    --x-color-theme-4:#21AAFF;
-    --x-color-theme-5:#009AFF;
-    --x-color-theme-6:#008BFF;
-    --x-color-theme-7:#1677FF;
-    --x-color-theme-8:#2064EC;
-    --x-color-theme-9:#2941CD;;
+    --x-color-theme-0:#E3F2FD;
+    --x-color-theme-1:#BADFFB;
+    --x-color-theme-2:#8FCBFA;
+    --x-color-theme-3:#61B7F7;
+    --x-color-theme-4:#3CA7F6;
+    --x-color-theme-5:#0C98F5;
+    --x-color-theme-6:#078AE7;
+    --x-color-theme-7:#0078D4;
+    --x-color-theme-8:#0067C2;
+    --x-color-theme-9:#0049A3;;
 }
 :host,:root[dark],[data-dark]{
     color-scheme: dark;
-    --x-color-theme-0:#2941CD;
-    --x-color-theme-1:#2064EC;
-    --x-color-theme-2:#1677FF;
-    --x-color-theme-3:#008BFF;
-    --x-color-theme-4:#009AFF;
-    --x-color-theme-5:#21AAFF;
-    --x-color-theme-6:#56BAFF;
-    --x-color-theme-7:#8CCEFF;
-    --x-color-theme-8:#BBE0FF;
-    --x-color-theme-9:#E3F3FF;;
+    --x-color-theme-0:#0049A3;
+    --x-color-theme-1:#0067C2;
+    --x-color-theme-2:#0078D4;
+    --x-color-theme-3:#078AE7;
+    --x-color-theme-4:#0C98F5;
+    --x-color-theme-5:#3CA7F6;
+    --x-color-theme-6:#61B7F7;
+    --x-color-theme-7:#8FCBFA;
+    --x-color-theme-8:#BADFFB;
+    --x-color-theme-9:#E3F2FD;;
 }
 /*  Semantic Colors */
 :host,:root{
-    --x-color-success-0:#E4F7E8;
-    --x-color-success-1:#BEEAC7;
-    --x-color-success-2:#91DDA2;
-    --x-color-success-3:#5CD07C;
-    --x-color-success-4:#22C55E;
-    --x-color-success-5:#00BA3E;
-    --x-color-success-6:#00AA35;
-    --x-color-success-7:#009828;
-    --x-color-success-8:#00871B;
-    --x-color-success-9:#006703;
+    --x-color-success-0:#E7F5EA;
+    --x-color-success-1:#C5E7CB;
+    --x-color-success-2:#9FD7AA;
+    --x-color-success-3:#78C989;
+    --x-color-success-4:#59BD6F;
+    --x-color-success-5:#38B156;
+    --x-color-success-6:#2FA24D;
+    --x-color-success-7:#249041;
+    --x-color-success-8:#1A7F37;
+    --x-color-success-9:#026023;
 }
 :host,:root{
-    --x-color-warning-0:#FDF8E1;
-    --x-color-warning-1:#FBEBB4;
-    --x-color-warning-2:#F9DF83;
-    --x-color-warning-3:#F7D352;
-    --x-color-warning-4:#F6C82E;
-    --x-color-warning-5:#F5BF17;
-    --x-color-warning-6:#F5B20F;
-    --x-color-warning-7:#F59F0B;
-    --x-color-warning-8:#F58F08;
-    --x-color-warning-9:#F47103;
+    --x-color-warning-0:#FFF8E4;
+    --x-color-warning-1:#FFEDBC;
+    --x-color-warning-2:#FFE290;
+    --x-color-warning-3:#FFD763;
+    --x-color-warning-4:#FCCE40;
+    --x-color-warning-5:#F9C610;
+    --x-color-warning-6:#E8B50E;
+    --x-color-warning-7:#D3A108;
+    --x-color-warning-8:#BD8B06;
+    --x-color-warning-9:#9A6700;
 }
 :host,:root{
-    --x-color-danger-0:#FFEAED;
-    --x-color-danger-1:#FFC9CE;
-    --x-color-danger-2:#F09493;
-    --x-color-danger-3:#E6696A;
-    --x-color-danger-4:#EF4444;
-    --x-color-danger-5:#F32E26;
-    --x-color-danger-6:#E42027;
-    --x-color-danger-7:#D31121;
-    --x-color-danger-8:#C6011A;
-    --x-color-danger-9:#B7000C;
+    --x-color-danger-0:#FFEBEF;
+    --x-color-danger-1:#FFCED5;
+    --x-color-danger-2:#F39B9E;
+    --x-color-danger-3:#EB7378;
+    --x-color-danger-4:#F75156;
+    --x-color-danger-5:#FD3E3C;
+    --x-color-danger-6:#EE353B;
+    --x-color-danger-7:#DC2A35;
+    --x-color-danger-8:#CF222E;
+    --x-color-danger-9:#C01221;
 }
 :host,:root{
-    --x-color-info-0:#F9F9FF;
-    --x-color-info-1:#F3F3FD;
-    --x-color-info-2:#EBEBF5;
-    --x-color-info-3:#DCDCE6;
-    --x-color-info-4:#B9B9C3;
-    --x-color-info-5:#9A9AA3;
-    --x-color-info-6:#71717A;
-    --x-color-info-7:#5D5D66;
-    --x-color-info-8:#3E3E47;
-    --x-color-info-9:#1E1E25;
+    --x-color-info-0:#E3F3FF;
+    --x-color-info-1:#BBE1FF;
+    --x-color-info-2:#8FCFFF;
+    --x-color-info-3:#5DBCFF;
+    --x-color-info-4:#32ACFF;
+    --x-color-info-5:#009EFF;
+    --x-color-info-6:#008FFF;
+    --x-color-info-7:#037CEC;
+    --x-color-info-8:#096BDA;
+    --x-color-info-9:#0E4BBB;
 }
 :host,:root,[data-light]{
     --x-color-primary:var(--auto-theme-color);
-    --x-color-success:#22c55e;
-    --x-color-warning:#f59e0b;
-    --x-color-danger:#ef4444;
-    --x-color-info:#71717a;
+    --x-color-success:#1A7F37;
+    --x-color-warning:#9A6700;
+    --x-color-danger:#CF222E;
+    --x-color-info:#0969DA;
 }
 :host,:root[dark],[data-dark]{
     --x-color-success:var(--x-color-success-3)!important;

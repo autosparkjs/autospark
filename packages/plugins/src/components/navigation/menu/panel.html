@@ -78,10 +78,13 @@
         },
     }
   </script>
+  <!-- 弹层面板宽度与菜单本体一致（垂直展开且 width 生效时，三键同值钳制以免被样式表
+       18em 上限截断）；折叠 / 水平 / 自适应（width=0）回落内容自适应 -->
   <div
     class="asc-menu-panel"
     tabindex="0"
     :data-slot-dir="(item && item.conf && item.conf.slotDir) ? item.conf.slotDir : slotDir"
+    :style="mode !== 'horizontal' && !collapsed && effWidth > 0 ? { width: effWidth + 'px', minWidth: effWidth + 'px', maxWidth: effWidth + 'px' } : null"
     @keydown="onKeydown($event)"
   >
     <div class="asc-menu-panel-head" x-show="item && item.conf && item.conf.header">

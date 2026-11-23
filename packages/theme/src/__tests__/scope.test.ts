@@ -40,7 +40,7 @@ describe("ThemeScope 主题标尺样式生成", () => {
         scope.update({ themeColor: "purple" });
         const after = scope.toStyles();
         expect(after).not.toEqual(before);
-        expect(after).not.toContain("#1677ff");
+        expect(after).not.toContain("#0078d4");
     });
 });
 
@@ -112,8 +112,8 @@ describe("独立样式域 data-* 手动通道", () => {
         // 亮模式块：灰色方向 + 多彩映射别名
         expect(rootCss).toContain("--x-plain-color-0:var(--x-color-gray-9)");
         expect(rootCss).toContain("--x-tinted-bgcolor-1:var(--x-color-theme-1)");
-        // 暗模式块：暗方向别名带 !important（同元素压过亮块）
-        expect(rootCss).toContain("--x-plain-color-0:var(--x-color-gray-0) !important");
+        // 暗模式块：暗方向别名引用 dgray 暗灰阶（带 !important，同元素压过亮块）
+        expect(rootCss).toContain("--x-plain-color-0:var(--x-color-dgray-0) !important");
         expect(rootCss).toContain(
             "--x-tinted-bgcolor-1:color-mix(in srgb, var(--x-color-theme-0), black 30%) !important",
         );

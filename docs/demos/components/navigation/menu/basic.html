@@ -1,65 +1,107 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>menu 基础</title>
     <style>
-        body { font-family: system-ui, sans-serif; margin: 24px; background: #fff; }
-        .wrap { display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; }
-        .panel { border: 1px solid #eee; border-radius: 8px; padding: 8px; }
-        /* width="0" 填满演示：容器定宽（菜单缺省宽 260，不设容器宽即由菜单自带宽度决定） */
-        .panel.fill { width: 340px; }
-        h3 { margin: 4px 0 12px; font-size: 14px; color: #666; }
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 24px;
+        background: #fff;
+      }
+      .wrap {
+        display: flex;
+        gap: 40px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .panel {
+        border: 1px solid #eee;
+        border-radius: 8px;
+        padding: 8px;
+      }
+      /* width="0" 填满演示：容器定宽（菜单缺省宽 260，不设容器宽即由菜单自带宽度决定） */
+      .panel.fill {
+        width: 340px;
+      }
+      h3 {
+        margin: 4px 0 12px;
+        font-size: 14px;
+        color: #666;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="wrap">
-        <div class="panel">
-            <h3>基础（缺省宽 260 · 子菜单点击展开 / 折叠 · 勾选）</h3>
-            <x-menu :items="menu" :value="picked"></x-menu>
-        </div>
-        <div class="panel">
-            <h3>popLevel=1（缩进 + 弹层混合）</h3>
-            <x-menu :items="menu2" :pop-level="1" :value="active" trigger="click"></x-menu>
-        </div>
-        <div class="panel fill">
-            <h3>width=0（填满容器 340）</h3>
-            <x-menu width="0" :items="menu" :value="active"></x-menu>
-        </div>
+      <h3>基础（缺省宽 260 · 子菜单点击展开 / 折叠）</h3>
+      <div class="panel">
+        <x-menu :items="menu" value="home"></x-menu>
+      </div>
+      <h3>popLevel=1（缩进 + 弹层混合）</h3>
+      <div class="panel">
+        <x-menu
+          :items="menu2"
+          :pop-level="1"
+          :value="active"
+          trigger="click"
+        ></x-menu>
+      </div>
+      <h3>width=0（填满容器 340）</h3>
+      <div class="panel fill">
+        <x-menu width="0" :items="menu" :value="active"></x-menu>
+      </div>
     </div>
     <script src="/autospark/autospark.js"></script>
     <script src="/autospark/autospark.overlay.js"></script>
     <script src="/autospark/autospark.button.js"></script>
     <script src="/autospark/autospark.menu.js"></script>
     <script>
-        const state = {
-            picked: ["a1"],
-            active: "home",
-            menu: [
-                { key: "home", label: "首页", icon: "file" },
-                { type: "group", title: "组件", icon: "bell" },
-                { key: "a1", label: "可勾选一", icon: "edit", checkable: true },
-                { key: "a2", label: "可勾选二", icon: "copy", checkable: true },
-                { key: "a3", label: "无图标占位", checkable: true },
-                "-",
-                { key: "nav", label: "导航", children: [
-                    { key: "n1", label: "指令" },
-                    { key: "n2", label: "组件" },
-                ] },
+      const state = {
+        active: "home",
+        menu: [
+          { key: "home", label: "首页", icon: "file" },
+          { type: "group", title: "组件" },
+          { key: "guide", label: "指南", icon: "edit" },
+          { key: "comps", label: "组件", icon: "copy" },
+          { key: "api", label: "API" },
+          "-",
+          {
+            key: "nav",
+            label: "导航",
+            children: [
+              { key: "n1", label: "指令" },
+              { key: "n2", label: "路由" },
             ],
-            menu2: [
-                { key: "home", label: "首页", icon: "file" },
-                { key: "grp", label: "折叠组", children: [
-                    { key: "g1", label: "二级项" },
-                    { key: "g2", label: "二级组", children: { title: "三级弹层", children: [
-                        { key: "g2a", label: "三级项" },
-                        { key: "g2b", label: "更深层", children: [{ key: "g2b1", label: "四级级联" }] },
-                    ] } },
-                ] },
+          },
+        ],
+        menu2: [
+          { key: "home", label: "首页", icon: "file" },
+          {
+            key: "grp",
+            label: "折叠组",
+            children: [
+              { key: "g1", label: "二级项" },
+              {
+                key: "g2",
+                label: "二级组",
+                children: {
+                  title: "三级弹层",
+                  children: [
+                    { key: "g2a", label: "三级项" },
+                    {
+                      key: "g2b",
+                      label: "更深层",
+                      children: [{ key: "g2b1", label: "四级级联" }],
+                    },
+                  ],
+                },
+              },
             ],
-        };
-        new AutoSpark(document.body, state);
+          },
+        ],
+      };
+      new AutoSpark(document.body, state);
     </script>
-</body>
+  </body>
 </html>

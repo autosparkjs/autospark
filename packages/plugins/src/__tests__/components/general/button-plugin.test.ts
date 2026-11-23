@@ -103,7 +103,7 @@ describe("wrap 选项（label 换行与截断 title，ADR-0012 决策 7）", () 
     test("样式通道：label 基础规则承载单行截断，data-wrap=true 解除折行", () => {
         // 归一化空白后断言（oxfmt 折行使逐字匹配假红）
         const tpl = ((AutoSpark as { components: Record<string, string> }).components[BUTTON_NAME] as string).replace(/\s+/g, " ");
-        expect(tpl).toContain(".asc-button-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }");
+        expect(tpl).toContain(".asc-button-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; min-width: 0; }");
         expect(tpl).toContain('.asc-button-body[data-wrap="true"] .asc-button-label { white-space: normal; }');
     });
 
@@ -556,5 +556,259 @@ describe("checkable 回归（化身 checkbox 表单字段，2026-11-13 / ADR-001
         await nextTick();
         expect(engine.store.state.flag).toBe(true);
         expect(host.className).toContain("asc-checked");
+    });
+});
+
+describe("命名状态覆盖（state/states + collapsed 快捷糖，2026-11-22 共识）", () => {
+    // props 经值通道路径引用（states/tags 对象同款约束——嵌套对象须外层状态引用）
+    const mountProps = (props: any) =>
+        mount(`<button x-component:autospark.button="btnProps"></button>`, { btnProps: props });
+    const bodyOf = (root: HTMLElement) => root.querySelector(".asc-button-body") as HTMLElement;
+    const hostOf = (root: HTMLElement) => root.querySelector("button")!;
+
+    test("内置折叠默认：collapsed=true 四键接管（含 menu 退出）+ data-state 钩子", async () => {
+        const { root } = mountProps({
+            label: "工作空间",
+            icon: "menu",
+            indent: 16,
+            menu: true,
+            collapsed: true,
+            tags: [{ name: "t1", icon: "edit" }],
+        });
+        await nextTick();
+        expect(bodyOf(root).getAttribute("data-label-pos")).toBe("none"); // labelPos → none
+        expect(bodyOf(root).style.paddingLeft).toBe(""); // indent 16 → 0（:style 移除）
+        expect(root.querySelector(".asc-button-tags")).toBeNull(); // hideTags → true
+        expect(bodyOf(root).getAttribute("data-menu")).toBe(null); // menu true → false（假值属性移除，退出菜单形态）
+        expect(hostOf(root).getAttribute("data-state")).toBe("collapsed");
+    });
+
+    test("collapsed 部分定制：双层合并保留预设默认键（indent/hideTags/menu 仍覆盖）", async () => {
+        const { root } = mountProps({
+            label: "收窄",
+            icon: "menu",
+            indent: 16,
+            menu: true,
+            collapsed: true,
+            tags: [{ name: "t1", icon: "edit" }],
+            states: { collapsed: { labelPos: "bottom" } },
+        });
+        await nextTick();
+        expect(bodyOf(root).getAttribute("data-label-pos")).toBe("bottom"); // 用户覆盖键
+        expect(bodyOf(root).style.paddingLeft).toBe(""); // 预设 indent:0 仍覆盖
+        expect(root.querySelector(".asc-button-tags")).toBeNull(); // 预设 hideTags:true 仍覆盖
+        expect(bodyOf(root).getAttribute("data-menu")).toBe(null); // 预设 menu:false 仍覆盖
+    });
+
+    test("自定义状态键所见即所得：未写键不碰（顶层 hideTags=false 继续生效）", async () => {
+        const { root } = mountProps({
+            label: "文档",
+            icon: "file",
+            state: "mini",
+            tags: [{ name: "t1", icon: "edit" }],
+            states: { mini: { labelPos: "none" } },
+        });
+        await nextTick();
+        expect(bodyOf(root).getAttribute("data-label-pos")).toBe("none");
+        expect(root.querySelector(".asc-button-tags")).toBeTruthy(); // hideTags 键不在 mini 对象：不碰
+        expect(hostOf(root).getAttribute("data-state")).toBe("mini");
+    });
+
+    test("state 切走守卫恢复：被覆盖键还原原值 + data-state 移除", async () => {
+        const { root, engine } = mountProps({ label: "工作空间", icon: "menu", indent: 16, state: "collapsed" });
+        await nextTick();
+        expect(bodyOf(root).getAttribute("data-label-pos")).toBe("none");
+        (engine.store.state as any).btnProps.state = null;
+        await nextTick();
+        expect(bodyOf(root).getAttribute("data-label-pos")).toBe("right"); // 还原
+        expect(bodyOf(root).style.paddingLeft).toBe("16px"); // 还原
+        expect(hostOf(root).getAttribute("data-state")).toBe(null);
+    });
+
+    test("守卫外部值赢：激活期间被外部改过的键恢复时保持外部值", async () => {
+        const { root, engine } = mountProps({ label: "A", icon: "menu", state: "collapsed" });
+        await nextTick();
+        (engine.store.state as any).btnProps.labelPos = "top"; // 激活期间外部有意改覆盖键
+        await nextTick();
+        expect(bodyOf(root).getAttribute("data-label-pos")).toBe("top"); // 外部值即时生效
+        (engine.store.state as any).btnProps.state = null;
+        await nextTick();
+        expect(bodyOf(root).getAttribute("data-label-pos")).toBe("top"); // 恢复时外部值赢（不回 right）
+    });
+
+    test("miss 口径：空值静默取消；非空不在表 warn 一次（per 键）", async () => {
+        const warnings: string[] = [];
+        const savedWarn = console.warn;
+        console.warn = (msg: unknown) => warnings.push(String(msg));
+        try {
+            const { root, engine } = mountProps({ label: "A", icon: "menu", state: "collapsed" });
+            await nextTick();
+            (engine.store.state as any).btnProps.state = ""; // 合法取消：静默
+            await nextTick();
+            expect(warnings.length).toBe(0);
+            expect(hostOf(root).getAttribute("data-state")).toBe(null);
+            const s = engine.store.state as any;
+            s.btnProps.state = "typoKey"; // miss：warn 一次
+            await nextTick();
+            expect(warnings.length).toBe(1);
+            expect(warnings[0]).toContain("typoKey");
+            expect(bodyOf(root).getAttribute("data-label-pos")).toBe("right"); // 按无状态渲染
+            s.btnProps.state = null; // 切走再切回同键：仍只 warn 一次
+            await nextTick();
+            s.btnProps.state = "typoKey";
+            await nextTick();
+            expect(warnings.length).toBe(1);
+        } finally {
+            console.warn = savedWarn;
+        }
+    });
+
+    test("collapsed 快捷（运行时）：翻转恒写 state（最近操作赢）", async () => {
+        const { root, engine } = mountProps({ label: "A", icon: "menu" });
+        await nextTick();
+        (engine.store.state as any).btnProps.collapsed = true;
+        await nextTick();
+        expect(hostOf(root).getAttribute("data-state")).toBe("collapsed");
+        expect(bodyOf(root).getAttribute("data-label-pos")).toBe("none");
+        (engine.store.state as any).btnProps.collapsed = false;
+        await nextTick();
+        expect(hostOf(root).getAttribute("data-state")).toBe(null);
+        expect(bodyOf(root).getAttribute("data-label-pos")).toBe("right");
+    });
+
+    test("初始优先级：state 显式声明赢、collapsed 忽略", async () => {
+        const { root } = mountProps({
+            label: "A",
+            icon: "menu",
+            collapsed: true,
+            state: "compact",
+            states: { compact: { labelPos: "bottom" }, collapsed: { labelPos: "none" } },
+        });
+        await nextTick();
+        expect(hostOf(root).getAttribute("data-state")).toBe("compact");
+        expect(bodyOf(root).getAttribute("data-label-pos")).toBe("bottom");
+    });
+
+    test("states 热替换：激活期间换表重放当前键（revert 旧覆盖集 + apply 新覆盖集）", async () => {
+        const { root, engine } = mountProps({
+            label: "A",
+            icon: "menu",
+            state: "compact",
+            states: { compact: { labelPos: "none", variant: "text" } },
+        });
+        await nextTick();
+        expect(bodyOf(root).getAttribute("data-label-pos")).toBe("none");
+        expect(bodyOf(root).getAttribute("data-variant")).toBe("text");
+        (engine.store.state as any).btnProps.states = { compact: { variant: "dashed" } }; // 新表不含 labelPos
+        await nextTick();
+        expect(bodyOf(root).getAttribute("data-variant")).toBe("dashed"); // 新覆盖集生效
+        expect(bodyOf(root).getAttribute("data-label-pos")).toBe("right"); // 旧覆盖键还原（新集未写）
+    });
+
+    test("states 热替换键消失：miss warn + 恢复常态", async () => {
+        const warnings: string[] = [];
+        const savedWarn = console.warn;
+        console.warn = (msg: unknown) => warnings.push(String(msg));
+        try {
+            const { root, engine } = mountProps({
+                label: "A",
+                icon: "menu",
+                state: "compact",
+                states: { compact: { labelPos: "none" } },
+            });
+            await nextTick();
+            expect(bodyOf(root).getAttribute("data-label-pos")).toBe("none");
+            (engine.store.state as any).btnProps.states = {}; // 空表：compact 键消失
+            await nextTick();
+            expect(warnings.length).toBe(1);
+            expect(warnings[0]).toContain("compact");
+            expect(bodyOf(root).getAttribute("data-label-pos")).toBe("right"); // 恢复常态
+            expect(hostOf(root).getAttribute("data-state")).toBe(null);
+        } finally {
+            console.warn = savedWarn;
+        }
+    });
+
+    test("states 数组（state-button 继承语境）：机制整体静默跳过（不 warn、不激活）", async () => {
+        const warnings: string[] = [];
+        const savedWarn = console.warn;
+        console.warn = (msg: unknown) => warnings.push(String(msg));
+        try {
+            const { root } = mountProps({
+                label: "A",
+                icon: "menu",
+                state: "collapsed",
+                states: [{ value: 1 }, { value: 2 }],
+            });
+            await nextTick();
+            expect(warnings.length).toBe(0); // 静默
+            expect(hostOf(root).getAttribute("data-state")).toBe(null); // 机制不激活
+            expect(bodyOf(root).getAttribute("data-label-pos")).toBe("right"); // 按常态渲染
+        } finally {
+            console.warn = savedWarn;
+        }
+    });
+
+    test("x-button 快速写法：静态属性通道（state 字符串推断 + hide-tags 裸布尔归一）", async () => {
+        const { root } = mount(
+            `<div><x-button id="b1" icon="menu" label="折叠" state="collapsed"></x-button></div>
+             <div><x-button id="b2" icon="menu" label="藏标签" hide-tags :tags="ts"></x-button></div>`,
+            { ts: [{ name: "t1", icon: "edit" }] },
+        );
+        await nextTick();
+        expect(root.querySelector("#b1")!.getAttribute("data-state")).toBe("collapsed");
+        expect(root.querySelector("#b1 .asc-button-body")!.getAttribute("data-label-pos")).toBe("none");
+        expect(root.querySelector("#b2")!.getAttribute("data-state")).toBe(null); // 顶层 hideTags 与状态无关
+        expect(root.querySelector("#b2 .asc-button-tags")).toBeNull(); // 裸布尔归一 true（ADR-0117）
+    });
+});
+
+describe("标签行布局（label + tags + caret 同行、memo 独占次行，2026-11-22 调整）", () => {
+    test("结构：line 容器承载 label/tags/caret，memo 为 line 的下一兄弟（次行）", async () => {
+        const { root } = mount(`<button x-component:autospark.button="btnProps"></button>`, {
+            btnProps: { label: "文档", memo: "备注行", caret: "bottom", tags: [{ name: "t", icon: "edit" }] },
+        });
+        await nextTick();
+        const line = root.querySelector(".asc-button-line")!;
+        expect(line.querySelector(".asc-button-label")).toBeTruthy();
+        expect(line.querySelector(".asc-button-tags")).toBeTruthy();
+        expect(line.querySelector(".asc-button-caret")).toBeTruthy();
+        expect(root.querySelector(".asc-button-memo")!.previousElementSibling).toBe(line); // 次行
+    });
+
+    test("labelPos=none：label/memo 隐藏而 tags/caret 保留（折叠图标条 + 箭头/小圆钮合法形态）", async () => {
+        const { root } = mount(`<button x-component:autospark.button="btnProps"></button>`, {
+            btnProps: { label: "文档", memo: "备注", caret: "bottom", labelPos: "none", tags: [{ name: "t", icon: "edit" }] },
+        });
+        await nextTick();
+        expect((root.querySelector(".asc-button-label") as HTMLElement).style.display).toBe("none"); // x-show 隐藏
+        expect(root.querySelector(".asc-button-memo")).toBeNull(); // x-if 不渲染
+        expect(root.querySelector(".asc-button-tags")).toBeTruthy(); // 保留
+        expect(root.querySelector(".asc-button-caret")).toBeTruthy(); // 保留
+    });
+});
+
+describe("浮动箭头（floatCaret，默认 false，2026-11-23）", () => {
+    test("属性通道：floatCaret=true 落 body data-float-caret，缺省（false）属性移除", async () => {
+        const on = mount(`<button x-component:autospark.button="btnProps"></button>`, {
+            btnProps: { label: "A", icon: "menu", caret: "bottom", floatCaret: true },
+        });
+        await nextTick();
+        expect(on.root.querySelector(".asc-button-body")!.getAttribute("data-float-caret")).toBe("true");
+        expect(on.root.querySelector(".asc-button-caret")).toBeTruthy();
+        const off = mount(`<button x-component:autospark.button="btnProps"></button>`, {
+            btnProps: { label: "A", icon: "menu", caret: "bottom" },
+        });
+        await nextTick();
+        expect(off.root.querySelector(".asc-button-body")!.getAttribute("data-float-caret")).toBe(null);
+        expect(off.root.querySelector(".asc-button-caret")).toBeTruthy(); // 常规形态照常渲染
+    });
+
+    test("样式通道：绝对定位右缘 + 垂直居中 + 半尺寸双载体 + 宿主 relative", () => {
+        // 归一空白后断言（oxfmt 折行使逐字匹配假红）
+        const tpl = ((AutoSpark as { components: Record<string, string> }).components[BUTTON_NAME] as string).replace(/\s+/g, " ");
+        expect(tpl).toContain('.asc-button:has(> .asc-button-body[data-float-caret="true"]) { position: relative; }');
+        expect(tpl).toContain("top: 0.3em; right: 0.3em;");
+        expect(tpl).toContain(".asc-button-caret.as-icon > svg { width: calc(var(--auto-icon-size, 1em) * 0.5); height: calc(var(--auto-icon-size, 1em) * 0.5); }");
     });
 });

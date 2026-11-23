@@ -74,7 +74,7 @@ type SubmenuOptions = {
   footer?:  string | '#模板id'       // 弹层尾部：形态同 header
   title?:    string                   // 弹层标题行（仅弹层域显示）
   padding?:  number | string          // 弹层内边距覆盖
-  indent?:   number | string          // 缩进域缩进量覆盖（缺省 0.4em）
+  indent?:   number | string          // 缩进域缩进量覆盖（缺省 1.5em——子级文字与父项图标列对齐，逐级累计）
   slotDir?: 'vertical' | 'horizontal' // 分区方向逐层覆盖
   children:  MenuEntry[]              // 必需：真正的项列表
 }
@@ -99,6 +99,7 @@ type SubmenuOptions = {
 ### 弹层交互
 
 - `trigger`（默认 `hover` | `click`）只管弹层域，直接映射 popover 同名选项；缩进域折叠组恒 click（button `caret` 尾箭头指示：折叠态朝右 / 展开态朝下，弹层域父项恒朝弹出方向）；
+- 弹层面板宽度与菜单本体一致（垂直展开且 `width` 生效时；折叠 / 水平 / `width="0"` 自适应回落内容自适应）；
 - 关闭行为：叶子选中 → 关闭整条级联链（click 模型经 popover 原生「外点关闭」链即刻全关；hover 模型面板随指针离开自然收起）；有 children 的项点击切换展开态；勾选类叶子**不关**弹层；Esc 逐层（popover 全局栈）；点击外部整链关；
 - **依赖声明**：弹层呈现须同引 `autospark.overlay.js`（x-popover，ADR-0128）——缺席时缩进域照常、弹层域无效（与 dropdown 家族同口径）。
 

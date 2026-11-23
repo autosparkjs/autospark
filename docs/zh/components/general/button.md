@@ -92,9 +92,9 @@ icon 的**对象形态必须放外层状态再路径引用**（`:icon="iconConf"
 
 label 在 icon 的哪侧（破坏性合并：原 `iconPlacement` 与 `labelBelow` 两属性移除，迁移动作 `icon-placement="end"` → `label-pos="left"`、`label-below="true"` → `label-pos="bottom"`）：
 
-- `right`（默认）左图标右文字；`left` 图标移内容区末尾（横排右/纵排下），**并与 tags 互换**（caret 在场时图标居 caret 之前），loading 图标随行；
+- `right`（默认）左图标右文字；`left` 图标移 main 之后即按钮内容右端（横排右/纵排下；2026-11-22 布局调整后 tags/caret 随标签行入 main，原「与 tags 互换」的 order 协同不再成立），loading 图标随行；
 - `top` 文字在图标上方 / `bottom` 文字在图标下方（纵排）——**纵排时图标内建放大 1.5 倍**（图标作主视觉与文字块配平；theme 档位与无 theme 两态一致生效，倍率可经 [`icon.scale`](#图标-icon) 接管）；
-- `none` **不显示文字区**（label + memo + 插槽内容一并隐藏）——宿主无显式提示时 **label 文本自动转挂悬停提示**（tooltip 插件在场挂 `data-tooltip`、缺席挂原生 `title`，显式提示优先）。
+- `none` 隐藏 **label 与 memo**（插槽内容随 label 出口一并隐藏）——**tags / caret 不受影响照常保留**（贴右的折叠图标条 + 箭头/小圆钮是合法形态；行内全空且无 memo 时才整体不占位）；宿主无显式提示时 **label 文本自动转挂悬停提示**（tooltip 插件在场挂 `data-tooltip`、缺席挂原生 `title`，显式提示优先）。
 
 <demo html="components/general/button/icon.html"/>
 
@@ -198,7 +198,7 @@ wrap 只管 label——memo 保持两行截断不变；与 `shape: "circle"` 组
 
 **默认**: `[]`
 
-在按钮内容区**右端**渲染一组小按钮（`margin-left: auto` 吸收剩余空间贴右缘；按钮收缩到内容宽时退化为紧跟主文本，最小间距由内容区 gap 保证），具有独立的点击事件（冒泡 `tag-click`，detail 平铺 `{ name, label, value, tag }`——详见「事件」）。键面：`icon` 图标；`label` 文字标签（在场呈**胶囊**形态）；`tooltip` 悬停提示；`styles` 额外内联样式（**cssText 字符串**）；`classes` 额外类名；`value` 使用者数据（**原样透传**进 detail，对象/数字皆可）；`checkable` 可切换——在场时 `value` 兼任勾选载体（`value === 真值` 即 checked，点击翻转真值 ↔ 假值并**写回外部状态**；`tag-click` 的 `detail.value` 为切换后新值）；`checkValues` `[真值, 假值]` 缺省 `[true, false]`（残缺项逐项回退，`??` 语义对假值真值如 `0` 无损）；checked 呈语义色淡底「点亮」态；`shape` 底板——默认 `none` **无背景**，`circle` 圆形底板 / `radius` 主题圆角底板（板色按内容色派生淡底，胶囊 tag 的 9999px 优先）。**图标与 label 恒 1rem**（不随字号档位）；tag 背景按按钮内容色派生（实底上呈淡白、透明底上呈淡灰、幽灵上呈淡语义色），与按钮主背景形成色差。
+与 **label 同一行**（标签行）渲染一组小按钮，`margin-left: auto` 吸收剩余空间贴**行右缘**（按钮收缩到内容宽时退化为紧跟 label，最小间距由行容器 gap 保证），具有独立的点击事件（冒泡 `tag-click`，detail 平铺 `{ name, label, value, tag }`——详见「事件」）。键面：`icon` 图标；`label` 文字标签（在场呈**胶囊**形态）；`tooltip` 悬停提示；`styles` 额外内联样式（**cssText 字符串**）；`classes` 额外类名；`value` 使用者数据（**原样透传**进 detail，对象/数字皆可）；`checkable` 可切换——在场时 `value` 兼任勾选载体（`value === 真值` 即 checked，点击翻转真值 ↔ 假值并**写回外部状态**；`tag-click` 的 `detail.value` 为切换后新值）；`checkValues` `[真值, 假值]` 缺省 `[true, false]`（残缺项逐项回退，`??` 语义对假值真值如 `0` 无损）；checked 呈语义色淡底「点亮」态；`shape` 底板——默认 `none` **无背景**，`circle` 圆形底板 / `radius` 主题圆角底板（板色按内容色派生淡底，胶囊 tag 的 9999px 优先）。**图标与 label 恒 1rem**（不随字号档位）；tag 背景按按钮内容色派生（实底上呈淡白、透明底上呈淡灰、幽灵上呈淡语义色），与按钮主背景形成色差。
 
 ::: warning
 **嵌套对象 / 数组 props（tags、ripple、icon 的对象形态）必须放外层状态再路径引用**（`tags: myTags`、`ripple: myRipConf`、`:icon="iconConf"`）——props 字面量嵌套值存在引用比较层面的更新环缺陷（引擎侧修复中），**字面量写法会死锁页面**；原始值（布尔 / 字符串 / 数字）与路径引用不受影响。
@@ -206,13 +206,15 @@ wrap 只管 label——memo 保持两行截断不变；与 `shape: "circle"` 组
 
 <demo html="components/general/button/tags.html"/>
 
-### 尾部箭头（caret）
+### 尾部箭头（caret / floatCaret）
 
-**类型**: `none | left | top | right | bottom`
+**类型**: `caret: none | left | top | right | bottom`、`floatCaret: boolean`
 
-**默认**: `none`
+**默认**: `none` / `false`
 
-在内容区**最右端**渲染一枚 `arrow` 图标（经 `x-icon`），并按 `caret` 指定方向旋转：`right` 为基准姿态，`bottom` / `left` / `top` 分别旋转 90° / 180° / 270°。方向切换复用同一 svg 载体，经 x-icon 的 `rotate` 选项 **连续旋转**（默认 0.3s，可经 `--as-icon-rotate-duration` 覆盖）——不更换图标节点、无闪变。与 `tags` 并存时 caret 恒在最末（右缘）；与 `labelPos="left"` 并存时图标位于 tags 之后、caret 之前。caret 为纯视觉方向指示，不改变按钮点击语义。
+与 **label 同一行**（标签行）渲染一枚 `arrow` 图标（经 `x-icon`）于行**最右端**，并按 `caret` 指定方向旋转：`right` 为基准姿态，`bottom` / `left` / `top` 分别旋转 90° / 180° / 270°。方向切换复用同一 svg 载体，经 x-icon 的 `rotate` 选项 **连续旋转**（默认 0.3s，可经 `--as-icon-rotate-duration` 覆盖）——不更换图标节点、无闪变。与 `tags` 并存时 caret 恒在最末（行右缘）。caret 为纯视觉方向指示，不改变按钮点击语义。
+
+**浮动箭头（floatCaret）**：`floatCaret: true` 时 caret 切换为**叠加指示形态**——脱离标签行文档流，绝对定位到按钮**右上角**（`top` 与 `right` 等距 0.3em 角部对齐）、**尺寸减半**（0.5×）。适合收起指示等角部叠加场景；注意浮动态不占行内空间——label 截断的可用宽不含它（长文案尾部可能被叠压）、与 `tags` 并存时 caret 叠于其上，组合视觉按需取舍。
 
 <demo html="components/general/button/caret.html"/>
 
@@ -318,6 +320,40 @@ button 继承内置抽象基组件 `autospark.base`（ADR-0134，完整契约见
 
 <demo html="components/general/button/indent.html"/>
 
+### 命名状态覆盖（state / states / collapsed / hideTags）
+
+**类型**: `state: string | null`、`states: Record<string, props 覆盖集>`、`collapsed: boolean`、`hideTags: boolean`
+
+**默认**: `null` / 内置 `collapsed` 预设 / `false` / `false`
+
+按钮的**命名形态切换机制**：`states` 定义一组命名形态（键 → 该形态下要覆盖的 props 集），`state` 激活其中一个——激活时该键的覆盖集**整组接管**按钮渲染（任意 prop 键可覆盖，形态完全自定义），切走时按快照守卫还原。折叠只是第一个内置预设，自定义状态键开放扩展。
+
+- **合并（双层）**：覆盖表与内置预设浅合并——`states` 缺省时仍有 `{ collapsed: { labelPos: 'none', indent: 0, hideTags: true, menu: false } }`（**官方折叠形态**：藏文字区并转悬停提示、清缩进、隐 tags、退出菜单形态——`menu` 压回 false 使占满宽/左对齐解除，按钮收缩到内容宽，宽度收窄交消费方 `data-state` CSS）；用户 `states.collapsed` 再与预设浅合并（**部分定制保留默认**——写 `{ labelPos: 'bottom' }` 实际生效仍含 `indent: 0` / `hideTags: true` / `menu: false`）；**其余自定义键所见即所得**（值对象整体生效，未写的键不碰——如 `mini: { labelPos: 'none' }` 不含 hideTags 时顶层 `hideTags` 继续生效）。
+- **恢复（守卫）**：激活瞬间快照被覆盖键的原值；切走时仅还原「未被外部改过的键」——激活期间外部更新过的键**外部值赢**（保持外部值不回滚）。
+- **取消与 miss**：`state` 为 `null` / `''` 是合法取消（静默恢复）；非空字符串不在 states 表中 → **warn 一次**（每实例每键）+ 按无状态渲染。激活期间替换 states 表会用新表重放当前键，键从新表消失同 miss 口径。
+- **collapsed 快捷糖（单向数据流）**：`collapsed: true` ≡ `state = 'collapsed'`、`false` ≡ `state = null`——初始时 `state` 显式声明赢（collapsed 忽略）；运行时翻转 `collapsed` 恒写 `state`（最近操作赢）。`state` 是唯一真相。
+- **hideTags 双层**：顶层 `hideTags` 只在**无状态激活**时生效（渲染显隐——tags 数据与勾选状态保留）；状态激活时由该状态覆盖集决定（内置 collapsed 预设默认 `hideTags: true`）。**勿用 `tags: []` 隐藏 tags**——那是数据替换，checkable tag 的勾选状态随对象丢弃。
+- **CSS 钩子**：状态激活时宿主挂 `data-state="<键>"`、恢复移除——消费方几何（折叠收窄宽度等）经 `.asc-button[data-state="collapsed"]` 定制，**按钮零几何内建**。
+- **热切换**：`state` 翻转、`states` 表替换均即时生效（对象须放外层状态路径引用，同 tags 约束）。
+
+```html
+<!-- 快捷折叠：内置预设（裸布尔） -->
+<x-button icon="menu" label="工作空间" indent="16" collapsed></x-button>
+
+<!-- 部分定制折叠形态：labelPos 覆盖为底部、indent/hideTags 仍取预设 -->
+<x-button collapsed :states="{ collapsed: { labelPos: 'bottom' } }" icon="menu" label="收窄"></x-button>
+
+<!-- 自定义状态键 + 运行时切换（state 是唯一真相） -->
+<x-button :state="uiMode" :states="modeStates" icon="home" label="首页"></x-button>
+<!-- modeStates: { collapsed: { labelPos: 'none', indent: 0, hideTags: true, menu: false }, mini: { labelPos: 'none' } } -->
+```
+
+::: warning
+覆盖集**任意 prop 键可写**（`variant` / `icon` / `label`…），机制不设黑白名单；但行为键（`loading` / `checkable` / `value` / `disabled` 等）被覆盖会真实触发对应行为桥（如 `loading: true` 折叠恒转圈、覆盖 `value` 驱动勾选翻转），后果自担。另注意：激活期间更新 props 对象会使外部声明值重注入——外部对象中显式声明的覆盖键会被外部值冲回（守卫语义下恢复时保持外部值）；需要保持覆盖形态的状态更新走 `state` / `states` 通道。
+:::
+
+<demo html="components/general/button/states.html"/>
+
 ### 事件
 
 组件默认封闭（宿主上的表达式在组件域求值），事件经**冒泡**到外层消费——绑定写在组件外的包裹元素上：
@@ -329,6 +365,42 @@ button 继承内置抽象基组件 `autospark.base`（ADR-0134，完整契约见
 
 <demo html="components/general/button/events.html"/>
 
+### 悬浮弹层组合（x-popover）
+
+button 与 [`x-popover`](../../guide/directives/x-popover.md) 组合采用**直书形态**：`x-popover:*` 直接声明在 `<x-button>` 上，**弹出组件（`x-define`）声明在按钮内部**——precompile 变换自动拆层（覆盖物属性上提包裹元素做触发宿主、`x-define` 一并上提同层），规避组件化身与覆盖物消费者的同宿主互斥（ADR-0056 决策十修订——引擎层二者同宿主会 warn 并跳过按钮实例化，插件层承接掉这层心智）。默认**悬停触发**（`delayShow` 200ms 悬浮意图延迟）、`.click` 修饰符切**点击开关**（再点/外点/ESC 关闭，面板内点击不关）。**须同页加载 `autospark.overlay.js`**（先于 engine 实例化）——面板里还可再嵌 `<x-button>`（按钮作面板内容的双向组合）：
+
+```html
+<script src="autospark.js"></script>
+<script src="autospark.overlay.js"></script>
+<script src="autospark.button.js"></script>
+
+<div x-data>
+    <!-- 悬停触发：popover 直接写在 x-button 上，弹出组件在按钮内部声明 -->
+    <x-button icon="user" label="个人资料" variant="primary" x-popover:profile>
+        <div x-define="profile">
+            <div class="pop-panel">
+                <x-button type="primary" label="发消息"></x-button>
+                <x-button variant="text" type="danger" label="移除"></x-button>
+            </div>
+        </div>
+    </x-button>
+
+    <!-- 点击触发（修饰符糖 ≡ trigger: 'click'），caret 作展开方向指示 -->
+    <x-button icon="settings" label="操作" caret="bottom" x-popover:actions.click>
+        <div x-define="actions">
+            <div class="pop-panel">
+                <x-button variant="text" icon="edit" label="重命名" align="left"></x-button>
+                <x-button variant="text" type="danger" icon="trash" label="删除" align="left"></x-button>
+            </div>
+        </div>
+    </x-button>
+</div>
+```
+
+`x-define` 弹出组件经编译期剪枝不参与按钮插槽渲染（变换时上提包裹层、与触发宿主同 scope 链）；书写上也可手动拆层（`x-popover` 挂外层包裹元素、`x-define` 放其下）——两者等价，直书形态更简洁。完整交互（共享 hover 域、ESC、方向定位 `at.placement`）见 [x-popover 指令文档](../../guide/directives/x-popover.md)。
+
+<demo html="components/general/button/popover.html"/>
+
 ## 参考
 
 ### 属性
@@ -338,7 +410,7 @@ button 继承内置抽象基组件 `autospark.base`（ADR-0134，完整契约见
 | variant | `default \| primary \| secondary \| dashed \| text \| link` | `default` | 形态（常规面板底 / 实底 / 次级淡底 / 虚线 / 文本 / 链接） |
 | type | `primary \| success \| warning \| danger \| info` | `primary` | 语义色（与任意形态组合） |
 | label | `string` | `"按钮"` | 兜底文案（插槽无内容时显示；labelPos none 时隐藏并转悬停提示） |
-| labelPos | `left | right | top | bottom | none` | `right` | label 在 icon 哪侧（left 与 tags 互换、caret 在场时图标居其前；none 隐藏文字区、label 转悬停提示） |
+| labelPos | `left | right | top | bottom | none` | `right` | label 在 icon 哪侧（left 图标居内容右端；none 隐藏 label 与 memo——tags/caret 保留贴右，label 转悬停提示） |
 | icon | `string \| object` | `''` | 图标名或 x-icon 选项对象 `{ name, size?, color?, strokeWidth?, padding?, shape?, button?, pointer?, rotate?, badge? }`（对象须路径引用；选项随状态响应式；loading 时被替换） |
 | loading | `boolean` | `false` | 加载态：图标位转圈并禁点 |
 | disabled | `boolean` | `false` | 禁用（同步宿主原生属性） |
@@ -350,8 +422,9 @@ button 继承内置抽象基组件 `autospark.base`（ADR-0134，完整契约见
 | shape | `default \| circle` | `default` | 圆形（带文字自动胶囊） |
 | wrap | `boolean` | `false` | label 换行：false 单行溢出省略号（截断时自动挂悬停提示——tooltip 插件在场挂 data-tooltip、缺席挂原生 title，显式提示优先）；true 折行（按钮高度随行数增长） |
 | memo | `string` | `''` | label 下方备注（小一号、淡化） |
-| tags | `{icon?, tooltip?, name?}[]` | `[]` | 右端小圆钮组（`margin-left:auto` 贴右缘，点击冒泡 tag-click） |
-| caret | `none \| left \| top \| right \| bottom` | `none` | 尾部方向箭头（最右端 x-icon arrow，按方向旋转；切换经 rotate 选项连续旋转） |
+| tags | `{icon?, tooltip?, name?}[]` | `[]` | 与 label 同行的小圆钮组（`margin-left:auto` 贴行右缘，点击冒泡 tag-click） |
+| caret | `none \| left \| top \| right \| bottom` | `none` | 尾部方向箭头（与 label 同行的行最右端 x-icon arrow，按方向旋转；切换经 rotate 选项连续旋转） |
+| floatCaret | `boolean` | `false` | 浮动箭头：caret 脱离标签行，绝对定位按钮右上角（top/right 等距）、尺寸减半（叠加指示形态；不占行内空间，与 tags 并存时叠于其上） |
 | menu | `boolean` | `false` | 菜单项形态 |
 | data-size | `ThemeSize` | `''` | 主题尺寸档（继承 autospark.base，ADR-0134） |
 | data-shadow | `ThemeSize` | `''` | 主题阴影档 |
@@ -365,6 +438,10 @@ button 继承内置抽象基组件 `autospark.base`（ADR-0134，完整契约见
 | checkValues | `[any, any]` | `[true, false]` | 勾选二元组 [checked 值, unchecked 值]（任意类型严格相等；数组须路径引用） |
 | checkStyle | `solid \| check \| corner \| ripple` | `corner` | 选中渲染（实底 / 打勾占位 / 描边三角 / 涟漪动画占位——四值语义同 state-button 的 decorate 项键） |
 | autoInsertSpace | `boolean` | `true` | 两汉字 label 自动插空格 |
+| state | `string \| null` | `null` | 命名状态覆盖激活键（唯一真相）：命中 states 表即整组接管 props；null/'' 静默取消；非空不在表 warn 一次按无状态渲染；激活挂 data-state="<键>" |
+| states | `Record<string, props覆盖集>` | 内置 collapsed 预设 | 命名形态定义表（任意 prop 键可覆盖、行为键后果自担）；与内置预设浅合并、collapsed 键再双层合并（部分定制保留默认）、自定义键所见即所得；对象须路径引用 |
+| collapsed | `boolean` | `false` | state 的快捷写入糖：true ≡ state='collapsed'（内置折叠形态 { labelPos:'none', indent:0, hideTags:true, menu:false }）、false ≡ state=null；初始 state 显式声明赢、运行时翻转恒写 state |
+| hideTags | `boolean` | `false` | tags 渲染显隐（数据与勾选状态保留——勿用 tags:[] 隐藏）；只在无状态激活时生效，状态激活时由覆盖集决定 |
 
 ### 事件
 

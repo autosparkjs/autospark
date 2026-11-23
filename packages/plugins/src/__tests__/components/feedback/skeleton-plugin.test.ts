@@ -158,9 +158,6 @@ describe("样式基线（button 范式 ADR-0012 / ADR-0129）", () => {
         expect(t).toContain('.asc-skeleton-body[data-variant="rect"] .asc-skeleton-item {');
     });
 
-    test("与 x-loading 的边界声明在文件头（ADR-0018 决策 3 消歧）", () => {
-        expect(tpl()).toContain("与 x-loading 指令的边界");
-    });
 });
 
 describe("installPlugin 自举（ADR-0003）", () => {

@@ -213,12 +213,6 @@ describe("样式通道（button 范式 ADR-0012 / 全屏恒暗色声明）", () 
         expect(t).toContain(".asc-image-viewer-layer { animation: none; }");
     });
 
-    test("恒暗色语境声明在文件头（无暗色兜底变体的例外声明）", () => {
-        const t = ((AutoSpark as { components: Record<string, string> }).components[IMAGE_VIEWER_NAME] as string)
-            .replace(/\s+/g, " ");
-        expect(t).toContain("全屏恒暗色声明");
-    });
-
     test("工具栏自绘 SVG 静态结构（SVG 子树零指令属性——规避清单第 1 条）", () => {
         const t = ((AutoSpark as { components: Record<string, string> }).components[IMAGE_VIEWER_NAME] as string)
             .replace(/\s+/g, " ");

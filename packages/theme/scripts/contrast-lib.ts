@@ -137,11 +137,11 @@ export function resolveVar(name: string, table: Record<string, string>, seen = n
 
 /* -------------------------------- 变量表构建 -------------------------------- */
 
-/** 从 colors.less 提取灰阶字面值（--x-color-gray-0..9，hex 或 hsl），与样式源同源 */
+/** 从 colors.less 提取灰阶字面值（gray/dgray 双轨标尺，hex 或 hsl），与样式源同源 */
 function loadGrayScale(): Record<string, string> {
     const less = readFileSync(join(import.meta.dir, "../src/styles/colors.less"), "utf-8");
     const vars: Record<string, string> = {};
-    for (const m of less.matchAll(/(--x-color-gray-\d+):\s*(hsl\([^)]+\)|#[0-9a-fA-F]{3,8})/g)) {
+    for (const m of less.matchAll(/(--x-color-[dg]*gray-\d+):\s*(hsl\([^)]+\)|#[0-9a-fA-F]{3,8})/g)) {
         vars[m[1]] = m[2];
     }
     return vars;
@@ -152,10 +152,10 @@ export type Mode = "light" | "dark";
 /** 语义色默认种子（与 ThemeScope 构造默认值一致；primary 为 var() 引用豁免梯度化） */
 const SEMANTIC_SEEDS: Record<string, string> = {
     primary: "var(--auto-theme-color)",
-    success: "#22c55e",
-    warning: "#f59e0b",
-    danger: "#ef4444",
-    info: "#71717a",
+    success: "#1A7F37",
+    warning: "#9A6700",
+    danger: "#CF222E",
+    info: "#0969DA",
 };
 
 /** 模拟 CSS 级联构建某模式下的完整变量表（顺序即覆盖顺序） */

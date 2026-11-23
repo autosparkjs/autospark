@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Button · 悬浮弹层组合</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js?v=20261123"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <style>
+      .pop-panel {
+        border-radius: 8px;
+        min-width: 200px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .pop-title {
+        font-weight: 600;
+      }
+      .pop-desc {
+        color: var(--auto-color, #868e96);
+        font-size: 0.8rem;
+        margin: 0;
+      }
+      .pop-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .pop-profile {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .pop-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--auto-primary-color, #009aff);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        flex: none;
+      }
+      .hint {
+        color: var(--auto-color, #868e96);
+        font-size: 0.875rem;
+        margin: 8px 0 0;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main" x-data>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          悬浮触发（默认 hover）：x-popover 直接声明在 x-button
+          上、弹出组件（x-define）在按钮内部声明——precompile
+          自动拆层（覆盖物属性上提包裹元素，规避化身同宿主互斥 ADR-0056 决策十修订）
+        </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button
+              icon="user"
+              label="个人资料"
+              variant="primary"
+              x-popover:profile
+            >
+              <!-- 弹出组件在按钮内部声明：变换时上提包裹层（编译期剪枝不闪现） -->
+              <div x-define="profile">
+                <div class="pop-panel">
+                  <div class="pop-profile">
+                    <span class="pop-avatar">Z</span>
+                    <div>
+                      <div class="pop-title">张三</div>
+                      <p class="pop-desc">前端工程师 · 在线</p>
+                    </div>
+                  </div>
+                  <div class="pop-actions">
+                    <x-button type="primary" label="发消息"></x-button>
+                    <x-button variant="text" type="danger" label="移除"></x-button>
+                  </div>
+                </div>
+              </div>
+            </x-button>
+            <span class="hint"
+              >← 悬停按钮弹出（delayShow 200ms
+              悬浮意图延迟，快速掠过不误触发）</span
+            >
+          </div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          点击触发（.click 修饰符糖）+ caret 方向指示：面板内可再嵌
+          x-button（button 双向组合）
+        </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button
+              icon="settings"
+              label="操作"
+              caret="bottom"
+              x-popover:actions.click
+            >
+              <div x-define="actions">
+                <div class="pop-panel">
+                  <div class="pop-title">快捷操作</div>
+                  <div
+                    class="pop-actions"
+                    style="flex-direction: column; align-items: stretch"
+                  >
+                    <x-button
+                      variant="text"
+                      icon="edit"
+                      label="重命名"
+                      align="left"
+                    ></x-button>
+                    <x-button
+                      variant="text"
+                      icon="copy"
+                      label="创建副本"
+                      align="left"
+                    ></x-button>
+                    <x-button
+                      variant="text"
+                      icon="share"
+                      label="共享链接"
+                      align="left"
+                    ></x-button>
+                    <x-button
+                      variant="text"
+                      type="danger"
+                      icon="trash"
+                      label="删除"
+                      align="left"
+                    ></x-button>
+                  </div>
+                </div>
+              </div>
+            </x-button>
+            <span class="hint"
+              >← 点击开关、再点/外点/ESC 关闭；面板内点击不关</span
+            >
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {});
+    </script>
+  </body>
+</html>

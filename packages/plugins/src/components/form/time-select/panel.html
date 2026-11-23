@@ -1,35 +1,9 @@
-<!--
-    autospark-time-select-panel 时间点列表面板（ADR-0025）——time-select 的内部组件
-    （非用户直接消费，无文档页；连字符注册名的成因见 index.ts）：select 下拉面板的
-    直系克隆（非 filter/virtual 子集，ADR-0022 范式）——经 x-popover 指令机制
-    （trigger:click）渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位/宽度 fit 随
-    触发器）由 popover-shell 承载，本组件只贡献离散时间点选项列表内容。
-
-    与触发器组件（autospark.time-select）的通信走 scope 链：聚合视图沿链读写触发器
-    组件 data 域——
-    - 读：options（x-for 数据源）/ activeValue（高亮基准）/ value（选中基准）；
-    - 写：哨兵键 pickTick/pickValue（选项点击——面板模板不能跨组件边界调触发器组件
-      method，ADR-0022 决策 3；自增哨兵免疫同值去重；事件表达式用逗号运算符单表达式
-      形态）；
-    - 开合态：mounted/unmounted 沿链写 open。
-
-    克隆体内零 x-if（共享快照多实例串台规避，ADR-0021 边界 3）——选中标记 check 图标
-    恒渲染、显隐走 data-selected 父选择器纯 CSS 驱动；空态行是 template 的同级兄弟
-    （非克隆体）。
--->
 <div class="asc-time-select-panel" x-define="autospark-time-select-panel">
   <script setup>
     {
-        // 本组件零 props、零自有状态——全部数据经 scope 链读写触发器组件域；
-        // data() 空对象占位以建立自有 data 层（聚合视图的链上桥点）
         data: () => ({}),
         mounted() {
-            // 开合态沿链写回（触发器侧 watch open 派生图标染色 / aria-expanded / 高亮定位）
             this.data.open = true;
-            // 宽度匹配触发器盒饰（select 决策 1 两段合成同款，ADR-0025）：popover 的
-            // fit 基准是触发器内容区（popover 宿主元素，不含盒饰 padding）——按 uid
-            // 配对测盒饰宽，补写 shell 面板 min-width（fit 持续写 width，min-width 抬到
-            // 盒宽；每次打开新实例重测，盒宽变化随重开自适应）
             const uid = this.data.uid;
             if (uid) {
                 const box = document.querySelector('[data-asc-time-select-uid="' + uid + '"]');
@@ -38,7 +12,6 @@
                     shellPanel.style.minWidth = box.getBoundingClientRect().width + "px";
                 }
             }
-            // 高亮项滚动跟随（键盘导航可见性；初次打开定位到选中项/首项；列表在面板内现查）
             const scrollActive = () => {
                 const el = this.el.querySelector(
                     ".asc-time-select-option[data-active], .asc-time-select-option[data-selected]",
@@ -49,13 +22,10 @@
             this.watch("activeValue", () => { setTimeout(scrollActive, 0); });
         },
         unmounted() {
-            // 面板每次开合都是新实例（popover 无 keepalive，关闭即销毁）——关闭即复位开合态
             this.data.open = false;
         },
     }
   </script>
-  <!-- 选项列表：template 形态 x-for（字号档位全跟随）；选中标记 check 图标恒渲染、
-         显隐走 data-selected 父选择器纯 CSS（克隆体内零 x-if，ADR-0021 边界 3） -->
   <div class="asc-time-select-list">
     <template x-for="option of options" :key="option.value">
       <div
@@ -68,7 +38,6 @@
         <i class="asc-time-select-option-check" x-icon="'yes'"></i>
       </div>
     </template>
-    <!-- 空态（template 同级兄弟，非克隆体）：病态起止配置兜底，i18n time-select.empty -->
     <div
       class="asc-time-select-empty"
       x-if="!(options && options.length > 0)"

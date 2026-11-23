@@ -1,35 +1,3 @@
-<!--
-    autospark.autocomplete 自动补全输入（ADR-0027）——触发器组件：**复制 input 结构
-    而非嵌套消费**（input-number 先例：输入事件被建议管道消费，嵌套则两层语义互渗 +
-    跨插件产物依赖；共享面已由 field 骨架继承覆盖，ADR-0020）。真原生 input +
-    .asc-field-box 盒饰（input 同款 chrome），原生键盘/IME/自动填充全保留。
-
-    建议面板（panel.html，内部组件 autospark-autocomplete-panel）不自建弹层——复用
-    x-popover 指令机制（trigger:click 形态，ADR-0022 协议沿袭）：触发器包裹 span 即
-    popover 宿主，面板渲染进 body 覆盖物容器，fit 两段合成宽度匹配（uid 配对测盒饰宽
-    补 min-width，select 同款）。面板 ↔ 触发器通信走 scope 链：面板读 items/
-    activeValue/loading 呈现，写哨兵键 pickTick/pickValue（选项点击）、hoverTick/
-    hoverValue（悬停高亮）回传，mounted/unmounted 沿链写 open。
-
-    开合模型（ADR-0027 决策 5）：popover click toggle 为底座，组件补 focus 确保开
-    （真实点击 latch 防双 toggle 竞态）/ 输入确保开（已关状态输入即重开）/ 建议空自动关。
-
-    建议数据源双通道（决策 3）：fetch props 函数引用在场全权接管（(query)=>Promise，
-    次序守卫防过期回包）；缺席走 suggestions 本地包含过滤（query 空显示全量）。
-    debounce 默认 300ms；IME 组合态守卫（composing 期不驱动建议管道）。
-
-    值桥（文本语域，ADR-0020 input 范式对齐）：宿主 el.value 劫持 ↔ 内层原生控件；
-    输入路径原生事件自然冒泡（x-model 直收零手动派发）；pick 路径程序化写控件后
-    三派发——input（冒泡自原生控件，x-model 回写）+ change（detail={value}）+
-    select（detail={value}，仅选中建议时触发）；清除路径 input 派发（静默不驱动建议）。
-
-    键盘（决策 8，select 同款高亮漫游模型）：上下移动高亮（跳过禁用项、首尾环绕，
-    未开先开）/ Enter 开态确认当前高亮（preventDefault 防误触发表单；无高亮关面板；
-    关态原生放行）/ ESC 归 popover 打开栈（机制继承）/ Tab 自然移焦。
--->
-<!-- 根 class 拼接进骨架宿主（.asc-field + .asc-autocomplete + .asc-field-box 盒饰）；
-     data-open 由 mounted JS 通道同步，根上无动态绑定（T4=B）；disabled/readonly/status
-     经 field 骨架通道（data() 不重复声明，ADR-0020 决策 3） -->
 <span
   class="asc-autocomplete asc-field-box"
   x-define="autospark.autocomplete"
@@ -37,46 +5,40 @@
 >
   <script setup>
     {
-        // —— 实例私有变量（_locals 通道：非响应式、不进聚合视图，仅 this.<key> 访问；
-        //     定时器句柄/防抖标记/竞态旗是官方典型用途，ADR-0057）——
-        debounceTimer: null,   // 待发防抖计时器句柄（null 无待发）
-        fetchSeq: 0,           // fetch 在途次序号（自增；回包序号不一致即过期丢弃）
-        silent: false,         // 静默旗（pick/清除路径手动派发 input 不驱动建议管道）
-        lastHostClickAt: 0,    // 组件内真实点击时刻（focus 确保开的竞态 latch，决策 5）
-        composing: false,      // IME 组合态（composing 期不驱动建议管道，决策 3）
-        focused: false,        // 控件聚焦态（focusin/focusout 维护——比 activeElement 现查稳）
-        lastValue: "",         // 值缓存（劫持 getter 的控件缺位兜底 / 外部同步防回环基准）
-        initDone: false,       // 初始化窗口标志（劫持 setter 重放识别门闩，ADR-0020）
+        debounceTimer: null,
+        fetchSeq: 0,
+        silent: false,
+        lastHostClickAt: 0,
+        composing: false,
+        focused: false,
+        lastValue: "",
+        initDone: false,
         data: () => ({
-            value: "",        // 文本语域非受控初值 / 单向同步值（受控真相走宿主 x-model——el.value 桥，ADR-0020）
-            suggestions: [],  // 建议源 string[] | { value, label?, disabled? }[]（经状态引用注入——字面量数组有引擎死环缺陷）
-            fetch: null,      // 异步建议通道：action 名字符串（经 scope.getAction 延迟解析，ADR-0027 决策 3）或函数引用（兼容位）；在场全权接管本地过滤
-            debounce: 300,    // 输入防抖 ms（0 即时；fetch 与本地过滤共用）
-            placeholder: "",  // 占位文案（空时走 i18n 词典 autocomplete.placeholder 键，回退「请输入」）
-            clearable: false, // 清除钮（值非空且可交互时可见）
-            // —— 内部状态（JS 通道维护——绑定通道对 props 晚注入不重算，家族纪律）——
-            uid: "",          // 实例唯一标识（根 data-asc-autocomplete-uid 载体——面板宽度配对键，select 同款）
-            items: [],        // 归一化建议列表 [{ value, label, disabled }]（面板 x-for 数据源；解析管道整体替换）
-            activeIndex: -1,  // 键盘高亮索引（items 内；-1 无高亮；建议重建即复位）
-            activeValue: null,// 高亮项值（面板 :data-active 比较基准——值通道免疫列表重建）
-            loading: false,   // fetch 在途（触发器 loading 图标 + 面板 x-loading 遮罩）
-            hasValue: false,  // 当前有值（清除钮可见性驱动）
-            open: false,      // 建议面板开合态（面板 mounted/unmounted 沿链写回）
-            pickTick: 0,      // 选中哨兵（面板选项点击写：自增必变免疫同值去重；触发本组件选中流程，ADR-0022 决策 2）
-            pickValue: null,  // 选中哨兵携带值
-            hoverTick: 0,     // 悬停高亮哨兵（面板 mouseenter 写——高亮跟随指针，ADR-0027 新增协议成员）
-            hoverValue: null, // 悬停哨兵携带值
+            value: "",
+            suggestions: [],
+            fetch: null,
+            debounce: 300,
+            placeholder: "",
+            clearable: false,
+            uid: "",
+            items: [],
+            activeIndex: -1,
+            activeValue: null,
+            loading: false,
+            hasValue: false,
+            open: false,
+            pickTick: 0,
+            pickValue: null,
+            hoverTick: 0,
+            hoverValue: null,
         }),
         methods: {
-            // 触发器包裹 span（popover 宿主；每查现取不缓存，家族惯用法）
             triggerEl() {
                 return this.el.querySelector(".asc-autocomplete-trigger");
             },
-            // 内层原生控件（每查现取）
             nativeEl() {
                 return this.el.querySelector(".asc-autocomplete-native");
             },
-            // 建议归一化：string 元素升格 { value, label }；对象元素补 label 缺省与 disabled 布尔化
             normalizeList(list) {
                 return (Array.isArray(list) ? list : []).map((s) => {
                     if (typeof s === "object" && s !== null) {
@@ -89,7 +51,6 @@
                     return { value: s, label: s, disabled: false };
                 });
             },
-            // 本地过滤（fetch 缺席通道）：query 空显示全量；否则对 label·value 不区分大小写包含匹配
             filterLocal(query) {
                 const kw = String(query ?? "").trim().toLowerCase();
                 const src = this.normalizeList(this.data.suggestions);
@@ -100,12 +61,9 @@
                         String(o.value ?? "").toLowerCase().includes(kw),
                 );
             },
-            // fetch 通道在场判定（action 名或函数引用均可接管本地过滤）
             hasFetch() {
                 return !!this.resolveFetch();
             },
-            // 建议应用（解析出口统一收口）：整体替换 + 高亮复位 + 开合规则
-            // （建议在场且控件聚焦确保开 / 建议空自动关）
             applyItems(list) {
                 this.data.items = list;
                 this.data.activeIndex = -1;
@@ -116,10 +74,6 @@
                     this.closePanel();
                 }
             },
-            // fetch 通道解析（ADR-0027 决策 3）：action 名字符串经 scope.getAction 延迟
-            // 解析（支持晚注册；engine.actions[name] 与 getAction 返回描述符，命令式
-            // 调用取 .handle）；函数引用形态为兼容位（autostore 对状态函数见函数即求值
-            // ——props 值对象里的函数引用经表达式读取即被求值，常态不可达）
             resolveFetch() {
                 const raw = this.data.fetch;
                 if (typeof raw === "function") return raw;
@@ -129,7 +83,6 @@
                 }
                 return null;
             },
-            // 即时解析：fetch 通道（次序守卫：过期回包静默丢弃）或本地过滤
             resolveNow(query) {
                 if (this.data.disabled || this.data.readonly) return;
                 const fn = this.resolveFetch();
@@ -139,7 +92,7 @@
                     Promise.resolve()
                         .then(() => fn.call(null, query))
                         .then((r) => {
-                            if (cur !== this.fetchSeq) return; // 过期回包（期间又有新输入/选中）
+                            if (cur !== this.fetchSeq) return;
                             this.data.loading = false;
                             this.applyItems(this.normalizeList(r));
                         })
@@ -152,8 +105,6 @@
                     this.applyItems(this.filterLocal(query));
                 }
             },
-            // 防抖调度（immediate = true 跳过防抖即时解析）：重排前清旧计时器；到期时
-            // 值已被新输入取代则跳过（新输入自会重排）
             scheduleResolve(immediate) {
                 const n = this.nativeEl();
                 if (!n || this.data.disabled || this.data.readonly) return;
@@ -164,39 +115,33 @@
                 const run = () => {
                     self.debounceTimer = null;
                     const now = self.nativeEl();
-                    if (!now || String(now.value ?? "") !== q) return; // 已被新输入取代
+                    if (!now || String(now.value ?? "") !== q) return;
                     self.resolveNow(q);
                 };
                 if (immediate || ms === 0) run();
                 else this.debounceTimer = setTimeout(run, ms);
             },
-            // 取消待发防抖与在途回包判定（pick / 清除后防旧建议重开面板）
             cancelPending() {
                 if (this.debounceTimer !== null) {
                     clearTimeout(this.debounceTimer);
                     this.debounceTimer = null;
                 }
-                this.fetchSeq++; // 在途回包即刻过期
+                this.fetchSeq++;
             },
-            // 开面板：程序化派发触发器点击（popover click 触发模型 toggle；open 守卫防已开态误关）
             openPanel() {
                 if (this.data.disabled || this.data.readonly) return;
                 if (this.data.open) return;
                 this.triggerEl()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
             },
-            // 关面板：程序化派发点击走 popover 自有 toggle 通道（「再点宿主关闭」——命令式
-            // close 只回收命令式实例，声明式面板须走 toggle 模拟，ADR-0022 决策 1）
             closePanel() {
                 if (!this.data.open) return;
                 this.triggerEl()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
             },
-            // 高亮同步（activeValue 为面板比较基准）
             syncActive() {
                 const list = this.data.items ?? [];
                 const i = this.data.activeIndex;
                 this.data.activeValue = i >= 0 && i < list.length ? (list[i].value ?? null) : null;
             },
-            // 高亮移动（dir = 1 下 / -1 上）：环找下一个非禁用项（首尾环绕；全禁用不动）
             moveActive(dir) {
                 const list = this.data.items ?? [];
                 if (list.length === 0) return;
@@ -206,8 +151,6 @@
                     if (!list[i].disabled) { this.data.activeIndex = i; return; }
                 }
             },
-            // 内部静默派发 input（pick / 清除路径的程序化赋值不触发原生事件；手动派发冒泡
-            //     过宿主驱动 x-model 回写，但静默旗隔离建议管道）
             emitInput(n) {
                 this.silent = true;
                 try {
@@ -216,9 +159,6 @@
                     this.silent = false;
                 }
             },
-            // 选中流程（面板点击哨兵 / 键盘 Enter 汇聚点）：禁用与只读阻断；取消在途管道；
-            //     写原生控件 + 三派发（input→x-model 回写 / change / select——detail 恒
-            //     { value }）+ 关面板 + 焦点回控件（字符串归一比较，文本语域 7 与 "7" 互认）
             pick(v) {
                 if (this.data.disabled || this.data.readonly) return;
                 const list = this.data.items ?? [];
@@ -237,8 +177,6 @@
                 this.closePanel();
                 n.focus();
             },
-            // 清除（内部动作件，点击不转发焦点）：清空 + input 静默派发 + 收面板 + 焦点回
-            //     控件 + 阻断冒泡（防途经触发器 popover 宿主引发 toggle 开面板）
             onClear(event) {
                 event.stopPropagation();
                 if (this.data.disabled || this.data.readonly) return;
@@ -254,9 +192,6 @@
                 this.closePanel();
                 n.focus();
             },
-            // 输入控件键盘导航：上下移动高亮（未开先开——建议在场直接开，否则即时解析一次）/
-            //     Enter 开态确认或关面板（preventDefault 防误触发表单提交；关态原生放行）；
-            //     ESC 与 Tab 不拦截（ESC 归 popover 打开栈——机制继承；Tab 自然移焦）
             onInputKeydown(event) {
                 if (this.data.disabled) return;
                 if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -277,18 +212,13 @@
             },
         },
         mounted() {
-            // —— 内层控件查询（每查现取，家族纪律）——
             const native = () => this.el.querySelector(".asc-autocomplete-native");
 
-            // —— 值同步辅助（清除可见性驱动）——
             const syncLen = () => {
                 const n = native();
                 this.data.hasValue = !!n && String(n.value ?? "") !== "";
             };
 
-            // —— 值桥（x-model 兼容协议，ADR-0020 决策 5 全套）：劫持前快照 expando
-            //     （x-model 编译期可能已写初值）；快照归一值 + 初始化窗口标志 = 重放识别
-            //     （scope.refresh 类换血不得把初值归属打回）；setter 经控件落值 + 值缓存 ——
             const prior = this.el.value;
             if (typeof prior === "string" && prior !== "") this.lastValue = prior;
             else if (this.data.value != null) this.lastValue = String(this.data.value);
@@ -308,8 +238,6 @@
                 configurable: true,
             });
 
-            // —— 输入跟随（原生 input 冒泡经宿主；x-model 回写由宿主监听自理）：静默旗内
-            //     的手动派发跳过；IME composing 期只同步值不驱动建议 ——
             this.el.addEventListener("input", (e) => {
                 if (this.silent) return;
                 const n = native();
@@ -319,7 +247,6 @@
                 if (e.isComposing || this.composing) return;
                 this.scheduleResolve();
             });
-            // —— IME 组合态守卫（composition 事件冒泡，监听挂宿主委托）——
             this.el.addEventListener("compositionstart", (e) => {
                 if (e.target === native()) this.composing = true;
             });
@@ -329,19 +256,12 @@
                 this.scheduleResolve();
             });
 
-            // —— 真实点击 latch（capture 层，先于 popover 宿主 bubble 监听）：focus 确保
-            //     开与 popover click toggle 的竞态防护基准（ADR-0027 决策 5）——
             this.el.addEventListener(
                 "click",
                 () => { this.lastHostClickAt = Date.now(); },
                 true,
             );
 
-            // —— 焦点态维护（focused 旗：applyItems 自动开面板的判据——比 activeElement
-            //     现查稳，detached 容器/测试环境 activeElement 语义不一）+ focus 确保开
-            //     （决策 5）：Tab 聚焦也开面板——建议在场直接开；fetch 通道缺席建议时
-            //     不发空词请求（等输入驱动，antd 同款）；本地通道解析全量。真实点击短窗
-            //     内跳过（该点击已由 popover click toggle 自理，防双 toggle 互关）——
             this.el.addEventListener("focusin", (e) => {
                 if (e.target !== native()) return;
                 this.focused = true;
@@ -358,14 +278,10 @@
             this.el.addEventListener("focusout", (e) => {
                 if (e.target !== native()) return;
                 const to = e.relatedTarget;
-                if (to instanceof Node && this.el.contains(to)) return; // 焦点组件内移动不置失焦
+                if (to instanceof Node && this.el.contains(to)) return;
                 this.focused = false;
             });
 
-            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）：name 表单桥
-            //     透传（原生直提交，ADR-0020 决策 6）+ uid 配对键落根属性 + 初值同步 +
-            //     首次建议解析（仅本地通道——fetch 通道建议由输入驱动，空词不发请求，
-            //     antd 同款）+ 劫持门闩放开 ——
             setTimeout(() => {
                 const n = native();
                 if (n) {
@@ -377,12 +293,10 @@
                 this.data.uid =
                     "asc-ac-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e6).toString(36);
                 this.el.setAttribute("data-asc-autocomplete-uid", this.data.uid);
-                this.initDone = true; // 初始化完成：劫持 setter 放开重放识别门闩
+                this.initDone = true;
                 if (!this.hasFetch()) this.scheduleResolve(true);
             }, 0);
 
-            // —— props / 哨兵 / 内部状态跟随（回调收 { value } 信封对象，此处只用作触发信号）——
-            // value props 单向同步（非受控/外部受控无 x-model 场景）：值缓存防回环
             this.watch("value", ({ value }) => {
                 const v = String(value ?? "");
                 if (v === this.lastValue) return;
@@ -391,10 +305,6 @@
                 if (n) n.value = v;
                 syncLen();
             });
-            // 建议源变化：本地通道即时重析（fetch 通道由 fetch props 全权接管，不消费 suggestions）。
-            // 已见值比对幂等防御（color-picker 哨兵同款）：scope.refresh 类机制（i18n
-            // ready 换血等）以**当前值**重跑监听——无变化重跑若照常重析，fetch 通道用例
-            // 的「防抖窗口内只发一次请求」「IME composing 期不驱动」断言被多余解析打掉
             let lastSuggestions = this.data.suggestions;
             this.watch("suggestions", () => {
                 if (this.data.suggestions === lastSuggestions) return;
@@ -403,7 +313,6 @@
                     if (!this.hasFetch()) this.resolveNow(String(native()?.value ?? ""));
                 }, 0);
             });
-            // fetch 函数变化（含首次注入）：即时重析一次（已见值比对幂等，同上）
             let lastFetch = this.data.fetch;
             this.watch("fetch", () => {
                 if (this.data.fetch === lastFetch) return;
@@ -414,7 +323,6 @@
             this.watch("open", () => {
                 this.el.toggleAttribute("data-open", !!this.data.open);
             });
-            // 面板哨兵：选中（pickTick）/ 悬停高亮（hoverTick——值通道定位，未命中或禁用不动）
             this.watch("pickTick", () => { this.pick(this.data.pickValue); });
             this.watch("hoverTick", () => {
                 const list = this.data.items ?? [];
@@ -427,7 +335,6 @@
     }
   </script>
   <style global id="autospark-components-autocomplete">
-    /* ---------- 触发器包裹层（popover 宿主）：盒内铺满，输入区即热区 ---------- */
     .asc-autocomplete-trigger {
       flex: 1 1 auto;
       min-width: 0;
@@ -436,7 +343,6 @@
       align-self: stretch;
       outline: none;
     }
-    /* 原生控件裸化：外观由骨架盒饰承载（input 结构复制，ADR-0027 决策 1） */
     .asc-autocomplete-native {
       flex: 1 1 auto;
       min-width: 0;
@@ -463,7 +369,6 @@
       pointer-events: none;
     }
 
-    /* ---------- 动作件（清除钮 / loading 指示）：内部交互件，淡色常态 + 悬停正文色 ---------- */
     .asc-autocomplete-action {
       flex: none;
       display: inline-flex;
@@ -481,12 +386,10 @@
     .asc-autocomplete-action:active {
       transform: scale(0.92);
     }
-    /* loading 指示（非交互件：不抢光标，图标自带旋转动画） */
     .asc-autocomplete-loading {
       cursor: default;
     }
 
-    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
     [dark] .asc-autocomplete-native::placeholder,
     [data-dark] .asc-autocomplete-native::placeholder {
       color: var(--auto-input-placeholder, var(--asc-autocomplete-placeholder, rgba(255, 255, 255, 0.4)));
@@ -544,13 +447,11 @@
     .asc-autocomplete-option[data-disabled]:hover {
       background: transparent;
     }
-    /* 空态（含过滤无匹配）：居中辅助色文案 */
     .asc-autocomplete-empty {
       padding: 0.9em 0.75em;
       text-align: center;
       color: var(--auto-third-color, var(--asc-autocomplete-empty, rgba(0, 0, 0, 0.35)));
     }
-    /* 面板暗色兜底变体：兜底字面值切换（shell 边框/底色/阴影已由 popover-shell 暗色块覆盖） */
     [dark] .asc-autocomplete-panel,
     [data-dark] .asc-autocomplete-panel {
       color: var(--auto-color, var(--asc-autocomplete-panel-color, #fafafa));
@@ -568,10 +469,6 @@
       color: var(--auto-third-color, var(--asc-autocomplete-empty, rgba(255, 255, 255, 0.45)));
     }
   </style>
-  <!-- 默认段（替换 field 出口 fallback）：触发器包裹 span（popover 宿主；combobox
-         语义与 aria 在内层真 input 上——ARIA combobox 模式）+ 清除钮（动作件）+
-         loading 指示。占位文案走 props 与 i18n 词典（继承形态嵌套插槽出口被忽略，
-         ADR-0056——不开真插槽，select 同款） -->
   <span
     class="asc-autocomplete-trigger"
     x-popover:autospark-autocomplete-panel

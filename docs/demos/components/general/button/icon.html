@@ -1,6 +1,6 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>Button · 图标</title>
     <link rel="stylesheet" href="/autospark/autospark-theme.css" />
@@ -10,11 +10,14 @@
     <script src="/autospark/autospark.button.js?v=20261115"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
-</head>
-<body>
+    <script src="/autospark/autospark.tooltip.js"></script>
+  </head>
+  <body>
     <aside class="demo-panel"><theme-controls></theme-controls></aside>
     <!-- icon 对象一律放外层状态再路径引用——props 字面量嵌套对象存在更新环缺陷（引擎侧修复中），字面量写法会死锁页面 -->
-    <main class="demo-main" x-data="{
+    <main
+      class="demo-main"
+      x-data="{
         star20:   { name: 'star', size: 20 },
         star28:   { name: 'star', size: 28 },
         bellRed:  { name: 'bell', color: '#e11d48' },
@@ -33,128 +36,326 @@
         rot180:  { name: 'arrow', rotate: 180, size: 20 },
         rotTurn: { name: 'refresh', rotate: '0.5turn', size: 20 },
         spinConf: { name: 'arrow', rotate: 0, size: 20 }
-    }">
-        <div class="auto-card">
-            <div class="auto-card-header">图标名（字符串形态）</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <x-button icon="menu" label="菜单"></x-button>
-                    <x-button icon="bell" label="通知"></x-button>
-                    <x-button variant="secondary" icon="folder" label="文件夹"></x-button>
-                    <x-button variant="dashed" type="success" icon="star" label="收藏"></x-button>
-                </div>
-                <p class="hint">字符串即内置图标名；尺寸跟随字号档位（默认 1em），颜色继承按钮内容色。</p>
-            </div>
+    }"
+    >
+      <div class="auto-card">
+        <div class="auto-card-header">图标名（字符串形态）</div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 8px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button icon="menu" label="菜单"></x-button>
+            <x-button icon="bell" label="通知"></x-button>
+            <x-button
+              variant="secondary"
+              icon="folder"
+              label="文件夹"
+            ></x-button>
+            <x-button
+              variant="dashed"
+              type="success"
+              icon="star"
+              label="收藏"
+            ></x-button>
+          </div>
+          <p class="hint">
+            字符串即内置图标名；尺寸跟随字号档位（默认
+            1em），颜色继承按钮内容色。
+          </p>
         </div>
+      </div>
 
-        <div class="auto-card">
-            <div class="auto-card-header">对象形态 · size（尺寸系列）</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-                    <x-button icon="star" label="缺省 1em"></x-button>
-                    <x-button :icon="star20" label="size: 20"></x-button>
-                    <x-button :icon="star28" label="size: 28"></x-button>
-                    <x-button variant="secondary" shape="circle" :icon="full" label=""></x-button>
-                </div>
-                <p class="hint">对象形态 <code>{ name, size, color, strokeWidth, padding, … }</code>——name 必填；其余键即 x-icon 选项（见下方「x-icon 选项透传」）。size 数字（px）或任意 CSS 值。</p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">对象形态 · size（尺寸系列）</div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button icon="star" label="缺省 1em"></x-button>
+            <x-button :icon="star20" label="size: 20"></x-button>
+            <x-button :icon="star28" label="size: 28"></x-button>
+            <x-button
+              variant="secondary"
+              shape="circle"
+              :icon="full"
+              label=""
+            ></x-button>
+          </div>
+          <p class="hint">
+            对象形态
+            <code>{ name, size, color, strokeWidth, padding, … }</code>——name
+            必填；其余键即 x-icon 选项（见下方「x-icon 选项透传」）。size
+            数字（px）或任意 CSS 值。
+          </p>
         </div>
+      </div>
 
-        <div class="auto-card">
-            <div class="auto-card-header">对象形态 · color（独立配色）</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-                    <x-button :icon="bellRed" label="红色铃铛"></x-button>
-                    <x-button :icon="menuDark" label="size+color"></x-button>
-                    <x-button variant="primary" :icon="full" label="实底上暖橙图标"></x-button>
-                </div>
-                <p class="hint">color 覆盖继承（按钮内容色），任意 CSS 颜色值。</p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">对象形态 · color（独立配色）</div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button :icon="bellRed" label="红色铃铛"></x-button>
+            <x-button :icon="menuDark" label="size+color"></x-button>
+            <x-button
+              variant="primary"
+              :icon="full"
+              label="实底上暖橙图标"
+            ></x-button>
+          </div>
+          <p class="hint">color 覆盖继承（按钮内容色），任意 CSS 颜色值。</p>
         </div>
+      </div>
 
-        <div class="auto-card">
-            <div class="auto-card-header">对象形态 · strokeWidth（描边粗细）/ padding（内距）</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-                    <x-button variant="secondary" :icon="swThin" label="细描边 1"></x-button>
-                    <x-button variant="secondary" :icon="swBold" label="粗描边 3"></x-button>
-                    <x-button variant="secondary" :icon="padIcon" label="padding: 8"></x-button>
-                </div>
-                <p class="hint">strokeWidth 经 <code>--as-icon-sw</code> 变量下发（含网格补偿）；padding 为图标与文字间距留白。</p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          对象形态 · strokeWidth（描边粗细）/ padding（内距）
         </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button
+              variant="secondary"
+              :icon="swThin"
+              label="细描边 1"
+            ></x-button>
+            <x-button
+              variant="secondary"
+              :icon="swBold"
+              label="粗描边 3"
+            ></x-button>
+            <x-button
+              variant="secondary"
+              :icon="padIcon"
+              label="padding: 8"
+            ></x-button>
+          </div>
+          <p class="hint">
+            strokeWidth 经
+            <code>--as-icon-sw</code> 变量下发（含网格补偿）；padding
+            为图标与文字间距留白。
+          </p>
+        </div>
+      </div>
 
-        <div class="auto-card">
-            <div class="auto-card-header">对象形态 · x-icon 选项透传（shape / button / pointer / rotate）</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-                    <x-button variant="secondary" :icon="shapeCircle" label="shape: circle"></x-button>
-                    <x-button variant="secondary" :icon="shapeRadius" label="shape: radius + button"></x-button>
-                    <x-button variant="text" :icon="ptrIcon" label="pointer 手型光标"></x-button>
-                </div>
-                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:10px;">
-                    <x-button :icon="rot90" label="rotate: 90"></x-button>
-                    <x-button :icon="rot180" label="rotate: 180"></x-button>
-                    <x-button :icon="rotTurn" label="rotate: '0.5turn'"></x-button>
-                    <span @click="spinConf = { ...spinConf, rotate: spinConf.rotate + 90 }">
-                        <x-button type="primary" :icon="spinConf" label="点击旋转 90°"></x-button>
-                    </span>
-                </div>
-                <p class="hint">
-                    对象里除 <code>name</code> 外的视觉键<b>就是 x-icon 选项</b>——按钮经 <code>x-icon-options:&lt;成员&gt;</code> 逐键透传：
-                    <code>shape</code> 自动创建底板包裹层（<code>button</code> 动效随板作用于包裹层）、<code>pointer</code> 写手型光标、
-                    <code>rotate</code> 落在 svg 载体并带 transition（点击示例更新对象即从当前角度续转）。
-                </p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          对象形态 · x-icon 选项透传（shape / button / pointer / rotate）
         </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button
+              variant="secondary"
+              :icon="shapeCircle"
+              label="shape: circle"
+            ></x-button>
+            <x-button
+              variant="secondary"
+              :icon="shapeRadius"
+              label="shape: radius + button"
+            ></x-button>
+            <x-button
+              variant="text"
+              :icon="ptrIcon"
+              label="pointer 手型光标"
+            ></x-button>
+          </div>
+          <div
+            style="
+              display: flex;
+              gap: 12px;
+              flex-wrap: wrap;
+              align-items: center;
+              margin-top: 10px;
+            "
+          >
+            <x-button :icon="rot90" label="rotate: 90"></x-button>
+            <x-button :icon="rot180" label="rotate: 180"></x-button>
+            <x-button :icon="rotTurn" label="rotate: '0.5turn'"></x-button>
+            <span
+              @click="spinConf = { ...spinConf, rotate: spinConf.rotate + 90 }"
+            >
+              <x-button
+                type="primary"
+                :icon="spinConf"
+                label="点击旋转 90°"
+              ></x-button>
+            </span>
+          </div>
+          <p class="hint">
+            对象里除 <code>name</code> 外的视觉键<b>就是 x-icon 选项</b>——按钮经
+            <code>x-icon-options:&lt;成员&gt;</code> 逐键透传：
+            <code>shape</code> 自动创建底板包裹层（<code>button</code>
+            动效随板作用于包裹层）、<code>pointer</code> 写手型光标、
+            <code>rotate</code> 落在 svg 载体并带
+            transition（点击示例更新对象即从当前角度续转）。
+          </p>
+        </div>
+      </div>
 
-        <div class="auto-card">
-            <div class="auto-card-header">对象形态 · badge（右上角角标）</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
-                    <x-button :icon="badgeOn" label="有新消息"></x-button>
-                    <x-button variant="secondary" :icon="badgePad" label="badge: 4"></x-button>
-                    <x-button variant="dashed" type="success" :icon="badgeCss" label="badge + color"></x-button>
-                </div>
-                <p class="hint">
-                    badge 为 x-icon 同款<b>标量三形态</b>——形态即启用：<code>true</code>（缺省板距 2px）/ 数字（板距 px）/ 字符串（任意 CSS 值）；角标圆点取 <code>--auto-danger-color</code> 语义色，板距即角标周围留白。
-                </p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">对象形态 · badge（右上角角标）</div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 12px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button :icon="badgeOn" label="有新消息"></x-button>
+            <x-button
+              variant="secondary"
+              :icon="badgePad"
+              label="badge: 4"
+            ></x-button>
+            <x-button
+              variant="dashed"
+              type="success"
+              :icon="badgeCss"
+              label="badge + color"
+            ></x-button>
+          </div>
+          <p class="hint">
+            badge 为 x-icon
+            同款<b>标量三形态</b>——形态即启用：<code>true</code>（缺省板距
+            2px）/ 数字（板距 px）/ 字符串（任意 CSS 值）；角标圆点取
+            <code>--auto-danger-color</code> 语义色，板距即角标周围留白。
+          </p>
         </div>
+      </div>
 
-        <div class="auto-card">
-            <div class="auto-card-header">图标位置（label-pos：left | right | top | bottom | none，默认 right）</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-                    <x-button icon="menu" label="right 默认"></x-button>
-                    <x-button icon="menu" label-pos="left" label="left 左字"></x-button>
-                    <x-button icon="edit" label-pos="left" label="loading 随行" loading="true"></x-button>
-                    <x-button icon="bell" label-pos="none" label="none 悬停看提示"></x-button>
-                </div>
-                <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-top:10px;">
-                    <x-button icon="star" label-pos="bottom" label="bottom 图上字下" memo="纵排默认形态"></x-button>
-                    <x-button icon="star" label-pos="top" label="top 字上图下" memo="文字在图标上方"></x-button>
-                </div>
-                <p class="hint">label 在 icon 的哪侧——left 时图标移内容区末尾并与 tags 互换（loading 随行）；none 不显示文字区（label+memo 一并隐藏），label 文本自动转挂悬停提示（tooltip 插件在场挂 data-tooltip、缺席挂原生 title，显式提示优先）；check-style icon / ripple 的勾选占位恒最前。</p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          图标位置（label-pos：left | right | top | bottom | none，默认 right）
         </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button icon="menu" label="right 默认"></x-button>
+            <x-button icon="menu" label-pos="left" label="left 左字"></x-button>
+            <x-button
+              icon="edit"
+              label-pos="left"
+              label="loading 随行"
+              loading="true"
+            ></x-button>
+            <x-button
+              icon="bell"
+              label-pos="none"
+              label="none 悬停看提示"
+            ></x-button>
+          </div>
+          <div
+            style="
+              display: flex;
+              gap: 14px;
+              flex-wrap: wrap;
+              align-items: flex-start;
+              margin-top: 10px;
+            "
+          >
+            <x-button
+              icon="star"
+              label-pos="bottom"
+              label="bottom 图上字下"
+              memo="纵排默认形态"
+            ></x-button>
+            <x-button
+              icon="star"
+              label-pos="top"
+              label="top 字上图下"
+              memo="文字在图标上方"
+            ></x-button>
+          </div>
+          <p class="hint">
+            label 在 icon 的哪侧——left 时图标移内容区末尾并与 tags 互换（loading
+            随行）；none 不显示文字区（label+memo 一并隐藏），label
+            文本自动转挂悬停提示（tooltip 插件在场挂 data-tooltip、缺席挂原生
+            title，显式提示优先）；check-style icon / ripple 的勾选占位恒最前。
+          </p>
+        </div>
+      </div>
 
-        <div class="auto-card">
-            <div class="auto-card-header">与其他特性组合</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
-                    <x-button variant="secondary" :icon="star20" label="收藏" label-pos="bottom" memo="点亮后置顶显示"></x-button>
-                    <x-button variant="dashed" type="danger" :icon="bellRed" label="告警"></x-button>
-                    <x-button menu="true" block="true" :icon="menuDark" label="菜单项大图标" memo="对象形态图标在菜单/纵排场景同样适用"></x-button>
-                </div>
-                <p class="hint">
-                    对象形态与 labelBelow / memo（图标 2 倍规则）、菜单形态、语义色等自由组合；<b>对象须放外层状态再 <code>:icon="conf"</code> 路径引用</b>（字面量嵌套对象 props 会触发引擎更新环缺陷死锁页面）。
-                </p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">与其他特性组合</div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 14px;
+              flex-wrap: wrap;
+              align-items: flex-start;
+            "
+          >
+            <x-button
+              variant="secondary"
+              :icon="star20"
+              label="收藏"
+              label-pos="bottom"
+              memo="点亮后置顶显示"
+            ></x-button>
+            <x-button
+              variant="dashed"
+              type="danger"
+              :icon="bellRed"
+              label="告警"
+            ></x-button>
+            <x-button
+              menu="true"
+              block="true"
+              :icon="menuDark"
+              label="菜单项大图标"
+              memo="对象形态图标在菜单/纵排场景同样适用"
+            ></x-button>
+          </div>
+          <p class="hint">
+            对象形态与 labelBelow / memo（图标 2
+            倍规则）、菜单形态、语义色等自由组合；<b
+              >对象须放外层状态再 <code>:icon="conf"</code> 路径引用</b
+            >（字面量嵌套对象 props 会触发引擎更新环缺陷死锁页面）。
+          </p>
         </div>
+      </div>
     </main>
     <script>
-        new AutoSpark(document.querySelector(".demo-main"), {});
+      new AutoSpark(document.querySelector(".demo-main"), {});
     </script>
-</body>
+  </body>
 </html>

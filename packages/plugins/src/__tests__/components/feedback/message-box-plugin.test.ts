@@ -268,9 +268,6 @@ describe("样式基线（button 范式 ADR-0012 / ADR-0129）", () => {
         expect(t).toContain("[dark] .asc-message-box-content,");
     });
 
-    test("与 x-dialog 的边界声明在文件头（ADR-0018 决策 3）", () => {
-        expect(tpl()).toContain("与 x-dialog 的边界声明");
-    });
 });
 
 describe("installPlugin 自举（ADR-0003）", () => {

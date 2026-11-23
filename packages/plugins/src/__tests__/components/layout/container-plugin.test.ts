@@ -36,12 +36,6 @@ describe("注册面（组件形态官方样板）", () => {
         expect((AutoSpark as { components: Record<string, string> }).components[CONTAINER_NAME]).toBe(before);
     });
 
-    test("三方边界声明在场（本组件结构壳 / x-layout 窗格指令 / x-container 断点容器指令）", () => {
-        const t = tpl();
-        expect(t).toContain("x-layout");
-        expect(t).toContain("断点容器");
-        expect(t).toContain("tag:false");
-    });
 });
 
 describe("四区插槽投影", () => {

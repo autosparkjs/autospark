@@ -3,15 +3,36 @@
     // 注意：语义色（--x-color-primary/success/danger/warning/info）不在静态层定义，
     // 其唯一真值源是 ThemeScope 运行时注入（默认跟随主题色，可经 update() 覆盖）。
     // 若在此再给静态默认值，会在样式层叠中与运行时注入形成双真值源竞争。
-    // 灰色
+    //
+    // 双轨灰阶（ADR 见 docs/adr/，对齐 VSCode Modern）：light/dark 各一条标尺，
+    // 档位锚点取自 VSCode 官方主题（Light Modern / Dark Modern），中间档插值补齐，
+    // 映射层（vars/light.ts / vars/dark.ts）只做 var() 引用——散落 hex 只允许出现在
+    // 本标尺层。dark 不复用 light 标尺反转：gray-9 需同时充当 dark 工作区（#181818）
+    // 与 light 最深文字（#1F1F1F），共享单轨数学上不可满足。
+    //
+    // 亮灰阶（Light Modern 锚点）：gray-0 面板白 / gray-1 侧栏 / gray-2 列表选中 /
+    // gray-3 面板边框 / gray-4 输入边框 / gray-6 占位符 / gray-8 正文
     --x-color-gray-0: #FFFFFF;
-    --x-color-gray-1: #FAFAFA;
-    --x-color-gray-2: #F5F5F5;
-    --x-color-gray-3: #F0F0F0;
-    --x-color-gray-4: #DEDEDE;
-    --x-color-gray-5: #C2C2C2;
-    --x-color-gray-6: #979797;
-    --x-color-gray-7: #818181;
-    --x-color-gray-8: #606060;
-    --x-color-gray-9: #3C3C3C;
+    --x-color-gray-1: #F8F8F8;
+    --x-color-gray-2: #E8E8E8;
+    --x-color-gray-3: #E5E5E5;
+    --x-color-gray-4: #CECECE;
+    --x-color-gray-5: #9E9E9E;
+    --x-color-gray-6: #767676;
+    --x-color-gray-7: #5A5A5A;
+    --x-color-gray-8: #3B3B3B;
+    --x-color-gray-9: #1F1F1F;
+    // 暗灰阶（Dark Modern 面板族锚点，0 最亮）：dgray-1 正文 / dgray-2 描述文字 /
+    // dgray-5 输入边框 / dgray-6 输入底 / dgray-7 次级面板（widget/quickInput 合并档）/
+    // dgray-8 面板（编辑器）/ dgray-9 工作区（侧栏/状态栏）
+    --x-color-dgray-0: #FFFFFF;
+    --x-color-dgray-1: #CCCCCC;
+    --x-color-dgray-2: #9D9D9D;
+    --x-color-dgray-3: #767676;
+    --x-color-dgray-4: #4D4D4D;
+    --x-color-dgray-5: #3C3C3C;
+    --x-color-dgray-6: #313131;
+    --x-color-dgray-7: #222222;
+    --x-color-dgray-8: #1F1F1F;
+    --x-color-dgray-9: #181818;
 }

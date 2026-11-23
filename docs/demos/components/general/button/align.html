@@ -1,6 +1,6 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>Button · 内容对齐</title>
     <link rel="stylesheet" href="/autospark/autospark-theme.css" />
@@ -10,22 +10,52 @@
     <script src="/autospark/autospark.button.js?v=20261107"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
-</head>
-<body>
-    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <script src="/autospark/autospark.tooltip.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel">
+      <theme-controls groups="color,mode"></theme-controls>
+    </aside>
     <main class="demo-main">
-        <div class="auto-card">
-            <div class="auto-card-header">内容对齐（align，默认 center）——block 等宽内容时可见</div>
-            <div class="auto-card-body" style="max-width: 360px;display:flex;flex-direction:column;gap:8px;">
-                <x-button block="true" icon="menu" label="居左内容" align="left"></x-button>
-                <x-button block="true" icon="menu" label="居中内容（默认）"></x-button>
-                <x-button block="true" icon="menu" label="居右内容" align="right"></x-button>
-            </div>
-            <p class="hint" style="padding: 0 1rem 0.8rem;">align 管按钮<b>内部内容</b>的水平对齐；按钮自身在页面中的位置交由父级布局。</p>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          内容对齐（align，默认 center）——block 等宽内容时可见
         </div>
+        <div
+          class="auto-card-body"
+          style="
+            max-width: 360px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          "
+        >
+          <x-button
+            block="true"
+            icon="menu"
+            label="居左内容"
+            align="left"
+          ></x-button>
+          <x-button
+            block="true"
+            icon="menu"
+            label="居中内容（默认）"
+          ></x-button>
+          <x-button
+            block="true"
+            icon="menu"
+            label="居右内容"
+            align="right"
+          ></x-button>
+        </div>
+        <p class="hint" style="padding: 0 1rem 0.8rem">
+          align
+          管按钮<b>内部内容</b>的水平对齐；按钮自身在页面中的位置交由父级布局。
+        </p>
+      </div>
     </main>
     <script>
-        new AutoSpark(document.querySelector(".demo-main"), {});
+      new AutoSpark(document.querySelector(".demo-main"), {});
     </script>
-</body>
+  </body>
 </html>

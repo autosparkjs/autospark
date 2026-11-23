@@ -1,21 +1,7 @@
 (function (AutoSpark) {
     "use strict";
 var run = function (AutoSpark) {
-function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){e.components[`autospark.text`]=`<!--
-    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态绑定
-    不会求值——变体绑定全部落在编译子树的内层 body 上；文本组件无宿主级底色/边框
-    （外观即文本本身），body 直接承载变体样式即可，无需 :has() 反驱宿主。溢出提示
-    （title/data-tooltip）与剪贴板写入等原生语义在 mounted 钩子经 JS 通道同步。
-
-    事件出口（组件默认封闭，事件经冒泡到外层消费）：
-    - copy：copyable 复制成功冒泡，detail = { text }（写入剪贴板的文本原文）
--->
-<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
-     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
-     六键）自动获得——字号档位经主题通道 data-size 全跟随（--auto-font-size 基线），
-     text 不设自有字号属性（button 同范式 ADR-0012）；data() 不得声明主题六键，
-     组件内部变体属性亦禁用六个通道名 -->
-<span
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){e.components[`autospark.text`]=`<span
   class="asc-text"
   x-define="autospark.text"
   x-define:inherit="autospark.base"
@@ -23,17 +9,14 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   <script setup>
     {
         data: () => ({
-            label: "",            // 兜底文案（插槽无内容时显示；text 无内置文案、不接 i18n，ADR-0018 决策 1 备注）
-            type: "default",      // 文本层级/语义色：default 正文 | secondary 次要 | third 辅助 | primary/success/warning/danger 语义色
-            strong: false,        // 加粗（--x-font-weight-large 档位标尺）
-            ellipsis: false,      // 溢出省略：false 不省略 | true 单行省略号 | number n 多行截断（line-clamp n 行）
-            copyable: false,      // 复制：false 无 | true 复制渲染文本 | { text } 复制指定文本（显式文本优先）
-            copied: false,        // 内部状态：复制成功反馈窗（图标换勾 + success 色，约 1.5s 自复原）
+            label: "",
+            type: "default",
+            strong: false,
+            ellipsis: false,
+            copyable: false,
+            copied: false,
         }),
         methods: {
-            // 复制图标点击：取复制文本（copyable.text 显式指定优先，否则取插槽出口
-            // 渲染文本）→ navigator.clipboard 写入 → 成功反馈（copied 置位 + copy 事件
-            // 冒泡）；写入失败（非安全上下文 / 权限拒绝）console.warn 响而不哑，不误报成功
             onCopyClick(event) {
                 event.stopPropagation();
                 const conf = this.data.copyable;
@@ -55,12 +38,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             },
         },
         mounted() {
-            // 溢出自动挂提示（对齐 button 范式 ADR-0012 补记的双轨判定）：ellipsis 启用时
-            // 静态检测——单行查 scrollWidth > clientWidth、多行查 scrollHeight > clientHeight；
-            // tooltip 特性在场挂 data-tooltip（插件接管、样式统一），缺席挂原生 title。
-            // 挂/摘规则：仅截断态挂、宿主显式提示永不覆盖、溢出消失只摘自挂的（闭包标记）。
-            // 纯静态检测（mounted 一跳首查 + ellipsis 变化重查），不引入 ResizeObserver；
-            // 插槽内容后续变化不重查为已知温和妥协（文本组件无 label 变化通道）
             const tipAttr = this.engine?.tooltip?.enabled ? "data-tooltip" : "title";
             let selfTip = false;
             const syncTip = () => {
@@ -73,7 +50,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                     ? content.scrollWidth > content.clientWidth
                     : content.scrollHeight > content.clientHeight;
                 if (overflow) {
-                    if (this.el.getAttribute(tipAttr) && !selfTip) return; // 显式提示在场，永不覆盖
+                    if (this.el.getAttribute(tipAttr) && !selfTip) return;
                     this.el.setAttribute(tipAttr, content.textContent ?? "");
                     selfTip = true;
                 } else if (selfTip) {
@@ -82,13 +59,12 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 }
             };
             setTimeout(syncTip, 0);
-            this.watch("label", () => { setTimeout(syncTip, 0); }); // label 经 props 引用外部状态，变化重查
+            this.watch("label", () => { setTimeout(syncTip, 0); });
             this.watch("ellipsis", () => { setTimeout(syncTip, 0); });
         },
     }
   <\/script>
   <style global id="autospark-components-text">
-    /* 排版基线：字号经主题档位通道（宿主 data-size → --auto-font-size 全跟随，button 同范式） */
     .asc-text {
       font-size: var(--auto-font-size, var(--asc-text-font-size, 0.875rem));
       line-height: var(--auto-line-height, var(--asc-text-line-height, 1.5));
@@ -119,7 +95,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-text-body[data-type="info"] {
       color: var(--auto-info-color, var(--asc-text-info, #71717a));
     }
-    /* 加粗：--x-font-weight-large 标尺档（语义层无字重派生变量，直取基础标尺） */
     .asc-text-body[data-strong="true"] {
       font-weight: var(--x-font-weight-large, 600);
     }
@@ -163,7 +138,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       color: var(--auto-success-color, var(--asc-text-success, #22c55e));
     }
 
-    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
     [dark] .asc-text-body,
     [data-dark] .asc-text-body {
       color: var(--auto-color, var(--asc-text-color, #fafafa));
@@ -209,25 +183,18 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       color: var(--auto-success-color, var(--asc-text-success, #5cd07c));
     }
   </style>
-  <!-- 变体数据属性承载在 body（编译子树内层元素）；
-         多行 clamp 行数经 --asc-text-lines 变量内联下发（:style 自定义属性键走 setProperty） -->
   <span
     class="asc-text-body"
     :data-type="type"
     :data-strong="strong"
     :data-copyable="!!copyable"
   >
-    <!-- 文本出口：插槽内容优先，无内容回退 {{ label }}（组件自身状态求值）；
-         ellipsis 经类切换：true 单行省略号 / number 多行截断。
-         类切换走 x-class 指令通道（:class 简写与静态 class 同元素共存时不生效，
-         x-class 指令与静态 class 拼接正常——引擎绑定通道差异，实测定夺） -->
     <span
       class="asc-text-content"
       x-class="ellipsis === true ? 'asc-text-ellipsis' : (typeof ellipsis === 'number' && ellipsis > 0 ? 'asc-text-clamp' : null)"
       :style="typeof ellipsis === 'number' && ellipsis > 0 ? { '--asc-text-lines': ellipsis } : undefined"
       x-slot
     >{{ label }}</span>
-    <!-- 复制按钮（copyable 启用）：图标 copy ↔ 复制成功换勾（copied 置位窗内） -->
     <i
       class="asc-text-copy"
       x-if="!!copyable"

@@ -1,56 +1,7 @@
 (function (AutoSpark) {
     "use strict";
 var run = function (AutoSpark) {
-function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){return e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase())}function n(e){return/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e)}function r(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}function i(e){e.components[`autospark.field`]=`<!--\r
-    Field 表单域骨架（ADR-0020）——base/ 目录首个产物（ADR-0018 决策 7：form 前瞻\r
-    唯一例外，其余基类演进式抽取）。2026-11-14 修订：转公开文档组件（侧边栏「表单」组\r
-    + demo + 文档页）——可直接实例化（默认出口装任意控件内容即得骨架能力：状态色/\r
-    焦点态/禁用只读同步/盒饰），同时仍是 form 域家族（input/checkbox/radio/switch/\r
-    select/input-number…）的继承基座。\r
-\r
-    骨架职责（宁薄勿胖——只承担 form 域家族共性，控件本体与装饰一概留给子组件）：\r
-    - 结构：宿主级包裹层（.asc-field 布局基座，class 拼接进子组件宿主）+ 三出口——\r
-      默认出口（.asc-field-body，display:contents 不产生布局层；子组件全部控件结构\r
-      经默认段替换出口 fallback（继承覆盖，ADR-0081），直接实例化时消费方内容同位）\r
-      + prefix / suffix 具名装饰出口（body 兄弟位，DOM 序固定\r
-      [slot:prefix][body][slot:suffix]；template 载体（ADR-0137，2026-11-15 切换）\r
-      ——class 经属性活注入落投影内容首根（间距/防收缩规则随类落内容根本身），\r
-      无内容整出口静默消失、零多余 DOM，裸态控件组件继承亦无害；多根装饰仅首根\r
-      得注入类——装饰出口建议单根，多根后续节点消费方自理）；盒饰 chrome 为 .asc-field-box\r
-      选配类（input 类控件用，checkbox/radio/switch 等裸态控件不用）\r
-    - 轻装饰/重装饰分层（2026-11-14 修订）：子组件 props 前后置（input 的\r
-      prefix/suffix 文本|图标）是轻装饰（组件内贴控件），插槽前后置是重装饰\r
-      （消费方任意 HTML，恒在轻装饰外侧），两者共存不互斥；插槽内容默认次要色、\r
-      点击转发焦点到控件（消费方放交互件须自标 data-autospark-action 自理）；\r
-      disabled/readonly 不对插槽内容做专门处理（与 props 装饰对齐）\r
-    - 融合动作 actions（2026-11-16 修订二，ADR-0020 决策 3）：props 驱动渲染段\r
-      （非插槽出口——数据→视图）——button props 数组 + 自有键 pos（before|after\r
-      分侧，缺省 after）/name/value；组合复用 autospark.button（产物依赖其同页\r
-      加载），融合复用 button-group 负 margin 边线复用范式（ADR-0014）；field\r
-      disabled 联动合并项 disabled；点击组包派发 action-click（detail =\r
-      {index,name,value,item}）+ 原生 click 双通道；空数组整段不渲染零 DOM\r
-    - 状态色通道：status（"" | error | success | warning）→ 宿主 data-status 属性 →\r
-      --asc-field-tone 中转变量派生（焦点环/边框色统一消费）；error 态同步 aria-invalid\r
-    - 焦点态追踪：focusin/focusout（焦点在骨架内元素间移动不闪烁）→ 宿主 data-focus\r
-    - disabled / readonly：同步到 [data-autospark-control] 原生控件 + 宿主 data-disabled /\r
-      data-readonly 反射（CSS 淡化与光标通道）\r
-    - 尺寸档位：经 autospark.base 继承链消费主题 data-size 通道（--auto-input-height /\r
-      --auto-input-padding 随档位联动），骨架不设自有尺寸属性（button 同范式 ADR-0012）\r
-    - 与 x-field 分工（ADR-0018 决策 7：不双轨建域）：label/校验/域布局由 engine\r
-      x-form/x-field 指令承担；校验结果经子组件 status props 染色进入（x-field 容器\r
-      形态后代绑定 status: $field.error ? "error" : ""），骨架不感知 x-field\r
-\r
-    data-* 标记协议（子组件挂点约定，ADR-0020）：\r
-    - data-autospark-control：原生控件标记——disabled/readonly/aria-invalid 同步目标、\r
-      点击转发焦点的受让者\r
-    - data-autospark-action：交互动作件标记（清除/切换钮等）——点击不转发焦点（自理）\r
--->\r
-<!-- 继承 autospark.base（ADR-0134）须为非抽象继承：abstract 组件不能再声明\r
-     x-define:inherit（ADR-0134 抽象根约束），而主题档位六键物化必须沿继承链下传——\r
-     故本骨架贡献真实模板（包裹层 + 三出口），子组件快照 = 本骨架克隆 + 子默认段替换 +\r
-     子根属性并入（class 拼接：宿主恒得 .asc-field + 子自有类），继承链\r
-     子组件 → field → autospark.base 三层（ADR-0020 决策 2） -->\r
-<span\r
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){return e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase())}function n(e){return/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e)}function r(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}function i(e){e.components[`autospark.field`]=`<span\r
   class="asc-field"\r
   x-define="autospark.field"\r
   x-define:inherit="autospark.base"\r
@@ -58,25 +9,20 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   <script setup>\r
     {\r
         data: () => ({\r
-            status: "",       // 状态色通道："" 无 | error 危险 | success 成功 | warning 警告（tone 中转变量随动，焦点环/边框消费）\r
-            disabled: false,  // 禁用：同步 [data-autospark-control] 原生控件 + 宿主 data-disabled（CSS 淡化/光标）+ 融合动作按钮联动\r
-            readonly: false,  // 只读：同步 [data-autospark-control]（readOnly 语义）+ 宿主 data-readonly\r
-            actions: [],      // 融合动作（2026-11-16 修订二）：button props 数组 + 自有键 pos（"before"|"after" 分侧，缺省 after）/ name（标识）/ value（原样透传 action-click detail）——数组 props 经状态引用注入（:actions="myActions"，引擎字面量数组死环缺陷 HEAD 未修）\r
+            status: "",
+            disabled: false,
+            readonly: false,
+            actions: [],
         }),\r
         mounted() {\r
-            // —— 控件查询（data-autospark-control 标记协议）：每查现取不缓存——运行时\r
-            //     控件可能被重建（x-if 条件渲染等），缓存引用会指向已摘除节点\r
             const control = () => this.el.querySelector("[data-autospark-control]");\r
 \r
-            // —— 状态色通道：status → 宿主 data-status（CSS 派生 --asc-field-tone）——\r
             const applyStatus = () => {\r
                 const v = this.data.status;\r
                 if (typeof v === "string" && v !== "") this.el.setAttribute("data-status", v);\r
                 else this.el.removeAttribute("data-status");\r
             };\r
 \r
-            // —— 控件同步：disabled/readonly 落原生控件 + 宿主反射 + error 态 aria-invalid\r
-            //     （可访问性：组件级状态归一到 aria，与原生约束校验互补）——\r
             const syncControl = () => {\r
                 const c = control();\r
                 if (c) {\r
@@ -89,9 +35,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 this.el.toggleAttribute("data-readonly", !!this.data.readonly);\r
             };\r
 \r
-            // —— 焦点态追踪：focusin/focusout 冒泡承接（骨架内任意可聚焦元素）——\r
-            //     焦点在骨架内部元素间移动（如 input → 清除钮）时 relatedTarget 仍在\r
-            //     骨架内，跳过摘除防闪烁\r
             this.el.addEventListener("focusin", () => {\r
                 this.el.setAttribute("data-focus", "");\r
             });\r
@@ -101,9 +44,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 this.el.removeAttribute("data-focus");\r
             });\r
 \r
-            // —— 点击转发焦点：点击盒饰空白区/前后置装饰（非控件非动作件）时焦点落控件\r
-            //     （原生 label 包裹的近似体验；动作件 data-autospark-action 自理不转发；\r
-            //     插槽装饰内容同此——消费方放交互件须自标 data-autospark-action）——\r
             this.el.addEventListener("click", (e) => {\r
                 const t = e.target instanceof Element ? e.target : null;\r
                 if (!t) return;\r
@@ -114,14 +54,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 if (c && typeof c.focus === "function") c.focus();\r
             });\r
 \r
-            // —— 初始化与跟随（mounted 时化身子树与 props 注入均可能未就位，一跳后\r
-            //     首同步；后续 props 变化经 watch 保持——回调收 { value } 信封对象，\r
-            //     此处只用作触发信号，家族惯用法）——\r
-            // —— 融合动作组包（ADR-0020 修订二）：按钮原生 click 冒泡经宿主——按\r
-            //     DOM 序（容器内 .asc-field-action 集合的 indexOf）回查 actions\r
-            //     原始项，组包派发 action-click（bubbles，detail =\r
-            //     {index, name, value, item}）；原生 click 照常冒泡（双通道）；\r
-            //     禁用按钮原生阻断、不到达此处 ——\r
             this.el.addEventListener("click", (e) => {\r
                 const t = e.target instanceof Element ? e.target : null;\r
                 if (!t) return;\r
@@ -169,7 +101,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       line-height: var(--auto-line-height, var(--asc-field-line-height, 1.5));\r
       color: var(--auto-color, var(--asc-field-color, #606060));\r
     }\r
-    /* 状态色派生（data-status 由 mounted 同步）：tone 切语义色，未聚焦也染边框 */\r
     .asc-field[data-status="error"] {\r
       --asc-field-tone: var(\r
         --auto-danger-color,\r
@@ -251,13 +182,11 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         var(--asc-field-hover-border, #009aff)\r
       );\r
     }\r
-    /* 焦点态（data-focus 由 focusin/focusout 同步）：边框取 tone + 同色淡晕 */\r
     .asc-field-box[data-focus] {\r
       --asc-field-line: var(--asc-field-tone);\r
       box-shadow: 0 0 0 2px\r
         color-mix(in srgb, var(--asc-field-tone) 22%, transparent);\r
     }\r
-    /* 状态在场：未聚焦也染状态色边框（聚焦规则同色调、仅补光晕） */\r
     .asc-field-box[data-status="error"],\r
     .asc-field-box[data-status="success"],\r
     .asc-field-box[data-status="warning"] {\r
@@ -283,7 +212,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       );\r
       cursor: not-allowed;\r
     }\r
-    /* 只读：光标归正文（无禁用淡化） */\r
     .asc-field-box[data-readonly] {\r
       cursor: default;\r
     }\r
@@ -311,7 +239,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       margin-inline-start: 0.4em;\r
     }\r
 \r
-    /* ---------- 默认出口包裹层：不产生布局层（子组件控件直接成为骨架 flex 项） ---------- */\r
     .asc-field-body {\r
       display: contents;\r
     }\r
@@ -374,7 +301,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         var(--asc-field-radius, 0.5rem)\r
       );\r
     }\r
-    /* after 组尾钮右贴盒右线 + 外侧圆角匹配盒饰 */\r
     .asc-field-box .asc-field-actions-after .asc-field-action:last-of-type {\r
       margin-inline-end: calc(\r
         -1 *\r
@@ -392,7 +318,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         var(--asc-field-radius, 0.5rem)\r
       );\r
     }\r
-    /* 组内相邻按钮：侧线压叠单线（每钮压前邻右线，共享一条 --asc-field-line） */\r
     .asc-field-box .asc-field-action + .asc-field-action {\r
       margin-inline-start: calc(\r
         -1 * var(--auto-border-size, var(--asc-field-border-size, 1px))\r
@@ -409,7 +334,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       margin-inline-start: 0.4em;\r
     }\r
 \r
-    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */\r
     [dark] .asc-field,\r
     [data-dark] .asc-field {\r
       --asc-field-tone: var(\r
@@ -439,7 +363,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         var(--asc-field-warning, #f7d352)\r
       );\r
     }\r
-    /* 暗色兜底让位状态色：状态在场时边框取 tone（:not 守卫防高特异性兜底块压掉状态染色） */\r
     [dark] .asc-field-box:not([data-status]),\r
     [data-dark] .asc-field-box:not([data-status]) {\r
       --asc-field-line: var(\r
@@ -469,20 +392,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       );\r
     }\r
   </style>\r
-  <!-- 三出口（文档序即呈现序 [slot:prefix][默认段][slot:suffix]，2026-11-14 修订）：\r
-       prefix / suffix 具名装饰出口 template 载体（ADR-0137，2026-11-15 切换）——无\r
-       内容整出口静默消失，消费方经宿主直接子级标记 <template x-slot:prefix> 投影\r
-       任意内容（class 活注入落内容首根：次要色/间距/防收缩随类落根，恒在子组件\r
-       props 轻装饰外侧）；默认出口被子组件默认段替换（继承覆盖，ADR-0081）——\r
-       直接实例化时消费方内容同位，三层优先级：消费方内容 > 继承覆盖 > 本空 fallback -->\r
-  <!-- 融合动作渲染段（2026-11-16 修订二，ADR-0020 决策 3）：props 驱动非插槽出口——\r
-       空 actions 整段 x-if 不渲染（零 DOM）；双段按 pos 过滤分侧，DOM 序恒\r
-       [before actions][prefix][body][suffix][after actions]（动作按钮最外层包壳）。\r
-       值 = Object.assign 全键透传项（默认 variant: 'secondary' 打底——项显式\r
-       variant 胜；button props 全集 + disabled 与 field 联动合并，自有键\r
-       pos/name/value 入 button data 域被忽略无害）；按钮宿主自动标\r
-       data-autospark-action（点击自理）；x-for 值表达式 = 官方 filter 形态\r
-       （引擎 x-for 测试覆盖，with 求值通道响应 actions 注入） -->\r
   <span\r
     class="asc-field-actions asc-field-actions-before"\r
     x-if="!!(actions && actions.length)"\r
@@ -511,40 +420,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     </template>\r
   </span>\r
 </span>\r
-`}a();function a(){e(e=>{i(e)})}var o=`<!--
-    autospark.textarea 多行文本框（ADR-0032）——原生增强路线：真实原生 <textarea>
-    + 样式包裹，不自绘输入面（保原生可访问性：键盘 / IME / 自动填充 / 移动端兼容，
-    ADR-0018 决策 7）。继承 autospark.field 表单域骨架（状态色通道 / 焦点态 /
-    disabled 同步 / 盒饰 chrome，ADR-0020），本组件专注多行控件本身。
-
-    与 autospark.input 的分工（ADR-0032 推翻 ADR-0020 决策 4「textarea 是 type 变体」）：
-    多行能力独立成件，input 不再内置 textarea 形态。两者共享表单域骨架与主题令牌，
-    但控件实现、样式细节、测试各自持有——值桥 / 计数 / 清除逻辑按「复制而非嵌套」
-    先例在组件内自持（ADR-0021 方法论），避免 textarea → input 的依赖链与单行专属
-    逻辑渗透。
-
-    autosize（默认开启）：控件高度随内容自动增长，minRows（缺省取 rows）/ maxRows
-    （默认 8，0 = 不限高）夹取，到顶后内部滚动；宽度变化经 ResizeObserver 重算。
-    autosize 开启时强制 resize:none；关闭后尊重 resize 属性（缺省 vertical）。
-
-    值通道（x-model 兼容协议，ADR-0020）：宿主 el.value 劫持 ↔ 内层原生控件——
-    宿主为包裹层元素（无原生 value），x-model 写读都落劫持位；内层原生 textarea 的
-    input 事件自然冒泡过宿主，x-model 监听直接命中。value props 为非受控初值 /
-    单向同步（受控真相走 x-model）。
-
-    表单提交（ADR-0020）：宿主 name 透传到内层原生 textarea——原生直提交。
-
-    事件出口（组件默认封闭，原生事件经冒泡到外层消费）：
-    - input / change：内层原生控件事件自然冒泡（x-model 与外层 @input/@change 直接消费）
-    - 清除为内部动作件（data-autospark-action，点击不转发焦点），不派发自定义事件
-
-    装饰面（ADR-0032）：不提供 prefix / suffix（单行 affix 习惯，多行盒内布局成本高）；
-    actions 由 field 骨架继承，但本组件把融合按钮段由横向改排到控件上方 / 下方
-    （pos: before 在上、after 在下），不与文本抢行宽。
--->
-<!-- 根 class 拼接进骨架宿主（.asc-field + .asc-textarea + .asc-field-box 盒饰）；
-     状态属性经 mounted 的 JS 通道同步（data-over），根上无动态绑定（T4=B） -->
-<span
+`}a();function a(){e(e=>{i(e)})}var o=`<span
   class="asc-textarea asc-field-box"
   x-define="autospark.textarea"
   x-define:inherit="autospark.field"
@@ -552,24 +428,21 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   <script setup>
     {
         data: () => ({
-            value: "",             // 非受控初值 / 单向同步值（受控真相走宿主 x-model——el.value 桥）
-            placeholder: "",       // 占位文案（同步原生 placeholder）
-            maxlength: 0,          // >0 同步原生 maxlength（原生输入截断）+ 计数分母（自动显示计数）
-            rows: 2,               // 初始行数（原生 rows；同时作为 minRows 缺省值）
-            minRows: 0,            // autosize 最小行数（0 = 取 rows）
-            maxRows: 8,            // autosize 最大行数（0 = 不限高，到顶后内部滚动）
-            autosize: true,        // 自动增高（默认开启；开启时强制 resize:none）
-            resize: "",            // autosize 关闭时的原生拖拽："" 取 vertical ｜ none | vertical | horizontal | both
-            clearable: false,      // 清除钮（值非空且可交互时可见；点击清空 + 派发 input + 焦点回控件）
-            showCount: false,      // 计数显式开关（maxlength > 0 时无需开启即显示「len / max」）
-            // —— 内部状态 ——
-            hasValue: false,       // 当前有值（清除钮可见性驱动）
-            countText: "",         // 计数文本（JS 侧构建——绑定通道对 props 后续注入不重算）
-            countVisible: false,   // 计数可见性（showCount 或 maxlength > 0）
+            value: "",
+            placeholder: "",
+            maxlength: 0,
+            rows: 2,
+            minRows: 0,
+            maxRows: 8,
+            autosize: true,
+            resize: "",
+            clearable: false,
+            showCount: false,
+            hasValue: false,
+            countText: "",
+            countVisible: false,
         }),
         methods: {
-            // 清除：清空原生控件 + 手动派发 input（程序赋值不触发原生事件；冒泡过宿主
-            // 驱动 x-model 回写 state）+ 焦点回控件；阻断冒泡（内部动作件，click 不外泄）
             onClear(event) {
                 event.stopPropagation();
                 if (this.data.disabled || this.data.readonly) return;
@@ -581,19 +454,13 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             },
         },
         mounted() {
-            // —— 内层控件查询（每查现取，家族惯例）——
             const native = () => this.el.querySelector(".asc-textarea-native");
-            // 当前值缓存（劫持 getter 的控件缺位兜底）
             let lastValue = "";
 
-            // —— 自动增高：行高 × 行数夹取，内容超高时转内部滚动 ——
-            // 宽度变化会改变折行数，故除 value 外还经 ResizeObserver 监听宽度
             const autoResize = () => {
                 const n = native();
                 if (!n) return;
                 if (!this.data.autosize) {
-                    // 交还原生拖拽：清内联高度 + 溢出转 auto（基类样式为 autosize
-                    // 场景预设 overflow-y:hidden，关闭后须显式放开，否则内容被裁）
                     n.style.height = "";
                     n.style.overflowY = "auto";
                     return;
@@ -609,21 +476,17 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                     Number(this.data.minRows) || Number(this.data.rows) || 2,
                 );
                 const maxRows = Math.max(0, Number(this.data.maxRows) || 0);
-                // 行高不可读（consumer 把 line-height 设为 normal 等 → parseFloat 得 NaN）
-                // 时放弃行数夹取：只随内容增高，避免 maxHeight 退化成内距高而误裁内容
                 const minHeight = lineHeight > 0 ? lineHeight * minRows + padY + borderY : 0;
                 const maxHeight =
                     lineHeight > 0 && maxRows > 0
                         ? lineHeight * maxRows + padY + borderY
                         : Infinity;
-                n.style.height = "auto"; // 先归零再量内容（scrollHeight 才反映真实内容高）
+                n.style.height = "auto";
                 const contentHeight = n.scrollHeight + borderY;
                 n.style.height = \`\${Math.min(Math.max(contentHeight, minHeight), maxHeight)}px\`;
                 n.style.overflowY = contentHeight > maxHeight ? "auto" : "hidden";
             };
 
-            // —— 计数与清除可见性同步（len 由原生控件现值读出；超限染色的 data-over
-            //     落宿主属性，CSS 通道消费——JS 直写无 T4=B 约束）——
             const syncLen = () => {
                 const n = native();
                 const len = n ? String(n.value ?? "").length : 0;
@@ -634,7 +497,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 this.el.toggleAttribute("data-over", max > 0 && len > max);
             };
 
-            // —— 值同步（外部 → 控件）——
             const syncValue = () => {
                 const n = native();
                 if (n) n.value = lastValue;
@@ -642,8 +504,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 autoResize();
             };
 
-            // —— 原生属性同步（props → 控件；绑定通道对 props 晚注入/后续变化不重算，
-            //     走 JS 通道——button disabled 同款纪律，ADR-0012）——
             const syncAttrs = () => {
                 const n = native();
                 if (!n) return;
@@ -652,27 +512,17 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 if (ml > 0) n.setAttribute("maxlength", String(ml));
                 else n.removeAttribute("maxlength");
                 n.rows = Math.max(1, Number(this.data.rows) || 2);
-                // 表单提交载体：宿主 name 透传到原生控件（原生直提交，ADR-0020）
                 const nameAttr = this.el.getAttribute("name");
                 if (nameAttr != null) n.name = nameAttr;
-                // autosize 与原生拖拽互斥：开启时强制 none，关闭后尊重 resize 属性
                 n.style.resize = this.data.autosize
                     ? "none"
                     : String(this.data.resize) || "vertical";
                 autoResize();
             };
 
-            // —— 值桥（x-model 兼容协议，ADR-0020）：宿主 el.value 劫持 ↔ 内层原生控件 ——
-            // 劫持前快照 expando（x-model 编译期可能已写初值——宿主无原生 value，
-            // 编译期写入落 expando）；无 x-model 时回退 props.value 初值
             const prior = this.el.value;
             if (typeof prior === "string" && prior !== "") lastValue = prior;
             else if (this.data.value != null) lastValue = String(this.data.value);
-            // 快照归一值 + 初始化窗口标志：编译期初值的**重放识别**。scope.refresh 类机制
-            // （如 i18n 插件 ready 的首渲染换血）会以当前 state 重跑 x-model 监听，把编译期
-            // 初值（尤其空串——快照序里是「模型缺席」信号，props 兜底胜出）经劫持 setter 二次
-            // 落盘，覆盖已按快照序裁定的初值归属。初始化窗口（一跳 setTimeout 前）内与快照
-            // 归一值同值的写入即重放，跳过；真实状态变化（值不同）不受影响
             const snapshotNorm = String(prior ?? "");
             let initDone = false;
             Object.defineProperty(this.el, "value", {
@@ -691,7 +541,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 configurable: true,
             });
 
-            // —— 输入跟随（原生 input 冒泡经宿主）：值缓存 / 计数 / 自动增高 ——
             this.el.addEventListener("input", () => {
                 const n = native();
                 if (n) lastValue = n.value;
@@ -699,8 +548,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 autoResize();
             });
 
-            // —— 宽度变化重算（侧栏展开 / 窗口缩放改变折行数；只认宽度变化，避免
-            //     自身写高度触发回环）——
             if (typeof ResizeObserver !== "undefined") {
                 let lastWidth = 0;
                 const ro = new ResizeObserver((entries) => {
@@ -713,19 +560,15 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 if (n) ro.observe(n);
             }
 
-            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）——
             setTimeout(() => {
                 syncAttrs();
                 syncValue();
-                initDone = true; // 初始化完成：劫持 setter 放开重放识别门闩（此后全量生效）
-                // actions 不支持（ADR-0032 修订）：非空注入 warn 一次（渲染段已被
-                // CSS 整段屏蔽，静默忽略——多行形态不提供融合动作）
+                initDone = true;
                 if (Array.isArray(this.data.actions) && this.data.actions.length > 0) {
                     this.engine?.logger?.warn("autospark.textarea: 不支持 actions（ADR-0032 修订，多行形态已取消融合动作），注入已忽略");
                 }
             }, 0);
 
-            // —— props 变化跟随（回调收 { value } 信封对象，此处只用作触发信号）——
             this.watch("placeholder", () => { setTimeout(syncAttrs, 0); });
             this.watch("maxlength", () => { setTimeout(() => { syncAttrs(); syncLen(); }, 0); });
             this.watch("showCount", () => { setTimeout(syncLen, 0); });
@@ -734,10 +577,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             this.watch("maxRows", () => { setTimeout(autoResize, 0); });
             this.watch("autosize", () => { setTimeout(syncAttrs, 0); });
             this.watch("resize", () => { setTimeout(syncAttrs, 0); });
-            // value props 单向同步（非受控/外部受控无 x-model 场景）：变化才写（与自身
-            // 桥写不冲突——guard 防回环）。已见值比对幂等防御（checkbox 同款）：scope.refresh
-            // 类无变化重跑（i18n ready 换血等）不得把 x-model expando 注入的初值打回 props
-            // 缺省空串——先比对已见 props 值，同值跳过
             let lastPropsValue = String(this.data.value ?? "");
             this.watch("value", ({ value }) => {
                 const v = String(value ?? "");
@@ -760,7 +599,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       width: 100%;
     }
 
-    /* ---------- 原生控件裸化：外观由骨架盒饰（.asc-field-box）承载，控件本体透明铺满 ---------- */
     .asc-textarea-native {
       box-sizing: border-box;
       flex: 1 1 auto;
@@ -787,7 +625,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       -webkit-text-fill-color: var(--auto-disable-color, var(--asc-textarea-disable-color, inherit));
     }
 
-    /* ---------- 宿主布局：纵向排布（控件 + 计数浮层 + actions 段），高度随内容放开 ---------- */
     .asc-textarea.asc-field-box {
       position: relative;
       height: auto;
@@ -796,7 +633,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       cursor: text;
     }
 
-    /* ---------- 清除钮：绝对定位右上角（不占文本行宽；控件右侧预留内距避免压字） ---------- */
     .asc-textarea-clear {
       position: absolute;
       top: calc(var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2);
@@ -833,7 +669,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       color: var(--auto-danger-color, var(--asc-textarea-count-over, #ef4444));
     }
 
-    /* 浮层在场时预留内距（:has 驱动，形态与 field 既有 :has 用法一致） */
     .asc-textarea:has(.asc-textarea-clear) .asc-textarea-native {
       padding-inline-end: 1.5em;
     }
@@ -848,7 +683,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       display: none;
     }
 
-    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
     [dark] .asc-textarea-native::placeholder,
     [data-dark] .asc-textarea-native::placeholder {
       color: var(--auto-input-placeholder, var(--asc-textarea-placeholder, rgba(255, 255, 255, 0.4)));
@@ -870,8 +704,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       color: var(--auto-danger-color, var(--asc-textarea-count-over, #e6696a));
     }
   </style>
-  <!-- 默认段（替换 field 出口 fallback）：控件本体 + 功能动作件。计数与清除为浮层
-       （不占文本行宽）；actions 由 field 渲染段承载，位置由上方 CSS 改为控件上 / 下 -->
   <textarea class="asc-textarea-native" data-autospark-control rows="2"></textarea>
   <i
     class="asc-textarea-clear"

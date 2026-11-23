@@ -1,24 +1,7 @@
 (function (AutoSpark) {
     "use strict";
 var run = function (AutoSpark) {
-function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){e.components[`autospark.page-header`]=`<!--
-    autospark.page-header 页头（组件库 P2 导航件，ADR-0018 清单权威表 navigation 行）：
-    title / subtitle 标题对 + back 返回钮 + extra（右侧动作区）/ 默认（内容区）双插槽。
-    纯结构件。
-
-    back 三态：false（缺省）不渲染 / true 图标钮（无文案）/ 文案字符串 = 图标 + 文案。
-    点击派发 back 冒泡事件（detail 空）——组件不执行 history.back / router.back
-    （router 隔离，ADR-0018 决策 6 约定 2，接管动作由消费者 @back 决定）。无 i18n
-    文案：返回钮缺省图标无字，aria-label 以 back 文案或标题自描述（零内置文案的
-    可访问性标注通道，rate 同款惯例）。
-
-    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态
-    绑定不会求值——back 显隐/文案绑定全落在编译子树内层元素上。
--->
-<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
-     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
-     六键）自动获得——字号档位经主题通道全跟随；page-header 不在 data() 声明主题六键 -->
-<div
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){e.components[`autospark.page-header`]=`<div
   class="asc-page-header"
   x-define="autospark.page-header"
   x-define:inherit="autospark.base"
@@ -26,13 +9,11 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   <script setup>
     {
         data: () => ({
-            title: "",    // 页面标题
-            subtitle: "", // 副标题（空不渲染）
-            back: false,  // 返回钮：false 缺省不渲染 | true 图标钮（无文案）| 文案字符串 = 图标 + 文案
+            title: "",
+            subtitle: "",
+            back: false,
         }),
         methods: {
-            // 返回钮点击：派发 back 冒泡事件（detail 空）——接管动作（history.back /
-            // router.back / 自定义）由消费者 @back 决定，组件零副作用
             onBack() {
                 this.el.dispatchEvent(new CustomEvent("back", { bubbles: true }));
             },
@@ -49,7 +30,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       font-size: var(--auto-font-size, var(--asc-page-header-font-size, 0.875rem));
       line-height: var(--auto-line-height, 1.5);
     }
-    /* ---------- 头行：返回钮 + 标题对 + extra（右缘动作区） ---------- */
     .asc-page-header-row {
       display: flex;
       align-items: center;
@@ -94,7 +74,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       outline: none;
       box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--asc-tone) 28%, transparent);
     }
-    /* 返回箭头：内置 arrow 图标指右，旋转 180° 指左 */
     .asc-page-header-back-icon {
       display: inline-flex;
       transform: rotate(180deg);
@@ -102,7 +81,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-page-header-back-text {
       color: var(--auto-secondary-color, var(--asc-page-header-back-color, rgba(0, 0, 0, 0.55)));
     }
-    /* 标题对：标题随档位相对放大，副标题次要色小字（空不占位） */
     .asc-page-header-titles {
       display: flex;
       align-items: baseline;
@@ -114,7 +92,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       margin: 0;
       min-width: 0;
       font-size: 1.375em;
-      font-weight: var(--x-font-weight-large, 600); /* 语义层无标题字重变量，直取基础标尺 */
+      font-weight: var(--x-font-weight-large, 600);
       line-height: 1.3;
       color: var(--auto-color, var(--asc-page-header-title-color, #303133));
     }
@@ -122,7 +100,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       min-width: 0;
       color: var(--auto-secondary-color, var(--asc-page-header-subtitle, rgba(0, 0, 0, 0.55)));
     }
-    /* extra：右侧动作区（推至右缘；空不占位） */
     .asc-page-header-extra {
       display: inline-flex;
       align-items: center;
@@ -132,7 +109,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-page-header-extra:empty {
       display: none;
     }
-    /* ---------- 内容区：默认插槽（空不占位） ---------- */
     .asc-page-header-content {
       padding-top: 0.75em;
     }
@@ -140,7 +116,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       display: none;
     }
 
-    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
     [dark] .asc-page-header,
     [data-dark] .asc-page-header {
       --asc-tone: var(--auto-primary-color, var(--asc-page-header-primary, #56baff));
@@ -169,8 +144,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       color: var(--auto-color, var(--asc-page-header-title-color, #fafafa));
     }
   </style>
-  <!-- back 显隐/文案绑定落内层（根上动态绑定不求值，T4=B）；无 back 时钮不渲染
-         （x-show 隐藏不可见不占位）；aria-label 以 back 文案或标题自描述（零内置文案） -->
   <div class="asc-page-header-row">
     <div class="asc-page-header-main">
       <button
@@ -190,7 +163,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     </div>
     <div class="asc-page-header-extra" x-slot:extra></div>
   </div>
-  <!-- 内容区：默认插槽出口（出口须紧凑书写——:empty 判定） -->
   <div class="asc-page-header-content" x-slot></div>
 </div>
 `}n();function n(){e(e=>{t(e)})}};

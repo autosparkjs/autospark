@@ -45,25 +45,33 @@ export default {
             </div>
         </div>
         <div class="auto-card">
-            <div class="auto-card-header">不同尺寸元素 × 同档阴影（medium）</div>
-            <div class="auto-card-body col">
-                <div class="auto-card-body-item" style="gap:1.5rem;align-items:flex-end;flex-wrap:wrap;padding:1rem 0.5rem;">
-                    <span
-                        style="display:inline-flex;align-items:center;justify-content:center;width:2.5rem;height:2.5rem;border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);box-shadow:var(--x-shadow-medium);font-size:0.7rem;"
-                        >小</span
-                    >
-                    <span
-                        style="display:inline-flex;align-items:center;justify-content:center;width:5rem;height:4rem;border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);box-shadow:var(--x-shadow-medium);font-size:0.75rem;"
-                        >中</span
-                    >
-                    <span
-                        style="display:inline-flex;align-items:center;justify-content:center;width:9rem;height:5.5rem;border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);box-shadow:var(--x-shadow-medium);font-size:0.8rem;"
-                        >大</span
-                    >
-                </div>
+            <div class="auto-card-header">不同尺寸元素 × 各档阴影（none + 五档全矩阵）</div>
+            <div class="auto-card-body col" style="gap:0.9rem;">
+                ${repeat(
+        SHADOWS,
+        (level) => html`
+                            <div style="display:flex;gap:1.2rem;align-items:flex-end;flex-wrap:wrap;padding:0.3rem 0.5rem;">
+                                <code style="width:4.5rem;font-size:0.7rem;color:var(--auto-third-color);align-self:center;">${level}</code>
+                                <span
+                                    style="display:inline-flex;align-items:center;justify-content:center;width:2.5rem;height:2.5rem;border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);box-shadow:var(--x-shadow-${level});font-size:0.7rem;"
+                                    >小</span
+                                >
+                                <span
+                                    style="display:inline-flex;align-items:center;justify-content:center;width:5rem;height:4rem;border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);box-shadow:var(--x-shadow-${level});font-size:0.75rem;"
+                                    >中</span
+                                >
+                                <span
+                                    style="display:inline-flex;align-items:center;justify-content:center;width:9rem;height:5.5rem;border-radius:var(--auto-border-radius);background:var(--auto-bgcolor);box-shadow:var(--x-shadow-${level});font-size:0.8rem;"
+                                    >大</span
+                                >
+                            </div>
+                        `,
+    )}
                 <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
-                    同一档阴影在不同尺寸元素上层次感不同：小元素阴影相对更显「浮起」，大元素更显沉稳——
-                    小控件可选 <code>x-small/small</code>，大面积浮层（弹窗/抽屉）可选 <code>large/x-large</code>。
+                    每行同档阴影、三档元素尺寸：小元素上 <code>x-small</code> 与 <code>small</code>
+                    差异微弱、<code>large</code> 已显「浮起」；大元素（9rem）上才撑得开
+                    <code>large / x-large</code> 的扩散——小控件可选 <code>x-small/small</code>，
+                    大面积浮层（弹窗/抽屉）可选 <code>large/x-large</code>。
                 </p>
             </div>
         </div>

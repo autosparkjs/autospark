@@ -1,33 +1,3 @@
-<!--
-    autospark.date-picker 日期选择器（ADR-0025）——触发器组件：Field 盒饰形态
-    （.asc-field-box，input/select 同款 chrome）+ 选中值展示 + 日历图标。日历面板
-    不自建弹层，复用 x-popover 指令机制呈现（trigger:click 形态——点击切换 / 面板
-    外点击 / ESC 关闭均机制继承，ADR-0060）：内层触发器元素即 popover 宿主，面板组件
-    autospark-date-picker-panel（同插件注册，panel.html）渲染进 body 覆盖物容器；
-    日历面板宽度由内容自定（不用 fit——触发器常窄于面板，bottom-start 左对齐）。
-
-    面板 ↔ 触发器通信走 scope 链（零 DOM 事件、零 uid 配对）：面板经聚合视图沿链读写
-    本组件 data 域——读 days/weekdayLabels/headerText/activeValue 等呈现，写哨兵键
-    （pickTick/pickValue 日格点击与今天快捷、monthTick/monthDelta 月份切换）回传交互；
-    面板 mounted/unmounted 沿链写 open 开合态（图标染色 / aria-expanded / 视图归位）。
-
-    值桥（x-model 兼容协议，"YYYY-MM-DD" 字符串语域，对齐 ADR-0020/0022）：宿主
-    el.value 劫持 ↔ data.value；选中 / 清除路径手动派发 input（非冒泡，x-model 宿主
-    监听回写 state）+ change（冒泡，detail = { value }，外层消费）；内嵌
-    input[type=hidden] 表单载体（name 透传，原生直提交）。
-
-    键盘（触发器焦点，按简实现）：Left/Right/Up/Down 日间漫游（±1/±7 天，Date 滚动
-    自然跨月——越月时视图跟随）/ PageUp/PageDown 切月 / Enter 确认（未开先开）/
-    ESC 与 Tab 不拦截（ESC 归 popover 打开栈——机制继承；Tab 自然移焦）。
-
-    i18n 四键（ADR-0025 键设计：词典数组值 = 复数模式，列表类文案用单键逗号串）：
-    date-picker.placeholder（占位）/ weekdays（星期表头，逗号串 split）/
-    month-format（"{y}年{m}月" 插值）/ today（今天快捷钮）——未装 i18n 或无键时
-    回退硬编码中文；语言切换以下次开面板生效为界（syncOpen 重算）。
--->
-<!-- 根 class 拼接进骨架宿主（.asc-field + .asc-date-picker + .asc-field-box 盒饰选配，
-     ADR-0020 消费契约）；data-open / data-has-value 由 mounted JS 通道同步，根上无
-     动态绑定（T4=B） -->
 <span
   class="asc-date-picker asc-field-box"
   x-define="autospark.date-picker"
@@ -36,40 +6,35 @@
   <script setup>
     {
         data: () => ({
-            value: "",       // 当前值（"YYYY-MM-DD" 字符串语域，""=空；受控真相走宿主 x-model——el.value 桥）
-            placeholder: "", // 占位文案（空时走 i18n 词典 date-picker.placeholder 键，回退「请选择日期」）
-            clearable: false, // 清除钮（有值且可交互时可见：清空 + input/change 双派发 + 焦点回触发器）
-            name: "",        // 表单载体名（元素名写法下 name 属性折叠为 props——与宿主属性双通道，mounted 合取）
-            // —— 内部状态（JS 通道维护——绑定通道对 props 晚注入不重算，家族纪律）——
-            hasValue: false,       // 当前有值（清除钮可见性 / 占位切换）
-            open: false,           // 面板开合态（面板 mounted/unmounted 沿链写回；图标染色/aria/视图归位驱动）
-            viewYear: 0,           // 日历视图年（打开时归位到值所在月，无值落当月）
-            viewMonth: 0,          // 日历视图月（0 基，Date 语义）
-            days: [],              // 日格数据（42 格扁平数组——单层 x-for 规避嵌套 x-for 晚一跳边界；CSS grid 七列自然分行）
-            weekdayLabels: [],     // 星期表头（i18n date-picker.weekdays 逗号串 split 产物）
-            headerText: "",        // 年月标题（i18n date-picker.month-format 插值产物）
-            todayValue: "",        // 今天快捷钮携带值（"YYYY-MM-DD"，mounted/on open 重算）
-            todayText: "今天",     // 今天快捷钮文案（i18n date-picker.today）
-            activeValue: "",       // 键盘高亮日（"YYYY-MM-DD" 字符串通道——免疫日格数组重建，面板 :data-active 比较基准）
-            pickTick: 0,           // 选中哨兵（日格点击/今天快捷钮写：自增必变免疫同值去重；触发本组件选中流程）
-            pickValue: null,       // 选中哨兵携带值
-            monthTick: 0,          // 月份切换哨兵（面板前后钮写——面板模板不能跨组件边界调本组件方法，ADR-0022 决策 3）
-            monthDelta: 0,         // 月份切换方向（1 下月 / -1 上月）
+            value: "",
+            placeholder: "",
+            clearable: false,
+            name: "",
+            hasValue: false,
+            open: false,
+            viewYear: 0,
+            viewMonth: 0,
+            days: [],
+            weekdayLabels: [],
+            headerText: "",
+            todayValue: "",
+            todayText: "今天",
+            activeValue: "",
+            pickTick: 0,
+            pickValue: null,
+            monthTick: 0,
+            monthDelta: 0,
         }),
         methods: {
-            // 触发器元素（popover 宿主 / 焦点受让者；每查现取不缓存，家族惯用法）
             triggerEl() {
                 return this.el.querySelector(".asc-date-picker-trigger");
             },
-            // 表单载体（hidden input；每查现取）
             carrierEl() {
                 return this.el.querySelector(".asc-date-picker-carrier");
             },
-            // 两位补零（时/分/日格式化）
             pad2(n) {
                 return String(n).padStart(2, "0");
             },
-            // "YYYY-MM-DD" 解析（月 0 基对齐 Date；非法形态回 null）
             parseYmd(s) {
                 if (typeof s !== "string") return null;
                 const p = s.split("-");
@@ -79,13 +44,9 @@
                 if (m < 0 || m > 11 || d < 1 || d > 31) return null;
                 return { y: y, m: m, d: d };
             },
-            // 年月日 → "YYYY-MM-DD"
             fmtYmd(y, m, d) {
                 return y + "-" + this.pad2(m + 1) + "-" + this.pad2(d);
             },
-            // i18n 词典查询（模板表达式的 t 经 engine.translate 槽同源，methods 内无注入
-            //     标识符——经 this.engine 直达槽；恒等兜底（未装 i18n / 词典无键）回退
-            //     硬编码中文，pagination 模板表达式同款判定纪律）
             tOr(key, fallback, namedArgs) {
                 try {
                     const engine = this.engine;
@@ -98,8 +59,6 @@
                 } catch (e) { /* 查表异常回退 */ }
                 return fallback;
             },
-            // 本地文案重算（星期表头/今天钮/今天值；mounted 与每次开面板时调用——语言
-            //     切换的刷新边界：下次开面板生效，ADR-0025）
             refreshLocale() {
                 const wd = this.tOr("date-picker.weekdays", "日,一,二,三,四,五,六");
                 this.data.weekdayLabels = String(wd).split(",");
@@ -107,8 +66,6 @@
                 const n = new Date();
                 this.data.todayValue = this.fmtYmd(n.getFullYear(), n.getMonth(), n.getDate());
             },
-            // 日历重建：42 格（周日起始——weekdayLabels[0] 恒为周日）+ 年月标题；
-            //     viewYear/viewMonth/value 变化时经 watch 收口到这里
             rebuild() {
                 const y = this.data.viewYear, m = this.data.viewMonth;
                 if (!Number.isFinite(y) || !Number.isFinite(m) || m < 0 || m > 11) return;
@@ -128,7 +85,6 @@
                     { y: y, m: m + 1 },
                 );
             },
-            // 选中呈现同步（JS 通道：值即展示——缺省格式 value 直出，无 label 解析层）
             syncValue() {
                 const has = this.data.value != null && this.data.value !== "";
                 this.data.hasValue = has;
@@ -138,8 +94,6 @@
                     c.disabled = !!this.data.disabled;
                 }
             },
-            // 开合态副作用：aria-expanded / data-open 同步（JS 直写无 T4=B 约束）+
-            //     打开时视图归位（值所在月，无值落当月）+ 高亮落值（无值落今天）+ 文案重算
             syncOpen() {
                 const on = !!this.data.open;
                 this.el.toggleAttribute("data-open", on);
@@ -156,7 +110,6 @@
                     this.rebuild();
                 }
             },
-            // 可交互同步：禁用时触发器退出焦点序（tabindex -1）+ 载体出表 + 关面板
             syncInteractive() {
                 const t = this.triggerEl();
                 if (t) t.tabIndex = this.data.disabled ? -1 : 0;
@@ -164,29 +117,20 @@
                 if (c) c.disabled = !!this.data.disabled;
                 if (this.data.disabled && this.data.open) this.closePanel();
             },
-            // 值变更出口（选中/清除共用）：input 非冒泡（x-model 监听在宿主自身，
-            //     checkbox/switch/select 同款）+ change 冒泡 detail={value}（外层消费）
             emitChange() {
                 this.el.dispatchEvent(new Event("input", { bubbles: false }));
                 this.el.dispatchEvent(
                     new CustomEvent("change", { bubbles: true, detail: { value: this.data.value } }),
                 );
             },
-            // 开面板：程序化派发点击（popover click 触发模型 toggle；readonly 可开浏览
-            //     但选中被 pick guard 阻断——只读可见可选不了，文档已声明）
             openPanel() {
                 if (this.data.disabled) return;
                 this.triggerEl()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
             },
-            // 关面板：程序化派发点击走 popover 自有 toggle 通道（「再点宿主关闭」——与
-            //     用户操作同一关闭路径；声明式 x-popover 面板不入 overlay 实例注册表，
-            //     命令式 close 对指令面板无效，ADR-0022 同款绕行）。open 守卫防已关态
-            //     误开（toggle 语义）；overlay 插件缺席时 open 恒 false 自然跳过
             closePanel() {
                 if (!this.data.open) return;
                 this.triggerEl()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
             },
-            // 月份切换（面板前后钮哨兵 / PageUp/PageDown）：年 rollover（12 月→次年 1 月）
             shiftMonth(delta) {
                 let y = this.data.viewYear, m = this.data.viewMonth + (delta > 0 ? 1 : -1);
                 if (m > 11) { y += 1; m = 0; }
@@ -195,8 +139,6 @@
                 this.data.viewMonth = m;
                 this.rebuild();
             },
-            // 键盘日间漫游（deltaDays = ±1 水平 / ±7 垂直）：Date 滚动自然跨月——
-            //     越月时视图跟随切换（重开面板时 syncOpen 也会按值归位）
             moveActive(deltaDays) {
                 const cur = this.parseYmd(this.data.activeValue) || this.parseYmd(this.data.todayValue);
                 if (!cur) return;
@@ -209,12 +151,9 @@
                 this.data.activeValue = this.fmtYmd(vy, vm, t.getDate());
                 this.rebuild();
             },
-            // Enter 确认当前高亮日
             confirmActive() {
                 if (this.data.activeValue) this.pick(this.data.activeValue);
             },
-            // 选中流程（日格哨兵 / 今天快捷 / 触发器键盘汇聚点）：禁用与只读阻断；同值
-            //     仅关面板；写值 + 双派发 + 视图随选中月 + 关面板 + 焦点回触发器
             pick(v) {
                 if (this.data.disabled || this.data.readonly) return;
                 if (typeof v !== "string" || v === "") return;
@@ -231,9 +170,6 @@
                 this.closePanel();
                 this.triggerEl()?.focus();
             },
-            // 清除（内部动作件，点击不转发焦点）：清空 + 双派发 + 焦点回触发器 +
-            //     阻断冒泡（防途经触发器 popover 宿主引发 toggle 开面板）；字符串空语域
-            //     detail={value:""}（select 的 null 语域分叉声明，ADR-0025）
             onClear(event) {
                 event.stopPropagation();
                 if (this.data.disabled || this.data.readonly) return;
@@ -243,8 +179,6 @@
                 this.emitChange();
                 this.triggerEl()?.focus();
             },
-            // 触发器键盘导航（按简）：方向键漫游（未开先开）/ PageUp/PageDown 切月 /
-            //     Enter 确认（未开先开）/ ESC 与 Tab 不拦截
             onTriggerKeydown(event) {
                 if (this.data.disabled) return;
                 const k = event.key;
@@ -264,10 +198,6 @@
             },
         },
         mounted() {
-            // —— 值桥（x-model 兼容协议，ADR-0025 对齐 ADR-0020/0022）：宿主 el.value
-            //     劫持——劫持前快照 expando（x-model 编译期可能已写初值）；无 x-model 时
-            //     回退 props.value 初值（快照序：expando > props.value）；setter 等值守卫
-            //     防 x-model 回写环（guard 值经闭包持有——watch 侧同步维护）
             const prior = this.el.value;
             let lastValue = undefined;
             if (prior !== undefined && prior !== null && prior !== "") lastValue = prior;
@@ -289,10 +219,6 @@
             });
             if (lastValue !== undefined) this.data.value = lastValue;
 
-            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）：布尔 props
-            //     元素名写法归一（裸属性折叠为空串——"" → true 的 HTML presence 语义，
-            //     ADR-0025；="true"/"false" 与 :绑定 形态不受影响）+ 载体 name 双通道
-            //     （元素名写法下 name 折叠为 props，值对象写法下留宿主属性）+ 全量首同步
             setTimeout(() => {
                 if (this.data.clearable === "") this.data.clearable = true;
                 if (this.data.disabled === "") this.data.disabled = true;
@@ -315,22 +241,17 @@
                 this.syncInteractive();
             }, 0);
 
-            // —— props / 哨兵 / 内部状态跟随（回调收 { value } 信封对象，此处只用作
-            //     触发信号，家族惯用法）——
             this.watch("value", () => { lastValue = this.data.value; this.syncValue(); });
             this.watch("viewYear", () => this.rebuild());
             this.watch("viewMonth", () => this.rebuild());
             this.watch("open", () => this.syncOpen());
             this.watch("disabled", () => setTimeout(() => this.syncInteractive(), 0));
-            // 面板哨兵：选中（pickTick——日格点击/今天快捷）/ 月份切换（monthTick——
-            //     面板模板不能跨组件边界调本组件方法，经哨兵键沿链写回，ADR-0022 决策 3）
             this.watch("pickTick", () => { this.pick(this.data.pickValue); });
             this.watch("monthTick", () => { this.shiftMonth(Number(this.data.monthDelta) || 1); });
         },
     }
   </script>
   <style global id="autospark-components-date-picker">
-    /* ---------- 触发器：盒饰 chrome 由 .asc-field-box 承载（input/select 同款），光标手型 ---------- */
     .asc-date-picker {
       cursor: pointer;
     }
@@ -343,7 +264,6 @@
     .asc-date-picker[data-disabled] .asc-date-picker-trigger {
       pointer-events: none;
     }
-    /* 只读：光标归正文（面板可开浏览，选中被 pick guard 阻断） */
     .asc-date-picker[data-readonly] {
       cursor: default;
     }
@@ -363,7 +283,6 @@
       align-self: stretch;
       outline: none;
     }
-    /* 选中值展示：占位与值两态（x-if 切换），占位走次要淡化色 */
     .asc-date-picker-value {
       flex: 1 1 auto;
       min-width: 0;
@@ -381,7 +300,6 @@
       color: var(--auto-input-placeholder, var(--asc-date-picker-placeholder, rgba(0, 0, 0, 0.35)));
     }
 
-    /* ---------- 尾部动作件：清除钮（内部交互件，不转发焦点）与日历图标 ---------- */
     .asc-date-picker-clear {
       flex: none;
       display: inline-flex;
@@ -399,7 +317,6 @@
     .asc-date-picker-clear:active {
       transform: scale(0.92);
     }
-    /* 日历图标：开面板染 tone（不旋转——日历造型旋转语义弱，与 select 箭头旋转分叉） */
     .asc-date-picker-icon {
       flex: none;
       display: inline-flex;
@@ -413,7 +330,6 @@
       color: var(--asc-field-tone, var(--auto-primary-color, var(--asc-date-picker-primary, #009aff)));
     }
 
-    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
     [dark] .asc-date-picker-value,
     [data-dark] .asc-date-picker-value {
       color: var(--auto-color, var(--asc-date-picker-color, #fafafa));
@@ -445,7 +361,6 @@
       line-height: var(--auto-line-height, var(--asc-date-picker-panel-line-height, 1.4));
       color: var(--auto-color, var(--asc-date-picker-panel-color, #333333));
     }
-    /* 头部：月份导航（内置 arrow 图标，上月在旋 180°）+ 年月标题居中 */
     .asc-date-picker-header {
       display: flex;
       align-items: center;
@@ -476,7 +391,6 @@
       font-weight: var(--auto-font-weight, var(--asc-date-picker-title-weight, 500));
       color: var(--auto-color, var(--asc-date-picker-title, #333333));
     }
-    /* 星期表头：七列行（与日格同列宽——固定 em 轨道，面板宽度由内容定形），辅助色 */
     .asc-date-picker-weekdays {
       display: grid;
       grid-template-columns: repeat(7, 2.4em);
@@ -512,11 +426,9 @@
     .asc-date-picker-day:hover {
       background: color-mix(in srgb, var(--asc-tone) 10%, transparent);
     }
-    /* 键盘高亮：tone 描边环（与 hover 同源派生） */
     .asc-date-picker-day[data-active] {
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--asc-tone) 45%, transparent);
     }
-    /* 选中：实底 tone + 白字（语义色底上的白字是恒定设计，非变量映射） */
     .asc-date-picker-day[data-selected] {
       background: var(--asc-tone);
       color: var(--asc-date-picker-day-selected-ink, #ffffff);
@@ -524,7 +436,6 @@
     .asc-date-picker-day[data-selected]:hover {
       background: var(--asc-tone);
     }
-    /* 今天：tone 文字 + 描边环标记（与选中可叠加——选中态优先实底，今天环让位内衬线） */
     .asc-date-picker-day[data-today] {
       color: var(--asc-tone);
       font-weight: var(--auto-font-weight, var(--asc-date-picker-today-weight, 500));
@@ -535,7 +446,6 @@
     .asc-date-picker-day[data-today][data-selected] {
       color: var(--asc-date-picker-day-selected-ink, #ffffff);
     }
-    /* 邻月格：淡化（可点击漫游过去——哨兵携带完整日期值，选中后视图随值归位） */
     .asc-date-picker-day[data-out] {
       color: var(--auto-third-color, var(--asc-date-picker-day-out, rgba(0, 0, 0, 0.28)));
     }
@@ -546,7 +456,6 @@
     .asc-date-picker-day[data-out][data-today] {
       color: var(--asc-tone);
     }
-    /* 底部：今天快捷钮（文本钮，tone 文字） */
     .asc-date-picker-footer {
       display: flex;
       justify-content: center;
@@ -568,7 +477,6 @@
     .asc-date-picker-today:hover {
       background: color-mix(in srgb, var(--asc-tone) 10%, transparent);
     }
-    /* 面板暗色兜底变体：兜底字面值切换（shell 边框/底色/阴影已由 popover-shell 暗色块覆盖） */
     [dark] .asc-date-picker-panel,
     [data-dark] .asc-date-picker-panel {
       --asc-tone: var(--auto-primary-color, var(--asc-date-picker-primary, #56baff));
@@ -594,10 +502,6 @@
       border-top-color: var(--auto-border-color, var(--asc-date-picker-footer-border, #52525b));
     }
   </style>
-  <!-- 默认段（替换 field 出口 fallback）：表单载体（hidden——提交值载体，禁用
-         出表由 JS 同步）+ 触发器（popover 宿主 / 焦点受让者 / combobox 语义）+
-         清除钮（动作件）+ 日历图标。文案走 props 与 i18n 词典（继承形态嵌套插槽出口
-         被忽略，ADR-0056——不开真插槽，select 同款边界） -->
   <input type="hidden" class="asc-date-picker-carrier" />
   <span
     class="asc-date-picker-trigger"

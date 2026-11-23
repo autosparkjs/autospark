@@ -120,9 +120,10 @@ export default {
                     )}
                 </div>
                 <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
-                    三档分别引用文字标尺的 <code>color-1 / color-3 / color-4</code> 档（light 下
-                    #3B3B3B / #6D6D6D / #959595，档距均匀）：逐档变浅，
-                    dark 与多彩模式下随 <code>--x-color-*</code> 标尺整体换值，但「主要 &gt; 次要 &gt; 辅助」的层级恒成立——
+                    三档为同源浓度阶梯（均派生自 <code>color-1</code>：实色 / 70% / 40% 不透明，
+                    light 下 ≈#3B3B3B / #767676 / #AFAFAF）：逐档变浅，
+                    dark 与多彩模式下随 <code>--x-color-*</code> 标尺整体换值（dark 次要文字为
+                    彩底可读性另有浓度覆盖，见 <code>darkDerivedVars</code>），但「主要 &gt; 次要 &gt; 辅助」的层级恒成立——
                     在右侧面板切换暗色 / 多彩观察三档联动。
                 </p>
             </div>

@@ -1,6 +1,6 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>Button · 菜单形态</title>
     <link rel="stylesheet" href="/autospark/autospark-theme.css" />
@@ -8,22 +8,25 @@
     <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
     <script src="/autospark/autospark.button.js?v=20261114"></script>
+    <script src="/autospark/autospark.tooltip.js"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
     <style>
-        .menu-box {
-            width: 230px;
-            border: var(--auto-border, 1px solid rgba(128, 128, 128, 0.3));
-            border-radius: 8px;
-            padding: 6px;
-        }
+      .menu-box {
+        width: 230px;
+        border: var(--auto-border, 1px solid rgba(128, 128, 128, 0.3));
+        border-radius: 8px;
+        padding: 6px;
+      }
     </style>
-</head>
-<body>
-    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+  </head>
+  <body>
+    <aside class="demo-panel">
+      <theme-controls groups="color,mode"></theme-controls>
+    </aside>
     <main
-        class="demo-main"
-        x-data="{
+      class="demo-main"
+      x-data="{
             pickedMenu: false,
             docTags: [
                 { name: 'pin', icon: 'star', checkable: true, value: true, tooltip: '置顶' },
@@ -36,39 +39,108 @@
             lastTag: '（未点击）'
         }"
     >
-        <div class="auto-card">
-            <div class="auto-card-header">菜单项形态（menu）：占满宽、透明底、左对齐、hover 淡底</div>
-            <div class="auto-card-body" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
-                <div class="menu-box">
-                    <x-button menu="true" icon="folder-open" label="打开文件"></x-button>
-                    <x-button menu="true" icon="copy" label="复制副本"></x-button>
-                    <x-button menu="true" icon="external" label="在浏览器打开"></x-button>
-                </div>
-                <div class="menu-box">
-                    <x-button block="true" menu="true" icon="refresh" label="自动保存" memo="每隔 5 分钟自动保存草稿至本地"></x-button>
-                    <x-button block="true" menu="true" icon="bell" label="变更通知" memo="文件被他人编辑时即时提醒，可在偏好设置中按事件类型细分管道"></x-button>
-                    <p class="hint" style="margin-top:6px;">menu + memo：副文本在 label 下方（两行截断），图标取 2 倍尺寸与文本块垂直居中。</p>
-                </div>
-                <div class="menu-box">
-                    <span @change="pickedMenu = $event.detail.value">
-                        <x-button menu="true" checkable="true" :value="pickedMenu" icon="star" label="收藏夹"></x-button>
-                    </span>
-                    <span>pickedMenu = <b>{{ pickedMenu }}</b></span>
-                    <p class="hint" style="margin-top:6px;">menu + checkable：勾选态呈左竖条 + 淡色底（消费 --auto-selected-* 变量）。</p>
-                </div>
-                <div class="menu-box" style="width:300px;">
-                    <span @tag-click="lastTag = $event.detail.name + ': ' + JSON.stringify($event.detail.value)">
-                        <x-button menu="true" icon="file" label="季度报告.docx" :tags="docTags"></x-button>
-                        <x-button menu="true" icon="image" label="封面设计稿.png" :tags="imgTags"></x-button>
-                    </span>
-                    <p class="hint" style="margin-top:6px;">最近点击 tag：<b>{{ lastTag }}</b></p>
-                    <p class="hint">menu + tags：菜单项右端的小圆钮 / 胶囊标签，点击冒泡 <code>tag-click</code>（不触发菜单项自身）；tag 级 <code>checkable</code> 亦可切换并写回外部状态。</p>
-                </div>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          菜单项形态（menu）：占满宽、透明底、左对齐、hover 淡底
         </div>
+        <div
+          class="auto-card-body"
+          style="
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+          "
+        >
+          <div class="menu-box">
+            <x-button
+              menu="true"
+              icon="folder-open"
+              label="打开文件"
+              tooltip="在本地打开文件"
+            ></x-button>
+            <x-button menu="true" icon="copy" label="复制副本"></x-button>
+            <x-button
+              menu="true"
+              icon="external"
+              label="在浏览器打开"
+            ></x-button>
+            <x-button
+              menu="true"
+              icon="external"
+              label="在浏览器打开"
+              caret="right"
+            ></x-button>
+          </div>
+          <div class="menu-box">
+            <x-button
+              block="true"
+              menu="true"
+              icon="refresh"
+              label="自动保存"
+              memo="每隔 5 分钟自动保存草稿至本地"
+            ></x-button>
+            <x-button
+              block="true"
+              menu="true"
+              icon="bell"
+              label="变更通知"
+              memo="文件被他人编辑时即时提醒，可在偏好设置中按事件类型细分管道"
+              :tags="[{ name: 'save', icon: 'edit',value: { id: 7 }, tooltip: '保存草稿' }]"
+              caret="right"
+            ></x-button>
+            <p class="hint" style="margin-top: 6px">
+              menu + memo：副文本在 label 下方（两行截断），图标取 2
+              倍尺寸与文本块垂直居中。
+            </p>
+          </div>
+          <div class="menu-box">
+            <span @change="pickedMenu = $event.detail.value">
+              <x-button
+                menu="true"
+                checkable="true"
+                :value="pickedMenu"
+                icon="star"
+                label="收藏夹"
+              ></x-button>
+            </span>
+            <span>pickedMenu = <b>{{ pickedMenu }}</b></span>
+            <p class="hint" style="margin-top: 6px">
+              menu + checkable：勾选态呈左竖条 + 淡色底（消费 --auto-selected-*
+              变量）。
+            </p>
+          </div>
+          <div class="menu-box" style="width: 300px">
+            <span
+              @tag-click="lastTag = $event.detail.name + ': ' + JSON.stringify($event.detail.value)"
+            >
+              <x-button
+                menu="true"
+                icon="file"
+                label="季度报告.docx"
+                :tags="docTags"
+              ></x-button>
+              <x-button
+                menu="true"
+                icon="image"
+                label="封面设计稿.png"
+                :tags="imgTags"
+              ></x-button>
+            </span>
+            <p class="hint" style="margin-top: 6px">
+              最近点击 tag：<b>{{ lastTag }}</b>
+            </p>
+            <p class="hint">
+              menu + tags：菜单项右端的小圆钮 / 胶囊标签，点击冒泡
+              <code>tag-click</code>（不触发菜单项自身）；tag 级
+              <code>checkable</code> 亦可切换并写回外部状态。
+            </p>
+          </div>
+        </div>
+      </div>
     </main>
     <script>
-        new AutoSpark(document.querySelector(".demo-main"), {});
+      new AutoSpark(document.querySelector(".demo-main"), {});
     </script>
-</body>
+  </body>
 </html>

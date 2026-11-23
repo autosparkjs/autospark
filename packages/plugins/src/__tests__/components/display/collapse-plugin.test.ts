@@ -41,12 +41,11 @@ describe("注册面（组件形态官方样板）", () => {
         expect((AutoSpark as { components: Record<string, string> }).components[COLLAPSE_NAME]).toBe(before);
     });
 
-    test("面板开合自实现 CSS 高度过渡（x-foldable 行内溢出折叠语义不适配的取舍声明在场）", () => {
+    test("面板开合自实现 CSS 高度过渡（grid-rows 收张动画）", () => {
         const t = tpl();
         expect(t).toContain("grid-template-rows: 0fr");
         expect(t).toContain("grid-template-rows: 1fr");
         expect(t).toContain(".asc-collapse-item[data-open] > .asc-collapse-content");
-        expect(t).toContain("x-foldable"); // 边界声明注释在场（取舍理由）
     });
 });
 

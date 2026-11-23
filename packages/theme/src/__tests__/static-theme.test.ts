@@ -24,10 +24,10 @@ import {
 const defaultOptions: StaticFingerprintOptions = {
     themeColor: "blue",
     primary: "var(--auto-theme-color)",
-    success: "#22c55e",
-    warning: "#f59e0b",
-    danger: "#ef4444",
-    info: "#71717a",
+    success: "#1A7F37",
+    warning: "#9A6700",
+    danger: "#CF222E",
+    info: "#0969DA",
 };
 
 /**
@@ -72,15 +72,15 @@ describe("指纹匹配纯函数", () => {
 
     test("预设名与归一化 hex 等价（大小写不敏感）", () => {
         expect(
-            matchStaticFingerprint(token, { ...defaultOptions, themeColor: "#1677FF" }),
+            matchStaticFingerprint(token, { ...defaultOptions, themeColor: "#0078D4" }),
         ).toBe(true);
         expect(
-            matchStaticFingerprint(buildStaticFingerprint({ ...defaultOptions, themeColor: "#1677ff" }), {
+            matchStaticFingerprint(buildStaticFingerprint({ ...defaultOptions, themeColor: "#0078d4" }), {
                 ...defaultOptions,
                 themeColor: "blue",
             }),
         ).toBe(true);
-        expect(resolveThemeHex("blue")).toBe("#1677ff");
+        expect(resolveThemeHex("blue")).toBe("#0078d4");
     });
 
     test("主题色不一致即失配", () => {
@@ -138,7 +138,7 @@ describe("指纹匹配纯函数", () => {
 
     test("浏览器替换后的大写 hex 与期望端小写归一匹配（标尺 hex 为大写）", () => {
         // 模拟 getComputedStyle 读回：主题色字段被浏览器原样保留大写写法
-        const browserToken = token.replace("#1677ff", "#1677FF");
+        const browserToken = token.replace("#0078d4", "#0078D4");
         expect(matchStaticFingerprint(browserToken, defaultOptions)).toBe(true);
     });
 
@@ -251,8 +251,8 @@ describe("维度烘焙守卫块（ADR-0005）", () => {
         );
         const guard = css.slice(css.indexOf("baked defaults"));
         expect(guard).toContain("color-scheme: dark");
-        // darkColorVars 反序灰（!important 原样保留）
-        expect(guard).toContain("--x-plain-color-0:var(--x-color-gray-0) !important");
+        // darkColorVars 反序灰（!important 原样保留；暗灰阶引用 dgray）
+        expect(guard).toContain("--x-plain-color-0:var(--x-color-dgray-0) !important");
         // darkShadowVars 的暗配方基量在，自举键 --auto-shadow 被剔除（让位 size 守卫）
         expect(guard).toContain("--x-shadow-medium:0 2px 4px hsl(0 0% 0% / 50%)");
         expect(guard).not.toContain("--auto-shadow");

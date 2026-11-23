@@ -1,36 +1,3 @@
-<!--
-    autospark.textarea 多行文本框（ADR-0032）——原生增强路线：真实原生 <textarea>
-    + 样式包裹，不自绘输入面（保原生可访问性：键盘 / IME / 自动填充 / 移动端兼容，
-    ADR-0018 决策 7）。继承 autospark.field 表单域骨架（状态色通道 / 焦点态 /
-    disabled 同步 / 盒饰 chrome，ADR-0020），本组件专注多行控件本身。
-
-    与 autospark.input 的分工（ADR-0032 推翻 ADR-0020 决策 4「textarea 是 type 变体」）：
-    多行能力独立成件，input 不再内置 textarea 形态。两者共享表单域骨架与主题令牌，
-    但控件实现、样式细节、测试各自持有——值桥 / 计数 / 清除逻辑按「复制而非嵌套」
-    先例在组件内自持（ADR-0021 方法论），避免 textarea → input 的依赖链与单行专属
-    逻辑渗透。
-
-    autosize（默认开启）：控件高度随内容自动增长，minRows（缺省取 rows）/ maxRows
-    （默认 8，0 = 不限高）夹取，到顶后内部滚动；宽度变化经 ResizeObserver 重算。
-    autosize 开启时强制 resize:none；关闭后尊重 resize 属性（缺省 vertical）。
-
-    值通道（x-model 兼容协议，ADR-0020）：宿主 el.value 劫持 ↔ 内层原生控件——
-    宿主为包裹层元素（无原生 value），x-model 写读都落劫持位；内层原生 textarea 的
-    input 事件自然冒泡过宿主，x-model 监听直接命中。value props 为非受控初值 /
-    单向同步（受控真相走 x-model）。
-
-    表单提交（ADR-0020）：宿主 name 透传到内层原生 textarea——原生直提交。
-
-    事件出口（组件默认封闭，原生事件经冒泡到外层消费）：
-    - input / change：内层原生控件事件自然冒泡（x-model 与外层 @input/@change 直接消费）
-    - 清除为内部动作件（data-autospark-action，点击不转发焦点），不派发自定义事件
-
-    装饰面（ADR-0032）：不提供 prefix / suffix（单行 affix 习惯，多行盒内布局成本高）；
-    actions 由 field 骨架继承，但本组件把融合按钮段由横向改排到控件上方 / 下方
-    （pos: before 在上、after 在下），不与文本抢行宽。
--->
-<!-- 根 class 拼接进骨架宿主（.asc-field + .asc-textarea + .asc-field-box 盒饰）；
-     状态属性经 mounted 的 JS 通道同步（data-over），根上无动态绑定（T4=B） -->
 <span
   class="asc-textarea asc-field-box"
   x-define="autospark.textarea"
@@ -39,24 +6,21 @@
   <script setup>
     {
         data: () => ({
-            value: "",             // 非受控初值 / 单向同步值（受控真相走宿主 x-model——el.value 桥）
-            placeholder: "",       // 占位文案（同步原生 placeholder）
-            maxlength: 0,          // >0 同步原生 maxlength（原生输入截断）+ 计数分母（自动显示计数）
-            rows: 2,               // 初始行数（原生 rows；同时作为 minRows 缺省值）
-            minRows: 0,            // autosize 最小行数（0 = 取 rows）
-            maxRows: 8,            // autosize 最大行数（0 = 不限高，到顶后内部滚动）
-            autosize: true,        // 自动增高（默认开启；开启时强制 resize:none）
-            resize: "",            // autosize 关闭时的原生拖拽："" 取 vertical ｜ none | vertical | horizontal | both
-            clearable: false,      // 清除钮（值非空且可交互时可见；点击清空 + 派发 input + 焦点回控件）
-            showCount: false,      // 计数显式开关（maxlength > 0 时无需开启即显示「len / max」）
-            // —— 内部状态 ——
-            hasValue: false,       // 当前有值（清除钮可见性驱动）
-            countText: "",         // 计数文本（JS 侧构建——绑定通道对 props 后续注入不重算）
-            countVisible: false,   // 计数可见性（showCount 或 maxlength > 0）
+            value: "",
+            placeholder: "",
+            maxlength: 0,
+            rows: 2,
+            minRows: 0,
+            maxRows: 8,
+            autosize: true,
+            resize: "",
+            clearable: false,
+            showCount: false,
+            hasValue: false,
+            countText: "",
+            countVisible: false,
         }),
         methods: {
-            // 清除：清空原生控件 + 手动派发 input（程序赋值不触发原生事件；冒泡过宿主
-            // 驱动 x-model 回写 state）+ 焦点回控件；阻断冒泡（内部动作件，click 不外泄）
             onClear(event) {
                 event.stopPropagation();
                 if (this.data.disabled || this.data.readonly) return;
@@ -68,19 +32,13 @@
             },
         },
         mounted() {
-            // —— 内层控件查询（每查现取，家族惯例）——
             const native = () => this.el.querySelector(".asc-textarea-native");
-            // 当前值缓存（劫持 getter 的控件缺位兜底）
             let lastValue = "";
 
-            // —— 自动增高：行高 × 行数夹取，内容超高时转内部滚动 ——
-            // 宽度变化会改变折行数，故除 value 外还经 ResizeObserver 监听宽度
             const autoResize = () => {
                 const n = native();
                 if (!n) return;
                 if (!this.data.autosize) {
-                    // 交还原生拖拽：清内联高度 + 溢出转 auto（基类样式为 autosize
-                    // 场景预设 overflow-y:hidden，关闭后须显式放开，否则内容被裁）
                     n.style.height = "";
                     n.style.overflowY = "auto";
                     return;
@@ -96,21 +54,17 @@
                     Number(this.data.minRows) || Number(this.data.rows) || 2,
                 );
                 const maxRows = Math.max(0, Number(this.data.maxRows) || 0);
-                // 行高不可读（consumer 把 line-height 设为 normal 等 → parseFloat 得 NaN）
-                // 时放弃行数夹取：只随内容增高，避免 maxHeight 退化成内距高而误裁内容
                 const minHeight = lineHeight > 0 ? lineHeight * minRows + padY + borderY : 0;
                 const maxHeight =
                     lineHeight > 0 && maxRows > 0
                         ? lineHeight * maxRows + padY + borderY
                         : Infinity;
-                n.style.height = "auto"; // 先归零再量内容（scrollHeight 才反映真实内容高）
+                n.style.height = "auto";
                 const contentHeight = n.scrollHeight + borderY;
                 n.style.height = `${Math.min(Math.max(contentHeight, minHeight), maxHeight)}px`;
                 n.style.overflowY = contentHeight > maxHeight ? "auto" : "hidden";
             };
 
-            // —— 计数与清除可见性同步（len 由原生控件现值读出；超限染色的 data-over
-            //     落宿主属性，CSS 通道消费——JS 直写无 T4=B 约束）——
             const syncLen = () => {
                 const n = native();
                 const len = n ? String(n.value ?? "").length : 0;
@@ -121,7 +75,6 @@
                 this.el.toggleAttribute("data-over", max > 0 && len > max);
             };
 
-            // —— 值同步（外部 → 控件）——
             const syncValue = () => {
                 const n = native();
                 if (n) n.value = lastValue;
@@ -129,8 +82,6 @@
                 autoResize();
             };
 
-            // —— 原生属性同步（props → 控件；绑定通道对 props 晚注入/后续变化不重算，
-            //     走 JS 通道——button disabled 同款纪律，ADR-0012）——
             const syncAttrs = () => {
                 const n = native();
                 if (!n) return;
@@ -139,27 +90,17 @@
                 if (ml > 0) n.setAttribute("maxlength", String(ml));
                 else n.removeAttribute("maxlength");
                 n.rows = Math.max(1, Number(this.data.rows) || 2);
-                // 表单提交载体：宿主 name 透传到原生控件（原生直提交，ADR-0020）
                 const nameAttr = this.el.getAttribute("name");
                 if (nameAttr != null) n.name = nameAttr;
-                // autosize 与原生拖拽互斥：开启时强制 none，关闭后尊重 resize 属性
                 n.style.resize = this.data.autosize
                     ? "none"
                     : String(this.data.resize) || "vertical";
                 autoResize();
             };
 
-            // —— 值桥（x-model 兼容协议，ADR-0020）：宿主 el.value 劫持 ↔ 内层原生控件 ——
-            // 劫持前快照 expando（x-model 编译期可能已写初值——宿主无原生 value，
-            // 编译期写入落 expando）；无 x-model 时回退 props.value 初值
             const prior = this.el.value;
             if (typeof prior === "string" && prior !== "") lastValue = prior;
             else if (this.data.value != null) lastValue = String(this.data.value);
-            // 快照归一值 + 初始化窗口标志：编译期初值的**重放识别**。scope.refresh 类机制
-            // （如 i18n 插件 ready 的首渲染换血）会以当前 state 重跑 x-model 监听，把编译期
-            // 初值（尤其空串——快照序里是「模型缺席」信号，props 兜底胜出）经劫持 setter 二次
-            // 落盘，覆盖已按快照序裁定的初值归属。初始化窗口（一跳 setTimeout 前）内与快照
-            // 归一值同值的写入即重放，跳过；真实状态变化（值不同）不受影响
             const snapshotNorm = String(prior ?? "");
             let initDone = false;
             Object.defineProperty(this.el, "value", {
@@ -178,7 +119,6 @@
                 configurable: true,
             });
 
-            // —— 输入跟随（原生 input 冒泡经宿主）：值缓存 / 计数 / 自动增高 ——
             this.el.addEventListener("input", () => {
                 const n = native();
                 if (n) lastValue = n.value;
@@ -186,8 +126,6 @@
                 autoResize();
             });
 
-            // —— 宽度变化重算（侧栏展开 / 窗口缩放改变折行数；只认宽度变化，避免
-            //     自身写高度触发回环）——
             if (typeof ResizeObserver !== "undefined") {
                 let lastWidth = 0;
                 const ro = new ResizeObserver((entries) => {
@@ -200,19 +138,15 @@
                 if (n) ro.observe(n);
             }
 
-            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）——
             setTimeout(() => {
                 syncAttrs();
                 syncValue();
-                initDone = true; // 初始化完成：劫持 setter 放开重放识别门闩（此后全量生效）
-                // actions 不支持（ADR-0032 修订）：非空注入 warn 一次（渲染段已被
-                // CSS 整段屏蔽，静默忽略——多行形态不提供融合动作）
+                initDone = true;
                 if (Array.isArray(this.data.actions) && this.data.actions.length > 0) {
                     this.engine?.logger?.warn("autospark.textarea: 不支持 actions（ADR-0032 修订，多行形态已取消融合动作），注入已忽略");
                 }
             }, 0);
 
-            // —— props 变化跟随（回调收 { value } 信封对象，此处只用作触发信号）——
             this.watch("placeholder", () => { setTimeout(syncAttrs, 0); });
             this.watch("maxlength", () => { setTimeout(() => { syncAttrs(); syncLen(); }, 0); });
             this.watch("showCount", () => { setTimeout(syncLen, 0); });
@@ -221,10 +155,6 @@
             this.watch("maxRows", () => { setTimeout(autoResize, 0); });
             this.watch("autosize", () => { setTimeout(syncAttrs, 0); });
             this.watch("resize", () => { setTimeout(syncAttrs, 0); });
-            // value props 单向同步（非受控/外部受控无 x-model 场景）：变化才写（与自身
-            // 桥写不冲突——guard 防回环）。已见值比对幂等防御（checkbox 同款）：scope.refresh
-            // 类无变化重跑（i18n ready 换血等）不得把 x-model expando 注入的初值打回 props
-            // 缺省空串——先比对已见 props 值，同值跳过
             let lastPropsValue = String(this.data.value ?? "");
             this.watch("value", ({ value }) => {
                 const v = String(value ?? "");
@@ -247,7 +177,6 @@
       width: 100%;
     }
 
-    /* ---------- 原生控件裸化：外观由骨架盒饰（.asc-field-box）承载，控件本体透明铺满 ---------- */
     .asc-textarea-native {
       box-sizing: border-box;
       flex: 1 1 auto;
@@ -274,7 +203,6 @@
       -webkit-text-fill-color: var(--auto-disable-color, var(--asc-textarea-disable-color, inherit));
     }
 
-    /* ---------- 宿主布局：纵向排布（控件 + 计数浮层 + actions 段），高度随内容放开 ---------- */
     .asc-textarea.asc-field-box {
       position: relative;
       height: auto;
@@ -283,7 +211,6 @@
       cursor: text;
     }
 
-    /* ---------- 清除钮：绝对定位右上角（不占文本行宽；控件右侧预留内距避免压字） ---------- */
     .asc-textarea-clear {
       position: absolute;
       top: calc(var(--auto-input-padding, var(--asc-field-padding, 0.8rem)) / 2);
@@ -320,7 +247,6 @@
       color: var(--auto-danger-color, var(--asc-textarea-count-over, #ef4444));
     }
 
-    /* 浮层在场时预留内距（:has 驱动，形态与 field 既有 :has 用法一致） */
     .asc-textarea:has(.asc-textarea-clear) .asc-textarea-native {
       padding-inline-end: 1.5em;
     }
@@ -335,7 +261,6 @@
       display: none;
     }
 
-    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
     [dark] .asc-textarea-native::placeholder,
     [data-dark] .asc-textarea-native::placeholder {
       color: var(--auto-input-placeholder, var(--asc-textarea-placeholder, rgba(255, 255, 255, 0.4)));
@@ -357,8 +282,6 @@
       color: var(--auto-danger-color, var(--asc-textarea-count-over, #e6696a));
     }
   </style>
-  <!-- 默认段（替换 field 出口 fallback）：控件本体 + 功能动作件。计数与清除为浮层
-       （不占文本行宽）；actions 由 field 渲染段承载，位置由上方 CSS 改为控件上 / 下 -->
   <textarea class="asc-textarea-native" data-autospark-control rows="2"></textarea>
   <i
     class="asc-textarea-clear"

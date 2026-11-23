@@ -1,6 +1,6 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>Button · 形态</title>
     <link rel="stylesheet" href="/autospark/autospark-theme.css" />
@@ -10,27 +10,43 @@
     <script src="/autospark/autospark.button.js?v=20261107"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
-</head>
-<body>
-    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <script src="/autospark/autospark.tooltip.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel">
+      <theme-controls groups="color,mode"></theme-controls>
+    </aside>
     <main class="demo-main">
-        <div class="auto-card">
-            <div class="auto-card-header">六种形态（variant，默认 default——面板底常规钮与次级淡底钮以底色层次区分）</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <x-button label="常规按钮"></x-button>
-                    <x-button variant="primary" label="主按钮"></x-button>
-                    <x-button variant="secondary" label="次按钮"></x-button>
-                    <x-button variant="dashed" label="虚线按钮"></x-button>
-                    <x-button variant="text" label="文本按钮"></x-button>
-                    <x-button variant="link" label="链接按钮"></x-button>
-                </div>
-                <p class="hint">形态只决定「长相」（实底 / 次底 / 虚线 / 纯文本 / 链接），颜色归 <code>type</code> 管。</p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          六种形态（variant，默认
+          default——面板底常规钮与次级淡底钮以底色层次区分）
         </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 8px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button label="常规按钮"></x-button>
+            <x-button variant="primary" label="主按钮"></x-button>
+            <x-button variant="secondary" label="次按钮"></x-button>
+            <x-button variant="dashed" label="虚线按钮"></x-button>
+            <x-button variant="text" label="文本按钮"></x-button>
+            <x-button variant="link" label="链接按钮"></x-button>
+          </div>
+          <p class="hint">
+            形态只决定「长相」（实底 / 次底 / 虚线 / 纯文本 / 链接），颜色归
+            <code>type</code> 管。
+          </p>
+        </div>
+      </div>
     </main>
     <script>
-        new AutoSpark(document.querySelector(".demo-main"), {});
+      new AutoSpark(document.querySelector(".demo-main"), {});
     </script>
-</body>
+  </body>
 </html>

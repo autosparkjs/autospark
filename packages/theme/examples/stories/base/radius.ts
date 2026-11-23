@@ -80,25 +80,32 @@ export default {
             </div>
         </div>
         <div class="auto-card">
-            <div class="auto-card-header">同一圆角在不同尺寸元素上的观感</div>
+            <div class="auto-card-header">同一圆角体系在不同尺寸元素上的观感（none + 五档，共 6 个）</div>
             <div class="auto-card-body col">
-                <div class="auto-card-body-item" style="gap:1rem;align-items:flex-end;flex-wrap:wrap;">
-                    <span
-                        style="display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:var(--x-border-radius-medium);background:var(--x-color-theme-1);font-size:0.7rem;"
-                        >小</span
-                    >
-                    <span
-                        style="display:inline-flex;align-items:center;justify-content:center;width:4rem;height:4rem;border-radius:var(--x-border-radius-medium);background:var(--x-color-theme-2);font-size:0.75rem;"
-                        >中</span
-                    >
-                    <span
-                        style="display:inline-flex;align-items:center;justify-content:center;width:7rem;height:5rem;border-radius:var(--x-border-radius-medium);background:var(--x-color-theme-3);font-size:0.8rem;"
-                        >大</span
-                    >
+                <div style="display:flex;gap:0.9rem;align-items:flex-end;flex-wrap:wrap;padding:0.5rem 0;">
+                    ${[
+          { label: "none", w: "2rem", h: "2rem" },
+          { label: "x-small", w: "2.4rem", h: "2.2rem" },
+          { label: "small", w: "3.4rem", h: "2.8rem" },
+          { label: "medium", w: "4.6rem", h: "3.4rem" },
+          { label: "large", w: "6rem", h: "4.2rem" },
+          { label: "x-large", w: "7.5rem", h: "5rem" },
+        ].map(
+          ({ label, w, h }, i) => html`
+                            <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;">
+                                <div
+                                    style="width:${w};height:${h};border-radius:var(--x-border-radius-${label});background:var(--x-color-theme-${i + 1});border:var(--auto-border);"
+                                ></div>
+                                <code style="font-size:0.68rem;color:var(--auto-third-color);">${label}</code>
+                            </div>
+                        `,
+        )}
                 </div>
                 <p style="margin:0;color:var(--auto-third-color);font-size:0.8rem;">
-                    圆角相同（<code>medium</code>）而尺寸不同：小元素视觉接近直角、大容器更显圆润——
-                    小控件宜选 <code>x-small/small</code>，大面积容器宜选 <code>large/x-large</code>。
+                    六个元素尺寸递增（2 → 7.5rem）、圆角档随之递增（<code>none → x-large</code>）：
+                    小元素上小圆角几乎与直角无差，大容器上大圆角才撑得开弧线——
+                    同屏混排时按元素尺寸就近取档（小 <code>x-small/small</code>、中
+                    <code>medium</code>、大 <code>large/x-large</code>），视觉弧度才协调等圆。
                 </p>
             </div>
         </div>

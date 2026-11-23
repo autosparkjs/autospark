@@ -1,56 +1,7 @@
 (function (AutoSpark) {
     "use strict";
 var run = function (AutoSpark) {
-function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){e.components[`autospark.field`]=`<!--\r
-    Field 表单域骨架（ADR-0020）——base/ 目录首个产物（ADR-0018 决策 7：form 前瞻\r
-    唯一例外，其余基类演进式抽取）。2026-11-14 修订：转公开文档组件（侧边栏「表单」组\r
-    + demo + 文档页）——可直接实例化（默认出口装任意控件内容即得骨架能力：状态色/\r
-    焦点态/禁用只读同步/盒饰），同时仍是 form 域家族（input/checkbox/radio/switch/\r
-    select/input-number…）的继承基座。\r
-\r
-    骨架职责（宁薄勿胖——只承担 form 域家族共性，控件本体与装饰一概留给子组件）：\r
-    - 结构：宿主级包裹层（.asc-field 布局基座，class 拼接进子组件宿主）+ 三出口——\r
-      默认出口（.asc-field-body，display:contents 不产生布局层；子组件全部控件结构\r
-      经默认段替换出口 fallback（继承覆盖，ADR-0081），直接实例化时消费方内容同位）\r
-      + prefix / suffix 具名装饰出口（body 兄弟位，DOM 序固定\r
-      [slot:prefix][body][slot:suffix]；template 载体（ADR-0137，2026-11-15 切换）\r
-      ——class 经属性活注入落投影内容首根（间距/防收缩规则随类落内容根本身），\r
-      无内容整出口静默消失、零多余 DOM，裸态控件组件继承亦无害；多根装饰仅首根\r
-      得注入类——装饰出口建议单根，多根后续节点消费方自理）；盒饰 chrome 为 .asc-field-box\r
-      选配类（input 类控件用，checkbox/radio/switch 等裸态控件不用）\r
-    - 轻装饰/重装饰分层（2026-11-14 修订）：子组件 props 前后置（input 的\r
-      prefix/suffix 文本|图标）是轻装饰（组件内贴控件），插槽前后置是重装饰\r
-      （消费方任意 HTML，恒在轻装饰外侧），两者共存不互斥；插槽内容默认次要色、\r
-      点击转发焦点到控件（消费方放交互件须自标 data-autospark-action 自理）；\r
-      disabled/readonly 不对插槽内容做专门处理（与 props 装饰对齐）\r
-    - 融合动作 actions（2026-11-16 修订二，ADR-0020 决策 3）：props 驱动渲染段\r
-      （非插槽出口——数据→视图）——button props 数组 + 自有键 pos（before|after\r
-      分侧，缺省 after）/name/value；组合复用 autospark.button（产物依赖其同页\r
-      加载），融合复用 button-group 负 margin 边线复用范式（ADR-0014）；field\r
-      disabled 联动合并项 disabled；点击组包派发 action-click（detail =\r
-      {index,name,value,item}）+ 原生 click 双通道；空数组整段不渲染零 DOM\r
-    - 状态色通道：status（"" | error | success | warning）→ 宿主 data-status 属性 →\r
-      --asc-field-tone 中转变量派生（焦点环/边框色统一消费）；error 态同步 aria-invalid\r
-    - 焦点态追踪：focusin/focusout（焦点在骨架内元素间移动不闪烁）→ 宿主 data-focus\r
-    - disabled / readonly：同步到 [data-autospark-control] 原生控件 + 宿主 data-disabled /\r
-      data-readonly 反射（CSS 淡化与光标通道）\r
-    - 尺寸档位：经 autospark.base 继承链消费主题 data-size 通道（--auto-input-height /\r
-      --auto-input-padding 随档位联动），骨架不设自有尺寸属性（button 同范式 ADR-0012）\r
-    - 与 x-field 分工（ADR-0018 决策 7：不双轨建域）：label/校验/域布局由 engine\r
-      x-form/x-field 指令承担；校验结果经子组件 status props 染色进入（x-field 容器\r
-      形态后代绑定 status: $field.error ? "error" : ""），骨架不感知 x-field\r
-\r
-    data-* 标记协议（子组件挂点约定，ADR-0020）：\r
-    - data-autospark-control：原生控件标记——disabled/readonly/aria-invalid 同步目标、\r
-      点击转发焦点的受让者\r
-    - data-autospark-action：交互动作件标记（清除/切换钮等）——点击不转发焦点（自理）\r
--->\r
-<!-- 继承 autospark.base（ADR-0134）须为非抽象继承：abstract 组件不能再声明\r
-     x-define:inherit（ADR-0134 抽象根约束），而主题档位六键物化必须沿继承链下传——\r
-     故本骨架贡献真实模板（包裹层 + 三出口），子组件快照 = 本骨架克隆 + 子默认段替换 +\r
-     子根属性并入（class 拼接：宿主恒得 .asc-field + 子自有类），继承链\r
-     子组件 → field → autospark.base 三层（ADR-0020 决策 2） -->\r
-<span\r
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){e.components[`autospark.field`]=`<span\r
   class="asc-field"\r
   x-define="autospark.field"\r
   x-define:inherit="autospark.base"\r
@@ -58,25 +9,20 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   <script setup>\r
     {\r
         data: () => ({\r
-            status: "",       // 状态色通道："" 无 | error 危险 | success 成功 | warning 警告（tone 中转变量随动，焦点环/边框消费）\r
-            disabled: false,  // 禁用：同步 [data-autospark-control] 原生控件 + 宿主 data-disabled（CSS 淡化/光标）+ 融合动作按钮联动\r
-            readonly: false,  // 只读：同步 [data-autospark-control]（readOnly 语义）+ 宿主 data-readonly\r
-            actions: [],      // 融合动作（2026-11-16 修订二）：button props 数组 + 自有键 pos（"before"|"after" 分侧，缺省 after）/ name（标识）/ value（原样透传 action-click detail）——数组 props 经状态引用注入（:actions="myActions"，引擎字面量数组死环缺陷 HEAD 未修）\r
+            status: "",
+            disabled: false,
+            readonly: false,
+            actions: [],
         }),\r
         mounted() {\r
-            // —— 控件查询（data-autospark-control 标记协议）：每查现取不缓存——运行时\r
-            //     控件可能被重建（x-if 条件渲染等），缓存引用会指向已摘除节点\r
             const control = () => this.el.querySelector("[data-autospark-control]");\r
 \r
-            // —— 状态色通道：status → 宿主 data-status（CSS 派生 --asc-field-tone）——\r
             const applyStatus = () => {\r
                 const v = this.data.status;\r
                 if (typeof v === "string" && v !== "") this.el.setAttribute("data-status", v);\r
                 else this.el.removeAttribute("data-status");\r
             };\r
 \r
-            // —— 控件同步：disabled/readonly 落原生控件 + 宿主反射 + error 态 aria-invalid\r
-            //     （可访问性：组件级状态归一到 aria，与原生约束校验互补）——\r
             const syncControl = () => {\r
                 const c = control();\r
                 if (c) {\r
@@ -89,9 +35,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 this.el.toggleAttribute("data-readonly", !!this.data.readonly);\r
             };\r
 \r
-            // —— 焦点态追踪：focusin/focusout 冒泡承接（骨架内任意可聚焦元素）——\r
-            //     焦点在骨架内部元素间移动（如 input → 清除钮）时 relatedTarget 仍在\r
-            //     骨架内，跳过摘除防闪烁\r
             this.el.addEventListener("focusin", () => {\r
                 this.el.setAttribute("data-focus", "");\r
             });\r
@@ -101,9 +44,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 this.el.removeAttribute("data-focus");\r
             });\r
 \r
-            // —— 点击转发焦点：点击盒饰空白区/前后置装饰（非控件非动作件）时焦点落控件\r
-            //     （原生 label 包裹的近似体验；动作件 data-autospark-action 自理不转发；\r
-            //     插槽装饰内容同此——消费方放交互件须自标 data-autospark-action）——\r
             this.el.addEventListener("click", (e) => {\r
                 const t = e.target instanceof Element ? e.target : null;\r
                 if (!t) return;\r
@@ -114,14 +54,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 if (c && typeof c.focus === "function") c.focus();\r
             });\r
 \r
-            // —— 初始化与跟随（mounted 时化身子树与 props 注入均可能未就位，一跳后\r
-            //     首同步；后续 props 变化经 watch 保持——回调收 { value } 信封对象，\r
-            //     此处只用作触发信号，家族惯用法）——\r
-            // —— 融合动作组包（ADR-0020 修订二）：按钮原生 click 冒泡经宿主——按\r
-            //     DOM 序（容器内 .asc-field-action 集合的 indexOf）回查 actions\r
-            //     原始项，组包派发 action-click（bubbles，detail =\r
-            //     {index, name, value, item}）；原生 click 照常冒泡（双通道）；\r
-            //     禁用按钮原生阻断、不到达此处 ——\r
             this.el.addEventListener("click", (e) => {\r
                 const t = e.target instanceof Element ? e.target : null;\r
                 if (!t) return;\r
@@ -169,7 +101,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       line-height: var(--auto-line-height, var(--asc-field-line-height, 1.5));\r
       color: var(--auto-color, var(--asc-field-color, #606060));\r
     }\r
-    /* 状态色派生（data-status 由 mounted 同步）：tone 切语义色，未聚焦也染边框 */\r
     .asc-field[data-status="error"] {\r
       --asc-field-tone: var(\r
         --auto-danger-color,\r
@@ -251,13 +182,11 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         var(--asc-field-hover-border, #009aff)\r
       );\r
     }\r
-    /* 焦点态（data-focus 由 focusin/focusout 同步）：边框取 tone + 同色淡晕 */\r
     .asc-field-box[data-focus] {\r
       --asc-field-line: var(--asc-field-tone);\r
       box-shadow: 0 0 0 2px\r
         color-mix(in srgb, var(--asc-field-tone) 22%, transparent);\r
     }\r
-    /* 状态在场：未聚焦也染状态色边框（聚焦规则同色调、仅补光晕） */\r
     .asc-field-box[data-status="error"],\r
     .asc-field-box[data-status="success"],\r
     .asc-field-box[data-status="warning"] {\r
@@ -283,7 +212,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       );\r
       cursor: not-allowed;\r
     }\r
-    /* 只读：光标归正文（无禁用淡化） */\r
     .asc-field-box[data-readonly] {\r
       cursor: default;\r
     }\r
@@ -311,7 +239,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       margin-inline-start: 0.4em;\r
     }\r
 \r
-    /* ---------- 默认出口包裹层：不产生布局层（子组件控件直接成为骨架 flex 项） ---------- */\r
     .asc-field-body {\r
       display: contents;\r
     }\r
@@ -374,7 +301,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         var(--asc-field-radius, 0.5rem)\r
       );\r
     }\r
-    /* after 组尾钮右贴盒右线 + 外侧圆角匹配盒饰 */\r
     .asc-field-box .asc-field-actions-after .asc-field-action:last-of-type {\r
       margin-inline-end: calc(\r
         -1 *\r
@@ -392,7 +318,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         var(--asc-field-radius, 0.5rem)\r
       );\r
     }\r
-    /* 组内相邻按钮：侧线压叠单线（每钮压前邻右线，共享一条 --asc-field-line） */\r
     .asc-field-box .asc-field-action + .asc-field-action {\r
       margin-inline-start: calc(\r
         -1 * var(--auto-border-size, var(--asc-field-border-size, 1px))\r
@@ -409,7 +334,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       margin-inline-start: 0.4em;\r
     }\r
 \r
-    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */\r
     [dark] .asc-field,\r
     [data-dark] .asc-field {\r
       --asc-field-tone: var(\r
@@ -439,7 +363,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         var(--asc-field-warning, #f7d352)\r
       );\r
     }\r
-    /* 暗色兜底让位状态色：状态在场时边框取 tone（:not 守卫防高特异性兜底块压掉状态染色） */\r
     [dark] .asc-field-box:not([data-status]),\r
     [data-dark] .asc-field-box:not([data-status]) {\r
       --asc-field-line: var(\r
@@ -469,20 +392,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       );\r
     }\r
   </style>\r
-  <!-- 三出口（文档序即呈现序 [slot:prefix][默认段][slot:suffix]，2026-11-14 修订）：\r
-       prefix / suffix 具名装饰出口 template 载体（ADR-0137，2026-11-15 切换）——无\r
-       内容整出口静默消失，消费方经宿主直接子级标记 <template x-slot:prefix> 投影\r
-       任意内容（class 活注入落内容首根：次要色/间距/防收缩随类落根，恒在子组件\r
-       props 轻装饰外侧）；默认出口被子组件默认段替换（继承覆盖，ADR-0081）——\r
-       直接实例化时消费方内容同位，三层优先级：消费方内容 > 继承覆盖 > 本空 fallback -->\r
-  <!-- 融合动作渲染段（2026-11-16 修订二，ADR-0020 决策 3）：props 驱动非插槽出口——\r
-       空 actions 整段 x-if 不渲染（零 DOM）；双段按 pos 过滤分侧，DOM 序恒\r
-       [before actions][prefix][body][suffix][after actions]（动作按钮最外层包壳）。\r
-       值 = Object.assign 全键透传项（默认 variant: 'secondary' 打底——项显式\r
-       variant 胜；button props 全集 + disabled 与 field 联动合并，自有键\r
-       pos/name/value 入 button data 域被忽略无害）；按钮宿主自动标\r
-       data-autospark-action（点击自理）；x-for 值表达式 = 官方 filter 形态\r
-       （引擎 x-for 测试覆盖，with 求值通道响应 actions 注入） -->\r
   <span\r
     class="asc-field-actions asc-field-actions-before"\r
     x-if="!!(actions && actions.length)"\r
@@ -511,31 +420,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     </template>\r
   </span>\r
 </span>\r
-`}n();function n(){e(e=>{t(e)})}var r=`<!--\r
-    autospark.select 下拉选择器（ADR-0022）——触发器组件：Field 盒饰形态\r
-    （.asc-field-box，input 同款 chrome）+ 选中值展示 + 下拉箭头。下拉面板不自建弹层，\r
-    复用 x-popover 指令机制呈现（trigger:click 形态——点击切换 / 面板外点击 / ESC 关闭\r
-    均机制继承，ADR-0060）：内层触发器元素即 popover 宿主，面板组件 autospark.select-panel\r
-    （同插件注册，panel.html）渲染进 body 覆盖物容器，fit 选项使面板宽度随触发器。\r
-\r
-    面板 ↔ 触发器通信走 scope 链（零 DOM 事件、零 uid 配对）：overlay 内容宿主恒以\r
-    「open + dataContext:host」实例化面板组件（ADR-0123 决策 2），面板经聚合视图沿链\r
-    读写本组件 data 域——读 filteredOptions/activeValue 等呈现，写哨兵键\r
-    （pickTick/pickValue、keyTick/keyDir、filterText）回传交互；面板 mounted/unmounted\r
-    沿链写 open 开合态（箭头旋转 / aria-expanded / 过滤词复位）。\r
-\r
-    值桥（x-model 兼容协议，对齐 ADR-0020 input 范式 / switch hidden 载体先例）：\r
-    宿主 el.value 劫持 ↔ data.value；选中 / 清除路径手动派发 input（非冒泡，x-model\r
-    宿主监听回写 state）+ change（冒泡，detail = { value }，外层消费）；内嵌\r
-    input[type=hidden] 表单载体（name 透传，原生直提交）。\r
-\r
-    键盘（触发器焦点）：上下移动高亮（跳过禁用项）/ Enter 确认或开面板 / ESC 归 popover\r
-    打开栈（机制继承）不拦截；filterable 时过滤框内键盘经面板哨兵键走同一导航。\r
--->\r
-<!-- 根 class 拼接进骨架宿主（.asc-field + .asc-select + .asc-field-box 盒饰选配，\r
-     ADR-0020 消费契约）；data-open / data-has-value / data-loading 由 mounted JS 通道\r
-     同步，根上无动态绑定（T4=B） -->\r
-<span\r
+`}n();function n(){e(e=>{t(e)})}var r=`<span\r
   class="asc-select asc-field-box"\r
   x-define="autospark.select"\r
   x-define:inherit="autospark.field"\r
@@ -543,41 +428,33 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   <script setup>\r
     {\r
         data: () => ({\r
-            value: null,       // 当前值（单选起步，string | number；受控真相走宿主 x-model——el.value 桥，ADR-0022）\r
-            options: [],       // 选项数组 [{ label, value, disabled? }]（经 x-data 状态引用注入——字面量数组有引擎死环缺陷，ADR-0022）\r
-            placeholder: "",   // 占位文案（空时走 i18n 词典 select.placeholder 键，回退「请选择」）\r
-            clearable: false,  // 清除钮（有值且可交互时可见：清空 + input/change 双派发 + 焦点回触发器）\r
-            filterable: false, // 本地过滤（P1 简实现：面板顶部过滤框，对 label 不区分大小写包含匹配）\r
-            loading: false,    // 加载态：面板列表 x-loading 遮罩 + 触发器箭头转旋转图标\r
-            virtual: false,    // 长列表虚拟渲染开关（面板切 x-for.virtual；须加载 autospark.virtual.js，缺席时引擎降级全量渲染，ADR-0022）\r
-            // —— 内部状态（JS 通道维护——绑定通道对 props 晚注入不重算，家族纪律）——\r
-            uid: "",               // 实例唯一标识（根 data-asc-select-uid 属性载体——面板宽度\r
-                                   // 匹配的配对键：popover 的 fit 基准是触发器内容区宽，不含\r
-                                   // 盒饰 padding，面板 mounted 按 uid 测盒饰宽补 min-width）\r
-            hasValue: false,       // 当前有值（清除钮可见性 / 占位切换）\r
-            labelText: "",         // 选中项文案（options/value 经 JS 重解析；countText 同款通道）\r
-            filteredOptions: [],   // 过滤产物（面板 x-for 数据源；options/filterText 变化时重建）\r
-            filterText: "",        // 过滤词（面板过滤框写回；面板关闭时复位）\r
-            activeIndex: -1,       // 键盘高亮索引（filteredOptions 内；-1 无高亮）\r
-            activeValue: null,     // 高亮项值（面板 :data-active 比较基准——索引对模板不可见，值通道免疫过滤重建）\r
-            open: false,           // 面板开合态（面板 mounted/unmounted 沿链写回；箭头旋转/aria/复位驱动）\r
-            pickTick: 0,           // 选中哨兵（面板点击/过滤框 Enter 写：自增必变免疫同值去重；触发本组件选中流程）\r
-            pickValue: null,       // 选中哨兵携带值\r
-            keyTick: 0,            // 键盘导航哨兵（过滤框内上下键写——面板模板不能跨组件边界调本组件方法，ADR-0022 决策 3）\r
-            keyDir: 0,             // 键盘导航方向（1 下 / -1 上）\r
+            value: null,
+            options: [],
+            placeholder: "",
+            clearable: false,
+            filterable: false,
+            loading: false,
+            virtual: false,
+            uid: "",
+            hasValue: false,
+            labelText: "",
+            filteredOptions: [],
+            filterText: "",
+            activeIndex: -1,
+            activeValue: null,
+            open: false,
+            pickTick: 0,
+            pickValue: null,
+            keyTick: 0,
+            keyDir: 0,
         }),\r
         methods: {\r
-            // 触发器元素（popover 宿主 / 焦点受让者；每查现取不缓存，家族惯用法）\r
             triggerEl() {\r
                 return this.el.querySelector(".asc-select-trigger");\r
             },\r
-            // 表单载体（hidden input；每查现取）\r
             carrierEl() {\r
                 return this.el.querySelector(".asc-select-carrier");\r
             },\r
-            // 选中呈现同步（JS 通道：labelText 由 options/value 重解析——props 晚注入 /\r
-            //     options 引用内容变化都经 watch 收口到这里）。选项匹配走字符串归一比较\r
-            //     （x-model 对 text 控件语义会把值往返归一为字符串——7 与 "7" 须互认）\r
             syncValue() {\r
                 const v = this.data.value;\r
                 const has = v != null && v !== "";\r
@@ -591,14 +468,12 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                     c.disabled = !!this.data.disabled;\r
                 }\r
             },\r
-            // 高亮同步（activeValue 为面板比较基准）\r
             syncActive() {\r
                 const list = this.data.filteredOptions ?? [];\r
                 const i = this.data.activeIndex;\r
                 if (i >= 0 && i < list.length) this.data.activeValue = list[i].value ?? null;\r
                 else this.data.activeValue = null;\r
             },\r
-            // 过滤重建（options / filterText 变化；activeIndex 越界时回落选中项）\r
             rebuildFiltered() {\r
                 const list = this.data.options ?? [];\r
                 const kw = String(this.data.filterText ?? "").trim().toLowerCase();\r
@@ -609,7 +484,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 if (i < 0 || i >= this.data.filteredOptions.length) this.setActiveToValue();\r
                 else this.syncActive();\r
             },\r
-            // 高亮落当前选中项（打开面板时的定位基准；字符串归一比较同 syncValue）\r
             setActiveToValue() {\r
                 const list = this.data.filteredOptions ?? [];\r
                 this.data.activeIndex = list.findIndex(\r
@@ -617,8 +491,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 );\r
                 this.syncActive();\r
             },\r
-            // 开合态副作用：复位过滤词与高亮定位（打开时高亮落当前选中项）+\r
-            //     aria-expanded / data-open 同步（JS 直写无 T4=B 约束）\r
             syncOpen() {\r
                 const on = !!this.data.open;\r
                 this.el.toggleAttribute("data-open", on);\r
@@ -630,7 +502,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                     this.setActiveToValue();\r
                 }\r
             },\r
-            // 可交互同步：禁用时触发器退出焦点序（tabindex -1）+ 载体出表 + 关面板\r
             syncInteractive() {\r
                 const t = this.triggerEl();\r
                 if (t) t.tabIndex = this.data.disabled ? -1 : 0;\r
@@ -639,29 +510,20 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 this.el.toggleAttribute("data-loading", !!this.data.loading);\r
                 if (this.data.disabled && this.data.open) this.closePanel();\r
             },\r
-            // 值变更出口（选中/清除共用）：input 非冒泡（x-model 监听在宿主自身，\r
-            //     checkbox/switch 同款）+ change 冒泡 detail={value}（外层消费）\r
             emitChange() {\r
                 this.el.dispatchEvent(new Event("input", { bubbles: false }));\r
                 this.el.dispatchEvent(\r
                     new CustomEvent("change", { bubbles: true, detail: { value: this.data.value } }),\r
                 );\r
             },\r
-            // 开面板：程序化派发点击（popover click 触发模型 toggle；readonly 可开浏览\r
-            //     但选中被 pick guard 阻断——只读可见可选不了，文档已声明）\r
             openPanel() {\r
                 if (this.data.disabled) return;\r
                 this.triggerEl()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));\r
             },\r
-            // 关面板：程序化派发点击走 popover 自有 toggle 通道（「再点宿主关闭」——与\r
-            // 用户操作同一关闭路径；命令式 engine.getOverlay().close 只回收命令式通道\r
-            // 打开的实例，声明式 x-popover 面板不入实例注册表，对指令面板无效）。open\r
-            // 守卫防已关态误开（toggle 语义）；overlay 插件缺席时 open 恒 false 自然跳过\r
             closePanel() {\r
                 if (!this.data.open) return;\r
                 this.triggerEl()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));\r
             },\r
-            // 高亮移动（dir = 1 下 / -1 上）：环找下一个非禁用项（首尾环绕；全禁用不动）\r
             moveActive(dir) {\r
                 const list = this.data.filteredOptions ?? [];\r
                 if (list.length === 0) return;\r
@@ -671,13 +533,9 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                     if (!list[i].disabled) { this.data.activeIndex = i; return; }\r
                 }\r
             },\r
-            // Enter 确认当前高亮项\r
             confirmActive() {\r
                 if (this.data.activeValue != null) this.pick(this.data.activeValue);\r
             },\r
-            // 选中流程（面板点击哨兵 / 触发器键盘 / 过滤框 Enter 汇聚点）：禁用与只读\r
-            // 阻断；同值仅关面板；写值 + 双派发 + 关面板 + 焦点回触发器（匹配同\r
-            // syncValue 的字符串归一比较）\r
             pick(v) {\r
                 if (this.data.disabled || this.data.readonly) return;\r
                 const list = this.data.options ?? [];\r
@@ -690,8 +548,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 this.closePanel();\r
                 this.triggerEl()?.focus();\r
             },\r
-            // 清除（内部动作件，点击不转发焦点）：清空 + 双派发 + 焦点回触发器 +\r
-            // 阻断冒泡（防途经触发器 popover 宿主引发 toggle 开面板）\r
             onClear(event) {\r
                 event.stopPropagation();\r
                 if (this.data.disabled || this.data.readonly) return;\r
@@ -701,8 +557,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 this.emitChange();\r
                 this.triggerEl()?.focus();\r
             },\r
-            // 触发器键盘导航：上下移动高亮（未开先开）/ Enter 确认（未开先开）/\r
-            // ESC 与 Tab 不拦截（ESC 归 popover 打开栈——机制继承；Tab 自然移焦）\r
             onTriggerKeydown(event) {\r
                 if (this.data.disabled) return;\r
                 if (event.key === "ArrowDown" || event.key === "ArrowUp") {\r
@@ -717,10 +571,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             },\r
         },\r
         mounted() {\r
-            // —— 值桥（x-model 兼容协议，ADR-0022 对齐 ADR-0020）：宿主 el.value 劫持 ——\r
-            //     劫持前快照 expando（x-model 编译期可能已写初值）；无 x-model 时回退\r
-            //     props.value 初值（快照序：expando > props.value，input 同款）；setter\r
-            //     等值守卫防 x-model 回写环（guard 值经闭包持有——watch 侧同步维护）\r
             const prior = this.el.value;\r
             let lastValue = undefined;\r
             if (prior !== undefined && prior !== null && prior !== "") lastValue = prior;\r
@@ -742,13 +592,10 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             });\r
             if (lastValue !== undefined) this.data.value = lastValue;\r
 \r
-            // —— 一跳后初始化（化身子树挂载与 props 注入落定，家族惯用法）：表单载体\r
-            //     name 透传（原生直提交，ADR-0020 决策 6 同款载体语义）+ 全量首同步 ——\r
             setTimeout(() => {\r
                 const nameAttr = this.el.getAttribute("name");\r
                 const c = this.carrierEl();\r
                 if (c && nameAttr != null) c.name = nameAttr;\r
-                // 实例唯一标识落根属性（面板宽度配对键，ADR-0022 决策 2 注记）\r
                 this.data.uid = "asc-select-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e6).toString(36);\r
                 this.el.setAttribute("data-asc-select-uid", this.data.uid);\r
                 this.rebuildFiltered();\r
@@ -757,8 +604,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 this.syncInteractive();\r
             }, 0);\r
 \r
-            // —— props / 哨兵 / 内部状态跟随（回调收 { value } 信封对象，此处只用作\r
-            //     触发信号，家族惯用法）——\r
             this.watch("value", () => { lastValue = this.data.value; this.syncValue(); });\r
             this.watch("options", () => { setTimeout(() => { this.rebuildFiltered(); this.syncValue(); }, 0); });\r
             this.watch("filterText", () => { this.rebuildFiltered(); });\r
@@ -766,15 +611,12 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             this.watch("open", () => { this.syncOpen(); });\r
             this.watch("disabled", () => { setTimeout(() => this.syncInteractive(), 0); });\r
             this.watch("loading", () => { this.el.toggleAttribute("data-loading", !!this.data.loading); });\r
-            // 面板哨兵：选中（pickTick）/ 过滤框键盘导航（keyTick——面板模板不能跨组件\r
-            // 边界调本组件方法，经哨兵键沿链写回，ADR-0022 决策 3）\r
             this.watch("pickTick", () => { this.pick(this.data.pickValue); });\r
             this.watch("keyTick", () => { this.moveActive(Number(this.data.keyDir) || 1); });\r
         },\r
     }\r
   <\/script>\r
   <style global id="autospark-components-select">\r
-    /* ---------- 触发器：盒饰 chrome 由 .asc-field-box 承载（input 同款），光标手型 ---------- */\r
     .asc-select {\r
       cursor: pointer;\r
     }\r
@@ -787,7 +629,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-select[data-disabled] .asc-select-trigger {\r
       pointer-events: none;\r
     }\r
-    /* 只读：光标归正文（面板可开浏览，选中被 pick guard 阻断） */\r
     .asc-select[data-readonly] {\r
       cursor: default;\r
     }\r
@@ -807,7 +648,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       align-self: stretch;\r
       outline: none;\r
     }\r
-    /* 选中值展示：占位与值两态（x-if 切换），占位走次要淡化色 */\r
     .asc-select-value {\r
       flex: 1 1 auto;\r
       min-width: 0;\r
@@ -825,7 +665,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       color: var(--auto-input-placeholder, var(--asc-select-placeholder, rgba(0, 0, 0, 0.35)));\r
     }\r
 \r
-    /* ---------- 尾部动作件：清除钮（内部交互件，不转发焦点）与下拉箭头 ---------- */\r
     .asc-select-clear {\r
       flex: none;\r
       display: inline-flex;\r
@@ -862,7 +701,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       color: var(--asc-field-tone);\r
     }\r
 \r
-    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */\r
     [dark] .asc-select-value,\r
     [data-dark] .asc-select-value {\r
       color: var(--auto-color, var(--asc-select-color, #fafafa));\r
@@ -891,7 +729,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       line-height: var(--auto-line-height, var(--asc-select-panel-line-height, 1.4));\r
       color: var(--auto-color, var(--asc-select-panel-color, #333333));\r
     }\r
-    /* 过滤框（filterable）：面板顶部，原生 input 裸化 + 底部细分隔线 */\r
     .asc-select-filter {\r
       padding: 0.4em 0.6em;\r
       border-bottom: var(--auto-border-size, var(--asc-select-filter-border-size, 1px)) solid\r
@@ -911,7 +748,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-select-filter-input:focus {\r
       border-bottom-color: var(--asc-field-tone, var(--auto-primary-color, var(--asc-select-primary, #009aff)));\r
     }\r
-    /* 选项列表：最大高度限档 + 纵向滚动（虚拟化形态由 x-for.virtual 接管窗口渲染） */\r
     .asc-select-list {\r
       max-height: var(--asc-select-max-height, 15em);\r
       overflow-y: auto;\r
@@ -965,13 +801,11 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-select-option[data-disabled]:hover {\r
       background: transparent;\r
     }\r
-    /* 空态（含过滤无匹配）：居中辅助色文案 */\r
     .asc-select-empty {\r
       padding: 0.9em 0.75em;\r
       text-align: center;\r
       color: var(--auto-third-color, var(--asc-select-empty, rgba(0, 0, 0, 0.35)));\r
     }\r
-    /* 面板暗色兜底变体：兜底字面值切换（shell 边框/底色/阴影已由 popover-shell 暗色块覆盖） */\r
     [dark] .asc-select-panel,\r
     [data-dark] .asc-select-panel {\r
       color: var(--auto-color, var(--asc-select-panel-color, #fafafa));\r
@@ -997,10 +831,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       color: var(--auto-third-color, var(--asc-select-empty, rgba(255, 255, 255, 0.45)));\r
     }\r
   </style>\r
-  <!-- 默认段（替换 field 出口 fallback）：表单载体（hidden——提交值载体，禁用\r
-         出表由 JS 同步）+ 触发器（popover 宿主 / 焦点受让者 / combobox 语义）+\r
-         清除钮（动作件）+ 下拉箭头。文案走 props 与 i18n 词典（继承形态嵌套插槽出口\r
-         被忽略，ADR-0056——不开真插槽，ADR-0022） -->\r
   <input type="hidden" class="asc-select-carrier" />\r
   <span\r
     class="asc-select-trigger"\r
@@ -1033,38 +863,11 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     x-icon="loading ? 'loading' : 'select-down'"\r
   ></i>\r
 </span>\r
-`,i=`<!--\r
-    autospark-select-panel 下拉面板（ADR-0022）——select 的内部组件（非用户直接消费，\r
-    无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制（trigger:click）\r
-    渲染进 body 覆盖物容器，面板外壳（边框/阴影/定位/宽度 fit 随触发器）由 popover-shell\r
-    承载，本组件只贡献选项列表内容。\r
-\r
-    与触发器组件（autospark.select）的通信走 scope 链：overlay 内容宿主恒以\r
-    「open + dataContext:'host'」实例化本组件（ADR-0123 决策 2），聚合视图沿链读写触发器\r
-    组件 data 域——\r
-    - 读：filteredOptions（x-for 数据源）/ activeValue（高亮基准）/ value（选中基准）/\r
-      filterable / virtual / loading（形态与状态呈现）；\r
-    - 写：filterText（过滤框输入）、哨兵键 pickTick/pickValue（选项点击与过滤框 Enter\r
-      确认）与 keyTick/keyDir（过滤框上下键导航）——面板模板不能跨组件边界调触发器\r
-      组件 method（x-on 组件 method 查找不穿透父组件，ADR-0022 决策 3），自增哨兵免疫\r
-      同值去重；事件表达式用逗号运算符单表达式形态（分号多语句依赖新版引擎回退，旧产物\r
-      不可用）；\r
-    - 开合态：mounted/unmounted 沿链写 open（箭头旋转 / aria-expanded / 过滤词复位）。\r
-\r
-    列表渲染双分支（ADR-0022 决策 4）：普通分支 template 形态 x-for（缺省）；虚拟分支\r
-    **容器形态** x-for.virtual 直接挂列表容器（规范用法——template 形态下惰性内容让\r
-    itemHeight 自动检测取 0 退化全量），须加载 autospark.virtual.js（渐进增强，缺席时\r
-    引擎 warn + 降级全量渲染）。空态文案走 i18n 词典 select.empty 键（回退「暂无数据」）。\r
--->\r
-<div class="asc-select-panel" x-define="autospark-select-panel">\r
+`,i=`<div class="asc-select-panel" x-define="autospark-select-panel">\r
   <script setup>\r
     {\r
-        // 本组件零 props（overlay 宿主以空值实例化）、零自有状态——全部数据经 scope 链\r
-        // 读写触发器组件域；data() 空对象占位以建立自有 data 层（聚合视图的链上桥点）\r
         data: () => ({}),\r
         methods: {\r
-            // 过滤框键盘导航（哨兵沿链写回，ADR-0022 决策 3）：上下键移动高亮 /\r
-            // Enter 确认当前高亮项；ESC 不拦截（归 popover 打开栈——机制继承）\r
             onFilterKeydown(event) {\r
                 if (event.key === "ArrowDown" || event.key === "ArrowUp") {\r
                     event.preventDefault();\r
@@ -1080,12 +883,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             },\r
         },\r
         mounted() {\r
-            // 开合态沿链写回（触发器侧 watch open 派生箭头旋转 / aria-expanded / 复位）\r
             this.data.open = true;\r
-            // 宽度匹配触发器盒饰（ADR-0022 决策 2 注记）：popover 的 fit 基准是触发器\r
-            // 内容区（popover 宿主元素，不含盒饰 padding）——按 uid 配对测盒饰宽，补写\r
-            // shell 面板 min-width（fit 持续写 width，min-width 抬到盒宽；每次打开新\r
-            // 实例重测，盒宽变化随重开自适应）\r
             const uid = this.data.uid;\r
             if (uid) {\r
                 const box = document.querySelector('[data-asc-select-uid="' + uid + '"]');\r
@@ -1094,7 +892,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                     shellPanel.style.minWidth = box.getBoundingClientRect().width + "px";\r
                 }\r
             }\r
-            // 高亮项滚动跟随（键盘导航可见性；初次打开定位到选中项；列表在面板内现查）\r
             const scrollActive = () => {\r
                 const el = this.el.querySelector(\r
                     ".asc-select-option[data-active], .asc-select-option[data-selected]",\r
@@ -1105,13 +902,10 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             this.watch("activeValue", () => { setTimeout(scrollActive, 0); });\r
         },\r
         unmounted() {\r
-            // 面板每次开合都是新实例（popover 无 keepalive，关闭即销毁）——关闭即复位开合态\r
             this.data.open = false;\r
         },\r
     }\r
   <\/script>\r
-  <!-- 过滤框（filterable）：本地过滤输入（P1 简实现——对 label 不区分大小写包含匹配，\r
-         过滤词沿链写触发器域，重建 filteredOptions） -->\r
   <div class="asc-select-filter" x-if="filterable">\r
     <input\r
       class="asc-select-filter-input"\r
@@ -1120,7 +914,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       x-on:keydown="onFilterKeydown($event)"\r
     />\r
   </div>\r
-  <!-- 选项列表·普通分支（缺省）：template 形态 x-for（容器内追加空态行） -->\r
   <div class="asc-select-list" x-if="!virtual" x-loading="loading">\r
     <template x-for="option of filteredOptions" :key="option.value">\r
       <div\r
@@ -1140,11 +933,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       x-text="t('select.empty') === 'select.empty' ? '暂无数据' : t('select.empty')"\r
     ></div>\r
   </div>\r
-  <!-- 选项列表·虚拟分支（virtual 开关）：容器形态 x-for.virtual 直接挂列表容器（规范\r
-         用法）+ **固定行高 32px 显式声明**（首渲染前无子元素可测，自动检测是鸡生蛋问题\r
-         ——规范用法恒显式传 itemHeight，ADR-0022 决策 4）——长列表（>100）只渲染可见窗口，\r
-         须加载 autospark.virtual.js（渐进增强；缺席时引擎 warn + 降级全量渲染）。\r
-         x-if 分叉包一层避免与 x-for 同元素互斥（结构指令独占宿主） -->\r
   <div class="asc-select-virtual" x-if="virtual">\r
     <div\r
       class="asc-select-list"\r

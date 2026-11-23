@@ -1,6 +1,6 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>Button · 块级按钮</title>
     <link rel="stylesheet" href="/autospark/autospark-theme.css" />
@@ -10,27 +10,40 @@
     <script src="/autospark/autospark.button.js?v=20261107"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
-</head>
-<body>
-    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <script src="/autospark/autospark.tooltip.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel">
+      <theme-controls groups="color,mode"></theme-controls>
+    </aside>
     <main class="demo-main">
-        <div class="auto-card">
-            <div class="auto-card-header">块级（block）：适配父宽度</div>
-            <div class="auto-card-body" style="max-width: 360px;">
-                <x-button block="true" label="块级主按钮"></x-button>
-                <div style="height:8px"></div>
-                <x-button variant="dashed" block="true" label="块级虚线按钮"></x-button>
-                <div style="height:8px"></div>
-                <div style="display:flex;gap:8px;">
-                    <x-button block="true" label="块级平分"></x-button>
-                    <x-button variant="secondary" block="true" label="块级平分"></x-button>
-                </div>
-                <p class="hint">普通按钮保持 inline 尺寸，block 后 width:100% 撑满父容器。</p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">块级（block）：适配父宽度</div>
+        <div class="auto-card-body" style="max-width: 360px">
+          <x-button block="true" label="块级主按钮"></x-button>
+          <div style="height: 8px"></div>
+          <x-button
+            variant="dashed"
+            block="true"
+            label="块级虚线按钮"
+          ></x-button>
+          <div style="height: 8px"></div>
+          <div style="display: flex; gap: 8px">
+            <x-button block="true" label="块级平分"></x-button>
+            <x-button
+              variant="secondary"
+              block="true"
+              label="块级平分"
+            ></x-button>
+          </div>
+          <p class="hint">
+            普通按钮保持 inline 尺寸，block 后 width:100% 撑满父容器。
+          </p>
         </div>
+      </div>
     </main>
     <script>
-        new AutoSpark(document.querySelector(".demo-main"), {});
+      new AutoSpark(document.querySelector(".demo-main"), {});
     </script>
-</body>
+  </body>
 </html>

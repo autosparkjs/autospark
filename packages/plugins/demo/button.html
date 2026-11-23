@@ -56,7 +56,7 @@
       外层消费。宿主标签即组件根标签（化身语义）——用 <code>button</code> 宿主得到语义化按钮。
     </p>
 
-    <div id="app" x-data="{ clicks: 0, picked: false, btnTags: [{ name: 'settings', icon: 'edit', tooltip: '设置' }] }">
+    <div id="app" x-data="{ clicks: 0, picked: false, btnTags: [{ name: 'settings', icon: 'edit', tooltip: '设置' }], bottomStates: { collapsed: { labelPos: 'bottom' } }, modeStates: { mini: { labelPos: 'none', indent: 0 } }, caretStates: { collapsed: { caret: 'none' } }, mode: null }">
       <h2>标签形态（ADR-0133）</h2>
       <p class="hint">
         注册名 <code>autospark.button</code> 的元素标签按归一化推导（官方
@@ -127,6 +127,30 @@
         <span>picked = <b>{{ picked }}</b></span>
       </div>
       <p class="hint">点击自动翻转并冒泡 change（detail.value）；受控显示经 props 单向注入——两行即双向。</p>
+
+      <h2>命名状态覆盖（state / states / collapsed）</h2>
+      <div class="row">
+        <x-button icon="menu" label="工作空间" indent="16"></x-button>
+        <x-button icon="menu" label="工作空间" indent="16" collapsed></x-button>
+        <x-button icon="menu" label="底部文字" collapsed :states="bottomStates"></x-button>
+      </div>
+      <p class="hint">
+        collapsed 是 state='collapsed' 的快捷糖：内置预设 { labelPos:'none', indent:0, hideTags:true, menu:false }（藏文字转悬停提示、清缩进、隐 tags、退出菜单形态）；
+        states.collapsed 与预设浅合并可部分定制（第三个仅覆盖 labelPos）。
+      </p>
+      <div class="row">
+        <x-button icon="home" label="首页" indent="1em" :state="mode" :states="modeStates"></x-button>
+        <x-button icon="more" label="caret 保留" caret="bottom" indent="1em" :state="mode" :states="modeStates"></x-button>
+        <x-button icon="close" label="caret 折叠藏" caret="top" indent="1em" :state="mode" :states="caretStates"></x-button>
+        <span @click="mode = mode === 'mini' ? null : 'mini'">
+          <x-button variant="secondary" label="切到 mini 态"></x-button>
+        </span>
+        <span>mode = <b>{{ mode ?? 'null' }}</b></span>
+      </div>
+      <p class="hint">
+        自定义键 mini 所见即所得（只写 labelPos——顶层 hideTags 等不受影响）；任意不在表中的 state 值即恢复（warn 一次）。
+        caret 对照：内置预设不含 caret 键——折叠时箭头保留贴右缘；要藏箭头在 states.collapsed 覆盖 caret: 'none'。
+      </p>
     </div>
 
     <p><a href="./index.html">← 返回组件列表</a></p>

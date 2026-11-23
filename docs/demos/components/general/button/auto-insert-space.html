@@ -1,6 +1,6 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>Button · 汉字空格</title>
     <link rel="stylesheet" href="/autospark/autospark-theme.css" />
@@ -10,26 +10,41 @@
     <script src="/autospark/autospark.button.js?v=20261107"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
-</head>
-<body>
-    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <script src="/autospark/autospark.tooltip.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel">
+      <theme-controls groups="color,mode"></theme-controls>
+    </aside>
     <main class="demo-main">
-        <div class="auto-card">
-            <div class="auto-card-header">汉字空格（autoInsertSpace，默认 true）</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <x-button label="提交"></x-button>
-                    <x-button label="提交" auto-insert-space="false"></x-button>
-                    <x-button label="确定取消"></x-button>
-                </div>
-                <p class="hint">
-                    label 恰为<b>两个汉字</b>时自动在中间插入空格（左：提交 → 「提 交」，视觉更均衡）；设 <code>autoInsertSpace: false</code> 关闭（右一）。三字及以上不受影响（右二）。
-                </p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          汉字空格（autoInsertSpace，默认 true）
         </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 8px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button label="提交"></x-button>
+            <x-button label="提交" auto-insert-space="false"></x-button>
+            <x-button label="确定取消"></x-button>
+          </div>
+          <p class="hint">
+            label 恰为<b>两个汉字</b>时自动在中间插入空格（左：提交 → 「提
+            交」，视觉更均衡）；设
+            <code>autoInsertSpace: false</code>
+            关闭（右一）。三字及以上不受影响（右二）。
+          </p>
+        </div>
+      </div>
     </main>
     <script>
-        new AutoSpark(document.querySelector(".demo-main"), {});
+      new AutoSpark(document.querySelector(".demo-main"), {});
     </script>
-</body>
+  </body>
 </html>

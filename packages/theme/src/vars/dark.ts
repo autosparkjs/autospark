@@ -9,30 +9,32 @@
  * - `--x-color-*` / `--x-bgcolor-*`：实际值，引用灰色别名（默认态即暗灰）。
  */
 export const darkColorVars = {
-    /* 灰色方向（暗：color-i=gray-i，color-0 最沉；背景与前景分离映射——
-     * bgcolor-0（面板）取 gray-8 浮起于 bgcolor-1（工作区，最沉的 gray-9），
-     * bgcolor-2..9 递亮供透明度叠加原料与扩展档使用，保证整条背景梯度单调） */
-    "--x-plain-color-0": "var(--x-color-gray-0) !important",
-    "--x-plain-color-1": "var(--x-color-gray-1) !important",
-    "--x-plain-color-2": "var(--x-color-gray-2) !important",
-    "--x-plain-color-3": "var(--x-color-gray-3) !important",
-    "--x-plain-color-4": "var(--x-color-gray-4) !important",
-    "--x-plain-color-5": "var(--x-color-gray-5) !important",
-    "--x-plain-color-6": "var(--x-color-gray-6) !important",
-    "--x-plain-color-7": "var(--x-color-gray-7) !important",
-    "--x-plain-color-8": "var(--x-color-gray-8) !important",
-    "--x-plain-color-9": "var(--x-color-gray-9) !important",
+    /* 灰色方向（暗：color-i=dgray-i，引用暗灰阶标尺——Dark Modern 面板族锚点，
+     * 见 styles/colors.less；color-0 最沉。背景与前景分离映射——
+     * bgcolor-0（面板）取 dgray-8（#1F1F1F 编辑器）浮起于 bgcolor-1（工作区，最沉的
+     * dgray-9 #181818 侧栏/状态栏），bgcolor-2（#222222 widget/quickInput）递亮供
+     * 透明度叠加原料与扩展档使用，保证整条背景梯度单调） */
+    "--x-plain-color-0": "var(--x-color-dgray-0) !important",
+    "--x-plain-color-1": "var(--x-color-dgray-1) !important",
+    "--x-plain-color-2": "var(--x-color-dgray-2) !important",
+    "--x-plain-color-3": "var(--x-color-dgray-3) !important",
+    "--x-plain-color-4": "var(--x-color-dgray-4) !important",
+    "--x-plain-color-5": "var(--x-color-dgray-5) !important",
+    "--x-plain-color-6": "var(--x-color-dgray-6) !important",
+    "--x-plain-color-7": "var(--x-color-dgray-7) !important",
+    "--x-plain-color-8": "var(--x-color-dgray-8) !important",
+    "--x-plain-color-9": "var(--x-color-dgray-9) !important",
 
-    "--x-plain-bgcolor-0": "var(--x-color-gray-8) !important",
-    "--x-plain-bgcolor-1": "var(--x-color-gray-9) !important",
-    "--x-plain-bgcolor-2": "var(--x-color-gray-7) !important",
-    "--x-plain-bgcolor-3": "var(--x-color-gray-6) !important",
-    "--x-plain-bgcolor-4": "var(--x-color-gray-5) !important",
-    "--x-plain-bgcolor-5": "var(--x-color-gray-4) !important",
-    "--x-plain-bgcolor-6": "var(--x-color-gray-3) !important",
-    "--x-plain-bgcolor-7": "var(--x-color-gray-2) !important",
-    "--x-plain-bgcolor-8": "var(--x-color-gray-1) !important",
-    "--x-plain-bgcolor-9": "var(--x-color-gray-0) !important",
+    "--x-plain-bgcolor-0": "var(--x-color-dgray-8) !important",
+    "--x-plain-bgcolor-1": "var(--x-color-dgray-9) !important",
+    "--x-plain-bgcolor-2": "var(--x-color-dgray-7) !important",
+    "--x-plain-bgcolor-3": "var(--x-color-dgray-6) !important",
+    "--x-plain-bgcolor-4": "var(--x-color-dgray-5) !important",
+    "--x-plain-bgcolor-5": "var(--x-color-dgray-4) !important",
+    "--x-plain-bgcolor-6": "var(--x-color-dgray-3) !important",
+    "--x-plain-bgcolor-7": "var(--x-color-dgray-2) !important",
+    "--x-plain-bgcolor-8": "var(--x-color-dgray-1) !important",
+    "--x-plain-bgcolor-9": "var(--x-color-dgray-0) !important",
 
     /*
      * 多彩映射（暗：厚重的多彩暗底）。

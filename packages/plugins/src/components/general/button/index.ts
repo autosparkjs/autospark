@@ -43,6 +43,21 @@ function mountButtonPlugin(autospark: typeof AutoSpark): void {
     autospark.components[BUTTON_NAME] = buttonTemplate;
     autospark.precompile?.((engine: InstanceType<typeof AutoSpark>) => {
         for (const el of Array.from(engine.el.querySelectorAll("x-button"))) {
+            // 覆盖物消费者属性（x-popover / x-dialog / x-drawer 家族及 -options / 修饰符形态）：
+            // 组件化身与覆盖物声明点同宿主互斥（ADR-0056 决策十修订，引擎 warn + 跳过实例化）——
+            // 书写形态允许直接写在 x-button 上，变换时自动拆两层：覆盖物属性上提包裹元素做
+            // 触发宿主；x-button 内声明的 x-define 弹出组件一并上提（与包裹元素同 scope 链，
+            // 避免 x-define 挂进组件化身自身 scope 导致覆盖物查不到）
+            const OVERLAY_ATTR = /^x-(popover|dialog|drawer)([:.-]|$|-options$)/;
+            const overlayAttrs = Array.from(el.attributes).filter((a) => OVERLAY_ATTR.test(a.name));
+            let wrap: HTMLElement | null = null;
+            if (overlayAttrs.length) {
+                wrap = document.createElement("span");
+                for (const a of overlayAttrs) {
+                    wrap.setAttribute(a.name, a.value);
+                    el.removeAttribute(a.name);
+                }
+            }
             const btn = document.createElement("button");
             // props 字面量键用裸标识符形态（引擎值解析对「引号键 + 表达式值」组合的成员求值会
             // 静默丢弃——实测 { "checkValues": (cv) } 丢、{ checkValues: (cv) } 注入成功）；
@@ -69,8 +84,20 @@ function mountButtonPlugin(autospark: typeof AutoSpark): void {
                 parts.push(`${propKey(kebabToCamel(attr.name))}: ${JSON.stringify(inferPropValue(attr.value))}`);
             }
             btn.setAttribute(`x-component:${BUTTON_NAME}`, `{ ${parts.join(", ")} }`);
+            // x-define 弹出组件上提包裹层（在 x-button 内声明的书写形态 → 变换后与触发宿主同层）；
+            // 其余子内容随迁为默认插槽
+            const defines: Element[] = [];
+            for (const child of Array.from(el.children)) {
+                if (child.hasAttribute("x-define")) defines.push(child);
+            }
+            if (wrap) {
+                el.replaceWith(wrap);
+                for (const d of defines) wrap.appendChild(d);
+                wrap.appendChild(btn);
+            } else {
+                el.replaceWith(btn);
+            }
             while (el.firstChild) btn.appendChild(el.firstChild);
-            el.replaceWith(btn);
         }
     });
 }

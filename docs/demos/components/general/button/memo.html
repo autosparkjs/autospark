@@ -1,6 +1,6 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>Button · 备注信息</title>
     <link rel="stylesheet" href="/autospark/autospark-theme.css" />
@@ -10,13 +10,16 @@
     <script src="/autospark/autospark.button.js?v=20261107"></script>
     <script src="/autospark/autospark.ripple.js"></script>
     <script src="/autospark/theme-controls.js"></script>
-</head>
-<body>
-    <aside class="demo-panel"><theme-controls groups="color,mode"></theme-controls></aside>
+    <script src="/autospark/autospark.tooltip.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel">
+      <theme-controls groups="color,mode"></theme-controls>
+    </aside>
     <!-- tags 数组放外层状态再路径引用——props 字面量数组存在引用比较层面的更新环缺陷（引擎侧修复中） -->
     <main
-        class="demo-main"
-        x-data="{
+      class="demo-main"
+      x-data="{
             notifyTags: [
                 { name: 'settings', icon: 'edit', tooltip: '接收设置' },
                 { name: 'remove', icon: 'error', tooltip: '移除此项' }
@@ -26,43 +29,128 @@
             ]
         }"
     >
-        <div class="auto-card">
-            <div class="auto-card-header">备注（memo）：label 下方的注释（小一号、淡色）</div>
-            <div class="auto-card-body">
-                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
-                    <x-button icon="star" label="收藏" memo="按 ⌘ + D 快速收藏"></x-button>
-                    <x-button variant="secondary" label="导出" memo="仅支持 PNG 格式"></x-button>
-                    <x-button variant="secondary" icon="folder" label="文件夹" label-pos="bottom" memo="共 128 项"></x-button>
-                </div>
-                <p class="hint">
-                    memo 与 labelBelow 自由组合（纵排时 memo 在 label 正下方）；实底上 memo 自动呈淡白（按内容色 color-mix 派生），透明底上呈淡灰；memo 在场时图标默认放大 1.5 倍（与纵排同一内建倍率，可经 icon.scale 接管），与 label+memo 文本块垂直居中。
-                </p>
-            </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          备注（memo）：label 下方的注释（小一号、淡色）
         </div>
-        <div class="auto-card">
-            <div class="auto-card-header">label 左对齐 + memo 单行与两行截断</div>
-            <div class="auto-card-body" style="max-width: 380px;display:flex;flex-direction:column;gap:10px;">
-                <x-button block="true" align="left" icon="bell" label="通知设置" memo="仅提醒未读消息"></x-button>
-                <x-button variant="secondary" block="true" align="left" icon="bell" label="通知设置" memo="接收订单、库存、会员与营销活动的实时提醒，支持按渠道（站内、短信、邮件）分别配置接收偏好，重要事件可开启加急推送"></x-button>
-                <x-button block="true" align="left" icon="folder" label="归档规则" memo="按季度自动归档已完成订单，归档前会再次确认并生成备份清单，备份文件保留 90 天，到期后自动清理且不可恢复"></x-button>
-            </div>
-            <p class="hint" style="padding: 0 1rem 0.8rem;">
-                align: "left" 使内容左对齐（block 等宽内容时可见）；短 memo 单行呈现（第一枚），长 memo 最多两行、超出自动截断显示省略号（后两枚）。
-            </p>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 12px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button
+              icon="star"
+              label="收藏"
+              memo="按 ⌘ + D 快速收藏"
+            ></x-button>
+            <x-button
+              variant="secondary"
+              label="导出"
+              memo="仅支持 PNG 格式"
+            ></x-button>
+            <x-button
+              variant="secondary"
+              icon="folder"
+              label="文件夹"
+              label-pos="bottom"
+              memo="共 128 项"
+            ></x-button>
+          </div>
+          <p class="hint">
+            memo 与 labelBelow 自由组合（纵排时 memo 在 label 正下方）；实底上
+            memo 自动呈淡白（按内容色 color-mix 派生），透明底上呈淡灰；memo
+            在场时图标默认放大 1.5 倍（与纵排同一内建倍率，可经 icon.scale
+            接管），与 label+memo 文本块垂直居中。
+          </p>
         </div>
-        <div class="auto-card">
-            <div class="auto-card-header">memo + tags 组合：主信息、备注与右侧操作钮一体</div>
-            <div class="auto-card-body" style="max-width: 420px;display:flex;flex-direction:column;gap:10px;">
-                <x-button variant="secondary" block="true" align="left" icon="bell" label="通知设置" memo="仅提醒未读消息" :tags="notifyTags"></x-button>
-                <x-button variant="secondary" block="true" align="left" icon="folder" label="年度报告.pdf" memo="2.4 MB · 2026-11-16 更新" :tags="fileTags"></x-button>
-            </div>
-            <p class="hint" style="padding: 0 1rem 0.8rem;">
-                memo 双行文本块与右侧 tags 并存——tags 自动贴内容区右端（列表项常用形态）；memo 在场时左侧图标默认放大 1.5 倍与文本块配平（与纵排同一倍率，可经 icon.scale 接管），tag 圆钮恒 1rem 不受影响（第二枚 star 为 checkable tag，点击点亮收藏）；tags 数组须路径引用（<code>:tags</code>）。
-            </p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">label 左对齐 + memo 单行与两行截断</div>
+        <div
+          class="auto-card-body"
+          style="
+            max-width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          "
+        >
+          <x-button
+            block="true"
+            align="left"
+            icon="bell"
+            label="通知设置"
+            memo="仅提醒未读消息"
+          ></x-button>
+          <x-button
+            variant="secondary"
+            block="true"
+            align="left"
+            icon="bell"
+            label="通知设置"
+            memo="接收订单、库存、会员与营销活动的实时提醒，支持按渠道（站内、短信、邮件）分别配置接收偏好，重要事件可开启加急推送"
+          ></x-button>
+          <x-button
+            block="true"
+            align="left"
+            icon="folder"
+            label="归档规则"
+            memo="按季度自动归档已完成订单，归档前会再次确认并生成备份清单，备份文件保留 90 天，到期后自动清理且不可恢复"
+          ></x-button>
         </div>
+        <p class="hint" style="padding: 0 1rem 0.8rem">
+          align: "left" 使内容左对齐（block 等宽内容时可见）；短 memo
+          单行呈现（第一枚），长 memo
+          最多两行、超出自动截断显示省略号（后两枚）。
+        </p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          memo + tags 组合：主信息、备注与右侧操作钮一体
+        </div>
+        <div
+          class="auto-card-body"
+          style="
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          "
+        >
+          <x-button
+            variant="secondary"
+            block="true"
+            align="left"
+            icon="bell"
+            label="通知设置"
+            memo="仅提醒未读消息"
+            :tags="notifyTags"
+          ></x-button>
+          <x-button
+            variant="secondary"
+            block="true"
+            align="left"
+            icon="folder"
+            label="年度报告.pdf"
+            memo="2.4 MB · 2026-11-16 更新"
+            :tags="fileTags"
+          ></x-button>
+        </div>
+        <p class="hint" style="padding: 0 1rem 0.8rem">
+          memo 双行文本块与右侧 tags 并存——tags
+          自动贴内容区右端（列表项常用形态）；memo 在场时左侧图标默认放大 1.5
+          倍与文本块配平（与纵排同一倍率，可经 icon.scale 接管），tag 圆钮恒
+          1rem 不受影响（第二枚 star 为 checkable tag，点击点亮收藏）；tags
+          数组须路径引用（<code>:tags</code>）。
+        </p>
+      </div>
     </main>
     <script>
-        new AutoSpark(document.querySelector(".demo-main"), {});
+      new AutoSpark(document.querySelector(".demo-main"), {});
     </script>
-</body>
+  </body>
 </html>

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Button · 命名状态覆盖</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.button.js?v=20261122"></script>
+    <script src="/autospark/autospark.ripple.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+    <script src="/autospark/autospark.tooltip.js"></script>
+    <style>
+      .side-box {
+        width: 240px;
+        border: var(--auto-border, 1px solid rgba(128, 128, 128, 0.3));
+        border-radius: 8px;
+        padding: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        transition: width 0.2s ease;
+      }
+      /* 消费方几何钩子：data-state 属性通道（button 零几何内建，折叠宽度归消费方；
+            保留组件水平 padding——宽度按「1.5× 图标 + 左右 padding」容纳取值，图标自然居中） */
+      .side-box[data-side="collapsed"] {
+        width: 64px;
+      }
+      .side-box button[data-state="collapsed"] {
+        width: 52px;
+        justify-content: center;
+      }
+      .hint {
+        color: var(--auto-color, #868e96);
+        font-size: 0.875rem;
+        margin: 8px 0 0;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">
+          折叠快捷方式：collapsed=true ≡ state="collapsed"（内置预设 { labelPos:
+          none, indent: 0, hideTags: true }）
+        </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <x-button icon="menu" label="工作空间" indent="16"></x-button>
+            <x-button
+              icon="menu"
+              label="工作空间"
+              indent="16"
+              collapsed
+            ></x-button>
+            <span class="hint"
+              >← 裸布尔折叠（label/memo 藏、缩进清零、tags 隐藏；label
+              自动转悬停提示）</span
+            >
+          </div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          部分定制：states.collapsed 与内置预设浅合并（未写键保默认）——collapsed
+          时 labelPos=bottom 运行时切换
+        </div>
+        <div class="auto-card-body">
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <span @click="bottomOn = !bottomOn">
+              <x-button
+                variant="secondary"
+                :label="bottomOn ? '恢复常态' : '切到折叠(bottom)'"
+              ></x-button>
+            </span>
+            <x-button
+              icon="menu"
+              label="底部文字"
+              indent="16"
+              :collapsed="bottomOn"
+              :states="bottomStates"
+              :tags="rowTags"
+            ></x-button>
+            <span class="hint"
+              >← 常态横排（缩进 16 + tags 在场）；折叠时
+              labelPos=bottom（图标上/文字下）、indent 清 0、hideTags 仍取预设藏
+              tags</span
+            >
+          </div>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          自定义状态键 + 运行时切换（state 是唯一真相，任何不在表中的值即恢复）
+        </div>
+        <div class="auto-card-body">
+          <div style="display: flex; gap: 12px; align-items: flex-start">
+            <div class="side-box" :data-side="side">
+              <x-button
+                block="true"
+                menu="true"
+                icon="home"
+                label="首页"
+                indent="1em"
+                :state="side"
+                :states="menuStates"
+                :tags="rowTags"
+              ></x-button>
+              <x-button
+                block="true"
+                menu="true"
+                icon="folder"
+                label="项目文件"
+                indent="2em"
+                :state="side"
+                :states="menuStates"
+                :tags="rowTags"
+              ></x-button>
+              <x-button
+                block="true"
+                menu="true"
+                icon="copy"
+                label="草稿副本"
+                indent="3em"
+                :state="side"
+                :states="menuStates"
+                :tags="rowTags"
+              ></x-button>
+              <x-button
+                block="true"
+                menu="true"
+                icon="more"
+                label="展开更多（caret 保留）"
+                indent="1em"
+                caret="bottom"
+                :state="side"
+                :states="menuStates"
+              ></x-button>
+              <x-button
+                block="true"
+                menu="true"
+                icon="close"
+                label="收起面板（caret 藏）"
+                indent="1em"
+                caret="top"
+                :state="side"
+                :states="caretStates"
+              ></x-button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <span @click="side = side ? null : 'collapsed'">
+                <x-button variant="secondary" label="切换折叠"></x-button>
+              </span>
+              <span @click="side = side === 'mini' ? null : 'mini'">
+                <x-button variant="secondary" label="切到 mini 态"></x-button>
+              </span>
+              <p class="hint">
+                side = <b>{{ side ?? 'null' }}</b><br />折叠走内置预设（menu
+                亦压回 false——图标条退出菜单形态，宽度由 data-state CSS
+                收窄）；mini 键未写 hideTags——tags 照常显示（所见即所得）。<br />末两行为
+                caret 对照：预设不含 caret
+                键——折叠时箭头**保留**（贴右缘，margin-left:auto
+                让位）；要藏箭头在 states.collapsed 覆盖
+                <code>caret: 'none'</code>（双层合并仍保四键预设）。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.querySelector(".demo-main"), {
+        bottomStates: { collapsed: { labelPos: "bottom" } },
+        bottomOn: false,
+        menuStates: {
+          mini: { labelPos: "none", indent: 0 },
+        },
+        caretStates: { collapsed: { caret: "none" } },
+        rowTags: [{ name: "more", icon: "more", tooltip: "更多" }],
+        side: null,
+      });
+    </script>
+  </body>
+</html>

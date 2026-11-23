@@ -1,32 +1,9 @@
-<!--
-    autospark-time-picker-panel 时间面板（ADR-0025）——time-picker 的内部组件（非用户
-    直接消费，无文档页；连字符注册名的成因见 index.ts）：经 x-popover 指令机制
-    （trigger:click）渲染进 body 覆盖物容器，面板外壳由 popover-shell 承载，本组件
-    只贡献两列滚动列表（时 0-23 / 分 0-59）内容。
-
-    与触发器组件（autospark.time-picker）的通信走 scope 链：聚合视图沿链读写触发器
-    组件 data 域——
-    - 读：hourList/minuteList（x-for 数据源）、curHour/curMinute（选中比较基准）；
-    - 写：哨兵键 hTick/hVal 与 mTick/mVal（时/分格点选——面板模板不能跨组件边界调
-      触发器组件 method，ADR-0022 决策 3；自增哨兵免疫同值去重；事件表达式用逗号
-      运算符单表达式形态）；
-    - 开合态：mounted/unmounted 沿链写 open。
-
-    选择语义（ADR-0025 决策 2）：点选**部分提交**且面板保持开（两列连续选择）；关闭
-    走 popover 机制通道（外点/ESC）或再点触发器。mounted 时两列各滚动定位到当前选中
-    格（无选中落列首）。克隆体内零 x-if——选中标记走 x-bind 布尔属性 + CSS。
--->
 <div class="asc-time-picker-panel" x-define="autospark-time-picker-panel">
   <script setup>
     {
-        // 本组件零 props、零自有状态——全部数据经 scope 链读写触发器组件域；
-        // data() 空对象占位以建立自有 data 层（聚合视图的链上桥点）
         data: () => ({}),
         mounted() {
-            // 开合态沿链写回（触发器侧 watch open 派生图标染色 / aria-expanded）
             this.data.open = true;
-            // 两列各自滚动定位到当前选中格（无选中落列首——scrollIntoView 平滑兜底，
-            // happy-dom 无布局环境下可选链静默跳过）
             const scrollCol = (col) => {
                 const sel = col.querySelector(".asc-time-picker-cell[data-selected]");
                 (sel || col.querySelector(".asc-time-picker-cell"))?.scrollIntoView?.({ block: "nearest" });
@@ -36,13 +13,10 @@
             }, 0);
         },
         unmounted() {
-            // 面板每次开合都是新实例（popover 无 keepalive，关闭即销毁）——关闭即复位开合态
             this.data.open = false;
         },
     }
   </script>
-  <!-- 时/分两列：静态刻度（触发器域 hourList/minuteList），点选沿链写哨兵键
-         （部分提交，面板保持开——ADR-0025 决策 2） -->
   <div class="asc-time-picker-cols">
     <div class="asc-time-picker-col" role="listbox">
       <template x-for="h of hourList" :key="h.v">

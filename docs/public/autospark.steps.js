@@ -1,34 +1,7 @@
 (function (AutoSpark) {
     "use strict";
 var run = function (AutoSpark) {
-function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){return e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase())}function n(e){return/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e)}function r(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}var i=`autospark.steps`;function a(e){e.components[i]=`<!--
-    autospark.steps 步骤条（组件库 P2 导航件，ADR-0018 清单权威表 navigation 行）：
-    items（{ title, description?, icon? }[]，状态引用注入）或 <x-step> 子元素声明
-    （data-items 通道，字面量数组 props 死环规避，P0 固化规避清单第 1 条）双形态。
-
-    状态机（每步 data-state，克隆体内联表达式驱动——绑定表达式不含组件方法，
-    全部内联）：序号 < current → finish（打勾）；=== current → status 取值
-    （process 缺省 / finish 打勾 / error 叉号 danger 色）；> current → wait。
-    连接线（.asc-step-line）随所属步 finish 染主色（进度染色）。
-
-    值通道（受控，tabs 同构）：current props 单向驱动 + clickable 开启时点击步
-    切换写组件 data + 双派发——input（x-model 回写，非冒泡）+ change（冒泡
-    detail = { current }）。el.value 劫持桥恒在场（number 语域，负值/NaN 归 0）。
-
-    direction：horizontal 缺省（横排 + 步后横线）/ vertical（纵排 + 步下竖线）。
-
-    取舍（v1 按简）：键盘漫游不做（步为 li 载体 + clickable 时 cursor 指引）；
-    current 越界不钳制上界（> 末序 → 全部 finish，视觉合法）。
-
-    化身路径约束（x-component T4=B）：组件快照根的属性静态并入宿主，根上的动态
-    绑定不会求值——形态绑定（:data-direction / :data-status / :data-clickable）
-    落在编译子树内层 body 上。
--->
-<!-- 继承 autospark.base（ADR-0134，engine 内置抽象基组件）：主题档位 props
-     （data-size / data-shadow / data-radius / data-spacing / data-dark / data-colorized
-     六键）自动获得——字号档位经主题通道全跟随；steps 不在 data() 声明主题六键，
-     内部变体属性（direction）亦禁用六个通道名 -->
-<div
+function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);return}let n=globalThis,r=n.__AUTOSPARK_PLUGINS__??=[];Object.isFrozen(r)?console.error(`installPlugin: 插件注册通道已关闭（__AUTOSPARK_PLUGINS__ 已消费且全局 AutoSpark 不可达），插件未注册`):r.push((t,n)=>e(n))}function t(e){return e.replace(/-([a-z])/g,(e,t)=>t.toUpperCase())}function n(e){return/^[A-Za-z_$][\w$]*$/.test(e)?e:JSON.stringify(e)}function r(e){let t=e.trim();if(t===``)return``;if(/^-?\d+(\.\d+)?$/.test(t))return Number(t);if(t===`true`)return!0;if(t===`false`)return!1;if(t.startsWith(`{`)||t.startsWith(`[`))try{return JSON.parse(t)}catch{return e}return e}var i=`autospark.steps`;function a(e){e.components[i]=`<div
   class="asc-steps"
   x-define="autospark.steps"
   x-define:inherit="autospark.base"
@@ -36,15 +9,13 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   <script setup>
     {
         data: () => ({
-            current: 0,        // 当前步序号（0 起，受控缺省 0；el.value 桥 number 语域）
-            items: [],         // 步骤项 { title, description?, icon? }[]——状态引用注入；声明形态经 data-items 通道兜底
-            status: "process", // 当前步状态：process 进行中（缺省）| finish 已完成（当前步打勾）| error 异常（danger 色）
-            direction: "horizontal", // 排向：horizontal 横排（缺省）| vertical 纵排
-            clickable: false,  // 可点切换：开启后点击步切换 current + change 冒泡 detail={current}
+            current: 0,
+            items: [],
+            status: "process",
+            direction: "horizontal",
+            clickable: false,
         }),
         methods: {
-            // 步点击（clickable 开启时）：同值短路；写组件 data + 双派发
-            // （input→x-model 回写非冒泡；change→外层消费 detail={current} 冒泡）
             onStepClick(i) {
                 if (!this.data.clickable) return;
                 const n = Math.max(0, Math.round(Number(i) || 0));
@@ -55,23 +26,18 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             },
         },
         mounted() {
-            // 声明形态兜底（precompile 变换落盘的 data-items JSON 字符串）：items props
-            // 缺席时解析写组件 data（x-for 指令值通道响应，随写随渲染）；props 在场恒优先
             const raw = this.el.getAttribute("data-items");
             if ((!this.data.items || !this.data.items.length) && raw) {
                 try { this.data.items = JSON.parse(raw); } catch { /* 非法 JSON 静默忽略（容错缺省空组） */ }
                 this.el.removeAttribute("data-items");
             }
 
-            // current 归一（number 语域：负值/NaN/字符串数字收敛为非负整数）
             const normalize = (v) => {
                 const n = Math.round(Number(v));
                 return Number.isFinite(n) && n > 0 ? n : 0;
             };
             this.data.current = normalize(this.data.current);
 
-            // el.value 劫持桥（受控 current 的 DOM 通道：x-model / 程序读写皆经此，
-            // number 语域）；劫持前快照 expando（x-model 编译期可能已写初值）
             const prior = this.el.value;
             Object.defineProperty(this.el, "value", {
                 get: () => normalize(this.data.current),
@@ -79,9 +45,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 configurable: true,
             });
 
-            // 一跳首对齐（mounted 时 props 注入可能未落定，家族惯例）：初值落定序 =
-            // x-model expando > props current（缺省 0）；受控变化持续归一（同值幂等，
-            // 字符串数字注入收敛，规避清单第 9 条）
             setTimeout(() => {
                 if (normalize(this.data.current) === 0 && typeof prior === "string" && prior !== "" && Number(prior) > 0) {
                     this.data.current = normalize(prior);
@@ -95,7 +58,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   <\/script>
   <style global id="autospark-components-steps">
     .asc-steps {
-      /* 排版基线：字号经主题档位通道（data-size → --auto-font-size 全跟随，button 同范式 ADR-0012） */
       display: block;
       width: 100%;
       font-size: var(--auto-font-size, var(--asc-steps-font-size, 0.875rem));
@@ -118,9 +80,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       color: var(--asc-tone);
     }
 
-    /* ---------- 节点圆：状态四态（process 实底反白 / finish 描边主色打勾 / error 实底 danger 叉 / wait 描边灰） ---------- */
     .asc-step {
-      /* 横排缺省布局：等宽步（flex 1），节点圆 + 信息块 + 步后横线（线填满剩余宽到下一点） */
       flex: 1 1 0;
       min-width: 0;
       display: flex;
@@ -137,44 +97,38 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       border-radius: 50%;
       border: var(--asc-steps-dot-border, 1px) solid var(--auto-border-color, var(--asc-steps-border, #d9d9d9));
       color: var(--auto-third-color, var(--asc-steps-wait-color, rgba(0, 0, 0, 0.45)));
-      font-weight: var(--x-font-weight-large, 600); /* 语义层无强调字重变量，直取基础标尺 */
+      font-weight: var(--x-font-weight-large, 600);
       transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
     }
-    /* 进行中：主色实底反白（语义色底白字为恒定设计，非变量映射） */
     .asc-step[data-state="process"] .asc-step-dot {
       border-color: var(--asc-tone);
       background: var(--asc-tone);
       color: var(--asc-steps-dot-ink, #ffffff);
     }
-    /* 已完成：主色描边 + 主色对勾 */
     .asc-step[data-state="finish"] .asc-step-dot {
       border-color: var(--asc-tone);
       color: var(--asc-tone);
     }
-    /* 异常：danger 实底反白叉号 */
     .asc-step[data-state="error"] .asc-step-dot {
       border-color: var(--asc-danger);
       background: var(--asc-danger);
       color: var(--asc-steps-dot-ink, #ffffff);
     }
-    /* 图标位尺寸随节点圆（x-show 承载状态显隐——display 基线由 x-show 内联接管） */
     .asc-step-check,
     .asc-step-error,
     .asc-step-custom {
       font-size: 0.9em;
     }
 
-    /* ---------- 信息块 ---------- */
     .asc-step-info {
       flex: 0 1 auto;
       min-width: 0;
     }
     .asc-step-title {
-      font-weight: var(--x-font-weight-large, 600); /* 语义层无强调字重变量，直取基础标尺 */
+      font-weight: var(--x-font-weight-large, 600);
       color: var(--auto-color, var(--asc-steps-title-color, #303133));
       transition: color 0.2s ease;
     }
-    /* 未达步标题弱化；当前步主色；异常步 danger */
     .asc-step[data-state="wait"] .asc-step-title {
       color: var(--auto-secondary-color, var(--asc-steps-wait-title, rgba(0, 0, 0, 0.55)));
       font-weight: var(--auto-font-weight, var(--x-font-weight-medium, 400));
@@ -191,11 +145,10 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       color: var(--auto-third-color, var(--asc-steps-desc-color, rgba(0, 0, 0, 0.45)));
     }
 
-    /* ---------- 连接线：随所属步 finish 染主色（进度染色）；末步无线 ---------- */
     .asc-step-line {
       flex: 1 1 1em;
       align-self: flex-start;
-      margin-top: calc((1.75em - 1px) / 2); /* 对齐节点圆心高度 */
+      margin-top: calc((1.75em - 1px) / 2);
       height: 1px;
       background: var(--auto-border-color, var(--asc-steps-border, #d9d9d9));
       transition: background-color 0.3s ease;
@@ -207,7 +160,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       display: none;
     }
 
-    /* ---------- vertical 排向：纵排 + 步下竖线（绝对定位于节点圆正下方延至下一步） ---------- */
     .asc-steps-body[data-direction="vertical"] .asc-steps-list {
       flex-direction: column;
     }
@@ -224,15 +176,14 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       position: absolute;
       left: calc(1.75em / 2);
       top: calc(1.75em + 0.375em);
-      bottom: -0.625em; /* 跨步间距延至下一步节点圆上缘 */
+      bottom: -0.625em;
       width: 1px;
       height: auto;
       margin: 0;
       flex: none;
-      align-self: auto; /* 解除基础规则的 flex-start（abspos 子项对齐参与高度解析，flex-start 退化为内容高 0） */
+      align-self: auto;
     }
 
-    /* ---------- 暗色兜底变体（ADR-0129）：兜底字面值切换为 theme 默认暗色校准值（变量链不变） ---------- */
     [dark] .asc-steps-body,
     [data-dark] .asc-steps-body {
       --asc-tone: var(--auto-primary-color, var(--asc-steps-primary, #56baff));
@@ -264,11 +215,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       background: var(--asc-tone);
     }
   </style>
-  <!-- 形态/状态绑定落本层与克隆体（根上动态绑定不求值，T4=B）；状态机全内联表达式
-         （绑定表达式不含组件 methods）；克隆体内条件显隐一律 x-show（P0 规避清单第 4 条）；
-         图标三态互斥：finish 打勾（yes）/ error 叉号（no）/ 自定义 icon / 序号缺省 -->
   <div class="asc-steps-body" :data-direction="direction" :data-clickable="clickable ? '' : null">
-    <!-- x-for 容器宿主形态：ol 为容器（不克隆），其子 li 才是逐项克隆模板（:key 在容器上） -->
     <ol class="asc-steps-list" x-for="item of items" :key="item.title">
       <li
         class="asc-step"
