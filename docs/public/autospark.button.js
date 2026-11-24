@@ -37,6 +37,8 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             state: null,\r
             collapsed: false,\r
             hideTags: false,\r
+            // floatCaret 值域：false（缺省，不浮动）| 'top' | 'center' | 'bottom'（浮动垂直档位，\r
+            // 裸布尔 true 归一为 'center'——绑定通道统一产出三档字符串或 null）\r
             floatCaret: false,\r
             states: null,\r
             displayLabel: (s) => (s.autoInsertSpace && /^[一-龥]{2}$/.test(s.label ?? "")) ? (s.label[0] + " " + s.label[1]) : s.label\r
@@ -668,21 +670,32 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     .asc-button-line:has(> .asc-button-tags) > .asc-button-caret {\r
       margin-left: 0;\r
     }\r
-    /* 浮动箭头（floatCaret，默认 false）：脱离标签行流，绝对定位到按钮**右上角**——\r
-         top 与 right 等距（0.3em 角部对齐）；尺寸减半（0.5×，宿主+svg 双载体同 tag\r
-         图标手法）；叠加形态：不占行内空间，与 tags 并存时叠于其上、label 截断可用宽\r
-         不含 caret（尾部可能被压，组合自担） */\r
-    .asc-button:has(> .asc-button-body[data-float-caret="true"]) {\r
+    /* 浮动箭头（floatCaret）：脱离标签行流，绝对定位到按钮**右缘**（right 2px）、垂直\r
+         三档可选——'top'（右上角，top 与 right 等距 2px）/ 'center'（缺省档，垂直居中\r
+         ——横排下即与图标中心线一致）/ 'bottom'（右下角，bottom 与 right 对称 2px）；\r
+         尺寸减半（0.5×，宿主+svg 双载体同 tag 图标手法）；叠加形态：不占行内空间，与\r
+         tags 并存时叠于其上、label 截断可用宽不含 caret（尾部可能被压，组合自担）。\r
+         裸布尔 true 经绑定通道归一 'center' */\r
+    .asc-button:has(> .asc-button-body[data-float-caret]) {\r
       position: relative;\r
     }\r
-    .asc-button-body[data-float-caret="true"] .asc-button-caret {\r
+    .asc-button-body[data-float-caret] .asc-button-caret {\r
       position: absolute;\r
-      top: 0.3em;\r
-      right: 0.3em;\r
+      right: 2px;\r
       margin-left: 0;\r
     }\r
-    .asc-button-body[data-float-caret="true"] .asc-button-caret.as-icon,\r
-    .asc-button-body[data-float-caret="true"] .asc-button-caret.as-icon > svg {\r
+    .asc-button-body[data-float-caret="top"] .asc-button-caret {\r
+      top: 2px;\r
+    }\r
+    .asc-button-body[data-float-caret="center"] .asc-button-caret {\r
+      top: 50%;\r
+      transform: translateY(-50%);\r
+    }\r
+    .asc-button-body[data-float-caret="bottom"] .asc-button-caret {\r
+      bottom: 2px;\r
+    }\r
+    .asc-button-body[data-float-caret] .asc-button-caret.as-icon,\r
+    .asc-button-body[data-float-caret] .asc-button-caret.as-icon > svg {\r
       width: calc(var(--auto-icon-size, 1em) * 0.5);\r
       height: calc(var(--auto-icon-size, 1em) * 0.5);\r
     }\r
@@ -861,7 +874,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     :data-block="block"\r
     :data-loading="loading"\r
     :data-label-pos="labelPos"\r
-    :data-float-caret="floatCaret"\r
+    :data-float-caret="typeof floatCaret === 'string' && floatCaret ? floatCaret : (floatCaret === true ? 'center' : null)"\r
     :style="indent ? { paddingLeft: (typeof indent === 'number' ? indent + 'px' : indent) } : undefined"\r
   >\r
     <span class="asc-button-icon" x-if="loading" x-icon="'loading'"></span>\r

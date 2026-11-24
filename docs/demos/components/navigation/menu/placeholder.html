@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>menu 同级统一占位</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <style>
+      .hint { color: var(--auto-secondary-color, #868e96); font-size: 13px; margin: 8px 0 0; }
+    </style>
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.menu.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">同级统一占位</div>
+        <div class="auto-card-body">
+          <x-menu :items="menu" value="b"></x-menu>
+        </div>
+        <p class="hint">
+          同级任一项有 icon → 全级图标占位列（无 icon 项 visibility 保宽对齐）；同级任一项
+          checkable → 全级 ✓ 占位列，且 <b>check 列在 icon 列左侧</b>
+        </p>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.body, {
+        menu: [
+          { key: 'a', label: '有图标', icon: 'file' },
+          { key: 'b', label: '被勾选', checkable: true },
+          { key: 'c', label: '无图标无勾选' },
+          { key: 'd', label: '可勾选', icon: 'copy', checkable: true },
+        ],
+      });
+    </script>
+  </body>
+</html>

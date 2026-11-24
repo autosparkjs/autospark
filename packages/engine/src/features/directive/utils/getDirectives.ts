@@ -17,7 +17,8 @@ interface FullOptionsParseResult {
  *
  * 1. 先试 relaxedToJson → JSON.parse（零开销静态快照）——成功即纯 JSON 对象
  *    （JSON 语义保证无状态引用、无表达式），**只写静态层**，不建表达式订阅；
- * 2. 失败且检测到函数语法（箭头 / function 关键字 / 简写方法） → **降级**：只存表达式层
+ * 2. 失败且检测到函数语法（箭头 / function 关键字 / 简写方法）或 **JS 表达式特征**
+ *    （spread / 值位置标识符 / 三元 / 函数调用——2026-11-24 扩展）→ **降级**：只存表达式层
  *    （expr 套括号 `(${raw})`，运行期 `new Function` 求值 + 响应式），静态层留空；
  * 3. 其他失败（纯语法错） → 正常抛 CompileError。
  */
@@ -35,8 +36,8 @@ function parseFullOptions(rawValue: string): FullOptionsParseResult {
     } catch (err: any) {
         // 非 JSON.parse 失败 → 继续抛
         if (!(err instanceof SyntaxError)) throw err;
-        // 检测是否函数语法（箭头 / function 关键字 / 对象简写方法 `{method(){}}`）
-        if (rawOptionsHasFunc(rawValue)) {
+        // 函数语法或 JS 表达式特征 → 降级表达式求值（响应式）
+        if (rawOptionsHasFunc(rawValue) || rawOptionsHasExpr(rawValue)) {
             return { expr: `(${rawValue})`, degraded: true };
         }
         // 纯语法错，抛原错误
@@ -54,6 +55,23 @@ function rawOptionsHasFunc(rawValue: string): boolean {
         /=>/.test(rawValue) ||
         /\bfunction\s*\(/.test(rawValue) ||
         /{\s*\w+\s*\([^)]*\)\s*\{/.test(rawValue)
+    );
+}
+
+/**
+ * 检测原始整包 options 是否含 JS 表达式特征（2026-11-24 扩展降级条件）：
+ * spread（`...`）、值位置标识符（`key: ident` / `key: obj.member`——如 `trigger: trigger`、
+ * `children: item.kids`）、三元表达式、函数调用——relaxed-JSON 无法承载，须走表达式
+ * 降级通道（运行期求值 + 响应式）。
+ * 误伤无害：字面量值内含同形 token（字符串内含 `?` 等）时，降级求值结果与静态解析等价，
+ * 仅多一层订阅；true / false / null / 数字 / 引号字符串 / 嵌套字面量等合法 JSON 值不命中。
+ */
+function rawOptionsHasExpr(rawValue: string): boolean {
+    return (
+        /\.\.\./.test(rawValue) ||
+        /:\s*(?![\d'"{[]|-|true\b|false\b|null\b)[A-Za-z_$]/.test(rawValue) ||
+        /\?\s*[A-Za-z_'"{[]/.test(rawValue) ||
+        /\w\s*\(/.test(rawValue)
     );
 }
 

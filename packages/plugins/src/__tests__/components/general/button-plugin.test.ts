@@ -788,27 +788,32 @@ describe("标签行布局（label + tags + caret 同行、memo 独占次行，20
     });
 });
 
-describe("浮动箭头（floatCaret，默认 false，2026-11-23）", () => {
-    test("属性通道：floatCaret=true 落 body data-float-caret，缺省（false）属性移除", async () => {
-        const on = mount(`<button x-component:autospark.button="btnProps"></button>`, {
-            btnProps: { label: "A", icon: "menu", caret: "bottom", floatCaret: true },
-        });
+describe("浮动箭头（floatCaret：false | top | center | bottom，2026-11-24 三档化）", () => {
+    test("属性通道：三档字符串落位、true 归一 center、缺省（false）属性移除", async () => {
+        const mountProps = (props: any) =>
+            mount(`<button x-component:autospark.button="btnProps"></button>`, { btnProps: props });
+        for (const pos of ["top", "center", "bottom"]) {
+            const m = mountProps({ label: "A", icon: "menu", caret: "bottom", floatCaret: pos });
+            await nextTick();
+            expect(m.root.querySelector(".asc-button-body")!.getAttribute("data-float-caret")).toBe(pos);
+        }
+        const bare = mountProps({ label: "A", icon: "menu", caret: "bottom", floatCaret: true }); // 裸布尔/true → center
         await nextTick();
-        expect(on.root.querySelector(".asc-button-body")!.getAttribute("data-float-caret")).toBe("true");
-        expect(on.root.querySelector(".asc-button-caret")).toBeTruthy();
-        const off = mount(`<button x-component:autospark.button="btnProps"></button>`, {
-            btnProps: { label: "A", icon: "menu", caret: "bottom" },
-        });
+        expect(bare.root.querySelector(".asc-button-body")!.getAttribute("data-float-caret")).toBe("center");
+        const off = mountProps({ label: "A", icon: "menu", caret: "bottom" }); // 缺省不浮动
         await nextTick();
         expect(off.root.querySelector(".asc-button-body")!.getAttribute("data-float-caret")).toBe(null);
         expect(off.root.querySelector(".asc-button-caret")).toBeTruthy(); // 常规形态照常渲染
     });
 
-    test("样式通道：绝对定位右缘 + 垂直居中 + 半尺寸双载体 + 宿主 relative", () => {
+    test("样式通道：右缘三档（top 等距 / center 垂直居中 / bottom 对称）+ 半尺寸双载体 + 宿主 relative", () => {
         // 归一空白后断言（oxfmt 折行使逐字匹配假红）
         const tpl = ((AutoSpark as { components: Record<string, string> }).components[BUTTON_NAME] as string).replace(/\s+/g, " ");
-        expect(tpl).toContain('.asc-button:has(> .asc-button-body[data-float-caret="true"]) { position: relative; }');
-        expect(tpl).toContain("top: 0.3em; right: 0.3em;");
+        expect(tpl).toContain(".asc-button:has(> .asc-button-body[data-float-caret]) { position: relative; }");
+        expect(tpl).toContain("right: 2px;");
+        expect(tpl).toContain('.asc-button-body[data-float-caret="top"] .asc-button-caret { top: 2px; }');
+        expect(tpl).toContain('.asc-button-body[data-float-caret="center"] .asc-button-caret { top: 50%; transform: translateY(-50%); }');
+        expect(tpl).toContain('.asc-button-body[data-float-caret="bottom"] .asc-button-caret { bottom: 2px; }');
         expect(tpl).toContain(".asc-button-caret.as-icon > svg { width: calc(var(--auto-icon-size, 1em) * 0.5); height: calc(var(--auto-icon-size, 1em) * 0.5); }");
     });
 });

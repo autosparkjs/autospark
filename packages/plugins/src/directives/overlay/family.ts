@@ -1122,6 +1122,7 @@ export function createOverlayDirectives(
 
         /** 宿主进入（hover 方式）：取消挂起关闭 → 已开防重 → delayShow 计时（0 立即）打开 */
         private _onEnter = (e: MouseEvent): void => {
+            if (this._isDisabled()) return;
             if (this._resolveTrigger() !== "hover") return;
             this._recordPointer(e);
             this._clearHideTimer();
@@ -1133,6 +1134,7 @@ export function createOverlayDirectives(
                     this._showTimer = null;
                     // 计时期间方式已切换（hover→click）：上一次悬浮意图作废，放弃打开
                     if (this._resolveTrigger() !== "hover") return;
+                    if (this._isDisabled()) return;
                     this._openNow();
                 }, delay);
             } else {
@@ -1150,6 +1152,7 @@ export function createOverlayDirectives(
 
         /** 宿主点击（click 方式）：toggle——已开清计时器后关（防 hover 残留计时双开），未开即开 */
         private _onClick = (): void => {
+            if (this._isDisabled()) return;
             if (this._resolveTrigger() !== "click") return;
             this._clearShowTimer();
             this._clearHideTimer();
@@ -1364,6 +1367,17 @@ export function createOverlayDirectives(
                 `x-popover:${this.attr}: trigger 须为 'hover' | 'click'，已按默认 'hover' 处理`,
             );
             return "hover";
+        }
+
+        /**
+         * 触发门禁（`disabled` 选项，2026-11-24 menu 单项结构引入）：`x-popover-options.disabled`
+         * 现读求值——truthy 时**打开路径**（宿主进入 / 点击 / delayShow 到期）全部短路；
+         * 关闭路径（面板离开 / 外点 / ESC）不受影响——门禁只挡新触发，不拦已开面板的收敛。
+         * 消费场景：同一宿主在多形态间复用触发语义（menu 的弹层宿主与缩进容器同元素互斥，
+         * 缩进模式经 `disabled: !item._pop` 关闭弹层触发）。
+         */
+        private _isDisabled(): boolean {
+            return !!this.getOption("disabled");
         }
 
         /** 读取延迟配置（getOption 三层链：成员表达式 > 指令选项 > 宿主选项），非法值 warn 回退默认 */

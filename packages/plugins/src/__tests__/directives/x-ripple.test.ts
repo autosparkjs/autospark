@@ -77,6 +77,7 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         expect(host.style.getPropertyValue("--x-ripple-color")).toContain("--auto-theme-color");
         expect(host.style.getPropertyValue("--x-ripple-size")).toBe("12px");
         expect(host.style.getPropertyValue("--x-ripple-duration")).toBe("3000ms");
+        expect(host.style.getPropertyValue("--x-ripple-iter")).toBe(""); // always 循环：迭代位不写变量，回退 infinite
     });
 
     test("无 scope 回退分支：动态插入元素的表达式值经 getVal 直读（store 无 read 方法，ADR-0015 实施期发现）", async () => {
@@ -160,6 +161,8 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         // 第二道波峰，观感「执行两遍」），双环区分走尺寸通道（0.6× 同心缩小），同拍收束
         expect(host.style.getPropertyValue("--x-ripple-echo-delay")).toBe("0ms");
         expect(host.style.getPropertyValue("--x-ripple-echo-size")).toBe("7.2px");
+        // click 单周期结构化保证（ADR-0010 决策 4 修订，2026-11-24）：伪元素迭代位经变量注入 forwards
+        expect(host.style.getPropertyValue("--x-ripple-iter")).toBe("forwards");
         await new Promise((r) => setTimeout(r, 120)); // 收口窗（整周期 50ms，含静止段）末自动停止
         expect(host.classList.contains("x-ripple-on")).toBe(false);
 
@@ -309,6 +312,18 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         expect(echoLayers.length).toBe(2);
         // 第二环负延迟半个周期（错相位）
         expect((echoLayers[1] as HTMLElement).style.animationDelay).toBe("-25ms");
+
+        // click 降级层单周期（ADR-0010 决策 4 修订，2026-11-24）：动画串 forwards、无 infinite
+        const { root: clickRoot } = spawn(
+            `<div x-ripple x-ripple-options="{type:'ring',trigger:'click',speed:50}"></div>`,
+            {},
+        );
+        const clickHost = hostOf(clickRoot);
+        await twoFrames();
+        clickHost.click();
+        const clickLayer = clickHost.querySelector(":scope > .x-ripple-layer") as HTMLElement;
+        expect(clickLayer.style.animation).toContain("forwards");
+        expect(clickLayer.style.animation).not.toContain("infinite");
     });
 
     test("badge 徽标：右上角正圆载体（宿主标记类 + 直径变量 + color 缺省联动语义红）", async () => {
@@ -513,6 +528,9 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         const circle = clip.querySelector(".x-ripple-inside-circle") as HTMLElement;
         expect(circle).not.toBeNull();
         expect(clip.children.length).toBe(1); // 单圆：clip 内无第二载体
+        // 静态 opacity:0（ADR-0010 决策 6 修订，2026-11-24）：与 keyframes 终态一致——
+        // 动画摘除 / reduced-motion / 连点重起间隙三场景不可见的主防线
+        expect(circle.style.opacity).toBe("0");
 
         // always 缺省播放：中心起点（100,50）、半径 = 到最远角 = hypot(100,50) = 111.8（自动几何，铺满宿主）
         expect(circle.style.left).toBe("-11.8px"); // round1(100 - 111.8)
@@ -543,6 +561,10 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         expect(circle.style.top).toBe("-150px"); // round1(20 - 170)
         expect(circle.style.width).toBe("340px");
         expect(circle.style.animation).toContain("x-ripple-inside-80-0");
+        // click 单周期结构化保证（ADR-0010 决策 4 修订，2026-11-24）：forwards 单次迭代持有
+        // 终态（opacity:0），第二圈结构上不可能——infinite + 定时器摘载体的两时钟竞态根除
+        expect(circle.style.animation).toContain("forwards");
+        expect(circle.style.animation).not.toContain("infinite");
 
         // 击②（t≈40ms，第一波在播中）：取消重起——起点换新坐标（(100,50)，r=hypot(100,50)=111.8），
         // 收口重排至击②后一周期
@@ -601,7 +623,8 @@ describe("x-ripple 涟漪扩散指令（ADR-0007）", () => {
         expect(clip.style.display).toBe("none"); // 注入即隐藏
 
         host.dispatchEvent(new Event("mouseenter"));
-        expect(circle.style.animation).toBe("x-ripple-inside-60-0 60ms ease-out infinite"); // 显式 speed 生效
+        // 显式 speed 生效（hover 维持 infinite 循环——单周期结构化保证仅 click 通道）
+        expect(circle.style.animation).toBe("x-ripple-inside-60-0 60ms ease-out infinite");
         expect(clip.style.display).toBe(""); // 播放期间显示
         host.dispatchEvent(new Event("mouseleave"));
         await new Promise((r) => setTimeout(r, 100)); // 播完当前周期（60ms）再停

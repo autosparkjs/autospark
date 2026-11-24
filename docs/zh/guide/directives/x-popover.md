@@ -172,6 +172,27 @@ hover 交互在触摸屏上没有对应物（点按会以模拟事件触发 mous
 </button>
 ```
 
+### 宿主内声明（x-define 就近书写）
+
+面板的 `x-define` 声明不必写在宿主外部——**可以直接写在宿主子树内**（就近书写，声明处与消费处重合）：声明走既有剪枝通道挂到**宿主自身的 scope**（不进结果 DOM、宿主只剩自身内容），打开时沿查找链第一跳就近命中，并在遮蔽链上拥有**最高优先级**（遮蔽外层同名声明）。对触发时实例化的覆盖物家族（x-popover / x-dialog / x-drawer）均成立（[ADR-0056](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0056-x-slot.md) 决策十规则 12）：
+
+<demo html="popover/inside-host.html"/>
+
+```html
+<div x-data>
+  <div class="button" x-popover:tip>悬停查看提示
+    <div x-define="tip">
+      <div class="pop-panel">面板内容（剪枝后不占宿主渲染位）</div>
+    </div>
+  </div>
+</div>
+```
+
+::: warning 两点边界
+- **交互宿主内勿写含交互元素的面板**：`<button>` 内嵌 `<button>` / `<a>` 等交互元素时，HTML 解析期就会因嵌套规则隐式关闭外层标签、改写 DOM 结构（浏览器行为，先于引擎）——交互宿主（button 等）内的面板只放纯展示内容（文本 / 段落 / 图片），或改用 `div` / `span` 宿主（推荐示范形态，面板内容不限）。
+- **`x-component` 化身不支持宿主内声明**：化身是编译期一次实例化且接管子树编译，宿主内的声明根本不进剪枝通道——声明请写在化身宿主外部。
+:::
+
 ### 结构骨架（chrome）：标题 / 关闭按钮 / 动作区
 
 内置外壳内嵌了通用**结构骨架**（`autospark.overlay`，ADR-0124）——header / body / footer 三段（header 有内容才渲染；`closeable` 双形态：header 有内容 → 行内 x，无内容 → 右上角浮动 x）与 body 内边距（`padding: '0.5em'`）。五个骨架键经 `x-popover-options` 配置。骨架与 x-dialog/x-drawer 完全同源（底层 `autospark.overlay`），形态差异是 popover 默认 hover 触发、`closeable` 缺省 `false`（紧凑悬浮形态浮动 x 价值低——hover tip 鼠标移开即消失；显式 `true` 开启）。
@@ -404,6 +425,7 @@ tooltip（[工具提示](../tooltip.md)）是**引擎级零声明**能力（`dat
 | `delayClose` | `0` | — | 自动关闭延迟（ms）：`> 0` 时打开后延时走标准关闭链；`0` 不自动关 |
 | `dataContext` | 消费处（声明式） | — | 数据视图基准（缺省消费处 / `declarer` 声明处 / `host` 消费处显式声明），挂链即基准；见[覆盖物 · 数据视图基准](../../guide/engine/overlays.md#数据视图基准-datacontext-消费处默认、声明处可选) |
 | `props`（成员属性） | 无 | — | `x-popover-options.props` 表达式注入组件 data 域、持续热更新，见[传递 props 与内容](#传递-props-与内容-插槽) |
+| `disabled` | `false` | — | **触发门禁**（现读求值）：真值时打开路径（宿主进入 / 点击 / delayShow 到期）全部短路；关闭路径（面板离开 / 外点 / ESC）不受影响。用于同一宿主复用多形态触发语义的场景（menu 单项结构的缩进模式 `disabled: !item._pop` 关闭弹层触发） |
 
 ::: info 关于指令配置体系
 指令选项 / 修饰符 / 宿主选项见[指令配置](../../guide/engine/directive/config.md)。

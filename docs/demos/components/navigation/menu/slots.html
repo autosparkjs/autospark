@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>menu 作用域插槽</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <style>
+      .hint { color: var(--auto-secondary-color, #868e96); font-size: 13px; margin: 8px 0 0; }
+      button.ctrl { padding: 4px 10px; cursor: pointer; }
+      .logo { display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-weight: 600; white-space: nowrap; }
+      .crumb { font-size: 13px; }
+    </style>
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.menu.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">作用域插槽：header / footer 按需解构菜单状态</div>
+        <div class="auto-card-body">
+          <button class="ctrl" type="button" @click="fold = !fold">{{ fold ? '展开' : '折叠' }}</button>
+          <x-menu :items="menu" :collapsed="fold" collapsed-width="56" :value="active">
+            <template header="{ collapsed, width, activeItem, activePath }">
+              <div class="logo">
+                <i x-icon="'menu'"></i>
+                <span x-show="!collapsed">AutoSpark · {{ width }}px</span>
+              </div>
+            </template>
+            <template footer="{ collapsed, activeItem, activePath }">
+              <div class="logo">
+                <i x-icon="'bell'"></i>
+                <span class="crumb" x-show="!collapsed">{{ activePath ? activePath.map((p) => p.label).join(' / ') : '未选择' }}</span>
+              </div>
+            </template>
+          </x-menu>
+        </div>
+        <p class="hint">
+          形参只读、按需解构（未解构的键不遮蔽调用方变量）：collapsed 折叠态 / width 生效宽度 /
+          activeItem 激活项 / activePath 祖先链（面包屑）——折叠时 header 自动切换为图标
+        </p>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.body, {
+        fold: false,
+        active: 'n1',
+        menu: [
+          { key: 'home', label: '首页', icon: 'file' },
+          {
+            key: 'nav',
+            label: '导航',
+            icon: 'folder',
+            children: [
+              { key: 'n1', label: '指令' },
+              { key: 'n2', label: '组件' },
+            ],
+          },
+          { key: 'set', label: '设置', icon: 'copy' },
+        ],
+      });
+    </script>
+  </body>
+</html>

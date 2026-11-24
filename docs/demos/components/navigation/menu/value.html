@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>menu 值通道</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <style>
+      .hint { color: var(--auto-secondary-color, #868e96); font-size: 13px; margin: 8px 0 0; }
+    </style>
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.menu.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">单选激活（value: string）</div>
+        <div class="auto-card-body" @change="log = '激活：' + $event.detail.value">
+          <x-menu :items="menu" :value="active"></x-menu>
+        </div>
+        <p class="hint">{{ log || '点击叶子激活；激活项祖先链自动展开；同值点击短路' }}</p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">勾选集合（value: string[]）</div>
+        <div class="auto-card-body">
+          <x-menu :items="cmenu" :value="picked"></x-menu>
+        </div>
+        <p class="hint">勾选数组：{{ JSON.stringify(picked) }}——点击 toggle 成员，勾选不关弹层</p>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.body, {
+        log: '',
+        active: 'home',
+        picked: ['a1'],
+        menu: [
+          { key: 'home', label: '首页', icon: 'file' },
+          { key: 'guide', label: '指南', icon: 'book' },
+          { key: 'api', label: 'API', icon: 'bell' },
+        ],
+        cmenu: [
+          { key: 'a1', label: '渲染层', icon: 'edit', checkable: true },
+          { key: 'a2', label: '调度层', icon: 'copy', checkable: true },
+          { key: 'a3', label: '指令层', icon: 'bolt', checkable: true },
+        ],
+      });
+    </script>
+  </body>
+</html>

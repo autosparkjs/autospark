@@ -34,6 +34,8 @@
             state: null,
             collapsed: false,
             hideTags: false,
+            // floatCaret 值域：false（缺省，不浮动）| 'top' | 'center' | 'bottom'（浮动垂直档位，
+            // 裸布尔 true 归一为 'center'——绑定通道统一产出三档字符串或 null）
             floatCaret: false,
             states: null,
             displayLabel: (s) => (s.autoInsertSpace && /^[一-龥]{2}$/.test(s.label ?? "")) ? (s.label[0] + " " + s.label[1]) : s.label
@@ -665,21 +667,32 @@
     .asc-button-line:has(> .asc-button-tags) > .asc-button-caret {
       margin-left: 0;
     }
-    /* 浮动箭头（floatCaret，默认 false）：脱离标签行流，绝对定位到按钮**右上角**——
-         top 与 right 等距（0.3em 角部对齐）；尺寸减半（0.5×，宿主+svg 双载体同 tag
-         图标手法）；叠加形态：不占行内空间，与 tags 并存时叠于其上、label 截断可用宽
-         不含 caret（尾部可能被压，组合自担） */
-    .asc-button:has(> .asc-button-body[data-float-caret="true"]) {
+    /* 浮动箭头（floatCaret）：脱离标签行流，绝对定位到按钮**右缘**（right 2px）、垂直
+         三档可选——'top'（右上角，top 与 right 等距 2px）/ 'center'（缺省档，垂直居中
+         ——横排下即与图标中心线一致）/ 'bottom'（右下角，bottom 与 right 对称 2px）；
+         尺寸减半（0.5×，宿主+svg 双载体同 tag 图标手法）；叠加形态：不占行内空间，与
+         tags 并存时叠于其上、label 截断可用宽不含 caret（尾部可能被压，组合自担）。
+         裸布尔 true 经绑定通道归一 'center' */
+    .asc-button:has(> .asc-button-body[data-float-caret]) {
       position: relative;
     }
-    .asc-button-body[data-float-caret="true"] .asc-button-caret {
+    .asc-button-body[data-float-caret] .asc-button-caret {
       position: absolute;
-      top: 0.3em;
-      right: 0.3em;
+      right: 2px;
       margin-left: 0;
     }
-    .asc-button-body[data-float-caret="true"] .asc-button-caret.as-icon,
-    .asc-button-body[data-float-caret="true"] .asc-button-caret.as-icon > svg {
+    .asc-button-body[data-float-caret="top"] .asc-button-caret {
+      top: 2px;
+    }
+    .asc-button-body[data-float-caret="center"] .asc-button-caret {
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .asc-button-body[data-float-caret="bottom"] .asc-button-caret {
+      bottom: 2px;
+    }
+    .asc-button-body[data-float-caret] .asc-button-caret.as-icon,
+    .asc-button-body[data-float-caret] .asc-button-caret.as-icon > svg {
       width: calc(var(--auto-icon-size, 1em) * 0.5);
       height: calc(var(--auto-icon-size, 1em) * 0.5);
     }
@@ -858,7 +871,7 @@
     :data-block="block"
     :data-loading="loading"
     :data-label-pos="labelPos"
-    :data-float-caret="floatCaret"
+    :data-float-caret="typeof floatCaret === 'string' && floatCaret ? floatCaret : (floatCaret === true ? 'center' : null)"
     :style="indent ? { paddingLeft: (typeof indent === 'number' ? indent + 'px' : indent) } : undefined"
   >
     <span class="asc-button-icon" x-if="loading" x-icon="'loading'"></span>

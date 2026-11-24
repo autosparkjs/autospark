@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>x-popover · 宿主内声明</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.overlay.js"></script>
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .pop-panel { background: #fff; border-radius: 8px; padding: 14px 18px; min-width: 220px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+        </style>
+    </head>
+    <body>
+        <!-- 宿主内声明（ADR-0056 决策十规则 12）：x-define 直接写在宿主子树内，
+             剪枝后挂宿主自身 scope（不占宿主渲染位），打开时第一跳就近命中、
+             遮蔽优先级最高。触发时实例化的家族（popover / dialog / drawer）均支持。 -->
+        <div class="demo-app section">
+            <div x-data>
+                <!-- 推荐形态：div 宿主（面板内容不受 HTML 嵌套约束） -->
+                <div class="block">
+                    <div class="button is-primary" style="display: inline-flex; cursor: pointer" x-popover:tip>悬停查看提示
+                        <div x-define="tip">
+                            <div class="pop-panel">
+                                <strong>面板声明就在宿主内</strong>
+                                <p class="is-size-7 has-text-grey">剪枝后不占宿主渲染位，遮蔽外层同名声明。</p>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="tag">就近书写 · div 宿主</span>
+                </div>
+
+                <!-- 可用但非规范：button 宿主内只放纯展示内容（文本/段落/图片） -->
+                <div class="block">
+                    <button class="button is-link" x-popover:brief>纯文本气泡（button 宿主）
+                        <div x-define="brief">
+                            <div class="pop-panel">
+                                <p>button 内勿写含交互元素的面板——HTML 解析期嵌套规则会改写 DOM（先于引擎）。</p>
+                            </div>
+                        </div>
+                    </button>
+                    <span class="tag">button 宿主 · 仅纯展示内容</span>
+                </div>
+
+                <!-- 遮蔽：宿主内声明优先于外层同名 -->
+                <div class="block">
+                    <div class="button" style="display: inline-flex; cursor: pointer" x-popover:shadow>悬停看遮蔽结果
+                        <div x-define="shadow">
+                            <div class="pop-panel"><strong>宿主内版（胜出）</strong></div>
+                        </div>
+                    </div>
+                    <div x-define="shadow">
+                        <div class="pop-panel"><strong>外层版（被遮蔽）</strong></div>
+                    </div>
+                    <span class="tag">同名声明 · 宿主内遮蔽外层</span>
+                </div>
+            </div>
+        </div>
+        <script>
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

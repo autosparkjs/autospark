@@ -1,81 +1,97 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>menu 折叠与形态</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
     <style>
-        body { font-family: system-ui, sans-serif; margin: 24px; background: #fff; }
-        .row { display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; }
-        .panel { border: 1px solid #eee; border-radius: 8px; padding: 8px; }
-        .wide { width: 480px; }
-        h3 { margin: 4px 0 12px; font-size: 14px; color: #666; }
-        button.ctrl { margin: 4px 4px 12px 0; padding: 4px 10px; cursor: pointer; }
-        .logo { display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-weight: 600; white-space: nowrap; }
+      .hint { color: var(--auto-secondary-color, #868e96); font-size: 13px; margin: 8px 0 0; }
+      button.ctrl { padding: 4px 10px; cursor: pointer; }
+      .logo { display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-weight: 600; white-space: nowrap; }
     </style>
-</head>
-<body>
-    <div class="row">
-        <div class="panel">
-            <h3>折叠（collapsed 布尔 · collapsed-width=56 · 插槽形参切换 header）</h3>
-            <button class="ctrl" id="foldBtn" type="button">折叠 / 展开</button>
-            <x-menu :items="menu" :collapsed="fold" collapsed-width="56" :value="active" trigger="click">
-                <template header="{ collapsed, width, activeItem }">
-                    <div class="logo">
-                        <i x-icon="'menu'"></i>
-                        <span x-show="!collapsed">AutoSpark · {{ width }}px</span>
-                    </div>
-                </template>
-            </x-menu>
-        </div>
-        <div class="panel">
-            <h3>宽度（width=200）</h3>
-            <x-menu :items="menu" width="200" :value="active"></x-menu>
-        </div>
-        <div class="panel wide">
-            <h3>horizontal（横排 + 向下弹出 + header/footer 上下分区 · 折叠只留一级图标）</h3>
-            <button class="ctrl" id="hfoldBtn" type="button">折叠 / 展开</button>
-            <x-menu :items="hmenu" mode="horizontal" :collapsed="hfold" :value="hactive" trigger="click">
-                <template header><b>AutoSpark</b></template>
-                <template footer><span style="font-size:12px;color:#999">ADR-0033</span></template>
-            </x-menu>
-        </div>
-    </div>
+    <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
     <script src="/autospark/autospark.overlay.js"></script>
     <script src="/autospark/autospark.button.js"></script>
     <script src="/autospark/autospark.menu.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">折叠（collapsed 布尔 · collapsed-width=56 · 插槽形参切换 header）</div>
+        <div class="auto-card-body">
+          <button class="ctrl" type="button" @click="fold = !fold">{{ fold ? '展开' : '折叠' }}</button>
+          <x-menu :items="menu" :collapsed="fold" collapsed-width="56" :value="active">
+            <template header="{ collapsed, width, activeItem }">
+              <div class="logo">
+                <i x-icon="'menu'"></i>
+                <span x-show="!collapsed">AutoSpark · {{ width }}px</span>
+              </div>
+            </template>
+          </x-menu>
+        </div>
+        <p class="hint">垂直折叠收窄为图标条：项只显示图标（悬停提示项名）、子级全弹层；header 经形参随折叠态切换</p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">horizontal（横排 + 向下弹出 + header/footer 分区 · 折叠只留一级图标）</div>
+        <div class="auto-card-body">
+          <button class="ctrl" type="button" @click="hfold = !hfold">{{ hfold ? '展开' : '折叠' }}</button>
+          <x-menu :items="hmenu" mode="horizontal" :collapsed="hfold" :value="hactive">
+            <template header><b>AutoSpark</b></template>
+            <template footer><span style="font-size: 12px">ADR-0033</span></template>
+          </x-menu>
+        </div>
+        <p class="hint">横排 level 1、子级向下弹出；折叠时仅一级项只显示图标，容器尺寸不变</p>
+      </div>
+    </main>
     <script>
-        const state = {
-            fold: false,
-            hfold: false,
-            active: "home",
-            hactive: "home",
-            menu: [
-                { key: "home", label: "首页", icon: "file" },
-                { key: "nav", label: "导航", icon: "bell", children: [
-                    { key: "n1", label: "指令" },
-                    { key: "n2", label: "组件" },
-                ] },
-                { key: "form", label: "表单", icon: "edit", children: [
-                    { key: "f1", label: "输入框" },
-                    { key: "f2", label: "选择器", children: [{ key: "f2a", label: "级联" }] },
-                ] },
-                "-",
-                { key: "set", label: "设置", icon: "copy" },
+      new AutoSpark(document.body, {
+        fold: false,
+        hfold: false,
+        active: 'home',
+        hactive: 'home',
+        menu: [
+          { key: 'home', label: '首页', icon: 'file' },
+          {
+            key: 'nav',
+            label: '导航',
+            icon: 'bell',
+            children: [
+              { key: 'n1', label: '指令' },
+              { key: 'n2', label: '组件' },
             ],
-            hmenu: [
-                { key: "home", label: "首页", icon: "file" },
-                { key: "guide", label: "指南", icon: "folder", children: [
-                    { key: "g1", label: "快速入门" },
-                    { key: "g2", label: "引擎", children: [{ key: "g2a", label: "深层级联" }] },
-                ] },
-                { key: "api", label: "API", icon: "bell" },
+          },
+          {
+            key: 'form',
+            label: '表单',
+            icon: 'edit',
+            children: [
+              { key: 'f1', label: '输入框' },
+              { key: 'f2', label: '选择器' },
             ],
-        };
-        const engine = new AutoSpark(document.body, state);
-        document.getElementById("foldBtn").addEventListener("click", () => { engine.store.state.fold = !engine.store.state.fold; });
-        document.getElementById("hfoldBtn").addEventListener("click", () => { engine.store.state.hfold = !engine.store.state.hfold; });
+          },
+          '-',
+          { key: 'set', label: '设置', icon: 'copy' },
+        ],
+        hmenu: [
+          { key: 'home', label: '首页', icon: 'file' },
+          {
+            key: 'guide',
+            label: '指南',
+            icon: 'folder',
+            children: [
+              { key: 'g1', label: '快速入门' },
+              { key: 'g2', label: '引擎', children: [{ key: 'g2a', label: '深层级联' }] },
+            ],
+          },
+          { key: 'api', label: 'API', icon: 'bell' },
+        ],
+      });
     </script>
-</body>
+  </body>
 </html>

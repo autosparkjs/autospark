@@ -633,6 +633,45 @@ describe("触发方式（trigger 选项，ADR-0060 2026-10-11 修订）", () => 
     });
 });
 
+describe("宿主内声明（ADR-0056 决策十规则 12）", () => {
+    test("面板声明写在宿主内部：剪枝挂宿主自身 scope，触发时第一跳命中", async () => {
+        const { root } = mountPopover(
+            `<div id="app"><div x-scope>
+                <button id="t" x-popover:tip x-popover-options="{delayShow: 0}">悬停
+                    <div x-define="tip"><span>宿主内面板</span></div>
+                </button>
+            </div></div>`,
+            {},
+        );
+        // 声明走剪枝通道：不进结果 DOM，宿主只剩自身文本（触发时实例化无时序竞态）
+        expect(root.querySelector("[x-define]")).toBeNull();
+        expect(root.querySelector("#t")!.innerHTML.trim()).toBe("悬停");
+        enter(root.querySelector("#t")!);
+        await nextTick();
+        const panel = panelOf("tip");
+        expect(panel).not.toBeNull();
+        expect(panel!.textContent).toContain("宿主内面板");
+        // 面板 teleport 进 body 容器，与宿主 DOM 分离
+        expect(root.querySelector("#t")!.contains(panel!)).toBe(false);
+    });
+
+    test("遮蔽：宿主内声明挂宿主自身 scope，优先级最高（遮蔽外层同名）", async () => {
+        const { root } = mountPopover(
+            `<div id="app"><div x-scope>
+                <div x-define="tip"><span>外层版</span></div>
+                <button id="t" x-popover:tip x-popover-options="{delayShow: 0}">悬停
+                    <div x-define="tip"><span>宿主内版</span></div>
+                </button>
+            </div></div>`,
+            {},
+        );
+        enter(root.querySelector("#t")!);
+        await nextTick();
+        // 外层与宿主内分属不同 scope（x-scope 层 vs 宿主自身层）：沿链就近遮蔽合法
+        expect(panelOf("tip")!.textContent).toContain("宿主内版");
+    });
+});
+
 describe("内容内边距（padding 选项）", () => {
     /** 挂载并打开面板，返回内容区元素（padding 应用在 shell 内容区 inline） */
     async function openWithPadding(options: string) {

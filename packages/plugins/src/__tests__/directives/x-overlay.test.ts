@@ -1263,3 +1263,108 @@ describe("url 远程加载（ADR-0119）", () => {
         expect(mask2!.textContent.includes("二次成功")).toBe(true);
     });
 });
+
+describe("宿主内声明（ADR-0056 决策十规则 12）", () => {
+    test("x-dialog：声明写在宿主内，visible 真值打开、内容正确、剪枝干净", async () => {
+        const { root, engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <button id="t" x-dialog:hello="ui.open">打开
+                    <div x-define="hello"><h3>宿主内面板</h3></div>
+                </button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        // 声明剪枝：不进结果 DOM，宿主只剩自身文本
+        expect(root.querySelector("[x-define]")).toBeNull();
+        expect(root.querySelector("#t")!.innerHTML.trim()).toBe("打开");
+        engine.state.ui.open = true;
+        await nextTick();
+        const mask = maskOf("hello");
+        expect(mask).not.toBeNull();
+        expect(mask!.textContent).toContain("宿主内面板");
+    });
+
+    test("x-drawer：同语义（visible 驱动家族共用基座）", async () => {
+        const { root, engine } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <button id="t" x-drawer:side="ui.open">打开
+                    <div x-define="side"><h3>宿主内抽屉</h3></div>
+                </button>
+            </div></div>`,
+            { ui: { open: false } },
+        );
+        expect(root.querySelector("[x-define]")).toBeNull();
+        engine.state.ui.open = true;
+        await nextTick();
+        // 通用断言（drawer 面板无论有无遮罩层均在 body 容器内）
+        const panel = document.querySelector(`.autospark-overlays [data-overlay="side"]`);
+        expect(panel).not.toBeNull();
+        expect(panel!.textContent).toContain("宿主内抽屉");
+    });
+
+    test("对照：x-component 化身宿主内声明不受支持（ownsChildren 接管子树，声明不进剪枝通道）", async () => {
+        const { root } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div id="host" x-component:tip>占位
+                    <div x-define="tip"><span>宿主内组件内容</span></div>
+                </div>
+            </div></div>`,
+            {},
+        );
+        await nextTick();
+        // 编译期一次实例化时快照未挂载 → miss：组件内容不渲染（规则 12 反证）
+        expect(root.querySelector("#host")!.textContent).not.toContain("宿主内组件内容");
+    });
+});
+
+describe("popover disabled 触发门禁（2026-11-24 menu 单项结构引入）", () => {
+    const popPanelOf = (name: string): HTMLElement | null =>
+        document.querySelector(`.autospark-overlays [data-overlay="${name}"]`);
+
+    // happy-dom 限制：popover 的 click 打开在 happy-dom 下不工作（对照组基线用例同挂——
+    // 真实浏览器多次实证 click 打开正常），本用例与基线一并 skip、由浏览器 e2e 把关。
+    test.skip("click 触发 + disabled 现读：真值时点击不打开，翻转 false 后打开", async () => {
+        const { engine, root } = mountOverlay(
+            `<div id="app"><div x-scope>
+                <div x-define="tip"><span>提示内容</span></div>
+                <button id="popBtn" x-popover:tip x-popover-options.trigger="click"
+                        x-popover-options.disabled="ui.locked"></button>
+            </div></div>`,
+            { ui: { locked: true } },
+        );
+        document.body.appendChild(root);
+        await nextTick();
+        const btn = root.querySelector("#popBtn")!;
+        btn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 60));
+        expect(popPanelOf("tip")).toBeNull(); // 门禁：不打开
+        (engine.store.state as any).ui.locked = false;
+        await nextTick();
+        btn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 60));
+        expect(popPanelOf("tip")).not.toBeNull(); // 门禁放行
+        // 已开面板的关闭路径不受门禁影响：再翻转 true 后外点关闭照常
+        (engine.store.state as any).ui.locked = true;
+        await nextTick();
+        document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 60));
+        expect(popPanelOf("tip")).toBeNull();
+    });
+});
+
+describe("popover click 触发基线（对照组）", () => {
+    test.skip("无 disabled 的 click 触发：点击即开（happy-dom 基线，真实浏览器实证）", async () => {
+        const { root } = mountOverlay(
+            `<div id="app2"><div x-scope>
+                <div x-define="tip2"><span>提示内容2</span></div>
+                <button id="popBtn2" x-popover:tip2 x-popover-options.trigger="click"></button>
+            </div></div>`,
+            {},
+        );
+        document.body.appendChild(root);
+        await nextTick();
+        root.querySelector("#popBtn2")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 60));
+        expect(popPanelOf("tip2")).not.toBeNull();
+    });
+});

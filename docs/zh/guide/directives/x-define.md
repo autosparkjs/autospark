@@ -43,7 +43,7 @@
 
 ### 归属规则
 
-组件挂到其**最近的祖先 scope**——可跨任意深度的中间纯 `<div>`（不建 scope 的容器被穿透）。向上找不到任何带 scope 的祖先时，编译期 `warn` 并丢弃该组件（无处归属）。这就是作用域组件声明通常需要一个 `x-scope`（或任意其他建 scope 的指令 / 插值）作祖先锚点的原因。声明位置如何决定可见范围与可用时机，详见[查找组件](../component/lookup.md)。
+组件挂到其**最近的祖先 scope**——可跨任意深度的中间纯 `<div>`（不建 scope 的容器被穿透）。向上找不到任何带 scope 的祖先时，编译期 `warn` 并丢弃该组件（无处归属）。这就是作用域组件声明通常需要一个 `x-scope`（或任意其他建 scope 的指令 / 插值）作祖先锚点的原因。**消费宿主自身也是合法的最近祖先**：把 `x-define` 写在覆盖物宿主（如 `x-popover:名` / `x-dialog:名`）子树内，声明即挂宿主自身 scope（就近遮蔽优先级最高）——触发时 / visible 真值实例化的覆盖物家族打开时第一跳命中（[ADR-0056](https://github.com/autosparkjs/autospark/blob/main/packages/engine/docs/adr/0056-x-slot.md) 决策十规则 12，写法示例见 [x-popover · 宿主内声明](./x-popover.md#宿主内声明-x-define-就近书写)）；`x-component` 化身为编译期实例化且接管子树，声明须写在化身宿主外部。声明位置如何决定可见范围与可用时机，详见[查找组件](../component/lookup.md)。
 
 <demo html="component/lookup.html"/>
 

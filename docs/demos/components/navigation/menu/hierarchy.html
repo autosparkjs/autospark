@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>menu 层级机制</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <style>
+      .hint { color: var(--auto-secondary-color, #868e96); font-size: 13px; margin: 8px 0 0; }
+      button.ctrl { padding: 4px 10px; cursor: pointer; }
+    </style>
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.menu.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">expandLevel：初始展开到第 N 级（0 全折叠 / 1 缺省 / 2 到二级）</div>
+        <div class="auto-card-body row">
+          <x-menu :items="tree" :expand-level="0"></x-menu>
+          <x-menu :items="tree" :expand-level="1"></x-menu>
+          <x-menu :items="tree" :expand-level="2"></x-menu>
+        </div>
+        <p class="hint">expandLevel 只管「初始默认」——运行时点击父项随时折叠 / 展开（openKeys 接管）</p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">popLevel：level &gt; popLevel 的子菜单走 popover（0 全缩进 / 1 混合，悬浮展开）</div>
+        <div class="auto-card-body row">
+          <x-menu :items="tree" :pop-level="0"></x-menu>
+          <x-menu :items="tree" :pop-level="1"></x-menu>
+        </div>
+        <p class="hint">悬浮父项弹出（hover 触发，delayShow 意图延迟）；弹层内更深层级继续级联；expandLevel 只作用于缩进域</p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">openKeys：全受控展开态（显式 true / false 优先于 expandLevel 默认）</div>
+        <div class="auto-card-body">
+          <div>
+            <button class="ctrl" type="button" @click="openKeys = { g1: false, g2: true }">折叠组1 / 展开组2</button>
+            <button class="ctrl" type="button" @click="openKeys = { g1: true, g2: false }">展开组1 / 折叠组2</button>
+            <button class="ctrl" type="button" @click="openKeys = {}">恢复默认</button>
+          </div>
+          <x-menu :items="tree" :open-keys="openKeys"></x-menu>
+        </div>
+        <p class="hint">当前 openKeys：{{ JSON.stringify(openKeys) }}——收起写显式 false，不回落 expandLevel 默认</p>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.body, {
+        openKeys: {},
+        tree: [
+          {
+            key: 'g1',
+            label: '组件',
+            icon: 'folder',
+            children: [
+              { key: 'g1a', label: '指令' },
+              { key: 'g1b', label: '组件' },
+            ],
+          },
+          {
+            key: 'g2',
+            label: '表单',
+            icon: 'edit',
+            children: [
+              { key: 'g2a', label: '输入框' },
+              {
+                key: 'g2b',
+                label: '选择器',
+                children: [{ key: 'g2b1', label: '级联选择' }],
+              },
+            ],
+          },
+          { key: 'api', label: 'API', icon: 'bell' },
+        ],
+      });
+    </script>
+  </body>
+</html>

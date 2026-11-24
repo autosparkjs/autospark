@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>menu 弹层交互</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <style>
+      .hint { color: var(--auto-secondary-color, #868e96); font-size: 13px; margin: 8px 0 0; }
+    </style>
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.menu.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">悬浮触发（缺省）+ 弹层骨架定制（title / closeable）</div>
+        <div class="auto-card-body">
+          <x-menu :items="menu1"></x-menu>
+        </div>
+        <p class="hint">悬浮父项弹出（delayShow 意图延迟）；children 对象形态的 title / closeable 走 popover 骨架——弹层骨架全部由 x-popover 承载</p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">定位与外观定制（at.placement / border）</div>
+        <div class="auto-card-body">
+          <x-menu :items="menu2"></x-menu>
+        </div>
+        <p class="hint">子菜单经 conf.at 定制弹出方向（left-start）；border: false 关闭面板边框</p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">click 触发（触屏路径）</div>
+        <div class="auto-card-body">
+          <x-menu :items="menu1" trigger="click"></x-menu>
+        </div>
+        <p class="hint">trigger: 'click' 菜单级设置——点击开关、外点关闭；conf.trigger 可逐级覆盖</p>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.body, {
+        menu1: [
+          {
+            key: 'ops',
+            label: '更多操作',
+            icon: 'more',
+            children: {
+              title: '操作',
+              closeable: true,
+              children: [
+                { key: 'share', label: '分享', icon: 'share' },
+                { key: 'rename', label: '重命名', icon: 'edit' },
+                '-',
+                { key: 'archive', label: '归档', icon: 'folder' },
+              ],
+            },
+          },
+          { key: 'home', label: '首页', icon: 'file' },
+        ],
+        menu2: [
+          {
+            key: 'left',
+            label: '向左弹出',
+            icon: 'bell',
+            children: {
+              at: { placement: 'left-start' },
+              border: false,
+              children: [
+                { key: 'l1', label: '左侧项一' },
+                { key: 'l2', label: '左侧项二' },
+              ],
+            },
+          },
+          { key: 'home', label: '首页', icon: 'file' },
+        ],
+      });
+    </script>
+  </body>
+</html>

@@ -42,6 +42,18 @@
 <button x-dialog:user="ui.open" x-dialog-options:user.props="{userId: 42}"></button>
 ```
 
+::: tip 整包表达式（2026-11-24 扩展）
+整包值无法按宽松 JSON 静态解析、但含 **JS 表达式特征**（spread、值位置标识符 / 成员访问、三元、函数调用、函数语法）时，**降级为表达式求值**——运行期求值并**响应式**（表达式依赖变化 → 选项热更新，与成员属性同机制），求值结果须为对象。典型形态是消费方数据的全键透传合并：
+
+```html
+<!-- menu 子菜单弹层：基座 + item.conf 的 popover 键全键透传（显式键赢） -->
+<button x-popover:panel
+        x-popover-options="{ padding: 0, trigger: trigger, disabled: !item._pop, ...(item.conf || {}) }"></button>
+```
+
+注意：无引号标识符值（`{ trigger: trigger }`）会被宽松 JSON **字符串化**走静态层——引用状态须以 spread / 显式表达式书写（如 `...(item.conf || {})` 或成员属性）。拼写错误的静态 JSON 仍会在编译期抛错（不含表达式特征时不降级）。
+:::
+
 #### 成员属性（x-{name}-options.键）
 
 把单个选项写成独立属性，值是**表达式**——可以绑定响应式状态（`x-loading-options.delay="ui.delay"`），这是成员属性相对整包的核心优势（整包是静态宽松 JSON）。规则：

@@ -208,13 +208,13 @@ wrap 只管 label——memo 保持两行截断不变；与 `shape: "circle"` 组
 
 ### 尾部箭头（caret / floatCaret）
 
-**类型**: `caret: none | left | top | right | bottom`、`floatCaret: boolean`
+**类型**: `caret: none | left | top | right | bottom`、`floatCaret: false | 'top' | 'center' | 'bottom'`
 
 **默认**: `none` / `false`
 
 与 **label 同一行**（标签行）渲染一枚 `arrow` 图标（经 `x-icon`）于行**最右端**，并按 `caret` 指定方向旋转：`right` 为基准姿态，`bottom` / `left` / `top` 分别旋转 90° / 180° / 270°。方向切换复用同一 svg 载体，经 x-icon 的 `rotate` 选项 **连续旋转**（默认 0.3s，可经 `--as-icon-rotate-duration` 覆盖）——不更换图标节点、无闪变。与 `tags` 并存时 caret 恒在最末（行右缘）。caret 为纯视觉方向指示，不改变按钮点击语义。
 
-**浮动箭头（floatCaret）**：`floatCaret: true` 时 caret 切换为**叠加指示形态**——脱离标签行文档流，绝对定位到按钮**右上角**（`top` 与 `right` 等距 0.3em 角部对齐）、**尺寸减半**（0.5×）。适合收起指示等角部叠加场景；注意浮动态不占行内空间——label 截断的可用宽不含它（长文案尾部可能被叠压）、与 `tags` 并存时 caret 叠于其上，组合视觉按需取舍。
+**浮动箭头（floatCaret）**：声明浮动档位后 caret 切换为**叠加指示形态**——脱离标签行文档流，绝对定位到按钮**右缘**（`right: 2px`）、**尺寸减半**（0.5×），垂直位置三档可选：`'top'` 右上角（`top` 与 `right` 等距 2px 角部对齐）、`'center'` 垂直居中（缺省档——横排下即与图标中心线一致，**裸布尔 `float-caret` / `true` 归一到此档**）、`'bottom'` 右下角（`bottom` 与 `right` 对称 2px）。`false`（缺省）不浮动——常规行内形态。浮动态不占行内空间——label 截断的可用宽不含它（长文案尾部可能被叠压）、与 `tags` 并存时 caret 叠于其上，组合视觉按需取舍。
 
 <demo html="components/general/button/caret.html"/>
 
@@ -424,7 +424,7 @@ button 与 [`x-popover`](../../guide/directives/x-popover.md) 组合采用**直�
 | memo | `string` | `''` | label 下方备注（小一号、淡化） |
 | tags | `{icon?, tooltip?, name?}[]` | `[]` | 与 label 同行的小圆钮组（`margin-left:auto` 贴行右缘，点击冒泡 tag-click） |
 | caret | `none \| left \| top \| right \| bottom` | `none` | 尾部方向箭头（与 label 同行的行最右端 x-icon arrow，按方向旋转；切换经 rotate 选项连续旋转） |
-| floatCaret | `boolean` | `false` | 浮动箭头：caret 脱离标签行，绝对定位按钮右上角（top/right 等距）、尺寸减半（叠加指示形态；不占行内空间，与 tags 并存时叠于其上） |
+| floatCaret | `false \| 'top' \| 'center' \| 'bottom'` | `false` | 浮动箭头档位：caret 脱离标签行，绝对定位按钮右缘、垂直三档（top 右上角等距 / center 垂直居中 / bottom 右下角对称）、尺寸减半；裸布尔 true ≡ center；不占行内空间，与 tags 并存时叠于其上 |
 | menu | `boolean` | `false` | 菜单项形态 |
 | data-size | `ThemeSize` | `''` | 主题尺寸档（继承 autospark.base，ADR-0134） |
 | data-shadow | `ThemeSize` | `''` | 主题阴影档 |

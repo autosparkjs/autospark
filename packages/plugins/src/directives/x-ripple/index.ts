@@ -11,7 +11,8 @@
  * - `inside:true`：宿主内按钮涟漪（ADR-0010，决策 1 于 2026-11-07 修订单圆化）——
  *   单圆（实心填充圆自起点放大渐隐，无描边环），约束在宿主内部（clipper 裁剪，不写
  *   宿主 overflow）；半径自动几何 = 起点到最远角距离；always/hover 起点几何中心，
- *   click 起点为点击坐标且连点取消重起；speed 条件缺省 600ms；badge 优先互斥、
+ *   click 起点为点击坐标且连点取消重起、单周期 forwards 结构化自止（决策 4 修订
+ *   2026-11-24，全 click 通道同款）；speed 条件缺省 600ms；badge 优先互斥、
  *   type 词表与 size warn 忽略。
  *
  * ## 三通道等价声明
@@ -195,7 +196,9 @@ function ensureStyles(): void {
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  animation: var(--x-ripple-anim) var(--x-ripple-duration) ease-out infinite;
+  /* 迭代位变量化：click 经 --x-ripple-iter 注入 forwards（单周期结构化保证，
+     ADR-0010 决策 4 修订 2026-11-24）；缺省 infinite（always/hover 循环） */
+  animation: var(--x-ripple-anim) var(--x-ripple-duration) ease-out var(--x-ripple-iter, infinite);
 }
 .${HOST_CLASS}.${ACTIVE_CLASS}.${ECHO_CLASS}::before {
   content: "";
@@ -206,7 +209,7 @@ function ensureStyles(): void {
   /* click 触发器双环同时起波：第二环同心缩小（--x-ripple-echo-size），与主环同拍收束；
      always/hover 维持负延迟错相位（同尺寸）——第二环尺寸仅在 click 下有别于主环 */
   --x-ripple-size: var(--x-ripple-echo-size);
-  animation: var(--x-ripple-anim) var(--x-ripple-duration) ease-out infinite;
+  animation: var(--x-ripple-anim) var(--x-ripple-duration) ease-out var(--x-ripple-iter, infinite);
   animation-delay: var(--x-ripple-echo-delay);
 }
 .${HOST_CLASS}.${BADGE_CLASS}.${ACTIVE_CLASS}::after {
@@ -420,7 +423,10 @@ const RIPPLE_STRATEGY: DecorateStrategy<RippleConfig> = {
     // inside 接管渲染时 echo 类不挂（type 词表已被忽略，伪元素永不激活）
     activeClasses: (cfg) => (cfg.type === "echo" && !cfg.inside ? [ECHO_CLASS] : []),
     animName: (cfg) => ensureKeyframes(cfg),
-    animationCss: (cfg, anim) => `${anim} ${cfg.speed + cfg.gap}ms ease-out infinite`,
+    // click 分支 forwards（ADR-0010 决策 4 修订，2026-11-24）：收口定时器晚触发时静态终态
+    // 透明不可见；always/hover 维持循环。伪元素主路径不经此处（见 ensureStyles 的迭代位变量）
+    animationCss: (cfg, anim) =>
+        `${anim} ${cfg.speed + cfg.gap}ms ease-out ${cfg.trigger === "click" ? "forwards" : "infinite"}`,
     period: (cfg) => cfg.speed + cfg.gap,
     layerCount: (cfg) => (cfg.type === "echo" ? 2 : 1),
     layerCssText: (cfg) =>
@@ -443,6 +449,8 @@ const RIPPLE_STRATEGY: DecorateStrategy<RippleConfig> = {
         style.setProperty("--x-ripple-anim", anim);
         style.setProperty("--x-ripple-echo-delay", `${echoDelay(cfg)}ms`);
         style.setProperty("--x-ripple-echo-size", `${echoSize(cfg)}px`);
+        // click 单周期：伪元素规则迭代位经变量注入 forwards（非 click 不写，回退 infinite）
+        if (cfg.trigger === "click") style.setProperty("--x-ripple-iter", "forwards");
         if (cfg.badge > 0) style.setProperty("--x-ripple-badge-size", `${cfg.badge}px`);
     },
     // inside 形态钩子组（ADR-0010，2026-11-07 修订单圆化）：填充圆静态样式在此
@@ -457,14 +465,18 @@ const RIPPLE_STRATEGY: DecorateStrategy<RippleConfig> = {
                 "position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;display:block;";
             const circle = document.createElement("span");
             circle.className = INSIDE_CIRCLE_CLASS;
+            // 静态 opacity:0 与 keyframes 终态一致（ADR-0010 决策 6 修订，2026-11-24）——
+            // 动画摘除 / reduced-motion / 连点重起 none→新动画间隙三场景不可见的主防线
             circle.style.cssText =
-                "position:absolute;border-radius:50%;background:var(--x-ripple-color);pointer-events:none;display:block;";
+                "position:absolute;border-radius:50%;background:var(--x-ripple-color);opacity:0;pointer-events:none;display:block;";
             clip.append(circle);
             return { clip, circle };
         },
         geometry: insideGeometry,
         animations: (cfg) => ({
-            circle: `${ensureInsideKeyframes(cfg)} ${cfg.speed + cfg.gap}ms ease-out infinite`,
+            // click 单周期结构化保证（ADR-0010 决策 4 修订，2026-11-24）：单次迭代 + forwards
+            // 持有终态（opacity:0），第二圈结构上不可能；always/hover 真需循环维持 infinite
+            circle: `${ensureInsideKeyframes(cfg)} ${cfg.speed + cfg.gap}ms ease-out ${cfg.trigger === "click" ? "forwards" : "infinite"}`,
         }),
     },
 };

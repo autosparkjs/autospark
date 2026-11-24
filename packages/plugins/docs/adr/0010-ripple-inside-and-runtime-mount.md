@@ -1,6 +1,6 @@
 # ADR-0010: x-ripple inside 形态与运行时动态挂载契约
 
-- 状态：已接受（Accepted，2026-10-31；决策 1 于 2026-11-07 修订——inside 单圆化，移除环）
+- 状态：已接受（Accepted，2026-10-31；决策 1 于 2026-11-07 修订——inside 单圆化，移除环；决策 4/6 于 2026-11-24 修订——click 单周期结构化保证，防两时钟竞态多播）
 - 日期：2026-10-31
 - 关联：ADR-0002（值三态 / 触发器 / 停止语义 / 载体策略 / 注册通道与加载顺序——inside 全量继承，仅 click 连点语义一点特例）、ADR-0007（三通道等价与跨指令键宽松忽略纪律——inside 互斥族沿用）、ADR-0005 决策 4 修订（「双环一次起波」观感结论——原用于论证 inside 双圆同拍，2026-11-07 修订后 inside 单圆、引证终结）；不涉 ADR-0008/0009 的提取与目录形态
 
@@ -30,6 +30,8 @@
 
 ### 决策 4：触发器语义（触发器通道正交性不变）
 
+> **修订（2026-11-24）**：click「单周期自止」的实现机制定稿为**动画本体结构保证**——动画串去 `infinite`（`animation-iteration-count` 缺省即 1）+ `forwards`（持有 100% 帧 `opacity:0`），第二圈在结构上不可能发生；`scheduleStop` 定时器降级为纯状态复位（`playing=false` + 藏载体），时序抖动不可见。动因：原实现 `infinite` 循环 + `setTimeout` 到点摘载体是**两套独立时钟的赛跑**——`activatedAt` 锚 `performance.now()`、CSS 动画实际起点锚下一帧提交（δ 一帧内），定时器只保证不早于周期、抖动可晚于动画周期边界，晚触发时第二圈已开始且在 `display:none` 生效前被绘制——即「点击有概率多出一个涟漪」（用户实证，单 circle 载体只可能顺序闪现）。适用范围扩至 x-ripple **全部 click 通道**：ring/glow/echo 的 `animationCss` 按 `trigger==="click"` 分支出 forwards 变体（always/hover 真需循环、不受影响）；x-spin 同型竞态记录在案、本轮不动（click 场景罕见）。连点取消重起语义维持不变（下条）。
+
 - always/hover：起点固定宿主**几何中心**，单周期双圆扩散渐隐后循环；hover 移出播完当前周期再停（家族停止语义，ADR-0002 决策 6）。
 - click：起点 = 点击坐标（click 事件相对宿主换算）；单周期自止；**连点取消上次、立即重起**——家族 click 契约（在播中连点忽略）的**唯一点特例**，落在 decorate 共享状态机的策略分支；非 inside 的 click 与 x-spin 维持原语义。
 - 值三态（无值恒开 / 表达式 truthiness / 字面 `"false"` 恒关）与「值关点击不播」全量继承。
@@ -40,9 +42,11 @@
 
 ### 决策 6：载体——clipper 子元素，不动宿主样式
 
-inside 恒走注入子元素载体：clipper span（`position:absolute; inset:0; border-radius:inherit; overflow:hidden; pointer-events:none`）内含芯/环两个 span（transform scale 动画，半径预置尺寸）。**不写宿主 overflow**（Material 式 overflow:hidden 会裁掉宿主的 dropdown / 角标 / 溢出内容）；伪元素路径不适用（伪元素无法被独立裁剪，clip-path 无法跟随宿主任意 border-radius）。宿主 position 兜底沿用 HOST_CLASS；prefers-reduced-motion 停播沿用。
+inside 恒走注入子元素载体：clipper span（`position:absolute; inset:0; border-radius:inherit; overflow:hidden; pointer-events:none`）内含填充圆 span（transform scale 动画，起点/半径每次播放动态写入，决策 1 修订后单圆）。**不写宿主 overflow**（Material 式 overflow:hidden 会裁掉宿主的 dropdown / 角标 / 溢出内容）；伪元素路径不适用（伪元素无法被独立裁剪，clip-path 无法跟随宿主任意 border-radius）。宿主 position 兜底沿用 HOST_CLASS；prefers-reduced-motion 停播沿用。
 
-**载体显示生命周期（实施期补记，2026-10-31）**：注入即 `display:none`、播放即恢复、停止（click 收口 / hover 移出 / 值转假）即再隐藏——芯带静态底色（background 无动画态兜底），动画摘除后若载体可见会以静态 `opacity:1` + 上次播放几何显形，整宿主被实心色块盖住（非 inside 降级层无此问题：box-shadow 动画摘除后静态值透明）。隐藏而非摘除：载体复用零重建，display 翻转可逆。
+**载体显示生命周期（实施期补记，2026-10-31）**：注入即 `display:none`、播放即恢复、停止（click 收口 / hover 移出 / 值转假）即再隐藏——填充圆带静态底色（background 无动画态兜底），动画摘除后若载体可见会以静态 `opacity:1` + 上次播放几何显形，整宿主被实心色块盖住（非 inside 降级层无此问题：box-shadow 动画摘除后静态值透明）。隐藏而非摘除：载体复用零重建，display 翻转可逆。
+
+> **修订（2026-11-24，随决策 4 修订）**：填充圆静态样式补 `opacity:0` 兜底（与 keyframes 终态一致），成为三类不可见场景的**主防线**——①定时器收口清 animation 后、②reduced-motion `animation:none !important` 下、③连点重起的 `animation:"none"` 写入到新动画首帧之间的闪帧窗口（原实现此窗口静态整圆显形一帧，同源隐患）；display 翻转保留为载体卫生（裁剪层退出渲染，双保险）。原「芯/环两个 span（半径预置尺寸）」表述同步修正为单圆动态几何（2026-11-07 修订的同步遗漏）。
 
 ### 决策 7：运行时动态挂载契约成文（机制已在，零机制新增）
 
@@ -66,6 +70,7 @@ inside 恒走注入子元素载体：clipper span（`position:absolute; inset:0;
 - **宿主注入 overflow:hidden（Material 做法）**：否决——裁掉 dropdown / 角标 / 溢出内容，副作用不可控。
 - **伪元素 + clip-path 裁剪**：否决——clip-path 无法跟随宿主任意 border-radius，几何不可靠。
 - **家族 click 契约整体改「连点重启」**：否决——惊动 x-spin 与既有文档/测试承诺；特例分支改动面最小。
+- **事件对齐修补（`animationstart`/`animationiteration` 对齐时钟 + 保留 `infinite`）**：否决（2026-11-24 修订）——外部时钟协调治标，抖动窗口仍在，且引入监听器生命周期管理（连点重起须区分旧动画的 `animationcancel`）；「一个周期就结束」属动画本体属性，单次迭代 + `forwards` 的结构保证最简。
 - **inside 下 speed 沿用 3000ms 缺省**：否决——按钮涟漪节奏 400~800ms，3s 明显迟滞；条件缺省有先例。
 - **运行时挂载新增插件级全局 observer**：否决——engine 观察根内已实证支持，全局 observer 突破「插件经 engine 注册」契约且代价大。
 

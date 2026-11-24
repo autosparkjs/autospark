@@ -1,15 +1,19 @@
 <!--
-    autospark.menu 级列表渲染节点（autospark-menu-node，ADR-0033 决策 7）：本节点 = shell（header/footer slot + 全局状态 + 键盘），
-    经 x-for 逐项分流 separator / group / item（缩进折叠 fold / 弹层 pop / 叶子 leaf 三分支，
-    x-show 互斥——克隆体内禁 x-if）。本节点不对用户暴露。
+    autospark.menu 级列表渲染节点（autospark-menu-node，ADR-0033 决策 7·2026-11-24 重写）：
+    三分支（fold / pop / leaf，每项 3 个 button 化身）收敛为**单项单实例**结构——
+    div.asc-menu-entry 四职合一：缩进 / 状态标记 / 点击中继 / 弹层宿主。
 
-    项按钮（autospark.button 化身）：block 撑满行；折叠态（collapsed prop）经 button
-    collapsed 接管——只显示图标 + 悬停提示。值对象同时给出与 button 折叠预设一致的值
-    （menu / labelPos / indent / caret / hideTags）：值对象重算即整组重注入，等值使结果
-    不依赖注入时序。caret / checkMark 折叠态由本节点置空（button 折叠预设不含二者）。
+    - 弹层模式（item._pop）：entry 即 x-popover 宿主，options 经 spread 合并
+      `{ 基座, ...(item.conf || {}) }`（item.conf 的 popover 键显式赢——chrome/at/trigger 逐级覆盖），
+      props 注入 `{ submenu: { children: item.kids, ...conf }, effWidth, collapsed, mode }`
+      （2026-11-24 实测：props 对象包数组完好、面板内 x-component 正常，链读废弃）；
+    - 缩进模式（item._fold）：entry > subwrap > sub > 递归 node（grid 0fr/1fr 展开动画）；
+    - 叶子：entry 单按钮。三态经 :data-mode 表达，popover 的 disabled 门禁
+      （`disabled: !item._pop`）关闭缩进模式的弹层触发——弹层宿主恒挂、触发按态分派。
 
-    克隆体求值域：绑定 / 事件 / 值对象只能读 x-for locals（item）与自身 props；跨层交互
-    经 relayTick 中继哨兵（→ menu-relay 冒泡到 menu 本体）。
+    点击经 onEntryClick 风格的中继表达式沿链写 relay 哨兵（落最近声明层 = 宿主 node data，
+    node mounted watch → menu-relay 冒泡 → menu 本体）。克隆体求值域：绑定 / 事件 / 值对象
+    只能读 x-for locals（item）与自身 props。
 -->
 <div class="asc-menu-node" x-define.open="autospark-menu-node">
   <script setup>
@@ -25,6 +29,21 @@
             relayKey: null,
             relayKind: "",
         }),
+        methods: {
+            /**
+             * 单项点击中继（冒泡隔离）：仅响应**本 entry 自身按钮**的点击——后代 entry
+             * 的点击（嵌套缩进 / 弹层项）会冒泡穿过本 entry，closest 判定不等即忽略，
+             * 防祖先误 toggle。弹层模式（item._pop）的开关归 popover click toggle。
+             */
+            onEntryClick(item, e) {
+                const btnEntry = e.target instanceof Element ? e.target.closest(".asc-menu-entry") : null;
+                if (!btnEntry || btnEntry !== e.currentTarget) return;
+                if (item._pop) return;
+                this.data.relayKey = item.key;
+                this.data.relayKind = item.kids && item.kids.length ? "toggle" : "pick";
+                this.data.relayTick = this.data.relayTick + 1;
+            },
+        },
         mounted() {
             this.watch("relayTick", () => {
                 this.el.dispatchEvent(new CustomEvent("menu-relay", {
@@ -35,137 +54,68 @@
         },
     }
   </script>
-  <ul class="asc-menu-list" role="menu" x-for="item of list">
-    <li
+  <div class="asc-menu-list" role="menu" x-for="item of list">
+    <div class="asc-menu-sep" x-show="item.kind === 'sep'" role="separator"></div>
+    <div class="asc-menu-group" x-show="item.kind === 'group'" :data-icon="item.icon ? '' : null" role="group">
+      <i class="asc-menu-group-icon" x-show="item.icon" x-icon="item.icon"></i>
+      <span class="asc-menu-group-title">{{ item.title }}</span>
+    </div>
+    <div
       class="asc-menu-entry"
-      :data-kind="item.kind"
+      x-show="item.kind === 'item'"
+      role="menuitem"
       :data-key="item.key != null ? String(item.key) : null"
-      :data-sub="item.kind === 'item' && item.kids && item.kids.length ? '' : null"
+      :data-mode="item._pop ? 'pop' : (item._fold ? 'fold' : 'leaf')"
+      :data-active="item._active ? '' : null"
+      :data-marked="item._marked ? '' : null"
       :data-disabled="item.disabled ? '' : null"
       :data-icon-ph="item.iconPh ? '' : null"
+      :aria-expanded="item._fold ? (item._open ? 'true' : 'false') : null"
+      :aria-disabled="item.disabled ? 'true' : null"
+      :aria-haspopup="item._pop ? 'menu' : null"
+      @click="onEntryClick(item, $event)"
+      x-popover:autospark-menu-panel
+      x-popover-options="{ padding: 0, trigger: trigger, at: { arrow: false, offset: 4, placement: (mode === 'horizontal' && depth === 1) ? 'bottom-start' : 'right-start' }, disabled: !item._pop, ...(item.conf || {}) }"
+      x-popover-options.props="{ submenu: { ...(item.conf || {}), children: item.kids }, effWidth: effWidth, collapsed: !!collapsed, mode: mode }"
     >
-      <div class="asc-menu-sep" x-show="item.kind === 'sep'"></div>
-
-      <div class="asc-menu-group" x-show="item.kind === 'group'" :data-icon="item.icon ? '' : null">
-        <i class="asc-menu-group-icon" x-show="item.icon" x-icon="item.icon"></i>
-        <span class="asc-menu-group-title">{{ item.title }}</span>
-      </div>
-
-      <div class="asc-menu-fold" x-show="item._fold">
-        <div
-          class="asc-menu-btnwrap"
-          :data-active="item._active ? '' : null"
-          :data-marked="item._marked ? '' : null"
-          @click="relayTick = relayTick + 1, relayKey = item.key, relayKind = 'toggle'"
-        >
-          <div
-            x-component:autospark.button="{
-                block: true,
-                menu: !collapsed,
-                collapsed: !!collapsed,
-                label: item.label,
-                icon: item.iconPh ? 'default' : (item.icon || ''),
-                disabled: item.disabled,
-                caret: collapsed ? 'none' : (item._open ? 'bottom' : 'right'),
-                checkMark: collapsed ? false : item.checkPh,
-                checkStyle: item.checkStyle || 'check',
-                memo: item.memo,
-                loading: item.loading,
-                type: item.type,
-                variant: item.variant,
-                indent: collapsed ? 0 : item.indent,
-                labelPos: collapsed ? 'none' : 'right',
-                hideTags: !!collapsed,
-                tags: item.tags
-            }"
-          ></div>
-        </div>
-        <div class="asc-menu-subwrap" :data-open="item._open ? '' : null">
-          <div
-            class="asc-menu-sub"
-            :style="item.conf && item.conf.indent != null ? { paddingInlineStart: (typeof item.conf.indent === 'number' ? item.conf.indent + 'px' : item.conf.indent) } : null"
-          >
-            <div
-              x-component:autospark-menu-node="{
-                  list: item.kids,
-                  depth: depth + 1,
-                  mode: mode,
-                  trigger: trigger,
-                  collapsed: collapsed,
-                  effWidth: effWidth
-              }"
-            ></div>
-          </div>
-        </div>
-      </div>
-
       <div
-        class="asc-menu-pop"
-        x-show="item._pop"
-        x-popover:autospark-menu-panel
-        x-popover-options="{ padding: 0, at: { arrow: false, offset: 4 } }"
-        x-popover-options.trigger="trigger"
-        x-popover-options.at="{ placement: (mode === 'horizontal' && depth === 1) ? 'bottom-start' : 'right-start' }"
-        x-popover-options.padding="item.conf && item.conf.padding != null ? item.conf.padding : 0"
-      >
+        x-component:autospark.button="{
+            block: true,
+            menu: !collapsed,
+            collapsed: !!collapsed,
+            label: item.label,
+            icon: item.iconPh ? 'default' : (item.icon || ''),
+            disabled: item.disabled,
+            caret: collapsed ? 'none' : (item._pop ? ((mode === 'horizontal' && depth === 1) ? 'bottom' : 'right') : (item._fold ? (item._open ? 'bottom' : 'right') : (item.caret || 'none'))),
+            checkMark: collapsed ? false : item.checkPh,
+            checkStyle: item.checkStyle || 'check',
+            memo: item.memo,
+            loading: item.loading,
+            type: item.type,
+            variant: item.variant,
+            indent: collapsed ? 0 : item.indent,
+            labelPos: collapsed ? 'none' : 'right',
+            hideTags: !!collapsed,
+            tags: item.tags
+        }"
+      ></div>
+      <div class="asc-menu-subwrap" x-show="item._fold" :data-open="item._open ? '' : null">
         <div
-          class="asc-menu-btnwrap"
-          :data-active="item._active ? '' : null"
-          :data-marked="item._marked ? '' : null"
+          class="asc-menu-sub"
+          :style="item.conf && item.conf.indent != null ? { paddingInlineStart: (typeof item.conf.indent === 'number' ? item.conf.indent + 'px' : item.conf.indent) } : null"
         >
           <div
-            x-component:autospark.button="{
-                block: true,
-                menu: !collapsed,
-                collapsed: !!collapsed,
-                label: item.label,
-                icon: item.iconPh ? 'default' : (item.icon || ''),
-                disabled: item.disabled,
-                caret: collapsed ? 'none' : ((mode === 'horizontal' && depth === 1) ? 'bottom' : 'right'),
-                checkMark: collapsed ? false : item.checkPh,
-                checkStyle: item.checkStyle || 'check',
-                memo: item.memo,
-                loading: item.loading,
-                type: item.type,
-                variant: item.variant,
-                indent: collapsed ? 0 : item.indent,
-                labelPos: collapsed ? 'none' : 'right',
-                hideTags: !!collapsed,
-                tags: item.tags
+            x-component:autospark-menu-node="{
+                list: item.kids,
+                depth: depth + 1,
+                mode: mode,
+                trigger: trigger,
+                collapsed: collapsed,
+                effWidth: effWidth
             }"
           ></div>
         </div>
       </div>
-
-      <div
-        class="asc-menu-btnwrap"
-        x-show="item._leaf"
-        :data-active="item._active ? '' : null"
-        :data-marked="item._marked ? '' : null"
-        @click="relayTick = relayTick + 1, relayKey = item.key, relayKind = 'pick'"
-      >
-        <div
-          x-component:autospark.button="{
-              block: true,
-              menu: !collapsed,
-              collapsed: !!collapsed,
-              label: item.label,
-              icon: item.iconPh ? 'default' : (item.icon || ''),
-              disabled: item.disabled,
-              caret: collapsed ? 'none' : (item.caret || 'none'),
-              checkMark: collapsed ? false : item.checkPh,
-              checkStyle: item.checkStyle || 'check',
-              memo: item.memo,
-              loading: item.loading,
-              type: item.type,
-              variant: item.variant,
-              indent: collapsed ? 0 : item.indent,
-              labelPos: collapsed ? 'none' : 'right',
-              hideTags: !!collapsed,
-              tags: item.tags
-          }"
-        ></div>
-      </div>
-    </li>
-  </ul>
+    </div>
+  </div>
 </div>

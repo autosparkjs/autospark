@@ -8,7 +8,7 @@ Menu 是 AutoSpark 的官方导航菜单组件（组件库 P2 导航件，ADR-00
 - **value 双语义**：`string` → 单选激活（高亮当前项，受控 + `el.value` 桥 + 祖先链自动展开）；`string[]` → checkable 勾选集合（toggle 数组成员）；
 - **层级机制**：`expandLevel` 初始展开到第 N 级（默认 1，可手动折叠 / 展开）；`popLevel` 指定 `level > popLevel` 的子菜单走 popover 弹出（默认 0 全缩进折叠；弹层内更深层级继续级联）；`openKeys` 全受控展开态（显式 `true` / `false` 优先于 expandLevel 默认）；
 - **折叠（collapsed）**：布尔。垂直模式 = 整菜单收窄为 `collapsedWidth` 图标条（项只显示图标 + 悬停提示，子级全弹层）；水平模式 = 仅一级项只显示图标，容器尺寸不变；
-- **宽度**：`width` 缺省 260，`0` = 填满父容器；垂直折叠态取 `collapsedWidth`（缺省 48）；
+- **宽度**：`width` 缺省 200，`0` = 填满父容器；垂直折叠态取 `collapsedWidth`（缺省 48）；
 - **header / footer 作用域插槽**：按需解构折叠态、生效宽度、激活项等形参，折叠时切换插槽内容；
 - **trigger**：弹层触发 `hover`（缺省）| `click`（透传 popover；缩进域折叠组恒 click）。
 
@@ -69,24 +69,31 @@ type MenuItem = {
                                      // checkStyle / loading / indent / caret / type / variant …
                                      // （state / collapsed / hideTags 由菜单折叠态接管，勿在项上声明）
 
-type SubmenuOptions = {
-  header?:  string | '#模板id'       // 弹层头部：纯文本 或 template 内容引用
-  footer?:  string | '#模板id'       // 弹层尾部：形态同 header
-  title?:    string                   // 弹层标题行（仅弹层域显示）
-  padding?:  number | string          // 弹层内边距覆盖
-  indent?:   number | string          // 缩进域缩进量覆盖（缺省 1.5em——子级文字与父项图标列对齐，逐级累计）
-  slotDir?: 'vertical' | 'horizontal' // 分区方向逐层覆盖
-  children:  MenuEntry[]              // 必需：真正的项列表
+interface SubmenuOptions extends Omit<PopoverOptions, 'props'> {
+  children: MenuEntry[]               // 必需：项列表
+  indent?:  number | string           // menu 专属：缩进呈现时的缩进量覆盖（缺省 1.5em——子级文字与父项图标列对齐，逐级累计）
+  // 其余全部继承自 PopoverOptions（弹出机制全盘 x-popover，以 x-popover.md 选项表为准）：
+  //   chrome     ：title / icon / actions / closeable / shell——弹层骨架全部由 popover 承载
+  //   触发时序   ：trigger / delayShow / delayHide / delayClose
+  //   定位外观   ：at（placement / offset）/ fit / animate / border
+  //   家族通用   ：keepalive / key / url
+  //   排除       ：props（被 menu 内部占用传 submenu）
 }
+// 移除项：header / footer / title 自绘与 slotDir 弹层分区——面板为纯列表容器，弹层骨架
+// 经 popover 选项或 slots 重载定制（根菜单的 header / footer 插槽保留）
 ```
 
 `group` 是**纯视觉分组标题**（不可点击、不产生缩进层级）；与 select 的 `group`（x-model-options 按字段聚合 optgroup）同名不同义。首尾分隔线自动修剪。
+
+<demo html="components/navigation/menu/basic.html"/>
 
 ### 值通道：形态即语义
 
 - **单选激活**（`value: string`）：点击非禁用叶子 → 更新 value + 双派发（`input` 非冒泡 x-model 回写；`change` 冒泡 `detail = { value }`）+ 关闭弹层链；外部 value 变化 → 激活迁移 + **祖先链自动展开**（antd 同款）；同值点击短路；
 - **勾选集合**（`value: string[]`）：元素为 checkable 项 key；点击 toggle 数组成员 + `change` 派发（勾选不关弹层——调参非导航）；勾选视觉 = `item.checkStyle ?? 'check'`（menu 语境覆盖 button 全局缺省 `corner`）；
 - 两形态互斥；`el.value` 劫持桥服务单值语域（数组消费走 `:value` + `@change` 惯用法）。
+
+<demo html="components/navigation/menu/value.html"/>
 
 ### 层级机制：expandLevel / popLevel / openKeys
 
@@ -96,16 +103,24 @@ type SubmenuOptions = {
 - `openKeys`（`Record<key, boolean>`）：**全受控双绑**——外部替换即应用（显式 `true` / `false` 优先于 expandLevel 默认）；内部点击展开 / 折叠 → 写入显式 `true` / `false` + `expand` 事件（`detail = { key, expanded }`）。目标态按**当前实际展开态**取反：默认展开的父项不在 openKeys 里，首次点击即折叠；
 - items 运行时整体替换：**按 key 保留展开态**（勾选态真源在 value 数组，不动）。
 
+<demo html="components/navigation/menu/hierarchy.html"/>
+
 ### 弹层交互
 
-- `trigger`（默认 `hover` | `click`）只管弹层域，直接映射 popover 同名选项；缩进域折叠组恒 click（button `caret` 尾箭头指示：折叠态朝右 / 展开态朝下，弹层域父项恒朝弹出方向）；
+- **弹出机制全盘复用 x-popover**（ADR-0060 / ADR-0128）：触发（hover / click）、定位翻转、hover 链、外点关闭、Esc 栈全部由 popover 承载；每个弹层模式的项宿主挂 `x-popover:autospark-menu-panel`，面板为递归注册组件、数据经 `x-popover-options.props` 注入 `{ submenu: { children, ...item.conf } }`；
+- **`SubmenuOptions` 即 popover 选项全集**（`item.conf` 透传）：title / actions / closeable / shell 等骨架 chrome 与 at / trigger / delay* 等行为键直接配置，显式键赢过 menu 计算（placement / trigger 逐级覆盖）；面板不再自绘头尾（`header` / `footer` / `slotDir` 弹层分区已移除）；
+- `trigger`（默认 `hover` | `click`）只管弹层域，菜单级值透传、`item.conf.trigger` 逐级覆盖；缩进域折叠组恒 click（button `caret` 尾箭头指示：折叠态朝右 / 展开态朝下，弹层域父项恒朝弹出方向）；
 - 弹层面板宽度与菜单本体一致（垂直展开且 `width` 生效时；折叠 / 水平 / `width="0"` 自适应回落内容自适应）；
 - 关闭行为：叶子选中 → 关闭整条级联链（click 模型经 popover 原生「外点关闭」链即刻全关；hover 模型面板随指针离开自然收起）；有 children 的项点击切换展开态；勾选类叶子**不关**弹层；Esc 逐层（popover 全局栈）；点击外部整链关；
 - **依赖声明**：弹层呈现须同引 `autospark.overlay.js`（x-popover，ADR-0128）——缺席时缩进域照常、弹层域无效（与 dropdown 家族同口径）。
 
+<demo html="components/navigation/menu/popover.html"/>
+
 ### 同级统一占位
 
 同级任一项 `checkable` → 全级统一 check 占位列；同级任一项有 icon → 全级统一图标占位列；**check 列在 icon 列左侧**。占位经 button `checkMark`（纯视觉占位通道）与占位图标 + `visibility: hidden`（保宽不可见）承载。
+
+<demo html="components/navigation/menu/placeholder.html"/>
 
 ### 折叠（collapsed）
 
@@ -127,12 +142,14 @@ type SubmenuOptions = {
 
 ### 宽度：width / collapsedWidth
 
-- `width`（缺省 `260`）：菜单宽度（px）。`0`、负数或非数值 = 不写内联宽度，回落样式表 `width:100%` **填满父容器**——放进侧栏等定宽容器时用 `width="0"`；
+- `width`（缺省 `200`）：菜单宽度（px）。`0`、负数或非数值 = 不写内联宽度，回落样式表 `width:100%` **填满父容器**——放进侧栏等定宽容器时用 `width="0"`；
 - `collapsedWidth`（缺省 `48`）：垂直折叠态的宽度（px）；非法值回落 48；
 - 两者仅垂直模式适用，水平模式容器随内容伸展。
 
+<demo html="components/navigation/menu/basic.html"/>
+
 ```html
-<x-menu :items="menu"></x-menu>                                      <!-- 260 -->
+<x-menu :items="menu"></x-menu>                                      <!-- 200 -->
 <x-menu :items="menu" width="0"></x-menu>                            <!-- 填满父容器 -->
 <x-menu :items="menu" width="320" collapsed-width="64" :collapsed="fold"></x-menu>
 ```
@@ -163,10 +180,14 @@ type SubmenuOptions = {
 - 形参**只读**（切换折叠请改调用方绑定的状态）；**解构了的键会遮蔽**调用方同名变量，未解构的键不产生影响；
 - `<x-menu>` 的直接子级可写 `<template header="{ … }">`（快捷形态）；直接写 `x-component:autospark.menu` 宿主时须用正典形态 `<template x-slot:header="{ … }">`。
 
+<demo html="components/navigation/menu/slots.html"/>
+
 ### horizontal 与 slotDir
 
 - `mode: vertical（默认） | horizontal`：横排 level 1，子级全部弹层（level 2 `bottom-start` 向下、level 3+ `right-start` 向右级联）；`expandLevel` / `popLevel` / `openKeys` / `width` / `collapsedWidth` **静默不适用**（文档明示，不 warn；mode 可响应式切换）；`collapsed` 适用（见上方折叠节）；
-- `slotDir: vertical（默认：header 上 / footer 下） | horizontal（header 左 / footer 右）`：作用于本体 header/footer 插槽位置与各级弹层内部分区；SubmenuOptions.slotDir 逐层覆盖弹层；垂直折叠态强制纵向。
+- `slotDir: vertical（默认：header 上 / footer 下） | horizontal（header 左 / footer 右）`：仅作用于**根菜单本体**的 header/footer 插槽位置（弹层内分区已移除——弹层骨架由 popover 承载）；垂直折叠态强制纵向。
+
+<demo html="components/navigation/menu/modes.html"/>
 
 ### 键盘导航
 
@@ -181,9 +202,13 @@ type SubmenuOptions = {
 
 roving tabindex（容器托管 Tab 序，方向键移动真实焦点）；type-ahead 字母导航不做。
 
+<demo html="components/navigation/menu/hierarchy.html"/>
+
 ### 主题化
 
 继承 `autospark.base`（ADR-0134）主题档位六键（`data-size` / `data-shadow` / `data-radius` / `data-spacing` / `data-dark` / `data-colorized`）；样式三级回退链（ADR-0129）——`var(--auto-X, var(--asc-menu-X, 校准兜底值))`，暗色兜底变体在场，接 `@autospark/theme` 自动换肤。
+
+<demo html="components/navigation/menu/basic.html"/>
 
 ### router 配方
 
@@ -208,11 +233,11 @@ roving tabindex（容器托管 Tab 序，方向键移动真实焦点）；type-a
 | `popLevel` | `number` | `0` | `level > popLevel` 的子菜单走 popover（0 全缩进折叠） |
 | `openKeys` | `Record<string, boolean>` | `{}` | 全受控展开态（显式 `true` / `false` 优先于 expandLevel 默认） |
 | `collapsed` | `boolean` | `false` | 折叠：垂直收窄为图标条 / 水平仅一级项只显示图标（响应式可切；旧数值写法归一为 `true`） |
-| `width` | `number` | `260` | 菜单宽度 px；`0` = 填满父容器（仅垂直模式） |
+| `width` | `number` | `200` | 菜单宽度 px；`0` = 填满父容器（仅垂直模式） |
 | `collapsedWidth` | `number` | `48` | 垂直折叠态宽度 px（非法值回落 48） |
 | `trigger` | `'hover' \| 'click'` | `'hover'` | 弹层触发方式（透传 popover；缩进域折叠组恒 click） |
 | `mode` | `'vertical' \| 'horizontal'` | `'vertical'` | 排列形态（horizontal 下结构 props 与宽度 props 静默不适用） |
-| `slotDir` | `'vertical' \| 'horizontal'` | `'vertical'` | header/footer 分区方向（SubmenuOptions.slotDir 逐层覆盖弹层） |
+| `slotDir` | `'vertical' \| 'horizontal'` | `'vertical'` | header/footer 分区方向（仅根菜单本体；弹层内分区已移除） |
 
 ### 事件
 

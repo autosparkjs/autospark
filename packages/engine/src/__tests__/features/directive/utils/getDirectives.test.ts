@@ -258,6 +258,63 @@ describe("findDirectives - options 补充参数", () => {
         expect(() => getDirectives(elWith({ "x-if": "a", "x-if-options": "hello" }))).toThrow();
     });
 
+    describe("options 表达式特征降级（2026-11-24 扩展：spread / 值位置标识符 / 三元 / 调用）", () => {
+        test("值位置标识符：relaxed 归一为字符串走静态层（引用语义须显式 spread / 表达式）", () => {
+            // relaxedToJson 把无引号标识符值字符串化——`{ trigger: trigger }` 不进降级通道
+            // 而是静态解析为 { trigger: "trigger" }。menu 的 options 本体因此必须含
+            // `...(item.conf || {})`（spread 特征触发降级）才能获得真引用语义。
+            expect(
+                parseOne({ "x-popover": "panel", "x-popover-options": "{ trigger: trigger }" }),
+            ).toEqual({
+                name: "popover",
+                value: "panel",
+                options: { trigger: "trigger" },
+            });
+        });
+
+        test("spread 合并（消费方 item.conf 全键透传形态）→ 降级表达式通道", () => {
+            expect(
+                parseOne({
+                    "x-popover": "panel",
+                    "x-popover-options": "{ padding: 0, ...(item.conf || {}) }",
+                }),
+            ).toEqual({
+                name: "popover",
+                value: "panel",
+                optionExprs: { __directiveFull__: "({ padding: 0, ...(item.conf || {}) })" },
+            });
+        });
+
+        test("成员访问值（obj.member）→ 降级表达式通道", () => {
+            expect(
+                parseOne({ "x-popover": "p", "x-popover-options": "{ children: item.kids }" }),
+            ).toEqual({
+                name: "popover",
+                value: "p",
+                optionExprs: { __directiveFull__: "({ children: item.kids })" },
+            });
+        });
+
+        test("三元表达式（嵌套对象内）→ 降级表达式通道", () => {
+            const r = parseOne({
+                "x-popover": "p",
+                "x-popover-options": "{ at: { placement: ok ? 'bottom-start' : 'right-start' } }",
+            });
+            expect(r.options).toBeUndefined();
+            expect(r.optionExprs?.__directiveFull__).toContain("'bottom-start'");
+        });
+
+        test("布尔字面量值不误伤（静态层照常解析）", () => {
+            expect(
+                parseOne({ "x-popover": "p", "x-popover-options": "{ closeable: true, delayShow: 200 }" }),
+            ).toEqual({
+                name: "popover",
+                value: "p",
+                options: { closeable: true, delayShow: 200 },
+            });
+        });
+    });
+
     test("options 值为空字符串时抛出错误", () => {
         expect(() => getDirectives(elWith({ "x-if": "a", "x-if-options": "" }))).toThrow();
     });

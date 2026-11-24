@@ -1,6 +1,6 @@
 # ADR-0033: menu v2 数据驱动重设计（废弃 x-menu-item 组合式）
 
-- 状态：已接受（Accepted，2026-11-18；2026-11-22 修订——决策 4 `collapsed` 布尔化并移除档 2、新增决策 4a 宽度与 4b 作用域插槽、决策 8 水平模式折叠、决策 2 展开态写显式 false、决策 11 / 12 如实化）
+- 状态：已接受（Accepted，2026-11-18；2026-11-22 修订——决策 4 `collapsed` 布尔化并移除档 2、新增决策 4a 宽度与 4b 作用域插槽、决策 8 水平模式折叠、决策 2 展开态写显式 false、决策 11 / 12 如实化；2026-11-24 修订——决策 7 渲染机制重写（单分支单实例 / 去 ul-li / entry 四职合一）与弹层架构（面板 props 通道 / chrome 下放 popover / popover disabled 门禁 / options 表达式合并））
 - 日期：2026-11-18
 - 关联：ADR-0018（决策 8「menu 每件一 ADR」由本 ADR 归位——v1 实施曾落在合批 ADR-0024 第 7 节；决策 6 约定 2 router 隔离延续有效）、ADR-0024（第 7 节 v1 menu API 由本 ADR **整体重写**）、ADR-0027（dropdown 与 menu 的语义分界维持）、ADR-0060（popover 触发模型——无 visible 真相源，本组件弹层全盘委托）、ADR-0128（overlay 家族移入 plugins，构成 menu 的前置依赖）、ADR-0016 修订记（button checkable 四 props 回归，为菜单勾选提供载体）、ADR-0094 / 0111 / 0129 / 0134（命名空间 / 插件注册 / 主题回退链 / base 继承惯例）、ADR-0056（engine：作用域插槽——决策 4b header / footer 形参的机制依据）
 
@@ -67,7 +67,7 @@ type SubmenuOptions = {
 
 ### 4a. 宽度（`width` / `collapsedWidth`；2026-11-22 修订新增）
 
-- `width`（number，缺省 260）→ 菜单内联宽度（px），落在内层 body（模板根动态绑定不求值）；仅正有限数生效，否则（`0` / 负 / NaN）不写内联、回落样式表 `width:100%` **填充父容器**——`width="0"` 即侧栏填充配方；
+- `width`（number，缺省 200）→ 菜单内联宽度（px），落在内层 body（模板根动态绑定不求值）；仅正有限数生效，否则（`0` / 负 / NaN）不写内联、回落样式表 `width:100%` **填充父容器**——`width="0"` 即侧栏填充配方；
 - `collapsedWidth`（number，缺省 48）：垂直折叠态宽度；非法值回落 48；
 - 两者仅垂直模式适用。
 
@@ -89,10 +89,13 @@ type SubmenuOptions = {
 - 勾选渲染：`item.checkStyle ?? 'check'`（menu 语境覆盖 button 全局缺省 `corner`——菜单勾选列惯例是最左打勾）；仍可逐项覆盖四值；
 - button 小幅增强：新增 `checkMark` 布尔 props——**纯视觉 check 占位**（挂形态类、不启用 checkable 行为桥），勾选态由外部 class 驱动（menu 自管，避免与 checkable 点击翻转双处理）；icon 占位经占位名 + `visibility: hidden` 承载（列宽恒定、图标不可见）。
 
-### 7. 渲染机制：递归组件 + 影子树归一
+### 7. 渲染机制：递归组件 + 影子树归一（2026-11-24 重写：单分支单实例）
 
-- **递归组件**（官方多级菜单路径，engine 深度 100 保护天然防数据环）：内部组件 `autospark-menu-node`（级列表渲染：separator / group / item 分流 + children 缩进/弹层分流）；
-- **弹层面板**：内部组件 `autospark-menu-panel`（连字符注册名免疫 popover attr 参数点号切分，dropdown 同款成因）——header / title / footer 渲染 + 内嵌 menu-node；经 `x-popover:autospark-menu-panel` 消费；
+- **递归组件**（官方多级菜单路径，engine 深度 100 保护天然防数据环）：内部组件 `autospark-menu-node`——级列表渲染 separator / group / item 三分流；
+- **单分支单实例**（2026-11-24 修订）：~~三分支（fold / pop / leaf）DOM 恒在、每项 3 个 button 化身~~ → **每项 1 个**——`div.asc-menu-entry` 四职合一（缩进 / 状态标记 data-* / 点击中继 / 弹层宿主），三分支语义转 `:data-mode` + 运行时分派；实测每项 37 节点 / 3 实例、100 项同步编译 10–17s → 简化后约 15 节点 / 1 实例；
+- **去 ul/li**：列表容器 `div.asc-menu-list`，ARIA（menu / menuitem / separator / group / aria-expanded / aria-haspopup）随迁保留；
+- **弹层面板**：内部组件 `autospark-menu-panel`（连字符注册名免疫 popover attr 参数点号切分，dropdown 同款成因）——**纯列表容器**：~~自绘 head / title / foot 与 slotDir 弹层内分区~~ 移除，骨架 chrome 全部下放 popover（title / actions / closeable / shell 经 item.conf 的 popover 键配置）；数据经 `x-popover-options.props` 注入 `{ submenu: { children, ...conf } }`（~~沿宿主链读~~ 2026-11-24 实测废弃——props 对象包数组完好、面板内 x-component 正常渲染）；
+- **弹层宿主四职合一**：entry 恒挂 `x-popover`（宿主与 button 化身同宿主互斥，ADR-0056 决策十修订——宿主层省不掉），缩进模式经 popover 的 **disabled 门禁**（2026-11-24 新增选项——打开路径短路、关闭路径不受影响）关闭触发；options 经 **spread 表达式合并** `{ 基座, ...(item.conf || {}) }`——engine getDirectives 的 options 解析同期扩展「JS 表达式特征降级求值」（spread / 值位置标识符 / 三元 / 调用，响应式热更新）；
 - **影子树归一化**：根组件把 items 归一为内部规范树（children 对象拆平 / `'-'` 归一 / disabled 整支传播 / 逐级 hasIcon/hasCheck 占位标注一次算好），渲染纯消费影子树——外部受控数据不被变异，模板表达式保持简单；
 - 跨组件通信走 scope 链哨兵键（dropdown 先例：pickTick/pickKey 自增免疫同值去重）。
 

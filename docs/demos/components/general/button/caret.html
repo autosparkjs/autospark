@@ -22,7 +22,7 @@
             dir: 'bottom',
             dirs: ['none', 'left', 'top', 'right', 'bottom'],
             oneTag: [{ name: 'share', icon: 'external', tooltip: '分享' }],
-            floatOn: false
+            floatPos: 'top'
         }"
     >
       <div class="auto-card">
@@ -98,8 +98,9 @@
       </div>
       <div class="auto-card">
         <div class="auto-card-header">
-          浮动箭头（float-caret）：脱离标签行流，绝对定位到按钮右上角（top / right
-          等距）、尺寸减半——叠加指示形态（默认 false）
+          浮动箭头（float-caret）：脱离标签行流，绝对定位到按钮右缘、垂直三档（top
+          右上角等距 / center 垂直居中 / bottom 右下角对称）、尺寸减半——叠加指示形态（缺省
+          false 不浮动，裸布尔 true ≡ center）
         </div>
         <div class="auto-card-body">
           <div
@@ -110,17 +111,19 @@
               align-items: center;
             "
           >
-            <span @click="floatOn = !floatOn">
+            <span
+              @click="floatPos = ['top', 'center', 'bottom', null][['top', 'center', 'bottom', null].indexOf(floatPos) + 1] ?? 'top'"
+            >
               <x-button
                 variant="secondary"
-                :label="floatOn ? '恢复常规' : '切到浮动'"
+                :label="'切换档位：' + (floatPos ?? '常规')"
               ></x-button>
             </span>
             <x-button
               icon="folder"
               label="资源面板"
               caret="bottom"
-              :float-caret="floatOn"
+              :float-caret="floatPos"
               label-pos="bottom"
             ></x-button>
             <x-button
@@ -130,7 +133,10 @@
               float-caret
               label-pos="bottom"
             ></x-button>
-            <span>floatCaret = <b>{{ floatOn }}</b></span>
+            <span
+              >floatCaret = <b>{{ floatPos ?? "false" }}</b>（收藏夹为裸布尔 →
+              center）</span
+            >
           </div>
           <p class="hint">
             浮动态不占标签行空间（label 截断可用宽不含它，尾部可能被叠压）；与

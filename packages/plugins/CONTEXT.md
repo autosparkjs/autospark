@@ -425,7 +425,7 @@ _Avoid_: `visible`（与 viewable 同形不同义）、`showPassword`（input �
 ### 菜单层（Menu）
 
 **导航菜单 / autospark.menu（Menu）**:
-`items` 数据驱动的任意层嵌套导航菜单（ADR-0033 v2；2026-11-22 修订）：`value` 形态即语义（单值 = **激活**当前项，数组 = **勾选**集合），子级两种呈现——**缩进域**（父项下展开 / 折叠 + 缩进，`expandLevel` 管默认策略、`openKeys` 管精确展开态，显式 `true` / `false` 优先）与**弹层域**（popover 级联弹出，`popLevel` 划界）。header / footer 为**作用域插槽**（出口注入菜单状态，调用方按需解构）。
+`items` 数据驱动的任意层嵌套导航菜单（ADR-0033 v2；2026-11-22 / 11-24 修订）：`value` 形态即语义（单值 = **激活**当前项，数组 = **勾选**集合），子级两种呈现——**缩进域**（父项下展开 / 折叠 + 缩进，`expandLevel` 管默认策略、`openKeys` 管精确展开态，显式 `true` / `false` 优先）与**弹层域**（popover 级联弹出，`popLevel` 划界）。header / footer 为**作用域插槽**（出口注入菜单状态，调用方按需解构，仅根菜单）。每项一个 button 化身；弹层骨架（chrome）全部由 x-popover 承载，面板为纯列表容器（数据经 popover props 注入 SubmenuOptions）。
 _消歧_: **菜单折叠 ≠ 子菜单折叠**——前者是整个菜单的形态（`collapsed`，双向），后者是某个父项 children 的开合（折叠组，`expand` 事件）；「图标条」只是菜单折叠在垂直模式下的形态描述语，不是独立的模式或状态。与 select 的 `group`（按字段聚合的 optgroup）同名不同义——菜单的 group 是纯视觉分组标题。
 _Avoid_: 折叠三档 / collapsed=2 / 单按钮档（2026-11-22 已移除的旧形态）、收起（单向词——折叠是双向翻转）、侧栏模式 / rail（泛化场景词，菜单折叠不预设容器）、菜单项声明式写法（`<x-menu-item>` 组合式已于 v2 硬移除）、toggle 子菜单（缩进域是展开 / 折叠，弹层域是打开 / 关闭）
 
@@ -435,7 +435,7 @@ _消歧_: 与 button 的 `collapsed`（单个按钮只显示图标的视觉形�
 _Avoid_: 收起态（单向词）、迷你模式 / compact（未定义的第三形态）、图标条模式（图标条是形态描述语，模式只有垂直 / 水平）
 
 **菜单宽度 / 折叠宽度 / width·collapsedWidth（Menu Width）**:
-`width` 是菜单自身的宽度（缺省 260），`0` 表示**填充父容器**（不设自身宽度）；`collapsedWidth` 是垂直折叠态的宽度（缺省 48）。两者只对垂直模式有意义——水平菜单随内容伸展。
+`width` 是菜单自身的宽度（缺省 200），`0` 表示**填充父容器**（不设自身宽度）；`collapsedWidth` 是垂直折叠态的宽度（缺省 48）。两者只对垂直模式有意义——水平菜单随内容伸展。
 _Avoid_: 自适应宽度作为独立开关（`0` 即填充，不另设 prop）、百分比 / em 宽度（需要随容器时用 `0` 填充，由容器定宽）、collapsedWidth 用于水平模式（水平折叠不改宽度）
 
 **插槽形参 / slotParams（Slot Params）**:

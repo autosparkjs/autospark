@@ -4,95 +4,80 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>menu 基础</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
     <style>
-      body {
-        font-family: system-ui, sans-serif;
-        margin: 24px;
-        background: #fff;
-      }
-      .wrap {
-        display: flex;
-        gap: 40px;
-        align-items: flex-start;
-        flex-wrap: wrap;
-      }
-      .panel {
-        border: 1px solid #eee;
-        border-radius: 8px;
-        padding: 8px;
-      }
-      /* width="0" 填满演示：容器定宽（菜单缺省宽 260，不设容器宽即由菜单自带宽度决定） */
-      .panel.fill {
-        width: 340px;
-      }
-      h3 {
-        margin: 4px 0 12px;
-        font-size: 14px;
-        color: #666;
-      }
+      .hint { color: var(--auto-secondary-color, #868e96); font-size: 13px; margin: 8px 0 0; }
     </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <h3>基础（缺省宽 260 · 子菜单点击展开 / 折叠）</h3>
-      <div class="panel">
-        <x-menu :items="menu" value="home"></x-menu>
-      </div>
-      <h3>popLevel=1（缩进 + 弹层混合）</h3>
-      <div class="panel">
-        <x-menu
-          :items="menu2"
-          :pop-level="1"
-          :value="active"
-          trigger="click"
-        ></x-menu>
-      </div>
-      <h3>width=0（填满容器 340）</h3>
-      <div class="panel fill">
-        <x-menu width="0" :items="menu" :value="active"></x-menu>
-      </div>
-    </div>
+    <script src="/autospark/autospark.theme.js"></script>
     <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
     <script src="/autospark/autospark.overlay.js"></script>
     <script src="/autospark/autospark.button.js"></script>
     <script src="/autospark/autospark.menu.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">基础（缺省宽 200 · 子菜单点击展开 / 折叠）</div>
+        <div class="auto-card-body">
+          <x-menu :items="menu" value="home"></x-menu>
+        </div>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">popLevel=1（缩进 + 弹层混合 · 悬浮展开）</div>
+        <div class="auto-card-body">
+          <x-menu :items="menu2" :pop-level="1" :value="active"></x-menu>
+        </div>
+        <p class="hint">level 1 缩进呈现；level 2 起（二级组）悬浮弹出——弹层宽度与菜单本体一致</p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">width="0"（填满父容器）</div>
+        <div class="auto-card-body">
+          <x-menu width="0" :items="menu" :value="active"></x-menu>
+        </div>
+        <p class="hint">菜单填满卡片体宽度（不设自身宽度——侧栏场景的配方写法）</p>
+      </div>
+    </main>
     <script>
-      const state = {
-        active: "home",
+      new AutoSpark(document.body, {
+        active: 'home',
         menu: [
-          { key: "home", label: "首页", icon: "file" },
-          { type: "group", title: "组件" },
-          { key: "guide", label: "指南", icon: "edit" },
-          { key: "comps", label: "组件", icon: "copy" },
-          { key: "api", label: "API" },
-          "-",
+          { key: 'home', label: '首页', icon: 'file' },
+          { type: 'group', title: '组件' },
+          { key: 'guide', label: '指南', icon: 'edit' },
+          { key: 'comps', label: '组件', icon: 'copy' },
+          { key: 'api', label: 'API' },
+          '-',
           {
-            key: "nav",
-            label: "导航",
+            key: 'nav',
+            label: '导航',
             children: [
-              { key: "n1", label: "指令" },
-              { key: "n2", label: "路由" },
+              { key: 'n1', label: '指令' },
+              { key: 'n2', label: '路由' },
             ],
           },
         ],
         menu2: [
-          { key: "home", label: "首页", icon: "file" },
+          { key: 'home', label: '首页', icon: 'file' },
           {
-            key: "grp",
-            label: "折叠组",
+            key: 'grp',
+            label: '折叠组',
             children: [
-              { key: "g1", label: "二级项" },
+              { key: 'g1', label: '二级项' },
               {
-                key: "g2",
-                label: "二级组",
+                key: 'g2',
+                label: '二级组',
                 children: {
-                  title: "三级弹层",
+                  title: '三级弹层',
                   children: [
-                    { key: "g2a", label: "三级项" },
+                    { key: 'g2a', label: '三级项' },
                     {
-                      key: "g2b",
-                      label: "更深层",
-                      children: [{ key: "g2b1", label: "四级级联" }],
+                      key: 'g2b',
+                      label: '更深层',
+                      children: [{ key: 'g2b1', label: '四级级联' }],
                     },
                   ],
                 },
@@ -100,8 +85,7 @@
             ],
           },
         ],
-      };
-      new AutoSpark(document.body, state);
+      });
     </script>
   </body>
 </html>

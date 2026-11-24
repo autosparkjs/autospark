@@ -18,7 +18,7 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             trigger: "hover",
             mode: "vertical",
             slotDir: "vertical",
-            width: 260,
+            width: 200,
             collapsedWidth: 48,
             tree: [],
             openView: {},
@@ -259,11 +259,11 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             onKeydown(event) {
                 const k = event.key;
                 if (k !== "ArrowDown" && k !== "ArrowUp" && k !== "ArrowRight" && k !== "ArrowLeft" && k !== "Home" && k !== "End") return;
-                const btn = event.target && event.target.closest ? event.target.closest(".asc-menu-entry .asc-menu-btnwrap > .asc-button") : null;
-                const currentLi = btn ? btn.closest(".asc-menu-entry") : null;
-                const focusables = (ul) => Array.from(ul.querySelectorAll(":scope > .asc-menu-entry > div > .asc-menu-btnwrap > .asc-button:not([disabled])"));
+                const btn = event.target && event.target.closest ? event.target.closest(".asc-menu-entry > .asc-button") : null;
+                const currentEntry = btn ? btn.closest(".asc-menu-entry") : null;
+                const focusables = (list) => Array.from(list.querySelectorAll(":scope > .asc-menu-entry > .asc-button:not([disabled])"));
                 if (k === "ArrowDown" || k === "ArrowUp" || k === "Home" || k === "End") {
-                    const list = currentLi ? currentLi.parentElement : this.el.querySelector("ul.asc-menu-list");
+                    const list = currentEntry ? currentEntry.parentElement : this.el.querySelector(".asc-menu-list");
                     const arr = list ? focusables(list) : [];
                     if (!arr.length) return;
                     event.preventDefault();
@@ -278,34 +278,33 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                     if (next) next.focus();
                     return;
                 }
-                if (!btn || !currentLi) return;
+                if (!btn || !currentEntry) return;
                 if (k === "ArrowRight") {
-                    const fold = currentLi.querySelector(":scope > .asc-menu-fold");
-                    if (fold && getComputedStyle(fold).display !== "none") {
+                    const mode = currentEntry.getAttribute("data-mode");
+                    if (mode === "fold") {
                         event.preventDefault();
-                        const pkey = currentLi.getAttribute("data-key");
+                        const pkey = currentEntry.getAttribute("data-key");
                         if (pkey && !this.data.openView[pkey]) this.onToggle(pkey);
                         setTimeout(() => {
-                            const first = currentLi.querySelector(".asc-menu-sub .asc-menu-btnwrap > .asc-button:not([disabled])");
+                            const first = currentEntry.querySelector(".asc-menu-sub .asc-menu-entry > .asc-button:not([disabled])");
                             if (first) first.focus();
                         }, 0);
                         return;
                     }
-                    const pop = currentLi.querySelector(":scope > .asc-menu-pop");
-                    if (pop && getComputedStyle(pop).display !== "none") {
+                    if (mode === "pop") {
                         event.preventDefault();
-                        this.openPophost(pop);
+                        this.openPophost(currentEntry);
                         this.data.wantFocusAt = Date.now();
                     }
                     return;
                 }
-                const sub = currentLi.closest(".asc-menu-sub");
+                const sub = currentEntry.closest(".asc-menu-sub");
                 if (sub) {
                     event.preventDefault();
-                    const parentLi = sub.closest(".asc-menu-entry");
-                    const pkey = parentLi ? parentLi.getAttribute("data-key") : null;
+                    const parentEntry = sub.closest(".asc-menu-entry");
+                    const pkey = parentEntry ? parentEntry.getAttribute("data-key") : null;
                     if (pkey && this.data.openView[pkey]) this.onToggle(pkey);
-                    const pbtn = parentLi ? parentLi.querySelector(":scope > .asc-menu-fold > .asc-menu-btnwrap > .asc-button") : null;
+                    const pbtn = parentEntry ? parentEntry.querySelector(":scope > .asc-button") : null;
                     if (pbtn) pbtn.focus();
                 }
             },
@@ -443,39 +442,32 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       text-overflow: ellipsis;
     }
 
-    .asc-menu-btnwrap {
-      display: block;
-      min-width: 0;
-    }
     /* button 化身载体是 div（content-box，异于 <button> 的 UA border-box）：block 的
        width:100% 须含 padding 与边框，否则每行撑出菜单宽度一个内边距的量 */
-    .asc-menu-btnwrap > .asc-button {
+    .asc-menu-entry > .asc-button {
       box-sizing: border-box;
     }
-    .asc-menu-btnwrap[data-active] > .asc-button {
+    .asc-menu-entry[data-active] > .asc-button {
       color: var(--asc-tone);
       font-weight: var(--x-font-weight-large, 600);
       background: color-mix(in srgb, var(--asc-tone) 10%, transparent);
     }
     /* 勾选项（数组形态，checkMark 占位列的显影——button 自有 ✓ 规则需 asc-marked 类，
-       menu 侧经包裹层同款规则命中，不经 class 通道） */
-    .asc-menu-btnwrap[data-marked] > .asc-button.asc-check-check > .asc-button-body::before {
+       menu 侧经 entry 标记命中，不经 class 通道） */
+    .asc-menu-entry[data-marked] > .asc-button.asc-check-check > .asc-button-body::before {
       content: "✓";
     }
     /* 图标占位列：仅展开态隐藏（同级图标对齐）；折叠态只剩图标列，占位图标须可见 */
-    .asc-menu-body:not([data-collapsed]) .asc-menu-entry[data-icon-ph] .asc-button-icon {
+    .asc-menu-body:not([data-collapsed]) .asc-menu-entry[data-icon-ph] > .asc-button .asc-button-icon {
       visibility: hidden;
     }
     /* 折叠态：激活 / 勾选 = 图标染激活色（label 不在场，仅此一处可表达） */
-    .asc-menu-body[data-collapsed] .asc-menu-btnwrap[data-active] > .asc-button .asc-button-icon,
-    .asc-menu-body[data-collapsed] .asc-menu-btnwrap[data-marked] > .asc-button .asc-button-icon {
+    .asc-menu-body[data-collapsed] .asc-menu-entry[data-active] > .asc-button .asc-button-icon,
+    .asc-menu-body[data-collapsed] .asc-menu-entry[data-marked] > .asc-button .asc-button-icon {
       color: var(--asc-tone);
       visibility: visible;
     }
 
-    .asc-menu-fold {
-      min-width: 0;
-    }
     .asc-menu-subwrap {
       display: grid;
       grid-template-rows: 0fr;
@@ -489,10 +481,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       min-height: 0;
       /* 子级缩进基准 = 父项内容起点：1.5em 使子项文字与父项图标列起点对齐，逐级累计 */
       padding-inline-start: var(--asc-menu-indent, 1.5em);
-    }
-    .asc-menu-pop {
-      display: block;
-      min-width: 0;
     }
 
     .asc-menu-body[data-mode="horizontal"] {
@@ -541,8 +529,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
     }
 
     .asc-menu-panel {
-      display: flex;
-      flex-direction: column;
       min-width: max-content;
       max-width: 18em;
       font-size: var(--auto-font-size, var(--asc-menu-font-size, 0.875rem));
@@ -551,72 +537,27 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
       --asc-tone: var(--auto-primary-color, var(--asc-menu-primary, #009aff));
       outline: none;
     }
-    .asc-menu-panel-head,
-    .asc-menu-panel-foot {
-      padding: 0.4em 0.75em;
-      color: var(--auto-third-color, var(--asc-menu-aux-color, rgba(0, 0, 0, 0.35)));
-      min-width: 0;
-    }
-    .asc-menu-panel-title {
-      padding: 0.4em 0.75em;
-      font-size: 0.85em;
-      color: var(--auto-third-color, var(--asc-menu-aux-color, rgba(0, 0, 0, 0.35)));
-      border-bottom: var(--auto-border-size, var(--asc-menu-border-size, 1px)) solid
-        var(--auto-border-color, var(--asc-menu-border, #f0f0f0));
-    }
-    .asc-menu-panel-body {
-      padding: 0.25em;
-      min-width: 0;
-    }
-    .asc-menu-panel[data-slot-dir="horizontal"] {
-      flex-direction: row;
-      align-items: stretch;
-    }
-    .asc-menu-panel[data-slot-dir="horizontal"] > .asc-menu-panel-head {
-      order: 0;
-      align-self: center;
-    }
-    .asc-menu-panel[data-slot-dir="horizontal"] > .asc-menu-panel-body {
-      order: 1;
-      flex: 1 1 auto;
-    }
-    .asc-menu-panel[data-slot-dir="horizontal"] > .asc-menu-panel-foot {
-      order: 2;
-      align-self: center;
-    }
-    .asc-menu-panel-tpl {
-      display: block;
-      min-width: 0;
-    }
 
     [dark] .asc-menu-body,
     [data-dark] .asc-menu-body {
       --asc-tone: var(--auto-primary-color, var(--asc-menu-primary, #56baff));
     }
-    [dark] .asc-menu .asc-menu-btnwrap > .asc-button,
-    [data-dark] .asc-menu .asc-menu-btnwrap > .asc-button {
+    [dark] .asc-menu .asc-menu-entry > .asc-button,
+    [data-dark] .asc-menu .asc-menu-entry > .asc-button {
       color: var(--auto-color, var(--asc-menu-color, #fafafa));
     }
     [dark] .asc-menu-sep,
-    [data-dark] .asc-menu-sep,
-    [dark] .asc-menu-panel-title,
-    [data-dark] .asc-menu-panel-title {
+    [data-dark] .asc-menu-sep {
       border-color: var(--auto-border-color, var(--asc-menu-border, #52525b));
     }
     [dark] .asc-menu-group,
     [dark] .asc-menu-header,
     [dark] .asc-menu-footer,
     [dark] .asc-menu-panel,
-    [dark] .asc-menu-panel-head,
-    [dark] .asc-menu-panel-foot,
-    [dark] .asc-menu-panel-title,
     [data-dark] .asc-menu-group,
     [data-dark] .asc-menu-header,
     [data-dark] .asc-menu-footer,
-    [data-dark] .asc-menu-panel,
-    [data-dark] .asc-menu-panel-head,
-    [data-dark] .asc-menu-panel-foot,
-    [data-dark] .asc-menu-panel-title {
+    [data-dark] .asc-menu-panel {
       color: var(--auto-color, var(--asc-menu-color, #fafafa));
     }
   </style>
@@ -651,17 +592,21 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
   </div>
 </div>
 `,e.components[`autospark-menu-node`]=`<!--
-    autospark.menu 级列表渲染节点（autospark-menu-node，ADR-0033 决策 7）：本节点 = shell（header/footer slot + 全局状态 + 键盘），
-    经 x-for 逐项分流 separator / group / item（缩进折叠 fold / 弹层 pop / 叶子 leaf 三分支，
-    x-show 互斥——克隆体内禁 x-if）。本节点不对用户暴露。
+    autospark.menu 级列表渲染节点（autospark-menu-node，ADR-0033 决策 7·2026-11-24 重写）：
+    三分支（fold / pop / leaf，每项 3 个 button 化身）收敛为**单项单实例**结构——
+    div.asc-menu-entry 四职合一：缩进 / 状态标记 / 点击中继 / 弹层宿主。
 
-    项按钮（autospark.button 化身）：block 撑满行；折叠态（collapsed prop）经 button
-    collapsed 接管——只显示图标 + 悬停提示。值对象同时给出与 button 折叠预设一致的值
-    （menu / labelPos / indent / caret / hideTags）：值对象重算即整组重注入，等值使结果
-    不依赖注入时序。caret / checkMark 折叠态由本节点置空（button 折叠预设不含二者）。
+    - 弹层模式（item._pop）：entry 即 x-popover 宿主，options 经 spread 合并
+      \`{ 基座, ...(item.conf || {}) }\`（item.conf 的 popover 键显式赢——chrome/at/trigger 逐级覆盖），
+      props 注入 \`{ submenu: { children: item.kids, ...conf }, effWidth, collapsed, mode }\`
+      （2026-11-24 实测：props 对象包数组完好、面板内 x-component 正常，链读废弃）；
+    - 缩进模式（item._fold）：entry > subwrap > sub > 递归 node（grid 0fr/1fr 展开动画）；
+    - 叶子：entry 单按钮。三态经 :data-mode 表达，popover 的 disabled 门禁
+      （\`disabled: !item._pop\`）关闭缩进模式的弹层触发——弹层宿主恒挂、触发按态分派。
 
-    克隆体求值域：绑定 / 事件 / 值对象只能读 x-for locals（item）与自身 props；跨层交互
-    经 relayTick 中继哨兵（→ menu-relay 冒泡到 menu 本体）。
+    点击经 onEntryClick 风格的中继表达式沿链写 relay 哨兵（落最近声明层 = 宿主 node data，
+    node mounted watch → menu-relay 冒泡 → menu 本体）。克隆体求值域：绑定 / 事件 / 值对象
+    只能读 x-for locals（item）与自身 props。
 -->
 <div class="asc-menu-node" x-define.open="autospark-menu-node">
   <script setup>
@@ -677,6 +622,21 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             relayKey: null,
             relayKind: "",
         }),
+        methods: {
+            /**
+             * 单项点击中继（冒泡隔离）：仅响应**本 entry 自身按钮**的点击——后代 entry
+             * 的点击（嵌套缩进 / 弹层项）会冒泡穿过本 entry，closest 判定不等即忽略，
+             * 防祖先误 toggle。弹层模式（item._pop）的开关归 popover click toggle。
+             */
+            onEntryClick(item, e) {
+                const btnEntry = e.target instanceof Element ? e.target.closest(".asc-menu-entry") : null;
+                if (!btnEntry || btnEntry !== e.currentTarget) return;
+                if (item._pop) return;
+                this.data.relayKey = item.key;
+                this.data.relayKind = item.kids && item.kids.length ? "toggle" : "pick";
+                this.data.relayTick = this.data.relayTick + 1;
+            },
+        },
         mounted() {
             this.watch("relayTick", () => {
                 this.el.dispatchEvent(new CustomEvent("menu-relay", {
@@ -687,141 +647,87 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         },
     }
   <\/script>
-  <ul class="asc-menu-list" role="menu" x-for="item of list">
-    <li
+  <div class="asc-menu-list" role="menu" x-for="item of list">
+    <div class="asc-menu-sep" x-show="item.kind === 'sep'" role="separator"></div>
+    <div class="asc-menu-group" x-show="item.kind === 'group'" :data-icon="item.icon ? '' : null" role="group">
+      <i class="asc-menu-group-icon" x-show="item.icon" x-icon="item.icon"></i>
+      <span class="asc-menu-group-title">{{ item.title }}</span>
+    </div>
+    <div
       class="asc-menu-entry"
-      :data-kind="item.kind"
+      x-show="item.kind === 'item'"
+      role="menuitem"
       :data-key="item.key != null ? String(item.key) : null"
-      :data-sub="item.kind === 'item' && item.kids && item.kids.length ? '' : null"
+      :data-mode="item._pop ? 'pop' : (item._fold ? 'fold' : 'leaf')"
+      :data-active="item._active ? '' : null"
+      :data-marked="item._marked ? '' : null"
       :data-disabled="item.disabled ? '' : null"
       :data-icon-ph="item.iconPh ? '' : null"
+      :aria-expanded="item._fold ? (item._open ? 'true' : 'false') : null"
+      :aria-disabled="item.disabled ? 'true' : null"
+      :aria-haspopup="item._pop ? 'menu' : null"
+      @click="onEntryClick(item, $event)"
+      x-popover:autospark-menu-panel
+      x-popover-options="{ padding: 0, trigger: trigger, at: { arrow: false, offset: 4, placement: (mode === 'horizontal' && depth === 1) ? 'bottom-start' : 'right-start' }, disabled: !item._pop, ...(item.conf || {}) }"
+      x-popover-options.props="{ submenu: { ...(item.conf || {}), children: item.kids }, effWidth: effWidth, collapsed: !!collapsed, mode: mode }"
     >
-      <div class="asc-menu-sep" x-show="item.kind === 'sep'"></div>
-
-      <div class="asc-menu-group" x-show="item.kind === 'group'" :data-icon="item.icon ? '' : null">
-        <i class="asc-menu-group-icon" x-show="item.icon" x-icon="item.icon"></i>
-        <span class="asc-menu-group-title">{{ item.title }}</span>
-      </div>
-
-      <div class="asc-menu-fold" x-show="item._fold">
-        <div
-          class="asc-menu-btnwrap"
-          :data-active="item._active ? '' : null"
-          :data-marked="item._marked ? '' : null"
-          @click="relayTick = relayTick + 1, relayKey = item.key, relayKind = 'toggle'"
-        >
-          <div
-            x-component:autospark.button="{
-                block: true,
-                menu: !collapsed,
-                collapsed: !!collapsed,
-                label: item.label,
-                icon: item.iconPh ? 'default' : (item.icon || ''),
-                disabled: item.disabled,
-                caret: collapsed ? 'none' : (item._open ? 'bottom' : 'right'),
-                checkMark: collapsed ? false : item.checkPh,
-                checkStyle: item.checkStyle || 'check',
-                memo: item.memo,
-                loading: item.loading,
-                type: item.type,
-                variant: item.variant,
-                indent: collapsed ? 0 : item.indent,
-                labelPos: collapsed ? 'none' : 'right',
-                hideTags: !!collapsed,
-                tags: item.tags
-            }"
-          ></div>
-        </div>
-        <div class="asc-menu-subwrap" :data-open="item._open ? '' : null">
-          <div
-            class="asc-menu-sub"
-            :style="item.conf && item.conf.indent != null ? { paddingInlineStart: (typeof item.conf.indent === 'number' ? item.conf.indent + 'px' : item.conf.indent) } : null"
-          >
-            <div
-              x-component:autospark-menu-node="{
-                  list: item.kids,
-                  depth: depth + 1,
-                  mode: mode,
-                  trigger: trigger,
-                  collapsed: collapsed,
-                  effWidth: effWidth
-              }"
-            ></div>
-          </div>
-        </div>
-      </div>
-
       <div
-        class="asc-menu-pop"
-        x-show="item._pop"
-        x-popover:autospark-menu-panel
-        x-popover-options="{ padding: 0, at: { arrow: false, offset: 4 } }"
-        x-popover-options.trigger="trigger"
-        x-popover-options.at="{ placement: (mode === 'horizontal' && depth === 1) ? 'bottom-start' : 'right-start' }"
-        x-popover-options.padding="item.conf && item.conf.padding != null ? item.conf.padding : 0"
-      >
+        x-component:autospark.button="{
+            block: true,
+            menu: !collapsed,
+            collapsed: !!collapsed,
+            label: item.label,
+            icon: item.iconPh ? 'default' : (item.icon || ''),
+            disabled: item.disabled,
+            caret: collapsed ? 'none' : (item._pop ? ((mode === 'horizontal' && depth === 1) ? 'bottom' : 'right') : (item._fold ? (item._open ? 'bottom' : 'right') : (item.caret || 'none'))),
+            checkMark: collapsed ? false : item.checkPh,
+            checkStyle: item.checkStyle || 'check',
+            memo: item.memo,
+            loading: item.loading,
+            type: item.type,
+            variant: item.variant,
+            indent: collapsed ? 0 : item.indent,
+            labelPos: collapsed ? 'none' : 'right',
+            hideTags: !!collapsed,
+            tags: item.tags
+        }"
+      ></div>
+      <div class="asc-menu-subwrap" x-show="item._fold" :data-open="item._open ? '' : null">
         <div
-          class="asc-menu-btnwrap"
-          :data-active="item._active ? '' : null"
-          :data-marked="item._marked ? '' : null"
+          class="asc-menu-sub"
+          :style="item.conf && item.conf.indent != null ? { paddingInlineStart: (typeof item.conf.indent === 'number' ? item.conf.indent + 'px' : item.conf.indent) } : null"
         >
           <div
-            x-component:autospark.button="{
-                block: true,
-                menu: !collapsed,
-                collapsed: !!collapsed,
-                label: item.label,
-                icon: item.iconPh ? 'default' : (item.icon || ''),
-                disabled: item.disabled,
-                caret: collapsed ? 'none' : ((mode === 'horizontal' && depth === 1) ? 'bottom' : 'right'),
-                checkMark: collapsed ? false : item.checkPh,
-                checkStyle: item.checkStyle || 'check',
-                memo: item.memo,
-                loading: item.loading,
-                type: item.type,
-                variant: item.variant,
-                indent: collapsed ? 0 : item.indent,
-                labelPos: collapsed ? 'none' : 'right',
-                hideTags: !!collapsed,
-                tags: item.tags
+            x-component:autospark-menu-node="{
+                list: item.kids,
+                depth: depth + 1,
+                mode: mode,
+                trigger: trigger,
+                collapsed: collapsed,
+                effWidth: effWidth
             }"
           ></div>
         </div>
       </div>
-
-      <div
-        class="asc-menu-btnwrap"
-        x-show="item._leaf"
-        :data-active="item._active ? '' : null"
-        :data-marked="item._marked ? '' : null"
-        @click="relayTick = relayTick + 1, relayKey = item.key, relayKind = 'pick'"
-      >
-        <div
-          x-component:autospark.button="{
-              block: true,
-              menu: !collapsed,
-              collapsed: !!collapsed,
-              label: item.label,
-              icon: item.iconPh ? 'default' : (item.icon || ''),
-              disabled: item.disabled,
-              caret: collapsed ? 'none' : (item.caret || 'none'),
-              checkMark: collapsed ? false : item.checkPh,
-              checkStyle: item.checkStyle || 'check',
-              memo: item.memo,
-              loading: item.loading,
-              type: item.type,
-              variant: item.variant,
-              indent: collapsed ? 0 : item.indent,
-              labelPos: collapsed ? 'none' : 'right',
-              hideTags: !!collapsed,
-              tags: item.tags
-          }"
-        ></div>
-      </div>
-    </li>
-  </ul>
+    </div>
+  </div>
 </div>
-`,e.components[`autospark-menu-panel`]=`<div x-define="autospark-menu-panel">
+`,e.components[`autospark-menu-panel`]=`<!--
+    autospark-menu-panel 弹层面板（ADR-0033 决策 7·2026-11-24 重写）：**纯列表容器**——
+    骨架 chrome（title / icon / actions / closeable / shell）全部下放 popover（经
+    x-popover-options 的 item.conf 继承键配置，或 popover 的 slots 重载），menu 不再自绘
+    head / title / foot，也不再有 slotDir 弹层内分区（slotDir 收缩为仅根菜单本体）。
+
+    数据经 props 注入（2026-11-24 实测：props 对象包数组完好、面板内 x-component 正常，
+    v2 的「沿宿主链读」废弃）：\`{ submenu: { children, ...popover 键 }, effWidth, collapsed, mode }\`。
+    面板仍是纯桥：data 不接业务键，业务数据全部走 props 注入域。
+
+    子项弹层递归：子项 entry 直接引用同一组件（x-popover:autospark-menu-panel），
+    props 逐层下传 \`{ submenu: { children: child.kids, ...child.conf } }\`（克隆体内
+    x-popover-options.props 求值——2026-11-24 两层递归实验通过）。子项点击沿宿主链
+    写 relay 哨兵（落宿主 node data）。
+-->
+<div x-define="autospark-menu-panel">
   <script setup>
     {
         data: () => ({}),
@@ -830,20 +736,9 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                 if (typeof this.close === "function") { this.close(); return; }
                 if (this._instClose) this._instClose();
             },
-            injectRefs() {
-                const conf = (typeof item !== "undefined" && item && item.conf) || {};
-                for (const side of ["header", "footer"]) {
-                    const v = conf[side];
-                    if (typeof v !== "string" || v.charAt(0) !== "#") continue;
-                    const ref = document.querySelector(v);
-                    const host = this.el.querySelector(side === "header" ? ".asc-menu-panel-head" : ".asc-menu-panel-foot");
-                    if (!ref || !host) continue;
-                    host.innerHTML = ref.innerHTML;
-                }
-            },
             focusFirst() {
                 setTimeout(() => {
-                    const first = this.el.querySelector(".asc-menu-btnwrap > .asc-button:not([disabled])");
+                    const first = this.el.querySelector(".asc-menu-entry > .asc-button:not([disabled])");
                     if (first) first.focus();
                 }, 30);
             },
@@ -857,11 +752,11 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             onKeydown(event) {
                 const k = event.key;
                 if (k !== "ArrowDown" && k !== "ArrowUp" && k !== "ArrowRight" && k !== "ArrowLeft" && k !== "Home" && k !== "End") return;
-                const btn = event.target && event.target.closest ? event.target.closest(".asc-menu-entry .asc-menu-btnwrap > .asc-button") : null;
-                const currentLi = btn ? btn.closest(".asc-menu-entry") : null;
-                const focusables = (ul) => Array.from(ul.querySelectorAll(":scope > .asc-menu-entry > div > .asc-menu-btnwrap > .asc-button:not([disabled])"));
+                const btn = event.target && event.target.closest ? event.target.closest(".asc-menu-entry > .asc-button") : null;
+                const currentEntry = btn ? btn.closest(".asc-menu-entry") : null;
+                const focusables = (list) => Array.from(list.querySelectorAll(":scope > .asc-menu-entry > .asc-button:not([disabled])"));
                 if (k === "ArrowDown" || k === "ArrowUp" || k === "Home" || k === "End") {
-                    const list = currentLi ? currentLi.parentElement : this.el.querySelector("ul.asc-menu-list");
+                    const list = currentEntry ? currentEntry.parentElement : this.el.querySelector(".asc-menu-list");
                     const arr = list ? focusables(list) : [];
                     if (!arr.length) return;
                     event.preventDefault();
@@ -876,13 +771,11 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
                     if (next) next.focus();
                     return;
                 }
-                if (!btn || !currentLi) return;
+                if (!btn || !currentEntry) return;
                 if (k === "ArrowRight") {
-                    const pop = currentLi.querySelector(":scope > .asc-menu-pop");
-                    if (pop && getComputedStyle(pop).display !== "none") {
+                    if (currentEntry.getAttribute("data-mode") === "pop") {
                         event.preventDefault();
-                        this.openPophost(pop);
-                        this.data.wantFocusAt = Date.now();
+                        this.openPophost(currentEntry);
                     }
                     return;
                 }
@@ -891,7 +784,6 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
             },
         },
         mounted() {
-            setTimeout(() => this.injectRefs(), 0);
             if (Date.now() - Number(this.data.wantFocusAt || 0) < 600) this.focusFirst();
             this.watch("wantFocusAt", () => { this.focusFirst(); });
             this.el.addEventListener("overlay:open", (e) => {
@@ -901,101 +793,55 @@ function e(e){let t=globalThis.AutoSpark;if(typeof t?.ready==`function`){e(t);re
         },
     }
   <\/script>
-  <!-- 弹层面板宽度与菜单本体一致（垂直展开且 width 生效时，三键同值钳制以免被样式表
-       18em 上限截断）；折叠 / 水平 / 自适应（width=0）回落内容自适应 -->
   <div
     class="asc-menu-panel"
     tabindex="0"
-    :data-slot-dir="(item && item.conf && item.conf.slotDir) ? item.conf.slotDir : slotDir"
     :style="mode !== 'horizontal' && !collapsed && effWidth > 0 ? { width: effWidth + 'px', minWidth: effWidth + 'px', maxWidth: effWidth + 'px' } : null"
     @keydown="onKeydown($event)"
   >
-    <div class="asc-menu-panel-head" x-show="item && item.conf && item.conf.header">
-      <div class="asc-menu-panel-tpl" x-text="(item && item.conf && typeof item.conf.header === 'string' && item.conf.header.charAt(0) !== '#') ? item.conf.header : ''"></div>
-    </div>
-    <div class="asc-menu-panel-title" x-show="item && item.conf && item.conf.title">{{ item && item.conf ? item.conf.title : '' }}</div>
-    <div class="asc-menu-panel-body">
-      <ul class="asc-menu-list" role="menu" x-for="child of (item && item.kids ? item.kids : [])">
-        <li
-          class="asc-menu-entry"
-          :data-kind="child.kind"
-          :data-key="child.key != null ? String(child.key) : null"
-          :data-sub="child.kind === 'item' && child.kids && child.kids.length ? '' : null"
-          :data-disabled="child.disabled ? '' : null"
-          :data-icon-ph="child.iconPh ? '' : null"
-        >
-          <div class="asc-menu-sep" x-show="child.kind === 'sep'"></div>
-          <div class="asc-menu-group" x-show="child.kind === 'group'">
-            <i class="asc-menu-group-icon" x-show="child.icon" x-icon="child.icon"></i>
-            <span class="asc-menu-group-title">{{ child.title }}</span>
-          </div>
-          <div
-            class="asc-menu-pop"
-            x-show="child._pop"
-            x-popover:autospark-menu-panel
-            x-popover-options="{ padding: 0, at: { arrow: false, offset: 4 } }"
-            x-popover-options.trigger="trigger"
-            x-popover-options.at="{ placement: 'right-start' }"
-            x-popover-options.padding="child.conf && child.conf.padding != null ? child.conf.padding : 0"
-          >
-            <div
-              class="asc-menu-btnwrap"
-              :data-active="child._active ? '' : null"
-              :data-marked="child._marked ? '' : null"
-            >
-              <div
-                x-component:autospark.button="{
-                    block: true,
-                    menu: true,
-                    label: child.label,
-                    icon: child.iconPh ? 'default' : (child.icon || ''),
-                    disabled: child.disabled,
-                    caret: 'right',
-                    checkMark: child.checkPh,
-                    checkStyle: child.checkStyle || 'check',
-                    memo: child.memo,
-                    loading: child.loading,
-                    type: child.type,
-                    variant: child.variant,
-                    indent: child.indent,
-                    labelPos: 'right',
-                    tags: child.tags
-                }"
-              ></div>
-            </div>
-          </div>
-          <div
-            class="asc-menu-btnwrap"
-            x-show="!child._pop"
-            :data-active="child._active ? '' : null"
-            :data-marked="child._marked ? '' : null"
-            @click="child.kids && child.kids.length ? (relayTick = relayTick + 1, relayKey = child.key, relayKind = 'toggle') : (relayTick = relayTick + 1, relayKey = child.key, relayKind = 'pick')"
-          >
-            <div
-              x-component:autospark.button="{
-                  block: true,
-                  menu: true,
-                  label: child.label,
-                  icon: child.iconPh ? 'default' : (child.icon || ''),
-                  disabled: child.disabled,
-                  caret: child.kids && child.kids.length ? (child._open ? 'bottom' : 'right') : (child.caret || 'none'),
-                  checkMark: child.checkPh,
-                  checkStyle: child.checkStyle || 'check',
-                  memo: child.memo,
-                  loading: child.loading,
-                  type: child.type,
-                  variant: child.variant,
-                  indent: child.indent,
-                  labelPos: 'right',
-                  tags: child.tags
-              }"
-            ></div>
-          </div>
-        </li>
-      </ul>
-    </div>
-    <div class="asc-menu-panel-foot" x-show="item && item.conf && item.conf.footer">
-      <div class="asc-menu-panel-tpl" x-text="(item && item.conf && typeof item.conf.footer === 'string' && item.conf.footer.charAt(0) !== '#') ? item.conf.footer : ''"></div>
+    <div class="asc-menu-list" role="menu" x-for="child of submenu.children">
+      <div class="asc-menu-sep" x-show="child.kind === 'sep'" role="separator"></div>
+      <div class="asc-menu-group" x-show="child.kind === 'group'" :data-icon="child.icon ? '' : null" role="group">
+        <i class="asc-menu-group-icon" x-show="child.icon" x-icon="child.icon"></i>
+        <span class="asc-menu-group-title">{{ child.title }}</span>
+      </div>
+      <div
+        class="asc-menu-entry"
+        x-show="child.kind === 'item'"
+        role="menuitem"
+        :data-key="child.key != null ? String(child.key) : null"
+        :data-mode="child.kids && child.kids.length ? 'pop' : 'leaf'"
+        :data-active="child._active ? '' : null"
+        :data-marked="child._marked ? '' : null"
+        :data-disabled="child.disabled ? '' : null"
+        :data-icon-ph="child.iconPh ? '' : null"
+        :aria-haspopup="child.kids && child.kids.length ? 'menu' : null"
+        :aria-disabled="child.disabled ? 'true' : null"
+        @click="child.kids && child.kids.length ? 0 : (relayKey = child.key, relayKind = 'pick', relayTick = relayTick + 1)"
+        x-popover:autospark-menu-panel
+        x-popover-options="{ padding: 0, trigger: trigger, at: { arrow: false, offset: 4, placement: 'right-start' }, disabled: !(child.kids && child.kids.length), ...(child.conf || {}) }"
+        x-popover-options.props="{ submenu: { ...(child.conf || {}), children: child.kids }, effWidth: effWidth, collapsed: !!collapsed, mode: mode }"
+      >
+        <div
+          x-component:autospark.button="{
+              block: true,
+              menu: true,
+              label: child.label,
+              icon: child.iconPh ? 'default' : (child.icon || ''),
+              disabled: child.disabled,
+              caret: child.kids && child.kids.length ? 'right' : (child.caret || 'none'),
+              checkMark: child.checkPh,
+              checkStyle: child.checkStyle || 'check',
+              memo: child.memo,
+              loading: child.loading,
+              type: child.type,
+              variant: child.variant,
+              indent: child.indent,
+              labelPos: 'right',
+              tags: child.tags
+          }"
+        ></div>
+      </div>
     </div>
   </div>
 </div>

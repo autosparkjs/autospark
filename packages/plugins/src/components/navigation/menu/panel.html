@@ -1,3 +1,18 @@
+<!--
+    autospark-menu-panel 弹层面板（ADR-0033 决策 7·2026-11-24 重写）：**纯列表容器**——
+    骨架 chrome（title / icon / actions / closeable / shell）全部下放 popover（经
+    x-popover-options 的 item.conf 继承键配置，或 popover 的 slots 重载），menu 不再自绘
+    head / title / foot，也不再有 slotDir 弹层内分区（slotDir 收缩为仅根菜单本体）。
+
+    数据经 props 注入（2026-11-24 实测：props 对象包数组完好、面板内 x-component 正常，
+    v2 的「沿宿主链读」废弃）：`{ submenu: { children, ...popover 键 }, effWidth, collapsed, mode }`。
+    面板仍是纯桥：data 不接业务键，业务数据全部走 props 注入域。
+
+    子项弹层递归：子项 entry 直接引用同一组件（x-popover:autospark-menu-panel），
+    props 逐层下传 `{ submenu: { children: child.kids, ...child.conf } }`（克隆体内
+    x-popover-options.props 求值——2026-11-24 两层递归实验通过）。子项点击沿宿主链
+    写 relay 哨兵（落宿主 node data）。
+-->
 <div x-define="autospark-menu-panel">
   <script setup>
     {
@@ -7,20 +22,9 @@
                 if (typeof this.close === "function") { this.close(); return; }
                 if (this._instClose) this._instClose();
             },
-            injectRefs() {
-                const conf = (typeof item !== "undefined" && item && item.conf) || {};
-                for (const side of ["header", "footer"]) {
-                    const v = conf[side];
-                    if (typeof v !== "string" || v.charAt(0) !== "#") continue;
-                    const ref = document.querySelector(v);
-                    const host = this.el.querySelector(side === "header" ? ".asc-menu-panel-head" : ".asc-menu-panel-foot");
-                    if (!ref || !host) continue;
-                    host.innerHTML = ref.innerHTML;
-                }
-            },
             focusFirst() {
                 setTimeout(() => {
-                    const first = this.el.querySelector(".asc-menu-btnwrap > .asc-button:not([disabled])");
+                    const first = this.el.querySelector(".asc-menu-entry > .asc-button:not([disabled])");
                     if (first) first.focus();
                 }, 30);
             },
@@ -34,11 +38,11 @@
             onKeydown(event) {
                 const k = event.key;
                 if (k !== "ArrowDown" && k !== "ArrowUp" && k !== "ArrowRight" && k !== "ArrowLeft" && k !== "Home" && k !== "End") return;
-                const btn = event.target && event.target.closest ? event.target.closest(".asc-menu-entry .asc-menu-btnwrap > .asc-button") : null;
-                const currentLi = btn ? btn.closest(".asc-menu-entry") : null;
-                const focusables = (ul) => Array.from(ul.querySelectorAll(":scope > .asc-menu-entry > div > .asc-menu-btnwrap > .asc-button:not([disabled])"));
+                const btn = event.target && event.target.closest ? event.target.closest(".asc-menu-entry > .asc-button") : null;
+                const currentEntry = btn ? btn.closest(".asc-menu-entry") : null;
+                const focusables = (list) => Array.from(list.querySelectorAll(":scope > .asc-menu-entry > .asc-button:not([disabled])"));
                 if (k === "ArrowDown" || k === "ArrowUp" || k === "Home" || k === "End") {
-                    const list = currentLi ? currentLi.parentElement : this.el.querySelector("ul.asc-menu-list");
+                    const list = currentEntry ? currentEntry.parentElement : this.el.querySelector(".asc-menu-list");
                     const arr = list ? focusables(list) : [];
                     if (!arr.length) return;
                     event.preventDefault();
@@ -53,13 +57,11 @@
                     if (next) next.focus();
                     return;
                 }
-                if (!btn || !currentLi) return;
+                if (!btn || !currentEntry) return;
                 if (k === "ArrowRight") {
-                    const pop = currentLi.querySelector(":scope > .asc-menu-pop");
-                    if (pop && getComputedStyle(pop).display !== "none") {
+                    if (currentEntry.getAttribute("data-mode") === "pop") {
                         event.preventDefault();
-                        this.openPophost(pop);
-                        this.data.wantFocusAt = Date.now();
+                        this.openPophost(currentEntry);
                     }
                     return;
                 }
@@ -68,7 +70,6 @@
             },
         },
         mounted() {
-            setTimeout(() => this.injectRefs(), 0);
             if (Date.now() - Number(this.data.wantFocusAt || 0) < 600) this.focusFirst();
             this.watch("wantFocusAt", () => { this.focusFirst(); });
             this.el.addEventListener("overlay:open", (e) => {
@@ -78,101 +79,55 @@
         },
     }
   </script>
-  <!-- 弹层面板宽度与菜单本体一致（垂直展开且 width 生效时，三键同值钳制以免被样式表
-       18em 上限截断）；折叠 / 水平 / 自适应（width=0）回落内容自适应 -->
   <div
     class="asc-menu-panel"
     tabindex="0"
-    :data-slot-dir="(item && item.conf && item.conf.slotDir) ? item.conf.slotDir : slotDir"
     :style="mode !== 'horizontal' && !collapsed && effWidth > 0 ? { width: effWidth + 'px', minWidth: effWidth + 'px', maxWidth: effWidth + 'px' } : null"
     @keydown="onKeydown($event)"
   >
-    <div class="asc-menu-panel-head" x-show="item && item.conf && item.conf.header">
-      <div class="asc-menu-panel-tpl" x-text="(item && item.conf && typeof item.conf.header === 'string' && item.conf.header.charAt(0) !== '#') ? item.conf.header : ''"></div>
-    </div>
-    <div class="asc-menu-panel-title" x-show="item && item.conf && item.conf.title">{{ item && item.conf ? item.conf.title : '' }}</div>
-    <div class="asc-menu-panel-body">
-      <ul class="asc-menu-list" role="menu" x-for="child of (item && item.kids ? item.kids : [])">
-        <li
-          class="asc-menu-entry"
-          :data-kind="child.kind"
-          :data-key="child.key != null ? String(child.key) : null"
-          :data-sub="child.kind === 'item' && child.kids && child.kids.length ? '' : null"
-          :data-disabled="child.disabled ? '' : null"
-          :data-icon-ph="child.iconPh ? '' : null"
-        >
-          <div class="asc-menu-sep" x-show="child.kind === 'sep'"></div>
-          <div class="asc-menu-group" x-show="child.kind === 'group'">
-            <i class="asc-menu-group-icon" x-show="child.icon" x-icon="child.icon"></i>
-            <span class="asc-menu-group-title">{{ child.title }}</span>
-          </div>
-          <div
-            class="asc-menu-pop"
-            x-show="child._pop"
-            x-popover:autospark-menu-panel
-            x-popover-options="{ padding: 0, at: { arrow: false, offset: 4 } }"
-            x-popover-options.trigger="trigger"
-            x-popover-options.at="{ placement: 'right-start' }"
-            x-popover-options.padding="child.conf && child.conf.padding != null ? child.conf.padding : 0"
-          >
-            <div
-              class="asc-menu-btnwrap"
-              :data-active="child._active ? '' : null"
-              :data-marked="child._marked ? '' : null"
-            >
-              <div
-                x-component:autospark.button="{
-                    block: true,
-                    menu: true,
-                    label: child.label,
-                    icon: child.iconPh ? 'default' : (child.icon || ''),
-                    disabled: child.disabled,
-                    caret: 'right',
-                    checkMark: child.checkPh,
-                    checkStyle: child.checkStyle || 'check',
-                    memo: child.memo,
-                    loading: child.loading,
-                    type: child.type,
-                    variant: child.variant,
-                    indent: child.indent,
-                    labelPos: 'right',
-                    tags: child.tags
-                }"
-              ></div>
-            </div>
-          </div>
-          <div
-            class="asc-menu-btnwrap"
-            x-show="!child._pop"
-            :data-active="child._active ? '' : null"
-            :data-marked="child._marked ? '' : null"
-            @click="child.kids && child.kids.length ? (relayTick = relayTick + 1, relayKey = child.key, relayKind = 'toggle') : (relayTick = relayTick + 1, relayKey = child.key, relayKind = 'pick')"
-          >
-            <div
-              x-component:autospark.button="{
-                  block: true,
-                  menu: true,
-                  label: child.label,
-                  icon: child.iconPh ? 'default' : (child.icon || ''),
-                  disabled: child.disabled,
-                  caret: child.kids && child.kids.length ? (child._open ? 'bottom' : 'right') : (child.caret || 'none'),
-                  checkMark: child.checkPh,
-                  checkStyle: child.checkStyle || 'check',
-                  memo: child.memo,
-                  loading: child.loading,
-                  type: child.type,
-                  variant: child.variant,
-                  indent: child.indent,
-                  labelPos: 'right',
-                  tags: child.tags
-              }"
-            ></div>
-          </div>
-        </li>
-      </ul>
-    </div>
-    <div class="asc-menu-panel-foot" x-show="item && item.conf && item.conf.footer">
-      <div class="asc-menu-panel-tpl" x-text="(item && item.conf && typeof item.conf.footer === 'string' && item.conf.footer.charAt(0) !== '#') ? item.conf.footer : ''"></div>
+    <div class="asc-menu-list" role="menu" x-for="child of submenu.children">
+      <div class="asc-menu-sep" x-show="child.kind === 'sep'" role="separator"></div>
+      <div class="asc-menu-group" x-show="child.kind === 'group'" :data-icon="child.icon ? '' : null" role="group">
+        <i class="asc-menu-group-icon" x-show="child.icon" x-icon="child.icon"></i>
+        <span class="asc-menu-group-title">{{ child.title }}</span>
+      </div>
+      <div
+        class="asc-menu-entry"
+        x-show="child.kind === 'item'"
+        role="menuitem"
+        :data-key="child.key != null ? String(child.key) : null"
+        :data-mode="child.kids && child.kids.length ? 'pop' : 'leaf'"
+        :data-active="child._active ? '' : null"
+        :data-marked="child._marked ? '' : null"
+        :data-disabled="child.disabled ? '' : null"
+        :data-icon-ph="child.iconPh ? '' : null"
+        :aria-haspopup="child.kids && child.kids.length ? 'menu' : null"
+        :aria-disabled="child.disabled ? 'true' : null"
+        @click="child.kids && child.kids.length ? 0 : (relayKey = child.key, relayKind = 'pick', relayTick = relayTick + 1)"
+        x-popover:autospark-menu-panel
+        x-popover-options="{ padding: 0, trigger: trigger, at: { arrow: false, offset: 4, placement: 'right-start' }, disabled: !(child.kids && child.kids.length), ...(child.conf || {}) }"
+        x-popover-options.props="{ submenu: { ...(child.conf || {}), children: child.kids }, effWidth: effWidth, collapsed: !!collapsed, mode: mode }"
+      >
+        <div
+          x-component:autospark.button="{
+              block: true,
+              menu: true,
+              label: child.label,
+              icon: child.iconPh ? 'default' : (child.icon || ''),
+              disabled: child.disabled,
+              caret: child.kids && child.kids.length ? 'right' : (child.caret || 'none'),
+              checkMark: child.checkPh,
+              checkStyle: child.checkStyle || 'check',
+              memo: child.memo,
+              loading: child.loading,
+              type: child.type,
+              variant: child.variant,
+              indent: child.indent,
+              labelPos: 'right',
+              tags: child.tags
+          }"
+        ></div>
+      </div>
     </div>
   </div>
 </div>
