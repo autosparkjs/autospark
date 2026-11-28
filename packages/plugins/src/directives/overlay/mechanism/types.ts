@@ -120,9 +120,25 @@ export interface OverlayConfig {
      * 面板尺寸跟随宿主（x-popover 消费）：`true` 时面板宽度或高度与宿主元素一致——
      * 按定位主向自动选轴：左右弹出（left/right 系）→ 高度与宿主一致；上下弹出（top/bottom 系）
      * → 宽度与宿主一致。跟随 flip 翻转后的最终 placement；autoUpdate 重算时持续生效。
-     * 缺省 `false`。
+     * 缺省 `false`。与 {@link width}/{@link height} 轴级互斥——显式声明轴 fit 不写不清
+     * （ADR-0035 决策 4）。
      */
     fit?: boolean;
+    /**
+     * 面板固定宽度（ADR-0035 决策 1，dialog / popover / 命令式两形态消费；**drawer 不支持**
+     * ——剥离 + warn，见决策 2）：`number`（px，须 > 0）或 CSS 长度字符串（`'40%'` /
+     * `'20rem'`，纯数字串按 px；fixed 面板的 `%` 基准是视口）。打开时 inline 写入面板
+     * shell 根（`[data-overlay]`）、重开生效（不热应用到打开中的面板）；与 `maxWidth`
+     * 并存时透传 CSS 天然裁决（max < width 时 max 赢）。缺省不写 inline（保持
+     * shrink-wrap）。
+     */
+    width?: number | string;
+    /** 面板固定高度（ADR-0035）：同 {@link width}——内容超出由 overlay body 区滚动承接 */
+    height?: number | string;
+    /** 面板最大宽度（ADR-0035）：内容少时 shrink-wrap、多时封顶（body 区滚动） */
+    maxWidth?: number | string;
+    /** 面板最大高度（ADR-0035）：同 {@link maxWidth} 高度轴 */
+    maxHeight?: number | string;
     /**
      * 抽屉把手（x-drawer 消费，ADR-0070 组合共享把手模块）：骑面板活动边线的常驻圆形
      * 按钮，点击折叠/展开——**折叠 ≡ visible 归假**（无第三态，面板销毁、重开重建）。
@@ -219,6 +235,62 @@ export const OVERLAY_DEFAULTS: OverlayConfig = {
     actions: undefined,
     padding: undefined,
 };
+
+/**
+ * 面板尺寸四键集合（ADR-0035）：`OverlayConfig` 的尺寸语义键族——drawer 形态不支持
+ * （`_resolveConfig` 剥离 + warn），其余家族消费面（dialog / popover / 命令式两形态）
+ * 经 {@link resolvePanelSizeValue} 校验后由 OverlayInstance 打开构建期 inline 写入。
+ */
+export const PANEL_SIZE_KEYS = ["width", "height", "maxWidth", "maxHeight"] as const;
+
+/**
+ * 尺寸键值归一（ADR-0035 决策 1，对齐 drawer `size` 校验哲学）：`number`（px，须 > 0）→
+ * `"Npx"`；字符串纯数字按 px、其余非空 CSS 长度串直写；`null` / `undefined` / 空串 →
+ * `null`（缺省不写 inline）；非法值（非正数 / 非字符串非数字）warn → `null`（不写，
+ * 失效可发现）。
+ */
+export function resolvePanelSizeValue(
+    key: string,
+    raw: unknown,
+    warn: (msg: string) => void,
+): string | null {
+    if (raw == null || raw === "") return null;
+    if (typeof raw === "number") {
+        if (Number.isFinite(raw) && raw > 0) return `${raw}px`;
+    } else if (typeof raw === "string") {
+        const s = raw.trim();
+        if (/^\d+(\.\d+)?$/.test(s)) return `${Number(s)}px`;
+        if (s) return s;
+    }
+    warn(
+        `${key} 须为正数（px）或 CSS 长度字符串（如 '40%' / '20rem'），已忽略: ${JSON.stringify(raw)}`,
+    );
+    return null;
+}
+
+/**
+ * loading 占位最小尺寸钳制表达式（ADR-0035 决策 7，纯函数——happy-dom 丢弃 `var()` /
+ * `min()` 复杂值的 style 读回，单测直接断言表达式构造，落 DOM 生效归真浏览器 e2e）：
+ * 声明值参与 `min()`——防小尺寸声明在 loading 期被占位下限（240×120）撑破面板（视觉
+ * 跳动）。同轴固定值与 max 值齐参与（max 为封顶上限，占位也不得越；多参 min() 由浏览器
+ * 统一裁决，值可为异单位 CSS 长度）；无声明轴保持原 var 单值（现状零变化）。
+ */
+export function buildLoadingMinExpr(
+    axis: "width" | "height",
+    decl: Record<(typeof PANEL_SIZE_KEYS)[number], string | null> | null,
+): string {
+    const fallback = axis === "width" ? "240px" : "120px";
+    const parts =
+        decl == null
+            ? []
+            : (axis === "width" ? [decl.width, decl.maxWidth] : [decl.height, decl.maxHeight]).filter(
+                  (v): v is string => v != null,
+              );
+    if (parts.length === 0) {
+        return `var(--autospark-overlay-loading-min-${axis}, ${fallback})`;
+    }
+    return `min(var(--autospark-overlay-loading-min-${axis}, ${fallback}), ${parts.join(", ")})`;
+}
 
 /**
  * `at` 键三态归一（Q2/Q3 共识）：字符串 / 元素简写归一为 `{ selector }`，对象原样返回；

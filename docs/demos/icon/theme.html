@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>x-icon · 主题强调（theme）</title>
+        <script src="/autospark/autospark.js"></script>
+        <script src="/autospark/autospark.theme.js"></script>
+        <script src="/autospark/theme-controls.js"></script>
+        <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+        <link rel="stylesheet" href="/autospark/theme-demo.css" />
+        <link rel="stylesheet" href="/autospark/bulma.min.css" />
+        <style>
+            .icons-demo {
+                font-size: 24px;
+                line-height: 2;
+            }
+        </style>
+    </head>
+
+    <body>
+        <aside class="demo-panel"><theme-controls></theme-controls></aside>
+
+        <div class="demo-app section icons-demo">
+            <!-- 无板：图形取主题色令牌 --auto-theme-color（挂类承载，零内联） -->
+            <p>
+                <strong>主题色图形</strong>　普通：<span x-icon="bell"></span>
+                　theme：<span x-icon.theme="bell"></span>
+                　theme + size：<span x-icon.theme="bell" x-icon-options="{size:32}"></span>
+            </p>
+
+            <!-- 双色调板（ADR-0135 决策五）：theme + shape = 实心主题板 + 恒白图形 -->
+            <p>
+                <strong>双色调板</strong>
+                <span x-icon.theme.circle="bell"></span>
+                <span x-icon.theme.radius="heart"></span>
+                <span x-icon.theme.circle="star" x-icon-options="{padding:6}"></span>
+                　（板实心 --auto-theme-color、图形恒白）
+            </p>
+
+            <!-- button 反馈：实心板上黑系加深（hover 10% / active 15% + 缩放） -->
+            <p>
+                <strong>可点击</strong>
+                <span x-icon.theme.circle.button="close"></span>
+                <span x-icon.theme.radius.button="bell"></span>
+                　（hover / press 实心板加深）
+            </p>
+
+            <!-- 显式 color 恒赢：theme 退位，浓板联动接管（板 8% 同色浓度） -->
+            <p>
+                <strong>显式 color 恒赢</strong>
+                <span x-icon.circle.theme="heart" x-icon-options="{color:'#f03d5e'}"></span>
+                　（指定 color，theme 退位 → 浓板联动）
+            </p>
+
+            <p class="help is-size-6">
+                theme 挂类 as-icon-theme 承载（宿主恒挂 + 板形态 wrapper 双挂）；令牌缺失时板兜底中性深板
+                #333（图形恒白，任何页面恒可见）；板距沿 shape 令牌默认 var(--auto-padding, 0.3em)。
+            </p>
+        </div>
+
+        <script>
+            const { iconRegistry } = AutoSparkSpaces;
+            // 注册 demo 图标（bell/heart/star/close——本地图标稳定演示）
+            iconRegistry.add(
+                "bell",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+            );
+            iconRegistry.add(
+                "heart",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>',
+            );
+            iconRegistry.add(
+                "star",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1Z"/></svg>',
+            );
+            iconRegistry.add(
+                "close",
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+            );
+            new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+        </script>
+    </body>
+</html>

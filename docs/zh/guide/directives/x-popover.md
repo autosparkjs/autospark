@@ -140,6 +140,33 @@ hover 交互在触摸屏上没有对应物（点按会以模拟事件触发 mous
 <button x-popover:tip x-popover-options="{fit: true}">悬停</button>
 ```
 
+`fit` 与显式尺寸声明（下节 `width`/`height`）**轴级互斥**：声明了的轴 `fit` 不写也不清——显式声明优先，`fit` 只接管未声明的轴（[ADR-0035](https://github.com/autosparkjs/autospark/blob/main/packages/plugins/docs/adr/0035-overlay-panel-size-keys.md)）。
+
+### 面板尺寸（width / height / maxWidth / maxHeight）
+
+四个尺寸键直接控制弹出面板的宽高（[ADR-0035](https://github.com/autosparkjs/autospark/blob/main/packages/plugins/docs/adr/0035-overlay-panel-size-keys.md)）：`width` / `height` 固定尺寸，`maxWidth` / `maxHeight` 封顶（内容少时收缩贴合、多时封顶滚动）。值 `number` 按 `px`，CSS 长度字符串（`'40%'` / `'20rem'`，纯数字串按 px）直写；打开时 inline 写入面板外壳根、**重开生效**（打开中的面板不热应用）；非法值 warn 后忽略。缺省不写 inline——面板默认收缩贴合内容（shrink-wrap）。
+
+<demo html="popover/size.html"/>
+
+```html
+<!-- 固定尺寸 -->
+<button x-popover:tip x-popover-options="{width: 320, height: 240}">悬停</button>
+
+<!-- 封顶（长内容在面板内滚动）+ 成员属性表达式绑定状态 -->
+<button x-popover:tip x-popover-options.max-height="'60vh'">悬停</button>
+```
+
+行为细节（与 x-dialog 一致，家族通用语义）：
+
+- **滚动承接**：`height` / `maxHeight` 生效且内容超出时，由骨架 body 区滚动（header / footer 固定不滚）——`.autospark-overlay-body` 的既有 `overflow: auto` 沿 flex 链传导，箭头载体不受影响；
+- **并存裁决**：`width` 与 `maxWidth`（或 height 系）并存时直接透传浏览器——`max-*` 小于固定值时封顶赢（CSS 天然语义）；
+- **视口保护**：不做额外钳制，溢出保护归定位的 shift / flip 既有机制；百分比自适应可用（fixed 面板的 `%` 基准是视口）；
+- **加载占位**：面板打开瞬间的 loading 骨架有最小占位（240×120，`--autospark-overlay-loading-min-*` 变量可调）——声明值会参与 `min()` 钳制，小尺寸声明不会在加载期被占位撑破。
+
+::: warning drawer 不支持
+尺寸四键对 `x-drawer` 不生效（warn + 忽略）——抽屉尺寸由贴边定位语义全管（长轴恒铺满、短轴走 `size` 选项）。
+:::
+
 ### 内容内边距（padding）
 
 `padding`（默认 `0`）控制 shell 内容区 `.autospark-popover-content` 的内边距：`number` 按 `px`，CSS 长度字符串（含多值如 `'10px 24px'`）直写；负数/非法值触发时 warn 并按默认 `0` 处理。现读应用、重开生效；自定义 shell 未提供该类名的内容区时静默跳过（外壳形态自控内边距）：
@@ -417,7 +444,11 @@ tooltip（[工具提示](../tooltip.md)）是**引擎级零声明**能力（`dat
 | `delayShow` | `200` | — | 悬浮意图延迟（ms）：移入宿主后延迟打开、计时期间移开取消；`0` 无延迟；仅 hover 生效（click 静默不适用）；非法值 warn 回退默认（见[延迟配置](#延迟配置)） |
 | `delayHide` | `150` | — | 关闭宽限（ms）：指针离开「宿主∪面板」共享域后再宽限 `delayHide` 毫秒才关；生效条件同 `delayShow`（仅 hover） |
 | `at` | 贴附宿主（`bottom` + 箭头） | — | 定位锚：字符串 / 元素简写（≡ `{selector}`）或 `{selector, placement, offset, shift, flip, arrow}` 对象；显式配置与默认锚**成员级合并**（缺省成员回退宿主 / `bottom`）；`placement` 共 12 方向（见[定位](#定位)） |
-| `fit` | `false` | — | 面板尺寸跟随宿主（单轴：左右弹出取高、上下弹出取宽，跟随翻转后最终方向；见[尺寸跟随宿主](#尺寸跟随宿主-fit)） |
+| `fit` | `false` | — | 面板尺寸跟随宿主（单轴：左右弹出取高、上下弹出取宽，跟随翻转后最终方向；与显式 `width`/`height` 轴级互斥——声明轴 fit 不写不清；见[尺寸跟随宿主](#尺寸跟随宿主-fit)） |
+| `width` | 无（不写 inline） | — | 面板固定宽度：`number`（px）或 CSS 长度串（`'40%'`/`'20rem'`，纯数字串按 px）；打开时 inline 写面板外壳根、重开生效；非法值 warn 忽略（见[面板尺寸](#面板尺寸-width--height--maxwidth--maxheight)） |
+| `height` | 无（不写 inline） | — | 面板固定高度：值域同 `width`；内容超出由骨架 body 区滚动（header/footer 不滚） |
+| `maxWidth` | 无（不写 inline） | — | 面板最大宽度：内容少时收缩贴合、多时封顶；与 `width` 并存透传 CSS 裁决（max 小则 max 赢） |
+| `maxHeight` | 无（不写 inline） | — | 面板最大高度：同 `maxWidth` 高度轴（长内容滚动场景常用 `'60vh'`） |
 | `padding` | `0`（body 区 `'0.5em'`） | — | **双通道键**：内容区外壳 `.autospark-popover-content` inline（`number` 按 px / CSS 长度字符串直写，非法值 warn 回退 `0`）+ 骨架 body 区内边距（显式设置时同步生效；未声明时 body 走默认 `'0.5em'`、内容区不写 inline）；自定义 shell 无该类名内容区静默跳过（见[内容内边距](#内容内边距-padding)与[结构骨架（chrome）](#结构骨架chrome标题--关闭按钮--动作区)） |
 | `animate` | `'fade'` | — | 进出场动画（字符串 / 对象 / 分相 / `false`）——覆盖物家族同款三形态 |
 | `border` | `true` | — | 面板外壳 1px 边框 + 背景 + 圆角（无锚定也生效；`false` 显式关闭） |

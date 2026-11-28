@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>menu 水平菜单 · Logo 与分区</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <style>
+      .hint {
+        color: var(--auto-secondary-color, #868e96);
+        font-size: 13px;
+        margin: 8px 0 0;
+      }
+      .bar {
+        border-bottom: 1px solid var(--auto-border-color, #e9ecef);
+        padding-bottom: 8px;
+      }
+      .tag {
+        font-size: 12px;
+        color: var(--auto-secondary-color, #868e96);
+      }
+      .side-note {
+        padding: 0 0.5em;
+        font-size: 12px;
+        white-space: nowrap;
+        color: var(--auto-secondary-color, #868e96);
+      }
+    </style>
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.menu.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">
+          slotDir="horizontal"（Logo 最左 · header 左 · 列表居中 · footer 右）
+        </div>
+        <div class="auto-card-body">
+          <div class="bar">
+            <x-menu
+              :items="menu"
+              mode="horizontal"
+              :logo="brand"
+              slot-dir="horizontal"
+              :value="active"
+            >
+              <template header="{ mode, activeKey }">
+                <span class="tag">mode={{ mode }} · 当前 {{ activeKey || '无' }}</span>
+              </template>
+              <template footer="{ activeItem }">
+                <span class="side-note">{{ activeItem ? activeItem.label : '未选中' }}</span>
+              </template>
+            </x-menu>
+          </div>
+        </div>
+        <p class="hint">
+          slotDir 只改变根菜单 header / footer 的摆放：horizontal 时 header 在左、footer
+          在右、列表居中撑满；Logo 区始终排在最前。作用域插槽形参按需解构，随状态刷新。
+        </p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          slotDir="vertical"（缺省：header 上 / footer 下 · Logo 在 header 之上）
+        </div>
+        <div class="auto-card-body">
+          <div class="bar">
+            <x-menu :items="menu" mode="horizontal" :logo="brand" :value="active">
+              <template header><span class="tag">顶部说明</span></template>
+              <template footer><span class="side-note">底部说明</span></template>
+            </x-menu>
+          </div>
+        </div>
+        <p class="hint">
+          水平模式下 vertical / horizontal 两种 slotDir
+          都可用；只有垂直折叠态才强制纵向。水平折叠不改写 slotDir。
+        </p>
+      </div>
+    </main>
+    <script>
+      const BRAND_SVG =
+        "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect width='40' height='40' rx='10' fill='%23009aff'/><path d='M12 12h16M12 20h16M12 28h10' stroke='white' stroke-width='3' stroke-linecap='round'/></svg>";
+      new AutoSpark(document.body, {
+        active: "home",
+        brand: { icon: BRAND_SVG, title: "AutoSpark", direction: "hori", shape: "none" },
+        menu: [
+          { key: "home", label: "首页", icon: "file" },
+          {
+            key: "docs",
+            label: "文档",
+            icon: "folder",
+            children: [
+              { key: "d1", label: "快速入门" },
+              { key: "d2", label: "组件", children: [{ key: "d2a", label: "菜单" }] },
+            ],
+          },
+          { key: "api", label: "API", icon: "bell" },
+          "-",
+          { key: "about", label: "关于", icon: "info" },
+        ],
+      });
+    </script>
+  </body>
+</html>

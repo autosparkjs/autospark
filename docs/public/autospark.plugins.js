@@ -13029,13 +13029,25 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             trigger: "hover",
             mode: "vertical",
             slotDir: "vertical",
-            width: 200,
+            // 0 = 自适应填充父容器（缺省——body 恒 100% 充满宿主，显式正数才 inline 定宽，2026-11-26 语义翻转）
+            width: 0,
             collapsedWidth: 48,
+            // main / 弹层面板内边距（number→px / string→原样 CSS）：弹层面板在 overlay 容器、
+            // CSS 继承断，经 props 管道显式下传同一值；--auto-spacing 缺省兜底 0.8rem（theme 未加载）
+            padding: "calc(var(--auto-spacing, 0.8rem) * 0.5)",
+            // Logo 区配置（string ≡ { icon }；null = 不渲染 logo 分区）
+            logo: null,
+            // URL 形态 logo 图加载失败 → 首字符块兜底（errorArmed 防初始误报，avatar 同款）
+            logoErr: false,
+            logoArmed: false,
             tree: [],
             openView: {},
             activeKey: "",
             markedMap: {},
             wantFocusAt: 0,
+            // 弹层等宽源（px）：本体实测宽（展开态测量，折叠过渡期沿用——48 窄条非弹层基准；
+            // 0 = 不写等宽，弹层内容自适应）
+            panelW: 0,
             // 生效宽度（px 数值；0 = 自适应填充父容器 / 水平模式不适用）：仅正有限数生效，
             // 否则展开态回落自适应、折叠态回落 48（折叠态必须窄）
             effWidth: (s) => {
@@ -13078,6 +13090,64 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
                     return false;
                 };
                 return walk(s.tree || []) ? path : [];
+            },
+            // 内边距格式化（padding prop：number→px / string→原样）——main 与弹层面板同值
+            menuPadStr: (s) => {
+                const p = s.padding;
+                if (p == null || p === "") return "";
+                return typeof p === "number" && isFinite(p) ? p + "px" : String(p);
+            },
+            // main 内边距 inline（空 = 不写，回落样式表；落 .asc-menu-main，header/footer 分区不跟随）
+            mainPad: (s) => (s.menuPadStr ? { padding: s.menuPadStr } : null),
+            // logo 归一（string ≡ { icon }）：icon = 图片 URL 或图标名一体两用、url = 点击跳转、
+            // direction 缺省 auto（容器查询 ≥160px hori / <160px vert，折叠态窄宽自然落 vert）、
+            // aspectRatio 缺省 1、shape 缺省 radius、color = 图标自定义色（显式时 x-icon theme
+            // 强调退位为浓板联动——指定色板 + 同色图形，引擎 ADR-0135 决策五语义）
+            logoView: (s) => {
+                const raw = s.logo;
+                if (raw == null || raw === "") return null;
+                const cfg = typeof raw === "string" ? { icon: raw } : (typeof raw === "object" ? raw : null);
+                if (!cfg) return null;
+                return {
+                    icon: cfg.icon == null ? "" : String(cfg.icon),
+                    url: cfg.url == null || cfg.url === "" ? "" : String(cfg.url),
+                    title: cfg.title == null ? "" : String(cfg.title),
+                    desc: cfg.description == null ? "" : String(cfg.description),
+                    direction: ["hori", "vert", "auto"].includes(cfg.direction) ? cfg.direction : "auto",
+                    padding: cfg.padding,
+                    size: cfg.size,
+                    ratio: typeof cfg.aspectRatio === "number" && isFinite(cfg.aspectRatio) && cfg.aspectRatio > 0 ? cfg.aspectRatio : 1,
+                    shape: ["none", "circle", "radius"].includes(cfg.shape) ? cfg.shape : "radius",
+                    color: cfg.color == null ? "" : String(cfg.color),
+                };
+            },
+            // icon 是否图片 URL 形态（http(s):// / 协议相对 / 根或相对路径 / data: / blob: / 常见图片扩展名）
+            // → img，否则 x-icon
+            logoIsImg: (s) => {
+                const v = s.logoView ? s.logoView.icon : "";
+                return /^(https?:)?\\/\\/|^(data|blob):|^\\.{0,2}\\//i.test(v) || /\\.(png|jpe?g|gif|webp|svg|ico|bmp|avif)(\\?.*)?$/i.test(v);
+            },
+            // logo 区 inline：padding 缺省跟随 menu padding（与 main 留白一致），显式 logo.padding 覆盖
+            logoStyle: (s) => {
+                const lv = s.logoView;
+                if (!lv) return null;
+                const p = lv.padding != null && lv.padding !== "" ? lv.padding : s.menuPadStr;
+                if (!p) return null;
+                return { padding: typeof p === "number" && isFinite(p) ? p + "px" : String(p) };
+            },
+            // 图标展示区尺寸字符串（size：number→px / string→原样，缺省 2.5em）——容器 inline
+            // 专用；图形经 CSS 三层撑满（wrapper / 宿主 100% 相对容器，板即容器）
+            logoBoxSize: (s) => {
+                const lv = s.logoView;
+                const raw = lv ? lv.size : null;
+                return raw == null || raw === "" ? "2.5em" : typeof raw === "number" && isFinite(raw) ? raw + "px" : String(raw);
+            },
+            // 图标展示区 inline（宽 = 高 × aspectRatio）
+            logoBoxStyle: (s) => {
+                const lv = s.logoView;
+                if (!lv) return null;
+                const h = s.logoBoxSize;
+                return lv.ratio === 1 ? { height: h, width: h } : { height: h, width: "calc(" + h + " * " + lv.ratio + ")" };
             },
             // 插槽形参（作用域插槽）：header / footer 出口全集，调用方按需解构（只读）
             slotParams: (s) => ({
@@ -13205,6 +13275,11 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
                 walk(this.data.tree || []);
                 return found;
             },
+            // logo 图加载失败（URL 形态）→ 首字符块兜底（errorArmed 防初始误报，avatar 同款）
+            onLogoError() {
+                if (!this.data.logoArmed) return;
+                this.data.logoErr = true;
+            },
             onRelay(event) {
                 const d = event.detail || {};
                 if (d.kind === "toggle") this.onToggle(d.key);
@@ -13329,6 +13404,14 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
         },
         mounted() {
 
+            // logo 图 error 误报防御 + logo 变化重置（avatar 同款模式）
+            setTimeout(() => { this.data.logoArmed = true; }, 0);
+            this.watch("logo", () => {
+                this.data.logoErr = false;
+                this.data.logoArmed = false;
+                setTimeout(() => { this.data.logoArmed = true; }, 0);
+            });
+
             const raw = this.el.getAttribute("data-items");
             if ((!this.data.items || !this.data.items.length) && raw) {
                 try { this.data.items = JSON.parse(raw); } catch { /* 非法 JSON 静默忽略（容错缺省空组） */ }
@@ -13372,6 +13455,24 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             this.watch("popLevel", () => { this.recomputeView(); });
             this.watch("collapsed", () => { this.recomputeView(); });
             this.watch("mode", () => { this.recomputeView(); });
+
+            // 弹层等宽源：本体实测宽（ResizeObserver 持续跟随——自适应容器变宽/显式定宽统一覆盖；
+            // 展开态才测量，折叠窄条不污染；水平模式弹层不等宽无值）
+            const bodyEl = this.el.querySelector(".asc-menu-body");
+            const measure = () => {
+                if (this.data.mode === "horizontal" || this.data.collapsed) return;
+                const w = bodyEl ? bodyEl.getBoundingClientRect().width : 0;
+                if (w > 0) this.data.panelW = Math.round(w);
+            };
+            measure();
+            // RO 实例挂 el expando：存 this（响应式容器）会被 Proxy 包装致 observe Illegal invocation
+            if (typeof ResizeObserver !== "undefined" && bodyEl) {
+                this.el._panelRO = new ResizeObserver(measure);
+                this.el._panelRO.observe(bodyEl);
+            }
+        },
+        unmounted() {
+            if (this.el._panelRO) { this.el._panelRO.disconnect(); delete this.el._panelRO; }
         },
     }
   <\/script>
@@ -13386,9 +13487,13 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       --asc-tone: var(--auto-primary-color, var(--asc-menu-primary, #009aff));
       display: flex;
       flex-direction: column;
+      /* 恒充满容器：宽度源 = 宿主容器（width prop 显式正数时才经 inline 覆盖） */
+      width: 100%;
       outline: none;
       min-width: 0;
       transition: width 0.2s ease;
+      /* logo direction:auto 的宽度感知容器（@container 查询） */
+      container-type: inline-size;
     }
     .asc-menu-body:focus-visible {
       box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--asc-tone) 28%, transparent);
@@ -13409,6 +13514,138 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       display: block;
       min-width: 0;
     }
+
+    /* —— Logo 区（独立分区：vertical 位于 header 之上 / slotDir horizontal 时横排最前；
+       slot=logo 内容段重载，出口 fallback = 内置默认渲染，ADR-0033 修订）—— */
+    .asc-menu-logo {
+      padding: calc(var(--auto-spacing, 0.8rem) * 0.5);
+      min-width: 0;
+    }
+    .asc-menu-logo-main {
+      display: flex;
+      align-items: center;
+      gap: 0.6em;
+      color: inherit;
+      text-decoration: none;
+      min-width: 0;
+    }
+    /* 仅图片（无 title / description 文字段）：图标水平居中（hori / auto 横排；
+       折叠态恒居中另有规则） */
+    .asc-menu-logo-main:not([data-text]) {
+      justify-content: center;
+    }
+    /* vert 纵排居中；hori 由 data-direction="hori" 声明（flex row 缺省）；auto 二态走容器查询 */
+    .asc-menu-logo[data-direction="vert"] .asc-menu-logo-main,
+    .asc-menu-logo[data-direction="auto"] .asc-menu-logo-main {
+      flex-direction: column;
+      text-align: center;
+    }
+    /* auto：容器宽度 ≥160px 走 hori（折叠态 48px 窄宽自然落 vert，零 JS） */
+    @container (min-width: 160px) {
+      .asc-menu-logo[data-direction="auto"] .asc-menu-logo-main {
+        flex-direction: row;
+        text-align: start;
+      }
+    }
+    .asc-menu-logo-icon {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      /* 缺省 2.5em；显式 size 经 inline 覆盖 */
+      width: 2.5em;
+      height: 2.5em;
+      overflow: hidden;
+      flex: none;
+      /* 品牌色块：背景主题色 + 内容白色（x-icon currentColor / 首字符块；img 不受影响） */
+      background: var(--auto-theme-color, var(--asc-menu-primary, #009aff));
+      color: #fff;
+      border-radius: var(--auto-border-radius, 0.375rem);
+    }
+    .asc-menu-logo-icon[data-shape="circle"] {
+      border-radius: 50%;
+    }
+    .asc-menu-logo-icon[data-shape="none"] {
+      border-radius: 0;
+      background: transparent;
+    }
+    /* 图片形态：不套背景（图片自带画面；失效转 fallback 时背景由下方规则恢复——源序在后赢） */
+    .asc-menu-logo-icon[data-img] {
+      background: transparent;
+    }
+    /* 图标形态：品牌色块职责移交 x-icon（shape+theme 双色调板，ADR-0135 决策五）——
+       容器透明纯布局（尺寸/居中）；fallback 恢复规则源序在后不受影响。
+       三层撑满：shape wrapper 与 x-icon 宿主 100% 相对容器（容器 inline 定尺寸为锚，
+       wrapper 压倒 engine 形态类的 height:fit-content 防内容高循环）——板即容器 */
+    .asc-menu-logo-icon[data-glyph] {
+      background: transparent;
+    }
+    .asc-menu-logo-icon[data-glyph] > span {
+      width: 100%;
+      height: 100%;
+    }
+    .asc-menu-logo-icon[data-glyph] .asc-menu-logo-glyph {
+      width: 100%;
+      height: 100%;
+    }
+    /* fallback 首字符块：不论 shape 都有可见底（none → 圆角矩形品牌色块，logo 图无效的兜底） */
+    .asc-menu-logo-icon[data-has-fallback] {
+      background: var(--auto-theme-color, var(--asc-menu-primary, #009aff));
+      border-radius: var(--auto-border-radius, 0.375rem);
+    }
+    .asc-menu-logo-icon[data-shape="circle"][data-has-fallback] {
+      border-radius: 50%;
+    }
+    .asc-menu-logo-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .asc-menu-logo-glyph {
+      display: inline-flex;
+      line-height: 1;
+    }
+    .asc-menu-logo-char {
+      font-weight: var(--x-font-weight-large, 600);
+      font-size: 1.2em;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .asc-menu-logo-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1em;
+      min-width: 0;
+    }
+    .asc-menu-logo-title {
+      font-weight: var(--x-font-weight-large, 600);
+      color: var(--auto-color, var(--asc-menu-color, #606060));
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .asc-menu-logo-desc {
+      font-size: 0.85em;
+      color: var(--auto-third-color, var(--asc-menu-aux-color, rgba(0, 0, 0, 0.35)));
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    /* 折叠：只留图标（文字隐藏、归一居中、内边距收窄适配 collapsedWidth）；
+       size 大图标防溢出图标条 */
+    .asc-menu-body[data-collapsed] .asc-menu-logo {
+      padding: 0.25em;
+    }
+    .asc-menu-body[data-collapsed] .asc-menu-logo-icon {
+      max-width: 100%;
+    }
+    .asc-menu-body[data-collapsed] .asc-menu-logo-main {
+      flex-direction: row;
+      justify-content: center;
+    }
+    .asc-menu-body[data-collapsed] .asc-menu-logo-text {
+      display: none;
+    }
     .asc-menu-main {
       min-width: 0;
     }
@@ -13423,8 +13660,9 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       position: relative;
       min-width: 0;
     }
+    /* 分割线与菜单项同宽：左右 margin 为零，缩进全部由 main 内边距承担 */
     .asc-menu-sep {
-      margin: 0.35em 0.75em;
+      margin: 0.35em 0;
       border-top: var(--auto-border-size, var(--asc-menu-border-size, 1px)) solid
         var(--auto-border-color, var(--asc-menu-border, #f0f0f0));
     }
@@ -13434,7 +13672,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       gap: 0.4em;
       padding: 0.6em 0.75em 0.25em;
       font-size: 0.85em;
-      color: var(--auto-third-color, var(--asc-menu-aux-color, rgba(0, 0, 0, 0.35)));
+      color: var(--auto-secondary-color, var(--asc-menu-aux-color, rgba(0, 0, 0, 0.55)));
       white-space: nowrap;
     }
     /* 折叠态：分组标题只留图标，无图标的整标题不渲染（文字在图标列里无处安放） */
@@ -13494,8 +13732,10 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       padding-inline-start: var(--asc-menu-indent, 1.5em);
     }
 
+    /* 水平菜单：logo 与菜单条并排（row）、垂直居中——视觉同一水平线 */
     .asc-menu-body[data-mode="horizontal"] {
-      flex-direction: column;
+      flex-direction: row;
+      align-items: center;
     }
     .asc-menu-body[data-mode="horizontal"] .asc-menu-list {
       display: flex;
@@ -13518,10 +13758,15 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       align-items: center;
       padding: 0.6em 0.5em 0.25em;
     }
+    /* header / footer 仅垂直菜单生效：水平模式分区隐藏（横排条无上下分区语义） */
+    .asc-menu-body[data-mode="horizontal"] > .asc-menu-header,
+    .asc-menu-body[data-mode="horizontal"] > .asc-menu-footer {
+      display: none;
+    }
 
     .asc-menu-body[data-slot-dir="horizontal"] {
       flex-direction: row;
-      align-items: stretch;
+      align-items: center;
     }
     .asc-menu-body[data-slot-dir="horizontal"] > .asc-menu-header {
       order: 0;
@@ -13562,14 +13807,24 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       border-color: var(--auto-border-color, var(--asc-menu-border, #52525b));
     }
     [dark] .asc-menu-group,
+    [data-dark] .asc-menu-group {
+      color: var(--auto-secondary-color, var(--asc-menu-aux-color, rgba(255, 255, 255, 0.65)));
+    }
     [dark] .asc-menu-header,
     [dark] .asc-menu-footer,
     [dark] .asc-menu-panel,
-    [data-dark] .asc-menu-group,
     [data-dark] .asc-menu-header,
     [data-dark] .asc-menu-footer,
     [data-dark] .asc-menu-panel {
       color: var(--auto-color, var(--asc-menu-color, #fafafa));
+    }
+    [dark] .asc-menu-logo-title,
+    [data-dark] .asc-menu-logo-title {
+      color: var(--auto-color, var(--asc-menu-color, #fafafa));
+    }
+    [dark] .asc-menu-logo-icon,
+    [data-dark] .asc-menu-logo-icon {
+      background: var(--auto-theme-color, var(--asc-menu-primary, #56baff));
     }
   </style>
   <div
@@ -13582,10 +13837,72 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     @keydown="onKeydown($event)"
     @menu-relay="onRelay($event)"
   >
-    <div class="asc-menu-header">
-      <div class="asc-menu-slot" x-slot:header="slotParams"></div>
+    <div
+      class="asc-menu-logo"
+      x-show="logoView"
+      :data-direction="logoView ? logoView.direction : null"
+    >
+      <!-- :style 不与 x-show 同元素（patchStyle falsy 分支整删 style 属性会冲掉 display:none），
+           padding 覆盖落 slot 出口包裹层（无 x-show，几何等价） -->
+      <div class="asc-menu-slot" x-slot:logo="slotParams" :style="logoStyle">
+        <a
+          class="asc-menu-logo-main"
+          x-show="logoView"
+          :data-text="logoView && (logoView.title || logoView.desc) ? '' : null"
+          :href="logoView && logoView.url ? logoView.url : null"
+        >
+          <span
+            class="asc-menu-logo-icon"
+            :data-shape="logoView ? logoView.shape : null"
+            :data-img="logoIsImg ? '' : null"
+            :data-glyph="logoIsImg ? null : ''"
+            :data-has-fallback="logoView && logoIsImg && logoErr && logoView.title ? '' : null"
+            :style="logoBoxStyle"
+          >
+            <img
+              class="asc-menu-logo-img"
+              x-show="logoView && logoIsImg && !logoErr"
+              :src="logoView ? logoView.icon : ''"
+              :alt="logoView ? logoView.title : ''"
+              @error="onLogoError()"
+            />
+            <!-- 图标形态：品牌色块职责移交 x-icon（shape+theme 双色调板，ADR-0135 决策五；
+                 padding 0 + CSS 三层撑满 = 板即容器；显式 logo.color 时 theme 退位浓板联动） -->
+            <i
+              class="asc-menu-logo-glyph"
+              x-show="logoView && logoView.icon && !logoIsImg"
+              x-icon="logoView ? logoView.icon : ''"
+              x-icon-options:shape="logoView ? logoView.shape : 'radius'"
+              x-icon-options:theme="true"
+              x-icon-options:padding="0"
+              x-icon-options:color="logoView ? logoView.color : ''"
+            ></i>
+            <span
+              class="asc-menu-logo-char"
+              x-show="logoView && logoIsImg && logoErr && logoView.title"
+              x-text="logoView && logoView.title ? Array.from(logoView.title.trim())[0] : ''"
+            ></span>
+            <i
+              class="asc-menu-logo-glyph"
+              x-show="logoView && logoIsImg && logoErr && !logoView.title"
+              x-icon="'default'"
+              x-icon-options:shape="logoView ? logoView.shape : 'radius'"
+              x-icon-options:theme="true"
+              x-icon-options:padding="0"
+            ></i>
+          </span>
+          <span class="asc-menu-logo-text" x-show="!collapsed">
+            <span class="asc-menu-logo-title" x-show="logoView && logoView.title" x-text="logoView ? logoView.title : ''"></span>
+            <span class="asc-menu-logo-desc" x-show="logoView && logoView.desc" x-text="logoView ? logoView.desc : ''"></span>
+          </span>
+        </a>
+      </div>
     </div>
-    <div class="asc-menu-main">
+    <!-- header/footer 出口 = template 载体（ADR-0137）：无包裹层，template 上的分区 class
+         经出口注入落到投影内容根（多根对称、class token 合并）；空载体 = 可选出口，
+         未提供插槽时分区整段不渲染（原空壳占位取消） -->
+    <template class="asc-menu-header" x-slot:header="slotParams"></template>
+    <div class="asc-menu-main" :style="mainPad">
       <div
         x-component:autospark-menu-node="{
             list: tree,
@@ -13593,13 +13910,12 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             mode: mode,
             trigger: trigger,
             collapsed: !!collapsed,
-            effWidth: effWidth
+            effWidth: panelW,
+            padding: menuPadStr
         }"
       ></div>
     </div>
-    <div class="asc-menu-footer">
-      <div class="asc-menu-slot" x-slot:footer="slotParams"></div>
-    </div>
+    <template class="asc-menu-footer" x-slot:footer="slotParams"></template>
   </div>
 </div>
 `,as=`<!--
@@ -13629,6 +13945,8 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
             trigger: "hover",
             collapsed: false,
             effWidth: 0,
+            // main / 弹层面板内边距（menu 下传的格式化 CSS 字符串；空 = 不写）
+            padding: "",
             relayTick: 0,
             relayKey: null,
             relayKind: "",
@@ -13680,7 +13998,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
       @click="onEntryClick(item, $event)"
       x-popover:autospark-menu-panel
       x-popover-options="{ padding: 0, trigger: trigger, at: { arrow: false, offset: 4, placement: (mode === 'horizontal' && depth === 1) ? 'bottom-start' : 'right-start' }, disabled: !item._pop, ...(item.conf || {}) }"
-      x-popover-options.props="{ submenu: { ...(item.conf || {}), children: item.kids }, effWidth: effWidth, collapsed: !!collapsed, mode: mode }"
+      x-popover-options.props="{ submenu: { ...(item.conf || {}), children: item.kids }, effWidth: effWidth, collapsed: !!collapsed, mode: mode, padding: padding }"
     >
       <div
         x-component:autospark.button="{
@@ -13715,7 +14033,8 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
                 mode: mode,
                 trigger: trigger,
                 collapsed: collapsed,
-                effWidth: effWidth
+                effWidth: effWidth,
+                padding: padding
             }"
           ></div>
         </div>
@@ -13730,7 +14049,11 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     head / title / foot，也不再有 slotDir 弹层内分区（slotDir 收缩为仅根菜单本体）。
 
     数据经 props 注入（2026-11-24 实测：props 对象包数组完好、面板内 x-component 正常，
-    v2 的「沿宿主链读」废弃）：\`{ submenu: { children, ...popover 键 }, effWidth, collapsed, mode }\`。
+    v2 的「沿宿主链读」废弃）：\`{ submenu: { children, ...popover 键 }, effWidth, collapsed, mode, padding }\`。
+    effWidth = 弹层等宽源（menu 本体**实测宽**——展开态 ResizeObserver 持续跟随，折叠态沿用
+    展开宽不写 48；垂直模式 >0 即三键等宽，水平弹层内容自适应）。
+    padding = main / 面板内边距（menu 下传的格式化 CSS 字符串，面板在 overlay 容器、
+    CSS 继承断须 props 显式传；空 = 不写回落样式表）。
     面板仍是纯桥：data 不接业务键，业务数据全部走 props 注入域。
 
     子项弹层递归：子项 entry 直接引用同一组件（x-popover:autospark-menu-panel），
@@ -13807,7 +14130,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
   <div
     class="asc-menu-panel"
     tabindex="0"
-    :style="mode !== 'horizontal' && !collapsed && effWidth > 0 ? { width: effWidth + 'px', minWidth: effWidth + 'px', maxWidth: effWidth + 'px' } : null"
+    :style="{ ...(mode !== 'horizontal' && effWidth > 0 ? { width: effWidth + 'px', minWidth: effWidth + 'px', maxWidth: effWidth + 'px' } : {}), ...(padding ? { padding: padding } : {}) }"
     @keydown="onKeydown($event)"
   >
     <div class="asc-menu-list" role="menu" x-for="child of submenu.children">
@@ -13831,7 +14154,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
         @click="child.kids && child.kids.length ? 0 : (relayKey = child.key, relayKind = 'pick', relayTick = relayTick + 1)"
         x-popover:autospark-menu-panel
         x-popover-options="{ padding: 0, trigger: trigger, at: { arrow: false, offset: 4, placement: 'right-start' }, disabled: !(child.kids && child.kids.length), ...(child.conf || {}) }"
-        x-popover-options.props="{ submenu: { ...(child.conf || {}), children: child.kids }, effWidth: effWidth, collapsed: !!collapsed, mode: mode }"
+        x-popover-options.props="{ submenu: { ...(child.conf || {}), children: child.kids }, effWidth: effWidth, collapsed: !!collapsed, mode: mode, padding: padding }"
       >
         <div
           x-component:autospark.button="{
@@ -13856,7 +14179,7 @@ var e=`autospark.notifications.shell`;function t(e){return`autospark.notificatio
     </div>
   </div>
 </div>
-`,ss=`autospark.menu`,cs=`autospark-menu-node`,ls=`autospark-menu-panel`;function us(e){e.components[ss]=is,e.components[cs]=as,e.components[ls]=os,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-menu`))){let e=document.createElement(`div`);for(let e of Array.from(t.children))e.tagName.toLowerCase()===`x-menu-item`&&e.remove();for(let e of Array.from(t.children))if(e.tagName.toLowerCase()===`template`)for(let t of[`header`,`footer`]){if(!e.hasAttribute(t))continue;let n=e.getAttribute(t);e.removeAttribute(t),e.hasAttribute(`x-slot:${t}`)||e.setAttribute(`x-slot:${t}`,n??``)}let n=t.getAttribute(`items`),r=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),n!=null&&n!==``&&!r)try{let t=JSON.parse(n);Array.isArray(t)&&e.setAttribute(`data-items`,JSON.stringify(t))}catch{}let i=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?i.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``?i.push(`${Q(Z(n.name))}: true`):i.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${ss}`,`{ ${i.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}ds();function ds(){y(e=>{m(e),us(e)})}var fs=`<div
+`,ss=`autospark.menu`,cs=`autospark-menu-node`,ls=`autospark-menu-panel`;function us(e){e.components[ss]=is,e.components[cs]=as,e.components[ls]=os,e.precompile?.(e=>{for(let t of Array.from(e.el.querySelectorAll(`x-menu`))){let e=document.createElement(`div`);for(let e of Array.from(t.children))e.tagName.toLowerCase()===`x-menu-item`&&e.remove();for(let e of Array.from(t.children))if(e.tagName.toLowerCase()===`template`)for(let t of[`header`,`footer`,`logo`]){if(!e.hasAttribute(t))continue;let n=e.getAttribute(t);e.removeAttribute(t),e.hasAttribute(`x-slot:${t}`)||e.setAttribute(`x-slot:${t}`,n??``)}let n=t.getAttribute(`items`),r=t.hasAttribute(`:items`);if(t.removeAttribute(`items`),n!=null&&n!==``&&!r)try{let t=JSON.parse(n);Array.isArray(t)&&e.setAttribute(`data-items`,JSON.stringify(t))}catch{}let i=[];for(let n of Array.from(t.attributes))n.name.startsWith(`:`)?i.push(`${Q(Z(n.name.slice(1)))}: (${n.value})`):n.name===`class`||n.name===`style`||n.name===`id`||n.name.startsWith(`data-`)||n.name.startsWith(`x-`)||n.name.startsWith(`@`)?e.setAttribute(n.name,n.value):n.value===``?i.push(`${Q(Z(n.name))}: true`):i.push(`${Q(Z(n.name))}: ${JSON.stringify($(n.value))}`);for(e.setAttribute(`x-component:${ss}`,`{ ${i.join(`, `)} }`);t.firstChild;)e.appendChild(t.firstChild);t.replaceWith(e)}})}ds();function ds(){y(e=>{m(e),us(e)})}var fs=`<div
   class="asc-steps"
   x-define="autospark.steps"
   x-define:inherit="autospark.base"

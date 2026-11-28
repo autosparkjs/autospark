@@ -162,6 +162,22 @@ roving tabindex（容器托管 Tab 序，方向键移动真实焦点）；type-a
 - **方法类插槽形参（toggle / expandTo）**：否决——折叠切换应改调用方自己的状态；函数形参在事件表达式中的可调用性未验证。
 - **折叠态隐藏 header / footer**：否决——改经作用域插槽形参由调用方切换内容，并局部裁剪防溢出。
 
+2026-11-26 修订追加（宽度语义翻转 + logo size / 留白一致）：
+
+- **width 缺省语义翻转**：缺省 `200` → 缺省 `0`（自适应填充）——`.asc-menu-body` 恒 `width: 100%` 充满宿主容器（宽度源 = 容器），显式正数才 inline 定宽；body 不再自带内联缺省宽度，消除「宿主容器宽 260 / 菜单本体 200」的不一致（用户实证 demo 场景）。
+- **弹层等宽改实测通道**（2026-11-28）：面板等宽源由 effWidth 计算（仅显式 width 生效）改为**本体实测宽**（`panelW`——展开态 `ResizeObserver` 持续跟随，显式定宽与自适应填充统一覆盖；折叠态沿用展开宽不写 48 窄条；水平模式弹层内容自适应）——props 键名 `effWidth` 保留、值改传 `panelW`；panel :style 等宽条件移除 `!collapsed`。实施坑：RO 句柄存响应式 this 被 Proxy 包装致 `observe` Illegal invocation——挂 `this.el._panelRO` expando。
+- **水平菜单 body 改 row + align-items: center**（2026-11-28）：logo 与菜单条并排、垂直居中共处同一水平线（header/footer 已隐藏后 column 纵叠失去意义）。
+- **logo `size` 键**：图标展示区尺寸（number→px / string 原样；缺省 `2.5em`，宽 = 高 × aspectRatio；折叠态 `max-width: 100%` 防溢出图标条）；图标容器为品牌色块（背景 `--auto-theme-color`、内容白色——x-icon currentColor / 首字符块，`shape: 'none'` 无壳透明）；仅图片（无 title / description）时图标水平居中（`:data-text` 标记 + `:not([data-text])` 规则）。
+- **header / footer 出口改 template 载体**（ADR-0137）：`<template class="asc-menu-header" x-slot:header="slotParams">` 替代「分区 div + 出口 div」两层——无包裹层（分区 class 经出口注入落到投影内容根，多根对称、token 合并），**空载体 = 可选出口**（未提供插槽时分区整段不渲染，原空壳占位取消）；分区 CSS（padding / color / 折叠 overflow / slotDir horizontal order）选择器不变，命中注入后的内容根；**header / footer 仅垂直菜单生效**（`mode=horizontal` 分区 display:none 门禁——横排条无上下分区语义）。
+
+2026-11-25 修订追加（外观特性扩展：group 色 / padding / 分割线 / logo）：
+
+- **group 分组标题色**：由 `--auto-third-color` 提升为 `--auto-secondary-color`（三级回退链含 theme 未加载兜底，light 0.55 / dark 0.65）；
+- **padding prop**：列表区（`.asc-menu-main`）与弹层面板内边距统一通道（缺省 `calc(var(--auto-spacing, 0.8rem) * 0.5)`；number→px / string 原样）；弹层面板在 overlay 容器、CSS 继承断——经既有 popover props 管道显式下传（node → 弹层 props → panel，递归面板逐层传递）；header / footer 分区不跟随；
+- **分割线同宽**：垂直分割线左右 margin 归零（缩进全部由 padding 承担，与菜单项同宽）；水平竖线保留项间小间距；
+- **logo prop**（`string \| LogoOptions`，string ≡ `{ icon }`）：icon 图片 URL / 图标名一体两用（URL 形态判定 = 协议 / 路径前缀 / 常见图片扩展名）；`url` 跳转链接、`direction` 缺省 auto（`.asc-menu-body` 开 `container-type: inline-size` + `@container ≥160px` 二态切换，零 JS——happy-dom 不支持 @container，方向切换断言由浏览器 e2e 把关）、`shape`（none/circle/radius）、`size`（图标展示区高度，number→px / string 原样，缺省 2.25em；宽 = 高 × `aspectRatio` 经 calc 承载，折叠态 max-width 防溢出图标条）；图失效（img onerror，errorArmed 模式同 avatar）→ 跟随 shape 的首字符块兜底；折叠只留图标；未提供 logo 分区不渲染；`<template x-slot:logo>` 作用域插槽重载（slot=logo 加入 precompile 快捷归一清单，出口 fallback = 内置默认渲染）；logo 区内边距缺省同 menu padding（`calc(var(--auto-spacing) * 0.5)`），可经 `logo.padding` 覆盖。
+- **实施期引擎发现（menu 侧已规避，登记待根治）**：`patchStyle` 的 falsy 分支整删 `style` 属性（`removeAttribute("style")`）会冲掉同元素 x-show 已写入的 `display:none`——`:style` 绑定与 x-show 不得落在同一元素上；menu 的 logo 分区把 `:style="logoStyle"` 下移至 slot 出口包裹层规避（几何等价）。
+
 ## 后果
 
 - menu v2 交付：注册名 `autospark.menu`（内部组件 `autospark-menu-node` / `autospark-menu-panel` 不对用户暴露）；产物 `autospark.menu.js`；依赖 `autospark.overlay.js` + `autospark.button.js` 前置加载；

@@ -89,6 +89,10 @@
             flex-direction: column;
             min-width: 0;
             min-height: 0;
+            /* 高度传导（ADR-0035 决策 6）：shell 根声明 height/maxHeight 时沿 flex 链传导
+               ——化身根作为 shell content 包裹层的 flex 子项充满父高度（min-height:0 允许
+               收缩），body 区（flex:1 + overflow:auto）承接滚动；非 flex 父中本声明无效 */
+            flex: 1 1 auto;
             /* 浮动 close 的定位基准（决策 3 修订：header 不渲染时 x 绝对定位右上角） */
             position: relative;
         }

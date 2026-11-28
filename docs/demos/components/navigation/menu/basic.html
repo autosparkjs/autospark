@@ -21,24 +21,25 @@
     <aside class="demo-panel"><theme-controls></theme-controls></aside>
     <main class="demo-main">
       <div class="auto-card">
-        <div class="auto-card-header">基础（缺省宽 200 · 子菜单点击展开 / 折叠）</div>
+        <div class="auto-card-header">基础（缺省自适应充满容器 · 子菜单点击展开 / 折叠）</div>
         <div class="auto-card-body">
           <x-menu :items="menu" value="home"></x-menu>
         </div>
+        <p class="hint">宽度源 = 宿主容器（body 恒 100% 填充）——定宽请显式 width="200" 或约束容器宽</p>
       </div>
       <div class="auto-card">
         <div class="auto-card-header">popLevel=1（缩进 + 弹层混合 · 悬浮展开）</div>
         <div class="auto-card-body">
           <x-menu :items="menu2" :pop-level="1" :value="active"></x-menu>
         </div>
-        <p class="hint">level 1 缩进呈现；level 2 起（二级组）悬浮弹出——弹层宽度与菜单本体一致</p>
+        <p class="hint">level 1 缩进呈现；level 2 起（二级组）悬浮弹出——显式 width 时弹层宽度与本体一致，自适应时弹层按内容展开</p>
       </div>
       <div class="auto-card">
-        <div class="auto-card-header">width="0"（填满父容器）</div>
+        <div class="auto-card-header">width="200"（显式定宽）</div>
         <div class="auto-card-body">
-          <x-menu width="0" :items="menu" :value="active"></x-menu>
+          <x-menu width="200" :items="menu" :value="active"></x-menu>
         </div>
-        <p class="hint">菜单填满卡片体宽度（不设自身宽度——侧栏场景的配方写法）</p>
+        <p class="hint">显式正数 width → inline 定宽覆盖自适应；width="0" 与缺省等价（填满父容器）</p>
       </div>
     </main>
     <script>

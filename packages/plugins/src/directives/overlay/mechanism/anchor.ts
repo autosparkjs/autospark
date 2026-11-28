@@ -48,6 +48,12 @@ export interface AnchorPositionOptions {
      * autoUpdate 重算时持续生效。缺省 undefined（不 fit）。
      */
     fitToEl?: HTMLElement;
+    /**
+     * fit 互斥的显式轴集合（ADR-0035 决策 4）：集合内的轴 fit **不写也不清**——显式
+     * width/height 声明优先于跟随；fit 只接管未声明轴。缺省 undefined（fit 两轴全管，
+     * 与既有行为一致）。
+     */
+    fitPinnedAxes?: ReadonlySet<"width" | "height">;
 }
 
 /**
@@ -80,6 +86,7 @@ export function applyAnchorPosition(
             flipDefault: opts?.flipDefault,
             onPositioned: opts?.onPositioned,
             fitToEl: opts?.fitToEl,
+            fitPinnedAxes: opts?.fitPinnedAxes,
         },
     );
 }

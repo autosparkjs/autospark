@@ -8,9 +8,7 @@
     <link rel="stylesheet" href="/autospark/bulma.min.css" />
     <style>
       .pop-panel {
-        border-radius: 8px;
         min-width: 220px;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
       }
       .pop-panel .inner-demo {
         border-radius: 4px;
@@ -25,10 +23,16 @@
     <div class="demo-app section">
       <div x-data>
         <div class="block">
-          <button class="button is-primary" x-popover:zero x-popover-options="{delayShow: 0}">
+          <button
+            class="button is-primary"
+            x-popover:zero
+            x-popover-options="{delayShow: 0}"
+          >
             默认 0（悬停我）
           </button>
-          <span class="tag">padding = 0（内容区不加内边距；骨架 body 仍有默认 0.5em）</span>
+          <span class="tag"
+            >padding = 0（内容区不加内边距；骨架 body 仍有默认 0.5em）</span
+          >
         </div>
         <div class="block">
           <button
@@ -49,19 +53,27 @@
           >
             多值字符串（悬停我）
           </button>
-          <span class="tag">padding = '10px 24px'（成员属性表达式，上下 10 / 左右 24）</span>
+          <span class="tag"
+            >padding = '10px 24px'（成员属性表达式，上下 10 / 左右 24）</span
+          >
         </div>
 
         <!-- 内容区蓝色区块用于直观对照内边距；三按钮共用组件经 props 区分标题 -->
         <div x-define="zero">
-          <div class="pop-panel"><div class="inner-demo">padding: 0 —— 内容贴边</div></div>
+          <div class="pop-panel">
+            <div class="inner-demo">padding: 0 —— 内容贴边</div>
+          </div>
         </div>
         <div x-define="num">
-          <div class="pop-panel"><div class="inner-demo">padding: 16 —— 四边留白 16px</div></div>
+          <div class="pop-panel">
+            <div class="inner-demo">padding: 16 —— 四边留白 16px</div>
+          </div>
         </div>
         <div x-define="multi">
           <div class="pop-panel">
-            <div class="inner-demo">padding: '10px 24px' —— 上下 10 / 左右 24</div>
+            <div class="inner-demo">
+              padding: '10px 24px' —— 上下 10 / 左右 24
+            </div>
           </div>
         </div>
       </div>

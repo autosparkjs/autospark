@@ -536,12 +536,16 @@ _Avoid_: 事件总线（订阅的是响应式依赖，不是事件）、字段�
 ### 图标层
 
 **图标 / Icon（x-icon）**:
-以 SVG symbol + `<use>` 呈现的矢量图标渲染指令（ADR-0058）：宿主元素 `x-icon="名称"`，注入唯一子节点 `<svg aria-hidden><use href="#as-…"/></svg>`（撑满宿主）。名字解析走「图标域」（scope 链就近 + 全局注册表兜底）；**值两栖**——表达式求值优先，求值空/非法时原值形匹配才回退字面量（裸名不是合法 JS，状态命中优先、字面量为空值兜底），值为响应式表达式（切换即换图标）。**颜色主权在宿主**——currentColor 经 CSS 继承直达 use 内容，`color` 选项内联 `color` 覆盖（指定时底板联动切浓板，见「图标底板形态」）；`strokeWidth` 经 `--as-icon-sw` 变量下发（见「symbol 归一化」）；`size`/`padding`/`shape`/`button`/`pointer` 为盒模型层选项——`shape` 为底板形态枚举（见「图标底板形态」），size / 底板圆角 / 板距默认值经 `--auto-*` theme 令牌 var() 承载（`data-*` 档位通道天然覆盖，ADR-0135）。未命中（未声明或已删除）warn + 渲染**默认图标**，声明后经变更通知自动补渲染；**待定名**（远程加载中）渲染空占位、不算未命中。旧远程值形 `集/名` 已废除（斜杠形是除法表达式求值 NaN → 空占位，对齐「含点路径不回退字面量」先例）。
+以 SVG symbol + `<use>` 呈现的矢量图标渲染指令（ADR-0058）：宿主元素 `x-icon="名称"`，注入唯一子节点 `<svg aria-hidden><use href="#as-…"/></svg>`（撑满宿主）。名字解析走「图标域」（scope 链就近 + 全局注册表兜底）；**值两栖**——表达式求值优先，求值空/非法时原值形匹配才回退字面量（裸名不是合法 JS，状态命中优先、字面量为空值兜底），值为响应式表达式（切换即换图标）。**颜色主权在宿主**——currentColor 经 CSS 继承直达 use 内容，`color` 选项内联 `color` 覆盖（指定时底板联动切浓板，见「图标底板形态」；显式恒赢——`theme` 强调形态在其下退位，见「图标主题强调」）；`strokeWidth` 经 `--as-icon-sw` 变量下发（见「symbol 归一化」）；`size`/`padding`/`shape`/`button`/`pointer` 为盒模型层选项——`shape` 为底板形态枚举（见「图标底板形态」），size / 底板圆角 / 板距默认值经 `--auto-*` theme 令牌 var() 承载（`data-*` 档位通道天然覆盖，ADR-0135）。未命中（未声明或已删除）warn + 渲染**默认图标**，声明后经变更通知自动补渲染；**待定名**（远程加载中）渲染空占位、不算未命中。旧远程值形 `集/名` 已废除（斜杠形是除法表达式求值 NaN → 空占位，对齐「含点路径不回退字面量」先例）。
 _Avoid_: mask 图标（机制已下线）、background-color 换色（旧颜色模型）、svg 图标（那是数据形态）、icon 组件（无组件机制参与）、图标字体（那是 font-family 方案）、badge 选项（已更名 shape，ADR-0135）
 
 **图标底板形态 / Icon Shape（shape）**:
-`x-icon` 的 `shape` 选项——图标额外背景的形态枚举（ADR-0135）：`none`（≡ 未声明，无背景）/ `circle`（正圆 50%）/ `radius`（主题圆角 `var(--auto-border-radius, 4px)`）。启用时走**包裹层通道**（指令为宿主包一层形态类 wrapper：`as-icon-circle` / `as-icon-radius`，淡色板 + 图标居中，子选择器会断开请用后代选择器）；修饰符快捷形态 `.circle` / `.radius`。板距链：显式 `padding` 声明 > `var(--auto-padding, 0.3em)`（仅启用态，无板即无板距）；底板色默认 `currentColor 5%` 随宿主文字色，指定 `color` 时联动浓板（指定色 8% 浓度）；`button` 动效载体「有板归板」（ADR-0049）。旧 `badge` 选项（标量三形态、值为板距）已废。
+`x-icon` 的 `shape` 选项——图标额外背景的形态枚举（ADR-0135）：`none`（≡ 未声明，无背景）/ `circle`（正圆 50%）/ `radius`（主题圆角 `var(--auto-border-radius, 4px)`）。启用时走**包裹层通道**（指令为宿主包一层形态类 wrapper：`as-icon-circle` / `as-icon-radius`，淡色板 + 图标居中，子选择器会断开请用后代选择器）；修饰符快捷形态 `.circle` / `.radius`。板距链：显式 `padding` 声明 > `var(--auto-padding, 0.3em)`（仅启用态，无板即无板距）；底板色三态——默认 `currentColor 5%` 随宿主文字色、指定 `color` 时联动浓板（指定色 8% 浓度）、`theme` 启用时实心主题板（见「图标主题强调」）；`button` 动效载体「有板归板」（ADR-0049）。旧 `badge` 选项（标量三形态、值为板距）已废。
 _Avoid_: badge（旧选项名，值语义已废——板距归还 `padding`）、底板（口语泛称，API 面用 shape）、背景形状（冗词）、图标背景（歧义——那是任意 CSS 背景）
+
+**图标主题强调 / Icon Theme（theme）**:
+`x-icon` 的 `theme` 选项——主题强调形态布尔开关（ADR-0135 决策五）：无板时图形取主题色；配 `shape` 时成**双色调板**——底板实心主题色（`--auto-theme-color`）、图形恒白色（不随页面底色/文字色变化，明暗两模式恒反差）。**显式 `color` 恒赢**：theme 是 color 未声明时的取值来源，显式 `color` 声明即接管整套颜色调度（浓板联动照旧、theme 退位）。通道为挂类 `as-icon-theme`（宿主恒挂 + 板形态 wrapper 同挂）；修饰符 `.theme`；令牌缺失兜底——无板图形回退 currentColor、板回退中性深板 `#333`（与恒白图形构成恒可见配对，防 currentColor 同色隐形），dark 可读性归 theme 包校准域。
+_Avoid_: themed / primary / accent（未采用命名）、themeColor（与 CSS 令牌 `--auto-theme-color` 撞面）、图标主题化（口语泛称）
 
 **图标集声明 / x-icons（Icon Set Declaration）**:
 `<template x-icons>` 的批量图标声明（ADR-0058）：内联通道为多个带 `id` 的 `<svg>` 子元素（每个收集为一个 symbol）；值简写 `x-icons="save,home"` 承载远程清单（等效 `x-icons-options.icons`），与内联**可合并**进同一图标域。编译期前置 collector 收集后剪枝（不进结果 DOM，指令类仅名位）；**纯静态**——一次求值，不 watch 不响应式；同一声明源只收集一组 symbol（内容哈希令牌去重 + 引用计数，x-for / 组件克隆不放大、随 scope 销毁回收）。

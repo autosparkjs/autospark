@@ -25,6 +25,8 @@
             trigger: "hover",
             collapsed: false,
             effWidth: 0,
+            // main / 弹层面板内边距（menu 下传的格式化 CSS 字符串；空 = 不写）
+            padding: "",
             relayTick: 0,
             relayKey: null,
             relayKind: "",
@@ -76,7 +78,7 @@
       @click="onEntryClick(item, $event)"
       x-popover:autospark-menu-panel
       x-popover-options="{ padding: 0, trigger: trigger, at: { arrow: false, offset: 4, placement: (mode === 'horizontal' && depth === 1) ? 'bottom-start' : 'right-start' }, disabled: !item._pop, ...(item.conf || {}) }"
-      x-popover-options.props="{ submenu: { ...(item.conf || {}), children: item.kids }, effWidth: effWidth, collapsed: !!collapsed, mode: mode }"
+      x-popover-options.props="{ submenu: { ...(item.conf || {}), children: item.kids }, effWidth: effWidth, collapsed: !!collapsed, mode: mode, padding: padding }"
     >
       <div
         x-component:autospark.button="{
@@ -111,7 +113,8 @@
                 mode: mode,
                 trigger: trigger,
                 collapsed: collapsed,
-                effWidth: effWidth
+                effWidth: effWidth,
+                padding: padding
             }"
           ></div>
         </div>

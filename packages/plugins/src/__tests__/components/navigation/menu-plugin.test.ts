@@ -521,9 +521,9 @@ describe("形态（collapsed 折叠 / 宽度 / horizontal / slotDir / 插槽形�
         expect(gBtn.querySelector(".asc-button-caret")).toBeTruthy(); // 守卫恢复：箭头回来
     });
 
-    test("width：缺省 200px；正数生效；0 / 负 / NaN 不写 inline（回落 width:100%）；水平模式不适用", async () => {
+    test("width：缺省自适应（不写 inline，body 100% 充满容器）；正数生效；0 / 负 / NaN 不写 inline；水平模式不适用", async () => {
         const cases: Array<[string, string]> = [
-            ["", "200px"],
+            ["", ""],
             ["width: 320", "320px"],
             ["width: 0", ""],
             ["width: -1", ""],
@@ -574,6 +574,12 @@ describe("形态（collapsed 折叠 / 宽度 / horizontal / slotDir / 插槽形�
         expect(tpl(MENU_NODE_NAME)).toContain("(mode === 'horizontal' && depth === 1) ? 'bottom-start' : 'right-start'");
     });
 
+    test("header / footer 仅垂直菜单生效：水平模式分区隐藏（raw CSS 门禁）", async () => {
+        expect(tpl(MENU_NAME)).toContain(
+            '.asc-menu-body[data-mode="horizontal"] > .asc-menu-header, .asc-menu-body[data-mode="horizontal"] > .asc-menu-footer { display: none; }',
+        );
+    });
+
     test("水平模式子级全弹层：一级父项不渲染缩进折叠分支（展开态同样）", async () => {
         const { root } = mountMenu(
             `<div x-component:autospark.menu="{ items: menu, mode: 'horizontal' }"></div>`,
@@ -584,7 +590,7 @@ describe("形态（collapsed 折叠 / 宽度 / horizontal / slotDir / 插槽形�
         expect(shown(root.querySelector('.asc-menu-entry[data-key="g"] > .asc-menu-subwrap')!)).toBe(false);
     });
 
-    test("垂直折叠：slotDir 强制纵向；展开态尊重 slotDir", async () => {
+    test("垂直折叠：slotDir 强制纵向；展开态尊重 slotDir；空插槽分区不渲染（可选出口）/ 有内容分区保留", async () => {
         const mk = (props: string) =>
             mountMenu(`<div x-component:autospark.menu="{ items: menu, slotDir: 'horizontal'${props ? ", " + props : ""} }"></div>`, { menu: LEAF() });
         const plain = mk("");
@@ -593,8 +599,18 @@ describe("形态（collapsed 折叠 / 宽度 / horizontal / slotDir / 插槽形�
         const folded = mk("collapsed: true");
         await settle();
         expect(bodyOf(folded.root).getAttribute("data-slot-dir")).toBe("vertical");
-        // header/footer 保留（裁剪由样式承担）且不隐藏
-        expect((folded.root.querySelector(".asc-menu-header") as HTMLElement).style.display).not.toBe("none");
+        // 空插槽 = 可选出口（template 载体 ADR-0137）：分区整段不渲染
+        expect(folded.root.querySelector(".asc-menu-header")).toBeNull();
+        // 有内容的插槽：分区 class 注入内容根（多根对称），折叠态保留且不隐藏（裁剪由样式承担）
+        const slotted = mountMenu(
+            `<div x-component:autospark.menu="{ items: menu, slotDir: 'horizontal', collapsed: true }"><template x-slot:header><b class="hd">头</b></template></div>`,
+            { menu: LEAF() },
+        );
+        await settle();
+        const hd = slotted.root.querySelector(".asc-menu-header") as HTMLElement;
+        expect(hd).toBeTruthy();
+        expect(hd.classList.contains("hd")).toBe(true); // 调用方 class 保留（token 合并）
+        expect(hd.style.display).not.toBe("none");
     });
 
     test("折叠态数据标记：分组标题带 data-icon（无 icon 则无标记）；占位图标项 data-icon-ph 保留", async () => {
@@ -636,11 +652,11 @@ describe("形态（collapsed 折叠 / 宽度 / horizontal / slotDir / 插槽形�
             },
         );
         await settle();
-        expect(root.querySelector(".hd")!.textContent).toBe("展开:200:无"); // 缺省宽 200 形参遮蔽调用方 width
+        expect(root.querySelector(".hd")!.textContent).toBe("展开:0:无"); // 缺省自适应（effWidth 0）形参遮蔽调用方 width
         expect(root.querySelector(".ft")!.textContent).toBe("空");
         topButtons(root)[0]!.click(); // 激活「首页」
         await settle();
-        expect(root.querySelector(".hd")!.textContent).toBe("展开:200:首页");
+        expect(root.querySelector(".hd")!.textContent).toBe("展开:0:首页"); // 缺省自适应 effWidth 0
         expect(root.querySelector(".ft")!.textContent).toBe("a");
         (engine.store.state as { fold: boolean }).fold = true;
         await settle();
@@ -768,5 +784,174 @@ describe("弹层域冒烟（popLevel / x-popover，ADR-0033 决策 5）", () => 
         await sleep(30);
         expect(changes).toEqual(["leaf"]); // change 已派发
         expect(panels().length).toBe(0); // 叶选关整链
+    });
+});
+
+describe("logo 区 / padding / 分割线 / group 色（2026-11-25 特性扩展）", () => {
+    test("logo 快捷形态（string ≡ {icon}）：图片 URL → img、图标名 → x-icon、未提供分区不渲染", async () => {
+        // ① string 快捷 + 图片扩展名（相对路径无前缀也算 URL 形态）→ img
+        const a = mountMenu(`<div x-component:autospark.menu="{ logo: 'logo.png' }"></div>`, {});
+        await settle();
+        const la = a.root.querySelector(".asc-menu-logo")!;
+        expect(shown(la)).toBe(true);
+        expect(la.getAttribute("data-direction")).toBe("auto"); // direction 缺省 auto
+        const img = la.querySelector("img.asc-menu-logo-img") as HTMLImageElement;
+        expect(img).toBeTruthy();
+        expect(img.getAttribute("src")).toBe("logo.png");
+        expect(la.querySelector(".asc-menu-logo-icon")!.hasAttribute("data-img")).toBe(true); // 图片形态无背景标记
+
+        // ② 图标名形态 → x-icon 载体（img 隐藏、glyph 可见——x-show 不摘 DOM，走可见口径）
+        const b = mountMenu(`<div x-component:autospark.menu="{ logo: 'menu' }"></div>`, {});
+        await settle();
+        const lb = b.root.querySelector(".asc-menu-logo")!;
+        expect(shown(lb)).toBe(true);
+        expect(lb.querySelectorAll("img.asc-menu-logo-img").length).toBe(1); // 元素恒挂
+        expect(Array.from(lb.querySelectorAll("img.asc-menu-logo-img")).filter(shown).length).toBe(0);
+        expect(Array.from(lb.querySelectorAll(".asc-menu-logo-glyph")).filter(shown).length).toBe(1);
+
+        // ③ 未提供 logo → 分区 x-show 隐藏
+        const c = mountMenu(`<div x-component:autospark.menu="{ items: [] }"></div>`, {});
+        await settle();
+        expect(shown(c.root.querySelector(".asc-menu-logo")!)).toBe(false);
+        // ④ 仅图片（无 title/description）：无 data-text 标记（居中规则命中面）；有文字则标记在场
+        expect(a.root.querySelector(".asc-menu-logo-main")!.hasAttribute("data-text")).toBe(false);
+        const d = mountMenu(`<div x-component:autospark.menu="{ logo: { icon: 'menu', title: 'T' } }"></div>`, {});
+        await settle();
+        expect(d.root.querySelector(".asc-menu-logo-main")!.hasAttribute("data-text")).toBe(true);
+    });
+
+    test("logo 图标形态主题强调：x-icon theme+shape 双色调板（ADR-0135 决策五）；显式 color 退位", async () => {
+        // ① 图标形态：glyph 挂 as-icon-theme 类 + shape wrapper 双挂（品牌色块职责移交 x-icon 板）
+        const a = mountMenu(`<div x-component:autospark.menu="{ logo: 'menu' }"></div>`, {});
+        await settle();
+        const box = a.root.querySelector(".asc-menu-logo-icon")!;
+        expect(box.hasAttribute("data-glyph")).toBe(true); // 图标形态容器透明标记（色块归 x-icon）
+        const glyph = a.root.querySelector(".asc-menu-logo-glyph") as HTMLElement;
+        expect(glyph.classList.contains("as-icon")).toBe(true);
+        expect(glyph.classList.contains("as-icon-theme")).toBe(true); // theme 强调挂类
+        const w = glyph.parentElement!;
+        expect(w.classList.contains("as-icon-radius")).toBe(true); // shape 缺省 radius → wrapper 板
+        expect(w.classList.contains("as-icon-theme")).toBe(true); // wrapper 双挂（实心板规则命中）
+        expect(w.style.padding).toBe("0px"); // 板距 0（板 = 图形 = 容器尺寸三层重叠）
+
+        // ② 显式 color：theme 退位（浓板联动接管——类不挂、wrapper 内联指定色 + 8% 浓度）
+        const b = mountMenu(
+            `<div x-component:autospark.menu="{ logo: { icon: 'menu', color: '#f03d5e' } }"></div>`,
+            {},
+        );
+        await settle();
+        const g2 = Array.from(b.root.querySelectorAll(".asc-menu-logo-glyph")).find(shown) as HTMLElement;
+        expect(g2.classList.contains("as-icon-theme")).toBe(false); // 退位不挂类
+        expect(g2.style.color).toBe("#f03d5e"); // 显式色接管图形色
+        const w2 = g2.parentElement!;
+        expect(w2.classList.contains("as-icon-theme")).toBe(false);
+        expect(w2.style.getPropertyValue("--as-icon-mix")).toBe("8%"); // 浓板联动（ADR-0135 决策三）
+    });
+
+    test("logo 对象形态：title / description / url / direction / shape / aspectRatio 落位", async () => {
+        const { root } = mountMenu(
+            `<div x-component:autospark.menu="{ logo: logo }"></div>`,
+            {
+                logo: {
+                    icon: "menu",
+                    title: "AutoSpark",
+                    description: "响应式引擎",
+                    url: "https://example.com",
+                    direction: "vert",
+                    shape: "circle",
+                    aspectRatio: 2,
+                },
+            },
+        );
+        await settle();
+        const zone = root.querySelector(".asc-menu-logo")!;
+        expect(zone.getAttribute("data-direction")).toBe("vert");
+        const link = zone.querySelector("a.asc-menu-logo-main") as HTMLAnchorElement;
+        expect(link.getAttribute("href")).toBe("https://example.com"); // url → a 包裹
+        expect(zone.querySelector(".asc-menu-logo-title")!.textContent).toContain("AutoSpark");
+        expect(zone.querySelector(".asc-menu-logo-desc")!.textContent).toContain("响应式引擎");
+        const icon = zone.querySelector(".asc-menu-logo-icon")!;
+        expect(icon.getAttribute("data-shape")).toBe("circle");
+        // 缺省高 2.5em；宽 = 高 × aspectRatio
+        expect(icon.style.height).toBe("2.5em");
+        expect(icon.style.width).toBe("calc(2.5em * 2)");
+    });
+
+    test("logo size 键：图标展示区高度（number→px / string 原样），宽 = 高 × aspectRatio", async () => {
+        const { root } = mountMenu(
+            `<div x-component:autospark.menu="{ logo: logo }"></div>`,
+            { logo: { icon: "menu", size: "3em", aspectRatio: 2 } },
+        );
+        await settle();
+        const icon = root.querySelector(".asc-menu-logo-icon")!;
+        expect(icon.style.height).toBe("3em");
+        expect(icon.style.width).toBe("calc(3em * 2)");
+
+        const b = mountMenu(`<div x-component:autospark.menu="{ logo: { icon: 'menu', size: 48 } }"></div>`, {});
+        await settle();
+        const icon2 = b.root.querySelector(".asc-menu-logo-icon")!;
+        expect(icon2.style.height).toBe("48px");
+        expect(icon2.style.width).toBe("48px"); // ratio 1：宽 = 高
+    });
+
+    test("URL 图加载失败 → 首字符块兜底（errorArmed 后 error 事件生效，avatar 同款）", async () => {
+        const { root } = mountMenu(
+            `<div x-component:autospark.menu="{ logo: { icon: 'broken.png', title: 'AS' } }"></div>`,
+            {},
+        );
+        await settle(); // errorArmed 解除（setTimeout 0）
+        const img = root.querySelector("img.asc-menu-logo-img")!;
+        img.dispatchEvent(new Event("error"));
+        await settle();
+        const icon = root.querySelector(".asc-menu-logo-icon")!;
+        expect(icon.hasAttribute("data-has-fallback")).toBe(true);
+        const char = icon.querySelector(".asc-menu-logo-char")!;
+        expect(shown(char)).toBe(true);
+        expect(char.textContent).toContain("A"); // title 首字符
+    });
+
+    test("slot=logo 内容段重载：投影替换出口 fallback（内置默认渲染不出现）", async () => {
+        const { root } = mountMenu(
+            `<x-menu logo="x.png"><template x-slot:logo="{ collapsed }"><b class="my-logo">自定义{{ collapsed ? '折' : '展' }}</b></template></x-menu>`,
+            {},
+        );
+        await settle();
+        expect(root.querySelector(".my-logo")).toBeTruthy();
+        expect(root.querySelector(".asc-menu-logo-main")).toBeNull(); // fallback 被替换
+    });
+
+    test("padding prop 三形态：默认 calc / number→px / string 原样，落 .asc-menu-main 且 props 通道下传弹层", async () => {
+        // ① 默认值（theme 未加载兜底 0.8rem 的 calc）
+        const a = mountMenu(`<div x-component:autospark.menu="{ items: [] }"></div>`, {});
+        await settle();
+        expect(((a.root.querySelector(".asc-menu-main") as HTMLElement).style.padding ?? "")).toContain("var(--auto-spacing");
+        // ② number → px
+        const b = mountMenu(`<div x-component:autospark.menu="{ items: [], padding: 16 }"></div>`, {});
+        await settle();
+        expect((b.root.querySelector(".asc-menu-main") as HTMLElement).style.padding).toBe("16px");
+        // ③ string 原样 + 弹层 props 透传（node / panel 模板断言）
+        const c = mountMenu(`<div x-component:autospark.menu="{ items: [], padding: '1em 2em' }"></div>`, {});
+        await settle();
+        expect((c.root.querySelector(".asc-menu-main") as HTMLElement).style.padding).toBe("1em 2em");
+        expect(tpl(MENU_NODE_NAME)).toContain("padding: padding");
+        expect(tpl(MENU_PANEL_NAME)).toContain("padding: padding");
+    });
+
+    test("group 色 / 分割线同宽 / logo 折叠规则（raw CSS 断言，含 theme 未加载三级兜底）", () => {
+        const css = tpl(MENU_NAME);
+        // group：--auto-secondary-color + 未加载 theme.js 的兜底
+        expect(css).toContain(
+            ".asc-menu-group { display: flex; align-items: center; gap: 0.4em; padding: 0.6em 0.75em 0.25em; font-size: 0.85em; color: var(--auto-secondary-color, var(--asc-menu-aux-color, rgba(0, 0, 0, 0.55)));",
+        );
+        expect(css).toContain(
+            "[dark] .asc-menu-group, [data-dark] .asc-menu-group { color: var(--auto-secondary-color, var(--asc-menu-aux-color, rgba(255, 255, 255, 0.65))); }",
+        );
+        // 垂直分割线与菜单项同宽（左右 margin 零）；水平竖线保留小间距
+        expect(css).toContain(".asc-menu-sep { margin: 0.35em 0;");
+        expect(css).toContain('[data-mode="horizontal"] .asc-menu-sep { margin: 0.35em 0.25em;');
+        // logo：容器查询载体 + 折叠只留图标 + main 内边距通道
+        expect(css).toContain("container-type: inline-size");
+        expect(css).toContain(".asc-menu-body[data-collapsed] .asc-menu-logo-text { display: none; }");
+        expect(css).toContain(".asc-menu-logo { padding: calc(var(--auto-spacing, 0.8rem) * 0.5);");
     });
 });

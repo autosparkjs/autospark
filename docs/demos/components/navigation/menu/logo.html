@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>menu Logo 区</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <style>
+      .hint {
+        color: var(--auto-secondary-color, #868e96);
+        font-size: 13px;
+        margin: 8px 0 0;
+      }
+      button.ctrl {
+        padding: 4px 10px;
+        cursor: pointer;
+      }
+      .my-logo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        padding: 4px 6px;
+        white-space: nowrap;
+      }
+      .wrap {
+        border: 1px dashed var(--auto-border-color, #ccc);
+        border-radius: 6px;
+        display: inline-block;
+        vertical-align: top;
+      }
+      /* —— playground 控制面板 —— */
+      .lg-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex: 1;
+      }
+      .lg-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .lg-key {
+        width: 92px;
+        flex: none;
+        font-size: 12px;
+        color: var(--auto-secondary-color, #868e96);
+        font-family: ui-monospace, monospace;
+      }
+      .lg-btn {
+        padding: 3px 10px;
+        cursor: pointer;
+        font-size: 12px;
+        border: 1px solid var(--auto-border-color, #ccc);
+        border-radius: 4px;
+        background: var(--auto-bgcolor, #fff);
+        color: var(--auto-color, #333);
+      }
+      .lg-btn.on {
+        border-color: var(--auto-primary-color, #009aff);
+        color: var(--auto-primary-color, #009aff);
+        font-weight: 600;
+      }
+      .lg-input {
+        flex: 1;
+        min-width: 120px;
+        padding: 3px 8px;
+        border: 1px solid var(--auto-border-color, #ccc);
+        border-radius: 4px;
+        font-size: 12px;
+      }
+    </style>
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.menu.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">
+          实时控制台（playground——调参即时预览）
+          <button
+            class="ctrl"
+            type="button"
+            style="float: right"
+            @click="pgFold = !pgFold"
+          >
+            {{ pgFold ? '展开' : '折叠' }}
+          </button>
+        </div>
+        <div
+          class="auto-card-body col"
+          style="
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+          "
+        >
+          <div class="lg-panel">
+            <div class="lg-row">
+              <span class="lg-key">icon</span>
+              <button
+                class="lg-btn"
+                :class="logoIcon === 'img' ? 'on' : ''"
+                @click="logoIcon = 'img'"
+              >
+                图片 URL
+              </button>
+              <button
+                class="lg-btn"
+                :class="logoIcon === 'glyph' ? 'on' : ''"
+                @click="logoIcon = 'glyph'"
+              >
+                图标名
+              </button>
+              <button
+                class="lg-btn"
+                :class="logoIcon === 'broken' ? 'on' : ''"
+                @click="logoIcon = 'broken'"
+              >
+                失效图
+              </button>
+            </div>
+            <div class="lg-row">
+              <span class="lg-key">title</span>
+              <input
+                class="lg-input"
+                :value="logoTitle"
+                @input="logoTitle = $event.target.value"
+                placeholder="标题文本"
+              />
+            </div>
+            <div class="lg-row">
+              <span class="lg-key">description</span>
+              <input
+                class="lg-input"
+                :value="logoDesc"
+                @input="logoDesc = $event.target.value"
+                placeholder="描述文本"
+              />
+            </div>
+            <div class="lg-row">
+              <span class="lg-key">direction</span>
+              <button
+                class="lg-btn"
+                :class="logoDir === 'auto' ? 'on' : ''"
+                @click="logoDir = 'auto'"
+              >
+                auto
+              </button>
+              <button
+                class="lg-btn"
+                :class="logoDir === 'hori' ? 'on' : ''"
+                @click="logoDir = 'hori'"
+              >
+                hori
+              </button>
+              <button
+                class="lg-btn"
+                :class="logoDir === 'vert' ? 'on' : ''"
+                @click="logoDir = 'vert'"
+              >
+                vert
+              </button>
+            </div>
+            <div class="lg-row">
+              <span class="lg-key">shape</span>
+              <button
+                class="lg-btn"
+                :class="logoShape === 'radius' ? 'on' : ''"
+                @click="logoShape = 'radius'"
+              >
+                radius
+              </button>
+              <button
+                class="lg-btn"
+                :class="logoShape === 'circle' ? 'on' : ''"
+                @click="logoShape = 'circle'"
+              >
+                circle
+              </button>
+              <button
+                class="lg-btn"
+                :class="logoShape === 'none' ? 'on' : ''"
+                @click="logoShape = 'none'"
+              >
+                none
+              </button>
+            </div>
+            <div class="lg-row">
+              <span class="lg-key">aspectRatio</span>
+              <button
+                class="lg-btn"
+                :class="logoRatio === 1 ? 'on' : ''"
+                @click="logoRatio = 1"
+              >
+                1
+              </button>
+              <button
+                class="lg-btn"
+                :class="logoRatio === 1.5 ? 'on' : ''"
+                @click="logoRatio = 1.5"
+              >
+                1.5
+              </button>
+              <button
+                class="lg-btn"
+                :class="logoRatio === 2 ? 'on' : ''"
+                @click="logoRatio = 2"
+              >
+                2
+              </button>
+            </div>
+            <div class="lg-row">
+              <span class="lg-key">menu padding</span>
+              <button
+                class="lg-btn"
+                :class="pgPad === pgDef ? 'on' : ''"
+                @click="pgPad = pgDef"
+              >
+                默认
+              </button>
+              <button
+                class="lg-btn"
+                :class="pgPad === 0 ? 'on' : ''"
+                @click="pgPad = 0"
+              >
+                0
+              </button>
+              <button
+                class="lg-btn"
+                :class="pgPad === '1em' ? 'on' : ''"
+                @click="pgPad = '1em'"
+              >
+                1em
+              </button>
+              <button
+                class="lg-btn"
+                :class="pgPad === 16 ? 'on' : ''"
+                @click="pgPad = 16"
+              >
+                16px
+              </button>
+            </div>
+            <div class="lg-row">
+              <span class="lg-key">size</span>
+              <button
+                class="lg-btn"
+                :class="logoSize === '' ? 'on' : ''"
+                @click="logoSize = ''"
+              >
+                默认
+              </button>
+              <button
+                class="lg-btn"
+                :class="logoSize === '3em' ? 'on' : ''"
+                @click="logoSize = '3em'"
+              >
+                3em
+              </button>
+              <button
+                class="lg-btn"
+                :class="logoSize === '48px' ? 'on' : ''"
+                @click="logoSize = '48px'"
+              >
+                48px
+              </button>
+            </div>
+            <div class="lg-row">
+              <span class="lg-key">padding</span>
+              <button
+                class="lg-btn"
+                :class="logoPad === '' ? 'on' : ''"
+                @click="logoPad = ''"
+              >
+                默认
+              </button>
+              <button
+                class="lg-btn"
+                :class="logoPad === '0' ? 'on' : ''"
+                @click="logoPad = '0'"
+              >
+                0
+              </button>
+              <button
+                class="lg-btn"
+                :class="logoPad === '1em' ? 'on' : ''"
+                @click="logoPad = '1em'"
+              >
+                1em
+              </button>
+            </div>
+            <div class="lg-row">
+              <span class="lg-key">url（跳转）</span>
+              <button
+                class="lg-btn"
+                :class="!logoUrl ? 'on' : ''"
+                @click="logoUrl = false"
+              >
+                无
+              </button>
+              <button
+                class="lg-btn"
+                :class="logoUrl ? 'on' : ''"
+                @click="logoUrl = true"
+              >
+                https://example.com
+              </button>
+            </div>
+          </div>
+          <div class="wrap">
+            <div
+              x-component:autospark.menu="{
+                items: menu,
+                logo: logoObj,
+                collapsed: pgFold,
+                collapsedWidth: 56,
+                padding: pgPad
+              }"
+              style="width: 260px"
+            ></div>
+          </div>
+        </div>
+        <p class="hint">
+          右侧菜单的 <code>:logo</code> 绑定 computed
+          组装对象（控件改动整包替换——props 原地变更不发信号）。 「失效图」演示
+          <code>img</code> 加载失败 → 首字符块兜底；折叠时只渲染 logo 图标
+        </p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          快捷与对象形态（string ≡ { icon } · 图片 URL / 图标名一体两用）
+          <button
+            class="ctrl"
+            type="button"
+            style="float: right"
+            @click="fold1 = !fold1"
+          >
+            {{ fold1 ? '展开' : '折叠' }}
+          </button>
+        </div>
+        <div
+          class="auto-card-body col"
+          style="
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+          "
+        >
+          <x-menu
+            :items="menu"
+            :logo="imgLogo"
+            :collapsed="fold1"
+            collapsed-width="56"
+            style="width: 240px"
+          ></x-menu>
+          <x-menu
+            :items="menu"
+            :logo="iconLogo"
+            :collapsed="fold1"
+            collapsed-width="56"
+            style="width: 240px"
+          ></x-menu>
+        </div>
+        <p class="hint">
+          左：logo 传图片地址（data: URI）→ 渲染
+          <code>&lt;img&gt;</code>；右：logo 传图标名（对象形态
+          <code>{ icon, title, description }</code>）→
+          <code>&lt;i x-icon&gt;</code> 渲染 + 标题 / 描述文字。
+          卡头按钮切换折叠——折叠时只留 logo 图标
+        </p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          direction / shape / aspectRatio / url 定制（静态预设对照）
+          <button
+            class="ctrl"
+            type="button"
+            style="float: right"
+            @click="fold2 = !fold2"
+          >
+            {{ fold2 ? '展开' : '折叠' }}
+          </button>
+        </div>
+        <div
+          class="auto-card-body col"
+          style="
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+          "
+        >
+          <x-menu
+            :items="menu"
+            :logo="vertLogo"
+            :collapsed="fold2"
+            collapsed-width="56"
+            style="width: 200px"
+          ></x-menu>
+          <x-menu
+            :items="menu"
+            :logo="wideLogo"
+            :collapsed="fold2"
+            collapsed-width="56"
+            style="width: 320px"
+          ></x-menu>
+          <x-menu
+            :items="menu"
+            :logo="circleLogo"
+            :collapsed="fold2"
+            collapsed-width="56"
+            style="width: 200px"
+          ></x-menu>
+        </div>
+        <p class="hint">
+          左：direction: 'vert' 纵排居中；中：aspectRatio: 2 横长展示区 + shape:
+          'none' 无裁剪 + url 点击跳转；右：shape: 'circle' 圆形裁剪（shape:
+          'radius' 圆角矩形为缺省）。 direction:
+          'auto'（缺省）按菜单宽度切换——容器 ≥160px 横排、更窄纵排（含折叠窄条）
+        </p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          图失效兜底 / 折叠只留图标 / slot=logo 重载
+          <button
+            class="ctrl"
+            type="button"
+            style="float: right"
+            @click="fold3 = !fold3"
+          >
+            {{ fold3 ? '展开' : '折叠' }}
+          </button>
+        </div>
+        <div
+          class="auto-card-body col"
+          style="
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+          "
+        >
+          <x-menu
+            :items="menu"
+            :logo="brokenLogo"
+            :collapsed="fold3"
+            collapsed-width="56"
+            style="width: 200px"
+          ></x-menu>
+          <x-menu
+            :items="menu"
+            :logo="imgLogo"
+            :collapsed="fold3"
+            collapsed-width="56"
+            style="width: 200px"
+          ></x-menu>
+          <x-menu
+            :items="menu"
+            :logo="imgLogo"
+            :collapsed="fold3"
+            collapsed-width="56"
+            style="width: 240px"
+          >
+            <template x-slot:logo="{ collapsed }">
+              <b class="my-logo"
+                >◈ 自定义 Logo{{ collapsed ? '（折）' : '' }}</b
+              >
+            </template>
+          </x-menu>
+        </div>
+        <p class="hint">
+          左：图片加载失败 → 圆角矩形首字符块兜底（跟随
+          shape）；中：折叠时只渲染 logo 图标 （title / description
+          隐藏，居中适配 collapsedWidth）；右：<code
+            >&lt;template x-slot:logo&gt;</code
+          >
+          作用域插槽重载整个 Logo 区（形参同 header /
+          footer，折叠形参随状态刷新）
+        </p>
+      </div>
+    </main>
+    <script>
+      const IMG_SVG =
+        "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' rx='14' fill='%23009aff'/><circle cx='32' cy='24' r='10' fill='white'/><rect x='18' y='40' width='28' height='6' rx='3' fill='white' opacity='.75'/></svg>";
+      // menu padding 缺省值（显式传回——props 键移除不还原 data 默认，引擎 props 通道单向写入）
+      const DEF_PAD = "calc(var(--auto-spacing, 0.8rem) * 0.5)";
+      new AutoSpark(document.body, {
+        // —— playground 状态（控件直写，logoObj computed 整包组装）——
+        logoIcon: "glyph",
+        logoTitle: "AutoSpark",
+        logoDesc: "响应式引擎",
+        logoDir: "auto",
+        logoShape: "radius",
+        logoRatio: 1,
+        logoSize: "",
+        logoPad: "",
+        pgDef: DEF_PAD,
+        pgPad: DEF_PAD,
+        logoUrl: false,
+        pgFold: false,
+        logoObj: (s) => ({
+          icon:
+            s.logoIcon === "img"
+              ? IMG_SVG
+              : s.logoIcon === "broken"
+                ? "broken-image.png"
+                : "menu",
+          title: s.logoTitle,
+          description: s.logoDesc,
+          direction: s.logoDir,
+          shape: s.logoShape,
+          aspectRatio: s.logoRatio,
+          ...(s.logoSize !== "" ? { size: s.logoSize } : {}),
+          ...(s.logoPad !== "" ? { padding: s.logoPad } : {}),
+          ...(s.logoUrl ? { url: "https://example.com" } : {}),
+        }),
+        // —— 静态展示卡 ——
+        fold1: false,
+        fold2: false,
+        fold3: false,
+        menu: [
+          { key: "home", label: "首页", icon: "file" },
+          {
+            key: "nav",
+            label: "导航",
+            icon: "folder",
+            children: [
+              { key: "n1", label: "指令" },
+              { key: "n2", label: "组件" },
+            ],
+          },
+          { key: "set", label: "设置", icon: "copy" },
+        ],
+        imgLogo: IMG_SVG,
+        iconLogo: {
+          icon: "menu",
+          title: "AutoSpark",
+          description: "响应式引擎",
+        },
+        vertLogo: {
+          icon: "menu",
+          title: "AutoSpark",
+          description: "响应式引擎",
+          direction: "vert",
+        },
+        wideLogo: {
+          icon: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='64'><rect width='128' height='64' rx='10' fill='%237958ff'/><circle cx='34' cy='32' r='12' fill='white'/><rect x='56' y='28' width='52' height='8' rx='4' fill='white' opacity='.8'/></svg>",
+          aspectRatio: 2,
+          shape: "none",
+          url: "https://autospark.example.com",
+          title: "带链接",
+        },
+        circleLogo: { icon: "bell", title: "圆形裁剪", shape: "circle" },
+        brokenLogo: {
+          icon: "broken-image.png",
+          title: "AS",
+          description: "图挂了",
+        },
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>menu 内边距与分割线</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <style>
+      .hint { color: var(--auto-secondary-color, #868e96); font-size: 13px; margin: 8px 0 0; }
+      .wrap { border: 1px dashed var(--auto-border-color, #ccc); border-radius: 6px; display: inline-block; vertical-align: top; }
+    </style>
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.menu.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">
+          padding 三形态（虚线框 = 容器边界，观察留白）
+          <button class="ctrl" type="button" style="float: right" @click="fold1 = !fold1">{{ fold1 ? '展开' : '折叠' }}</button>
+        </div>
+        <div class="auto-card-body col" style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start">
+          <div class="wrap"><x-menu :items="menu" :collapsed="fold1" collapsed-width="56"></x-menu></div>
+          <div class="wrap"><x-menu :items="menu" :padding="0" :collapsed="fold1" collapsed-width="56"></x-menu></div>
+          <div class="wrap"><x-menu :items="menu" padding="0.75em 1em" :collapsed="fold1" collapsed-width="56"></x-menu></div>
+        </div>
+        <p class="hint">
+          缺省 <code>calc(var(--auto-spacing, 0.8rem) * 0.5)</code>（theme 未加载兜底 0.4rem）；
+          number → px；string 原样。作用于 <code>.asc-menu-main</code> 与弹层面板，header / footer 分区不跟随。
+          卡头按钮切换折叠——折叠态内边距同样生效
+        </p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          分割线与菜单项同宽 + group 分组标题（secondary 色）
+          <button class="ctrl" type="button" style="float: right" @click="fold2 = !fold2">{{ fold2 ? '展开' : '折叠' }}</button>
+        </div>
+        <div class="auto-card-body col" style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start">
+          <div class="wrap"><x-menu :items="grouped" :collapsed="fold2" collapsed-width="56"></x-menu></div>
+          <div class="wrap"><x-menu :items="grouped" :padding="0" :collapsed="fold2" collapsed-width="56"></x-menu></div>
+        </div>
+        <p class="hint">
+          分割线左右 margin 为零——与菜单项同宽，缩进全部由 main 内边距承担（右图 padding: 0 时贴边可见）；
+          <code>type: 'group'</code> 分组标题为次要色 <code>--auto-secondary-color</code>（含 dark 兜底链）；
+          折叠态无图标的分组标题不渲染
+        </p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">
+          padding 同步作用于弹层面板（popLevel 弹层：展开一级后 hover 子项）
+          <button class="ctrl" type="button" style="float: right" @click="fold3 = !fold3">{{ fold3 ? '展开' : '折叠' }}</button>
+        </div>
+        <div class="auto-card-body col" style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start">
+          <x-menu :items="pop" pop-level="1" padding="0.75em" :collapsed="fold3" collapsed-width="56"></x-menu>
+          <x-menu :items="pop" pop-level="1" :padding="0" :collapsed="fold3" collapsed-width="56"></x-menu>
+        </div>
+        <p class="hint">
+          点击「更多操作」展开缩进子组，再 hover 其中带子菜单的项弹出——弹层面板在 overlay 容器、
+          CSS 继承断，padding 经 popover props 管道显式下传，弹层内边距与本体一致（递归面板逐层传递）；
+          折叠态子菜单全部弹层（hover 一级项即弹出，无需展开）
+        </p>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.body, {
+        fold1: false,
+        fold2: false,
+        fold3: false,
+        menu: [
+          { key: 'home', label: '首页', icon: 'file' },
+          { key: 'nav', label: '导航', icon: 'folder', children: [{ key: 'n1', label: '指令' }, { key: 'n2', label: '组件' }] },
+          { key: 'set', label: '设置', icon: 'copy' },
+        ],
+        grouped: [
+          { type: 'group', title: '常用', icon: 'bell' },
+          { key: 'home', label: '首页', icon: 'file' },
+          { key: 'nav', label: '导航', icon: 'folder' },
+          '-',
+          { type: 'group', title: '系统', icon: 'folder' },
+          { key: 'set', label: '设置', icon: 'copy' },
+          { key: 'about', label: '关于' },
+        ],
+        pop: [
+          {
+            key: 'ops',
+            label: '更多操作',
+            icon: 'more',
+            children: [
+              {
+                key: 'file',
+                label: '文件组',
+                icon: 'folder',
+                children: [
+                  { key: 'share', label: '分享', icon: 'share' },
+                  '-',
+                  { key: 'rename', label: '重命名', icon: 'edit' },
+                  { key: 'archive', label: '归档', icon: 'folder' },
+                ],
+              },
+              { key: 'home', label: '首页', icon: 'file' },
+            ],
+          },
+          { key: 'set', label: '设置', icon: 'copy' },
+        ],
+      });
+    </script>
+  </body>
+</html>

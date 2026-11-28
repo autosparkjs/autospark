@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>menu 典型网站顶部导航</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <style>
+      .hint {
+        color: var(--auto-secondary-color, #868e96);
+        font-size: 13px;
+        margin: 8px 0 0;
+      }
+      button.ctrl {
+        padding: 4px 10px;
+        cursor: pointer;
+      }
+      .auto-card-header > button.ctrl {
+        flex-grow: 0 !important;
+        margin-left: auto;
+      }
+      .site {
+        border: 1px solid var(--auto-border-color, #e9ecef);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--auto-bgcolor, #fff);
+      }
+      .site-header {
+        border-bottom: 1px solid var(--auto-border-color, #e9ecef);
+      }
+      .site-header .asc-menu {
+        border: 0;
+      }
+      .nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .nav-search {
+        width: 160px;
+        padding: 5px 10px;
+        border: 1px solid var(--auto-border-color, #dee2e6);
+        border-radius: 999px;
+        background: var(--auto-bgcolor, #fff);
+        color: var(--auto-color, #333);
+        font-size: 13px;
+        outline: none;
+      }
+      .nav-btn {
+        padding: 5px 14px;
+        border: 0;
+        border-radius: 6px;
+        background: var(--auto-primary-color, #009aff);
+        color: #fff;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .hero {
+        padding: 48px 24px;
+        text-align: center;
+        background: var(--auto-third-bgcolor, #f8f9fa);
+      }
+      .hero h1 {
+        margin: 0 0 10px;
+        font-size: 28px;
+        color: var(--auto-color, #212529);
+      }
+      .hero p {
+        margin: 0;
+        color: var(--auto-secondary-color, #868e96);
+      }
+      .features {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        padding: 20px 24px 28px;
+      }
+      .feature {
+        padding: 18px;
+        border: 1px solid var(--auto-border-color, #e9ecef);
+        border-radius: 8px;
+      }
+      .feature b {
+        display: block;
+        margin-bottom: 6px;
+      }
+      .feature span {
+        font-size: 13px;
+        color: var(--auto-secondary-color, #868e96);
+      }
+      @media (max-width: 640px) {
+        .features {
+          grid-template-columns: 1fr;
+        }
+        .nav-search {
+          width: 100px;
+        }
+      }
+    </style>
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.menu.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">
+          典型网站顶部导航（品牌 Logo + 多级下拉 + 右侧操作 + 紧凑模式切换）
+          <button class="ctrl" type="button" style="float: right" @click="compact = !compact">
+            {{ compact ? '展开导航' : '紧凑模式' }}
+          </button>
+        </div>
+        <div class="auto-card-body" style="padding: 0">
+          <div class="site">
+            <header class="site-header">
+              <x-menu
+                mode="horizontal"
+                :items="nav"
+                :logo="brand"
+                :collapsed="compact"
+                slot-dir="horizontal"
+                :value="active"
+                @change="active = $event.detail.value"
+              >
+                <template footer>
+                  <div class="nav-actions">
+                    <input class="nav-search" x-model="keyword" placeholder="搜索文档…" />
+                    <button class="nav-btn" type="button">登录</button>
+                  </div>
+                </template>
+              </x-menu>
+            </header>
+            <section class="hero">
+              <h1>{{ activeLabel }}</h1>
+              <p>
+                一个典型的网站顶部导航：左侧品牌、中间多级下拉、右侧操作区。点击叶子项（如「示例」），标题跟随激活态切换；带子菜单的项只展开下拉。
+              </p>
+            </section>
+            <div class="features">
+              <div class="feature">
+                <b>数据驱动</b><span>items 一处声明，整棵菜单树递归渲染</span>
+              </div>
+              <div class="feature">
+                <b>级联弹层</b><span>二级向下、三级起向右，hover / click 可切</span>
+              </div>
+              <div class="feature">
+                <b>主题联动</b><span>随右侧主题面板切换外观，含暗色态</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="hint">
+          品牌 Logo 走 logo 属性（direction: hori / shape: none），右侧搜索与登录按钮走 footer
+          作用域插槽，slotDir="horizontal" 让列表居中撑满。紧凑模式切换
+          collapsed：仅一级项收为图标、容器尺寸不变。
+        </p>
+      </div>
+    </main>
+    <script>
+      const BRAND_SVG =
+        "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect width='40' height='40' rx='10' fill='%23009aff'/><path d='M12 12h16M12 20h16M12 28h10' stroke='white' stroke-width='3' stroke-linecap='round'/></svg>";
+      new AutoSpark(document.body, {
+        compact: false,
+        keyword: "",
+        active: "home",
+        // 计算属性：按当前激活 key 在菜单树中查标签（写法同 logo 演示的 computed）
+        activeLabel: (s) => {
+          const walk = (list) => {
+            for (const it of list) {
+              if (it.key === s.active) return it.label;
+              const kids = Array.isArray(it.children)
+                ? it.children
+                : it.children && it.children.children;
+              if (kids) {
+                const found = walk(kids);
+                if (found) return found;
+              }
+            }
+            return "";
+          };
+          return walk(s.nav) || "首页";
+        },
+        brand: { icon: BRAND_SVG, title: "AutoSpark", direction: "hori", shape: "none" },
+        nav: [
+          { key: "home", label: "首页", icon: "file" },
+          {
+            key: "docs",
+            label: "文档",
+            icon: "folder",
+            children: {
+              title: "文档中心",
+              closeable: true,
+              children: [
+                { key: "quick", label: "快速入门" },
+                {
+                  key: "engine",
+                  label: "引擎",
+                  children: [{ key: "reactivity", label: "响应式系统" }],
+                },
+                "-",
+                { key: "adr", label: "ADR 索引" },
+              ],
+            },
+          },
+          {
+            key: "components",
+            label: "组件",
+            icon: "copy",
+            children: [
+              { key: "general", label: "通用" },
+              {
+                key: "nav-comps",
+                label: "导航",
+                children: [
+                  { key: "menu", label: "菜单 Menu" },
+                  { key: "tabs", label: "标签页 Tabs" },
+                ],
+              },
+              { key: "form-comps", label: "表单" },
+            ],
+          },
+          { key: "examples", label: "示例", icon: "star" },
+          { key: "blog", label: "博客", icon: "edit" },
+          {
+            key: "account",
+            label: "我的账户",
+            icon: "key",
+            children: [
+              { key: "profile", label: "个人资料" },
+              { key: "settings", label: "账号设置" },
+              "-",
+              { key: "logout", label: "退出登录" },
+            ],
+          },
+        ],
+      });
+    </script>
+  </body>
+</html>

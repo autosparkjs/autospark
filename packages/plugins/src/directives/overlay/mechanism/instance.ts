@@ -11,6 +11,9 @@ import { applyAnchorPosition, resolveAnchorEl, OVERLAY_ARROW_CLASS } from "./anc
 import { unregisterInstance } from "./registry";
 import {
     normalizeAtConfig,
+    resolvePanelSizeValue,
+    buildLoadingMinExpr,
+    PANEL_SIZE_KEYS,
     type OverlayAnchorConfig,
     type OverlayConfig,
     type OverlayEventDetail,
@@ -257,6 +260,12 @@ export class OverlayInstance {
     private _suspended = false;
     /** 已挂载的内容宿主产物（destroyContent 摘除用） */
     private _contentHost: HTMLElement | null = null;
+    /**
+     * 面板尺寸四键校验产物（ADR-0035）：构建期经 {@link resolvePanelSizeValue} 归一后的
+     * inline 值（null = 该键未声明或非法忽略）——面板写入 / loading 占位钳制 / fit 互斥
+     * 三消费面共享（重开重建时重算；keepalive 恢复不重算——inline 存活，ADR-0035 决策 3）。
+     */
+    private _sizeDecl: Record<(typeof PANEL_SIZE_KEYS)[number], string | null> | null = null;
 
     constructor(
         engine: AutoSpark<any>,
@@ -554,8 +563,8 @@ export class OverlayInstance {
         this.boundaryMask.show();
         boundary.style.cssText =
             "position:relative;" +
-            "min-width:var(--autospark-overlay-loading-min-width, 240px);" +
-            "min-height:var(--autospark-overlay-loading-min-height, 120px);";
+            `min-width:${this._loadingMinExpr("width")};` +
+            `min-height:${this._loadingMinExpr("height")};`;
         const scope = new (autoSparkScope())(this.engine, boundary, boundary);
         this.engine.scopes.set(new WeakRef(boundary), scope);
         this.boundary = boundary;
@@ -577,8 +586,65 @@ export class OverlayInstance {
         const boundary = this.boundary;
         if (!boundary) return;
         this.boundaryMask?.show();
-        boundary.style.minWidth = "var(--autospark-overlay-loading-min-width, 240px)";
-        boundary.style.minHeight = "var(--autospark-overlay-loading-min-height, 120px)";
+        boundary.style.minWidth = this._loadingMinExpr("width");
+        boundary.style.minHeight = this._loadingMinExpr("height");
+    }
+
+    /**
+     * 尺寸四键校验归一（ADR-0035 决策 1）：config 现读 → {@link resolvePanelSizeValue}
+     * 逐键归一（非法值 warn 忽略）。drawer 消费面已在指令侧 `_resolveConfig` 剥离四键
+     * （决策 2），到达实例的声明只来自 dialog / popover / 命令式两形态。
+     */
+    private _resolveSizeDecl(): Record<(typeof PANEL_SIZE_KEYS)[number], string | null> {
+        const warn = (msg: string) =>
+            this.engine.logger.warn(`x-overlay "${this.name}": ${msg}（ADR-0035）`);
+        const decl = { width: null, height: null, maxWidth: null, maxHeight: null } as Record<
+            (typeof PANEL_SIZE_KEYS)[number],
+            string | null
+        >;
+        for (const key of PANEL_SIZE_KEYS) {
+            decl[key] = resolvePanelSizeValue(key, this.config[key], warn);
+        }
+        return decl;
+    }
+
+    /** 面板尺寸四键 inline 写入（ADR-0035 决策 3）：null 键跳过（缺省不写 / 非法已忽略）。
+     *  setProperty 须连字符名（驼峰名静默失效）；max-* 键与 CSS 属性名映射在此收口 */
+    private _applyPanelSize(panel: HTMLElement): void {
+        const decl = this._sizeDecl;
+        if (!decl) return;
+        const cssProps: Record<(typeof PANEL_SIZE_KEYS)[number], string> = {
+            width: "width",
+            height: "height",
+            maxWidth: "max-width",
+            maxHeight: "max-height",
+        };
+        for (const key of PANEL_SIZE_KEYS) {
+            const v = decl[key];
+            if (v != null) panel.style.setProperty(cssProps[key], v);
+        }
+    }
+
+    /**
+     * loading 占位最小尺寸钳制表达式（ADR-0035 决策 7）：纯函数 {@link buildLoadingMinExpr}
+     * 的实例薄壳（读 {@link _sizeDecl}）。
+     */
+    private _loadingMinExpr(axis: "width" | "height"): string {
+        return buildLoadingMinExpr(axis, this._sizeDecl);
+    }
+
+    /**
+     * fit 互斥的显式轴集合（ADR-0035 决策 4）：校验通过的声明轴（width/maxWidth 钉 width 轴、
+     * height/maxHeight 钉 height 轴）——fit 写主轴/清副轴前查集合，显式轴不写不清。全空返回
+     * undefined（省集合对象，fit 行为与现状完全一致）。
+     */
+    private _pinnedSizeAxes(): ReadonlySet<"width" | "height"> | undefined {
+        const decl = this._sizeDecl;
+        if (!decl) return undefined;
+        const pinned = new Set<"width" | "height">();
+        if (decl.width != null || decl.maxWidth != null) pinned.add("width");
+        if (decl.height != null || decl.maxHeight != null) pinned.add("height");
+        return pinned.size > 0 ? pinned : undefined;
     }
 
     /**
@@ -600,6 +666,9 @@ export class OverlayInstance {
 
     /** 构建：x-error 边界 + shell 挂载 + 级联订阅（探测间隙挂 parentScope，ADR-0123） */
     private _buildAndMount(): void {
+        // 0. 尺寸四键校验（ADR-0035）：先于边界与面板构建——loading 占位钳制（边界）与
+        //    面板 inline 写入共享同一份归一产物；非法值在此 warn 一次（重开重算重 warn）
+        this._sizeDecl = this._resolveSizeDecl();
         // 1. x-error 边界（兼加载锚）——shell 默认出口的 live 插槽段（ADR-0062 / ADR-0123）
         const boundary = this._makeBoundary();
         // 2. shell 面板构建 + 挂载 + 显示（live 段投影，ADR-0062）
@@ -691,6 +760,10 @@ export class OverlayInstance {
         // bare = 面板（shell 根）直挂容器。行为契约分工：实例根挂 animate/close 委托/遮罩点击；
         // 面板挂 data-overlay / data-overlay-border / placement 标记（floating-ui 定位目标）。
         panel.setAttribute("data-overlay", this.name);
+        // 面板尺寸四键 inline 写入（ADR-0035 决策 3）：声明轴写 shell 根——声明式与命令式
+        // 共享本路径（家族通用的结构前提）；缺省键不写（保持 shrink-wrap），非法值已在
+        // _resolveSizeDecl warn 忽略
+        this._applyPanelSize(panel);
         // 面板 1px 边框（config.border，默认 true——无锚定也生效）：`data-overlay-border`
         // 标记挂面板根，视觉由 shell 样式承担（内置样式：border + 同色背景 + 圆角，箭头双层变色经子选择器联动）。
         if (this.config.border !== false) {
@@ -750,10 +823,12 @@ export class OverlayInstance {
             if (anchorEl && anchorCfg) {
                 if (anchorCfg.arrow === false) arrowEl?.remove();
                 // fit：面板尺寸跟随宿主（声明式 searchRoot = 指令宿主 this.el）——按最终
-                // placement 主向自动选轴（左右→高度、上下→宽度），autoUpdate 重算持续生效
+                // placement 主向自动选轴（左右→高度、上下→宽度），autoUpdate 重算持续生效；
+                // 轴级互斥（ADR-0035 决策 4）：显式声明轴（校验通过的）fit 不写不清，
+                // fit 只接管未声明轴
                 const anchorOpts =
                     this.config.fit && this.searchRoot
-                        ? { fitToEl: this.searchRoot }
+                        ? { fitToEl: this.searchRoot, fitPinnedAxes: this._pinnedSizeAxes() }
                         : undefined;
                 applyAnchorPosition(anchorCfg, anchorEl, this._panel!, (fn) =>
                     this._cleanups.push(fn),

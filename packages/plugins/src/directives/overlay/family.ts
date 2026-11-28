@@ -33,6 +33,7 @@ import { resolveResizeConstraints } from "../../utils/resizeSession";
 import { setVal } from "../../utils/setVal";
 import { isSimpleStatePath } from "../../utils/isSimpleStatePath";
 import { normalizeAtConfig } from "./mechanism/types";
+import { PANEL_SIZE_KEYS } from "./mechanism/types";
 import { resolveAnchorEl } from "./mechanism/anchor";
 import { getOverlayContainer } from "../../utils/getOverlayContainer";
 import { createCollapseTrigger } from "../../utils/expandable-trigger";
@@ -1784,6 +1785,17 @@ export function createOverlayDirectives(
             const userAnimated =
                 optionLayer.animate !== undefined || this._optionExprValues?.animate !== undefined;
             const config = super._resolveConfig(optionLayer);
+            // 尺寸四键剥离（ADR-0035 决策 2）：drawer 尺寸由贴边定位器全管——长轴恒铺满
+            // （锚边长/视口）、短轴自有 size 通道，固定面板尺寸与形态语义相反；剥离 + warn
+            // （失效可发现）。命令式通道无 drawer 形态，此处即全覆盖。
+            for (const key of PANEL_SIZE_KEYS) {
+                if (config[key] != null) {
+                    config[key] = undefined;
+                    this.warn(
+                        `x-drawer:${this.attr}: ${key} 不受支持（drawer 尺寸走 size 选项，ADR-0035），已忽略`,
+                    );
+                }
+            }
             this._config = config;
             if (!userAnimated) config.animate = "drawer";
             config.closeable ??= false;

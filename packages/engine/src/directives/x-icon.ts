@@ -6,6 +6,7 @@ import {
     ICON_CIRCLE_CLASS,
     ICON_RADIUS_CLASS,
     ICON_BUTTON_CLASS,
+    ICON_THEME_CLASS,
     GLOBAL_SYMBOL_PREFIX,
     DEFAULT_ICON_STROKE_WIDTH,
     ICON_NAME_RE,
@@ -24,12 +25,15 @@ const shapeWarned = new Set<string>();
 /** rotate 无效值 warn 按 String(v) 去重（动态重渲染不刷屏） */
 const rotateWarned = new Set<string>();
 
+/** theme 无效值 warn 按 String(v) 去重（动态重渲染不刷屏） */
+const themeWarned = new Set<string>();
+
 /** rotate 动画 transition（常驻 svg 载体；时长经 --as-icon-rotate-duration 令牌可覆盖，不新增选项键） */
 const ICON_ROTATE_TRANSITION = "transform var(--as-icon-rotate-duration, 0.3s) ease";
 
 /**
  * 静态样式型选项键：成员表达式值变化时重放 `_applyStaticStyle`（表达式通道热应用）。
- * `circle` / `radius` 为修饰符快捷形态键（并入选项层后与 shape 等价）。
+ * `circle` / `radius` / `theme` 为修饰符快捷形态键（并入选项层后与显式声明等价）。
  */
 const ICON_STYLE_OPTION_KEYS = new Set([
     "size",
@@ -37,6 +41,7 @@ const ICON_STYLE_OPTION_KEYS = new Set([
     "padding",
     "strokeWidth",
     "shape",
+    "theme",
     "button",
     "pointer",
     "circle",
@@ -56,7 +61,8 @@ const ICON_STYLE_OPTION_KEYS = new Set([
  * 覆盖（原 `background-color` 语义随 mask 下线，ADR-0058 决策 6）；`strokeWidth` 经
  * `--as-icon-sw` 变量（收集期已剥离全部 stroke-width，CSS 继承覆盖永远可靠）；`size` /
  * `padding` / `shape` / `button` / `pointer` 为盒模型层选项（`shape` 底板形态枚举 +
- * `--auto-*` theme 令牌对接，ADR-0135；ADR-0049 载体动效不受影响）；`rotate` 旋转选项
+ * `--auto-*` theme 令牌对接，ADR-0135；ADR-0049 载体动效不受影响）；`theme` 主题强调
+ * 形态（挂类承载，显式 color 恒赢，ADR-0135 决策五）；`rotate` 旋转选项
  * （svg 载体应用 + transition 动画，见 `_applyRotate`）。
  */
 export class IconDirective extends AutoSparkDirectiveBase {
@@ -242,14 +248,33 @@ export class IconDirective extends AutoSparkDirectiveBase {
     }
 
     /**
+     * theme 选项归一化（ADR-0135 决策五）：布尔开关——`true`（含修饰符 `.theme` 并入）
+     * 启用主题强调形态；未声明 / `false` / 空串（表单通道形态）不启用；其余类型 warn
+     * 剪枝按未启用（按 String(v) 去重，对齐 shape / rotate 先例）。显式 `color` 声明时
+     * 由调用方退位（显式恒赢——浓板联动接管，theme 类不挂）。
+     */
+    private _theme(): boolean {
+        const v = this._opt("theme");
+        if (v === true) return true;
+        if (v == null || v === false || v === "") return false;
+        const key = String(v);
+        if (!themeWarned.has(key)) {
+            themeWarned.add(key);
+            this.warn(`theme 选项 "${key}" 无效：仅支持布尔 true（修饰符 .theme），已忽略`);
+        }
+        return false;
+    }
+
+    /**
      * 选项静态样式（每次渲染重放，对称写/清——全局配置变更可回收旧值）：
      * size 默认 `var(--auto-icon-size,1em)` 走基础规则（theme 令牌，ADR-0135）、padding
      * 默认无、color 默认 currentColor（继承），均为显式声明才内联。strokeWidth：与生效
      * 默认一致零内联（基础规则 `var(--as-icon-sw,1.25)` 兜底），非默认才内联变量覆盖。
      * 修饰：shape 挂形态修饰类（规则常驻基础样式表，板距默认经 `var(--auto-padding,0.3em)`
-     * 令牌承接）；button 挂修饰类（载体动效，ADR-0049——有板挂 wrapper 作用于板、无板
-     * 挂宿主作用于图形，载体唯一不双挂）；pointer 内联 cursor。读取走四级配置链
-     * （指令 > 宿主 > 全局 > 内置）。
+     * 令牌承接）；theme 挂强调修饰类（宿主恒挂 + 板形态 wrapper 双挂，显式 color 在场
+     * 退位，ADR-0135 决策五）；button 挂修饰类（载体动效，ADR-0049——有板挂 wrapper
+     * 作用于板、无板挂宿主作用于图形，载体唯一不双挂）；pointer 内联 cursor。读取走四级
+     * 配置链（指令 > 宿主 > 全局 > 内置）。
      */
     private _applyStaticStyle(): void {
         const el = this.el;
@@ -290,6 +315,10 @@ export class IconDirective extends AutoSparkDirectiveBase {
         const colorCss = typeof color === "string" && color.trim() !== "" ? color : null;
         if (colorCss) el.style.color = colorCss;
         else el.style.removeProperty("color");
+        // theme 挂类（ADR-0135 决策五）：主题强调形态颜色全走类规则（零内联）；显式
+        // color 恒赢——colorCss 在场即退位不挂类（浓板联动接管，防类规则实心板残留）
+        const wantTheme = this._theme() && !colorCss;
+        el.classList.toggle(ICON_THEME_CLASS, wantTheme);
         // 包裹层调度（幂等，对称写/清——全局配置变更拆包/重包均收敛）
         this.engine.scheduler.schedule(() => {
             if (this.destroyed) return;
@@ -297,6 +326,8 @@ export class IconDirective extends AutoSparkDirectiveBase {
             if (shape === null) return; // 未启用：拆包还原即收敛（wrapper 消亡，浓板变量随之回收）
             const w = this.el?.parentElement;
             if (!w) return;
+            // wrapper 双挂 theme 类（实心板 background 规则的命中条件；退位/关闭对称摘）
+            w.classList.toggle(ICON_THEME_CLASS, wantTheme);
             if (wrapPad) w.style.padding = wrapPad;
             else w.style.removeProperty("padding");
             // 浓板联动（ADR-0135 决策三）：指定 color 时底板同色相 8% 浓度——色与浓度都

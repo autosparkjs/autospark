@@ -12,10 +12,21 @@
         [data-overlay] {
             position: relative;
             border-radius: var(--auto-border-radius, var(--autospark-overlay-radius, 0.5rem));
+            /* 高度传导（ADR-0035 决策 6）：height/maxHeight 声明时沿 flex 链传导至
+               .autospark-overlay-body（overflow:auto）——箭头载体 absolute 脱离 flex 流
+               不受影响；无声明时容器高度 auto、flex 子项按内容撑开，行为与 block 等价 */
+            display: flex;
+            flex-direction: column;
         }
         .autospark-popover > .autospark-popover-content {
             position: relative;
             z-index: var(--autospark-overlay-z, 1000);
+            /* 高度传导中段（ADR-0035 决策 6）：shell 根 flex 子项（收缩允许）+ 自身 flex
+               容器（化身根 flex:1 充满）双角色 */
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
         }
         [data-overlay][data-overlay-border] {
             border: 1px solid var(--auto-border-color, var(--autospark-overlay-border, #f0f0f0));

@@ -339,6 +339,17 @@ describe("x-icon 渲染语义（ADR-0058 决策 1/2/11）", () => {
         expect(sheet).toContain(".as-icon-radius{border-radius:var(--auto-border-radius,4px)}");
         expect(sheet).toContain(".as-icon.as-icon-button:hover{filter:brightness(.75)}");
         expect(sheet).toContain("box-sizing:content-box"); // 排版免疫
+        // theme 强调形态规则（ADR-0135 决策五）：无板图形色 / wrapper 实心板 / 板内后代压回恒白 / button 黑系加深
+        // （板回退中性深板——与恒白图形构成令牌缺失时的恒可见配对，防 currentColor 同色隐形）
+        expect(sheet).toContain(".as-icon-theme{color:var(--auto-theme-color,currentColor)}");
+        expect(sheet).toContain(
+            ".as-icon-circle.as-icon-theme,.as-icon-radius.as-icon-theme{background:var(--auto-theme-color,#333)}",
+        );
+        expect(sheet).toContain(
+            ".as-icon-circle .as-icon-theme,.as-icon-radius .as-icon-theme{color:#fff}",
+        );
+        expect(sheet).toContain("color-mix(in srgb,var(--auto-theme-color,#333),#000 10%)");
+        expect(sheet).toContain("color-mix(in srgb,var(--auto-theme-color,#333),#000 15%)");
         expect(sheet).toContain("aspect-ratio:1");
     });
 
@@ -831,6 +842,85 @@ describe("x-icon 修饰选项（shape / pointer / button，ADR-0049/0135）", ()
         expect(el.classList.contains("as-icon-button")).toBe(false);
         iconRegistry.options = { button: true };
         expect(el.classList.contains("as-icon-button")).toBe(true);
+    });
+});
+
+describe("x-icon theme 主题强调形态（ADR-0135 决策五）", () => {
+    test("无 shape：宿主挂 as-icon-theme 类，颜色走类规则（零内联）", async () => {
+        const { root } = mount(`${iconsTpl(svg("t1", "M1"))}<span x-icon.theme="t1"></span>`, {});
+        await nextTick();
+        const el = root.querySelector(".as-icon") as HTMLElement;
+        expect(el.classList.contains("as-icon-theme")).toBe(true);
+        expect(el.style.color).toBe(""); // 主题色经类规则 var(--auto-theme-color) 承载
+        expect(el.parentElement!.classList.contains("as-icon-theme")).toBe(false); // 无板不包 wrapper
+    });
+
+    test("theme + shape：wrapper 双挂形态类 + theme 类（实心板），--as-icon-mix 不写", async () => {
+        const { root } = mount(`${iconsTpl(svg("t2", "M2"))}<span x-icon.theme.circle="t2"></span>`, {});
+        await nextTick();
+        const el = root.querySelector(".as-icon") as HTMLElement;
+        const w = el.parentElement!;
+        expect(el.classList.contains("as-icon-theme")).toBe(true); // 宿主恒挂（板内图形色由后代规则接管）
+        expect(w.classList.contains("as-icon-circle")).toBe(true);
+        expect(w.classList.contains("as-icon-theme")).toBe(true); // wrapper 双挂（实心板 background 规则命中条件）
+        expect(w.style.getPropertyValue("--as-icon-mix")).toBe(""); // 实心板不吃浓度变量
+        expect(w.style.color).toBe(""); // 板内图形色走类规则（恒白后代选择器）
+    });
+
+    test("显式 color 恒赢：theme 退位不挂类（宿主与 wrapper 均摘），浓板联动照旧", async () => {
+        const { root } = mount(
+            `${iconsTpl(svg("t3", "M3"))}<span x-icon.circle.theme="t3" x-icon-options="{color:'#f03d5e'}"></span>`,
+            {},
+        );
+        await nextTick();
+        const el = root.querySelector(".as-icon") as HTMLElement;
+        const w = el.parentElement!;
+        expect(el.classList.contains("as-icon-theme")).toBe(false); // 退位：类不挂（防实心板规则残留）
+        expect(w.classList.contains("as-icon-theme")).toBe(false);
+        expect(el.style.color).toBe("#f03d5e"); // 显式色接管图形色
+        expect(w.style.color).toBe("#f03d5e"); // 浓板联动（决策三）照旧
+        expect(w.style.getPropertyValue("--as-icon-mix")).toBe("8%");
+    });
+
+    test("值形态：false / 空串不启用零副作用；非法值 warn 剪枝不挂类", async () => {
+        const { root: r1 } = mount(
+            `${iconsTpl(svg("t4", "M4"))}<span x-icon="t4" x-icon-options="{theme:false}"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(r1.querySelector(".as-icon")!.classList.contains("as-icon-theme")).toBe(false);
+        const { root: r2 } = mount(
+            `${iconsTpl(svg("t5", "M5"))}<span x-icon="t5" x-icon-options="{theme:'yes'}"></span>`,
+            {},
+        );
+        await nextTick();
+        expect(r2.querySelector(".as-icon")!.classList.contains("as-icon-theme")).toBe(false);
+    });
+
+    test("成员表达式热应用：theme 切换挂/摘对称（shape 在场 wrapper 同步摘）", async () => {
+        const { root, engine } = mount(
+            `${iconsTpl(svg("t6", "M6"))}<span x-icon.circle="t6" x-icon-options:theme="on"></span>`,
+            { on: true },
+        );
+        await nextTick();
+        const el = root.querySelector(".as-icon") as HTMLElement;
+        expect(el.classList.contains("as-icon-theme")).toBe(true);
+        expect(el.parentElement!.classList.contains("as-icon-theme")).toBe(true);
+
+        (engine.store.state as any).on = false;
+        await nextTick();
+        expect(el.classList.contains("as-icon-theme")).toBe(false);
+        expect(el.parentElement!.classList.contains("as-icon-theme")).toBe(false);
+    });
+
+    test("全局配置链：icons.options.theme 整体赋值广播生效", async () => {
+        const { root } = mount(`${iconsTpl(svg("t7", "M7"))}<span x-icon="t7"></span>`, {});
+        await nextTick();
+        const el = root.querySelector(".as-icon") as HTMLElement;
+        expect(el.classList.contains("as-icon-theme")).toBe(false);
+        iconRegistry.options = { theme: true };
+        await nextTick();
+        expect(el.classList.contains("as-icon-theme")).toBe(true);
     });
 });
 

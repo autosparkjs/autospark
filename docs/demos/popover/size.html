@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>x-popover · 面板尺寸（width / height / maxWidth / maxHeight）</title>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <link rel="stylesheet" href="/autospark/bulma.min.css" />
+    <style>
+      .pop-panel {
+        font-size: 11px;
+        line-height: 1.6;
+      }
+      .size-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        max-width: 640px;
+        margin: 0 auto;
+      }
+      .size-col {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+      }
+      .size-col-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #7a7a7a;
+      }
+      .size-note {
+        font-size: 11px;
+        color: #7a7a7a;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 尺寸四键（ADR-0035）：左列固定尺寸（width/height），右列封顶（maxWidth/maxHeight——
+         内容少时收缩贴合、多时封顶滚动）。值 number 按 px、CSS 长度串直写；打开时 inline
+         写入面板外壳根、重开生效；缺省不写（默认收缩贴合内容）。 -->
+    <div class="demo-app section">
+      <div x-data>
+        <div class="block">
+          <div class="size-grid">
+            <div class="size-col">
+              <div class="size-col-title">固定尺寸（width / height）</div>
+              <button
+                class="button is-light"
+                x-popover:sizebox
+                x-popover-options="{delayShow: 0, delayHide: 0, width: 280}"
+              >
+                width: 280
+              </button>
+              <button
+                class="button is-light"
+                x-popover:sizebox
+                x-popover-options="{delayShow: 0, delayHide: 0, width: 280, height: 160}"
+              >
+                width: 280 + height: 160
+              </button>
+              <button
+                class="button is-light"
+                x-popover:sizebox
+                x-popover-options="{delayShow: 0, delayHide: 0, width: '60%', maxHeight: 200}"
+              >
+                width: '60%'（视口百分比）
+              </button>
+              <div class="size-note">
+                内容超出固定高度时由 body 区滚动（hover 面板内滚动条可滚）
+              </div>
+            </div>
+            <div class="size-col">
+              <div class="size-col-title">封顶（maxWidth / maxHeight）</div>
+              <button
+                class="button is-light"
+                x-popover:sizemax
+                x-popover-options="{delayShow: 0, delayHide: 0, maxWidth: 200}"
+                x-popover-options.props="{note: '短内容：面板收缩贴合。'}"
+              >
+                maxWidth: 200（短内容收缩贴合）
+              </button>
+              <button
+                class="button is-light"
+                x-popover:sizemax
+                x-popover-options="{delayShow: 0, delayHide: 0, maxWidth: 200}"
+                x-popover-options.props="{note: '这是一段较长的内容：maxWidth 封顶后面板宽度停在 200px，文本在面板内自动换行，不再随内容无限变宽——内容少时仍然收缩贴合。'}"
+              >
+                maxWidth: 200（长内容封顶换行）
+              </button>
+              <button
+                class="button is-light"
+                x-popover:sizescroll
+                x-popover-options="{delayShow: 0, delayHide: 0, maxHeight: 180}"
+              >
+                maxHeight: 180（长内容封顶滚动）
+              </button>
+              <div class="size-note">
+                内容少时面板收缩贴合内容；撑破封顶值时停止增长、超出部分滚动
+              </div>
+            </div>
+          </div>
+
+          <div x-define="sizebox">
+            <div class="pop-panel">
+              面板外壳根被写入 inline 尺寸——面板不再收缩贴合内容，宽度与高度按声明值固定。
+            </div>
+          </div>
+
+          <div x-define="sizemax">
+            <div class="pop-panel" x-text="note"></div>
+          </div>
+
+          <div x-define="sizescroll">
+            <div class="pop-panel">
+              1. 首行：长内容在封顶高度内滚动<br />
+              2. 第二行内容较长，用于撑出滚动行为<br />
+              3. 第三行内容继续增加总高度<br />
+              4. 第四行：面板高度停在 maxHeight，body 区出现滚动条<br />
+              5. 第五行：滚动到底可见<br />
+              6. 第六行：内容行<br />
+              7. 第七行：内容行<br />
+              8. 第八行：内容行<br />
+              9. 第九行：内容行<br />
+              10. 末行：滚动终点
+            </div>
+          </div>
+
+          <div class="block has-text-grey is-size-7" style="margin-top: 8px">
+            四键为覆盖物家族通用配置（x-dialog / 命令式
+            <code>getOverlay</code> 同键可用；x-drawer 不支持——warn 忽略）。与
+            <code>fit</code> 轴级互斥：声明了的轴 <code>fit</code>
+            不写也不清，显式声明优先（ADR-0035）。
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new AutoSparkSpaces.AutoSpark(document.querySelector(".demo-app"), {});
+    </script>
+  </body>
+</html>

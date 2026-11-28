@@ -5,7 +5,11 @@
     head / title / foot，也不再有 slotDir 弹层内分区（slotDir 收缩为仅根菜单本体）。
 
     数据经 props 注入（2026-11-24 实测：props 对象包数组完好、面板内 x-component 正常，
-    v2 的「沿宿主链读」废弃）：`{ submenu: { children, ...popover 键 }, effWidth, collapsed, mode }`。
+    v2 的「沿宿主链读」废弃）：`{ submenu: { children, ...popover 键 }, effWidth, collapsed, mode, padding }`。
+    effWidth = 弹层等宽源（menu 本体**实测宽**——展开态 ResizeObserver 持续跟随，折叠态沿用
+    展开宽不写 48；垂直模式 >0 即三键等宽，水平弹层内容自适应）。
+    padding = main / 面板内边距（menu 下传的格式化 CSS 字符串，面板在 overlay 容器、
+    CSS 继承断须 props 显式传；空 = 不写回落样式表）。
     面板仍是纯桥：data 不接业务键，业务数据全部走 props 注入域。
 
     子项弹层递归：子项 entry 直接引用同一组件（x-popover:autospark-menu-panel），
@@ -82,7 +86,7 @@
   <div
     class="asc-menu-panel"
     tabindex="0"
-    :style="mode !== 'horizontal' && !collapsed && effWidth > 0 ? { width: effWidth + 'px', minWidth: effWidth + 'px', maxWidth: effWidth + 'px' } : null"
+    :style="{ ...(mode !== 'horizontal' && effWidth > 0 ? { width: effWidth + 'px', minWidth: effWidth + 'px', maxWidth: effWidth + 'px' } : {}), ...(padding ? { padding: padding } : {}) }"
     @keydown="onKeydown($event)"
   >
     <div class="asc-menu-list" role="menu" x-for="child of submenu.children">
@@ -106,7 +110,7 @@
         @click="child.kids && child.kids.length ? 0 : (relayKey = child.key, relayKind = 'pick', relayTick = relayTick + 1)"
         x-popover:autospark-menu-panel
         x-popover-options="{ padding: 0, trigger: trigger, at: { arrow: false, offset: 4, placement: 'right-start' }, disabled: !(child.kids && child.kids.length), ...(child.conf || {}) }"
-        x-popover-options.props="{ submenu: { ...(child.conf || {}), children: child.kids }, effWidth: effWidth, collapsed: !!collapsed, mode: mode }"
+        x-popover-options.props="{ submenu: { ...(child.conf || {}), children: child.kids }, effWidth: effWidth, collapsed: !!collapsed, mode: mode, padding: padding }"
       >
         <div
           x-component:autospark.button="{

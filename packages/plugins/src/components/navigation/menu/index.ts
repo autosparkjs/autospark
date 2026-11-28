@@ -10,7 +10,10 @@
  * collapsed 布尔折叠（垂直 = 整菜单收窄为 collapsedWidth + 子级全弹层 / 水平 = 仅一级项
  * 只显示图标，ADR-0033 修订）；width / collapsedWidth 宽度 props（0 = 自适应填充）；
  * trigger（hover 缺省 | click）透传 popover；同级 check / icon 统一占位；完整键盘导航
- * （roving tabindex）；header / footer 插槽为作用域插槽（slotParams 形参，按需解构）。
+ * （roving tabindex）；header / footer 插槽为作用域插槽（slotParams 形参，按需解构）；
+ * padding（main / 弹层面板内边距，弹层经 props 管道下传）；logo（Logo 区——icon 图片 URL
+ * 或图标名一体两用、url 跳转、direction auto 容器查询二态、shape 裁剪、图无效首字符兜底、
+ * 折叠只留图标，slot=logo 内容段可重载，2026-11-25 特性扩展）。
  *
  * 旧 `<x-menu-item>` 组合式**硬移除不警告**（ADR-0033 决策 1，0.x breaking 惯例）：
  * 声明子元素静默摘除；裸 `items='[…]'` JSON 字符串走 data-items 通道延续（字面量数组
@@ -68,12 +71,13 @@ function mountMenuPlugin(autospark: typeof AutoSpark): void {
             for (const it of Array.from(el.children)) {
                 if (it.tagName.toLowerCase() === "x-menu-item") it.remove();
             }
-            // —— header / footer 插槽声明快捷形态归一：`<template header>` / `<template footer>`
-            // → 正典 `<template x-slot:header>`（属性值原值保留，即形参声明）——引擎只认 x-slot
-            // 标记，未标记的 template 会落入默认段而不渲染；仅认宿主直接子级，正典写法已在场则不动 ——
+            // —— header / footer / logo 插槽声明快捷形态归一：`<template header>` / `<template footer>`
+            // / `<template logo>` → 正典 `<template x-slot:名>`（属性值原值保留，即形参声明）——
+            // 引擎只认 x-slot 标记，未标记的 template 会落入默认段而不渲染；仅认宿主直接子级，
+            // 正典写法已在场则不动 ——
             for (const it of Array.from(el.children)) {
                 if (it.tagName.toLowerCase() !== "template") continue;
-                for (const name of ["header", "footer"]) {
+                for (const name of ["header", "footer", "logo"]) {
                     if (!it.hasAttribute(name)) continue;
                     const declared = it.getAttribute(name);
                     it.removeAttribute(name);

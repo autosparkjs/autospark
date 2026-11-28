@@ -539,6 +539,26 @@ engine.getOverlay(el, "tip").open({ at: { selector: btnEl, placement: "top" } })
 默认双伪元素方案对面板内容**零假设**（任意组件、任意视觉形状行为确定）。若您的面板视觉自持（不透明、无溢出浮层），可切换为更高质量的**连续阴影**：面板去掉 `box-shadow`、箭头覆盖层（`.autospark-overlay-arrow::after`）`display: none`，在面板自身挂 `filter: drop-shadow(...)`——阴影沿面板+箭头合成轮廓连续渐变。注意：`filter` 会使面板成为 `fixed` 后代的定位基准，且投影形状 = 内容合成像素轮廓（透明/溢出内容形状不可控）——这正是默认方案不采用它的原因。
 :::
 
+### 面板尺寸（width / height / maxWidth / maxHeight）
+
+四个尺寸键直接控制对话框面板的宽高（[ADR-0035](https://github.com/autosparkjs/autospark/blob/main/packages/plugins/docs/adr/0035-overlay-panel-size-keys.md)）：`width` / `height` 固定尺寸，`maxWidth` / `maxHeight` 封顶（内容少时收缩贴合、多时封顶滚动——长表单常用 `'60vh'`）。值 `number` 按 `px`，CSS 长度字符串（`'40%'` / `'20rem'`，纯数字串按 px）直写；打开时 inline 写入面板外壳根、**重开生效**（打开中的面板不热应用）；非法值 warn 后忽略。缺省不写 inline——面板默认收缩贴合内容。
+
+```html
+<button x-dialog:form="ui.show" x-dialog-options="{width: 480, maxHeight: '80vh'}"
+  @click="ui.show = true">打开表单</button>
+```
+
+行为细节（与 x-popover 一致，家族通用语义——命令式 `getOverlay` / `open()` 同键可用）：
+
+- **滚动承接**：`height` / `maxHeight` 生效且内容超出时，由骨架 body 区滚动（header / footer 固定不滚）；
+- **与 resize 拖拽**：拖拽会话中面板即时跟随手上尺寸；**重开回声明值**——声明是持久真相源（对话框不做拖出尺寸的会话记忆）；
+- **并存裁决**：`width` 与 `maxWidth`（或 height 系）并存时直接透传浏览器——`max-*` 小于固定值时封顶赢（CSS 天然语义）；
+- **加载占位**：打开瞬间的 loading 骨架有最小占位（240×120，`--autospark-overlay-loading-min-*` 变量可调）——声明值参与 `min()` 钳制，小尺寸声明不会在加载期被占位撑破。
+
+::: warning drawer 不支持
+尺寸四键对 `x-drawer` 不生效（warn + 忽略）——抽屉尺寸由贴边定位语义全管（长轴恒铺满、短轴走 `size` 选项）。
+:::
+
 `placement` 共 **12 个方向取值**（4 方向 × start / 居中 / end）：`top` / `top-start` / `top-end`、`bottom` / `bottom-start` / `bottom-end`、`left` / `left-start` / `left-end`、`right` / `right-start` / `right-end`；另有 **`'auto'`（默认值）**——经 floating-ui 的 autoPlacement 按视口可用空间自动选位（与 `flip` 互斥，省略 `placement` 即为 auto）。显式方向则固定该方向 + 视口翻转（`flip` 默认开）。上方 demo 中的**九宫格**（中央为锚点，点击以锚点定位、按标注 placement 弹出）演示了全部取值。
 
 ::: warning flip 与演示语义
@@ -729,7 +749,11 @@ handle.close(); // 关该覆盖物当前「全部」打开实例
 | `key`         | 无                | —      | 保活缓存命名空间（表达式）：缓存身份 = `组件名 + key + url` 复合，同键复用、异键并存；见[多实例与 key](#多实例与-key)                        |
 | `url`         | 无                | —      | 组件未注册时打开走远程加载（组件优先 / 片段兜底）；见[远程加载（url）](#远程加载url)                                                         |
 | `at`          | 无（居中）        | —      | 贴锚定位（floating-ui）：字符串 / 元素简写（≡ `{selector}`，进链前归一化——只覆盖 selector、保留上层其余锚成员）或完整锚配置对象，成员见下表 |
-| `fit`         | `false`           | —      | 面板尺寸跟随宿主：左右弹出 → 高度与宿主一致、上下弹出 → 宽度与宿主一致（跟随翻转后最终方向）；**仅 `at` 锚定生效**（居中形态忽略），见 ADR-0099 |
+| `fit`         | `false`           | —      | 面板尺寸跟随宿主：左右弹出 → 高度与宿主一致、上下弹出 → 宽度与宿主一致（跟随翻转后最终方向）；**仅 `at` 锚定生效**（居中形态忽略），见 ADR-0099；与显式 `width`/`height` 轴级互斥——声明轴 fit 不写不清（ADR-0035） |
+| `width`       | 无（不写 inline） | —      | 面板固定宽度：`number`（px）或 CSS 长度串（`'40%'`/`'20rem'`，纯数字串按 px）；打开时 inline 写面板外壳根、重开生效；非法值 warn 忽略；见[面板尺寸](#面板尺寸-width--height--maxwidth--maxheight) |
+| `height`      | 无（不写 inline） | —      | 面板固定高度：值域同 `width`；内容超出由骨架 body 区滚动（header/footer 不滚） |
+| `maxWidth`    | 无（不写 inline） | —      | 面板最大宽度：内容少时收缩贴合、多时封顶；与 `width` 并存透传 CSS 裁决（max 小则 max 赢） |
+| `maxHeight`   | 无（不写 inline） | —      | 面板最大高度：同 `maxWidth` 高度轴（长表单常用 `'60vh'`/`'80vh'`） |
 
 **`at` 成员**（声明式经 `x-dialog-options` 整包或 `x-dialog-options.at` 成员属性配置；命令式经 `open({ at })` 顶层覆盖）：
 

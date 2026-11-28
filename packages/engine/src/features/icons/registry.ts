@@ -33,12 +33,15 @@ export const ICON_CIRCLE_CLASS = "as-icon-circle";
 export const ICON_RADIUS_CLASS = "as-icon-radius";
 /** button 修饰类名（保留名——`button` 选项挂类承载，规则常驻基础样式表，ADR-0049） */
 export const ICON_BUTTON_CLASS = "as-icon-button";
+/** theme 修饰类名（保留名——`theme` 选项挂类承载，主题强调形态，ADR-0135 决策五） */
+export const ICON_THEME_CLASS = "as-icon-theme";
 /** 保留名集合（ADR-0046 决策 10 沿用） */
 const RESERVED_NAMES = new Set([
     ICON_BASE_CLASS,
     ICON_CIRCLE_CLASS,
     ICON_RADIUS_CLASS,
     ICON_BUTTON_CLASS,
+    ICON_THEME_CLASS,
 ]);
 
 export type IconChangeAction = "add" | "delete" | "options";
@@ -56,6 +59,12 @@ export interface IconOptions {
      * 板距走「显式 padding 选项 > `var(--auto-padding,0.3em)`」（仅启用态，无板即无板距）。
      */
     shape?: "none" | "circle" | "radius";
+    /**
+     * 修饰：主题强调形态（ADR-0135 决策五）——无板时图形取 `--auto-theme-color`；配 shape
+     * 时成双色调板（板实心主题色、图形恒白色，明暗两模式恒反差）。**显式 `color` 恒赢**：
+     * color 声明即接管颜色调度（浓板联动照旧），theme 退位不挂类。修饰符快捷 `.theme`。
+     */
+    theme?: boolean;
     /** 修饰：图标按钮——hover/press 交互动效（载体动效型，隐含 pointer，ADR-0049） */
     button?: boolean;
     /** 修饰：手型光标（`cursor: pointer`，可点击语义） */
@@ -238,6 +247,33 @@ const BUTTON_SHAPE_RULE =
     "{background:color-mix(in srgb,currentColor calc(var(--as-icon-mix,5%) + 10%),transparent);" +
     "transform:scale(.94)}";
 
+/**
+ * theme 修饰规则（`theme` 选项，常驻基础样式表，ADR-0135 决策五）：主题强调形态——无板
+ * 宿主图形取主题色令牌；配 shape 时 wrapper（双挂本类）板色实心主题色，板内宿主图形经
+ * **后代选择器**（0,2,0）压回**恒定白色**（实心主题板上图形不随页面底色/文字色变化，
+ * 明暗两模式恒反差；元素自身 0,1,0 规则恒胜继承，无此规则板内图形会残留无板分支的
+ * 主题色）。令牌缺失兜底（theme 不在场）：无板图形回退 currentColor（随文字色
+ * 无隐形面）；板回退中性深板 #333——与白色图形构成恒可见配对（currentColor 回退会在
+ * 深色页面近白文字下板图同色隐形）。button 实心板反馈黑系
+ * 加深（对应板梯度档位 10% / 15%，不吃 `--as-icon-mix` 浓度变量——实心板无浓度语义），
+ * 回退与板同值防 hover 闪变异色；三类前缀 (0,4,0) 恒胜实心板规则与 BUTTON_SHAPE_RULE；
+ * scale 沿板通道现行值。
+ */
+const THEME_HOST_RULE = `.${ICON_THEME_CLASS}{color:var(--auto-theme-color,currentColor)}`;
+const THEME_SHAPE_RULE =
+    `.${ICON_CIRCLE_CLASS}.${ICON_THEME_CLASS},.${ICON_RADIUS_CLASS}.${ICON_THEME_CLASS}` +
+    "{background:var(--auto-theme-color,#333)}" +
+    `.${ICON_CIRCLE_CLASS} .${ICON_THEME_CLASS},.${ICON_RADIUS_CLASS} .${ICON_THEME_CLASS}` +
+    "{color:#fff}";
+const THEME_BUTTON_RULE =
+    `.${ICON_CIRCLE_CLASS}.${ICON_THEME_CLASS}.${ICON_BUTTON_CLASS}:hover,` +
+    `.${ICON_RADIUS_CLASS}.${ICON_THEME_CLASS}.${ICON_BUTTON_CLASS}:hover` +
+    "{background:color-mix(in srgb,var(--auto-theme-color,#333),#000 10%)}" +
+    `.${ICON_CIRCLE_CLASS}.${ICON_THEME_CLASS}.${ICON_BUTTON_CLASS}:active,` +
+    `.${ICON_RADIUS_CLASS}.${ICON_THEME_CLASS}.${ICON_BUTTON_CLASS}:active` +
+    "{background:color-mix(in srgb,var(--auto-theme-color,#333),#000 15%);" +
+    "transform:scale(.94)}";
+
 /** 惰性建表（幂等；SSR 无 document 守卫）。内容为静态常量，建表后不再变更。 */
 export function refreshIconStyle(): void {
     // 缓存表已连文档即免重写（内容是静态常量，重复覆写徒增样式重算）
@@ -252,6 +288,9 @@ export function refreshIconStyle(): void {
                     SHAPE_RADIUS_RULE,
                     BUTTON_HOST_RULE,
                     BUTTON_SHAPE_RULE,
+                    THEME_HOST_RULE,
+                    THEME_SHAPE_RULE,
+                    THEME_BUTTON_RULE,
                 ].join("\n"),
             { id: ICON_STYLE_ID, mode: "replace" },
         ) ?? null;

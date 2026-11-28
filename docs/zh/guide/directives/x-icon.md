@@ -207,6 +207,29 @@ const normalized = normalizeIconSvg('<svg viewBox="0 0 16 16" fill="none"><path 
 <span x-icon.circle="heart" x-icon-options="{color:'#f03d5e'}"></span>
 ```
 
+### 主题强调（theme）
+
+<demo html="icon/theme.html"/>
+
+`theme` 选项（布尔，修饰符 `x-icon.theme`）声明**主题强调形态**（ADR-0135 决策五）——淡板体系旁的实心强调分支，颜色全走类规则承载（挂 `as-icon-theme` 类，零内联）：
+
+| 组合                 | 图标色                          | 底板                          |
+| -------------------- | ------------------------------- | ----------------------------- |
+| `theme`（无 shape）  | `var(--auto-theme-color)`       | —                             |
+| `theme` + `shape`    | 恒定白色（不随底色/文字色变化） | 实心 `var(--auto-theme-color)` |
+
+- **双色调板**：`theme + shape` 成实心主题底板 + 白色图形（明暗两模式恒反差；dark 下 `--auto-theme-color` 自动取 theme-5 亮档，对比度由 theme 包校准体系保证）；
+- **显式 `color` 恒赢**：`theme` 是 `color` 未声明时的取值来源——显式 `color` 声明即接管整套颜色调度（浓板联动照旧），`theme` 整体退位（类不挂）；
+- **button 反馈**：实心板上 hover / press 黑系加深（10% / 15% + 缩放），不吃 `--as-icon-mix` 浓度变量；
+- **令牌缺失兜底**：未挂 @autospark/theme 时——无板图形回退 `currentColor`（随文字色）；双色调板回退中性深板 `#333`（图形恒白，任何明暗页面恒可见）。令牌由 @autospark/theme 提供（页面引 `autospark.theme.js` 运行时注入，或静态令牌层产物）。
+
+```html
+<!-- 主题色图形 / 双色调板 / 可点击 -->
+<span x-icon.theme="bell"></span>
+<span x-icon.theme.circle="bell"></span>
+<span x-icon.theme.circle.button="close"></span>
+```
+
 ### Pointer
 
 <demo html="icon/pointer.html"/>
@@ -406,11 +429,12 @@ for (const name of AutoSpark.icons) {
 | `color`     | `currentColor` | —        | string。图标颜色（内联 `color`，currentColor 继承体系；指定时底板联动浓板）                                  |
 | `padding`   | —            | —          | number \| string。内边距（图形区之外），单位语义同 `size`，总占位 = size + 2×padding；shape 态板距默认走 `var(--auto-padding, 0.3em)` 令牌，显式声明压倒 |
 | `shape`     | `none`        | `.circle` / `.radius` | "none" \| "circle" \| "radius"。图标底板形态（包裹层通道，ADR-0135）。`none` ≡ 未声明（无背景）；非法值 warn 剪枝 |
+| `theme`     | —            | `.theme`   | boolean。主题强调形态（挂类承载，ADR-0135 决策五）：无板图形取 `--auto-theme-color`；配 shape 成双色调板（实心主题板 + 恒白图形）。显式 `color` 恒赢（theme 退位）；非法值 warn 剪枝，见「主题强调」 |
 | `button`    | —            | `.button`  | boolean。图标按钮（hover / press 载体动效，隐含手型光标），见「图标按钮」                                     |
 | `pointer`   | —            | `.pointer` | boolean。手型光标 `cursor: pointer`（可点击语义）                                                             |
 | `rotate`    | —            | —          | number \| string。旋转角度（svg 载体 CSS transform，绝对姿态）：数字按 deg（负数逆时针、超 360 合法），纯数字字符串（"90"）宽容同按 deg，其余字符串原样透传 CSS；更新从当前角度动画续转（初次从 0° 入场），`0` / 空 = 不启用（动画归零）；时长经 `--as-icon-rotate-duration` 变量覆盖，见「旋转」 |
 
-**选项成员表达式热应用**：`x-icon-options:<成员>="表达式"` 随状态变化即时生效——`size` / `color` / `padding` / `strokeWidth` / `shape` / `button` / `pointer` 重放静态样式（含 shape 包裹层的动态挂 / 拆），`rotate` 从当前角度续转。组件把 x-icon 选项对象经成员表达式透传时（如 Button 的 `icon` 对象），改选项即改渲染，无需重挂载。
+**选项成员表达式热应用**：`x-icon-options:<成员>="表达式"` 随状态变化即时生效——`size` / `color` / `padding` / `strokeWidth` / `shape` / `theme` / `button` / `pointer` 重放静态样式（含 shape 包裹层的动态挂 / 拆与 theme 类挂 / 摘），`rotate` 从当前角度续转。组件把 x-icon 选项对象经成员表达式透传时（如 Button 的 `icon` 对象），改选项即改渲染，无需重挂载。
 
 **全局默认**（应用级默认配置，document 级全局、多 engine 共享）：**整体赋值**会**即时重渲染已渲染的图标**（主题切换场景）；深修改（`options.size = 48`）不广播，仅影响后续渲染：
 

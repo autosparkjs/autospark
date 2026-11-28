@@ -1,4 +1,6 @@
-/** 自 engine utils 整文件复制（ADR-0008 决策 3：overlay 家族消费，包内 utils 单源） */
+/** 自 engine utils 整文件复制（ADR-0008 决策 3：overlay 家族消费，包内 utils 单源）。
+ *  ⚠️ 已偏离 engine 原版：FloatingContract 含 fitPinnedAxes（ADR-0035 决策 4 fit 轴级
+ *  互斥，plugins 专有增量）——自 engine 同步本文件时须保留该键与 fitToEl 分支的集合判定。 */
 /**
  * 通用 floating-ui 定位装配（ADR-0052 决策 21–24 / ADR-0061 决策 14 的共享底座）。
  *
@@ -64,6 +66,12 @@ export interface FloatingContract {
      * autoUpdate 重算时持续生效。缺省 undefined（不 fit）。
      */
     fitToEl?: HTMLElement;
+    /**
+     * fit 互斥的显式轴集合（ADR-0035 决策 4，plugins 专有增量——engine 原版无此键）：
+     * 集合内的轴 fit **不写也不清**（显式 width/height 声明优先于跟随）；fit 只接管
+     * 未声明轴。缺省 undefined（fit 两轴全管，与既有行为一致）。
+     */
+    fitPinnedAxes?: ReadonlySet<"width" | "height">;
 }
 
 /** placement 主方向 → staticSide（箭头所在的面板边缘侧）映射 */
@@ -153,14 +161,17 @@ export function applyFloatingPosition(
                 // 面板尺寸跟随宿主（x-popover `fit`）：按最终 placement 主向自动选轴——
                 // 左右弹出（left/right 系）→ 高度与宿主一致；上下弹出（top/bottom 系）→ 宽度一致。
                 // inline 优先级高于样式表；autoUpdate 重算时持续生效（宿主尺寸变化自动跟随）。
+                // 轴级互斥（ADR-0035 决策 4）：显式声明轴（fitPinnedAxes）不写不清——
+                // 写主轴会冲掉声明值、清副轴会解除显式固定，fit 只接管未声明轴。
                 if (contract.fitToEl) {
                     const mainAxis = String(finalPlacement).split("-")[0];
+                    const pinned = contract.fitPinnedAxes;
                     if (mainAxis === "left" || mainAxis === "right") {
-                        panel.style.height = `${contract.fitToEl.offsetHeight}px`;
-                        panel.style.width = "";
+                        if (!pinned?.has("height")) panel.style.height = `${contract.fitToEl.offsetHeight}px`;
+                        if (!pinned?.has("width")) panel.style.width = "";
                     } else {
-                        panel.style.width = `${contract.fitToEl.offsetWidth}px`;
-                        panel.style.height = "";
+                        if (!pinned?.has("width")) panel.style.width = `${contract.fitToEl.offsetWidth}px`;
+                        if (!pinned?.has("height")) panel.style.height = "";
                     }
                 }
                 // 形态特化同步点（含 autoUpdate 重算路径）：长轴同步等消费方钩子（ADR-0063）

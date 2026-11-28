@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>menu 水平菜单 · 折叠</title>
+    <link rel="stylesheet" href="/autospark/autospark-theme.css" />
+    <link rel="stylesheet" href="/autospark/theme-demo.css" />
+    <style>
+      .hint {
+        color: var(--auto-secondary-color, #868e96);
+        font-size: 13px;
+        margin: 8px 0 0;
+      }
+      button.ctrl {
+        padding: 4px 10px;
+        cursor: pointer;
+      }
+      .auto-card-header > button.ctrl {
+        flex-grow: 0 !important;
+        margin-left: auto;
+      }
+      .wrap {
+        border: 1px dashed var(--auto-border-color, #ccc);
+        border-radius: 6px;
+        padding: 4px;
+      }
+    </style>
+    <script src="/autospark/autospark.theme.js"></script>
+    <script src="/autospark/autospark.js"></script>
+    <script src="/autospark/autospark.card.js"></script>
+    <script src="/autospark/autospark.overlay.js"></script>
+    <script src="/autospark/autospark.button.js"></script>
+    <script src="/autospark/autospark.menu.js"></script>
+    <script src="/autospark/theme-controls.js"></script>
+  </head>
+  <body>
+    <aside class="demo-panel"><theme-controls></theme-controls></aside>
+    <main class="demo-main">
+      <div class="auto-card">
+        <div class="auto-card-header">
+          水平折叠（collapsed —— 仅一级只显示图标 · 容器尺寸不变）
+          <button class="ctrl" type="button" style="float: right" @click="fold = !fold">
+            {{ fold ? '展开' : '折叠' }}
+          </button>
+        </div>
+        <div class="auto-card-body">
+          <div class="wrap">
+            <x-menu :items="menu" mode="horizontal" :collapsed="fold" :value="active"></x-menu>
+          </div>
+        </div>
+        <p class="hint">
+          垂直折叠会收窄为 collapsedWidth
+          图标条；水平折叠只让一级项只显示图标（悬停提示项名），容器宽度不变、子级仍在弹层内正常显示。折叠态由
+          button 承载，collapsed 支持响应式绑定。
+        </p>
+      </div>
+      <div class="auto-card">
+        <div class="auto-card-header">展开 / 折叠对照（同一份 items，fold 同步驱动）</div>
+        <div class="auto-card-body col" style="display: flex; flex-direction: column; gap: 12px">
+          <div class="wrap">
+            <x-menu :items="menu" mode="horizontal" :collapsed="false" :value="active"></x-menu>
+          </div>
+          <div class="wrap">
+            <x-menu :items="menu" mode="horizontal" :collapsed="true" :value="active"></x-menu>
+          </div>
+        </div>
+        <p class="hint">
+          上：展开态（图标 + 文字）；下：折叠态（仅图标）。两份菜单共享 active ——
+          折叠后激活项图标染激活色；选中弹层内的子项时激活标记停留在弹层项自身。
+        </p>
+      </div>
+    </main>
+    <script>
+      new AutoSpark(document.body, {
+        fold: false,
+        active: "home",
+        menu: [
+          { key: "home", label: "首页", icon: "file" },
+          {
+            key: "guide",
+            label: "指南",
+            icon: "folder",
+            children: [
+              { key: "g1", label: "快速入门" },
+              { key: "g2", label: "引擎", children: [{ key: "g2a", label: "响应式引擎" }] },
+            ],
+          },
+          {
+            key: "comps",
+            label: "组件",
+            icon: "copy",
+            children: [
+              { key: "c1", label: "通用" },
+              { key: "c2", label: "导航" },
+            ],
+          },
+          { key: "api", label: "API", icon: "bell" },
+          "-",
+          { key: "set", label: "设置", icon: "key" },
+        ],
+      });
+    </script>
+  </body>
+</html>
